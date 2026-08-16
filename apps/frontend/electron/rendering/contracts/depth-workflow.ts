@@ -36,6 +36,45 @@ export type DepthValidationResult<T> =
   | { success: false; issues: DepthValidationIssue[] };
 
 // ---------------------------------------------------------------------------
+// Runtime lifecycle IPC (renderer -> preload -> main)
+// ---------------------------------------------------------------------------
+
+export const DEPTH_PROBE_CHANNEL = "depth-runtime-probe";
+export const DEPTH_PREPARE_CHANNEL = "depth-runtime-prepare";
+export const DEPTH_ROLLBACK_CHANNEL = "depth-runtime-rollback";
+
+export const DEPTH_CHANNELS = [
+  DEPTH_PROBE_CHANNEL,
+  DEPTH_PREPARE_CHANNEL,
+  DEPTH_ROLLBACK_CHANNEL,
+] as const;
+
+export type DepthRuntimeState = "ready" | "needs-runtime" | "blocked" | "error";
+
+/** Fixed, fieldless request shape for all canonical lifecycle operations. */
+export interface DepthRuntimeLifecycleRequestV1 {
+  schemaVersion: typeof DEPTH_SCHEMA_VERSION;
+}
+
+export interface DepthRuntimeStatusV1 {
+  schemaVersion: typeof DEPTH_SCHEMA_VERSION;
+  state: DepthRuntimeState;
+  model: DepthModelId;
+  modelCacheDir: string;
+  modelDownloaded: boolean;
+  message?: string;
+}
+
+export interface DepthRuntimeActionReplyV1 {
+  schemaVersion: typeof DEPTH_SCHEMA_VERSION;
+  success: boolean;
+  status: DepthRuntimeStatusV1;
+  code?: string;
+  message?: string;
+  issues?: DepthValidationIssue[];
+}
+
+// ---------------------------------------------------------------------------
 // Request (written to disk as JSON, passed to the Python worker via --input)
 // ---------------------------------------------------------------------------
 
@@ -106,6 +145,99 @@ function pushIssue(
   message: string,
 ): void {
   issues.push({ path, message });
+}
+
+function rejectUnknownFields(
+  value: Record<string, unknown>,
+  allowed: readonly string[],
+  issues: DepthValidationIssue[],
+): void {
+  for (const key of Object.keys(value)) {
+    if (!allowed.includes(key)) pushIssue(issues, key, "包含未知字段");
+  }
+}
+
+function validateDepthRuntimeState(
+  value: unknown,
+  path: string,
+  issues: DepthValidationIssue[],
+): value is DepthRuntimeState {
+  if (value === "ready" || value === "needs-runtime" || value === "blocked" || value === "error") {
+    return true;
+  }
+  pushIssue(issues, path, "状态无效");
+  return false;
+}
+
+export function validateDepthRuntimeLifecycleRequest(
+  value: unknown,
+): DepthValidationResult<DepthRuntimeLifecycleRequestV1> {
+  const issues: DepthValidationIssue[] = [];
+  if (!isObject(value)) {
+    return { success: false, issues: [{ path: "root", message: "必须是对象" }] };
+  }
+  if (value.schemaVersion !== DEPTH_SCHEMA_VERSION) {
+    pushIssue(issues, "schemaVersion", `必须是 ${DEPTH_SCHEMA_VERSION}`);
+  }
+  rejectUnknownFields(value, ["schemaVersion"], issues);
+  return issues.length > 0
+    ? { success: false, issues }
+    : { success: true, value: value as unknown as DepthRuntimeLifecycleRequestV1 };
+}
+
+export function validateDepthRuntimeStatus(
+  value: unknown,
+): DepthValidationResult<DepthRuntimeStatusV1> {
+  const issues: DepthValidationIssue[] = [];
+  if (!isObject(value)) {
+    return { success: false, issues: [{ path: "root", message: "必须是对象" }] };
+  }
+  if (value.schemaVersion !== DEPTH_SCHEMA_VERSION) {
+    pushIssue(issues, "schemaVersion", `必须是 ${DEPTH_SCHEMA_VERSION}`);
+  }
+  validateDepthRuntimeState(value.state, "state", issues);
+  if (value.model !== "depth-anything-v2-small") pushIssue(issues, "model", "模型无效");
+  if (!isString(value.modelCacheDir) || !isAbsolutePath(value.modelCacheDir)) {
+    pushIssue(issues, "modelCacheDir", "必须是绝对路径");
+  }
+  if (typeof value.modelDownloaded !== "boolean") {
+    pushIssue(issues, "modelDownloaded", "必须是 boolean");
+  }
+  if (value.message !== undefined && !isString(value.message)) {
+    pushIssue(issues, "message", "必须是字符串");
+  }
+  rejectUnknownFields(value, ["schemaVersion", "state", "model", "modelCacheDir", "modelDownloaded", "message"], issues);
+  return issues.length > 0
+    ? { success: false, issues }
+    : { success: true, value: value as unknown as DepthRuntimeStatusV1 };
+}
+
+export function validateDepthRuntimeActionReply(
+  value: unknown,
+): DepthValidationResult<DepthRuntimeActionReplyV1> {
+  const issues: DepthValidationIssue[] = [];
+  if (!isObject(value)) {
+    return { success: false, issues: [{ path: "root", message: "必须是对象" }] };
+  }
+  if (value.schemaVersion !== DEPTH_SCHEMA_VERSION) {
+    pushIssue(issues, "schemaVersion", `必须是 ${DEPTH_SCHEMA_VERSION}`);
+  }
+  if (typeof value.success !== "boolean") pushIssue(issues, "success", "必须是 boolean");
+  const status = validateDepthRuntimeStatus(value.status);
+  if (!status.success) {
+    issues.push(...status.issues.map((issue) => ({ ...issue, path: `status.${issue.path}` })));
+  }
+  if (value.code !== undefined && !isString(value.code)) pushIssue(issues, "code", "必须是字符串");
+  if (value.message !== undefined && !isString(value.message)) pushIssue(issues, "message", "必须是字符串");
+  if (value.issues !== undefined) {
+    if (!Array.isArray(value.issues) || value.issues.some((issue) => !isObject(issue) || !isString(issue.path) || !isString(issue.message) || Object.keys(issue).some((key) => key !== "path" && key !== "message"))) {
+      pushIssue(issues, "issues", "必须是验证问题数组");
+    }
+  }
+  rejectUnknownFields(value, ["schemaVersion", "success", "status", "code", "message", "issues"], issues);
+  return issues.length > 0
+    ? { success: false, issues }
+    : { success: true, value: value as unknown as DepthRuntimeActionReplyV1 };
 }
 
 export function validateDepthEstimationRequest(

@@ -5,6 +5,7 @@
 // 每个代表镜产出 1 行对比图: 原图 + 6 个候选处理帧（hyperframes media-treatment --apply 渲染单帧）。
 import { execFileSync } from "node:child_process";
 import fs from "node:fs";
+import { resolveProjectDir } from "./resolve-project-dir.mjs";
 import path from "node:path";
 import os from "node:os";
 
@@ -12,7 +13,7 @@ const PROFILE = `${process.env.HOME}/Library/Application Support/漫影工作室
 const CLI = `${PROFILE}/node_modules/hyperframes/bin/hyperframes.mjs`;
 // ELECTRON_RUN_AS_NODE: 应用二进制兼作 Node 运行时（与 hyperframes worker 同模式）
 const NODE_BIN = "/Applications/漫影工作室.app/Contents/MacOS/漫影工作室";
-const PROJECT = `${process.env.HOME}/Library/Application Support/漫影工作室/projects/_p/49dce4c1-64b1-42de-85c2-9f266698aec0`;
+const PROJECT = resolveProjectDir();
 const OUT_DIR = path.resolve(path.dirname(new URL(import.meta.url).pathname), "../../../.trellis/tasks/08-15-inkwash-pixel-layer/research");
 
 // 代表镜: 近景动作 / 中景叙事 / 远景空镜
@@ -31,11 +32,20 @@ const CANDIDATES = [
   { key: "engraving", label: "engraving雕版", grading: { effects: { engraving: 1, engravingSpacing: 0.4117647058822529, engravingMinThickness: 0.2, engravingMaxThickness: 0.4571428571428572, engravingAngle: 0.25, engravingContrast: 0.4666666666666667, engravingSharpness: 0.59, engravingWave: 0.2, engravingWaveFrequency: 0.2222222222222222 } } },
 ];
 
+// 兼容两种落盘布局:章节子树 workflow-images/chapter-001/<flow>/ 与历史平铺 workflow-images/<flow>/
+// gen-* 跨目录按 mtime 取最新(重生成后新文件在任一布局中都能命中)
 function shotSourcePng(shotId) {
-  const dir = path.join(PROJECT, "workflow-images", `storyboard-flow-chapter-001-${shotId.slice(-3)}`);
-  const file = fs.readdirSync(dir).find((f) => f.startsWith("gen-"));
-  if (!file) throw new Error(`missing fresh gen image for ${shotId}`);
-  return path.join(dir, file);
+  const flowDir = `storyboard-flow-chapter-001-${shotId.slice(-3)}`;
+  const dirs = [
+    path.join(PROJECT, "workflow-images", "chapter-001", flowDir),
+    path.join(PROJECT, "workflow-images", flowDir),
+  ].filter((dir) => fs.existsSync(dir));
+  const latest = dirs
+    .flatMap((dir) => fs.readdirSync(dir).filter((f) => f.startsWith("gen-"))
+      .map((f) => ({ file: path.join(dir, f), mtime: fs.statSync(path.join(dir, f)).mtimeMs })))
+    .sort((a, b) => b.mtime - a.mtime)[0];
+  if (!latest) throw new Error(`missing fresh gen image for ${shotId}`);
+  return latest.file;
 }
 
 function probeSize(png) {

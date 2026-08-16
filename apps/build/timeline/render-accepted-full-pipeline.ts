@@ -4,7 +4,6 @@ import os from "node:os";
 import path from "node:path";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
-import { app, utilityProcess } from "electron";
 import type { RemotionCurrentSlotV1 } from "@/types/remotion-workspace";
 import { validateTimelineRenderPlan } from "@/lib/studio/editing/validation";
 import {
@@ -37,8 +36,26 @@ import { registeredProjectDir } from "./storage-paths";
 const execFileAsync = promisify(execFile);
 const PROJECT_ID = "49dce4c1-64b1-42de-85c2-9f266698aec0";
 const CHAPTER_ID = "chapter-001";
-const REVISION = 19;
+const REVISION = 23;
 const EXPECTED_VISUAL_COUNT = 43;
+
+type ElectronMainModule = typeof import("electron");
+type FormalElectronMain = Pick<ElectronMainModule, "app" | "utilityProcess">;
+
+declare global {
+  // TypeScript global augmentation requires `var` for a runtime global property.
+  // eslint-disable-next-line no-var
+  var __MYSTUDIO_FORMAL_ELECTRON_MAIN__: FormalElectronMain | undefined;
+}
+
+export function resolveFormalElectronMain(
+  value: FormalElectronMain | undefined = globalThis.__MYSTUDIO_FORMAL_ELECTRON_MAIN__,
+): FormalElectronMain {
+  if (!value?.app || !value.utilityProcess) {
+    throw new Error("formal renderer Electron main bridge is unavailable; use formal-renderer-electron-bootstrap.cjs");
+  }
+  return value;
+}
 
 export function resolveFormalProjectRoot(input: {
   explicitProjectRoot?: string;
@@ -54,6 +71,7 @@ export function resolveFormalProjectRoot(input: {
 }
 
 export async function runAcceptedFormalRenderer(): Promise<void> {
+  const { app, utilityProcess } = resolveFormalElectronMain();
   const appsRoot = path.resolve(process.env.MYSTUDIO_APPS_ROOT ?? process.cwd());
   const repoRoot = path.dirname(appsRoot);
   const productUserData = path.resolve(
@@ -71,7 +89,7 @@ export async function runAcceptedFormalRenderer(): Promise<void> {
   const revisionRoot = path.join(videoWorkflowRoot, CHAPTER_ID, `r${REVISION}`);
   const sourceRunDir = path.resolve(
     process.env.MYSTUDIO_FORMAL_SOURCE_RUN
-      ?? path.join(appsRoot, "output", "automation", "daojie-full-pipeline-1786798027864"),
+      ?? path.join(appsRoot, "output", "automation", "full-pipeline-1786801786018"),
   );
   const installedApp = path.resolve(
     process.env.MYSTUDIO_FORMAL_INSTALLED_APP ?? "/Applications/漫影工作室.app",
@@ -106,7 +124,7 @@ export async function runAcceptedFormalRenderer(): Promise<void> {
     appsRoot,
     "output",
     "automation",
-    `daojie-formal-renderer-${Date.now()}-${crypto.randomUUID().slice(0, 8)}`,
+    `formal-renderer-${Date.now()}-${crypto.randomUUID().slice(0, 8)}`,
   );
   const isolatedWorkspace = path.join(runDir, "formal-workspace");
   const snapshotsDir = path.join(runDir, "snapshots");
@@ -354,7 +372,7 @@ export async function runAcceptedFormalRenderer(): Promise<void> {
       schemaVersion: 1,
       generatedAt: new Date().toISOString(),
       runDir,
-      source: "accepted-r9-read-only",
+      source: "accepted-r23-read-only",
       projectId: PROJECT_ID,
       chapterId: CHAPTER_ID,
       revision: REVISION,
@@ -454,7 +472,7 @@ export async function runAcceptedFormalRenderer(): Promise<void> {
     console.error(`FORMAL_RENDER_FAILED=${message}`);
   } finally {
     await renderer?.dispose().catch(() => undefined);
-    finishFormalRenderer(exitCode);
+    finishFormalRenderer(exitCode, app);
   }
 }
 
@@ -464,10 +482,10 @@ export function resolveInstalledRemotionWorkerPath(resourcesRoot: string): strin
 
 export function finishFormalRenderer(
   exitCode: number,
-  lifecycle: Pick<typeof app, "quit"> = app,
+  lifecycle: Pick<ElectronMainModule["app"], "exit">,
 ): void {
   process.exitCode = exitCode;
-  lifecycle.quit();
+  lifecycle.exit(exitCode);
 }
 
 async function buildSourceInventory(
@@ -513,7 +531,7 @@ async function collisionInventory(files: readonly string[]): Promise<Record<stri
 }
 
 async function assertReadableRuntimePath(filePath: string, label: string): Promise<void> {
-  const stat = await fs.promises.stat(filePath);
+  const stat = await statFormalRuntimePath(filePath);
   if (!stat.isFile() || stat.size <= 0) throw new Error(`${label} is missing or empty: ${filePath}`);
 }
 
@@ -526,13 +544,37 @@ async function assertFileStable(filePath: string, before: Awaited<ReturnType<typ
 }
 
 async function fileIdentity(filePath: string): Promise<FormalFileIdentity> {
-  const stat = await fs.promises.stat(filePath);
+  const stat = await statFormalRuntimePath(filePath);
   return {
     path: filePath,
     sizeBytes: stat.size,
     mtimeMs: Math.floor(stat.mtimeMs),
-    sha256: await hashFileSha256(filePath),
+    sha256: filePath.endsWith(".asar")
+      ? await hashFormalRawFileSha256(filePath)
+      : await hashFileSha256(filePath),
   };
+}
+
+async function statFormalRuntimePath(filePath: string): Promise<Awaited<ReturnType<typeof fs.promises.stat>>> {
+  if (!filePath.endsWith(".asar")) return fs.promises.stat(filePath);
+  const previousNoAsar = process.noAsar;
+  process.noAsar = true;
+  try {
+    return await fs.promises.stat(filePath);
+  } finally {
+    process.noAsar = previousNoAsar;
+  }
+}
+
+export async function hashFormalRawFileSha256(filePath: string): Promise<string> {
+  const shasum = process.env.MYSTUDIO_SHASUM_PATH?.trim() || "/usr/bin/shasum";
+  const { stdout } = await execFileAsync(shasum, ["-a", "256", filePath], {
+    encoding: "utf8",
+    maxBuffer: 1024 * 1024,
+  });
+  const sha256 = /^([0-9a-f]{64})\s/i.exec(stdout)?.[1]?.toLowerCase();
+  if (!sha256) throw new Error(`raw SHA-256 output is invalid for ${filePath}`);
+  return sha256;
 }
 
 function checkedProjectRoot(projectId: string, projectRoot: string): string {

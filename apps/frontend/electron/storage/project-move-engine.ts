@@ -11,6 +11,7 @@
  * is the only injection point (tests force the EXDEV copy path with it).
  */
 
+import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 
@@ -53,6 +54,8 @@ interface RegularFileEntry {
   absolutePath: string;
   relativePath: string;
   size: number;
+  mtimeMs: number;
+  ctimeMs: number;
 }
 
 interface SymbolicLinkEntry {
@@ -102,7 +105,15 @@ function collectFileEntries(rootDir: string, prefix: string, entries: FileEntry[
     } else if (entry.isDirectory()) {
       collectFileEntries(absolutePath, relativePath, entries);
     } else if (entry.isFile()) {
-      entries.push({ kind: "file", absolutePath, relativePath, size: fs.statSync(absolutePath).size });
+      const stat = fs.statSync(absolutePath);
+      entries.push({
+        kind: "file",
+        absolutePath,
+        relativePath,
+        size: stat.size,
+        mtimeMs: stat.mtimeMs,
+        ctimeMs: stat.ctimeMs,
+      });
     }
   }
   return entries;
@@ -128,7 +139,7 @@ function yieldToEventLoop(): Promise<void> {
 }
 
 /** Phase 1 — copy every scanned file, reporting cumulative progress per file. */
-async function copyTree(options: TreePhaseOptions): Promise<void> {
+async function copyTree(options: TreePhaseOptions): Promise<FileEntry[]> {
   const entries = scanFileEntries(options.sourceDir);
   const filesTotal = entries.length;
   const bytesTotal = entries.reduce((total, entry) => total + entry.size, 0);
@@ -151,41 +162,78 @@ async function copyTree(options: TreePhaseOptions): Promise<void> {
     options.onProgress?.({ phase: "copying", filesDone, filesTotal, bytesDone, bytesTotal });
     await yieldToEventLoop();
   }
+  return entries;
 }
 
-/** Phase 2 — recursively compare both trees: file count and per-file size. */
-async function verifyTree(options: TreePhaseOptions): Promise<{ filesTotal: number; bytesTotal: number }> {
+async function hashFile(filePath: string, signal: AbortSignal | undefined): Promise<string> {
+  const hash = crypto.createHash("sha256");
+  for await (const chunk of fs.createReadStream(filePath)) {
+    throwIfAborted(signal);
+    hash.update(chunk as Buffer);
+  }
+  return hash.digest("hex");
+}
+
+/** Phase 2 — compare tree shape, stable source metadata, and regular-file bytes. */
+async function verifyTree(
+  options: TreePhaseOptions,
+  expectedSourceEntries: FileEntry[],
+): Promise<{ filesTotal: number; bytesTotal: number }> {
   const sourceEntries = scanFileEntries(options.sourceDir);
   const targetEntries = scanFileEntries(options.targetDir);
-  if (sourceEntries.length !== targetEntries.length) {
+  if (sourceEntries.length !== expectedSourceEntries.length || targetEntries.length !== expectedSourceEntries.length) {
     throw new Error(
-      `Project move verification failed: file count mismatch (source ${sourceEntries.length}, target ${targetEntries.length})`,
+      `Project move verification failed: file count mismatch (expected ${expectedSourceEntries.length}, source ${sourceEntries.length}, target ${targetEntries.length})`,
     );
   }
+  const sourceByPath = new Map<string, FileEntry>(
+    sourceEntries.map((entry) => [entry.relativePath, entry]),
+  );
   const targetByPath = new Map<string, FileEntry>(
     targetEntries.map((entry) => [entry.relativePath, entry]),
   );
-  const filesTotal = sourceEntries.length;
-  const bytesTotal = sourceEntries.reduce((total, entry) => total + entry.size, 0);
+  const filesTotal = expectedSourceEntries.length;
+  const bytesTotal = expectedSourceEntries.reduce((total, entry) => total + entry.size, 0);
   let filesDone = 0;
   let bytesDone = 0;
-  for (const entry of sourceEntries) {
+  for (const entry of expectedSourceEntries) {
     throwIfAborted(options.signal);
+    const sourceEntry = sourceByPath.get(entry.relativePath);
     const targetEntry = targetByPath.get(entry.relativePath);
-    if (!targetEntry) {
-      throw new Error(`Project move verification failed: missing target file ${entry.relativePath}`);
+    if (!sourceEntry || !targetEntry) {
+      throw new Error(`Project move verification failed: missing source or target file ${entry.relativePath}`);
     }
-    if (targetEntry.kind !== entry.kind) {
+    if (sourceEntry.kind !== entry.kind || targetEntry.kind !== entry.kind) {
       throw new Error(`Project move verification failed: entry type mismatch for ${entry.relativePath}`);
     }
     if (entry.kind === "symlink") {
-      if (targetEntry.kind !== "symlink" || targetEntry.linkTarget !== entry.linkTarget) {
+      if (sourceEntry.kind !== "symlink" || targetEntry.kind !== "symlink"
+        || sourceEntry.linkTarget !== entry.linkTarget || targetEntry.linkTarget !== entry.linkTarget) {
         throw new Error(`Project move verification failed: symlink mismatch for ${entry.relativePath}`);
       }
-    } else if (targetEntry.size !== entry.size) {
-      throw new Error(
-        `Project move verification failed: size mismatch for ${entry.relativePath} (source ${entry.size}, target ${targetEntry.size})`,
-      );
+    } else {
+      if (sourceEntry.kind !== "file" || targetEntry.kind !== "file"
+        || sourceEntry.size !== entry.size || targetEntry.size !== entry.size
+        || sourceEntry.mtimeMs !== entry.mtimeMs || sourceEntry.ctimeMs !== entry.ctimeMs) {
+        throw new Error(`Project move verification failed: source changed or size mismatch for ${entry.relativePath}`);
+      }
+      const [sourceSha256, targetSha256] = await Promise.all([
+        hashFile(sourceEntry.absolutePath, options.signal),
+        hashFile(targetEntry.absolutePath, options.signal),
+      ]);
+      const sourceAfterHash = fs.statSync(sourceEntry.absolutePath);
+      const targetAfterHash = fs.statSync(targetEntry.absolutePath);
+      if (sourceAfterHash.size !== sourceEntry.size
+        || sourceAfterHash.mtimeMs !== sourceEntry.mtimeMs
+        || sourceAfterHash.ctimeMs !== sourceEntry.ctimeMs
+        || targetAfterHash.size !== targetEntry.size
+        || targetAfterHash.mtimeMs !== targetEntry.mtimeMs
+        || targetAfterHash.ctimeMs !== targetEntry.ctimeMs) {
+        throw new Error(`Project move verification failed: file changed while hashing ${entry.relativePath}`);
+      }
+      if (sourceSha256 !== targetSha256) {
+        throw new Error(`Project move verification failed: content mismatch for ${entry.relativePath}`);
+      }
     }
     filesDone += 1;
     bytesDone += entry.size;
@@ -212,8 +260,8 @@ async function moveProject(options: ProjectMoveOptions): Promise<ProjectMoveMode
     onProgress: options.onProgress,
   };
   try {
-    await copyTree(treePhaseOptions);
-    const totals = await verifyTree(treePhaseOptions);
+    const expectedSourceEntries = await copyTree(treePhaseOptions);
+    const totals = await verifyTree(treePhaseOptions, expectedSourceEntries);
     options.onProgress?.({
       phase: "finalizing",
       filesDone: totals.filesTotal,

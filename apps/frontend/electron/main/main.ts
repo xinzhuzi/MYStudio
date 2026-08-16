@@ -898,8 +898,18 @@ const upscaleRuntimeController = createUpscaleRuntimeController({
       return null
     }
   },
+  resolveLocalMediaPath: (url) => {
+    try {
+      return resolveLocalMediaPath(getMediaRoot(), url)
+    } catch {
+      return null
+    }
+  },
 })
 const upscaleIpc = registerUpscaleIpcHandlers({ controller: upscaleRuntimeController })
+// 非阻塞启动期刷新:冷启动后 status() 即反映真实运行时/模型状态,超分动作的
+// precheck(节点按钮/分镜 tile)无需用户先访问设置页。
+void upscaleRuntimeController.refresh()
 
 // Local music generation sidecar — MusicGen BGM generation via CLI worker.
 // Same explicit-download policy; generated WAVs feed the chapter BGM track.

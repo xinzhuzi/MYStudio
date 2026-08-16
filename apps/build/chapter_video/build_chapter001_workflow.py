@@ -56,8 +56,9 @@ TTS_JSON = PROJECT / "tts.json"
 CHARACTERS_JSON = PROJECT / "characters.json"
 SCENES_JSON = PROJECT / "scenes.json"
 PROPS_JSON = PROJECT / "props.json"
-EXPORTS = PROJECT / "exports" / "chapter-001"
-EXPORTS = Path(os.environ.get("MYSTUDIO_EXPORTS_DIR", str(EXPORTS)))
+EPISODE_ID = os.environ.get("MYSTUDIO_EPISODE_ID", "chapter-001")
+# 资产 fixture(var-chapter-001-* 等)是章一专属数据,换章须连同数据一起重制
+EXPORTS = Path(os.environ.get("MYSTUDIO_EXPORTS_DIR", str(PROJECT / "exports" / EPISODE_ID)))
 FRAMES = EXPORTS / "storyboard-frames"
 AUDIO = EXPORTS / "voice-audio"
 SEGMENTS = EXPORTS / "clip-segments"
@@ -68,7 +69,6 @@ TTS_ROOT_DIR = STORAGE_BASE_PATH / "TTS"
 TTS_RUNTIME_DIR = TTS_ROOT_DIR / "runtime"
 TTS_MODELS_DIR = TTS_ROOT_DIR / "model"
 
-EPISODE_ID = "chapter-001"
 WORK_TITLE = resolve_work_title(STORAGE_BASE_PATH)
 EPISODE_TITLE = os.environ.get("CHAPTER_VIDEO_EPISODE_TITLE", "").strip()
 FINAL_NAME = (

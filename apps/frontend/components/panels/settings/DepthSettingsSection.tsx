@@ -1,6 +1,6 @@
 "use client";
 
-import { Check, Download, FolderOpen, Loader2, Layers, Trash2, Video } from "lucide-react";
+import { Check, Download, FolderOpen, Loader2, Layers, RefreshCw, RotateCcw, Trash2, Video } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -31,13 +31,37 @@ type DepthSettingsSectionProps = {
 export function DepthSettingsSection({ embedded = false }: DepthSettingsSectionProps) {
   const runtime = useDepthRuntimeSettings();
   const status = runtime.status;
-  const isRuntimeReady = status?.state === "ready";
+  const lifecycleState = runtime.lifecycleStatus?.state ?? status?.state;
+  const isRuntimeReady = lifecycleState === "ready";
+  const lifecycleStatusLabel = runtime.isProbing
+    ? "检查中"
+    : lifecycleState === "ready"
+      ? "已就绪"
+      : lifecycleState === "needs-runtime"
+        ? "需要准备运行时"
+        : lifecycleState === "blocked"
+          ? "已阻塞"
+          : lifecycleState === "error"
+            ? "检查失败"
+            : "未探测";
+  const lifecycleStatusClass = lifecycleState === "ready"
+    ? "border-green-500/30 bg-green-500/10 text-green-700 dark:text-green-300"
+    : lifecycleState === "blocked" || lifecycleState === "error"
+      ? "border-destructive/30 bg-destructive/10 text-destructive"
+      : "border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-300";
   const setupFailed = status?.setupStage === "failed";
-  const modelDownloaded = status?.modelDownloaded ?? false;
+  const modelDownloaded = runtime.lifecycleStatus?.modelDownloaded ?? status?.modelDownloaded ?? false;
   const downloading = status?.downloadStatus === "downloading" || runtime.isDownloading;
   const downloadFailed = status?.downloadStatus === "error";
   const setupProgress = status?.setupProgress;
   const downloadProgress = downloading ? (status?.downloadProgress ?? 0) : undefined;
+  const modelCacheDir = runtime.lifecycleStatus?.modelCacheDir ?? status?.modelCacheDir ?? "";
+  const prepareDisabled = runtime.isSettingUp
+    || runtime.isRollingBack
+    || runtime.isProbing
+    || downloading
+    || (runtime.hasLifecycleBridge && isRuntimeReady);
+  const rollbackAvailable = runtime.hasLifecycleBridge && isRuntimeReady;
 
   const handleSelectCacheDir = async () => {
     const storageManager = getStorageManagerBridge();
@@ -51,7 +75,7 @@ export function DepthSettingsSection({ embedded = false }: DepthSettingsSectionP
   };
 
   const handleOpenCacheDir = async () => {
-    const target = status?.modelCacheDir?.trim();
+    const target = modelCacheDir.trim();
     if (!target || !window.electronAPI?.openPath) {
       toast.error("没有可打开的模型目录");
       return;
@@ -74,36 +98,73 @@ export function DepthSettingsSection({ embedded = false }: DepthSettingsSectionP
 
   return (
     <div className="space-y-4 px-5 py-4">
-      {/* Runtime row */}
-      <div className="flex items-center justify-between gap-4">
+      {/* Typed lifecycle row; legacy setup remains the compatibility fallback. */}
+      <div className="flex flex-wrap items-center justify-between gap-4">
         <div className="flex items-center gap-2 text-sm">
           {isRuntimeReady ? (
             <Check className="h-4 w-4 text-green-500" aria-hidden />
           ) : (
             <Layers className="h-4 w-4 text-muted-foreground" aria-hidden />
           )}
-          <span className={cn("font-medium", setupFailed && "text-destructive")}>
-            {isRuntimeReady
-              ? "运行时已就绪"
-              : setupFailed
-                ? (status?.setupMessage ?? "运行时配置失败")
-                : (status?.setupMessage ?? "未配置（依赖共享 Python 运行环境）")}
-          </span>
+          <div className="flex flex-wrap items-center gap-2">
+            <span className={cn("font-medium", setupFailed && "text-destructive")}>深度估计运行时</span>
+            <span
+              className={cn("rounded-full border px-2 py-0.5 text-xs", lifecycleStatusClass)}
+              data-depth-runtime-state={lifecycleState ?? "unknown"}
+            >
+              {lifecycleStatusLabel}
+            </span>
+          </div>
         </div>
-        <Button
-          size="sm"
-          variant="outline"
-          onClick={() => void runtime.setupRuntime()}
-          disabled={runtime.isSettingUp || runtime.isSetupActive || downloading}
-        >
-          {runtime.isSettingUp || runtime.isSetupActive ? (
-            <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden />
-          ) : (
-            <Layers className="mr-2 h-4 w-4" aria-hidden />
-          )}
-          {isRuntimeReady ? "重新检查" : "配置运行时"}
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          {runtime.hasLifecycleBridge ? (
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={() => void runtime.probeRuntime()}
+              disabled={runtime.isSettingUp || runtime.isRollingBack || runtime.isProbing || downloading}
+            >
+              <RefreshCw className={cn("mr-2 h-4 w-4", runtime.isProbing && "animate-spin")} aria-hidden />
+              探测
+            </Button>
+          ) : null}
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => void runtime.setupRuntime()}
+            disabled={prepareDisabled || runtime.isSetupActive}
+          >
+            {runtime.isSettingUp || runtime.isSetupActive ? (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden />
+            ) : (
+              <Layers className="mr-2 h-4 w-4" aria-hidden />
+            )}
+            {runtime.hasLifecycleBridge && isRuntimeReady ? "已准备" : isRuntimeReady ? "重新检查" : "准备"}
+          </Button>
+          {runtime.hasLifecycleBridge ? (
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={() => void runtime.rollbackRuntime()}
+              disabled={!rollbackAvailable || runtime.isSettingUp || runtime.isRollingBack || runtime.isProbing || downloading}
+            >
+              {runtime.isRollingBack ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden />
+              ) : (
+                <RotateCcw className="mr-2 h-4 w-4" aria-hidden />
+              )}
+              回滚
+            </Button>
+          ) : null}
+        </div>
       </div>
+
+      {runtime.lifecycleError ? (
+        <p className="text-xs text-destructive" role="alert">{runtime.lifecycleError}</p>
+      ) : null}
+      {runtime.lifecycleStatus?.message && !runtime.lifecycleError ? (
+        <p className="text-xs text-muted-foreground">{runtime.lifecycleStatus.message}</p>
+      ) : null}
 
       {(runtime.isSetupActive || setupFailed) && setupProgress !== undefined && !setupFailed && (
         <div className="space-y-1">
@@ -168,6 +229,23 @@ export function DepthSettingsSection({ embedded = false }: DepthSettingsSectionP
         </div>
       </div>
 
+      <dl className="grid gap-1 rounded-lg border border-border bg-muted/20 p-3 text-xs text-muted-foreground" data-depth-model-info>
+        <div className="grid grid-cols-[5rem_minmax(0,1fr)] gap-2">
+          <dt>模型</dt>
+          <dd className="font-medium text-foreground">Depth Anything V2 Small</dd>
+        </div>
+        <div className="grid grid-cols-[5rem_minmax(0,1fr)] gap-2">
+          <dt>许可证</dt>
+          <dd className="text-foreground">Apache-2.0</dd>
+        </div>
+        <div className="grid grid-cols-[5rem_minmax(0,1fr)] gap-2">
+          <dt>缓存路径</dt>
+          <dd className="truncate font-mono text-foreground" title={modelCacheDir || "未配置"}>
+            {modelCacheDir || "未配置"}
+          </dd>
+        </div>
+      </dl>
+
       {downloading && downloadProgress !== undefined && (
         <div className="space-y-1">
           <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
@@ -189,7 +267,7 @@ export function DepthSettingsSection({ embedded = false }: DepthSettingsSectionP
         <Label className="text-xs text-muted-foreground">模型缓存目录</Label>
         <Input
           readOnly
-          value={status?.modelCacheDir ?? ""}
+          value={modelCacheDir}
           placeholder="…/DeepModel"
           containerClassName="w-full min-w-0"
           className="min-w-0 font-mono text-xs truncate"
@@ -208,7 +286,7 @@ export function DepthSettingsSection({ embedded = false }: DepthSettingsSectionP
             size="sm"
             variant="outline"
             onClick={() => void handleOpenCacheDir()}
-            disabled={!status?.modelCacheDir}
+            disabled={!modelCacheDir}
           >
             <FolderOpen className="mr-1 h-4 w-4" aria-hidden />
             打开
@@ -219,6 +297,9 @@ export function DepthSettingsSection({ embedded = false }: DepthSettingsSectionP
       <p className="text-xs text-muted-foreground leading-5">
         深度模型用于静态图 → 3D 电影级纵深效果（相机推拉/环绕/视差 + 景深）。模型仅在点击下载时获取，
         渲染时绝不自动下载；下载源：ModelScope（国内优先），失败回退 HuggingFace。
+      </p>
+      <p className="text-xs leading-5 text-muted-foreground">
+        分镜选择 cinematic 预设后渲染时自动调用；CLI 用 MYSTUDIO_CINEMATIC=1 npm run video:full-pipeline
       </p>
 
       {/* Cinematic camera preset */}

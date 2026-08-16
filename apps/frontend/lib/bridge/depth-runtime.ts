@@ -6,8 +6,16 @@ import type {
   DepthModelStatusRow,
   DepthRuntimeStatus,
 } from "@/types/depth";
+import type {
+  DepthRuntimeActionReplyV1,
+  DepthRuntimeLifecycleRequestV1,
+  DepthRuntimeStatusV1,
+} from "@rendering/contracts/depth-workflow";
 
 export interface DepthRuntimeBridge {
+  probe: (request?: DepthRuntimeLifecycleRequestV1) => Promise<DepthRuntimeStatusV1>;
+  prepare: (request?: DepthRuntimeLifecycleRequestV1) => Promise<DepthRuntimeActionReplyV1>;
+  rollback: (request?: DepthRuntimeLifecycleRequestV1) => Promise<DepthRuntimeActionReplyV1>;
   status: () => Promise<DepthRuntimeStatus>;
   setup: () => Promise<DepthRuntimeStatus>;
   refresh: () => Promise<DepthRuntimeStatus>;

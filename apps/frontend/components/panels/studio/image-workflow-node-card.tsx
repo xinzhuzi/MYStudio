@@ -1,9 +1,11 @@
+import { useState } from "react";
 import { Handle, Position, type Node, type NodeProps } from "@xyflow/react";
-import { CheckCircle2, Image as ImageIcon, Loader2, Save, Trash2, WandSparkles } from "lucide-react";
+import { CheckCircle2, Image as ImageIcon, Loader2, Save, Trash2, WandSparkles, ZoomIn } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { LocalImage } from "@/components/ui/local-image";
 import { Textarea } from "@/components/ui/textarea";
 import { ModelSelector } from "@/components/panels/assist/ModelSelector";
+import { UPSCALE_INPUT_MAX_LONG_SIDE } from "@/lib/upscale/client";
 import { IMAGE_ASPECT_RATIOS, IMAGE_RESOLUTIONS } from "@/lib/ai/image-size-presets";
 import { cn } from "@/lib/utils";
 import type {
@@ -21,6 +23,7 @@ export interface ImageWorkflowNodeData extends Record<string, unknown> {
   storyboards: StoryboardItem[];
   onUpdate: (nodeId: string, updates: Partial<ImageWorkflowNode>) => void;
   onGenerate: (nodeId: string) => void;
+  onUpscale: (nodeId: string) => void | Promise<void>;
   onApplyToStoryboard: (nodeId: string) => void;
   onDelete: (nodeId: string) => void;
 }
@@ -84,6 +87,7 @@ export function ImageWorkflowNodeCard({ data }: NodeProps<ImageWorkflowReactNode
           promptNode={data.promptNode}
           onUpdate={data.onUpdate}
           onGenerate={data.onGenerate}
+          onUpscale={data.onUpscale}
           onApplyToStoryboard={data.onApplyToStoryboard}
         />
       )}
@@ -193,15 +197,19 @@ function GeneratedNodeEditor({
   promptNode,
   onUpdate,
   onGenerate,
+  onUpscale,
   onApplyToStoryboard,
 }: {
   node: ImageWorkflowGeneratedNode;
   promptNode?: ImageWorkflowPromptNode;
   onUpdate: ImageWorkflowNodeData["onUpdate"];
   onGenerate: ImageWorkflowNodeData["onGenerate"];
+  onUpscale: ImageWorkflowNodeData["onUpscale"];
   onApplyToStoryboard: ImageWorkflowNodeData["onApplyToStoryboard"];
 }) {
   const generating = node.status === "generating" || node.status === "queued";
+  const [imageLongSide, setImageLongSide] = useState(0);
+  const alreadyUpscaled = imageLongSide > UPSCALE_INPUT_MAX_LONG_SIDE;
   const generationPrompt = promptNode ?? node;
   const updateGenerationPrompt = (updates: Partial<ImageWorkflowPromptNode | ImageWorkflowGeneratedNode>) => {
     onUpdate((promptNode ?? node).id, updates as Partial<ImageWorkflowNode>);
@@ -211,7 +219,15 @@ function GeneratedNodeEditor({
     <div className="space-y-3">
       <div className="aspect-video overflow-hidden rounded-md border border-border bg-muted/30">
         {node.resultUrl ? (
-          <LocalImage src={node.resultUrl} alt={node.title} className="h-full w-full object-cover" />
+          <LocalImage
+            src={node.resultUrl}
+            alt={node.title}
+            className="h-full w-full object-cover"
+            onLoad={(event) => {
+              const image = event.currentTarget;
+              setImageLongSide(Math.max(image.naturalWidth, image.naturalHeight));
+            }}
+          />
         ) : (
           <div className="flex h-full items-center justify-center text-xs text-muted-foreground">
             {node.status === "failed" ? node.errorReason || "生成失败" : "等待生成"}
@@ -227,6 +243,18 @@ function GeneratedNodeEditor({
           <Button size="sm" variant="secondary" onClick={() => onApplyToStoryboard(node.id)} disabled={!node.resultUrl}>
             <Save className="h-3.5 w-3.5" />
             回写
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => void onUpscale(node.id)}
+            disabled={!node.resultUrl || generating || alreadyUpscaled}
+            title={alreadyUpscaled
+              ? `已达 4K(${imageLongSide}px 长边)，无需再超分`
+              : "本地 Real-ESRGAN 原生 ×4 放大(1K→4K)"}
+          >
+            {generating ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <ZoomIn className="h-3.5 w-3.5" />}
+            超分 4K
           </Button>
           <Button size="sm" onClick={() => onGenerate(node.id)} disabled={generating}>
             {generating ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <WandSparkles className="h-3.5 w-3.5" />}

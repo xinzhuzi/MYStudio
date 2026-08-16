@@ -77,6 +77,9 @@ vi.mock("./PythonSettingsTab", () => ({
 vi.mock("./DepthSettingsSection", () => ({
   DepthSettingsSection: ({ embedded }: { embedded?: boolean }) => <div data-testid="depth-section">{String(embedded)}</div>,
 }));
+vi.mock("./UpscaleSettingsSection", () => ({
+  UpscaleSettingsSection: ({ embedded }: { embedded?: boolean }) => <div data-testid="upscale-section">{String(embedded)}</div>,
+}));
 vi.mock("./LocalAudioSettingsSection", () => ({
   LocalAudioSettingsSection: ({ embedded }: { embedded?: boolean }) => <div data-testid="audio-gen-section">{String(embedded)}</div>,
 }));
@@ -106,12 +109,14 @@ describe("PluginSettingsTab", () => {
     expect(headings).toEqual([
       "本地配置",
       "Python 运行环境",
-      "深度估计模型",
+      "深度估计（电影级 3D）",
+      "图片超分（1K → 4K）",
       "本地音乐生成",
       "TTS 运行时与模型",
       "视频工作流插件",
     ]);
     expect(screen.getByTestId("python-section").textContent).toBe("true");
+    expect(screen.getByTestId("upscale-section").textContent).toBe("true");
     expect(await screen.findByTestId("tts-section")).toBeTruthy();
     expect(screen.getByTestId("video-section").textContent).toBe("true");
   });

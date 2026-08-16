@@ -24,7 +24,9 @@ vi.mock("electron", () => ({
 
 import {
   finishFormalRenderer,
+  hashFormalRawFileSha256,
   resolveInstalledRemotionWorkerPath,
+  resolveFormalElectronMain,
   resolveFormalProjectRoot,
 } from "./render-accepted-full-pipeline";
 
@@ -159,15 +161,31 @@ describe("formal installed runtime lifecycle", () => {
   });
 
   it("preserves the failure exit code before requesting Electron shutdown", () => {
-    const lifecycle = { quit: vi.fn() };
+    const lifecycle = { exit: vi.fn() };
     const previousExitCode = process.exitCode;
     try {
       finishFormalRenderer(1, lifecycle);
 
       expect(process.exitCode).toBe(1);
-      expect(lifecycle.quit).toHaveBeenCalledOnce();
+      expect(lifecycle.exit).toHaveBeenCalledWith(1);
     } finally {
       process.exitCode = previousExitCode;
+    }
+  });
+
+  it("fails clearly when the Electron-hosted bootstrap did not inject main-process APIs", () => {
+    expect(() => resolveFormalElectronMain(undefined)).toThrow("Electron main bridge is unavailable");
+  });
+
+  it("hashes raw asar bytes without traversing Electron's virtual archive filesystem", async () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), "mystudio-formal-asar-"));
+    const asarPath = path.join(root, "app.asar");
+    fs.writeFileSync(asarPath, "raw-asar-bytes", "utf8");
+    try {
+      await expect(hashFormalRawFileSha256(asarPath)).resolves
+        .toBe("9e13bc081251cfa085806465f01484cea493f1578d5313861b621139f049647d");
+    } finally {
+      fs.rmSync(root, { recursive: true, force: true });
     }
   });
 });

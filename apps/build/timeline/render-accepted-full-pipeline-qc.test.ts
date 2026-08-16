@@ -3,6 +3,7 @@ import {
   assertDistinctFirstShots,
   assertFormalStreamCounts,
   assertSourceFrameMatch,
+  expectedFormalDurationSeconds,
   formalQcSampleIndexes,
   parseBlackdetect,
   parseSsim,
@@ -24,6 +25,19 @@ describe("formal renderer QC parsers", () => {
 });
 
 describe("formal renderer QC gates", () => {
+  it("uses transition-compressed frame duration instead of raw EDL end time", () => {
+    const plan = {
+      renderSettings: { fps: 30 },
+      clips: [
+        { id: "shot-1", trackKind: "video", startUs: 0, durationUs: 2_000_000 },
+        { id: "shot-2", trackKind: "video", startUs: 2_000_000, durationUs: 2_000_000 },
+      ],
+      transitions: [{ fromClipId: "shot-1", toClipId: "shot-2", effectId: "fade", durationUs: 200_000 }],
+    } as Parameters<typeof expectedFormalDurationSeconds>[0];
+
+    expect(expectedFormalDurationSeconds(plan)).toBeCloseTo(3.8, 6);
+  });
+
   it("always compares the second output shot with the second source shot", () => {
     expect(formalQcSampleIndexes(43)).toEqual([0, 1, 21, 42]);
   });

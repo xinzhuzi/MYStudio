@@ -258,6 +258,74 @@ describe("asset-generation-orchestrator", () => {
     expect(graph?.nodes.some((node) => node.type === "generated")).toBe(true);
   });
 
+  it("scopes chapter-exclusive derivative assets under the chapter directory and keeps base assets shared", async () => {
+    usePropsLibraryStore.setState({
+      items: [
+        {
+          id: "prop-parent",
+          name: "断剑",
+          description: "一柄断裂的古剑",
+          imageUrl: "",
+          folderId: null,
+          projectId: "dao-project",
+          createdAt: 1,
+        },
+        {
+          id: "prop-ch1",
+          name: "断剑",
+          category: "雨夜湿剑",
+          description: "雨夜状态",
+          imageUrl: "",
+          folderId: null,
+          parentId: "prop-parent",
+          isDerivative: true,
+          projectId: "dao-project",
+          createdAt: 2,
+        },
+      ],
+      folders: [],
+      selectedFolderId: "all",
+    });
+    const saveImage = vi.fn().mockResolvedValue({
+      success: true,
+      url: "project-file://dao-project/workflow-images/assets/chapter-001/prop/prop-ch1.png",
+      size: 100,
+    });
+    (window as any).projectFiles = { saveImage };
+
+    const derivative = await generateAsset({
+      assetId: "prop-ch1",
+      assetType: "prop",
+      projectId: "dao-project",
+      name: "断剑",
+      description: "雨夜状态",
+      isDerivative: true,
+      chapterId: "chapter-001",
+      visualManualId: "ink",
+    });
+    expect(derivative.phase).toBe("done");
+    expect(saveImage).toHaveBeenCalledWith(expect.objectContaining({
+      relativePath: expect.stringMatching(/^workflow-images\/assets\/chapter-001\/prop\/prop-ch1-/),
+    }));
+
+    saveImage.mockClear();
+    const base = await generateAsset({
+      assetId: "prop-parent",
+      assetType: "prop",
+      projectId: "dao-project",
+      name: "断剑",
+      description: "一柄断裂的古剑",
+      isDerivative: false,
+      chapterId: "chapter-001",
+      visualManualId: "ink",
+    });
+    expect(base.phase).toBe("done");
+    // 基类资产即使误传 chapterId 也必须留在共享目录(避免被章节删除误伤)
+    expect(saveImage).toHaveBeenCalledWith(expect.objectContaining({
+      relativePath: expect.stringMatching(/^workflow-images\/assets\/prop\/prop-parent-/),
+    }));
+  });
+
   it("keeps project asset generation failed when projectFiles.saveImage returns a failure", async () => {
     const saveImage = vi.fn().mockResolvedValue({
       success: false,

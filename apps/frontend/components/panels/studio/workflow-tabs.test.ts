@@ -659,7 +659,7 @@ describe("studio workflow tabs", () => {
     expect(canvasSource).not.toContain("nodeDragHandle");
     expect(indexSource).not.toContain("activeValue={activeWorkflowTab}");
     expect(zoomProbeSource).toContain("MYSTUDIO_ZOOM_PROBE_INPUT_REPORT_PATH");
-    expect(zoomProbeSource).toContain('report.result?.source !== "real-daojie-chapter001-clone"');
+    expect(zoomProbeSource).toContain('report.result?.source !== "real-project-clone"');
     expect(zoomProbeSource).toContain("for (let cycle = 1; cycle <= 5; cycle += 1)");
     expect(zoomProbeSource).toContain('measureRound(cdp, "fit", cycle, child.pid)');
     expect(zoomProbeSource).toContain("nodeRects");

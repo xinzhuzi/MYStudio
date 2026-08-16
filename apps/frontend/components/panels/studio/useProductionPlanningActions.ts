@@ -511,6 +511,7 @@ export function collectDerivedAssetGenerationTasks(
   resolver: EntityResolver,
   visualManualId: string,
   projectId: string,
+  chapterId?: string,
 ): {
   characterVariationTasks: CharacterVariationGenerationTask[];
   storeTasks: AssetGenerationTask[];
@@ -570,6 +571,7 @@ export function collectDerivedAssetGenerationTasks(
         assetId: scene.id,
         assetType: "scene",
         projectId,
+        chapterId,
         name: scene.name,
         description:
           [scene.location, scene.time, scene.atmosphere, scene.notes]
@@ -601,6 +603,7 @@ export function collectDerivedAssetGenerationTasks(
       assetId: prop.id,
       assetType: "prop",
       projectId,
+      chapterId,
       name: prop.name,
       description: prop.description || item.reason,
       isDerivative: true,

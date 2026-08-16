@@ -31,6 +31,7 @@ import {
   notifyAssetLibraryUpdated,
 } from "./image-workflow-asset-bridge";
 import {
+  chapterScopeForWorkflowTarget,
   createWorkflowFilename,
   workflowImageRelativePath,
 } from "./image-workflow-file-utils";
@@ -198,11 +199,13 @@ export function useImageWorkflowActions({
       if (!activeProjectId) throw new Error("请先选择项目");
       const bytes = await file.arrayBuffer();
       const id = createId("ref");
+      const chapterId = chapterScopeForWorkflowTarget(activeGraph.target, storyboards);
       const saved = await getProjectFilesBridge()?.writeBinary({
         projectId: activeProjectId,
         relativePath: workflowImageRelativePath(
           activeGraph.id,
           createWorkflowFilename("ref", id, file.name),
+          chapterId,
         ),
         bytes,
       });
@@ -227,7 +230,7 @@ export function useImageWorkflowActions({
     } finally {
       if (uploadInputRef.current) uploadInputRef.current.value = "";
     }
-  }, [activeGraph, activeProjectId, addMaterial, saveGraph, setSelectedNodeId, uploadInputRef]);
+  }, [activeGraph, activeProjectId, addMaterial, saveGraph, setSelectedNodeId, storyboards, uploadInputRef]);
 
   const applyNodeToStoryboard = useCallback((nodeId: string) => {
     if (!activeGraph) return;

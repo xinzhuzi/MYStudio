@@ -59,6 +59,16 @@ import type {
 } from "@rendering/plugins/remotion/queue/remotion-queue-ipc";
 import type { RemotionQueueNotification } from "@rendering/plugins/remotion/queue/remotion-render-queue";
 import type { RemotionChapterManifestBridge } from "@rendering/plugins/remotion/manifest/remotion-chapter-manifest-ipc";
+import type {
+  DepthRuntimeActionReplyV1,
+  DepthRuntimeLifecycleRequestV1,
+  DepthRuntimeStatusV1,
+} from "@rendering/contracts/depth-workflow";
+import type {
+  UpscaleRuntimeActionReplyV1,
+  UpscaleRuntimeLifecycleRequestV1,
+  UpscaleRuntimeStatusV1,
+} from "@rendering/contracts/upscale-workflow";
 import type { ProjectFolderBridge } from "@/electron/ipc/projects/project-folder-ipc";
 import type {
   RemotionStudioEnsureSessionReply,
@@ -506,6 +516,9 @@ declare global {
       resolveReferenceAudioPath: (audioPath: string) => Promise<string | null>;
     };
     depthRuntime?: {
+      probe: (request?: DepthRuntimeLifecycleRequestV1) => Promise<DepthRuntimeStatusV1>;
+      prepare: (request?: DepthRuntimeLifecycleRequestV1) => Promise<DepthRuntimeActionReplyV1>;
+      rollback: (request?: DepthRuntimeLifecycleRequestV1) => Promise<DepthRuntimeActionReplyV1>;
       status: () => Promise<import("@/types/depth").DepthRuntimeStatus>;
       setup: () => Promise<import("@/types/depth").DepthRuntimeStatus>;
       refresh: () => Promise<import("@/types/depth").DepthRuntimeStatus>;
@@ -533,6 +546,22 @@ declare global {
       scanModel: () => Promise<{ models: import("@/types/image-gen").ImageGenModelRow[] }>;
       downloadModel: (model: string) => Promise<{ accepted: boolean; message: string }>;
       setActiveModel: (model: string) => Promise<{ accepted: boolean; message: string }>;
+    };
+    upscaleRuntime?: {
+      probe: (request?: UpscaleRuntimeLifecycleRequestV1) => Promise<UpscaleRuntimeStatusV1>;
+      prepare: (request?: UpscaleRuntimeLifecycleRequestV1) => Promise<UpscaleRuntimeActionReplyV1>;
+      rollback: (request?: UpscaleRuntimeLifecycleRequestV1) => Promise<UpscaleRuntimeActionReplyV1>;
+      status: () => Promise<import("@/types/upscale").UpscaleRuntimeStatus>;
+      setup: () => Promise<import("@/types/upscale").UpscaleRuntimeStatus>;
+      refresh: () => Promise<import("@/types/upscale").UpscaleRuntimeStatus>;
+      scanModel: () => Promise<{ models: import("@/types/upscale").UpscaleModelRow[] }>;
+      downloadModel: (model: string) => Promise<{ accepted: boolean; message: string }>;
+      downloadProgress: () => Promise<{ status: string; progress: number; current: number; total: number; error?: string }>;
+      setActiveModel: (model: string) => Promise<{ success: boolean; error?: string }>;
+      run: (payload: import("@/types/upscale").UpscaleRunPayload) => Promise<import("@/types/upscale").UpscaleRunResult>;
+      getConfig: () => Promise<{ modelCacheDir: string }>;
+      setModelCacheDir: (dirPath: string) => Promise<{ success: boolean; error?: string }>;
+      deleteModel: (model: string) => Promise<{ success: boolean; error?: string }>;
     };
     audioGenRuntime?: {
       status: () => Promise<import("@/types/audio-gen").AudioGenRuntimeStatus>;

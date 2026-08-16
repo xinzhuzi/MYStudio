@@ -112,6 +112,29 @@ describe("project-folder IPC handlers", () => {
     expect(reloaded.get("pid-1111")).toBe(path.join(parent, "道劫"));
   });
 
+  it("prepare persistence failure removes only the empty directory created by this request", async () => {
+    const parent = path.join(fixture.tmp, "parent");
+    const existing = path.join(parent, "已有空目录");
+    fs.mkdirSync(existing, { recursive: true });
+
+    const set = vi.spyOn(fixture.store, "set");
+    set.mockImplementationOnce(() => {
+      throw new Error("persist failed");
+    });
+    const created = path.join(parent, "新项目");
+    expect(await fixture.invoke("project-folder-prepare", "pid-created", parent, "新项目"))
+      .toEqual({ ok: false, code: "NESTED", message: expect.stringContaining("persist failed") });
+    expect(fs.existsSync(created)).toBe(false);
+
+    set.mockImplementationOnce(() => {
+      throw new Error("persist failed again");
+    });
+    expect(await fixture.invoke("project-folder-prepare", "pid-existing", parent, "已有空目录"))
+      .toEqual({ ok: false, code: "NESTED", message: expect.stringContaining("persist failed again") });
+    expect(fs.statSync(existing).isDirectory()).toBe(true);
+    set.mockRestore();
+  });
+
   it("prepare sanitizes illegal names and falls back to 项目-<pid 前 8 位>", async () => {
     const parent = path.join(fixture.tmp, "parent");
     fs.mkdirSync(parent);

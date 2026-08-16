@@ -5,6 +5,7 @@
 // 确定性: 同参数同输入 → 输出 SHA 必一致（main 里 --verify 模式复跑抽 3 镜断言）。
 import { execFileSync, spawnSync } from "node:child_process";
 import fs from "node:fs";
+import { resolveProjectDir } from "./resolve-project-dir.mjs";
 import path from "node:path";
 import os from "node:os";
 import crypto from "node:crypto";
@@ -12,7 +13,7 @@ import crypto from "node:crypto";
 const PROFILE = `${process.env.HOME}/Library/Application Support/漫影工作室/hyperframes-profile`;
 const CLI = `${PROFILE}/node_modules/hyperframes/bin/hyperframes.mjs`;
 const NODE_BIN = "/Applications/漫影工作室.app/Contents/MacOS/漫影工作室";
-const PROJECT = `${process.env.HOME}/Library/Application Support/漫影工作室/projects/_p/49dce4c1-64b1-42de-85c2-9f266698aec0`;
+const PROJECT = resolveProjectDir();
 const DEFAULT_OUT = path.join(PROJECT, "workflow-images", "inkwash-pilot");
 
 // 选型定案（research/selection.md）：kuwahara 低强度 + film-grain 纸面颗粒
@@ -45,11 +46,20 @@ function probeSize(png) {
   };
 }
 
+// 兼容两种落盘布局:章节子树 workflow-images/chapter-001/<flow>/ 与历史平铺 workflow-images/<flow>/
+// gen-* 跨目录按 mtime 取最新(重生成后新文件在任一布局中都能命中)
 function shotSourcePng(nnn) {
-  const dir = path.join(PROJECT, "workflow-images", `storyboard-flow-chapter-001-${nnn}`);
-  const file = fs.readdirSync(dir).find((f) => f.startsWith("gen-"));
-  if (!file) throw new Error(`missing fresh gen image for ${nnn}`);
-  return path.join(dir, file);
+  const flowDir = `storyboard-flow-chapter-001-${nnn}`;
+  const dirs = [
+    path.join(PROJECT, "workflow-images", "chapter-001", flowDir),
+    path.join(PROJECT, "workflow-images", flowDir),
+  ].filter((dir) => fs.existsSync(dir));
+  const latest = dirs
+    .flatMap((dir) => fs.readdirSync(dir).filter((f) => f.startsWith("gen-"))
+      .map((f) => ({ file: path.join(dir, f), mtime: fs.statSync(path.join(dir, f)).mtimeMs })))
+    .sort((a, b) => b.mtime - a.mtime)[0];
+  if (!latest) throw new Error(`missing fresh gen image for ${nnn}`);
+  return latest.file;
 }
 
 function processShot(nnn) {

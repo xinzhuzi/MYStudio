@@ -20,8 +20,20 @@ import {
   Trash2,
   Upload,
   WandSparkles,
+  ZoomIn,
 } from "lucide-react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Progress } from "@/components/ui/progress";
 import {
   createAssetImageWorkflowGraph,
  
@@ -32,6 +44,7 @@ import {
 } from "@/lib/studio/image-workflow";
 import { useStudioStore } from "@/stores/studio/studio-store";
 import type {
+  ImageWorkflowGeneratedNode,
   ImageWorkflowGraph,
   ImageWorkflowNode,
   ImageWorkflowOpenContext,
@@ -60,6 +73,7 @@ import {
 import { createImageWorkflowReactNodes } from "./image-workflow-react-nodes";
 import { ImageWorkflowScopedPending } from "./image-workflow-scoped-pending";
 import { useImageWorkflowGeneration } from "./use-image-workflow-generation";
+import { useImageWorkflowUpscale } from "./use-image-workflow-upscale";
 import { useImageWorkflowActions } from "./use-image-workflow-actions";
 import { ImageWorkflowSidebar } from "./image-workflow-sidebar";
 
@@ -314,6 +328,45 @@ export function ImageWorkflowCanvas({
     saveGraph,
   });
 
+  const {
+    isUpscaling,
+    batch: upscaleBatchState,
+    upscaleNode,
+    upscaleBatch,
+    cancelBatch: cancelUpscaleBatch,
+  } = useImageWorkflowUpscale({
+    workflowId: activeGraph?.id,
+    addMaterial,
+    saveGraph,
+  });
+
+  const [isBatchUpscaleDialogOpen, setIsBatchUpscaleDialogOpen] = useState(false);
+  const [batchUpscaleSelection, setBatchUpscaleSelection] = useState<Set<string>>(new Set());
+  const upscalableNodes = useMemo(
+    () => (activeGraph?.nodes ?? []).filter(
+      (node): node is ImageWorkflowGeneratedNode =>
+        node.type === "generated" && Boolean(node.resultUrl),
+    ),
+    [activeGraph],
+  );
+
+  const openBatchUpscaleDialog = useCallback(() => {
+    if (upscalableNodes.length === 0) {
+      toast.error("当前工作流没有可超分的成图节点");
+      return;
+    }
+    setBatchUpscaleSelection(new Set(upscalableNodes.map((node) => node.id)));
+    setIsBatchUpscaleDialogOpen(true);
+  }, [upscalableNodes]);
+
+  const startBatchUpscale = useCallback(() => {
+    const entries = upscalableNodes
+      .filter((node) => batchUpscaleSelection.has(node.id))
+      .map((node) => ({ nodeId: node.id, title: node.title, resultUrl: node.resultUrl as string }));
+    setIsBatchUpscaleDialogOpen(false);
+    if (entries.length > 0) void upscaleBatch(entries);
+  }, [batchUpscaleSelection, upscaleBatch, upscalableNodes]);
+
   const reactFlowNodes = useMemo<ImageWorkflowReactNode[]>(
     () =>
       createImageWorkflowReactNodes({
@@ -322,6 +375,7 @@ export function ImageWorkflowCanvas({
         storyboards,
         onUpdate: updateNode,
         onGenerate: generateNode,
+        onUpscale: upscaleNode,
         onApplyToStoryboard: applyNodeToStoryboard,
         onDelete: deleteNode,
       }),
@@ -333,6 +387,7 @@ export function ImageWorkflowCanvas({
       selectedNodeId,
       storyboards,
       updateNode,
+      upscaleNode,
     ],
   );
   const [nodes, setNodes, onNodesChange] =
@@ -516,6 +571,17 @@ export function ImageWorkflowCanvas({
             <Save className="h-3.5 w-3.5" />
             写回目标
           </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            data-image-workflow-batch-upscale
+            onClick={openBatchUpscaleDialog}
+            disabled={upscalableNodes.length === 0 || upscaleBatchState.running || isUpscaling}
+            title="勾选多个成图节点,本地 ×4 批量超分"
+          >
+            <ZoomIn className="h-3.5 w-3.5" />
+            批量超分
+          </Button>
           {activeGraph.target.kind === "asset" ? (
             <Button
               size="sm"
@@ -586,6 +652,82 @@ export function ImageWorkflowCanvas({
         onAddReferenceFromMaterial={addReferenceFromMaterial}
         onAddReferenceFromStoryboard={addReferenceFromStoryboard}
       />
+
+      {/* 批量超分勾选清单 */}
+      <Dialog open={isBatchUpscaleDialogOpen} onOpenChange={setIsBatchUpscaleDialogOpen}>
+        <DialogContent className="max-w-[480px]">
+          <DialogHeader>
+            <DialogTitle>批量超分 4K</DialogTitle>
+            <DialogDescription>
+              勾选要放大的成图节点(本地 Real-ESRGAN 原生 ×4,逐张顺序执行,可随时取消)。
+            </DialogDescription>
+          </DialogHeader>
+          <div className="max-h-[320px] space-y-1.5 overflow-y-auto" data-image-workflow-batch-upscale-list>
+            {upscalableNodes.map((node) => (
+              <label
+                key={node.id}
+                className="flex cursor-pointer items-center gap-2 rounded-md border border-border bg-muted/20 px-3 py-2 text-sm"
+              >
+                <Checkbox
+                  checked={batchUpscaleSelection.has(node.id)}
+                  onCheckedChange={(checked) => {
+                    setBatchUpscaleSelection((previous) => {
+                      const next = new Set(previous);
+                      if (checked) next.add(node.id);
+                      else next.delete(node.id);
+                      return next;
+                    });
+                  }}
+                />
+                <span className="min-w-0 truncate">{node.title || node.id}</span>
+                <span className="ml-auto shrink-0 text-xs text-muted-foreground">{node.status}</span>
+              </label>
+            ))}
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" size="sm" onClick={() => setIsBatchUpscaleDialogOpen(false)}>
+              取消
+            </Button>
+            <Button size="sm" onClick={startBatchUpscale} disabled={batchUpscaleSelection.size === 0}>
+              <ZoomIn className="mr-1 h-3.5 w-3.5" />
+              超分 {batchUpscaleSelection.size} 张
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* 批量超分进度浮层 */}
+      {upscaleBatchState.running ? (
+        <div
+          className="absolute bottom-4 right-4 z-30 w-[320px] rounded-lg border border-border bg-card/95 p-3 shadow-lg backdrop-blur"
+          data-image-workflow-batch-upscale-progress
+        >
+          <div className="mb-2 flex items-center justify-between gap-2 text-sm">
+            <span className="flex min-w-0 items-center gap-1.5 font-medium">
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              <span className="truncate">批量超分：{upscaleBatchState.currentNodeTitle ?? "…"}</span>
+            </span>
+            <span className="shrink-0 text-xs text-muted-foreground">
+              {upscaleBatchState.completed + upscaleBatchState.failed}/{upscaleBatchState.total}
+            </span>
+          </div>
+          <Progress
+            value={
+              upscaleBatchState.total > 0
+                ? ((upscaleBatchState.completed + upscaleBatchState.failed) / upscaleBatchState.total) * 100
+                : 0
+            }
+          />
+          {upscaleBatchState.failed > 0 ? (
+            <p className="mt-1.5 text-xs text-destructive">失败 {upscaleBatchState.failed} 张(已跳过,继续处理)</p>
+          ) : null}
+          <div className="mt-2 flex justify-end">
+            <Button size="sm" variant="ghost" onClick={cancelUpscaleBatch}>
+              取消剩余
+            </Button>
+          </div>
+        </div>
+      ) : null}
     </section>
   );
 }

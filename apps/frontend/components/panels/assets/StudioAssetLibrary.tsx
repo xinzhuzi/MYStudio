@@ -6,10 +6,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { usePropsLibraryStore } from "@/stores/library/props-library-store";
 import { useStudioStore } from "@/stores/studio/studio-store";
+import { useDirectImageUpscale } from "@/components/panels/studio/use-direct-image-upscale";
 import { useProjectStore } from "@/stores/project/project-store";
 import { useTtsStore } from "@/stores/tts/tts-store";
 import type { StudioAssetKind, StudioAssetSummary } from "@/types/studio-assets";
-import { Box, CheckSquare, Film, Loader2, Map, Mic2, Music2, Plus, RefreshCw, Search, Square, Trash2, UserCircle } from "lucide-react";
+import { Box, CheckSquare, Film, Loader2, Map, Mic2, Music2, Plus, RefreshCw, Search, Square, Trash2, UserCircle, ZoomIn } from "lucide-react";
 import { toast } from "sonner";
 import { StudioAssetDetailDialog } from "./StudioAssetDetailDialog";
 import { AddAssetDialog } from "./AddAssetDialog";
@@ -276,6 +277,36 @@ export function StudioAssetLibrary({ type }: { type: StudioAssetKind }) {
 
   const handleAdd = () => setIsAddOpen(true);
 
+  // 素材库批量超分 — 对勾选的本地图片素材逐张本地 ×4 放大,新文件回填素材库。
+  const [isBatchUpscaling, setIsBatchUpscaling] = useState(false);
+  const directUpscale = useDirectImageUpscale();
+  const selectedImageMaterials = useMemo(() => {
+    if (type !== "clip") return [];
+    return [...selectedIds]
+      .filter((id) => id.startsWith("manying-material:"))
+      .map((id) => materials.find((item) => `manying-material:${item.id}` === id))
+      .filter((item): item is NonNullable<typeof item> =>
+        Boolean(item && item.kind === "image" && item.localPath));
+  }, [materials, selectedIds, type]);
+
+  const handleBatchUpscale = async () => {
+    if (!selectedImageMaterials.length) return;
+    if (
+      !confirm(
+        `确定对选中的 ${selectedImageMaterials.length} 张图片执行本地超分(原生 ×4)?大图每张约需十几秒。`,
+      )
+    ) {
+      return;
+    }
+    setIsBatchUpscaling(true);
+    for (const material of selectedImageMaterials) {
+      await directUpscale.upscaleMaterialImage(material);
+    }
+    setIsBatchUpscaling(false);
+    setSelectedIds(new Set());
+    setSelectMode(false);
+  };
+
   const handleAutoAssignAudio = async () => {
     if (type !== "role") return;
     if (!activeProjectId) {
@@ -379,6 +410,22 @@ export function StudioAssetLibrary({ type }: { type: StudioAssetKind }) {
                   <Trash2 className="mr-1.5 h-3.5 w-3.5" />
                   删除({selectedIds.size})
                 </Button>
+                {type === "clip" ? (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => void handleBatchUpscale()}
+                    disabled={!selectedImageMaterials.length || isBatchUpscaling}
+                    data-material-batch-upscale
+                  >
+                    {isBatchUpscaling ? (
+                      <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                    ) : (
+                      <ZoomIn className="mr-1.5 h-3.5 w-3.5" />
+                    )}
+                    超分({selectedImageMaterials.length})
+                  </Button>
+                ) : null}
                 <Button variant="outline" size="sm" onClick={deselectAll}>取消</Button>
               </>
             ) : (

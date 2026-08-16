@@ -46,7 +46,10 @@ depth-runtime-delete-model
 depth-runtime-download-model
 depth-runtime-download-progress
 depth-runtime-get-config
+depth-runtime-prepare
+depth-runtime-probe
 depth-runtime-refresh
+depth-runtime-rollback
 depth-runtime-scan-model
 depth-runtime-set-cinematic-mode
 depth-runtime-set-cinematic-preset
@@ -162,10 +165,27 @@ tts-runtime-setup
 tts-runtime-start
 tts-runtime-status
 tts-runtime-stop
+upscale-run
+upscale-runtime-delete-model
+upscale-runtime-download-model
+upscale-runtime-download-progress
+upscale-runtime-get-config
+upscale-runtime-prepare
+upscale-runtime-probe
+upscale-runtime-refresh
+upscale-runtime-rollback
+upscale-runtime-scan-model
+upscale-runtime-set-active-model
+upscale-runtime-set-model-cache-dir
+upscale-runtime-setup
+upscale-runtime-status
 video-pipeline-export-log-bundle
 `.trim().split("\n");
 
 const NAMED_IPC_CHANNELS = {
+  DEPTH_PREPARE_CHANNEL: "depth-runtime-prepare",
+  DEPTH_PROBE_CHANNEL: "depth-runtime-probe",
+  DEPTH_ROLLBACK_CHANNEL: "depth-runtime-rollback",
   REMOTION_CHAPTER_AUDIO_IMPORT_CHANNEL: "remotion-chapter-audio-import",
   REMOTION_CHAPTER_AUDIO_PROBE_CHANNEL: "remotion-chapter-audio-probe",
   REMOTION_CHAPTER_MANIFEST_READ_CHANNEL: "remotion-chapter-manifest-read",
@@ -176,6 +196,9 @@ const NAMED_IPC_CHANNELS = {
   REMOTION_RUNTIME_STATUS_CHANNEL: "remotion-runtime-status",
   REMOTION_STUDIO_ENSURE_SESSION_CHANNEL: "remotion-studio-ensure-session",
   REMOTION_SHOT_AUDIO_WRITE_GENERATED_CHANNEL: "remotion-shot-audio-write-generated",
+  UPSCALE_PREPARE_CHANNEL: "upscale-runtime-prepare",
+  UPSCALE_PROBE_CHANNEL: "upscale-runtime-probe",
+  UPSCALE_ROLLBACK_CHANNEL: "upscale-runtime-rollback",
   "SELF_MEDIA_IPC.cancelTask": "self-media:cancel-task",
   "SELF_MEDIA_IPC.configureProvider": "self-media:configure-provider",
   "SELF_MEDIA_IPC.createTask": "self-media:create-task",

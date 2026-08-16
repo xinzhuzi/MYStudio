@@ -10,6 +10,7 @@ export type CreateImageWorkflowReactNodesOptions = {
   storyboards: StoryboardItem[];
   onUpdate: ImageWorkflowNodeData["onUpdate"];
   onGenerate: ImageWorkflowAsyncNodeAction;
+  onUpscale: ImageWorkflowAsyncNodeAction;
   onApplyToStoryboard: ImageWorkflowNodeData["onApplyToStoryboard"];
   onDelete: ImageWorkflowNodeData["onDelete"];
 };
@@ -20,6 +21,7 @@ export function createImageWorkflowReactNodes({
   storyboards,
   onUpdate,
   onGenerate,
+  onUpscale,
   onApplyToStoryboard,
   onDelete,
 }: CreateImageWorkflowReactNodesOptions): ImageWorkflowReactNode[] {
@@ -37,6 +39,7 @@ export function createImageWorkflowReactNodes({
       storyboards,
       onUpdate,
       onGenerate: (nodeId: string) => void onGenerate(nodeId),
+      onUpscale: (nodeId: string) => void onUpscale(nodeId),
       onApplyToStoryboard,
       onDelete,
     },

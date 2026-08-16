@@ -24,6 +24,7 @@ describe("image workflow ReactFlow node projection", () => {
       storyboards: [],
       onUpdate: vi.fn(),
       onGenerate: vi.fn(),
+      onUpscale: vi.fn(),
       onApplyToStoryboard: vi.fn(),
       onDelete: vi.fn(),
     })).toEqual([]);
@@ -49,6 +50,7 @@ describe("image workflow ReactFlow node projection", () => {
     const onGenerate = vi.fn(async () => undefined);
     const onApplyToStoryboard = vi.fn();
     const onDelete = vi.fn();
+    const onUpscale = vi.fn();
 
     const nodes = createImageWorkflowReactNodes({
       graph,
@@ -56,6 +58,7 @@ describe("image workflow ReactFlow node projection", () => {
       storyboards,
       onUpdate,
       onGenerate,
+      onUpscale,
       onApplyToStoryboard,
       onDelete,
     });

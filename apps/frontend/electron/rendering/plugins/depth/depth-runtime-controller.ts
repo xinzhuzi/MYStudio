@@ -21,7 +21,7 @@ import {
   resolveDepthRuntimePaths,
   type DepthRuntimePaths,
 } from "./depth-runtime";
-import { prepareDepthRuntime } from "./depth-runtime-manager";
+import { prepareDepthRuntime, rollbackDepthRuntime } from "./depth-runtime-manager";
 
 const execFileAsync = promisify(execFile);
 
@@ -383,6 +383,22 @@ export function createDepthRuntimeController(deps: ControllerDeps) {
     return status();
   }
 
+  async function rollback(): Promise<DepthRuntimeStatus> {
+    const result = rollbackDepthRuntime(getPaths().storageBasePath);
+    state.state = result.state === "ready" ? "needs-runtime" : "blocked";
+    state.setupStage = "idle";
+    state.setupProgress = undefined;
+    state.setupMessage = result.message;
+    if (result.state === "ready") {
+      state.modelDownloaded = false;
+      state.modelSizeMb = null;
+      state.downloadStatus = "idle";
+      state.downloadProgress = 0;
+      state.downloadError = undefined;
+    }
+    return status();
+  }
+
   let downloadChild: ReturnType<typeof spawnDownload> | null = null;
 
   function spawnDownload() {
@@ -496,6 +512,7 @@ export function createDepthRuntimeController(deps: ControllerDeps) {
   return {
     status,
     setup,
+    rollback,
     refresh,
     scanModelInventory,
     downloadModel,

@@ -105,6 +105,16 @@ function readWorkerChunkPaths(workerPath) {
     throw new Error(`Remotion render worker 不存在: ${workerPath}`);
   }
   const workerSource = fs.readFileSync(workerPath, "utf8");
+  if (/\brequire\(["']@remotion\/renderer["']\)/.test(workerSource)) {
+    throw new Error(`Remotion render worker 仍从 app.asar.unpacked 裸加载 @remotion/renderer: ${workerPath}`);
+  }
+  const hasPackagedRendererRoot = /\bcreateRequire\b/.test(workerSource)
+    && /["']app\.asar["']/.test(workerSource)
+    && /["']package\.json["']/.test(workerSource)
+    && /["']@remotion\/renderer["']/.test(workerSource);
+  if (!hasPackagedRendererRoot) {
+    throw new Error(`Remotion render worker 未声明 app.asar renderer 模块根: ${workerPath}`);
+  }
   const relativeChunkPaths = [...workerSource.matchAll(/require\(["'](\.\/chunks\/[^"']+\.cjs)["']\)/g)]
     .map((match) => match[1]);
   if (relativeChunkPaths.length === 0) {

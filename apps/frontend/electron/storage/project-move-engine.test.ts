@@ -213,6 +213,33 @@ describe("project move engine", () => {
     }
   });
 
+  it("rejects same-size target corruption before deleting the source", async () => {
+    const { root, sourceDir } = createFixture("mystudio-move-verify-bytes-");
+    try {
+      const targetDir = path.join(root, "target", "moved");
+      const original = FIXTURE_FILES.find((file) => file.relativePath === "assets/cover.png")!;
+      const move = engine.move({
+        sourceDir,
+        targetDir,
+        renameImpl: throwCrossDeviceRename,
+        onProgress: (progress) => {
+          if (progress.phase === "copying" && progress.filesDone === progress.filesTotal) {
+            fs.writeFileSync(
+              path.join(targetDir, original.relativePath),
+              "x".repeat(Buffer.byteLength(original.content)),
+            );
+          }
+        },
+      });
+
+      await expect(move).rejects.toThrow("Project move verification failed");
+      expect(fs.existsSync(targetDir)).toBe(false);
+      expectFilesMatch(sourceDir);
+    } finally {
+      fs.rmSync(root, { recursive: true, force: true });
+    }
+  });
+
   it("creates missing target parent directories", async () => {
     const { root, sourceDir } = createFixture("mystudio-move-parents-");
     try {

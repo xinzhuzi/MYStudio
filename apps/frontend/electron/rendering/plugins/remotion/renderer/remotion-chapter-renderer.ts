@@ -449,7 +449,7 @@ export class RemotionChapterRenderer {
         const shotFx = buildShotFxByClipId({
           planClips: plan.clips,
           visualClips: projected.value.visualClips,
-          storyboards: (store.state?.storyboards ?? []).filter((storyboard) => storyboard.episodeId === identity.chapterId),
+          storyboards: (store.state?.storyboards ?? []).filter((storyboard) => storyboard.episodeId === identity.target.chapterId),
         });
         for (const clip of projected.value.visualClips) {
           const decision = shotFx.byClipId.get(clip.clipId);

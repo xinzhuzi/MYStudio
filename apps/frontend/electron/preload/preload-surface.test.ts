@@ -51,6 +51,15 @@ describe("preload IPC surface", () => {
     expect(electronTypesSource).toContain("workspaceRuntime?: () => Promise<RemotionWorkspaceRuntimeReply>");
   });
 
+  it("exposes the typed depth lifecycle bridge alongside legacy compatibility methods", () => {
+    expect(preloadSource).toContain("exposeInMainWorld('depthRuntime'");
+    expect(preloadSource).toContain("ipcRenderer.invoke(DEPTH_PROBE_CHANNEL, request).then(parseDepthRuntimeStatus)");
+    expect(preloadSource).toContain("ipcRenderer.invoke(DEPTH_PREPARE_CHANNEL, request).then(parseDepthRuntimeAction)");
+    expect(preloadSource).toContain("ipcRenderer.invoke(DEPTH_ROLLBACK_CHANNEL, request).then(parseDepthRuntimeAction)");
+    expect(electronTypesSource).toContain("probe: (request?: DepthRuntimeLifecycleRequestV1) => Promise<DepthRuntimeStatusV1>");
+    expect(electronTypesSource).toContain("rollback: (request?: DepthRuntimeLifecycleRequestV1) => Promise<DepthRuntimeActionReplyV1>");
+  });
+
   it("exposes image API requests through electronAPI without raw IPC", () => {
     expect(preloadSource).toContain("imageRequest: (payload: ImageRequestPayload): Promise<ImageRequestResult>");
     expect(preloadSource).toContain("ipcRenderer.invoke('api-image-request', payload)");

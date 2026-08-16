@@ -1,0 +1,3 @@
+patchedDependencies:
+  '@remotion/renderer@4.0.499': patches/@remotion__renderer@4.0.499.patch
+  remotion@4.0.499: patches/remotion@4.0.499.patch

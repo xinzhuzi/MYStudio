@@ -72,6 +72,33 @@ describe("packaged Remotion runtime", () => {
       fs.rmSync(root, { recursive: true, force: true });
     }
   });
+
+  it("rejects an unpacked worker with a bare renderer require", () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), "mystudio-packaged-remotion-worker-root-"));
+    const appPath = createPackagedFixture(root);
+    const workerPath = path.join(
+      appPath,
+      "Contents",
+      "Resources",
+      "app.asar.unpacked",
+      "out",
+      "main",
+      "remotion-render-worker.cjs",
+    );
+    fs.writeFileSync(
+      workerPath,
+      'require("@remotion/renderer");\nrequire("./chunks/remotion-render-output-fixture.cjs");\n',
+      "utf8",
+    );
+    try {
+      expect(() => inspectPackagedRemotionApp(appPath, {
+        listAsarEntries: () => ["/out/main.js", "/node_modules/remotion/index.js"],
+        readRemotionVersion: () => "4.0.499",
+      })).toThrow("app.asar.unpacked 裸加载");
+    } finally {
+      fs.rmSync(root, { recursive: true, force: true });
+    }
+  });
 });
 
 function createPackagedFixture(root: string): string {
@@ -95,7 +122,14 @@ function writeWorkerFixture(resources: string): string {
   fs.mkdirSync(chunkDirectory, { recursive: true });
   fs.writeFileSync(
     path.join(workerDirectory, "remotion-render-worker.cjs"),
-    'require("./chunks/remotion-render-output-fixture.cjs");\n',
+    [
+      'const {createRequire} = require("node:module");',
+      'const path = require("node:path");',
+      'const appAsarPath = path.join(process.resourcesPath, "app.asar");',
+      'createRequire(path.join(appAsarPath, "package.json"))("@remotion/renderer");',
+      'require("./chunks/remotion-render-output-fixture.cjs");',
+      "",
+    ].join("\n"),
     "utf8",
   );
   fs.writeFileSync(chunkPath, "module.exports = {};\n", "utf8");

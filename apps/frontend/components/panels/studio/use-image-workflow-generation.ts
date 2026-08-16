@@ -13,6 +13,7 @@ import { useProjectStore } from "@/stores/project/project-store";
 import { useStudioStore } from "@/stores/studio/studio-store";
 import type { ImageWorkflowGraph } from "@/types/studio";
 import {
+  chapterScopeForWorkflowTarget,
   createWorkflowFilename,
   prepareReferenceImages,
   workflowImageRelativePath,
@@ -65,11 +66,16 @@ export function useImageWorkflowGeneration({
         extraParams: request.quality === "hd" ? { quality: "hd" } : undefined,
       });
       const node = graph.nodes.find((item) => item.id === targetNodeId);
+      const chapterId = chapterScopeForWorkflowTarget(
+        graph.target,
+        useStudioStore.getState().storyboards,
+      );
       const saved = await getProjectFilesBridge()?.saveImage({
         projectId,
         relativePath: workflowImageRelativePath(
           graph.id,
           createWorkflowFilename("gen", targetNodeId, `${node?.title || "workflow-image"}.png`),
+          chapterId,
         ),
         source: result.url,
       });

@@ -3,6 +3,7 @@ import path from "node:path";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import type { TimelineRenderPlan } from "@/types/editing";
+import { layoutVisualTimeline } from "@/electron/rendering/plugins/remotion/composition/timing";
 import {
   assertRenderedMediaEvidence,
   hashFileSha256,
@@ -53,6 +54,10 @@ export function formalQcSampleIndexes(visualCount: number): number[] {
   return [...new Set([0, 1, Math.floor(visualCount / 2), visualCount - 1])];
 }
 
+export function expectedFormalDurationSeconds(plan: TimelineRenderPlan): number {
+  return formalVisualTimeline(plan).durationInFrames / plan.renderSettings.fps;
+}
+
 export async function runFormalOutputQc(input: {
   outputPath: string;
   plan: TimelineRenderPlan;
@@ -65,9 +70,9 @@ export async function runFormalOutputQc(input: {
   const probe = await probeRenderedMedia(input.outputPath);
   const ffprobePath = path.join(input.evidenceDir, "ffprobe.json");
   await fs.promises.writeFile(ffprobePath, `${JSON.stringify(probe.raw, null, 2)}\n`);
-  const expectedDuration = Math.max(
-    ...input.plan.clips.map((clip) => clip.startUs + clip.durationUs),
-  ) / 1_000_000;
+  const visualTimeline = formalVisualTimeline(input.plan);
+  const timingByClipId = new Map(visualTimeline.clips.map((timing) => [timing.clipId, timing]));
+  const expectedDuration = visualTimeline.durationInFrames / input.plan.renderSettings.fps;
   assertRenderedMediaEvidence({
     label: "formal ChapterVideo ",
     probe,
@@ -82,16 +87,26 @@ export async function runFormalOutputQc(input: {
   const subtitleStreamCount = streams.filter((stream) => stream.codec_type === "subtitle").length;
   assertFormalStreamCounts({ videoStreamCount, audioStreamCount, subtitleStreamCount });
 
-  const visualClips = input.plan.clips.filter(
-    (clip) => clip.trackKind === "video" || clip.trackKind === "image",
-  );
+  const visualClips = input.plan.clips
+    .filter((clip) => clip.trackKind === "video" || clip.trackKind === "image")
+    .sort(compareTimelineClips);
   if (visualClips.length < 2) throw new Error("formal QC requires at least two visual clips");
   const framesDir = path.join(input.evidenceDir, "frames");
   await fs.promises.mkdir(framesDir, { recursive: true });
   const firstFrame = path.join(framesDir, "boundary-first.png");
   const secondFrame = path.join(framesDir, "boundary-second.png");
-  await extractFrame(ffmpegExecutable, input.outputPath, sampleTimeUs(visualClips[0]), firstFrame);
-  await extractFrame(ffmpegExecutable, input.outputPath, sampleTimeUs(visualClips[1]), secondFrame);
+  await extractFrame(
+    ffmpegExecutable,
+    input.outputPath,
+    sampleTimeUs(timingByClipId.get(visualClips[0].id)!, input.plan.renderSettings.fps, visualClips[0].durationUs),
+    firstFrame,
+  );
+  await extractFrame(
+    ffmpegExecutable,
+    input.outputPath,
+    sampleTimeUs(timingByClipId.get(visualClips[1].id)!, input.plan.renderSettings.fps, visualClips[1].durationUs),
+    secondFrame,
+  );
   const firstSecond = await compareFrames(ffmpegExecutable, firstFrame, secondFrame);
   assertDistinctFirstShots(firstSecond.value);
   await fs.promises.writeFile(
@@ -108,7 +123,14 @@ export async function runFormalOutputQc(input: {
     const offsetUs = sampleOffsetUs(clip.durationUs);
     const outputFrame = path.join(framesDir, `sample-${index + 1}-output.png`);
     const sourceFrame = path.join(framesDir, `sample-${index + 1}-source.png`);
-    await extractFrame(ffmpegExecutable, input.outputPath, clip.startUs + offsetUs, outputFrame);
+    const timing = timingByClipId.get(clip.id);
+    if (!timing) throw new Error(`missing formal timing for ${clip.id}`);
+    await extractFrame(
+      ffmpegExecutable,
+      input.outputPath,
+      sampleTimeUs(timing, input.plan.renderSettings.fps, clip.durationUs),
+      outputFrame,
+    );
     await extractFrame(ffmpegExecutable, sourcePath, clip.trimStartUs + offsetUs, sourceFrame);
     const comparison = await compareFrames(ffmpegExecutable, outputFrame, sourceFrame);
     await fs.promises.writeFile(
@@ -194,6 +216,33 @@ function sampleOffsetUs(durationUs: number): number {
   return Math.max(100_000, Math.min(1_200_000, durationUs - 200_000));
 }
 
-function sampleTimeUs(clip: TimelineRenderPlan["clips"][number]): number {
-  return clip.startUs + sampleOffsetUs(clip.durationUs);
+function sampleTimeUs(
+  timing: { from: number },
+  fps: number,
+  durationUs: number,
+): number {
+  return (timing.from / fps) * 1_000_000 + sampleOffsetUs(durationUs);
+}
+
+function formalVisualTimeline(plan: TimelineRenderPlan) {
+  const visualClips = plan.clips
+    .filter((clip) => clip.trackKind === "video" || clip.trackKind === "image")
+    .sort(compareTimelineClips);
+  return layoutVisualTimeline(
+    visualClips.map((clip) => ({ clipId: clip.id, durationUs: clip.durationUs })),
+    plan.transitions.map((transition) => ({
+      fromClipId: transition.fromClipId,
+      toClipId: transition.toClipId,
+      effectId: transition.effectId,
+      durationUs: transition.durationUs,
+    })),
+    plan.renderSettings.fps,
+  );
+}
+
+function compareTimelineClips(
+  left: TimelineRenderPlan["clips"][number],
+  right: TimelineRenderPlan["clips"][number],
+): number {
+  return left.startUs - right.startUs || left.id.localeCompare(right.id);
 }

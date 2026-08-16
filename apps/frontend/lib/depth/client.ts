@@ -7,9 +7,32 @@ import type {
   DepthModelStatusRow,
   DepthRuntimeStatus,
 } from "@/types/depth";
+import type {
+  DepthRuntimeActionReplyV1,
+  DepthRuntimeLifecycleRequestV1,
+  DepthRuntimeStatusV1,
+} from "@rendering/contracts/depth-workflow";
 
 export function hasDepthRuntime(): boolean {
   return Boolean(getDepthRuntimeBridge());
+}
+
+export async function probeDepthRuntimeLifecycle(
+  request?: DepthRuntimeLifecycleRequestV1,
+): Promise<DepthRuntimeStatusV1> {
+  return getDepthRuntimeBridge()!.probe(request);
+}
+
+export async function prepareDepthRuntimeLifecycle(
+  request?: DepthRuntimeLifecycleRequestV1,
+): Promise<DepthRuntimeActionReplyV1> {
+  return getDepthRuntimeBridge()!.prepare(request);
+}
+
+export async function rollbackDepthRuntimeLifecycle(
+  request?: DepthRuntimeLifecycleRequestV1,
+): Promise<DepthRuntimeActionReplyV1> {
+  return getDepthRuntimeBridge()!.rollback(request);
 }
 
 export async function getDepthRuntimeStatus(): Promise<DepthRuntimeStatus> {

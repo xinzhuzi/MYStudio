@@ -94,6 +94,32 @@ import {
 } from '@rendering/plugins/remotion/renderer/remotion-shot-ipc'
 import type { RemotionShotRenderResult } from '@rendering/plugins/remotion/renderer/remotion-shot-renderer'
 import {
+  DEPTH_PREPARE_CHANNEL,
+  DEPTH_PROBE_CHANNEL,
+  DEPTH_ROLLBACK_CHANNEL,
+  DEPTH_SCHEMA_VERSION,
+  validateDepthRuntimeActionReply,
+  validateDepthRuntimeStatus,
+} from '@rendering/contracts/depth-workflow'
+import type {
+  DepthRuntimeActionReplyV1,
+  DepthRuntimeLifecycleRequestV1,
+  DepthRuntimeStatusV1,
+} from '@rendering/contracts/depth-workflow'
+import {
+  UPSCALE_PREPARE_CHANNEL,
+  UPSCALE_PROBE_CHANNEL,
+  UPSCALE_ROLLBACK_CHANNEL,
+  UPSCALE_SCHEMA_VERSION,
+  validateUpscaleRuntimeActionReply,
+  validateUpscaleRuntimeStatus,
+} from '@rendering/contracts/upscale-workflow'
+import type {
+  UpscaleRuntimeActionReplyV1,
+  UpscaleRuntimeLifecycleRequestV1,
+  UpscaleRuntimeStatusV1,
+} from '@rendering/contracts/upscale-workflow'
+import {
   REMOTION_QUEUE_CANCEL_CHANNEL,
   REMOTION_QUEUE_CHECK_SWITCH_CHANNEL,
   REMOTION_QUEUE_ENQUEUE_SHOT_CHANNEL,
@@ -587,9 +613,39 @@ contextBridge.exposeInMainWorld('ttsRuntime', {
     ipcRenderer.invoke('tts-reference-audio-resolve', audioPath),
 })
 
+function parseDepthRuntimeStatus(value: unknown): DepthRuntimeStatusV1 {
+  const result = validateDepthRuntimeStatus(value)
+  if (!result.success) throw new Error(result.issues.map((issue) => `${issue.path}: ${issue.message}`).join('; '))
+  return result.value
+}
+
+function parseDepthRuntimeAction(value: unknown): DepthRuntimeActionReplyV1 {
+  const result = validateDepthRuntimeActionReply(value)
+  if (!result.success) throw new Error(result.issues.map((issue) => `${issue.path}: ${issue.message}`).join('; '))
+  return result.value
+}
+
+function parseUpscaleRuntimeStatus(value: unknown): UpscaleRuntimeStatusV1 {
+  const result = validateUpscaleRuntimeStatus(value)
+  if (!result.success) throw new Error(result.issues.map((issue) => `${issue.path}: ${issue.message}`).join('; '))
+  return result.value
+}
+
+function parseUpscaleRuntimeAction(value: unknown): UpscaleRuntimeActionReplyV1 {
+  const result = validateUpscaleRuntimeActionReply(value)
+  if (!result.success) throw new Error(result.issues.map((issue) => `${issue.path}: ${issue.message}`).join('; '))
+  return result.value
+}
+
 // Depth estimation runtime API — settings lifecycle for the cinematic 3D model.
 // Downloads are explicit and user-triggered; inference never auto-downloads.
 contextBridge.exposeInMainWorld('depthRuntime', {
+  probe: (request: DepthRuntimeLifecycleRequestV1 = { schemaVersion: DEPTH_SCHEMA_VERSION }): Promise<DepthRuntimeStatusV1> =>
+    ipcRenderer.invoke(DEPTH_PROBE_CHANNEL, request).then(parseDepthRuntimeStatus),
+  prepare: (request: DepthRuntimeLifecycleRequestV1 = { schemaVersion: DEPTH_SCHEMA_VERSION }): Promise<DepthRuntimeActionReplyV1> =>
+    ipcRenderer.invoke(DEPTH_PREPARE_CHANNEL, request).then(parseDepthRuntimeAction),
+  rollback: (request: DepthRuntimeLifecycleRequestV1 = { schemaVersion: DEPTH_SCHEMA_VERSION }): Promise<DepthRuntimeActionReplyV1> =>
+    ipcRenderer.invoke(DEPTH_ROLLBACK_CHANNEL, request).then(parseDepthRuntimeAction),
   status: (): Promise<unknown> => ipcRenderer.invoke('depth-runtime-status'),
   setup: (): Promise<unknown> => ipcRenderer.invoke('depth-runtime-setup'),
   refresh: (): Promise<unknown> => ipcRenderer.invoke('depth-runtime-refresh'),
@@ -626,6 +682,40 @@ contextBridge.exposeInMainWorld('imageGenRuntime', {
     ipcRenderer.invoke('image-gen-runtime-download-model', model),
   setActiveModel: (model: string): Promise<{ accepted: boolean; message: string }> =>
     ipcRenderer.invoke('image-gen-runtime-set-active-model', model),
+})
+
+// Local image super-resolution runtime API — pure-torch Real-ESRGAN lifecycle
+// + one-shot run channel. Downloads are explicit and user-triggered; inference
+// never auto-downloads.
+contextBridge.exposeInMainWorld('upscaleRuntime', {
+  probe: (request: UpscaleRuntimeLifecycleRequestV1 = { schemaVersion: UPSCALE_SCHEMA_VERSION }): Promise<UpscaleRuntimeStatusV1> =>
+    ipcRenderer.invoke(UPSCALE_PROBE_CHANNEL, request).then(parseUpscaleRuntimeStatus),
+  prepare: (request: UpscaleRuntimeLifecycleRequestV1 = { schemaVersion: UPSCALE_SCHEMA_VERSION }): Promise<UpscaleRuntimeActionReplyV1> =>
+    ipcRenderer.invoke(UPSCALE_PREPARE_CHANNEL, request).then(parseUpscaleRuntimeAction),
+  rollback: (request: UpscaleRuntimeLifecycleRequestV1 = { schemaVersion: UPSCALE_SCHEMA_VERSION }): Promise<UpscaleRuntimeActionReplyV1> =>
+    ipcRenderer.invoke(UPSCALE_ROLLBACK_CHANNEL, request).then(parseUpscaleRuntimeAction),
+  status: (): Promise<unknown> => ipcRenderer.invoke('upscale-runtime-status'),
+  setup: (): Promise<unknown> => ipcRenderer.invoke('upscale-runtime-setup'),
+  refresh: (): Promise<unknown> => ipcRenderer.invoke('upscale-runtime-refresh'),
+  scanModel: (): Promise<{ models: unknown[] }> => ipcRenderer.invoke('upscale-runtime-scan-model'),
+  downloadModel: (model: string): Promise<{ accepted: boolean; message: string }> =>
+    ipcRenderer.invoke('upscale-runtime-download-model', model),
+  downloadProgress: (): Promise<unknown> => ipcRenderer.invoke('upscale-runtime-download-progress'),
+  setActiveModel: (model: string): Promise<{ success: boolean; error?: string }> =>
+    ipcRenderer.invoke('upscale-runtime-set-active-model', model),
+  run: (payload: {
+    schemaVersion: number
+    projectId: string
+    shotId?: string
+    model: string
+    inputImagePath: string
+    outputImagePath: string
+  }): Promise<unknown> => ipcRenderer.invoke('upscale-run', payload),
+  getConfig: (): Promise<{ modelCacheDir: string }> => ipcRenderer.invoke('upscale-runtime-get-config'),
+  setModelCacheDir: (dirPath: string): Promise<{ success: boolean; error?: string }> =>
+    ipcRenderer.invoke('upscale-runtime-set-model-cache-dir', dirPath),
+  deleteModel: (model: string): Promise<{ success: boolean; error?: string }> =>
+    ipcRenderer.invoke('upscale-runtime-delete-model', model),
 })
 
 // Local music generation runtime API — MusicGen BGM, explicit downloads only.

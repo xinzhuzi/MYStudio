@@ -3,12 +3,16 @@ import { toast } from "sonner";
 import {
   downloadDepthModel,
   getDepthRuntimeStatus,
+  prepareDepthRuntimeLifecycle,
+  probeDepthRuntimeLifecycle,
+  rollbackDepthRuntimeLifecycle,
   setDepthCinematicMode as bridgeSetCinematicMode,
   setDepthCinematicPreset as bridgeSetCinematicPreset,
   setupDepthRuntime,
 } from "@/lib/depth/client";
 import { getDepthRuntimeBridge } from "@/lib/bridge/depth-runtime";
 import type { DepthRuntimeStatus } from "@/types/depth";
+import type { DepthRuntimeActionReplyV1, DepthRuntimeStatusV1 } from "@rendering/contracts/depth-workflow";
 
 const ACTIVE_SETUP_STAGES = new Set(["checking", "preparing-profile"]);
 const POLL_INTERVAL_MS = 500;
@@ -67,10 +71,21 @@ export const DEPTH_CINEMATIC_PRESET_OPTIONS: ReadonlyArray<{ value: string; labe
  */
 export function useDepthRuntimeSettings() {
   const [status, setStatus] = useState<DepthRuntimeStatus | null>(null);
+  const [lifecycleStatus, setLifecycleStatus] = useState<DepthRuntimeStatusV1 | null>(null);
+  const [lifecycleError, setLifecycleError] = useState<string>();
   const [isSettingUp, setIsSettingUp] = useState(false);
+  const [isRollingBack, setIsRollingBack] = useState(false);
+  const [isProbing, setIsProbing] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
   const pollRef = useRef<number | null>(null);
-  const hasRuntime = Boolean(getDepthRuntimeBridge());
+  const bridge = getDepthRuntimeBridge();
+  const hasRuntime = Boolean(bridge);
+  const hasLifecycleBridge = Boolean(
+    bridge
+      && typeof bridge.probe === "function"
+      && typeof bridge.prepare === "function"
+      && typeof bridge.rollback === "function",
+  );
 
   const stopPolling = useCallback(() => {
     if (pollRef.current === null) return;
@@ -78,9 +93,55 @@ export function useDepthRuntimeSettings() {
     pollRef.current = null;
   }, []);
 
+  const probeRuntime = useCallback(async () => {
+    if (!hasLifecycleBridge) return undefined;
+    setIsProbing(true);
+    setLifecycleError(undefined);
+    try {
+      const next = await probeDepthRuntimeLifecycle();
+      setLifecycleStatus(next);
+      return next;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "深度估计运行时探测失败";
+      setLifecycleError(message);
+      toast.error(message);
+      return undefined;
+    } finally {
+      setIsProbing(false);
+    }
+  }, [hasLifecycleBridge]);
+
+  const applyLifecycleReply = useCallback((reply: DepthRuntimeActionReplyV1, successMessage: string) => {
+    setLifecycleStatus(reply.status);
+    if (reply.success) {
+      setLifecycleError(undefined);
+      toast.success(successMessage);
+      return;
+    }
+    const message = reply.message || "深度估计运行时操作未完成";
+    setLifecycleError(message);
+    toast.error(message);
+  }, []);
+
+  const refreshLegacyStatus = useCallback(async () => {
+    const currentBridge = getDepthRuntimeBridge();
+    if (!currentBridge || typeof currentBridge.status !== "function") return undefined;
+    const next = await getDepthRuntimeStatus().catch(() => undefined);
+    if (next) setStatus(next);
+    return next;
+  }, []);
+
   useEffect(() => {
     if (!hasRuntime) return;
     let cancelled = false;
+
+    if (hasLifecycleBridge) void probeRuntime();
+    if (typeof bridge?.status !== "function") {
+      return () => {
+        cancelled = true;
+        stopPolling();
+      };
+    }
 
     // While a download is active, poll status so the progress bar animates.
     const startDownloadPolling = () => {
@@ -119,12 +180,28 @@ export function useDepthRuntimeSettings() {
       cancelled = true;
       stopPolling();
     };
-  }, [hasRuntime, stopPolling]);
+  }, [bridge, hasLifecycleBridge, hasRuntime, probeRuntime, stopPolling]);
 
   const setupRuntime = useCallback(async () => {
     if (!hasRuntime) return;
     setIsSettingUp(true);
+    setLifecycleError(undefined);
     stopPolling();
+    if (hasLifecycleBridge) {
+      try {
+        const reply = await prepareDepthRuntimeLifecycle();
+        applyLifecycleReply(reply, "深度估计运行时准备完成");
+        await refreshLegacyStatus();
+        return reply;
+      } catch (error) {
+        const message = error instanceof Error ? error.message : "深度估计运行时准备失败";
+        setLifecycleError(message);
+        toast.error(message);
+        return undefined;
+      } finally {
+        setIsSettingUp(false);
+      }
+    }
     const poll = window.setInterval(() => {
       getDepthRuntimeStatus()
         .then((next) => setStatus(next))
@@ -140,12 +217,37 @@ export function useDepthRuntimeSettings() {
         toast.success("深度估计运行时配置完成");
       }
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "深度估计运行时配置失败");
+      const message = error instanceof Error ? error.message : "深度估计运行时配置失败";
+      setLifecycleError(message);
+      toast.error(message);
     } finally {
       stopPolling();
       setIsSettingUp(false);
     }
-  }, [hasRuntime, stopPolling]);
+  }, [applyLifecycleReply, hasLifecycleBridge, hasRuntime, refreshLegacyStatus, stopPolling]);
+
+  const rollbackRuntime = useCallback(async () => {
+    if (!hasLifecycleBridge) {
+      toast.error("当前环境不支持深度估计运行时回滚");
+      return undefined;
+    }
+    setIsRollingBack(true);
+    setLifecycleError(undefined);
+    stopPolling();
+    try {
+      const reply = await rollbackDepthRuntimeLifecycle();
+      applyLifecycleReply(reply, "深度估计运行时回滚完成");
+      await refreshLegacyStatus();
+      return reply;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "深度估计运行时回滚失败";
+      setLifecycleError(message);
+      toast.error(message);
+      return undefined;
+    } finally {
+      setIsRollingBack(false);
+    }
+  }, [applyLifecycleReply, hasLifecycleBridge, refreshLegacyStatus, stopPolling]);
 
   const startDownload = useCallback(async () => {
     if (!hasRuntime) return;
@@ -236,11 +338,18 @@ export function useDepthRuntimeSettings() {
 
   return {
     hasRuntime,
+    hasLifecycleBridge,
     status,
+    lifecycleStatus,
+    lifecycleError,
+    isProbing,
     isSettingUp,
+    isRollingBack,
     isSetupActive,
     isDownloading,
+    probeRuntime,
     setupRuntime,
+    rollbackRuntime,
     startDownload,
     selectPreset,
     changeModelCacheDir,

@@ -8,6 +8,7 @@ import {
   makeShotAudioBindingV2,
 } from "@/lib/studio/remotion/remotion-workspace-test-fixtures";
 import type { RemotionChapterGateAcceptedV1 } from "@rendering/contracts/video-workflow";
+import { createProjectFileUrl } from "@/electron/storage/storage-paths";
 import { remotionCurrentSlotPaths } from "@/lib/studio/remotion/remotion-current-slot";
 import {
   buildChapterVideoCompositionProps,
@@ -173,6 +174,37 @@ describe("buildChapterVideoCompositionProps", () => {
       mediaUrlByBindingId: {},
     });
     expect(result.success).toBe(true);
+  });
+
+  it("accepts a same-project project-file URL projected from the current shot slot", async () => {
+    const slot = makeCurrentSlot();
+    const plan = chapterPlan(slot, "shot-001", "storyboardVideo");
+    plan.clips[0]!.source.path = createProjectFileUrl(slot.projectId, slot.outputPath);
+    const chapterManifest = await manifestForPlan(plan);
+    const result = buildChapterVideoCompositionProps({
+      plan,
+      currentShotSlots: [slot],
+      chapterManifest,
+      mediaUrlByClipId: { "visual-shot-001": mediaUrl },
+      mediaUrlByBindingId: {},
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it("rejects a project-file URL from another project before media registration", async () => {
+    const slot = makeCurrentSlot();
+    const plan = chapterPlan(slot, "shot-001", "storyboardVideo");
+    plan.clips[0]!.source.path = createProjectFileUrl("other-project", slot.outputPath);
+    const chapterManifest = await manifestForPlan(plan);
+    const result = buildChapterVideoCompositionProps({
+      plan,
+      currentShotSlots: [slot],
+      chapterManifest,
+      mediaUrlByClipId: { "visual-shot-001": mediaUrl },
+      mediaUrlByBindingId: {},
+    });
+    expect(result.success).toBe(false);
+    if (!result.success) expect(result.issues.map((issue) => issue.message).join(";")).toContain("路径与 current shot slot");
   });
 
   it("projects an accepted HyperFrames overlay into the ChapterVideo composition", async () => {

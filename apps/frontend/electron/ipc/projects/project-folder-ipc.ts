@@ -294,8 +294,10 @@ export function registerProjectFolderIpcHandlers({
         }
       }
 
+      let targetExisted = false;
       try {
         const targetStat = fs.statSync(target);
+        targetExisted = true;
         if (!targetStat.isDirectory()) {
           return { ok: false, code: "CONFLICT", message: `目标位置已被文件占用：${target}` };
         }
@@ -315,6 +317,19 @@ export function registerProjectFolderIpcHandlers({
       try {
         locationStore.set(projectId, target);
       } catch (error) {
+        if (!targetExisted) {
+          try {
+            // Only remove the empty directory created by this request. If a
+            // concurrent writer added content, rmdir fails closed and keeps it.
+            fs.rmdirSync(target);
+          } catch (cleanupError) {
+            return {
+              ok: false,
+              code: "NESTED",
+              message: `${errorMessage(error)}；新建空目录清理失败：${errorMessage(cleanupError)}`,
+            };
+          }
+        }
         return { ok: false, code: "NESTED", message: errorMessage(error) };
       }
       return { ok: true, location: target };

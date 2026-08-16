@@ -5,6 +5,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { ImageWorkflowGraph } from "@/types/studio";
 
 let currentGraph: ImageWorkflowGraph;
+let currentStoryboards: Array<{ id: string; episodeId: string }>;
 let activeProjectId: string | null;
 const freedomImage = vi.hoisted(() => vi.fn());
 const toast = vi.hoisted(() => ({ error: vi.fn(), success: vi.fn() }));
@@ -12,7 +13,7 @@ const toast = vi.hoisted(() => ({ error: vi.fn(), success: vi.fn() }));
 vi.mock("@/lib/ai/ai-manager", () => ({ aiManager: { freedomImage } }));
 vi.mock("@/stores/studio/studio-store", () => ({
   useStudioStore: Object.assign(vi.fn(), {
-    getState: () => ({ imageWorkflows: [currentGraph] }),
+    getState: () => ({ imageWorkflows: [currentGraph], storyboards: currentStoryboards }),
   }),
 }));
 vi.mock("@/stores/project/project-store", () => ({
@@ -23,7 +24,14 @@ vi.mock("@/stores/project/project-store", () => ({
 vi.mock("./image-workflow-file-utils", () => ({
   prepareReferenceImages: async (images: string[]) => images,
   createWorkflowFilename: (_kind: string, nodeId: string) => `${nodeId}.png`,
-  workflowImageRelativePath: (graphId: string, filename: string) => `workflow/${graphId}/${filename}`,
+  workflowImageRelativePath: (graphId: string, filename: string, chapterId?: string) =>
+    chapterId ? `workflow/${chapterId}/${graphId}/${filename}` : `workflow/${graphId}/${filename}`,
+  chapterScopeForWorkflowTarget: (target: { kind?: string; id?: string } | undefined, storyboards?: Array<{ id: string; episodeId: string }>) =>
+    target?.kind === "storyboard" ? storyboards?.find((item) => item.id === target.id)?.episodeId : undefined,
+}));
+vi.mock("@/lib/studio/visual-manual-style-tokens", () => ({
+  // 恒等透传:视觉手册风格锁依赖真实 store 形态,与本 hook 的路径逻辑无关
+  withActiveVisualManualStoryboardStyleTokens: (prompt: string) => prompt,
 }));
 vi.mock("sonner", () => ({ toast }));
 
@@ -58,6 +66,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   Reflect.deleteProperty(window, "projectFiles");
   currentGraph = createGraph();
+  currentStoryboards = [];
   activeProjectId = "project-1";
 });
 
@@ -109,6 +118,35 @@ describe("useImageWorkflowGeneration", () => {
       resultUrl: "project://project-1/workflow/graph-1/generated-1.png",
     });
     expect(toast.success).toHaveBeenCalledWith("图片已生成并保存到当前项目");
+  });
+
+  it("saves storyboard-targeted generations under the chapter scope", async () => {
+    currentGraph = { ...createGraph(), target: { kind: "storyboard", id: "sb-chapter-001-005" } };
+    currentStoryboards = [{ id: "sb-chapter-001-005", episodeId: "chapter-001" }];
+    freedomImage.mockResolvedValue({ url: "https://provider.test/image.png" });
+    const saveImage = vi.fn().mockResolvedValue({
+      success: true,
+      url: "project://project-1/workflow/chapter-001/graph-1/generated-1.png",
+      size: 456,
+    });
+    Object.defineProperty(window, "projectFiles", {
+      configurable: true,
+      value: { saveImage },
+    });
+    const saveGraph = vi.fn((graph: ImageWorkflowGraph) => {
+      currentGraph = graph;
+    });
+    const { result } = renderHook(() => useImageWorkflowGeneration({
+      workflowId: "graph-1",
+      saveGraph,
+      addMaterial: vi.fn(() => "material-9"),
+    }));
+
+    await act(async () => result.current.generateNode("generated-1"));
+
+    expect(saveImage).toHaveBeenCalledWith(expect.objectContaining({
+      relativePath: "workflow/chapter-001/graph-1/generated-1.png",
+    }));
   });
 
   it("does not mutate the graph when the prompt is blank", async () => {

@@ -9,9 +9,11 @@ import {
   Image as ImageIcon,
   ImageOff,
   Layers3,
+  Loader2,
   PackageOpen,
   RefreshCw,
   TriangleAlert,
+  ZoomIn,
 } from "lucide-react";
 import { useState } from "react";
 import type { ReactNode } from "react";
@@ -19,6 +21,8 @@ import { MdPreview } from "md-editor-rt";
 import "md-editor-rt/lib/style.css";
 import { cn } from "@/lib/utils";
 import { useThemeStore } from "@/stores/app/theme-store";
+import { useDirectImageUpscale } from "./use-direct-image-upscale";
+import { UPSCALE_INPUT_MAX_LONG_SIDE } from "@/lib/upscale/client";
 import type {
   AssetImageWorkflowContext,
   ImageWorkflowOpenContext,
@@ -203,6 +207,18 @@ export function AssetFlowCard({
   onOpenAssetImageWorkflow?: (context: AssetImageWorkflowContext) => void;
 }) {
   const status = card.generationState ?? (card.mediaPath ? "已完成" : "未生成");
+  const directUpscale = useDirectImageUpscale();
+  const assetUpscaleTarget = isAssetWorkflowTarget(card.imageWorkflowTarget) && card.imageWorkflowTarget.id
+    ? {
+        assetType: card.imageWorkflowTarget.assetType as "character" | "scene" | "prop",
+        id: card.imageWorkflowTarget.id,
+        parentId: card.imageWorkflowTarget.parentId,
+      }
+    : null;
+  const assetUpscaling = assetUpscaleTarget != null
+    && directUpscale.busyKey === `asset:${assetUpscaleTarget.id}`;
+  const [assetImageLongSide, setAssetImageLongSide] = useState(0);
+  const assetAlreadyUpscaled = assetImageLongSide > UPSCALE_INPUT_MAX_LONG_SIDE;
   const canOpenImageWorkflow =
     card.isDerived &&
     Boolean(card.sourceImagePath || card.imageWorkflowId || card.mediaPath) &&
@@ -231,6 +247,10 @@ export function AssetFlowCard({
           className="h-full w-full object-contain"
           loading="lazy"
           decoding="async"
+          onLoad={(event) => {
+            const image = event.currentTarget;
+            setAssetImageLongSide(Math.max(image.naturalWidth, image.naturalHeight));
+          }}
         />
       ) : status === "生成中" ? (
         <RefreshCw className="h-8 w-8 animate-spin text-sky-300/70" />
@@ -330,6 +350,22 @@ export function AssetFlowCard({
         >
           <ImageIcon className="h-3.5 w-3.5" />
           进入图片工作流
+        </button>
+      ) : null}
+      {assetUpscaleTarget && card.mediaPath ? (
+        <button
+          type="button"
+          data-asset-upscale-id={assetUpscaleTarget.id}
+          disabled={assetUpscaling || assetAlreadyUpscaled}
+          title={assetAlreadyUpscaled ? `已达 4K(${assetImageLongSide}px 长边)，无需再超分` : "本地 Real-ESRGAN 原生 ×4 放大(1K→4K)"}
+          className="nodrag nopan nowheel mt-1.5 inline-flex h-7 w-full items-center justify-center gap-1.5 rounded-md border border-border bg-muted/30 px-2 text-[10px] font-medium text-foreground hover:border-amber-300/45 disabled:opacity-60"
+          onClick={(event) => {
+            event.stopPropagation();
+            void directUpscale.upscaleAssetImage(assetUpscaleTarget, card.mediaPath as string);
+          }}
+        >
+          {assetUpscaling ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <ZoomIn className="h-3.5 w-3.5" />}
+          超分 4K
         </button>
       ) : null}
     </div>
@@ -444,6 +480,8 @@ export function StoryboardGridPreview({
   onOpenImageWorkflow?: (context: ImageWorkflowOpenContext) => void;
 }) {
   const tiles = node.storyboardTiles ?? [];
+  const directUpscale = useDirectImageUpscale();
+  const [tileLongSides, setTileLongSides] = useState<Record<string, number>>({});
   if (!tiles.length) return <TextPreview node={node} />;
   return (
     <div className="nodrag nowheel max-h-[360px] overflow-y-auto overscroll-contain pr-1">
@@ -472,6 +510,11 @@ export function StoryboardGridPreview({
                   className="h-full w-full object-cover"
                   loading="lazy"
                   decoding="async"
+                  onLoad={(event) => {
+                    const image = event.currentTarget;
+                    const longSide = Math.max(image.naturalWidth, image.naturalHeight);
+                    setTileLongSides((previous) => (previous[tile.id] === longSide ? previous : { ...previous, [tile.id]: longSide }));
+                  }}
                 />
               ) : (
                 <div className="flex h-full items-center justify-center text-[10px] text-muted-foreground">
@@ -515,6 +558,28 @@ export function StoryboardGridPreview({
               >
                 <ImageIcon className="h-3 w-3" />
                 进入分镜图片工作流
+              </button>
+            ) : null}
+            {tile.mediaPath ? (
+              <button
+                type="button"
+                data-storyboard-upscale-id={tile.id}
+                disabled={directUpscale.busyKey === `storyboard:${tile.id}` || (tileLongSides[tile.id] ?? 0) > UPSCALE_INPUT_MAX_LONG_SIDE}
+                className="inline-flex w-full items-center justify-center gap-1 rounded border border-border bg-muted/30 px-1.5 py-1 text-[10px] text-muted-foreground hover:border-amber-300/45 hover:text-foreground disabled:opacity-60"
+                title={(tileLongSides[tile.id] ?? 0) > UPSCALE_INPUT_MAX_LONG_SIDE
+                  ? `已达 4K(${tileLongSides[tile.id]}px 长边)，无需再超分`
+                  : "本地 Real-ESRGAN 原生 ×4 放大(超分后视觉审核重置)"}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  void directUpscale.upscaleStoryboardImage(tile.id);
+                }}
+              >
+                {directUpscale.busyKey === `storyboard:${tile.id}` ? (
+                  <Loader2 className="h-3 w-3 animate-spin" />
+                ) : (
+                  <ZoomIn className="h-3 w-3" />
+                )}
+                超分 4K
               </button>
             ) : null}
             <p className="mt-1 line-clamp-1 text-[10px] text-foreground">

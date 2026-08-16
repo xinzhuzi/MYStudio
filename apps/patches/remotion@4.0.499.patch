@@ -1,0 +1,38 @@
+diff --git a/dist/cjs/video/offthread-video-source.js b/dist/cjs/video/offthread-video-source.js
+index b2616a34744f3994c35632f17c361107ee318c71..04480781366125adb8d3eaf3e9b6a503d8eca45c 100644
+--- a/dist/cjs/video/offthread-video-source.js
++++ b/dist/cjs/video/offthread-video-source.js
+@@ -3,6 +3,6 @@ Object.defineProperty(exports, "__esModule", { value: true });
+ exports.getOffthreadVideoSource = void 0;
+ const absolute_src_1 = require("../absolute-src");
+ const getOffthreadVideoSource = ({ src, transparent, currentTime, toneMapped, }) => {
+-    return `http://localhost:${window.remotion_proxyPort}/proxy?src=${encodeURIComponent((0, absolute_src_1.getAbsoluteSrc)(src))}&time=${encodeURIComponent(Math.max(0, currentTime))}&transparent=${String(transparent)}&toneMapped=${String(toneMapped)}`;
++    return `http://127.0.0.1:${window.remotion_proxyPort}/proxy?src=${encodeURIComponent((0, absolute_src_1.getAbsoluteSrc)(src))}&time=${encodeURIComponent(Math.max(0, currentTime))}&transparent=${String(transparent)}&toneMapped=${String(toneMapped)}`;
+ };
+ exports.getOffthreadVideoSource = getOffthreadVideoSource;
+diff --git a/dist/esm/index.mjs b/dist/esm/index.mjs
+index 54e3c2f804ac22b1609e3c5f625dca70ecd93d77..d314256aaf70c72d032b75c148182bce9d25e277 100644
+--- a/dist/esm/index.mjs
++++ b/dist/esm/index.mjs
+@@ -11459,7 +11459,7 @@ var getOffthreadVideoSource = ({
+   currentTime,
+   toneMapped
+ }) => {
+-  return `http://localhost:${window.remotion_proxyPort}/proxy?src=${encodeURIComponent(getAbsoluteSrc(src))}&time=${encodeURIComponent(Math.max(0, currentTime))}&transparent=${String(transparent)}&toneMapped=${String(toneMapped)}`;
++  return `http://127.0.0.1:${window.remotion_proxyPort}/proxy?src=${encodeURIComponent(getAbsoluteSrc(src))}&time=${encodeURIComponent(Math.max(0, currentTime))}&transparent=${String(transparent)}&toneMapped=${String(toneMapped)}`;
+ };
+ 
+ // src/video/OffthreadVideoForRendering.tsx
+diff --git a/dist/esm/no-react.mjs b/dist/esm/no-react.mjs
+index 3ca15014c3af2238a98a609e16c8aae7b1dc3544..dcf48c784817a54b5ecb354cc5d2a1a85def29da 100644
+--- a/dist/esm/no-react.mjs
++++ b/dist/esm/no-react.mjs
+@@ -1564,7 +1564,7 @@ var getOffthreadVideoSource = ({
+   currentTime,
+   toneMapped
+ }) => {
+-  return `http://localhost:${window.remotion_proxyPort}/proxy?src=${encodeURIComponent(getAbsoluteSrc(src))}&time=${encodeURIComponent(Math.max(0, currentTime))}&transparent=${String(transparent)}&toneMapped=${String(toneMapped)}`;
++  return `http://127.0.0.1:${window.remotion_proxyPort}/proxy?src=${encodeURIComponent(getAbsoluteSrc(src))}&time=${encodeURIComponent(Math.max(0, currentTime))}&transparent=${String(transparent)}&toneMapped=${String(toneMapped)}`;
+ };
+ 
+ // src/no-react.ts

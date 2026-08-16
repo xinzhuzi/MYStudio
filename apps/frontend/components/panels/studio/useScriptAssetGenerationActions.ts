@@ -183,7 +183,7 @@ export function useScriptAssetGenerationActions({
         activeProjectId,
         productionEpisodeId,
       });
-      const task = toGenerationTask(localRow, visualManualId, activeProjectId);
+      const task = toGenerationTask(localRow, visualManualId, activeProjectId, productionEpisodeId);
       if (!task) {
         toast.error(`「${notFoundAsset.name}」缺少可生成的本地资产`);
         return;

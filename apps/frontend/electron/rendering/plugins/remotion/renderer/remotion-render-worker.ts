@@ -1,10 +1,7 @@
 import fs from "node:fs";
+import { createRequire } from "node:module";
 import path from "node:path";
-import {
-  makeCancelSignal,
-  renderMedia,
-  selectComposition,
-} from "@remotion/renderer";
+import { fileURLToPath } from "node:url";
 import type { VideoConfig } from "remotion/no-react";
 import type { TimelineRenderPlan } from "@/types/editing";
 import type { RemotionShotPlanV1 } from "@/lib/studio/remotion/shot-plan";
@@ -26,6 +23,55 @@ import { CHAPTER_VIDEO_COMPOSITION_ID } from "../composition/composition-id";
 import { assertBundleMatchesRuntime } from "../render/bundle-manifest";
 import { quarantineRemotionPartialOutput } from "./remotion-render-output";
 import { validateRemotionShotPlan } from "@/lib/studio/remotion/shot-plan";
+
+type RemotionRendererApi = {
+  makeCancelSignal: typeof import("@remotion/renderer").makeCancelSignal;
+  renderMedia: typeof import("@remotion/renderer").renderMedia;
+  selectComposition: typeof import("@remotion/renderer").selectComposition;
+};
+
+interface RemotionRendererApiLoaderOptions {
+  resourcesPath?: string;
+  workerFilePath?: string;
+  fileExists?: (filePath: string) => boolean;
+  createRuntimeRequire?: typeof createRequire;
+  fallbackRequire?: NodeJS.Require;
+}
+
+const requireFromWorker = createRequire(import.meta.url);
+
+export function loadRemotionRendererApi(
+  options: RemotionRendererApiLoaderOptions = {},
+): RemotionRendererApi {
+  const workerFilePath = options.workerFilePath ?? fileURLToPath(import.meta.url);
+  const resourcesPaths = [...new Set([
+    options.resourcesPath ?? process.resourcesPath,
+    resolvePackagedResourcesPath(workerFilePath),
+  ].filter((value): value is string => Boolean(value)))];
+  const fileExists = options.fileExists ?? fs.existsSync;
+  const createRuntimeRequire = options.createRuntimeRequire ?? createRequire;
+  for (const resourcesPath of resourcesPaths) {
+    const appAsarPath = path.join(resourcesPath, "app.asar");
+    if (fileExists(appAsarPath)) {
+      const requireFromAppAsar = createRuntimeRequire(path.join(appAsarPath, "package.json"));
+      return requireFromAppAsar("@remotion/renderer") as RemotionRendererApi;
+    }
+  }
+  if (isPackagedWorkerPath(workerFilePath)) {
+    throw new Error(`packaged Remotion worker cannot resolve app.asar: ${workerFilePath}`);
+  }
+  return (options.fallbackRequire ?? requireFromWorker)("@remotion/renderer") as RemotionRendererApi;
+}
+
+function resolvePackagedResourcesPath(workerFilePath: string): string | undefined {
+  const marker = `${path.sep}app.asar.unpacked${path.sep}`;
+  const markerIndex = path.resolve(workerFilePath).lastIndexOf(marker);
+  return markerIndex >= 0 ? path.resolve(workerFilePath).slice(0, markerIndex) : undefined;
+}
+
+function isPackagedWorkerPath(workerFilePath: string): boolean {
+  return path.resolve(workerFilePath).includes(`${path.sep}app.asar.unpacked${path.sep}`);
+}
 
 interface RemotionRenderInputBase {
   bundlePath: string;
@@ -86,11 +132,7 @@ interface ActiveRender {
 
 export interface RemotionRenderWorkerOptions {
   emitProgress: (progress: RemotionRenderProgress) => void;
-  api?: {
-    selectComposition: typeof selectComposition;
-    renderMedia: typeof renderMedia;
-    makeCancelSignal: typeof makeCancelSignal;
-  };
+  api?: RemotionRendererApi;
   fileExists?: (filePath: string) => boolean;
 }
 
@@ -100,7 +142,7 @@ export class RemotionRenderWorker {
   private readonly fileExists: (filePath: string) => boolean;
 
   constructor(private readonly options: RemotionRenderWorkerOptions) {
-    this.api = options.api ?? { selectComposition, renderMedia, makeCancelSignal };
+    this.api = options.api ?? loadRemotionRendererApi();
     this.fileExists = options.fileExists ?? fs.existsSync;
   }
 

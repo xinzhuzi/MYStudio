@@ -4,12 +4,94 @@ import path from "node:path";
 import { describe, expect, it } from "vitest";
 import type { TimelineRenderPlan } from "@/types/editing";
 import { buildCompositionProps } from "../composition/build-composition-props";
-import { RemotionRenderWorker } from "./remotion-render-worker";
+import { loadRemotionRendererApi, RemotionRenderWorker } from "./remotion-render-worker";
 import type { ChapterVideoCompositionProps } from "../composition/composition-props";
 
 const TOKEN = "a".repeat(64);
 const imageUrl = `http://127.0.0.1:43123/${TOKEN}/image-1`;
 const audioUrl = `http://127.0.0.1:43123/${TOKEN}/audio-1`;
+
+describe("loadRemotionRendererApi", () => {
+  it("loads the renderer from the packaged app.asar module root", () => {
+    const packagedApi = {} as ReturnType<typeof loadRemotionRendererApi>;
+    let requireRoot = "";
+    let fallbackCalls = 0;
+
+    const loaded = loadRemotionRendererApi({
+      resourcesPath: "/Applications/Manying.app/Contents/Resources",
+      fileExists: (filePath) => filePath.endsWith("/Resources/app.asar"),
+      createRuntimeRequire: ((filename: string | URL) => {
+        requireRoot = String(filename);
+        return ((moduleId: string) => {
+          expect(moduleId).toBe("@remotion/renderer");
+          return packagedApi;
+        }) as NodeJS.Require;
+      }) as typeof import("node:module").createRequire,
+      fallbackRequire: ((moduleId: string) => {
+        fallbackCalls += 1;
+        throw new Error(`unexpected fallback: ${moduleId}`);
+      }) as unknown as NodeJS.Require,
+    });
+
+    expect(loaded).toBe(packagedApi);
+    expect(requireRoot).toBe("/Applications/Manying.app/Contents/Resources/app.asar/package.json");
+    expect(fallbackCalls).toBe(0);
+  });
+
+  it("uses the worker-relative package resolver only outside a packaged app", () => {
+    const fallbackApi = {} as ReturnType<typeof loadRemotionRendererApi>;
+    let fallbackModuleId = "";
+
+    const loaded = loadRemotionRendererApi({
+      resourcesPath: "/Applications/Electron.app/Contents/Resources",
+      fileExists: () => false,
+      createRuntimeRequire: (() => {
+        throw new Error("packaged resolver must not be created");
+      }) as typeof import("node:module").createRequire,
+      fallbackRequire: ((moduleId: string) => {
+        fallbackModuleId = moduleId;
+        return fallbackApi;
+      }) as NodeJS.Require,
+    });
+
+    expect(loaded).toBe(fallbackApi);
+    expect(fallbackModuleId).toBe("@remotion/renderer");
+  });
+
+  it("derives the installed app.asar root when a formal runner uses dev Electron", () => {
+    const packagedApi = {} as ReturnType<typeof loadRemotionRendererApi>;
+    let requireRoot = "";
+    const loaded = loadRemotionRendererApi({
+      resourcesPath: "/Users/test/apps/node_modules/electron/dist/Electron.app/Contents/Resources",
+      workerFilePath: "/Applications/漫影工作室.app/Contents/Resources/app.asar.unpacked/out/main/remotion-render-worker.cjs",
+      fileExists: (filePath) => filePath === "/Applications/漫影工作室.app/Contents/Resources/app.asar",
+      createRuntimeRequire: ((filename: string | URL) => {
+        requireRoot = String(filename);
+        return (() => packagedApi) as unknown as NodeJS.Require;
+      }) as typeof import("node:module").createRequire,
+      fallbackRequire: (() => {
+        throw new Error("formal packaged resolution must not fall back");
+      }) as unknown as NodeJS.Require,
+    });
+
+    expect(loaded).toBe(packagedApi);
+    expect(requireRoot).toBe("/Applications/漫影工作室.app/Contents/Resources/app.asar/package.json");
+  });
+
+  it("fails closed when a packaged worker has no app.asar", () => {
+    let fallbackCalls = 0;
+    expect(() => loadRemotionRendererApi({
+      resourcesPath: "/Users/test/apps/node_modules/electron/dist/Electron.app/Contents/Resources",
+      workerFilePath: "/Applications/漫影工作室.app/Contents/Resources/app.asar.unpacked/out/main/remotion-render-worker.cjs",
+      fileExists: () => false,
+      fallbackRequire: (() => {
+        fallbackCalls += 1;
+        throw new Error("unexpected fallback");
+      }) as unknown as NodeJS.Require,
+    })).toThrow("packaged Remotion worker cannot resolve app.asar");
+    expect(fallbackCalls).toBe(0);
+  });
+});
 
 describe("buildCompositionProps", () => {
   it("projects visual, audio and subtitle clips onto one frame grid", () => {

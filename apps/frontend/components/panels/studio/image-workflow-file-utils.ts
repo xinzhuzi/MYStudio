@@ -1,6 +1,16 @@
 import { readImageAsBase64 } from "@/lib/media/image-storage";
 import { getProjectFilesBridge } from "@/lib/bridge/project-files";
 import { prepareImageWorkflowReferenceImages } from "@/lib/studio/image-workflow-references";
+import {
+  chapterScopeForWorkflowTarget,
+  safePathSegment,
+  workflowImageRelativePath,
+} from "@/lib/studio/chapter-paths";
+
+// 路径布局与章节作用域的实现在 @/lib/studio/chapter-paths(单一事实源);
+// 此处 re-export 维持历史导入路径兼容。
+
+export { chapterScopeForWorkflowTarget, safePathSegment, workflowImageRelativePath };
 
 export async function prepareReferenceImages(values: string[]) {
   return prepareImageWorkflowReferenceImages(values, {
@@ -9,27 +19,14 @@ export async function prepareReferenceImages(values: string[]) {
   });
 }
 
-export function workflowImageRelativePath(workflowId: string, filename: string) {
-  return `workflow-images/${safePathSegment(workflowId)}/${safePathSegment(filename)}`;
-}
-
 export function createWorkflowFilename(
-  prefix: "ref" | "gen",
+  prefix: "ref" | "gen" | "up4x",
   id: string,
   sourceName: string,
 ) {
   const ext = safeExtension(sourceName);
   const base = safePathSegment(sourceName.replace(/\.[^.]+$/, "")) || prefix;
   return `${prefix}-${safePathSegment(id)}-${base}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}${ext}`;
-}
-
-export function safePathSegment(value: string) {
-  return value
-    .trim()
-    .toLowerCase()
-    .replace(/[^a-z0-9\u4e00-\u9fa5._-]+/gi, "-")
-    .replace(/^-+|-+$/g, "")
-    .slice(0, 96) || "file";
 }
 
 export function safeExtension(value: string) {

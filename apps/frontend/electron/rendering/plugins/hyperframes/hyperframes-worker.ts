@@ -99,8 +99,36 @@ export function buildHyperFramesWorkerTemporaryOutputPath(
 }
 
 export function moveValidatedOutput(temporaryPath: string, outputPath: string): void {
-  if (fs.existsSync(outputPath)) throw new Error(`HyperFrames 输出已存在，拒绝覆盖: ${outputPath}`);
-  fs.renameSync(temporaryPath, outputPath);
+  if (!fs.lstatSync(temporaryPath).isDirectory()) {
+    try {
+      // The temporary output is created beside the final path, so a hard link
+      // gives regular files an atomic no-clobber publish on the same volume.
+      fs.linkSync(temporaryPath, outputPath);
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === "EEXIST") {
+        throw new Error(`HyperFrames 输出已存在，拒绝覆盖: ${outputPath}`);
+      }
+      throw error;
+    }
+    fs.unlinkSync(temporaryPath);
+    return;
+  }
+
+  const lockPath = `${outputPath}.mystudio-publish.lock`;
+  let lockFd: number | undefined;
+  try {
+    lockFd = fs.openSync(lockPath, "wx");
+    if (fs.existsSync(outputPath)) throw new Error(`HyperFrames 输出已存在，拒绝覆盖: ${outputPath}`);
+    fs.renameSync(temporaryPath, outputPath);
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "EEXIST") {
+      throw new Error(`HyperFrames 输出已存在或正在发布，拒绝覆盖: ${outputPath}`);
+    }
+    throw error;
+  } finally {
+    if (lockFd !== undefined) fs.closeSync(lockFd);
+    if (lockFd !== undefined) fs.rmSync(lockPath, { force: true });
+  }
 }
 
 function renderWindow(window: HyperFramesSegmentWindow, index: number): string {
@@ -313,13 +341,16 @@ function assertOutputDuration(outputPath: string, expectedDurationUs: number, fp
   }
 }
 
-function assertRenderedAlphaOutput(
+export function assertRenderedAlphaOutput(
   outputPath: string,
   request: HyperFramesOverlayRequestV1,
   expectedDurationUs: number,
 ): void {
   assertAlphaOutput(outputPath, request.alphaFormat);
-  if (request.alphaFormat === "png-sequence") return;
+  if (request.alphaFormat === "png-sequence") {
+    assertPngSequenceOutput(outputPath, request, expectedDurationUs);
+    return;
+  }
   const ffprobe = process.env.MYSTUDIO_FFPROBE_PATH?.trim() || "ffprobe";
   const raw = execFileSync(ffprobe, ["-v", "error", "-show_entries", "stream=codec_type,width,height,r_frame_rate", "-of", "json", outputPath], { encoding: "utf8", timeout: 60_000 });
   const parsed = JSON.parse(raw) as { streams?: Array<{ codec_type?: string; width?: number; height?: number; r_frame_rate?: string }> };
@@ -335,6 +366,43 @@ function assertRenderedAlphaOutput(
     throw new Error(`HyperFrames 输出规格异常: ${video?.width ?? "?"}x${video?.height ?? "?"}@${video?.r_frame_rate ?? "?"}，期望 ${request.width}x${request.height}@${request.fps}`);
   }
   assertOutputDuration(outputPath, expectedDurationUs, request.fps);
+}
+
+function assertPngSequenceOutput(
+  outputPath: string,
+  request: HyperFramesOverlayRequestV1,
+  expectedDurationUs: number,
+): void {
+  const pngPaths = fs.readdirSync(outputPath, { withFileTypes: true })
+    .filter((entry) => entry.isFile() && entry.name.toLowerCase().endsWith(".png"))
+    .map((entry) => path.join(outputPath, entry.name))
+    .sort();
+  const expectedFrames = Math.max(1, Math.round(expectedDurationUs * request.fps / 1_000_000));
+  if (Math.abs(pngPaths.length - expectedFrames) > 1) {
+    throw new Error(`HyperFrames PNG 序列帧数异常: ${pngPaths.length}，期望 ${expectedFrames}（容差 1 帧）`);
+  }
+  for (const pngPath of pngPaths) {
+    const header = Buffer.alloc(26);
+    const fd = fs.openSync(pngPath, "r");
+    try {
+      if (fs.readSync(fd, header, 0, header.length, 0) !== header.length
+        || header.subarray(0, 8).toString("hex") !== "89504e470d0a1a0a"
+        || header.subarray(12, 16).toString("ascii") !== "IHDR") {
+        throw new Error(`HyperFrames PNG 帧格式无效: ${pngPath}`);
+      }
+    } finally {
+      fs.closeSync(fd);
+    }
+    const width = header.readUInt32BE(16);
+    const height = header.readUInt32BE(20);
+    const colorType = header[25];
+    if (width !== request.width || height !== request.height) {
+      throw new Error(`HyperFrames PNG 帧规格异常: ${width}x${height}，期望 ${request.width}x${request.height}`);
+    }
+    if (colorType !== 4 && colorType !== 6) {
+      throw new Error(`HyperFrames PNG 帧不含 alpha: colorType=${colorType}`);
+    }
+  }
 }
 
 function renderSegments(

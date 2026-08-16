@@ -14,6 +14,7 @@
 
 import { aiManager } from "@/lib/ai/ai-manager";
 import { getProjectFilesBridge } from "@/lib/bridge/project-files";
+import { assetImageRelativePath, safePathSegment } from "@/lib/studio/chapter-paths";
 import { getStudioAssetsBridge } from "@/lib/bridge/studio-assets";
 import {
   batchPolishAssetPrompts,
@@ -66,6 +67,9 @@ export interface AssetGenerationTask {
   description: string;
   /** 是否衍生资产 */
   isDerivative: boolean;
+  /** 衍生资产的章节归属(chapterId);仅衍生资产生效——
+   *  图片落 workflow-images/assets/<chapterId>/<assetType>/,基类资产留共享目录 */
+  chapterId?: string;
   /** 视觉手册 ID */
   visualManualId: string;
   /** 身份锚点（仅角色） */
@@ -195,6 +199,7 @@ export async function generateAsset(
       assetName: task.name,
       projectId: task.projectId,
       isDerivative: task.isDerivative,
+      chapterId: task.chapterId,
       category: categoryMap[task.assetType],
     });
 
@@ -700,6 +705,7 @@ async function saveGeneratedAssetImage({
   assetName,
   projectId,
   isDerivative,
+  chapterId,
   category,
 }: {
   source: string;
@@ -708,9 +714,10 @@ async function saveGeneratedAssetImage({
   assetName: string;
   projectId?: string;
   isDerivative: boolean;
+  chapterId?: string;
   category: ImageCategory;
 }) {
-  const filename = `${safePathSegment(assetId)}-${safePathSegment(assetName)}-${Date.now()}.png`;
+  const filename = `${safePathSegment(assetId, "asset")}-${safePathSegment(assetName, "asset")}-${Date.now()}.png`;
   if (!projectId) {
     if (isDerivative) {
       throw new Error("衍生资产图片必须保存到当前项目");
@@ -721,7 +728,7 @@ async function saveGeneratedAssetImage({
   if (projectId && projectFiles?.saveImage) {
     const saved = await projectFiles.saveImage({
       projectId,
-      relativePath: `workflow-images/assets/${assetType}/${filename}`,
+      relativePath: assetImageRelativePath(assetType, filename, { chapterId, isDerivative }),
       source,
     });
     if (!saved.success || !saved.url) {
@@ -731,13 +738,4 @@ async function saveGeneratedAssetImage({
   }
 
   throw new Error("当前环境不支持项目内资产图片保存");
-}
-
-function safePathSegment(value: string) {
-  return value
-    .trim()
-    .toLowerCase()
-    .replace(/[^a-z0-9\u4e00-\u9fa5._-]+/gi, "-")
-    .replace(/^-+|-+$/g, "")
-    .slice(0, 96) || "asset";
 }

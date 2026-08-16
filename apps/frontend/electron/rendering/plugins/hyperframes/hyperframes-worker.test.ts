@@ -1,12 +1,13 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import type { HyperFramesOverlayRequestV1 } from "@rendering/contracts/video-workflow";
 import {
   buildHyperFramesCliArgs,
   buildHyperFramesCompositionHtml,
   buildHyperFramesWorkerTemporaryOutputPath,
+  assertRenderedAlphaOutput,
   moveValidatedOutput,
   splitHyperFramesRenderSegments,
 } from "./hyperframes-worker";
@@ -75,6 +76,46 @@ describe("HyperFrames worker composition boundary", () => {
       expect(() => moveValidatedOutput(temporaryPath, outputPath)).toThrow("拒绝覆盖");
       expect(fs.readFileSync(temporaryPath, "utf8")).toBe("temporary");
       expect(fs.readFileSync(outputPath, "utf8")).toBe("existing");
+    } finally {
+      fs.rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it("AC2: atomically rejects a second publisher even when its preflight observation is stale", () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), "mystudio-hyperframes-race-"));
+    const firstTemporaryPath = path.join(root, "first.mov");
+    const secondTemporaryPath = path.join(root, "second.mov");
+    const outputPath = path.join(root, "published.mov");
+    fs.writeFileSync(firstTemporaryPath, "first", "utf8");
+    fs.writeFileSync(secondTemporaryPath, "second", "utf8");
+    const exists = vi.spyOn(fs, "existsSync").mockReturnValue(false);
+    try {
+      moveValidatedOutput(firstTemporaryPath, outputPath);
+      expect(() => moveValidatedOutput(secondTemporaryPath, outputPath)).toThrow("拒绝覆盖");
+      expect(fs.readFileSync(outputPath, "utf8")).toBe("first");
+      expect(fs.readFileSync(secondTemporaryPath, "utf8")).toBe("second");
+    } finally {
+      exists.mockRestore();
+      fs.rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it("AC3: validates PNG sequence frame count, dimensions, and alpha before publication", () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), "mystudio-hyperframes-png-"));
+    const png = Buffer.from(
+      "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M/wHwAF/gL+X2hAAAAAAElFTkSuQmCC",
+      "base64",
+    );
+    const pngRequest = { ...request, width: 1, height: 1, alphaFormat: "png-sequence" as const };
+    try {
+      fs.writeFileSync(path.join(root, "frame-0001.png"), png);
+      expect(() => assertRenderedAlphaOutput(root, pngRequest, 3_000_000 / pngRequest.fps))
+        .toThrow("帧数异常");
+      fs.writeFileSync(path.join(root, "frame-0002.png"), png);
+      expect(() => assertRenderedAlphaOutput(root, pngRequest, 3_000_000 / pngRequest.fps))
+        .not.toThrow();
+      expect(() => assertRenderedAlphaOutput(root, { ...pngRequest, width: 2 }, 3_000_000 / pngRequest.fps))
+        .toThrow("规格异常");
     } finally {
       fs.rmSync(root, { recursive: true, force: true });
     }

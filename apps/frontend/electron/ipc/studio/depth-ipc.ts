@@ -8,6 +8,14 @@
 import { ipcMain } from "electron";
 import path from "node:path";
 
+import {
+  DEPTH_SCHEMA_VERSION,
+  validateDepthRuntimeActionReply,
+  validateDepthRuntimeLifecycleRequest,
+  validateDepthRuntimeStatus,
+  type DepthRuntimeActionReplyV1,
+  type DepthRuntimeStatusV1,
+} from "@rendering/contracts/depth-workflow";
 import type {
   DepthRuntimeController,
   DepthRuntimeStatus,
@@ -31,8 +39,128 @@ export interface DepthIpc {
   dispose: () => void;
 }
 
+function lifecycleStatus(status: DepthRuntimeStatus): DepthRuntimeStatusV1 {
+  const rawModelCacheDir = typeof status.modelCacheDir === "string" && status.modelCacheDir.length > 0
+    ? status.modelCacheDir
+    : ".";
+  const modelCacheDir = path.isAbsolute(rawModelCacheDir) || /^[A-Za-z]:[\\/]/.test(rawModelCacheDir)
+    ? rawModelCacheDir
+    : path.resolve(rawModelCacheDir);
+  const candidate: Record<string, unknown> = {
+    schemaVersion: DEPTH_SCHEMA_VERSION,
+    state: status.state,
+    model: "depth-anything-v2-small",
+    modelCacheDir,
+    modelDownloaded: status.modelDownloaded === true,
+  };
+  const message = status.setupMessage ?? status.message;
+  if (typeof message === "string" && message.length > 0) candidate.message = message;
+  const validated = validateDepthRuntimeStatus(candidate);
+  if (validated.success) return validated.value;
+  return {
+    schemaVersion: DEPTH_SCHEMA_VERSION,
+    state: "error",
+    model: "depth-anything-v2-small",
+    modelCacheDir,
+    modelDownloaded: false,
+    message: "深度运行时状态无效",
+  };
+}
+
+function readStringMap(value: unknown): Record<string, string> | null {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) return null;
+  const map: Record<string, string> = {};
+  for (const [key, entry] of Object.entries(value)) {
+    if (typeof entry !== "string") return null;
+    map[key] = entry;
+  }
+  return map;
+}
+
+function readModelCacheDir(value: unknown): string | undefined {
+  if (typeof value === "string") return value;
+  if (typeof value !== "object" || value === null || Array.isArray(value)) return undefined;
+  const dir = Object.entries(value).find(([key]) => key === "dir")?.[1];
+  return typeof dir === "string" ? dir : undefined;
+}
+
+function lifecycleAction(
+  status: DepthRuntimeStatus,
+  success: boolean,
+  message?: string,
+  code?: string,
+  issues?: DepthRuntimeActionReplyV1["issues"],
+): DepthRuntimeActionReplyV1 {
+  const reply: DepthRuntimeActionReplyV1 = {
+    schemaVersion: DEPTH_SCHEMA_VERSION,
+    success,
+    status: lifecycleStatus(status),
+    ...(code ? { code } : {}),
+    ...(message ? { message } : {}),
+    ...(issues ? { issues } : {}),
+  };
+  const validated = validateDepthRuntimeActionReply(reply);
+  if (validated.success) return validated.value;
+  return {
+    schemaVersion: DEPTH_SCHEMA_VERSION,
+    success: false,
+    status: lifecycleStatus(status),
+    code: "invalid-reply",
+    message: "深度运行时返回了无效的生命周期回复",
+    issues: validated.issues,
+  };
+}
+
+function invalidLifecycleAction(
+  controller: DepthRuntimeController,
+  issues: DepthRuntimeActionReplyV1["issues"],
+): DepthRuntimeActionReplyV1 {
+  return lifecycleAction(controller.status(), false, "生命周期请求无效", "invalid-request", issues);
+}
+
 export function registerDepthIpcHandlers(options: RegisterDepthIpcOptions): DepthIpc {
   const { controller } = options;
+
+  ipcMain.handle("depth-runtime-probe", (_event, payload: unknown): DepthRuntimeStatusV1 => {
+    const request = validateDepthRuntimeLifecycleRequest(payload === undefined ? { schemaVersion: DEPTH_SCHEMA_VERSION } : payload);
+    if (!request.success) {
+      const blocked = lifecycleStatus({
+        ...controller.status(),
+        state: "blocked",
+        message: "生命周期请求无效",
+      });
+      return { ...blocked, message: request.issues.map((issue) => `${issue.path}: ${issue.message}`).join("; ") };
+    }
+    const status = lifecycleStatus(controller.status());
+    const validated = validateDepthRuntimeStatus(status);
+    return validated.success
+      ? validated.value
+      : { ...status, state: "error", message: "深度运行时状态无效" };
+  });
+
+  ipcMain.handle("depth-runtime-prepare", async (_event, payload: unknown): Promise<DepthRuntimeActionReplyV1> => {
+    const request = validateDepthRuntimeLifecycleRequest(payload === undefined ? { schemaVersion: DEPTH_SCHEMA_VERSION } : payload);
+    if (!request.success) return invalidLifecycleAction(controller, request.issues);
+    try {
+      const status = await controller.setup();
+      return lifecycleAction(status, status.state === "ready", status.setupMessage ?? status.message, status.state === "ready" ? undefined : status.state);
+    } catch (error) {
+      const status = controller.status();
+      return lifecycleAction(status, false, error instanceof Error ? error.message : String(error), "prepare-failed");
+    }
+  });
+
+  ipcMain.handle("depth-runtime-rollback", async (_event, payload: unknown): Promise<DepthRuntimeActionReplyV1> => {
+    const request = validateDepthRuntimeLifecycleRequest(payload === undefined ? { schemaVersion: DEPTH_SCHEMA_VERSION } : payload);
+    if (!request.success) return invalidLifecycleAction(controller, request.issues);
+    try {
+      const status = await controller.rollback();
+      return lifecycleAction(status, status.state === "needs-runtime", status.setupMessage ?? status.message, status.state === "needs-runtime" ? undefined : "rollback-failed");
+    } catch (error) {
+      const status = controller.status();
+      return lifecycleAction(status, false, error instanceof Error ? error.message : String(error), "rollback-failed");
+    }
+  });
 
   ipcMain.handle("depth-runtime-status", (): DepthRuntimeStatus => controller.status());
   ipcMain.handle("depth-runtime-setup", async (): Promise<DepthRuntimeStatus> => controller.setup());
@@ -57,10 +185,11 @@ export function registerDepthIpcHandlers(options: RegisterDepthIpcOptions): Dept
     return { accepted: true, message: mode === "auto" ? "已切换为 AI 自动镜头语言" : "已切换为手动预设" };
   });
   ipcMain.handle("depth-runtime-set-preset-map", (_event, payload: unknown) => {
-    if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
+    const map = readStringMap(payload);
+    if (!map) {
       return { accepted: false, count: 0, message: "payload 必须是 shotId->preset 对象" };
     }
-    const count = controller.setCinematicPresetMap(payload as Record<string, string>);
+    const count = controller.setCinematicPresetMap(map);
     return { accepted: count > 0, count, message: count > 0 ? `已应用 ${count} 条分镜预设` : "没有有效的预设条目" };
   });
 
@@ -69,7 +198,7 @@ export function registerDepthIpcHandlers(options: RegisterDepthIpcOptions): Dept
     modelCacheDir: controller.getModelCacheDir(),
   }));
   ipcMain.handle("depth-runtime-set-model-cache-dir", async (_event, payload: unknown) => {
-    const dirPath = typeof payload === "string" ? payload : (payload as { dir?: unknown })?.dir;
+    const dirPath = readModelCacheDir(payload);
     if (typeof dirPath !== "string") {
       return { success: false, error: "dirPath 必须是字符串" };
     }
@@ -105,6 +234,9 @@ export function registerDepthIpcHandlers(options: RegisterDepthIpcOptions): Dept
 
   return {
     dispose: () => {
+      ipcMain.removeHandler("depth-runtime-probe");
+      ipcMain.removeHandler("depth-runtime-prepare");
+      ipcMain.removeHandler("depth-runtime-rollback");
       ipcMain.removeHandler("depth-runtime-status");
       ipcMain.removeHandler("depth-runtime-setup");
       ipcMain.removeHandler("depth-runtime-refresh");

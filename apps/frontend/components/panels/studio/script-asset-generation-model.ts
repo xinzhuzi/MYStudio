@@ -69,21 +69,25 @@ export function toGenerationTask(
   row: AssetRow,
   visualManualId: string,
   projectId?: string | null,
+  chapterId?: string | null,
 ): AssetGenerationTask | null {
   if (!row.asset || getRowImage(row)) return null;
   const existingPrompt = getRowPrompt(row);
+  const isDerivative =
+    row.type === "prop"
+      ? Boolean(row.asset.isDerivative)
+      : row.type === "scene"
+        ? Boolean(row.asset.isViewpointVariant)
+        : false;
   return {
     assetId: row.asset.id,
     assetType: row.type,
     projectId: projectId ?? undefined,
     name: row.name,
     description: getRowDescription(row) || row.note || "",
-    isDerivative:
-      row.type === "prop"
-        ? Boolean(row.asset.isDerivative)
-        : row.type === "scene"
-          ? Boolean(row.asset.isViewpointVariant)
-          : false,
+    isDerivative,
+    // 衍生资产按产出章节落位;基类资产不传(保持共享目录)
+    chapterId: isDerivative && chapterId ? chapterId : undefined,
     visualManualId,
     identityAnchors:
       row.type === "character" ? row.asset.identityAnchors : undefined,

@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
+  chapterScopeForWorkflowTarget,
   createWorkflowFilename,
   prepareReferenceImages,
   safeExtension,
@@ -19,6 +20,28 @@ describe("image workflow file utils", () => {
     expect(safePathSegment("***")).toBe("file");
     expect(safeExtension("image.jpeg")).toBe(".jpeg");
     expect(safeExtension("image")).toBe(".png");
+  });
+
+  it("scopes storyboard workflow files under a sanitized chapter directory", () => {
+    expect(workflowImageRelativePath("storyboard-flow-chapter-001-005", "gen-a.png", "chapter-001")).toBe(
+      "workflow-images/chapter-001/storyboard-flow-chapter-001-005/gen-a.png",
+    );
+    expect(workflowImageRelativePath("image-flow-1", "ref-b.JPG", "Chapter 002")).toBe(
+      "workflow-images/chapter-002/image-flow-1/ref-b.jpg",
+    );
+  });
+
+  it("resolves the chapter scope only for storyboard targets matched to storyboards", () => {
+    const storyboards = [
+      { id: "sb-chapter-001-005", episodeId: "chapter-001" },
+      { id: "sb-orphan", episodeId: "" },
+    ];
+    expect(chapterScopeForWorkflowTarget({ kind: "storyboard", id: "sb-chapter-001-005" }, storyboards)).toBe("chapter-001");
+    expect(chapterScopeForWorkflowTarget({ kind: "storyboard", id: "sb-orphan" }, storyboards)).toBeUndefined();
+    expect(chapterScopeForWorkflowTarget({ kind: "storyboard", id: "sb-missing" }, storyboards)).toBeUndefined();
+    expect(chapterScopeForWorkflowTarget({ kind: "storyboard", id: "sb-chapter-001-005" }, undefined)).toBeUndefined();
+    expect(chapterScopeForWorkflowTarget({ kind: "free" }, storyboards)).toBeUndefined();
+    expect(chapterScopeForWorkflowTarget(undefined, storyboards)).toBeUndefined();
   });
 
   it("builds stable filename fields while preserving uniqueness suffixes", () => {

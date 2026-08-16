@@ -7,11 +7,12 @@
 // 确定性: 纯 ffmpeg drawtext（无浏览器捕获）→ 字节级确定，--verify 用 SHA 复核。
 import { execFileSync } from "node:child_process";
 import fs from "node:fs";
+import { resolveProjectDir } from "./resolve-project-dir.mjs";
 import path from "node:path";
 import os from "node:os";
 import crypto from "node:crypto";
 
-const PROJECT = `${process.env.HOME}/Library/Application Support/漫影工作室/projects/_p/49dce4c1-64b1-42de-85c2-9f266698aec0`;
+const PROJECT = resolveProjectDir();
 const FRAMES_DIR = path.join(PROJECT, "workflow-images", "inkwash-pilot");
 const DEFAULT_OUT = path.join(PROJECT, "workflow-images", "subtitle-burn");
 const FONT = "/System/Library/Fonts/PingFang.ttc";

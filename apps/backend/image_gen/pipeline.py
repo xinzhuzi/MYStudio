@@ -89,13 +89,18 @@ def _get_img2img_pipeline(model_name: str):
     with _lock:
         if model_name in _img2img_pipelines:
             return _img2img_pipelines[model_name]
-        t2i = _get_pipeline(model_name)
-        try:
-            from diffusers import AutoPipelineForImage2Image
+    # _get_pipeline also takes _lock; resolve it outside the lock to avoid a
+    # non-reentrant lock self-deadlock on the first reference-image request.
+    t2i = _get_pipeline(model_name)
+    try:
+        from diffusers import AutoPipelineForImage2Image
 
-            pipe = AutoPipelineForImage2Image.from_pipe(t2i)
-        except Exception as exc:
-            raise PipelineError("img2img-unavailable", f"img2img 转换失败: {exc}") from exc
+        pipe = AutoPipelineForImage2Image.from_pipe(t2i)
+    except Exception as exc:
+        raise PipelineError("img2img-unavailable", f"img2img 转换失败: {exc}") from exc
+    with _lock:
+        if model_name in _img2img_pipelines:
+            return _img2img_pipelines[model_name]
         _img2img_pipelines[model_name] = pipe
         return pipe
 
@@ -138,6 +143,8 @@ def generate_image(
         if raw.startswith("data:"):
             raw = raw.split(",", 1)[-1]
         try:
+            from PIL import Image
+
             init_image = Image.open(io.BytesIO(base64.b64decode(raw))).convert("RGB")
             init_image = init_image.resize((width, height))
         except Exception as exc:

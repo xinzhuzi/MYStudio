@@ -11,6 +11,7 @@ import { usePythonRuntimeSettings } from "./usePythonRuntimeSettings";
 import { useVideoWorkflowPlugins } from "./useVideoWorkflowPlugins";
 import { PythonSettingsTab } from "./PythonSettingsTab";
 import { DepthSettingsSection } from "./DepthSettingsSection";
+import { UpscaleSettingsSection } from "./UpscaleSettingsSection";
 import { LocalAudioSettingsSection } from "./LocalAudioSettingsSection";
 import { RenderingSettingsTab } from "./RenderingSettingsTab";
 
@@ -131,10 +132,18 @@ export function PluginSettingsTab() {
 
         <section aria-labelledby="plugin-depth-heading" className="rounded-xl border border-border bg-card/30">
           <div className="border-b border-border px-5 py-4 space-y-2">
-            <h4 id="plugin-depth-heading" className="text-base font-semibold text-foreground">深度估计模型</h4>
-            <p className="text-xs text-muted-foreground">静态图 → 3D 电影级纵深的深度模型（依赖上方 Python 运行环境）。模型仅在用户点击下载时获取，渲染时绝不自动下载。</p>
+            <h4 id="plugin-depth-heading" className="text-base font-semibold text-foreground">深度估计（电影级 3D）</h4>
+            <p className="text-xs text-muted-foreground">静态图 → 3D 电影级纵深的深度模型（依赖上方 Python 运行环境）。准备、探测与回滚走统一生命周期；模型仅在用户点击下载时获取，渲染时绝不自动下载。</p>
           </div>
           <DepthSettingsSection embedded />
+        </section>
+
+        <section aria-labelledby="plugin-upscale-heading" className="rounded-xl border border-border bg-card/30">
+          <div className="border-b border-border px-5 py-4 space-y-2">
+            <h4 id="plugin-upscale-heading" className="text-base font-semibold text-foreground">图片超分（1K → 4K）</h4>
+            <p className="text-xs text-muted-foreground">本地 Real-ESRGAN 超分模型（依赖上方 Python 运行环境），把云端/本地生成的 1K 图原生放大 4 倍。模型仅在用户点击下载时获取，超分时绝不自动下载。</p>
+          </div>
+          <UpscaleSettingsSection embedded />
         </section>
 
         <section aria-labelledby="plugin-audio-gen-heading" className="rounded-xl border border-border bg-card/30">
