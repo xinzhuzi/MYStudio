@@ -378,6 +378,9 @@ export function useChapterAutoVideoActions({
               assetVersions: studio.continuityAssetVersions,
             });
             const completeShotSet = !allStoryboards || sameShotSet(storyboards, allStoryboards);
+            if (!plans.success) {
+              console.error("[one-click] buildRemotionShotPlans 失败, issues =", JSON.stringify(plans.issues?.slice(0, 8)));
+            }
             if (plans.success && completeShotSet) {
               let manifest = await createChapterManifestForPlans({
                 projectId,
@@ -501,6 +504,7 @@ export function useChapterAutoVideoActions({
         },
       });
       if (result.queueStatus === "blocked") {
+        console.error("[one-click] 队列阻塞详情", JSON.stringify(result).slice(0, 800));
         toast.error(result.videoUseState === "blocked"
           ? "video-use preview 被阻塞，已暂停正式章节合成"
           : `Remotion 分镜队列已阻塞：${result.blockedShotIds?.join("、") || "请检查分镜物料"}`);

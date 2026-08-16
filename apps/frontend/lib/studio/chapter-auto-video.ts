@@ -249,6 +249,13 @@ export async function prepareChapterMedia({
   const blockedShotIds = storyboards
     .filter((storyboard) => Boolean(ttsErrors[storyboard.id]))
     .map((storyboard) => storyboard.id);
+  if (blockedShotIds.length > 0) {
+    console.error("[chapter-auto-video] prepare 完成但存在阻塞镜", JSON.stringify(
+      Object.fromEntries(blockedShotIds.map((id) => [id, ttsErrors[id]])),
+    ));
+  } else {
+    console.error("[chapter-auto-video] prepare 完成, 零阻塞, ttsErrors =", JSON.stringify(ttsErrors));
+  }
   emit(onStatus, {
     stage: "tts",
     detail: blockedShotIds.length > 0
@@ -272,6 +279,7 @@ export async function runChapterAutoVideo({
   onStatus?: (status: ChapterAutoVideoStatus) => void;
 }): Promise<ChapterAutoVideoResult> {
   try {
+    console.error("[chapter-auto-video] runChapterAutoVideo 进入, projectId =", projectId);
     if (!projectId) throw new Error("Remotion 自动成片缺少 projectId");
     const prepared = await prepareChapterMedia({
       projectId,
