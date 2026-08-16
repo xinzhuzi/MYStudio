@@ -65,14 +65,19 @@ function encodeRelativePath(value: string) {
 
 export type ProjectLocationResolver = (projectId: string) => string | undefined;
 
-let projectLocationResolver: ProjectLocationResolver | null = null;
+// rollup 分包可能把本模块打进多个 chunk（主进程 index 与共享 chunk 各一份），
+// 模块级变量会分裂成互不相通的实例——main.ts 注入的 resolver 落不到 handlers
+// 用的那份（实测打挂外部位置项目的全部 project-file 解析）。改挂 globalThis
+// （Symbol.for 全局单例）保证任何副本共享同一 resolver。
+const PROJECT_LOCATION_RESOLVER_KEY = Symbol.for("mystudio.project-location-resolver");
+type ResolverGlobal = typeof globalThis & { [PROJECT_LOCATION_RESOLVER_KEY]?: ProjectLocationResolver };
 
 export function setProjectLocationResolver(resolver: ProjectLocationResolver | null): void {
-  projectLocationResolver = resolver;
+  (globalThis as ResolverGlobal)[PROJECT_LOCATION_RESOLVER_KEY] = resolver ?? undefined;
 }
 
 function lookupProjectLocation(projectId: string): string | undefined {
-  const resolver = projectLocationResolver;
+  const resolver = (globalThis as ResolverGlobal)[PROJECT_LOCATION_RESOLVER_KEY];
   if (!resolver) return undefined;
   try {
     const location = resolver(projectId);
