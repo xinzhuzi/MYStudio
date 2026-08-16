@@ -132,6 +132,10 @@ export function createDepthRuntimeController(deps: ControllerDeps) {
       typeof deps.storageBasePath === "function" ? deps.storageBasePath() : deps.storageBasePath,
     );
 
+  // 首次状态查询前的懒扫描标志——启动时无人触发 scanModelInventory,
+  // status() 直接回初始 modelDownloaded:false 会让一键成片误报"模型未下载"。
+  let inventoryScanned = false;
+
   const state: DepthRuntimeStatus = {
     state: "needs-runtime",
     setupStage: "idle",
@@ -263,6 +267,12 @@ export function createDepthRuntimeController(deps: ControllerDeps) {
     return { ...state };
   }
 
+  /** 状态查询前的懒扫描：从未扫描过则跑一次离线探测（幂等，秒级）。 */
+  async function ensureScanned(): Promise<void> {
+    if (inventoryScanned) return;
+    await scanModelInventory();
+  }
+
   async function scanModelInventory(): Promise<{ models: DepthInventoryRow[] }> {
     try {
       const { stdout } = await runPython(
@@ -296,6 +306,7 @@ export function createDepthRuntimeController(deps: ControllerDeps) {
         state.downloadStatus = state.modelDownloaded ? "complete" : "idle";
         state.downloadProgress = state.modelDownloaded ? 100 : 0;
       }
+      inventoryScanned = true;
       return { models };
     } catch {
       // Fail closed: a missing managed Python or broken profile means the
@@ -511,6 +522,7 @@ export function createDepthRuntimeController(deps: ControllerDeps) {
 
   return {
     status,
+    ensureScanned,
     setup,
     rollback,
     refresh,

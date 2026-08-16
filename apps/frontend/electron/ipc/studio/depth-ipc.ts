@@ -121,7 +121,8 @@ function invalidLifecycleAction(
 export function registerDepthIpcHandlers(options: RegisterDepthIpcOptions): DepthIpc {
   const { controller } = options;
 
-  ipcMain.handle("depth-runtime-probe", (_event, payload: unknown): DepthRuntimeStatusV1 => {
+  ipcMain.handle("depth-runtime-probe", async (_event, payload: unknown): Promise<DepthRuntimeStatusV1> => {
+    await controller.ensureScanned();
     const request = validateDepthRuntimeLifecycleRequest(payload === undefined ? { schemaVersion: DEPTH_SCHEMA_VERSION } : payload);
     if (!request.success) {
       const blocked = lifecycleStatus({
@@ -162,7 +163,11 @@ export function registerDepthIpcHandlers(options: RegisterDepthIpcOptions): Dept
     }
   });
 
-  ipcMain.handle("depth-runtime-status", (): DepthRuntimeStatus => controller.status());
+  ipcMain.handle("depth-runtime-status", async (): Promise<DepthRuntimeStatus> => {
+    // 首查懒扫描：离线探测一次磁盘上的模型缓存,避免用初始 false 误报"未下载"
+    await controller.ensureScanned();
+    return controller.status();
+  });
   ipcMain.handle("depth-runtime-setup", async (): Promise<DepthRuntimeStatus> => controller.setup());
   ipcMain.handle("depth-runtime-refresh", async (): Promise<DepthRuntimeStatus> => controller.refresh());
   ipcMain.handle("depth-runtime-scan-model", async () => controller.scanModelInventory());

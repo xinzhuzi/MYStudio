@@ -1,6 +1,7 @@
 // Copyright (c) 2025 hotflow2024
 // Licensed under AGPL-3.0-or-later. See LICENSE for details.
 // Commercial licensing available. See COMMERCIAL_LICENSE.md.
+import { lazy, Suspense, useLayoutEffect, useRef, useState } from "react";
 import { TabBar } from "./TabBar";
 import { Dashboard } from "./Dashboard";
 import { ProjectHeader } from "./ProjectHeader";
@@ -17,7 +18,6 @@ const SimpleTimeline = lazy(() =>
   import("./SimpleTimeline").then((m) => ({ default: m.SimpleTimeline })),
 );
 import { useMediaPanelStore } from "@/stores/navigation/media-panel-store";
-import { lazy, Suspense, useLayoutEffect, useRef, useState } from "react";
 import {
   ResizablePanelGroup,
   ResizablePanel,
