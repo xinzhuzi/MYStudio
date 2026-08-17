@@ -1,8 +1,15 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import type { ImageGenModelRow, ImageGenRuntimeStatus } from "@/types/image-gen";
+import type {
+  ImageGenRuntimeActionReplyV1,
+  ImageGenRuntimeStatusV1,
+} from "@rendering/contracts/image-gen-workflow";
 
 interface ImageGenBridge {
+  probe?: () => Promise<ImageGenRuntimeStatusV1>;
+  prepare?: () => Promise<ImageGenRuntimeActionReplyV1>;
+  rollback?: () => Promise<ImageGenRuntimeActionReplyV1>;
   status: () => Promise<ImageGenRuntimeStatus>;
   setup: () => Promise<ImageGenRuntimeStatus>;
   stop: () => Promise<ImageGenRuntimeStatus>;
@@ -22,10 +29,15 @@ const POLL_INTERVAL_MS = 800;
 /** Settings hook for the local image generation sidecar (设置 → 本地配置 → 本地图片生成). */
 export function useImageGenRuntimeSettings() {
   const [status, setStatus] = useState<ImageGenRuntimeStatus | null>(null);
+  const [lifecycleStatus, setLifecycleStatus] = useState<ImageGenRuntimeStatusV1 | null>(null);
+  const [lifecycleError, setLifecycleError] = useState<string>();
   const [isSettingUp, setIsSettingUp] = useState(false);
+  const [isProbing, setIsProbing] = useState(false);
+  const [isRollingBack, setIsRollingBack] = useState(false);
   const pollRef = useRef<number | null>(null);
   const bridge = getImageGenBridge();
   const hasRuntime = Boolean(bridge);
+  const hasLifecycleBridge = Boolean(bridge?.probe && bridge?.prepare && bridge?.rollback);
 
   const stopPolling = useCallback(() => {
     if (pollRef.current === null) return;
@@ -49,25 +61,50 @@ export function useImageGenRuntimeSettings() {
   useEffect(() => {
     if (!bridge) return;
     let cancelled = false;
+    if (hasLifecycleBridge) {
+      bridge.probe?.().then((next) => {
+        if (!cancelled) setLifecycleStatus(next);
+      }).catch((error) => {
+        if (!cancelled) setLifecycleError(error instanceof Error ? error.message : "本地图片运行时探测失败");
+      });
+    }
     bridge.status()
       .then((next) => {
         if (cancelled) return;
         setStatus(next);
-        if (Object.values(next.downloadStatus).some((s) => s === "downloading")) {
-          startPolling();
-        }
+        if (Object.values(next.downloadStatus).some((s) => s === "downloading")) startPolling();
       })
       .catch(() => undefined);
     return () => {
       cancelled = true;
       stopPolling();
     };
-  }, [bridge, startPolling, stopPolling]);
+  }, [bridge, hasLifecycleBridge, startPolling, stopPolling]);
+
+  const applyLifecycleReply = useCallback((reply: ImageGenRuntimeActionReplyV1, successMessage: string) => {
+    setLifecycleStatus(reply.status);
+    if (reply.success) {
+      setLifecycleError(undefined);
+      toast.success(successMessage);
+      return;
+    }
+    const message = reply.message || "本地图片运行时操作未完成";
+    setLifecycleError(message);
+    toast.error(message);
+  }, []);
 
   const setupRuntime = useCallback(async () => {
     if (!bridge) return;
     setIsSettingUp(true);
+    setLifecycleError(undefined);
     try {
+      if (hasLifecycleBridge && bridge.prepare) {
+        const reply = await bridge.prepare();
+        applyLifecycleReply(reply, "本地图像运行时准备完成");
+        const next = await bridge.status();
+        setStatus(next);
+        return;
+      }
       const final = await bridge.setup();
       setStatus(final);
       if (final.setupStage === "failed") {
@@ -80,7 +117,46 @@ export function useImageGenRuntimeSettings() {
     } finally {
       setIsSettingUp(false);
     }
+  }, [applyLifecycleReply, bridge, hasLifecycleBridge]);
+
+  const probeRuntime = useCallback(async () => {
+    if (!bridge?.probe) return undefined;
+    setIsProbing(true);
+    setLifecycleError(undefined);
+    try {
+      const next = await bridge.probe();
+      setLifecycleStatus(next);
+      return next;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "本地图片运行时探测失败";
+      setLifecycleError(message);
+      toast.error(message);
+      return undefined;
+    } finally {
+      setIsProbing(false);
+    }
   }, [bridge]);
+
+  const rollbackRuntime = useCallback(async () => {
+    if (!bridge?.rollback) {
+      toast.error("当前环境不支持本地图片运行时回滚");
+      return undefined;
+    }
+    setIsRollingBack(true);
+    setLifecycleError(undefined);
+    try {
+      const reply = await bridge.rollback();
+      applyLifecycleReply(reply, "本地图像运行时回滚完成");
+      return reply;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "本地图片运行时回滚失败";
+      setLifecycleError(message);
+      toast.error(message);
+      return undefined;
+    } finally {
+      setIsRollingBack(false);
+    }
+  }, [applyLifecycleReply, bridge]);
 
   const startDownload = useCallback(async (modelName: string) => {
     if (!bridge) return;
@@ -104,5 +180,19 @@ export function useImageGenRuntimeSettings() {
     }
   }, [bridge]);
 
-  return { hasRuntime, status, isSettingUp, setupRuntime, startDownload, selectModel };
+  return {
+    hasRuntime,
+    hasLifecycleBridge,
+    status,
+    lifecycleStatus,
+    lifecycleError,
+    isSettingUp,
+    isProbing,
+    isRollingBack,
+    setupRuntime,
+    probeRuntime,
+    rollbackRuntime,
+    startDownload,
+    selectModel,
+  };
 }

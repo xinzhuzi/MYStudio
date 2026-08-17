@@ -10,6 +10,7 @@ import {
   mediaRefRequestPath,
   parseUpscaleMediaRef,
   siblingOutputRef,
+  type UpscaleMediaRef,
 } from "@/lib/upscale/project-file-url";
 import { setGeneratedImageResult, setGeneratedImageStatus } from "@/lib/studio/image-workflow";
 import { useProjectStore } from "@/stores/project/project-store";
@@ -99,16 +100,19 @@ export async function upscaleProjectImage(input: {
   if (!outputUrl) {
     throw new Error("无法确定超分输出路径");
   }
-  const outputRelativePath = ref.kind === "project-file"
-    ? siblingProjectPathForReport(ref.relativePath, filename)
-    : filename;
+  // 请求载荷携带与输入同形态的引用:project-file → 项目相对路径,
+  // local-image → URL。主进程按各自根域解析。
+  const outputRequestRef: UpscaleMediaRef = ref.kind === "project-file"
+    ? { kind: "project-file", projectId: ref.projectId, relativePath: siblingProjectPathForReport(ref.relativePath, filename) }
+    : { kind: "local-image", category: ref.category, filename };
+  const outputRelativePath: string = outputRequestRef.kind === "project-file" ? outputRequestRef.relativePath : filename;
   const artifact = await runUpscaleImage({
     schemaVersion: 1,
     projectId: ref.kind === "project-file" ? ref.projectId : "local-media",
     ...(input.shotId ? { shotId: input.shotId } : {}),
     model: input.activeModel,
     inputImagePath: mediaRefRequestPath(ref),
-    outputImagePath: outputUrl,
+    outputImagePath: mediaRefRequestPath(outputRequestRef),
   });
   if (artifact.status !== "accepted") {
     throw new Error(artifact.message || `超分失败 (${artifact.code ?? "unknown"})`);

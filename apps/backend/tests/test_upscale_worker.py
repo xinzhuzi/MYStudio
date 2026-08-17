@@ -7,6 +7,7 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 from upscale import worker
 from upscale.model_cache import DEFAULT_UPSCALE_MODEL, UPSCALE_MODELS
@@ -154,6 +155,31 @@ class UpscaleWorkerTest(unittest.TestCase):
             self.assertEqual(result.returncode, 2)
             body = json.loads(artifact.read_text(encoding="utf-8"))
             self.assertEqual(body["code"], "unknown-model")
+
+    def test_output_quality_failure_persists_blocked_artifact(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            request = root / "request.json"
+            artifact = root / "artifact.json"
+            request.write_text(
+                json.dumps({
+                    "schemaVersion": 1,
+                    "projectId": "p",
+                    "shotId": "s",
+                    "model": DEFAULT_UPSCALE_MODEL,
+                    "inputImagePath": str(root / "in.png"),
+                    "outputImagePath": str(root / "out.png"),
+                }),
+                encoding="utf-8",
+            )
+            with patch.object(
+                worker,
+                "upscale_image",
+                side_effect=worker.UpscaleError("output-quality-failed", "近黑输出"),
+            ):
+                payload = worker._run(str(request), str(artifact))
+            self.assertEqual(payload["status"], "blocked")
+            self.assertEqual(payload["code"], "output-quality-failed")
 
 
 class UpscaleModelRegistryTest(unittest.TestCase):

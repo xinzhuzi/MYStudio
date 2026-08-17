@@ -19,7 +19,12 @@ from typing import Any
 import numpy as np
 from PIL import Image
 
-from .model_cache import DEPTH_MODELS, find_cached_depth_model
+from .model_cache import (
+    DEPTH_MODELS,
+    find_cached_depth_model,
+    model_weight_sha256,
+    resolve_snapshot_dir,
+)
 
 
 class DepthEstimationError(Exception):
@@ -68,27 +73,6 @@ def _sha256(path: Path) -> str:
     return digest.hexdigest()
 
 
-def _snapshot_dir(repo_cache: str) -> Path:
-    """Resolve the snapshot directory inside a models--<repo> cache entry.
-
-    Prefers refs/main; falls back to the first snapshot directory so partial
-    refs never block an otherwise complete cache.
-    """
-    root = Path(repo_cache)
-    refs_main = root / "refs" / "main"
-    if refs_main.is_file():
-        ref = refs_main.read_text(encoding="utf-8").strip()
-        snapshot = root / "snapshots" / ref
-        if snapshot.is_dir():
-            return snapshot
-    snapshots = root / "snapshots"
-    if snapshots.is_dir():
-        for entry in sorted(snapshots.iterdir()):
-            if entry.is_dir():
-                return entry
-    raise DepthEstimationError("model-not-downloaded", f"模型缓存缺少快照目录: {repo_cache}")
-
-
 def _load_model(model: str):
     """Load the depth estimation model via transformers pipeline (downloaded files only)."""
     spec = _model_spec(model)
@@ -106,7 +90,7 @@ def _load_model(model: str):
         # transformers v5 pipeline no longer routes cache_dir into hub resolution,
         # so repo-id + cache_dir fails offline. Loading the snapshot directory as a
         # local model path bypasses the hub entirely and stays version-stable.
-        pipe = hf_pipeline(task="depth-estimation", model=str(_snapshot_dir(cached["repo_cache_dir"])))
+        pipe = hf_pipeline(task="depth-estimation", model=str(resolve_snapshot_dir(cached["repo_cache_dir"])))
         return pipe
     except Exception as exc:
         # Snapshot-path load only fails on broken caches; unify as cache-missing.
@@ -217,6 +201,7 @@ def probe_model() -> dict[str, Any]:
             "model": "depth-anything-v2-small",
             "sizeMb": cached["size_mb"],
             "cacheDir": _model_cache_dir() or "(default)",
+            "weightSha256": model_weight_sha256(cached["repo_cache_dir"]),
         }
     except DepthEstimationError as exc:
         return {"status": "blocked", "code": exc.code, "message": exc.message}

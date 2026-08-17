@@ -65,6 +65,15 @@ describe("preload IPC surface", () => {
     expect(preloadSource).toContain("ipcRenderer.invoke('api-image-request', payload)");
   });
 
+  it("exposes the typed local image lifecycle bridge alongside legacy methods", () => {
+    expect(preloadSource).toContain("exposeInMainWorld('imageGenRuntime'");
+    expect(preloadSource).toContain("ipcRenderer.invoke(IMAGE_GEN_PROBE_CHANNEL, request).then(parseImageGenRuntimeStatus)");
+    expect(preloadSource).toContain("ipcRenderer.invoke(IMAGE_GEN_PREPARE_CHANNEL, request).then(parseImageGenRuntimeAction)");
+    expect(preloadSource).toContain("ipcRenderer.invoke(IMAGE_GEN_ROLLBACK_CHANNEL, request).then(parseImageGenRuntimeAction)");
+    expect(electronTypesSource).toContain("probe: (request?: import(\"@rendering/contracts/image-gen-workflow\").ImageGenRuntimeLifecycleRequestV1)");
+    expect(electronTypesSource).toContain("rollback: (request?: import(\"@rendering/contracts/image-gen-workflow\").ImageGenRuntimeLifecycleRequestV1)");
+  });
+
   it("exposes narrow image storage APIs without raw IPC", () => {
     expect(preloadSource).toContain("exposeInMainWorld('imageStorage'");
     expect(preloadSource).toContain("saveImage: (url: string, category: string, filename: string)");

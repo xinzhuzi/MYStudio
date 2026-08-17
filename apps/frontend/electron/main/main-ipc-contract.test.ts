@@ -74,6 +74,9 @@ file-storage-set
 get-absolute-path
 get-image-path
 image-gen-runtime-download-model
+image-gen-runtime-prepare
+image-gen-runtime-probe
+image-gen-runtime-rollback
 image-gen-runtime-scan-model
 image-gen-runtime-set-active-model
 image-gen-runtime-setup
@@ -186,6 +189,9 @@ const NAMED_IPC_CHANNELS = {
   DEPTH_PREPARE_CHANNEL: "depth-runtime-prepare",
   DEPTH_PROBE_CHANNEL: "depth-runtime-probe",
   DEPTH_ROLLBACK_CHANNEL: "depth-runtime-rollback",
+  IMAGE_GEN_PREPARE_CHANNEL: "image-gen-runtime-prepare",
+  IMAGE_GEN_PROBE_CHANNEL: "image-gen-runtime-probe",
+  IMAGE_GEN_ROLLBACK_CHANNEL: "image-gen-runtime-rollback",
   REMOTION_CHAPTER_AUDIO_IMPORT_CHANNEL: "remotion-chapter-audio-import",
   REMOTION_CHAPTER_AUDIO_PROBE_CHANNEL: "remotion-chapter-audio-probe",
   REMOTION_CHAPTER_MANIFEST_READ_CHANNEL: "remotion-chapter-manifest-read",

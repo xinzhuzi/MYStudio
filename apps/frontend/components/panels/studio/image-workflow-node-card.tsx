@@ -209,7 +209,8 @@ function GeneratedNodeEditor({
 }) {
   const generating = node.status === "generating" || node.status === "queued";
   const [imageLongSide, setImageLongSide] = useState(0);
-  const alreadyUpscaled = imageLongSide > UPSCALE_INPUT_MAX_LONG_SIDE;
+  const alreadyUpscaled = (node.resultUrl || "").includes("up4x-")
+    || imageLongSide > UPSCALE_INPUT_MAX_LONG_SIDE;
   const generationPrompt = promptNode ?? node;
   const updateGenerationPrompt = (updates: Partial<ImageWorkflowPromptNode | ImageWorkflowGeneratedNode>) => {
     onUpdate((promptNode ?? node).id, updates as Partial<ImageWorkflowNode>);
@@ -250,7 +251,7 @@ function GeneratedNodeEditor({
             onClick={() => void onUpscale(node.id)}
             disabled={!node.resultUrl || generating || alreadyUpscaled}
             title={alreadyUpscaled
-              ? `已达 4K(${imageLongSide}px 长边)，无需再超分`
+              ? "已是 4K 超分结果，无需再放大"
               : "本地 Real-ESRGAN 原生 ×4 放大(1K→4K)"}
           >
             {generating ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <ZoomIn className="h-3.5 w-3.5" />}

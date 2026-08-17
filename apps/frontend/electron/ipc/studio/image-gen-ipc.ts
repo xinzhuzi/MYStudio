@@ -3,6 +3,15 @@
 
 import { ipcMain } from "electron";
 
+import {
+  IMAGE_GEN_SCHEMA_VERSION,
+  validateImageGenRuntimeActionReply,
+  validateImageGenRuntimeLifecycleRequest,
+  validateImageGenRuntimeStatus,
+  type ImageGenModelId,
+  type ImageGenRuntimeActionReplyV1,
+  type ImageGenRuntimeStatusV1,
+} from "@rendering/contracts/image-gen-workflow";
 import type {
   ImageGenRuntimeController,
   ImageGenRuntimeStatus,
@@ -16,8 +25,132 @@ export interface ImageGenIpc {
   dispose: () => void;
 }
 
+function lifecycleStatus(controller: ImageGenRuntimeController): ImageGenRuntimeStatusV1 {
+  const legacy = controller.status();
+  const activeModel: ImageGenModelId = legacy.activeModel === "flux-schnell" ? "flux-schnell" : "sdxl-turbo";
+  const modelDownloaded = legacy.models.some((model) => model.modelName === activeModel && model.downloaded);
+  const status: ImageGenRuntimeStatusV1 = {
+    schemaVersion: IMAGE_GEN_SCHEMA_VERSION,
+    state: legacy.running && modelDownloaded ? "ready" : "needs-runtime",
+    activeModel,
+    modelCacheDir: controller.getModelCacheDir(),
+    modelDownloaded,
+    ...(legacy.setupMessage ? { message: legacy.setupMessage } : {}),
+  };
+  const validated = validateImageGenRuntimeStatus(status);
+  if (validated.success) return validated.value;
+  return {
+    schemaVersion: IMAGE_GEN_SCHEMA_VERSION,
+    state: "error",
+    activeModel,
+    modelCacheDir: controller.getModelCacheDir(),
+    modelDownloaded: false,
+    message: "本地图像运行时状态无效",
+  };
+}
+
+function lifecycleAction(
+  controller: ImageGenRuntimeController,
+  status: ImageGenRuntimeStatusV1,
+  success: boolean,
+  code?: string,
+  message?: string,
+  issues?: ImageGenRuntimeActionReplyV1["issues"],
+): ImageGenRuntimeActionReplyV1 {
+  const reply: ImageGenRuntimeActionReplyV1 = {
+    schemaVersion: IMAGE_GEN_SCHEMA_VERSION,
+    success,
+    status,
+    ...(code ? { code } : {}),
+    ...(message ? { message } : {}),
+    ...(issues ? { issues } : {}),
+  };
+  const validated = validateImageGenRuntimeActionReply(reply);
+  if (validated.success) return validated.value;
+  return {
+    schemaVersion: IMAGE_GEN_SCHEMA_VERSION,
+    success: false,
+    status: lifecycleStatus(controller),
+    code: "invalid-reply",
+    message: "本地图像运行时返回了无效的生命周期回复",
+    issues: validated.issues,
+  };
+}
+
 export function registerImageGenIpcHandlers(options: RegisterImageGenIpcOptions): ImageGenIpc {
   const { controller } = options;
+
+  ipcMain.handle("image-gen-runtime-probe", async (_event, payload: unknown): Promise<ImageGenRuntimeStatusV1> => {
+    const request = validateImageGenRuntimeLifecycleRequest(
+      payload === undefined ? { schemaVersion: IMAGE_GEN_SCHEMA_VERSION } : payload,
+    );
+    if (!request.success) {
+      return {
+        ...lifecycleStatus(controller),
+        state: "blocked",
+        message: request.issues.map((issue) => `${issue.path}: ${issue.message}`).join("; "),
+      };
+    }
+    const status = await controller.probeLifecycle();
+    const validated = validateImageGenRuntimeStatus(status);
+    return validated.success
+      ? validated.value
+      : { ...lifecycleStatus(controller), state: "error", message: "本地图像运行时状态无效" };
+  });
+
+  ipcMain.handle("image-gen-runtime-prepare", async (_event, payload: unknown): Promise<ImageGenRuntimeActionReplyV1> => {
+    const request = validateImageGenRuntimeLifecycleRequest(
+      payload === undefined ? { schemaVersion: IMAGE_GEN_SCHEMA_VERSION } : payload,
+    );
+    if (!request.success) {
+      return lifecycleAction(controller, lifecycleStatus(controller), false, "invalid-request", "生命周期请求无效", request.issues);
+    }
+    try {
+      const status = await controller.prepareLifecycle();
+      return lifecycleAction(
+        controller,
+        status,
+        status.state === "ready",
+        status.state === "ready" ? undefined : status.state,
+        status.message,
+      );
+    } catch (error) {
+      return lifecycleAction(
+        controller,
+        lifecycleStatus(controller),
+        false,
+        "prepare-failed",
+        error instanceof Error ? error.message : String(error),
+      );
+    }
+  });
+
+  ipcMain.handle("image-gen-runtime-rollback", async (_event, payload: unknown): Promise<ImageGenRuntimeActionReplyV1> => {
+    const request = validateImageGenRuntimeLifecycleRequest(
+      payload === undefined ? { schemaVersion: IMAGE_GEN_SCHEMA_VERSION } : payload,
+    );
+    if (!request.success) {
+      return lifecycleAction(controller, lifecycleStatus(controller), false, "invalid-request", "生命周期请求无效", request.issues);
+    }
+    try {
+      const status = await controller.rollbackLifecycle();
+      return lifecycleAction(
+        controller,
+        status,
+        status.state === "needs-runtime",
+        status.state === "needs-runtime" ? undefined : "rollback-failed",
+        status.message,
+      );
+    } catch (error) {
+      return lifecycleAction(
+        controller,
+        lifecycleStatus(controller),
+        false,
+        "rollback-failed",
+        error instanceof Error ? error.message : String(error),
+      );
+    }
+  });
 
   ipcMain.handle("image-gen-runtime-status", (): ImageGenRuntimeStatus => controller.status());
   ipcMain.handle("image-gen-runtime-setup", async (): Promise<ImageGenRuntimeStatus> => controller.setup());
@@ -46,6 +179,9 @@ export function registerImageGenIpcHandlers(options: RegisterImageGenIpcOptions)
 
   return {
     dispose: () => {
+      ipcMain.removeHandler("image-gen-runtime-probe");
+      ipcMain.removeHandler("image-gen-runtime-prepare");
+      ipcMain.removeHandler("image-gen-runtime-rollback");
       ipcMain.removeHandler("image-gen-runtime-status");
       ipcMain.removeHandler("image-gen-runtime-setup");
       ipcMain.removeHandler("image-gen-runtime-stop");

@@ -1,5 +1,6 @@
 import fs from "node:fs";
 import crypto from "node:crypto";
+import path from "node:path";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 
@@ -7,8 +8,11 @@ import {
   DEPTH_LOCK_CONTENT,
   DEPTH_PROFILE_ID,
   DEPTH_TOOL_VERSION,
+  buildDepthWorkerEnv,
+  probeDepthRuntime,
   resolveDepthRuntimePaths,
   type DepthRuntimePaths,
+  type DepthRuntimeProbeEvidence,
   type DepthRuntimeProbeResult,
 } from "./depth-runtime";
 
@@ -25,12 +29,41 @@ export interface DepthPrepareOptions {
     options: { cwd?: string; env?: NodeJS.ProcessEnv; timeout: number; maxBuffer: number },
   ) => Promise<{ stdout?: string; stderr?: string }>;
   now?: () => number;
+  modelCacheDir?: string;
 }
 
 export interface DepthPrepareResult {
   state: "ready" | "blocked";
   message: string;
   profileDir: string;
+  probeEvidence?: DepthRuntimeProbeEvidence;
+}
+
+function removeOwnPath(targetPath: string): void {
+  fs.rmSync(targetPath, { recursive: true, force: true });
+}
+
+function promoteStaging(targetPath: string, stagingPath: string): string | undefined {
+  const previousPath = `${targetPath}.previous`;
+  const hadTarget = fs.existsSync(targetPath);
+  if (fs.existsSync(previousPath)) {
+    fs.renameSync(previousPath, `${previousPath}.stale-${Date.now()}`);
+  }
+  if (hadTarget) fs.renameSync(targetPath, previousPath);
+  try {
+    fs.renameSync(stagingPath, targetPath);
+    return hadTarget ? previousPath : undefined;
+  } catch (error) {
+    if (hadTarget && fs.existsSync(previousPath) && !fs.existsSync(targetPath)) {
+      fs.renameSync(previousPath, targetPath);
+    }
+    throw error;
+  }
+}
+
+function restorePromotedTarget(targetPath: string, previousPath: string | undefined): void {
+  removeOwnPath(targetPath);
+  if (previousPath && fs.existsSync(previousPath)) fs.renameSync(previousPath, targetPath);
 }
 
 /**
@@ -60,86 +93,99 @@ export async function prepareDepthRuntime(options: DepthPrepareOptions): Promise
     };
   }
 
-  // Create profile directory
-  mkdir(paths.depthProfileDir, { recursive: true });
-
-  // Write lock file
-  fs.writeFileSync(paths.depthLockPath, DEPTH_LOCK_CONTENT, "utf8");
+  const stagingPath = `${paths.depthProfileDir}.staging-${crypto.randomUUID()}`;
+  const stagingLockPath = path.join(stagingPath, path.basename(paths.depthLockPath));
+  const stagingMarkerPath = path.join(stagingPath, path.basename(paths.depthMarkerPath));
+  mkdir(stagingPath, { recursive: true });
+  fs.writeFileSync(stagingLockPath, DEPTH_LOCK_CONTENT, "utf8");
   const lockSha256 = crypto.createHash("sha256").update(DEPTH_LOCK_CONTENT).digest("hex");
+  let verifiedEvidence: DepthRuntimeProbeEvidence | undefined;
 
-  // pip install
   try {
     await run(paths.pythonExecutable, [
       "-m", "pip", "install",
       "--disable-pip-version-check",
       "--no-input",
-      "--requirement", paths.depthLockPath,
+      "--requirement", stagingLockPath,
     ], {
-      cwd: paths.depthProfileDir,
+      cwd: stagingPath,
       timeout: 10 * 60_000,
       maxBuffer: 8 * 1024 * 1024,
     });
-  } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    return {
-      state: "blocked",
-      message: `pip install 失败: ${message}`,
-      profileDir: paths.depthProfileDir,
-    };
-  }
-
-  // Import smoke test
-  try {
     await run(paths.pythonExecutable, ["-c", "import numpy, PIL; print('ok')"], {
       cwd: options.backendRoot,
       timeout: 30_000,
       maxBuffer: 2 * 1024 * 1024,
     });
+    const marker = {
+      schemaVersion: 1,
+      profileId: DEPTH_PROFILE_ID,
+      pythonExecutable: paths.pythonExecutable,
+      lockPath: paths.depthLockPath,
+      lockSha256,
+      toolVersion: DEPTH_TOOL_VERSION,
+      createdAt: now(),
+      verifiedAt: now(),
+    };
+    fs.writeFileSync(stagingMarkerPath, `${JSON.stringify(marker, null, 2)}\n`, "utf8");
+    const previousPath = promoteStaging(paths.depthProfileDir, stagingPath);
+    const probe = await probeDepthRuntime(paths, {
+      backendRoot: options.backendRoot,
+      execFile: run,
+      env: buildDepthWorkerEnv(paths, options.backendRoot, {
+        ...(options.modelCacheDir ? { MYSTUDIO_DEPTH_MODEL_DIR: options.modelCacheDir } : {}),
+      }),
+    });
+    if (probe.state !== "ready") {
+      restorePromotedTarget(paths.depthProfileDir, previousPath);
+      return {
+        state: "blocked",
+        message: probe.message ?? "深度估计运行时验证失败",
+        profileDir: paths.depthProfileDir,
+        probeEvidence: probe.evidence,
+      };
+    }
+    verifiedEvidence = probe.evidence;
   } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
+    removeOwnPath(stagingPath);
     return {
       state: "blocked",
-      message: `依赖导入验证失败: ${message}`,
+      message: `深度估计运行时准备失败: ${error instanceof Error ? error.message : String(error)}`,
       profileDir: paths.depthProfileDir,
     };
   }
-
-  // Write profile marker
-  const marker = {
-    schemaVersion: 1,
-    profileId: DEPTH_PROFILE_ID,
-    pythonExecutable: paths.pythonExecutable,
-    lockPath: paths.depthLockPath,
-    lockSha256,
-    toolVersion: DEPTH_TOOL_VERSION,
-    createdAt: now(),
-    verifiedAt: now(),
-  };
-  const markerTemp = `${paths.depthMarkerPath}.${process.pid}.tmp`;
-  fs.writeFileSync(markerTemp, `${JSON.stringify(marker, null, 2)}\n`, "utf8");
-  fs.renameSync(markerTemp, paths.depthMarkerPath);
 
   return {
     state: "ready",
     message: "深度估计运行时已准备就绪",
     profileDir: paths.depthProfileDir,
+    probeEvidence: verifiedEvidence,
   };
 }
 
 /**
- * Rollback the depth profile by removing the marker.
+ * Rollback the active depth profile, restoring the previous verified profile
+ * when one exists. The displaced profile is retained for recovery.
  */
 export function rollbackDepthRuntime(
   storageBasePath: string,
   fileExists: (p: string) => boolean = fs.existsSync,
 ): { state: "ready" | "blocked"; message: string } {
   const paths = resolveDepthRuntimePaths(storageBasePath);
-  if (!fileExists(paths.depthMarkerPath)) {
+  if (!fileExists(paths.depthProfileDir)) {
     return { state: "ready", message: "深度估计 profile 不存在，无需回滚" };
   }
   try {
-    fs.unlinkSync(paths.depthMarkerPath);
-    return { state: "ready", message: "深度估计 profile 已回滚" };
+    const previousPath = `${paths.depthProfileDir}.previous`;
+    const rolledBackPath = `${paths.depthProfileDir}.rolled-back-${Date.now()}`;
+    fs.renameSync(paths.depthProfileDir, rolledBackPath);
+    if (fileExists(previousPath)) fs.renameSync(previousPath, paths.depthProfileDir);
+    return {
+      state: "ready",
+      message: fileExists(paths.depthProfileDir)
+        ? "深度估计 profile 已恢复到上一版本"
+        : "深度估计 profile 已回滚",
+    };
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     return { state: "blocked", message: `回滚失败: ${message}` };

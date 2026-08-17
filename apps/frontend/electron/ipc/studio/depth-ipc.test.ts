@@ -54,6 +54,13 @@ function runtimeStatus(overrides: Partial<DepthRuntimeStatus> = {}): DepthRuntim
     cinematicPresetMode: "auto",
     cinematicPresetCount: 0,
     modelCacheDir: "/tmp/mystudio-depth-model",
+    probeEvidence: {
+      pythonAvailable: true,
+      pythonVersion: "Python 3.12.7",
+      workerProbe: "ready",
+      workerToolVersion: "depth-estimation@0.1.0",
+      modelWeightSha256: "a".repeat(64),
+    },
     ...overrides,
   };
 }
@@ -62,8 +69,10 @@ function createController(overrides: Partial<DepthRuntimeStatus> = {}) {
   const status = runtimeStatus(overrides);
   const controller = {
     status: vi.fn(() => status),
+    ensureScanned: vi.fn(async () => undefined),
     setup: vi.fn(async () => status),
     rollback: vi.fn(async () => runtimeStatus({ state: "needs-runtime" })),
+    refresh: vi.fn(async () => status),
   };
   return controller as unknown as DepthRuntimeController & typeof controller;
 }
@@ -96,9 +105,53 @@ describe("depth runtime lifecycle IPC", () => {
       model: "depth-anything-v2-small",
       modelCacheDir: "/tmp/mystudio-depth-model",
       modelDownloaded: true,
+      probe: expect.objectContaining({ workerProbe: "ready", modelWeightSha256: "a".repeat(64) }),
     });
     expect(validateDepthRuntimeStatus(reply)).toMatchObject({ success: true });
-    expect(controller.status).toHaveBeenCalled();
+    expect(controller.refresh).toHaveBeenCalled();
+    registration.dispose();
+  });
+
+  it("fails closed with a valid status when probe evidence is malformed", async () => {
+    const controller = createController({
+      state: "ready",
+      modelDownloaded: true,
+      probeEvidence: { pythonAvailable: "yes", workerProbe: "ready" } as unknown as DepthRuntimeStatus["probeEvidence"],
+    });
+    const registration = register(controller);
+
+    const reply = await handlers.get(DEPTH_PROBE_CHANNEL)?.({}, { schemaVersion: 1 });
+
+    expect(reply).toMatchObject({
+      state: "error",
+      modelDownloaded: false,
+      probe: { pythonAvailable: false, workerProbe: "blocked" },
+      message: "深度运行时状态无效",
+    });
+    expect(validateDepthRuntimeStatus(reply)).toMatchObject({ success: true });
+    registration.dispose();
+  });
+
+  it("fails closed with a valid action reply when prepare evidence is malformed", async () => {
+    const controller = createController({
+      state: "ready",
+      modelDownloaded: true,
+      probeEvidence: { pythonAvailable: true, workerProbe: "unknown" } as unknown as DepthRuntimeStatus["probeEvidence"],
+    });
+    const registration = register(controller);
+
+    const reply = await handlers.get(DEPTH_PREPARE_CHANNEL)?.({}, { schemaVersion: 1 });
+
+    expect(reply).toMatchObject({
+      success: false,
+      code: "invalid-reply",
+      status: {
+        state: "error",
+        modelDownloaded: false,
+        probe: { pythonAvailable: false, workerProbe: "blocked" },
+      },
+    });
+    expect(validateDepthRuntimeActionReply(reply)).toMatchObject({ success: true });
     registration.dispose();
   });
 

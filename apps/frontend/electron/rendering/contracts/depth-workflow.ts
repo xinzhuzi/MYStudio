@@ -62,7 +62,16 @@ export interface DepthRuntimeStatusV1 {
   model: DepthModelId;
   modelCacheDir: string;
   modelDownloaded: boolean;
+  probe: DepthRuntimeProbeEvidenceV1;
   message?: string;
+}
+
+export interface DepthRuntimeProbeEvidenceV1 {
+  pythonAvailable: boolean;
+  pythonVersion?: string;
+  workerProbe: "not-run" | "ready" | "model-not-downloaded" | "blocked";
+  workerToolVersion?: string;
+  modelWeightSha256?: string;
 }
 
 export interface DepthRuntimeActionReplyV1 {
@@ -169,6 +178,40 @@ function validateDepthRuntimeState(
   return false;
 }
 
+function validateDepthRuntimeProbeEvidence(
+  value: unknown,
+  issues: DepthValidationIssue[],
+): value is DepthRuntimeProbeEvidenceV1 {
+  if (!isObject(value)) {
+    pushIssue(issues, "probe", "必须是对象");
+    return false;
+  }
+  if (typeof value.pythonAvailable !== "boolean") {
+    pushIssue(issues, "probe.pythonAvailable", "必须是 boolean");
+  }
+  if (value.pythonVersion !== undefined && !isString(value.pythonVersion)) {
+    pushIssue(issues, "probe.pythonVersion", "必须是字符串");
+  }
+  if (value.workerProbe !== "not-run"
+    && value.workerProbe !== "ready"
+    && value.workerProbe !== "model-not-downloaded"
+    && value.workerProbe !== "blocked") {
+    pushIssue(issues, "probe.workerProbe", "worker probe 状态无效");
+  }
+  if (value.workerToolVersion !== undefined && !isString(value.workerToolVersion)) {
+    pushIssue(issues, "probe.workerToolVersion", "必须是字符串");
+  }
+  if (value.modelWeightSha256 !== undefined
+    && (!isString(value.modelWeightSha256) || !HEX64.test(value.modelWeightSha256))) {
+    pushIssue(issues, "probe.modelWeightSha256", "必须是 64 位小写 SHA-256");
+  }
+  const allowed = ["pythonAvailable", "pythonVersion", "workerProbe", "workerToolVersion", "modelWeightSha256"];
+  for (const key of Object.keys(value)) {
+    if (!allowed.includes(key)) pushIssue(issues, `probe.${key}`, "包含未知字段");
+  }
+  return !issues.some((issue) => issue.path === "probe" || issue.path.startsWith("probe."));
+}
+
 export function validateDepthRuntimeLifecycleRequest(
   value: unknown,
 ): DepthValidationResult<DepthRuntimeLifecycleRequestV1> {
@@ -203,10 +246,11 @@ export function validateDepthRuntimeStatus(
   if (typeof value.modelDownloaded !== "boolean") {
     pushIssue(issues, "modelDownloaded", "必须是 boolean");
   }
+  validateDepthRuntimeProbeEvidence(value.probe, issues);
   if (value.message !== undefined && !isString(value.message)) {
     pushIssue(issues, "message", "必须是字符串");
   }
-  rejectUnknownFields(value, ["schemaVersion", "state", "model", "modelCacheDir", "modelDownloaded", "message"], issues);
+  rejectUnknownFields(value, ["schemaVersion", "state", "model", "modelCacheDir", "modelDownloaded", "probe", "message"], issues);
   return issues.length > 0
     ? { success: false, issues }
     : { success: true, value: value as unknown as DepthRuntimeStatusV1 };

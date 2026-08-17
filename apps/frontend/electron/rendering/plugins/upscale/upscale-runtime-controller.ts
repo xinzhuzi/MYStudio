@@ -10,6 +10,7 @@
 // Model download policy: inference NEVER downloads. Models are downloaded
 // only when the user clicks the button in 设置 → 本地配置 → 图片超分.
 
+import { createHash } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import { execFile, spawn } from "node:child_process";
@@ -36,6 +37,22 @@ import {
 import { prepareUpscaleRuntime, rollbackUpscaleRuntime } from "./upscale-runtime-manager";
 
 const execFileAsync = promisify(execFile);
+
+function sha256File(filePath: string): string {
+  const digest = createHash("sha256");
+  const file = fs.openSync(filePath, "r");
+  const buffer = Buffer.allocUnsafe(1024 * 1024);
+  try {
+    let bytesRead = 0;
+    do {
+      bytesRead = fs.readSync(file, buffer, 0, buffer.length, null);
+      if (bytesRead > 0) digest.update(buffer.subarray(0, bytesRead));
+    } while (bytesRead > 0);
+  } finally {
+    fs.closeSync(file);
+  }
+  return digest.digest("hex");
+}
 
 interface UpscaleInventoryRow {
   modelName: string;
@@ -578,6 +595,30 @@ export function createUpscaleRuntimeController(deps: ControllerDeps) {
         return {
           artifact: blockedUpscaleArtifact(value, "invalid-artifact", "超分返回了无效的 artifact", UPSCALE_TOOL_VERSION),
         };
+      }
+      if (artifact.value.status === "accepted") {
+        const accepted = artifact.value;
+        const expectedShotId = value.shotId ?? "unknown";
+        const expectedScale = UPSCALE_MODELS[value.model].scale;
+        const resolvedOutput = path.resolve(outputAbsolute);
+        const artifactOutput = path.resolve(accepted.outputPath);
+        let mismatch: string | undefined;
+        if (accepted.projectId !== value.projectId) mismatch = "projectId 不匹配";
+        else if (accepted.shotId !== expectedShotId) mismatch = "shotId 不匹配";
+        else if (accepted.model !== value.model) mismatch = "model 不匹配";
+        else if (accepted.method !== "super_res") mismatch = "method 不匹配";
+        else if (accepted.scale !== expectedScale) mismatch = "scale 不匹配";
+        else if (artifactOutput !== resolvedOutput) mismatch = "outputPath 不匹配";
+        else if (!fs.existsSync(resolvedOutput) || !fs.statSync(resolvedOutput).isFile()) mismatch = "输出文件不存在";
+        else if (accepted.outputBytes !== fs.statSync(resolvedOutput).size) mismatch = "outputBytes 不匹配";
+        else if (!fs.existsSync(inputAbsolute) || !fs.statSync(inputAbsolute).isFile()) mismatch = "输入文件不存在";
+        else if (accepted.outputSha256 !== sha256File(resolvedOutput)) mismatch = "outputSha256 不匹配";
+        else if (accepted.inputSha256 !== sha256File(inputAbsolute)) mismatch = "inputSha256 不匹配";
+        if (mismatch) {
+          return {
+            artifact: blockedUpscaleArtifact(value, "artifact-output-mismatch", `超分 artifact 证据校验失败: ${mismatch}`, UPSCALE_TOOL_VERSION),
+          };
+        }
       }
       return { artifact: artifact.value };
     } finally {

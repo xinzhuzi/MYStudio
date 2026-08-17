@@ -1,6 +1,6 @@
 "use client";
 
-import { Check, Download, Image as ImageIcon, Loader2 } from "lucide-react";
+import { Check, Download, Image as ImageIcon, Loader2, RefreshCw, RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useImageGenRuntimeSettings } from "./useImageGenRuntimeSettings";
@@ -20,8 +20,11 @@ type LocalImageSettingsSectionProps = {
 export function LocalImageSettingsSection({ embedded = false }: LocalImageSettingsSectionProps) {
   const runtime = useImageGenRuntimeSettings();
   const status = runtime.status;
-  const isReady = status?.setupStage === "ready" || status?.running;
-  const setupFailed = status?.setupStage === "failed";
+  const lifecycleState = runtime.lifecycleStatus?.state;
+  const isReady = runtime.hasLifecycleBridge
+    ? lifecycleState === "ready"
+    : status?.setupStage === "ready" || status?.running;
+  const setupFailed = runtime.lifecycleError || lifecycleState === "blocked" || lifecycleState === "error" || status?.setupStage === "failed";
 
   if (!runtime.hasRuntime) {
     return (
@@ -45,24 +48,34 @@ export function LocalImageSettingsSection({ embedded = false }: LocalImageSettin
             {isReady
               ? "本地生图服务运行中 (127.0.0.1:17595)"
               : setupFailed
-                ? (status?.setupMessage ?? "服务启动失败")
-                : "服务未启动（依赖共享 Python 运行环境）"}
+                ? (runtime.lifecycleError ?? status?.setupMessage ?? "服务启动失败")
+                : lifecycleState === "needs-runtime"
+                  ? "运行时未准备（请先准备模型）"
+                  : "服务未启动（依赖共享 Python 运行环境）"}
           </span>
         </div>
-        <Button
-          size="sm"
-          variant="outline"
-          onClick={() => void runtime.setupRuntime()}
-          disabled={runtime.isSettingUp}
-        >
-          {runtime.isSettingUp ? (
-            <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden />
-          ) : (
-            <ImageIcon className="mr-2 h-4 w-4" aria-hidden />
-          )}
-          {isReady ? "重新检查" : "启动服务"}
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          {runtime.hasLifecycleBridge ? (
+            <Button size="sm" variant="ghost" onClick={() => void runtime.probeRuntime()} disabled={runtime.isProbing || runtime.isSettingUp || runtime.isRollingBack}>
+              <RefreshCw className={cn("mr-2 h-4 w-4", runtime.isProbing && "animate-spin")} aria-hidden />
+              探测
+            </Button>
+          ) : null}
+          <Button size="sm" variant="outline" onClick={() => void runtime.setupRuntime()} disabled={runtime.isSettingUp || runtime.isProbing || runtime.isRollingBack}>
+            {runtime.isSettingUp ? <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden /> : <ImageIcon className="mr-2 h-4 w-4" aria-hidden />}
+            {isReady ? "重新检查" : "准备运行时"}
+          </Button>
+          {runtime.hasLifecycleBridge ? (
+            <Button size="sm" variant="ghost" onClick={() => void runtime.rollbackRuntime()} disabled={!isReady || runtime.isSettingUp || runtime.isProbing || runtime.isRollingBack}>
+              {runtime.isRollingBack ? <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden /> : <RotateCcw className="mr-2 h-4 w-4" aria-hidden />}
+              回滚
+            </Button>
+          ) : null}
+        </div>
       </div>
+
+      {runtime.lifecycleStatus?.message && !runtime.lifecycleError ? <p className="text-xs text-muted-foreground">{runtime.lifecycleStatus.message}</p> : null}
+      {runtime.lifecycleStatus?.modelCacheDir ? <p className="truncate text-xs text-muted-foreground" title={runtime.lifecycleStatus.modelCacheDir}>模型缓存：{runtime.lifecycleStatus.modelCacheDir}</p> : null}
 
       {/* Model rows */}
       {(status?.models ?? []).map((model) => {
@@ -122,7 +135,7 @@ export function LocalImageSettingsSection({ embedded = false }: LocalImageSettin
       })}
 
       <p className="text-xs text-muted-foreground leading-5">
-        本地生图零 API 费用。启动服务后，在 设置 → 云端AI 中将「角色生图 / 场景生图 / 道具生图」绑定到
+        本地生图零 API 费用。准备运行时并下载模型后，在 设置 → 云端AI 中将「角色生图 / 场景生图 / 道具生图」绑定到
         「本地图片生成」提供方即可替代云 API。模型仅在点击下载时获取（ModelScope 优先，HuggingFace 回退）。
       </p>
     </div>

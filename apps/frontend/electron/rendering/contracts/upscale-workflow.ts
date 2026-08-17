@@ -366,8 +366,13 @@ export function validateUpscaleArtifact(
   // Blocked artifacts (worker fail-closed) carry zeroed output fields; only
   // accepted runs must describe a real image.
   if (value.status === "accepted") {
+    if (value.method !== "super_res") pushIssue(issues, "method", "accepted 必须使用 super_res");
+    if (!isNumber(value.scale) || value.scale <= 0) pushIssue(issues, "scale", "accepted 必须是正数");
     if (!isNumber(value.width) || value.width <= 0) pushIssue(issues, "width", "必须是正数");
     if (!isNumber(value.height) || value.height <= 0) pushIssue(issues, "height", "必须是正数");
+    if (!isNumber(value.outputBytes) || !Number.isInteger(value.outputBytes) || value.outputBytes <= 0) {
+      pushIssue(issues, "outputBytes", "accepted 必须是正整数");
+    }
   } else {
     if (!isNumber(value.width) || value.width < 0) pushIssue(issues, "width", "必须是非负数");
     if (!isNumber(value.height) || value.height < 0) pushIssue(issues, "height", "必须是非负数");

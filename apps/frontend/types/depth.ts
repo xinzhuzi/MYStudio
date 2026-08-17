@@ -2,6 +2,8 @@
 // main-process DepthRuntimeStatus shape in
 // electron/rendering/plugins/depth/depth-runtime-controller.ts.
 
+import type { DepthRuntimeProbeEvidenceV1 } from "@rendering/contracts/depth-workflow";
+
 export type DepthSetupStage =
   | "idle"
   | "checking"
@@ -29,6 +31,7 @@ export interface DepthRuntimeStatus {
   cinematicPresetCount: number;
   /** User-configured model cache directory (default <userData>/DeepModel). */
   modelCacheDir: string;
+  probeEvidence: DepthRuntimeProbeEvidenceV1;
 }
 
 export interface DepthModelStatusRow {

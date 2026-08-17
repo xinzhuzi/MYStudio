@@ -218,7 +218,8 @@ export function AssetFlowCard({
   const assetUpscaling = assetUpscaleTarget != null
     && directUpscale.busyKey === `asset:${assetUpscaleTarget.id}`;
   const [assetImageLongSide, setAssetImageLongSide] = useState(0);
-  const assetAlreadyUpscaled = assetImageLongSide > UPSCALE_INPUT_MAX_LONG_SIDE;
+  const assetAlreadyUpscaled = (card.mediaPath || "").includes("up4x-")
+    || assetImageLongSide > UPSCALE_INPUT_MAX_LONG_SIDE;
   const canOpenImageWorkflow =
     card.isDerived &&
     Boolean(card.sourceImagePath || card.imageWorkflowId || card.mediaPath) &&
@@ -472,6 +473,15 @@ export function StoryboardTablePreview({
   );
 }
 
+/**
+ * 4K 预判：up4x- 输出路径必然 ≥4K(同步可靠)；其余依赖 <img> naturalWidth
+ * (onLoad 尽力而为，懒加载/缓存场景可能缺席——后端守卫兜底)。
+ */
+function tileAlready4k(mediaPath: string | undefined, longSide: number | undefined): boolean {
+  if (typeof mediaPath === "string" && mediaPath.includes("up4x-")) return true;
+  return (longSide ?? 0) > UPSCALE_INPUT_MAX_LONG_SIDE;
+}
+
 export function StoryboardGridPreview({
   node,
   onOpenImageWorkflow,
@@ -564,10 +574,10 @@ export function StoryboardGridPreview({
               <button
                 type="button"
                 data-storyboard-upscale-id={tile.id}
-                disabled={directUpscale.busyKey === `storyboard:${tile.id}` || (tileLongSides[tile.id] ?? 0) > UPSCALE_INPUT_MAX_LONG_SIDE}
+                disabled={directUpscale.busyKey === `storyboard:${tile.id}` || tileAlready4k(tile.mediaPath, tileLongSides[tile.id])}
                 className="inline-flex w-full items-center justify-center gap-1 rounded border border-border bg-muted/30 px-1.5 py-1 text-[10px] text-muted-foreground hover:border-amber-300/45 hover:text-foreground disabled:opacity-60"
-                title={(tileLongSides[tile.id] ?? 0) > UPSCALE_INPUT_MAX_LONG_SIDE
-                  ? `已达 4K(${tileLongSides[tile.id]}px 长边)，无需再超分`
+                title={tileAlready4k(tile.mediaPath, tileLongSides[tile.id])
+                  ? "已是 4K 超分结果，无需再放大"
                   : "本地 Real-ESRGAN 原生 ×4 放大(超分后视觉审核重置)"}
                 onClick={(event) => {
                   event.stopPropagation();

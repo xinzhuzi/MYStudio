@@ -167,12 +167,19 @@ def find_cached_upscale_model(model_name: str) -> CachedUpscaleModel | None:
         return None
     for model_dir in model_candidate_dirs():
         path = cached_model_path(model_dir, spec)
-        if path.is_file() and path.stat().st_size > 0:
-            return {
-                "file_path": str(path),
-                "size_mb": round(path.stat().st_size / 1024 / 1024, 2),
-                "sha256": spec["sha256"],
-            }
+        if not path.is_file() or path.stat().st_size <= 0:
+            continue
+        try:
+            actual_sha256 = file_sha256(path)
+        except OSError:
+            continue
+        if actual_sha256 != spec["sha256"]:
+            continue
+        return {
+            "file_path": str(path),
+            "size_mb": round(path.stat().st_size / 1024 / 1024, 2),
+            "sha256": actual_sha256,
+        }
     return None
 
 

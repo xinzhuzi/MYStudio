@@ -16,6 +16,13 @@ const validStatus = {
   model: "depth-anything-v2-small",
   modelCacheDir: "/tmp/mystudio-depth-model",
   modelDownloaded: true,
+  probe: {
+    pythonAvailable: true,
+    pythonVersion: "Python 3.12.7",
+    workerProbe: "ready",
+    workerToolVersion: "depth-estimation@0.1.0",
+    modelWeightSha256: "a".repeat(64),
+  },
   message: "深度运行时已就绪",
 } as const;
 
@@ -41,6 +48,16 @@ describe("depth runtime lifecycle contracts", () => {
     expect(validateDepthRuntimeStatus({ ...validStatus, modelCacheDir: "models/depth" })).toMatchObject({
       success: false,
       issues: expect.arrayContaining([expect.objectContaining({ path: "modelCacheDir" })]),
+    });
+    expect(validateDepthRuntimeStatus({
+      ...validStatus,
+      probe: { ...validStatus.probe, modelWeightSha256: "bad", extra: true },
+    })).toMatchObject({
+      success: false,
+      issues: expect.arrayContaining([
+        expect.objectContaining({ path: "probe.modelWeightSha256" }),
+        expect.objectContaining({ path: "probe.extra" }),
+      ]),
     });
   });
 

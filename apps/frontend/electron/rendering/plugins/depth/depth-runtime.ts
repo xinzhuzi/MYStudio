@@ -1,7 +1,10 @@
 import fs from "node:fs";
 import path from "node:path";
 import { execFile } from "node:child_process";
+import { createHash } from "node:crypto";
 import { promisify } from "node:util";
+
+import type { DepthRuntimeProbeEvidenceV1 } from "@rendering/contracts/depth-workflow";
 
 const execFileAsync = promisify(execFile);
 
@@ -32,11 +35,16 @@ export interface DepthRuntimeProbeResult {
   state: "ready" | "needs-runtime" | "blocked" | "error";
   paths: DepthRuntimePaths;
   missing: string[];
+  evidence: DepthRuntimeProbeEvidence;
   message?: string;
 }
 
+export type DepthRuntimeProbeEvidence = DepthRuntimeProbeEvidenceV1;
+
 export interface DepthRuntimeProbeDeps {
   fileExists?: (filePath: string) => boolean;
+  backendRoot?: string;
+  env?: NodeJS.ProcessEnv;
   execFile?: (
     file: string,
     args: string[],
@@ -90,12 +98,17 @@ export async function probeDepthRuntime(
   const fileExists = deps.fileExists ?? fs.existsSync;
   const run = deps.execFile ?? ((file, args, options) => execFileAsync(file, args, options));
   const missing: string[] = [];
+  const baseEvidence: DepthRuntimeProbeEvidence = {
+    pythonAvailable: fileExists(paths.pythonExecutable),
+    workerProbe: "not-run",
+  };
 
-  if (!fileExists(paths.pythonExecutable)) {
+  if (!baseEvidence.pythonAvailable) {
     return {
       state: "needs-runtime",
       paths,
       missing: ["managed-python"],
+      evidence: baseEvidence,
       message: "请先在设置页下载共享 Python 3.12 运行时",
     };
   }
@@ -117,6 +130,7 @@ export async function probeDepthRuntime(
       state: "blocked",
       paths,
       missing: ["python-version"],
+      evidence: { ...baseEvidence, pythonVersion },
       message: `深度估计必须复用 managed Python 3.12, 实际: ${pythonVersion ?? "unknown"}`,
     };
   }
@@ -126,12 +140,16 @@ export async function probeDepthRuntime(
       state: "needs-runtime",
       paths,
       missing: ["depth-profile"],
+      evidence: { ...baseEvidence, pythonVersion },
       message: "请先在设置页准备深度估计运行时 profile",
     };
   }
 
   // Validate profile marker
   const marker = readJsonFile(paths.depthMarkerPath);
+  const actualLockSha256 = fileExists(paths.depthLockPath)
+    ? cryptoSha256(fs.readFileSync(paths.depthLockPath))
+    : undefined;
   if (!marker
     || marker.schemaVersion !== 1
     || marker.profileId !== DEPTH_PROFILE_ID
@@ -139,11 +157,12 @@ export async function probeDepthRuntime(
     || marker.lockPath !== paths.depthLockPath
     || typeof marker.lockSha256 !== "string"
     || !/^[a-f0-9]{64}$/.test(marker.lockSha256)
-    || !fileExists(paths.depthLockPath)) {
+    || marker.lockSha256 !== actualLockSha256) {
     return {
       state: "blocked",
       paths,
       missing: ["depth-profile-invalid"],
+      evidence: { ...baseEvidence, pythonVersion },
       message: "深度估计 profile marker、lock 或 managed Python 路径不一致",
     };
   }
@@ -161,11 +180,99 @@ export async function probeDepthRuntime(
       state: "blocked",
       paths,
       missing,
+      evidence: { ...baseEvidence, pythonVersion },
       message: "深度估计依赖导入失败 (numpy, PIL)",
     };
   }
 
-  return { state: "ready", paths, missing: [] };
+  const worker = await probeWorker(paths, run, deps, pythonVersion);
+  if (worker.state === "blocked") {
+    return {
+      state: "blocked",
+      paths,
+      missing: ["worker-probe"],
+      evidence: worker.evidence,
+      message: worker.message,
+    };
+  }
+
+  return { state: "ready", paths, missing: [], evidence: worker.evidence };
+}
+
+function cryptoSha256(bytes: Buffer): string {
+  return createHash("sha256").update(bytes).digest("hex");
+}
+
+async function probeWorker(
+  paths: DepthRuntimePaths,
+  run: NonNullable<DepthRuntimeProbeDeps["execFile"]>,
+  deps: DepthRuntimeProbeDeps,
+  pythonVersion: string,
+): Promise<{ state: "ready" | "blocked"; evidence: DepthRuntimeProbeEvidence; message?: string }> {
+  const backendRoot = deps.backendRoot ?? process.cwd();
+  const evidence: DepthRuntimeProbeEvidence = {
+    pythonAvailable: true,
+    pythonVersion,
+    workerProbe: "blocked",
+  };
+  try {
+    const result = await run(paths.pythonExecutable, ["-m", "depth_estimation.worker", "--probe"], {
+      timeout: 60_000,
+      maxBuffer: 2 * 1024 * 1024,
+      cwd: backendRoot,
+      env: deps.env ?? buildDepthWorkerEnv(paths, backendRoot),
+    });
+    const parsed = JSON.parse(result.stdout ?? "") as unknown;
+    if (!isRecord(parsed) || typeof parsed.toolVersion !== "string" || !isRecord(parsed.model)) {
+      return { state: "blocked", evidence, message: "深度估计 worker probe 返回无效" };
+    }
+    const workerToolVersion = parsed.toolVersion;
+    if (parsed.status === "ready") {
+      const weightSha = parsed.model.weightSha256;
+      if (typeof weightSha !== "string" || !/^[a-f0-9]{64}$/.test(weightSha)) {
+        return {
+          state: "blocked",
+          evidence: { ...evidence, workerToolVersion },
+          message: "深度估计 worker 未返回有效的模型权重 SHA-256",
+        };
+      }
+      return {
+        state: "ready",
+        evidence: {
+          pythonAvailable: true,
+          pythonVersion,
+          workerProbe: "ready",
+          workerToolVersion,
+          modelWeightSha256: weightSha,
+        },
+      };
+    }
+    if (parsed.status === "blocked" && parsed.model.code === "model-not-downloaded") {
+      return {
+        state: "ready",
+        evidence: {
+          pythonAvailable: true,
+          pythonVersion,
+          workerProbe: "model-not-downloaded",
+          workerToolVersion,
+        },
+      };
+    }
+    const message = typeof parsed.model.message === "string"
+      ? parsed.model.message
+      : "深度估计 worker probe 未就绪";
+    return { state: "blocked", evidence: { ...evidence, workerToolVersion }, message };
+  } catch (error) {
+    return {
+      state: "blocked",
+      evidence,
+      message: `深度估计 worker probe 失败: ${error instanceof Error ? error.message : String(error)}`,
+    };
+  }
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
 function readJsonFile(filePath: string): Record<string, unknown> | null {

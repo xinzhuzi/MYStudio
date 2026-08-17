@@ -26,19 +26,32 @@ class UpscaleModelCacheTest(unittest.TestCase):
     def test_find_and_delete_cached_model(self) -> None:
         with tempfile.TemporaryDirectory() as temp:
             with patch.dict("os.environ", {"MYSTUDIO_UPSCALE_MODEL_DIR": temp}, clear=False):
-                spec = UPSCALE_MODELS["realesrgan-x4plus-anime-6b"]
+                name = "realesrgan-x4plus-anime-6b"
+                spec = UPSCALE_MODELS[name]
                 target = Path(temp) / spec["file"]
-                self.assertIsNone(find_cached_upscale_model("realesrgan-x4plus-anime-6b"))
+                self.assertIsNone(find_cached_upscale_model(name))
                 target.write_bytes(b"0" * (512 * 1024))
-                cached = find_cached_upscale_model("realesrgan-x4plus-anime-6b")
-                self.assertIsNotNone(cached)
-                self.assertEqual(cached["file_path"], str(target))
-                downloaded, size_mb = is_upscale_model_downloaded("realesrgan-x4plus-anime-6b")
-                self.assertTrue(downloaded)
-                self.assertGreater(size_mb, 0)
-                self.assertTrue(delete_cached_model("realesrgan-x4plus-anime-6b"))
-                self.assertFalse(target.exists())
-                self.assertIsNone(find_cached_upscale_model("realesrgan-x4plus-anime-6b"))
+                digest = file_sha256(target)
+                with patch.dict(model_cache.UPSCALE_MODELS, {name: {**spec, "sha256": digest}}):
+                    cached = find_cached_upscale_model(name)
+                    self.assertIsNotNone(cached)
+                    self.assertEqual(cached["file_path"], str(target))
+                    downloaded, size_mb = is_upscale_model_downloaded(name)
+                    self.assertTrue(downloaded)
+                    self.assertGreater(size_mb, 0)
+                    self.assertTrue(delete_cached_model(name))
+                    self.assertFalse(target.exists())
+                    self.assertIsNone(find_cached_upscale_model(name))
+
+    def test_corrupt_cached_model_is_not_downloaded(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            with patch.dict("os.environ", {"MYSTUDIO_UPSCALE_MODEL_DIR": temp}, clear=False):
+                name = "realesrgan-x4plus-anime-6b"
+                spec = UPSCALE_MODELS[name]
+                target = Path(temp) / spec["file"]
+                target.write_bytes(b"tampered-model")
+                self.assertIsNone(find_cached_upscale_model(name))
+                self.assertEqual(is_upscale_model_downloaded(name), (False, None))
 
     def test_verify_model_sha256_round_trip(self) -> None:
         with tempfile.TemporaryDirectory() as temp:

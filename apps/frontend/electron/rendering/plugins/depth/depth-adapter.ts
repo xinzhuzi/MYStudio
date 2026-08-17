@@ -34,6 +34,7 @@ export interface DepthProbeResult {
 
 export interface DepthAdapterOptions {
   storageBasePath: string | (() => string);
+  modelCacheDir?: string | (() => string);
   backendRoot: string;
   probeRuntime?: (paths: DepthRuntimePaths) => Promise<DepthRuntimeProbeResult>;
   execFile?: (
@@ -53,12 +54,25 @@ export function createDepthAdapter(options: DepthAdapterOptions) {
     typeof options.storageBasePath === "function" ? options.storageBasePath() : options.storageBasePath,
   );
   const runFile = options.execFile ?? execFileAsync;
+  const getWorkerEnv = (paths: DepthRuntimePaths) => {
+    const modelCacheDir = typeof options.modelCacheDir === "function"
+      ? options.modelCacheDir()
+      : options.modelCacheDir;
+    return buildDepthWorkerEnv(paths, options.backendRoot, {
+      ...(modelCacheDir?.trim() ? { MYSTUDIO_DEPTH_MODEL_DIR: modelCacheDir } : {}),
+    });
+  };
+  const probeRuntime = (paths: DepthRuntimePaths) => probeDepthRuntime(paths, {
+    backendRoot: options.backendRoot,
+    env: getWorkerEnv(paths),
+    execFile: runFile,
+  });
 
   async function probe(): Promise<DepthProbeResult> {
     const paths = getPaths();
     const runtime = options.probeRuntime
       ? await options.probeRuntime(paths)
-      : await probeDepthRuntime(paths);
+      : await probeRuntime(paths);
     if (runtime.state !== "ready") {
       return {
         state: "blocked",
@@ -89,7 +103,7 @@ export function createDepthAdapter(options: DepthAdapterOptions) {
     // Check runtime readiness
     const runtime = options.probeRuntime
       ? await options.probeRuntime(paths)
-      : await probeDepthRuntime(paths);
+      : await probeRuntime(paths);
     if (runtime.state !== "ready") {
       return {
         state: "blocked",
@@ -108,7 +122,7 @@ export function createDepthAdapter(options: DepthAdapterOptions) {
         buildDepthWorkerArgs(requestPath, artifactPath),
         {
           cwd: options.backendRoot,
-          env: buildDepthWorkerEnv(paths, options.backendRoot),
+          env: getWorkerEnv(paths),
           timeout: 10 * 60_000,
           maxBuffer: 8 * 1024 * 1024,
         },

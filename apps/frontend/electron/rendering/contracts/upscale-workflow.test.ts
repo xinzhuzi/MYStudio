@@ -66,6 +66,7 @@ describe("upscale workflow contracts", () => {
       outputPath: "/abs/out.png",
       width: 4096,
       height: 6144,
+      outputBytes: 12345,
       toolVersion: "upscale@0.1.0",
       generatedAt: Date.now(),
     };
@@ -73,6 +74,9 @@ describe("upscale workflow contracts", () => {
     expect(validateUpscaleArtifact({ ...validArtifact, width: 0 }).success).toBe(false);
     expect(validateUpscaleArtifact({ ...validArtifact, outputSha256: "xyz" }).success).toBe(false);
     expect(validateUpscaleArtifact({ ...validArtifact, scale: -1 }).success).toBe(false);
+    expect(validateUpscaleArtifact({ ...validArtifact, scale: 0 }).success).toBe(false);
+    expect(validateUpscaleArtifact({ ...validArtifact, method: "lanczos" }).success).toBe(false);
+    expect(validateUpscaleArtifact({ ...validArtifact, outputBytes: undefined }).success).toBe(false);
     expect(validateUpscaleArtifact({ ...validArtifact, elapsedSeconds: 1.5 }).success).toBe(true);
     expect(validateUpscaleArtifact({ ...validArtifact, outputBytes: 12345 }).success).toBe(true);
     expect(validateUpscaleArtifact({ ...validArtifact, outputBytes: -1 }).success).toBe(false);

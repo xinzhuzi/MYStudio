@@ -120,6 +120,19 @@ import type {
   UpscaleRuntimeStatusV1,
 } from '@rendering/contracts/upscale-workflow'
 import {
+  IMAGE_GEN_PREPARE_CHANNEL,
+  IMAGE_GEN_PROBE_CHANNEL,
+  IMAGE_GEN_ROLLBACK_CHANNEL,
+  IMAGE_GEN_SCHEMA_VERSION,
+  validateImageGenRuntimeActionReply,
+  validateImageGenRuntimeStatus,
+} from '@rendering/contracts/image-gen-workflow'
+import type {
+  ImageGenRuntimeActionReplyV1,
+  ImageGenRuntimeLifecycleRequestV1,
+  ImageGenRuntimeStatusV1,
+} from '@rendering/contracts/image-gen-workflow'
+import {
   REMOTION_QUEUE_CANCEL_CHANNEL,
   REMOTION_QUEUE_CHECK_SWITCH_CHANNEL,
   REMOTION_QUEUE_ENQUEUE_SHOT_CHANNEL,
@@ -631,6 +644,18 @@ function parseUpscaleRuntimeStatus(value: unknown): UpscaleRuntimeStatusV1 {
   return result.value
 }
 
+function parseImageGenRuntimeStatus(value: unknown): ImageGenRuntimeStatusV1 {
+  const result = validateImageGenRuntimeStatus(value)
+  if (!result.success) throw new Error(result.issues.map((issue) => `${issue.path}: ${issue.message}`).join('; '))
+  return result.value
+}
+
+function parseImageGenRuntimeAction(value: unknown): ImageGenRuntimeActionReplyV1 {
+  const result = validateImageGenRuntimeActionReply(value)
+  if (!result.success) throw new Error(result.issues.map((issue) => `${issue.path}: ${issue.message}`).join('; '))
+  return result.value
+}
+
 function parseUpscaleRuntimeAction(value: unknown): UpscaleRuntimeActionReplyV1 {
   const result = validateUpscaleRuntimeActionReply(value)
   if (!result.success) throw new Error(result.issues.map((issue) => `${issue.path}: ${issue.message}`).join('; '))
@@ -674,6 +699,12 @@ contextBridge.exposeInMainWorld('videoPipelineLogBundle', {
 
 // Local image generation runtime API — sidecar lifecycle + explicit model downloads.
 contextBridge.exposeInMainWorld('imageGenRuntime', {
+  probe: (request: ImageGenRuntimeLifecycleRequestV1 = { schemaVersion: IMAGE_GEN_SCHEMA_VERSION }): Promise<ImageGenRuntimeStatusV1> =>
+    ipcRenderer.invoke(IMAGE_GEN_PROBE_CHANNEL, request).then(parseImageGenRuntimeStatus),
+  prepare: (request: ImageGenRuntimeLifecycleRequestV1 = { schemaVersion: IMAGE_GEN_SCHEMA_VERSION }): Promise<ImageGenRuntimeActionReplyV1> =>
+    ipcRenderer.invoke(IMAGE_GEN_PREPARE_CHANNEL, request).then(parseImageGenRuntimeAction),
+  rollback: (request: ImageGenRuntimeLifecycleRequestV1 = { schemaVersion: IMAGE_GEN_SCHEMA_VERSION }): Promise<ImageGenRuntimeActionReplyV1> =>
+    ipcRenderer.invoke(IMAGE_GEN_ROLLBACK_CHANNEL, request).then(parseImageGenRuntimeAction),
   status: (): Promise<unknown> => ipcRenderer.invoke('image-gen-runtime-status'),
   setup: (): Promise<unknown> => ipcRenderer.invoke('image-gen-runtime-setup'),
   stop: (): Promise<unknown> => ipcRenderer.invoke('image-gen-runtime-stop'),

@@ -19,6 +19,7 @@ import {
   buildDepthWorkerEnv,
   probeDepthRuntime,
   resolveDepthRuntimePaths,
+  type DepthRuntimeProbeEvidence,
   type DepthRuntimePaths,
 } from "./depth-runtime";
 import { prepareDepthRuntime, rollbackDepthRuntime } from "./depth-runtime-manager";
@@ -62,6 +63,7 @@ export interface DepthRuntimeStatus {
   cinematicPresetCount: number;
   /** User-configured model cache directory (default <storageBase>/DeepModel). */
   modelCacheDir: string;
+  probeEvidence: DepthRuntimeProbeEvidence;
 }
 
 export const DEPTH_CINEMATIC_PRESETS = [
@@ -150,6 +152,10 @@ export function createDepthRuntimeController(deps: ControllerDeps) {
     cinematicPresetMode: "auto",
     cinematicPresetCount: 0,
     modelCacheDir: "",
+    probeEvidence: {
+      pythonAvailable: false,
+      workerProbe: "not-run",
+    },
   };
 
   /** Per-shot AI presets (auto mode). Keyed by shotId; "__default" is the chapter default. */
@@ -360,7 +366,12 @@ export function createDepthRuntimeController(deps: ControllerDeps) {
     state.setupMessage = "正在检查深度估计运行时…";
 
     const paths = getPaths();
-    const probe = await probeDepthRuntime(paths);
+    const probe = await probeDepthRuntime(paths, {
+      backendRoot: deps.backendRoot,
+      env: buildEnv(paths),
+      execFile: runFile,
+    });
+    state.probeEvidence = probe.evidence;
     if (probe.state === "ready") {
       state.state = "ready";
       state.setupStage = "ready";
@@ -377,8 +388,11 @@ export function createDepthRuntimeController(deps: ControllerDeps) {
     const prepare = await prepareDepthRuntime({
       storageBasePath: paths.storageBasePath,
       backendRoot: deps.backendRoot,
+      modelCacheDir: getModelCacheDir(),
+      execFile: runFile,
     });
     if (prepare.state !== "ready") {
+      if (prepare.probeEvidence) state.probeEvidence = prepare.probeEvidence;
       state.state = "blocked";
       state.setupStage = "failed";
       state.setupProgress = undefined;
@@ -387,6 +401,7 @@ export function createDepthRuntimeController(deps: ControllerDeps) {
     }
 
     state.state = "ready";
+    if (prepare.probeEvidence) state.probeEvidence = prepare.probeEvidence;
     state.setupStage = "ready";
     state.setupProgress = 100;
     state.setupMessage = "深度估计运行时已就绪";
@@ -401,8 +416,6 @@ export function createDepthRuntimeController(deps: ControllerDeps) {
     state.setupProgress = undefined;
     state.setupMessage = result.message;
     if (result.state === "ready") {
-      state.modelDownloaded = false;
-      state.modelSizeMb = null;
       state.downloadStatus = "idle";
       state.downloadProgress = 0;
       state.downloadError = undefined;
@@ -439,7 +452,13 @@ export function createDepthRuntimeController(deps: ControllerDeps) {
     if (state.downloadStatus === "downloading") {
       return { accepted: false, message: "深度模型正在下载中" };
     }
-    const probe = await probeDepthRuntime(getPaths());
+    const paths = getPaths();
+    const probe = await probeDepthRuntime(paths, {
+      backendRoot: deps.backendRoot,
+      env: buildEnv(paths),
+      execFile: runFile,
+    });
+    state.probeEvidence = probe.evidence;
     if (probe.state !== "ready") {
       return {
         accepted: false,
@@ -466,7 +485,13 @@ export function createDepthRuntimeController(deps: ControllerDeps) {
   }
 
   async function refresh(): Promise<DepthRuntimeStatus> {
-    const probe = await probeDepthRuntime(getPaths());
+    const paths = getPaths();
+    const probe = await probeDepthRuntime(paths, {
+      backendRoot: deps.backendRoot,
+      env: buildEnv(paths),
+      execFile: runFile,
+    });
+    state.probeEvidence = probe.evidence;
     state.state = probe.state === "ready" ? "ready" : probe.state;
     if (probe.state !== "ready" && !state.setupMessage) {
       state.setupMessage = probe.message;

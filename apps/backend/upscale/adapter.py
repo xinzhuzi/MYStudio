@@ -20,6 +20,7 @@ from .model_cache import (
     UPSCALE_MODELS,
     find_cached_upscale_model,
     primary_model_dir,
+    verify_model_sha256,
 )
 
 DEFAULT_TILE = 512
@@ -81,6 +82,9 @@ def _load_model(model_name: str):
         raise UpscaleError("unknown-model", f"未知超分模型: {model_name}")
     cached = find_cached_upscale_model(model_name)
     if not cached:
+        verified, location = verify_model_sha256(model_name)
+        if not verified and location not in {"model-not-downloaded", "unknown-model"}:
+            raise UpscaleError("model-corrupt", f"超分模型摘要校验失败: {location}")
         raise UpscaleError(
             "model-not-downloaded",
             f"超分模型 {spec['label']} 未下载,请前往设置 > 本地配置显式下载",
@@ -154,12 +158,16 @@ def _tile_forward(network, tensor, scale: int, tile: int, tile_pad: int):
                     output_tile = network(input_tile)
             except Exception as exc:
                 raise UpscaleError("inference-failed", f"超分推理失败: {exc}") from exc
-            output_tile = output_tile.detach().clamp_(0, 255).round_().to(torch.uint8).cpu()
+            # Real-ESRGAN networks consume and return normalized [0, 1] RGB.
+            # Convert to the PNG byte domain exactly once before assembling the
+            # CPU accumulator; clamping the float tensor directly would turn
+            # every normal pixel into 0 or 1.
+            output_tile = output_tile.detach().mul(255.0).clamp_(0, 255).round_().to(torch.uint8).cpu()
 
-            output_start_x = (input_start_x - input_start_x_pad) * scale
-            output_end_x = input_end_x * scale - input_start_x_pad * scale
-            output_start_y = (input_start_y - input_start_y_pad) * scale
-            output_end_y = input_end_y * scale - input_start_y_pad * scale
+            output_start_x = input_start_x * scale
+            output_end_x = input_end_x * scale
+            output_start_y = input_start_y * scale
+            output_end_y = input_end_y * scale
             tile_start_x = (input_start_x - input_start_x_pad) * scale
             tile_end_x = input_end_x * scale - input_start_x_pad * scale
             tile_start_y = (input_start_y - input_start_y_pad) * scale
@@ -177,6 +185,49 @@ def _tile_forward(network, tensor, scale: int, tile: int, tile_pad: int):
                 tile_start_x:tile_end_x,
             ]
     return output
+
+
+def _validate_output_quality(input_rgb, output_rgb, input_alpha, scale: int) -> None:
+    """Reject a collapsed near-black result when the visible input carries signal.
+
+    This is intentionally conservative: fully transparent or intentionally dark
+    sources are allowed, while a bright/normal input whose mean, upper
+    percentile, and dynamic range all collapse to black is never accepted.
+    """
+    import numpy as np
+
+    def luminance(rgb):
+        values = rgb.astype(np.float32)
+        return values[..., 0] * 0.2126 + values[..., 1] * 0.7152 + values[..., 2] * 0.0722
+
+    input_values = luminance(input_rgb)
+    if input_alpha is not None:
+        visible = input_alpha > 0
+        if not np.any(visible):
+            return
+        input_values = input_values[visible]
+        output_visible = np.repeat(np.repeat(visible, scale, axis=0), scale, axis=1)
+        output_values = luminance(output_rgb)[output_visible]
+    else:
+        input_values = input_values.reshape(-1)
+        output_values = luminance(output_rgb).reshape(-1)
+
+    input_mean = float(np.mean(input_values))
+    input_p95 = float(np.percentile(input_values, 95))
+    input_p05 = float(np.percentile(input_values, 5))
+    output_mean = float(np.mean(output_values))
+    output_p95 = float(np.percentile(output_values, 95))
+    output_p05 = float(np.percentile(output_values, 5))
+    input_range = input_p95 - input_p05
+    output_range = output_p95 - output_p05
+
+    input_has_signal = input_mean >= 8.0 or input_p95 >= 16.0
+    output_collapsed = output_mean <= 2.0 and output_p95 <= 4.0 and output_range <= max(4.0, input_range * 0.05)
+    if input_has_signal and output_collapsed:
+        raise UpscaleError(
+            "output-quality-failed",
+            "超分输出亮度和动态范围异常收缩为近黑图，已拒绝写入结果",
+        )
 
 
 def upscale_image(
@@ -231,6 +282,8 @@ def upscale_image(
 
     output = _tile_forward(network, tensor, scale, tile, tile_pad)
     result = output.squeeze(0).permute(1, 2, 0).numpy()
+    input_alpha = np.asarray(alpha, dtype=np.uint8) if alpha is not None else None
+    _validate_output_quality(array, result, input_alpha, scale)
 
     destination = Path(output_path)
     destination.parent.mkdir(parents=True, exist_ok=True)
@@ -282,6 +335,14 @@ def probe_model(model: str = DEFAULT_UPSCALE_MODEL) -> dict[str, Any]:
         }
     cached = find_cached_upscale_model(model)
     if not cached:
+        verified, location = verify_model_sha256(model)
+        if not verified and location not in {"model-not-downloaded", "unknown-model"}:
+            return {
+                "status": "blocked",
+                "code": "model-corrupt",
+                "message": f"超分模型摘要校验失败: {location}",
+                "cacheDir": str(primary_model_dir()),
+            }
         return {
             "status": "blocked",
             "code": "model-not-downloaded",

@@ -540,6 +540,9 @@ declare global {
       }>;
     };
     imageGenRuntime?: {
+      probe: (request?: import("@rendering/contracts/image-gen-workflow").ImageGenRuntimeLifecycleRequestV1) => Promise<import("@rendering/contracts/image-gen-workflow").ImageGenRuntimeStatusV1>;
+      prepare: (request?: import("@rendering/contracts/image-gen-workflow").ImageGenRuntimeLifecycleRequestV1) => Promise<import("@rendering/contracts/image-gen-workflow").ImageGenRuntimeActionReplyV1>;
+      rollback: (request?: import("@rendering/contracts/image-gen-workflow").ImageGenRuntimeLifecycleRequestV1) => Promise<import("@rendering/contracts/image-gen-workflow").ImageGenRuntimeActionReplyV1>;
       status: () => Promise<import("@/types/image-gen").ImageGenRuntimeStatus>;
       setup: () => Promise<import("@/types/image-gen").ImageGenRuntimeStatus>;
       stop: () => Promise<import("@/types/image-gen").ImageGenRuntimeStatus>;

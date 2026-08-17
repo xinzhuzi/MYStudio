@@ -32,6 +32,13 @@ function lifecycleStatus(state: DepthRuntimeStatusV1["state"], modelDownloaded =
     model: "depth-anything-v2-small",
     modelCacheDir: cacheDir,
     modelDownloaded,
+    probe: {
+      pythonAvailable: true,
+      pythonVersion: "Python 3.12.7",
+      workerProbe: modelDownloaded ? "ready" : "model-not-downloaded",
+      workerToolVersion: "depth-estimation@0.1.0",
+      ...(modelDownloaded ? { modelWeightSha256: "a".repeat(64) } : {}),
+    },
     message: state === "error" ? "worker probe failed" : undefined,
   };
 }
@@ -51,6 +58,13 @@ function legacyStatus(state: DepthRuntimeStatus["state"], modelDownloaded = true
     cinematicPresetMode: "auto",
     cinematicPresetCount: 0,
     modelCacheDir: cacheDir,
+    probeEvidence: {
+      pythonAvailable: true,
+      pythonVersion: "Python 3.12.7",
+      workerProbe: modelDownloaded ? "ready" : "model-not-downloaded",
+      workerToolVersion: "depth-estimation@0.1.0",
+      ...(modelDownloaded ? { modelWeightSha256: "a".repeat(64) } : {}),
+    },
   };
 }
 

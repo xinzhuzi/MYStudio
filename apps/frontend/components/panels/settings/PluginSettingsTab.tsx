@@ -11,6 +11,7 @@ import { usePythonRuntimeSettings } from "./usePythonRuntimeSettings";
 import { useVideoWorkflowPlugins } from "./useVideoWorkflowPlugins";
 import { PythonSettingsTab } from "./PythonSettingsTab";
 import { DepthSettingsSection } from "./DepthSettingsSection";
+import { LocalImageSettingsSection } from "./LocalImageSettingsSection";
 import { UpscaleSettingsSection } from "./UpscaleSettingsSection";
 import { LocalAudioSettingsSection } from "./LocalAudioSettingsSection";
 import { RenderingSettingsTab } from "./RenderingSettingsTab";
@@ -23,9 +24,9 @@ const LocalTtsPanelLazy = lazy(() => import("@/components/panels/tts/LocalTtsPan
  * Unified local capability configuration. The order is intentional:
  * managed Python is the foundation; depth/music are local AI models
  * (explicit download, local inference); TTS and the video workflow plugins
- * are runtime services that consume those artifacts. Image generation runs
- * on cloud APIs configured in the cloud-AI tab — the optional local image
- * generation section is intentionally not surfaced here.
+ * are runtime services that consume those artifacts. Local image generation
+ * remains an explicit opt-in provider and is surfaced below with the same
+ * fail-closed lifecycle controls.
  */
 export function PluginSettingsTab() {
   const python = usePythonRuntimeSettings();
@@ -136,6 +137,14 @@ export function PluginSettingsTab() {
             <p className="text-xs text-muted-foreground">静态图 → 3D 电影级纵深的深度模型（依赖上方 Python 运行环境）。准备、探测与回滚走统一生命周期；模型仅在用户点击下载时获取，渲染时绝不自动下载。</p>
           </div>
           <DepthSettingsSection embedded />
+        </section>
+
+        <section aria-labelledby="plugin-image-gen-heading" className="rounded-xl border border-border bg-card/30">
+          <div className="border-b border-border px-5 py-4 space-y-2">
+            <h4 id="plugin-image-gen-heading" className="text-base font-semibold text-foreground">本地图片生成（免费）</h4>
+            <p className="text-xs text-muted-foreground">SDXL Turbo / FLUX.1-schnell 本地生图；准备、探测与回滚走统一生命周期，生成入口仍需在云端 AI 设置中显式选择「本地图片生成」。</p>
+          </div>
+          <LocalImageSettingsSection embedded />
         </section>
 
         <section aria-labelledby="plugin-upscale-heading" className="rounded-xl border border-border bg-card/30">

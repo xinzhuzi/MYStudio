@@ -7,6 +7,7 @@ download) instead.
 
 from __future__ import annotations
 
+import hashlib
 import os
 from pathlib import Path
 from typing import TypedDict
@@ -104,6 +105,42 @@ def repo_cache_name(repo_id: str) -> str:
 
 def repo_cache_dir(repo_id: str, cache_dir: Path | None = None) -> Path:
     return (cache_dir or primary_hf_cache_dir()) / repo_cache_name(repo_id)
+
+
+def resolve_snapshot_dir(repo_cache: str | Path) -> Path:
+    root = Path(repo_cache)
+    refs_main = root / "refs" / "main"
+    if refs_main.is_file():
+        ref = refs_main.read_text(encoding="utf-8").strip()
+        snapshot = root / "snapshots" / ref
+        if snapshot.is_dir():
+            return snapshot
+    snapshots = root / "snapshots"
+    if snapshots.is_dir():
+        for entry in sorted(snapshots.iterdir()):
+            if entry.is_dir():
+                return entry
+    raise FileNotFoundError(f"模型缓存缺少快照目录: {repo_cache}")
+
+
+def model_weight_sha256(repo_cache: str | Path) -> str:
+    snapshot = resolve_snapshot_dir(repo_cache)
+    weight_files = sorted(
+        file
+        for extension in MODEL_WEIGHT_EXTENSIONS
+        for file in snapshot.rglob(f"*{extension}")
+        if file.is_file()
+    )
+    if not weight_files:
+        raise FileNotFoundError(f"模型缓存缺少权重文件: {repo_cache}")
+    digest = hashlib.sha256()
+    for file in weight_files:
+        digest.update(file.relative_to(snapshot).as_posix().encode("utf-8"))
+        digest.update(b"\0")
+        with file.open("rb") as handle:
+            for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+                digest.update(chunk)
+    return digest.hexdigest()
 
 
 def _has_complete_model_files(cache: Path) -> bool:

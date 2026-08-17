@@ -14,6 +14,10 @@ import { spawn, type ChildProcess } from "node:child_process";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { resolveVideoWorkflowRuntimePaths } from "@rendering/plugins/video-workflow/video-workflow-runtime";
+import type {
+  ImageGenModelId,
+  ImageGenRuntimeStatusV1,
+} from "@rendering/contracts/image-gen-workflow";
 
 const execFileAsync = promisify(execFile);
 
@@ -266,10 +270,55 @@ export function createImageGenRuntimeController(deps: ControllerDeps) {
   }
 
   function setActiveModel(modelName: string): boolean {
-    const known = ["sdxl-turbo", "flux-schnell"];
-    if (!known.includes(modelName)) return false;
-    state.activeModel = modelName;
+    const known: readonly ImageGenModelId[] = ["sdxl-turbo", "flux-schnell"];
+    if (!known.includes(modelName as ImageGenModelId)) return false;
+    state.activeModel = modelName as ImageGenModelId;
     return true;
+  }
+
+  function getModelCacheDir(): string {
+    const configured = deps.modelCacheDir?.();
+    if (configured && path.isAbsolute(configured)) return configured;
+    return path.join(getPaths().pythonRuntimeDir, "models", "image-gen");
+  }
+
+  function activeModelDownloaded(): boolean {
+    return state.models.some((model) => model.modelName === state.activeModel && model.downloaded);
+  }
+
+  function lifecycleStatus(): ImageGenRuntimeStatusV1 {
+    const pythonAvailable = fs.existsSync(getPaths().pythonExecutable);
+    const modelDownloaded = activeModelDownloaded();
+    const stateValue: ImageGenRuntimeStatusV1["state"] = !pythonAvailable
+      ? "blocked"
+      : !state.running || !modelDownloaded
+        ? "needs-runtime"
+        : "ready";
+    return {
+      schemaVersion: 1,
+      state: stateValue,
+      activeModel: state.activeModel as ImageGenModelId,
+      modelCacheDir: getModelCacheDir(),
+      modelDownloaded,
+      pythonAvailable,
+      ...(state.setupMessage ? { message: state.setupMessage } : {}),
+    };
+  }
+
+  async function probeLifecycle(): Promise<ImageGenRuntimeStatusV1> {
+    await scanModelInventory();
+    return lifecycleStatus();
+  }
+
+  async function prepareLifecycle(): Promise<ImageGenRuntimeStatusV1> {
+    await setup();
+    await scanModelInventory();
+    return lifecycleStatus();
+  }
+
+  async function rollbackLifecycle(): Promise<ImageGenRuntimeStatusV1> {
+    await stop();
+    return lifecycleStatus();
   }
 
   function status(): ImageGenRuntimeStatus {
@@ -284,6 +333,10 @@ export function createImageGenRuntimeController(deps: ControllerDeps) {
     scanModelInventory,
     downloadModel,
     setActiveModel,
+    getModelCacheDir,
+    probeLifecycle,
+    prepareLifecycle,
+    rollbackLifecycle,
     get baseUrl() {
       return LOCAL_IMAGE_BASE_URL;
     },

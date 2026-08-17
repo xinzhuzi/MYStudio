@@ -39,7 +39,10 @@ export interface DepthIpc {
   dispose: () => void;
 }
 
-function lifecycleStatus(status: DepthRuntimeStatus): DepthRuntimeStatusV1 {
+function normalizeLifecycleStatus(status: DepthRuntimeStatus): {
+  value: DepthRuntimeStatusV1;
+  issues: NonNullable<DepthRuntimeActionReplyV1["issues"]>;
+} {
   const rawModelCacheDir = typeof status.modelCacheDir === "string" && status.modelCacheDir.length > 0
     ? status.modelCacheDir
     : ".";
@@ -52,19 +55,31 @@ function lifecycleStatus(status: DepthRuntimeStatus): DepthRuntimeStatusV1 {
     model: "depth-anything-v2-small",
     modelCacheDir,
     modelDownloaded: status.modelDownloaded === true,
+    probe: status.probeEvidence,
   };
   const message = status.setupMessage ?? status.message;
   if (typeof message === "string" && message.length > 0) candidate.message = message;
   const validated = validateDepthRuntimeStatus(candidate);
-  if (validated.success) return validated.value;
+  if (validated.success) return { value: validated.value, issues: [] };
   return {
-    schemaVersion: DEPTH_SCHEMA_VERSION,
-    state: "error",
-    model: "depth-anything-v2-small",
-    modelCacheDir,
-    modelDownloaded: false,
-    message: "深度运行时状态无效",
+    value: {
+      schemaVersion: DEPTH_SCHEMA_VERSION,
+      state: "error",
+      model: "depth-anything-v2-small",
+      modelCacheDir,
+      modelDownloaded: false,
+      probe: {
+        pythonAvailable: false,
+        workerProbe: "blocked",
+      },
+      message: "深度运行时状态无效",
+    },
+    issues: validated.issues,
   };
+}
+
+function lifecycleStatus(status: DepthRuntimeStatus): DepthRuntimeStatusV1 {
+  return normalizeLifecycleStatus(status).value;
 }
 
 function readStringMap(value: unknown): Record<string, string> | null {
@@ -91,10 +106,21 @@ function lifecycleAction(
   code?: string,
   issues?: DepthRuntimeActionReplyV1["issues"],
 ): DepthRuntimeActionReplyV1 {
+  const normalizedStatus = normalizeLifecycleStatus(status);
+  if (normalizedStatus.issues.length > 0) {
+    return {
+      schemaVersion: DEPTH_SCHEMA_VERSION,
+      success: false,
+      status: normalizedStatus.value,
+      code: "invalid-reply",
+      message: "深度运行时返回了无效的生命周期回复",
+      issues: normalizedStatus.issues,
+    };
+  }
   const reply: DepthRuntimeActionReplyV1 = {
     schemaVersion: DEPTH_SCHEMA_VERSION,
     success,
-    status: lifecycleStatus(status),
+    status: normalizedStatus.value,
     ...(code ? { code } : {}),
     ...(message ? { message } : {}),
     ...(issues ? { issues } : {}),
@@ -122,7 +148,6 @@ export function registerDepthIpcHandlers(options: RegisterDepthIpcOptions): Dept
   const { controller } = options;
 
   ipcMain.handle("depth-runtime-probe", async (_event, payload: unknown): Promise<DepthRuntimeStatusV1> => {
-    await controller.ensureScanned();
     const request = validateDepthRuntimeLifecycleRequest(payload === undefined ? { schemaVersion: DEPTH_SCHEMA_VERSION } : payload);
     if (!request.success) {
       const blocked = lifecycleStatus({
@@ -132,7 +157,7 @@ export function registerDepthIpcHandlers(options: RegisterDepthIpcOptions): Dept
       });
       return { ...blocked, message: request.issues.map((issue) => `${issue.path}: ${issue.message}`).join("; ") };
     }
-    const status = lifecycleStatus(controller.status());
+    const status = lifecycleStatus(await controller.refresh());
     const validated = validateDepthRuntimeStatus(status);
     return validated.success
       ? validated.value

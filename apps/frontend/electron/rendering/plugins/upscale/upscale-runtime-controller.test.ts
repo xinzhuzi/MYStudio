@@ -1,5 +1,6 @@
 // @vitest-environment node
 
+import { createHash } from "node:crypto";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -19,6 +20,9 @@ beforeEach(() => {
   storageRoot = tempDir();
   backendRoot = tempDir();
   projectRoot = tempDir();
+  const input = path.join(projectRoot, "workflow-images/wf1/gen.png");
+  fs.mkdirSync(path.dirname(input), { recursive: true });
+  fs.writeFileSync(input, INPUT_BYTES);
 });
 
 afterEach(() => {
@@ -64,7 +68,14 @@ const VALID_REQUEST = {
   outputImagePath: "workflow-images/wf1/up4x-gen.png",
 };
 
-function makeArtifact(): Record<string, unknown> {
+const INPUT_BYTES = Buffer.from("input-image-bytes");
+const OUTPUT_BYTES = Buffer.from("output-image-bytes");
+
+function sha256(bytes: Buffer): string {
+  return createHash("sha256").update(bytes).digest("hex");
+}
+
+function makeArtifact(overrides: Record<string, unknown> = {}): Record<string, unknown> {
   return {
     schemaVersion: 1,
     projectId: "p1",
@@ -73,14 +84,42 @@ function makeArtifact(): Record<string, unknown> {
     model: "realesrgan-x4plus-anime-6b",
     method: "super_res",
     scale: 4,
-    inputSha256: "a".repeat(64),
-    outputSha256: "b".repeat(64),
+    inputSha256: sha256(INPUT_BYTES),
+    outputSha256: sha256(OUTPUT_BYTES),
     outputPath: path.join(projectRoot, "workflow-images/wf1/up4x-gen.png"),
     width: 4096,
     height: 6144,
+    outputBytes: OUTPUT_BYTES.length,
     toolVersion: "upscale@0.1.0",
     generatedAt: 1,
+    ...overrides,
   };
+}
+
+function writeWorkerArtifact(
+  args: string[],
+  overrides: Record<string, unknown> = {},
+  writeOutput = true,
+): void {
+  const inputIndex = args.indexOf("--input");
+  const artifactIndex = args.indexOf("--output");
+  const request = JSON.parse(fs.readFileSync(args[inputIndex + 1], "utf8")) as Record<string, string>;
+  if (writeOutput) {
+    fs.mkdirSync(path.dirname(request.outputImagePath), { recursive: true });
+    fs.writeFileSync(request.outputImagePath, OUTPUT_BYTES);
+  }
+  fs.writeFileSync(
+    args[artifactIndex + 1],
+    JSON.stringify(makeArtifact({
+      projectId: request.projectId,
+      shotId: request.shotId,
+      model: request.model,
+      outputPath: request.outputImagePath,
+      inputSha256: sha256(fs.readFileSync(request.inputImagePath)),
+      ...overrides,
+    })),
+    "utf8",
+  );
 }
 
 describe("upscale runtime controller", () => {
@@ -118,15 +157,10 @@ describe("upscale runtime controller", () => {
     const profileDir = writeMarker();
     const execFile = vi.fn(async (_file: string, args: string[]) => {
       const inputIndex = args.indexOf("--input");
-      const outputIndex = args.indexOf("--output");
       const request = JSON.parse(fs.readFileSync(args[inputIndex + 1], "utf8")) as Record<string, string>;
       expect(request.inputImagePath).toBe(path.join(projectRoot, "workflow-images/wf1/gen.png"));
       expect(request.outputImagePath).toBe(path.join(projectRoot, "workflow-images/wf1/up4x-gen.png"));
-      fs.writeFileSync(
-        args[outputIndex + 1],
-        JSON.stringify(makeArtifact()),
-        "utf8",
-      );
+      writeWorkerArtifact(args);
       return { stdout: "", stderr: "" };
     });
     const controller = makeController({ execFile });
@@ -136,6 +170,43 @@ describe("upscale runtime controller", () => {
     // The per-run workspace under the profile dir must be cleaned up.
     const runsDir = path.join(profileDir, "runs");
     expect(fs.existsSync(runsDir) ? fs.readdirSync(runsDir) : []).toHaveLength(0);
+  });
+
+  it("runUpscale rejects an accepted artifact when the output file is missing", async () => {
+    writeMarker();
+    const execFile = vi.fn(async (_file: string, args: string[]) => {
+      writeWorkerArtifact(args, {}, false);
+      return { stdout: "", stderr: "" };
+    });
+    const result = await makeController({ execFile }).runUpscale(VALID_REQUEST);
+    expect(result.artifact).toMatchObject({ status: "blocked", code: "artifact-output-mismatch" });
+  });
+
+  it("runUpscale rejects accepted artifacts whose provenance or bytes do not match the request", async () => {
+    writeMarker();
+    const cases: Array<[string, Record<string, unknown>]> = [
+      ["project", { projectId: "other-project" }],
+      ["shot", { shotId: "other-shot" }],
+      ["model", { model: "realesrgan-x2plus" }],
+      ["method", { method: "lanczos" }],
+      ["scale", { scale: 2 }],
+      ["path", { outputPath: path.join(projectRoot, "workflow-images/wf1/other.png") }],
+      ["input sha", { inputSha256: "c".repeat(64) }],
+      ["output sha", { outputSha256: "d".repeat(64) }],
+      ["output bytes", { outputBytes: OUTPUT_BYTES.length + 1 }],
+    ];
+
+    for (const [label, overrides] of cases) {
+      const execFile = vi.fn(async (_file: string, args: string[]) => {
+        writeWorkerArtifact(args, overrides);
+        return { stdout: "", stderr: "" };
+      });
+      const result = await makeController({ execFile }).runUpscale(VALID_REQUEST);
+      expect(result.artifact, label).toMatchObject({
+        status: "blocked",
+        code: label === "method" ? "invalid-artifact" : "artifact-output-mismatch",
+      });
+    }
   });
 
   it("runUpscale surfaces the persisted blocked artifact when the worker exits non-zero", async () => {
@@ -221,7 +292,7 @@ describe("upscale runtime controller", () => {
       events.push(`start:${args[outputIndex - 1] === "--input" ? outputIndex : outputIndex}`);
       events.push(`worker-start-${events.length}`);
       await new Promise((resolve) => setTimeout(resolve, 150));
-      fs.writeFileSync(args[outputIndex + 1], JSON.stringify(makeArtifact()), "utf8");
+      writeWorkerArtifact(args);
       return { stdout: "", stderr: "" };
     });
     const controller = makeController({ execFile });
@@ -241,13 +312,13 @@ describe("upscale runtime controller", () => {
     const mediaRoot = path.join(storageRoot, "media");
     const categoryDir = path.join(mediaRoot, "workflow");
     fs.mkdirSync(categoryDir, { recursive: true });
+    fs.writeFileSync(path.join(categoryDir, "gen-image.png"), INPUT_BYTES);
     const execFile = vi.fn(async (_file: string, args: string[]) => {
       const inputIndex = args.indexOf("--input");
       const request = JSON.parse(fs.readFileSync(args[inputIndex + 1], "utf8")) as Record<string, string>;
       expect(request.inputImagePath).toBe(path.join(categoryDir, "gen-image.png"));
       expect(request.outputImagePath).toBe(path.join(categoryDir, "up4x-gen-image.png"));
-      const outputIndex = args.indexOf("--output");
-      fs.writeFileSync(args[outputIndex + 1], JSON.stringify(makeArtifact()), "utf8");
+      writeWorkerArtifact(args);
       return { stdout: "", stderr: "" };
     });
     const controller = makeController({
@@ -267,4 +338,3 @@ describe("upscale runtime controller", () => {
     expect(result.artifact.status).toBe("accepted");
   });
 });
-
