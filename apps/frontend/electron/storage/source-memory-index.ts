@@ -61,13 +61,24 @@ export function buildIndexSqlite(records: IndexRecord[], dbPath: string): void {
   try {
     db.exec("DROP TABLE IF EXISTS records");
     db.exec("DROP TABLE IF EXISTS records_fts");
-    db.exec("CREATE TABLE records (recordId TEXT PRIMARY KEY, kind TEXT, title TEXT, sourcePath TEXT, anchor TEXT, sourceSha256 TEXT, createdAt TEXT, body TEXT)");
+    db.exec("CREATE TABLE records (recordId TEXT PRIMARY KEY, kind TEXT, title TEXT, sourcePath TEXT, anchor TEXT, sourceSha256 TEXT, createdAt TEXT, chapterId TEXT, entities TEXT, body TEXT)");
     db.exec("CREATE VIRTUAL TABLE records_fts USING fts5(recordId UNINDEXED, search_tokens, tokenize = 'unicode61')");
-    const insert = db.prepare("INSERT INTO records (recordId, kind, title, sourcePath, anchor, sourceSha256, createdAt, body) VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
+    const insert = db.prepare("INSERT INTO records (recordId, kind, title, sourcePath, anchor, sourceSha256, createdAt, chapterId, entities, body) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
     const insertFts = db.prepare("INSERT INTO records_fts (recordId, search_tokens) VALUES (?, ?)");
     for (const r of records) {
-      insert.run(r.recordId, r.kind, r.title, r.sourcePath, r.anchor, r.sourceSha256, r.createdAt, r.body);
-      insertFts.run(r.recordId, cjkBigramTokens(`${r.title}\n${r.body}`).join(" "));
+      insert.run(
+        r.recordId,
+        r.kind,
+        r.title,
+        r.sourcePath,
+        r.anchor,
+        r.sourceSha256,
+        r.createdAt,
+        r.chapterId ?? "",
+        (r.entities ?? []).join("\n"),
+        r.body,
+      );
+      insertFts.run(r.recordId, cjkBigramTokens(`${r.title}\n${r.body}\n${(r.entities ?? []).join("\n")}`).join(" "));
     }
   } finally {
     db.close();
@@ -92,23 +103,37 @@ export function searchIndexSqlite(dbPath: string, query: string, limit = 6): Sou
   try {
     const tokens = cjkBigramTokens(query);
     if (!tokens.length) return [];
+    // 实体加权：查询 token 与记录 entities 精确命中者在 BM25（负值，越小越优）上再减
+    // 固定权重；同分按 recordId 排序保持确定性（血统偏离三：硬过滤×BM25×实体命中）。
+    const entityBoost = new Map(tokens.map((t) => [t, true]));
     const stmt = db.prepare(
-      `SELECT r.recordId, r.kind, r.title, r.sourcePath, r.anchor, r.body,
+      `SELECT r.recordId, r.kind, r.title, r.sourcePath, r.anchor, r.chapterId, r.entities, r.body,
               bm25(records_fts) AS score
        FROM records_fts f JOIN records r ON r.recordId = f.recordId
        WHERE records_fts MATCH ?
        ORDER BY score LIMIT ?`,
     );
-    const rows = stmt.all(fts5Quote(query), limit) as Array<Record<string, unknown>>;
-    return rows.map((row) => ({
-      recordId: String(row.recordId),
-      kind: String(row.kind),
-      title: String(row.title),
-      sourcePath: String(row.sourcePath),
-      anchor: String(row.anchor),
-      score: Number(row.score) || 0,
-      snippet: String(row.body ?? "").slice(0, 120),
-    }));
+    const rows = stmt.all(fts5Quote(query), limit * 3) as Array<Record<string, unknown>>;
+    return rows
+      .map((row) => {
+        const entities = String(row.entities ?? "")
+          .split("\n")
+          .map((e) => e.trim())
+          .filter(Boolean);
+        const entityHits = entities.filter((e) => entityBoost.has(e.toLowerCase())).length;
+        return {
+          recordId: String(row.recordId),
+          kind: String(row.kind),
+          title: String(row.title),
+          sourcePath: String(row.sourcePath),
+          anchor: String(row.anchor),
+          score: (Number(row.score) || 0) - entityHits * 2,
+          snippet: String(row.body ?? "").slice(0, 120),
+          chapterId: String(row.chapterId ?? "") || undefined,
+        };
+      })
+      .sort((a, b) => a.score - b.score || (a.recordId < b.recordId ? -1 : 1))
+      .slice(0, limit);
   } catch {
     return [];
   } finally {

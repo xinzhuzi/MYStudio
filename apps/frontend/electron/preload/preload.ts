@@ -260,6 +260,10 @@ contextBridge.exposeInMainWorld('sourceMemory', {
   search: (projectId: string, query: string, limit?: number) =>
     ipcRenderer.invoke('source-memory-search', projectId, query, limit),
   status: (projectId: string) => ipcRenderer.invoke('source-memory-status', projectId),
+  stageRecords: (projectId: string, buildId: string, records: unknown[]) =>
+    ipcRenderer.invoke('source-memory-stage-records', projectId, buildId, records),
+  commitBuild: (projectId: string, payload: { buildId: string; coverage?: Array<{ sourcePath: string; anchor: string; ok: boolean }> }) =>
+    ipcRenderer.invoke('source-memory-commit-build', projectId, payload),
 })
 
 contextBridge.exposeInMainWorld('projectFiles', {

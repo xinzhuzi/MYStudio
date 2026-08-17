@@ -121,7 +121,9 @@ self-media:list-tasks
 self-media:poll-task
 self-media:start-login
 source-memory-build
+source-memory-commit-build
 source-memory-search
+source-memory-stage-records
 source-memory-status
 storage-clear-cache
 storage-export-data

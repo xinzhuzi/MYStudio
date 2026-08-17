@@ -243,19 +243,83 @@ declare global {
     };
     projectFolder?: ProjectFolderBridge & ProjectFolderMoveImportBridge;
     sourceMemory?: {
-      build: (projectId: string) => Promise<{ success: boolean; buildId?: string; recordCount?: number; error?: string }>;
+      build: (projectId: string) => Promise<{
+        success: boolean;
+        buildId?: string;
+        recordCount?: number;
+        plan?: {
+          buildId: string;
+          chunks: Array<{
+            sourcePath: string;
+            sourceSha256: string;
+            chapterId: string;
+            anchor: string;
+            title: string;
+            text: string;
+          }>;
+          changedSources: number;
+          carriedStructuredCount: number;
+        };
+        error?: string;
+      }>;
       search: (
         projectId: string,
         query: string,
         limit?: number,
       ) => Promise<{
         success: boolean;
-        hits?: Array<{ recordId: string; kind: string; title: string; sourcePath: string; anchor: string; score: number; snippet: string }>;
+        hits?: Array<{
+          recordId: string;
+          kind: string;
+          title: string;
+          sourcePath: string;
+          anchor: string;
+          score: number;
+          snippet: string;
+          chapterId?: string;
+        }>;
         buildId?: string;
         degradedReason?: string;
         error?: string;
       }>;
-      status: (projectId: string) => Promise<{ success: boolean; status?: string; buildId?: string; recordCount?: number; builtAt?: string; error?: string }>;
+      status: (projectId: string) => Promise<{
+        success: boolean;
+        status?: string;
+        buildId?: string;
+        recordCount?: number;
+        structuredCount?: number;
+        rawCount?: number;
+        builtAt?: string;
+        degradedReason?: string;
+        error?: string;
+      }>;
+      stageRecords: (
+        projectId: string,
+        buildId: string,
+        records: Array<{
+          kind: string;
+          title: string;
+          body: string;
+          entities?: string[];
+          confidence?: number;
+          sourcePath: string;
+          sourceSha256: string;
+          chapterId: string;
+          anchor: string;
+        }>,
+      ) => Promise<{ success: boolean; accepted?: number; rejected?: number; errors?: string[]; error?: string }>;
+      commitBuild: (
+        projectId: string,
+        payload: { buildId: string; coverage?: Array<{ sourcePath: string; anchor: string; ok: boolean }> },
+      ) => Promise<{
+        success: boolean;
+        buildId?: string;
+        status?: string;
+        structuredCount?: number;
+        rawCount?: number;
+        failedChunks?: number;
+        error?: string;
+      }>;
     };
     projectFiles?: {
       writeText: (key: string, value: string) => Promise<{ success: boolean; filePath?: string; error?: string }>;
