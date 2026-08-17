@@ -349,6 +349,10 @@ export async function runScopedStoryboardTtsRepair(): Promise<void> {
     projectId,
     JSON.stringify({ state: nextStore.state, version: nextStore.version }),
   );
+  process.stderr.write(`[scoped-tts] 分片写回 ${writeResult.shardNames.length} 片\n`);
+  if (writeResult.legacyBackupPath) {
+    process.stderr.write(`[scoped-tts] legacy 单文件已改名保留 → ${writeResult.legacyBackupPath}\n`);
+  }
   // 写回后复核：重读合并串必须反映本次写回（CAS 闭环）
   const verifySnapshot = readStudioWorkflowStoreState(projectRoot);
   if (!verifySnapshot) throw new Error("studio-workflow store 写回后不可读");
