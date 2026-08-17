@@ -384,18 +384,26 @@ describe("Dashboard project folder flows", () => {
     expect(mocks.toastSuccess).toHaveBeenCalledWith("项目已重命名");
   });
 
-  // ==================== R3 补欠:删除 ====================
+  // ==================== R3 补欠:删除(仅管理模式批量路径) ====================
 
-  it("deletes an external project: removes the folder first, then the registry entry", async () => {
+  function deleteViaManagement(projectId: string) {
+    fireEvent.click(screen.getByRole("button", { name: "管理" }));
+    fireEvent.click(within(cardOf(projectId)).getByRole("checkbox"));
+    fireEvent.click(screen.getByRole("button", { name: /删除选中/ }));
+    fireEvent.click(screen.getByRole("button", { name: "确认删除" }));
+  }
+
+  it("deletes an external project via management mode: folder first, then registry entry", async () => {
     mocks.projectStoreState.projects = [
       { id: "p-ext", name: "道劫", createdAt: 1, updatedAt: 2, location: "/gone/道劫" },
     ];
     mocks.remove.mockResolvedValue({ ok: true });
 
     render(<Dashboard />);
-    clickCardMenuItem("p-ext", "删除");
-    expect(screen.getByText("确认删除项目文件夹")).toBeTruthy();
-    fireEvent.click(screen.getByRole("button", { name: "确认删除" }));
+    deleteViaManagement("p-ext");
+    expect(screen.getByText("确认批量删除")).toBeTruthy();
+    // 卡片信息行与确认弹窗各展示一次完整路径
+    expect(screen.getAllByTitle("/gone/道劫").length).toBeGreaterThanOrEqual(2);
 
     await waitFor(() => expect(mocks.remove).toHaveBeenCalledWith("p-ext"));
     await waitFor(() => expect(mocks.projectStoreState.deleteProject).toHaveBeenCalledWith("p-ext"));
@@ -409,8 +417,7 @@ describe("Dashboard project folder flows", () => {
     mocks.remove.mockResolvedValue({ ok: false, message: "目录被占用" });
 
     render(<Dashboard />);
-    clickCardMenuItem("p-ext", "删除");
-    fireEvent.click(screen.getByRole("button", { name: "确认删除" }));
+    deleteViaManagement("p-ext");
 
     await waitFor(() =>
       expect(mocks.toastError).toHaveBeenCalledWith("删除「道劫」的文件夹失败", {
@@ -419,6 +426,15 @@ describe("Dashboard project folder flows", () => {
     );
     expect(mocks.projectStoreState.deleteProject).not.toHaveBeenCalled();
     expect(mocks.projectStoreState.projects[0]?.id).toBe("p-ext");
+  });
+
+  it("非管理模式不提供任何删除入口,删除只存在于管理模式", () => {
+    render(<Dashboard />);
+    // dropdown 菜单在测试里直通渲染;⋯ 菜单已无「删除」项
+    expect(screen.queryByText("删除")).toBeNull();
+
+    fireEvent.click(screen.getByRole("button", { name: "管理" }));
+    expect(screen.getByRole("button", { name: /删除选中/ })).toBeTruthy();
   });
 
   // ==================== R3 补欠:复制(候选名冲突自动 -2 后缀) ====================
@@ -613,5 +629,108 @@ describe("Dashboard project folder flows", () => {
     await waitFor(() => expect(mocks.toastWarning).toHaveBeenCalledWith("该项目已在列表中"));
     expect(mocks.projectStoreState.importProject).not.toHaveBeenCalled();
     await waitFor(() => expect(cardOf("p-legacy").className).toContain("ring-primary"));
+  });
+});
+
+// ==================== 选择模式:长按 2 秒选中(防误触) ====================
+
+describe("Dashboard 选择模式长按选中", () => {
+  beforeEach(() => {
+    mocks.projectStoreState.projects = [{ id: "p-legacy", name: "旧项目", createdAt: 1, updatedAt: 1 }];
+    mocks.projectStoreState.activeProjectId = "p-legacy";
+    mocks.projectStoreState.activeProject = null;
+    mocks.getProjectFolderBridge.mockReset().mockReturnValue(undefined);
+    mocks.getStorageManagerBridge.mockReset().mockReturnValue({ selectDirectory: mocks.selectDirectory });
+    mocks.switchProject.mockClear();
+  });
+
+  afterEach(() => {
+    cleanup();
+    vi.useRealTimers();
+  });
+
+  function enterSelectionMode() {
+    fireEvent.click(screen.getByRole("button", { name: "管理" }));
+  }
+
+  function cardOf(projectId: string): HTMLElement {
+    const card = document.querySelector<HTMLElement>(`[data-project-card="${projectId}"]`);
+    if (!card) throw new Error(`project card not found: ${projectId}`);
+    return card;
+  }
+
+  it("普通点击不再选中,长按满 2 秒才选中,且松手 click 不反向取消", () => {
+    vi.useFakeTimers();
+    render(<Dashboard />);
+    enterSelectionMode();
+    const card = cardOf("p-legacy");
+
+    // 误触场景:普通点击卡片不再直接选中
+    fireEvent.click(card);
+    expect(screen.queryByText(/已选 \d+ 个/)).toBeNull();
+
+    // 长按:出现进度反馈,满 2 秒后选中
+    fireEvent.pointerDown(card, { button: 0, clientX: 100, clientY: 100 });
+    expect(card.querySelector(".dashboard-hold-select-progress")).toBeTruthy();
+    act(() => {
+      vi.advanceTimersByTime(2000);
+    });
+    fireEvent.pointerUp(card);
+    // 长按完成后松手必然触发一次 click,不得把刚选中的状态又取消掉
+    fireEvent.click(card);
+    expect(screen.getByText(/已选 1 个/)).toBeTruthy();
+  });
+
+  it("长按不足 2 秒松开不选中", () => {
+    vi.useFakeTimers();
+    render(<Dashboard />);
+    enterSelectionMode();
+    const card = cardOf("p-legacy");
+
+    fireEvent.pointerDown(card, { clientX: 0, clientY: 0 });
+    act(() => {
+      vi.advanceTimersByTime(1500);
+    });
+    fireEvent.pointerUp(card);
+    act(() => {
+      vi.advanceTimersByTime(1000);
+    });
+    fireEvent.click(card);
+    expect(screen.queryByText(/已选 \d+ 个/)).toBeNull();
+  });
+
+  it("按住期间指针移出 8px 视为取消", () => {
+    vi.useFakeTimers();
+    render(<Dashboard />);
+    enterSelectionMode();
+    const card = cardOf("p-legacy");
+
+    fireEvent.pointerDown(card, { clientX: 100, clientY: 100 });
+    fireEvent.pointerMove(card, { clientX: 140, clientY: 100 });
+    act(() => {
+      vi.advanceTimersByTime(2000);
+    });
+    expect(screen.queryByText(/已选 \d+ 个/)).toBeNull();
+    // 取消后进度反馈消失
+    expect(card.querySelector(".dashboard-hold-select-progress")).toBeNull();
+  });
+
+  it("勾选框仍是即时切换的精准路径", () => {
+    render(<Dashboard />);
+    enterSelectionMode();
+    const card = cardOf("p-legacy");
+
+    fireEvent.click(within(card).getByRole("checkbox"));
+    expect(screen.getByText(/已选 1 个/)).toBeTruthy();
+
+    fireEvent.click(within(card).getByRole("checkbox"));
+    expect(screen.queryByText(/已选 \d+ 个/)).toBeNull();
+  });
+
+  it("非选择模式下点击卡片仍直接打开项目", async () => {
+    render(<Dashboard />);
+    fireEvent.click(cardOf("p-legacy"));
+
+    await waitFor(() => expect(mocks.switchProject).toHaveBeenCalledWith("p-legacy"));
   });
 });

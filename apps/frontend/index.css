@@ -1050,6 +1050,17 @@
   to { opacity: 1; transform: translateY(0); }
 }
 
+/* 选择模式长按选中进度条(时长须与 Dashboard.tsx 的 SELECT_HOLD_MS 保持一致) */
+.dashboard-hold-select-progress {
+  transform-origin: left center;
+  animation: dashboardHoldSelectFill 2s linear forwards;
+}
+
+@keyframes dashboardHoldSelectFill {
+  from { transform: scaleX(0); }
+  to { transform: scaleX(1); }
+}
+
 .dashboard-topbar {
   position: relative;
   z-index: 2;

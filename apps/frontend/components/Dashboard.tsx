@@ -8,7 +8,7 @@
  * Features: create, open, rename, duplicate, batch select & delete
  */
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import { useProjectStore } from "@/stores/project/project-store";
 import { useStudioStore } from "@/stores/studio/studio-store";
 import { useMediaPanelStore } from "@/stores/navigation/media-panel-store";
@@ -35,7 +35,6 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
@@ -153,6 +152,11 @@ const IMPORT_ERROR_HINTS: Record<Extract<ProjectFolderImportResult, { ok: false 
  */
 const MOVE_INFLIGHT_PROBE_PROJECT_ID = "__project-move-inflight-probe__";
 
+/** 选择模式长按选中:按住保持 2 秒才切换选中,普通点击不选中(防误触)。 */
+const SELECT_HOLD_MS = 2_000;
+/** 按住期间指针位移超过该距离视为取消(容忍手抖,不干扰拖动/滚动意图)。 */
+const SELECT_HOLD_CANCEL_DISTANCE_PX = 8;
+
 export function Dashboard({
   sidebarCollapsed = false,
   onToggleSidebar,
@@ -174,14 +178,17 @@ export function Dashboard({
   const [newProjectParentDir, setNewProjectParentDir] = useState("");
   const [newProjectError, setNewProjectError] = useState<string | null>(null);
 
-  // External-project delete confirmation (full paths must be shown)
-  const [deleteConfirmTargets, setDeleteConfirmTargets] = useState<Project[] | null>(null);
-  const [isDeletingProjects, setIsDeletingProjects] = useState(false);
-
   // Selection mode
   const [selectionMode, setSelectionMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [batchDeleteConfirm, setBatchDeleteConfirm] = useState(false);
+
+  // 长按选中:正在按住的卡片 id(驱动进度反馈);fired 标记用于吞掉长按
+  // 完成后松手必然触发的那次 click,避免选中状态被立刻反向切换。
+  const [holdSelectProjectId, setHoldSelectProjectId] = useState<string | null>(null);
+  const holdSelectTimerRef = useRef<number | null>(null);
+  const holdSelectFiredRef = useRef(false);
+  const holdSelectStartRef = useRef<{ x: number; y: number } | null>(null);
 
   // Rename dialog
   const [renameDialogOpen, setRenameDialogOpen] = useState(false);
@@ -284,6 +291,48 @@ export function Dashboard({
     });
   }, []);
 
+  const cancelHoldSelect = useCallback(() => {
+    if (holdSelectTimerRef.current !== null) {
+      window.clearTimeout(holdSelectTimerRef.current);
+      holdSelectTimerRef.current = null;
+    }
+    holdSelectStartRef.current = null;
+    setHoldSelectProjectId(null);
+  }, []);
+
+  const startHoldSelect = useCallback(
+    (projectId: string, event: ReactPointerEvent<HTMLDivElement>) => {
+      if (!selectionMode || event.button !== 0 || holdSelectTimerRef.current !== null) return;
+      holdSelectFiredRef.current = false;
+      holdSelectStartRef.current = { x: event.clientX, y: event.clientY };
+      setHoldSelectProjectId(projectId);
+      holdSelectTimerRef.current = window.setTimeout(() => {
+        holdSelectTimerRef.current = null;
+        setHoldSelectProjectId(null);
+        holdSelectFiredRef.current = true;
+        toggleSelect(projectId);
+      }, SELECT_HOLD_MS);
+    },
+    [selectionMode, toggleSelect],
+  );
+
+  const moveHoldSelect = useCallback(
+    (event: ReactPointerEvent<HTMLDivElement>) => {
+      if (holdSelectTimerRef.current === null || holdSelectStartRef.current === null) return;
+      const dx = event.clientX - holdSelectStartRef.current.x;
+      const dy = event.clientY - holdSelectStartRef.current.y;
+      if (Math.hypot(dx, dy) > SELECT_HOLD_CANCEL_DISTANCE_PX) cancelHoldSelect();
+    },
+    [cancelHoldSelect],
+  );
+
+  // 卸载时清掉在途的长按计时器
+  useEffect(() => () => {
+    if (holdSelectTimerRef.current !== null) {
+      window.clearTimeout(holdSelectTimerRef.current);
+    }
+  }, []);
+
   const handleSelectAll = useCallback(() => {
     if (selectedIds.size === projects.length) {
       setSelectedIds(new Set());
@@ -292,7 +341,7 @@ export function Dashboard({
     }
   }, [projects, selectedIds.size]);
 
-  // ==================== Delete (legacy immediate / external orchestrated) ====================
+  // ==================== Delete (management-mode batch path only) ====================
 
   const deleteProjectsOrchestrated = useCallback(
     async (targets: Project[]): Promise<number> => {
@@ -317,36 +366,6 @@ export function Dashboard({
     },
     [deleteProject],
   );
-
-  const handleSingleDelete = useCallback(
-    (project: Project) => {
-      if (project.location) {
-        // External projects delete the whole folder: confirm with the full path.
-        setDeleteConfirmTargets([project]);
-        return;
-      }
-      deleteProject(project.id);
-      toast.success(`已删除「${project.name}」`);
-    },
-    [deleteProject],
-  );
-
-  const handleConfirmExternalDelete = useCallback(async () => {
-    const targets = deleteConfirmTargets ?? [];
-    if (targets.length === 0) return;
-    setIsDeletingProjects(true);
-    try {
-      const removed = await deleteProjectsOrchestrated(targets);
-      if (removed > 0) {
-        toast.success(`已删除 ${removed} 个项目`);
-      }
-      setDeleteConfirmTargets(null);
-      setSelectedIds(new Set());
-      setSelectionMode(false);
-    } finally {
-      setIsDeletingProjects(false);
-    }
-  }, [deleteConfirmTargets, deleteProjectsOrchestrated]);
 
   // ==================== Batch Delete ====================
 
@@ -799,6 +818,9 @@ export function Dashboard({
               <h2 className="text-xl font-bold text-foreground mb-1">我的项目</h2>
               <p className="text-sm text-muted-foreground">
                 共 {projects.length} 个项目
+                {selectionMode && (
+                  <span className="ml-2 text-muted-foreground/70">· 长按卡片 2 秒选中或取消</span>
+                )}
                 {selectionMode && selectedIds.size > 0 && (
                   <span className="text-primary ml-2">· 已选 {selectedIds.size} 个</span>
                 )}
@@ -894,6 +916,7 @@ export function Dashboard({
                   className={cn(
                     "dashboard-project-card group relative bg-card border rounded-xl overflow-hidden transition-all duration-200",
                     highlightProjectId === project.id && "ring-2 ring-primary",
+                    selectionMode && "select-none",
                     selectionMode
                       ? isSelected
                         ? "border-primary ring-1 ring-primary/30 cursor-pointer"
@@ -902,11 +925,18 @@ export function Dashboard({
                   )}
                   onClick={() => {
                     if (selectionMode) {
-                      toggleSelect(project.id);
-                    } else {
-                      handleOpenProject(project.id);
+                      // 选中只认长按满 2 秒;这里同时吞掉长按完成后松手的那次
+                      // click,避免选中状态被立刻反向切换。
+                      holdSelectFiredRef.current = false;
+                      return;
                     }
+                    handleOpenProject(project.id);
                   }}
+                  onPointerDown={(event) => startHoldSelect(project.id, event)}
+                  onPointerMove={moveHoldSelect}
+                  onPointerUp={cancelHoldSelect}
+                  onPointerLeave={cancelHoldSelect}
+                  onPointerCancel={cancelHoldSelect}
                 >
                   {/* Selection Checkbox */}
                   {selectionMode && (
@@ -915,8 +945,16 @@ export function Dashboard({
                         checked={isSelected}
                         onCheckedChange={() => toggleSelect(project.id)}
                         onClick={(e) => e.stopPropagation()}
+                        onPointerDown={(e) => e.stopPropagation()}
                         className="bg-background/80 backdrop-blur-sm"
                       />
+                    </div>
+                  )}
+
+                  {/* 长按进度反馈:2 秒填满即选中(时长与 SELECT_HOLD_MS 同步) */}
+                  {selectionMode && holdSelectProjectId === project.id && (
+                    <div className="absolute inset-x-0 bottom-0 z-20 h-1 overflow-hidden" aria-hidden="true">
+                      <div className="dashboard-hold-select-progress h-full bg-primary" />
                     </div>
                   )}
 
@@ -986,14 +1024,6 @@ export function Dashboard({
                             <DropdownMenuItem onClick={() => openMoveDialog(project)}>
                               <FolderInput className="w-4 h-4 mr-2" />
                               移动到…
-                            </DropdownMenuItem>
-                            <DropdownMenuSeparator />
-                            <DropdownMenuItem
-                              className="text-destructive focus:text-destructive"
-                              onClick={() => handleSingleDelete(project)}
-                            >
-                              <Trash2 className="w-4 h-4 mr-2" />
-                              删除
                             </DropdownMenuItem>
                           </DropdownMenuContent>
                         </DropdownMenu>
@@ -1153,44 +1183,6 @@ export function Dashboard({
           <DialogFooter>
             <Button variant="outline" onClick={() => setBatchDeleteConfirm(false)}>取消</Button>
             <Button variant="destructive" onClick={handleBatchDelete}>确认删除</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* ==================== External Delete Confirm Dialog ==================== */}
-      <Dialog
-        open={deleteConfirmTargets !== null}
-        onOpenChange={(open) => {
-          if (!open) setDeleteConfirmTargets(null);
-        }}
-      >
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>确认删除项目文件夹</DialogTitle>
-          </DialogHeader>
-          <p className="text-sm text-muted-foreground">
-            该项目位于外部位置，删除会移除列表条目并
-            <span className="text-foreground font-medium">删除整个磁盘文件夹</span>
-            （含所有分镜、时间线与导出数据），此操作不可撤销。
-          </p>
-          {deleteConfirmTargets?.map((project) => (
-            <p
-              key={project.id}
-              className="text-xs font-mono text-destructive truncate"
-              title={project.location}
-            >
-              {project.location}
-            </p>
-          ))}
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setDeleteConfirmTargets(null)}>取消</Button>
-            <Button
-              variant="destructive"
-              onClick={handleConfirmExternalDelete}
-              disabled={isDeletingProjects}
-            >
-              确认删除
-            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
