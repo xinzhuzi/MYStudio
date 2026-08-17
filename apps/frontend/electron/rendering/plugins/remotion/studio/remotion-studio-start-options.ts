@@ -71,6 +71,7 @@ export class RemotionStudioRenderQueueBridge {
     addJob: ({ job }) => {
       this.jobs.set(job.id, job);
       const context = this.options.getContext();
+      console.error("[chapter-video] Studio addJob:", job.compositionId, "context:", context ? "ok" : "missing");
       if (!context) {
         markNativeJobFailed(job, "当前章节 Studio context 不可用");
         return;
@@ -85,12 +86,15 @@ export class RemotionStudioRenderQueueBridge {
       }
       void this.options.enqueueChapter({ context, studioJobId: job.id }).then((result) => {
         if (!result.accepted || !result.job) {
+          console.error("[chapter-video] enqueueChapter 拒绝:", result.message ?? "(无消息)");
           markNativeJobFailed(job, result.message ?? "ChapterVideo render 被队列拒绝");
           return;
         }
+        console.error("[chapter-video] enqueueChapter 接受:", result.job.jobId);
         this.nativeToRemotion.set(job.id, result.job.jobId);
         syncNativeJob(job, result.job);
       }).catch((error: unknown) => {
+        console.error("[chapter-video] enqueueChapter 异常:", error instanceof Error ? error.message : String(error));
         markNativeJobFailed(job, error instanceof Error ? error.message : String(error));
       });
     },

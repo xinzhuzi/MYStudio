@@ -67,6 +67,44 @@ export class StudioAuthProxy {
         resolve();
       });
     });
+    // Remotion Studio 的渲染提交/进度走 WebSocket；代理必须转发 upgrade，
+    // 否则 iframe 里所有 ws 连接被直接掐断，渲染任务永远到不了服务端。
+    this.server.on("upgrade", (req, socket, head) => {
+      const auth = this.authorize(req);
+      if (!auth.authorized) {
+        socket.destroy();
+        return;
+      }
+      const upstream = http.request({
+        host: this.target.host,
+        port: this.target.port,
+        method: "GET",
+        path: stripAuthQuery(req.url ?? "/"),
+        headers: sanitizeProxyHeaders(req.headers, this.target.port),
+        agent: false,
+      });
+      upstream.on("upgrade", (res, upstreamSocket, upstreamHead) => {
+        const headers = Object.entries(res.headers)
+          .map(([key, value]) => `${key}: ${Array.isArray(value) ? value.join(", ") : value}`)
+          .join("\r\n");
+        socket.write(`HTTP/1.1 101 Switching Protocols\r\n${headers}\r\n\r\n`);
+        if (upstreamHead?.length) socket.write(upstreamHead);
+        if (head?.length) upstreamSocket.write(head);
+        upstreamSocket.pipe(socket);
+        socket.pipe(upstreamSocket);
+        upstreamSocket.on("error", () => socket.destroy());
+        socket.on("error", () => upstreamSocket.destroy());
+      });
+      upstream.on("response", (res) => {
+        console.error(`[studio-proxy] upgrade 收到非 101 响应: ${res.statusCode}`);
+        socket.destroy();
+      });
+      upstream.on("error", (error) => {
+        console.error(`[studio-proxy] upgrade 上游错误: ${error.message}`);
+        socket.destroy();
+      });
+      upstream.end();
+    });
   }
 
   get port(): number {
@@ -165,7 +203,26 @@ export class StudioAuthProxy {
       return { authorized: true, fromQuery: false };
     }
     const cookieToken = parseCookie(req.headers.cookie ?? "")[AUTH_COOKIE_NAME];
-    return { authorized: cookieToken === this.session.token, fromQuery: false };
+    if (cookieToken === this.session.token) {
+      return { authorized: true, fromQuery: false };
+    }
+    // 嵌入 App 的跨站 iframe 会被浏览器按第三方上下文丢弃 Set-Cookie，
+    // 页面级 token 鉴权后的同源子资源（bundle.js 等）只剩 Referer/Origin
+    // 可作为"来自已鉴权页面"的证据；代理本身仅监听回环地址。
+    if (this.isOwnOriginHeader(req.headers.referer) || this.isOwnOriginHeader(req.headers.origin)) {
+      return { authorized: true, fromQuery: false };
+    }
+    return { authorized: false, fromQuery: false };
+  }
+
+  private isOwnOriginHeader(value: string | undefined): boolean {
+    if (!value) return false;
+    try {
+      const parsed = new URL(value);
+      return parsed.hostname === LOOPBACK_HOST && parsed.port === String(this.port);
+    } catch {
+      return false;
+    }
   }
 }
 
@@ -209,6 +266,19 @@ function sanitizeProxyHeaders(
   delete next["transfer-encoding"];
   delete next.upgrade;
   next.host = `${LOOPBACK_HOST}:${upstreamPort}`;
+  // Remotion Studio 的 /api/* 按自身端口做同源校验；经代理访问时浏览器
+  // 发来的是代理端口的 Origin/Referer，必须改写为上游自身源，否则渲染
+  // API 以 "Request from different origin not allowed" 拒绝。
+  next.origin = `http://${LOOPBACK_HOST}:${upstreamPort}`;
+  if (typeof next.referer === "string") {
+    try {
+      const referer = new URL(next.referer);
+      referer.port = String(upstreamPort);
+      next.referer = referer.toString();
+    } catch {
+      delete next.referer;
+    }
+  }
   return next;
 }
 

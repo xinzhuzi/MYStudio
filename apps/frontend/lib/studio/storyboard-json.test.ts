@@ -65,6 +65,38 @@ describe("storyboard JSON contracts", () => {
     expect(result.items?.[0]?.mediaRef?.path).toContain("generated-shot.png");
   });
 
+  it("round-trips the optional cinematic marker in canonical JSON", () => {
+    const shot = {
+      ...makeShot(),
+      cinematic: {
+        preset: "cinematic-parallax-lr",
+        parallaxStrength: 0.35,
+        dofAperture: 2.8,
+      },
+    } as unknown as StoryboardItem;
+    const raw = formatStoryboardJson([shot]);
+    expect(raw).toContain('"cinematic"');
+    expect(validateStoryboardJson(raw, "episode-1").items?.[0]).toMatchObject({
+      cinematic: {
+        preset: "cinematic-parallax-lr",
+        parallaxStrength: 0.35,
+        dofAperture: 2.8,
+      },
+    });
+  });
+
+  it("rejects an unknown cinematic preset instead of dropping it", () => {
+    const raw = JSON.stringify([{
+      ...makeShot(),
+      cinematic: {
+        preset: "cinematic-unknown",
+        parallaxStrength: 0.35,
+        dofAperture: 2.8,
+      },
+    }]);
+    expect(validateStoryboardJson(raw, "episode-1").error).toContain("cinematic.preset 非法");
+  });
+
   it.each([
     ["not-json", "JSON 解析失败"],
     [JSON.stringify([makeShot(), makeShot({ id: "sb-episode-1-002" })]), "序号无效或重复"],

@@ -34,7 +34,7 @@ import { runFormalOutputQc } from "./render-accepted-full-pipeline-qc";
 import { registeredProjectDir } from "./storage-paths";
 
 const execFileAsync = promisify(execFile);
-const PROJECT_ID = "49dce4c1-64b1-42de-85c2-9f266698aec0";
+const PROJECT_ID = "49dce4c1-64b1-42de-85c2-9f266698aec4";
 const CHAPTER_ID = "chapter-001";
 const REVISION = 23;
 const EXPECTED_VISUAL_COUNT = 43;
@@ -70,6 +70,45 @@ export function resolveFormalProjectRoot(input: {
   return path.join(input.productUserData, "projects", "_p", input.projectId);
 }
 
+export function resolveFormalSlotSourceRoot(input: {
+  explicitSlotSourceRoot?: string;
+  productionRemotionRoot: string;
+}): string {
+  const explicitSlotSourceRoot = input.explicitSlotSourceRoot?.trim();
+  return path.resolve(explicitSlotSourceRoot || input.productionRemotionRoot);
+}
+
+type FormalSlotSourceInventoryRow = {
+  shotId: string;
+  shotRevision: number;
+  path: string;
+  sizeBytes: number;
+  mtimeMs: number;
+  sha256: string;
+};
+
+export function assertFormalSlotSourceInventory(
+  production: readonly FormalSlotSourceInventoryRow[],
+  slotSource: readonly FormalSlotSourceInventoryRow[],
+): void {
+  const project = (rows: readonly FormalSlotSourceInventoryRow[]) => rows
+    .map(({ shotId, shotRevision, sizeBytes, sha256 }) => ({ shotId, shotRevision, sizeBytes, sha256 }))
+    .sort((left, right) => left.shotId.localeCompare(right.shotId));
+  if (JSON.stringify(project(production)) !== JSON.stringify(project(slotSource))) {
+    throw new Error("slot-source media inventory does not match production");
+  }
+}
+
+export function resolveFormalTimelinePlanPath(input: {
+  explicitPlanPath?: string;
+  sourceRunDir: string;
+}): string {
+  const explicitPlanPath = input.explicitPlanPath?.trim();
+  return explicitPlanPath
+    ? path.resolve(explicitPlanPath)
+    : path.join(input.sourceRunDir, "timeline-render-plan.json");
+}
+
 export async function runAcceptedFormalRenderer(): Promise<void> {
   const { app, utilityProcess } = resolveFormalElectronMain();
   const appsRoot = path.resolve(process.env.MYSTUDIO_APPS_ROOT ?? process.cwd());
@@ -85,12 +124,23 @@ export async function runAcceptedFormalRenderer(): Promise<void> {
     projectId: PROJECT_ID,
   });
   const productionRemotionRoot = path.join(productionProjectRoot, "remotion");
+  const slotSourceRoot = resolveFormalSlotSourceRoot({
+    explicitSlotSourceRoot: process.env.MYSTUDIO_FORMAL_SLOT_SOURCE_ROOT,
+    productionRemotionRoot,
+  });
   const videoWorkflowRoot = path.join(productionProjectRoot, "video-use");
-  const revisionRoot = path.join(videoWorkflowRoot, CHAPTER_ID, `r${REVISION}`);
+  const revisionRoot = path.resolve(
+    process.env.MYSTUDIO_FORMAL_REVISION_ROOT
+      ?? path.join(videoWorkflowRoot, CHAPTER_ID, `r${REVISION}`),
+  );
   const sourceRunDir = path.resolve(
     process.env.MYSTUDIO_FORMAL_SOURCE_RUN
       ?? path.join(appsRoot, "output", "automation", "full-pipeline-1786801786018"),
   );
+  const timelinePlanPath = resolveFormalTimelinePlanPath({
+    explicitPlanPath: process.env.MYSTUDIO_FORMAL_TIMELINE_PLAN,
+    sourceRunDir,
+  });
   const installedApp = path.resolve(
     process.env.MYSTUDIO_FORMAL_INSTALLED_APP ?? "/Applications/漫影工作室.app",
   );
@@ -162,7 +212,7 @@ export async function runAcceptedFormalRenderer(): Promise<void> {
     const appAsarBefore = await fileIdentity(appAsarPath);
     await assertFileStable(appAsarPath, appAsarBefore);
 
-    const rawPlan = await readJson(path.join(sourceRunDir, "timeline-render-plan.json"));
+    const rawPlan = await readJson(timelinePlanPath);
     const planValidation = validateTimelineRenderPlan(rawPlan);
     if (!planValidation.success) {
       throw new Error(formatIssues("timeline plan", planValidation.issues));
@@ -180,6 +230,10 @@ export async function runAcceptedFormalRenderer(): Promise<void> {
     if (!hyperFramesValidation.success) {
       throw new Error(formatIssues("HyperFrames artifact", hyperFramesValidation.issues));
     }
+    const hyperFramesOutputPath = await resolveAcceptedHyperFramesOutputPath(
+      hyperFramesValidation.value.outputPath!,
+      revisionRoot,
+    );
     const artifactProjection = assertAcceptedArtifactProjection({
       plan: acceptedPlan,
       videoUse: videoUseValidation.value,
@@ -205,6 +259,18 @@ export async function runAcceptedFormalRenderer(): Promise<void> {
 
     const videoWorkflowService = createVideoWorkflowChapterService({
       workspaceRootForProject: (projectId) => path.join(checkedProjectRoot(projectId, productionProjectRoot), "video-use"),
+      readArtifacts: async () => ({
+        success: true as const,
+        value: {
+          paths: {
+            revisionDir: revisionRoot,
+            videoUsePath: path.join(revisionRoot, "video-use-artifact.json"),
+            hyperFramesPath: path.join(revisionRoot, "hyperframes-artifact.json"),
+          },
+          videoUseArtifact: videoUseValidation.value,
+          hyperFramesArtifact: hyperFramesValidation.value,
+        },
+      }),
       runVideoUse: async () => {
         throw new Error("video-use provider execution is forbidden in the formal accepted-source renderer");
       },
@@ -219,7 +285,9 @@ export async function runAcceptedFormalRenderer(): Promise<void> {
       const videoUseInputSha256 = artifacts.success
         ? artifacts.value.videoUseArtifact?.evidence.inputSha256
         : undefined;
-      return videoWorkflowService.evaluateGate({ ...input, videoUseInputSha256 });
+      const gate = await videoWorkflowService.evaluateGate({ ...input, videoUseInputSha256 });
+      if (!gate.accepted || !gate.hyperFramesOutputPath) return gate;
+      return { ...gate, hyperFramesOutputPath };
     };
     const gate = await evaluateAcceptedGate({
       projectId: PROJECT_ID,
@@ -231,7 +299,6 @@ export async function runAcceptedFormalRenderer(): Promise<void> {
     // Fail closed before MediaBridge/Remotion can consume the overlay: an accepted
     // artifact is not evidence that the referenced alpha file still exists or has
     // the required codec/pixel format.
-    const hyperFramesOutputPath = hyperFramesValidation.value.outputPath!;
     await probeHyperFrames(
       hyperFramesOutputPath,
       process.env.MYSTUDIO_FFPROBE_PATH ?? "ffprobe",
@@ -250,10 +317,22 @@ export async function runAcceptedFormalRenderer(): Promise<void> {
       throw new Error(`expected ${EXPECTED_VISUAL_COUNT} production shot slots, received ${productionSlots.length}`);
     }
     const sourceInventoryBefore = await buildSourceInventory(productionRemotionRoot, productionSlots);
+    const slotSourceSlots = slotSourceRoot === productionRemotionRoot
+      ? productionSlots
+      : await readRemotionCurrentShotSlotsFromWorkspace(
+        slotSourceRoot,
+        PROJECT_ID,
+        CHAPTER_ID,
+      );
+    if (slotSourceSlots.length !== EXPECTED_VISUAL_COUNT) {
+      throw new Error(`expected ${EXPECTED_VISUAL_COUNT} slot-source shot slots, received ${slotSourceSlots.length}`);
+    }
+    const slotSourceInventoryBefore = await buildSourceInventory(slotSourceRoot, slotSourceSlots);
+    assertFormalSlotSourceInventory(sourceInventoryBefore, slotSourceInventoryBefore);
     await materializeIsolatedShotWorkspace({
-      sourceWorkspace: productionRemotionRoot,
+      sourceWorkspace: slotSourceRoot,
       targetWorkspace: isolatedWorkspace,
-      currentShotSlots: productionSlots,
+      currentShotSlots: slotSourceSlots,
     });
     const isolatedSlots = await readRemotionCurrentShotSlotsFromWorkspace(
       isolatedWorkspace,
@@ -267,11 +346,12 @@ export async function runAcceptedFormalRenderer(): Promise<void> {
     await Promise.all([
       snapshotFile(path.join(revisionRoot, "video-use-artifact.json"), path.join(snapshotsDir, "video-use-artifact.json")),
       snapshotFile(path.join(revisionRoot, "hyperframes-artifact.json"), path.join(snapshotsDir, "hyperframes-artifact.json")),
-      snapshotFile(path.join(sourceRunDir, "timeline-render-plan.json"), path.join(snapshotsDir, "timeline-render-plan-input.json")),
+      snapshotFile(timelinePlanPath, path.join(snapshotsDir, "timeline-render-plan-input.json")),
       snapshotFile(path.join(productionProjectRoot, "remotion", "chapters", `${CHAPTER_ID}.json`), path.join(snapshotsDir, "chapter-manifest.json")),
       writeJson(path.join(snapshotsDir, "timeline-render-plan-projected.json"), projectedPlan),
       writeJson(path.join(snapshotsDir, "editing-project.json"), projectedPlan.editingProjectSnapshot),
       writeJson(path.join(runDir, "source-inventory-before.json"), sourceInventoryBefore),
+      writeJson(path.join(runDir, "slot-source-inventory-before.json"), slotSourceInventoryBefore),
     ]);
 
     const resolveIsolatedSource = (sourcePath: string): string => {
@@ -355,6 +435,11 @@ export async function runAcceptedFormalRenderer(): Promise<void> {
     if (JSON.stringify(sourceInventoryAfter) !== JSON.stringify(sourceInventoryBefore)) {
       throw new Error("production source inventory changed during formal render");
     }
+    const slotSourceInventoryAfter = await buildSourceInventory(slotSourceRoot, slotSourceSlots);
+    await writeJson(path.join(runDir, "slot-source-inventory-after.json"), slotSourceInventoryAfter);
+    if (JSON.stringify(slotSourceInventoryAfter) !== JSON.stringify(slotSourceInventoryBefore)) {
+      throw new Error("slot-source inventory changed during formal render");
+    }
     const appAsarAfter = await fileIdentity(appAsarPath);
     assertStableFileInventory(
       { [appAsarPath]: appAsarBefore },
@@ -419,9 +504,11 @@ export async function runAcceptedFormalRenderer(): Promise<void> {
       },
       safety: {
         sourceInventoryUnchanged: true,
+        slotSourceInventoryUnchanged: true,
         appAsarUnchanged: true,
         isolatedWorkspace,
         productionRemotionRoot,
+        slotSourceRoot,
         appAsar: appAsarAfter,
         collisionFilesBefore,
         collisionFilesAfter,
@@ -431,6 +518,9 @@ export async function runAcceptedFormalRenderer(): Promise<void> {
           sourceInventoryBefore: path.join(runDir, "source-inventory-before.json"),
           sourceInventoryAfter: path.join(runDir, "source-inventory-after.json"),
           unchanged: JSON.stringify(sourceInventoryBefore) === JSON.stringify(sourceInventoryAfter),
+          slotSourceInventoryBefore: path.join(runDir, "slot-source-inventory-before.json"),
+          slotSourceInventoryAfter: path.join(runDir, "slot-source-inventory-after.json"),
+          slotSourceUnchanged: JSON.stringify(slotSourceInventoryBefore) === JSON.stringify(slotSourceInventoryAfter),
         },
         ac2VideoUseEdlProjected: {
           expectedVisualCount: EXPECTED_VISUAL_COUNT,
@@ -491,14 +581,15 @@ export function finishFormalRenderer(
 async function buildSourceInventory(
   workspaceRoot: string,
   slots: readonly RemotionCurrentSlotV1[],
-): Promise<Array<{ shotId: string; path: string; sizeBytes: number; mtimeMs: number; sha256: string }>> {
-  const rows = [] as Array<{ shotId: string; path: string; sizeBytes: number; mtimeMs: number; sha256: string }>;
+): Promise<FormalSlotSourceInventoryRow[]> {
+  const rows: FormalSlotSourceInventoryRow[] = [];
   for (const slot of slots) {
     if (slot.target.kind !== "shot") throw new Error("source inventory accepts shot slots only");
     const outputPath = resolveRemotionCurrentSlotOutputPath(workspaceRoot, slot);
     const stat = await fs.promises.stat(outputPath);
     rows.push({
       shotId: slot.target.shotId,
+      shotRevision: slot.target.shotRevision,
       path: outputPath,
       sizeBytes: stat.size,
       mtimeMs: Math.floor(stat.mtimeMs),
@@ -506,6 +597,25 @@ async function buildSourceInventory(
     });
   }
   return rows.sort((left, right) => left.shotId.localeCompare(right.shotId));
+}
+
+async function resolveAcceptedHyperFramesOutputPath(
+  artifactOutputPath: string,
+  revisionRoot: string,
+): Promise<string> {
+  const candidates = [
+    path.resolve(artifactOutputPath),
+    path.resolve(revisionRoot, path.basename(artifactOutputPath)),
+  ];
+  for (const candidate of candidates) {
+    try {
+      const stat = await fs.promises.stat(candidate);
+      if (stat.isFile() && stat.size > 0) return candidate;
+    } catch {
+      // Try the next bounded candidate; fail closed below if neither exists.
+    }
+  }
+  throw new Error(`accepted HyperFrames output is missing: ${candidates.join(" or ")}`);
 }
 
 async function probeHyperFrames(filePath: string, ffprobeExecutable: string): Promise<unknown> {

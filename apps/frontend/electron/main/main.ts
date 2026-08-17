@@ -37,6 +37,7 @@ import {
   shouldCreateWindowOnActivate,
   shouldCreateWindowOnSecondInstance,
 } from '../runtime/app-lifecycle'
+import { installUncaughtExceptionGuard } from '../runtime/uncaught-exception-guard'
 import { registerTtsIpcHandlers } from '../ipc/tts/tts-ipc'
 import { registerSelfMediaIpcHandlers } from '../ipc/self-media/self-media-ipc'
 import { createCredentialVault } from '../aitoearn/credential-vault'
@@ -208,6 +209,12 @@ function writeDiagnosticsLog(entry: DiagnosticsLogEntryInput) {
 function createDiagnosticsOperationId(prefix: string) {
   return `${prefix}-${crypto.randomUUID()}`
 }
+
+// undici setTypeOfService EINVAL(上游 undici#5544)会以未捕获异常弹出 Electron
+// 崩溃框,对请求本身无害;进程级过滤吞掉,其余异常保持默认崩溃语义。
+installUncaughtExceptionGuard({
+  writeLog: (entry) => writeDiagnosticsLog({ ...entry, operationId: createDiagnosticsOperationId('uncaught-exception') }),
+})
 
 async function diagnosticsFetchJson(url: string, options: { method: string; headers?: Record<string, string>; body?: string }) {
   const operationId = createDiagnosticsOperationId('tts-http')
@@ -851,21 +858,21 @@ const videoWorkflowIpc = registerVideoWorkflowIpcHandlers({
 })
 const remotionRuntimeDir = resolveRemotionRuntimeDir(remotionUserDataDir)
 
-// Depth estimation adapter — enables cinematic 3D mode in shot rendering.
-// Reuses the same managed Python 3.12 as TTS/video-use. When present and the
-// shot's visual is an image, RemotionShotRenderer calls estimateDepth() before
-// projecting composition props and injects CinematicConfig onto the visual clip.
-const depthAdapter = createDepthAdapter({
-  storageBasePath: getStorageBasePath,
-  backendRoot: videoWorkflowBackendRoot,
-})
-
 // Depth runtime controller — settings-facing lifecycle (设置 → 本地配置 → 深度估计模型).
 // Model downloads are explicit and user-triggered; inference never downloads.
 // The model cache dir is self-managed at <storageBase>/DeepModel (config.json),
 // mirroring the TTS model-dir feature set — no TTS cache fallback.
 const depthRuntimeController = createDepthRuntimeController({
   storageBasePath: getStorageBasePath,
+  backendRoot: videoWorkflowBackendRoot,
+})
+
+// Depth estimation adapter — enables cinematic 3D mode in shot rendering.
+// Reuse the controller's persisted model cache resolver so settings probes and
+// render workers always inspect the same explicitly downloaded model bytes.
+const depthAdapter = createDepthAdapter({
+  storageBasePath: getStorageBasePath,
+  modelCacheDir: depthRuntimeController.getModelCacheDir,
   backendRoot: videoWorkflowBackendRoot,
 })
 const depthIpc = registerDepthIpcHandlers({
@@ -975,10 +982,12 @@ let hostedStudioChapterContext: RemotionStudioChapterRenderContext | null = null
 const nativeStudioQueueBridge = new RemotionStudioRenderQueueBridge({
   getContext: () => hostedStudioChapterContext ?? undefined,
   enqueueChapter: async ({ context }) => {
+    console.error('[chapter-video] step1: probeStatus...')
     const browser = await remotionRuntime.controller.probeStatus()
     if (browser.status.state !== 'ready') {
       return { accepted: false, message: `Remotion Headless Shell 未就绪: ${browser.status.message ?? browser.status.state}` }
     }
+    console.error('[chapter-video] step2: bundle manifest...')
     const manifest = JSON.parse(await fs.promises.readFile(path.join(remotionBundlePath, 'manifest.json'), 'utf8')) as {
       contentHash?: unknown;
       templateVersion?: unknown;
@@ -986,8 +995,10 @@ const nativeStudioQueueBridge = new RemotionStudioRenderQueueBridge({
     if (typeof manifest.contentHash !== 'string' || typeof manifest.templateVersion !== 'string') {
       return { accepted: false, message: 'Remotion bundle manifest 缺少 template/content hash' }
     }
+    console.error('[chapter-video] step3: chapter manifest...')
     const chapterManifest = await remotionChapterManifestService.read(context.projectId, context.chapterId)
     if (!chapterManifest) return { accepted: false, message: '当前章节缺少 RemotionChapterManifestV2' }
+    console.error('[chapter-video] step4: createReadyRemotionChapterJob...')
     const job = await createReadyRemotionChapterJob({
       plan: context.plan,
       currentShotSlots: context.currentShotSlots,
@@ -996,6 +1007,7 @@ const nativeStudioQueueBridge = new RemotionStudioRenderQueueBridge({
       templateVersion: manifest.templateVersion,
       remotionVersion,
     })
+    console.error('[chapter-video] step5: evaluateVideoWorkflowChapterGate...')
     const gate = await evaluateVideoWorkflowChapterGate({
       projectId: context.projectId,
       chapterId: context.chapterId,
@@ -1005,6 +1017,7 @@ const nativeStudioQueueBridge = new RemotionStudioRenderQueueBridge({
     if (!gate.accepted) {
       return { accepted: false, message: `视频工作流章节 gate blocked: ${gate.code} ${gate.message}` }
     }
+    console.error('[chapter-video] step6: remotionQueue.enqueueChapter...')
     const result = await remotionQueue.enqueueChapter({
       kind: 'chapter',
       job,
@@ -1013,7 +1026,9 @@ const nativeStudioQueueBridge = new RemotionStudioRenderQueueBridge({
       currentShotSlots: [...context.currentShotSlots],
     })
     if (!result.accepted) {
-      return { accepted: false, message: 'message' in result ? result.message : `ChapterVideo 队列拒绝: ${result.reason}` }
+      const message = 'message' in result ? result.message : `ChapterVideo 队列拒绝: ${result.reason}`
+      console.error('[chapter-video] enqueueChapter 拒绝:', message, 'deps:', context.currentShotSlots.length)
+      return { accepted: false, message }
     }
     return { accepted: true, job: result.job }
   },
@@ -1181,7 +1196,28 @@ async function loadChapterStudioProjection(request: { projectId: string; chapter
     currentShotSlots.push(slot)
   }
   const fps = plan.value.renderSettings.fps
-  const durationInFrames = visualClips.reduce((total, clip) => total + Math.max(1, Math.ceil((clip.durationUs * fps) / 1_000_000)), 0)
+  const clipFrames = (clip: (typeof visualClips)[number]) => Math.max(1, Math.ceil((clip.durationUs * fps) / 1_000_000))
+  const transitionByFromClipId = new Map(
+    (project.value.transitions ?? [])
+      .filter((transition) => typeof transition.fromClipId === 'string')
+      .map((transition) => [transition.fromClipId as string, transition]),
+  )
+  // Studio projection 只表达 cut / fade；EDL 的装饰性转场（crossfade/flash 等）
+  // 按时长折叠为 fade 重叠，cut 与无转场保持硬切，时长钳制不得覆盖相邻镜。
+  const studioTransitions: Array<{ type: 'cut'; durationInFrames: 0 } | { type: 'fade'; durationInFrames: number } | undefined> = visualClips.map((clip, index) => {
+    if (index === visualClips.length - 1) return undefined
+    const transition = transitionByFromClipId.get(clip.id)
+    const requested = transition && transition.effectId !== 'cut' && Number.isFinite(transition.durationUs)
+      ? Math.floor((transition.durationUs * fps) / 1_000_000)
+      : 0
+    const cap = Math.min(clipFrames(clip), clipFrames(visualClips[index + 1]!)) - 1
+    const fadeFrames = Math.min(requested, Math.max(0, cap))
+    return fadeFrames > 0 ? { type: 'fade' as const, durationInFrames: fadeFrames } : { type: 'cut' as const, durationInFrames: 0 }
+  })
+  const durationInFrames = studioTransitions.reduce(
+    (total, transition, index) => total + clipFrames(visualClips[index]!) - (transition?.type === 'fade' ? transition.durationInFrames : 0),
+    0,
+  )
   const currentShotSlotById = new Map(
     currentShotSlots.map((slot) => [slot.target.kind === 'shot' ? slot.target.shotId : '', slot] as const),
   )
@@ -1215,16 +1251,17 @@ async function loadChapterStudioProjection(request: { projectId: string; chapter
       height: plan.value.renderSettings.height,
       fps,
       durationInFrames,
-      clips: visualClips.map((clip) => ({
+      clips: visualClips.map((clip, index) => ({
         shotId: clip.source.evidence.storyboardId!,
         src: '',
-        durationInFrames: Math.max(1, Math.ceil((clip.durationUs * fps) / 1_000_000)),
+        durationInFrames: clipFrames(clip),
         trimBeforeFrames: Math.max(0, Math.floor((clip.trimStartUs * fps) / 1_000_000)),
         crop: { x: 0, y: 0, width: plan.value.renderSettings.width, height: plan.value.renderSettings.height },
         transform: clip.transform ?? { x: 0, y: 0, scaleX: 1, scaleY: 1, rotation: 0, opacity: 1 },
         volume: clip.muted ? 0 : clip.volume,
         subtitle: plan.value.clips.find((candidate) => candidate.trackKind === 'text'
           && candidate.source.evidence.storyboardId === clip.source.evidence.storyboardId)?.source.text ?? '',
+        ...(studioTransitions[index] ? { transitionAfter: studioTransitions[index] } : {}),
       })),
     },
     plan: plan.value,

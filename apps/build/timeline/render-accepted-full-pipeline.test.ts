@@ -23,11 +23,14 @@ vi.mock("electron", () => ({
 }));
 
 import {
+  assertFormalSlotSourceInventory,
   finishFormalRenderer,
   hashFormalRawFileSha256,
   resolveInstalledRemotionWorkerPath,
   resolveFormalElectronMain,
   resolveFormalProjectRoot,
+  resolveFormalSlotSourceRoot,
+  resolveFormalTimelinePlanPath,
 } from "./render-accepted-full-pipeline";
 
 function makePlan(visualCount = 43, textCount = 0): TimelineRenderPlan {
@@ -158,6 +161,28 @@ describe("formal installed runtime lifecycle", () => {
   it("resolves the packaged worker from app.asar.unpacked", () => {
     expect(resolveInstalledRemotionWorkerPath("/Applications/漫影工作室.app/Contents/Resources"))
       .toBe("/Applications/漫影工作室.app/Contents/Resources/app.asar.unpacked/out/main/remotion-render-worker.cjs");
+  });
+
+  it("prefers an explicit formal timeline plan without weakening source-run fallback", () => {
+    expect(resolveFormalTimelinePlanPath({
+      explicitPlanPath: "/evidence/timeline-render-plan-input.json",
+      sourceRunDir: "/source-run",
+    })).toBe("/evidence/timeline-render-plan-input.json");
+    expect(resolveFormalTimelinePlanPath({ sourceRunDir: "/source-run" }))
+      .toBe("/source-run/timeline-render-plan.json");
+  });
+
+  it("keeps an explicit slot source root separate from the production Remotion fallback", () => {
+    const productionRemotionRoot = "/production/remotion";
+
+    expect(resolveFormalSlotSourceRoot({
+      explicitSlotSourceRoot: "/archive/r23/formal-workspace",
+      productionRemotionRoot,
+    })).toBe("/archive/r23/formal-workspace");
+    expect(resolveFormalSlotSourceRoot({
+      explicitSlotSourceRoot: "  ",
+      productionRemotionRoot,
+    })).toBe(productionRemotionRoot);
   });
 
   it("preserves the failure exit code before requesting Electron shutdown", () => {
@@ -362,13 +387,36 @@ describe("assertStableFileInventory", () => {
     expect(() => assertStableFileInventory(before, after, "workflow collision files"))
       .toThrow("workflow collision files changed concurrently");
   });
+
+  it("rejects slot-source media that differs from the production shot inventory", () => {
+    const production = [{
+      shotId: "shot-001",
+      shotRevision: 3,
+      path: "/production/shot-001.mp4",
+      sizeBytes: 100,
+      mtimeMs: 1,
+      sha256: "a".repeat(64),
+    }];
+    const matchingArchive = [{
+      ...production[0],
+      path: "/archive/shot-001.mp4",
+      mtimeMs: 2,
+    }];
+
+    expect(() => assertFormalSlotSourceInventory(production, matchingArchive)).not.toThrow();
+    expect(() => assertFormalSlotSourceInventory(production, [{
+      ...matchingArchive[0],
+      sha256: "b".repeat(64),
+    }])).toThrow("slot-source media inventory does not match production");
+  });
 });
 
 describe("materializeIsolatedShotWorkspace", () => {
-  it("hard-links the validated shot output, job, and evidence into an isolated workspace", async () => {
+  it("copies the validated shot output, job, and evidence into an isolated workspace", async () => {
     const root = fs.mkdtempSync(path.join(os.tmpdir(), "formal-render-workspace-"));
     const sourceWorkspace = path.join(root, "source");
     const targetWorkspace = path.join(root, "target");
+    const sourceTimestamp = new Date("2026-08-16T00:00:00.000Z");
     const relativePaths = [
       "outputs/shots/chapter-001/shot-001/current.mp4",
       "jobs/shot/chapter-001/shot-001/current.json",
@@ -379,6 +427,7 @@ describe("materializeIsolatedShotWorkspace", () => {
         const sourcePath = path.join(sourceWorkspace, relativePath);
         fs.mkdirSync(path.dirname(sourcePath), { recursive: true });
         fs.writeFileSync(sourcePath, relativePath);
+        fs.utimesSync(sourcePath, sourceTimestamp, sourceTimestamp);
       }
 
       await expect(materializeIsolatedShotWorkspace({
@@ -390,7 +439,10 @@ describe("materializeIsolatedShotWorkspace", () => {
       for (const relativePath of relativePaths) {
         const sourceStat = fs.statSync(path.join(sourceWorkspace, relativePath));
         const targetStat = fs.statSync(path.join(targetWorkspace, relativePath));
-        expect(targetStat.ino).toBe(sourceStat.ino);
+        expect(targetStat.ino).not.toBe(sourceStat.ino);
+        expect(Math.floor(targetStat.mtimeMs)).toBe(Math.floor(sourceStat.mtimeMs));
+        expect(fs.readFileSync(path.join(targetWorkspace, relativePath)))
+          .toEqual(fs.readFileSync(path.join(sourceWorkspace, relativePath)));
       }
     } finally {
       fs.rmSync(root, { recursive: true, force: true });

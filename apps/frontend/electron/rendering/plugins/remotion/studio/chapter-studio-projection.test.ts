@@ -82,12 +82,12 @@ describe("chapter Studio projection", () => {
     const generated = generateChapterStudioProjection(input);
     for (const mutation of [
       generated.source.replace(
-        'import { Video } from "@remotion/media";',
-        'import { Video } from "@remotion/media";\nimport danger from "./danger";',
+        'Sequence, useCurrentFrame, Video } from "remotion";',
+        'Sequence, useCurrentFrame, Video } from "remotion";\nimport danger from "./danger";',
       ),
       generated.source.replace(
-        'import { Video } from "@remotion/media";',
-        'import { Video, danger } from "@remotion/media";',
+        'useCurrentFrame, Video } from "remotion";',
+        'useCurrentFrame, Video, danger } from "remotion";',
       ),
       generated.source.replace("<Interactive.Div", "<UnknownNode"),
       generated.source.replace("trimBefore={0}", "danger={0} trimBefore={0}"),

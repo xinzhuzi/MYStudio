@@ -3,6 +3,7 @@ import type {
   ContinuityAssetVersion,
   ProductionTrack,
   StoryboardItem,
+  StoryboardMediaRef,
   VideoCandidate,
 } from "@/types/studio";
 
@@ -48,14 +49,16 @@ export function mergeStoryboardReplacement(previous: StoryboardItem, next: Story
   const nextFingerprint = storyboardSourceFingerprint(next);
   const sourceChanged = previousFingerprint !== nextFingerprint;
   const hasOutput = Boolean(previous.mediaRef || previous.audioRef || previous.imageWorkflowId || previous.imageWorkflowNodeId);
+  const mediaRefChanged = mediaRefFingerprint(next.mediaRef) !== mediaRefFingerprint(previous.mediaRef);
+  const audioRefChanged = mediaRefFingerprint(next.audioRef) !== mediaRefFingerprint(previous.audioRef);
   const freshWrite = Boolean(
-    next.mediaRef !== previous.mediaRef ||
-      next.audioRef !== previous.audioRef ||
+    mediaRefChanged ||
+      audioRefChanged ||
       next.imageWorkflowId !== previous.imageWorkflowId ||
       next.imageWorkflowNodeId !== previous.imageWorkflowNodeId,
   );
   const visualInputChanged = Boolean(
-    next.mediaRef !== previous.mediaRef ||
+    mediaRefChanged ||
     next.imageWorkflowId !== previous.imageWorkflowId ||
     next.imageWorkflowNodeId !== previous.imageWorkflowNodeId,
   );
@@ -100,6 +103,17 @@ export function mergeStoryboardReplacement(previous: StoryboardItem, next: Story
   };
 }
 
+function mediaRefFingerprint(media: StoryboardMediaRef | undefined): string {
+  if (!media) return "";
+  return JSON.stringify({
+    kind: media.kind,
+    path: media.path,
+    contentSha256: media.contentSha256,
+    imageWorkflowId: media.imageWorkflowId,
+    imageWorkflowNodeId: media.imageWorkflowNodeId,
+  });
+}
+
 export function markStale<T extends { stale?: boolean; staleReason?: string; staleSince?: number }>(item: T, reason: string): T {
   return {
     ...item,
@@ -121,6 +135,7 @@ export function storyboardSourceFingerprint(item: Partial<StoryboardItem>) {
     shouldGenerateImage: item.shouldGenerateImage,
     orderedReferenceManifest: item.orderedReferenceManifest ?? [],
     shotSemantics: item.shotSemantics,
+    cinematic: (item as { cinematic?: unknown }).cinematic,
     continuityState: item.continuityState
       ? { ...item.continuityState, inputFingerprint: undefined }
       : undefined,

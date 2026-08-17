@@ -19,6 +19,7 @@ import {
   type ShotPlanIssue,
 } from "./shot-plan";
 import { resolveSubtitleAuthority } from "../video-workflow/subtitle-authority";
+import { buildProjectFileUrl } from "@/lib/upscale/project-file-url";
 
 export interface BuildRemotionShotPlansInput {
   projectId: string;
@@ -44,10 +45,11 @@ export type RemotionShotPlansResult =
 export async function buildRemotionShotPlans(
   input: BuildRemotionShotPlansInput,
 ): Promise<RemotionShotPlansResult> {
-  const storyboards = input.storyboards
+  const chapterStoryboards = input.storyboards
     .filter((storyboard) => storyboard.episodeId === input.chapterId)
     .slice()
     .sort((left, right) => left.index - right.index);
+  const storyboards = await recoverMissingMediaFingerprints(chapterStoryboards, input.projectId);
   const sourceSnapshotHash = await sha256CanonicalJson({
     schemaVersion: 1,
     projectId: input.projectId,
@@ -213,7 +215,8 @@ function toProjectMediaReference(
     issues.push({ code: "media.missing", path: `shots.${sourceId}.${field}`, message: `${field} 必须引用项目内媒体` });
     return undefined;
   }
-  if (!media.contentSha256 || !/^[a-f0-9]{64}$/.test(media.contentSha256)) {
+  const contentSha256 = media.contentSha256 ?? "";
+  if (!isValidSha256Hex(contentSha256)) {
     issues.push({ code: "media.fingerprint", path: `shots.${sourceId}.${field}.contentSha256`, message: `${field} 缺少有效 SHA-256 fingerprint` });
     return undefined;
   }
@@ -226,11 +229,11 @@ function toProjectMediaReference(
     kind: "project-file",
     projectId,
     relativePath,
-    contentSha256: media.contentSha256,
+    contentSha256,
     provenance: {
       sourceKind,
       sourceId,
-      sourceVersion: media.contentSha256,
+      sourceVersion: contentSha256,
     },
   };
 }
@@ -274,6 +277,53 @@ function decodePart(value: string): string {
     return decodeURIComponent(value);
   } catch {
     return "";
+  }
+}
+
+function isValidSha256Hex(value: string | undefined): value is string {
+  return typeof value === "string" && /^[a-f0-9]{64}$/.test(value);
+}
+
+/**
+ * 旁路写入（如超分替换分镜图）会把 mediaRef.contentSha256 留空。与 CLI
+ * render-shot-slots 的 normalizeMediaRef 同语义：构建前按实际文件补算
+ * 缺失的 SHA-256；文件读不到则保持原样，由 toProjectMediaReference
+ * 报 media.fingerprint 兜底。
+ */
+async function recoverMissingMediaFingerprints(
+  storyboards: StoryboardItem[],
+  projectId: string,
+): Promise<StoryboardItem[]> {
+  const bridge = typeof window === "undefined" ? undefined : window.projectFiles;
+  if (!bridge?.readAsBase64) return storyboards;
+  return Promise.all(storyboards.map(async (storyboard) => {
+    const media = storyboard.mediaRef;
+    if (!media?.path.trim() || isValidSha256Hex(media.contentSha256)) return storyboard;
+    const relativePath = parseProjectRelativePath(projectId, media.path);
+    if (!relativePath) return storyboard;
+    const contentSha256 = await computeProjectFileSha256(bridge, buildProjectFileUrl(projectId, relativePath));
+    return contentSha256
+      ? { ...storyboard, mediaRef: { ...media, contentSha256 } }
+      : storyboard;
+  }));
+}
+
+async function computeProjectFileSha256(
+  bridge: NonNullable<Window["projectFiles"]>,
+  url: string,
+): Promise<string | undefined> {
+  try {
+    const reply = await bridge.readAsBase64(url);
+    if (!reply?.success || !reply.base64) return undefined;
+    const binary = atob(reply.base64.slice(reply.base64.indexOf(",") + 1));
+    const bytes = new Uint8Array(binary.length);
+    for (let index = 0; index < binary.length; index += 1) {
+      bytes[index] = binary.charCodeAt(index);
+    }
+    const digest = await crypto.subtle.digest("SHA-256", bytes);
+    return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("");
+  } catch {
+    return undefined;
   }
 }
 

@@ -76,6 +76,11 @@ import {
   probeRenderedMedia,
 } from "../remotion/render-smoke-evidence";
 import { extractFirstFrame } from "../remotion/extract-frame";
+import {
+  buildFullPipelineCinematicDepthReport,
+  buildFullPipelineDepthEvidence,
+  type FullPipelineCinematicDepthEvidenceRecord,
+} from "./full-pipeline-depth-evidence";
 
 const remotionVersion = "4.0.499";
 const appsRoot = path.resolve(new URL("../..", import.meta.url).pathname);
@@ -518,7 +523,11 @@ export async function runFullPipeline(): Promise<Record<string, unknown>> {
     process.env.MYSTUDIO_DEPTH_MODEL_DIR = path.join(userDataDir, "DeepModel");
   }
   const depthAdapter = cinematicEnabled
-    ? createDepthAdapter({ storageBasePath, backendRoot })
+    ? createDepthAdapter({
+        storageBasePath,
+        backendRoot,
+        modelCacheDir: () => process.env.MYSTUDIO_DEPTH_MODEL_DIR ?? "",
+      })
     : null;
   if (cinematicEnabled) {
     console.log(`[full-pipeline] cinematic 3D ENABLED (preset: ${cinematicPreset})`);
@@ -945,10 +954,6 @@ export async function runFullPipeline(): Promise<Record<string, unknown>> {
           absolutePath: gateResult.hyperFramesOutputPath,
         });
       }
-      const mediaUrlByClipId = buildMediaUrlMap(mediaBridge, session, mediaSources);
-      const mediaUrlByBindingId = Object.fromEntries(
-        chapterManifest.sharedAudioBindings.map((binding) => [binding.bindingId, mediaUrlByClipId[`chapter-audio:${binding.bindingId}`]]),
-      );
 
       // ── 18a. Cinematic depth estimation for chapter-level visual clips ──
       // When cinematic is enabled, estimate depth for each shot's visual source,
@@ -959,6 +964,7 @@ export async function runFullPipeline(): Promise<Record<string, unknown>> {
       // cinematic 分支的 TextureLoader 只能解码静帧图——视觉源必须从镜头 MP4 换成
       // 深度估计用的首帧 PNG（视频音轨由 CinematicVisualClip 内的 OffthreadVideo 补挂）。
       const cinematicFrameUrlByClipId = new Map<string, string>();
+      const cinematicEvidence: FullPipelineCinematicDepthEvidenceRecord[] = [];
       if (cinematicEnabled && depthAdapter) {
         cinematicByClipId = new Map();
         // 逐镜运镜选择：确定性关键词启发式（cinematic-preset-ai 的兜底路径，
@@ -1015,33 +1021,46 @@ export async function runFullPipeline(): Promise<Record<string, unknown>> {
             outputDepthPath: depthPath,
             model: "depth-anything-v2-small",
           });
-          if (depthResult.state === "ready") {
-            const depthAssetId = crypto.randomBytes(32).toString("hex");
-            session.register(depthAssetId, depthResult.artifact.outputPath);
-            const [depthUrlEntry] = mediaBridge.buildUrls(session, [depthAssetId]);
-            const frameAssetId = crypto.randomBytes(32).toString("hex");
-            session.register(frameAssetId, framePath);
-            const [frameUrlEntry] = mediaBridge.buildUrls(session, [frameAssetId]);
-            cinematicFrameUrlByClipId.set(clip.id, frameUrlEntry.url);
-            cinematicByClipId.set(clip.id, {
-              preset: (presetByShotId.get(slot.target.shotId) ?? cinematicPreset) as CinematicConfig["preset"],
-              depthMapSrc: depthUrlEntry.url,
-              cameraDistance: 5,
-              cameraHeight: 0,
-              dofFocusDistance: 4,
-              dofAperture: 0.02,
-              motionBlurSamples: 0,
-              parallaxStrength: 1,
-              bloomIntensity: 0,
-              vignetteDarkness: 0.2,
-              chromaticAberration: 0,
-            });
-            console.log(`[full-pipeline] depth map ready for clip ${clip.id}`);
-          } else {
-            console.warn(`[full-pipeline] depth estimation blocked for ${clip.id}: ${depthResult.message}`);
-          }
+          const preset = (presetByShotId.get(slot.target.shotId) ?? cinematicPreset) as CinematicConfig["preset"];
+          const evidence = await buildFullPipelineDepthEvidence({
+            result: depthResult,
+            projectId,
+            shotId: slot.target.shotId,
+            preset,
+            inputImagePath: framePath,
+            expectedDepthPath: depthPath,
+            evidenceRoot: remotionOutputDir,
+            hashFile: hashFileSha256,
+          });
+          const depthAssetId = crypto.randomBytes(32).toString("hex");
+          session.register(depthAssetId, depthPath);
+          const [depthUrlEntry] = mediaBridge.buildUrls(session, [depthAssetId]);
+          const frameAssetId = crypto.randomBytes(32).toString("hex");
+          session.register(frameAssetId, framePath);
+          const [frameUrlEntry] = mediaBridge.buildUrls(session, [frameAssetId]);
+          cinematicFrameUrlByClipId.set(clip.id, frameUrlEntry.url);
+          cinematicByClipId.set(clip.id, {
+            preset,
+            depthMapSrc: depthUrlEntry.url,
+            cameraDistance: 5,
+            cameraHeight: 0,
+            dofFocusDistance: 4,
+            dofAperture: 0.02,
+            motionBlurSamples: 0,
+            parallaxStrength: 1,
+            bloomIntensity: 0,
+            vignetteDarkness: 0.2,
+            chromaticAberration: 0,
+          });
+          cinematicEvidence.push({ shotId: slot.target.shotId, clipId: clip.id, evidence });
+          console.log(`[full-pipeline] depth map ready for clip ${clip.id}`);
         }
       }
+
+      const mediaUrlByClipId = buildMediaUrlMap(mediaBridge, session, mediaSources);
+      const mediaUrlByBindingId = Object.fromEntries(
+        chapterManifest.sharedAudioBindings.map((binding) => [binding.bindingId, mediaUrlByClipId[`chapter-audio:${binding.bindingId}`]]),
+      );
 
       // Build composition props with gate result (the proper path)
       const projected = buildChapterVideoCompositionProps({
@@ -1159,6 +1178,10 @@ export async function runFullPipeline(): Promise<Record<string, unknown>> {
         hyperFrames: { status: applyResult.hyperFramesArtifact.status, windowCount: applyResult.hyperFramesArtifact.windows.length },
         gate: { accepted: true, videoUseArtifactSha256: gateResult.videoUseArtifactSha256, hyperFramesOutputPath: gateResult.hyperFramesOutputPath ?? "(noop)" },
         authority: { mode: subtitleAuthority.mode, passed: true, suppressedCueIds: authorityValidation.success ? authorityValidation.suppressedCueIds.size : 0 },
+        cinematicDepth: buildFullPipelineCinematicDepthReport({
+          enabled: cinematicEnabled,
+          evidence: cinematicEvidence,
+        }),
         composition: { visualClips: props.visualClips.length, subtitles: props.subtitles.length, audioClips: props.audioClips.length, overlayClips: props.overlayClips?.length ?? 0 },
         output: { path: outputPath, sizeBytes: fs.statSync(outputPath).size, sha256, duration: probe.duration, width: probe.width, height: probe.height, streams: probe.streams },
         editingProject: { id: projectedProject.id, revision: projectedProject.revision, clips: projectedProject.clips.length, subtitleMode: projectedProject.renderSettings.subtitleMode },

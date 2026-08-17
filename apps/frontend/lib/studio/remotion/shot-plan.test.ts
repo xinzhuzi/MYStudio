@@ -19,6 +19,7 @@ import {
 } from "../visual-continuity";
 
 const MEDIA_URL = "http://127.0.0.1:43123/" + "a".repeat(64) + "/media";
+const DEPTH_URL = "http://127.0.0.1:43123/" + "b".repeat(64) + "/depth.png";
 
 describe("Remotion shot plan compiler", () => {
   it("compiles image and video shots without hard-coded shot counts", async () => {
@@ -33,6 +34,61 @@ describe("Remotion shot plan compiler", () => {
     expect(video.success).toBe(true);
     if (!video.success) return;
     expect(video.value.visualKind).toBe("video");
+  });
+
+  it("keeps persisted cinematic inputs and projects them only with a depth capability", async () => {
+    const planInput = await input();
+    (planInput.storyboard as StoryboardItem & { cinematic?: unknown }).cinematic = {
+      preset: "cinematic-parallax-lr",
+      parallaxStrength: 0.35,
+      dofAperture: 2.8,
+    };
+    const compiled = await compileRemotionShotPlan(planInput);
+    expect(compiled.success).toBe(true);
+    if (!compiled.success) return;
+    expect(compiled.value.cinematic).toEqual({
+      preset: "cinematic-parallax-lr",
+      parallaxStrength: 0.35,
+      dofAperture: 2.8,
+    });
+
+    const projected = projectStoryboardShotCompositionProps(compiled.value, () => MEDIA_URL, DEPTH_URL);
+    expect(projected.success).toBe(true);
+    if (!projected.success) return;
+    expect(projected.value.visualClips[0]?.cinematic).toMatchObject({
+      preset: "cinematic-parallax-lr",
+      depthMapSrc: DEPTH_URL,
+      cameraDistance: 5,
+      dofFocusDistance: 5,
+      dofAperture: 2.8,
+      parallaxStrength: 0.35,
+      vignetteDarkness: 0.2,
+    });
+  });
+
+  it("fails closed on malformed cinematic settings and depth capabilities", async () => {
+    const malformed = await input();
+    (malformed.storyboard as StoryboardItem & { cinematic?: unknown }).cinematic = {
+      preset: "cinematic-unknown",
+      parallaxStrength: 1.1,
+      dofAperture: -1,
+    };
+    const compileResult = await compileRemotionShotPlan(malformed);
+    expectIssue(compileResult, "$.storyboard.cinematic.preset");
+    expectIssue(compileResult, "$.storyboard.cinematic.parallaxStrength");
+    expectIssue(compileResult, "$.storyboard.cinematic.dofAperture");
+
+    const valid = await input();
+    (valid.storyboard as StoryboardItem & { cinematic?: unknown }).cinematic = {
+      preset: "cinematic-dolly-in",
+      parallaxStrength: 0.5,
+      dofAperture: 1,
+    };
+    const compiled = await compileRemotionShotPlan(valid);
+    expect(compiled.success).toBe(true);
+    if (!compiled.success) return;
+    const projected = projectStoryboardShotCompositionProps(compiled.value, () => MEDIA_URL, "file:///tmp/depth.png");
+    expectIssue(projected, "$.shot.cinematic.depthMapSrc");
   });
 
   it("projects only shot-scoped audio into capability-only Composition props", async () => {
@@ -209,6 +265,21 @@ describe("Remotion shot plan compiler", () => {
 
     const legacyShared = { ...structuredClone(compiled.value), sharedAudioTracks: [] };
     expectIssue(await validateRemotionShotPlan(legacyShared), "$.sharedAudioTracks");
+
+    const cinematicInput = await input();
+    (cinematicInput.storyboard as StoryboardItem & { cinematic?: unknown }).cinematic = {
+      preset: "cinematic-parallax-lr",
+      parallaxStrength: 0.35,
+      dofAperture: 2.8,
+    };
+    const cinematic = await compileRemotionShotPlan(cinematicInput);
+    expect(cinematic.success).toBe(true);
+    if (!cinematic.success) return;
+    expect((await validateRemotionShotPlan(structuredClone(cinematic.value))).success).toBe(true);
+
+    const tamperedCinematic = structuredClone(cinematic.value);
+    tamperedCinematic.cinematic!.parallaxStrength = 0.8;
+    expectIssue(await validateRemotionShotPlan(tamperedCinematic), "$.inputHash");
   });
 
   it("fails closed on malformed persisted shot audio structure", async () => {

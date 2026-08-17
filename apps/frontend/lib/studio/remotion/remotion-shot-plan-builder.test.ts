@@ -1,6 +1,7 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import type { StoryboardItem } from "@/types/studio";
 import type { SubtitleAuthority } from "@/types/editing";
+import type { CinematicStoryboardItem } from "../cinematic-preset";
 import { buildRemotionShotPlans } from "./remotion-shot-plan-builder";
 import { makeShotAudioBindingV2 } from "./remotion-workspace-test-fixtures";
 
@@ -51,6 +52,36 @@ describe("buildRemotionShotPlans", () => {
     expect(result.plans.map((plan) => plan.shot.shotId)).toEqual(["shot-0", "shot-1"]);
     expect(result.plans.every((plan) => plan.target === "shot")).toBe(true);
     expect(result.plans[0]?.shot.visualSource.relativePath).toBe("shots/0.png");
+  });
+
+  it("preserves the storyboard cinematic contract in the compiled shot plan", async () => {
+    const item = storyboard(0) as ReturnType<typeof storyboard> & CinematicStoryboardItem;
+    item.cinematic = {
+      preset: "cinematic-parallax-lr",
+      parallaxStrength: 0.35,
+      dofAperture: 2.8,
+    };
+
+    const result = await buildRemotionShotPlans({
+      projectId: "project-a",
+      chapterId: "chapter-001",
+      chapterRevision: 1,
+      renderSettings: {
+        width: 1080,
+        height: 1920,
+        fps: 30,
+        codec: "h264",
+        subtitleMode: "burn-in",
+        loudnessLufs: -14,
+        truePeakDbtp: -1.5,
+      },
+      storyboards: [item],
+      continuityPolicy: "skip",
+    });
+
+    expect(result.success).toBe(true);
+    if (!result.success) return;
+    expect(result.plans[0]?.cinematic).toEqual(item.cinematic);
   });
 
   it("blocks missing fingerprint or cross-project media without fabricating a plan", async () => {
@@ -257,5 +288,78 @@ describe("buildRemotionShotPlans", () => {
         { timeUs: 1_500_000, gain: 1 },
       ],
     }]);
+  });
+
+  it("recovers a blank mediaRef SHA-256 by hashing the actual project file", async () => {
+    const payload = new Uint8Array([1, 2, 3, 4]);
+    const digest = await crypto.subtle.digest("SHA-256", payload);
+    const expected = Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("");
+    const item = storyboard(0);
+    item.mediaRef = { kind: "image", path: "project-file://project-a/shots/0.png", contentSha256: "" };
+    vi.stubGlobal("window", {
+      projectFiles: {
+        readAsBase64: async () => ({
+          success: true,
+          base64: `data:image/png;base64,${Buffer.from(payload).toString("base64")}`,
+          mimeType: "image/png",
+          size: payload.length,
+        }),
+      },
+    });
+    try {
+      const result = await buildRemotionShotPlans({
+        projectId: "project-a",
+        chapterId: "chapter-001",
+        chapterRevision: 1,
+        renderSettings: {
+          width: 1080,
+          height: 1920,
+          fps: 30,
+          codec: "h264",
+          subtitleMode: "burn-in",
+          loudnessLufs: -14,
+          truePeakDbtp: -1.5,
+        },
+        storyboards: [item],
+        continuityPolicy: "skip",
+      });
+      expect(result.success).toBe(true);
+      if (!result.success) return;
+      expect(result.plans[0]?.shot.visualSource.contentSha256).toBe(expected);
+      expect(item.mediaRef.contentSha256).toBe("");
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it("still blocks media.fingerprint when the referenced file cannot be read", async () => {
+    const item = storyboard(0);
+    item.mediaRef = { kind: "image", path: "project-file://project-a/shots/0.png", contentSha256: "" };
+    vi.stubGlobal("window", {
+      projectFiles: { readAsBase64: async () => ({ success: false, error: "not found" }) },
+    });
+    try {
+      const result = await buildRemotionShotPlans({
+        projectId: "project-a",
+        chapterId: "chapter-001",
+        chapterRevision: 1,
+        renderSettings: {
+          width: 1080,
+          height: 1920,
+          fps: 30,
+          codec: "h264",
+          subtitleMode: "burn-in",
+          loudnessLufs: -14,
+          truePeakDbtp: -1.5,
+        },
+        storyboards: [item],
+        continuityPolicy: "skip",
+      });
+      expect(result.success).toBe(false);
+      if (result.success) return;
+      expect(result.issues.some((issue) => issue.code === "media.fingerprint")).toBe(true);
+    } finally {
+      vi.unstubAllGlobals();
+    }
   });
 });

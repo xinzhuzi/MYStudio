@@ -80,12 +80,25 @@ describe("Remotion current-slot publication", () => {
       await fsPromises.mkdir(path.dirname(outputPath), { recursive: true });
       await fsPromises.writeFile(outputPath, bytes);
       const outputStat = await fsPromises.stat(outputPath);
+      const depthMapPath = path.posix.join(path.posix.dirname(current.outputPath), "current.depth.png");
+      const depthBytes = Buffer.from("verified-depth-map", "utf8");
+      await fsPromises.writeFile(path.join(workspaceRoot, depthMapPath), depthBytes);
       const evidence = {
         ...current.evidence,
         jobId: job.jobId,
         sizeBytes: outputStat.size,
         mtimeMs: Math.floor(outputStat.mtimeMs),
         sha256: createHash("sha256").update(bytes).digest("hex"),
+        cinematic: {
+          schemaVersion: 1 as const,
+          preset: "cinematic-dolly-in",
+          model: "depth-anything-v2-small" as const,
+          inputSha256: "a".repeat(64),
+          outputSha256: createHash("sha256").update(depthBytes).digest("hex"),
+          depthMapPath,
+          width: 1080,
+          height: 1920,
+        },
       };
       await fsPromises.mkdir(path.dirname(path.join(workspaceRoot, current.jobPath)), { recursive: true });
       await fsPromises.mkdir(path.dirname(path.join(workspaceRoot, current.evidencePath)), { recursive: true });
@@ -104,6 +117,10 @@ describe("Remotion current-slot publication", () => {
           job,
           evidence,
         })]);
+
+      await fsPromises.writeFile(path.join(workspaceRoot, depthMapPath), "tampered-depth-map");
+      await expect(readRemotionCurrentShotSlotsFromWorkspace(workspaceRoot, "project-a", "chapter-001"))
+        .resolves.toEqual([]);
     } finally {
       rmSync(workspaceRoot, { recursive: true, force: true });
     }

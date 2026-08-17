@@ -340,9 +340,11 @@ export class RemotionChapterRenderer {
       const currentShotSlotPaths: Record<string, string> = {};
       for (const slot of input.currentShotSlots) {
         if (slot.target.kind === "shot") {
-          currentShotSlotPaths[slot.target.shotId] = this.options.resolveSourcePath(
-            toProjectFileUrl(plan.projectId, slot.outputPath),
-          );
+          // slot.outputPath 相对 Remotion workspace；project-file:// 的解析根是
+          // 项目根，URL 往返会丢 remotion 段，外部位置项目必然错位。直接用
+          // workspaceRootForProject 拼绝对路径，与 editing clip 的绝对路径对齐。
+          const workspaceRoot = this.options.workspaceRootForProject?.(plan.projectId) ?? this.options.workspaceRoot;
+          currentShotSlotPaths[slot.target.shotId] = path.resolve(workspaceRoot, slot.outputPath);
         }
       }
       for (const clip of visualClips) {
@@ -371,8 +373,11 @@ export class RemotionChapterRenderer {
           continue;
         }
         if (!slot || slot.target.kind !== "shot") throw new Error(`缺少当前 shot slot: ${storyboardId ?? clip.id}`);
-        const currentSlotPath = this.options.resolveSourcePath(toProjectFileUrl(plan.projectId, slot.outputPath));
-        const sourcePath = this.options.resolveSourcePath(requestedSourcePath || toProjectFileUrl(plan.projectId, slot.outputPath));
+        // 同上：slot 路径相对 Remotion workspace，直接拼绝对路径，避免
+        // project-file:// 按项目根解析丢掉 remotion 段。
+        const slotWorkspaceRoot = this.options.workspaceRootForProject?.(plan.projectId) ?? this.options.workspaceRoot;
+        const currentSlotPath = path.resolve(slotWorkspaceRoot, slot.outputPath);
+        const sourcePath = requestedSourcePath ? this.options.resolveSourcePath(requestedSourcePath) : currentSlotPath;
         const resolution = resolveEditableChapterVisualInput({
           requestedSourcePath: sourcePath,
           currentSlotPath,
@@ -620,6 +625,3 @@ async function hashFile(filePath: string): Promise<string> {
   return hash.digest("hex");
 }
 
-function toProjectFileUrl(projectId: string, relativePath: string): string {
-  return `project-file://${encodeURIComponent(projectId)}/${relativePath.split("/").map((part) => encodeURIComponent(part)).join("/")}`;
-}

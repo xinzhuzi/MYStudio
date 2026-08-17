@@ -65,7 +65,7 @@ _TRANSITION_EFFECT_IDS = {"cut", "fade", "crossfade", "flash", "blackout"}
 _TRANSITION_MIN_US = 200_000
 _TRANSITION_MAX_US = 1_200_000
 # 与 run-full-pipeline legacy 装饰窗的 1.1s 钳制保持同一装饰语义。
-_OVERLAY_SLOT_MAX_US = 1_400_000
+_OVERLAY_SLOT_MAX_US = 1_100_000
 
 # Single source for the video-use → HyperFrames decorative decision. Keep the
 # values primitive because they cross the JSON artifact boundary unchanged.
@@ -300,6 +300,19 @@ def _validate_alignment_identity(request: dict[str, Any], alignment: dict[str, A
         raise VideoUseAdapterError("alignment-invalid", "alignment artifact 缺少 shots")
 
 
+def _resolve_grade_for_pinned_upstream(value: Any) -> str:
+    """Resolve the adapter grade without invoking the pinned auto analyzer.
+
+    The pinned helper's auto analyzer cannot normalize Remotion's full-range
+    ``yuvj420p`` output because FFmpeg may report ``YBITDEPTH=0``.  Keep the
+    adapter deterministic and safe by using the helper's explicit subtle
+    preset whenever the request leaves grading at its default or asks for
+    ``auto``.  Explicit presets/raw filters remain unchanged.
+    """
+    grade = value if isinstance(value, str) and value else "auto"
+    return "subtle" if grade == "auto" else grade
+
+
 def build_edl_payload(
     request: dict[str, Any],
     alignment: dict[str, Any],
@@ -373,7 +386,7 @@ def build_edl_payload(
         _write_json(transcripts_dir / f"{shot_id}.json", {"text": text, "words": transcript_words})
         offset += duration
 
-    grade = request.get("grade") if isinstance(request.get("grade"), str) else "auto"
+    grade = _resolve_grade_for_pinned_upstream(request.get("grade"))
     edl = {
         "version": 1,
         "sources": sources,

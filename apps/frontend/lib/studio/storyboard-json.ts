@@ -1,4 +1,6 @@
 import type { StoryboardItem } from "@/types/studio";
+import type { CinematicStoryboardItem } from "./cinematic-preset";
+import { validateStoryboardCinematic } from "./cinematic-preset";
 
 const STORYBOARD_STATES = new Set<StoryboardItem["state"]>([
   "idle",
@@ -49,7 +51,8 @@ const CANONICAL_STORYBOARD_FIELDS = [
   "sound",
   "shotSemantics",
   "styleContractVersion",
-] as const satisfies readonly (keyof StoryboardItem)[];
+  "cinematic",
+] as const;
 
 type CanonicalStoryboardField = (typeof CANONICAL_STORYBOARD_FIELDS)[number];
 
@@ -124,11 +127,17 @@ function redactMediaRef(media: StoryboardItem["mediaRef"] | StoryboardItem["audi
 function projectCanonicalStoryboardItem(item: StoryboardItem): Record<string, unknown> {
   const projected: Record<string, unknown> = {};
   for (const field of CANONICAL_STORYBOARD_FIELDS) {
-    const value = item[field];
+    const value = field === "cinematic"
+      ? (item as CinematicStoryboardItem).cinematic
+      : item[field as keyof StoryboardItem];
     if (value === undefined) continue;
     if (field === "mediaRef" || field === "audioRef") {
       const media = serializeCanonicalMediaRef(value as StoryboardItem["mediaRef"] | StoryboardItem["audioRef"]);
       if (media) projected[field] = media;
+      continue;
+    }
+    if (field === "cinematic") {
+      projected[field] = value;
       continue;
     }
     projected[field] = value;
@@ -204,6 +213,9 @@ export function validateStoryboardJson(raw: string, episodeId: string, projectId
     if (typeof shot.trackKey !== "string" || typeof shot.trackId !== "string") return { error: `分镜 ${shot.id} 轨道信息无效` };
     if (typeof shot.prompt !== "string" || typeof shot.videoDesc !== "string") return { error: `分镜 ${shot.id} 提示词字段无效` };
     if (!Array.isArray(shot.assetIds) || shot.assetIds.some((assetId) => typeof assetId !== "string")) return { error: `分镜 ${shot.id} 资产引用无效` };
+    const cinematic = (shot as Partial<CinematicStoryboardItem>).cinematic;
+    const cinematicError = validateStoryboardCinematic(cinematic);
+    if (cinematicError) return { error: `分镜 ${shot.id} ${cinematicError}` };
     for (const [field, media] of [["mediaRef", shot.mediaRef], ["audioRef", shot.audioRef]] as const) {
       if (media === undefined) continue;
       if (!media || typeof media !== "object" || !["image", "video", "audio"].includes(media.kind) || typeof media.path !== "string" || !media.path.trim()) {

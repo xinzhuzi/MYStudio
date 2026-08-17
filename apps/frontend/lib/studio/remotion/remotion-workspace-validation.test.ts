@@ -160,6 +160,37 @@ describe("Remotion job, evidence, and current-slot validation", () => {
     expectIssue(validateRemotionEvidence(wrongComposition), "$.compositionId");
   });
 
+  it("validates strict cinematic depth evidence only for shot renders", () => {
+    const cinematic = {
+      ...makeShotEvidence(),
+      cinematic: {
+        schemaVersion: 1,
+        preset: "cinematic-dolly-in",
+        model: "depth-anything-v2-small",
+        inputSha256: "a".repeat(64),
+        outputSha256: "b".repeat(64),
+        depthMapPath: "outputs/shots/chapter-001/shot-001/current.depth.png",
+        width: 1080,
+        height: 1920,
+      },
+    };
+    expect(validateRemotionEvidence(cinematic).success).toBe(true);
+    expectIssue(
+      validateRemotionEvidence({
+        ...cinematic,
+        cinematic: { ...cinematic.cinematic, depthMapPath: "/tmp/depth.png" },
+      }),
+      "$.cinematic.depthMapPath",
+    );
+    expectIssue(
+      validateRemotionEvidence({
+        ...cinematic,
+        cinematic: { ...cinematic.cinematic, unexpected: true },
+      }),
+      "$.cinematic.unexpected",
+    );
+  });
+
   it("rejects current-slot identity, hash, and path mismatches", () => {
     const mismatched = makeCurrentSlot();
     mismatched.evidence = { ...mismatched.evidence, inputHash: "d".repeat(64) };

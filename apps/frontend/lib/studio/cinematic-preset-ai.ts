@@ -8,44 +8,9 @@
  */
 
 import { aiManager } from "@/lib/ai/ai-manager";
+import { CINEMATIC_CAMERA_PRESETS } from "./cinematic-preset";
 
-export const CINEMATIC_PRESET_IDS = [
-  "cinematic-dolly-in",
-  "cinematic-dolly-out",
-  "cinematic-crane-up",
-  "cinematic-crane-down",
-  "cinematic-orbit",
-  "cinematic-parallax-lr",
-  "cinematic-parallax-ud",
-  "cinematic-ken-burns-3d",
-  "cinematic-handheld",
-  "cinematic-dutch-roll",
-  "cinematic-vertigo",
-  "cinematic-spiral",
-  "cinematic-arc-left",
-  "cinematic-arc-right",
-  "cinematic-reveal-tilt-up",
-  "cinematic-drift",
-  "cinematic-fall",
-  "cinematic-zoom-in",
-  "cinematic-zoom-out",
-  "cinematic-tilt-down",
-  "cinematic-pan-left",
-  "cinematic-pan-right",
-  "cinematic-whip-pan",
-  "cinematic-pedestal-up",
-  "cinematic-pedestal-down",
-  "cinematic-tracking-left",
-  "cinematic-tracking-right",
-  "cinematic-fly-through",
-  "cinematic-pull-back-reveal",
-  "cinematic-crash-zoom",
-  "cinematic-slow-push",
-  "cinematic-rise-and-pull",
-  "cinematic-descend-and-push",
-  "cinematic-impact",
-  "cinematic-breathing",
-] as const;
+export const CINEMATIC_PRESET_IDS = CINEMATIC_CAMERA_PRESETS;
 
 export type CinematicPresetId = (typeof CINEMATIC_PRESET_IDS)[number];
 

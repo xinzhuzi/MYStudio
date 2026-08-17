@@ -11,6 +11,7 @@ import {
   validationResult,
   type RemotionValidationResult,
 } from "./remotion-validation-utils";
+import { CINEMATIC_CAMERA_PRESETS } from "../cinematic-preset";
 
 const JOB_KEYS = [
   "schemaVersion", "jobId", "projectId", "target", "inputHash", "bundleContentHash",
@@ -22,7 +23,7 @@ const EVIDENCE_KEYS = [
   "schemaVersion", "jobId", "projectId", "target", "inputHash", "bundleContentHash",
   "renderSettingsHash", "templateVersion", "remotionVersion", "attempt", "compositionId",
   "renderer", "outputPath", "sizeBytes", "mtimeMs", "sha256", "width", "height", "durationUs",
-  "streams", "inputManifestPath", "renderPlanPath", "snapshotPath", "startedAt", "completedAt",
+  "streams", "inputManifestPath", "renderPlanPath", "snapshotPath", "cinematic", "startedAt", "completedAt",
 ] as const;
 
 export function validateRemotionRenderJob(value: unknown): RemotionValidationResult<RemotionRenderJobV1> {
@@ -77,6 +78,7 @@ export function validateRemotionEvidence(value: unknown): RemotionValidationResu
   validator.relativePath(record.inputManifestPath, "$.inputManifestPath");
   if (record.renderPlanPath !== undefined) validator.relativePath(record.renderPlanPath, "$.renderPlanPath");
   if (record.snapshotPath !== undefined) validator.relativePath(record.snapshotPath, "$.snapshotPath");
+  validateCinematicEvidence(record.cinematic, target?.kind, validator);
   if (target?.kind === "chapter") {
     if (record.renderPlanPath === undefined) validator.issue("$.renderPlanPath", "chapter evidence 必须包含 render plan");
     if (record.snapshotPath === undefined) validator.issue("$.snapshotPath", "chapter evidence 必须包含 editing snapshot");
@@ -87,6 +89,28 @@ export function validateRemotionEvidence(value: unknown): RemotionValidationResu
     validator.issue("$.completedAt", "completedAt 不得早于 startedAt");
   }
   return validationResult(value, validator);
+}
+
+function validateCinematicEvidence(
+  value: unknown,
+  targetKind: RemotionRenderJobTarget["kind"] | undefined,
+  validator: RemotionValidator,
+): void {
+  if (value === undefined) return;
+  const record = validator.record(value, "$.cinematic", [
+    "schemaVersion", "preset", "model", "inputSha256", "outputSha256",
+    "depthMapPath", "width", "height",
+  ]);
+  if (!record) return;
+  if (targetKind !== "shot") validator.issue("$.cinematic", "cinematic evidence 仅允许用于 shot render");
+  validator.exact(record.schemaVersion, 1, "$.cinematic.schemaVersion");
+  validator.enum(record.preset, CINEMATIC_CAMERA_PRESETS, "$.cinematic.preset");
+  validator.exact(record.model, "depth-anything-v2-small", "$.cinematic.model");
+  validator.sha256(record.inputSha256, "$.cinematic.inputSha256");
+  validator.sha256(record.outputSha256, "$.cinematic.outputSha256");
+  validator.relativePath(record.depthMapPath, "$.cinematic.depthMapPath");
+  validator.integer(record.width, "$.cinematic.width", 1);
+  validator.integer(record.height, "$.cinematic.height", 1);
 }
 
 /**

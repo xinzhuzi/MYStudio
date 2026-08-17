@@ -15,6 +15,8 @@ import type {
   CompositionAudioClipProps,
   CompositionPanZoom,
   CompositionTransform,
+  CinematicCameraPreset,
+  CinematicConfig,
   StoryboardShotCompositionProps,
 } from "@/electron/rendering/plugins/remotion/composition/composition-props";
 import {
@@ -32,6 +34,9 @@ import {
   storyboardContinuityStateIssues,
   visualReviewInputFingerprint,
 } from "../visual-continuity";
+import { CINEMATIC_CAMERA_PRESETS } from "../cinematic-preset";
+
+export { CINEMATIC_CAMERA_PRESETS } from "../cinematic-preset";
 
 /**
  * Renderer-neutral, persisted S3 input. It contains project-relative media
@@ -47,7 +52,15 @@ export interface RemotionShotPlanV1 {
   renderSettings: EditingRenderSettings;
   visualKind: "image" | "video";
   shot: RemotionShotDefinitionV2;
+  /** Persisted cinematic inputs; depthMapSrc is a render-session capability only. */
+  cinematic?: RemotionShotCinematicV1;
   inputHash: string;
+}
+
+export interface RemotionShotCinematicV1 {
+  preset: CinematicCameraPreset;
+  parallaxStrength: number;
+  dofAperture: number;
 }
 
 export interface CompileRemotionShotPlanInput {
@@ -146,6 +159,14 @@ export async function compileRemotionShotPlan(
   } else if (!mediaRef || !mediaRef.path.trim()) {
     issue(issues, "$.storyboard.mediaRef.path", "视觉素材路径不能为空");
   }
+  const cinematic = readCinematicConfig(
+    (input.storyboard as StoryboardItem & { cinematic?: unknown }).cinematic,
+    "$.storyboard.cinematic",
+    issues,
+  );
+  if (cinematic && visualKind === "video") {
+    issue(issues, "$.storyboard.cinematic", "cinematic 深度渲染仅支持 image 视觉素材", "cinematic.visual_kind");
+  }
   if (input.storyboard.stale) {
     issue(issues, "$.storyboard.stale", input.storyboard.staleReason || "分镜连续性已过期");
   }
@@ -237,6 +258,7 @@ export async function compileRemotionShotPlan(
     renderSettings: input.renderSettings,
     visualKind,
     shot: input.shot,
+    ...(cinematic ? { cinematic } : {}),
   };
   const hashInput = {
     schemaVersion: 1 as const,
@@ -246,6 +268,7 @@ export async function compileRemotionShotPlan(
     renderSettings: input.renderSettings,
     visualKind,
     shot: input.shot,
+    ...(cinematic ? { cinematic } : {}),
   };
   return {
     success: true,
@@ -260,11 +283,15 @@ export async function compileRemotionShotPlan(
 export function projectStoryboardShotCompositionProps(
   plan: RemotionShotPlanV1,
   resolveCapabilityUrl: ShotCapabilityResolver,
+  depthMapSrc?: string,
 ): ShotPlanResult<StoryboardShotCompositionProps> {
   const issues: ShotPlanIssue[] = [];
   const fps = plan.renderSettings.fps;
   const durationInFrames = clipDurationInFrames(plan.shot.durationUs, fps);
   const visualUrl = resolveUrl(plan.shot.visualSource, resolveCapabilityUrl, "$.shot.visualSource", issues);
+  const cinematic = plan.cinematic && depthMapSrc
+    ? buildCinematicCompositionConfig(plan.cinematic, depthMapSrc, issues)
+    : undefined;
   const audioClips: Array<CompositionAudioClipProps & { renderScope: "shot" }> = plan.shot.audioBindings
     .map((binding, index) => ({
       clipId: binding.bindingId,
@@ -302,6 +329,7 @@ export function projectStoryboardShotCompositionProps(
       durationInFrames,
       transform: plan.shot.transform as CompositionTransform,
       panZoom: motionToPanZoom(plan.shot.motion),
+      ...(cinematic ? { cinematic } : {}),
       muted: true,
     }],
     transitions: [],
@@ -336,6 +364,10 @@ export async function validateRemotionShotPlan(
     issue(issues, "$.sharedAudioTracks", "StoryboardShot plan 禁止携带 chapter shared audio");
   }
   if (!isSha256(value.inputHash)) issue(issues, "$.inputHash", "inputHash 必须是 SHA-256");
+  const cinematic = readCinematicConfig(value.cinematic, "$.cinematic", issues);
+  if (cinematic && value.visualKind === "video") {
+    issue(issues, "$.cinematic", "cinematic 深度渲染仅支持 image 视觉素材", "cinematic.visual_kind");
+  }
   if (issues.length > 0) return { success: false, issues };
   if (!isRecord(value.shot)) {
     issue(issues, "$.shot", "shot plan 必须包含结构化 shot 对象");
@@ -379,6 +411,7 @@ export async function validateRemotionShotPlan(
     renderSettings: plan.renderSettings,
     visualKind: plan.visualKind,
     shot: plan.shot,
+    ...(plan.cinematic ? { cinematic: plan.cinematic } : {}),
   });
   if (expectedHash !== plan.inputHash) {
     issue(issues, "$.inputHash", "inputHash 与当前 shot plan 内容不一致");
@@ -416,6 +449,89 @@ function issue(issues: ShotPlanIssue[], path: string, message: string, code = "s
   issues.push({ code, path, message });
 }
 
+function readCinematicConfig(
+  value: unknown,
+  path: string,
+  issues: ShotPlanIssue[],
+): RemotionShotCinematicV1 | undefined {
+  if (value === undefined) return undefined;
+  if (!isRecord(value)) {
+    issue(issues, path, "cinematic 必须是对象", "cinematic.invalid");
+    return undefined;
+  }
+  const preset = value.preset;
+  const parallaxStrength = value.parallaxStrength;
+  const dofAperture = value.dofAperture;
+  let valid = true;
+  if (!isCinematicCameraPreset(preset)) {
+    issue(issues, `${path}.preset`, "cinematic preset 不在支持清单内", "cinematic.preset");
+    valid = false;
+  }
+  if (!isFiniteNumber(parallaxStrength) || parallaxStrength < 0 || parallaxStrength > 1) {
+    issue(issues, `${path}.parallaxStrength`, "cinematic.parallaxStrength 必须是 0 到 1 之间的有限数字", "cinematic.parallax_strength");
+    valid = false;
+  }
+  if (!isFiniteNumber(dofAperture) || dofAperture < 0) {
+    issue(issues, `${path}.dofAperture`, "cinematic.dofAperture 必须是非负有限数字", "cinematic.dof_aperture");
+    valid = false;
+  }
+  if (!valid) return undefined;
+  return {
+    preset: preset as CinematicCameraPreset,
+    parallaxStrength: parallaxStrength as number,
+    dofAperture: dofAperture as number,
+  };
+}
+
+function buildCinematicCompositionConfig(
+  cinematic: RemotionShotCinematicV1,
+  depthMapSrc: string,
+  issues: ShotPlanIssue[],
+): CinematicConfig {
+  if (!isCapabilityUrl(depthMapSrc)) {
+    issue(issues, "$.shot.cinematic.depthMapSrc", "cinematic 深度图必须是 127.0.0.1 的 HTTP capability URL", "cinematic.depth_map");
+  }
+  const cameraDistance = 5;
+  return {
+    preset: cinematic.preset,
+    depthMapSrc,
+    cameraDistance,
+    cameraHeight: 0,
+    dofFocusDistance: cameraDistance,
+    dofAperture: cinematic.dofAperture,
+    motionBlurSamples: 0,
+    parallaxStrength: cinematic.parallaxStrength,
+    bloomIntensity: 0,
+    vignetteDarkness: 0.2,
+    chromaticAberration: 0,
+  };
+}
+
+function isCinematicCameraPreset(value: unknown): value is CinematicCameraPreset {
+  return typeof value === "string"
+    && (CINEMATIC_CAMERA_PRESETS as readonly string[]).includes(value);
+}
+
+function isCapabilityUrl(value: unknown): value is string {
+  if (typeof value !== "string" || value.trim().length === 0) return false;
+  try {
+    const url = new URL(value);
+    const parts = url.pathname.split("/").filter(Boolean);
+    return url.protocol === "http:"
+      && url.hostname === "127.0.0.1"
+      && Boolean(url.port)
+      && !url.username
+      && !url.password
+      && parts.length === 2
+      && /^[a-f0-9]{64}$/.test(parts[0] ?? "")
+      && Boolean(parts[1])
+      && !url.search
+      && !url.hash;
+  } catch {
+    return false;
+  }
+}
+
 function isId(value: unknown): value is string {
   return typeof value === "string" && value.trim().length > 0 && value !== "." && value !== ".." && !/[\\/\0]/.test(value);
 }
@@ -426,6 +542,10 @@ function isPositiveInteger(value: unknown): value is number {
 
 function isSha256(value: unknown): value is string {
   return typeof value === "string" && /^[a-f0-9]{64}$/.test(value);
+}
+
+function isFiniteNumber(value: unknown): value is number {
+  return typeof value === "number" && Number.isFinite(value);
 }
 
 function requiresDialogueAudio(storyboard: StoryboardItem): boolean {

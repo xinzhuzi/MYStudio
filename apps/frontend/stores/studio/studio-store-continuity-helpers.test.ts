@@ -116,6 +116,34 @@ describe("studio continuity helper contracts", () => {
     });
   });
 
+  it("marks existing output stale when the cinematic preset changes", () => {
+    vi.spyOn(Date, "now").mockReturnValue(321);
+    const previous = storyboard({
+      mediaRef: { kind: "image", path: "/same.png" },
+      outputVersion: 2,
+      cinematic: {
+        preset: "cinematic-dolly-in",
+        parallaxStrength: 0.35,
+        dofAperture: 2.8,
+      },
+    } as unknown as Partial<StoryboardItem>);
+    const next = storyboard({
+      mediaRef: previous.mediaRef,
+      cinematic: {
+        preset: "cinematic-orbit",
+        parallaxStrength: 0.35,
+        dofAperture: 2.8,
+      },
+    } as unknown as Partial<StoryboardItem>);
+
+    expect(mergeStoryboardReplacement(previous, next, "需要重新渲染 cinematic 分镜")).toMatchObject({
+      stale: true,
+      staleReason: "需要重新渲染 cinematic 分镜",
+      staleSince: 321,
+      outputVersion: 2,
+    });
+  });
+
   it("marks arbitrary records stale without mutating the input", () => {
     vi.spyOn(Date, "now").mockReturnValue(456);
     const source = { id: "record", stale: false };

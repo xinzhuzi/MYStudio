@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import React from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { readFileSync } from "node:fs";
 
 // @codemirror/state's Extension guard fails in vitest's ESM pipeline due to a
@@ -123,5 +123,105 @@ describe("WorkflowNodeEditDialog", () => {
         style.textContent?.includes("overflow-y: auto"),
       ),
     ).toBe(true);
+  });
+
+  it("exposes cinematic preset and strength controls in canonical JSON mode", () => {
+    const onValueChange = vi.fn();
+    const value = JSON.stringify([{
+      id: "shot-1",
+      episodeId: "episode-1",
+      index: 1,
+      trackKey: "opening",
+      trackId: "track-1",
+      duration: 2,
+      prompt: "雨夜码头",
+      videoDesc: "推进",
+      assetIds: [],
+      state: "ready",
+    }]);
+    render(
+      <WorkflowNodeEditDialog
+        open
+        title="Remotion 分镜源数据"
+        value={value}
+        writable
+        jsonMode
+        onValueChange={onValueChange}
+        onClose={vi.fn()}
+        onSave={vi.fn()}
+        onEnterStage={vi.fn()}
+      />,
+    );
+
+    const preset = screen.getByRole("combobox", { name: "shot-1 cinematic 预设" });
+    expect((preset as HTMLSelectElement).value).toBe("");
+    expect(screen.queryByRole("slider", { name: "shot-1 parallaxStrength" })).toBeNull();
+    fireEvent.change(preset, { target: { value: "cinematic-parallax-lr" } });
+    expect(onValueChange).toHaveBeenCalledTimes(1);
+    expect(JSON.parse(onValueChange.mock.calls[0]?.[0] as string)[0].cinematic).toEqual({
+      preset: "cinematic-parallax-lr",
+      parallaxStrength: 0.35,
+      dofAperture: 2.8,
+    });
+
+    cleanup();
+    const onStrengthChange = vi.fn();
+    render(
+      <WorkflowNodeEditDialog
+        open
+        title="Remotion 分镜源数据"
+        value={JSON.stringify([{
+          id: "shot-1",
+          episodeId: "episode-1",
+          index: 1,
+          trackKey: "opening",
+          trackId: "track-1",
+          duration: 2,
+          prompt: "雨夜码头",
+          videoDesc: "推进",
+          assetIds: [],
+          state: "ready",
+          cinematic: { preset: "cinematic-parallax-lr", parallaxStrength: 0.35, dofAperture: 2.8 },
+        }])}
+        writable
+        jsonMode
+        onValueChange={onStrengthChange}
+        onClose={vi.fn()}
+        onSave={vi.fn()}
+        onEnterStage={vi.fn()}
+      />,
+    );
+    fireEvent.change(screen.getByRole("slider", { name: "shot-1 parallaxStrength" }), { target: { value: "0.75" } });
+    expect(JSON.parse(onStrengthChange.mock.calls[0]?.[0] as string)[0].cinematic.parallaxStrength).toBe(0.75);
+  });
+
+  it("shows fail-closed feedback for an invalid persisted cinematic preset", () => {
+    render(
+      <WorkflowNodeEditDialog
+        open
+        title="Remotion 分镜源数据"
+        value={JSON.stringify([{
+          id: "shot-1",
+          episodeId: "episode-1",
+          index: 1,
+          trackKey: "opening",
+          trackId: "track-1",
+          duration: 2,
+          prompt: "雨夜码头",
+          videoDesc: "推进",
+          assetIds: [],
+          state: "ready",
+          cinematic: { preset: "cinematic-invalid", parallaxStrength: 0.35, dofAperture: 2.8 },
+        }])}
+        writable
+        jsonMode
+        onValueChange={vi.fn()}
+        onClose={vi.fn()}
+        onSave={vi.fn()}
+        onEnterStage={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByRole("alert").textContent).toContain("cinematic.preset 非法");
   });
 });

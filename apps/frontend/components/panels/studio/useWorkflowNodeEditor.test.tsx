@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { act, renderHook } from "@testing-library/react";
 import { useStudioStore } from "@/stores/studio/studio-store";
 import { serializeStoryboardTable } from "@/lib/studio/storyboard-table";
+import { formatStoryboardJson } from "@/lib/studio/storyboard-json";
 import type { StoryboardItem } from "@/types/studio";
 import { useWorkflowNodeEditor } from "./useWorkflowNodeEditor";
 import {
@@ -243,5 +244,54 @@ describe("useWorkflowNodeEditor", () => {
 
     expect(saveAgentWorkData).not.toHaveBeenCalled();
     expect(result.current.editingWorkflowNodeId).toBe("storyboardTable");
+  });
+
+  it("persists canonical cinematic markers and marks an existing shot stale", async () => {
+    const previous = {
+      id: "sb-chapter-1-001",
+      episodeId: "chapter-1",
+      index: 1,
+      trackKey: "1",
+      trackId: "",
+      duration: 2,
+      prompt: "雨夜码头",
+      videoDesc: "镜头向前推进",
+      assetIds: [],
+      state: "ready",
+      mediaRef: { kind: "image", path: "/same.png" },
+      cinematic: {
+        preset: "cinematic-dolly-in",
+        parallaxStrength: 0.35,
+        dofAperture: 2.8,
+      },
+      outputVersion: 2,
+    } as unknown as StoryboardItem;
+    useStudioStore.setState({ storyboards: [previous] });
+    const { result } = renderHook(() =>
+      useWorkflowNodeEditor({
+        productionFlowModel: storyboardFlowModel,
+        projectId: "project-1",
+        productionEpisodeId: "chapter-1",
+        saveAgentWorkData: vi.fn(),
+        saveScriptPlan: vi.fn(),
+      }),
+    );
+
+    act(() => result.current.openNodeJson("storyboardTable"));
+    act(() => result.current.setWorkflowNodeDraft(formatStoryboardJson([{
+      ...previous,
+      cinematic: {
+        preset: "cinematic-orbit",
+        parallaxStrength: 0.6,
+        dofAperture: 3.2,
+      },
+    } as unknown as StoryboardItem])));
+    await act(async () => { await result.current.saveWorkflowNodeEdit(); });
+
+    const saved = useStudioStore.getState().storyboards[0] as StoryboardItem & { cinematic?: unknown };
+    expect(saved.cinematic).toEqual({ preset: "cinematic-orbit", parallaxStrength: 0.6, dofAperture: 3.2 });
+    expect(saved.stale).toBe(true);
+    expect(saved.outputVersion).toBe(2);
+    expect(result.current.editingWorkflowNodeId).toBeNull();
   });
 });

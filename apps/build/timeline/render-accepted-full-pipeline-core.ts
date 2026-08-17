@@ -53,8 +53,10 @@ export async function materializeIsolatedShotWorkspace(input: {
     for (const relativePath of [paths.outputPath, paths.jobPath, paths.evidencePath]) {
       const sourcePath = path.resolve(input.sourceWorkspace, relativePath);
       const targetPath = path.resolve(input.targetWorkspace, relativePath);
+      const sourceStat = await fs.promises.stat(sourcePath);
       await fs.promises.mkdir(path.dirname(targetPath), { recursive: true });
-      await fs.promises.link(sourcePath, targetPath);
+      await fs.promises.copyFile(sourcePath, targetPath, fs.constants.COPYFILE_FICLONE);
+      await fs.promises.utimes(targetPath, sourceStat.atime, sourceStat.mtime);
     }
   }
   return input.currentShotSlots.length;

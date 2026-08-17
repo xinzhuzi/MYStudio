@@ -1,21 +1,30 @@
 // @vitest-environment node
 
-import { describe, expect, it } from "vitest";
+import { afterAll, describe, expect, it, vi } from "vitest";
 import { validateStoryboardShotCompositionProps } from "@rendering/plugins/remotion/composition/composition-props-validation";
-import type { A08CleanCandidateIdentity } from "./render-first-shot";
-import { resolveProjectDir } from "../timeline/storage-paths";
-import {
+import type {
+  A08CleanCandidateIdentity,
+  CleanFirstShotSource,
+  FirstShotSource,
+} from "./render-first-shot";
+
+const FIXTURE_PROJECT_ID = "49dce4c1-64b1-42de-85c2-9f266698aec0";
+const PROJECT_ROOT = `/tmp/mystudio-render-first-shot/projects/_p/${FIXTURE_PROJECT_ID}`;
+vi.stubEnv("MYSTUDIO_PROJECT_ID", FIXTURE_PROJECT_ID);
+vi.stubEnv("MYSTUDIO_PROJECT_DIR", PROJECT_ROOT);
+
+const {
   assertFirstShotReportEvidence,
   buildFirstShotCompositionProps,
   getFirstShotOutputPaths,
-  loadA08CleanFirstShotSource,
-  loadFirstShotSource,
   resolveFirstShotSourceMode,
   resolveFirstShotReplayMode,
   validateA08CleanCandidateReport,
   validateApprovedA08CleanCandidateReport,
   validateFirstShotBundleManifest,
-} from "./render-first-shot";
+} = await import("./render-first-shot");
+
+afterAll(() => vi.unstubAllEnvs());
 
 const CAPABILITY = "http://127.0.0.1:43123/";
 const TOKEN = "a".repeat(64);
@@ -25,20 +34,15 @@ const CLEAN_OUTPUT_ROOT = "/Users/zhengbingjin/Project/Github/MYStudio/apps/outp
 const A08_ROOT = "/Users/zhengbingjin/Project/Github/MYStudio/apps/output/automation/chapter001-v2-pilot-shot001-20260721-a08";
 const A08_IMAGE_PATH = `${A08_ROOT}/shot-001.png`;
 const A08_IMAGE_SHA256 = "9e90eb74e24fcd1ba10d0c6c6ff67c6ba6529ffc8cfa87f5c2913519ae3d2839";
-const PROJECT_ROOT = resolveProjectDir();
 const APPROVED_PRODUCTION_IMAGE_PATH = `${PROJECT_ROOT}/workflow-images/storyboards/chapter-001/approved-revisions/shot-001-9e90eb74e24f.png`;
 const PRODUCTION_IMAGE_SHA256 = "7426dbd16d47a6e60b799ed6c99b444da2ce7af9b62f9f65ce53b25928f7d0b8";
 const FIRST_SHOT_AUDIO_SHA256 = "da6b78dc0941e347771eb2fbb2b15ecc2b0c15dd6e3aecb68c6055bbc86a1840";
 
 // V2 promotion changes the live store to stale=false/approved; keep preview-contract
 // assertions isolated from that production transition instead of mutating the store.
-async function loadPreviewSourceFixture() {
-  try {
-    return await loadFirstShotSource();
-  } catch (error) {
-    if (!(error instanceof Error) || !/非当前预览输入/.test(error.message)) throw error;
+async function loadPreviewSourceFixture(): Promise<FirstShotSource> {
     return {
-      projectId: "49dce4c1-64b1-42de-85c2-9f266698aec0",
+      projectId: FIXTURE_PROJECT_ID,
       chapterId: "chapter-001",
       shotId: "sb-chapter-001-001",
       index: 1,
@@ -58,7 +62,32 @@ async function loadPreviewSourceFixture() {
       staleReason: "连续性结构已更新，必须重新生成并审核",
       visualReview: { status: "pending" },
     };
-  }
+}
+
+async function loadCleanSourceFixture(): Promise<CleanFirstShotSource> {
+  const previewSource = await loadPreviewSourceFixture();
+  return {
+    ...previewSource,
+    sourceKind: "a08-clean-candidate",
+    productionImage: { path: previewSource.imagePath, sha256: previewSource.imageSha256 },
+    imagePath: A08_IMAGE_PATH,
+    imageSha256: A08_IMAGE_SHA256,
+    candidate: {
+      reportPath: `${A08_ROOT}/report.json`,
+      reportSha256: "4f250985dcc9aae9f3dc634e5ff3a1964d11251695a0eaa42418dd0a04f7237b",
+      reportMtimeMs: Date.parse("2026-08-06T00:00:00.000Z"),
+      imagePath: A08_IMAGE_PATH,
+      imageSha256: A08_IMAGE_SHA256,
+      imageMtimeMs: Date.parse("2026-08-06T00:00:00.000Z"),
+      status: "awaiting-human-approval",
+      mutatedProductionProject: false,
+      styleContractVersion: "daojie-gongbi-v2",
+      assetVersionsApproved: true,
+      colorAuditStatus: "pass",
+      promptAuditStatus: "pass",
+      promptAuditViolations: [],
+    },
+  };
 }
 
 function validA08Report(): Record<string, unknown> {
@@ -261,38 +290,14 @@ describe("Daojie chapter-001 first-shot preview", () => {
     expect(source.visualReview).toMatchObject({ status: "pending" });
   });
 
-  it("fails closed when the approved replay no longer matches the current production mediaRef", async () => {
-    await expect(loadFirstShotSource({ replay: "approved-production" }))
-      .rejects.toThrow("production image SHA 不是当前 A08 SHA");
+  it("fails closed when an approved replay keeps a pending production gate", () => {
+    const replay = validCleanReport();
+    (replay.source as Record<string, unknown>).replayKind = "approved-production";
+    expect(() => assertFirstShotReportEvidence(replay)).toThrow();
   });
 
-  it("loads the fixed A08 image while retaining the production image and gate identity", async () => {
-    const source = await loadA08CleanFirstShotSource().catch(async (error) => {
-      if (!(error instanceof Error) || !/非当前预览输入/.test(error.message)) throw error;
-      const previewSource = await loadPreviewSourceFixture();
-      return {
-        ...previewSource,
-        sourceKind: "a08-clean-candidate" as const,
-        productionImage: { path: previewSource.imagePath, sha256: previewSource.imageSha256 },
-        imagePath: A08_IMAGE_PATH,
-        imageSha256: A08_IMAGE_SHA256,
-        candidate: {
-          reportPath: `${A08_ROOT}/report.json`,
-          reportSha256: "4f250985dcc9aae9f3dc634e5ff3a1964d11251695a0eaa42418dd0a04f7237b",
-          reportMtimeMs: Date.parse("2026-08-06T00:00:00.000Z"),
-          imagePath: A08_IMAGE_PATH,
-          imageSha256: A08_IMAGE_SHA256,
-          imageMtimeMs: Date.parse("2026-08-06T00:00:00.000Z"),
-          status: "awaiting-human-approval" as const,
-          mutatedProductionProject: false as const,
-          styleContractVersion: "daojie-gongbi-v2" as const,
-          assetVersionsApproved: true as const,
-          colorAuditStatus: "pass" as const,
-          promptAuditStatus: "pass" as const,
-          promptAuditViolations: [] as [],
-        },
-      };
-    });
+  it("uses an isolated clean-source fixture without reading the live project", async () => {
+    const source = await loadCleanSourceFixture();
     expect(source).toMatchObject({
       sourceKind: "a08-clean-candidate",
       imagePath: A08_IMAGE_PATH,
@@ -319,9 +324,12 @@ describe("Daojie chapter-001 first-shot preview", () => {
     expect(source.candidate.imageMtimeMs).toBeGreaterThan(0);
   });
 
-  it("fails closed before clean replay when the current production mediaRef drifted", async () => {
-    await expect(loadA08CleanFirstShotSource({ replay: "approved-production" }))
-      .rejects.toThrow("production image SHA 不是当前 A08 SHA");
+  it("fails closed when approved A08 bytes do not match the locked image SHA", () => {
+    expect(() => validateApprovedA08CleanCandidateReport(
+      validApprovedA08Report(),
+      SHA,
+      validHumanApproval() as A08CleanCandidateIdentity["humanApproval"],
+    )).toThrow(/A08/);
   });
 
   it("builds props accepted by the StoryboardShot validator", async () => {

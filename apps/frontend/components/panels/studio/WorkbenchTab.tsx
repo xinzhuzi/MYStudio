@@ -1,5 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { buildProjectFileUrl } from "@/lib/artifacts/ref-preview-loader";
+import { getCinematicPresetShortLabel, getStoryboardCinematic } from "@/lib/studio/cinematic-preset";
 import { isStoryboardReadyForVideoWorkflow } from "@/lib/studio/video-workflow/chapter-run-request";
 import type { ToonflowWorkbenchAssetMedia } from "@/lib/studio/workbench-view-model";
 import { useCharacterLibraryStore } from "@/stores/library/character-library-store";
@@ -628,6 +629,9 @@ export function WorkbenchTab(props: {
               && slot.target.shotRevision === Math.max(1, storyboard.outputVersion ?? 1));
             const voice = storyboard.shotAudioBindings?.find((binding) => binding.role === "voice");
             const sfx = storyboard.shotAudioBindings?.find((binding) => binding.role === "sfx");
+            const cinematicLabel = getCinematicPresetShortLabel(
+              getStoryboardCinematic(storyboard)?.preset,
+            );
             return (
               <div
                 key={storyboard.id}
@@ -638,7 +642,18 @@ export function WorkbenchTab(props: {
                 data-storyboard-shot-slot-status={currentSlot?.job.status ?? "missing"}
               >
                 <div className="min-w-0">
-                  <div className="truncate font-medium">S{String(storyboard.index).padStart(2, "0")} · {storyboard.videoDesc || storyboard.prompt || storyboard.id}</div>
+                  <div className="flex min-w-0 items-center gap-2">
+                    <div className="truncate font-medium">S{String(storyboard.index).padStart(2, "0")} · {storyboard.videoDesc || storyboard.prompt || storyboard.id}</div>
+                    {cinematicLabel ? (
+                      <span
+                        className="shrink-0 rounded border border-amber-300/40 bg-amber-300/10 px-1.5 py-0.5 text-[10px] font-medium text-amber-200"
+                        data-cinematic-badge
+                        data-cinematic-preset={cinematicLabel}
+                      >
+                        cinematic · {cinematicLabel}
+                      </span>
+                    ) : null}
+                  </div>
                   <div className="mt-1 text-[10px] text-muted-foreground">
                     TTS {voice?.ttsInputFingerprint ? "已绑定" : "缺失"} · SFX {sfx ? "已绑定" : "未引用"} · revision {storyboard.outputVersion ?? 1}
                   </div>

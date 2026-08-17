@@ -263,6 +263,17 @@ export type RemotionMediaProbeStreamV1 =
   | { kind: "video"; codec: "h264"; width: number; height: number }
   | { kind: "audio"; codec: "aac"; channels: number; sampleRate: number };
 
+export interface RemotionCinematicEvidenceV1 {
+  schemaVersion: 1;
+  preset: string;
+  model: "depth-anything-v2-small";
+  inputSha256: string;
+  outputSha256: string;
+  depthMapPath: string;
+  width: number;
+  height: number;
+}
+
 export interface RemotionEvidenceV1 extends RemotionRenderJobIdentityV1 {
   schemaVersion: 1;
   jobId: string;
@@ -282,6 +293,7 @@ export interface RemotionEvidenceV1 extends RemotionRenderJobIdentityV1 {
   inputManifestPath: string;
   renderPlanPath?: string;
   snapshotPath?: string;
+  cinematic?: RemotionCinematicEvidenceV1;
   startedAt: number;
   completedAt: number;
 }

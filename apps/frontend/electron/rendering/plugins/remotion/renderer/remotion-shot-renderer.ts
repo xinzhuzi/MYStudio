@@ -10,6 +10,10 @@ import type {
   RemotionRenderJobV1,
   RemotionShotDefinitionV2,
 } from "@/types/remotion-workspace";
+import type {
+  DepthEstimationArtifactV1,
+  DepthEstimationRequestV1,
+} from "@rendering/contracts/depth-workflow";
 import type { RemotionShotPlanV1 } from "@/lib/studio/remotion/shot-plan";
 import {
   projectStoryboardShotCompositionProps,
@@ -26,7 +30,7 @@ import {
   validateRemotionEvidenceIdentity,
   validateRemotionRenderJobIdentity,
 } from "@/lib/studio/remotion/remotion-render-validation";
-import type { CinematicCameraPreset, CinematicConfig, StoryboardShotCompositionProps } from "../composition/composition-props";
+import type { CinematicCameraPreset, StoryboardShotCompositionProps } from "../composition/composition-props";
 import { assertBundleMatchesRuntime } from "../render/bundle-manifest";
 import { MediaBridgeServer } from "../media-bridge/media-bridge-server";
 import { buildMediaUrlMap, type MediaBridgeClipSource } from "../media-bridge/media-bridge-source-map";
@@ -41,27 +45,20 @@ import {
 } from "./remotion-render-utility";
 
 /**
- * Optional depth-estimation adapter. When present and the shot's visual kind
- * is "image", the renderer calls `estimateDepth()` before projecting composition
- * props, then injects a `CinematicConfig` onto the visual clip so
+ * Optional depth-estimation adapter. When a validated shot plan contains a
+ * cinematic config, the renderer calls `estimateDepth()` before projecting
+ * composition props, then injects a `CinematicConfig` onto the visual clip so
  * `CinematicVisualClip` (@remotion/three) renders the image in 3D with a
  * depth-displaced plane and animated camera.
  *
- * This is Strategy 2 from the integration design: depth is a pure render-time
- * artifact that does NOT enter `hashInput`, so existing plans/ caches remain
- * valid. The cinematic preset is chosen here (not in the plan) so the plan
- * schema stays unchanged.
+ * Depth is a pure render-time artifact, while the persisted cinematic preset
+ * and strengths stay in the shot plan so changing them invalidates the plan
+ * hash. A cinematic plan without a usable depth adapter fails closed; a plain
+ * image plan never calls the sidecar.
  */
 export interface DepthAdapterLike {
-  estimateDepth(request: {
-    schemaVersion: 1;
-    projectId: string;
-    shotId: string;
-    inputImagePath: string;
-    outputDepthPath: string;
-    model: "depth-anything-v2-small";
-  }): Promise<
-    | { state: "ready"; artifact: { outputPath: string; outputSha256: string; width: number; height: number } }
+  estimateDepth(request: DepthEstimationRequestV1): Promise<
+    | { state: "ready"; artifact: DepthEstimationArtifactV1 }
     | { state: "blocked"; code: string; message: string }
   >;
 }
@@ -170,9 +167,12 @@ export class RemotionShotRenderer {
     const workspaceRoot = this.options.workspaceRootForProject?.(identity.projectId) ?? this.options.workspaceRoot;
     const publicationId = crypto.randomUUID();
     const currentPaths = remotionCurrentSlotPaths(target);
+    const currentDepthMapPath = path.posix.join(path.posix.dirname(currentPaths.outputPath), "current.depth.png");
     const stagingDir = path.join(workspaceRoot, "staging", publicationId);
     const stagedOutputPath = path.join(stagingDir, "output.mp4");
     let session: ReturnType<MediaBridgeServer["createSession"]> | undefined;
+    let stagedDepthPath: string | undefined;
+    let cinematicEvidence: RemotionEvidenceV1["cinematic"];
     try {
       await fs.promises.mkdir(stagingDir, { recursive: true });
       await this.mediaBridge.listen();
@@ -182,65 +182,76 @@ export class RemotionShotRenderer {
         this.options.projectRootForProject(identity.projectId),
         this.options.resolveSourcePath,
       );
-      const urlByReference = buildMediaUrlMap(this.mediaBridge, session, sources);
 
-      // --- Cinematic depth estimation (Strategy 2: render-time, no hash impact) ---
+      // --- Cinematic depth estimation (render-time consumption) ---
       // When depthAdapter is present and the visual is an image, estimate depth,
       // register the depth PNG on the media bridge, and inject a CinematicConfig
       // onto the projected visual clip. This is the wiring point that connects
       // the depth sidecar → @remotion/three CinematicVisualClip.
-      let cinematicConfig: CinematicConfig | undefined;
-      if (this.options.depthAdapter && validated.value.visualKind === "image") {
-        const visualSource = sources[0]; // first source is always the visual
-        if (visualSource) {
-          const depthDir = path.join(workspaceRoot, "depth", validated.value.shot.shotId);
-          const depthPath = path.join(depthDir, "depth.png");
-          const depthResult = await this.options.depthAdapter.estimateDepth({
-            schemaVersion: 1,
-            projectId: identity.projectId,
-            shotId: validated.value.shot.shotId,
-            inputImagePath: visualSource.absolutePath,
-            outputDepthPath: depthPath,
-            model: "depth-anything-v2-small",
-          });
-          if (depthResult.state === "ready") {
-            // Register depth PNG on the media bridge to get a capability URL
-            const depthAssetId = crypto.randomBytes(32).toString("hex");
-            session.register(depthAssetId, depthResult.artifact.outputPath);
-            const [depthUrlEntry] = this.mediaBridge.buildUrls(session, [depthAssetId]);
-            const presetOption = this.options.cinematicPreset ?? "cinematic-dolly-in";
-            const preset = typeof presetOption === "function"
-              ? presetOption(validated.value.shot.shotId)
-              : presetOption;
-            cinematicConfig = {
-              preset,
-              depthMapSrc: depthUrlEntry.url,
-              cameraDistance: 5,
-              cameraHeight: 0,
-              dofFocusDistance: 4,
-              dofAperture: 0.02,
-              motionBlurSamples: 0,
-              parallaxStrength: 1,
-              bloomIntensity: 0,
-              vignetteDarkness: 0.2,
-              chromaticAberration: 0,
-            };
-          }
+      let depthMapSrc: string | undefined;
+      if (validated.value.cinematic) {
+        if (!this.options.depthAdapter) {
+          throw new Error("cinematic 深度运行时不可用: depth-adapter-missing");
         }
+        const visualSource = sources.find((source) => source.clipId === referenceKey(validated.value.shot.visualSource));
+        if (!visualSource) throw new Error("cinematic 深度输入素材缺失: visual-source-missing");
+        const depthDir = path.join(stagingDir, "depth");
+        const depthPath = path.join(depthDir, "depth.png");
+        const depthResult = await this.options.depthAdapter.estimateDepth({
+          schemaVersion: 1,
+          projectId: identity.projectId,
+          shotId: validated.value.shot.shotId,
+          inputImagePath: visualSource.absolutePath,
+          outputDepthPath: depthPath,
+          model: "depth-anything-v2-small",
+        });
+        if (depthResult.state !== "ready") {
+          throw new Error(`cinematic 深度估计被阻塞 [${depthResult.code}]: ${depthResult.message}`);
+        }
+        const artifact = depthResult.artifact;
+        if (artifact.status !== "accepted"
+          || artifact.projectId !== identity.projectId
+          || artifact.shotId !== validated.value.shot.shotId
+          || artifact.model !== "depth-anything-v2-small") {
+          throw new Error("cinematic 深度估计 artifact 身份不一致");
+        }
+        if (!path.isAbsolute(artifact.outputPath)
+          || path.resolve(artifact.outputPath) !== path.resolve(depthPath)
+          || !fs.existsSync(artifact.outputPath)) {
+          throw new Error("cinematic 深度估计返回了不存在的绝对输出路径");
+        }
+        if (artifact.inputSha256 !== validated.value.shot.visualSource.contentSha256) {
+          throw new Error("cinematic 深度估计输入 SHA 与 shot visual source 不一致");
+        }
+        const actualDepthSha256 = await hashFile(artifact.outputPath);
+        if (actualDepthSha256 !== artifact.outputSha256) {
+          throw new Error("cinematic 深度估计输出 SHA 与磁盘字节不一致");
+        }
+        stagedDepthPath = artifact.outputPath;
+        cinematicEvidence = {
+          schemaVersion: 1,
+          preset: validated.value.cinematic.preset,
+          model: artifact.model,
+          inputSha256: artifact.inputSha256,
+          outputSha256: artifact.outputSha256,
+          depthMapPath: currentDepthMapPath,
+          width: artifact.width,
+          height: artifact.height,
+        };
+        const depthAssetId = crypto.randomBytes(32).toString("hex");
+        session.register(depthAssetId, artifact.outputPath);
+        const [depthUrlEntry] = this.mediaBridge.buildUrls(session, [depthAssetId]);
+        depthMapSrc = depthUrlEntry.url;
       }
 
+      const urlByReference = buildMediaUrlMap(this.mediaBridge, session, sources);
       const projection = projectStoryboardShotCompositionProps(validated.value, (reference) => {
         const url = urlByReference[referenceKey(reference)];
         if (!url) throw new Error(`shot 素材 capability 缺失: ${reference.relativePath}`);
         return url;
-      });
+      }, depthMapSrc);
       if (!projection.success) throw new Error(projection.issues.map((issue) => `${issue.path}: ${issue.message}`).join("; "));
-
-      // Inject cinematic config onto the first (only) visual clip if depth was generated.
-      // This is the single point where the 3D cinematic path is activated.
-      const compositionProps: StoryboardShotCompositionProps = cinematicConfig
-        ? { ...projection.value, visualClips: [{ ...projection.value.visualClips[0], cinematic: cinematicConfig }] }
-        : projection.value;
+      const compositionProps: StoryboardShotCompositionProps = projection.value;
       const render = await this.utility.render({
         target: "shot",
         jobId,
@@ -300,6 +311,7 @@ export class RemotionShotRenderer {
         durationUs: Math.round(probe.duration * 1_000_000),
         streams: probe.streams,
         inputManifestPath: `chapters/${validated.value.chapterId}.json`,
+        ...(cinematicEvidence ? { cinematic: cinematicEvidence } : {}),
         startedAt,
         completedAt,
       };
@@ -310,7 +322,10 @@ export class RemotionShotRenderer {
       const slot = buildRemotionCurrentSlot(identity.projectId, target, job, evidence, completedAt);
       const slotValidation = validateCurrentSlot(slot);
       if (!slotValidation.success) throw new Error(slotValidation.issues.map((issue) => `${issue.path}: ${issue.message}`).join("; "));
-      await publishCurrentSlot(workspaceRoot, stagingDir, stagedOutputPath, slot);
+      await publishCurrentSlot(workspaceRoot, stagingDir, stagedOutputPath, slot, {
+        currentRelativePath: currentDepthMapPath,
+        stagedPath: stagedDepthPath,
+      });
       return { success: true, slot };
     } catch (error) {
       return { success: false, jobId, canceled: false, error: error instanceof Error ? error.message : String(error) };
@@ -330,11 +345,17 @@ export class RemotionShotRenderer {
   }
 }
 
+export interface RemotionShotDepthPublication {
+  currentRelativePath: string;
+  stagedPath?: string;
+}
+
 export async function publishCurrentSlot(
   workspaceRoot: string,
   stagingDir: string,
   stagedOutputPath: string,
   slot: RemotionCurrentSlotV1,
+  depthPublication?: RemotionShotDepthPublication,
 ): Promise<void> {
   const currentOutput = path.join(workspaceRoot, slot.outputPath);
   const currentJob = path.join(workspaceRoot, slot.jobPath);
@@ -348,17 +369,31 @@ export async function publishCurrentSlot(
   await fs.promises.mkdir(path.dirname(currentJob), { recursive: true });
   await fs.promises.mkdir(path.dirname(currentEvidence), { recursive: true });
   await fs.promises.mkdir(previousDir, { recursive: true });
-  const files = [
+  const promotedFiles = [
     { current: currentOutput, staged: stagedOutputPath, backup: path.join(previousDir, "output.mp4") },
     { current: currentJob, staged: stagedJob, backup: path.join(previousDir, "job.json") },
     { current: currentEvidence, staged: stagedEvidence, backup: path.join(previousDir, "evidence.json") },
   ];
-  const previous = files.filter(({ current }) => fs.existsSync(current));
+  const depthCurrent = depthPublication
+    ? path.join(workspaceRoot, depthPublication.currentRelativePath)
+    : undefined;
+  if (depthCurrent) await fs.promises.mkdir(path.dirname(depthCurrent), { recursive: true });
+  if (depthCurrent && depthPublication?.stagedPath) {
+    promotedFiles.push({
+      current: depthCurrent,
+      staged: depthPublication.stagedPath,
+      backup: path.join(previousDir, "depth.png"),
+    });
+  }
+  const replacementFiles = depthCurrent && !depthPublication?.stagedPath
+    ? [...promotedFiles, { current: depthCurrent, staged: "", backup: path.join(previousDir, "depth.png") }]
+    : promotedFiles;
+  const previous = replacementFiles.filter(({ current }) => fs.existsSync(current));
   try {
     for (const file of previous) await fs.promises.rename(file.current, file.backup);
-    for (const file of files) await fs.promises.rename(file.staged, file.current);
+    for (const file of promotedFiles) await fs.promises.rename(file.staged, file.current);
   } catch (error) {
-    for (const file of files) {
+    for (const file of promotedFiles) {
       if (fs.existsSync(file.current)) await fs.promises.rm(file.current, { force: true }).catch(() => undefined);
     }
     for (const file of previous) {

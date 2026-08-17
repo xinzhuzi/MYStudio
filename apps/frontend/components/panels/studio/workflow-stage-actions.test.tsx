@@ -14,6 +14,7 @@ import { useCharacterLibraryStore } from "@/stores/library/character-library-sto
 import { usePropsLibraryStore } from "@/stores/library/props-library-store";
 import { useSceneStore } from "@/stores/library/scene-store";
 import { useTtsStore } from "@/stores/tts/tts-store";
+import type { StoryboardItem } from "@/types/studio";
 import { EXTENDED_VISUAL_MANUAL_SEED_ID } from "@/lib/studio/visual-manual-classification";
 import {
   formatScriptPlanContext,
@@ -1866,7 +1867,12 @@ describe("workflow stage action surfaces", () => {
           assetIds: [],
           state: "ready",
           shotAudioBindings: [],
-        }]}
+          cinematic: {
+            preset: "cinematic-orbit",
+            parallaxStrength: 0.35,
+            dofAperture: 2.8,
+          },
+        } as unknown as StoryboardItem]}
         tracks={[]}
         candidates={[]}
       />,
@@ -1874,6 +1880,7 @@ describe("workflow stage action surfaces", () => {
 
     expect(screen.getByRole("region", { name: "分镜音频操作" })).toBeTruthy();
     expect(screen.getByText("TTS 缺失 · SFX 未引用 · revision 1")).toBeTruthy();
+    expect(document.querySelector("[data-cinematic-badge]")?.textContent).toContain("orbit");
     expect(screen.getByRole("button", { name: "导入 SFX" }).hasAttribute("disabled")).toBe(true);
     const slot = document.querySelector("[data-storyboard-shot-current-slot]");
     expect(slot?.getAttribute("data-storyboard-shot-id")).toBe("shot-1");

@@ -127,6 +127,38 @@ export async function readRemotionCurrentShotSlot(
       || Math.floor(stat.mtimeMs) !== evidenceResult.value.mtimeMs) {
       issues.push({ code: "remotion.current_slot.file_identity", path: "$.evidence", message: "current shot 文件与 evidence SHA/size/mtime 不一致" });
     }
+    const cinematic = evidenceResult.value.cinematic;
+    if (cinematic) {
+      const expectedDepthMapPath = path.posix.join(path.posix.dirname(paths.outputPath), "current.depth.png");
+      if (cinematic.depthMapPath !== expectedDepthMapPath) {
+        issues.push({
+          code: "remotion.current_slot.depth_path",
+          path: "$.evidence.cinematic.depthMapPath",
+          message: "current depth map 路径与 shot target 不一致",
+        });
+      } else {
+        const depthMapPath = path.join(workspaceRoot, cinematic.depthMapPath);
+        try {
+          const depthStat = await fs.promises.stat(depthMapPath);
+          const depthSha256 = depthStat.isFile() && depthStat.size > 0
+            ? await hashFile(depthMapPath)
+            : undefined;
+          if (depthSha256 !== cinematic.outputSha256) {
+            issues.push({
+              code: "remotion.current_slot.depth_identity",
+              path: "$.evidence.cinematic.outputSha256",
+              message: "current depth map 与 evidence SHA 不一致",
+            });
+          }
+        } catch (error) {
+          issues.push({
+            code: "remotion.current_slot.depth_read",
+            path: "$.evidence.cinematic.depthMapPath",
+            message: error instanceof Error ? error.message : String(error),
+          });
+        }
+      }
+    }
     if (issues.length > 0) return { success: false, issues };
     const slot = buildRemotionCurrentSlot(
       projectId,

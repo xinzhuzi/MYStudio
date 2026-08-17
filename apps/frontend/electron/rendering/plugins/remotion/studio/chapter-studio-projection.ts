@@ -65,7 +65,7 @@ export type ChapterStudioProjectionIdentityExpectation = Omit<ProjectionIdentity
 
 const IDENTITY_MARKER = "@mystudio-chapter-projection ";
 const CAPABILITY_URL = /^http:\/\/127\.0\.0\.1:\d+\/[a-f0-9]{64}\/[A-Za-z0-9._~-]+$/;
-const ALLOWED_IMPORTS = new Set(["remotion", "@remotion/media"]);
+const ALLOWED_IMPORTS = new Set(["remotion"]);
 const ALLOWED_JSX = new Set([
   "AbsoluteFill",
   "Composition",
@@ -76,8 +76,7 @@ const ALLOWED_JSX = new Set([
 const ALLOWED_CALLS = new Set(["interpolate", "registerRoot", "useCurrentFrame"]);
 const ALLOWED_VARIABLES = new Set(["ChapterStudioProjection", "RemotionRoot"]);
 const ALLOWED_IMPORT_BINDINGS = new Map([
-  ["remotion", new Set(["AbsoluteFill", "Composition", "Interactive", "interpolate", "registerRoot", "Sequence", "useCurrentFrame"])],
-  ["@remotion/media", new Set(["Video"])],
+  ["remotion", new Set(["AbsoluteFill", "Composition", "Interactive", "interpolate", "registerRoot", "Sequence", "useCurrentFrame", "Video"])],
 ]);
 const ALLOWED_JSX_ATTRIBUTES = new Map([
   ["AbsoluteFill", new Set(["style"])],
@@ -121,8 +120,7 @@ export function generateChapterStudioProjection(input: ChapterStudioProjectionIn
     from += clip.durationInFrames - fadeOutFrames;
   });
   const source = `/* ${IDENTITY_MARKER}${encodeIdentity(identity)} */
-import { AbsoluteFill, Composition, Interactive, interpolate, registerRoot, Sequence, useCurrentFrame } from "remotion";
-import { Video } from "@remotion/media";
+import { AbsoluteFill, Composition, Interactive, interpolate, registerRoot, Sequence, useCurrentFrame, Video } from "remotion";
 
 export const ChapterStudioProjection = () => (
   <AbsoluteFill style={{ backgroundColor: "#000", overflow: "hidden" }}>

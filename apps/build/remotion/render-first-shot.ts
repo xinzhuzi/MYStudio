@@ -31,7 +31,9 @@ import {
 
 const appsRoot = path.resolve(new URL("../..", import.meta.url).pathname);
 const remotionVersion = "4.0.499";
-const projectId = "49dce4c1-64b1-42de-85c2-9f266698aec0";
+const projectRoot = resolveProjectDir();
+const projectStorageRoots = deriveStorageRoots(projectRoot);
+const projectId = projectStorageRoots.projectId;
 const chapterId = "chapter-001";
 const shotId = "sb-chapter-001-001";
 const shotIndex = 1;
@@ -39,7 +41,6 @@ const durationTarget = 4.2;
 const fps = 30;
 const width = 1920;
 const height = 1080;
-const projectRoot = resolveProjectDir();
 const runtimeDir = resolveRemotionRuntimeDir();
 const sourceStorePath = path.join(projectRoot, "studio-workflow-store.json");
 const scriptPath = path.join(projectRoot, "script.json");
@@ -67,7 +68,6 @@ const approvedProductionImagePath = path.join(
 const acceptedStyleContractVersions = new Set(["daojie-gongbi-v2", "daojie-gongbi-v3"]);
 const isAcceptedStyleContractVersion = (value: string) => acceptedStyleContractVersions.has(value);
 const freshnessClockToleranceMs = 5;
-const projectStorageRoots = deriveStorageRoots(projectRoot);
 
 export type FirstShotSourceMode = "composite" | "a08-clean-candidate";
 export type FirstShotReplayMode = "none" | "approved-production";

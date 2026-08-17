@@ -444,6 +444,7 @@ export function useChapterAutoVideoActions({
               if (result.accepted || result.reason === "already-succeeded" || result.reason === "duplicate-active") {
                 jobs.push(result.job);
               } else {
+                console.error("[one-click] enqueueShot 拒绝:", plan.shot.shotId, result.reason, result.reason === "invalid" || result.reason === "blocked" ? result.message : "");
                 blockedShotIds.push(plan.shot.shotId);
               }
             }

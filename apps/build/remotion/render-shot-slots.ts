@@ -61,6 +61,56 @@ export interface ShotSlotReport {
   sourceSwaps?: Array<{ storyboardId: string; from: string; to: string }>;
 }
 
+export function selectShotIdsForRun(
+  availableShotIds: readonly string[],
+  rawShotIds: string | undefined,
+): string[] {
+  if (rawShotIds === undefined) return [...availableShotIds];
+  const requested = rawShotIds.split(",").map((value) => value.trim());
+  if (requested.length === 0 || requested.some((value) => value.length === 0)) {
+    throw new Error("MYSTUDIO_SHOT_IDS 必须是逗号分隔的非空 shot ID");
+  }
+  if (new Set(requested).size !== requested.length) {
+    throw new Error("MYSTUDIO_SHOT_IDS 不得包含重复 shot ID");
+  }
+  const available = new Set(availableShotIds);
+  const unknown = requested.filter((shotId) => !available.has(shotId));
+  if (unknown.length > 0) {
+    throw new Error(`MYSTUDIO_SHOT_IDS 包含当前章节不存在的 shot: ${unknown.join(", ")}`);
+  }
+  const selected = new Set(requested);
+  return availableShotIds.filter((shotId) => selected.has(shotId));
+}
+
+export function selectPlanIssuesForShotIds<T extends { path: string }>(
+  issues: readonly T[],
+  shotIds: readonly string[],
+): T[] {
+  const shotPrefixes = shotIds.map((shotId) => `shots.${shotId}.`);
+  return issues.filter((issue) => (
+    !issue.path.startsWith("shots.")
+    || shotPrefixes.some((prefix) => issue.path.startsWith(prefix))
+  ));
+}
+
+export function mergeSelectedShotDefinitions<T extends { shotId: string }>(input: {
+  availableShotIds: readonly string[];
+  selectedShots: readonly T[];
+  currentShots: readonly T[];
+  scoped: boolean;
+}): T[] {
+  if (!input.scoped) return [...input.selectedShots];
+  const selectedById = new Map(input.selectedShots.map((shot) => [shot.shotId, shot]));
+  const currentById = new Map(input.currentShots.map((shot) => [shot.shotId, shot]));
+  return input.availableShotIds.map((shotId) => {
+    const selected = selectedById.get(shotId);
+    if (selected) return selected;
+    const current = currentById.get(shotId);
+    if (!current) throw new Error(`定点渲染缺少未选镜头的现有 manifest: ${shotId}`);
+    return current;
+  });
+}
+
 /**
  * Compile the persisted chapter material into M independent StoryboardShot
  * jobs. This bridge is the CLI equivalent of the Electron shot queue: it
@@ -77,6 +127,11 @@ export async function runRemotionShotSlots(): Promise<ShotSlotReport> {
     .map((value) => normalizeStoryboard(value as StoryboardItem, projectDir, dataRoot, projectId))
     .sort((left, right) => left.index - right.index || left.id.localeCompare(right.id));
   if (storyboards.length === 0) throw new Error(`未找到可渲染分镜: ${projectId}/${chapterId}`);
+  const selectedShotIds = selectShotIdsForRun(
+    storyboards.map((storyboard) => storyboard.id),
+    process.env.MYSTUDIO_SHOT_IDS,
+  );
+  const selectedShotIdSet = new Set(selectedShotIds);
 
   const renderSettings = { ...DEFAULT_REMOTION_RENDER_SETTINGS };
   const chapterManifestService = new RemotionChapterManifestService({
@@ -103,8 +158,19 @@ export async function runRemotionShotSlots(): Promise<ShotSlotReport> {
     requireHumanApproval: process.env.MYSTUDIO_REQUIRE_HUMAN_APPROVAL !== "0",
     continuityPolicy: (process.env.MYSTUDIO_CONTINUITY_POLICY as "required" | "if-present" | "skip") || "if-present",
   });
-  if (!plans.success) {
-    throw new Error(`Remotion shot plan blocked: ${plans.issues.map((issue) => `${issue.path}: ${issue.message}`).join("；")}`);
+  const selectedBlockedShotIds = plans.success
+    ? []
+    : plans.blockedShotIds.filter((shotId) => selectedShotIdSet.has(shotId));
+  if ((!plans.success && process.env.MYSTUDIO_SHOT_IDS === undefined)
+    || selectedBlockedShotIds.length > 0) {
+    const reportedIssues = process.env.MYSTUDIO_SHOT_IDS === undefined
+      ? plans.issues
+      : selectPlanIssuesForShotIds(plans.issues, selectedShotIds);
+    throw new Error(`Remotion shot plan blocked: ${reportedIssues.map((issue) => `${issue.path}: ${issue.message}`).join("；")}`);
+  }
+  const selectedPlans = plans.plans.filter((plan) => selectedShotIdSet.has(plan.shot.shotId));
+  if (selectedPlans.length !== selectedShotIds.length) {
+    throw new Error(`定点渲染计划不完整: expected=${selectedShotIds.length} actual=${selectedPlans.length}`);
   }
 
   const bundlePath = path.resolve(process.env.MYSTUDIO_REMOTION_BUNDLE || path.join(appsRoot, ".cache", "remotion-bundle"));
@@ -115,6 +181,12 @@ export async function runRemotionShotSlots(): Promise<ShotSlotReport> {
   await fs.promises.mkdir(runtimeDir, { recursive: true });
   await fs.promises.writeFile(path.join(runtimeDir, "package.json"), `${JSON.stringify(buildRemotionRuntimeManifest(remotionVersion), null, 2)}\n`, "utf8");
   const now = Date.now();
+  const manifestShots = mergeSelectedShotDefinitions({
+    availableShotIds: storyboards.map((storyboard) => storyboard.id),
+    selectedShots: selectedPlans.map((plan) => plan.shot),
+    currentShots: currentChapterManifest?.shots ?? [],
+    scoped: process.env.MYSTUDIO_SHOT_IDS !== undefined,
+  });
   const chapterManifest: RemotionChapterManifestV2 = {
     schemaVersion: 2,
     manifestFingerprint: "",
@@ -122,9 +194,9 @@ export async function runRemotionShotSlots(): Promise<ShotSlotReport> {
     chapterId,
     revision: nextChapterRevision,
     sourceSnapshotHash: plans.sourceSnapshotHash,
-    requiredShotIds: plans.plans.map((plan) => plan.shot.shotId),
+    requiredShotIds: storyboards.map((storyboard) => storyboard.id),
     sharedAudioBindings: currentChapterManifest?.sharedAudioBindings ?? [],
-    shots: plans.plans.map((plan) => plan.shot),
+    shots: manifestShots,
     renderSettings,
     createdAt: currentChapterManifest?.createdAt ?? now,
     updatedAt: now,
@@ -148,7 +220,7 @@ export async function runRemotionShotSlots(): Promise<ShotSlotReport> {
     const browser = await createRemotionEnsureBrowserAdapters(ensureBrowser as unknown as RemotionEnsureBrowser)
       .probe.ensureBrowser({ onDownload: () => { throw new Error("Remotion Headless Shell 未安装，请先在设置页手动下载"); } });
     const binariesDirectory = path.join(appsRoot, "node_modules", "@remotion", "compositor-darwin-arm64");
-    for (const plan of plans.plans) {
+    for (const plan of selectedPlans) {
       const references = [plan.shot.visualSource, ...plan.shot.audioBindings.map((binding) => binding.source)];
       const sources = [...new Map(references.map((reference) => [referenceKey(reference), reference])).values()].map((reference) => ({
         clipId: referenceKey(reference),
