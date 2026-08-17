@@ -10,7 +10,11 @@ import {
   type ReviewableStage,
   type ScriptStageKey,
 } from "@/lib/studio/script-planning";
-import { formatSourceBibleContext } from "@/lib/studio/source-bible";
+import {
+  formatSourceBibleContext,
+  readResidentBible,
+} from "@/lib/studio/source-bible";
+import { getProjectFilesBridge } from "@/lib/bridge/project-files";
 import {
   buildStudioManualContext,
   type StudioManualCatalog,
@@ -152,8 +156,18 @@ export function useScriptStageActions({
     [saveAgentWorkData],
   );
 
+  const readBibleContext = async () => {
+    const projectId = useProjectStore.getState().activeProjectId;
+    const residentBible = await readResidentBible({
+      projectId,
+      readText: getProjectFilesBridge()?.readText,
+      storeFallback: useStudioStore.getState().sourceBible,
+    });
+    return formatSourceBibleContext(residentBible) || undefined;
+  };
+
   const handleScriptStage = useCallback(
-    (
+    async (
       stage: ScriptStageKey,
       chapter: NovelChapter,
       userOverride?: string,
@@ -189,7 +203,7 @@ export function useScriptStageActions({
       const built = buildStageMessages(stage, {
         manualContext: scriptStyleSummary,
         directorContext: scriptDirectorContext,
-        originalBibleContext: formatSourceBibleContext(store.sourceBible) || undefined,
+        originalBibleContext: await readBibleContext(),
         chapterTitle: chapter.title,
         chapterText: chapter.sourceText,
         eventState: chapter.eventState,
@@ -225,7 +239,7 @@ export function useScriptStageActions({
   );
 
   const handleStageReview = useCallback(
-    (stage: ReviewableStage, chapter: NovelChapter) => {
+    async (stage: ReviewableStage, chapter: NovelChapter) => {
       const target = latestScriptStage(stage, chapter.id);
       if (!target) {
         toast.error(`请先生成${SCRIPT_STAGE_LABEL[stage]}`);
@@ -233,7 +247,7 @@ export function useScriptStageActions({
       }
       const built = buildStageReviewMessages(stage, {
         manualContext: scriptStyleSummary,
-        originalBibleContext: formatSourceBibleContext(useStudioStore.getState().sourceBible) || undefined,
+        originalBibleContext: await readBibleContext(),
         chapterTitle: chapter.title,
         chapterText: chapter.sourceText,
         eventState: chapter.eventState,

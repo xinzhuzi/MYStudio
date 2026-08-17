@@ -1,9 +1,10 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import {
   buildSourceBibleMessages,
   formatSourceBibleContext,
   parseBibleCharacters,
   parseSourceBibleDraft,
+  readResidentBible,
   sampleChaptersForBible,
   validateCharactersAgainstBible,
   SOURCE_BIBLE_MAX_CHARS,
@@ -181,5 +182,35 @@ describe("validateCharactersAgainstBible", () => {
 
   it("skips validation entirely when the bible has no character table (zero false positives)", () => {
     expect(validateCharactersAgainstBible(["谁都可以"], [])).toEqual([]);
+  });
+});
+
+describe("readResidentBible（单一常驻层现读）", () => {
+  const md = (p: string, t: string) => ({ projectId: p, relativePath: t });
+
+  it("新路径优先，旧路径只作回退，store 是最后兜底", async () => {
+    const calls: string[] = [];
+    const readText = vi.fn(async ({ relativePath }: { relativePath: string }) => {
+      calls.push(relativePath);
+      if (relativePath === "novel/source-memory/MEMORY.md") return { success: true, text: "# 新位置" };
+      return { success: true, text: "# 旧位置" };
+    });
+    expect(await readResidentBible({ projectId: "p1", readText, storeFallback: "# store" })).toBe("# 新位置");
+
+    const readText2 = vi.fn(async ({ relativePath }: { relativePath: string }) =>
+      relativePath === "novel/source-bible.md" ? { success: true, text: "# 旧位置" } : { success: false },
+    );
+    expect(await readResidentBible({ projectId: "p1", readText: readText2, storeFallback: "" })).toBe("# 旧位置");
+
+    const readText3 = vi.fn(async () => ({ success: false }));
+    expect(await readResidentBible({ projectId: "p1", readText: readText3, storeFallback: "# store" })).toBe("# store");
+    void md; void calls;
+  });
+
+  it("无桥/无项目/异常时静默回退，空文本不注入", async () => {
+    expect(await readResidentBible({ projectId: null, storeFallback: "# s" })).toBe("# s");
+    expect(await readResidentBible({ projectId: "p", readText: undefined, storeFallback: " " })).toBe("");
+    const throwing = vi.fn(async () => { throw new Error("io"); });
+    expect(await readResidentBible({ projectId: "p", readText: throwing, storeFallback: "# s" })).toBe("# s");
   });
 });

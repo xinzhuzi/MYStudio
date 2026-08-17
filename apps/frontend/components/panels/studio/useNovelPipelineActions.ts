@@ -19,8 +19,10 @@ import {
 import {
   formatSourceBibleContext,
   parseBibleCharacters,
+  readResidentBible,
   validateCharactersAgainstBible,
 } from "@/lib/studio/source-bible";
+import { getProjectFilesBridge } from "@/lib/bridge/project-files";
 import { useCharacterLibraryStore } from "@/stores/library/character-library-store";
 import { usePropsLibraryStore } from "@/stores/library/props-library-store";
 import { useSceneStore } from "@/stores/library/scene-store";
@@ -68,8 +70,14 @@ export function useNovelPipelineActions({
       let successCount = 0;
       let failedCount = 0;
       let warningChapterCount = 0;
-      const bibleContext = formatSourceBibleContext(useStudioStore.getState().sourceBible) || undefined;
-      const bibleCharacters = parseBibleCharacters(useStudioStore.getState().sourceBible);
+      // 单一常驻层：动作开始现读一次（批次内一致、跨批次新鲜），文件为唯一事实源
+      const residentBible = await readResidentBible({
+        projectId: activeProjectId,
+        readText: getProjectFilesBridge()?.readText,
+        storeFallback: useStudioStore.getState().sourceBible,
+      });
+      const bibleContext = formatSourceBibleContext(residentBible) || undefined;
+      const bibleCharacters = parseBibleCharacters(residentBible);
       // 按 index 排序后滚动注入上一章事件行；调用方传入乱序选择时仍保持章节顺序。
       const sortedChapters = [...chapters].sort((left, right) => left.index - right.index);
       let prevEventLine: string | undefined;
@@ -141,7 +149,7 @@ export function useNovelPipelineActions({
         toast.success(`事件分析完成，共 ${successCount} 章`);
       }
     },
-    [saveAgentWorkData, updateNovelChapter],
+    [activeProjectId, saveAgentWorkData, updateNovelChapter],
   );
 
   const handleEntityExtraction = useCallback(
@@ -239,11 +247,16 @@ export function useNovelPipelineActions({
           })),
       ];
 
+      const residentBible = await readResidentBible({
+        projectId: activeProjectId,
+        readText: getProjectFilesBridge()?.readText,
+        storeFallback: useStudioStore.getState().sourceBible,
+      });
       const messages = buildEntityExtractionMessages({
         episodeId: targetEpisodeId,
         scriptText,
         knownEntities,
-        bibleContext: formatSourceBibleContext(useStudioStore.getState().sourceBible) || undefined,
+        bibleContext: formatSourceBibleContext(residentBible) || undefined,
       });
       try {
         const result = await aiManager.text({

@@ -63,7 +63,7 @@ describe("source bible mirror", () => {
     syncSourceBibleMirror("project-1", "# 原著圣经\n\n## 一句话主线\n主线", { writeText });
 
     expect(writeText).toHaveBeenCalledWith(
-      "_p/project-1/novel/source-bible.md",
+      "_p/project-1/novel/source-memory/MEMORY.md",
       "# 原著圣经\n\n## 一句话主线\n主线",
     );
   });
@@ -80,7 +80,7 @@ describe("source bible mirror", () => {
     const text = await loadSourceBibleMirror("project-1", { readText });
     expect(readText).toHaveBeenCalledWith({
       projectId: "project-1",
-      relativePath: "novel/source-bible.md",
+      relativePath: "novel/source-memory/MEMORY.md",
     });
     expect(text).toBe("# 原著圣经");
   });

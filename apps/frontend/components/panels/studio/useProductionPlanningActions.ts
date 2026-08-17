@@ -26,7 +26,8 @@ import {
   retrieveProjectMemory,
 } from "@/lib/studio/project-memory";
 import { EXTENDED_VISUAL_MANUAL_SEED_ID } from "@/lib/studio/visual-manual-classification";
-import { formatSourceBibleContext } from "@/lib/studio/source-bible";
+import { formatSourceBibleContext, readResidentBible } from "@/lib/studio/source-bible";
+import { getProjectFilesBridge } from "@/lib/bridge/project-files";
 import type { AssetGenerationTask } from "@/lib/studio/asset-generation-orchestrator";
 import type { EntityResolver } from "@/lib/studio/derived-asset-sync";
 import { useCharacterLibraryStore } from "@/stores/library/character-library-store";
@@ -99,7 +100,13 @@ export function useProductionPlanningActions({
         episodeId: targetEpisodeId,
         scriptText,
         manualContext: [manualContext, projectMemoryContext].filter(Boolean).join("\n\n---\n\n"),
-        bibleContext: formatSourceBibleContext(store.sourceBible) || undefined,
+        bibleContext: formatSourceBibleContext(
+          await readResidentBible({
+            projectId: projectId,
+            readText: getProjectFilesBridge()?.readText,
+            storeFallback: store.sourceBible,
+          }),
+        ) || undefined,
       });
       const userContent = userInstruction.trim()
         ? `${messages.user}\n\n【本次节点补充要求】\n${userInstruction.trim()}`
@@ -290,7 +297,13 @@ export function useProductionPlanningActions({
         scriptText,
         scriptPlanContext: formatScriptPlanContext(plan),
         manualContext: buildStoryboardTableManualContext(store.workflowConfig, manualCatalog),
-        bibleContext: formatSourceBibleContext(store.sourceBible) || undefined,
+        bibleContext: formatSourceBibleContext(
+          await readResidentBible({
+            projectId: activeProjectId,
+            readText: getProjectFilesBridge()?.readText,
+            storeFallback: store.sourceBible,
+          }),
+        ) || undefined,
       });
       const userContent = userInstruction.trim()
         ? `${messages.user}\n\n【本次节点补充要求】\n${userInstruction.trim()}`
@@ -358,7 +371,7 @@ export function useProductionPlanningActions({
         toast.error(error instanceof Error ? error.message : String(error));
       }
     },
-    [manualCatalog, saveAgentWorkData],
+    [activeProjectId, manualCatalog, saveAgentWorkData],
   );
 
   const handleRebuildWorkbenchTracks = useCallback(() => {

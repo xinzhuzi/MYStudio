@@ -1,5 +1,5 @@
 import { buildNovelChapterMirror } from "@/lib/studio/novel";
-import { sourceBibleMirrorKey } from "@/lib/studio/source-bible";
+import { readResidentBible, sourceBibleMirrorKey } from "@/lib/studio/source-bible";
 import type { NovelChapter } from "@/types/studio";
 
 type NovelMirrorFiles = {
@@ -52,23 +52,11 @@ export function syncSourceBibleMirror(
     });
 }
 
-/** 启动/切项目治愈：store 圣经为空时从项目文件回读（外部编辑器改动也能被拾取）。 */
+/** 启动/切项目治愈：store 圣经为空时从项目文件回读（新路径→旧路径兼容，外部编辑可被拾取）。 */
 export async function loadSourceBibleMirror(
   projectId: string | null | undefined,
   projectFiles: NovelMirrorFiles | undefined,
 ): Promise<string> {
   if (!projectId || !projectFiles?.readText) return "";
-  try {
-    const result = await projectFiles.readText({
-      projectId,
-      relativePath: "novel/source-bible.md",
-    });
-    if (typeof result === "string") return result;
-    if (result && typeof result === "object" && result.success) {
-      return typeof result.text === "string" ? result.text : "";
-    }
-    return "";
-  } catch {
-    return "";
-  }
+  return readResidentBible({ projectId, readText: projectFiles.readText });
 }

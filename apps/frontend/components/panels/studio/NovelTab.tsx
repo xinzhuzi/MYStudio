@@ -8,7 +8,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import aiEventAnalysisIconUrl from "@/assets/brand/ai-event-analysis-icon.svg";
 import { useProjectStore } from "@/stores/project/project-store";
-import { SOURCE_BIBLE_MAX_CHARS, SOURCE_BIBLE_TEMPLATE } from "@/lib/studio/source-bible";
+import { SOURCE_BIBLE_MAX_CHARS, SOURCE_BIBLE_TEMPLATE, readResidentBible } from "@/lib/studio/source-bible";
+import { getProjectFilesBridge } from "@/lib/bridge/project-files";
 import type { NovelChapter } from "@/types/studio";
 import { BookOpen, Plus, Search, Trash2 } from "lucide-react";
 import { toast } from "sonner";
@@ -209,10 +210,16 @@ export function NovelTab(props: {
 // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [props.analyzeEvents, selectedChapters]);
 
-  const openBible = useCallback(() => {
-    setBibleDraft(props.sourceBible.trim() ? props.sourceBible : SOURCE_BIBLE_TEMPLATE);
+  const openBible = useCallback(async () => {
+    // 打开即现读单一常驻层文件（外部编辑过也能立刻看到），读不到再退 store/模板
+    const resident = await readResidentBible({
+      projectId: activeProjectId,
+      readText: getProjectFilesBridge()?.readText,
+      storeFallback: props.sourceBible,
+    });
+    setBibleDraft(resident.trim() ? resident : SOURCE_BIBLE_TEMPLATE);
     setBibleOpen(true);
-  }, [props.sourceBible]);
+  }, [activeProjectId, props.sourceBible]);
 
   const runGenerateBible = useCallback(async () => {
     setBibleGenerating(true);

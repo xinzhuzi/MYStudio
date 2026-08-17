@@ -12,12 +12,45 @@ import { parseStageOutput } from "./script-planning";
  *  4000：容纳 72 人全阵容时人均 ~30 字的「身份弧线」描述；≈2k token/次注入，相对章节正文可接受。 */
 export const SOURCE_BIBLE_MAX_CHARS = 4000;
 
-/** 项目内文件镜像相对路径（对齐 novel/chapters/<id>.md 的章节镜像约定，正文/圣经同域）。 */
-export const SOURCE_BIBLE_RELATIVE_PATH = "novel/source-bible.md";
+/** 单一常驻层文件（用户裁定 08-17）：唯一圣经事实源，注入时现读、改完下次即生效。
+ *  旧 novel/source-bible.md 仅作只读兼容回退，不再写入。 */
+export const SOURCE_BIBLE_RELATIVE_PATH = "novel/source-memory/MEMORY.md";
+
+/** 旧路径（dbfb8ea 时代），只读回退用。 */
+export const SOURCE_BIBLE_LEGACY_RELATIVE_PATH = "novel/source-bible.md";
 
 /** writeText 桥的存储键（`_p/{projectId}/` 前缀约定，主进程解析到项目根目录）。 */
 export function sourceBibleMirrorKey(projectId: string): string {
   return `_p/${projectId}/${SOURCE_BIBLE_RELATIVE_PATH}`;
+}
+
+/** 渲染进程现读单一常驻层：新文件 → 旧文件 → store 缓存，全部为空返回 ""（零注入）。
+ *  每个工作流动作开头调用一次——批次内一致、跨批次新鲜，外部编辑下次动作即生效。 */
+export async function readResidentBible(input: {
+  projectId?: string | null;
+  readText?: (payload: { projectId: string; relativePath: string }) => Promise<
+    { success?: boolean; text?: string } | string | null
+  >;
+  storeFallback?: string;
+}): Promise<string> {
+  const { projectId, readText, storeFallback } = input;
+  if (projectId && readText) {
+    for (const relativePath of [SOURCE_BIBLE_RELATIVE_PATH, SOURCE_BIBLE_LEGACY_RELATIVE_PATH]) {
+      try {
+        const result = await readText({ projectId, relativePath });
+        const text =
+          typeof result === "string"
+            ? result
+            : result && typeof result === "object" && result.success && typeof result.text === "string"
+              ? result.text
+              : "";
+        if (text.trim()) return text;
+      } catch {
+        // 文件缺失/桥异常 → 试下一来源
+      }
+    }
+  }
+  return storeFallback?.trim() ? storeFallback : "";
 }
 
 /** 五段固定模板——格式即契约，主要人物行格式供机器解析做人物名校验。 */
