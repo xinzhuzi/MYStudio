@@ -8,8 +8,9 @@
 import type { NovelChapter } from "@/types/studio";
 import { parseStageOutput } from "./script-planning";
 
-/** 硬上限（Hermes 原则：宁可拒收不让用户无意间膨胀到挤占每次调用的上下文）。 */
-export const SOURCE_BIBLE_MAX_CHARS = 2000;
+/** 硬上限（Hermes 原则：宁可报错不让用户无意间膨胀到挤占每次调用的上下文）。
+ *  4000：容纳 72 人全阵容时人均 ~30 字的「身份弧线」描述；≈2k token/次注入，相对章节正文可接受。 */
+export const SOURCE_BIBLE_MAX_CHARS = 4000;
 
 /** 五段固定模板——格式即契约，主要人物行格式供机器解析做人物名校验。 */
 export const SOURCE_BIBLE_TEMPLATE = `# 原著圣经

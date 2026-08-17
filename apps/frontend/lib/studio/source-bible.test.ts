@@ -41,7 +41,7 @@ describe("formatSourceBibleContext", () => {
 
   it("keeps the template within the hard cap", () => {
     expect(SOURCE_BIBLE_TEMPLATE.length).toBeLessThanOrEqual(SOURCE_BIBLE_MAX_CHARS);
-    expect(SOURCE_BIBLE_MAX_CHARS).toBe(2000);
+    expect(SOURCE_BIBLE_MAX_CHARS).toBe(4000);
   });
 
   it("template contains the five required sections", () => {
