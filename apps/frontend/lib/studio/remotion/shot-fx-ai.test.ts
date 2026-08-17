@@ -27,28 +27,39 @@ beforeEach(() => {
 describe("parseShotFxMotionResponse", () => {
   const shotIds = new Set(["s1", "s2", "s3"]);
 
-  it("解析裸 JSON 并保留合法条目", () => {
+  it("解析 shots schema：motion + fx 插件数组", () => {
     const parsed = parseShotFxMotionResponse(
-      '{"motions": [{"shotId": "s1", "motion": "punch-in"}, {"shotId": "s2", "motion": "leave-pull"}]}',
+      '{"shots": [{"shotId": "s1", "motion": "punch-in", "fx": ["shake-hard", "chroma"]}, {"shotId": "s2", "motion": "drift", "fx": []}]}',
       shotIds,
     );
-    expect(parsed.motions).toEqual({ s1: "punch-in", s2: "leave-pull" });
+    expect(parsed.motions).toEqual({ s1: "punch-in", s2: "drift" });
+    expect(parsed.addons).toEqual({ s1: ["shake-hard", "chroma"], s2: [] });
   });
 
-  it("容忍 markdown 代码块与前后杂文", () => {
+  it("兼容旧 motions schema（无 fx 字段 → 不产 addons 条目）", () => {
     const parsed = parseShotFxMotionResponse(
-      '好的，如下：\n```json\n{"motions": [{"shotId": "s1", "motion": "drift"}]}\n```\n以上。',
+      '{"motions": [{"shotId": "s1", "motion": "drift"}]}',
       shotIds,
     );
     expect(parsed.motions).toEqual({ s1: "drift" });
+    expect(parsed.addons).toEqual({});
   });
 
-  it("丢弃非法模式值与未知 shotId", () => {
+  it("插件校验：非法丢弃、同种互斥取首、上限 2 个", () => {
     const parsed = parseShotFxMotionResponse(
-      '{"motions": [{"shotId": "s1", "motion": "orbit-camera"}, {"shotId": "unknown", "motion": "drift"}, {"shotId": "s3", "motion": "tilt-up"}]}',
+      '{"shots": [{"shotId": "s1", "motion": "push-in", "fx": ["shake-soft", "shake-hard", "glow-warm", "chroma", "bogus"]}]}',
       shotIds,
     );
-    expect(parsed.motions).toEqual({ s3: "tilt-up" });
+    expect(parsed.addons.s1).toEqual(["shake-soft", "glow-warm"]);
+  });
+
+  it("容忍 markdown 代码块与前后杂文；丢弃非法模式与未知 shotId", () => {
+    const parsed = parseShotFxMotionResponse(
+      '好的：\n```json\n{"shots": [{"shotId": "s1", "motion": "hold", "fx": ["glow-dim"]}, {"shotId": "unknown", "motion": "drift"}, {"shotId": "s2", "motion": "spin"}]}\n```\n以上。',
+      shotIds,
+    );
+    expect(parsed.motions).toEqual({ s1: "hold" });
+    expect(parsed.addons).toEqual({ s1: ["glow-dim"] });
   });
 });
 
@@ -65,29 +76,31 @@ describe("heuristicShotFxMotions", () => {
 describe("selectShotFxMotions", () => {
   it("空分镜返回 empty", async () => {
     const result = await selectShotFxMotions([]);
-    expect(result).toEqual({ motions: {}, source: "empty" });
+    expect(result).toEqual({ motions: {}, addons: {}, source: "empty" });
   });
 
-  it("AI 成功时返回 ai 来源的合法选择", async () => {
+  it("AI 成功时返回 ai 来源的运镜+插件组合", async () => {
     textMock.mockResolvedValue({
       success: true,
-      text: '{"motions": [{"shotId": "s1", "motion": "punch-in"}, {"shotId": "s2", "motion": "leave-pull"}, {"shotId": "s3", "motion": "drift"}]}',
+      text: '{"shots": [{"shotId": "s1", "motion": "punch-in", "fx": ["shake-hard", "chroma"]}, {"shotId": "s2", "motion": "drift"}, {"shotId": "s3", "motion": "tilt-up", "fx": ["glow-warm"]}]}',
     });
     const result = await selectShotFxMotions(SHOTS);
     expect(result.source).toBe("ai");
-    expect(result.motions).toEqual({ s1: "punch-in", s2: "leave-pull", s3: "drift" });
+    expect(result.motions).toEqual({ s1: "punch-in", s2: "drift", s3: "tilt-up" });
+    expect(result.addons).toEqual({ s1: ["shake-hard", "chroma"], s3: ["glow-warm"] });
     expect(textMock).toHaveBeenCalledOnce();
   });
 
-  it("AI 失败时回落启发式（source=heuristic，不抛错）", async () => {
+  it("AI 失败时回落启发式（source=heuristic，不抛错，无插件配置走配方默认）", async () => {
     textMock.mockResolvedValue({ success: false, error: "未配置 AI" });
     const result = await selectShotFxMotions(SHOTS);
     expect(result.source).toBe("heuristic");
     expect(result.motions).toEqual(heuristicShotFxMotions(SHOTS).motions);
+    expect(result.addons).toEqual({});
   });
 
   it("AI 全量非法时同样回落启发式", async () => {
-    textMock.mockResolvedValue({ success: true, text: '{"motions": [{"shotId": "s1", "motion": "nope"}]}' });
+    textMock.mockResolvedValue({ success: true, text: '{"shots": [{"shotId": "s1", "motion": "nope"}]}' });
     const result = await selectShotFxMotions(SHOTS);
     expect(result.source).toBe("heuristic");
   });

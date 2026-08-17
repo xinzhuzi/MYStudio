@@ -147,6 +147,44 @@ describe("buildShotFxEditingEffects 契约产出", () => {
     expect(effectOf(effects, "chromaticAberration", "clip-1")?.params).toEqual({ offset: 3 });
   });
 
+  it("hold 锁帧：AI 可选，fromScale=toScale=1.0 无默认特效", () => {
+    const { effects } = buildShotFxEditingEffects(
+      buildInput([{ id: "s1", prompt: "关键台词定格", shotFx: { motion: "hold", source: "ai" } }]),
+    );
+    const panZoom = effectOf(effects, "panZoom", "clip-1")?.params;
+    expect(panZoom?.scaleFrom).toBe(1.0);
+    expect(panZoom?.scaleTo).toBe(1.0);
+    expect(effectOf(effects, "shake", "clip-1")).toBeUndefined();
+    expect(effectOf(effects, "glow", "clip-1")).toBeUndefined();
+  });
+
+  it("AI 显式配置插件则覆盖配方默认（drift+glow-warm=梦境辉光组合）", () => {
+    const { effects } = buildShotFxEditingEffects(
+      buildInput([{ id: "s1", prompt: "庭院喝茶", shotFx: { motion: "drift", addons: ["glow-warm"], source: "ai" } }]),
+    );
+    expect(effectOf(effects, "glow", "clip-1")?.params).toEqual({ intensity: 0.5 });
+    expect(effectOf(effects, "shake", "clip-1")).toBeUndefined();
+    expect(effectOf(effects, "chromaticAberration", "clip-1")).toBeUndefined();
+  });
+
+  it("AI 显式空插件=纯运镜（覆盖 punch-in 默认抖动+色差）", () => {
+    const { effects } = buildShotFxEditingEffects(
+      buildInput([{ id: "s1", prompt: "庭院喝茶", shotFx: { motion: "punch-in", addons: [], source: "ai" } }]),
+    );
+    expect(effectOf(effects, "panZoom", "clip-1")?.params.scaleTo).toBe(1.12);
+    expect(effectOf(effects, "shake", "clip-1")).toBeUndefined();
+    expect(effectOf(effects, "chromaticAberration", "clip-1")).toBeUndefined();
+  });
+
+  it("同种特效插件互斥取首个档位，非法插件丢弃", () => {
+    const { effects } = buildShotFxEditingEffects(
+      buildInput([
+        { id: "s1", prompt: "庭院喝茶", shotFx: { motion: "push-in", addons: ["shake-hard", "shake-soft", "explode-fx"], source: "ai" } },
+      ]),
+    );
+    expect(effectOf(effects, "shake", "clip-1")?.params).toEqual({ intensity: 0.25 });
+  });
+
   it("AI 提示非法值按无提示处理（回落规则运镜）", () => {
     const { effects } = buildShotFxEditingEffects(
       buildInput([{ id: "s1", prompt: "庭院喝茶", shotFx: { motion: "spin-around", source: "ai" } }]),

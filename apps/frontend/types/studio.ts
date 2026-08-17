@@ -2,7 +2,7 @@ import type { TtsEmotionCapability, TtsSpeakerId } from "./tts";
 import type { CharacterIdentityAnchors, CharacterNegativePrompt } from "./script";
 import type { RemotionShotAudioBindingV2 } from "./remotion-workspace";
 import type { SubtitleAuthority } from "./editing";
-import type { ShotFxMotionId } from "../lib/studio/remotion/shot-fx-decisions";
+import type { ShotFxAddonId, ShotFxMotionId } from "../lib/studio/remotion/shot-fx-decisions";
 
 export type CharacterReferenceViewType = "front" | "side" | "back" | "three-quarter";
 
@@ -386,10 +386,11 @@ export interface StoryboardItem extends StudioStaleEvidence, StudioSourceIdentit
   /** Explicit subtitle ownership for this visual interval. */
   subtitleAuthority?: SubtitleAuthority;
   /**
-   * AI 2D 运镜选择结果（装饰层：不进 sourceFingerprint、不触发审批门 stale）。
-   * 一键成片前由 selectShotFxMotions 刷新；App 章节渲染与 CLI 全管线共享读取。
+   * AI 2D 镜头表现选择结果（装饰层：不进 sourceFingerprint、不触发审批门 stale）。
+   * 一键成片前由 selectShotFxMotions 刷新；App 章节渲染与 CLI 共享读取。
+   * addons 为 AI 显式配置的特效插件（空数组=显式无特效）；缺省=运镜配方默认特效。
    */
-  shotFx?: { motion: ShotFxMotionId; source: "ai" | "heuristic" };
+  shotFx?: { motion: ShotFxMotionId; addons?: ShotFxAddonId[]; source: "ai" | "heuristic" };
 }
 
 export interface ProductionTrack extends StudioStaleEvidence {

@@ -1,15 +1,15 @@
-// 2D 镜头表现配方（共享单源）：CLI 全管线与 App 一键成片共用，
+// 2D 镜头表现（共享单源）：CLI 全管线与 App 一键成片共用，
 // 保证两条入口产出一致。
-// 配方 = 运镜 + 特效成套（motion 与 fx 是一体的镜头表达，AI 整套选择，
-// 不做独立叠加——避免「AI 选漂浮、关键词强叠爆点抖动」的不连贯组合）。
+// 模型 = 运镜(13) × 特效插件(可组合)：AI 每镜选 1 个运镜 + 0~2 个量化特效
+// 插件（自由组合防观看疲劳、成套风格）；未显式配置特效时按运镜配方的
+// 默认特效兜底。特效插件强度内置（registry 数值域），不可越界配置。
 // 产出契约形状的 EditingEffect[]（panZoom/shake/glow/grain/chromaticAberration），
 // 经 plan.effects 正门进入合成（build-composition-props 消费），章节渲染身份哈希
-// 含 plan.effects → 运镜变化自动触发缓存失效。不再做渲染时直注。
-// 优先级：分镜记录上的 AI 选择（shotFx.motion，由 shot-fx-ai 写入）>
+// 含 plan.effects → 镜头表现变化自动触发缓存失效。不再做渲染时直注。
+// 优先级：分镜记录上的 AI 选择（shotFx.motion + shotFx.addons）>
 // 关键词命中（映射到成套配方）> 镜序轮换 7 基础运镜。
 // 锐度纪律：源图已上采样到合成分辨率，panZoom 再放大即二次软化——
 // 常规镜缩放上限 1.08，动作 punch 上限 1.12，颗粒 0.035。
-// AI 只选配方 ID，参数一律取本表常量，缩放纪律不可能被 AI 破坏。
 
 import type { EditingEffect } from "@/types/editing";
 
@@ -25,7 +25,16 @@ export type ShotFxMotionId =
   | "leave-pull"
   | "chase-in"
   | "aura-push"
-  | "gloom-pull";
+  | "gloom-pull"
+  | "hold";
+
+/** 可组合特效插件 ID（量化档位，强度内置不可配置）。 */
+export type ShotFxAddonId =
+  | "shake-soft"
+  | "shake-hard"
+  | "glow-warm"
+  | "glow-dim"
+  | "chroma";
 
 export interface ShotFxPanZoom {
   fromScale: number;
@@ -48,7 +57,8 @@ export interface ShotFxRecipe {
 
 /**
  * 镜头表现配方表（唯一权威来源，含缩放纪律上限）。
- * 前七项为无特效基础运镜（轮换用）；后五项为运镜+特效成套配方。
+ * 前七项为无特效基础运镜（轮换用）；后六项为带默认特效的成套配方
+ * （未显式配置特效插件时的兜底）；hold 为锁帧节奏对比（仅 AI 可选）。
  */
 export const SHOT_FX_MOTION_PRESETS: Readonly<Record<ShotFxMotionId, ShotFxRecipe>> = {
   "push-in": {
@@ -79,31 +89,47 @@ export const SHOT_FX_MOTION_PRESETS: Readonly<Record<ShotFxMotionId, ShotFxRecip
     panZoom: { fromScale: 1.01, toScale: 1.04, originX: 0.5, originY: 0.5 },
     fx: {},
   },
-  // 动作爆点：急推 + 明显抖动（6px）+ RGB 色差分离
+  // 动作爆点：急推，默认成套 强抖+色差
   "punch-in": {
     panZoom: { fromScale: 1.0, toScale: 1.12, originX: 0.5, originY: 0.5 },
     fx: { shakeIntensity: 0.25, chromaOffset: 3 },
   },
-  // 退场收尾：拉远离席，纯净无特效
+  // 退场收尾：拉远离席，默认无特效
   "leave-pull": {
     panZoom: { fromScale: 1.07, toScale: 1.0, originX: 0.5, originY: 0.5 },
     fx: {},
   },
-  // 追逐/奔逃：快推（贴上限）+ 轻微抖动（3px）
+  // 追逐/奔逃：快推（贴上限），默认成套 轻抖
   "chase-in": {
     panZoom: { fromScale: 1.0, toScale: 1.08, originX: 0.5, originY: 0.5 },
     fx: { shakeIntensity: 0.125 },
   },
-  // 灵光/焰火/仙阵：缓推 + 暖调强辉光
+  // 灵光/焰火/仙阵：缓推，默认成套 暖调强辉光
   "aura-push": {
     panZoom: { fromScale: 1.0, toScale: 1.05, originX: 0.5, originY: 0.5 },
     fx: { glowIntensity: 0.5 },
   },
-  // 阴暗/夜雾/深渊：缓拉 + 暗调弱辉光
+  // 阴暗/夜雾/深渊：缓拉，默认成套 暗调弱辉光
   "gloom-pull": {
     panZoom: { fromScale: 1.07, toScale: 1.0, originX: 0.5, originY: 0.5 },
     fx: { glowIntensity: 0.25 },
   },
+  // 锁帧：刻意静止，爆点前后的节奏对比（仅 AI 可选，不进轮换）
+  hold: {
+    panZoom: { fromScale: 1.0, toScale: 1.0, originX: 0.5, originY: 0.5 },
+    fx: {},
+  },
+};
+
+/** 特效插件表（量化档位 → 契约效果与参数；同种效果互斥，取首个）。 */
+export const SHOT_FX_ADDON_PRESETS: Readonly<
+  Record<ShotFxAddonId, { effectId: "shake" | "glow" | "chromaticAberration"; params: Record<string, number> }>
+> = {
+  "shake-soft": { effectId: "shake", params: { intensity: 0.125 } },
+  "shake-hard": { effectId: "shake", params: { intensity: 0.25 } },
+  "glow-warm": { effectId: "glow", params: { intensity: 0.5 } },
+  "glow-dim": { effectId: "glow", params: { intensity: 0.25 } },
+  chroma: { effectId: "chromaticAberration", params: { offset: 3 } },
 };
 
 /** 无关键词命中时的镜序轮换（7 基础运镜，节奏变化用）。 */
@@ -121,12 +147,20 @@ export function isShotFxMotionId(value: unknown): value is ShotFxMotionId {
   return typeof value === "string" && value in SHOT_FX_MOTION_PRESETS;
 }
 
+export function isShotFxAddonId(value: unknown): value is ShotFxAddonId {
+  return typeof value === "string" && value in SHOT_FX_ADDON_PRESETS;
+}
+
 export interface ShotFxStoryboardInput {
   id: string;
   prompt?: string;
   line?: string;
-  /** AI 运镜选择结果（装饰层，不进 sourceFingerprint）；非法值按无提示处理。 */
-  shotFx?: { motion?: unknown; source?: unknown };
+  /**
+   * AI 镜头表现选择结果（装饰层，不进 sourceFingerprint）。
+   * addons 为 AI 显式配置的特效插件（空数组=显式无特效）；缺省=用运镜配方默认特效。
+   * 非法值一律按缺省处理。
+   */
+  shotFx?: { motion?: unknown; addons?: unknown; source?: unknown };
 }
 
 export interface ShotFxPlanClipLike {
@@ -170,9 +204,10 @@ export function resolveRuleShotFxMotion(text: string, clipIndex: number): ShotFx
 const SHOT_FX_EFFECT_ID_PREFIX = "effect-shot-fx-";
 
 /**
- * 为整章视觉片段产出镜头表现配方 EditingEffect[]（契约参数形状：
+ * 为整章视觉片段产出镜头表现 EditingEffect[]（契约参数形状：
  * panZoom 用 scaleFrom/scaleTo/x/y；fx 用 effect-registry 的参数表）。
- * 特效随配方成套产出（不独立叠加）；grain 为全局质感层恒常驻。
+ * 特效来源：AI 显式插件配置（shotFx.addons，空数组=无特效）>
+ * 运镜配方默认特效；同种效果取首个（互斥）。grain 为全局质感层恒常驻。
  * 依赖 plan clip 的 startUs/durationUs 提供效果时间窗（validation 要求全片段覆盖）。
  */
 export function buildShotFxEditingEffects(input: {
@@ -220,20 +255,38 @@ export function buildShotFxEditingEffects(input: {
     });
     counts.motion += 1;
 
-    // 颗粒全局质感常驻（独立于配方）。
+    // 颗粒全局质感常驻（独立于配方与插件）。
     pushEffect("grain", "grain", { amount: 0.035 });
 
-    if (recipe.fx.shakeIntensity !== undefined) {
-      pushEffect("shake", "shake", { intensity: recipe.fx.shakeIntensity });
-      counts.shake += 1;
+    // 特效来源：AI 显式插件配置（空数组=无特效）> 配方默认；同种效果取首个（互斥）。
+    type FxEntry = { effectId: "shake" | "glow" | "chromaticAberration"; params: Record<string, number> };
+    const fxEntries: FxEntry[] = [];
+    const rawAddons = storyboard?.shotFx?.addons;
+    if (Array.isArray(rawAddons)) {
+      for (const addon of rawAddons) {
+        if (isShotFxAddonId(addon)) fxEntries.push(SHOT_FX_ADDON_PRESETS[addon]);
+      }
+    } else {
+      if (recipe.fx.shakeIntensity !== undefined) {
+        fxEntries.push({ effectId: "shake", params: { intensity: recipe.fx.shakeIntensity } });
+      }
+      if (recipe.fx.glowIntensity !== undefined) {
+        fxEntries.push({ effectId: "glow", params: { intensity: recipe.fx.glowIntensity } });
+      }
+      if (recipe.fx.chromaOffset !== undefined) {
+        fxEntries.push({ effectId: "chromaticAberration", params: { offset: recipe.fx.chromaOffset } });
+      }
     }
-    if (recipe.fx.chromaOffset !== undefined) {
-      pushEffect("chroma", "chromaticAberration", { offset: recipe.fx.chromaOffset });
-      counts.chroma += 1;
+    const fxByKind = new Map<string, FxEntry>();
+    for (const entry of fxEntries) {
+      if (!fxByKind.has(entry.effectId)) fxByKind.set(entry.effectId, entry);
     }
-    if (recipe.fx.glowIntensity !== undefined) {
-      pushEffect("glow", "glow", { intensity: recipe.fx.glowIntensity });
-      counts.glow += 1;
+    for (const entry of fxByKind.values()) {
+      const suffix = entry.effectId === "chromaticAberration" ? "chroma" : entry.effectId;
+      pushEffect(suffix, entry.effectId, entry.params);
+      if (entry.effectId === "shake") counts.shake += 1;
+      else if (entry.effectId === "glow") counts.glow += 1;
+      else counts.chroma += 1;
     }
     visualIndex += 1;
   }
