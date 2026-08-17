@@ -7,6 +7,10 @@ import {
   resolveProjectFileUrl,
   setProjectLocationResolver,
 } from "@/electron/storage/storage-paths";
+import {
+  mergeStudioWorkflowShards,
+  parseStudioWorkflowShardManifest,
+} from "@/lib/storage/studio-workflow-shards";
 
 const APP_PROCESS_NAME = "漫影工作室";
 const requestedProjectName = () => process.env.CHAPTER_VIDEO_PROJECT_NAME?.trim() || "";
@@ -128,7 +132,52 @@ function ensureProjectLocationResolverInjected() {
 export function registeredProjectDir(projectId: string): string | undefined {
   ensureProjectLocationResolverInjected();
   const registered = registeredProjectLocation(resolveUserDataDir())[projectId];
-  return registered && fs.existsSync(path.join(registered, "studio-workflow-store.json")) ? registered : undefined;
+  if (!registered) return undefined;
+  // 分片化后旧单文件改名为 .bak-sharded-*，活跃数据在 studio-workflow/manifest.json
+  return fs.existsSync(path.join(registered, "studio-workflow-store.json"))
+    || fs.existsSync(path.join(registered, "studio-workflow", "manifest.json"))
+    ? registered
+    : undefined;
+}
+
+/**
+ * 读取项目 studio-workflow store 状态（CLI 侧统一入口）：
+ * 分片布局（studio-workflow/manifest.json → 合并分片）优先，旧单文件兜底。
+ * 返回 null = 两种布局都不存在；分片损坏/缺失时抛错（绝不半合并）。
+ * raw：legacy=文件原文（保持旧哈希锚点稳定）；分片=合并重建的规范串。
+ */
+export function readStudioWorkflowStoreState(
+  projectDir: string,
+): { state: Record<string, unknown>; version: number; raw: string } | null {
+  const manifestPath = path.join(projectDir, "studio-workflow", "manifest.json");
+  if (fs.existsSync(manifestPath)) {
+    const manifest = parseStudioWorkflowShardManifest(fs.readFileSync(manifestPath, "utf-8"));
+    if (!manifest) throw new Error(`studio-workflow manifest 无法解析: ${manifestPath}`);
+    const contents: string[] = [];
+    for (const shardName of manifest.shards) {
+      const shardPath = path.join(projectDir, "studio-workflow", shardName);
+      if (!fs.existsSync(shardPath)) throw new Error(`studio-workflow 分片缺失: ${shardPath}`);
+      contents.push(fs.readFileSync(shardPath, "utf-8"));
+    }
+    const merged = mergeStudioWorkflowShards(contents);
+    return {
+      state: merged.state,
+      version: manifest.version,
+      raw: JSON.stringify({ state: merged.state, version: manifest.version }),
+    };
+  }
+  const legacyPath = path.join(projectDir, "studio-workflow-store.json");
+  if (!fs.existsSync(legacyPath)) return null;
+  const raw = fs.readFileSync(legacyPath, "utf-8");
+  const parsed = JSON.parse(raw) as {
+    state?: Record<string, unknown>;
+    version?: number;
+  };
+  return {
+    state: parsed.state ?? {},
+    version: typeof parsed.version === "number" ? parsed.version : 0,
+    raw,
+  };
 }
 
 export function resolveProjectDir() {

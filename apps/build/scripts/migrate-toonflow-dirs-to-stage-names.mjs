@@ -12,7 +12,7 @@
 //   node migrate-toonflow-dirs-to-stage-names.mjs --dry-run   # 预演,不写盘
 //   node migrate-toonflow-dirs-to-stage-names.mjs             # 执行
 
-import { existsSync, renameSync, readFileSync, writeFileSync, statSync } from "node:fs";
+import { existsSync, readdirSync, renameSync, readFileSync, writeFileSync, statSync } from "node:fs";
 import { resolve } from "node:path";
 
 const PROJECT_ROOT =
@@ -113,28 +113,42 @@ for (const [oldName, newName] of FILE_RENAMES) {
 }
 
 // --- 3. store.json 路径字符串替换 ---
+// 兼容分片布局：旧单文件与 studio-workflow/ 分片文件都做同样的原文替换。
 const STORE_PATH = resolve(PROJECT_ROOT, "studio-workflow-store.json");
-let storeChanges = 0;
-if (!existsSync(STORE_PATH)) {
-  log("missing-store", `${STORE_PATH} 不存在,跳过 store 替换`);
+const STORE_SHARD_DIR = resolve(PROJECT_ROOT, "studio-workflow");
+const storeFiles = [];
+if (existsSync(STORE_PATH)) {
+  storeFiles.push(STORE_PATH);
 } else {
-  const original = readFileSync(STORE_PATH, "utf8");
+  log("missing-store", `${STORE_PATH} 不存在,尝试分片布局`);
+}
+if (existsSync(resolve(STORE_SHARD_DIR, "manifest.json"))) {
+  for (const entry of readdirSync(STORE_SHARD_DIR)) {
+    if (entry.endsWith(".json")) storeFiles.push(resolve(STORE_SHARD_DIR, entry));
+  }
+}
+let storeChanges = 0;
+if (storeFiles.length === 0) {
+  log("missing-store", `${STORE_PATH} 与 ${STORE_SHARD_DIR} 均不存在,跳过 store 替换`);
+}
+for (const storeFilePath of storeFiles) {
+  const original = readFileSync(storeFilePath, "utf8");
   let mutated = original;
   for (const [from, to] of STORE_REPLACEMENTS) {
     if (mutated.includes(from)) {
       const count = mutated.split(from).length - 1;
       mutated = mutated.split(from).join(to);
-      log(dryRun ? "dry-store-replace" : "store-replace", `"${from}" → "${to}" (${count} 处)`);
+      log(dryRun ? "dry-store-replace" : "store-replace", `"${from}" → "${to}" (${count} 处) @ ${storeFilePath}`);
       storeChanges += count;
     }
   }
   if (mutated !== original) {
     if (!dryRun) {
-      writeFileSync(STORE_PATH, mutated, "utf8");
+      writeFileSync(storeFilePath, mutated, "utf8");
     }
-    log(dryRun ? "dry-store-written" : "store-written", `${STORE_PATH} 已更新`);
+    log(dryRun ? "dry-store-written" : "store-written", `${storeFilePath} 已更新`);
   } else {
-    log("store-unchanged", `${STORE_PATH} 无 toonflow_ 残留,未改动`);
+    log("store-unchanged", `${storeFilePath} 无 toonflow_ 残留,未改动`);
   }
 }
 

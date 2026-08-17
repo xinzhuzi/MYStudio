@@ -12,6 +12,12 @@ import type { StateStorage } from 'zustand/middleware';
 import { fileStorage } from './indexed-db-storage';
 import { useProjectStore } from '@/stores/project/project-store';
 import { useAppSettingsStore } from '@/stores/app/app-settings-store';
+import {
+  mergeStudioWorkflowShards,
+  parseStudioWorkflowShardManifest,
+  planStudioWorkflowShards,
+  STUDIO_WORKFLOW_SHARD_DIR,
+} from './studio-workflow-shards';
 
 // ==================== Helpers ====================
 
@@ -151,6 +157,224 @@ export function createProjectScopedStorage(storeName: string): StateStorage {
       await fileStorage.removeItem(projectKey);
     },
   };
+}
+
+// ==================== Studio Workflow Sharded Storage ====================
+
+/** manifest 里的磁盘文件名（含 .json）→ fileStorage 虚拟键（IPC 层会再补 .json）。 */
+function shardFileKeyPrefix(pid: string): string {
+  return `_p/${pid}/${STUDIO_WORKFLOW_SHARD_DIR}`;
+}
+
+function shardKeyForFile(pid: string, shardFileName: string): string {
+  return `${shardFileKeyPrefix(pid)}/${shardFileName.replace(/\.json$/, "")}`;
+}
+
+async function fileStorageKeyExists(key: string): Promise<boolean> {
+  const bridge = typeof window !== 'undefined' ? window.fileStorage : undefined;
+  if (bridge?.exists) {
+    try {
+      return await bridge.exists(key);
+    } catch {
+      // falls through to content probe
+    }
+  }
+  return Boolean(await fileStorage.getItem(key));
+}
+
+/**
+ * 串行化分片写入：zustand persist 的相邻 setItem 可能交叠。分片+manifest 是
+ * 多文件一代写入，必须整代完成后才进入下一代，否则 manifest 会指向混合代分片。
+ */
+function createWriteSerializer(): (action: () => Promise<void>) => Promise<void> {
+  let tail: Promise<void> = Promise.resolve();
+  return (action) => {
+    const run = tail.then(action, action);
+    tail = run.catch(() => undefined);
+    return run;
+  };
+}
+
+/**
+ * Creates a StateStorage for the studio-workflow store that persists the
+ * envelope as ≤512KB domain shards under `_p/{pid}/studio-workflow/`
+ * (manifest-driven), falling back to the legacy single file while a project
+ * has not been migrated yet.
+ *
+ * - getItem: manifest 存在 → 按 manifest 合并分片；任一分片缺失/损坏 → 回退
+ *   项目级旧单文件 → 根级 legacy 键（与 createProjectScopedStorage 相同链路）
+ * - setItem: 拆片写入（单条超限独占一片，绝不截断）→ manifest 最后原子换新 →
+ *   旧单文件改名 `studio-workflow-store.bak-sharded-<ts>` 保留 → 清理未列出孤儿
+ */
+export function createStudioWorkflowShardedStorage(storeName: string): StateStorage {
+  const serializeWrite = createWriteSerializer();
+
+  const readMergedShards = async (pid: string): Promise<string | null> => {
+    const manifestRaw = await fileStorage.getItem(`${shardFileKeyPrefix(pid)}/manifest`);
+    if (!manifestRaw) return null;
+    const manifest = parseStudioWorkflowShardManifest(manifestRaw);
+    if (!manifest) {
+      throw new Error('studio-workflow manifest 无法解析');
+    }
+    const contents: string[] = [];
+    for (const shardName of manifest.shards) {
+      const raw = await fileStorage.getItem(shardKeyForFile(pid, shardName));
+      if (typeof raw !== 'string') {
+        throw new Error(`studio-workflow 分片缺失: ${shardName}`);
+      }
+      contents.push(raw);
+    }
+    const merged = mergeStudioWorkflowShards(contents);
+    return JSON.stringify({ state: merged.state, version: manifest.version });
+  };
+
+  return {
+    getItem: async (name: string): Promise<string | null> => {
+      // 等待 project-store 完成 rehydration，确保拿到正确的 activeProjectId
+      if (!useProjectStore.persist.hasHydrated()) {
+        await new Promise<void>((resolve) => {
+          const unsub = useProjectStore.persist.onFinishHydration(() => {
+            unsub();
+            resolve();
+          });
+        });
+      }
+
+      const pid = getActiveProjectId();
+      if (!pid) {
+        console.warn(`[StudioWorkflowShardedStorage] No activeProjectId, falling back to legacy key: ${name}`);
+        return fileStorage.getItem(name);
+      }
+
+      try {
+        const merged = await readMergedShards(pid);
+        if (merged !== null) return merged;
+      } catch (error) {
+        console.error('[StudioWorkflowShardedStorage] 分片读取失败，回退旧单文件:', error);
+      }
+
+      const projectKey = `_p/${pid}/${storeName}`;
+      const projectData = await fileStorage.getItem(projectKey);
+      if (projectData) return projectData;
+      return fileStorage.getItem(name);
+    },
+
+    setItem: async (name: string, value: string): Promise<void> => {
+      const dataProjectId = extractStudioWorkflowDataProjectId(value);
+      const pid = dataProjectId || getActiveProjectId();
+
+      if (!pid) {
+        // No project active, save to legacy location
+        await fileStorage.setItem(name, value);
+        return;
+      }
+
+      const routerPid = getActiveProjectId();
+      if (dataProjectId && routerPid && dataProjectId !== routerPid) {
+        console.warn(
+          `[StudioWorkflowShardedStorage] Routing mismatch for ${storeName}: data.pid=${dataProjectId.substring(0, 8)}, ` +
+          `router.pid=${routerPid.substring(0, 8)}. Using data.pid to prevent cross-project overwrite.`
+        );
+      }
+
+      await serializeWrite(async () => {
+        let plan;
+        try {
+          plan = planStudioWorkflowShards(value);
+        } catch (error) {
+          console.error('[StudioWorkflowShardedStorage] 分片规划失败，回退旧单文件写:', error);
+          await fileStorage.setItem(`_p/${pid}/${storeName}`, value);
+          return;
+        }
+        if (plan.oversizedFiles.length > 0) {
+          console.warn(
+            `[StudioWorkflowShardedStorage] 单条数据超过 512KB 预算，独占分片: ${plan.oversizedFiles.join(', ')}`
+          );
+        }
+
+        const prefix = shardFileKeyPrefix(pid);
+        // 先写全部分片（stamp 命名不会覆盖旧代文件），manifest 最后换新——
+        // 中途崩溃时旧 manifest 仍指向完整旧代，读端不会拿到混合代。
+        for (const file of plan.files) {
+          await fileStorage.setItem(shardKeyForFile(pid, file.name), file.content);
+        }
+        await fileStorage.setItem(`${prefix}/manifest`, JSON.stringify(plan.manifest));
+
+        // 旧单文件改名保留（只改名不删；已改名过则为空操作）
+        const legacyKey = `_p/${pid}/${storeName}`;
+        try {
+          if (await fileStorageKeyExists(legacyKey)) {
+            const bridge = typeof window !== 'undefined' ? window.fileStorage : undefined;
+            const renamed = bridge?.renameItem
+              ? await bridge.renameItem(legacyKey, `${legacyKey}.bak-sharded-${Date.now()}`)
+              : false;
+            if (!renamed) {
+              console.warn('[StudioWorkflowShardedStorage] 旧单文件改名未执行（renameItem 不可用），文件保留原位');
+            }
+          }
+        } catch (error) {
+          console.warn('[StudioWorkflowShardedStorage] 旧单文件改名失败（数据已在分片中，文件保留）:', error);
+        }
+
+        // 清理未被 manifest 列出的孤儿分片（上一代 stamp 文件）
+        try {
+          const bridge = typeof window !== 'undefined' ? window.fileStorage : undefined;
+          const listed = new Set(plan.manifest.shards.map((fileName) => fileName.replace(/\.json$/, '')));
+          if (bridge?.listKeys) {
+            const keys = await bridge.listKeys(prefix);
+            for (const key of keys) {
+              const base = key.slice(prefix.length + 1);
+              if (base === 'manifest' || listed.has(base)) continue;
+              await fileStorage.removeItem(key);
+            }
+          }
+        } catch (error) {
+          console.warn('[StudioWorkflowShardedStorage] 孤儿分片清理失败（不影响读取）:', error);
+        }
+      });
+    },
+
+    removeItem: async (name: string): Promise<void> => {
+      const pid = getActiveProjectId();
+      if (!pid) {
+        await fileStorage.removeItem(name);
+        return;
+      }
+      const prefix = shardFileKeyPrefix(pid);
+      const manifestRaw = await fileStorage.getItem(`${prefix}/manifest`);
+      if (manifestRaw) {
+        const manifest = parseStudioWorkflowShardManifest(manifestRaw);
+        if (manifest) {
+          for (const shardName of manifest.shards) {
+            await fileStorage.removeItem(shardKeyForFile(pid, shardName));
+          }
+        }
+      }
+      await fileStorage.removeItem(`${prefix}/manifest`);
+      const bridge = typeof window !== 'undefined' ? window.fileStorage : undefined;
+      try {
+        await bridge?.removeDir?.(prefix);
+      } catch {
+        // best-effort：逐文件删除已覆盖 manifest 记录的分片
+      }
+      await fileStorage.removeItem(`_p/${pid}/${storeName}`);
+      await fileStorage.removeItem(name);
+    },
+  };
+}
+
+/** studio-workflow state 本身不含 activeProjectId；预留防御位（与其他 store 同构）。 */
+function extractStudioWorkflowDataProjectId(value: string): string | null {
+  try {
+    const parsed = JSON.parse(value);
+    const state = parsed?.state ?? parsed;
+    if (state && typeof state === 'object' && isSafeProjectId(state.activeProjectId)) {
+      return state.activeProjectId;
+    }
+  } catch {
+    // fall through
+  }
+  return null;
 }
 
 // ==================== Split Storage ====================

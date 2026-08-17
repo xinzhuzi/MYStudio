@@ -224,6 +224,10 @@ function legacyArtifactIdFor(artifact: ArtifactRecord): string {
  *
  * Matches (against the basename, anchored to end):
  * - `.bak`, `.bak-xxx`, `.bak_xxx`
+ * - `.bak-sharded-<digits>.json` — renderer-side sharding rename goes through
+ *   the file-storage IPC which always appends `.json`, so this exact shape is
+ *   carved out (CLI-side rename keeps the suffix-less `.json.bak-sharded-<ts>`
+ *   shape already covered by the generic `.bak-xxx` rule above).
  * - `.codex-xxx`, `.codex-white-screen-test-backup`
  * - `.smoke-xxx`
  *
@@ -237,7 +241,7 @@ function legacyArtifactIdFor(artifact: ArtifactRecord): string {
  *   so this is a valid range-free class (no SyntaxError, unlike the addendum's
  *   invalid `[-_-.]` range).
  */
-const BACKUP_SUFFIX_RE = /\.(?:bak(?:[-_][^.]*)?$|codex[-_][^.]*$|smoke[-_][^.]*$)/i;
+const BACKUP_SUFFIX_RE = /\.(?:bak(?:[-_][^.]*)?$|bak-sharded-\d+\.json$|codex[-_][^.]*$|smoke[-_][^.]*$)/i;
 
 /**
  * Project-root subdirectories that hold whole-store snapshots rather than live

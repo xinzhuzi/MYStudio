@@ -37,6 +37,7 @@ import {
 } from "./render-smoke-evidence";
 import {
   deriveStorageRoots,
+  readStudioWorkflowStoreState,
   resolveProjectDir,
   resolveTimelineSourcePath,
   resolveUserDataDir,
@@ -121,7 +122,9 @@ export async function runRemotionShotSlots(): Promise<ShotSlotReport> {
   const projectDir = resolveProjectDir();
   const { projectId, dataRoot } = deriveStorageRoots(projectDir);
   const storePath = path.join(projectDir, "studio-workflow-store.json");
-  const state = requireState(readJson(storePath), storePath);
+  const storeSnapshot = readStudioWorkflowStoreState(projectDir);
+  if (!storeSnapshot) throw new Error(`studio-workflow store 不存在（分片/单文件均缺失）: ${storePath}`);
+  const state = requireState(storeSnapshot.state, storePath);
   const storyboards = state.storyboards
     .filter((value) => isRecord(value) && value.episodeId === chapterId)
     .map((value) => normalizeStoryboard(value as StoryboardItem, projectDir, dataRoot, projectId))

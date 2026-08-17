@@ -15,6 +15,10 @@ import http from "node:http";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { terminateSpawnedApp } from "./smoke-process-lifecycle.mjs";
+import {
+  copyStudioWorkflowStoreDir,
+  readStudioWorkflowStore,
+} from "../shared/studio-workflow-store.mjs";
 
 const REQUIRED_PLUGIN_IDS = ["remotion", "video-use", "hyperframes", "seedance-prompt"];
 const EXECUTION_PLUGIN_IDS = ["remotion", "video-use", "hyperframes"];
@@ -243,18 +247,18 @@ export function evaluateSourceStoryboardGate(storyboards, chapterId, storyboardS
 
 function inspectSourceStoryboardGate(sourceProjectDir, chapterId, storyboardSourcePolicy = "current-ready") {
   const sourcePath = join(sourceProjectDir, "studio-workflow-store.json");
-  if (!existsSync(sourcePath)) {
-    return {
-      ok: false,
-      state: "blocked",
-      storyboardCount: 0,
-      blockedStoryboards: [],
-      message: `源项目缺少 studio-workflow-store.json: ${sourcePath}`,
-    };
-  }
   try {
-    const parsed = JSON.parse(readFileSync(sourcePath, "utf8"));
-    return evaluateSourceStoryboardGate(parsed?.state?.storyboards, chapterId, storyboardSourcePolicy);
+    const store = readStudioWorkflowStore(sourceProjectDir);
+    if (!store) {
+      return {
+        ok: false,
+        state: "blocked",
+        storyboardCount: 0,
+        blockedStoryboards: [],
+        message: `源项目缺少 studio-workflow store（分片/单文件均缺失）: ${sourcePath}`,
+      };
+    }
+    return evaluateSourceStoryboardGate(store.state.storyboards, chapterId, storyboardSourcePolicy);
   } catch (error) {
     return {
       ok: false,
@@ -294,6 +298,10 @@ export function cloneAcceptedVideoWorkflowProject({ sourceStorageBasePath, proje
   }
   for (const fileName of VIDEO_WORKFLOW_STORE_FILES) {
     if (copyIfExists(join(sourceProjectDir, fileName), join(targetProjectDir, fileName))) copiedStoreFiles.push(fileName);
+  }
+  // studio-workflow store 分片布局（studio-workflow/ 目录）与旧单文件并存兼容
+  if (copyStudioWorkflowStoreDir(sourceProjectDir, targetProjectDir)) {
+    copiedStoreFiles.push("studio-workflow/");
   }
   // The smoke must prove the UI creates this file. Do not seed source editing.json.
   if (existsSync(join(targetProjectDir, "editing.json"))) throw new Error("隔离副本不应预置 editing.json");

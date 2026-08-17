@@ -69,6 +69,7 @@ import {
   resolveProjectDir,
   resolveStorageBasePath,
   resolveUserDataDir,
+  readStudioWorkflowStoreState,
 } from "./storage-paths";
 import {
   assertRenderedMediaEvidence,
@@ -225,15 +226,12 @@ async function buildBoundaryIntents(
   chapterId: string,
   shotInputs: ShotSlotInfo[],
 ): Promise<VideoUseBoundaryIntentV1[]> {
-  const storePath = path.join(projectDir, "studio-workflow-store.json");
-  if (!fs.existsSync(storePath)) return [];
-  const store = JSON.parse(fs.readFileSync(storePath, "utf8")) as {
-    state?: {
-      storyboards?: Array<{ id: string; episodeId: string; index: number; trackKey?: string; shotSemantics?: { transitionToNext?: { styleWord: string; moodWord?: string } } }>;
-      scriptPlans?: Array<{ episodeId?: string; transitions?: string }>;
-    };
+  const store = readStudioWorkflowStoreState(projectDir);
+  if (!store) return [];
+  const state = store.state as {
+    storyboards?: Array<{ id: string; episodeId: string; index: number; trackKey?: string; shotSemantics?: { transitionToNext?: { styleWord: string; moodWord?: string } } }>;
+    scriptPlans?: Array<{ episodeId?: string; transitions?: string }>;
   };
-  const state = store.state ?? store;
   const plan = (state.scriptPlans ?? []).find((candidate) => candidate.episodeId === chapterId);
   const storyboards = (state.storyboards ?? []).filter((storyboard) => storyboard.episodeId === chapterId);
   const { intents, warnings } = assembleBoundaryIntents({
@@ -600,10 +598,9 @@ export async function runFullPipeline(): Promise<Record<string, unknown>> {
   const imagePathByShotId = (() => {
     const map = new Map<string, string>();
     try {
-      const storeForImages = JSON.parse(fs.readFileSync(path.join(projectDir, "studio-workflow-store.json"), "utf8")) as {
-        state?: { storyboards?: Array<{ id: string; episodeId: string; mediaRef?: { path?: string } }> };
-      };
-      for (const storyboard of storeForImages.state?.storyboards ?? []) {
+      const storeForImages = readStudioWorkflowStoreState(projectDir);
+      const imageStoryboards = (storeForImages?.state.storyboards ?? []) as Array<{ id: string; episodeId: string; mediaRef?: { path?: string } }>;
+      for (const storyboard of imageStoryboards) {
         if (storyboard.episodeId !== chapterId || !storyboard.mediaRef?.path) continue;
         try {
           map.set(storyboard.id, resolveTimelineSourcePath({
@@ -882,10 +879,9 @@ export async function runFullPipeline(): Promise<Record<string, unknown>> {
   if (process.env.MYSTUDIO_SHOT_FX !== "0") {
     const shotFxStoryboards = (() => {
       try {
-        const fxStore = JSON.parse(fs.readFileSync(path.join(projectDir, "studio-workflow-store.json"), "utf8")) as {
-          state?: { storyboards?: Array<{ id: string; episodeId: string; prompt?: string; line?: string; shotFx?: { motion?: unknown } }> };
-        };
-        return (fxStore.state?.storyboards ?? []).filter((storyboard) => storyboard.episodeId === chapterId);
+        const fxStore = readStudioWorkflowStoreState(projectDir);
+        const fxStoryboards = (fxStore?.state.storyboards ?? []) as Array<{ id: string; episodeId: string; prompt?: string; line?: string; shotFx?: { motion?: unknown } }>;
+        return fxStoryboards.filter((storyboard) => storyboard.episodeId === chapterId);
       } catch { return [] }
     })();
     const shotFx = mergeShotFxEditingEffects(plan.effects, {
@@ -989,10 +985,8 @@ export async function runFullPipeline(): Promise<Record<string, unknown>> {
         cinematicByClipId = new Map();
         // 逐镜运镜选择：确定性关键词启发式（cinematic-preset-ai 的兜底路径，
         // CLI 无渲染端 aiManager；规则按 prompt 画面 + line 台词匹配镜头语言）
-        const storeForPresets = JSON.parse(fs.readFileSync(path.join(projectDir, "studio-workflow-store.json"), "utf8")) as {
-          state?: { storyboards?: Array<{ id: string; episodeId: string; prompt?: string; line?: string }> };
-        };
-        const presetInputs = (storeForPresets.state?.storyboards ?? [])
+        const storeForPresets = readStudioWorkflowStoreState(projectDir);
+        const presetInputs = ((storeForPresets?.state.storyboards ?? []) as Array<{ id: string; episodeId: string; prompt?: string; line?: string }>)
           .filter((storyboard) => storyboard.episodeId === chapterId)
           .map((storyboard) => ({
             shotId: storyboard.id,

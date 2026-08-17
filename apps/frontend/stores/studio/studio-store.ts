@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
-import { createProjectScopedStorage } from "@/lib/storage/project-storage";
+import { createStudioWorkflowShardedStorage } from "@/lib/storage/project-storage";
 import {
   buildAssetImageWorkflowPatch,
   buildStoryboardImageWorkflowPatch,
@@ -738,7 +738,7 @@ export const useStudioStore = create<StudioWorkflowStore>()(
     },
     {
       name: STUDIO_WORKFLOW_STORAGE_KEY,
-      storage: createJSONStorage(() => createProjectScopedStorage(STUDIO_WORKFLOW_STORAGE_KEY)),
+      storage: createJSONStorage(() => createStudioWorkflowShardedStorage(STUDIO_WORKFLOW_STORAGE_KEY)),
       version: STUDIO_WORKFLOW_PERSIST_VERSION,
       migrate: (persistedState) => migrateStudioWorkflowState(persistedState),
     },

@@ -119,7 +119,8 @@ function classifyProjectFile({ filePath, projectRoot, dataDir, projectId, source
   const escaped = !isInside(dataDir, filePath);
   const isBackup = normalized.includes("/backups/") || normalized.startsWith("backups/");
   const isRemotion = normalized.includes("/remotion/") || normalized.includes("/outputs/") || normalized.includes("/evidence/");
-  const mixedWorkflow = baseName === "studio-workflow-store.json";
+  // studio-workflow store：旧单文件与分片布局（studio-workflow/ 目录）同等级保护
+  const mixedWorkflow = baseName === "studio-workflow-store.json" || normalized.includes("/studio-workflow/");
   const isEditing = baseName === "editing.json";
   const kind = escaped ? "path-escape" : isBackup ? "protected-backup" : isRemotion ? classifyRemotionFile(baseName) : mixedWorkflow ? "legacy-workflow-state" : isEditing ? "legacy-editing-store" : classifyLegacyFile(normalized);
   const protectedReason = escaped

@@ -1,3 +1,4 @@
+import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import { ensureBrowser, renderMedia, selectComposition } from "@remotion/renderer";
@@ -24,6 +25,7 @@ import {
 } from "./render-smoke-evidence";
 import {
   deriveStorageRoots,
+  readStudioWorkflowStoreState,
   resolveProjectDir,
   resolveRemotionRuntimeDir,
   resolveTimelineSourcePath,
@@ -338,11 +340,11 @@ export async function loadFirstShotSource(
   options: FirstShotSourceLoadOptions = {},
 ): Promise<FirstShotSource> {
   const approvedReplay = options.replay === "approved-production";
-  const [store, script] = await Promise.all([
-    readJsonRecord(sourceStorePath),
-    readJsonRecord(scriptPath),
-  ]);
-  const state = requireRecord(store.state, `${sourceStorePath}.state`);
+  // store 读取走分片感知入口（legacy 单文件已随分片化改名）；sourceStorePath 仅作快照身份锚点保留。
+  const sourceStore = readStudioWorkflowStoreState(projectRoot);
+  if (!sourceStore) throw new Error(`studio-workflow store 不存在（分片/单文件均缺失）: ${projectRoot}`);
+  const script = await readJsonRecord(scriptPath);
+  const state = sourceStore.state;
   const storyboards = requireArray(state.storyboards, `${sourceStorePath}.state.storyboards`);
   const storyboard = storyboards.find((value) => isRecord(value) && value.id === shotId);
   if (!isRecord(storyboard)) throw new Error(`未找到首镜 storyboard: ${projectId}/${chapterId}/${shotId}`);
@@ -405,7 +407,7 @@ export async function loadFirstShotSource(
     if (!stat?.isFile() || stat.size <= 0) throw new Error(`首镜${label}不存在或为空: ${filePath}`);
   }
   const [sourceStoreSha256, scriptSha256, imageSha256, audioSha256] = await Promise.all([
-    hashFileSha256(sourceStorePath),
+    Promise.resolve(crypto.createHash("sha256").update(sourceStore.raw, "utf8").digest("hex")),
     hashFileSha256(scriptPath),
     hashFileSha256(resolvedImagePath),
     hashFileSha256(audioPath),

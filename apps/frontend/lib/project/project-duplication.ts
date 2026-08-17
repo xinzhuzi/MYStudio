@@ -106,5 +106,57 @@ export async function copyProjectScopedStoreFiles(
     copiedCount += 1;
   }
 
+  copiedCount += await copyStudioWorkflowShards(
+    storage,
+    sourceProjectId,
+    targetProjectId,
+  );
+
+  return copiedCount;
+}
+
+/**
+ * studio-workflow store 分片持久化后，数据住在 `_p/{pid}/studio-workflow/`
+ * （manifest + 域分片），listKeys 只列顶层 .json 看不见子目录——按 manifest
+ * 逐片拷贝到目标项目。分片内容不含 projectId，按原文搬运即可。
+ */
+async function copyStudioWorkflowShards(
+  storage: ProjectFileStorageCopyApi,
+  sourceProjectId: string,
+  targetProjectId: string,
+): Promise<number> {
+  const sourceDirKey = `_p/${sourceProjectId}/studio-workflow`;
+  const manifestRaw = await storage.getItem(`${sourceDirKey}/manifest`);
+  if (!manifestRaw) return 0;
+
+  let shardNames: string[] = [];
+  try {
+    const manifest = JSON.parse(manifestRaw) as { shards?: unknown };
+    if (Array.isArray(manifest.shards)) {
+      shardNames = manifest.shards.filter(
+        (name): name is string => typeof name === "string" && /^[^/\\]+\.json$/.test(name),
+      );
+    }
+  } catch {
+    // manifest 损坏 → 单文件兜底拷贝（若存在）已被主循环覆盖
+  }
+
+  let copiedCount = 0;
+  for (const key of [
+    `${sourceDirKey}/manifest`,
+    ...shardNames.map((name) => `${sourceDirKey}/${name.replace(/\.json$/, "")}`),
+  ]) {
+    const rawData = await storage.getItem(key);
+    if (!rawData) continue;
+    const targetKey = key.replace(
+      `_p/${sourceProjectId}`,
+      `_p/${targetProjectId}`,
+    );
+    const saved = await storage.setItem(targetKey, rawData);
+    if (!saved) {
+      throw new Error(`项目数据写入失败: ${targetKey}`);
+    }
+    copiedCount += 1;
+  }
   return copiedCount;
 }

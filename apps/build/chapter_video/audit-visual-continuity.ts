@@ -1,7 +1,6 @@
-import fs from "node:fs";
 import path from "node:path";
 import { auditVisualContinuity } from "@/lib/studio/visual-continuity";
-import { resolveProjectDir } from "../timeline/storage-paths";
+import { readStudioWorkflowStoreState, resolveProjectDir } from "../timeline/storage-paths";
 import type {
   ContinuityAssetVersion,
   StoryboardItem,
@@ -50,9 +49,9 @@ export function auditVisualContinuityState(
 async function main() {
   const projectDir = resolveProjectDir();
   const storePath = path.join(projectDir, "studio-workflow-store.json");
-  if (!fs.existsSync(storePath)) throw new Error(`视觉连续性 store 不存在: ${storePath}`);
-  const document = JSON.parse(fs.readFileSync(storePath, "utf8")) as { state?: StudioState } & StudioState;
-  const report = auditVisualContinuityState(document.state ?? document);
+  const storeSnapshot = readStudioWorkflowStoreState(projectDir);
+  if (!storeSnapshot) throw new Error(`视觉连续性 store 不存在（分片/单文件均缺失）: ${storePath}`);
+  const report = auditVisualContinuityState(storeSnapshot.state as unknown as StudioState);
   process.stdout.write(`${JSON.stringify({ ...report, projectDir, storePath }, null, 2)}\n`);
 }
 

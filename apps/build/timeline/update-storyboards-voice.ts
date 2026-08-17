@@ -28,7 +28,8 @@ import type {
   RemotionChapterManifestV2,
 } from "@/types/remotion-workspace";
 import type { StoryboardItem, StoryboardTtsJobV1 } from "@/types/studio";
-import { deriveStorageRoots, resolveProjectDir, resolveTimelineSourcePath } from "./storage-paths";
+import { writeStudioWorkflowStore } from "@/electron/storage/studio-workflow-store-io";
+import { deriveStorageRoots, readStudioWorkflowStoreState, resolveProjectDir, resolveTimelineSourcePath } from "./storage-paths";
 
 function toProjectFileUrl(projectId: string, relativePath: string): string {
   return `project-file://${encodeURIComponent(projectId)}/${relativePath
@@ -60,16 +61,15 @@ async function main(): Promise<void> {
   }
 
   const storePath = path.join(projectDir, "studio-workflow-store.json");
-  const store = JSON.parse(fs.readFileSync(storePath, "utf8")) as {
-    state?: { storyboards?: StoryboardItem[] };
-    storyboards?: StoryboardItem[];
-  };
-  const state = store.state ?? store;
+  const storeSnapshot = readStudioWorkflowStoreState(projectDir);
+  if (!storeSnapshot) throw new Error(`studio-workflow store 不存在（分片/单文件均缺失）: ${storePath}`);
+  const state = storeSnapshot.state as { storyboards?: StoryboardItem[] };
   const storyboards = state.storyboards;
   if (!Array.isArray(storyboards)) throw new Error(`${storePath} 缺少 storyboards 数组`);
 
+  // 备份为 legacy 风格单文件快照（分片布局下同样落一份合并快照，保留原语义）
   const backupPath = `${storePath}.bak-voice-${Date.now()}`;
-  fs.copyFileSync(storePath, backupPath);
+  fs.writeFileSync(backupPath, storeSnapshot.raw, "utf8");
   console.log(`[voice-storyboard] store 备份 → ${backupPath}`);
 
   const now = Date.now();
@@ -133,8 +133,16 @@ async function main(): Promise<void> {
   if (updated !== bindingByShotId.size) {
     throw new Error(`更新的 storyboard 数 ${updated} ≠ manifest bindings ${bindingByShotId.size}`);
   }
-  fs.writeFileSync(storePath, `${JSON.stringify(store, null, 2)}\n`, "utf8");
-  console.log(`[voice-storyboard] 完成: ${updated} 个 storyboard 绑定 voice + authority + ttsJob，stale 已清除`);
+  // 写回走分片布局（legacy 项目首次写回即完成分片化迁移，旧单文件改名保留）
+  const writeResult = writeStudioWorkflowStore(
+    roots.dataRoot,
+    projectId,
+    JSON.stringify({ state: storeSnapshot.state, version: storeSnapshot.version }),
+  );
+  if (writeResult.legacyBackupPath) {
+    console.log(`[voice-storyboard] legacy 单文件已改名保留 → ${writeResult.legacyBackupPath}`);
+  }
+  console.log(`[voice-storyboard] 完成: ${updated} 个 storyboard 绑定 voice + authority + ttsJob，stale 已清除（${writeResult.shardNames.length} 片）`);
 }
 
 main().catch((error) => {

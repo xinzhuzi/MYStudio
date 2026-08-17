@@ -25,6 +25,11 @@ import {
   sampleFrontmostApplication,
 } from "./smoke-focus.mjs";
 import { repairMissingCharacterThumbnails } from "./repair-cloned-assets.mjs";
+import {
+  copyStudioWorkflowStoreDir,
+  readStudioWorkflowStore,
+  writeStudioWorkflowStore,
+} from "../shared/studio-workflow-store.mjs";
 
 const appBinCandidates = [
   process.env.MYSTUDIO_SMOKE_APP_BIN,
@@ -393,12 +398,13 @@ function cloneRealProjectUserData() {
 
   const projectDir = resolve(sourceProjectsDir, "_p", project.id);
   const workflowStorePath = resolve(projectDir, "studio-workflow-store.json");
-  if (!existsSync(workflowStorePath)) {
+  // 分片感知读取：studio-workflow/manifest.json 优先，旧单文件兜底
+  const workflowStore = readStudioWorkflowStore(projectDir);
+  if (!workflowStore) {
     throw new Error(`Real-project workflow store was not found: ${workflowStorePath}`);
   }
 
-  const workflowStore = readJsonFile(workflowStorePath);
-  const workflowState = workflowStore?.state || {};
+  const workflowState = workflowStore.state || {};
   const chapter = (workflowState.novelChapters || []).find(
     (candidate) => candidate.id === realProjectChapterId,
   );
@@ -469,12 +475,14 @@ function cloneRealProjectUserData() {
       resolve(clonedProjectDir, `${storeName}.json`),
     );
   }
+  copyStudioWorkflowStoreDir(projectDir, clonedProjectDir);
 
   // Patch cloned storyboards with sourceId/revision so chapter auto-video identity checks pass.
+  // 克隆 store 可能是分片布局——读写均走分片感知入口，原布局按原布局写回。
   const clonedWorkflowStorePath = resolve(clonedProjectDir, "studio-workflow-store.json");
-  if (existsSync(clonedWorkflowStorePath)) {
-    const workflowStore = JSON.parse(readFileSync(clonedWorkflowStorePath, "utf8"));
-    const state = workflowStore?.state || {};
+  const clonedWorkflowStore = readStudioWorkflowStore(clonedProjectDir);
+  if (clonedWorkflowStore) {
+    const state = clonedWorkflowStore.state || {};
     const storyboards = state.storyboards || [];
     if (storyboards.length > 0) {
       const chapterSourceId = chapter.sourceId || chapter.id;
@@ -487,8 +495,12 @@ function cloneRealProjectUserData() {
           storyboard.revision = chapterRevision;
         }
       }
-      workflowStore.state = { ...state, storyboards };
-      writeFileSync(clonedWorkflowStorePath, JSON.stringify(workflowStore), "utf8");
+      const nextRaw = JSON.stringify({
+        state: { ...state, storyboards },
+        version: clonedWorkflowStore.version,
+      });
+      if (clonedWorkflowStore.sharded) writeStudioWorkflowStore(clonedProjectDir, nextRaw);
+      else writeFileSync(clonedWorkflowStorePath, nextRaw, "utf8");
     }
   }
 
@@ -530,7 +542,8 @@ function cloneRealProjectUserData() {
 
 function inspectClonedProjectData(userDataDir, projectId = realProjectId) {
   const projectDir = resolve(userDataDir, "projects", "_p", projectId);
-  const workflowState = readJsonFile(resolve(projectDir, "studio-workflow-store.json")).state || {};
+  const workflowStore = readStudioWorkflowStore(projectDir);
+  const workflowState = workflowStore?.state || {};
   const characters = existsSync(resolve(projectDir, "characters.json"))
     ? readJsonFile(resolve(projectDir, "characters.json")).state?.characters || []
     : [];
@@ -1152,9 +1165,33 @@ function realProjectWorkflowExpression(
       const raw = await window.fileStorage?.getItem?.(key);
       return raw ? JSON.parse(raw) : null;
     };
+    // studio-workflow store 分片感知读取（页内经 fileStorage IPC：manifest → 分片合并 → legacy 兜底）
+    const readWorkflowStore = async () => {
+      const shardDirKey = '_p/' + projectId + '/studio-workflow';
+      const manifestRaw = await window.fileStorage?.getItem?.(shardDirKey + '/manifest');
+      if (!manifestRaw) return readJsonStore('_p/' + projectId + '/studio-workflow-store');
+      let manifest = null;
+      try { manifest = JSON.parse(manifestRaw); } catch { return null; }
+      if (!manifest || !Array.isArray(manifest.shards)) return null;
+      const merged = {};
+      let version = 0;
+      for (const shardName of manifest.shards) {
+        const raw = await window.fileStorage?.getItem?.(shardDirKey + '/' + shardName.replace(/\.json$/, ''));
+        if (!raw) throw new Error('studio-workflow 分片缺失: ' + shardName);
+        const envelope = JSON.parse(raw);
+        if (typeof envelope?.version === 'number') version = Math.max(version, envelope.version);
+        for (const [stateKey, value] of Object.entries(envelope?.state || {})) {
+          const existing = merged[stateKey];
+          merged[stateKey] = Array.isArray(existing) && Array.isArray(value)
+            ? [...existing, ...value]
+            : value;
+        }
+      }
+      return { state: merged, version };
+    };
     const inspectProjectData = async () => {
       const projectStore = await readJsonStore('mystudio-project-store');
-      const workflowStore = await readJsonStore('_p/' + projectId + '/studio-workflow-store');
+      const workflowStore = await readWorkflowStore();
       const charactersStore = await readJsonStore('_p/' + projectId + '/characters');
       const scenesStore = await readJsonStore('_p/' + projectId + '/scenes');
       const propsStore = await readJsonStore('_p/' + projectId + '/props');

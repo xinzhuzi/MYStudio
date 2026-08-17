@@ -107,6 +107,7 @@ import { createProjectLocationStore } from '../storage/project-locations'
 import { createDefaultProjectMoveEngine } from '../storage/project-move-engine'
 import { registerProjectFolderIpcHandlers } from '../ipc/projects/project-folder-ipc'
 import { parseProjectFileUrl, resolveDataFilePath } from '../storage/storage-paths'
+import { readStudioWorkflowStore } from '../storage/studio-workflow-store-io'
 import { validateEditingProject } from '../../lib/studio/editing/validation'
 import type { RemotionCurrentSlotV1 } from '../../types/remotion-workspace'
 import { compileTimelineRenderPlan } from '../../lib/studio/editing/timeline-render-compiler'
@@ -758,11 +759,9 @@ const buildManagedVideoUseChapterRun = (request: VideoWorkflowChapterRunRequestV
   const imagePathByShotId = (() => {
     const map = new Map<string, string>()
     try {
-      const storePath = resolveDataFilePath(getDataDir(), `_p/${request.projectId}/studio-workflow-store`)
-      const store = JSON.parse(fs.readFileSync(storePath, 'utf8')) as {
-        state?: { storyboards?: Array<{ id: string; episodeId: string; mediaRef?: { path?: string } }> }
-      }
-      for (const storyboard of store.state?.storyboards ?? []) {
+      const store = readStudioWorkflowStore(getDataDir(), request.projectId)
+      const storyboards = (store?.state?.storyboards ?? []) as Array<{ id: string; episodeId: string; mediaRef?: { path?: string } }>
+      for (const storyboard of storyboards) {
         if (storyboard.episodeId !== request.chapterId || !storyboard.mediaRef?.path) continue
         const parsed = parseProjectFileUrl(storyboard.mediaRef.path)
         if (!parsed || parsed.projectId !== request.projectId) continue
@@ -1067,11 +1066,9 @@ async function loadChapterStudioProjection(request: { projectId: string; chapter
   // plan.effects → 运镜变化自动失效缓存。幂等：前缀识别旧 shotFx 条目并替换。
   const shotFxStoryboards = (() => {
     try {
-      const storePath = resolveDataFilePath(getDataDir(), `_p/${request.projectId}/studio-workflow-store`)
-      const store = JSON.parse(fs.readFileSync(storePath, 'utf8')) as {
-        state?: { storyboards?: Array<{ id: string; episodeId: string; prompt?: string; line?: string; shotFx?: { motion?: unknown } }> }
-      }
-      return (store.state?.storyboards ?? []).filter((storyboard) => storyboard.episodeId === request.chapterId)
+      const store = readStudioWorkflowStore(getDataDir(), request.projectId)
+      const storyboards = (store?.state?.storyboards ?? []) as Array<{ id: string; episodeId: string; prompt?: string; line?: string; shotFx?: { motion?: unknown } }>
+      return storyboards.filter((storyboard) => storyboard.episodeId === request.chapterId)
     } catch { /* store 缺失 → 仅规则轮换运镜 */ }
     return []
   })()

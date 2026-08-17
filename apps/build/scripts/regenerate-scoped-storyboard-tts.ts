@@ -10,7 +10,12 @@ import {
 import { LOCAL_TTS_BASE_URL } from "@/lib/tts/constants";
 import type { TtsGenerateResponse, VoiceProfile } from "@/types/tts";
 import { RemotionChapterManifestService } from "@rendering/plugins/remotion/manifest/remotion-chapter-manifest-service";
+import { writeStudioWorkflowStore } from "@/electron/storage/studio-workflow-store-io";
 import { probeRenderedMedia } from "../remotion/render-smoke-evidence";
+import {
+  deriveStorageRoots,
+  readStudioWorkflowStoreState,
+} from "../timeline/storage-paths";
 
 type StoryboardTtsWriteback = Awaited<ReturnType<typeof runStoryboardTtsGeneration>>;
 
@@ -280,12 +285,14 @@ export async function runScopedStoryboardTtsRepair(): Promise<void> {
   const token = requiredEnv("MYSTUDIO_TTS_CONTROL_TOKEN");
   const baseUrl = process.env.MYSTUDIO_TTS_BASE_URL?.trim() || LOCAL_TTS_BASE_URL;
   const storePath = path.join(projectRoot, "studio-workflow-store.json");
-  const initialRaw = fs.readFileSync(storePath);
-  const initialSha256 = sha256(initialRaw);
-  const initialStore = parseWorkflowStore(initialRaw.toString("utf8"));
+  // 分片感知读取：分片布局优先，legacy 单文件兜底（raw 为 CAS 基准串）
+  const initialSnapshot = readStudioWorkflowStoreState(projectRoot);
+  if (!initialSnapshot) throw new Error(`studio-workflow store 不存在（分片/单文件均缺失）: ${storePath}`);
+  const initialSha256 = sha256(initialSnapshot.raw);
+  const initialStore = parseWorkflowStore(initialSnapshot.raw);
   const selected = selectScopedStoryboards(initialStore.state.storyboards, shotIds);
   const backupPath = `${storePath}.bak-scoped-tts-${Date.now()}`;
-  fs.copyFileSync(storePath, backupPath, fs.constants.COPYFILE_EXCL);
+  fs.writeFileSync(backupPath, initialSnapshot.raw, { encoding: "utf8", flag: "wx" });
 
   const profileRows = await requestJson<TtsProfileRow[]>(baseUrl, token, "/profiles");
   const profilesById = new Map(profileRows.map((row) => [row.id, row]));
@@ -330,24 +337,22 @@ export async function runScopedStoryboardTtsRepair(): Promise<void> {
     results.push({ storyboardId: storyboard.id, writeback });
   }
 
-  const latestRaw = fs.readFileSync(storePath);
-  if (sha256(latestRaw) !== initialSha256) {
-    throw new Error("TTS 生成期间 studio-workflow-store.json 已变化，拒绝覆盖");
+  const latestSnapshot = readStudioWorkflowStoreState(projectRoot);
+  if (!latestSnapshot || sha256(latestSnapshot.raw) !== initialSha256) {
+    throw new Error("TTS 生成期间 studio-workflow-store 已变化，拒绝覆盖");
   }
-  const nextStore = parseWorkflowStore(latestRaw.toString("utf8"));
+  const nextStore = parseWorkflowStore(latestSnapshot.raw);
   nextStore.state.storyboards = applyScopedTtsResults(nextStore.state.storyboards, results);
-  const tempPath = `${storePath}.tmp-scoped-tts-${process.pid}-${Date.now()}`;
-  try {
-    fs.writeFileSync(tempPath, `${JSON.stringify(nextStore)}\n`, { flag: "wx" });
-    if (sha256(fs.readFileSync(storePath)) !== initialSha256) {
-      throw new Error("原子替换前 studio-workflow-store.json 已变化，拒绝覆盖");
-    }
-    fs.renameSync(tempPath, storePath);
-  } finally {
-    if (fs.existsSync(tempPath)) fs.rmSync(tempPath);
-  }
-
-  const finalSha256 = sha256(fs.readFileSync(storePath));
+  // 写回走分片布局（stamp 换名 + manifest 最后换新；legacy 项目首次写回即迁移）
+  const writeResult = writeStudioWorkflowStore(
+    deriveStorageRoots(projectRoot).dataRoot,
+    projectId,
+    JSON.stringify({ state: nextStore.state, version: nextStore.version }),
+  );
+  // 写回后复核：重读合并串必须反映本次写回（CAS 闭环）
+  const verifySnapshot = readStudioWorkflowStoreState(projectRoot);
+  if (!verifySnapshot) throw new Error("studio-workflow store 写回后不可读");
+  const finalSha256 = sha256(verifySnapshot.raw);
   process.stdout.write(`${JSON.stringify({
     ok: true,
     projectId,
