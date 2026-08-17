@@ -2,11 +2,12 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
   handlers: new Map<string, (...args: unknown[]) => unknown>(),
-  existsSync: vi.fn(() => true),
+  existsSync: vi.fn((_target?: unknown) => true),
   mkdirSync: vi.fn(),
   writeFile: vi.fn(async () => undefined),
   readFile: vi.fn(async () => Buffer.from("image")),
   unlink: vi.fn(async () => undefined),
+  renameSync: vi.fn(),
 }));
 
 vi.mock("electron", () => ({
@@ -26,6 +27,7 @@ vi.mock("node:fs", () => ({
       readFile: mocks.readFile,
       unlink: mocks.unlink,
     },
+    renameSync: mocks.renameSync,
   },
 }));
 
@@ -47,6 +49,7 @@ describe("registerProjectFileIpcHandlers", () => {
   it("registers all project-file channels", () => {
     expect([...mocks.handlers.keys()].sort()).toEqual([
       "project-file-get-absolute-path",
+      "project-file-move",
       "project-file-read-base64",
       "project-file-read-text",
       "project-file-remove-text",
@@ -69,6 +72,32 @@ describe("registerProjectFileIpcHandlers", () => {
       filePath: "/data/_p/project-a/images/frame.png",
       size: 3,
     });
+  });
+
+  it("moves project files within the project scope and rejects missing sources / existing targets", async () => {
+    const move = mocks.handlers.get("project-file-move")!;
+    const payload = {
+      projectId: "project-a",
+      fromRelative: "workflow-images/storyboard-flow-chapter-001-005",
+      toRelative: "workflow-images/chapter-001/storyboard-flow-chapter-001-005",
+    };
+
+    mocks.existsSync.mockImplementation((target: unknown) => String(target).includes("storyboard-flow-chapter-001-005") && !String(target).includes("chapter-001/storyboard-flow"));
+    await expect(move({}, payload)).resolves.toMatchObject({ success: true });
+    expect(mocks.renameSync).toHaveBeenCalled();
+
+    mocks.existsSync.mockReturnValue(true);
+    await expect(move({}, payload)).resolves.toMatchObject({ success: false, error: "目标路径已存在" });
+    mocks.existsSync.mockReturnValue(false);
+
+    mocks.existsSync.mockReturnValue(false);
+    await expect(move({}, payload)).resolves.toMatchObject({ success: false, error: "源路径不存在" });
+
+    await expect(move({}, {
+      projectId: "project-a",
+      fromRelative: "../../etc/passwd",
+      toRelative: "workflow-images/x",
+    })).resolves.toMatchObject({ success: false });
   });
 
   it("rejects empty binary files and preserves base64 read metadata", async () => {

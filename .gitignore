@@ -120,10 +120,10 @@ apps/output/*
 .agents/skills/gitnexus/
 .agents/skills/generated/
 
-# GitNexus writes its block to a root CLAUDE.md on `analyze`.
-# The authoritative CLAUDE.md lives at .claude/CLAUDE.md; the gitnexus block
-# is also in AGENTS.md. Ignore the auto-generated root copy so re-indexing
-# doesn't create a stray untracked file. (/CLAUDE.md is root-anchored only.)
+# Root agent entry files are local-only: CLAUDE.md is a symlink to AGENTS.md,
+# and the authoritative rules live at .claude/CLAUDE.md. GitNexus `analyze`
+# refreshes its block in both on re-index. (Root-anchored only.)
+/AGENTS.md
 /CLAUDE.md
 .playwright-mcp/
 # Playwright CLI 会话快照（本地调试产物）

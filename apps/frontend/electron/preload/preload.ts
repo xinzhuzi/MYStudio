@@ -265,6 +265,8 @@ contextBridge.exposeInMainWorld('projectFiles', {
   readText: (payload: { projectId: string; relativePath: string }) =>
     ipcRenderer.invoke('project-file-read-text', payload),
   getAbsolutePath: (url: string) => ipcRenderer.invoke('project-file-get-absolute-path', url),
+  move: (payload: { projectId: string; fromRelative: string; toRelative: string }) =>
+    ipcRenderer.invoke('project-file-move', payload),
   removeText: (key: string) => ipcRenderer.invoke('project-file-remove-text', key),
 })
 

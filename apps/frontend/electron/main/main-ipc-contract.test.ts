@@ -85,6 +85,7 @@ image-gen-runtime-stop
 image-host-upload
 move-image
 project-file-get-absolute-path
+project-file-move
 project-file-read-base64
 project-file-read-text
 project-file-remove-text

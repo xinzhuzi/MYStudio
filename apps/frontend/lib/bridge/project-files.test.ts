@@ -22,6 +22,7 @@ describe("getProjectFilesBridge", () => {
       readText: async () => ({ success: true }),
       getAbsolutePath: async () => null,
       removeText: async () => ({ success: true }),
+      move: async () => ({ success: true }),
     };
     Object.defineProperty(globalThis, "window", {
       configurable: true,

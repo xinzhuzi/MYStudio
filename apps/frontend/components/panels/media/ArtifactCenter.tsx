@@ -3,7 +3,7 @@
 // Commercial licensing available. See COMMERCIAL_LICENSE.md.
 
 import { useMemo, useState, useCallback, useEffect } from "react";
-import { ArrowUp, ChevronRight, FolderKanban, FolderOpen, Loader2, LucideImage as MediaLibrary, Trash2 } from "lucide-react";
+import { ArrowUp, ChevronRight, FolderInput, FolderKanban, FolderOpen, Loader2, LucideImage as MediaLibrary, Trash2 } from "lucide-react";
 import { getArtifactDeleteImpact } from "@/lib/artifacts/delete-impact";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
@@ -27,6 +27,7 @@ import { logEvent } from "@/lib/diagnostics/logger";
 import { ArtifactTree, type ArtifactChapterTreeNode, type ArtifactFileTreeNode, type ArtifactTreeProject } from "./ArtifactTree";
 import { ArtifactDetailPanel } from "./artifact-detail";
 import { ArtifactDeleteDialog } from "./ArtifactDeleteDialog";
+import { ChapterMigrationDialog } from "./ChapterMigrationDialog";
 import { MediaView } from "./index";
 import {
   buildArtifactFileTree, findFileTreeNode, fileTreeContainsArtifact, countFileTreeArtifacts,
@@ -162,6 +163,7 @@ export function ArtifactCenter({
   const [expandedNodes, setExpandedNodes] = useState<Set<string>>(new Set());
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [detailArtifactId, setDetailArtifactId] = useState<string | null>(null);
+  const [chapterMigrationOpen, setChapterMigrationOpen] = useState(false);
 
   // Stage and state filters
   const [stageFilter, setStageFilter] = useState<ArtifactStage | 'all'>('all');
@@ -715,6 +717,14 @@ export function ArtifactCenter({
 
   return (
     <div className={cn("h-full flex flex-col bg-background", className)}>
+      {chapterMigrationOpen && (
+        <ChapterMigrationDialog
+          projectId={activeProjectId}
+          onClose={() => setChapterMigrationOpen(false)}
+          onFinished={() => void refreshInventory()}
+        />
+      )}
+
       {/* Header Tabs */}
       <Tabs value={currentTab} onValueChange={handleTabChange} className="flex-1 flex flex-col min-h-0">
         <div className="p-2 border-b">
@@ -784,6 +794,9 @@ export function ArtifactCenter({
                   </span>
                 )}
                 <div className="ml-auto flex items-center gap-2">
+                  <Button variant="outline" size="sm" disabled={!activeProjectId} onClick={() => setChapterMigrationOpen(true)} title="把旧平铺分镜目录移入章节子目录,并更新全部引用">
+                    <FolderInput className="mr-1 h-4 w-4" />章节整理
+                  </Button>
                   <input
                     type="checkbox"
                     aria-label="选择全部产物"

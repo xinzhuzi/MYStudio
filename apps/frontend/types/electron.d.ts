@@ -258,6 +258,11 @@ declare global {
         size?: number;
         error?: string;
       }>;
+      move: (payload: { projectId: string; fromRelative: string; toRelative: string }) => Promise<{
+        success: boolean;
+        url?: string;
+        error?: string;
+      }>;
       readAsBase64: (url: string) => Promise<{
         success: boolean;
         base64?: string;

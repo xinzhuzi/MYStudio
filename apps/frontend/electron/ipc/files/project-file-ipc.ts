@@ -19,6 +19,12 @@ type ProjectFileSaveImagePayload = {
   source: string;
 };
 
+type ProjectFileMovePayload = {
+  projectId: string;
+  fromRelative: string;
+  toRelative: string;
+};
+
 type RegisterProjectFileIpcHandlersContext = {
   getDataDir: () => string;
   readImageSource: (source: string) => Promise<{ buffer: Buffer; mimeType: string }>;
@@ -94,6 +100,26 @@ export function registerProjectFileIpcHandlers({
     try {
       const { buffer } = await readImageSource(payload.source);
       return await writeProjectBinaryFile(payload, buffer);
+    } catch (error) {
+      return { success: false, error: error instanceof Error ? error.message : String(error) };
+    }
+  });
+
+  // 同项目内移动/改名(目录或文件),供产物中心「章节整理」等迁移场景使用。
+  // 双路径均经 resolveProjectScopedFilePath 遏制校验;同盘 rename 不复制数据。
+  ipcMain.handle("project-file-move", async (_event, payload: ProjectFileMovePayload) => {
+    try {
+      const fromPath = resolveProjectScopedFilePath(getDataDir(), payload.projectId, payload.fromRelative);
+      const toPath = resolveProjectScopedFilePath(getDataDir(), payload.projectId, payload.toRelative);
+      if (!fs.existsSync(fromPath)) {
+        return { success: false, error: "源路径不存在" };
+      }
+      if (fs.existsSync(toPath)) {
+        return { success: false, error: "目标路径已存在" };
+      }
+      fs.mkdirSync(path.dirname(toPath), { recursive: true });
+      fs.renameSync(fromPath, toPath);
+      return { success: true, url: createProjectFileUrl(payload.projectId, payload.toRelative) };
     } catch (error) {
       return { success: false, error: error instanceof Error ? error.message : String(error) };
     }

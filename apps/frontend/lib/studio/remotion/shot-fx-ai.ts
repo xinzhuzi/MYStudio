@@ -27,15 +27,18 @@ export interface ShotFxAiShotInput {
 }
 
 const MOTION_GUIDE: ReadonlyArray<{ id: ShotFxMotionId; when: string }> = [
-  { id: "push-in", when: "情绪聚焦、对白紧张、揭示关键主体、特写推进" },
-  { id: "pull-out", when: "揭示全景、段落收尾、情绪释放、开场 establishing" },
-  { id: "pan-right", when: "主体向右调度、横向跟随、右向展开信息" },
-  { id: "pan-left", when: "主体向左调度、横向跟随、左向展开信息" },
-  { id: "tilt-up", when: "仰望揭示（建筑/巨人/天空）、由局部到整体、巍峨升腾" },
-  { id: "tilt-down", when: "从高处俯摇落到主体、由整体到局部、压迫沉降" },
-  { id: "drift", when: "梦境、恍惚、时间流逝、舒缓空镜、回忆" },
-  { id: "punch-in", when: "爆炸/劈砍/撞击等动作爆点、冲击强调瞬间" },
-  { id: "leave-pull", when: "退场、远去、告别、消失、段落终了拉离" },
+  { id: "push-in", when: "情绪聚焦、对白紧张、揭示关键主体、特写推进（纯运镜，无特效）" },
+  { id: "pull-out", when: "揭示全景、段落收尾、情绪释放、开场 establishing（纯运镜）" },
+  { id: "pan-right", when: "主体向右调度、横向跟随、右向展开信息（纯运镜）" },
+  { id: "pan-left", when: "主体向左调度、横向跟随、左向展开信息（纯运镜）" },
+  { id: "tilt-up", when: "仰望揭示（建筑/巨人/天空）、由局部到整体、巍峨升腾（纯运镜）" },
+  { id: "tilt-down", when: "从高处俯摇落到主体、由整体到局部、压迫沉降（纯运镜）" },
+  { id: "drift", when: "梦境、恍惚、时间流逝、舒缓空镜、回忆（纯运镜）" },
+  { id: "punch-in", when: "运镜+特效成套：爆炸/劈砍/撞击等动作爆点——急推+明显抖动+RGB 色差分离" },
+  { id: "chase-in", when: "运镜+特效成套：追逐/逃跑/奔闯——快推+轻微手持抖动" },
+  { id: "aura-push", when: "运镜+特效成套：灵光/焰火/仙阵/神迹——缓推+暖调强辉光" },
+  { id: "gloom-pull", when: "运镜+特效成套：阴暗/夜雾/深渊/压抑——缓拉+暗调弱辉光" },
+  { id: "leave-pull", when: "退场、远去、告别、消失、段落终了拉离（纯运镜）" },
 ];
 
 function buildPrompt(shots: ShotFxAiShotInput[]): string {
@@ -43,19 +46,20 @@ function buildPrompt(shots: ShotFxAiShotInput[]): string {
   const list = shots
     .map((s, i) => `${i + 1}. shotId=${s.shotId}\n   画面: ${s.description || "(无)"}\n   对白: ${s.dialogue || "(无)"}`)
     .join("\n");
-  return `你是电影摄影指导，为一部 2D 动态分镜影片逐镜选择运镜模式（画面内平移/缩放，无真实 3D 空间）。
+  return `你是电影摄影指导，为一部 2D 动态分镜影片逐镜选择镜头表现配方（运镜+特效成套，纯运镜与成套配方二选一）。
 
-可选模式（仅限这些值）：
+可选配方（仅限这些值）：
 ${guide}
 
 分镜列表：
 ${list}
 
 要求：
-1. 结合画面描述与对白情绪选择最贴合的运镜模式；同一模式可重复使用
-2. 全章运镜要有节奏变化，避免连续多镜完全相同（除非叙事确实连贯）；动作爆点优先 punch-in，退场收尾优先 leave-pull
-3. 只输出 JSON，格式：{"motions": [{"shotId": "...", "motion": "..."}]}
-4. 不要输出任何解释文字`;
+1. 结合画面描述与对白情绪选择最贴合的配方；同一配方可重复使用
+2. 全章镜头语言要有节奏变化，避免连续多镜完全相同（除非叙事确实连贯）
+3. 动作爆点优先 punch-in（急推+抖动+色差成套），追逐奔逃优先 chase-in，灵光/焰火优先 aura-push，阴暗压抑优先 gloom-pull——特效随配方成套生效，不可单独要求特效
+4. 只输出 JSON，格式：{"motions": [{"shotId": "...", "motion": "..."}]}
+5. 不要输出任何解释文字`;
 }
 
 /** 解析 AI 返回的 JSON（容忍 markdown 代码块/前后杂文），校验每个条目。 */

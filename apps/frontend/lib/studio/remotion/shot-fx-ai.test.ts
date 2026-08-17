@@ -15,7 +15,8 @@ vi.mock("@/lib/ai/ai-manager", () => ({
 
 const SHOTS = [
   { shotId: "s1", description: "剑光劈落，轰鸣炸开", dialogue: "看招！" },
-  { shotId: "s2", description: "他挥手告别，身影远去", dialogue: "" },
+  // 注意避开「影」等暗夜词：此处专测退场词奇偶镜行为
+  { shotId: "s2", description: "他挥手告别，渐行渐远", dialogue: "" },
   { shotId: "s3", description: "庭院喝茶", dialogue: "今日风平。" },
 ];
 
