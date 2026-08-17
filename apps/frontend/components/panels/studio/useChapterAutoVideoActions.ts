@@ -308,6 +308,10 @@ export function useChapterAutoVideoActions({
                 profileId: profile.id,
               });
             }
+            // 同名角色跨 id 复用：直接绑定既有 profile（不重复建档），声音保持固定。
+            for (const item of plan.rebound) {
+              useTtsStore.getState().bindSpeaker(item.binding);
+            }
             const resolvedState = useTtsStore.getState();
             const bindings = resolvedState.projects[activeProjectId]?.bindings ?? {};
             const profiles = {} as Record<TtsSpeakerId, VoiceProfile>;

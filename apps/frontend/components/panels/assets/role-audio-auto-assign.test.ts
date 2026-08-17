@@ -632,3 +632,74 @@ describe("配音分层分配（主角优先 / NPC 可复用）", () => {
     expect(parsed).toEqual({ audioId: "material:c1", reason: "剑修气质贴合" });
   });
 });
+
+describe("角色配音固定（同名跨 id 复用）", () => {
+  const swordCandidates = buildRoleAudioCandidates([], [
+    audio("c1", "清冷剑修音", "剑修清冷念白。", "/voices/sword-cold.wav"),
+    audio("c2", "先生书生儒雅", "书生儒雅念白。", "/voices/scholar.wav"),
+  ]);
+
+  it("实体重抽换 id 后，同名角色直接重绑既有 profile，不重新分配", async () => {
+    // 旧 id 首次分配（无既有 profile → 正常创建）
+    const oldId = "character:char-old-1" as const;
+    const first = await planFixedRoleVoices({
+      targets: [{ speakerId: oldId, role: role("char-old-1", "沈砚", "青年剑修，冷峻寡言。") }],
+      candidates: swordCandidates,
+      bindings: {},
+      voiceProfiles: {},
+      resolveReferenceAudioPath: async (audioPath) => audioPath,
+    });
+    expect(first.created).toHaveLength(1);
+    // createRoleAudioVoiceProfileInput 的命名约定：音色·<角色名>·<片段名>
+    expect(first.created[0]?.draft.profile.name).toBe("音色·沈砚·清冷剑修音");
+
+    // 模拟调用方建档后，重抽生成新 id：同名角色应 name-matched 重绑同一 profile
+    const existingProfile = {
+      ...first.created[0]!.draft.profile,
+      id: "profile-existing",
+      createdAt: 0,
+      updatedAt: 0,
+    };
+    const newId = "character:char-new-9" as const;
+    const second = await planFixedRoleVoices({
+      targets: [{ speakerId: newId, role: role("char-new-9", "沈砚", "青年剑修，冷峻寡言。") }],
+      candidates: swordCandidates,
+      bindings: {},
+      voiceProfiles: { "profile-existing": existingProfile },
+      resolveReferenceAudioPath: async (audioPath) => audioPath,
+    });
+    expect(second.errors).toEqual([]);
+    expect(second.created).toEqual([]);
+    expect(second.rebound).toHaveLength(1);
+    expect(second.rebound[0]).toMatchObject({
+      speakerId: newId,
+      match: "name-matched",
+    });
+    expect(second.rebound[0]?.binding.profileId).toBe("profile-existing");
+    expect(second.rebound[0]?.profile).toBe(existingProfile);
+  });
+
+  it("无同名 profile 时保持既有自动分配路径（不误绑）", async () => {
+    const unrelated = {
+      id: "profile-unrelated",
+      name: "音色·叶孤鸿·清冷剑修音",
+      type: "reference" as const,
+      language: "zh",
+      defaultEngine: "qwen" as const,
+      defaultModelSize: "1.7B",
+      referenceAudioPath: "/voices/sword-cold.wav",
+      referenceText: "剑修清冷念白。",
+      createdAt: 0,
+      updatedAt: 0,
+    };
+    const result = await planFixedRoleVoices({
+      targets: [{ speakerId: "character:char-a" as const, role: role("char-a", "沈砚", "青年剑修，冷峻寡言。") }],
+      candidates: swordCandidates,
+      bindings: {},
+      voiceProfiles: { "profile-unrelated": unrelated },
+      resolveReferenceAudioPath: async (audioPath) => audioPath,
+    });
+    expect(result.rebound).toEqual([]);
+    expect(result.created).toHaveLength(1);
+  });
+});

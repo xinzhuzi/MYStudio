@@ -93,6 +93,17 @@ export interface FixedVoicePlan {
     profile: VoiceProfile;
     match: "fixed";
   }>;
+  /**
+   * 同名角色跨 id 复用（用户要求：角色配音固定）：实体重抽生成新 characterId 后
+   * 绑定失配时，按「音色·<角色名>·」前缀找回既有 profile 直接重绑，不重新分配。
+   * 调用方只需 bindSpeaker，不要 createVoiceProfile（避免重复建档）。
+   */
+  rebound: Array<{
+    speakerId: TtsSpeakerId;
+    binding: Omit<ProjectVoiceBinding, "profileId"> & { profileId: string };
+    profile: VoiceProfile;
+    match: "name-matched";
+  }>;
   created: Array<{
     speakerId: TtsSpeakerId;
     assignment: RoleAudioAssignment;
@@ -372,6 +383,7 @@ export async function planFixedRoleVoices(
   input: PlanFixedRoleVoicesInput,
 ): Promise<FixedVoicePlan> {
   const fixed: FixedVoicePlan["fixed"] = [];
+  const rebound: FixedVoicePlan["rebound"] = [];
   const created: FixedVoicePlan["created"] = [];
   const errors: FixedVoicePlanError[] = [];
   const uniqueTargets: FixedVoiceTarget[] = [];
@@ -467,14 +479,40 @@ export async function planFixedRoleVoices(
   }
 
   if (errors.length > 0 || unbound.length === 0) {
-    return { fixed, created, errors };
+    return { fixed, rebound, created, errors };
   }
+
+  // 同名角色跨 id 复用（用户要求：角色配音固定）：实体重抽生成新 characterId
+  // 后绑定失配时，按「音色·<角色名>·」前缀找回既有 profile 直接重绑，
+  // 不再重新分配——同名角色的声音跨章节/重抽保持不变。
+  const reboundTargets = new Set<FixedVoiceTarget>();
+  for (const target of unbound) {
+    if (target.speakerId === "narrator") continue;
+    const prefix = `音色·${target.role.name}·`;
+    const matched = Object.values(input.voiceProfiles).find(
+      (profile) => profile.type === "reference" && profile.name.startsWith(prefix),
+    );
+    if (!matched?.referenceAudioPath?.trim()) continue;
+    rebound.push({
+      speakerId: target.speakerId,
+      binding: {
+        speakerId: target.speakerId,
+        defaultEngine: matched.defaultEngine,
+        defaultModelSize: matched.defaultModelSize,
+        profileId: matched.id,
+      },
+      profile: matched,
+      match: "name-matched",
+    });
+    reboundTargets.add(target);
+  }
+  const remaining: FixedVoiceTarget[] = unbound.filter((target) => !reboundTargets.has(target));
 
   // 旁白确定性分配：家族内基准片段（平静优先），不走打分/AI。
   const narratorTargets = narratorFamily.length > 0
-    ? unbound.filter((target) => target.speakerId === "narrator")
+    ? remaining.filter((target) => target.speakerId === "narrator")
     : [];
-  const autoTargets = unbound.filter(
+  const autoTargets = remaining.filter(
     (target) => !(narratorFamily.length > 0 && target.speakerId === "narrator"),
   );
   const assignments: RoleAudioAssignment[] = [];
@@ -498,7 +536,7 @@ export async function planFixedRoleVoices(
           message: `未绑定 speaker ${target.speakerId}，且音频库没有可用候选`,
         });
       }
-      return { fixed, created, errors };
+      return { fixed, rebound, created, errors };
     }
 
     const assignUnbound = input.assignUnbound ?? assignAudioToRoles;
@@ -518,14 +556,14 @@ export async function planFixedRoleVoices(
           message: `speaker ${target.speakerId} 音色匹配失败: ${reason}`,
         });
       }
-      return { fixed, created, errors };
+      return { fixed, rebound, created, errors };
     }
   }
 
   const assignmentByRoleId = new Map(
     assignments.map((assignment) => [assignment.role.id, assignment]),
   );
-  for (const target of unbound) {
+  for (const target of remaining) {
     const assignment = assignmentByRoleId.get(target.role.id);
     if (!assignment) {
       errors.push({
@@ -587,7 +625,7 @@ export async function planFixedRoleVoices(
     });
   }
 
-  return { fixed, created, errors };
+  return { fixed, rebound, created, errors };
 }
 
 export function parseRoleAudioAiMatchResult(text: string): RoleAudioAiMatchResult | null {

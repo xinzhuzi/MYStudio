@@ -261,8 +261,12 @@ export function useScriptAssetGenerationActions({
           profileId: profile.id,
         });
       }
+      // 同名角色跨 id 复用：直接绑定既有 profile（不重复建档），声音保持固定。
+      for (const item of plan.rebound) {
+        bindSpeaker(item.binding);
+      }
       toast.success(
-        `固定音色校验完成：复用 ${plan.fixed.length}，新建 ${plan.created.length}`,
+        `固定音色校验完成：复用 ${plan.fixed.length}，跨id续用 ${plan.rebound.length}，新建 ${plan.created.length}`,
       );
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "自动分配音频失败");
