@@ -145,6 +145,18 @@ class VideoUseAdapterTest(unittest.TestCase):
             self.assertEqual(transcript["text"], "甲乙。")
             self.assertEqual(transcript["words"][0]["start"], 0.0)
 
+    def test_build_edl_uses_safe_subtle_grade_for_default_auto(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            request, alignment = self._fixtures(root)
+
+            edl, _ = build_edl_payload(request, alignment, root / "edit")
+            self.assertEqual(edl["grade"], "subtle")
+
+            request["grade"] = "neutral_punch"
+            explicit_edl, _ = build_edl_payload(request, alignment, root / "explicit-edit")
+            self.assertEqual(explicit_edl["grade"], "neutral_punch")
+
     def test_tool_env_preserves_shared_ffmpeg_paths_and_macos_dylibs(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
