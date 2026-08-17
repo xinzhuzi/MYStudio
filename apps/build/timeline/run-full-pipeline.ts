@@ -1103,7 +1103,7 @@ export async function runFullPipeline(): Promise<Record<string, unknown>> {
       // 决策逻辑与 App 一键成片共享单源（shot-fx-decisions），保证两条入口产出一致。
       if (process.env.MYSTUDIO_SHOT_FX === "1") {
         const fxStore = JSON.parse(fs.readFileSync(path.join(projectDir, "studio-workflow-store.json"), "utf8")) as {
-          state?: { storyboards?: Array<{ id: string; episodeId: string; prompt?: string; line?: string }> };
+          state?: { storyboards?: Array<{ id: string; episodeId: string; prompt?: string; line?: string; shotFx?: { motion?: unknown } }> };
         };
         const shotFx = buildShotFxByClipId({
           planClips: plan.clips,

@@ -2,6 +2,7 @@ import type { TtsEmotionCapability, TtsSpeakerId } from "./tts";
 import type { CharacterIdentityAnchors, CharacterNegativePrompt } from "./script";
 import type { RemotionShotAudioBindingV2 } from "./remotion-workspace";
 import type { SubtitleAuthority } from "./editing";
+import type { ShotFxMotionId } from "../lib/studio/remotion/shot-fx-decisions";
 
 export type CharacterReferenceViewType = "front" | "side" | "back" | "three-quarter";
 
@@ -384,6 +385,11 @@ export interface StoryboardItem extends StudioStaleEvidence, StudioSourceIdentit
   styleContractVersion?: string;
   /** Explicit subtitle ownership for this visual interval. */
   subtitleAuthority?: SubtitleAuthority;
+  /**
+   * AI 2D 运镜选择结果（装饰层：不进 sourceFingerprint、不触发审批门 stale）。
+   * 一键成片前由 selectShotFxMotions 刷新；App 章节渲染与 CLI 全管线共享读取。
+   */
+  shotFx?: { motion: ShotFxMotionId; source: "ai" | "heuristic" };
 }
 
 export interface ProductionTrack extends StudioStaleEvidence {

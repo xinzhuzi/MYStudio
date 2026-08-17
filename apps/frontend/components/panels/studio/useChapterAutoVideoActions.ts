@@ -39,6 +39,7 @@ import { latestAgentWork } from "./workflow-helpers";
 import { checkDepthModelReady } from "./depth-model-precheck";
 import { getDepthRuntimeBridge } from "@/lib/bridge/depth-runtime";
 import { selectCinematicPresets } from "@/lib/studio/cinematic-preset-ai";
+import { selectShotFxMotions } from "@/lib/studio/remotion/shot-fx-ai";
 import { getStudioAssetsBridge } from "@/lib/bridge/studio-assets";
 import { getTtsRuntimeBridge } from "@/lib/bridge/tts-runtime";
 
@@ -299,6 +300,28 @@ export function useChapterAutoVideoActions({
             });
           },
           enqueueRemotionShots: async ({ projectId, chapterId, storyboards, allStoryboards }) => {
+            // AI 2D 镜头语言（正式路线）：逐镜选择 2D 运镜模式并写入分镜记录 shotFx。
+            // 写入是装饰层（不进 sourceFingerprint、不触发审批门）；App 章节渲染与
+            // CLI 全管线共享 store 单源。AI 不可用时回落关键词启发式，绝不阻塞渲染入队。
+            try {
+              const selection = await selectShotFxMotions(
+                storyboards.map((storyboard) => ({
+                  shotId: storyboard.id,
+                  description: String(storyboard.videoDesc ?? storyboard.prompt ?? ""),
+                  dialogue: String(storyboard.ttsSpokenText ?? ""),
+                })),
+              );
+              if (selection.source !== "empty") {
+                for (const [shotId, motion] of Object.entries(selection.motions)) {
+                  useStudioStore.getState().updateStoryboard(shotId, { shotFx: { motion, source: selection.source } });
+                }
+                if (selection.source === "heuristic") {
+                  console.warn("[shot-fx] AI 2D 运镜不可用，已用关键词启发式兜底");
+                }
+              }
+            } catch (error) {
+              console.warn("[shot-fx] 2D 运镜选择失败（渲染将用规则运镜）:", error);
+            }
             // Depth model precheck: cinematic 3D needs an explicitly downloaded
             // model. Warn (and deep-link to settings) instead of silently
             // rendering flat 2D — the model never auto-downloads.

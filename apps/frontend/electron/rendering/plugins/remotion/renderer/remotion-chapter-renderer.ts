@@ -449,7 +449,7 @@ export class RemotionChapterRenderer {
         const projectRoot = this.options.projectRootForProject(identity.projectId);
         const storePath = path.join(projectRoot, "studio-workflow-store.json");
         const store = JSON.parse(fs.readFileSync(storePath, "utf8")) as {
-          state?: { storyboards?: Array<{ id: string; episodeId: string; prompt?: string; line?: string }> };
+          state?: { storyboards?: Array<{ id: string; episodeId: string; prompt?: string; line?: string; shotFx?: { motion?: unknown } }> };
         };
         const shotFx = buildShotFxByClipId({
           planClips: plan.clips,
