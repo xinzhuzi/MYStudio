@@ -415,3 +415,111 @@ describe("role audio auto assign", () => {
     });
   });
 });
+
+describe("narrator 木成家族锁定", () => {
+  const muchengAssets = [
+    audio("voice-asset-mucheng-calm", "木成·平静｜高潮·战斗·诗歌", "他面色沉静，双眉舒展。", "audio/voice-asset-mucheng-calm.wav"),
+    audio("voice-asset-mucheng-sad", "木成·悲伤｜平铺直叙·旁白", "方源站在他的墓前，少年满含泪水。", "audio/voice-asset-mucheng-sad.wav"),
+    audio("voice-asset-mucheng-angry", "木成·愤怒｜高潮·战斗·诗歌", "方源，你陷害一代老祖。", "audio/voice-asset-mucheng-angry.wav"),
+  ];
+  const otherAssets = [
+    audio("voice-teen", "清冷少年.wav", "少年音。", "/voices/teen.wav"),
+    audio("voice-elder", "沧桑老者.wav", "老者音。", "/voices/elder.wav"),
+  ];
+
+  it("未绑定旁白：家族可用时确定性取「平静」，不打分不漂移", async () => {
+    const assignUnbound = vi.fn();
+    const result = await planFixedRoleVoices({
+      targets: [createNarratorVoiceTarget()],
+      candidates: buildRoleAudioCandidates([], [...muchengAssets, ...otherAssets]),
+      bindings: {},
+      voiceProfiles: {},
+      resolveReferenceAudioPath: async (audioPath) => audioPath,
+      assignUnbound,
+    });
+
+    expect(result.errors).toEqual([]);
+    expect(assignUnbound).not.toHaveBeenCalled();
+    expect(result.created).toHaveLength(1);
+    expect(result.created[0]).toMatchObject({
+      speakerId: "narrator",
+      match: "ai-selected",
+    });
+    expect(result.created[0]?.assignment.audio.filePath).toBe("audio/voice-asset-mucheng-calm.wav");
+    expect(result.created[0]?.draft.profile.referenceAudioPath).toBe("audio/voice-asset-mucheng-calm.wav");
+    expect(result.created[0]?.draft.profile.referenceText).toBe("他面色沉静，双眉舒展。");
+  });
+
+  it("既有旁白绑定已偏离木成且家族可用：视为过期重新绑定", async () => {
+    const staleProfile = {
+      id: "profile-stale",
+      name: "音色·旁白·清冷少年",
+      type: "reference" as const,
+      language: "zh",
+      defaultEngine: "qwen" as const,
+      defaultModelSize: "1.7B",
+      referenceAudioPath: "/voices/teen.wav",
+      referenceText: "少年音。",
+      createdAt: 0,
+      updatedAt: 0,
+    };
+    const result = await planFixedRoleVoices({
+      targets: [createNarratorVoiceTarget()],
+      candidates: buildRoleAudioCandidates([], muchengAssets),
+      bindings: {
+        narrator: { speakerId: "narrator" as const, profileId: staleProfile.id, defaultEngine: "qwen" as const, defaultModelSize: "1.7B" },
+      },
+      voiceProfiles: { [staleProfile.id]: staleProfile },
+      resolveReferenceAudioPath: async (audioPath) => audioPath,
+    });
+
+    expect(result.errors).toEqual([]);
+    expect(result.fixed).toEqual([]);
+    expect(result.created[0]?.assignment.audio.filePath).toBe("audio/voice-asset-mucheng-calm.wav");
+  });
+
+  it("旁白锁定不影响角色 speaker 的自动匹配", async () => {
+    const assignUnbound = vi.fn(async (roles: StudioAssetSummary[]) =>
+      roles.map((roleAsset) => ({
+        role: roleAsset,
+        audio: { id: "voice-teen", name: "清冷少年.wav", filePath: "/voices/teen.wav", referenceText: "少年音。" },
+        reason: "测试指定",
+      })),
+    );
+    const result = await planFixedRoleVoices({
+      targets: [
+        createNarratorVoiceTarget(),
+        { speakerId: "character:hero", role: role("hero", "沈砚", "青年剑修。") },
+      ],
+      candidates: buildRoleAudioCandidates([], [...muchengAssets, ...otherAssets]),
+      bindings: {},
+      voiceProfiles: {},
+      resolveReferenceAudioPath: async (audioPath) => audioPath,
+      assignUnbound: assignUnbound as unknown as Parameters<typeof planFixedRoleVoices>[0]["assignUnbound"],
+    });
+
+    expect(result.errors).toEqual([]);
+    expect(result.created).toHaveLength(2);
+    expect(assignUnbound).toHaveBeenCalledTimes(1);
+    expect(assignUnbound.mock.calls[0]?.[0]).toHaveLength(1);
+    expect(result.created.find((item) => item.speakerId === "narrator")?.assignment.audio.filePath)
+      .toBe("audio/voice-asset-mucheng-calm.wav");
+    expect(result.created.find((item) => item.speakerId === "character:hero")?.assignment.audio.filePath)
+      .toBe("/voices/teen.wav");
+  });
+
+  it("家族不可用时旁白回落既有全库行为（不因缺木成而阻塞）", async () => {
+    const result = await planFixedRoleVoices({
+      targets: [createNarratorVoiceTarget()],
+      candidates: buildRoleAudioCandidates([], otherAssets),
+      bindings: {},
+      voiceProfiles: {},
+      resolveReferenceAudioPath: async (audioPath) => audioPath,
+    });
+
+    expect(result.errors).toEqual([]);
+    expect(result.created).toHaveLength(1);
+    // 回落全库启发式：具体选段由既有打分决定，不在此钉死。
+    expect(["/voices/teen.wav", "/voices/elder.wav"]).toContain(result.created[0]?.assignment.audio.filePath);
+  });
+});

@@ -4,6 +4,11 @@ import type { ProjectVoiceBinding, TtsSpeakerId, VoiceProfile } from "@/types/tt
 import { toRoleSpeakerId } from "@/lib/tts/role-speaker-id";
 import { normalizeReferenceText } from "@/lib/tts/reference-text";
 import { validateVoiceProfileForGeneration } from "@/lib/tts/voice-profile-capabilities";
+import {
+  filterNarratorVoiceFamily,
+  isNarratorProfileOffFamily,
+  pickNarratorVoiceBase,
+} from "@/lib/tts/narrator-voice";
 
 type VoiceProfileInput = Omit<VoiceProfile, "id" | "createdAt" | "updatedAt">;
 
@@ -355,6 +360,9 @@ export async function planFixedRoleVoices(
   }
 
   const unbound: FixedVoiceTarget[] = [];
+  // 旁白锁定木成家族（用户指令）：家族候选可用时，旁白只从家族内确定性选段，
+  // 不再全库打分/AI 匹配漂移；既有绑定若已偏离家族则视为过期重新绑定。
+  const narratorFamily = filterNarratorVoiceFamily(input.candidates);
   for (const target of uniqueTargets) {
     const binding = input.bindings[target.speakerId];
     if (!binding) {
@@ -369,6 +377,15 @@ export async function planFixedRoleVoices(
         code: "missing-profile",
         message: `固定音色 ${target.speakerId} 缺少 profile ${binding.profileId}`,
       });
+      continue;
+    }
+    if (
+      target.speakerId === "narrator"
+      && narratorFamily.length > 0
+      && profile.type === "reference"
+      && isNarratorProfileOffFamily(profile)
+    ) {
+      unbound.push(target);
       continue;
     }
     const referenceAudioPath = profile.referenceAudioPath?.trim();
@@ -417,34 +434,56 @@ export async function planFixedRoleVoices(
   if (errors.length > 0 || unbound.length === 0) {
     return { fixed, created, errors };
   }
-  if (input.candidates.length === 0) {
-    for (const target of unbound) {
-      errors.push({
-        speakerId: target.speakerId,
-        code: "missing-candidate",
-        message: `未绑定 speaker ${target.speakerId}，且音频库没有可用候选`,
+
+  // 旁白确定性分配：家族内基准片段（平静优先），不走打分/AI。
+  const narratorTargets = narratorFamily.length > 0
+    ? unbound.filter((target) => target.speakerId === "narrator")
+    : [];
+  const autoTargets = unbound.filter(
+    (target) => !(narratorFamily.length > 0 && target.speakerId === "narrator"),
+  );
+  const assignments: RoleAudioAssignment[] = [];
+  for (const target of narratorTargets) {
+    const base = pickNarratorVoiceBase(narratorFamily);
+    if (base) {
+      assignments.push({
+        role: target.role,
+        audio: base,
+        reason: "旁白锁定木成家族（基准=平静）",
       });
     }
-    return { fixed, created, errors };
   }
 
-  const assignUnbound = input.assignUnbound ?? assignAudioToRoles;
-  let assignments: RoleAudioAssignment[];
-  try {
-    assignments = await assignUnbound(
-      unbound.map((target) => target.role),
-      input.candidates,
-    );
-  } catch (error) {
-    const reason = error instanceof Error ? error.message : String(error);
-    for (const target of unbound) {
-      errors.push({
-        speakerId: target.speakerId,
-        code: "assignment-failed",
-        message: `speaker ${target.speakerId} 音色匹配失败: ${reason}`,
-      });
+  if (autoTargets.length > 0) {
+    if (input.candidates.length === 0) {
+      for (const target of autoTargets) {
+        errors.push({
+          speakerId: target.speakerId,
+          code: "missing-candidate",
+          message: `未绑定 speaker ${target.speakerId}，且音频库没有可用候选`,
+        });
+      }
+      return { fixed, created, errors };
     }
-    return { fixed, created, errors };
+
+    const assignUnbound = input.assignUnbound ?? assignAudioToRoles;
+    try {
+      const autoAssignments = await assignUnbound(
+        autoTargets.map((target) => target.role),
+        input.candidates,
+      );
+      assignments.push(...autoAssignments);
+    } catch (error) {
+      const reason = error instanceof Error ? error.message : String(error);
+      for (const target of autoTargets) {
+        errors.push({
+          speakerId: target.speakerId,
+          code: "assignment-failed",
+          message: `speaker ${target.speakerId} 音色匹配失败: ${reason}`,
+        });
+      }
+      return { fixed, created, errors };
+    }
   }
 
   const assignmentByRoleId = new Map(

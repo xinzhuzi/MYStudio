@@ -40,6 +40,11 @@ import { checkDepthModelReady } from "./depth-model-precheck";
 import { getDepthRuntimeBridge } from "@/lib/bridge/depth-runtime";
 import { selectCinematicPresets } from "@/lib/studio/cinematic-preset-ai";
 import { selectShotFxMotions } from "@/lib/studio/remotion/shot-fx-ai";
+import {
+  filterNarratorVoiceFamily,
+  resolveNarratorShotProfile,
+} from "@/lib/tts/narrator-voice";
+import type { RoleAudioCandidate } from "@/components/panels/assets/role-audio-auto-assign";
 import { getStudioAssetsBridge } from "@/lib/bridge/studio-assets";
 import { getTtsRuntimeBridge } from "@/lib/bridge/tts-runtime";
 
@@ -91,6 +96,24 @@ export function useChapterAutoVideoActions({
     };
     const ttsCancellation = new ChapterTtsCancellationController();
     ttsCancellationRef.current = ttsCancellation;
+
+    // 旁白按情境换木成片段（用户指令：旁白恒木成，按台词情绪选段）。
+    // 家族列表每次成片运行惰性加载一次（资产库桥 + 素材库合并筛家族）。
+    let narratorVoiceFamilyCache: RoleAudioCandidate[] | null = null;
+    const loadNarratorVoiceFamily = async (): Promise<RoleAudioCandidate[]> => {
+      if (narratorVoiceFamilyCache) return narratorVoiceFamilyCache;
+      const assetsBridge = getStudioAssetsBridge();
+      const audioAssets = assetsBridge?.list
+        ? await assetsBridge.list({ type: "audio", limit: 9999 })
+        : { items: [] as unknown[] };
+      narratorVoiceFamilyCache = filterNarratorVoiceFamily(
+        buildRoleAudioCandidates(
+          useStudioStore.getState().materials,
+          audioAssets.items as Parameters<typeof buildRoleAudioCandidates>[1],
+        ),
+      );
+      return narratorVoiceFamilyCache;
+    };
 
     try {
       const result = await runChapterAutoVideo({
@@ -268,18 +291,32 @@ export function useChapterAutoVideoActions({
           },
           ttsConcurrency: 2,
           isTtsCanceled: (storyboardId) => ttsCancellation.isCanceled(storyboardId),
-          generateAudio: (storyboard, profile) =>
-            runStoryboardTtsGeneration({
+          generateAudio: async (storyboard, profile) => {
+            let shotProfile = profile;
+            if (storyboard.speakerId === "narrator") {
+              const family = await loadNarratorVoiceFamily();
+              shotProfile = resolveNarratorShotProfile(profile, {
+                emotion: storyboard.emotion,
+                text: [
+                  storyboard.prompt,
+                  storyboard.lines,
+                  storyboard.line,
+                  storyboard.ttsSpokenText,
+                ].filter(Boolean).join("\n"),
+              }, family);
+            }
+            return runStoryboardTtsGeneration({
               projectId: activeProjectId,
               chapterId: episodeId,
               storyboard,
-              profile,
+              profile: shotProfile,
               isCanceled: () => ttsCancellation.isCanceled(storyboard.id),
               onJob: (ttsJob) => {
                 assertProjectStillActive();
                 useStudioStore.getState().updateStoryboard(storyboard.id, { ttsJob });
               },
-            }),
+            });
+          },
           writeStoryboardAudio: (storyboardId, result) => {
             assertProjectStillActive();
             const current = useStudioStore
