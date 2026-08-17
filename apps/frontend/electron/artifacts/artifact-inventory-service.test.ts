@@ -201,6 +201,46 @@ describe("artifact inventory persisted project state", () => {
     expect(chapter.data.discrepancies).toHaveLength(0);
   });
 
+  it("does not split per-shot workflow dirs into pseudo chapters (chapter segment stops at digits)", async () => {    const dataRoot = await fs.mkdtemp(path.join(os.tmpdir(), "mystudio-artifact-shotdir-"));
+    roots.push(dataRoot);
+    const projectRoot = path.join(dataRoot, "_p", "project-shotdir");
+    await fs.mkdir(path.join(projectRoot, "workflow-images", "storyboard-flow-chapter-001-017"), { recursive: true });
+    await fs.writeFile(path.join(projectRoot, "workflow-images", "storyboard-flow-chapter-001-017", "gen-001.png"), "fixture-image");
+    await fs.mkdir(path.join(projectRoot, "workflow-images", "chapter-001", "storyboard-flow-chapter-001-043"), { recursive: true });
+    await fs.writeFile(path.join(projectRoot, "workflow-images", "chapter-001", "storyboard-flow-chapter-001-043", "gen-002.png"), "fixture-image");
+    await fs.mkdir(path.join(projectRoot, "video-use", "chapter-001-archive-20260816"), { recursive: true });
+    await fs.writeFile(path.join(projectRoot, "video-use", "chapter-001-archive-20260816", "r2.mp4"), "fixture-video");
+
+    const result = await scanProjectInventory(dataRoot, "project-shotdir");
+    expect(result.success).toBe(true);
+    if (!result.success) return;
+    const imageArtifacts = result.data.artifacts.filter((artifact) => artifact.stage === "image");
+    expect(imageArtifacts.length).toBe(2);
+    // 每镜目录名里的 chapter-001-017 不能被当成独立章：章段只取数字前缀。
+    expect(imageArtifacts.every((artifact) => artifact.chapterId === "chapter-001")).toBe(true);
+    expect(result.data.artifacts.some((artifact) => artifact.chapterId === "chapter-001-017")).toBe(false);
+    // 归档/续写衍生目录同样归入数字章号，不再分裂出第二个“第 1 章”。
+    expect(result.data.artifacts.find((artifact) => artifact.name === "r2.mp4")?.chapterId).toBe("chapter-001");
+  });
+
+  it("excludes backup-only disk artifacts from missing-index discrepancies", async () => {
+    const dataRoot = await fs.mkdtemp(path.join(os.tmpdir(), "mystudio-artifact-backup-disc-"));
+    roots.push(dataRoot);
+    const projectRoot = path.join(dataRoot, "_p", "project-backup-disc");
+    await fs.mkdir(projectRoot, { recursive: true });
+    // 仅备份：无解码器的 .bak 残留 → 不入 missing-index。历史快照本就不
+    // 在结构化状态里，计入会被 applyInventoryDiscrepancyBlockers 全数转成
+    // 删除计划硬阻塞，用户将无法从应用内删除任何东西。
+    await fs.writeFile(path.join(projectRoot, "editing.json.bak-session-heal"), JSON.stringify({ random: true }));
+
+    const result = await scanProjectInventory(dataRoot, "project-backup-disc");
+    expect(result.success).toBe(true);
+    if (!result.success) return;
+    // 备份产物本身仍在盘点里（进“备份”桶），只是不再制造盘面不一致。
+    expect(result.data.artifacts.some((artifact) => artifact.name === "未识别备份: editing.json.bak-session-heal")).toBe(true);
+    expect(result.data.discrepancies).toHaveLength(0);
+  });
+
   it("merges duplicate logical IDs across active and backup sources with complete physical coverage", async () => {
     const dataRoot = await fs.mkdtemp(path.join(os.tmpdir(), "mystudio-artifact-physical-refs-"));
     roots.push(dataRoot);

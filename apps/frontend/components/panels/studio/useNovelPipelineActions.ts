@@ -107,7 +107,9 @@ export function useNovelPipelineActions({
       saveAgentWorkData(
         "eventAnalysis",
         `事件分析完成：成功 ${successCount} 章，失败 ${failedCount} 章。`,
-        "episode-1",
+        // 汇总记录归属到本批首章，而不是写死 episode-1——产物盘点按
+        // episodeId 分章，写死会在章节树里分裂出第二个“第 1 章”桶。
+        chapters[0]?.id,
       );
       if (failedCount) {
         toast.error(`事件分析完成，失败 ${failedCount} 章`);

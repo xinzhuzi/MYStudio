@@ -672,13 +672,20 @@ function computeDiscrepancies(
 
   // Check for disk artifacts not in live state
   for (const [diskId, diskArtifact] of diskArtifacts) {
-    if (!liveArtifacts.has(diskId)) {
-      discrepancies.push({
-        type: "missing-index",
-        description: `Artifact on disk not found in live state: ${diskArtifact.name}`,
-        affectedArtifacts: [diskId],
-      });
-    }
+    if (liveArtifacts.has(diskId)) continue;
+    // 仅备份产物（physicalRefs 全为 type:"backup"）是历史快照，结构化
+    // 状态从不索引它们——这是设计而非漂移。若计入 missing-index，每个
+    // .bak/.codex 残留都会变成删除计划的硬阻塞（applyInventoryDiscrepancy
+    // -Blockers 把差异全数转为 blockerItems），用户将永远无法从应用内
+    // 删除任何东西。备份的删除语义由 analyzeBackupImpact 单独负责。
+    const backupOnly = diskArtifact.physicalRefs.length > 0
+      && diskArtifact.physicalRefs.every((ref) => ref.type === "backup");
+    if (backupOnly) continue;
+    discrepancies.push({
+      type: "missing-index",
+      description: `Artifact on disk not found in live state: ${diskArtifact.name}`,
+      affectedArtifacts: [diskId],
+    });
   }
 
   // A live record without a physical reference is valid for in-memory roots;
@@ -798,7 +805,13 @@ async function scanProjectInventoryUnlocked(
           const fingerprint = await calculateFileFingerprint(file.filePath);
           const stage: ArtifactStage = file.relativePath.includes("remotion") ? "remotion" : file.relativePath.includes("exports") ? "export" : file.relativePath.includes("workflow-images") ? "image" : "media-library";
           const mediaRefType: PhysicalRef["type"] = stage === "remotion" ? "remotion" : stage === "export" ? "exports" : "project-file";
-          const inferredChapter = file.relativePath.match(/((?:chapter|episode)[-_][A-Za-z0-9-]+)/i)?.[1];
+          // 章节归属两级推断：优先取规范的数字章号 token（chapter-001），
+          // 它在 chapter-001-archive-20260816 / storyboard-flow-chapter-001-017
+          // 这类“章号+后缀”目录里都必须截断，否则每镜/每个归档目录都会
+          // 分裂成一个“第 1 章”桶，砸碎产物树的分类认知；没有数字章号时
+          // 才按完整路径段兜底（chapter-fixture 这类字母 id）。
+          const inferredChapter = file.relativePath.match(/\b(?:chapter|episode)[-_]\d+\b/i)?.[0]
+            ?? file.relativePath.match(/(?:^|\/)((?:chapter|episode)[-_][^/.]+)/i)?.[1];
           artifacts.push({
             id: buildArtifactId("media-library", "media-file", file.relativePath),
             projectId,
