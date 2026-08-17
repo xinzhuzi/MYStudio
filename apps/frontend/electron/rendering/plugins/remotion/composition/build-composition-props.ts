@@ -17,6 +17,7 @@ import type {
   CompositionTransitionProps,
   CompositionVisualClipProps,
 } from "./composition-props";
+import type { CompositionVisualFx } from "./visual-fx";
 import { validateChapterVideoCompositionProps } from "./composition-props-validation";
 import type {
   HyperFramesOverlayWindowV1,
@@ -61,6 +62,14 @@ export function buildCompositionProps(
       .filter((effect) => effect.effectId === "panZoom" && effect.targetClipId)
       .map((effect) => [effect.targetClipId!, effect]),
   );
+  const fxEffectsByClipId = new Map<string, EditingEffect[]>();
+  for (const effect of plan.effects) {
+    if (!effect.enabled || !effect.targetClipId) continue;
+    if (!VISUAL_FX_EFFECT_IDS.has(effect.effectId)) continue;
+    const list = fxEffectsByClipId.get(effect.targetClipId);
+    if (list) list.push(effect);
+    else fxEffectsByClipId.set(effect.targetClipId, [effect]);
+  }
   const compositionVisuals: CompositionVisualClipProps[] = visualClips.map((clip) => {
     const timing = timingById.get(clip.id);
     if (!timing) throw new Error(`视觉片段缺少统一时序: ${clip.id}`);
@@ -76,6 +85,7 @@ export function buildCompositionProps(
       durationInFrames: timing.durationInFrames,
       transform: clip.transform ?? defaultTransform(),
       panZoom: panZoomForClip(panZoomByClipId.get(clip.id)),
+      fx: visualFxForClip(fxEffectsByClipId.get(clip.id)),
       trimStartFrames: usToFrames(clip.trimStartUs, fps),
       playbackRate: clip.speed,
       muted: clip.muted,
@@ -648,6 +658,47 @@ function panZoomForClip(effect: Pick<EditingEffect, "params"> | undefined): Comp
     originX: numberParam(effect.params.x, 0.5),
     originY: numberParam(effect.params.y, 0.5),
   };
+}
+
+/** plan.effects 中映射到合成层 CompositionVisualFx 的效果 ID（registry 已定义参数表）。 */
+const VISUAL_FX_EFFECT_IDS: ReadonlySet<string> = new Set([
+  "shake",
+  "glow",
+  "grain",
+  "chromaticAberration",
+]);
+
+/**
+ * 把同一片段的多个 fx 效果合并为 CompositionVisualFx。
+ * 参数换算（registry → 合成层）：shake intensity 0..1 → amplitudePx ×24
+ * （0.25→6px 明显、0.125→3px 轻微）；glow/grain 数值域一致直传
+ * （grain amount → opacity）；chromaticAberration offset → chroma offsetPx。
+ */
+function visualFxForClip(effects: readonly EditingEffect[] | undefined): CompositionVisualFx | undefined {
+  if (!effects || effects.length === 0) return undefined;
+  const fx: CompositionVisualFx = {};
+  for (const effect of effects) {
+    if (effect.effectId === "shake") {
+      fx.shake = { amplitudePx: clampRange(numberParam(effect.params.intensity, 0.25), 0, 1) * 24 };
+    } else if (effect.effectId === "glow") {
+      fx.glow = { intensity: clampRange(numberParam(effect.params.intensity, 0.4), 0, 1) };
+    } else if (effect.effectId === "grain") {
+      fx.grain = { opacity: clampRange(numberParam(effect.params.amount, 0.12), 0, 1) };
+    } else if (effect.effectId === "chromaticAberration") {
+      fx.chroma = { offsetPx: clampRange(numberParam(effect.params.offset, 3), 0, 24) };
+    }
+  }
+  if (
+    fx.shake === undefined && fx.glow === undefined
+    && fx.grain === undefined && fx.chroma === undefined
+  ) {
+    return undefined;
+  }
+  return fx;
+}
+
+function clampRange(value: number, min: number, max: number): number {
+  return Math.min(max, Math.max(min, value));
 }
 
 function fadeForClip(clip: TimelineRenderClip, fps: number): CompositionFade | undefined {

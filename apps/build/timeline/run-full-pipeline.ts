@@ -54,7 +54,7 @@ import { assembleBoundaryIntents } from "@/lib/studio/video-workflow/boundary-in
 import type { CinematicConfig, CinematicCameraPreset } from "@rendering/plugins/remotion/composition/composition-props";
 import type { SubtitleAuthority, EditingProjectV1, TimelineRenderPlan } from "@/types/editing";
 import { heuristicCinematicPresets } from "@/lib/studio/cinematic-preset-ai";
-import { buildShotFxByClipId } from "@/lib/studio/remotion/shot-fx-decisions";
+import { mergeShotFxEditingEffects } from "@/lib/studio/remotion/shot-fx-decisions";
 import type { RemotionCurrentSlotV1 } from "@/types/remotion-workspace";
 import {
   resolveRemotionCurrentSlotOutputPath,
@@ -876,6 +876,26 @@ export async function runFullPipeline(): Promise<Record<string, unknown>> {
   // 校验依赖这一一致性，不可在此重映射。渲染时间线压缩（转场重叠）造成的字幕
   // 滞后在 build-composition-props 里用 layoutVisualTimeline 的同一份偏移换算。
 
+  // ── 15b. 2D 镜头语言 + 镜头特效走 plan.effects 正门（与 App 一键成片共享
+  // 决策单源 mergeShotFxEditingEffects，保证两条入口产出一致）。store 缺失时
+  // 仅规则轮换运镜；MYSTUDIO_SHOT_FX=0 可显式关闭。
+  if (process.env.MYSTUDIO_SHOT_FX !== "0") {
+    const shotFxStoryboards = (() => {
+      try {
+        const fxStore = JSON.parse(fs.readFileSync(path.join(projectDir, "studio-workflow-store.json"), "utf8")) as {
+          state?: { storyboards?: Array<{ id: string; episodeId: string; prompt?: string; line?: string; shotFx?: { motion?: unknown } }> };
+        };
+        return (fxStore.state?.storyboards ?? []).filter((storyboard) => storyboard.episodeId === chapterId);
+      } catch { return [] }
+    })();
+    const shotFx = mergeShotFxEditingEffects(plan.effects, {
+      planClips: plan.clips,
+      storyboards: shotFxStoryboards,
+    });
+    plan.effects = shotFx.effects;
+    console.log(`[full-pipeline] 2D shot-fx effects merged: motion ${shotFx.counts.motion}, shake ${shotFx.counts.shake}, glow ${shotFx.counts.glow}, chroma ${shotFx.counts.chroma}`);
+  }
+
   const planValidation = validateTimelineRenderPlan(plan);
   if (!planValidation.success) throw new Error(`TimelineRenderPlan 无效: ${planValidation.issues.map((i) => `${i.path}: ${i.message}`).join("; ")}`);
   console.log("[full-pipeline] TimelineRenderPlan built, clips:", plan.clips.length);
@@ -1099,25 +1119,8 @@ export async function runFullPipeline(): Promise<Record<string, unknown>> {
         console.log(`[full-pipeline] cinematic config injected on ${cinematicByClipId.size} visual clips`);
       }
 
-      // ── 18b. 2D 镜头语言 + 镜头特效（MYSTUDIO_SHOT_FX=1）──
-      // 决策逻辑与 App 一键成片共享单源（shot-fx-decisions），保证两条入口产出一致。
-      if (process.env.MYSTUDIO_SHOT_FX === "1") {
-        const fxStore = JSON.parse(fs.readFileSync(path.join(projectDir, "studio-workflow-store.json"), "utf8")) as {
-          state?: { storyboards?: Array<{ id: string; episodeId: string; prompt?: string; line?: string; shotFx?: { motion?: unknown } }> };
-        };
-        const shotFx = buildShotFxByClipId({
-          planClips: plan.clips,
-          visualClips: props.visualClips,
-          storyboards: (fxStore.state?.storyboards ?? []).filter((storyboard) => storyboard.episodeId === chapterId),
-        });
-        for (const clip of props.visualClips) {
-          const decision = shotFx.byClipId.get(clip.clipId);
-          if (!decision) continue;
-          (clip as { panZoom?: unknown }).panZoom = decision.panZoom;
-          (clip as { fx?: unknown }).fx = decision.fx;
-        }
-        console.log(`[full-pipeline] 2D shot-fx injected: motion ${shotFx.counts.motion}, shake ${shotFx.counts.shake}, glow ${shotFx.counts.glow}, chroma ${shotFx.counts.chroma}`);
-      }
+      // 2D 镜头语言/特效已前置到 15b：plan.effects 正门（build-composition-props
+      // 消费），不再渲染时直注合成 props。
 
       const propsValidation = validateChapterVideoCompositionProps(props);
       if (!propsValidation.success) throw new Error(`composition props 验证失败: ${propsValidation.issues.map((i) => `${i.path}: ${i.message}`).join("; ")}`);

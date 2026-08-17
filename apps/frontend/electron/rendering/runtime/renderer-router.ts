@@ -6,7 +6,14 @@ import {
   type TimelineRenderRequest,
 } from "../contracts/timeline-renderer";
 
-const REMOTION_SUPPORTED_EFFECT_IDS = ["panZoom", "speed"] as const;
+const REMOTION_SUPPORTED_EFFECT_IDS = [
+  "panZoom",
+  "speed",
+  "shake",
+  "glow",
+  "grain",
+  "chromaticAberration",
+] as const;
 
 interface TimelineRendererRoutingPlan {
   effects: ReadonlyArray<{

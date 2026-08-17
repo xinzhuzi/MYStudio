@@ -2,13 +2,11 @@ export const TIMELINE_RENDERER_IDS = ["remotion", "ffmpeg"] as const;
 
 export type TimelineRendererId = typeof TIMELINE_RENDERER_IDS[number];
 
+// shake/glow/grain/chromaticAberration 已转正：合成层 VisualClip 完整实现
+// （build-composition-props 消费 plan.effects），编辑预览亦有近似实现。
 export const REMOTION_UNSUPPORTED_EFFECT_IDS = [
-  "shake",
   "glitch",
-  "chromaticAberration",
   "blur",
-  "glow",
-  "grain",
 ] as const;
 
 export type RemotionUnsupportedEffectId =

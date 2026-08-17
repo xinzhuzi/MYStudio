@@ -19,6 +19,10 @@ describe("routeTimelineRenderer", () => {
       effects: [
         { effectId: "panZoom", enabled: true },
         { effectId: "speed", enabled: true },
+        { effectId: "shake", enabled: true },
+        { effectId: "glow", enabled: true },
+        { effectId: "grain", enabled: true },
+        { effectId: "chromaticAberration", enabled: true },
         { effectId: "blur", enabled: false },
       ],
     }))).toEqual({
@@ -30,15 +34,15 @@ describe("routeTimelineRenderer", () => {
   it("rejects enabled unsupported effects without a FFmpeg fallback", () => {
     expect(routeTimelineRenderer(createTimelineRenderRequest("remotion", {
       effects: [
-        { effectId: "grain", enabled: true },
+        { effectId: "glitch", enabled: true },
         { effectId: "blur", enabled: true },
-        { effectId: "grain", enabled: true },
+        { effectId: "glitch", enabled: true },
       ],
     }))).toEqual({
       success: false,
       code: "unsupported-remotion-effects",
-      effectIds: ["blur", "grain"],
-      message: "Remotion 暂不支持效果：blur、grain；正式流程不会回退 FFmpeg",
+      effectIds: ["glitch", "blur"],
+      message: "Remotion 暂不支持效果：glitch、blur；正式流程不会回退 FFmpeg",
     });
   });
 

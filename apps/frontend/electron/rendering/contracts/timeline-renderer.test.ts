@@ -53,13 +53,11 @@ describe("timeline renderer contracts", () => {
 
   it("keeps renderer and unsupported-effect ids explicit and stable", () => {
     expect(TIMELINE_RENDERER_IDS).toEqual(["remotion", "ffmpeg"]);
+    // shake/glow/grain/chromaticAberration 已转正为 Remotion 支持（合成层完整实现），
+    // 仍不支持的是 glitch/blur。
     expect(REMOTION_UNSUPPORTED_EFFECT_IDS).toEqual([
-      "shake",
       "glitch",
-      "chromaticAberration",
       "blur",
-      "glow",
-      "grain",
     ]);
     expect(isTimelineRendererId("ffmpeg")).toBe(true);
     expect(isTimelineRendererId("auto")).toBe(false);

@@ -109,6 +109,7 @@ import { parseProjectFileUrl, resolveDataFilePath } from '../storage/storage-pat
 import { validateEditingProject } from '../../lib/studio/editing/validation'
 import type { RemotionCurrentSlotV1 } from '../../types/remotion-workspace'
 import { compileTimelineRenderPlan } from '../../lib/studio/editing/timeline-render-compiler'
+import { mergeShotFxEditingEffects } from '../../lib/studio/remotion/shot-fx-decisions'
 import {
   buildMinimalRemotionStudioStartOptions,
   RemotionStudioRenderQueueBridge,
@@ -1059,6 +1060,24 @@ async function loadChapterStudioProjection(request: { projectId: string; chapter
     createdAt: project.value.updatedAt,
   })
   if (!plan.success) throw new Error(`当前章节无法编译为 Studio projection: ${plan.issues[0]?.message ?? '未知错误'}`)
+  // 2D 镜头语言/特效走 plan.effects 正门（video-use 编排 → Remotion 合成消费）：
+  // 合并 shotFx 决策（AI 提示 > 关键词 > 镜序轮换），章节渲染身份哈希含
+  // plan.effects → 运镜变化自动失效缓存。幂等：前缀识别旧 shotFx 条目并替换。
+  const shotFxStoryboards = (() => {
+    try {
+      const storePath = resolveDataFilePath(getDataDir(), `_p/${request.projectId}/studio-workflow-store`)
+      const store = JSON.parse(fs.readFileSync(storePath, 'utf8')) as {
+        state?: { storyboards?: Array<{ id: string; episodeId: string; prompt?: string; line?: string; shotFx?: { motion?: unknown } }> }
+      }
+      return (store.state?.storyboards ?? []).filter((storyboard) => storyboard.episodeId === request.chapterId)
+    } catch { /* store 缺失 → 仅规则轮换运镜 */ }
+    return []
+  })()
+  const shotFx = mergeShotFxEditingEffects(plan.value.effects, {
+    planClips: plan.value.clips,
+    storyboards: shotFxStoryboards,
+  })
+  plan.value.effects = shotFx.effects
   const visualClips = plan.value.clips.filter((clip) => clip.trackKind === 'video' || clip.trackKind === 'image')
   if (visualClips.length === 0) throw new Error('当前章节缺少合法 current shot 输出')
   const remotionWorkspaceRoot = path.join(projectRootFor(request.projectId), 'remotion')

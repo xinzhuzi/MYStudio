@@ -14,7 +14,6 @@ import type {
   RemotionRenderJobTarget,
 } from "@/types/remotion-workspace";
 import { sha256CanonicalJson } from "@/lib/studio/remotion/canonical-json";
-import { buildShotFxByClipId } from "@/lib/studio/remotion/shot-fx-decisions";
 import { createRemotionRenderJobId } from "@/lib/studio/remotion/remotion-job-identity";
 import {
   buildRemotionCurrentSlot,
@@ -443,28 +442,9 @@ export class RemotionChapterRenderer {
           : {}),
       });
       if (!projected.success) throw new Error(projected.issues.map((issue) => `${issue.path}: ${issue.message}`).join("；"));
-      // 2D 镜头语言 + 特效注入（与 CLI 全管线共享决策单源，保证两条入口产出一致）。
-      // 分镜文本从项目 store 读取；读取失败仅跳过注入（不阻塞渲染主链）。
-      try {
-        const projectRoot = this.options.projectRootForProject(identity.projectId);
-        const storePath = path.join(projectRoot, "studio-workflow-store.json");
-        const store = JSON.parse(fs.readFileSync(storePath, "utf8")) as {
-          state?: { storyboards?: Array<{ id: string; episodeId: string; prompt?: string; line?: string; shotFx?: { motion?: unknown } }> };
-        };
-        const shotFx = buildShotFxByClipId({
-          planClips: plan.clips,
-          visualClips: projected.value.visualClips,
-          storyboards: (store.state?.storyboards ?? []).filter((storyboard) => storyboard.episodeId === identity.target.chapterId),
-        });
-        for (const clip of projected.value.visualClips) {
-          const decision = shotFx.byClipId.get(clip.clipId);
-          if (!decision) continue;
-          (clip as { panZoom?: unknown }).panZoom = decision.panZoom;
-          (clip as { fx?: unknown }).fx = decision.fx;
-        }
-      } catch {
-        // store 缺失/损坏时维持无特效渲染（决策为装饰层，非合同字段）
-      }
+      // 2D 镜头语言/特效已前置到 plan.effects 正门（managed run 在编译后合并
+      // mergeShotFxEditingEffects，build-composition-props 消费 panZoom/fx 效果），
+      // 渲染器不再做渲染时直注；运镜变化经章节身份哈希（含 plan.effects）失效缓存。
       const render = await this.utility.render({
         target: "chapter",
         jobId,

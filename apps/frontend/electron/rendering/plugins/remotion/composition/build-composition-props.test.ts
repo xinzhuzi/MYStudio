@@ -498,6 +498,81 @@ describe("buildChapterVideoCompositionProps", () => {
       value: [{ startFrame: 39, endFrame: 54 }],
     });
   });
+
+  it("maps plan.effects fx entries onto the visual clip fx prop (contract front door)", async () => {
+    const slot = makeCurrentSlot();
+    const plan = chapterPlan(slot, "shot-001", "storyboardVideo");
+    const clipId = plan.clips[0]!.id;
+    plan.clips[0]!.startUs = 0;
+    plan.clips[0]!.durationUs = 1_000_000;
+    plan.effects = [
+      {
+        id: "effect-shot-fx-shake",
+        effectId: "shake",
+        targetClipId: clipId,
+        startUs: 0,
+        durationUs: 1_000_000,
+        params: { intensity: 0.25 },
+        enabled: true,
+      },
+      {
+        id: "effect-shot-fx-glow",
+        effectId: "glow",
+        targetClipId: clipId,
+        startUs: 0,
+        durationUs: 1_000_000,
+        params: { intensity: 0.5 },
+        enabled: true,
+      },
+      {
+        id: "effect-shot-fx-grain",
+        effectId: "grain",
+        targetClipId: clipId,
+        startUs: 0,
+        durationUs: 1_000_000,
+        params: { amount: 0.035 },
+        enabled: true,
+      },
+      {
+        id: "effect-shot-fx-chroma",
+        effectId: "chromaticAberration",
+        targetClipId: clipId,
+        startUs: 0,
+        durationUs: 1_000_000,
+        params: { offset: 3 },
+        enabled: true,
+      },
+      {
+        id: "effect-shot-fx-disabled-glow",
+        effectId: "glow",
+        targetClipId: clipId,
+        startUs: 0,
+        durationUs: 1_000_000,
+        params: { intensity: 0.9 },
+        enabled: false,
+      },
+    ];
+    const chapterManifest = await manifestForPlan(plan);
+
+    const result = buildChapterVideoCompositionProps({
+      plan,
+      currentShotSlots: [slot],
+      chapterManifest,
+      mediaUrlByClipId: { [clipId]: mediaUrl },
+      mediaUrlByBindingId: {},
+    });
+
+    expect(result.success).toBe(true);
+    if (result.success) {
+      // registry → 合成层换算：shake intensity 0.25 → amplitudePx 6；其余数值域直传。
+      expect(result.value.visualClips[0]?.fx).toEqual({
+        shake: { amplitudePx: 6 },
+        glow: { intensity: 0.5 },
+        grain: { opacity: 0.035 },
+        chroma: { offsetPx: 3 },
+      });
+    }
+  });
 });
 
 async function manifestForPlan(
