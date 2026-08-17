@@ -57,6 +57,8 @@ export interface NovelChapter {
   eventAnalysis?: NovelEventAnalysis;
   eventRawOutput?: string;
   eventErrorReason?: string;
+  /** 事件分析提取的人物名未在原著圣经人物表登记的确定性校验警告（不阻断 success）。 */
+  eventNameWarnings?: string[];
   sourceName?: string;
   importedAt: number;
   updatedAt?: number;
@@ -710,7 +712,17 @@ export interface StorySkeleton {
 export interface EntityExtractionResult extends StudioSourceIdentity {
   id: string;
   episodeId: string;
-  characters: { characterId: string; name: string; aliases: string[]; note?: string }[];
+  characters: {
+    characterId: string;
+    name: string;
+    aliases: string[];
+    note?: string;
+    /**
+     * 角色重要度（配音分层分配用）：protagonist 优先挑最佳片段；
+     * npc 允许复用配角音色。缺省按 supporting 处理。
+     */
+    importance?: "protagonist" | "supporting" | "npc";
+  }[];
   scenes: { sceneId: string; name: string; note?: string }[];
   props: { assetId: string; name: string; note?: string }[];
 }

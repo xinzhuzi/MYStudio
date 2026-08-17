@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import {
   assignAudioToRoles,
   assignAudioToRolesWithAi,
+  buildRoleAudioAiMatchPrompt,
   buildRoleAudioCandidates,
   createNarratorVoiceTarget,
   createRoleAudioVoiceProfileInput,
@@ -556,5 +557,78 @@ describe("narrator 木成家族锁定", () => {
     expect(result.fixed).toEqual([]);
     expect(result.created[0]?.assignment.audio.filePath).toBe("audio/voice-yunxi-calm.wav");
     expect(result.created[0]?.assignment.reason).toContain("云希");
+  });
+});
+
+describe("配音分层分配（主角优先 / NPC 可复用）", () => {
+  const layeredCandidates = buildRoleAudioCandidates([], [
+    audio("c1", "清冷剑修音", "剑修清冷念白。", "/voices/sword-cold.wav"),
+    audio("c2", "先生书生儒雅", "书生儒雅念白。", "/voices/scholar.wav"),
+  ]);
+  const roleA = role("char-a", "沈砚", "青年剑修，冷峻寡言。");
+  const roleB = role("char-b", "叶孤鸿", "青年剑修，冷峻寡言。");
+
+  it("主角先挑：标记 protagonist 的角色优先拿到最佳片段（即使排在数组后面）", () => {
+    const assignments = assignAudioToRoles(
+      [roleA, roleB],
+      layeredCandidates,
+      { importanceByRoleId: { "char-b": "protagonist" } },
+    );
+    const byRoleId = new Map(assignments.map((item) => [item.role.id, item.audio.filePath]));
+    expect(byRoleId.get("char-b")).toBe("/voices/sword-cold.wav");
+    expect(byRoleId.get("char-a")).toBe("/voices/scholar.wav");
+  });
+
+  it("无标记时保持数组顺序（既有行为不变）", () => {
+    const assignments = assignAudioToRoles([roleA, roleB], layeredCandidates);
+    const byRoleId = new Map(assignments.map((item) => [item.role.id, item.audio.filePath]));
+    expect(byRoleId.get("char-a")).toBe("/voices/sword-cold.wav");
+    expect(byRoleId.get("char-b")).toBe("/voices/scholar.wav");
+  });
+
+  it("NPC 允许复用：不因片段已被配角占用而受罚，可拿到同一段最佳匹配", () => {
+    const npcRole = role("char-n", "路人甲", "青年剑修，冷峻寡言。");
+    const assignments = assignAudioToRoles(
+      [roleA, npcRole],
+      layeredCandidates,
+      { importanceByRoleId: { "char-n": "npc" } },
+    );
+    const byRoleId = new Map(assignments.map((item) => [item.role.id, item.audio.filePath]));
+    expect(byRoleId.get("char-a")).toBe("/voices/sword-cold.wav");
+    expect(byRoleId.get("char-n")).toBe("/voices/sword-cold.wav");
+  });
+
+  it("planFixedRoleVoices 透传 importanceByRoleId 给自动分配", async () => {
+    const result = await planFixedRoleVoices({
+      targets: [
+        { speakerId: "character:char-a" as const, role: roleA },
+        { speakerId: "character:char-b" as const, role: roleB },
+      ],
+      candidates: layeredCandidates,
+      importanceByRoleId: { "char-b": "protagonist" },
+      bindings: {},
+      voiceProfiles: {},
+      resolveReferenceAudioPath: async (audioPath) => audioPath,
+    });
+
+    expect(result.errors).toEqual([]);
+    const createdById = new Map(result.created.map((item) => [item.speakerId, item.assignment.audio.filePath]));
+    expect(createdById.get("character:char-b")).toBe("/voices/sword-cold.wav");
+    expect(createdById.get("character:char-a")).toBe("/voices/scholar.wav");
+  });
+
+  it("AI 精选提示词含候选 audioId 与角色名，解析回路成立", () => {
+    const localAssignments = assignAudioToRoles([roleA], layeredCandidates);
+    const prompt = buildRoleAudioAiMatchPrompt({
+      role: roleA,
+      candidates: layeredCandidates,
+      localAssignment: localAssignments[0]!,
+    });
+    expect(prompt).toContain("沈砚");
+    expect(prompt).toContain("audioId=c1");
+    const parsed = parseRoleAudioAiMatchResult(
+      '```json\n{"audioId": "material:c1", "reason": "剑修气质贴合"}\n```',
+    );
+    expect(parsed).toEqual({ audioId: "material:c1", reason: "剑修气质贴合" });
   });
 });

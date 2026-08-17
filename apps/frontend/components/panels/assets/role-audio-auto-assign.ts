@@ -17,6 +17,19 @@ type Gender = "male" | "female" | "unknown";
 type AgeBand = "child" | "teen" | "young" | "middle" | "old" | "unknown";
 type RoleArchetype = "villain" | "child" | "swordsman" | "scholar" | "worker" | "elder" | "noble";
 
+export type RoleImportance = "protagonist" | "supporting" | "npc";
+
+/** 分层分配选项：主角优先挑段；NPC 允许复用已分配片段（不罚）。 */
+export interface AssignAudioOptions {
+  importanceByRoleId?: Record<string, RoleImportance>;
+}
+
+const IMPORTANCE_ORDER: Record<RoleImportance, number> = {
+  protagonist: 0,
+  supporting: 1,
+  npc: 2,
+};
+
 export interface RoleAudioCandidate {
   id: string;
   name: string;
@@ -45,6 +58,7 @@ export interface RoleAudioAiMatchResult {
 export interface RoleAudioAiOptions {
   maxCandidatesPerRole?: number;
   match: (request: RoleAudioAiMatchRequest) => Promise<RoleAudioAiMatchResult | null | undefined>;
+  importanceByRoleId?: Record<string, RoleImportance>;
 }
 
 export interface RoleAudioVoiceProfileDraft {
@@ -96,9 +110,12 @@ export interface PlanFixedRoleVoicesInput {
   resolveReferenceAudioPath: (audioPath: string) => Promise<string | null>;
   /** 旁白音色家族名（音色库资产命名前缀），缺省=木成；换家族后旁白自动重绑。 */
   narratorVoiceFamily?: string;
+  /** 角色重要度（key=role.id 即 characterId）：主角优先挑段，NPC 允许复用。 */
+  importanceByRoleId?: Record<string, RoleImportance>;
   assignUnbound?: (
     roles: StudioAssetSummary[],
     candidates: RoleAudioCandidate[],
+    options?: AssignAudioOptions,
   ) => Promise<RoleAudioAssignment[]> | RoleAudioAssignment[];
 }
 
@@ -226,14 +243,24 @@ export function buildRoleAudioCandidates(
 export function assignAudioToRoles(
   roles: StudioAssetSummary[],
   candidates: RoleAudioCandidate[],
+  options: AssignAudioOptions = {},
 ): RoleAudioAssignment[] {
   if (candidates.length === 0) return [];
   const usage = new Map<string, number>();
-
-  return roles
+  const importanceOf = (roleId: string): RoleImportance =>
+    options.importanceByRoleId?.[roleId] ?? "supporting";
+  // 分层顺序：主角先挑（拿到最佳匹配），NPC 最后（允许复用）。
+  const ordered = [...roles]
     .filter((role) => role.type === "role")
+    .sort((left, right) =>
+      IMPORTANCE_ORDER[importanceOf(left.id)] - IMPORTANCE_ORDER[importanceOf(right.id)]
+      || left.id.localeCompare(right.id),
+    );
+
+  return ordered
     .map((role) => {
       const roleTraits = analyzeText(buildRoleSearchText(role));
+      const allowReuse = importanceOf(role.id) === "npc";
       let best = candidates[0]!;
       let bestScore = Number.NEGATIVE_INFINITY;
       let bestReason = "按候选顺序分配";
@@ -241,7 +268,7 @@ export function assignAudioToRoles(
       candidates.forEach((candidate, index) => {
         const audioTraits = analyzeText(buildAudioSearchText(candidate));
         const usedCount = usage.get(candidate.id) ?? 0;
-        const { score, reason } = scoreCandidate(roleTraits, audioTraits, usedCount, index);
+        const { score, reason } = scoreCandidate(roleTraits, audioTraits, usedCount, index, allowReuse);
         if (score > bestScore) {
           best = candidate;
           bestScore = score;
@@ -259,14 +286,18 @@ export async function assignAudioToRolesWithAi(
   candidates: RoleAudioCandidate[],
   options: RoleAudioAiOptions,
 ): Promise<RoleAudioAssignment[]> {
-  const localAssignments = assignAudioToRoles(roles, candidates);
+  const importanceByRoleId = options.importanceByRoleId;
+  const localAssignments = assignAudioToRoles(roles, candidates, { importanceByRoleId });
   const maxCandidatesPerRole = Math.max(1, options.maxCandidatesPerRole ?? 8);
+  const importanceOf = (roleId: string): RoleImportance =>
+    importanceByRoleId?.[roleId] ?? "supporting";
 
   const assignments: RoleAudioAssignment[] = [];
   const usage = new Map<string, number>();
 
   for (const localAssignment of localAssignments) {
-    const rankedCandidates = rankCandidatesForRole(localAssignment.role, candidates, usage)
+    const allowReuse = importanceOf(localAssignment.role.id) === "npc";
+    const rankedCandidates = rankCandidatesForRole(localAssignment.role, candidates, usage, allowReuse)
       .slice(0, maxCandidatesPerRole)
       .map((item) => item.candidate);
     const allowedIds = new Set(rankedCandidates.map((item) => item.id));
@@ -475,6 +506,7 @@ export async function planFixedRoleVoices(
       const autoAssignments = await assignUnbound(
         autoTargets.map((target) => target.role),
         input.candidates,
+        { importanceByRoleId: input.importanceByRoleId },
       );
       assignments.push(...autoAssignments);
     } catch (error) {
@@ -572,14 +604,35 @@ export function parseRoleAudioAiMatchResult(text: string): RoleAudioAiMatchResul
   }
 }
 
+/** AI 精选提示词（角色 → 候选片段），配合 parseRoleAudioAiMatchResult 使用。 */
+export function buildRoleAudioAiMatchPrompt(request: RoleAudioAiMatchRequest): string {
+  const role = request.role;
+  const roleText = [role.description, role.setting, role.prompt, role.remark]
+    .filter(Boolean)
+    .join("；");
+  const candidates = request.candidates
+    .map((candidate, index) =>
+      `${index + 1}. audioId=${candidate.id}｜${candidate.name}｜参考文本: ${(candidate.referenceText ?? "").slice(0, 48)}`)
+    .join("\n");
+  return `你是配音导演。为角色「${role.name}」从候选音频片段中选出音色最贴合的一段。
+角色设定：${roleText || "(无)"}
+本地初选：${request.localAssignment.audio.name}（${request.localAssignment.reason}）
+
+候选片段（只能从中选）：
+${candidates}
+
+要求：结合角色性别、年龄、气质与身份选最贴合的一段；只输出 JSON，格式 {"audioId": "...", "reason": "一句话理由"}；不要输出任何解释文字。`;
+}
+
 function scoreCandidate(
   role: ReturnType<typeof analyzeText>,
   audio: ReturnType<typeof analyzeText>,
   usedCount: number,
   index: number,
+  allowReuse = false,
 ) {
   const reasons: string[] = [];
-  let score = usedCount === 0 ? 20 : -20 - usedCount * 10;
+  let score = usedCount === 0 || allowReuse ? 20 : -20 - usedCount * 10;
 
   if (role.gender !== "unknown" && audio.gender !== "unknown") {
     if (role.gender === audio.gender) {
@@ -622,13 +675,14 @@ function rankCandidatesForRole(
   role: StudioAssetSummary,
   candidates: RoleAudioCandidate[],
   usage: Map<string, number>,
+  allowReuse = false,
 ) {
   const roleTraits = analyzeText(buildRoleSearchText(role));
   return candidates
     .map((candidate, index) => {
       const audioTraits = analyzeText(buildAudioSearchText(candidate));
       const usedCount = usage.get(candidate.id) ?? 0;
-      const { score, reason } = scoreCandidate(roleTraits, audioTraits, usedCount, index);
+      const { score, reason } = scoreCandidate(roleTraits, audioTraits, usedCount, index, allowReuse);
       return { candidate, score, reason };
     })
     .sort((left, right) => right.score - left.score);

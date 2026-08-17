@@ -1,11 +1,18 @@
 import { useCallback, useRef, useState } from "react";
 import { toast } from "sonner";
 import {
+  assignAudioToRolesWithAi,
+  buildRoleAudioAiMatchPrompt,
   buildRoleAudioCandidates,
   createNarratorVoiceTarget,
+  parseRoleAudioAiMatchResult,
   planFixedRoleVoices,
   type FixedVoiceTarget,
+  type RoleAudioAiMatchRequest,
+  type RoleAudioAiMatchResult,
+  type RoleImportance,
 } from "@/components/panels/assets/role-audio-auto-assign";
+import { aiManager } from "@/lib/ai/ai-manager";
 import {
   ChapterTtsCancellationController,
   runChapterAutoVideo,
@@ -247,6 +254,12 @@ export function useChapterAutoVideoActions({
             assertProjectStillActive();
             useTtsStore.getState().setActiveProjectId(activeProjectId);
             const ttsState = useTtsStore.getState();
+            // 配音分层（用户策略）：主角（实体 importance=protagonist）优先挑最佳
+            // 片段；NPC 允许复用配角音色。未标记角色按 supporting。
+            const importanceByRoleId: Record<string, RoleImportance> = {};
+            for (const character of batch?.characters ?? []) {
+              if (character.importance) importanceByRoleId[character.characterId] = character.importance;
+            }
             const plan = await planFixedRoleVoices({
               targets,
               candidates: buildRoleAudioCandidates(
@@ -254,6 +267,29 @@ export function useChapterAutoVideoActions({
                 audioAssets.items ?? [],
               ),
               narratorVoiceFamily: useStudioStore.getState().workflowConfig.narratorVoiceFamily,
+              importanceByRoleId,
+              // AI 精选接线：本地打分初选 + AI 语义复核（失败回落初选，不阻塞）。
+              assignUnbound: (unboundRoles, candidates, options) =>
+                assignAudioToRolesWithAi(unboundRoles, candidates, {
+                  match: async (request: RoleAudioAiMatchRequest): Promise<RoleAudioAiMatchResult | null> => {
+                    try {
+                      const result = await aiManager.text({
+                        binding: { agent: "universalAi" },
+                        messages: [
+                          { role: "system", content: "你是配音导演，只输出严格 JSON。" },
+                          { role: "user", content: buildRoleAudioAiMatchPrompt(request) },
+                        ],
+                        temperature: 0.2,
+                        maxTokens: 512,
+                      });
+                      if (!result.success || !result.text) return null;
+                      return parseRoleAudioAiMatchResult(result.text);
+                    } catch {
+                      return null;
+                    }
+                  },
+                  importanceByRoleId: options?.importanceByRoleId,
+                }),
               bindings: ttsState.projects[activeProjectId]?.bindings ?? {},
               voiceProfiles: ttsState.voiceProfiles,
               resolveReferenceAudioPath: (audioPath) =>
