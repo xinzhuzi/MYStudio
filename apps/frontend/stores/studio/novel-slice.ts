@@ -35,10 +35,11 @@ type SetFn = (
 ) => void;
 type GetFn = () => NovelSliceStore;
 
-/** mirror 同步注入(由 store 提供,内部转发到 library stores)。 */
+/** mirror 同步注入(由 store 提供,内部转发到 library stores 与项目文件)。 */
 export interface NovelMirrorDeps {
   syncNovelChapterMirrors: (chapters: NovelChapter[]) => void;
   removeNovelChapterMirrors: (chapters: NovelChapter[]) => void;
+  syncSourceBibleMirror?: (text: string) => void;
 }
 
 /** novel slice 的 action 实现。 */
@@ -109,6 +110,7 @@ export function createNovelSliceActions(
 
     saveSourceBible: (text: string): void => {
       set({ sourceBible: text });
+      mirrors.syncSourceBibleMirror?.(text);
     },
   };
 }

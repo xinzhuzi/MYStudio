@@ -33,6 +33,7 @@ import {
   createStudioWorkflowId,
   removeNovelChapterMirrorsForActiveProject,
   syncNovelChapterMirrorsForActiveProject,
+  syncSourceBibleMirrorForActiveProject,
 } from "./studio-store-runtime";
 import {
   continuityAssetVersionKey,
@@ -213,7 +214,11 @@ export const useStudioStore = create<StudioWorkflowStore>()(
     (set, get) => {
       const materialSlice = createMaterialSliceActions(set as never, get as never);
       const configSlice = createConfigSliceActions(set as never);
-      const novelSlice = createNovelSliceActions(set as never, get as never, { syncNovelChapterMirrors, removeNovelChapterMirrors });
+      const novelSlice = createNovelSliceActions(set as never, get as never, {
+        syncNovelChapterMirrors,
+        removeNovelChapterMirrors,
+        syncSourceBibleMirror: syncSourceBibleMirrorForActiveProject,
+      });
       const memorySlice = createMemorySliceActions(set as never, get as never);
       const entitySlice = createEntitySliceActions(set as never);
       const productionSlice = createProductionSliceActions(set as never);

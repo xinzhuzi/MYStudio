@@ -2,8 +2,10 @@ import { useProjectStore } from "@/stores/project/project-store";
 import { getProjectFilesBridge } from "@/lib/bridge/project-files";
 import type { NovelChapter } from "@/types/studio";
 import {
+  loadSourceBibleMirror as loadSourceBibleMirrorInFiles,
   removeNovelChapterMirrors as removeNovelChapterMirrorsInFiles,
   syncNovelChapterMirrors as syncNovelChapterMirrorsInFiles,
+  syncSourceBibleMirror as syncSourceBibleMirrorInFiles,
 } from "./studio-store-novel-mirrors";
 
 export function createStudioWorkflowId(prefix: string) {
@@ -24,6 +26,14 @@ export function removeNovelChapterMirrorsForActiveProject(chapters: NovelChapter
     chapters,
     getProjectFiles(),
   );
+}
+
+export function syncSourceBibleMirrorForActiveProject(text: string) {
+  syncSourceBibleMirrorInFiles(getActiveProjectId(), text, getProjectFiles());
+}
+
+export function loadSourceBibleMirrorForActiveProject(): Promise<string> {
+  return loadSourceBibleMirrorInFiles(getActiveProjectId(), getProjectFiles());
 }
 
 function getActiveProjectId() {

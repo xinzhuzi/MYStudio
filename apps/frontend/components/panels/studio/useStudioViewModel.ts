@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { useProjectStore } from "@/stores/project/project-store";
 import { useStudioStore } from "@/stores/studio/studio-store";
+import { loadSourceBibleMirrorForActiveProject } from "@/stores/studio/studio-store-runtime";
 import { aiManager } from "@/lib/ai/ai-manager";
 import {
   buildSourceBibleMessages,
@@ -143,6 +144,24 @@ export function useStudioViewModel() {
     const text = await file.text();
     setNovelDraft(text);
   };
+
+  // 原著圣经启动/切项目治愈：store 为空时从项目文件 novel/source-bible.md 回读
+  //（外部编辑器或手工落盘的圣经由此进入应用；store 已有内容时不覆盖）。
+  useEffect(() => {
+    const projectId = activeProject?.id;
+    if (!projectId) return;
+    let cancelled = false;
+    void (async () => {
+      if (useStudioStore.getState().sourceBible.trim()) return;
+      const text = await loadSourceBibleMirrorForActiveProject();
+      if (cancelled || !text.trim()) return;
+      if (useStudioStore.getState().sourceBible.trim()) return;
+      useStudioStore.getState().saveSourceBible(text);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [activeProject?.id]);
 
   const { handleNovelEventAnalysis, handleEntityExtraction } =
     useNovelPipelineActions({

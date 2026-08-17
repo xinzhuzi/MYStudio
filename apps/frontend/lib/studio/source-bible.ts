@@ -12,6 +12,14 @@ import { parseStageOutput } from "./script-planning";
  *  4000：容纳 72 人全阵容时人均 ~30 字的「身份弧线」描述；≈2k token/次注入，相对章节正文可接受。 */
 export const SOURCE_BIBLE_MAX_CHARS = 4000;
 
+/** 项目内文件镜像相对路径（对齐 novel/chapters/<id>.md 的章节镜像约定，正文/圣经同域）。 */
+export const SOURCE_BIBLE_RELATIVE_PATH = "novel/source-bible.md";
+
+/** writeText 桥的存储键（`_p/{projectId}/` 前缀约定，主进程解析到项目根目录）。 */
+export function sourceBibleMirrorKey(projectId: string): string {
+  return `_p/${projectId}/${SOURCE_BIBLE_RELATIVE_PATH}`;
+}
+
 /** 五段固定模板——格式即契约，主要人物行格式供机器解析做人物名校验。 */
 export const SOURCE_BIBLE_TEMPLATE = `# 原著圣经
 
