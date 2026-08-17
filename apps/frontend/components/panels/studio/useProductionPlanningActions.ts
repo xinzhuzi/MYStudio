@@ -26,8 +26,7 @@ import {
   retrieveProjectMemory,
 } from "@/lib/studio/project-memory";
 import { EXTENDED_VISUAL_MANUAL_SEED_ID } from "@/lib/studio/visual-manual-classification";
-import { formatSourceBibleContext, readResidentBible } from "@/lib/studio/source-bible";
-import { getProjectFilesBridge } from "@/lib/bridge/project-files";
+import { readBibleWithArchiveContext } from "@/lib/studio/source-memory";
 import type { AssetGenerationTask } from "@/lib/studio/asset-generation-orchestrator";
 import type { EntityResolver } from "@/lib/studio/derived-asset-sync";
 import { useCharacterLibraryStore } from "@/stores/library/character-library-store";
@@ -100,13 +99,12 @@ export function useProductionPlanningActions({
         episodeId: targetEpisodeId,
         scriptText,
         manualContext: [manualContext, projectMemoryContext].filter(Boolean).join("\n\n---\n\n"),
-        bibleContext: formatSourceBibleContext(
-          await readResidentBible({
-            projectId: projectId,
-            readText: getProjectFilesBridge()?.readText,
-            storeFallback: store.sourceBible,
-          }),
-        ) || undefined,
+        // 常驻圣经块 + 原著档案检索合一（检索不可用→零注入零阻断）
+        bibleContext: await readBibleWithArchiveContext({
+          projectId: projectId,
+          storeFallback: store.sourceBible,
+          archiveQuery: scriptText.slice(0, 200),
+        }),
       });
       const userContent = userInstruction.trim()
         ? `${messages.user}\n\n【本次节点补充要求】\n${userInstruction.trim()}`
@@ -297,13 +295,12 @@ export function useProductionPlanningActions({
         scriptText,
         scriptPlanContext: formatScriptPlanContext(plan),
         manualContext: buildStoryboardTableManualContext(store.workflowConfig, manualCatalog),
-        bibleContext: formatSourceBibleContext(
-          await readResidentBible({
-            projectId: activeProjectId,
-            readText: getProjectFilesBridge()?.readText,
-            storeFallback: store.sourceBible,
-          }),
-        ) || undefined,
+        // 常驻圣经块 + 原著档案检索合一（检索不可用→零注入零阻断）
+        bibleContext: await readBibleWithArchiveContext({
+          projectId: activeProjectId,
+          storeFallback: store.sourceBible,
+          archiveQuery: scriptText.slice(0, 200),
+        }),
       });
       const userContent = userInstruction.trim()
         ? `${messages.user}\n\n【本次节点补充要求】\n${userInstruction.trim()}`

@@ -11,7 +11,7 @@ import { useProjectStore } from "@/stores/project/project-store";
 import { SOURCE_BIBLE_MAX_CHARS, SOURCE_BIBLE_TEMPLATE, readResidentBible } from "@/lib/studio/source-bible";
 import { getProjectFilesBridge } from "@/lib/bridge/project-files";
 import type { NovelChapter } from "@/types/studio";
-import { BookOpen, Plus, Search, Trash2 } from "lucide-react";
+import { BookOpen, Library, Plus, Search, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import {
   createArtifactDeletionPlan,
@@ -22,6 +22,7 @@ import { NovelChapterTable } from "./NovelChapterTable";
 import { NovelBibleEditorDialog, NovelBibleGuideDialog } from "./NovelBibleEditorDialog";
 import { NovelEditDialog, type NovelEditDraft } from "./NovelEditDialog";
 import { NovelImportDialog } from "./NovelImportDialog";
+import { NovelSourceMemoryDialog } from "./NovelSourceMemoryDialog";
 import { ArtifactDeleteDialog } from "../media/ArtifactDeleteDialog";
 
 export function NovelEmptyState({
@@ -81,6 +82,7 @@ export function NovelTab(props: {
   const [bibleDraft, setBibleDraft] = useState("");
   const [bibleGenerating, setBibleGenerating] = useState(false);
   const [bibleGuideOpen, setBibleGuideOpen] = useState(false);
+  const [sourceMemoryOpen, setSourceMemoryOpen] = useState(false);
   const [editDraft, setEditDraft] = useState<NovelEditDraft>({
     volume: "",
     title: "",
@@ -336,6 +338,10 @@ export function NovelTab(props: {
           <BookOpen className="h-4 w-4" />
           原著圣经
         </Button>
+        <Button variant="secondary" onClick={() => setSourceMemoryOpen(true)}>
+          <Library className="h-4 w-4" />
+          原著记忆库
+        </Button>
         <div className="relative min-w-[260px] max-w-[520px] flex-1">
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
@@ -398,6 +404,12 @@ export function NovelTab(props: {
         open={bibleGuideOpen}
         onCancel={() => setBibleGuideOpen(false)}
         onConfirm={confirmBibleGuide}
+      />
+
+      <NovelSourceMemoryDialog
+        open={sourceMemoryOpen}
+        projectId={activeProjectId}
+        onOpenChange={setSourceMemoryOpen}
       />
 
       <ArtifactDeleteDialog

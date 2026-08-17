@@ -67,6 +67,7 @@ afterEach(() => {
   delete (window as any).diagnosticsLog;
   delete (window as any).remotionChapterManifest;
   delete (window as any).remotionStudio;
+  delete (window as any).sourceMemory;
 });
 
 function weakThreeBlockDirectorPlan() {
@@ -308,6 +309,77 @@ describe("workflow stage action surfaces", () => {
     expect(diagnosticsWrite.mock.calls.find((call) => call[0].message === "directorPlan.audit.first")?.[0].context.audit.issueCodes).toContain(
       "legacy_three_block_format",
     );
+  });
+
+  it("injects archive retrieval exactly once, appended after the resident bible block in director plan", async () => {
+    useStudioStore.getState().resetStudioWorkflow();
+    installTextCompletionRuntime();
+    installDiagnosticsRuntime();
+    const saveAgentWorkData = vi.fn();
+    aiManagerMocks.textStream.mockResolvedValue({ success: true, text: validSixSectionDirectorPlan() });
+    const search = vi.fn(async () => ({
+      success: true,
+      hits: [
+        {
+          recordId: "structured:character:abc",
+          kind: "character",
+          title: "晏燎",
+          sourcePath: "novel/chapters/chapter-001.md",
+          anchor: "第1章",
+          score: -1,
+          snippet: "剑主，夜访道口镇",
+        },
+      ],
+    }));
+    (window as any).sourceMemory = {
+      build: vi.fn(),
+      search,
+      status: vi.fn(),
+      stageRecords: vi.fn(),
+      commitBuild: vi.fn(),
+    };
+    useStudioStore.setState({
+      agentWorkData: [
+        {
+          id: "script-draft-1",
+          key: "scriptDraft",
+          episodeId: "chapter-001",
+          data: "第一场金水河码头，独孤剑尘救下小杂役。第二场悦来客栈，断剑显露。",
+          createdAt: 1,
+          updatedAt: 1,
+        },
+      ],
+      novelChapters: [],
+      scriptPlans: [],
+      sourceBible: "# 原著圣经\n\n## 一句话主线\n晏燎创建万劫圣宗。\n\n## 主要人物\n- 晏燎：剑主\n",
+    });
+
+    const { result } = renderHook(() =>
+      useProductionPlanningActions({
+        activeProjectId: "dao-project",
+        productionEpisodeId: "chapter-001",
+        manualCatalog: { visual: [] } as any,
+        handleStageChange: vi.fn(),
+        saveAgentWorkData,
+        saveScriptPlan: vi.fn(),
+        saveSeriesBible: vi.fn(),
+      }),
+    );
+
+    await act(async () => {
+      await result.current.handleProductionNodeAction({
+        id: "generate-director-plan",
+        targetStage: "storyboard",
+      });
+    });
+
+    // 动作开始检索一次；不可用→零注入零阻断的模式在其它用例（无 sourceMemory 桥）隐式覆盖
+    expect(search).toHaveBeenCalledTimes(1);
+    const system = String(aiManagerMocks.textStream.mock.calls[0]?.[0]?.messages?.[0]?.content);
+    expect(system).toContain("原著圣经（最高优先级");
+    expect(system.match(/## 原著档案检索/g)).toHaveLength(1);
+    expect(system).toContain("晏燎（novel/chapters/chapter-001.md）");
+    expect(system.indexOf("## 原著档案检索")).toBeGreaterThan(system.indexOf("原著圣经（最高优先级"));
   });
 
   it("blocks weak director-plan writeback when repair is still invalid", async () => {

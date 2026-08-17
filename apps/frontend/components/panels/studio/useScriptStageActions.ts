@@ -10,11 +10,7 @@ import {
   type ReviewableStage,
   type ScriptStageKey,
 } from "@/lib/studio/script-planning";
-import {
-  formatSourceBibleContext,
-  readResidentBible,
-} from "@/lib/studio/source-bible";
-import { getProjectFilesBridge } from "@/lib/bridge/project-files";
+import { readBibleWithArchiveContext } from "@/lib/studio/source-memory";
 import {
   buildStudioManualContext,
   type StudioManualCatalog,
@@ -156,14 +152,15 @@ export function useScriptStageActions({
     [saveAgentWorkData],
   );
 
-  const readBibleContext = async () => {
+  // 常驻圣经块 + 原著档案检索合一（用户裁定：每条消息常驻块只有一个，检索追加其后；
+  // 档案不可用→零注入零阻断）。query 传当前章节的事件语境供检索定向。
+  const readBibleContext = async (query?: string) => {
     const projectId = useProjectStore.getState().activeProjectId;
-    const residentBible = await readResidentBible({
+    return readBibleWithArchiveContext({
       projectId,
-      readText: getProjectFilesBridge()?.readText,
       storeFallback: useStudioStore.getState().sourceBible,
+      archiveQuery: query ?? "",
     });
-    return formatSourceBibleContext(residentBible) || undefined;
   };
 
   const handleScriptStage = useCallback(
@@ -203,7 +200,9 @@ export function useScriptStageActions({
       const built = buildStageMessages(stage, {
         manualContext: scriptStyleSummary,
         directorContext: scriptDirectorContext,
-        originalBibleContext: await readBibleContext(),
+        originalBibleContext: await readBibleContext(
+          `${chapter.title} ${chapter.eventSummary ?? ""} ${chapter.eventState ?? ""}`,
+        ),
         chapterTitle: chapter.title,
         chapterText: chapter.sourceText,
         eventState: chapter.eventState,
@@ -247,7 +246,9 @@ export function useScriptStageActions({
       }
       const built = buildStageReviewMessages(stage, {
         manualContext: scriptStyleSummary,
-        originalBibleContext: await readBibleContext(),
+        originalBibleContext: await readBibleContext(
+          `${chapter.title} ${chapter.eventSummary ?? ""} ${chapter.eventState ?? ""}`,
+        ),
         chapterTitle: chapter.title,
         chapterText: chapter.sourceText,
         eventState: chapter.eventState,

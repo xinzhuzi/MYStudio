@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { readFileSync } from "node:fs";
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { NovelChapterTable } from "./NovelChapterTable";
 import { NovelTab } from "./NovelTab";
 import { SOURCE_BIBLE_TEMPLATE } from "@/lib/studio/source-bible";
@@ -19,7 +19,10 @@ import type { NovelChapter } from "@/types/studio";
   removeEventListener() {},
 });
 
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  delete (window as unknown as { sourceMemory?: unknown }).sourceMemory;
+});
 
 const chapter: NovelChapter = {
   id: "c1",
@@ -64,7 +67,37 @@ describe("NovelTab 章节表操作列去重", () => {
     expect(screen.getByRole("button", { name: /批量删除/ })).toBeTruthy();
     expect(screen.getByRole("button", { name: /事件分析/ })).toBeTruthy();
     expect(screen.getByRole("button", { name: /原著圣经/ })).toBeTruthy();
+    expect(screen.getByRole("button", { name: /原著记忆库/ })).toBeTruthy();
     expect(screen.getByPlaceholderText("搜索章节名称或正文...")).toBeTruthy();
+  });
+
+  it("原著记忆库对话框默认关闭，点击入口后展示状态与检索自测", async () => {
+    (window as unknown as { sourceMemory?: unknown }).sourceMemory = {
+      status: vi.fn(async () => ({
+        success: true,
+        status: "partial",
+        buildId: "b1",
+        recordCount: 9,
+        structuredCount: 2,
+        rawCount: 7,
+        degradedReason: "extraction-pending:2",
+      })),
+      search: vi.fn(async () => ({ success: true, hits: [] })),
+      build: vi.fn(async () => ({ success: true })),
+      stageRecords: vi.fn(async () => ({ success: true, accepted: 0 })),
+      commitBuild: vi.fn(async () => ({ success: true, status: "ready" })),
+    };
+
+    renderNovelTab();
+    expect(screen.queryByText("结构化记录")).toBeNull();
+
+    fireEvent.click(screen.getByRole("button", { name: /原著记忆库/ }));
+    await waitFor(() => expect(screen.getByText("部分完成")).toBeTruthy());
+    expect(screen.getByText(/2 个章节待智能抽取/)).toBeTruthy();
+    expect(screen.getByPlaceholderText(/检索自测/)).toBeTruthy();
+    expect(screen.getByRole("button", { name: /重建记忆库/ })).toBeTruthy();
+
+    delete (window as unknown as { sourceMemory?: unknown }).sourceMemory;
   });
 
   it("事件分析操作使用品牌目录里的 AI 图标", () => {
