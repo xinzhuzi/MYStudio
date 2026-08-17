@@ -840,7 +840,16 @@ export function ArtifactCenter({
                         </Button>
                       )}
                     </div>
-                  <table className="w-full text-sm">
+                  <table className="w-full table-fixed text-sm">
+                    <colgroup>
+                      <col className="w-10" />
+                      <col />
+                      <col className="w-[110px]" />
+                      <col className="w-[100px]" />
+                      <col className="w-[100px]" />
+                      <col className="w-[180px]" />
+                      <col className="w-[200px]" />
+                    </colgroup>
                     <tbody>
                       {visibleDirectoryFolders.map((folder) => (
                         <tr
@@ -850,9 +859,9 @@ export function ArtifactCenter({
                         >
                           <td className="p-2 w-10" />
                           <td className="p-2 font-medium">
-                            <span className="inline-flex items-center gap-2">
-                              <FolderOpen className="h-4 w-4 text-primary" />
-                              {folder.name}
+                            <span className="inline-flex items-center gap-2" title={folder.path}>
+                              <FolderOpen className="h-4 w-4 shrink-0 text-primary" />
+                              <span className="truncate">{folder.name}</span>
                             </span>
                           </td>
                           <td className="p-2 w-[110px] text-xs text-muted-foreground">文件夹</td>
@@ -880,7 +889,9 @@ export function ArtifactCenter({
                                   onChange={(event) => toggleArtifactSelection(artifact.id, event.target.checked)}
                                 />
                               </td>
-                              <td className="p-2 font-medium">{artifact.name}</td>
+                              <td className="p-2 font-medium">
+                                <span className="block truncate" title={artifact.name}>{artifact.name}</span>
+                              </td>
                               <td className="p-2 w-[110px]">
                                 {(() => {
                                   const impact = getArtifactDeleteImpact(artifact);

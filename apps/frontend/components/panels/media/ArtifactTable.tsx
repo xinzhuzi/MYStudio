@@ -324,7 +324,7 @@ export function ArtifactTable({
                   className="cursor-pointer"
                 />
               </TableHead>
-              <TableHead className="w-[250px]">名称</TableHead>
+              <TableHead>名称</TableHead>
               <TableHead className="w-[120px]"><SortButton column="stage" /></TableHead>
               <TableHead className="w-[100px]">状态</TableHead>
               <TableHead className="w-[100px]"><SortButton column="bytes" /></TableHead>
@@ -358,7 +358,7 @@ export function ArtifactTable({
                   />
                 </TableCell>
                 <TableCell className="font-medium">
-                  {artifact.name}
+                  <span className="block truncate" title={artifact.name}>{artifact.name}</span>
                 </TableCell>
                 <TableCell>
                   <span className="text-xs bg-muted px-2 py-1 rounded">
