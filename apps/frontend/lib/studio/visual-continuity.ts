@@ -85,7 +85,7 @@ export function isContinuityAssetStructurallyComplete(version: ContinuityAssetVe
     version.assetId.trim()
     && version.versionId.trim()
     && version.label.trim()
-    && version.source.trim()
+    && version.source?.trim()
     && version.referenceImagePaths.length > 0
     && version.referenceImagePaths.every((path) => path.trim())
     && (!imageHashes || (

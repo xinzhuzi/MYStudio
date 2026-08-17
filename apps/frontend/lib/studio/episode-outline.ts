@@ -8,6 +8,8 @@ export interface BuildEpisodeOutlineInput {
   skeletonContext?: string;
   /** 改编策略摘要（删减/呈现决策） */
   strategyContext?: string;
+  /** 原著圣经注入块（formatSourceBibleContext 产出）；空圣经时省略，零影响。暂无生产调用方，接口先行保持一致。 */
+  bibleContext?: string;
 }
 
 export interface EpisodeOutlineMessages {
@@ -27,6 +29,7 @@ export function buildEpisodeOutlineMessages(input: BuildEpisodeOutlineInput): Ep
     system: skill,
     user: [
       `当前集ID：${input.episodeId}`,
+      input.bibleContext ? `${input.bibleContext}` : "",
       input.skeletonContext ? `故事骨架：\n${input.skeletonContext}` : "",
       input.strategyContext ? `改编策略：\n${input.strategyContext}` : "",
       "请按【输出格式规范】直接输出本集 beat 序列的 Markdown 表格（4列：场次序号|地点|beat内容|预估时长秒），不要用 XML 标签包裹。",

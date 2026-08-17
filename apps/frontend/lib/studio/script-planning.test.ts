@@ -84,6 +84,34 @@ describe("studio script-planning 逐章编剧链（Markdown）", () => {
     expect(scriptReview.user).toContain("剧本C");
     expect(scriptReview.user).toContain("剧本审核");
   });
+
+  it("原著圣经注入：位于 manualContext 之后；未提供时零影响", () => {
+    const withBible = buildStageMessages("storySkeleton", {
+      chapterTitle: "第1章",
+      chapterText: "正文内容",
+      manualContext: "## 项目信息\n视觉风格：日式3D渲染2D",
+      originalBibleContext: "# 原著圣经（最高优先级·人物一律用此表规范名）\n\n## 一句话主线\n复仇主线",
+    });
+    expect(withBible.user.indexOf("原著圣经（最高优先级")).toBeGreaterThan(withBible.user.indexOf("项目信息"));
+    expect(withBible.user.indexOf("原著圣经（最高优先级")).toBeLessThan(withBible.user.indexOf("本章正文"));
+    expect(withBible.user).toContain("请基于以上信息完成「故事骨架」，遵守原著圣经，并按输出格式返回。");
+
+    const withoutBible = buildStageMessages("storySkeleton", {
+      chapterTitle: "第1章",
+      chapterText: "正文内容",
+    });
+    expect(withoutBible.user).not.toContain("原著圣经");
+    expect(withoutBible.user).toContain("请基于以上信息完成「故事骨架」，并按输出格式返回。");
+
+    const review = buildStageReviewMessages("storySkeleton", {
+      chapterTitle: "第1章",
+      chapterText: "正文",
+      skeleton: "骨架A",
+      originalBibleContext: "# 原著圣经（最高优先级·人物一律用此表规范名）",
+    });
+    expect(review.user).toContain("原著圣经（最高优先级");
+    expect(review.user.indexOf("原著圣经（最高优先级")).toBeLessThan(review.user.indexOf("章节："));
+  });
 });
 
 describe("extractPartialContent 流式直通", () => {

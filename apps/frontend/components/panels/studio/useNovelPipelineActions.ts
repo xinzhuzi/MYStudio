@@ -16,6 +16,11 @@ import {
   formatNovelEventSummary,
   parseNovelEventAnalysisLine,
 } from "@/lib/studio/event-analysis";
+import {
+  formatSourceBibleContext,
+  parseBibleCharacters,
+  validateCharactersAgainstBible,
+} from "@/lib/studio/source-bible";
 import { useCharacterLibraryStore } from "@/stores/library/character-library-store";
 import { usePropsLibraryStore } from "@/stores/library/props-library-store";
 import { useSceneStore } from "@/stores/library/scene-store";
@@ -62,12 +67,21 @@ export function useNovelPipelineActions({
 
       let successCount = 0;
       let failedCount = 0;
-      for (const chapter of chapters) {
+      let warningChapterCount = 0;
+      const bibleContext = formatSourceBibleContext(useStudioStore.getState().sourceBible) || undefined;
+      const bibleCharacters = parseBibleCharacters(useStudioStore.getState().sourceBible);
+      // 按 index 排序后滚动注入上一章事件行；调用方传入乱序选择时仍保持章节顺序。
+      const sortedChapters = [...chapters].sort((left, right) => left.index - right.index);
+      let prevEventLine: string | undefined;
+      for (const chapter of sortedChapters) {
         updateNovelChapter(chapter.id, {
           eventTaskState: "running",
           eventErrorReason: undefined,
         });
-        const messages = buildNovelEventAnalysisMessages(chapter);
+        const messages = buildNovelEventAnalysisMessages(chapter, {
+          bibleContext,
+          prevEventContext: prevEventLine,
+        });
         try {
           const result = await aiManager.text({
             binding: { agent: "eventAnalysisAgent" },
@@ -85,6 +99,8 @@ export function useNovelPipelineActions({
             sourceId: chapter.sourceId ?? chapter.id,
             revision: chapter.revision ?? 1,
           });
+          const nameWarnings = validateCharactersAgainstBible(analysis.characters, bibleCharacters);
+          if (nameWarnings.length) warningChapterCount += 1;
           updateNovelChapter(chapter.id, {
             eventTaskState: "success",
             eventAnalysis: analysis,
@@ -92,7 +108,9 @@ export function useNovelPipelineActions({
             eventState: formatNovelEventState(analysis),
             eventRawOutput: result.text,
             eventErrorReason: undefined,
+            eventNameWarnings: nameWarnings.length ? nameWarnings : undefined,
           });
+          prevEventLine = analysis.rawLine;
           successCount += 1;
         } catch (error) {
           failedCount += 1;
@@ -100,10 +118,16 @@ export function useNovelPipelineActions({
             eventTaskState: "failed",
             eventErrorReason:
               error instanceof Error ? error.message : String(error),
+            eventNameWarnings: undefined,
           });
         }
       }
 
+      if (warningChapterCount) {
+        toast.warning(
+          `原著圣经人物校验：${warningChapterCount} 章出现未登记人名，请检查事件摘要列的警告标记`,
+        );
+      }
       saveAgentWorkData(
         "eventAnalysis",
         `事件分析完成：成功 ${successCount} 章，失败 ${failedCount} 章。`,
@@ -219,6 +243,7 @@ export function useNovelPipelineActions({
         episodeId: targetEpisodeId,
         scriptText,
         knownEntities,
+        bibleContext: formatSourceBibleContext(useStudioStore.getState().sourceBible) || undefined,
       });
       try {
         const result = await aiManager.text({

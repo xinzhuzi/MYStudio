@@ -43,6 +43,45 @@ describe("studio novel event analysis", () => {
     expect(messages.user).toContain("王离在雨夜进城");
   });
 
+  it("injects the source bible block at the head of the user message when provided", () => {
+    const chapter = {
+      id: "chapter-001",
+      index: 1,
+      volume: "正文卷",
+      title: "第1章 雨夜",
+      sourceText: "王离在雨夜进城。",
+      importedAt: 1710000000000,
+    };
+    const withBible = buildNovelEventAnalysisMessages(chapter, {
+      bibleContext: "# 原著圣经（最高优先级·人物一律用此表规范名）\n\n## 一句话主线\n复仇主线",
+    });
+    expect(withBible.user.startsWith("# 原著圣经（最高优先级")).toBe(true);
+    expect(withBible.user.indexOf("原著圣经")).toBeLessThan(withBible.user.indexOf("小说章节数"));
+    expect(withBible.user).toContain("复仇主线");
+
+    const withoutBible = buildNovelEventAnalysisMessages(chapter);
+    expect(withoutBible.user.startsWith("请根据以下小说章节数")).toBe(true);
+    expect(withoutBible.user).not.toContain("原著圣经");
+  });
+
+  it("rolls the previous chapter event line in ahead of the chapter info", () => {
+    const chapter = {
+      id: "chapter-002",
+      index: 2,
+      volume: "正文卷",
+      title: "第2章 雨夜",
+      sourceText: "王离在雨夜进城。",
+      importedAt: 1710000000000,
+    };
+    const prevLine = "| 第1章 入城 | 王离 | 王离持信入城 | 强（主线启动） | 高 | 40秒 | 悬疑 |";
+    const withPrev = buildNovelEventAnalysisMessages(chapter, { prevEventContext: prevLine });
+    expect(withPrev.user).toContain(`上一章事件（衔接参考，保持人物称呼一致）：\n${prevLine}`);
+    expect(withPrev.user.indexOf("上一章事件")).toBeLessThan(withPrev.user.indexOf("小说章节数"));
+
+    const withoutPrev = buildNovelEventAnalysisMessages(chapter);
+    expect(withoutPrev.user).not.toContain("上一章事件");
+  });
+
   it("formats event state with 涉及角色 first line", () => {
     const state = formatNovelEventState({
       chapterLabel: "第1章",

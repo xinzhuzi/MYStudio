@@ -14,15 +14,18 @@ import {
 /** Novel slice 契约。 */
 export interface NovelSlice {
   novelChapters: NovelChapter[];
+  sourceBible: string;
   importNovelText: (sourceText: string) => void;
   appendNovelText: (sourceText: string, sourceName?: string) => void;
   replaceNovelText: (sourceText: string, sourceName?: string) => void;
   updateNovelChapter: (id: string, updates: Partial<NovelChapter>) => void;
+  saveSourceBible: (text: string) => void;
 }
 
 /** slice 能看到的 store 局部视图。 */
 interface NovelSliceStore {
   novelChapters: NovelChapter[];
+  sourceBible: string;
 }
 
 type SetFn = (
@@ -102,6 +105,10 @@ export function createNovelSliceActions(
       if (updatedChapter) {
         mirrors.syncNovelChapterMirrors([updatedChapter]);
       }
+    },
+
+    saveSourceBible: (text: string): void => {
+      set({ sourceBible: text });
     },
   };
 }

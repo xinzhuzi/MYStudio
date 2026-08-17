@@ -9,7 +9,7 @@ import {
 describe("studio workflow persistence contract", () => {
   it("keeps the stable storage key and version", () => {
     expect(STUDIO_WORKFLOW_STORAGE_KEY).toBe("studio-workflow-store");
-    expect(STUDIO_WORKFLOW_PERSIST_VERSION).toBe(9);
+    expect(STUDIO_WORKFLOW_PERSIST_VERSION).toBe(10);
   });
 
   it("normalizes legacy manual ids without changing other config", () => {
@@ -26,5 +26,18 @@ describe("studio workflow persistence contract", () => {
     expect(migrated.entityExtractions).toEqual([]);
     expect(migrated.continuityAssetVersions).toEqual([]);
     expect(migrated.workflowConfig).toEqual({ visualManualId: undefined, directorManualId: undefined });
+  });
+
+  it("normalizes sourceBible to a string with empty default", () => {
+    const migrated = migrateStudioWorkflowState({
+      sourceBible: "# 原著圣经\n## 一句话主线\n主线内容",
+    }) as Record<string, unknown>;
+    expect(migrated.sourceBible).toBe("# 原著圣经\n## 一句话主线\n主线内容");
+
+    const defaulted = migrateStudioWorkflowState({ sourceBible: 123 }) as Record<string, unknown>;
+    expect(defaulted.sourceBible).toBe("");
+
+    const missing = migrateStudioWorkflowState({}) as Record<string, unknown>;
+    expect(missing.sourceBible).toBe("");
   });
 });

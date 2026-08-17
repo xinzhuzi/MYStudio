@@ -56,6 +56,9 @@ export function StudioView() {
                 novelChapters={viewModel.novelChapters}
                 updateNovelChapter={viewModel.updateNovelChapter}
                 analyzeEvents={viewModel.handleNovelEventAnalysis}
+                sourceBible={viewModel.sourceBible}
+                saveSourceBible={viewModel.saveSourceBible}
+                generateBibleDraft={viewModel.generateSourceBibleDraft}
                 setHeaderActions={viewModel.setNovelHeaderActions}
               />
             </TabsContent>

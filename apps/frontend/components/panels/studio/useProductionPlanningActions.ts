@@ -26,6 +26,7 @@ import {
   retrieveProjectMemory,
 } from "@/lib/studio/project-memory";
 import { EXTENDED_VISUAL_MANUAL_SEED_ID } from "@/lib/studio/visual-manual-classification";
+import { formatSourceBibleContext } from "@/lib/studio/source-bible";
 import type { AssetGenerationTask } from "@/lib/studio/asset-generation-orchestrator";
 import type { EntityResolver } from "@/lib/studio/derived-asset-sync";
 import { useCharacterLibraryStore } from "@/stores/library/character-library-store";
@@ -98,6 +99,7 @@ export function useProductionPlanningActions({
         episodeId: targetEpisodeId,
         scriptText,
         manualContext: [manualContext, projectMemoryContext].filter(Boolean).join("\n\n---\n\n"),
+        bibleContext: formatSourceBibleContext(store.sourceBible) || undefined,
       });
       const userContent = userInstruction.trim()
         ? `${messages.user}\n\n【本次节点补充要求】\n${userInstruction.trim()}`
@@ -288,6 +290,7 @@ export function useProductionPlanningActions({
         scriptText,
         scriptPlanContext: formatScriptPlanContext(plan),
         manualContext: buildStoryboardTableManualContext(store.workflowConfig, manualCatalog),
+        bibleContext: formatSourceBibleContext(store.sourceBible) || undefined,
       });
       const userContent = userInstruction.trim()
         ? `${messages.user}\n\n【本次节点补充要求】\n${userInstruction.trim()}`

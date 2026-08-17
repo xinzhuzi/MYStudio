@@ -27,6 +27,8 @@ export interface ScriptStageContext {
   previousOutput?: string;
   /** 项目级事件图/记忆的范围检索结果，按 project + episode 隔离后注入。 */
   projectMemoryContext?: string;
+  /** 原著圣经注入块（formatSourceBibleContext 产出）；空圣经时省略，零影响。 */
+  originalBibleContext?: string;
 }
 
 /** 各阶段对应的 skill 手册（作 system，模仿 ToonFlow）。 */
@@ -80,6 +82,7 @@ export function buildStageMessages(stage: ScriptStageKey, ctx: ScriptStageContex
   const system = [skill, MD_FMT].filter(Boolean).join("\n\n---\n\n");
   const lines: string[] = [];
   if (ctx.manualContext) lines.push(ctx.manualContext);
+  if (ctx.originalBibleContext) lines.push(ctx.originalBibleContext);
   if ((stage === "adaptationStrategy" || stage === "scriptDraft") && ctx.directorContext) {
     lines.push(`## 导演手法参考（按画风/导演手册）\n${ctx.directorContext}`);
   }
@@ -94,7 +97,9 @@ export function buildStageMessages(stage: ScriptStageKey, ctx: ScriptStageContex
     if (ctx.previousOutput) lines.push(`## 上一版${SCRIPT_STAGE_LABEL[stage]}（在此基础上修订，保留已合格内容）\n${ctx.previousOutput}`);
     lines.push(`## 审核意见（逐条修复以下问题，不要重写已合格部分）\n${ctx.reviewFeedback}`);
   }
-  lines.push(`> 【重点执行要求】\n> 请基于以上信息完成「${SCRIPT_STAGE_LABEL[stage]}」，并按输出格式返回。`);
+  lines.push(
+    `> 【重点执行要求】\n> 请基于以上信息完成「${SCRIPT_STAGE_LABEL[stage]}」${ctx.originalBibleContext ? "，遵守原著圣经" : ""}，并按输出格式返回。`,
+  );
   return { system, user: lines.join("\n\n") };
 }
 
@@ -104,6 +109,7 @@ export function buildStageReviewMessages(stage: ReviewableStage, ctx: ScriptStag
   const system = [skill, MD_FMT].filter(Boolean).join("\n\n---\n\n");
   const lines: string[] = [];
   if (ctx.manualContext) lines.push(ctx.manualContext);
+  if (ctx.originalBibleContext) lines.push(ctx.originalBibleContext);
   lines.push(`## 本集信息（1 章 = 1 集）\n章节：${ctx.chapterTitle}`);
   if (stage === "storySkeleton") {
     if (ctx.eventState) lines.push(`本章事件分析（对照）：\n${ctx.eventState}`);

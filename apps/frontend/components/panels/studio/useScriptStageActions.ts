@@ -10,6 +10,7 @@ import {
   type ReviewableStage,
   type ScriptStageKey,
 } from "@/lib/studio/script-planning";
+import { formatSourceBibleContext } from "@/lib/studio/source-bible";
 import {
   buildStudioManualContext,
   type StudioManualCatalog,
@@ -188,6 +189,7 @@ export function useScriptStageActions({
       const built = buildStageMessages(stage, {
         manualContext: scriptStyleSummary,
         directorContext: scriptDirectorContext,
+        originalBibleContext: formatSourceBibleContext(store.sourceBible) || undefined,
         chapterTitle: chapter.title,
         chapterText: chapter.sourceText,
         eventState: chapter.eventState,
@@ -231,6 +233,7 @@ export function useScriptStageActions({
       }
       const built = buildStageReviewMessages(stage, {
         manualContext: scriptStyleSummary,
+        originalBibleContext: formatSourceBibleContext(useStudioStore.getState().sourceBible) || undefined,
         chapterTitle: chapter.title,
         chapterText: chapter.sourceText,
         eventState: chapter.eventState,

@@ -4,6 +4,7 @@ import { readFileSync } from "node:fs";
 import { cleanup, render, screen } from "@testing-library/react";
 import { NovelChapterTable } from "./NovelChapterTable";
 import { NovelTab } from "./NovelTab";
+import { SOURCE_BIBLE_TEMPLATE } from "@/lib/studio/source-bible";
 import type { NovelChapter } from "@/types/studio";
 
 // jsdom 缺少 Radix 依赖的浏览器 API，最小 shim。
@@ -40,6 +41,9 @@ function renderNovelTab() {
       novelChapters={[chapter]}
       updateNovelChapter={vi.fn()}
       analyzeEvents={vi.fn()}
+      sourceBible=""
+      saveSourceBible={vi.fn()}
+      generateBibleDraft={vi.fn(async () => SOURCE_BIBLE_TEMPLATE)}
       setHeaderActions={vi.fn()}
     />,
   );
@@ -59,6 +63,7 @@ describe("NovelTab 章节表操作列去重", () => {
     expect(screen.getByRole("button", { name: /导入原文/ })).toBeTruthy();
     expect(screen.getByRole("button", { name: /批量删除/ })).toBeTruthy();
     expect(screen.getByRole("button", { name: /事件分析/ })).toBeTruthy();
+    expect(screen.getByRole("button", { name: /原著圣经/ })).toBeTruthy();
     expect(screen.getByPlaceholderText("搜索章节名称或正文...")).toBeTruthy();
   });
 
@@ -97,5 +102,24 @@ describe("NovelChapterTable", () => {
     expect(screen.getByText("第1章 测试")).toBeTruthy();
     expect(screen.getByText("编辑")).toBeTruthy();
     expect(screen.getByText("删除")).toBeTruthy();
+  });
+
+  it("未登记人物名时在事件摘要列显示警告标记", () => {
+    render(
+      <NovelChapterTable
+        chapters={[{ ...chapter, eventNameWarnings: ["神秘老者"] }]}
+        selectedIds={new Set()}
+        allVisibleSelected={false}
+        emptyState={null}
+        onDelete={vi.fn()}
+        onEdit={vi.fn()}
+        onToggleAllVisible={vi.fn()}
+        onToggleChapter={vi.fn()}
+      />,
+    );
+
+    const marker = document.querySelector('span[title*="神秘老者"]');
+    expect(marker).toBeTruthy();
+    expect(marker?.getAttribute("title")).toContain("未在原著圣经人物表登记");
   });
 });

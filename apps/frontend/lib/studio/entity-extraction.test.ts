@@ -111,4 +111,20 @@ describe("studio entity extraction messages", () => {
     expect(messages.user).toContain("小红走进咖啡厅");
     expect(messages.user).toContain("小明");
   });
+
+  it("injects the source bible before the known-entities block when provided", () => {
+    const withBible = buildEntityExtractionMessages({
+      episodeId: "ep1",
+      scriptText: "小红走进咖啡厅。",
+      bibleContext: "# 原著圣经（最高优先级·人物一律用此表规范名）\n\n## 主要人物\n- 小红（阿红）：主角",
+    });
+    expect(withBible.user).toContain("原著圣经（最高优先级");
+    expect(withBible.user.indexOf("原著圣经")).toBeLessThan(withBible.user.indexOf("已知实体"));
+
+    const withoutBible = buildEntityExtractionMessages({
+      episodeId: "ep1",
+      scriptText: "小红走进咖啡厅。",
+    });
+    expect(withoutBible.user).not.toContain("原著圣经");
+  });
 });

@@ -5,12 +5,13 @@ import type {
 } from "@/types/studio";
 
 export const STUDIO_WORKFLOW_STORAGE_KEY = "studio-workflow-store";
-export const STUDIO_WORKFLOW_PERSIST_VERSION = 9;
+export const STUDIO_WORKFLOW_PERSIST_VERSION = 10;
 
 type PersistedStudioWorkflowState = {
   entityExtractions?: unknown[];
   scriptPlans?: unknown[];
   seriesBible?: unknown;
+  sourceBible?: unknown;
   episodeOutlines?: unknown[];
   continuityAssetVersions?: ContinuityAssetVersion[];
   imageWorkflows?: unknown[];
@@ -30,6 +31,7 @@ export function migrateStudioWorkflowState(persistedState: unknown): unknown {
     entityExtractions: state.entityExtractions ?? [],
     scriptPlans: state.scriptPlans ?? [],
     seriesBible: state.seriesBible ?? null,
+    sourceBible: typeof state.sourceBible === "string" ? state.sourceBible : "",
     episodeOutlines: state.episodeOutlines ?? [],
     continuityAssetVersions: (state.continuityAssetVersions ?? []).map(normalizeContinuityAssetVersion),
     imageWorkflows: state.imageWorkflows ?? [],

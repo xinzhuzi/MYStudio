@@ -52,6 +52,8 @@ export function createEmptyStores(): {
   return {
     studio: {
       materials: [],
+      sourceBible: "",
+      
       novelChapters: [],
       agentWorkData: [],
       entityExtractions: [],
@@ -301,6 +303,8 @@ export function buildSingleChapterFixture(chapterId: string = CHAPTER_ID_001): {
         imageWorkflowId: undefined,
         imageWorkflowNodeId: undefined },
     ],
+    sourceBible: "",
+    
     novelChapters: [
       {
         id: `novel-${chapterId}`,
@@ -853,6 +857,8 @@ export function buildLegacyAmbiguousFixture(): {
 
   const studio: StudioWorkflowState = {
     materials: [],
+    sourceBible: "",
+    
     novelChapters: [
       {
         id: `novel-legacy-episode-1`,
@@ -1048,6 +1054,8 @@ export function buildContinuityNoEpisodeIdFixture(): {
 
   const studio: StudioWorkflowState = {
     materials: [],
+    sourceBible: "",
+    
     novelChapters: [],
     agentWorkData: [],
     entityExtractions: [],
@@ -1112,6 +1120,8 @@ export function buildIndexDerivedTrackKeyFixture(): {
 
   const studio: StudioWorkflowState = {
     materials: [],
+    sourceBible: "",
+    
     novelChapters: [
       {
         id: `novel-${chapterId}`,

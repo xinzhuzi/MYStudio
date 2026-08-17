@@ -369,6 +369,24 @@ describe("studio director plan messages", () => {
     expect(messages.user).toContain("林逸走进客栈大堂");
   });
 
+  it("injects the source bible before the manual context in system when provided", () => {
+    const withBible = buildDirectorPlanMessages({
+      episodeId: "ep1",
+      scriptText: "林逸走进客栈大堂。",
+      manualContext: "## 视觉手册\n写意国风",
+      bibleContext: "# 原著圣经（最高优先级·人物一律用此表规范名）\n\n## 一句话主线\n复仇主线",
+    });
+    expect(withBible.system).toContain("原著圣经（最高优先级");
+    expect(withBible.system.indexOf("原著圣经（最高优先级")).toBeLessThan(withBible.system.indexOf("写意国风"));
+
+    const withoutBible = buildDirectorPlanMessages({
+      episodeId: "ep1",
+      scriptText: "林逸走进客栈大堂。",
+      manualContext: "## 视觉手册\n写意国风",
+    });
+    expect(withoutBible.system).not.toContain("原著圣经");
+  });
+
   it("builds a concrete repair prompt with audit issues and fixed six headings", () => {
     const repair = buildDirectorPlanRepairUserMessage({
       originalUserContent: "剧本正文：第一场码头。",

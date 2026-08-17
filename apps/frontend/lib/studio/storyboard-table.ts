@@ -19,6 +19,8 @@ export interface BuildStoryboardTableInput {
   scriptPlanContext?: string;
   /** 所选视觉/导演手册的分镜表阶段上下文（buildStoryboardTableManualContext 产出），约束「画面描述」列风格 */
   manualContext?: string;
+  /** 原著圣经注入块（formatSourceBibleContext 产出）；空圣经时省略，零影响。 */
+  bibleContext?: string;
 }
 
 export interface StoryboardTableMessages {
@@ -81,7 +83,7 @@ export function buildStoryboardTableMessages(input: BuildStoryboardTableInput): 
     "角色台词保留 `角色名：台词内容`，无角色台词时必须写 `旁白：解说内容`，不要留空或写无台词。",
   ].join("\n");
   return {
-    system: [skill, input.manualContext, voiceoverGuard, input.scriptPlanContext].filter(Boolean).join("\n\n---\n\n"),
+    system: [skill, input.bibleContext, input.manualContext, voiceoverGuard, input.scriptPlanContext].filter(Boolean).join("\n\n---\n\n"),
     user: [
       `当前集ID：${input.episodeId}`,
       input.scriptPlanContext ? `导演规划要点：\n${input.scriptPlanContext}` : "",

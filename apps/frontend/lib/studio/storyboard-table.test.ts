@@ -55,6 +55,22 @@ describe("studio storyboard table messages", () => {
     expect(messages.system).toContain("分镜配音硬约束");
     expect(messages.system).not.toContain("视觉手册 · 分镜表风格约束");
   });
+
+  it("injects the source bible before the manual context in system when provided", () => {
+    const messages = buildStoryboardTableMessages({
+      episodeId: "chapter-001",
+      scriptText: "第一场：夜，矿场。",
+      manualContext: "# 视觉手册 · 分镜表风格约束\n\n工笔线描锚词",
+      bibleContext: "# 原著圣经（最高优先级·人物一律用此表规范名）\n\n## 主要人物\n- 林逸：主角",
+    });
+
+    const bibleIndex = messages.system.indexOf("原著圣经（最高优先级");
+    const manualIndex = messages.system.indexOf("工笔线描锚词");
+    const guardIndex = messages.system.indexOf("分镜配音硬约束");
+    expect(bibleIndex).toBeGreaterThanOrEqual(0);
+    expect(manualIndex).toBeGreaterThan(bibleIndex);
+    expect(guardIndex).toBeGreaterThan(manualIndex);
+  });
 });
 
 describe("studio storyboard table parsing", () => {

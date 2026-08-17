@@ -6,6 +6,8 @@ export interface BuildDirectorPlanInput {
   scriptText: string;
   /** 已选视觉/导演手册摘要（buildStudioManualContext 产出），作为风格基准注入 */
   manualContext?: string;
+  /** 原著圣经注入块（formatSourceBibleContext 产出）；空圣经时省略，零影响。 */
+  bibleContext?: string;
 }
 
 export interface DirectorPlanMessages {
@@ -122,7 +124,7 @@ export function stripLightingTerms(text: string): string {
 export function buildDirectorPlanMessages(input: BuildDirectorPlanInput): DirectorPlanMessages {
   const skill = getAgentSkillPreset("production_execution_director_plan")?.content ?? "";
   return {
-    system: [skill, input.manualContext].filter(Boolean).join("\n\n---\n\n"),
+    system: [skill, input.bibleContext, input.manualContext].filter(Boolean).join("\n\n---\n\n"),
     user: [
       `当前集ID：${input.episodeId}`,
       "剧本正文：",

@@ -78,6 +78,7 @@ import type {
 interface StudioWorkflowState {
   materials: StudioMaterial[];
   novelChapters: NovelChapter[];
+  sourceBible: string;
   agentWorkData: AgentWorkData[];
   entityExtractions: EntityExtractionResult[];
   scriptPlans: ScriptPlan[];
@@ -105,6 +106,7 @@ interface StudioWorkflowActions {
   appendNovelText: (sourceText: string, sourceName?: string) => void;
   replaceNovelText: (sourceText: string, sourceName?: string) => void;
   updateNovelChapter: (id: string, updates: Partial<NovelChapter>) => void;
+  saveSourceBible: (text: string) => void;
   setWorkflowConfig: (updates: Partial<StudioWorkflowConfig>) => void;
   startAgentRun: (input: {
     key: AgentWorkKey;
@@ -185,6 +187,7 @@ type StudioWorkflowStore = StudioWorkflowState & StudioWorkflowActions;
 const initialState: StudioWorkflowState = {
   materials: [],
   novelChapters: [],
+  sourceBible: "",
   agentWorkData: [],
   entityExtractions: [],
   scriptPlans: [],
@@ -225,6 +228,7 @@ export const useStudioStore = create<StudioWorkflowStore>()(
       appendNovelText: novelSlice.appendNovelText,
       replaceNovelText: novelSlice.replaceNovelText,
       updateNovelChapter: novelSlice.updateNovelChapter,
+      saveSourceBible: novelSlice.saveSourceBible,
       setWorkflowConfig: configSlice.setWorkflowConfig,
 
       startAgentRun: (input) => {

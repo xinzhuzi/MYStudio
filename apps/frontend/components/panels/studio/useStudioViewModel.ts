@@ -1,6 +1,12 @@
 import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { useProjectStore } from "@/stores/project/project-store";
 import { useStudioStore } from "@/stores/studio/studio-store";
+import { aiManager } from "@/lib/ai/ai-manager";
+import {
+  buildSourceBibleMessages,
+  parseSourceBibleDraft,
+  sampleChaptersForBible,
+} from "@/lib/studio/source-bible";
 import {
   buildRemotionProductionProfile,
   syncRemotionWorkspaceProductionProfile,
@@ -22,6 +28,7 @@ export function useStudioViewModel() {
   const activeProject = useProjectStore((state) => state.activeProject);
   const {
     novelChapters,
+    sourceBible,
     agentWorkData,
     entityExtractions,
     scriptPlans,
@@ -33,6 +40,7 @@ export function useStudioViewModel() {
     appendNovelText,
     replaceNovelText,
     updateNovelChapter,
+    saveSourceBible,
     setWorkflowConfig,
     saveAgentWorkData,
     saveEntityExtraction,
@@ -145,6 +153,32 @@ export function useStudioViewModel() {
       updateNovelChapter,
     });
 
+  const generateSourceBibleDraft = useCallback(async (): Promise<string> => {
+    const store = useStudioStore.getState();
+    const sampledChapters = sampleChaptersForBible(store.novelChapters);
+    if (!sampledChapters.length) {
+      throw new Error("请先导入小说章节，再生成原著圣经");
+    }
+    const messages = buildSourceBibleMessages({
+      projectName,
+      genre: store.workflowConfig.novelGenre,
+      sampledChapters,
+    });
+    const result = await aiManager.text({
+      binding: { agent: "universalAi" },
+      messages: [
+        { role: "system", content: messages.system },
+        { role: "user", content: messages.user },
+      ],
+      temperature: 0.4,
+      maxTokens: 4096,
+    });
+    if (!result.success || !result.text) {
+      throw new Error(result.error || "原著圣经生成失败");
+    }
+    return parseSourceBibleDraft(result.text);
+  }, [projectName]);
+
   const { handleProductionNodeAction } = useProductionPlanningActions({
     activeProjectId: activeProject?.id,
     manualCatalog,
@@ -225,6 +259,9 @@ export function useStudioViewModel() {
     novelChapters,
     updateNovelChapter,
     handleNovelEventAnalysis,
+    sourceBible,
+    saveSourceBible,
+    generateSourceBibleDraft,
     setNovelHeaderActions,
     workflowConfig,
     setWorkflowConfig,

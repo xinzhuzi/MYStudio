@@ -23,6 +23,7 @@ import { useSClassStore } from '@/stores/sclass/sclass-store';
 import { useTtsStore } from '@/stores/tts/tts-store';
 import { useEditingStore } from '@/stores/editing/editing-store';
 import { useSelfMediaStore } from '@/stores/self-media/self-media-store';
+import { useStudioStore } from '@/stores/studio/studio-store';
 
 /**
  * Switch to a different project. Saves current project data and loads new project data.
@@ -136,6 +137,12 @@ export async function switchProject(newProjectId: string): Promise<void> {
     await useSelfMediaStore.persist.rehydrate();
   } catch (e) {
     console.warn('[ProjectSwitcher] Failed to rehydrate self-media store:', e);
+  }
+
+  try {
+    await useStudioStore.persist.rehydrate();
+  } catch (e) {
+    console.warn('[ProjectSwitcher] Failed to rehydrate studio workflow store:', e);
   }
 
   // 4. NOW sync internal activeProjectId in stores that track it.

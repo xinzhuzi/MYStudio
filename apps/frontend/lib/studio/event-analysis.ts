@@ -46,10 +46,17 @@ export interface NovelEventAnalysisMessages {
   user: string;
 }
 
-export function buildNovelEventAnalysisMessages(chapter: NovelChapter): NovelEventAnalysisMessages {
+export function buildNovelEventAnalysisMessages(
+  chapter: NovelChapter,
+  options?: { bibleContext?: string; prevEventContext?: string },
+): NovelEventAnalysisMessages {
   return {
     system: eventExtractionPrompt,
     user: [
+      ...(options?.bibleContext ? [options.bibleContext, ""] : []),
+      ...(options?.prevEventContext
+        ? [`上一章事件（衔接参考，保持人物称呼一致）：\n${options.prevEventContext}`, ""]
+        : []),
       `请根据以下小说章节数：${chapter.index}`,
       `小说章节卷：${chapter.volume ?? "正文卷"}`,
       `小说章节名称：${chapter.title}`,

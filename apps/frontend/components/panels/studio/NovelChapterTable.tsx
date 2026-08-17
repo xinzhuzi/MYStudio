@@ -10,7 +10,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import type { NovelChapter } from "@/types/studio";
-import { Edit3, Trash2 } from "lucide-react";
+import { AlertTriangle, Edit3, Trash2 } from "lucide-react";
 
 export function NovelChapterTable({
   chapters,
@@ -82,8 +82,18 @@ export function NovelChapterTable({
                 </div>
               </TableCell>
               <TableCell>
-                <div className="line-clamp-2 text-xs leading-5 text-muted-foreground">
-                  {chapter.eventSummary || "未填写"}
+                <div className="flex items-start gap-1">
+                  <div className="line-clamp-2 text-xs leading-5 text-muted-foreground">
+                    {chapter.eventSummary || "未填写"}
+                  </div>
+                  {chapter.eventNameWarnings?.length ? (
+                    <span
+                      className="mt-0.5 shrink-0 text-amber-500"
+                      title={`未在原著圣经人物表登记：${chapter.eventNameWarnings.join("、")}`}
+                    >
+                      <AlertTriangle className="h-3.5 w-3.5" />
+                    </span>
+                  ) : null}
                 </div>
               </TableCell>
               <TableCell>

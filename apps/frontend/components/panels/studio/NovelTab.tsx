@@ -8,8 +8,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import aiEventAnalysisIconUrl from "@/assets/brand/ai-event-analysis-icon.svg";
 import { useProjectStore } from "@/stores/project/project-store";
+import { SOURCE_BIBLE_MAX_CHARS, SOURCE_BIBLE_TEMPLATE } from "@/lib/studio/source-bible";
 import type { NovelChapter } from "@/types/studio";
-import { Plus, Search, Trash2 } from "lucide-react";
+import { BookOpen, Plus, Search, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import {
   createArtifactDeletionPlan,
@@ -17,6 +18,7 @@ import {
 } from "@/stores/artifacts/artifact-store";
 import type { DeletionConfirmation, DeletionPlan } from "@/types/artifacts";
 import { NovelChapterTable } from "./NovelChapterTable";
+import { NovelBibleEditorDialog, NovelBibleGuideDialog } from "./NovelBibleEditorDialog";
 import { NovelEditDialog, type NovelEditDraft } from "./NovelEditDialog";
 import { NovelImportDialog } from "./NovelImportDialog";
 import { ArtifactDeleteDialog } from "../media/ArtifactDeleteDialog";
@@ -56,6 +58,9 @@ export function NovelTab(props: {
   novelChapters: NovelChapter[];
   updateNovelChapter: (id: string, updates: Partial<NovelChapter>) => void;
   analyzeEvents: (chapters: NovelChapter[]) => void | Promise<void>;
+  sourceBible: string;
+  saveSourceBible: (text: string) => void;
+  generateBibleDraft: () => Promise<string>;
   setHeaderActions: (actions: ReactNode) => void;
 }) {
   const [importOpen, setImportOpen] = useState(false);
@@ -71,6 +76,10 @@ export function NovelTab(props: {
   );
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deletePlan, setDeletePlan] = useState<DeletionPlan | null>(null);
+  const [bibleOpen, setBibleOpen] = useState(false);
+  const [bibleDraft, setBibleDraft] = useState("");
+  const [bibleGenerating, setBibleGenerating] = useState(false);
+  const [bibleGuideOpen, setBibleGuideOpen] = useState(false);
   const [editDraft, setEditDraft] = useState<NovelEditDraft>({
     volume: "",
     title: "",
@@ -128,6 +137,9 @@ export function NovelTab(props: {
     toast.success(
       importMode === "replace" ? "小说章节已覆盖导入" : "小说章节已追加导入",
     );
+    if (!props.sourceBible.trim()) {
+      setBibleGuideOpen(true);
+    }
   };
 
   const toggleChapter = (id: string, checked: boolean) => {
@@ -196,6 +208,43 @@ export function NovelTab(props: {
     props.analyzeEvents(selectedChapters);
 // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [props.analyzeEvents, selectedChapters]);
+
+  const openBible = useCallback(() => {
+    setBibleDraft(props.sourceBible.trim() ? props.sourceBible : SOURCE_BIBLE_TEMPLATE);
+    setBibleOpen(true);
+  }, [props.sourceBible]);
+
+  const runGenerateBible = useCallback(async () => {
+    setBibleGenerating(true);
+    try {
+      const text = await props.generateBibleDraft();
+      setBibleDraft(text);
+      toast.success("原著圣经草稿已生成，请过目后保存");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : String(error));
+    } finally {
+      setBibleGenerating(false);
+    }
+// eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [props.generateBibleDraft]);
+
+  const confirmBibleGuide = useCallback(() => {
+    setBibleGuideOpen(false);
+    setBibleDraft(SOURCE_BIBLE_TEMPLATE);
+    setBibleOpen(true);
+    void runGenerateBible();
+  }, [runGenerateBible]);
+
+  const saveBible = useCallback(() => {
+    if (bibleDraft.length > SOURCE_BIBLE_MAX_CHARS) {
+      toast.error(`原著圣经超过 ${SOURCE_BIBLE_MAX_CHARS} 字符上限，请精简后保存`);
+      return;
+    }
+    props.saveSourceBible(bibleDraft);
+    setBibleOpen(false);
+    toast.success("原著圣经已保存");
+// eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [bibleDraft, props.saveSourceBible]);
 
   const executeDeletePlan = async (confirmation: DeletionConfirmation) => {
     if (!deletePlan) {
@@ -276,6 +325,10 @@ export function NovelTab(props: {
           />
           事件分析 ({selectedIds.size})
         </Button>
+        <Button variant="secondary" onClick={openBible}>
+          <BookOpen className="h-4 w-4" />
+          原著圣经
+        </Button>
         <div className="relative min-w-[260px] max-w-[520px] flex-1">
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
@@ -321,6 +374,23 @@ export function NovelTab(props: {
         onOpenChange={(open) => !open && setEditingChapter(null)}
         onDraftChange={setEditDraft}
         onSave={saveEdit}
+      />
+
+      <NovelBibleEditorDialog
+        open={bibleOpen}
+        value={bibleDraft}
+        onOpenChange={setBibleOpen}
+        onChange={setBibleDraft}
+        onCancel={() => setBibleOpen(false)}
+        onSave={saveBible}
+        generating={bibleGenerating}
+        onGenerate={runGenerateBible}
+      />
+
+      <NovelBibleGuideDialog
+        open={bibleGuideOpen}
+        onCancel={() => setBibleGuideOpen(false)}
+        onConfirm={confirmBibleGuide}
       />
 
       <ArtifactDeleteDialog

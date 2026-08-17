@@ -41,6 +41,8 @@ export interface BuildEntityExtractionInput {
   episodeId: string;
   scriptText: string;
   knownEntities?: KnownEntity[];
+  /** 原著圣经注入块（formatSourceBibleContext 产出）；空圣经时省略，零影响。 */
+  bibleContext?: string;
 }
 
 export interface EntityExtractionMessages {
@@ -75,6 +77,9 @@ export function buildEntityExtractionMessages(input: BuildEntityExtractionInput)
     system: [skill, outputSpec].filter(Boolean).join("\n\n"),
     user: [
       `当前集ID：${input.episodeId}`,
+      ...(input.bibleContext
+        ? [input.bibleContext, ""]
+        : []),
       "已知实体（命中请复用其ID、归并别名，勿重复新建）：",
       knownBlock || "无",
       "",

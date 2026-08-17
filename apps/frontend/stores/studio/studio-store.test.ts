@@ -116,6 +116,7 @@ describe("studio workflow store", () => {
     const persistedState = {
       materials: [{ id: "material-restored", name: "原始素材", localPath: "/素材/原始.txt", size: 12, importedAt: 1 }],
       novelChapters: [{ id: "chapter-restored", title: "恢复章节", content: "正文" }],
+      sourceBible: "# 原著圣经\n## 一句话主线\n恢复主线",
       agentWorkData: [{ key: "directorPlan", data: "恢复工作" }],
       entityExtractions: [{ id: "entity-restored", chapterId: "chapter-001", entities: [] }],
       scriptPlans: [{ id: "plan-restored", title: "恢复计划", scenes: [] }],
@@ -146,6 +147,7 @@ describe("studio workflow store", () => {
       const state = useStudioStore.getState();
       expect(state.materials).toEqual(persistedState.materials);
       expect(state.novelChapters).toEqual(persistedState.novelChapters);
+      expect(state.sourceBible).toEqual(persistedState.sourceBible);
       expect(state.agentWorkData).toEqual(persistedState.agentWorkData);
       expect(state.entityExtractions).toEqual(persistedState.entityExtractions);
       expect(state.scriptPlans).toEqual(persistedState.scriptPlans);
