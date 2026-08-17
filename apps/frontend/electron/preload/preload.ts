@@ -255,6 +255,13 @@ contextBridge.exposeInMainWorld('fileStorage', {
   removeDir: (prefix: string) => ipcRenderer.invoke('file-storage-remove-dir', prefix),
 })
 
+contextBridge.exposeInMainWorld('sourceMemory', {
+  build: (projectId: string) => ipcRenderer.invoke('source-memory-build', projectId),
+  search: (projectId: string, query: string, limit?: number) =>
+    ipcRenderer.invoke('source-memory-search', projectId, query, limit),
+  status: (projectId: string) => ipcRenderer.invoke('source-memory-status', projectId),
+})
+
 contextBridge.exposeInMainWorld('projectFiles', {
   writeText: (key: string, value: string) => ipcRenderer.invoke('project-file-write-text', key, value),
   writeBinary: (payload: { projectId: string; relativePath: string; bytes: ArrayBuffer }) =>

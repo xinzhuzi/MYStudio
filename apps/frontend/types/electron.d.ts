@@ -242,6 +242,21 @@ declare global {
       removeDir: (prefix: string) => Promise<boolean>;
     };
     projectFolder?: ProjectFolderBridge & ProjectFolderMoveImportBridge;
+    sourceMemory?: {
+      build: (projectId: string) => Promise<{ success: boolean; buildId?: string; recordCount?: number; error?: string }>;
+      search: (
+        projectId: string,
+        query: string,
+        limit?: number,
+      ) => Promise<{
+        success: boolean;
+        hits?: Array<{ recordId: string; kind: string; title: string; sourcePath: string; anchor: string; score: number; snippet: string }>;
+        buildId?: string;
+        degradedReason?: string;
+        error?: string;
+      }>;
+      status: (projectId: string) => Promise<{ success: boolean; status?: string; buildId?: string; recordCount?: number; builtAt?: string; error?: string }>;
+    };
     projectFiles?: {
       writeText: (key: string, value: string) => Promise<{ success: boolean; filePath?: string; error?: string }>;
       writeBinary: (payload: { projectId: string; relativePath: string; bytes: ArrayBuffer }) => Promise<{

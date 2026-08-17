@@ -56,6 +56,7 @@ import {
   setProjectLocationResolver,
 } from '../storage/storage-paths'
 import { registerProjectFileIpcHandlers } from '../ipc/files/project-file-ipc'
+import { registerSourceMemoryIpcHandlers } from '../ipc/studio/source-memory-ipc'
 import { configureArtifactManagementIpc } from '../ipc/files/artifact-management-ipc'
 import { withFileStorageMutationLock } from '../ipc/files/file-storage-ipc'
 import { registerStudioContentIpcHandlers } from '../ipc/assets/studio-content-ipc'
@@ -595,6 +596,7 @@ async function ensureStudioSkillsAvailableAtStartup() {
   }
 }
 
+registerSourceMemoryIpcHandlers({ getDataDir })
 registerProjectFileIpcHandlers({
   getDataDir,
   readImageSource,

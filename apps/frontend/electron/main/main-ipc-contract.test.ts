@@ -120,6 +120,9 @@ self-media:list-providers
 self-media:list-tasks
 self-media:poll-task
 self-media:start-login
+source-memory-build
+source-memory-search
+source-memory-status
 storage-clear-cache
 storage-export-data
 storage-export-media-data
@@ -278,7 +281,7 @@ describe("Electron IPC contract", () => {
       "storage-move-media-data",
       "storage-move-project-data",
       "storage-validate-project-dir",
-      "studio-list-assets",
+  "studio-list-assets",
     ]);
   });
 });

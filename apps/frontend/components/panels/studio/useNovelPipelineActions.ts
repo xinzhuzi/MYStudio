@@ -80,6 +80,27 @@ export function useNovelPipelineActions({
       const bibleCharacters = parseBibleCharacters(residentBible);
       // 按 index 排序后滚动注入上一章事件行；调用方传入乱序选择时仍保持章节顺序。
       const sortedChapters = [...chapters].sort((left, right) => left.index - right.index);
+      // 档案层（L1 MVP）：批次开始重建索引（fire-and-forget）+ 检索一次相关档案块
+      let archiveContext: string | undefined;
+      const sourceMemoryBridge = (window as unknown as { sourceMemory?: Window["sourceMemory"] }).sourceMemory;
+      if (activeProjectId && sourceMemoryBridge) {
+        void sourceMemoryBridge.build(activeProjectId).catch(() => undefined);
+        try {
+          const query = sortedChapters
+            .map((chapter) => `${chapter.title} ${chapter.eventSummary ?? ""}`)
+            .join(" ")
+            .slice(0, 200);
+          const result = await sourceMemoryBridge.search(activeProjectId, query, 4);
+          if (result.success && result.hits?.length) {
+            archiveContext = [
+              "## 原著档案检索（按需补充，事实以圣经与正文为准）",
+              ...result.hits.map((hit) => `- [${hit.kind}] ${hit.title}（${hit.sourcePath}）：${hit.snippet}`),
+            ].join("\n");
+          }
+        } catch {
+          // 档案不可用→零注入，不阻断事件分析
+        }
+      }
       let prevEventLine: string | undefined;
       for (const chapter of sortedChapters) {
         updateNovelChapter(chapter.id, {
@@ -89,6 +110,7 @@ export function useNovelPipelineActions({
         const messages = buildNovelEventAnalysisMessages(chapter, {
           bibleContext,
           prevEventContext: prevEventLine,
+          archiveContext,
         });
         try {
           const result = await aiManager.text({
