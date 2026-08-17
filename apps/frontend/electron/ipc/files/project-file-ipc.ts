@@ -3,6 +3,7 @@ import path from "node:path";
 import { ipcMain } from "electron";
 import {
   createProjectFileUrl,
+  redirectProjectScopedKey,
   resolveProjectFileUrl,
   resolveProjectScopedFilePath,
 } from "../../storage/storage-paths";
@@ -42,8 +43,11 @@ function resolveProjectTextFilePath(dataRoot: string, key: string) {
     throw new Error("Invalid project file key");
   }
 
-  const targetPath = path.resolve(dataRoot, normalizedKey);
-  const normalizedRoot = path.resolve(dataRoot);
+  // `_p/{pid}/` 虚拟键与 file-storage/二进制通道同规则重定向:外部位置项目直达项目目录,
+  // 未注册项目保持 legacy userData/_p 回退——此前文本通道漏接,外部项目的镜像会写进 userData 孤岛。
+  const scope = redirectProjectScopedKey(dataRoot, normalizedKey);
+  const targetPath = path.resolve(scope.root, scope.rest);
+  const normalizedRoot = path.resolve(scope.root);
   if (targetPath !== normalizedRoot && !targetPath.startsWith(normalizedRoot + path.sep)) {
     throw new Error("Project file key escapes storage root");
   }

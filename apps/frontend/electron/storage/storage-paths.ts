@@ -87,7 +87,11 @@ function lookupProjectLocation(projectId: string): string | undefined {
   }
 }
 
-function redirectProjectScopedKey(
+/**
+ * `_p/{projectId}/...` 虚拟键重定向:已注册外部位置 → {location}/rest;未注册 → 原 dataRoot 相对路径。
+ * file-storage / project-file(文本与二进制) 共用的单一转换点,_p 前缀在磁盘上不产生中间目录。
+ */
+export function redirectProjectScopedKey(
   dataRoot: string,
   normalizedKey: string,
 ): { root: string; rest: string } {

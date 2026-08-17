@@ -32,6 +32,7 @@ vi.mock("node:fs", () => ({
 }));
 
 import { registerProjectFileIpcHandlers } from "./project-file-ipc";
+import { setProjectLocationResolver } from "../../storage/storage-paths";
 
 describe("registerProjectFileIpcHandlers", () => {
   beforeEach(() => {
@@ -116,5 +117,24 @@ describe("registerProjectFileIpcHandlers", () => {
       mimeType: "image/png",
       size: 5,
     });
+  });
+});
+
+describe("project-file-write-text 的 _p 虚拟键重定向", () => {
+  it("已注册外部位置的项目：文本键直达项目目录，磁盘上不出现 _p 中间层", async () => {
+    setProjectLocationResolver(() => "/projects/IP/MA");
+    try {
+      await expect(
+        mocks.handlers.get("project-file-write-text")?.({}, "_p/project-ext/novel/source-bible.md", "# 原著圣经"),
+      ).resolves.toEqual({ success: true, filePath: "/projects/IP/MA/novel/source-bible.md" });
+    } finally {
+      setProjectLocationResolver(null);
+    }
+  });
+
+  it("未注册位置的项目保持 legacy userData/_p 回退", async () => {
+    await expect(
+      mocks.handlers.get("project-file-write-text")?.({}, "_p/project-a/novel/source-bible.md", "# 原著圣经"),
+    ).resolves.toEqual({ success: true, filePath: "/data/_p/project-a/novel/source-bible.md" });
   });
 });
