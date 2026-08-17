@@ -527,8 +527,20 @@ export async function planFixedRoleVoices(
     }
   }
 
+  // 撞音色防护：已被既有绑定（fixed/rebound）占用的参考片段不进入自动分配
+  // 候选池——新角色不会与已固定角色同声（池空则回落全量保证可分配）。
+  const takenPaths = new Set(
+    [...fixed, ...rebound]
+      .map((item) => item.profile.referenceAudioPath?.trim())
+      .filter((path): path is string => Boolean(path)),
+  );
+  const untakenCandidates = input.candidates.filter(
+    (candidate) => !takenPaths.has(candidate.filePath.trim()),
+  );
+  const autoCandidatePool = untakenCandidates.length > 0 ? untakenCandidates : input.candidates;
+
   if (autoTargets.length > 0) {
-    if (input.candidates.length === 0) {
+    if (autoCandidatePool.length === 0) {
       for (const target of autoTargets) {
         errors.push({
           speakerId: target.speakerId,
@@ -543,7 +555,7 @@ export async function planFixedRoleVoices(
     try {
       const autoAssignments = await assignUnbound(
         autoTargets.map((target) => target.role),
-        input.candidates,
+        autoCandidatePool,
         { importanceByRoleId: input.importanceByRoleId },
       );
       assignments.push(...autoAssignments);

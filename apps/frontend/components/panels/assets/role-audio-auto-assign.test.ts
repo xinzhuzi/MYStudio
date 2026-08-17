@@ -702,4 +702,35 @@ describe("角色配音固定（同名跨 id 复用）", () => {
     expect(result.rebound).toEqual([]);
     expect(result.created).toHaveLength(1);
   });
+
+  it("撞音色防护：已固定角色占用的片段不进入新角色候选池", async () => {
+    // 叶孤鸿已绑定 sword-cold（fixed）；新角色沈砚的最佳匹配也是 sword-cold，
+    // 应退而取次优 scholar，而不是与叶孤鸿同声。
+    const boundProfile = {
+      id: "profile-bound",
+      name: "音色·叶孤鸿·清冷剑修音",
+      type: "reference" as const,
+      language: "zh",
+      defaultEngine: "qwen" as const,
+      defaultModelSize: "1.7B",
+      referenceAudioPath: "/voices/sword-cold.wav",
+      referenceText: "剑修清冷念白。",
+      createdAt: 0,
+      updatedAt: 0,
+    };
+    const result = await planFixedRoleVoices({
+      targets: [
+        { speakerId: "character:char-b" as const, role: role("char-b", "叶孤鸿", "青年剑修，冷峻寡言。") },
+        { speakerId: "character:char-a" as const, role: role("char-a", "沈砚", "青年剑修，冷峻寡言。") },
+      ],
+      candidates: swordCandidates,
+      bindings: {
+        "character:char-b": { speakerId: "character:char-b" as const, profileId: "profile-bound", defaultEngine: "qwen" as const, defaultModelSize: "1.7B" },
+      },
+      voiceProfiles: { "profile-bound": boundProfile },
+      resolveReferenceAudioPath: async (audioPath) => audioPath,
+    });
+    expect(result.errors).toEqual([]);
+    expect(result.created[0]?.assignment.audio.filePath).toBe("/voices/scholar.wav");
+  });
 });
