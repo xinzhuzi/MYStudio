@@ -477,6 +477,58 @@ export default function sharp(buffer: Buffer): SharpInstance {
 
 ---
 
+## Scenario: validated IPC fallback envelopes
+
+### 1. Scope / Trigger
+
+Apply when an Electron IPC handler converts controller state into a validated
+lifecycle status or action reply and must fail closed after validation fails.
+
+### 2. Signatures
+
+- `validateDepthRuntimeStatus(value): DepthValidationResult<DepthRuntimeStatusV1>`
+- `validateDepthRuntimeActionReply(value): DepthValidationResult<DepthRuntimeActionReplyV1>`
+
+### 3. Contracts
+
+- A fallback status is newly constructed from canonical constants and safe
+  evidence; it never spreads or reuses the unvalidated nested payload.
+- An invalid controller status produces `state: "error"`,
+  `modelDownloaded: false`, and probe evidence `{ pythonAvailable: false,
+  workerProbe: "blocked" }`.
+- An action containing invalid status evidence returns `success: false`,
+  `code: "invalid-reply"`, and the original validation issues.
+
+### 4. Validation & Error Matrix
+
+- Malformed probe evidence -> valid error status; no raw evidence escapes.
+- Malformed prepare/rollback status -> valid failed action with
+  `code: "invalid-reply"`.
+- Valid controller status -> preserve the canonical ready/needs-runtime result.
+
+### 5. Good/Base/Bad Cases
+
+- Good: normalize once and return both the validated value and validation issues.
+- Base: valid controller state passes through the canonical validator unchanged.
+- Bad: change only `state`/`message` while spreading an invalid nested `probe`.
+
+### 6. Tests Required
+
+- Inject malformed probe evidence and assert the returned status passes
+  `validateDepthRuntimeStatus`.
+- Inject malformed prepare evidence and assert the returned action passes
+  `validateDepthRuntimeActionReply` with `success: false` and `invalid-reply`.
+
+### 7. Wrong vs Correct
+
+```ts
+// Wrong: the fallback still contains invalid evidence.
+return { ...status, state: "error" };
+
+// Correct: construct a validator-safe fallback and retain issues separately.
+return { value: safeErrorStatus, issues: validated.issues };
+```
+
 ## Testing Requirements
 
 <!-- What level of testing is expected -->
