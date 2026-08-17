@@ -5,6 +5,15 @@ import path from "node:path";
 import { execFileSync } from "node:child_process";
 import { validateHyperFramesOverlayRequest, type HyperFramesOverlayRequestV1 } from "@rendering/contracts/video-workflow";
 import { HYPERFRAMES_NPM_VERSION } from "@rendering/plugins/video-workflow/video-workflow-runtime";
+import { installUncaughtExceptionGuard } from "../../../runtime/uncaught-exception-guard";
+
+// utility 子进程有独立运行时,主进程的 uncaughtException 守卫罩不到这里;
+// undici setTypeOfService EINVAL(上游 undici#5544)必须各自过滤。
+installUncaughtExceptionGuard({
+  writeLog: (entry) => {
+    console.warn(`[hyperframes-worker] ${entry.level}: ${entry.message}`);
+  },
+});
 
 const TOOL_VERSION = `hyperframes@${HYPERFRAMES_NPM_VERSION}`;
 /**

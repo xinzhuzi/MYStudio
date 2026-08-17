@@ -5,6 +5,15 @@ import {
   type RemotionRenderWorkerCommand,
   type RemotionRenderWorkerEvent,
 } from "./remotion-render-worker-protocol";
+import { installUncaughtExceptionGuard } from "../../../../runtime/uncaught-exception-guard";
+
+// utility 子进程有独立运行时,主进程的 uncaughtException 守卫罩不到这里;
+// undici setTypeOfService EINVAL(上游 undici#5544)必须各自过滤。
+installUncaughtExceptionGuard({
+  writeLog: (entry) => {
+    console.warn(`[remotion-render-worker] ${entry.level}: ${entry.message}`);
+  },
+});
 
 const parentPort = process.parentPort;
 if (!parentPort) {
