@@ -522,4 +522,39 @@ describe("narrator 木成家族锁定", () => {
     // 回落全库启发式：具体选段由既有打分决定，不在此钉死。
     expect(["/voices/teen.wav", "/voices/elder.wav"]).toContain(result.created[0]?.assignment.audio.filePath);
   });
+
+  it("配置自定义旁白家族（narratorVoiceFamily）时按该家族锁定与重绑", async () => {
+    const yunxiAssets = [
+      audio("voice-yunxi-calm", "云希·平静｜旁白", "云希平静念白。", "audio/voice-yunxi-calm.wav"),
+      audio("voice-yunxi-sad", "云希·悲伤｜旁白", "云希悲伤念白。", "audio/voice-yunxi-sad.wav"),
+    ];
+    // 既有绑定是木成（默认家族）——切到云希后应视为偏离并重绑云希
+    const muchengProfile = {
+      id: "profile-mucheng",
+      name: "音色·旁白·木成·平静",
+      type: "reference" as const,
+      language: "zh",
+      defaultEngine: "qwen" as const,
+      defaultModelSize: "1.7B",
+      referenceAudioPath: "audio/voice-asset-mucheng-calm.wav",
+      referenceText: "他面色沉静，双眉舒展。",
+      createdAt: 0,
+      updatedAt: 0,
+    };
+    const result = await planFixedRoleVoices({
+      targets: [createNarratorVoiceTarget()],
+      candidates: buildRoleAudioCandidates([], [...yunxiAssets, ...muchengAssets]),
+      narratorVoiceFamily: "云希",
+      bindings: {
+        narrator: { speakerId: "narrator" as const, profileId: muchengProfile.id, defaultEngine: "qwen" as const, defaultModelSize: "1.7B" },
+      },
+      voiceProfiles: { [muchengProfile.id]: muchengProfile },
+      resolveReferenceAudioPath: async (audioPath) => audioPath,
+    });
+
+    expect(result.errors).toEqual([]);
+    expect(result.fixed).toEqual([]);
+    expect(result.created[0]?.assignment.audio.filePath).toBe("audio/voice-yunxi-calm.wav");
+    expect(result.created[0]?.assignment.reason).toContain("云希");
+  });
 });

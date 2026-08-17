@@ -245,6 +245,7 @@ export function useScriptAssetGenerationActions({
           })),
         ],
         candidates,
+        narratorVoiceFamily: useStudioStore.getState().workflowConfig.narratorVoiceFamily,
         bindings: ttsProject?.bindings ?? {},
         voiceProfiles: ttsState.voiceProfiles,
         resolveReferenceAudioPath: async (audioPath) =>

@@ -97,9 +97,10 @@ export function useChapterAutoVideoActions({
     const ttsCancellation = new ChapterTtsCancellationController();
     ttsCancellationRef.current = ttsCancellation;
 
-    // 旁白按情境换木成片段（用户指令：旁白恒木成，按台词情绪选段）。
-    // 家族列表每次成片运行惰性加载一次（资产库桥 + 素材库合并筛家族）。
+    // 旁白按情境换音色家族片段（家族可经 workflowConfig.narratorVoiceFamily 配置，
+    // 默认木成；换家族后下次成片自动重绑）。家族列表每次成片运行惰性加载一次。
     let narratorVoiceFamilyCache: RoleAudioCandidate[] | null = null;
+    const narratorVoiceFamilyName = useStudioStore.getState().workflowConfig.narratorVoiceFamily;
     const loadNarratorVoiceFamily = async (): Promise<RoleAudioCandidate[]> => {
       if (narratorVoiceFamilyCache) return narratorVoiceFamilyCache;
       const assetsBridge = getStudioAssetsBridge();
@@ -111,6 +112,7 @@ export function useChapterAutoVideoActions({
           useStudioStore.getState().materials,
           audioAssets.items as Parameters<typeof buildRoleAudioCandidates>[1],
         ),
+        narratorVoiceFamilyName,
       );
       return narratorVoiceFamilyCache;
     };
@@ -251,6 +253,7 @@ export function useChapterAutoVideoActions({
                 store.materials,
                 audioAssets.items ?? [],
               ),
+              narratorVoiceFamily: useStudioStore.getState().workflowConfig.narratorVoiceFamily,
               bindings: ttsState.projects[activeProjectId]?.bindings ?? {},
               voiceProfiles: ttsState.voiceProfiles,
               resolveReferenceAudioPath: (audioPath) =>

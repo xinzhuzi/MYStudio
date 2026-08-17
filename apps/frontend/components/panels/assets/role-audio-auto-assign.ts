@@ -5,6 +5,7 @@ import { toRoleSpeakerId } from "@/lib/tts/role-speaker-id";
 import { normalizeReferenceText } from "@/lib/tts/reference-text";
 import { validateVoiceProfileForGeneration } from "@/lib/tts/voice-profile-capabilities";
 import {
+  DEFAULT_NARRATOR_VOICE_FAMILY,
   filterNarratorVoiceFamily,
   isNarratorProfileOffFamily,
   pickNarratorVoiceBase,
@@ -93,6 +94,8 @@ export interface PlanFixedRoleVoicesInput {
   bindings: Record<string, ProjectVoiceBinding>;
   voiceProfiles: Record<string, VoiceProfile>;
   resolveReferenceAudioPath: (audioPath: string) => Promise<string | null>;
+  /** 旁白音色家族名（音色库资产命名前缀），缺省=木成；换家族后旁白自动重绑。 */
+  narratorVoiceFamily?: string;
   assignUnbound?: (
     roles: StudioAssetSummary[],
     candidates: RoleAudioCandidate[],
@@ -360,9 +363,10 @@ export async function planFixedRoleVoices(
   }
 
   const unbound: FixedVoiceTarget[] = [];
-  // 旁白锁定木成家族（用户指令）：家族候选可用时，旁白只从家族内确定性选段，
-  // 不再全库打分/AI 匹配漂移；既有绑定若已偏离家族则视为过期重新绑定。
-  const narratorFamily = filterNarratorVoiceFamily(input.candidates);
+  // 旁白锁定配置家族（默认木成，可经 workflowConfig.narratorVoiceFamily 更换）：
+  // 家族候选可用时，旁白只从家族内确定性选段，不再全库打分/AI 匹配漂移；
+  // 既有绑定若已偏离家族则视为过期重新绑定。
+  const narratorFamily = filterNarratorVoiceFamily(input.candidates, input.narratorVoiceFamily);
   for (const target of uniqueTargets) {
     const binding = input.bindings[target.speakerId];
     if (!binding) {
@@ -383,7 +387,7 @@ export async function planFixedRoleVoices(
       target.speakerId === "narrator"
       && narratorFamily.length > 0
       && profile.type === "reference"
-      && isNarratorProfileOffFamily(profile)
+      && isNarratorProfileOffFamily(profile, input.narratorVoiceFamily)
     ) {
       unbound.push(target);
       continue;
@@ -449,7 +453,7 @@ export async function planFixedRoleVoices(
       assignments.push({
         role: target.role,
         audio: base,
-        reason: "旁白锁定木成家族（基准=平静）",
+        reason: `旁白锁定${input.narratorVoiceFamily ?? DEFAULT_NARRATOR_VOICE_FAMILY}家族（基准=平静）`,
       });
     }
   }

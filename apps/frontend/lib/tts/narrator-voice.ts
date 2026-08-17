@@ -16,8 +16,15 @@
 import type { RoleAudioCandidate } from "@/components/panels/assets/role-audio-auto-assign";
 import type { VoiceProfile } from "@/types/tts";
 
-/** 旁白声音家族（音色库资产命名含「木成」，文件路径含 mucheng）。 */
-export const NARRATOR_VOICE_FAMILY_PATTERN = /木成|mucheng/i;
+/** 默认旁白音色家族（音色库资产命名前缀）。用户可通过 workflowConfig.narratorVoiceFamily 更换。 */
+export const DEFAULT_NARRATOR_VOICE_FAMILY = "木成";
+
+/** 家族名 → 匹配正则（默认木成额外兼容资产路径里的拼音 mucheng；其他家族按名称匹配）。 */
+export function narratorFamilyPattern(family: string = DEFAULT_NARRATOR_VOICE_FAMILY): RegExp {
+  const escaped = family.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  if (family === DEFAULT_NARRATOR_VOICE_FAMILY) return /木成|mucheng/i;
+  return new RegExp(escaped, "i");
+}
 
 export type NarratorVariant = "calm" | "sad" | "excited" | "angry";
 
@@ -36,13 +43,15 @@ const VARIANT_TEXT_KEYWORDS: ReadonlyArray<{ variant: NarratorVariant; keywords:
   { variant: "excited", keywords: ["喜", "笑", "惊", "奋", "激动", "狂喜", "哈哈"] },
 ];
 
-/** 筛选木成家族候选（资产名或文件路径命中）。 */
+/** 筛选旁白家族候选（资产名或文件路径命中家族名；默认木成额外兼容 mucheng 路径）。 */
 export function filterNarratorVoiceFamily(
   candidates: readonly RoleAudioCandidate[],
+  family: string = DEFAULT_NARRATOR_VOICE_FAMILY,
 ): RoleAudioCandidate[] {
+  const pattern = narratorFamilyPattern(family);
   return candidates.filter((candidate) =>
-    NARRATOR_VOICE_FAMILY_PATTERN.test(candidate.name)
-    || NARRATOR_VOICE_FAMILY_PATTERN.test(candidate.filePath),
+    pattern.test(candidate.name)
+    || pattern.test(candidate.filePath),
   );
 }
 
@@ -113,9 +122,13 @@ export function resolveNarratorShotProfile(
   return buildNarratorShotProfile(base, clip);
 }
 
-/** 既有旁白绑定是否已偏离木成家族（名与路径都不含家族标识）。 */
-export function isNarratorProfileOffFamily(profile: VoiceProfile): boolean {
+/** 既有旁白绑定是否已偏离指定家族（名与路径都不含家族标识）。 */
+export function isNarratorProfileOffFamily(
+  profile: VoiceProfile,
+  family: string = DEFAULT_NARRATOR_VOICE_FAMILY,
+): boolean {
+  const pattern = narratorFamilyPattern(family);
   const name = profile.name ?? "";
   const path = profile.referenceAudioPath ?? "";
-  return !NARRATOR_VOICE_FAMILY_PATTERN.test(name) && !NARRATOR_VOICE_FAMILY_PATTERN.test(path);
+  return !pattern.test(name) && !pattern.test(path);
 }

@@ -122,3 +122,36 @@ describe("isNarratorProfileOffFamily", () => {
     expect(isNarratorProfileOffFamily(baseProfile({ name: "音色·旁白·清冷少年", referenceAudioPath: "/voices/teen.wav" }))).toBe(true);
   });
 });
+
+describe("自定义旁白家族（workflowConfig.narratorVoiceFamily）", () => {
+  const OTHER_FAMILY = [
+    { id: "voice-yunxi-calm", name: "云希·平静｜旁白", filePath: "audio/voice-yunxi-calm.wav", referenceText: "云希平静念白。" },
+    { id: "voice-yunxi-sad", name: "云希·悲伤｜旁白", filePath: "audio/voice-yunxi-sad.wav", referenceText: "云希悲伤念白。" },
+  ];
+
+  it("按配置家族名筛选与判偏离；换家族后旧绑定视为偏离", () => {
+    expect(filterNarratorVoiceFamily([...FAMILY, ...OTHER_FAMILY], "云希").map((c) => c.id))
+      .toEqual(OTHER_FAMILY.map((c) => c.id));
+    // 木成基准 profile 在切到云希后算偏离（不含云希标识）
+    expect(isNarratorProfileOffFamily(baseProfile(), "云希")).toBe(true);
+    // 云希片段不属于默认木成家族
+    expect(isNarratorProfileOffFamily(baseProfile({ name: "音色·旁白·云希·平静", referenceAudioPath: "audio/voice-yunxi-calm.wav" }))).toBe(true);
+  });
+
+  it("自定义家族同样确定性取平静基准并按情境换段", () => {
+    expect(pickNarratorVoiceBase(OTHER_FAMILY)?.id).toBe("voice-yunxi-calm");
+    const profile = resolveNarratorShotProfile(
+      baseProfile({ name: "音色·旁白·云希·平静", referenceAudioPath: "audio/voice-yunxi-calm.wav", referenceText: "云希平静念白。" }),
+      { text: "他满含泪水，哽咽难言。" },
+      OTHER_FAMILY,
+    );
+    expect(profile.referenceAudioPath).toBe("audio/voice-yunxi-sad.wav");
+    expect(profile.referenceText).toBe("云希悲伤念白。");
+  });
+
+  it("家族名按字面匹配并转义正则特殊字符", () => {
+    const weird = [{ id: "w", name: "A.B·平静", filePath: "/a/ab.wav", referenceText: "x" }];
+    expect(filterNarratorVoiceFamily(weird, "A.B")).toHaveLength(1);
+    expect(filterNarratorVoiceFamily(weird, "AXB")).toHaveLength(0);
+  });
+});

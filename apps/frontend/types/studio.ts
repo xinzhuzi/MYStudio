@@ -532,6 +532,12 @@ export interface StudioWorkflowConfig {
   stylePositioning?: string;
   paywallPolicy?: string;
   autoAnalyzeEventsOnImport?: boolean;
+  /**
+   * 旁白音色家族名（音色库资产命名前缀，如「木成」）。缺省=木成。
+   * 换家族后下次一键成片自动把旁白重绑到新家族（偏离即视为过期）；
+   * 按项目持久化，不同项目可用不同旁白。
+   */
+  narratorVoiceFamily?: string;
   /** 当前所处的工作流阶段（tab value），随项目保存，下次进入自动恢复 */
   workflowStage?: string;
   projectType?: string;
