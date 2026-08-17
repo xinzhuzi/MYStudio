@@ -126,3 +126,5 @@ apps/output/*
 # doesn't create a stray untracked file. (/CLAUDE.md is root-anchored only.)
 /CLAUDE.md
 .playwright-mcp/
+# Playwright CLI 会话快照（本地调试产物）
+.playwright-cli/
