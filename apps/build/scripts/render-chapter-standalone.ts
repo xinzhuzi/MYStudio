@@ -113,6 +113,11 @@ async function main() {
       browserExecutable: (browser as unknown as { executablePath: string }).executablePath,
       binariesDirectory: path.join(APPS_ROOT, "node_modules", "@remotion", "compositor-darwin-arm64"),
       chromeMode: "headless-shell", enforceAudioTrack: true, overwrite: true,
+      // GL 转场（GLTransitionLayer）进组合后渲染需要 SwiftShader WebGL：不传 gl:"swangle"
+      // 则 ANGLE Vulkan 路径 BindToCurrentSequence 失败（08-18-gl-transitions PoC 实测；
+      // run-full-pipeline cinematic 分支同款参数，并发钳 2 防软上下文内存崩）。
+      chromiumOptions: { gl: "swangle" },
+      concurrency: 2,
       onBrowserDownload: () => { throw new Error("禁止隐式下载 Headless Shell"); },
     } as never);
     fs.copyFileSync(staged, outputPath);

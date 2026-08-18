@@ -26,6 +26,7 @@ void main() { vUv = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }
 
 function buildFragmentShader(glsl: string): string {
   return /* glsl */ `
+varying vec2 vUv;
 uniform sampler2D fromTex;
 uniform sampler2D toTex;
 uniform float progress;
