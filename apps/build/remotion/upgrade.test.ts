@@ -65,7 +65,7 @@ describe("Remotion upgrade governance", () => {
       args: [
         "upgrade",
         "--version=4.0.500",
-        "--package-manager=npm",
+        "--package-manager=pnpm",
         "--save-exact",
         "--no-fund",
         "--no-audit",
