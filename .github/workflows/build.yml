@@ -227,13 +227,12 @@ jobs:
           path: apps/.cache/remotion-bundle
 
       - name: Build, install and smoke-test macOS package
-        env:
-          # 无头 runner 上被测应用是唯一 GUI 应用,前台检查必假阳性;豁免之
-          # (检查仍对真实用户桌面的本地 installed smoke 生效)。
-          MYSTUDIO_SMOKE_ALLOW_FOREGROUND: "1"
         working-directory: apps
         env:
           CSC_IDENTITY_AUTO_DISCOVERY: "false"
+          # 无头 runner 上被测应用是唯一 GUI 应用,前台检查必假阳性;豁免之
+          # (检查仍对真实用户桌面的本地 installed smoke 生效)。
+          MYSTUDIO_SMOKE_ALLOW_FOREGROUND: "1"
         run: npm run build:mac
 
       - name: Collect macOS release assets
