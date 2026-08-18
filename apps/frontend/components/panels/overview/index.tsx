@@ -13,11 +13,6 @@ import { useScriptStore, useActiveScriptProject } from "@/stores/script/script-s
 import { useProjectStore } from "@/stores/project/project-store";
 import { useStudioStore } from "@/stores/studio/studio-store";
 import { useMediaPanelStore } from "@/stores/navigation/media-panel-store";
-import {
-  ResizablePanelGroup,
-  ResizablePanel,
-  ResizableHandle,
-} from "@/components/ui/resizable";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -237,8 +232,10 @@ export function OverviewPanel() {
 
   if (!meta) {
     return (
-      <div className="h-full p-6">
-        <div className="mx-auto w-full max-w-6xl rounded-xl border bg-panel">
+      <div className="h-full">
+        <ScrollArea className="h-full">
+        <div className="mx-auto w-full max-w-6xl p-6">
+        <div className="rounded-xl border bg-panel">
           <div className="border-b px-5 py-4">
             <div className="flex items-center justify-between gap-2">
               <div className="inline-flex items-center gap-2 rounded-full bg-primary/10 px-2.5 py-1 text-xs font-medium text-primary">
@@ -270,73 +267,81 @@ export function OverviewPanel() {
             <StageGuideGrid onEnterStage={handleEnterStage} />
           </div>
         </div>
+        </div>
+        </ScrollArea>
         <AuthorPreferenceDialog open={prefOpen} onOpenChange={setPrefOpen} />
       </div>
     );
   }
 
   return (
-    <div className="h-full flex flex-col">
-      {/* 上部：工作流门户区（排版裁定 08-18：工作流在上，元数据在下） */}
-      <div className="shrink-0 max-h-[45%] overflow-y-auto border-b bg-panel/60">
-        <div className="mx-auto w-full max-w-6xl px-5 py-4 space-y-4">
-          <WorkflowGuideHeader
-            onPrimary={() =>
-              setActiveTab(OVERVIEW_WORKFLOW_GUIDE.primaryAction.targetTab)
-            }
-            onSecondary={() =>
-              setActiveTab(OVERVIEW_WORKFLOW_GUIDE.secondaryAction.targetTab)
-            }
-          />
-          <StageGuideGrid onEnterStage={handleEnterStage} />
-        </div>
-      </div>
+    <div className="h-full">
+      {/* 单一滚动整页：上部工作流门户卡 + 下部项目概览卡（与无 meta 导览分支同骨架同宽） */}
+      <ScrollArea className="h-full">
+        <div className="mx-auto w-full max-w-6xl space-y-4 p-6 pb-16">
+          {/* 上部：工作流门户（排版裁定 08-18：工作流在上，元数据在下） */}
+          <section className="rounded-xl border bg-panel">
+            <div className="border-b px-5 py-4">
+              <div className="inline-flex items-center gap-2 rounded-full bg-primary/10 px-2.5 py-1 text-xs font-medium text-primary">
+                <BookOpen className="h-3.5 w-3.5" />
+                项目入口
+              </div>
+              <div className="mt-2">
+                <WorkflowGuideHeader
+                  onPrimary={() =>
+                    setActiveTab(OVERVIEW_WORKFLOW_GUIDE.primaryAction.targetTab)
+                  }
+                  onSecondary={() =>
+                    setActiveTab(OVERVIEW_WORKFLOW_GUIDE.secondaryAction.targetTab)
+                  }
+                />
+              </div>
+            </div>
+            <div className="px-5 py-4">
+              <StageGuideGrid onEnterStage={handleEnterStage} />
+            </div>
+          </section>
 
-      {/* Header */}
-      <div className="p-3 pb-2 bg-panel border-b flex items-center justify-between shrink-0">
-        <div className="flex items-center gap-2">
-          <BookOpen className="h-4 w-4" />
-          <h2 className="font-semibold text-sm">项目概览</h2>
-          <span className="text-xs text-muted-foreground">
-            《{meta.title}》
-            {meta.genre && (
-              <Badge variant="secondary" className="ml-1 text-[10px]">
-                {meta.genre}
-              </Badge>
-            )}
-            {meta.era && (
-              <Badge variant="outline" className="ml-1 text-[10px]">
-                {meta.era}
-              </Badge>
-            )}
-          </span>
-        </div>
-        <div className="flex items-center gap-2">
-          <span className="text-[10px] text-muted-foreground">
-            {episodes.length} 集 · {meta.characters.length} 角色 ·{" "}
-            {meta.factions?.length || 0} 阵营 · {meta.keyItems?.length || 0} 物品
-          </span>
-          <OverviewAiFill
-            meta={meta}
-            onApply={(updates) => update(updates)}
-            buildContext={buildFillContext}
-            onOpenPreference={() => setPrefOpen(true)}
-          />
-          <Button variant="outline" size="sm" onClick={() => setPrefOpen(true)}>
-            <SlidersHorizontal className="h-3.5 w-3.5" />
-            作者偏好
-          </Button>
-        </div>
-      </div>
-
-      <AuthorPreferenceDialog open={prefOpen} onOpenChange={setPrefOpen} />
-
-      {/* Two-column layout */}
-      <ResizablePanelGroup direction="horizontal" className="flex-1 min-h-0">
-        {/* Left: Story + World + Settings */}
-        <ResizablePanel defaultSize={55} minSize={35}>
-          <ScrollArea className="h-full">
-            <div className="p-4 space-y-4 pb-32">
+          {/* 下部：项目概览（元数据卡） */}
+          <section className="rounded-xl border bg-panel">
+            <div className="flex flex-wrap items-center justify-between gap-2 border-b px-5 py-4">
+              <div className="flex min-w-0 items-center gap-2">
+                <BookOpen className="h-4 w-4 shrink-0" />
+                <h2 className="font-semibold text-sm">项目概览</h2>
+                <span className="truncate text-xs text-muted-foreground">
+                  《{meta.title}》
+                  {meta.genre && (
+                    <Badge variant="secondary" className="ml-1 text-[10px]">
+                      {meta.genre}
+                    </Badge>
+                  )}
+                  {meta.era && (
+                    <Badge variant="outline" className="ml-1 text-[10px]">
+                      {meta.era}
+                    </Badge>
+                  )}
+                </span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] text-muted-foreground">
+                  {episodes.length} 集 · {meta.characters.length} 角色 ·{" "}
+                  {meta.factions?.length || 0} 阵营 · {meta.keyItems?.length || 0} 物品
+                </span>
+                <OverviewAiFill
+                  meta={meta}
+                  onApply={(updates) => update(updates)}
+                  buildContext={buildFillContext}
+                  onOpenPreference={() => setPrefOpen(true)}
+                />
+                <Button variant="outline" size="sm" onClick={() => setPrefOpen(true)}>
+                  <SlidersHorizontal className="h-3.5 w-3.5" />
+                  作者偏好
+                </Button>
+              </div>
+            </div>
+            <div className="p-5">
+              <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-2">
+                <div className="space-y-4">
               {/* 故事核心 */}
               <SectionCard icon={BookOpen} title="故事核心">
                 <FieldRow label="标题">
@@ -680,16 +685,8 @@ export function OverviewPanel() {
                   </div>
                 )}
               </SectionCard>
-            </div>
-          </ScrollArea>
-        </ResizablePanel>
-
-        <ResizableHandle />
-
-        {/* Right: Characters + Factions + Items + Geography */}
-        <ResizablePanel defaultSize={45} minSize={30}>
-          <ScrollArea className="h-full">
-            <div className="p-4 space-y-4 pb-32">
+                </div>
+                <div className="space-y-4">
               {/* 角色列表 */}
               <SectionCard
                 icon={Users}
@@ -802,10 +799,13 @@ export function OverviewPanel() {
                   onUpdate={(items) => update({ geography: items })}
                 />
               </SectionCard>
+                </div>
+              </div>
             </div>
-          </ScrollArea>
-        </ResizablePanel>
-      </ResizablePanelGroup>
+          </section>
+        </div>
+      </ScrollArea>
+      <AuthorPreferenceDialog open={prefOpen} onOpenChange={setPrefOpen} />
       <ArtifactDeleteDialog
         isOpen={chapterDeleteOpen}
         plan={chapterDeletePlan}
