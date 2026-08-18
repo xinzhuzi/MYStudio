@@ -10,7 +10,10 @@
 - 目录多为**懒创建**：新建项目时不会出现下面所有目录，每个目录随对应
   功能首次使用而出现——缺少某个目录只说明还没用到该功能，不是异常。
 - 应用状态（可由应用重建/迁移）与创作内容（您的数据）分开存放：
-  `store/` 是应用状态，其余目录是创作内容与备份。
+  `store/` 是应用状态，其余目录是创作内容、**插件工作区**与备份。
+- 渲染/视频链路由三个插件承担：**Remotion**（合成渲染，专属目录 `remotion/`）、
+  **video-use**（逐镜视频生成，专属目录 `video-use/`）、**HyperFrames**（特效
+  overlay，无独立目录，工件随 video-use 修订目录存放）。
 
 ## 目录总览
 
@@ -19,8 +22,8 @@
 | `store/` | 应用状态 | 全部应用数据：各域 store（剧本/配音/角色/场景/道具/媒体/剪辑/导演等单文件 JSON）+ 工作流主数据分片目录 `store/studio-workflow/`（章节/分镜/任务，详见其内部 README.md） |
 | `novel/` | 创作内容 | 小说域：`chapters/<章节ID>.md` 章节正文镜像；`source-memory/` 原著记忆库（MEMORY.md 常驻层 + 档案检索索引） |
 | `assets/` | 创作内容 | 资产文件库：角色/场景/道具参考图等入库资产文件 |
-| `remotion/` | 创作内容 | 渲染工作区：Remotion 章节 manifest、任务、证据与成片输出（audio/ chapters/ outputs/ jobs/ evidence/） |
-| `video-use/` | 创作内容 | video-use 逐镜审修工件：每章每修订一目录（`<章节>/r<修订>/`） |
+| `remotion/` | 插件工作区 | **Remotion 渲染插件**的专属目录：章节 manifest、渲染任务、证据与成片输出（audio/ chapters/ outputs/ jobs/ evidence/） |
+| `video-use/` | 插件工作区 | **video-use 视频生成插件**的审修工件：每章每修订一目录（`<章节>/r<修订>/`）；**HyperFrames 特效插件**无独立根目录，其 overlay 工件（`hyperframes-request/-overlay/-artifact`）寄居同修订目录（与 video-use 工件同链） |
 | `workflow-images/` | 创作内容 | 生图工作流产出：分镜图/资产图，按工作流与章节组织，含 approved-revisions 晋级版本 |
 | `continuity-bibles/` | 创作内容 | 章节视觉连续性圣经：锁定章节内角色/场景的视觉基准 |
 | `backups/` | 备份 | **项目备份统一目录**（详见其内部 README.md）：continuity/ 章节连续性快照、storyboard-flow/ 分镜流快照、visual-continuity/ 分镜晋升整库快照、store/ store 手术备份、remotion/ 与 video-use/ 工作区文件备份、legacy-pipeline/ 旧试点管线归档 |
