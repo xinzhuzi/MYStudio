@@ -297,9 +297,8 @@ export function OverviewPanel() {
               </div>
             </div>
             <div className="p-5">
+              {/* 元数据区:所有控件竖向排列(裁定 08-18:元数据内不横排) */}
               <div className="space-y-4">
-              {/* 固定字段区:窗口扩大→三列同步展开 */}
-              <div className="grid grid-cols-1 items-start gap-4 md:grid-cols-2 2xl:grid-cols-3">
               {/* 故事核心 */}
               <SectionCard icon={BookOpen} title="故事核心">
                 <FieldRow label="标题">
@@ -417,9 +416,6 @@ export function OverviewPanel() {
                 </FieldRow>
               </SectionCard>
 
-                </div>
-                {/* 增长列表区:实体随窗口 1/2/4 列展开 */}
-                <div className="grid grid-cols-1 items-start gap-4 md:grid-cols-2 2xl:grid-cols-4">
               {/* 角色列表 */}
               <SectionCard
                 icon={Users}
@@ -542,7 +538,6 @@ export function OverviewPanel() {
                   onUpdate={(items) => update({ geography: items })}
                 />
               </SectionCard>
-                </div>
               </div>
             </div>
           </section>

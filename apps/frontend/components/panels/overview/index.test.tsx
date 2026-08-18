@@ -167,6 +167,26 @@ describe("OverviewPanel", () => {
     delete (window as unknown as { fileStorage?: unknown }).fileStorage;
   });
 
+  it("metadata sections stack in a single vertical column (裁定:元数据控件不横排)", () => {
+    render(<OverviewPanel />);
+    // 元数据卡的内容容器:竖向 space-y-4,含全部 SectionCard 且无任何 grid 列类
+    // 从「地理设定」卡片(SectionCard 渲染为 div.rounded-lg.border)向上取直接父容器
+    const geoCard = [...document.querySelectorAll("div.rounded-lg.border")].find((el) =>
+      el.querySelector("svg") && el.textContent?.trimStart().startsWith("地理设定"),
+    );
+    const metaContent = geoCard?.parentElement ?? null;
+    expect(metaContent).toBeTruthy();
+    expect(metaContent?.className).not.toMatch(/grid/);
+    // 各区块按 DOM 子元素顺序竖排:故事核心 → 世界观 → 制作设定 → 角色 → 地理设定
+    const order = ["故事核心", "世界观", "制作设定", "角色", "地理设定"];
+    const children = [...(metaContent?.children ?? [])];
+    const positions = order.map((label) =>
+      children.findIndex((child) => child.textContent?.includes(label)),
+    );
+    expect(positions.every((p) => p >= 0)).toBe(true);
+    expect([...positions].sort((a, b) => a - b)).toEqual(positions);
+  });
+
   it("characters render vertically in full with edit/delete/add wired to updateSeriesMeta", async () => {
     mocks.meta = {
       title: "道劫",
