@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { ipcMain } from "electron";
+import { normalizeStoredJson } from "../../storage/pretty-json";
 import { resolveDataDirPath, resolveDataFilePath } from "../../storage/storage-paths";
 
 type RegisterFileStorageIpcHandlersContext = {
@@ -68,7 +69,7 @@ export function registerFileStorageIpcHandlers({ getDataDir }: RegisterFileStora
       const filePath = resolveDataFilePath(getDataDir(), key);
       await withFileStorageMutationLock(filePath, () => {
         fs.mkdirSync(path.dirname(filePath), { recursive: true });
-        fs.writeFileSync(filePath, value, "utf-8");
+        fs.writeFileSync(filePath, normalizeStoredJson(value), "utf-8");
       });
       return true;
     } catch (error) {

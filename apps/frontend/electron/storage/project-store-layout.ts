@@ -1,5 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
+import { prettyJson } from "./pretty-json";
 
 /**
  * 项目 store 布局 v1：应用状态文件收进项目根 `store/` 目录。
@@ -69,7 +70,7 @@ export function ensureProjectStoreLayout(projectRoot: string): boolean {
     }
     fs.renameSync(source, target);
   }
-  fs.writeFileSync(marker, JSON.stringify({ migratedAt: new Date().toISOString(), version: 1 }), "utf-8");
+  fs.writeFileSync(marker, prettyJson({ migratedAt: new Date().toISOString(), version: 1 }), "utf-8");
   return true;
 }
 

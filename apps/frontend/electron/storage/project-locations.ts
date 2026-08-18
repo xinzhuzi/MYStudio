@@ -1,5 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
+import { prettyJson } from "./pretty-json";
 
 /**
  * Main-process authority for per-project external locations.
@@ -111,7 +112,7 @@ export function createProjectLocationStore({
   const persist = (nextLocations: Record<string, string>) => {
     fs.mkdirSync(path.dirname(locationsFilePath), { recursive: true });
     const temporaryPath = `${locationsFilePath}.${process.pid}.tmp`;
-    fs.writeFileSync(temporaryPath, JSON.stringify({ version: FILE_VERSION, locations: nextLocations }), "utf-8");
+    fs.writeFileSync(temporaryPath, prettyJson({ version: FILE_VERSION, locations: nextLocations }), "utf-8");
     fs.renameSync(temporaryPath, locationsFilePath);
   };
 

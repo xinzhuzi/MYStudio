@@ -275,12 +275,12 @@ function main() {
       }
     }
     locationsTable.locations[pid] = target
-    writeAtomic(locationsPath, JSON.stringify(locationsTable))
+    writeAtomic(locationsPath, `${JSON.stringify(locationsTable, null, 2)}\n`)
     console.log(`[migrate] 位置表已更新: ${locationsPath}`)
 
-    // 注册表 location 字段(保持单行)
+    // 注册表 location 字段
     project.location = target
-    writeAtomic(registryPath, JSON.stringify(registry))
+    writeAtomic(registryPath, `${JSON.stringify(registry, null, 2)}\n`)
     console.log(`[migrate] 注册表已更新: ${registryPath}`)
 
     // 校验

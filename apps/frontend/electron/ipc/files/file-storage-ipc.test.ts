@@ -76,6 +76,22 @@ describe("registerFileStorageIpcHandlers", () => {
     expect(mocks.writeFileSync).toHaveBeenCalledTimes(1);
   });
 
+  it("pretty-prints JSON values on set while non-JSON values stay verbatim", async () => {
+    await expect(
+      mocks.handlers.get("file-storage-set")?.({}, "projects/editing", '{"state":{"a":1},"version":2}'),
+    ).resolves.toBe(true);
+    expect(mocks.writeFileSync).toHaveBeenCalledWith(
+      "/data/projects/editing.json",
+      '{\n  "state": {\n    "a": 1\n  },\n  "version": 2\n}\n',
+      "utf-8",
+    );
+
+    await expect(
+      mocks.handlers.get("file-storage-set")?.({}, "projects/readme", "# not json"),
+    ).resolves.toBe(true);
+    expect(mocks.writeFileSync).toHaveBeenCalledWith("/data/projects/readme.json", "# not json", "utf-8");
+  });
+
   it("does not rename when the source is missing or the target already exists", async () => {
     mocks.existsSync.mockReturnValueOnce(false);
     await expect(mocks.handlers.get("file-storage-rename")?.({}, "projects/from", "projects/to")).resolves.toBe(false);

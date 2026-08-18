@@ -16,5 +16,5 @@ const identity: RemotionRenderJobIdentityV1 = {
   renderSettingsHash: j.renderSettingsHash,
 };
 j.jobId = await createRemotionRenderJobId(identity);
-fs.writeFileSync(Q, JSON.stringify(q));
+fs.writeFileSync(Q, `${JSON.stringify(q, null, 2)}\n`);
 console.log("jobId →", j.jobId.slice(0, 44));

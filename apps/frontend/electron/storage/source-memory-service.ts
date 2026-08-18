@@ -14,6 +14,7 @@ import {
   searchIndexSqlite,
   type IndexRecord,
 } from "./source-memory-index";
+import { prettyJson } from "./pretty-json";
 import type {
   SourceMemoryBuildPlan,
   SourceMemoryBuildReply,
@@ -258,7 +259,7 @@ export function createSourceMemoryService({ getProjectRoot }: { getProjectRoot: 
       degradedReason?: string;
     },
   ): void {
-    fs.writeFileSync(statePath(projectId), JSON.stringify({ ...state, builtAt: new Date().toISOString() }), "utf8");
+    fs.writeFileSync(statePath(projectId), prettyJson({ ...state, builtAt: new Date().toISOString() }), "utf8");
   }
 
   return {

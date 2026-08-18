@@ -10,6 +10,7 @@ import {
 } from "../../storage/project-move-engine";
 import { resolveStoreFilePath, resolveStoreFilePathAny } from "../../storage/project-store-layout";
 import type { ProjectLocationStore } from "../../storage/project-locations";
+import { prettyJson } from "../../storage/pretty-json";
 import { resolveProjectRootPath } from "../../storage/storage-paths";
 
 /**
@@ -233,7 +234,7 @@ function rewriteProjectIdsInPlace(rootDir: string, oldPid: string, newPid: strin
       delete projectRecord[oldPid];
       changed = true;
     }
-    if (changed) fs.writeFileSync(fullPath, JSON.stringify(parsed), "utf-8");
+    if (changed) fs.writeFileSync(fullPath, prettyJson(parsed), "utf-8");
   }
 }
 

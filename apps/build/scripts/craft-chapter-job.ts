@@ -116,7 +116,7 @@ async function main() {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const kept = items.filter((it: Record<string, any>) => it?.job?.target?.kind !== "chapter");
   (queueState.state ?? queueState).jobs = [...kept, entry];
-  fs.writeFileSync(QUEUE, JSON.stringify(queueState));
+  fs.writeFileSync(QUEUE, `${JSON.stringify(queueState, null, 2)}\n`);
   console.log("已注入 chapter 作业:", job.jobId.slice(0, 30), "deps:", dependencyJobIds.length, "slots:", slots.length, "status:", job.status);
   console.log("effects 样例:", JSON.stringify(plan.effects.slice(0, 2), null, 1).slice(0, 400));
 }
