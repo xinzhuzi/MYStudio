@@ -247,6 +247,33 @@ DEFAULT_TEMPLATE_PARAMETERS: dict[str, dict[str, str | int | float | bool]] = {
 }
 
 
+# 08-18-hy-effects Phase 3：转场增强层（hy: overlay 增强）——每个非 cut 边界在
+# 出镜尾段（转场窗后半）叠一个对应风格的 HY overlay 窗，叠在 Remotion 转场上方
+# 作视觉增强；不接管时序、不参与 overlapFrames 预算（语音安全门禁不受影响）。
+_TRANSITION_ENHANCEMENT_BASE: dict[str, tuple[str, dict[str, str | int | float | bool]]] = {
+    "crossfade": ("mist-drift", {"opacity": 0.22, "speed": 12}),
+    "fade": ("paper-breath", {"warmth": 0.12, "speed": 5}),
+    "flash": ("sword-flash", {"angle": 24}),
+    "blackout": ("seal-glow", {"intensity": 0.25}),
+}
+
+
+def _transition_enhancement_for(effect_id: str) -> tuple[str, dict[str, str | int | float | bool]] | None:
+    """风格→增强模板映射（≥4 基线 + gl: 名字分桶 ≥4）。未知 id 返回 None（不增强）。"""
+    if effect_id in _TRANSITION_ENHANCEMENT_BASE:
+        return _TRANSITION_ENHANCEMENT_BASE[effect_id]
+    if effect_id.startswith("gl:"):
+        name = effect_id[3:].lower()
+        if any(k in name for k in ("zoom", "scale", "push", "slide", "wipe", "directional", "leftright", "radial")):
+            return ("brush-sweep", {"hue": 210, "speed": 2})
+        if any(k in name for k in ("dissolve", "melt", "wave", "swap", "fade", "pixel", "butterfly", "mosaic", "polka")):
+            return ("ink-bloom", {"intensity": 0.45, "x": 50, "y": 45})
+        if any(k in name for k in ("glitch", "morph", "burn", "dreamy", "cross")):
+            return ("aura-pulse", {"intensity": 0.4, "speed": 2})
+        return ("dust-motes", {"count": 12, "speed": 14})
+    return None
+
+
 def _mood_for_shot(request: dict[str, Any], shot_id: str) -> str | None:
     """Resolve the child1 boundary mood for a shot without inventing one."""
     intents = request.get("boundaryIntents")
@@ -372,6 +399,31 @@ def _build_overlay_slots(
         if next_start_us is not None:
             duration_us = min(duration_us, max(1, next_start_us - start_us))
         duration_us = min(duration_us, _OVERLAY_SLOT_MAX_US)
+        # 转场增强层：本镜出镜边界存在非 cut 转场时，增强窗占用出镜尾段
+        # （转场窗后半），装饰窗相应让位——保持 artifact「时间单调不重叠」校验。
+        enhancement_us = 0
+        entry_transition = next(
+            (t for t in (artifact_edl or [])
+             if str(t.get("shotId") or "") == shot_id and isinstance(t.get("transitionToNext"), dict)
+             and str(t["transitionToNext"].get("effectId") or "cut") != "cut"),
+            None,
+        )
+        if entry_transition is not None and next_start_us is not None:
+            t_dur_us = int(entry_transition["transitionToNext"].get("durationUs") or 0)
+            enhancement = _transition_enhancement_for(str(entry_transition["transitionToNext"].get("effectId")))
+            if t_dur_us > 0 and enhancement is not None:
+                enhancement_us = min(t_dur_us, max(1, next_start_us - start_us - 1))
+                enhancement_us = min(enhancement_us, _OVERLAY_SLOT_MAX_US)
+                enhancement_template, enhancement_parameters = enhancement
+                slots.append({
+                    "slotId": f"transition-enh-{shot_id}",
+                    "cueId": f"transition-enhancement-{index + 1}",
+                    "startUs": next_start_us - enhancement_us,
+                    "durationUs": enhancement_us,
+                    "templateId": enhancement_template,
+                    "parameters": enhancement_parameters,
+                })
+        duration_us = min(duration_us, max(1, (next_start_us - enhancement_us if next_start_us is not None else duration_us) - start_us) if next_start_us is not None else duration_us)
         slots.append({
             "slotId": f"effect-{shot_id}",
             "cueId": f"decorative-effect-{index + 1}",
@@ -381,6 +433,8 @@ def _build_overlay_slots(
             "parameters": parameters,
             **({"moodWord": mood_word} if mood_word else {}),
         })
+    # 增强窗与装饰窗统一按时间排序（artifact 校验要求时间单调不重叠）。
+    slots.sort(key=lambda slot: slot["startUs"])
     return slots
 
 

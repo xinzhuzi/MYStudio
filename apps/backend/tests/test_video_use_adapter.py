@@ -42,6 +42,26 @@ class VideoUseAdapterTest(unittest.TestCase):
         self.assertTrue(log.called)
         self.assertEqual([slot["startUs"] for slot in slots], [0, 500_000, 1_200_000])
 
+    def test_transition_enhancement_covers_base_and_gl_buckets(self):
+        """08-18-hy-effects Phase 3 验收：基线 4 种 + gl: 分桶 ≥4 种映射，未知 id 不增强。"""
+        from video_use.adapter import _transition_enhancement_for
+        base = {e: _transition_enhancement_for(e) for e in ("crossfade", "fade", "flash", "blackout")}
+        self.assertEqual(
+            {k: v[0] for k, v in base.items()},
+            {"crossfade": "mist-drift", "fade": "paper-breath", "flash": "sword-flash", "blackout": "seal-glow"},
+        )
+        gl = {e: _transition_enhancement_for(e)[0] for e in (
+            "gl:CrossZoom", "gl:Directional", "gl:swap", "gl:fade",
+            "gl:GlitchMemories", "gl:DreamyZoom", "gl:Mosaic", "gl:BookFlip",
+        )}
+        self.assertEqual(len(set(gl.values())) >= 4, True)
+        self.assertEqual(gl["gl:CrossZoom"], "brush-sweep")
+        self.assertEqual(gl["gl:swap"], "ink-bloom")
+        self.assertEqual(gl["gl:GlitchMemories"], "aura-pulse")
+        self.assertEqual(gl["gl:BookFlip"], "dust-motes")
+        self.assertIsNone(_transition_enhancement_for("cut"))
+        self.assertIsNone(_transition_enhancement_for("unknown-fx"))
+
     def test_overlay_slots_follow_transition_overlap_timing(self):
         edl = {"ranges": [
             {"source": "shot-001", "start": 0.0, "end": 0.5},
@@ -55,7 +75,9 @@ class VideoUseAdapterTest(unittest.TestCase):
         ]
         with patch("video_use.adapter.print"):
             slots = _build_overlay_slots({}, edl, artifact_edl)
-        self.assertEqual([slot["startUs"] for slot in slots], [0, 300_000, 1_000_000])
+        # 08-18-hy-effects Phase 3：fade 边界 → paper-breath 增强窗 @ 转场窗后半。
+        self.assertEqual([slot["startUs"] for slot in slots], [0, 100_000, 300_000, 1_000_000])
+        self.assertEqual(slots[1]["templateId"], "paper-breath")
 
     def test_overlay_slot_durations_respect_transition_gap_and_decorative_cap(self):
         edl = {"ranges": [
@@ -68,7 +90,9 @@ class VideoUseAdapterTest(unittest.TestCase):
         ]
         with patch("video_use.adapter.print"):
             slots = _build_overlay_slots({}, edl, artifact_edl)
-        self.assertEqual([slot["startUs"] for slot in slots], [0, 4_000_000])
+        # 08-18-hy-effects Phase 3：转场增强窗占用出镜尾段（转场窗后半）。
+        self.assertEqual([slot["startUs"] for slot in slots], [0, 3_000_000, 4_000_000])
+        self.assertEqual(slots[1]["slotId"], "transition-enh-shot-001")
         previous_end = 0
         for slot in slots:
             self.assertGreaterEqual(slot["startUs"], previous_end)
