@@ -28,6 +28,9 @@ describe("project duplication storage boundary", () => {
     expect(keys).toContain("_p/source/tts");
     expect(keys).toContain("_p/source/studio-workflow-store");
     expect(keys).toContain("_p/source/props");
+    // 回归:store 布局 v1 后根目录列举兜底失效,editing/self-media 必须显式在场
+    expect(keys).toContain("_p/source/editing");
+    expect(keys).toContain("_p/source/self-media");
     expect(keys).not.toContain("_p/other/ignored");
   });
 

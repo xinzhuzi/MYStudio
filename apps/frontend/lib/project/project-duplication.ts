@@ -15,6 +15,10 @@ export const PROJECT_SCOPED_STORE_NAMES = [
   "media",
   "scenes",
   "props",
+  // store 布局 v1 后根目录列举兜底失效,editing/self-media 此前全靠该兜底——
+  // 显式登记后新旧布局都不再依赖目录列举(08-18-project-store-layout 回归修复)
+  "editing",
+  "self-media",
 ] as const;
 
 export function buildProjectStoreKeys(
