@@ -242,6 +242,9 @@ importers:
         specifier: ^5.0.10
         version: 5.0.15(@types/react@18.3.31)(immer@11.1.16)(react@18.3.1)(use-sync-external-store@1.6.0(react@18.3.1))
     devDependencies:
+      '@electron/asar':
+        specifier: 3.4.1
+        version: 3.4.1
       '@remotion/bundler':
         specifier: 4.0.499
         version: 4.0.499(lightningcss@1.32.0)(postcss@8.5.26)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
