@@ -14,7 +14,7 @@ import {
   createScriptPersistOptions,
   defaultCalibrationState,
   defaultScriptInputDraft } from "./script-store-persistence";
-import { selectActiveScriptProject } from "./script-store-selectors";
+import { deriveSeriesMetaFallback, selectActiveScriptProject } from "./script-store-selectors";
 export { selectActiveScriptProject } from "./script-store-selectors";
 
 export interface ScriptStoreState {
@@ -690,7 +690,9 @@ export const useScriptStore = create<ScriptStore>()(
         get().ensureProject(projectId);
         set((state) => {
           const project = state.projects[projectId];
-          if (!project?.seriesMeta) return state;
+          // 无 meta 的管线老项目:以推导值为基底创建,让概览的首次编辑可落盘
+          const baseMeta = project?.seriesMeta ?? (project ? deriveSeriesMetaFallback(project) : null);
+          if (!project || !baseMeta) return state;
           return {
             projects: {
               ...state.projects,
@@ -704,7 +706,7 @@ export const useScriptStore = create<ScriptStore>()(
                         ...project.scriptData,
                         characters: cloneScriptCharacters(updates.characters) }
                     : project.scriptData,
-                seriesMeta: { ...project.seriesMeta, ...updates },
+                seriesMeta: { ...baseMeta, ...updates },
                 updatedAt: Date.now() } } };
         });
       } }),

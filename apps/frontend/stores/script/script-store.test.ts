@@ -162,4 +162,67 @@ describe("active script project selector", () => {
       }),
     ).toBe(project);
   });
+
+  it("derives fallback seriesMeta by stripping the EP suffix from pipeline scriptData title", () => {
+    const project = createDefaultScriptProjectData();
+    project.scriptData = {
+      title: "道劫 EP01：断剑夜访道口镇",
+      language: "中文",
+      characters: [],
+      scenes: [],
+      episodes: [],
+      storyParagraphs: [],
+    };
+    const selected = selectActiveScriptProject({
+      activeProjectId: "active",
+      projects: { active: project },
+    });
+    expect(selected?.seriesMeta).toEqual({ title: "道劫", characters: [] });
+  });
+
+  it("derives fallback seriesMeta from the rawScript heading when scriptData is absent", () => {
+    const project = createDefaultScriptProjectData();
+    project.rawScript = "# 道劫 第1集：断剑夜访\n\n正文";
+    const selected = selectActiveScriptProject({
+      activeProjectId: "active",
+      projects: { active: project },
+    });
+    expect(selected?.seriesMeta?.title).toBe("道劫");
+  });
+
+  it("keeps empty projects on the guide branch (no derived meta)", () => {
+    const project = createDefaultScriptProjectData();
+    const selected = selectActiveScriptProject({
+      activeProjectId: "active",
+      projects: { active: project },
+    });
+    expect(selected?.seriesMeta).toBeNull();
+  });
+});
+
+describe("seriesMeta fallback persistence", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    resetScriptStore();
+  });
+
+  afterEach(resetScriptStore);
+
+  it("updateSeriesMeta persists on first edit using the derived base", () => {
+    const project = createDefaultScriptProjectData();
+    project.scriptData = {
+      title: "道劫 EP01：断剑夜访道口镇",
+      language: "中文",
+      characters: [],
+      scenes: [],
+      episodes: [],
+      storyParagraphs: [],
+    };
+    useScriptStore.setState({ activeProjectId: "p1", projects: { p1: project } });
+
+    useScriptStore.getState().updateSeriesMeta("p1", { logline: "少年逆袭" });
+
+    const saved = useScriptStore.getState().projects.p1?.seriesMeta;
+    expect(saved).toEqual({ title: "道劫", characters: [], logline: "少年逆袭" });
+  });
 });
