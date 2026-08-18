@@ -334,7 +334,9 @@ jobs:
           test -n "$(find release-assets -type f -name '*setup.exe' -print -quit)"
 
       - name: Create or update GitHub Release
-        uses: softprops/action-gh-release@v2
+        # 固定到具体提交(供应链防护):该 action 持有 contents:write,浮动 tag
+        # 被上游劫持即可投毒发布物。升级时改 SHA 并同步注释版本号。
+        uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2.6.2
         with:
           tag_name: ${{ github.ref_name }}
           files: release-assets/*
