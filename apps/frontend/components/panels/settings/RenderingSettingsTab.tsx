@@ -64,16 +64,18 @@ function FontOptionCard(props: { id: string; selected: boolean; onSelect: () => 
   );
 }
 
-/** 折叠状态记忆键：值为被折叠模块 id 数组（默认全展开）。 */
+/** 折叠状态记忆键：值为被折叠模块 id 数组；无记忆时默认全折叠（08-18 用户拍板）。 */
 const COLLAPSE_STORAGE_KEY = "mystudio.settings.rendering.collapsedModules";
 
 function readCollapsedModules(): Set<string> {
   try {
     const raw = window.localStorage.getItem(COLLAPSE_STORAGE_KEY);
-    const ids = raw ? (JSON.parse(raw) as unknown) : [];
-    return new Set(Array.isArray(ids) ? ids.map(String) : []);
+    // null = 从未手动折叠过 → 全折叠起步；有记忆则完全按用户的显式选择。
+    if (raw === null) return new Set(ALL_MODULE_IDS);
+    const ids = JSON.parse(raw) as unknown;
+    return new Set(Array.isArray(ids) ? ids.map(String) : ALL_MODULE_IDS);
   } catch {
-    return new Set();
+    return new Set(ALL_MODULE_IDS);
   }
 }
 
@@ -88,9 +90,11 @@ const RENDERER_OPTIONS = [
 const PLUGIN_DEFINITIONS: Array<{ id: VideoWorkflowPluginId; title: string; description: string }> = [
   { id: "remotion", title: "Remotion", description: "正式的 Composition、Studio 与章节渲染路径。" },
   { id: "hyperframes", title: "HyperFrames", description: "时间线确认后的透明动效 overlay；无动效也会记录 no-op artifact。" },
-  { id: "video-use", title: "video-use", description: "原文对齐、EDL、字幕时间、调色、preview 与自评。" },
+  { id: "video-use", title: "video-use", description: "原文对齐、EDL、字幕时间轴、调色、preview 与自评。" },
   { id: "seedance-prompt", title: "Seedance Prompt Skill", description: "仅提供 Seedance 提示词能力，不进入视频执行门禁。" },
 ];
+
+const ALL_MODULE_IDS = ["ffmpeg-shared", ...PLUGIN_DEFINITIONS.map((definition) => `plugin-${definition.id}`)];
 
 type RenderingSettingsTabProps = {
   embedded?: boolean;
@@ -146,7 +150,7 @@ export function RenderingSettingsTab({ embedded = false }: RenderingSettingsTabP
       setImportingFont(false);
     }
   };
-  // 模块折叠：默认全展开（用户拍板），手动折叠后 localStorage 记忆。
+  // 模块折叠：默认全折叠（08-18 用户改拍板），手动展开/折叠后 localStorage 记忆。
   const [collapsedModules, setCollapsedModules] = React.useState<Set<string>>(() => readCollapsedModules());
   const toggleModuleCollapsed = (moduleId: string) => {
     setCollapsedModules((previous) => {

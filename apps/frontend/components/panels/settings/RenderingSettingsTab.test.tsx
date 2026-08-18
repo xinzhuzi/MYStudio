@@ -50,6 +50,8 @@ describe("RenderingSettingsTab", () => {
   beforeEach(() => {
     useAppSettingsStore.setState({ renderingSettings: { renderer: "ffmpeg" } });
     installRuntime({ state: "not-installed", remotionVersion: "4.0.499" });
+    // 其余用例关注卡片内容,种「显式全开」绕过默认折叠;折叠默认行为由专项用例(先清键)覆盖。
+    window.localStorage.setItem("mystudio.settings.rendering.collapsedModules", "[]");
   });
 
   it("persists the global renderer choice", async () => {
@@ -148,22 +150,24 @@ describe("RenderingSettingsTab", () => {
     const { unmount } = render(<RenderingSettingsTab />);
     await waitFor(() => expect(screen.getByRole("heading", { name: "Remotion" })).toBeTruthy());
 
-    // 折叠 Remotion 卡：正文隐藏，状态摘要仍可见
+    // 默认全折叠：正文隐藏，状态摘要仍可见
     const trigger = screen.getByRole("button", { name: /Remotion/ });
     expect(trigger.textContent).toContain("检查中");
-    fireEvent.click(trigger);
     expect(screen.queryByRole("heading", { name: "字幕字体" })).toBeNull();
-    expect(screen.getByRole("heading", { name: "Remotion" }).textContent).toContain("Remotion");
 
-    // 折叠记忆持久化——重挂载后仍折叠
+    // 点开 Remotion 卡：正文出现
+    fireEvent.click(trigger);
+    await waitFor(() => expect(screen.getByRole("heading", { name: "字幕字体" })).toBeTruthy());
+
+    // 展开记忆持久化——重挂载后仍展开
     unmount();
     const { unmount: unmount2 } = render(<RenderingSettingsTab />);
     await waitFor(() => expect(screen.getByRole("heading", { name: "Remotion" })).toBeTruthy());
-    expect(screen.queryByRole("heading", { name: "字幕字体" })).toBeNull();
+    expect(screen.getByRole("heading", { name: "字幕字体" })).toBeTruthy();
 
-    // 再点开恢复
+    // 再点折叠恢复
     fireEvent.click(screen.getByRole("button", { name: /Remotion/ }));
-    await waitFor(() => expect(screen.getByRole("heading", { name: "字幕字体" })).toBeTruthy());
+    await waitFor(() => expect(screen.queryByRole("heading", { name: "字幕字体" })).toBeNull());
     window.localStorage.removeItem("mystudio.settings.rendering.collapsedModules");
     unmount2();
   });

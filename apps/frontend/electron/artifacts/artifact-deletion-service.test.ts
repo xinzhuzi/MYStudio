@@ -39,7 +39,7 @@ const emptySummary = {
   byStage: {
     novel: 0, analysis: 0, script: 0, assets: 0, storyboard: 0, image: 0,
     voice: 0, production: 0, editing: 0, remotion: 0, export: 0,
-    backup: 0, "media-library": 0,
+    backup: 0, "media-library": 0, "project-store": 0,
   } satisfies Record<ArtifactStage, number>,
   byKind: {
     "novel-chapter": 0, "script-episode": 0, "script-scene": 0,

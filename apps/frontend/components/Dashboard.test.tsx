@@ -240,6 +240,19 @@ describe("Dashboard project folder flows", () => {
     await waitFor(() => expect(screen.getByTitle(dir)).toBeTruthy());
   }
 
+  it("opts project cards into the interaction sound system (off in selection mode)", () => {
+    render(<Dashboard />);
+    const card = cardOf("p-legacy");
+    // 卡片是纯 div,必须显式接入全局音效;点击打开项目时出快门音
+    expect(card.getAttribute("data-interaction-sound")).toBe("primary");
+
+    // 管理模式下点按无动作(选中只认长按),不出声
+    fireEvent.click(screen.getByRole("button", { name: "管理" }));
+    expect(card.getAttribute("data-interaction-sound")).toBe("off");
+    fireEvent.click(screen.getByRole("button", { name: "退出选择" }));
+    expect(card.getAttribute("data-interaction-sound")).toBe("primary");
+  });
+
   it("requires both name and location before creating, and opens the picker at the last parent dir", async () => {
     const createButton = openCreateForm();
     expect(createButton.getAttribute("disabled")).not.toBeNull();

@@ -2,9 +2,10 @@
 
 import { lazy, Suspense, useState } from "react";
 import { toast } from "sonner";
-import { Plug } from "lucide-react";
+import { ChevronDown, Plug } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { getTtsRuntimeStatus, startTtsRuntime } from "@/lib/tts/client";
 import type { VideoWorkflowPluginId } from "@rendering/contracts/video-workflow";
 import { usePythonRuntimeSettings } from "./usePythonRuntimeSettings";
@@ -20,18 +21,59 @@ const LocalTtsPanelLazy = lazy(() => import("@/components/panels/tts/LocalTtsPan
   default: module.LocalTtsPanel,
 })));
 
+/** 大区块折叠记忆键：值为被折叠区块 id 数组；无记忆时默认全折叠（08-18 用户拍板）。 */
+const SECTION_STORAGE_KEY = "mystudio.settings.plugins.collapsedSections";
+
+const SECTION_IDS = ["python", "depth", "image-gen", "upscale", "audio-gen", "tts", "video"] as const;
+
+type SectionId = (typeof SECTION_IDS)[number];
+
+function readCollapsedSections(): Set<string> {
+  try {
+    const raw = window.localStorage.getItem(SECTION_STORAGE_KEY);
+    // null = 从未手动折叠过 → 全折叠起步；有记忆则完全按用户的显式选择。
+    if (raw === null) return new Set<string>(SECTION_IDS);
+    const ids = JSON.parse(raw) as unknown;
+    return new Set<string>(Array.isArray(ids) ? ids.map(String) : SECTION_IDS);
+  } catch {
+    return new Set<string>(SECTION_IDS);
+  }
+}
+
 /**
  * Unified local capability configuration. The order is intentional:
  * managed Python is the foundation; depth/music are local AI models
  * (explicit download, local inference); TTS and the video workflow plugins
  * are runtime services that consume those artifacts. Local image generation
  * remains an explicit opt-in provider and is surfaced below with the same
- * fail-closed lifecycle controls.
+ * fail-closed lifecycle controls. Every section folds; the collapsed header
+ * keeps the title and one-line description visible.
  */
 export function PluginSettingsTab() {
   const python = usePythonRuntimeSettings();
   const videoPlugins = useVideoWorkflowPlugins();
   const [isPreparing, setIsPreparing] = useState(false);
+  // 大区块折叠：默认全折叠（08-18 用户拍板），手动展开/折叠后 localStorage 记忆。
+  const [collapsedSections, setCollapsedSections] = useState<Set<string>>(() => readCollapsedSections());
+  const toggleSectionCollapsed = (sectionId: SectionId) => {
+    setCollapsedSections((previous) => {
+      const next = new Set(previous);
+      if (next.has(sectionId)) next.delete(sectionId);
+      else next.add(sectionId);
+      try {
+        window.localStorage.setItem(SECTION_STORAGE_KEY, JSON.stringify([...next]));
+      } catch {
+        // 记忆失败不影响本轮交互
+      }
+      return next;
+    });
+  };
+  const sectionChevron = (sectionId: SectionId) => (
+    <ChevronDown
+      className={`h-4 w-4 shrink-0 mt-1 text-muted-foreground transition-transform ${collapsedSections.has(sectionId) ? "-rotate-90" : ""}`}
+      aria-hidden="true"
+    />
+  );
 
   const prepareByPriority = async () => {
     if (!python.hasRuntime) {
@@ -124,61 +166,124 @@ export function PluginSettingsTab() {
         </header>
 
         <section aria-labelledby="plugin-python-heading" className="rounded-xl border border-border bg-card/30">
-          <div className="border-b border-border px-5 py-4 space-y-2">
-            <h4 id="plugin-python-heading" className="text-base font-semibold text-foreground">Python 运行环境</h4>
-            <p className="text-xs text-muted-foreground">所有本地 TTS、video-use Python worker 和 MLX 对齐都复用应用管理的 Python。</p>
-          </div>
-          <PythonSettingsTab embedded />
+          <Collapsible open={!collapsedSections.has("python")} onOpenChange={() => toggleSectionCollapsed("python")}>
+            <CollapsibleTrigger className="w-full text-left">
+              <div className="px-5 py-4 flex items-start justify-between gap-3">
+                <div className="space-y-2">
+                  <h4 id="plugin-python-heading" className="text-base font-semibold text-foreground">Python 运行环境</h4>
+                  <p className="text-xs text-muted-foreground">所有本地 TTS、video-use Python worker 和 MLX 对齐都复用应用管理的 Python。</p>
+                </div>
+                {sectionChevron("python")}
+              </div>
+            </CollapsibleTrigger>
+            <CollapsibleContent className="border-t border-border">
+              <PythonSettingsTab embedded />
+            </CollapsibleContent>
+          </Collapsible>
         </section>
 
         <section aria-labelledby="plugin-depth-heading" className="rounded-xl border border-border bg-card/30">
-          <div className="border-b border-border px-5 py-4 space-y-2">
-            <h4 id="plugin-depth-heading" className="text-base font-semibold text-foreground">深度估计（电影级 3D）</h4>
-            <p className="text-xs text-muted-foreground">静态图 → 3D 电影级纵深的深度模型（依赖上方 Python 运行环境）。准备、探测与回滚走统一生命周期；模型仅在用户点击下载时获取，渲染时绝不自动下载。</p>
-          </div>
-          <DepthSettingsSection embedded />
+          <Collapsible open={!collapsedSections.has("depth")} onOpenChange={() => toggleSectionCollapsed("depth")}>
+            <CollapsibleTrigger className="w-full text-left">
+              <div className="px-5 py-4 flex items-start justify-between gap-3">
+                <div className="space-y-2">
+                  <h4 id="plugin-depth-heading" className="text-base font-semibold text-foreground">深度估计（电影级 3D）</h4>
+                  <p className="text-xs text-muted-foreground">静态图 → 3D 电影级纵深的深度模型（依赖上方 Python 运行环境）。准备、探测与回滚走统一生命周期；模型仅在用户点击下载时获取，渲染时绝不自动下载。</p>
+                </div>
+                {sectionChevron("depth")}
+              </div>
+            </CollapsibleTrigger>
+            <CollapsibleContent className="border-t border-border">
+              <DepthSettingsSection embedded />
+            </CollapsibleContent>
+          </Collapsible>
         </section>
 
         <section aria-labelledby="plugin-image-gen-heading" className="rounded-xl border border-border bg-card/30">
-          <div className="border-b border-border px-5 py-4 space-y-2">
-            <h4 id="plugin-image-gen-heading" className="text-base font-semibold text-foreground">本地图片生成（免费）</h4>
-            <p className="text-xs text-muted-foreground">SDXL Turbo / FLUX.1-schnell 本地生图；准备、探测与回滚走统一生命周期，生成入口仍需在云端 AI 设置中显式选择「本地图片生成」。</p>
-          </div>
-          <LocalImageSettingsSection embedded />
+          <Collapsible open={!collapsedSections.has("image-gen")} onOpenChange={() => toggleSectionCollapsed("image-gen")}>
+            <CollapsibleTrigger className="w-full text-left">
+              <div className="px-5 py-4 flex items-start justify-between gap-3">
+                <div className="space-y-2">
+                  <h4 id="plugin-image-gen-heading" className="text-base font-semibold text-foreground">本地图片生成（免费）</h4>
+                  <p className="text-xs text-muted-foreground">SDXL Turbo / FLUX.1-schnell 本地生图；准备、探测与回滚走统一生命周期，生成入口仍需在云端 AI 设置中显式选择「本地图片生成」。</p>
+                </div>
+                {sectionChevron("image-gen")}
+              </div>
+            </CollapsibleTrigger>
+            <CollapsibleContent className="border-t border-border">
+              <LocalImageSettingsSection embedded />
+            </CollapsibleContent>
+          </Collapsible>
         </section>
 
         <section aria-labelledby="plugin-upscale-heading" className="rounded-xl border border-border bg-card/30">
-          <div className="border-b border-border px-5 py-4 space-y-2">
-            <h4 id="plugin-upscale-heading" className="text-base font-semibold text-foreground">图片超分（1K → 4K）</h4>
-            <p className="text-xs text-muted-foreground">本地 Real-ESRGAN 超分模型（依赖上方 Python 运行环境），把云端/本地生成的 1K 图原生放大 4 倍。模型仅在用户点击下载时获取，超分时绝不自动下载。</p>
-          </div>
-          <UpscaleSettingsSection embedded />
+          <Collapsible open={!collapsedSections.has("upscale")} onOpenChange={() => toggleSectionCollapsed("upscale")}>
+            <CollapsibleTrigger className="w-full text-left">
+              <div className="px-5 py-4 flex items-start justify-between gap-3">
+                <div className="space-y-2">
+                  <h4 id="plugin-upscale-heading" className="text-base font-semibold text-foreground">图片超分（1K → 4K）</h4>
+                  <p className="text-xs text-muted-foreground">本地 Real-ESRGAN 超分模型（依赖上方 Python 运行环境），把云端/本地生成的 1K 图原生放大 4 倍。模型仅在用户点击下载时获取，超分时绝不自动下载。</p>
+                </div>
+                {sectionChevron("upscale")}
+              </div>
+            </CollapsibleTrigger>
+            <CollapsibleContent className="border-t border-border">
+              <UpscaleSettingsSection embedded />
+            </CollapsibleContent>
+          </Collapsible>
         </section>
 
         <section aria-labelledby="plugin-audio-gen-heading" className="rounded-xl border border-border bg-card/30">
-          <div className="border-b border-border px-5 py-4 space-y-2">
-            <h4 id="plugin-audio-gen-heading" className="text-base font-semibold text-foreground">本地音乐生成</h4>
-            <p className="text-xs text-muted-foreground">MusicGen 本地 BGM 生成（约 2 GB）。生成的 WAV 可在工作台「章节共享音频」导入为 BGM 轨道；模型仅在点击下载时获取。</p>
-          </div>
-          <LocalAudioSettingsSection embedded />
+          <Collapsible open={!collapsedSections.has("audio-gen")} onOpenChange={() => toggleSectionCollapsed("audio-gen")}>
+            <CollapsibleTrigger className="w-full text-left">
+              <div className="px-5 py-4 flex items-start justify-between gap-3">
+                <div className="space-y-2">
+                  <h4 id="plugin-audio-gen-heading" className="text-base font-semibold text-foreground">本地音乐生成</h4>
+                  <p className="text-xs text-muted-foreground">MusicGen 本地 BGM 生成（约 2 GB）。生成的 WAV 可在工作台「章节共享音频」导入为 BGM 轨道；模型仅在点击下载时获取。</p>
+                </div>
+                {sectionChevron("audio-gen")}
+              </div>
+            </CollapsibleTrigger>
+            <CollapsibleContent className="border-t border-border">
+              <LocalAudioSettingsSection embedded />
+            </CollapsibleContent>
+          </Collapsible>
         </section>
 
         <section aria-labelledby="plugin-tts-heading" className="rounded-xl border border-border bg-card/30">
-          <div className="border-b border-border px-5 py-4 space-y-2">
-            <h4 id="plugin-tts-heading" className="text-base font-semibold text-foreground">TTS 运行时与模型</h4>
-            <p className="text-xs text-muted-foreground">先启动本地 TTS，再按需下载模型；模型缓存和音色 profile 继续由原 TTS 页面管理。</p>
-          </div>
-          <Suspense fallback={<div className="flex h-40 items-center justify-center text-sm text-muted-foreground">加载 TTS 配置中...</div>}>
-            <LocalTtsPanelLazy embedded />
-          </Suspense>
+          <Collapsible open={!collapsedSections.has("tts")} onOpenChange={() => toggleSectionCollapsed("tts")}>
+            <CollapsibleTrigger className="w-full text-left">
+              <div className="px-5 py-4 flex items-start justify-between gap-3">
+                <div className="space-y-2">
+                  <h4 id="plugin-tts-heading" className="text-base font-semibold text-foreground">TTS 运行时与模型</h4>
+                  <p className="text-xs text-muted-foreground">先启动本地 TTS，再按需下载模型；模型缓存和音色 profile 继续由原 TTS 页面管理。</p>
+                </div>
+                {sectionChevron("tts")}
+              </div>
+            </CollapsibleTrigger>
+            <CollapsibleContent className="border-t border-border">
+              <Suspense fallback={<div className="flex h-40 items-center justify-center text-sm text-muted-foreground">加载 TTS 配置中...</div>}>
+                <LocalTtsPanelLazy embedded />
+              </Suspense>
+            </CollapsibleContent>
+          </Collapsible>
         </section>
 
         <section aria-labelledby="plugin-video-heading" className="rounded-xl border border-border bg-card/30">
-          <div className="border-b border-border px-5 py-4 space-y-2">
-            <h4 id="plugin-video-heading" className="text-base font-semibold text-foreground">视频工作流插件</h4>
-            <p className="text-xs text-muted-foreground">video-use 先完成对齐、EDL、字幕时间、调色、preview 和自评；随后准备 HyperFrames overlay，Remotion 负责正式渲染。</p>
-          </div>
-          <RenderingSettingsTab embedded />
+          <Collapsible open={!collapsedSections.has("video")} onOpenChange={() => toggleSectionCollapsed("video")}>
+            <CollapsibleTrigger className="w-full text-left">
+              <div className="px-5 py-4 flex items-start justify-between gap-3">
+                <div className="space-y-2">
+                  <h4 id="plugin-video-heading" className="text-base font-semibold text-foreground">视频工作流插件</h4>
+                  <p className="text-xs text-muted-foreground">video-use 先完成对齐、EDL、字幕时间、调色、preview 和自评；随后准备 HyperFrames overlay，Remotion 负责正式渲染。</p>
+                </div>
+                {sectionChevron("video")}
+              </div>
+            </CollapsibleTrigger>
+            <CollapsibleContent className="border-t border-border">
+              <RenderingSettingsTab embedded />
+            </CollapsibleContent>
+          </Collapsible>
         </section>
       </div>
     </ScrollArea>

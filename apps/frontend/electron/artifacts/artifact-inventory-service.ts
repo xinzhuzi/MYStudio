@@ -45,6 +45,7 @@ import {
  
 } from "../rendering/contracts/timeline-renderer";
  
+import { classifyProjectRootStage } from "@/lib/artifacts/project-layout";
 import type { RemotionManifest } from "@/types/artifacts";
 import type { RemotionRenderJobV1 } from "@/types/remotion-workspace";
 import type { ScriptData } from "@/types/script";
@@ -370,7 +371,8 @@ function decodeRawContent(
       : relatedChapters.length > 0
         ? relatedChapters
         : [undefined];
-    const stage: ArtifactStage = fileKind === "backup" ? "backup" : "media-library";
+    // 未识别 JSON 同样走布局契约表(store/→project-store 等);根级文件兜底 media-library
+    const stage: ArtifactStage = fileKind === "backup" ? "backup" : classifyProjectRootStage(filePath);
 
     return {
       artifacts: chapterScopes.map((relatedChapter) => {
@@ -808,7 +810,9 @@ async function scanProjectInventoryUnlocked(
 
         if (file.kind !== "json" && file.kind !== "backup") {
           const fingerprint = await calculateFileFingerprint(file.filePath);
-          const stage: ArtifactStage = file.relativePath.includes("remotion") ? "remotion" : file.relativePath.includes("exports") ? "export" : file.relativePath.includes("workflow-images") ? "image" : "media-library";
+          // stage 由布局契约表驱动(project-layout.ts 单一事实源);
+          // 未匹配根维持 media-library 兜底(历史行为)
+          const stage: ArtifactStage = classifyProjectRootStage(file.relativePath);
           const mediaRefType: PhysicalRef["type"] = stage === "remotion" ? "remotion" : stage === "export" ? "exports" : "project-file";
           // 章节归属两级推断：优先取规范的数字章号 token（chapter-001），
           // 它在 chapter-001-archive-20260816 / storyboard-flow-chapter-001-017

@@ -31,7 +31,7 @@ describe("assembleBoundaryIntents priority chain", () => {
     expect(result.intents[0]).toMatchObject({
       fromShotId: "shot-2",
       toShotId: "shot-3",
-      effectId: "crossfade",
+      effectId: "gl:swap",
       styleWord: "水墨晕染",
       moodWord: "战斗",
     });
@@ -44,7 +44,7 @@ describe("assembleBoundaryIntents priority chain", () => {
       shotDurationUsById: DURATIONS,
     });
     expect(result.intents).toHaveLength(1);
-    expect(result.intents[0]).toMatchObject({ effectId: "flash", fromShotId: "shot-1" });
+    expect(result.intents[0]).toMatchObject({ effectId: "gl:CrossZoom", fromShotId: "shot-1" });
   });
 
   it("falls back to plan scene-level lines at real scene boundaries only", () => {
@@ -55,7 +55,7 @@ describe("assembleBoundaryIntents priority chain", () => {
     });
     // shot-2(scene-1) → shot-3(scene-2) 是唯一真实场边界
     expect(result.intents).toHaveLength(1);
-    expect(result.intents[0]).toMatchObject({ fromShotId: "shot-2", toShotId: "shot-3", effectId: "crossfade" });
+    expect(result.intents[0]).toMatchObject({ fromShotId: "shot-2", toShotId: "shot-3", effectId: "gl:swap" });
   });
 
   it("no intents and no warnings when nothing is expressed (hard cuts)", () => {

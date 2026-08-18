@@ -98,6 +98,7 @@ import { PluginSettingsTab } from "./PluginSettingsTab";
 afterEach(() => {
   cleanup();
   vi.clearAllMocks();
+  window.localStorage.removeItem("mystudio.settings.plugins.collapsedSections");
   // Reset scenario back to the "all ready" default after each test.
   scenario.pythonReady = true;
   scenario.ttsReady = true;
@@ -106,6 +107,8 @@ afterEach(() => {
 
 describe("PluginSettingsTab", () => {
   it("renders the three configuration sections in dependency order", async () => {
+    // 本用例断言区块内容,种「显式全开」绕过默认折叠;默认折叠行为由下方专项用例覆盖。
+    window.localStorage.setItem("mystudio.settings.plugins.collapsedSections", "[]");
     render(<PluginSettingsTab />);
 
     const headings = screen.getAllByRole("heading").map((heading) => heading.textContent);
@@ -124,6 +127,37 @@ describe("PluginSettingsTab", () => {
     expect(screen.getByTestId("upscale-section").textContent).toBe("true");
     expect(await screen.findByTestId("tts-section")).toBeTruthy();
     expect(screen.getByTestId("video-section").textContent).toBe("true");
+  });
+
+  it("defaults all sections to collapsed and remembers manual expansion", async () => {
+    window.localStorage.removeItem("mystudio.settings.plugins.collapsedSections");
+    const { unmount } = render(<PluginSettingsTab />);
+
+    // 默认全折叠：7 个区块标题可见，内容全部不在 DOM
+    const headings = screen.getAllByRole("heading").map((heading) => heading.textContent);
+    expect(headings).toEqual([
+      "本地配置",
+      "Python 运行环境",
+      "深度估计（电影级 3D）",
+      "本地图片生成（免费）",
+      "图片超分（1K → 4K）",
+      "本地音乐生成",
+      "TTS 运行时与模型",
+      "视频工作流插件",
+    ]);
+    expect(screen.queryByTestId("python-section")).toBeNull();
+    expect(screen.queryByTestId("depth-section")).toBeNull();
+    expect(screen.queryByTestId("video-section")).toBeNull();
+
+    // 展开 Python 区：内容出现(锚定开头,避免匹配到描述里引用「Python 运行环境」的其他区块)
+    fireEvent.click(screen.getByRole("button", { name: /^Python 运行环境/ }));
+    expect(screen.getByTestId("python-section").textContent).toBe("true");
+
+    // 展开记忆持久化——重挂载后仍展开（其余仍折叠）
+    unmount();
+    render(<PluginSettingsTab />);
+    expect(screen.getByTestId("python-section").textContent).toBe("true");
+    expect(screen.queryByTestId("video-section")).toBeNull();
   });
 
   it("prepares Python, TTS and video plugins in priority order when layers are NOT ready", async () => {

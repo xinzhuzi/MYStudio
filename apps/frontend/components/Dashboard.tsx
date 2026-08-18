@@ -929,6 +929,9 @@ export function Dashboard({
                 <div
                   key={project.id}
                   data-project-card={project.id}
+                  // 卡片是纯 div,不在全局音效系统的交互选择器里;显式接入快门音。
+                  // 选择模式下点按无动作(选中只认长按),不出声。
+                  data-interaction-sound={selectionMode ? "off" : "primary"}
                   className={cn(
                     "dashboard-project-card group relative bg-card border rounded-xl overflow-hidden transition-all duration-200",
                     highlightProjectId === project.id && "ring-2 ring-primary",

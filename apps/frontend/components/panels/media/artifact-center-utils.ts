@@ -7,6 +7,7 @@
 import type { ArtifactRecord, ArtifactState } from "@/types/artifacts";
 import { normalizeArtifactPhysicalPath } from "@/lib/artifacts/physical-path";
 import { STAGE_LABELS } from "@/lib/artifacts/stage-labels";
+import { sharedResourceBucketId, SHARED_BUCKET_PREFIX } from "@/lib/artifacts/project-layout";
 import type { ArtifactFileTreeNode } from "./ArtifactTree";
 
 // ── 文件树构建与查询 ──────────────────────────────────────────
@@ -113,8 +114,26 @@ export function inferChapterId(artifact: ArtifactRecord): string | null {
 export const BACKUP_BUCKET_ID = "__backup__";
 export const NONE_BUCKET_ID = "__none__";
 
+/**
+ * 统一分桶(左树与表格过滤同源,防漂移):
+ * 备份 > 公共资源根(assets/store,优先于章号推断——store 章分片不属章节)>
+ * 章号推断 > 杂项。
+ */
+export function artifactBucketId(artifact: ArtifactRecord): string {
+  if (isBackupOnlyArtifact(artifact)) return BACKUP_BUCKET_ID;
+  for (const ref of artifact.physicalRefs) {
+    const physicalPath = normalizeArtifactPhysicalPath(ref.path, artifact.projectId);
+    if (!physicalPath) continue;
+    const shared = sharedResourceBucketId(physicalPath);
+    if (shared) return shared;
+  }
+  return inferChapterId(artifact) ?? NONE_BUCKET_ID;
+}
+
 export function chapterIdForDeletionPlan(selectedChapterId: string): string {
-  return selectedChapterId === NONE_BUCKET_ID || selectedChapterId === BACKUP_BUCKET_ID
+  return selectedChapterId === NONE_BUCKET_ID
+    || selectedChapterId === BACKUP_BUCKET_ID
+    || selectedChapterId.startsWith(SHARED_BUCKET_PREFIX)
     ? ""
     : selectedChapterId;
 }

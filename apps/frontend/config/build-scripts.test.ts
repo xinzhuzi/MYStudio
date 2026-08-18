@@ -719,7 +719,10 @@ describe("desktop build scripts", () => {
     );
     expect(smokeScript).not.toContain("'Python 依赖'");
     expect(smokeScript).toContain("所有本地 TTS、video-use Python worker 和 MLX 对齐都复用应用管理的 Python");
-    expect(smokeScript).toContain("开始配置");
+    // 本地配置区块默认全折叠后,区块内按钮不再出现在冒烟必现文案里
+    expect(smokeScript).not.toContain("'开始配置'");
+    expect(smokeScript).toContain("深度估计（电影级 3D）");
+    expect(smokeScript).toContain("TTS 运行时与模型");
     expect(smokeScript).not.toContain("'安装明细'");
     expect(smokeScript).toContain("Python 运行环境");
     expect(smokeScript).toContain("制作流程推进");
@@ -2168,6 +2171,39 @@ describe("desktop build scripts", () => {
     expect(installSmokeScript).not.toContain(
       "cp -R /Applications/漫影工作室.app",
     );
+  });
+
+  it("verifies the installed app really opens and retries the chain when it cannot", () => {
+    const installSmokeScript = readBuildFile("build/packaging/install-and-smoke.mjs");
+    const buildMacScript = readBuildFile("build/packaging/build-mac.sh");
+
+    // Install must be a clean replace: rm immediately before ditto so stale
+    // chunks never survive and the app is only absent for seconds.
+    expect(installSmokeScript).toContain("rmSync(installedApp");
+    expect(installSmokeScript.indexOf("rmSync(installedApp")).toBeLessThan(
+      installSmokeScript.indexOf("run('ditto'"),
+    );
+
+    // Real-open gate: Launch Services launch, process liveness, clean quit.
+    expect(installSmokeScript).toContain("function verifyRealOpen()");
+    expect(installSmokeScript).toContain("run('open', [installedApp])");
+    expect(installSmokeScript).toContain("findInstalledAppPid()");
+    expect(installSmokeScript).toContain("reportRecentCrashLogs()");
+    expect(installSmokeScript).toContain("treating as launch crash");
+
+    // One self-healing reinstall before failing closed.
+    expect(installSmokeScript).toContain("recovered after clean reinstall");
+    expect(installSmokeScript.match(/function installPackagedApp/g)).toHaveLength(1);
+
+    // build-mac.sh must wait out concurrent chains and retry the full chain
+    // once, without inheriting install-side details (see mac helper test).
+    expect(buildMacScript).toContain("wait_for_chain_free");
+    expect(buildMacScript).toContain("MYSTUDIO_BUILD_RETRY_GUARD");
+    expect(buildMacScript).toContain(
+      "re-running the full build + install chain once",
+    );
+    expect(buildMacScript).not.toContain("ditto");
+    expect(buildMacScript).not.toContain("/Applications/漫影工作室.app");
   });
 
   it("exposes an automated ChapterVideo chapter 001 video output flow", () => {

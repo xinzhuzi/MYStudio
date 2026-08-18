@@ -68,6 +68,7 @@ function writeEntry(urls: Record<string, string>) {
     .replace(/__NOCANVAS__/g, process.env.POC_NOCANVAS === "1" ? "true" : "false")
     .replace(/__CANVAS__/g, process.env.POC_CANVAS === "1" ? "true" : "false")
     .replace(/__PRODUCT__/g, process.env.POC_PRODUCT === "1" ? "true" : "false")
+    .replace(/__EFFECT__/g, JSON.stringify(process.env.POC_EFFECT || "gl:Directional"))
     .replace(/__MODE__/g, JSON.stringify(mode));
   fs.writeFileSync(entry, code, "utf8");
   return entry;
@@ -394,7 +395,7 @@ function ProductVideo({ srcA, srcB }: { srcA: string; srcB: string }) {
       </Sequence>
       <Sequence from={${DURATION} - overlap} durationInFrames={overlap} layout="none">
         <GLTransitionLayer
-          transition={{ fromClipId: "a", toClipId: "b", effectId: "gl:Directional", overlapFrames: overlap }}
+          transition={{ fromClipId: "a", toClipId: "b", effectId: __EFFECT__, overlapFrames: overlap }}
           fromClip={clipA}
           toClip={clipB}
         />

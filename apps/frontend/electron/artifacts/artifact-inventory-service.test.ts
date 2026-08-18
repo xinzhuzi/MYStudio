@@ -173,6 +173,13 @@ describe("artifact inventory persisted project state", () => {
     }));
     await fs.mkdir(path.join(projectRoot, "workflow-images", "storyboards", "chapter-fixture"), { recursive: true });
     await fs.writeFile(path.join(projectRoot, "workflow-images", "storyboards", "chapter-fixture", "shot-001.png"), "fixture-image");
+    // 布局契约表驱动分类(store v1 / hyperframes 根 / 设定集根)
+    await fs.mkdir(path.join(projectRoot, "store", "studio-workflow", "chapters"), { recursive: true });
+    await fs.writeFile(path.join(projectRoot, "store", "studio-workflow", "chapters", "chapter-fixture.json"), "{}");
+    await fs.mkdir(path.join(projectRoot, "hyperframes", "chapter-fixture"), { recursive: true });
+    await fs.writeFile(path.join(projectRoot, "hyperframes", "chapter-fixture", "seg-001.mp4"), "seg");
+    await fs.mkdir(path.join(projectRoot, "assets", "files", "character"), { recursive: true });
+    await fs.writeFile(path.join(projectRoot, "assets", "files", "character", "a.png"), "png");
     await fs.writeFile(path.join(projectRoot, "artifacts.json"), JSON.stringify({
       version: 1,
       overlays: {
@@ -196,9 +203,25 @@ describe("artifact inventory persisted project state", () => {
     const chapter = await scanProjectInventory(dataRoot, "project-fixture", "chapter-fixture");
     expect(chapter.success).toBe(true);
     if (!chapter.success) return;
-    expect(chapter.data.artifacts.every((artifact) => artifact.chapterId === "chapter-fixture")).toBe(true);
+    // 章节隔离语义:凡带章号者必属目标章;公共资源根(assets/store 全局件)允许无章号
+    expect(chapter.data.artifacts.every((artifact) => artifact.chapterId == null || artifact.chapterId === "chapter-fixture")).toBe(true);
     expect(chapter.data.artifacts.some((artifact) => artifact.name === "shot-001.png")).toBe(true);
     expect(chapter.data.discrepancies).toHaveLength(0);
+
+    // 布局契约表驱动分类:store→project-store;hyperframes→production;assets→assets
+    // 未识别 JSON 的 physicalRefs 为空(记录即文件),按 id 内嵌路径匹配
+    const storeStage = full.data.artifacts.filter((artifact) =>
+      artifact.id.includes("store/studio-workflow/chapters"));
+    expect(storeStage.length).toBeGreaterThan(0);
+    expect(storeStage.every((artifact) => artifact.stage === "project-store")).toBe(true);
+    const hyperStage = full.data.artifacts.filter((artifact) =>
+      artifact.physicalRefs.some((ref) => ref.path.includes("hyperframes/")));
+    expect(hyperStage.length).toBeGreaterThan(0);
+    expect(hyperStage.every((artifact) => artifact.stage === "production")).toBe(true);
+    const assetStage = full.data.artifacts.filter((artifact) =>
+      artifact.physicalRefs.some((ref) => ref.path.includes("assets/files/")));
+    expect(assetStage.length).toBeGreaterThan(0);
+    expect(assetStage.every((artifact) => artifact.stage === "assets")).toBe(true);
   });
 
   it("does not split per-shot workflow dirs into pseudo chapters (chapter segment stops at digits)", async () => {    const dataRoot = await fs.mkdtemp(path.join(os.tmpdir(), "mystudio-artifact-shotdir-"));

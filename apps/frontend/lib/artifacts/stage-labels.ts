@@ -25,6 +25,9 @@ export const STAGE_LABELS: Record<ArtifactStage, string> = {
   "export": "导出输出",
   "media-library": "媒体库",
   "backup": "备份归档",
+  // project-store 不进 FIXED_NAV_STAGES:它由布局契约表(project-layout.ts)驱动,
+  // 只出现在左树「公共资源」分组与表格 stage 列,过滤器保持 13 项不变
+  "project-store": "项目存储",
 };
 
 /**

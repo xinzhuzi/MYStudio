@@ -1190,10 +1190,14 @@ async function verifyPluginSettings(evaluate) {
 
       setTimeout(() => {
         const bodyText = document.body.innerText;
+        // 本地配置区块默认全折叠(08-18 起),只断言折叠头可见的标题与描述;
+        // 区块内按钮(如「开始配置」)默认不在 DOM,不能作为必现文案。
         const requiredText = [
           '所有本地 TTS、video-use Python worker 和 MLX 对齐都复用应用管理的 Python',
-          '开始配置',
           'Python 运行环境',
+          '深度估计（电影级 3D）',
+          'TTS 运行时与模型',
+          '视频工作流插件',
         ];
         const forbiddenText = [
           '正在配置 Python 运行环境',

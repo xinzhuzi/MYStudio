@@ -22,6 +22,7 @@ import { useMediaPanelStore } from "@/stores/navigation/media-panel-store";
 import { toast } from "sonner";
 import type { ArtifactRecord, ArtifactStage, ArtifactState, DeletionConfirmation } from "@/types/artifacts";
 import { FIXED_NAV_STAGES, STAGE_LABELS } from "@/lib/artifacts/stage-labels";
+import { sharedBucketLabel, SHARED_BUCKET_PREFIX } from "@/lib/artifacts/project-layout";
 import { normalizeArtifactPhysicalPath } from "@/lib/artifacts/physical-path";
 import { logEvent } from "@/lib/diagnostics/logger";
 import { ArtifactTree, type ArtifactChapterTreeNode, type ArtifactFileTreeNode, type ArtifactTreeProject } from "./ArtifactTree";
@@ -31,8 +32,9 @@ import { ChapterMigrationDialog } from "./ChapterMigrationDialog";
 import { MediaView } from "./index";
 import {
   buildArtifactFileTree, findFileTreeNode, fileTreeContainsArtifact, countFileTreeArtifacts,
-  parentDirectory, inferChapterId, chapterIdForDeletionPlan, isBackupOnlyArtifact,
-  formatChapterLabel, formatBytes, formatArtifactTooltip, BACKUP_BUCKET_ID, NONE_BUCKET_ID, STATE_LABELS,
+  parentDirectory, inferChapterId, chapterIdForDeletionPlan,
+  formatChapterLabel, formatBytes, formatArtifactTooltip, BACKUP_BUCKET_ID, NONE_BUCKET_ID,
+  artifactBucketId, STATE_LABELS,
 } from "./artifact-center-utils";
 
 /**
@@ -211,18 +213,8 @@ export function ArtifactCenter({
     // chapter artifacts are counted in the column but filtered out of the
     // table. See chapters useMemo and inferChapterId.
     if (selectedChapterId && !fileNavigationActive) {
-      if (selectedChapterId === NONE_BUCKET_ID) {
-        // 杂项: non-backup artifacts with no inferred chapter.
-        result = result.filter(a => !isBackupOnlyArtifact(a) && inferChapterId(a) === null);
-      } else if (selectedChapterId === BACKUP_BUCKET_ID) {
-        // 备份: backup-only artifacts.
-        result = result.filter(a => isBackupOnlyArtifact(a));
-      } else {
-        // Real chapter: non-backup artifacts whose inferred chapter matches.
-        // Must mirror the chapters useMemo bucketing so backup-only artifacts
-        // (which may carry the same chapterId from a backup file) are excluded.
-        result = result.filter(a => !isBackupOnlyArtifact(a) && inferChapterId(a) === selectedChapterId);
-      }
+      // 与 chapters useMemo 同源(artifactBucketId),防分桶/过滤漂移
+      result = result.filter(a => artifactBucketId(a) === selectedChapterId);
     }
 
     // Stage filter
@@ -314,16 +306,18 @@ export function ArtifactCenter({
     const projectArtifacts = artifacts.filter((artifact) => artifact.projectId === activeProjectId);
     const groups = new Map<string, { count: number; stageCounts: Map<ArtifactStage, number> }>();
     for (const artifact of projectArtifacts) {
-      const bucket = isBackupOnlyArtifact(artifact)
-        ? BACKUP_BUCKET_ID
-        : inferChapterId(artifact) ?? NONE_BUCKET_ID;
+      const bucket = artifactBucketId(artifact);
       const group = groups.get(bucket) ?? { count: 0, stageCounts: new Map<ArtifactStage, number>() };
       group.count += 1;
       group.stageCounts.set(artifact.stage, (group.stageCounts.get(artifact.stage) ?? 0) + 1);
       groups.set(bucket, group);
     }
+    // 两段式排序:章节(升序) → 公共资源 → 杂项 → 备份(垫底)
     const bucketRank = (id: string): number =>
-      id === NONE_BUCKET_ID ? 0 : id === BACKUP_BUCKET_ID ? 1 : 2;
+      id.startsWith(SHARED_BUCKET_PREFIX) ? 1
+        : id === NONE_BUCKET_ID ? 2
+          : id === BACKUP_BUCKET_ID ? 3
+            : 0;
     return [...groups.entries()]
       .sort(([a], [b]) => {
         const ra = bucketRank(a);
@@ -338,15 +332,17 @@ export function ArtifactCenter({
             ? "杂项"
             : id === BACKUP_BUCKET_ID
               ? "备份"
-              : formatChapterLabel(id),
+              : sharedBucketLabel(id) ?? formatChapterLabel(id),
         count: group.count,
-        stages: FIXED_NAV_STAGES
-          .filter((stage) => (group.stageCounts.get(stage) ?? 0) > 0)
-          .map((stage) => ({
-            id: stage,
-            label: STAGE_LABELS[stage],
-            count: group.stageCounts.get(stage) ?? 0,
-          })),
+        stages: (id.startsWith(SHARED_BUCKET_PREFIX)
+          // 公共资源组展示全部出现过的 stage(project-store 不在 FIXED_NAV_STAGES)
+          ? [...group.stageCounts.entries()].filter(([, count]) => count > 0).map(([stage, count]) => ({ stage, count }))
+          : FIXED_NAV_STAGES.map((stage) => ({ stage, count: group.stageCounts.get(stage) ?? 0 })).filter(({ count }) => count > 0)
+        ).map(({ stage, count }) => ({
+          id: stage,
+          label: STAGE_LABELS[stage],
+          count,
+        })),
       }));
   }, [artifacts, activeProjectId]);
 
@@ -810,7 +806,7 @@ export function ArtifactCenter({
                   <Button variant="outline" size="sm" disabled={!selectedChapterId || selectedIds.size === 0} onClick={() => void openSelectedDelete()}>
                     <Trash2 className="mr-1 h-4 w-4" />删除选中 ({selectedIds.size})
                   </Button>
-                  <Button variant="destructive" size="sm" disabled={fileNavigationActive || !selectedChapterId || selectedChapterId === NONE_BUCKET_ID || selectedChapterId === BACKUP_BUCKET_ID} onClick={() => void openChapterDelete()}>
+                  <Button variant="destructive" size="sm" disabled={fileNavigationActive || !selectedChapterId || selectedChapterId === NONE_BUCKET_ID || selectedChapterId === BACKUP_BUCKET_ID || selectedChapterId.startsWith(SHARED_BUCKET_PREFIX)} onClick={() => void openChapterDelete()}>
                     <Trash2 className="mr-1 h-4 w-4" />删除当前章节
                   </Button>
                 </div>

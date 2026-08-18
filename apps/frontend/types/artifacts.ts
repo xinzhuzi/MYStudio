@@ -21,7 +21,8 @@ export type ArtifactStage =
   | "remotion"
   | "export"
   | "backup"
-  | "media-library";
+  | "media-library"
+  | "project-store";
 
 /**
  * Artifact kinds - what type of artifact it is
