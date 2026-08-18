@@ -8,6 +8,7 @@ from unittest.mock import patch
 from video_use.adapter import (
     HYPERFRAMES_DECORATIVE_TEMPLATES,
     _build_overlay_slots,
+    _edl_entries_with_transitions,
     VideoUseAdapterError,
     _tool_env,
     _validate_rendered_output,
@@ -73,6 +74,69 @@ class VideoUseAdapterTest(unittest.TestCase):
             self.assertGreaterEqual(slot["startUs"], previous_end)
             self.assertLessEqual(slot["durationUs"], 1_100_000)
             previous_end = slot["startUs"] + slot["durationUs"]
+
+    def test_transition_duration_clamped_to_outgoing_shot_voice_tail(self):
+        # 语音烧在镜内头部：转场重叠只允许吃上一镜语音结束后的静默尾，
+        # 否则两镜语音在溶镜里同时播放（拼接挤压感的根源）。
+        request = {
+            "boundaryIntents": [
+                {"fromShotId": "shot-001", "toShotId": "shot-002", "effectId": "crossfade", "durationUs": 1_000_000},
+            ],
+        }
+        edl = {
+            "sources": {"shot-001": "/v1.mp4", "shot-002": "/v2.mp4"},
+            "ranges": [
+                {"source": "shot-001", "start": 0.0, "end": 5.0},
+                {"source": "shot-002", "start": 0.0, "end": 4.0},
+            ],
+        }
+        alignment = {"shots": [
+            {"shotId": "shot-001", "words": [
+                {"id": "w1", "text": "甲", "startS": 0.0, "endS": 4.6, "confidence": 0.9},
+            ]},
+            {"shotId": "shot-002", "words": []},
+        ]}
+        entries = _edl_entries_with_transitions(edl, request, alignment)
+        self.assertEqual(entries[0]["transitionToNext"]["durationUs"], 400_000)
+
+    def test_transition_degrades_to_cut_when_voice_fills_shot(self):
+        request = {
+            "boundaryIntents": [
+                {"fromShotId": "shot-001", "toShotId": "shot-002", "effectId": "fade", "durationUs": 800_000},
+            ],
+        }
+        edl = {
+            "sources": {"shot-001": "/v1.mp4", "shot-002": "/v2.mp4"},
+            "ranges": [
+                {"source": "shot-001", "start": 0.0, "end": 5.0},
+                {"source": "shot-002", "start": 0.0, "end": 4.0},
+            ],
+        }
+        alignment = {"shots": [
+            {"shotId": "shot-001", "words": [
+                {"id": "w1", "text": "甲", "startS": 0.0, "endS": 4.95, "confidence": 0.9},
+            ]},
+            {"shotId": "shot-002", "words": []},
+        ]}
+        entries = _edl_entries_with_transitions(edl, request, alignment)
+        self.assertNotIn("transitionToNext", entries[0])
+
+    def test_transition_without_alignment_data_degrades_to_cut(self):
+        # 无对齐数据按 fail-closed 处理：假定语音顶满整镜，不留溶镜预算。
+        request = {
+            "boundaryIntents": [
+                {"fromShotId": "shot-001", "toShotId": "shot-002", "effectId": "flash", "durationUs": 500_000},
+            ],
+        }
+        edl = {
+            "sources": {"shot-001": "/v1.mp4", "shot-002": "/v2.mp4"},
+            "ranges": [
+                {"source": "shot-001", "start": 0.0, "end": 5.0},
+                {"source": "shot-002", "start": 0.0, "end": 4.0},
+            ],
+        }
+        entries = _edl_entries_with_transitions(edl, request, {"shots": []})
+        self.assertNotIn("transitionToNext", entries[0])
 
     def _fixtures(self, root: Path) -> tuple[dict, dict]:
         shots = []

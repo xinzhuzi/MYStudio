@@ -31,6 +31,7 @@ import { validateRemotionCurrentSlot as validateCurrentSlot } from "@/lib/studio
 import {
   clipDurationInFrames,
   layoutVisualTimeline,
+  MICROSECONDS_PER_SECOND,
   usToFrames,
 } from "./timing";
 import { resolveSubtitleAuthority } from "@/lib/studio/video-workflow/subtitle-authority";
@@ -107,32 +108,31 @@ export function buildCompositionProps(
       envelope: envelopeForClip(clip, fps),
     }));
   const subtitles = plan.renderSettings.subtitleMode === "burn-in"
-    ? plan.clips
-        .filter((clip) => clip.trackKind === "text" && typeof clip.source.text === "string")
-        .sort(compareTimelineClips)
-        .map((clip) => {
-          // 字幕与视觉 clip 在 plan 层同处"音频时间线"（各镜时长直加），而视觉经
-          // layoutVisualTimeline 压缩（转场重叠）——字幕必须用同一份 layout 偏移
-          // 换算，否则随片长线性滞后（片尾可达数十秒）。
-          const owner = visualClips.find((visual) => overlaps(clip.startUs, clip.durationUs, visual.startUs, visual.durationUs));
-          const ownerTiming = owner ? timingById.get(owner.id) : undefined;
-          const layoutShiftFrames = owner && ownerTiming
-            ? usToFrames(owner.startUs, fps) - ownerTiming.from
-            : 0;
-          const from = Math.max(0, usToFrames(clip.startUs, fps) - layoutShiftFrames);
-          return {
-            cueId: clip.id,
-            text: clip.source.text!.trim(),
-            from,
-            // 音频对齐的句级 cue 可能略微越过视觉时间线终点（尾镜留白），
-            // fail-closed 校验禁止越界 Sequence —— 截到 composition 末帧。
-            durationInFrames: Math.max(1, Math.min(
-              clipDurationInFrames(clip.durationUs, fps),
-              visualTiming.durationInFrames - from,
-            )),
-          };
-        })
-        .filter((cue) => cue.text.length > 0 && cue.from < visualTiming.durationInFrames)
+    ? readableSubtitleCues(
+        plan.clips
+          .filter((clip) => clip.trackKind === "text" && typeof clip.source.text === "string")
+          .sort(compareTimelineClips)
+          .map((clip) => {
+            // 字幕与视觉 clip 在 plan 层同处"音频时间线"（各镜时长直加），而视觉经
+            // layoutVisualTimeline 压缩（转场重叠）——字幕必须用同一份 layout 偏移
+            // 换算，否则随片长线性滞后（片尾可达数十秒）。
+            const owner = visualClips.find((visual) => overlaps(clip.startUs, clip.durationUs, visual.startUs, visual.durationUs));
+            const ownerTiming = owner ? timingById.get(owner.id) : undefined;
+            const layoutShiftFrames = owner && ownerTiming
+              ? usToFrames(owner.startUs, fps) - ownerTiming.from
+              : 0;
+            const from = Math.max(0, usToFrames(clip.startUs, fps) - layoutShiftFrames);
+            return {
+              cueId: clip.id,
+              text: clip.source.text!.trim(),
+              from,
+              audioSpanFrames: clipDurationInFrames(clip.durationUs, fps),
+            };
+          })
+          .filter((cue) => cue.text.length > 0 && cue.from < visualTiming.durationInFrames),
+        visualTiming.durationInFrames,
+        fps,
+      )
     : [];
   const transitions: CompositionTransitionProps[] = plan.transitions.map((transition) => {
     const from = timingById.get(transition.fromClipId);
@@ -318,6 +318,57 @@ export function validateSubtitleAuthorityForTimeline(
 
 function overlaps(leftStart: number, leftDuration: number, rightStart: number, rightDuration: number): boolean {
   return leftStart < rightStart + rightDuration && rightStart < leftStart + leftDuration;
+}
+
+/** 中文字幕舒适阅读约 4.5 字/秒；短促台词（如 0.3s 的「找死！」）按语音时长
+ * 展示会"赶字"，观众读不完。 */
+const SUBTITLE_READ_CHARS_PER_SEC = 4.5;
+const SUBTITLE_MIN_DURATION_US = 900_000;
+
+interface SubtitleCueDraft {
+  cueId: string;
+  text: string;
+  from: number;
+  audioSpanFrames: number;
+}
+
+/**
+ * 把音频对齐的句级 cue 投影成可读字幕：停留时长取 max(语音时长, 可读下限)，
+ * 延长只占语音结束后的静默段（画面应等语音与字幕结束再切，见转场钳制），
+ * 且不得越过下一条 cue 的起点（防双字幕同屏）与 composition 末帧
+ * （fail-closed 校验禁止越界 Sequence）。
+ */
+export function readableSubtitleCues(
+  drafts: readonly SubtitleCueDraft[],
+  compositionDurationInFrames: number,
+  fps: number,
+): Array<{ cueId: string; text: string; from: number; durationInFrames: number }> {
+  const projected = drafts.map((draft) => ({ ...draft, durationInFrames: 0 }));
+  for (let index = 0; index < projected.length; index += 1) {
+    const cue = projected[index]!;
+    const next = projected[index + 1];
+    const ceiling = Math.min(
+      compositionDurationInFrames,
+      next ? next.from - 1 : Number.MAX_SAFE_INTEGER,
+    );
+    const minReadableFrames = usToFrames(
+      Math.max(
+        SUBTITLE_MIN_DURATION_US,
+        Math.ceil((cue.text.length / SUBTITLE_READ_CHARS_PER_SEC) * MICROSECONDS_PER_SECOND),
+      ),
+      fps,
+    );
+    cue.durationInFrames = Math.max(
+      1,
+      Math.min(ceiling - cue.from, Math.max(cue.audioSpanFrames, minReadableFrames)),
+    );
+  }
+  return projected.map(({ cueId, text, from, durationInFrames }) => ({
+    cueId,
+    text,
+    from,
+    durationInFrames,
+  }));
 }
 
 function projectEnvelopeForDuration(
@@ -533,6 +584,14 @@ function inspectChapterVideoSource(
     input.plan.renderSettings.fps,
   );
   const timingById = new Map(visualTiming.clips.map((timing) => [timing.clipId, timing]));
+  const transitionIssues = validateTransitionVoiceSafety(
+    input.plan.transitions,
+    visualClips,
+    timingById,
+    manifestShotById,
+    visualTiming.fps,
+  );
+  if (transitionIssues.length > 0) return { success: false, issues: transitionIssues };
   const voiceIntervals: ChapterVoiceInterval[] = [];
   for (const clip of visualClips) {
     const storyboardId = clip.source.evidence.storyboardId;
@@ -648,6 +707,48 @@ function mergeVoiceIntervals(intervals: readonly ChapterVoiceInterval[]): Chapte
     }
   }
   return merged;
+}
+
+/**
+ * 章节转场安全门禁：shot MP4 内烧录语音（voice 绑定从头起播），转场重叠会把
+ * 下一镜整体提前——重叠一旦越过上一镜语音尾，两镜语音就会在溶镜里同时播放
+ * （拼接点"挤压感"的根源）。fail-closed：转场只允许吃上一镜语音结束后的静默尾。
+ */
+export function validateTransitionVoiceSafety(
+  transitions: ReadonlyArray<{ fromClipId: string; toClipId: string; effectId: string }>,
+  visualClips: ReadonlyArray<Pick<TimelineRenderClip, "id" | "trackKind" | "startUs" | "durationUs" | "trimStartUs" | "speed" | "source">>,
+  timingById: ReadonlyMap<string, { from: number; durationInFrames: number }>,
+  manifestShotById: ReadonlyMap<string, RemotionChapterManifestV2["shots"][number]>,
+  fps: number,
+): Array<{ path: string; message: string }> {
+  const issues: Array<{ path: string; message: string }> = [];
+  const clipById = new Map(visualClips.map((clip) => [clip.id, clip]));
+  for (const [index, transition] of transitions.entries()) {
+    if (transition.effectId === "cut") continue;
+    const fromClip = clipById.get(transition.fromClipId);
+    const toTiming = timingById.get(transition.toClipId);
+    const fromTiming = timingById.get(transition.fromClipId);
+    if (!fromClip || !fromTiming || !toTiming) continue;
+    const storyboardId = fromClip.source.evidence?.storyboardId;
+    const shot = typeof storyboardId === "string" ? manifestShotById.get(storyboardId) : undefined;
+    if (!shot) continue;
+    const sourceEndUs = fromClip.trimStartUs + fromClip.durationUs * fromClip.speed;
+    let voiceEndUs = -Infinity;
+    for (const binding of shot.audioBindings) {
+      if (binding.role !== "voice") continue;
+      voiceEndUs = Math.max(voiceEndUs, Math.min(binding.shotStartUs + binding.durationUs, sourceEndUs));
+    }
+    if (voiceEndUs === -Infinity) continue;
+    const voiceEndFrame = fromTiming.from
+      + usToFrames((voiceEndUs - fromClip.trimStartUs) / fromClip.speed, fps);
+    if (toTiming.from < voiceEndFrame - 1) {
+      issues.push({
+        path: `plan.transitions[${index}]`,
+        message: `转场 ${transition.effectId} 重叠侵入上一镜语音区：下一镜提前到第 ${toTiming.from} 帧，上一镜语音到第 ${voiceEndFrame} 帧才结束——重叠只允许吃上一镜语音结束后的静默尾`,
+      });
+    }
+  }
+  return issues;
 }
 
 function panZoomForClip(effect: Pick<EditingEffect, "params"> | undefined): CompositionPanZoom | undefined {

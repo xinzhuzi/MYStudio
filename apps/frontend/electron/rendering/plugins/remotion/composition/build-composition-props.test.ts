@@ -13,6 +13,7 @@ import { remotionCurrentSlotPaths } from "@/lib/studio/remotion/remotion-current
 import {
   buildChapterVideoCompositionProps,
   mapEditedVoiceIntervals,
+  readableSubtitleCues,
   validateSubtitleAuthorityForTimeline,
 } from "./build-composition-props";
 
@@ -499,6 +500,63 @@ describe("buildChapterVideoCompositionProps", () => {
     });
   });
 
+  it("fail-closes when a transition overlap intrudes into the outgoing shot's voice", async () => {
+    const firstSlot = makeCurrentSlot();
+    const secondSlot = slotForShot("shot-002");
+    const plan = twoShotPlan(firstSlot, secondSlot);
+    // shot-001 时长 1s、转场 200ms → 下一镜提前到第 24 帧；语音到第 30 帧才结束。
+    const voice = await makeShotAudioBindingV2({
+      shotId: "shot-001",
+      shotStartUs: 900_000,
+      durationUs: 500_000,
+    });
+    const chapterManifest = await manifestForPlan(plan);
+    chapterManifest.requiredShotIds = ["shot-001", "shot-002"];
+    chapterManifest.shots = [
+      { ...chapterManifest.shots[0]!, audioBindings: [voice] },
+      { ...chapterManifest.shots[0]!, shotId: "shot-002", storyboardId: "shot-002", index: 1, audioBindings: [] },
+    ];
+
+    const result = buildChapterVideoCompositionProps({
+      plan,
+      currentShotSlots: [firstSlot, secondSlot],
+      chapterManifest,
+      mediaUrlByClipId: { "visual-shot-001": mediaUrl, "visual-shot-002": mediaUrl },
+      mediaUrlByBindingId: {},
+    });
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.issues.map((issue) => issue.message).join(";")).toContain("静默尾");
+    }
+  });
+
+  it("allows a transition that only consumes the outgoing shot's silent tail (J-cut)", async () => {
+    const firstSlot = makeCurrentSlot();
+    const secondSlot = slotForShot("shot-002");
+    const plan = twoShotPlan(firstSlot, secondSlot);
+    // 语音 0.7s 结束、转场 200ms：重叠只吃静默尾，属于合法 J-cut。
+    const voice = await makeShotAudioBindingV2({
+      shotId: "shot-001",
+      shotStartUs: 0,
+      durationUs: 700_000,
+    });
+    const chapterManifest = await manifestForPlan(plan);
+    chapterManifest.requiredShotIds = ["shot-001", "shot-002"];
+    chapterManifest.shots = [
+      { ...chapterManifest.shots[0]!, audioBindings: [voice] },
+      { ...chapterManifest.shots[0]!, shotId: "shot-002", storyboardId: "shot-002", index: 1, audioBindings: [] },
+    ];
+
+    const result = buildChapterVideoCompositionProps({
+      plan,
+      currentShotSlots: [firstSlot, secondSlot],
+      chapterManifest,
+      mediaUrlByClipId: { "visual-shot-001": mediaUrl, "visual-shot-002": mediaUrl },
+      mediaUrlByBindingId: {},
+    });
+    expect(result.success).toBe(true);
+  });
+
   it("maps plan.effects fx entries onto the visual clip fx prop (contract front door)", async () => {
     const slot = makeCurrentSlot();
     const plan = chapterPlan(slot, "shot-001", "storyboardVideo");
@@ -572,6 +630,36 @@ describe("buildChapterVideoCompositionProps", () => {
         chroma: { offsetPx: 3 },
       });
     }
+  });
+});
+
+describe("readableSubtitleCues", () => {
+  it("extends a rapid cue to the minimum readable duration", () => {
+    const [cue] = readableSubtitleCues(
+      [{ cueId: "cue-1", text: "找死！", from: 100, audioSpanFrames: 10 }],
+      300,
+      30,
+    );
+    // max(0.9s, 3字/4.5字每秒) = 0.9s = 27 帧
+    expect(cue).toMatchObject({ cueId: "cue-1", from: 100, durationInFrames: 27 });
+  });
+
+  it("never extends a cue past the next cue's start or the composition end", () => {
+    const cues = readableSubtitleCues([
+      { cueId: "cue-1", text: "站出来！", from: 100, audioSpanFrames: 12 },
+      { cueId: "cue-2", text: "下一句", from: 115, audioSpanFrames: 30 },
+    ], 150, 30);
+    expect(cues[0]).toMatchObject({ durationInFrames: 14 });
+    expect(cues[1]).toMatchObject({ durationInFrames: 30 });
+  });
+
+  it("keeps the audio span when it already exceeds the readable minimum", () => {
+    const [cue] = readableSubtitleCues(
+      [{ cueId: "cue-1", text: "五个字", from: 0, audioSpanFrames: 90 }],
+      300,
+      30,
+    );
+    expect(cue).toMatchObject({ durationInFrames: 90 });
   });
 });
 
@@ -654,6 +742,7 @@ function twoShotPlan(
       path: secondSlot.outputPath,
       evidence: {
         storyboardId: "shot-002",
+        subtitleAuthority: plan.clips[0]!.source.evidence!.subtitleAuthority,
         remotionJobId: secondSlot.job.jobId,
         remotionEvidenceSha256: secondSlot.evidence.sha256,
         outputVersion: secondTarget.shotRevision,

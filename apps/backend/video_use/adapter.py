@@ -229,12 +229,35 @@ def _build_overlay_slots(
     return slots
 
 
-def _edl_entries_with_transitions(edl: dict[str, Any], request: dict[str, Any]) -> list[dict[str, Any]]:
+def _shot_voice_end_s(alignment: dict[str, Any], shot_id: str) -> float | None:
+    """该镜语音（对齐词级时间）结束点，相对镜起点，单位秒；无对齐数据时返回 None。"""
+    try:
+        aligned = _alignment_for_shot(alignment, shot_id)
+    except VideoUseAdapterError:
+        return None
+    ends = [
+        float(word["endS"])
+        for word in aligned.get("words") or []
+        if isinstance(word, dict) and word.get("endS") is not None
+    ]
+    return max(ends) if ends else None
+
+
+def _edl_entries_with_transitions(
+    edl: dict[str, Any],
+    request: dict[str, Any],
+    alignment: dict[str, Any],
+) -> list[dict[str, Any]]:
     """Build the artifact EDL and attach director-plan boundary decisions.
 
     Boundary intents arrive pre-mapped (style word → built-in effectId) from
-    the TypeScript layer; this decision layer only clamps each duration
-    against both neighboring shots and fail-closes on unknown effect ids.
+    the TypeScript layer; this decision layer clamps each duration against
+    both neighboring shots and the outgoing shot's voice tail, and fail-closes
+    on unknown effect ids. Voice audio is baked into each shot MP4 from its
+    head, so a transition overlap pulls the next shot's voice in early — the
+    overlap may only consume the outgoing shot's silence after its voice ends
+    (standard J-cut grammar), otherwise both voices collide inside the blend.
+    Intents that cannot fit any silent tail degrade to implicit hard cuts.
     "cut" intents and unmatched boundaries stay implicit hard cuts.
     """
     entries: list[dict[str, Any]] = [
@@ -277,10 +300,19 @@ def _edl_entries_with_transitions(edl: dict[str, Any], request: dict[str, Any]) 
         requested = intent.get("durationUs")
         if not isinstance(requested, int) or isinstance(requested, bool) or requested <= 0:
             raise VideoUseAdapterError("boundary-intent-invalid", "boundaryIntent durationUs 必须为正整数微秒")
+        voice_end_s = _shot_voice_end_s(alignment, str(entry["shotId"]))
+        if voice_end_s is None or voice_end_s <= float(entry["sourceInS"]):
+            # 无对齐数据时按 fail-closed 处理：假定语音顶满整镜，不给溶镜留预算。
+            tail_us = 0
+        else:
+            tail_us = int((float(entry["sourceOutS"]) - voice_end_s) * 1_000_000)
+        if tail_us < _TRANSITION_MIN_US:
+            continue
         ceiling = min(
             _TRANSITION_MAX_US,
             int(float(entry["durationS"]) * 1_000_000) // 2,
             int(float(following["durationS"]) * 1_000_000) // 2,
+            tail_us,
         )
         duration = min(max(requested, _TRANSITION_MIN_US), max(_TRANSITION_MIN_US, ceiling))
         transition: dict[str, Any] = {"effectId": str(intent["effectId"]), "durationUs": duration}
@@ -836,7 +868,7 @@ def execute_pinned_adapter(
     audio_sha = _require_sha(effective_request.get("audioSha256"), "request.audioSha256")
     text_sha = _require_sha(effective_request.get("textSha256"), "request.textSha256")
     accepted_at = now_ms
-    artifact_edl = _edl_entries_with_transitions(edl, effective_request)
+    artifact_edl = _edl_entries_with_transitions(edl, effective_request, alignment)
     artifact: dict[str, Any] = {
         "schemaVersion": 1,
         "projectId": request.get("projectId"),
