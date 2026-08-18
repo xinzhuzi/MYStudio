@@ -22,11 +22,11 @@ apps/backend/
 
 当前流程是：
 
-1. 用户进入 `设置 -> 插件配置 -> Python 运行环境`。
+1. 用户进入 `设置 → 本地配置 -> Python 运行环境`。
 2. 点击 `开始配置`。
 3. Electron 只在 `<storageBasePath>/python` 下解析当前平台的 Python 3.12 可执行文件。
 4. 使用该 Python 执行 `python -m pip install -r apps/backend/requirements.txt`，把依赖安装到该 managed runtime。
-5. 用户在 `设置 -> 插件配置 -> TTS 运行时与模型` 启动本地 TTS，或在口播/试听流程中触发启动；Electron 以该 Python 启动 sidecar。
+5. 用户在 `设置 → 本地配置 -> TTS 运行时与模型` 启动本地 TTS，或在口播/试听流程中触发启动；Electron 以该 Python 启动 sidecar。
 
 默认监听地址：
 
@@ -94,7 +94,7 @@ Electron 会先从开发时的 `apps/backend` 或打包后的 `Resources/backend
 ## 依赖管理
 
 - 依赖声明在 `apps/backend/requirements.txt`。
-- 依赖安装由 `设置 -> 插件配置 -> Python 运行环境 -> 开始配置` 触发，不随应用启动自动执行。
+- 依赖安装由 `设置 → 本地配置 -> Python 运行环境 -> 开始配置` 触发，不随应用启动自动执行。
 - Electron runtime 使用 `requirements.txt` 内容和 Python 路径计算 hash marker；未变化时跳过重复安装。
 - 安装目标是 `<storageBasePath>/python/lib/python3.12/site-packages` 对应的 Python 运行环境，不写入应用安装目录。
 
@@ -116,7 +116,7 @@ video-use 完整产出 EDL、字幕时间、调色、preview 和 self-eval。ada
 
 ## Daojie 直跑与 HTTP TTS
 
-Daojie chapter-001 直跑只有在显式设置 `MANYING_TTS_USE_HTTP=1` 时才会启动或复用 HTTP TTS。它会先复用已健康的 `127.0.0.1:17593` 服务；需要启动时，只检查其当前 managed 存储根目录下的 `python`，缺失时会提示先到 `设置 -> 插件配置 -> Python 运行环境` 点击 `开始配置` 并完成 TTS 依赖安装。它不再探测 `apps/backend/python`，并仍以 `apps/backend` 作为 `PYTHONPATH`。
+Daojie chapter-001 直跑只有在显式设置 `MANYING_TTS_USE_HTTP=1` 时才会启动或复用 HTTP TTS。它会先复用已健康的 `127.0.0.1:17593` 服务；需要启动时，只检查其当前 managed 存储根目录下的 `python`，缺失时会提示先到 `设置 → 本地配置 -> Python 运行环境` 点击 `开始配置` 并完成 TTS 依赖安装。它不再探测 `apps/backend/python`，并仍以 `apps/backend` 作为 `PYTHONPATH`。
 
 默认 `video:daojie:chapter001` 自动链不会注入 `MANYING_TTS_USE_HTTP=1`，因此不会经过这条 HTTP-TTS 直跑分支。直跑脚本会按 `MYSTUDIO_STORAGE_BASE_PATH`、`<userData>/storage-config.json`、macOS development fallback 的顺序解析 managed 存储根；其中 `python/` 属于 `<storageBasePath>`，TTS 运行数据与模型均位于 `<storageBasePath>/TTS/`。
 

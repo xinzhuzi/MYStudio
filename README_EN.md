@@ -30,9 +30,9 @@
 
 ## Overview
 
-**MYStudio** is a local-first desktop production tool for AI animated dramas, short films, and novel-to-film adaptation. It keeps scripts, storyboards, assets, voice-over, video candidates, and local compositing in one traceable workflow.
+**MYStudio** is a local-first desktop production tool for AI animated dramas, short films, and novel-to-film adaptation. It keeps scripts, storyboards, assets, voice-over, video candidates, and local Remotion rendering in one traceable workflow.
 
-> **Novel Import → Script Planning → Asset Extraction → Production Generation → Storyboard Table → Editing Workbench**
+> **Style & Director → Novel Import → Script Stage → Script Assets → Storyboard Video Generation → Video Workbench**
 
 The current documentation is maintained under [docs/README.en.md](docs/README.en.md). This root English README is kept as a compatibility entry.
 
@@ -43,8 +43,8 @@ The current documentation is maintained under [docs/README.en.md](docs/README.en
 - Script planning for story skeletons, adaptation strategy, script drafts, and review output.
 - Script asset management for extracting characters, scenes, and props from scripts.
 - Production generation for director planning and missing character, scene, and prop images.
-- Storyboard table for duration, dialogue, visual asset, and shot-level review.
-- Editing workbench for local FFmpeg candidate rendering and final stitching.
+- Storyboard video generation for duration, dialogue, visual assets, shot-level review, and per-shot Remotion rendering.
+- Video workbench hosting a native Remotion Studio that renders shot candidates and chapter videos via `renderMedia`; FFmpeg/ffprobe serve only as shared tooling for media preparation and read-only QC.
 
 ### Asset Library
 - Production assets include roles, scenes, props, audio, and compatible clip records.
@@ -89,9 +89,9 @@ npm run dev
 
 ### Configure API Key
 
-After launching, go to **Settings → API Management** and configure model services, model mappings, and Agent bindings. See the current documentation entry at [docs/README.en.md](docs/README.en.md).
+After launching, go to **Settings → Cloud AI（云端AI）** and configure model services, model mappings, and Agent bindings. See the current documentation entry at [docs/README.en.md](docs/README.en.md).
 
-Python 3.12 and local TTS dependencies are configured on demand from **Settings → Python Configuration**. The app does not download Python or start the local TTS backend during startup.
+Python 3.12 and local TTS dependencies are configured on demand from **Settings → Local Configuration（本地配置）**. The app does not download Python or start the local TTS backend during startup.
 
 ### Build
 

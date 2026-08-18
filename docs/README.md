@@ -10,8 +10,11 @@
 | [assets/](./assets/) | 资产库、角色、场景、道具、视觉风格、音色 |
 | [director/](./director/) | 导演工作台、S级镜头、视角切换、四宫格、旧剧本 |
 | [panels/](./panels/) | 应用外壳、导航、项目、技能、辅助、产物、导出、TTS 面板 |
-| [settings/](./settings/) | 设置页、API、统一插件配置、图床、更新、许可证 |
+| [settings/](./settings/) | 设置页、API、统一本地配置、图床、更新、许可证 |
 | [engineering/](./engineering/) | 架构、打包、故障排查、三方声明、存储、文档维护 |
+| [guides/](./guides/) | 高阶玩法指南（3D 纵深手册、本地模型降本） |
+| [research/](./research/) | 技术调查与任务研究（含已排除路线存档） |
+| [handoff/](./handoff/) | 跨会话交接提示词（历史任务存档） |
 | [融合/](./融合/) | 规划与调查（含外部参考资料） |
 
 ## 工作流（workflow/）
@@ -82,12 +85,12 @@
 
 | 文档 | 用途 |
 |---|---|
-| [设置页操作手册](./settings/SETTINGS_PANEL_OPERATIONS.md) | 设置标签页、外观、API、统一插件配置、存储、更新、开发和支持入口的按钮状态 |
-| [设置与 API 管理](./settings/API_SETTINGS_GUIDE.md) | 模型服务、模型映射、Agent 配置、统一插件配置、渲染器选择、Headless Shell、图床和本地 TTS 服务说明 |
-| [API 管理操作手册](./settings/API_MANAGER_OPERATIONS.md) | 添加供应商、同步模型、测试模型、思考模式、模型映射和 Agent 绑定 |
+| [设置页操作手册](./settings/SETTINGS_PANEL_OPERATIONS.md) | 设置标签页、外观、API、统一本地配置、存储、更新、开发和支持入口的按钮状态 |
+| [设置与云端AI配置](./settings/API_SETTINGS_GUIDE.md) | 模型服务、模型映射、Agent 配置、统一本地配置、渲染器选择、Headless Shell、图床和本地 TTS 服务说明 |
+| [云端AI操作手册](./settings/API_MANAGER_OPERATIONS.md) | 添加供应商、同步模型、测试模型、思考模式、模型映射和 Agent 绑定 |
 | [API 供应商字段与模型测试参考](./settings/API_PROVIDER_MODEL_TEST_REFERENCE.md) | 添加/编辑供应商字段、同步模型规则、模型测试范围、协议和错误说明 |
 | [Python 与本地 TTS 配置](./settings/PYTHON_TTS_SETUP.md) | 区分开发 shell Python 与安装后设置页下载的 Python 3.12，说明本地 TTS 依赖、模型缓存和启动方式 |
-| [TTS 运行时与模型区块指南](./settings/TTS_CONFIG_GUIDE.md) | 说明插件配置页中启动本地 TTS 后端、管理模型缓存、下载模型和创建声线 profile |
+| [TTS 运行时与模型区块指南](./settings/TTS_CONFIG_GUIDE.md) | 说明本地配置页中启动本地 TTS 后端、管理模型缓存、下载模型和创建声线 profile |
 | [高级选项](./settings/ADVANCED_OPTIONS_GUIDE.md) | 视觉连续性、断点续传、内容审核容错和多模型自动切换 |
 | [图床配置](./settings/IMAGE_HOST_CONFIG.md) | SCDN、ImgBB、Catbox、自定义图床和跨分镜图片上传配置 |
 | [应用更新](./settings/APP_UPDATE_GUIDE.md) | 手动检查更新、启动自动检查、忽略版本和版本清单字段 |
@@ -106,7 +109,29 @@
 | [第三方声明](./engineering/THIRD_PARTY_NOTICES.md) | 第三方组件和许可证声明 |
 | [存储与数据迁移](./engineering/STORAGE_AND_DATA.md) | 项目存储位置、导入导出、指向已有数据目录和 legacy 迁移 |
 | [文档覆盖审计](./engineering/DOCS_COVERAGE_AUDIT.md) | 当前界面、源码入口和用户文档的覆盖关系与维护方向 |
+| [B5 TrackKey 运行时解析总结](./engineering/B5-trackKey-runtime-resolution-summary.md) | trackKey 从硬编码改为 ProductionTrack→VideoCandidate 运行时解析的实现记录 |
 | [文档维护清单](./engineering/DOCS_MAINTENANCE.md) | 修改 UI、TTS、打包、存储或工作流后需要同步的文档和验证命令 |
+
+## 高阶指南（guides/）
+
+| 文档 | 用途 |
+|---|---|
+| [电影级 3D 纵深视频制作手册](./guides/CINEMATIC_PLAYBOOK.md) | 3D 纵深、景深散焦与相机运动玩法（实验性路线，当前出片主线为 2D panZoom + 特效） |
+| [本地模型降本指南](./guides/LOCAL_MODEL_COST_REDUCTION.md) | 零 API 费用的本地模型生成策略 |
+
+## 技术调查（research/）
+
+| 文档 | 用途 |
+|---|---|
+| [静态图→3D 动态技术全景](./research/CINEMATIC_3D_TECH_LANDSCAPE.md) | 2026-08-14 3D 动态效果技术生态调查 |
+| [视频效果升级交接提示词](./research/EFFECT_UPGRADE_PROMPT_2026-08-18.md) | 08-18 效果升级任务的裁定增补与执行入口（执行以 Trellis 任务为准） |
+| [img2threejs 探索报告](./research/IMG2THREEJS_EXPLORATION.md) | 已排除路线的排除理由存档（2026-08-16 用户决策） |
+
+## 交接资料（handoff/）
+
+| 文档 | 用途 |
+|---|---|
+| [App 一键成片修复提示词](./handoff/app-one-click-fix-prompt.md) | 2026-08-17 一键成片 SHA 修复会话的完结交接存档 |
 
 ## 融合规划（融合/）
 
