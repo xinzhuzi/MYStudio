@@ -155,9 +155,16 @@ export function OverviewPanel() {
       <div className="h-full p-6">
         <div className="mx-auto w-full max-w-6xl rounded-xl border bg-panel">
           <div className="border-b px-5 py-4">
-            <div className="inline-flex items-center gap-2 rounded-full bg-primary/10 px-2.5 py-1 text-xs font-medium text-primary">
-              <BookOpen className="h-3.5 w-3.5" />
-              项目入口
+            <div className="flex items-center justify-between gap-2">
+              <div className="inline-flex items-center gap-2 rounded-full bg-primary/10 px-2.5 py-1 text-xs font-medium text-primary">
+                <BookOpen className="h-3.5 w-3.5" />
+                项目入口
+              </div>
+              {/* 应用级偏好入口不依赖项目元数据——无 seriesMeta 的项目同样可编辑 */}
+              <Button variant="outline" size="sm" onClick={() => setPrefOpen(true)}>
+                <SlidersHorizontal className="h-3.5 w-3.5" />
+                作者偏好
+              </Button>
             </div>
             <div className="mt-2 flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
               <div>
@@ -241,6 +248,7 @@ export function OverviewPanel() {
             </div>
           </div>
         </div>
+        <AuthorPreferenceDialog open={prefOpen} onOpenChange={setPrefOpen} />
       </div>
     );
   }

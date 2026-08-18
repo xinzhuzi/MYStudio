@@ -155,4 +155,21 @@ describe("OverviewPanel", () => {
     );
     delete (window as unknown as { fileStorage?: unknown }).fileStorage;
   });
+
+  it("shows the author preference entry in the no-meta guide branch too", async () => {
+    // 回归:无 seriesMeta 的项目走「项目入口」导览分支,入口曾随条件头部整个消失
+    mocks.meta = null;
+    render(<OverviewPanel />);
+
+    expect(screen.getByText(/项目入口/)).toBeTruthy();
+    const entry = screen.getByRole("button", { name: /作者偏好/ });
+    fireEvent.click(entry);
+
+    (window as unknown as { fileStorage?: unknown }).fileStorage = {
+      getItem: async () => null,
+      setItem: vi.fn(async () => true),
+    };
+    expect(await screen.findByText(/全应用生效/)).toBeTruthy();
+    delete (window as unknown as { fileStorage?: unknown }).fileStorage;
+  });
 });
