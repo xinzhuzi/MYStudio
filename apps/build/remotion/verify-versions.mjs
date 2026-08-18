@@ -33,10 +33,10 @@ export function verifyRemotionVersions({
   arch = process.arch,
 } = {}) {
   const manifest = readJson(path.join(root, "package.json"));
-  const lock = readJson(path.join(root, "package-lock.json"));
   const errors = [];
   const expectedRemotionVersion = manifest.dependencies?.remotion;
   const expectedMediabunnyVersion = manifest.dependencies?.mediabunny;
+  const lockText = readLockfileText(root, errors);
 
   if (!isExactSemver(expectedRemotionVersion)) {
     errors.push("dependencies.remotion 必须是精确 semver");
@@ -44,24 +44,35 @@ export function verifyRemotionVersions({
   if (!isExactSemver(expectedMediabunnyVersion)) {
     errors.push("dependencies.mediabunny 必须是精确 semver");
   }
-  if (lock.packages?.[""]?.dependencies?.mediabunny !== expectedMediabunnyVersion) {
-    errors.push(
-      `package-lock root dependencies.mediabunny 必须精确等于 ${expectedMediabunnyVersion}`,
-    );
-  }
-  if (lock.packages?.["node_modules/mediabunny"]?.version !== expectedMediabunnyVersion) {
-    errors.push(
-      `package-lock node_modules/mediabunny 版本漂移: ${lock.packages?.["node_modules/mediabunny"]?.version ?? "missing"}`,
-    );
-  }
 
   for (const [section, packageNames] of Object.entries(REQUIRED_REMOTION_PACKAGES)) {
     for (const packageName of packageNames) {
       if (manifest[section]?.[packageName] !== expectedRemotionVersion) {
         errors.push(`${section}.${packageName} 必须精确等于 ${expectedRemotionVersion}`);
       }
-      if (lock.packages?.[""]?.[section]?.[packageName] !== expectedRemotionVersion) {
-        errors.push(`package-lock root ${section}.${packageName} 必须精确等于 ${expectedRemotionVersion}`);
+    }
+  }
+
+  // pnpm-lock.yaml 文本断言(零 yaml 依赖):锁与 manifest 的同步本身由
+  // install --frozen-lockfile 强制,这里只拦「锁定版本不一致」与禁止项。
+  if (lockText !== null) {
+    for (const specifier of uniqueMatches(lockText, /^\s+mediabunny:\s*(\S+)$/gm)) {
+      // 精确 semver 的说明符(根依赖)必须全等;^/~ range 是传递依赖的合法声明,
+      // 其最终解析版本由下方 mediabunny@x 锁定键校验兜底。
+      if (isExactSemver(specifier) && specifier !== expectedMediabunnyVersion) {
+        errors.push(`pnpm-lock mediabunny 说明符必须精确等于 ${expectedMediabunnyVersion}: ${specifier}`);
+      }
+    }
+    for (const [packageName, version] of lockedPackageEntries(lockText)) {
+      if (packageName === "@remotion/transitions") {
+        errors.push("pnpm-lock 禁止锁定 @remotion/transitions");
+        continue;
+      }
+      const expected = packageName === "mediabunny" ? expectedMediabunnyVersion : expectedRemotionVersion;
+      if (packageName === "mediabunny" || isRemotionPackage(packageName)) {
+        if (version !== expected) {
+          errors.push(`pnpm-lock ${packageName}@${version} 锁定版本漂移(期望 ${expected})`);
+        }
       }
     }
   }
@@ -74,13 +85,6 @@ export function verifyRemotionVersions({
     }
     if (manifest[section]?.["@remotion/transitions"] !== undefined) {
       errors.push(`${section} 禁止安装 @remotion/transitions`);
-    }
-  }
-
-  for (const [packagePath, packageEntry] of Object.entries(lock.packages ?? {})) {
-    if (isLockedRemotionPackage(packagePath)
-      && packageEntry.version !== expectedRemotionVersion) {
-      errors.push(`${packagePath} 锁定版本漂移: ${packageEntry.version ?? "missing"}`);
     }
   }
 
@@ -142,8 +146,26 @@ function isRemotionPackage(packageName) {
   return packageName === "remotion" || packageName.startsWith("@remotion/");
 }
 
-function isLockedRemotionPackage(packagePath) {
-  return /(?:^|\/)node_modules\/(?:remotion|@remotion\/[^/]+)$/.test(packagePath);
+function readLockfileText(root, errors) {
+  try {
+    return fs.readFileSync(path.join(root, "pnpm-lock.yaml"), "utf8");
+  } catch {
+    errors.push("缺少 pnpm-lock.yaml");
+    return null;
+  }
+}
+
+function uniqueMatches(text, pattern) {
+  return [...new Set([...text.matchAll(pattern)].map((match) => match[1]))];
+}
+
+/** packages 段的锁定键:remotion@4.0.499 / '@remotion/media@4.0.499'(peer 变体取 @ 前版本)。 */
+function lockedPackageEntries(text) {
+  const entries = [];
+  for (const match of text.matchAll(/^\s{2}'?((?:@remotion\/[a-z0-9-]+|remotion|mediabunny))@(\d[^:\s'(]*)/gm)) {
+    entries.push([match[1], match[2]]);
+  }
+  return entries;
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {

@@ -70,7 +70,7 @@ export function buildUpgradePlan({ appRoot, targetVersion }) {
       args: [
         "upgrade",
         `--version=${targetVersion}`,
-        "--package-manager=npm",
+        "--package-manager=pnpm",
         "--save-exact",
         "--no-fund",
         "--no-audit",
@@ -79,28 +79,25 @@ export function buildUpgradePlan({ appRoot, targetVersion }) {
       cwd: appRoot,
     },
     {
-      command: "npm",
+      command: "pnpm",
       args: [
         "install",
-        "--package-lock-only",
+        "--lockfile-only",
         "--ignore-scripts",
-        "--no-fund",
-        "--no-audit",
-        "--registry=https://registry.npmjs.org/",
       ],
       cwd: appRoot,
     },
-    { command: "npm", args: ["run", "remotion:versions"], cwd: appRoot },
+    { command: "pnpm", args: ["run", "remotion:versions"], cwd: appRoot },
     { command: "npx", args: REMOTION_SKILLS_ADD_ARGS, cwd: repositoryRoot },
     {
       command: "node",
       args: [upgradeScript, "--verify-remotion-skills"],
       cwd: appRoot,
     },
-    { command: "npm", args: ["run", "remotion:bundle"], cwd: appRoot },
-    { command: "npm", args: ["run", "typecheck"], cwd: appRoot },
-    { command: "npm", args: ["run", "lint"], cwd: appRoot },
-    { command: "npm", args: ["test"], cwd: appRoot },
+    { command: "pnpm", args: ["run", "remotion:bundle"], cwd: appRoot },
+    { command: "pnpm", args: ["run", "typecheck"], cwd: appRoot },
+    { command: "pnpm", args: ["run", "lint"], cwd: appRoot },
+    { command: "pnpm", args: ["test"], cwd: appRoot },
   ];
 }
 

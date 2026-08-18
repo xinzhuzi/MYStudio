@@ -26,7 +26,7 @@ const PROTECTED_PREFIXES = [
   { prefix: 'apps/.trellis', category: 'trellis', reason: 'Nested Trellis data is hard-protected' },
   { prefix: 'apps/index.cjs', category: 'source', reason: 'Application entrypoint is hard-protected' },
   { prefix: 'apps/package.json', category: 'source', reason: 'Application package manifest is hard-protected' },
-  { prefix: 'apps/package-lock.json', category: 'source', reason: 'Application dependency lockfile is hard-protected' },
+  { prefix: 'apps/pnpm-lock.yaml', category: 'source', reason: 'Application dependency lockfile is hard-protected' },
   { prefix: 'apps/frontend', category: 'source', reason: 'Frontend source is hard-protected' },
   { prefix: 'apps/backend', category: 'source', reason: 'Backend source is hard-protected' },
   { prefix: 'apps/build', category: 'source', reason: 'Build scripts are hard-protected' },

@@ -47,19 +47,28 @@ describe("verifyRemotionVersions", () => {
 
   it("detects Mediabunny lockfile drift", () => {
     const root = fixtureRoot();
-    const lockPath = path.join(root, "package-lock.json");
-    const lock = JSON.parse(fs.readFileSync(lockPath, "utf8"));
-    lock.packages[""].dependencies.mediabunny = "1.50.7";
-    lock.packages["node_modules/mediabunny"].version = "1.50.6";
-    writeJson(lockPath, lock);
+    const lockPath = path.join(root, "pnpm-lock.yaml");
+    fs.writeFileSync(lockPath, fs.readFileSync(lockPath, "utf8")
+      .replace("mediabunny: 1.50.8", "mediabunny: 1.50.7")
+      .replace("mediabunny@1.50.8", "mediabunny@1.50.6"), "utf8");
 
     const result = verifyRemotionVersions({ root });
 
     expect(result.success).toBe(false);
     expect(result.errors).toEqual(expect.arrayContaining([
-      "package-lock root dependencies.mediabunny 必须精确等于 1.50.8",
-      "package-lock node_modules/mediabunny 版本漂移: 1.50.6",
+      "pnpm-lock mediabunny 说明符必须精确等于 1.50.8: 1.50.7",
+      "pnpm-lock mediabunny@1.50.6 锁定版本漂移(期望 1.50.8)",
     ]));
+  });
+
+  it("rejects a locked @remotion/transitions in pnpm-lock", () => {
+    const root = fixtureRoot();
+    fs.appendFileSync(
+      path.join(root, "pnpm-lock.yaml"),
+      "  '@remotion/transitions@4.0.499':\n    resolution: {integrity: x}\n",
+    );
+    const result = verifyRemotionVersions({ root });
+    expect(result.errors).toContain("pnpm-lock 禁止锁定 @remotion/transitions");
   });
 
   it("only requires a platform-specific optional native package on its matching runner", () => {
@@ -94,17 +103,16 @@ function fixtureRoot() {
     devDependencies: {},
     optionalDependencies: {},
   };
-  const lockRoot = {
-    dependencies: { mediabunny: mediaVersion },
-    devDependencies: {},
-    optionalDependencies: {},
-  };
-  const lockPackages = { "": lockRoot };
+  const lockLines: string[] = ["lockfileVersion: '10.0'", "importers:", "  .:", "    dependencies:", `      mediabunny: ${mediaVersion}`];
+  const packagesLines: string[] = ["packages:"];
+  const keyOf = (packageName: string, pkgVersion: string) => (
+    packageName.startsWith("@") ? `'${packageName}@${pkgVersion}'` : `${packageName}@${pkgVersion}`
+  );
   for (const [section, packageNames] of Object.entries(REQUIRED_REMOTION_PACKAGES)) {
     for (const packageName of packageNames) {
       manifest[section][packageName] = version;
-      lockRoot[section][packageName] = version;
-      lockPackages[`node_modules/${packageName}`] = { version };
+      lockLines.push(`      ${packageName}: ${version}`);
+      packagesLines.push(`  ${keyOf(packageName, version)}:`);
       writeJson(path.join(root, "node_modules", packageName, "package.json"), {
         name: packageName,
         version,
@@ -118,9 +126,9 @@ function fixtureRoot() {
     name: "mediabunny",
     version: mediaVersion,
   });
-  lockPackages["node_modules/mediabunny"] = { version: mediaVersion };
+  packagesLines.push(`  ${keyOf("mediabunny", mediaVersion)}:`);
   writeJson(path.join(root, "package.json"), manifest);
-  writeJson(path.join(root, "package-lock.json"), { packages: lockPackages });
+  fs.writeFileSync(path.join(root, "pnpm-lock.yaml"), `${[...lockLines, ...packagesLines].join("\n")}\n`, "utf8");
   return root;
 }
 
