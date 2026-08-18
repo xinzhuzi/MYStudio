@@ -26,6 +26,8 @@
     "@ai-sdk/google": "^3.0.20",
     "@ai-sdk/openai": "^3.0.25",
     "@ai-sdk/openai-compatible": "^2.0.27",
+    "@ai-sdk/provider": "2.0.3",
+    "@ai-sdk/provider-utils": "3.0.32",
     "@ai-sdk/xai": "^3.0.47",
     "@codemirror/lang-json": "6.0.2",
     "@fontsource/liu-jian-mao-cao": "^5.3.0",
