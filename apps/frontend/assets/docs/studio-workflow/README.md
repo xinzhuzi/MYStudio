@@ -16,20 +16,26 @@
 
 ## 目录结构（固定布局）
 
+本目录位于项目的 `store/` 下（应用状态统一收口；小说正文、导出成片等用户
+内容在项目根的 novel/、exports/ 等目录，与这里互不相干）：
+
 ```
-studio-workflow/
-├── manifest.json                 ← 有效文件清单（唯一权威）
-├── README.md                     ← 本说明（应用自动维护）
-├── core-*.json                   ← 全局配置与小数据
-├── materials-*.json              ← 项目素材索引
-├── assets-versions-*.json        ← 连续性资产版本
-├── agent-runs-*.json             ← Agent 运行记录
-├── <域>-shared-*.json            ← 无法归入具体章节的数据
-└── chapters/
-    └── <章节ID>/                 ← 每章一个文件夹
-        ├── novel-chapters-*.json
-        ├── storyboards-*.json
-        └── ...
+store/
+├── _store-layout-v1.json         ← store 布局标记
+├── script.json / tts.json / …    ← 其他域的单文件 store
+└── studio-workflow/              ← 本目录（工作流主数据，分片）
+    ├── manifest.json             ← 有效文件清单（唯一权威）
+    ├── README.md                 ← 本说明（应用自动维护）
+    ├── core-*.json               ← 全局配置与小数据
+    ├── materials-*.json          ← 项目素材索引
+    ├── assets-versions-*.json    ← 连续性资产版本
+    ├── agent-runs-*.json         ← Agent 运行记录
+    ├── <域>-shared-*.json        ← 无法归入具体章节的数据
+    └── chapters/
+        └── <章节ID>/             ← 每章一个文件夹
+            ├── novel-chapters-*.json
+            ├── storyboards-*.json
+            └── ...
 ```
 
 ## 文件与工作流阶段对照
@@ -54,6 +60,7 @@ studio-workflow/
 ## 其他说明
 
 - 同一域切多个文件时按 `-001 / -002 / -003` 顺序编号，合并时按清单顺序还原。
-- 根目录的 `studio-workflow-store.json.bak-sharded-*` 是分片化之前旧单文件
-  的改名备份，仅供追溯，可手动清理。
+- 旧布局（store/ 出现之前，分片目录与各域 json 平铺在项目根）照常可读，
+  下一次保存时自动迁移为新布局；`studio-workflow-store.json.bak-sharded-*`
+  是分片化之前旧单文件的改名备份，仅供追溯，可手动清理。
 - 目录结构升级是自动的：旧布局照常可读，下一次保存时自动迁移为新布局。
