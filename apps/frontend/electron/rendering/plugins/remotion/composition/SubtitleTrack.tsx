@@ -9,6 +9,10 @@ import { AbsoluteFill, Sequence } from "remotion";
 import "@fontsource/noto-sans-sc/900.css";
 import "@fontsource/noto-serif-sc/900.css";
 import "@fontsource/ma-shan-zheng/400.css";
+import "@fontsource/zhi-mang-xing/400.css";
+import "@fontsource/long-cang/400.css";
+import "@fontsource/liu-jian-mao-cao/400.css";
+import "lxgw-wenkai-webfont/lxgwwenkai-regular.css";
 import type { CompositionSubtitleCueProps } from "./composition-props";
 // 固定 bundle 走 @remotion/bundler(webpack),不解析 vite 的 @/ 别名——
 // 共享注册表必须相对导入。
@@ -50,6 +54,7 @@ function textStyleFor(fontId: string | undefined): React.CSSProperties {
     fontWeight: font.fontWeight,
     letterSpacing: font.letterSpacing,
     color: font.color,
+    textShadow: subtitleTextShadow(font.outlinePx),
   };
 }
 
@@ -60,14 +65,9 @@ const CONTAINER_STYLE: React.CSSProperties = {
   paddingBottom: "8%",
 };
 
-// 八方向硬描边比 -webkit-text-stroke 稳（描边不侵蚀笔画内侧），叠一道底部
-// 投影保证任何底色上的对比度——电影级白字黑边。描边随注册表字号走。
-const OUTLINE_PX = 3;
-
-const TEXT_BASE_STYLE: Omit<React.CSSProperties, "fontFamily" | "fontSize" | "fontWeight" | "letterSpacing" | "color"> = {
+const TEXT_BASE_STYLE: Omit<React.CSSProperties, "fontFamily" | "fontSize" | "fontWeight" | "letterSpacing" | "color" | "textShadow"> = {
   maxWidth: "80%",
   textAlign: "center",
   lineHeight: 1.4,
-  textShadow: subtitleTextShadow(OUTLINE_PX),
   whiteSpace: "pre-wrap",
 };

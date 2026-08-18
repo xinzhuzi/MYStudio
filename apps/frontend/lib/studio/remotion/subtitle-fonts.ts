@@ -1,55 +1,137 @@
 /**
  * 字幕字体注册表 —— 烧录字幕的字体唯一事实源。
  *
- * 每个候选字体都以 @fontsource unicode-range 子集离线打进固定 bundle
- * （SubtitleTrack 静态 import CSS），渲染期按需加载子集，不依赖网络。
- * 值保持 primitive（字符串 id）：字段跨 editing.json / plan / composition
- * props 的 JSON 持久化边界，白名单校验在 editing validation 与
- * composition-props-validation 两侧各自执行。
+ * 每个候选字体都以 unicode-range 子集离线打进固定 bundle
+ * （SubtitleTrack 静态 import CSS，fontsource 与 lxgw-wenkai-webfont
+ * 同为按需加载子集），渲染期不依赖网络。值保持 primitive（字符串 id）：
+ * 字段跨 editing.json / plan / composition props 的 JSON 持久化边界，
+ * 白名单校验在 editing validation 与 composition-props-validation
+ * 两侧各自执行。
  */
 
-export const SUBTITLE_FONT_IDS = ["ma-shan-zheng", "noto-sans-sc", "noto-serif-sc"] as const;
+export const SUBTITLE_FONT_IDS = [
+  "ma-shan-zheng",
+  "zhi-mang-xing",
+  "long-cang",
+  "lxgw-wenkai",
+  "liu-jian-mao-cao",
+  "noto-serif-sc",
+  "noto-sans-sc",
+] as const;
 
 export type SubtitleFontId = (typeof SUBTITLE_FONT_IDS)[number];
 
 /** 源码级默认：毛笔楷书（仙侠武侠片题字质感，用户 08-18 拍板）。 */
 export const DEFAULT_SUBTITLE_FONT_ID: SubtitleFontId = "ma-shan-zheng";
 
+/** 风格分组：设置页按此分组展示。 */
+export const SUBTITLE_FONT_CATEGORIES = ["calligraphy", "modern"] as const;
+export type SubtitleFontCategory = (typeof SUBTITLE_FONT_CATEGORIES)[number];
+
+export const SUBTITLE_FONT_CATEGORY_LABELS: Readonly<Record<SubtitleFontCategory, string>> = {
+  calligraphy: "书法 · 仙侠武侠",
+  modern: "现代 · 正文",
+};
+
 export interface SubtitleFontStyle {
   /** 设置页展示名。 */
   label: string;
+  /** 设置页一句话适用场景。 */
+  description: string;
+  category: SubtitleFontCategory;
   fontFamily: string;
   fontSize: number;
   fontWeight: number;
   letterSpacing: string;
   color: string;
+  /** 八方向描边厚度(px)；书法单字重笔画细的字体（草书）收敛防糊。 */
+  outlinePx: number;
 }
 
 export const SUBTITLE_FONT_STYLES: Readonly<Record<SubtitleFontId, SubtitleFontStyle>> = {
   // 马善政毛笔楷书：单字重 400——禁合成加粗（伪粗会糊掉笔锋），粗细交给笔画。
   "ma-shan-zheng": {
     label: "毛笔楷书",
+    description: "毛笔楷书，仙侠武侠片题字质感（默认）。",
+    category: "calligraphy",
     fontFamily: "'Ma Shan Zheng', 'Kaiti SC', 'STKaiti', 'Noto Sans SC', 'PingFang SC', sans-serif",
     fontSize: 58,
     fontWeight: 400,
     letterSpacing: "0.08em",
     color: "#fdfaf2",
+    outlinePx: 3,
   },
-  "noto-sans-sc": {
-    label: "思源黑体",
-    fontFamily: "'Noto Sans SC', 'PingFang SC', 'Hiragino Sans GB', sans-serif",
-    fontSize: 54,
-    fontWeight: 900,
-    letterSpacing: "0.02em",
-    color: "#ffffff",
+  // 志莽行书：连笔行书、笔势开张——对决、快节奏、江湖告示感。
+  "zhi-mang-xing": {
+    label: "志莽行书",
+    description: "连笔行书，江湖侠气——对决与快节奏段落。",
+    category: "calligraphy",
+    fontFamily: "'Zhi Mang Xing', 'Xingkai SC', 'Kaiti SC', 'Noto Sans SC', 'PingFang SC', sans-serif",
+    fontSize: 56,
+    fontWeight: 400,
+    letterSpacing: "0.06em",
+    color: "#fdfaf2",
+    outlinePx: 3,
+  },
+  // 龙藏：手写楷意、字形瘦长飘逸——回忆、书信、旁白独白。
+  "long-cang": {
+    label: "龙藏",
+    description: "手写楷意，飘逸清瘦——回忆、书信、独白。",
+    category: "calligraphy",
+    fontFamily: "'Long Cang', 'Kaiti SC', 'STKaiti', 'Noto Sans SC', 'PingFang SC', sans-serif",
+    fontSize: 58,
+    fontWeight: 400,
+    letterSpacing: "0.08em",
+    color: "#fdfaf2",
+    outlinePx: 3,
+  },
+  // 霞鹜文楷（Regular 400，用户拍板——字幕首要可读）：文楷活字、书卷气，
+  // 长句最耐读——仙侠正剧首选。OFL-1.1，包内自带 OFL.txt。
+  "lxgw-wenkai": {
+    label: "霞鹜文楷",
+    description: "文楷活字，书卷仙气，长句最耐读——正剧首选。",
+    category: "calligraphy",
+    fontFamily: "'LXGW WenKai', 'Kaiti SC', 'Songti SC', 'Noto Serif SC', 'PingFang SC', sans-serif",
+    fontSize: 56,
+    fontWeight: 400,
+    letterSpacing: "0.06em",
+    color: "#fdfaf2",
+    outlinePx: 3,
+  },
+  // 柳建毛草：狂草几乎不可快速阅读（用户拍板入册，限题字场景）——
+  // 片头题字/章名单帧大字；做正文字幕有阅读风险，描边收敛防糊。
+  "liu-jian-mao-cao": {
+    label: "柳建毛草",
+    description: "狂草题字风，仅建议片头题字/章名大字场景。",
+    category: "calligraphy",
+    fontFamily: "'Liu Jian Mao Cao', 'Xingkai SC', 'Kaiti SC', 'Noto Sans SC', 'PingFang SC', sans-serif",
+    fontSize: 56,
+    fontWeight: 400,
+    letterSpacing: "0.1em",
+    color: "#fdfaf2",
+    outlinePx: 2,
   },
   "noto-serif-sc": {
     label: "思源宋体",
+    description: "思源宋体，端正典雅的书卷气。",
+    category: "modern",
     fontFamily: "'Noto Serif SC', 'Songti SC', 'Noto Sans SC', 'PingFang SC', sans-serif",
     fontSize: 54,
     fontWeight: 900,
     letterSpacing: "0.04em",
     color: "#ffffff",
+    outlinePx: 3,
+  },
+  "noto-sans-sc": {
+    label: "思源黑体",
+    description: "思源黑体，现代干净的阅读体。",
+    category: "modern",
+    fontFamily: "'Noto Sans SC', 'PingFang SC', 'Hiragino Sans GB', sans-serif",
+    fontSize: 54,
+    fontWeight: 900,
+    letterSpacing: "0.02em",
+    color: "#ffffff",
+    outlinePx: 3,
   },
 };
 
@@ -65,7 +147,7 @@ export function resolveSubtitleFontStyle(fontId: string | undefined): SubtitleFo
 
 /**
  * 八方向硬描边 + 底部投影（比 -webkit-text-stroke 稳：描边不侵蚀笔画
- * 内侧）。px 为描边厚度；烧录用 3px，设置页样张按字号缩放取小值。
+ * 内侧）。px 为描边厚度；烧录用注册表 outlinePx，设置页样张按字号缩放取小值。
  */
 export function subtitleTextShadow(px: number): string {
   return [

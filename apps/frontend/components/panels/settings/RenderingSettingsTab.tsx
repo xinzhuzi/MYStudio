@@ -1,9 +1,15 @@
-import { Check, Download, Film, Loader2, RefreshCw, RotateCcw, Type, Wrench } from "lucide-react";
+import { Check, ChevronDown, Download, Film, Loader2, Plus, RefreshCw, RotateCcw, Type, Wrench } from "lucide-react";
+import React from "react";
 import { toast } from "sonner";
 import "@fontsource/noto-sans-sc/900.css";
 import "@fontsource/noto-serif-sc/900.css";
 import "@fontsource/ma-shan-zheng/400.css";
+import "@fontsource/zhi-mang-xing/400.css";
+import "@fontsource/long-cang/400.css";
+import "@fontsource/liu-jian-mao-cao/400.css";
+import "lxgw-wenkai-webfont/lxgwwenkai-regular.css";
 import { Button } from "@/components/ui/button";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useRemotionRuntimeSettings } from "./useRemotionRuntimeSettings";
 import { useVideoWorkflowPlugins } from "./useVideoWorkflowPlugins";
@@ -11,6 +17,8 @@ import type { VideoWorkflowPluginId, VideoWorkflowPluginStatusV1 } from "@render
 import { useStudioStore } from "@/stores/studio/studio-store";
 import {
   DEFAULT_SUBTITLE_FONT_ID,
+  SUBTITLE_FONT_CATEGORIES,
+  SUBTITLE_FONT_CATEGORY_LABELS,
   SUBTITLE_FONT_IDS,
   SUBTITLE_FONT_STYLES,
   subtitleTextShadow,
@@ -18,16 +26,18 @@ import {
 
 const SUBTITLE_FONT_SAMPLE_TEXT = "道劫风云，剑指苍穹。";
 
-const SUBTITLE_FONT_OPTIONS = SUBTITLE_FONT_IDS.map((id) => ({
-  id,
-  title: SUBTITLE_FONT_STYLES[id].label,
-  description: id === "ma-shan-zheng"
-    ? "毛笔楷书，仙侠武侠片题字质感（默认）。"
-    : id === "noto-serif-sc"
-      ? "思源宋体，端正典雅的书卷气。"
-      : "思源黑体，现代干净的阅读体。",
-  style: SUBTITLE_FONT_STYLES[id],
-}));
+/** 折叠状态记忆键：值为被折叠模块 id 数组（默认全展开）。 */
+const COLLAPSE_STORAGE_KEY = "mystudio.settings.rendering.collapsedModules";
+
+function readCollapsedModules(): Set<string> {
+  try {
+    const raw = window.localStorage.getItem(COLLAPSE_STORAGE_KEY);
+    const ids = raw ? (JSON.parse(raw) as unknown) : [];
+    return new Set(Array.isArray(ids) ? ids.map(String) : []);
+  } catch {
+    return new Set();
+  }
+}
 
 const RENDERER_OPTIONS = [
   {
@@ -54,6 +64,27 @@ export function RenderingSettingsTab({ embedded = false }: RenderingSettingsTabP
   const workflowConfig = useStudioStore((state) => state.workflowConfig);
   const setWorkflowConfig = useStudioStore((state) => state.setWorkflowConfig);
   const selectedSubtitleFont = workflowConfig.subtitleFont ?? DEFAULT_SUBTITLE_FONT_ID;
+  // 模块折叠：默认全展开（用户拍板），手动折叠后 localStorage 记忆。
+  const [collapsedModules, setCollapsedModules] = React.useState<Set<string>>(() => readCollapsedModules());
+  const toggleModuleCollapsed = (moduleId: string) => {
+    setCollapsedModules((previous) => {
+      const next = new Set(previous);
+      if (next.has(moduleId)) next.delete(moduleId);
+      else next.add(moduleId);
+      try {
+        window.localStorage.setItem(COLLAPSE_STORAGE_KEY, JSON.stringify([...next]));
+      } catch {
+        // 记忆失败不影响本轮交互
+      }
+      return next;
+    });
+  };
+  const moduleChevron = (moduleId: string) => (
+    <ChevronDown
+      className={`h-4 w-4 shrink-0 text-muted-foreground transition-transform ${collapsedModules.has(moduleId) ? "-rotate-90" : ""}`}
+      aria-hidden="true"
+    />
+  );
   const statusLabel = runtime.isCheckingStatus
     ? "检查中"
     : runtime.verificationState === "error" || runtime.progress?.phase === "failed"
@@ -118,46 +149,66 @@ export function RenderingSettingsTab({ embedded = false }: RenderingSettingsTabP
           </div>
           <div className="space-y-4" aria-label="视频工作流插件状态">
             {/* 共享 FFmpeg/ffprobe 信息 */}
-            <div className="rounded-lg border border-border p-4 space-y-2">
-              <div className="flex items-center justify-between gap-3">
-                <h4 className="font-medium text-foreground">FFmpeg / ffprobe</h4>
-                <span className="text-xs text-muted-foreground">视频工作流共享</span>
-              </div>
-              <p className="text-xs leading-5 text-muted-foreground">视频工作流的所有插件复用同一组 FFmpeg 与 ffprobe，不按项目独立安装。</p>
-              {(() => {
-                const videoUsePlugin = plugins.getPlugin("video-use");
-                const ffmpeg = videoUsePlugin?.dependencies?.ffmpeg;
-                const ffprobe = videoUsePlugin?.dependencies?.ffprobe;
-                if (!ffmpeg && !ffprobe) return null;
-                return (
-                  <dl className="grid gap-1 text-[10px] text-muted-foreground">
-                    {ffmpeg ? (
-                      <div className="grid grid-cols-[5rem_1fr] gap-2">
-                        <dt>ffmpeg</dt>
-                        <dd className="truncate font-mono" title={ffmpeg}>{ffmpeg}</dd>
-                      </div>
-                    ) : null}
-                    {ffprobe ? (
-                      <div className="grid grid-cols-[5rem_1fr] gap-2">
-                        <dt>ffprobe</dt>
-                        <dd className="truncate font-mono" title={ffprobe}>{ffprobe}</dd>
-                      </div>
-                    ) : null}
-                  </dl>
-                );
-              })()}
-            </div>
+            <Collapsible
+              open={!collapsedModules.has("ffmpeg-shared")}
+              onOpenChange={() => toggleModuleCollapsed("ffmpeg-shared")}
+              className="rounded-lg border border-border p-4 space-y-2"
+            >
+              <CollapsibleTrigger className="w-full flex items-center justify-between gap-3 text-left">
+                <div className="flex items-center gap-3">
+                  <h4 className="font-medium text-foreground">FFmpeg / ffprobe</h4>
+                  <span className="text-xs text-muted-foreground">视频工作流共享</span>
+                </div>
+                {moduleChevron("ffmpeg-shared")}
+              </CollapsibleTrigger>
+              <CollapsibleContent>
+                <p className="text-xs leading-5 text-muted-foreground">视频工作流的所有插件复用同一组 FFmpeg 与 ffprobe，不按项目独立安装。</p>
+                {(() => {
+                  const videoUsePlugin = plugins.getPlugin("video-use");
+                  const ffmpeg = videoUsePlugin?.dependencies?.ffmpeg;
+                  const ffprobe = videoUsePlugin?.dependencies?.ffprobe;
+                  if (!ffmpeg && !ffprobe) return null;
+                  return (
+                    <dl className="grid gap-1 text-[10px] text-muted-foreground">
+                      {ffmpeg ? (
+                        <div className="grid grid-cols-[5rem_1fr] gap-2">
+                          <dt>ffmpeg</dt>
+                          <dd className="truncate font-mono" title={ffmpeg}>{ffmpeg}</dd>
+                        </div>
+                      ) : null}
+                      {ffprobe ? (
+                        <div className="grid grid-cols-[5rem_1fr] gap-2">
+                          <dt>ffprobe</dt>
+                          <dd className="truncate font-mono" title={ffprobe}>{ffprobe}</dd>
+                        </div>
+                      ) : null}
+                    </dl>
+                  );
+                })()}
+              </CollapsibleContent>
+            </Collapsible>
             {PLUGIN_DEFINITIONS.map((definition) => {
               const plugin = plugins.getPlugin(definition.id);
               const deferred = plugin?.runtimeState === "deferred" || definition.id === "seedance-prompt";
               const updateAvailable = plugin?.runtimeState === "update-available";
               const busy = plugins.busyAction?.pluginId === definition.id;
+              const open = !collapsedModules.has(`plugin-${definition.id}`);
               return (
-                <article key={definition.id} aria-labelledby={`video-plugin-${definition.id}`} className="rounded-lg border border-border p-4 space-y-3">
-                  <div className="flex items-center justify-between gap-3">
+                <Collapsible
+                  key={definition.id}
+                  open={open}
+                  onOpenChange={() => toggleModuleCollapsed(`plugin-${definition.id}`)}
+                  className="rounded-lg border border-border p-4 space-y-3"
+                  aria-labelledby={`video-plugin-${definition.id}`}
+                >
+                  <CollapsibleTrigger className="w-full flex items-center justify-between gap-3 text-left">
                     <h4 id={`video-plugin-${definition.id}`} className="font-medium text-foreground">{definition.title}</h4>
-                    <span className="text-xs text-muted-foreground">{statusText(plugin)}</span>
-                  </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-muted-foreground">{statusText(plugin)}</span>
+                      {moduleChevron(`plugin-${definition.id}`)}
+                    </div>
+                  </CollapsibleTrigger>
+                  <CollapsibleContent>
                   <p className="text-xs leading-5 text-muted-foreground">{definition.description}</p>
                   {plugin?.message ? (
                     <p className={plugin.runtimeState === "error" || plugin.runtimeState === "blocked" || plugin.runtimeState === "needs-runtime" ? "text-xs text-amber-600 dark:text-amber-400" : "text-xs text-muted-foreground"}>{plugin.message}</p>
@@ -219,44 +270,63 @@ export function RenderingSettingsTab({ embedded = false }: RenderingSettingsTabP
                           <Type className="h-4 w-4" aria-hidden="true" />
                           字幕字体
                         </h5>
-                        <p className="text-xs text-muted-foreground">烧录字幕的字体；对新发起的分镜与章节渲染生效（缺省=毛笔楷书）。</p>
-                        <div className="grid gap-3 md:grid-cols-3" role="radiogroup" aria-label="字幕字体">
-                          {SUBTITLE_FONT_OPTIONS.map((option) => {
-                            const selected = selectedSubtitleFont === option.id;
-                            return (
-                              <button
-                                key={option.id}
-                                type="button"
-                                role="radio"
-                                aria-checked={selected}
-                                onClick={() => setWorkflowConfig({ subtitleFont: option.id })}
-                                className={`rounded-xl border p-4 text-left transition-colors ${selected ? "border-primary bg-primary/10" : "border-border hover:bg-muted/40"}`}
-                              >
-                                <div className="flex items-center justify-between gap-3">
-                                  <span className="font-medium text-foreground">{option.title}</span>
-                                  {selected && <Check className="h-4 w-4 text-primary" aria-hidden="true" />}
-                                </div>
-                                <p className="mt-2 text-xs leading-5 text-muted-foreground">{option.description}</p>
-                                {/* 样张=该字体成片输出的真实样式(同字体/字重/暖白/描边),缩放到卡片尺寸 */}
-                                <div className="mt-3 flex justify-center overflow-hidden rounded-lg bg-black/80 px-3 py-2.5" aria-hidden="true">
-                                  <span
-                                    style={{
-                                      fontFamily: option.style.fontFamily,
-                                      fontWeight: option.style.fontWeight,
-                                      fontSize: 24,
-                                      lineHeight: 1.4,
-                                      letterSpacing: option.style.letterSpacing,
-                                      color: option.style.color,
-                                      textShadow: subtitleTextShadow(2),
-                                      whiteSpace: "nowrap",
-                                    }}
-                                  >
-                                    {SUBTITLE_FONT_SAMPLE_TEXT}
-                                  </span>
-                                </div>
-                              </button>
-                            );
-                          })}
+                        <p className="text-xs text-muted-foreground">烧录字幕的字体，按风格分组；对新发起的分镜与章节渲染生效（缺省=毛笔楷书）。</p>
+                        {SUBTITLE_FONT_CATEGORIES.map((category) => (
+                          <div key={category} className="space-y-2 pt-2">
+                            <h6 className="text-xs font-medium text-muted-foreground">{SUBTITLE_FONT_CATEGORY_LABELS[category]}</h6>
+                            <div
+                              className="grid gap-3 md:grid-cols-3"
+                              role="radiogroup"
+                              aria-label={`字幕字体：${SUBTITLE_FONT_CATEGORY_LABELS[category]}`}
+                            >
+                              {SUBTITLE_FONT_IDS
+                                .filter((id) => SUBTITLE_FONT_STYLES[id].category === category)
+                                .map((id) => {
+                                  const style = SUBTITLE_FONT_STYLES[id];
+                                  const selected = selectedSubtitleFont === id;
+                                  return (
+                                    <button
+                                      key={id}
+                                      type="button"
+                                      role="radio"
+                                      aria-checked={selected}
+                                      onClick={() => setWorkflowConfig({ subtitleFont: id })}
+                                      className={`rounded-xl border p-4 text-left transition-colors ${selected ? "border-primary bg-primary/10" : "border-border hover:bg-muted/40"}`}
+                                    >
+                                      <div className="flex items-center justify-between gap-3">
+                                        <span className="font-medium text-foreground">{style.label}</span>
+                                        {selected && <Check className="h-4 w-4 text-primary" aria-hidden="true" />}
+                                      </div>
+                                      <p className="mt-2 text-xs leading-5 text-muted-foreground">{style.description}</p>
+                                      {/* 样张=该字体成片输出的真实样式(同字体/字重/暖白/描边),缩放到卡片尺寸 */}
+                                      <div className="mt-3 flex justify-center overflow-hidden rounded-lg bg-black/80 px-3 py-2.5" aria-hidden="true">
+                                        <span
+                                          style={{
+                                            fontFamily: style.fontFamily,
+                                            fontWeight: style.fontWeight,
+                                            fontSize: 24,
+                                            lineHeight: 1.4,
+                                            letterSpacing: style.letterSpacing,
+                                            color: style.color,
+                                            textShadow: subtitleTextShadow(2),
+                                            whiteSpace: "nowrap",
+                                          }}
+                                        >
+                                          {SUBTITLE_FONT_SAMPLE_TEXT}
+                                        </span>
+                                      </div>
+                                    </button>
+                                  );
+                                })}
+                            </div>
+                          </div>
+                        ))}
+                        {/* R3 自定义字体导入（独立子任务,本轮只留禁用占位） */}
+                        <div className="pt-1">
+                          <Button variant="outline" size="sm" disabled aria-label="导入自定义字体（规划中）">
+                            <Plus className="h-4 w-4" aria-hidden="true" />
+                            导入自定义字体（规划中）
+                          </Button>
                         </div>
                       </div>
 
@@ -320,7 +390,8 @@ export function RenderingSettingsTab({ embedded = false }: RenderingSettingsTabP
                       <RotateCcw className="h-4 w-4" /> 回滚
                     </Button>
                   </div>
-                </article>
+                  </CollapsibleContent>
+                </Collapsible>
               );
             })}
           </div>

@@ -96,6 +96,8 @@ describe("RenderingSettingsTab", () => {
       "Remotion",
       "全局渲染器",
       "字幕字体",
+      "书法 · 仙侠武侠",
+      "现代 · 正文",
       "Remotion Headless Shell",
       "HyperFrames",
       "video-use",
@@ -110,23 +112,58 @@ describe("RenderingSettingsTab", () => {
     render(<RenderingSettingsTab />);
     await waitFor(() => expect(screen.getByRole("heading", { name: "字幕字体" })).toBeTruthy());
 
-    const group = screen.getByRole("radiogroup", { name: "字幕字体" });
+    const group = screen.getByRole("radiogroup", { name: "字幕字体：书法 · 仙侠武侠" });
     expect(group.querySelector('[aria-checked="true"]')?.textContent).toContain("毛笔楷书");
 
     fireEvent.click(screen.getByRole("radio", { name: /思源宋体/ }));
     expect(useStudioStore.getState().workflowConfig.subtitleFont).toBe("noto-serif-sc");
   });
 
-  it("renders each font option as a live specimen in its own output style", async () => {
+  it("renders every font option as a live specimen in its own output style", async () => {
     render(<RenderingSettingsTab />);
     await waitFor(() => expect(screen.getByRole("heading", { name: "字幕字体" })).toBeTruthy());
 
     const samples = screen.getAllByText("道劫风云，剑指苍穹。");
-    expect(samples).toHaveLength(3);
-    // 样张必须用该字体自身渲染(而非界面默认字体)——毛笔卡样张是 Ma Shan Zheng。
-    expect((samples[0] as HTMLElement).style.fontFamily).toContain("Ma Shan Zheng");
-    expect((samples[1] as HTMLElement).style.fontFamily).toContain("Noto Sans SC");
-    expect((samples[2] as HTMLElement).style.fontFamily).toContain("Noto Serif SC");
+    expect(samples).toHaveLength(7);
+    // 样张必须用该字体自身渲染——顺序=书法组(毛笔/行书/龙藏/文楷/毛草)+现代组(宋体/黑体)。
+    const families = samples.map((node) => (node as HTMLElement).style.fontFamily);
+    expect(families[0]).toContain("Ma Shan Zheng");
+    expect(families[1]).toContain("Zhi Mang Xing");
+    expect(families[2]).toContain("Long Cang");
+    expect(families[3]).toContain("LXGW WenKai");
+    expect(families[4]).toContain("Liu Jian Mao Cao");
+    expect(families[5]).toContain("Noto Serif SC");
+    expect(families[6]).toContain("Noto Sans SC");
+    // 分组小标题可见
+    expect(screen.getByText("书法 · 仙侠武侠")).toBeTruthy();
+    expect(screen.getByText("现代 · 正文")).toBeTruthy();
+    // R3 自定义字体入口以禁用态占位
+    expect((screen.getByRole("button", { name: /导入自定义字体/ }) as HTMLButtonElement).disabled).toBe(true);
+  });
+
+  it("collapses plugin modules with status summary visible and remembers the choice", async () => {
+    window.localStorage.removeItem("mystudio.settings.rendering.collapsedModules");
+    const { unmount } = render(<RenderingSettingsTab />);
+    await waitFor(() => expect(screen.getByRole("heading", { name: "Remotion" })).toBeTruthy());
+
+    // 折叠 Remotion 卡：正文隐藏，状态摘要仍可见
+    const trigger = screen.getByRole("button", { name: /Remotion/ });
+    expect(trigger.textContent).toContain("检查中");
+    fireEvent.click(trigger);
+    expect(screen.queryByRole("heading", { name: "字幕字体" })).toBeNull();
+    expect(screen.getByRole("heading", { name: "Remotion" }).textContent).toContain("Remotion");
+
+    // 折叠记忆持久化——重挂载后仍折叠
+    unmount();
+    const { unmount: unmount2 } = render(<RenderingSettingsTab />);
+    await waitFor(() => expect(screen.getByRole("heading", { name: "Remotion" })).toBeTruthy());
+    expect(screen.queryByRole("heading", { name: "字幕字体" })).toBeNull();
+
+    // 再点开恢复
+    fireEvent.click(screen.getByRole("button", { name: /Remotion/ }));
+    await waitFor(() => expect(screen.getByRole("heading", { name: "字幕字体" })).toBeTruthy());
+    window.localStorage.removeItem("mystudio.settings.rendering.collapsedModules");
+    unmount2();
   });
 
   it("enables only the plugin whose automatic check reports an update", async () => {

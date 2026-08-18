@@ -37,6 +37,12 @@ importers:
       '@codemirror/lang-json':
         specifier: 6.0.2
         version: 6.0.2
+      '@fontsource/liu-jian-mao-cao':
+        specifier: ^5.3.0
+        version: 5.3.0
+      '@fontsource/long-cang':
+        specifier: ^5.3.0
+        version: 5.3.0
       '@fontsource/ma-shan-zheng':
         specifier: ^5.3.0
         version: 5.3.0
@@ -46,6 +52,9 @@ importers:
       '@fontsource/noto-serif-sc':
         specifier: ^5.2.8
         version: 5.2.8
+      '@fontsource/zhi-mang-xing':
+        specifier: ^5.3.0
+        version: 5.3.0
       '@radix-ui/react-context-menu':
         specifier: ^2.2.16
         version: 2.3.7(@types/react-dom@18.3.7(@types/react@18.3.31))(@types/react@18.3.31)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -136,6 +145,9 @@ importers:
       lucide-react:
         specifier: ^0.562.0
         version: 0.562.0(react@18.3.1)
+      lxgw-wenkai-webfont:
+        specifier: ^1.7.0
+        version: 1.7.0
       md-editor-rt:
         specifier: 4.21.4
         version: 4.21.4(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -1209,6 +1221,12 @@ packages:
   '@floating-ui/utils@0.2.12':
     resolution: {integrity: sha512-HpCo8tmWzLVad5s2d19EhAz5zqrrQ6s69qd6moPMQvkOuSwDT1YgRfWSVuc4ennqrgv3OHppiOGMQ7oC13yIww==}
 
+  '@fontsource/liu-jian-mao-cao@5.3.0':
+    resolution: {integrity: sha512-OaFm4okm77XoGA9jp1J89tDjdWlzb68yJCUL7LV75QxUWF/qOBRVqmhP7XFFsgcn/PL+nc2dPvRGT/8yit5LZg==}
+
+  '@fontsource/long-cang@5.3.0':
+    resolution: {integrity: sha512-lCcBJb+LWZpYCVtGvQRiZPy5/EaGPuYLycpJXUIOz28EYGGqhTVWBRqY6ucaW8l1F8gvfjutY1PoAPUrFiP0wg==}
+
   '@fontsource/ma-shan-zheng@5.3.0':
     resolution: {integrity: sha512-3p0aUEYOFBa4mvHIRDksZZ9Uf35jQdq5mpwp6NZHiNYt/jDj/g83OwTAWjzy+9ZJAxYC9NLLobIKuW1BEcnv0Q==}
 
@@ -1217,6 +1235,9 @@ packages:
 
   '@fontsource/noto-serif-sc@5.2.8':
     resolution: {integrity: sha512-C7fAr+d1GjOAw1qIbntsnqbA3l5dkdzcmNNgeCXLC8QZ7VNubL7MTrX8UcYKHceX4mI//z8gGtXbOeeQrB6P7g==}
+
+  '@fontsource/zhi-mang-xing@5.3.0':
+    resolution: {integrity: sha512-V21yCCm5o2PHdXF2P9KKh7uiqL8QFFuII4DRQkpG24tfyDzJPchXKsxkcvKM43xEPvQKdbhHCBbXEFjcm/TUCQ==}
 
   '@humanwhocodes/config-array@0.13.0':
     resolution: {integrity: sha512-DZLEEqFWQFiyK6h5YIeynKx7JlvCYWL0cImfSRXZ9l4Sg2efkFGTuFf6vzXjK1cq6IYkU+Eg/JizXw+TD2vRNw==}
@@ -4605,6 +4626,9 @@ packages:
     peerDependencies:
       react: ^16.5.1 || ^17.0.0 || ^18.0.0 || ^19.0.0
 
+  lxgw-wenkai-webfont@1.7.0:
+    resolution: {integrity: sha512-kVJmT4xMAyOLhG6q0w63wJkVU7RP8UMQRGoAWj9tnpzL7sWFFYiEHBdUQyW9myqBQFa5SQfWfa2VLYF4IJBL5g==}
+
   lz-string@1.5.0:
     resolution: {integrity: sha512-h5bgJWpxJNswbU7qCrV0tIKQCaS3blPDrqKWx+QxzuzL1zGUzij9XCWLrSLsJPu5t+eWA/ycetzYAO5IOMcWAQ==}
     hasBin: true
@@ -7119,11 +7143,17 @@ snapshots:
 
   '@floating-ui/utils@0.2.12': {}
 
+  '@fontsource/liu-jian-mao-cao@5.3.0': {}
+
+  '@fontsource/long-cang@5.3.0': {}
+
   '@fontsource/ma-shan-zheng@5.3.0': {}
 
   '@fontsource/noto-sans-sc@5.3.0': {}
 
   '@fontsource/noto-serif-sc@5.2.8': {}
+
+  '@fontsource/zhi-mang-xing@5.3.0': {}
 
   '@humanwhocodes/config-array@0.13.0':
     dependencies:
@@ -10811,6 +10841,8 @@ snapshots:
   lucide-react@0.562.0(react@18.3.1):
     dependencies:
       react: 18.3.1
+
+  lxgw-wenkai-webfont@1.7.0: {}
 
   lz-string@1.5.0: {}
 
