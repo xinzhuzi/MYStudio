@@ -1,4 +1,5 @@
 import {
+  existsSync,
   mkdirSync,
   mkdtempSync,
   rmSync,
@@ -1050,13 +1051,15 @@ describe("desktop build scripts", () => {
       ),
       "utf8",
     );
-    const workflowSpec = readFileSync(
-      resolve(
-        appsRoot,
-        "../.trellis/spec/frontend/workflow-auto-video-smoke.md",
-      ),
-      "utf8",
+    const workflowSpecPath = resolve(
+      appsRoot,
+      "../.trellis/spec/frontend/workflow-auto-video-smoke.md",
     );
+    // .trellis 是本地工作流目录(08-17 起整体不入库),CI checkout 无此文件:
+    // 相关文档断言仅在该文件存在时执行,否则 CI 必红(既有破损,08-18 修复)。
+    const workflowSpec = existsSync(workflowSpecPath)
+      ? readFileSync(workflowSpecPath, "utf8")
+      : null;
 
     expect(packageJson).toContain(
       '"smoke:workflow:background": "node ./build/smoke/run-visible-workflow-smoke.mjs --background"',
@@ -1090,10 +1093,12 @@ describe("desktop build scripts", () => {
     expect(videoScript).toContain("MYSTUDIO_SMOKE_BACKGROUND: '1'");
     expect(workflowSkill).toContain("npm run smoke:workflow:background");
     expect(workflowSkill).toContain("foregroundViolation=false");
-    expect(workflowSpec).toContain(
-      "npm run smoke:workflow:background:project -- --auto-video",
-    );
-    expect(workflowSpec).toContain("MYSTUDIO_SMOKE_BACKGROUND=1");
+    if (workflowSpec) {
+      expect(workflowSpec).toContain(
+        "npm run smoke:workflow:background:project -- --auto-video",
+      );
+      expect(workflowSpec).toContain("MYSTUDIO_SMOKE_BACKGROUND=1");
+    }
   });
 
   it("fails closed when a background focus sample cannot be collected", async () => {
