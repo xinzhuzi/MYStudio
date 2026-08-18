@@ -25,12 +25,15 @@ import {
   Shield,
   Settings2,
   ChevronRight,
+  Plus,
+  Trash2,
   ArrowRight,
   Workflow,
   SlidersHorizontal,
 } from "lucide-react";
 import type {
   SeriesMeta,
+  ScriptCharacter,
   EpisodeRawScript } from "@/types/script";
 import { getStyleName } from "@/lib/constants/visual-styles";
 import {
@@ -145,6 +148,32 @@ export function OverviewPanel() {
     },
     [projectId, updateSeriesMeta],
   );
+
+  // 角色区编辑:竖向列表的增删改,经 updateSeriesMeta 落盘
+  const updateCharacterAt = useCallback(
+    (index: number, changes: Partial<ScriptCharacter>) => {
+      if (!meta) return;
+      const next = meta.characters.map((c, i) => (i === index ? { ...c, ...changes } : c));
+      update({ characters: next });
+    },
+    [meta, update],
+  );
+  const removeCharacterAt = useCallback(
+    (index: number) => {
+      if (!meta) return;
+      update({ characters: meta.characters.filter((_, i) => i !== index) });
+    },
+    [meta, update],
+  );
+  const addCharacter = useCallback(() => {
+    if (!meta) return;
+    update({
+      characters: [
+        ...meta.characters,
+        { id: `char-${Date.now()}`, name: "新角色" },
+      ],
+    });
+  }, [meta, update]);
 
   // R2:AI 填充素材——记忆库(偏好→圣经→档案检索)+剧本开头,复用管线注入链
   const buildFillContext = useCallback(async (): Promise<string | undefined> => {
@@ -396,55 +425,65 @@ export function OverviewPanel() {
                 icon={Users}
                 title={`角色 (${meta.characters.length})`}
               >
+                {/* 竖向完整排列:姓名/标签/身份全量展示,可增删改(裁定 08-18:不截断、不横排) */}
                 {meta.characters.length === 0 ? (
                   <p className="text-xs text-muted-foreground italic">
                     暂无角色数据
                   </p>
                 ) : (
-                  <div className="grid grid-cols-2 gap-2">
-                    {meta.characters.slice(0, 20).map((char) => (
+                  <div className="space-y-2">
+                    {meta.characters.map((char, index) => (
                       <div
                         key={char.id}
-                        className="rounded border p-2 text-xs space-y-0.5 hover:bg-muted/30 transition-colors"
+                        className="space-y-1.5 rounded border p-3 transition-colors hover:bg-muted/30"
                       >
-                        <div className="font-medium flex items-center gap-1">
-                          {char.name}
-                          {char.tags?.includes("protagonist") && (
-                            <Badge
-                              variant="default"
-                              className="text-[9px] h-4 px-1"
-                            >
-                              主角
-                            </Badge>
-                          )}
-                          {char.tags?.includes("supporting") && (
-                            <Badge
-                              variant="secondary"
-                              className="text-[9px] h-4 px-1"
-                            >
-                              配角
-                            </Badge>
-                          )}
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="flex min-w-0 flex-wrap items-center gap-1.5">
+                            <EditableText
+                              value={char.name}
+                              placeholder="角色名"
+                              onSave={(v) => updateCharacterAt(index, { name: v })}
+                            />
+                            {char.gender && (
+                              <Badge variant="outline" className="h-4 shrink-0 px-1 text-[9px]">
+                                {char.gender}
+                              </Badge>
+                            )}
+                            {char.tags?.map((tag) => (
+                              <Badge key={tag} variant="secondary" className="h-4 px-1 text-[9px]">
+                                {tag}
+                              </Badge>
+                            ))}
+                          </div>
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            className="h-6 w-6 shrink-0 text-muted-foreground hover:text-destructive"
+                            title="删除角色"
+                            onClick={() => removeCharacterAt(index)}
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
                         </div>
-                        {char.age && (
-                          <span className="text-muted-foreground">
-                            {char.age}岁
-                          </span>
-                        )}
-                        {char.role && (
-                          <p className="text-muted-foreground line-clamp-2">
-                            {char.role}
-                          </p>
-                        )}
+                        <EditableText
+                          value={char.role}
+                          placeholder="身份/背景（详细描述）"
+                          multiline
+                          onSave={(v) => updateCharacterAt(index, { role: v })}
+                        />
                       </div>
                     ))}
                   </div>
                 )}
-                {meta.characters.length > 20 && (
-                  <p className="text-[10px] text-muted-foreground">
-                    还有 {meta.characters.length - 20} 个角色...
-                  </p>
-                )}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="w-full border-dashed"
+                  onClick={addCharacter}
+                >
+                  <Plus className="h-3.5 w-3.5" />
+                  添加角色
+                </Button>
               </SectionCard>
 
               {/* 阵营 */}

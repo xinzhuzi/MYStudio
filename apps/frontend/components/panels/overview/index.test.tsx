@@ -167,6 +167,44 @@ describe("OverviewPanel", () => {
     delete (window as unknown as { fileStorage?: unknown }).fileStorage;
   });
 
+  it("characters render vertically in full with edit/delete/add wired to updateSeriesMeta", async () => {
+    mocks.meta = {
+      title: "道劫",
+      characters: [
+        { id: "c1", name: "晏燎", gender: "男", role: "灭族孤儿出身的底层剑修，创立万劫圣宗；跨越五系剑道全修，终证「万道归真」，从复仇者成长为万界共主。", tags: ["#男主"] },
+        { id: "c2", name: "独孤剑尘", gender: "男", role: "挚友、护道者与剑术启蒙恩师；血祭夜为救晏燎碎裂剑心，赠归元古剑。" + "很长的身份描述".repeat(30), tags: ["#恩师"] },
+      ],
+    };
+    render(<OverviewPanel />);
+
+    // 身份描述全文展示(旧实现 line-clamp-2 也仍在 DOM,故断言首尾都在文本流)
+    const text = document.body.textContent ?? "";
+    expect(text).toContain("灭族孤儿出身的底层剑修");
+    expect(text).toContain("万界共主");
+    expect(text).toContain("血祭夜为救晏燎碎裂剑心");
+    // 竖向排列:角色列表容器是 space-y-2 竖向栈,无 grid 列类
+    const charsList = [...document.querySelectorAll("div.space-y-2")].find((el) =>
+      el.querySelector('[title="删除角色"]') && el.textContent?.includes("晏燎"),
+    );
+    expect(charsList).toBeTruthy();
+    expect(charsList?.className).not.toMatch(/grid/);
+    // 添加角色 → updateSeriesMeta 收到追加后的数组
+    fireEvent.click(screen.getByRole("button", { name: /添加角色/ }));
+    await waitFor(() => {
+      const call = mocks.updateSeriesMeta.mock.calls.at(-1)?.[1] as { characters?: { name: string }[] };
+      expect(call.characters?.at(-1)?.name).toBe("新角色");
+      expect(call.characters).toHaveLength(3);
+    });
+    // 删除第二个角色
+    const deleteButtons = screen.getAllByTitle("删除角色");
+    fireEvent.click(deleteButtons[1]);
+    await waitFor(() => {
+      const call = mocks.updateSeriesMeta.mock.calls.at(-1)?.[1] as { characters?: { id: string }[] };
+      expect(call.characters).toHaveLength(1);
+      expect(call.characters?.[0]?.id).toBe("c1");
+    });
+  });
+
   it("full-meta branch renders the workflow portal above the metadata header (R1 布局裁定)", () => {
     render(<OverviewPanel />);
     const body = document.body;
