@@ -3,12 +3,14 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const mocks = vi.hoisted(() => ({
   handlers: new Map<string, (...args: unknown[]) => unknown>(),
   fromWebContents: vi.fn(),
+  isPackaged: false,
   existsSync: vi.fn(() => true),
   openPath: vi.fn(async () => ""),
   showItemInFolder: vi.fn(),
 }));
 
 vi.mock("electron", () => ({
+  app: { get isPackaged() { return mocks.isPackaged; } },
   BrowserWindow: { fromWebContents: mocks.fromWebContents },
   ipcMain: {
     handle: vi.fn((channel: string, handler: (...args: unknown[]) => unknown) => {
@@ -27,12 +29,29 @@ describe("registerAppShellIpcHandlers", () => {
     mocks.handlers.clear();
     vi.clearAllMocks();
     mocks.existsSync.mockReturnValue(true);
+    mocks.isPackaged = false;
+    delete process.env.MYSTUDIO_ENABLE_DEVTOOLS;
     registerAppShellIpcHandlers({ resolveSourcePath: (value) => `/resolved/${value}` });
   });
 
-  it("opens DevTools for the sender window", async () => {
+  it("opens DevTools for the sender window in development builds", async () => {
     const openDevTools = vi.fn();
     mocks.fromWebContents.mockReturnValue({ webContents: { openDevTools } });
+    await expect(mocks.handlers.get("app-devtools-open")?.({ sender: {} })).resolves.toEqual({ success: true });
+    expect(openDevTools).toHaveBeenCalledWith({ mode: "detach" });
+  });
+
+  it("refuses DevTools in packaged builds unless the escape hatch is set", async () => {
+    mocks.isPackaged = true;
+    const openDevTools = vi.fn();
+    mocks.fromWebContents.mockReturnValue({ webContents: { openDevTools } });
+    await expect(mocks.handlers.get("app-devtools-open")?.({ sender: {} })).resolves.toEqual({
+      success: false,
+      error: "开发者工具仅开发环境可用",
+    });
+    expect(openDevTools).not.toHaveBeenCalled();
+
+    process.env.MYSTUDIO_ENABLE_DEVTOOLS = "1";
     await expect(mocks.handlers.get("app-devtools-open")?.({ sender: {} })).resolves.toEqual({ success: true });
     expect(openDevTools).toHaveBeenCalledWith({ mode: "detach" });
   });

@@ -1,5 +1,6 @@
 import { ipcMain } from "electron";
 import { observedFetch, type ObservedFetchMeta } from "../../../lib/diagnostics/network";
+import { assertSafeOutboundRequestUrl } from "../../security/request-url-guard";
 import {
   getModelTestTimeoutMs,
   runModelTestRequest,
@@ -27,12 +28,14 @@ function headersToRecord(headers: Headers) {
   return record;
 }
 
+function requestInputUrl(input: RequestInfo | URL): string {
+  if (typeof input === "string") return input;
+  if (input instanceof URL) return input.toString();
+  return input.url;
+}
+
 function validateHttpRequestUrl(rawUrl: string) {
-  const parsed = new URL(rawUrl);
-  if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
-    throw new Error("仅支持 http/https 图片 API 请求");
-  }
-  return parsed.toString();
+  return assertSafeOutboundRequestUrl(rawUrl);
 }
 
 export function registerApiRequestIpcHandlers({
@@ -50,13 +53,19 @@ export function registerApiRequestIpcHandlers({
     input: RequestInfo | URL,
     init?: RequestInit,
     meta?: Partial<ObservedFetchMeta>,
-  ) => observedFetch(input, init, {
-    ...params,
-    ...meta,
-    requestId: createOperationId("req"),
-    fetcher: fetch as typeof fetch,
-    logEvent: writeDiagnosticsLog,
-  });
+  ) => observedFetch(
+    // model-test / text-completion / text-stream 的目标 baseUrl 同样来自渲染
+    // 进程,统一过外发地址守卫(禁 link-local 与云元数据,见 request-url-guard)。
+    assertSafeOutboundRequestUrl(requestInputUrl(input)),
+    init,
+    {
+      ...params,
+      ...meta,
+      requestId: createOperationId("req"),
+      fetcher: fetch as typeof fetch,
+      logEvent: writeDiagnosticsLog,
+    },
+  );
 
   ipcMain.handle("api-image-request", async (
     _event,

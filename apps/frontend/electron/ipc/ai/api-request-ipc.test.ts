@@ -33,7 +33,7 @@ describe("registerApiRequestIpcHandlers", () => {
       "api-text-completion-stream",
     ]);
     await expect(handlers.get("api-image-request")?.({}, { url: "file:///tmp/image.png" }))
-      .rejects.toThrow("仅支持 http/https 图片 API 请求");
+      .rejects.toThrow("仅支持 http/https 请求地址");
     await expect(handlers.get("api-image-request")?.({}, { url: "not-a-url" }))
       .rejects.toThrow();
   });
@@ -49,7 +49,7 @@ describe("registerApiRequestIpcHandlers", () => {
     "rejects unsupported image URL protocols (%s)",
     async (url) => {
       await expect(handlers.get("api-image-request")?.({}, { url }))
-        .rejects.toThrow("仅支持 http/https 图片 API 请求");
+        .rejects.toThrow("仅支持 http/https 请求地址");
     },
   );
 

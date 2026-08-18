@@ -1,6 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
-import { BrowserWindow, ipcMain, shell } from "electron";
+import { app, BrowserWindow, ipcMain, shell } from "electron";
 
 type RegisterAppShellIpcHandlersContext = {
   resolveSourcePath: (targetPath: string) => string;
@@ -22,6 +22,11 @@ export function isBlockedOpenExtension(filePath: string): boolean {
 
 export function registerAppShellIpcHandlers({ resolveSourcePath }: RegisterAppShellIpcHandlersContext) {
   ipcMain.handle("app-devtools-open", async (event): Promise<{ success: boolean; error?: string }> => {
+    // 生产构建默认禁用 DevTools 入口(渲染层攻破后 DevTools 是现成的调试/
+    // 注入面);诊断需要时以 MYSTUDIO_ENABLE_DEVTOOLS=1 启动显式放行。
+    if (app.isPackaged && process.env.MYSTUDIO_ENABLE_DEVTOOLS !== "1") {
+      return { success: false, error: "开发者工具仅开发环境可用" };
+    }
     try {
       const targetWindow = BrowserWindow.fromWebContents(event.sender);
       if (!targetWindow) return { success: false, error: "未找到当前窗口" };
