@@ -42,6 +42,17 @@ async function main() {
   const mediaBridge = new MediaBridgeServer();
   await mediaBridge.listen();
   const session = mediaBridge.createSession();
+  // HY 叠加层（可选）：与镜头素材同会话注册，窗口取自 HY artifact——
+  // 时刻必须与 plan 同一时间线（rerender-hy-overlay.ts 按当前 editing 重算）。
+  const overlayRevision = Number(process.env.MYSTUDIO_HY_REV ?? 48);
+  const overlayDir = path.join(MA, "video-use", CHAPTER_ID, `r${overlayRevision}`);
+  const overlayMov = path.join(overlayDir, "hyperframes-overlay.mov");
+  const overlayArtifactPath = path.join(overlayDir, "hyperframes-artifact.json");
+  const hasOverlay = fs.existsSync(overlayMov) && fs.existsSync(overlayArtifactPath);
+  const overlayWindows = hasOverlay
+    ? (JSON.parse(fs.readFileSync(overlayArtifactPath, "utf8")) as { windows: unknown[] }).windows
+    : [];
+  console.log("hyperframes overlay:", hasOverlay ? `r${overlayRevision} (${overlayWindows.length} windows)` : "无");
   const outputPath = path.join(MA, "remotion/outputs/chapters", CHAPTER_ID, "current.mp4");
   const staged = outputPath + ".staged.mp4";
 
@@ -60,8 +71,13 @@ async function main() {
         return { clipId: clip.id, absolutePath: path.join(MA, "remotion", slot.evidence.outputPath) };
       });
     for (const src of mediaSources) session.register(src.clipId, src.absolutePath);
-    const urlEntries = mediaBridge.buildUrls(session, mediaSources.map((s) => s.clipId));
+    if (hasOverlay) session.register("hyperframes-overlay", overlayMov);
+    const urlEntries = mediaBridge.buildUrls(session, [
+      ...mediaSources.map((s) => s.clipId),
+      ...(hasOverlay ? ["hyperframes-overlay"] : []),
+    ]);
     const mediaUrlByClipId = Object.fromEntries(urlEntries.map((e) => [e.assetId, e.url]));
+    const overlayUrl = mediaUrlByClipId["hyperframes-overlay"];
 
     const projected = buildChapterVideoCompositionProps({
       plan,
@@ -69,10 +85,12 @@ async function main() {
       chapterManifest: manifest,
       mediaUrlByClipId,
       mediaUrlByBindingId: {},
+      ...(hasOverlay && overlayUrl ? { hyperFramesOverlay: { src: overlayUrl, windows: overlayWindows } } : {}),
     } as never);
     if (!projected.success) throw new Error("composition 失败: " + projected.issues.map((i) => `${i.path}: ${i.message}`).join("；"));
     const props = projected.value;
-    console.log("subtitles:", props.subtitles.length, "| visualClips:", props.visualClips.length, "| duration:", props.durationInFrames, "frames");
+    console.log("subtitles:", props.subtitles.length, "| visualClips:", props.visualClips.length,
+      "| overlayClips:", props.overlayClips?.length ?? 0, "| duration:", props.durationInFrames, "frames");
 
     const composition = await selectComposition({ serveUrl: bundlePath, id: "ChapterVideo", inputProps: props as never });
     const t0 = Date.now();
