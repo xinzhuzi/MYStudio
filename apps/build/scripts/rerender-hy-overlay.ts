@@ -148,7 +148,7 @@ async function main() {
     const adapter = createHyperFramesAdapter({
       storageBasePath: USER_DATA,
       electronExecutable: ELECTRON,
-      workspaceRootForProject: () => path.join(MA, "video-use"),
+      workspaceRootForProject: () => path.join(MA, "hyperframes"),
       workerPath: WORKER,
       resolveBrowserPath: async () => browserPath,
       // 应用缺失时探针必败(electron 可执行文件/profile marker 校验)——standalone

@@ -11,6 +11,8 @@ import {
 export interface VideoWorkflowArtifactPaths {
   revisionDir: string;
   videoUsePath: string;
+  /** HyperFrames 独立工作区（08-18 起）：与 video-use 工作区根同级的 hyperframes/ 下同章节同修订 */
+  hyperFramesRevisionDir: string;
   hyperFramesPath: string;
 }
 
@@ -53,10 +55,18 @@ export function resolveVideoWorkflowArtifactPaths(
   const workspaceRoot = workspaceRootForProject(safeProjectId);
   if (!path.isAbsolute(workspaceRoot)) throw new Error("video workflow workspaceRoot 必须是绝对路径");
   const revisionDir = path.join(workspaceRoot, safeChapterId, `r${revision}`);
+  // HyperFrames 独立根目录（08-18 用户裁定）：hyperframes 工作区根 = video-use 工作区根同级
+  const hyperFramesRevisionDir = path.join(
+    path.resolve(workspaceRoot, ".."),
+    "hyperframes",
+    safeChapterId,
+    `r${revision}`,
+  );
   return {
     revisionDir,
     videoUsePath: path.join(revisionDir, "video-use-artifact.json"),
-    hyperFramesPath: path.join(revisionDir, "hyperframes-artifact.json"),
+    hyperFramesRevisionDir,
+    hyperFramesPath: path.join(hyperFramesRevisionDir, "hyperframes-artifact.json"),
   };
 }
 

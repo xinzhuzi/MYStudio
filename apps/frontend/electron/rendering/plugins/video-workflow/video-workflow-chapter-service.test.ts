@@ -87,7 +87,7 @@ function readableAcceptedArtifacts() {
   return {
     success: true as const,
     value: {
-      paths: { revisionDir: "/tmp/video-workflow/c1/r2", videoUsePath: "/tmp/video-workflow/c1/r2/video-use-artifact.json", hyperFramesPath: "/tmp/video-workflow/c1/r2/hyperframes-artifact.json" },
+      paths: { revisionDir: "/tmp/video-workflow/c1/r2", videoUsePath: "/tmp/video-workflow/c1/r2/video-use-artifact.json", hyperFramesRevisionDir: "/tmp/hyperframes/c1/r2", hyperFramesPath: "/tmp/hyperframes/c1/r2/hyperframes-artifact.json" },
       videoUseArtifact: acceptedArtifact(),
     },
   };
@@ -127,7 +127,7 @@ describe("video workflow chapter service", () => {
     } as unknown as RemotionChapterManifestV2;
     const readChapterManifest = vi.fn(async () => manifest);
     const writeChapterManifest = vi.fn(async () => undefined);
-    const renderHyperFrames = vi.fn(async () => ({ state: "ready" as const, artifact: noopOverlayArtifact(), artifactPath: "/tmp/video-workflow/c1/r2/hyperframes-artifact.json" }));
+    const renderHyperFrames = vi.fn(async () => ({ state: "ready" as const, artifact: noopOverlayArtifact(), artifactPath: "/tmp/hyperframes/c1/r2/hyperframes-artifact.json" }));
     const service = createVideoWorkflowChapterService({
       workspaceRootForProject: () => "/tmp/video-workflow",
       runVideoUse: vi.fn(),
@@ -156,7 +156,7 @@ describe("video workflow chapter service", () => {
       artifact: {
         ...noopOverlayArtifact(),
         status: "accepted" as const,
-        outputPath: "/tmp/video-workflow/c1/r2/hyperframes-overlay.mov",
+        outputPath: "/tmp/hyperframes/c1/r2/hyperframes-overlay.mov",
         outputSha256: hash,
         windows: request.windows,
       },
@@ -219,7 +219,7 @@ describe("video workflow chapter service", () => {
     const renderRequests: Array<{ windows?: unknown[] }> = [];
     const renderHyperFrames = vi.fn(async (request: { windows?: unknown[] }) => {
       renderRequests.push(request);
-      return { state: "ready" as const, artifact: noopOverlayArtifact(), artifactPath: "/tmp/video-workflow/c1/r2/hyperframes-artifact.json" };
+      return { state: "ready" as const, artifact: noopOverlayArtifact(), artifactPath: "/tmp/hyperframes/c1/r2/hyperframes-artifact.json" };
     });
     const service = createVideoWorkflowChapterService({
       workspaceRootForProject: () => "/tmp/video-workflow",

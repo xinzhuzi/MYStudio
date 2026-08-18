@@ -314,7 +314,7 @@ export function createVideoWorkflowChapterService(options: VideoWorkflowChapterS
       height: input.height,
       fps: input.fps,
       alphaFormat: input.alphaFormat,
-      outputPath: path.join(artifacts.value.paths.revisionDir, `hyperframes-overlay.${extension}`),
+      outputPath: path.join(artifacts.value.paths.hyperFramesRevisionDir, `hyperframes-overlay.${extension}`),
       windows: overlayWindows,
     };
     const rendered = await options.renderHyperFrames(request);

@@ -760,7 +760,7 @@ const videoUseAdapter = createVideoUseAdapter({
 })
 const hyperFramesAdapter = createHyperFramesAdapter({
   storageBasePath: getStorageBasePath,
-  workspaceRootForProject: videoWorkflowWorkspaceRootForProject,
+  workspaceRootForProject: (projectId: string) => path.join(projectRootFor(projectId), 'hyperframes'),
   workerPath: path.join(MAIN_DIST, 'hyperframes-worker.cjs'),
   // 浏览器 utility 一次只服务一个请求:与设置页状态刷新并发时会被拒,重试一次避免瞬态"未找到可复用的 Headless Shell"误报
   resolveBrowserPath: async () => {

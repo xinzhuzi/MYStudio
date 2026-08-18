@@ -57,6 +57,7 @@ import { heuristicCinematicPresets } from "@/lib/studio/cinematic-preset-ai";
 import { mergeShotFxEditingEffects } from "@/lib/studio/remotion/shot-fx-decisions";
 import type { RemotionCurrentSlotV1 } from "@/types/remotion-workspace";
 import {
+  readRemotionCurrentShotSlotsFromWorkspace,
   resolveRemotionCurrentSlotOutputPath,
   validateCurrentSlot,
 } from "@/lib/studio/remotion/remotion-current-slot";
@@ -401,6 +402,9 @@ export async function runFullPipeline(): Promise<Record<string, unknown>> {
   // workspace root for video-use artifacts
   const workspaceRootForProject = (pid: string) =>
     registeredProjectDir(pid) ? path.join(registeredProjectDir(pid)!, "video-use") : path.join(dataRoot, "_p", pid, "video-use");
+  // HyperFrames 独立工作区根（08-18）：video-use 同级 hyperframes/
+  const hyperFramesWorkspaceRootForProject = (pid: string) =>
+    registeredProjectDir(pid) ? path.join(registeredProjectDir(pid)!, "hyperframes") : path.join(dataRoot, "_p", pid, "hyperframes");
   const workspaceRoot = workspaceRootForProject(projectId);
 
   // ── 2. Set up shared toolchain (ffmpeg/ffprobe) ──
@@ -475,7 +479,7 @@ export async function runFullPipeline(): Promise<Record<string, unknown>> {
   const hyperFramesAdapter = createHyperFramesAdapter({
     storageBasePath: () => storageBasePath,
     electronExecutable,
-    workspaceRootForProject,
+    workspaceRootForProject: hyperFramesWorkspaceRootForProject,
     workerPath: fs.existsSync(hyperFramesWorkerPath) ? hyperFramesWorkerPath : undefined,
     resolveBrowserPath: async () => fs.existsSync(browserPath) ? browserPath : undefined,
   });
@@ -532,17 +536,17 @@ export async function runFullPipeline(): Promise<Record<string, unknown>> {
   }
 
   // ── 7. Load shot slots + build shot inputs ──
-  const shotSlotReportPath = path.resolve(appsRoot, "output", "automation", "chapter001-shot-slots.json");
-  if (!fs.existsSync(shotSlotReportPath)) throw new Error(`shot slot report 不存在: ${shotSlotReportPath}`);
-  const shotSlotReport = JSON.parse(fs.readFileSync(shotSlotReportPath, "utf8")) as Record<string, unknown>;
-  if (shotSlotReport.projectId !== projectId || shotSlotReport.chapterId !== chapterId) {
-    throw new Error("shot slot report identity 不匹配");
+  // Historical automation reports are evidence only. Re-read the production
+  // job/evidence/output triplets so later revisions cannot consume stale slots.
+  const remotionWorkspaceRoot = path.join(projectDir, "remotion");
+  const shotSlots = await readRemotionCurrentShotSlotsFromWorkspace(
+    remotionWorkspaceRoot,
+    projectId,
+    chapterId,
+  );
+  if (shotSlots.length === 0) {
+    throw new Error(`current shot slots 不存在: ${remotionWorkspaceRoot}`);
   }
-  const shotSlots = (shotSlotReport.slots as unknown[]).map((value, index) => {
-    const validation = validateCurrentSlot(value);
-    if (!validation.success) throw new Error(`shot slot ${index} 无效: ${validation.issues.map((i) => i.message).join("；")}`);
-    return validation.value;
-  });
 
   // 历史基准 run（r2）可能被工作区清理回收——回退取最高现存版本的 run 数据
   const chapterWorkspaceDir = path.join(workspaceRoot, chapterId);

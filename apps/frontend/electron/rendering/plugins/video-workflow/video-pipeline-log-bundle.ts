@@ -81,6 +81,10 @@ export function createVideoPipelineLogBundle(options: LogBundleOptions): VideoPi
   // Determine the latest revision if not specified
   const revision = options.revision ?? resolveLatestRevision(videoUseDir);
   const revisionDir = revision > 0 ? path.join(videoUseDir, `r${revision}`) : null;
+  // HyperFrames 独立工作区（08-18）：与 video-use 同级 hyperframes/ 下同章节同修订
+  const hyperFramesRevisionDir = revision > 0
+    ? path.join(projectRoot, "hyperframes", options.chapterId, `r${revision}`)
+    : null;
 
   // --- Stage 1: Remotion ---
   const remotionShots = collectRemotionShots(remotionDir, options.chapterId);
@@ -90,7 +94,7 @@ export function createVideoPipelineLogBundle(options: LogBundleOptions): VideoPi
   const videoUse = revisionDir ? collectVideoUseArtifacts(revisionDir) : null;
 
   // --- Stage 3: HyperFrames ---
-  const hyperframes = revisionDir ? collectHyperFramesArtifacts(revisionDir) : null;
+  const hyperframes = hyperFramesRevisionDir ? collectHyperFramesArtifacts(hyperFramesRevisionDir) : null;
 
   // --- Diagnostics ---
   const diagnostics = collectDiagnostics(options.diagnosticsDir, options.projectId, options.chapterId);
