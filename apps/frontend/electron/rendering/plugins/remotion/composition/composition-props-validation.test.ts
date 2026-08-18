@@ -92,6 +92,24 @@ describe("validateCompositionProps", () => {
     expect(result.success).toBe(true);
   });
 
+  it("accepts an in-registry grade and rejects unknown lutId / out-of-range blend (fail-closed)", () => {
+    const good = validProps();
+    good.visualClips[0].grade = { lutId: "film-teal-orange", lutSrc: "http://127.0.0.1:1/tok/l.png", blend: 0.8 };
+    expect(validateCompositionProps(good).success).toBe(true);
+
+    const badLut = validProps();
+    badLut.visualClips[0].grade = { lutId: "film-not-exist", lutSrc: "http://127.0.0.1:1/tok/l.png", blend: 0.8 };
+    const r1 = validateCompositionProps(badLut);
+    expect(r1.success).toBe(false);
+    if (!r1.success) expect(r1.issues.some((i) => i.path === "visualClips[0].grade.lutId")).toBe(true);
+
+    const badBlend = validProps();
+    badBlend.visualClips[0].grade = { lutId: "film-teal-orange", lutSrc: "http://127.0.0.1:1/tok/l.png", blend: 1.5 };
+    const r2 = validateCompositionProps(badBlend);
+    expect(r2.success).toBe(false);
+    if (!r2.success) expect(r2.issues.some((i) => i.path === "visualClips[0].grade.blend")).toBe(true);
+  });
+
   it("rejects a gl: transition outside the registry (fail-closed)", () => {
     const props = validProps();
     (props.transitions[0] as { effectId: string }).effectId = "gl:NotInRegistry";

@@ -13,6 +13,8 @@ const REMOTION_SUPPORTED_EFFECT_IDS = [
   "glow",
   "grain",
   "chromaticAberration",
+  // 成片调色（08-18-haldclut-grade）：合成层 WebGL LUT pass。
+  "grade",
 ] as const;
 
 interface TimelineRendererRoutingPlan {

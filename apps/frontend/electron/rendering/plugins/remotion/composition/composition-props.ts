@@ -137,6 +137,9 @@ export interface CompositionVisualClipProps {
   cinematicImageSrc?: string;
   /** 镜头级 2D 特效（shake/glow/grain/chroma），合成层注入。 */
   fx?: import("./visual-fx").CompositionVisualFx;
+  /** 成片调色（08-18-haldclut-grade）：LUT 闭集见 cinematic-luts.ts；lutSrc 为
+   * media-bridge URL（build 侧由 lutUrlById 注入）。渲染期由 GLGradeMedia 上屏。 */
+  grade?: { lutId: string; lutSrc?: string; blend: number };
   // Video-only playback controls; ignored for images.
   trimStartFrames?: number;
   playbackRate?: number;

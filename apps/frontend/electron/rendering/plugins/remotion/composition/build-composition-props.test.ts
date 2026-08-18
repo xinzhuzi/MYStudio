@@ -93,6 +93,42 @@ describe("buildChapterVideoCompositionProps", () => {
       expect(result.value.audioClips).toEqual([]);
     }
 
+    // grade（成片调色）投影链：效果→clip.grade（lutId 闭集/URL 注入/hashInput 覆盖=
+    // plan.effects 序列化进 chapter hash,remotion-chapter-renderer.ts:171）。
+    plan.effects.push({
+      id: "grade-1",
+      effectId: "grade",
+      targetClipId: "visual-shot-001",
+      enabled: true,
+      params: { lutId: "film-teal-orange", blend: 0.75 },
+    } as never);
+    const graded = buildChapterVideoCompositionProps({
+      plan,
+      currentShotSlots: [slot],
+      chapterManifest,
+      mediaUrlByClipId: { "visual-shot-001": mediaUrl },
+      mediaUrlByBindingId: {},
+      lutUrlById: { "film-teal-orange": `http://127.0.0.1:43123/${token}/lut.png` },
+    });
+    expect(graded.success).toBe(true);
+    if (graded.success) {
+      expect(graded.value.visualClips[0]?.grade).toEqual({
+        lutId: "film-teal-orange",
+        lutSrc: `http://127.0.0.1:43123/${token}/lut.png`,
+        blend: 0.75,
+      });
+    }
+    // lutId 越闭集 → fail-closed throw。
+    plan.effects[0]!.params = { lutId: "film-not-exist", blend: 0.5 } as never;
+    expect(() => buildChapterVideoCompositionProps({
+      plan,
+      currentShotSlots: [slot],
+      chapterManifest,
+      mediaUrlByClipId: { "visual-shot-001": mediaUrl },
+      mediaUrlByBindingId: {},
+      lutUrlById: { "film-not-exist": mediaUrl },
+    })).toThrow("LUT 闭集");
+
     plan.clips.push(audioPlanClip("voice-1", "voice"));
     const duplicate = buildChapterVideoCompositionProps({
       plan,

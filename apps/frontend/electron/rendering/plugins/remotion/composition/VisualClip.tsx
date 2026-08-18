@@ -4,8 +4,9 @@
 // layers on top (visual-fx.ts). The component is a thin wrapper over verified
 // pure helpers and receives only a capability URL as src.
 
-import { AbsoluteFill, Img, OffthreadVideo, useCurrentFrame } from "remotion";
+import { AbsoluteFill, Img, OffthreadVideo, useCurrentFrame, useRemotionEnvironment } from "remotion";
 import type { CompositionVisualClipProps } from "./composition-props";
+import { GLGradeMedia } from "./GLGradeMedia";
 import { panZoomAtFrame } from "./pan-zoom";
 import { buildVisualStyle } from "./visual-style";
 import {
@@ -18,6 +19,7 @@ import {
 
 export function VisualClip(props: CompositionVisualClipProps): React.ReactElement {
   const frame = useCurrentFrame();
+  const { isRendering } = useRemotionEnvironment();
   const panZoom = props.panZoom
     ? panZoomAtFrame(frame, props.durationInFrames, props.panZoom)
     : undefined;
@@ -25,10 +27,23 @@ export function VisualClip(props: CompositionVisualClipProps): React.ReactElemen
   const shake = props.fx ? fxShakeOffset(frame, props.fx) : undefined;
   const mediaStyle = props.fit === "contain" ? CONTAIN_STYLE : COVER_STYLE;
   const filter = props.fx ? fxFilter(props.fx) : undefined;
+  // grade（成片调色）：渲染期由 GLGradeMedia 替代媒体位（LUT WebGL pass），
+  // 外层 CSS 运镜/抖动照常作用；Player 预览回退原媒体（LUT 预览不可见）。
+  const useGradeMedia = Boolean(props.grade?.lutSrc) && isRendering;
 
   return (
     <AbsoluteFill style={{ ...style, ...(shake ? { left: shake.x, top: shake.y } : {}), ...(filter ? { filter } : {}) }}>
-      {props.kind === "image" ? (
+      {useGradeMedia ? (
+        <GLGradeMedia
+          src={props.src}
+          kind={props.kind}
+          trimStartFrames={props.trimStartFrames}
+          playbackRate={props.playbackRate}
+          durationInFrames={props.durationInFrames}
+          lutSrc={props.grade!.lutSrc!}
+          blend={props.grade!.blend}
+        />
+      ) : props.kind === "image" ? (
         <Img src={props.src} style={mediaStyle} />
       ) : (
         <OffthreadVideo

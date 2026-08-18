@@ -12,6 +12,8 @@ const currentFrame = { value: 0 };
 
 vi.mock("remotion", () => ({
   useCurrentFrame: () => currentFrame.value,
+  // GLGradeMedia 渲染期专用：测试（非渲染环境）下 isRendering=false 走原媒体分支。
+  useRemotionEnvironment: () => ({ isRendering: false, isClientSideRendering: false }),
   AbsoluteFill: ({ children, style }: { children?: unknown; style?: unknown }) =>
     <div data-testid="absolute-fill" data-style={JSON.stringify(style)}>
       {children as never}

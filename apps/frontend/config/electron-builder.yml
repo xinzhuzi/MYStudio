@@ -58,6 +58,12 @@ extraResources:
     filter:
       - "**/*"
       - "!art_skills/daojie_ink_guofeng/**"
+  # 成片调色 LUT 资产（08-18-haldclut-grade；生成源 build/scripts/generate-luts.py）。
+  - from: frontend/assets/luts
+    to: luts
+    filter:
+      - "**/*.png"
+      - LICENSES.md
       - "!story_skills/Daojie_xianxia/**"
       - "!**/.DS_Store"
       - "!**/__MACOSX/**"

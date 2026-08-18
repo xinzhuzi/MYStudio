@@ -36,6 +36,7 @@ import {
 } from "./timing";
 import { resolveSubtitleAuthority } from "@/lib/studio/video-workflow/subtitle-authority";
 import { DEFAULT_SUBTITLE_FONT_ID } from "@/lib/studio/remotion/subtitle-fonts";
+import { isCinematicLutId } from "./cinematic-luts";
 
 const CAPABILITY_URL = /^http:\/\/127\.0\.0\.1:\d+\/[a-f0-9]{64}\/[A-Za-z0-9._~-]+$/;
 const TEXT_HYPERFRAMES_TEMPLATES = new Set(["title-card", "kinetic-caption"]);
@@ -43,8 +44,15 @@ const TEXT_HYPERFRAMES_TEMPLATES = new Set(["title-card", "kinetic-caption"]);
 export function buildCompositionProps(
   plan: TimelineRenderPlan,
   mediaUrlByClipId: Readonly<Record<string, string>>,
+  lutUrlById?: Readonly<Record<string, string>>,
 ): CompositionProps {
   const fps = plan.renderSettings.fps;
+  // grade（成片调色）效果：params{lutId,blend}，lutId 闭集 fail-closed。
+  const gradeEffectByClipId = new Map(
+    plan.effects
+      .filter((effect) => effect.enabled && effect.effectId === "grade" && effect.targetClipId)
+      .map((effect) => [effect.targetClipId!, effect]),
+  );
   const visualClips = plan.clips
     .filter((clip) => clip.trackKind === "video" || clip.trackKind === "image")
     .sort(compareTimelineClips);
@@ -88,6 +96,7 @@ export function buildCompositionProps(
       transform: clip.transform ?? defaultTransform(),
       panZoom: panZoomForClip(panZoomByClipId.get(clip.id)),
       fx: visualFxForClip(fxEffectsByClipId.get(clip.id)),
+      ...gradeForClip(gradeEffectByClipId.get(clip.id), lutUrlById, clip.id),
       trimStartFrames: usToFrames(clip.trimStartUs, fps),
       playbackRate: clip.speed,
       muted: clip.muted,
@@ -174,6 +183,9 @@ export interface ChapterVideoSourceInput {
 export interface ChapterVideoCompositionInput extends ChapterVideoSourceInput {
   mediaUrlByClipId: Readonly<Record<string, string>>;
   mediaUrlByBindingId: Readonly<Record<string, string>>;
+  /** LUT 资产 URL（lutId → media-bridge URL；渲染入口注册 frontend/assets/luts）。
+   * plan.effects 含 grade 效果时必填，缺失 fail-closed。 */
+  lutUrlById?: Readonly<Record<string, string>>;
   hyperFramesOverlay?: {
     src: string;
     windows: readonly HyperFramesOverlayWindowV1[];
@@ -209,7 +221,7 @@ export function buildChapterVideoCompositionProps(
   const sourceValidation = inspectChapterVideoSource(input);
   if (!sourceValidation.success) return sourceValidation;
 
-  const base = buildCompositionProps(input.plan, input.mediaUrlByClipId);
+  const base = buildCompositionProps(input.plan, input.mediaUrlByClipId, input.lutUrlById);
   const audioClips: Array<CompositionAudioClipProps & { renderScope: "chapter" }> =
     input.chapterManifest.sharedAudioBindings.flatMap((binding) => {
       const from = usToFrames(binding.chapterStartUs, base.fps);
@@ -755,6 +767,26 @@ export function validateTransitionVoiceSafety(
     }
   }
   return issues;
+}
+
+function gradeForClip(
+  effect: Pick<EditingEffect, "params"> | undefined,
+  lutUrlById: Readonly<Record<string, string>> | undefined,
+  clipId: string,
+): { grade?: { lutId: string; lutSrc?: string; blend: number } } {
+  if (!effect) return {};
+  const params = effect.params as { lutId?: unknown; blend?: unknown } | undefined;
+  const lutId = String(params?.lutId ?? "");
+  if (!isCinematicLutId(lutId)) {
+    throw new Error(`镜 ${clipId} 的 grade.lutId 不在 LUT 闭集: ${lutId || "(空)"}`);
+  }
+  const blendRaw = Number(params?.blend ?? 1);
+  const blend = Number.isFinite(blendRaw) ? Math.min(1, Math.max(0, blendRaw)) : 1;
+  const lutSrc = lutUrlById?.[lutId];
+  if (!lutSrc) {
+    throw new Error(`镜 ${clipId} 的 grade 缺少 LUT 资源 URL（渲染入口须注册 LUT 资产: ${lutId}）`);
+  }
+  return { grade: { lutId, lutSrc, blend } };
 }
 
 function panZoomForClip(effect: Pick<EditingEffect, "params"> | undefined): CompositionPanZoom | undefined {

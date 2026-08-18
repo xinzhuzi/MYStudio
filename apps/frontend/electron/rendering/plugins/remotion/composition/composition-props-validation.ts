@@ -12,6 +12,7 @@ import {
   COMPOSITION_TRANSITION_EFFECTS,
   type CompositionTransitionEffect,
 } from "./timing";
+import { CINEMATIC_LUT_IDS } from "./cinematic-luts";
 // 固定 bundle 走 @remotion/bundler(webpack),不解析 vite 的 @/ 别名——
 // 共享注册表必须相对导入。
 import { isKnownSubtitleFontId } from "../../../../../lib/studio/remotion/subtitle-fonts";
@@ -165,7 +166,27 @@ function validateVisualClip(clip: unknown, path: string, issues: Issue[]): void 
   requirePositiveInteger(clip.durationInFrames, `${path}.durationInFrames`, issues);
   validateTransform(clip.transform, `${path}.transform`, issues);
   if (clip.fit !== undefined) requireEnum(clip.fit, VISUAL_FITS, `${path}.fit`, issues);
+  validateGrade(clip.grade, `${path}.grade`, issues);
   validateOptionalClipFields(clip, path, issues);
+}
+
+// grade（成片调色）：lutId 闭集 fail-closed（未知值拒渲染，铁律2）；blend 钳 0..1。
+function validateGrade(grade: unknown, path: string, issues: Issue[]): void {
+  if (grade === undefined) return;
+  if (!isRecord(grade)) {
+    issues.push({ path, message: "grade 必须是对象" });
+    return;
+  }
+  if (typeof grade.lutId === "string" && CINEMATIC_LUT_IDS.includes(grade.lutId)) {
+    if (typeof grade.lutSrc !== "string" || !grade.lutSrc) {
+      issues.push({ path: `${path}.lutSrc`, message: "grade 需要 LUT 资源 URL" });
+    }
+  } else {
+    issues.push({ path: `${path}.lutId`, message: `grade.lutId 不在 LUT 闭集: ${String(grade.lutId)}` });
+  }
+  if (!isFiniteNumber(grade.blend) || grade.blend < 0 || grade.blend > 1) {
+    issues.push({ path: `${path}.blend`, message: "grade.blend 必须是 0..1" });
+  }
 }
 
 function validateTransform(value: unknown, path: string, issues: Issue[]): void {

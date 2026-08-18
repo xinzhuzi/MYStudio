@@ -73,6 +73,18 @@ async function main() {
       });
     for (const src of mediaSources) session.register(src.clipId, src.absolutePath);
     if (hasOverlay) session.register("hyperframes-overlay", overlayMov);
+    // 成片调色 LUT 资产（08-18-haldclut-grade）：闭集见 composition/cinematic-luts.ts。
+    const lutsDir = path.join(APPS_ROOT, "frontend/assets/luts");
+    const lutUrlById: Record<string, string> = {};
+    if (fs.existsSync(lutsDir)) {
+      for (const f of fs.readdirSync(lutsDir).filter((f) => f.endsWith(".png"))) {
+        session.register(`lut-${f}`, path.join(lutsDir, f));
+      }
+      for (const e of mediaBridge.buildUrls(session, fs.readdirSync(lutsDir).filter((f) => f.endsWith(".png")).map((f) => `lut-${f}`))) {
+        lutUrlById[e.assetId.slice(4, -4)] = e.url; // lut-<id>.png → <id>
+      }
+      console.log("luts registered:", Object.keys(lutUrlById).length);
+    }
     const urlEntries = mediaBridge.buildUrls(session, [
       ...mediaSources.map((s) => s.clipId),
       ...(hasOverlay ? ["hyperframes-overlay"] : []),
@@ -97,6 +109,7 @@ async function main() {
       chapterManifest: manifest,
       mediaUrlByClipId,
       mediaUrlByBindingId: {},
+      lutUrlById,
       ...(customFontFaces?.length ? { customFontFaces } : {}),
       ...(hasOverlay && overlayUrl ? { hyperFramesOverlay: { src: overlayUrl, windows: overlayWindows } } : {}),
     } as never);
