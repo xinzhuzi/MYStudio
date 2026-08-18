@@ -23,6 +23,16 @@ const mocks = vi.hoisted(() => ({
   enterEpisode: vi.fn(),
   setActiveTab: vi.fn(),
   meta: null as SeriesMeta | null,
+  rawScript: "" as string,
+}));
+
+vi.mock("@/lib/ai/ai-manager", () => ({
+  aiManager: {
+    text: vi.fn(async () => ({
+      success: true,
+      text: JSON.stringify({ logline: "AI 建议的一句话概括", era: "古代仙侠" }),
+    })),
+  },
 }));
 
 vi.mock("@/stores/project/project-store", () => ({
@@ -39,6 +49,7 @@ vi.mock("@/stores/script/script-store", () => ({
     seriesMeta: mocks.meta,
     episodeRawScripts: [],
     scriptData: null,
+    rawScript: mocks.rawScript,
   }),
 }));
 
@@ -154,6 +165,47 @@ describe("OverviewPanel", () => {
       expect(setItem).toHaveBeenCalledWith("author-preference.md", expect.stringContaining("改编口味")),
     );
     delete (window as unknown as { fileStorage?: unknown }).fileStorage;
+  });
+
+  it("full-meta branch renders the workflow portal above the metadata header (R1 布局裁定)", () => {
+    render(<OverviewPanel />);
+    const body = document.body;
+    const text = body.textContent ?? "";
+    expect(text).toContain("进入工作流");
+    expect(text).toContain("项目概览");
+    expect(text).toContain("制作阶段");
+    // 门户区 DOM 顺序在概览头部之前
+    const enterWorkflow = [...body.querySelectorAll("button")].find((b) =>
+      b.textContent?.includes("进入工作流"),
+    );
+    const headerH2 = [...body.querySelectorAll("h2")].find((h) => h.textContent?.includes("项目概览"));
+    expect(enterWorkflow && headerH2).toBeTruthy();
+    expect(enterWorkflow!.compareDocumentPosition(headerH2!)).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
+  });
+
+  it("AI 填充：跳过问答生成 → 预览 → 确认写入 updateSeriesMeta（手填 genre 不被覆盖）", async () => {
+    mocks.rawScript = "# 道劫 EP01：断剑夜访道口镇\n正文素材";
+    render(<OverviewPanel />);
+
+    fireEvent.click(screen.getByRole("button", { name: /AI 填充/ }));
+    // R3 问答弹窗：答案不落盘的提示 + 跳过入口
+    expect(await screen.findByText(/只用于本次，不保存/)).toBeTruthy();
+    fireEvent.click(await screen.findByRole("button", { name: /跳过问题直接生成/ }));
+
+    // R2 预览弹窗
+    expect(await screen.findByText(/确认后写入/)).toBeTruthy();
+    expect(await screen.findByText(/AI 建议的一句话概括/)).toBeTruthy();
+    fireEvent.click(await screen.findByRole("button", { name: /确认填充/ }));
+
+    await waitFor(() =>
+      expect(mocks.updateSeriesMeta).toHaveBeenCalledWith(
+        "project-1",
+        expect.objectContaining({ logline: "AI 建议的一句话概括" }),
+      ),
+    );
+    // genre 已手填「武侠」→ 默认不勾选覆盖
+    const genreCall = mocks.updateSeriesMeta.mock.calls.at(-1)?.[1] as Record<string, unknown>;
+    expect(genreCall.genre).toBeUndefined();
   });
 
   it("shows the author preference entry in the no-meta guide branch too", async () => {

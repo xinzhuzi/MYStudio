@@ -66,7 +66,80 @@ import {
 } from "@/stores/artifacts/artifact-store";
 import type { DeletionConfirmation, DeletionPlan } from "@/types/artifacts";
 import { ArtifactDeleteDialog } from "../media/ArtifactDeleteDialog";
+import { readBibleWithArchiveContext } from "@/lib/studio/source-memory";
+import { OverviewAiFill } from "./OverviewAiFill";
 import { toast } from "sonner";
+
+/** 工作流门户区头部（两分支共用）：导览标题/摘要 + 进入工作流/查看资产库 CTA。 */
+function WorkflowGuideHeader(props: { onPrimary: () => void; onSecondary: () => void }) {
+  return (
+    <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
+      <div>
+        <h3 className="text-lg font-semibold text-foreground">
+          {OVERVIEW_WORKFLOW_GUIDE.title}
+        </h3>
+        <p className="mt-1 max-w-3xl text-sm leading-6 text-muted-foreground">
+          {OVERVIEW_WORKFLOW_GUIDE.summary}
+        </p>
+      </div>
+      <div className="flex flex-wrap gap-2">
+        <Button onClick={props.onPrimary} className="gap-2">
+          {OVERVIEW_WORKFLOW_GUIDE.primaryAction.label}
+          <ArrowRight className="h-4 w-4" />
+        </Button>
+        <Button variant="outline" onClick={props.onSecondary} className="gap-2">
+          {OVERVIEW_WORKFLOW_GUIDE.secondaryAction.label}
+          <ChevronRight className="h-4 w-4" />
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+/** 制作阶段说明卡（两分支共用）。阶段 id/label/icon 与工作流页 WORKFLOW_TABS 一致（见 stage-guide.ts）。 */
+function StageGuideGrid(props: { onEnterStage: (stageId: string) => void }) {
+  return (
+    <div>
+      <div className="mb-3 flex items-center gap-2 text-sm font-medium">
+        <Workflow className="h-4 w-4 text-primary" />
+        制作阶段
+        <span className="text-xs font-normal text-muted-foreground">· 各阶段功能说明</span>
+      </div>
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+      {OVERVIEW_STAGE_GUIDE.map((stage) => {
+        const StageIcon = stage.Icon;
+        return (
+          <div
+            key={stage.id}
+            className="group relative flex flex-col justify-between rounded-lg border bg-card p-3.5 shadow-sm transition-all duration-200 hover:border-primary/50 hover:shadow-md"
+          >
+            <div>
+              <div className="mb-2 flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2 min-w-0">
+                  <StageIcon className="h-4 w-4 text-primary shrink-0" />
+                  <span className="text-sm font-medium truncate">{stage.label}</span>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-7 px-2.5 text-xs shrink-0 gap-1 border-primary/20 hover:border-primary hover:bg-primary hover:text-primary-foreground transition-all duration-200"
+                  onClick={() => props.onEnterStage(stage.id)}
+                >
+                  <span>进入阶段</span>
+                  <ArrowRight className="h-3 w-3" />
+                </Button>
+              </div>
+              <p className="text-xs leading-5 text-muted-foreground">
+                {stage.description}
+              </p>
+            </div>
+          </div>
+        );
+      })}
+      </div>
+    </div>
+  );
+}
 
 // ==================== Main Component ====================
 
@@ -150,6 +223,18 @@ export function OverviewPanel() {
     [projectId, updateSeriesMeta],
   );
 
+  // R2:AI 填充素材——记忆库(偏好→圣经→档案检索)+剧本开头,复用管线注入链
+  const buildFillContext = useCallback(async (): Promise<string | undefined> => {
+    const memoryContext = await readBibleWithArchiveContext({
+      projectId,
+      archiveQuery: `${meta?.title ?? ""} ${scriptData?.title ?? ""}`.trim().slice(0, 200),
+    });
+    const scriptHead = scriptProject?.rawScript?.trim().slice(0, 800);
+    return [memoryContext, scriptHead ? `【剧本开头】\n${scriptHead}` : undefined]
+      .filter(Boolean)
+      .join("\n\n") || undefined;
+  }, [projectId, meta?.title, scriptData?.title, scriptProject?.rawScript]);
+
   if (!meta) {
     return (
       <div className="h-full p-6">
@@ -166,40 +251,15 @@ export function OverviewPanel() {
                 作者偏好
               </Button>
             </div>
-            <div className="mt-2 flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
-              <div>
-                <h3 className="text-lg font-semibold text-foreground">
-                  {OVERVIEW_WORKFLOW_GUIDE.title}
-                </h3>
-                <p className="mt-1 max-w-3xl text-sm leading-6 text-muted-foreground">
-                  {OVERVIEW_WORKFLOW_GUIDE.summary}
-                </p>
-              </div>
-              <div className="flex flex-wrap gap-2">
-                <Button
-                  onClick={() =>
-                    setActiveTab(
-                      OVERVIEW_WORKFLOW_GUIDE.primaryAction.targetTab,
-                    )
-                  }
-                  className="gap-2"
-                >
-                  {OVERVIEW_WORKFLOW_GUIDE.primaryAction.label}
-                  <ArrowRight className="h-4 w-4" />
-                </Button>
-                <Button
-                  variant="outline"
-                  onClick={() =>
-                    setActiveTab(
-                      OVERVIEW_WORKFLOW_GUIDE.secondaryAction.targetTab,
-                    )
-                  }
-                  className="gap-2"
-                >
-                  {OVERVIEW_WORKFLOW_GUIDE.secondaryAction.label}
-                  <ChevronRight className="h-4 w-4" />
-                </Button>
-              </div>
+            <div className="mt-2">
+              <WorkflowGuideHeader
+                onPrimary={() =>
+                  setActiveTab(OVERVIEW_WORKFLOW_GUIDE.primaryAction.targetTab)
+                }
+                onSecondary={() =>
+                  setActiveTab(OVERVIEW_WORKFLOW_GUIDE.secondaryAction.targetTab)
+                }
+              />
             </div>
           </div>
 
@@ -207,45 +267,7 @@ export function OverviewPanel() {
               工作流前就理解整条生产流水线。阶段 id/label/icon 与工作流
               页的 WORKFLOW_TABS 完全一致（见 stage-guide.ts）。 */}
           <div className="px-5 py-4">
-            <div className="mb-3 flex items-center gap-2 text-sm font-medium">
-              <Workflow className="h-4 w-4 text-primary" />
-              制作阶段
-              <span className="text-xs font-normal text-muted-foreground">
-                · 各阶段功能说明
-              </span>
-            </div>
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-              {OVERVIEW_STAGE_GUIDE.map((stage) => {
-                const StageIcon = stage.Icon;
-                return (
-                  <div
-                    key={stage.id}
-                    className="group relative flex flex-col justify-between rounded-lg border bg-card p-3.5 shadow-sm transition-all duration-200 hover:border-primary/50 hover:shadow-md"
-                  >
-                    <div>
-                      <div className="mb-2 flex items-center justify-between gap-2">
-                        <div className="flex items-center gap-2 min-w-0">
-                          <StageIcon className="h-4 w-4 text-primary shrink-0" />
-                          <span className="text-sm font-medium truncate">{stage.label}</span>
-                        </div>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="h-7 px-2.5 text-xs shrink-0 gap-1 border-primary/20 hover:border-primary hover:bg-primary hover:text-primary-foreground transition-all duration-200"
-                          onClick={() => handleEnterStage(stage.id)}
-                        >
-                          <span>进入阶段</span>
-                          <ArrowRight className="h-3 w-3" />
-                        </Button>
-                      </div>
-                      <p className="text-xs leading-5 text-muted-foreground">
-                        {stage.description}
-                      </p>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
+            <StageGuideGrid onEnterStage={handleEnterStage} />
           </div>
         </div>
         <AuthorPreferenceDialog open={prefOpen} onOpenChange={setPrefOpen} />
@@ -255,6 +277,21 @@ export function OverviewPanel() {
 
   return (
     <div className="h-full flex flex-col">
+      {/* 上部：工作流门户区（排版裁定 08-18：工作流在上，元数据在下） */}
+      <div className="shrink-0 max-h-[45%] overflow-y-auto border-b bg-panel/60">
+        <div className="mx-auto w-full max-w-6xl px-5 py-4 space-y-4">
+          <WorkflowGuideHeader
+            onPrimary={() =>
+              setActiveTab(OVERVIEW_WORKFLOW_GUIDE.primaryAction.targetTab)
+            }
+            onSecondary={() =>
+              setActiveTab(OVERVIEW_WORKFLOW_GUIDE.secondaryAction.targetTab)
+            }
+          />
+          <StageGuideGrid onEnterStage={handleEnterStage} />
+        </div>
+      </div>
+
       {/* Header */}
       <div className="p-3 pb-2 bg-panel border-b flex items-center justify-between shrink-0">
         <div className="flex items-center gap-2">
@@ -279,6 +316,12 @@ export function OverviewPanel() {
             {episodes.length} 集 · {meta.characters.length} 角色 ·{" "}
             {meta.factions?.length || 0} 阵营 · {meta.keyItems?.length || 0} 物品
           </span>
+          <OverviewAiFill
+            meta={meta}
+            onApply={(updates) => update(updates)}
+            buildContext={buildFillContext}
+            onOpenPreference={() => setPrefOpen(true)}
+          />
           <Button variant="outline" size="sm" onClick={() => setPrefOpen(true)}>
             <SlidersHorizontal className="h-3.5 w-3.5" />
             作者偏好
