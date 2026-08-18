@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
-  getItem: vi.fn(async () => null),
+  getItem: vi.fn(async (_key: string): Promise<string | null> => null),
   removeItem: vi.fn(async () => undefined),
   setItem: vi.fn(async () => undefined),
 }));
