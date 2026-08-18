@@ -212,6 +212,36 @@ describe("createStudioWorkflowShardedStorage", () => {
     expect(hoisted.files.has("_p/proj-1/studio-workflow/manifest")).toBe(false);
   });
 
+  it("skips rewriting unchanged shards on subsequent saves (增量写)", async () => {
+    const value = buildPersistedValue();
+    await storage.setItem("studio-workflow-store", value);
+    const writesAfterFirst = hoisted.setItem.mock.calls.length;
+
+    // 完全相同的值再保存 → 零分片/manifest 写入（逐片名+内容比对全部命中）
+    await storage.setItem("studio-workflow-store", value);
+    expect(hoisted.setItem.mock.calls.length).toBe(writesAfterFirst);
+
+    // 只改第 1 章正文 → 仅该章新分片 + manifest；其他分片零重写
+    const changed = JSON.parse(value) as {
+      state: { novelChapters: Array<{ id: string; sourceText: string }> };
+    };
+    changed.state.novelChapters[0]!.sourceText = "正文被编辑";
+    const changedValue = JSON.stringify(changed);
+    await storage.setItem("studio-workflow-store", changedValue);
+    const newWrites = hoisted.setItem.mock.calls
+      .slice(writesAfterFirst)
+      .map(([key]) => key as string);
+    expect(newWrites.some((key) => key.includes("chapters/chapter-001/novel-chapters-"))).toBe(true);
+    expect(newWrites).toContain("_p/proj-1/studio-workflow/manifest");
+    // 未变化域零写入
+    expect(newWrites.some((key) => key.includes("storyboards-"))).toBe(false);
+    expect(newWrites.some((key) => key.includes("chapters/chapter-002/novel-chapters-"))).toBe(false);
+    expect(newWrites.some((key) => key.includes("core-"))).toBe(false);
+    // 数据无损：读回等于本次保存值
+    const restored = await storage.getItem("studio-workflow-store");
+    expect(JSON.parse(restored!)).toEqual(JSON.parse(changedValue));
+  });
+
   it("reads an empty-state manifest (zero shards) as an empty envelope", async () => {
     hoisted.files.set(
       "_p/proj-1/studio-workflow/manifest",

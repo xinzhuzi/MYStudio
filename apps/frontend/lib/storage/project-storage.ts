@@ -18,6 +18,7 @@ import {
   parseStudioWorkflowShardManifest,
   planStudioWorkflowShards,
   STUDIO_WORKFLOW_SHARD_DIR,
+  type StudioWorkflowShardManifest,
 } from './studio-workflow-shards';
 // 权威模板原样打进渲染包（?raw 内联字符串）；与仓内 assets/docs 同源
 import readmeTemplate from '@/assets/docs/studio-workflow/README.md?raw';
@@ -209,8 +210,16 @@ function createWriteSerializer(): (action: () => Promise<void>) => Promise<void>
  * - setItem: 拆片写入（单条超限独占一片，绝不截断）→ manifest 最后原子换新 →
  *   旧单文件改名 `studio-workflow-store.bak-sharded-<ts>` 保留 → 清理未列出孤儿
  */
+/** 增量写缓存：上一代分片（按 pid 隔离）。文件名含内容指纹且比对到内容串，未变分片零重写。 */
+interface PreviousShardGeneration {
+  pid: string;
+  manifest: StudioWorkflowShardManifest;
+  filesByName: Map<string, string>;
+}
+
 export function createStudioWorkflowShardedStorage(storeName: string): StateStorage {
   const serializeWrite = createWriteSerializer();
+  let previousGeneration: PreviousShardGeneration | null = null;
 
   const readMergedShards = async (pid: string): Promise<string | null> => {
     const manifestRaw = await fileStorage.getItem(`${shardFileKeyPrefix(pid)}/manifest`);
@@ -287,6 +296,7 @@ export function createStudioWorkflowShardedStorage(storeName: string): StateStor
         } catch (error) {
           console.error('[StudioWorkflowShardedStorage] 分片规划失败，回退旧单文件写:', error);
           await fileStorage.setItem(`_p/${pid}/${storeName}`, value);
+          previousGeneration = null;
           return;
         }
         if (plan.oversizedFiles.length > 0) {
@@ -296,12 +306,30 @@ export function createStudioWorkflowShardedStorage(storeName: string): StateStor
         }
 
         const prefix = shardFileKeyPrefix(pid);
-        // 先写全部分片（stamp 命名不会覆盖旧代文件），manifest 最后换新——
-        // 中途崩溃时旧 manifest 仍指向完整旧代，读端不会拿到混合代。
+        // 增量写（08-18）：与上一代（同 pid）逐片比对「文件名+内容串」——未变化的
+        // 分片已在新旧两代 manifest 中同名存在且内容一致，跳过重写；改一章只写
+        // 该章新文件。名同内容异（指纹碰撞，概率 ~2^-32）按变更处理原地重写。
+        // 应用重启/切项目后缓存为空 → 首次保存退化为全量，正确性不受影响。
+        // manifest 最后原子换新——中途崩溃时旧 manifest 仍指向完整旧代。
+        const previous = previousGeneration && previousGeneration.pid === pid
+          ? previousGeneration
+          : null;
         for (const file of plan.files) {
+          if (previous && previous.filesByName.get(file.name) === file.content) continue;
           await fileStorage.setItem(shardKeyForFile(pid, file.name), file.content);
         }
-        await fileStorage.setItem(`${prefix}/manifest`, JSON.stringify(plan.manifest, null, 2));
+        const manifestContent = JSON.stringify(plan.manifest, null, 2);
+        const previousManifestContent = previous
+          ? JSON.stringify(previous.manifest, null, 2)
+          : null;
+        if (manifestContent !== previousManifestContent) {
+          await fileStorage.setItem(`${prefix}/manifest`, manifestContent);
+        }
+        previousGeneration = {
+          pid,
+          manifest: plan.manifest,
+          filesByName: new Map(plan.files.map((file) => [file.name, file.content])),
+        };
 
         // 旧单文件改名保留（只改名不删；已改名过则为空操作）
         const legacyKey = `_p/${pid}/${storeName}`;
@@ -367,6 +395,7 @@ export function createStudioWorkflowShardedStorage(storeName: string): StateStor
     },
 
     removeItem: async (name: string): Promise<void> => {
+      previousGeneration = null;
       const pid = getActiveProjectId();
       if (!pid) {
         await fileStorage.removeItem(name);
