@@ -31,13 +31,18 @@ export function buildCspPolicy(inlineScriptHashes: readonly string[]): string {
   ].join('; ');
 }
 
-/** 计算 html 中无 src 内联脚本(整段字节)的 sha256 base64 指纹。 */
+/** 计算 html 中无 src 内联脚本(整段字节)的 sha256 base64 指纹。
+ *
+ *  HTML 解析器会把输入流的 CRLF/CR 归一化为 LF 再进 DOM,Chromium 的 CSP
+ *  内联哈希按解析后内容计算;源文件混用 CRLF/LF 时原始字节哈希会与运行时
+ *  哈希错位导致脚本被拦,故这里对捕获内容做同样的归一化。 */
 export function extractInlineScriptHashes(html: string): string[] {
   const hashes: string[] = [];
   const pattern = /<script(?![^>]*\bsrc=)[^>]*>([\s\S]*?)<\/script>/gi;
   let match: RegExpExecArray | null;
   while ((match = pattern.exec(html)) !== null) {
-    hashes.push(crypto.createHash('sha256').update(match[1], 'utf8').digest('base64'));
+    const content = match[1].replace(/\r\n?/g, '\n');
+    hashes.push(crypto.createHash('sha256').update(content, 'utf8').digest('base64'));
   }
   return hashes;
 }

@@ -22,6 +22,15 @@ describe("extractInlineScriptHashes", () => {
   it("produces a stable hash for identical content", () => {
     expect(extractInlineScriptHashes(SAMPLE_HTML)).toEqual(extractInlineScriptHashes(SAMPLE_HTML));
   });
+
+  it("hashes CRLF sources identically to LF (HTML parser normalizes newlines before CSP)", () => {
+    // 回归:渲染 index.html 曾被编辑器写入混合 CRLF/LF,原始字节哈希与 Chromium
+    // 解析后内容的哈希错位,主题防闪脚本被 CSP 拦截(installed smoke 红)。
+    const crlfHtml = SAMPLE_HTML.replace(/\n/g, "\r\n");
+    expect(extractInlineScriptHashes(crlfHtml)).toEqual(extractInlineScriptHashes(SAMPLE_HTML));
+    const loneCrHtml = SAMPLE_HTML.replace(/\n/g, "\r");
+    expect(extractInlineScriptHashes(loneCrHtml)).toEqual(extractInlineScriptHashes(SAMPLE_HTML));
+  });
 });
 
 describe("buildCspPolicy", () => {
