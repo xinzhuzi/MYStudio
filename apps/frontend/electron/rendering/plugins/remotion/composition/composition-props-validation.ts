@@ -14,7 +14,7 @@ import {
 } from "./timing";
 // 固定 bundle 走 @remotion/bundler(webpack),不解析 vite 的 @/ 别名——
 // 共享注册表必须相对导入。
-import { isSubtitleFontId } from "../../../../../lib/studio/remotion/subtitle-fonts";
+import { isKnownSubtitleFontId } from "../../../../../lib/studio/remotion/subtitle-fonts";
 
 const VISUAL_KINDS = ["image", "video"] as const;
 const VISUAL_FITS = ["cover", "contain"] as const;
@@ -41,8 +41,18 @@ export function validateCompositionProps(
   validateArray(value.transitions, "transitions", issues, validateTransition);
   validateArray(value.audioClips, "audioClips", issues, validateAudioClip);
   validateArray(value.subtitles, "subtitles", issues, validateSubtitle);
-  if (value.subtitleFont !== undefined && !isSubtitleFontId(value.subtitleFont)) {
+  if (value.subtitleFont !== undefined && !isKnownSubtitleFontId(value.subtitleFont)) {
     issues.push({ path: "subtitleFont", message: "字幕字体必须是注册表内的字体 id" });
+  }
+  if (value.customFonts !== undefined) {
+    if (!Array.isArray(value.customFonts)) issues.push({ path: "customFonts", message: "customFonts 必须是数组" });
+    else value.customFonts.forEach((face, index) => {
+      if (!isRecord(face) || typeof (face as { family?: unknown }).family !== "string" || !(face as { family?: string }).family?.trim()) {
+        issues.push({ path: `customFonts[${index}].family`, message: "字体面 family 必须是非空字符串" });
+      } else if (typeof (face as { url?: unknown }).url !== "string" || !/^http:\/\/127\.0\.0\.1:\d+\//.test((face as { url: string }).url)) {
+        issues.push({ path: `customFonts[${index}].url`, message: "字体面 url 必须是本机 capability URL" });
+      }
+    });
   }
   if (value.overlayClips !== undefined) {
     validateArray(value.overlayClips, "overlayClips", issues, validateOverlayClip);

@@ -25,13 +25,39 @@ export type SubtitleFontId = (typeof SUBTITLE_FONT_IDS)[number];
 export const DEFAULT_SUBTITLE_FONT_ID: SubtitleFontId = "ma-shan-zheng";
 
 /** 风格分组：设置页按此分组展示。 */
-export const SUBTITLE_FONT_CATEGORIES = ["calligraphy", "modern"] as const;
+export const SUBTITLE_FONT_CATEGORIES = ["calligraphy", "modern", "custom"] as const;
 export type SubtitleFontCategory = (typeof SUBTITLE_FONT_CATEGORIES)[number];
 
 export const SUBTITLE_FONT_CATEGORY_LABELS: Readonly<Record<SubtitleFontCategory, string>> = {
   calligraphy: "书法 · 仙侠武侠",
   modern: "现代 · 正文",
+  custom: "自定义",
 };
+
+/** 自定义字体 id 形态：custom:<slug>（slug=文件名净化，含中文）。 */
+const CUSTOM_FONT_ID_PREFIX = "custom:";
+const CUSTOM_SLUG_PATTERN = /^custom:[\w\u4e00-\u9fff][\w\u4e00-\u9fff-]{0,63}$/;
+
+/** 自定义字体的 @font-face 家族名（渲染端与 UI 端按 id 同式推导）。 */
+export function customFontFamilyForId(id: string): string {
+  return `MYStudioCustom ${id.slice(CUSTOM_FONT_ID_PREFIX.length)}`;
+}
+
+/** 由文件名推导自定义字体 id（slug 净化：字母数字中文与连字符）。 */
+export function customSubtitleFontIdForFileName(fileName: string): string {
+  const base = fileName.replace(/\.(ttf|otf|woff2)$/i, "");
+  const slug = base.replace(/[^\w\u4e00-\u9fff]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 64) || "font";
+  return `${CUSTOM_FONT_ID_PREFIX}${slug}`;
+}
+
+export function isCustomSubtitleFontId(value: unknown): value is string {
+  return typeof value === "string" && CUSTOM_SLUG_PATTERN.test(value);
+}
+
+/** 自定义字体在设置页的展示名（去扩展名；id 去前缀）。 */
+export function customFontLabelForId(id: string): string {
+  return id.slice(CUSTOM_FONT_ID_PREFIX.length);
+}
 
 export interface SubtitleFontStyle {
   /** 设置页展示名。 */
@@ -139,10 +165,29 @@ export function isSubtitleFontId(value: unknown): value is SubtitleFontId {
   return typeof value === "string" && (SUBTITLE_FONT_IDS as readonly string[]).includes(value);
 }
 
-/** 未知/缺省 id 一律回落默认字体（fail-open 到默认值，缺字不缺字幕）。 */
+/** 全量 id 校验：静态白名单 + 自定义字体 id 形态（持久化边界两侧共用）。 */
+export function isKnownSubtitleFontId(value: unknown): value is string {
+  return isSubtitleFontId(value) || isCustomSubtitleFontId(value);
+}
+
+/** 未知/缺省 id 一律回落默认字体（fail-open 到默认值，缺字不缺字幕）；
+ * 自定义 id（custom:*)解析为单字重书法类样式，字体家族由渲染端注入。 */
 export function resolveSubtitleFontStyle(fontId: string | undefined): SubtitleFontStyle {
-  const id = isSubtitleFontId(fontId) ? fontId : DEFAULT_SUBTITLE_FONT_ID;
-  return SUBTITLE_FONT_STYLES[id];
+  if (isSubtitleFontId(fontId)) return SUBTITLE_FONT_STYLES[fontId];
+  if (isCustomSubtitleFontId(fontId)) {
+    return {
+      label: customFontLabelForId(fontId),
+      description: "自定义导入字体。",
+      category: "custom",
+      fontFamily: `'${customFontFamilyForId(fontId)}', 'Kaiti SC', 'Noto Sans SC', 'PingFang SC', sans-serif`,
+      fontSize: 56,
+      fontWeight: 400,
+      letterSpacing: "0.06em",
+      color: "#fdfaf2",
+      outlinePx: 3,
+    };
+  }
+  return SUBTITLE_FONT_STYLES[DEFAULT_SUBTITLE_FONT_ID];
 }
 
 /**

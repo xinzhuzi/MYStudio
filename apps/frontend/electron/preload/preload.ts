@@ -478,6 +478,13 @@ function parseVideoWorkflowChapterRead(value: unknown): VideoWorkflowChapterRead
   return result.value
 }
 
+contextBridge.exposeInMainWorld('subtitleFonts', {
+  list: async () => ipcRenderer.invoke('subtitleFonts:list'),
+  import: async () => ipcRenderer.invoke('subtitleFonts:import'),
+  delete: async (fontId: string) => ipcRenderer.invoke('subtitleFonts:delete', fontId),
+  read: async (fontId: string) => ipcRenderer.invoke('subtitleFonts:read', fontId),
+})
+
 contextBridge.exposeInMainWorld('videoWorkflowPlugins', {
   status: async (): Promise<VideoWorkflowStatusReplyV1> =>
     parseVideoWorkflowStatus(await ipcRenderer.invoke(VIDEO_WORKFLOW_STATUS_CHANNEL)),

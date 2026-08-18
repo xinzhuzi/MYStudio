@@ -523,6 +523,12 @@ declare global {
       ) => () => void;
       workspaceRuntime?: () => Promise<RemotionWorkspaceRuntimeReply>;
     };
+    subtitleFonts?: {
+      list: () => Promise<Array<{ id: string; label: string; family: string; fileName: string; sizeBytes: number }>>;
+      import: () => Promise<{ success: true; font: { id: string; label: string; family: string; fileName: string; sizeBytes: number } } | { success: false; code: string; message?: string }>;
+      delete: (fontId: string) => Promise<{ success: true } | { success: false; code: string; message?: string }>;
+      read: (fontId: string) => Promise<{ success: true; data: ArrayBuffer } | { success: false; code: string; message?: string }>;
+    };
     videoWorkflowPlugins?: {
       status: () => Promise<VideoWorkflowStatusReplyV1>;
       prepare: (request: VideoWorkflowPluginActionRequestV1) => Promise<VideoWorkflowActionReplyV1>;

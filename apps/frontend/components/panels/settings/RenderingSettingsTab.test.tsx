@@ -98,6 +98,7 @@ describe("RenderingSettingsTab", () => {
       "字幕字体",
       "书法 · 仙侠武侠",
       "现代 · 正文",
+      "自定义",
       "Remotion Headless Shell",
       "HyperFrames",
       "video-use",
@@ -134,11 +135,12 @@ describe("RenderingSettingsTab", () => {
     expect(families[4]).toContain("Liu Jian Mao Cao");
     expect(families[5]).toContain("Noto Serif SC");
     expect(families[6]).toContain("Noto Sans SC");
-    // 分组小标题可见
+    // 分组小标题可见（含自定义组）
     expect(screen.getByText("书法 · 仙侠武侠")).toBeTruthy();
     expect(screen.getByText("现代 · 正文")).toBeTruthy();
-    // R3 自定义字体入口以禁用态占位
-    expect((screen.getByRole("button", { name: /导入自定义字体/ }) as HTMLButtonElement).disabled).toBe(true);
+    expect(screen.getByText("自定义")).toBeTruthy();
+    // 自定义字体导入入口可用（无字体时空态提示）
+    expect((screen.getByRole("button", { name: /导入自定义字体/ }) as HTMLButtonElement).disabled).toBe(false);
   });
 
   it("collapses plugin modules with status summary visible and remembers the choice", async () => {

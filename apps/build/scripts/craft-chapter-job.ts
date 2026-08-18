@@ -16,6 +16,12 @@ import type { RemotionChapterManifestV2 } from "@/types/remotion-workspace";
 import type { EditingProjectV1 } from "@/types/editing";
 
 const MA = "/Users/zhengbingjin/Project/IP/MA";
+
+function maEditingJsonPath(): string {
+  const migrated = path.join(MA, "store", "editing.json");
+  return fs.existsSync(migrated) ? migrated : path.join(MA, "editing.json");
+}
+
 const QUEUE = "/Users/zhengbingjin/Library/Application Support/漫影工作室/projects/_remotion/queue/queue-state.json";
 const CHAPTER_ID = "chapter-001";
 const PROJECT_ID = "49dce4c1-64b1-42de-85c2-9f266698aec4";
@@ -30,7 +36,7 @@ function sha256Json(v: unknown): string {
 async function main() {
   const now = Date.now();
   // 1. editing 工程（当前 revision）
-  const editing = JSON.parse(fs.readFileSync(path.join(MA, "editing.json"), "utf8"));
+  const editing = JSON.parse(fs.readFileSync(maEditingJsonPath(), "utf8"));
   const state = editing.state ?? editing;
   const projects = state.editingProjects ?? {};
   const projectEntry = Object.values<Record<string, unknown>>(projects)

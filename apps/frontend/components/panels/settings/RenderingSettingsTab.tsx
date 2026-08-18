@@ -21,10 +21,48 @@ import {
   SUBTITLE_FONT_CATEGORY_LABELS,
   SUBTITLE_FONT_IDS,
   SUBTITLE_FONT_STYLES,
+  resolveSubtitleFontStyle,
   subtitleTextShadow,
 } from "@/lib/studio/remotion/subtitle-fonts";
 
 const SUBTITLE_FONT_SAMPLE_TEXT = "道劫风云，剑指苍穹。";
+
+/** 字体选项卡：内置与自定义共用，样式经注册表统一解析（含 custom:*）。 */
+function FontOptionCard(props: { id: string; selected: boolean; onSelect: () => void }) {
+  const style = resolveSubtitleFontStyle(props.id);
+  return (
+    <button
+      type="button"
+      role="radio"
+      aria-checked={props.selected}
+      onClick={props.onSelect}
+      className={`w-full rounded-xl border p-4 text-left transition-colors ${props.selected ? "border-primary bg-primary/10" : "border-border hover:bg-muted/40"}`}
+    >
+      <div className="flex items-center justify-between gap-3">
+        <span className="font-medium text-foreground">{style.label}</span>
+        {props.selected && <Check className="h-4 w-4 text-primary" aria-hidden="true" />}
+      </div>
+      <p className="mt-2 text-xs leading-5 text-muted-foreground">{style.description}</p>
+      {/* 样张=该字体成片输出的真实样式(同字体/字重/暖白/描边),缩放到卡片尺寸 */}
+      <div className="mt-3 flex justify-center overflow-hidden rounded-lg bg-black/80 px-3 py-2.5" aria-hidden="true">
+        <span
+          style={{
+            fontFamily: style.fontFamily,
+            fontWeight: style.fontWeight,
+            fontSize: 24,
+            lineHeight: 1.4,
+            letterSpacing: style.letterSpacing,
+            color: style.color,
+            textShadow: subtitleTextShadow(2),
+            whiteSpace: "nowrap",
+          }}
+        >
+          {SUBTITLE_FONT_SAMPLE_TEXT}
+        </span>
+      </div>
+    </button>
+  );
+}
 
 /** 折叠状态记忆键：值为被折叠模块 id 数组（默认全展开）。 */
 const COLLAPSE_STORAGE_KEY = "mystudio.settings.rendering.collapsedModules";
@@ -64,6 +102,50 @@ export function RenderingSettingsTab({ embedded = false }: RenderingSettingsTabP
   const workflowConfig = useStudioStore((state) => state.workflowConfig);
   const setWorkflowConfig = useStudioStore((state) => state.setWorkflowConfig);
   const selectedSubtitleFont = workflowConfig.subtitleFont ?? DEFAULT_SUBTITLE_FONT_ID;
+  // 自定义字体：主进程 <userData>/SubtitleFonts 管理，UI 侧 FontFace 挂样张。
+  const [customFonts, setCustomFonts] = React.useState<Array<{ id: string; label: string; family: string; fileName: string; sizeBytes: number }>>([]);
+  const [importingFont, setImportingFont] = React.useState(false);
+  const refreshCustomFonts = React.useCallback(async () => {
+    try {
+      const list = await window.subtitleFonts?.list();
+      if (Array.isArray(list)) setCustomFonts(list);
+    } catch {
+      // 桥未接入（测试环境）保持空列表
+    }
+  }, []);
+  React.useEffect(() => { void refreshCustomFonts(); }, [refreshCustomFonts]);
+  const ensureCustomFontFace = React.useCallback(async (fontId: string, family: string) => {
+    if (document.fonts.check(`400 24px "${family}"`)) return;
+    try {
+      const reply = await window.subtitleFonts?.read(fontId);
+      if (!reply?.success || !reply.data) return;
+      const loaded = new FontFace(family, reply.data);
+      await loaded.load();
+      document.fonts.add(loaded);
+    } catch {
+      // 读取/加载失败：样张回退系统楷体，不阻塞设置页
+    }
+  }, []);
+  React.useEffect(() => {
+    for (const font of customFonts) void ensureCustomFontFace(font.id, font.family);
+  }, [customFonts, ensureCustomFontFace]);
+  const importCustomFont = async () => {
+    setImportingFont(true);
+    try {
+      const reply = await window.subtitleFonts?.import();
+      if (!reply) throw new Error("当前环境未接入字体导入");
+      if (!reply.success) {
+        if (reply.code !== "canceled") toast.error(`导入失败: ${reply.message ?? reply.code}`);
+        return;
+      }
+      await refreshCustomFonts();
+      toast.success(`已导入「${reply.font.label}」，选择后对新发起的渲染生效`);
+    } catch (error) {
+      toast.error(`导入失败: ${error instanceof Error ? error.message : String(error)}`);
+    } finally {
+      setImportingFont(false);
+    }
+  };
   // 模块折叠：默认全展开（用户拍板），手动折叠后 localStorage 记忆。
   const [collapsedModules, setCollapsedModules] = React.useState<Set<string>>(() => readCollapsedModules());
   const toggleModuleCollapsed = (moduleId: string) => {
@@ -271,7 +353,7 @@ export function RenderingSettingsTab({ embedded = false }: RenderingSettingsTabP
                           字幕字体
                         </h5>
                         <p className="text-xs text-muted-foreground">烧录字幕的字体，按风格分组；对新发起的分镜与章节渲染生效（缺省=毛笔楷书）。</p>
-                        {SUBTITLE_FONT_CATEGORIES.map((category) => (
+                        {SUBTITLE_FONT_CATEGORIES.filter((category) => category !== "custom").map((category) => (
                           <div key={category} className="space-y-2 pt-2">
                             <h6 className="text-xs font-medium text-muted-foreground">{SUBTITLE_FONT_CATEGORY_LABELS[category]}</h6>
                             <div
@@ -281,52 +363,57 @@ export function RenderingSettingsTab({ embedded = false }: RenderingSettingsTabP
                             >
                               {SUBTITLE_FONT_IDS
                                 .filter((id) => SUBTITLE_FONT_STYLES[id].category === category)
-                                .map((id) => {
-                                  const style = SUBTITLE_FONT_STYLES[id];
-                                  const selected = selectedSubtitleFont === id;
-                                  return (
-                                    <button
-                                      key={id}
-                                      type="button"
-                                      role="radio"
-                                      aria-checked={selected}
-                                      onClick={() => setWorkflowConfig({ subtitleFont: id })}
-                                      className={`rounded-xl border p-4 text-left transition-colors ${selected ? "border-primary bg-primary/10" : "border-border hover:bg-muted/40"}`}
-                                    >
-                                      <div className="flex items-center justify-between gap-3">
-                                        <span className="font-medium text-foreground">{style.label}</span>
-                                        {selected && <Check className="h-4 w-4 text-primary" aria-hidden="true" />}
-                                      </div>
-                                      <p className="mt-2 text-xs leading-5 text-muted-foreground">{style.description}</p>
-                                      {/* 样张=该字体成片输出的真实样式(同字体/字重/暖白/描边),缩放到卡片尺寸 */}
-                                      <div className="mt-3 flex justify-center overflow-hidden rounded-lg bg-black/80 px-3 py-2.5" aria-hidden="true">
-                                        <span
-                                          style={{
-                                            fontFamily: style.fontFamily,
-                                            fontWeight: style.fontWeight,
-                                            fontSize: 24,
-                                            lineHeight: 1.4,
-                                            letterSpacing: style.letterSpacing,
-                                            color: style.color,
-                                            textShadow: subtitleTextShadow(2),
-                                            whiteSpace: "nowrap",
-                                          }}
-                                        >
-                                          {SUBTITLE_FONT_SAMPLE_TEXT}
-                                        </span>
-                                      </div>
-                                    </button>
-                                  );
-                                })}
+                                .map((id) => (
+                                  <FontOptionCard
+                                    key={id}
+                                    id={id}
+                                    selected={selectedSubtitleFont === id}
+                                    onSelect={() => setWorkflowConfig({ subtitleFont: id })}
+                                  />
+                                ))}
                             </div>
                           </div>
                         ))}
-                        {/* R3 自定义字体导入（独立子任务,本轮只留禁用占位） */}
-                        <div className="pt-1">
-                          <Button variant="outline" size="sm" disabled aria-label="导入自定义字体（规划中）">
-                            <Plus className="h-4 w-4" aria-hidden="true" />
-                            导入自定义字体（规划中）
-                          </Button>
+                        <div className="space-y-2 pt-2">
+                          <h6 className="text-xs font-medium text-muted-foreground">{SUBTITLE_FONT_CATEGORY_LABELS.custom}</h6>
+                          {customFonts.length === 0 ? (
+                            <p className="text-xs text-muted-foreground">尚未导入自定义字体；导入后可用于烧录字幕。</p>
+                          ) : (
+                            <div className="grid gap-3 md:grid-cols-3" role="radiogroup" aria-label="字幕字体：自定义">
+                              {customFonts.map((font) => (
+                                <div key={font.id} className="relative">
+                                  <FontOptionCard
+                                    id={font.id}
+                                    selected={selectedSubtitleFont === font.id}
+                                    onSelect={() => setWorkflowConfig({ subtitleFont: font.id })}
+                                  />
+                                  <button
+                                    type="button"
+                                    aria-label={`删除字体 ${font.label}`}
+                                    className="absolute right-2 top-2 rounded-md p-1 text-muted-foreground/60 hover:bg-muted hover:text-foreground"
+                                    onClick={async () => {
+                                      const reply = await window.subtitleFonts?.delete(font.id);
+                                      if (reply?.success) {
+                                        toast.success(`已删除「${font.label}」`);
+                                        if (selectedSubtitleFont === font.id) setWorkflowConfig({ subtitleFont: DEFAULT_SUBTITLE_FONT_ID });
+                                        await refreshCustomFonts();
+                                      } else {
+                                        toast.error(`删除失败: ${reply?.message ?? "未知错误"}`);
+                                      }
+                                    }}
+                                  >
+                                    <span className="text-xs">删除</span>
+                                  </button>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                          <div className="pt-1">
+                            <Button variant="outline" size="sm" onClick={() => void importCustomFont()} disabled={importingFont}>
+                              {importingFont ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : <Plus className="h-4 w-4" aria-hidden="true" />}
+                              导入自定义字体（.ttf / .otf / .woff2，≤20MB）
+                            </Button>
+                          </div>
                         </div>
                       </div>
 

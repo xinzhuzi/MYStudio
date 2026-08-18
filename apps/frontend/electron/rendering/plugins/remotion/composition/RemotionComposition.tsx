@@ -1,6 +1,7 @@
 import { AbsoluteFill, OffthreadVideo, Sequence, useCurrentFrame } from "remotion";
 import { AudioClip } from "./AudioClip";
 import { CinematicVisualClip } from "./CinematicVisualClip";
+import { CustomFontFaceLoader } from "./CustomFontFaceLoader";
 import type {
   CompositionProps,
   CompositionTransitionProps,
@@ -15,6 +16,7 @@ import { VisualClip } from "./VisualClip";
 export function RemotionComposition(props: CompositionProps): React.ReactElement {
   return (
     <AbsoluteFill style={{ backgroundColor: "#000", overflow: "hidden" }}>
+      {props.customFonts?.length ? <CustomFontFaceLoader fonts={props.customFonts} /> : null}
       {props.visualClips.map((clip) => (
         <Sequence
           key={clip.clipId}

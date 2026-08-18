@@ -178,6 +178,9 @@ export interface ChapterVideoCompositionInput extends ChapterVideoSourceInput {
     src: string;
     windows: readonly HyperFramesOverlayWindowV1[];
   };
+  /** 主进程渲染主机注入的自定义字体面（capability URL；仅当前字幕字体为
+   * custom:* 时非空，烧录端 delayRender 挂载）。 */
+  customFontFaces?: Array<{ family: string; url: string }>;
 }
 
 export interface ChapterVoiceInterval {
@@ -256,6 +259,7 @@ export function buildChapterVideoCompositionProps(
     visualClips: base.visualClips.map((clip) => ({ ...clip, muted: false })),
     subtitles: base.subtitles.filter((cue) => !suppressedCueIds.has(cue.cueId)),
     audioClips,
+    ...(input.customFontFaces?.length ? { customFonts: input.customFontFaces } : {}),
     ...(overlayClips.length > 0 ? { overlayClips } : {}),
   };
   const validation = validateChapterVideoCompositionProps(props);

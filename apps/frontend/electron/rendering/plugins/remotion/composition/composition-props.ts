@@ -216,8 +216,11 @@ export type CompositionProps = Record<string, unknown> & {
   transitions: CompositionTransitionProps[];
   audioClips: CompositionAudioClipProps[];
   subtitles: CompositionSubtitleCueProps[];
-  /** 烧录字幕字体 id（注册表白名单；缺省回落毛笔楷书）。 */
+  /** 烧录字幕字体 id（注册表白名单+custom:* 形态；缺省回落毛笔楷书）。 */
   subtitleFont?: string;
+  /** 运行时注入的字体面（自定义字体经 media bridge URL 加载；渲染端
+   * delayRender+FontFace 挂载后再出帧）。 */
+  customFonts?: Array<{ family: string; url: string }>;
   overlayClips?: CompositionOverlayClipProps[];
 };
 

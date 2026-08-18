@@ -160,6 +160,10 @@ studio-visual-manual-list
 studio-visual-manual-read
 studio-visual-manual-write
 studio-visual-manual-write-images
+subtitleFonts:delete
+subtitleFonts:import
+subtitleFonts:list
+subtitleFonts:read
 tts-reference-audio-resolve
 tts-runtime-delete
 tts-runtime-get-config

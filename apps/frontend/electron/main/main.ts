@@ -67,6 +67,8 @@ import { registerFileExportIpcHandlers } from '../ipc/files/file-export-ipc'
 import { registerAssetLibraryIpcHandlers } from '../ipc/assets/asset-library-ipc'
 import { probeStudioMediaEvidence, registerStudioRenderIpcHandlers } from '../ipc/studio/studio-render-ipc'
 import { registerRemotionRuntimeIpcHandlers } from '../ipc/studio/remotion-runtime-ipc'
+import { registerSubtitleFontsIpcHandlers } from '../ipc/studio/subtitle-fonts-ipc'
+import { customFontAbsolutePath } from '@/lib/studio/remotion/custom-font-store'
 import { registerVideoWorkflowIpcHandlers } from '../ipc/studio/video-workflow-ipc'
 import { registerRemotionPreviewIpcHandlers } from '../ipc/studio/remotion-preview-ipc'
 import { registerRemotionShotIpcHandlers } from '../ipc/studio/remotion-shot-ipc'
@@ -722,6 +724,7 @@ const sharedVideoToolchain = selectSharedVideoToolchain({
 })
 process.env.MYSTUDIO_FFMPEG_PATH = sharedVideoToolchain.ffmpegExecutable
 process.env.MYSTUDIO_FFPROBE_PATH = sharedVideoToolchain.ffprobeExecutable
+registerSubtitleFontsIpcHandlers({ getUserDataPath: () => app.getPath('userData') })
 const remotionRuntime = registerRemotionRuntimeIpcHandlers({
   userDataDir: remotionUserDataDir,
   remotionVersion,
@@ -997,6 +1000,7 @@ const remotionChapterRenderer = new RemotionChapterRenderer({
   probeBrowser: () => remotionRuntime.controller.probeStatus(),
   fork: (modulePath, args, options) => utilityProcess.fork(modulePath, [...args], options),
   remotionVersion,
+  resolveCustomFontPath: (fontId) => customFontAbsolutePath(app.getPath('userData'), fontId),
   emitProgress: () => undefined,
   videoWorkflowGate: evaluateVideoWorkflowChapterGate,
 })

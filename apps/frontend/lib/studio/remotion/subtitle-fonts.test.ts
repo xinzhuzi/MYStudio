@@ -4,6 +4,10 @@ import {
   SUBTITLE_FONT_CATEGORIES,
   SUBTITLE_FONT_IDS,
   SUBTITLE_FONT_STYLES,
+  customFontFamilyForId,
+  customSubtitleFontIdForFileName,
+  isCustomSubtitleFontId,
+  isKnownSubtitleFontId,
   isSubtitleFontId,
   resolveSubtitleFontStyle,
 } from "./subtitle-fonts";
@@ -64,5 +68,24 @@ describe("subtitle font registry", () => {
     expect(isSubtitleFontId("zhi-mang-xing")).toBe(true);
     expect(isSubtitleFontId(42)).toBe(false);
     expect(isSubtitleFontId("ma-shan")).toBe(false);
+  });
+
+  it("derives and validates custom font ids from file names", () => {
+    expect(customSubtitleFontIdForFileName("我的江湖体.ttf")).toBe("custom:我的江湖体");
+    expect(customSubtitleFontIdForFileName("Wind Sword (bold)!.woff2")).toBe("custom:Wind-Sword-bold");
+    expect(customFontFamilyForId("custom:我的江湖体")).toBe("MYStudioCustom 我的江湖体");
+    expect(isCustomSubtitleFontId("custom:abc")).toBe(true);
+    expect(isCustomSubtitleFontId("custom:")).toBe(false);
+    expect(isCustomSubtitleFontId("ma-shan-zheng")).toBe(false);
+    expect(isKnownSubtitleFontId("custom:abc")).toBe(true);
+    expect(isKnownSubtitleFontId("bogus")).toBe(false);
+  });
+
+  it("resolves custom ids to a calligraphy-like style with the custom family first", () => {
+    const style = resolveSubtitleFontStyle("custom:我的江湖体");
+    expect(style.category).toBe("custom");
+    expect(style.label).toBe("我的江湖体");
+    expect(style.fontFamily.startsWith("'MYStudioCustom 我的江湖体'")).toBe(true);
+    expect(style.fontWeight).toBe(400);
   });
 });

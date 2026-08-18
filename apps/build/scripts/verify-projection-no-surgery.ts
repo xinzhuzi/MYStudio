@@ -19,6 +19,12 @@ import type { EditingProjectV1 } from "@/types/editing";
 import type { RemotionChapterManifestV2 } from "@/types/remotion-workspace";
 
 const MA = "/Users/zhengbingjin/Project/IP/MA";
+
+function maEditingJsonPath(): string {
+  const migrated = path.join(MA, "store", "editing.json");
+  return fs.existsSync(migrated) ? migrated : path.join(MA, "editing.json");
+}
+
 const PROJECT_ID = "49dce4c1-64b1-42de-85c2-9f266698aec4";
 const CHAPTER_ID = "chapter-001";
 const ARTIFACT_PATH = path.join(MA, "video-use", CHAPTER_ID, "r47", "video-use-artifact.json");
@@ -67,7 +73,7 @@ async function main() {
   console.log("转场钳制(模拟今日 adapter):", clamped, "处");
 
   // 重建「手术前」坏状态：以现 rev5 为基线回退身份与归属。
-  const editing = JSON.parse(fs.readFileSync(path.join(MA, "editing.json"), "utf8"));
+  const editing = JSON.parse(fs.readFileSync(maEditingJsonPath(), "utf8"));
   const current = list(editing)[0] as EditingProjectV1;
   const broken: EditingProjectV1 = JSON.parse(JSON.stringify(current));
   broken.revision = 46; // r47 必须作为下一 revision 应用

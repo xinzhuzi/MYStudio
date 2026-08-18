@@ -25,6 +25,7 @@ import {
   validateRemotionRenderJobIdentity,
 } from "@/lib/studio/remotion/remotion-render-validation";
 import { validateTimelineRenderPlan } from "@/lib/studio/editing/validation";
+import { customFontFamilyForId, isCustomSubtitleFontId } from "@/lib/studio/remotion/subtitle-fonts";
 import {
   buildChapterVideoCompositionProps,
   mapEditedVoiceIntervals,
@@ -72,6 +73,8 @@ export interface RemotionChapterRendererOptions {
   emitProgress: (progress: { jobId: string; stage: string; ratio: number; message?: string }) => void;
   probeMedia?: (filePath: string) => Promise<RemotionChapterProbe>;
   videoWorkflowGate?: (input: RemotionChapterGateInputV1) => Promise<RemotionChapterGateResult> | RemotionChapterGateResult;
+  /** 自定义字幕字体文件解析（userData/SubtitleFonts）；custom:* 字体缺文件时 fail-closed。 */
+  resolveCustomFontPath?: (fontId: string) => string | undefined;
 }
 
 export interface RemotionChapterRenderRequest {
@@ -422,7 +425,22 @@ export class RemotionChapterRenderer {
           windows: videoWorkflowGateResult.hyperFramesWindows ?? [],
         };
       }
+      // 自定义字幕字体：注册进 media bridge 会话，渲染端 delayRender 挂载后烧录。
+      let customFontFaces: Array<{ family: string; url: string }> | undefined;
+      let customFontMediaId: string | undefined;
+      const subtitleFontId = plan.renderSettings.subtitleFont;
+      if (isCustomSubtitleFontId(subtitleFontId)) {
+        const fontPath = this.options.resolveCustomFontPath?.(subtitleFontId);
+        if (!fontPath) {
+          throw new Error(`自定义字幕字体文件缺失（${subtitleFontId}）；请在设置中重新导入或换用内置字体`);
+        }
+        customFontMediaId = `custom-font-${subtitleFontId}`;
+        mediaSources.push({ clipId: customFontMediaId, absolutePath: fontPath });
+      }
       const mediaUrlByClipId = buildMediaUrlMap(this.mediaBridge, session, mediaSources);
+      if (customFontMediaId) {
+        customFontFaces = [{ family: customFontFamilyForId(subtitleFontId!), url: mediaUrlByClipId[customFontMediaId]! }];
+      }
       const mediaUrlByBindingId = Object.fromEntries(
         chapterManifest.sharedAudioBindings.map((binding) => [
           binding.bindingId,
@@ -436,6 +454,7 @@ export class RemotionChapterRenderer {
         currentShotSlotPaths,
         mediaUrlByClipId,
         mediaUrlByBindingId,
+        ...(customFontFaces?.length ? { customFontFaces } : {}),
         ...(videoWorkflowGateResult?.accepted ? { videoWorkflowGate: videoWorkflowGateResult } : {}),
         ...(hyperFramesOverlay
           ? { hyperFramesOverlay: { ...hyperFramesOverlay, src: mediaUrlByClipId["hyperframes-overlay"] ?? "" } }
