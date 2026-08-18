@@ -90,6 +90,14 @@ export interface RemotionQueueOptions {
   executor: RemotionQueueExecutor | Pick<RemotionShotRenderer, "render" | "cancel">;
   now?: () => number;
   concurrency?: number;
+  /** 章节成片 job 成功 commit 后的异步通知(出片后 QC 链挂点)。
+   * fire-and-forget:回调抛错被吞掉,绝不影响队列状态;缺省 no-op。 */
+  onChapterJobSucceeded?: (identity: {
+    projectId: string;
+    chapterId: string;
+    jobId: string;
+    outputPath: string;
+  }) => void;
 }
 
 export type RemotionQueueEnqueueResult =
@@ -396,6 +404,19 @@ export class RemotionRenderQueue {
         await this.fail(latest, "evidence-invalid", "Remotion current slot/evidence 未通过 identity 验证");
       } else {
         await this.commit({ ...latest, job: slotValidation.value.job });
+        const succeededChapterId = targetChapterId(latest.job.target);
+        if (this.options.onChapterJobSucceeded && succeededChapterId) {
+          try {
+            this.options.onChapterJobSucceeded({
+              projectId: latest.job.projectId,
+              chapterId: succeededChapterId,
+              jobId: latest.job.jobId,
+              outputPath: slotValidation.value.job.outputPath ?? "",
+            });
+          } catch {
+            // QC 回调失败不影响队列
+          }
+        }
       }
     } else {
       await this.fail(latest, result.canceled ? "canceled" : "render-failed", result.error);
