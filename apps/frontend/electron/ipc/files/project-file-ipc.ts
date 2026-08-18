@@ -2,6 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { ipcMain } from "electron";
 import {
+  applyStoreLayoutScope,
   createProjectFileUrl,
   redirectProjectScopedKey,
   resolveProjectFileUrl,
@@ -43,9 +44,10 @@ function resolveProjectTextFilePath(dataRoot: string, key: string) {
     throw new Error("Invalid project file key");
   }
 
-  // `_p/{pid}/` 虚拟键与 file-storage/二进制通道同规则重定向:外部位置项目直达项目目录,
-  // 未注册项目保持 legacy userData/_p 回退——此前文本通道漏接,外部项目的镜像会写进 userData 孤岛。
-  const scope = redirectProjectScopedKey(dataRoot, normalizedKey);
+  // `_p/{pid}/` 虚拟键与 file-storage 通道同规则重定向（外部位置直达项目目录、
+  // legacy userData/_p 回退）+ store 布局 v1（白名单段收进 <项目根>/store/）——
+  // 08-18 修复：文本通道此前漏接 store 布局，studio-workflow/README.md 会落旧位置
+  const scope = applyStoreLayoutScope(dataRoot, redirectProjectScopedKey(dataRoot, normalizedKey));
   const targetPath = path.resolve(scope.root, scope.rest);
   const normalizedRoot = path.resolve(scope.root);
   if (targetPath !== normalizedRoot && !targetPath.startsWith(normalizedRoot + path.sep)) {

@@ -122,17 +122,21 @@ export function redirectProjectScopedKey(
  * 仅 resolveDataFilePath / resolveDataDirPath 走这里，redirectProjectScopedKey
  * 本身保持纯函数（单测直接对拍，无 fs 副作用）。
  */
-function applyStoreLayoutScope(
+export function applyStoreLayoutScope(
   dataRoot: string,
   scope: { root: string; rest: string },
 ): { root: string; rest: string } {
   let projectRoot: string;
   let restSegments: string[];
+  // 内部 _p 项目改写 rest 时必须保留 `_p/{pid}` 前缀——否则所有内部项目的
+  // store 键会落到共享的 <dataRoot>/store/ 造成跨项目互相覆盖（08-18 修复）
+  let restPrefix: string[] = [];
   if (scope.root === dataRoot) {
     // 未注册外部位置：rest 形如 _p/{pid}/...（非 _p 键不命中白名单，原样返回）
     const segments = scope.rest.split("/");
     if (segments[0] !== "_p" || segments.length < 3) return scope;
     projectRoot = path.join(dataRoot, "_p", segments[1]);
+    restPrefix = ["_p", segments[1]!];
     restSegments = segments.slice(2);
   } else {
     projectRoot = scope.root;
@@ -147,7 +151,7 @@ function applyStoreLayoutScope(
     console.warn("[store-layout] 项目 store 布局迁移失败，按旧布局解析:", projectRoot, error);
   }
   if (!layoutActive) return scope;
-  return { root: scope.root, rest: [STORE_LAYOUT_DIR, ...restSegments].join("/") };
+  return { root: scope.root, rest: [...restPrefix, STORE_LAYOUT_DIR, ...restSegments].join("/") };
 }
 
 export function resolveDataFilePath(dataRoot: string, key: string) {
@@ -199,11 +203,13 @@ export function parseProjectFileUrl(projectFileUrl: string) {
 export function resolveProjectScopedFilePath(dataRoot: string, projectId: string, relativePath: string) {
   const normalizedProjectId = normalizePathSegment(projectId, "project id");
   const normalizedRelativePath = normalizeRelativePath(relativePath, "project file path");
-  const location = lookupProjectLocation(normalizedProjectId);
-  const resolved = location
-    ? path.resolve(location, normalizedRelativePath)
-    : path.resolve(dataRoot, "_p", normalizedProjectId, normalizedRelativePath);
-  return assertInsideRoot(location ?? dataRoot, resolved, "Project file path");
+  // 与 file-storage 通道同构：_p 虚拟键重定向 + store 布局（白名单段收进 <项目根>/store/）
+  const scope = applyStoreLayoutScope(
+    dataRoot,
+    redirectProjectScopedKey(dataRoot, `_p/${normalizedProjectId}/${normalizedRelativePath}`),
+  );
+  const resolved = path.resolve(scope.root, scope.rest);
+  return assertInsideRoot(scope.root, resolved, "Project file path");
 }
 
 /**

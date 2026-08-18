@@ -132,6 +132,21 @@ describe("project-file-write-text 的 _p 虚拟键重定向", () => {
     }
   });
 
+  it("store 布局 v1：白名单段的文本键落 <项目根>/store/（README 守护与 file-storage 通道同位）", async () => {
+    setProjectLocationResolver(() => "/projects/IP/MA");
+    try {
+      await expect(
+        mocks.handlers.get("project-file-write-text")?.({}, "_p/project-ext/studio-workflow/README.md", "# 分片目录"),
+      ).resolves.toEqual({ success: true, filePath: "/projects/IP/MA/store/studio-workflow/README.md" });
+      // 非白名单段（novel 镜像等）不受影响
+      await expect(
+        mocks.handlers.get("project-file-write-text")?.({}, "_p/project-ext/novel/source-bible.md", "# 原著圣经"),
+      ).resolves.toEqual({ success: true, filePath: "/projects/IP/MA/novel/source-bible.md" });
+    } finally {
+      setProjectLocationResolver(null);
+    }
+  });
+
   it("未注册位置的项目保持 legacy userData/_p 回退", async () => {
     await expect(
       mocks.handlers.get("project-file-write-text")?.({}, "_p/project-a/novel/source-bible.md", "# 原著圣经"),

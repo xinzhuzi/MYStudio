@@ -129,6 +129,26 @@ describe("project location resolver", () => {
     }
   });
 
+  it("store 布局 v1（内部 _p 项目）：迁移后保留 _p/{pid} 前缀，不落共享 <dataRoot>/store/", () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), "mystudio-internal-layout-"));
+    const dataRoot = path.join(root, "data");
+    fs.mkdirSync(path.join(dataRoot, "_p", "project-int"), { recursive: true });
+    try {
+      // 首次解析触发幂等迁移（建 marker），此后 store 键必须落项目自己的 store/
+      const first = resolveDataFilePath(dataRoot, "_p/project-int/script");
+      expect(first).toBe(path.join(dataRoot, "_p", "project-int", "store", "script.json"));
+      expect(fs.existsSync(path.join(dataRoot, "_p", "project-int", "store", "_store-layout-v1.json"))).toBe(true);
+      // 共享目录不允许出现（此前 bug：内部项目前缀被剥掉，全部落到共享 <dataRoot>/store/）
+      expect(fs.existsSync(path.join(dataRoot, "store"))).toBe(false);
+      // 非白名单键原样
+      expect(resolveDataFilePath(dataRoot, "_p/project-int/novel/chapters/x")).toBe(
+        path.join(dataRoot, "_p", "project-int", "novel", "chapters", "x.json"),
+      );
+    } finally {
+      fs.rmSync(root, { recursive: true, force: true });
+    }
+  });
+
   it("keeps byte-identical legacy behavior without a resolver or for unknown project ids", () => {
     expect(resolveDataFilePath("/data", "_p/p-ext/script")).toBe("/data/_p/p-ext/script.json");
     expect(resolveDataDirPath("/data", "_p/p-ext")).toBe("/data/_p/p-ext");
