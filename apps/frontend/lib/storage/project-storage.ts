@@ -13,6 +13,7 @@ import { fileStorage } from './indexed-db-storage';
 import { useProjectStore } from '@/stores/project/project-store';
 import { useAppSettingsStore } from '@/stores/app/app-settings-store';
 import {
+  buildStudioWorkflowShardReadme,
   mergeStudioWorkflowShards,
   parseStudioWorkflowShardManifest,
   planStudioWorkflowShards,
@@ -356,6 +357,19 @@ export function createStudioWorkflowShardedStorage(storeName: string): StateStor
           }
         } catch (error) {
           console.warn('[StudioWorkflowShardedStorage] 孤儿分片清理失败（不影响读取）:', error);
+        }
+
+        // 目录自述文档：按当前分片清单生成 README.md（纯展示产物，失败不影响数据链路）
+        try {
+          const projectFilesBridge = typeof window !== 'undefined'
+            ? (window as { projectFiles?: { writeText?: (key: string, value: string) => Promise<unknown> } }).projectFiles
+            : undefined;
+          await projectFilesBridge?.writeText?.(
+            `_p/${pid}/${STUDIO_WORKFLOW_SHARD_DIR}/README.md`,
+            buildStudioWorkflowShardReadme(plan.manifest, plan.files),
+          );
+        } catch (error) {
+          console.warn('[StudioWorkflowShardedStorage] README.md 生成失败（不影响数据）:', error);
         }
       });
     },

@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import {
+  buildStudioWorkflowShardReadme,
   isSafeShardFileName,
   STUDIO_WORKFLOW_SHARD_DIR,
   mergeStudioWorkflowShards,
@@ -154,6 +155,17 @@ export function writeStudioWorkflowStore(
     }
   };
   if (fs.existsSync(shardDir)) pruneDir(shardDir);
+
+  // 目录自述文档（纯展示产物，失败不影响数据链路）
+  try {
+    fs.writeFileSync(
+      path.join(shardDir, "README.md"),
+      buildStudioWorkflowShardReadme(plan.manifest, plan.files),
+      "utf-8",
+    );
+  } catch {
+    // best-effort
+  }
 
   return {
     shardNames: plan.manifest.shards,

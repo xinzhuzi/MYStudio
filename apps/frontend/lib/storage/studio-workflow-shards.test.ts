@@ -3,6 +3,7 @@
 // Commercial licensing available. See COMMERCIAL_LICENSE.md.
 import { describe, expect, it } from "vitest";
 import {
+  buildStudioWorkflowShardReadme,
   mergeStudioWorkflowShards,
   parseStudioWorkflowShardManifest,
   planStudioWorkflowShards,
@@ -252,6 +253,25 @@ describe("planStudioWorkflowShards", () => {
       if (!plan.oversizedFiles.some((base) => file.name.startsWith(base))) {
         expect(Buffer.byteLength(file.content, "utf8")).toBeLessThanOrEqual(1024);
       }
+    }
+  });
+});
+
+describe("buildStudioWorkflowShardReadme", () => {
+  it("documents every shard with its workflow stage, description, count and size", () => {
+    const plan = planStudioWorkflowShards(envelopeOf(buildRichState()));
+    const readme = buildStudioWorkflowShardReadme(plan.manifest, plan.files, new Date("2026-08-18T00:00:00Z"));
+    expect(readme).toContain("# studio-workflow/ —— 工作流数据分片目录");
+    expect(readme).toContain("`manifest.json` 清单为准");
+    expect(readme).toContain("| 文件 | 工作流阶段 | 内容 | 条数 | 大小 |");
+    // 逐文件：阶段映射 + 条数正确
+    expect(readme).toContain("| 小说导入 | 章节正文与事件摘要（每章一文件） | 1 条 |");
+    expect(readme).toContain("| 分镜视频生成 | 分镜表（逐镜提示词/音频绑定/审查状态） | 8 条 |");
+    expect(readme).toContain("| 全局配置 | 原著圣经/系列设定/事件图/记忆/工作流配置等小域合并 |");
+    expect(readme).toContain("共 " + plan.manifest.shards.length + " 个分片");
+    // 每个 manifest 分片都在表中
+    for (const name of plan.manifest.shards) {
+      expect(readme).toContain(`| ${name} |`);
     }
   });
 });

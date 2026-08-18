@@ -12,8 +12,10 @@ import { afterAll, describe, it } from "vitest";
 import {
   planStudioWorkflowShards as planTs,
   mergeStudioWorkflowShards as mergeTs,
+  buildStudioWorkflowShardReadme as readmeTs,
 } from "../../frontend/lib/storage/studio-workflow-shards";
 import {
+  buildShardReadme,
   mergeStudioWorkflowShards,
   planStudioWorkflowShards,
   readStudioWorkflowStore,
@@ -102,6 +104,22 @@ describe("studio-workflow-store mjs twin parity", () => {
       const bytes = fs.statSync(path.join(projectDir, "studio-workflow", shardName)).size;
       assert.ok(bytes <= 512 * 1024, `分片超限: ${shardName} ${bytes}`);
     }
+  });
+
+  it("builds the same README as the TS implementation and writes README.md to disk", () => {
+    const value = JSON.stringify({ state: buildState(), version: 10 });
+    const tsPlan = planTs(value, { limitBytes: 2048 });
+    const jsPlan = planStudioWorkflowShards(value, { limitBytes: 2048 });
+    const at = new Date("2026-08-18T00:00:00Z");
+    assert.equal(buildShardReadme(jsPlan, at), readmeTs(tsPlan.manifest, tsPlan.files, at));
+
+    const projectDir = makeProjectDir();
+    writeStudioWorkflowStore(projectDir, value);
+    const readmePath = path.join(projectDir, "studio-workflow", "README.md");
+    assert.ok(fs.existsSync(readmePath), "README.md 应随写盘生成");
+    const readme = fs.readFileSync(readmePath, "utf8");
+    assert.ok(readme.includes("工作流阶段"));
+    assert.ok(readme.includes("分镜视频生成"));
   });
 
   it("writeStudioWorkflowStore cleans previous-generation orphans", () => {

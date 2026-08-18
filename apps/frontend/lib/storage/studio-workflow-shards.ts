@@ -398,6 +398,85 @@ export interface MergedStudioWorkflowEnvelope {
   version: number;
 }
 
+// ==================== 目录自述文档（README.md） ====================
+
+/** 分片域 → 工作流阶段 + 内容说明（对齐应用工作流页的七个制作阶段）。 */
+const SLUG_STAGE_CATALOG: Record<string, { stage: string; desc: string }> = {
+  "novel-chapters": { stage: "小说导入", desc: "章节正文与事件摘要（每章一文件）" },
+  "entity-extractions": { stage: "小说导入", desc: "实体提取结果（人物/地点/物品）" },
+  "script-plans": { stage: "剧本生产", desc: "剧本计划（场次与情节结构）" },
+  "agent-work-data": { stage: "剧本生产", desc: "AI 阶段产物留档（事件分析/故事骨架/改编策略）" },
+  "assets-versions": { stage: "剧本资产管理", desc: "连续性资产版本（角色/场景/道具基准图与审批链）" },
+  storyboards: { stage: "分镜视频生成", desc: "分镜表（逐镜提示词/音频绑定/审查状态）" },
+  "media-tasks": { stage: "分镜视频生成", desc: "生图/TTS/视频任务台账" },
+  "image-workflows": { stage: "图像节点图", desc: "图像生成工作流（分镜图/资产图）" },
+  "video-candidates": { stage: "视频工作台", desc: "候选视频记录" },
+  "production-tracks": { stage: "视频工作台", desc: "制片轨道（章节成片进度）" },
+  materials: { stage: "素材库", desc: "导入素材索引" },
+  "agent-runs": { stage: "全局", desc: "Agent 运行记录" },
+  core: { stage: "全局配置", desc: "原著圣经/系列设定/事件图/记忆/工作流配置等小域合并" },
+};
+
+function describeShardFile(fileName: string): { stage: string; desc: string } {
+  const base = fileName.split("/").pop() ?? fileName;
+  const slug = Object.keys(SLUG_STAGE_CATALOG)
+    .filter((candidate) => base === candidate || base.startsWith(`${candidate}-`))
+    .sort((left, right) => right.length - left.length)[0];
+  return slug
+    ? SLUG_STAGE_CATALOG[slug]!
+    : { stage: "其他", desc: "未登记域（新增数据域）" };
+}
+
+function shardItemSummary(content: string): string {
+  try {
+    const parsed = JSON.parse(content) as { state?: Record<string, unknown> };
+    const state = parsed.state ?? {};
+    const entries = Object.entries(state);
+    if (entries.length === 0) return "—";
+    return entries.map(([key, value]) =>
+      Array.isArray(value) ? `${value.length} 条` : key,
+    ).join(" / ");
+  } catch {
+    return "—";
+  }
+}
+
+/**
+ * 生成 studio-workflow/README.md——目录自述文档（每次分片保存后重写）：
+ * 说明本目录用途、命名规则（尾部指纹=内容版本标记）、manifest 权威性，
+ * 并按当前 manifest 逐文件列出「工作流阶段 + 内容说明 + 条数 + 大小」。
+ * 纯展示产物：不进 manifest、不参与读写协议，删除后下次保存自动重建。
+ */
+export function buildStudioWorkflowShardReadme(
+  manifest: StudioWorkflowShardManifest,
+  files: readonly StudioWorkflowShardPlanFile[],
+  generatedAt: Date = new Date(),
+): string {
+  const lines: string[] = [
+    "# studio-workflow/ —— 工作流数据分片目录",
+    "",
+    "> 本文件由漫影工作室在每次保存后自动生成，请勿手改；删除后下次保存会自动重建。",
+    "",
+    "这是当前项目的工作流主数据：小说章节、剧本计划、分镜、任务等按「一章一文件夹」分片存放，",
+    "每个 JSON ≤512KB。**当前哪些文件有效以 `manifest.json` 清单为准**；文件名尾部的 8 位十六进制",
+    "字符是内容指纹（版本标记，用于保存中途断电时保住上一代完整数据），人不需要读它。",
+    "",
+    "| 文件 | 工作流阶段 | 内容 | 条数 | 大小 |",
+    "|---|---|---|---|---|",
+  ];
+  for (const name of manifest.shards) {
+    const file = files.find((candidate) => candidate.name === name);
+    const info = describeShardFile(name);
+    const count = file ? shardItemSummary(file.content) : "—";
+    const kb = file ? (utf8Bytes(file.content) / 1024).toFixed(1) : "?";
+    lines.push(`| ${name} | ${info.stage} | ${info.desc} | ${count} | ${kb}KB |`);
+  }
+  lines.push("");
+  lines.push(`共 ${manifest.shards.length} 个分片 · store 版本 v${manifest.version} · 生成于 ${generatedAt.toISOString()}`);
+  lines.push("");
+  return lines.join("\n");
+}
+
 /**
  * 按 manifest 顺序合并分片信封：
  * - 同一数组键在多片出现 → concat（写端只有数组域会被切多片）
