@@ -122,9 +122,9 @@
 
 | 文档 | 用途 |
 |---|---|
-| [静态图→3D 动态技术全景](./research/CINEMATIC_3D_TECH_LANDSCAPE.md) | 2026-08-14 3D 动态效果技术生态调查 |
 | [视频效果升级交接提示词](./research/EFFECT_UPGRADE_PROMPT_2026-08-18.md) | 08-18 效果升级任务的裁定增补与执行入口（执行以 Trellis 任务为准） |
-| [img2threejs 探索报告](./research/IMG2THREEJS_EXPLORATION.md) | 已排除路线的排除理由存档（2026-08-16 用户决策） |
+
+已定案调查存档于 [research/archive/](./research/archive/)：[静态图→3D 动态技术全景](./research/archive/CINEMATIC_3D_TECH_LANDSCAPE.md)（3D 路线 2026-08-14 已否决转 2D）、[img2threejs 探索报告](./research/archive/IMG2THREEJS_EXPLORATION.md)（2026-08-16 用户决策排除）。
 
 ## 融合规划（融合/）
 
