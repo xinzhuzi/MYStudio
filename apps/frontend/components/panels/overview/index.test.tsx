@@ -242,7 +242,11 @@ describe("OverviewPanel", () => {
   });
 
   it("AI 填充：跳过问答生成 → 预览 → 确认写入 updateSeriesMeta（手填 genre 不被覆盖）", async () => {
-    mocks.rawScript = "# 道劫 EP01：断剑夜访道口镇\n正文素材";
+    // 素材只认记忆库(08-18 裁定:概览不引入章节内容,剧本正文不作素材)
+    (window as unknown as { fileStorage?: unknown }).fileStorage = {
+      getItem: async () => "# 作者偏好\n\n## 改编口味\n快节奏强钩子\n",
+      setItem: vi.fn(async () => true),
+    };
     render(<OverviewPanel />);
 
     fireEvent.click(screen.getByRole("button", { name: /AI 填充/ }));
@@ -264,6 +268,7 @@ describe("OverviewPanel", () => {
     // genre 已手填「武侠」→ 默认不勾选覆盖
     const genreCall = mocks.updateSeriesMeta.mock.calls.at(-1)?.[1] as Record<string, unknown>;
     expect(genreCall.genre).toBeUndefined();
+    delete (window as unknown as { fileStorage?: unknown }).fileStorage;
   });
 
   it("shows the author preference entry in the no-meta guide branch too", async () => {

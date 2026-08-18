@@ -137,7 +137,6 @@ export function OverviewPanel() {
   const projectId = activeProjectId ?? "";
   const meta: SeriesMeta | null = scriptProject?.seriesMeta || null;
   const episodes: EpisodeRawScript[] = scriptProject?.episodeRawScripts || [];
-  const scriptData = scriptProject?.scriptData || null;
 
   // 作者偏好（应用级口味卡）编辑入口
   const [prefOpen, setPrefOpen] = useState(false);
@@ -175,17 +174,14 @@ export function OverviewPanel() {
     });
   }, [meta, update]);
 
-  // R2:AI 填充素材——记忆库(偏好→圣经→档案检索)+剧本开头,复用管线注入链
+  // R2:AI 填充素材——只用记忆库(偏好→圣经→档案检索),复用管线注入链。
+  // 08-18 裁定对齐:概览不引入章节内容,剧本正文不再作为素材。
   const buildFillContext = useCallback(async (): Promise<string | undefined> => {
-    const memoryContext = await readBibleWithArchiveContext({
+    return readBibleWithArchiveContext({
       projectId,
-      archiveQuery: `${meta?.title ?? ""} ${scriptData?.title ?? ""}`.trim().slice(0, 200),
+      archiveQuery: `${meta?.title ?? ""}`.trim().slice(0, 200),
     });
-    const scriptHead = scriptProject?.rawScript?.trim().slice(0, 800);
-    return [memoryContext, scriptHead ? `【剧本开头】\n${scriptHead}` : undefined]
-      .filter(Boolean)
-      .join("\n\n") || undefined;
-  }, [projectId, meta?.title, scriptData?.title, scriptProject?.rawScript]);
+  }, [projectId, meta?.title]);
 
   if (!meta) {
     return (

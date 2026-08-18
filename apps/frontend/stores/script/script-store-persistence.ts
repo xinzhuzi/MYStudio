@@ -299,7 +299,23 @@ export function createScriptScopedJsonStorage(): PersistStorage<ScriptPersistedS
           parsed = null;
         }
         if (parsed === null || typeof parsed !== "object" || Array.isArray(parsed)) {
-          // 非 JSON 内容按原样返回,交给 persist 的解析报错
+          // 剧本文件缺席/损坏:概览元数据仍须独立载入(08-18 裁定对齐——
+          // overview.json 不再挂靠剧本文件在场),从 overview 构造最小信封
+          if (overviewRaw) {
+            try {
+              const ov = JSON.parse(overviewRaw) as { state?: Record<string, unknown> };
+              const sm = ov.state?.seriesMeta;
+              if (sm !== undefined && sm !== null) {
+                const pid = useProjectStore.getState().activeProjectId;
+                return JSON.stringify({
+                  state: { activeProjectId: typeof pid === "string" ? pid : ov.state?.activeProjectId ?? null, projectData: { seriesMeta: sm } },
+                  version: 0,
+                });
+              }
+            } catch {
+              // overview 损坏则按无数据处理
+            }
+          }
           return raw;
         }
 
@@ -387,6 +403,19 @@ export function createScriptScopedJsonStorage(): PersistStorage<ScriptPersistedS
         delete projectData.seriesMeta;
         if (seriesMeta !== undefined && seriesMeta !== null) {
           await overviewScoped.setItem(name, overviewEnvelope(state.activeProjectId, seriesMeta));
+        }
+        // 剧本域退役(08-18 裁定对齐):内容全空不落盘,并清既有文件——
+        // 剧本真源在工作流 store scriptDraft,此文件不再保留空壳
+        const isEmptyScriptProject =
+          !(projectData.rawScript as string | undefined)?.trim() &&
+          !projectData.scriptData &&
+          !(projectData.shots as unknown[] | undefined)?.length &&
+          !(projectData.episodeRawScripts as unknown[] | undefined)?.length &&
+          !projectData.projectBackground;
+        if (isEmptyScriptProject) {
+          await scoped.removeItem(name);
+          await legacyScoped.removeItem(name);
+          return;
         }
         await scoped.setItem(name, JSON.stringify(parsed));
       },

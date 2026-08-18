@@ -221,6 +221,10 @@ describe("active script project selector", () => {
 describe("seriesMeta 独立落盘(overview.json 拆分)", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    // 复位实现:clearAllMocks 不清 mockImplementation(本 describe 内有用例设抛错)
+    mocks.setItem.mockImplementation(async () => undefined);
+    mocks.removeItem.mockImplementation(async () => undefined);
+    mocks.getItem.mockImplementation(async () => null);
     resetScriptStore();
   });
 
@@ -291,6 +295,37 @@ describe("seriesMeta 独立落盘(overview.json 拆分)", () => {
     const storage = createScriptScopedJsonStorage();
     const parsed = (await storage?.getItem("mystudio-script-store")) as { state: { projectData: Record<string, unknown> } };
     expect((parsed.state.projectData.seriesMeta as { title: string }).title).toBe("道劫");
+  });
+
+  it("剧本文件缺席时 overview 元数据独立载入(解耦:概览不挂靠剧本文件)", async () => {
+    mocks.getItem.mockImplementation(async (key: string) =>
+      key.startsWith("overview::")
+        ? JSON.stringify({ state: { activeProjectId: "p1", seriesMeta: { title: "道劫", characters: [] } }, version: 0 })
+        : null,
+    );
+    const { useProjectStore } = await import("@/stores/project/project-store");
+    useProjectStore.setState({ activeProjectId: "p1" });
+    const storage = createScriptScopedJsonStorage();
+    const parsed = (await storage?.getItem("mystudio-script-store")) as { state: { projectData: Record<string, unknown>; activeProjectId: string } };
+    expect(parsed.state.activeProjectId).toBe("p1");
+    expect(parsed.state.projectData.seriesMeta).toEqual({ title: "道劫", characters: [] });
+  });
+
+  it("剧本域全空时 setItem 不落盘并清既有文件(空壳不复活)", async () => {
+    const storage = createScriptScopedJsonStorage();
+    const before = mocks.setItem.mock.calls.length;
+    const beforeRm = mocks.removeItem.mock.calls.length;
+    await storage?.setItem("mystudio-script-store", {
+      state: { activeProjectId: "p1", projectData: { rawScript: "", scriptData: null, shots: [], episodeRawScripts: [], seriesMeta: { title: "道劫", characters: [] } } },
+      version: 0,
+    });
+    const mySets = mocks.setItem.mock.calls.slice(before);
+    // 只写 overview,不写 剧本 键
+    expect(mySets.every(([k]) => k.startsWith("overview::"))).toBe(true);
+    // 清两个剧本键
+    const rms = mocks.removeItem.mock.calls.slice(beforeRm).map(([k]) => k);
+    expect(rms).toContain("剧本::mystudio-script-store");
+    expect(rms).toContain("script::mystudio-script-store");
   });
 
   it("removeItem 同时清理两个键(mock 两次)", async () => {
