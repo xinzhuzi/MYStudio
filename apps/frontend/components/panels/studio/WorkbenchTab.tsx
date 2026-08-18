@@ -19,6 +19,7 @@ import type {
 import { Film } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { NativeRemotionStudioHost } from "./NativeRemotionStudioHost";
+import { SfxGenerateDialog } from "./SfxGenerateDialog";
 import { VisualContinuityReviewPanel } from "./VisualContinuityReviewPanel";
 import { useEditingWorkbenchActions } from "./useEditingWorkbenchActions";
 import { selectFirstStoryboard, useFirstShotPreviewActions } from "./use-first-shot-preview-actions";
@@ -123,6 +124,7 @@ export function WorkbenchTab(props: {
   const [chapterAudioStatus, setChapterAudioStatus] = useState("未读取");
   const [chapterAudioBusy, setChapterAudioBusy] = useState(false);
   const [chapterAudioError, setChapterAudioError] = useState<string | null>(null);
+  const [sfxGenerateTarget, setSfxGenerateTarget] = useState<{ shotId: string; label: string } | null>(null);
   const manifestRequestVersion = useRef(0);
   const refreshChapterManifest = useCallback(async () => {
     const requestVersion = ++manifestRequestVersion.current;
@@ -282,17 +284,15 @@ export function WorkbenchTab(props: {
       setChapterAudioBusy(false);
     }
   }, []);
-  const importShotSfx = useCallback(async (shotId: string) => {
+  // 把一个绝对路径的 WAV 经 importAudio 绑定为分镜 sfx(本地生成与文件选择共用)。
+  const bindShotSfxFromPath = useCallback(async (shotId: string, sourcePath: string) => {
     const bridge = window.remotionChapterManifest;
-    const picker = window.studioAssets?.selectAudioFile;
     const current = chapterManifest;
     const storyboard = props.storyboards.find((item) => item.id === shotId);
-    if (!bridge || !picker || !props.projectId || !current || !storyboard) {
+    if (!bridge || !props.projectId || !current || !storyboard) {
       setChapterAudioError("当前分镜缺少音频导入所需的 bridge、manifest 或身份");
       return;
     }
-    const sourcePath = await picker();
-    if (!sourcePath) return;
     setChapterAudioBusy(true);
     try {
       const imported = await bridge.importAudio({ projectId: props.projectId, chapterId, shotId, role: "sfx", sourcePath });
@@ -344,6 +344,28 @@ export function WorkbenchTab(props: {
       setChapterAudioBusy(false);
     }
   }, [chapterId, chapterManifest, props.projectId, props.storyboards]);
+
+  const importShotSfx = useCallback(async (shotId: string) => {
+    const picker = window.studioAssets?.selectAudioFile;
+    if (!picker) {
+      setChapterAudioError("当前分镜缺少音频导入所需的 bridge、manifest 或身份");
+      return;
+    }
+    const sourcePath = await picker();
+    if (!sourcePath) return;
+    await bindShotSfxFromPath(shotId, sourcePath);
+  }, [bindShotSfxFromPath]);
+  const openSfxGenerate = useCallback((shotId: string, label: string) => {
+    setSfxGenerateTarget({ shotId, label });
+  }, []);
+  const closeSfxGenerate = useCallback(() => {
+    setSfxGenerateTarget(null);
+  }, []);
+  const handleSfxGenerated = useCallback(async (wavPath: string) => {
+    const target = sfxGenerateTarget;
+    if (!target) return;
+    await bindShotSfxFromPath(target.shotId, wavPath);
+  }, [bindShotSfxFromPath, sfxGenerateTarget]);
   const openFirstShotVideo = useCallback(async () => {
     const outputPath = firstShotAbsoluteOutputPath;
     if (!outputPath || !window.electronAPI?.openPath) {
@@ -660,6 +682,7 @@ export function WorkbenchTab(props: {
                 </div>
                 <div className="flex flex-wrap gap-1.5">
                   <Button size="sm" variant="outline" disabled={!chapterManifest || chapterAudioBusy} onClick={() => { void importShotSfx(storyboard.id); }}>导入 SFX</Button>
+                  <Button size="sm" variant="outline" disabled={!chapterManifest || chapterAudioBusy} onClick={() => openSfxGenerate(storyboard.id, `#${storyboard.index + 1}`)}>生成 SFX</Button>
                   {job && (job.status === "failed" || job.status === "canceled" || job.status === "stale") ? (
                     <Button size="sm" variant="outline" disabled={chapterAudioBusy} onClick={() => { void handleShotQueueAction(job, "retry"); }}>重试分镜</Button>
                   ) : null}
@@ -716,6 +739,12 @@ export function WorkbenchTab(props: {
           ) : null}
         </section>
       )}
+      <SfxGenerateDialog
+        open={sfxGenerateTarget !== null}
+        shotLabel={sfxGenerateTarget?.label ?? ""}
+        onOpenChange={(open) => { if (!open) closeSfxGenerate(); }}
+        onGenerated={handleSfxGenerated}
+      />
     </div>
   );
 }

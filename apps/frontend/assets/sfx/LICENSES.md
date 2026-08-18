@@ -13,3 +13,13 @@
 | `sfx-zoom.ogg` | maximize_001.ogg | [Interface Sounds](https://kenney.nl/assets/interface-sounds) | CC0 |
 | `sfx-glitch.ogg` | glitch_001.ogg | [Interface Sounds](https://kenney.nl/assets/interface-sounds) | CC0 |
 | `sfx-dissolve.ogg` | drop_001.ogg | [Interface Sounds](https://kenney.nl/assets/interface-sounds) | CC0 |
+
+## 本地生成音效(非打包产物)
+
+> 设置 → 本地配置 → 本地音效生成 与工作台「生成 SFX」产出的 WAV 由本地模型生成,
+> 落用户导出/项目媒体目录,**不随应用分发**,因此不涉及再分发许可。
+
+| 引擎 | 模型 | 权重许可 | 说明 |
+|---|---|---|---|
+| transformers-MusicGen | facebook/musicgen-small | CC-BY-NC-4.0 (weights) | 与本地音乐生成共用缓存;个人/本地使用,商用需 Meta 授权 |
+| audiogen(候选,未启用) | facebook/audiogen-medium | CC-BY-NC-4.0 (待核) | 选型候选;启用前须实测音质/体积并核定许可与 audiocraft 依赖 |
