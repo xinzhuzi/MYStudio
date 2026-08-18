@@ -1,5 +1,5 @@
 // Design §6: panZoom expressed as a frame-based scale/origin interpolation,
-// mirroring the FFmpeg zoompan/scale intent (linear scaleFrom -> scaleTo over the
+// mirroring the FFmpeg zoompan/scale intent (eased scaleFrom -> scaleTo over the
 // clip, constant origin). Pure so both the Player and the fixed bundle compute an
 // identical transform per frame; the .tsx feeds the result into a CSS transform.
 //
@@ -18,7 +18,16 @@ export interface PanZoomTransform {
   originY: number;
 }
 
-// Linear interpolation of scale across the clip; origin is constant.
+// Ease-in-out cubic, curve-equivalent to Remotion's Easing.inOut(Easing.cubic)
+// (effect 08-18-effect-upgrade design §1.1). Kept hand-written like
+// cinematic-camera.ts so this module stays dependency-pure; symmetric, so the
+// exact midpoint still maps to the linear midpoint.
+export function easeInOutCubic(progress: number): number {
+  const t = Math.min(1, Math.max(0, progress));
+  return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+}
+
+// Eased interpolation of scale across the clip; origin is constant.
 export function panZoomAtFrame(
   frame: number,
   durationInFrames: number,
@@ -32,7 +41,7 @@ export function panZoomAtFrame(
     ? 0
     : Math.min(1, Math.max(0, frame / span));
   const scale = panZoom.fromScale
-    + (panZoom.toScale - panZoom.fromScale) * progress;
+    + (panZoom.toScale - panZoom.fromScale) * easeInOutCubic(progress);
   return {
     scale,
     originX: clampUnit(panZoom.originX),

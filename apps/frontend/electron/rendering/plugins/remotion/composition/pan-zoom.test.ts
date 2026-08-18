@@ -15,9 +15,13 @@ describe("panZoomAtFrame", () => {
     expect(panZoomAtFrame(60, 61, zoomIn).scale).toBeCloseTo(1.2);
   });
 
-  it("interpolates scale linearly across the clip", () => {
-    // span = 60 frames; frame 30 is halfway -> 1.1.
+  it("interpolates scale with ease-in-out cubic across the clip", () => {
+    // span = 60 frames. Easing.inOut(cubic) is symmetric: the exact midpoint
+    // (frame 30) still lands on the linear midpoint, while the quarter points
+    // lag/lead the linear ramp (0.25 -> 0.0625, 0.75 -> 0.9375 eased progress).
+    expect(panZoomAtFrame(15, 61, zoomIn).scale).toBeCloseTo(1.0125);
     expect(panZoomAtFrame(30, 61, zoomIn).scale).toBeCloseTo(1.1);
+    expect(panZoomAtFrame(45, 61, zoomIn).scale).toBeCloseTo(1.1875);
   });
 
   it("clamps progress so frames outside the clip hold the endpoints", () => {
