@@ -333,6 +333,15 @@ jobs:
           test -n "$(find release-assets -type f -name '*.zip' -print -quit)"
           test -n "$(find release-assets -type f -name '*setup.exe' -print -quit)"
 
+      - name: Generate SHA256SUMS for release assets
+        # 免费的完整性兜底:安装包未签名期间,用户可对照 SHA256SUMS.txt 核验
+        # 下载文件未被传输链路篡改(与 checksum 文件一同发布到 Release)。
+        run: |
+          set -euo pipefail
+          cd release-assets
+          sha256sum * > SHA256SUMS.txt
+          cat SHA256SUMS.txt
+
       - name: Create or update GitHub Release
         # 固定到具体提交(供应链防护):该 action 持有 contents:write,浮动 tag
         # 被上游劫持即可投毒发布物。升级时改 SHA 并同步注释版本号。
@@ -347,3 +356,5 @@ jobs:
             本版本由 GitHub Actions 自动构建。
 
             当前 macOS 与 Windows 安装包尚未配置代码签名，首次安装可能需要在系统安全提示中手动确认。
+
+            下载后可在终端校验完整性：`shasum -a 256 -c SHA256SUMS.txt`（Windows: `certutil -hashfile 文件名 SHA256`），对照本页 SHA256SUMS.txt。
