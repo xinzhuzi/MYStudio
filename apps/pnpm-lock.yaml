@@ -109,12 +109,6 @@ importers:
       '@remotion/renderer':
         specifier: 4.0.499
         version: 4.0.499(patch_hash=1773de81c80f190904028083e8fdf29bad851c79f060c0c78c3f855aeb264208)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
-      '@remotion/studio':
-        specifier: 4.0.499
-        version: 4.0.499(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
-      '@remotion/studio-server':
-        specifier: 4.0.499
-        version: 4.0.499(lightningcss@1.32.0)(postcss@8.5.26)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(typescript@5.9.3)
       '@remotion/three':
         specifier: 4.0.499
         version: 4.0.499(@react-three/fiber@8.18.0(@types/react@18.3.31)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(three@0.170.0))(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(remotion@4.0.499(patch_hash=8419b8ca6ad90e09650886940e5317fef6b76d2d96c3518f3a6e6b5400159094)(react-dom@18.3.1(react@18.3.1))(react@18.3.1))(three@0.170.0)
@@ -243,6 +237,12 @@ importers:
         specifier: 4.0.499
         version: 4.0.499(lightningcss@1.32.0)(postcss@8.5.26)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       '@remotion/cli':
+        specifier: 4.0.499
+        version: 4.0.499(lightningcss@1.32.0)(postcss@8.5.26)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(typescript@5.9.3)
+      '@remotion/studio':
+        specifier: 4.0.499
+        version: 4.0.499(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      '@remotion/studio-server':
         specifier: 4.0.499
         version: 4.0.499(lightningcss@1.32.0)(postcss@8.5.26)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(typescript@5.9.3)
       '@tailwindcss/postcss':
@@ -10429,7 +10429,7 @@ snapshots:
       es6-error: 4.1.1
       matcher: 3.0.0
       roarr: 2.15.4
-      semver: 7.7.4
+      semver: 7.8.5
       serialize-error: 7.0.1
     optional: true
 
@@ -11359,11 +11359,11 @@ snapshots:
 
   node-abi@4.33.0:
     dependencies:
-      semver: 7.7.4
+      semver: 7.8.5
 
   node-api-version@0.2.1:
     dependencies:
-      semver: 7.7.4
+      semver: 7.8.5
 
   node-gyp@12.4.0:
     dependencies:
@@ -11372,7 +11372,7 @@ snapshots:
       graceful-fs: 4.2.11
       nopt: 9.0.0
       proc-log: 6.1.0
-      semver: 7.7.4
+      semver: 7.8.5
       tar: 7.5.22
       tinyglobby: 0.2.17
       undici: 6.28.0

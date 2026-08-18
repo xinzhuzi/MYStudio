@@ -127,7 +127,13 @@ async function withLoopbackPortConfig<T>(run: () => Promise<T>): Promise<T> {
 }
 
 function loadInternalStartServer(): RemotionStudioStartServer {
-  const packageRoot = path.dirname(require.resolve("@remotion/studio-server/package.json"));
+  let packageRoot: string;
+  try {
+    packageRoot = path.dirname(require.resolve("@remotion/studio-server/package.json"));
+  } catch {
+    // devDependency（安装包守卫禁止 bundler 入包）——安装版给出明确降级信息。
+    throw new Error("Remotion Studio 仅开发版可用（安装包不携带 Studio/bundler 运行时）；请使用预览播放器或渲染队列成片");
+  }
   const internalPath = path.join(packageRoot, "dist", "preview-server", "start-server.js");
   const mod = require(internalPath) as { startServer?: unknown };
   if (typeof mod.startServer !== "function") {

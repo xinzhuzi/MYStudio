@@ -122,8 +122,16 @@ export function buildMinimalRemotionStudioStartOptions(
     throw new Error("entryPoint 必须是绝对路径");
   }
   const publicDir = input.publicDir ?? path.join(input.appsRoot, "public");
+  // @remotion/studio 是 devDependency（安装包守卫禁止 bundler 全家桶入包）——
+  // 安装版解析失败时明确降级，而不是抛晦涩的 module not found。
+  let previewEntry: string;
+  try {
+    previewEntry = require.resolve("@remotion/studio/previewEntry");
+  } catch {
+    throw new Error("Remotion Studio 仅开发版可用（安装包不携带 Studio/bundler 运行时）；请使用预览播放器或渲染队列成片");
+  }
   return {
-    entry: require.resolve("@remotion/studio/previewEntry"),
+    entry: previewEntry,
     userDefinedComponent: input.entryPoint,
     bundlerOverride: undefined,
     rspackOverride: undefined,
