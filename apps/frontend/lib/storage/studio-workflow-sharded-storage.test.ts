@@ -398,18 +398,19 @@ describe("createStudioWorkflowShardedStorage", () => {
     expect("sourceText" in ch2).toBe(false);
   });
 
-  it("空态覆写守卫：磁盘分片库非空时拒绝空工作区保存（读链损坏防线）", async () => {
-    await storage.setItem("studio-workflow-store", buildPersistedValue());
+  it("空态覆写守卫：读链损坏（分片缺失）后的空工作区保存被拒；健康重置放行", async () => {
     const emptyValue = JSON.stringify({ state: { novelChapters: [], storyboards: [], mediaTasks: [] }, version: 10 });
+    // 健康读链上的合法重置：空工作区保存放行（resetStudioWorkflow 流程）
+    await storage.setItem("studio-workflow-store", buildPersistedValue());
     await storage.setItem("studio-workflow-store", emptyValue);
-    // 拒写：读回仍是原数据
-    const restored = await storage.getItem("studio-workflow-store");
-    expect((JSON.parse(restored!).state.novelChapters as unknown[]).length).toBeGreaterThan(0);
-    // allowEmptyOverwrite 显式开启才放行（重置流程）
-    const permissive = createStudioWorkflowShardedStorage("studio-workflow-store", { allowEmptyOverwrite: true });
-    await permissive.setItem("studio-workflow-store", emptyValue);
-    const after = await permissive.getItem("studio-workflow-store");
-    expect(JSON.parse(after!).state.novelChapters).toEqual([]);
+
+    // 损坏场景：重新铺数据 → 删除一片 → getItem 回退（hydrationDamaged 置位）→ 空保存被拒
+    await storage.setItem("studio-workflow-store", buildPersistedValue());
+    const manifest = JSON.parse(hoisted.files.get("_p/proj-1/studio-workflow/manifest")!) as { shards: string[] };
+    hoisted.files.delete(`_p/proj-1/studio-workflow/${manifest.shards[0]!.replace(/\.json$/, "")}`);
+    await storage.getItem("studio-workflow-store");
+    await storage.setItem("studio-workflow-store", emptyValue);
+    expect(hoisted.files.has("_p/proj-1/studio-workflow/manifest")).toBe(true);
   });
 
   it("reads an empty-state manifest (zero shards) as an empty envelope", async () => {

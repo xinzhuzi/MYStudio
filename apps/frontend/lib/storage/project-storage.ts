@@ -242,6 +242,9 @@ export function createStudioWorkflowShardedStorage(
   let domainCachePid: string | null = null;
   let saveCounter = 0;
   let lastVersion: number | null = null;
+  // 读链损坏标志：manifest 在场但分片缺失/损坏（getItem 已 throw）→ 本会话后续
+  // 空工作区保存视为事故形态拒绝；健康读链上的合法重置（resetStudioWorkflow）不受影响
+  let hydrationDamaged = false;
   const envFullSaveEvery = Number.parseInt(process.env.MYSTUDIO_SHARD_FULL_SAVE_EVERY ?? "", 10);
   const fullSaveEvery = options.fullSaveEvery ?? (Number.isFinite(envFullSaveEvery) ? envFullSaveEvery : 50);
 
@@ -318,8 +321,12 @@ export function createStudioWorkflowShardedStorage(
 
       try {
         const merged = await readMergedShards(pid);
-        if (merged !== null) return merged;
+        if (merged !== null) {
+          hydrationDamaged = false;
+          return merged;
+        }
       } catch (error) {
+        hydrationDamaged = true;
         console.error('[StudioWorkflowShardedStorage] 分片读取失败，回退旧单文件:', error);
       }
 
@@ -372,7 +379,7 @@ export function createStudioWorkflowShardedStorage(
             const isEmptyWorkspace = (Array.isArray(st.novelChapters) ? st.novelChapters.length === 0 : true)
               && (Array.isArray(st.storyboards) ? st.storyboards.length === 0 : true)
               && (Array.isArray(st.mediaTasks) ? st.mediaTasks.length === 0 : true);
-            if (isEmptyWorkspace) {
+            if (isEmptyWorkspace && hydrationDamaged) {
               const diskManifestRaw = await fileStorage.getItem(`${shardFileKeyPrefix(pid)}/manifest`);
               const diskManifest = diskManifestRaw ? parseStudioWorkflowShardManifest(diskManifestRaw) : null;
               if (diskManifest && diskManifest.shards.length > 0 && !options.allowEmptyOverwrite) {
