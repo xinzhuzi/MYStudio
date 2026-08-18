@@ -29,6 +29,19 @@ describe("editing boundary validation", () => {
     });
   });
 
+  it("accepts registry subtitle fonts and rejects unknown font ids", () => {
+    const serif = validProject();
+    serif.renderSettings.subtitleFont = "noto-serif-sc";
+    expect(validateEditingProject(serif).success).toBe(true);
+
+    const unknown = validProject() as { renderSettings: { subtitleFont: string } };
+    unknown.renderSettings.subtitleFont = "comic-sans";
+    const result = validateEditingProject(unknown);
+    expect(result.success).toBe(false);
+    if (result.success) return;
+    expect(result.issues.map((issue) => issue.code)).toContain("editing.render.subtitle_font");
+  });
+
   it("rejects invalid time, duplicate ids, unknown kinds and effects", () => {
     const project = validProject() as unknown as Record<string, unknown>;
     const clips = project.clips as Array<Record<string, unknown>>;

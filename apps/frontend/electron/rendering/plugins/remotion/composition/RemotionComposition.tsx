@@ -48,7 +48,7 @@ export function RemotionComposition(props: CompositionProps): React.ReactElement
             <AudioClip {...clip} />
           </Sequence>
         ))}
-      <SubtitleTrack cues={props.subtitles} />
+      <SubtitleTrack cues={props.subtitles} font={props.subtitleFont} />
     </AbsoluteFill>
   );
 }

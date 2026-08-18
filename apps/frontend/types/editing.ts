@@ -203,6 +203,11 @@ export interface EditingRenderSettings {
   fps: number;
   codec: "h264";
   subtitleMode: "burn-in" | "none";
+  /**
+   * 烧录字幕字体 id（白名单见 lib/studio/remotion/subtitle-fonts.ts，
+   * 值保持字符串跨 JSON 持久化边界）。缺省 = "ma-shan-zheng"（毛笔楷书）。
+   */
+  subtitleFont?: string;
   loudnessLufs: number;
   truePeakDbtp: number;
   audioDucking?: EditingAudioDuckingSettings;

@@ -305,9 +305,23 @@ describe("buildChapterVideoCompositionProps", () => {
       mediaUrlByBindingId: {},
     });
     expect(enabled.success).toBe(true);
-    if (enabled.success) expect(enabled.value.subtitles).toEqual([
-      expect.objectContaining({ cueId: "video-use-subtitle-1-cue-1", text: "对齐后的字幕" }),
-    ]);
+    if (enabled.success) {
+      expect(enabled.value.subtitles).toEqual([
+        expect.objectContaining({ cueId: "video-use-subtitle-1-cue-1", text: "对齐后的字幕" }),
+      ]);
+      // 缺省字体回落注册表默认（毛笔楷书），显式设置原样透传。
+      expect(enabled.value.subtitleFont).toBe("ma-shan-zheng");
+      plan.renderSettings.subtitleFont = "noto-serif-sc";
+      const serif = buildChapterVideoCompositionProps({
+        plan,
+        currentShotSlots: [slot],
+        chapterManifest,
+        mediaUrlByClipId: { "visual-shot-001": mediaUrl },
+        mediaUrlByBindingId: {},
+      });
+      expect(serif.success).toBe(true);
+      if (serif.success) expect(serif.value.subtitleFont).toBe("noto-serif-sc");
+    }
 
     plan.renderSettings.subtitleMode = "none";
     const disabled = buildChapterVideoCompositionProps({

@@ -30,6 +30,7 @@
     "@codemirror/lang-json": "6.0.2",
     "@fontsource/ma-shan-zheng": "^5.3.0",
     "@fontsource/noto-sans-sc": "^5.3.0",
+    "@fontsource/noto-serif-sc": "^5.2.8",
     "@radix-ui/react-context-menu": "^2.2.16",
     "@radix-ui/react-dialog": "^1.1.15",
     "@radix-ui/react-dropdown-menu": "^2.1.16",

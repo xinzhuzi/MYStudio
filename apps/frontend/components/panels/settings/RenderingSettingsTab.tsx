@@ -1,10 +1,26 @@
-import { Check, Download, Film, Loader2, RefreshCw, RotateCcw, Wrench } from "lucide-react";
+import { Check, Download, Film, Loader2, RefreshCw, RotateCcw, Type, Wrench } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useRemotionRuntimeSettings } from "./useRemotionRuntimeSettings";
 import { useVideoWorkflowPlugins } from "./useVideoWorkflowPlugins";
 import type { VideoWorkflowPluginId, VideoWorkflowPluginStatusV1 } from "@rendering/contracts/video-workflow";
+import { useStudioStore } from "@/stores/studio/studio-store";
+import {
+  DEFAULT_SUBTITLE_FONT_ID,
+  SUBTITLE_FONT_IDS,
+  SUBTITLE_FONT_STYLES,
+} from "@/lib/studio/remotion/subtitle-fonts";
+
+const SUBTITLE_FONT_OPTIONS = SUBTITLE_FONT_IDS.map((id) => ({
+  id,
+  title: SUBTITLE_FONT_STYLES[id].label,
+  description: id === "ma-shan-zheng"
+    ? "毛笔楷书，仙侠武侠片题字质感（默认）。"
+    : id === "noto-serif-sc"
+      ? "思源宋体，端正典雅的书卷气。"
+      : "思源黑体，现代干净的阅读体。",
+}));
 
 const RENDERER_OPTIONS = [
   {
@@ -28,6 +44,9 @@ type RenderingSettingsTabProps = {
 export function RenderingSettingsTab({ embedded = false }: RenderingSettingsTabProps) {
   const runtime = useRemotionRuntimeSettings();
   const plugins = useVideoWorkflowPlugins();
+  const workflowConfig = useStudioStore((state) => state.workflowConfig);
+  const setWorkflowConfig = useStudioStore((state) => state.setWorkflowConfig);
+  const selectedSubtitleFont = workflowConfig.subtitleFont ?? DEFAULT_SUBTITLE_FONT_ID;
   const statusLabel = runtime.isCheckingStatus
     ? "检查中"
     : runtime.verificationState === "error" || runtime.progress?.phase === "failed"
@@ -186,6 +205,35 @@ export function RenderingSettingsTab({ embedded = false }: RenderingSettingsTabP
                             </button>
                           );
                         })}
+                      </div>
+
+                      <div className="space-y-1">
+                        <h5 className="font-medium text-foreground flex items-center gap-2">
+                          <Type className="h-4 w-4" aria-hidden="true" />
+                          字幕字体
+                        </h5>
+                        <p className="text-xs text-muted-foreground">烧录字幕的字体；对新发起的分镜与章节渲染生效（缺省=毛笔楷书）。</p>
+                        <div className="grid gap-3 md:grid-cols-3" role="radiogroup" aria-label="字幕字体">
+                          {SUBTITLE_FONT_OPTIONS.map((option) => {
+                            const selected = selectedSubtitleFont === option.id;
+                            return (
+                              <button
+                                key={option.id}
+                                type="button"
+                                role="radio"
+                                aria-checked={selected}
+                                onClick={() => setWorkflowConfig({ subtitleFont: option.id })}
+                                className={`rounded-xl border p-4 text-left transition-colors ${selected ? "border-primary bg-primary/10" : "border-border hover:bg-muted/40"}`}
+                              >
+                                <div className="flex items-center justify-between gap-3">
+                                  <span className="font-medium text-foreground">{option.title}</span>
+                                  {selected && <Check className="h-4 w-4 text-primary" aria-hidden="true" />}
+                                </div>
+                                <p className="mt-2 text-xs leading-5 text-muted-foreground">{option.description}</p>
+                              </button>
+                            );
+                          })}
+                        </div>
                       </div>
 
                       <div className="space-y-3">

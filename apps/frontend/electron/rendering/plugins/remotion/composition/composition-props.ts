@@ -216,6 +216,8 @@ export type CompositionProps = Record<string, unknown> & {
   transitions: CompositionTransitionProps[];
   audioClips: CompositionAudioClipProps[];
   subtitles: CompositionSubtitleCueProps[];
+  /** 烧录字幕字体 id（注册表白名单；缺省回落毛笔楷书）。 */
+  subtitleFont?: string;
   overlayClips?: CompositionOverlayClipProps[];
 };
 

@@ -24,6 +24,7 @@ import { buildRemotionShotPlans } from "@/lib/studio/remotion/remotion-shot-plan
 import { createRemotionChapterManifestFingerprint } from "@/lib/studio/remotion/remotion-audio-fingerprint";
 import { sha256CanonicalJson } from "@/lib/studio/remotion/canonical-json";
 import { DEFAULT_REMOTION_RENDER_SETTINGS } from "@/lib/studio/remotion/remotion-workspace-storage";
+import { DEFAULT_SUBTITLE_FONT_ID } from "@/lib/studio/remotion/subtitle-fonts";
 import { createReadyShotJob } from "@/lib/studio/remotion/remotion-job-factory";
 import { runStoryboardTtsGeneration } from "@/lib/studio/storyboard-tts-runner";
 import {
@@ -474,11 +475,17 @@ export function useChapterAutoVideoActions({
             const firstChapter = studio.novelChapters
               .slice()
               .sort((left, right) => left.index - right.index)[0]?.id;
+            // 字幕字体跟全局设置走（缺省=毛笔楷书）；分镜计划与章节 manifest
+            // 共用同一份 renderSettings，保证逐镜与成片烧录字体一致。
+            const renderSettings = {
+              ...DEFAULT_REMOTION_RENDER_SETTINGS,
+              subtitleFont: studio.workflowConfig.subtitleFont ?? DEFAULT_SUBTITLE_FONT_ID,
+            };
             let plans = await buildRemotionShotPlans({
               projectId,
               chapterId,
               chapterRevision: manifestRevision,
-              renderSettings: DEFAULT_REMOTION_RENDER_SETTINGS,
+              renderSettings,
               storyboards,
               requireHumanApproval: !firstChapter || firstChapter === chapterId,
               continuityPolicy: "required",
@@ -494,7 +501,7 @@ export function useChapterAutoVideoActions({
                 chapterId,
                 revision: currentManifest?.revision ?? 1,
                 sourceSnapshotHash: plans.sourceSnapshotHash,
-                renderSettings: DEFAULT_REMOTION_RENDER_SETTINGS,
+                renderSettings,
                 plans: plans.plans,
                 existing: currentManifest,
               });
@@ -514,7 +521,7 @@ export function useChapterAutoVideoActions({
                   chapterId,
                   revision: nextRevision,
                   sourceSnapshotHash: plans.sourceSnapshotHash,
-                  renderSettings: DEFAULT_REMOTION_RENDER_SETTINGS,
+                  renderSettings,
                   plans: plans.plans,
                   existing: currentManifest,
                 });

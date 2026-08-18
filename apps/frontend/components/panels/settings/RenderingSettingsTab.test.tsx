@@ -3,6 +3,7 @@
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useAppSettingsStore } from "@/stores/app/app-settings-store";
+import { useStudioStore } from "@/stores/studio/studio-store";
 import type { RemotionBrowserDownloadProgress, RemotionBrowserStatus } from "@rendering/contracts/remotion-browser-status";
 import { RenderingSettingsTab } from "./RenderingSettingsTab";
 
@@ -94,11 +95,26 @@ describe("RenderingSettingsTab", () => {
       "FFmpeg / ffprobe",
       "Remotion",
       "全局渲染器",
+      "字幕字体",
       "Remotion Headless Shell",
       "HyperFrames",
       "video-use",
       "Seedance Prompt Skill",
     ]);
+  });
+
+  it("defaults the subtitle font to brush kaishu and persists a different choice", async () => {
+    useStudioStore.setState((state) => ({
+      workflowConfig: { ...state.workflowConfig, subtitleFont: undefined },
+    }));
+    render(<RenderingSettingsTab />);
+    await waitFor(() => expect(screen.getByRole("heading", { name: "字幕字体" })).toBeTruthy());
+
+    const group = screen.getByRole("radiogroup", { name: "字幕字体" });
+    expect(group.querySelector('[aria-checked="true"]')?.textContent).toContain("毛笔楷书");
+
+    fireEvent.click(screen.getByRole("radio", { name: /思源宋体/ }));
+    expect(useStudioStore.getState().workflowConfig.subtitleFont).toBe("noto-serif-sc");
   });
 
   it("enables only the plugin whose automatic check reports an update", async () => {

@@ -540,6 +540,13 @@ export interface StudioWorkflowConfig {
    * 按项目持久化，不同项目可用不同旁白。
    */
   narratorVoiceFamily?: string;
+  /**
+   * 烧录字幕字体 id（白名单见 lib/studio/remotion/subtitle-fonts.ts）。
+   * 缺省 = "ma-shan-zheng"（毛笔楷书）。按项目持久化；一键成片/分镜计划
+   * 创建时注入 renderSettings.subtitleFont，存量 editing 工程缺字段时
+   * 渲染端同样回落默认字体。
+   */
+  subtitleFont?: string;
   /** 当前所处的工作流阶段（tab value），随项目保存，下次进入自动恢复 */
   workflowStage?: string;
   projectType?: string;

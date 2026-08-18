@@ -20,6 +20,7 @@ import {
   validateTimelineRendererEvidence,
 } from "@rendering/contracts/timeline-renderer";
 import { validateProposalEffectLinks } from "./proposal-effect-links";
+import { isSubtitleFontId } from "../remotion/subtitle-fonts";
 export { validateProposalEffectLinks } from "./proposal-effect-links";
 
 const TRACK_KINDS = new Set([
@@ -298,6 +299,9 @@ function validateRenderSettings(
   positiveInteger(value.fps, issues, `${path}.fps`, "editing.render.fps");
   enumValue(value.codec, new Set(["h264"]), issues, `${path}.codec`, "editing.render.codec");
   enumValue(value.subtitleMode, new Set(["burn-in", "none"]), issues, `${path}.subtitleMode`, "editing.render.subtitle_mode");
+  if (value.subtitleFont !== undefined && !isSubtitleFontId(value.subtitleFont)) {
+    issue(issues, "editing.render.subtitle_font", `${path}.subtitleFont`, "字幕字体必须是注册表内的字体 id");
+  }
   finiteNumber(value.loudnessLufs, issues, `${path}.loudnessLufs`, "editing.render.loudness");
   finiteNumber(value.truePeakDbtp, issues, `${path}.truePeakDbtp`, "editing.render.true_peak");
   validateAudioDucking(value.audioDucking, issues, `${path}.audioDucking`, requireAudioDucking);

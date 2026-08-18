@@ -43,6 +43,9 @@ importers:
       '@fontsource/noto-sans-sc':
         specifier: ^5.3.0
         version: 5.3.0
+      '@fontsource/noto-serif-sc':
+        specifier: ^5.2.8
+        version: 5.2.8
       '@radix-ui/react-context-menu':
         specifier: ^2.2.16
         version: 2.3.7(@types/react-dom@18.3.7(@types/react@18.3.31))(@types/react@18.3.31)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -1211,6 +1214,9 @@ packages:
 
   '@fontsource/noto-sans-sc@5.3.0':
     resolution: {integrity: sha512-HeqIlGm0+ohOKxZLuHj1qW6r6avHH0OWdKERAcSDI0RQ+MXrteuLKA+M+5eOA8rYy0MFvOR5AT0fQo2rUkye0Q==}
+
+  '@fontsource/noto-serif-sc@5.2.8':
+    resolution: {integrity: sha512-C7fAr+d1GjOAw1qIbntsnqbA3l5dkdzcmNNgeCXLC8QZ7VNubL7MTrX8UcYKHceX4mI//z8gGtXbOeeQrB6P7g==}
 
   '@humanwhocodes/config-array@0.13.0':
     resolution: {integrity: sha512-DZLEEqFWQFiyK6h5YIeynKx7JlvCYWL0cImfSRXZ9l4Sg2efkFGTuFf6vzXjK1cq6IYkU+Eg/JizXw+TD2vRNw==}
@@ -7116,6 +7122,8 @@ snapshots:
   '@fontsource/ma-shan-zheng@5.3.0': {}
 
   '@fontsource/noto-sans-sc@5.3.0': {}
+
+  '@fontsource/noto-serif-sc@5.2.8': {}
 
   '@humanwhocodes/config-array@0.13.0':
     dependencies:

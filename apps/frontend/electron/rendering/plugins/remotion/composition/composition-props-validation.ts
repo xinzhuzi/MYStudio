@@ -12,6 +12,7 @@ import {
   COMPOSITION_TRANSITION_EFFECTS,
   type CompositionTransitionEffect,
 } from "./timing";
+import { isSubtitleFontId } from "@/lib/studio/remotion/subtitle-fonts";
 
 const VISUAL_KINDS = ["image", "video"] as const;
 const VISUAL_FITS = ["cover", "contain"] as const;
@@ -38,6 +39,9 @@ export function validateCompositionProps(
   validateArray(value.transitions, "transitions", issues, validateTransition);
   validateArray(value.audioClips, "audioClips", issues, validateAudioClip);
   validateArray(value.subtitles, "subtitles", issues, validateSubtitle);
+  if (value.subtitleFont !== undefined && !isSubtitleFontId(value.subtitleFont)) {
+    issues.push({ path: "subtitleFont", message: "字幕字体必须是注册表内的字体 id" });
+  }
   if (value.overlayClips !== undefined) {
     validateArray(value.overlayClips, "overlayClips", issues, validateOverlayClip);
   }

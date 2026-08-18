@@ -6,6 +6,7 @@ import type {
 import type { StudioWorkflowConfig } from "@/types/studio";
 import { fileStorage } from "@/lib/storage/indexed-db-storage";
 import { validateRemotionWorkspaceManifest } from "./remotion-manifest-validation";
+import { DEFAULT_SUBTITLE_FONT_ID } from "./subtitle-fonts";
 
 export const REMOTION_WORKSPACE_STORAGE_SUFFIX = "remotion/project.json";
 
@@ -15,6 +16,7 @@ export const DEFAULT_REMOTION_RENDER_SETTINGS: EditingRenderSettings = {
   fps: 30,
   codec: "h264",
   subtitleMode: "burn-in",
+  subtitleFont: DEFAULT_SUBTITLE_FONT_ID,
   loudnessLufs: -14,
   truePeakDbtp: -1.5,
 };
