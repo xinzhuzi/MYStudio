@@ -18,6 +18,7 @@ import type { ScriptStorePersistenceState } from "./script-store-persistence";
 import { selectActiveScriptProject, useScriptStore } from "./script-store";
 import {
   createDefaultScriptProjectData,
+  createScriptScopedJsonStorage,
   defaultCalibrationState,
   mergeScriptStoreState,
   normalizeScriptProjectData,
@@ -240,5 +241,39 @@ describe("seriesMeta fallback persistence", () => {
 
     const saved = useScriptStore.getState().projects.p1?.seriesMeta;
     expect(saved).toEqual({ title: "道劫", characters: [], logline: "少年逆袭" });
+  });
+});
+
+describe("script scoped storage legacy raw-shape rewrap", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    resetScriptStore();
+  });
+
+  afterEach(resetScriptStore);
+
+  it("rewraps CLI-written raw ScriptProjectData with the active project id", async () => {
+    // 回归:CLI 直写的裸形状(无 {state,version} 包装)曾让 persist 读成空态,
+    // 后续 set() 把空默认整包写回,真实剧本被覆写(道劫 08-18 事故)
+    mocks.getItem.mockImplementation(async (key: string) =>
+      key.includes("script")
+        ? JSON.stringify({ rawScript: "# 道劫 EP01", scriptData: null, shots: [], parseStatus: "ready" })
+        : null);
+    const { useProjectStore } = await import("@/stores/project/project-store");
+    useProjectStore.setState({ activeProjectId: "p-raw" });
+
+    const storage = createScriptScopedJsonStorage();
+    const out = await storage?.getItem("mystudio-script-store");
+    expect(out).toEqual({
+      state: { activeProjectId: "p-raw", projectData: { rawScript: "# 道劫 EP01", scriptData: null, shots: [], parseStatus: "ready" } },
+      version: 0,
+    });
+  });
+
+  it("passes wrapped content through unchanged", async () => {
+    const wrapped = { state: { activeProjectId: "p1", projectData: { rawScript: "x" } }, version: 1 };
+    mocks.getItem.mockImplementation(async () => JSON.stringify(wrapped));
+    const storage = createScriptScopedJsonStorage();
+    expect(await storage?.getItem("mystudio-script-store")).toEqual(wrapped);
   });
 });

@@ -2,8 +2,7 @@
 // Licensed under AGPL-3.0-or-later. See LICENSE for details.
 // Commercial licensing available. See COMMERCIAL_LICENSE.md.
 import { create } from "zustand";
-import { persist, createJSONStorage } from "zustand/middleware";
-import { createProjectScopedStorage } from "@/lib/storage/project-storage";
+import { persist } from "zustand/middleware";
 import type { ScriptData, Shot, Episode, ScriptScene, ScriptCharacter, EpisodeRawScript, ProjectBackground, PromptLanguage, CalibrationStrictness, FilteredCharacterRecord, SeriesMeta } from "@/types/script";
  
 import type { ParseStatus, ShotListStatus, BatchProgress, ScriptInputDraft, ScriptCalibrationStatus, ScriptCalibrationState, ScriptProjectData } from "./script-store-types";
@@ -12,6 +11,7 @@ import {
   cloneScriptCharacters,
   createDefaultScriptProjectData,
   createScriptPersistOptions,
+  createScriptScopedJsonStorage,
   defaultCalibrationState,
   defaultScriptInputDraft } from "./script-store-persistence";
 import { deriveSeriesMetaFallback, selectActiveScriptProject } from "./script-store-selectors";
@@ -711,7 +711,7 @@ export const useScriptStore = create<ScriptStore>()(
         });
       } }),
     createScriptPersistOptions<ScriptStore>(
-      createJSONStorage(() => createProjectScopedStorage("script")),
+      createScriptScopedJsonStorage(),
     ),
   )
 );

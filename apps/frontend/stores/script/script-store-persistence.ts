@@ -3,6 +3,9 @@
 // Commercial licensing available in COMMERCIAL_LICENSE.md.
 
 import type { PersistOptions, PersistStorage } from "zustand/middleware";
+import { createJSONStorage } from "zustand/middleware";
+import { createProjectScopedStorage } from "@/lib/storage/project-storage";
+import { useProjectStore } from "@/stores/project/project-store";
 import { DEFAULT_STYLE_ID } from "@/lib/constants/visual-styles";
 import type {
   FilteredCharacterRecord,
@@ -238,3 +241,47 @@ export const createScriptPersistOptions = <S extends ScriptStorePersistenceState
     });
   },
 });
+
+/** CLI 管线曾把剧本 store 以裸 ScriptProjectData(无 zustand {state,version}
+ *  包装)直写进项目文件——persist 读不懂裸形状会保持内存空态,后续任意
+ *  set()(含 switchProject 的 ensureProject)触发 persist 把空默认整包写回,
+ *  真实数据被覆写(道劫 08-18 事故)。读侧把裸形状按读取时的活跃项目重
+ *  包装成 mergeScriptStoreState 认识的 {activeProjectId, projectData}。 */
+export function createScriptScopedJsonStorage(): PersistStorage<ScriptPersistedState> | undefined {
+  return createJSONStorage(() => {
+    const scoped = createProjectScopedStorage("script");
+    return {
+      getItem: async (name: string): Promise<string | null> => {
+        const raw = await scoped.getItem(name);
+        if (!raw) return raw;
+        try {
+          const parsed: unknown = JSON.parse(raw);
+          if (
+            parsed !== null &&
+            typeof parsed === "object" &&
+            !Array.isArray(parsed) &&
+            !("state" in parsed) &&
+            !("projectData" in parsed) &&
+            "rawScript" in parsed
+          ) {
+            const pid = useProjectStore.getState().activeProjectId;
+            if (typeof pid === "string" && pid) {
+              console.warn(
+                "[script-store] 检测到 CLI 直写的裸剧本文件,读时重包装为活跃项目数据以避免空态覆写",
+              );
+              return JSON.stringify({
+                state: { activeProjectId: pid, projectData: parsed },
+                version: 0,
+              });
+            }
+          }
+        } catch {
+          // 非 JSON 内容按原样返回,交给 persist 的解析报错
+        }
+        return raw;
+      },
+      setItem: scoped.setItem,
+      removeItem: scoped.removeItem,
+    };
+  });
+}
