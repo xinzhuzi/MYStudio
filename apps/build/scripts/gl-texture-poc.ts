@@ -66,13 +66,14 @@ function writeEntry(urls: Record<string, string>) {
     .replace(/__FREEZE__/g, process.env.POC_FREEZE === "1" ? "true" : "false")
     .replace(/__SEEK__/g, process.env.POC_SEEK === "1" ? "true" : "false")
     .replace(/__NOCANVAS__/g, process.env.POC_NOCANVAS === "1" ? "true" : "false")
+    .replace(/__CANVAS__/g, process.env.POC_CANVAS === "1" ? "true" : "false")
     .replace(/__MODE__/g, JSON.stringify(mode));
   fs.writeFileSync(entry, code, "utf8");
   return entry;
 }
 
 const ENTRY_TEMPLATE = `import React from "react";
-import { AbsoluteFill, Composition, Video, continueRender, delayRender, registerRoot, useCurrentFrame, useVideoConfig } from "remotion";
+import { AbsoluteFill, Composition, OffthreadVideo, Video, continueRender, delayRender, registerRoot, useCurrentFrame, useVideoConfig } from "remotion";
 import { ThreeCanvas } from "@remotion/three";
 import { useThree } from "@react-three/fiber";
 import * as THREE from "three";
@@ -80,6 +81,7 @@ import * as THREE from "three";
 const UNDERLAY: React.CSSProperties = { position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", zIndex: 0 };
 // POC_NOCANVAS: video 提到 canvas 之上直出——判定「video 本身黑帧(解码限制)」还是「纹理上传黑」。
 const OVERLAY: React.CSSProperties = { position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", zIndex: 2 };
+const HIDDEN: React.CSSProperties = { position: "absolute", width: 1, height: 1, opacity: 0, pointerEvents: "none" };
 
 const VERT = \`
 varying vec2 vUv;
@@ -105,10 +107,10 @@ void main() {
 }
 \`;
 
-function PocScene({ videoA, videoB, imageUrlA, imageUrlB, texturesRef }: { videoA: React.RefObject<HTMLVideoElement | null>; videoB: React.RefObject<HTMLVideoElement | null>; imageUrlA: string; imageUrlB: string; texturesRef: React.MutableRefObject<{ from?: THREE.Texture | null; to?: THREE.Texture | null }> }) {
+function PocScene({ videoA, videoB, wrapA, wrapB, imageUrlA, imageUrlB, srcA, srcB, texturesRef }: { videoA: React.RefObject<HTMLVideoElement | null>; videoB: React.RefObject<HTMLVideoElement | null>; wrapA: React.RefObject<HTMLDivElement | null>; wrapB: React.RefObject<HTMLDivElement | null>; imageUrlA: string; imageUrlB: string; srcA: string; srcB: string; texturesRef: React.MutableRefObject<{ from?: THREE.Texture | null; to?: THREE.Texture | null }> }) {
   const { gl, scene, camera } = useThree();
   const frame = useCurrentFrame();
-  const { durationInFrames } = useVideoConfig();
+  const { durationInFrames, fps } = useVideoConfig();
   const [handle] = React.useState(() => delayRender("gl-poc: waiting for both textures"));
 
   // Imperative 场景（与产品 CinematicVisualClip 同模式）：material/mesh 用 useMemo
@@ -149,7 +151,56 @@ function PocScene({ videoA, videoB, imageUrlA, imageUrlB, texturesRef }: { video
     };
   }, [gl, scene, mesh, material]);
 
+  // __CANVAS__ 模式（官方 useOffthreadVideoTexture 同姿势）：每帧把 proxy 帧图 URL
+  // 直接 TextureLoader.loadAsync——与 image 模式同上传机制，帧时序由本 effect 的
+  // delayRender/loadAsync 保证。proxy 端口由渲染器注入 window.remotion_proxyPort。
+  const frameSrcs = React.useMemo((): [string, string] | null => {
+    if (!__CANVAS__) return null;
+    const port = (window as unknown as { remotion_proxyPort?: number }).remotion_proxyPort;
+    if (!port) return null;
+    const t = Math.max(0, frame / fps);
+    const mk = (src: string) =>
+      "http://127.0.0.1:" + port + "/proxy?src=" + encodeURIComponent(src)
+        + "&time=" + encodeURIComponent(t) + "&transparent=false&toneMapped=true";
+    return [mk(srcA), mk(srcB)];
+  }, [frame, fps, srcA, srcB]);
+
   React.useEffect(() => {
+    if (!frameSrcs) return;
+    const h = delayRender("gl-poc proxy frame " + frame);
+    let disposed = false;
+    const loader = new THREE.TextureLoader();
+    Promise.all(frameSrcs.map((u) => loader.loadAsync(u)))
+      .then(([ta, tb]) => {
+        if (disposed) {
+          ta.dispose();
+          tb.dispose();
+          return;
+        }
+        const old = [texturesRef.current.from, texturesRef.current.to];
+        material.uniforms.fromTex.value = ta;
+        material.uniforms.toTex.value = tb;
+        texturesRef.current.from = ta;
+        texturesRef.current.to = tb;
+        gl.render(scene, camera);
+        for (const t of old) if (t) t.dispose();
+        continueRender(h);
+      })
+      .catch((err) => {
+        console.error("[poc] proxy frame load failed", err);
+        continueRender(h);
+      });
+    return () => {
+      disposed = true;
+      continueRender(h);
+    };
+  }, [frameSrcs, frame, gl, scene, camera, material, texturesRef]);
+
+  React.useEffect(() => {
+    if (frameSrcs) { // __CANVAS__ 模式由上面的 effect 管纹理
+      continueRender(handle);
+      return;
+    }
     let cancelled = false;
     const attachVideo = (el: HTMLVideoElement | null) =>
       new Promise<THREE.VideoTexture | null>((resolve) => {
@@ -161,9 +212,23 @@ function PocScene({ videoA, videoB, imageUrlA, imageUrlB, texturesRef }: { video
       new Promise<THREE.Texture | null>((resolve) => {
         new THREE.TextureLoader().load(url, (tex) => resolve(tex));
       });
+    const attachImgEl = (el: HTMLImageElement | null) =>
+      new Promise<THREE.Texture | null>((resolve) => {
+        if (!el) return resolve(null);
+        const tex = new THREE.Texture(el);
+        tex.minFilter = THREE.LinearFilter;
+        tex.magFilter = THREE.LinearFilter;
+        resolve(tex);
+      });
+    const imgs = () => [
+      wrapA.current?.querySelector("img") ?? null,
+      wrapB.current?.querySelector("img") ?? null,
+    ];
     const pair = __MODE__ === "image"
       ? Promise.all([attachImage(imageUrlA), attachImage(imageUrlB)])
-      : Promise.all([attachVideo(videoA.current), attachVideo(videoB.current)]);
+      : __CANVAS__
+        ? Promise.all(imgs().map((el) => attachImgEl(el)))
+        : Promise.all([attachVideo(videoA.current), attachVideo(videoB.current)]);
     pair.then(([ta, tb]) => {
       if (cancelled) return;
       material.uniforms.fromTex.value = ta;
@@ -229,15 +294,52 @@ function SeekDriver({ videoA, videoB, texturesRef, frame, fps }: {
   return null;
 }
 
+function ImgFrameDriver({ wrapA, wrapB, texturesRef, frame }: {
+  wrapA: React.RefObject<HTMLDivElement | null>;
+  wrapB: React.RefObject<HTMLDivElement | null>;
+  texturesRef: React.MutableRefObject<{ from?: THREE.Texture | null; to?: THREE.Texture | null }>;
+  frame: number;
+}) {
+  const { gl, scene, camera } = useThree();
+  React.useEffect(() => {
+    const h = delayRender("gl-poc img frame " + frame);
+    let settled = false;
+    const imgs = [wrapA.current?.querySelector("img") ?? null, wrapB.current?.querySelector("img") ?? null]
+      .filter(Boolean) as HTMLImageElement[];
+    const commit = () => {
+      if (settled || imgs.length === 0) return;
+      settled = true;
+      // img.src 每帧被 OffthreadVideo 替换；等 load 后强制重传纹理再画。
+      for (const tex of [texturesRef.current.from, texturesRef.current.to]) {
+        if (tex) tex.needsUpdate = true;
+      }
+      gl.render(scene, camera);
+      continueRender(h);
+    };
+    if (imgs.every((img) => img.complete)) {
+      // 已就绪的帧也要走一次 decode,确保新 src 解码完成后再上纹理。
+      Promise.all(imgs.map((img) => img.decode().catch(() => undefined))).then(commit);
+    } else {
+      Promise.all(imgs.map((img) => img.decode().catch(() => undefined))).then(commit);
+    }
+    return () => {
+      if (!settled) continueRender(h);
+    };
+  }, [frame, gl, scene, camera, wrapA, wrapB, texturesRef]);
+  return null;
+}
+
 function PocVideo({ srcA, srcB, imgA, imgB }: { srcA: string; srcB: string; imgA: string; imgB: string }) {
   const videoA = React.useRef<HTMLVideoElement | null>(null);
   const videoB = React.useRef<HTMLVideoElement | null>(null);
+  const wrapA = React.useRef<HTMLDivElement | null>(null);
+  const wrapB = React.useRef<HTMLDivElement | null>(null);
   const texturesRef = React.useRef<{ from?: THREE.Texture | null; to?: THREE.Texture | null }>({});
   const frame = useCurrentFrame();
   const { width, height, fps } = useVideoConfig();
   return (
     <AbsoluteFill style={{ backgroundColor: "#000" }}>
-      {__MODE__ === "image" ? null : (
+      {__MODE__ === "image" || __CANVAS__ ? null : (
         __SEEK__ ? (
           <>
             {/* 手动逐帧 seek 模式：不用 Remotion <Video>(其 seek 完成信号与 three 纹理的
@@ -245,7 +347,7 @@ function PocVideo({ srcA, srcB, imgA, imgB }: { srcA: string; srcB: string; imgA
             <video ref={videoA} src={srcA} muted playsInline style={UNDERLAY} />
             <video ref={videoB} src={srcB} muted playsInline style={UNDERLAY} />
           </>
-        ) : (
+      ) : (
           <>
             {/* 视频必须真实可见才会产帧：headless 下 opacity:0/1x1 的 video 不触发
                 rVFC/纹理上传（PoC 实测全黑）。放在 canvas 底层、被 WebGL 画面盖住。 */}
@@ -263,7 +365,7 @@ function PocVideo({ srcA, srcB, imgA, imgB }: { srcA: string; srcB: string; imgA
         gl={{ antialias: false, stencil: false, powerPreference: "low-power" }}
         dpr={1}
       >
-        <PocScene videoA={videoA} videoB={videoB} imageUrlA={imgA} imageUrlB={imgB} texturesRef={texturesRef} />
+        <PocScene videoA={videoA} videoB={videoB} wrapA={wrapA} wrapB={wrapB} imageUrlA={imgA} imageUrlB={imgB} srcA={srcA} srcB={srcB} texturesRef={texturesRef} />
         {__SEEK__ ? <SeekDriver videoA={videoA} videoB={videoB} texturesRef={texturesRef} frame={frame} fps={fps} /> : null}
       </ThreeCanvas>
     </AbsoluteFill>
@@ -347,10 +449,10 @@ async function main() {
       return [raw[0], raw[1], raw[2]];
     };
     const c0 = probe(0), cMid = probe(Math.floor(DURATION / 2)), cLast = probe(DURATION - 1);
-    const luma = (c: [number, number, number]) => 0.299 * c[0] + 0.587 * c[1] + 0.114 * c[2];
-    const lumas = [luma(c0), luma(cMid), luma(cLast)];
-    const spread = Math.max(...lumas) - Math.min(...lumas);
-    console.log(`[poc] frame rgb  f0=[${c0}] mid=[${cMid}] last=[${cLast}] (luma spread=${spread.toFixed(1)})`);
+    const channelSpread = (a: [number, number, number], b: [number, number, number]) =>
+      Math.max(Math.abs(a[0] - b[0]), Math.abs(a[1] - b[1]), Math.abs(a[2] - b[2]));
+    const spread = Math.max(channelSpread(c0, cMid), channelSpread(cMid, cLast), channelSpread(c0, cLast));
+    console.log(`[poc] frame rgb  f0=[${c0}] mid=[${cMid}] last=[${cLast}] (channel spread=${spread.toFixed(1)})`);
 
     const verdict = {
       rendered: true,
@@ -359,8 +461,8 @@ async function main() {
       fps: +(DURATION / (renderMs / 1000)).toFixed(1),
       bundleSeconds: +(bundleMs / 1000).toFixed(1),
       rgb: { f0: c0, mid: cMid, last: cLast },
-      lumaSpread: +spread.toFixed(1),
-      mixOccurred: spread > 10,
+      channelSpread: +spread.toFixed(1),
+      mixOccurred: spread > 30,
       totalSeconds: +((Date.now() - t0) / 1000).toFixed(1),
       output,
     };
