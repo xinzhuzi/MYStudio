@@ -573,11 +573,22 @@ describe("studio workflow store", () => {
     const store = useStudioStore.getState();
 
     store.replaceNovelText("第1章 断剑夜访\n独孤剑尘入镇。\n\n第2章 塾馆燃气\n晏燎掌心发热。");
-    useStudioStore.getState().createStoryboardsFromChapters();
 
-    const state = useStudioStore.getState();
-    expect(state.storyboards.map((item) => item.episodeId)).toEqual(["chapter-001", "chapter-002"]);
-    expect(state.productionTracks.map((item) => item.episodeId)).toEqual(["chapter-001", "chapter-002"]);
+    // 窗口化 v1：导入锚定首章为激活章，非激活章瘦身为轻索引（无正文）
+    const windowed = useStudioStore.getState();
+    expect(windowed.activeChapterId).toBe("chapter-001");
+    expect(windowed.novelChapters[1]).not.toHaveProperty("sourceText");
+
+    useStudioStore.getState().createStoryboardsFromChapters();
+    let state = useStudioStore.getState();
+    expect(state.storyboards.map((item) => item.episodeId)).toEqual(["chapter-001"]);
+    expect(state.productionTracks.map((item) => item.episodeId)).toEqual(["chapter-001"]);
+
+    // 切章后（单测走索引回退）为另一章生成
+    useStudioStore.setState({ activeChapterId: "chapter-002" });
+    useStudioStore.getState().createStoryboardsFromChapters();
+    state = useStudioStore.getState();
+    expect(state.storyboards.map((item) => item.episodeId)).toEqual(["chapter-002"]);
   });
 
   it("persists image workflows and applies generated node output to storyboard media", () => {

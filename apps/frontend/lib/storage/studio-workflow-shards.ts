@@ -43,6 +43,10 @@ export interface StudioWorkflowShardManifest {
   layout: typeof STUDIO_WORKFLOW_SHARD_LAYOUT;
   version: number;
   shards: string[];
+  /** 章节轻索引（窗口化 v1）：全章元数据条目（无 sourceText）。缺省=旧代全量布局（读端走全量路径） */
+  chapterIndex?: Array<Record<string, unknown>>;
+  /** 激活章（窗口装载对象）；null=未定（读端回退索引首章） */
+  activeChapterId?: string | null;
 }
 
 export class StudioWorkflowShardPlanError extends Error {
@@ -114,6 +118,21 @@ const CHAPTER_DOMAIN_RULES: Record<string, { slug: string; chapterKeyOf: Chapter
     },
   },
 };
+
+/** 章节条目是否带全文（窗口化：带 sourceText 的才是完整章，落章分片；无=轻索引项，不落片） */
+export function isFullNovelChapter(item: unknown): boolean {
+  return Boolean(item && typeof item === "object" && typeof (item as Record<string, unknown>).sourceText === "string");
+}
+
+/** 窗口装载/共享保留用的归属判定导出（渲染进程 switchChapter 使用） */
+export function buildAttributionContextFromState(state: Record<string, unknown>) {
+  return buildChapterAttributionContext(state);
+}
+export function chapterKeyOfDomainItem(domainKey: string, item: unknown, context: unknown): string | null {
+  const rule = CHAPTER_DOMAIN_RULES[domainKey];
+  if (!rule) return null;
+  return rule.chapterKeyOf(item, context as ReturnType<typeof buildChapterAttributionContext>);
+}
 
 /** 非章节数组域：项目级数据，按大小批切（单片裸名、多片 -NNN）。 */
 const ARRAY_DOMAIN_SLUGS: Record<string, string> = {
@@ -190,7 +209,7 @@ export function parseStudioWorkflowShardManifest(raw: string): StudioWorkflowSha
     return null;
   }
   if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return null;
-  const candidate = parsed as { layout?: unknown; version?: unknown; shards?: unknown };
+  const candidate = parsed as { layout?: unknown; version?: unknown; shards?: unknown; chapterIndex?: unknown; activeChapterId?: unknown };
   if (candidate.layout !== STUDIO_WORKFLOW_SHARD_LAYOUT) return null;
   if (typeof candidate.version !== "number" || !Number.isFinite(candidate.version)) return null;
   if (!Array.isArray(candidate.shards)) return null;
@@ -199,7 +218,23 @@ export function parseStudioWorkflowShardManifest(raw: string): StudioWorkflowSha
     if (typeof entry !== "string" || !isSafeShardFileName(entry)) return null;
     shards.push(entry);
   }
-  return { layout: STUDIO_WORKFLOW_SHARD_LAYOUT, version: candidate.version, shards };
+  let chapterIndex: Array<Record<string, unknown>> | undefined;
+  if (candidate.chapterIndex !== undefined) {
+    if (!Array.isArray(candidate.chapterIndex)) return null;
+    chapterIndex = [];
+    for (const entry of candidate.chapterIndex) {
+      if (!entry || typeof entry !== "object" || Array.isArray(entry)) return null;
+      const record = entry as Record<string, unknown>;
+      if (typeof record.id !== "string" || !record.id) return null;
+      chapterIndex.push(record);
+    }
+  }
+  let activeChapterId: string | null | undefined;
+  if (candidate.activeChapterId !== undefined) {
+    if (candidate.activeChapterId !== null && typeof candidate.activeChapterId !== "string") return null;
+    activeChapterId = candidate.activeChapterId;
+  }
+  return { layout: STUDIO_WORKFLOW_SHARD_LAYOUT, version: candidate.version, shards, chapterIndex, activeChapterId };
 }
 
 export interface StudioWorkflowShardPlan {
@@ -227,6 +262,8 @@ export interface PlanStudioWorkflowShardsOptions {
   domainCache?: Map<string, StudioWorkflowDomainGeneration>;
   /** 强制全量：跳过域复用与条目缓存读（写仍回填）——原地突变自愈用；域缓存照常登记新代。 */
   refreshItemCache?: boolean;
+  /** 窗口化 v1：把 state 的 novelChapters 派生为 manifest.chapterIndex（剥 sourceText）并写 activeChapterId */
+  emitChapterIndex?: boolean;
 }
 
 interface Batch {
@@ -379,11 +416,16 @@ export function planStudioWorkflowShards(
       const domainFilesStart = files.length;
       // 章优先分层：按「同章连续段(run)」切文件，run 内超预算续片；
       // manifest 顺序 = 数组原序 → 合并 concat 精确还原（章交错也保序）。
+      // novelChapters 特例（窗口化 v1）：轻索引项（无 sourceText）不落章分片——
+      // 索引进 manifest.chapterIndex，全文只存激活/曾激活章的既有分片。
+      const plannableItems = key === "novelChapters"
+        ? items.filter(isFullNovelChapter)
+        : items;
       let index = 0;
-      while (index < items.length) {
-        const chapterKey = chapterRule.chapterKeyOf(items[index], attribution);
+      while (index < plannableItems.length) {
+        const chapterKey = chapterRule.chapterKeyOf(plannableItems[index], attribution);
         let end = index + 1;
-        while (end < items.length && chapterRule.chapterKeyOf(items[end], attribution) === chapterKey) {
+        while (end < plannableItems.length && chapterRule.chapterKeyOf(plannableItems[end], attribution) === chapterKey) {
           end += 1;
         }
         let shard: Batch | null = null;
@@ -397,7 +439,7 @@ export function planStudioWorkflowShards(
           return shard;
         };
         for (let position = index; position < end; position += 1) {
-          const raw = items[position];
+          const raw = plannableItems[position];
           const itemPart = raw && typeof raw === "object" ? serializeItem(raw as object) : `      ${reindentJson(JSON.stringify(raw, null, 2), 6)}`;
           if (!shard) openShard();
           const projected = batchTotalBytes(shard!, version, itemPart);
@@ -448,6 +490,18 @@ export function planStudioWorkflowShards(
     version,
     shards: files.map((file) => file.name),
   };
+  if (options.emitChapterIndex && Array.isArray(state.novelChapters)) {
+    manifest.chapterIndex = (state.novelChapters as unknown[]).map((chapter) => {
+      if (!chapter || typeof chapter !== "object") return { id: String(chapter) };
+      const { sourceText: _dropped, ...rest } = chapter as Record<string, unknown>;
+      return rest;
+    });
+    const activeRaw = state.activeChapterId;
+    manifest.activeChapterId = typeof activeRaw === "string" && activeRaw
+      ? activeRaw
+      : ((state.novelChapters as unknown[]).find(isFullNovelChapter) as { id?: unknown } | undefined)?.id as string | null
+        ?? null;
+  }
   return { manifest, files, oversizedFiles, stats };
 }
 

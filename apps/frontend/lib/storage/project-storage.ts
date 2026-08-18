@@ -13,6 +13,9 @@ import { fileStorage } from './indexed-db-storage';
 import { useProjectStore } from '@/stores/project/project-store';
 import { useAppSettingsStore } from '@/stores/app/app-settings-store';
 import {
+  buildAttributionContextFromState,
+  chapterKeyOfDomainItem,
+  isFullNovelChapter,
   md5Utf8,
   mergeStudioWorkflowShards,
   parseStudioWorkflowShardManifest,
@@ -247,6 +250,40 @@ export function createStudioWorkflowShardedStorage(
     if (!manifest) {
       throw new Error('studio-workflow manifest 无法解析');
     }
+    if (manifest.chapterIndex !== undefined) {
+      // 窗口化 v1 读：只读项目级分片 + 激活章分片（启动 O(窗口)，与总章数无关）
+      const active = typeof manifest.activeChapterId === 'string' && manifest.activeChapterId
+        ? manifest.activeChapterId
+        : manifest.chapterIndex.find((entry) => typeof entry.id === 'string')?.id ?? null;
+      const wanted = manifest.shards.filter((shardName) => {
+        if (!shardName.startsWith('chapters/')) return true;
+        return shardName.split('/')[1] === active;
+      });
+      const contents: string[] = [];
+      for (const shardName of wanted) {
+        const raw = await fileStorage.getItem(shardKeyForFile(pid, shardName));
+        if (typeof raw !== 'string') {
+          throw new Error(`studio-workflow 分片缺失: ${shardName}`);
+        }
+        contents.push(raw);
+      }
+      const merged = mergeStudioWorkflowShards(contents);
+      const mergedChapters = merged.state.novelChapters;
+      const novelChapters = manifest.chapterIndex.map((entry) => {
+        if (entry.id === active && Array.isArray(mergedChapters)) {
+          const full = mergedChapters.find((chapter) => (
+            chapter && typeof chapter === 'object' && (chapter as Record<string, unknown>).id === active
+          ));
+          if (full) return full;
+        }
+        return entry;
+      });
+      // activeChapterId 必须放进 state——zustand persist 只 merge 信封的 state，顶层附加键会被丢弃
+      return JSON.stringify({
+        state: { ...merged.state, novelChapters, activeChapterId: active },
+        version: manifest.version,
+      });
+    }
     const contents: string[] = [];
     for (const shardName of manifest.shards) {
       const raw = await fileStorage.getItem(shardKeyForFile(pid, shardName));
@@ -329,7 +366,32 @@ export function createStudioWorkflowShardedStorage(
             itemCache,
             domainCache: canIncremental && domainCache ? domainCache : undefined,
             refreshItemCache: forceFull || undefined,
+            emitChapterIndex: true,
           });
+          // 窗口化 v1 写：归档章分片名抄录——窗口 state 只含激活章条目，磁盘上
+          // 其他章的既有分片（stamp 命名不可变）按名并入本代 manifest，孤儿清理不误删
+          try {
+            const activeId = plan.manifest.activeChapterId ?? null;
+            if (plan.manifest.chapterIndex !== undefined) {
+              const diskManifestRaw = previousGeneration
+                ? null
+                : await fileStorage.getItem(`${shardFileKeyPrefix(pid)}/manifest`);
+              const diskManifest = previousGeneration?.manifest
+                ?? (diskManifestRaw ? parseStudioWorkflowShardManifest(diskManifestRaw) : null);
+              if (diskManifest) {
+                const listed = new Set(plan.manifest.shards);
+                for (const shardName of diskManifest.shards) {
+                  if (!shardName.startsWith('chapters/')) continue;
+                  if (shardName.split('/')[1] === activeId) continue;
+                  if (listed.has(shardName)) continue;
+                  plan.manifest.shards.push(shardName);
+                  listed.add(shardName);
+                }
+              }
+            }
+          } catch (error) {
+            console.warn('[StudioWorkflowShardedStorage] 归档章分片名抄录失败（下次保存重试）:', error);
+          }
         } catch (error) {
           console.error('[StudioWorkflowShardedStorage] 分片规划失败，回退旧单文件写:', error);
           await fileStorage.setItem(`_p/${pid}/${storeName}`, value);
@@ -744,3 +806,42 @@ async function ensureProjectRootReadme(pid: string): Promise<void> {
 async function ensureBackupsReadme(pid: string): Promise<void> {
   await ensureReadmeMatches(pid, 'backups/README.md', backupsReadmeTemplate, 'backups/README.md');
 }
+
+
+/**
+ * 窗口化 v1：装载指定章的工作区（switchChapter 用）。
+ * 读 manifest → 该章分片 + 根层 shared 桶分片 → 按域返回该章条目；
+ * 返回 null=无分片布局/章无分片（调用方回退索引条目）。
+ */
+export async function loadStudioChapterWorkspace(
+  pid: string,
+  chapterId: string,
+): Promise<{ novelChapter: unknown; domains: Record<string, unknown[]> } | null> {
+  if (!isSafeProjectId(pid)) return null;
+  const prefix = `_p/${pid}/${STUDIO_WORKFLOW_SHARD_DIR}`;
+  const manifestRaw = await fileStorage.getItem(`${prefix}/manifest`);
+  if (!manifestRaw) return null;
+  const manifest = parseStudioWorkflowShardManifest(manifestRaw);
+  if (!manifest) return null;
+  const chapterShards = manifest.shards.filter((name) => name.startsWith(`chapters/${chapterId}/`));
+  const sharedShards = manifest.shards.filter((name) => /-shared-\d{3}-/.test(name));
+  const contents: string[] = [];
+  for (const shardName of [...chapterShards, ...sharedShards]) {
+    const raw = await fileStorage.getItem(`${prefix}/${shardName.replace(/\.json$/, "")}`);
+    if (typeof raw !== 'string') continue;
+    contents.push(raw);
+  }
+  if (contents.length === 0) return null;
+  const merged = mergeStudioWorkflowShards(contents);
+  return {
+    novelChapter: (merged.state.novelChapters as unknown[] | undefined)?.[0] ?? null,
+    domains: merged.state as Record<string, unknown[]>,
+  };
+}
+
+/** 共享条目判定（switchChapter 保留无章归属条目用） */
+export function isSharedDomainItem(domainKey: string, item: unknown, state: Record<string, unknown>): boolean {
+  return chapterKeyOfDomainItem(domainKey, item, buildAttributionContextFromState(state)) === null;
+}
+
+export { isFullNovelChapter };

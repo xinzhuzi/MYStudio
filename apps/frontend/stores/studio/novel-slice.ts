@@ -35,6 +35,26 @@ type SetFn = (
 ) => void;
 type GetFn = () => NovelSliceStore;
 
+/** 窗口化 v1：导入/追加/替换后锚定激活章并瘦身非激活章（经全 store 视图，避免 slice 类型耦合） */
+type WindowStoreView = {
+  activeChapterId?: string | null;
+  slimNonActiveChapters: () => boolean;
+};
+function windowHook(
+  get: GetFn,
+  set: SetFn,
+  novelChapters: NovelChapter[],
+): void {
+  const view = get() as unknown as WindowStoreView;
+  if (!view.activeChapterId) {
+    (set as unknown as (partial: Record<string, unknown>) => void)({
+      activeChapterId: novelChapters[0]?.id ?? null,
+    });
+  }
+  const after = get() as unknown as WindowStoreView;
+  after.slimNonActiveChapters?.();
+}
+
 /** mirror 同步注入(由 store 提供,内部转发到 library stores 与项目文件)。 */
 export interface NovelMirrorDeps {
   syncNovelChapterMirrors: (chapters: NovelChapter[]) => void;
@@ -52,6 +72,7 @@ export function createNovelSliceActions(
     importNovelText: (sourceText: string): void => {
       const novelChapters = parseNovelChapters(sourceText);
       set({ novelChapters });
+      windowHook(get, set, novelChapters);
       mirrors.syncNovelChapterMirrors(novelChapters);
     },
 
@@ -61,6 +82,7 @@ export function createNovelSliceActions(
       });
       const importedChapters = novelChapters.slice(get().novelChapters.length);
       set({ novelChapters });
+      windowHook(get, set, novelChapters);
       mirrors.syncNovelChapterMirrors(importedChapters);
     },
 
@@ -68,6 +90,7 @@ export function createNovelSliceActions(
       const previousChapters = get().novelChapters;
       const novelChapters = replaceNovelChapters(sourceText, { sourceName });
       set({ novelChapters });
+      windowHook(get, set, novelChapters);
       mirrors.syncNovelChapterMirrors(novelChapters);
       mirrors.removeNovelChapterMirrors(
         previousChapters.filter(

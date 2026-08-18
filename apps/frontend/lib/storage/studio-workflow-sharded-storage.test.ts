@@ -114,6 +114,35 @@ function buildPersistedValue() {
   });
 }
 
+
+/** 窗口化 v1 契约：读回=激活章全文 + 非激活章轻索引（无 sourceText）+ state.activeChapterId */
+function windowedExpectation(envelope: { state: Record<string, unknown> }): Record<string, unknown> {
+  const state = envelope.state as Record<string, unknown> & { novelChapters?: Array<Record<string, unknown>> };
+  const chapters = (state.novelChapters ?? []).map((chapter) => {
+    if (chapter.id === "chapter-001") return chapter;
+    const { sourceText: _dropped, ...rest } = chapter;
+    return rest;
+  });
+  // 章级域：只留激活章条目（chapter-002 的分镜/任务等不在窗口）
+  const nextState: Record<string, unknown> = { ...state, novelChapters: chapters, activeChapterId: "chapter-001" };
+  for (const [key, value] of Object.entries(state)) {
+    if (key === "novelChapters" || !Array.isArray(value)) continue;
+    const hasForeign = value.some((item) => (
+      item && typeof item === "object"
+      && ((item as Record<string, unknown>).episodeId === "chapter-002"
+        || (item as Record<string, unknown>).chapterId === "chapter-002")
+    ));
+    if (hasForeign) {
+      nextState[key] = value.filter((item) => !(
+        item && typeof item === "object"
+        && ((item as Record<string, unknown>).episodeId === "chapter-002"
+          || (item as Record<string, unknown>).chapterId === "chapter-002")
+      ));
+    }
+  }
+  return { ...envelope, state: nextState };
+}
+
 describe("createStudioWorkflowShardedStorage", () => {
   let storage: ReturnType<typeof createStudioWorkflowShardedStorage>;
 
@@ -147,7 +176,7 @@ describe("createStudioWorkflowShardedStorage", () => {
 
     const restored = await storage.getItem("studio-workflow-store");
     expect(restored).toBeTruthy();
-    expect(JSON.parse(restored!)).toEqual(JSON.parse(value));
+    expect(JSON.parse(restored!)).toEqual(windowedExpectation(JSON.parse(value)));
   });
 
   it("renames the legacy single file to .bak-sharded-* after a successful shard write (保留不删)", async () => {
@@ -262,7 +291,7 @@ describe("createStudioWorkflowShardedStorage", () => {
     expect(newWrites.some((key) => key.includes("core-"))).toBe(false);
     // 数据无损：读回等于本次保存值
     const restored = await storage.getItem("studio-workflow-store");
-    expect(JSON.parse(restored!)).toEqual(JSON.parse(changedValue));
+    expect(JSON.parse(restored!)).toEqual(windowedExpectation(JSON.parse(changedValue)));
   });
 
   it("writes and repairs both READMEs via the text channel (项目根全目录 + 分片目录)", async () => {
@@ -323,7 +352,50 @@ describe("createStudioWorkflowShardedStorage", () => {
     expect(hoisted.files.get([...hoisted.files.keys()].find((k) => k.includes("chapters/chapter-001/novel-chapters"))!)).toContain("第一章被原地改");
     // 读回无损
     const restored = await incrementalStorage.getItem("studio-workflow-store");
-    expect(JSON.parse(restored!)).toEqual(JSON.parse(value()));
+    expect(JSON.parse(restored!)).toEqual(windowedExpectation(JSON.parse(value())));
+  });
+
+  it("窗口化写：只含激活章的窗口保存保留归档章分片（归档抄录，不误删）", async () => {
+    // 第一代：两章全量落盘
+    const both = buildPersistedValue();
+    await storage.setItem("studio-workflow-store", both);
+    const manifest1 = JSON.parse(hoisted.files.get("_p/proj-1/studio-workflow/manifest")!) as { shards: string[]; chapterIndex?: unknown[] };
+    expect(manifest1.shards.some((n) => n.startsWith("chapters/chapter-002/"))).toBe(true);
+
+    // 第二代：窗口 state（只有 chapter-001 条目 + 两章轻索引，模拟切章后保存）
+    const windowed = JSON.parse(both) as {
+      state: {
+        novelChapters: Array<Record<string, unknown>>;
+        storyboards: Array<Record<string, unknown>>;
+        activeChapterId?: string;
+      };
+    };
+    windowed.state.activeChapterId = "chapter-001";
+    windowed.state.novelChapters = windowed.state.novelChapters.map((c) => (
+      c.id === "chapter-001" ? c : { id: c.id, title: c.title }
+    ));
+    windowed.state.storyboards = windowed.state.storyboards.filter((sb) => sb.episodeId === "chapter-001");
+    await storage.setItem("studio-workflow-store", JSON.stringify(windowed));
+
+    const manifest2 = JSON.parse(hoisted.files.get("_p/proj-1/studio-workflow/manifest")!) as {
+      shards: string[]; chapterIndex?: Array<{ id: string }>; activeChapterId?: string;
+    };
+    // 归档章分片名保留
+    expect(manifest2.shards.some((n) => n.startsWith("chapters/chapter-002/"))).toBe(true);
+    // 文件仍在磁盘（孤儿清理未删）
+    const kept = [...hoisted.files.keys()].some((k) => k.startsWith("_p/proj-1/studio-workflow/chapters/chapter-002/"));
+    expect(kept).toBe(true);
+    // 索引=两章全量视图 + 激活章
+    expect(manifest2.chapterIndex?.map((e) => e.id).sort()).toEqual(["chapter-001", "chapter-002"]);
+    expect(manifest2.activeChapterId).toBe("chapter-001");
+    // 窗口读回：章 2 为轻索引（无正文）、章 1 全文在
+    const restored = await storage.getItem("studio-workflow-store");
+    const parsed = JSON.parse(restored!) as { state: { novelChapters: Array<Record<string, unknown>>; activeChapterId: string } };
+    expect(parsed.state.activeChapterId).toBe("chapter-001");
+    const ch1 = parsed.state.novelChapters.find((c) => c.id === "chapter-001")!;
+    const ch2 = parsed.state.novelChapters.find((c) => c.id === "chapter-002")!;
+    expect(typeof ch1.sourceText).toBe("string");
+    expect("sourceText" in ch2).toBe(false);
   });
 
   it("reads an empty-state manifest (zero shards) as an empty envelope", async () => {

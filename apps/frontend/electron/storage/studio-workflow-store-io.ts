@@ -113,7 +113,7 @@ export function writeStudioWorkflowStore(
   projectId: string,
   envelopeRaw: string,
 ): WriteStudioWorkflowStoreResult {
-  const plan = planStudioWorkflowShards(envelopeRaw);
+  const plan = planStudioWorkflowShards(envelopeRaw, { emitChapterIndex: true });
   const shardDir = shardDirFor(dataRoot, projectId);
   fs.mkdirSync(shardDir, { recursive: true });
 

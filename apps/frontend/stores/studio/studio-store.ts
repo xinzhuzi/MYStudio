@@ -1,6 +1,11 @@
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
-import { createStudioWorkflowShardedStorage } from "@/lib/storage/project-storage";
+import {
+  createStudioWorkflowShardedStorage,
+  isSharedDomainItem,
+  loadStudioChapterWorkspace,
+} from "@/lib/storage/project-storage";
+import { useProjectStore } from "@/stores/project/project-store";
 import {
   buildAssetImageWorkflowPatch,
   buildStoryboardImageWorkflowPatch,
@@ -79,6 +84,8 @@ import type {
 interface StudioWorkflowState {
   materials: StudioMaterial[];
   novelChapters: NovelChapter[];
+  /** 窗口化 v1：激活章（工作区装载对象）；null/缺省=未窗口化（legacy 全量内存） */
+  activeChapterId?: string | null;
   sourceBible: string;
   agentWorkData: AgentWorkData[];
   entityExtractions: EntityExtractionResult[];
@@ -104,6 +111,8 @@ interface StudioWorkflowActions {
   deleteMaterial: (id: string) => void;
   bindMaterialToStoryboard: (storyboardId: string, materialId: string) => void;
   importNovelText: (sourceText: string) => void;
+  switchChapter: (chapterId: string) => Promise<void>;
+  slimNonActiveChapters: () => boolean;
   appendNovelText: (sourceText: string, sourceName?: string) => void;
   replaceNovelText: (sourceText: string, sourceName?: string) => void;
   updateNovelChapter: (id: string, updates: Partial<NovelChapter>) => void;
@@ -188,6 +197,7 @@ type StudioWorkflowStore = StudioWorkflowState & StudioWorkflowActions;
 const initialState: StudioWorkflowState = {
   materials: [],
   novelChapters: [],
+  activeChapterId: null,
   sourceBible: "",
   agentWorkData: [],
   entityExtractions: [],
@@ -230,6 +240,71 @@ export const useStudioStore = create<StudioWorkflowStore>()(
       deleteMaterial: materialSlice.deleteMaterial,
       bindMaterialToStoryboard: materialSlice.bindMaterialToStoryboard,
       importNovelText: novelSlice.importNovelText,
+
+      // ── 窗口化 v1（08-18-store-chapter-windowing）──
+      // 非激活章瘦身为轻索引项（正文保留在章分片/镜像，切章时装载）
+      slimNonActiveChapters: () => {
+        const { novelChapters, activeChapterId } = get();
+        if (!activeChapterId) return false;
+        const hasFull = novelChapters.some((chapter) => (
+          typeof chapter.sourceText === "string" && chapter.id !== activeChapterId
+        ));
+        if (!hasFull) return false;
+        set({
+          novelChapters: novelChapters.map((chapter) => {
+            if (chapter.id === activeChapterId || typeof chapter.sourceText !== "string") return chapter;
+            const { sourceText: _dropped, ...rest } = chapter;
+            return rest as NovelChapter;
+          }),
+        });
+        return true;
+      },
+
+      // 切章：装载目标章工作区（该章分片+shared 桶），保留无章归属条目，前章数据已被各次 set() 落盘
+      switchChapter: async (chapterId) => {
+        const pid = useProjectStore.getState().activeProjectId;
+        const current = get();
+        if (!current.novelChapters.some((chapter) => chapter.id === chapterId)) return;
+        if (current.activeChapterId === chapterId) return;
+        let loaded: Awaited<ReturnType<typeof loadStudioChapterWorkspace>> = null;
+        if (pid) {
+          try {
+            loaded = await loadStudioChapterWorkspace(pid, chapterId);
+          } catch (error) {
+            console.warn("[StudioStore] 章节工作区装载失败，回退索引条目:", error);
+          }
+        }
+        const activeChapter = (loaded?.novelChapter as NovelChapter | undefined)
+          ?? current.novelChapters.find((chapter) => chapter.id === chapterId);
+        if (!activeChapter) return;
+        const attributionState = {
+          storyboards: current.storyboards,
+          productionTracks: current.productionTracks,
+        } as unknown as Record<string, unknown>;
+        const mergeWindow = (key: keyof StudioWorkflowState, loadedItems: unknown) => {
+          const currentItems = current[key] as unknown[];
+          if (!Array.isArray(loadedItems)) return currentItems.filter((item) => isSharedDomainItem(key, item, attributionState));
+          const shared = currentItems.filter((item) => isSharedDomainItem(key, item, attributionState));
+          return [...shared, ...loadedItems];
+        };
+        set({
+          activeChapterId: chapterId,
+          novelChapters: current.novelChapters.map((chapter) => (
+            chapter.id === chapterId
+              ? activeChapter
+              : { ...chapter, sourceText: undefined }
+          )),
+          storyboards: mergeWindow("storyboards", loaded?.domains.storyboards) as StoryboardItem[],
+          scriptPlans: mergeWindow("scriptPlans", loaded?.domains.scriptPlans) as ScriptPlan[],
+          episodeOutlines: mergeWindow("episodeOutlines", loaded?.domains.episodeOutlines) as EpisodeOutline[],
+          mediaTasks: mergeWindow("mediaTasks", loaded?.domains.mediaTasks) as MediaGenerationTask[],
+          productionTracks: mergeWindow("productionTracks", loaded?.domains.productionTracks) as ProductionTrack[],
+          videoCandidates: mergeWindow("videoCandidates", loaded?.domains.videoCandidates) as VideoCandidate[],
+          agentWorkData: mergeWindow("agentWorkData", loaded?.domains.agentWorkData) as AgentWorkData[],
+          imageWorkflows: mergeWindow("imageWorkflows", loaded?.domains.imageWorkflows) as ImageWorkflowGraph[],
+        });
+        get().rebuildTracks();
+      },
       appendNovelText: novelSlice.appendNovelText,
       replaceNovelText: novelSlice.replaceNovelText,
       updateNovelChapter: novelSlice.updateNovelChapter,
@@ -601,7 +676,11 @@ export const useStudioStore = create<StudioWorkflowStore>()(
       },
 
       createStoryboardsFromChapters: () => {
-        const chapters = get().novelChapters;
+        // 窗口化 v1：只为激活章生成分镜（非激活章为轻索引项，无正文）
+        const { activeChapterId } = get();
+        const chapters = get().novelChapters.filter((chapter) => (
+          !activeChapterId || chapter.id === activeChapterId
+        ));
         if (!chapters.length) return;
         const storyboards = chapters.map<StoryboardItem>((chapter) => ({
           id: createStudioWorkflowId("sb"),
@@ -611,7 +690,7 @@ export const useStudioStore = create<StudioWorkflowStore>()(
           trackId: "",
           duration: 5,
           prompt: chapter.eventSummary || chapter.title,
-          videoDesc: chapter.sourceText.slice(0, 80),
+          videoDesc: typeof chapter.sourceText === "string" ? chapter.sourceText.slice(0, 80) : chapter.title,
           assetIds: [],
           state: "idle",
         }));
@@ -744,6 +823,15 @@ export const useStudioStore = create<StudioWorkflowStore>()(
       })),
       version: STUDIO_WORKFLOW_PERSIST_VERSION,
       migrate: (persistedState) => migrateStudioWorkflowState(persistedState),
+      // 窗口化 v1：legacy 全量水合后锚定激活章并瘦身（下次保存即写 manifest 轻索引）
+      onRehydrateStorage: () => (state) => {
+        if (!state || state.activeChapterId) return;
+        const chapters = state.novelChapters ?? [];
+        const firstFull = chapters.find((chapter) => typeof chapter.sourceText === "string");
+        if (!firstFull) return;
+        useStudioStore.setState({ activeChapterId: firstFull.id });
+        useStudioStore.getState().slimNonActiveChapters();
+      },
     },
   ),
 );

@@ -112,11 +112,11 @@ export function sampleChaptersForBible(
   if (!sorted.length) return [];
 
   const excerptOf = (chapter: NovelChapter): string => {
-    const text = chapter.sourceText.trim();
+    const text = (chapter.sourceText ?? "").trim();
     return text.length > perChapter ? `${text.slice(0, perChapter)}\n…（截断）` : text;
   };
   const totalChars = sorted.reduce(
-    (sum, chapter) => sum + Math.min(chapter.sourceText.trim().length, perChapter),
+    (sum, chapter) => sum + Math.min((chapter.sourceText ?? "").trim().length, perChapter),
     0,
   );
   if (totalChars <= budget) {

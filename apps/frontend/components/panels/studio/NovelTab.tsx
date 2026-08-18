@@ -288,7 +288,7 @@ export function NovelTab(props: {
     setEditDraft({
       volume: chapter.volume ?? "正文卷",
       title: chapter.title,
-      sourceText: chapter.sourceText,
+      sourceText: chapter.sourceText ?? "",
       eventSummary: chapter.eventSummary ?? "",
       eventState: chapter.eventState ?? "",
     });

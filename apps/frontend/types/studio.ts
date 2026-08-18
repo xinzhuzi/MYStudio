@@ -50,7 +50,8 @@ export interface NovelChapter {
   index: number;
   volume?: string;
   title: string;
-  sourceText: string;
+  /** 章节正文。窗口化后非激活章为轻索引项（无 sourceText，切换章节时装载） */
+  sourceText?: string;
   eventSummary?: string;
   eventState?: string;
   eventTaskState?: "idle" | "running" | "success" | "failed";

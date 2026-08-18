@@ -32,7 +32,7 @@ export function buildProjectEventGraph(input: { projectId: string; chapters: Nov
     .sort((left, right) => left.index - right.index)
     .map((chapter, order) => {
       const analysis = chapter.eventAnalysis;
-      const summary = analysis?.coreEvent || chapter.eventSummary || chapter.sourceText.slice(0, 120);
+      const summary = analysis?.coreEvent || chapter.eventSummary || (chapter.sourceText ?? "").slice(0, 120);
       const state = [
         analysis?.mainlineRelation ? `主线：${analysis.mainlineRelation}` : "",
         analysis?.informationDensity ? `信息密度：${analysis.informationDensity}` : "",

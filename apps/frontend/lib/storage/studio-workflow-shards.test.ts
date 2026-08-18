@@ -274,6 +274,57 @@ describe("md5Utf8", () => {
   });
 });
 
+describe("窗口化 v1（chapter-windowing）", () => {
+  it("轻索引章（无 sourceText）不落章分片；emitChapterIndex 派生 manifest 索引与激活章", () => {
+    const value = envelopeOf({
+      activeChapterId: "chapter-002",
+      novelChapters: [
+        { id: "chapter-001", index: 1, title: "一" },            // slim
+        { id: "chapter-002", index: 2, title: "二", sourceText: "正文".repeat(50) }, // full
+        { id: "chapter-003", index: 3, title: "三" },            // slim
+      ],
+      storyboards: [{ id: "sb-1", episodeId: "chapter-002", index: 1 }],
+    });
+    const plan = planStudioWorkflowShards(value, { emitChapterIndex: true });
+    // 只有 chapter-002 产生章分片（novel-chapters + storyboards）
+    const chapterFiles = plan.manifest.shards.filter((n) => n.startsWith("chapters/"));
+    expect(chapterFiles.every((n) => n.startsWith("chapters/chapter-002/"))).toBe(true);
+    expect(chapterFiles.some((n) => n.includes("novel-chapters"))).toBe(true);
+    // 索引：三章全在、全部剥 sourceText、激活章=显式 activeChapterId
+    expect(plan.manifest.chapterIndex).toHaveLength(3);
+    expect(plan.manifest.chapterIndex!.every((e) => !("sourceText" in e))).toBe(true);
+    expect(plan.manifest.activeChapterId).toBe("chapter-002");
+    // 读合并不含 slim 章（磁盘合并视图=有数据的章），索引才是全章视图
+    const merged = mergeStudioWorkflowShards(plan.files.map((f) => f.content));
+    expect((merged.state.novelChapters as unknown[]).map((c) => (c as { id: string }).id)).toEqual(["chapter-002"]);
+  });
+
+  it("emitChapterIndex 缺省 activeChapterId → 回退首个有全文的章", () => {
+    const plan = planStudioWorkflowShards(envelopeOf({
+      novelChapters: [
+        { id: "chapter-001", index: 1, title: "一" },
+        { id: "chapter-002", index: 2, title: "二", sourceText: "正文" },
+      ],
+    }), { emitChapterIndex: true });
+    expect(plan.manifest.activeChapterId).toBe("chapter-002");
+  });
+
+  it("parse：接受可选 chapterIndex/activeChapterId，拒畸形", () => {
+    const ok = parseStudioWorkflowShardManifest(JSON.stringify({
+      layout: STUDIO_WORKFLOW_SHARD_LAYOUT, version: 10, shards: [],
+      chapterIndex: [{ id: "chapter-001", title: "一" }], activeChapterId: "chapter-001",
+    }));
+    expect(ok?.chapterIndex).toHaveLength(1);
+    expect(ok?.activeChapterId).toBe("chapter-001");
+    expect(parseStudioWorkflowShardManifest(JSON.stringify({
+      layout: STUDIO_WORKFLOW_SHARD_LAYOUT, version: 10, shards: [], chapterIndex: [{}],
+    }))).toBeNull();
+    expect(parseStudioWorkflowShardManifest(JSON.stringify({
+      layout: STUDIO_WORKFLOW_SHARD_LAYOUT, version: 10, shards: [], activeChapterId: 7,
+    }))).toBeNull();
+  });
+});
+
 describe("planStudioWorkflowShards 增量（cpu-incremental）", () => {
   function buildLive() {
     return {

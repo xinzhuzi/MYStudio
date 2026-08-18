@@ -7,7 +7,7 @@ type WorkflowStoreSnapshot = {
     data: string;
     updatedAt: number;
   }>;
-  novelChapters: Array<{ id: string; sourceText: string }>;
+  novelChapters: Array<{ id: string; sourceText?: string }>;
   scriptPlans: Array<{ episodeId: string }>;
 };
 
@@ -102,7 +102,7 @@ export function resolveScriptTextForEpisode(
           .reverse()
           .find((item) => item.key === "scriptDraft")?.data
       : undefined) ??
-    store.novelChapters.map((chapter) => chapter.sourceText).join("\n\n")
+    store.novelChapters.map((chapter) => chapter.sourceText ?? "").join("\n\n")
   );
 }
 

@@ -32,6 +32,10 @@ export const SHARD_LIMIT_BYTES = 512 * 1024;
 const SAFE_CHAPTER_KEY_RE = /^[A-Za-z0-9][A-Za-z0-9._-]*$/;
 
 // manifest 分片名安全形态：根层 <name>.json 或 chapters/<chapterId>/<name>.json
+export function isFullNovelChapter(item) {
+  return Boolean(item && typeof item === "object" && typeof item.sourceText === "string");
+}
+
 export function isSafeShardFileName(name) {
   if (!name || name.length > 200 || name.includes("\\")) return false;
   const segments = name.split("/");
@@ -216,11 +220,15 @@ export function planStudioWorkflowShards(value, options = {}) {
     if (chapterRule) {
       // 章优先分层：按「同章连续段(run)」切文件，run 内超预算续片；
       // manifest 顺序 = 数组原序 → 合并 concat 精确还原（章交错也保序）。
+      // 窗口化 v1：novelChapters 轻索引项（无 sourceText）不落章分片
+      const plannableItems = key === "novelChapters"
+        ? items.filter(isFullNovelChapter)
+        : items;
       let index = 0;
-      while (index < items.length) {
-        const chapterKey = chapterRule.chapterKeyOf(items[index], attribution);
+      while (index < plannableItems.length) {
+        const chapterKey = chapterRule.chapterKeyOf(plannableItems[index], attribution);
         let end = index + 1;
-        while (end < items.length && chapterRule.chapterKeyOf(items[end], attribution) === chapterKey) {
+        while (end < plannableItems.length && chapterRule.chapterKeyOf(plannableItems[end], attribution) === chapterKey) {
           end += 1;
         }
         let shard = null;
@@ -269,8 +277,20 @@ export function planStudioWorkflowShards(value, options = {}) {
   }
   if (core) closeBatch(core, version, files, oversized, limitBytes);
 
+  const manifest = { layout: SHARD_LAYOUT, version, shards: files.map((file) => file.name) };
+  if (options.emitChapterIndex && Array.isArray(parsed.state.novelChapters)) {
+    manifest.chapterIndex = parsed.state.novelChapters.map((chapter) => {
+      if (!chapter || typeof chapter !== "object") return { id: String(chapter) };
+      const { sourceText: _dropped, ...rest } = chapter;
+      return rest;
+    });
+    const activeRaw = parsed.state.activeChapterId;
+    manifest.activeChapterId = typeof activeRaw === "string" && activeRaw
+      ? activeRaw
+      : (parsed.state.novelChapters.find(isFullNovelChapter)?.id ?? null);
+  }
   return {
-    manifest: { layout: SHARD_LAYOUT, version, shards: files.map((file) => file.name) },
+    manifest,
     files,
     oversizedFiles: oversized,
   };

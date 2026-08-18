@@ -17,6 +17,8 @@ export function syncNovelChapterMirrors(
 ) {
   if (!projectId || !projectFiles?.writeText) return;
   for (const chapter of chapters) {
+    // 窗口化 v1：轻索引项（无正文）不重写镜像——其镜像在激活期已写入
+    if (typeof chapter.sourceText !== "string") continue;
     const mirror = buildNovelChapterMirror(projectId, chapter);
     projectFiles.writeText(mirror.key, mirror.content).catch((error: unknown) => {
       console.warn("[StudioStore] Failed to write novel chapter mirror:", error);
@@ -31,6 +33,8 @@ export function removeNovelChapterMirrors(
 ) {
   if (!projectId || !projectFiles?.removeText) return;
   for (const chapter of chapters) {
+    // 窗口化 v1：轻索引项（无正文）不重写镜像——其镜像在激活期已写入
+    if (typeof chapter.sourceText !== "string") continue;
     const mirror = buildNovelChapterMirror(projectId, chapter);
     projectFiles.removeText(mirror.key).catch((error: unknown) => {
       console.warn("[StudioStore] Failed to remove novel chapter mirror:", error);
