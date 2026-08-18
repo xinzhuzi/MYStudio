@@ -777,6 +777,20 @@ describe("project-folder-import IPC handler", () => {
       .toEqual({ ok: false, code: "NOT_A_PROJECT", message: expect.any(String) });
   });
 
+  it("accepts store-layout-v1 projects whose markers live under store/", async () => {
+    // 迁移后 script.json 在 <root>/store/ 下,导入检测/pid 提取不得误判 NOT_A_PROJECT
+    const migrated = path.join(fixture.tmp, "migrated-proj");
+    fs.mkdirSync(path.join(migrated, "store"), { recursive: true });
+    fs.writeFileSync(
+      path.join(migrated, "store", "script.json"),
+      JSON.stringify({ state: { activeProjectId: "pid-mig", projectData: { rawScript: "# 书" } }, version: 0 }),
+      "utf-8",
+    );
+
+    const result = await fixture.invoke("project-folder-import", migrated) as { ok: boolean };
+    expect(result.ok).toBe(true);
+  });
+
   it("rejects invalid paths with INVALID_PATH", async () => {
     const fileAsPath = path.join(fixture.tmp, "a-file");
     fs.writeFileSync(fileAsPath, "x", "utf-8");

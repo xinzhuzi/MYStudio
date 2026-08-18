@@ -129,13 +129,21 @@ function ensureProjectLocationResolverInjected() {
   }
 }
 
+/** store 布局 v1：store/ 存在 = 应用已把 store 文件收进 store/（08-18-project-store-layout）。 */
+function cliStoreBase(projectDir: string): string {
+  const storeDir = path.join(projectDir, "store");
+  return fs.existsSync(storeDir) ? storeDir : projectDir;
+}
+
 export function registeredProjectDir(projectId: string): string | undefined {
   ensureProjectLocationResolverInjected();
   const registered = registeredProjectLocation(resolveUserDataDir())[projectId];
   if (!registered) return undefined;
-  // 分片化后旧单文件改名为 .bak-sharded-*，活跃数据在 studio-workflow/manifest.json
-  return fs.existsSync(path.join(registered, "studio-workflow-store.json"))
-    || fs.existsSync(path.join(registered, "studio-workflow", "manifest.json"))
+  // 分片化后旧单文件改名为 .bak-sharded-*，活跃数据在 studio-workflow/manifest.json；
+  // store 布局 v1 后两者都在 <root>/store/ 下
+  const base = cliStoreBase(registered);
+  return fs.existsSync(path.join(base, "studio-workflow-store.json"))
+    || fs.existsSync(path.join(base, "studio-workflow", "manifest.json"))
     ? registered
     : undefined;
 }
@@ -149,13 +157,14 @@ export function registeredProjectDir(projectId: string): string | undefined {
 export function readStudioWorkflowStoreState(
   projectDir: string,
 ): { state: Record<string, unknown>; version: number; raw: string } | null {
-  const manifestPath = path.join(projectDir, "studio-workflow", "manifest.json");
+  const base = cliStoreBase(projectDir);
+  const manifestPath = path.join(base, "studio-workflow", "manifest.json");
   if (fs.existsSync(manifestPath)) {
     const manifest = parseStudioWorkflowShardManifest(fs.readFileSync(manifestPath, "utf-8"));
     if (!manifest) throw new Error(`studio-workflow manifest 无法解析: ${manifestPath}`);
     const contents: string[] = [];
     for (const shardName of manifest.shards) {
-      const shardPath = path.join(projectDir, "studio-workflow", shardName);
+      const shardPath = path.join(base, "studio-workflow", shardName);
       if (!fs.existsSync(shardPath)) throw new Error(`studio-workflow 分片缺失: ${shardPath}`);
       contents.push(fs.readFileSync(shardPath, "utf-8"));
     }
@@ -166,7 +175,7 @@ export function readStudioWorkflowStoreState(
       raw: JSON.stringify({ state: merged.state, version: manifest.version }),
     };
   }
-  const legacyPath = path.join(projectDir, "studio-workflow-store.json");
+  const legacyPath = path.join(base, "studio-workflow-store.json");
   if (!fs.existsSync(legacyPath)) return null;
   const raw = fs.readFileSync(legacyPath, "utf-8");
   const parsed = JSON.parse(raw) as {

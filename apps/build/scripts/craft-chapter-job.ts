@@ -51,7 +51,11 @@ async function main() {
 
   // 3. shotFx 合并（plan.effects 正门）
   // 分片 store(studio-workflow/ 目录, 08-18 起新形态)
-  const shardDir = path.join(MA, "studio-workflow");
+  // store 布局 v1:已迁移项目分片在 store/studio-workflow(08-18-project-store-layout)
+  const shardDir = path.join(
+    fs.existsSync(path.join(MA, "store")) ? path.join(MA, "store") : MA,
+    "studio-workflow",
+  );
   const storyboards: unknown[] = [];
   for (const shard of fs.readdirSync(shardDir).filter((f) => f.startsWith("storyboards-") && f.endsWith(".json"))) {
     const d = JSON.parse(fs.readFileSync(path.join(shardDir, shard), "utf8"));

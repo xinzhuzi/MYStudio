@@ -16,6 +16,7 @@ import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { terminateSpawnedApp } from "./smoke-process-lifecycle.mjs";
 import {
+  resolveStoreBase,
   copyStudioWorkflowStoreDir,
   readStudioWorkflowStore,
 } from "../shared/studio-workflow-store.mjs";
@@ -246,7 +247,7 @@ export function evaluateSourceStoryboardGate(storyboards, chapterId, storyboardS
 }
 
 function inspectSourceStoryboardGate(sourceProjectDir, chapterId, storyboardSourcePolicy = "current-ready") {
-  const sourcePath = join(sourceProjectDir, "studio-workflow-store.json");
+  const sourcePath = join(resolveStoreBase(sourceProjectDir), "studio-workflow-store.json");
   try {
     const store = readStudioWorkflowStore(sourceProjectDir);
     if (!store) {

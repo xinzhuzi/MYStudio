@@ -1,5 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
+import { ensureProjectStoreLayout, isMovableStoreSegment, STORE_LAYOUT_DIR } from "./project-store-layout";
 
 function canonicalPath(input: string) {
   const unresolved: string[] = [];
@@ -115,15 +116,49 @@ export function redirectProjectScopedKey(
   return { root: location, rest: segments.slice(2).join("/") };
 }
 
+/**
+ * store 布局 v1（Trellis 08-18-project-store-layout）：白名单 store 键段在
+ * fs 解析时 ensure 迁移并改写进 `store/` 前缀；其余键逐字节保持原行为。
+ * 仅 resolveDataFilePath / resolveDataDirPath 走这里，redirectProjectScopedKey
+ * 本身保持纯函数（单测直接对拍，无 fs 副作用）。
+ */
+function applyStoreLayoutScope(
+  dataRoot: string,
+  scope: { root: string; rest: string },
+): { root: string; rest: string } {
+  let projectRoot: string;
+  let restSegments: string[];
+  if (scope.root === dataRoot) {
+    // 未注册外部位置：rest 形如 _p/{pid}/...（非 _p 键不命中白名单，原样返回）
+    const segments = scope.rest.split("/");
+    if (segments[0] !== "_p" || segments.length < 3) return scope;
+    projectRoot = path.join(dataRoot, "_p", segments[1]);
+    restSegments = segments.slice(2);
+  } else {
+    projectRoot = scope.root;
+    restSegments = scope.rest.split("/");
+  }
+  if (restSegments.length === 0 || !isMovableStoreSegment(restSegments[0])) return scope;
+  let layoutActive = false;
+  try {
+    layoutActive = ensureProjectStoreLayout(projectRoot);
+  } catch (error) {
+    // 迁移失败（权限/竞态等）→ 回退旧布局解析，读写行为与 v0 一致
+    console.warn("[store-layout] 项目 store 布局迁移失败，按旧布局解析:", projectRoot, error);
+  }
+  if (!layoutActive) return scope;
+  return { root: scope.root, rest: [STORE_LAYOUT_DIR, ...restSegments].join("/") };
+}
+
 export function resolveDataFilePath(dataRoot: string, key: string) {
   const normalizedKey = normalizeRelativePath(key, "storage key");
-  const scope = redirectProjectScopedKey(dataRoot, normalizedKey);
+  const scope = applyStoreLayoutScope(dataRoot, redirectProjectScopedKey(dataRoot, normalizedKey));
   return assertInsideRoot(scope.root, path.resolve(scope.root, `${scope.rest}.json`), "Storage key");
 }
 
 export function resolveDataDirPath(dataRoot: string, prefix: string) {
   const normalizedPrefix = normalizeRelativePath(prefix, "storage prefix");
-  const scope = redirectProjectScopedKey(dataRoot, normalizedPrefix);
+  const scope = applyStoreLayoutScope(dataRoot, redirectProjectScopedKey(dataRoot, normalizedPrefix));
   return assertInsideRoot(scope.root, path.resolve(scope.root, scope.rest), "Storage prefix");
 }
 

@@ -8,6 +8,7 @@ import {
   type ProjectMoveEngine,
   type ProjectMoveMode,
 } from "../../storage/project-move-engine";
+import { resolveStoreFilePath } from "../../storage/project-store-layout";
 import type { ProjectLocationStore } from "../../storage/project-locations";
 import { resolveProjectRootPath } from "../../storage/storage-paths";
 
@@ -238,11 +239,11 @@ function rewriteProjectIdsInPlace(rootDir: string, oldPid: string, newPid: strin
 
 /** Name derivation aligned with recoverProjectFromDisk: title → screenplay preview → folder name. */
 function deriveImportProjectName(folder: string, projectId: string): string {
-  const scriptProject = projectRecordFor(readStoreState(path.join(folder, "script.json")), projectId);
+  const scriptProject = projectRecordFor(readStoreState(resolveStoreFilePath(folder, "script.json")), projectId);
   const title = scriptProject?.title;
   if (typeof title === "string" && title.trim()) return title.trim();
 
-  const directorProject = projectRecordFor(readStoreState(path.join(folder, "director.json")), projectId);
+  const directorProject = projectRecordFor(readStoreState(resolveStoreFilePath(folder, "director.json")), projectId);
   const screenplay = directorProject?.screenplay;
   if (typeof screenplay === "string" && screenplay.trim()) {
     const preview = screenplay.substring(0, 20).replace(/\n/g, " ").trim();
@@ -617,8 +618,8 @@ export function registerProjectFolderIpcHandlers({
     if (!folderStat.isDirectory()) {
       return { ok: false, code: "INVALID_PATH", message: `路径不是文件夹：${folder}` };
     }
-    const hasScript = isRegularFile(path.join(folder, "script.json"));
-    const hasDirector = isRegularFile(path.join(folder, "director.json"));
+    const hasScript = isRegularFile(resolveStoreFilePath(folder, "script.json"));
+    const hasDirector = isRegularFile(resolveStoreFilePath(folder, "director.json"));
     if (!hasScript && !hasDirector) {
       return { ok: false, code: "NOT_A_PROJECT", message: "文件夹不是 MYStudio 项目：缺少 script.json 或 director.json" };
     }
@@ -649,9 +650,9 @@ export function registerProjectFolderIpcHandlers({
 
     // OQ1 id strategy: reuse the extracted pid when it is free; otherwise
     // mint a new UUID and rewrite the project-scoped keys in place.
-    let extractedPid = hasScript ? extractProjectIdFromFile(path.join(folder, "script.json")) : null;
+    let extractedPid = hasScript ? extractProjectIdFromFile(resolveStoreFilePath(folder, "script.json")) : null;
     if (!extractedPid && hasDirector) {
-      extractedPid = extractProjectIdFromFile(path.join(folder, "director.json"));
+      extractedPid = extractProjectIdFromFile(resolveStoreFilePath(folder, "director.json"));
     }
     if (extractedPid && !isValidProjectId(extractedPid)) extractedPid = null;
 

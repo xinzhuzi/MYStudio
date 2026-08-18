@@ -110,7 +110,9 @@ describe("project location resolver", () => {
     const { root: externalRoot, cleanup } = makeExternalRoot();
     setProjectLocationResolver((projectId) => (projectId === "p-ext" ? externalRoot : undefined));
     try {
-      expect(resolveDataFilePath("/data", "_p/p-ext/script")).toBe(path.join(externalRoot, "script.json"));
+      // store 布局 v1:白名单 store 键解析进 store/ 并完成迁移(08-18-project-store-layout)
+      expect(resolveDataFilePath("/data", "_p/p-ext/script")).toBe(path.join(externalRoot, "store", "script.json"));
+      expect(fs.existsSync(path.join(externalRoot, "store", "_store-layout-v1.json"))).toBe(true);
       expect(resolveDataFilePath("/data", "_p/p-ext/nested/state")).toBe(path.join(externalRoot, "nested", "state.json"));
       expect(resolveDataDirPath("/data", "_p/p-ext/remotion")).toBe(path.join(externalRoot, "remotion"));
       expect(resolveDataDirPath("/data", "_p/p-ext")).toBe(externalRoot);
