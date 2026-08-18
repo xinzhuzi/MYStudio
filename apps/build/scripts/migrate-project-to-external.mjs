@@ -286,8 +286,9 @@ function main() {
     // 校验
     const targetEntries = fs.readdirSync(target)
     if (targetEntries.length === 0) throw new Error(`目标目录为空: ${target}`)
-    if (!fs.existsSync(path.join(target, 'script.json')) && !fs.existsSync(path.join(target, 'director.json'))) {
-      throw new Error(`目标目录缺少 script.json / director.json: ${target}`)
+    const hasScriptStore = ['剧本.json', 'script.json'].some((n) => fs.existsSync(path.join(target, n)));
+    if (!hasScriptStore && !fs.existsSync(path.join(target, 'director.json'))) {
+      throw new Error(`目标目录缺少 剧本.json(script.json) / director.json: ${target}`)
     }
     if (fs.existsSync(src)) throw new Error(`源目录仍存在: ${src}`)
     readJsonFile(locationsPath)

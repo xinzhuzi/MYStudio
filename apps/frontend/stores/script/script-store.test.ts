@@ -7,10 +7,11 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock("@/lib/storage/project-storage", () => ({
-  createProjectScopedStorage: () => ({
-    getItem: mocks.getItem,
-    removeItem: mocks.removeItem,
-    setItem: mocks.setItem,
+  // 按实例名前缀路由(剧本/legacy script/overview 三实例共用同一 mocks)
+  createProjectScopedStorage: (storeName: string) => ({
+    getItem: (name: string) => mocks.getItem(`${storeName}::${name}`),
+    removeItem: (name: string) => mocks.removeItem(`${storeName}::${name}`),
+    setItem: (name: string, value: string) => mocks.setItem(`${storeName}::${name}`, value),
   }),
 }));
 
@@ -235,6 +236,8 @@ describe("seriesMeta 独立落盘(overview.json 拆分)", () => {
 
     const myCalls = mocks.setItem.mock.calls.slice(before);
     expect(myCalls).toHaveLength(2);
+    expect(myCalls[0][0]).toBe("overview::mystudio-script-store");
+    expect(myCalls[1][0]).toBe("剧本::mystudio-script-store");
     const [overviewWrite, scriptWrite] = myCalls.map((c) => c[1]);
     expect(JSON.parse(overviewWrite)).toEqual({
       state: { activeProjectId: "p1", seriesMeta: { title: "道劫", characters: [] } },
@@ -246,11 +249,11 @@ describe("seriesMeta 独立落盘(overview.json 拆分)", () => {
   });
 
   it("getItem:overview 的 seriesMeta 优先注入内存形状(消费方零改动)", async () => {
-    const seq = [
-      JSON.stringify({ state: { activeProjectId: "p1", projectData: { rawScript: "正文" } }, version: 1 }),
-      JSON.stringify({ state: { activeProjectId: "p1", seriesMeta: { title: "新名字", characters: [] } }, version: 0 }),
-    ];
-    mocks.getItem.mockImplementation(async () => seq.shift() ?? null);
+    mocks.getItem.mockImplementation(async (key: string) => {
+      if (key.startsWith("剧本::")) return JSON.stringify({ state: { activeProjectId: "p1", projectData: { rawScript: "正文" } }, version: 1 });
+      if (key.startsWith("overview::")) return JSON.stringify({ state: { activeProjectId: "p1", seriesMeta: { title: "新名字", characters: [] } }, version: 0 });
+      return null;
+    });
     const storage = createScriptScopedJsonStorage();
     const parsed = (await storage?.getItem("mystudio-script-store")) as { state: { projectData: Record<string, unknown> } };
     expect(parsed.state.projectData.seriesMeta).toEqual({ title: "新名字", characters: [] });
@@ -262,21 +265,18 @@ describe("seriesMeta 独立落盘(overview.json 拆分)", () => {
       state: { activeProjectId: "p1", projectData: { rawScript: "正文", seriesMeta: { title: "道劫", characters: [], genre: "仙侠" } } },
       version: 2,
     });
-    // 两次 getItem:第 1 次 script 返回 legacy,第 2 次 overview 返回 null(不存在)
-    let calls = 0;
-    mocks.getItem.mockImplementation(async () => {
-      calls += 1;
-      return calls === 1 ? legacy : null;
-    });
+    mocks.getItem.mockImplementation(async (key: string) => (key.startsWith("script::") ? legacy : null));
     const storage = createScriptScopedJsonStorage();
     const before = mocks.setItem.mock.calls.length;
     const parsed = (await storage?.getItem("mystudio-script-store")) as { state: { projectData: Record<string, unknown> } };
     expect((parsed.state.projectData.seriesMeta as { title: string }).title).toBe("道劫");
     const myCalls = mocks.setItem.mock.calls.slice(before);
-    expect(myCalls).toHaveLength(2);
-    const [ovWrite, scWrite] = myCalls.map((c) => c[1]);
+    const ovWrite = myCalls.find(([k]) => k.startsWith("overview::"))![1];
+    const scriptWrites = myCalls.filter(([k]) => k.startsWith("剧本::")).map((c) => c[1]);
     expect(JSON.parse(ovWrite).state.seriesMeta.genre).toBe("仙侠");
-    expect(JSON.parse(scWrite).state.projectData.seriesMeta).toBeUndefined();
+    // 末次剧本写=剥离后(首次为改名迁移的原文复制)
+    expect(JSON.parse(scriptWrites.at(-1)!).state.projectData.seriesMeta).toBeUndefined();
+    expect(mocks.removeItem).toHaveBeenCalledWith("script::mystudio-script-store");
   });
 
   it("getItem:overview 写盘抛错不阻断读取,seriesMeta 留在返回值里", async () => {
@@ -284,11 +284,7 @@ describe("seriesMeta 独立落盘(overview.json 拆分)", () => {
       state: { activeProjectId: "p1", projectData: { rawScript: "正文", seriesMeta: { title: "道劫", characters: [] } } },
       version: 2,
     });
-    let calls = 0;
-    mocks.getItem.mockImplementation(async () => {
-      calls += 1;
-      return calls === 1 ? legacy : null;
-    });
+    mocks.getItem.mockImplementation(async (key: string) => (key.startsWith("script::") ? legacy : null));
     mocks.setItem.mockImplementation(async () => {
       throw new Error("disk full");
     });
@@ -300,7 +296,7 @@ describe("seriesMeta 独立落盘(overview.json 拆分)", () => {
   it("removeItem 同时清理两个键(mock 两次)", async () => {
     const storage = createScriptScopedJsonStorage();
     await storage?.removeItem("mystudio-script-store");
-    expect(mocks.removeItem).toHaveBeenCalledTimes(2);
+    expect(mocks.removeItem).toHaveBeenCalledTimes(3);
   });
 });
 
@@ -334,16 +330,20 @@ describe("seriesMeta fallback persistence", () => {
 describe("script scoped storage legacy raw-shape rewrap", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    // 复位实现:前序用例可能把 setItem 设为抛错(clearAllMocks 不清实现)
+    mocks.setItem.mockImplementation(async () => undefined);
+    mocks.removeItem.mockImplementation(async () => undefined);
+    mocks.getItem.mockImplementation(async () => null);
     resetScriptStore();
   });
 
   afterEach(resetScriptStore);
 
-  it("rewraps CLI-written raw ScriptProjectData with the active project id", async () => {
+  it("rewraps CLI-written raw ScriptProjectData with the active project id, migrating script.json → 剧本.json", async () => {
     // 回归:CLI 直写的裸形状(无 {state,version} 包装)曾让 persist 读成空态,
     // 后续 set() 把空默认整包写回,真实剧本被覆写(道劫 08-18 事故)
     mocks.getItem.mockImplementation(async (key: string) =>
-      key.includes("script")
+      key.startsWith("script::")
         ? JSON.stringify({ rawScript: "# 道劫 EP01", scriptData: null, shots: [], parseStatus: "ready" })
         : null);
     const { useProjectStore } = await import("@/stores/project/project-store");
@@ -355,12 +355,21 @@ describe("script scoped storage legacy raw-shape rewrap", () => {
       state: { activeProjectId: "p-raw", projectData: { rawScript: "# 道劫 EP01", scriptData: null, shots: [], parseStatus: "ready" } },
       version: 0,
     });
+    // 改名迁移:内容写到 剧本 键,legacy script 键被删
+    expect(mocks.setItem).toHaveBeenCalledWith(
+      "剧本::mystudio-script-store",
+      expect.stringContaining("# 道劫 EP01"),
+    );
+    expect(mocks.removeItem).toHaveBeenCalledWith("script::mystudio-script-store");
   });
 
-  it("passes wrapped content through unchanged", async () => {
+  it("passes wrapped content through unchanged (migrating legacy script key)", async () => {
     const wrapped = { state: { activeProjectId: "p1", projectData: { rawScript: "x" } }, version: 1 };
-    mocks.getItem.mockImplementation(async () => JSON.stringify(wrapped));
+    mocks.getItem.mockImplementation(async (key: string) =>
+      key.startsWith("script::") ? JSON.stringify(wrapped) : null);
     const storage = createScriptScopedJsonStorage();
     expect(await storage?.getItem("mystudio-script-store")).toEqual(wrapped);
+    expect(mocks.setItem).toHaveBeenCalledWith("剧本::mystudio-script-store", JSON.stringify(wrapped));
+    expect(mocks.removeItem).toHaveBeenCalledWith("script::mystudio-script-store");
   });
 });

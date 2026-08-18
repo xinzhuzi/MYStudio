@@ -44,6 +44,7 @@ const BACKUP_KEYWORD_RE = /(?:^|[-_.])backup(?:[-_.]|$)/i;
 const KNOWN_REAL_STORES = new Set([
   "studio-workflow-store.json",
   "studio-workflow.json",
+  "剧本.json",
   "script.json",
   "characters.json",
   "scenes.json",

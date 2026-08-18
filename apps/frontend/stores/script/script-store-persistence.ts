@@ -270,11 +270,27 @@ function overviewEnvelope(activeProjectId: unknown, seriesMeta: unknown): string
 
 export function createScriptScopedJsonStorage(): PersistStorage<ScriptPersistedState> | undefined {
   return createJSONStorage(() => {
-    const scoped = createProjectScopedStorage("script");
+    // 08-18 改名裁定:剧本 store 落盘名 script.json → 剧本.json(中文直读)。
+    // script.json 保留为 legacy 读源:首次读到即迁移(写新名+删旧名),失败下次再试。
+    const scoped = createProjectScopedStorage("剧本");
+    const legacyScoped = createProjectScopedStorage("script");
     const overviewScoped = createProjectScopedStorage("overview");
     return {
       getItem: async (name: string): Promise<string | null> => {
-        const raw = await scoped.getItem(name);
+        let raw = await scoped.getItem(name);
+        if (!raw) {
+          const legacyRaw = await legacyScoped.getItem(name);
+          if (legacyRaw) {
+            try {
+              await scoped.setItem(name, legacyRaw);
+              await legacyScoped.removeItem(name);
+              console.warn("[script-store] 剧本 store 已更名落盘: script.json → 剧本.json");
+            } catch (error) {
+              console.warn("[script-store] 剧本改名迁移失败,暂读旧名,下次再试:", error);
+            }
+            raw = legacyRaw;
+          }
+        }
         const overviewRaw = await overviewScoped.getItem(name);
         let parsed: unknown;
         try {
@@ -376,6 +392,7 @@ export function createScriptScopedJsonStorage(): PersistStorage<ScriptPersistedS
       },
       removeItem: async (name: string): Promise<void> => {
         await scoped.removeItem(name);
+        await legacyScoped.removeItem(name);
         await overviewScoped.removeItem(name);
       },
     };

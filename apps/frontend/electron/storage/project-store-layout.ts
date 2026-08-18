@@ -33,6 +33,7 @@ export const MOVABLE_STORE_SEGMENTS: readonly string[] = [
   "studio-workflow",
   "studio-workflow-store",
   "overview",
+  "剧本",
 ];
 
 const MOVABLE_STORE_SEGMENT_SET = new Set(MOVABLE_STORE_SEGMENTS);
@@ -82,4 +83,16 @@ export function resolveStoreFilePath(projectRoot: string, storeFileName: string)
   const inStore = path.join(projectRoot, STORE_LAYOUT_DIR, storeFileName);
   if (fs.existsSync(inStore)) return inStore;
   return path.join(projectRoot, storeFileName);
+}
+
+/** 多候选名回退（改名期双名共存,如 剧本.json → script.json）:
+ *  依候选序探测 store/ 与根平铺两处,全缺时返回首选候选的 store/ 路径。 */
+export function resolveStoreFilePathAny(projectRoot: string, fileNames: readonly string[]): string {
+  for (const fileName of fileNames) {
+    const inStore = path.join(projectRoot, STORE_LAYOUT_DIR, fileName);
+    if (fs.existsSync(inStore)) return inStore;
+    const flat = path.join(projectRoot, fileName);
+    if (fs.existsSync(flat)) return flat;
+  }
+  return path.join(projectRoot, STORE_LAYOUT_DIR, fileNames[0]!);
 }

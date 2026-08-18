@@ -83,6 +83,7 @@ describe("ensureProjectStoreLayout", () => {
   });
 
   it("whitelists exactly the known store segments", () => {
+    expect(MOVABLE_STORE_SEGMENTS).toContain("剧本");
     expect(MOVABLE_STORE_SEGMENTS).toContain("studio-workflow");
     expect(MOVABLE_STORE_SEGMENTS).toContain("studio-workflow-store");
     expect(MOVABLE_STORE_SEGMENTS).not.toContain("novel");

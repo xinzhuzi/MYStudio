@@ -26,6 +26,7 @@ const EXECUTION_PLUGIN_IDS = ["remotion", "video-use", "hyperframes"];
 const DEFAULT_TIMEOUT_MS = 30_000;
 const VIDEO_WORKFLOW_STORE_FILES = [
   "director.json",
+  "剧本.json",
   "script.json",
   "sclass.json",
   "timeline.json",

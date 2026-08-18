@@ -53,6 +53,7 @@ const STORE_REPLACEMENTS = [
 // 活数据 JSON 文件清单(运行时会读的;不含 .bak-* 历史备份与 backups/ 目录)。
 // 每个文件套用同一组 STORE_REPLACEMENTS 子串替换。
 const LIVING_DATA_FILES = [
+  "剧本.json",
   "script.json",
   "scenes.json",
   "props.json",

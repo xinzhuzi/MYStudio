@@ -21,6 +21,8 @@ export const PROJECT_SCOPED_STORE_NAMES = [
   "self-media",
   // 概览元数据独立落盘(08-18-seriesmeta-store-split)
   "overview",
+  // 剧本 store 中文名(08-18 改名裁定);保留 script 兼容未迁移旧项目
+  "剧本",
 ] as const;
 
 export function buildProjectStoreKeys(
