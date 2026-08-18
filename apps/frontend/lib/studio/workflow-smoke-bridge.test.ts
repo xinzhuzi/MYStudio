@@ -536,7 +536,7 @@ describe("workflow smoke bridge isolation", () => {
     });
     expect(project?.voiceLines["1"]).toMatchObject({
       status: "completed",
-      audioLocalPath: "/tmp/mystudio-smoke-voice.wav",
+      audioLocalPath: "/var/folders/tmp/mystudio-smoke-workflow-test/media/mystudio-smoke-voice.wav",
     });
   });
 
@@ -573,7 +573,7 @@ describe("workflow smoke bridge isolation", () => {
       filePath: "/var/folders/tmp/mystudio-smoke-evidence-boundary-test/media/mystudio-smoke-final.mp4",
     });
     expect(useTtsStore.getState().projects["default-project"]?.voiceLines["1"]).toMatchObject({
-      audioLocalPath: "/tmp/mystudio-smoke-voice.wav",
+      audioLocalPath: "/var/folders/tmp/mystudio-smoke-evidence-boundary-test/media/mystudio-smoke-voice.wav",
       mocked: true,
     });
   });

@@ -10,7 +10,7 @@ const mocks = vi.hoisted(() => ({
   requestBytes: vi.fn(async () => ({ data: new ArrayBuffer(0) })),
   requestFormData: vi.fn(async () => ({ success: true })),
   scanModelInventory: vi.fn(async () => []),
-  resolveSourcePath: vi.fn((value: string) => `/audio/${value}`),
+  resolveReferenceAudioPath: vi.fn((value: string) => `/audio/${value}`),
   setConfig: vi.fn(async () => ({ success: true })),
   setModelCacheDir: vi.fn(async () => ({ success: true })),
   setup: vi.fn(async () => ({ success: true })),
@@ -72,7 +72,7 @@ function registerHandlers() {
       status: mocks.status,
       stop: mocks.stop,
     } as unknown as TtsRuntimeController,
-    resolveSourcePath: mocks.resolveSourcePath,
+    resolveReferenceAudioPath: mocks.resolveReferenceAudioPath,
     runDiagnostics,
   });
 }
@@ -82,7 +82,7 @@ describe("registerTtsIpcHandlers", () => {
     mocks.handlers.clear();
     vi.clearAllMocks();
     diagnosticsCalls.length = 0;
-    mocks.resolveSourcePath.mockImplementation((value: string) => `/audio/${value}`);
+    mocks.resolveReferenceAudioPath.mockImplementation((value: string) => `/audio/${value}`);
     mocks.access.mockResolvedValue(undefined);
     mocks.stat.mockResolvedValue({ isFile: (): boolean => true, size: 12 });
     registerHandlers();
@@ -116,7 +116,7 @@ describe("registerTtsIpcHandlers", () => {
     expect(mocks.request).toHaveBeenCalledWith("POST", "/speak", { text: "台词" });
 
     await expect(mocks.handlers.get("tts-reference-audio-resolve")?.({}, " reference.wav ")).resolves.toBe("/audio/reference.wav");
-    expect(mocks.resolveSourcePath).toHaveBeenCalledWith("reference.wav");
+    expect(mocks.resolveReferenceAudioPath).toHaveBeenCalledWith("reference.wav");
     expect(mocks.access).toHaveBeenCalledWith("/audio/reference.wav", 4);
     await expect(mocks.handlers.get("tts-reference-audio-resolve")?.({}, "")).resolves.toBeNull();
   });
@@ -273,10 +273,10 @@ describe("registerTtsIpcHandlers", () => {
   });
 
   it("returns null for unsafe or unreadable reference audio paths", async () => {
-    mocks.resolveSourcePath.mockReturnValueOnce("relative/audio.wav");
+    mocks.resolveReferenceAudioPath.mockReturnValueOnce("relative/audio.wav");
     await expect(mocks.handlers.get("tts-reference-audio-resolve")?.({}, "relative.wav")).resolves.toBeNull();
 
-    mocks.resolveSourcePath.mockReturnValue("/audio/not-a-file.wav");
+    mocks.resolveReferenceAudioPath.mockReturnValue("/audio/not-a-file.wav");
     mocks.stat.mockResolvedValueOnce({ isFile: () => false, size: 12 });
     await expect(mocks.handlers.get("tts-reference-audio-resolve")?.({}, "not-a-file.wav")).resolves.toBeNull();
 

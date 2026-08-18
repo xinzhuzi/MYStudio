@@ -16,7 +16,8 @@ type RunTtsDiagnostics = <T>(
 type RegisterTtsIpcHandlersContext = {
   controller: TtsRuntimeController;
   runDiagnostics: RunTtsDiagnostics;
-  resolveSourcePath: (sourcePath: string) => string;
+  /** 参考音频专用解析(保留绝对路径透传原语义,见 main.ts 审计注释)。 */
+  resolveReferenceAudioPath: (sourcePath: string) => string;
 };
 
 export interface TtsRuntimeRequestPayload {
@@ -128,7 +129,7 @@ function hasOnlyKeys(value: Record<string, unknown>, keys: readonly string[]): b
 export function registerTtsIpcHandlers({
   controller,
   runDiagnostics,
-  resolveSourcePath,
+  resolveReferenceAudioPath,
 }: RegisterTtsIpcHandlersContext) {
   ipcMain.handle("tts-runtime-status", async () => (
     runDiagnostics("status", {}, () => controller.status())
@@ -193,7 +194,7 @@ export function registerTtsIpcHandlers({
   ipcMain.handle("tts-reference-audio-resolve", async (_event, audioPath: string) => {
     try {
       if (typeof audioPath !== "string" || !audioPath.trim()) return null;
-      const resolvedPath = resolveSourcePath(audioPath.trim());
+      const resolvedPath = resolveReferenceAudioPath(audioPath.trim());
       if (!path.isAbsolute(resolvedPath)) return null;
       const stat = await fs.promises.stat(resolvedPath);
       if (!stat.isFile() || stat.size <= 0) return null;

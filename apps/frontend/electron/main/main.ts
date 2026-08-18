@@ -570,8 +570,14 @@ const getManagedSourceRoots = (): string[] => {
     getDataDir(),
     getMediaRoot(),
     app.getPath('userData'),
+    // 存储基地址可被用户 link 到外部目录:python 运行时/assets 库/projects/media/
+    // skills 及深度/超分模型的默认缓存都在它之下,必须整体受管。
+    getStorageBasePath(),
     ...Object.values(projectLocationStore.all()),
     ttsRuntimeController.getModelCacheDir(),
+    // 深度/超分模型缓存目录可由用户配置为任意外部绝对路径(设置页「打开目录」等入口)。
+    depthRuntimeController.getModelCacheDir(),
+    upscaleRuntimeController.getModelCacheDir(),
   ]
   return Array.from(new Set(roots.filter((root) => typeof root === 'string' && root.trim() !== '')))
 }
@@ -1553,10 +1559,26 @@ async function runTtsRuntimeDiagnostics<T>(
   }
 }
 
+// TTS 固定音色参考音频的路径解析:保留收紧前的原语义(绝对路径存在即读)。
+// 依据 08-18 渲染层调用面审计:设置页「参考音频路径」是自由文本框,用户可
+// 手输/持久化任意外部绝对路径;该链路只把音频字节发给 127.0.0.1 的本地
+// sidecar,不外发网络,风险远低于 openPath/图床上传,收紧会打断音色克隆
+// 核心流程。其余 IPC 仍走 resolveStudioSourcePath 的受管根守卫。
+function resolveReferenceAudioSourcePath(sourcePath: string) {
+  if (sourcePath.startsWith('project-file://')) {
+    return resolveProjectFileUrl(getDataDir(), sourcePath)
+  }
+  if (sourcePath.startsWith('local-image://')) {
+    return resolveLocalMediaPath(getMediaRoot(), sourcePath)
+  }
+  if (sourcePath.startsWith('file://')) return sourcePath.replace('file://', '')
+  return sourcePath
+}
+
 registerTtsIpcHandlers({
   controller: ttsRuntimeController,
   runDiagnostics: runTtsRuntimeDiagnostics,
-  resolveSourcePath: resolveStudioSourcePath,
+  resolveReferenceAudioPath: resolveReferenceAudioSourcePath,
 })
 
 registerPrivilegedSchemes(protocol)

@@ -110,6 +110,14 @@ function getSmokeVideoPath(): string {
   return `${userDataDir.replace(/[\\/]+$/, "")}/media/mystudio-smoke-final.mp4`;
 }
 
+// 音频引用与视频同款落在隔离 smoke userData 的 media 下:主进程 IPC 路径原语
+// 只放行受管根内路径,/tmp 兜底路径会被受管根守卫拒绝(08-18 安全加固)。
+function getSmokeAudioPath(): string {
+  const userDataDir = typeof window === "undefined" ? undefined : window.mystudioSmoke?.userDataDir;
+  if (!userDataDir || !isIsolatedSmokeUserDataDir(userDataDir)) return SMOKE_AUDIO_PATH;
+  return `${userDataDir.replace(/[\\/]+$/, "")}/media/mystudio-smoke-voice.wav`;
+}
+
 export function getSmokeStoryboardFramePath() {
   return "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADtgGOSHzRgQAAAABJRU5ErkJggg==";
 }
@@ -442,7 +450,7 @@ function applyStoryboardStep(now: number) {
         imageWorkflowId: "smoke-storyboard-flow-1",
         imageWorkflowNodeId: "smoke-generated-1",
         shouldGenerateImage: true,
-        audioRef: { kind: "audio", path: SMOKE_AUDIO_PATH },
+        audioRef: { kind: "audio", path: getSmokeAudioPath() },
         state: "ready",
         lines: "旁白：他在尘土里醒来。",
         speakerId: "narrator",
@@ -548,7 +556,7 @@ async function seedCompleteWorkflow(): Promise<WorkflowSmokeResult> {
   const storyboardId = "smoke-storyboard-1";
   const trackId = "smoke-track-1";
   const videoId = "smoke-video-1";
-  const audioPath = "/tmp/mystudio-smoke-voice.wav";
+  const audioPath = getSmokeAudioPath();
   const videoPath = getSmokeVideoPath();
   const framePath = getSmokeStoryboardFramePath();
 
@@ -940,7 +948,7 @@ function bindSmokeVoice(now: number) {
       language: "zh",
       defaultEngine: "qwen",
       defaultModelSize: "0.6B",
-      referenceAudioPath: SMOKE_AUDIO_PATH,
+      referenceAudioPath: getSmokeAudioPath(),
       referenceText: "我会走到最后。",
       createdAt: now,
       updatedAt: now,
@@ -959,8 +967,8 @@ function bindSmokeVoice(now: number) {
       engine: "qwen",
       modelSize: "0.6B",
       status: "completed",
-      audioLocalPath: SMOKE_AUDIO_PATH,
-      audioFilePath: SMOKE_AUDIO_PATH,
+      audioLocalPath: getSmokeAudioPath(),
+      audioFilePath: getSmokeAudioPath(),
       mocked: true,
       updatedAt: now,
     };

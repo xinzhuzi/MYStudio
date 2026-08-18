@@ -59,7 +59,7 @@
   "snapshot": {
     "root": ".",
     "status": "synced",
-    "treeSha256": "47d617bd586b7b4895ca50b04d816b1551d364a5f2318c727cf3123c26f7539d",
+    "treeSha256": "5ce6e9e90676add796b0da36a551e02346815f08817000992d1243b3109e9746",
     "files": [
       {
         "path": "commont/plat/douyin/common.douyin.ts",
@@ -218,8 +218,8 @@
       },
       {
         "path": "electron/plat/douyin/index.ts",
-        "sha256": "abfef48bbb3159885532cdb72382de613a573928ae63cc05046ada90a96ea305",
-        "bytes": 77189
+        "sha256": "f888117a076e45a5c686d5845a3dbbf24c1942b8bb715822cd721ac723681c74",
+        "bytes": 77511
       },
       {
         "path": "electron/plat/requestNet.ts",
@@ -252,6 +252,14 @@
         "bytes": 6185
       }
     ],
-    "lastSyncAt": "2026-07-26T14:34:28.570Z"
+    "lastSyncAt": "2026-07-26T14:34:28.570Z",
+    "securityPatches": [
+      {
+        "path": "electron/plat/douyin/index.ts",
+        "description": "redact douyin credential logging (tokens object and webProtect) from the persistent log redirect",
+        "sha256": "f888117a076e45a5c686d5845a3dbbf24c1942b8bb715822cd721ac723681c74",
+        "bytes": 77511
+      }
+    ]
   }
 }

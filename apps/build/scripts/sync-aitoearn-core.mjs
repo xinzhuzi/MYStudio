@@ -23,6 +23,109 @@ const RESERVED_SNAPSHOT_PATHS = new Set([
   'adapter-metadata.json',
 ])
 
+// MYStudio 本地安全补丁:每次同步在上游纯净树校验之后重新套用。锚点必须在上游
+// 文件中恰好出现一次(或已是套用后状态);上游改写这些行时同步 fail-closed,
+// 直到补丁被重新评审。完整性模型:upstream.sourceTreeSha256 钉纯净树,
+// snapshot.files/treeSha256 记补丁后内容——check 模式据此区分「已打补丁」与「篡改」。
+const SECURITY_PATCHES = [
+  {
+    file: 'electron/plat/douyin/index.ts',
+    description: 'redact douyin credential logging (tokens object and webProtect) from the persistent log redirect',
+    substitutions: [
+      {
+        find: '        console.log(tokens);',
+        replace: [
+          '        // 安全加固:tokens 含 privateKey/webProtect 凭据,且本模块 console 被重定向到',
+          '        // 持久化明文日志,严禁整对象打印(只记录字段存在性)。',
+          "        console.log('[aitoearn] douyin tokens received:', Object.keys(tokens).join(','));",
+        ].join('\n'),
+      },
+      {
+        find: '        console.log(webProtect);',
+        replace: "        console.log('[aitoearn] douyin webProtect received (redacted), length:', String(webProtect).length);",
+      },
+    ],
+  },
+]
+
+function securityPatchesForFiles(sourceFiles) {
+  return SECURITY_PATCHES.filter((patch) => sourceFiles.includes(patch.file))
+}
+
+function applySecurityPatchToContent(content, patch) {
+  let next = content
+  for (const substitution of patch.substitutions) {
+    const findCount = next.split(substitution.find).length - 1
+    const hasReplace = next.includes(substitution.replace)
+    if (findCount === 1 && !hasReplace) {
+      next = next.replace(substitution.find, substitution.replace)
+    } else if (findCount === 0 && hasReplace) {
+      continue
+    } else {
+      throw new Error(
+        `security patch for ${patch.file} drifted upstream; re-review the patch (anchor: ${substitution.find.trim().slice(0, 40)})`,
+      )
+    }
+  }
+  return next
+}
+
+function hashPatchedContent(patched) {
+  return {
+    sha256: createHash('sha256').update(patched, 'utf8').digest('hex'),
+    bytes: Buffer.byteLength(patched, 'utf8'),
+  }
+}
+
+/**
+ * 上游源树套用安全补丁后的期望快照树哈希 + 各补丁文件期望条目。
+ * 与 applySnapshot 落盘后对 stageRoot 跑 hashSourceTree 的结果逐字节一致:
+ * 非补丁文件保持原始字节,补丁文件以 utf8 重编码后的补丁内容参与哈希。
+ */
+async function expectedSnapshotTree(sourceRoot, sourceFiles, fsOps = defaultFsOps) {
+  const patchByFile = new Map(securityPatchesForFiles(sourceFiles).map((patch) => [patch.file, patch]))
+  const treeHash = createHash('sha256')
+  const patchedEntries = new Map()
+  for (const relativePath of sourceFiles) {
+    const raw = await fsOps.readFile(path.join(sourceRoot, relativePath))
+    let bytes = raw
+    const patch = patchByFile.get(relativePath)
+    if (patch) {
+      bytes = Buffer.from(applySecurityPatchToContent(raw.toString('utf8'), patch), 'utf8')
+      patchedEntries.set(relativePath, { path: relativePath, ...hashPatchedContent(bytes.toString('utf8')) })
+    }
+    treeHash.update(`${relativePath}\0`)
+    treeHash.update(bytes)
+  }
+  return { sha256: treeHash.digest('hex'), patchedEntries }
+}
+
+async function applySecurityPatchesToTree(root, sourceFiles, fsOps = defaultFsOps) {
+  const entries = []
+  for (const patch of securityPatchesForFiles(sourceFiles)) {
+    const targetPath = path.join(root, patch.file)
+    const patched = applySecurityPatchToContent((await fsOps.readFile(targetPath)).toString('utf8'), patch)
+    await fsOps.writeFile(targetPath, patched, 'utf8')
+    entries.push({ path: patch.file, description: patch.description, ...hashPatchedContent(patched) })
+  }
+  return entries
+}
+
+async function inspectSecurityPatchState(root, sourceFiles, fsOps = defaultFsOps) {
+  const status = []
+  for (const patch of securityPatchesForFiles(sourceFiles)) {
+    let state = 'missing'
+    try {
+      const disk = (await fsOps.readFile(path.join(root, patch.file))).toString('utf8')
+      state = applySecurityPatchToContent(disk, patch) === disk ? 'applied' : 'pending'
+    } catch (error) {
+      state = error instanceof Error && error.message.includes('drifted upstream') ? 'drift' : 'missing'
+    }
+    status.push({ file: patch.file, state })
+  }
+  return status
+}
+
 function usage() {
   console.log(`Usage: node sync-aitoearn-core.mjs <check|dry-run|apply> [options]
 
@@ -173,6 +276,19 @@ function validateManifest(manifest) {
       licenseFilePaths.add(entry.path)
     }
   }
+  if (manifest.snapshot.securityPatches !== undefined) {
+    if (!Array.isArray(manifest.snapshot.securityPatches)) throw new Error('snapshot.securityPatches must be an array')
+    const sourceFileSet = new Set(manifest.sourceFiles)
+    const patchPaths = new Set()
+    for (const entry of manifest.snapshot.securityPatches) {
+      if (!entry || typeof entry.path !== 'string' || typeof entry.description !== 'string' || !isSha256(entry.sha256) || !Number.isInteger(entry.bytes)) {
+        throw new Error('snapshot.securityPatches entries must contain path, description, sha256, and bytes')
+      }
+      if (!sourceFileSet.has(entry.path)) throw new Error(`snapshot.securityPatches entry is not a synced source file: ${entry.path}`)
+      if (patchPaths.has(entry.path)) throw new Error(`duplicate security patch entry: ${entry.path}`)
+      patchPaths.add(entry.path)
+    }
+  }
 }
 
 async function hashFile(filePath, fsOps = defaultFsOps) {
@@ -241,6 +357,12 @@ async function inspectLicenseFiles(manifest, manifestPath, fsOps = defaultFsOps)
 async function checkSource(manifest, sourceRoot, manifestPath, fsOps = defaultFsOps) {
   await assertNoSymlinks(path.dirname(manifestPath), 'vendor root', fsOps)
   const sourceTree = await hashSourceTree(sourceRoot, manifest.sourceFiles, fsOps)
+  const expectedSnapshot = await expectedSnapshotTree(sourceRoot, manifest.sourceFiles, fsOps)
+  const securityPatchStatus = await inspectSecurityPatchState(
+    path.dirname(manifestPath),
+    manifest.sourceFiles,
+    fsOps,
+  )
   const matchesPinnedTree = sourceTree.sha256 === manifest.upstream.sourceTreeSha256
   const snapshotFiles = manifest.snapshot.files
   const sourceEntriesByPath = new Map(sourceTree.entries.map((entry) => [entry.path, entry]))
@@ -278,10 +400,13 @@ async function checkSource(manifest, sourceRoot, manifestPath, fsOps = defaultFs
   const license = await inspectLicenseFiles(manifest, manifestPath, fsOps)
   if (!license.intact || !license.metadataMatches) currentSnapshotIntact = false
   const snapshotMetadataMatchesSource =
-    manifest.snapshot.treeSha256 === sourceTree.sha256 &&
+    manifest.snapshot.treeSha256 === expectedSnapshot.sha256 &&
     snapshotFiles.length === sourceTree.entries.length &&
     snapshotEntriesByPath.size === sourceEntriesByPath.size &&
-    [...sourceEntriesByPath.entries()].every(([relativePath, sourceEntry]) => sameEntry(snapshotEntriesByPath.get(relativePath), sourceEntry))
+    [...sourceEntriesByPath.entries()].every(([relativePath, sourceEntry]) => sameEntry(
+      snapshotEntriesByPath.get(relativePath),
+      expectedSnapshot.patchedEntries.get(relativePath) ?? sourceEntry,
+    ))
   const snapshotMatches = snapshotMetadataMatchesSource && currentSnapshotIntact
   const oldSnapshotValid = manifest.snapshot.status === 'synced' && currentSnapshotIntact
   return {
@@ -291,6 +416,7 @@ async function checkSource(manifest, sourceRoot, manifestPath, fsOps = defaultFs
     currentSnapshotIntact,
     oldSnapshotValid,
     license,
+    securityPatchStatus,
   }
 }
 
@@ -309,6 +435,7 @@ function makeReport({
   writeSet = [],
   staleFiles = [],
   license,
+  securityPatchStatus = [],
 }) {
   const report = {
     mode,
@@ -324,6 +451,7 @@ function makeReport({
     snapshotMatches,
     currentSnapshotIntact,
     licensePreserved: license?.intact === true && license?.metadataMatches !== false,
+    securityPatchStatus,
     staleFiles,
     writeSet,
     protectedRoots: [
@@ -456,8 +584,11 @@ async function applySnapshot({
       await fsOps.mkdir(path.dirname(destination), { recursive: true })
       await fsOps.cp(path.join(sourceRoot, entry.path), destination, { force: true })
     }
-    const stagedHash = await hashSourceTree(stageRoot, manifest.sourceFiles, fsOps)
-    if (stagedHash.sha256 !== sourceTree.sha256) throw new Error('staged snapshot validation failed')
+    const pristineHash = await hashSourceTree(stageRoot, manifest.sourceFiles, fsOps)
+    if (pristineHash.sha256 !== sourceTree.sha256) throw new Error('staged snapshot validation failed')
+    // 上游纯净树校验通过后套用本地安全补丁;补丁漂移(上游改写锚点)会 throw 并回滚。
+    const securityPatchEntries = await applySecurityPatchesToTree(stageRoot, manifest.sourceFiles, fsOps)
+    const snapshotTree = await hashSourceTree(stageRoot, manifest.sourceFiles, fsOps)
 
     await fsOps.rename(vendorRoot, previousRoot)
     oldRootMoved = true
@@ -474,8 +605,9 @@ async function applySnapshot({
       snapshot: {
         ...manifest.snapshot,
         status: 'synced',
-        treeSha256: sourceTree.sha256,
-        files: sourceTree.entries,
+        treeSha256: snapshotTree.sha256,
+        files: snapshotTree.entries,
+        securityPatches: securityPatchEntries,
         licenseFiles: (await inspectLicenseFiles(manifest, path.join(vendorRoot, manifestName), fsOps)).entries,
         lastSyncAt: now().toISOString(),
       },
@@ -593,6 +725,16 @@ async function main() {
   }
 }
 
-export { checkSource, hashFile, hashSourceTree, validateManifest, applySnapshot }
+export {
+  SECURITY_PATCHES,
+  applySecurityPatchToContent,
+  checkSource,
+  expectedSnapshotTree,
+  hashFile,
+  hashSourceTree,
+  securityPatchesForFiles,
+  validateManifest,
+  applySnapshot,
+}
 
 if (path.resolve(process.argv[1] ?? '') === fileURLToPath(import.meta.url)) main()

@@ -253,3 +253,95 @@ describe('AiToEarn snapshot upgrade boundary', () => {
     expect(report.cases['provider-incompatibility'].ok).toBe(true)
   })
 })
+
+describe('AiToEarn security patch layer', () => {
+  const DOUYIN = 'electron/plat/douyin/index.ts'
+
+  async function makePatchedFixture() {
+    const fixture = await makeFixture()
+    const rawContent = [
+      'class Douyin {',
+      '  async getBdTicketHeaders(tokens) {',
+      '    tokens = JSON.parse(tokens);',
+      `        console.log(tokens);`,
+      '    const { privateKey, webProtect } = tokens;',
+      `        console.log(webProtect);`,
+      '    return {}',
+      '  }',
+      '}',
+    ].join('\n')
+    for (const targetRoot of [fixture.sourceRoot, fixture.vendorRoot]) {
+      const douyinPath = path.join(targetRoot, DOUYIN)
+      fs.mkdirSync(path.dirname(douyinPath), { recursive: true })
+      fs.writeFileSync(douyinPath, `${rawContent}\n`)
+    }
+    const manifest = JSON.parse(fs.readFileSync(fixture.manifestPath, 'utf8'))
+    const sourceFiles = [...manifest.sourceFiles, DOUYIN]
+    const sourceTree = await hashSourceTree(fixture.sourceRoot, sourceFiles)
+    manifest.sourceFiles = sourceFiles
+    manifest.upstream.sourceTreeSha256 = sourceTree.sha256
+    manifest.snapshot.treeSha256 = sourceTree.sha256
+    manifest.snapshot.files = sourceTree.entries
+    fs.writeFileSync(fixture.manifestPath, `${JSON.stringify(manifest, null, 2)}\n`)
+    return { ...fixture, rawContent, sourceFiles, sourceTree }
+  }
+
+  it('applies the credential redaction during apply and pins patched snapshot hashes', async () => {
+    const fixture = await makePatchedFixture()
+    for (const relativePath of fixture.sourceFiles) {
+      if (relativePath !== DOUYIN) fs.appendFileSync(path.join(fixture.sourceRoot, relativePath), 'new\n')
+    }
+    setMatrixCommit(fixture, NEW_COMMIT)
+    const result = await runSync(applyArgs(fixture, '--approve', '--reviewed-ref', NEW_COMMIT), { emit: false })
+
+    const vendorDouyin = fs.readFileSync(path.join(fixture.vendorRoot, DOUYIN), 'utf8')
+    expect(vendorDouyin).toContain("[aitoearn] douyin tokens received:'")
+    expect(vendorDouyin).toContain('[aitoearn] douyin webProtect received (redacted), length:')
+    expect(vendorDouyin).not.toContain('console.log(tokens);')
+    expect(vendorDouyin).not.toContain('console.log(webProtect);')
+
+    const manifest = JSON.parse(fs.readFileSync(fixture.manifestPath, 'utf8'))
+    // upstream pin 保持上游纯净树
+    expect(manifest.upstream.sourceTreeSha256).toBe(result.sourceTreeSha256)
+    // 快照与补丁记录均为补丁后哈希
+    const patchedEntry = manifest.snapshot.files.find((entry) => entry.path === DOUYIN)
+    const pristineEntry = fixture.sourceTree.entries.find((entry) => entry.path === DOUYIN)
+    const diskHash = crypto.createHash('sha256').update(vendorDouyin).digest('hex')
+    expect(patchedEntry.sha256).toBe(diskHash)
+    expect(patchedEntry.sha256).not.toBe(pristineEntry.sha256)
+    expect(manifest.snapshot.securityPatches).toHaveLength(1)
+    expect(manifest.snapshot.securityPatches[0]).toMatchObject({ path: DOUYIN })
+    expect(manifest.snapshot.securityPatches[0].sha256).toBe(diskHash)
+    expect(manifest.snapshot.treeSha256).not.toBe(manifest.upstream.sourceTreeSha256)
+  })
+
+  it('reports a patched snapshot as intact and matching after apply (check mode)', async () => {
+    const fixture = await makePatchedFixture()
+    for (const relativePath of fixture.sourceFiles) {
+      if (relativePath !== DOUYIN) fs.appendFileSync(path.join(fixture.sourceRoot, relativePath), 'new\n')
+    }
+    setMatrixCommit(fixture, NEW_COMMIT)
+    await runSync(applyArgs(fixture, '--approve', '--reviewed-ref', NEW_COMMIT), { emit: false })
+
+    const report = await runSync(syncArgs(fixture, 'check'), { emit: false })
+    expect(report.currentSnapshotIntact).toBe(true)
+    expect(report.snapshotMatches).toBe(true)
+    expect(report.securityPatchStatus).toEqual([{ file: DOUYIN, state: 'applied' }])
+  })
+
+  it('fails closed when upstream edits the patch anchor lines', async () => {
+    const fixture = await makePatchedFixture()
+    for (const relativePath of fixture.sourceFiles) {
+      if (relativePath !== DOUYIN) fs.appendFileSync(path.join(fixture.sourceRoot, relativePath), 'new\n')
+    }
+    const drifted = fixture.rawContent.replace('console.log(tokens);', "console.log(tokens, 'ctx');")
+    fs.writeFileSync(path.join(fixture.sourceRoot, DOUYIN), `${drifted}\n`)
+    setMatrixCommit(fixture, NEW_COMMIT)
+    const manifestBefore = fs.readFileSync(fixture.manifestPath)
+
+    await expect(runSync(applyArgs(fixture, '--approve', '--reviewed-ref', NEW_COMMIT), { emit: false }))
+      .rejects.toThrow(/drifted upstream/)
+    expect(fs.readFileSync(fixture.manifestPath)).toEqual(manifestBefore)
+    expect(findSnapshots(fixture.vendorRoot, 'previous')).toEqual([])
+  })
+})
