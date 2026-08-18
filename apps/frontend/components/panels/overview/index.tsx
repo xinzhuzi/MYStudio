@@ -100,7 +100,7 @@ function StageGuideGrid(props: { onEnterStage: (stageId: string) => void }) {
         制作阶段
         <span className="text-xs font-normal text-muted-foreground">· 各阶段功能说明</span>
       </div>
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
       {OVERVIEW_STAGE_GUIDE.map((stage) => {
         const StageIcon = stage.Icon;
         return (
@@ -234,7 +234,7 @@ export function OverviewPanel() {
     return (
       <div className="h-full">
         <ScrollArea className="h-full">
-        <div className="mx-auto w-full max-w-6xl p-6">
+        <div className="mx-auto w-full max-w-[1600px] p-6">
         <div className="rounded-xl border bg-panel">
           <div className="border-b px-5 py-4">
             <div className="flex items-center justify-between gap-2">
@@ -278,7 +278,7 @@ export function OverviewPanel() {
     <div className="h-full">
       {/* 单一滚动整页：上部工作流门户卡 + 下部项目概览卡（与无 meta 导览分支同骨架同宽） */}
       <ScrollArea className="h-full">
-        <div className="mx-auto w-full max-w-6xl space-y-4 p-6 pb-16">
+        <div className="mx-auto w-full max-w-[1600px] space-y-4 p-6 pb-16">
           {/* 上部：工作流门户（排版裁定 08-18：工作流在上，元数据在下） */}
           <section className="rounded-xl border bg-panel">
             <div className="border-b px-5 py-4">
@@ -340,8 +340,9 @@ export function OverviewPanel() {
               </div>
             </div>
             <div className="p-5">
-              <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-2">
-                <div className="space-y-4">
+              <div className="space-y-4">
+              {/* 固定字段区:窗口扩大→三列同步展开 */}
+              <div className="grid grid-cols-1 items-start gap-4 md:grid-cols-2 2xl:grid-cols-3">
               {/* 故事核心 */}
               <SectionCard icon={BookOpen} title="故事核心">
                 <FieldRow label="标题">
@@ -459,7 +460,124 @@ export function OverviewPanel() {
                 </FieldRow>
               </SectionCard>
 
-              {/* 分集目录 — 子项目管理台 */}
+                </div>
+                {/* 增长列表区:实体随窗口 1/2/4 列展开 */}
+                <div className="grid grid-cols-1 items-start gap-4 md:grid-cols-2 2xl:grid-cols-4">
+              {/* 角色列表 */}
+              <SectionCard
+                icon={Users}
+                title={`角色 (${meta.characters.length})`}
+              >
+                {meta.characters.length === 0 ? (
+                  <p className="text-xs text-muted-foreground italic">
+                    暂无角色数据
+                  </p>
+                ) : (
+                  <div className="grid grid-cols-2 gap-2">
+                    {meta.characters.slice(0, 20).map((char) => (
+                      <div
+                        key={char.id}
+                        className="rounded border p-2 text-xs space-y-0.5 hover:bg-muted/30 transition-colors"
+                      >
+                        <div className="font-medium flex items-center gap-1">
+                          {char.name}
+                          {char.tags?.includes("protagonist") && (
+                            <Badge
+                              variant="default"
+                              className="text-[9px] h-4 px-1"
+                            >
+                              主角
+                            </Badge>
+                          )}
+                          {char.tags?.includes("supporting") && (
+                            <Badge
+                              variant="secondary"
+                              className="text-[9px] h-4 px-1"
+                            >
+                              配角
+                            </Badge>
+                          )}
+                        </div>
+                        {char.age && (
+                          <span className="text-muted-foreground">
+                            {char.age}岁
+                          </span>
+                        )}
+                        {char.role && (
+                          <p className="text-muted-foreground line-clamp-2">
+                            {char.role}
+                          </p>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {meta.characters.length > 20 && (
+                  <p className="text-[10px] text-muted-foreground">
+                    还有 {meta.characters.length - 20} 个角色...
+                  </p>
+                )}
+              </SectionCard>
+
+              {/* 阵营 */}
+              <SectionCard
+                icon={Shield}
+                title={`阵营 (${meta.factions?.length || 0})`}
+              >
+                {!meta.factions?.length ? (
+                  <p className="text-xs text-muted-foreground italic">
+                    暂无阵营数据（AI 校准后自动填充）
+                  </p>
+                ) : (
+                  <div className="space-y-2">
+                    {meta.factions.map((faction, i) => (
+                      <div key={i} className="space-y-1">
+                        <span className="text-xs font-medium">
+                          {faction.name}
+                        </span>
+                        <div className="flex flex-wrap gap-1">
+                          {faction.members.map((m, j) => (
+                            <Badge
+                              key={j}
+                              variant="outline"
+                              className="text-[10px]"
+                            >
+                              {m}
+                            </Badge>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </SectionCard>
+
+              {/* 关键物品 */}
+              <SectionCard
+                icon={Gem}
+                title={`关键物品 (${meta.keyItems?.length || 0})`}
+              >
+                <NamedEntityList
+                  items={meta.keyItems}
+                  emptyText="暂无关键物品（AI 分析后自动填充）"
+                  onUpdate={(items) => update({ keyItems: items })}
+                />
+              </SectionCard>
+
+              {/* 地理 */}
+              <SectionCard
+                icon={MapPin}
+                title={`地理设定 (${meta.geography?.length || 0})`}
+              >
+                <NamedEntityList
+                  items={meta.geography}
+                  emptyText="暂无地理数据（AI 分析后自动填充）"
+                  onUpdate={(items) => update({ geography: items })}
+                />
+              </SectionCard>
+                </div>
+                {/* 分集目录 — 随项目集数增长,整行铺满 */}
+                              {/* 分集目录 — 子项目管理台 */}
               <SectionCard
                 icon={ListOrdered}
                 title={`分集目录 (${episodes.length} 集)`}
@@ -685,121 +803,6 @@ export function OverviewPanel() {
                   </div>
                 )}
               </SectionCard>
-                </div>
-                <div className="space-y-4">
-              {/* 角色列表 */}
-              <SectionCard
-                icon={Users}
-                title={`角色 (${meta.characters.length})`}
-              >
-                {meta.characters.length === 0 ? (
-                  <p className="text-xs text-muted-foreground italic">
-                    暂无角色数据
-                  </p>
-                ) : (
-                  <div className="grid grid-cols-2 gap-2">
-                    {meta.characters.slice(0, 20).map((char) => (
-                      <div
-                        key={char.id}
-                        className="rounded border p-2 text-xs space-y-0.5 hover:bg-muted/30 transition-colors"
-                      >
-                        <div className="font-medium flex items-center gap-1">
-                          {char.name}
-                          {char.tags?.includes("protagonist") && (
-                            <Badge
-                              variant="default"
-                              className="text-[9px] h-4 px-1"
-                            >
-                              主角
-                            </Badge>
-                          )}
-                          {char.tags?.includes("supporting") && (
-                            <Badge
-                              variant="secondary"
-                              className="text-[9px] h-4 px-1"
-                            >
-                              配角
-                            </Badge>
-                          )}
-                        </div>
-                        {char.age && (
-                          <span className="text-muted-foreground">
-                            {char.age}岁
-                          </span>
-                        )}
-                        {char.role && (
-                          <p className="text-muted-foreground line-clamp-2">
-                            {char.role}
-                          </p>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                )}
-                {meta.characters.length > 20 && (
-                  <p className="text-[10px] text-muted-foreground">
-                    还有 {meta.characters.length - 20} 个角色...
-                  </p>
-                )}
-              </SectionCard>
-
-              {/* 阵营 */}
-              <SectionCard
-                icon={Shield}
-                title={`阵营 (${meta.factions?.length || 0})`}
-              >
-                {!meta.factions?.length ? (
-                  <p className="text-xs text-muted-foreground italic">
-                    暂无阵营数据（AI 校准后自动填充）
-                  </p>
-                ) : (
-                  <div className="space-y-2">
-                    {meta.factions.map((faction, i) => (
-                      <div key={i} className="space-y-1">
-                        <span className="text-xs font-medium">
-                          {faction.name}
-                        </span>
-                        <div className="flex flex-wrap gap-1">
-                          {faction.members.map((m, j) => (
-                            <Badge
-                              key={j}
-                              variant="outline"
-                              className="text-[10px]"
-                            >
-                              {m}
-                            </Badge>
-                          ))}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </SectionCard>
-
-              {/* 关键物品 */}
-              <SectionCard
-                icon={Gem}
-                title={`关键物品 (${meta.keyItems?.length || 0})`}
-              >
-                <NamedEntityList
-                  items={meta.keyItems}
-                  emptyText="暂无关键物品（AI 分析后自动填充）"
-                  onUpdate={(items) => update({ keyItems: items })}
-                />
-              </SectionCard>
-
-              {/* 地理 */}
-              <SectionCard
-                icon={MapPin}
-                title={`地理设定 (${meta.geography?.length || 0})`}
-              >
-                <NamedEntityList
-                  items={meta.geography}
-                  emptyText="暂无地理数据（AI 分析后自动填充）"
-                  onUpdate={(items) => update({ geography: items })}
-                />
-              </SectionCard>
-                </div>
               </div>
             </div>
           </section>
