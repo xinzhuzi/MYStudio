@@ -49,6 +49,18 @@ describe("buildCspPolicy", () => {
     expect(policy).toContain("local-image:");
     expect(policy).toContain("project-file:");
   });
+
+  it("allowlists the md-editor-rt CDN origins on script/style/font (runtime-loaded libs)", () => {
+    // 回归:md-editor-rt 运行时从 unpkg/alicdn 拉 highlight/katex/mermaid/图标字体,
+    // CSP 拦截曾致 installed smoke 红(19 条外链违规)。
+    const policy = buildCspPolicy([]);
+    for (const directive of ["script-src", "style-src", "font-src"]) {
+      const clause = policy.split("; ").find((part) => part.startsWith(`${directive} `));
+      expect(clause).toBeDefined();
+      expect(clause).toContain("https://unpkg.com");
+      expect(clause).toContain("https://at.alicdn.com");
+    }
+  });
 });
 
 describe("cspPlugin", () => {
