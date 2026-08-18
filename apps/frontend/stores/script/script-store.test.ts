@@ -2,8 +2,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
   getItem: vi.fn(async (_key: string): Promise<string | null> => null),
-  removeItem: vi.fn(async () => undefined),
-  setItem: vi.fn(async () => undefined),
+  removeItem: vi.fn(async (_key: string): Promise<void> => undefined),
+  setItem: vi.fn(async (_key: string, _value: string): Promise<void> => undefined),
 }));
 
 vi.mock("@/lib/storage/project-storage", () => ({
@@ -30,6 +30,14 @@ import {
 function resetScriptStore() {
   useScriptStore.setState({ activeProjectId: null, projects: {} });
 }
+
+// clearAllMocks 不清 mockImplementation:个别用例(如 disk full 注入)的抛错实现会
+// 残留污染后续用例,经 zustand persist 的 setState 保存泄漏成 unhandled rejection。
+afterEach(() => {
+  mocks.getItem.mockImplementation(async () => null);
+  mocks.setItem.mockImplementation(async () => undefined);
+  mocks.removeItem.mockImplementation(async () => undefined);
+});
 
 describe("script store defaults", () => {
   beforeEach(() => {
@@ -234,7 +242,7 @@ describe("seriesMeta 独立落盘(overview.json 拆分)", () => {
     const storage = createScriptScopedJsonStorage();
     const before = mocks.setItem.mock.calls.length;
     await storage?.setItem("mystudio-script-store", {
-      state: { activeProjectId: "p1", projectData: { rawScript: "正文", seriesMeta: { title: "道劫", characters: [] } } },
+      state: { activeProjectId: "p1", projectData: { ...createDefaultScriptProjectData(), rawScript: "正文", seriesMeta: { title: "道劫", characters: [] } } },
       version: 3,
     });
 
@@ -259,7 +267,7 @@ describe("seriesMeta 独立落盘(overview.json 拆分)", () => {
       return null;
     });
     const storage = createScriptScopedJsonStorage();
-    const parsed = (await storage?.getItem("mystudio-script-store")) as { state: { projectData: Record<string, unknown> } };
+    const parsed = (await storage?.getItem("mystudio-script-store")) as unknown as { state: { projectData: Record<string, unknown> } };
     expect(parsed.state.projectData.seriesMeta).toEqual({ title: "新名字", characters: [] });
     expect(parsed.state.projectData.rawScript).toBe("正文");
   });
@@ -272,7 +280,7 @@ describe("seriesMeta 独立落盘(overview.json 拆分)", () => {
     mocks.getItem.mockImplementation(async (key: string) => (key.startsWith("script::") ? legacy : null));
     const storage = createScriptScopedJsonStorage();
     const before = mocks.setItem.mock.calls.length;
-    const parsed = (await storage?.getItem("mystudio-script-store")) as { state: { projectData: Record<string, unknown> } };
+    const parsed = (await storage?.getItem("mystudio-script-store")) as unknown as { state: { projectData: Record<string, unknown> } };
     expect((parsed.state.projectData.seriesMeta as { title: string }).title).toBe("道劫");
     const myCalls = mocks.setItem.mock.calls.slice(before);
     const ovWrite = myCalls.find(([k]) => k.startsWith("overview::"))![1];
@@ -289,11 +297,13 @@ describe("seriesMeta 独立落盘(overview.json 拆分)", () => {
       version: 2,
     });
     mocks.getItem.mockImplementation(async (key: string) => (key.startsWith("script::") ? legacy : null));
-    mocks.setItem.mockImplementation(async () => {
-      throw new Error("disk full");
+    // 只让 overview 写盘抛错(本用例的靶点);全键抛错会连累 afterEach 里 resetScriptStore
+    // 触发的 persist 保存,泄漏成 unhandled rejection
+    mocks.setItem.mockImplementation(async (key: string) => {
+      if (String(key).startsWith("overview::")) throw new Error("disk full");
     });
     const storage = createScriptScopedJsonStorage();
-    const parsed = (await storage?.getItem("mystudio-script-store")) as { state: { projectData: Record<string, unknown> } };
+    const parsed = (await storage?.getItem("mystudio-script-store")) as unknown as { state: { projectData: Record<string, unknown> } };
     expect((parsed.state.projectData.seriesMeta as { title: string }).title).toBe("道劫");
   });
 
@@ -306,7 +316,7 @@ describe("seriesMeta 独立落盘(overview.json 拆分)", () => {
     const { useProjectStore } = await import("@/stores/project/project-store");
     useProjectStore.setState({ activeProjectId: "p1" });
     const storage = createScriptScopedJsonStorage();
-    const parsed = (await storage?.getItem("mystudio-script-store")) as { state: { projectData: Record<string, unknown>; activeProjectId: string } };
+    const parsed = (await storage?.getItem("mystudio-script-store")) as unknown as { state: { projectData: Record<string, unknown>; activeProjectId: string } };
     expect(parsed.state.activeProjectId).toBe("p1");
     expect(parsed.state.projectData.seriesMeta).toEqual({ title: "道劫", characters: [] });
   });
@@ -316,7 +326,7 @@ describe("seriesMeta 独立落盘(overview.json 拆分)", () => {
     const before = mocks.setItem.mock.calls.length;
     const beforeRm = mocks.removeItem.mock.calls.length;
     await storage?.setItem("mystudio-script-store", {
-      state: { activeProjectId: "p1", projectData: { rawScript: "", scriptData: null, shots: [], episodeRawScripts: [], seriesMeta: { title: "道劫", characters: [] } } },
+      state: { activeProjectId: "p1", projectData: { ...createDefaultScriptProjectData(), rawScript: "", scriptData: null, shots: [], episodeRawScripts: [], seriesMeta: { title: "道劫", characters: [] } } },
       version: 0,
     });
     const mySets = mocks.setItem.mock.calls.slice(before);
