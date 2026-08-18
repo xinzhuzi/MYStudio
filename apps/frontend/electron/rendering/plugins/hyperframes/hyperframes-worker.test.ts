@@ -134,7 +134,7 @@ describe("HyperFrames worker composition boundary", () => {
         alpha: { kind: "prores-4444-mov" as const },
       })),
     };
-    const html = buildHyperFramesCompositionHtml(localRequest);
+    const html = buildHyperFramesCompositionHtml(localRequest as unknown as Parameters<typeof buildHyperFramesCompositionHtml>[0]);
     for (const templateId of local) {
       expect(html).toContain(`hf-${templateId === "ink-bloom" ? "ink-bloom" : templateId}`);
     }
