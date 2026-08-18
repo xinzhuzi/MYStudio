@@ -32,6 +32,7 @@ export const MOVABLE_STORE_SEGMENTS: readonly string[] = [
   "props",
   "studio-workflow",
   "studio-workflow-store",
+  "overview",
 ];
 
 const MOVABLE_STORE_SEGMENT_SET = new Set(MOVABLE_STORE_SEGMENTS);

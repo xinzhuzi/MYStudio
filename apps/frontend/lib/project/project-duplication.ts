@@ -19,6 +19,8 @@ export const PROJECT_SCOPED_STORE_NAMES = [
   // 显式登记后新旧布局都不再依赖目录列举(08-18-project-store-layout 回归修复)
   "editing",
   "self-media",
+  // 概览元数据独立落盘(08-18-seriesmeta-store-split)
+  "overview",
 ] as const;
 
 export function buildProjectStoreKeys(

@@ -217,6 +217,93 @@ describe("active script project selector", () => {
   });
 });
 
+describe("seriesMeta 独立落盘(overview.json 拆分)", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    resetScriptStore();
+  });
+
+  afterEach(resetScriptStore);
+
+  it("setItem 先写 overview 信封再写剥离后的 script(同一 mock 按调用顺序断言)", async () => {
+    const storage = createScriptScopedJsonStorage();
+    const before = mocks.setItem.mock.calls.length;
+    await storage?.setItem("mystudio-script-store", {
+      state: { activeProjectId: "p1", projectData: { rawScript: "正文", seriesMeta: { title: "道劫", characters: [] } } },
+      version: 3,
+    });
+
+    const myCalls = mocks.setItem.mock.calls.slice(before);
+    expect(myCalls).toHaveLength(2);
+    const [overviewWrite, scriptWrite] = myCalls.map((c) => c[1]);
+    expect(JSON.parse(overviewWrite)).toEqual({
+      state: { activeProjectId: "p1", seriesMeta: { title: "道劫", characters: [] } },
+      version: 0,
+    });
+    const scriptParsed = JSON.parse(scriptWrite);
+    expect(scriptParsed.state.projectData.rawScript).toBe("正文");
+    expect(scriptParsed.state.projectData.seriesMeta).toBeUndefined();
+  });
+
+  it("getItem:overview 的 seriesMeta 优先注入内存形状(消费方零改动)", async () => {
+    const seq = [
+      JSON.stringify({ state: { activeProjectId: "p1", projectData: { rawScript: "正文" } }, version: 1 }),
+      JSON.stringify({ state: { activeProjectId: "p1", seriesMeta: { title: "新名字", characters: [] } }, version: 0 }),
+    ];
+    mocks.getItem.mockImplementation(async () => seq.shift() ?? null);
+    const storage = createScriptScopedJsonStorage();
+    const parsed = (await storage?.getItem("mystudio-script-store")) as { state: { projectData: Record<string, unknown> } };
+    expect(parsed.state.projectData.seriesMeta).toEqual({ title: "新名字", characters: [] });
+    expect(parsed.state.projectData.rawScript).toBe("正文");
+  });
+
+  it("getItem:旧布局内嵌 seriesMeta 自动迁移(旁写 overview+重写剥离后的 script)", async () => {
+    const legacy = JSON.stringify({
+      state: { activeProjectId: "p1", projectData: { rawScript: "正文", seriesMeta: { title: "道劫", characters: [], genre: "仙侠" } } },
+      version: 2,
+    });
+    // 两次 getItem:第 1 次 script 返回 legacy,第 2 次 overview 返回 null(不存在)
+    let calls = 0;
+    mocks.getItem.mockImplementation(async () => {
+      calls += 1;
+      return calls === 1 ? legacy : null;
+    });
+    const storage = createScriptScopedJsonStorage();
+    const before = mocks.setItem.mock.calls.length;
+    const parsed = (await storage?.getItem("mystudio-script-store")) as { state: { projectData: Record<string, unknown> } };
+    expect((parsed.state.projectData.seriesMeta as { title: string }).title).toBe("道劫");
+    const myCalls = mocks.setItem.mock.calls.slice(before);
+    expect(myCalls).toHaveLength(2);
+    const [ovWrite, scWrite] = myCalls.map((c) => c[1]);
+    expect(JSON.parse(ovWrite).state.seriesMeta.genre).toBe("仙侠");
+    expect(JSON.parse(scWrite).state.projectData.seriesMeta).toBeUndefined();
+  });
+
+  it("getItem:overview 写盘抛错不阻断读取,seriesMeta 留在返回值里", async () => {
+    const legacy = JSON.stringify({
+      state: { activeProjectId: "p1", projectData: { rawScript: "正文", seriesMeta: { title: "道劫", characters: [] } } },
+      version: 2,
+    });
+    let calls = 0;
+    mocks.getItem.mockImplementation(async () => {
+      calls += 1;
+      return calls === 1 ? legacy : null;
+    });
+    mocks.setItem.mockImplementation(async () => {
+      throw new Error("disk full");
+    });
+    const storage = createScriptScopedJsonStorage();
+    const parsed = (await storage?.getItem("mystudio-script-store")) as { state: { projectData: Record<string, unknown> } };
+    expect((parsed.state.projectData.seriesMeta as { title: string }).title).toBe("道劫");
+  });
+
+  it("removeItem 同时清理两个键(mock 两次)", async () => {
+    const storage = createScriptScopedJsonStorage();
+    await storage?.removeItem("mystudio-script-store");
+    expect(mocks.removeItem).toHaveBeenCalledTimes(2);
+  });
+});
+
 describe("seriesMeta fallback persistence", () => {
   beforeEach(() => {
     vi.clearAllMocks();
