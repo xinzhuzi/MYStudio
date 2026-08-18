@@ -89,7 +89,7 @@ describe("fetchUpdateManifest (legacy JSON manifest)", () => {
 
   it("still reads a self-hosted JSON manifest with cache busting", async () => {
     const config = { manifestUrl: "https://updates.example.test/version.json" };
-    fetchMock.mockImplementationOnce(async (url: string) => (
+    fetchMock.mockImplementationOnce(async (_url: string) => (
       jsonResponse({ version: "1.2.3", githubUrl: "https://github.com/xinzhuzi/MYStudio" })
     ));
     const manifest = await fetchUpdateManifest(config);
