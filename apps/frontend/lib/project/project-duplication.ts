@@ -133,8 +133,10 @@ async function copyStudioWorkflowShards(
   try {
     const manifest = JSON.parse(manifestRaw) as { shards?: unknown };
     if (Array.isArray(manifest.shards)) {
+      // 根层 <name>.json 或章节目录 chapters/<chapterId>/<name>.json
       shardNames = manifest.shards.filter(
-        (name): name is string => typeof name === "string" && /^[^/\\]+\.json$/.test(name),
+        (name): name is string => typeof name === "string"
+          && /^(?:[^/\\]+|chapters\/[^/\\]+\/[^/\\]+)\.json$/.test(name),
       );
     }
   } catch {

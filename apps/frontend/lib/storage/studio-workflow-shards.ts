@@ -6,9 +6,10 @@
  *
  * 布局（项目根 `studio-workflow/`，经 `_p/{pid}/studio-workflow/<name>` 虚拟键路由）：
  * - `manifest.json`：{layout, version, shards}——唯一读盘清单，读写均 manifest 驱动
- * - `chapter-<id>-<slug>-NNN-<stamp>.json`：**章优先分层**（08-18 用户裁定）——章节归属
- *   数组域按条目所属章切成每章独立文件（章内超 512KB 续 -NNN；无法归章的条目落
- *   `<slug>-shared-NNN-*`），一章的增删改只动一章的文件，为增量写/章节归档铺路
+ * - `chapters/<chapterId>/<slug>-NNN-<stamp>.json`：**章优先目录分层**（08-18 用户裁定）
+ *   ——章节归属数组域按条目所属章切进每章自己的子目录（章内超 512KB 续 -NNN；
+ *   无法归章的条目落根层 `<slug>-shared-NNN-*`），一章的增删改只动一章的目录，
+ *   为增量写/章节归档铺路
  * - `core-<stamp>.json`（溢出续 `core-002-<stamp>.json`…）：小域 + 空数组 + 未知键
  * - `<slug>-<stamp>.json` / `<slug>-NNN-<stamp>.json`：非章节数组域（materials 等）
  *   按大小批切，单片裸名、多片才编号
@@ -53,6 +54,18 @@ export class StudioWorkflowShardPlanError extends Error {
 
 /** 文件名安全的 chapterId（chapterId 保持 ASCII，防御脏数据进文件名）。 */
 const SAFE_CHAPTER_KEY_RE = /^[A-Za-z0-9][A-Za-z0-9._-]*$/;
+
+/**
+ * manifest 分片名的安全形态：根层 `<name>.json`（1 段）或章节目录
+ * `chapters/<chapterId>/<name>.json`（3 段）。每段禁 `..`/空段/反斜杠，
+ * 从根上封死路径穿越。
+ */
+export function isSafeShardFileName(name: string): boolean {
+  if (!name || name.length > 200 || name.includes("\\")) return false;
+  const segments = name.split("/");
+  if (segments.length > 3) return false;
+  return segments.every((segment) => SAFE_CHAPTER_KEY_RE.test(segment));
+}
 
 /** 章节归属解析上下文：间接归属域（videoCandidates/imageWorkflows）用的映射。 */
 interface ChapterAttributionContext {
@@ -165,7 +178,7 @@ export function parseStudioWorkflowShardManifest(raw: string): StudioWorkflowSha
   if (!Array.isArray(candidate.shards)) return null;
   const shards: string[] = [];
   for (const entry of candidate.shards) {
-    if (typeof entry !== "string" || !entry || entry.includes("/") || entry.includes("\\")) return null;
+    if (typeof entry !== "string" || !isSafeShardFileName(entry)) return null;
     shards.push(entry);
   }
   return { layout: STUDIO_WORKFLOW_SHARD_LAYOUT, version: candidate.version, shards };
@@ -246,10 +259,11 @@ export function planStudioWorkflowShards(
   };
 
   const attribution = buildChapterAttributionContext(state);
-  // 章域文件按 (章节键, 域) 计数编号：chapter-001-storyboards-001-<stamp>.json
+  // 章域文件按 (章节键, 域) 计数编号：chapters/<chapterId>/<slug>-NNN-<stamp>.json；
+  // 无法归章条目落根层 <slug>-shared-NNN-<stamp>.json
   const chapterFileCount = new Map<string, number>();
   const nextChapterBase = (chapterKey: string | null, slug: string): string => {
-    const base = chapterKey ? `${chapterKey}-${slug}` : `${slug}-shared`;
+    const base = chapterKey ? `chapters/${chapterKey}/${slug}` : `${slug}-shared`;
     const next = (chapterFileCount.get(base) ?? 0) + 1;
     chapterFileCount.set(base, next);
     return `${base}-${String(next).padStart(3, "0")}`;

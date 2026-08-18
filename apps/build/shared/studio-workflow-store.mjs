@@ -12,6 +12,14 @@ export const SHARD_LIMIT_BYTES = 512 * 1024;
 
 const SAFE_CHAPTER_KEY_RE = /^[A-Za-z0-9][A-Za-z0-9._-]*$/;
 
+// manifest 分片名安全形态：根层 <name>.json 或 chapters/<chapterId>/<name>.json
+export function isSafeShardFileName(name) {
+  if (!name || name.length > 200 || name.includes("\\")) return false;
+  const segments = name.split("/");
+  if (segments.length > 3) return false;
+  return segments.every((segment) => SAFE_CHAPTER_KEY_RE.test(segment));
+}
+
 function recordField(item, field) {
   if (!item || typeof item !== "object" || Array.isArray(item)) return null;
   const value = item[field];
@@ -102,7 +110,7 @@ function parseManifest(raw) {
   if (!Array.isArray(parsed.shards)) return null;
   const shards = [];
   for (const entry of parsed.shards) {
-    if (typeof entry !== "string" || !entry || entry.includes("/") || entry.includes("\\")) return null;
+    if (typeof entry !== "string" || !isSafeShardFileName(entry)) return null;
     shards.push(entry);
   }
   return { layout: SHARD_LAYOUT, version: parsed.version, shards };
@@ -142,7 +150,7 @@ export function planStudioWorkflowShards(value, options = {}) {
   const attribution = buildChapterAttributionContext(parsed.state);
   const chapterFileCount = new Map();
   const nextChapterBase = (chapterKey, slug) => {
-    const base = chapterKey ? `${chapterKey}-${slug}` : `${slug}-shared`;
+    const base = chapterKey ? `chapters/${chapterKey}/${slug}` : `${slug}-shared`;
     const next = (chapterFileCount.get(base) ?? 0) + 1;
     chapterFileCount.set(base, next);
     return `${base}-${String(next).padStart(3, "0")}`;
@@ -304,6 +312,7 @@ export function writeStudioWorkflowStore(projectDir, envelopeRaw) {
   const shardDir = path.join(projectDir, SHARD_DIR);
   fs.mkdirSync(shardDir, { recursive: true });
   const writeAtomic = (targetPath, content) => {
+    fs.mkdirSync(path.dirname(targetPath), { recursive: true });
     const tempPath = `${targetPath}.tmp-${process.pid}-${Date.now()}`;
     try {
       fs.writeFileSync(tempPath, content, "utf8");
@@ -323,10 +332,21 @@ export function writeStudioWorkflowStore(projectDir, envelopeRaw) {
     fs.renameSync(legacyPath, legacyBackupPath);
   }
   const listed = new Set([...plan.manifest.shards, "manifest.json"]);
-  for (const entry of fs.readdirSync(shardDir)) {
-    if (!entry.endsWith(".json") || listed.has(entry)) continue;
-    fs.rmSync(path.join(shardDir, entry), { force: true });
-  }
+  const pruneDir = (dirPath) => {
+    for (const entry of fs.readdirSync(dirPath, { withFileTypes: true })) {
+      const fullPath = path.join(dirPath, entry.name);
+      if (entry.isDirectory()) {
+        pruneDir(fullPath);
+      } else if (entry.name.endsWith(".json")
+        && !listed.has(path.relative(shardDir, fullPath).split(path.sep).join("/"))) {
+        fs.rmSync(fullPath, { force: true });
+      }
+    }
+    if (path.resolve(dirPath) !== path.resolve(shardDir) && fs.readdirSync(dirPath).length === 0) {
+      fs.rmdirSync(dirPath);
+    }
+  };
+  pruneDir(shardDir);
   return { shardNames: plan.manifest.shards, legacyBackupPath };
 }
 
@@ -335,10 +355,15 @@ export function copyStudioWorkflowStoreDir(sourceProjectDir, targetProjectDir) {
   const sourceShardDir = path.join(sourceProjectDir, SHARD_DIR);
   if (!fs.existsSync(path.join(sourceShardDir, "manifest.json"))) return false;
   const targetShardDir = path.join(targetProjectDir, SHARD_DIR);
-  fs.mkdirSync(targetShardDir, { recursive: true });
-  for (const entry of fs.readdirSync(sourceShardDir)) {
-    if (!entry.endsWith(".json")) continue;
-    fs.copyFileSync(path.join(sourceShardDir, entry), path.join(targetShardDir, entry));
-  }
+  const copyJsonTree = (sourceDir, targetDir) => {
+    fs.mkdirSync(targetDir, { recursive: true });
+    for (const entry of fs.readdirSync(sourceDir, { withFileTypes: true })) {
+      const sourcePath = path.join(sourceDir, entry.name);
+      const targetPath = path.join(targetDir, entry.name);
+      if (entry.isDirectory()) copyJsonTree(sourcePath, targetPath);
+      else if (entry.name.endsWith(".json")) fs.copyFileSync(sourcePath, targetPath);
+    }
+  };
+  copyJsonTree(sourceShardDir, targetShardDir);
   return true;
 }

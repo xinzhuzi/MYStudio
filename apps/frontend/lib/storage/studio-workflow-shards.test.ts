@@ -72,14 +72,14 @@ describe("planStudioWorkflowShards", () => {
     const { plan } = roundTrip(envelopeOf(state));
     const names = plan.manifest.shards;
     // 每章正文独立成片
-    expect(names.filter((name) => name.startsWith("chapter-001-novel-chapters-001-"))).toHaveLength(1);
-    expect(names.filter((name) => name.startsWith("chapter-002-novel-chapters-001-"))).toHaveLength(1);
-    expect(names.filter((name) => name.startsWith("chapter-003-novel-chapters-001-"))).toHaveLength(1);
+    expect(names.filter((name) => name.startsWith("chapters/chapter-001/novel-chapters-001-"))).toHaveLength(1);
+    expect(names.filter((name) => name.startsWith("chapters/chapter-002/novel-chapters-001-"))).toHaveLength(1);
+    expect(names.filter((name) => name.startsWith("chapters/chapter-003/novel-chapters-001-"))).toHaveLength(1);
     // 分镜/剧本计划/制片轨道按所属章归片
-    expect(names.some((name) => name.startsWith("chapter-001-storyboards-001-"))).toBe(true);
-    expect(names.some((name) => name.startsWith("chapter-001-script-plans-001-"))).toBe(true);
-    expect(names.some((name) => name.startsWith("chapter-001-production-tracks-001-"))).toBe(true);
-    expect(names.some((name) => name.startsWith("chapter-002-media-tasks-001-"))).toBe(true);
+    expect(names.some((name) => name.startsWith("chapters/chapter-001/storyboards-001-"))).toBe(true);
+    expect(names.some((name) => name.startsWith("chapters/chapter-001/script-plans-001-"))).toBe(true);
+    expect(names.some((name) => name.startsWith("chapters/chapter-001/production-tracks-001-"))).toBe(true);
+    expect(names.some((name) => name.startsWith("chapters/chapter-002/media-tasks-001-"))).toBe(true);
     // 非章节数组域保持裸名批切；小域进 core
     expect(names.some((name) => /^materials-[0-9a-f]{8}\.json$/.test(name))).toBe(true);
     expect(names.some((name) => /^core-[0-9a-f]{8}\.json$/.test(name))).toBe(true);
@@ -95,7 +95,7 @@ describe("planStudioWorkflowShards", () => {
       storyboard.prompt = `分镜 ${index} ${"述".repeat(120)}`;
     });
     const { plan, merged } = roundTrip(envelopeOf(state), 1024);
-    expect(plan.manifest.shards.filter((name) => name.startsWith("chapter-001-storyboards-")).length).toBeGreaterThan(1);
+    expect(plan.manifest.shards.filter((name) => name.startsWith("chapters/chapter-001/storyboards-")).length).toBeGreaterThan(1);
     for (const file of plan.files) {
       expect(Buffer.byteLength(file.content, "utf8")).toBeLessThanOrEqual(1024);
     }
@@ -114,8 +114,8 @@ describe("planStudioWorkflowShards", () => {
     ];
     const { plan, merged } = roundTrip(envelopeOf({ storyboards }));
     // 交错 → 每章两个 run，各成文件
-    expect(plan.manifest.shards.filter((name) => name.startsWith("chapter-001-storyboards-"))).toHaveLength(2);
-    expect(plan.manifest.shards.filter((name) => name.startsWith("chapter-002-storyboards-"))).toHaveLength(2);
+    expect(plan.manifest.shards.filter((name) => name.startsWith("chapters/chapter-001/storyboards-"))).toHaveLength(2);
+    expect(plan.manifest.shards.filter((name) => name.startsWith("chapters/chapter-002/storyboards-"))).toHaveLength(2);
     expect((merged.state.storyboards as Array<{ id: string }>).map((item) => item.id)).toEqual([
       "sb-1",
       "sb-2",
@@ -153,9 +153,9 @@ describe("planStudioWorkflowShards", () => {
       ],
     };
     const { plan } = roundTrip(envelopeOf(state));
-    expect(plan.manifest.shards.some((name) => name.startsWith("chapter-007-image-workflows-001-"))).toBe(true);
+    expect(plan.manifest.shards.some((name) => name.startsWith("chapters/chapter-007/image-workflows-001-"))).toBe(true);
     expect(plan.manifest.shards.some((name) => name.startsWith("image-workflows-shared-001-"))).toBe(true);
-    expect(plan.manifest.shards.some((name) => name.startsWith("chapter-007-video-candidates-001-"))).toBe(true);
+    expect(plan.manifest.shards.some((name) => name.startsWith("chapters/chapter-007/video-candidates-001-"))).toBe(true);
     expect(plan.manifest.shards.some((name) => name.startsWith("video-candidates-shared-001-"))).toBe(true);
   });
 
@@ -167,7 +167,7 @@ describe("planStudioWorkflowShards", () => {
       sourceText: "文".repeat(2000),
     };
     const plan = planStudioWorkflowShards(envelopeOf(state), { limitBytes: 1024 });
-    const hugeShard = plan.files.find((file) => file.name.startsWith("chapter-huge-novel-chapters-"));
+    const hugeShard = plan.files.find((file) => file.name.startsWith("chapters/chapter-huge/novel-chapters-"));
     expect(hugeShard).toBeDefined();
     expect(Buffer.byteLength(hugeShard!.content, "utf8")).toBeGreaterThan(1024);
     expect(plan.oversizedFiles.some((name) => hugeShard!.name.startsWith(name))).toBe(true);
@@ -256,10 +256,25 @@ describe("parseStudioWorkflowShardManifest", () => {
     });
   });
 
+  it("accepts nested chapter shard paths in the manifest", () => {
+    const raw = JSON.stringify({
+      layout: STUDIO_WORKFLOW_SHARD_LAYOUT,
+      version: 10,
+      shards: ["chapters/chapter-001/storyboards-001-01234567.json", "core-01234567.json"],
+    });
+    expect(parseStudioWorkflowShardManifest(raw)).toEqual({
+      layout: STUDIO_WORKFLOW_SHARD_LAYOUT,
+      version: 10,
+      shards: ["chapters/chapter-001/storyboards-001-01234567.json", "core-01234567.json"],
+    });
+  });
+
   it("rejects foreign layouts, non-numeric versions, and traversal names", () => {
     expect(parseStudioWorkflowShardManifest(JSON.stringify({ layout: "other", version: 1, shards: [] }))).toBeNull();
     expect(parseStudioWorkflowShardManifest(JSON.stringify({ layout: STUDIO_WORKFLOW_SHARD_LAYOUT, version: "10", shards: [] }))).toBeNull();
     expect(parseStudioWorkflowShardManifest(JSON.stringify({ layout: STUDIO_WORKFLOW_SHARD_LAYOUT, version: 10, shards: ["../escape.json"] }))).toBeNull();
+    expect(parseStudioWorkflowShardManifest(JSON.stringify({ layout: STUDIO_WORKFLOW_SHARD_LAYOUT, version: 10, shards: ["chapters/../evil/x.json"] }))).toBeNull();
+    expect(parseStudioWorkflowShardManifest(JSON.stringify({ layout: STUDIO_WORKFLOW_SHARD_LAYOUT, version: 10, shards: ["chapters/chapter-001/sub/deep.json"] }))).toBeNull();
     expect(parseStudioWorkflowShardManifest("nope")).toBeNull();
   });
 });

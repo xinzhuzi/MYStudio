@@ -119,10 +119,10 @@ describe("createStudioWorkflowShardedStorage", () => {
     expect(manifestRaw).toBeTruthy();
     const manifest = JSON.parse(manifestRaw!) as { shards: string[]; version: number };
     expect(manifest.version).toBe(10);
-    expect(manifest.shards.some((name) => name.startsWith("chapter-001-novel-chapters-001-"))).toBe(true);
-    expect(manifest.shards.some((name) => name.startsWith("chapter-002-novel-chapters-001-"))).toBe(true);
-    expect(manifest.shards.some((name) => name.startsWith("chapter-001-storyboards-001-"))).toBe(true);
-    expect(manifest.shards.some((name) => name.startsWith("chapter-002-storyboards-001-"))).toBe(true);
+    expect(manifest.shards.some((name) => name.startsWith("chapters/chapter-001/novel-chapters-001-"))).toBe(true);
+    expect(manifest.shards.some((name) => name.startsWith("chapters/chapter-002/novel-chapters-001-"))).toBe(true);
+    expect(manifest.shards.some((name) => name.startsWith("chapters/chapter-001/storyboards-001-"))).toBe(true);
+    expect(manifest.shards.some((name) => name.startsWith("chapters/chapter-002/storyboards-001-"))).toBe(true);
     expect(manifest.shards.some((name) => name.startsWith("core-"))).toBe(true);
     for (const shardName of manifest.shards) {
       expect(hoisted.files.get(`_p/proj-1/studio-workflow/${shardName.replace(/\.json$/, "")}`)).toBeTruthy();
@@ -177,11 +177,11 @@ describe("createStudioWorkflowShardedStorage", () => {
   it("cleans up orphan shards from a previous generation after the manifest swap", async () => {
     await storage.setItem("studio-workflow-store", buildPersistedValue());
     // 模拟上一代残留
-    hoisted.files.set("_p/proj-1/studio-workflow/storyboards-deadbeef", "{}");
+    hoisted.files.set("_p/proj-1/studio-workflow/chapters/chapter-001/storyboards-0000dead", "{}");
 
     await storage.setItem("studio-workflow-store", buildPersistedValue());
 
-    expect(hoisted.files.has("_p/proj-1/studio-workflow/storyboards-deadbeef")).toBe(false);
+    expect(hoisted.files.has("_p/proj-1/studio-workflow/chapters/chapter-001/storyboards-0000dead")).toBe(false);
     const manifest = JSON.parse(hoisted.files.get("_p/proj-1/studio-workflow/manifest")!) as { shards: string[] };
     const lingering = [...hoisted.files.keys()].filter(
       (key) => key.startsWith("_p/proj-1/studio-workflow/")

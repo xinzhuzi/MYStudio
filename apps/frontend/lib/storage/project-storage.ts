@@ -316,16 +316,42 @@ export function createStudioWorkflowShardedStorage(storeName: string): StateStor
           console.warn('[StudioWorkflowShardedStorage] 旧单文件改名失败（数据已在分片中，文件保留）:', error);
         }
 
-        // 清理未被 manifest 列出的孤儿分片（上一代 stamp 文件）
+        // 清理未被 manifest 列出的孤儿分片（上一代 stamp 文件；章文件在 chapters/ 子目录，
+        // 用现有 listDirs+listKeys IPC 组合嵌套扫描，不新增 readdir 通道）
         try {
           const bridge = typeof window !== 'undefined' ? window.fileStorage : undefined;
-          const listed = new Set(plan.manifest.shards.map((fileName) => fileName.replace(/\.json$/, '')));
-          if (bridge?.listKeys) {
-            const keys = await bridge.listKeys(prefix);
-            for (const key of keys) {
-              const base = key.slice(prefix.length + 1);
-              if (base === 'manifest' || listed.has(base)) continue;
-              await fileStorage.removeItem(key);
+          if (bridge?.listKeys && bridge?.listDirs) {
+            const listed = new Set<string>(plan.manifest.shards.map((fileName) => fileName.replace(/\.json$/, '')));
+            const isListed = (relativePath: string) => relativePath === 'manifest' || listed.has(relativePath);
+            // 根层：core/materials/shared 桶等
+            for (const key of await bridge.listKeys(prefix)) {
+              const relativePath = key.slice(prefix.length + 1);
+              if (!isListed(relativePath)) await fileStorage.removeItem(key);
+            }
+            // 子目录：只有 chapters/ 是合法目录；未引用的章目录整目录回收，已引用章目录内清孤儿
+            const manifestedRelativePaths: string[] = [...listed];
+            const manifestedChapters = new Set<string>(
+              manifestedRelativePaths
+                .filter((relativePath) => relativePath.startsWith('chapters/'))
+                .map((relativePath) => relativePath.split('/')[1]),
+            );
+            for (const dirName of await bridge.listDirs(prefix)) {
+              if (dirName !== 'chapters') {
+                await bridge.removeDir?.(`${prefix}/${dirName}`);
+                continue;
+              }
+              const chaptersPrefix = `${prefix}/chapters`;
+              for (const chapterId of await bridge.listDirs(chaptersPrefix)) {
+                const chapterPrefix = `${chaptersPrefix}/${chapterId}`;
+                if (!manifestedChapters.has(chapterId)) {
+                  await bridge.removeDir?.(chapterPrefix);
+                  continue;
+                }
+                for (const key of await bridge.listKeys(chapterPrefix)) {
+                  const relativePath = key.slice(prefix.length + 1);
+                  if (!isListed(relativePath)) await fileStorage.removeItem(key);
+                }
+              }
             }
           }
         } catch (error) {

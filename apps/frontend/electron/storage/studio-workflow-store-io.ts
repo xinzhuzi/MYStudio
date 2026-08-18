@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import {
+  isSafeShardFileName,
   STUDIO_WORKFLOW_SHARD_DIR,
   mergeStudioWorkflowShards,
   parseStudioWorkflowShardManifest,
@@ -54,7 +55,7 @@ export function readStudioWorkflowStore(dataRoot: string, projectId: string): St
     if (!manifest) throw new Error(`studio-workflow manifest 无法解析: ${shardDir}/manifest.json`);
     const contents: string[] = [];
     for (const shardName of manifest.shards) {
-      if (shardName.includes("/") || shardName.includes("\\")) {
+      if (!isSafeShardFileName(shardName)) {
         throw new Error(`studio-workflow manifest 含非法分片名: ${shardName}`);
       }
       const raw = readJsonIfExists(path.join(shardDir, shardName));
@@ -110,6 +111,7 @@ export function writeStudioWorkflowStore(
   fs.mkdirSync(shardDir, { recursive: true });
 
   const writeAtomic = (targetPath: string, content: string) => {
+    fs.mkdirSync(path.dirname(targetPath), { recursive: true });
     const tempPath = `${targetPath}.tmp-${process.pid}-${Date.now()}`;
     try {
       fs.writeFileSync(tempPath, content, "utf-8");
@@ -120,7 +122,7 @@ export function writeStudioWorkflowStore(
   };
 
   for (const file of plan.files) {
-    if (file.name.includes("/") || file.name.includes("\\")) {
+    if (!isSafeShardFileName(file.name)) {
       throw new Error(`分片文件名非法: ${file.name}`);
     }
     writeAtomic(path.join(shardDir, file.name), file.content);
@@ -135,12 +137,23 @@ export function writeStudioWorkflowStore(
     fs.renameSync(legacyPath, legacyBackupPath);
   }
 
-  // 清理未被 manifest 列出的孤儿分片（上一代 stamp 文件）
+  // 递归清理未被 manifest 列出的孤儿分片（上一代 stamp 文件，含嵌套章目录），并剪除空目录
   const listed = new Set([...plan.manifest.shards, "manifest.json"]);
-  for (const entry of fs.existsSync(shardDir) ? fs.readdirSync(shardDir) : []) {
-    if (!entry.endsWith(".json") || listed.has(entry)) continue;
-    fs.rmSync(path.join(shardDir, entry), { force: true });
-  }
+  const pruneDir = (dirPath: string) => {
+    for (const entry of fs.readdirSync(dirPath, { withFileTypes: true })) {
+      const fullPath = path.join(dirPath, entry.name);
+      if (entry.isDirectory()) {
+        pruneDir(fullPath);
+      } else if (entry.name.endsWith(".json")
+        && !listed.has(path.relative(shardDir, fullPath).split(path.sep).join("/"))) {
+        fs.rmSync(fullPath, { force: true });
+      }
+    }
+    if (path.resolve(dirPath) !== path.resolve(shardDir) && fs.readdirSync(dirPath).length === 0) {
+      fs.rmdirSync(dirPath);
+    }
+  };
+  if (fs.existsSync(shardDir)) pruneDir(shardDir);
 
   return {
     shardNames: plan.manifest.shards,
