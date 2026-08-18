@@ -22,6 +22,8 @@ export interface SfxGenRuntimeStatus {
   downloadStatus: "idle" | "downloading" | "complete" | "error";
   downloadProgress: number;
   downloadError: string | undefined;
+  /** 模型实际落盘目录(与本地音乐生成/TTS 共用缓存) */
+  modelCacheDir?: string;
 }
 
 export interface SfxGenGenerateResult {

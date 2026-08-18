@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Check, Download, Loader2, Zap } from "lucide-react";
+import { Check, Download, FolderOpen, Loader2, Zap } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -133,6 +133,22 @@ export function SfxGenSettingsSection({ embedded = false }: SfxGenSettingsSectio
           <p className="text-xs text-muted-foreground">{Math.round(status?.downloadProgress ?? 0)}%</p>
         </div>
       )}
+
+      {/* 缓存目录展示(深度区同款行布局):路径 truncate 吃满 + 打开按钮 */}
+      {status?.modelCacheDir ? (
+        <div className="grid grid-cols-[5rem_minmax(0,1fr)_auto] items-center gap-2 text-sm">
+          <span className="text-muted-foreground">模型缓存目录</span>
+          <span className="truncate font-mono text-xs" title={status.modelCacheDir}>{status.modelCacheDir}</span>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => { void window.electronAPI?.openPath(status.modelCacheDir!); }}
+          >
+            <FolderOpen className="mr-1.5 h-3.5 w-3.5" aria-hidden />
+            打开
+          </Button>
+        </div>
+      ) : null}
 
       {/* Test generation */}
       {downloaded ? (
