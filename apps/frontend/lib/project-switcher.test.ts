@@ -131,6 +131,19 @@ describe("switchProject", () => {
     expect(mocks.events).toEqual([]);
   });
 
+  it("force-rehydrates the scoped stores when reopening the active project", async () => {
+    // 回归:启动恢复的活跃项目存在 store 水合竞态,同 ID 打开必须能修复空数据
+    await switchProject("project-1", { force: true });
+
+    expect(mocks.scriptStore.persist.rehydrate).toHaveBeenCalledOnce();
+    expect(mocks.editingStore.persist.rehydrate).toHaveBeenCalledOnce();
+    expect(mocks.editingStore.getState().setActiveProjectId)
+      .toHaveBeenCalledWith("project-1");
+    expect(mocks.events.indexOf("script:rehydrate")).toBeLessThan(
+      mocks.events.indexOf("editing:sync:project-1"),
+    );
+  });
+
   it("continues rehydrating later stores after one store fails", async () => {
     mocks.sceneStore.persist.rehydrate.mockRejectedValueOnce(new Error("scene failed"));
 

@@ -327,7 +327,7 @@ describe("Dashboard project folder flows", () => {
     fireEvent.click(screen.getByText("道劫"));
 
     await waitFor(() => expect(mocks.status).toHaveBeenCalledWith("p-ext"));
-    await waitFor(() => expect(mocks.switchProject).toHaveBeenCalledWith("p-ext"));
+    await waitFor(() => expect(mocks.switchProject).toHaveBeenCalledWith("p-ext", { force: true }));
     expect(mocks.toastError).not.toHaveBeenCalled();
   });
 
@@ -731,6 +731,6 @@ describe("Dashboard 选择模式长按选中", () => {
     render(<Dashboard />);
     fireEvent.click(cardOf("p-legacy"));
 
-    await waitFor(() => expect(mocks.switchProject).toHaveBeenCalledWith("p-legacy"));
+    await waitFor(() => expect(mocks.switchProject).toHaveBeenCalledWith("p-legacy", { force: true }));
   });
 });

@@ -268,7 +268,8 @@ export function Dashboard({
         }
       }
     }
-    await switchProject(projectId);
+    // force:启动恢复的活跃项目可能存在 store 水合竞态(空数据),显式打开须走完整 rehydrate
+    await switchProject(projectId, { force: true });
     await initializeRemotionWorkspace(projectId);
     setActiveTab("overview");
   };

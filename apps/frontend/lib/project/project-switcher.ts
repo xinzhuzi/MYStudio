@@ -40,11 +40,20 @@ import { useStudioStore } from '@/stores/studio/studio-store';
  * @param newProjectId - The project ID to switch to
  * @returns Promise that resolves when all stores have been rehydrated
  */
-export async function switchProject(newProjectId: string): Promise<void> {
+/**
+ * `force` 为 true 时,即便 currentId === newProjectId 也走完整 rehydrate 链。
+ * 启动恢复活跃项目后,project-scoped store 的自动水合与 project-store 的
+ * rehydrate 存在时序竞态——赌输的 store 整个 session 拿空数据,而同 ID 的
+ * switchProject 直接 no-op,「打开项目」修不回来(单项目用户无路可走)。
+ */
+export async function switchProject(
+  newProjectId: string,
+  options?: { force?: boolean },
+): Promise<void> {
   const currentId = useProjectStore.getState().activeProjectId;
-  
-  // No-op if same project
-  if (currentId === newProjectId) return;
+
+  // No-op if same project (unless forced)
+  if (currentId === newProjectId && !options?.force) return;
 
   if (typeof window !== "undefined" && window.remotionQueue?.canSwitchProject) {
     const decision = await window.remotionQueue.canSwitchProject(newProjectId);
