@@ -62,3 +62,14 @@ export function resolveSubtitleFontStyle(fontId: string | undefined): SubtitleFo
   const id = isSubtitleFontId(fontId) ? fontId : DEFAULT_SUBTITLE_FONT_ID;
   return SUBTITLE_FONT_STYLES[id];
 }
+
+/**
+ * 八方向硬描边 + 底部投影（比 -webkit-text-stroke 稳：描边不侵蚀笔画
+ * 内侧）。px 为描边厚度；烧录用 3px，设置页样张按字号缩放取小值。
+ */
+export function subtitleTextShadow(px: number): string {
+  return [
+    ...[-1, 0, 1].flatMap((y) => [-1, 0, 1].map((x) => (x === 0 && y === 0 ? null : `${x * px}px ${y * px}px 0 rgba(0, 0, 0, 0.95)`))),
+    `0 ${px * 2}px ${px * 4.7}px rgba(0, 0, 0, 0.7)`,
+  ].filter(Boolean).join(", ");
+}

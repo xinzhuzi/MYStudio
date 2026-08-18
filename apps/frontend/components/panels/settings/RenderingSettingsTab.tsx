@@ -1,5 +1,8 @@
 import { Check, Download, Film, Loader2, RefreshCw, RotateCcw, Type, Wrench } from "lucide-react";
 import { toast } from "sonner";
+import "@fontsource/noto-sans-sc/900.css";
+import "@fontsource/noto-serif-sc/900.css";
+import "@fontsource/ma-shan-zheng/400.css";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useRemotionRuntimeSettings } from "./useRemotionRuntimeSettings";
@@ -10,7 +13,10 @@ import {
   DEFAULT_SUBTITLE_FONT_ID,
   SUBTITLE_FONT_IDS,
   SUBTITLE_FONT_STYLES,
+  subtitleTextShadow,
 } from "@/lib/studio/remotion/subtitle-fonts";
+
+const SUBTITLE_FONT_SAMPLE_TEXT = "道劫风云，剑指苍穹。";
 
 const SUBTITLE_FONT_OPTIONS = SUBTITLE_FONT_IDS.map((id) => ({
   id,
@@ -20,6 +26,7 @@ const SUBTITLE_FONT_OPTIONS = SUBTITLE_FONT_IDS.map((id) => ({
     : id === "noto-serif-sc"
       ? "思源宋体，端正典雅的书卷气。"
       : "思源黑体，现代干净的阅读体。",
+  style: SUBTITLE_FONT_STYLES[id],
 }));
 
 const RENDERER_OPTIONS = [
@@ -230,6 +237,23 @@ export function RenderingSettingsTab({ embedded = false }: RenderingSettingsTabP
                                   {selected && <Check className="h-4 w-4 text-primary" aria-hidden="true" />}
                                 </div>
                                 <p className="mt-2 text-xs leading-5 text-muted-foreground">{option.description}</p>
+                                {/* 样张=该字体成片输出的真实样式(同字体/字重/暖白/描边),缩放到卡片尺寸 */}
+                                <div className="mt-3 flex justify-center overflow-hidden rounded-lg bg-black/80 px-3 py-2.5" aria-hidden="true">
+                                  <span
+                                    style={{
+                                      fontFamily: option.style.fontFamily,
+                                      fontWeight: option.style.fontWeight,
+                                      fontSize: 24,
+                                      lineHeight: 1.4,
+                                      letterSpacing: option.style.letterSpacing,
+                                      color: option.style.color,
+                                      textShadow: subtitleTextShadow(2),
+                                      whiteSpace: "nowrap",
+                                    }}
+                                  >
+                                    {SUBTITLE_FONT_SAMPLE_TEXT}
+                                  </span>
+                                </div>
                               </button>
                             );
                           })}

@@ -117,6 +117,18 @@ describe("RenderingSettingsTab", () => {
     expect(useStudioStore.getState().workflowConfig.subtitleFont).toBe("noto-serif-sc");
   });
 
+  it("renders each font option as a live specimen in its own output style", async () => {
+    render(<RenderingSettingsTab />);
+    await waitFor(() => expect(screen.getByRole("heading", { name: "字幕字体" })).toBeTruthy());
+
+    const samples = screen.getAllByText("道劫风云，剑指苍穹。");
+    expect(samples).toHaveLength(3);
+    // 样张必须用该字体自身渲染(而非界面默认字体)——毛笔卡样张是 Ma Shan Zheng。
+    expect((samples[0] as HTMLElement).style.fontFamily).toContain("Ma Shan Zheng");
+    expect((samples[1] as HTMLElement).style.fontFamily).toContain("Noto Sans SC");
+    expect((samples[2] as HTMLElement).style.fontFamily).toContain("Noto Serif SC");
+  });
+
   it("enables only the plugin whose automatic check reports an update", async () => {
     const checkedAt = 1_700_000_000_000;
     const pluginStatus = (pluginId: "remotion" | "video-use" | "hyperframes" | "seedance-prompt", runtimeState: "ready" | "update-available" | "deferred") => ({
