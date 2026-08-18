@@ -1,7 +1,7 @@
 // Copyright (c) 2025 hotflow2024
 // Licensed under AGPL-3.0-or-later. See LICENSE for details.
 // Commercial licensing available. See COMMERCIAL_LICENSE.md.
-import { app, BrowserWindow, protocol, net, shell, utilityProcess } from 'electron'
+import { app, BrowserWindow, protocol, shell, utilityProcess } from 'electron'
 import path from 'node:path'
 import fs from 'node:fs'
 import { fileURLToPath } from 'node:url'
@@ -20,16 +20,13 @@ import {
 } from '../storage/studio-runtime-assets'
 import { observedFetch } from '../../lib/diagnostics/network'
 import type { DiagnosticsLogEntryInput } from '../../types/diagnostics'
-import type { AvailableUpdateInfo, UpdateManifest } from '../../types/update'
+import type { AvailableUpdateInfo } from '../../types/update'
 import {
   compareVersions,
   isNonEmptyString,
-  normalizeUpdateManifest,
   sanitizeExternalUrl,
 } from '../runtime/update-policy'
 import {
-  getUpdateManifestUrl, getDefaultGithubUrl, getDefaultBaiduUrl, getDefaultBaiduCode,
- 
   makeStudioSkillFileUrl,
 } from './main-utils'
 import {
@@ -64,6 +61,7 @@ import { configureArtifactManagementIpc } from '../ipc/files/artifact-management
 import { withFileStorageMutationLock } from '../ipc/files/file-storage-ipc'
 import { registerStudioContentIpcHandlers } from '../ipc/assets/studio-content-ipc'
 import { registerAppShellIpcHandlers } from '../ipc/app/app-shell-ipc'
+import { fetchUpdateManifest as fetchUpdateManifestFromConfig } from './main-update'
 import { registerApiRequestIpcHandlers } from '../ipc/ai/api-request-ipc'
 import { registerFileExportIpcHandlers } from '../ipc/files/file-export-ipc'
 import { registerAssetLibraryIpcHandlers } from '../ipc/assets/asset-library-ipc'
@@ -316,26 +314,10 @@ async function stopAllLocalServices() {
   await stopLocalSidecars()
 }
 
+// 更新清单抓取统一走 main-update.ts(含 GitHub Releases API 适配),
+// 本模块只注入 package.json 的 updateConfig。
 async function fetchUpdateManifest() {
-  const manifestUrl = getUpdateManifestUrl(packageUpdateConfig)
-  if (!manifestUrl) {
-    throw new Error('未配置版本清单地址')
-  }
-
-  const requestUrl = new URL(manifestUrl)
-  requestUrl.searchParams.set('_ts', Date.now().toString())
-
-  const response = await net.fetch(requestUrl.toString())
-  if (!response.ok) {
-    throw new Error(`版本清单请求失败 (${response.status})`)
-  }
-
-  const rawManifest = await response.json() as Partial<UpdateManifest>
-  return normalizeUpdateManifest(rawManifest, {
-    githubUrl: getDefaultGithubUrl(packageUpdateConfig),
-    baiduUrl: getDefaultBaiduUrl(packageUpdateConfig),
-    baiduCode: getDefaultBaiduCode(packageUpdateConfig),
-  })
+  return fetchUpdateManifestFromConfig(packageUpdateConfig)
 }
 
 async function resolveAvailableUpdate(currentVersion: string): Promise<AvailableUpdateInfo | null> {

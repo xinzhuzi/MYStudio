@@ -30,10 +30,68 @@ type PackageUpdateConfig = {
   defaultBaiduCode?: string;
 };
 
+type GitHubLatestRelease = {
+  tag_name?: unknown;
+  name?: unknown;
+  body?: unknown;
+  html_url?: unknown;
+  published_at?: unknown;
+};
+
+/**
+ * 更新清单事实源 = 本仓库 GitHub Releases:发版打 tag 即生效,无需自建清单服务器。
+ * api.github.com 的 latest release 响应映射为 UpdateManifest(tag→version,
+ * body→releaseNotes,html_url→githubUrl,过 sanitizeUpdateDownloadUrl 域白名单)。
+ */
+function isGitHubReleasesApiUrl(value: string): boolean {
+  try {
+    const parsed = new URL(value);
+    return parsed.protocol === "https:" && parsed.hostname === "api.github.com" && parsed.pathname.startsWith("/repos/");
+  } catch {
+    return false;
+  }
+}
+
+function readOptionalString(value: unknown): string | undefined {
+  return typeof value === "string" && value.trim() ? value : undefined;
+}
+
+function mapGitHubLatestRelease(
+  release: GitHubLatestRelease,
+): Partial<UpdateManifest> {
+  return {
+    version: readOptionalString(release.tag_name) ?? readOptionalString(release.name),
+    releaseNotes: readOptionalString(release.body),
+    publishedAt: readOptionalString(release.published_at),
+    githubUrl: readOptionalString(release.html_url),
+  };
+}
+
+async function fetchGitHubLatestReleaseManifest(
+  manifestUrl: string,
+): Promise<UpdateManifest> {
+  const response = await net.fetch(manifestUrl, {
+    headers: {
+      Accept: "application/vnd.github+json",
+      "X-GitHub-Api-Version": "2022-11-28",
+      "User-Agent": "manying-studio-updater",
+    },
+    signal: AbortSignal.timeout(10_000),
+  });
+  if (!response.ok) {
+    throw new Error(`GitHub release 请求失败 (${response.status})`);
+  }
+  const release = (await response.json()) as GitHubLatestRelease;
+  return normalizeUpdateManifest(mapGitHubLatestRelease(release));
+}
+
 export async function fetchUpdateManifest(config: PackageUpdateConfig) {
   const manifestUrl = getUpdateManifestUrl(config);
   if (!manifestUrl) {
     throw new Error("未配置版本清单地址");
+  }
+  if (isGitHubReleasesApiUrl(manifestUrl)) {
+    return fetchGitHubLatestReleaseManifest(manifestUrl);
   }
 
   const requestUrl = new URL(manifestUrl);

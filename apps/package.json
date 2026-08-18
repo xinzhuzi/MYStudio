@@ -14,7 +14,7 @@
     "url": "https://github.com/xinzhuzi/MYStudio/issues"
   },
   "updateConfig": {
-    "manifestUrl": "http://68.64.176.186/manying-studio/version.json",
+    "manifestUrl": "https://api.github.com/repos/xinzhuzi/MYStudio/releases/latest",
     "defaultGithubUrl": "https://github.com/xinzhuzi/MYStudio",
     "defaultBaiduUrl": "https://pan.baidu.com/s/1ImH6tOIiuFxIDXC0fC-6Lg",
     "defaultBaiduCode": "8888"
