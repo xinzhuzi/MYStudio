@@ -55,7 +55,7 @@ describe("assembleBoundaryIntents priority chain", () => {
     });
     // shot-2(scene-1) → shot-3(scene-2) 是唯一真实场边界
     expect(result.intents).toHaveLength(1);
-    expect(result.intents[0]).toMatchObject({ fromShotId: "shot-2", toShotId: "shot-3", effectId: "gl:swap" });
+    expect(result.intents[0]).toMatchObject({ fromShotId: "shot-2", toShotId: "shot-3", effectId: "crossfade" });
   });
 
   it("no intents and no warnings when nothing is expressed (hard cuts)", () => {
