@@ -35,6 +35,11 @@ export function seedSmokeEditingEvidence({
   videoPath,
   now,
 }: SeedSmokeEditingEvidenceInput) {
+  // 启动竞态容错（smoke-only）：project-store 迟到水合可能经 switcher 把 editing.activeProjectId
+  // 翻回 default-project，覆盖 resetForStepwiseExecution 的设定——播种前校正回目标项目
+  if (useEditingStore.getState().activeProjectId !== projectId) {
+    useEditingStore.setState({ activeProjectId: projectId });
+  }
   const sourceSnapshotHash = `smoke-source-${episodeId}`;
   const project: EditingProjectV1 = {
     schemaVersion: 1,
