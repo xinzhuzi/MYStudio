@@ -298,7 +298,7 @@ export function createStudioWorkflowShardedStorage(storeName: string): StateStor
         for (const file of plan.files) {
           await fileStorage.setItem(shardKeyForFile(pid, file.name), file.content);
         }
-        await fileStorage.setItem(`${prefix}/manifest`, JSON.stringify(plan.manifest));
+        await fileStorage.setItem(`${prefix}/manifest`, JSON.stringify(plan.manifest, null, 2));
 
         // 旧单文件改名保留（只改名不删；已改名过则为空操作）
         const legacyKey = `_p/${pid}/${storeName}`;

@@ -222,6 +222,38 @@ describe("planStudioWorkflowShards", () => {
   it("defaults the limit to 512KB", () => {
     expect(STUDIO_WORKFLOW_SHARD_LIMIT_BYTES).toBe(512 * 1024);
   });
+
+  it("stores shards as formatted multi-line JSON (格式化存储)", () => {
+    const { plan } = roundTrip(envelopeOf(buildRichState()));
+    expect(plan.files.length).toBeGreaterThan(0);
+    for (const file of plan.files) {
+      // 信封骨架按 2 空格缩进展开，绝无单行压缩
+      expect(file.content.startsWith('{\n  "state": {\n')).toBe(true);
+      expect(file.content).toContain('\n  "version": ');
+      expect(file.content.endsWith("\n}")).toBe(true);
+      // 深层字段缩进存在（数组条目对象展开）
+      if (file.name.includes("storyboards") || file.name.includes("novel-chapters")) {
+        expect(file.content).toContain('\n        "');
+      }
+      // 仍然合法 JSON
+      expect(() => JSON.parse(file.content)).not.toThrow();
+    }
+  });
+
+  it("enforces the budget on the formatted bytes, not compact bytes", () => {
+    const state = buildRichState();
+    (state.storyboards as Array<{ prompt: string }>).forEach((storyboard, index) => {
+      storyboard.prompt = `分镜 ${index} ${"述".repeat(90)}`;
+    });
+    const plan = planStudioWorkflowShards(envelopeOf(state), { limitBytes: 1024 });
+    expect(plan.manifest.shards.filter((name) => name.startsWith("chapters/chapter-001/storyboards-")).length).toBeGreaterThan(1);
+    for (const file of plan.files) {
+      // 计量口径 = 落盘的格式化字符串本身
+      if (!plan.oversizedFiles.some((base) => file.name.startsWith(base))) {
+        expect(Buffer.byteLength(file.content, "utf8")).toBeLessThanOrEqual(1024);
+      }
+    }
+  });
 });
 
 describe("mergeStudioWorkflowShards", () => {

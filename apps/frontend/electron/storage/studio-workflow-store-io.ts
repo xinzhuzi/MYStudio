@@ -127,7 +127,7 @@ export function writeStudioWorkflowStore(
     }
     writeAtomic(path.join(shardDir, file.name), file.content);
   }
-  writeAtomic(path.join(shardDir, "manifest.json"), JSON.stringify(plan.manifest));
+  writeAtomic(path.join(shardDir, "manifest.json"), JSON.stringify(plan.manifest, null, 2));
 
   // 旧单文件改名保留（只改名不删）
   const legacyPath = legacyStorePathFor(dataRoot, projectId);

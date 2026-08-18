@@ -159,9 +159,27 @@ export function shardContentStamp(content: string): string {
   return hash.toString(16).padStart(8, "0");
 }
 
-/** 分片最终内容：`{"state":{<inner>},"version":<version>}`；字节量随之精确可得。 */
-function shardEnvelope(inner: string, version: number): string {
-  return `{"state":{${inner}},"version":${version}}`;
+/**
+ * 分片最终内容（格式化多行，人可读）：
+ * ```
+ * {
+ *   "state": {
+ *     <inner>
+ *   },
+ *   "version": 10
+ * }
+ * ```
+ * 512KB 预算按该最终形态的 UTF-8 字节精确计量（逐 part 增量累加，见 batchTotalBytes）。
+ */
+const SHARD_ENVELOPE_PREFIX = '{\n  "state": {\n';
+
+function reindentJson(json: string, extraSpaces: number): string {
+  if (extraSpaces <= 0) return json;
+  return json.split("\n").join(`\n${" ".repeat(extraSpaces)}`);
+}
+
+function shardEnvelopePretty(inner: string, version: number): string {
+  return `${SHARD_ENVELOPE_PREFIX}${inner}\n  },\n  "version": ${version}\n}`;
 }
 
 export function parseStudioWorkflowShardManifest(raw: string): StudioWorkflowShardManifest | null {
@@ -193,10 +211,23 @@ export interface StudioWorkflowShardPlan {
 
 interface Batch {
   baseName: string;
-  /** core 批：已拼好的 `"key":value` 片段；数组域批：item JSON 片段 */
+  /** 已按落盘缩进渲染好的 part（数组域=item 多行 JSON；core=`"key": value` 多行） */
   parts: string[];
-  /** 数组域批的包裹前缀（如 `"novelChapters":[`），收尾时补 `]` */
+  /** Σ part UTF-8 字节，增量维护避免重复串接计量 */
+  partsBytes: number;
+  /** 数组域批的包裹前缀（`"key": [`），收尾时补 `\n    ]` */
   arrayWrapper?: string;
+}
+
+/** 精确试算：加入 candidatePart（可空）后整片格式化字节数。 */
+function batchTotalBytes(batch: Batch, version: number, candidatePart?: string): number {
+  const count = batch.parts.length + (candidatePart ? 1 : 0);
+  const partsBytes = batch.partsBytes + (candidatePart ? utf8Bytes(candidatePart) : 0);
+  const innerBytes = batch.arrayWrapper
+    ? utf8Bytes(batch.arrayWrapper) + 1 + partsBytes + 2 * (count - 1) + utf8Bytes("\n    ]")
+    : partsBytes + 2 * (count - 1);
+  return utf8Bytes(SHARD_ENVELOPE_PREFIX) + innerBytes
+    + utf8Bytes(`\n  },\n  "version": ${version}\n}`);
 }
 
 function closeBatch(
@@ -208,9 +239,9 @@ function closeBatch(
 ): void {
   if (batch.parts.length === 0) return;
   const inner = batch.arrayWrapper
-    ? `${batch.arrayWrapper}${batch.parts.join(",")}]`
-    : batch.parts.join(",");
-  const content = shardEnvelope(inner, version);
+    ? `${batch.arrayWrapper}\n${batch.parts.join(",\n")}\n    ]`
+    : batch.parts.join(",\n");
+  const content = shardEnvelopePretty(inner, version);
   if (utf8Bytes(content) > limitBytes) oversizedFiles.push(batch.baseName);
   files.push({ name: `${batch.baseName}-${shardContentStamp(content)}.json`, content });
 }
@@ -254,6 +285,7 @@ export function planStudioWorkflowShards(
     core = {
       baseName: coreIndex === 1 ? "core" : `core-${String(coreIndex).padStart(3, "0")}`,
       parts: [],
+      partsBytes: 0,
     };
     return core;
   };
@@ -275,14 +307,15 @@ export function planStudioWorkflowShards(
     const isArray = Array.isArray(domainValue) && domainValue.length > 0;
     // 未注册的未知数组键按原子键进 core（防 undefined slug 文件名）
     if (!isArray || (!chapterRule && !flatSlug)) {
-      const part = `${JSON.stringify(key)}:${JSON.stringify(domainValue === undefined ? null : domainValue)}`;
+      const part = `    ${JSON.stringify(key)}: ${reindentJson(JSON.stringify(domainValue === undefined ? null : domainValue, null, 2), 4)}`;
       if (!core) openCore();
-      const projected = shardEnvelope([...core!.parts, part].join(","), version);
-      if (utf8Bytes(projected) > limitBytes && core!.parts.length > 0) {
+      const projected = batchTotalBytes(core!, version, part);
+      if (projected > limitBytes && core!.parts.length > 0) {
         closeBatch(core!, version, files, oversizedFiles, limitBytes);
         openCore();
       }
       core!.parts.push(part);
+      core!.partsBytes += utf8Bytes(part);
       continue;
     }
 
@@ -304,20 +337,21 @@ export function planStudioWorkflowShards(
           shard = {
             baseName: nextChapterBase(chapterKey, chapterRule.slug),
             parts: [],
-            arrayWrapper: `${arrayKey}:[`,
+            partsBytes: 0,
+            arrayWrapper: `    ${arrayKey}: [`,
           };
           return shard;
         };
         for (let position = index; position < end; position += 1) {
-          const itemPart = JSON.stringify(items[position]);
+          const itemPart = `      ${reindentJson(JSON.stringify(items[position], null, 2), 6)}`;
           if (!shard) openShard();
-          const innerCandidate = `${arrayKey}:[${[...shard!.parts, itemPart].join(",")}]`;
-          const projected = shardEnvelope(innerCandidate, version);
-          if (utf8Bytes(projected) > limitBytes && shard!.parts.length > 0) {
+          const projected = batchTotalBytes(shard!, version, itemPart);
+          if (projected > limitBytes && shard!.parts.length > 0) {
             closeBatch(shard!, version, files, oversizedFiles, limitBytes);
             openShard();
           }
           shard!.parts.push(itemPart);
+          shard!.partsBytes += utf8Bytes(itemPart);
         }
         if (shard) closeBatch(shard!, version, files, oversizedFiles, limitBytes);
         index = end;
@@ -333,20 +367,19 @@ export function planStudioWorkflowShards(
       const base = shardNumber === 1
         ? flatSlug!
         : `${flatSlug}-${String(shardNumber).padStart(3, "0")}`;
-      shard = { baseName: base, parts: [], arrayWrapper: `${arrayKey}:[` };
+      shard = { baseName: base, parts: [], partsBytes: 0, arrayWrapper: `    ${arrayKey}: [` };
       return shard;
     };
     for (const item of items) {
       if (!shard) openShard();
-      const itemPart = JSON.stringify(item);
-      // 试算：`"key":[已有items..., 新item]`
-      const innerCandidate = `${arrayKey}:[${[...shard!.parts, itemPart].join(",")}]`;
-      const projected = shardEnvelope(innerCandidate, version);
-      if (utf8Bytes(projected) > limitBytes && shard!.parts.length > 0) {
+      const itemPart = `      ${reindentJson(JSON.stringify(item, null, 2), 6)}`;
+      const projected = batchTotalBytes(shard!, version, itemPart);
+      if (projected > limitBytes && shard!.parts.length > 0) {
         closeBatch(shard!, version, files, oversizedFiles, limitBytes);
         openShard();
       }
       shard!.parts.push(itemPart);
+      shard!.partsBytes += utf8Bytes(itemPart);
     }
     if (shard) closeBatch(shard!, version, files, oversizedFiles, limitBytes);
   }
