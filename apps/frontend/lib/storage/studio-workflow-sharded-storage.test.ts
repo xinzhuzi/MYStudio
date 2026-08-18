@@ -53,10 +53,27 @@ interface FileStorageBridgeForTest {
   removeDir: (prefix: string) => Promise<boolean>;
 }
 
-type WindowWithBridge = { window?: { fileStorage?: FileStorageBridgeForTest } };
+type ProjectFilesBridgeForTest = {
+  writeText: (key: string, value: string) => Promise<unknown>;
+  readText: (payload: { projectId: string; relativePath: string }) =>
+    Promise<{ success?: boolean; text?: string } | null>;
+};
+type WindowWithBridge = {
+  window?: { fileStorage?: FileStorageBridgeForTest; projectFiles?: ProjectFilesBridgeForTest };
+};
 
 function installWindowBridge() {
   (globalThis as unknown as WindowWithBridge).window = {
+    projectFiles: {
+      writeText: async (key: string, value: string) => {
+        hoisted.files.set(key, value);
+        return { success: true };
+      },
+      readText: async ({ projectId, relativePath }: { projectId: string; relativePath: string }) => {
+        const text = hoisted.files.get(`_p/${projectId}/${relativePath}`) ?? null;
+        return text === null ? null : { success: true, text };
+      },
+    },
     fileStorage: {
       getItem: hoisted.getItem,
       setItem: hoisted.setItem,
@@ -186,6 +203,7 @@ describe("createStudioWorkflowShardedStorage", () => {
     const lingering = [...hoisted.files.keys()].filter(
       (key) => key.startsWith("_p/proj-1/studio-workflow/")
         && key !== "_p/proj-1/studio-workflow/manifest"
+        && key !== "_p/proj-1/studio-workflow/README.md"
         && !manifest.shards.some((name) => key.endsWith(name.replace(/\.json$/, ""))),
     );
     expect(lingering).toEqual([]);
@@ -198,8 +216,10 @@ describe("createStudioWorkflowShardedStorage", () => {
 
     await storage.removeItem("studio-workflow-store");
 
-    const remaining = [...hoisted.files.keys()].filter((key) => key.includes("studio-workflow"));
-    // 分片、manifest、项目级/根级旧键全清；.bak-sharded-* 备份按铁律保留
+    const remaining = [...hoisted.files.keys()].filter(
+      (key) => key.includes("studio-workflow") && !key.endsWith("/README.md") && key !== "_p/proj-1/README.md",
+    );
+    // 分片、manifest、项目级/根级旧键全清；.bak-sharded-* 备份与 README 模板守护件按铁律保留
     expect(remaining.every((key) => key.includes(".bak-sharded-"))).toBe(true);
     expect(hoisted.files.has("_p/proj-1/studio-workflow-store")).toBe(false);
     expect(hoisted.files.has("studio-workflow-store")).toBe(false);
@@ -240,6 +260,30 @@ describe("createStudioWorkflowShardedStorage", () => {
     // 数据无损：读回等于本次保存值
     const restored = await storage.getItem("studio-workflow-store");
     expect(JSON.parse(restored!)).toEqual(JSON.parse(changedValue));
+  });
+
+  it("writes and repairs both READMEs via the text channel (项目根全目录 + 分片目录)", async () => {
+    const { readFileSync } = await import("node:fs");
+    const { resolve } = await import("node:path");
+    const rootTemplate = readFileSync(
+      resolve(__dirname, "../../assets/docs/project/README.md"),
+      "utf-8",
+    );
+    const shardTemplate = readFileSync(
+      resolve(__dirname, "../../assets/docs/studio-workflow/README.md"),
+      "utf-8",
+    );
+
+    await storage.setItem("studio-workflow-store", buildPersistedValue());
+    expect(hoisted.files.get("_p/proj-1/README.md")).toBe(rootTemplate);
+    expect(hoisted.files.get("_p/proj-1/studio-workflow/README.md")).toBe(shardTemplate);
+
+    // 篡改两者 → 下次保存自动修复
+    hoisted.files.set("_p/proj-1/README.md", "被手改");
+    hoisted.files.set("_p/proj-1/studio-workflow/README.md", "被手改");
+    await storage.setItem("studio-workflow-store", buildPersistedValue());
+    expect(hoisted.files.get("_p/proj-1/README.md")).toBe(rootTemplate);
+    expect(hoisted.files.get("_p/proj-1/studio-workflow/README.md")).toBe(shardTemplate);
   });
 
   it("reads an empty-state manifest (zero shards) as an empty envelope", async () => {

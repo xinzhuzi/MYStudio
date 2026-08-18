@@ -15,6 +15,7 @@ import {
   md5Utf8,
 } from "../../frontend/lib/storage/studio-workflow-shards";
 import {
+  PROJECT_README_TEMPLATE,
   README_TEMPLATE,
   md5,
   mergeStudioWorkflowShards,
@@ -160,6 +161,24 @@ describe("studio-workflow-store mjs twin parity", () => {
     fs.rmSync(readmePath);
     writeStudioWorkflowStore(projectDir, value);
     assert.equal(fs.readFileSync(readmePath, "utf-8"), README_TEMPLATE);
+  });
+
+  it("writes and repairs the project-root README (全目录介绍) from the authoritative template", () => {
+    const projectDir = makeProjectDir();
+    const value = JSON.stringify({ state: buildState(), version: 10 });
+    writeStudioWorkflowStore(projectDir, value);
+    const rootReadmePath = path.join(projectDir, "README.md");
+    assert.ok(fs.existsSync(rootReadmePath), "项目根 README.md 应随写盘生成");
+    assert.equal(fs.readFileSync(rootReadmePath, "utf-8"), PROJECT_README_TEMPLATE);
+    assert.ok(PROJECT_README_TEMPLATE.includes("目录总览"));
+
+    // 篡改 → 下次写盘自动修复；删除 → 自动补齐
+    fs.writeFileSync(rootReadmePath, "被手改", "utf-8");
+    writeStudioWorkflowStore(projectDir, value);
+    assert.equal(fs.readFileSync(rootReadmePath, "utf-8"), PROJECT_README_TEMPLATE);
+    fs.rmSync(rootReadmePath);
+    writeStudioWorkflowStore(projectDir, value);
+    assert.equal(fs.readFileSync(rootReadmePath, "utf-8"), PROJECT_README_TEMPLATE);
   });
 
   it("writeStudioWorkflowStore cleans previous-generation orphans", () => {

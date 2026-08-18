@@ -3,6 +3,7 @@ import fs from "node:fs";
 import path from "node:path";
 // 权威模板原样进包（vite raw 内联）；CLI（vite-node）与主进程（rollup）均支持
 import readmeTemplate from "../../assets/docs/studio-workflow/README.md?raw";
+import projectReadmeTemplate from "../../assets/docs/project/README.md?raw";
 import {
   isSafeShardFileName,
   STUDIO_WORKFLOW_SHARD_DIR,
@@ -160,21 +161,28 @@ export function writeStudioWorkflowStore(
   };
   if (fs.existsSync(shardDir)) pruneDir(shardDir);
 
-  // 目录自述文档守护：与仓内权威模板逐字一致——缺失/漂移（md5 不符）即覆盖修复
-  try {
-    const readmePath = path.join(shardDir, "README.md");
-    const current = fs.existsSync(readmePath) ? fs.readFileSync(readmePath, "utf-8") : null;
-    if (current !== readmeTemplate) {
+  // 自述文档守护（与仓内权威模板逐字一致，缺失/漂移即覆盖）：
+  // 分片目录 README + 项目根 README（全目录介绍）
+  const ensureReadme = (readmePath: string, template: string, label: string) => {
+    try {
+      const current = fs.existsSync(readmePath) ? fs.readFileSync(readmePath, "utf-8") : null;
+      if (current === template) return;
       if (current !== null) {
         console.warn(
-          `[studio-workflow] README.md 与权威模板不一致(md5: 现场=${crypto.createHash("md5").update(current).digest("hex")} 模板=${crypto.createHash("md5").update(readmeTemplate).digest("hex")})，覆盖修复`
+          `[studio-workflow] ${label} 与权威模板不一致(md5: 现场=${crypto.createHash("md5").update(current).digest("hex")} 模板=${crypto.createHash("md5").update(template).digest("hex")})，覆盖修复`
         );
       }
-      fs.writeFileSync(readmePath, readmeTemplate, "utf-8");
+      fs.writeFileSync(readmePath, template, "utf-8");
+    } catch {
+      // best-effort：下次写盘再修
     }
-  } catch {
-    // best-effort：下次写盘再修
-  }
+  };
+  ensureReadme(path.join(shardDir, "README.md"), readmeTemplate, "README.md");
+  ensureReadme(
+    path.join(resolveProjectRootPath(dataRoot, projectId), "README.md"),
+    projectReadmeTemplate,
+    "项目根 README.md",
+  );
 
   return {
     shardNames: plan.manifest.shards,

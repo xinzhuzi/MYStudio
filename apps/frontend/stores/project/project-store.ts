@@ -1,8 +1,9 @@
 // Copyright (c) 2025 hotflow2024
 // Licensed under AGPL-3.0-or-later. See LICENSE for details.
 // Commercial licensing available. See COMMERCIAL_LICENSE.md.
-// studio-workflow 目录自述模板（权威源 assets/docs/studio-workflow/README.md）
+// 自述模板（权威源 assets/docs/）：studio-workflow 分片目录 + 项目根全目录介绍
 import readmeTemplate from '@/assets/docs/studio-workflow/README.md?raw';
+import projectReadmeTemplate from '@/assets/docs/project/README.md?raw';
 import { create } from "zustand";
 import { persist, createJSONStorage, type StateStorage } from "zustand/middleware";
 import { fileStorage } from "@/lib/storage/indexed-db-storage";
@@ -104,11 +105,16 @@ export const useProjectStore = create<ProjectStore>()(
           // 不在这里设置 activeProjectId —— 由 switchProject() 统一处理
           // 避免 switchProject 因 ID 已相同而跳过 rehydration
         }));
-        // 创建项目即预写 studio-workflow/README.md（权威模板；后续每次分片保存 md5 校验自愈）
+        // 创建项目即预写自述文档（权威模板；后续每次分片保存 md5 校验自愈）：
+        // 项目根 README.md（全目录介绍）+ studio-workflow/README.md（分片目录）
         try {
           const projectFilesBridge = typeof window !== 'undefined'
             ? (window as { projectFiles?: { writeText?: (key: string, value: string) => Promise<unknown> } }).projectFiles
             : undefined;
+          projectFilesBridge?.writeText?.(
+            `_p/${newProject.id}/README.md`,
+            projectReadmeTemplate,
+          )?.catch?.(() => undefined);
           projectFilesBridge?.writeText?.(
             `_p/${newProject.id}/studio-workflow/README.md`,
             readmeTemplate,

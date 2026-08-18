@@ -22,6 +22,7 @@ import {
 } from './studio-workflow-shards';
 // 权威模板原样打进渲染包（?raw 内联字符串）；与仓内 assets/docs 同源
 import readmeTemplate from '@/assets/docs/studio-workflow/README.md?raw';
+import projectReadmeTemplate from '@/assets/docs/project/README.md?raw';
 
 // ==================== Helpers ====================
 
@@ -389,8 +390,10 @@ export function createStudioWorkflowShardedStorage(storeName: string): StateStor
           console.warn('[StudioWorkflowShardedStorage] 孤儿分片清理失败（不影响读取）:', error);
         }
 
-        // 目录自述文档（权威模板逐字拷贝）：每次保存 md5 校验，缺失/漂移即自动覆盖修复
+        // 自述文档（权威模板逐字拷贝）：每次保存 md5 校验，缺失/漂移即自动覆盖修复
+        // —— studio-workflow/README.md（分片目录）与项目根 README.md（全目录介绍）
         await ensureStudioWorkflowReadme(pid);
+        await ensureProjectRootReadme(pid);
       });
     },
 
@@ -627,37 +630,63 @@ export function createSplitStorage<T = unknown>(
   };
 }
 
-/**
- * README.md 守护：项目 studio-workflow/ 下的自述文档必须与仓内权威模板逐字一致。
- * 每次分片保存后校验 md5——缺失或内容漂移（手改/损坏）→ 用模板覆盖修复。
- */
-async function ensureStudioWorkflowReadme(pid: string): Promise<void> {
+type ProjectFilesTextBridge = {
+  writeText?: (key: string, value: string) => Promise<unknown>;
+  readText?: (payload: { projectId: string; relativePath: string }) =>
+    Promise<{ success?: boolean; text?: string; error?: string } | string | null>;
+};
+
+function getProjectFilesBridge(): ProjectFilesTextBridge | undefined {
+  return typeof window !== 'undefined'
+    ? (window as { projectFiles?: ProjectFilesTextBridge }).projectFiles
+    : undefined;
+}
+
+/** 模板守护通用实现：读取 relativePath，与模板逐字比对，不一致（含缺失）即覆盖。 */
+async function ensureReadmeMatches(
+  pid: string,
+  relativePath: string,
+  template: string,
+  label: string,
+): Promise<void> {
   try {
-    const projectFilesBridge = typeof window !== 'undefined'
-      ? (window as {
-          projectFiles?: {
-            writeText?: (key: string, value: string) => Promise<unknown>;
-            readText?: (payload: { projectId: string; relativePath: string }) =>
-              Promise<{ success?: boolean; text?: string; error?: string } | string | null>;
-          };
-        }).projectFiles
-      : undefined;
-    if (!projectFilesBridge?.writeText) return;
-    const relativePath = `${STUDIO_WORKFLOW_SHARD_DIR}/README.md`;
-    const existing = await projectFilesBridge.readText?.({ projectId: pid, relativePath });
+    const bridge = getProjectFilesBridge();
+    if (!bridge?.writeText) return;
+    const existing = await bridge.readText?.({ projectId: pid, relativePath });
     const existingText = typeof existing === 'string'
       ? existing
       : existing?.success && typeof existing.text === 'string'
         ? existing.text
         : null;
-    if (existingText !== null && existingText === readmeTemplate) return;
+    if (existingText !== null && existingText === template) return;
     if (existingText !== null) {
       console.warn(
-        `[StudioWorkflowShardedStorage] README.md 与权威模板不一致(md5: 现场=${md5Utf8(existingText)} 模板=${md5Utf8(readmeTemplate)})，自动覆盖修复`
+        `[StudioWorkflowShardedStorage] ${label} 与权威模板不一致(md5: 现场=${md5Utf8(existingText)} 模板=${md5Utf8(template)})，自动覆盖修复`
       );
     }
-    await projectFilesBridge.writeText(`_p/${pid}/${relativePath}`, readmeTemplate);
+    await bridge.writeText(`_p/${pid}/${relativePath}`, template);
   } catch (error) {
-    console.warn('[StudioWorkflowShardedStorage] README.md 校验/修复失败（不影响数据）:', error);
+    console.warn(`[StudioWorkflowShardedStorage] ${label} 校验/修复失败（不影响数据）:`, error);
   }
+}
+
+/**
+ * README.md 守护：项目 studio-workflow/ 下的自述文档必须与仓内权威模板逐字一致。
+ * 每次分片保存后校验 md5——缺失或内容漂移（手改/损坏）→ 用模板覆盖修复。
+ */
+async function ensureStudioWorkflowReadme(pid: string): Promise<void> {
+  await ensureReadmeMatches(
+    pid,
+    `${STUDIO_WORKFLOW_SHARD_DIR}/README.md`,
+    readmeTemplate,
+    'studio-workflow/README.md',
+  );
+}
+
+/**
+ * 项目根 README.md 守护：全目录介绍文档（仓内权威模板 assets/docs/project/README.md），
+ * 创建项目时预写、每次分片保存后校验自愈——与 studio-workflow README 同一套机制。
+ */
+async function ensureProjectRootReadme(pid: string): Promise<void> {
+  await ensureReadmeMatches(pid, 'README.md', projectReadmeTemplate, '项目根 README.md');
 }
