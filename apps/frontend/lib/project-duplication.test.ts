@@ -74,6 +74,64 @@ describe("project duplication storage boundary", () => {
     });
   });
 
+  it("copies sharded studio-workflow: manifest + root shards + chapter shards verbatim", async () => {
+    // 分片时代(58508aa)复制走 manifest 驱动的 copyStudioWorkflowShards——
+    // 本用例补齐守卫:章节子目录分片必须随副本,内容按原文搬运
+    const manifest = {
+      shards: ["core-a1b2.json", "chapters/chapter-001/agent-001-x9y8.json"],
+      version: 6,
+    };
+    const data = new Map<string, string>([
+      ["_p/source/studio-workflow/manifest", JSON.stringify(manifest)],
+      ["_p/source/studio-workflow/core-a1b2", JSON.stringify({ state: { novelChapters: [{ id: "chapter-001" }] } })],
+      ["_p/source/studio-workflow/chapters/chapter-001/agent-001-x9y8", JSON.stringify({ state: { agentWorkData: [1] } })],
+      ["_p/source/tts", JSON.stringify({ state: { activeProjectId: "source" } })],
+    ]);
+    const writes = new Map<string, string>();
+
+    const copied = await copyProjectScopedStoreFiles(
+      {
+        listKeys: async () => [],
+        getItem: async (key) => data.get(key) ?? null,
+        setItem: async (key, value) => {
+          writes.set(key, value);
+          return true;
+        },
+      },
+      "source",
+      "target",
+    );
+
+    expect(copied).toBe(4);
+    expect(writes.get("_p/target/studio-workflow/manifest")).toContain('"version":6');
+    expect(writes.get("_p/target/studio-workflow/core-a1b2")).toContain("novelChapters");
+    expect(writes.get("_p/target/studio-workflow/chapters/chapter-001/agent-001-x9y8")).toContain("agentWorkData");
+  });
+
+  it("falls back to the legacy monolith copy when no shard manifest exists", async () => {
+    const data = new Map<string, string>([
+      ["_p/source/studio-workflow-store", JSON.stringify({ state: { storyboards: [] } })],
+    ]);
+    const writes = new Map<string, string>();
+
+    const copied = await copyProjectScopedStoreFiles(
+      {
+        listKeys: async () => [],
+        getItem: async (key) => data.get(key) ?? null,
+        setItem: async (key, value) => {
+          writes.set(key, value);
+          return true;
+        },
+      },
+      "source",
+      "target",
+    );
+
+    expect(copied).toBe(1);
+    expect(writes.has("_p/target/studio-workflow-store")).toBe(true);
+    expect(writes.has("_p/target/studio-workflow/manifest")).toBe(false);
+  });
+
   it("copies tts even when listKeys omits it and fails on a rejected write", async () => {
     const sourceTts = JSON.stringify({
       state: {
