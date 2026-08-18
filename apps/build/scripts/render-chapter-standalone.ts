@@ -20,6 +20,52 @@ const CHAPTER_ID = "chapter-001";
 const APPS_ROOT = "/Users/zhengbingjin/Project/Github/MYStudio/apps";
 const USER_DATA = "/Users/zhengbingjin/Library/Application Support/漫影工作室";
 
+/** BGM 节拍近似（08-18-sfx-beat）：ffmpeg 逐帧 RMS 能量包络的局部峰（间距≥0.3s）。
+ * manifest 无 bgm 绑定或分析失败时返回空数组（卡点空转，不阻塞渲染）。 */
+async function analyzeBgmBeats(manifest: RemotionChapterManifestV2, maRoot: string): Promise<number[]> {
+  try {
+    const bgm = manifest.sharedAudioBindings.find((b) => b.role === "bgm");
+    if (!bgm) return [];
+    // bgm 源文件定位：绑定无绝对路径契约（经 bridge），此处以 chapter 音频目录约定兜底。
+    const candidates = [
+      path.join(maRoot, "remotion/audio/chapters", path.basename(bgm.bindingId)),
+      path.join(maRoot, "remotion/audio", path.basename(bgm.bindingId)),
+    ];
+    const file = candidates.find((c) => fs.existsSync(c));
+    if (!file) return [];
+    const { execFileSync } = await import("node:child_process");
+    const out = execFileSync("ffmpeg", [
+      "-i", file, "-af", "aresample=8000,astats=metadata=1:reset=1,ametadata=print:key=lavfi.astats.Overall.RMS_level",
+      "-f", "null", "-", "-loglevel", "info",
+    ], { stdio: ["ignore", "pipe", "pipe"] }).toString();
+    const samples: Array<{ t: number; rms: number }> = [];
+    let t = 0;
+    for (const m of out.matchAll(/pts_time:(\d+(?:\.\d+)?)[\s\S]*?RMS_level=(-?\d+(?:\.\d+)?)/g)) {
+      const rms = Number(m[2]);
+      samples.push({ t: t++, rms: Number.isFinite(rms) ? rms : -90 });
+    }
+    // 未拿到 pts_time 时回退：帧序近似（8000Hz reset=1 逐样本过于密集,退化为无节拍）。
+    if (samples.length < 10) return [];
+    const frames = samples.map((x) => x.rms);
+    const peaks: number[] = [];
+    const MIN_GAP = 0.3; // 秒
+    let lastPeakT = -MIN_GAP;
+    for (let i = 2; i < frames.length - 2; i++) {
+      const win = frames.slice(i - 2, i + 3);
+      if (frames[i] === Math.max(...win) && frames[i] > -45 && i / 8000 - lastPeakT >= MIN_GAP) {
+        const timeS = i / 8000;
+        peaks.push(Math.round(timeS * 1_000_000));
+        lastPeakT = timeS;
+      }
+    }
+    console.log("bgm beats:", peaks.length);
+    return peaks;
+  } catch (err) {
+    console.warn("bgm beat 分析跳过:", err instanceof Error ? err.message : err);
+    return [];
+  }
+}
+
 async function main() {
   const q = JSON.parse(fs.readFileSync(QUEUE, "utf8"));
   const jobs = (q as { jobs?: unknown[] }).jobs ?? (q as { state?: { jobs?: unknown[] } }).state!.jobs!;
@@ -85,6 +131,20 @@ async function main() {
       }
       console.log("luts registered:", Object.keys(lutUrlById).length);
     }
+    // 转场音效资产（08-18-sfx-beat，Kenney CC0）：注册后经 sfxUrlById 派生进 audioClips。
+    const sfxDir = path.join(APPS_ROOT, "frontend/assets/sfx");
+    const sfxUrlById: Record<string, string> = {};
+    if (fs.existsSync(sfxDir)) {
+      const files = fs.readdirSync(sfxDir).filter((f) => f.endsWith(".ogg"));
+      for (const f of files) session.register(`sfx-${f}`, path.join(sfxDir, f));
+      for (const e of mediaBridge.buildUrls(session, files.map((f) => `sfx-${f}`))) {
+        sfxUrlById[e.assetId.slice(4, -4)] = e.url; // sfx-<name>.ogg → <name>
+      }
+      console.log("sfx registered:", Object.keys(sfxUrlById).length);
+    }
+    // BGM 节拍预计算（M11：ffmpeg 能量峰分析——渲染期禁异步 getAudioData）。
+    // 当前 chapter 无 bgm 绑定时优雅空转（beatTimesUs 缺省=sfx 落转场时刻）。
+    const beatTimesUs = await analyzeBgmBeats(manifest, MA);
     const urlEntries = mediaBridge.buildUrls(session, [
       ...mediaSources.map((s) => s.clipId),
       ...(hasOverlay ? ["hyperframes-overlay"] : []),
@@ -110,6 +170,8 @@ async function main() {
       mediaUrlByClipId,
       mediaUrlByBindingId: {},
       lutUrlById,
+      sfxUrlById,
+      ...(beatTimesUs.length > 0 ? { beatTimesUs } : {}),
       ...(customFontFaces?.length ? { customFontFaces } : {}),
       ...(hasOverlay && overlayUrl ? { hyperFramesOverlay: { src: overlayUrl, windows: overlayWindows } } : {}),
     } as never);

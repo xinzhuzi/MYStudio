@@ -118,6 +118,39 @@ describe("buildChapterVideoCompositionProps", () => {
         blend: 0.75,
       });
     }
+    // 转场音效派生（08-18-sfx-beat）：sfxUrlById 提供时非 cut 转场各一声；
+    // kind="sfx"、起点=转场窗起点；sfxUrlById 缺省时零派生（回退语义）。
+    const secondSlot = slotForShot("shot-002");
+    const sfxPlan = twoShotPlan(slot, secondSlot);
+    const sfxVoice = await makeShotAudioBindingV2({ shotId: "shot-002", shotStartUs: 500_000, durationUs: 500_000 });
+    const sfxManifest = await manifestForTwoShotPlan(sfxPlan, sfxVoice);
+    const withSfx = buildChapterVideoCompositionProps({
+      plan: sfxPlan,
+      currentShotSlots: [slot, secondSlot],
+      chapterManifest: sfxManifest,
+      mediaUrlByClipId: { "visual-shot-001": mediaUrl, "visual-shot-002": mediaUrl },
+      mediaUrlByBindingId: {},
+      sfxUrlById: { "sfx-soft": `http://127.0.0.1:43123/${token}/sfx.ogg` },
+    });
+    expect(withSfx.success).toBe(true);
+    if (withSfx.success) {
+      const sfxClips = withSfx.value.audioClips.filter((c) => c.kind === "sfx");
+      expect(sfxClips).toHaveLength(1);
+      expect(sfxClips[0]!.clipId).toBe("sfx-transition-0");
+      expect(sfxClips[0]!.volume).toBe(1);
+    }
+    const withoutSfx = buildChapterVideoCompositionProps({
+      plan: sfxPlan,
+      currentShotSlots: [slot, secondSlot],
+      chapterManifest: sfxManifest,
+      mediaUrlByClipId: { "visual-shot-001": mediaUrl, "visual-shot-002": mediaUrl },
+      mediaUrlByBindingId: {},
+    });
+    expect(withoutSfx.success).toBe(true);
+    if (withoutSfx.success) {
+      expect(withoutSfx.value.audioClips.filter((c) => c.kind === "sfx")).toHaveLength(0);
+    }
+
     // lutId 越闭集 → fail-closed throw。
     plan.effects[0]!.params = { lutId: "film-not-exist", blend: 0.5 } as never;
     expect(() => buildChapterVideoCompositionProps({

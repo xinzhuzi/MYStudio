@@ -30,7 +30,8 @@ export type RemotionMediaRole = typeof REMOTION_MEDIA_ROLES[number];
 export const REMOTION_SHOT_AUDIO_ROLES = ["voice", "sfx"] as const;
 export type RemotionShotAudioRole = typeof REMOTION_SHOT_AUDIO_ROLES[number];
 
-export const REMOTION_CHAPTER_AUDIO_ROLES = ["bgm", "ambience"] as const;
+// 08-18-sfx-beat：sfx=转场音效（chapter-scoped；ducking 不参与语音避让——只落静默尾）。
+export const REMOTION_CHAPTER_AUDIO_ROLES = ["bgm", "ambience", "sfx"] as const;
 export type RemotionChapterAudioRole = typeof REMOTION_CHAPTER_AUDIO_ROLES[number];
 
 export const REMOTION_STUDIO_ALLOWED_WRITE_FIELDS = [

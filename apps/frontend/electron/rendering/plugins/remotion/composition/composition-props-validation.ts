@@ -122,9 +122,10 @@ function validateAudioScope(
   issues: Issue[],
 ): void {
   if (!Array.isArray(value)) return;
+  // 08-18-sfx-beat：chapter 侧 sfx=转场音效（派生音轨，无 ducking）。
   const allowedKinds: readonly string[] = expected === "shot"
     ? ["voice", "sfx"]
-    : ["bgm", "ambience"];
+    : ["bgm", "ambience", "sfx"];
   value.forEach((clip, index) => {
     if (!isRecord(clip)) return;
     if (clip.renderScope !== expected) {
@@ -138,7 +139,7 @@ function validateAudioScope(
         path: `audioClips[${index}].kind`,
         message: expected === "shot"
           ? "StoryboardShot 音频只允许 voice 或 sfx"
-          : "ChapterVideo 音频只允许 bgm 或 ambience",
+          : "ChapterVideo 音频只允许 bgm/ambience/sfx",
       });
     }
   });

@@ -186,6 +186,12 @@ export interface ChapterVideoCompositionInput extends ChapterVideoSourceInput {
   /** LUT 资产 URL（lutId → media-bridge URL；渲染入口注册 frontend/assets/luts）。
    * plan.effects 含 grade 效果时必填，缺失 fail-closed。 */
   lutUrlById?: Readonly<Record<string, string>>;
+  /** 转场音效资产 URL（sfx 名 → media-bridge URL；渲染入口注册 frontend/assets/sfx）。
+   * 提供时对每个非 cut 转场派生一条 sfx 音轨（08-18-sfx-beat，kind="sfx"）。 */
+  sfxUrlById?: Readonly<Record<string, string>>;
+  /** BGM 节拍时刻（µs，升序；ffmpeg 能量峰预计算——渲染期禁异步，M11 口径）。
+   * 提供时 sfx 起点向最近节拍吸附（|Δ|≤4 帧且不越转场窗），出界回退原时刻。 */
+  beatTimesUs?: readonly number[];
   hyperFramesOverlay?: {
     src: string;
     windows: readonly HyperFramesOverlayWindowV1[];
@@ -259,6 +265,10 @@ export function buildChapterVideoCompositionProps(
         }),
       };
     });
+  // 转场音效派生音轨（08-18-sfx-beat）：非 cut 转场各配一声，起点吸附节拍
+  // （beatTimesUs 提供时；|Δ|≤4 帧且不越转场窗，出界回退）。语音零参与：
+  // sfx 只落在转场窗（静默尾预算区），不建 ducking 包络。
+  audioClips.push(...deriveTransitionSfxClips(base, input.beatTimesUs, input.sfxUrlById));
   const overlayClips = projectHyperFramesOverlay(input.hyperFramesOverlay, base.durationInFrames, base.fps);
   const suppressedCueIds = authorityValidation.suppressedCueIds;
   const props: ChapterVideoCompositionProps = {
@@ -584,7 +594,7 @@ function inspectChapterVideoSource(
   }
   for (const binding of manifest.sharedAudioBindings) {
     if (binding.renderScope !== "chapter" || (binding.role !== "bgm" && binding.role !== "ambience")) {
-      issues.push({ path: `chapterManifest.sharedAudioBindings.${binding.bindingId}`, message: "ChapterVideo 共享音频只允许 chapter-scoped BGM/ambience" });
+      issues.push({ path: `chapterManifest.sharedAudioBindings.${binding.bindingId}`, message: "ChapterVideo 共享音频只允许 chapter-scoped BGM/ambience/sfx" });
     }
   }
   if (issues.length > 0) return { success: false, issues };
@@ -767,6 +777,74 @@ export function validateTransitionVoiceSafety(
     }
   }
   return issues;
+}
+
+// 转场→音效语义映射（08-18-sfx-beat；Kenney CC0，assets/sfx/）。
+const SFX_SFX_DURATION_FRAMES = 15;
+function sfxAssetForTransition(effectId: string): string | null {
+  if (effectId === "cut") return null;
+  if (effectId === "crossfade") return "sfx-warm";
+  if (effectId === "fade") return "sfx-soft";
+  if (effectId === "flash") return "sfx-flash";
+  if (effectId === "blackout") return "sfx-boom";
+  if (effectId.startsWith("gl:")) {
+    const n = effectId.slice(3).toLowerCase();
+    if (n.includes("zoom") || n.includes("scale") || n.includes("push")) return "sfx-zoom";
+    if (n.includes("glitch") || n.includes("pixel") || n.includes("mosaic")) return "sfx-glitch";
+    if (n.includes("swap") || n.includes("dissolve") || n.includes("melt") || n.includes("wave") || n.includes("fade")) return "sfx-dissolve";
+    return "sfx-whoosh";
+  }
+  return null;
+}
+
+function deriveTransitionSfxClips(
+  base: CompositionProps,
+  beatTimesUs: readonly number[] | undefined,
+  sfxUrlById: Readonly<Record<string, string>> | undefined,
+): Array<CompositionAudioClipProps & { renderScope: "chapter" }> {
+  if (!sfxUrlById || Object.keys(sfxUrlById).length === 0) return [];
+  const clipsById = new Map(base.visualClips.map((c) => [c.clipId, c]));
+  const beatFrames = (beatTimesUs ?? []).map((us) => usToFrames(us, base.fps));
+  const out: Array<CompositionAudioClipProps & { renderScope: "chapter" }> = [];
+  base.transitions.forEach((transition, index) => {
+    if (transition.overlapFrames <= 0) return;
+    const asset = sfxAssetForTransition(transition.effectId);
+    if (!asset) return;
+    const src = sfxUrlById[asset];
+    if (!src) return;
+    const fromClip = clipsById.get(transition.fromClipId);
+    if (!fromClip) return;
+    // 转场窗起点=出镜尾起点；sfx 起点（默认=窗起点）向最近节拍吸附。
+    const windowStart = fromClip.from + fromClip.durationInFrames - transition.overlapFrames;
+    const windowEnd = windowStart + transition.overlapFrames;
+    let from = windowStart;
+    if (beatFrames.length > 0) {
+      let best = -1;
+      let bestDelta = Number.POSITIVE_INFINITY;
+      for (const b of beatFrames) {
+        const d = Math.abs(b - windowStart);
+        if (d < bestDelta) { bestDelta = d; best = b; }
+      }
+      // 吸附钳制：|Δ|≤4 帧且不越转场窗（静默尾预算区），出界回退原时刻。
+      if (best >= 0 && bestDelta <= 4 && best >= windowStart && best <= windowEnd) {
+        from = best;
+      }
+    }
+    const durationInFrames = Math.min(SFX_SFX_DURATION_FRAMES, Math.max(0, base.durationInFrames - from));
+    if (durationInFrames <= 0) return;
+    out.push({
+      clipId: `sfx-transition-${index}`,
+      kind: "sfx",
+      src: requireCapabilityUrl(src, `sfx-transition-${index}`),
+      from,
+      durationInFrames,
+      volume: 1,
+      renderScope: "chapter",
+      trimStartFrames: 0,
+      playbackRate: 1,
+    });
+  });
+  return out;
 }
 
 function gradeForClip(

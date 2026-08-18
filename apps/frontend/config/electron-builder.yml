@@ -64,6 +64,12 @@ extraResources:
     filter:
       - "**/*.png"
       - LICENSES.md
+  # 转场音效资产（08-18-sfx-beat；Kenney CC0）。
+  - from: frontend/assets/sfx
+    to: sfx
+    filter:
+      - "**/*.ogg"
+      - LICENSES.md
       - "!story_skills/Daojie_xianxia/**"
       - "!**/.DS_Store"
       - "!**/__MACOSX/**"
