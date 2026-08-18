@@ -23,6 +23,7 @@ import {
 // 权威模板原样打进渲染包（?raw 内联字符串）；与仓内 assets/docs 同源
 import readmeTemplate from '@/assets/docs/studio-workflow/README.md?raw';
 import projectReadmeTemplate from '@/assets/docs/project/README.md?raw';
+import backupsReadmeTemplate from '@/assets/docs/backups/README.md?raw';
 
 // ==================== Helpers ====================
 
@@ -332,13 +333,16 @@ export function createStudioWorkflowShardedStorage(storeName: string): StateStor
           filesByName: new Map(plan.files.map((file) => [file.name, file.content])),
         };
 
-        // 旧单文件改名保留（只改名不删；已改名过则为空操作）
+        // 旧单文件改名保留进 backups/store/（只改名不删；已改名过则为空操作）
         const legacyKey = `_p/${pid}/${storeName}`;
         try {
           if (await fileStorageKeyExists(legacyKey)) {
             const bridge = typeof window !== 'undefined' ? window.fileStorage : undefined;
             const renamed = bridge?.renameItem
-              ? await bridge.renameItem(legacyKey, `${legacyKey}.bak-sharded-${Date.now()}`)
+              ? await bridge.renameItem(
+                  legacyKey,
+                  `_p/${pid}/backups/store/${storeName}.bak-sharded-${Date.now()}`,
+                )
               : false;
             if (!renamed) {
               console.warn('[StudioWorkflowShardedStorage] 旧单文件改名未执行（renameItem 不可用），文件保留原位');
@@ -394,6 +398,7 @@ export function createStudioWorkflowShardedStorage(storeName: string): StateStor
         // —— studio-workflow/README.md（分片目录）与项目根 README.md（全目录介绍）
         await ensureStudioWorkflowReadme(pid);
         await ensureProjectRootReadme(pid);
+        await ensureBackupsReadme(pid);
       });
     },
 
@@ -689,4 +694,12 @@ async function ensureStudioWorkflowReadme(pid: string): Promise<void> {
  */
 async function ensureProjectRootReadme(pid: string): Promise<void> {
   await ensureReadmeMatches(pid, 'README.md', projectReadmeTemplate, '项目根 README.md');
+}
+
+/**
+ * backups/README.md 守护：备份统一目录的自述（分类规划表），
+ * 与其他自述文档同一套机制（创建项目预写 + 每次保存校验自愈）。
+ */
+async function ensureBackupsReadme(pid: string): Promise<void> {
+  await ensureReadmeMatches(pid, 'backups/README.md', backupsReadmeTemplate, 'backups/README.md');
 }

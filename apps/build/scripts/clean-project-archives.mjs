@@ -92,8 +92,12 @@ for (const e of fs.readdirSync(PROJECT, { withFileTypes: true })) {
 
 // 3. visual-continuity-backups/ older than BAK_DAYS
 const vcb = path.join(PROJECT, "visual-continuity-backups");
-if (fs.existsSync(vcb) && olderThanDays(vcb, BAK_DAYS)) {
-  actions.push({ label: "visual-continuity-backups/", target: vcb, bytes: du(vcb) });
+const vcbNew = path.join(PROJECT, "backups", "visual-continuity");
+// 3. visual-continuity 备份（旧位置 + 08-18 起新位置 backups/visual-continuity/）
+for (const [label, dir] of [["visual-continuity-backups/", vcb], ["backups/visual-continuity/", vcbNew]]) {
+  if (fs.existsSync(dir) && olderThanDays(dir, BAK_DAYS)) {
+    actions.push({ label, target: dir, bytes: du(dir) });
+  }
 }
 
 // 4. assets-migration-report-*: keep newest 1

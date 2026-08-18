@@ -68,7 +68,7 @@ async function main(): Promise<void> {
   if (!Array.isArray(storyboards)) throw new Error(`${storePath} 缺少 storyboards 数组`);
 
   // 备份为 legacy 风格单文件快照（分片布局下同样落一份合并快照，保留原语义）
-  const backupPath = `${storePath}.bak-voice-${Date.now()}`;
+  const backupPath = path.join(projectDir, "backups", "store", `studio-workflow-store.json.bak-voice-${Date.now()}`);
   fs.writeFileSync(backupPath, storeSnapshot.raw, "utf8");
   console.log(`[voice-storyboard] store 备份 → ${backupPath}`);
 

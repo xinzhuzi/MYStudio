@@ -15,6 +15,7 @@ import {
   md5Utf8,
 } from "../../frontend/lib/storage/studio-workflow-shards";
 import {
+  BACKUPS_README_TEMPLATE,
   PROJECT_README_TEMPLATE,
   README_TEMPLATE,
   md5,
@@ -171,6 +172,9 @@ describe("studio-workflow-store mjs twin parity", () => {
     assert.ok(fs.existsSync(rootReadmePath), "项目根 README.md 应随写盘生成");
     assert.equal(fs.readFileSync(rootReadmePath, "utf-8"), PROJECT_README_TEMPLATE);
     assert.ok(PROJECT_README_TEMPLATE.includes("目录总览"));
+    const backupsReadmePath = path.join(projectDir, "backups", "README.md");
+    assert.ok(fs.existsSync(backupsReadmePath), "backups/README.md 应随写盘生成");
+    assert.equal(fs.readFileSync(backupsReadmePath, "utf-8"), BACKUPS_README_TEMPLATE);
 
     // 篡改 → 下次写盘自动修复；删除 → 自动补齐
     fs.writeFileSync(rootReadmePath, "被手改", "utf-8");

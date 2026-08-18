@@ -14,6 +14,8 @@ const README_TEMPLATE_PATH = new URL("../../frontend/assets/docs/studio-workflow
 export const README_TEMPLATE = fs.readFileSync(README_TEMPLATE_PATH, "utf-8");
 const PROJECT_README_TEMPLATE_PATH = new URL("../../frontend/assets/docs/project/README.md", import.meta.url);
 export const PROJECT_README_TEMPLATE = fs.readFileSync(PROJECT_README_TEMPLATE_PATH, "utf-8");
+const BACKUPS_README_TEMPLATE_PATH = new URL("../../frontend/assets/docs/backups/README.md", import.meta.url);
+export const BACKUPS_README_TEMPLATE = fs.readFileSync(BACKUPS_README_TEMPLATE_PATH, "utf-8");
 export const md5 = (text) => crypto.createHash("md5").update(text, "utf-8").digest("hex");
 
 /**
@@ -362,10 +364,13 @@ export function writeStudioWorkflowStore(projectDir, envelopeRaw) {
     writeAtomic(path.join(shardDir, file.name), file.content);
   }
   writeAtomic(path.join(shardDir, "manifest.json"), JSON.stringify(plan.manifest, null, 2));
+  // 旧单文件改名保留进 backups/store/（只改名不删）
   const legacyPath = path.join(resolveStoreBase(projectDir), "studio-workflow-store.json");
   let legacyBackupPath = null;
   if (fs.existsSync(legacyPath)) {
-    legacyBackupPath = `${legacyPath}.bak-sharded-${Date.now()}`;
+    const backupDir = path.join(projectDir, "backups", "store");
+    fs.mkdirSync(backupDir, { recursive: true });
+    legacyBackupPath = path.join(backupDir, `studio-workflow-store.json.bak-sharded-${Date.now()}`);
     fs.renameSync(legacyPath, legacyBackupPath);
   }
   const listed = new Set([...plan.manifest.shards, "manifest.json"]);
@@ -393,6 +398,7 @@ export function writeStudioWorkflowStore(projectDir, envelopeRaw) {
       if (current !== null) {
         console.warn(`[studio-workflow] ${label} 与权威模板不一致(md5: 现场=${md5(current)} 模板=${md5(template)})，覆盖修复`);
       }
+      fs.mkdirSync(path.dirname(readmePath), { recursive: true });
       fs.writeFileSync(readmePath, template, "utf-8");
     } catch {
       // best-effort：下次写盘再修
@@ -400,6 +406,7 @@ export function writeStudioWorkflowStore(projectDir, envelopeRaw) {
   };
   ensureReadme(path.join(shardDir, "README.md"), README_TEMPLATE, "README.md");
   ensureReadme(path.join(projectDir, "README.md"), PROJECT_README_TEMPLATE, "项目根 README.md");
+  ensureReadme(path.join(projectDir, "backups", "README.md"), BACKUPS_README_TEMPLATE, "backups/README.md");
 
   return { shardNames: plan.manifest.shards, legacyBackupPath };
 }

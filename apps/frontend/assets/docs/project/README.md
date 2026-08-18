@@ -24,8 +24,7 @@
 | `video-use/` | 创作内容 | video-use 逐镜审修工件：每章每修订一目录（`<章节>/r<修订>/`） |
 | `workflow-images/` | 创作内容 | 生图工作流产出：分镜图/资产图，按工作流与章节组织，含 approved-revisions 晋级版本 |
 | `continuity-bibles/` | 创作内容 | 章节视觉连续性圣经：锁定章节内角色/场景的视觉基准 |
-| `backups/` | 备份 | 章节连续性与历史备份快照 |
-| `visual-continuity-backups/` | 备份 | 分镜晋升等关键手术前的整库快照 |
+| `backups/` | 备份 | **项目备份统一目录**（详见其内部 README.md）：continuity/ 章节连续性快照、storyboard-flow/ 分镜流快照、visual-continuity/ 分镜晋升整库快照、store/ store 手术备份、remotion/ 与 video-use/ 工作区文件备份 |
 | `scripts/` | 维护 | 项目侧维护脚本（个人资产，不入应用包） |
 
 ## 其他说明

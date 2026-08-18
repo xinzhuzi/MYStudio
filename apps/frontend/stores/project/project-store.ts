@@ -4,6 +4,7 @@
 // 自述模板（权威源 assets/docs/）：studio-workflow 分片目录 + 项目根全目录介绍
 import readmeTemplate from '@/assets/docs/studio-workflow/README.md?raw';
 import projectReadmeTemplate from '@/assets/docs/project/README.md?raw';
+import backupsReadmeTemplate from '@/assets/docs/backups/README.md?raw';
 import { create } from "zustand";
 import { persist, createJSONStorage, type StateStorage } from "zustand/middleware";
 import { fileStorage } from "@/lib/storage/indexed-db-storage";
@@ -118,6 +119,10 @@ export const useProjectStore = create<ProjectStore>()(
           projectFilesBridge?.writeText?.(
             `_p/${newProject.id}/studio-workflow/README.md`,
             readmeTemplate,
+          )?.catch?.(() => undefined);
+          projectFilesBridge?.writeText?.(
+            `_p/${newProject.id}/backups/README.md`,
+            backupsReadmeTemplate,
           )?.catch?.(() => undefined);
         } catch {
           // best-effort：缺失由分片保存钩子补写

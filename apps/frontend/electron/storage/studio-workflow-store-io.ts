@@ -4,6 +4,7 @@ import path from "node:path";
 // 权威模板原样进包（vite raw 内联）；CLI（vite-node）与主进程（rollup）均支持
 import readmeTemplate from "../../assets/docs/studio-workflow/README.md?raw";
 import projectReadmeTemplate from "../../assets/docs/project/README.md?raw";
+import backupsReadmeTemplate from "../../assets/docs/backups/README.md?raw";
 import {
   isSafeShardFileName,
   STUDIO_WORKFLOW_SHARD_DIR,
@@ -135,11 +136,13 @@ export function writeStudioWorkflowStore(
   }
   writeAtomic(path.join(shardDir, "manifest.json"), JSON.stringify(plan.manifest, null, 2));
 
-  // 旧单文件改名保留（只改名不删）
+  // 旧单文件改名保留进 backups/store/（只改名不删）
   const legacyPath = legacyStorePathFor(dataRoot, projectId);
   let legacyBackupPath: string | null = null;
   if (fs.existsSync(legacyPath)) {
-    legacyBackupPath = `${legacyPath}.bak-sharded-${Date.now()}`;
+    const backupDir = path.join(resolveProjectRootPath(dataRoot, projectId), "backups", "store");
+    fs.mkdirSync(backupDir, { recursive: true });
+    legacyBackupPath = path.join(backupDir, `${STUDIO_WORKFLOW_STORE_FILE}.bak-sharded-${Date.now()}`);
     fs.renameSync(legacyPath, legacyBackupPath);
   }
 
@@ -172,17 +175,16 @@ export function writeStudioWorkflowStore(
           `[studio-workflow] ${label} 与权威模板不一致(md5: 现场=${crypto.createHash("md5").update(current).digest("hex")} 模板=${crypto.createHash("md5").update(template).digest("hex")})，覆盖修复`
         );
       }
+      fs.mkdirSync(path.dirname(readmePath), { recursive: true });
       fs.writeFileSync(readmePath, template, "utf-8");
     } catch {
       // best-effort：下次写盘再修
     }
   };
+  const projectRootDir = resolveProjectRootPath(dataRoot, projectId);
   ensureReadme(path.join(shardDir, "README.md"), readmeTemplate, "README.md");
-  ensureReadme(
-    path.join(resolveProjectRootPath(dataRoot, projectId), "README.md"),
-    projectReadmeTemplate,
-    "项目根 README.md",
-  );
+  ensureReadme(path.join(projectRootDir, "README.md"), projectReadmeTemplate, "项目根 README.md");
+  ensureReadme(path.join(projectRootDir, "backups", "README.md"), backupsReadmeTemplate, "backups/README.md");
 
   return {
     shardNames: plan.manifest.shards,

@@ -38,6 +38,8 @@ activation.json
 backup*/
 *.bak
 *.backup-*
+# 备份说明模板须入库（项目 backups/README.md 的权威源，随包分发）
+!apps/frontend/assets/docs/backups/
 
 # Reference / internal docs
 # 忽略 docs 下所有内容，仅例外索引和关键文档

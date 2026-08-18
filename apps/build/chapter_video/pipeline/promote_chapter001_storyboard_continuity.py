@@ -307,7 +307,7 @@ def build_promotion_plan(
         "storePath": str(store_path),
         "storeSha256": sha256_bytes(store_payload),
         "project": str(project),
-        "backupRoot": str(project / "visual-continuity-backups"),
+        "backupRoot": str(project / "backups" / "visual-continuity"),
         "backupStoreFilename": "studio-workflow-store.json",
         "alreadyApplied": already_applied,
         "shots": len(updates),

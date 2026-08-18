@@ -249,12 +249,13 @@ const BACKUP_SUFFIX_RE = /\.(?:bak(?:[-_][^.]*)?$|bak-sharded-\d+\.json$|codex[-
  * with no `.bak`/`.codex` suffix, so files below these roots must inherit backup
  * provenance while still being decoded and merged into the logical inventory.
  *
- * - `backups` — chapter continuity snapshots and other historical project
- *   backups whose child JSON files do not carry a backup suffix.
- * - `visual-continuity-backups` — written by the chapter-video promote pipeline
- *   (`apps/build/chapter_video/pipeline/promote_chapter001_storyboard_continuity.py`)
- *   as `storyboard-promotion-<timestamp>-<sha>/studio-workflow-store.json`
- *   snapshots during storyboard promotion.
+ * - `backups` — the unified backup home (08-18 起所有备份写入点收拢于此：
+ *   continuity/ storyboard-flow/ visual-continuity/ store/ remotion/ video-use/
+ *   分类，见其 README.md)；child JSON files do not carry a backup suffix.
+ * - `visual-continuity-backups` — legacy home of promote-pipeline snapshots
+ *   (`storyboard-promotion-<timestamp>-<sha>/studio-workflow-store.json`);
+ *   new snapshots go to `backups/visual-continuity/`, this root stays
+ *   recognized for pre-migration projects.
  *
  * Add further whole-store-snapshot roots here as they are introduced.
  */

@@ -291,7 +291,7 @@ export async function runScopedStoryboardTtsRepair(): Promise<void> {
   const initialSha256 = sha256(initialSnapshot.raw);
   const initialStore = parseWorkflowStore(initialSnapshot.raw);
   const selected = selectScopedStoryboards(initialStore.state.storyboards, shotIds);
-  const backupPath = `${storePath}.bak-scoped-tts-${Date.now()}`;
+  const backupPath = path.join(projectRoot, "backups", "store", `studio-workflow-store.json.bak-scoped-tts-${Date.now()}`);
   fs.writeFileSync(backupPath, initialSnapshot.raw, { encoding: "utf8", flag: "wx" });
 
   const profileRows = await requestJson<TtsProfileRow[]>(baseUrl, token, "/profiles");

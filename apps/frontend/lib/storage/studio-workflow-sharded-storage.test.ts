@@ -157,7 +157,10 @@ describe("createStudioWorkflowShardedStorage", () => {
     await storage.setItem("studio-workflow-store", buildPersistedValue());
 
     expect(hoisted.files.has(legacyKey)).toBe(false);
-    const bakKeys = [...hoisted.files.keys()].filter((key) => key.startsWith(`${legacyKey}.bak-sharded-`));
+    // 08-18 起：分片化改名备份落 backups/store/（IPC 侧自动补 .json 后缀）
+    const bakKeys = [...hoisted.files.keys()].filter(
+      (key) => key.startsWith(`_p/proj-1/backups/store/studio-workflow-store.bak-sharded-`),
+    );
     expect(bakKeys).toHaveLength(1);
     // bak 内容未被删除
     expect(hoisted.files.get(bakKeys[0]!)).toBeTruthy();
@@ -274,9 +277,14 @@ describe("createStudioWorkflowShardedStorage", () => {
       "utf-8",
     );
 
+    const backupsTemplate = readFileSync(
+      resolve(__dirname, "../../assets/docs/backups/README.md"),
+      "utf-8",
+    );
     await storage.setItem("studio-workflow-store", buildPersistedValue());
     expect(hoisted.files.get("_p/proj-1/README.md")).toBe(rootTemplate);
     expect(hoisted.files.get("_p/proj-1/studio-workflow/README.md")).toBe(shardTemplate);
+    expect(hoisted.files.get("_p/proj-1/backups/README.md")).toBe(backupsTemplate);
 
     // 篡改两者 → 下次保存自动修复
     hoisted.files.set("_p/proj-1/README.md", "被手改");
@@ -284,6 +292,7 @@ describe("createStudioWorkflowShardedStorage", () => {
     await storage.setItem("studio-workflow-store", buildPersistedValue());
     expect(hoisted.files.get("_p/proj-1/README.md")).toBe(rootTemplate);
     expect(hoisted.files.get("_p/proj-1/studio-workflow/README.md")).toBe(shardTemplate);
+    expect(hoisted.files.get("_p/proj-1/backups/README.md")).toBe(backupsTemplate);
   });
 
   it("reads an empty-state manifest (zero shards) as an empty envelope", async () => {
