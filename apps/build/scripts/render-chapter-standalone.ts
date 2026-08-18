@@ -35,7 +35,6 @@ async function main() {
     fs.readFileSync(path.join(MA, "remotion/chapters", CHAPTER_ID + ".json"), "utf8"),
   ) as RemotionChapterManifestV2;
 
-  const remotionVersion = "4.0.499";
   const runtimeDir = path.join(USER_DATA, "remotion-runtime");
   fs.mkdirSync(runtimeDir, { recursive: true });
   const bundlePath = path.resolve(process.env.MYSTUDIO_REMOTION_BUNDLE || path.join(APPS_ROOT, ".cache", "remotion-bundle"));

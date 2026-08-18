@@ -36,7 +36,7 @@ const WORKER = fs.existsSync("/Applications/漫影工作室.app/Contents/Resourc
   ? "/Applications/漫影工作室.app/Contents/Resources/app.asar.unpacked/out/main/hyperframes-worker.cjs"
   : path.join(REPO_ROOT, "apps/.cache/hy-runtime/hyperframes-worker.cjs");
 const QUEUE = path.join(USER_DATA, "projects/_remotion/queue/queue-state.json");
-const PROJECT_ID = "49dce4c1-64b1-42de-85c2-9f266698aec4";
+const _PROJECT_ID = "49dce4c1-64b1-42de-85c2-9f266698aec4";
 const CHAPTER_ID = "chapter-001";
 const SRC_REV = 47;
 const NEW_REV = 49;

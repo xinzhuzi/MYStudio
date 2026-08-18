@@ -6,11 +6,9 @@
  */
 import fs from "node:fs";
 import path from "node:path";
-import crypto from "node:crypto";
 import { compileTimelineRenderPlan } from "@/lib/studio/editing/timeline-render-compiler";
 import { mergeShotFxEditingEffects } from "@/lib/studio/remotion/shot-fx-decisions";
 import { readRemotionCurrentShotSlotsFromWorkspace } from "@/lib/studio/remotion/remotion-current-slot";
-import { createRemotionRenderJobId } from "@/lib/studio/remotion/remotion-job-identity";
 import { createReadyRemotionChapterJob } from "@rendering/plugins/remotion/renderer/remotion-chapter-renderer";
 import type { RemotionChapterManifestV2 } from "@/types/remotion-workspace";
 import type { EditingProjectV1 } from "@/types/editing";
@@ -25,13 +23,6 @@ function maEditingJsonPath(): string {
 const QUEUE = "/Users/zhengbingjin/Library/Application Support/漫影工作室/projects/_remotion/queue/queue-state.json";
 const CHAPTER_ID = "chapter-001";
 const PROJECT_ID = "49dce4c1-64b1-42de-85c2-9f266698aec4";
-
-function sha256File(p: string): string {
-  return crypto.createHash("sha256").update(fs.readFileSync(p)).digest("hex");
-}
-function sha256Json(v: unknown): string {
-  return crypto.createHash("sha256").update(JSON.stringify(v)).digest("hex");
-}
 
 async function main() {
   const now = Date.now();
@@ -78,6 +69,7 @@ async function main() {
   // 4. 队列：最新 43 个 shot 作业 → slots + 依赖 + 新 bundle 哈希
   const queueState = JSON.parse(fs.readFileSync(QUEUE, "utf8"));
   const items = (queueState.state ?? queueState).jobs ?? [];
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const shotByShotId = new Map<string, Record<string, any>>();
   for (const it of items) {
     const job = it?.job;
@@ -95,7 +87,7 @@ async function main() {
     path.join(MA, "remotion"), PROJECT_ID, CHAPTER_ID,
   );
   console.log("工作区 current slots:", slots.length);
-  for (const [shotId, job] of shotByShotId) {
+  for (const [, job] of shotByShotId) {
     dependencyJobIds.push(job.jobId);
     bundleContentHash = job.bundleContentHash ?? bundleContentHash;
     templateVersion = job.templateVersion ?? templateVersion;
@@ -121,6 +113,7 @@ async function main() {
 
   // 6. 备份并写回（去掉旧 chapter 条目避免重复）
   fs.copyFileSync(QUEUE, QUEUE + ".bak-craft-" + now);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const kept = items.filter((it: Record<string, any>) => it?.job?.target?.kind !== "chapter");
   (queueState.state ?? queueState).jobs = [...kept, entry];
   fs.writeFileSync(QUEUE, JSON.stringify(queueState));
