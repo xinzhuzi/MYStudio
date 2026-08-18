@@ -61,7 +61,12 @@ def _alignment_for_shot(alignment: dict[str, Any], shot_id: str) -> dict[str, An
     raise VideoUseAdapterError("alignment-shot-missing", f"alignment 缺少 shot: {shot_id}")
 
 
-_TRANSITION_EFFECT_IDS = {"cut", "fade", "crossfade", "flash", "blackout"}
+# gl:* = gl-transitions 收录白名单镜像（TS 权威: composition/gl-transition-registry.ts,
+# 孪生对拍: composition/transition-enum-sync.test.ts——扩条目三处必须同步）。
+_TRANSITION_EFFECT_IDS = {
+    "cut", "fade", "crossfade", "flash", "blackout",
+    "gl:Directional", "gl:LeftRight", "gl:CircleCrop",
+}
 _TRANSITION_MIN_US = 200_000
 _TRANSITION_MAX_US = 1_200_000
 # 与 run-full-pipeline legacy 装饰窗的 1.1s 钳制保持同一装饰语义。

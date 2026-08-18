@@ -1,4 +1,5 @@
 import type { CompositionTransitionEffect } from "./timing";
+import { isGlTransitionEffect } from "./gl-transition-registry";
 
 export interface TransitionFrameStyle {
   incomingOpacity: number;
@@ -23,10 +24,12 @@ export function transitionStyleAtFrame(
     return { incomingOpacity: 1, overlayOpacity: 0 };
   }
   const localFrame = clampFrame(frame, durationInFrames);
-  if (effectId === "crossfade") {
+  if (effectId === "crossfade" || isGlTransitionEffect(effectId)) {
     if (durationInFrames === 1) return { incomingOpacity: 1, overlayOpacity: 0 };
     // Smoothstep easing: heads and tails breathe in/out instead of moving at a
     // constant rate — reads as an ink-wash bleed rather than a mechanical dip.
+    // gl:* 渲染期由 GLTransitionLayer 全屏接管（不透明覆盖，此 opacity 不可见）；
+    // Player 预览（无渲染 proxy）降级为 crossfade 视觉兜底。
     const t = localFrame / (durationInFrames - 1);
     return {
       incomingOpacity: t * t * (3 - 2 * t),

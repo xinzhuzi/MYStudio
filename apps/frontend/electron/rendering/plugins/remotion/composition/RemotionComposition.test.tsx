@@ -30,6 +30,11 @@ vi.mock("remotion", () => ({
     <video src={src} data-transparent={String(transparent)} />
   ),
   useCurrentFrame: () => 2,
+  // GLTransitionLayer 渲染期专用：测试（非渲染环境）下 isRendering=false 直接短路。
+  useRemotionEnvironment: () => ({ isRendering: false, isClientSideRendering: false }),
+  useVideoConfig: () => ({ width: 1920, height: 1080, fps: 30, durationInFrames: 90 }),
+  delayRender: () => 0,
+  continueRender: () => undefined,
 }));
 
 vi.mock("@remotion/media", () => ({

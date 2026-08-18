@@ -2,6 +2,8 @@ import { AbsoluteFill, OffthreadVideo, Sequence, useCurrentFrame } from "remotio
 import { AudioClip } from "./AudioClip";
 import { CinematicVisualClip } from "./CinematicVisualClip";
 import { CustomFontFaceLoader } from "./CustomFontFaceLoader";
+import { GLTransitionLayer } from "./GLTransitionLayer";
+import { isGlTransitionEffect } from "./gl-transition-registry";
 import type {
   CompositionProps,
   CompositionTransitionProps,
@@ -31,7 +33,7 @@ export function RemotionComposition(props: CompositionProps): React.ReactElement
         </Sequence>
       ))}
       {props.transitions.map((transition) => (
-        <TransitionOverlay
+        <GLTransitionOrOverlay
           key={`${transition.fromClipId}:${transition.toClipId}`}
           transition={transition}
           clips={props.visualClips}
@@ -96,6 +98,30 @@ function TransitionedVisualClip({
       {clip.cinematic ? <CinematicVisualClip {...clip} /> : <VisualClip {...clip} />}
     </AbsoluteFill>
   );
+}
+
+function GLTransitionOrOverlay({
+  transition,
+  clips,
+}: {
+  transition: CompositionTransitionProps;
+  clips: CompositionProps["visualClips"];
+}): React.ReactElement | null {
+  if (isGlTransitionEffect(transition.effectId) && transition.overlapFrames > 0) {
+    const from = clips.find((clip) => clip.clipId === transition.fromClipId);
+    const to = clips.find((clip) => clip.clipId === transition.toClipId);
+    if (!from || !to) return null;
+    return (
+      <Sequence
+        from={from.from + from.durationInFrames - transition.overlapFrames}
+        durationInFrames={transition.overlapFrames}
+        layout="none"
+      >
+        <GLTransitionLayer transition={transition} fromClip={from} toClip={to} />
+      </Sequence>
+    );
+  }
+  return <TransitionOverlay transition={transition} clips={clips} />;
 }
 
 function TransitionOverlay({

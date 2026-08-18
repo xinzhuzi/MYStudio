@@ -15,6 +15,16 @@ describe("transitionStyleAtFrame", () => {
     expect(transitionStyleAtFrame("crossfade", 10, 11).incomingOpacity).toBe(1);
   });
 
+  it("gl: transitions reuse the crossfade curve for the DOM layer (渲染期由 GL 层全屏接管)", () => {
+    // Player 预览无渲染 proxy，GLTransitionLayer 不挂载——DOM 层以 smoothstep 兜底。
+    const style = transitionStyleAtFrame("gl:Directional", 5, 11);
+    expect(style.incomingOpacity).toBeCloseTo(0.5);
+    expect(style.overlayOpacity).toBe(0);
+    expect(style.overlayColor).toBeUndefined();
+    expect(transitionStyleAtFrame("gl:LeftRight", 0, 11).incomingOpacity).toBe(0);
+    expect(transitionStyleAtFrame("gl:CircleCrop", 10, 11).incomingOpacity).toBe(1);
+  });
+
   it.each([
     ["fade", "#000000"],
     ["blackout", "#000000"],

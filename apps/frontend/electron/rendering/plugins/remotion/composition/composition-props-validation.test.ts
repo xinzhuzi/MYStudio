@@ -85,6 +85,23 @@ describe("validateCompositionProps", () => {
     }
   });
 
+  it("accepts a whitelisted gl: transition (registry 闭集放行)", () => {
+    const props = validProps();
+    (props.transitions[0] as { effectId: string }).effectId = "gl:Directional";
+    const result = validateCompositionProps(props);
+    expect(result.success).toBe(true);
+  });
+
+  it("rejects a gl: transition outside the registry (fail-closed)", () => {
+    const props = validProps();
+    (props.transitions[0] as { effectId: string }).effectId = "gl:NotInRegistry";
+    const result = validateCompositionProps(props);
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.issues.some((i) => i.path === "transitions[0].effectId")).toBe(true);
+    }
+  });
+
   it("rejects transition timing that disagrees with the visual overlap", () => {
     const props = validProps();
     props.visualClips[1].from = 30;

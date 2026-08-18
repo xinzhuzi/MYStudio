@@ -6,17 +6,19 @@
 // projects a validated TimelineRenderPlan into these before rendering, so the
 // composition never imports the Zustand store, plan JSON, or Studio panels.
 
+import { GL_TRANSITION_IDS } from "./gl-transition-registry";
+
 export const MICROSECONDS_PER_SECOND = 1_000_000;
 
-// A transition effect of "cut" produces no overlap; every other effect blends
-// the tail of the outgoing clip with the head of the incoming one. Mirrors the
-// authoritative EditingTransition.effectId union (editing.ts) — no "slide".
+// 基线 5 种手搓转场 + gl-transitions 收录白名单（单一事实源：
+// gl-transition-registry.ts，三处镜像由 transition-enum-sync.test.ts 孪生对拍守护）。
 export const COMPOSITION_TRANSITION_EFFECTS = [
   "cut",
   "fade",
   "crossfade",
   "flash",
   "blackout",
+  ...GL_TRANSITION_IDS,
 ] as const;
 
 export type CompositionTransitionEffect =

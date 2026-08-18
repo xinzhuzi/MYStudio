@@ -159,7 +159,14 @@ export interface EditingTransition {
   toClipId: string;
   effectId: Extract<
     EditingEffectId,
-    "cut" | "fade" | "crossfade" | "flash" | "blackout"
+    | "cut"
+    | "fade"
+    | "crossfade"
+    | "flash"
+    | "blackout"
+    | "gl:Directional"
+    | "gl:LeftRight"
+    | "gl:CircleCrop"
   >;
   durationUs: TimelineTimeUs;
   params: EditingEffectParams;
