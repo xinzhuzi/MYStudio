@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 
-import { compareVersions, normalizeUpdateManifest, sanitizeExternalUrl } from "./update-policy";
+import {
+  compareVersions,
+  normalizeUpdateManifest,
+  sanitizeExternalUrl,
+  sanitizeUpdateDownloadUrl,
+} from "./update-policy";
 
 describe("update policy", () => {
   it("accepts only HTTP download URLs", () => {
@@ -9,6 +14,19 @@ describe("update policy", () => {
     expect(sanitizeExternalUrl("file:///tmp/release")).toBeUndefined();
     expect(sanitizeExternalUrl("javascript:alert(1)")).toBeUndefined();
     expect(sanitizeExternalUrl("not a url")).toBeUndefined();
+  });
+
+  it("restricts update download links to HTTPS on allowlisted hosts", () => {
+    expect(sanitizeUpdateDownloadUrl("https://github.com/xinzhuzi/MYStudio/releases/tag/v1.2.0"))
+      .toBe("https://github.com/xinzhuzi/MYStudio/releases/tag/v1.2.0");
+    expect(sanitizeUpdateDownloadUrl("https://release-assets.githubusercontent.com/123/dmg"))
+      .toBe("https://release-assets.githubusercontent.com/123/dmg");
+    expect(sanitizeUpdateDownloadUrl("https://pan.baidu.com/s/abc")).toBe("https://pan.baidu.com/s/abc");
+    // 明文 HTTP 与非 allowlist 域一律丢弃(HTTP 清单内容视同不可信)
+    expect(sanitizeUpdateDownloadUrl("http://github.com/xinzhuzi/MYStudio")).toBeUndefined();
+    expect(sanitizeUpdateDownloadUrl("https://evil.example/dmg")).toBeUndefined();
+    expect(sanitizeUpdateDownloadUrl("https://not-github.com.attacker.test/dmg")).toBeUndefined();
+    expect(sanitizeUpdateDownloadUrl("file:///tmp/dmg")).toBeUndefined();
   });
 
   it("compares prefixed and uneven semantic version parts", () => {
@@ -25,17 +43,27 @@ describe("update policy", () => {
       githubUrl: "file:///unsafe",
       baiduCode: " 1234 ",
     }, {
-      githubUrl: "https://github.test/default",
-      baiduUrl: "https://baidu.test/default",
+      githubUrl: "https://github.com/xinzhuzi/MYStudio",
+      baiduUrl: "https://pan.baidu.com/s/default",
       baiduCode: "fallback",
     })).toEqual({
       version: "v2.0.0",
       releaseNotes: "兼容说明",
       publishedAt: "2026-07-15",
-      githubUrl: "https://github.test/default",
-      baiduUrl: "https://baidu.test/default",
+      githubUrl: "https://github.com/xinzhuzi/MYStudio",
+      baiduUrl: "https://pan.baidu.com/s/default",
       baiduCode: "1234",
     });
+  });
+
+  it("drops manifest download links that are not HTTPS or not on allowlisted hosts", () => {
+    const manifest = normalizeUpdateManifest({
+      version: "2.0.0",
+      githubUrl: "http://attacker.test/dmg",
+      baiduUrl: "https://mirror.evil.test/dmg",
+    });
+    expect(manifest.githubUrl).toBeUndefined();
+    expect(manifest.baiduUrl).toBeUndefined();
   });
 
   it("prefers releaseNotes and rejects a missing version", () => {

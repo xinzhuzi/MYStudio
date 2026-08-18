@@ -4,6 +4,7 @@ import tailwindcss from '@tailwindcss/postcss';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { apiCorsProxyPlugin } from './api-cors-proxy';
+import { cspPlugin } from './csp-plugin';
 
 const configDir = path.dirname(fileURLToPath(import.meta.url));
 const frontendRoot = path.resolve(configDir, '..');
@@ -94,6 +95,7 @@ export default defineConfig({
     plugins: [
       apiCorsProxyPlugin(),
       react(),
+      cspPlugin(),
     ],
   },
 });

@@ -1,9 +1,24 @@
 import fs from "node:fs";
+import path from "node:path";
 import { BrowserWindow, ipcMain, shell } from "electron";
 
 type RegisterAppShellIpcHandlersContext = {
   resolveSourcePath: (targetPath: string) => string;
 };
+
+/**
+ * shell.openPath 会用系统默认应用打开文件;对可执行/可托管执行的扩展名,
+ * 这等于把主机代码执行交给被打开的文件。此类扩展一律拒绝(reveal in folder
+ * 不受影响——只定位不执行)。
+ */
+const BLOCKED_OPEN_EXTENSIONS = new Set([
+  ".app", ".command", ".terminal", ".shellscript", ".workflow", ".webloc", ".jar",
+  ".exe", ".bat", ".cmd", ".com", ".msi", ".scr", ".ps1", ".lnk", ".hta", ".vbs",
+]);
+
+export function isBlockedOpenExtension(filePath: string): boolean {
+  return BLOCKED_OPEN_EXTENSIONS.has(path.extname(filePath).toLowerCase());
+}
 
 export function registerAppShellIpcHandlers({ resolveSourcePath }: RegisterAppShellIpcHandlersContext) {
   ipcMain.handle("app-devtools-open", async (event): Promise<{ success: boolean; error?: string }> => {
@@ -28,6 +43,9 @@ export function registerAppShellIpcHandlers({ resolveSourcePath }: RegisterAppSh
     try {
       const resolvedPath = resolveSourcePath(targetPath);
       if (!fs.existsSync(resolvedPath)) return { success: false, error: "文件不存在" };
+      if (isBlockedOpenExtension(resolvedPath)) {
+        return { success: false, error: `出于安全考虑，不能通过本入口打开可执行文件 (${path.extname(resolvedPath)})` };
+      }
       const error = await shell.openPath(resolvedPath);
       return error ? { success: false, error } : { success: true };
     } catch (error) {

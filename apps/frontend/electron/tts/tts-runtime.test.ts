@@ -304,6 +304,83 @@ describe("TTS runtime controller", () => {
     });
   });
 
+  it("rejects non-HTTPS Python runtime download URLs and malformed sha256 values", async () => {
+    let config = "";
+    const controller = createTtsRuntimeController({
+      appRoot: "/repo",
+      userDataPath: "/user-data",
+      storageBasePath: () => "/project-storage",
+      fileExists: (filePath) => filePath.includes("tts/main.py"),
+      ensureDir: vi.fn(),
+      readTextFile: () => config || null,
+      writeTextFile: (_filePath, value) => {
+        config = value;
+      },
+      spawnProcess: vi.fn(),
+      fetchJson: vi.fn().mockRejectedValue(new Error("offline")),
+    });
+
+    await expect(controller.setConfig({ pythonRuntimeUrl: "http://evil.example/python.tar.gz" })).resolves.toMatchObject({
+      success: false,
+      error: expect.stringContaining("HTTPS"),
+    });
+    await expect(controller.setConfig({ pythonRuntimeUrl: "file:///evil/python.tar.gz" })).resolves.toMatchObject({
+      success: false,
+    });
+    await expect(controller.setConfig({ pythonRuntimeSha256: "not-hex" })).resolves.toMatchObject({
+      success: false,
+      error: expect.stringContaining("sha256"),
+    });
+    // 全部拒绝后配置不应被写入
+    await expect(controller.getConfig()).resolves.toMatchObject({ pythonRuntimeUrl: "" });
+  });
+
+  it("verifies the runtime archive sha256 before extraction and fails closed on mismatch", async () => {
+    const storageDir = fs.mkdtempSync(path.join(os.tmpdir(), "tts-runtime-sha-"));
+    try {
+      const archiveBytes = new Uint8Array(Buffer.from("fake python runtime archive payload"));
+      const correctSha256 = nodeCrypto.createHash("sha256").update(archiveBytes).digest("hex");
+      const wrongSha256 = "0".repeat(64);
+      let config = "";
+      const extractArchive = vi.fn(async (_archivePath: string, destinationDir: string) => {
+        fs.mkdirSync(path.join(destinationDir, "python/bin"), { recursive: true });
+        fs.writeFileSync(path.join(destinationDir, "python/bin/python3"), "#!/bin/sh\n");
+      });
+      const baseDeps = {
+        appRoot: "/repo",
+        userDataPath: "/user-data",
+        storageBasePath: () => storageDir,
+        fileExists: (filePath: string) => filePath.includes("tts/main.py"),
+        ensureDir: vi.fn(),
+        readTextFile: (filePath: string) => (filePath.endsWith(".json") ? config || null : null),
+        writeTextFile: (_filePath: string, value: string) => {
+          config = value;
+        },
+        fetchRuntimeArchive: vi.fn(async (_url: string, targetPath: string) => {
+          fs.writeFileSync(targetPath, archiveBytes);
+          return { ok: true, status: 200, data: archiveBytes };
+        }),
+        extractArchive,
+        runPython: mockPython312(),
+        spawnProcess: vi.fn(),
+        fetchJson: vi.fn().mockRejectedValue(new Error("offline")),
+      };
+
+      const failing = createTtsRuntimeController({ ...baseDeps });
+      await failing.setConfig({ pythonRuntimeSha256: wrongSha256 });
+      const failed = await failing.setup();
+      expect(failed.error ?? "").toContain("sha256");
+      expect(extractArchive).not.toHaveBeenCalled();
+
+      const succeeding = createTtsRuntimeController({ ...baseDeps });
+      await succeeding.setConfig({ pythonRuntimeSha256: correctSha256 });
+      await succeeding.setup();
+      expect(extractArchive).toHaveBeenCalledTimes(1);
+    } finally {
+      fs.rmSync(storageDir, { recursive: true, force: true });
+    }
+  });
+
   it("persists a custom model cache dir for the next sidecar start", async () => {
     let config = "";
     const spawnProcess = vi.fn(() => ({ pid: 43, kill: vi.fn() }));

@@ -15,6 +15,37 @@ export function sanitizeExternalUrl(value?: string) {
   }
 }
 
+/**
+ * 更新下载链接出口专用:强制 HTTPS + 官方发布域 allowlist。
+ * 版本清单本身走明文 HTTP 裸 IP,内容视同不可信——若出口不设域闸门,
+ * 中间人改写清单即可借「应用内更新提示」诱导下载任意安装包。
+ */
+export const UPDATE_DOWNLOAD_HOST_ALLOWLIST = [
+  "github.com",
+  "githubusercontent.com",
+  "pan.baidu.com",
+  "pcs.baidu.com",
+] as const;
+
+export function isAllowedUpdateDownloadHost(host: string): boolean {
+  const normalized = host.toLowerCase();
+  return UPDATE_DOWNLOAD_HOST_ALLOWLIST.some(
+    (allowed) => normalized === allowed || normalized.endsWith(`.${allowed}`),
+  );
+}
+
+export function sanitizeUpdateDownloadUrl(value?: string) {
+  if (!isNonEmptyString(value)) return undefined;
+  try {
+    const parsed = new URL(value);
+    if (parsed.protocol !== "https:") return undefined;
+    if (!isAllowedUpdateDownloadHost(parsed.hostname)) return undefined;
+    return parsed.toString();
+  } catch {
+    return undefined;
+  }
+}
+
 function normalizeVersionParts(version: string) {
   return version.replace(/^v/i, "").split(".").map((part) => {
     const match = part.match(/\d+/);
@@ -52,8 +83,8 @@ export function normalizeUpdateManifest(
         ? rawManifest.notes.trim()
         : undefined,
     publishedAt: isNonEmptyString(rawManifest.publishedAt) ? rawManifest.publishedAt.trim() : undefined,
-    githubUrl: sanitizeExternalUrl(rawManifest.githubUrl) ?? defaults.githubUrl,
-    baiduUrl: sanitizeExternalUrl(rawManifest.baiduUrl) ?? defaults.baiduUrl,
+    githubUrl: sanitizeUpdateDownloadUrl(rawManifest.githubUrl) ?? sanitizeUpdateDownloadUrl(defaults.githubUrl),
+    baiduUrl: sanitizeUpdateDownloadUrl(rawManifest.baiduUrl) ?? sanitizeUpdateDownloadUrl(defaults.baiduUrl),
     baiduCode: isNonEmptyString(rawManifest.baiduCode) ? rawManifest.baiduCode.trim() : defaults.baiduCode,
   };
 }

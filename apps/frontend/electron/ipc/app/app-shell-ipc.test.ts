@@ -80,6 +80,23 @@ describe("registerAppShellIpcHandlers", () => {
     });
   });
 
+  it("refuses to open executable file types but still reveals them in folder", async () => {
+    await expect(mocks.handlers.get("app-open-path")?.({}, "evil.command")).resolves.toMatchObject({
+      success: false,
+      error: expect.stringContaining("可执行文件"),
+    });
+    await expect(mocks.handlers.get("app-open-path")?.({}, "evil.APP")).resolves.toMatchObject({
+      success: false,
+    });
+    await expect(mocks.handlers.get("app-open-path")?.({}, "malware.bat")).resolves.toMatchObject({
+      success: false,
+    });
+    expect(mocks.openPath).not.toHaveBeenCalled();
+
+    await expect(mocks.handlers.get("app-show-in-folder")?.({}, "evil.command")).resolves.toEqual({ success: true });
+    expect(mocks.showItemInFolder).toHaveBeenCalledWith("/resolved/evil.command");
+  });
+
   it("stringifies resolver failures without changing the open-path contract", async () => {
     mocks.handlers.clear();
     registerAppShellIpcHandlers({

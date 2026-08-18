@@ -1934,7 +1934,9 @@ export class DouyinService {
       console.log('----------------------');
       try {
         tokens = JSON.parse(tokens);
-        console.log(tokens);
+        // 安全加固:tokens 含 privateKey/webProtect 凭据,且本模块 console 被重定向到
+        // 持久化明文日志,严禁整对象打印(只记录字段存在性)。
+        console.log('[aitoearn] douyin tokens received:', Object.keys(tokens).join(','));
         if (
           !tokens.hasOwnProperty('privateKey') ||
           !tokens.hasOwnProperty('webProtect')
@@ -1945,7 +1947,7 @@ export class DouyinService {
 
         const { privateKey, webProtect } = tokens;
 
-        console.log(webProtect);
+        console.log('[aitoearn] douyin webProtect received (redacted), length:', String(webProtect).length);
         // 获取bd请求参数
         const bdRes = await this.makeRequest(
           'http://116.62.154.231:7879/index/index/douyin',

@@ -15,6 +15,11 @@ const IMAGE_SOURCE_MAX_BYTES_ENV = "MYSTUDIO_IMAGE_SOURCE_MAX_BYTES";
 type ImageSourceReaderOptions = {
   getDataDir: () => string;
   getMediaRoot: () => string;
+  /**
+   * 绝对路径 / file:// 源的受管根守卫。未注入时绝对路径与 file:// 分支一律拒绝
+   * (fail-closed)——readImageSource 的产物会外发到图床,不能当任意文件读取原语。
+   */
+  isAbsoluteImageSourceAllowed?: (resolvedPath: string) => boolean;
   fetchImage?: ImageSourceFetch;
   fileExists?: (filePath: string) => boolean;
   readFile?: (filePath: string) => Buffer;
@@ -132,6 +137,7 @@ async function fetchImageBuffer(url: string, fetchImage: ImageSourceFetch, timeo
 export function createImageSourceReader({
   getDataDir,
   getMediaRoot,
+  isAbsoluteImageSourceAllowed,
   fetchImage = (url, init) => fetch(url, init),
   fileExists = fs.existsSync,
   readFile = fs.readFileSync,
@@ -143,10 +149,19 @@ export function createImageSourceReader({
     if (imagePath.startsWith("local-image://")) {
       return resolveLocalMediaPath(getMediaRoot(), imagePath);
     }
+    let candidate: string | null = null;
     if (imagePath.startsWith("file://")) {
-      return imagePath.replace(/^file:\/\/\/?/, "");
+      // 剥离 scheme 后保留/补齐前导斜杠,避免 file:///abs 变成相对路径
+      const stripped = imagePath.replace(/^file:\/\//, "");
+      candidate = stripped.startsWith("/") ? stripped : `/${stripped}`;
+    } else if (path.isAbsolute(imagePath)) {
+      candidate = imagePath;
     }
-    return path.isAbsolute(imagePath) ? imagePath : null;
+    if (candidate === null) return null;
+    if (!isAbsoluteImageSourceAllowed || !isAbsoluteImageSourceAllowed(candidate)) {
+      throw new Error("本地图片路径不在应用允许的目录范围内");
+    }
+    return candidate;
   };
 
   return async function readImageSource(imageData: string): Promise<ImageSource> {

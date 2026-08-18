@@ -5,6 +5,7 @@ import path from "node:path";
 import { execFile, spawn, type ChildProcessWithoutNullStreams, type SpawnOptionsWithoutStdio } from "node:child_process";
 import { promisify } from "node:util";
 import { LOCAL_TTS_HOST, LOCAL_TTS_PORT } from "../../lib/tts/constants";
+import { assertSafeTarMembers } from "./archive-safety";
 import {
   getErrorMessage, isRecord, parseJsonString, readStringField,
   readBooleanField, readStatusField, isRetryableTtsStatus, isAbortError, formatTtsTimeout,
@@ -48,6 +49,7 @@ interface RuntimeConfig {
   modelCacheDir?: string;
   controlToken?: string;
   pythonRuntimeUrl?: string;
+  pythonRuntimeSha256?: string;
   pythonRuntimeDir?: string;
   installedItems?: TtsRuntimeInstalledItem[];
 }
@@ -476,6 +478,23 @@ function defaultPythonDownloadUrl(): string | null {
   return null;
 }
 
+/**
+ * Python 运行环境下载源只允许 HTTPS:该归档解压后会直接执行二进制,
+ * 明文 HTTP 下载源等于把主机代码执行权交给网络中间人。
+ */
+export function isValidPythonRuntimeUrl(value: string): boolean {
+  try {
+    return new URL(value).protocol === "https:";
+  } catch {
+    return false;
+  }
+}
+
+/** 归档完整性指纹格式:64 位小写/大写 hex(sha256)。 */
+export function isValidPythonRuntimeSha256(value: string): boolean {
+  return /^[0-9a-fA-F]{64}$/.test(value);
+}
+
 export function createTtsRuntimeController(deps: TtsRuntimeControllerDeps): TtsRuntimeController {
   const port = deps.port ?? DEFAULT_TTS_PORT;
   const host = deps.host ?? DEFAULT_TTS_HOST;
@@ -493,9 +512,12 @@ export function createTtsRuntimeController(deps: TtsRuntimeControllerDeps): TtsR
   const writeBinaryFile = deps.writeBinaryFile ?? ((filePath: string, value: Uint8Array) => fs.writeFileSync(filePath, value));
   const renameFile = deps.renameFile ?? ((from: string, to: string) => fs.renameSync(from, to));
   const removeFile = deps.removeFile ?? ((filePath: string) => fs.rmSync(filePath, { force: true }));
-  const extractArchive = deps.extractArchive ?? ((archivePath: string, destinationDir: string) => (
-    execFileAsync("tar", ["-xzf", archivePath, "-C", destinationDir], { timeout: 600_000, maxBuffer: 64 * 1024 * 1024 }).then(() => undefined)
-  ));
+  const extractArchive = deps.extractArchive ?? (async (archivePath: string, destinationDir: string) => {
+    // 解压网络归档前先校验成员,拒绝 ../、绝对路径等穿越写法(见 archive-safety.ts)。
+    const listing = await execFileAsync("tar", ["-tzf", archivePath], { timeout: 60_000, maxBuffer: 8 * 1024 * 1024 }) as { stdout?: string };
+    assertSafeTarMembers((listing.stdout ?? "").split("\n").map((line) => line.trim()).filter(Boolean));
+    await execFileAsync("tar", ["-xzf", archivePath, "-C", destinationDir], { timeout: 600_000, maxBuffer: 64 * 1024 * 1024 });
+  });
   const runPython = deps.runPython ?? ((command: string, args: string[], options?: Parameters<typeof execFileAsync>[2]) => execFileAsync(command, args, options));
   const spawnProcess = deps.spawnProcess ?? ((command, args, options) => spawn(command, args, options));
   const fetchJson = deps.fetchJson ?? defaultFetchJson;
@@ -724,6 +746,7 @@ export function createTtsRuntimeController(deps: TtsRuntimeControllerDeps): TtsR
     const envUrl = process.env.MANYING_TTS_PYTHON_RUNTIME_URL?.trim();
     return {
       pythonRuntimeUrl: config.pythonRuntimeUrl || envUrl || "",
+      pythonRuntimeSha256: config.pythonRuntimeSha256 || undefined,
       defaultPythonRuntimeUrl: defaultPythonDownloadUrl() ?? undefined,
       pythonRuntimeDir: runtimePythonDir(),
       installedItems: (config.installedItems ?? []).filter(isManagedPythonInstallItem),
@@ -733,9 +756,25 @@ export function createTtsRuntimeController(deps: TtsRuntimeControllerDeps): TtsR
   const saveRuntimeConfig = (nextConfig: Partial<TtsRuntimeConfig>) => {
     const config = readConfig();
     const pythonRuntimeUrl = nextConfig.pythonRuntimeUrl?.trim();
+    if (pythonRuntimeUrl && !isValidPythonRuntimeUrl(pythonRuntimeUrl)) {
+      throw new TtsRuntimeError({
+        code: "invalid-request",
+        message: "Python 运行环境下载地址必须使用 HTTPS",
+        retryable: false,
+      });
+    }
+    const pythonRuntimeSha256 = nextConfig.pythonRuntimeSha256?.trim();
+    if (pythonRuntimeSha256 && !isValidPythonRuntimeSha256(pythonRuntimeSha256)) {
+      throw new TtsRuntimeError({
+        code: "invalid-request",
+        message: "Python 运行环境 sha256 必须是 64 位十六进制字符串",
+        retryable: false,
+      });
+    }
     writeConfig({
       ...config,
       pythonRuntimeUrl: pythonRuntimeUrl || undefined,
+      pythonRuntimeSha256: pythonRuntimeSha256 || undefined,
     });
   };
 
@@ -772,10 +811,23 @@ export function createTtsRuntimeController(deps: TtsRuntimeControllerDeps): TtsR
 
   function pythonDownloadUrl(): string | null {
     const config = readConfig();
+    // 配置/环境变量下载源必须 HTTPS;非法值不落地执行,回退官方默认源。
     const configuredUrl = config.pythonRuntimeUrl?.trim();
-    if (configuredUrl) return configuredUrl;
+    if (configuredUrl) {
+      if (!isValidPythonRuntimeUrl(configuredUrl)) {
+        console.warn("[TTS] pythonRuntimeUrl 非 HTTPS，已忽略并回退默认下载源:", configuredUrl.slice(0, 24));
+        return defaultPythonDownloadUrl();
+      }
+      return configuredUrl;
+    }
     const override = process.env.MANYING_TTS_PYTHON_RUNTIME_URL?.trim();
-    if (override) return override;
+    if (override) {
+      if (!isValidPythonRuntimeUrl(override)) {
+        console.warn("[TTS] MANYING_TTS_PYTHON_RUNTIME_URL 非 HTTPS，已忽略并回退默认下载源");
+        return defaultPythonDownloadUrl();
+      }
+      return override;
+    }
     return defaultPythonDownloadUrl();
   }
 
@@ -860,6 +912,16 @@ export function createTtsRuntimeController(deps: TtsRuntimeControllerDeps): TtsR
       }
       writeBinaryFile(partialArchive, res.data instanceof Uint8Array ? res.data : new Uint8Array(res.data));
       renameFile(partialArchive, archivePath);
+      const expectedSha256 = readConfig().pythonRuntimeSha256?.trim().toLowerCase();
+      if (expectedSha256) {
+        const actualSha256 = await sha256File(archivePath);
+        if (actualSha256 !== expectedSha256) {
+          removeFile(archivePath);
+          updateSetupState({ setupStage: "failed", setupMessage: "Python 运行环境包完整性校验失败", setupProgress: 100 });
+          setInstalledItem({ label: "Python 运行环境", detail: runtimeDir, status: "failed" });
+          return { error: `Python 运行环境包 sha256 校验失败(期望 ${expectedSha256.slice(0, 12)}…，实际 ${actualSha256.slice(0, 12)}…)` };
+        }
+      }
       updateSetupState({ setupStage: "extracting-python", setupMessage: "正在配置 Python 仓库", setupProgress: 100 });
       await extractArchive(archivePath, archiveDir);
       removeFile(archivePath);
@@ -1265,7 +1327,11 @@ export function createTtsRuntimeController(deps: TtsRuntimeControllerDeps): TtsR
         error: "请先停止本地 TTS 后端，再修改 Python 运行环境配置",
       };
     }
-    saveRuntimeConfig(config);
+    try {
+      saveRuntimeConfig(config);
+    } catch (error) {
+      return { success: false, status: await status(), error: getErrorMessage(error) };
+    }
     return { success: true, status: await status() };
   }
 

@@ -5,7 +5,7 @@
  * 1. update config URL 读取(参数化,接收 config 对象)
  * 2. studio-skill 协议路径编码
  */
-import { isNonEmptyString, sanitizeExternalUrl } from "../runtime/update-policy";
+import { isNonEmptyString, sanitizeExternalUrl, sanitizeUpdateDownloadUrl } from "../runtime/update-policy";
 
 /** update config 的最小视图(结构兼容 typedPackageMetadata.updateConfig)。 */
 type UpdateConfigLike = {
@@ -20,11 +20,11 @@ export function getUpdateManifestUrl(config: UpdateConfigLike): string | undefin
 }
 
 export function getDefaultGithubUrl(config: UpdateConfigLike): string | undefined {
-  return sanitizeExternalUrl(config.defaultGithubUrl);
+  return sanitizeUpdateDownloadUrl(config.defaultGithubUrl);
 }
 
 export function getDefaultBaiduUrl(config: UpdateConfigLike): string | undefined {
-  return sanitizeExternalUrl(config.defaultBaiduUrl);
+  return sanitizeUpdateDownloadUrl(config.defaultBaiduUrl);
 }
 
 export function getDefaultBaiduCode(config: UpdateConfigLike): string | undefined {

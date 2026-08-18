@@ -28,6 +28,17 @@ function assertInsideRoot(root: string, target: string, label: string) {
   return normalizedTarget;
 }
 
+/**
+ * symlink-safe containment check: target === root or inside root, after realpath
+ * resolution. Shared by assertInsideRoot and the IPC managed-root guard so both
+ * use one containment semantic.
+ */
+export function isPathInsideRoot(root: string, target: string): boolean {
+  const canonicalRoot = canonicalPath(path.resolve(root));
+  const canonicalTarget = canonicalPath(path.resolve(target));
+  return canonicalTarget === canonicalRoot || canonicalTarget.startsWith(`${canonicalRoot}${path.sep}`);
+}
+
 function normalizeRelativePath(value: string, label: string) {
   if (typeof value !== "string" || value.includes("\0")) {
     throw new Error(`Invalid ${label}`);

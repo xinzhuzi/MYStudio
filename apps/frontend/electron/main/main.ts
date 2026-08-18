@@ -4,6 +4,7 @@
 import { app, BrowserWindow, protocol, net, shell, utilityProcess } from 'electron'
 import path from 'node:path'
 import fs from 'node:fs'
+import { fileURLToPath } from 'node:url'
 import os from 'node:os'
 import crypto from 'node:crypto'
 import packageMetadata from '../../../package.json'
@@ -49,12 +50,14 @@ import { registerAppUpdaterIpcHandlers } from '../ipc/app/app-updater-ipc'
 import {
  
   resolveLocalMediaPath,
- 
+
   resolveProjectFileUrl,
   resolveProjectRootPath,
   resolveProjectScopedFilePath,
   setProjectLocationResolver,
+  isPathInsideRoot,
 } from '../storage/storage-paths'
+import { createBlessedPathRegistry, isPathInsideAnyRoot } from '../security/managed-paths'
 import { registerProjectFileIpcHandlers } from '../ipc/files/project-file-ipc'
 import { registerSourceMemoryIpcHandlers } from '../ipc/studio/source-memory-ipc'
 import { configureArtifactManagementIpc } from '../ipc/files/artifact-management-ipc'
@@ -442,10 +445,19 @@ function createWindow() {
     return { action: 'deny' }
   })
 
+  const isRendererLocalFileUrl = (url: string) => {
+    if (!url.startsWith('file://')) return false
+    try {
+      return isPathInsideRoot(RENDERER_DIST, fileURLToPath(url))
+    } catch {
+      return false
+    }
+  }
+
   win.webContents.on('will-navigate', (event, url) => {
-    // Allow navigating to the app itself (dev server or local file)
+    // Allow navigating to the app itself (dev server or local renderer files only)
     if (VITE_DEV_SERVER_URL && url.startsWith(VITE_DEV_SERVER_URL)) return
-    if (url.startsWith('file://')) return
+    if (isRendererLocalFileUrl(url)) return
     // Block and open externally
     event.preventDefault()
     shell.openExternal(url)
@@ -454,7 +466,7 @@ function createWindow() {
   win.webContents.on('will-frame-navigate', (details) => {
     const { url, isMainFrame } = details
     if (!isMainFrame && hostedStudio.isNavigationAllowed(url)) return
-    if (isMainFrame && ((VITE_DEV_SERVER_URL && url.startsWith(VITE_DEV_SERVER_URL)) || url.startsWith('file://'))) return
+    if (isMainFrame && ((VITE_DEV_SERVER_URL && url.startsWith(VITE_DEV_SERVER_URL)) || isRendererLocalFileUrl(url))) return
     details.preventDefault()
   })
 
@@ -546,7 +558,28 @@ const getDataDir = () => {
 }
 // resolver-aware 项目根:外部位置项目 → <location>;legacy → <dataRoot>/_p/<pid>。
 const projectRootFor = (projectId: string) => resolveProjectRootPath(getDataDir(), projectId)
-const readImageSource = createImageSourceReader({ getDataDir, getMediaRoot })
+
+// ===== IPC 路径原语的受管根守卫(安全加固 H-2/H-3)=====
+// 渲染进程提供的绝对路径只有两类可信:位于应用受管目录内,或刚由主进程
+// 原生对话框选出(短期「祝福」)。其余绝对路径一律拒绝,防止被攻破的
+// renderer 把 fs/shell/ffprobe 当任意读写原语。协议分支(project-file:///
+// local-image://)自带 realpath 级根约束,不经此守卫。
+const blessedDialogPaths = createBlessedPathRegistry()
+const getManagedSourceRoots = (): string[] => {
+  const roots = [
+    getDataDir(),
+    getMediaRoot(),
+    app.getPath('userData'),
+    ...Object.values(projectLocationStore.all()),
+    ttsRuntimeController.getModelCacheDir(),
+  ]
+  return Array.from(new Set(roots.filter((root) => typeof root === 'string' && root.trim() !== '')))
+}
+const isStudioSourcePathAllowed = (targetPath: string): boolean => (
+  isPathInsideAnyRoot(getManagedSourceRoots(), targetPath) || blessedDialogPaths.has(targetPath)
+)
+
+const readImageSource = createImageSourceReader({ getDataDir, getMediaRoot, isAbsoluteImageSourceAllowed: isStudioSourcePathAllowed })
 
 // Storage/media orchestration delegates registerLocalMediaIpcHandlers, image-host, and file-storage.
 registerStorageMediaIpcHandlers({
@@ -630,14 +663,28 @@ registerAppUpdaterIpcHandlers({
 })
 
 function resolveStudioSourcePath(sourcePath: string) {
-  if (sourcePath.startsWith('file://')) return sourcePath.replace('file://', '')
   if (sourcePath.startsWith('project-file://')) {
     return resolveProjectFileUrl(getDataDir(), sourcePath)
   }
   if (sourcePath.startsWith('local-image://')) {
     return resolveLocalMediaPath(getMediaRoot(), sourcePath)
   }
+  if (sourcePath.startsWith('file://')) {
+    const filePath = sourcePath.replace('file://', '')
+    assertStudioSourcePathAllowed(filePath)
+    return filePath
+  }
+  if (path.isAbsolute(sourcePath)) {
+    assertStudioSourcePathAllowed(sourcePath)
+    return sourcePath
+  }
   return sourcePath
+}
+
+function assertStudioSourcePathAllowed(filePath: string) {
+  if (!isStudioSourcePathAllowed(filePath)) {
+    throw new Error(`路径不在应用管理的目录范围内，已拒绝访问: ${filePath}`)
+  }
 }
 
 // macOS may expose the same inode as /var and /private/var; prefer realpath
@@ -1466,6 +1513,8 @@ registerAssetLibraryIpcHandlers({
   getMediaRoot,
   createOperationId: createDiagnosticsOperationId,
   writeDiagnosticsLog,
+  isSourcePathAllowed: isStudioSourcePathAllowed,
+  blessDialogPaths: blessedDialogPaths.bless,
 })
 
 async function runTtsRuntimeDiagnostics<T>(

@@ -31,7 +31,7 @@ export interface TtsRuntimeFormDataPayload {
   referenceText?: string;
 }
 
-export type TtsRuntimeConfigPayload = Pick<Partial<TtsRuntimeConfig>, "pythonRuntimeUrl" | "pythonRuntimeDir">;
+export type TtsRuntimeConfigPayload = Pick<Partial<TtsRuntimeConfig>, "pythonRuntimeUrl" | "pythonRuntimeSha256" | "pythonRuntimeDir">;
 
 export function decodeTtsRuntimeRequestPayload(value: unknown): TtsRuntimeRequestPayload {
   if (!isRecord(value) || !hasOnlyKeys(value, ["method", "path", "body"])) {
@@ -67,17 +67,21 @@ export function decodeTtsRuntimeFormDataPayload(value: unknown): TtsRuntimeFormD
 }
 
 export function decodeTtsRuntimeConfigPayload(value: unknown): TtsRuntimeConfigPayload {
-  if (!isRecord(value) || !hasOnlyKeys(value, ["pythonRuntimeUrl", "pythonRuntimeDir"])) {
+  if (!isRecord(value) || !hasOnlyKeys(value, ["pythonRuntimeUrl", "pythonRuntimeSha256", "pythonRuntimeDir"])) {
     throw invalidTtsRequest("TTS 运行环境配置字段无效");
   }
   if (value.pythonRuntimeUrl !== undefined && typeof value.pythonRuntimeUrl !== "string") {
     throw invalidTtsRequest("TTS 运行环境地址无效");
+  }
+  if (value.pythonRuntimeSha256 !== undefined && typeof value.pythonRuntimeSha256 !== "string") {
+    throw invalidTtsRequest("TTS 运行环境 sha256 无效");
   }
   if (value.pythonRuntimeDir !== undefined && typeof value.pythonRuntimeDir !== "string") {
     throw invalidTtsRequest("TTS 运行环境路径无效");
   }
   return {
     pythonRuntimeUrl: value.pythonRuntimeUrl,
+    pythonRuntimeSha256: value.pythonRuntimeSha256,
     pythonRuntimeDir: value.pythonRuntimeDir,
   };
 }

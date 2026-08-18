@@ -18,6 +18,7 @@ describe("createImageSourceReader", () => {
     const readImageSource = createImageSourceReader({
       getDataDir: () => "/data",
       getMediaRoot: () => "/media",
+      isAbsoluteImageSourceAllowed: () => true,
       fileExists,
       readFile,
     });
@@ -109,11 +110,42 @@ describe("createImageSourceReader", () => {
     const readImageSource = createImageSourceReader({
       getDataDir: () => "/data",
       getMediaRoot: () => "/media",
+      isAbsoluteImageSourceAllowed: () => true,
       fileExists,
       readFile,
     });
 
     await expect(readImageSource("/images/missing.png")).rejects.toThrow("本地图片不存在");
     expect(readFile).not.toHaveBeenCalled();
+  });
+
+  it("fails closed on absolute and file:// sources without an allowlist guard", async () => {
+    const readFile = vi.fn();
+    const readImageSource = createImageSourceReader({
+      getDataDir: () => "/data",
+      getMediaRoot: () => "/media",
+      readFile,
+    });
+
+    await expect(readImageSource("/Users/x/.ssh/id_rsa")).rejects.toThrow("不在应用允许的目录范围内");
+    await expect(readImageSource("file:///Users/x/.ssh/id_rsa")).rejects.toThrow("不在应用允许的目录范围内");
+    expect(readFile).not.toHaveBeenCalled();
+  });
+
+  it("reads absolute sources only when the allowlist guard accepts them", async () => {
+    const readFile = vi.fn(() => Buffer.from("png-bytes"));
+    const readImageSource = createImageSourceReader({
+      getDataDir: () => "/data",
+      getMediaRoot: () => "/media",
+      isAbsoluteImageSourceAllowed: (resolvedPath) => resolvedPath.startsWith("/media/"),
+      fileExists: () => true,
+      readFile,
+    });
+
+    await expect(readImageSource("/media/shot.png")).resolves.toMatchObject({ buffer: Buffer.from("png-bytes") });
+    await expect(readImageSource("/Users/x/.ssh/id_rsa")).rejects.toThrow("不在应用允许的目录范围内");
+    await expect(readImageSource("file:///media/shot.png")).resolves.toMatchObject({
+      buffer: Buffer.from("png-bytes"),
+    });
   });
 });

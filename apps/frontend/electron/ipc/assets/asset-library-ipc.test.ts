@@ -1,7 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { handlers, assetStorageMocks } = vi.hoisted(() => ({
+const { handlers, assetStorageMocks, blessedPaths } = vi.hoisted(() => ({
   handlers: new Map<string, (...args: unknown[]) => unknown>(),
+  blessedPaths: new Set<string>(),
   assetStorageMocks: {
     addAsset: vi.fn(),
     addAssetImage: vi.fn(),
@@ -27,8 +28,14 @@ vi.mock("../../storage/studio-assets-storage", () => assetStorageMocks);
 import { dialog } from "electron";
 import { registerAssetLibraryIpcHandlers } from "./asset-library-ipc";
 
+const isSourcePathAllowed = (sourceFilePath: string) => (
+  sourceFilePath.startsWith("/data/") || sourceFilePath.startsWith("/media/") || blessedPaths.has(sourceFilePath)
+);
+const blessDialogPaths = (paths: readonly string[]) => paths.forEach((p) => blessedPaths.add(p));
+
 beforeEach(() => {
   handlers.clear();
+  blessedPaths.clear();
   vi.mocked(dialog.showOpenDialog).mockReset();
 });
 
@@ -38,6 +45,8 @@ function registerHandlers() {
     getMediaRoot: () => "/media",
     createOperationId: (prefix) => `${prefix}-1`,
     writeDiagnosticsLog: vi.fn(),
+    isSourcePathAllowed,
+    blessDialogPaths,
   });
 }
 
@@ -47,6 +56,8 @@ function registerHandlersWithStorageBase(getStorageBasePath: () => string) {
     getMediaRoot: () => "/media",
     createOperationId: (prefix) => `${prefix}-1`,
     writeDiagnosticsLog: vi.fn(),
+    isSourcePathAllowed,
+    blessDialogPaths,
   });
 }
 
@@ -127,5 +138,51 @@ describe("registerAssetLibraryIpcHandlers", () => {
     vi.mocked(dialog.showOpenDialog).mockResolvedValue({ canceled: true, filePaths: [] });
 
     await expect(getHandler("assets:select-image-files")({})).resolves.toEqual([]);
+  });
+
+  it("blesses picker results so later asset writes accept them", async () => {
+    registerHandlers();
+    vi.mocked(dialog.showOpenDialog).mockResolvedValue({
+      canceled: false,
+      filePaths: ["/Users/x/Desktop/pick.png"],
+    });
+
+    await expect(getHandler("assets:select-image-file")({})).resolves.toBe("/Users/x/Desktop/pick.png");
+    expect(blessedPaths.has("/Users/x/Desktop/pick.png")).toBe(true);
+  });
+
+  it("rejects asset source paths outside managed roots", async () => {
+    registerHandlers();
+
+    await expect(getHandler("assets:add-image")({}, {
+      assetId: "a1", imageName: "main", sourceFilePath: "/Users/x/.ssh/id_rsa",
+    })).rejects.toThrow(/不在应用允许的目录范围内/);
+    await expect(getHandler("assets:replace-image")({}, {
+      assetId: "a1", sourceFilePath: "/etc/passwd",
+    })).rejects.toThrow(/不在应用允许的目录范围内/);
+    await expect(getHandler("assets:add")({}, {
+      type: "role", name: "r1", sourceFilePath: "/Users/x/.ssh/id_rsa",
+    })).rejects.toThrow(/不在应用允许的目录范围内/);
+
+    expect(assetStorageMocks.addAssetImage).not.toHaveBeenCalled();
+    expect(assetStorageMocks.replaceAssetMainImage).not.toHaveBeenCalled();
+    expect(assetStorageMocks.addAsset).not.toHaveBeenCalled();
+  });
+
+  it("accepts managed-root and dialog-blessed source paths", async () => {
+    registerHandlers();
+    assetStorageMocks.addAssetImage.mockReturnValueOnce({ id: "a1" });
+    assetStorageMocks.replaceAssetMainImage.mockReturnValueOnce({ id: "a1" });
+    blessDialogPaths(["/Users/x/Desktop/pick.png"]);
+
+    await expect(getHandler("assets:add-image")({}, {
+      assetId: "a1", imageName: "main", sourceFilePath: "/media/studio-assets/shot.png",
+    })).resolves.toBeDefined();
+    await expect(getHandler("assets:replace-image")({}, {
+      assetId: "a1", sourceFilePath: "/Users/x/Desktop/pick.png",
+    })).resolves.toBeDefined();
+
+    expect(assetStorageMocks.addAssetImage).toHaveBeenCalledTimes(1);
+    expect(assetStorageMocks.replaceAssetMainImage).toHaveBeenCalledTimes(1);
   });
 });

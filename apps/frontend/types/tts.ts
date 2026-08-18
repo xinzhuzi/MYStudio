@@ -159,6 +159,8 @@ export interface TtsRuntimeStatus {
 
 export interface TtsRuntimeConfig {
   pythonRuntimeUrl?: string;
+  /** 可选:pythonRuntimeUrl 归档的 sha256(64 位 hex),配置后下载完先校验再解压。 */
+  pythonRuntimeSha256?: string;
   defaultPythonRuntimeUrl?: string;
   pythonRuntimeDir?: string;
   installedItems?: TtsRuntimeInstalledItem[];
