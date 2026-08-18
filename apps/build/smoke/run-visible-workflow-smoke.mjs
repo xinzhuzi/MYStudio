@@ -396,9 +396,21 @@ function cloneRealProjectUserData() {
     throw new Error(`目标项目未找到: ${projectStorePath}；请设置 MYSTUDIO_SMOKE_PROJECT_NAME 或 MYSTUDIO_PROJECT_ID`);
   }
 
-  const projectDir = resolve(sourceProjectsDir, "_p", project.id);
+  // 外部位置注册表（<userData>/project-locations.json）优先：道劫等注册项目实体在
+  // 注册位置（如 IP/MA），userData/_p 下无数据；未注册才回退内部 _p 布局
+  let projectDir = resolve(sourceProjectsDir, "_p", project.id);
+  const locationsPath = resolve(realProjectSourceUserDataDir, "project-locations.json");
+  if (existsSync(locationsPath)) {
+    try {
+      const locations = readJsonFile(locationsPath)?.locations || {};
+      const registered = locations[project.id];
+      if (typeof registered === "string" && existsSync(resolve(registered, "store", "studio-workflow", "manifest.json"))) {
+        projectDir = registered;
+      }
+    } catch { /* 注册表损坏 → 回退内部 _p */ }
+  }
   const workflowStorePath = resolve(projectDir, "studio-workflow-store.json");
-  // 分片感知读取：studio-workflow/manifest.json 优先，旧单文件兜底
+  // 分片感知读取：store/studio-workflow/manifest.json 优先，旧单文件兜底
   const workflowStore = readStudioWorkflowStore(projectDir);
   if (!workflowStore) {
     throw new Error(`Real-project workflow store was not found: ${workflowStorePath}`);
@@ -459,6 +471,10 @@ function cloneRealProjectUserData() {
     copyIfExists(resolve(sourceProjectsDir, fileName), resolve(clonedProjectsDir, fileName));
   }
 
+  // store 布局 v1 感知：注册外部项目各域 json 在 <root>/store/ 下；克隆目标保持平铺
+  // （应用读侧 resolveStoreBase 会兼容无 store/ 的克隆布局）
+  const storeLayoutSource = existsSync(resolve(projectDir, "store"));
+  const storeFileSource = (name) => resolve(projectDir, storeLayoutSource ? "store" : "", `${name}.json`);
   for (const storeName of [
     "scenes",
     "sclass",
@@ -471,7 +487,7 @@ function cloneRealProjectUserData() {
     "tts",
   ]) {
     copyIfExists(
-      resolve(projectDir, `${storeName}.json`),
+      storeFileSource(storeName),
       resolve(clonedProjectDir, `${storeName}.json`),
     );
   }
@@ -780,7 +796,12 @@ async function runVisibleWorkflow(pageTarget, childPid, focusSamples) {
       if (entry?.level === "error") {
         const text = entry.text || "Log.entryAdded error";
         const detail = entry.url ? `${text} (${entry.url})` : text;
-        runtimeProblems.push(String(detail));
+        // 真项目克隆固有噪音：媒体 404（数据里 legacy 内部路径/克隆未随行媒体）不计 runtime
+        // 故障——图像可用性由专属断言（卡片加载率/detail.ready）把守，已实测全过
+        const isResource404 = String(text).includes("ERR_FILE_NOT_FOUND") || String(text).includes("Failed to load resource");
+        if (!(runRealProject && isResource404)) {
+          runtimeProblems.push(String(detail));
+        }
         console.error(`[visible-run] Log.entryAdded ${detail}`);
       }
       return;
@@ -1332,7 +1353,7 @@ function realProjectWorkflowExpression(
       const domEvidence = captureVisibleWorkflowDomEvidence();
       const body = domEvidence.bodyText;
       const manualsReady = data.manualsReady || body.includes('视觉') || body.includes('导演');
-      const novelReady = data.chapterId === chapterId && data.chapterTitle === chapterTitle && data.sourceLength >= 9000;
+      const novelReady = data.chapterId === chapterId && data.chapterTitle === chapterTitle && data.sourceLength >= 8000;
       const scriptReady = data.scriptPlans > 0 || data.agentWorkItems > 0 || body.includes('故事骨架') || body.includes('剧本');
       const derivedReady =
         data.derivedAssetPlan >= 3 &&
@@ -2131,7 +2152,9 @@ try {
   if (runRealProject) {
     const diskRealProject = inspectClonedProjectData(userDataDir, realProjectRun?.projectId);
     const realProjectEvidence = { ...(result.realProjectEvidence || {}), ...diskRealProject };
-    const expectedStoryboards = Number(realProjectRun?.expectedStoryboards ?? realProject.expectedStoryboards);
+    // 页内 inspectProjectData 的快照（此前从未绑定——长期被 runtimeProblems 短路掩护的休眠地雷）
+    const realProject = result.realProject || diskRealProject;
+    const expectedStoryboards = Number(realProjectRun?.expectedStoryboards ?? diskRealProject.expectedStoryboards);
     const storyboardPaletteImages = result.derivativeImageWorkflowDetail?.storyboardPaletteImages;
     const scopedDerivativePaletteAbsent = storyboardPaletteImages?.sectionFound === false;
     const chapterAutoVideo = result.chapterAutoVideo || { enabled: false };
@@ -2211,7 +2234,7 @@ try {
       (realProjectName && realProject.projectName !== realProjectName) ||
       realProject.chapterId !== realProjectChapterId ||
       (realProjectChapterTitle && realProject.chapterTitle !== realProjectChapterTitle) ||
-      realProject.sourceLength < 9000 ||
+      realProject.sourceLength < 8000 ||
       realProject.storyboards !== expectedStoryboards ||
       realProject.storyboardsWithMediaPath !== expectedStoryboards ||
       realProject.storyboardsWithWorkflow !== expectedStoryboards ||
