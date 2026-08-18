@@ -11,9 +11,10 @@ import type {
 import type { StudioAssetKind, StudioAssetSummary } from "@/types/studio-assets";
 import type { StudioManualCatalog } from "@/lib/studio/manuals";
 import type {
+  RemotionChapterAudioRole,
   RemotionCurrentSlotV1,
   RemotionRenderJobV1,
- 
+
 } from "@/types/remotion-workspace";
 
 export interface ProductionFlowAssetCard {
@@ -86,7 +87,7 @@ export interface ProductionFlowModelInput {
   remotionCurrentShotSlots?: RemotionCurrentSlotV1[];
   remotionQueueLoading?: boolean;
   remotionQueueError?: string;
-  chapterSharedAudioRoles?: Array<"bgm" | "ambience">;
+  chapterSharedAudioRoles?: Array<RemotionChapterAudioRole>;
   workflowConfig?: Pick<StudioWorkflowConfig, "visualManualId" | "directorManualId">;
   manualCatalog?: StudioManualCatalog;
   assetMediaById?: Record<string, ProductionFlowAssetMedia | undefined>;

@@ -41,7 +41,7 @@ export function useProductionFlowModel({
   const activeProjectId = useProjectStore((state) => state.activeProjectId);
   const requestedRenderer = useAppSettingsStore((state) => state.renderingSettings.renderer);
   const remotionQueueScope = useRemotionQueueScope(activeProjectId ?? undefined, productionEpisodeId);
-  const [chapterSharedAudioRoles, setChapterSharedAudioRoles] = useState<Array<"bgm" | "ambience">>([]);
+  const [chapterSharedAudioRoles, setChapterSharedAudioRoles] = useState<Array<"bgm" | "sfx" | "ambience">>([]);
   useEffect(() => {
     let cancelled = false;
     const bridge = typeof window === "undefined" ? undefined : window.remotionChapterManifest;
