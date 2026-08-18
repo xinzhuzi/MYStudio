@@ -89,6 +89,7 @@ const skipPrekill = process.env.MYSTUDIO_SMOKE_SKIP_PREKILL === "1";
 const foregroundSmoke = process.env.MYSTUDIO_SMOKE_FOREGROUND === "1";
 const smokeMode = foregroundSmoke ? "visible" : "background";
 const keepSmokeAppOpen = process.env.MYSTUDIO_SMOKE_KEEP_OPEN === "1";
+const allowForeground = process.env.MYSTUDIO_SMOKE_ALLOW_FOREGROUND === "1";
 const smokeLaunchMode = process.env.MYSTUDIO_SMOKE_LAUNCH_MODE || "auto";
 if (!["auto", "direct", "launch-services"].includes(smokeLaunchMode)) {
   throw new Error(
@@ -2923,7 +2924,9 @@ function assertHealthy(
   }
   if (errors.length > 0)
     failures.push(`page reported ${errors.length} runtime/log error(s)`);
-  if (smokeMode === "background" && foregroundViolation) {
+  // CI 无头 runner 上被测应用是唯一 GUI 应用,必然 frontmost,该检查只对
+  // 真实用户桌面有意义;CI 以 MYSTUDIO_SMOKE_ALLOW_FOREGROUND=1 豁免。
+  if (smokeMode === "background" && foregroundViolation && !allowForeground) {
     failures.push("background smoke brought MYStudio to the foreground");
   }
 
@@ -3131,7 +3134,7 @@ try {
       focusSamples.push(sampleFrontmostApplication("before smoke report"));
       smokeReport.focusSamples = focusSamples;
       smokeReport.foregroundViolation = hasMYStudioForegroundViolation(focusSamples);
-      if (smokeReport.foregroundViolation) {
+      if (smokeReport.foregroundViolation && !allowForeground) {
         smokeReport.ok = false;
         smokeReport.error = "background smoke brought MYStudio to the foreground";
         smokePassed = false;
