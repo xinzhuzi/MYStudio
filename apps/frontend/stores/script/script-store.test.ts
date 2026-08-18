@@ -198,6 +198,22 @@ describe("active script project selector", () => {
     });
     expect(selected?.seriesMeta).toBeNull();
   });
+
+  it("returns a referentially stable derived object across calls (render-loop guard)", () => {
+    // 回归:选择器每次返回新引用会让 useSyncExternalStore 判定快照变化,
+    // 无限重渲染打满主线程(installed smoke CDP 超时根因)。
+    const project = createDefaultScriptProjectData();
+    project.scriptData = {
+      title: "道劫 EP01：断剑夜访道口镇",
+      language: "中文",
+      characters: [],
+      scenes: [],
+      episodes: [],
+      storyParagraphs: [],
+    };
+    const state = { activeProjectId: "active", projects: { active: project } };
+    expect(selectActiveScriptProject(state)).toBe(selectActiveScriptProject(state));
+  });
 });
 
 describe("seriesMeta fallback persistence", () => {

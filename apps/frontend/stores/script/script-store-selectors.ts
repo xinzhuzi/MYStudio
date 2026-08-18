@@ -25,6 +25,12 @@ export function deriveSeriesMetaFallback(project: ScriptProjectData): SeriesMeta
   return { title: seriesTitle, characters: project.scriptData?.characters ?? [] };
 }
 
+/** 推导结果的引用记忆化:同一 project 对象恒等映射同一包装对象。
+ *  useActiveScriptProject 直连 Zustand useSyncExternalStore——若选择器每次
+ *  返回新引用会被判定为快照变化,触发「重渲染→再选择→再新引用」死循环,
+ *  渲染主线程打满(installed smoke CDP evaluate 超时的根因)。 */
+const derivedMetaWrapCache = new WeakMap<ScriptProjectData, ScriptProjectData>();
+
 export function selectActiveScriptProject(
   state: ActiveScriptProjectState,
 ): ScriptProjectData | null {
@@ -34,5 +40,11 @@ export function selectActiveScriptProject(
   if (!project) return null;
   if (project.seriesMeta) return project;
   const derived = deriveSeriesMetaFallback(project);
-  return derived ? { ...project, seriesMeta: derived } : project;
+  if (!derived) return project;
+  let wrapped = derivedMetaWrapCache.get(project);
+  if (!wrapped) {
+    wrapped = { ...project, seriesMeta: derived };
+    derivedMetaWrapCache.set(project, wrapped);
+  }
+  return wrapped;
 }
