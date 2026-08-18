@@ -1,9 +1,12 @@
 // Copyright (c) 2025 hotflow2024
 // Licensed under AGPL-3.0-or-later. See LICENSE for details.
 // Commercial licensing available. See COMMERCIAL_LICENSE.md.
+import crypto from "node:crypto";
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 import {
-  buildStudioWorkflowShardReadme,
+  md5Utf8,
   mergeStudioWorkflowShards,
   parseStudioWorkflowShardManifest,
   planStudioWorkflowShards,
@@ -257,21 +260,16 @@ describe("planStudioWorkflowShards", () => {
   });
 });
 
-describe("buildStudioWorkflowShardReadme", () => {
-  it("documents every shard with its workflow stage, description, count and size", () => {
-    const plan = planStudioWorkflowShards(envelopeOf(buildRichState()));
-    const readme = buildStudioWorkflowShardReadme(plan.manifest, plan.files, new Date("2026-08-18T00:00:00Z"));
-    expect(readme).toContain("# studio-workflow/ —— 工作流数据分片目录");
-    expect(readme).toContain("`manifest.json` 清单为准");
-    expect(readme).toContain("| 文件 | 工作流阶段 | 内容 | 条数 | 大小 |");
-    // 逐文件：阶段映射 + 条数正确
-    expect(readme).toContain("| 小说导入 | 章节正文与事件摘要（每章一文件） | 1 条 |");
-    expect(readme).toContain("| 分镜视频生成 | 分镜表（逐镜提示词/音频绑定/审查状态） | 8 条 |");
-    expect(readme).toContain("| 全局配置 | 原著圣经/系列设定/事件图/记忆/工作流配置等小域合并 |");
-    expect(readme).toContain("共 " + plan.manifest.shards.length + " 个分片");
-    // 每个 manifest 分片都在表中
-    for (const name of plan.manifest.shards) {
-      expect(readme).toContain(`| ${name} |`);
+describe("md5Utf8", () => {
+  it("matches node:crypto md5 for README-scale inputs (中英混排/空串/长文)", () => {
+    const nodeMd5 = (text: string) => crypto.createHash("md5").update(text, "utf8").digest("hex");
+    const template = readFileSync(
+      resolve(__dirname, "../../assets/docs/studio-workflow/README.md"),
+      "utf-8",
+    );
+    const samples = ["", "mystudio", "漫影工作室 studio-workflow 分片", template, template + template];
+    for (const sample of samples) {
+      expect(md5Utf8(sample)).toBe(nodeMd5(sample));
     }
   });
 });

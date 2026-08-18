@@ -3,10 +3,25 @@
 // 与 TS 权威实现 apps/frontend/lib/storage/studio-workflow-shards.ts 保持同一协议
 // （布局/命名/合并语义逐条对齐；由 studio-workflow-store.test.mjs 对拍守卫）。
 // 纯 node 脚本（smoke / 一次性迁移）无法 import TS 模块，故在此镜像最小实现。
+import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 
 export const SHARD_DIR = "studio-workflow";
+
+// 权威模板（仓内 assets/docs/studio-workflow/README.md）；md5 校验守护项目侧副本
+const README_TEMPLATE_PATH = new URL("../../frontend/assets/docs/studio-workflow/README.md", import.meta.url);
+export const README_TEMPLATE = fs.readFileSync(README_TEMPLATE_PATH, "utf-8");
+export const md5 = (text) => crypto.createHash("md5").update(text, "utf-8").digest("hex");
+
+/**
+ * store 布局 v1（08-18-project-store-layout）：<projectDir>/store 存在 = 已迁移，
+ * store 文件在 store/ 下；否则旧平铺。与 TS 权威 project-store-layout.ts 同规则。
+ */
+export function resolveStoreBase(projectDir) {
+  const storeDir = path.join(projectDir, "store");
+  return fs.existsSync(storeDir) ? storeDir : projectDir;
+}
 export const SHARD_LAYOUT = "studio-workflow-shards-v1";
 export const SHARD_LIMIT_BYTES = 512 * 1024;
 
@@ -292,13 +307,14 @@ export function mergeStudioWorkflowShards(shardContents) {
  * 返回 null = 两种布局都不存在；分片缺失/损坏抛错（绝不半合并）。
  */
 export function readStudioWorkflowStore(projectDir) {
-  const manifestPath = path.join(projectDir, SHARD_DIR, "manifest.json");
+  const base = resolveStoreBase(projectDir);
+  const manifestPath = path.join(base, SHARD_DIR, "manifest.json");
   if (fs.existsSync(manifestPath)) {
     const manifest = parseManifest(fs.readFileSync(manifestPath, "utf8"));
     if (!manifest) throw new Error(`studio-workflow manifest 无法解析: ${manifestPath}`);
     const contents = [];
     for (const shardName of manifest.shards) {
-      const shardPath = path.join(projectDir, SHARD_DIR, shardName);
+      const shardPath = path.join(base, SHARD_DIR, shardName);
       if (!fs.existsSync(shardPath)) throw new Error(`studio-workflow 分片缺失: ${shardPath}`);
       contents.push(fs.readFileSync(shardPath, "utf8"));
     }
@@ -310,7 +326,7 @@ export function readStudioWorkflowStore(projectDir) {
       sharded: true,
     };
   }
-  const legacyPath = path.join(projectDir, "studio-workflow-store.json");
+  const legacyPath = path.join(base, "studio-workflow-store.json");
   if (!fs.existsSync(legacyPath)) return null;
   const raw = fs.readFileSync(legacyPath, "utf8");
   const parsed = JSON.parse(raw);
@@ -328,7 +344,7 @@ export function readStudioWorkflowStore(projectDir) {
  */
 export function writeStudioWorkflowStore(projectDir, envelopeRaw) {
   const plan = planStudioWorkflowShards(envelopeRaw);
-  const shardDir = path.join(projectDir, SHARD_DIR);
+  const shardDir = path.join(resolveStoreBase(projectDir), SHARD_DIR);
   fs.mkdirSync(shardDir, { recursive: true });
   const writeAtomic = (targetPath, content) => {
     fs.mkdirSync(path.dirname(targetPath), { recursive: true });
@@ -344,7 +360,7 @@ export function writeStudioWorkflowStore(projectDir, envelopeRaw) {
     writeAtomic(path.join(shardDir, file.name), file.content);
   }
   writeAtomic(path.join(shardDir, "manifest.json"), JSON.stringify(plan.manifest, null, 2));
-  const legacyPath = path.join(projectDir, "studio-workflow-store.json");
+  const legacyPath = path.join(resolveStoreBase(projectDir), "studio-workflow-store.json");
   let legacyBackupPath = null;
   if (fs.existsSync(legacyPath)) {
     legacyBackupPath = `${legacyPath}.bak-sharded-${Date.now()}`;
@@ -367,11 +383,18 @@ export function writeStudioWorkflowStore(projectDir, envelopeRaw) {
   };
   pruneDir(shardDir);
 
-  // 目录自述文档（与 TS 权威实现同步生成；纯展示产物）
+  // 目录自述文档守护：与仓内权威模板逐字一致（md5 校验，漂移即覆盖）
   try {
-    fs.writeFileSync(path.join(shardDir, "README.md"), buildShardReadme(plan), "utf-8");
+    const readmePath = path.join(shardDir, "README.md");
+    const current = fs.existsSync(readmePath) ? fs.readFileSync(readmePath, "utf-8") : null;
+    if (current !== README_TEMPLATE) {
+      if (current !== null) {
+        console.warn(`[studio-workflow] README.md 与权威模板不一致(md5: 现场=${md5(current)} 模板=${md5(README_TEMPLATE)})，覆盖修复`);
+      }
+      fs.writeFileSync(readmePath, README_TEMPLATE, "utf-8");
+    }
   } catch {
-    // best-effort
+    // best-effort：下次写盘再修
   }
 
   return { shardNames: plan.manifest.shards, legacyBackupPath };
@@ -379,9 +402,9 @@ export function writeStudioWorkflowStore(projectDir, envelopeRaw) {
 
 /** smoke 克隆用：把源项目的分片 store 目录原样拷到目标项目目录。 */
 export function copyStudioWorkflowStoreDir(sourceProjectDir, targetProjectDir) {
-  const sourceShardDir = path.join(sourceProjectDir, SHARD_DIR);
+  const sourceShardDir = path.join(resolveStoreBase(sourceProjectDir), SHARD_DIR);
   if (!fs.existsSync(path.join(sourceShardDir, "manifest.json"))) return false;
-  const targetShardDir = path.join(targetProjectDir, SHARD_DIR);
+  const targetShardDir = path.join(resolveStoreBase(targetProjectDir), SHARD_DIR);
   const copyJsonTree = (sourceDir, targetDir) => {
     fs.mkdirSync(targetDir, { recursive: true });
     for (const entry of fs.readdirSync(sourceDir, { withFileTypes: true })) {
@@ -393,68 +416,4 @@ export function copyStudioWorkflowStoreDir(sourceProjectDir, targetProjectDir) {
   };
   copyJsonTree(sourceShardDir, targetShardDir);
   return true;
-}
-
-// ==================== 目录自述文档（README.md，镜像 TS 权威实现） ====================
-
-const SLUG_STAGE_CATALOG = {
-  "novel-chapters": { stage: "小说导入", desc: "章节正文与事件摘要（每章一文件）" },
-  "entity-extractions": { stage: "小说导入", desc: "实体提取结果（人物/地点/物品）" },
-  "script-plans": { stage: "剧本生产", desc: "剧本计划（场次与情节结构）" },
-  "agent-work-data": { stage: "剧本生产", desc: "AI 阶段产物留档（事件分析/故事骨架/改编策略）" },
-  "assets-versions": { stage: "剧本资产管理", desc: "连续性资产版本（角色/场景/道具基准图与审批链）" },
-  storyboards: { stage: "分镜视频生成", desc: "分镜表（逐镜提示词/音频绑定/审查状态）" },
-  "media-tasks": { stage: "分镜视频生成", desc: "生图/TTS/视频任务台账" },
-  "image-workflows": { stage: "图像节点图", desc: "图像生成工作流（分镜图/资产图）" },
-  "video-candidates": { stage: "视频工作台", desc: "候选视频记录" },
-  "production-tracks": { stage: "视频工作台", desc: "制片轨道（章节成片进度）" },
-  materials: { stage: "素材库", desc: "导入素材索引" },
-  "agent-runs": { stage: "全局", desc: "Agent 运行记录" },
-  core: { stage: "全局配置", desc: "原著圣经/系列设定/事件图/记忆/工作流配置等小域合并" },
-};
-
-function describeShardFile(fileName) {
-  const base = fileName.split("/").pop() ?? fileName;
-  const slug = Object.keys(SLUG_STAGE_CATALOG)
-    .filter((candidate) => base === candidate || base.startsWith(`${candidate}-`))
-    .sort((left, right) => right.length - left.length)[0];
-  return slug ? SLUG_STAGE_CATALOG[slug] : { stage: "其他", desc: "未登记域（新增数据域）" };
-}
-
-function shardItemSummary(content) {
-  try {
-    const parsed = JSON.parse(content);
-    const state = parsed.state ?? {};
-    const entries = Object.entries(state);
-    if (entries.length === 0) return "—";
-    return entries.map(([key, value]) => (Array.isArray(value) ? `${value.length} 条` : key)).join(" / ");
-  } catch {
-    return "—";
-  }
-}
-
-export function buildShardReadme(plan, generatedAt = new Date()) {
-  const lines = [
-    "# studio-workflow/ —— 工作流数据分片目录",
-    "",
-    "> 本文件由漫影工作室在每次保存后自动生成，请勿手改；删除后下次保存会自动重建。",
-    "",
-    "这是当前项目的工作流主数据：小说章节、剧本计划、分镜、任务等按「一章一文件夹」分片存放，",
-    "每个 JSON ≤512KB。**当前哪些文件有效以 `manifest.json` 清单为准**；文件名尾部的 8 位十六进制",
-    "字符是内容指纹（版本标记，用于保存中途断电时保住上一代完整数据），人不需要读它。",
-    "",
-    "| 文件 | 工作流阶段 | 内容 | 条数 | 大小 |",
-    "|---|---|---|---|---|",
-  ];
-  for (const name of plan.manifest.shards) {
-    const file = plan.files.find((candidate) => candidate.name === name);
-    const info = describeShardFile(name);
-    const count = file ? shardItemSummary(file.content) : "—";
-    const kb = file ? (utf8Bytes(file.content) / 1024).toFixed(1) : "?";
-    lines.push(`| ${name} | ${info.stage} | ${info.desc} | ${count} | ${kb}KB |`);
-  }
-  lines.push("");
-  lines.push(`共 ${plan.manifest.shards.length} 个分片 · store 版本 v${plan.manifest.version} · 生成于 ${generatedAt.toISOString()}`);
-  lines.push("");
-  return lines.join("\n");
 }

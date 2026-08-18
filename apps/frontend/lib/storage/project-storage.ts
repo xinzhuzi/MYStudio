@@ -13,12 +13,14 @@ import { fileStorage } from './indexed-db-storage';
 import { useProjectStore } from '@/stores/project/project-store';
 import { useAppSettingsStore } from '@/stores/app/app-settings-store';
 import {
-  buildStudioWorkflowShardReadme,
+  md5Utf8,
   mergeStudioWorkflowShards,
   parseStudioWorkflowShardManifest,
   planStudioWorkflowShards,
   STUDIO_WORKFLOW_SHARD_DIR,
 } from './studio-workflow-shards';
+// 权威模板原样打进渲染包（?raw 内联字符串）；与仓内 assets/docs 同源
+import readmeTemplate from '@/assets/docs/studio-workflow/README.md?raw';
 
 // ==================== Helpers ====================
 
@@ -359,18 +361,8 @@ export function createStudioWorkflowShardedStorage(storeName: string): StateStor
           console.warn('[StudioWorkflowShardedStorage] 孤儿分片清理失败（不影响读取）:', error);
         }
 
-        // 目录自述文档：按当前分片清单生成 README.md（纯展示产物，失败不影响数据链路）
-        try {
-          const projectFilesBridge = typeof window !== 'undefined'
-            ? (window as { projectFiles?: { writeText?: (key: string, value: string) => Promise<unknown> } }).projectFiles
-            : undefined;
-          await projectFilesBridge?.writeText?.(
-            `_p/${pid}/${STUDIO_WORKFLOW_SHARD_DIR}/README.md`,
-            buildStudioWorkflowShardReadme(plan.manifest, plan.files),
-          );
-        } catch (error) {
-          console.warn('[StudioWorkflowShardedStorage] README.md 生成失败（不影响数据）:', error);
-        }
+        // 目录自述文档（权威模板逐字拷贝）：每次保存 md5 校验，缺失/漂移即自动覆盖修复
+        await ensureStudioWorkflowReadme(pid);
       });
     },
 
@@ -604,4 +596,39 @@ export function createSplitStorage<T = unknown>(
       // Note: shared data is NOT removed when a single project's data is removed
     },
   };
+}
+
+/**
+ * README.md 守护：项目 studio-workflow/ 下的自述文档必须与仓内权威模板逐字一致。
+ * 每次分片保存后校验 md5——缺失或内容漂移（手改/损坏）→ 用模板覆盖修复。
+ */
+async function ensureStudioWorkflowReadme(pid: string): Promise<void> {
+  try {
+    const projectFilesBridge = typeof window !== 'undefined'
+      ? (window as {
+          projectFiles?: {
+            writeText?: (key: string, value: string) => Promise<unknown>;
+            readText?: (payload: { projectId: string; relativePath: string }) =>
+              Promise<{ success?: boolean; text?: string; error?: string } | string | null>;
+          };
+        }).projectFiles
+      : undefined;
+    if (!projectFilesBridge?.writeText) return;
+    const relativePath = `${STUDIO_WORKFLOW_SHARD_DIR}/README.md`;
+    const existing = await projectFilesBridge.readText?.({ projectId: pid, relativePath });
+    const existingText = typeof existing === 'string'
+      ? existing
+      : existing?.success && typeof existing.text === 'string'
+        ? existing.text
+        : null;
+    if (existingText !== null && existingText === readmeTemplate) return;
+    if (existingText !== null) {
+      console.warn(
+        `[StudioWorkflowShardedStorage] README.md 与权威模板不一致(md5: 现场=${md5Utf8(existingText)} 模板=${md5Utf8(readmeTemplate)})，自动覆盖修复`
+      );
+    }
+    await projectFilesBridge.writeText(`_p/${pid}/${relativePath}`, readmeTemplate);
+  } catch (error) {
+    console.warn('[StudioWorkflowShardedStorage] README.md 校验/修复失败（不影响数据）:', error);
+  }
 }

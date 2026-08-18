@@ -12,10 +12,11 @@ import { afterAll, describe, it } from "vitest";
 import {
   planStudioWorkflowShards as planTs,
   mergeStudioWorkflowShards as mergeTs,
-  buildStudioWorkflowShardReadme as readmeTs,
+  md5Utf8,
 } from "../../frontend/lib/storage/studio-workflow-shards";
 import {
-  buildShardReadme,
+  README_TEMPLATE,
+  md5,
   mergeStudioWorkflowShards,
   planStudioWorkflowShards,
   readStudioWorkflowStore,
@@ -106,20 +107,59 @@ describe("studio-workflow-store mjs twin parity", () => {
     }
   });
 
-  it("builds the same README as the TS implementation and writes README.md to disk", () => {
-    const value = JSON.stringify({ state: buildState(), version: 10 });
-    const tsPlan = planTs(value, { limitBytes: 2048 });
-    const jsPlan = planStudioWorkflowShards(value, { limitBytes: 2048 });
-    const at = new Date("2026-08-18T00:00:00Z");
-    assert.equal(buildShardReadme(jsPlan, at), readmeTs(tsPlan.manifest, tsPlan.files, at));
-
+  it("store 布局 v1:store/ 目录存在时读写都落在 store/studio-workflow(与旧布局等价)", () => {
     const projectDir = makeProjectDir();
+    fs.mkdirSync(path.join(projectDir, "store"), { recursive: true });
+    const value = JSON.stringify({ state: buildState(), version: 7 });
+
+    const writeResult = writeStudioWorkflowStore(projectDir, value);
+    const shardDir = path.join(projectDir, "store", "studio-workflow");
+    assert.ok(fs.existsSync(path.join(shardDir, "manifest.json")), "分片应写入 store/studio-workflow/");
+    assert.ok(!fs.existsSync(path.join(projectDir, "studio-workflow")), "不应在旧位置新建分片目录");
+
+    const read = readStudioWorkflowStore(projectDir);
+    assert.equal(read.sharded, true);
+    assert.deepEqual(read.state, buildState());
+    assert.equal(read.version, 7);
+    assert.ok(writeResult.legacyBackupPath === null, "无 legacy 单文件则无 bak");
+  });
+
+  it("store 布局 v1:旧布局写入后模拟应用迁移,store/ 下仍可完整读取", () => {
+    const projectDir = makeProjectDir();
+    const value = JSON.stringify({ state: buildState(), version: 3 });
+    writeStudioWorkflowStore(projectDir, value); // 旧布局:<root>/studio-workflow/
+
+    // 模拟应用侧迁移:整个分片目录搬进 store/
+    fs.mkdirSync(path.join(projectDir, "store"), { recursive: true });
+    fs.renameSync(path.join(projectDir, "studio-workflow"), path.join(projectDir, "store", "studio-workflow"));
+
+    const read = readStudioWorkflowStore(projectDir);
+    assert.equal(read.sharded, true);
+    assert.deepEqual(read.state, buildState());
+    assert.equal(read.version, 3);
+  });
+
+  it("writes README.md as a verbatim copy of the authoritative template (md5-checked) and repairs tampering", () => {
+    const projectDir = makeProjectDir();
+    const value = JSON.stringify({ state: buildState(), version: 10 });
     writeStudioWorkflowStore(projectDir, value);
     const readmePath = path.join(projectDir, "studio-workflow", "README.md");
     assert.ok(fs.existsSync(readmePath), "README.md 应随写盘生成");
-    const readme = fs.readFileSync(readmePath, "utf8");
-    assert.ok(readme.includes("工作流阶段"));
-    assert.ok(readme.includes("分镜视频生成"));
+    const written = fs.readFileSync(readmePath, "utf-8");
+    assert.equal(written, README_TEMPLATE);
+    assert.equal(md5(written), md5(README_TEMPLATE));
+    // TS 侧纯 md5 与孪生 node:crypto 一致（同一模板）
+    assert.equal(md5Utf8(written), md5(written));
+
+    // 篡改 → 下次写盘自动修复
+    fs.writeFileSync(readmePath, "被人手改过的内容", "utf-8");
+    writeStudioWorkflowStore(projectDir, value);
+    assert.equal(fs.readFileSync(readmePath, "utf-8"), README_TEMPLATE);
+
+    // 删除 → 下次写盘自动补齐
+    fs.rmSync(readmePath);
+    writeStudioWorkflowStore(projectDir, value);
+    assert.equal(fs.readFileSync(readmePath, "utf-8"), README_TEMPLATE);
   });
 
   it("writeStudioWorkflowStore cleans previous-generation orphans", () => {

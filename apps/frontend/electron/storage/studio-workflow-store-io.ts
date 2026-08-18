@@ -1,7 +1,9 @@
+import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
+// 权威模板原样进包（vite raw 内联）；CLI（vite-node）与主进程（rollup）均支持
+import readmeTemplate from "../../assets/docs/studio-workflow/README.md?raw";
 import {
-  buildStudioWorkflowShardReadme,
   isSafeShardFileName,
   STUDIO_WORKFLOW_SHARD_DIR,
   mergeStudioWorkflowShards,
@@ -9,6 +11,7 @@ import {
   planStudioWorkflowShards,
 } from "../../lib/storage/studio-workflow-shards";
 import { resolveDataFilePath, resolveProjectRootPath } from "./storage-paths";
+import { storeLayoutBase } from "./project-store-layout";
 
 /**
  * studio-workflow store 的分片感知读写器（纯 fs，无 electron 依赖——主进程与
@@ -32,7 +35,8 @@ export interface StudioWorkflowStoreEnvelope {
 }
 
 function shardDirFor(dataRoot: string, projectId: string): string {
-  return path.join(resolveProjectRootPath(dataRoot, projectId), STUDIO_WORKFLOW_SHARD_DIR);
+  // store 布局 v1：已迁移项目分片目录在 <root>/store/studio-workflow（08-18-project-store-layout）
+  return path.join(storeLayoutBase(resolveProjectRootPath(dataRoot, projectId)), STUDIO_WORKFLOW_SHARD_DIR);
 }
 
 function legacyStorePathFor(dataRoot: string, projectId: string): string {
@@ -156,15 +160,20 @@ export function writeStudioWorkflowStore(
   };
   if (fs.existsSync(shardDir)) pruneDir(shardDir);
 
-  // 目录自述文档（纯展示产物，失败不影响数据链路）
+  // 目录自述文档守护：与仓内权威模板逐字一致——缺失/漂移（md5 不符）即覆盖修复
   try {
-    fs.writeFileSync(
-      path.join(shardDir, "README.md"),
-      buildStudioWorkflowShardReadme(plan.manifest, plan.files),
-      "utf-8",
-    );
+    const readmePath = path.join(shardDir, "README.md");
+    const current = fs.existsSync(readmePath) ? fs.readFileSync(readmePath, "utf-8") : null;
+    if (current !== readmeTemplate) {
+      if (current !== null) {
+        console.warn(
+          `[studio-workflow] README.md 与权威模板不一致(md5: 现场=${crypto.createHash("md5").update(current).digest("hex")} 模板=${crypto.createHash("md5").update(readmeTemplate).digest("hex")})，覆盖修复`
+        );
+      }
+      fs.writeFileSync(readmePath, readmeTemplate, "utf-8");
+    }
   } catch {
-    // best-effort
+    // best-effort：下次写盘再修
   }
 
   return {

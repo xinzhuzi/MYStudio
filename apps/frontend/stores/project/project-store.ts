@@ -1,6 +1,8 @@
 // Copyright (c) 2025 hotflow2024
 // Licensed under AGPL-3.0-or-later. See LICENSE for details.
 // Commercial licensing available. See COMMERCIAL_LICENSE.md.
+// studio-workflow 目录自述模板（权威源 assets/docs/studio-workflow/README.md）
+import readmeTemplate from '@/assets/docs/studio-workflow/README.md?raw';
 import { create } from "zustand";
 import { persist, createJSONStorage, type StateStorage } from "zustand/middleware";
 import { fileStorage } from "@/lib/storage/indexed-db-storage";
@@ -102,6 +104,18 @@ export const useProjectStore = create<ProjectStore>()(
           // 不在这里设置 activeProjectId —— 由 switchProject() 统一处理
           // 避免 switchProject 因 ID 已相同而跳过 rehydration
         }));
+        // 创建项目即预写 studio-workflow/README.md（权威模板；后续每次分片保存 md5 校验自愈）
+        try {
+          const projectFilesBridge = typeof window !== 'undefined'
+            ? (window as { projectFiles?: { writeText?: (key: string, value: string) => Promise<unknown> } }).projectFiles
+            : undefined;
+          projectFilesBridge?.writeText?.(
+            `_p/${newProject.id}/studio-workflow/README.md`,
+            readmeTemplate,
+          )?.catch?.(() => undefined);
+        } catch {
+          // best-effort：缺失由分片保存钩子补写
+        }
         return newProject;
       },
 
