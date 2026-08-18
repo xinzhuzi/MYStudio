@@ -75,7 +75,7 @@ import { registerRemotionPreviewIpcHandlers } from '../ipc/studio/remotion-previ
 import { registerRemotionShotIpcHandlers } from '../ipc/studio/remotion-shot-ipc'
 import { registerRemotionQueueIpcHandlers } from '../ipc/studio/remotion-queue-ipc'
 import { registerRemotionChapterManifestIpcHandlers } from '../ipc/studio/remotion-chapter-manifest-ipc'
-import { registerRemotionStudioIpcHandlers, REMOTION_STUDIO_EDITING_UPDATED_EVENT } from '../ipc/studio/remotion-studio-ipc'
+import { broadcastRemotionStudioEditingUpdated, registerRemotionStudioIpcHandlers } from '../ipc/studio/remotion-studio-ipc'
 import { RemotionShotRenderer } from '@rendering/plugins/remotion/renderer/remotion-shot-renderer'
 import type { CinematicCameraPreset } from '@rendering/plugins/remotion/composition/composition-props'
 import { RemotionChapterRenderer } from '@rendering/plugins/remotion/renderer/remotion-chapter-renderer'
@@ -98,6 +98,8 @@ import { createUpscaleRuntimeController } from '@rendering/plugins/upscale/upsca
 import { registerUpscaleIpcHandlers } from '../ipc/studio/upscale-ipc'
 import { createAudioGenRuntimeController } from '@rendering/plugins/audio_gen/audio-gen-runtime-controller'
 import { registerAudioGenIpcHandlers } from '../ipc/studio/audio-gen-ipc'
+import { createSfxGenRuntimeController } from '@rendering/plugins/sfx_gen/sfx-gen-runtime-controller'
+import { registerSfxGenIpcHandlers } from '../ipc/studio/sfx-gen-ipc'
 import { createVideoWorkflowRuntimeManager } from '@rendering/plugins/video-workflow/video-workflow-runtime-manager'
 import { selectSharedVideoToolchain } from '@rendering/plugins/video-workflow/video-workflow-runtime'
 import type {
@@ -974,6 +976,18 @@ const audioGenIpc = registerAudioGenIpcHandlers({
   getExportDir: () => path.join(app.getPath('userData'), 'exports'),
 })
 
+// Local sfx generation sidecar (08-19-local-sfx-generation P1) — seed-deterministic
+// short one-shots for the sfx binding role; explicit-download policy, exports dir first.
+const sfxGenRuntimeController = createSfxGenRuntimeController({
+  storageBasePath: getStorageBasePath,
+  backendRoot: videoWorkflowBackendRoot,
+  modelCacheDir: () => ttsRuntimeController.getModelCacheDir(),
+})
+const sfxGenIpc = registerSfxGenIpcHandlers({
+  controller: sfxGenRuntimeController,
+  getExportDir: () => path.join(app.getPath('userData'), 'exports'),
+})
+
 const remotionShotRenderer = new RemotionShotRenderer({
   workspaceRoot: getDataDir(),
   workspaceRootForProject: (projectId) => path.join(projectRootFor(projectId), "remotion"),
@@ -1401,15 +1415,13 @@ async function persistStudioEditingRevision(project: import('../../types/editing
     const temporaryPath = `${editingPath}.${process.pid}.tmp`
     await fs.promises.writeFile(temporaryPath, `${JSON.stringify(raw, null, 2)}\n`, 'utf8')
     await fs.promises.rename(temporaryPath, editingPath)
-    for (const window of BrowserWindow.getAllWindows()) {
-      if (!window.isDestroyed()) {
-        window.webContents.send(REMOTION_STUDIO_EDITING_UPDATED_EVENT, {
-          projectId: project.projectId,
-          chapterId: project.episodeId,
-          revision: project.revision,
-        })
-      }
-    }
+    broadcastRemotionStudioEditingUpdated(BrowserWindow.getAllWindows(), {
+      projectId: project.projectId,
+      chapterId: project.episodeId,
+      revision: project.revision,
+    }, (error) => {
+      console.error('[remotion-studio] editing revision notification failed', error)
+    })
   })
 }
 const remotionStudioIpc = registerRemotionStudioIpcHandlers({
@@ -1494,6 +1506,7 @@ disposeRemotionRuntime = async () => {
   imageGenIpc.dispose()
   upscaleIpc.dispose()
   audioGenIpc.dispose()
+  sfxGenIpc.dispose()
   remotionRuntime.dispose()
 }
 

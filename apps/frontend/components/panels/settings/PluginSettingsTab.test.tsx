@@ -86,6 +86,9 @@ vi.mock("./UpscaleSettingsSection", () => ({
 vi.mock("./LocalAudioSettingsSection", () => ({
   LocalAudioSettingsSection: ({ embedded }: { embedded?: boolean }) => <div data-testid="audio-gen-section">{String(embedded)}</div>,
 }));
+vi.mock("./SfxGenSettingsSection", () => ({
+  SfxGenSettingsSection: ({ embedded }: { embedded?: boolean }) => <div data-testid="sfx-gen-section">{String(embedded)}</div>,
+}));
 vi.mock("@/components/panels/tts/LocalTtsPanel", () => ({
   LocalTtsPanel: ({ embedded }: { embedded?: boolean }) => <div data-testid="tts-section">{String(embedded)}</div>,
 }));
@@ -119,12 +122,14 @@ describe("PluginSettingsTab", () => {
       "本地图片生成（免费）",
       "图片超分（1K → 4K）",
       "本地音乐生成",
+      "本地音效生成",
       "TTS 运行时与模型",
       "视频工作流插件",
     ]);
     expect(screen.getByTestId("python-section").textContent).toBe("true");
     expect(screen.getByTestId("image-gen-section").textContent).toBe("true");
     expect(screen.getByTestId("upscale-section").textContent).toBe("true");
+    expect(screen.getByTestId("sfx-gen-section").textContent).toBe("true");
     expect(await screen.findByTestId("tts-section")).toBeTruthy();
     expect(screen.getByTestId("video-section").textContent).toBe("true");
   });
@@ -133,7 +138,7 @@ describe("PluginSettingsTab", () => {
     window.localStorage.removeItem("mystudio.settings.plugins.collapsedSections");
     const { unmount } = render(<PluginSettingsTab />);
 
-    // 默认全折叠：7 个区块标题可见，内容全部不在 DOM
+    // 默认全折叠：8 个区块标题可见，内容全部不在 DOM
     const headings = screen.getAllByRole("heading").map((heading) => heading.textContent);
     expect(headings).toEqual([
       "本地配置",
@@ -142,11 +147,13 @@ describe("PluginSettingsTab", () => {
       "本地图片生成（免费）",
       "图片超分（1K → 4K）",
       "本地音乐生成",
+      "本地音效生成",
       "TTS 运行时与模型",
       "视频工作流插件",
     ]);
     expect(screen.queryByTestId("python-section")).toBeNull();
     expect(screen.queryByTestId("depth-section")).toBeNull();
+    expect(screen.queryByTestId("sfx-gen-section")).toBeNull();
     expect(screen.queryByTestId("video-section")).toBeNull();
 
     // 展开 Python 区：内容出现(锚定开头,避免匹配到描述里引用「Python 运行环境」的其他区块)

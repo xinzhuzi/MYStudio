@@ -15,6 +15,7 @@ import { DepthSettingsSection } from "./DepthSettingsSection";
 import { LocalImageSettingsSection } from "./LocalImageSettingsSection";
 import { UpscaleSettingsSection } from "./UpscaleSettingsSection";
 import { LocalAudioSettingsSection } from "./LocalAudioSettingsSection";
+import { SfxGenSettingsSection } from "./SfxGenSettingsSection";
 import { RenderingSettingsTab } from "./RenderingSettingsTab";
 
 const LocalTtsPanelLazy = lazy(() => import("@/components/panels/tts/LocalTtsPanel").then((module) => ({
@@ -24,7 +25,7 @@ const LocalTtsPanelLazy = lazy(() => import("@/components/panels/tts/LocalTtsPan
 /** 大区块折叠记忆键：值为被折叠区块 id 数组；无记忆时默认全折叠（08-18 用户拍板）。 */
 const SECTION_STORAGE_KEY = "mystudio.settings.plugins.collapsedSections";
 
-const SECTION_IDS = ["python", "depth", "image-gen", "upscale", "audio-gen", "tts", "video"] as const;
+const SECTION_IDS = ["python", "depth", "image-gen", "upscale", "audio-gen", "sfx-gen", "tts", "video"] as const;
 
 type SectionId = (typeof SECTION_IDS)[number];
 
@@ -246,6 +247,23 @@ export function PluginSettingsTab() {
             </CollapsibleTrigger>
             <CollapsibleContent className="border-t border-border">
               <LocalAudioSettingsSection embedded />
+            </CollapsibleContent>
+          </Collapsible>
+        </section>
+
+        <section aria-labelledby="plugin-sfx-gen-heading" className="rounded-xl border border-border bg-card/30">
+          <Collapsible open={!collapsedSections.has("sfx-gen")} onOpenChange={() => toggleSectionCollapsed("sfx-gen")}>
+            <CollapsibleTrigger className="w-full text-left">
+              <div className="px-5 py-4 flex items-start justify-between gap-3">
+                <div className="space-y-2">
+                  <h4 id="plugin-sfx-gen-heading" className="text-base font-semibold text-foreground">本地音效生成</h4>
+                  <p className="text-xs text-muted-foreground">短音效 one-shot 本地生成（≤5 秒，同提示词+同种子=同文件）；与本地音乐生成共用模型缓存，供 sfx 绑定选用；模型仅在点击下载时获取。</p>
+                </div>
+                {sectionChevron("sfx-gen")}
+              </div>
+            </CollapsibleTrigger>
+            <CollapsibleContent className="border-t border-border">
+              <SfxGenSettingsSection embedded />
             </CollapsibleContent>
           </Collapsible>
         </section>

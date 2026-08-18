@@ -123,6 +123,11 @@ self-media:list-providers
 self-media:list-tasks
 self-media:poll-task
 self-media:start-login
+sfx-gen-runtime-download-model
+sfx-gen-runtime-generate
+sfx-gen-runtime-scan-model
+sfx-gen-runtime-setup
+sfx-gen-runtime-status
 source-memory-build
 source-memory-commit-build
 source-memory-rebuild-index

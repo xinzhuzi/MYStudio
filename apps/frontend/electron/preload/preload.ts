@@ -788,6 +788,18 @@ contextBridge.exposeInMainWorld('audioGenRuntime', {
     ipcRenderer.invoke('audio-gen-runtime-generate', payload),
 })
 
+// Local sfx generation runtime API (08-19-local-sfx-generation) — seed-deterministic
+// short one-shots, explicit downloads only.
+contextBridge.exposeInMainWorld('sfxGenRuntime', {
+  status: (): Promise<unknown> => ipcRenderer.invoke('sfx-gen-runtime-status'),
+  setup: (): Promise<unknown> => ipcRenderer.invoke('sfx-gen-runtime-setup'),
+  scanModel: (): Promise<{ models: unknown[] }> => ipcRenderer.invoke('sfx-gen-runtime-scan-model'),
+  downloadModel: (model: string): Promise<{ accepted: boolean; message: string }> =>
+    ipcRenderer.invoke('sfx-gen-runtime-download-model', { model }),
+  generate: (payload: { prompt: string; seed?: number; seconds?: number; model?: string; outputDir: string }): Promise<unknown> =>
+    ipcRenderer.invoke('sfx-gen-runtime-generate', payload),
+})
+
 // Artifact Inventory API - read-only project/chapter scan
 contextBridge.exposeInMainWorld('artifactInventory', {
   scan: (projectId: string, chapterId?: string) =>
