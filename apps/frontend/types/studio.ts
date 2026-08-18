@@ -393,7 +393,7 @@ export interface StoryboardItem extends StudioStaleEvidence, StudioSourceIdentit
    * 一键成片前由 selectShotFxMotions 刷新；App 章节渲染与 CLI 共享读取。
    * addons 为 AI 显式配置的特效插件（空数组=显式无特效）；缺省=运镜配方默认特效。
    */
-  shotFx?: { motion: ShotFxMotionId; addons?: ShotFxAddonId[]; source: "ai" | "heuristic" };
+  shotFx?: { motion: ShotFxMotionId; addons?: ShotFxAddonId[]; grade?: { lutId: string; blend: number }; source: "ai" | "heuristic" };
 }
 
 export interface ProductionTrack extends StudioStaleEvidence {

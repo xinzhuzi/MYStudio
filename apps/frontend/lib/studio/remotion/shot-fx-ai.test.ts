@@ -36,6 +36,20 @@ describe("parseShotFxMotionResponse", () => {
     expect(parsed.addons).toEqual({ s1: ["shake-hard", "chroma"], s2: [] });
   });
 
+  it("grade 解析：合法 LUT 收录+blend 钳制；闭集外/缺省丢弃（08-18-haldclut-grade）", () => {
+    const parsed = parseShotFxMotionResponse(
+      JSON.stringify({
+        shots: [
+          { shotId: "s1", motion: "push-in", grade: { lutId: "film-teal-orange", blend: 1.7 } },
+          { shotId: "s2", motion: "drift", grade: { lutId: "film-not-exist", blend: 0.5 } },
+          { shotId: "s3", motion: "hold" },
+        ],
+      }),
+      shotIds,
+    );
+    expect(parsed.grades).toEqual({ s1: { lutId: "film-teal-orange", blend: 1 } });
+  });
+
   it("兼容旧 motions schema（无 fx 字段 → 不产 addons 条目）", () => {
     const parsed = parseShotFxMotionResponse(
       '{"motions": [{"shotId": "s1", "motion": "drift"}]}',
@@ -76,7 +90,7 @@ describe("heuristicShotFxMotions", () => {
 describe("selectShotFxMotions", () => {
   it("空分镜返回 empty", async () => {
     const result = await selectShotFxMotions([]);
-    expect(result).toEqual({ motions: {}, addons: {}, source: "empty" });
+    expect(result).toEqual({ motions: {}, addons: {}, grades: {}, source: "empty" });
   });
 
   it("AI 成功时返回 ai 来源的运镜+插件组合", async () => {

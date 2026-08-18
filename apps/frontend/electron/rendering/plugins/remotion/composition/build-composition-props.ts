@@ -36,7 +36,7 @@ import {
 } from "./timing";
 import { resolveSubtitleAuthority } from "@/lib/studio/video-workflow/subtitle-authority";
 import { DEFAULT_SUBTITLE_FONT_ID } from "@/lib/studio/remotion/subtitle-fonts";
-import { isCinematicLutId } from "./cinematic-luts";
+import { isCinematicLutId } from "@/lib/studio/remotion/cinematic-luts";
 
 const CAPABILITY_URL = /^http:\/\/127\.0\.0\.1:\d+\/[a-f0-9]{64}\/[A-Za-z0-9._~-]+$/;
 const TEXT_HYPERFRAMES_TEMPLATES = new Set(["title-card", "kinetic-caption"]);

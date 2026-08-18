@@ -20,6 +20,7 @@ import {
   type ShotFxAddonId,
   type ShotFxMotionId,
 } from "./shot-fx-decisions";
+import { CINEMATIC_LUTS, isCinematicLutId } from "./cinematic-luts";
 
 export interface ShotFxAiShotInput {
   shotId: string;
@@ -53,9 +54,16 @@ const ADDON_GUIDE: ReadonlyArray<{ id: ShotFxAddonId; when: string }> = [
   { id: "chroma", when: "RGB 色差分离——能量冲击、现实扭曲瞬间" },
 ];
 
+/** 成片调色 LUT 指南（08-18-haldclut-grade AI 选型；闭集=isCinematicLutId）。 */
+const LUT_GUIDE: ReadonlyArray<{ id: string; when: string }> = CINEMATIC_LUTS.map((l) => ({
+  id: l.lutId,
+  when: l.description,
+}));
+
 function buildPrompt(shots: ShotFxAiShotInput[]): string {
   const motionGuide = MOTION_GUIDE.map((g) => `- ${g.id}: ${g.when}`).join("\n");
   const addonGuide = ADDON_GUIDE.map((g) => `- ${g.id}: ${g.when}`).join("\n");
+  const lutGuide = LUT_GUIDE.map((g) => `- ${g.id}: ${g.when}`).join("\n");
   const list = shots
     .map((s, i) => `${i + 1}. shotId=${s.shotId}\n   画面: ${s.description || "(无)"}\n   对白: ${s.dialogue || "(无)"}`)
     .join("\n");
@@ -66,6 +74,9 @@ ${motionGuide}
 
 特效插件（每镜可选 0~2 个组合；不选则用该运镜的默认特效，显式给空数组则无特效）：
 ${addonGuide}
+
+成片调色 LUT（每镜可选一个或省略=不调色；blend 0.2~0.9 克制强度；只给氛围强烈的少数镜配，其余省略防全片刷色）：
+${lutGuide}
 
 分镜列表：
 ${list}
@@ -83,7 +94,11 @@ ${list}
 export function parseShotFxMotionResponse(
   raw: string,
   shotIds: Set<string>,
-): { motions: Record<string, ShotFxMotionId>; addons: Record<string, ShotFxAddonId[]> } {
+): {
+  motions: Record<string, ShotFxMotionId>;
+  addons: Record<string, ShotFxAddonId[]>;
+  grades: Record<string, { lutId: string; blend: number }>;
+} {
   const cleaned = raw.replace(/```json\n?|\n?```/g, "").trim();
   const start = cleaned.indexOf("{");
   const end = cleaned.lastIndexOf("}");
@@ -95,6 +110,7 @@ export function parseShotFxMotionResponse(
   const entries = Array.isArray(parsed.shots) ? parsed.shots : parsed.motions;
   const motions: Record<string, ShotFxMotionId> = {};
   const addons: Record<string, ShotFxAddonId[]> = {};
+  const grades: Record<string, { lutId: string; blend: number }> = {};
   if (Array.isArray(entries)) {
     for (const entry of entries) {
       if (!entry || typeof entry !== "object") continue;
@@ -104,6 +120,14 @@ export function parseShotFxMotionResponse(
         continue;
       }
       motions[shotId] = motion;
+      const grade = (entry as { grade?: { lutId?: unknown; blend?: unknown } }).grade;
+      if (grade && typeof grade.lutId === "string" && isCinematicLutId(grade.lutId)) {
+        const blendRaw = Number(grade.blend ?? 1);
+        grades[shotId] = {
+          lutId: grade.lutId,
+          blend: Number.isFinite(blendRaw) ? Math.min(1, Math.max(0, blendRaw)) : 1,
+        };
+      }
       const fx = (entry as { fx?: unknown }).fx;
       if (Array.isArray(fx)) {
         // 显式插件配置（可为空数组=无特效）；同种效果取首个档位。
@@ -120,7 +144,7 @@ export function parseShotFxMotionResponse(
       }
     }
   }
-  return { motions, addons };
+  return { motions, addons, grades };
 }
 
 /** 关键词启发式兜底（无 AI 时的确定性选择，与渲染侧规则运镜共用单源）。 */
@@ -147,10 +171,11 @@ export async function selectShotFxMotions(
 ): Promise<{
   motions: Record<string, ShotFxMotionId>;
   addons: Record<string, ShotFxAddonId[]>;
+  grades: Record<string, { lutId: string; blend: number }>;
   source: "ai" | "heuristic" | "empty";
 }> {
   if (shots.length === 0) {
-    return { motions: {}, addons: {}, source: "empty" };
+    return { motions: {}, addons: {}, grades: {}, source: "empty" };
   }
   const shotIds = new Set(shots.map((s) => s.shotId));
   try {
@@ -168,6 +193,7 @@ export async function selectShotFxMotions(
     if (Object.keys(parsed.motions).length === 0) throw new Error("AI 未返回有效镜头表现");
     return { ...parsed, source: "ai" };
   } catch {
-    return { ...heuristicShotFxMotions(shots), addons: {}, source: "heuristic" };
+    // 启发式兜底不配 grade（AI 选型是增强而非必选；默认 LUT 刷满全片会破坏视觉基线）。
+    return { ...heuristicShotFxMotions(shots), addons: {}, grades: {}, source: "heuristic" };
   }
 }

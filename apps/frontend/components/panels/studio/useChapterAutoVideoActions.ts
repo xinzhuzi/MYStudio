@@ -396,8 +396,14 @@ export function useChapterAutoVideoActions({
               if (selection.source !== "empty") {
                 for (const [shotId, motion] of Object.entries(selection.motions)) {
                   const addons = selection.addons[shotId];
+                  const grade = selection.grades[shotId];
                   useStudioStore.getState().updateStoryboard(shotId, {
-                    shotFx: { motion, ...(addons ? { addons } : {}), source: selection.source },
+                    shotFx: {
+                      motion,
+                      ...(addons ? { addons } : {}),
+                      ...(grade ? { grade } : {}),
+                      source: selection.source,
+                    },
                   });
                 }
                 if (selection.source === "heuristic") {

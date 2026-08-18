@@ -11,6 +11,7 @@
 // 锐度纪律：源图已上采样到合成分辨率，panZoom 再放大即二次软化——
 // 常规镜缩放上限 1.08，动作 punch 上限 1.12，颗粒 0.035。
 
+import { isCinematicLutId } from "./cinematic-luts";
 import type { EditingEffect } from "@/types/editing";
 
 export type ShotFxMotionId =
@@ -160,7 +161,7 @@ export interface ShotFxStoryboardInput {
    * addons 为 AI 显式配置的特效插件（空数组=显式无特效）；缺省=用运镜配方默认特效。
    * 非法值一律按缺省处理。
    */
-  shotFx?: { motion?: unknown; addons?: unknown; source?: unknown };
+  shotFx?: { motion?: unknown; addons?: unknown; grade?: unknown; source?: unknown };
 }
 
 export interface ShotFxPlanClipLike {
@@ -257,6 +258,15 @@ export function buildShotFxEditingEffects(input: {
 
     // 颗粒全局质感常驻（独立于配方与插件）。
     pushEffect("grain", "grain", { amount: 0.035 });
+
+    // 成片调色（08-18-haldclut-grade AI 选型）：storyboard.shotFx.grade 携带
+    // AI 逐镜选择的 LUT（闭集校验+blend 钳 0..1）；非法值按缺省=不调色。
+    const grade = storyboard?.shotFx?.grade as { lutId?: unknown; blend?: unknown } | undefined;
+    if (grade && typeof grade.lutId === "string" && isCinematicLutId(grade.lutId)) {
+      const blendRaw = Number(grade.blend ?? 1);
+      const blend = Number.isFinite(blendRaw) ? Math.min(1, Math.max(0, blendRaw)) : 1;
+      pushEffect("grade", "grade", { lutId: grade.lutId, blend });
+    }
 
     // 特效来源：AI 显式插件配置（空数组=无特效）> 配方默认；同种效果取首个（互斥）。
     type FxEntry = { effectId: "shake" | "glow" | "chromaticAberration"; params: Record<string, number> };
