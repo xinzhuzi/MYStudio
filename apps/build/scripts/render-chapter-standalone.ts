@@ -28,14 +28,16 @@ async function analyzeBgmBeats(manifest: RemotionChapterManifestV2, maRoot: stri
     if (!bgm) return [];
     // bgm 源文件定位：绑定无绝对路径契约（经 bridge），此处以 chapter 音频目录约定兜底。
     const candidates = [
+      path.join(maRoot, bgm.source.relativePath),
+      path.join(maRoot, "remotion/audio/chapters", path.basename(bgm.bindingId) + ".ogg"),
+      path.join(maRoot, "remotion/audio", path.basename(bgm.bindingId) + ".ogg"),
       path.join(maRoot, "remotion/audio/chapters", path.basename(bgm.bindingId)),
-      path.join(maRoot, "remotion/audio", path.basename(bgm.bindingId)),
     ];
     const file = candidates.find((c) => fs.existsSync(c));
     if (!file) return [];
     const { execFileSync } = await import("node:child_process");
     const out = execFileSync("ffmpeg", [
-      "-i", file, "-af", "aresample=8000,astats=metadata=1:reset=1,ametadata=print:key=lavfi.astats.Overall.RMS_level",
+      "-i", file, "-af", "aresample=8000,astats=metadata=1:reset=1,ametadata=print:key=lavfi.astats.Overall.RMS_level:file=-",
       "-f", "null", "-", "-loglevel", "info",
     ], { stdio: ["ignore", "pipe", "pipe"] }).toString();
     const samples: Array<{ t: number; rms: number }> = [];
@@ -145,6 +147,16 @@ async function main() {
     // BGM 节拍预计算（M11：ffmpeg 能量峰分析——渲染期禁异步 getAudioData）。
     // 当前 chapter 无 bgm 绑定时优雅空转（beatTimesUs 缺省=sfx 落转场时刻）。
     const beatTimesUs = await analyzeBgmBeats(manifest, MA);
+    // bgm 绑定注册进 bridge（mediaUrlByBindingId——chapter 投影消费）。
+    const mediaUrlByBindingId: Record<string, string> = {};
+    for (const b of manifest.sharedAudioBindings) {
+      if (b.role !== "bgm") continue;
+      const bgmFile = [path.join(MA, "remotion/audio/chapters", path.basename(b.bindingId) + ".ogg"), path.join(MA, b.source.relativePath)].find((c) => fs.existsSync(c));
+      if (!bgmFile) { console.warn("bgm 文件缺失:", b.bindingId); continue; }
+      session.register(b.bindingId, bgmFile);
+      mediaUrlByBindingId[b.bindingId] = mediaBridge.buildUrls(session, [b.bindingId])[0]!.url;
+      console.log("bgm registered:", b.bindingId);
+    }
     const urlEntries = mediaBridge.buildUrls(session, [
       ...mediaSources.map((s) => s.clipId),
       ...(hasOverlay ? ["hyperframes-overlay"] : []),
@@ -168,7 +180,7 @@ async function main() {
       currentShotSlots: slots,
       chapterManifest: manifest,
       mediaUrlByClipId,
-      mediaUrlByBindingId: {},
+      mediaUrlByBindingId,
       lutUrlById,
       sfxUrlById,
       ...(beatTimesUs.length > 0 ? { beatTimesUs } : {}),
