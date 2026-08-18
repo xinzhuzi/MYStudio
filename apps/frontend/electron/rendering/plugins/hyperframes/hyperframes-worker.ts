@@ -33,6 +33,21 @@ const SUPPORTED_TEMPLATES = new Set([
   "vignette-pulse",
   "particle-dust",
   "letterbox-cinematic",
+  // 08-18-hy-effects Phase 1：本地自写装饰模板（repo 内 HTML/CSS，零许可风险；
+  // Registry 块商用条款未确认前不引入）。CSS 类定义见 composition 样式段。
+  "ink-bloom",
+  "mist-drift",
+  "gold-flecks",
+  "brush-sweep",
+  "paper-breath",
+  "candle-flicker",
+  "moon-glow",
+  "rain-streaks",
+  "snow-drift",
+  "aura-pulse",
+  "sword-flash",
+  "seal-glow",
+  "dust-motes",
 ]);
 
 type HyperFramesWorkerResult = {
@@ -198,6 +213,100 @@ function renderWindow(window: HyperFramesSegmentWindow, index: number): string {
       const barHeight = numberParameter(parameters, "barHeight", 10, 0, 25);
       const fadeS = numberParameter(parameters, "fadeIn", 0.5, 0, 3);
       return `<div id="${escapeHtml(elementId)}" class="clip hf-letterbox" data-start="${startS}" data-duration="${durationS}" data-track-index="${index + 1}" style="${phaseStyle}--hf-bar-height:${barHeight}%;--hf-letterbox-fade:${fadeS}s;"></div>`;
+
+    }
+    // --- 08-18-hy-effects Phase 1 本地自写装饰模板 ---
+    case "ink-bloom": {
+      const intensity = numberParameter(parameters, "intensity", 0.5, 0, 1);
+      const xPos = numberParameter(parameters, "x", 50, 0, 100);
+      const yPos = numberParameter(parameters, "y", 45, 0, 100);
+      return `<div id="${escapeHtml(elementId)}" class="clip hf-ink-bloom" data-start="${startS}" data-duration="${durationS}" data-track-index="${index + 1}" style="${phaseStyle}left:${xPos}%;top:${yPos}%;--hf-ink:${intensity};"></div>`;
+    }
+    case "mist-drift": {
+      const opacity = numberParameter(parameters, "opacity", 0.25, 0, 1);
+      const speed = numberParameter(parameters, "speed", 14, 4, 40);
+      return `<div id="${escapeHtml(elementId)}" class="clip hf-mist-drift" data-start="${startS}" data-duration="${durationS}" data-track-index="${index + 1}" style="${phaseStyle}--hf-mist:${opacity};--hf-mist-speed:${speed}s;"></div>`;
+    }
+    case "gold-flecks": {
+      const count = Math.round(numberParameter(parameters, "count", 8, 3, 12));
+      const intensity = numberParameter(parameters, "intensity", 0.5, 0, 1);
+      let flecks = "";
+      for (let i = 0; i < count; i++) {
+        const px = Math.round((i * 41) % 100);
+        const py = Math.round((i * 61) % 100);
+        const delay = (((i * 0.4) % 4) - phaseOffsetS).toFixed(1);
+        flecks += `<span class="hf-fleck" style="left:${px}%;top:${py}%;animation-delay:${delay}s;"></span>`;
+      }
+      return `<div id="${escapeHtml(elementId)}" class="clip hf-gold-flecks" data-start="${startS}" data-duration="${durationS}" data-track-index="${index + 1}"${phaseStyle ? ` style="${phaseStyle}--hf-fleck:${intensity};"` : ""}>${flecks}</div>`;
+    }
+    case "brush-sweep": {
+      const hue = numberParameter(parameters, "hue", 210, 0, 360);
+      const speed = numberParameter(parameters, "speed", 3, 1, 10);
+      return `<div id="${escapeHtml(elementId)}" class="clip hf-brush-sweep" data-start="${startS}" data-duration="${durationS}" data-track-index="${index + 1}" style="${phaseStyle}--hf-brush-hue:${hue}deg;--hf-brush-speed:${speed}s;"></div>`;
+    }
+    case "paper-breath": {
+      const warmth = numberParameter(parameters, "warmth", 0.15, 0, 1);
+      const speed = numberParameter(parameters, "speed", 6, 2, 20);
+      return `<div id="${escapeHtml(elementId)}" class="clip hf-paper-breath" data-start="${startS}" data-duration="${durationS}" data-track-index="${index + 1}" style="${phaseStyle}--hf-warmth:${warmth};--hf-breath-speed:${speed}s;"></div>`;
+    }
+    case "candle-flicker": {
+      const intensity = numberParameter(parameters, "intensity", 0.4, 0, 1);
+      const xPos = numberParameter(parameters, "x", 70, 0, 100);
+      const yPos = numberParameter(parameters, "y", 65, 0, 100);
+      return `<div id="${escapeHtml(elementId)}" class="clip hf-candle-flicker" data-start="${startS}" data-duration="${durationS}" data-track-index="${index + 1}" style="${phaseStyle}left:${xPos}%;top:${yPos}%;--hf-candle:${intensity};"></div>`;
+    }
+    case "moon-glow": {
+      const xPos = numberParameter(parameters, "x", 24, 0, 100);
+      const yPos = numberParameter(parameters, "y", 22, 0, 100);
+      const size = numberParameter(parameters, "size", 260, 80, 700);
+      return `<div id="${escapeHtml(elementId)}" class="clip hf-moon-glow" data-start="${startS}" data-duration="${durationS}" data-track-index="${index + 1}" style="${phaseStyle}left:${xPos}%;top:${yPos}%;--hf-moon-size:${size}px;"></div>`;
+    }
+    case "rain-streaks": {
+      const count = Math.round(numberParameter(parameters, "count", 10, 4, 14));
+      const speed = numberParameter(parameters, "speed", 1.2, 0.4, 4);
+      let streaks = "";
+      for (let i = 0; i < count; i++) {
+        const px = Math.round((i * 29 + 7) % 100);
+        const delay = (((i * 0.17) % 1.2) - phaseOffsetS).toFixed(2);
+        streaks += `<span class="hf-rain" style="left:${px}%;animation-delay:${delay}s;animation-duration:${speed}s;"></span>`;
+      }
+      return `<div id="${escapeHtml(elementId)}" class="clip hf-rain-streaks" data-start="${startS}" data-duration="${durationS}" data-track-index="${index + 1}"${phaseStyle ? ` style="${phaseStyle}"` : ""}>${streaks}</div>`;
+    }
+    case "snow-drift": {
+      const count = Math.round(numberParameter(parameters, "count", 10, 4, 14));
+      const speed = numberParameter(parameters, "speed", 9, 3, 25);
+      let flakes = "";
+      for (let i = 0; i < count; i++) {
+        const px = Math.round((i * 43 + 13) % 100);
+        const delay = (((i * 0.6) % 5) - phaseOffsetS).toFixed(1);
+        flakes += `<span class="hf-snow" style="left:${px}%;animation-delay:${delay}s;animation-duration:${speed}s;"></span>`;
+      }
+      return `<div id="${escapeHtml(elementId)}" class="clip hf-snow-drift" data-start="${startS}" data-duration="${durationS}" data-track-index="${index + 1}"${phaseStyle ? ` style="${phaseStyle}"` : ""}>${flakes}</div>`;
+    }
+    case "aura-pulse": {
+      const intensity = numberParameter(parameters, "intensity", 0.35, 0, 1);
+      const speed = numberParameter(parameters, "speed", 2.5, 0.5, 8);
+      return `<div id="${escapeHtml(elementId)}" class="clip hf-aura-pulse" data-start="${startS}" data-duration="${durationS}" data-track-index="${index + 1}" style="${phaseStyle}--hf-aura:${intensity};--hf-aura-speed:${speed}s;"></div>`;
+    }
+    case "sword-flash": {
+      const angle = numberParameter(parameters, "angle", 24, -60, 60);
+      return `<div id="${escapeHtml(elementId)}" class="clip hf-sword-flash" data-start="${startS}" data-duration="${durationS}" data-track-index="${index + 1}" style="${phaseStyle}--hf-sword-angle:${angle}deg;"></div>`;
+    }
+    case "seal-glow": {
+      const intensity = numberParameter(parameters, "intensity", 0.3, 0, 1);
+      return `<div id="${escapeHtml(elementId)}" class="clip hf-seal-glow" data-start="${startS}" data-duration="${durationS}" data-track-index="${index + 1}" style="${phaseStyle}--hf-seal:${intensity};"></div>`;
+    }
+    case "dust-motes": {
+      const count = Math.round(numberParameter(parameters, "count", 12, 4, 16));
+      const speed = numberParameter(parameters, "speed", 18, 6, 40);
+      let motes = "";
+      for (let i = 0; i < count; i++) {
+        const px = Math.round((i * 31 + 5) % 100);
+        const py = Math.round((i * 47 + 19) % 100);
+        const delay = (((i * 0.8) % 6) - phaseOffsetS).toFixed(1);
+        motes += `<span class="hf-mote" style="left:${px}%;top:${py}%;animation-delay:${delay}s;animation-duration:${speed}s;"></span>`;
+      }
+      return `<div id="${escapeHtml(elementId)}" class="clip hf-dust-motes" data-start="${startS}" data-duration="${durationS}" data-track-index="${index + 1}"${phaseStyle ? ` style="${phaseStyle}"` : ""}>${motes}</div>`;
     }
   }
 
@@ -242,6 +351,39 @@ html,body{margin:0;width:100%;height:100%;overflow:hidden;background:transparent
 @keyframes hf-dust-float{0%{transform:translate(0,0) scale(.5);opacity:0}20%{opacity:.6}80%{opacity:.4}100%{transform:translate(20px,-60px) scale(1);opacity:0}}
 
 .hf-letterbox{width:100%;height:100%;left:0;top:0;transform:none;opacity:0;animation:hf-letterbox-in var(--hf-letterbox-fade,.5s) ease-out forwards}
+/* 08-18-hy-effects Phase 1 本地自写装饰模板——CSS 与 renderWindow 分支一一对应。
+   全部 mix-blend-mode:screen/overlay+透明渐变(alpha overlay 语义);渐变/滤镜元素数
+   控制在 lint 阈值内(单窗<30)。 */
+.hf-ink-bloom{width:60%;height:60%;transform:translate(-50%,-50%);border-radius:50%;background:radial-gradient(circle,hsla(220,15%,30%,calc(var(--hf-ink,.5)*.55)) 0%,hsla(220,10%,40%,calc(var(--hf-ink,.5)*.28)) 40%,transparent 70%);mix-blend-mode:multiply;animation:hf-ink-spread 7s ease-out infinite}
+@keyframes hf-ink-spread{0%{transform:translate(-50%,-50%) scale(.4);opacity:0}30%{opacity:1}100%{transform:translate(-50%,-50%) scale(1.25);opacity:.25}}
+.hf-mist-drift{width:100%;height:100%;left:0;top:0;background:radial-gradient(ellipse 60% 38% at 30% 72%,hsla(210,20%,88%,var(--hf-mist,.25)),transparent 70%),radial-gradient(ellipse 50% 30% at 70% 40%,hsla(200,15%,85%,calc(var(--hf-mist,.25)*.7)),transparent 70%);mix-blend-mode:screen;animation:hf-mist-move var(--hf-mist-speed,14s) ease-in-out infinite alternate}
+@keyframes hf-mist-move{from{transform:translateX(-6%)}to{transform:translateX(6%)}}
+.hf-gold-flecks{width:100%;height:100%;left:0;top:0}
+.hf-fleck{position:absolute;width:5px;height:5px;border-radius:50%;background:radial-gradient(circle,hsla(43,90%,68%,.9),transparent 70%);opacity:calc(var(--hf-fleck,.5)*.9);mix-blend-mode:screen;animation:hf-fleck-float 5s ease-in-out infinite alternate}
+@keyframes hf-fleck-float{from{transform:translateY(0) scale(.8)}to{transform:translateY(-26px) scale(1.15)}}
+.hf-brush-sweep{width:100%;height:100%;left:0;top:0;background:linear-gradient(105deg,transparent 30%,hsla(var(--hf-brush-hue,210deg),35%,72%,.34) 47%,hsla(calc(var(--hf-brush-hue,210deg) + 24deg),45%,80%,.5) 50%,hsla(var(--hf-brush-hue,210deg),35%,72%,.34) 53%,transparent 70%);mix-blend-mode:screen;animation:hf-brush-move var(--hf-brush-speed,3s) ease-in-out infinite}
+@keyframes hf-brush-move{0%{transform:translateX(-120%)}100%{transform:translateX(120%)}}
+.hf-paper-breath{width:100%;height:100%;left:0;top:0;background:radial-gradient(ellipse at 50% 45%,hsla(38,42%,86%,calc(var(--hf-warmth,.15)*.8)),transparent 75%);mix-blend-mode:soft-light;animation:hf-paper-pulse var(--hf-breath-speed,6s) ease-in-out infinite alternate}
+@keyframes hf-paper-pulse{from{opacity:.55}to{opacity:1}}
+.hf-candle-flicker{width:55%;height:55%;transform:translate(-50%,-50%);background:radial-gradient(circle,hsla(36,88%,64%,calc(var(--hf-candle,.4)*.85)) 0%,hsla(28,80%,52%,calc(var(--hf-candle,.4)*.4)) 45%,transparent 72%);mix-blend-mode:overlay;animation:hf-candle-flk 1.6s steps(3,end) infinite alternate}
+@keyframes hf-candle-flk{0%{transform:translate(-50%,-50%) scale(1)}40%{transform:translate(-50%,-50%) scale(1.08) translateY(-1%)}100%{transform:translate(-50%,-50%) scale(.94)}}
+.hf-moon-glow{width:var(--hf-moon-size,260px);height:var(--hf-moon-size,260px);transform:translate(-50%,-50%);border-radius:50%;background:radial-gradient(circle,hsla(210,30%,92%,.95) 0%,hsla(205,32%,84%,.6) 32%,hsla(200,28%,78%,.25) 55%,transparent 72%);mix-blend-mode:screen;animation:hf-moon-breathe 9s ease-in-out infinite alternate}
+@keyframes hf-moon-breathe{from{filter:brightness(.92)}to{filter:brightness(1.08)}}
+.hf-rain-streaks{width:100%;height:100%;left:0;top:0}
+.hf-rain{position:absolute;top:-12%;width:1.5px;height:13%;background:linear-gradient(to bottom,transparent,hsla(205,34%,84%,.55),transparent);mix-blend-mode:screen;animation:hf-rain-fall linear infinite}
+@keyframes hf-rain-fall{to{transform:translateY(125vh)}}
+.hf-snow-drift{width:100%;height:100%;left:0;top:0}
+.hf-snow{position:absolute;top:-6%;width:6px;height:6px;border-radius:50%;background:radial-gradient(circle,hsla(0,0%,98%,.9),transparent 75%);mix-blend-mode:screen;animation:hf-snow-fall ease-in-out infinite}
+@keyframes hf-snow-fall{to{transform:translate(24px,115vh)}}
+.hf-aura-pulse{width:100%;height:100%;left:0;top:0;background:radial-gradient(circle at 50% 52%,transparent 34%,hsla(160,55%,70%,calc(var(--hf-aura,.35)*.5)) 48%,transparent 62%);mix-blend-mode:screen;animation:hf-aura-ring var(--hf-aura-speed,2.5s) ease-in-out infinite}
+@keyframes hf-aura-ring{0%{transform:scale(.85);opacity:.2}50%{opacity:1}100%{transform:scale(1.1);opacity:.2}}
+.hf-sword-flash{width:100%;height:100%;left:0;top:0;background:linear-gradient(to bottom,transparent 46%,hsla(48,95%,88%,.9) 50%,transparent 54%);mix-blend-mode:screen;animation:hf-sword-slash 2.4s ease-out infinite}
+@keyframes hf-sword-slash{0%{transform:rotate(var(--hf-sword-angle,24deg)) translateX(-90%);opacity:0}18%{opacity:1}45%{transform:rotate(var(--hf-sword-angle,24deg)) translateX(70%);opacity:0}100%{opacity:0}}
+.hf-seal-glow{width:34%;height:26%;right:4%;bottom:6%;background:radial-gradient(ellipse,hsla(6,72%,52%,calc(var(--hf-seal,.3)*.75)),transparent 70%);mix-blend-mode:screen;animation:hf-seal-pulse 4.5s ease-in-out infinite alternate}
+@keyframes hf-seal-pulse{from{opacity:.4}to{opacity:1}}
+.hf-dust-motes{width:100%;height:100%;left:0;top:0}
+.hf-mote{position:absolute;width:7px;height:7px;border-radius:50%;background:radial-gradient(circle,hsla(44,70%,84%,.5),transparent 72%);mix-blend-mode:screen;animation:hf-mote-drift ease-in-out infinite alternate}
+@keyframes hf-mote-drift{from{transform:translate(0,0)}to{transform:translate(18px,-38px)}}
 .hf-letterbox::before,.hf-letterbox::after{content:"";position:absolute;left:0;width:100%;height:var(--hf-bar-height,10%);background:#000}
 .hf-letterbox::before{top:0}
 .hf-letterbox::after{bottom:0}

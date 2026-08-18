@@ -121,6 +121,27 @@ describe("HyperFrames worker composition boundary", () => {
     }
   });
 
+  it("08-18-hy-effects: renders every Phase-1 local template branch with its CSS class", () => {
+    const local = ["ink-bloom","mist-drift","gold-flecks","brush-sweep","paper-breath","candle-flicker","moon-glow","rain-streaks","snow-drift","aura-pulse","sword-flash","seal-glow","dust-motes"];
+    const localRequest = {
+      ...request,
+      windows: local.map((templateId, i) => ({
+        slotId: `slot-${templateId}`,
+        templateId,
+        startUs: i * 1_000_000,
+        durationUs: 1_000_000,
+        parameters: {},
+        alpha: { kind: "prores-4444-mov" as const },
+      })),
+    };
+    const html = buildHyperFramesCompositionHtml(localRequest);
+    for (const templateId of local) {
+      expect(html).toContain(`hf-${templateId === "ink-bloom" ? "ink-bloom" : templateId}`);
+    }
+    expect(html).toContain(".hf-ink-bloom{");
+    expect(html).toContain("@keyframes hf-sword-slash");
+  });
+
   it("rejects templates that are not part of the MYStudio overlay contract", () => {
     expect(() => buildHyperFramesCompositionHtml({
       ...request,

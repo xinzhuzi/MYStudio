@@ -199,9 +199,14 @@ _OVERLAY_SLOT_MAX_US = 1_100_000
 
 # Single source for the video-use → HyperFrames decorative decision. Keep the
 # values primitive because they cross the JSON artifact boundary unchanged.
+# 08-18-hy-effects Phase 1：本地自写装饰模板（worker 内 HTML/CSS）加入轮询池——
+# 与 TS 契约 HYPERFRAMES_DECORATIVE_TEMPLATE_IDS 同步（worker 白名单为渲染侧闭集）。
 HYPERFRAMES_DECORATIVE_TEMPLATES = (
     "light-leak", "film-grain", "lens-flare", "vignette-pulse",
     "particle-dust", "letterbox-cinematic", "highlight-box",
+    "ink-bloom", "mist-drift", "gold-flecks", "brush-sweep", "paper-breath",
+    "candle-flicker", "moon-glow", "rain-streaks", "snow-drift", "aura-pulse",
+    "sword-flash", "seal-glow", "dust-motes",
 )
 MOOD_TEMPLATE_RULES: dict[str, tuple[str, dict[str, str | int | float | bool]]] = {
     "战斗": ("lens-flare", {"x": 18, "y": 24, "size": 260}),
@@ -210,6 +215,13 @@ MOOD_TEMPLATE_RULES: dict[str, tuple[str, dict[str, str | int | float | bool]]] 
     "阴谋": ("vignette-pulse", {"darkness": 0.4, "speed": 1.8}),
     "日常": ("film-grain", {"opacity": 0.1}),
     "承接": ("letterbox-cinematic", {"barHeight": 8, "fadeIn": 0.25}),
+    # 08-18-hy-effects：新 mood 语义映射到本地自写模板。
+    "梦境": ("mist-drift", {"opacity": 0.3, "speed": 16}),
+    "雪": ("snow-drift", {"count": 12, "speed": 8}),
+    "雨": ("rain-streaks", {"count": 12, "speed": 1.0}),
+    "剑": ("sword-flash", {"angle": 24}),
+    "灵": ("aura-pulse", {"intensity": 0.4, "speed": 2.0}),
+    "夜": ("moon-glow", {"x": 24, "y": 20, "size": 300}),
 }
 DEFAULT_TEMPLATE_PARAMETERS: dict[str, dict[str, str | int | float | bool]] = {
     "light-leak": {"intensity": 0.42, "hue": 0},
@@ -219,6 +231,19 @@ DEFAULT_TEMPLATE_PARAMETERS: dict[str, dict[str, str | int | float | bool]] = {
     "particle-dust": {"count": 40, "speed": 7},
     "letterbox-cinematic": {"barHeight": 12, "fadeIn": 0.25},
     "highlight-box": {"x": 50, "y": 50, "color": "#f4d06f"},
+    "ink-bloom": {"intensity": 0.5, "x": 50, "y": 45},
+    "mist-drift": {"opacity": 0.25, "speed": 14},
+    "gold-flecks": {"count": 8, "intensity": 0.5},
+    "brush-sweep": {"hue": 210, "speed": 3},
+    "paper-breath": {"warmth": 0.15, "speed": 6},
+    "candle-flicker": {"intensity": 0.4, "x": 70, "y": 65},
+    "moon-glow": {"x": 24, "y": 22, "size": 260},
+    "rain-streaks": {"count": 10, "speed": 1.2},
+    "snow-drift": {"count": 10, "speed": 9},
+    "aura-pulse": {"intensity": 0.35, "speed": 2.5},
+    "sword-flash": {"angle": 24},
+    "seal-glow": {"intensity": 0.3},
+    "dust-motes": {"count": 12, "speed": 18},
 }
 
 

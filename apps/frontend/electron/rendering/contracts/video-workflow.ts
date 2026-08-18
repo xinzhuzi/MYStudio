@@ -370,8 +370,12 @@ const VIDEO_WORKFLOW_STAGES: readonly VideoWorkflowStage[] = [
 const VIDEO_WORKFLOW_MODES: readonly VideoWorkflowMode[] = ["editable-edl", "flat-shot-mp4"];
 const ALPHA_FORMATS: readonly HyperFramesAlphaFormat[] = ["prores-4444-mov", "webm-vp9-alpha", "png-sequence"];
 export const SUPPORTED_ALPHA_FORMATS: readonly HyperFramesAlphaFormat[] = ["prores-4444-mov", "webm-vp9-alpha"];
+// 08-18-hy-effects Phase 1：本地自写装饰模板（worker 内 HTML/CSS，零许可风险）；
+// 名单与 worker SUPPORTED_TEMPLATES/adapter.py 决策集合同步（契约测试守护）。
+const HY_EFFECTS_LOCAL_TEMPLATES = ["ink-bloom", "mist-drift", "gold-flecks", "brush-sweep", "paper-breath", "candle-flicker", "moon-glow", "rain-streaks", "snow-drift", "aura-pulse", "sword-flash", "seal-glow", "dust-motes"];
 export const HYPERFRAMES_DECORATIVE_TEMPLATE_IDS = [
   "light-leak", "film-grain", "lens-flare", "vignette-pulse", "particle-dust", "letterbox-cinematic", "highlight-box",
+  ...HY_EFFECTS_LOCAL_TEMPLATES,
 ] as const;
 const PLUGIN_IDS: readonly VideoWorkflowPluginId[] = ["remotion", "video-use", "hyperframes", "seedance-prompt"];
 
