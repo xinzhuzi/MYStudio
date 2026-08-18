@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Check, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { VideoWorkflowReviewReplyV1 } from "@rendering/contracts/video-workflow-ipc";
+import { ChapterQcReportCard } from "./ChapterQcReportCard";
 
 export function VideoWorkflowReviewPanel(props: {
   projectId?: string;
@@ -118,6 +119,9 @@ export function VideoWorkflowReviewPanel(props: {
       {reply && !reply.success ? <p className="mt-2 text-destructive" role="alert">{reply.message ?? "video-use 确认被阻塞"}</p> : null}
       {reply?.success && !applyError ? <p className="mt-2 text-emerald-400">已写入 review sidecar：{reply.artifactPath ?? "当前 revision"}</p> : null}
       {applyError ? <p className="mt-2 text-destructive" role="alert">确认已写入，但后续 HyperFrames/EditingProject 应用被阻塞：{applyError}</p> : null}
+      <div className="mt-3">
+        <ChapterQcReportCard projectId={props.projectId} chapterId={props.chapterId} />
+      </div>
     </section>
   );
 }

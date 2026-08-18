@@ -14,6 +14,7 @@ import { PythonSettingsTab } from "./PythonSettingsTab";
 import { DepthSettingsSection } from "./DepthSettingsSection";
 import { LocalImageSettingsSection } from "./LocalImageSettingsSection";
 import { UpscaleSettingsSection } from "./UpscaleSettingsSection";
+import { VideoQcSettingsSection } from "./VideoQcSettingsSection";
 import { LocalAudioSettingsSection } from "./LocalAudioSettingsSection";
 import { SfxGenSettingsSection } from "./SfxGenSettingsSection";
 import { RenderingSettingsTab } from "./RenderingSettingsTab";
@@ -25,7 +26,7 @@ const LocalTtsPanelLazy = lazy(() => import("@/components/panels/tts/LocalTtsPan
 /** 大区块折叠记忆键：值为被折叠区块 id 数组；无记忆时默认全折叠（08-18 用户拍板）。 */
 const SECTION_STORAGE_KEY = "mystudio.settings.plugins.collapsedSections";
 
-const SECTION_IDS = ["python", "depth", "image-gen", "upscale", "audio-gen", "sfx-gen", "tts", "video"] as const;
+const SECTION_IDS = ["python", "depth", "image-gen", "upscale", "video-qc", "audio-gen", "sfx-gen", "tts", "video"] as const;
 
 type SectionId = (typeof SECTION_IDS)[number];
 
@@ -230,6 +231,23 @@ export function PluginSettingsTab() {
             </CollapsibleTrigger>
             <CollapsibleContent className="border-t border-border">
               <UpscaleSettingsSection embedded />
+            </CollapsibleContent>
+          </Collapsible>
+        </section>
+
+        <section aria-labelledby="plugin-video-qc-heading" className="rounded-xl border border-border bg-card/30">
+          <Collapsible open={!collapsedSections.has("video-qc")} onOpenChange={() => toggleSectionCollapsed("video-qc")}>
+            <CollapsibleTrigger className="w-full text-left">
+              <div className="px-5 py-4 flex items-start justify-between gap-3">
+                <div className="space-y-2">
+                  <h4 id="plugin-video-qc-heading" className="text-base font-semibold text-foreground">成片观感评分</h4>
+                  <p className="text-xs text-muted-foreground">DOVER-Mobile 本地观感模型（依赖上方 Python 运行环境），出片后 QC 链的观感层按系列基线相对告警。模型仅在点击下载时获取；未下载时该层自动跳过，不影响出片。</p>
+                </div>
+                {sectionChevron("video-qc")}
+              </div>
+            </CollapsibleTrigger>
+            <CollapsibleContent className="border-t border-border">
+              <VideoQcSettingsSection embedded />
             </CollapsibleContent>
           </Collapsible>
         </section>

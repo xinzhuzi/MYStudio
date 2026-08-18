@@ -96,6 +96,10 @@ import { createImageGenRuntimeController } from '@rendering/plugins/image_gen/im
 import { registerImageGenIpcHandlers } from '../ipc/studio/image-gen-ipc'
 import { createUpscaleRuntimeController } from '@rendering/plugins/upscale/upscale-runtime-controller'
 import { registerUpscaleIpcHandlers } from '../ipc/studio/upscale-ipc'
+import { createVideoQcRuntimeController } from '@rendering/plugins/videoqc/dover-runtime-controller'
+import { registerVideoQcIpcHandlers } from '../ipc/studio/video-qc-ipc'
+import { runChapterQc, type ChapterQcOrchestratorDeps } from '@rendering/plugins/videoqc/chapter-qc-orchestrator'
+import { registerChapterQcIpcHandlers } from '../ipc/studio/chapter-qc-ipc'
 import { createAudioGenRuntimeController } from '@rendering/plugins/audio_gen/audio-gen-runtime-controller'
 import { registerAudioGenIpcHandlers } from '../ipc/studio/audio-gen-ipc'
 import { createSfxGenRuntimeController } from '@rendering/plugins/sfx_gen/sfx-gen-runtime-controller'
@@ -964,6 +968,29 @@ const upscaleIpc = registerUpscaleIpcHandlers({ controller: upscaleRuntimeContro
 // precheck(节点按钮/分镜 tile)无需用户先访问设置页。
 void upscaleRuntimeController.refresh()
 
+// Chapter video QC sidecar — DOVER-Mobile 观感层(出片后 QC 链 L3)。
+// 复用 managed Python(probe 路径零重依赖);权重显式下载,<storageBase>/VideoQcModel。
+const videoQcRuntimeController = createVideoQcRuntimeController({
+  storageBasePath: getStorageBasePath,
+  backendRoot: videoWorkflowBackendRoot,
+})
+const videoQcIpc = registerVideoQcIpcHandlers({ controller: videoQcRuntimeController })
+// 非阻塞启动期刷新:QC 报告与设置页冷启动即反映模型就绪态。
+void videoQcRuntimeController.refresh()
+
+// 出片后 QC 链编排器(L1 结构/L2 逐帧/L3 观感;L4 语义由渲染端跑完回写)。
+const chapterQcOrchestratorDeps: ChapterQcOrchestratorDeps = {
+  remotionWorkspaceRootForProject: (projectId) => path.join(projectRootFor(projectId), 'remotion'),
+  videoUseWorkspaceRootForProject: (projectId) => path.join(projectRootFor(projectId), 'video-use'),
+  dataRoot: getDataDir(),
+  videoQc: videoQcRuntimeController,
+}
+const chapterQcIpc = registerChapterQcIpcHandlers({
+  deps: chapterQcOrchestratorDeps,
+  runQc: runChapterQc,
+  getWindow: () => win,
+})
+
 // Local music generation sidecar — MusicGen BGM generation via CLI worker.
 // Same explicit-download policy; generated WAVs feed the chapter BGM track.
 const audioGenRuntimeController = createAudioGenRuntimeController({
@@ -1032,6 +1059,10 @@ const remotionQueue = new RemotionRenderQueue({
       if (shot.success) return shot
       return remotionChapterRenderer.cancel(jobId)
     },
+  },
+  // 出片后 QC 链挂点:fire-and-forget,失败只进报告不影响队列(08-19-chapter-video-qc)
+  onChapterJobSucceeded: (identity) => {
+    void runChapterQc(chapterQcOrchestratorDeps, identity).catch(() => undefined)
   },
 })
 const remotionQueueIpc = registerRemotionQueueIpcHandlers(remotionQueue, {
@@ -1505,6 +1536,8 @@ disposeRemotionRuntime = async () => {
   depthIpc.dispose()
   imageGenIpc.dispose()
   upscaleIpc.dispose()
+  videoQcIpc.dispose()
+  chapterQcIpc.dispose()
   audioGenIpc.dispose()
   sfxGenIpc.dispose()
   remotionRuntime.dispose()

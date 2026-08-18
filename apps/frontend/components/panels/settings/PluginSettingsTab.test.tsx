@@ -121,6 +121,7 @@ describe("PluginSettingsTab", () => {
       "深度估计（电影级 3D）",
       "本地图片生成（免费）",
       "图片超分（1K → 4K）",
+      "成片观感评分",
       "本地音乐生成",
       "本地音效生成",
       "TTS 运行时与模型",
@@ -138,7 +139,7 @@ describe("PluginSettingsTab", () => {
     window.localStorage.removeItem("mystudio.settings.plugins.collapsedSections");
     const { unmount } = render(<PluginSettingsTab />);
 
-    // 默认全折叠：8 个区块标题可见，内容全部不在 DOM
+    // 默认全折叠：9 个区块标题可见，内容全部不在 DOM
     const headings = screen.getAllByRole("heading").map((heading) => heading.textContent);
     expect(headings).toEqual([
       "本地配置",
@@ -146,6 +147,7 @@ describe("PluginSettingsTab", () => {
       "深度估计（电影级 3D）",
       "本地图片生成（免费）",
       "图片超分（1K → 4K）",
+      "成片观感评分",
       "本地音乐生成",
       "本地音效生成",
       "TTS 运行时与模型",

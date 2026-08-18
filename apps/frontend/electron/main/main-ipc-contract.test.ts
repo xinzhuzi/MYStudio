@@ -42,6 +42,9 @@ audio-gen-runtime-generate
 audio-gen-runtime-scan-model
 audio-gen-runtime-setup
 audio-gen-runtime-status
+chapter-qc-get-report
+chapter-qc-run
+chapter-qc-submit-semantic
 depth-runtime-delete-model
 depth-runtime-download-model
 depth-runtime-download-progress
@@ -202,6 +205,17 @@ upscale-runtime-set-model-cache-dir
 upscale-runtime-setup
 upscale-runtime-status
 video-pipeline-export-log-bundle
+video-qc-runtime-delete-model
+video-qc-runtime-download-model
+video-qc-runtime-download-progress
+video-qc-runtime-get-config
+video-qc-runtime-probe
+video-qc-runtime-refresh
+video-qc-runtime-rollback
+video-qc-runtime-scan-model
+video-qc-runtime-set-model-cache-dir
+video-qc-runtime-setup
+video-qc-runtime-status
 `.trim().split("\n");
 
 const NAMED_IPC_CHANNELS = {

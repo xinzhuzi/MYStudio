@@ -777,6 +777,46 @@ contextBridge.exposeInMainWorld('upscaleRuntime', {
     ipcRenderer.invoke('upscale-runtime-delete-model', model),
 })
 
+// Chapter video QC (DOVER 观感层) runtime API — explicit downloads only,
+// mirrors the upscale runtime bridge. QC 层缺模型=跳过+标注,不阻塞出片。
+contextBridge.exposeInMainWorld('videoQcRuntime', {
+  probe: (): Promise<unknown> => ipcRenderer.invoke('video-qc-runtime-probe'),
+  status: (): Promise<unknown> => ipcRenderer.invoke('video-qc-runtime-status'),
+  setup: (): Promise<unknown> => ipcRenderer.invoke('video-qc-runtime-setup'),
+  rollback: (): Promise<unknown> => ipcRenderer.invoke('video-qc-runtime-rollback'),
+  refresh: (): Promise<unknown> => ipcRenderer.invoke('video-qc-runtime-refresh'),
+  scanModel: (): Promise<{ models: unknown[]; cacheDir: string }> => ipcRenderer.invoke('video-qc-runtime-scan-model'),
+  downloadModel: (model: string): Promise<{ accepted: boolean; message: string }> =>
+    ipcRenderer.invoke('video-qc-runtime-download-model', model),
+  downloadProgress: (): Promise<unknown> => ipcRenderer.invoke('video-qc-runtime-download-progress'),
+  getConfig: (): Promise<{ modelCacheDir: string }> => ipcRenderer.invoke('video-qc-runtime-get-config'),
+  setModelCacheDir: (dirPath: string): Promise<{ success: boolean; error?: string }> =>
+    ipcRenderer.invoke('video-qc-runtime-set-model-cache-dir', dirPath),
+  deleteModel: (model: string): Promise<{ success: boolean; error?: string }> =>
+    ipcRenderer.invoke('video-qc-runtime-delete-model', model),
+})
+
+// Chapter QC(成片体检单)API — 报告读取/手动重跑/L4 语义回写 + 报告更新事件。
+contextBridge.exposeInMainWorld('chapterQc', {
+  getReport: (payload: { projectId: string; chapterId: string }): Promise<unknown> =>
+    ipcRenderer.invoke('chapter-qc-get-report', payload),
+  run: (payload: { projectId: string; chapterId: string; outputPath?: string }): Promise<unknown> =>
+    ipcRenderer.invoke('chapter-qc-run', payload),
+  submitSemantic: (payload: {
+    projectId: string
+    chapterId: string
+    model?: string
+    stats: { checked: number; passed: number; failed: number; skipped: number }
+    findings: unknown[]
+  }): Promise<{ success: boolean; message?: string }> =>
+    ipcRenderer.invoke('chapter-qc-submit-semantic', payload),
+  onReportUpdated: (listener: (payload: { projectId: string; chapterId: string }) => void): (() => void) => {
+    const handler = (_event: unknown, payload: { projectId: string; chapterId: string }) => listener(payload)
+    ipcRenderer.on('chapter-qc-report-updated', handler)
+    return () => ipcRenderer.removeListener('chapter-qc-report-updated', handler)
+  },
+})
+
 // Local music generation runtime API — MusicGen BGM, explicit downloads only.
 contextBridge.exposeInMainWorld('audioGenRuntime', {
   status: (): Promise<unknown> => ipcRenderer.invoke('audio-gen-runtime-status'),
