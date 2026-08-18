@@ -18,9 +18,9 @@ function buildRichState() {
     title: `第${index}章`,
     sourceText: "正".repeat(size),
   });
-  const storyboard = (index: number) => ({
+  const storyboard = (index: number, episodeId = "chapter-001") => ({
     id: `sb-${index}`,
-    episodeId: "chapter-001",
+    episodeId,
     index,
     prompt: `分镜提示词 ${index}`,
   });
@@ -30,16 +30,16 @@ function buildRichState() {
     sourceBible: "# 原著圣经\n主线",
     agentWorkData: [],
     entityExtractions: [],
-    scriptPlans: [{ id: "plan-1", title: "计划", scenes: [] }],
+    scriptPlans: [{ id: "plan-1", episodeId: "chapter-001", title: "计划", scenes: [] }],
     seriesBible: { title: "设定" },
     episodeOutlines: [],
     storyboards: Array.from({ length: 8 }, (_, index) => storyboard(index + 1)),
     continuityAssetVersions: [],
-    productionTracks: [{ id: "track-1", trackKey: "chapter-001", storyboardIds: [], candidateVideoIds: [] }],
+    productionTracks: [{ id: "track-1", episodeId: "chapter-001", trackKey: "chapter-001", storyboardIds: [], candidateVideoIds: [] }],
     videoCandidates: [],
     imageWorkflows: [],
     agentRuns: [],
-    mediaTasks: [],
+    mediaTasks: [{ id: "task-1", kind: "storyboardImage", targetId: "sb-1", episodeId: "chapter-002", status: "success" }],
     eventGraph: [],
     projectMemoryRecords: [],
     workflowConfig: { autoAnalyzeEventsOnImport: false, episodeDurationMin: 3 },
@@ -50,8 +50,8 @@ function envelopeOf(state: unknown, version = 10) {
   return JSON.stringify({ state, version });
 }
 
-function roundTrip(value: string) {
-  const plan = planStudioWorkflowShards(value);
+function roundTrip(value: string, limitBytes?: number) {
+  const plan = planStudioWorkflowShards(value, limitBytes ? { limitBytes } : {});
   const contents = plan.files.map((file) => file.content);
   const merged = mergeStudioWorkflowShards(contents);
   return { plan, merged };
@@ -67,37 +67,96 @@ describe("planStudioWorkflowShards", () => {
     expect(plan.oversizedFiles).toEqual([]);
   });
 
-  it("routes domains to PRD shard names and merges the rest into core", () => {
+  it("layers chapter-owned domains one chapter per file (章优先分层)", () => {
     const state = buildRichState();
     const { plan } = roundTrip(envelopeOf(state));
     const names = plan.manifest.shards;
-    expect(names.some((name) => /^novel-chapters-001-[0-9a-f]{8}\.json$/.test(name))).toBe(true);
-    expect(names.some((name) => /^storyboards-[0-9a-f]{8}\.json$/.test(name))).toBe(true);
-    expect(names.some((name) => /^script-plans-[0-9a-f]{8}\.json$/.test(name))).toBe(true);
-    expect(names.some((name) => /^production-tracks-[0-9a-f]{8}\.json$/.test(name))).toBe(true);
+    // 每章正文独立成片
+    expect(names.filter((name) => name.startsWith("chapter-001-novel-chapters-001-"))).toHaveLength(1);
+    expect(names.filter((name) => name.startsWith("chapter-002-novel-chapters-001-"))).toHaveLength(1);
+    expect(names.filter((name) => name.startsWith("chapter-003-novel-chapters-001-"))).toHaveLength(1);
+    // 分镜/剧本计划/制片轨道按所属章归片
+    expect(names.some((name) => name.startsWith("chapter-001-storyboards-001-"))).toBe(true);
+    expect(names.some((name) => name.startsWith("chapter-001-script-plans-001-"))).toBe(true);
+    expect(names.some((name) => name.startsWith("chapter-001-production-tracks-001-"))).toBe(true);
+    expect(names.some((name) => name.startsWith("chapter-002-media-tasks-001-"))).toBe(true);
+    // 非章节数组域保持裸名批切；小域进 core
+    expect(names.some((name) => /^materials-[0-9a-f]{8}\.json$/.test(name))).toBe(true);
     expect(names.some((name) => /^core-[0-9a-f]{8}\.json$/.test(name))).toBe(true);
-    // 空数组域（eventGraph 等）进 core，不产生独立分片
-    expect(names.some((name) => name.startsWith("agent-runs"))).toBe(false);
-    expect(names.some((name) => name.startsWith("media-tasks"))).toBe(false);
+    // 空数组域不产生独立分片
+    expect(names.some((name) => name.includes("agent-runs"))).toBe(false);
+    expect(names.some((name) => name.includes("entity-extractions"))).toBe(false);
   });
 
-  it("keeps every shard within the byte limit and splits overflowing arrays", () => {
+  it("keeps every shard within the byte limit and splits overflowing chapter runs", () => {
     const state = buildRichState();
-    // 每章约 200*3 字节正文（UTF-8 每汉字 3 字节），预算压到 1KB 强制多片
-    const plan = planStudioWorkflowShards(envelopeOf(state), { limitBytes: 1024 });
-    expect(plan.manifest.shards.filter((name) => name.startsWith("novel-chapters-")).length).toBeGreaterThan(1);
-    expect(plan.manifest.shards.some((name) => name.startsWith("storyboards-"))).toBe(true);
+    // 加大提示词让 8 个分镜在 1KB 预算下强制章内多片
+    (state.storyboards as Array<{ prompt: string }>).forEach((storyboard, index) => {
+      storyboard.prompt = `分镜 ${index} ${"述".repeat(120)}`;
+    });
+    const { plan, merged } = roundTrip(envelopeOf(state), 1024);
+    expect(plan.manifest.shards.filter((name) => name.startsWith("chapter-001-storyboards-")).length).toBeGreaterThan(1);
     for (const file of plan.files) {
       expect(Buffer.byteLength(file.content, "utf8")).toBeLessThanOrEqual(1024);
     }
-    // 切分保序：合并后章节顺序不变
-    const contents = plan.files.map((file) => file.content);
-    const merged = mergeStudioWorkflowShards(contents);
-    expect((merged.state.novelChapters as Array<{ id: string }>).map((item) => item.id)).toEqual([
-      "chapter-001",
-      "chapter-002",
-      "chapter-003",
+    // 切分保序：合并后分镜顺序不变
+    expect((merged.state.storyboards as Array<{ id: string }>).map((item) => item.id)).toEqual(
+      Array.from({ length: 8 }, (_, index) => `sb-${index + 1}`),
+    );
+  });
+
+  it("preserves exact item order even when chapters interleave (run 保序)", () => {
+    const storyboards = [
+      { id: "sb-1", episodeId: "chapter-001", index: 1 },
+      { id: "sb-2", episodeId: "chapter-002", index: 1 },
+      { id: "sb-3", episodeId: "chapter-001", index: 2 },
+      { id: "sb-4", episodeId: "chapter-002", index: 2 },
+    ];
+    const { plan, merged } = roundTrip(envelopeOf({ storyboards }));
+    // 交错 → 每章两个 run，各成文件
+    expect(plan.manifest.shards.filter((name) => name.startsWith("chapter-001-storyboards-"))).toHaveLength(2);
+    expect(plan.manifest.shards.filter((name) => name.startsWith("chapter-002-storyboards-"))).toHaveLength(2);
+    expect((merged.state.storyboards as Array<{ id: string }>).map((item) => item.id)).toEqual([
+      "sb-1",
+      "sb-2",
+      "sb-3",
+      "sb-4",
     ]);
+  });
+
+  it("puts items without a chapter key into the shared bucket", () => {
+    const { plan, merged } = roundTrip(envelopeOf({
+      storyboards: [
+        { id: "sb-1", episodeId: "chapter-001", index: 1 },
+        { id: "sb-orphan", index: 2 },
+      ],
+    }));
+    expect(plan.manifest.shards.some((name) => name.startsWith("storyboards-shared-001-"))).toBe(true);
+    expect((merged.state.storyboards as unknown[])).toHaveLength(2);
+  });
+
+  it("attributes indirect domains via storyboard/track maps (imageWorkflows/videoCandidates)", () => {
+    const state = {
+      storyboards: [
+        { id: "sb-1", episodeId: "chapter-007", index: 1 },
+      ],
+      productionTracks: [
+        { id: "track-1", episodeId: "chapter-007", trackKey: "chapter-007", storyboardIds: [], candidateVideoIds: [] },
+      ],
+      imageWorkflows: [
+        { id: "iw-1", name: "分镜工作流", target: { kind: "storyboard", id: "sb-1" } },
+        { id: "iw-2", name: "自由画布", target: { kind: "free" } },
+      ],
+      videoCandidates: [
+        { id: "vc-1", trackId: "track-1", provider: "ffmpeg-local", state: "ready" },
+        { id: "vc-2", trackId: "track-void", provider: "ffmpeg-local", state: "ready" },
+      ],
+    };
+    const { plan } = roundTrip(envelopeOf(state));
+    expect(plan.manifest.shards.some((name) => name.startsWith("chapter-007-image-workflows-001-"))).toBe(true);
+    expect(plan.manifest.shards.some((name) => name.startsWith("image-workflows-shared-001-"))).toBe(true);
+    expect(plan.manifest.shards.some((name) => name.startsWith("chapter-007-video-candidates-001-"))).toBe(true);
+    expect(plan.manifest.shards.some((name) => name.startsWith("video-candidates-shared-001-"))).toBe(true);
   });
 
   it("gives an oversized single item its own shard and reports it (单章超限独占)", () => {
@@ -108,7 +167,7 @@ describe("planStudioWorkflowShards", () => {
       sourceText: "文".repeat(2000),
     };
     const plan = planStudioWorkflowShards(envelopeOf(state), { limitBytes: 1024 });
-    const hugeShard = plan.files.find((file) => file.name.startsWith("novel-chapters-"));
+    const hugeShard = plan.files.find((file) => file.name.startsWith("chapter-huge-novel-chapters-"));
     expect(hugeShard).toBeDefined();
     expect(Buffer.byteLength(hugeShard!.content, "utf8")).toBeGreaterThan(1024);
     expect(plan.oversizedFiles.some((name) => hugeShard!.name.startsWith(name))).toBe(true);
@@ -122,7 +181,8 @@ describe("planStudioWorkflowShards", () => {
       workflowConfig: { episodeDurationMin: 3 },
       sourceBible: "圣".repeat(1200),
     });
-    const { plan, merged } = roundTripWithLimit(value, 2048);
+    const plan = planStudioWorkflowShards(value, { limitBytes: 2048 });
+    const merged = mergeStudioWorkflowShards(plan.files.map((file) => file.content));
     expect(merged.state.sourceBible).toBe("圣".repeat(1200));
     expect(plan.files.length).toBeGreaterThan(1);
     for (const file of plan.files) {
@@ -130,12 +190,12 @@ describe("planStudioWorkflowShards", () => {
         expect(Buffer.byteLength(file.content, "utf8")).toBeLessThanOrEqual(2048);
       }
     }
+  });
 
-    function roundTripWithLimit(input: string, limitBytes: number) {
-      const plan = planStudioWorkflowShards(input, { limitBytes });
-      const merged = mergeStudioWorkflowShards(plan.files.map((file) => file.content));
-      return { plan, merged };
-    }
+  it("sends unregistered array keys to core instead of inventing shard names", () => {
+    const { plan, merged } = roundTrip(envelopeOf({ futureDomain: [{ a: 1 }, { b: 2 }] }));
+    expect(plan.manifest.shards.every((name) => name.startsWith("core-"))).toBe(true);
+    expect(merged.state.futureDomain).toEqual([{ a: 1 }, { b: 2 }]);
   });
 
   it("rejects unparseable or non-envelope input instead of truncating", () => {

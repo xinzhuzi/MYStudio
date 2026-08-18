@@ -119,8 +119,10 @@ describe("createStudioWorkflowShardedStorage", () => {
     expect(manifestRaw).toBeTruthy();
     const manifest = JSON.parse(manifestRaw!) as { shards: string[]; version: number };
     expect(manifest.version).toBe(10);
-    expect(manifest.shards.some((name) => name.startsWith("novel-chapters-001-"))).toBe(true);
-    expect(manifest.shards.some((name) => name.startsWith("storyboards-"))).toBe(true);
+    expect(manifest.shards.some((name) => name.startsWith("chapter-001-novel-chapters-001-"))).toBe(true);
+    expect(manifest.shards.some((name) => name.startsWith("chapter-002-novel-chapters-001-"))).toBe(true);
+    expect(manifest.shards.some((name) => name.startsWith("chapter-001-storyboards-001-"))).toBe(true);
+    expect(manifest.shards.some((name) => name.startsWith("chapter-002-storyboards-001-"))).toBe(true);
     expect(manifest.shards.some((name) => name.startsWith("core-"))).toBe(true);
     for (const shardName of manifest.shards) {
       expect(hoisted.files.get(`_p/proj-1/studio-workflow/${shardName.replace(/\.json$/, "")}`)).toBeTruthy();

@@ -10,21 +10,71 @@ export const SHARD_DIR = "studio-workflow";
 export const SHARD_LAYOUT = "studio-workflow-shards-v1";
 export const SHARD_LIMIT_BYTES = 512 * 1024;
 
-const ARRAY_DOMAIN_SLUGS = {
-  novelChapters: "novel-chapters",
-  scriptPlans: "script-plans",
-  storyboards: "storyboards",
-  mediaTasks: "media-tasks",
-  agentRuns: "agent-runs",
-  imageWorkflows: "image-workflows",
-  continuityAssetVersions: "assets-versions",
-  agentWorkData: "agent-work-data",
-  productionTracks: "production-tracks",
-  materials: "materials",
-  episodeOutlines: "episode-outlines",
-  videoCandidates: "video-candidates",
+const SAFE_CHAPTER_KEY_RE = /^[A-Za-z0-9][A-Za-z0-9._-]*$/;
+
+function recordField(item, field) {
+  if (!item || typeof item !== "object" || Array.isArray(item)) return null;
+  const value = item[field];
+  return typeof value === "string" && SAFE_CHAPTER_KEY_RE.test(value) ? value : null;
+}
+
+// 章节归属数组域：每章独立分片（chapter-<id>-<slug>-NNN-<stamp>.json）
+const CHAPTER_DOMAIN_RULES = {
+  novelChapters: { slug: "novel-chapters", chapterKeyOf: (item) => recordField(item, "id") },
+  storyboards: { slug: "storyboards", chapterKeyOf: (item) => recordField(item, "episodeId") },
+  scriptPlans: { slug: "script-plans", chapterKeyOf: (item) => recordField(item, "episodeId") },
+  episodeOutlines: { slug: "episode-outlines", chapterKeyOf: (item) => recordField(item, "episodeId") },
+  mediaTasks: { slug: "media-tasks", chapterKeyOf: (item) => recordField(item, "episodeId") },
+  productionTracks: { slug: "production-tracks", chapterKeyOf: (item) => recordField(item, "episodeId") },
+  agentWorkData: { slug: "agent-work-data", chapterKeyOf: (item) => recordField(item, "episodeId") },
+  entityExtractions: {
+    slug: "entity-extractions",
+    chapterKeyOf: (item) => recordField(item, "chapterId") ?? recordField(item, "episodeId"),
+  },
+  imageWorkflows: {
+    slug: "image-workflows",
+    chapterKeyOf: (item, context) => {
+      const target = item && typeof item === "object" ? item.target : null;
+      if (!target || typeof target !== "object") return null;
+      if (target.kind !== "storyboard" || typeof target.id !== "string") return null;
+      return context.episodeIdByStoryboardId.get(target.id) ?? null;
+    },
+  },
+  videoCandidates: {
+    slug: "video-candidates",
+    chapterKeyOf: (item, context) => {
+      const trackId = recordField(item, "trackId");
+      return trackId ? context.episodeIdByTrackId.get(trackId) ?? null : null;
+    },
+  },
 };
-const ALWAYS_NUMBERED_DOMAINS = new Set(["novelChapters"]);
+
+// 非章节数组域：项目级数据，按大小批切（单片裸名、多片 -NNN）
+const ARRAY_DOMAIN_SLUGS = {
+  agentRuns: "agent-runs",
+  continuityAssetVersions: "assets-versions",
+  materials: "materials",
+};
+
+function buildChapterAttributionContext(state) {
+  const episodeIdByStoryboardId = new Map();
+  if (Array.isArray(state.storyboards)) {
+    for (const item of state.storyboards) {
+      const id = recordField(item, "id");
+      const episodeId = recordField(item, "episodeId");
+      if (id && episodeId) episodeIdByStoryboardId.set(id, episodeId);
+    }
+  }
+  const episodeIdByTrackId = new Map();
+  if (Array.isArray(state.productionTracks)) {
+    for (const item of state.productionTracks) {
+      const id = recordField(item, "id");
+      const episodeId = recordField(item, "episodeId");
+      if (id && episodeId) episodeIdByTrackId.set(id, episodeId);
+    }
+  }
+  return { episodeIdByStoryboardId, episodeIdByTrackId };
+}
 
 const encoder = new TextEncoder();
 const utf8Bytes = (input) => encoder.encode(input).length;
@@ -89,10 +139,21 @@ export function planStudioWorkflowShards(value, options = {}) {
     return core;
   };
 
+  const attribution = buildChapterAttributionContext(parsed.state);
+  const chapterFileCount = new Map();
+  const nextChapterBase = (chapterKey, slug) => {
+    const base = chapterKey ? `${chapterKey}-${slug}` : `${slug}-shared`;
+    const next = (chapterFileCount.get(base) ?? 0) + 1;
+    chapterFileCount.set(base, next);
+    return `${base}-${String(next).padStart(3, "0")}`;
+  };
+
   for (const [key, domainValue] of Object.entries(parsed.state)) {
-    const slug = ARRAY_DOMAIN_SLUGS[key];
-    const isSplittableArray = Boolean(slug) && Array.isArray(domainValue) && domainValue.length > 0;
-    if (!isSplittableArray) {
+    const chapterRule = CHAPTER_DOMAIN_RULES[key];
+    const flatSlug = ARRAY_DOMAIN_SLUGS[key];
+    const isArray = Array.isArray(domainValue) && domainValue.length > 0;
+    // 未注册的未知数组键按原子键进 core（防 undefined slug 文件名）
+    if (!isArray || (!chapterRule && !flatSlug)) {
       const part = `${JSON.stringify(key)}:${JSON.stringify(domainValue === undefined ? null : domainValue)}`;
       if (!core) openCore();
       const projected = shardEnvelope([...core.parts, part].join(","), version);
@@ -105,15 +166,45 @@ export function planStudioWorkflowShards(value, options = {}) {
     }
     const arrayKey = JSON.stringify(key);
     const items = domainValue;
+
+    if (chapterRule) {
+      // 章优先分层：按「同章连续段(run)」切文件，run 内超预算续片；
+      // manifest 顺序 = 数组原序 → 合并 concat 精确还原（章交错也保序）。
+      let index = 0;
+      while (index < items.length) {
+        const chapterKey = chapterRule.chapterKeyOf(items[index], attribution);
+        let end = index + 1;
+        while (end < items.length && chapterRule.chapterKeyOf(items[end], attribution) === chapterKey) {
+          end += 1;
+        }
+        let shard = null;
+        const openShard = () => {
+          shard = { baseName: nextChapterBase(chapterKey, chapterRule.slug), parts: [], arrayWrapper: `${arrayKey}:[` };
+          return shard;
+        };
+        for (let position = index; position < end; position += 1) {
+          const itemPart = JSON.stringify(items[position]);
+          if (!shard) openShard();
+          const innerCandidate = `${arrayKey}:[${[...shard.parts, itemPart].join(",")}]`;
+          const projected = shardEnvelope(innerCandidate, version);
+          if (utf8Bytes(projected) > limitBytes && shard.parts.length > 0) {
+            closeBatch(shard, version, files, oversized, limitBytes);
+            openShard();
+          }
+          shard.parts.push(itemPart);
+        }
+        if (shard) closeBatch(shard, version, files, oversized, limitBytes);
+        index = end;
+      }
+      continue;
+    }
+
+    // 非章节数组域：单片裸名、多片才编号。
     let shard = null;
     let shardNumber = 0;
     const openShard = () => {
       shardNumber += 1;
-      const base = ALWAYS_NUMBERED_DOMAINS.has(key)
-        ? `${slug}-${String(shardNumber).padStart(3, "0")}`
-        : shardNumber === 1
-          ? slug
-          : `${slug}-${String(shardNumber).padStart(3, "0")}`;
+      const base = shardNumber === 1 ? flatSlug : `${flatSlug}-${String(shardNumber).padStart(3, "0")}`;
       shard = { baseName: base, parts: [], arrayWrapper: `${arrayKey}:[` };
       return shard;
     };
