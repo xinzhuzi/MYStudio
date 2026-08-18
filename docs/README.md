@@ -14,7 +14,6 @@
 | [engineering/](./engineering/) | 架构、打包、故障排查、三方声明、存储、文档维护 |
 | [guides/](./guides/) | 高阶玩法指南（3D 纵深手册、本地模型降本） |
 | [research/](./research/) | 技术调查与任务研究（含已排除路线存档） |
-| [handoff/](./handoff/) | 跨会话交接提示词（历史任务存档） |
 | [融合/](./融合/) | 规划与调查（含外部参考资料） |
 
 ## 工作流（workflow/）
@@ -126,12 +125,6 @@
 | [静态图→3D 动态技术全景](./research/CINEMATIC_3D_TECH_LANDSCAPE.md) | 2026-08-14 3D 动态效果技术生态调查 |
 | [视频效果升级交接提示词](./research/EFFECT_UPGRADE_PROMPT_2026-08-18.md) | 08-18 效果升级任务的裁定增补与执行入口（执行以 Trellis 任务为准） |
 | [img2threejs 探索报告](./research/IMG2THREEJS_EXPLORATION.md) | 已排除路线的排除理由存档（2026-08-16 用户决策） |
-
-## 交接资料（handoff/）
-
-| 文档 | 用途 |
-|---|---|
-| [App 一键成片修复提示词](./handoff/app-one-click-fix-prompt.md) | 2026-08-17 一键成片 SHA 修复会话的完结交接存档 |
 
 ## 融合规划（融合/）
 
