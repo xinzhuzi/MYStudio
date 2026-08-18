@@ -1,9 +1,20 @@
 // @vitest-environment jsdom
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { SeriesMeta } from "@/types/script";
 import { OverviewPanel } from "./index";
+
+// MdEditor 在 jsdom 里不可靠，用最小替身（值展示 + 回写）
+vi.mock("md-editor-rt", () => ({
+  MdEditor: ({ modelValue, onChange }: { modelValue: string; onChange: (v: string) => void }) => (
+    <textarea
+      data-testid="pref-editor"
+      value={modelValue}
+      onChange={(e) => onChange((e.target as HTMLTextAreaElement).value)}
+    />
+  ),
+}));
 
 const mocks = vi.hoisted(() => ({
   updateSeriesMeta: vi.fn(),
@@ -122,5 +133,26 @@ describe("OverviewPanel", () => {
     expect(buttons.length).toBeGreaterThan(0);
     fireEvent.click(buttons[0]);
     expect(mocks.setActiveTab).toHaveBeenCalledWith("studio");
+  });
+
+  it("opens the author preference editor from the overview header and saves via app-level storage", async () => {
+    render(<OverviewPanel />);
+
+    const entry = screen.getByRole("button", { name: /作者偏好/ });
+    expect(entry).toBeTruthy();
+
+    const setItem = vi.fn(async () => true);
+    (window as unknown as { fileStorage?: unknown }).fileStorage = {
+      getItem: async () => "# 作者偏好\n\n## 改编口味\n快节奏\n",
+      setItem,
+    };
+    fireEvent.click(entry);
+    // 对话框副标题说明应用级语义
+    expect(await screen.findByText(/全应用生效/)).toBeTruthy();
+    fireEvent.click(await screen.findByRole("button", { name: /^保存$/ }));
+    await waitFor(() =>
+      expect(setItem).toHaveBeenCalledWith("author-preference.md", expect.stringContaining("改编口味")),
+    );
+    delete (window as unknown as { fileStorage?: unknown }).fileStorage;
   });
 });

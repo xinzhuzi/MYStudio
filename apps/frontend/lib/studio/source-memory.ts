@@ -9,6 +9,7 @@
  * MEMORY.md 是用户手写圣经，本链路对其只读、绝不改写。
  */
 import { formatSourceBibleContext, readResidentBible } from "./source-bible";
+import { formatAuthorPreferenceContext, readAuthorPreference } from "./author-preference";
 import { getProjectFilesBridge } from "@/lib/bridge/project-files";
 import type {
   SourceMemoryBuildReply,
@@ -322,13 +323,15 @@ export async function retrieveArchiveContext(input: {
   }
 }
 
-/** 常驻圣经块 + 档案检索块合一读取（用户裁定：每条消息常驻块只有一个，检索追加其后）。 */
+/** 常驻合并块合一读取：作者偏好 + 圣经 + 单次档案检索（用户裁定：每条消息常驻块只有一个，
+ *  三段拼在同一个块里，顺序=口味层→事实层→补充层；任一段为空即省略，全空零注入）。 */
 export async function readBibleWithArchiveContext(input: {
   projectId?: string | null;
   storeFallback?: string;
   archiveQuery: string;
   archiveLimit?: number;
 }): Promise<string | undefined> {
+  const preferenceContext = formatAuthorPreferenceContext(await readAuthorPreference());
   const residentBible = await readResidentBible({
     projectId: input.projectId,
     readText: getProjectFilesBridge()?.readText,
@@ -340,5 +343,5 @@ export async function readBibleWithArchiveContext(input: {
     query: input.archiveQuery,
     limit: input.archiveLimit,
   });
-  return [bibleContext, archiveContext].filter(Boolean).join("\n\n") || undefined;
+  return [preferenceContext, bibleContext, archiveContext].filter(Boolean).join("\n\n") || undefined;
 }

@@ -44,6 +44,7 @@ import {
   ChevronRight,
   ArrowRight,
   Workflow,
+  SlidersHorizontal,
 } from "lucide-react";
 import type {
   SeriesMeta,
@@ -58,6 +59,7 @@ import {
 } from "./OverviewFields";
 import { OVERVIEW_WORKFLOW_GUIDE } from "./workflow-guide";
 import { OVERVIEW_STAGE_GUIDE } from "./stage-guide";
+import { AuthorPreferenceDialog } from "./AuthorPreferenceDialog";
 import {
   createArtifactDeletionPlan,
   executeArtifactDeletionPlan,
@@ -95,6 +97,8 @@ export function OverviewPanel() {
   const [deletingEpIndex, setDeletingEpIndex] = useState<number | null>(null);
   const [chapterDeletePlan, setChapterDeletePlan] = useState<DeletionPlan | null>(null);
   const [chapterDeleteOpen, setChapterDeleteOpen] = useState(false);
+  // 作者偏好（应用级口味卡）编辑入口
+  const [prefOpen, setPrefOpen] = useState(false);
 
   const openChapterDeletePlan = useCallback(async (chapterId: string) => {
     if (!activeProjectId) {
@@ -262,11 +266,19 @@ export function OverviewPanel() {
             )}
           </span>
         </div>
-        <span className="text-[10px] text-muted-foreground">
-          {episodes.length} 集 · {meta.characters.length} 角色 ·{" "}
-          {meta.factions?.length || 0} 阵营 · {meta.keyItems?.length || 0} 物品
-        </span>
+        <div className="flex items-center gap-2">
+          <span className="text-[10px] text-muted-foreground">
+            {episodes.length} 集 · {meta.characters.length} 角色 ·{" "}
+            {meta.factions?.length || 0} 阵营 · {meta.keyItems?.length || 0} 物品
+          </span>
+          <Button variant="outline" size="sm" onClick={() => setPrefOpen(true)}>
+            <SlidersHorizontal className="h-3.5 w-3.5" />
+            作者偏好
+          </Button>
+        </div>
       </div>
+
+      <AuthorPreferenceDialog open={prefOpen} onOpenChange={setPrefOpen} />
 
       {/* Two-column layout */}
       <ResizablePanelGroup direction="horizontal" className="flex-1 min-h-0">

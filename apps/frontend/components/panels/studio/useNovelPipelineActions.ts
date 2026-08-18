@@ -22,6 +22,10 @@ import {
   readResidentBible,
   validateCharactersAgainstBible,
 } from "@/lib/studio/source-bible";
+import {
+  formatAuthorPreferenceContext,
+  readAuthorPreference,
+} from "@/lib/studio/author-preference";
 import { getProjectFilesBridge } from "@/lib/bridge/project-files";
 import { useCharacterLibraryStore } from "@/stores/library/character-library-store";
 import { usePropsLibraryStore } from "@/stores/library/props-library-store";
@@ -76,7 +80,10 @@ export function useNovelPipelineActions({
         readText: getProjectFilesBridge()?.readText,
         storeFallback: useStudioStore.getState().sourceBible,
       });
-      const bibleContext = formatSourceBibleContext(residentBible) || undefined;
+      // 合并块最前段：作者偏好（应用级口味层，空则零注入；与剧本链共用同一块纪律）
+      const preferenceContext = formatAuthorPreferenceContext(await readAuthorPreference());
+      const bibleContext =
+        [preferenceContext, formatSourceBibleContext(residentBible)].filter(Boolean).join("\n\n") || undefined;
       const bibleCharacters = parseBibleCharacters(residentBible);
       // 按 index 排序后滚动注入上一章事件行；调用方传入乱序选择时仍保持章节顺序。
       const sortedChapters = [...chapters].sort((left, right) => left.index - right.index);

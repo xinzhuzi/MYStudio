@@ -228,6 +228,7 @@ describe("检索门面（L3）", () => {
   afterEach(() => {
     delete (window as unknown as { sourceMemory?: unknown }).sourceMemory;
     delete (window as unknown as { projectFiles?: unknown }).projectFiles;
+    delete (window as unknown as { fileStorage?: unknown }).fileStorage;
   });
 
   it("桥可用且命中 → 单块档案检索文本；圣经块追加其后", async () => {
@@ -280,5 +281,47 @@ describe("检索门面（L3）", () => {
     expect(
       await readBibleWithArchiveContext({ projectId: "p1", storeFallback: "", archiveQuery: "x" }),
     ).toBeUndefined();
+  });
+
+  it("作者偏好排在合并块最前：偏好→圣经→档案；空偏好零痕迹", async () => {
+    (window as unknown as { sourceMemory?: unknown }).sourceMemory = {
+      search: vi.fn(async () => ({
+        success: true,
+        hits: [
+          {
+            recordId: "r1",
+            kind: "character",
+            title: "晏燎",
+            sourcePath: "novel/chapters/chapter-001.md",
+            anchor: "第1章",
+            score: -1,
+            snippet: "剑主",
+          },
+        ],
+      })),
+    };
+    (window as unknown as { fileStorage?: unknown }).fileStorage = {
+      getItem: async (key: string) => (key === "author-preference.md" ? "# 作者偏好\n\n## 改编口味\n快节奏\n" : null),
+    };
+    const combined = await readBibleWithArchiveContext({
+      projectId: "p1",
+      storeFallback: "# 原著圣经\n\n## 一句话主线\n主线\n",
+      archiveQuery: "晏燎",
+    });
+    expect(combined!.indexOf("# 作者偏好（改编口味")).toBeGreaterThanOrEqual(0);
+    expect(combined!.indexOf("原著圣经（最高优先级")).toBeGreaterThan(combined!.indexOf("# 作者偏好（改编口味"));
+    expect(combined!.indexOf("## 原著档案检索")).toBeGreaterThan(combined!.indexOf("原著圣经（最高优先级"));
+    expect(combined!.match(/# 作者偏好/g)).toHaveLength(1);
+
+    // 空偏好 → 与无偏好基线逐字节一致（零痕迹）
+    (window as unknown as { fileStorage?: unknown }).fileStorage = {
+      getItem: async () => null,
+    };
+    const baseline = await readBibleWithArchiveContext({
+      projectId: "p1",
+      storeFallback: "# 原著圣经\n\n## 一句话主线\n主线\n",
+      archiveQuery: "晏燎",
+    });
+    expect(baseline).not.toContain("作者偏好");
   });
 });
