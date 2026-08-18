@@ -237,7 +237,7 @@ export function planStudioWorkflowShards(value, options = {}) {
           return shard;
         };
         for (let position = index; position < end; position += 1) {
-          const itemPart = `      ${reindentJson(JSON.stringify(items[position], null, 2), 6)}`;
+          const itemPart = `      ${reindentJson(JSON.stringify(plannableItems[position], null, 2), 6)}`;
           if (!shard) openShard();
           const projected = batchTotalBytes(shard, version, itemPart);
           if (projected > limitBytes && shard.parts.length > 0) {

@@ -230,6 +230,8 @@ export function createStudioWorkflowShardedStorage(
     getLiveState?: () => unknown;
     /** 每 N 次保存强制全量自愈（默认 50；测试可覆写） */
     fullSaveEvery?: number;
+    /** 测试/重置专用：允许空工作区覆写非空磁盘分片库（默认拒绝） */
+    allowEmptyOverwrite?: boolean;
   } = {},
 ): StateStorage {
   const serializeWrite = createWriteSerializer();
@@ -346,6 +348,7 @@ export function createStudioWorkflowShardedStorage(
       }
 
       await serializeWrite(async () => {
+        let skipOrphanCleanup = false;
         saveCounter += 1;
         // 版本探针：zustand 信封为紧凑 JSON、version 位于尾部——尾部切片正则，免全量 parse 判版本
         const versionProbe = /"version":\s*(-?\d+)\s*}\s*$/.exec(value.slice(-64));
@@ -361,6 +364,25 @@ export function createStudioWorkflowShardedStorage(
         if (domainCachePidMismatch) domainCache = canIncremental ? new Map() : null;
         let plan;
         try {
+          // 空态覆写守卫（script-store 同款事故形态）：value 无任何章/分镜/任务而磁盘
+          // manifest 存在且非空 → 这是读链损坏后的空 hydrate，拒写防整库覆写
+          try {
+            const probe = JSON.parse(value) as { state?: Record<string, unknown> };
+            const st = probe.state ?? {};
+            const isEmptyWorkspace = (Array.isArray(st.novelChapters) ? st.novelChapters.length === 0 : true)
+              && (Array.isArray(st.storyboards) ? st.storyboards.length === 0 : true)
+              && (Array.isArray(st.mediaTasks) ? st.mediaTasks.length === 0 : true);
+            if (isEmptyWorkspace) {
+              const diskManifestRaw = await fileStorage.getItem(`${shardFileKeyPrefix(pid)}/manifest`);
+              const diskManifest = diskManifestRaw ? parseStudioWorkflowShardManifest(diskManifestRaw) : null;
+              if (diskManifest && diskManifest.shards.length > 0 && !options.allowEmptyOverwrite) {
+                console.error('[StudioWorkflowShardedStorage] 拒绝空态覆写：磁盘分片库非空(' + diskManifest.shards.length + ' 片)而保存值为空工作区——读链可能损坏，需人工核查');
+                return;
+              }
+            }
+          } catch (error) {
+            if (error instanceof SyntaxError) throw error; // value 本身坏→走既有回退
+          }
           plan = planStudioWorkflowShards(value, {
             getLiveState: canIncremental ? options.getLiveState : undefined,
             itemCache,
@@ -390,7 +412,10 @@ export function createStudioWorkflowShardedStorage(
               }
             }
           } catch (error) {
-            console.warn('[StudioWorkflowShardedStorage] 归档章分片名抄录失败（下次保存重试）:', error);
+            // 数据安全：抄录失败时必须跳过本次孤儿清理——否则未并入 manifest 的
+            // 归档章分片会被清理当孤儿删除（丢他章数据）
+            skipOrphanCleanup = true;
+            console.error('[StudioWorkflowShardedStorage] 归档章分片名抄录失败，本次跳过孤儿清理（下次保存重试）:', error);
           }
         } catch (error) {
           console.error('[StudioWorkflowShardedStorage] 分片规划失败，回退旧单文件写:', error);
@@ -457,7 +482,11 @@ export function createStudioWorkflowShardedStorage(
 
         // 清理未被 manifest 列出的孤儿分片（上一代 stamp 文件；章文件在 chapters/ 子目录，
         // 用现有 listDirs+listKeys IPC 组合嵌套扫描，不新增 readdir 通道）
+        if (skipOrphanCleanup) {
+          console.warn('[StudioWorkflowShardedStorage] 孤儿清理已跳过（归档抄录未确认）');
+        }
         try {
+          if (skipOrphanCleanup) throw new Error('skip');
           const bridge = typeof window !== 'undefined' ? window.fileStorage : undefined;
           if (bridge?.listKeys && bridge?.listDirs) {
             const listed = new Set<string>(plan.manifest.shards.map((fileName) => fileName.replace(/\.json$/, '')));

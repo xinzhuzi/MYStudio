@@ -185,6 +185,25 @@ describe("studio-workflow-store mjs twin parity", () => {
     assert.equal(fs.readFileSync(rootReadmePath, "utf-8"), PROJECT_README_TEMPLATE);
   });
 
+  it("emitChapterIndex parity：孪生与 TS 的索引/激活章发射逐字节一致（含 slim 跳片）", async () => {
+    const { planStudioWorkflowShards: planTs } = await import("../../frontend/lib/storage/studio-workflow-shards");
+    const state = {
+      activeChapterId: "chapter-002",
+      novelChapters: [
+        { id: "chapter-001", index: 1, title: "一" },
+        { id: "chapter-002", index: 2, title: "二", sourceText: "正文".repeat(60) },
+      ],
+      storyboards: [{ id: "sb-1", episodeId: "chapter-002", index: 1 }],
+    };
+    const value = JSON.stringify({ state, version: 10 });
+    const ts = planTs(value, { emitChapterIndex: true });
+    const js = planStudioWorkflowShards(value, { emitChapterIndex: true });
+    assert.deepEqual(js.manifest, ts.manifest);
+    assert.deepEqual(js.files.map((f) => [f.name, f.content]), ts.files.map((f) => [f.name, f.content]));
+    // slim 章不落片：只有 chapter-002 的分片
+    assert.ok(ts.manifest.shards.filter((n) => n.startsWith("chapters/")).every((n) => n.startsWith("chapters/chapter-002/")));
+  });
+
   it("writeStudioWorkflowStore cleans previous-generation orphans", () => {
     const projectDir = makeProjectDir();
     const value = JSON.stringify({ state: buildState(), version: 10 });

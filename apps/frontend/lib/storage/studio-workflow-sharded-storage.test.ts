@@ -398,6 +398,20 @@ describe("createStudioWorkflowShardedStorage", () => {
     expect("sourceText" in ch2).toBe(false);
   });
 
+  it("空态覆写守卫：磁盘分片库非空时拒绝空工作区保存（读链损坏防线）", async () => {
+    await storage.setItem("studio-workflow-store", buildPersistedValue());
+    const emptyValue = JSON.stringify({ state: { novelChapters: [], storyboards: [], mediaTasks: [] }, version: 10 });
+    await storage.setItem("studio-workflow-store", emptyValue);
+    // 拒写：读回仍是原数据
+    const restored = await storage.getItem("studio-workflow-store");
+    expect((JSON.parse(restored!).state.novelChapters as unknown[]).length).toBeGreaterThan(0);
+    // allowEmptyOverwrite 显式开启才放行（重置流程）
+    const permissive = createStudioWorkflowShardedStorage("studio-workflow-store", { allowEmptyOverwrite: true });
+    await permissive.setItem("studio-workflow-store", emptyValue);
+    const after = await permissive.getItem("studio-workflow-store");
+    expect(JSON.parse(after!).state.novelChapters).toEqual([]);
+  });
+
   it("reads an empty-state manifest (zero shards) as an empty envelope", async () => {
     hoisted.files.set(
       "_p/proj-1/studio-workflow/manifest",
