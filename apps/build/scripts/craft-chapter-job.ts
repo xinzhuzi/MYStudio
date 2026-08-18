@@ -54,10 +54,18 @@ async function main() {
     "studio-workflow",
   );
   const storyboards: unknown[] = [];
-  for (const shard of fs.readdirSync(shardDir).filter((f) => f.startsWith("storyboards-") && f.endsWith(".json"))) {
-    const d = JSON.parse(fs.readFileSync(path.join(shardDir, shard), "utf8"));
-    const list = (d.state ?? d).storyboards ?? (Array.isArray(d) ? d : []);
-    if (Array.isArray(list)) storyboards.push(...list);
+  // 布局 v1 的 storyboards 分片在 chapters/<chapterId>/ 子目录(08-18 store 布局);
+  // 兼容旧平铺(根目录直放)。
+  const shardDirs = [
+    shardDir,
+    path.join(shardDir, "chapters", "chapter-001"),
+  ].filter((d) => fs.existsSync(d));
+  for (const dir of shardDirs) {
+    for (const shard of fs.readdirSync(dir).filter((f) => f.startsWith("storyboards-") && f.endsWith(".json"))) {
+      const d = JSON.parse(fs.readFileSync(path.join(dir, shard), "utf8"));
+      const list = (d.state ?? d).storyboards ?? (Array.isArray(d) ? d : []);
+      if (Array.isArray(list)) storyboards.push(...list);
+    }
   }
   const merged = mergeShotFxEditingEffects(plan.effects, {
     planClips: plan.clips as never,
