@@ -45,17 +45,28 @@ describe("transition policy", () => {
 
 describe("style word transitions (director ⑥ structured vocabulary)", () => {
   it.each([
-    ["水墨晕染", "crossfade", 1_000_000],
+    ["水墨晕染", "gl:swap", 1_000_000],
     ["灵气色彩", "crossfade", 800_000],
-    ["境界跃迁", "flash", 500_000],
+    ["境界跃迁", "gl:CrossZoom", 500_000],
     ["四季流转", "fade", 800_000],
     ["剑痕", "flash", 300_000],
     ["血祭", "blackout", 800_000],
-    ["梦境", "fade", 1_000_000],
-    ["前世", "fade", 1_000_000],
+    ["梦境", "gl:ButterflyWaveScrawler", 1_000_000],
+    ["前世", "gl:ButterflyWaveScrawler", 1_000_000],
     ["空镜呼吸", "fade", 1_000_000],
   ] as const)("maps %s to %s @ %dµs", (word, effectId, durationUs) => {
     expect(styleWordTransition(word)).toEqual({ styleWord: word === "前世" ? "梦境" : word, effectId, durationUs });
+  });
+
+  it("gl: style words stay inside the registry whitelist (fail-closed 语义守护)", async () => {
+    const { GL_TRANSITION_IDS } = await import(
+      "@/electron/rendering/plugins/remotion/composition/gl-transition-registry"
+    );
+    for (const [word] of ([["水墨晕染"], ["境界跃迁"], ["梦境"]] as const)) {
+      const entry = styleWordTransition(word);
+      expect(entry).not.toBeNull();
+      expect(GL_TRANSITION_IDS).toContain(entry!.effectId);
+    }
   });
 
   it("same-scene hard cut and unknown words produce no transition", () => {

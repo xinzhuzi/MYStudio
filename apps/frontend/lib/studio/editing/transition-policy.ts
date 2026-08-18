@@ -29,13 +29,15 @@ export interface StyleWordTransition {
 }
 
 const STYLE_WORD_TRANSITIONS: ReadonlyArray<{ match: RegExp } & StyleWordTransition> = [
-  { match: /水墨晕染/, styleWord: "水墨晕染", effectId: "crossfade", durationUs: 1_000_000 },
+  // gl:* 升级（08-18-gl-transitions Step C）：只升级语义高度贴合的词，其余保留已验证基线；
+  // gl: id 必须来自 gl-transition-registry 白名单（孪生测试守护，fail-closed 拒未知值）。
+  { match: /水墨晕染/, styleWord: "水墨晕染", effectId: "gl:swap", durationUs: 1_000_000 },
   { match: /灵气色彩/, styleWord: "灵气色彩", effectId: "crossfade", durationUs: 800_000 },
-  { match: /境界跃迁/, styleWord: "境界跃迁", effectId: "flash", durationUs: 500_000 },
+  { match: /境界跃迁/, styleWord: "境界跃迁", effectId: "gl:CrossZoom", durationUs: 500_000 },
   { match: /四季流转/, styleWord: "四季流转", effectId: "fade", durationUs: 800_000 },
   { match: /剑痕/, styleWord: "剑痕", effectId: "flash", durationUs: 300_000 },
   { match: /血祭/, styleWord: "血祭", effectId: "blackout", durationUs: 800_000 },
-  { match: /梦境|前世/, styleWord: "梦境", effectId: "fade", durationUs: 1_000_000 },
+  { match: /梦境|前世/, styleWord: "梦境", effectId: "gl:ButterflyWaveScrawler", durationUs: 1_000_000 },
   { match: /空镜呼吸/, styleWord: "空镜呼吸", effectId: "fade", durationUs: 1_000_000 },
 ];
 
@@ -90,6 +92,9 @@ export function transitionParams(
     case "blackout":
       return { hold: 0.15 };
     case "cut":
+      return {};
+    default:
+      // gl:*：shader 私有参数走 registry defaultUniforms，params 层保持空。
       return {};
   }
 }

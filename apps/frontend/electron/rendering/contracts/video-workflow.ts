@@ -1,4 +1,4 @@
-import type { SubtitleAuthority, TimelineTimeUs } from "@/types/editing";
+import type { EditingTransition, SubtitleAuthority, TimelineTimeUs } from "@/types/editing";
 
 export const VIDEO_WORKFLOW_SCHEMA_VERSION = 1 as const;
 export const VIDEO_WORKFLOW_TIME_UNIT = "seconds" as const;
@@ -122,7 +122,9 @@ export interface VideoUseAlignmentCueV1 {
  * Emitted by the video-use decision layer from director-plan boundary intents;
  * consumed by the editing projection into EditingProject.transitions. */
 export interface VideoUseTransitionToNextV1 {
-  effectId: "cut" | "fade" | "crossfade" | "flash" | "blackout";
+  // 08-18-gl-transitions Step C：转场闭集与 EditingTransition 同源（基础5+gl:白名单123）。
+  // Python 侧 EDL 校验用同一白名单（adapter.py _TRANSITION_EFFECT_IDS，孪生对拍守护）。
+  effectId: EditingTransition["effectId"];
   durationUs: TimelineTimeUs;
   /** Provenance style word from the director plan ⑥ section (水墨晕染/剑痕/…). */
   styleWord?: string;
