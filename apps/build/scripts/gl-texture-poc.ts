@@ -67,13 +67,15 @@ function writeEntry(urls: Record<string, string>) {
     .replace(/__SEEK__/g, process.env.POC_SEEK === "1" ? "true" : "false")
     .replace(/__NOCANVAS__/g, process.env.POC_NOCANVAS === "1" ? "true" : "false")
     .replace(/__CANVAS__/g, process.env.POC_CANVAS === "1" ? "true" : "false")
+    .replace(/__PRODUCT__/g, process.env.POC_PRODUCT === "1" ? "true" : "false")
     .replace(/__MODE__/g, JSON.stringify(mode));
   fs.writeFileSync(entry, code, "utf8");
   return entry;
 }
 
 const ENTRY_TEMPLATE = `import React from "react";
-import { AbsoluteFill, Composition, OffthreadVideo, Video, continueRender, delayRender, registerRoot, useCurrentFrame, useVideoConfig } from "remotion";
+import { AbsoluteFill, Composition, OffthreadVideo, Sequence, Video, continueRender, delayRender, registerRoot, useCurrentFrame, useVideoConfig } from "remotion";
+import { GLTransitionLayer } from "../../frontend/electron/rendering/plugins/remotion/composition/GLTransitionLayer";
 import { ThreeCanvas } from "@remotion/three";
 import { useThree } from "@react-three/fiber";
 import * as THREE from "three";
@@ -372,10 +374,40 @@ function PocVideo({ srcA, srcB, imgA, imgB }: { srcA: string; srcB: string; imgA
   );
 }
 
+function ProductVideo({ srcA, srcB }: { srcA: string; srcB: string }) {
+  // 产品组件全管线验证：真 GLTransitionLayer + 合成 clip props + gl:Directional 转场。
+  const { width, height } = useVideoConfig();
+  const overlap = 20;
+  const transform = { x: 0, y: 0, scaleX: 1, scaleY: 1, rotation: 0, opacity: 1 };
+  const clipA = {
+    clipId: "a", kind: "video" as const, src: srcA, from: 0,
+    durationInFrames: ${DURATION}, transform, trimStartFrames: 0, playbackRate: 1, muted: true,
+  };
+  const clipB = {
+    clipId: "b", kind: "video" as const, src: srcB, from: ${DURATION} - overlap,
+    durationInFrames: overlap, transform, trimStartFrames: 0, playbackRate: 1, muted: true,
+  };
+  return (
+    <AbsoluteFill style={{ backgroundColor: "#000" }}>
+      <Sequence from={0} durationInFrames={${DURATION} - overlap + 1} layout="none">
+        <OffthreadVideo src={srcA} muted style={{ width: "100%", height: "100%" }} />
+      </Sequence>
+      <Sequence from={${DURATION} - overlap} durationInFrames={overlap} layout="none">
+        <GLTransitionLayer
+          transition={{ fromClipId: "a", toClipId: "b", effectId: "gl:Directional", overlapFrames: overlap }}
+          fromClip={clipA}
+          toClip={clipB}
+        />
+      </Sequence>
+      <div style={{ position: "absolute", left: 0, top: 0, width, height }} />
+    </AbsoluteFill>
+  );
+}
+
 export const RemotionRoot: React.FC = () => (
   <Composition
     id="GLPoc"
-    component={PocVideo}
+    component={__PRODUCT__ ? ProductVideo : PocVideo}
     durationInFrames={${DURATION}}
     fps={${FPS}}
     width={${W}}
