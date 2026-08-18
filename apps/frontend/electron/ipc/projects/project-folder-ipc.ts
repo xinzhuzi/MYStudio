@@ -34,6 +34,15 @@ export type ProjectFolderRemoveResult =
 
 export type ProjectFolderStatusResult = { location?: string; exists: boolean };
 
+/** 复制项目时 novel/ 子树（圣经/章节镜像/原著档案）随行结果。 */
+export type ProjectFolderCopyNovelResult =
+  | { ok: true; copiedFiles: number }
+  | {
+      ok: false;
+      code: "INVALID_ID" | "NOT_A_DIRECTORY" | "TARGET_NOT_EMPTY" | "COPY_FAILED";
+      message: string;
+    };
+
 export type ProjectFolderMoveResult =
   | { ok: true; location: string; mode: ProjectMoveMode }
   | {
@@ -65,6 +74,7 @@ export type ProjectFolderBridge = {
   rename: (projectId: string, newName: string) => Promise<ProjectFolderRenameResult>;
   remove: (projectId: string) => Promise<ProjectFolderRemoveResult>;
   status: (projectId: string) => Promise<ProjectFolderStatusResult>;
+  copyNovel: (sourceProjectId: string, targetProjectId: string) => Promise<ProjectFolderCopyNovelResult>;
   move: (projectId: string, projectName: string, targetParentDir: string) => Promise<ProjectFolderMoveResult>;
   cancelMove: (projectId: string) => Promise<ProjectFolderMoveCancelResult>;
   importFolder: (folderPath: string) => Promise<ProjectFolderImportResult>;
@@ -413,6 +423,62 @@ export function registerProjectFolderIpcHandlers({
       return { location, exists: false };
     }
   });
+
+  // 复制项目的 novel/ 子树随行：圣经(MEMORY.md)/章节镜像/原著档案整体拷到目标项目根。
+  // 根路径全部由 location 表+dataRoot 解析，不接受渲染进程传任何路径；
+  // .lock 与 source-memory/staging 属临时产物不随行；源无 novel/ 是合法空操作。
+  ipcMain.handle("project-folder-copy-novel", async (_event, sourceProjectId: string, targetProjectId: string): Promise<ProjectFolderCopyNovelResult> => {
+      if (!isValidProjectId(sourceProjectId) || !isValidProjectId(targetProjectId) || sourceProjectId === targetProjectId) {
+        return { ok: false, code: "INVALID_ID", message: "源/目标项目 ID 无效或相同" };
+      }
+      const dataRoot = getProjectsDataRoot();
+      // 与 move handler 同款解析：注入的位置表优先，未注册项目落 dataRoot/_p/<pid>
+      const resolveRoot = (projectId: string) => locationStore.get(projectId) ?? resolveProjectRootPath(dataRoot, projectId);
+      let sourceNovel: string;
+      try {
+        sourceNovel = path.join(resolveRoot(sourceProjectId), "novel");
+      } catch (error) {
+        return { ok: false, code: "INVALID_ID", message: `解析源项目根失败：${errorMessage(error)}` };
+      }
+      try {
+        if (!fs.statSync(sourceNovel).isDirectory()) {
+          return { ok: false, code: "NOT_A_DIRECTORY", message: `源 novel 不是目录：${sourceNovel}` };
+        }
+      } catch {
+        return { ok: true, copiedFiles: 0 };
+      }
+      let targetRoot: string;
+      try {
+        targetRoot = resolveRoot(targetProjectId);
+      } catch (error) {
+        return { ok: false, code: "INVALID_ID", message: `解析目标项目根失败：${errorMessage(error)}` };
+      }
+      const targetNovel = path.join(targetRoot, "novel");
+      try {
+        if (fs.existsSync(targetNovel) && fs.readdirSync(targetNovel).length > 0) {
+          return { ok: false, code: "TARGET_NOT_EMPTY", message: "目标项目已存在非空 novel 目录，拒绝覆盖" };
+        }
+        fs.cpSync(sourceNovel, targetNovel, {
+          recursive: true,
+          filter: (entry) => {
+            const base = path.basename(entry);
+            return base !== ".lock" && base !== "staging";
+          },
+        });
+        let copiedFiles = 0;
+        const countFiles = (dir: string) => {
+          for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+            if (entry.isDirectory()) countFiles(path.join(dir, entry.name));
+            else copiedFiles += 1;
+          }
+        };
+        countFiles(targetNovel);
+        return { ok: true, copiedFiles };
+      } catch (error) {
+        return { ok: false, code: "COPY_FAILED", message: errorMessage(error) };
+      }
+    },
+  );
 
   ipcMain.handle("project-folder-move", async (event, projectId: string, projectName: string, targetParentDir: string): Promise<ProjectFolderMoveResult> => {
     if (!isValidProjectId(projectId)) {

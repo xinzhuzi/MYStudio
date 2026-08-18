@@ -92,6 +92,7 @@ project-file-remove-text
 project-file-save-image
 project-file-write-binary
 project-file-write-text
+project-folder-copy-novel
 project-folder-import
 project-folder-move
 project-folder-move-cancel

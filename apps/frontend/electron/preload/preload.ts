@@ -300,6 +300,8 @@ contextBridge.exposeInMainWorld('projectFolder', {
     ipcRenderer.invoke('project-folder-rename', projectId, newName),
   remove: (projectId: string) => ipcRenderer.invoke('project-folder-remove', projectId),
   status: (projectId: string) => ipcRenderer.invoke('project-folder-status', projectId),
+  copyNovel: (sourceProjectId: string, targetProjectId: string) =>
+    ipcRenderer.invoke('project-folder-copy-novel', sourceProjectId, targetProjectId),
   move: (projectId: string, projectName: string, targetParentDir: string) =>
     ipcRenderer.invoke('project-folder-move', projectId, projectName, targetParentDir),
   cancelMove: (projectId: string) =>

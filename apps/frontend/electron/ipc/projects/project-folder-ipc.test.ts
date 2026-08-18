@@ -300,6 +300,73 @@ describe("project-folder IPC handlers", () => {
     expect(await fixture.invoke("project-folder-status", "pid-1"))
       .toEqual({ location: path.join(parent, "在线"), exists: false });
   });
+
+  it("copy-novel carries the novel subtree to a duplicate project (bible readable, temp artifacts skipped)", async () => {
+    const parent = path.join(fixture.tmp, "parent");
+    fs.mkdirSync(parent);
+    // 源=外部位置项目，目标=外部副本（prepare 已注册位置）
+    const source = path.join(parent, "道劫");
+    fs.mkdirSync(path.join(source, "novel", "chapters"), { recursive: true });
+    fs.mkdirSync(path.join(source, "novel", "source-memory", "staging"), { recursive: true });
+    fs.writeFileSync(path.join(source, "novel", "source-memory", "MEMORY.md"), "# 原著圣经\n晏燎创建万劫圣宗。\n");
+    fs.writeFileSync(path.join(source, "novel", "chapters", "chapter-001.md"), "## 第1章\n正文\n");
+    fs.writeFileSync(path.join(source, "novel", "source-memory", "records.jsonl"), '{"recordId":"r1"}\n');
+    fs.writeFileSync(path.join(source, "novel", "source-memory", "staging", "plan-x.json"), "{}");
+    fs.writeFileSync(path.join(source, "novel", "source-memory", ".lock"), "1");
+    fixture.store.set("pid-src", source);
+
+    await fixture.invoke("project-folder-prepare", "pid-dst", parent, "道劫 (副本)");
+    const result = await fixture.invoke("project-folder-copy-novel", "pid-src", "pid-dst");
+
+    expect(result).toEqual({ ok: true, copiedFiles: 3 }); // MEMORY.md + chapter + records.jsonl
+    const dst = path.join(parent, "道劫 (副本)");
+    // 复制后 MEMORY.md 逐字节可读（父任务验收：复制项目后 MEMORY.md 可读）
+    expect(fs.readFileSync(path.join(dst, "novel", "source-memory", "MEMORY.md"), "utf8"))
+      .toBe("# 原著圣经\n晏燎创建万劫圣宗。\n");
+    expect(fs.readFileSync(path.join(dst, "novel", "chapters", "chapter-001.md"), "utf8")).toBe("## 第1章\n正文\n");
+    // 临时产物不随行
+    expect(fs.existsSync(path.join(dst, "novel", "source-memory", "staging"))).toBe(false);
+    expect(fs.existsSync(path.join(dst, "novel", "source-memory", ".lock"))).toBe(false);
+  });
+
+  it("copy-novel is a no-op without a source novel and refuses to overwrite a non-empty target", async () => {
+    const parent = path.join(fixture.tmp, "parent2");
+    fs.mkdirSync(parent);
+    const source = path.join(parent, "无小说项目");
+    fs.mkdirSync(path.join(source, "tts"), { recursive: true }); // 只有 store 文件
+    fixture.store.set("pid-a", source);
+    await fixture.invoke("project-folder-prepare", "pid-b", parent, "无小说项目 (副本)");
+    expect(await fixture.invoke("project-folder-copy-novel", "pid-a", "pid-b"))
+      .toEqual({ ok: true, copiedFiles: 0 });
+
+    // 目标已有非空 novel → 拒绝覆盖（源须有 novel 才进入目标检查）
+    const sourceWithNovel = path.join(parent, "有小说项目");
+    fs.mkdirSync(path.join(sourceWithNovel, "novel"), { recursive: true });
+    fs.writeFileSync(path.join(sourceWithNovel, "novel", "MEMORY.md"), "源圣经");
+    fixture.store.set("pid-c", sourceWithNovel);
+    const dst = path.join(parent, "无小说项目 (副本)");
+    fs.mkdirSync(path.join(dst, "novel"), { recursive: true });
+    fs.writeFileSync(path.join(dst, "novel", "MEMORY.md"), "已有内容");
+    const refused = await fixture.invoke("project-folder-copy-novel", "pid-c", "pid-b");
+    expect(refused).toMatchObject({ ok: false, code: "TARGET_NOT_EMPTY" });
+    // 拒绝覆盖时目标内容原样保留
+    expect(fs.readFileSync(path.join(dst, "novel", "MEMORY.md"), "utf8")).toBe("已有内容");
+
+    // 同 id / 非法 id
+    expect(await fixture.invoke("project-folder-copy-novel", "pid-a", "pid-a")).toMatchObject({ ok: false, code: "INVALID_ID" });
+    expect(await fixture.invoke("project-folder-copy-novel", "", "pid-b")).toMatchObject({ ok: false, code: "INVALID_ID" });
+  });
+
+  it("copy-novel also serves internal projects via the dataRoot/_p slot", async () => {
+    // 内部项目无 location 注册，根=dataRoot/_p/<pid>
+    const srcRoot = path.join(fixture.dataRoot, "_p", "pid-int-src");
+    fs.mkdirSync(path.join(srcRoot, "novel", "source-memory"), { recursive: true });
+    fs.writeFileSync(path.join(srcRoot, "novel", "source-memory", "MEMORY.md"), "# 内部圣经\n");
+    const result = await fixture.invoke("project-folder-copy-novel", "pid-int-src", "pid-int-dst");
+    expect(result).toEqual({ ok: true, copiedFiles: 1 });
+    expect(fs.readFileSync(path.join(fixture.dataRoot, "_p", "pid-int-dst", "novel", "source-memory", "MEMORY.md"), "utf8"))
+      .toBe("# 内部圣经\n");
+  });
 });
 
 describe("project-folder-move IPC handler", () => {

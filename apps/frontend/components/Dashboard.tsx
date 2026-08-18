@@ -495,6 +495,21 @@ export function Dashboard({
         newProjectId,
       );
 
+      // STEP 3.5: novel/ 子树随行（原著圣经 MEMORY.md/章节镜像/原著档案）。
+      // 外部副本在 STEP 0 已注册位置、内部副本根=dataRoot/_p/<新id>，此时均可解析；
+      // 失败只降级提示，不阻断 store 复制（无 novel/ 的项目是合法空操作）。
+      const folderBridgeForCopy = getProjectFolderBridge();
+      if (folderBridgeForCopy?.copyNovel) {
+        try {
+          const novelCopy = await folderBridgeForCopy.copyNovel(projectId, newProjectId);
+          if (!novelCopy.ok) {
+            toast.warning("原著文件未随副本复制", { description: novelCopy.message });
+          }
+        } catch (err) {
+          toast.warning("原著文件未随副本复制", { description: (err as Error).message });
+        }
+      }
+
       // STEP 4: NOW add the project entry to project-store (after all files are copied).
       // Use setState directly to add the project WITHOUT changing activeProjectId.
       // This prevents any persist writes from being routed to the new project's files
