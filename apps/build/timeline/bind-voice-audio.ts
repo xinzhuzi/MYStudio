@@ -2,7 +2,7 @@
  * Bind exported per-shot TTS voice audio into the chapter manifest.
  *
  * The chapter-001 automation writes per-shot TTS wav files to
- * `exports/<chapterId>/voice-audio/shot-XXX.wav` but never binds them into the
+ * `backups/legacy-pipeline/exports/<chapterId>/voice-audio/shot-XXX.wav` (legacy pilot layout) but never binds them into the
  * Remotion chapter manifest, so StoryboardShot renders stay silent and the
  * final ChapterVideo render produces a silent film. This script closes that
  * gap through the canonical service path:
@@ -63,7 +63,7 @@ async function main(): Promise<void> {
   }
 
   const voiceDir = voiceDirOverride
-    ?? path.join(projectDir, "exports", chapterId, "voice-audio");
+    ?? path.join(projectDir, "backups", "legacy-pipeline", "exports", chapterId, "voice-audio");
   if (!fs.existsSync(voiceDir)) throw new Error(`voice 目录不存在: ${voiceDir}`);
 
   const nextShots: RemotionChapterManifestV2["shots"] = [];

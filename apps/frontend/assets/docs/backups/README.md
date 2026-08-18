@@ -15,6 +15,7 @@
 | `store/` | store 手术脚本 | 工作流 store 的手术备份：分片化改名（`*.bak-sharded-*`）、TTS 再生（`*.bak-scoped-tts-*`）、语音回写（`*.bak-voice-*`）等 |
 | `remotion/` | 渲染工作区 | 渲染侧文件级备份（章节 manifest 的 `*.bak-*` 等） |
 | `video-use/` | video-use 审修 | 修订工件备份，按 `章节/修订` 保留原层级 |
+| `legacy-pipeline/` | 旧试点管线归档 | 08-15 前旧 chapter_video 管线产物（如 `exports/` 整目录：分镜帧/配音/片段），当前工作流已不读写项目根 exports/，历史产物归档于此 |
 
 ## 说明
 
