@@ -194,6 +194,60 @@ describe("runSourceMemoryExtraction 编排", () => {
     expect(summary.error).toContain("plan-stale");
   });
 
+  it("AI 通道零成功连败 → 提前中止并给出通道错误，不空磨剩余切块", async () => {
+    const { bridge, calls } = fakeBridge();
+    const chunks = Array.from({ length: 6 }, (_, i) => ({ ...chunk, anchor: `第${i}章` }));
+    bridge.build.mockResolvedValue({
+      success: true,
+      buildId: "b1",
+      plan: { buildId: "b1", chunks, changedSources: 6, carriedStructuredCount: 0 },
+    });
+    const summary = await runSourceMemoryExtraction({
+      projectId: "p1",
+      bridge: bridge as never,
+      callText: async () => {
+        throw new Error("fetch failed");
+      },
+    });
+    expect(summary.success).toBe(false);
+    expect(summary.error).toContain("AI 通道连续失败");
+    expect(summary.error).toContain("fetch failed");
+    // 并发 2 → 首批两块全败即止损，不处理全部 6 块
+    expect(summary.doneChunks).toBeLessThan(6);
+    expect(calls.staged).toHaveLength(0);
+    expect(calls.commits).toHaveLength(0);
+  });
+
+  it("单块挂死不返回 → 编排层硬限按时收割并计入失败", async () => {
+    const { bridge } = fakeBridge();
+    const summary = await runSourceMemoryExtraction({
+      projectId: "p1",
+      bridge: bridge as never,
+      chunkTimeoutMs: 30,
+      callText: () => new Promise<string>(() => {}),
+    });
+    expect(summary.success).toBe(false);
+    expect(summary.error).toContain("硬限");
+  });
+
+  it("首块成功后个别失败 → 不触发通道止损，继续跑完", async () => {
+    const { bridge, calls } = fakeBridge();
+    let call = 0;
+    const summary = await runSourceMemoryExtraction({
+      projectId: "p1",
+      bridge: bridge as never,
+      callText: async () => {
+        call += 1;
+        if (call === 2) throw new Error("偶发失败");
+        return recordJson();
+      },
+    });
+    expect(summary.status).toBe("ready");
+    expect(calls.commits).toHaveLength(1);
+    const coverage = calls.commits[0]!.coverage!;
+    expect(coverage.filter((c) => !c.ok)).toHaveLength(1);
+  });
+
   it("并发不超上限且进度回调单调推进", async () => {
     const { bridge } = fakeBridge();
     const chunks = Array.from({ length: 6 }, (_, i) => ({ ...chunk, anchor: `第${i}章` }));

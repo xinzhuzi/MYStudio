@@ -45,6 +45,8 @@ export interface AITextRequest {
   maxTokens?: number;
   /** 解析不到绑定时是否回退到通用AI，默认 true */
   fallbackToUniversal?: boolean;
+  /** 整体调用超时（穿透到主进程 SDK/HTTP 两层）；缺省走各层默认 */
+  timeoutMs?: number;
 }
 
 export interface AITextResult {
@@ -79,6 +81,7 @@ async function text(req: AITextRequest): Promise<AITextResult> {
     messages: req.messages,
     temperature: resolved.temperature ?? req.temperature ?? 0.6,
     maxTokens: Math.max(resolved.maxTokens ?? 0, req.maxTokens ?? 0) || 32000,
+    timeoutMs: req.timeoutMs,
   });
   return { success: result.success, text: result.text, error: result.error };
 }

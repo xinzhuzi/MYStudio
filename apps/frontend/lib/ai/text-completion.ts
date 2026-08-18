@@ -16,6 +16,8 @@ export interface TextCompletionRequest {
   messages: TextCompletionMessage[];
   temperature?: number;
   maxTokens?: number;
+  /** 整体调用超时，穿透 SDK 与 HTTP 回退两层；缺省各层走自己的默认。 */
+  timeoutMs?: number;
 }
 
 export interface TextCompletionAttempt {

@@ -201,6 +201,8 @@ export interface SourceMemoryExtractionProgress {
   total: number;
   done: number;
   failed: number;
+  /** 最近一次失败原因，供 UI 展示「卡在哪」 */
+  lastError?: string;
 }
 
 export interface SourceMemoryExtractionSummary {
@@ -216,17 +218,39 @@ export interface SourceMemoryExtractionSummary {
   error?: string;
 }
 
+/** 单块调用硬限：即使 IPC/网络层挂死，编排层也能按时收割并标失败。 */
+function withDeadline<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error(`${label}（${Math.round(ms / 1000)}s 硬限）`)), ms);
+    promise.then(
+      (value) => {
+        clearTimeout(timer);
+        resolve(value);
+      },
+      (error) => {
+        clearTimeout(timer);
+        reject(error instanceof Error ? error : new Error(String(error)));
+      },
+    );
+  });
+}
+
 /**
  * 全量抽取编排：build（拿增量 plan）→ 小批并发 AI 抽取 → stage → commit。
  * 任一环节失败都不阻断已暂存内容：AI 失败的块计入 coverage ok:false，commit 落 partial。
  * plan-stale / sources-changed 直接中止并报错（调用方提示重建）。
+ * AI 通道全程无一次成功且连败达到阈值时提前中止——网络不通时不空磨全部切块。
  */
+const ABORT_AFTER_TOTAL_FAILURES = 2;
+
 export async function runSourceMemoryExtraction(input: {
   projectId: string;
   bridge?: SourceMemoryBridge;
   /** 注入 aiManager.text 封装（universalAi binding）；抛错=该块失败。 */
   callText: (messages: SourceMemoryExtractionMessages) => Promise<string>;
   concurrency?: number;
+  /** 单块编排层硬限（防 IPC 挂死），缺省 150s */
+  chunkTimeoutMs?: number;
   onProgress?: (progress: SourceMemoryExtractionProgress) => void;
 }): Promise<SourceMemoryExtractionSummary> {
   const bridge = input.bridge ?? getSourceMemoryBridge();
@@ -252,6 +276,8 @@ export async function runSourceMemoryExtraction(input: {
   const progress: SourceMemoryExtractionProgress = { total: plan.chunks.length, done: 0, failed: 0 };
   const queue = [...plan.chunks.entries()];
   const concurrency = Math.max(1, Math.min(input.concurrency ?? 2, 4));
+  const chunkTimeoutMs = input.chunkTimeoutMs ?? 150_000;
+  let successes = 0;
   let aborted: string | undefined;
 
   const worker = async () => {
@@ -260,7 +286,10 @@ export async function runSourceMemoryExtraction(input: {
       if (!next) return;
       const [, chunk] = next;
       try {
-        const records = parseExtractionRecords(await input.callText(buildExtractionMessages(chunk)), chunk);
+        const records = parseExtractionRecords(
+          await withDeadline(input.callText(buildExtractionMessages(chunk)), chunkTimeoutMs, "AI 调用超时"),
+          chunk,
+        );
         const staged = await bridge.stageRecords(input.projectId, plan.buildId, records);
         if (!staged.success) {
           if (staged.error?.startsWith("plan-stale")) {
@@ -272,10 +301,18 @@ export async function runSourceMemoryExtraction(input: {
         if ((staged.rejected ?? 0) > 0) {
           throw new Error(`暂存拒绝 ${staged.rejected} 条：${staged.errors?.[0] ?? "未知原因"}`);
         }
+        successes += 1;
         coverage.push({ sourcePath: chunk.sourcePath, anchor: chunk.anchor, ok: true });
-      } catch {
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        progress.lastError = message;
         coverage.push({ sourcePath: chunk.sourcePath, anchor: chunk.anchor, ok: false });
         progress.failed += 1;
+        // 零成功且连败达阈值 → AI 通道不可用，提前止损（raw 检索不受影响）
+        if (successes === 0 && progress.failed >= ABORT_AFTER_TOTAL_FAILURES) {
+          aborted = `AI 通道连续失败（0 成功 / ${progress.failed} 失败）：${message}。请检查云端 AI 连通性后重新构建`;
+          return;
+        }
       } finally {
         progress.done += 1;
         input.onProgress?.({ ...progress });
@@ -285,7 +322,15 @@ export async function runSourceMemoryExtraction(input: {
 
   await Promise.all(Array.from({ length: concurrency }, () => worker()));
   if (aborted) {
-    return { success: false, status: "failed", buildId: plan.buildId, error: aborted };
+    return {
+      success: false,
+      status: "failed",
+      buildId: plan.buildId,
+      error: aborted,
+      changedSources: plan.changedSources,
+      doneChunks: progress.done,
+      failedChunks: progress.failed,
+    };
   }
   const commit = await bridge.commitBuild(input.projectId, { buildId: plan.buildId, coverage });
   if (!commit.success) {

@@ -212,6 +212,8 @@ export function registerApiRequestIpcHandlers({
     payload: TextCompletionRequest,
   ): Promise<TextCompletionResult> => {
     const operationId = createOperationId("text-completion");
+    // 调用方可指定整体超时（如记忆库抽取要快速失败）；缺省 300s。
+    const textTimeoutMs = payload.timeoutMs ?? 300_000;
     writeDiagnosticsLog({
       level: "info",
       category: "ipc",
@@ -223,6 +225,7 @@ export function registerApiRequestIpcHandlers({
         platform: payload.provider.platform,
         model: payload.model,
         messageCount: payload.messages.length,
+        timeoutMs: textTimeoutMs,
       },
     });
     const provider = payload.provider;
@@ -240,6 +243,7 @@ export function registerApiRequestIpcHandlers({
           messages: payload.messages,
           temperature: payload.temperature,
           maxTokens: payload.maxTokens,
+          timeoutMs: textTimeoutMs,
         });
         if (result.success) {
           writeDiagnosticsLog({
@@ -267,8 +271,8 @@ export function registerApiRequestIpcHandlers({
       providerId: payload.provider.id,
       providerName: payload.provider.name,
       model: payload.model,
-      timeoutMs: 300000,
-    }));
+      timeoutMs: textTimeoutMs,
+    }), textTimeoutMs);
     writeDiagnosticsLog({
       level: result.success ? "info" : "error",
       category: "ipc",

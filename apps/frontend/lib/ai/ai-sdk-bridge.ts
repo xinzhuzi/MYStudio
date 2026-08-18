@@ -124,7 +124,15 @@ export async function sdkGenerateText(options: {
   temperature?: number;
   maxTokens?: number;
   providerOptions?: ProviderOptions;
+  /** 整体超时（含 AI SDK 内部重试）；缺省 300s，与 HTTP 回退路径一致。 */
+  timeoutMs?: number;
 }): Promise<{ success: boolean; text?: string; error?: string }> {
+  const timeoutMs = options.timeoutMs ?? 300_000;
+  const controller = new AbortController();
+  const timer = setTimeout(
+    () => controller.abort(new DOMException("API 请求超时", "TimeoutError")),
+    timeoutMs,
+  );
   try {
     const model = getLanguageModel(options.provider, options.model);
     const result = await generateText({
@@ -133,11 +141,17 @@ export async function sdkGenerateText(options: {
       ...(options.temperature != null && { temperature: options.temperature }),
       ...(options.maxTokens != null && { maxOutputTokens: options.maxTokens }),
       ...(options.providerOptions && { providerOptions: options.providerOptions }),
+      abortSignal: controller.signal,
     });
     return { success: true, text: result.text };
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
   } catch (e: any) {
+    if (e?.name === "TimeoutError" || controller.signal.aborted) {
+      return { success: false, error: `API 请求超时（${Math.round(timeoutMs / 1000)}s）` };
+    }
     return { success: false, error: e?.message || String(e) };
+  } finally {
+    clearTimeout(timer);
   }
 }
 

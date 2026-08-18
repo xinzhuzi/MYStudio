@@ -94,6 +94,8 @@ export function NovelSourceMemoryDialog(props: {
             ],
             temperature: 0.2,
             maxTokens: 4096,
+            // 抽取要快速失败：通道不通时 2 分钟内给出结论，不空磨重试
+            timeoutMs: 120_000,
           });
           if (!reply.success || !reply.text) {
             throw new Error(reply.error || "AI 调用失败");
@@ -192,9 +194,10 @@ export function NovelSourceMemoryDialog(props: {
                 <p className="text-xs text-amber-400">状态原因：{reasonText}</p>
               ) : null}
               {progress ? (
-                <p className="text-xs text-muted-foreground">
+                <p className={`text-xs ${progress.failed ? "text-amber-400" : "text-muted-foreground"}`}>
                   抽取进度：{progress.done}/{progress.total}
                   {progress.failed ? `（失败 ${progress.failed}）` : ""}
+                  {progress.lastError ? ` · 最近错误：${progress.lastError.slice(0, 80)}` : ""}
                 </p>
               ) : null}
               {summary?.success && summary.status !== "nothing-to-do" ? (
