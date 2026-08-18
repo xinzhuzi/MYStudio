@@ -207,6 +207,26 @@ export interface StudioWorkflowShardPlan {
   files: StudioWorkflowShardPlanFile[];
   /** 超过单片预算但被迫独占一片的文件名（单章/单键豁免），供调用方告警。 */
   oversizedFiles: string[];
+  /** 增量规划统计（未启用增量时为全零）：测试与基准观测用。 */
+  stats: { reusedDomains: string[]; serializedItems: number; reusedItems: number };
+}
+
+/** 域级增量缓存条目：上一代该域的 live 数组引用 + 其分片（名+内容）。 */
+export interface StudioWorkflowDomainGeneration {
+  ref: unknown;
+  files: StudioWorkflowShardPlanFile[];
+}
+
+export interface PlanStudioWorkflowShardsOptions {
+  limitBytes?: number;
+  /** 读取 store 当前 state（live 引用）；域引用相等 ⇒ 与上一代序列化内容一致（zustand 不可变约定）。 */
+  getLiveState?: () => unknown;
+  /** 条目 → 格式化串缓存（键=live 条目对象）。域引用未变时整域复用，命中不到才用。 */
+  itemCache?: WeakMap<object, string>;
+  /** 域级复用缓存（适配器按 pid 持有并传入；规划器负责登记/复用）。 */
+  domainCache?: Map<string, StudioWorkflowDomainGeneration>;
+  /** 强制全量：跳过域复用与条目缓存读（写仍回填）——原地突变自愈用；域缓存照常登记新代。 */
+  refreshItemCache?: boolean;
 }
 
 interface Batch {
@@ -253,7 +273,7 @@ function closeBatch(
  */
 export function planStudioWorkflowShards(
   value: string,
-  options: { limitBytes?: number } = {},
+  options: PlanStudioWorkflowShardsOptions = {},
 ): StudioWorkflowShardPlan {
   const limitBytes = options.limitBytes ?? STUDIO_WORKFLOW_SHARD_LIMIT_BYTES;
   let parsed: unknown;
@@ -273,6 +293,25 @@ export function planStudioWorkflowShards(
     ? envelope.version
     : 0;
   const state = envelope.state as Record<string, unknown>;
+
+  const liveRaw = options.getLiveState?.();
+  const liveState = liveRaw && typeof liveRaw === "object" && !Array.isArray(liveRaw)
+    ? (liveRaw as Record<string, unknown>)
+    : undefined;
+  const stats = { reusedDomains: [] as string[], serializedItems: 0, reusedItems: 0 };
+  const serializeItem = (item: object): string => {
+    if (!options.refreshItemCache) {
+      const hit = options.itemCache?.get(item);
+      if (hit !== undefined) {
+        stats.reusedItems += 1;
+        return hit;
+      }
+    }
+    const rendered = `      ${reindentJson(JSON.stringify(item, null, 2), 6)}`;
+    options.itemCache?.set(item, rendered);
+    stats.serializedItems += 1;
+    return rendered;
+  };
 
   const files: StudioWorkflowShardPlanFile[] = [];
   const oversizedFiles: string[] = [];
@@ -305,6 +344,21 @@ export function planStudioWorkflowShards(
     const chapterRule = CHAPTER_DOMAIN_RULES[key];
     const flatSlug = ARRAY_DOMAIN_SLUGS[key];
     const isArray = Array.isArray(domainValue) && domainValue.length > 0;
+    const liveRef = liveState?.[key];
+    // 域级复用：live 数组引用与上一代一致 ⇒ 序列化内容一致，直接复用其分片（零序列化）。
+    // refreshItemCache（周期全量自愈）时跳过复用——原地突变引用不变，必须在域层就强制重算
+    if (!options.refreshItemCache && isArray && (chapterRule || flatSlug) && options.domainCache && liveState) {
+      const prev = options.domainCache.get(key);
+      if (prev && prev.ref === liveRef) {
+        files.push(...prev.files);
+        stats.reusedDomains.push(key);
+        continue;
+      }
+    }
+    // 条目源优先取 live 数组（条目对象跨保存保引用，WeakMap 缓存才可能命中）
+    const items: unknown[] = isArray && liveState && Array.isArray(liveRef)
+      ? (liveRef as unknown[])
+      : (domainValue as unknown[]);
     // 未注册的未知数组键按原子键进 core（防 undefined slug 文件名）
     if (!isArray || (!chapterRule && !flatSlug)) {
       const part = `    ${JSON.stringify(key)}: ${reindentJson(JSON.stringify(domainValue === undefined ? null : domainValue, null, 2), 4)}`;
@@ -320,9 +374,9 @@ export function planStudioWorkflowShards(
     }
 
     const arrayKey = JSON.stringify(key);
-    const items = domainValue as unknown[];
 
     if (chapterRule) {
+      const domainFilesStart = files.length;
       // 章优先分层：按「同章连续段(run)」切文件，run 内超预算续片；
       // manifest 顺序 = 数组原序 → 合并 concat 精确还原（章交错也保序）。
       let index = 0;
@@ -343,7 +397,8 @@ export function planStudioWorkflowShards(
           return shard;
         };
         for (let position = index; position < end; position += 1) {
-          const itemPart = `      ${reindentJson(JSON.stringify(items[position], null, 2), 6)}`;
+          const raw = items[position];
+          const itemPart = raw && typeof raw === "object" ? serializeItem(raw as object) : `      ${reindentJson(JSON.stringify(raw, null, 2), 6)}`;
           if (!shard) openShard();
           const projected = batchTotalBytes(shard!, version, itemPart);
           if (projected > limitBytes && shard!.parts.length > 0) {
@@ -356,10 +411,12 @@ export function planStudioWorkflowShards(
         if (shard) closeBatch(shard!, version, files, oversizedFiles, limitBytes);
         index = end;
       }
+      options.domainCache?.set(key, { ref: liveRef ?? domainValue, files: files.slice(domainFilesStart) });
       continue;
     }
 
     // 非章节数组域：单片裸名、多片才编号。
+    const domainFilesStart = files.length;
     let shard: Batch | null = null;
     let shardNumber = 0;
     const openShard = (): Batch => {
@@ -372,7 +429,7 @@ export function planStudioWorkflowShards(
     };
     for (const item of items) {
       if (!shard) openShard();
-      const itemPart = `      ${reindentJson(JSON.stringify(item, null, 2), 6)}`;
+      const itemPart = item && typeof item === "object" ? serializeItem(item) : `      ${reindentJson(JSON.stringify(item, null, 2), 6)}`;
       const projected = batchTotalBytes(shard!, version, itemPart);
       if (projected > limitBytes && shard!.parts.length > 0) {
         closeBatch(shard!, version, files, oversizedFiles, limitBytes);
@@ -382,6 +439,7 @@ export function planStudioWorkflowShards(
       shard!.partsBytes += utf8Bytes(itemPart);
     }
     if (shard) closeBatch(shard!, version, files, oversizedFiles, limitBytes);
+    options.domainCache?.set(key, { ref: liveRef ?? domainValue, files: files.slice(domainFilesStart) });
   }
   if (core) closeBatch(core, version, files, oversizedFiles, limitBytes);
 
@@ -390,7 +448,7 @@ export function planStudioWorkflowShards(
     version,
     shards: files.map((file) => file.name),
   };
-  return { manifest, files, oversizedFiles };
+  return { manifest, files, oversizedFiles, stats };
 }
 
 /**

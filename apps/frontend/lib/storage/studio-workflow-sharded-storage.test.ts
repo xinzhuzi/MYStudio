@@ -295,6 +295,37 @@ describe("createStudioWorkflowShardedStorage", () => {
     expect(hoisted.files.get("_p/proj-1/backups/README.md")).toBe(backupsTemplate);
   });
 
+  it("CPU 增量：域复用生效 + 原地突变由周期全量自愈（fullSaveEvery）", async () => {
+    const live: Record<string, unknown> = {
+      novelChapters: [
+        { id: "chapter-001", title: "第一章", sourceText: "正".repeat(100) },
+        { id: "chapter-002", title: "第二章", sourceText: "文".repeat(100) },
+      ],
+      storyboards: [{ id: "sb-1", episodeId: "chapter-001", index: 1 }],
+    };
+    const incrementalStorage = createStudioWorkflowShardedStorage("studio-workflow-store", {
+      getLiveState: () => live,
+      fullSaveEvery: 3,
+    });
+    const value = () => JSON.stringify({ state: live, version: 10 });
+
+    await incrementalStorage.setItem("studio-workflow-store", value());
+    const chapterShard = [...hoisted.files.keys()].find((k) => k.includes("chapters/chapter-001/novel-chapters"))!;
+    expect(hoisted.files.get(chapterShard)).toContain("第一章");
+
+    // 原地突变（违反不可变约定）：引用没变 → 第 2 次保存仍复用旧分片（已知窗口）
+    (live.novelChapters as Array<{ title: string }>)[0]!.title = "第一章被原地改";
+    await incrementalStorage.setItem("studio-workflow-store", value());
+    expect(hoisted.files.get([...hoisted.files.keys()].find((k) => k.includes("chapters/chapter-001/novel-chapters"))!)).not.toContain("第一章被原地改");
+
+    // 第 3 次保存 = 周期全量自愈 → 内容纠正
+    await incrementalStorage.setItem("studio-workflow-store", value());
+    expect(hoisted.files.get([...hoisted.files.keys()].find((k) => k.includes("chapters/chapter-001/novel-chapters"))!)).toContain("第一章被原地改");
+    // 读回无损
+    const restored = await incrementalStorage.getItem("studio-workflow-store");
+    expect(JSON.parse(restored!)).toEqual(JSON.parse(value()));
+  });
+
   it("reads an empty-state manifest (zero shards) as an empty envelope", async () => {
     hoisted.files.set(
       "_p/proj-1/studio-workflow/manifest",

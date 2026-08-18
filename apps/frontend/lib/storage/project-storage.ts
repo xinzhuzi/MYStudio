@@ -18,6 +18,7 @@ import {
   parseStudioWorkflowShardManifest,
   planStudioWorkflowShards,
   STUDIO_WORKFLOW_SHARD_DIR,
+  type StudioWorkflowDomainGeneration,
   type StudioWorkflowShardManifest,
 } from './studio-workflow-shards';
 // 权威模板原样打进渲染包（?raw 内联字符串）；与仓内 assets/docs 同源
@@ -219,9 +220,25 @@ interface PreviousShardGeneration {
   filesByName: Map<string, string>;
 }
 
-export function createStudioWorkflowShardedStorage(storeName: string): StateStorage {
+export function createStudioWorkflowShardedStorage(
+  storeName: string,
+  options: {
+    /** live state 注入（studio-store 传延迟求值 getter，避免反向 import 成环） */
+    getLiveState?: () => unknown;
+    /** 每 N 次保存强制全量自愈（默认 50；测试可覆写） */
+    fullSaveEvery?: number;
+  } = {},
+): StateStorage {
   const serializeWrite = createWriteSerializer();
   let previousGeneration: PreviousShardGeneration | null = null;
+  // CPU 增量缓存（08-18 store-cpu-incremental）：域级复用按 pid 隔离；条目 WeakMap 跨 pid 安全
+  const itemCache = new WeakMap<object, string>();
+  let domainCache: Map<string, StudioWorkflowDomainGeneration> | null = null;
+  let domainCachePid: string | null = null;
+  let saveCounter = 0;
+  let lastVersion: number | null = null;
+  const envFullSaveEvery = Number.parseInt(process.env.MYSTUDIO_SHARD_FULL_SAVE_EVERY ?? "", 10);
+  const fullSaveEvery = options.fullSaveEvery ?? (Number.isFinite(envFullSaveEvery) ? envFullSaveEvery : 50);
 
   const readMergedShards = async (pid: string): Promise<string | null> => {
     const manifestRaw = await fileStorage.getItem(`${shardFileKeyPrefix(pid)}/manifest`);
@@ -292,14 +309,38 @@ export function createStudioWorkflowShardedStorage(storeName: string): StateStor
       }
 
       await serializeWrite(async () => {
+        saveCounter += 1;
+        // 版本探针：zustand 信封为紧凑 JSON、version 位于尾部——尾部切片正则，免全量 parse 判版本
+        const versionProbe = /"version":\s*(-?\d+)\s*}\s*$/.exec(value.slice(-64));
+        const probedVersion = versionProbe ? Number.parseInt(versionProbe[1]!, 10) : null;
+        if (probedVersion === null || probedVersion !== lastVersion) {
+          // 版本变化（迁移跑过）→ 域缓存必须失效（分片内容含 version，复用会写错代）
+          domainCache = null;
+        }
+        const forceFull = saveCounter % fullSaveEvery === 0;
+        const canIncremental = Boolean(options.getLiveState);
+        if (canIncremental && !domainCache) domainCache = new Map();
+        const domainCachePidMismatch = domainCachePid !== pid;
+        if (domainCachePidMismatch) domainCache = canIncremental ? new Map() : null;
         let plan;
         try {
-          plan = planStudioWorkflowShards(value);
+          plan = planStudioWorkflowShards(value, {
+            getLiveState: canIncremental ? options.getLiveState : undefined,
+            itemCache,
+            domainCache: canIncremental && domainCache ? domainCache : undefined,
+            refreshItemCache: forceFull || undefined,
+          });
         } catch (error) {
           console.error('[StudioWorkflowShardedStorage] 分片规划失败，回退旧单文件写:', error);
           await fileStorage.setItem(`_p/${pid}/${storeName}`, value);
           previousGeneration = null;
+          domainCache = null;
           return;
+        }
+        domainCachePid = pid;
+        lastVersion = plan.manifest.version;
+        if (forceFull) {
+          console.warn('[StudioWorkflowShardedStorage] 周期性全量自愈保存（覆盖原地突变漂移）');
         }
         if (plan.oversizedFiles.length > 0) {
           console.warn(

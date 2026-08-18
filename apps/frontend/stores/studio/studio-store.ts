@@ -738,7 +738,10 @@ export const useStudioStore = create<StudioWorkflowStore>()(
     },
     {
       name: STUDIO_WORKFLOW_STORAGE_KEY,
-      storage: createJSONStorage(() => createStudioWorkflowShardedStorage(STUDIO_WORKFLOW_STORAGE_KEY)),
+      // getLiveState 延迟求值注入：project-storage 反向 import 会成环，箭头闭包避开（design.md §2）
+      storage: createJSONStorage(() => createStudioWorkflowShardedStorage(STUDIO_WORKFLOW_STORAGE_KEY, {
+        getLiveState: (): unknown => useStudioStore.getState(),
+      })),
       version: STUDIO_WORKFLOW_PERSIST_VERSION,
       migrate: (persistedState) => migrateStudioWorkflowState(persistedState),
     },

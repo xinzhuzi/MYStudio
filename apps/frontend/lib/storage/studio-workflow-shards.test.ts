@@ -274,6 +274,99 @@ describe("md5Utf8", () => {
   });
 });
 
+describe("planStudioWorkflowShards 增量（cpu-incremental）", () => {
+  function buildLive() {
+    return {
+      novelChapters: [
+        { id: "chapter-001", title: "一", sourceText: "正".repeat(200) },
+        { id: "chapter-002", title: "二", sourceText: "文".repeat(200) },
+      ],
+      storyboards: Array.from({ length: 6 }, (_, i) => ({ id: `sb-${i}`, episodeId: "chapter-001", index: i })),
+      mediaTasks: [{ id: "task-1", kind: "storyboardImage", targetId: "sb-0", episodeId: "chapter-001", status: "success" }],
+      materials: [{ id: "m-1", name: "素材", localPath: "/a", size: 1 }],
+    } as Record<string, unknown>;
+  }
+
+  it("域引用未变 → 整域复用零序列化，产物与全量逐字节一致", () => {
+    const live = buildLive();
+    const value = JSON.stringify({ state: live, version: 10 });
+    const itemCache = new WeakMap<object, string>();
+    const domainCache = new Map();
+    const first = planStudioWorkflowShards(value, { getLiveState: () => live, itemCache, domainCache });
+    expect(first.stats.reusedDomains).toEqual([]);
+    expect(first.stats.serializedItems).toBe(10);
+
+    // 二次保存：live 引用全部未变（zustand 其他域更新不触这些数组）
+    const second = planStudioWorkflowShards(value, { getLiveState: () => live, itemCache, domainCache });
+    expect(second.stats.reusedDomains.sort()).toEqual(["materials", "mediaTasks", "novelChapters", "storyboards"]);
+    expect(second.stats.serializedItems).toBe(0);
+    expect(second.manifest).toEqual(first.manifest);
+    expect(second.files).toEqual(first.files);
+  });
+
+  it("改一章 → 仅该章条目序列化，其余条目缓存命中；产物=全量重算逐字节一致", () => {
+    const live = buildLive();
+    const value1 = JSON.stringify({ state: live, version: 10 });
+    const itemCache = new WeakMap<object, string>();
+    const domainCache = new Map();
+    planStudioWorkflowShards(value1, { getLiveState: () => live, itemCache, domainCache });
+
+    // 不可变更新：novelChapters 换新数组，chapter-001 换新对象，chapter-002 保引用
+    const nextLive = { ...live, novelChapters: [{ id: "chapter-001", title: "一改", sourceText: "正".repeat(210) }, (live.novelChapters as object[])[1]] };
+    const value2 = JSON.stringify({ state: nextLive, version: 10 });
+    const incremental = planStudioWorkflowShards(value2, { getLiveState: () => nextLive, itemCache, domainCache });
+    // storyboards/mediaTasks/materials 域复用；novelChapters 只序列化 1 条（改的那章）
+    expect(incremental.stats.reusedDomains.sort()).toEqual(["materials", "mediaTasks", "storyboards"]);
+    expect(incremental.stats.serializedItems).toBe(1);
+
+    const full = planStudioWorkflowShards(value2);
+    expect(incremental.manifest).toEqual(full.manifest);
+    expect(incremental.files).toEqual(full.files);
+  });
+
+  it("随机变异序列：增量产物始终与全量重算逐字节一致（50 轮固定种子）", () => {
+    let seed = 42;
+    const rand = () => (seed = (seed * 1103515245 + 12345) % 2147483648) / 2147483648;
+    const live: Record<string, unknown> = { storyboards: [] };
+    const itemCache = new WeakMap<object, string>();
+    const domainCache = new Map();
+    for (let round = 0; round < 50; round += 1) {
+      const boards = [...(live.storyboards as Array<{ id: string; episodeId: string; index: number; prompt: string }>)];
+      const action = rand();
+      if (action < 0.35 && boards.length < 24) {
+        boards.push({ id: `sb-r${round}`, episodeId: "chapter-001", index: boards.length, prompt: `P${round}` });
+      } else if (action < 0.6 && boards.length > 0) {
+        const target = Math.floor(rand() * boards.length);
+        boards[target] = { ...boards[target]!, prompt: `改${round}` };
+      } else if (action < 0.75 && boards.length > 1) {
+        boards.splice(Math.floor(rand() * boards.length), 1);
+      }
+      live.storyboards = boards;
+      const value = JSON.stringify({ state: { ...live, workflowConfig: { episodeDurationMin: 3 } }, version: 10 });
+      const incremental = planStudioWorkflowShards(value, { getLiveState: () => live, itemCache, domainCache });
+      const full = planStudioWorkflowShards(value);
+      expect(incremental.manifest).toEqual(full.manifest);
+      expect(incremental.files).toEqual(full.files);
+    }
+  });
+
+  it("refreshItemCache：绕过缓存读（写仍回填），原地突变场景自愈的规划器侧保证", () => {
+    const live = buildLive();
+    const itemCache = new WeakMap<object, string>();
+    planStudioWorkflowShards(JSON.stringify({ state: live, version: 10 }), { getLiveState: () => live, itemCache });
+    // 原地突变（违反不可变约定）：同一对象内容已变
+    (live.novelChapters as Array<{ title: string }>)[0]!.title = "被原地改";
+    const refreshed = planStudioWorkflowShards(JSON.stringify({ state: live, version: 10 }), {
+      getLiveState: () => live, itemCache, refreshItemCache: true,
+    });
+    expect(refreshed.stats.reusedItems).toBe(0);
+    expect(refreshed.files.map((f) => f.content).join("")).toContain("被原地改");
+    // 回填后常规读恢复命中
+    const after = planStudioWorkflowShards(JSON.stringify({ state: live, version: 10 }), { getLiveState: () => live, itemCache });
+    expect(after.stats.reusedItems).toBe(10);
+  });
+});
+
 describe("mergeStudioWorkflowShards", () => {
   it("concatenates repeated array keys in order and lets later scalars win", () => {
     const shards = [
