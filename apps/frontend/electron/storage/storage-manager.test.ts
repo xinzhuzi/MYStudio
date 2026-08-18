@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { handlers, existsSync, mkdirSync, readdir, rm, cp, readFileSync, writeFileSync, rmSync } = vi.hoisted(() => ({
+const { handlers, existsSync, mkdirSync, readdir, rm, cp, readFileSync, writeFileSync, rmSync, showOpenDialog, showMessageBox } = vi.hoisted(() => ({
   handlers: new Map<string, (...args: unknown[]) => unknown>(),
   existsSync: vi.fn((..._args: unknown[]) => false),
   mkdirSync: vi.fn(),
@@ -10,9 +10,11 @@ const { handlers, existsSync, mkdirSync, readdir, rm, cp, readFileSync, writeFil
   readFileSync: vi.fn(),
   writeFileSync: vi.fn(),
   rmSync: vi.fn(),
+  showOpenDialog: vi.fn(async () => ({ canceled: true, filePaths: [] as string[] })),
+  showMessageBox: vi.fn(async () => ({ response: 1 })),
 }));
 vi.mock("electron", () => ({
-  dialog: { showOpenDialog: vi.fn() },
+  dialog: { showOpenDialog, showMessageBox },
   ipcMain: {
     emit: vi.fn(() => true),
     handle: vi.fn((channel: string, handler: (...args: unknown[]) => unknown) => handlers.set(channel, handler)),
@@ -30,6 +32,12 @@ vi.mock("node:fs", () => ({
 }));
 
 import { createStorageManager } from "./storage-manager";
+
+/** 模拟用户经原生目录选择器选中 dir(守卫要求高危操作的路径必须来自对话框)。 */
+async function selectDirViaDialog(dir: string) {
+  showOpenDialog.mockResolvedValueOnce({ canceled: false, filePaths: [dir] });
+  await handlers.get("storage-select-directory")?.(null, undefined);
+}
 
 describe("createStorageManager", () => {
   beforeEach(() => {
@@ -142,6 +150,7 @@ describe("createStorageManager", () => {
     });
 
     existsSync.mockImplementation((candidate?: unknown) => candidate === "/empty");
+    await selectDirViaDialog("/empty");
     await expect(handlers.get("storage-link-data")?.(null, "/empty")).resolves.toEqual({
       success: false,
       error: "该目录不包含有效的数据（需要 projects/、media/、assets/ 或 skills/ 子目录）",
@@ -173,6 +182,7 @@ describe("createStorageManager", () => {
     ));
     readdir.mockResolvedValue(["entry"]);
 
+    await selectDirViaDialog("/new-data");
     await expect(handlers.get("storage-move-data")?.(null, "/new-data")).resolves.toEqual({
       success: true,
       path: "/new-data",
@@ -180,6 +190,7 @@ describe("createStorageManager", () => {
     expect(cp).toHaveBeenCalledWith("/user-data/assets/entry", "/new-data/assets/entry", { recursive: true, force: true });
 
     cp.mockClear();
+    await selectDirViaDialog("/backup");
     await expect(handlers.get("storage-export-data")?.(null, "/backup")).resolves.toMatchObject({ success: true });
     expect(cp).toHaveBeenCalledWith("/new-data/assets", expect.stringMatching(/\/assets$/), { recursive: true, force: true });
   });
@@ -193,6 +204,7 @@ describe("createStorageManager", () => {
     ));
     readdir.mockResolvedValue([]);
 
+    await selectDirViaDialog("/incoming");
     await expect(handlers.get("storage-import-data")?.(null, "/incoming")).resolves.toEqual({ success: true });
     expect(rm).toHaveBeenCalledWith("/user-data/assets", { recursive: true, force: true });
     expect(cp).toHaveBeenCalledWith("/incoming/assets", "/user-data/assets", { recursive: true, force: true });
@@ -202,9 +214,11 @@ describe("createStorageManager", () => {
     const manager = createStorageManager({ userDataPath: "/user-data" });
     manager.registerIpcHandlers({ getStudioManualsSourceRoot: () => "/manuals" });
 
+    await selectDirViaDialog("/user-data/");
     await expect(handlers.get("storage-import-project-data")?.(null, "/user-data/")).resolves.toEqual({
       success: true,
     });
+    await selectDirViaDialog("/user-data/projects/");
     await expect(handlers.get("storage-import-project-data")?.(null, "/user-data/projects/")).resolves.toEqual({
       success: true,
     });
@@ -221,6 +235,7 @@ describe("createStorageManager", () => {
     });
     manager.registerIpcHandlers({ getStudioManualsSourceRoot: () => "/manuals" });
     existsSync.mockImplementation((candidate?: unknown) => candidate === "/incoming/assets");
+    await selectDirViaDialog("/incoming");
 
     await expect(handlers.get("storage-import-data")?.(null, "/incoming")).resolves.toMatchObject({
       success: false,
@@ -239,6 +254,7 @@ describe("createStorageManager", () => {
     const manager = createStorageManager({ userDataPath: "/user-data", fileOps: { cp: copy, remove } });
     manager.registerIpcHandlers({ getStudioManualsSourceRoot: () => "/manuals" });
 
+    await selectDirViaDialog("/backup");
     await expect(handlers.get("storage-export-data")?.(null, "/backup")).resolves.toMatchObject({
       success: false,
       error: expect.stringContaining("export copy failed"),
@@ -258,11 +274,59 @@ describe("createStorageManager", () => {
     readdir.mockResolvedValue(["entry"]);
     writeFileSync.mockImplementation(() => { throw new Error("config write failed"); });
 
+    await selectDirViaDialog("/new-data");
     await expect(handlers.get("storage-move-data")?.(null, "/new-data")).resolves.toMatchObject({
       success: false,
       error: expect.stringContaining("无法保存存储配置"),
     });
     expect(manager.getStorageBasePath()).toBe("/user-data");
     expect(mkdirSync).not.toHaveBeenCalledWith("/new-data/assets", { recursive: true });
+  });
+
+  it("refuses storage operations on directories that never went through the picker", async () => {
+    const manager = createStorageManager({ userDataPath: "/user-data" });
+    manager.registerIpcHandlers({ getStudioManualsSourceRoot: () => "/manuals" });
+    existsSync.mockReturnValue(true);
+
+    for (const channel of ["storage-link-data", "storage-move-data", "storage-export-data", "storage-import-data"]) {
+      await expect(handlers.get(channel)?.(null, "/attacker-chosen-dir")).resolves.toEqual({
+        success: false,
+        error: "目录必须通过应用内的目录选择器选择后才能操作",
+      });
+    }
+    await expect(handlers.get("storage-link-project-data")?.(null, "/attacker/projects")).resolves.toMatchObject({
+      success: false,
+    });
+    expect(cp).not.toHaveBeenCalled();
+    expect(rm).not.toHaveBeenCalled();
+  });
+
+  it("returns null without blessing when the directory picker is canceled", async () => {
+    const manager = createStorageManager({ userDataPath: "/user-data" });
+    manager.registerIpcHandlers({ getStudioManualsSourceRoot: () => "/manuals" });
+    showOpenDialog.mockResolvedValueOnce({ canceled: true, filePaths: [] });
+
+    await expect(handlers.get("storage-select-directory")?.(null, undefined)).resolves.toBeNull();
+    await expect(handlers.get("storage-link-data")?.(null, "/anywhere")).resolves.toMatchObject({
+      success: false,
+      error: expect.stringContaining("目录选择器"),
+    });
+  });
+
+  it("aborts the import when the native confirmation dialog is dismissed", async () => {
+    const manager = createStorageManager({ userDataPath: "/user-data" });
+    manager.registerIpcHandlers({ getStudioManualsSourceRoot: () => "/manuals" });
+    existsSync.mockImplementation((candidate?: unknown) => candidate === "/incoming/assets");
+    showMessageBox.mockClear();
+    showMessageBox.mockResolvedValueOnce({ response: 0 });
+
+    await selectDirViaDialog("/incoming");
+    await expect(handlers.get("storage-import-data")?.(null, "/incoming")).resolves.toEqual({
+      success: false,
+      error: "已取消导入",
+    });
+    expect(showMessageBox).toHaveBeenCalledTimes(1);
+    expect(rm).not.toHaveBeenCalled();
+    expect(cp).not.toHaveBeenCalled();
   });
 });

@@ -2,6 +2,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { dialog, ipcMain } from "electron";
+import { createBlessedPathRegistry } from "../security/managed-paths";
 import { getStudioSkillStorageRoot, listStoredStudioSkillFiles } from "./studio-skills-storage";
 
 type StorageConfig = {
@@ -236,6 +237,30 @@ export function createStorageManager({ userDataPath, sessionDataPath = userDataP
   );
 
   const registerIpcHandlers = ({ getStudioManualsSourceRoot }: RegisterStorageIpcHandlersOptions) => {
+    // 存储高危操作(link/move/export/import)的目标路径必须来自本应用的原生
+    // 目录选择器:select-directory 的结果在此短期「祝福」,未经对话框的路径
+    // 一律拒绝——防止被攻破的渲染进程直改存储根/搬数据(与素材库同款守卫)。
+    const blessedStorageDirs = createBlessedPathRegistry();
+    const blessDialogDir = (dirPath: string) => {
+      blessedStorageDirs.bless([normalizePath(dirPath)]);
+    };
+    const unblessedDirError = (rawPath: string): { success: false; error: string } | null => {
+      if (!blessedStorageDirs.has(normalizePath(rawPath))) {
+        return { success: false, error: "目录必须通过应用内的目录选择器选择后才能操作" };
+      }
+      return null;
+    };
+    const confirmImportDialog = async (source: string): Promise<boolean> => {
+      const result = await dialog.showMessageBox({
+        type: "warning",
+        message: "确认导入数据?",
+        detail: `导入将替换当前的 projects/、media/、assets/、skills/ 中与源目录重合的数据。\n\n源目录: ${source}\n现有数据会先备份,失败时自动回滚。`,
+        buttons: ["取消", "确认导入"],
+        defaultId: 0,
+        cancelId: 0,
+      });
+      return result.response === 1;
+    };
     const validateDataDir = async (dirPath: string) => {
       try {
         if (!dirPath) return { valid: false, error: "路径不能为空" };
@@ -295,12 +320,16 @@ export function createStorageManager({ userDataPath, sessionDataPath = userDataP
         options.defaultPath = defaultPath.trim();
       }
       const result = await dialog.showOpenDialog(options);
-      return result.canceled || !result.filePaths[0] ? null : result.filePaths[0];
+      if (result.canceled || !result.filePaths[0]) return null;
+      blessDialogDir(result.filePaths[0]);
+      return result.filePaths[0];
     });
     ipcMain.handle("storage-validate-data-dir", async (_event, dirPath: string) => validateDataDir(dirPath));
     ipcMain.handle("storage-link-data", async (_event, dirPath: string) => {
       try {
         if (!dirPath) return { success: false, error: "路径不能为空" };
+        const unblessed = unblessedDirError(dirPath);
+        if (unblessed) return unblessed;
         const target = normalizePath(dirPath);
         if (!fs.existsSync(target)) return { success: false, error: "目录不存在" };
         if (!["projects", "media", "assets", "skills"].some((name) => fs.existsSync(path.join(target, name)))) {
@@ -316,6 +345,8 @@ export function createStorageManager({ userDataPath, sessionDataPath = userDataP
     ipcMain.handle("storage-move-data", async (_event, newPath: string) => {
       try {
         if (!newPath) return { success: false, error: "路径不能为空" };
+        const unblessed = unblessedDirError(newPath);
+        if (unblessed) return unblessed;
         const target = normalizePath(newPath);
         const currentBase = getStorageBasePath();
         if (samePath(currentBase, target)) return { success: true, path: currentBase };
@@ -384,6 +415,8 @@ export function createStorageManager({ userDataPath, sessionDataPath = userDataP
       let exportDir: string | undefined;
       try {
         if (!targetPath) return { success: false, error: "路径不能为空" };
+        const unblessed = unblessedDirError(targetPath);
+        if (unblessed) return unblessed;
         exportDir = createExportDir(targetPath);
         if (containmentError(getStorageBasePath(), exportDir)) return { success: false, error: "导出目录不能位于当前存储路径内或与其重叠" };
         await copyDir(getProjectDataRoot(), path.join(exportDir, "projects"));
@@ -400,7 +433,14 @@ export function createStorageManager({ userDataPath, sessionDataPath = userDataP
     ipcMain.handle("storage-import-data", async (_event, sourcePath: string) => {
       try {
         if (!sourcePath) return { success: false, error: "路径不能为空" };
+        const unblessed = unblessedDirError(sourcePath);
+        if (unblessed) return unblessed;
         const source = normalizePath(sourcePath);
+        // import 会先删除现有 projects/media/assets/skills 再拷入,破坏性最强,
+        // 对话框选择之外再加一道原生确认,确保操作确经用户主动发起。
+        if (!(await confirmImportDialog(source))) {
+          return { success: false, error: "已取消导入" };
+        }
         const sourceConflict = containmentError(source, getStorageBasePath());
         if (sourceConflict) return sourceConflict === "路径相同"
           ? { success: true }
@@ -459,11 +499,15 @@ export function createStorageManager({ userDataPath, sessionDataPath = userDataP
 
     ipcMain.handle("storage-validate-project-dir", async (_event, dirPath: string) => validateDataDir(dirPath));
     ipcMain.handle("storage-link-project-data", async (_event, dirPath: string) => {
+      const unblessed = unblessedDirError(dirPath);
+      if (unblessed) return unblessed;
       const basePath = path.dirname(normalizePath(dirPath));
       updateBasePath(basePath);
       return { success: true, path: basePath };
     });
     ipcMain.handle("storage-link-media-data", async (_event, dirPath: string) => {
+      const unblessed = unblessedDirError(dirPath);
+      if (unblessed) return unblessed;
       const basePath = path.dirname(normalizePath(dirPath));
       updateBasePath(basePath);
       return { success: true, path: basePath };
@@ -472,6 +516,8 @@ export function createStorageManager({ userDataPath, sessionDataPath = userDataP
     ipcMain.handle("storage-move-media-data", async () => ({ success: false, error: "请使用新的统一存储路径功能" }));
     const legacyExport = async (targetPath: string) => {
       if (!targetPath) return { success: false, error: "路径不能为空" };
+      const unblessed = unblessedDirError(targetPath);
+      if (unblessed) return unblessed;
       const exportDir = createExportDir(targetPath);
       try {
         if (containmentError(getStorageBasePath(), exportDir)) return { success: false, error: "导出目录不能位于当前存储路径内或与其重叠" };
@@ -495,6 +541,11 @@ export function createStorageManager({ userDataPath, sessionDataPath = userDataP
     ipcMain.handle("storage-import-project-data", async (_event, sourcePath: string) => {
       try {
         if (!sourcePath) return { success: false, error: "路径不能为空" };
+        const unblessed = unblessedDirError(sourcePath);
+        if (unblessed) return unblessed;
+        if (!(await confirmImportDialog(normalizePath(sourcePath)))) {
+          return { success: false, error: "已取消导入" };
+        }
         const source = normalizePath(sourcePath);
         const projectsDir = path.join(source, "projects");
         const mediaDir = path.join(source, "media");
@@ -545,6 +596,11 @@ export function createStorageManager({ userDataPath, sessionDataPath = userDataP
     ipcMain.handle("storage-import-media-data", async (_event, sourcePath: string) => {
       try {
         if (!sourcePath) return { success: false, error: "路径不能为空" };
+        const unblessed = unblessedDirError(sourcePath);
+        if (unblessed) return unblessed;
+        if (!(await confirmImportDialog(normalizePath(sourcePath)))) {
+          return { success: false, error: "已取消导入" };
+        }
         const target = getMediaRoot({ ensure: false });
         const source = normalizePath(sourcePath);
         if (samePath(source, target)) return { success: true };
