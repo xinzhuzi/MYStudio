@@ -216,6 +216,10 @@ declare global {
       enabled: boolean;
       userDataDir?: string;
     };
+    renderHw?: {
+      get: () => Promise<{ hardwareAcceleration: boolean }>;
+      set: (settings: { hardwareAcceleration: boolean }) => Promise<{ hardwareAcceleration: boolean }>;
+    };
     diagnosticsLog?: {
       write: (entry: DiagnosticsLogEntryInput) => Promise<DiagnosticsLogEntry>;
       query: (query?: DiagnosticsLogQuery) => Promise<DiagnosticsLogQueryResult>;
@@ -273,7 +277,9 @@ declare global {
           kind: string;
           title: string;
           sourcePath: string;
+          sourceSha256: string;
           anchor: string;
+          freshness: "fresh";
           score: number;
           snippet: string;
           chapterId?: string;
@@ -290,6 +296,9 @@ declare global {
         structuredCount?: number;
         rawCount?: number;
         builtAt?: string;
+        sources?: Array<{ path: string; sha256: string; size: number; mtimeMs: number }>;
+        indexHealth?: "healthy" | "missing" | "corrupt" | "incompatible";
+        recoverableArtifacts?: string[];
         degradedReason?: string;
         error?: string;
       }>;
@@ -318,6 +327,13 @@ declare global {
         structuredCount?: number;
         rawCount?: number;
         failedChunks?: number;
+        error?: string;
+      }>;
+      rebuildIndex: (projectId: string) => Promise<{
+        success: boolean;
+        buildId?: string;
+        indexHealth?: "healthy" | "missing" | "corrupt" | "incompatible";
+        backupPath?: string;
         error?: string;
       }>;
     };

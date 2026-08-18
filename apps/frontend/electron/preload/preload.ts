@@ -211,6 +211,11 @@ contextBridge.exposeInMainWorld('mystudioSmoke', {
   userDataDir: process.argv.find((arg) => arg.startsWith('--user-data-dir='))?.slice('--user-data-dir='.length) ?? '',
 })
 
+contextBridge.exposeInMainWorld('renderHw', {
+  get: () => ipcRenderer.invoke('render-hw-get'),
+  set: (settings: { hardwareAcceleration?: boolean }) => ipcRenderer.invoke('render-hw-set', settings),
+});
+
 contextBridge.exposeInMainWorld('diagnosticsLog', {
   write: (entry: DiagnosticsLogEntryInput) => ipcRenderer.invoke('diagnostics-log-write', entry),
   query: (query?: DiagnosticsLogQuery) => ipcRenderer.invoke('diagnostics-log-query', query),
@@ -264,6 +269,7 @@ contextBridge.exposeInMainWorld('sourceMemory', {
     ipcRenderer.invoke('source-memory-stage-records', projectId, buildId, records),
   commitBuild: (projectId: string, payload: { buildId: string; coverage?: Array<{ sourcePath: string; anchor: string; ok: boolean }> }) =>
     ipcRenderer.invoke('source-memory-commit-build', projectId, payload),
+  rebuildIndex: (projectId: string) => ipcRenderer.invoke('source-memory-rebuild-index', projectId),
 })
 
 contextBridge.exposeInMainWorld('projectFiles', {

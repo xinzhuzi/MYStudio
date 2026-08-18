@@ -8,7 +8,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { ensureBrowser, renderMedia, selectComposition } from "@remotion/renderer";
-import { MediaBridgeServer } from "@rendering/plugins/remotion/media-bridge/media-bridge-server";
+import { readRenderHwSettings, renderChannelOptions } from "@rendering/plugins/remotion/render-hw-mode";import { MediaBridgeServer } from "@rendering/plugins/remotion/media-bridge/media-bridge-server";
 import { buildChapterVideoCompositionProps } from "@rendering/plugins/remotion/composition/build-composition-props";
 import { customFontAbsolutePath } from "@/lib/studio/remotion/custom-font-store";
 import { customFontFamilyForId, isCustomSubtitleFontId } from "@/lib/studio/remotion/subtitle-fonts";
@@ -185,14 +185,23 @@ async function main() {
     await renderMedia({
       serveUrl: bundlePath, composition, inputProps: props as never, outputLocation: staged,
       codec: "h264", pixelFormat: "yuv420p", audioCodec: "aac", crf: 16, x264Preset: "slow",
-      browserExecutable: (browser as unknown as { executablePath: string }).executablePath,
+      browserExecutable: (() => {
+        return renderChannelOptions(readRenderHwSettings(USER_DATA)).browserExecutable
+          ?? (browser as unknown as { executablePath: string }).executablePath;
+      })(),
       binariesDirectory: path.join(APPS_ROOT, "node_modules", "@remotion", "compositor-darwin-arm64"),
       chromeMode: "headless-shell", enforceAudioTrack: true, overwrite: true,
-      // GL 转场（GLTransitionLayer）进组合后渲染需要 SwiftShader WebGL：不传 gl:"swangle"
-      // 则 ANGLE Vulkan 路径 BindToCurrentSequence 失败（08-18-gl-transitions PoC 实测；
-      // run-full-pipeline cinematic 分支同款参数，并发钳 2 防软上下文内存崩）。
-      chromiumOptions: { gl: "swangle" },
-      concurrency: 2,
+      // GL 转场（GLTransitionLayer）进组合后渲染需要 WebGL：默认 headless-shell+
+      // swangle（软渲，不传则 BindToCurrentSequence 失败——PoC 实测）；D3 硬件加速
+      // 开关（userData/render-hw.json 或 MYSTUDIO_RENDER_HW=1）=系统 Chrome 真 GPU。
+      ...(() => {
+        const channel = renderChannelOptions(readRenderHwSettings(USER_DATA));
+        if (channel.browserExecutable) {
+          console.log("render channel: 系统 Chrome(Metal)", channel.browserExecutable);
+          return { browserExecutable: channel.browserExecutable, concurrency: 4 };
+        }
+        return { chromiumOptions: channel.chromiumOptions, concurrency: 2 };
+      })(),
       onBrowserDownload: () => { throw new Error("禁止隐式下载 Headless Shell"); },
     } as never);
     fs.copyFileSync(staged, outputPath);

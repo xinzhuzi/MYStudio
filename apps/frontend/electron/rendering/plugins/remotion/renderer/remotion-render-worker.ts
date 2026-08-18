@@ -1,4 +1,5 @@
 import fs from "node:fs";
+import { detectSystemChrome } from "../render-hw-mode";
 import { createRequire } from "node:module";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -74,6 +75,8 @@ function isPackagedWorkerPath(workerFilePath: string): boolean {
 }
 
 interface RemotionRenderInputBase {
+  /** D3 硬件加速渲染开关（render-hw-mode.ts；严禁进 plan.renderSettings——M2）。 */
+  hardwareRendering?: boolean;
   bundlePath: string;
   outputPath: string;
   browserExecutable: string;
@@ -245,9 +248,12 @@ export class RemotionRenderWorker {
         codec: "h264",
         pixelFormat: "yuv420p",
         audioCodec: "aac",
-        browserExecutable: input.browserExecutable,
+        browserExecutable: (input.hardwareRendering ? detectSystemChrome() : null) ?? input.browserExecutable,
         binariesDirectory: input.binariesDirectory,
         chromeMode: "headless-shell",
+        // 硬件加速分支（系统 Chrome+真 GPU）不传 swangle；默认分支传——GL 转场 WebGL
+        // 的软渲硬前置（0c7fee6 实证：不传则 ANGLE Vulkan BindToCurrentSequence 失败）。
+        ...(input.hardwareRendering && detectSystemChrome() ? {} : { chromiumOptions: { gl: "swangle" as const } }),
         enforceAudioTrack: true,
         overwrite: true,
         cancelSignal: cancelState.cancelSignal,

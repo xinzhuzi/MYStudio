@@ -42,6 +42,7 @@ import { createCredentialVault } from '../aitoearn/credential-vault'
 import { createAitoearnLocalPlatformBridge } from '../aitoearn/providers/aitoearn-local/platform-bridge'
 import { createOfficialPlatformTransports } from '../aitoearn/providers/aitoearn-local/platforms/official/transports'
 import { registerDiagnosticsIpcHandlers } from '../ipc/diagnostics/diagnostics-ipc'
+import { registerRenderHwIpcHandlers } from '../ipc/rendering/render-hw-ipc'
 import { registerStorageMediaIpcHandlers } from '../ipc/media/storage-media-ipc'
 import { registerAppUpdaterIpcHandlers } from '../ipc/app/app-updater-ipc'
 import {
@@ -697,6 +698,8 @@ registerDiagnosticsIpcHandlers({
   service: diagnosticsLogService,
   openPath: (targetPath) => shell.openPath(targetPath),
 })
+
+registerRenderHwIpcHandlers(() => app.getPath('userData'))
 
 registerApiRequestIpcHandlers({
   createOperationId: createDiagnosticsOperationId,

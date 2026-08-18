@@ -111,6 +111,8 @@ remotion-runtime-download
 remotion-runtime-status
 remotion-shot-audio-write-generated
 remotion-studio-ensure-session
+render-hw-get
+render-hw-set
 save-file-dialog
 save-image
 self-media:cancel-task
@@ -123,6 +125,7 @@ self-media:poll-task
 self-media:start-login
 source-memory-build
 source-memory-commit-build
+source-memory-rebuild-index
 source-memory-search
 source-memory-stage-records
 source-memory-status

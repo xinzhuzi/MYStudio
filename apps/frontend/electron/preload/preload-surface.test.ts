@@ -33,6 +33,7 @@ describe("preload IPC surface", () => {
   });
 
   it("exposes diagnostics logging through a narrow safe API", () => {
+    expect(preloadSource).toContain("exposeInMainWorld('renderHw'");
     expect(preloadSource).toContain("exposeInMainWorld('diagnosticsLog'");
     expect(preloadSource).toContain("ipcRenderer.invoke('diagnostics-log-write', entry)");
     expect(preloadSource).toContain("ipcRenderer.invoke('diagnostics-log-query', query)");

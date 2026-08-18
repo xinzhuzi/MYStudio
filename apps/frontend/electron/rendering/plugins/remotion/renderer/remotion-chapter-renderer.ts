@@ -1,5 +1,6 @@
 import crypto from "node:crypto";
 import fs from "node:fs";
+import { readRenderHwSettings } from "../render-hw-mode";
 import path from "node:path";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
@@ -58,6 +59,8 @@ import type {
 const execFileAsync = promisify(execFile);
 
 export interface RemotionChapterRendererOptions {
+  /** 应用 userData 目录（render-hw.json 硬件加速开关读取；缺省回退 cwd 上级）。 */
+  userDataDir?: string;
   workspaceRoot: string;
   workspaceRootForProject?: (projectId: string) => string;
   bundlePath: string;
@@ -473,6 +476,8 @@ export class RemotionChapterRenderer {
         outputPath: stagedOutputPath,
         remotionVersion: this.options.remotionVersion,
         binariesDirectory: this.options.binariesDirectory,
+        // D3 硬件加速渲染（render-hw-mode；严禁进 plan/renderSettings——M2 缓存陷阱）。
+        hardwareRendering: readRenderHwSettings(this.options.userDataDir ?? path.join(this.options.cwd, "..")).hardwareAcceleration,
       });
       if (!render.success) {
         const quarantineError = await quarantineRemotionPartialOutput(stagedOutputPath);

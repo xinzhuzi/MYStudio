@@ -9,6 +9,7 @@ import "@fontsource/long-cang/400.css";
 import "@fontsource/liu-jian-mao-cao/400.css";
 import "lxgw-wenkai-webfont/lxgwwenkai-regular.css";
 import { Button } from "@/components/ui/button";
+import { Switch } from "@/components/ui/switch";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useRemotionRuntimeSettings } from "./useRemotionRuntimeSettings";
@@ -152,6 +153,19 @@ export function RenderingSettingsTab({ embedded = false }: RenderingSettingsTabP
   };
   // 模块折叠：默认全折叠（08-18 用户改拍板），手动展开/折叠后 localStorage 记忆。
   const [collapsedModules, setCollapsedModules] = React.useState<Set<string>>(() => readCollapsedModules());
+  // D3 硬件加速渲染开关（render-hw.json 经 IPC；严禁进 plan.renderSettings——M2）。
+  const [hwRendering, setHwRendering] = React.useState<boolean | null>(null);
+  React.useEffect(() => {
+    let alive = true;
+    window.renderHw?.get().then((s) => { if (alive) setHwRendering(s.hardwareAcceleration); }).catch(() => { if (alive) setHwRendering(false); });
+    return () => { alive = false; };
+  }, []);
+  const toggleHwRendering = (next: boolean) => {
+    setHwRendering(next);
+    window.renderHw?.set({ hardwareAcceleration: next }).then((s) => setHwRendering(s.hardwareAcceleration))
+      .then(() => toast.success(next ? "硬件加速渲染已开启：后续渲染使用系统 Chrome（Metal GPU）" : "已切回默认软渲（headless-shell + swangle）"))
+      .catch(() => toast.error("硬件加速渲染设置写入失败"));
+  };
   const toggleModuleCollapsed = (moduleId: string) => {
     setCollapsedModules((previous) => {
       const next = new Set(previous);
@@ -217,6 +231,20 @@ export function RenderingSettingsTab({ embedded = false }: RenderingSettingsTabP
               <p><span className="font-medium text-foreground">执行顺序</span>：video-use 先完成原文对齐、EDL 编辑、字幕时间轴、调色、预览渲染与自评；用户确认时间线后，准备 HyperFrames 生成透明动效 overlay（无动效也会写入 no-op 记录）；最后由 Remotion 负责正式 Composition 与章节视频渲染。</p>
               <p><span className="font-medium text-foreground">失败处理</span>：任一阶段失败都会阻塞后续流程并在 UI 中提示，可点击「准备」或「修复」重试，无需重启应用。</p>
             </div>
+          </div>
+
+          {/* 硬件加速渲染（D3）：开关只影响渲染调用参数，不进 plan/缓存哈希。 */}
+          <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border bg-muted/30 p-4">
+            <div>
+              <h4 className="font-medium text-foreground">硬件加速渲染</h4>
+              <p className="text-xs text-muted-foreground mt-1">开启后章节渲染使用系统 Chrome（Metal GPU）替代默认软渲（headless-shell + swangle）；需要本机安装 Google Chrome，未安装时自动回退软渲。对已渲染产物缓存无影响。</p>
+            </div>
+            <Switch
+              aria-label="硬件加速渲染"
+              checked={hwRendering === true}
+              disabled={hwRendering === null}
+              onCheckedChange={toggleHwRendering}
+            />
           </div>
 
           <div className="flex flex-wrap items-center justify-between gap-3">
