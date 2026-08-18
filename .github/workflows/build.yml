@@ -75,11 +75,16 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Enable pnpm via corepack
+        # 与本地同源(apps/packageManager 钉 pnpm@10.26.2+sha512):apps/patches 的
+        # remotion 补丁仅对 pnpm 生效,此前 npm ci 打出的包缺补丁、与本地漂移。
+        run: corepack enable && corepack prepare pnpm@10.26.2 --activate
+
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: npm
-          cache-dependency-path: apps/package-lock.json
+          cache: pnpm
+          cache-dependency-path: apps/pnpm-lock.yaml
 
       - uses: actions/setup-python@v5
         with:
@@ -104,7 +109,7 @@ jobs:
 
       - name: Install Node dependencies
         working-directory: apps
-        run: npm ci
+        run: pnpm install --frozen-lockfile
 
       - name: Quality gate (typecheck + lint + test + smoke)
         working-directory: apps
@@ -129,11 +134,16 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Enable pnpm via corepack
+        # 与本地同源(apps/packageManager 钉 pnpm@10.26.2+sha512):apps/patches 的
+        # remotion 补丁仅对 pnpm 生效,此前 npm ci 打出的包缺补丁、与本地漂移。
+        run: corepack enable && corepack prepare pnpm@10.26.2 --activate
+
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: npm
-          cache-dependency-path: apps/package-lock.json
+          cache: pnpm
+          cache-dependency-path: apps/pnpm-lock.yaml
 
       - name: Install ffmpeg toolchain
         run: |
@@ -150,7 +160,7 @@ jobs:
 
       - name: Install Node dependencies
         working-directory: apps
-        run: npm ci
+        run: pnpm install --frozen-lockfile
 
       - name: Generate fixed Remotion bundle
         working-directory: apps
@@ -181,11 +191,16 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Enable pnpm via corepack
+        # 与本地同源(apps/packageManager 钉 pnpm@10.26.2+sha512):apps/patches 的
+        # remotion 补丁仅对 pnpm 生效,此前 npm ci 打出的包缺补丁、与本地漂移。
+        run: corepack enable && corepack prepare pnpm@10.26.2 --activate
+
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: npm
-          cache-dependency-path: apps/package-lock.json
+          cache: pnpm
+          cache-dependency-path: apps/pnpm-lock.yaml
 
       - name: Install ffmpeg toolchain
         env:
@@ -203,7 +218,7 @@ jobs:
 
       - name: Install Node dependencies
         working-directory: apps
-        run: npm ci
+        run: pnpm install --frozen-lockfile
 
       - name: Download fixed Remotion bundle
         uses: actions/download-artifact@v4
@@ -249,11 +264,16 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Enable pnpm via corepack
+        # 与本地同源(apps/packageManager 钉 pnpm@10.26.2+sha512):apps/patches 的
+        # remotion 补丁仅对 pnpm 生效,此前 npm ci 打出的包缺补丁、与本地漂移。
+        run: corepack enable && corepack prepare pnpm@10.26.2 --activate
+
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: npm
-          cache-dependency-path: apps/package-lock.json
+          cache: pnpm
+          cache-dependency-path: apps/pnpm-lock.yaml
 
       - name: Install ffmpeg toolchain
         shell: pwsh
@@ -271,7 +291,7 @@ jobs:
 
       - name: Install Node dependencies
         working-directory: apps
-        run: npm ci
+        run: pnpm install --frozen-lockfile
 
       - name: Download fixed Remotion bundle
         uses: actions/download-artifact@v4
