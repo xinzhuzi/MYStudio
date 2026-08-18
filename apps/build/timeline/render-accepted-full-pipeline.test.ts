@@ -29,6 +29,7 @@ import {
   resolveInstalledRemotionWorkerPath,
   resolveFormalElectronMain,
   resolveFormalProjectRoot,
+  resolveFormalRevision,
   resolveFormalSlotSourceRoot,
   resolveFormalTimelinePlanPath,
 } from "./render-accepted-full-pipeline";
@@ -172,6 +173,13 @@ describe("formal installed runtime lifecycle", () => {
       .toBe("/source-run/timeline-render-plan.json");
   });
 
+  it("accepts a current formal revision override while preserving the historical default", () => {
+    expect(resolveFormalRevision()).toBe(23);
+    expect(resolveFormalRevision(" 3 ")).toBe(3);
+    expect(() => resolveFormalRevision("0")).toThrow("positive integer");
+    expect(() => resolveFormalRevision("3.5")).toThrow("positive integer");
+  });
+
   it("keeps an explicit slot source root separate from the production Remotion fallback", () => {
     const productionRemotionRoot = "/production/remotion";
 
@@ -230,6 +238,25 @@ describe("projectAcceptedTimelinePlan", () => {
       "project-file://project-1/outputs/shots/chapter-001/shot-1/current.mp4",
       "project-file://project-1/outputs/shots/chapter-001/shot-2/current.mp4",
     ]);
+  });
+
+  it("normalizes an accepted absolute production source without allowing root escape", () => {
+    const plan = makePlan(1);
+    plan.clips[0]!.source.path = "/external/MA/remotion/outputs/shots/chapter-001/shot-1/current.mp4";
+    const expected = {
+      projectId: "project-1",
+      chapterId: "chapter-001",
+      revision: 9,
+      expectedVisualCount: 1,
+      productionRemotionRoot: "/external/MA/remotion",
+    };
+
+    expect(projectAcceptedTimelinePlan(plan, expected).clips[0]?.source.path)
+      .toBe("project-file://project-1/outputs/shots/chapter-001/shot-1/current.mp4");
+
+    plan.clips[0]!.source.path = "/external/MA/outside.mp4";
+    expect(() => projectAcceptedTimelinePlan(plan, expected))
+      .toThrow("outside the production Remotion root");
   });
 });
 
@@ -416,7 +443,9 @@ describe("materializeIsolatedShotWorkspace", () => {
     const root = fs.mkdtempSync(path.join(os.tmpdir(), "formal-render-workspace-"));
     const sourceWorkspace = path.join(root, "source");
     const targetWorkspace = path.join(root, "target");
-    const sourceTimestamp = new Date("2026-08-16T00:00:00.000Z");
+    const sourceTimestampSeconds = 1786838400.0009;
+    const expectedMtimeSeconds = Math.floor(sourceTimestampSeconds * 1000) / 1000;
+    const utimesSpy = vi.spyOn(fs.promises, "utimes");
     const relativePaths = [
       "outputs/shots/chapter-001/shot-001/current.mp4",
       "jobs/shot/chapter-001/shot-001/current.json",
@@ -427,7 +456,7 @@ describe("materializeIsolatedShotWorkspace", () => {
         const sourcePath = path.join(sourceWorkspace, relativePath);
         fs.mkdirSync(path.dirname(sourcePath), { recursive: true });
         fs.writeFileSync(sourcePath, relativePath);
-        fs.utimesSync(sourcePath, sourceTimestamp, sourceTimestamp);
+        fs.utimesSync(sourcePath, sourceTimestampSeconds, sourceTimestampSeconds);
       }
 
       await expect(materializeIsolatedShotWorkspace({
@@ -436,15 +465,20 @@ describe("materializeIsolatedShotWorkspace", () => {
         currentShotSlots: makeSlots(1),
       })).resolves.toBe(1);
 
+      expect(utimesSpy.mock.calls).toHaveLength(relativePaths.length);
+      expect(utimesSpy.mock.calls.every(([, , mtime]) => mtime === expectedMtimeSeconds)).toBe(true);
+
       for (const relativePath of relativePaths) {
         const sourceStat = fs.statSync(path.join(sourceWorkspace, relativePath));
         const targetStat = fs.statSync(path.join(targetWorkspace, relativePath));
+        expect(sourceStat.mtime.getTime()).toBeGreaterThan(Math.floor(sourceStat.mtimeMs));
         expect(targetStat.ino).not.toBe(sourceStat.ino);
         expect(Math.floor(targetStat.mtimeMs)).toBe(Math.floor(sourceStat.mtimeMs));
         expect(fs.readFileSync(path.join(targetWorkspace, relativePath)))
           .toEqual(fs.readFileSync(path.join(sourceWorkspace, relativePath)));
       }
     } finally {
+      utimesSpy.mockRestore();
       fs.rmSync(root, { recursive: true, force: true });
     }
   });

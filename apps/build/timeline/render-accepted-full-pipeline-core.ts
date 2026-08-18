@@ -56,7 +56,12 @@ export async function materializeIsolatedShotWorkspace(input: {
       const sourceStat = await fs.promises.stat(sourcePath);
       await fs.promises.mkdir(path.dirname(targetPath), { recursive: true });
       await fs.promises.copyFile(sourcePath, targetPath, fs.constants.COPYFILE_FICLONE);
-      await fs.promises.utimes(targetPath, sourceStat.atime, sourceStat.mtime);
+      // Evidence compares floor(mtimeMs); numeric seconds avoid Date rounding up fractional milliseconds.
+      await fs.promises.utimes(
+        targetPath,
+        Math.floor(sourceStat.atimeMs) / 1000,
+        Math.floor(sourceStat.mtimeMs) / 1000,
+      );
     }
   }
   return input.currentShotSlots.length;
@@ -137,6 +142,7 @@ export function projectAcceptedTimelinePlan(
     chapterId: string;
     revision: number;
     expectedVisualCount: number;
+    productionRemotionRoot?: string;
   },
 ): TimelineRenderPlan {
   if (plan.projectId !== expected.projectId
@@ -165,8 +171,22 @@ export function projectAcceptedTimelinePlan(
       if (clip.source.evidence.subtitleAuthority?.mode !== "source-embedded") {
         throw new Error(`visual clip ${clip.id} does not use source-embedded subtitle authority`);
       }
-      const relativePath = clip.source.path?.trim();
-      if (!relativePath || path.isAbsolute(relativePath) || relativePath.includes("://")) {
+      const acceptedSourcePath = clip.source.path?.trim();
+      if (!acceptedSourcePath || acceptedSourcePath.includes("://")) {
+        throw new Error(`visual clip ${clip.id} must use a relative accepted source path`);
+      }
+      let relativePath = acceptedSourcePath;
+      if (path.isAbsolute(acceptedSourcePath)) {
+        const productionRemotionRoot = expected.productionRemotionRoot?.trim();
+        if (!productionRemotionRoot || !path.isAbsolute(productionRemotionRoot)) {
+          throw new Error(`visual clip ${clip.id} absolute accepted source requires the production Remotion root`);
+        }
+        relativePath = path.relative(path.resolve(productionRemotionRoot), path.resolve(acceptedSourcePath));
+        if (!relativePath || relativePath === ".." || relativePath.startsWith(`..${path.sep}`)) {
+          throw new Error(`visual clip ${clip.id} is outside the production Remotion root`);
+        }
+      }
+      if (path.isAbsolute(relativePath) || relativePath === ".." || relativePath.startsWith(`..${path.sep}`)) {
         throw new Error(`visual clip ${clip.id} must use a relative accepted source path`);
       }
       return {

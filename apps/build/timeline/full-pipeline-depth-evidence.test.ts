@@ -210,4 +210,11 @@ describe("full-pipeline depth evidence", () => {
     expect(source).toContain("cinematicDepth: buildFullPipelineCinematicDepthReport({");
     expect(source).not.toContain("depth estimation blocked");
   });
+
+  it("loads production shot identity from the current Remotion workspace", () => {
+    const source = fs.readFileSync(new URL("./run-full-pipeline.ts", import.meta.url), "utf8");
+
+    expect(source).toContain("await readRemotionCurrentShotSlotsFromWorkspace(");
+    expect(source).not.toContain("chapter001-shot-slots.json");
+  });
 });

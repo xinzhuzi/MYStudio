@@ -74,6 +74,56 @@ describe("RemotionPreviewService", () => {
       fs.rmSync(root, { recursive: true, force: true });
     }
   });
+
+  it("keeps a cinematic-marked shot preview 2D when no depth capability is created", async () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), "mystudio-remotion-shot-preview-2d-"));
+    const imagePath = path.join(root, "shot.png");
+    const audioPath = path.join(root, "shot.wav");
+    fs.writeFileSync(imagePath, "preview-image", "utf8");
+    fs.writeFileSync(audioPath, "preview-audio", "utf8");
+    const service = new RemotionPreviewService({
+      resolveSourcePath: (source) => source.endsWith("images/shot-001.png") ? imagePath : audioPath,
+    });
+    const chapter = await makeChapterManifestV2();
+    const cinematic = {
+      preset: "cinematic-dolly-in" as const,
+      parallaxStrength: 0.5,
+      dofAperture: 0.25,
+    };
+    const shotPlan: RemotionShotPlanV1 = {
+      schemaVersion: 1,
+      target: "shot",
+      projectId: chapter.projectId,
+      chapterId: chapter.chapterId,
+      chapterRevision: chapter.revision,
+      sourceSnapshotHash: chapter.sourceSnapshotHash,
+      renderSettings: chapter.renderSettings,
+      visualKind: "image",
+      shot: chapter.shots[0]!,
+      cinematic,
+      inputHash: await sha256CanonicalJson({
+        schemaVersion: 1,
+        target: "shot",
+        projectId: chapter.projectId,
+        chapterId: chapter.chapterId,
+        renderSettings: chapter.renderSettings,
+        visualKind: "image",
+        shot: chapter.shots[0],
+        cinematic,
+      }),
+    };
+
+    try {
+      const preview = await service.createShot(shotPlan);
+      expect(preview.composition.visualClips[0]?.cinematic).toBeUndefined();
+      expect(JSON.stringify(preview)).not.toContain("depthMapSrc");
+      expect(JSON.stringify(preview)).not.toContain(root);
+      await service.release(preview.sessionId);
+    } finally {
+      await service.dispose();
+      fs.rmSync(root, { recursive: true, force: true });
+    }
+  });
 });
 
 function plan(sourcePath: string): TimelineRenderPlan {

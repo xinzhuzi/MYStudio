@@ -36,7 +36,7 @@ import { registeredProjectDir } from "./storage-paths";
 const execFileAsync = promisify(execFile);
 const PROJECT_ID = "49dce4c1-64b1-42de-85c2-9f266698aec4";
 const CHAPTER_ID = "chapter-001";
-const REVISION = 23;
+const DEFAULT_REVISION = 23;
 const EXPECTED_VISUAL_COUNT = 43;
 
 type ElectronMainModule = typeof import("electron");
@@ -78,6 +78,17 @@ export function resolveFormalSlotSourceRoot(input: {
   return path.resolve(explicitSlotSourceRoot || input.productionRemotionRoot);
 }
 
+export function resolveFormalRevision(value?: string): number {
+  const raw = value?.trim();
+  if (!raw) return DEFAULT_REVISION;
+  if (!/^\d+$/.test(raw)) throw new Error("MYSTUDIO_FORMAL_REVISION must be a positive integer");
+  const revision = Number(raw);
+  if (!Number.isSafeInteger(revision) || revision < 1) {
+    throw new Error("MYSTUDIO_FORMAL_REVISION must be a positive integer");
+  }
+  return revision;
+}
+
 type FormalSlotSourceInventoryRow = {
   shotId: string;
   shotRevision: number;
@@ -112,6 +123,7 @@ export function resolveFormalTimelinePlanPath(input: {
 export async function runAcceptedFormalRenderer(): Promise<void> {
   const { app, utilityProcess } = resolveFormalElectronMain();
   const appsRoot = path.resolve(process.env.MYSTUDIO_APPS_ROOT ?? process.cwd());
+  const revision = resolveFormalRevision(process.env.MYSTUDIO_FORMAL_REVISION);
   const repoRoot = path.dirname(appsRoot);
   const productUserData = path.resolve(
     process.env.MYSTUDIO_PRODUCT_USER_DATA
@@ -131,7 +143,7 @@ export async function runAcceptedFormalRenderer(): Promise<void> {
   const videoWorkflowRoot = path.join(productionProjectRoot, "video-use");
   const revisionRoot = path.resolve(
     process.env.MYSTUDIO_FORMAL_REVISION_ROOT
-      ?? path.join(videoWorkflowRoot, CHAPTER_ID, `r${REVISION}`),
+      ?? path.join(videoWorkflowRoot, CHAPTER_ID, `r${revision}`),
   );
   const sourceRunDir = path.resolve(
     process.env.MYSTUDIO_FORMAL_SOURCE_RUN
@@ -244,8 +256,9 @@ export async function runAcceptedFormalRenderer(): Promise<void> {
     const projectedPlan = projectAcceptedTimelinePlan(acceptedPlan, {
       projectId: PROJECT_ID,
       chapterId: CHAPTER_ID,
-      revision: REVISION,
+      revision,
       expectedVisualCount: EXPECTED_VISUAL_COUNT,
+      productionRemotionRoot,
     });
 
     const chapterManifestService = new RemotionChapterManifestService({
@@ -292,7 +305,7 @@ export async function runAcceptedFormalRenderer(): Promise<void> {
     const gate = await evaluateAcceptedGate({
       projectId: PROJECT_ID,
       chapterId: CHAPTER_ID,
-      revision: REVISION,
+      revision,
       inputSha256: videoUseValidation.value.evidence.inputSha256,
     });
     if (!gate.accepted) throw new Error(`accepted video workflow gate blocked: ${gate.code} ${gate.message}`);
@@ -395,7 +408,7 @@ export async function runAcceptedFormalRenderer(): Promise<void> {
       projectId: PROJECT_ID,
       chapterId: CHAPTER_ID,
       editingProjectId: projectedPlan.editingProjectSnapshot.id,
-      editingRevision: REVISION,
+      editingRevision: revision,
     });
     const outputPath = resolveRemotionCurrentSlotOutputPath(isolatedWorkspace, formalSlot);
     await writeJson(path.join(runDir, "formal-current-slot.json"), formalSlot);
@@ -457,10 +470,10 @@ export async function runAcceptedFormalRenderer(): Promise<void> {
       schemaVersion: 1,
       generatedAt: new Date().toISOString(),
       runDir,
-      source: "accepted-r23-read-only",
+      source: "accepted-source-read-only",
       projectId: PROJECT_ID,
       chapterId: CHAPTER_ID,
-      revision: REVISION,
+      revision,
       providerCalls: 0,
       formalRenderer: {
         class: "RemotionChapterRenderer",

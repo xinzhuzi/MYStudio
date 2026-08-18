@@ -73,6 +73,26 @@ async function makeInput(shotIndex = 0, projectId = "project-a"): Promise<Remoti
   return { kind: "shot", job, plan };
 }
 
+async function withCinematicInput(
+  plan: RemotionShotPlanV1,
+  cinematic: NonNullable<RemotionShotPlanV1["cinematic"]>,
+): Promise<RemotionShotPlanV1> {
+  return {
+    ...plan,
+    cinematic,
+    inputHash: await sha256CanonicalJson({
+      schemaVersion: 1 as const,
+      target: "shot" as const,
+      projectId: plan.projectId,
+      chapterId: plan.chapterId,
+      renderSettings: plan.renderSettings,
+      visualKind: plan.visualKind,
+      shot: plan.shot,
+      cinematic,
+    }),
+  };
+}
+
 function successSlot(job: RemotionRenderJobV1): RemotionCurrentSlotV1 {
   const succeeded: RemotionRenderJobV1 = {
     ...job,
@@ -213,6 +233,51 @@ describe("RemotionRenderQueue", () => {
     await queue.waitForIdle();
     expect(renderCount).toBe(2);
     expect(queue.getJob(input.job.jobId)?.attempt).toBe(2);
+  });
+
+  it("treats every persisted cinematic input change as a new shot identity and slot refresh", async () => {
+    const base = await makeInput();
+    const plans = await Promise.all([
+      withCinematicInput(base.plan, { preset: "cinematic-dolly-in", parallaxStrength: 0.4, dofAperture: 0.2 }),
+      withCinematicInput(base.plan, { preset: "cinematic-parallax-lr", parallaxStrength: 0.4, dofAperture: 0.2 }),
+      withCinematicInput(base.plan, { preset: "cinematic-dolly-in", parallaxStrength: 0.6, dofAperture: 0.2 }),
+      withCinematicInput(base.plan, { preset: "cinematic-dolly-in", parallaxStrength: 0.4, dofAperture: 0.6 }),
+    ]);
+    expect(new Set(plans.map((plan) => plan.inputHash))).toHaveLength(4);
+
+    const jobs = await Promise.all(plans.map((plan) => createReadyShotJob({
+      plan,
+      bundleContentHash: "d".repeat(64),
+      templateVersion: "1.0.0",
+      remotionVersion: "4.0.499",
+      now: 100,
+    })));
+    expect(new Set(jobs.map((job) => job.jobId))).toHaveLength(4);
+
+    const persistence = new MemoryPersistence();
+    const rendered: string[] = [];
+    const queue = new RemotionRenderQueue({
+      persistence,
+      executor: {
+        async render(plan) {
+          const job = queue.getJobs({ projectId: plan.projectId, chapterId: plan.chapterId })
+            .find((candidate) => candidate.inputHash === plan.inputHash)!;
+          rendered.push(job.jobId);
+          return { success: true, slot: successSlot(job) };
+        },
+        cancel: (jobId) => ({ success: true, jobId, canceled: true }),
+      },
+    });
+
+    for (let index = 0; index < plans.length; index += 1) {
+      await expect(queue.enqueueShot({ kind: "shot", plan: plans[index]!, job: jobs[index]! }))
+        .resolves.toMatchObject({ accepted: true, reused: false });
+    }
+    await queue.waitForIdle();
+
+    expect(rendered).toHaveLength(4);
+    expect(queue.getJobs({ projectId: base.plan.projectId, chapterId: base.plan.chapterId }))
+      .toEqual(expect.arrayContaining(jobs.map((job) => expect.objectContaining({ jobId: job.jobId, status: "succeeded" }))));
   });
 
   it("keeps chapter blocked when one shot fails while independent shots finish", async () => {
