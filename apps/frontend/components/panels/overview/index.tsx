@@ -15,27 +15,15 @@ import { useStudioStore } from "@/stores/studio/studio-store";
 import { useMediaPanelStore } from "@/stores/navigation/media-panel-store";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   BookOpen,
   Globe,
   Users,
- 
   MapPin,
   Gem,
-  Pencil,
-  Check,
-  X,
   Shield,
   Settings2,
-  ListOrdered,
-  Film,
-  CheckCircle2,
-  Clock,
-  AlertCircle,
-  Plus,
-  Trash2,
   ChevronRight,
   ArrowRight,
   Workflow,
@@ -43,7 +31,6 @@ import {
 } from "lucide-react";
 import type {
   SeriesMeta,
- 
   EpisodeRawScript } from "@/types/script";
 import { getStyleName } from "@/lib/constants/visual-styles";
 import {
@@ -55,15 +42,8 @@ import {
 import { OVERVIEW_WORKFLOW_GUIDE } from "./workflow-guide";
 import { OVERVIEW_STAGE_GUIDE } from "./stage-guide";
 import { AuthorPreferenceDialog } from "./AuthorPreferenceDialog";
-import {
-  createArtifactDeletionPlan,
-  executeArtifactDeletionPlan,
-} from "@/stores/artifacts/artifact-store";
-import type { DeletionConfirmation, DeletionPlan } from "@/types/artifacts";
-import { ArtifactDeleteDialog } from "../media/ArtifactDeleteDialog";
 import { readBibleWithArchiveContext } from "@/lib/studio/source-memory";
 import { OverviewAiFill } from "./OverviewAiFill";
-import { toast } from "sonner";
 
 /** 工作流门户区头部（两分支共用）：导览标题/摘要 + 进入工作流/查看资产库 CTA。 */
 function WorkflowGuideHeader(props: { onPrimary: () => void; onSecondary: () => void }) {
@@ -143,10 +123,8 @@ export function OverviewPanel() {
   const scriptProject = useActiveScriptProject();
   const {
     updateSeriesMeta,
-    addEpisodeBundle,
-    updateEpisodeBundle,
   } = useScriptStore();
-  const { enterEpisode, setActiveTab } = useMediaPanelStore();
+  const { setActiveTab } = useMediaPanelStore();
 
   const handleEnterStage = useCallback((stageId: string) => {
     useStudioStore.getState().setWorkflowConfig({ workflowStage: stageId });
@@ -158,58 +136,8 @@ export function OverviewPanel() {
   const episodes: EpisodeRawScript[] = scriptProject?.episodeRawScripts || [];
   const scriptData = scriptProject?.scriptData || null;
 
-  // 新建集状态
-  const [showNewEpisode, setShowNewEpisode] = useState(false);
-  const [newEpTitle, setNewEpTitle] = useState("");
-  // 删除确认状态
-  const [deletingEpIndex, setDeletingEpIndex] = useState<number | null>(null);
-  const [chapterDeletePlan, setChapterDeletePlan] = useState<DeletionPlan | null>(null);
-  const [chapterDeleteOpen, setChapterDeleteOpen] = useState(false);
   // 作者偏好（应用级口味卡）编辑入口
   const [prefOpen, setPrefOpen] = useState(false);
-
-  const openChapterDeletePlan = useCallback(async (chapterId: string) => {
-    if (!activeProjectId) {
-      setDeletingEpIndex(null);
-      toast.error("没有活动项目，未执行任何操作");
-      return;
-    }
-    const requestedProjectId = activeProjectId;
-    const result = await createArtifactDeletionPlan({ projectId: requestedProjectId, chapterId, scope: "chapter" });
-    if (useProjectStore.getState().activeProjectId !== requestedProjectId) {
-      setDeletingEpIndex(null);
-      toast.error("活动项目已切换，旧删除计划已作废");
-      return;
-    }
-    if (!result.success) {
-      setDeletingEpIndex(null);
-      toast.error(`生成删除计划失败：${result.error}`);
-      return;
-    }
-    setChapterDeletePlan(result.data);
-    setChapterDeleteOpen(true);
-  }, [activeProjectId]);
-
-  const executeChapterDeletePlan = useCallback(async (confirmation: DeletionConfirmation) => {
-    if (!chapterDeletePlan) throw new Error("删除服务不可用");
-    const requestedProjectId = chapterDeletePlan.projectId;
-    if (useProjectStore.getState().activeProjectId !== requestedProjectId) {
-      toast.error("活动项目已切换，请重新生成删除计划");
-      throw new Error("活动项目已切换");
-    }
-    const result = await executeArtifactDeletionPlan(chapterDeletePlan, confirmation);
-    if (!result.success) {
-      toast.error(`删除失败：${result.error}`);
-      throw new Error(result.error);
-    }
-    if (useProjectStore.getState().activeProjectId !== requestedProjectId) {
-      toast.error("原项目删除已完成；当前项目未应用旧项目状态");
-      return;
-    }
-    setDeletingEpIndex(null);
-    setChapterDeletePlan(null);
-    toast.success("章节及其后续产物已删除");
-  }, [chapterDeletePlan]);
 
   const update = useCallback(
     (updates: Partial<SeriesMeta>) => {
@@ -576,249 +504,12 @@ export function OverviewPanel() {
                 />
               </SectionCard>
                 </div>
-                {/* 分集目录 — 随项目集数增长,整行铺满 */}
-                              {/* 分集目录 — 子项目管理台 */}
-              <SectionCard
-                icon={ListOrdered}
-                title={`分集目录 (${episodes.length} 集)`}
-              >
-                {episodes.length === 0 ? (
-                  <p className="text-xs text-muted-foreground italic">
-                    暂无分集数据（导入剧本后自动生成）
-                  </p>
-                ) : (
-                  <div className="space-y-2">
-                    {episodes.map((ep) => {
-                      const epSceneCount = ep.scenes?.length || 0;
-                      const statusIcon =
-                        ep.shotGenerationStatus === "completed" ? (
-                          <CheckCircle2 className="h-3 w-3 text-green-500" />
-                        ) : ep.shotGenerationStatus === "generating" ? (
-                          <Clock className="h-3 w-3 text-yellow-500 animate-spin" />
-                        ) : ep.shotGenerationStatus === "error" ? (
-                          <AlertCircle className="h-3 w-3 text-red-500" />
-                        ) : (
-                          <Film className="h-3 w-3 text-muted-foreground" />
-                        );
-                      const isDeleting = deletingEpIndex === ep.episodeIndex;
-
-                      return (
-                        <div
-                          key={ep.episodeIndex}
-                          className="group rounded border p-2.5 text-xs space-y-1 hover:bg-muted/30 hover:border-primary/30 transition-colors cursor-pointer"
-                          onClick={() =>
-                            enterEpisode(ep.episodeIndex, projectId)
-                          }
-                        >
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-1.5 font-medium">
-                              {statusIcon}
-                              <span>第{ep.episodeIndex}集</span>
-                              <span className="text-muted-foreground font-normal truncate max-w-[200px]">
-                                {ep.title.replace(/^第\d+集[：:]?\s*/, "")}
-                              </span>
-                            </div>
-                            <div className="flex items-center gap-2 text-[10px] text-muted-foreground shrink-0">
-                              {epSceneCount > 0 && (
-                                <span>{epSceneCount} 场景</span>
-                              )}
-                              {ep.season && (
-                                <Badge
-                                  variant="outline"
-                                  className="text-[9px] h-4 px-1"
-                                >
-                                  {ep.season}
-                                </Badge>
-                              )}
-                              {/* 编辑标题 */}
-                              <Button
-                                size="icon"
-                                variant="ghost"
-                                className="h-5 w-5 opacity-0 group-hover:opacity-70"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  const newTitle = window.prompt(
-                                    "编辑集标题",
-                                    ep.title,
-                                  );
-                                  if (
-                                    newTitle !== null &&
-                                    newTitle !== ep.title
-                                  ) {
-                                    updateEpisodeBundle(
-                                      projectId,
-                                      ep.episodeIndex,
-                                      { title: newTitle },
-                                    );
-                                  }
-                                }}
-                              >
-                                <Pencil className="h-3 w-3" />
-                              </Button>
-                              {/* 删除 */}
-                              {isDeleting ? (
-                                <div
-                                  className="flex items-center gap-1"
-                                  onClick={(e) => e.stopPropagation()}
-                                >
-                                  <span className="text-red-400 text-[10px]">
-                                    确认删除?
-                                  </span>
-                                  <Button
-                                    size="icon"
-                                    variant="ghost"
-                                    className="h-5 w-5 text-red-500 hover:text-red-400"
-                                    onClick={async () => {
-                                      const chapterId = scriptData?.episodes.find((episode) => episode.index === ep.episodeIndex)?.id;
-                                      if (!chapterId) {
-                                        toast.error("该章节缺少稳定 ID，已阻止删除");
-                                        return;
-                                      }
-
-                                      await openChapterDeletePlan(chapterId);
-                                    }}
-                                  >
-                                    <Check className="h-3 w-3" />
-                                  </Button>
-                                  <Button
-                                    size="icon"
-                                    variant="ghost"
-                                    className="h-5 w-5"
-                                    onClick={() => setDeletingEpIndex(null)}
-                                  >
-                                    <X className="h-3 w-3" />
-                                  </Button>
-                                </div>
-                              ) : (
-                                <Button
-                                  size="icon"
-                                  variant="ghost"
-                                  className="h-5 w-5 opacity-0 group-hover:opacity-70 hover:text-red-400"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    setDeletingEpIndex(ep.episodeIndex);
-                                  }}
-                                >
-                                  <Trash2 className="h-3 w-3" />
-                                </Button>
-                              )}
-                              {/* 进入箭头 */}
-                              <ArrowRight className="h-3.5 w-3.5 opacity-0 group-hover:opacity-70 text-primary" />
-                            </div>
-                          </div>
-                          {ep.synopsis && (
-                            <p className="text-muted-foreground line-clamp-2 pl-5">
-                              {ep.synopsis}
-                            </p>
-                          )}
-                          {ep.keyEvents && ep.keyEvents.length > 0 && (
-                            <div className="flex flex-wrap gap-1 pl-5">
-                              {ep.keyEvents.slice(0, 3).map((evt, j) => (
-                                <Badge
-                                  key={j}
-                                  variant="secondary"
-                                  className="text-[9px] font-normal"
-                                >
-                                  {evt.length > 20
-                                    ? evt.slice(0, 20) + "…"
-                                    : evt}
-                                </Badge>
-                              ))}
-                              {ep.keyEvents.length > 3 && (
-                                <span className="text-[9px] text-muted-foreground">
-                                  +{ep.keyEvents.length - 3}
-                                </span>
-                              )}
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-
-                {/* 新建集 */}
-                {scriptData && (
-                  <div className="mt-3 pt-3 border-t">
-                    {showNewEpisode ? (
-                      <div className="flex items-center gap-2">
-                        <Input
-                          value={newEpTitle}
-                          onChange={(e) => setNewEpTitle(e.target.value)}
-                          placeholder={`第${episodes.length + 1}集 标题...`}
-                          className="h-7 text-xs flex-1"
-                          autoFocus
-                          onKeyDown={(e) => {
-                            if (e.key === "Enter") {
-                              addEpisodeBundle(
-                                projectId,
-                                newEpTitle || `第${episodes.length + 1}集`,
-                              );
-                              setNewEpTitle("");
-                              setShowNewEpisode(false);
-                            }
-                            if (e.key === "Escape") {
-                              setNewEpTitle("");
-                              setShowNewEpisode(false);
-                            }
-                          }}
-                        />
-                        <Button
-                          size="sm"
-                          variant="default"
-                          className="h-7 text-xs px-3"
-                          onClick={() => {
-                            addEpisodeBundle(
-                              projectId,
-                              newEpTitle || `第${episodes.length + 1}集`,
-                            );
-                            setNewEpTitle("");
-                            setShowNewEpisode(false);
-                          }}
-                        >
-                          <Check className="h-3 w-3 mr-1" /> 添加
-                        </Button>
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          className="h-7 w-7"
-                          onClick={() => {
-                            setNewEpTitle("");
-                            setShowNewEpisode(false);
-                          }}
-                        >
-                          <X className="h-3 w-3" />
-                        </Button>
-                      </div>
-                    ) : (
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="w-full h-8 text-xs"
-                        onClick={() => setShowNewEpisode(true)}
-                      >
-                        <Plus className="h-3 w-3 mr-1" /> 新建集
-                      </Button>
-                    )}
-                  </div>
-                )}
-              </SectionCard>
               </div>
             </div>
           </section>
         </div>
       </ScrollArea>
       <AuthorPreferenceDialog open={prefOpen} onOpenChange={setPrefOpen} />
-      <ArtifactDeleteDialog
-        isOpen={chapterDeleteOpen}
-        plan={chapterDeletePlan}
-        onClose={() => {
-          setChapterDeleteOpen(false);
-          setChapterDeletePlan(null);
-          setDeletingEpIndex(null);
-        }}
-        onExecute={executeChapterDeletePlan}
-      />
     </div>
   );
 }
