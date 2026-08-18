@@ -262,7 +262,14 @@ export function useEditingWorkbenchActions(
         setError(message);
         throw new Error(message);
       }
-      const projected = projectVideoUseArtifactToEditingProject({ project, artifact: reply.videoUseArtifact, now: Date.now() });
+      const projected = projectVideoUseArtifactToEditingProject({
+        project,
+        artifact: reply.videoUseArtifact,
+        now: Date.now(),
+        // 主进程投影已用同一份槽位（reply 携带）；渲染层二次投影喂相同槽位，
+        // 避免本地保存覆盖掉主进程写入的身份证据。
+        shotSlots: reply.currentShotSlots as RemotionCurrentSlotV1[] | undefined,
+      });
       if (!projected.success) {
         const message = projected.issues.map((issue) => `${issue.path}: ${issue.message}`).join("；");
         setError(message);

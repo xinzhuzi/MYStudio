@@ -1,4 +1,5 @@
 import type { EditingClip, EditingProjectV1, EditingTransition, SubtitleAuthority } from "@/types/editing";
+import type { RemotionCurrentSlotV1 } from "@/types/remotion-workspace";
 import { validateEditingProject } from "@/lib/studio/editing/validation";
 import { transitionParams } from "@/lib/studio/editing/transition-policy";
 import {
@@ -20,15 +21,43 @@ export type VideoWorkflowEditingProjectProjectionResult =
   | { success: true; project: EditingProjectV1; artifactRefs: VideoWorkflowEditingProjectArtifactRefs }
   | { success: false; issues: Array<{ path: string; message: string }> };
 
+/**
+ * video-use 清洗产物（clean MP4 + 对齐 cue）的产品默认字幕归属：Remotion 烧录。
+ * 08-18 前的产物从不写 subtitleAuthority → 渲染层 fail-closed 阻断（靠数据手术
+ * 续命）。此默认只用于补缺，不覆盖显式写入的归属。
+ */
+export function defaultCleanRemotionSubtitleAuthority(
+  artifact: VideoUseChapterArtifactV1,
+  now: number,
+): SubtitleAuthority {
+  return {
+    mode: "clean-remotion",
+    evidence: {
+      mode: "clean-remotion",
+      decision: "imported-manifest",
+      sourceFingerprint: artifact.evidence.artifactSha256,
+      evidencePaths: ["video-use-artifact.json"],
+      reviewer: "automated",
+      reviewedAt: now,
+      note: "video-use 清洗产物默认 Remotion 烧录（08-18 五缺口修复）",
+    },
+  };
+}
+
 /** Projects an accepted video-use artifact into the persisted editing timeline.
  * In flat mode the clean MP4 is the sole new visual source. Ordinary subtitle
  * cues become the one Remotion subtitle track; cues assigned to HyperFrames
  * remain overlay metadata and are not duplicated as text clips.
+ *
+ * shotSlots（可选）提供当前 Remotion shot 输出槽：写入剪辑身份证据
+ * （remotionJobId/evidence SHA/revision）并优先采用槽位相对路径，
+ * 使渲染门禁「current shot slot 身份/路径一致」按构造满足。
  */
 export function projectVideoUseArtifactToEditingProject(input: {
   project: EditingProjectV1;
   artifact: unknown;
   now: number;
+  shotSlots?: readonly RemotionCurrentSlotV1[];
 }): VideoWorkflowEditingProjectProjectionResult {
   const parsed = validateVideoUseChapterArtifact(input.artifact);
   if (!parsed.success) return { success: false, issues: parsed.issues };
@@ -62,7 +91,13 @@ export function projectVideoUseArtifactToEditingProject(input: {
     subtitleCues: artifact.subtitles,
     overlaySlots: artifact.overlaySlots,
   };
-  const persistedAuthority = (artifact as VideoUseChapterArtifactV1 & { subtitleAuthority?: SubtitleAuthority }).subtitleAuthority;
+  const persistedAuthority = (artifact as VideoUseChapterArtifactV1 & { subtitleAuthority?: SubtitleAuthority }).subtitleAuthority
+    ?? defaultCleanRemotionSubtitleAuthority(artifact, input.now);
+  const slotByShotId = new Map(
+    (input.shotSlots ?? [])
+      .filter((slot) => slot.target.kind === "shot")
+      .map((slot) => [slot.target.kind === "shot" ? slot.target.shotId : "", slot]),
+  );
   const subtitleAuthority = resolveSubtitleAuthority([{
     intervalId: `${artifact.mode}-${artifact.revision}`,
     authority: persistedAuthority,
@@ -93,6 +128,14 @@ export function projectVideoUseArtifactToEditingProject(input: {
   } else {
     nextVisual = edl.map((entry, index) => {
       const existing = oldVisual.get(entry.shotId);
+      const slot = slotByShotId.get(entry.shotId);
+      const identity = slot?.target.kind === "shot"
+        ? {
+          remotionJobId: slot.job.jobId,
+          remotionEvidenceSha256: slot.evidence.sha256,
+          outputVersion: slot.target.shotRevision,
+        }
+        : {};
       return {
         ...(existing ?? { id: `video-use-${entry.shotId}-${index}`, name: entry.shotId, trimStartUs: entry.sourceInUs, speed: 1, volume: 1, muted: false }),
         trackId: visualTrack.id,
@@ -100,13 +143,16 @@ export function projectVideoUseArtifactToEditingProject(input: {
         durationUs: entry.durationUs,
         trimStartUs: entry.sourceInUs,
         source: {
-          kind: "storyboardVideo",
-          path: entry.sourcePath,
+          kind: "storyboardVideo" as const,
+          // 槽位相对路径与 current slot 按构造逐字一致（渲染门禁直配）；
+          // 无槽位时回退 EDL 源路径（保持旧行为，由门禁兜底判定）。
+          path: slot?.target.kind === "shot" ? slot.outputPath : entry.sourcePath,
           evidence: {
             ...(existing?.source.evidence ?? {}),
             storyboardId: entry.shotId,
             sourceFingerprint: artifact.evidence.artifactSha256,
             subtitleAuthority: persistedAuthority,
+            ...identity,
           },
         },
       };

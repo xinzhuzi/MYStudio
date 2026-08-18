@@ -133,6 +133,8 @@ export interface VideoWorkflowChapterApplyReplyV1 {
   hyperFramesArtifact?: HyperFramesOverlayArtifactV1;
   videoUseArtifactPath?: string;
   hyperFramesArtifactPath?: string;
+  /** 主进程投影用过的当前 shot 槽位（渲染层二次投影喂同一份，两写者产物一致）。 */
+  currentShotSlots?: unknown[];
   code?: string;
   message?: string;
 }
@@ -348,6 +350,7 @@ export function validateVideoWorkflowChapterApplyReply(
     if (!parsed.success) issues.push(...parsed.issues.map((entry) => ({ ...entry, path: `$.${key}${entry.path === "$" ? "" : entry.path.slice(1)}` })));
   }
   for (const key of ["videoUseArtifactPath", "hyperFramesArtifactPath", "code", "message"] as const) if (record[key] !== undefined && typeof record[key] !== "string") issues.push({ path: `$.${key}`, message: "必须是字符串" });
+  if (record.currentShotSlots !== undefined && !Array.isArray(record.currentShotSlots)) issues.push({ path: "$.currentShotSlots", message: "currentShotSlots 必须是数组" });
   return issues.length > 0 ? { success: false, issues } : { success: true, value: record as unknown as VideoWorkflowChapterApplyReplyV1 };
 }
 

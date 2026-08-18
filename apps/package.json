@@ -52,6 +52,8 @@
     "@remotion/noise": "4.0.499",
     "@remotion/player": "4.0.499",
     "@remotion/renderer": "4.0.499",
+    "@remotion/studio": "4.0.499",
+    "@remotion/studio-server": "4.0.499",
     "@remotion/three": "4.0.499",
     "@uiw/react-codemirror": "4.25.11",
     "@xyflow/react": "^12.11.1",

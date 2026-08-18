@@ -238,6 +238,51 @@ describe("video workflow runtime", () => {
     }
   });
 
+  it("self-heals a marker whose only drift is the electron executable path", async () => {
+    // electronExecutable 是环境相对值（dev 仓库 vs 安装版），仅它漂移时
+    // 自愈迁移 marker 而不是阻断用户（08-18 五缺口修复）。
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), "mystudio-hyperframes-heal-"));
+    try {
+      const paths = resolveVideoWorkflowRuntimePaths(root, "darwin", "/Applications/漫影工作室.app/Contents/MacOS/漫影工作室");
+      const stale = {
+        ...buildHyperFramesProfileMarker({ ...paths, electronExecutable: "/old/dev/repo/electron" }),
+        electronExecutable: "/old/dev/repo/electron",
+      };
+      fs.mkdirSync(path.dirname(paths.hyperFramesMarkerPath), { recursive: true });
+      fs.writeFileSync(paths.hyperFramesMarkerPath, JSON.stringify(stale), "utf8");
+      const result = await probeHyperFramesRuntime(paths, {
+        fileExists: (filePath) => filePath === paths.electronExecutable
+          || filePath === paths.hyperFramesMarkerPath
+          || filePath === paths.hyperFramesCliPath
+          || filePath === paths.hyperFramesBrowserPath
+          || filePath === paths.ffmpegExecutable
+          || filePath === paths.ffprobeExecutable,
+        execFile: async (_file, args) => {
+          if (args[0] === "--version") return { stdout: "v24.17.0", stderr: "" };
+          if (args.includes("-filters")) return { stdout: " T.. apad apad A->A Pad audio\n ... tpad V->V Pad video", stderr: "" };
+          if (args.includes("doctor") && args.includes("--json")) return { stdout: JSON.stringify({
+            ok: true,
+            checks: [
+              { name: "Version", ok: true },
+              { name: "Node.js", ok: true },
+              { name: "FFmpeg", ok: true },
+              { name: "FFprobe", ok: true },
+              { name: "Chrome", ok: true },
+            ],
+          }), stderr: "" };
+          if (args.includes("browser") && args.includes("path")) return { stdout: `${paths.hyperFramesBrowserPath}\n`, stderr: "" };
+          return { stdout: "ffmpeg version 7.1.1", stderr: "" };
+        },
+      });
+      expect(result.state).toBe("ready");
+      const healed = JSON.parse(fs.readFileSync(paths.hyperFramesMarkerPath, "utf8")) as { electronExecutable: string; createdAt: number };
+      expect(healed.electronExecutable).toBe(paths.electronExecutable);
+      expect(healed.createdAt).toBe(stale.createdAt);
+    } finally {
+      fs.rmSync(root, { recursive: true, force: true });
+    }
+  });
+
   it("reports a pinned HyperFrames package change as update-available", async () => {
     const root = fs.mkdtempSync(path.join(os.tmpdir(), "mystudio-hyperframes-runtime-"));
     try {

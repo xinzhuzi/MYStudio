@@ -783,6 +783,7 @@ const videoWorkflowChapterService = createVideoWorkflowChapterService({
   persistEditingProject: persistStudioEditingRevision,
   readChapterManifest: remotionChapterManifestService.read.bind(remotionChapterManifestService),
   writeChapterManifest: remotionChapterManifestService.writeCas.bind(remotionChapterManifestService),
+  readCurrentShotSlots: (identity) => readRemotionCurrentShotSlotsFromWorkspace(path.join(projectRootFor(identity.projectId), 'remotion'), identity.projectId, identity.chapterId),
 })
 const buildManagedVideoUseChapterRun = (request: VideoWorkflowChapterRunRequestV1): VideoUseChapterRunV1 => {
   const paths = videoUseAdapter.paths

@@ -495,7 +495,6 @@ export async function probeHyperFramesRuntime(
   if (!profile
     || profile.schemaVersion !== 1
     || profile.profileId !== HYPERFRAMES_PROFILE_ID
-    || profile.electronExecutable !== paths.electronExecutable
     || profile.cliPath !== paths.hyperFramesCliPath) {
     return {
       state: "blocked",
@@ -504,6 +503,30 @@ export async function probeHyperFramesRuntime(
       versions,
       message: "HyperFrames profile marker 与 Electron 运行时路径不一致",
     };
+  }
+  // electronExecutable 是环境相对值（dev 仓库与安装版路径不同），不是身份。
+  // 仅它不一致时自愈迁移 marker（保留 createdAt），不阻断用户。
+  if (profile.electronExecutable !== paths.electronExecutable) {
+    try {
+      writeProfileMarker(paths.hyperFramesMarkerPath, {
+        schemaVersion: 1,
+        profileId: HYPERFRAMES_PROFILE_ID,
+        sourceCommit: profile.sourceCommit as HyperFramesProfileMarkerV1["sourceCommit"],
+        npmVersion: profile.npmVersion as HyperFramesProfileMarkerV1["npmVersion"],
+        electronExecutable: paths.electronExecutable,
+        cliPath: paths.hyperFramesCliPath,
+        createdAt: typeof profile.createdAt === "number" ? profile.createdAt : 0,
+        verifiedAt: Date.now(),
+      });
+    } catch {
+      return {
+        state: "blocked",
+        paths,
+        missing: ["hyperframes-profile-invalid"],
+        versions,
+        message: "HyperFrames profile marker 迁移失败（Electron 路径变化）",
+      };
+    }
   }
   if (profile.sourceCommit !== HYPERFRAMES_SOURCE_COMMIT || profile.npmVersion !== HYPERFRAMES_NPM_VERSION) {
     return {

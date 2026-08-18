@@ -1,9 +1,24 @@
 import { describe, expect, it } from "vitest";
 import type { EditingProjectV1 } from "@/types/editing";
+import type { RemotionCurrentSlotV1 } from "@/types/remotion-workspace";
 import type { VideoUseChapterArtifactV1 } from "@rendering/contracts/video-workflow";
 import { projectVideoUseArtifactToEditingProject } from "./editing-project-projection";
 
 const hash = "a".repeat(64);
+
+function shotSlot(shotId: string): RemotionCurrentSlotV1 {
+  return {
+    schemaVersion: 1,
+    projectId: "project-1",
+    target: { kind: "shot", chapterId: "chapter-1", shotId, shotRevision: 7 },
+    job: { jobId: `job:${shotId}` },
+    evidence: { sha256: shotId === "shot-1" ? "1".repeat(64) : "2".repeat(64) },
+    outputPath: `remotion/outputs/shots/${shotId}/current.mp4`,
+    evidencePath: `remotion/outputs/shots/${shotId}/current.json`,
+    stagedPath: `remotion/outputs/shots/${shotId}/current.staged.mp4`,
+    publishedAt: 5,
+  } as unknown as RemotionCurrentSlotV1;
+}
 
 function project(): EditingProjectV1 {
   return {
@@ -159,5 +174,38 @@ describe("projection transitions from EDL boundary decisions", () => {
     const result = projectVideoUseArtifactToEditingProject({ project: project(), artifact: base, now: 10 });
     expect(result.success).toBe(true);
     if (result.success) expect(result.project.transitions).toHaveLength(0);
+  });
+
+  it("defaults a missing artifact subtitleAuthority to clean-remotion (08-18 缺口修复)", () => {
+    const legacy = artifact("editable-edl");
+    legacy.overlaySlots = [];
+    delete (legacy as { subtitleAuthority?: unknown }).subtitleAuthority;
+    const result = projectVideoUseArtifactToEditingProject({ project: project(), artifact: legacy, now: 42 });
+    expect(result.success).toBe(true);
+    if (!result.success) return;
+    const visual = result.project.clips.find((clip) => clip.source.kind === "storyboardVideo")!;
+    expect(visual.source.evidence.subtitleAuthority?.mode).toBe("clean-remotion");
+    expect(visual.source.evidence.subtitleAuthority?.evidence?.decision).toBe("imported-manifest");
+    expect(result.project.renderSettings.subtitleMode).toBe("burn-in");
+  });
+
+  it("merges current shot slot identity and prefers the slot path (渲染门禁按构造通过)", () => {
+    const sourceArtifact = artifact("editable-edl");
+    sourceArtifact.overlaySlots = [];
+    const result = projectVideoUseArtifactToEditingProject({
+      project: project(),
+      artifact: sourceArtifact,
+      now: 10,
+      shotSlots: [shotSlot("shot-1"), shotSlot("shot-2")],
+    });
+    expect(result.success).toBe(true);
+    if (!result.success) return;
+    const first = result.project.clips.find((clip) => clip.id === "video-use-shot-1-0" || clip.source.evidence?.storyboardId === "shot-1")!;
+    expect(first.source.path).toBe("remotion/outputs/shots/shot-1/current.mp4");
+    expect(first.source.evidence).toMatchObject({
+      remotionJobId: "job:shot-1",
+      remotionEvidenceSha256: "1".repeat(64),
+      outputVersion: 7,
+    });
   });
 });

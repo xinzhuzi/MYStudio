@@ -1,5 +1,7 @@
 import path from "node:path";
+import fs from "node:fs";
 import type { EditingProjectV1 } from "@/types/editing";
+import type { RemotionCurrentSlotV1 } from "@/types/remotion-workspace";
 import type {
   RemotionChapterManifestV2,
 } from "@/types/remotion-workspace";
@@ -15,7 +17,7 @@ import {
   validateVideoUseChapterArtifact,
 } from "@rendering/contracts/video-workflow";
 import { evaluateRemotionChapterGate } from "@/lib/studio/video-workflow/chapter-gate";
-import { projectVideoUseArtifactToEditingProject } from "@/lib/studio/video-workflow/editing-project-projection";
+import { defaultCleanRemotionSubtitleAuthority, projectVideoUseArtifactToEditingProject } from "@/lib/studio/video-workflow/editing-project-projection";
 import {
   readVideoWorkflowChapterArtifacts,
   type VideoWorkflowChapterArtifacts,
@@ -108,6 +110,9 @@ export interface VideoWorkflowChapterServiceOptions {
     expectedRevision: number;
     manifest: RemotionChapterManifestV2;
   }) => Promise<unknown>;
+  /** 当前章节 Remotion shot 输出槽（可选注入）。提供时投影写入剪辑身份证据
+   * 与槽位相对路径，渲染门禁按构造通过；缺失时投影保持旧行为。 */
+  readCurrentShotSlots?: (identity: { projectId: string; chapterId: string }) => Promise<RemotionCurrentSlotV1[]>;
   now?: () => number;
 }
 
@@ -131,6 +136,8 @@ export type VideoWorkflowChapterApplyResult =
       hyperFramesArtifact: NonNullable<VideoWorkflowChapterArtifacts["hyperFramesArtifact"]>;
       videoUseArtifactPath: string;
       hyperFramesArtifactPath: string;
+      /** 投影用过的当前 shot 槽位（渲染层二次投影喂同一份，保证两写者产物一致）。 */
+      currentShotSlots?: RemotionCurrentSlotV1[];
     }
   | { success: false; code: string; message: string; videoUseArtifactPath?: string; hyperFramesArtifactPath?: string };
 
@@ -209,10 +216,40 @@ export function createVideoWorkflowChapterService(options: VideoWorkflowChapterS
         videoUseArtifactPath: artifacts.value.paths.videoUsePath,
       };
     }
+    // 缺口修复（08-18）：① 产物缺 subtitleAuthority 时补产品默认（clean-remotion）
+    // 并回写产物文件，后续重投影不再依赖运行时回退；② 注入当前 shot 槽位，
+    // 投影写入身份证据与槽位相对路径。
+    const appliedArtifact = { ...checked.value };
+    if (!appliedArtifact.subtitleAuthority) {
+      appliedArtifact.subtitleAuthority = defaultCleanRemotionSubtitleAuthority(appliedArtifact, now());
+      try {
+        fs.writeFileSync(
+          artifacts.value.paths.videoUsePath,
+          `${JSON.stringify(appliedArtifact, null, 2)}\n`,
+          "utf8",
+        );
+      } catch (error) {
+        return {
+          success: false,
+          code: "video-use-artifact-authority-persist-failed",
+          message: `产物 subtitleAuthority 回写失败: ${error instanceof Error ? error.message : String(error)}`,
+          videoUseArtifactPath: artifacts.value.paths.videoUsePath,
+        };
+      }
+    }
+    let shotSlots: RemotionCurrentSlotV1[] = [];
+    if (options.readCurrentShotSlots) {
+      try {
+        shotSlots = await options.readCurrentShotSlots({ projectId: input.projectId, chapterId: input.chapterId });
+      } catch {
+        shotSlots = [];
+      }
+    }
     const projection = projectVideoUseArtifactToEditingProject({
       project: currentEditingProject,
-      artifact: checked.value,
+      artifact: appliedArtifact,
       now: now(),
+      shotSlots,
     });
     if (!projection.success) {
       return {
@@ -315,10 +352,11 @@ export function createVideoWorkflowChapterService(options: VideoWorkflowChapterS
     }
     return {
       success: true,
-      videoUseArtifact: checked.value,
+      videoUseArtifact: appliedArtifact,
       hyperFramesArtifact: rendered.artifact,
       videoUseArtifactPath: artifacts.value.paths.videoUsePath,
       hyperFramesArtifactPath: rendered.artifactPath ?? artifacts.value.paths.hyperFramesPath,
+      currentShotSlots: shotSlots,
     };
   }
 
