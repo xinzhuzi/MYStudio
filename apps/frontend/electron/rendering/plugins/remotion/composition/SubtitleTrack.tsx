@@ -10,7 +10,9 @@ import "@fontsource/noto-sans-sc/900.css";
 import "@fontsource/noto-serif-sc/900.css";
 import "@fontsource/ma-shan-zheng/400.css";
 import type { CompositionSubtitleCueProps } from "./composition-props";
-import { resolveSubtitleFontStyle } from "@/lib/studio/remotion/subtitle-fonts";
+// 固定 bundle 走 @remotion/bundler(webpack),不解析 vite 的 @/ 别名——
+// 共享注册表必须相对导入。
+import { resolveSubtitleFontStyle } from "../../../../../lib/studio/remotion/subtitle-fonts";
 
 export function SubtitleTrack(
   props: { cues: readonly CompositionSubtitleCueProps[]; font?: string },

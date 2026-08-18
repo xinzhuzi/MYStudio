@@ -12,7 +12,9 @@ import {
   COMPOSITION_TRANSITION_EFFECTS,
   type CompositionTransitionEffect,
 } from "./timing";
-import { isSubtitleFontId } from "@/lib/studio/remotion/subtitle-fonts";
+// 固定 bundle 走 @remotion/bundler(webpack),不解析 vite 的 @/ 别名——
+// 共享注册表必须相对导入。
+import { isSubtitleFontId } from "../../../../../lib/studio/remotion/subtitle-fonts";
 
 const VISUAL_KINDS = ["image", "video"] as const;
 const VISUAL_FITS = ["cover", "contain"] as const;
