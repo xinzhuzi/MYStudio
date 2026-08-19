@@ -225,7 +225,7 @@ export function RenderingSettingsTab({ embedded = false }: RenderingSettingsTabP
         <div className={embedded ? "space-y-4" : "p-6 border border-border rounded-xl bg-card space-y-4"}>
           {/* 工作流说明 */}
           <div className="rounded-lg border border-border bg-muted/30 p-4 space-y-2">
-            <h4 className="font-medium text-foreground">视频工作流运行说明</h4>
+            <h4 className="font-semibold text-foreground">视频工作流运行说明</h4>
             <div className="space-y-1.5 text-xs leading-5 text-muted-foreground">
               <p><span className="font-medium text-foreground">共享运行时</span>：video-use 复用本地配置页已准备的 Python 3.12，HyperFrames 复用 Electron 内置 Node（无需额外下载），FFmpeg / ffprobe 由系统提供，所有插件共享同一组。</p>
               <p><span className="font-medium text-foreground">执行顺序</span>：video-use 先完成原文对齐、EDL 编辑、字幕时间轴、调色、预览渲染与自评；用户确认时间线后，准备 HyperFrames 生成透明动效 overlay（无动效也会写入 no-op 记录）；最后由 Remotion 负责正式 Composition 与章节视频渲染。</p>
@@ -236,7 +236,7 @@ export function RenderingSettingsTab({ embedded = false }: RenderingSettingsTabP
           {/* 硬件加速渲染（D3）：开关只影响渲染调用参数，不进 plan/缓存哈希。 */}
           <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border bg-muted/30 p-4">
             <div>
-              <h4 className="font-medium text-foreground">硬件加速渲染</h4>
+              <h4 className="font-semibold text-foreground">硬件加速渲染</h4>
               <p className="text-xs text-muted-foreground mt-1">开启后章节渲染使用系统 Chrome（Metal GPU）替代默认软渲（headless-shell + swangle）；需要本机安装 Google Chrome，未安装时自动回退软渲。对已渲染产物缓存无影响。</p>
             </div>
             <Switch
@@ -249,7 +249,7 @@ export function RenderingSettingsTab({ embedded = false }: RenderingSettingsTabP
 
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
-              <h4 className="font-medium text-foreground">插件运行时</h4>
+              <h4 className="font-semibold text-foreground">插件运行时</h4>
               <p className="text-xs text-muted-foreground mt-1">点击「准备当前工作流」一键准备所有插件，或单独准备某个插件。</p>
             </div>
             <div className="flex flex-wrap gap-2">
@@ -270,7 +270,7 @@ export function RenderingSettingsTab({ embedded = false }: RenderingSettingsTabP
             >
               <CollapsibleTrigger className="w-full flex items-center justify-between gap-3 text-left">
                 <div className="flex items-center gap-3">
-                  <h4 className="font-medium text-foreground">FFmpeg / ffprobe</h4>
+                  <h4 className="font-semibold text-foreground">FFmpeg / ffprobe</h4>
                   <span className="text-xs text-muted-foreground">视频工作流共享</span>
                 </div>
                 {moduleChevron("ffmpeg-shared")}

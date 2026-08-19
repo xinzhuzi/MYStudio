@@ -45,7 +45,7 @@ function AdvancedOptionRow({
             {icon}
           </div>
           <div>
-            <h4 className="font-medium text-foreground">{title}</h4>
+            <h4 className="font-semibold text-foreground">{title}</h4>
             <p className="text-sm text-muted-foreground mt-1">{description}</p>
             <p className="text-xs text-muted-foreground/70 mt-1">{hint}</p>
           </div>

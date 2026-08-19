@@ -30,7 +30,7 @@ export function StorageSettingsTab() {
           )}
 
           <div className="p-6 border border-border rounded-xl bg-card space-y-4">
-            <h4 className="font-medium text-foreground flex items-center gap-2">
+            <h4 className="font-semibold text-foreground flex items-center gap-2">
               <Folder className="h-4 w-4" />
               资源共享
             </h4>
@@ -70,7 +70,7 @@ export function StorageSettingsTab() {
           </div>
 
           <div className="p-6 border border-border rounded-xl bg-card space-y-5">
-            <h4 className="font-medium text-foreground flex items-center gap-2">
+            <h4 className="font-semibold text-foreground flex items-center gap-2">
               <HardDrive className="h-4 w-4" />
               存储位置
             </h4>
@@ -98,7 +98,7 @@ export function StorageSettingsTab() {
           </div>
 
           <div className="p-6 border border-border rounded-xl bg-card space-y-4">
-            <h4 className="font-medium text-foreground flex items-center gap-2">
+            <h4 className="font-semibold text-foreground flex items-center gap-2">
               <RefreshCw className="h-4 w-4" />
               数据恢复
             </h4>
@@ -119,7 +119,7 @@ export function StorageSettingsTab() {
           </div>
 
           <div className="p-6 border border-border rounded-xl bg-card space-y-4">
-            <h4 className="font-medium text-foreground flex items-center gap-2">
+            <h4 className="font-semibold text-foreground flex items-center gap-2">
               <HardDrive className="h-4 w-4" />
               缓存管理
             </h4>
@@ -176,7 +176,7 @@ export function StorageSettingsTab() {
           </div>
 
           <div className="p-6 border border-border rounded-xl bg-card space-y-5">
-            <h4 className="font-medium text-foreground flex items-center gap-2">
+            <h4 className="font-semibold text-foreground flex items-center gap-2">
               <Download className="h-4 w-4" />
               应用更新
             </h4>

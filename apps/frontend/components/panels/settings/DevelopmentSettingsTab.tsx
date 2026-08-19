@@ -56,7 +56,7 @@ export function DevelopmentSettingsTab({
         </div>
 
         <div className="p-6 border border-border rounded-xl bg-card space-y-5">
-          <h4 className="font-medium text-foreground flex items-center gap-2">
+          <h4 className="font-semibold text-foreground flex items-center gap-2">
             <Terminal className="h-4 w-4" />
             控制台
           </h4>
@@ -104,7 +104,7 @@ export function DevelopmentSettingsTab({
 
         <div className="p-6 border border-border rounded-xl bg-card space-y-5">
           <div className="flex items-center justify-between gap-4">
-            <h4 className="font-medium text-foreground flex items-center gap-2">
+            <h4 className="font-semibold text-foreground flex items-center gap-2">
               <Terminal className="h-4 w-4" />
               诊断日志
             </h4>
