@@ -65,14 +65,14 @@ export function ShotGridDetailPanel({
   const videoUrl = shot.videoUrl || shot.interval?.videoUrl;
 
   return (
-    <div className="w-[380px] bg-[#0F0F0F] flex flex-col h-full animate-in slide-in-from-right-5">
-      <div className="h-14 px-4 border-b border-border flex items-center justify-between bg-[#141414] shrink-0">
+    <div className="w-[380px] bg-panel flex flex-col h-full animate-in slide-in-from-right-5">
+      <div className="h-14 px-4 border-b border-border flex items-center justify-between bg-card shrink-0">
         <div className="flex items-center gap-2">
           <span className="w-7 h-7 bg-primary/30 text-primary rounded flex items-center justify-center font-bold font-mono text-xs">
             {String(shotIndex + 1).padStart(2, "0")}
           </span>
           <div>
-            <h3 className="text-foreground font-medium text-sm">镜头详情</h3>
+            <h3 className="text-foreground font-semibold text-sm">镜头详情</h3>
             <p className="text-[10px] text-muted-foreground">{shot.cameraMovement}</p>
           </div>
         </div>
@@ -110,7 +110,7 @@ export function ShotGridDetailPanel({
       <ScrollArea className="flex-1 p-4">
         <div className="space-y-5">
           {scene && (
-            <div className="bg-[#141414] p-4 rounded-lg border border-border space-y-3">
+            <div className="bg-card p-4 rounded-lg border border-border space-y-3">
               <div className="flex items-center gap-2 text-muted-foreground">
                 <MapPin className="w-3.5 h-3.5" />
                 <span className="text-xs font-medium uppercase tracking-wider">场景环境</span>
@@ -178,11 +178,11 @@ export function ShotGridDetailPanel({
               <Film className="w-3.5 h-3.5" />
               <span className="text-xs font-medium uppercase tracking-wider">叙事动作</span>
             </div>
-            <div className="bg-[#141414] p-3 rounded-lg border border-border">
+            <div className="bg-card p-3 rounded-lg border border-border">
               <p className="text-sm text-foreground/85 leading-relaxed">{shot.actionSummary}</p>
             </div>
             {shot.dialogue && (
-              <div className="bg-[#141414] p-3 rounded-lg border border-border flex gap-2">
+              <div className="bg-card p-3 rounded-lg border border-border flex gap-2">
                 <MessageSquare className="w-3.5 h-3.5 text-muted-foreground mt-0.5 shrink-0" />
                 <p className="text-sm text-primary/80 italic">"{shot.dialogue}"</p>
               </div>
@@ -276,7 +276,7 @@ export function ShotGridDetailPanel({
             </div>
           </div>
 
-          <div className="bg-[#141414] rounded-lg p-4 border border-border space-y-3">
+          <div className="bg-card rounded-lg p-4 border border-border space-y-3">
             <div className="flex items-center justify-between">
               <span className="text-xs font-medium text-foreground flex items-center gap-1.5">
                 <Video className="w-3.5 h-3.5 text-primary" />

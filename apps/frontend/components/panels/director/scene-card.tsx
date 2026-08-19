@@ -199,8 +199,8 @@ export function SceneCard({ scene, progress, isPreview, showImage, onRetryImage,
     <div
       onClick={() => setSelectedScene(isSelected ? null : scene.sceneId)}
       className={cn(
-        "p-3 rounded-lg border transition-all cursor-pointer",
-        "hover:border-foreground/20",
+        "p-3.5 rounded-xl border border-border bg-card transition-colors cursor-pointer",
+        "hover:border-primary/40",
         isSelected && "border-primary bg-primary/5",
         progress?.status === "failed" && "border-destructive/50 bg-destructive/5",
         progress?.status === "completed" && "border-success/30 bg-success/5"

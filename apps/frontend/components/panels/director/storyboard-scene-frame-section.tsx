@@ -342,7 +342,7 @@ export function StoryboardSceneFrameSection({
         </div>
         <div
           className={cn(
-            "aspect-video bg-muted rounded cursor-pointer relative group/image group/endframe overflow-hidden border-2 transition-colors",
+            "aspect-video bg-muted rounded-lg cursor-pointer relative group/image group/endframe overflow-hidden border-2 transition-colors",
             imageClass,
           )}
           onClick={() => {
