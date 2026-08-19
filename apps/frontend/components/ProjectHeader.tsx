@@ -134,7 +134,7 @@ export function ProjectHeader({
           canGoForward={canGoForward()}
         />
         <div className="project-breadcrumb min-w-0">
-          <span className="project-chrome-title text-sm font-medium text-white truncate max-w-[220px]">
+          <span className="project-chrome-title text-sm font-medium text-foreground truncate max-w-[220px]">
             {activeProject?.name || "未命名项目"}
           </span>
         </div>
@@ -169,9 +169,9 @@ function SaveStatusIndicator({ status }: { status: SaveStatus }) {
     <div
       className={cn(
         "save-status-pill flex items-center gap-1.5 px-2 py-1 rounded text-[10px] transition-colors",
-        status === "saved" && "text-green-500/70 bg-green-500/5",
-        status === "saving" && "text-yellow-500/70 bg-yellow-500/5",
-        status === "unsaved" && "text-zinc-500 bg-zinc-800/50"
+        status === "saved" && "text-success/80 bg-success/10",
+        status === "saving" && "text-warning/80 bg-warning/10",
+        status === "unsaved" && "text-muted-foreground bg-foreground/[0.05]"
       )}
     >
       {status === "saved" && (

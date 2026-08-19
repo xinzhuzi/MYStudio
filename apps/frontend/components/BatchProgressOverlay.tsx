@@ -37,15 +37,15 @@ export function BatchProgressOverlay({
 
   return (
     <div className="absolute inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center">
-      <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-8 max-w-sm w-full mx-4">
+      <div className="bg-popover/95 border border-border rounded-xl backdrop-blur-xl p-8 max-w-sm w-full mx-4">
         {/* Header */}
         <div className="flex items-center gap-3 mb-6">
           <div className="w-10 h-10 rounded-full bg-primary/15 flex items-center justify-center">
             <Loader2 className="w-5 h-5 text-primary animate-spin" />
           </div>
           <div>
-            <h3 className="text-lg font-bold text-white">{title}</h3>
-            <p className="text-xs text-zinc-500 font-mono">
+            <h3 className="text-lg font-bold text-foreground">{title}</h3>
+            <p className="text-xs text-muted-foreground font-mono">
               {current} / {total}
             </p>
           </div>
@@ -54,7 +54,7 @@ export function BatchProgressOverlay({
         {/* Progress bar */}
         <div className="space-y-2">
           <Progress value={progress} className="h-2" />
-          <div className="flex justify-between text-[10px] text-zinc-500 font-mono">
+          <div className="flex justify-between text-[10px] text-muted-foreground font-mono">
             <span>{progress}%</span>
             <span>
               {current} of {total} completed
@@ -64,11 +64,11 @@ export function BatchProgressOverlay({
 
         {/* Message */}
         {message && (
-          <p className="mt-4 text-sm text-zinc-400 text-center">{message}</p>
+          <p className="mt-4 text-sm text-foreground/80 text-center">{message}</p>
         )}
 
         {/* Warning */}
-        <p className="mt-6 text-[10px] text-zinc-600 text-center">
+        <p className="mt-6 text-[10px] text-muted-foreground/70 text-center">
           请勿关闭窗口或刷新页面
         </p>
       </div>

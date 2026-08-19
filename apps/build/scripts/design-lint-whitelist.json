@@ -16,7 +16,8 @@
     "components/ui/toaster.tsx",
     "components/ui/context-menu.tsx",
     "components/ui/menubar.tsx",
-    "components/ui/navigation-menu.tsx"
+    "components/ui/navigation-menu.tsx",
+    "components/AppErrorBoundary.tsx"
   ],
   "severityOverrides": [
     {
@@ -126,6 +127,12 @@
       "rule": "R2",
       "severity": "warn",
       "reason": "桶B 数据可视化/状态编码(triage-hardcoded-colors.md),待 child2 viz token 接线"
+    },
+    {
+      "path": "components/AppErrorBoundary.tsx",
+      "rule": "R1",
+      "severity": "warn",
+      "reason": "崩溃恢复面 R1 shadow 允许(与 allow 同文件,R2/R5/R1 均零依赖设计)"
     }
   ]
 }
