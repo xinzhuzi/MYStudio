@@ -26,7 +26,7 @@ const LocalTtsPanelLazy = lazy(() => import("@/components/panels/tts/LocalTtsPan
 /** 大区块折叠记忆键：值为被折叠区块 id 数组；无记忆时默认全折叠（08-18 用户拍板）。 */
 const SECTION_STORAGE_KEY = "mystudio.settings.plugins.collapsedSections";
 
-const SECTION_IDS = ["python", "depth", "image-gen", "upscale", "video-qc", "audio-gen", "sfx-gen", "tts", "video"] as const;
+const SECTION_IDS = ["python", "depth", "image-gen", "upscale", "video-qc", "audio", "video"] as const;
 
 type SectionId = (typeof SECTION_IDS)[number];
 
@@ -157,7 +157,7 @@ export function PluginSettingsTab() {
                 本地配置
               </h3>
               <p className="mt-2 text-sm leading-6 text-muted-foreground">
-                按依赖优先级配置本地能力：Python 运行环境 → TTS 运行时与模型 → 视频工作流插件（Remotion、HyperFrames、video-use、Seedance Prompt Skill）。
+                按依赖优先级配置本地能力：Python 运行环境 → 声音（TTS 声线、本地音乐与音效）→ 视频工作流插件（Remotion、HyperFrames、video-use、Seedance Prompt Skill）。
                 不会自动下载未选择的声线模型。
               </p>
             </div>
@@ -252,55 +252,43 @@ export function PluginSettingsTab() {
           </Collapsible>
         </section>
 
-        <section aria-labelledby="plugin-audio-gen-heading" className="rounded-xl border border-border bg-card/30">
-          <Collapsible open={!collapsedSections.has("audio-gen")} onOpenChange={() => toggleSectionCollapsed("audio-gen")}>
+        <section aria-labelledby="plugin-audio-heading" className="rounded-xl border border-border bg-card/30">
+          <Collapsible open={!collapsedSections.has("audio")} onOpenChange={() => toggleSectionCollapsed("audio")}>
             <CollapsibleTrigger className="w-full text-left">
               <div className="px-5 py-4 flex items-start justify-between gap-3">
                 <div className="space-y-2">
-                  <h4 id="plugin-audio-gen-heading" className="text-base font-semibold text-foreground">本地音乐生成</h4>
-                  <p className="text-xs text-muted-foreground">MusicGen 本地 BGM 生成（约 2 GB）。生成的 WAV 可在工作台「章节共享音频」导入为 BGM 轨道；模型仅在点击下载时获取。</p>
+                  <h4 id="plugin-audio-heading" className="text-base font-semibold text-foreground">声音（TTS · 音乐 · 音效）</h4>
+                  <p className="text-xs text-muted-foreground">本地 TTS 声线、MusicGen BGM 与短音效生成统一在此管理；音乐与音效共用模型缓存，模型仅在点击下载时获取。</p>
                 </div>
-                {sectionChevron("audio-gen")}
+                {sectionChevron("audio")}
               </div>
             </CollapsibleTrigger>
             <CollapsibleContent className="border-t border-border">
-              <LocalAudioSettingsSection embedded />
-            </CollapsibleContent>
-          </Collapsible>
-        </section>
-
-        <section aria-labelledby="plugin-sfx-gen-heading" className="rounded-xl border border-border bg-card/30">
-          <Collapsible open={!collapsedSections.has("sfx-gen")} onOpenChange={() => toggleSectionCollapsed("sfx-gen")}>
-            <CollapsibleTrigger className="w-full text-left">
-              <div className="px-5 py-4 flex items-start justify-between gap-3">
-                <div className="space-y-2">
-                  <h4 id="plugin-sfx-gen-heading" className="text-base font-semibold text-foreground">本地音效生成</h4>
-                  <p className="text-xs text-muted-foreground">短音效 one-shot 本地生成（≤5 秒，同提示词+同种子=同文件）；与本地音乐生成共用模型缓存，供 sfx 绑定选用；模型仅在点击下载时获取。</p>
-                </div>
-                {sectionChevron("sfx-gen")}
+              <div className="divide-y divide-border">
+                <section aria-labelledby="plugin-audio-tts-heading">
+                  <div className="px-5 pt-4 pb-1">
+                    <h5 id="plugin-audio-tts-heading" className="text-sm font-semibold text-foreground">TTS 运行时与模型</h5>
+                    <p className="text-xs text-muted-foreground">先启动本地 TTS，再按需下载模型；模型缓存和音色 profile 继续由原 TTS 页面管理。</p>
+                  </div>
+                  <Suspense fallback={<div className="flex h-40 items-center justify-center text-sm text-muted-foreground">加载 TTS 配置中...</div>}>
+                    <LocalTtsPanelLazy embedded />
+                  </Suspense>
+                </section>
+                <section aria-labelledby="plugin-audio-music-heading">
+                  <div className="px-5 pt-4 pb-1">
+                    <h5 id="plugin-audio-music-heading" className="text-sm font-semibold text-foreground">本地音乐生成</h5>
+                    <p className="text-xs text-muted-foreground">MiniMax-Music3 整曲生成（默认，约 12 GB）+ MusicGen 轻量备选；生成的音频可在工作台「章节共享音频」导入为 BGM 轨道。</p>
+                  </div>
+                  <LocalAudioSettingsSection embedded />
+                </section>
+                <section aria-labelledby="plugin-audio-sfx-heading">
+                  <div className="px-5 pt-4 pb-1">
+                    <h5 id="plugin-audio-sfx-heading" className="text-sm font-semibold text-foreground">本地音效生成</h5>
+                    <p className="text-xs text-muted-foreground">短音效 one-shot 本地生成（≤5 秒，同提示词+同种子=同文件）；与本地音乐生成共用模型缓存，供 sfx 绑定选用；模型仅在点击下载时获取。</p>
+                  </div>
+                  <SfxGenSettingsSection embedded />
+                </section>
               </div>
-            </CollapsibleTrigger>
-            <CollapsibleContent className="border-t border-border">
-              <SfxGenSettingsSection embedded />
-            </CollapsibleContent>
-          </Collapsible>
-        </section>
-
-        <section aria-labelledby="plugin-tts-heading" className="rounded-xl border border-border bg-card/30">
-          <Collapsible open={!collapsedSections.has("tts")} onOpenChange={() => toggleSectionCollapsed("tts")}>
-            <CollapsibleTrigger className="w-full text-left">
-              <div className="px-5 py-4 flex items-start justify-between gap-3">
-                <div className="space-y-2">
-                  <h4 id="plugin-tts-heading" className="text-base font-semibold text-foreground">TTS 运行时与模型</h4>
-                  <p className="text-xs text-muted-foreground">先启动本地 TTS，再按需下载模型；模型缓存和音色 profile 继续由原 TTS 页面管理。</p>
-                </div>
-                {sectionChevron("tts")}
-              </div>
-            </CollapsibleTrigger>
-            <CollapsibleContent className="border-t border-border">
-              <Suspense fallback={<div className="flex h-40 items-center justify-center text-sm text-muted-foreground">加载 TTS 配置中...</div>}>
-                <LocalTtsPanelLazy embedded />
-              </Suspense>
             </CollapsibleContent>
           </Collapsible>
         </section>

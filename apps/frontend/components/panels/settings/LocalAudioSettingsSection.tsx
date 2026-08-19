@@ -241,7 +241,7 @@ function MlxServCard({ runtime, onConfigured }: { runtime: ReturnType<typeof use
   };
 
   return (
-    <div className="space-y-2 rounded-lg border border-border p-3">
+    <div className="space-y-2 border-t border-border/50 pt-3">
       <div className="flex items-center justify-between gap-4">
         <div className="flex items-center gap-2 text-sm">
           {mlxServ.serverRunning ? (
@@ -251,7 +251,7 @@ function MlxServCard({ runtime, onConfigured }: { runtime: ReturnType<typeof use
           ) : (
             <Music className="h-4 w-4 text-muted-foreground" aria-hidden />
           )}
-          <span className="font-medium">mlx-serve 8bit 指向版(免下载复用已有权重)</span>
+          <span className="text-muted-foreground">mlx-serve 指向已有权重(免下载)</span>
         </div>
         <div className="flex items-center gap-1" role="radiogroup" aria-label="首选引擎">
           <Button
