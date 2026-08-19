@@ -11,6 +11,7 @@ import { spawn } from "node:child_process";
 import { execFile } from "node:child_process";
 import { createHash } from "node:crypto";
 import { promisify } from "node:util";
+import { Agent, fetch as undiciFetch } from "undici";
 import { resolveVideoWorkflowRuntimePaths } from "@rendering/plugins/video-workflow/video-workflow-runtime";
 
 const execFileAsync = promisify(execFile);
@@ -20,6 +21,17 @@ export const MUSIC3_MIN_DURATION_S = 10;
 export const MUSIC3_MAX_DURATION_S = 300;
 /** 整曲生成为分钟级;给足执行窗口(backend 硬限 30min,这里同参) */
 export const MUSIC3_GENERATE_TIMEOUT_MS = 30 * 60_000;
+
+/**
+ * 长任务专用 fetch:整曲生成是分钟级慢响应(实测 162s 曲目 21.3min 才回响应头),
+ * 全局 fetch 的 undici 默认 headersTimeout=300s 会在响应头到达前掐断请求——
+ * AbortSignal 给再宽也管不到它。此 Agent 放宽 headersTimeout 至生成窗口之上;
+ * 与 undici 自家 fetch 同实例配对使用,避免跨副本 dispatcher 符号不兼容。
+ */
+const LONG_JOB_AGENT = new Agent({
+  headersTimeout: MUSIC3_GENERATE_TIMEOUT_MS + 60_000,
+  bodyTimeout: 0,
+});
 
 // ---- mlx-serve 指向引擎路线(08-19-music3-mlxserv-connector)----
 // 指向本地已转换的 MiniMax-Music3 MLX 权重目录(8bit/bf16 均可,布局同 convert_music3_weights.py 产物)
@@ -39,8 +51,10 @@ const MLXSERV_BINARY_CANDIDATES = [
   "/opt/homebrew/bin/mlx-serve",
   "/usr/local/bin/mlx-serve",
 ];
-/** 模型统一落 <userData>/model/<family>/(08-19 用户裁定规范,music/minimax 首个居民)。 */
-const MLXSERV_WEIGHTS_HOME = path.join("model", "minimax");
+/** 模型/引擎统一家 <userData>/model/(08-19 用户裁定规范;minimax 权重与 mlx-serve 引擎皆居此)。 */
+const MODEL_HOME = "model";
+/** minimax 家:与 MODEL_HOME 同源拼接。 */
+const MLXSERV_WEIGHTS_HOME = path.join(MODEL_HOME, "minimax");
 const MLXSERV_WEIGHTS_STAGING = ".staging-music3-full";
 const MLXSERV_WEIGHTS_PACK = "music3-mlxserv-bf16";
 /** bf16 档推理内存门槛(实测常驻 34.9GB,留系统余量;防「下完 28.5GB 到生成才爆内存」)。 */
@@ -261,12 +275,39 @@ export function createMusic3GenRuntimeController(deps: ControllerDeps) {
     return null;
   }
 
-  /** MYStudio 管理的二进制路径(userData/mlx-serve-managed/);未下载返回 null。 */
+  /** MYStudio 管理的二进制家(<userData>/model/mlx-serve-managed/,08-19 并入 model 规范)。 */
+  function managedBinaryHome(): string {
+    const base = typeof deps.storageBasePath === "function" ? deps.storageBasePath() : (deps.storageBasePath ?? "");
+    return path.join(base, MODEL_HOME, MLXSERV_MANAGED_DIR_NAME);
+  }
+
+  /** 旧布局(userData 根/mlx-serve-managed)探测位——仅用于一次性迁移。 */
+  function legacyManagedBinaryHome(): string {
+    const base = typeof deps.storageBasePath === "function" ? deps.storageBasePath() : (deps.storageBasePath ?? "");
+    return path.join(base, MLXSERV_MANAGED_DIR_NAME);
+  }
+
+  /**
+   * MYStudio 管理的二进制路径;未下载返回 null。
+   * 旧布局在场时自动迁移到 model/ 下(同卷 rename;失败则回退旧路径,升级用户零感知)。
+   */
   function managedBinaryPath(): string | null {
-    const dir = path.join(typeof deps.storageBasePath === "function" ? deps.storageBasePath() : (deps.storageBasePath ?? ""), MLXSERV_MANAGED_DIR_NAME);
-    const bin = path.join(dir, "mlx-serve");
+    const home = managedBinaryHome();
+    const bin = path.join(home, "mlx-serve");
     try {
-      return fs.existsSync(bin) ? bin : null;
+      if (fs.existsSync(bin)) return bin;
+      const legacyBin = path.join(legacyManagedBinaryHome(), "mlx-serve");
+      if (fs.existsSync(legacyBin)) {
+        try {
+          fs.mkdirSync(path.dirname(home), { recursive: true });
+          fs.renameSync(legacyManagedBinaryHome(), home);
+        } catch {
+          // 迁移失败(权限/跨卷等):回退旧路径,不阻断生成
+        }
+        if (fs.existsSync(bin)) return bin;
+        return legacyBin;
+      }
+      return null;
     } catch {
       return null;
     }
@@ -275,11 +316,11 @@ export function createMusic3GenRuntimeController(deps: ControllerDeps) {
 
 
   /**
-   * 自动下载+安装 mlx-serve 二进制到 userData/mlx-serve-managed/(62MB tar.gz)。
+   * 自动下载+安装 mlx-serve 二进制到 <userData>/model/mlx-serve-managed/(62MB tar.gz)。
    * 2026-08-19 用户裁定:开箱即用,不依赖 brew。幂等:已存在则跳过。
    */
   async function installMlxServeBinary(): Promise<{ installed: boolean; path?: string; error?: string }> {
-    const dir = path.join(typeof deps.storageBasePath === "function" ? deps.storageBasePath() : (deps.storageBasePath ?? ""), MLXSERV_MANAGED_DIR_NAME);
+    const dir = managedBinaryHome();
     const bin = path.join(dir, "mlx-serve");
     if (fs.existsSync(bin)) return { installed: true, path: bin };
     if (!deps.storageBasePath) return { installed: false, error: "缺少 storageBasePath" };
@@ -568,7 +609,12 @@ export function createMusic3GenRuntimeController(deps: ControllerDeps) {
     const safeName = `bgm3-mlxserv-${Date.now()}-${seed}.wav`;
     const outputPath = path.join(input.outputDir, safeName);
     try {
-      const response = await doFetch(`${ensured.baseUrl}/v1/audio/music-generations`, {
+      // 生成调用走长任务 dispatcher(见 LONG_JOB_AGENT 注释);单测注入的 fetchFn 优先。
+      const generateFetch =
+        deps.fetchFn ??
+        ((input: RequestInfo | URL, init?: RequestInit) =>
+          undiciFetch(input as never, { ...(init as object), dispatcher: LONG_JOB_AGENT } as never) as unknown as Promise<Response>);
+      const response = await generateFetch(`${ensured.baseUrl}/v1/audio/music-generations`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

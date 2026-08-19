@@ -266,6 +266,38 @@ describe("mlx-serve 指向路线(08-19-music3-mlxserv-connector)", () => {
   });
 });
 
+describe("mlx-serve 引擎目录 model/ 规范(08-19 迁移)", () => {
+  it("旧布局(userData 根)自动迁移到 model/ 下并被探测", () => {
+    const legacyDir = path.join(storageRoot, "mlx-serve-managed");
+    fs.mkdirSync(legacyDir, { recursive: true });
+    fs.writeFileSync(path.join(legacyDir, "mlx-serve"), "#!/bin/sh\n");
+    const controller = createMusic3GenRuntimeController({
+      storageBasePath: storageRoot,
+      backendRoot,
+      execFileFn: async () => ({ stdout: probePayload() }),
+      binaryCandidates: ["/nonexistent/a"],
+    });
+    const status = controller.status();
+    const expected = path.join(storageRoot, "model", "mlx-serve-managed", "mlx-serve");
+    expect(status.mlxServ?.binaryPath).toBe(expected);
+    expect(fs.existsSync(expected)).toBe(true);
+    expect(fs.existsSync(legacyDir)).toBe(false); // 旧目录已整体搬走
+  });
+
+  it("新布局在位时探测直达,无迁移动作", () => {
+    const managedDir = path.join(storageRoot, "model", "mlx-serve-managed");
+    fs.mkdirSync(managedDir, { recursive: true });
+    fs.writeFileSync(path.join(managedDir, "mlx-serve"), "#!/bin/sh\n");
+    const controller = createMusic3GenRuntimeController({
+      storageBasePath: storageRoot,
+      backendRoot,
+      execFileFn: async () => ({ stdout: probePayload() }),
+      binaryCandidates: ["/nonexistent/a"],
+    });
+    expect(controller.status().mlxServ?.binaryPath).toBe(path.join(managedDir, "mlx-serve"));
+  });
+});
+
 describe("mlxserv bf16 权重获取(installMlxServWeights)", () => {
   function progressFileOf(): string {
     return path.join(storageRoot, "python", "profiles", "music3-gen", "mlxserv-weights-progress.json");
