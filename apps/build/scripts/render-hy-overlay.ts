@@ -218,6 +218,24 @@ function main() {
   }
   fs.rmSync(segDir, { recursive: true, force: true });
   const stat = fs.statSync(OVERLAY_MOV);
-  console.log(`✅ overlay 渲成: ${OVERLAY_MOV} (${(stat.size / 1e6).toFixed(1)}MB)`);
+  // 渲完把窗口写回 artifact——否则章节合成读 artifact 看到 0 窗口会跳过 overlay
+  // (08-19 实证事故:mov 渲成但 windows 未落盘,成片丢 HY 层)。
+  const sha = spawnSync("shasum", ["-a", "256", OVERLAY_MOV], { encoding: "utf8" }).stdout.split(" ")[0];
+  const artifactPath = path.join(OUT_DIR, "hyperframes-artifact.json");
+  const artifact = fs.existsSync(artifactPath) ? JSON.parse(fs.readFileSync(artifactPath, "utf8")) : {};
+  fs.writeFileSync(artifactPath, JSON.stringify({
+    ...artifact,
+    schemaVersion: 1,
+    projectId: "MA",
+    chapterId: CHAPTER,
+    revision: REV,
+    status: "accepted",
+    alphaFormat: "prores-4444-mov",
+    outputPath: OVERLAY_MOV,
+    outputSha256: sha,
+    windows,
+    renderedAt: new Date().toISOString(),
+  }, null, 2), "utf8");
+  console.log(`✅ overlay 渲成: ${OVERLAY_MOV} (${(stat.size / 1e6).toFixed(1)}MB, windows=${windows.length} 已写回 artifact)`);
 }
 main();
