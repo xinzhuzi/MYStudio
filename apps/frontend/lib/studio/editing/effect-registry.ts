@@ -3,13 +3,19 @@ import type {
   EditingEffectId,
 } from "@/types/editing";
 import { CINEMATIC_LUT_IDS } from "../remotion/cinematic-luts";
+import { COMPOSITION_TRANSITION_EFFECTS } from "@/electron/rendering/plugins/remotion/composition/timing";
 
-export const EDITING_EFFECT_IDS = [
+// 转场闭集全量对齐 composition/timing（单一事实源：08-20 真跑二连暴露逐个补齐
+// 不可持续——分镜语义词表/gl 桶/AI 桶决策都会把任意 timing 闭集转场写进 EDL，
+// 投影回 EditingProject 时 registry 必须认全量；对齐由 effect-registry.test 守护）。
+const BASE_EFFECT_IDS = [
   "cut",
   "fade",
   "crossfade",
   "flash",
   "blackout",
+  "impact-frame",
+  "ink-bleed",
   "panZoom",
   "shake",
   "glitch",
@@ -29,16 +35,14 @@ export const EDITING_EFFECT_IDS = [
   // 在应用内队列路径对未注册 id 报「未知效果 ID」拒渲染(standalone 不跑此闸故未早暴)。
   "grade",
   "ambient",
-  // 转场闭集补注册(08-20 转场决策层真跑暴露):impact-frame/ink-bleed 是基线手搓
-  // 转场、gl:* 是 08-18 收录白名单——均在 composition/timing 闭集内,但从未进
-  // 本注册表;video-use EDL 携带它们投影回 EditingProject 时被「未知或非转场
-  // 效果」拒。此批=TRANSITION_SEMANTIC_BUCKETS 用到的全部非基线转场。
-  "impact-frame",
-  "ink-bleed",
-  "gl:CrossZoom",
-  "gl:wind",
-  "gl:FilmBurn",
 ] as const satisfies readonly EditingEffectId[];
+
+export const EDITING_EFFECT_IDS: readonly EditingEffectId[] = [
+  ...BASE_EFFECT_IDS,
+  ...(COMPOSITION_TRANSITION_EFFECTS as readonly EditingEffectId[]).filter(
+    (id) => !(BASE_EFFECT_IDS as readonly string[]).includes(id),
+  ),
+];
 
 const EFFECT_DEFINITIONS: readonly EditingEffectDefinition[] = [
   definition("cut", "transition", "full"),
@@ -54,12 +58,8 @@ const EFFECT_DEFINITIONS: readonly EditingEffectDefinition[] = [
   definition("blackout", "transition", "full", [
     numberParameter("hold", 0.15, 0, 1),
   ]),
-  // 基线手搓转场 + gl: shader 转场(参数走 registry defaultUniforms,params 层为空)。
   definition("impact-frame", "transition", "full"),
   definition("ink-bleed", "transition", "full"),
-  definition("gl:CrossZoom", "transition", "full"),
-  definition("gl:wind", "transition", "full"),
-  definition("gl:FilmBurn", "transition", "full"),
   definition("panZoom", "motion", "full", [
     numberParameter("scaleFrom", 1, 1, 8),
     numberParameter("scaleTo", 1.06, 1, 8),
@@ -127,6 +127,11 @@ const EFFECT_DEFINITIONS: readonly EditingEffectDefinition[] = [
     numberParameter("freq", 0.25, 0.1, 0.8),
     numberParameter("phase", 0, 0, 1),
   ]),
+  // timing 转场闭集动态补全：基线 7 种已显式定义，其余（gl:* shader 转场）
+  // 统一 transition/full/空参数（shader 私有参数走 composition 端 defaultUniforms）。
+  ...COMPOSITION_TRANSITION_EFFECTS
+    .filter((id) => !(BASE_EFFECT_IDS as readonly string[]).includes(id))
+    .map((id) => definition(id as EditingEffectId, "transition", "full")),
 ];
 
 const EFFECTS_BY_ID = new Map(
