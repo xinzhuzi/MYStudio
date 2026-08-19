@@ -1,3 +1,4 @@
+import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import type { RemotionShotPlanV1 } from "@/lib/studio/remotion/shot-plan";
@@ -681,7 +682,9 @@ function optionalString(value: unknown): string | undefined {
 
 async function atomicWrite(filePath: string, content: string): Promise<void> {
   await fs.promises.mkdir(path.dirname(filePath), { recursive: true });
-  const temporaryPath = `${filePath}.${process.pid}.tmp`;
+  // tmp 名含 pid+随机段：同进程并发原子写不得共用同名（rename 会互抢 ENOENT），
+  // 跨进程残留 tmp 也互不干扰；孤儿 tmp 由下次成功写自然覆盖/无害残留。
+  const temporaryPath = `${filePath}.${process.pid}-${crypto.randomUUID().slice(0, 8)}.tmp`;
   await fs.promises.writeFile(temporaryPath, content, "utf8");
   await fs.promises.rename(temporaryPath, filePath);
 }
@@ -690,6 +693,15 @@ export function createRemotionQueueFilePersistence(root: string): RemotionQueueP
   if (!path.isAbsolute(root)) throw new Error("Remotion queue persistence root 必须是绝对路径");
   const eventsPath = path.join(root, "queue-events.jsonl");
   const snapshotPath = path.join(root, "queue-state.json");
+  // 进程内写互斥（08-20 真机修复）：append 是读改写全量重写，队列 pump/完成回调/
+  // enqueue 连发会并发触发——无锁时丢事件+同名 tmp 互抢 rename ENOENT（曾致
+  // queue-events.jsonl 出现交错损坏行，load 逐行 JSON.parse 崩→项目切换 IPC 永挂）。
+  let writeChain: Promise<unknown> = Promise.resolve();
+  function serialize<T>(task: () => Promise<T>): Promise<T> {
+    const run = writeChain.then(task, task);
+    writeChain = run.then(() => undefined, () => undefined);
+    return run;
+  }
   return {
     async load() {
       const snapshot = await readOptionalJson(snapshotPath);
@@ -700,11 +712,13 @@ export function createRemotionQueueFilePersistence(root: string): RemotionQueueP
       return { snapshot, events };
     },
     async append(event) {
-      const previous = await readOptionalText(eventsPath) ?? "";
-      await atomicWrite(eventsPath, `${previous}${JSON.stringify(event)}\n`);
+      await serialize(async () => {
+        const previous = await readOptionalText(eventsPath) ?? "";
+        await atomicWrite(eventsPath, `${previous}${JSON.stringify(event)}\n`);
+      });
     },
     async writeSnapshot(snapshot) {
-      await atomicWrite(snapshotPath, `${JSON.stringify(snapshot, null, 2)}\n`);
+      await serialize(() => atomicWrite(snapshotPath, `${JSON.stringify(snapshot, null, 2)}\n`));
     },
   };
 }
