@@ -308,7 +308,7 @@ export function PropertyPanel({
                 >
                   {copied ? (
                     <>
-                      <Check className="h-4 w-4 mr-2 text-green-500" />
+                      <Check className="h-4 w-4 mr-2 text-success" />
                       已复制
                     </>
                   ) : (
@@ -412,8 +412,8 @@ export function PropertyPanel({
             <div className="space-y-3">
               {/* 阶段角色特殊信息 */}
               {character.stageInfo && (
-                <div className="p-2 bg-blue-500/10 border border-blue-500/20 rounded-lg space-y-1">
-                  <div className="text-xs text-blue-600 dark:text-blue-400 font-medium">
+                <div className="p-2 bg-info/10 border border-info/20 rounded-lg space-y-1">
+                  <div className="text-xs text-info font-medium">
                     🎭 阶段角色：{character.stageInfo.stageName}
                   </div>
                   <div className="text-xs text-muted-foreground">
@@ -429,8 +429,8 @@ export function PropertyPanel({
               
               {/* 视觉提示词（世界级大师生成） */}
               {((promptLanguage !== 'en' && character.visualPromptZh) || (promptLanguage !== 'zh' && character.visualPromptEn)) && (
-                <div className="bg-gradient-to-r from-purple-500/10 to-transparent p-2 rounded-lg border-l-2 border-purple-500/30">
-                  <div className="text-xs text-purple-600 dark:text-purple-400 mb-1">🎨 视觉提示词</div>
+                <div className="bg-viz-status-c/10 p-2 rounded-lg border-l-2 border-viz-status-c/30">
+                  <div className="text-xs text-viz-status-c mb-1">🎨 视觉提示词</div>
                   {promptLanguage !== 'en' && character.visualPromptZh && (
                     <div className="text-xs text-muted-foreground mb-1">{character.visualPromptZh}</div>
                   )}
@@ -517,8 +517,8 @@ export function PropertyPanel({
           <div className="space-y-2">
             {/* 父角色（有阶段角色）：显示提示，不显示生成按钮 */}
             {character.stageCharacterIds && character.stageCharacterIds.length > 0 ? (
-              <div className="p-3 bg-blue-500/10 border border-blue-500/20 rounded-lg space-y-2">
-                <div className="text-xs text-blue-600 dark:text-blue-400 flex items-center gap-1 font-medium">
+              <div className="p-3 bg-info/10 border border-info/20 rounded-lg space-y-2">
+                <div className="text-xs text-info flex items-center gap-1 font-medium">
                   <CheckCircle2 className="h-3 w-3" />
                   已创建 {character.stageCharacterIds.length} 个阶段版本
                 </div>
@@ -544,7 +544,7 @@ export function PropertyPanel({
             >
               {copiedCharacter ? (
                 <>
-                  <Check className="h-4 w-4 mr-2 text-green-500" />
+                  <Check className="h-4 w-4 mr-2 text-success" />
                   已复制
                 </>
               ) : (

@@ -109,7 +109,7 @@ export function PropertyPanelShotDetail({
             <div className="flex items-center gap-2 flex-wrap">
               {shot.shotSize && <span className="px-2 py-0.5 bg-primary/10 text-primary rounded text-xs font-medium">{shot.shotSize}</span>}
               {shot.cameraMovement && shot.cameraMovement !== "none" && <span className="px-2 py-0.5 bg-muted rounded text-xs">{CAMERA_MOVEMENT_PRESETS.find((preset) => preset.id === shot.cameraMovement)?.label || shot.cameraMovement}</span>}
-              {shot.specialTechnique && shot.specialTechnique !== "none" && <span className="px-2 py-0.5 bg-purple-500/10 text-purple-600 rounded text-xs">{SPECIAL_TECHNIQUE_PRESETS.find((preset) => preset.id === shot.specialTechnique)?.label || shot.specialTechnique}</span>}
+              {shot.specialTechnique && shot.specialTechnique !== "none" && <span className="px-2 py-0.5 bg-viz-status-c/10 text-viz-status-c rounded text-xs">{SPECIAL_TECHNIQUE_PRESETS.find((preset) => preset.id === shot.specialTechnique)?.label || shot.specialTechnique}</span>}
               {shot.duration && <span className="flex items-center gap-1 px-2 py-0.5 bg-muted rounded text-xs"><Timer className="h-3 w-3" />{shot.duration}s</span>}
             </div>
             {shot.visualDescription && <div className="bg-gradient-to-r from-primary/5 to-transparent p-3 rounded-lg border-l-2 border-primary/30"><div className="text-xs text-muted-foreground mb-1 flex items-center gap-1"><Sparkles className="h-3 w-3" />视觉</div><div className="text-sm leading-relaxed">{shot.visualDescription}</div></div>}
@@ -123,7 +123,7 @@ export function PropertyPanelShotDetail({
               </div>
             )}
             {shot.characterNames && shot.characterNames.length > 0 && <div><div className="text-xs text-muted-foreground mb-1">出场角色</div><div className="flex flex-wrap gap-1">{shot.characterNames.map((name, index) => <span key={index} className="px-2 py-0.5 bg-muted rounded text-xs">{name}</span>)}</div></div>}
-            {shot.emotionTags && shot.emotionTags.length > 0 && <div><div className="text-xs text-muted-foreground mb-1">情绪</div><div className="flex flex-wrap gap-1">{shot.emotionTags.map((tag, index) => <span key={index} className="px-2 py-0.5 bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300 rounded text-xs">{EMOTION_LABELS[tag] || tag}</span>)}</div></div>}
+            {shot.emotionTags && shot.emotionTags.length > 0 && <div><div className="text-xs text-muted-foreground mb-1">情绪</div><div className="flex flex-wrap gap-1">{shot.emotionTags.map((tag, index) => <span key={index} className="px-2 py-0.5 bg-warning/15 text-warning rounded text-xs">{EMOTION_LABELS[tag] || tag}</span>)}</div></div>}
           </div>
         )}
 
@@ -135,7 +135,7 @@ export function PropertyPanelShotDetail({
         <Separator />
         <div className="space-y-2">
           <Button className="w-full" onClick={() => onGoToDirector?.(shot.id)}><ArrowRight className="h-4 w-4 mr-2" />去AI导演生成</Button>
-          <Button variant="secondary" className="w-full" onClick={handleCopyShotTriPrompts}>{copiedShotPrompts ? <><Check className="h-4 w-4 mr-2 text-green-500" />已复制</> : <><Copy className="h-4 w-4 mr-2" />复制三层提示词数据</>}</Button>
+          <Button variant="secondary" className="w-full" onClick={handleCopyShotTriPrompts}>{copiedShotPrompts ? <><Check className="h-4 w-4 mr-2 text-success" />已复制</> : <><Copy className="h-4 w-4 mr-2" />复制三层提示词数据</>}</Button>
           <Button variant="outline" className="w-full text-destructive hover:text-destructive" onClick={() => setDeleteDialogOpen(true)}><Trash2 className="h-4 w-4 mr-2" />删除分镜</Button>
         </div>
       </div>

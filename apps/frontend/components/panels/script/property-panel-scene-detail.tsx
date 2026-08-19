@@ -72,7 +72,7 @@ export function PropertyPanelSceneDetail({
       <div className="p-4 space-y-4 pb-32">
         <div className="flex items-start gap-3">
           <div className="w-10 h-10 rounded bg-muted flex items-center justify-center">
-            <MapPin className="h-5 w-5 text-blue-500" />
+            <MapPin className="h-5 w-5 text-info" />
           </div>
           <div className="flex-1">
             {isEditing ? (
@@ -189,7 +189,7 @@ export function PropertyPanelSceneDetail({
               <>
                 <Separator className="my-2" />
                 <div className="flex items-center gap-2 flex-wrap">
-                  {scene.importance && <span className={`px-2 py-0.5 rounded text-xs ${scene.importance === "main" ? "bg-primary/10 text-primary" : scene.importance === "secondary" ? "bg-yellow-500/10 text-yellow-600" : "bg-muted text-muted-foreground"}`}>{scene.importance === "main" ? "主场景" : scene.importance === "secondary" ? "次要场景" : "过渡场景"}</span>}
+                  {scene.importance && <span className={`px-2 py-0.5 rounded text-xs ${scene.importance === "main" ? "bg-primary/10 text-primary" : scene.importance === "secondary" ? "bg-warning/10 text-warning" : "bg-muted text-muted-foreground"}`}>{scene.importance === "main" ? "主场景" : scene.importance === "secondary" ? "次要场景" : "过渡场景"}</span>}
                   {scene.appearanceCount && <span className="text-xs text-muted-foreground">出场 {scene.appearanceCount} 次</span>}
                   {scene.episodeNumbers && scene.episodeNumbers.length > 0 && <span className="text-xs text-muted-foreground">第 {scene.episodeNumbers.join(", ")} 集</span>}
                 </div>
@@ -201,7 +201,7 @@ export function PropertyPanelSceneDetail({
         <Separator />
         <div className="space-y-2">
           <Button className="w-full" onClick={() => onGoToSceneLibrary?.(scene.id)}><ArrowRight className="h-4 w-4 mr-2" />去场景库生成背景</Button>
-          <Button variant="outline" className="w-full" onClick={handleCopySceneData}>{copiedScene ? <Check className="h-4 w-4 mr-2 text-green-500" /> : <Copy className="h-4 w-4 mr-2" />}{copiedScene ? "已复制" : "复制场景数据"}</Button>
+          <Button variant="outline" className="w-full" onClick={handleCopySceneData}>{copiedScene ? <Check className="h-4 w-4 mr-2 text-success" /> : <Copy className="h-4 w-4 mr-2" />}{copiedScene ? "已复制" : "复制场景数据"}</Button>
           <Button variant="secondary" className="w-full" onClick={() => onGoToDirectorFromScene?.(scene.id)}><Film className="h-4 w-4 mr-2" />去AI导演生成视频</Button>
           <Button variant="outline" className="w-full text-destructive hover:text-destructive" onClick={() => setDeleteDialogOpen(true)}><Trash2 className="h-4 w-4 mr-2" />删除场景</Button>
         </div>
