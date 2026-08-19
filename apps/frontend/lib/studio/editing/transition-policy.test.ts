@@ -3,8 +3,11 @@ import {
   clampTransitionDurationUs,
   explicitTransitionDuration,
   explicitTransitionEffect,
+  isTransitionSemanticBucketId,
+  semanticBucketTransition,
   styleWordTransition,
   transitionParams,
+  TRANSITION_SEMANTIC_BUCKETS,
 } from "./transition-policy";
 
 describe("transition policy", () => {
@@ -87,5 +90,33 @@ describe("style word transitions (director ⑥ structured vocabulary)", () => {
     expect(clampTransitionDurationUs(50_000, [4_000_000, 3_000_000])).toBe(200_000);
     // 极短邻居(300ms,半长 150ms<下限):保底下限,不产生超过邻居的转场异常
     expect(clampTransitionDurationUs(700_000, [300_000, 4_000_000])).toBe(200_000);
+  });
+});
+
+describe("TRANSITION_SEMANTIC_BUCKETS 转场语义桶（08-19 转场决策层）", () => {
+  it("10 桶全部映射到转场闭集内的 effectId（三镜像零改动的守护锚）", async () => {
+    const { COMPOSITION_TRANSITION_EFFECTS } = await import(
+      "@/electron/rendering/plugins/remotion/composition/timing"
+    );
+    const closed = new Set<string>(COMPOSITION_TRANSITION_EFFECTS);
+    expect(TRANSITION_SEMANTIC_BUCKETS).toHaveLength(10);
+    for (const bucket of TRANSITION_SEMANTIC_BUCKETS) {
+      expect(closed.has(bucket.effectId)).toBe(true);
+    }
+  });
+
+  it("桶 id 唯一；semanticBucketTransition 闭集校验+styleWord 回填桶 id", () => {
+    const ids = new Set(TRANSITION_SEMANTIC_BUCKETS.map((b) => b.id));
+    expect(ids.size).toBe(TRANSITION_SEMANTIC_BUCKETS.length);
+    expect(isTransitionSemanticBucketId("ink-bleed")).toBe(true);
+    expect(isTransitionSemanticBucketId("cut")).toBe(false);
+    expect(isTransitionSemanticBucketId("nope")).toBe(false);
+    expect(semanticBucketTransition("ink-bleed")).toMatchObject({
+      effectId: "ink-bleed",
+      durationUs: 1_000_000,
+      styleWord: "ink-bleed",
+    });
+    expect(semanticBucketTransition("cut")).toBeNull();
+    expect(semanticBucketTransition("nope")).toBeNull();
   });
 });

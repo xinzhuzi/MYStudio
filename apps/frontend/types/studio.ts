@@ -392,8 +392,18 @@ export interface StoryboardItem extends StudioStaleEvidence, StudioSourceIdentit
    * AI 2D 镜头表现选择结果（装饰层：不进 sourceFingerprint、不触发审批门 stale）。
    * 一键成片前由 selectShotFxMotions 刷新；App 章节渲染与 CLI 共享读取。
    * addons 为 AI 显式配置的特效插件（空数组=显式无特效）；缺省=运镜配方默认特效。
+   * transitionOut=本镜进入下一镜的转场语义桶（08-19 转场决策层；"cut"=AI 显式
+   * 硬切，抑制低优先级兜底）；sfx=本镜字幕句音效类别（08-19 字幕音效）。
+   * 两者均闭集校验，非法值按缺省处理。
    */
-  shotFx?: { motion: ShotFxMotionId; addons?: ShotFxAddonId[]; grade?: { lutId: string; blend: number }; source: "ai" | "heuristic" };
+  shotFx?: {
+    motion: ShotFxMotionId;
+    addons?: ShotFxAddonId[];
+    grade?: { lutId: string; blend: number };
+    transitionOut?: string;
+    sfx?: string;
+    source: "ai" | "heuristic";
+  };
 }
 
 export interface ProductionTrack extends StudioStaleEvidence {

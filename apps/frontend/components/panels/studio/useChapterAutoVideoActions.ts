@@ -397,11 +397,15 @@ export function useChapterAutoVideoActions({
                 for (const [shotId, motion] of Object.entries(selection.motions)) {
                   const addons = selection.addons[shotId];
                   const grade = selection.grades[shotId];
+                  const transitionOut = selection.transitions[shotId];
+                  const sfx = selection.sfxCategories[shotId];
                   useStudioStore.getState().updateStoryboard(shotId, {
                     shotFx: {
                       motion,
                       ...(addons ? { addons } : {}),
                       ...(grade ? { grade } : {}),
+                      ...(transitionOut ? { transitionOut } : {}),
+                      ...(sfx ? { sfx } : {}),
                       source: selection.source,
                     },
                   });

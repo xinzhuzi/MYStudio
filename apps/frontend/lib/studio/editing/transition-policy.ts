@@ -43,6 +43,61 @@ const STYLE_WORD_TRANSITIONS: ReadonlyArray<{ match: RegExp } & StyleWordTransit
 
 export const SAME_SCENE_STYLE_WORD = "同场景硬切";
 
+/**
+ * 转场语义桶（08-19 转场决策层）：AI 在约 10 个量化档位里选，不直接面对
+ * 124 种 GL 转场。每桶映射一个具体 effectId（全部来自既有闭集，三镜像零改动）
+ * + 默认时长；消费端经 clampTransitionDurationUs 对相邻镜钳制。
+ * "cut" 不设桶条目——硬切=无 intent 记录（与既有边界语义一致）。
+ */
+export type TransitionSemanticBucketId =
+  | "fade"
+  | "crossfade"
+  | "blackout"
+  | "impact-frame"
+  | "ink-bleed"
+  | "flash"
+  | "dream-warp"
+  | "zoom-warp"
+  | "wind-sweep"
+  | "burn";
+
+export interface TransitionSemanticBucket {
+  id: TransitionSemanticBucketId;
+  effectId: Exclude<EditingTransition["effectId"], "cut">;
+  durationUs: number;
+  /** AI 指南用语（何时选这桶）。 */
+  when: string;
+}
+
+export const TRANSITION_SEMANTIC_BUCKETS: readonly TransitionSemanticBucket[] = [
+  { id: "fade", effectId: "fade", durationUs: 800_000, when: "时间流逝、段落收束、舒缓空镜衔接" },
+  { id: "crossfade", effectId: "crossfade", durationUs: 800_000, when: "情绪延续的柔和换场、灵气流转、同场景缓切" },
+  { id: "blackout", effectId: "blackout", durationUs: 800_000, when: "血祭/死亡/诀别、情绪断裂、重大转折的窒息停顿" },
+  { id: "impact-frame", effectId: "impact-frame", durationUs: 300_000, when: "动作爆点、雷霆一击、高潮瞬间" },
+  { id: "ink-bleed", effectId: "ink-bleed", durationUs: 1_000_000, when: "水墨意境、时空转换、回忆涌现（稀缺使用）" },
+  { id: "flash", effectId: "flash", durationUs: 300_000, when: "闪白惊变、剑光乍现、瞬间震撼" },
+  { id: "dream-warp", effectId: "gl:ButterflyWaveScrawler", durationUs: 1_000_000, when: "入梦/前世/恍惚出神（稀缺使用）" },
+  { id: "zoom-warp", effectId: "gl:CrossZoom", durationUs: 500_000, when: "境界跃迁、速度爆发、时空穿梭" },
+  { id: "wind-sweep", effectId: "gl:wind", durationUs: 700_000, when: "风起云涌、场景横移、气势扫过" },
+  { id: "burn", effectId: "gl:FilmBurn", durationUs: 600_000, when: "劫火焚天、烈焰吞噬、灼热转场" },
+];
+
+const TRANSITION_BUCKET_BY_ID: ReadonlyMap<string, TransitionSemanticBucket> = new Map(
+  TRANSITION_SEMANTIC_BUCKETS.map((bucket) => [bucket.id, bucket]),
+);
+
+export function isTransitionSemanticBucketId(value: unknown): value is TransitionSemanticBucketId {
+  return typeof value === "string" && TRANSITION_BUCKET_BY_ID.has(value);
+}
+
+/** 桶 id → 具体转场（effectId + 默认时长）；未知桶返回 null（fail-closed 落硬切）。 */
+export function semanticBucketTransition(
+  bucketId: string,
+): (TransitionSemanticBucket & { styleWord: string }) | null {
+  const bucket = TRANSITION_BUCKET_BY_ID.get(bucketId);
+  return bucket ? { ...bucket, styleWord: bucket.id } : null;
+}
+
 export function styleWordTransition(styleWord: string | undefined): StyleWordTransition | null {
   if (!styleWord?.trim()) return null;
   const entry = STYLE_WORD_TRANSITIONS.find((candidate) => candidate.match.test(styleWord));

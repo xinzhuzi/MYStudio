@@ -1,6 +1,7 @@
 /**
  * AI 2D 镜头表现设计 — 根据每个分镜的对白与画面描述，逐镜组合
- * 运镜（13 模式）+ 特效插件（0~2 个量化档位），防观看疲劳、成片有风格。
+ * 运镜（13 模式）+ 特效插件（0~2 个量化档位）+ 镜间转场语义桶 + 字幕音效分类，
+ * 防观看疲劳、成片有风格。
  *
  * 与 cinematic-preset-ai（3D 相机预设，服务 depth 路径）平行的 2D 版：
  *  - 主路径：aiManager.text（universalAi 兜底）批量分析整章分镜，输出严格 JSON
@@ -17,10 +18,22 @@ import {
   isShotFxAddonId,
   isShotFxMotionId,
   resolveRuleShotFxMotion,
+  ruleTransitionOut,
   type ShotFxAddonId,
   type ShotFxMotionId,
 } from "./shot-fx-decisions";
 import { CINEMATIC_LUTS, isCinematicLutId } from "./cinematic-luts";
+import {
+  TRANSITION_SEMANTIC_BUCKETS,
+  isTransitionSemanticBucketId,
+  type TransitionSemanticBucketId,
+} from "@/lib/studio/editing/transition-policy";
+import {
+  availableSubtitleSfxCategories,
+  classifySubtitleSfx,
+  isSubtitleSfxCategoryId,
+  type SubtitleSfxCategoryId,
+} from "./subtitle-sfx";
 
 export interface ShotFxAiShotInput {
   shotId: string;
@@ -75,10 +88,12 @@ function buildPrompt(shots: ShotFxAiShotInput[]): string {
   const motionGuide = MOTION_GUIDE.map((g) => `- ${g.id}: ${g.when}`).join("\n");
   const addonGuide = ADDON_GUIDE.map((g) => `- ${g.id}: ${g.when}`).join("\n");
   const lutGuide = LUT_GUIDE.map((g) => `- ${g.id}: ${g.when}`).join("\n");
+  const transitionGuide = TRANSITION_SEMANTIC_BUCKETS.map((b) => `- ${b.id}: ${b.when}`).join("\n");
+  const sfxGuide = availableSubtitleSfxCategories().map((c) => `- ${c.id}: ${c.label}`).join("\n");
   const list = shots
     .map((s, i) => `${i + 1}. shotId=${s.shotId}\n   画面: ${s.description || "(无)"}\n   对白: ${s.dialogue || "(无)"}`)
     .join("\n");
-  return `你是电影摄影指导，为一部 2D 动态分镜影片逐镜设计镜头表现 = 运镜 + 特效插件（可自由组合）。
+  return `你是电影摄影指导，为一部 2D 动态分镜影片逐镜设计镜头表现 = 运镜 + 特效插件 + 转场 + 字幕音效。
 
 运镜（每镜必选其一）：
 ${motionGuide}
@@ -89,16 +104,23 @@ ${addonGuide}
 成片调色 LUT——32 张中国风传统色卡（每镜可选一个或省略=不调色；blend 0.2~0.9 克制强度；只给氛围强烈的少数镜配，其余省略防全片刷色）：
 ${lutGuide}
 
+镜间转场（为每个镜头决定「本镜结束进入下一镜」的转场方式，最后一镜省略；结合相邻两镜剧情连续性与情绪落差选择档位；默认 cut=同场景延续，多数边界应是 cut 或省略）：
+${transitionGuide}
+
+字幕音效（每镜按对白/旁白中的声学事件选一个类别；无声学事件则省略；克制使用——只给明确的戏剧性时刻配）：
+${sfxGuide}
+
 分镜列表：
 ${list}
 
 要求：
 1. 结合画面描述与对白情绪设计最贴合的组合；运镜与特效要互相成全（如 tilt-up+glow-warm 显巍峨神性、pan-left+shake-soft 显慌乱横移、hold 无特效作爆点前蓄力）
 2. **防疲劳纪律（最重要）**：相邻镜头避免完全相同的组合；连续同类情绪时用运镜方向/特效强度做微变化；关键爆点前后可用 hold 做节奏对比；一章之内组合分布要有层次（主打组合+点缀组合），不要全片刷同一配方
-3. 风格整体性：组合要贴合本片题材气质（仙侠/热血/悬疑等），形成可辨识的镜头风格
-4. 同种特效只选一个档位（shake-soft 与 shake-hard 互斥，glow-warm 与 glow-dim 互斥）
-5. 只输出 JSON，格式：{"shots": [{"shotId": "...", "motion": "...", "fx": ["插件id", ..."]}]}；不需要特效插件的镜头 fx 给空数组或省略
-6. 不要输出任何解释文字`;
+3. **转场纪律**：非 cut 转场是稀缺修辞——一章之内非 cut 边界占比不超过三分之一；ink-bleed 与 dream-warp 全章至多各一次；相邻边界避免同桶连用
+4. 风格整体性：组合要贴合本片题材气质（仙侠/热血/悬疑等），形成可辨识的镜头风格
+5. 同种特效只选一个档位（shake-soft 与 shake-hard 互斥，glow-warm 与 glow-dim 互斥）
+6. 只输出 JSON，格式：{"shots": [{"shotId": "...", "motion": "...", "fx": ["插件id", ...], "transitionOut": "转场桶id或cut", "sfx": "音效类别id"}]}；不需要特效插件的镜头 fx 给空数组或省略；transitionOut 为 cut 时可省略；无声学事件 sfx 省略
+7. 不要输出任何解释文字`;
 }
 
 /** 解析 AI 返回的 JSON（容忍 markdown 代码块/前后杂文），校验每个条目。 */
@@ -109,6 +131,8 @@ export function parseShotFxMotionResponse(
   motions: Record<string, ShotFxMotionId>;
   addons: Record<string, ShotFxAddonId[]>;
   grades: Record<string, { lutId: string; blend: number }>;
+  transitions: Record<string, TransitionSemanticBucketId>;
+  sfxCategories: Record<string, SubtitleSfxCategoryId>;
 } {
   const cleaned = raw.replace(/```json\n?|\n?```/g, "").trim();
   const start = cleaned.indexOf("{");
@@ -122,6 +146,8 @@ export function parseShotFxMotionResponse(
   const motions: Record<string, ShotFxMotionId> = {};
   const addons: Record<string, ShotFxAddonId[]> = {};
   const grades: Record<string, { lutId: string; blend: number }> = {};
+  const transitions: Record<string, TransitionSemanticBucketId> = {};
+  const sfxCategories: Record<string, SubtitleSfxCategoryId> = {};
   if (Array.isArray(entries)) {
     for (const entry of entries) {
       if (!entry || typeof entry !== "object") continue;
@@ -139,6 +165,15 @@ export function parseShotFxMotionResponse(
           blend: Number.isFinite(blendRaw) ? Math.min(1, Math.max(0, blendRaw)) : 1,
         };
       }
+      const transitionOut = (entry as { transitionOut?: unknown }).transitionOut;
+      // "cut"/未知桶都不落桶——AI 显式 cut 与缺省同样走边界优先级链的兜底层。
+      if (isTransitionSemanticBucketId(transitionOut)) {
+        transitions[shotId] = transitionOut;
+      }
+      const sfx = (entry as { sfx?: unknown }).sfx;
+      if (isSubtitleSfxCategoryId(sfx)) {
+        sfxCategories[shotId] = sfx;
+      }
       const fx = (entry as { fx?: unknown }).fx;
       if (Array.isArray(fx)) {
         // 显式插件配置（可为空数组=无特效）；同种效果取首个档位。
@@ -155,27 +190,40 @@ export function parseShotFxMotionResponse(
       }
     }
   }
-  return { motions, addons, grades };
+  return { motions, addons, grades, transitions, sfxCategories };
 }
 
 /** 关键词启发式兜底（无 AI 时的确定性选择，与渲染侧规则运镜共用单源）。 */
 export function heuristicShotFxMotions(shots: ShotFxAiShotInput[]): {
   motions: Record<string, ShotFxMotionId>;
+  transitions: Record<string, TransitionSemanticBucketId>;
+  sfxCategories: Record<string, SubtitleSfxCategoryId>;
 } {
   const motions: Record<string, ShotFxMotionId> = {};
+  const transitions: Record<string, TransitionSemanticBucketId> = {};
+  const sfxCategories: Record<string, SubtitleSfxCategoryId> = {};
   shots.forEach((shot, index) => {
-    motions[shot.shotId] = resolveRuleShotFxMotion(
-      `${shot.description}\n${shot.dialogue}`,
-      index,
-    );
+    const text = `${shot.description}\n${shot.dialogue}`;
+    motions[shot.shotId] = resolveRuleShotFxMotion(text, index);
+    // 转场规则兜底只产出 blackout/impact-frame 两档稀缺修辞，其余交回硬切。
+    const next = shots[index + 1];
+    if (next) {
+      const bucket = ruleTransitionOut(text, `${next.description}\n${next.dialogue}`);
+      if (bucket) transitions[shot.shotId] = bucket;
+    }
+    // 字幕音效规则兜底：对白优先命中声学事件（画面描述次之），无资产类自动跳过。
+    const category = classifySubtitleSfx(shot.dialogue) ?? classifySubtitleSfx(shot.description);
+    if (category) sfxCategories[shot.shotId] = category;
   });
-  return { motions };
+  return { motions, transitions, sfxCategories };
 }
 
 /**
- * AI 批量设计分镜镜头表现（运镜 + 可组合特效插件）。
+ * AI 批量设计分镜镜头表现（运镜 + 可组合特效插件 + 镜间转场 + 字幕音效分类）。
  * 返回 source 标注来源：ai / heuristic / empty（无分镜时）。
  * addons 仅含 AI 显式配置了 fx 字段的镜头（空数组=显式无特效）；缺省=运镜配方默认特效。
+ * transitions/sfxCategories 为决策层扩展（08-19 转场+音效缺口）：桶 id 与类别 id
+ * 均闭集校验，非法值丢弃；heuristic 兜底与 AI 路径共用规则词表单源。
  */
 export async function selectShotFxMotions(
   shots: ShotFxAiShotInput[],
@@ -183,10 +231,12 @@ export async function selectShotFxMotions(
   motions: Record<string, ShotFxMotionId>;
   addons: Record<string, ShotFxAddonId[]>;
   grades: Record<string, { lutId: string; blend: number }>;
+  transitions: Record<string, TransitionSemanticBucketId>;
+  sfxCategories: Record<string, SubtitleSfxCategoryId>;
   source: "ai" | "heuristic" | "empty";
 }> {
   if (shots.length === 0) {
-    return { motions: {}, addons: {}, grades: {}, source: "empty" };
+    return { motions: {}, addons: {}, grades: {}, transitions: {}, sfxCategories: {}, source: "empty" };
   }
   const shotIds = new Set(shots.map((s) => s.shotId));
   try {
@@ -205,6 +255,11 @@ export async function selectShotFxMotions(
     return { ...parsed, source: "ai" };
   } catch {
     // 启发式兜底不配 grade（AI 选型是增强而非必选；默认 LUT 刷满全片会破坏视觉基线）。
-    return { ...heuristicShotFxMotions(shots), addons: {}, grades: {}, source: "heuristic" };
+    return {
+      ...heuristicShotFxMotions(shots),
+      addons: {},
+      grades: {},
+      source: "heuristic",
+    };
   }
 }

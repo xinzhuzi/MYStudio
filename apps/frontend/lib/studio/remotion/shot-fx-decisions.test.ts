@@ -7,6 +7,7 @@ import {
   isShotFxMotionId,
   mergeShotFxEditingEffects,
   resolveRuleShotFxMotion,
+  ruleTransitionOut,
   type ShotFxPlanClipLike,
   type ShotFxStoryboardInput,
 } from "./shot-fx-decisions";
@@ -73,6 +74,24 @@ describe("resolveRuleShotFxMotion 规则配方", () => {
     expect(resolveRuleShotFxMotion("庭院里喝茶", 0)).toBe("push-in");
     expect(resolveRuleShotFxMotion("庭院里喝茶", 2)).toBe("pan-right");
     expect(resolveRuleShotFxMotion("庭院里喝茶", 7)).toBe("push-in");
+  });
+});
+
+describe("ruleTransitionOut 转场规则兜底（08-19 转场决策层）", () => {
+  it("情绪断裂词（任一侧命中）→ blackout，且优先于爆点词", () => {
+    expect(ruleTransitionOut("血祭之地上空", "晨光初现")).toBe("blackout");
+    expect(ruleTransitionOut("旧忆如烟", "诀别时刻")).toBe("blackout");
+    // 同时带爆点词：断裂优先（窒息停顿比急闪更贴叙事）
+    expect(ruleTransitionOut("血祭", "轰然炸开")).toBe("blackout");
+  });
+
+  it("下一镜动作爆点 → impact-frame；from 侧动作词不触发", () => {
+    expect(ruleTransitionOut("庭院对坐", "一剑轰然劈下")).toBe("impact-frame");
+    expect(ruleTransitionOut("一剑轰然劈下", "雨歇云散")).toBeUndefined();
+  });
+
+  it("无命中返回 undefined（=硬切，交回既有优先级链）", () => {
+    expect(ruleTransitionOut("庭院里喝茶", "檐下听雨")).toBeUndefined();
   });
 });
 

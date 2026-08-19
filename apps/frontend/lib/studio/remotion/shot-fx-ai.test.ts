@@ -50,6 +50,21 @@ describe("parseShotFxMotionResponse", () => {
     expect(parsed.grades).toEqual({ s1: { lutId: "film-teal-orange", blend: 1 } });
   });
 
+  it("转场桶解析：合法桶收录；cut/未知桶/未知音效类别丢弃（08-19 转场决策层）", () => {
+    const parsed = parseShotFxMotionResponse(
+      JSON.stringify({
+        shots: [
+          { shotId: "s1", motion: "push-in", transitionOut: "ink-bleed", sfx: "sword" },
+          { shotId: "s2", motion: "drift", transitionOut: "cut", sfx: "not-a-category" },
+          { shotId: "s3", motion: "hold", transitionOut: "no-such-bucket" },
+        ],
+      }),
+      shotIds,
+    );
+    expect(parsed.transitions).toEqual({ s1: "ink-bleed" });
+    expect(parsed.sfxCategories).toEqual({ s1: "sword" });
+  });
+
   it("兼容旧 motions schema（无 fx 字段 → 不产 addons 条目）", () => {
     const parsed = parseShotFxMotionResponse(
       '{"motions": [{"shotId": "s1", "motion": "drift"}]}',
@@ -85,12 +100,35 @@ describe("heuristicShotFxMotions", () => {
     expect(motions.s2).toBe(SHOT_FX_MOTION_ROTATION_AT(1));
     expect(motions.s3).toBe(SHOT_FX_MOTION_ROTATION_AT(2));
   });
+
+  it("转场规则兜底：下一镜动作爆点→impact-frame；断裂词（任一侧）→blackout；其余无桶=硬切", () => {
+    const { transitions } = heuristicShotFxMotions([
+      { shotId: "a", description: "庭院对坐", dialogue: "且慢。" },
+      { shotId: "b", description: "剑光轰然炸开", dialogue: "" },
+      { shotId: "c", description: "雨歇云散", dialogue: "" },
+      { shotId: "d", description: "血祭之地，诀别", dialogue: "" },
+      { shotId: "e", description: "远山淡影", dialogue: "" },
+    ]);
+    // a→b：b 开场动作爆点；b→c：无词命中=硬切；c→d：d 带断裂词；
+    // d→e：d 自身断裂词在 from 侧同样成立（断裂发生在血祭镜结尾）。
+    expect(transitions).toEqual({ a: "impact-frame", c: "blackout", d: "blackout" });
+  });
+
+  it("字幕音效规则兜底：对白优先于画面描述命中声学事件", () => {
+    const { sfxCategories } = heuristicShotFxMotions([
+      { shotId: "a", description: "风起云涌", dialogue: "听，雷声滚滚。" },
+      { shotId: "b", description: "剑出鞘", dialogue: "走吧。" },
+    ]);
+    expect(sfxCategories).toEqual({ a: "thunder", b: "sword" });
+  });
 });
 
 describe("selectShotFxMotions", () => {
   it("空分镜返回 empty", async () => {
     const result = await selectShotFxMotions([]);
-    expect(result).toEqual({ motions: {}, addons: {}, grades: {}, source: "empty" });
+    expect(result).toEqual({
+      motions: {}, addons: {}, grades: {}, transitions: {}, sfxCategories: {}, source: "empty",
+    });
   });
 
   it("AI 成功时返回 ai 来源的运镜+插件组合", async () => {

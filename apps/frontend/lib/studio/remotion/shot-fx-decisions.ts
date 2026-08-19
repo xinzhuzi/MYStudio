@@ -292,6 +292,22 @@ export function resolveRuleShotFxMotion(text: string, clipIndex: number): ShotFx
     ?? SHOT_FX_MOTION_ROTATION[clipIndex % SHOT_FX_MOTION_ROTATION.length];
 }
 
+/**
+ * 转场语义桶的规则兜底（08-19 转场决策层，AI 不可用时）：
+ * 情绪断裂（血祭/死亡/诀别）→ blackout、动作爆点 → impact-frame、其余不产出
+ * （=硬切，交回 boundary 优先级链里更上层的分镜语义/导演计划）。
+ * 断裂词优先于爆点词——血祭边界同时带动作时，窒息停顿比急闪更贴叙事。
+ */
+export function ruleTransitionOut(
+  fromText: string,
+  toText: string,
+): "blackout" | "impact-frame" | undefined {
+  const pair = `${fromText}\n${toText}`;
+  if (/血祭|死亡|诀别|殉|葬|灭门|崩溃|断裂|永别/.test(pair)) return "blackout";
+  if (/爆|劈|砸|轰|撞|雷霆|厮杀/.test(toText)) return "impact-frame";
+  return undefined;
+}
+
 /** shotFx 决策产出的效果 ID 前缀（合并器据此幂等去重）。 */
 const SHOT_FX_EFFECT_ID_PREFIX = "effect-shot-fx-";
 
