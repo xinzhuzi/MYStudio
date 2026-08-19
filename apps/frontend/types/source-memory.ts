@@ -18,6 +18,8 @@ export type SourceMemoryStructuredKind =
 
 /** raw 层两类 + 结构化 11 类。 */
 export type SourceMemoryRecordKind = "bible" | "chapter-chunk" | SourceMemoryStructuredKind;
+export type SourceMemoryFreshness = "fresh";
+export type SourceMemoryIndexHealth = "healthy" | "missing" | "corrupt" | "incompatible";
 
 export interface SourceMemoryRecord {
   recordId: string;
@@ -27,6 +29,8 @@ export interface SourceMemoryRecord {
   sourceSha256: string;
   anchor: string;
   createdAt: string;
+  updatedAt: string;
+  freshness: SourceMemoryFreshness;
   /** 章节文件名主干（chapter-001），raw 圣经块无此字段。 */
   chapterId?: string;
   /** 结构化记录涉及的实体名（人物/宗门/术语），供实体精确命中加权。 */
@@ -60,6 +64,7 @@ export interface SourceMemoryBuildReply {
   recordCount?: number;
   /** changed 来源非空时返回——渲染进程据此发起 AI 抽取（stage→commit）。 */
   plan?: SourceMemoryBuildPlan;
+  code?: "invalid-input" | "writer-busy" | "publication-failed";
   error?: string;
 }
 
@@ -82,6 +87,7 @@ export interface SourceMemoryStageRecordsReply {
   rejected?: number;
   /** 逐条拒绝原因（截断到前 5 条），整批 schema 失败时 error 一条说明。 */
   errors?: string[];
+  code?: "invalid-input" | "writer-busy" | "plan-stale";
   error?: string;
 }
 
@@ -99,6 +105,7 @@ export interface SourceMemoryCommitBuildReply {
   structuredCount?: number;
   rawCount?: number;
   failedChunks?: number;
+  code?: "invalid-input" | "writer-busy" | "plan-stale" | "sources-changed" | "publication-failed";
   error?: string;
 }
 
@@ -107,7 +114,9 @@ export interface SourceMemorySearchHit {
   kind: string;
   title: string;
   sourcePath: string;
+  sourceSha256: string;
   anchor: string;
+  freshness: SourceMemoryFreshness;
   score: number;
   snippet: string;
   chapterId?: string;
@@ -118,18 +127,31 @@ export interface SourceMemorySearchReply {
   hits?: SourceMemorySearchHit[];
   buildId?: string;
   degradedReason?: string;
+  indexHealth?: SourceMemoryIndexHealth;
   error?: string;
 }
 
 export interface SourceMemoryStatusReply {
   success: boolean;
-  status?: "idle" | "ready" | "partial" | "failed";
+  status?: "idle" | "ready" | "partial" | "stale" | "failed";
   buildId?: string;
   recordCount?: number;
   structuredCount?: number;
   rawCount?: number;
   builtAt?: string;
+  sources?: Array<{ path: string; sha256: string; size: number; mtimeMs: number }>;
+  indexHealth?: SourceMemoryIndexHealth;
+  recoverableArtifacts?: string[];
   /** partial/failed 的可读原因（如 extraction-pending:2 / extraction-failed:1）。 */
   degradedReason?: string;
+  error?: string;
+}
+
+export interface SourceMemoryRebuildIndexReply {
+  success: boolean;
+  buildId?: string;
+  indexHealth?: SourceMemoryIndexHealth;
+  backupPath?: string;
+  code?: "invalid-input" | "writer-busy" | "active-missing" | "records-invalid" | "recovery-failed";
   error?: string;
 }

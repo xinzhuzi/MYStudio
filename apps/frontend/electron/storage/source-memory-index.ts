@@ -6,6 +6,7 @@ import { createHash } from "node:crypto";
 interface SqliteStatement {
   run(...args: unknown[]): unknown;
   all(...args: unknown[]): unknown[];
+  get(...args: unknown[]): Record<string, unknown> | undefined;
 }
 interface DatabaseSync {
   exec(sql: string): void;
@@ -56,14 +57,35 @@ export interface IndexRecord extends SourceMemoryRecord {
   body: string;
 }
 
-export function buildIndexSqlite(records: IndexRecord[], dbPath: string): void {
+export interface SourceMemoryIndexMeta {
+  buildId: string;
+  indexVersion: number;
+  recordCount: number;
+}
+
+export type SourceMemoryIndexInspection =
+  | { success: true; meta: SourceMemoryIndexMeta }
+  | { success: false; code: "index-open-failed" | "index-corrupt" | "index-incompatible"; error: string };
+
+export type SourceMemoryIndexSearchResult =
+  | { success: true; hits: SourceMemorySearchHit[]; meta: SourceMemoryIndexMeta }
+  | { success: false; code: "index-open-failed" | "index-corrupt" | "index-incompatible" | "index-query-failed"; error: string };
+
+export function buildIndexSqlite(
+  records: IndexRecord[],
+  dbPath: string,
+  metadata: Omit<SourceMemoryIndexMeta, "recordCount"> = { buildId: "legacy", indexVersion: 1 },
+): void {
   const db = new DatabaseSyncCtor(dbPath);
   try {
+    db.exec("BEGIN IMMEDIATE");
     db.exec("DROP TABLE IF EXISTS records");
     db.exec("DROP TABLE IF EXISTS records_fts");
-    db.exec("CREATE TABLE records (recordId TEXT PRIMARY KEY, kind TEXT, title TEXT, sourcePath TEXT, anchor TEXT, sourceSha256 TEXT, createdAt TEXT, chapterId TEXT, entities TEXT, body TEXT)");
+    db.exec("DROP TABLE IF EXISTS index_meta");
+    db.exec("CREATE TABLE records (recordId TEXT PRIMARY KEY, kind TEXT, title TEXT, sourcePath TEXT, anchor TEXT, sourceSha256 TEXT, createdAt TEXT, updatedAt TEXT, freshness TEXT, extractorVersion TEXT, chapterId TEXT, entities TEXT, body TEXT)");
     db.exec("CREATE VIRTUAL TABLE records_fts USING fts5(recordId UNINDEXED, search_tokens, tokenize = 'unicode61')");
-    const insert = db.prepare("INSERT INTO records (recordId, kind, title, sourcePath, anchor, sourceSha256, createdAt, chapterId, entities, body) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+    db.exec("CREATE TABLE index_meta (build_id TEXT NOT NULL, index_version INTEGER NOT NULL, record_count INTEGER NOT NULL)");
+    const insert = db.prepare("INSERT INTO records (recordId, kind, title, sourcePath, anchor, sourceSha256, createdAt, updatedAt, freshness, extractorVersion, chapterId, entities, body) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
     const insertFts = db.prepare("INSERT INTO records_fts (recordId, search_tokens) VALUES (?, ?)");
     for (const r of records) {
       insert.run(
@@ -74,12 +96,28 @@ export function buildIndexSqlite(records: IndexRecord[], dbPath: string): void {
         r.anchor,
         r.sourceSha256,
         r.createdAt,
+        r.updatedAt,
+        r.freshness,
+        r.extractorVersion ?? "unknown",
         r.chapterId ?? "",
         (r.entities ?? []).join("\n"),
         r.body,
       );
       insertFts.run(r.recordId, cjkBigramTokens(`${r.title}\n${r.body}\n${(r.entities ?? []).join("\n")}`).join(" "));
     }
+    db.prepare("INSERT INTO index_meta (build_id, index_version, record_count) VALUES (?, ?, ?)").run(
+      metadata.buildId,
+      metadata.indexVersion,
+      records.length,
+    );
+    db.exec("COMMIT");
+  } catch (error) {
+    try {
+      db.exec("ROLLBACK");
+    } catch {
+      // 建库失败时保留原始异常。
+    }
+    throw error;
   } finally {
     db.close();
   }
@@ -93,29 +131,81 @@ function fts5Quote(query: string): string {
   return uniq.slice(0, 12).map((t) => `"${t}"`).join(" OR ");
 }
 
-export function searchIndexSqlite(dbPath: string, query: string, limit = 6): SourceMemorySearchHit[] {
+export function inspectIndexSqlite(
+  dbPath: string,
+  expected?: Partial<SourceMemoryIndexMeta>,
+): SourceMemoryIndexInspection {
   let db: DatabaseSync;
   try {
     db = new DatabaseSyncCtor(dbPath, { readOnly: true });
-  } catch {
-    return [];
+  } catch (error) {
+    return { success: false, code: "index-open-failed", error: error instanceof Error ? error.message : String(error) };
+  }
+  try {
+    const integrity = db.prepare("PRAGMA integrity_check").get();
+    if (!integrity || String(Object.values(integrity)[0] ?? "") !== "ok") {
+      return { success: false, code: "index-corrupt", error: "SQLite integrity_check failed" };
+    }
+    const row = db.prepare("SELECT build_id, index_version, record_count FROM index_meta LIMIT 1").get();
+    const actualCount = Number(db.prepare("SELECT COUNT(*) AS count FROM records").get()?.count ?? -1);
+    if (!row) return { success: false, code: "index-incompatible", error: "index_meta missing" };
+    const meta: SourceMemoryIndexMeta = {
+      buildId: String(row.build_id ?? ""),
+      indexVersion: Number(row.index_version),
+      recordCount: Number(row.record_count),
+    };
+    if (!meta.buildId || !Number.isInteger(meta.indexVersion) || !Number.isInteger(meta.recordCount)) {
+      return { success: false, code: "index-incompatible", error: "index_meta invalid" };
+    }
+    if (meta.recordCount !== actualCount) {
+      return { success: false, code: "index-incompatible", error: "index record count mismatch" };
+    }
+    if (
+      (expected?.buildId !== undefined && expected.buildId !== meta.buildId) ||
+      (expected?.indexVersion !== undefined && expected.indexVersion !== meta.indexVersion) ||
+      (expected?.recordCount !== undefined && expected.recordCount !== meta.recordCount)
+    ) {
+      return { success: false, code: "index-incompatible", error: "index metadata mismatch" };
+    }
+    return { success: true, meta };
+  } catch (error) {
+    return { success: false, code: "index-corrupt", error: error instanceof Error ? error.message : String(error) };
+  } finally {
+    db.close();
+  }
+}
+
+export function searchIndexSqlite(
+  dbPath: string,
+  query: string,
+  limit = 6,
+  expected?: Partial<SourceMemoryIndexMeta>,
+): SourceMemoryIndexSearchResult {
+  const inspected = inspectIndexSqlite(dbPath, expected);
+  if (!inspected.success) return inspected;
+  let db: DatabaseSync;
+  try {
+    db = new DatabaseSyncCtor(dbPath, { readOnly: true });
+  } catch (error) {
+    return { success: false, code: "index-open-failed", error: error instanceof Error ? error.message : String(error) };
   }
   try {
     const tokens = cjkBigramTokens(query);
-    if (!tokens.length) return [];
+    if (!tokens.length) return { success: true, hits: [], meta: inspected.meta };
     // 实体加权：查询 token 与记录 entities 精确命中者在 BM25（负值，越小越优）上再减
     // 固定权重；同分按 recordId 排序保持确定性（血统偏离三：硬过滤×BM25×实体命中）。
     const entityBoost = new Map(tokens.map((t) => [t, true]));
     const stmt = db.prepare(
-      `SELECT r.recordId, r.kind, r.title, r.sourcePath, r.anchor, r.chapterId, r.entities, r.body,
+      `SELECT r.recordId, r.kind, r.title, r.sourcePath, r.sourceSha256, r.anchor, r.freshness, r.chapterId, r.entities, r.body,
               bm25(records_fts) AS score
        FROM records_fts f JOIN records r ON r.recordId = f.recordId
        WHERE records_fts MATCH ?
        ORDER BY score LIMIT ?`,
     );
     const rows = stmt.all(fts5Quote(query), limit * 3) as Array<Record<string, unknown>>;
-    return rows
+    const hits = rows
       .map((row) => {
+        if (row.freshness !== "fresh") throw new Error("record freshness invalid");
         const entities = String(row.entities ?? "")
           .split("\n")
           .map((e) => e.trim())
@@ -126,7 +216,9 @@ export function searchIndexSqlite(dbPath: string, query: string, limit = 6): Sou
           kind: String(row.kind),
           title: String(row.title),
           sourcePath: String(row.sourcePath),
+          sourceSha256: String(row.sourceSha256),
           anchor: String(row.anchor),
+          freshness: "fresh" as const,
           score: (Number(row.score) || 0) - entityHits * 2,
           snippet: String(row.body ?? "").slice(0, 120),
           chapterId: String(row.chapterId ?? "") || undefined,
@@ -134,8 +226,9 @@ export function searchIndexSqlite(dbPath: string, query: string, limit = 6): Sou
       })
       .sort((a, b) => a.score - b.score || (a.recordId < b.recordId ? -1 : 1))
       .slice(0, limit);
-  } catch {
-    return [];
+    return { success: true, hits, meta: inspected.meta };
+  } catch (error) {
+    return { success: false, code: "index-query-failed", error: error instanceof Error ? error.message : String(error) };
   } finally {
     db.close();
   }

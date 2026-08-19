@@ -14,6 +14,7 @@ vi.mock("electron", () => ({
 import {
   REMOTION_STUDIO_CLOSE_SESSION_CHANNEL,
   REMOTION_STUDIO_ENSURE_SESSION_CHANNEL,
+  broadcastRemotionStudioEditingUpdated,
   registerRemotionStudioIpcHandlers,
   validateRemotionStudioEnsureSessionReply,
   validateRemotionStudioEnsureSessionRequest,
@@ -75,5 +76,29 @@ describe("Remotion Studio IPC", () => {
     expect(closeSession).toHaveBeenCalledWith("project-a");
     await expect(handler({}, { projectId: "project/a" })).rejects.toThrow("projectId 无效");
     await registration.dispose();
+  });
+
+  it("continues notifying healthy windows when one webContents send throws", () => {
+    const delivered = vi.fn();
+    const onSendError = vi.fn();
+    const update = { projectId: "project-a", chapterId: "chapter-1", revision: 4 };
+
+    broadcastRemotionStudioEditingUpdated([
+      {
+        isDestroyed: () => false,
+        webContents: { send: () => { throw new Error("renderer disposed"); } },
+      },
+      {
+        isDestroyed: () => false,
+        webContents: { send: delivered },
+      },
+      {
+        isDestroyed: () => true,
+        webContents: { send: vi.fn() },
+      },
+    ], update, onSendError);
+
+    expect(delivered).toHaveBeenCalledWith("remotion-studio-editing-updated", update);
+    expect(onSendError).toHaveBeenCalledOnce();
   });
 });

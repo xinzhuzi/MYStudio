@@ -48,13 +48,12 @@ export interface NovelEventAnalysisMessages {
 
 export function buildNovelEventAnalysisMessages(
   chapter: NovelChapter,
-  options?: { bibleContext?: string; prevEventContext?: string; archiveContext?: string },
+  options?: { bibleContext?: string; prevEventContext?: string },
 ): NovelEventAnalysisMessages {
   return {
     system: eventExtractionPrompt,
     user: [
       ...(options?.bibleContext ? [options.bibleContext, ""] : []),
-      ...(options?.archiveContext ? [options.archiveContext, ""] : []),
       ...(options?.prevEventContext
         ? [`上一章事件（衔接参考，保持人物称呼一致）：\n${options.prevEventContext}`, ""]
         : []),

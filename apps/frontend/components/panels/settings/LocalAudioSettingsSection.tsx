@@ -9,7 +9,7 @@ import { cn } from "@/lib/utils";
 import { getStorageManagerBridge } from "@/lib/bridge/storage-manager";
 import { useAudioGenRuntimeSettings } from "./useAudioGenRuntimeSettings";
 import { useMusic3GenRuntimeSettings } from "./useMusic3GenRuntimeSettings";
-import { MUSIC3_MAX_DURATION_S, MUSIC3_MIN_DURATION_S, MUSIC3_PLATFORM_MATRIX } from "@/types/music3-gen";
+import { MUSIC3_MAX_DURATION_S, MUSIC3_MIN_DURATION_S, MUSIC3_PLATFORM_MATRIX, MUSIC3_WEIGHTS_MIN_RAM_GB } from "@/types/music3-gen";
 
 type LocalAudioSettingsSectionProps = {
   embedded?: boolean;
@@ -239,6 +239,62 @@ function AutoInstallMlxServe({ runtime, onInstalled }: { runtime: ReturnType<typ
   );
 }
 
+/** bf16 权重一键获取(ModelScope 全量 → 本地转 MLX → 自动指向;08-19 指向版补权重获取,只用 bf16)。 */
+function InstallWeightsBlock({ runtime }: { runtime: ReturnType<typeof useMusic3GenRuntimeSettings> }) {
+  const install = runtime.status?.mlxServWeightsInstall;
+  const busy = install?.status === "downloading" || install?.status === "converting";
+  const ramGb = runtime.status?.hostTotalRamGb;
+  const ramOk = ramGb == null || ramGb >= MUSIC3_WEIGHTS_MIN_RAM_GB;
+  const [isStarting, setIsStarting] = useState(false);
+
+  const handleStart = async () => {
+    setIsStarting(true);
+    try {
+      await runtime.startWeightsInstall();
+    } finally {
+      setIsStarting(false);
+    }
+  };
+
+  const stageText = (() => {
+    if (install?.status === "downloading") return `下载中 ${Math.round(install.progress)}%(ModelScope 直连,断点续传)`;
+    if (install?.status === "converting") return install.stage === "cleanup" ? "清理源目录…" : "本地转换 MLX bf16(约 1 分钟)…";
+    return "";
+  })();
+
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center justify-between gap-4">
+        <span className="text-xs text-muted-foreground">
+          没有现成权重?一键获取:ModelScope 全量下载(约 28.5 GB)→ 本地转 bf16(落 应用数据/model/minimax/,完成后自动指向)
+        </span>
+        <Button size="sm" variant="outline" onClick={() => void handleStart()} disabled={busy || isStarting || !ramOk}>
+          {busy || isStarting ? (
+            <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden />
+          ) : (
+            <Download className="mr-2 h-4 w-4" aria-hidden />
+          )}
+          {busy ? "获取中…" : "一键获取 bf16 权重"}
+        </Button>
+      </div>
+      <p className="text-xs text-muted-foreground">
+        bf16 全精度,需 48GB+ 内存{ramGb != null ? `(本机 ${ramGb}GB)` : ""};内存不足的机器请使用轻量 MusicGen
+      </p>
+      {busy ? (
+        <div className="space-y-1">
+          <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
+            <div className="h-full bg-primary transition-all" style={{ width: `${Math.min(100, install?.progress ?? 0)}%` }} />
+          </div>
+          <p className="text-xs text-muted-foreground">{stageText}</p>
+        </div>
+      ) : null}
+      {install?.status === "error" && install.error ? (
+        <p className="text-xs text-destructive">{install.error}</p>
+      ) : null}
+    </div>
+  );
+}
+
 /** mlx-serve 指向路线卡片:零拷贝使用本地已转换的 MiniMax-Music3 MLX 权重(08-19-music3-mlxserv-connector)。 */
 function MlxServCard({ runtime, onConfigured }: { runtime: ReturnType<typeof useMusic3GenRuntimeSettings>; onConfigured: () => void }) {
   const mlxServ = runtime.status?.mlxServ;
@@ -331,7 +387,10 @@ function MlxServCard({ runtime, onConfigured }: { runtime: ReturnType<typeof use
       </div>
 
       {!mlxServ.weightsReady ? (
-        <p className="text-xs text-muted-foreground">{mlxServ.weightsReason}</p>
+        <div className="space-y-2">
+          <p className="text-xs text-muted-foreground">{mlxServ.weightsReason}</p>
+          <InstallWeightsBlock runtime={runtime} />
+        </div>
       ) : (
         <p className="text-xs text-green-600 dark:text-green-400">权重完整(直接指向不拷贝,8bit/bf16 均支持)</p>
       )}

@@ -64,6 +64,24 @@ describe("studio novel event analysis", () => {
     expect(withoutBible.user).not.toContain("原著圣经");
   });
 
+  it("只接受一个合并记忆块，不再追加独立 archiveContext", () => {
+    const chapter = {
+      id: "chapter-001",
+      index: 1,
+      volume: "正文卷",
+      title: "第1章 雨夜",
+      sourceText: "王离在雨夜进城。",
+      importedAt: 1710000000000,
+    };
+    const messages = buildNovelEventAnalysisMessages(chapter, {
+      bibleContext: "# 合并记忆块\n\n## 原著档案检索\n- 当前命中",
+      archiveContext: "## 第二个档案块\n- 不应注入",
+    } as never);
+
+    expect(messages.user.match(/原著档案检索/g)).toHaveLength(1);
+    expect(messages.user).not.toContain("第二个档案块");
+  });
+
   it("rolls the previous chapter event line in ahead of the chapter info", () => {
     const chapter = {
       id: "chapter-002",

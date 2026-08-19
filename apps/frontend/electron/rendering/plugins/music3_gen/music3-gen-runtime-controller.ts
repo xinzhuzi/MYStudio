@@ -5,6 +5,7 @@
 // so the IPC timeout is generous and progress is user-observable via exports.
 
 import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import { spawn } from "node:child_process";
 import { execFile } from "node:child_process";
@@ -38,6 +39,12 @@ const MLXSERV_BINARY_CANDIDATES = [
   "/opt/homebrew/bin/mlx-serve",
   "/usr/local/bin/mlx-serve",
 ];
+/** 模型统一落 <userData>/model/<family>/(08-19 用户裁定规范,music/minimax 首个居民)。 */
+const MLXSERV_WEIGHTS_HOME = path.join("model", "minimax");
+const MLXSERV_WEIGHTS_STAGING = ".staging-music3-full";
+const MLXSERV_WEIGHTS_PACK = "music3-mlxserv-bf16";
+/** bf16 档推理内存门槛(实测常驻 34.9GB,留系统余量;防「下完 28.5GB 到生成才爆内存」)。 */
+const MLXSERV_WEIGHTS_MIN_RAM_BYTES = 44 * 1024 ** 3;
 /** MYStudio 管理的 mlx-serve 二进制(自动下载到插件目录;2026-08-19 用户裁定:开箱即用不依赖 brew)。 */
 const MLXSERV_DOWNLOAD_URL = "https://github.com/ddalcu/mlx-serve/releases/download/v26.8.9/mlx-serve-bin-macos-arm64.tar.gz";
 const MLXSERV_MANAGED_DIR_NAME = "mlx-serve-managed";
@@ -60,6 +67,15 @@ export interface MlxServRuntimeStatus {
   binaryFound: boolean;
   serverRunning: boolean;
   serverStarting: boolean;
+}
+
+/** bf16 权重获取流程状态(ModelScope 全量 → 本地转换;后端进度文件驱动)。 */
+export interface MlxServWeightsInstallState {
+  status: "idle" | "downloading" | "converting" | "complete" | "error";
+  progress: number;
+  stage?: string;
+  filename?: string;
+  error?: string;
 }
 
 export type Music3GenSetupStage = "idle" | "checking" | "ready" | "failed";
@@ -94,6 +110,10 @@ export interface Music3GenRuntimeStatus {
   hardwareProfile?: Music3HardwareProfile;
   /** mlx-serve 指向路线状态(08-19-music3-mlxserv-connector) */
   mlxServ?: MlxServRuntimeStatus;
+  /** 权重获取流程状态(08-19:指向版补权重获取,量化两档) */
+  mlxServWeightsInstall?: MlxServWeightsInstallState;
+  /** 宿主总内存(GB,量化档位门禁依据) */
+  hostTotalRamGb?: number;
 }
 
 interface ControllerDeps {
@@ -108,6 +128,8 @@ interface ControllerDeps {
   binaryCandidates?: readonly string[];
   /** 覆盖健康等待预算(单测);默认 MLXSERV_HEALTH_TIMEOUT_MS */
   healthTimeoutMs?: number;
+  /** 覆盖宿主内存探测(单测);默认 os.totalmem() */
+  totalMemBytes?: () => number;
 }
 
 type ExecFileLike = (
@@ -298,6 +320,107 @@ export function createMusic3GenRuntimeController(deps: ControllerDeps) {
       binaryFound: detectBinary() !== null,
       serverRunning: serverState.child !== null && serverState.child.exitCode === null,
       serverStarting: serverState.starting,
+    };
+  }
+
+  // ---- bf16 权重获取流程(08-19:ModelScope 全量 → 本地转 MLX,自动填 weightsDir)----
+
+  function mlxservWeightsProgressFile(): string {
+    return path.join(profileDir(), "mlxserv-weights-progress.json");
+  }
+
+  /** 与后端 install_mlxserv_weights.py 的 5 分钟心跳上限同参。 */
+  const MLXSERV_WEIGHTS_STALE_MS = 5 * 60_000;
+
+  function mlxservWeightsInstallTarget(): { staging: string; pack: string } {
+    const home = path.join(getPaths().storageBasePath, MLXSERV_WEIGHTS_HOME);
+    return { staging: path.join(home, MLXSERV_WEIGHTS_STAGING), pack: path.join(home, MLXSERV_WEIGHTS_PACK) };
+  }
+
+  function readMlxServWeightsInstall(): MlxServWeightsInstallState | undefined {
+    let raw: Partial<MlxServWeightsInstallState> & { updatedAt?: number };
+    try {
+      raw = JSON.parse(fs.readFileSync(mlxservWeightsProgressFile(), "utf8")) as typeof raw;
+    } catch {
+      return undefined;
+    }
+    const status = raw.status;
+    if (status !== "downloading" && status !== "converting" && status !== "complete" && status !== "error") {
+      return undefined;
+    }
+    // 陈旧检测:后端进程心跳停止(应用退出/被杀)超过上限,视为中断而非进行中。
+    if ((status === "downloading" || status === "converting") && typeof raw.updatedAt === "number") {
+      if (Date.now() - raw.updatedAt > MLXSERV_WEIGHTS_STALE_MS) {
+        return {
+          status: "error",
+          progress: typeof raw.progress === "number" ? raw.progress : 0,
+          stage: raw.stage,
+          error: "权重获取已中断(进程心跳停止),可重新发起;已下载部分会断点续传",
+        };
+      }
+    }
+    return {
+      status,
+      progress: typeof raw.progress === "number" ? raw.progress : 0,
+      stage: typeof raw.stage === "string" ? raw.stage : undefined,
+      filename: typeof raw.filename === "string" ? raw.filename : undefined,
+      error: typeof raw.error === "string" ? raw.error : undefined,
+    };
+  }
+
+  function isMlxServWeightsBusy(install: MlxServWeightsInstallState | undefined): boolean {
+    return install?.status === "downloading" || install?.status === "converting";
+  }
+
+  async function installMlxServWeights(): Promise<{ accepted: boolean; message: string }> {
+    // 转换步骤依赖 mlx(Apple Silicon),整条流程只对该平台开放。
+    if (process.platform !== "darwin" || process.arch !== "arm64") {
+      return { accepted: false, message: "权重获取仅支持 Apple Silicon(转换需 MLX)" };
+    }
+    // 内存门禁:bf16 推理常驻≈34.9GB,不够不让下,避免「下完 28.5GB 到生成才爆」
+    // (08-19 用户裁定:本机只用 bf16;不同平台按硬件选模型)。
+    const totalMem = deps.totalMemBytes ? deps.totalMemBytes() : os.totalmem();
+    if (totalMem < MLXSERV_WEIGHTS_MIN_RAM_BYTES) {
+      return {
+        accepted: false,
+        message: `本机内存 ${(totalMem / 1024 ** 3).toFixed(0)} GB 不满足 bf16 权重要求(需 48GB+);请使用轻量 MusicGen`,
+      };
+    }
+    const current = readMlxServWeightsInstall();
+    if (isMlxServWeightsBusy(current)) {
+      return { accepted: false, message: "权重获取已在进行中" };
+    }
+    const { staging, pack } = mlxservWeightsInstallTarget();
+    // 目标产物已完整:直接指向,不重复下载。
+    if (checkWeightsDir(pack).ready) {
+      configureMlxServ({ weightsDir: pack });
+      return { accepted: true, message: `bf16 权重已就绪(${pack}),已自动指向` };
+    }
+    const paths = getPaths();
+    if (!fs.existsSync(paths.pythonExecutable)) {
+      return { accepted: false, message: "共享 Python 3.12 未安装(转换步骤需要 mlx)" };
+    }
+    fs.mkdirSync(staging, { recursive: true });
+    const child = spawnProcess(
+      paths.pythonExecutable,
+      [
+        "-m", "music3_gen.install_mlxserv_weights",
+        "--src", staging,
+        "--out", pack,
+        "--progress", mlxservWeightsProgressFile(),
+      ],
+      { cwd: deps.backendRoot, env: buildEnv(), stdio: ["ignore", "ignore", "ignore"] },
+    );
+    child.on("exit", () => {
+      const after = readMlxServWeightsInstall();
+      if (after?.status === "complete") {
+        // 成功收尾:自动指向新产物(零拷贝,不搬目录)。
+        configureMlxServ({ weightsDir: pack });
+      }
+    });
+    return {
+      accepted: true,
+      message: "bf16 权重获取已开始:ModelScope 全量下载(约 28.5 GB,20 MB/s 直连约 25-40 分钟)→ 本地转 MLX(约 1 分钟);可随时中断,重试断点续传",
     };
   }
 
@@ -728,6 +851,8 @@ export function createMusic3GenRuntimeController(deps: ControllerDeps) {
       modelCacheDir: deps.modelCacheDir?.(),
       hardwareProfile: state.hardwareProfile,
       mlxServ: mlxServStatus(),
+      mlxServWeightsInstall: readMlxServWeightsInstall(),
+      hostTotalRamGb: Math.round(((deps.totalMemBytes ? deps.totalMemBytes() : os.totalmem()) / 1024 ** 3) * 10) / 10,
     };
   }
 
@@ -740,6 +865,7 @@ export function createMusic3GenRuntimeController(deps: ControllerDeps) {
     configureMlxServ,
     stopServer,
     installMlxServeBinary,
+    installMlxServWeights,
   };
 }
 

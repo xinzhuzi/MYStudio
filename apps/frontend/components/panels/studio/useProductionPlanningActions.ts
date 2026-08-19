@@ -26,7 +26,7 @@ import {
   retrieveProjectMemory,
 } from "@/lib/studio/project-memory";
 import { EXTENDED_VISUAL_MANUAL_SEED_ID } from "@/lib/studio/visual-manual-classification";
-import { readBibleWithArchiveContext } from "@/lib/studio/source-memory";
+import { readSourceMemoryActionContext } from "@/lib/studio/source-memory";
 import type { AssetGenerationTask } from "@/lib/studio/asset-generation-orchestrator";
 import type { EntityResolver } from "@/lib/studio/derived-asset-sync";
 import { useCharacterLibraryStore } from "@/stores/library/character-library-store";
@@ -95,16 +95,19 @@ export function useProductionPlanningActions({
         episodeId: targetEpisodeId,
         query: scriptText.slice(0, 240),
       }));
+      const memory = await readSourceMemoryActionContext({
+        projectId,
+        archiveQuery: scriptText.slice(0, 200),
+      });
+      if (!memory.success) {
+        toast.error(memory.error);
+        return;
+      }
       const messages = buildDirectorPlanMessages({
         episodeId: targetEpisodeId,
         scriptText,
         manualContext: [manualContext, projectMemoryContext].filter(Boolean).join("\n\n---\n\n"),
-        // 常驻圣经块 + 原著档案检索合一（检索不可用→零注入零阻断）
-        bibleContext: await readBibleWithArchiveContext({
-          projectId: projectId,
-          storeFallback: store.sourceBible,
-          archiveQuery: scriptText.slice(0, 200),
-        }),
+        bibleContext: memory.context,
       });
       const userContent = userInstruction.trim()
         ? `${messages.user}\n\n【本次节点补充要求】\n${userInstruction.trim()}`
@@ -290,17 +293,21 @@ export function useProductionPlanningActions({
         return;
       }
 
+      const projectId = activeProjectId ?? useProjectStore.getState().activeProjectId ?? "studio-current-project";
+      const memory = await readSourceMemoryActionContext({
+        projectId,
+        archiveQuery: scriptText.slice(0, 200),
+      });
+      if (!memory.success) {
+        toast.error(memory.error);
+        return;
+      }
       const messages = buildStoryboardTableMessages({
         episodeId: targetEpisodeId,
         scriptText,
         scriptPlanContext: formatScriptPlanContext(plan),
         manualContext: buildStoryboardTableManualContext(store.workflowConfig, manualCatalog),
-        // 常驻圣经块 + 原著档案检索合一（检索不可用→零注入零阻断）
-        bibleContext: await readBibleWithArchiveContext({
-          projectId: activeProjectId,
-          storeFallback: store.sourceBible,
-          archiveQuery: scriptText.slice(0, 200),
-        }),
+        bibleContext: memory.context,
       });
       const userContent = userInstruction.trim()
         ? `${messages.user}\n\n【本次节点补充要求】\n${userInstruction.trim()}`

@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { execFile } from "node:child_process";
-import { promisify } from "node:util";
+import { isDeepStrictEqual, promisify } from "node:util";
 import {
   validateHyperFramesOverlayArtifact,
   validateHyperFramesOverlayRequest,
@@ -13,10 +13,12 @@ import {
   buildSharedToolchainEnv,
   probeHyperFramesRuntime,
   resolveVideoWorkflowRuntimePaths,
+  sha256File,
   type VideoWorkflowRuntimePaths,
   type VideoWorkflowRuntimeProbeResult,
 } from "@rendering/plugins/video-workflow/video-workflow-runtime";
 import { writeVideoWorkflowJson } from "@rendering/plugins/video-workflow/video-workflow-artifact-store";
+import { rejectSymlinkComponentsUnderRoot } from "@rendering/plugins/remotion/manifest/remotion-audio-source-verification";
 
 const execFileAsync = promisify(execFile);
 
@@ -55,6 +57,33 @@ function errorMessage(error: unknown): string {
 function safeSegment(value: string, field: string): string {
   if (!/^[A-Za-z0-9._-]+$/.test(value) || value === "." || value === "..") throw new Error(`${field} 不能包含路径分隔符或目录跳转`);
   return value;
+}
+
+function verifyAcceptedArtifactBinding(
+  artifact: HyperFramesOverlayArtifactV1,
+  request: HyperFramesOverlayRequestV1,
+): { code: "artifact-identity-mismatch" | "artifact-output-invalid"; message: string } | undefined {
+  if (artifact.projectId !== request.projectId
+    || artifact.chapterId !== request.chapterId
+    || artifact.revision !== request.revision
+    || artifact.sourceArtifactSha256 !== request.sourceArtifactSha256
+    || artifact.inputSha256 !== request.inputSha256
+    || artifact.alphaFormat !== request.alphaFormat
+    || !isDeepStrictEqual(artifact.windows, request.windows)) {
+    return { code: "artifact-identity-mismatch", message: "HyperFrames artifact identity/windows 与本次请求不一致" };
+  }
+  if (!artifact.outputPath || !path.isAbsolute(artifact.outputPath) || artifact.outputPath !== request.outputPath) {
+    return { code: "artifact-output-invalid", message: "HyperFrames artifact 输出路径与本次请求不一致" };
+  }
+  try {
+    const stat = fs.lstatSync(artifact.outputPath);
+    if (!stat.isFile() || stat.size <= 0 || sha256File(artifact.outputPath) !== artifact.outputSha256) {
+      return { code: "artifact-output-invalid", message: "HyperFrames artifact 输出文件或 SHA-256 无效" };
+    }
+  } catch (error) {
+    return { code: "artifact-output-invalid", message: `HyperFrames artifact 输出验证失败: ${errorMessage(error)}` };
+  }
+  return undefined;
 }
 
 export function buildHyperFramesWorkerArgs(workerPath: string, requestPath: string, outputPath: string): string[] {
@@ -106,14 +135,39 @@ export function createHyperFramesAdapter(options: HyperFramesAdapterOptions) {
   async function renderOverlay(request: HyperFramesOverlayRequestV1): Promise<HyperFramesAdapterResult> {
     const validatedRequest = validateHyperFramesOverlayRequest(request);
     if (!validatedRequest.success) return { state: "blocked", code: "invalid-request", message: validatedRequest.issues.map((item) => `${item.path}: ${item.message}`).join("; ") };
-    const safeProjectId = safeSegment(request.projectId, "projectId");
-    const safeChapterId = safeSegment(request.chapterId, "chapterId");
-    const revisionDir = path.join(options.workspaceRootForProject(safeProjectId), safeChapterId, `r${request.revision}`);
+    let normalizedRequest: HyperFramesOverlayRequestV1;
+    try {
+      const normalized = validateHyperFramesOverlayRequest(JSON.parse(JSON.stringify(validatedRequest.value)) as unknown);
+      if (!normalized.success) return { state: "blocked", code: "invalid-request", message: normalized.issues.map((item) => `${item.path}: ${item.message}`).join("; ") };
+      normalizedRequest = normalized.value;
+    } catch (error) {
+      return { state: "blocked", code: "invalid-request", message: `HyperFrames request 无法规范化为 JSON: ${errorMessage(error)}` };
+    }
+    let safeProjectId: string;
+    let safeChapterId: string;
+    try {
+      safeProjectId = safeSegment(normalizedRequest.projectId, "projectId");
+      safeChapterId = safeSegment(normalizedRequest.chapterId, "chapterId");
+    } catch (error) {
+      return { state: "blocked", code: "invalid-request", message: errorMessage(error) };
+    }
+    const workspaceRoot = options.workspaceRootForProject(safeProjectId);
+    if (!path.isAbsolute(workspaceRoot)) return { state: "blocked", code: "workspace-root-invalid", message: "HyperFrames workspaceRoot 必须是绝对路径" };
+    const revisionDir = path.join(workspaceRoot, safeChapterId, `r${normalizedRequest.revision}`);
+    const extension = normalizedRequest.alphaFormat === "prores-4444-mov" ? "mov" : "webm";
+    const managedOutputPath = path.join(revisionDir, `hyperframes-overlay.${extension}`);
+    if (!path.isAbsolute(normalizedRequest.outputPath) || normalizedRequest.outputPath !== managedOutputPath) {
+      return { state: "blocked", code: "output-path-invalid", message: "HyperFrames outputPath 必须是当前受管章节 revision 输出" };
+    }
     const artifactPath = path.join(revisionDir, "hyperframes-artifact.json");
-    if (request.windows.length === 0) {
-      const artifact = createNoopArtifact(request, now());
+    if (normalizedRequest.windows.length === 0) {
+      const artifact = createNoopArtifact(normalizedRequest, now());
       try {
+        await rejectSymlinkComponentsUnderRoot(workspaceRoot, artifactPath);
+        fs.mkdirSync(revisionDir, { recursive: true });
+        await rejectSymlinkComponentsUnderRoot(workspaceRoot, artifactPath);
         writeVideoWorkflowJson(artifactPath, artifact);
+        await rejectSymlinkComponentsUnderRoot(workspaceRoot, artifactPath);
         return { state: "ready", artifact, artifactPath };
       } catch (error) {
         return { state: "blocked", code: "artifact-write-failed", message: `HyperFrames no-op artifact 写入失败: ${errorMessage(error)}`, artifactPath };
@@ -133,8 +187,18 @@ export function createHyperFramesAdapter(options: HyperFramesAdapterOptions) {
     }
     const requestPath = path.join(revisionDir, "hyperframes-request.json");
     try {
+      await Promise.all([
+        rejectSymlinkComponentsUnderRoot(workspaceRoot, requestPath),
+        rejectSymlinkComponentsUnderRoot(workspaceRoot, artifactPath),
+        rejectSymlinkComponentsUnderRoot(workspaceRoot, managedOutputPath),
+      ]);
       fs.mkdirSync(revisionDir, { recursive: true });
-      fs.writeFileSync(requestPath, `${JSON.stringify(request, null, 2)}\n`, "utf8");
+      await Promise.all([
+        rejectSymlinkComponentsUnderRoot(workspaceRoot, requestPath),
+        rejectSymlinkComponentsUnderRoot(workspaceRoot, artifactPath),
+        rejectSymlinkComponentsUnderRoot(workspaceRoot, managedOutputPath),
+      ]);
+      writeVideoWorkflowJson(requestPath, normalizedRequest);
       await runFile(paths.electronExecutable, buildHyperFramesWorkerArgs(options.workerPath, requestPath, artifactPath), {
         cwd: paths.hyperFramesProfileDir,
         env: buildSharedToolchainEnv(paths, {
@@ -149,10 +213,16 @@ export function createHyperFramesAdapter(options: HyperFramesAdapterOptions) {
         timeout: 30 * 60_000,
         maxBuffer: 8 * 1024 * 1024,
       });
+      await Promise.all([
+        rejectSymlinkComponentsUnderRoot(workspaceRoot, artifactPath),
+        rejectSymlinkComponentsUnderRoot(workspaceRoot, managedOutputPath),
+      ]);
       const parsed = JSON.parse(fs.readFileSync(artifactPath, "utf8")) as unknown;
       const artifact = validateHyperFramesOverlayArtifact(parsed);
       if (!artifact.success) return { state: "blocked", code: "artifact-invalid", message: artifact.issues.map((item) => `${item.path}: ${item.message}`).join("; "), artifactPath };
       if (artifact.value.status !== "accepted") return { state: "blocked", code: "artifact-not-accepted", message: "HyperFrames worker 未返回 accepted artifact", artifactPath };
+      const bindingIssue = verifyAcceptedArtifactBinding(artifact.value, normalizedRequest);
+      if (bindingIssue) return { state: "blocked", ...bindingIssue, artifactPath };
       return { state: "ready", artifact: artifact.value, artifactPath };
     } catch (error) {
       return { state: "blocked", code: "worker-failed", message: `HyperFrames worker 执行失败: ${errorMessage(error)}`, artifactPath };

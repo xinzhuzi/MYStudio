@@ -45,7 +45,7 @@ import {
 import { OVERVIEW_WORKFLOW_GUIDE } from "./workflow-guide";
 import { OVERVIEW_STAGE_GUIDE } from "./stage-guide";
 import { AuthorPreferenceDialog } from "./AuthorPreferenceDialog";
-import { readBibleWithArchiveContext } from "@/lib/studio/source-memory";
+import { readSourceMemoryActionContext } from "@/lib/studio/source-memory";
 import { OverviewAiFill } from "./OverviewAiFill";
 
 /** 工作流门户区头部（两分支共用）：导览标题/摘要 + 进入工作流/查看资产库 CTA。 */
@@ -177,10 +177,12 @@ export function OverviewPanel() {
   // R2:AI 填充素材——只用记忆库(偏好→圣经→档案检索),复用管线注入链。
   // 08-18 裁定对齐:概览不引入章节内容,剧本正文不再作为素材。
   const buildFillContext = useCallback(async (): Promise<string | undefined> => {
-    return readBibleWithArchiveContext({
+    const memory = await readSourceMemoryActionContext({
       projectId,
       archiveQuery: `${meta?.title ?? ""}`.trim().slice(0, 200),
     });
+    if (!memory.success) throw new Error(memory.error);
+    return memory.context;
   }, [projectId, meta?.title]);
 
   if (!meta) {

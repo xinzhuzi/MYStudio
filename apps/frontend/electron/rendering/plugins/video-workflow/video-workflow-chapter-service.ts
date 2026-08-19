@@ -1,5 +1,5 @@
 import path from "node:path";
-import fs from "node:fs";
+import { isDeepStrictEqual } from "node:util";
 import type { EditingProjectV1 } from "@/types/editing";
 import type { RemotionCurrentSlotV1 } from "@/types/remotion-workspace";
 import type {
@@ -20,6 +20,7 @@ import { evaluateRemotionChapterGate } from "@/lib/studio/video-workflow/chapter
 import { defaultCleanRemotionSubtitleAuthority, projectVideoUseArtifactToEditingProject } from "@/lib/studio/video-workflow/editing-project-projection";
 import {
   readVideoWorkflowChapterArtifacts,
+  writeVideoWorkflowJson,
   type VideoWorkflowChapterArtifacts,
   type VideoWorkflowArtifactReadResult,
 } from "./video-workflow-artifact-store";
@@ -216,6 +217,23 @@ export function createVideoWorkflowChapterService(options: VideoWorkflowChapterS
         videoUseArtifactPath: artifacts.value.paths.videoUsePath,
       };
     }
+    try {
+      await synchronizeChapterManifestSourceSnapshot({
+        projectId: input.projectId,
+        chapterId: input.chapterId,
+        project: currentEditingProject,
+        readChapterManifest: options.readChapterManifest,
+        writeChapterManifest: options.writeChapterManifest,
+        now: now(),
+      });
+    } catch (error) {
+      return {
+        success: false,
+        code: "chapter-manifest-sync-failed",
+        message: `章节 manifest 同步失败: ${error instanceof Error ? error.message : String(error)}`,
+        videoUseArtifactPath: artifacts.value.paths.videoUsePath,
+      };
+    }
     // 缺口修复（08-18）：① 产物缺 subtitleAuthority 时补产品默认（clean-remotion）
     // 并回写产物文件，后续重投影不再依赖运行时回退；② 注入当前 shot 槽位，
     // 投影写入身份证据与槽位相对路径。
@@ -223,11 +241,7 @@ export function createVideoWorkflowChapterService(options: VideoWorkflowChapterS
     if (!appliedArtifact.subtitleAuthority) {
       appliedArtifact.subtitleAuthority = defaultCleanRemotionSubtitleAuthority(appliedArtifact, now());
       try {
-        fs.writeFileSync(
-          artifacts.value.paths.videoUsePath,
-          `${JSON.stringify(appliedArtifact, null, 2)}\n`,
-          "utf8",
-        );
+        writeVideoWorkflowJson(artifacts.value.paths.videoUsePath, appliedArtifact);
       } catch (error) {
         return {
           success: false,
@@ -322,33 +336,23 @@ export function createVideoWorkflowChapterService(options: VideoWorkflowChapterS
       return { success: false, code: rendered.code, message: rendered.message, videoUseArtifactPath: artifacts.value.paths.videoUsePath, hyperFramesArtifactPath: rendered.artifactPath };
     }
     try {
-      await synchronizeChapterManifestSourceSnapshot({
-        projectId: input.projectId,
-        chapterId: input.chapterId,
-        project: projection.project,
-        readChapterManifest: options.readChapterManifest,
-        writeChapterManifest: options.writeChapterManifest,
-        now: now(),
-      });
-    } catch (error) {
-      return {
-        success: false,
-        code: "chapter-manifest-sync-failed",
-        message: `章节 manifest 同步失败: ${error instanceof Error ? error.message : String(error)}`,
-        videoUseArtifactPath: artifacts.value.paths.videoUsePath,
-        hyperFramesArtifactPath: rendered.artifactPath ?? artifacts.value.paths.hyperFramesPath,
-      };
-    }
-    try {
       await options.persistEditingProject(projection.project);
     } catch (error) {
-      return {
-        success: false,
-        code: "editing-project-persist-failed",
-        message: `EditingProject 持久化失败: ${error instanceof Error ? error.message : String(error)}`,
-        videoUseArtifactPath: artifacts.value.paths.videoUsePath,
-        hyperFramesArtifactPath: rendered.artifactPath ?? artifacts.value.paths.hyperFramesPath,
-      };
+      let durableProject: EditingProjectV1 | undefined;
+      try {
+        durableProject = await options.getCurrentEditingProject(input);
+      } catch {
+        durableProject = undefined;
+      }
+      if (!durableProject || !isDeepStrictEqual(durableProject, projection.project)) {
+        return {
+          success: false,
+          code: "editing-project-persist-failed",
+          message: `EditingProject 持久化失败: ${error instanceof Error ? error.message : String(error)}`,
+          videoUseArtifactPath: artifacts.value.paths.videoUsePath,
+          hyperFramesArtifactPath: rendered.artifactPath ?? artifacts.value.paths.hyperFramesPath,
+        };
+      }
     }
     return {
       success: true,

@@ -8,6 +8,8 @@ import { ScriptAssetManagementTab } from "./ScriptAssetManagementTab";
 import { ScriptAssetGenerationTab } from "./ScriptAssetGenerationTab";
 import { WorkbenchTab } from "./WorkbenchTab";
 import { collectDerivedAssetGenerationTasks, useProductionPlanningActions } from "./useProductionPlanningActions";
+import { useNovelPipelineActions } from "./useNovelPipelineActions";
+import { useScriptStageActions } from "./useScriptStageActions";
 import { useProjectStore } from "@/stores/project/project-store";
 import { useStudioStore } from "@/stores/studio/studio-store";
 import { useCharacterLibraryStore } from "@/stores/library/character-library-store";
@@ -29,6 +31,7 @@ const assetOrchestratorMocks = vi.hoisted(() => ({
 
 const aiManagerMocks = vi.hoisted(() => ({
   freedomImage: vi.fn(),
+  resolve: vi.fn(),
   text: vi.fn(),
   textStream: vi.fn(),
 }));
@@ -40,6 +43,7 @@ vi.mock("@/lib/studio/asset-generation-orchestrator", () => ({
 vi.mock("@/lib/ai/ai-manager", () => ({
   aiManager: {
     freedomImage: aiManagerMocks.freedomImage,
+    resolve: aiManagerMocks.resolve,
     text: aiManagerMocks.text,
     textStream: aiManagerMocks.textStream,
   },
@@ -68,6 +72,7 @@ afterEach(() => {
   delete (window as any).remotionChapterManifest;
   delete (window as any).remotionStudio;
   delete (window as any).sourceMemory;
+  delete (window as any).fileStorage;
 });
 
 function weakThreeBlockDirectorPlan() {
@@ -208,6 +213,288 @@ describe("workflow stage action surfaces", () => {
     expect(resolveScriptPlanEpisodeId(store)).toBe("chapter-1");
   });
 
+  it("事件批次通过 facade 现读与检索各一次，只注入一个合并记忆块", async () => {
+    installTextCompletionRuntime();
+    aiManagerMocks.resolve.mockReturnValue({});
+    aiManagerMocks.text.mockResolvedValue({
+      success: true,
+      text: "| 第1章 雨夜 | 晏燎 | 晏燎雨夜入城 | 强（主线启动） | 高 | 40秒 | 悬疑 |",
+    });
+    const readText = vi.fn(async () => ({
+      success: true,
+      text: "# 原著圣经\n\n## 一句话主线\n晏燎创建万劫圣宗。\n",
+    }));
+    const search = vi.fn(async () => ({
+      success: true,
+      hits: [{
+        recordId: "r1",
+        kind: "character",
+        title: "晏燎",
+        sourcePath: "novel/chapters/chapter-001.md",
+        sourceSha256: "a".repeat(64),
+        anchor: "chunk-1:第1章",
+        freshness: "fresh",
+        score: -1,
+        snippet: "剑主",
+      }],
+    }));
+    (window as any).projectFiles = { readText };
+    (window as any).sourceMemory = { search };
+    const updateNovelChapter = vi.fn();
+    const { result } = renderHook(() => useNovelPipelineActions({
+      activeProjectId: "dao-project",
+      projectName: "道劫",
+      saveAgentWorkData: vi.fn(),
+      saveEntityExtraction: vi.fn(),
+      updateNovelChapter,
+    }));
+    const chapters = [1, 2].map((index) => ({
+      id: `chapter-00${index}`,
+      index,
+      volume: "正文卷",
+      title: `第${index}章 雨夜`,
+      sourceText: "晏燎雨夜入城。",
+      importedAt: index,
+    }));
+
+    await act(async () => {
+      await result.current.handleNovelEventAnalysis(chapters);
+    });
+
+    expect(readText).toHaveBeenCalledTimes(1);
+    expect(search).toHaveBeenCalledTimes(1);
+    expect(aiManagerMocks.text).toHaveBeenCalledTimes(2);
+    for (const call of aiManagerMocks.text.mock.calls) {
+      const user = String(call[0]?.messages?.[1]?.content);
+      expect(user.match(/## 原著档案检索/g)).toHaveLength(1);
+    }
+    expect((window as any).sourceMemory.build).toBeUndefined();
+    expect(updateNovelChapter).toHaveBeenCalled();
+  });
+
+  it("MEMORY 超限时事件分析在检索和 AI 请求前停止", async () => {
+    installTextCompletionRuntime();
+    aiManagerMocks.resolve.mockReturnValue({});
+    const search = vi.fn(async () => ({ success: true, hits: [] }));
+    (window as any).projectFiles = {
+      readText: vi.fn(async () => ({ success: true, text: "记".repeat(4001) })),
+    };
+    (window as any).sourceMemory = { search };
+    const { result } = renderHook(() => useNovelPipelineActions({
+      activeProjectId: "dao-project",
+      projectName: "道劫",
+      saveAgentWorkData: vi.fn(),
+      saveEntityExtraction: vi.fn(),
+      updateNovelChapter: vi.fn(),
+    }));
+
+    await act(async () => {
+      await result.current.handleNovelEventAnalysis([{
+        id: "chapter-001",
+        index: 1,
+        volume: "正文卷",
+        title: "第1章",
+        sourceText: "正文",
+        importedAt: 1,
+      }]);
+    });
+
+    expect(search).not.toHaveBeenCalled();
+    expect(aiManagerMocks.text).not.toHaveBeenCalled();
+  });
+
+  it("实体提取通过同一 facade 检索一次并在已知实体前注入单块", async () => {
+    useStudioStore.getState().resetStudioWorkflow();
+    useStudioStore.setState({
+      agentWorkData: [{
+        id: "script-draft-1",
+        key: "scriptDraft",
+        episodeId: "chapter-001",
+        data: "晏燎走进道口镇。",
+        createdAt: 1,
+        updatedAt: 1,
+      }],
+      novelChapters: [{
+        id: "chapter-001",
+        index: 1,
+        volume: "正文卷",
+        title: "第1章",
+        sourceText: "晏燎走进道口镇。",
+        importedAt: 1,
+      }],
+      entityExtractions: [],
+    });
+    useCharacterLibraryStore.setState({ characters: [] });
+    useSceneStore.setState({ scenes: [] });
+    usePropsLibraryStore.setState({ items: [] });
+    installTextCompletionRuntime();
+    aiManagerMocks.text.mockResolvedValue({
+      success: true,
+      text: "| character | 晏燎 | | chapter-001 | 剑主 |",
+    });
+    const readText = vi.fn(async () => ({ success: true, text: "# 原著圣经\n\n## 主要人物\n- 晏燎：剑主\n" }));
+    const search = vi.fn(async () => ({
+      success: true,
+      hits: [{
+        recordId: "r1",
+        kind: "character",
+        title: "晏燎",
+        sourcePath: "novel/chapters/chapter-001.md",
+        sourceSha256: "a".repeat(64),
+        anchor: "chunk-1:第1章",
+        freshness: "fresh",
+        score: -1,
+        snippet: "剑主",
+      }],
+    }));
+    (window as any).projectFiles = { readText };
+    (window as any).sourceMemory = { search };
+    const { result } = renderHook(() => useNovelPipelineActions({
+      activeProjectId: "dao-project",
+      projectName: "道劫",
+      saveAgentWorkData: vi.fn(),
+      saveEntityExtraction: vi.fn(),
+      updateNovelChapter: vi.fn(),
+    }));
+
+    await act(async () => {
+      await result.current.handleEntityExtraction("chapter-001");
+    });
+
+    expect(readText).toHaveBeenCalledTimes(1);
+    expect(search).toHaveBeenCalledTimes(1);
+    const user = String(aiManagerMocks.text.mock.calls[0]?.[0]?.messages?.[1]?.content);
+    expect(user.match(/## 原著档案检索/g)).toHaveLength(1);
+    expect(user.indexOf("## 原著档案检索")).toBeLessThan(user.indexOf("已知实体"));
+  });
+
+  it("剧本生成与审核各自现读/检索一次并复用单块上下文", async () => {
+    useStudioStore.getState().resetStudioWorkflow();
+    useProjectStore.setState({ activeProjectId: "dao-project" });
+    const readText = vi.fn(async () => ({ success: true, text: "# 原著圣经\n\n## 一句话主线\n晏燎创建万劫圣宗。\n" }));
+    const search = vi.fn(async () => ({
+      success: true,
+      hits: [{
+        recordId: "r1",
+        kind: "event",
+        title: "雨夜入城",
+        sourcePath: "novel/chapters/chapter-001.md",
+        sourceSha256: "a".repeat(64),
+        anchor: "chunk-1:第1章",
+        freshness: "fresh",
+        score: -1,
+        snippet: "晏燎入城",
+      }],
+    }));
+    (window as any).projectFiles = { readText };
+    (window as any).sourceMemory = { search };
+    aiManagerMocks.textStream.mockResolvedValue({ success: true, text: "<storySkeleton>骨架结果</storySkeleton>" });
+    const chapter = {
+      id: "chapter-001",
+      index: 1,
+      volume: "正文卷",
+      title: "第1章 雨夜",
+      sourceText: "晏燎雨夜入城。",
+      importedAt: 1,
+    };
+    const agentWorkData = [{
+      id: "skeleton-1",
+      key: "storySkeleton" as const,
+      episodeId: chapter.id,
+      data: "已有故事骨架",
+      createdAt: 1,
+      updatedAt: 1,
+    }];
+    const { result } = renderHook(() => useScriptStageActions({
+      workflowConfig: useStudioStore.getState().workflowConfig,
+      manualCatalog: { visual: [] } as any,
+      projectName: "道劫",
+      novelChapterCount: 1,
+      agentWorkData,
+      saveAgentWorkData: vi.fn(),
+    }));
+
+    await act(async () => {
+      await result.current.handleScriptStage("storySkeleton", chapter);
+      await result.current.handleStageReview("storySkeleton", chapter);
+    });
+
+    expect(readText).toHaveBeenCalledTimes(2);
+    expect(search).toHaveBeenCalledTimes(2);
+    expect(aiManagerMocks.textStream).toHaveBeenCalledTimes(2);
+    for (const call of aiManagerMocks.textStream.mock.calls) {
+      const joined = call[0]?.messages?.map((message: { content: string }) => message.content).join("\n") ?? "";
+      expect(joined.match(/## 原著档案检索/g)).toHaveLength(1);
+    }
+  });
+
+  it("分镜表使用项目 store fallback，并在 AI 前现读/检索一次", async () => {
+    useStudioStore.getState().resetStudioWorkflow();
+    useProjectStore.setState({ activeProjectId: "project-fallback" });
+    useStudioStore.setState({
+      agentWorkData: [{
+        id: "script-draft-1",
+        key: "scriptDraft",
+        episodeId: "chapter-001",
+        data: "晏燎雨夜走进道口镇。",
+        createdAt: 1,
+        updatedAt: 1,
+      }],
+      scriptPlans: [{
+        id: "plan-1",
+        episodeId: "chapter-001",
+        sourceId: "chapter-001",
+        revision: 1,
+        theme: "雨夜入城",
+        visualStyle: "水墨",
+        narrativeRhythm: "缓入急收",
+        sceneIntents: [],
+        soundDirection: "雨声",
+        transitions: "硬切",
+        derivedAssetPlan: [],
+      }],
+      novelChapters: [],
+    });
+    installTextCompletionRuntime();
+    const readText = vi.fn(async () => ({ success: true, text: "# 原著圣经\n\n## 一句话主线\n晏燎创建万劫圣宗。\n" }));
+    const search = vi.fn(async () => ({
+      success: true,
+      hits: [{
+        recordId: "r1",
+        kind: "event",
+        title: "雨夜入城",
+        sourcePath: "novel/chapters/chapter-001.md",
+        sourceSha256: "a".repeat(64),
+        anchor: "chunk-1:第1章",
+        freshness: "fresh",
+        score: -1,
+        snippet: "晏燎入城",
+      }],
+    }));
+    (window as any).projectFiles = { readText };
+    (window as any).sourceMemory = { search };
+    aiManagerMocks.text.mockResolvedValue({ success: false, error: "stop-after-message" });
+    const { result } = renderHook(() => useProductionPlanningActions({
+      activeProjectId: undefined,
+      productionEpisodeId: "chapter-001",
+      manualCatalog: { visual: [] } as any,
+      handleStageChange: vi.fn(),
+      saveAgentWorkData: vi.fn(),
+      saveScriptPlan: vi.fn(),
+      saveSeriesBible: vi.fn(),
+    }));
+
+    await act(async () => {
+      await result.current.handleStoryboardTable("chapter-001");
+    });
+
+    expect(readText).toHaveBeenCalledTimes(1);
+    expect(search).toHaveBeenCalledTimes(1);
+    expect(search).toHaveBeenCalledWith("project-fallback", expect.any(String), 4);
+    const system = String(aiManagerMocks.text.mock.calls[0]?.[0]?.messages?.[0]?.content);
+    expect(system.match(/## 原著档案检索/g)).toHaveLength(1);
+  });
+
   it("keeps scene intents and derived assets in the director plan context", () => {
     const context = formatScriptPlanContext({
       id: "plan-1",
@@ -331,6 +618,11 @@ describe("workflow stage action surfaces", () => {
         },
       ],
     }));
+    const readText = vi.fn(async () => ({
+      success: true,
+      text: "# 原著圣经\n\n## 一句话主线\n晏燎创建万劫圣宗。\n\n## 主要人物\n- 晏燎：剑主\n",
+    }));
+    (window as any).projectFiles = { readText };
     (window as any).sourceMemory = {
       build: vi.fn(),
       search,
@@ -374,6 +666,7 @@ describe("workflow stage action surfaces", () => {
     });
 
     // 动作开始检索一次；不可用→零注入零阻断的模式在其它用例（无 sourceMemory 桥）隐式覆盖
+    expect(readText).toHaveBeenCalledTimes(1);
     expect(search).toHaveBeenCalledTimes(1);
     const system = String(aiManagerMocks.textStream.mock.calls[0]?.[0]?.messages?.[0]?.content);
     expect(system).toContain("原著圣经（最高优先级");

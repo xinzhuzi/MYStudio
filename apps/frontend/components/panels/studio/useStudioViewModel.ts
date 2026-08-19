@@ -145,7 +145,7 @@ export function useStudioViewModel() {
     setNovelDraft(text);
   };
 
-  // 原著圣经启动/切项目治愈：store 为空时从项目文件 novel/source-bible.md 回读
+  // 原著圣经启动/切项目治愈：store 为空时从项目唯一常驻层 MEMORY.md 回读
   //（外部编辑器或手工落盘的圣经由此进入应用；store 已有内容时不覆盖）。
   useEffect(() => {
     const projectId = activeProject?.id;

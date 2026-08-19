@@ -1,3 +1,6 @@
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
 import { describe, expect, it, vi } from "vitest";
 import type { EditingProjectV1 } from "@/types/editing";
 import type { RemotionChapterManifestV2 } from "@/types/remotion-workspace";
@@ -126,7 +129,11 @@ describe("video workflow chapter service", () => {
       updatedAt: 1,
     } as unknown as RemotionChapterManifestV2;
     const readChapterManifest = vi.fn(async () => manifest);
-    const writeChapterManifest = vi.fn(async () => undefined);
+    let currentManifest = manifest;
+    const writeChapterManifest = vi.fn(async (request: { expectedRevision: number; manifest: RemotionChapterManifestV2 }) => {
+      expect(request.expectedRevision).toBe(currentManifest.revision);
+      currentManifest = request.manifest;
+    });
     const renderHyperFrames = vi.fn(async () => ({ state: "ready" as const, artifact: noopOverlayArtifact(), artifactPath: "/tmp/hyperframes/c1/r2/hyperframes-artifact.json" }));
     const service = createVideoWorkflowChapterService({
       workspaceRootForProject: () => "/tmp/video-workflow",
@@ -258,6 +265,25 @@ describe("video workflow chapter service", () => {
 
   it("does not report application success when the durable EditingProject revision write fails", async () => {
     const persistEditingProject = vi.fn(async () => { throw new Error("revision conflict"); });
+    const manifest = {
+      schemaVersion: 2,
+      manifestFingerprint: hash,
+      projectId: "p1",
+      chapterId: "c1",
+      revision: 1,
+      sourceSnapshotHash: "c".repeat(64),
+      requiredShotIds: ["shot-1"],
+      sharedAudioBindings: [],
+      shots: [],
+      renderSettings: editingProject().renderSettings,
+      createdAt: 1,
+      updatedAt: 1,
+    } as unknown as RemotionChapterManifestV2;
+    let currentManifest = manifest;
+    const writeChapterManifest = vi.fn(async (request: { expectedRevision: number; manifest: RemotionChapterManifestV2 }) => {
+      expect(request.expectedRevision).toBe(currentManifest.revision);
+      currentManifest = request.manifest;
+    });
     const service = createVideoWorkflowChapterService({
       workspaceRootForProject: () => "/tmp/video-workflow",
       runVideoUse: vi.fn(),
@@ -265,9 +291,82 @@ describe("video workflow chapter service", () => {
       readArtifacts: async () => readableAcceptedArtifacts(),
       getCurrentEditingProject: async () => editingProject(),
       persistEditingProject,
+      readChapterManifest: async () => currentManifest,
+      writeChapterManifest,
+      now: () => 10,
     });
 
     await expect(service.applyAcceptedArtifact(applyInput)).resolves.toMatchObject({ success: false, code: "editing-project-persist-failed" });
     expect(persistEditingProject).toHaveBeenCalledOnce();
+    expect(writeChapterManifest).toHaveBeenCalledOnce();
+    expect(writeChapterManifest).toHaveBeenCalledWith(expect.objectContaining({
+      expectedRevision: 1,
+      manifest: expect.objectContaining({ revision: 2, sourceSnapshotHash: hash }),
+    }));
+    expect(currentManifest).toMatchObject({ revision: 2, sourceSnapshotHash: editingProject().sourceSnapshotHash });
+  });
+
+  it("treats a post-commit persistence error as success only after exact durable readback", async () => {
+    let currentProject = editingProject();
+    const persistEditingProject = vi.fn(async (project: EditingProjectV1) => {
+      currentProject = project;
+      throw new Error("notification failed after rename");
+    });
+    const service = createVideoWorkflowChapterService({
+      workspaceRootForProject: () => "/tmp/video-workflow",
+      runVideoUse: vi.fn(),
+      renderHyperFrames: async () => ({ state: "ready" as const, artifact: noopOverlayArtifact() }),
+      readArtifacts: async () => readableAcceptedArtifacts(),
+      getCurrentEditingProject: async () => currentProject,
+      persistEditingProject,
+    });
+
+    await expect(service.applyAcceptedArtifact(applyInput)).resolves.toMatchObject({ success: true });
+    expect(persistEditingProject).toHaveBeenCalledOnce();
+    expect(currentProject).toMatchObject({ revision: 2 });
+  });
+
+  it("keeps the accepted artifact intact when the subtitle-authority atomic rename fails", async () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), "mystudio-video-use-authority-"));
+    const revisionDir = path.join(root, "c1", "r2");
+    const artifactPath = path.join(revisionDir, "video-use-artifact.json");
+    fs.mkdirSync(revisionDir, { recursive: true });
+    const legacyArtifact = { ...acceptedArtifact(), subtitleAuthority: undefined };
+    const original = `${JSON.stringify(legacyArtifact, null, 2)}\n`;
+    fs.writeFileSync(artifactPath, original, "utf8");
+    const rename = vi.spyOn(fs, "renameSync").mockImplementationOnce(() => {
+      throw new Error("injected rename failure");
+    });
+    try {
+      const service = createVideoWorkflowChapterService({
+        workspaceRootForProject: () => root,
+        runVideoUse: vi.fn(),
+        renderHyperFrames: async () => ({ state: "ready" as const, artifact: noopOverlayArtifact() }),
+        readArtifacts: async () => ({
+          success: true as const,
+          value: {
+            paths: {
+              revisionDir,
+              videoUsePath: artifactPath,
+              hyperFramesRevisionDir: path.join(root, "hyperframes", "c1", "r2"),
+              hyperFramesPath: path.join(root, "hyperframes", "c1", "r2", "hyperframes-artifact.json"),
+            },
+            videoUseArtifact: legacyArtifact,
+          },
+        }),
+        getCurrentEditingProject: async () => editingProject(),
+        persistEditingProject: vi.fn(async () => undefined),
+      });
+
+      await expect(service.applyAcceptedArtifact(applyInput)).resolves.toMatchObject({
+        success: false,
+        code: "video-use-artifact-authority-persist-failed",
+      });
+      expect(fs.readFileSync(artifactPath, "utf8")).toBe(original);
+      expect(() => JSON.parse(fs.readFileSync(artifactPath, "utf8"))).not.toThrow();
+    } finally {
+      rename.mockRestore();
+      fs.rmSync(root, { recursive: true, force: true });
+    }
   });
 });

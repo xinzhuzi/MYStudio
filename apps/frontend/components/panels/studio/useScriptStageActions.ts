@@ -10,7 +10,7 @@ import {
   type ReviewableStage,
   type ScriptStageKey,
 } from "@/lib/studio/script-planning";
-import { readBibleWithArchiveContext } from "@/lib/studio/source-memory";
+import { readSourceMemoryActionContext } from "@/lib/studio/source-memory";
 import {
   buildStudioManualContext,
   type StudioManualCatalog,
@@ -156,9 +156,8 @@ export function useScriptStageActions({
   // 档案不可用→零注入零阻断）。query 传当前章节的事件语境供检索定向。
   const readBibleContext = async (query?: string) => {
     const projectId = useProjectStore.getState().activeProjectId;
-    return readBibleWithArchiveContext({
+    return readSourceMemoryActionContext({
       projectId,
-      storeFallback: useStudioStore.getState().sourceBible,
       archiveQuery: query ?? "",
     });
   };
@@ -197,12 +196,17 @@ export function useScriptStageActions({
         toast.error("请先生成故事骨架与改编策略");
         return;
       }
+      const memory = await readBibleContext(
+        `${chapter.title} ${chapter.eventSummary ?? ""} ${chapter.eventState ?? ""}`,
+      );
+      if (!memory.success) {
+        toast.error(memory.error);
+        return;
+      }
       const built = buildStageMessages(stage, {
         manualContext: scriptStyleSummary,
         directorContext: scriptDirectorContext,
-        originalBibleContext: await readBibleContext(
-          `${chapter.title} ${chapter.eventSummary ?? ""} ${chapter.eventState ?? ""}`,
-        ),
+        originalBibleContext: memory.context,
         chapterTitle: chapter.title,
         chapterText: chapter.sourceText ?? "",
         eventState: chapter.eventState,
@@ -244,11 +248,16 @@ export function useScriptStageActions({
         toast.error(`请先生成${SCRIPT_STAGE_LABEL[stage]}`);
         return;
       }
+      const memory = await readBibleContext(
+        `${chapter.title} ${chapter.eventSummary ?? ""} ${chapter.eventState ?? ""}`,
+      );
+      if (!memory.success) {
+        toast.error(memory.error);
+        return;
+      }
       const built = buildStageReviewMessages(stage, {
         manualContext: scriptStyleSummary,
-        originalBibleContext: await readBibleContext(
-          `${chapter.title} ${chapter.eventSummary ?? ""} ${chapter.eventState ?? ""}`,
-        ),
+        originalBibleContext: memory.context,
         chapterTitle: chapter.title,
         chapterText: chapter.sourceText ?? "",
         eventState: chapter.eventState,

@@ -6,6 +6,7 @@ import {
   buildIndexSqlite,
   chunkMarkdown,
   cjkBigramTokens,
+  inspectIndexSqlite,
   searchIndexSqlite,
 } from "./source-memory-index";
 
@@ -40,6 +41,9 @@ describe("index + search（真实 node:sqlite）", () => {
             sourceSha256: "a".repeat(64),
             anchor: "主角",
             createdAt: "2026-08-17T00:00:00Z",
+            updatedAt: "2026-08-17T00:00:00Z",
+            freshness: "fresh",
+            extractorVersion: "raw-v1",
             body: "灭族孤儿晏燎创万劫圣宗，推翻天庭灵石霸权",
           },
           {
@@ -50,17 +54,31 @@ describe("index + search（真实 node:sqlite）", () => {
             sourceSha256: "b".repeat(64),
             anchor: "第一章",
             createdAt: "2026-08-17T00:00:00Z",
+            updatedAt: "2026-08-17T00:00:00Z",
+            freshness: "fresh",
+            extractorVersion: "raw-v1",
             body: "道口镇血祭之夜，晏燎在雨中出逃",
           },
         ],
         db,
+        { buildId: "build-a", indexVersion: 1 },
       );
-      const hits = searchIndexSqlite(db, "晏燎 万劫圣宗", 4);
+      const result = searchIndexSqlite(db, "晏燎 万劫圣宗", 4);
+      expect(result.success).toBe(true);
+      const hits = result.success ? result.hits : [];
       expect(hits.length).toBeGreaterThan(0);
       expect(hits.some((h) => h.sourcePath.includes("MEMORY.md"))).toBe(true);
       expect(hits[0]?.snippet.length).toBeGreaterThan(0);
-      expect(searchIndexSqlite(db, "不存在的人名", 4)).toEqual([]);
-      expect(searchIndexSqlite(join(dir, "missing.sqlite"), "晏燎")).toEqual([]);
+      expect(hits.every((hit) => hit.sourceSha256 && hit.freshness === "fresh")).toBe(true);
+      expect(searchIndexSqlite(db, "不存在的人名", 4)).toMatchObject({ success: true, hits: [] });
+      expect(searchIndexSqlite(join(dir, "missing.sqlite"), "晏燎")).toMatchObject({
+        success: false,
+        code: "index-open-failed",
+      });
+      expect(inspectIndexSqlite(db, { buildId: "build-a", indexVersion: 1, recordCount: 2 })).toEqual({
+        success: true,
+        meta: { buildId: "build-a", indexVersion: 1, recordCount: 2 },
+      });
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }

@@ -8,7 +8,7 @@
 //   video-use/<chapterId>/r<rev>/                            主进程 owner: video-workflow-artifact-store
 //   remotion/{audio,chapters,outputs,jobs,evidence}/<chapterId>/  主进程 owner: remotion-*-service / remotion-current-paths
 //   novel/chapters/<chapterId>.md                            owner: lib/studio/novel
-//   novel/source-memory/MEMORY.md                            owner: lib/studio/source-bible（单一常驻层,注入/编辑现读;旧 novel/source-bible.md 只读兼容回退）
+//   novel/source-memory/MEMORY.md                            owner: lib/studio/source-bible（唯一常驻层，注入/编辑现读）
 //
 // 清洗策略刻意不统一:本模块的 safePathSegment 是渲染端宽容替换(允许中文,改写非法字符);
 // 主进程 IPC 边界的 fail-closed 校验器(video-workflow-artifact-store 的 safeSegment、

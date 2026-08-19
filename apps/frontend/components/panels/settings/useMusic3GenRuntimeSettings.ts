@@ -9,6 +9,7 @@ interface Music3GenBridge {
   downloadModel: (model: string) => Promise<{ accepted: boolean; message: string }>;
   configure: (payload: { weightsDir?: string; binaryPath?: string; port?: number; preferredEngine?: "pocket" | "mlxserv" }) => Promise<unknown>;
   installMlxServeBinary?: () => Promise<{ installed: boolean; path?: string; error?: string }>;
+  installWeights?: () => Promise<{ accepted: boolean; message: string }>;
   generate: (payload: { prompt: string; seed?: number; seconds?: number; steps?: number; engine?: "pocket" | "mlxserv"; outputDir: string }) => Promise<{ status: string; outputPath?: string; code?: string; message?: string; engine?: string }>;
 }
 
@@ -16,6 +17,12 @@ function getMusic3GenBridge(): Music3GenBridge | undefined {
   return typeof window !== "undefined"
     ? (window as { music3GenRuntime?: Music3GenBridge }).music3GenRuntime
     : undefined;
+}
+
+/** 权重获取进行中(下载/转换阶段都算)。 */
+function isWeightsInstalling(status: Music3GenRuntimeStatus | null): boolean {
+  const install = status?.mlxServWeightsInstall;
+  return install?.status === "downloading" || install?.status === "converting";
 }
 
 /** Settings hook for the MiniMax-Music3 engine (设置 → 本地配置 → 本地音乐生成·MiniMax 引擎). */
@@ -32,28 +39,40 @@ export function useMusic3GenRuntimeSettings() {
     pollRef.current = null;
   }, []);
 
+  const beginPolling = useCallback(() => {
+    stopPolling();
+    pollRef.current = window.setInterval(() => {
+      bridge?.status()
+        .then((polled) => {
+          setStatus(polled);
+          if (polled.downloadStatus !== "downloading" && !isWeightsInstalling(polled)) {
+            stopPolling();
+            if (polled.downloadStatus === "complete") toast.success("MiniMax-Music3 就绪");
+            if (polled.downloadStatus === "error") toast.error(polled.downloadError || "模型下载失败");
+            const weights = polled.mlxServWeightsInstall;
+            if (weights?.status === "complete") toast.success("bf16 权重已就绪(已自动指向)");
+            if (weights?.status === "error") toast.error(weights.error || "bf16 权重获取失败");
+          }
+        })
+        .catch(() => undefined);
+    }, 1200);
+  }, [bridge, stopPolling]);
+
   useEffect(() => {
     if (!bridge) return;
     let cancelled = false;
     bridge.status().then((next) => {
       if (cancelled) return;
       setStatus(next);
-      if (next.downloadStatus === "downloading") {
-        pollRef.current = window.setInterval(() => {
-          bridge.status()
-            .then((polled) => {
-              setStatus(polled);
-              if (polled.downloadStatus !== "downloading") stopPolling();
-            })
-            .catch(() => undefined);
-        }, 1200);
+      if (next.downloadStatus === "downloading" || isWeightsInstalling(next)) {
+        beginPolling();
       }
     }).catch(() => undefined);
     return () => {
       cancelled = true;
       stopPolling();
     };
-  }, [bridge, stopPolling]);
+  }, [bridge, stopPolling, beginPolling]);
 
   const setupRuntime = useCallback(async () => {
     if (!bridge) return;
@@ -81,29 +100,34 @@ export function useMusic3GenRuntimeSettings() {
       return;
     }
     toast.info("MiniMax-Music3 开始下载(约 12 GB,自含运行时代码+权重)");
-    stopPolling();
-    pollRef.current = window.setInterval(() => {
-      bridge.status()
-        .then((polled) => {
-          setStatus(polled);
-          if (polled.downloadStatus !== "downloading") {
-            stopPolling();
-            if (polled.downloadStatus === "complete") toast.success("MiniMax-Music3 就绪");
-            if (polled.downloadStatus === "error") toast.error(polled.downloadError || "模型下载失败");
-          }
-        })
-        .catch(() => undefined);
-    }, 1200);
-  }, [bridge, stopPolling]);
+    beginPolling();
+  }, [bridge, beginPolling]);
+
+  /** bf16 权重获取(ModelScope 全量 → 本地转 MLX → 自动指向)。 */
+  const startWeightsInstall = useCallback(async () => {
+    if (!bridge?.installWeights) {
+      toast.error("当前版本不支持权重获取,请升级应用");
+      return;
+    }
+    const result = await bridge.installWeights();
+    if (!result.accepted) {
+      toast.error(result.message);
+      return;
+    }
+    toast.info(result.message);
+    beginPolling();
+  }, [bridge, beginPolling]);
 
   const refreshStatus = useCallback(async () => {
     if (!bridge) return;
     try {
-      setStatus(await bridge.status());
+      const next = await bridge.status();
+      setStatus(next);
+      if (isWeightsInstalling(next)) beginPolling();
     } catch {
       // 状态刷新失败保持现状
     }
-  }, [bridge]);
+  }, [bridge, beginPolling]);
 
-  return { hasRuntime, status, isSettingUp, setupRuntime, startDownload, refreshStatus, bridge };
+  return { hasRuntime, status, isSettingUp, setupRuntime, startDownload, startWeightsInstall, refreshStatus, bridge };
 }

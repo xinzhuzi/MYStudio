@@ -41,6 +41,15 @@ export interface MlxServRuntimeStatus {
   serverStarting: boolean;
 }
 
+/** bf16 权重获取流程状态(ModelScope 全量 → 本地转换;08-19 指向版补权重获取)。 */
+export interface MlxServWeightsInstallState {
+  status: "idle" | "downloading" | "converting" | "complete" | "error";
+  progress: number;
+  stage?: string;
+  filename?: string;
+  error?: string;
+}
+
 export interface Music3GenRuntimeStatus {
   setupStage: Music3GenSetupStage;
   setupMessage: string | undefined;
@@ -53,7 +62,14 @@ export interface Music3GenRuntimeStatus {
   hardwareProfile?: Music3HardwareProfile;
   /** mlx-serve 8bit 指向路线状态 */
   mlxServ?: MlxServRuntimeStatus;
+  /** 权重获取流程状态 */
+  mlxServWeightsInstall?: MlxServWeightsInstallState;
+  /** 宿主总内存(GB,量化档位门禁依据) */
+  hostTotalRamGb?: number;
 }
+
+/** bf16 权重获取内存门槛(GB;与主进程 MLXSERV_WEIGHTS_MIN_RAM_BYTES 同参,改动须两处同步)。 */
+export const MUSIC3_WEIGHTS_MIN_RAM_GB = 44;
 
 /** 平台×模型矩阵(设置页展示口径;官方 CUDA 路线本应用不代管) */
 export const MUSIC3_PLATFORM_MATRIX: ReadonlyArray<{

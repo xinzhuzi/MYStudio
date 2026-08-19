@@ -4,6 +4,7 @@ import {
   buildExtractionMessages,
   parseExtractionRecords,
   readBibleWithArchiveContext,
+  readSourceMemoryActionContext,
   retrieveArchiveContext,
   runSourceMemoryExtraction,
 } from "./source-memory";
@@ -279,6 +280,12 @@ describe("runSourceMemoryExtraction 编排", () => {
 });
 
 describe("检索门面（L3）", () => {
+  const installResidentMemory = (text: string) => {
+    const readText = vi.fn(async () => ({ success: true, text }));
+    (window as unknown as { projectFiles?: unknown }).projectFiles = { readText };
+    return readText;
+  };
+
   afterEach(() => {
     delete (window as unknown as { sourceMemory?: unknown }).sourceMemory;
     delete (window as unknown as { projectFiles?: unknown }).projectFiles;
@@ -286,8 +293,8 @@ describe("检索门面（L3）", () => {
   });
 
   it("桥可用且命中 → 单块档案检索文本；圣经块追加其后", async () => {
-    (window as unknown as { sourceMemory?: unknown }).sourceMemory = {
-      search: vi.fn(async () => ({
+    const readText = installResidentMemory("# 原著圣经\n\n## 主要人物\n- 晏燎：剑主\n");
+    const search = vi.fn(async () => ({
         success: true,
         hits: [
           {
@@ -295,12 +302,16 @@ describe("检索门面（L3）", () => {
             kind: "character",
             title: "晏燎",
             sourcePath: "novel/chapters/chapter-001.md",
+            sourceSha256: "a".repeat(64),
             anchor: "第1章",
+            freshness: "fresh" as const,
             score: -1,
             snippet: "剑主，夜访道口镇",
           },
         ],
-      })),
+      }));
+    (window as unknown as { sourceMemory?: unknown }).sourceMemory = {
+      search,
     };
     const archive = await retrieveArchiveContext({ projectId: "p1", query: "晏燎" });
     expect(archive).toContain("## 原著档案检索");
@@ -308,13 +319,14 @@ describe("检索门面（L3）", () => {
 
     const combined = await readBibleWithArchiveContext({
       projectId: "p1",
-      storeFallback: "# 原著圣经\n\n## 主要人物\n- 晏燎：剑主\n",
       archiveQuery: "晏燎",
     });
     // 常驻块唯一：圣经优先级头在前，档案检索追加其后
     expect(combined!.indexOf("原著圣经（最高优先级")).toBeGreaterThanOrEqual(0);
     expect(combined!.indexOf("## 原著档案检索")).toBeGreaterThan(combined!.indexOf("原著圣经（最高优先级"));
     expect(combined!.match(/原著档案检索/g)).toHaveLength(1);
+    expect(readText).toHaveBeenCalledTimes(1);
+    expect(search).toHaveBeenCalledTimes(2);
   });
 
   it("无桥 / 检索抛错 / 零命中 → undefined 零注入零阻断", async () => {
@@ -332,12 +344,55 @@ describe("检索门面（L3）", () => {
   });
 
   it("空圣经空档案 → undefined（空值逐字节兼容）", async () => {
+    installResidentMemory("");
     expect(
-      await readBibleWithArchiveContext({ projectId: "p1", storeFallback: "", archiveQuery: "x" }),
+      await readBibleWithArchiveContext({ projectId: "p1", archiveQuery: "x" }),
     ).toBeUndefined();
   });
 
+  it("动作 facade 每次 resident/search 各一次，返回可判别 archive 状态", async () => {
+    const readText = installResidentMemory("# 原著圣经\n\n## 一句话主线\n主线\n");
+    const search = vi.fn(async () => ({ success: true, hits: [] }));
+    (window as unknown as { sourceMemory?: unknown }).sourceMemory = { search };
+
+    const result = await readSourceMemoryActionContext({
+      projectId: "p1",
+      archiveQuery: "晏燎",
+    });
+
+    expect(result).toMatchObject({ success: true, archiveStatus: "empty" });
+    expect(readText).toHaveBeenCalledTimes(1);
+    expect(search).toHaveBeenCalledTimes(1);
+  });
+
+  it("常驻 MEMORY 超过 4000 字符时 facade 显式失败且 AI 前不检索", async () => {
+    installResidentMemory("记".repeat(4001));
+    const search = vi.fn(async () => ({ success: true, hits: [] }));
+    (window as unknown as { sourceMemory?: unknown }).sourceMemory = { search };
+
+    const result = await readSourceMemoryActionContext({
+      projectId: "p1",
+      archiveQuery: "晏燎",
+    });
+
+    expect(result).toMatchObject({ success: false, code: "resident-memory-too-large" });
+    expect(search).not.toHaveBeenCalled();
+  });
+
+  it("stale 档案不注入旧命中并返回 stale 状态", async () => {
+    installResidentMemory("# 原著圣经\n\n## 一句话主线\n当前主线\n");
+    (window as unknown as { sourceMemory?: unknown }).sourceMemory = {
+      search: vi.fn(async () => ({ success: false, hits: [], degradedReason: "sources-stale" })),
+    };
+
+    const result = await readSourceMemoryActionContext({ projectId: "p1", archiveQuery: "旧事实" });
+    expect(result).toMatchObject({ success: true, archiveStatus: "stale" });
+    expect(result.success && result.context).toContain("当前主线");
+    expect(result.success && result.context).not.toContain("原著档案检索");
+  });
+
   it("作者偏好排在合并块最前：偏好→圣经→档案；空偏好零痕迹", async () => {
+    installResidentMemory("# 原著圣经\n\n## 一句话主线\n主线\n");
     (window as unknown as { sourceMemory?: unknown }).sourceMemory = {
       search: vi.fn(async () => ({
         success: true,
@@ -347,7 +402,9 @@ describe("检索门面（L3）", () => {
             kind: "character",
             title: "晏燎",
             sourcePath: "novel/chapters/chapter-001.md",
+            sourceSha256: "a".repeat(64),
             anchor: "第1章",
+            freshness: "fresh" as const,
             score: -1,
             snippet: "剑主",
           },
@@ -359,7 +416,6 @@ describe("检索门面（L3）", () => {
     };
     const combined = await readBibleWithArchiveContext({
       projectId: "p1",
-      storeFallback: "# 原著圣经\n\n## 一句话主线\n主线\n",
       archiveQuery: "晏燎",
     });
     expect(combined!.indexOf("# 作者偏好（改编口味")).toBeGreaterThanOrEqual(0);
@@ -373,7 +429,6 @@ describe("检索门面（L3）", () => {
     };
     const baseline = await readBibleWithArchiveContext({
       projectId: "p1",
-      storeFallback: "# 原著圣经\n\n## 一句话主线\n主线\n",
       archiveQuery: "晏燎",
     });
     expect(baseline).not.toContain("作者偏好");

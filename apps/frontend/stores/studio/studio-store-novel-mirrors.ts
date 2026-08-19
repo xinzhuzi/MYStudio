@@ -42,7 +42,7 @@ export function removeNovelChapterMirrors(
   }
 }
 
-/** 原著圣经保存时同步项目内 Markdown 镜像（novel/source-bible.md），文件随项目目录走。 */
+/** 原著圣经保存时同步唯一常驻层 MEMORY.md，文件随项目目录走。 */
 export function syncSourceBibleMirror(
   projectId: string | null | undefined,
   text: string,
@@ -56,7 +56,7 @@ export function syncSourceBibleMirror(
     });
 }
 
-/** 启动/切项目治愈：store 圣经为空时从项目文件回读（新路径→旧路径兼容，外部编辑可被拾取）。 */
+/** 启动/切项目治愈：store 圣经为空时只从 MEMORY.md 回读，外部编辑可被拾取。 */
 export async function loadSourceBibleMirror(
   projectId: string | null | undefined,
   projectFiles: NovelMirrorFiles | undefined,

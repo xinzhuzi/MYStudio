@@ -142,6 +142,7 @@ export function StudioView() {
                 remotionShotSlots={viewModel.remotionShotSlots ?? []}
               />
             </TabsContent>
+
           </div>
         </ScrollArea>
       </Tabs>

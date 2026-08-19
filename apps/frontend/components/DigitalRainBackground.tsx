@@ -8,7 +8,7 @@ import { useThemeStore } from "@/stores/app/theme-store";
  * DigitalRainBackground — 黑客帝国机械波浪式数字雨背景。
  *
  * 设计要点：
- * - 竖向字符瀑布流（半角片假名 + 数字 + 十六进制符号），每列独立速度。
+ * - 竖向字符瀑布流（英文字母 + 数字），每列独立速度。
  * - 左右方向的正弦波浪式明暗起伏（机械波浪感），周期 ~8s。
  * - 拖尾效果：每帧用半透明背景色覆盖而非 clearRect。
  * - 头部字符高亮，拖尾逐级衰减。
@@ -42,7 +42,7 @@ interface RainColumn {
   wavePhase: number;
 }
 
-const CHARSET = "ｱｲｳｴｵｶｷｸｹｺｻｼｽｾｿﾀﾁﾂﾃﾄﾅﾆﾇﾈﾉﾊﾋﾌﾍﾎﾏﾐﾑﾒﾓﾔﾕﾖﾗﾘﾙﾚﾛﾜﾝ0123456789ABCDEF";
+const CHARSET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
 
 const COLUMN_WIDTH = 18; // px
 const FONT_SIZE = 14; // px

@@ -26,10 +26,13 @@ import {
   assertFormalSlotSourceInventory,
   finishFormalRenderer,
   hashFormalRawFileSha256,
+  runAcceptedFormalRenderer,
+  resolveFormalArtifactRevisionRoots,
   resolveInstalledRemotionWorkerPath,
   resolveFormalElectronMain,
   resolveFormalProjectRoot,
   resolveFormalRevision,
+  resolveFormalSourceRunDir,
   resolveFormalSlotSourceRoot,
   resolveFormalTimelinePlanPath,
 } from "./render-accepted-full-pipeline";
@@ -173,11 +176,30 @@ describe("formal installed runtime lifecycle", () => {
       .toBe("/source-run/timeline-render-plan.json");
   });
 
-  it("accepts a current formal revision override while preserving the historical default", () => {
-    expect(resolveFormalRevision()).toBe(23);
+  it("requires an explicit current formal revision instead of reusing historical evidence", () => {
+    expect(() => resolveFormalRevision()).toThrow("MYSTUDIO_FORMAL_REVISION is required");
     expect(resolveFormalRevision(" 3 ")).toBe(3);
     expect(() => resolveFormalRevision("0")).toThrow("positive integer");
     expect(() => resolveFormalRevision("3.5")).toThrow("positive integer");
+  });
+
+  it("resolves video-use and HyperFrames artifacts from the current split workspace roots", () => {
+    expect(resolveFormalArtifactRevisionRoots({
+      productionProjectRoot: "/external/MA",
+      chapterId: "chapter-001",
+      revision: 43,
+    })).toEqual({
+      videoUseRevisionRoot: "/external/MA/video-use/chapter-001/r43",
+      hyperFramesRevisionRoot: "/external/MA/hyperframes/chapter-001/r43",
+    });
+  });
+
+  it("requires an explicit source run unless the exact timeline plan is provided", () => {
+    expect(resolveFormalSourceRunDir({ explicitSourceRun: "/source/current" }))
+      .toBe("/source/current");
+    expect(resolveFormalSourceRunDir({ explicitPlanPath: "/evidence/current/timeline-render-plan.json" }))
+      .toBe("/evidence/current");
+    expect(() => resolveFormalSourceRunDir({})).toThrow("MYSTUDIO_FORMAL_SOURCE_RUN or MYSTUDIO_FORMAL_TIMELINE_PLAN is required");
   });
 
   it("keeps an explicit slot source root separate from the production Remotion fallback", () => {
@@ -206,6 +228,44 @@ describe("formal installed runtime lifecycle", () => {
     }
   });
 
+  it("writes failure evidence when required formal inputs are missing", async () => {
+    const appsRoot = fs.mkdtempSync(path.join(os.tmpdir(), "mystudio-formal-input-failure-"));
+    const previousBridge = globalThis.__MYSTUDIO_FORMAL_ELECTRON_MAIN__;
+    const previousAppsRoot = process.env.MYSTUDIO_APPS_ROOT;
+    const previousRevision = process.env.MYSTUDIO_FORMAL_REVISION;
+    const previousSourceRun = process.env.MYSTUDIO_FORMAL_SOURCE_RUN;
+    const previousPlan = process.env.MYSTUDIO_FORMAL_TIMELINE_PLAN;
+    const previousExitCode = process.exitCode;
+    const exit = vi.fn();
+    try {
+      globalThis.__MYSTUDIO_FORMAL_ELECTRON_MAIN__ = {
+        app: { exit } as never,
+        utilityProcess: {} as never,
+      };
+      process.env.MYSTUDIO_APPS_ROOT = appsRoot;
+      delete process.env.MYSTUDIO_FORMAL_REVISION;
+      delete process.env.MYSTUDIO_FORMAL_SOURCE_RUN;
+      delete process.env.MYSTUDIO_FORMAL_TIMELINE_PLAN;
+
+      await runAcceptedFormalRenderer();
+
+      const automationRoot = path.join(appsRoot, "output", "automation");
+      const [runName] = fs.readdirSync(automationRoot);
+      expect(runName).toMatch(/^formal-renderer-/);
+      const failure = JSON.parse(fs.readFileSync(path.join(automationRoot, runName!, "failure.json"), "utf8")) as { message: string };
+      expect(failure.message).toContain("MYSTUDIO_FORMAL_REVISION is required");
+      expect(exit).toHaveBeenCalledWith(1);
+    } finally {
+      globalThis.__MYSTUDIO_FORMAL_ELECTRON_MAIN__ = previousBridge;
+      restoreEnv("MYSTUDIO_APPS_ROOT", previousAppsRoot);
+      restoreEnv("MYSTUDIO_FORMAL_REVISION", previousRevision);
+      restoreEnv("MYSTUDIO_FORMAL_SOURCE_RUN", previousSourceRun);
+      restoreEnv("MYSTUDIO_FORMAL_TIMELINE_PLAN", previousPlan);
+      process.exitCode = previousExitCode;
+      fs.rmSync(appsRoot, { recursive: true, force: true });
+    }
+  });
+
   it("fails clearly when the Electron-hosted bootstrap did not inject main-process APIs", () => {
     expect(() => resolveFormalElectronMain(undefined)).toThrow("Electron main bridge is unavailable");
   });
@@ -222,6 +282,11 @@ describe("formal installed runtime lifecycle", () => {
     }
   });
 });
+
+function restoreEnv(name: string, value: string | undefined): void {
+  if (value === undefined) delete process.env[name];
+  else process.env[name] = value;
+}
 
 describe("projectAcceptedTimelinePlan", () => {
   it("maps every accepted relative visual path through project-file URLs", () => {

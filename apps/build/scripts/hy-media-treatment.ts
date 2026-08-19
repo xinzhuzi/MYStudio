@@ -11,6 +11,7 @@
  */
 import fs from "node:fs";
 import path from "node:path";
+import { spawnSync } from "node:child_process";
 import { buildHyperFramesCompositionHtml } from "@rendering/plugins/hyperframes/hyperframes-worker";
 
 const HY = "/Users/zhengbingjin/Library/Application Support/漫影工作室/hyperframes-profile/node_modules/hyperframes/bin/hyperframes.mjs";
@@ -48,7 +49,6 @@ function buildTreatmentCompositionHtml(): string {
 }
 
 function run(cmd: string, args: string[], opts: { cwd?: string } = {}): string {
-  const { spawnSync } = require("node:child_process") as typeof import("node:child_process");
   const r = spawnSync(cmd, args, { cwd: opts.cwd, encoding: "utf8" });
   if (r.status !== 0) {
     throw new Error(`${cmd} 失败(${r.status}): ${(r.stderr || r.stdout || "").slice(0, 400)}`);
@@ -87,7 +87,6 @@ async function main() {
     run("ffmpeg", ["-y", "-loglevel", "error", "-ss", "0.5", "-i", path.join(WORK, `${id}.mp4`),
       "-vframes", "1", frame]);
     if (!fs.existsSync(orig)) run("ffmpeg", ["-y", "-loglevel", "error", "-i", path.join(project, "frame.png"), "-pix_fmt", "yuv420p", orig]);
-    const { spawnSync } = require("node:child_process") as typeof import("node:child_process");
     const ssimR = spawnSync("ffmpeg", ["-i", orig, "-i", frame, "-filter_complex", "ssim", "-f", "null", "-"], { encoding: "utf8" });
     const m = /SSIM.*All:[\d.]+ \(([^\)]+)\)/.exec(ssimR.stderr || "");
     report.push({ id, ssim: m ? m[1] : "?" });

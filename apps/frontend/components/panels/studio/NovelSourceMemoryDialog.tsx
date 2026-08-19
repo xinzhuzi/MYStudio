@@ -23,6 +23,7 @@ const STATUS_LABEL: Record<string, string> = {
   idle: "未构建",
   ready: "就绪",
   partial: "部分完成",
+  stale: "已过期",
   failed: "失败",
 };
 
@@ -30,6 +31,7 @@ const STATUS_CLASS: Record<string, string> = {
   idle: "border-border bg-muted text-muted-foreground",
   ready: "border-emerald-500/40 bg-emerald-500/10 text-emerald-400",
   partial: "border-amber-500/40 bg-amber-500/10 text-amber-400",
+  stale: "border-orange-500/40 bg-orange-500/10 text-orange-400",
   failed: "border-red-500/40 bg-red-500/10 text-red-400",
 };
 
@@ -52,7 +54,9 @@ export function NovelSourceMemoryDialog(props: {
 }) {
   const bridge = getSourceMemoryBridge();
   const [status, setStatus] = useState<SourceMemoryStatusReply | null>(null);
+  const [rawBuilding, setRawBuilding] = useState(false);
   const [rebuilding, setRebuilding] = useState(false);
+  const [recovering, setRecovering] = useState(false);
   const [progress, setProgress] = useState<SourceMemoryExtractionProgress | null>(null);
   const [summary, setSummary] = useState<SourceMemoryExtractionSummary | null>(null);
   const [searchText, setSearchText] = useState("");
@@ -62,15 +66,39 @@ export function NovelSourceMemoryDialog(props: {
   const refreshStatus = useCallback(async () => {
     if (!bridge || !props.projectId) return;
     try {
-      setStatus(await bridge.status(props.projectId));
+      const next = await bridge.status(props.projectId);
+      setStatus(next);
+      if (!next.success || next.status === "stale" || next.status === "failed") setSearchHits([]);
     } catch {
       setStatus({ success: false });
+      setSearchHits([]);
     }
   }, [bridge, props.projectId]);
 
   useEffect(() => {
     if (props.open) void refreshStatus();
   }, [props.open, refreshStatus]);
+
+  const handleRawBuild = useCallback(async () => {
+    if (!props.projectId || !bridge) return;
+    setRawBuilding(true);
+    setSummary(null);
+    try {
+      const result = await bridge.build(props.projectId);
+      if (!result.success) {
+        toast.error(`原始档案重建失败：${result.error ?? "未知错误"}`);
+      } else if (result.plan?.chunks.length) {
+        toast.warning(`原始档案已更新，${result.plan.changedSources} 个章节等待智能抽取`);
+      } else {
+        toast.success("原始档案已是最新");
+      }
+      await refreshStatus();
+    } catch (error) {
+      toast.error(`原始档案重建失败：${error instanceof Error ? error.message : String(error)}`);
+    } finally {
+      setRawBuilding(false);
+    }
+  }, [bridge, props.projectId, refreshStatus]);
 
   const handleRebuild = useCallback(async () => {
     if (!props.projectId || !bridge) return;
@@ -120,6 +148,21 @@ export function NovelSourceMemoryDialog(props: {
     }
   }, [bridge, props.projectId, refreshStatus]);
 
+  const handleRecoverIndex = useCallback(async () => {
+    if (!props.projectId || !bridge) return;
+    setRecovering(true);
+    try {
+      const result = await bridge.rebuildIndex(props.projectId);
+      if (!result.success) toast.error(`索引恢复失败：${result.error ?? "未知错误"}`);
+      else toast.success("索引已从当前记录重建");
+      await refreshStatus();
+    } catch (error) {
+      toast.error(`索引恢复失败：${error instanceof Error ? error.message : String(error)}`);
+    } finally {
+      setRecovering(false);
+    }
+  }, [bridge, props.projectId, refreshStatus]);
+
   const handleSearch = useCallback(async () => {
     if (!props.projectId || !bridge) return;
     const query = searchText.trim();
@@ -136,6 +179,8 @@ export function NovelSourceMemoryDialog(props: {
   }, [bridge, props.projectId, searchText]);
 
   const reasonText = degradedReasonText(status?.degradedReason);
+  const aiAvailable = Boolean(aiManager.resolve({ agent: "universalAi" }));
+  const indexNeedsRecovery = status?.indexHealth && status.indexHealth !== "healthy";
 
   return (
     <Dialog open={props.open} onOpenChange={props.onOpenChange}>
@@ -190,6 +235,28 @@ export function NovelSourceMemoryDialog(props: {
                   </dd>
                 </div>
               </dl>
+              <div className="space-y-1 text-xs">
+                <p>
+                  <span className="text-muted-foreground">索引健康度：</span>
+                  {status?.indexHealth ?? "—"}
+                </p>
+                {status?.sources?.map((source) => (
+                  <div key={source.path} className="rounded border border-border/70 bg-muted/20 px-2 py-1">
+                    <p className="break-all">{source.path}</p>
+                    <p className="break-all text-[10px] text-muted-foreground">
+                      SHA-256：{source.sha256} · {source.size} bytes
+                    </p>
+                  </div>
+                ))}
+                {status?.recoverableArtifacts?.length ? (
+                  <div className="rounded border border-amber-500/30 bg-amber-500/5 px-2 py-1 text-amber-300">
+                    <p>可恢复遗留物：</p>
+                    {status.recoverableArtifacts.map((artifact) => (
+                      <p key={artifact} className="break-all text-[10px]">{artifact}</p>
+                    ))}
+                  </div>
+                ) : null}
+              </div>
               {reasonText ? (
                 <p className="text-xs text-amber-400">状态原因：{reasonText}</p>
               ) : null}
@@ -242,6 +309,9 @@ export function NovelSourceMemoryDialog(props: {
                         <span className="font-medium">{hit.title}</span>
                         <span className="text-muted-foreground">（{hit.sourcePath}）</span>
                         <p className="mt-0.5 text-muted-foreground">{hit.snippet}</p>
+                        <p className="mt-1 break-all text-[10px] text-muted-foreground">
+                          anchor：{hit.anchor} · SHA：{hit.sourceSha256} · freshness：{hit.freshness}
+                        </p>
                       </li>
                     ))}
                   </ul>
@@ -258,9 +328,31 @@ export function NovelSourceMemoryDialog(props: {
             关闭
           </Button>
           {bridge ? (
-            <Button disabled={rebuilding || !props.projectId} onClick={() => void handleRebuild()}>
-              {rebuilding ? "重建中…" : "重建记忆库"}
-            </Button>
+            <>
+              {indexNeedsRecovery ? (
+                <Button
+                  variant="outline"
+                  disabled={recovering || rawBuilding || rebuilding || !props.projectId}
+                  onClick={() => void handleRecoverIndex()}
+                >
+                  {recovering ? "恢复中…" : "恢复索引"}
+                </Button>
+              ) : null}
+              <Button
+                variant="outline"
+                disabled={rawBuilding || rebuilding || recovering || !props.projectId}
+                onClick={() => void handleRawBuild()}
+              >
+                {rawBuilding ? "扫描中…" : "扫描/重建原始档案"}
+              </Button>
+              <Button
+                disabled={!aiAvailable || rebuilding || rawBuilding || recovering || !props.projectId}
+                title={aiAvailable ? undefined : "未配置通用 AI，仍可先重建原始档案"}
+                onClick={() => void handleRebuild()}
+              >
+                {rebuilding ? "抽取中…" : "继续智能抽取"}
+              </Button>
+            </>
           ) : null}
         </DialogFooter>
       </DialogContent>

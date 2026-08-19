@@ -1027,6 +1027,8 @@ const music3GenRuntimeController = createMusic3GenRuntimeController({
 const music3GenIpc = registerMusic3GenIpcHandlers({
   controller: music3GenRuntimeController,
   getExportDir: () => path.join(app.getPath('userData'), 'exports'),
+  // 项目音乐目录 = <项目根>/music/;项目根经位置注册表动态解析(08-19 工作台音乐生成)
+  getProjectMusicDir: (projectId: string) => path.join(projectRootFor(projectId), 'music'),
 })
 
 const remotionShotRenderer = new RemotionShotRenderer({

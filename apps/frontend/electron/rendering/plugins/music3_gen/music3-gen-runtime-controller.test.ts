@@ -265,3 +265,134 @@ describe("mlx-serve 指向路线(08-19-music3-mlxserv-connector)", () => {
     fs.rmSync(weightsDir, { recursive: true, force: true });
   });
 });
+
+describe("mlxserv bf16 权重获取(installMlxServWeights)", () => {
+  function progressFileOf(): string {
+    return path.join(storageRoot, "python", "profiles", "music3-gen", "mlxserv-weights-progress.json");
+  }
+
+  function writeProgress(payload: Record<string, unknown>): void {
+    fs.mkdirSync(path.dirname(progressFileOf()), { recursive: true });
+    fs.writeFileSync(progressFileOf(), JSON.stringify(payload), "utf8");
+  }
+
+  function makeSpawnCapture() {
+    const spawns: Array<{ file: string; args: string[] }> = [];
+    const exitCallbacks: Array<() => void> = [];
+    const spawnProcess = ((file: string, args: string[]) => {
+      spawns.push({ file, args });
+      return {
+        on: (_event: string, callback: () => void) => {
+          exitCallbacks.push(callback);
+          return {};
+        },
+      };
+    }) as unknown as Parameters<typeof createMusic3GenRuntimeController>[0]["spawnProcess"];
+    return { spawns, exitCallbacks, spawnProcess };
+  }
+
+  function makeWeightsDirLocal(): string {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "mlxserv-weights-install-"));
+    for (const name of [
+      "language_model.safetensors",
+      "rvq_depth_decoder.safetensors",
+      "transformer.safetensors",
+      "condition_encoder.safetensors",
+      "vocoder.safetensors",
+    ]) {
+      fs.writeFileSync(path.join(dir, name), "x");
+    }
+    fs.mkdirSync(path.join(dir, "tokenizer"));
+    fs.mkdirSync(path.join(dir, "music_tokenizer"));
+    return dir;
+  }
+
+  function makeControllerWith(overrides: Partial<Parameters<typeof createMusic3GenRuntimeController>[0]> = {}) {
+    const capture = makeSpawnCapture();
+    const controller = createMusic3GenRuntimeController({
+      storageBasePath: storageRoot,
+      backendRoot,
+      execFileFn: async () => ({ stdout: probePayload() }),
+      spawnProcess: capture.spawnProcess,
+      ...overrides,
+    });
+    return { controller, capture };
+  }
+
+  it("进行中拒绝重启 + status 透出安装状态", async () => {
+    const { controller, capture } = makeControllerWith();
+    writeProgress({ status: "downloading", stage: "download", progress: 42, updatedAt: Date.now() });
+    const result = await controller.installMlxServWeights();
+    expect(result.accepted).toBe(false);
+    expect(result.message).toContain("进行中");
+    expect(capture.spawns).toHaveLength(0);
+    const status = controller.status();
+    expect(status.mlxServWeightsInstall).toMatchObject({ status: "downloading", progress: 42 });
+  });
+
+  it("陈旧进度(心跳超时)视为中断:可重新发起且 status 报 error", async () => {
+    const { controller, capture } = makeControllerWith();
+    writeProgress({ status: "downloading", progress: 30, updatedAt: Date.now() - 10 * 60_000 });
+    expect(controller.status().mlxServWeightsInstall?.status).toBe("error");
+    expect(controller.status().mlxServWeightsInstall?.error).toContain("中断");
+    const result = await controller.installMlxServWeights();
+    expect(result.accepted).toBe(true);
+    expect(capture.spawns).toHaveLength(1);
+  });
+
+  it("内存门禁:16GB/32GB 机器拒(bf16 需 48GB+);128GB 放行", async () => {
+    const small = makeControllerWith({ totalMemBytes: () => 16 * 1024 ** 3 });
+    const smallResult = await small.controller.installMlxServWeights();
+    expect(smallResult.accepted).toBe(false);
+    expect(smallResult.message).toContain("内存");
+    expect(small.capture.spawns).toHaveLength(0);
+
+    const mid = makeControllerWith({ totalMemBytes: () => 32 * 1024 ** 3 });
+    expect((await mid.controller.installMlxServWeights()).accepted).toBe(false);
+    expect(mid.capture.spawns).toHaveLength(0);
+
+    const big = makeControllerWith({ totalMemBytes: () => 128 * 1024 ** 3 });
+    const bigResult = await big.controller.installMlxServWeights();
+    expect(bigResult.accepted).toBe(true);
+    expect(big.capture.spawns).toHaveLength(1);
+    expect(big.controller.status().hostTotalRamGb).toBe(128);
+  });
+
+  it("目标产物已完整:直接指向,不重复下载", async () => {
+    const { controller } = makeControllerWith();
+    const packDir = makeWeightsDirLocal();
+    const target = path.join(storageRoot, "model", "minimax", "music3-mlxserv-bf16");
+    fs.mkdirSync(path.dirname(target), { recursive: true });
+    fs.renameSync(packDir, target);
+    const shortCircuit = await controller.installMlxServWeights();
+    expect(shortCircuit.accepted).toBe(true);
+    expect(shortCircuit.message).toContain("已就绪");
+    expect(controller.status().mlxServ?.config.weightsDir).toBe(target);
+  });
+
+  it("正常发起:spawn 参数正确(staging 落 model/minimax/);完成后自动填 weightsDir", async () => {
+    const { controller, capture } = makeControllerWith();
+    const result = await controller.installMlxServWeights();
+    expect(result.accepted).toBe(true);
+    expect(capture.spawns).toHaveLength(1);
+    expect(capture.spawns[0]?.args).toContain("music3_gen.install_mlxserv_weights");
+    const staging = path.join(storageRoot, "model", "minimax", ".staging-music3-full");
+    expect(fs.existsSync(staging)).toBe(true);
+    const pack = path.join(storageRoot, "model", "minimax", "music3-mlxserv-bf16");
+    // 模拟后端收尾:写 complete 进度 + 子进程退出
+    writeProgress({ status: "complete", stage: "done", progress: 100, outputDir: pack, updatedAt: Date.now() });
+    capture.exitCallbacks[0]?.();
+    const config = JSON.parse(fs.readFileSync(path.join(storageRoot, "music3-mlxserv-config.json"), "utf8"));
+    expect(config.weightsDir).toBe(pack);
+    expect(controller.status().mlxServWeightsInstall?.status).toBe("complete");
+  });
+
+  it("子进程失败(error)后不动配置", async () => {
+    const { controller, capture } = makeControllerWith();
+    await controller.installMlxServWeights();
+    writeProgress({ status: "error", stage: "download", error: "网络中断", updatedAt: Date.now() });
+    capture.exitCallbacks[0]?.();
+    expect(controller.status().mlxServ?.config.weightsDir).toBe("");
+    expect(controller.status().mlxServWeightsInstall).toMatchObject({ status: "error", error: "网络中断" });
+  });
+});

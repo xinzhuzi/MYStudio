@@ -1,5 +1,5 @@
 // 概览元数据 AI 填充（Trellis 08-18-overview-portal-ai-fill R2/R3）。
-// 素材优先级复用既有注入链（偏好→圣经→档案检索，readBibleWithArchiveContext），
+// 素材优先级复用动作级注入链（偏好→MEMORY.md→档案检索），
 // 追加剧本开头；问答答案仅作本次生成约束，不持久化（长期口味归作者偏好层）。
 import type { Faction, NamedEntity, SeriesMeta } from "@/types/script";
 

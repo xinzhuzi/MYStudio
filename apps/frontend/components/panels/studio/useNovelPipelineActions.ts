@@ -17,16 +17,10 @@ import {
   parseNovelEventAnalysisLine,
 } from "@/lib/studio/event-analysis";
 import {
-  formatSourceBibleContext,
   parseBibleCharacters,
-  readResidentBible,
   validateCharactersAgainstBible,
 } from "@/lib/studio/source-bible";
-import {
-  formatAuthorPreferenceContext,
-  readAuthorPreference,
-} from "@/lib/studio/author-preference";
-import { getProjectFilesBridge } from "@/lib/bridge/project-files";
+import { readSourceMemoryActionContext } from "@/lib/studio/source-memory";
 import { useCharacterLibraryStore } from "@/stores/library/character-library-store";
 import { usePropsLibraryStore } from "@/stores/library/props-library-store";
 import { useSceneStore } from "@/stores/library/scene-store";
@@ -74,40 +68,21 @@ export function useNovelPipelineActions({
       let successCount = 0;
       let failedCount = 0;
       let warningChapterCount = 0;
-      // 单一常驻层：动作开始现读一次（批次内一致、跨批次新鲜），文件为唯一事实源
-      const residentBible = await readResidentBible({
-        projectId: activeProjectId,
-        readText: getProjectFilesBridge()?.readText,
-        storeFallback: useStudioStore.getState().sourceBible,
-      });
-      // 合并块最前段：作者偏好（应用级口味层，空则零注入；与剧本链共用同一块纪律）
-      const preferenceContext = formatAuthorPreferenceContext(await readAuthorPreference());
-      const bibleContext =
-        [preferenceContext, formatSourceBibleContext(residentBible)].filter(Boolean).join("\n\n") || undefined;
-      const bibleCharacters = parseBibleCharacters(residentBible);
       // 按 index 排序后滚动注入上一章事件行；调用方传入乱序选择时仍保持章节顺序。
       const sortedChapters = [...chapters].sort((left, right) => left.index - right.index);
-      // 档案层（L1 MVP）：批次开始重建索引（fire-and-forget）+ 检索一次相关档案块
-      let archiveContext: string | undefined;
-      const sourceMemoryBridge = (window as unknown as { sourceMemory?: Window["sourceMemory"] }).sourceMemory;
-      if (activeProjectId && sourceMemoryBridge) {
-        void sourceMemoryBridge.build(activeProjectId).catch(() => undefined);
-        try {
-          const query = sortedChapters
-            .map((chapter) => `${chapter.title} ${chapter.eventSummary ?? ""}`)
-            .join(" ")
-            .slice(0, 200);
-          const result = await sourceMemoryBridge.search(activeProjectId, query, 4);
-          if (result.success && result.hits?.length) {
-            archiveContext = [
-              "## 原著档案检索（按需补充，事实以圣经与正文为准）",
-              ...result.hits.map((hit) => `- [${hit.kind}] ${hit.title}（${hit.sourcePath}）：${hit.snippet}`),
-            ].join("\n");
-          }
-        } catch {
-          // 档案不可用→零注入，不阻断事件分析
-        }
+      const memory = await readSourceMemoryActionContext({
+        projectId: activeProjectId,
+        archiveQuery: sortedChapters
+          .map((chapter) => `${chapter.title} ${chapter.eventSummary ?? ""}`)
+          .join(" ")
+          .slice(0, 200),
+        archiveLimit: 4,
+      });
+      if (!memory.success) {
+        toast.error(memory.error);
+        return;
       }
+      const bibleCharacters = parseBibleCharacters(memory.residentMemory ?? "");
       let prevEventLine: string | undefined;
       for (const chapter of sortedChapters) {
         updateNovelChapter(chapter.id, {
@@ -115,9 +90,8 @@ export function useNovelPipelineActions({
           eventErrorReason: undefined,
         });
         const messages = buildNovelEventAnalysisMessages(chapter, {
-          bibleContext,
+          bibleContext: memory.context,
           prevEventContext: prevEventLine,
-          archiveContext,
         });
         try {
           const result = await aiManager.text({
@@ -276,16 +250,20 @@ export function useNovelPipelineActions({
           })),
       ];
 
-      const residentBible = await readResidentBible({
+      const memory = await readSourceMemoryActionContext({
         projectId: activeProjectId,
-        readText: getProjectFilesBridge()?.readText,
-        storeFallback: useStudioStore.getState().sourceBible,
+        archiveQuery: scriptText.slice(0, 200),
+        archiveLimit: 4,
       });
+      if (!memory.success) {
+        toast.error(memory.error);
+        return;
+      }
       const messages = buildEntityExtractionMessages({
         episodeId: targetEpisodeId,
         scriptText,
         knownEntities,
-        bibleContext: formatSourceBibleContext(residentBible) || undefined,
+        bibleContext: memory.context,
       });
       try {
         const result = await aiManager.text({

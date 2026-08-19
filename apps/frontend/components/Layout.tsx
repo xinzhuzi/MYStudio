@@ -26,6 +26,9 @@ import {
 
 // Panel imports — code-split so the first screen (Dashboard) doesn't pay for
 // every panel. Each panel becomes its own chunk, loaded on first activation.
+const MusicPanel = lazy(() =>
+  import("@/components/panels/music").then((m) => ({ default: m.MusicPanel })),
+);
 const ScriptView = lazy(() =>
   import("@/components/panels/script").then((m) => ({ default: m.ScriptView })),
 );
@@ -144,7 +147,7 @@ export function Layout() {
 
   // Full-screen views (no resizable panels)
   // 这些板块有自己的多栏布局，不需要全局的预览和属性面板
-  const fullScreenTabs = ["export", "settings", "overview", "studio", "script", "characters", "scenes", "freedom", "assets", "skills", "self-media", "media"];
+  const fullScreenTabs = ["export", "settings", "overview", "studio", "music", "script", "characters", "scenes", "freedom", "assets", "skills", "self-media", "media"];
   if (fullScreenTabs.includes(activeTab)) {
     return (
       <>
@@ -168,6 +171,7 @@ export function Layout() {
                 />
               )}
               {activeTab === "overview" && <OverviewPanel />}
+              {activeTab === "music" && <MusicPanel />}
               {activeTab === "studio" && <StudioView />}
               {activeTab === "script" && <ScriptView />}
               {activeTab === "characters" && <CharactersView />}

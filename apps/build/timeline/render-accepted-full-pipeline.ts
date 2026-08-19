@@ -36,7 +36,6 @@ import { registeredProjectDir } from "./storage-paths";
 const execFileAsync = promisify(execFile);
 const PROJECT_ID = "49dce4c1-64b1-42de-85c2-9f266698aec4";
 const CHAPTER_ID = "chapter-001";
-const DEFAULT_REVISION = 23;
 const EXPECTED_VISUAL_COUNT = 43;
 
 type ElectronMainModule = typeof import("electron");
@@ -80,13 +79,44 @@ export function resolveFormalSlotSourceRoot(input: {
 
 export function resolveFormalRevision(value?: string): number {
   const raw = value?.trim();
-  if (!raw) return DEFAULT_REVISION;
+  if (!raw) throw new Error("MYSTUDIO_FORMAL_REVISION is required; historical revisions are not current evidence");
   if (!/^\d+$/.test(raw)) throw new Error("MYSTUDIO_FORMAL_REVISION must be a positive integer");
   const revision = Number(raw);
   if (!Number.isSafeInteger(revision) || revision < 1) {
     throw new Error("MYSTUDIO_FORMAL_REVISION must be a positive integer");
   }
   return revision;
+}
+
+export function resolveFormalArtifactRevisionRoots(input: {
+  productionProjectRoot: string;
+  chapterId: string;
+  revision: number;
+  explicitVideoUseRevisionRoot?: string;
+  explicitHyperFramesRevisionRoot?: string;
+}): { videoUseRevisionRoot: string; hyperFramesRevisionRoot: string } {
+  const revisionName = `r${input.revision}`;
+  return {
+    videoUseRevisionRoot: path.resolve(
+      input.explicitVideoUseRevisionRoot?.trim()
+        || path.join(input.productionProjectRoot, "video-use", input.chapterId, revisionName),
+    ),
+    hyperFramesRevisionRoot: path.resolve(
+      input.explicitHyperFramesRevisionRoot?.trim()
+        || path.join(input.productionProjectRoot, "hyperframes", input.chapterId, revisionName),
+    ),
+  };
+}
+
+export function resolveFormalSourceRunDir(input: {
+  explicitSourceRun?: string;
+  explicitPlanPath?: string;
+}): string {
+  const explicitSourceRun = input.explicitSourceRun?.trim();
+  if (explicitSourceRun) return path.resolve(explicitSourceRun);
+  const explicitPlanPath = input.explicitPlanPath?.trim();
+  if (explicitPlanPath) return path.dirname(path.resolve(explicitPlanPath));
+  throw new Error("MYSTUDIO_FORMAL_SOURCE_RUN or MYSTUDIO_FORMAL_TIMELINE_PLAN is required; historical runs are not current evidence");
 }
 
 type FormalSlotSourceInventoryRow = {
@@ -121,67 +151,7 @@ export function resolveFormalTimelinePlanPath(input: {
 }
 
 export async function runAcceptedFormalRenderer(): Promise<void> {
-  const { app, utilityProcess } = resolveFormalElectronMain();
   const appsRoot = path.resolve(process.env.MYSTUDIO_APPS_ROOT ?? process.cwd());
-  const revision = resolveFormalRevision(process.env.MYSTUDIO_FORMAL_REVISION);
-  const repoRoot = path.dirname(appsRoot);
-  const productUserData = path.resolve(
-    process.env.MYSTUDIO_PRODUCT_USER_DATA
-      ?? path.join(os.homedir(), "Library", "Application Support", "漫影工作室"),
-  );
-  const productionProjectRoot = resolveFormalProjectRoot({
-    explicitProjectRoot: process.env.MYSTUDIO_FORMAL_PROJECT_ROOT,
-    registeredProjectRoot: registeredProjectDir(PROJECT_ID),
-    productUserData,
-    projectId: PROJECT_ID,
-  });
-  const productionRemotionRoot = path.join(productionProjectRoot, "remotion");
-  const slotSourceRoot = resolveFormalSlotSourceRoot({
-    explicitSlotSourceRoot: process.env.MYSTUDIO_FORMAL_SLOT_SOURCE_ROOT,
-    productionRemotionRoot,
-  });
-  const videoWorkflowRoot = path.join(productionProjectRoot, "video-use");
-  const revisionRoot = path.resolve(
-    process.env.MYSTUDIO_FORMAL_REVISION_ROOT
-      ?? path.join(videoWorkflowRoot, CHAPTER_ID, `r${revision}`),
-  );
-  const sourceRunDir = path.resolve(
-    process.env.MYSTUDIO_FORMAL_SOURCE_RUN
-      ?? path.join(appsRoot, "output", "automation", "full-pipeline-1786801786018"),
-  );
-  const timelinePlanPath = resolveFormalTimelinePlanPath({
-    explicitPlanPath: process.env.MYSTUDIO_FORMAL_TIMELINE_PLAN,
-    sourceRunDir,
-  });
-  const installedApp = path.resolve(
-    process.env.MYSTUDIO_FORMAL_INSTALLED_APP ?? "/Applications/漫影工作室.app",
-  );
-  const resourcesRoot = path.join(installedApp, "Contents", "Resources");
-  const appAsarPath = path.join(resourcesRoot, "app.asar");
-  const workerPath = resolveInstalledRemotionWorkerPath(resourcesRoot);
-  const bundlePath = path.join(resourcesRoot, "remotion-bundle");
-  const bundleManifestPath = path.join(bundlePath, "manifest.json");
-  const binariesDirectory = path.join(
-    resourcesRoot,
-    "app.asar.unpacked",
-    "node_modules",
-    "@remotion",
-    "compositor-darwin-arm64",
-  );
-  const compositorFfprobePath = path.join(binariesDirectory, "ffprobe");
-  const browserExecutable = path.resolve(
-    process.env.MYSTUDIO_REMOTION_BROWSER
-      ?? path.join(
-        productUserData,
-        "remotion-runtime",
-        "node_modules",
-        ".remotion",
-        "chrome-headless-shell",
-        "mac-arm64",
-        "chrome-headless-shell-mac-arm64",
-        "chrome-headless-shell",
-      ),
-  );
   const runDir = path.join(
     appsRoot,
     "output",
@@ -196,7 +166,72 @@ export async function runAcceptedFormalRenderer(): Promise<void> {
   await fs.promises.mkdir(snapshotsDir, { recursive: true });
   let renderer: RemotionChapterRenderer | undefined;
   let exitCode = 0;
+  let lifecycle: FormalElectronMain["app"] | undefined;
   try {
+    const { app, utilityProcess } = resolveFormalElectronMain();
+    lifecycle = app;
+    const revision = resolveFormalRevision(process.env.MYSTUDIO_FORMAL_REVISION);
+    const repoRoot = path.dirname(appsRoot);
+    const productUserData = path.resolve(
+      process.env.MYSTUDIO_PRODUCT_USER_DATA
+        ?? path.join(os.homedir(), "Library", "Application Support", "漫影工作室"),
+    );
+    const productionProjectRoot = resolveFormalProjectRoot({
+      explicitProjectRoot: process.env.MYSTUDIO_FORMAL_PROJECT_ROOT,
+      registeredProjectRoot: registeredProjectDir(PROJECT_ID),
+      productUserData,
+      projectId: PROJECT_ID,
+    });
+    const productionRemotionRoot = path.join(productionProjectRoot, "remotion");
+    const slotSourceRoot = resolveFormalSlotSourceRoot({
+      explicitSlotSourceRoot: process.env.MYSTUDIO_FORMAL_SLOT_SOURCE_ROOT,
+      productionRemotionRoot,
+    });
+    const { videoUseRevisionRoot, hyperFramesRevisionRoot } = resolveFormalArtifactRevisionRoots({
+      productionProjectRoot,
+      chapterId: CHAPTER_ID,
+      revision,
+      explicitVideoUseRevisionRoot: process.env.MYSTUDIO_FORMAL_VIDEO_USE_REVISION_ROOT
+        ?? process.env.MYSTUDIO_FORMAL_REVISION_ROOT,
+      explicitHyperFramesRevisionRoot: process.env.MYSTUDIO_FORMAL_HYPERFRAMES_REVISION_ROOT,
+    });
+    const sourceRunDir = resolveFormalSourceRunDir({
+      explicitSourceRun: process.env.MYSTUDIO_FORMAL_SOURCE_RUN,
+      explicitPlanPath: process.env.MYSTUDIO_FORMAL_TIMELINE_PLAN,
+    });
+    const timelinePlanPath = resolveFormalTimelinePlanPath({
+      explicitPlanPath: process.env.MYSTUDIO_FORMAL_TIMELINE_PLAN,
+      sourceRunDir,
+    });
+    const installedApp = path.resolve(
+      process.env.MYSTUDIO_FORMAL_INSTALLED_APP ?? "/Applications/漫影工作室.app",
+    );
+    const resourcesRoot = path.join(installedApp, "Contents", "Resources");
+    const appAsarPath = path.join(resourcesRoot, "app.asar");
+    const workerPath = resolveInstalledRemotionWorkerPath(resourcesRoot);
+    const bundlePath = path.join(resourcesRoot, "remotion-bundle");
+    const bundleManifestPath = path.join(bundlePath, "manifest.json");
+    const binariesDirectory = path.join(
+      resourcesRoot,
+      "app.asar.unpacked",
+      "node_modules",
+      "@remotion",
+      "compositor-darwin-arm64",
+    );
+    const compositorFfprobePath = path.join(binariesDirectory, "ffprobe");
+    const browserExecutable = path.resolve(
+      process.env.MYSTUDIO_REMOTION_BROWSER
+        ?? path.join(
+          productUserData,
+          "remotion-runtime",
+          "node_modules",
+          ".remotion",
+          "chrome-headless-shell",
+          "mac-arm64",
+          "chrome-headless-shell-mac-arm64",
+          "chrome-headless-shell",
+        ),
+    );
     const collisionFilesBefore = await collisionInventory([
       path.join(repoRoot, "apps", "build", "timeline", "run-full-pipeline.ts"),
       path.join(repoRoot, "apps", "frontend", "electron", "main", "main.ts"),
@@ -231,20 +266,20 @@ export async function runAcceptedFormalRenderer(): Promise<void> {
     }
     const acceptedPlan = planValidation.value;
     const videoUseValidation = validateVideoUseChapterArtifact(
-      await readJson(path.join(revisionRoot, "video-use-artifact.json")),
+      await readJson(path.join(videoUseRevisionRoot, "video-use-artifact.json")),
     );
     if (!videoUseValidation.success) {
       throw new Error(formatIssues("video-use artifact", videoUseValidation.issues));
     }
     const hyperFramesValidation = validateHyperFramesOverlayArtifact(
-      await readJson(path.join(revisionRoot, "hyperframes-artifact.json")),
+      await readJson(path.join(hyperFramesRevisionRoot, "hyperframes-artifact.json")),
     );
     if (!hyperFramesValidation.success) {
       throw new Error(formatIssues("HyperFrames artifact", hyperFramesValidation.issues));
     }
     const hyperFramesOutputPath = await resolveAcceptedHyperFramesOutputPath(
       hyperFramesValidation.value.outputPath!,
-      revisionRoot,
+      hyperFramesRevisionRoot,
     );
     const artifactProjection = assertAcceptedArtifactProjection({
       plan: acceptedPlan,
@@ -276,9 +311,10 @@ export async function runAcceptedFormalRenderer(): Promise<void> {
         success: true as const,
         value: {
           paths: {
-            revisionDir: revisionRoot,
-            videoUsePath: path.join(revisionRoot, "video-use-artifact.json"),
-            hyperFramesPath: path.join(revisionRoot, "hyperframes-artifact.json"),
+            revisionDir: videoUseRevisionRoot,
+            videoUsePath: path.join(videoUseRevisionRoot, "video-use-artifact.json"),
+            hyperFramesRevisionDir: hyperFramesRevisionRoot,
+            hyperFramesPath: path.join(hyperFramesRevisionRoot, "hyperframes-artifact.json"),
           },
           videoUseArtifact: videoUseValidation.value,
           hyperFramesArtifact: hyperFramesValidation.value,
@@ -357,8 +393,8 @@ export async function runAcceptedFormalRenderer(): Promise<void> {
     }
 
     await Promise.all([
-      snapshotFile(path.join(revisionRoot, "video-use-artifact.json"), path.join(snapshotsDir, "video-use-artifact.json")),
-      snapshotFile(path.join(revisionRoot, "hyperframes-artifact.json"), path.join(snapshotsDir, "hyperframes-artifact.json")),
+      snapshotFile(path.join(videoUseRevisionRoot, "video-use-artifact.json"), path.join(snapshotsDir, "video-use-artifact.json")),
+      snapshotFile(path.join(hyperFramesRevisionRoot, "hyperframes-artifact.json"), path.join(snapshotsDir, "hyperframes-artifact.json")),
       snapshotFile(timelinePlanPath, path.join(snapshotsDir, "timeline-render-plan-input.json")),
       snapshotFile(path.join(productionProjectRoot, "remotion", "chapters", `${CHAPTER_ID}.json`), path.join(snapshotsDir, "chapter-manifest.json")),
       writeJson(path.join(snapshotsDir, "timeline-render-plan-projected.json"), projectedPlan),
@@ -575,7 +611,8 @@ export async function runAcceptedFormalRenderer(): Promise<void> {
     console.error(`FORMAL_RENDER_FAILED=${message}`);
   } finally {
     await renderer?.dispose().catch(() => undefined);
-    finishFormalRenderer(exitCode, app);
+    if (lifecycle) finishFormalRenderer(exitCode, lifecycle);
+    else process.exitCode = exitCode;
   }
 }
 

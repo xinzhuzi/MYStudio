@@ -11,6 +11,30 @@ export interface RemotionStudioEditingUpdatedEvent {
   revision: number;
 }
 
+export interface RemotionStudioEditingUpdateWindow {
+  isDestroyed: () => boolean;
+  webContents: { send: (channel: string, payload: RemotionStudioEditingUpdatedEvent) => void };
+}
+
+export function broadcastRemotionStudioEditingUpdated(
+  windows: readonly RemotionStudioEditingUpdateWindow[],
+  event: RemotionStudioEditingUpdatedEvent,
+  onSendError: (error: unknown) => void = () => undefined,
+): void {
+  const validated = validateRemotionStudioEditingUpdatedEvent(event);
+  if (!validated.success) {
+    throw new Error(validated.issues.map((issue) => `${issue.path}: ${issue.message}`).join("; "));
+  }
+  for (const window of windows) {
+    if (window.isDestroyed()) continue;
+    try {
+      window.webContents.send(REMOTION_STUDIO_EDITING_UPDATED_EVENT, validated.value);
+    } catch (error) {
+      onSendError(error);
+    }
+  }
+}
+
 export interface RemotionStudioEnsureSessionRequest {
   projectId: string;
   chapterId: string;

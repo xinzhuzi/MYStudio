@@ -213,15 +213,14 @@ export function NovelTab(props: {
   }, [props.analyzeEvents, selectedChapters]);
 
   const openBible = useCallback(async () => {
-    // 打开即现读单一常驻层文件（外部编辑过也能立刻看到），读不到再退 store/模板
+    // 打开即现读唯一 MEMORY.md；缺失时只展示新建模板，不把 store 旧缓存冒充事实源。
     const resident = await readResidentBible({
       projectId: activeProjectId,
       readText: getProjectFilesBridge()?.readText,
-      storeFallback: props.sourceBible,
     });
     setBibleDraft(resident.trim() ? resident : SOURCE_BIBLE_TEMPLATE);
     setBibleOpen(true);
-  }, [activeProjectId, props.sourceBible]);
+  }, [activeProjectId]);
 
   const runGenerateBible = useCallback(async () => {
     setBibleGenerating(true);

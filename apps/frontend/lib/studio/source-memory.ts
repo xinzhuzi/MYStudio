@@ -8,7 +8,11 @@
  * AI 调用复用 aiManager（由调用方注入 callText），本模块保持可测纯函数 + 编排。
  * MEMORY.md 是用户手写圣经，本链路对其只读、绝不改写。
  */
-import { formatSourceBibleContext, readResidentBible } from "./source-bible";
+import {
+  formatSourceBibleContext,
+  readResidentBible,
+  ResidentMemoryTooLargeError,
+} from "./source-bible";
 import { formatAuthorPreferenceContext, readAuthorPreference } from "./author-preference";
 import { getProjectFilesBridge } from "@/lib/bridge/project-files";
 import type {
@@ -16,6 +20,7 @@ import type {
   SourceMemoryChunkCoverage,
   SourceMemoryCommitBuildReply,
   SourceMemoryExtractionChunk,
+  SourceMemoryRebuildIndexReply,
   SourceMemorySearchReply,
   SourceMemoryStagedRecord,
   SourceMemoryStageRecordsReply,
@@ -186,6 +191,7 @@ export interface SourceMemoryBridge {
     payload: { buildId: string; coverage?: SourceMemoryChunkCoverage[] },
   ) => Promise<SourceMemoryCommitBuildReply>;
   search: (projectId: string, query: string, limit?: number) => Promise<SourceMemorySearchReply>;
+  rebuildIndex: (projectId: string) => Promise<SourceMemoryRebuildIndexReply>;
 }
 
 export function getSourceMemoryBridge(): SourceMemoryBridge | undefined {
@@ -348,45 +354,94 @@ export async function runSourceMemoryExtraction(input: {
   };
 }
 
+export type SourceMemoryArchiveStatus = "unavailable" | "empty" | "available" | "stale";
+
+export type SourceMemoryActionContext =
+  | { success: true; context?: string; residentMemory?: string; archiveStatus: SourceMemoryArchiveStatus }
+  | { success: false; code: "resident-memory-too-large"; error: string };
+
+interface ArchiveContextResult {
+  context?: string;
+  status: SourceMemoryArchiveStatus;
+}
+
+async function retrieveArchiveContextResult(input: {
+  projectId?: string | null;
+  query: string;
+  limit?: number;
+}): Promise<ArchiveContextResult> {
+  const bridge = getSourceMemoryBridge();
+  if (!input.projectId || !bridge) return { status: "unavailable" };
+  try {
+    const result = await bridge.search(input.projectId, input.query.slice(0, 200), input.limit ?? 4);
+    if (!result.success) {
+      return { status: result.degradedReason === "sources-stale" ? "stale" : "unavailable" };
+    }
+    if (!result.hits?.length) return { status: "empty" };
+    return {
+      status: "available",
+      context: [
+        "## 原著档案检索（按需补充，事实以圣经与正文为准）",
+        ...result.hits.map((hit) => `- [${hit.kind}] ${hit.title}（${hit.sourcePath}）：${hit.snippet}`),
+      ].join("\n"),
+    };
+  } catch {
+    return { status: "unavailable" };
+  }
+}
+
 /** 检索门面（L3）：动作开始检索一次、格式化为单块；不可用→undefined 零注入零阻断。 */
 export async function retrieveArchiveContext(input: {
   projectId?: string | null;
   query: string;
   limit?: number;
 }): Promise<string | undefined> {
-  const bridge = getSourceMemoryBridge();
-  if (!input.projectId || !bridge) return undefined;
-  try {
-    const result = await bridge.search(input.projectId, input.query.slice(0, 200), input.limit ?? 4);
-    if (!result.success || !result.hits?.length) return undefined;
-    return [
-      "## 原著档案检索（按需补充，事实以圣经与正文为准）",
-      ...result.hits.map((hit) => `- [${hit.kind}] ${hit.title}（${hit.sourcePath}）：${hit.snippet}`),
-    ].join("\n");
-  } catch {
-    return undefined;
-  }
+  return (await retrieveArchiveContextResult(input)).context;
 }
 
-/** 常驻合并块合一读取：作者偏好 + 圣经 + 单次档案检索（用户裁定：每条消息常驻块只有一个，
- *  三段拼在同一个块里，顺序=口味层→事实层→补充层；任一段为空即省略，全空零注入）。 */
-export async function readBibleWithArchiveContext(input: {
+/** 动作级唯一门面：偏好→MEMORY.md→档案检索，各读取一次并合成一个上下文块。 */
+export async function readSourceMemoryActionContext(input: {
   projectId?: string | null;
-  storeFallback?: string;
   archiveQuery: string;
   archiveLimit?: number;
-}): Promise<string | undefined> {
+}): Promise<SourceMemoryActionContext> {
   const preferenceContext = formatAuthorPreferenceContext(await readAuthorPreference());
-  const residentBible = await readResidentBible({
-    projectId: input.projectId,
-    readText: getProjectFilesBridge()?.readText,
-    storeFallback: input.storeFallback,
-  });
+  let residentBible: string;
+  try {
+    residentBible = await readResidentBible({
+      projectId: input.projectId,
+      readText: getProjectFilesBridge()?.readText,
+    });
+  } catch (error) {
+    if (error instanceof ResidentMemoryTooLargeError) {
+      return { success: false, code: error.code, error: error.message };
+    }
+    throw error;
+  }
   const bibleContext = formatSourceBibleContext(residentBible) || undefined;
-  const archiveContext = await retrieveArchiveContext({
+  const archive = await retrieveArchiveContextResult({
     projectId: input.projectId,
     query: input.archiveQuery,
     limit: input.archiveLimit,
   });
-  return [preferenceContext, bibleContext, archiveContext].filter(Boolean).join("\n\n") || undefined;
+  const context = [preferenceContext, bibleContext, archive.context].filter(Boolean).join("\n\n") || undefined;
+  return {
+    success: true,
+    context,
+    ...(residentBible ? { residentMemory: residentBible } : {}),
+    archiveStatus: archive.status,
+  };
+}
+
+/** @deprecated 工作流应消费 discriminated facade；兼容调用把超限转为显式 rejected promise。 */
+export async function readBibleWithArchiveContext(input: {
+  projectId?: string | null;
+  /** @deprecated MEMORY.md 缺失时不会使用。 */
+  storeFallback?: string;
+  archiveQuery: string;
+  archiveLimit?: number;
+}): Promise<string | undefined> {
+  const result = await readSourceMemoryActionContext(input);
+  if (!result.success) throw new Error(result.error);
+  return result.context;
 }

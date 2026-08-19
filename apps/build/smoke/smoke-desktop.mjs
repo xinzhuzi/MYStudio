@@ -1196,7 +1196,7 @@ async function verifyPluginSettings(evaluate) {
           '所有本地 TTS、video-use Python worker 和 MLX 对齐都复用应用管理的 Python',
           'Python 运行环境',
           '深度估计（电影级 3D）',
-          'TTS 运行时与模型',
+          '声音（TTS · 音乐 · 音效）',
           '视频工作流插件',
         ];
         const forbiddenText = [
@@ -2276,8 +2276,8 @@ async function verifyAssetVoiceFlow(evaluate) {
     const closedRoleDetailDialog = await closeTopDialog();
     const dialogsClosedBeforeAudio = await waitFor(() => document.querySelectorAll('[role="dialog"]').length === 0, 3000);
     const openDialogCountBeforeAudio = document.querySelectorAll('[role="dialog"]').length;
-    const clickedAudio = clickButtonByText('音频', true);
-    await waitFor(() => document.body.innerText.includes('音频库'));
+    const clickedAudio = clickButtonByText('配音', true);
+    await waitFor(() => document.body.innerText.includes('配音库'));
     await searchAssetLibrary('Smoke青年男声');
     await waitFor(() => document.body.innerText.includes('Smoke青年男声'));
     const audioLibraryText = document.body.innerText;

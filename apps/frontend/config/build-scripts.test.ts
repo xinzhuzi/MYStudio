@@ -722,7 +722,7 @@ describe("desktop build scripts", () => {
     // 本地配置区块默认全折叠后,区块内按钮不再出现在冒烟必现文案里
     expect(smokeScript).not.toContain("'开始配置'");
     expect(smokeScript).toContain("深度估计（电影级 3D）");
-    expect(smokeScript).toContain("TTS 运行时与模型");
+    expect(smokeScript).toContain("声音（TTS · 音乐 · 音效）");
     expect(smokeScript).not.toContain("'安装明细'");
     expect(smokeScript).toContain("Python 运行环境");
     expect(smokeScript).toContain("制作流程推进");
