@@ -66,9 +66,9 @@ const ASSET_KIND_CONFIG = {
     empty: "还没有视频或图片素材",
   },
   audio: {
-    title: "音频库",
+    title: "配音库",
     icon: Music2,
-    empty: "还没有音频素材",
+    empty: "还没有配音素材",
   },
 } as const;
 

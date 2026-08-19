@@ -19,7 +19,7 @@ const TYPE_LABEL = {
   scene: "场景",
   tool: "道具",
   clip: "素材",
-  audio: "音频",
+  audio: "配音",
 } as const;
 
 export function AddAssetDialog({

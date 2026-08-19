@@ -63,7 +63,7 @@ const NAV_MODULES: NavModule[] = [
       { id: "asset-role", label: "角色", icon: UserCircle },
       { id: "asset-scene", label: "场景", icon: Map },
       { id: "asset-tool", label: "道具", icon: Box },
-      { id: "asset-audio", label: "音频", icon: Music2 },
+      { id: "asset-audio", label: "配音", icon: Music2 },
     ],
   },
 ];
