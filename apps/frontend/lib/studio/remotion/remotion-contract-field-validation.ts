@@ -3,6 +3,8 @@ import {
   type ProjectMediaReference,
   type RemotionRenderJobTarget,
 } from "@/types/remotion-workspace";
+import { isKnownSubtitleFontId } from "./subtitle-fonts";
+import { isCinematicLutId } from "./cinematic-luts";
 import { RemotionValidator } from "./remotion-validation-utils";
 
 export function validateEditingRenderSettings(
@@ -16,6 +18,12 @@ export function validateEditingRenderSettings(
     "fps",
     "codec",
     "subtitleMode",
+    // 08-20 补齐：subtitleFont 注入(08-19 字体链)与 chapterGrade/subtitleSfxEnabled
+    // (08-19 导演定调/字幕音效)此前缺白名单——App 一键成片经 shotValidationManifest
+    // 校验时被"字段不属于当前 schema"全镜阻断(CLI 硬编码窄形状不触发，故潜伏)。
+    "subtitleFont",
+    "chapterGrade",
+    "subtitleSfxEnabled",
     "loudnessLufs",
     "truePeakDbtp",
     "audioDucking",
@@ -26,6 +34,23 @@ export function validateEditingRenderSettings(
   validator.integer(record.fps, `${path}.fps`, 1);
   validator.exact(record.codec, "h264", `${path}.codec`);
   validator.enum(record.subtitleMode, ["burn-in", "none"], `${path}.subtitleMode`);
+  if (record.subtitleFont !== undefined && !isKnownSubtitleFontId(record.subtitleFont)) {
+    validator.issue(`${path}.subtitleFont`, "字幕字体必须是注册表内的字体 id");
+  }
+  if (record.chapterGrade !== undefined) {
+    const grade = record.chapterGrade as { lutId?: unknown; blend?: unknown } | null;
+    if (typeof grade !== "object" || grade === null || typeof grade.lutId !== "string" || !isCinematicLutId(grade.lutId)) {
+      validator.issue(`${path}.chapterGrade.lutId`, "章节色调必须在 LUT 闭集内");
+    } else if (
+      grade.blend !== undefined
+      && (typeof grade.blend !== "number" || !Number.isFinite(grade.blend) || grade.blend < 0 || grade.blend > 1)
+    ) {
+      validator.issue(`${path}.chapterGrade.blend`, "章节色调混合强度必须是 0..1 有限数");
+    }
+  }
+  if (record.subtitleSfxEnabled !== undefined && typeof record.subtitleSfxEnabled !== "boolean") {
+    validator.issue(`${path}.subtitleSfxEnabled`, "字幕音效开关必须是布尔值");
+  }
   validator.finite(record.loudnessLufs, `${path}.loudnessLufs`);
   validator.finite(record.truePeakDbtp, `${path}.truePeakDbtp`);
   if (record.audioDucking === undefined) return;

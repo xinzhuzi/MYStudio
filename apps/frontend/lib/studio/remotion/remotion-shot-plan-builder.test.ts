@@ -29,6 +29,60 @@ function storyboard(index: number, chapterId = "chapter-001"): StoryboardItem & 
 }
 
 describe("buildRemotionShotPlans", () => {
+  it("renderSettings 携带 subtitleFont/chapterGrade/subtitleSfxEnabled 通过 manifest 校验（08-20 白名单回归）", async () => {
+    // 08-19 字体链注入 subtitleFont、导演定调/字幕音效注入新字段后，App 一键成片经
+    // shotValidationManifest 校验曾被"字段不属于当前 schema"全镜阻断——CLI 用硬编码
+    // 窄形状不触发，故潜伏到首次真机 App 跑才炸。此用例锁住白名单补齐。
+    const result = await buildRemotionShotPlans({
+      projectId: "project-a",
+      chapterId: "chapter-001",
+      chapterRevision: 1,
+      renderSettings: {
+        width: 1080,
+        height: 1920,
+        fps: 30,
+        codec: "h264",
+        subtitleMode: "burn-in",
+        subtitleFont: "liu-jian-mao-cao",
+        chapterGrade: { lutId: "cn-zhusha", blend: 0.5 },
+        subtitleSfxEnabled: true,
+        loudnessLufs: -14,
+        truePeakDbtp: -1.5,
+      },
+      storyboards: [storyboard(1)],
+      continuityPolicy: "skip",
+    });
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.plans[0]?.renderSettings.chapterGrade).toEqual({ lutId: "cn-zhusha", blend: 0.5 });
+      expect(result.plans[0]?.renderSettings.subtitleSfxEnabled).toBe(true);
+    }
+  });
+
+  it("chapterGrade 闭集外 lutId 被 manifest 校验拒绝（fail-closed）", async () => {
+    const result = await buildRemotionShotPlans({
+      projectId: "project-a",
+      chapterId: "chapter-001",
+      chapterRevision: 1,
+      renderSettings: {
+        width: 1080,
+        height: 1920,
+        fps: 30,
+        codec: "h264",
+        subtitleMode: "burn-in",
+        chapterGrade: { lutId: "not-in-set", blend: 0.5 },
+        loudnessLufs: -14,
+        truePeakDbtp: -1.5,
+      },
+      storyboards: [storyboard(1)],
+      continuityPolicy: "skip",
+    });
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.issues.some((issue) => issue.path.includes("renderSettings.chapterGrade"))).toBe(true);
+    }
+  });
+
   it("builds one parameterized plan per current-chapter storyboard", async () => {
     const result = await buildRemotionShotPlans({
       projectId: "project-a",
