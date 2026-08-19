@@ -189,6 +189,8 @@ export interface ChapterVideoCompositionInput extends ChapterVideoSourceInput {
   /** 转场音效资产 URL（sfx 名 → media-bridge URL；渲染入口注册 frontend/assets/sfx）。
    * 提供时对每个非 cut 转场派生一条 sfx 音轨（08-18-sfx-beat，kind="sfx"）。 */
   sfxUrlById?: Readonly<Record<string, string>>;
+  /** 转场音效派生开关（默认 false——2026-08-19 用户裁定转场≠音效）。 */
+  transitionSfxEnabled?: boolean;
   /** BGM 节拍时刻（µs，升序；ffmpeg 能量峰预计算——渲染期禁异步，M11 口径）。
    * 提供时 sfx 起点向最近节拍吸附（|Δ|≤4 帧且不越转场窗），出界回退原时刻。 */
   beatTimesUs?: readonly number[];
@@ -265,10 +267,13 @@ export function buildChapterVideoCompositionProps(
         }),
       };
     });
-  // 转场音效派生音轨（08-18-sfx-beat）：非 cut 转场各配一声，起点吸附节拍
-  // （beatTimesUs 提供时；|Δ|≤4 帧且不越转场窗，出界回退）。语音零参与：
-  // sfx 只落在转场窗（静默尾预算区），不建 ducking 包络。
-  audioClips.push(...deriveTransitionSfxClips(base, input.beatTimesUs, input.sfxUrlById));
+  // 转场音效派生音轨——2026-08-19 用户拍板停用：转场≠音效，机械式每转场配一声
+  // 不专业；专业做法=音效跟随叙事内容（剑击配金属声/雷鸣配雷声），由 AI 从
+  // 台词/旁白中识别戏剧性时刻插入，不与转场绑定。sfxUrlById 传入时仍生效
+  // （保留管线供未来剧本驱动音效使用），standalone 默认不传=零派生。
+  if (input.sfxUrlById && Object.keys(input.sfxUrlById).length > 0 && input.transitionSfxEnabled === true) {
+    audioClips.push(...deriveTransitionSfxClips(base, input.beatTimesUs, input.sfxUrlById));
+  }
   const overlayClips = projectHyperFramesOverlay(input.hyperFramesOverlay, base.durationInFrames, base.fps);
   const suppressedCueIds = authorityValidation.suppressedCueIds;
   const props: ChapterVideoCompositionProps = {

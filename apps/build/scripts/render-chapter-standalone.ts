@@ -182,7 +182,7 @@ async function main() {
       mediaUrlByClipId,
       mediaUrlByBindingId,
       lutUrlById,
-      sfxUrlById,
+      // sfxUrlById, // 2026-08-19 用户裁定:转场≠音效,停用机械式派生
       ...(beatTimesUs.length > 0 ? { beatTimesUs } : {}),
       ...(customFontFaces?.length ? { customFontFaces } : {}),
       ...(hasOverlay && overlayUrl ? { hyperFramesOverlay: { src: overlayUrl, windows: overlayWindows } } : {}),
