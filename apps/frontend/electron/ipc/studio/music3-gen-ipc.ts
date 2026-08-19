@@ -31,6 +31,9 @@ export function registerMusic3GenIpcHandlers(options: RegisterMusic3GenIpcOption
     const model = typeof input?.model === "string" && input.model.trim() ? input.model.trim() : "minimax-music3-mlx";
     return controller.downloadModel(model);
   });
+  ipcMain.handle("music3-gen-install-mlxserve", async () => {
+    return controller.installMlxServeBinary();
+  });
   ipcMain.handle("music3-gen-runtime-configure", async (_event, payload: unknown) => {
     const input = payload as Partial<{ weightsDir: unknown; binaryPath: unknown; port: unknown; preferredEngine: unknown }> | null;
     return controller.configureMlxServ({
@@ -70,6 +73,7 @@ export function registerMusic3GenIpcHandlers(options: RegisterMusic3GenIpcOption
       ipcMain.removeHandler("music3-gen-runtime-scan-model");
       ipcMain.removeHandler("music3-gen-runtime-download-model");
       ipcMain.removeHandler("music3-gen-runtime-configure");
+    ipcMain.removeHandler("music3-gen-install-mlxserve");
       ipcMain.removeHandler("music3-gen-runtime-generate");
     },
   };

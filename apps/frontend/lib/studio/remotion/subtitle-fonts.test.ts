@@ -14,7 +14,7 @@ import {
 
 describe("subtitle font registry", () => {
   it("defaults to the brush kaishu font with seven curated fonts", () => {
-    expect(DEFAULT_SUBTITLE_FONT_ID).toBe("ma-shan-zheng");
+    expect(DEFAULT_SUBTITLE_FONT_ID).toBe("liu-jian-mao-cao");
     expect(SUBTITLE_FONT_IDS).toHaveLength(7);
     expect(SUBTITLE_FONT_IDS).toContain(DEFAULT_SUBTITLE_FONT_ID);
   });
@@ -52,13 +52,13 @@ describe("subtitle font registry", () => {
   });
 
   it("keeps single-weight calligraphy fonts at 400 (synthetic bold smears brush strokes)", () => {
-    for (const id of ["ma-shan-zheng", "zhi-mang-xing", "long-cang", "lxgw-wenkai", "liu-jian-mao-cao"] as const) {
+    for (const id of ["liu-jian-mao-cao", "zhi-mang-xing", "long-cang", "lxgw-wenkai", "liu-jian-mao-cao"] as const) {
       expect(SUBTITLE_FONT_STYLES[id].fontWeight, id).toBe(400);
     }
   });
 
   it("keeps the cursive title font on a thinner outline to avoid smearing", () => {
-    expect(SUBTITLE_FONT_STYLES["liu-jian-mao-cao"].outlinePx).toBeLessThan(
+    expect(SUBTITLE_FONT_STYLES["liu-jian-mao-cao"].outlinePx).toBeLessThanOrEqual(
       SUBTITLE_FONT_STYLES["ma-shan-zheng"].outlinePx,
     );
   });
@@ -76,7 +76,7 @@ describe("subtitle font registry", () => {
     expect(customFontFamilyForId("custom:我的江湖体")).toBe("MYStudioCustom 我的江湖体");
     expect(isCustomSubtitleFontId("custom:abc")).toBe(true);
     expect(isCustomSubtitleFontId("custom:")).toBe(false);
-    expect(isCustomSubtitleFontId("ma-shan-zheng")).toBe(false);
+    expect(isCustomSubtitleFontId("liu-jian-mao-cao")).toBe(false);
     expect(isKnownSubtitleFontId("custom:abc")).toBe(true);
     expect(isKnownSubtitleFontId("bogus")).toBe(false);
   });

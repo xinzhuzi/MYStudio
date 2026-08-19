@@ -117,7 +117,7 @@ describe("RenderingSettingsTab", () => {
     await waitFor(() => expect(screen.getByRole("heading", { name: "字幕字体" })).toBeTruthy());
 
     const group = screen.getByRole("radiogroup", { name: "字幕字体：书法 · 仙侠武侠" });
-    expect(group.querySelector('[aria-checked="true"]')?.textContent).toContain("毛笔楷书");
+    expect(group.querySelector('[aria-checked="true"]')?.textContent).toContain("柳建毛草");
 
     fireEvent.click(screen.getByRole("radio", { name: /思源宋体/ }));
     expect(useStudioStore.getState().workflowConfig.subtitleFont).toBe("noto-serif-sc");

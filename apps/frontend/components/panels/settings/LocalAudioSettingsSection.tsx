@@ -204,7 +204,42 @@ function MusicGenEnginePanel() {
   );
 }
 
-/** mlx-serve 8bit 指向路线卡片:零拷贝使用已下载的 ddalcu 8bit 权重(08-19-music3-mlxserv-connector)。 */
+/** mlx-serve 引擎自动安装(下载 62MB tar.gz 到 userData/mlx-serve-managed/)。 */
+function AutoInstallMlxServe({ runtime, onInstalled }: { runtime: ReturnType<typeof useMusic3GenRuntimeSettings>; onInstalled: () => void }) {
+  const [isInstalling, setIsInstalling] = useState(false);
+  const handleInstall = async () => {
+    if (!runtime.bridge?.installMlxServeBinary) {
+      toast.error("当前版本不支持自动安装,请升级应用");
+      return;
+    }
+    setIsInstalling(true);
+    try {
+      const result = await runtime.bridge.installMlxServeBinary();
+      if (result.installed) {
+        toast.success("mlx-serve 引擎已安装");
+        onInstalled();
+      } else {
+        toast.error(`安装失败: ${result.error ?? "未知错误"}`);
+      }
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "安装失败");
+    } finally {
+      setIsInstalling(false);
+    }
+  };
+  return (
+    <Button size="sm" variant="outline" onClick={() => void handleInstall()} disabled={isInstalling}>
+      {isInstalling ? (
+        <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden />
+      ) : (
+        <Download className="mr-2 h-4 w-4" aria-hidden />
+      )}
+      {isInstalling ? "下载安装中…" : "自动安装 mlx-serve(62MB)"}
+    </Button>
+  );
+}
+
+/** mlx-serve 指向路线卡片:零拷贝使用本地已转换的 MiniMax-Music3 MLX 权重(08-19-music3-mlxserv-connector)。 */
 function MlxServCard({ runtime, onConfigured }: { runtime: ReturnType<typeof useMusic3GenRuntimeSettings>; onConfigured: () => void }) {
   const mlxServ = runtime.status?.mlxServ;
   const config = mlxServ?.config;
@@ -279,7 +314,7 @@ function MlxServCard({ runtime, onConfigured }: { runtime: ReturnType<typeof use
       <div className="grid grid-cols-[5rem_minmax(0,1fr)_auto] items-center gap-2 text-sm">
         <span className="text-muted-foreground">权重目录</span>
         <span className="truncate font-mono text-xs" title={config.weightsDir || "未指定"}>
-          {config.weightsDir || "未指定(选择已下载的 minimax-music3-mlx-8bit 目录)"}
+          {config.weightsDir || "未指定(选择已转换的 minimax-music3 MLX 权重目录)"}
         </span>
         <div className="flex items-center gap-1">
           {config.weightsDir ? (
@@ -298,12 +333,13 @@ function MlxServCard({ runtime, onConfigured }: { runtime: ReturnType<typeof use
       {!mlxServ.weightsReady ? (
         <p className="text-xs text-muted-foreground">{mlxServ.weightsReason}</p>
       ) : (
-        <p className="text-xs text-green-600 dark:text-green-400">权重完整(13 GB 8bit 量化,直接指向不拷贝)</p>
+        <p className="text-xs text-green-600 dark:text-green-400">权重完整(直接指向不拷贝,8bit/bf16 均支持)</p>
       )}
 
       {!mlxServ.binaryFound ? (
-        <div className="space-y-1">
-          <p className="text-xs text-muted-foreground">未找到 mlx-serve 引擎,安装(Terminal 执行):</p>
+        <div className="space-y-2">
+          <p className="text-xs text-muted-foreground">未找到 mlx-serve 引擎。可自动下载安装(62MB 到应用目录,无需 brew),或手动安装:</p>
+          <AutoInstallMlxServe runtime={runtime} onInstalled={onConfigured} />
           <pre className="overflow-x-auto rounded-md border border-border bg-muted/50 px-2.5 py-1.5 text-xs">brew tap ddalcu/mlx-serve https://github.com/ddalcu/mlx-serve{"\n"}brew install mlx-serve</pre>
         </div>
       ) : (

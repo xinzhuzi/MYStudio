@@ -850,6 +850,8 @@ contextBridge.exposeInMainWorld('music3GenRuntime', {
     ipcRenderer.invoke('music3-gen-runtime-download-model', { model }),
   configure: (payload: { weightsDir?: string; binaryPath?: string; port?: number; preferredEngine?: 'pocket' | 'mlxserv' }): Promise<unknown> =>
     ipcRenderer.invoke('music3-gen-runtime-configure', payload),
+  installMlxServeBinary: (): Promise<{ installed: boolean; path?: string; error?: string }> =>
+    ipcRenderer.invoke('music3-gen-install-mlxserve'),
   generate: (payload: { prompt: string; seed?: number; seconds?: number; steps?: number; engine?: 'pocket' | 'mlxserv'; outputDir: string }): Promise<unknown> =>
     ipcRenderer.invoke('music3-gen-runtime-generate', payload),
 })

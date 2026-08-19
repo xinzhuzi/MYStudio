@@ -8,6 +8,7 @@ interface Music3GenBridge {
   scanModel: () => Promise<{ models: Music3GenModelRow[] }>;
   downloadModel: (model: string) => Promise<{ accepted: boolean; message: string }>;
   configure: (payload: { weightsDir?: string; binaryPath?: string; port?: number; preferredEngine?: "pocket" | "mlxserv" }) => Promise<unknown>;
+  installMlxServeBinary?: () => Promise<{ installed: boolean; path?: string; error?: string }>;
   generate: (payload: { prompt: string; seed?: number; seconds?: number; steps?: number; engine?: "pocket" | "mlxserv"; outputDir: string }) => Promise<{ status: string; outputPath?: string; code?: string; message?: string; engine?: string }>;
 }
 

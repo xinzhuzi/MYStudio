@@ -20,8 +20,8 @@ export const MUSIC3_MAX_DURATION_S = 300;
 /** 整曲生成为分钟级;给足执行窗口(backend 硬限 30min,这里同参) */
 export const MUSIC3_GENERATE_TIMEOUT_MS = 30 * 60_000;
 
-// ---- mlx-serve 8bit 引擎路线(08-19-music3-mlxserv-connector)----
-// 用户手绘的 ddalcu/MiniMax-Music3-MLX-Serve-8bit 是纯权重,推理靠 mlx-serve
+// ---- mlx-serve 指向引擎路线(08-19-music3-mlxserv-connector)----
+// 指向本地已转换的 MiniMax-Music3 MLX 权重目录(8bit/bf16 均可,布局同 convert_music3_weights.py 产物)
 // (Zig+MLX,OpenAI 兼容 HTTP)。零 Python、零权重拷贝:直接指向已下载目录。
 export const MLXSERV_DEFAULT_PORT = 11273; // 避开 MLX Core 常用默认 11234
 const MLXSERV_HEALTH_TIMEOUT_MS = 5 * 60_000; // 13GB 冷装载预算
@@ -38,9 +38,12 @@ const MLXSERV_BINARY_CANDIDATES = [
   "/opt/homebrew/bin/mlx-serve",
   "/usr/local/bin/mlx-serve",
 ];
+/** MYStudio 管理的 mlx-serve 二进制(自动下载到插件目录;2026-08-19 用户裁定:开箱即用不依赖 brew)。 */
+const MLXSERV_DOWNLOAD_URL = "https://github.com/ddalcu/mlx-serve/releases/download/v26.8.9/mlx-serve-bin-macos-arm64.tar.gz";
+const MLXSERV_MANAGED_DIR_NAME = "mlx-serve-managed";
 
 export interface MlxServConfig {
-  /** 已下载的 8bit 权重目录(ddalcu/MiniMax-Music3-MLX-Serve-8bit) */
+  /** 已下载的 MLX 权重目录(MiniMax-Music3 MLX 转换产物,8bit/bf16 均可) */
   weightsDir: string;
   /** 空 = 自动探测(PATH / homebrew 常规位) */
   binaryPath: string;
@@ -89,7 +92,7 @@ export interface Music3GenRuntimeStatus {
   modelCacheDir?: string;
   /** 最近一次 probe 的宿主硬件画像(平台门控依据) */
   hardwareProfile?: Music3HardwareProfile;
-  /** mlx-serve 8bit 指向路线状态(08-19-music3-mlxserv-connector) */
+  /** mlx-serve 指向路线状态(08-19-music3-mlxserv-connector) */
   mlxServ?: MlxServRuntimeStatus;
 }
 
@@ -214,7 +217,7 @@ export function createMusic3GenRuntimeController(deps: ControllerDeps) {
     if (!fs.existsSync(dir)) return { ready: false, reason: `权重目录不存在: ${dir}` };
     for (const name of MLXSERV_REQUIRED_WEIGHTS) {
       if (!fs.existsSync(path.join(dir, name))) {
-        return { ready: false, reason: `缺少权重文件 ${name}(应为 ddalcu/MiniMax-Music3-MLX-Serve-8bit 仓库)` };
+        return { ready: false, reason: `缺少权重文件 ${name}(应为 MiniMax-Music3 MLX 转换产物目录,8bit/bf16 均可)` };
       }
     }
     for (const name of MLXSERV_REQUIRED_DIRS) {
@@ -227,10 +230,62 @@ export function createMusic3GenRuntimeController(deps: ControllerDeps) {
 
   function detectBinary(): string | null {
     if (mlxServ.binaryPath) return fs.existsSync(mlxServ.binaryPath) ? mlxServ.binaryPath : null;
+    // MYStudio 管理的自动下载版(优先级最高——用户点「检查运行时」后自动就位)
+    const managed = managedBinaryPath();
+    if (managed) return managed;
     for (const candidate of binaryCandidates) {
       if (fs.existsSync(candidate)) return candidate;
     }
     return null;
+  }
+
+  /** MYStudio 管理的二进制路径(userData/mlx-serve-managed/);未下载返回 null。 */
+  function managedBinaryPath(): string | null {
+    const dir = path.join(typeof deps.storageBasePath === "function" ? deps.storageBasePath() : (deps.storageBasePath ?? ""), MLXSERV_MANAGED_DIR_NAME);
+    const bin = path.join(dir, "mlx-serve");
+    try {
+      return fs.existsSync(bin) ? bin : null;
+    } catch {
+      return null;
+    }
+  }
+
+
+
+  /**
+   * 自动下载+安装 mlx-serve 二进制到 userData/mlx-serve-managed/(62MB tar.gz)。
+   * 2026-08-19 用户裁定:开箱即用,不依赖 brew。幂等:已存在则跳过。
+   */
+  async function installMlxServeBinary(): Promise<{ installed: boolean; path?: string; error?: string }> {
+    const dir = path.join(typeof deps.storageBasePath === "function" ? deps.storageBasePath() : (deps.storageBasePath ?? ""), MLXSERV_MANAGED_DIR_NAME);
+    const bin = path.join(dir, "mlx-serve");
+    if (fs.existsSync(bin)) return { installed: true, path: bin };
+    if (!deps.storageBasePath) return { installed: false, error: "缺少 storageBasePath" };
+    const marker = path.join(dir, ".installing");
+    if (fs.existsSync(marker)) return { installed: false, error: "另一进程正在安装" };
+    try {
+      fs.mkdirSync(dir, { recursive: true });
+      fs.writeFileSync(marker, String(Date.now()));
+      const tarPath = path.join(dir, "mlx-serve.tar.gz");
+      // 下载(不支持进度——62MB 可接受)
+      const { execFile } = await import("node:child_process");
+      const { promisify } = await import("node:util");
+      const execFileAsync = promisify(execFile);
+      await execFileAsync("curl", ["-sL", MLXSERV_DOWNLOAD_URL, "-o", tarPath]);
+      // 解压(release tar.gz 含顶层 mlx-serve-macos-arm64/ 目录,须剥层否则二进制落在子目录里)
+      await execFileAsync("tar", ["-xzf", tarPath, "-C", dir, "--strip-components", "1"]);
+      fs.unlinkSync(tarPath);
+      // 给执行权限
+      fs.chmodSync(bin, 0o755);
+      fs.unlinkSync(marker);
+      if (!fs.existsSync(bin)) {
+        return { installed: false, error: "解压后未找到 mlx-serve 二进制" };
+      }
+      return { installed: true, path: bin };
+    } catch (error) {
+      try { fs.unlinkSync(marker); } catch { /* 忽略 */ }
+      return { installed: false, error: error instanceof Error ? error.message : String(error) };
+    }
   }
 
   function mlxServStatus(): MlxServRuntimeStatus {
@@ -684,6 +739,7 @@ export function createMusic3GenRuntimeController(deps: ControllerDeps) {
     generateMusic3,
     configureMlxServ,
     stopServer,
+    installMlxServeBinary,
   };
 }
 
