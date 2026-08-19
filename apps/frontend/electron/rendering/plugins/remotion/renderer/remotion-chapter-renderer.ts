@@ -150,16 +150,70 @@ export function resolveEditableChapterVisualInput(input: {
   return { sourcePath, expectedSha256: derived.derivedSha256, label: "derived_input" };
 }
 
+interface ChapterLayerAsset {
+  clipId: string;
+  backgroundPath: string;
+  subjectPath: string;
+  backgroundSha256: string;
+  subjectSha256: string;
+}
+
+/**
+ * 分层资产发现（08-19 multilayer-composition Child1）：
+ * `<workspaceRoot>/layers/<chapterId>/<clipId>/{background,subject}.png` 两文件
+ * 齐 → 收录（含 SHA-256，进身份哈希+渲染注册）。缺层=该镜单层，静默跳过。
+ * app 内不做按需 separator 调用（build 侧 standalone 脚本职责）；Child3 原生
+ * 分层生图产物落同目录同约定，渲染侧零特殊分支。
+ */
+async function discoverChapterLayerAssets(
+  plan: TimelineRenderPlan,
+  workspaceRoot: string,
+): Promise<ChapterLayerAsset[]> {
+  const found: ChapterLayerAsset[] = [];
+  for (const clip of plan.clips) {
+    if (clip.trackKind !== "image") continue;
+    const dir = path.join(workspaceRoot, "layers", plan.episodeId, clip.id);
+    const backgroundPath = path.join(dir, "background.png");
+    const subjectPath = path.join(dir, "subject.png");
+    try {
+      await assertReadableFile(backgroundPath, `${clip.id}-layer-bg`);
+      await assertReadableFile(subjectPath, `${clip.id}-layer-subj`);
+      found.push({
+        clipId: clip.id,
+        backgroundPath,
+        subjectPath,
+        backgroundSha256: await hashFile(backgroundPath),
+        subjectSha256: await hashFile(subjectPath),
+      });
+    } catch {
+      // 层产物缺失 → 单层渲染（不是错误）
+    }
+  }
+  return found;
+}
+
 export async function createRemotionChapterRenderIdentity(input: {
   plan: TimelineRenderPlan;
   currentShotSlots: readonly RemotionCurrentSlotV1[];
   chapterManifest: RemotionChapterManifestV2;
   bundleContentHash: string;
+  /**
+   * 分层资产发现根（08-19 multilayer-composition Child1）：
+   * `<layerWorkspaceRoot>/layers/<chapterId>/<clipId>/{background,subject}.png`
+   * 两文件齐 → 层 SHA-256 进 inputHash。capability URL 是会话级随机、不区分
+   * 内容，层 PNG 内容变更必须经此失效缓存。**无层章节不进哈希键**（字节级
+   * 不变，零缓存误伤）。job 创建（main step4/craft）与渲染必须传同款根，
+   * 否则 expectedJobId 失配。
+   */
+  layerWorkspaceRoot?: string;
 }): Promise<RemotionChapterRenderIdentity> {
   const voiceIntervals = mapEditedVoiceIntervals(input);
   if (!voiceIntervals.success) {
     throw new Error(voiceIntervals.issues.map((issue) => `${issue.path}: ${issue.message}`).join("；"));
   }
+  const layerAssets = input.layerWorkspaceRoot
+    ? await discoverChapterLayerAssets(input.plan, input.layerWorkspaceRoot)
+    : [];
   const renderSettingsHash = await sha256CanonicalJson(input.plan.renderSettings);
   const inputHash = await sha256CanonicalJson(jsonValueWithoutUndefined({
     schemaVersion: 1,
@@ -180,6 +234,9 @@ export async function createRemotionChapterRenderIdentity(input: {
     },
     chapterManifest: input.chapterManifest,
     mappedVoiceIntervals: voiceIntervals.value,
+    ...(layerAssets.length > 0
+      ? { layerAssets: layerAssets.map((asset) => ({ clipId: asset.clipId, backgroundSha256: asset.backgroundSha256, subjectSha256: asset.subjectSha256 })) }
+      : {}),
     shotSlots: [...input.currentShotSlots].sort(compareShotSlots).map((slot) => ({
       target: slot.target,
       job: {
@@ -222,6 +279,8 @@ export async function createReadyRemotionChapterJob(input: {
   templateVersion: string;
   remotionVersion: string;
   now?: number;
+  /** 与渲染入口同款分层发现根（见 createRemotionChapterRenderIdentity），缺省=无层身份。 */
+  layerWorkspaceRoot?: string;
 }): Promise<RemotionRenderJobV1> {
   const identity = await createRemotionChapterRenderIdentity(input);
   return {
@@ -282,11 +341,16 @@ export class RemotionChapterRenderer {
       };
     }
     const bundle = readBundle(this.options.bundlePath, this.options.remotionVersion);
+    // 分层发现根与 main step4 建 jobId 同款（projectRoot/remotion），保证
+    // expectedJobId 不因层资产进哈希而失配。
+    const layerWorkspaceRoot = this.options.workspaceRootForProject?.(plan.projectId) ?? this.options.workspaceRoot;
+    const layerAssets = await discoverChapterLayerAssets(plan, layerWorkspaceRoot);
     const identity = await createRemotionChapterRenderIdentity({
       plan,
       currentShotSlots: input.currentShotSlots,
       chapterManifest,
       bundleContentHash: bundle.contentHash,
+      layerWorkspaceRoot,
     });
     const { target, jobId } = identity;
     if (input.expectedJobId && input.expectedJobId !== jobId) {
@@ -336,7 +400,7 @@ export class RemotionChapterRenderer {
         error: subtitleAuthorityValidation.issues.map((issue) => `${issue.path}: ${issue.message}`).join("；"),
       };
     }
-    const workspaceRoot = this.options.workspaceRootForProject?.(identity.projectId) ?? this.options.workspaceRoot;
+    const workspaceRoot = layerWorkspaceRoot;
     const publicationId = crypto.randomUUID();
     const stagingDir = path.join(workspaceRoot, "staging", publicationId);
     const stagedOutputPath = path.join(stagingDir, "output.mp4");
@@ -445,6 +509,12 @@ export class RemotionChapterRenderer {
         customFontMediaId = `custom-font-${subtitleFontId}`;
         mediaSources.push({ clipId: customFontMediaId, absolutePath: fontPath });
       }
+      // 分层资产注册（08-19 multilayer Child1）：身份计算时发现的层产物进
+      // bridge；layerUrlByClipId → 投影层转 layerStack → N 层渲染。
+      for (const asset of layerAssets) {
+        mediaSources.push({ clipId: `${asset.clipId}-layer-bg`, absolutePath: asset.backgroundPath });
+        mediaSources.push({ clipId: `${asset.clipId}-layer-subj`, absolutePath: asset.subjectPath });
+      }
       // 成片调色 LUT + 字幕音效资产（08-19 章节色调/字幕音效）：注册进会话，
       // lutUrlById 供 grade 效果 fail-closed 解析；sfxUrlById 供字幕驱动派生。
       let lutUrlById: Record<string, string> | undefined;
@@ -490,6 +560,14 @@ export class RemotionChapterRenderer {
           mediaUrlByClipId[chapterAudioMediaId(binding.bindingId)],
         ]),
       );
+      const layerUrlByClipId: Record<string, { backgroundSrc: string; subjectSrc: string; parallax?: number }> = {};
+      for (const asset of layerAssets) {
+        const backgroundSrc = mediaUrlByClipId[`${asset.clipId}-layer-bg`];
+        const subjectSrc = mediaUrlByClipId[`${asset.clipId}-layer-subj`];
+        if (backgroundSrc && subjectSrc) {
+          layerUrlByClipId[asset.clipId] = { backgroundSrc, subjectSrc, parallax: 0.5 };
+        }
+      }
       const projected: ChapterVideoCompositionResult = buildChapterVideoCompositionProps({
         plan,
         currentShotSlots: input.currentShotSlots,
@@ -497,6 +575,7 @@ export class RemotionChapterRenderer {
         currentShotSlotPaths,
         mediaUrlByClipId,
         mediaUrlByBindingId,
+        ...(Object.keys(layerUrlByClipId).length > 0 ? { layerUrlByClipId } : {}),
         ...(lutUrlById ? { lutUrlById } : {}),
         ...(sfxUrlById ? { sfxUrlById } : {}),
         ...(sfxUrlById && plan.renderSettings.subtitleSfxEnabled === true

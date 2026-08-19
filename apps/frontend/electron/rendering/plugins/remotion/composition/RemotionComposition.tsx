@@ -114,6 +114,14 @@ function TransitionedVisualClip({
     >
       {clip.cinematic ? (
         <CinematicVisualClip {...clip} />
+      ) : clip.layerStack?.length ? (
+        <LayeredVisualClip
+          layerStack={clip.layerStack}
+          durationInFrames={clip.durationInFrames}
+          panZoom={clip.panZoom}
+          grade={clip.grade}
+          frameStep={clip.frameStep}
+        />
       ) : clip.layers ? (
         <LayeredVisualClip
           backgroundSrc={clip.layers.backgroundSrc}
@@ -122,6 +130,8 @@ function TransitionedVisualClip({
           durationInFrames={clip.durationInFrames}
           panZoom={clip.panZoom}
           ambient={clip.ambient}
+          grade={clip.grade}
+          frameStep={clip.frameStep}
         />
       ) : (
         <VisualClip {...clip} />

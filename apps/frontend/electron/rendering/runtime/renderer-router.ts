@@ -16,6 +16,8 @@ const REMOTION_SUPPORTED_EFFECT_IDS = [
   // 成片调色（08-18-haldclut-grade）：合成层 WebGL LUT pass。
   "grade",
   "ambient",
+  // 程序化氛围层(08-19 multilayer-composition Child1):layerStack template 实例化。
+  "atmosphere",
 ] as const;
 
 interface TimelineRendererRoutingPlan {

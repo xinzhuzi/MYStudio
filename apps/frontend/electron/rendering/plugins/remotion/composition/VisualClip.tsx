@@ -4,7 +4,7 @@
 // layers on top (visual-fx.ts). The component is a thin wrapper over verified
 // pure helpers and receives only a capability URL as src.
 
-import { AbsoluteFill, Img, OffthreadVideo, useCurrentFrame, useRemotionEnvironment } from "remotion";
+import { AbsoluteFill, Img, OffthreadVideo, useCurrentFrame, useRemotionEnvironment, useVideoConfig } from "remotion";
 import type { CompositionVisualClipProps } from "./composition-props";
 import { GLGradeMedia } from "./GLGradeMedia";
 import { ambientAtFrame, panZoomAtFrame } from "./pan-zoom";
@@ -23,6 +23,7 @@ import {
 export function VisualClip(props: CompositionVisualClipProps): React.ReactElement {
   const rawFrame = useCurrentFrame();
   const { isRendering } = useRemotionEnvironment();
+  const { fps } = useVideoConfig();
   // 帧步进(On Twos,08-19 第二批):运镜/环境动画按 N 帧一档采样=动画「味道」,
   // 媒体本体不受影响(视频仍逐帧)。
   const step = props.frameStep && props.frameStep > 1 ? props.frameStep : 1;
@@ -30,9 +31,10 @@ export function VisualClip(props: CompositionVisualClipProps): React.ReactElemen
   const panZoom = props.panZoom
     ? panZoomAtFrame(frame, props.durationInFrames, props.panZoom)
     : undefined;
-  // 环境动画:sin/cos 周期运动叠加在 panZoom 缓动之上
+  // 环境动画:sin/cos 周期运动叠加在 panZoom 缓动之上(频率按 composition 实际
+  // fps 归一——旧硬编码 30 在非 30fps 渲染下频率失真,Child1 修复)
   const ambient = props.ambient
-    ? ambientAtFrame(frame, 30, props.ambient)
+    ? ambientAtFrame(frame, fps, props.ambient)
     : null;
   const style = buildVisualStyle(props.transform, panZoom);
   if (ambient) {
@@ -58,7 +60,7 @@ export function VisualClip(props: CompositionVisualClipProps): React.ReactElemen
   const gradeBlend = props.grade
     ? Math.min(1, Math.max(0, props.grade.blend
         + (props.grade.blendPulse
-          ? props.grade.blendPulse.amp * Math.sin(frame / 30 * props.grade.blendPulse.freq * Math.PI * 2 + (props.grade.blendPulse.phase ?? 0))
+          ? props.grade.blendPulse.amp * Math.sin(frame / fps * props.grade.blendPulse.freq * Math.PI * 2 + (props.grade.blendPulse.phase ?? 0))
           : 0)))
     : undefined;
 
@@ -106,7 +108,7 @@ export function VisualClip(props: CompositionVisualClipProps): React.ReactElemen
         : null}
       {props.fx?.speedSilhouette ? (
         <AbsoluteFill style={{ overflow: "hidden" }}>
-          <div style={fxSpeedSilhouetteStyle(rawFrame, 30, props.fx)} />
+          <div style={fxSpeedSilhouetteStyle(rawFrame, fps, props.fx)} />
         </AbsoluteFill>
       ) : null}
       {props.fx?.godRays ? <AbsoluteFill style={fxGodRaysOverlayStyle(rawFrame, props.fx)} /> : null}

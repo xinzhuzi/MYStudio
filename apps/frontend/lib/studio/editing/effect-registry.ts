@@ -22,6 +22,7 @@ export const EDITING_EFFECT_IDS = [
   "godRays",
   "onTwos",
   "gradePulse",
+  "atmosphere",
 ] as const satisfies readonly EditingEffectId[];
 
 const EFFECT_DEFINITIONS: readonly EditingEffectDefinition[] = [
@@ -84,6 +85,11 @@ const EFFECT_DEFINITIONS: readonly EditingEffectDefinition[] = [
   definition("gradePulse", "style", "approximate", [
     numberParameter("amp", 0.08, 0.01, 0.5),
     numberParameter("freq", 0.3, 0.05, 2),
+  ]),
+  // 程序化氛围层(08-19 multilayer-composition Child1):template id 由
+  // atmosphere-templates 闭集校验(Child2),params 透传渲染端模板参数。
+  definition("atmosphere", "style", "full", [
+    numberParameter("intensity", 1, 0, 2),
   ]),
 ];
 

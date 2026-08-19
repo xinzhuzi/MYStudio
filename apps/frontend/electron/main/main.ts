@@ -1133,6 +1133,9 @@ const nativeStudioQueueBridge = new RemotionStudioRenderQueueBridge({
       bundleContentHash: manifest.contentHash,
       templateVersion: manifest.templateVersion,
       remotionVersion,
+      // 分层发现根与 RemotionChapterRenderer.render 同款（08-19 multilayer Child1），
+      // 保证 expectedJobId 不因层资产进身份哈希而失配。
+      layerWorkspaceRoot: path.join(projectRootFor(context.projectId), 'remotion'),
     })
     console.error('[chapter-video] step5: evaluateVideoWorkflowChapterGate...')
     const gate = await evaluateVideoWorkflowChapterGate({

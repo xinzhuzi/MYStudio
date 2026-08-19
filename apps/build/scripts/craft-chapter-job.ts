@@ -116,6 +116,8 @@ async function main() {
     templateVersion,
     remotionVersion,
     now: Date.now(),
+    // 分层发现根与渲染入口同款（08-19 multilayer Child1）——层产物变更须失效 jobId。
+    layerWorkspaceRoot: path.join(MA, "remotion"),
   });
   const entry = { kind: "chapter", job, dependencyJobIds, plan, currentShotSlots: slots };
 

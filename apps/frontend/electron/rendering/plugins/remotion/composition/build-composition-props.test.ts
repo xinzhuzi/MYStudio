@@ -1005,3 +1005,35 @@ function slotForShot(shotId: string) {
     ...paths,
   };
 }
+
+describe("layerStackFromLegacyTuple(08-19 multilayer Child1)", () => {
+  it("旧二元组→layerStack:背景 damp=1-0.4·parallax(与旧 bgDamp 逐值一致),主体 damp=1", async () => {
+    const { layerStackFromLegacyTuple } = await import("./build-composition-props");
+    const parallax = 0.6;
+    const stack = layerStackFromLegacyTuple({
+      backgroundSrc: "http://127.0.0.1:1/" + "a".repeat(64) + "/bg.png",
+      subjectSrc: "http://127.0.0.1:1/" + "a".repeat(64) + "/subj.png",
+      parallax,
+    });
+    expect(stack).toHaveLength(2);
+    expect(stack[0]).toMatchObject({ role: "background" });
+    expect(stack[0]!.panZoomDamp).toBeCloseTo(1 - 0.4 * parallax, 10);
+    expect(stack[1]).toMatchObject({ role: "subject", panZoomDamp: 1 });
+  });
+
+  it("parallax 缺省 0.5→damp 0.8(旧默认视差折减);越界钳制 0..1", async () => {
+    const { layerStackFromLegacyTuple } = await import("./build-composition-props");
+    const token = "b".repeat(64);
+    const stack = layerStackFromLegacyTuple({
+      backgroundSrc: `http://127.0.0.1:1/${token}/bg.png`,
+      subjectSrc: `http://127.0.0.1:1/${token}/subj.png`,
+    });
+    expect(stack[0]!.panZoomDamp).toBeCloseTo(0.8, 10);
+    const clamped = layerStackFromLegacyTuple({
+      backgroundSrc: `http://127.0.0.1:1/${token}/bg.png`,
+      subjectSrc: `http://127.0.0.1:1/${token}/subj.png`,
+      parallax: 5,
+    });
+    expect(clamped[0]!.panZoomDamp).toBeCloseTo(0.6, 10);
+  });
+});

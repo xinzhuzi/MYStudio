@@ -328,3 +328,89 @@ describe("validateCompositionProps", () => {
     }
   });
 });
+
+describe("layerStack 校验(08-19 multilayer Child1)", () => {
+  const token = "a".repeat(64);
+  const layerUrl = (name: string) => `http://127.0.0.1:1/${token}/${name}`;
+
+  it("接受合法四层(背景/主体/前景/氛围模板)", () => {
+    const props = validProps();
+    props.visualClips[0].layerStack = [
+      { role: "background", src: layerUrl("bg") },
+      { role: "subject", src: layerUrl("subj"), panZoomDamp: 1, ambient: { type: "float", ampX: 0.004, ampY: 0.008, ampScale: 0.008, ampRot: 0, freq: 0.25, phase: 0 } },
+      { role: "foreground", src: layerUrl("fg"), panZoomDamp: 1.15, blendMode: "screen", opacity: 0.4, drift: { speedX: 1.5 } },
+      { role: "atmosphere", template: { id: "atmo:light-dust", params: { count: 48 } } },
+    ];
+    expect(validateCompositionProps(props).success).toBe(true);
+  });
+
+  it("拒绝非法 role/blendMode(闭集 fail-closed)", () => {
+    const props = validProps();
+    props.visualClips[0].layerStack = [{ role: "midground" as never, src: layerUrl("x") }];
+    const result = validateCompositionProps(props);
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.issues.some((i) => i.path === "visualClips[0].layerStack[0].role")).toBe(true);
+    }
+
+    const blend = validProps();
+    blend.visualClips[0].layerStack = [{ role: "foreground", src: layerUrl("x"), blendMode: "luminosity" as never }];
+    const blendResult = validateCompositionProps(blend);
+    expect(blendResult.success).toBe(false);
+    if (!blendResult.success) {
+      expect(blendResult.issues.some((i) => i.path === "visualClips[0].layerStack[0].blendMode")).toBe(true);
+    }
+  });
+
+  it("layerStack 与旧 layers 二元组互斥", () => {
+    const props = validProps();
+    props.visualClips[0].layers = { backgroundSrc: layerUrl("bg"), subjectSrc: layerUrl("subj") };
+    props.visualClips[0].layerStack = [{ role: "background", src: layerUrl("bg") }];
+    const result = validateCompositionProps(props);
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.issues.some((i) => i.message.includes("互斥"))).toBe(true);
+    }
+  });
+
+  it("拒绝越界 opacity/panZoomDamp 与非 capability src", () => {
+    const props = validProps();
+    props.visualClips[0].layerStack = [
+      { role: "background", src: "file:///tmp/bg.png", opacity: 1.5, panZoomDamp: 3 },
+    ];
+    const result = validateCompositionProps(props);
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      const paths = result.issues.map((i) => i.path);
+      expect(paths).toContain("visualClips[0].layerStack[0].src");
+      expect(paths).toContain("visualClips[0].layerStack[0].opacity");
+      expect(paths).toContain("visualClips[0].layerStack[0].panZoomDamp");
+    }
+  });
+
+  it("src 与 template 同时缺省=无效层", () => {
+    const props = validProps();
+    props.visualClips[0].layerStack = [{ role: "atmosphere" }];
+    const result = validateCompositionProps(props);
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.issues.some((i) => i.message.includes("不得同时缺省"))).toBe(true);
+    }
+  });
+
+  it("clip 级 ambient 非法类型 fail-closed(旧=静默丢弃)", () => {
+    const props = validProps();
+    props.visualClips[0].ambient = { type: "wobble" as never, ampX: 0.01, ampY: 0.01, ampScale: 0.01, ampRot: 0.1, freq: 0.3, phase: 0 };
+    const result = validateCompositionProps(props);
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.issues.some((i) => i.path === "visualClips[0].ambient.type")).toBe(true);
+    }
+  });
+
+  it("合法 clip 级 ambient 通过", () => {
+    const props = validProps();
+    props.visualClips[0].ambient = { type: "breathe", ampX: 0, ampY: 0.01, ampScale: 0.008, ampRot: 0, freq: 0.3, phase: 0.5 };
+    expect(validateCompositionProps(props).success).toBe(true);
+  });
+});

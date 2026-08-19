@@ -10,6 +10,7 @@ import type {
   CompositionAudioClipProps,
   CompositionEnvelopePoint,
   CompositionFade,
+  CompositionLayerSpec,
   CompositionOverlayClipProps,
   CompositionPanZoom,
   CompositionProps,
@@ -129,9 +130,11 @@ export function buildCompositionProps(
       trimStartFrames: usToFrames(clip.trimStartUs, fps),
       playbackRate: clip.speed,
       muted: clip.muted,
-      // 图层分离分层渲染(08-19):仅静帧片段;存在时 LayeredVisualClip 双层视差接管
+      // 图层分离分层渲染(08-19):仅静帧片段;注入时把旧二元组转换为
+      // layerStack(bg damp=1-0.4·parallax 与旧公式一致→既有成片像素级不变),
+      // N 层渲染接管;Child2 的 atmosphere 效果将在此追加 template 层。
       ...(layerUrlByClipId?.[clip.id] && (clip.source.kind === "storyboardImage" || clip.trackKind === "image")
-        ? { layers: layerUrlByClipId[clip.id] }
+        ? { layerStack: layerStackFromLegacyTuple(layerUrlByClipId[clip.id]) }
         : {}),
     };
   });
@@ -199,6 +202,24 @@ export function buildCompositionProps(
     subtitles,
     subtitleFont: plan.renderSettings.subtitleFont ?? DEFAULT_SUBTITLE_FONT_ID,
   };
+}
+
+/**
+ * 旧 layers 二元组 → layerStack(08-19 multilayer-composition Child1):
+ * 背景层 damp=1-0.4·parallax(与旧 bgDamp 公式逐值一致,既有双层成片像素级
+ * 不变),主体层 damp=1(吃满运镜)。ambient 保留在 clip 级(旧路径主体独享
+ * ambient 的行为由渲染端 layerStack 分支同样支持——此处不迁移,避免双重施加)。
+ */
+export function layerStackFromLegacyTuple(tuple: {
+  backgroundSrc: string;
+  subjectSrc: string;
+  parallax?: number;
+}): CompositionLayerSpec[] {
+  const parallax = Math.min(1, Math.max(0, tuple.parallax ?? 0.5));
+  return [
+    { role: "background", src: tuple.backgroundSrc, panZoomDamp: 1 - 0.4 * parallax },
+    { role: "subject", src: tuple.subjectSrc, panZoomDamp: 1 },
+  ];
 }
 
 export interface ChapterVideoSourceInput {

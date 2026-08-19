@@ -119,6 +119,44 @@ export interface CompositionFade {
 
 export type CompositionVisualKind = "image" | "video";
 
+// ---------------------------------------------------------------------------
+// Multi-layer stack (08-19 multilayer-composition Child1)
+// ---------------------------------------------------------------------------
+
+/** 层角色闭集:背景板/主体/前景遮挡/程序化氛围。 */
+export type CompositionLayerRole = "background" | "subject" | "foreground" | "atmosphere";
+
+/** 层混合模式闭集(atmosphere/foreground 层用;normal=缺省)。 */
+export type CompositionLayerBlendMode = "normal" | "screen" | "multiply" | "overlay" | "soft-light";
+
+/** 层自带漂移(雾带类横移/上飘;单位=屏宽/高百分比每秒,双份循环免回绕)。 */
+export interface CompositionLayerDrift {
+  speedX?: number;
+  speedY?: number;
+  /** 漂移层双份相距 100% 循环覆盖(缺省 true);false=单份不回绕。 */
+  wrap?: boolean;
+}
+
+/**
+ * 有序层描述(N 层合成,08-19 multilayer-composition Child1):
+ * 渲染按数组顺序 z 叠放;图片层各吃 damp 折减运镜,atmosphere 层由
+ * template 实例化程序化渲染(雾带/粒子),ambient/drift 每层独立。
+ */
+export interface CompositionLayerSpec {
+  /** 图片层=capability URL;atmosphere 程序化层可省。 */
+  src?: string;
+  role: CompositionLayerRole;
+  /** panZoom 折减(围绕 1.0 收敛,0..2):1=吃满,<1 懒、>1 灵;缺省按 role(bd 0.6/subject 1/foreground 1.15/atmosphere 0)。 */
+  panZoomDamp?: number;
+  ambient?: import("./pan-zoom").CompositionAmbient;
+  drift?: CompositionLayerDrift;
+  blendMode?: CompositionLayerBlendMode;
+  opacity?: number;
+  /** 程序化氛围模板(Child2 决策注入;Child1 起 atmo:fog-band/atmo:light-dust 落地)。 */
+  template?: { id: string; params?: Record<string, number> };
+}
+
+
 // A visual clip already placed on the frame grid by the timing layout. `src` is
 // a capability URL; there are no filesystem paths in composition props.
 export interface CompositionVisualClipProps {
@@ -147,6 +185,9 @@ export interface CompositionVisualClipProps {
   /** 图层分离分层渲染（08-19 图层分离探索）：存在时走 LayeredVisualClip
    * 双层视差（背景运镜折减+主体 ambient），忽略单层媒体位（src 保留供音轨/转场）。 */
   layers?: { backgroundSrc: string; subjectSrc: string; parallax?: number };
+  /** N 层合成（08-19 multilayer-composition Child1）：存在时走 LayeredVisualClip
+   * N 层渲染,与旧 layers 二元组互斥(校验闸 fail-closed);src 保留供音轨/转场。 */
+  layerStack?: CompositionLayerSpec[];
   // Video-only playback controls; ignored for images.
   trimStartFrames?: number;
   playbackRate?: number;

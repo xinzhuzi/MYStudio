@@ -20,6 +20,11 @@ import { isKnownSubtitleFontId } from "../../../../../lib/studio/remotion/subtit
 const VISUAL_KINDS = ["image", "video"] as const;
 const VISUAL_FITS = ["cover", "contain"] as const;
 const AUDIO_KINDS = ["voice", "bgm", "sfx", "ambience"] as const;
+// 08-19 multilayer-composition Child1:层角色/混合模式/ambient 类型闭集
+// (与 ambientForClip 的静默钳制不同,props 边界 fail-closed)。
+const LAYER_ROLES = ["background", "subject", "foreground", "atmosphere"] as const;
+const LAYER_BLEND_MODES = ["normal", "screen", "multiply", "overlay", "soft-light"] as const;
+const AMBIENT_TYPES = ["float", "breathe", "sway", "pulse", "flow"] as const;
 
 export type CompositionValidationResult<T> =
   | { success: true; value: T }
@@ -168,7 +173,123 @@ function validateVisualClip(clip: unknown, path: string, issues: Issue[]): void 
   validateTransform(clip.transform, `${path}.transform`, issues);
   if (clip.fit !== undefined) requireEnum(clip.fit, VISUAL_FITS, `${path}.fit`, issues);
   validateGrade(clip.grade, `${path}.grade`, issues);
+  validateAmbient(clip.ambient, `${path}.ambient`, issues);
+  validateLayerFields(clip, path, issues);
   validateOptionalClipFields(clip, path, issues);
+}
+
+// ambient(环境动画):类型 5 枚举+数值域(与 ambientForClip 钳制域一致);
+// clip 级与层内共用。旧路径无校验(非法 type 静默丢弃),props 边界收紧为 fail-closed。
+function validateAmbient(ambient: unknown, path: string, issues: Issue[]): void {
+  if (ambient === undefined) return;
+  if (!isRecord(ambient)) {
+    issues.push({ path, message: "ambient 必须是对象" });
+    return;
+  }
+  requireEnum(ambient.type, AMBIENT_TYPES, `${path}.type`, issues);
+  const ambientRange = (key: string, min: number, max: number): void => {
+    const value = ambient[key];
+    if (value === undefined) return;
+    if (!isFiniteNumber(value) || value < min || value > max) {
+      issues.push({ path: `${path}.${key}`, message: `${key} 必须是位于 ${min}..${max} 的数值` });
+    }
+  };
+  ambientRange("ampX", 0, 0.05);
+  ambientRange("ampY", 0, 0.05);
+  ambientRange("ampScale", 0, 0.03);
+  ambientRange("ampRot", 0, 1);
+  ambientRange("freq", 0.1, 0.8);
+  ambientRange("phase", 0, 1);
+}
+
+// layers(旧二元组)/layerStack(N 层)分发:同现 fail-closed。
+function validateLayerFields(clip: Record<string, unknown>, path: string, issues: Issue[]): void {
+  const legacy = clip.layers;
+  const stack = clip.layerStack;
+  if (legacy !== undefined && stack !== undefined) {
+    issues.push({ path: `${path}.layerStack`, message: "layerStack 与旧 layers 二元组互斥,不得同现" });
+    return;
+  }
+  if (legacy !== undefined) {
+    if (!isRecord(legacy)) {
+      issues.push({ path: `${path}.layers`, message: "layers 必须是对象" });
+      return;
+    }
+    requireNonEmptyString(legacy.backgroundSrc, `${path}.layers.backgroundSrc`, issues);
+    requireCapabilityUrl(legacy.backgroundSrc, `${path}.layers.backgroundSrc`, issues);
+    requireNonEmptyString(legacy.subjectSrc, `${path}.layers.subjectSrc`, issues);
+    requireCapabilityUrl(legacy.subjectSrc, `${path}.layers.subjectSrc`, issues);
+    if (isFiniteNumber(legacy.parallax) && (legacy.parallax < 0 || legacy.parallax > 1)) {
+      issues.push({ path: `${path}.layers.parallax`, message: "parallax 必须位于 0..1" });
+    }
+    return;
+  }
+  if (stack === undefined) return;
+  if (!Array.isArray(stack) || stack.length === 0) {
+    issues.push({ path: `${path}.layerStack`, message: "layerStack 必须是非空数组" });
+    return;
+  }
+  if (stack.length > 8) {
+    issues.push({ path: `${path}.layerStack`, message: "layerStack 至多 8 层" });
+  }
+  stack.forEach((layer, index) => validateLayerSpec(layer, `${path}.layerStack[${index}]`, issues));
+}
+
+function validateLayerSpec(layer: unknown, path: string, issues: Issue[]): void {
+  if (!isRecord(layer)) {
+    issues.push({ path, message: "层描述必须是对象" });
+    return;
+  }
+  requireEnum(layer.role, LAYER_ROLES, `${path}.role`, issues);
+  if (layer.src !== undefined) {
+    requireNonEmptyString(layer.src, `${path}.src`, issues);
+    requireCapabilityUrl(layer.src, `${path}.src`, issues);
+  }
+  if (layer.src === undefined && layer.template === undefined) {
+    issues.push({ path, message: "图片层需要 src,程序化层需要 template,二者不得同时缺省" });
+  }
+  if (layer.panZoomDamp !== undefined
+    && (!isFiniteNumber(layer.panZoomDamp) || layer.panZoomDamp < 0 || layer.panZoomDamp > 2)) {
+    issues.push({ path: `${path}.panZoomDamp`, message: "panZoomDamp 必须位于 0..2" });
+  }
+  if (layer.opacity !== undefined
+    && (!isFiniteNumber(layer.opacity) || layer.opacity < 0 || layer.opacity > 1)) {
+    issues.push({ path: `${path}.opacity`, message: "opacity 必须位于 0..1" });
+  }
+  if (layer.blendMode !== undefined) {
+    requireEnum(layer.blendMode, LAYER_BLEND_MODES, `${path}.blendMode`, issues);
+  }
+  if (layer.drift !== undefined) {
+    if (!isRecord(layer.drift)) {
+      issues.push({ path: `${path}.drift`, message: "drift 必须是对象" });
+    } else {
+      for (const key of ["speedX", "speedY"]) {
+        if (layer.drift[key] !== undefined
+          && (!isFiniteNumber(layer.drift[key]) || Math.abs(layer.drift[key] as number) > 100)) {
+          issues.push({ path: `${path}.drift.${key}`, message: `${key} 必须是 |值|≤100 的有限数值` });
+        }
+      }
+    }
+  }
+  if (layer.template !== undefined) {
+    if (!isRecord(layer.template)) {
+      issues.push({ path: `${path}.template`, message: "template 必须是对象" });
+    } else {
+      requireNonEmptyString(layer.template.id, `${path}.template.id`, issues);
+      if (layer.template.params !== undefined) {
+        if (!isRecord(layer.template.params)) {
+          issues.push({ path: `${path}.template.params`, message: "template.params 必须是数值记录" });
+        } else {
+          for (const [key, param] of Object.entries(layer.template.params)) {
+            if (!isFiniteNumber(param)) {
+              issues.push({ path: `${path}.template.params.${key}`, message: "模板参数必须是有限数值" });
+            }
+          }
+        }
+      }
+    }
+  }
+  validateAmbient(layer.ambient, `${path}.ambient`, issues);
 }
 
 // grade（成片调色）：lutId 闭集 fail-closed（未知值拒渲染，铁律2）；blend 钳 0..1。

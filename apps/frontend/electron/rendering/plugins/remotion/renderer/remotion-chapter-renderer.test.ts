@@ -1,4 +1,7 @@
 // @vitest-environment node
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
 import { describe, expect, it, vi } from "vitest";
 import type { EditingProjectV1, TimelineRenderPlan } from "@/types/editing";
 import type { RemotionChapterManifestV2, RemotionCurrentSlotV1 } from "@/types/remotion-workspace";
@@ -243,3 +246,40 @@ function makePlan(slot: RemotionCurrentSlotV1): TimelineRenderPlan {
   if (!compiled.success) throw new Error(compiled.issues.map((issue) => issue.message).join(";"));
   return compiled.value;
 }
+
+
+describe("分层资产进章节身份(08-19 multilayer Child1)", () => {
+  it("层文件 SHA 进身份;无层=与既有一致;层内容变=身份变", async () => {
+    const slot = makeCurrentSlot();
+    const plan = makePlan(slot);
+    // 分层发现只认静帧(image)镜;fixture 默认 storyboardVideo,测试内改写。
+    (plan.clips[0] as unknown as { trackKind: string }).trackKind = "image";
+    const manifest = await manifestForPlan(plan);
+    const root = await fs.promises.mkdtemp(path.join(os.tmpdir(), "mlp-identity-"));
+    const layerDir = path.join(root, "layers", plan.episodeId, plan.clips[0]!.id);
+    await fs.promises.mkdir(layerDir, { recursive: true });
+    await fs.promises.writeFile(path.join(layerDir, "background.png"), "bg-v1");
+    await fs.promises.writeFile(path.join(layerDir, "subject.png"), "subj-v1");
+
+    const identityInput = {
+      plan,
+      currentShotSlots: [slot] as const,
+      chapterManifest: manifest,
+      bundleContentHash: "d".repeat(64),
+    };
+    const base = await createRemotionChapterRenderIdentity(identityInput);
+    const withLayers = await createRemotionChapterRenderIdentity({ ...identityInput, layerWorkspaceRoot: root });
+    // 有层 → 身份变化(层 SHA 已进 inputHash)
+    expect(withLayers.inputHash).not.toBe(base.inputHash);
+
+    // 层内容变更 → 身份再变(capability URL 不进哈希,SHA 是唯一内容通道)
+    await fs.promises.writeFile(path.join(layerDir, "subject.png"), "subj-v2");
+    const contentChanged = await createRemotionChapterRenderIdentity({ ...identityInput, layerWorkspaceRoot: root });
+    expect(contentChanged.inputHash).not.toBe(withLayers.inputHash);
+
+    // 无层目录 → 与不传 layerWorkspaceRoot 字节一致(零缓存误伤)
+    const emptyRoot = await fs.promises.mkdtemp(path.join(os.tmpdir(), "mlp-empty-"));
+    const noLayers = await createRemotionChapterRenderIdentity({ ...identityInput, layerWorkspaceRoot: emptyRoot });
+    expect(noLayers.inputHash).toBe(base.inputHash);
+  });
+});

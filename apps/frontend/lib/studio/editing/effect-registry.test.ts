@@ -26,6 +26,7 @@ describe("editing effect registry", () => {
       "godRays",
       "onTwos",
       "gradePulse",
+      "atmosphere",
     ]);
   });
 

@@ -12,6 +12,9 @@ const currentFrame = { value: 0 };
 
 vi.mock("remotion", () => ({
   useCurrentFrame: () => currentFrame.value,
+  // fps 修复(08-19 multilayer Child1):ambient/gradePulse/speedSilhouette 按
+  // composition 实际 fps 归一,组件现经 useVideoConfig 取 fps。
+  useVideoConfig: () => ({ fps: 30, width: 1920, height: 1080, durationInFrames: 90 }),
   // GLGradeMedia 渲染期专用：测试（非渲染环境）下 isRendering=false 走原媒体分支。
   useRemotionEnvironment: () => ({ isRendering: false, isClientSideRendering: false }),
   AbsoluteFill: ({ children, style }: { children?: unknown; style?: unknown }) =>

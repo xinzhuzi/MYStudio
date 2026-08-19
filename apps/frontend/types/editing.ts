@@ -50,6 +50,9 @@ export type EditingEffectId =
   | "godRays"
   | "onTwos"
   | "gradePulse"
+  // 程序化氛围层(08-19 multilayer-composition Child1 注册,Child2 决策链消费):
+  // 雾带/光尘等 template 实例化进 layerStack。
+  | "atmosphere"
   // gl:* 转场收录白名单（08-18-gl-transitions Step C 全量 123;权威=composition/gl-transition-registry.ts,孪生对拍守护)——EditingEffectId 为 Extract 源 union,
   // 转场闭集由此派生进 EditingTransition.effectId。
   | "gl:AdvancedMosaic"
