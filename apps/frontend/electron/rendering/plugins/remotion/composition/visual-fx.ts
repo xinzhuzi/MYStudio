@@ -11,6 +11,12 @@ export interface CompositionVisualFx {
   grain?: { opacity: number };
   /** 色差（RGB 分离）；offsetPx 2-4 用于爆点/冲击瞬间。 */
   chroma?: { offsetPx: number };
+  /** 残影/拖影（08-19 第二批动画手法）：copies 层重影,offsetPx 逐层递增偏移。 */
+  afterimage?: { copies: number; offsetPx: number; opacity: number };
+  /** 速度剪影：暗色模糊条带在镜头前段快速掠过（direction 左→右/右→左）。 */
+  speedSilhouette?: { direction: "ltr" | "rtl" };
+  /** 神光/God Rays：多层斜向光柱 + screen 混合,intensity 0..1。 */
+  godRays?: { intensity: number; hue?: number };
 }
 
 /** 确定性手持抖动偏移：三层不同频率正弦叠加，无随机项。 */
@@ -91,4 +97,84 @@ export function fxChromaLayerStyle(
 
 function round2(value: number): number {
   return Math.round(value * 100) / 100;
+}
+
+
+// ---------------------------------------------------------------------------
+// 第二批动画手法（08-19）：残影 / 速度剪影 / 神光
+// ---------------------------------------------------------------------------
+
+/** 残影层样式：第 i 层（1..copies）按方向偏移 i×offsetPx,透明度指数衰减。 */
+export function fxAliasingLayerStyle(
+  fx: CompositionVisualFx,
+  index: number,
+): React.CSSProperties | undefined {
+  const a = fx.afterimage;
+  if (!a) return undefined;
+  const opacity = Math.min(1, Math.max(0, a.opacity * Math.pow(0.6, index)));
+  return {
+    position: "absolute",
+    inset: 0,
+    pointerEvents: "none",
+    opacity,
+    transform: `translateX(${(index * a.offsetPx).toFixed(1)}px) scaleX(${1 + index * 0.015})`,
+    filter: `blur(${Math.min(8, index * 1.2).toFixed(1)}px)`,
+  };
+}
+
+/** 速度剪影：镜头前 0.9s 内一条暗色模糊条带横掠全屏（确定性,无随机）。
+ * 返回条带本体样式（外层容器 overflow:hidden 由调用方提供）。 */
+export function fxSpeedSilhouetteStyle(
+  frame: number,
+  fps: number,
+  fx: CompositionVisualFx,
+): React.CSSProperties | undefined {
+  if (!fx.speedSilhouette) return undefined;
+  const sweepS = 0.9;
+  const p = frame / (fps * sweepS);
+  if (p < 0 || p > 1) return { display: "none" };
+  const eased = p * p * (3 - 2 * p);
+  const dir = fx.speedSilhouette.direction === "ltr" ? 1 : -1;
+  const travel = dir > 0 ? eased * 130 - 15 : 15 - eased * 130;
+  // 条带倾斜 8deg 强化速度感;透明度进出各 15% 渐变
+  const fade = p < 0.15 ? p / 0.15 : p > 0.85 ? (1 - p) / 0.15 : 1;
+  return {
+    position: "absolute",
+    top: "-10%",
+    height: "120%",
+    width: "26%",
+    left: `${travel}%`,
+    pointerEvents: "none",
+    opacity: Math.round(fade * 100) / 100,
+    transform: "rotate(8deg) skewX(-12deg)",
+    filter: "blur(18px)",
+    background:
+      "linear-gradient(90deg, transparent 0%, rgba(10, 8, 18, 0.55) 45%, rgba(10, 8, 18, 0.55) 60%, transparent 100%)",
+  };
+}
+
+/** 神光叠加层：三条斜向渐变光柱 + screen 混合,随帧缓慢摆动（确定性 sin）。 */
+export function fxGodRaysOverlayStyle(
+  frame: number,
+  fx: CompositionVisualFx,
+): React.CSSProperties | undefined {
+  const g = fx.godRays;
+  if (!g) return undefined;
+  const i = Math.min(1, Math.max(0, g.intensity));
+  const hue = g.hue ?? 45;
+  const sway = Math.sin(frame * 0.02) * 2.5;
+  const beam = (angle: number, alpha: number, width: number): string =>
+    `linear-gradient(${angle}deg, hsla(${hue}, 80%, 80%, 0) 0%, hsla(${hue}, 80%, 82%, ${alpha}) ${width}%, hsla(${hue}, 80%, 80%, 0) ${width + 14}%)`;
+  return {
+    position: "absolute",
+    inset: 0,
+    pointerEvents: "none",
+    mixBlendMode: "screen",
+    background: [
+      beam(105 + sway, round2(0.28 * i), 18),
+      beam(112 - sway, round2(0.2 * i), 42),
+      beam(98 + sway * 0.6, round2(0.16 * i), 64),
+    ].join(","),
+    filter: `blur(${(6 + Math.abs(sway)).toFixed(1)}px)`,
+  };
 }

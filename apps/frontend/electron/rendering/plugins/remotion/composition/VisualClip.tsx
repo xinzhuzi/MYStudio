@@ -10,16 +10,23 @@ import { GLGradeMedia } from "./GLGradeMedia";
 import { ambientAtFrame, panZoomAtFrame } from "./pan-zoom";
 import { buildVisualStyle } from "./visual-style";
 import {
+  fxAliasingLayerStyle,
   fxChromaLayerStyle,
   fxFilter,
+  fxGodRaysOverlayStyle,
   fxGlowOverlayStyle,
   fxGrainOverlayStyle,
   fxShakeOffset,
+  fxSpeedSilhouetteStyle,
 } from "./visual-fx";
 
 export function VisualClip(props: CompositionVisualClipProps): React.ReactElement {
-  const frame = useCurrentFrame();
+  const rawFrame = useCurrentFrame();
   const { isRendering } = useRemotionEnvironment();
+  // 帧步进(On Twos,08-19 第二批):运镜/环境动画按 N 帧一档采样=动画「味道」,
+  // 媒体本体不受影响(视频仍逐帧)。
+  const step = props.frameStep && props.frameStep > 1 ? props.frameStep : 1;
+  const frame = Math.floor(rawFrame / step) * step;
   const panZoom = props.panZoom
     ? panZoomAtFrame(frame, props.durationInFrames, props.panZoom)
     : undefined;
@@ -47,6 +54,13 @@ export function VisualClip(props: CompositionVisualClipProps): React.ReactElemen
   // grade（成片调色）：渲染期由 GLGradeMedia 替代媒体位（LUT WebGL pass），
   // 外层 CSS 运镜/抖动照常作用；Player 预览回退原媒体（LUT 预览不可见）。
   const useGradeMedia = Boolean(props.grade?.lutSrc) && isRendering;
+  // 色彩渐变动画(08-19 第二批):调色强度随情绪推进正弦脉动,clamp 0..1。
+  const gradeBlend = props.grade
+    ? Math.min(1, Math.max(0, props.grade.blend
+        + (props.grade.blendPulse
+          ? props.grade.blendPulse.amp * Math.sin(frame / 30 * props.grade.blendPulse.freq * Math.PI * 2 + (props.grade.blendPulse.phase ?? 0))
+          : 0)))
+    : undefined;
 
   return (
     <AbsoluteFill style={{ ...style, ...(shake ? { left: shake.x, top: shake.y } : {}), ...(filter ? { filter } : {}) }}>
@@ -58,7 +72,7 @@ export function VisualClip(props: CompositionVisualClipProps): React.ReactElemen
           playbackRate={props.playbackRate}
           durationInFrames={props.durationInFrames}
           lutSrc={props.grade!.lutSrc!}
-          blend={props.grade!.blend}
+          blend={gradeBlend ?? props.grade!.blend}
         />
       ) : props.kind === "image" ? (
         <Img src={props.src} style={mediaStyle} />
@@ -83,6 +97,19 @@ export function VisualClip(props: CompositionVisualClipProps): React.ReactElemen
       ) : null}
       {props.fx?.glow ? <AbsoluteFill style={fxGlowOverlayStyle(props.fx)} /> : null}
       {props.fx?.grain ? <AbsoluteFill style={fxGrainOverlayStyle(props.fx)} /> : null}
+      {props.fx?.afterimage
+        ? Array.from({ length: props.fx.afterimage.copies }, (_, i) => (
+            <AbsoluteFill key={`afterimage-${i}`} style={fxAliasingLayerStyle(props.fx!, i + 1)}>
+              {props.kind === "image" ? <Img src={props.src} style={mediaStyle} /> : <OffthreadVideo src={props.src} muted style={mediaStyle} />}
+            </AbsoluteFill>
+          ))
+        : null}
+      {props.fx?.speedSilhouette ? (
+        <AbsoluteFill style={{ overflow: "hidden" }}>
+          <div style={fxSpeedSilhouetteStyle(rawFrame, 30, props.fx)} />
+        </AbsoluteFill>
+      ) : null}
+      {props.fx?.godRays ? <AbsoluteFill style={fxGodRaysOverlayStyle(rawFrame, props.fx)} /> : null}
     </AbsoluteFill>
   );
 }

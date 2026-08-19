@@ -66,7 +66,7 @@ def _alignment_for_shot(alignment: dict[str, Any], shot_id: str) -> dict[str, An
 # gl:* = gl-transitions 收录白名单镜像（TS 权威: composition/gl-transition-registry.ts
 # + gl-transition-shaders.generated.ts,孪生对拍: composition/transition-enum-sync.test.ts——扩条目三处必须同步）。
 _TRANSITION_EFFECT_IDS = {
-    "cut", "fade", "crossfade", "flash", "blackout", "impact-frame",
+    "cut", "fade", "crossfade", "flash", "blackout", "impact-frame", "ink-bleed",
     "gl:AdvancedMosaic",
     "gl:BlockDissolve",
     "gl:BookFlip",
@@ -257,6 +257,7 @@ _TRANSITION_ENHANCEMENT_BASE: dict[str, tuple[str, dict[str, str | int | float |
     "fade": ("paper-breath", {"warmth": 0.12, "speed": 5}),
     "flash": ("sword-flash", {"angle": 24}),
     "blackout": ("seal-glow", {"intensity": 0.25}),
+    "ink-bleed": ("ink-bloom", {"intensity": 0.5, "x": 50, "y": 46}),
 }
 
 

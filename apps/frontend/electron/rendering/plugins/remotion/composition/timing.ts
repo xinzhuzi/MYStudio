@@ -19,6 +19,7 @@ export const COMPOSITION_TRANSITION_EFFECTS = [
   "flash",
   "blackout",
   "impact-frame",
+  "ink-bleed",
   ...GL_TRANSITION_IDS,
 ] as const;
 

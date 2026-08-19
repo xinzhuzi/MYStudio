@@ -7,6 +7,10 @@ export interface TransitionFrameStyle {
   overlayOpacity: number;
   /** 冲击帧：中帧全画面反色（filter:invert(1)，动漫手法）。 */
   impactInvert?: boolean;
+  /** 水墨晕染转场（08-19 第二批）：进场镜头用扩张的墨晕遮罩揭示,
+   * 进度 0..1,配 inkBlurPx 递减模糊模拟墨在宣纸扩散的软边。 */
+  inkReveal?: number;
+  inkBlurPx?: number;
 }
 
 /**
@@ -36,6 +40,18 @@ export function transitionStyleAtFrame(
       overlayColor: isImpact ? "#ffffff" : undefined,
       overlayOpacity: isImpact ? 0 : (localFrame < Math.floor(lastFrame / 2) ? 1 : 0),
       ...(isImpact ? { impactInvert: true } : {}),
+    };
+  }
+  if (effectId === "ink-bleed") {
+    if (durationInFrames === 1) return { incomingOpacity: 1, overlayOpacity: 0 };
+    // 墨晕扩散:ease-out 开径 + 模糊递减,如墨滴入水先快后缓
+    const p = localFrame / (durationInFrames - 1);
+    const r = 1 - Math.pow(1 - p, 2.2);
+    return {
+      incomingOpacity: 1,
+      overlayOpacity: 0,
+      inkReveal: r,
+      inkBlurPx: Math.round(20 * (1 - p) * 10) / 10,
     };
   }
   if (effectId === "crossfade" || isGlTransitionEffect(effectId)) {

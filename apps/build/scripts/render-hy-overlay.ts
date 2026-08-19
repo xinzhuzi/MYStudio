@@ -138,6 +138,7 @@ const DEFAULTS: Record<string, Record<string, number>> = {
 const ENH: Record<string, [string, Record<string, number>]> = {
   "crossfade": ["mist-drift", { opacity: .22, speed: 12 }], "fade": ["paper-breath", { warmth: .12, speed: 5 }],
   "flash": ["sword-flash", { angle: 24 }], "blackout": ["seal-glow", { intensity: .25 }],
+  "ink-bleed": ["ink-bloom", { intensity: .5, x: 50, y: 46 }],
 };
 const glE = (n: string): [string, Record<string, number>] => {
   if (/zoom|scale|push|slide|wipe|directional|leftright|radial/i.test(n)) return ["brush-sweep", { hue: 210, speed: 2 }];

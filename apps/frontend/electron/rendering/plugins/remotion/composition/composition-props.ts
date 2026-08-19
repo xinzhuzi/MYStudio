@@ -141,7 +141,9 @@ export interface CompositionVisualClipProps {
   fx?: import("./visual-fx").CompositionVisualFx;
   /** 成片调色（08-18-haldclut-grade）：LUT 闭集见 cinematic-luts.ts；lutSrc 为
    * media-bridge URL（build 侧由 lutUrlById 注入）。渲染期由 GLGradeMedia 上屏。 */
-  grade?: { lutId: string; lutSrc?: string; blend: number };
+  grade?: { lutId: string; lutSrc?: string; blend: number; blendPulse?: { amp: number; freq: number; phase?: number } };
+  /** 帧步进(On Twos,08-19 第二批):运镜/环境动画按 N 帧一档采样(2=on twos,3=on threes)。 */
+  frameStep?: number;
   /** 图层分离分层渲染（08-19 图层分离探索）：存在时走 LayeredVisualClip
    * 双层视差（背景运镜折减+主体 ambient），忽略单层媒体位（src 保留供音轨/转场）。 */
   layers?: { backgroundSrc: string; subjectSrc: string; parallax?: number };

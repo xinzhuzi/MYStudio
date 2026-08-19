@@ -91,11 +91,27 @@ function TransitionedVisualClip({
   incoming?: CompositionTransitionProps;
 }): React.ReactElement {
   const frame = useCurrentFrame();
-  const incomingOpacity = incoming
-    ? transitionStyleAtFrame(incoming.effectId, frame, incoming.overlapFrames).incomingOpacity
-    : 1;
+  const transitionStyle = incoming
+    ? transitionStyleAtFrame(incoming.effectId, frame, incoming.overlapFrames)
+    : undefined;
+  const incomingOpacity = transitionStyle?.incomingOpacity ?? 1;
+  // 水墨晕染转场(08-19 第二批):进场镜头用双 blob 扩张遮罩揭示 + 递减模糊
+  const inkMask = transitionStyle?.inkReveal !== undefined
+    ? `radial-gradient(circle at 50% 46%, black ${(transitionStyle.inkReveal * 68).toFixed(1)}%, rgba(0,0,0,0.75) ${(transitionStyle.inkReveal * 84).toFixed(1)}%, transparent ${(transitionStyle.inkReveal * 100).toFixed(1)}%), radial-gradient(circle at 68% 40%, black ${(transitionStyle.inkReveal * 42).toFixed(1)}%, transparent ${(transitionStyle.inkReveal * 62).toFixed(1)}%)`
+    : undefined;
   return (
-    <AbsoluteFill style={{ opacity: incomingOpacity }}>
+    <AbsoluteFill
+      style={{
+        opacity: incomingOpacity,
+        ...(inkMask
+          ? {
+              WebkitMaskImage: inkMask,
+              maskImage: inkMask,
+              filter: `blur(${transitionStyle?.inkBlurPx ?? 0}px)`,
+            }
+          : {}),
+      }}
+    >
       {clip.cinematic ? (
         <CinematicVisualClip {...clip} />
       ) : clip.layers ? (
