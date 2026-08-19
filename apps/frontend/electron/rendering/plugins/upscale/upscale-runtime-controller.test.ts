@@ -248,7 +248,7 @@ describe("upscale runtime controller", () => {
     expect(controller.setActiveModel("waifu2x").success).toBe(false);
     expect(controller.setActiveModel("realesrgan-x4plus").success).toBe(true);
     expect(controller.status().activeModel).toBe("realesrgan-x4plus");
-    const configPath = path.join(storageRoot, "UpscaleModel", "config.json");
+    const configPath = path.join(storageRoot, "model/upscale", "config.json");
     const config = JSON.parse(fs.readFileSync(configPath, "utf8")) as { activeModel?: string };
     expect(config.activeModel).toBe("realesrgan-x4plus");
   });
@@ -267,10 +267,10 @@ describe("upscale runtime controller", () => {
                 sizeMb: 18,
                 file: "RealESRGAN_x4plus_anime_6B.pth",
                 scale: 4,
-                cacheDir: path.join(storageRoot, "UpscaleModel/RealESRGAN_x4plus_anime_6B.pth"),
+                cacheDir: path.join(storageRoot, "model/upscale/RealESRGAN_x4plus_anime_6B.pth"),
               },
             ],
-            cacheDir: path.join(storageRoot, "UpscaleModel"),
+            cacheDir: path.join(storageRoot, "model/upscale"),
           }),
           stderr: "",
         };
@@ -281,7 +281,7 @@ describe("upscale runtime controller", () => {
     const inventory = await controller.scanModelInventory();
     expect(inventory.models).toHaveLength(1);
     expect(controller.status().modelDownloaded).toBe(true);
-    expect(controller.status().modelCacheDir).toBe(path.join(storageRoot, "UpscaleModel"));
+    expect(controller.status().modelCacheDir).toBe(path.join(storageRoot, "model/upscale"));
   });
 
   it("serializes concurrent runs so only one worker executes at a time", async () => {

@@ -912,7 +912,7 @@ const remotionRuntimeDir = resolveRemotionRuntimeDir(remotionUserDataDir)
 
 // Depth runtime controller — settings-facing lifecycle (设置 → 本地配置 → 深度估计模型).
 // Model downloads are explicit and user-triggered; inference never downloads.
-// The model cache dir is self-managed at <storageBase>/DeepModel (config.json),
+// The model cache dir is self-managed at <storageBase>/model/depth (config.json),
 // mirroring the TTS model-dir feature set — no TTS cache fallback.
 const depthRuntimeController = createDepthRuntimeController({
   storageBasePath: getStorageBasePath,

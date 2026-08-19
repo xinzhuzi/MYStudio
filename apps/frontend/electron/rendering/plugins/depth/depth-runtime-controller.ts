@@ -61,7 +61,7 @@ export interface DepthRuntimeStatus {
   cinematicPresetMode: "auto" | "manual";
   /** Number of per-shot preset entries from the latest AI analysis. */
   cinematicPresetCount: number;
-  /** User-configured model cache directory (default <storageBase>/DeepModel). */
+  /** User-configured model cache directory (default <storageBase>/model/depth). */
   modelCacheDir: string;
   probeEvidence: DepthRuntimeProbeEvidence;
 }
@@ -165,10 +165,27 @@ export function createDepthRuntimeController(deps: ControllerDeps) {
   const removeDirSync = deps.removeDir ?? ((dir: string) => fs.rmSync(dir, { recursive: true, force: true }));
 
   // --- Model cache dir config (mirrors TTS config persistence) -------------
-  // Config lives at <storageBase>/DeepModel/config.json; default cache dir is
-  // <storageBase>/DeepModel itself (HF repos land as <DeepModel>/models--org--name).
+  // Config lives at <modelRoot>/config.json; default cache dir is the root
+  // itself (HF repos land as <root>/models--org--name).
+  // 08-19 模型目录规范:新家 <storageBase>/model/depth;旧 <storageBase>/DeepModel
+  // 在场且新家不存在时一次性整目录迁移(同卷 rename 保 config+权重同迁;失败回退旧根)。
   function deepModelRoot(): string {
-    return path.join(getPaths().storageBasePath, "DeepModel");
+    const base = getPaths().storageBasePath;
+    const home = path.join(base, "model", "depth");
+    const legacy = path.join(base, "DeepModel");
+    try {
+      if (fs.existsSync(legacy) && !fs.existsSync(home)) {
+        try {
+          fs.mkdirSync(path.dirname(home), { recursive: true });
+          fs.renameSync(legacy, home);
+        } catch {
+          // 迁移失败(权限/跨卷):回退旧根,不阻断功能
+        }
+      }
+    } catch {
+      // 探测失败:按新家走
+    }
+    return fs.existsSync(legacy) && !fs.existsSync(home) ? legacy : home;
   }
 
   function configPath(): string {

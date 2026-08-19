@@ -42,7 +42,13 @@ export type ShotFxAddonId =
   | "shake-hard"
   | "glow-warm"
   | "glow-dim"
-  | "chroma";
+  | "chroma"
+  // 08-19 第二批:残影/速度剪影/神光/帧步进/调色脉动
+  | "afterimage"
+  | "speed-silhouette"
+  | "god-rays"
+  | "on-twos"
+  | "grade-pulse";
 
 export interface ShotFxPanZoom {
   fromScale: number;
@@ -189,13 +195,18 @@ export const SHOT_FX_MOTION_PRESETS: Readonly<Record<ShotFxMotionId, ShotFxRecip
 
 /** 特效插件表（量化档位 → 契约效果与参数；同种效果互斥，取首个）。 */
 export const SHOT_FX_ADDON_PRESETS: Readonly<
-  Record<ShotFxAddonId, { effectId: "shake" | "glow" | "chromaticAberration"; params: Record<string, number> }>
+  Record<ShotFxAddonId, { effectId: "shake" | "glow" | "chromaticAberration" | "afterimage" | "speedSilhouette" | "godRays" | "onTwos" | "gradePulse"; params: Record<string, number | string> }>
 > = {
   "shake-soft": { effectId: "shake", params: { intensity: 0.125 } },
   "shake-hard": { effectId: "shake", params: { intensity: 0.25 } },
   "glow-warm": { effectId: "glow", params: { intensity: 0.5 } },
   "glow-dim": { effectId: "glow", params: { intensity: 0.25 } },
   chroma: { effectId: "chromaticAberration", params: { offset: 3 } },
+  afterimage: { effectId: "afterimage", params: { copies: 3, offset: 26, opacity: 0.5 } },
+  "speed-silhouette": { effectId: "speedSilhouette", params: { direction: "ltr" } },
+  "god-rays": { effectId: "godRays", params: { intensity: 0.6, hue: 45 } },
+  "on-twos": { effectId: "onTwos", params: { step: 2 } },
+  "grade-pulse": { effectId: "gradePulse", params: { amp: 0.08, freq: 0.3 } },
 };
 
 /** 无关键词命中时的镜序轮换（7 基础运镜，节奏变化用）。 */
@@ -258,6 +269,21 @@ export function keywordShotFxMotion(
   const isLeave = /退|远|离|别|消失/.test(text);
   if (isLeave && clipIndex % 2 === 0) return "leave-pull";
   return undefined;
+}
+
+/**
+ * 第二批手法的规则档位（08-19 决策层接入）：动作→残影、追逐→速度剪影、
+ * 灵光→神光、动作偶数镜→帧步进。仅规则兜底路径注入；AI 显式配置 addons 时全权由 AI。
+ */
+export function ruleShotFxAddons(text: string, clipIndex: number): ShotFxAddonId[] {
+  const addons: ShotFxAddonId[] = [];
+  if (/爆|劈|砸|抽|撞|轰|厮杀|鞭/.test(text)) {
+    addons.push("afterimage");
+    if (clipIndex % 2 === 0) addons.push("on-twos");
+  }
+  if (/追|逃|奔|闯/.test(text)) addons.push("speed-silhouette");
+  if (/灵|焰|火|辉|光|秘|仙|阵/.test(text)) addons.push("god-rays");
+  return addons;
 }
 
 /** 无 AI 提示时的规则配方（关键词优先，未命中按镜序轮换）。AI 启发式兜底共用本函数，保证两级兜底一致。 */
@@ -347,7 +373,7 @@ export function buildShotFxEditingEffects(input: {
     }
 
     // 特效来源：AI 显式插件配置（空数组=无特效）> 配方默认；同种效果取首个（互斥）。
-    type FxEntry = { effectId: "shake" | "glow" | "chromaticAberration"; params: Record<string, number> };
+    type FxEntry = { effectId: "shake" | "glow" | "chromaticAberration" | "afterimage" | "speedSilhouette" | "godRays" | "onTwos" | "gradePulse"; params: Record<string, number | string> };
     const fxEntries: FxEntry[] = [];
     const rawAddons = storyboard?.shotFx?.addons;
     if (Array.isArray(rawAddons)) {
@@ -355,6 +381,10 @@ export function buildShotFxEditingEffects(input: {
         if (isShotFxAddonId(addon)) fxEntries.push(SHOT_FX_ADDON_PRESETS[addon]);
       }
     } else {
+      // 规则兜底注入第二批手法(动作→残影/追逐→剪影/灵光→神光/动作偶数镜→帧步进)
+      for (const addon of ruleShotFxAddons(text, visualIndex)) {
+        fxEntries.push(SHOT_FX_ADDON_PRESETS[addon]);
+      }
       if (recipe.fx.shakeIntensity !== undefined) {
         fxEntries.push({ effectId: "shake", params: { intensity: recipe.fx.shakeIntensity } });
       }
@@ -374,7 +404,7 @@ export function buildShotFxEditingEffects(input: {
       pushEffect(suffix, entry.effectId, entry.params);
       if (entry.effectId === "shake") counts.shake += 1;
       else if (entry.effectId === "glow") counts.glow += 1;
-      else counts.chroma += 1;
+      else if (entry.effectId === "chromaticAberration") counts.chroma += 1;
     }
     visualIndex += 1;
   }

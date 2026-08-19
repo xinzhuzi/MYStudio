@@ -268,7 +268,7 @@ export function DepthSettingsSection({ embedded = false }: DepthSettingsSectionP
         <Input
           readOnly
           value={modelCacheDir}
-          placeholder="…/DeepModel"
+          placeholder="…/model/depth"
           containerClassName="w-full min-w-0"
           className="min-w-0 font-mono text-xs truncate"
           data-depth-model-cache-dir

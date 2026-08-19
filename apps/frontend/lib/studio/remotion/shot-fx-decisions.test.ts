@@ -96,13 +96,15 @@ describe("buildShotFxEditingEffects 契约产出", () => {
     expect(counts.motion).toBe(1);
   });
 
-  it("动作词产出 punch-in 配方：急推 + shake 0.25 + chromaticAberration offset 3 成套", () => {
+  it("动作词产出 punch-in 配方：急推 + shake 0.25 + chromaticAberration offset 3 成套 + 残影/帧步进(08-19 第二批规则注入)", () => {
     const { effects, counts } = buildShotFxEditingEffects(
       buildInput([{ id: "s1", prompt: "爆炸轰鸣" }]),
     );
     expect(effectOf(effects, "panZoom", "clip-1")?.params.scaleTo).toBe(1.12);
     expect(effectOf(effects, "shake", "clip-1")?.params).toEqual({ intensity: 0.25 });
     expect(effectOf(effects, "chromaticAberration", "clip-1")?.params).toEqual({ offset: 3 });
+    expect(effectOf(effects, "afterimage", "clip-1")?.params).toEqual({ copies: 3, offset: 26, opacity: 0.5 });
+    expect(effectOf(effects, "onTwos", "clip-1")?.params).toEqual({ step: 2 });
     expect(counts.shake).toBe(1);
     expect(counts.chroma).toBe(1);
   });

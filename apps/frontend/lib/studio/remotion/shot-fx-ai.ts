@@ -54,6 +54,11 @@ const MOTION_GUIDE: ReadonlyArray<{ id: ShotFxMotionId; when: string }> = [
 
 const ADDON_GUIDE: ReadonlyArray<{ id: ShotFxAddonId; when: string }> = [
   { id: "shake-soft", when: "轻微手持感（3px）——紧张、慌乱、疾行" },
+  { id: "afterimage", when: "残影拖影——动作爆点(劈砸轰击)的运动重影" },
+  { id: "speed-silhouette", when: "速度剪影——追逐/奔逃时暗影掠过画面" },
+  { id: "god-rays", when: "神光光柱——神性/仙阵/晨光穿透氛围" },
+  { id: "on-twos", when: "帧步进(On Twos)——动作镜的日式动画节奏" },
+  { id: "grade-pulse", when: "调色脉动——情绪推进时色彩强度呼吸变化(需配 grade)" },
   { id: "shake-hard", when: "明显震动（6px）——爆点、撞击、重击" },
   { id: "glow-warm", when: "暖调强辉光——灵光、焰火、神圣、仙气" },
   { id: "glow-dim", when: "暗调弱辉光——夜色、阴郁、神秘氛围" },

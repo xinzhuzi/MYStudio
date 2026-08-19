@@ -17,6 +17,11 @@ export const EDITING_EFFECT_IDS = [
   "glow",
   "grain",
   "speed",
+  "afterimage",
+  "speedSilhouette",
+  "godRays",
+  "onTwos",
+  "gradePulse",
 ] as const satisfies readonly EditingEffectId[];
 
 const EFFECT_DEFINITIONS: readonly EditingEffectDefinition[] = [
@@ -60,6 +65,25 @@ const EFFECT_DEFINITIONS: readonly EditingEffectDefinition[] = [
   ]),
   definition("speed", "time", "full", [
     numberParameter("rate", 1, 0.25, 4),
+  ]),
+  definition("afterimage", "style", "approximate", [
+    numberParameter("copies", 3, 1, 5),
+    numberParameter("offset", 26, 4, 80),
+    numberParameter("opacity", 0.5, 0.05, 1),
+  ]),
+  definition("speedSilhouette", "motion", "approximate", [
+    enumParameter("direction", "ltr", ["ltr", "rtl"]),
+  ]),
+  definition("godRays", "style", "approximate", [
+    numberParameter("intensity", 0.6, 0, 1),
+    numberParameter("hue", 45, 0, 360),
+  ]),
+  definition("onTwos", "motion", "full", [
+    numberParameter("step", 2, 2, 3),
+  ]),
+  definition("gradePulse", "style", "approximate", [
+    numberParameter("amp", 0.08, 0.01, 0.5),
+    numberParameter("freq", 0.3, 0.05, 2),
   ]),
 ];
 

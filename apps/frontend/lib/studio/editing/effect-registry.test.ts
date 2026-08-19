@@ -21,6 +21,11 @@ describe("editing effect registry", () => {
       "glow",
       "grain",
       "speed",
+      "afterimage",
+      "speedSilhouette",
+      "godRays",
+      "onTwos",
+      "gradePulse",
     ]);
   });
 

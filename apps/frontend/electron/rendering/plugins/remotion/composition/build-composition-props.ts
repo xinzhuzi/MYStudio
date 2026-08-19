@@ -45,6 +45,7 @@ export function buildCompositionProps(
   plan: TimelineRenderPlan,
   mediaUrlByClipId: Readonly<Record<string, string>>,
   lutUrlById?: Readonly<Record<string, string>>,
+  layerUrlByClipId?: Readonly<Record<string, { backgroundSrc: string; subjectSrc: string; parallax?: number }>>,
 ): CompositionProps {
   const fps = plan.renderSettings.fps;
   // ambient（环境动画）效果：sin/cos 周期运动叠加在 panZoom 之上(2026-08-19)。
@@ -58,6 +59,20 @@ export function buildCompositionProps(
     plan.effects
       .filter((effect) => effect.enabled && effect.effectId === "grade" && effect.targetClipId)
       .map((effect) => [effect.targetClipId!, effect]),
+  );
+  // onTwos(帧步进)/gradePulse(调色脉动)效果:08-19 第二批决策层接入。
+  const onTwosByClipId = new Map(
+    plan.effects
+      .filter((effect) => effect.enabled && effect.effectId === "onTwos" && effect.targetClipId)
+      .map((effect) => [effect.targetClipId!, Math.round(clampRange(numberParam(effect.params.step, 2), 2, 3))]),
+  );
+  const gradePulseByClipId = new Map(
+    plan.effects
+      .filter((effect) => effect.enabled && effect.effectId === "gradePulse" && effect.targetClipId)
+      .map((effect) => [effect.targetClipId!, {
+        amp: clampRange(numberParam(effect.params.amp, 0.08), 0.01, 0.5),
+        freq: clampRange(numberParam(effect.params.freq, 0.3), 0.05, 2),
+      }]),
   );
   const visualClips = plan.clips
     .filter((clip) => clip.trackKind === "video" || clip.trackKind === "image")
@@ -102,11 +117,16 @@ export function buildCompositionProps(
       transform: clip.transform ?? defaultTransform(),
       panZoom: panZoomForClip(panZoomByClipId.get(clip.id)),
       fx: visualFxForClip(fxEffectsByClipId.get(clip.id)),
-      ...gradeForClip(gradeEffectByClipId.get(clip.id), lutUrlById, clip.id),
+      ...gradeForClip(gradeEffectByClipId.get(clip.id), lutUrlById, clip.id, gradePulseByClipId.get(clip.id)),
+      ...(onTwosByClipId.has(clip.id) ? { frameStep: onTwosByClipId.get(clip.id) } : {}),
       ...ambientForClip(ambientEffectByClipId.get(clip.id)),
       trimStartFrames: usToFrames(clip.trimStartUs, fps),
       playbackRate: clip.speed,
       muted: clip.muted,
+      // 图层分离分层渲染(08-19):仅静帧片段;存在时 LayeredVisualClip 双层视差接管
+      ...(layerUrlByClipId?.[clip.id] && (clip.source.kind === "storyboardImage" || clip.trackKind === "image")
+        ? { layers: layerUrlByClipId[clip.id] }
+        : {}),
     };
   });
   const audioClips: CompositionAudioClipProps[] = plan.clips
@@ -201,6 +221,8 @@ export interface ChapterVideoCompositionInput extends ChapterVideoSourceInput {
   /** BGM 节拍时刻（µs，升序；ffmpeg 能量峰预计算——渲染期禁异步，M11 口径）。
    * 提供时 sfx 起点向最近节拍吸附（|Δ|≤4 帧且不越转场窗），出界回退原时刻。 */
   beatTimesUs?: readonly number[];
+  /** 图层分离分层资产(08-19):clipId → 背景/主体层 URL;仅对静帧片段生效。 */
+  layerUrlByClipId?: Readonly<Record<string, { backgroundSrc: string; subjectSrc: string; parallax?: number }>>;
   hyperFramesOverlay?: {
     src: string;
     windows: readonly HyperFramesOverlayWindowV1[];
@@ -236,7 +258,7 @@ export function buildChapterVideoCompositionProps(
   const sourceValidation = inspectChapterVideoSource(input);
   if (!sourceValidation.success) return sourceValidation;
 
-  const base = buildCompositionProps(input.plan, input.mediaUrlByClipId, input.lutUrlById);
+  const base = buildCompositionProps(input.plan, input.mediaUrlByClipId, input.lutUrlById, input.layerUrlByClipId);
   const audioClips: Array<CompositionAudioClipProps & { renderScope: "chapter" }> =
     input.chapterManifest.sharedAudioBindings.flatMap((binding) => {
       const from = usToFrames(binding.chapterStartUs, base.fps);
@@ -888,7 +910,8 @@ function gradeForClip(
   effect: Pick<EditingEffect, "params"> | undefined,
   lutUrlById: Readonly<Record<string, string>> | undefined,
   clipId: string,
-): { grade?: { lutId: string; lutSrc?: string; blend: number } } {
+  pulse?: { amp: number; freq: number },
+): { grade?: { lutId: string; lutSrc?: string; blend: number; blendPulse?: { amp: number; freq: number } } } {
   if (!effect) return {};
   const params = effect.params as { lutId?: unknown; blend?: unknown } | undefined;
   const lutId = String(params?.lutId ?? "");
@@ -901,7 +924,7 @@ function gradeForClip(
   if (!lutSrc) {
     throw new Error(`镜 ${clipId} 的 grade 缺少 LUT 资源 URL（渲染入口须注册 LUT 资产: ${lutId}）`);
   }
-  return { grade: { lutId, lutSrc, blend } };
+  return { grade: { lutId, lutSrc, blend, ...(pulse ? { blendPulse: pulse } : {}) } };
 }
 
 function panZoomForClip(effect: Pick<EditingEffect, "params"> | undefined): CompositionPanZoom | undefined {
@@ -920,6 +943,10 @@ const VISUAL_FX_EFFECT_IDS: ReadonlySet<string> = new Set([
   "glow",
   "grain",
   "chromaticAberration",
+  // 08-19 第二批:残影/速度剪影/神光(进 CompositionVisualFx)
+  "afterimage",
+  "speedSilhouette",
+  "godRays",
 ]);
 
 /**
@@ -940,11 +967,27 @@ function visualFxForClip(effects: readonly EditingEffect[] | undefined): Composi
       fx.grain = { opacity: clampRange(numberParam(effect.params.amount, 0.12), 0, 1) };
     } else if (effect.effectId === "chromaticAberration") {
       fx.chroma = { offsetPx: clampRange(numberParam(effect.params.offset, 3), 0, 24) };
+    } else if (effect.effectId === "afterimage") {
+      fx.afterimage = {
+        copies: Math.round(clampRange(numberParam(effect.params.copies, 3), 1, 5)),
+        offsetPx: clampRange(numberParam(effect.params.offset, 26), 4, 80),
+        opacity: clampRange(numberParam(effect.params.opacity, 0.5), 0.05, 1),
+      };
+    } else if (effect.effectId === "speedSilhouette") {
+      const direction = String(effect.params.direction ?? "ltr");
+      fx.speedSilhouette = { direction: direction === "rtl" ? "rtl" : "ltr" };
+    } else if (effect.effectId === "godRays") {
+      fx.godRays = {
+        intensity: clampRange(numberParam(effect.params.intensity, 0.6), 0, 1),
+        hue: clampRange(numberParam(effect.params.hue, 45), 0, 360),
+      };
     }
   }
   if (
     fx.shake === undefined && fx.glow === undefined
     && fx.grain === undefined && fx.chroma === undefined
+    && fx.afterimage === undefined && fx.speedSilhouette === undefined
+    && fx.godRays === undefined
   ) {
     return undefined;
   }

@@ -157,6 +157,34 @@ async function main() {
       mediaUrlByBindingId[b.bindingId] = mediaBridge.buildUrls(session, [b.bindingId])[0]!.url;
       console.log("bgm registered:", b.bindingId);
     }
+    // 图层分离分层资产(08-19):静帧镜自动深度分离(缓存 <MA>/remotion/layers/),
+    // 产物注册进 bridge → layerUrlByClipId → LayeredVisualClip 双层视差。
+    const layerUrlByClipId: Record<string, { backgroundSrc: string; subjectSrc: string; parallax?: number }> = {};
+    const imageClips = plan.clips.filter((c) => c.trackKind === "image");
+    for (const clip of imageClips) {
+      const dir = path.join(MA, "remotion/layers", CHAPTER_ID, clip.id);
+      const bg = path.join(dir, "background.png");
+      const subj = path.join(dir, "subject.png");
+      try {
+        if (!fs.existsSync(bg) || !fs.existsSync(subj)) {
+          const srcAbs = mediaSources.find((m) => m.clipId === clip.id)?.absolutePath;
+          if (!srcAbs) continue;
+          fs.mkdirSync(dir, { recursive: true });
+          const { execFileSync } = await import("node:child_process");
+          execFileSync("python3",
+            ["-m", "layer_separation.separator", "--input", srcAbs, "--subject-out", subj, "--background-out", bg],
+            { cwd: path.join(APPS_ROOT, "backend"), env: { ...process.env, HF_HOME: path.join(USER_DATA, "model/depth") }, stdio: ["ignore", "pipe", "inherit"] });
+        }
+        session.register(`${clip.id}-layer-bg`, bg);
+        session.register(`${clip.id}-layer-subj`, subj);
+        const [bgUrl, subjUrl] = mediaBridge.buildUrls(session, [`${clip.id}-layer-bg`, `${clip.id}-layer-subj`]).map((e) => e.url);
+        layerUrlByClipId[clip.id] = { backgroundSrc: bgUrl, subjectSrc: subjUrl, parallax: 0.5 };
+        console.log("layer-sep:", clip.id);
+      } catch (e) {
+        console.warn("图层分离失败(跳过分层,回退单层):", clip.id, e instanceof Error ? e.message : e);
+      }
+    }
+
     const urlEntries = mediaBridge.buildUrls(session, [
       ...mediaSources.map((s) => s.clipId),
       ...(hasOverlay ? ["hyperframes-overlay"] : []),
@@ -184,6 +212,7 @@ async function main() {
       lutUrlById,
       // sfxUrlById, // 2026-08-19 用户裁定:转场≠音效,停用机械式派生
       ...(beatTimesUs.length > 0 ? { beatTimesUs } : {}),
+      ...(Object.keys(layerUrlByClipId).length > 0 ? { layerUrlByClipId } : {}),
       ...(customFontFaces?.length ? { customFontFaces } : {}),
       ...(hasOverlay && overlayUrl ? { hyperFramesOverlay: { src: overlayUrl, windows: overlayWindows } } : {}),
     } as never);

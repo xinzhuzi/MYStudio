@@ -150,10 +150,27 @@ export function createUpscaleRuntimeController(deps: ControllerDeps) {
   const unlinkFileSync = deps.unlinkFile ?? ((file: string) => fs.unlinkSync(file));
 
   // --- Model cache dir + active model config (mirrors depth persistence) ----
-  // Config lives at <storageBase>/UpscaleModel/config.json; default cache dir
-  // is <storageBase>/UpscaleModel itself (weights land flat as <dir>/<file>).
+  // Config lives at <modelRoot>/config.json; default cache dir is the root
+  // itself (weights land flat as <dir>/<file>).
+  // 08-19 模型目录规范:新家 <storageBase>/model/upscale;旧 <storageBase>/UpscaleModel
+  // 在场且新家不存在时一次性整目录迁移(同卷 rename;失败回退旧根)。
   function upscaleModelRoot(): string {
-    return path.join(getPaths().storageBasePath, "UpscaleModel");
+    const base = getPaths().storageBasePath;
+    const home = path.join(base, "model", "upscale");
+    const legacy = path.join(base, "UpscaleModel");
+    try {
+      if (fs.existsSync(legacy) && !fs.existsSync(home)) {
+        try {
+          fs.mkdirSync(path.dirname(home), { recursive: true });
+          fs.renameSync(legacy, home);
+        } catch {
+          // 迁移失败(权限/跨卷):回退旧根,不阻断功能
+        }
+      }
+    } catch {
+      // 探测失败:按新家走
+    }
+    return fs.existsSync(legacy) && !fs.existsSync(home) ? legacy : home;
   }
 
   function configPath(): string {
