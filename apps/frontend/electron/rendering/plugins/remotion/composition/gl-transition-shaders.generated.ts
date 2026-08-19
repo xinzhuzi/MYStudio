@@ -3727,6 +3727,25 @@ vec4 transition (vec2 uv) {
 }`,
   },
   {
+    name: "IrisWipe",
+    author: "MYStudio",
+    license: "MIT",
+    sourceUrl: "https://github.com/gl-transitions/gl-transitions/blob/master/transitions/IrisWipe.glsl",
+    defaultUniforms: { center: [0.5, 0.5], ratio: [1.0, 1.0] },
+    glsl: `// License: MIT (MYStudio custom)
+// Author: MYStudio
+// 光圈转场：圆形从中心扩/缩，经典动漫开场收尾手法
+
+uniform vec2 center; // = vec2(0.5, 0.5)
+
+vec4 transition(vec2 uv) {
+  float dist = distance(uv, center);
+  float radius = progress * 0.75;
+  float edge = smoothstep(radius, radius - 0.02, dist);
+  return mix(getToColor(uv), getFromColor(uv), edge);
+}`,
+  },
+  {
     name: "fadecolor",
     author: "gre",
     license: "MIT",

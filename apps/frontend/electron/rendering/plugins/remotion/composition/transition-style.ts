@@ -5,6 +5,8 @@ export interface TransitionFrameStyle {
   incomingOpacity: number;
   overlayColor?: "#000000" | "#ffffff";
   overlayOpacity: number;
+  /** 冲击帧：中帧全画面反色（filter:invert(1)，动漫手法）。 */
+  impactInvert?: boolean;
 }
 
 /**
@@ -24,6 +26,18 @@ export function transitionStyleAtFrame(
     return { incomingOpacity: 1, overlayOpacity: 0 };
   }
   const localFrame = clampFrame(frame, durationInFrames);
+  if (effectId === "impact-frame") {
+    // 冲击帧：单帧高对比反色（动漫打击感核心手法）
+    if (durationInFrames === 1) return { incomingOpacity: 1, overlayOpacity: 0 };
+    const lastFrame = durationInFrames - 1;
+    const isImpact = localFrame === Math.floor(lastFrame / 2);
+    return {
+      incomingOpacity: localFrame <= Math.floor(lastFrame / 2) ? 0 : 1,
+      overlayColor: isImpact ? "#ffffff" : undefined,
+      overlayOpacity: isImpact ? 0 : (localFrame < Math.floor(lastFrame / 2) ? 1 : 0),
+      ...(isImpact ? { impactInvert: true } : {}),
+    };
+  }
   if (effectId === "crossfade" || isGlTransitionEffect(effectId)) {
     if (durationInFrames === 1) return { incomingOpacity: 1, overlayOpacity: 0 };
     // Smoothstep easing: heads and tails breathe in/out instead of moving at a

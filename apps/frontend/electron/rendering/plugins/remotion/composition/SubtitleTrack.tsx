@@ -5,7 +5,7 @@
 // font registry (default = 毛笔楷书) so the Player preview and the fixed
 // bundle burn identical text.
 
-import { AbsoluteFill, Sequence } from "remotion";
+import { AbsoluteFill, Sequence, useCurrentFrame } from "remotion";
 import "@fontsource/noto-sans-sc/900.css";
 import "@fontsource/noto-serif-sc/900.css";
 import "@fontsource/ma-shan-zheng/400.css";
@@ -19,7 +19,7 @@ import type { CompositionSubtitleCueProps } from "./composition-props";
 import { resolveSubtitleFontStyle, subtitleTextShadow } from "../../../../../lib/studio/remotion/subtitle-fonts";
 
 export function SubtitleTrack(
-  props: { cues: readonly CompositionSubtitleCueProps[]; font?: string },
+  props: { cues: readonly CompositionSubtitleCueProps[]; font?: string; typewriter?: boolean },
 ): React.ReactElement {
   return (
     <AbsoluteFill>
@@ -30,18 +30,39 @@ export function SubtitleTrack(
           durationInFrames={cue.durationInFrames}
           layout="none"
         >
-          <SubtitleCue text={cue.text} font={props.font} />
+          <SubtitleCue text={cue.text} font={props.font} typewriter={props.typewriter} />
         </Sequence>
       ))}
     </AbsoluteFill>
   );
 }
 
-function SubtitleCue(props: { text: string; font?: string }): React.ReactElement {
+function SubtitleCue(props: { text: string; font?: string; typewriter?: boolean }): React.ReactElement {
+  const frame = useCurrentFrame();
+  // 打字机字幕：逐字显示（视觉小说手法，2026-08-19）
+  // 每字约 2 帧（30fps 下约 15 字/秒——中文阅读速度适配）
+  const charsPerFrame = 0.5;
+  const visibleChars = props.typewriter
+    ? Math.min(props.text.length, Math.floor(frame * charsPerFrame + 0.001))
+    : props.text.length;
+  const visibleText = props.text.slice(0, visibleChars);
+  const isComplete = !props.typewriter || visibleChars >= props.text.length;
   return (
     <AbsoluteFill style={CONTAINER_STYLE}>
-      <span style={textStyleFor(props.font)}>{props.text}</span>
+      <span style={textStyleFor(props.font)}>
+        {visibleText}
+        {!isComplete ? <TypewriterCursor /> : null}
+      </span>
     </AbsoluteFill>
+  );
+}
+
+/** 打字机光标（| 闪烁，完成后消失）。 */
+function TypewriterCursor(): React.ReactElement {
+  const frame = useCurrentFrame();
+  const visible = Math.floor(frame / 8) % 2 === 0; // ~4Hz 闪烁
+  return (
+    <span style={{ opacity: visible ? 1 : 0, color: "inherit" }}>|</span>
   );
 }
 

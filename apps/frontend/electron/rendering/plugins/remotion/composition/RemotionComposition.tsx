@@ -159,6 +159,17 @@ function TransitionOverlayFrame({
     useCurrentFrame(),
     transition.overlapFrames,
   );
+  if (style.impactInvert) {
+    return (
+      <AbsoluteFill
+        style={{
+          backgroundColor: "#000",
+          mixBlendMode: "difference",
+          opacity: 1,
+        }}
+      />
+    );
+  }
   if (style.overlayOpacity <= 0 || !style.overlayColor) return null;
   return (
     <AbsoluteFill

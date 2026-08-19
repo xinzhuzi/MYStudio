@@ -48,6 +48,10 @@ const SUPPORTED_TEMPLATES = new Set([
   "sword-flash",
   "seal-glow",
   "dust-motes",
+  // 2026-08-19 动画手法：冲击/氛围效果
+  "speed-lines",
+  "shockwave-ring",
+  "breathing-light",
 ]);
 
 type HyperFramesWorkerResult = {
@@ -296,6 +300,22 @@ function renderWindow(window: HyperFramesSegmentWindow, index: number): string {
       const intensity = numberParameter(parameters, "intensity", 0.3, 0, 1);
       return `<div id="${escapeHtml(elementId)}" class="clip hf-seal-glow" data-start="${startS}" data-duration="${durationS}" data-track-index="${index + 1}" style="${phaseStyle}--hf-seal:${intensity};"></div>`;
     }
+    case "speed-lines": {
+      const intensity = numberParameter(parameters, "intensity", 0.5, 0, 1);
+      const direction = numberParameter(parameters, "direction", 0, 0, 360);
+      return `<div id="${escapeHtml(elementId)}" class="clip hf-speed-lines" data-start="${startS}" data-duration="${durationS}" data-track-index="${index + 1}" style="${phaseStyle}--hf-speed:${intensity};--hf-speed-dir:${direction}deg;"></div>`;
+    }
+    case "shockwave-ring": {
+      const intensity = numberParameter(parameters, "intensity", 0.6, 0, 1);
+      const speed = numberParameter(parameters, "speed", 1.5, 0.5, 5);
+      return `<div id="${escapeHtml(elementId)}" class="clip hf-shockwave" data-start="${startS}" data-duration="${durationS}" data-track-index="${index + 1}" style="${phaseStyle}--hf-wave:${intensity};--hf-wave-speed:${speed}s;"></div>`;
+    }
+    case "breathing-light": {
+      const intensity = numberParameter(parameters, "intensity", 0.35, 0, 1);
+      const speed = numberParameter(parameters, "speed", 3, 1, 10);
+      const hue = numberParameter(parameters, "hue", 45, 0, 360);
+      return `<div id="${escapeHtml(elementId)}" class="clip hf-breathing-light" data-start="${startS}" data-duration="${durationS}" data-track-index="${index + 1}" style="${phaseStyle}--hf-breathe-l:${intensity};--hf-breathe-speed:${speed}s;--hf-breathe-hue:${hue}deg;"></div>`;
+    }
     case "dust-motes": {
       const count = Math.round(numberParameter(parameters, "count", 12, 4, 16));
       const speed = numberParameter(parameters, "speed", 18, 6, 40);
@@ -381,6 +401,15 @@ html,body{margin:0;width:100%;height:100%;overflow:hidden;background:transparent
 @keyframes hf-sword-slash{0%{transform:rotate(var(--hf-sword-angle,24deg)) translateX(-90%);opacity:0}18%{opacity:1}45%{transform:rotate(var(--hf-sword-angle,24deg)) translateX(70%);opacity:0}100%{opacity:0}}
 .hf-seal-glow{width:34%;height:26%;right:4%;bottom:6%;background:radial-gradient(ellipse,hsla(6,72%,52%,calc(var(--hf-seal,.3)*.75)),transparent 70%);mix-blend-mode:screen;animation:hf-seal-pulse 4.5s ease-in-out infinite alternate}
 @keyframes hf-seal-pulse{from{opacity:.4}to{opacity:1}}
+/* 2026-08-19 动画手法：速度线/冲击波纹/呼吸光 */
+.hf-speed-lines{width:100%;height:100%;left:0;top:0;transform:none;--hf-sp-count:24;opacity:var(--hf-speed,.5);background:repeating-conic-gradient(from var(--hf-speed-dir,0deg) at 50% 50%,transparent 0deg,rgba(255,255,255,.6) .5deg,transparent 1deg,transparent 15deg);mask-image:radial-gradient(circle,transparent 20%,black 40%,black 100%);-webkit-mask-image:radial-gradient(circle,transparent 20%,black 40%,black 100%);mix-blend-mode:screen;animation:hf-speed-pulse .15s steps(2) infinite}
+@keyframes hf-speed-pulse{from{opacity:calc(var(--hf-speed,.5)*.7)}to{opacity:var(--hf-speed,.5)}}
+.hf-shockwave{width:100%;height:100%;left:0;top:0;transform:none;opacity:var(--hf-wave,.6)}
+.hf-shockwave::before,.hf-shockwave::after{content:"";position:absolute;left:50%;top:50%;width:8px;height:8px;border:3px solid rgba(255,255,255,.9);border-radius:50%;transform:translate(-50%,-50%);animation:hf-wave-expand var(--hf-wave-speed,1.5s) ease-out infinite}
+.hf-shockwave::after{animation-delay:calc(var(--hf-wave-speed,1.5s)*.3);border-color:rgba(255,220,120,.7)}
+@keyframes hf-wave-expand{from{width:8px;height:8px;opacity:1}to{width:120%;height:120%;opacity:0}}
+.hf-breathing-light{width:100%;height:100%;left:0;top:0;transform:none;background:radial-gradient(ellipse at 50% 40%,hsla(var(--hf-breathe-hue,45deg),80%,70%,calc(var(--hf-breathe-l,.35)*.5)),transparent 65%);mix-blend-mode:screen;animation:hf-breathe-glow var(--hf-breathe-speed,3s) ease-in-out infinite alternate}
+@keyframes hf-breathe-glow{from{opacity:.3}to{opacity:1}}
 .hf-dust-motes{width:100%;height:100%;left:0;top:0}
 .hf-mote{position:absolute;width:7px;height:7px;border-radius:50%;background:radial-gradient(circle,hsla(44,70%,84%,.5),transparent 72%);mix-blend-mode:screen;animation:hf-mote-drift ease-in-out infinite alternate}
 @keyframes hf-mote-drift{from{transform:translate(0,0)}to{transform:translate(18px,-38px)}}

@@ -18,6 +18,7 @@ export const COMPOSITION_TRANSITION_EFFECTS = [
   "crossfade",
   "flash",
   "blackout",
+  "impact-frame",
   ...GL_TRANSITION_IDS,
 ] as const;
 

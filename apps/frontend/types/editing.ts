@@ -32,6 +32,7 @@ export type EditingEffectId =
   | "crossfade"
   | "flash"
   | "blackout"
+    | "impact-frame"
   | "panZoom"
   | "shake"
   | "glitch"
@@ -166,7 +167,8 @@ export type EditingEffectId =
   | "gl:wipeRight"
   | "gl:wipeUp"
   | "gl:x_axis_translation"
-  | "gl:zoomInOut";
+  | "gl:zoomInOut"
+    | "gl:IrisWipe";
 
 export type EditingEffectCategory =
   | "transition"
@@ -291,6 +293,7 @@ export interface EditingTransition {
     | "crossfade"
     | "flash"
     | "blackout"
+    | "impact-frame"
     | "gl:AdvancedMosaic"
     | "gl:BlockDissolve"
     | "gl:BookFlip"
@@ -414,6 +417,7 @@ export interface EditingTransition {
     | "gl:wipeUp"
     | "gl:x_axis_translation"
     | "gl:zoomInOut"
+    | "gl:IrisWipe"
   >;
   durationUs: TimelineTimeUs;
   params: EditingEffectParams;
