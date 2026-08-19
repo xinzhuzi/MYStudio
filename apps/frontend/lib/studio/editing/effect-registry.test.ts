@@ -27,6 +27,8 @@ describe("editing effect registry", () => {
       "onTwos",
       "gradePulse",
       "atmosphere",
+      "grade",
+      "ambient",
     ]);
   });
 
