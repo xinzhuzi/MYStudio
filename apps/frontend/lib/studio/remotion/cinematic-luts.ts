@@ -26,6 +26,32 @@ export const CINEMATIC_LUTS: readonly CinematicLutDefn[] = [
   { lutId: "film-cyan-mist", file: "film-cyan-mist.png", description: "青雾（低对比冷雾感）" },
   { lutId: "film-mute-sage", file: "film-mute-sage.png", description: "灰绿低饱和（水墨淡彩向）" },
   { lutId: "film-noir-contrast", file: "film-noir-contrast.png", description: "黑白高对比" },
+  { lutId: "cn-yuebai", file: "cn-yuebai.png", description: "月白:清冷月光色,微蓝近白——孤寂月下/仙侠夜景/诀别清辉,情绪清冷纯净" },
+  { lutId: "cn-daiqing", file: "cn-daiqing.png", description: "黛青:深青带黑的沉静色——庭院文戏/忧郁沉思/雨夜,情绪内敛克制" },
+  { lutId: "cn-yuanshandai", file: "cn-yuanshandai.png", description: "远山黛:雾霭青灰,层次退淡——山水远景/苍茫大势/前路未卜,情绪辽远怅惘" },
+  { lutId: "cn-yaqing", file: "cn-yaqing.png", description: "鸦青:深郁冷暗的鸦羽色——夜行/阴谋暗流/压抑对峙,情绪沉郁警觉" },
+  { lutId: "cn-zhuqing", file: "cn-zhuqing.png", description: "竹青:清雅竹叶青绿——竹林打斗/春夏生机/闲适清谈,情绪轻快疏朗" },
+  { lutId: "cn-tianshuibi", file: "cn-tianshuibi.png", description: "天水碧:雨后浅碧如水——晨光初照/少女轻盈/新芽初绽,情绪明净希望" },
+  { lutId: "cn-qingmei", file: "cn-qingmei.png", description: "青梅:微酸的青黄果子色——初夏悸动/青春萌动/酸涩初恋,情绪青涩微甜" },
+  { lutId: "cn-qiuxiang", file: "cn-qiuxiang.png", description: "秋香:秋叶黄绿相间——秋日庭园/迟暮温情/收获时节,情绪温厚感怀" },
+  { lutId: "cn-xiangse", file: "cn-xiangse.png", description: "缃色:浅黄帛书之色——古籍书香/师徒传道/温暖回忆,情绪质朴安然" },
+  { lutId: "cn-tenghuang", file: "cn-tenghuang.png", description: "藤黄:明亮的中国画黄——盛夏骄阳/炽热争夺/金光法阵,情绪浓烈灼热" },
+  { lutId: "cn-zhusha", file: "cn-zhusha.png", description: "朱砂:正红矿石色,热烈而不俗——宗门大典/拜堂喜庆/血性觉醒,情绪庄重炽盛" },
+  { lutId: "cn-yanzhi", file: "cn-yanzhi.png", description: "胭脂:红蓝花妆色——红妆旖旎/情愫暗生/镜前梳妆,情绪妩媚柔艳" },
+  { lutId: "cn-jiangzi", file: "cn-jiangzi.png", description: "绛紫:华贵深沉之紫——权贵殿堂/神秘仪式/暮年威仪,情绪威严莫测" },
+  { lutId: "cn-ouhe", file: "cn-ouhe.png", description: "藕荷:淡紫粉灰如荷花根——温柔梦境/淡淡愁绪/闺中私语,情绪轻柔怅然" },
+  { lutId: "cn-mushanzi", file: "cn-mushanzi.png", description: "暮山紫:暮霭映山的紫蓝——黄昏离别/苍茫远望/尘埃落定,情绪苍茫不舍" },
+  { lutId: "cn-shiyangjin", file: "cn-shiyangjin.png", description: "十样锦:织锦彩缎的饱和典雅——繁华市井/盛会游街/锦绣华服,情绪热闹富丽" },
+  { lutId: "cn-huanglu", file: "cn-huanglu.png", description: "黄栌:深秋红叶赭黄——深秋萧瑟/孤雁南飞/叶落归根,情绪苍凉中带暖" },
+  { lutId: "cn-zheshi", file: "cn-zheshi.png", description: "赭石:土赭沉稳如岩——古道西风/岩壁洞府/苍劲老者,情绪坚忍厚重" },
+  { lutId: "cn-laolv", file: "cn-laolv.png", description: "苍绿:老树深苔的沉绿——古刹钟声/密林深处/岁月静守,情绪幽深宁谧" },
+  { lutId: "cn-chenxiang", file: "cn-chenxiang.png", description: "沉香:乌金暗褐之色——古物陈酿/内敛奢华/故人重逢,情绪深沉绵长" },
+  { lutId: "cn-shuimo", file: "cn-shuimo.png", description: "水墨:近黑白而保微彩的写意——水墨回忆/超然物外/画中世界,情绪空灵超脱" },
+  { lutId: "cn-xuanzhi", file: "cn-xuanzhi.png", description: "宣纸:泛白宣纸底色,画面淡化——梦境留白/仙气缥缈/回忆滤镜,情绪飘逸清淡" },
+  { lutId: "cn-boshi", file: "cn-boshi.png", description: "薄柿:淡熟的柿子橙——夕照温情/人间烟火/久别问候,情绪柔和慰藉" },
+  { lutId: "cn-luoqing", file: "cn-luoqing.png", description: "螺青:深蓝近墨的海螺色——深夜庙堂/海上孤舟/沉郁决断,情绪庄重孤绝" },
+  // ── 中国风传统色卡(08-19 扩集 24 张,总 32;生成源=generate-luts.py 参数表) ──
+  // 描述=情绪+场景,是 AI 选卡(shot-fx-ai LUT_GUIDE)的参考语义。
 ];
 
 export const CINEMATIC_LUT_IDS: readonly string[] = CINEMATIC_LUTS.map((l) => l.lutId);
