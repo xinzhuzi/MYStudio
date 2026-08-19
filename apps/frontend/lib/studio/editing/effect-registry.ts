@@ -29,6 +29,15 @@ export const EDITING_EFFECT_IDS = [
   // 在应用内队列路径对未注册 id 报「未知效果 ID」拒渲染(standalone 不跑此闸故未早暴)。
   "grade",
   "ambient",
+  // 转场闭集补注册(08-20 转场决策层真跑暴露):impact-frame/ink-bleed 是基线手搓
+  // 转场、gl:* 是 08-18 收录白名单——均在 composition/timing 闭集内,但从未进
+  // 本注册表;video-use EDL 携带它们投影回 EditingProject 时被「未知或非转场
+  // 效果」拒。此批=TRANSITION_SEMANTIC_BUCKETS 用到的全部非基线转场。
+  "impact-frame",
+  "ink-bleed",
+  "gl:CrossZoom",
+  "gl:wind",
+  "gl:FilmBurn",
 ] as const satisfies readonly EditingEffectId[];
 
 const EFFECT_DEFINITIONS: readonly EditingEffectDefinition[] = [
@@ -45,6 +54,12 @@ const EFFECT_DEFINITIONS: readonly EditingEffectDefinition[] = [
   definition("blackout", "transition", "full", [
     numberParameter("hold", 0.15, 0, 1),
   ]),
+  // 基线手搓转场 + gl: shader 转场(参数走 registry defaultUniforms,params 层为空)。
+  definition("impact-frame", "transition", "full"),
+  definition("ink-bleed", "transition", "full"),
+  definition("gl:CrossZoom", "transition", "full"),
+  definition("gl:wind", "transition", "full"),
+  definition("gl:FilmBurn", "transition", "full"),
   definition("panZoom", "motion", "full", [
     numberParameter("scaleFrom", 1, 1, 8),
     numberParameter("scaleTo", 1.06, 1, 8),

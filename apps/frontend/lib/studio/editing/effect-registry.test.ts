@@ -29,6 +29,11 @@ describe("editing effect registry", () => {
       "atmosphere",
       "grade",
       "ambient",
+      "impact-frame",
+      "ink-bleed",
+      "gl:CrossZoom",
+      "gl:wind",
+      "gl:FilmBurn",
     ]);
   });
 
