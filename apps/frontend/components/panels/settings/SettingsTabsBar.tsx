@@ -66,7 +66,7 @@ export function SettingsTabsBar({ isImageHostConfigured }: SettingsTabsBarProps)
             {renderSettingsTabIcon(tab.value)}
             {tab.label}
             {tab.value === "imagehost" && isImageHostConfigured && (
-              <span className="ml-1 w-2 h-2 bg-green-500 rounded-full" />
+              <span className="ml-1 w-2 h-2 bg-success rounded-full" />
             )}
           </TabsTrigger>
         ))}

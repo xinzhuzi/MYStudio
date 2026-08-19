@@ -291,7 +291,7 @@ export function FeatureBindingPanel() {
                         </span>
                       )}
                       {isFreedomFeature && invalidBindings.length > 0 && (
-                        <span className="text-xs bg-amber-500/15 text-amber-700 dark:text-amber-300 px-1.5 py-0.5 rounded">
+                        <span className="text-xs bg-warning/15 text-warning px-1.5 py-0.5 rounded">
                           暂不可用 {invalidBindings.length}
                         </span>
                       )}
@@ -327,15 +327,15 @@ export function FeatureBindingPanel() {
 
                       {/* 配置提示 */}
                       {feature.recommendation && (
-                        <div className="flex items-start gap-2 px-3 py-2.5 rounded-md bg-red-500/10 border border-red-500/30">
-                          <span className="text-sm font-bold text-red-600 dark:text-red-400 leading-relaxed">
+                        <div className="flex items-start gap-2 px-3 py-2.5 rounded-md bg-destructive/10 border border-destructive/30">
+                          <span className="text-sm font-bold text-destructive dark:text-destructive leading-relaxed">
                             {feature.recommendation}
                           </span>
                         </div>
                       )}
 
                       {isFreedomFeature && invalidBindings.length > 0 && (
-                        <p className="text-[11px] text-amber-700 dark:text-amber-300">
+                        <p className="text-[11px] text-warning">
                           检测到暂不可用绑定：系统不会自动清理，模型恢复后会自动继续可用。
                         </p>
                       )}

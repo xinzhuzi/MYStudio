@@ -204,9 +204,9 @@ export function ApiKeyEditorDialog({
       case "testing":
         return <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />;
       case "valid":
-        return <Check className="h-4 w-4 text-green-500" />;
+        return <Check className="h-4 w-4 text-success" />;
       case "invalid":
-        return <X className="h-4 w-4 text-red-500" />;
+        return <X className="h-4 w-4 text-destructive" />;
       default:
         return null;
     }
@@ -250,7 +250,7 @@ export function ApiKeyEditorDialog({
                                 className="h-8 w-8"
                                 onClick={() => toggleEditing(key.id)}
                               >
-                                <Save className="h-4 w-4 text-green-500" />
+                                <Save className="h-4 w-4 text-success" />
                               </Button>
                             </TooltipTrigger>
                             <TooltipContent>保存</TooltipContent>

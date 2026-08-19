@@ -45,10 +45,10 @@ export function DepthSettingsSection({ embedded = false }: DepthSettingsSectionP
             ? "检查失败"
             : "未探测";
   const lifecycleStatusClass = lifecycleState === "ready"
-    ? "border-green-500/30 bg-green-500/10 text-green-700 dark:text-green-300"
+    ? "border-success/30 bg-success/10 text-success"
     : lifecycleState === "blocked" || lifecycleState === "error"
       ? "border-destructive/30 bg-destructive/10 text-destructive"
-      : "border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-300";
+      : "border-warning/30 bg-warning/10 text-warning";
   const setupFailed = status?.setupStage === "failed";
   const modelDownloaded = runtime.lifecycleStatus?.modelDownloaded ?? status?.modelDownloaded ?? false;
   const downloading = status?.downloadStatus === "downloading" || runtime.isDownloading;
@@ -102,7 +102,7 @@ export function DepthSettingsSection({ embedded = false }: DepthSettingsSectionP
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div className="flex items-center gap-2 text-sm">
           {isRuntimeReady ? (
-            <Check className="h-4 w-4 text-green-500" aria-hidden />
+            <Check className="h-4 w-4 text-success" aria-hidden />
           ) : (
             <Layers className="h-4 w-4 text-muted-foreground" aria-hidden />
           )}
@@ -182,7 +182,7 @@ export function DepthSettingsSection({ embedded = false }: DepthSettingsSectionP
       <div className="flex items-center justify-between gap-4">
         <div className="flex items-center gap-2 text-sm">
           {modelDownloaded ? (
-            <Check className="h-4 w-4 text-green-500" aria-hidden />
+            <Check className="h-4 w-4 text-success" aria-hidden />
           ) : (
             <Download className="h-4 w-4 text-muted-foreground" aria-hidden />
           )}

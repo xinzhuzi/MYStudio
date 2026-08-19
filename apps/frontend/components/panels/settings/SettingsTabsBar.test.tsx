@@ -16,7 +16,7 @@ describe("SettingsTabsBar", () => {
     );
 
     expect(screen.getAllByRole("tab")).toHaveLength(SETTINGS_TABS.length);
-    expect(screen.getByRole("tab", { name: "图床配置" }).querySelector(".bg-green-500")).toBeTruthy();
+    expect(screen.getByRole("tab", { name: "图床配置" }).querySelector(".bg-success")).toBeTruthy();
 
     rerender(
       <Tabs>
@@ -24,6 +24,6 @@ describe("SettingsTabsBar", () => {
       </Tabs>,
     );
 
-    expect(screen.getByRole("tab", { name: "图床配置" }).querySelector(".bg-green-500")).toBeNull();
+    expect(screen.getByRole("tab", { name: "图床配置" }).querySelector(".bg-success")).toBeNull();
   });
 });

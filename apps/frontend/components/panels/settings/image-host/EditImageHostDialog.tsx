@@ -208,7 +208,7 @@ export function EditImageHostDialog({
               className="font-mono text-sm min-h-[80px]"
             />
             {platform === "imgbb" && (
-              <p className="text-xs text-red-500">
+              <p className="text-xs text-destructive">
                 ImgBB 当前可用性存在问题，默认保持关闭；建议优先切换到 Catbox。
               </p>
             )}

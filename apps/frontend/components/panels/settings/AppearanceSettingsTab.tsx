@@ -59,7 +59,7 @@ export function AppearanceSettingsTab() {
         <div className="appearance-hero">
           <div className="appearance-hero-copy">
             <div className="appearance-kicker">
-              <Sparkles className="w-3.5 h-3.5 text-amber-400 animate-pulse" />
+              <Sparkles className="w-3.5 h-3.5 text-warning animate-pulse" />
               <span>Studio Look & Atmosphere</span>
             </div>
             <h3 className="appearance-title">外观皮肤</h3>
@@ -68,13 +68,13 @@ export function AppearanceSettingsTab() {
             </p>
           </div>
 
-          <div className="appearance-current-card relative overflow-hidden border border-border/80 shadow-2xl">
+          <div className="appearance-current-card relative overflow-hidden border border-border/80">
             <div
               className="absolute inset-0 opacity-20 pointer-events-none transition-all duration-700"
               style={{ background: activeColorPreset?.gradient }}
             />
             <span className="appearance-current-label flex items-center gap-1.5">
-              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
+              <span className="w-2 h-2 rounded-full bg-success/20 animate-ping" />
               当前生效皮肤
             </span>
             <strong className="text-xl tracking-tight text-foreground">{activeColorPreset?.name}</strong>
@@ -84,12 +84,12 @@ export function AppearanceSettingsTab() {
             <div className="mt-4 flex items-center gap-2">
               <div className="flex items-center gap-1">
                 <span
-                  className="w-5 h-5 rounded-full border border-white/20 shadow-sm"
+                  className="w-5 h-5 rounded-full border border-white/20"
                   style={{ backgroundColor: activeColorPreset?.color }}
                   title="主调色"
                 />
                 <span
-                  className="w-5 h-5 rounded-full border border-white/20 shadow-sm"
+                  className="w-5 h-5 rounded-full border border-white/20"
                   style={{ backgroundColor: activeColorPreset?.accentColor }}
                   title="强调色"
                 />
@@ -123,7 +123,7 @@ export function AppearanceSettingsTab() {
                 className={cn(
                   "px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5",
                   filterMode === "all"
-                    ? "bg-primary text-primary-foreground shadow-md"
+                    ? "bg-primary text-primary-foreground"
                     : "text-muted-foreground hover:text-foreground hover:bg-foreground/5"
                 )}
               >
@@ -135,7 +135,7 @@ export function AppearanceSettingsTab() {
                 className={cn(
                   "px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5",
                   filterMode === "dark"
-                    ? "bg-primary text-primary-foreground shadow-md"
+                    ? "bg-primary text-primary-foreground"
                     : "text-muted-foreground hover:text-foreground hover:bg-foreground/5"
                 )}
               >
@@ -148,7 +148,7 @@ export function AppearanceSettingsTab() {
                 className={cn(
                   "px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5",
                   filterMode === "light"
-                    ? "bg-primary text-primary-foreground shadow-md"
+                    ? "bg-primary text-primary-foreground"
                     : "text-muted-foreground hover:text-foreground hover:bg-foreground/5"
                 )}
               >
@@ -175,7 +175,7 @@ export function AppearanceSettingsTab() {
                   onClick={() => setColorPreset(preset.id as ColorPresetId)}
                   className={cn(
                     "settings-preset-card appearance-preset-card group relative text-left rounded-2xl border bg-card/90 overflow-hidden transition-all duration-300 hover:scale-[1.02] hover:-translate-y-1 focus-visible:ring-2 focus-visible:ring-primary",
-                    isActive && "is-active ring-2 ring-primary border-primary shadow-xl"
+                    isActive && "is-active ring-2 ring-primary border-primary"
                   )}
                   data-mode={preset.mode}
                   style={presetStyle}
@@ -191,7 +191,7 @@ export function AppearanceSettingsTab() {
                         {preset.mode === "dark" ? "Dark Cinema" : "Light Mode"}
                       </span>
                       {isActive && (
-                        <span className="flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-emerald-500 text-black shadow-lg animate-bounce">
+                        <span className="flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-success text-foreground animate-bounce">
                           <Check className="w-3 h-3 stroke-[3]" /> 生效中
                         </span>
                       )}
@@ -248,7 +248,7 @@ export function AppearanceSettingsTab() {
         {/* Atmosphere & Visual Toggles Section */}
         <div className="border border-border/60 rounded-2xl p-6 bg-card/60 backdrop-blur-md space-y-5">
           <div className="flex items-center gap-2 border-b border-border/40 pb-3">
-            <Zap className="w-4 h-4 text-amber-400" />
+            <Zap className="w-4 h-4 text-warning" />
             <h4 className="text-sm font-bold tracking-wide text-foreground">皮肤视觉特效与网格氛围 (Visual Atmosphere)</h4>
           </div>
 
@@ -272,7 +272,7 @@ export function AppearanceSettingsTab() {
               >
                 <span
                   className={cn(
-                    "pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-lg ring-0 transition duration-200 ease-in-out",
+                    "pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white ring-0 transition duration-200 ease-in-out",
                     enableCyberGrid ? "translate-x-5" : "translate-x-0"
                   )}
                 />
@@ -283,7 +283,7 @@ export function AppearanceSettingsTab() {
             <div className="flex items-center justify-between p-4 rounded-xl border border-border/50 bg-panel/50 hover:border-primary/40 transition-colors">
               <div className="space-y-0.5 pr-3">
                 <div className="flex items-center gap-1.5 font-bold text-xs text-foreground">
-                  <Shield className="w-3.5 h-3.5 text-amber-400" />
+                  <Shield className="w-3.5 h-3.5 text-warning" />
                   <span>胶片暗角与齿孔</span>
                 </div>
                 <p className="text-[11px] text-muted-foreground">模拟物理 35mm 胶片边框与监视器噪点</p>
@@ -298,7 +298,7 @@ export function AppearanceSettingsTab() {
               >
                 <span
                   className={cn(
-                    "pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-lg ring-0 transition duration-200 ease-in-out",
+                    "pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white ring-0 transition duration-200 ease-in-out",
                     enableFilmVignette ? "translate-x-5" : "translate-x-0"
                   )}
                 />
@@ -309,7 +309,7 @@ export function AppearanceSettingsTab() {
             <div className="flex items-center justify-between p-4 rounded-xl border border-border/50 bg-panel/50 hover:border-primary/40 transition-colors">
               <div className="space-y-0.5 pr-3">
                 <div className="flex items-center gap-1.5 font-bold text-xs text-foreground">
-                  <CloudRain className="w-3.5 h-3.5 text-emerald-400" />
+                  <CloudRain className="w-3.5 h-3.5 text-success" />
                   <span>数字雨背景</span>
                 </div>
                 <p className="text-[11px] text-muted-foreground">黑客帝国风格字符瀑布与机械波浪渐隐</p>
@@ -324,7 +324,7 @@ export function AppearanceSettingsTab() {
               >
                 <span
                   className={cn(
-                    "pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-lg ring-0 transition duration-200 ease-in-out",
+                    "pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white ring-0 transition duration-200 ease-in-out",
                     enableScanlines ? "translate-x-5" : "translate-x-0"
                   )}
                 />

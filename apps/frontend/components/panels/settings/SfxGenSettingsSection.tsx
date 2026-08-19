@@ -77,7 +77,7 @@ export function SfxGenSettingsSection({ embedded = false }: SfxGenSettingsSectio
       <div className="flex items-center justify-between gap-4">
         <div className="flex items-center gap-2 text-sm">
           {isReady ? (
-            <Check className="h-4 w-4 text-green-500" aria-hidden />
+            <Check className="h-4 w-4 text-success" aria-hidden />
           ) : (
             <Zap className="h-4 w-4 text-muted-foreground" aria-hidden />
           )}
@@ -104,7 +104,7 @@ export function SfxGenSettingsSection({ embedded = false }: SfxGenSettingsSectio
       <div className="flex items-center justify-between gap-4">
         <div className="flex items-center gap-2 text-sm">
           {downloaded ? (
-            <Check className="h-4 w-4 text-green-500" aria-hidden />
+            <Check className="h-4 w-4 text-success" aria-hidden />
           ) : (
             <Download className="h-4 w-4 text-muted-foreground" aria-hidden />
           )}

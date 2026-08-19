@@ -10,7 +10,7 @@ export function SupportSettingsTab() {
       <div className="p-8 w-full space-y-8">
         <div className="text-center space-y-2">
           <h3 className="text-2xl font-bold text-foreground flex items-center justify-center gap-2">
-            <Coffee className="h-6 w-6 text-amber-500" />
+            <Coffee className="h-6 w-6 text-warning" />
             请作者喝杯咖啡
           </h3>
           <p className="text-sm text-muted-foreground">

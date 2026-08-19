@@ -62,7 +62,7 @@ export function ImageHostSettingsTab({
                         <div className="flex items-center gap-2">
                           <span className="font-medium text-foreground">{provider.name}</span>
                           <span className={configured
-                            ? "text-xs px-2 py-0.5 bg-green-500/10 text-green-500 rounded"
+                            ? "text-xs px-2 py-0.5 bg-success/10 text-success rounded"
                             : "text-xs px-2 py-0.5 bg-muted text-muted-foreground rounded"}
                           >
                             {configured ? "已配置" : "未配置"}

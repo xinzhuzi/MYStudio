@@ -53,7 +53,7 @@ export function LocalAudioSettingsSection({ embedded = false }: LocalAudioSettin
           onClick={() => setEngine("minimax")}
           className={cn(
             "rounded-md px-3 py-1.5 text-xs font-medium transition-colors",
-            engine === "minimax" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground",
+            engine === "minimax" ? "bg-background text-foreground" : "text-muted-foreground hover:text-foreground",
           )}
         >
           MiniMax-Music3 · 整曲(默认)
@@ -65,7 +65,7 @@ export function LocalAudioSettingsSection({ embedded = false }: LocalAudioSettin
           onClick={() => setEngine("musicgen")}
           className={cn(
             "rounded-md px-3 py-1.5 text-xs font-medium transition-colors",
-            engine === "musicgen" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground",
+            engine === "musicgen" ? "bg-background text-foreground" : "text-muted-foreground hover:text-foreground",
           )}
         >
           MusicGen · 轻量
@@ -124,7 +124,7 @@ function MusicGenEnginePanel() {
       <div className="flex items-center justify-between gap-4">
         <div className="flex items-center gap-2 text-sm">
           {isReady ? (
-            <Check className="h-4 w-4 text-green-500" aria-hidden />
+            <Check className="h-4 w-4 text-success" aria-hidden />
           ) : (
             <Music className="h-4 w-4 text-muted-foreground" aria-hidden />
           )}
@@ -145,7 +145,7 @@ function MusicGenEnginePanel() {
       <div className="flex items-center justify-between gap-4">
         <div className="flex items-center gap-2 text-sm">
           {downloaded ? (
-            <Check className="h-4 w-4 text-green-500" aria-hidden />
+            <Check className="h-4 w-4 text-success" aria-hidden />
           ) : (
             <Download className="h-4 w-4 text-muted-foreground" aria-hidden />
           )}
@@ -204,7 +204,7 @@ function MusicGenEnginePanel() {
   );
 }
 
-/** mlx-serve 引擎自动安装(下载 62MB tar.gz 到 userData/mlx-serve-managed/)。 */
+/** mlx-serve 引擎自动安装(下载 62MB tar.gz 到 <userData>/model/mlx-serve-managed/)。 */
 function AutoInstallMlxServe({ runtime, onInstalled }: { runtime: ReturnType<typeof useMusic3GenRuntimeSettings>; onInstalled: () => void }) {
   const [isInstalling, setIsInstalling] = useState(false);
   const handleInstall = async () => {
@@ -338,7 +338,7 @@ function MlxServCard({ runtime, onConfigured }: { runtime: ReturnType<typeof use
           {mlxServ.serverRunning ? (
             <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" aria-hidden />
           ) : mlxServ.weightsReady && mlxServ.binaryFound ? (
-            <Check className="h-4 w-4 text-green-500" aria-hidden />
+            <Check className="h-4 w-4 text-success" aria-hidden />
           ) : (
             <Music className="h-4 w-4 text-muted-foreground" aria-hidden />
           )}
@@ -392,7 +392,7 @@ function MlxServCard({ runtime, onConfigured }: { runtime: ReturnType<typeof use
           <InstallWeightsBlock runtime={runtime} />
         </div>
       ) : (
-        <p className="text-xs text-green-600 dark:text-green-400">权重完整(直接指向不拷贝,8bit/bf16 均支持)</p>
+        <p className="text-xs text-success dark:text-success">权重完整(直接指向不拷贝,8bit/bf16 均支持)</p>
       )}
 
       {!mlxServ.binaryFound ? (
@@ -478,7 +478,7 @@ function Music3EnginePanel() {
       <div className="flex items-center justify-between gap-4">
         <div className="flex items-center gap-2 text-sm">
           {isReady ? (
-            <Check className="h-4 w-4 text-green-500" aria-hidden />
+            <Check className="h-4 w-4 text-success" aria-hidden />
           ) : (
             <Music className="h-4 w-4 text-muted-foreground" aria-hidden />
           )}
@@ -525,7 +525,7 @@ function Music3EnginePanel() {
       <div className="flex items-center justify-between gap-4">
         <div className="flex items-center gap-2 text-sm">
           {downloaded ? (
-            <Check className="h-4 w-4 text-green-500" aria-hidden />
+            <Check className="h-4 w-4 text-success" aria-hidden />
           ) : (
             <Download className="h-4 w-4 text-muted-foreground" aria-hidden />
           )}

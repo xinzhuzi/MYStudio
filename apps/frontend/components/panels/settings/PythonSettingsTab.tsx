@@ -133,7 +133,7 @@ export function PythonSettingsTab({ embedded = false }: PythonSettingsTabProps) 
                 {runtime.installedItems.map((item, index) => (
                   <Fragment key={`${item.label}-${index}`}>
                     <dt className="whitespace-nowrap text-muted-foreground">{item.label}</dt>
-                    <dd className={cn("font-medium", item.status === "installed" ? "text-emerald-600" : item.status === "skipped" ? "text-muted-foreground" : item.status === "pending" ? "text-primary" : item.status === "failed" ? "text-destructive" : "text-foreground")}>{item.detail || item.label}</dd>
+                    <dd className={cn("font-medium", item.status === "installed" ? "text-success" : item.status === "skipped" ? "text-muted-foreground" : item.status === "pending" ? "text-primary" : item.status === "failed" ? "text-destructive" : "text-foreground")}>{item.detail || item.label}</dd>
                   </Fragment>
                 ))}
               </dl>
