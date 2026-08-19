@@ -78,6 +78,11 @@ export interface RemotionChapterRendererOptions {
   videoWorkflowGate?: (input: RemotionChapterGateInputV1) => Promise<RemotionChapterGateResult> | RemotionChapterGateResult;
   /** 自定义字幕字体文件解析（userData/SubtitleFonts）；custom:* 字体缺文件时 fail-closed。 */
   resolveCustomFontPath?: (fontId: string) => string | undefined;
+  /** frontend/assets 目录（含 luts/ 与 sfx/ 子目录；dev=源码树，打包=resources）。
+   * 缺省时不注册 grade LUT / sfx 资产（plan 含 grade 效果将 fail-closed）。 */
+  assetsDir?: string;
+  /** 分镜记录 shotFx.sfx 读取（字幕音效类别表；main 经 studio-workflow store 供给）。 */
+  readSfxCategories?: (projectId: string, chapterId: string) => Record<string, string>;
 }
 
 export interface RemotionChapterRenderRequest {
@@ -428,7 +433,7 @@ export class RemotionChapterRenderer {
           windows: videoWorkflowGateResult.hyperFramesWindows ?? [],
         };
       }
-      // 自定义字幕字体：注册进 media bridge 会话，渲染端 delayRender 挂载后烧录。
+      // 自定义字幕字体：注册进 media bridge 会话，渲染端 delayRequest 挂载后烧录。
       let customFontFaces: Array<{ family: string; url: string }> | undefined;
       let customFontMediaId: string | undefined;
       const subtitleFontId = plan.renderSettings.subtitleFont;
@@ -440,7 +445,42 @@ export class RemotionChapterRenderer {
         customFontMediaId = `custom-font-${subtitleFontId}`;
         mediaSources.push({ clipId: customFontMediaId, absolutePath: fontPath });
       }
+      // 成片调色 LUT + 字幕音效资产（08-19 章节色调/字幕音效）：注册进会话，
+      // lutUrlById 供 grade 效果 fail-closed 解析；sfxUrlById 供字幕驱动派生。
+      let lutUrlById: Record<string, string> | undefined;
+      let sfxUrlById: Record<string, string> | undefined;
+      const assetsDir = this.options.assetsDir;
+      if (assetsDir) {
+        const lutsDir = path.join(assetsDir, "luts");
+        if (fs.existsSync(lutsDir)) {
+          const lutFiles = fs.readdirSync(lutsDir).filter((file) => file.endsWith(".png"));
+          for (const file of lutFiles) mediaSources.push({ clipId: `lut-${file}`, absolutePath: path.join(lutsDir, file) });
+        }
+        const sfxDir = path.join(assetsDir, "sfx");
+        if (fs.existsSync(sfxDir)) {
+          const sfxFiles = fs.readdirSync(sfxDir).filter((file) => file.endsWith(".ogg"));
+          for (const file of sfxFiles) mediaSources.push({ clipId: `sfx-${file}`, absolutePath: path.join(sfxDir, file) });
+        }
+      }
       const mediaUrlByClipId = buildMediaUrlMap(this.mediaBridge, session, mediaSources);
+      if (assetsDir) {
+        const lutsDir = path.join(assetsDir, "luts");
+        if (fs.existsSync(lutsDir)) {
+          lutUrlById = {};
+          for (const file of fs.readdirSync(lutsDir).filter((entry) => entry.endsWith(".png"))) {
+            // lut-<id>.png → <id>（与 standalone 渲染脚本同款键约定）
+            lutUrlById[file.slice(0, -4)] = mediaUrlByClipId[`lut-${file}`];
+          }
+        }
+        const sfxDir = path.join(assetsDir, "sfx");
+        if (fs.existsSync(sfxDir)) {
+          sfxUrlById = {};
+          for (const file of fs.readdirSync(sfxDir).filter((entry) => entry.endsWith(".ogg"))) {
+            // sfx-<name>.ogg → <name>
+            sfxUrlById[file.slice(0, -4)] = mediaUrlByClipId[`sfx-${file}`];
+          }
+        }
+      }
       if (customFontMediaId) {
         customFontFaces = [{ family: customFontFamilyForId(subtitleFontId!), url: mediaUrlByClipId[customFontMediaId]! }];
       }
@@ -457,6 +497,11 @@ export class RemotionChapterRenderer {
         currentShotSlotPaths,
         mediaUrlByClipId,
         mediaUrlByBindingId,
+        ...(lutUrlById ? { lutUrlById } : {}),
+        ...(sfxUrlById ? { sfxUrlById } : {}),
+        ...(sfxUrlById && plan.renderSettings.subtitleSfxEnabled === true
+          ? { sfxCategoryByStoryboardId: this.options.readSfxCategories?.(plan.projectId, plan.episodeId) ?? {} }
+          : {}),
         ...(customFontFaces?.length ? { customFontFaces } : {}),
         ...(videoWorkflowGateResult?.accepted ? { videoWorkflowGate: videoWorkflowGateResult } : {}),
         ...(hyperFramesOverlay

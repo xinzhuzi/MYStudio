@@ -260,3 +260,56 @@ describe("mergeShotFxEditingEffects 合并语义", () => {
     );
   });
 });
+
+describe("chapterGrade 章节统一色调（08-19 导演定调）", () => {
+  it("钉死时全章统一 grade 覆盖逐镜 AI 选卡；blend 钳 0..1", () => {
+    const storyboards: ShotFxStoryboardInput[] = [
+      { id: "sb-1", shotFx: { motion: "push-in", grade: { lutId: "cn-yuebai", blend: 0.8 }, source: "ai" } },
+      { id: "sb-2", shotFx: { motion: "drift", source: "ai" } },
+    ];
+    const { effects } = buildShotFxEditingEffects({
+      ...buildInput(storyboards),
+      chapterGrade: { lutId: "cn-daiqing", blend: 1.7 },
+    });
+    const grades = effects.filter((effect) => effect.effectId === "grade");
+    expect(grades).toHaveLength(2);
+    for (const grade of grades) {
+      expect(grade.params).toEqual({ lutId: "cn-daiqing", blend: 1 });
+    }
+  });
+
+  it("未钉死时逐镜 AI grade 原样（有 grade 的镜才有效果）", () => {
+    const storyboards: ShotFxStoryboardInput[] = [
+      { id: "sb-1", shotFx: { motion: "push-in", grade: { lutId: "cn-yuebai", blend: 0.8 }, source: "ai" } },
+      { id: "sb-2", shotFx: { motion: "drift", source: "ai" } },
+    ];
+    const { effects } = buildShotFxEditingEffects(buildInput(storyboards));
+    const grades = effects.filter((effect) => effect.effectId === "grade");
+    expect(grades).toHaveLength(1);
+    expect(grades[0]!.params).toEqual({ lutId: "cn-yuebai", blend: 0.8 });
+  });
+
+  it("闭集外 lutId 的钉死值按缺省处理（不覆盖逐镜）", () => {
+    const storyboards: ShotFxStoryboardInput[] = [
+      { id: "sb-1", shotFx: { motion: "push-in", grade: { lutId: "cn-yuebai", blend: 0.8 }, source: "ai" } },
+    ];
+    const { effects } = buildShotFxEditingEffects({
+      ...buildInput(storyboards),
+      chapterGrade: { lutId: "not-in-set", blend: 0.5 },
+    });
+    const grades = effects.filter((effect) => effect.effectId === "grade");
+    expect(grades).toHaveLength(1);
+    expect(grades[0]!.params).toEqual({ lutId: "cn-yuebai", blend: 0.8 });
+  });
+
+  it("mergeShotFxEditingEffects 透传 chapterGrade 且幂等替换旧 shotFx grade", () => {
+    const storyboards: ShotFxStoryboardInput[] = [
+      { id: "sb-1", shotFx: { motion: "push-in", grade: { lutId: "cn-yuebai", blend: 0.8 }, source: "ai" } },
+    ];
+    const input = { ...buildInput(storyboards), chapterGrade: { lutId: "cn-zhuqing", blend: 0.6 } as const };
+    const first = mergeShotFxEditingEffects([], input);
+    const second = mergeShotFxEditingEffects(first.effects, input);
+    expect(second.effects.filter((e) => e.effectId === "grade")).toHaveLength(1);
+    expect(second.effects).toEqual(first.effects);
+  });
+});

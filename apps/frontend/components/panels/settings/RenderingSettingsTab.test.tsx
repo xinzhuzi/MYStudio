@@ -1,3 +1,10 @@
+// Radix Slider（章节色调强度）在 jsdom 需要 ResizeObserver（仓库惯例：各测试文件自行 stub）
+(globalThis as any).ResizeObserver ??= class {
+  observe() {}
+  unobserve() {}
+  disconnect() {}
+};
+
 // @vitest-environment jsdom
 
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
@@ -102,6 +109,8 @@ describe("RenderingSettingsTab", () => {
       "书法 · 仙侠武侠",
       "现代 · 正文",
       "自定义",
+      "章节色调（导演定调）",
+      "字幕音效",
       "Remotion Headless Shell",
       "HyperFrames",
       "video-use",

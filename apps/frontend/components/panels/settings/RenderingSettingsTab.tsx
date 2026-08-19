@@ -1,4 +1,4 @@
-import { Check, ChevronDown, Download, Film, Loader2, Plus, RefreshCw, RotateCcw, Type, Wrench } from "lucide-react";
+import { Check, ChevronDown, Download, Film, Loader2, Palette, Plus, RefreshCw, RotateCcw, Type, Volume2, Wrench } from "lucide-react";
 import React from "react";
 import { toast } from "sonner";
 import "@fontsource/noto-sans-sc/900.css";
@@ -10,12 +10,21 @@ import "@fontsource/liu-jian-mao-cao/400.css";
 import "lxgw-wenkai-webfont/lxgwwenkai-regular.css";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Slider } from "@/components/ui/slider";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useRemotionRuntimeSettings } from "./useRemotionRuntimeSettings";
 import { useVideoWorkflowPlugins } from "./useVideoWorkflowPlugins";
 import type { VideoWorkflowPluginId, VideoWorkflowPluginStatusV1 } from "@rendering/contracts/video-workflow";
 import { useStudioStore } from "@/stores/studio/studio-store";
+import { CINEMATIC_LUTS } from "@/lib/studio/remotion/cinematic-luts";
 import {
   DEFAULT_SUBTITLE_FONT_ID,
   SUBTITLE_FONT_CATEGORIES,
@@ -27,6 +36,16 @@ import {
 } from "@/lib/studio/remotion/subtitle-fonts";
 
 const SUBTITLE_FONT_SAMPLE_TEXT = "道劫风云，剑指苍穹。";
+
+/** 章节色调下拉选项：32 张 cn-* 中国风卡（中文名取 description 冒号前，
+ * 情绪摘要取冒号后破折号前的场景短语；权威=cinematic-luts.ts 闭集）。 */
+const CN_LUT_OPTIONS = CINEMATIC_LUTS
+  .filter((lut) => lut.lutId.startsWith("cn-"))
+  .map((lut) => {
+    const [name, ...rest] = lut.description.split(":");
+    const mood = rest.join(":").split("——")[0]?.trim() ?? "";
+    return { lutId: lut.lutId, label: mood ? `${name} · ${mood}` : name };
+  });
 
 /** 字体选项卡：内置与自定义共用，样式经注册表统一解析（含 custom:*）。 */
 function FontOptionCard(props: { id: string; selected: boolean; onSelect: () => void }) {
@@ -447,6 +466,89 @@ export function RenderingSettingsTab({ embedded = false }: RenderingSettingsTabP
                             </Button>
                           </div>
                         </div>
+                      </div>
+
+                      {/* 章节色调（08-19 导演定调）：钉死一张中国风色卡统一全章 grade */}
+                      <div className="space-y-3 border-t border-border pt-4">
+                        <div className="space-y-1">
+                          <h5 className="font-medium text-foreground flex items-center gap-2">
+                            <Palette className="h-4 w-4" aria-hidden="true" />
+                            章节色调（导演定调）
+                          </h5>
+                          <p className="text-xs text-muted-foreground">钉死一张中国风色卡统一全章调色，跳过 AI 逐镜选卡；缺省=AI 自动。对新发起的一键成片生效。</p>
+                        </div>
+                        <div className="grid gap-3 md:grid-cols-[5rem_minmax(0,1fr)_auto] items-center">
+                          <span className="text-xs text-muted-foreground">色卡</span>
+                          <Select
+                            value={workflowConfig.chapterGrade?.lutId ?? "auto"}
+                            onValueChange={(value) => {
+                              if (value === "auto") {
+                                setWorkflowConfig({ chapterGrade: undefined });
+                                return;
+                              }
+                              setWorkflowConfig({
+                                chapterGrade: { lutId: value, blend: workflowConfig.chapterGrade?.blend ?? 0.5 },
+                              });
+                            }}
+                          >
+                            <SelectTrigger className="min-w-0" aria-label="章节色调色卡">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="auto">AI 自动（逐镜选卡）</SelectItem>
+                              {CN_LUT_OPTIONS.map((option) => (
+                                <SelectItem key={option.lutId} value={option.lutId}>
+                                  {option.label}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          {workflowConfig.chapterGrade ? (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => setWorkflowConfig({ chapterGrade: undefined })}
+                            >
+                              恢复 AI 自动
+                            </Button>
+                          ) : null}
+                        </div>
+                        <div className="grid gap-3 md:grid-cols-[5rem_minmax(0,1fr)_auto] items-center">
+                          <span className="text-xs text-muted-foreground">强度</span>
+                          <Slider
+                            disabled={!workflowConfig.chapterGrade}
+                            value={[workflowConfig.chapterGrade?.blend ?? 0.5]}
+                            min={0.2}
+                            max={0.9}
+                            step={0.05}
+                            onValueChange={(values) => {
+                              const blend = values[0];
+                              if (workflowConfig.chapterGrade && blend !== undefined) {
+                                setWorkflowConfig({ chapterGrade: { ...workflowConfig.chapterGrade, blend } });
+                              }
+                            }}
+                            aria-label="章节色调混合强度"
+                          />
+                          <span className="w-10 text-right text-xs tabular-nums text-muted-foreground">
+                            {(workflowConfig.chapterGrade?.blend ?? 0.5).toFixed(2)}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* 字幕音效（08-19 音效随字幕）：文字诉说时插入克制音效 */}
+                      <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border pt-4">
+                        <div className="min-w-0">
+                          <h5 className="font-medium text-foreground flex items-center gap-2">
+                            <Volume2 className="h-4 w-4" aria-hidden="true" />
+                            字幕音效
+                          </h5>
+                          <p className="mt-1 text-xs text-muted-foreground">按字幕句语义（刀剑/雷鸣/水声等）在文字出现时插入短音效，每镜至多一条、音量克制；默认关闭，对新发起的一键成片生效。</p>
+                        </div>
+                        <Switch
+                          aria-label="字幕音效"
+                          checked={workflowConfig.subtitleSfxEnabled === true}
+                          onCheckedChange={(next) => setWorkflowConfig({ subtitleSfxEnabled: next })}
+                        />
                       </div>
 
                       <div className="space-y-3">

@@ -485,11 +485,16 @@ export function useChapterAutoVideoActions({
             const firstChapter = studio.novelChapters
               .slice()
               .sort((left, right) => left.index - right.index)[0]?.id;
-            // 字幕字体跟全局设置走（缺省=毛笔楷书）；分镜计划与章节 manifest
-            // 共用同一份 renderSettings，保证逐镜与成片烧录字体一致。
+            // 字幕字体/章节色调/字幕音效跟全局设置走（兄弟=subtitleFont 惯例）；
+            // 分镜计划与章节 manifest 共用同一份 renderSettings，保证逐镜与
+            // 成片烧录字体一致、章节定调与音效开关同源。
             const renderSettings = {
               ...DEFAULT_REMOTION_RENDER_SETTINGS,
               subtitleFont: studio.workflowConfig.subtitleFont ?? DEFAULT_SUBTITLE_FONT_ID,
+              ...(studio.workflowConfig.chapterGrade ? { chapterGrade: studio.workflowConfig.chapterGrade } : {}),
+              ...(studio.workflowConfig.subtitleSfxEnabled !== undefined
+                ? { subtitleSfxEnabled: studio.workflowConfig.subtitleSfxEnabled }
+                : {}),
             };
             let plans = await buildRemotionShotPlans({
               projectId,

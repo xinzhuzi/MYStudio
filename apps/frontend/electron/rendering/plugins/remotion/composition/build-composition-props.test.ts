@@ -350,6 +350,79 @@ describe("buildChapterVideoCompositionProps", () => {
     }
   });
 
+  it("derives subtitle-driven sfx clips when subtitleSfxEnabled (每镜≤1条, cue 帧偏移, 音量克制)", async () => {
+    const slot = makeCurrentSlot();
+    const plan = chapterPlan(slot, "shot-001", "storyboardVideo");
+    plan.renderSettings.subtitleSfxEnabled = true;
+    const textCue = (id: string, startUs: number) => ({
+      id,
+      trackId: "subtitles",
+      trackKind: "text" as const,
+      source: { kind: "text" as const, text: "雷声炸响", evidence: { storyboardId: "shot-001", sourceFingerprint: "c".repeat(64) } },
+      startUs,
+      durationUs: 500_000,
+      trimStartUs: 0,
+      speed: 1,
+      volume: 0,
+      muted: true,
+      subtitle: { sourceFormat: "generated" as const },
+    });
+    plan.clips.push(textCue("cue-1", 250_000), textCue("cue-2", 900_000));
+    const chapterManifest = await manifestForPlan(plan);
+    const result = buildChapterVideoCompositionProps({
+      plan,
+      currentShotSlots: [slot],
+      chapterManifest,
+      mediaUrlByClipId: { "visual-shot-001": mediaUrl },
+      mediaUrlByBindingId: {},
+      sfxUrlById: { boom: `http://127.0.0.1:43123/${token}/boom.ogg` },
+      sfxCategoryByStoryboardId: { "shot-001": "explosion" },
+    });
+    expect(result.success).toBe(true);
+    if (result.success) {
+      const sfxClips = result.value.audioClips.filter((clip) => clip.kind === "sfx");
+      // 同镜两条 cue 只派生第一条（每镜最多 1 条）
+      expect(sfxClips).toHaveLength(1);
+      expect(sfxClips[0]).toMatchObject({
+        clipId: "sfx-subtitle-cue-1",
+        volume: 0.4,
+        durationInFrames: 15,
+      });
+      // from = cue 帧(250ms@30fps=8) + 2 帧起振，无转场零压缩偏移
+      expect(sfxClips[0]!.from).toBe(10);
+    }
+    // 开关关闭（缺省）→ 类别表与资产齐全也零派生
+    plan.renderSettings.subtitleSfxEnabled = undefined;
+    const disabled = buildChapterVideoCompositionProps({
+      plan,
+      currentShotSlots: [slot],
+      chapterManifest,
+      mediaUrlByClipId: { "visual-shot-001": mediaUrl },
+      mediaUrlByBindingId: {},
+      sfxUrlById: { boom: `http://127.0.0.1:43123/${token}/boom.ogg` },
+      sfxCategoryByStoryboardId: { "shot-001": "explosion" },
+    });
+    expect(disabled.success).toBe(true);
+    if (disabled.success) {
+      expect(disabled.value.audioClips.filter((clip) => clip.kind === "sfx")).toHaveLength(0);
+    }
+    // 无资产类别（雨声 rain）→ 分类在表但派生跳过
+    plan.renderSettings.subtitleSfxEnabled = true;
+    const noAsset = buildChapterVideoCompositionProps({
+      plan,
+      currentShotSlots: [slot],
+      chapterManifest,
+      mediaUrlByClipId: { "visual-shot-001": mediaUrl },
+      mediaUrlByBindingId: {},
+      sfxUrlById: { boom: `http://127.0.0.1:43123/${token}/boom.ogg` },
+      sfxCategoryByStoryboardId: { "shot-001": "rain" },
+    });
+    expect(noAsset.success).toBe(true);
+    if (noAsset.success) {
+      expect(noAsset.value.audioClips.filter((clip) => clip.kind === "sfx")).toHaveLength(0);
+    }
+  });
+
   it("burns the canonical Remotion subtitle track only when subtitleMode is enabled", async () => {
     const slot = makeCurrentSlot();
     const plan = chapterPlan(slot, "shot-001", "storyboardVideo");

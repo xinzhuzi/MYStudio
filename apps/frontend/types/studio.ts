@@ -558,6 +558,18 @@ export interface StudioWorkflowConfig {
    * 渲染端同样回落默认字体。
    */
   subtitleFont?: string;
+  /**
+   * 章节统一色调（08-19 导演定调）：{lutId, blend} 钉死全章 grade，跳过 AI
+   * 逐镜选卡；删除字段=回到 AI 自动。lutId 闭集 cn-* 32 张（设置页下拉）。
+   * 按项目持久化；一键成片与章节投影创建时注入 renderSettings.chapterGrade。
+   */
+  chapterGrade?: { lutId: string; blend: number };
+  /**
+   * 字幕驱动音效（08-19 音效随字幕）：按字幕句语义分类派生 sfx 音轨。
+   * 默认 false（克制）；与已停用的转场音效互不相干。按项目持久化，
+   * 一键成片/章节投影创建时注入 renderSettings.subtitleSfxEnabled。
+   */
+  subtitleSfxEnabled?: boolean;
   /** 当前所处的工作流阶段（tab value），随项目保存，下次进入自动恢复 */
   workflowStage?: string;
   projectType?: string;

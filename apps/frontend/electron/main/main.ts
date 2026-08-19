@@ -1063,6 +1063,27 @@ const remotionChapterRenderer = new RemotionChapterRenderer({
   resolveCustomFontPath: (fontId) => customFontAbsolutePath(app.getPath('userData'), fontId),
   emitProgress: () => undefined,
   videoWorkflowGate: evaluateVideoWorkflowChapterGate,
+  // 章节级资产（LUT/sfx，08-19）：dev=源码树 frontend/assets；打包=resources 下
+  // extraResources 镜像（electron-builder.yml from frontend/assets/{luts,sfx}）。
+  assetsDir: app.isPackaged
+    ? process.resourcesPath
+    : path.join(process.env.APP_ROOT ?? path.join(__dirname, '../..'), 'frontend/assets'),
+  // 字幕音效类别表：分镜记录 shotFx.sfx（装饰层，同 store 单源；读取失败=空表零派生）。
+  readSfxCategories: (projectId, chapterId) => {
+    try {
+      const store = readStudioWorkflowStore(getDataDir(), projectId)
+      const storyboards = (store?.state?.storyboards ?? []) as Array<{ id: string; episodeId: string; shotFx?: { sfx?: unknown } }>
+      const categories: Record<string, string> = {}
+      for (const storyboard of storyboards) {
+        if (storyboard.episodeId === chapterId && typeof storyboard.shotFx?.sfx === 'string') {
+          categories[storyboard.id] = storyboard.shotFx.sfx
+        }
+      }
+      return categories
+    } catch {
+      return {}
+    }
+  },
 })
 const remotionShotIpc = registerRemotionShotIpcHandlers(remotionShotRenderer)
 const remotionQueue = new RemotionRenderQueue({
@@ -1168,10 +1189,28 @@ async function loadChapterStudioProjection(request: { projectId: string; chapter
   // 2D 镜头语言/特效走 plan.effects 正门（video-use 编排 → Remotion 合成消费）：
   // 合并 shotFx 决策（AI 提示 > 关键词 > 镜序轮换），章节渲染身份哈希含
   // plan.effects → 运镜变化自动失效缓存。幂等：前缀识别旧 shotFx 条目并替换。
+  // chapterGrade/subtitleSfxEnabled（08-19 导演定调/字幕音效）经 workflowConfig
+  // 注水（兄弟=subtitleFont 惯例）：钉死时全章统一 grade，跳过 AI 逐镜选卡。
   const shotFxStoryboards = (() => {
     try {
       const store = readStudioWorkflowStore(getDataDir(), request.projectId)
       const storyboards = (store?.state?.storyboards ?? []) as Array<{ id: string; episodeId: string; prompt?: string; line?: string; shotFx?: { motion?: unknown } }>
+      const workflowConfig = store?.state?.workflowConfig as
+        | { chapterGrade?: { lutId?: unknown; blend?: unknown }; subtitleSfxEnabled?: unknown }
+        | undefined
+      if (workflowConfig?.chapterGrade && typeof workflowConfig.chapterGrade.lutId === 'string') {
+        const blendRaw = Number(workflowConfig.chapterGrade.blend ?? 0.5)
+        plan.value.renderSettings = {
+          ...plan.value.renderSettings,
+          chapterGrade: {
+            lutId: workflowConfig.chapterGrade.lutId,
+            blend: Number.isFinite(blendRaw) ? Math.min(1, Math.max(0, blendRaw)) : 0.5,
+          },
+        }
+      }
+      if (typeof workflowConfig?.subtitleSfxEnabled === 'boolean') {
+        plan.value.renderSettings = { ...plan.value.renderSettings, subtitleSfxEnabled: workflowConfig.subtitleSfxEnabled }
+      }
       return storyboards.filter((storyboard) => storyboard.episodeId === request.chapterId)
     } catch { /* store 缺失 → 仅规则轮换运镜 */ }
     return []
@@ -1179,6 +1218,7 @@ async function loadChapterStudioProjection(request: { projectId: string; chapter
   const shotFx = mergeShotFxEditingEffects(plan.value.effects, {
     planClips: plan.value.clips,
     storyboards: shotFxStoryboards,
+    ...(plan.value.renderSettings.chapterGrade ? { chapterGrade: plan.value.renderSettings.chapterGrade } : {}),
   })
   plan.value.effects = shotFx.effects
   const visualClips = plan.value.clips.filter((clip) => clip.trackKind === 'video' || clip.trackKind === 'image')

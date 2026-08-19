@@ -240,6 +240,12 @@ export interface ShotFxStoryboardInput {
   shotFx?: { motion?: unknown; addons?: unknown; grade?: unknown; source?: unknown };
 }
 
+/** 章节统一色调（08-19 导演定调）：钉死值全章覆盖，跳过逐镜 AI grade。 */
+export interface ChapterGradeOverride {
+  lutId: string;
+  blend: number;
+}
+
 export interface ShotFxPlanClipLike {
   id: string;
   trackKind: string;
@@ -317,10 +323,12 @@ const SHOT_FX_EFFECT_ID_PREFIX = "effect-shot-fx-";
  * 特效来源：AI 显式插件配置（shotFx.addons，空数组=无特效）>
  * 运镜配方默认特效；同种效果取首个（互斥）。grain 为全局质感层恒常驻。
  * 依赖 plan clip 的 startUs/durationUs 提供效果时间窗（validation 要求全片段覆盖）。
+ * chapterGrade 钉死时全章统一 grade（08-19 导演定调），逐镜 AI grade 被覆盖。
  */
 export function buildShotFxEditingEffects(input: {
   planClips: readonly ShotFxPlanClipLike[];
   storyboards: readonly ShotFxStoryboardInput[];
+  chapterGrade?: ChapterGradeOverride;
 }): ShotFxResult {
   const storyboardById = new Map(input.storyboards.map((storyboard) => [storyboard.id, storyboard]));
   const effects: EditingEffect[] = [];
@@ -379,13 +387,21 @@ export function buildShotFxEditingEffects(input: {
       });
     }
 
-    // 成片调色（08-18-haldclut-grade AI 选型）：storyboard.shotFx.grade 携带
-    // AI 逐镜选择的 LUT（闭集校验+blend 钳 0..1）；非法值按缺省=不调色。
-    const grade = storyboard?.shotFx?.grade as { lutId?: unknown; blend?: unknown } | undefined;
-    if (grade && typeof grade.lutId === "string" && isCinematicLutId(grade.lutId)) {
-      const blendRaw = Number(grade.blend ?? 1);
-      const blend = Number.isFinite(blendRaw) ? Math.min(1, Math.max(0, blendRaw)) : 1;
-      pushEffect("grade", "grade", { lutId: grade.lutId, blend });
+    // 成片调色：chapterGrade 钉死（08-19 导演定调）全章覆盖；否则用
+    // storyboard.shotFx.grade 的 AI 逐镜选择（闭集校验+blend 钳 0..1）；
+    // 非法值按缺省=不调色。
+    const pinnedGrade = input.chapterGrade;
+    if (pinnedGrade && isCinematicLutId(pinnedGrade.lutId)) {
+      const blendRaw = Number(pinnedGrade.blend);
+      const blend = Number.isFinite(blendRaw) ? Math.min(1, Math.max(0, blendRaw)) : 0.5;
+      pushEffect("grade", "grade", { lutId: pinnedGrade.lutId, blend });
+    } else {
+      const grade = storyboard?.shotFx?.grade as { lutId?: unknown; blend?: unknown } | undefined;
+      if (grade && typeof grade.lutId === "string" && isCinematicLutId(grade.lutId)) {
+        const blendRaw = Number(grade.blend ?? 1);
+        const blend = Number.isFinite(blendRaw) ? Math.min(1, Math.max(0, blendRaw)) : 1;
+        pushEffect("grade", "grade", { lutId: grade.lutId, blend });
+      }
     }
 
     // 特效来源：AI 显式插件配置（空数组=无特效）> 配方默认；同种效果取首个（互斥）。
@@ -438,6 +454,7 @@ export function mergeShotFxEditingEffects(
   input: {
     planClips: readonly ShotFxPlanClipLike[];
     storyboards: readonly ShotFxStoryboardInput[];
+    chapterGrade?: ChapterGradeOverride;
   },
 ): ShotFxResult {
   const built = buildShotFxEditingEffects(input);

@@ -880,17 +880,41 @@ export async function runFullPipeline(): Promise<Record<string, unknown>> {
   // ── 15b. 2D 镜头语言 + 镜头特效走 plan.effects 正门（与 App 一键成片共享
   // 决策单源 mergeShotFxEditingEffects，保证两条入口产出一致）。store 缺失时
   // 仅规则轮换运镜；MYSTUDIO_SHOT_FX=0 可显式关闭。
+  // 字幕音效类别表（08-19）：分镜 shotFx.sfx（MYSTUDIO_SHOT_FX=0 时为空表零派生）
+  const sfxCategoryByStoryboardId: Record<string, string> = {};
   if (process.env.MYSTUDIO_SHOT_FX !== "0") {
+    // 章节统一色调/字幕音效（08-19）：workflowConfig 同源——钉死色卡全章覆盖
+    // grade，subtitleSfxEnabled 注水 plan.renderSettings 供合成端消费。
+    let chapterGrade: { lutId: string; blend: number } | undefined;
     const shotFxStoryboards = (() => {
       try {
         const fxStore = readStudioWorkflowStoreState(projectDir);
         const fxStoryboards = (fxStore?.state.storyboards ?? []) as Array<{ id: string; episodeId: string; prompt?: string; line?: string; shotFx?: { motion?: unknown } }>;
+        const workflowConfig = fxStore?.state.workflowConfig as
+          | { chapterGrade?: { lutId?: unknown; blend?: unknown }; subtitleSfxEnabled?: unknown }
+          | undefined;
+        if (workflowConfig?.chapterGrade && typeof workflowConfig.chapterGrade.lutId === "string") {
+          const blendRaw = Number(workflowConfig.chapterGrade.blend ?? 0.5);
+          chapterGrade = {
+            lutId: workflowConfig.chapterGrade.lutId,
+            blend: Number.isFinite(blendRaw) ? Math.min(1, Math.max(0, blendRaw)) : 0.5,
+          };
+        }
+        if (workflowConfig?.subtitleSfxEnabled === true) {
+          plan.renderSettings = { ...plan.renderSettings, subtitleSfxEnabled: true };
+        }
         return fxStoryboards.filter((storyboard) => storyboard.episodeId === chapterId);
       } catch { return [] }
     })();
+    for (const storyboard of shotFxStoryboards) {
+      if (typeof storyboard.shotFx?.sfx === "string") {
+        sfxCategoryByStoryboardId[storyboard.id] = storyboard.shotFx.sfx;
+      }
+    }
     const shotFx = mergeShotFxEditingEffects(plan.effects, {
       planClips: plan.clips,
       storyboards: shotFxStoryboards,
+      ...(chapterGrade ? { chapterGrade } : {}),
     });
     plan.effects = shotFx.effects;
     console.log(`[full-pipeline] 2D shot-fx effects merged: motion ${shotFx.counts.motion}, shake ${shotFx.counts.shake}, glow ${shotFx.counts.glow}, chroma ${shotFx.counts.chroma}`);
@@ -1075,10 +1099,41 @@ export async function runFullPipeline(): Promise<Record<string, unknown>> {
         }
       }
 
+      // 章节级效果资产（08-19 章节色调/字幕音效）：LUT+sfx 注册进会话——
+      // grade 效果 fail-closed 需要 lutUrlById；sfx 供字幕驱动派生。
+      const effectAssetsDir = path.join(appsRoot, "frontend/assets");
+      const lutUrlById: Record<string, string> = {};
+      const sfxUrlById: Record<string, string> = {};
+      {
+        const lutsDir = path.join(effectAssetsDir, "luts");
+        if (fs.existsSync(lutsDir)) {
+          const files = fs.readdirSync(lutsDir).filter((f) => f.endsWith(".png"));
+          for (const f of files) mediaSources.push({ clipId: `lut-${f}`, absolutePath: path.join(lutsDir, f) });
+        }
+        const sfxDir = path.join(effectAssetsDir, "sfx");
+        if (fs.existsSync(sfxDir)) {
+          const files = fs.readdirSync(sfxDir).filter((f) => f.endsWith(".ogg"));
+          for (const f of files) mediaSources.push({ clipId: `sfx-${f}`, absolutePath: path.join(sfxDir, f) });
+        }
+      }
       const mediaUrlByClipId = buildMediaUrlMap(mediaBridge, session, mediaSources);
       const mediaUrlByBindingId = Object.fromEntries(
         chapterManifest.sharedAudioBindings.map((binding) => [binding.bindingId, mediaUrlByClipId[`chapter-audio:${binding.bindingId}`]]),
       );
+      {
+        const lutsDir = path.join(effectAssetsDir, "luts");
+        if (fs.existsSync(lutsDir)) {
+          for (const f of fs.readdirSync(lutsDir).filter((entry) => entry.endsWith(".png"))) {
+            lutUrlById[f.slice(0, -4)] = mediaUrlByClipId[`lut-${f}`];
+          }
+        }
+        const sfxDir = path.join(effectAssetsDir, "sfx");
+        if (fs.existsSync(sfxDir)) {
+          for (const f of fs.readdirSync(sfxDir).filter((entry) => entry.endsWith(".ogg"))) {
+            sfxUrlById[f.slice(0, -4)] = mediaUrlByClipId[`sfx-${f}`];
+          }
+        }
+      }
 
       // Build composition props with gate result (the proper path)
       const projected = buildChapterVideoCompositionProps({
@@ -1087,6 +1142,10 @@ export async function runFullPipeline(): Promise<Record<string, unknown>> {
         chapterManifest,
         mediaUrlByClipId,
         mediaUrlByBindingId,
+        lutUrlById,
+        ...(plan.renderSettings.subtitleSfxEnabled === true
+          ? { sfxUrlById, sfxCategoryByStoryboardId }
+          : {}),
         videoWorkflowGate: gateResult,
         ...(gateResult.hyperFramesOutputPath && gateResult.hyperFramesWindows
           ? {

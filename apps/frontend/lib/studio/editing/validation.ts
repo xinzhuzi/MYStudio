@@ -21,6 +21,7 @@ import {
 } from "@rendering/contracts/timeline-renderer";
 import { validateProposalEffectLinks } from "./proposal-effect-links";
 import { isKnownSubtitleFontId } from "../remotion/subtitle-fonts";
+import { isCinematicLutId } from "../remotion/cinematic-luts";
 export { validateProposalEffectLinks } from "./proposal-effect-links";
 
 const TRACK_KINDS = new Set([
@@ -301,6 +302,21 @@ function validateRenderSettings(
   enumValue(value.subtitleMode, new Set(["burn-in", "none"]), issues, `${path}.subtitleMode`, "editing.render.subtitle_mode");
   if (value.subtitleFont !== undefined && !isKnownSubtitleFontId(value.subtitleFont)) {
     issue(issues, "editing.render.subtitle_font", `${path}.subtitleFont`, "字幕字体必须是注册表内的字体 id");
+  }
+  // 章节统一色调（08-19 导演定调）：lutId 闭集 fail-closed + blend 钳域校验。
+  if (value.chapterGrade !== undefined) {
+    const grade = value.chapterGrade as { lutId?: unknown; blend?: unknown } | null;
+    if (typeof grade !== "object" || grade === null || typeof grade.lutId !== "string" || !isCinematicLutId(grade.lutId)) {
+      issue(issues, "editing.render.chapter_grade", `${path}.chapterGrade.lutId`, "章节色调必须在 LUT 闭集内");
+    } else if (
+      grade.blend !== undefined
+      && (typeof grade.blend !== "number" || !Number.isFinite(grade.blend) || grade.blend < 0 || grade.blend > 1)
+    ) {
+      issue(issues, "editing.render.chapter_grade", `${path}.chapterGrade.blend`, "章节色调混合强度必须是 0..1 有限数");
+    }
+  }
+  if (value.subtitleSfxEnabled !== undefined && typeof value.subtitleSfxEnabled !== "boolean") {
+    issue(issues, "editing.render.subtitle_sfx_enabled", `${path}.subtitleSfxEnabled`, "字幕音效开关必须是布尔值");
   }
   finiteNumber(value.loudnessLufs, issues, `${path}.loudnessLufs`, "editing.render.loudness");
   finiteNumber(value.truePeakDbtp, issues, `${path}.truePeakDbtp`, "editing.render.true_peak");

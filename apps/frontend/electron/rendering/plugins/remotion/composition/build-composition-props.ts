@@ -37,6 +37,12 @@ import {
 import { resolveSubtitleAuthority } from "@/lib/studio/video-workflow/subtitle-authority";
 import { DEFAULT_SUBTITLE_FONT_ID } from "@/lib/studio/remotion/subtitle-fonts";
 import { isCinematicLutId } from "@/lib/studio/remotion/cinematic-luts";
+import {
+  SUBTITLE_SFX_DURATION_FRAMES,
+  SUBTITLE_SFX_OFFSET_FRAMES,
+  SUBTITLE_SFX_VOLUME,
+  subtitleSfxAssetFor,
+} from "@/lib/studio/remotion/subtitle-sfx";
 
 const CAPABILITY_URL = /^http:\/\/127\.0\.0\.1:\d+\/[a-f0-9]{64}\/[A-Za-z0-9._~-]+$/;
 const TEXT_HYPERFRAMES_TEMPLATES = new Set(["title-card", "kinetic-caption"]);
@@ -218,6 +224,9 @@ export interface ChapterVideoCompositionInput extends ChapterVideoSourceInput {
   sfxUrlById?: Readonly<Record<string, string>>;
   /** 转场音效派生开关（默认 false——2026-08-19 用户裁定转场≠音效）。 */
   transitionSfxEnabled?: boolean;
+  /** 字幕句音效类别（storyboardId → subtitle-sfx.ts 类别 id；host 从分镜记录
+   * shotFx.sfx 读出）。subtitleSfxEnabled 开启时按字幕 cue 帧派生音轨。 */
+  sfxCategoryByStoryboardId?: Readonly<Record<string, string>>;
   /** BGM 节拍时刻（µs，升序；ffmpeg 能量峰预计算——渲染期禁异步，M11 口径）。
    * 提供时 sfx 起点向最近节拍吸附（|Δ|≤4 帧且不越转场窗），出界回退原时刻。 */
   beatTimesUs?: readonly number[];
@@ -302,6 +311,20 @@ export function buildChapterVideoCompositionProps(
   // （保留管线供未来剧本驱动音效使用），standalone 默认不传=零派生。
   if (input.sfxUrlById && Object.keys(input.sfxUrlById).length > 0 && input.transitionSfxEnabled === true) {
     audioClips.push(...deriveTransitionSfxClips(base, input.beatTimesUs, input.sfxUrlById));
+  }
+  // 字幕驱动音效（08-19 任务3）：音效随文字诉说——分镜记录 shotFx.sfx 的语义
+  // 类别 × 字幕 cue 帧派生（每镜≤1 条、音量克制）；与上面的转场派生严格隔离，
+  // 独立开关 subtitleSfxEnabled（默认 false）。
+  if (
+    input.plan.renderSettings.subtitleSfxEnabled === true
+    && input.sfxUrlById
+    && Object.keys(input.sfxUrlById).length > 0
+  ) {
+    audioClips.push(...deriveSubtitleSfxClips({
+      plan: input.plan,
+      sfxUrlById: input.sfxUrlById,
+      categoryByStoryboardId: input.sfxCategoryByStoryboardId ?? {},
+    }));
   }
   const overlayClips = projectHyperFramesOverlay(input.hyperFramesOverlay, base.durationInFrames, base.fps);
   const suppressedCueIds = authorityValidation.suppressedCueIds;
@@ -829,6 +852,75 @@ function sfxAssetForTransition(effectId: string): string | null {
     return "sfx-whoosh";
   }
   return null;
+}
+
+/**
+ * 字幕驱动音效派生（08-19 任务3）：音效随文字诉说。每个 text clip（句级字幕
+ * cue）按其所属镜头的 shotFx.sfx 语义类别取资产，起点=cue 投影帧+2 帧起振、
+ * 时长 15 帧短 one-shot、音量 0.4 克制；同一镜最多 1 条（首 cue 命中）。
+ * 帧换算与字幕烧录同口径：plan 层音频时间线 → layoutVisualTimeline 压缩偏移。
+ */
+function deriveSubtitleSfxClips(input: {
+  plan: TimelineRenderPlan;
+  sfxUrlById: Readonly<Record<string, string>>;
+  categoryByStoryboardId: Readonly<Record<string, string>>;
+}): Array<CompositionAudioClipProps & { renderScope: "chapter" }> {
+  const fps = input.plan.renderSettings.fps;
+  const visualClips = input.plan.clips
+    .filter((clip) => clip.trackKind === "video" || clip.trackKind === "image")
+    .sort(compareTimelineClips);
+  const visualTiming = layoutVisualTimeline(
+    visualClips.map((clip) => ({ clipId: clip.id, durationUs: clip.durationUs })),
+    input.plan.transitions.map((transition) => ({
+      fromClipId: transition.fromClipId,
+      toClipId: transition.toClipId,
+      effectId: transition.effectId,
+      durationUs: transition.durationUs,
+    })),
+    fps,
+  );
+  const timingById = new Map(visualTiming.clips.map((timing) => [timing.clipId, timing]));
+  const cueClips = input.plan.clips
+    .filter((clip) => clip.trackKind === "text" && typeof clip.source.text === "string")
+    .sort(compareTimelineClips);
+  const scoredByShotId = new Set<string>();
+  const out: Array<CompositionAudioClipProps & { renderScope: "chapter" }> = [];
+  for (const cue of cueClips) {
+    // cue 与视觉 clip 在 plan 层同处音频时间线；owner 用重叠区间判定（与字幕烧录同款）。
+    const owner = visualClips.find((visual) =>
+      overlaps(cue.startUs, cue.durationUs, visual.startUs, visual.durationUs));
+    const storyboardId = owner?.source.evidence?.storyboardId;
+    if (!owner || !storyboardId) continue;
+    if (scoredByShotId.has(storyboardId)) continue; // 每镜最多 1 条
+    const category = input.categoryByStoryboardId[storyboardId];
+    if (!category) continue;
+    const asset = subtitleSfxAssetFor(category);
+    if (!asset) continue; // 无资产类别（雨/脚步/钟/火）标注跳过
+    const src = input.sfxUrlById[asset];
+    if (!src) continue;
+    const ownerTiming = timingById.get(owner.id);
+    if (!ownerTiming) continue;
+    const layoutShiftFrames = usToFrames(owner.startUs, fps) - ownerTiming.from;
+    const from = Math.max(0, usToFrames(cue.startUs, fps) - layoutShiftFrames + SUBTITLE_SFX_OFFSET_FRAMES);
+    const durationInFrames = Math.min(
+      SUBTITLE_SFX_DURATION_FRAMES,
+      Math.max(0, visualTiming.durationInFrames - from),
+    );
+    if (durationInFrames <= 0) continue;
+    scoredByShotId.add(storyboardId);
+    out.push({
+      clipId: `sfx-subtitle-${cue.id}`,
+      kind: "sfx",
+      src: requireCapabilityUrl(src, `sfx-subtitle-${cue.id}`),
+      from,
+      durationInFrames,
+      volume: SUBTITLE_SFX_VOLUME,
+      renderScope: "chapter",
+      trimStartFrames: 0,
+      playbackRate: 1,
+    });
+  }
+  return out;
 }
 
 function deriveTransitionSfxClips(

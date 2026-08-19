@@ -474,6 +474,17 @@ export interface EditingRenderSettings {
    * 值保持字符串跨 JSON 持久化边界）。缺省 = "ma-shan-zheng"（毛笔楷书）。
    */
   subtitleFont?: string;
+  /**
+   * 章节统一色调（08-19 导演定调）：钉死后全章统一 grade，跳过 AI 逐镜选卡。
+   * lutId 闭集见 cinematic-luts.ts（UI 只暴露 cn-* 中国风 32 张）。
+   * 缺省 = AI 自动逐镜。经 workflowConfig 注水（兄弟=subtitleFont 惯例）。
+   */
+  chapterGrade?: { lutId: string; blend: number };
+  /**
+   * 字幕驱动音效开关（08-19 音效随字幕）：默认 false。与已停用的
+   * transitionSfxEnabled（转场≠音效）严格分离——本开关只管字幕句语义派生。
+   */
+  subtitleSfxEnabled?: boolean;
   loudnessLufs: number;
   truePeakDbtp: number;
   audioDucking?: EditingAudioDuckingSettings;
