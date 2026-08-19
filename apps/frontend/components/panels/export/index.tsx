@@ -196,7 +196,7 @@ export function ExportView() {
             <div className="bg-card border border-border rounded-xl p-8 relative overflow-hidden">
               {/* Background Decoration */}
               <div className="absolute top-0 right-0 p-48 bg-primary/5 blur-[120px] rounded-full pointer-events-none" />
-              <div className="absolute bottom-0 left-0 p-32 bg-green-500/5 blur-[100px] rounded-full pointer-events-none" />
+              <div className="absolute bottom-0 left-0 p-32 bg-success/5 blur-[100px] rounded-full pointer-events-none" />
 
               <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-10 relative z-10 gap-6">
                 <div>
@@ -239,7 +239,7 @@ export function ExportView() {
                   </div>
                   <div className="text-[10px] text-muted-foreground uppercase tracking-widest flex items-center justify-end gap-2">
                     {progress === 100 ? (
-                      <CheckCircle className="w-3 h-3 text-green-500" />
+                      <CheckCircle className="w-3 h-3 text-success" />
                     ) : (
                       <BarChart3 className="w-3 h-3" />
                     )}
@@ -270,14 +270,14 @@ export function ExportView() {
                           className={cn(
                             "h-14 min-w-[4px] flex-1 rounded-[2px] transition-all relative group flex flex-col justify-end overflow-hidden",
                             hasVideo
-                              ? "bg-green-500/40 border border-green-500/30 hover:bg-green-500/50"
+                              ? "bg-success/40 border border-success/30 hover:bg-success/50"
                               : hasImage
                               ? "bg-primary/40 border border-primary/30 hover:bg-primary/50"
                               : "bg-muted border border-border hover:bg-muted/80"
                           )}
                           title={`分镜 ${idx + 1}: ${scene.actionSummary || scene.sceneName || ''}`}
                         >
-                          {hasVideo && <div className="h-full w-full bg-green-500/20" />}
+                          {hasVideo && <div className="h-full w-full bg-success/20" />}
                           {hasImage && !hasVideo && <div className="h-full w-full bg-primary/20" />}
                           
                           {/* Hover Tooltip */}

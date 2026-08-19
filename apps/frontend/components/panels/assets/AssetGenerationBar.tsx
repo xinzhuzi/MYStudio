@@ -118,7 +118,7 @@ export function AssetGenerationBar({ assetType }: AssetGenerationBarProps) {
           variant="ghost"
           size="sm"
           onClick={handleCancel}
-          className="h-7 gap-1 text-xs text-red-400 hover:text-red-300"
+          className="h-7 gap-1 text-xs text-destructive hover:text-destructive/80"
         >
           <X className="h-3.5 w-3.5" />
           取消

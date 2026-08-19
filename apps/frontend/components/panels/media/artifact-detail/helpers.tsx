@@ -9,11 +9,11 @@ import { Button } from "@/components/ui/button";
 
 /** Visual config for each ArtifactRecord.state badge. */
 export const STATE_INFO: Record<string, { color: string; label: string }> = {
-  active: { color: "bg-green-600", label: "活跃" },
-  archived: { color: "bg-gray-600", label: "已归档" },
-  orphaned: { color: "bg-orange-600", label: "孤儿" },
-  blocked: { color: "bg-red-600", label: "已阻塞" },
-  unknown: { color: "bg-yellow-600", label: "未知" },
+  active: { color: "bg-success", label: "活跃" },
+  archived: { color: "bg-muted", label: "已归档" },
+  orphaned: { color: "bg-warning", label: "孤儿" },
+  blocked: { color: "bg-destructive", label: "已阻塞" },
+  unknown: { color: "bg-warning", label: "未知" },
 };
 
 /** Locale-aware timestamp formatting for the metadata tab. */

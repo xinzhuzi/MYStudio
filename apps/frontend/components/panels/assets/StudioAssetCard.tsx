@@ -76,9 +76,9 @@ function StudioAssetCardComponent({
       {/* 提示词润色状态标签 */}
       {asset.promptState && asset.promptState !== "none" && (
         <span className={`absolute right-1.5 top-1.5 z-10 rounded px-1.5 py-0.5 text-[10px] font-medium ${
-          asset.promptState === "polishing" ? "bg-blue-500/70 text-blue-100"
-          : asset.promptState === "ready" ? "bg-green-500/70 text-green-100"
-          : asset.promptState === "failed" ? "bg-red-500/70 text-red-100"
+          asset.promptState === "polishing" ? "bg-primary/70 text-primary-foreground"
+          : asset.promptState === "ready" ? "bg-success/70 text-success-foreground"
+          : asset.promptState === "failed" ? "bg-destructive/70 text-destructive-foreground"
           : ""
         }`}>
           {asset.promptState === "polishing" && <>● 润色中</>}
@@ -121,7 +121,7 @@ function StudioAssetCardComponent({
 
       {/* 底部名字叠加 */}
       <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 to-transparent px-2 pb-1.5 pt-5">
-        <div className="truncate text-xs font-medium text-white">{displayName}</div>
+        <div className="truncate text-xs font-medium text-foreground">{displayName}</div>
       </div>
     </button>
   );

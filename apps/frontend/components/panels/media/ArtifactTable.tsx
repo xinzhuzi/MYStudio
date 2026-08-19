@@ -66,11 +66,11 @@ export interface ArtifactTableProps {
 }
 
 const STATE_ICONS_AND_COLORS: Record<ArtifactState, { icon: React.ReactNode; color: string }> = {
-  "active": { icon: <CheckCircle className="h-4 w-4" />, color: "text-green-600 dark:text-green-400" },
-  "archived": { icon: <Clock className="h-4 w-4" />, color: "text-gray-600 dark:text-gray-400" },
-  "orphaned": { icon: <XCircle className="h-4 w-4" />, color: "text-orange-600 dark:text-orange-400" },
-  "blocked": { icon: <AlertCircle className="h-4 w-4" />, color: "text-red-600 dark:text-red-400" },
-  "unknown": { icon: <AlertCircle className="h-4 w-4" />, color: "text-yellow-600 dark:text-yellow-400" },
+  "active": { icon: <CheckCircle className="h-4 w-4" />, color: "text-success dark:text-success" },
+  "archived": { icon: <Clock className="h-4 w-4" />, color: "text-muted-foreground dark:text-muted-foreground" },
+  "orphaned": { icon: <XCircle className="h-4 w-4" />, color: "text-warning dark:text-warning" },
+  "blocked": { icon: <AlertCircle className="h-4 w-4" />, color: "text-destructive dark:text-destructive" },
+  "unknown": { icon: <AlertCircle className="h-4 w-4" />, color: "text-warning dark:text-warning" },
 };
 
 function formatBytes(bytes?: number): string {
@@ -339,8 +339,8 @@ export function ArtifactTable({
                 className={cn(
                   "cursor-pointer",
                   selectedIds.has(artifact.id) && "bg-muted/50",
-                  artifact.state === 'orphaned' && "text-orange-600 dark:text-orange-400",
-                  artifact.state === 'blocked' && "text-red-600 dark:text-red-400",
+                  artifact.state === 'orphaned' && "text-warning dark:text-warning",
+                  artifact.state === 'blocked' && "text-destructive dark:text-destructive",
                 )}
                 onClick={() => onArtifactClick?.(artifact)}
               >

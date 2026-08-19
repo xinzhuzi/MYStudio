@@ -139,7 +139,7 @@ function AccountsView() {
           const platformAvailable = provider?.availablePlatforms?.includes(capability.platform) === true;
           const unavailable = provider?.enabled === false || !platformAvailable;
           const emptyLabel = unavailable ? "当前平台暂不可用" : "尚未连接账号";
-          return <Card key={capability.platform} className="mb-4 break-inside-avoid border-border/70 bg-card/70 shadow-lg shadow-black/5">
+          return <Card key={capability.platform} className="mb-4 break-inside-avoid border-border/70 bg-card/70 shadow-black/5">
             <CardHeader className="pb-3"><div className="flex items-start justify-between gap-2"><div className="flex min-w-0 items-center gap-2"><span aria-hidden="true" className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-sm font-semibold text-primary">{capability.displayName.slice(0, 1)}</span><div className="min-w-0"><CardTitle role="heading" aria-level={3} className="truncate text-sm">{capability.displayName}</CardTitle><CardDescription className="mt-1">{platformAccounts.length} 个账号</CardDescription></div></div><Button size="sm" variant="outline" onClick={() => login(capability.platform)} disabled={loading || loginPlatform !== null || unavailable || !getSelfMediaBridge()}>{loginPlatform === capability.platform ? <Loader2 className="h-4 w-4 animate-spin" /> : "登录"}</Button></div><div className="mt-3 flex flex-wrap gap-1.5">{capability.supportsVideo && <Badge variant="secondary">视频</Badge>}{capability.supportsImageText && <Badge variant="secondary">图文</Badge>}{capability.supportsScheduling && <Badge variant="outline">定时</Badge>}</div></CardHeader>
             <CardContent className="space-y-2">{platformAccounts.length === 0 ? <div className="rounded-lg border border-dashed border-border/70 px-3 py-5 text-center text-xs text-muted-foreground">{emptyLabel}</div> : platformAccounts.map((account) => <div key={account.id} className="flex items-center justify-between gap-2 rounded-lg border border-border/60 bg-background/40 px-3 py-2"><span className="truncate text-sm">{account.displayName}</span><Badge variant={statusVariant(account.status)}>{statusLabel(account.status)}</Badge></div>)}</CardContent>
           </Card>;
@@ -258,7 +258,7 @@ function ComposeView() {
   }
 
   return (
-    <Card className="border-border/70 bg-card/70 shadow-2xl shadow-black/10">
+    <Card className="border-border/70 bg-card/70 shadow-black/10">
       <CardHeader>
         <CardTitle className="flex items-center gap-2 text-base"><FileVideo2 className="h-4 w-4 text-primary" />内容草稿</CardTitle>
         <CardDescription>先完成 MYStudio 资产与文案校验，再提交到明确选择的平台。</CardDescription>
@@ -451,7 +451,7 @@ function HistoryView() {
 
 function RecordList({ title, empty, icon: Icon, items, feedback, renderActions }: { title: string; empty: string; icon: typeof Radio; items: Array<{ id: string; title: string; description: string; status: string; task?: SelfMediaTask }>; feedback?: string | null; renderActions?: (item: { id: string; title: string; description: string; status: string; task: SelfMediaTask }) => ReactNode }) {
   return (
-    <Card className="border-border/70 bg-card/70 shadow-2xl shadow-black/10">
+    <Card className="border-border/70 bg-card/70 shadow-black/10">
       <CardHeader><CardTitle className="flex items-center gap-2 text-base"><Icon className="h-4 w-4 text-primary" />{title}</CardTitle></CardHeader>
       <CardContent>
         {items.length === 0 ? <div className="rounded-xl border border-dashed border-border/80 px-5 py-10 text-center text-sm text-muted-foreground">{empty}</div> : <div className="space-y-2">{items.map((item) => <div key={item.id} className="flex items-center justify-between gap-3 rounded-lg border border-border/60 bg-background/40 px-3 py-3"><div className="min-w-0"><p className="truncate text-sm font-medium">{item.title}</p><p className="mt-1 truncate text-xs text-muted-foreground">{item.description}</p></div><div className="flex items-center gap-2"><Badge variant={statusVariant(item.status)}>{statusLabel(item.status)}</Badge>{item.task && renderActions?.(item as typeof item & { task: SelfMediaTask })}</div></div>)}</div>}
@@ -502,7 +502,7 @@ export function SelfMediaPanel() {
         </header>
         <div className="flex min-h-0 flex-1 flex-col md:flex-row">
           <nav className="flex shrink-0 gap-2 overflow-x-auto border-b border-border/50 bg-background/25 p-3 md:w-48 md:flex-col md:border-b-0 md:border-r md:p-4">
-            {sections.map(({ id, label, icon: Icon }) => <button key={id} type="button" onClick={() => setSection(id)} className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm transition-colors ${section === id ? "bg-primary text-primary-foreground shadow-lg shadow-primary/15" : "text-muted-foreground hover:bg-muted/60 hover:text-foreground"}`}><Icon className="h-4 w-4" />{label}</button>)}
+            {sections.map(({ id, label, icon: Icon }) => <button key={id} type="button" onClick={() => setSection(id)} className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm transition-colors ${section === id ? "bg-primary text-primary-foreground shadow-primary/15" : "text-muted-foreground hover:bg-muted/60 hover:text-foreground"}`}><Icon className="h-4 w-4" />{label}</button>)}
           </nav>
           <ScrollArea className="min-h-0 flex-1"><main className="mx-auto w-full max-w-7xl p-5 md:p-7">{sectionContent}</main></ScrollArea>
         </div>

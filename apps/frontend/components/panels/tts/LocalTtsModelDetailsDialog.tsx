@@ -18,18 +18,18 @@ import { formatSizeMb } from "./local-tts-formatters";
 import type { LocalTtsModelState, ModelProgressEvent } from "./local-tts-model-state";
 
 export function ModelStateIcon({ state }: { state: LocalTtsModelState }) {
-  if (state === "downloading") return <Loader2 className="h-4 w-4 animate-spin text-blue-500" />;
-  if (state === "loaded") return <Play className="h-4 w-4 text-emerald-500" />;
-  if (state === "downloaded") return <CircleCheck className="h-4 w-4 text-emerald-500" />;
+  if (state === "downloading") return <Loader2 className="h-4 w-4 animate-spin text-primary" />;
+  if (state === "loaded") return <Play className="h-4 w-4 text-success" />;
+  if (state === "downloaded") return <CircleCheck className="h-4 w-4 text-success" />;
   if (state === "failed") return <CircleX className="h-4 w-4 text-destructive" />;
   return <Download className="h-4 w-4 text-muted-foreground" />;
 }
 
 export function ModelStateLabel({ state }: { state: LocalTtsModelState }) {
-  if (state === "loaded") return <span className="text-xs font-medium text-emerald-500">已加载</span>;
-  if (state === "downloaded") return <span className="text-xs font-medium text-emerald-500">已下载</span>;
+  if (state === "loaded") return <span className="text-xs font-medium text-success">已加载</span>;
+  if (state === "downloaded") return <span className="text-xs font-medium text-success">已下载</span>;
   if (state === "failed") return <span className="text-xs font-medium text-destructive">失败</span>;
-  if (state === "downloading") return <span className="text-xs font-medium text-blue-500">下载中</span>;
+  if (state === "downloading") return <span className="text-xs font-medium text-primary">下载中</span>;
   return <span className="text-xs text-muted-foreground">未下载</span>;
 }
 

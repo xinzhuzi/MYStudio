@@ -371,7 +371,7 @@ export function ArtifactDetailPanel({
                 <div className="space-y-2">
                   <label className="text-xs font-medium text-muted-foreground">状态</label>
                   <div className="flex items-center gap-2">
-                    <Badge className={cn("text-white", STATE_INFO[artifact.state].color)}>
+                    <Badge className={cn("text-foreground", STATE_INFO[artifact.state].color)}>
                       {STATE_INFO[artifact.state].label}
                     </Badge>
                     {artifact.blockerReason && (
@@ -642,7 +642,7 @@ export function ArtifactDetailPanel({
                   ) : (
                     <div className="space-y-1 max-h-40 overflow-y-auto">
                       {artifact.upstreamIds.map((id) => (
-                        <Badge key={id} variant="outline" className="cursor-pointer hover:bg-blue-50">
+                        <Badge key={id} variant="outline" className="cursor-pointer hover:bg-primary/15">
                           {id.substring(0, 16)}...
                         </Badge>
                       ))}
@@ -662,7 +662,7 @@ export function ArtifactDetailPanel({
                   ) : (
                     <div className="space-y-1 max-h-40 overflow-y-auto">
                       {artifact.downstreamIds.map((id) => (
-                        <Badge key={id} variant="secondary" className="cursor-pointer hover:bg-green-50">
+                        <Badge key={id} variant="secondary" className="cursor-pointer hover:bg-success/15">
                           {id.substring(0, 16)}...
                         </Badge>
                       ))}

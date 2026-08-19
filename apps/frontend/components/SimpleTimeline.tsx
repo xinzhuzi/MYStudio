@@ -356,11 +356,11 @@ export function SimpleTimeline() {
                     )}
                     {/* Play icon overlay */}
                     <div className="absolute inset-0 flex items-center justify-center bg-black/20 opacity-0 hover:opacity-100 transition-opacity">
-                      <Play className="h-6 w-6 text-white" />
+                      <Play className="h-6 w-6 text-foreground" />
                     </div>
                     {/* Grip handle */}
                     <div className="absolute left-1 top-1 opacity-50">
-                      <GripVertical className="h-4 w-4 text-white drop-shadow" />
+                      <GripVertical className="h-4 w-4 text-foreground drop-shadow" />
                     </div>
                     {/* Delete button */}
                     <button

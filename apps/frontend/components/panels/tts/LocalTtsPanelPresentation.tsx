@@ -82,7 +82,7 @@ export function RuntimeSetupProgress({
   return (
     <div className={cn(
       "mt-4 rounded-xl border p-3",
-      failed ? "border-red-400/20 bg-red-500/[0.06]" : "border-primary/20 bg-primary/[0.04]",
+      failed ? "border-destructive/20 bg-destructive/[0.06]" : "border-primary/20 bg-primary/[0.04]",
     )}>
       <div className="flex items-center justify-between gap-3 text-sm">
         <div className={cn("flex min-w-0 items-center gap-2 font-medium", failed ? "text-destructive" : "text-foreground")}>

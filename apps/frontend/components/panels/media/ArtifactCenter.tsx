@@ -919,9 +919,9 @@ export function ArtifactCenter({
                               <td className="p-2 w-[100px]">
                                 <span className={cn(
                                   "text-xs px-2 py-1 rounded capitalize",
-                                  artifact.state === 'active' && "bg-green-600/20 text-green-600",
-                                  artifact.state === 'blocked' && "bg-red-600/20 text-red-600",
-                                  artifact.state === 'orphaned' && "bg-orange-600/20 text-orange-600"
+                                  artifact.state === 'active' && "bg-success/20 text-success",
+                                  artifact.state === 'blocked' && "bg-destructive/20 text-destructive",
+                                  artifact.state === 'orphaned' && "bg-warning/20 text-warning"
                                 )}>
                                   {STATE_LABELS[artifact.state] || artifact.state}
                                 </span>

@@ -94,8 +94,8 @@ export function MediaItemWithContextMenu({
       <ContextMenuTrigger>{children}</ContextMenuTrigger>
       <ContextMenuContent>
         {isImage && onSmartSplit && onGenerateScenes && <>
-          <ContextMenuItem onClick={() => onSmartSplit(item)}><Scissors className="h-4 w-4 mr-2 text-yellow-500" />智能切割</ContextMenuItem>
-          <ContextMenuItem onClick={() => onGenerateScenes(item)}><Film className="h-4 w-4 mr-2 text-blue-500" />分镜生成</ContextMenuItem>
+          <ContextMenuItem onClick={() => onSmartSplit(item)}><Scissors className="h-4 w-4 mr-2 text-warning" />智能切割</ContextMenuItem>
+          <ContextMenuItem onClick={() => onGenerateScenes(item)}><Film className="h-4 w-4 mr-2 text-primary" />分镜生成</ContextMenuItem>
           <ContextMenuSeparator />
         </>}
         <ContextMenuItem onClick={() => onRename(item)}><Pencil className="h-4 w-4 mr-2" />重命名</ContextMenuItem>

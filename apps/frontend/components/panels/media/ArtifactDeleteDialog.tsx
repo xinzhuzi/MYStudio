@@ -248,9 +248,9 @@ function ConfirmInput({ value, onChange, placeholder, label }: { value: string; 
   return (
     <div className="flex-1 mr-4">
       <label className="text-sm font-medium text-foreground mb-1 block">{label}</label>
-      <Input type="text" value={value} onChange={(e) => onChange(e.target.value)} placeholder="输入确认值" className={cn(isValid ? "border-green-500" : "border-destructive")} />
+      <Input type="text" value={value} onChange={(e) => onChange(e.target.value)} placeholder="输入确认值" className={cn(isValid ? "border-success/40" : "border-destructive")} />
       {!isValid && value.length > 0 && <p className="text-xs text-destructive mt-1">必须完全一致："{placeholder}"</p>}
-      {isValid && <p className="text-xs text-green-500 mt-1">✓ 已确认</p>}
+      {isValid && <p className="text-xs text-success mt-1">✓ 已确认</p>}
     </div>
   );
 }

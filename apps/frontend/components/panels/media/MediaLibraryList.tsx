@@ -132,7 +132,7 @@ export function MediaLibraryList({
               <MediaItemPreview item={item} />
               {item.source && item.source !== "upload" && (
                 <div className="absolute top-0.5 left-0.5 bg-primary/80 rounded p-0.5">
-                  <Sparkles className="h-2 w-2 text-white" />
+                  <Sparkles className="h-2 w-2 text-foreground" />
                 </div>
               )}
             </div>

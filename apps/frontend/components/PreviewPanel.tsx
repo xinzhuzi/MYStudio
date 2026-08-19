@@ -39,7 +39,7 @@ export function PreviewPanel() {
 
   if (!previewItem) {
     return (
-      <div className="h-full min-w-0 flex flex-col items-center justify-center text-muted-foreground bg-neutral-200 dark:bg-neutral-900">
+      <div className="h-full min-w-0 flex flex-col items-center justify-center text-muted-foreground bg-foreground/[0.06] dark:bg-muted/60">
         <div className="flex flex-col items-center gap-2">
           <Video className="h-12 w-12 opacity-30" />
           <p className="text-sm">点击图片或视频预览</p>
@@ -49,7 +49,7 @@ export function PreviewPanel() {
   }
 
   return (
-    <div className="h-full min-w-0 flex flex-col bg-neutral-200 dark:bg-neutral-900">
+    <div className="h-full min-w-0 flex flex-col bg-foreground/[0.06] dark:bg-muted/60">
       <div className="flex-1 flex items-center justify-center overflow-hidden">
         {previewItem.type === "image" ? (
           <img
