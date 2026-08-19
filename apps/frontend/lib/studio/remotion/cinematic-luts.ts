@@ -17,6 +17,9 @@ export interface CinematicLutDefn {
   readonly description: string;
 }
 
+// 选卡集分层(08-19 用户裁定:AI 面向的选卡集=32 张全中国风 cn-*);
+// film-* 8 张为 legacy——闭集保留(存量分镜 grade 数据仍在用,fail-closed 不炸),
+// 但不再进 AI 选卡指南(LUT_GUIDE 只取 cn-*)。
 export const CINEMATIC_LUTS: readonly CinematicLutDefn[] = [
   { lutId: "film-teal-orange", file: "film-teal-orange.png", description: "经典电影橙青对比（暗部青、亮部暖橙）" },
   { lutId: "film-fuji-cool", file: "film-fuji-cool.png", description: "富士冷调（青蓝阴影、柔和高光）" },
@@ -50,6 +53,14 @@ export const CINEMATIC_LUTS: readonly CinematicLutDefn[] = [
   { lutId: "cn-xuanzhi", file: "cn-xuanzhi.png", description: "宣纸:泛白宣纸底色,画面淡化——梦境留白/仙气缥缈/回忆滤镜,情绪飘逸清淡" },
   { lutId: "cn-boshi", file: "cn-boshi.png", description: "薄柿:淡熟的柿子橙——夕照温情/人间烟火/久别问候,情绪柔和慰藉" },
   { lutId: "cn-luoqing", file: "cn-luoqing.png", description: "螺青:深蓝近墨的海螺色——深夜庙堂/海上孤舟/沉郁决断,情绪庄重孤绝" },
+  { lutId: "cn-tianqing", file: "cn-tianqing.png", description: "天青:汝窑雨过天青,淡青泛蓝灰——雨霁初晴/禅意空镜/久候终至,情绪澄澈安宁" },
+  { lutId: "cn-doulu", file: "cn-doulu.png", description: "豆绿:青豆浅绿,朴素无华——田园劳作/粗布日常/市井烟火,情绪平实温润" },
+  { lutId: "cn-shiliu", file: "cn-shiliu.png", description: "石榴红:浓烈的石榴花红——怒放情愫/高潮爆发/红衣烈焰,情绪炽烈张扬" },
+  { lutId: "cn-songhua", file: "cn-songhua.png", description: "松花:松花粉的嫩黄绿——春晨新绿/少年意气/初入江湖,情绪清新稚嫩" },
+  { lutId: "cn-dailan", file: "cn-dailan.png", description: "黛蓝:黛石之蓝,深靛沉稳——深院夜读/临帖抚琴/沉静笃定,情绪安定深隽" },
+  { lutId: "cn-ziitan", file: "cn-ziitan.png", description: "紫檀:紫檀木深褐紫——古木法器/岁月包浆/长辈威仪,情绪沉穆持重" },
+  { lutId: "cn-tuoyan", file: "cn-tuoyan.png", description: "酡颜:醉后双颊的酡红——酒酣耳热/失态真言/暧昧升温,情绪醺然微醺" },
+  { lutId: "cn-yingcao", file: "cn-yingcao.png", description: "樱草:樱草嫩黄,明媚娇柔——暖春少女/娇憨嬉闹/闺中春色,情绪明快娇嫩" },
   // ── 中国风传统色卡(08-19 扩集 24 张,总 32;生成源=generate-luts.py 参数表) ──
   // 描述=情绪+场景,是 AI 选卡(shot-fx-ai LUT_GUIDE)的参考语义。
 ];

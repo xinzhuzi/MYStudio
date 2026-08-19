@@ -65,11 +65,11 @@ const ADDON_GUIDE: ReadonlyArray<{ id: ShotFxAddonId; when: string }> = [
   { id: "chroma", when: "RGB 色差分离——能量冲击、现实扭曲瞬间" },
 ];
 
-/** 成片调色 LUT 指南（08-18-haldclut-grade AI 选型；闭集=isCinematicLutId）。 */
-const LUT_GUIDE: ReadonlyArray<{ id: string; when: string }> = CINEMATIC_LUTS.map((l) => ({
-  id: l.lutId,
-  when: l.description,
-}));
+/** 成片调色 LUT 指南(08-19 裁定:AI 选卡集=32 张全中国风 cn-*;
+ * film-* 为 legacy 闭集成员仅供存量数据,不进指南)。 */
+const LUT_GUIDE: ReadonlyArray<{ id: string; when: string }> = CINEMATIC_LUTS
+  .filter((l) => l.lutId.startsWith("cn-"))
+  .map((l) => ({ id: l.lutId, when: l.description }));
 
 function buildPrompt(shots: ShotFxAiShotInput[]): string {
   const motionGuide = MOTION_GUIDE.map((g) => `- ${g.id}: ${g.when}`).join("\n");
@@ -86,7 +86,7 @@ ${motionGuide}
 特效插件（每镜可选 0~2 个组合；不选则用该运镜的默认特效，显式给空数组则无特效）：
 ${addonGuide}
 
-成片调色 LUT（每镜可选一个或省略=不调色；blend 0.2~0.9 克制强度；只给氛围强烈的少数镜配，其余省略防全片刷色）：
+成片调色 LUT——32 张中国风传统色卡（每镜可选一个或省略=不调色；blend 0.2~0.9 克制强度；只给氛围强烈的少数镜配，其余省略防全片刷色）：
 ${lutGuide}
 
 分镜列表：

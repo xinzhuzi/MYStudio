@@ -491,7 +491,11 @@
     margin: 0;
     overflow-x: hidden;
     overscroll-behavior-x: contain;
-    font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
+    /* 系统字体优先(SF Pro/PingFang SC)——自带光学尺寸与字距表,原生苹果感;Inter 仅作非 mac 兜底 */
+    font-family: -apple-system, system-ui, Inter, Avenir, Helvetica, Arial, sans-serif;
+  }
+  ::selection {
+    background: hsl(var(--primary) / 0.28);
   }
   h1, h2, h3, h4, h5, h6,
   .project-chrome-title,
@@ -1013,7 +1017,7 @@
   isolation: isolate;
   color: hsl(var(--foreground));
   background: linear-gradient(160deg, hsl(var(--background)), hsl(220 18% 6%));
-  font-family: Inter, system-ui, -apple-system, sans-serif;
+  font-family: -apple-system, system-ui, Inter, sans-serif;
 }
 
 .dashboard-shell::before,
