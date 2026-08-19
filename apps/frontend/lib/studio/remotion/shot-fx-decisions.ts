@@ -12,6 +12,7 @@
 // 常规镜缩放上限 1.08，动作 punch 上限 1.12，颗粒 0.035。
 
 import { isCinematicLutId } from "./cinematic-luts";
+import { isAtmosphereTemplateId } from "./atmosphere-templates";
 import type { EditingEffect } from "@/types/editing";
 
 export type ShotFxMotionId =
@@ -237,7 +238,7 @@ export interface ShotFxStoryboardInput {
    * addons 为 AI 显式配置的特效插件（空数组=显式无特效）；缺省=用运镜配方默认特效。
    * 非法值一律按缺省处理。
    */
-  shotFx?: { motion?: unknown; addons?: unknown; grade?: unknown; source?: unknown };
+  shotFx?: { motion?: unknown; addons?: unknown; grade?: unknown; atmosphere?: unknown; source?: unknown };
 }
 
 /** 章节统一色调（08-19 导演定调）：钉死值全章覆盖，跳过逐镜 AI grade。 */
@@ -329,6 +330,8 @@ export function buildShotFxEditingEffects(input: {
   planClips: readonly ShotFxPlanClipLike[];
   storyboards: readonly ShotFxStoryboardInput[];
   chapterGrade?: ChapterGradeOverride;
+  /** 氛围层模式（08-19 multilayer Child2）："off"=全章关闭（人工覆盖）。 */
+  atmosphereMode?: "ai" | "off";
 }): ShotFxResult {
   const storyboardById = new Map(input.storyboards.map((storyboard) => [storyboard.id, storyboard]));
   const effects: EditingEffect[] = [];
@@ -404,6 +407,21 @@ export function buildShotFxEditingEffects(input: {
       }
     }
 
+    // 氛围层(08-19 multilayer Child2):AI 逐镜选层(storyboard.shotFx.atmosphere
+    // 闭集校验+去重+上限 2)→ atmosphere 效果条目;off 模式全章关闭。
+    if (input.atmosphereMode !== "off") {
+      const rawAtmosphere = storyboard?.shotFx?.atmosphere;
+      if (Array.isArray(rawAtmosphere)) {
+        const seen = new Set<string>();
+        for (const template of rawAtmosphere) {
+          if (!isAtmosphereTemplateId(template) || seen.has(template)) continue;
+          seen.add(template);
+          if (seen.size > 2) break;
+          pushEffect(`atmosphere-${template}`, "atmosphere", { template, intensity: 1 });
+        }
+      }
+    }
+
     // 特效来源：AI 显式插件配置（空数组=无特效）> 配方默认；同种效果取首个（互斥）。
     type FxEntry = { effectId: "shake" | "glow" | "chromaticAberration" | "afterimage" | "speedSilhouette" | "godRays" | "onTwos" | "gradePulse"; params: Record<string, number | string> };
     const fxEntries: FxEntry[] = [];
@@ -455,6 +473,7 @@ export function mergeShotFxEditingEffects(
     planClips: readonly ShotFxPlanClipLike[];
     storyboards: readonly ShotFxStoryboardInput[];
     chapterGrade?: ChapterGradeOverride;
+    atmosphereMode?: "ai" | "off";
   },
 ): ShotFxResult {
   const built = buildShotFxEditingEffects(input);

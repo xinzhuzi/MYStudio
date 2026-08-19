@@ -6,6 +6,7 @@ import {
   layerPanZoomDamp,
   mulberry32,
   particleStateAt,
+  scaledTemplateParams,
 } from "./atmosphere-layers";
 import type { CompositionLayerSpec } from "./composition-props";
 
@@ -29,22 +30,51 @@ describe("atmosphere-layers(08-19 multilayer Child1)", () => {
     expect(fieldA).toHaveLength(48);
   });
 
-  it("粒子状态:右飘上飘+回卷+闪烁有界", () => {
+  const RISE = { dir: 1, riseSpeed: 14, driftSpeed: 16, sway: 0, swayFreq: 0, blink: 0.65 };
+  const FALL = { dir: -1, riseSpeed: 6, driftSpeed: 8, sway: 3, swayFreq: 0.4, blink: 0 };
+
+  it("粒子状态:上升右飘+回卷+闪烁有界", () => {
     const particle = buildParticleField(7, 1)[0]!;
-    const t0 = particleStateAt(particle, 0);
-    // 短时距断言方向(未触发回卷);t0.2 上飘 ≤0.038 屏高,fixture y≥0.1 不会越界回卷
-    const tShort = particleStateAt(particle, 0.2);
+    const t0 = particleStateAt(particle, 0, RISE);
+    // 短时距断言方向(未触发回卷);t0.2 上飘 ≤0.038 屏高,fixture y≥0.08 不越界
+    const tShort = particleStateAt(particle, 0.2, RISE);
     expect(tShort.leftPct).toBeGreaterThan(t0.leftPct);
     expect(tShort.topPct).toBeLessThan(t0.topPct);
     expect(tShort.opacity).toBeGreaterThanOrEqual(0);
     expect(tShort.opacity).toBeLessThanOrEqual(1);
     // 长时间回卷不越界(1.05 屏宽回绕)
     for (const t of [10, 60, 300]) {
-      const state = particleStateAt(particle, t);
+      const state = particleStateAt(particle, t, RISE);
       expect(state.leftPct).toBeLessThanOrEqual(108);
       expect(state.topPct).toBeGreaterThanOrEqual(-2);
       expect(state.topPct).toBeLessThanOrEqual(105);
     }
+  });
+
+  it("粒子状态:下降模板(落叶/雪)顶百分比随时间增大,摆动有界", () => {
+    const particle = buildParticleField(11, 1)[0]!;
+    const t0 = particleStateAt(particle, 0, FALL);
+    const tShort = particleStateAt(particle, 0.2, FALL);
+    expect(tShort.topPct).toBeGreaterThan(t0.topPct);
+    expect(Math.abs(tShort.swayPct)).toBeLessThanOrEqual(FALL.sway + 1e-9);
+    expect(tShort.rotateDeg).toBeGreaterThan(0);
+  });
+
+  it("scaledTemplateParams:缺省合并+intensity 缩放不透明度与数量+闭集外 id 仅用 overrides", () => {
+    const base = scaledTemplateParams("atmo:light-dust", undefined, 1);
+    expect(base.count).toBe(48);
+    expect(base.opacity).toBeCloseTo(0.7, 5);
+    const boosted = scaledTemplateParams("atmo:light-dust", { opacity: 0.5 }, 2);
+    expect(boosted.opacity).toBeCloseTo(1, 5); // 0.5*2 钳 1
+    expect(boosted.count).toBe(96);
+    const clamped = scaledTemplateParams("atmo:fireflies", undefined, 0.1);
+    expect(clamped.count).toBeLessThanOrEqual(16);
+    expect(clamped.opacity).toBeLessThanOrEqual(1);
+    const unknown = scaledTemplateParams("atmo:not-exist", undefined, 1);
+    expect(unknown.opacity).toBeCloseTo(0.2, 5); // 未知 id 回退内置缺省,不炸
+    const override = scaledTemplateParams("atmo:fog-band", { y: 0.2, speed: 5 }, 1);
+    expect(override.y).toBeCloseTo(0.2, 5);
+    expect(override.speed).toBeCloseTo(5, 5);
   });
 
   it("雾带偏移:随时间左移,wrap=双份相距 100,非 wrap=单份", () => {

@@ -3,6 +3,7 @@ import type { CharacterIdentityAnchors, CharacterNegativePrompt } from "./script
 import type { RemotionShotAudioBindingV2 } from "./remotion-workspace";
 import type { SubtitleAuthority } from "./editing";
 import type { ShotFxAddonId, ShotFxMotionId } from "../lib/studio/remotion/shot-fx-decisions";
+import type { AtmosphereTemplateId } from "../lib/studio/remotion/atmosphere-templates";
 
 export type CharacterReferenceViewType = "front" | "side" | "back" | "three-quarter";
 
@@ -395,11 +396,14 @@ export interface StoryboardItem extends StudioStaleEvidence, StudioSourceIdentit
    * transitionOut=本镜进入下一镜的转场语义桶（08-19 转场决策层；"cut"=AI 显式
    * 硬切，抑制低优先级兜底）；sfx=本镜字幕句音效类别（08-19 字幕音效）。
    * 两者均闭集校验，非法值按缺省处理。
+   * atmosphere=本镜氛围/遮挡层模板（08-19 multilayer Child2；闭集 union，
+   * AI 逐镜 0~2 条，投影端实例化进 layerStack）。
    */
   shotFx?: {
     motion: ShotFxMotionId;
     addons?: ShotFxAddonId[];
     grade?: { lutId: string; blend: number };
+    atmosphere?: AtmosphereTemplateId[];
     transitionOut?: string;
     sfx?: string;
     source: "ai" | "heuristic";
@@ -564,6 +568,12 @@ export interface StudioWorkflowConfig {
    * 按项目持久化；一键成片与章节投影创建时注入 renderSettings.chapterGrade。
    */
   chapterGrade?: { lutId: string; blend: number };
+  /**
+   * 氛围层模式（08-19 multilayer Child2）："ai"=AI 逐镜选层（缺省）；
+   * "off"=关闭全章氛围层（人工覆盖最小面，同章节色调入口形态）。
+   * 按项目持久化；一键成片/章节投影创建时注入 renderSettings.atmosphereMode。
+   */
+  atmosphereMode?: "ai" | "off";
   /**
    * 字幕驱动音效（08-19 音效随字幕）：按字幕句语义分类派生 sfx 音轨。
    * 默认 false（克制）；与已停用的转场音效互不相干。按项目持久化，

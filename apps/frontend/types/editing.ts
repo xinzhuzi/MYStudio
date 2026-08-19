@@ -484,6 +484,11 @@ export interface EditingRenderSettings {
    */
   chapterGrade?: { lutId: string; blend: number };
   /**
+   * 氛围层模式（08-19 multilayer Child2）："ai"=AI 逐镜选层（缺省）；
+   * "off"=全章关闭氛围层。经 workflowConfig.atmosphereMode 注水（兄弟=chapterGrade）。
+   */
+  atmosphereMode?: "ai" | "off";
+  /**
    * 字幕驱动音效开关（08-19 音效随字幕）：默认 false。与已停用的
    * transitionSfxEnabled（转场≠音效）严格分离——本开关只管字幕句语义派生。
    */

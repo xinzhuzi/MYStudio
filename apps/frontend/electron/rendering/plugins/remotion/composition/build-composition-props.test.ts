@@ -12,6 +12,7 @@ import { createProjectFileUrl } from "@/electron/storage/storage-paths";
 import { remotionCurrentSlotPaths } from "@/lib/studio/remotion/remotion-current-slot";
 import {
   buildChapterVideoCompositionProps,
+  buildCompositionProps,
   mapEditedVoiceIntervals,
   readableSubtitleCues,
   validateSubtitleAuthorityForTimeline,
@@ -1035,5 +1036,41 @@ describe("layerStackFromLegacyTuple(08-19 multilayer Child1)", () => {
       parallax: 5,
     });
     expect(clamped[0]!.panZoomDamp).toBeCloseTo(0.6, 10);
+  });
+});
+
+
+describe("atmosphere 效果投影进 layerStack(08-19 multilayer Child2)", () => {
+  const atmosEffect = (template: string, intensity: number) => ({
+    id: `fx-atmo-${template}`,
+    effectId: "atmosphere" as const,
+    targetClipId: "visual-shot-001",
+    startUs: 0,
+    durationUs: 1_000_000,
+    params: { template, intensity },
+    enabled: true,
+  });
+
+  it("atmosphere 效果→模板层(参数经 scaledTemplateParams 归一),首层 blend screen", () => {
+    const slot = makeCurrentSlot();
+    const plan = chapterPlan(slot, "shot-001", "storyboardVideo");
+    plan.effects.push(atmosEffect("atmo:fog-band", 2));
+    const props = buildCompositionProps(plan, { "visual-shot-001": mediaUrl });
+    const clip = props.visualClips[0]!;
+    expect(clip.layerStack).toBeDefined();
+    expect(clip.layerStack!).toHaveLength(1);
+    const layer = clip.layerStack![0]!;
+    expect(layer.role).toBe("atmosphere");
+    expect(layer.template!.id).toBe("atmo:fog-band");
+    expect(layer.template!.params!.opacity).toBeCloseTo(0.4, 5); // 0.2 缺省 × intensity 2
+    expect(layer.blendMode).toBe("screen");
+  });
+
+  it("未知模板 fail-closed throw(不静默丢层)", () => {
+    const slot = makeCurrentSlot();
+    const plan = chapterPlan(slot, "shot-001", "storyboardVideo");
+    plan.effects.push(atmosEffect("atmo:bogus", 1));
+    expect(() => buildCompositionProps(plan, { "visual-shot-001": mediaUrl }))
+      .toThrow("atmosphere 效果的模板不在闭集");
   });
 });

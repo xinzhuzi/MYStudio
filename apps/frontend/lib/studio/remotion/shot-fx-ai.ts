@@ -23,6 +23,7 @@ import {
   type ShotFxMotionId,
 } from "./shot-fx-decisions";
 import { CINEMATIC_LUTS, isCinematicLutId } from "./cinematic-luts";
+import { ATMOSPHERE_TEMPLATES, isAtmosphereTemplateId, type AtmosphereTemplateId } from "./atmosphere-templates";
 import {
   TRANSITION_SEMANTIC_BUCKETS,
   isTransitionSemanticBucketId,
@@ -84,10 +85,15 @@ const LUT_GUIDE: ReadonlyArray<{ id: string; when: string }> = CINEMATIC_LUTS
   .filter((l) => l.lutId.startsWith("cn-"))
   .map((l) => ({ id: l.lutId, when: l.description }));
 
+/** 氛围层指南(08-19 multilayer Child2):程序化前景遮挡/粒子模板,情绪+场景语义喂法同 LUT。 */
+const ATMOSPHERE_GUIDE: ReadonlyArray<{ id: AtmosphereTemplateId; when: string }> = ATMOSPHERE_TEMPLATES
+  .map((template) => ({ id: template.id, when: template.description }));
+
 function buildPrompt(shots: ShotFxAiShotInput[]): string {
   const motionGuide = MOTION_GUIDE.map((g) => `- ${g.id}: ${g.when}`).join("\n");
   const addonGuide = ADDON_GUIDE.map((g) => `- ${g.id}: ${g.when}`).join("\n");
   const lutGuide = LUT_GUIDE.map((g) => `- ${g.id}: ${g.when}`).join("\n");
+  const atmoGuide = ATMOSPHERE_GUIDE.map((g) => `- ${g.id}: ${g.when}`).join("\n");
   const transitionGuide = TRANSITION_SEMANTIC_BUCKETS.map((b) => `- ${b.id}: ${b.when}`).join("\n");
   const sfxGuide = availableSubtitleSfxCategories().map((c) => `- ${c.id}: ${c.label}`).join("\n");
   const list = shots
@@ -104,6 +110,9 @@ ${addonGuide}
 成片调色 LUT——32 张中国风传统色卡（每镜可选一个或省略=不调色；blend 0.2~0.9 克制强度；只给氛围强烈的少数镜配，其余省略防全片刷色）：
 ${lutGuide}
 
+氛围层——多层合成的前景遮挡/粒子（每镜可选 0~2 个；只给氛围强烈的镜配，安静镜与对白密集镜省略；雾带与薄纱雾不同镜选；克制使用防全片弥漫）：
+${atmoGuide}
+
 镜间转场（为每个镜头决定「本镜结束进入下一镜」的转场方式，最后一镜省略；结合相邻两镜剧情连续性与情绪落差选择档位；默认 cut=同场景延续，多数边界应是 cut 或省略）：
 ${transitionGuide}
 
@@ -119,7 +128,7 @@ ${list}
 3. **转场纪律**：非 cut 转场是稀缺修辞——一章之内非 cut 边界占比不超过三分之一；ink-bleed 与 dream-warp 全章至多各一次；相邻边界避免同桶连用
 4. 风格整体性：组合要贴合本片题材气质（仙侠/热血/悬疑等），形成可辨识的镜头风格
 5. 同种特效只选一个档位（shake-soft 与 shake-hard 互斥，glow-warm 与 glow-dim 互斥）
-6. 只输出 JSON，格式：{"shots": [{"shotId": "...", "motion": "...", "fx": ["插件id", ...], "transitionOut": "转场桶id或cut", "sfx": "音效类别id"}]}；不需要特效插件的镜头 fx 给空数组或省略；transitionOut 为 cut 时可省略；无声学事件 sfx 省略
+6. 只输出 JSON，格式：{"shots": [{"shotId": "...", "motion": "...", "fx": ["插件id", ...], "grade": {"lutId": "...", "blend": 0.2~0.9}, "atmosphere": ["模板id", ...], "transitionOut": "转场桶id或cut", "sfx": "音效类别id"}]}；不需要特效插件的镜头 fx 给空数组或省略；grade/atmosphere 无须时整个字段省略；transitionOut 为 cut 时可省略；无声学事件 sfx 省略
 7. 不要输出任何解释文字`;
 }
 
@@ -131,6 +140,7 @@ export function parseShotFxMotionResponse(
   motions: Record<string, ShotFxMotionId>;
   addons: Record<string, ShotFxAddonId[]>;
   grades: Record<string, { lutId: string; blend: number }>;
+  atmospheres: Record<string, AtmosphereTemplateId[]>;
   transitions: Record<string, TransitionSemanticBucketId>;
   sfxCategories: Record<string, SubtitleSfxCategoryId>;
 } {
@@ -146,6 +156,7 @@ export function parseShotFxMotionResponse(
   const motions: Record<string, ShotFxMotionId> = {};
   const addons: Record<string, ShotFxAddonId[]> = {};
   const grades: Record<string, { lutId: string; blend: number }> = {};
+  const atmospheres: Record<string, AtmosphereTemplateId[]> = {};
   const transitions: Record<string, TransitionSemanticBucketId> = {};
   const sfxCategories: Record<string, SubtitleSfxCategoryId> = {};
   if (Array.isArray(entries)) {
@@ -174,6 +185,18 @@ export function parseShotFxMotionResponse(
       if (isSubtitleSfxCategoryId(sfx)) {
         sfxCategories[shotId] = sfx;
       }
+      // 氛围层(08-19 multilayer Child2):闭集校验+同镜去重+上限 2。
+      const atmosphereRaw = (entry as { atmosphere?: unknown }).atmosphere;
+      if (Array.isArray(atmosphereRaw)) {
+        const seen = new Set<string>();
+        const valid: AtmosphereTemplateId[] = [];
+        for (const item of atmosphereRaw) {
+          if (!isAtmosphereTemplateId(item) || seen.has(item)) continue;
+          seen.add(item);
+          valid.push(item);
+        }
+        if (valid.length > 0) atmospheres[shotId] = valid.slice(0, 2);
+      }
       const fx = (entry as { fx?: unknown }).fx;
       if (Array.isArray(fx)) {
         // 显式插件配置（可为空数组=无特效）；同种效果取首个档位。
@@ -190,16 +213,19 @@ export function parseShotFxMotionResponse(
       }
     }
   }
-  return { motions, addons, grades, transitions, sfxCategories };
+  return { motions, addons, grades, atmospheres, transitions, sfxCategories };
 }
 
 /** 关键词启发式兜底（无 AI 时的确定性选择，与渲染侧规则运镜共用单源）。 */
 export function heuristicShotFxMotions(shots: ShotFxAiShotInput[]): {
   motions: Record<string, ShotFxMotionId>;
+  atmospheres: Record<string, AtmosphereTemplateId[]>;
   transitions: Record<string, TransitionSemanticBucketId>;
   sfxCategories: Record<string, SubtitleSfxCategoryId>;
 } {
   const motions: Record<string, ShotFxMotionId> = {};
+  // 启发式不配氛围(对齐「启发式不配 grade」裁定:默认氛围刷满全片破坏视觉基线)。
+  const atmospheres: Record<string, AtmosphereTemplateId[]> = {};
   const transitions: Record<string, TransitionSemanticBucketId> = {};
   const sfxCategories: Record<string, SubtitleSfxCategoryId> = {};
   shots.forEach((shot, index) => {
@@ -215,7 +241,7 @@ export function heuristicShotFxMotions(shots: ShotFxAiShotInput[]): {
     const category = classifySubtitleSfx(shot.dialogue) ?? classifySubtitleSfx(shot.description);
     if (category) sfxCategories[shot.shotId] = category;
   });
-  return { motions, transitions, sfxCategories };
+  return { motions, atmospheres, transitions, sfxCategories };
 }
 
 /**
@@ -231,12 +257,13 @@ export async function selectShotFxMotions(
   motions: Record<string, ShotFxMotionId>;
   addons: Record<string, ShotFxAddonId[]>;
   grades: Record<string, { lutId: string; blend: number }>;
+  atmospheres: Record<string, AtmosphereTemplateId[]>;
   transitions: Record<string, TransitionSemanticBucketId>;
   sfxCategories: Record<string, SubtitleSfxCategoryId>;
   source: "ai" | "heuristic" | "empty";
 }> {
   if (shots.length === 0) {
-    return { motions: {}, addons: {}, grades: {}, transitions: {}, sfxCategories: {}, source: "empty" };
+    return { motions: {}, addons: {}, grades: {}, atmospheres: {}, transitions: {}, sfxCategories: {}, source: "empty" };
   }
   const shotIds = new Set(shots.map((s) => s.shotId));
   try {

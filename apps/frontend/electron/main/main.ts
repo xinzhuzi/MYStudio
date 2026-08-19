@@ -1199,7 +1199,7 @@ async function loadChapterStudioProjection(request: { projectId: string; chapter
       const store = readStudioWorkflowStore(getDataDir(), request.projectId)
       const storyboards = (store?.state?.storyboards ?? []) as Array<{ id: string; episodeId: string; prompt?: string; line?: string; shotFx?: { motion?: unknown } }>
       const workflowConfig = store?.state?.workflowConfig as
-        | { chapterGrade?: { lutId?: unknown; blend?: unknown }; subtitleSfxEnabled?: unknown }
+        | { chapterGrade?: { lutId?: unknown; blend?: unknown }; atmosphereMode?: unknown; subtitleSfxEnabled?: unknown }
         | undefined
       if (workflowConfig?.chapterGrade && typeof workflowConfig.chapterGrade.lutId === 'string') {
         const blendRaw = Number(workflowConfig.chapterGrade.blend ?? 0.5)
@@ -1214,6 +1214,10 @@ async function loadChapterStudioProjection(request: { projectId: string; chapter
       if (typeof workflowConfig?.subtitleSfxEnabled === 'boolean') {
         plan.value.renderSettings = { ...plan.value.renderSettings, subtitleSfxEnabled: workflowConfig.subtitleSfxEnabled }
       }
+      // 氛围层模式（08-19 multilayer Child2）：off=全章关闭氛围层（人工覆盖）。
+      if (workflowConfig?.atmosphereMode === 'off' || workflowConfig?.atmosphereMode === 'ai') {
+        plan.value.renderSettings = { ...plan.value.renderSettings, atmosphereMode: workflowConfig.atmosphereMode }
+      }
       return storyboards.filter((storyboard) => storyboard.episodeId === request.chapterId)
     } catch { /* store 缺失 → 仅规则轮换运镜 */ }
     return []
@@ -1222,6 +1226,7 @@ async function loadChapterStudioProjection(request: { projectId: string; chapter
     planClips: plan.value.clips,
     storyboards: shotFxStoryboards,
     ...(plan.value.renderSettings.chapterGrade ? { chapterGrade: plan.value.renderSettings.chapterGrade } : {}),
+    ...(plan.value.renderSettings.atmosphereMode ? { atmosphereMode: plan.value.renderSettings.atmosphereMode } : {}),
   })
   plan.value.effects = shotFx.effects
   const visualClips = plan.value.clips.filter((clip) => clip.trackKind === 'video' || clip.trackKind === 'image')

@@ -313,3 +313,45 @@ describe("chapterGrade 章节统一色调（08-19 导演定调）", () => {
     expect(second.effects).toEqual(first.effects);
   });
 });
+
+describe("氛围层效果(08-19 multilayer Child2)", () => {
+  const ATMO_STORYBOARD: ShotFxStoryboardInput = {
+    id: "shot-001",
+    shotFx: {
+      motion: "hold",
+      atmosphere: ["atmo:fog-band", "atmo:light-dust", "atmo:fog-band", "atmo:bogus", "atmo:embers"],
+      source: "ai",
+    },
+  };
+
+  it("shotFx.atmosphere 闭集校验+去重+上限 2 → atmosphere 效果条目", () => {
+    const { effects } = buildShotFxEditingEffects({ planClips: [clip(0, "shot-001")], storyboards: [ATMO_STORYBOARD] });
+    const atmo = effects.filter((effect) => effect.effectId === "atmosphere");
+    expect(atmo.map((effect) => effect.params.template)).toEqual(["atmo:fog-band", "atmo:light-dust"]);
+    for (const effect of atmo) {
+      expect(effect.targetClipId).toBe("clip-1");
+      expect(effect.params.intensity).toBe(1);
+    }
+  });
+
+  it("atmosphereMode=off 全章关闭(人工覆盖)", () => {
+    const { effects } = buildShotFxEditingEffects({
+      planClips: [clip(0, "shot-001")],
+      storyboards: [{ id: "shot-001", shotFx: { motion: "hold", atmosphere: ["atmo:petals"], source: "ai" } }],
+      atmosphereMode: "off",
+    });
+    expect(effects.some((effect) => effect.effectId === "atmosphere")).toBe(false);
+  });
+
+  it("merge 幂等:同模板条目替换不重复", () => {
+    const input = {
+      planClips: [clip(0, "shot-001")],
+      storyboards: [{ id: "shot-001", shotFx: { motion: "hold", atmosphere: ["atmo:snow"], source: "ai" } }] as const,
+    };
+    const first = mergeShotFxEditingEffects([], input);
+    const second = mergeShotFxEditingEffects(first.effects, input);
+    const atmo = second.effects.filter((effect) => effect.effectId === "atmosphere");
+    expect(atmo).toHaveLength(1);
+    expect(atmo[0]!.params.template).toBe("atmo:snow");
+  });
+});

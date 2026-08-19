@@ -397,6 +397,7 @@ export function useChapterAutoVideoActions({
                 for (const [shotId, motion] of Object.entries(selection.motions)) {
                   const addons = selection.addons[shotId];
                   const grade = selection.grades[shotId];
+                  const atmosphere = selection.atmospheres[shotId];
                   const transitionOut = selection.transitions[shotId];
                   const sfx = selection.sfxCategories[shotId];
                   useStudioStore.getState().updateStoryboard(shotId, {
@@ -404,6 +405,7 @@ export function useChapterAutoVideoActions({
                       motion,
                       ...(addons ? { addons } : {}),
                       ...(grade ? { grade } : {}),
+                      ...(atmosphere?.length ? { atmosphere } : {}),
                       ...(transitionOut ? { transitionOut } : {}),
                       ...(sfx ? { sfx } : {}),
                       source: selection.source,
@@ -492,6 +494,7 @@ export function useChapterAutoVideoActions({
               ...DEFAULT_REMOTION_RENDER_SETTINGS,
               subtitleFont: studio.workflowConfig.subtitleFont ?? DEFAULT_SUBTITLE_FONT_ID,
               ...(studio.workflowConfig.chapterGrade ? { chapterGrade: studio.workflowConfig.chapterGrade } : {}),
+              ...(studio.workflowConfig.atmosphereMode ? { atmosphereMode: studio.workflowConfig.atmosphereMode } : {}),
               ...(studio.workflowConfig.subtitleSfxEnabled !== undefined
                 ? { subtitleSfxEnabled: studio.workflowConfig.subtitleSfxEnabled }
                 : {}),

@@ -20,6 +20,7 @@ import type {
 } from "./composition-props";
 import type { CompositionVisualFx } from "./visual-fx";
 import { validateChapterVideoCompositionProps } from "./composition-props-validation";
+import { scaledTemplateParams } from "./atmosphere-layers";
 import type {
   HyperFramesOverlayWindowV1,
   RemotionChapterGateAcceptedV1,
@@ -38,6 +39,7 @@ import {
 import { resolveSubtitleAuthority } from "@/lib/studio/video-workflow/subtitle-authority";
 import { DEFAULT_SUBTITLE_FONT_ID } from "@/lib/studio/remotion/subtitle-fonts";
 import { isCinematicLutId } from "@/lib/studio/remotion/cinematic-luts";
+import { isAtmosphereTemplateId } from "@/lib/studio/remotion/atmosphere-templates";
 import {
   SUBTITLE_SFX_DURATION_FRAMES,
   SUBTITLE_SFX_OFFSET_FRAMES,
@@ -81,6 +83,14 @@ export function buildCompositionProps(
         freq: clampRange(numberParam(effect.params.freq, 0.3), 0.05, 2),
       }]),
   );
+  // 氛围层效果（08-19 multilayer Child2）：同镜可多条（每模板一条）。
+  const atmosphereEffectsByClipId = new Map<string, EditingEffect[]>();
+  for (const effect of plan.effects) {
+    if (!effect.enabled || effect.effectId !== "atmosphere" || !effect.targetClipId) continue;
+    const list = atmosphereEffectsByClipId.get(effect.targetClipId);
+    if (list) list.push(effect);
+    else atmosphereEffectsByClipId.set(effect.targetClipId, [effect]);
+  }
   const visualClips = plan.clips
     .filter((clip) => clip.trackKind === "video" || clip.trackKind === "image")
     .sort(compareTimelineClips);
@@ -131,11 +141,10 @@ export function buildCompositionProps(
       playbackRate: clip.speed,
       muted: clip.muted,
       // 图层分离分层渲染(08-19):仅静帧片段;注入时把旧二元组转换为
-      // layerStack(bg damp=1-0.4·parallax 与旧公式一致→既有成片像素级不变),
-      // N 层渲染接管;Child2 的 atmosphere 效果将在此追加 template 层。
-      ...(layerUrlByClipId?.[clip.id] && (clip.source.kind === "storyboardImage" || clip.trackKind === "image")
-        ? { layerStack: layerStackFromLegacyTuple(layerUrlByClipId[clip.id]) }
-        : {}),
+      // layerStack(bg damp=1-0.4·parallax 与旧公式一致→既有成片像素级不变);
+      // atmosphere 效果(08-19 multilayer Child2)追加 template 层——两类层源
+      // 合成同一条有序 layerStack,N 层渲染统一接管。
+      ...layerStackForClip(clip, layerUrlByClipId, atmosphereEffectsByClipId.get(clip.id)),
     };
   });
   const audioClips: CompositionAudioClipProps[] = plan.clips
@@ -220,6 +229,35 @@ export function layerStackFromLegacyTuple(tuple: {
     { role: "background", src: tuple.backgroundSrc, panZoomDamp: 1 - 0.4 * parallax },
     { role: "subject", src: tuple.subjectSrc, panZoomDamp: 1 },
   ];
+}
+
+/** 层源合成:深度拆层/原生分层的二元组(静帧)→ N 层 + atmosphere 模板层。 */
+function layerStackForClip(
+  clip: TimelineRenderClip,
+  layerUrlByClipId: Readonly<Record<string, { backgroundSrc: string; subjectSrc: string; parallax?: number }>> | undefined,
+  atmosphereEffects: readonly EditingEffect[] | undefined,
+): { layerStack?: CompositionLayerSpec[] } {
+  const staticImage = clip.source.kind === "storyboardImage" || clip.trackKind === "image";
+  const legacyStack = staticImage && layerUrlByClipId?.[clip.id]
+    ? layerStackFromLegacyTuple(layerUrlByClipId[clip.id])
+    : [];
+  const atmoLayers: CompositionLayerSpec[] = [];
+  for (const effect of atmosphereEffects ?? []) {
+    const template = effect.params.template;
+    if (typeof template !== "string" || !isAtmosphereTemplateId(template)) {
+      // fail-closed(同 gradeForClip):未知模板拒渲染,不静默丢层。
+      throw new Error(`atmosphere 效果的模板不在闭集: ${String(template)} (clip ${clip.id})`);
+    }
+    const intensityRaw = Number(effect.params.intensity ?? 1);
+    const intensity = Number.isFinite(intensityRaw) ? Math.min(2, Math.max(0, intensityRaw)) : 1;
+    atmoLayers.push({
+      role: "atmosphere",
+      template: { id: template, params: scaledTemplateParams(template, undefined, intensity) },
+      ...(atmoLayers.length === 0 ? { blendMode: "screen" as const } : {}),
+    });
+  }
+  const layerStack = [...legacyStack, ...atmoLayers];
+  return layerStack.length > 0 ? { layerStack } : {};
 }
 
 export interface ChapterVideoSourceInput {

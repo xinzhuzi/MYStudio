@@ -127,7 +127,7 @@ describe("selectShotFxMotions", () => {
   it("空分镜返回 empty", async () => {
     const result = await selectShotFxMotions([]);
     expect(result).toEqual({
-      motions: {}, addons: {}, grades: {}, transitions: {}, sfxCategories: {}, source: "empty",
+      motions: {}, addons: {}, grades: {}, atmospheres: {}, transitions: {}, sfxCategories: {}, source: "empty",
     });
   });
 
@@ -163,3 +163,48 @@ function SHOT_FX_MOTION_ROTATION_AT(index: number): string {
   const rotation = ["push-in", "pull-out", "pan-right", "pan-left", "tilt-down", "tilt-up", "drift"] as const;
   return rotation[index % rotation.length];
 }
+
+describe("atmosphere 氛围层解析(08-19 multilayer Child2)", () => {
+  it("合法模板收录+同镜去重+上限 2;非法/未知丢弃", () => {
+    const raw = JSON.stringify({
+      shots: [
+        {
+          shotId: "s1",
+          motion: "hold",
+          atmosphere: ["atmo:fog-band", "atmo:light-dust", "atmo:fog-band", "atmo:not-exist", 42, "atmo:embers"],
+        },
+      ],
+    });
+    const result = parseShotFxMotionResponse(raw, new Set(["s1"]));
+    expect(result.atmospheres.s1).toEqual(["atmo:fog-band", "atmo:light-dust"]);
+  });
+
+  it("atmosphere 缺省/空数组=无氛围(安静镜留白)", () => {
+    const raw = JSON.stringify({ shots: [{ shotId: "s1", motion: "hold" }, { shotId: "s2", motion: "push-in", atmosphere: [] }] });
+    const result = parseShotFxMotionResponse(raw, new Set(["s1", "s2"]));
+    expect(result.atmospheres.s1).toBeUndefined();
+    expect(result.atmospheres.s2).toBeUndefined();
+  });
+
+  it("heuristic 兜底不配氛围(对齐启发式不配 grade 裁定)", () => {
+    const result = heuristicShotFxMotions([{ shotId: "s1", description: "火海崩塌爆炸", dialogue: "" }]);
+    expect(result.atmospheres).toEqual({});
+  });
+
+  it("prompt 含氛围层指南段与 JSON 契约 atmosphere 字段(防 grade 前科重演)", async () => {
+    const { selectShotFxMotions } = await import("./shot-fx-ai");
+    const { aiManager } = await import("@/lib/ai/ai-manager");
+    let capturedPrompt = "";
+    vi.mocked(aiManager.text).mockImplementationOnce(async (request) => {
+      capturedPrompt = request.messages[1]!.content as string;
+      return { success: true, text: JSON.stringify({ shots: [{ shotId: "s1", motion: "hold" }] }) };
+    });
+    const result = await selectShotFxMotions([{ shotId: "s1", description: "", dialogue: "" }]);
+    expect(result.source).toBe("ai");
+    expect(result.atmospheres).toEqual({});
+    expect(capturedPrompt).toContain("氛围层");
+    expect(capturedPrompt).toContain("atmo:fog-band");
+    expect(capturedPrompt).toContain("atmo:fireflies");
+    expect(capturedPrompt).toContain('"atmosphere"');
+  });
+});

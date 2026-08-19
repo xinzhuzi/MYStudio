@@ -1,4 +1,4 @@
-import { Check, ChevronDown, Download, Film, Loader2, Palette, Plus, RefreshCw, RotateCcw, Type, Volume2, Wrench } from "lucide-react";
+import { Check, ChevronDown, CloudFog, Download, Film, Loader2, Palette, Plus, RefreshCw, RotateCcw, Type, Volume2, Wrench } from "lucide-react";
 import React from "react";
 import { toast } from "sonner";
 import "@fontsource/noto-sans-sc/900.css";
@@ -533,6 +533,31 @@ export function RenderingSettingsTab({ embedded = false }: RenderingSettingsTabP
                             {(workflowConfig.chapterGrade?.blend ?? 0.5).toFixed(2)}
                           </span>
                         </div>
+                      </div>
+
+                      {/* 氛围层（08-19 multilayer Child2）：全章关闭=人工覆盖最小面 */}
+                      <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border pt-4">
+                        <div className="min-w-0">
+                          <h5 className="font-medium text-foreground flex items-center gap-2">
+                            <CloudFog className="h-4 w-4" aria-hidden="true" />
+                            氛围层
+                          </h5>
+                          <p className="text-xs text-muted-foreground">多层合成的程序化前景（雾带/光尘/花瓣等），AI 按剧情逐镜选层；关闭=全章不渲染氛围层。对新发起的一键成片生效。</p>
+                        </div>
+                        <Select
+                          value={workflowConfig.atmosphereMode ?? "ai"}
+                          onValueChange={(value) => {
+                            setWorkflowConfig({ atmosphereMode: value === "off" ? "off" : undefined });
+                          }}
+                        >
+                          <SelectTrigger className="min-w-0" aria-label="氛围层模式">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="ai">AI 自动（逐镜选层）</SelectItem>
+                            <SelectItem value="off">关闭（全章无氛围层）</SelectItem>
+                          </SelectContent>
+                        </Select>
                       </div>
 
                       {/* 字幕音效（08-19 音效随字幕）：文字诉说时插入克制音效 */}

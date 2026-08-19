@@ -318,6 +318,10 @@ function validateRenderSettings(
   if (value.subtitleSfxEnabled !== undefined && typeof value.subtitleSfxEnabled !== "boolean") {
     issue(issues, "editing.render.subtitle_sfx_enabled", `${path}.subtitleSfxEnabled`, "字幕音效开关必须是布尔值");
   }
+  // 氛围层模式（08-19 multilayer Child2）：闭集 fail-closed。
+  if (value.atmosphereMode !== undefined && value.atmosphereMode !== "ai" && value.atmosphereMode !== "off") {
+    issue(issues, "editing.render.atmosphere_mode", `${path}.atmosphereMode`, "氛围层模式必须是 ai 或 off");
+  }
   finiteNumber(value.loudnessLufs, issues, `${path}.loudnessLufs`, "editing.render.loudness");
   finiteNumber(value.truePeakDbtp, issues, `${path}.truePeakDbtp`, "editing.render.true_peak");
   validateAudioDucking(value.audioDucking, issues, `${path}.audioDucking`, requireAudioDucking);

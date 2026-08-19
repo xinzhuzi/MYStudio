@@ -13,6 +13,7 @@ import {
   type CompositionTransitionEffect,
 } from "./timing";
 import { CINEMATIC_LUT_IDS } from "../../../../../lib/studio/remotion/cinematic-luts";
+import { ATMOSPHERE_TEMPLATES } from "../../../../../lib/studio/remotion/atmosphere-templates";
 // 固定 bundle 走 @remotion/bundler(webpack),不解析 vite 的 @/ 别名——
 // 共享注册表必须相对导入。
 import { isKnownSubtitleFontId } from "../../../../../lib/studio/remotion/subtitle-fonts";
@@ -23,6 +24,7 @@ const AUDIO_KINDS = ["voice", "bgm", "sfx", "ambience"] as const;
 // 08-19 multilayer-composition Child1:层角色/混合模式/ambient 类型闭集
 // (与 ambientForClip 的静默钳制不同,props 边界 fail-closed)。
 const LAYER_ROLES = ["background", "subject", "foreground", "atmosphere"] as const;
+const ATMOSPHERE_TEMPLATE_IDS = new Set<string>(ATMOSPHERE_TEMPLATES.map((template) => template.id));
 const LAYER_BLEND_MODES = ["normal", "screen", "multiply", "overlay", "soft-light"] as const;
 const AMBIENT_TYPES = ["float", "breathe", "sway", "pulse", "flow"] as const;
 
@@ -276,6 +278,9 @@ function validateLayerSpec(layer: unknown, path: string, issues: Issue[]): void 
       issues.push({ path: `${path}.template`, message: "template 必须是对象" });
     } else {
       requireNonEmptyString(layer.template.id, `${path}.template.id`, issues);
+      if (typeof layer.template.id === "string" && !ATMOSPHERE_TEMPLATE_IDS.has(layer.template.id)) {
+        issues.push({ path: `${path}.template.id`, message: `模板不在氛围闭集: ${layer.template.id}` });
+      }
       if (layer.template.params !== undefined) {
         if (!isRecord(layer.template.params)) {
           issues.push({ path: `${path}.template.params`, message: "template.params 必须是数值记录" });

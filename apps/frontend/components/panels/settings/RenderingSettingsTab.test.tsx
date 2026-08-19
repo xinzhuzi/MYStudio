@@ -110,6 +110,7 @@ describe("RenderingSettingsTab", () => {
       "现代 · 正文",
       "自定义",
       "章节色调（导演定调）",
+      "氛围层",
       "字幕音效",
       "Remotion Headless Shell",
       "HyperFrames",
