@@ -44,6 +44,12 @@ const MOTION_GUIDE: ReadonlyArray<{ id: ShotFxMotionId; when: string }> = [
   { id: "gloom-pull", when: "阴暗/夜雾/深渊缓拉（默认带暗辉光，可用 fx 覆盖）" },
   { id: "leave-pull", when: "退场、远去、告别、消失、段落终了拉离" },
   { id: "hold", when: "锁帧静止——重大爆点/转折前的蓄力对比、台词关键句定格" },
+  // 环境动画(2026-08-19): 让静态画面活起来
+  { id: "float", when: "漂浮浮动——水面、云雾、梦境、空灵场景的缓慢上下漂动" },
+  { id: "breathe", when: "呼吸脉动——人物特写、静物、情感内敛镜头的微妙生命感" },
+  { id: "sway", when: "风中摇摆——树木、旗帜、布料、花草、户外自然场景" },
+  { id: "pulse", when: "变焦脉动——紧张蓄力、心跳感、神秘氛围的推拉交替" },
+  { id: "flow", when: "无向漫游——缓慢多轴漂移、时间流逝、回忆闪回" },
 ];
 
 const ADDON_GUIDE: ReadonlyArray<{ id: ShotFxAddonId; when: string }> = [

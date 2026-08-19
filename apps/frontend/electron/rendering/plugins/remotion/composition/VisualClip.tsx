@@ -7,7 +7,7 @@
 import { AbsoluteFill, Img, OffthreadVideo, useCurrentFrame, useRemotionEnvironment } from "remotion";
 import type { CompositionVisualClipProps } from "./composition-props";
 import { GLGradeMedia } from "./GLGradeMedia";
-import { panZoomAtFrame } from "./pan-zoom";
+import { ambientAtFrame, panZoomAtFrame } from "./pan-zoom";
 import { buildVisualStyle } from "./visual-style";
 import {
   fxChromaLayerStyle,
@@ -23,7 +23,24 @@ export function VisualClip(props: CompositionVisualClipProps): React.ReactElemen
   const panZoom = props.panZoom
     ? panZoomAtFrame(frame, props.durationInFrames, props.panZoom)
     : undefined;
+  // 环境动画:sin/cos 周期运动叠加在 panZoom 缓动之上
+  const ambient = props.ambient
+    ? ambientAtFrame(frame, 30, props.ambient)
+    : null;
   const style = buildVisualStyle(props.transform, panZoom);
+  if (ambient) {
+    const baseLeft = parseFloat(String(style.left)) || 0;
+    const baseTop = parseFloat(String(style.top)) || 0;
+    style.left = `${baseLeft + ambient.offsetX * 100}%`;
+    style.top = `${baseTop + ambient.offsetY * 100}%`;
+    if (ambient.deltaScale !== 0 && panZoom) {
+      const base = panZoom.scale ?? 1;
+      style.transform = `scale(${base + ambient.deltaScale})`;
+    }
+    if (ambient.deltaRot !== 0) {
+      style.transform = `${style.transform || ""} rotate(${ambient.deltaRot}deg)`;
+    }
+  }
   const shake = props.fx ? fxShakeOffset(frame, props.fx) : undefined;
   const mediaStyle = props.fit === "contain" ? CONTAIN_STYLE : COVER_STYLE;
   const filter = props.fx ? fxFilter(props.fx) : undefined;

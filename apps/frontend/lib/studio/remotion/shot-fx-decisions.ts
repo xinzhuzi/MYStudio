@@ -27,7 +27,14 @@ export type ShotFxMotionId =
   | "chase-in"
   | "aura-push"
   | "gloom-pull"
-  | "hold";
+  | "hold"
+  // 环境动画(2026-08-19): 让静态画面「活」起来——sin/cos 周期运动叠加在 panZoom 之上
+  | "float"     // 漂浮:缓慢上下浮动,如水面悬浮
+  | "breathe"   // 呼吸:微缩放脉动,画面有生命感
+  | "sway"      // 摇摆:左右轻晃,如风中景物
+  | "pulse"     // 脉动:推拉交替,呼吸变焦
+  | "flow"      // 流动:多轴慢移,无方向感漫游
+;
 
 /** 可组合特效插件 ID（量化档位，强度内置不可配置）。 */
 export type ShotFxAddonId =
@@ -51,9 +58,28 @@ export interface ShotFxRecipeFx {
   chromaOffset?: number;
 }
 
+export interface ShotFxAmbient {
+  /** 动画类型 */
+  type: "float" | "breathe" | "sway" | "pulse" | "flow";
+  /** X 轴振幅(画面宽度百分比, 0..0.05) */
+  ampX: number;
+  /** Y 轴振幅(画面高度百分比, 0..0.05) */
+  ampY: number;
+  /** 缩放振幅(0..0.03) */
+  ampScale: number;
+  /** 旋转振幅(度, 0..1) */
+  ampRot: number;
+  /** 频率(周期/秒, 0.1..0.8) */
+  freq: number;
+  /** 相位偏移(0..1, 防相邻镜同相) */
+  phase: number;
+}
+
 export interface ShotFxRecipe {
   panZoom: ShotFxPanZoom;
   fx: ShotFxRecipeFx;
+  /** 环境动画(叠加在 panZoom 之上的周期运动;null=无) */
+  ambient: ShotFxAmbient | null;
 }
 
 /**
@@ -65,60 +91,99 @@ export const SHOT_FX_MOTION_PRESETS: Readonly<Record<ShotFxMotionId, ShotFxRecip
   "push-in": {
     panZoom: { fromScale: 1.0, toScale: 1.05, originX: 0.5, originY: 0.5 },
     fx: {},
+    ambient: null,
   },
   "pull-out": {
     panZoom: { fromScale: 1.07, toScale: 1.0, originX: 0.5, originY: 0.5 },
     fx: {},
+    ambient: null,
   },
   "pan-right": {
     panZoom: { fromScale: 1.03, toScale: 1.08, originX: 0.72, originY: 0.5 },
     fx: {},
+    ambient: null,
   },
   "pan-left": {
     panZoom: { fromScale: 1.03, toScale: 1.08, originX: 0.28, originY: 0.5 },
     fx: {},
+    ambient: null,
   },
   "tilt-down": {
     panZoom: { fromScale: 1.02, toScale: 1.07, originX: 0.5, originY: 0.68 },
     fx: {},
+    ambient: null,
   },
   "tilt-up": {
     panZoom: { fromScale: 1.02, toScale: 1.07, originX: 0.5, originY: 0.32 },
     fx: {},
+    ambient: null,
   },
   drift: {
     panZoom: { fromScale: 1.01, toScale: 1.04, originX: 0.5, originY: 0.5 },
     fx: {},
+    ambient: null,
   },
   // 动作爆点：急推，默认成套 强抖+色差
   "punch-in": {
     panZoom: { fromScale: 1.0, toScale: 1.12, originX: 0.5, originY: 0.5 },
     fx: { shakeIntensity: 0.25, chromaOffset: 3 },
+    ambient: null,
   },
   // 退场收尾：拉远离席，默认无特效
   "leave-pull": {
     panZoom: { fromScale: 1.07, toScale: 1.0, originX: 0.5, originY: 0.5 },
     fx: {},
+    ambient: null,
   },
   // 追逐/奔逃：快推（贴上限），默认成套 轻抖
   "chase-in": {
     panZoom: { fromScale: 1.0, toScale: 1.08, originX: 0.5, originY: 0.5 },
     fx: { shakeIntensity: 0.125 },
+    ambient: null,
   },
   // 灵光/焰火/仙阵：缓推，默认成套 暖调强辉光
   "aura-push": {
     panZoom: { fromScale: 1.0, toScale: 1.05, originX: 0.5, originY: 0.5 },
     fx: { glowIntensity: 0.5 },
+    ambient: null,
   },
   // 阴暗/夜雾/深渊：缓拉，默认成套 暗调弱辉光
   "gloom-pull": {
     panZoom: { fromScale: 1.07, toScale: 1.0, originX: 0.5, originY: 0.5 },
     fx: { glowIntensity: 0.25 },
+    ambient: null,
   },
   // 锁帧：刻意静止，爆点前后的节奏对比（仅 AI 可选，不进轮换）
   hold: {
     panZoom: { fromScale: 1.0, toScale: 1.0, originX: 0.5, originY: 0.5 },
     fx: {},
+    ambient: null,
+  },
+  // ── 环境动画: sin/cos 周期运动,叠加在 panZoom 上让画面活起来 ──
+  "float": {
+    panZoom: { fromScale: 1.03, toScale: 1.05, originX: 0.5, originY: 0.5 },
+    fx: {},
+    ambient: { type: "float", ampX: 0, ampY: 0.008, ampScale: 0, ampRot: 0, freq: 0.25, phase: 0 },
+  },
+  "breathe": {
+    panZoom: { fromScale: 1.02, toScale: 1.04, originX: 0.5, originY: 0.5 },
+    fx: {},
+    ambient: { type: "breathe", ampX: 0, ampY: 0, ampScale: 0.008, ampRot: 0, freq: 0.15, phase: 0 },
+  },
+  "sway": {
+    panZoom: { fromScale: 1.04, toScale: 1.06, originX: 0.5, originY: 0.5 },
+    fx: {},
+    ambient: { type: "sway", ampX: 0.006, ampY: 0, ampScale: 0, ampRot: 0.3, freq: 0.2, phase: 0 },
+  },
+  "pulse": {
+    panZoom: { fromScale: 1.02, toScale: 1.06, originX: 0.5, originY: 0.5 },
+    fx: {},
+    ambient: { type: "pulse", ampX: 0, ampY: 0, ampScale: 0.012, ampRot: 0, freq: 0.12, phase: 0 },
+  },
+  "flow": {
+    panZoom: { fromScale: 1.03, toScale: 1.05, originX: 0.5, originY: 0.5 },
+    fx: {},
+    ambient: { type: "flow", ampX: 0.008, ampY: 0.006, ampScale: 0.003, ampRot: 0.15, freq: 0.1, phase: 0 },
   },
 };
 
@@ -258,6 +323,19 @@ export function buildShotFxEditingEffects(input: {
 
     // 颗粒全局质感常驻（独立于配方与插件）。
     pushEffect("grain", "grain", { amount: 0.035 });
+
+    // 环境动画(2026-08-19): sin/cos 周期运动——AI 选了环境动画运镜时注入 ambient 效果
+    if (recipe.ambient) {
+      pushEffect("ambient", "ambient", {
+        type: recipe.ambient.type,
+        ampX: recipe.ambient.ampX,
+        ampY: recipe.ambient.ampY,
+        ampScale: recipe.ambient.ampScale,
+        ampRot: recipe.ambient.ampRot,
+        freq: recipe.ambient.freq,
+        phase: recipe.ambient.phase,
+      });
+    }
 
     // 成片调色（08-18-haldclut-grade AI 选型）：storyboard.shotFx.grade 携带
     // AI 逐镜选择的 LUT（闭集校验+blend 钳 0..1）；非法值按缺省=不调色。

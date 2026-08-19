@@ -47,6 +47,12 @@ export function buildCompositionProps(
   lutUrlById?: Readonly<Record<string, string>>,
 ): CompositionProps {
   const fps = plan.renderSettings.fps;
+  // ambient（环境动画）效果：sin/cos 周期运动叠加在 panZoom 之上(2026-08-19)。
+  const ambientEffectByClipId = new Map(
+    plan.effects
+      .filter((effect) => effect.enabled && effect.effectId === "ambient" && effect.targetClipId)
+      .map((effect) => [effect.targetClipId!, effect]),
+  );
   // grade（成片调色）效果：params{lutId,blend}，lutId 闭集 fail-closed。
   const gradeEffectByClipId = new Map(
     plan.effects
@@ -97,6 +103,7 @@ export function buildCompositionProps(
       panZoom: panZoomForClip(panZoomByClipId.get(clip.id)),
       fx: visualFxForClip(fxEffectsByClipId.get(clip.id)),
       ...gradeForClip(gradeEffectByClipId.get(clip.id), lutUrlById, clip.id),
+      ...ambientForClip(ambientEffectByClipId.get(clip.id)),
       trimStartFrames: usToFrames(clip.trimStartUs, fps),
       playbackRate: clip.speed,
       muted: clip.muted,
@@ -850,6 +857,31 @@ function deriveTransitionSfxClips(
     });
   });
   return out;
+}
+
+function ambientForClip(
+  effect: Pick<EditingEffect, "params"> | undefined,
+): { ambient?: import("./pan-zoom").CompositionAmbient } {
+  if (!effect) return {};
+  const p = effect.params as Record<string, unknown> | undefined;
+  if (!p || typeof p.type !== "string") return {};
+  const types = ["float", "breathe", "sway", "pulse", "flow"] as const;
+  if (!types.includes(p.type as never)) return {};
+  const num = (v: unknown, d: number) => {
+    const n = Number(v);
+    return Number.isFinite(n) ? n : d;
+  };
+  return {
+    ambient: {
+      type: p.type as "float" | "breathe" | "sway" | "pulse" | "flow",
+      ampX: Math.min(0.05, Math.max(0, num(p.ampX, 0))),
+      ampY: Math.min(0.05, Math.max(0, num(p.ampY, 0))),
+      ampScale: Math.min(0.03, Math.max(0, num(p.ampScale, 0))),
+      ampRot: Math.min(1, Math.max(0, num(p.ampRot, 0))),
+      freq: Math.min(0.8, Math.max(0.1, num(p.freq, 0.2))),
+      phase: Math.min(1, Math.max(0, num(p.phase, 0))),
+    },
+  };
 }
 
 function gradeForClip(

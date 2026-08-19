@@ -131,6 +131,8 @@ export interface CompositionVisualClipProps {
   // Defaults to cover. Use contain when the complete source frame must remain visible.
   fit?: "cover" | "contain";
   panZoom?: CompositionPanZoom;
+  /** 环境动画(sin/cos 周期运动叠加在 panZoom 上;2026-08-19 让画面活起来)。 */
+  ambient?: import("./pan-zoom").CompositionAmbient;
   /** When present, renders in 3D cinematic mode via @remotion/three. */
   cinematic?: CinematicConfig;
   /** 3D 贴图静帧 URL（TextureLoader 只能解码图片；src 保留视频供音轨取声）。 */

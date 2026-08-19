@@ -41,6 +41,7 @@ export type EditingEffectId =
   | "grain"
   | "speed"
   | "grade"
+  | "ambient"
   // gl:* 转场收录白名单（08-18-gl-transitions Step C 全量 123;权威=composition/gl-transition-registry.ts,孪生对拍守护)——EditingEffectId 为 Extract 源 union,
   // 转场闭集由此派生进 EditingTransition.effectId。
   | "gl:AdvancedMosaic"
