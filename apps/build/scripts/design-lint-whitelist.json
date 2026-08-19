@@ -1,0 +1,146 @@
+{
+  "_comment": "design-lint 白名单与降级清单。allowPaths=跳过;severityOverrides=按文件×规则降级(须给 reason)。维护于 apple-hig-design-overhaul child1,裁定变更须同步本文件。",
+  "allowPaths": [
+    "components/ui/dialog.tsx",
+    "components/ui/alert-dialog.tsx",
+    "components/ui/drawer.tsx",
+    "components/ui/dropdown-menu.tsx",
+    "components/ui/popover.tsx",
+    "components/ui/tooltip.tsx",
+    "components/ui/hover-card.tsx",
+    "components/ui/command.tsx",
+    "components/ui/select.tsx",
+    "components/ui/sheet.tsx",
+    "components/ui/sonner.tsx",
+    "components/ui/toast.tsx",
+    "components/ui/toaster.tsx"
+  ],
+  "severityOverrides": [
+    {
+      "path": "components/ui/sidebar.tsx",
+      "rule": "R1",
+      "severity": "warn",
+      "reason": "chrome 原语,材质化改造 vs 永久白名单待 child1 裁定案(shadow-whitelist-ruling.md)"
+    },
+    {
+      "path": "components/ui/menubar.tsx",
+      "rule": "R1",
+      "severity": "warn",
+      "reason": "同上,chrome 原语待裁定"
+    },
+    {
+      "path": "components/ui/context-menu.tsx",
+      "rule": "R1",
+      "severity": "warn",
+      "reason": "同上,chrome 原语待裁定"
+    },
+    {
+      "path": "components/ui/navigation-menu.tsx",
+      "rule": "R1",
+      "severity": "warn",
+      "reason": "同上,chrome 原语待裁定"
+    },
+    {
+      "path": "components/panels/studio/VisualContinuityReviewPanel.tsx",
+      "rule": "R2",
+      "severity": "warn",
+      "reason": "桶B 数据可视化/状态编码(triage-hardcoded-colors.md),待 child2 viz token 接线"
+    },
+    {
+      "path": "components/panels/studio/WorkflowNodePreviews.tsx",
+      "rule": "R2",
+      "severity": "warn",
+      "reason": "桶B 数据可视化/状态编码(triage-hardcoded-colors.md),待 child2 viz token 接线"
+    },
+    {
+      "path": "components/panels/sclass/shot-group.tsx",
+      "rule": "R2",
+      "severity": "warn",
+      "reason": "桶B 数据可视化/状态编码(triage-hardcoded-colors.md),待 child2 viz token 接线"
+    },
+    {
+      "path": "components/panels/director/scene-prompt-panel.tsx",
+      "rule": "R2",
+      "severity": "warn",
+      "reason": "桶B 数据可视化/状态编码(triage-hardcoded-colors.md),待 child2 viz token 接线"
+    },
+    {
+      "path": "components/panels/director/shot-grid-detail-panel.tsx",
+      "rule": "R2",
+      "severity": "warn",
+      "reason": "桶B 数据可视化/状态编码(triage-hardcoded-colors.md),待 child2 viz token 接线"
+    },
+    {
+      "path": "components/panels/sclass/group-ref-manager.tsx",
+      "rule": "R2",
+      "severity": "warn",
+      "reason": "桶B 数据可视化/状态编码(triage-hardcoded-colors.md),待 child2 viz token 接线"
+    },
+    {
+      "path": "components/panels/studio/WorkflowProductionNode.tsx",
+      "rule": "R2",
+      "severity": "warn",
+      "reason": "桶B 数据可视化/状态编码(triage-hardcoded-colors.md),待 child2 viz token 接线"
+    },
+    {
+      "path": "components/panels/script/shot-breakdown.tsx",
+      "rule": "R2",
+      "severity": "warn",
+      "reason": "桶B 数据可视化/状态编码(triage-hardcoded-colors.md),待 child2 viz token 接线"
+    },
+    {
+      "path": "components/panels/director/storyboard-scene-frame-section.tsx",
+      "rule": "R2",
+      "severity": "warn",
+      "reason": "桶B 数据可视化/状态编码(triage-hardcoded-colors.md),待 child2 viz token 接线"
+    },
+    {
+      "path": "components/features/storyboard/quad-grid/QuadGridDialog.tsx",
+      "rule": "R2",
+      "severity": "warn",
+      "reason": "桶B 数据可视化/状态编码(triage-hardcoded-colors.md),待 child2 viz token 接线"
+    },
+    {
+      "path": "components/panels/sclass/shot-group-prompt.tsx",
+      "rule": "R2",
+      "severity": "warn",
+      "reason": "桶B 数据可视化/状态编码(triage-hardcoded-colors.md),待 child2 viz token 接线"
+    },
+    {
+      "path": "components/features/storyboard/quad-grid/QuadGridResultDialog.tsx",
+      "rule": "R2",
+      "severity": "warn",
+      "reason": "桶B 数据可视化/状态编码(triage-hardcoded-colors.md),待 child2 viz token 接线"
+    },
+    {
+      "path": "components/panels/script/script-import-progress.tsx",
+      "rule": "R2",
+      "severity": "warn",
+      "reason": "桶B 数据可视化/状态编码(triage-hardcoded-colors.md),待 child2 viz token 接线"
+    },
+    {
+      "path": "components/panels/director/shot-properties-panel.tsx",
+      "rule": "R2",
+      "severity": "warn",
+      "reason": "桶B 数据可视化/状态编码(triage-hardcoded-colors.md),待 child2 viz token 接线"
+    },
+    {
+      "path": "components/panels/studio/NovelSourceMemoryDialog.tsx",
+      "rule": "R2",
+      "severity": "warn",
+      "reason": "桶B 数据可视化/状态编码(triage-hardcoded-colors.md),待 child2 viz token 接线"
+    },
+    {
+      "path": "components/panels/director/scene-card.tsx",
+      "rule": "R2",
+      "severity": "warn",
+      "reason": "桶B 数据可视化/状态编码(triage-hardcoded-colors.md),待 child2 viz token 接线"
+    },
+    {
+      "path": "components/panels/settings/VideoQcSettingsSection.tsx",
+      "rule": "R2",
+      "severity": "warn",
+      "reason": "桶B 数据可视化/状态编码(triage-hardcoded-colors.md),待 child2 viz token 接线"
+    }
+  ]
+}
