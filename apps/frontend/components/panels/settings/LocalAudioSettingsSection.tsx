@@ -367,8 +367,8 @@ function Music3EnginePanel() {
       ) : null}
 
       <p className="text-xs text-muted-foreground leading-5">
-        MiniMax-Music3 本地整曲 BGM({MUSIC3_MIN_DURATION_S}-{MUSIC3_MAX_DURATION_S} 秒/44.1kHz 立体声,
-        [Instrumental] 纯音乐,同提示词+同种子=同一文件)。约 12 GB,仅在点击下载时获取,
+        MiniMax-Music3 本地整曲 BGM({MUSIC3_MIN_DURATION_S}-{MUSIC3_MAX_DURATION_S} 秒/立体声 WAV,
+        [Instrumental] 纯音乐,同提示词+同种子=同一文件;采样率以实测为准,官方口径 32kHz)。约 12 GB,仅在点击下载时获取,
         与其他本地模型共用缓存目录;生成需数分钟(30 分钟硬限)。生成 WAV 经工作台
         「章节共享音频」导入为 BGM。引擎来源:MiniMax-Music3 Community License
         (商用需在产品界面标注「MiniMax-Music3」;年营收超 2000 万美元需书面授权)。
