@@ -99,12 +99,12 @@ export function ScenePromptPanel({
         className={cn(
           "w-full flex items-start gap-2 text-left p-1.5 rounded transition-colors border",
           color === "blue" && "bg-primary/5 hover:bg-primary/10 border-primary/10",
-          color === "orange" && (scene.needsEndFrame ? "bg-orange-500/10 hover:bg-orange-500/20 border-orange-500/20" : "bg-orange-500/5 hover:bg-orange-500/10 border-orange-500/10"),
-          color === "green" && "bg-green-500/5 hover:bg-green-500/10 border-green-500/10",
+          color === "orange" && (scene.needsEndFrame ? "bg-warning/10 hover:bg-warning/20 border-warning/20" : "bg-warning/5 hover:bg-warning/10 border-warning/10"),
+          color === "green" && "bg-success/5 hover:bg-success/10 border-success/10",
         )}
       >
-        <span className={cn("text-[11px] flex-1", lineClass, color === "orange" && "text-orange-600 dark:text-orange-400", color === "green" && "text-green-600 dark:text-green-400", color === "blue" && "text-muted-foreground")}>{values[kind] || fallback}</span>
-        {!disabled && <Edit3 className={cn("h-2.5 w-2.5 shrink-0 mt-0.5", color === "blue" && "text-blue-500/50", color === "orange" && "text-orange-500/50", color === "green" && "text-green-500/50")} />}
+        <span className={cn("text-[11px] flex-1", lineClass, color === "orange" && "text-warning dark:text-warning", color === "green" && "text-success dark:text-success", color === "blue" && "text-muted-foreground")}>{values[kind] || fallback}</span>
+        {!disabled && <Edit3 className={cn("h-2.5 w-2.5 shrink-0 mt-0.5", color === "blue" && "text-primary/50", color === "orange" && "text-warning/50", color === "green" && "text-success/50")} />}
       </button>
     );
   };
@@ -115,28 +115,28 @@ export function ScenePromptPanel({
         <ChevronRight className={cn("h-3.5 w-3.5 text-muted-foreground shrink-0 transition-transform duration-200", isExpanded && "rotate-90")} />
         <span className="text-xs font-medium">提示词</span>
         <div className="flex items-center gap-1.5 ml-auto">
-          <span className={cn("text-[9px] px-1.5 py-0.5 rounded-full border", scene.actionSummary ? "bg-violet-500/15 text-violet-600 border-violet-500/20" : "bg-muted text-muted-foreground/40 border-transparent")}><Edit3 className="inline h-2.5 w-2.5" /> 剧本</span>
-          <span className={cn("text-[9px] px-1.5 py-0.5 rounded-full border", values.image ? "bg-blue-500/15 text-blue-600 border-blue-500/20" : "bg-muted text-muted-foreground/40 border-transparent")}><ImageIcon className="inline h-2.5 w-2.5" /> 首帧</span>
-          <span className={cn("text-[9px] px-1.5 py-0.5 rounded-full border", values.endFrame ? "bg-orange-500/15 text-orange-600 border-orange-500/20" : "bg-muted text-muted-foreground/40 border-transparent")}>◉ 尾帧</span>
-          <span className={cn("text-[9px] px-1.5 py-0.5 rounded-full border", values.video ? "bg-green-500/15 text-green-600 border-green-500/20" : "bg-muted text-muted-foreground/40 border-transparent")}><Play className="inline h-2.5 w-2.5" /> 视频</span>
+          <span className={cn("text-[9px] px-1.5 py-0.5 rounded-full border", scene.actionSummary ? "bg-viz-status-c/15 text-viz-status-c border-viz-status-c/20" : "bg-muted text-muted-foreground/40 border-transparent")}><Edit3 className="inline h-2.5 w-2.5" /> 剧本</span>
+          <span className={cn("text-[9px] px-1.5 py-0.5 rounded-full border", values.image ? "bg-primary/15 text-primary border-primary/20" : "bg-muted text-muted-foreground/40 border-transparent")}><ImageIcon className="inline h-2.5 w-2.5" /> 首帧</span>
+          <span className={cn("text-[9px] px-1.5 py-0.5 rounded-full border", values.endFrame ? "bg-warning/15 text-warning border-warning/20" : "bg-muted text-muted-foreground/40 border-transparent")}>◉ 尾帧</span>
+          <span className={cn("text-[9px] px-1.5 py-0.5 rounded-full border", values.video ? "bg-success/15 text-success border-success/20" : "bg-muted text-muted-foreground/40 border-transparent")}><Play className="inline h-2.5 w-2.5" /> 视频</span>
         </div>
       </button>
       {isExpanded ? (
         <div className="space-y-2 pl-1">
-          <div className="border-l-[3px] border-violet-500 pl-3 py-1 space-y-1">
-            <Label className="text-[10px] text-violet-600 flex items-center gap-1 font-medium"><Edit3 className="h-3 w-3" />剧本动作（提示词来源）</Label>
-            <div className="rounded bg-violet-500/5 border border-violet-500/10"><EditableTextField label="" value={scene.actionSummary || ""} onChange={onUpdateAction} placeholder="双击添加动作描述（AI 将据此生成三层提示词）..." disabled={disabled} multiline /></div>
+          <div className="border-l-[3px] border-viz-status-c/40 pl-3 py-1 space-y-1">
+            <Label className="text-[10px] text-viz-status-c flex items-center gap-1 font-medium"><Edit3 className="h-3 w-3" />剧本动作（提示词来源）</Label>
+            <div className="rounded bg-viz-status-c/5 border border-viz-status-c/10"><EditableTextField label="" value={scene.actionSummary || ""} onChange={onUpdateAction} placeholder="双击添加动作描述（AI 将据此生成三层提示词）..." disabled={disabled} multiline /></div>
           </div>
-          <div className="border-l-[3px] border-blue-500 pl-3 py-1 space-y-1"><Label className="text-[10px] text-blue-600 flex items-center gap-1 font-medium"><ImageIcon className="h-3 w-3" />首帧提示词（静态画面）</Label>{renderEditor("image", "blue", "描述首帧的静态画面...")}</div>
-          <div className="border-l-[3px] border-orange-500 pl-3 py-1 space-y-1"><Label className="text-[10px] text-orange-600 flex items-center gap-1 font-medium">◉ 尾帧提示词{scene.needsEndFrame ? "" : "（可选）"}</Label>{renderEditor("endFrame", "orange", "描述尾帧的静态画面...")}</div>
-          <div className="border-l-[3px] border-green-500 pl-3 py-1 space-y-1.5"><Label className="text-[10px] text-green-600 flex items-center gap-1 font-medium"><Play className="h-3 w-3" />视频提示词（动态动作）</Label>{renderEditor("video", "green", "描述视频中的动作、运动、变化...")}</div>
+          <div className="border-l-[3px] border-primary/40 pl-3 py-1 space-y-1"><Label className="text-[10px] text-primary flex items-center gap-1 font-medium"><ImageIcon className="h-3 w-3" />首帧提示词（静态画面）</Label>{renderEditor("image", "blue", "描述首帧的静态画面...")}</div>
+          <div className="border-l-[3px] border-warning/40 pl-3 py-1 space-y-1"><Label className="text-[10px] text-warning flex items-center gap-1 font-medium">◉ 尾帧提示词{scene.needsEndFrame ? "" : "（可选）"}</Label>{renderEditor("endFrame", "orange", "描述尾帧的静态画面...")}</div>
+          <div className="border-l-[3px] border-success/40 pl-3 py-1 space-y-1.5"><Label className="text-[10px] text-success flex items-center gap-1 font-medium"><Play className="h-3 w-3" />视频提示词（动态动作）</Label>{renderEditor("video", "green", "描述视频中的动作、运动、变化...")}</div>
         </div>
       ) : (
         <button type="button" onClick={() => setIsExpanded(true)} className="w-full space-y-1 p-2 rounded-md bg-muted/20 text-left hover:bg-muted/40 transition-colors border border-transparent hover:border-muted">
-          <p className="text-[10px] truncate"><span className="text-violet-600 font-medium">剧本: </span><span className="text-muted-foreground">{scene.actionSummary || "未设置"}</span></p>
-          <p className="text-[10px] truncate"><span className="text-blue-600 font-medium">首帧: </span><span className="text-muted-foreground">{values.image || "未设置"}</span></p>
-          {(scene.needsEndFrame || values.endFrame) && <p className="text-[10px] truncate"><span className="text-orange-600 font-medium">尾帧: </span><span className="text-orange-600/70">{values.endFrame || "未设置"}</span></p>}
-          <p className="text-[10px] truncate"><span className="text-green-600 font-medium">视频: </span><span className="text-muted-foreground">{values.video || "未设置"}{scene.cameraMovement && scene.cameraMovement !== "none" && <span className="ml-1 text-green-500/50">[{CAMERA_MOVEMENT_PRESETS.find((item) => item.id === scene.cameraMovement)?.label || scene.cameraMovement}]</span>}{scene.specialTechnique && scene.specialTechnique !== "none" && <span className="ml-1 text-purple-500/50">[{SPECIAL_TECHNIQUE_PRESETS.find((item) => item.id === scene.specialTechnique)?.label || scene.specialTechnique}]</span>}{scene.duration && <span className="ml-1 text-green-500/50">{scene.duration}s</span>}</span></p>
+          <p className="text-[10px] truncate"><span className="text-viz-status-c font-medium">剧本: </span><span className="text-muted-foreground">{scene.actionSummary || "未设置"}</span></p>
+          <p className="text-[10px] truncate"><span className="text-primary font-medium">首帧: </span><span className="text-muted-foreground">{values.image || "未设置"}</span></p>
+          {(scene.needsEndFrame || values.endFrame) && <p className="text-[10px] truncate"><span className="text-warning font-medium">尾帧: </span><span className="text-warning/70">{values.endFrame || "未设置"}</span></p>}
+          <p className="text-[10px] truncate"><span className="text-success font-medium">视频: </span><span className="text-muted-foreground">{values.video || "未设置"}{scene.cameraMovement && scene.cameraMovement !== "none" && <span className="ml-1 text-success/50">[{CAMERA_MOVEMENT_PRESETS.find((item) => item.id === scene.cameraMovement)?.label || scene.cameraMovement}]</span>}{scene.specialTechnique && scene.specialTechnique !== "none" && <span className="ml-1 text-viz-status-c/50">[{SPECIAL_TECHNIQUE_PRESETS.find((item) => item.id === scene.specialTechnique)?.label || scene.specialTechnique}]</span>}{scene.duration && <span className="ml-1 text-success/50">{scene.duration}s</span>}</span></p>
         </button>
       )}
     </div>

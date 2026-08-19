@@ -149,25 +149,25 @@ export function VisualContinuityReviewPanel({
   return (
     <section
       aria-label="分镜视觉连续性人工审核"
-      className="overflow-hidden rounded-xl border border-zinc-700/80 bg-zinc-950 text-zinc-100 shadow-[0_18px_60px_rgba(0,0,0,0.28)]"
+      className="overflow-hidden rounded-xl border border-border/80 bg-muted/60 text-foreground/80 shadow-[0_18px_60px_rgba(0,0,0,0.28)]"
     >
-      <header className="flex flex-wrap items-center justify-between gap-3 border-b border-zinc-800 bg-[linear-gradient(110deg,rgba(39,39,42,.96),rgba(9,9,11,.98))] px-4 py-3">
+      <header className="flex flex-wrap items-center justify-between gap-3 border-b border-border bg-[linear-gradient(110deg,rgba(39,39,42,.96),rgba(9,9,11,.98))] px-4 py-3">
         <div>
           <div className="flex items-center gap-2 text-sm font-semibold tracking-wide">
-            <Eye className="h-4 w-4 text-amber-300" />
+            <Eye className="h-4 w-4 text-warning" />
             分镜视觉连续性人工审核
           </div>
-          <p className="mt-1 text-[11px] text-zinc-400">逐镜核对身份、场景和动作承接；未人工批准的镜头不能进入最终成片。</p>
+          <p className="mt-1 text-[11px] text-muted-foreground">逐镜核对身份、场景和动作承接；未人工批准的镜头不能进入最终成片。</p>
         </div>
         <div className="flex flex-wrap items-center justify-end gap-1.5 text-[11px]" aria-label="视觉审核统计">
-          <Badge variant="outline" className="border-sky-500/40 bg-sky-500/10 text-sky-200">当前第 {selectedPosition + 1} / {totalShots} 镜</Badge>
-          <Badge variant="outline" className="border-amber-500/40 bg-amber-500/10 text-amber-200">待审 {statusCounts.pending} / {totalShots}</Badge>
-          <Badge variant="outline" className="border-emerald-500/40 bg-emerald-500/10 text-emerald-200">通过 {statusCounts.approved} / {totalShots}</Badge>
-          <Badge variant="outline" className="border-red-500/40 bg-red-500/10 text-red-200">驳回 {statusCounts.rejected} / {totalShots}</Badge>
+          <Badge variant="outline" className="border-primary/40 bg-primary/10 text-primary/80">当前第 {selectedPosition + 1} / {totalShots} 镜</Badge>
+          <Badge variant="outline" className="border-warning/40 bg-warning/10 text-warning/80">待审 {statusCounts.pending} / {totalShots}</Badge>
+          <Badge variant="outline" className="border-success/40 bg-success/10 text-success/80">通过 {statusCounts.approved} / {totalShots}</Badge>
+          <Badge variant="outline" className="border-destructive/40 bg-destructive/10 text-destructive/80">驳回 {statusCounts.rejected} / {totalShots}</Badge>
         </div>
       </header>
 
-      <div className="flex gap-1 overflow-x-auto border-b border-zinc-800 bg-black/35 p-2" aria-label="选择待审核分镜">
+      <div className="flex gap-1 overflow-x-auto border-b border-border bg-black/35 p-2" aria-label="选择待审核分镜">
         {ordered.map((item) => (
           <button
             key={item.id}
@@ -176,14 +176,14 @@ export function VisualContinuityReviewPanel({
             aria-pressed={item.id === selected.id}
             onClick={() => setSelectedId(item.id)}
             className={cn(
-              "h-8 min-w-10 rounded border px-2 text-[11px] font-medium outline-none transition-colors focus-visible:ring-2 focus-visible:ring-amber-300",
+              "h-8 min-w-10 rounded border px-2 text-[11px] font-medium outline-none transition-colors focus-visible:ring-2 focus-visible:ring-warning/40",
               item.id === selected.id
-                ? "border-amber-300 bg-amber-300 text-zinc-950"
+                ? "border-warning bg-warning text-warning-foreground"
                 : item.visualReview?.status === "approved"
-                  ? "border-emerald-700/70 bg-emerald-950/40 text-emerald-200"
+                  ? "border-success/70 bg-success/40 text-success/80"
                   : item.visualReview?.status === "rejected"
-                    ? "border-red-700/70 bg-red-950/40 text-red-200"
-                    : "border-zinc-700 bg-zinc-900 text-zinc-300 hover:border-zinc-500",
+                    ? "border-destructive/70 bg-destructive/40 text-destructive/80"
+                    : "border-border bg-muted/60 text-foreground/80 hover:border-border",
             )}
           >
             {String(item.index).padStart(2, "0")}
@@ -216,7 +216,7 @@ export function VisualContinuityReviewPanel({
             </Button>
             <div className="min-w-0 text-center">
               <div className="truncate text-xs font-medium">第 {selected.index} 镜 · {selected.continuityState?.groupId ?? "未分组"}</div>
-              <div className="mt-0.5 truncate text-[11px] text-zinc-500">{selected.videoDesc || selected.prompt}</div>
+              <div className="mt-0.5 truncate text-[11px] text-muted-foreground">{selected.videoDesc || selected.prompt}</div>
             </div>
             <Button
               type="button"
@@ -231,7 +231,7 @@ export function VisualContinuityReviewPanel({
           </div>
         </div>
 
-        <div className="space-y-3 rounded-lg border border-zinc-800 bg-zinc-900/60 p-3">
+        <div className="space-y-3 rounded-lg border border-border bg-muted/60/60 p-3">
           <ReviewWarnings
             storyboard={selected}
             contractReasons={[
@@ -281,13 +281,13 @@ export function VisualContinuityReviewPanel({
             />
           </div>
           <div>
-            <label htmlFor={`visual-review-reason-${selected.id}`} className="text-[11px] font-medium text-zinc-300">驳回原因</label>
+            <label htmlFor={`visual-review-reason-${selected.id}`} className="text-[11px] font-medium text-foreground/80">驳回原因</label>
             <Textarea
               id={`visual-review-reason-${selected.id}`}
               value={rejectionReason}
               onChange={(event) => setRejectionReason(event.target.value)}
               placeholder="指出具体换脸、服装、体型、空间或动作问题"
-              className="mt-1 min-h-20 border-zinc-700 bg-black/25 text-xs"
+              className="mt-1 min-h-20 border-border bg-black/25 text-xs"
             />
           </div>
           <div className="grid grid-cols-2 gap-2">
@@ -305,7 +305,7 @@ export function VisualContinuityReviewPanel({
               disabled={!canApprove}
               onClick={() => submit("approved")}
               aria-label={`批准第 ${selected.index} 镜`}
-              className="bg-emerald-600 text-foreground hover:bg-emerald-500"
+              className="bg-success text-success-foreground hover:brightness-110"
             >
               <CheckCircle2 className="h-4 w-4" />人工批准
             </Button>
@@ -330,10 +330,10 @@ function CanonicalAssetEvidence({
     versions.map((version) => [`${version.assetId}:${version.versionId}`, version]),
   );
   return (
-    <section aria-label="本镜 canonical 资产对照" className="rounded-lg border border-zinc-800 bg-black/25 p-2.5">
+    <section aria-label="本镜 canonical 资产对照" className="rounded-lg border border-border bg-black/25 p-2.5">
       <div className="mb-2 flex items-center justify-between gap-2">
-        <div className="text-[11px] font-semibold text-zinc-200">有序 canonical / 场景 / 道具对照</div>
-        <div className="text-[10px] text-zinc-500">按 provider 引用顺序展示</div>
+        <div className="text-[11px] font-semibold text-foreground/80">有序 canonical / 场景 / 道具对照</div>
+        <div className="text-[10px] text-muted-foreground">按 provider 引用顺序展示</div>
       </div>
       <div className="space-y-2">
         {references.map((reference) => {
@@ -359,23 +359,23 @@ function CanonicalAssetEvidence({
             ? [version.spatialLayout, version.lightingDesign, version.colorPalette].filter(Boolean).join("；")
             : "";
           return (
-            <article key={`${reference.order}:${reference.assetId}:${reference.versionId ?? ""}`} className="rounded-md border border-zinc-800 bg-zinc-950/80 p-2">
+            <article key={`${reference.order}:${reference.assetId}:${reference.versionId ?? ""}`} className="rounded-md border border-border bg-muted/60/80 p-2">
               <div className="flex flex-wrap items-center justify-between gap-2 text-[11px]">
-                <div className="font-medium text-zinc-200">
+                <div className="font-medium text-foreground/80">
                   @{reference.order} · {reference.assetName || reference.assetId} · {reference.versionId || "未设置版本"}
                 </div>
                 <Badge
                   variant="outline"
                   className={approved
-                    ? "border-emerald-600/50 bg-emerald-950/50 text-emerald-200"
+                    ? "border-success/50 bg-success/50 text-success/80"
                     : rejected
-                      ? "border-red-600/50 bg-red-950/50 text-red-200"
-                      : "border-amber-600/50 bg-amber-950/50 text-amber-200"}
+                      ? "border-destructive/50 bg-destructive/50 text-destructive/80"
+                      : "border-warning/50 bg-warning/50 text-warning/80"}
                 >
                   {approved ? "已人工批准" : rejected ? "已人工驳回" : "待人工审核"}
                 </Badge>
               </div>
-              <div className="mt-1 text-[10px] text-zinc-500">
+              <div className="mt-1 text-[10px] text-muted-foreground">
                 {reference.referenceRole ?? "未设置角色"}
                 {version?.wardrobeVersion ? ` · 服装 ${version.wardrobeVersion}` : ""}
                 {version?.sceneViewpointId ? ` · 视角 ${version.sceneViewpointId}` : ""}
@@ -398,28 +398,28 @@ function CanonicalAssetEvidence({
                   fallback="暂无安全审核缩略图"
                 />
               </div>
-              {anchorText ? <div className="mt-2 text-[10px] leading-4 text-zinc-400">文字锚点：{anchorText}</div> : null}
-              {sceneText ? <div className="mt-2 text-[10px] leading-4 text-zinc-400">场景锚点：{sceneText}</div> : null}
+              {anchorText ? <div className="mt-2 text-[10px] leading-4 text-muted-foreground">文字锚点：{anchorText}</div> : null}
+              {sceneText ? <div className="mt-2 text-[10px] leading-4 text-muted-foreground">场景锚点：{sceneText}</div> : null}
               {version?.contentFingerprint ? (
-                <div className="mt-1 break-all text-[9px] leading-4 text-zinc-600">
+                <div className="mt-1 break-all text-[9px] leading-4 text-muted-foreground">
                   内容指纹：{version.contentFingerprint.slice(0, 48)}{version.contentFingerprint.length > 48 ? "…" : ""}
                 </div>
               ) : null}
               {version?.approvalFingerprint ? (
-                <div className="mt-1 break-all text-[9px] leading-4 text-zinc-600">
+                <div className="mt-1 break-all text-[9px] leading-4 text-muted-foreground">
                   批准指纹：{version.approvalFingerprint.slice(0, 48)}{version.approvalFingerprint.length > 48 ? "…" : ""}
                 </div>
               ) : null}
               {version?.approval?.reason ? (
-                <div className="mt-1 text-[10px] leading-4 text-zinc-400">上次审核说明：{version.approval.reason}</div>
+                <div className="mt-1 text-[10px] leading-4 text-muted-foreground">上次审核说明：{version.approval.reason}</div>
               ) : null}
               {version && !hasCompleteReviewEvidence ? (
-                <div className="mt-1 text-[10px] leading-4 text-amber-300">
+                <div className="mt-1 text-[10px] leading-4 text-warning">
                   缺少逐图安全缩略证据；请先生成严格小于 1MB 的 *_thumb.png。
                 </div>
               ) : null}
               {version && hasCompleteReviewEvidence && !hasVerifiedReviewEvidence ? (
-                <div className="mt-1 text-[10px] leading-4 text-amber-300">
+                <div className="mt-1 text-[10px] leading-4 text-warning">
                   缩略图尚未完成本地文件、尺寸、字节数与 SHA-256 安全校验；请使用单资产安全推广命令。
                 </div>
               ) : null}
@@ -433,7 +433,7 @@ function CanonicalAssetEvidence({
                     }))}
                     aria-label={`资产审核说明 ${version.assetId} ${version.versionId}`}
                     placeholder="批准可填写核对说明；驳回必须说明具体问题"
-                    className="min-h-16 border-zinc-800 bg-black/30 text-[10px]"
+                    className="min-h-16 border-border bg-black/30 text-[10px]"
                   />
                   <div className="grid grid-cols-2 gap-2">
                     <Button
@@ -493,12 +493,12 @@ function AssetImageStrip({
   fallback: string;
 }) {
   return (
-    <div aria-label={label} className="rounded border border-zinc-800/80 bg-black/20 p-1.5">
-      <div className="mb-1 text-[10px] font-medium text-zinc-400">{label}</div>
+    <div aria-label={label} className="rounded border border-border/80 bg-black/20 p-1.5">
+      <div className="mb-1 text-[10px] font-medium text-muted-foreground">{label}</div>
       {paths.length ? (
         <div className="grid grid-cols-2 gap-1.5">
           {paths.map((path, index) => (
-            <figure key={`${path}:${index}`} className="overflow-hidden rounded border border-zinc-800 bg-black">
+            <figure key={`${path}:${index}`} className="overflow-hidden rounded border border-border bg-black">
               <img
                 src={toPreviewSrc(path)}
                 alt={`${altPrefix} ${viewTypes[index] ?? `图${index + 1}`} ${altLabel}`}
@@ -508,7 +508,7 @@ function AssetImageStrip({
           ))}
         </div>
       ) : (
-        <div className="flex min-h-12 items-center justify-center text-[10px] text-zinc-600">{fallback}</div>
+        <div className="flex min-h-12 items-center justify-center text-[10px] text-muted-foreground">{fallback}</div>
       )}
     </div>
   );
@@ -529,10 +529,10 @@ function FrameEvidence({
   return (
     <figure className={cn(
       "overflow-hidden rounded-lg border bg-black",
-      current ? "border-amber-300/80 ring-1 ring-amber-300/25" : "border-zinc-800",
+      current ? "border-warning/80 ring-1 ring-warning/25" : "border-border",
       muted && "opacity-75",
     )}>
-      <figcaption className="flex items-center justify-between border-b border-zinc-800 px-2.5 py-1.5 text-[11px] text-zinc-400">
+      <figcaption className="flex items-center justify-between border-b border-border px-2.5 py-1.5 text-[11px] text-muted-foreground">
         <span>{label}</span><span>{storyboard ? `#${storyboard.index}` : "—"}</span>
       </figcaption>
       <div className="aspect-video bg-[radial-gradient(circle_at_50%_45%,#27272a,#09090b_70%)]">
@@ -543,7 +543,7 @@ function FrameEvidence({
             className="h-full w-full object-contain"
           />
         ) : (
-          <div className="flex h-full items-center justify-center text-xs text-zinc-600">无画面证据</div>
+          <div className="flex h-full items-center justify-center text-xs text-muted-foreground">无画面证据</div>
         )}
       </div>
     </figure>
@@ -560,7 +560,7 @@ function ReviewCheck({
   onCheckedChange: (checked: boolean) => void;
 }) {
   return (
-    <label className="flex cursor-pointer items-start gap-2 rounded-md border border-zinc-800 bg-black/20 px-2.5 py-2 text-[11px] leading-4 text-zinc-300">
+    <label className="flex cursor-pointer items-start gap-2 rounded-md border border-border bg-black/20 px-2.5 py-2 text-[11px] leading-4 text-foreground/80">
       <Checkbox
         checked={checked}
         onCheckedChange={(value) => onCheckedChange(value === true)}
@@ -579,7 +579,7 @@ function ReviewEvidenceSummary({
 }) {
   if (!review) {
     return (
-      <section aria-label="当前镜审核证据" className="rounded-md border border-zinc-800 bg-black/20 px-2.5 py-2 text-[10px] text-zinc-500">
+      <section aria-label="当前镜审核证据" className="rounded-md border border-border bg-black/20 px-2.5 py-2 text-[10px] text-muted-foreground">
         当前镜尚未提交审核记录。
       </section>
     );
@@ -597,12 +597,12 @@ function ReviewEvidenceSummary({
     ? new Date(review.reviewedAt).toLocaleString("zh-CN")
     : "未记录";
   return (
-    <section aria-label="当前镜审核证据" className="rounded-md border border-zinc-800 bg-black/20 px-2.5 py-2 text-[10px] text-zinc-400">
+    <section aria-label="当前镜审核证据" className="rounded-md border border-border bg-black/20 px-2.5 py-2 text-[10px] text-muted-foreground">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <span className="font-medium text-zinc-200">已提交审核证据</span>
+        <span className="font-medium text-foreground/80">已提交审核证据</span>
         <Badge variant="outline" className={review.reviewer === "human"
-          ? "border-emerald-600/50 bg-emerald-950/40 text-emerald-200"
-          : "border-zinc-700 bg-zinc-900 text-zinc-400"}>
+          ? "border-success/50 bg-success/40 text-success/80"
+          : "border-border bg-muted/60 text-muted-foreground"}>
           {review.reviewer === "human" ? "人工审核" : "自动记录"}
         </Badge>
       </div>
@@ -615,13 +615,13 @@ function ReviewEvidenceSummary({
       {evidencePaths.length ? (
         <ul className="mt-1 space-y-0.5" aria-label="当前镜画面证据路径">
           {evidencePaths.map((path) => (
-            <li key={path} className="truncate font-mono text-[9px] text-zinc-500" title={path}>{path}</li>
+            <li key={path} className="truncate font-mono text-[9px] text-muted-foreground" title={path}>{path}</li>
           ))}
         </ul>
       ) : null}
       <ul className="mt-1 space-y-0.5" aria-label="当前镜逐项审核检查">
         {checks.map((check) => (
-          <li key={check.label} className={check.passed ? "text-emerald-300" : "text-red-300"}>
+          <li key={check.label} className={check.passed ? "text-success" : "text-destructive"}>
             {check.passed ? "通过" : "未通过"} · {check.label}
           </li>
         ))}
@@ -652,10 +652,10 @@ function ReviewWarnings({
   return (
     <div className={cn(
       "rounded-md border px-2.5 py-2 text-[11px]",
-      reasons.length ? "border-amber-600/40 bg-amber-950/30 text-amber-200" : "border-zinc-800 bg-black/20 text-zinc-400",
+      reasons.length ? "border-warning/40 bg-warning/30 text-warning/80" : "border-border bg-black/20 text-muted-foreground",
     )}>
       <div className="flex items-center gap-1.5 font-medium">
-        {reasons.length ? <AlertTriangle className="h-3.5 w-3.5" /> : <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400" />}
+        {reasons.length ? <AlertTriangle className="h-3.5 w-3.5" /> : <CheckCircle2 className="h-3.5 w-3.5 text-success" />}
         {storyboard.visualReview?.status === "approved" ? "已有人工作出批准记录" : "当前审核状态"}
       </div>
       <div className="mt-1">{reasons.join("；") || "无已记录问题；仍需逐项人工勾选确认。"}</div>

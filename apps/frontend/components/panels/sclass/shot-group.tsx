@@ -151,9 +151,9 @@ export function ShotGroupCard({
     <div
       className={cn(
         "border rounded-lg overflow-hidden",
-        isOverBudget && "border-red-500/50",
-        isCompleted && "border-green-500/30",
-        isFailed && "border-red-500/30",
+        isOverBudget && "border-destructive/50",
+        isCompleted && "border-success/30",
+        isFailed && "border-destructive/30",
         isExtendChild && "border-l-4 border-l-purple-500",
         isEditChild && "border-l-4 border-l-orange-500",
       )}
@@ -178,10 +178,10 @@ export function ShotGroupCard({
           <Layers className="h-3.5 w-3.5 text-primary shrink-0" />
           <span className="text-sm font-medium truncate">{group.name}</span>
           {isExtendChild && (
-            <span className="text-[10px] px-1.5 py-0.5 bg-purple-500/10 text-purple-600 dark:text-purple-400 rounded-full shrink-0">延长</span>
+            <span className="text-[10px] px-1.5 py-0.5 bg-viz-status-c/10 text-viz-status-c dark:text-viz-status-c rounded-full shrink-0">延长</span>
           )}
           {isEditChild && (
-            <span className="text-[10px] px-1.5 py-0.5 bg-orange-500/10 text-orange-600 dark:text-orange-400 rounded-full shrink-0">编辑</span>
+            <span className="text-[10px] px-1.5 py-0.5 bg-warning/10 text-warning dark:text-warning rounded-full shrink-0">编辑</span>
           )}
         </div>
 
@@ -198,7 +198,7 @@ export function ShotGroupCard({
                 className={cn(
                   "flex items-center gap-1 text-xs px-1.5 py-0.5 rounded shrink-0",
                   isOverBudget
-                    ? "bg-red-500/10 text-red-500"
+                    ? "bg-destructive/10 text-destructive"
                     : "bg-muted text-muted-foreground",
                 )}
               >
@@ -223,10 +223,10 @@ export function ShotGroupCard({
 
         {/* 状态标记 */}
         {isCompleted && (
-          <CheckCircle2 className="h-3.5 w-3.5 text-green-500 shrink-0" />
+          <CheckCircle2 className="h-3.5 w-3.5 text-success shrink-0" />
         )}
         {isFailed && (
-          <AlertCircle className="h-3.5 w-3.5 text-red-500 shrink-0" />
+          <AlertCircle className="h-3.5 w-3.5 text-destructive shrink-0" />
         )}
 
         {/* @引用数量标记 */}
@@ -258,7 +258,7 @@ export function ShotGroupCard({
                   size="sm"
                   className={cn(
                     "h-7 px-2 text-xs",
-                    isCalibrated && "border-purple-500/50 text-purple-600 dark:text-purple-400",
+                    isCalibrated && "border-viz-status-c/50 text-viz-status-c dark:text-viz-status-c",
                   )}
                   disabled={isCalibrating || isGenerating}
                   onClick={() => onCalibrateGroup?.(group.id)}
@@ -313,7 +313,7 @@ export function ShotGroupCard({
                     <Button
                       variant="outline"
                       size="sm"
-                      className="h-7 px-2 text-xs border-purple-500/50 text-purple-600 dark:text-purple-400 hover:bg-purple-500/10"
+                      className="h-7 px-2 text-xs border-viz-status-c/50 text-viz-status-c dark:text-viz-status-c hover:bg-viz-status-c/10"
                       disabled={isGeneratingAny}
                       onClick={() => onExtendGroup?.(group.id)}
                     >
@@ -330,7 +330,7 @@ export function ShotGroupCard({
                     <Button
                       variant="outline"
                       size="sm"
-                      className="h-7 px-2 text-xs border-orange-500/50 text-orange-600 dark:text-orange-400 hover:bg-orange-500/10"
+                      className="h-7 px-2 text-xs border-warning/50 text-warning dark:text-warning hover:bg-warning/10"
                       disabled={isGeneratingAny}
                       onClick={() => onEditGroup?.(group.id)}
                     >
@@ -352,12 +352,12 @@ export function ShotGroupCard({
           {durationSegments.map((seg, idx) => {
             const segPercent = (seg.duration / 15) * 100;
             const colors = [
-              "bg-blue-500",
-              "bg-cyan-500",
-              "bg-teal-500",
-              "bg-emerald-500",
-              "bg-violet-500",
-              "bg-pink-500",
+              "bg-primary",
+              "bg-info",
+              "bg-success",
+              "bg-success",
+              "bg-viz-status-c",
+              "bg-viz-status-c",
             ];
             return (
               <TooltipProvider key={seg.id}>
@@ -395,7 +395,7 @@ export function ShotGroupCard({
             {actualDuration}s
           </span>
           {isOverBudget && (
-            <span className="text-[10px] text-red-500 font-medium">
+            <span className="text-[10px] text-destructive font-medium">
               超出 {actualDuration - 15}s
             </span>
           )}
@@ -404,21 +404,21 @@ export function ShotGroupCard({
 
       {/* ========== AI 校准结果预览 ========== */}
       {(isCalibrated || isCalibrationFailed) && (
-        <div className="px-3 py-2 border-t bg-purple-500/5 space-y-1.5">
+        <div className="px-3 py-2 border-t bg-viz-status-c/5 space-y-1.5">
           {isCalibrated && group.narrativeArc && (
             <div className="flex items-start gap-1.5">
-              <Sparkles className="h-3 w-3 text-purple-500 mt-0.5 shrink-0" />
+              <Sparkles className="h-3 w-3 text-viz-status-c mt-0.5 shrink-0" />
               <div>
-                <span className="text-[10px] font-medium text-purple-600 dark:text-purple-400">叙事弧线</span>
+                <span className="text-[10px] font-medium text-viz-status-c dark:text-viz-status-c">叙事弧线</span>
                 <p className="text-xs text-muted-foreground mt-0.5">{group.narrativeArc}</p>
               </div>
             </div>
           )}
           {isCalibrated && group.transitions && group.transitions.length > 0 && (
             <div className="flex items-start gap-1.5">
-              <ChevronRight className="h-3 w-3 text-purple-400 mt-0.5 shrink-0" />
+              <ChevronRight className="h-3 w-3 text-viz-status-c mt-0.5 shrink-0" />
               <div>
-                <span className="text-[10px] font-medium text-purple-600 dark:text-purple-400">过渡设计</span>
+                <span className="text-[10px] font-medium text-viz-status-c dark:text-viz-status-c">过渡设计</span>
                 <p className="text-xs text-muted-foreground mt-0.5">
                   {group.transitions.map((t, i) => `${i + 1}→${i + 2}: ${t}`).join('；')}
                 </p>
@@ -427,8 +427,8 @@ export function ShotGroupCard({
           )}
           {isCalibrationFailed && group.calibrationError && (
             <div className="flex items-start gap-1.5">
-              <AlertCircle className="h-3 w-3 text-red-500 mt-0.5 shrink-0" />
-              <span className="text-xs text-red-500">校准失败：{group.calibrationError}</span>
+              <AlertCircle className="h-3 w-3 text-destructive mt-0.5 shrink-0" />
+              <span className="text-xs text-destructive">校准失败：{group.calibrationError}</span>
             </div>
           )}
         </div>
@@ -441,8 +441,8 @@ export function ShotGroupCard({
           {group.gridImageUrl && (
             <div>
               <div className="flex items-center gap-2 mb-1">
-                <ImageIcon className="h-3.5 w-3.5 text-blue-500" />
-                <span className="text-xs text-blue-600 dark:text-blue-400">格子图</span>
+                <ImageIcon className="h-3.5 w-3.5 text-primary" />
+                <span className="text-xs text-primary dark:text-primary">格子图</span>
                 <div className="ml-auto flex items-center gap-1">
                   <Button variant="ghost" size="sm" className="h-6 w-6 p-0" onClick={() => setGridPreviewOpen(!gridPreviewOpen)}>
                     <ZoomIn className="h-3 w-3" />
@@ -469,8 +469,8 @@ export function ShotGroupCard({
           {group.lastPrompt && (
             <div>
               <div className="flex items-center gap-2">
-                <Copy className="h-3.5 w-3.5 text-orange-500" />
-                <span className="text-xs text-orange-600 dark:text-orange-400">生成 Prompt</span>
+                <Copy className="h-3.5 w-3.5 text-warning" />
+                <span className="text-xs text-warning dark:text-warning">生成 Prompt</span>
                 <Button variant="ghost" size="sm" className="h-6 px-2 ml-auto text-xs" onClick={handleCopyPrompt}>
                   <Copy className="h-3 w-3 mr-1" />
                   复制
@@ -486,8 +486,8 @@ export function ShotGroupCard({
           {group.videoUrl && (
             <div>
               <div className="flex items-center gap-2 mb-1">
-                <Film className="h-3.5 w-3.5 text-green-500" />
-                <span className="text-xs text-green-600 dark:text-green-400">视频已生成</span>
+                <Film className="h-3.5 w-3.5 text-success" />
+                <span className="text-xs text-success dark:text-success">视频已生成</span>
               </div>
               <video
                 src={group.videoUrl}
@@ -502,10 +502,10 @@ export function ShotGroupCard({
 
       {/* 错误信息 */}
       {isFailed && group.videoError && (
-        <div className="px-3 py-1.5 border-t bg-red-500/5">
+        <div className="px-3 py-1.5 border-t bg-destructive/5">
           <div className="flex items-start gap-1.5">
-            <AlertCircle className="h-3 w-3 text-red-500 mt-0.5 shrink-0" />
-            <span className="text-xs text-red-500">{group.videoError}</span>
+            <AlertCircle className="h-3 w-3 text-destructive mt-0.5 shrink-0" />
+            <span className="text-xs text-destructive">{group.videoError}</span>
           </div>
         </div>
       )}

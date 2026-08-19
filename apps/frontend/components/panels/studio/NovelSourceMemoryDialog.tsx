@@ -29,10 +29,10 @@ const STATUS_LABEL: Record<string, string> = {
 
 const STATUS_CLASS: Record<string, string> = {
   idle: "border-border bg-muted text-muted-foreground",
-  ready: "border-emerald-500/40 bg-emerald-500/10 text-emerald-400",
-  partial: "border-amber-500/40 bg-amber-500/10 text-amber-400",
-  stale: "border-orange-500/40 bg-orange-500/10 text-orange-400",
-  failed: "border-red-500/40 bg-red-500/10 text-red-400",
+  ready: "border-success/40 bg-success/10 text-success",
+  partial: "border-warning/40 bg-warning/10 text-warning",
+  stale: "border-warning/40 bg-warning/10 text-warning",
+  failed: "border-destructive/40 bg-destructive/10 text-destructive",
 };
 
 function degradedReasonText(reason?: string): string | undefined {
@@ -249,7 +249,7 @@ export function NovelSourceMemoryDialog(props: {
                   </div>
                 ))}
                 {status?.recoverableArtifacts?.length ? (
-                  <div className="rounded border border-amber-500/30 bg-amber-500/5 px-2 py-1 text-amber-300">
+                  <div className="rounded border border-warning/30 bg-warning/5 px-2 py-1 text-warning">
                     <p>可恢复遗留物：</p>
                     {status.recoverableArtifacts.map((artifact) => (
                       <p key={artifact} className="break-all text-[10px]">{artifact}</p>
@@ -258,10 +258,10 @@ export function NovelSourceMemoryDialog(props: {
                 ) : null}
               </div>
               {reasonText ? (
-                <p className="text-xs text-amber-400">状态原因：{reasonText}</p>
+                <p className="text-xs text-warning">状态原因：{reasonText}</p>
               ) : null}
               {progress ? (
-                <p className={`text-xs ${progress.failed ? "text-amber-400" : "text-muted-foreground"}`}>
+                <p className={`text-xs ${progress.failed ? "text-warning" : "text-muted-foreground"}`}>
                   抽取进度：{progress.done}/{progress.total}
                   {progress.failed ? `（失败 ${progress.failed}）` : ""}
                   {progress.lastError ? ` · 最近错误：${progress.lastError.slice(0, 80)}` : ""}

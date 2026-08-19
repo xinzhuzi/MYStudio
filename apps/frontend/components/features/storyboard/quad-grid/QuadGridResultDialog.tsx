@@ -94,13 +94,13 @@ export function QuadGridResultDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl p-4 bg-zinc-900 border-zinc-800">
+      <DialogContent className="max-w-2xl p-4 bg-muted/60 border-border">
         <DialogHeader className="pb-2">
           <DialogTitle className="text-sm text-foreground flex items-center gap-2">
-            <Grid2X2 className="h-4 w-4 text-cyan-400" />
+            <Grid2X2 className="h-4 w-4 text-info" />
             四宫格结果 - {frameType === "start" ? "首帧" : "尾帧"}
           </DialogTitle>
-          <DialogDescription className="text-xs text-zinc-400">
+          <DialogDescription className="text-xs text-muted-foreground">
             点击选择图片，可应用到当前分镜或复制到其他分镜
           </DialogDescription>
         </DialogHeader>
@@ -110,8 +110,8 @@ export function QuadGridResultDialog({
           <div className="flex gap-4">
             {/* 原图 */}
             <div className="w-1/4">
-              <div className="text-[10px] text-zinc-500 mb-1">锚点原图</div>
-              <div className="aspect-video rounded overflow-hidden border border-zinc-700">
+              <div className="text-[10px] text-muted-foreground mb-1">锚点原图</div>
+              <div className="aspect-video rounded overflow-hidden border border-border">
                 <img
                   src={result.originalImage}
                   alt="原图"
@@ -122,7 +122,7 @@ export function QuadGridResultDialog({
 
             {/* 四宫格结果 */}
             <div className="flex-1">
-              <div className="text-[10px] text-zinc-500 mb-1">
+              <div className="text-[10px] text-muted-foreground mb-1">
                 四宫格结果 ({result.variationType})
               </div>
               <div className="grid grid-cols-2 gap-2">
@@ -133,8 +133,8 @@ export function QuadGridResultDialog({
                     className={cn(
                       "aspect-video rounded overflow-hidden border-2 transition-all relative group",
                       selectedIndex === index
-                        ? "border-cyan-500 ring-2 ring-cyan-500/30"
-                        : "border-zinc-700 hover:border-zinc-600"
+                        ? "border-viz-selection ring-2 ring-viz-selection/30"
+                        : "border-border hover:border-border"
                     )}
                   >
                     <img
@@ -146,7 +146,7 @@ export function QuadGridResultDialog({
                       {index + 1}. {result.variationLabels[index]}
                     </span>
                     {selectedIndex === index && (
-                      <span className="absolute top-1 right-1 text-[9px] bg-cyan-500 text-black px-1 py-0.5 rounded">
+                      <span className="absolute top-1 right-1 text-[9px] bg-viz-selection text-black px-1 py-0.5 rounded">
                         已选中
                       </span>
                     )}
@@ -172,11 +172,11 @@ export function QuadGridResultDialog({
           {/* 复制到其他分镜 */}
           {otherScenes.length > 0 && (
             <div className="flex items-center gap-2 p-3 rounded bg-muted/50 border border-border">
-              <span className="text-xs text-zinc-400 whitespace-nowrap">
+              <span className="text-xs text-muted-foreground whitespace-nowrap">
                 复制到:
               </span>
               <Select value={copyTargetScene} onValueChange={setCopyTargetScene}>
-                <SelectTrigger className="w-[140px] h-7 text-xs bg-zinc-800 border-zinc-700">
+                <SelectTrigger className="w-[140px] h-7 text-xs bg-muted/60 border-border">
                   <SelectValue placeholder="选择分镜" />
                 </SelectTrigger>
                 <SelectContent>
@@ -188,7 +188,7 @@ export function QuadGridResultDialog({
                 </SelectContent>
               </Select>
               <Select value={copyTargetFrame} onValueChange={(v) => setCopyTargetFrame(v as "start" | "end")}>
-                <SelectTrigger className="w-[80px] h-7 text-xs bg-zinc-800 border-zinc-700">
+                <SelectTrigger className="w-[80px] h-7 text-xs bg-muted/60 border-border">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -201,7 +201,7 @@ export function QuadGridResultDialog({
                 variant="outline"
                 onClick={handleCopyToScene}
                 disabled={!copyTargetScene}
-                className="h-7 text-xs border-zinc-700"
+                className="h-7 text-xs border-border"
               >
                 <Copy className="h-3 w-3 mr-1" />
                 复制
@@ -215,7 +215,7 @@ export function QuadGridResultDialog({
             variant="outline"
             size="sm"
             onClick={() => onOpenChange(false)}
-            className="h-8 text-xs border-zinc-700"
+            className="h-8 text-xs border-border"
           >
             <X className="h-3 w-3 mr-1" />
             关闭
@@ -223,7 +223,7 @@ export function QuadGridResultDialog({
           <Button
             size="sm"
             onClick={() => onApply(selectedIndex)}
-            className="h-8 text-xs bg-cyan-500 hover:bg-cyan-600 text-foreground"
+            className="h-8 text-xs bg-viz-selection hover:bg-info text-foreground"
           >
             <Check className="h-3 w-3 mr-1" />
             应用到{frameType === "start" ? "首帧" : "尾帧"}

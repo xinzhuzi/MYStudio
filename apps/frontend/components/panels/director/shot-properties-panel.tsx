@@ -433,7 +433,7 @@ export function ShotPropertiesPanel({
                   {selectedShot.cameraMovement || "Static"}
                 </span>
                 {selectedShot.duration && (
-                  <span className="px-1.5 py-0.5 bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300 rounded text-[10px] flex items-center gap-0.5">
+                  <span className="px-1.5 py-0.5 bg-warning/15 dark:bg-warning/30 text-warning dark:text-warning rounded text-[10px] flex items-center gap-0.5">
                     <Timer className="w-2.5 h-2.5" />
                     {selectedShot.duration}s
                   </span>
@@ -447,7 +447,7 @@ export function ShotPropertiesPanel({
                     <Eye className="w-2.5 h-2.5" />
                     <span>视觉描述</span>
                   </div>
-                  <p className="text-xs leading-relaxed bg-gradient-to-r from-violet-50 to-purple-50 dark:from-violet-950/30 dark:to-purple-950/30 border border-violet-200 dark:border-violet-800 rounded p-2 text-violet-800 dark:text-violet-200">
+                  <p className="text-xs leading-relaxed bg-gradient-to-r from-viz-status-c/15 to-viz-status-c/15 dark:from-viz-status-c/30 dark:to-viz-status-c/30 border border-viz-status-c/40 dark:border-viz-status-c/40 rounded p-2 text-viz-status-c dark:text-viz-status-c/80">
                     {selectedShot.visualDescription}
                   </p>
                 </div>
@@ -458,7 +458,7 @@ export function ShotPropertiesPanel({
               
               {/* Dialogue */}
               {selectedShot.dialogue && (
-                <div className="flex gap-1.5 text-xs text-primary/80 italic bg-blue-50 dark:bg-blue-950/30 rounded p-1.5">
+                <div className="flex gap-1.5 text-xs text-primary/80 italic bg-primary/15 dark:bg-primary/30 rounded p-1.5">
                   <MessageSquare className="w-3 h-3 shrink-0 mt-0.5" />
                   <span>"{selectedShot.dialogue}"</span>
                 </div>
@@ -477,7 +477,7 @@ export function ShotPropertiesPanel({
                 {selectedShot.ambientSound && (
                   <div className="flex gap-1.5 text-xs">
                     <span className="text-muted-foreground shrink-0">环境声:</span>
-                    <span className="text-green-700 dark:text-green-300">{selectedShot.ambientSound}</span>
+                    <span className="text-success dark:text-success">{selectedShot.ambientSound}</span>
                   </div>
                 )}
                 {selectedShot.soundEffect && (
@@ -486,7 +486,7 @@ export function ShotPropertiesPanel({
                       <Zap className="w-2.5 h-2.5" />
                       音效:
                     </span>
-                    <span className="text-orange-700 dark:text-orange-300">{selectedShot.soundEffect}</span>
+                    <span className="text-warning dark:text-warning">{selectedShot.soundEffect}</span>
                   </div>
                 )}
               </div>

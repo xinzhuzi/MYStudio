@@ -76,16 +76,16 @@ function RefThumbnail({
 
   if (type === "audio") {
     return (
-      <div className="w-10 h-10 rounded bg-green-500/10 flex items-center justify-center">
-        <Music className="h-4 w-4 text-green-500" />
+      <div className="w-10 h-10 rounded bg-success/10 flex items-center justify-center">
+        <Music className="h-4 w-4 text-success" />
       </div>
     );
   }
 
   if (type === "video") {
     return (
-      <div className="w-10 h-10 rounded bg-purple-500/10 flex items-center justify-center">
-        <Film className="h-4 w-4 text-purple-500" />
+      <div className="w-10 h-10 rounded bg-viz-status-c/10 flex items-center justify-center">
+        <Film className="h-4 w-4 text-viz-status-c" />
       </div>
     );
   }
@@ -122,12 +122,12 @@ function QuotaBar({
   return (
     <div className="flex items-center gap-1.5 text-xs">
       {icon}
-      <span className={cn(over && "text-red-500 font-medium")}>
+      <span className={cn(over && "text-destructive font-medium")}>
         {current}/{max}
       </span>
       <div className="w-16 h-1.5 bg-muted rounded-full overflow-hidden">
         <div
-          className={cn("h-full rounded-full transition-all", over ? "bg-red-500" : color)}
+          className={cn("h-full rounded-full transition-all", over ? "bg-destructive" : color)}
           style={{ width: `${pct}%` }}
         />
       </div>
@@ -266,29 +266,29 @@ export function GroupRefManager({
         <span className="text-xs font-medium text-muted-foreground">@引用素材</span>
         <QuotaBar
           label="图片"
-          icon={<ImageIcon className="h-3 w-3 text-blue-500" />}
+          icon={<ImageIcon className="h-3 w-3 text-primary" />}
           current={imageCount}
           max={SEEDANCE_LIMITS.maxImages}
-          color="bg-blue-500"
+          color="bg-primary"
         />
         <QuotaBar
           label="视频"
-          icon={<Film className="h-3 w-3 text-purple-500" />}
+          icon={<Film className="h-3 w-3 text-viz-status-c" />}
           current={videoRefs.length}
           max={SEEDANCE_LIMITS.maxVideos}
-          color="bg-purple-500"
+          color="bg-viz-status-c"
         />
         <QuotaBar
           label="音频"
-          icon={<Music className="h-3 w-3 text-green-500" />}
+          icon={<Music className="h-3 w-3 text-success" />}
           current={audioRefs.length}
           max={SEEDANCE_LIMITS.maxAudios}
-          color="bg-green-500"
+          color="bg-success"
         />
         <div className={cn(
           "text-xs px-1.5 py-0.5 rounded",
           totalFiles > SEEDANCE_LIMITS.maxTotalFiles
-            ? "bg-red-500/10 text-red-500 font-medium"
+            ? "bg-destructive/10 text-destructive font-medium"
             : "bg-muted text-muted-foreground"
         )}>
           总 {totalFiles}/{SEEDANCE_LIMITS.maxTotalFiles}
@@ -306,7 +306,7 @@ export function GroupRefManager({
       {/* ========== 视频引用上传区 ========== */}
       <div className="space-y-1">
         <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-          <Film className="h-3 w-3 text-purple-500" />
+          <Film className="h-3 w-3 text-viz-status-c" />
           <span>视频引用 — 运镜/动作复刻</span>
         </div>
 
@@ -350,7 +350,7 @@ export function GroupRefManager({
       {/* ========== 音频引用上传区 ========== */}
       <div className="space-y-1">
         <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-          <Music className="h-3 w-3 text-green-500" />
+          <Music className="h-3 w-3 text-success" />
           <span>音频引用 — 节奏/BGM</span>
         </div>
 
@@ -393,7 +393,7 @@ export function GroupRefManager({
 
       {/* ========== 超限警告 ========== */}
       {totalFiles > SEEDANCE_LIMITS.maxTotalFiles && (
-        <div className="flex items-start gap-1.5 text-xs text-red-500 bg-red-500/5 rounded p-1.5">
+        <div className="flex items-start gap-1.5 text-xs text-destructive bg-destructive/5 rounded p-1.5">
           <AlertCircle className="h-3 w-3 mt-0.5 shrink-0" />
           <span>总文件数 {totalFiles} 超出 Seedance 2.0 限制 ({SEEDANCE_LIMITS.maxTotalFiles})，请移除部分引用</span>
         </div>
@@ -432,10 +432,10 @@ function AutoImageSection({
         className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
         onClick={() => setExpanded(!expanded)}
       >
-        <ImageIcon className="h-3 w-3 text-blue-500" />
+        <ImageIcon className="h-3 w-3 text-primary" />
         <span>
           自动收集 {totalCount} 张图片
-          {truncated && <span className="text-amber-500 ml-1">(超出限制已截断至 {SEEDANCE_LIMITS.maxImages})</span>}
+          {truncated && <span className="text-warning ml-1">(超出限制已截断至 {SEEDANCE_LIMITS.maxImages})</span>}
         </span>
         <span className="text-[10px]">{expanded ? "▼" : "▶"}</span>
       </button>
@@ -446,7 +446,7 @@ function AutoImageSection({
           {frameRefs.length > 0 && (
             <RefGroup
               label="首帧"
-              icon={<Clapperboard className="h-3 w-3 text-blue-400" />}
+              icon={<Clapperboard className="h-3 w-3 text-primary" />}
               refs={frameRefs}
             />
           )}
@@ -454,7 +454,7 @@ function AutoImageSection({
           {charRefs.length > 0 && (
             <RefGroup
               label="角色"
-              icon={<User className="h-3 w-3 text-amber-400" />}
+              icon={<User className="h-3 w-3 text-warning" />}
               refs={charRefs}
             />
           )}
@@ -462,7 +462,7 @@ function AutoImageSection({
           {sceneRefs.length > 0 && (
             <RefGroup
               label="场景"
-              icon={<MapPin className="h-3 w-3 text-teal-400" />}
+              icon={<MapPin className="h-3 w-3 text-success" />}
               refs={sceneRefs}
             />
           )}
@@ -530,8 +530,8 @@ function UploadZone({
         "flex items-center gap-2 px-2 py-1.5 rounded border border-dashed cursor-pointer transition-colors",
         isDragOver
           ? isVideo
-            ? "border-purple-500 bg-purple-500/10"
-            : "border-green-500 bg-green-500/10"
+            ? "border-viz-status-c/40 bg-viz-status-c/10"
+            : "border-success/40 bg-success/10"
           : "border-muted-foreground/20 hover:border-muted-foreground/40 hover:bg-muted/30"
       )}
       onDrop={onDrop}
@@ -539,7 +539,7 @@ function UploadZone({
       onDragLeave={onDragLeave}
       onClick={onClick}
     >
-      <Plus className={cn("h-3 w-3", isVideo ? "text-purple-400" : "text-green-400")} />
+      <Plus className={cn("h-3 w-3", isVideo ? "text-viz-status-c" : "text-success")} />
       <span className="text-xs text-muted-foreground">
         {isVideo
           ? "拖放或点击上传视频 (MP4/WebM, ≤15s)"
@@ -565,8 +565,8 @@ function RefChip({
       className={cn(
         "flex items-center gap-1 px-1.5 py-0.5 rounded text-xs border",
         isVideo
-          ? "bg-purple-500/5 border-purple-500/20 text-purple-600 dark:text-purple-400"
-          : "bg-green-500/5 border-green-500/20 text-green-600 dark:text-green-400"
+          ? "bg-viz-status-c/5 border-viz-status-c/20 text-viz-status-c dark:text-viz-status-c"
+          : "bg-success/5 border-success/20 text-success dark:text-success"
       )}
     >
       {isVideo ? <Film className="h-3 w-3" /> : <Music className="h-3 w-3" />}
@@ -576,7 +576,7 @@ function RefChip({
       )}
       {onRemove && (
         <button
-          className="ml-0.5 hover:text-red-500 transition-colors"
+          className="ml-0.5 hover:text-destructive transition-colors"
           onClick={(e) => {
             e.stopPropagation();
             onRemove();

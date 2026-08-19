@@ -90,7 +90,7 @@ function FrameActionButtons({
           onAngleSwitch?.(sceneId, kind);
         }}
         disabled={isAngleSwitching}
-        className="p-0.5 rounded bg-black/50 text-white hover:bg-amber-600 disabled:opacity-50"
+        className="p-0.5 rounded bg-black/50 text-white hover:bg-warning disabled:opacity-50"
         title="切换视角"
       >
         <RotateCw className="h-3 w-3" />
@@ -127,7 +127,7 @@ function FrameActionButtons({
           event.preventDefault();
           onRemove();
         }}
-        className="p-0.5 rounded bg-black/50 text-white hover:bg-red-600"
+        className="p-0.5 rounded bg-black/50 text-white hover:bg-destructive"
         title={`删除${label}`}
       >
         <X className="h-3 w-3" />
@@ -151,7 +151,7 @@ function StopGenerationButton({
         event.stopPropagation();
         onStop?.(sceneId);
       }}
-      className={`${className} px-2 py-0.5 rounded bg-red-600/80 hover:bg-red-600 text-foreground text-[9px] flex items-center gap-0.5 transition-colors`}
+      className={`${className} px-2 py-0.5 rounded bg-destructive/80 hover:bg-destructive text-foreground text-[9px] flex items-center gap-0.5 transition-colors`}
       title="停止生成"
     >
       <Square className="h-2.5 w-2.5" />停止
@@ -254,10 +254,10 @@ export function StoryboardSceneFrameSection({
         ? "border-primary border-solid"
         : "border-dashed border-muted-foreground/20 hover:border-primary/50"
       : isSelected
-        ? "border-orange-500 border-solid"
+        ? "border-warning/40 border-solid"
         : scene.needsEndFrame
-          ? "border-dashed border-orange-500/30 hover:border-orange-500/50"
-          : "border-dashed border-blue-400/30 hover:border-blue-400/50";
+          ? "border-dashed border-warning/30 hover:border-warning/50"
+          : "border-dashed border-primary/30 hover:border-primary/50";
     return (
       <div className="flex-1">
         <div className="flex items-center justify-between mb-1">
@@ -269,7 +269,7 @@ export function StoryboardSceneFrameSection({
                 isSelected
                   ? isStart
                     ? "bg-primary/20 text-primary font-medium"
-                    : "bg-orange-500/20 text-orange-500 font-medium"
+                    : "bg-warning/20 text-warning font-medium"
                   : "text-muted-foreground hover:text-foreground",
               )}
             >
@@ -282,7 +282,7 @@ export function StoryboardSceneFrameSection({
                 className={cn(
                   "text-[9px] px-1 py-0.5 rounded transition-colors",
                   scene.needsEndFrame
-                    ? "bg-orange-500/20 text-orange-500 hover:bg-orange-500/30"
+                    ? "bg-warning/20 text-warning hover:bg-warning/30"
                     : "bg-muted text-muted-foreground/60 hover:bg-muted/80",
                 )}
               >
@@ -299,7 +299,7 @@ export function StoryboardSceneFrameSection({
                     onAngleSwitch?.(scene.id, kind);
                   }}
                   disabled={isAngleSwitching}
-                  className="text-[9px] px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-600 hover:bg-amber-500/30 disabled:opacity-50 flex items-center gap-0.5"
+                  className="text-[9px] px-1.5 py-0.5 rounded bg-warning/20 text-warning hover:bg-warning/30 disabled:opacity-50 flex items-center gap-0.5"
                 >
                   <RotateCw className="h-2.5 w-2.5" />视角
                 </button>
@@ -325,8 +325,8 @@ export function StoryboardSceneFrameSection({
                 className={cn(
                   "text-[9px] px-1.5 py-0.5 rounded disabled:opacity-50",
                   scene.needsEndFrame
-                    ? "bg-orange-500/20 text-orange-500 hover:bg-orange-500/30"
-                    : "bg-blue-500/20 text-blue-500 hover:bg-blue-500/30",
+                    ? "bg-warning/20 text-warning hover:bg-warning/30"
+                    : "bg-primary/20 text-primary hover:bg-primary/30",
                 )}
               >
                 {isGeneratingEnd ? (
@@ -376,21 +376,21 @@ export function StoryboardSceneFrameSection({
                 isQuadGridGenerating={isQuadGridGenerating}
               />
               {((isStart && scene.imageSource === "ai-generated") || (!isStart && scene.endFrameSource === "ai-generated")) && (
-                <span className={cn("absolute bottom-0.5 left-0.5 text-[8px] text-white px-1 rounded", isStart ? "bg-primary" : "bg-orange-500")}>AI</span>
+                <span className={cn("absolute bottom-0.5 left-0.5 text-[8px] text-white px-1 rounded", isStart ? "bg-primary" : "bg-warning")}>AI</span>
               )}
             </>
           ) : isGeneratingEnd && !isStart ? (
-            <div className="w-full h-full flex flex-col items-center justify-center gap-1 bg-orange-500/10">
-              <Loader2 className="h-4 w-4 text-orange-500 animate-spin" />
-              <span className="text-[10px] text-orange-500">生成中 {scene.endFrameProgress}%</span>
+            <div className="w-full h-full flex flex-col items-center justify-center gap-1 bg-warning/10">
+              <Loader2 className="h-4 w-4 text-warning animate-spin" />
+              <span className="text-[10px] text-warning">生成中 {scene.endFrameProgress}%</span>
               <StopGenerationButton sceneId={scene.id} onStop={onStopEndFrameGeneration} className="mt-0.5" />
             </div>
           ) : !isStart && scene.needsEndFrame ? (
-            <div className="w-full h-full flex flex-col items-center justify-center gap-1 bg-orange-500/5"><span className="text-orange-500 text-lg">◉</span><span className="text-[10px] text-orange-500/70">需要尾帧</span></div>
+            <div className="w-full h-full flex flex-col items-center justify-center gap-1 bg-warning/5"><span className="text-warning text-lg">◉</span><span className="text-[10px] text-warning/70">需要尾帧</span></div>
           ) : (
-            <div className={cn("w-full h-full flex flex-col items-center justify-center gap-1", isStart ? "" : "bg-blue-500/5")}>
-              <Upload className={cn("h-4 w-4", isStart ? "text-muted-foreground/50" : "text-blue-400/60")} />
-              <span className={cn("text-[10px]", isStart ? "text-muted-foreground/50" : "text-blue-400/60")}>{isStart ? "上传" : "上传/生成"}</span>
+            <div className={cn("w-full h-full flex flex-col items-center justify-center gap-1", isStart ? "" : "bg-primary/5")}>
+              <Upload className={cn("h-4 w-4", isStart ? "text-muted-foreground/50" : "text-primary/60")} />
+              <span className={cn("text-[10px]", isStart ? "text-muted-foreground/50" : "text-primary/60")}>{isStart ? "上传" : "上传/生成"}</span>
             </div>
           )}
           {isStart && isImageGenerating && (

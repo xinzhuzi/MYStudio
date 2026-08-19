@@ -146,7 +146,7 @@ export function AssetDerivationPreview({
               className={cn(
                 "nodrag nopan nowheel h-8 rounded px-2 text-[11px] font-medium transition-colors",
                 selected
-                  ? "bg-cyan-300 text-zinc-950"
+                  ? "bg-info/20 text-foreground"
                   : "text-muted-foreground hover:bg-muted hover:text-foreground",
               )}
               onClick={(event) => {
@@ -254,7 +254,7 @@ export function AssetFlowCard({
           }}
         />
       ) : status === "生成中" ? (
-        <RefreshCw className="h-8 w-8 animate-spin text-sky-300/70" />
+        <RefreshCw className="h-8 w-8 animate-spin text-primary/70" />
       ) : (
         <PackageOpen className="h-9 w-9 text-muted-foreground/55" />
       )}
@@ -274,7 +274,7 @@ export function AssetFlowCard({
           data-asset-workflow-id={card.imageWorkflowId ?? ""}
           data-asset-workflow-type={card.imageWorkflowTarget?.assetType ?? ""}
           data-asset-workflow-name={card.name}
-          className="nodrag nopan nowheel flex h-[112px] w-full items-center justify-center overflow-hidden rounded border border-cyan-300/35 bg-muted/30 ring-offset-background hover:border-cyan-200/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300 focus-visible:ring-offset-2"
+          className="nodrag nopan nowheel flex h-[112px] w-full items-center justify-center overflow-hidden rounded border border-info/35 bg-muted/30 ring-offset-background hover:border-info/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-info/40 focus-visible:ring-offset-2"
           onClick={(event) => {
             event.stopPropagation();
             openImageWorkflow();
@@ -295,8 +295,8 @@ export function AssetFlowCard({
           className={cn(
             "shrink-0 rounded px-1.5 py-0.5 text-[10px] font-semibold",
             card.isDerived
-              ? "bg-orange-400 text-zinc-950"
-              : "bg-emerald-400 text-zinc-950",
+              ? "bg-warning/20 text-foreground"
+              : "bg-success/20 text-foreground",
           )}
         >
           {card.isDerived ? "衍生" : "原资产"}
@@ -309,9 +309,9 @@ export function AssetFlowCard({
               className={cn(
                 "rounded border px-1.5 py-0.5 text-[9px] font-semibold",
                 status === "生成中" &&
-                  "border-sky-300/30 bg-sky-300/12 text-sky-200",
+                  "border-primary/30 bg-primary/12 text-primary/80",
                 status === "生成失败" &&
-                  "border-red-300/30 bg-red-300/12 text-red-200",
+                  "border-destructive/30 bg-destructive/12 text-destructive/80",
                 status === "未生成" &&
                   "border-border bg-muted/30 text-muted-foreground",
               )}
@@ -320,7 +320,7 @@ export function AssetFlowCard({
             </span>
           ) : null}
           {card.isDerived && !card.sourceImagePath ? (
-            <span className="max-w-full truncate rounded border border-amber-300/30 bg-amber-300/10 px-1.5 py-0.5 text-[9px] text-amber-200">
+            <span className="max-w-full truncate rounded border border-viz-glow/30 bg-viz-glow/10 px-1.5 py-0.5 text-[9px] text-warning/80">
               缺父资产图
             </span>
           ) : null}
@@ -343,7 +343,7 @@ export function AssetFlowCard({
           data-asset-workflow-id={card.imageWorkflowId ?? ""}
           data-asset-workflow-type={card.imageWorkflowTarget?.assetType ?? ""}
           data-asset-workflow-name={card.name}
-          className="nodrag nopan nowheel mt-2 inline-flex h-7 w-full items-center justify-center gap-1.5 rounded-md border border-cyan-300/35 bg-cyan-300/10 px-2 text-[10px] font-medium text-cyan-100 hover:bg-cyan-300/16"
+          className="nodrag nopan nowheel mt-2 inline-flex h-7 w-full items-center justify-center gap-1.5 rounded-md border border-info/35 bg-info/10 px-2 text-[10px] font-medium text-info/80 hover:bg-info/16"
           onClick={(event) => {
             event.stopPropagation();
             openImageWorkflow();
@@ -359,7 +359,7 @@ export function AssetFlowCard({
           data-asset-upscale-id={assetUpscaleTarget.id}
           disabled={assetUpscaling || assetAlreadyUpscaled}
           title={assetAlreadyUpscaled ? `已达 4K(${assetImageLongSide}px 长边)，无需再超分` : "本地 Real-ESRGAN 原生 ×4 放大(1K→4K)"}
-          className="nodrag nopan nowheel mt-1.5 inline-flex h-7 w-full items-center justify-center gap-1.5 rounded-md border border-border bg-muted/30 px-2 text-[10px] font-medium text-foreground hover:border-amber-300/45 disabled:opacity-60"
+          className="nodrag nopan nowheel mt-1.5 inline-flex h-7 w-full items-center justify-center gap-1.5 rounded-md border border-border bg-muted/30 px-2 text-[10px] font-medium text-foreground hover:border-viz-glow/45 disabled:opacity-60"
           onClick={(event) => {
             event.stopPropagation();
             void directUpscale.upscaleAssetImage(assetUpscaleTarget, card.mediaPath as string);
@@ -392,14 +392,14 @@ function AssetSummaryCell({
     <div
       className={cn(
         "min-w-0 rounded border border-border bg-muted/30 px-2 py-1.5",
-        warn && "border-amber-300/35 bg-amber-300/10",
+        warn && "border-viz-glow/35 bg-viz-glow/10",
       )}
     >
       <div className="truncate text-[9px] text-muted-foreground">{label}</div>
       <div
         className={cn(
           "mt-0.5 text-[13px] font-semibold text-foreground",
-          warn && "text-amber-200",
+          warn && "text-warning/80",
         )}
       >
         {value}
@@ -531,7 +531,7 @@ export function StoryboardGridPreview({
                   未生成
                 </div>
               )}
-              <span className="absolute left-1 top-1 rounded bg-emerald-400 px-1.5 py-0.5 text-[9px] font-semibold text-zinc-950">
+              <span className="absolute left-1 top-1 rounded bg-success/20 px-1.5 py-0.5 text-[9px] font-semibold text-foreground">
                 S{String(tile.index).padStart(2, "0")}
               </span>
               <span className="absolute right-1 top-1 rounded bg-background/80 px-1.5 py-0.5 text-[9px] text-foreground">
@@ -548,7 +548,7 @@ export function StoryboardGridPreview({
                 data-storyboard-id={tile.id}
                 data-storyboard-workflow-image-id={tile.imageWorkflowId ?? ""}
                 data-storyboard-workflow-id={tile.imageWorkflowId}
-                className="nodrag nopan nowheel relative block aspect-video w-full overflow-hidden rounded border border-cyan-300/35 bg-muted/30 text-left ring-offset-background hover:border-cyan-200/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300 focus-visible:ring-offset-2"
+                className="nodrag nopan nowheel relative block aspect-video w-full overflow-hidden rounded border border-info/35 bg-muted/30 text-left ring-offset-background hover:border-info/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-info/40 focus-visible:ring-offset-2"
                 onClick={openStoryboardImageWorkflow}
               >
                 {previewTile}
@@ -563,7 +563,7 @@ export function StoryboardGridPreview({
                 type="button"
                 data-storyboard-id={tile.id}
                 data-storyboard-workflow-id={tile.imageWorkflowId}
-                className="mt-1 inline-flex w-full items-center justify-center gap-1 rounded border border-border bg-muted/30 px-1.5 py-1 text-[10px] text-muted-foreground hover:border-sky-300/45 hover:text-foreground"
+                className="mt-1 inline-flex w-full items-center justify-center gap-1 rounded border border-border bg-muted/30 px-1.5 py-1 text-[10px] text-muted-foreground hover:border-primary/45 hover:text-foreground"
                 onClick={openStoryboardImageWorkflow}
               >
                 <ImageIcon className="h-3 w-3" />
@@ -575,7 +575,7 @@ export function StoryboardGridPreview({
                 type="button"
                 data-storyboard-upscale-id={tile.id}
                 disabled={directUpscale.busyKey === `storyboard:${tile.id}` || tileAlready4k(tile.mediaPath, tileLongSides[tile.id])}
-                className="inline-flex w-full items-center justify-center gap-1 rounded border border-border bg-muted/30 px-1.5 py-1 text-[10px] text-muted-foreground hover:border-amber-300/45 hover:text-foreground disabled:opacity-60"
+                className="inline-flex w-full items-center justify-center gap-1 rounded border border-border bg-muted/30 px-1.5 py-1 text-[10px] text-muted-foreground hover:border-viz-glow/45 hover:text-foreground disabled:opacity-60"
                 title={tileAlready4k(tile.mediaPath, tileLongSides[tile.id])
                   ? "已是 4K 超分结果，无需再放大"
                   : "本地 Real-ESRGAN 原生 ×4 放大(超分后视觉审核重置)"}
@@ -623,15 +623,15 @@ export function WorkbenchLanePreview({
   return (
     <div className="workbench-lane-preview nodrag nowheel max-h-[320px] space-y-3 overflow-y-auto overscroll-contain pr-1">
       {node.remotionSummary ? (
-        <div className="flex items-center gap-2 rounded-md border border-emerald-300/20 bg-emerald-300/[0.06] px-3 py-2 text-[10px] text-emerald-50">
+        <div className="flex items-center gap-2 rounded-md border border-success/20 bg-success/20/[0.06] px-3 py-2 text-[10px] text-success/80">
           <span>StoryboardShot MP4</span>
-          <span className="text-emerald-100/70">voice/SFX 已烘入</span>
-          <ArrowRight className="h-3.5 w-3.5 text-emerald-300/70" />
+          <span className="text-success/80/70">voice/SFX 已烘入</span>
+          <ArrowRight className="h-3.5 w-3.5 text-success/70" />
           <span>原生 Remotion Studio</span>
-          <ArrowRight className="h-3.5 w-3.5 text-emerald-300/70" />
+          <ArrowRight className="h-3.5 w-3.5 text-success/70" />
           <span>ChapterVideo</span>
-          <span className="text-emerald-100/70">仅混入 BGM/环境</span>
-          <ArrowRight className="h-3.5 w-3.5 text-emerald-300/70" />
+          <span className="text-success/80/70">仅混入 BGM/环境</span>
+          <ArrowRight className="h-3.5 w-3.5 text-success/70" />
           <span>章节 MP4</span>
         </div>
       ) : null}
@@ -645,7 +645,7 @@ export function WorkbenchLanePreview({
           </span>
         </div>
         {!node.remotionSummary && rendererSummary.fallbackEffectIds?.length ? (
-          <div className="mt-1 text-amber-200">回退效果：{rendererSummary.fallbackEffectIds.join("、")}</div>
+          <div className="mt-1 text-warning/80">回退效果：{rendererSummary.fallbackEffectIds.join("、")}</div>
         ) : null}
         {rendererSummary.lastJobId || rendererSummary.outputPath ? (
           <div className="mt-1 grid gap-1 text-muted-foreground">
@@ -667,7 +667,7 @@ export function WorkbenchLanePreview({
         </div>
         <span className="inline-flex h-7 items-center gap-1.5 rounded-md border border-border bg-muted/30 px-2 text-[10px] font-medium text-foreground">
           {exportReady ? (
-            <CheckCircle2 className="h-3.5 w-3.5 text-emerald-300" />
+            <CheckCircle2 className="h-3.5 w-3.5 text-success" />
           ) : (
             <CircleDot className="h-3.5 w-3.5 text-muted-foreground" />
           )}
@@ -683,7 +683,7 @@ export function WorkbenchLanePreview({
             <div className="flex items-start justify-between gap-2">
               <div className="min-w-0">
                 <div className="flex items-center gap-1.5">
-                  <span className="rounded bg-sky-300 px-1.5 py-0.5 text-[9px] font-semibold text-zinc-950">
+                  <span className="rounded bg-primary/20 px-1.5 py-0.5 text-[9px] font-semibold text-foreground">
                     T{String(index + 1).padStart(2, "0")}
                   </span>
                   <span className="truncate text-[11px] font-medium text-card-foreground">
@@ -742,28 +742,28 @@ export function RemotionShotPreview({
   const summary = node.remotionSummary;
   return (
     <div className="remotion-shot-preview nodrag nowheel max-h-[480px] space-y-3 overflow-y-auto overscroll-contain pr-1">
-      <div className="flex items-center justify-between gap-2 rounded-md border border-cyan-300/25 bg-cyan-300/[0.06] px-3 py-2 text-[10px] text-cyan-50">
+      <div className="flex items-center justify-between gap-2 rounded-md border border-info/25 bg-info/20/[0.06] px-3 py-2 text-[10px] text-info/80">
         <span className="font-semibold">当前章节 · {summary?.total ?? shots.length} 个分镜</span>
-        <span className="text-cyan-100/70">每个分镜独立生成一个 StoryboardShot MP4</span>
+        <span className="text-info/80/70">每个分镜独立生成一个 StoryboardShot MP4</span>
       </div>
       <div
         aria-label="Remotion 分镜生产链路"
-        className="grid grid-cols-[1fr_auto_1fr_auto_1fr] items-center gap-1 rounded-md border border-cyan-300/25 bg-cyan-300/[0.06] px-2 py-2 text-[10px] text-cyan-50"
+        className="grid grid-cols-[1fr_auto_1fr_auto_1fr] items-center gap-1 rounded-md border border-info/25 bg-info/20/[0.06] px-2 py-2 text-[10px] text-info/80"
       >
         <RemotionFlowStep label="分镜物料" detail="图像 · 音频 · 字幕" />
-        <ArrowRight className="h-3.5 w-3.5 text-cyan-300/70" />
+        <ArrowRight className="h-3.5 w-3.5 text-info/70" />
         <RemotionFlowStep label="StoryboardShot" detail="逐镜 renderMedia" />
-        <ArrowRight className="h-3.5 w-3.5 text-cyan-300/70" />
+        <ArrowRight className="h-3.5 w-3.5 text-info/70" />
         <RemotionFlowStep label="单镜 MP4" detail="每镜独立输出" />
       </div>
-      <div className="grid grid-cols-4 gap-2 rounded-md border border-cyan-300/25 bg-cyan-300/[0.06] p-2 text-card-foreground">
+      <div className="grid grid-cols-4 gap-2 rounded-md border border-info/25 bg-info/20/[0.06] p-2 text-card-foreground">
         <RemotionSummaryCell label="分镜" value={`${summary?.total ?? shots.length}`} />
         <RemotionSummaryCell label="已完成" value={`${summary?.succeeded ?? 0}`} tone="success" />
         <RemotionSummaryCell label="进行中" value={`${(summary?.running ?? 0) + (summary?.queued ?? 0)}`} tone="active" />
         <RemotionSummaryCell label="阻塞/失败" value={`${(summary?.blocked ?? 0) + (summary?.failed ?? 0)}`} tone="warning" />
       </div>
       <div className="flex items-center justify-between gap-2 rounded-md border border-border bg-card px-3 py-2 text-[10px] text-muted-foreground">
-        <span className="inline-flex items-center gap-1.5 font-medium text-cyan-100">
+        <span className="inline-flex items-center gap-1.5 font-medium text-info/80">
           <Gauge className="h-3.5 w-3.5" />
           Remotion · StoryboardShot · 并发 1
         </span>
@@ -776,9 +776,9 @@ export function RemotionShotPreview({
             key={shot.shotId}
             className={cn(
               "min-w-0 rounded-md border border-border bg-card p-2.5 text-card-foreground",
-              shot.status === "running" && "border-sky-300/45",
-              shot.status === "succeeded" && "border-emerald-300/35",
-              (shot.status === "failed" || shot.status === "blocked" || shot.status === "canceled") && "border-amber-300/45",
+              shot.status === "running" && "border-primary/45",
+              shot.status === "succeeded" && "border-success/35",
+              (shot.status === "failed" || shot.status === "blocked" || shot.status === "canceled") && "border-viz-glow/45",
             )}
             data-remotion-shot-id={shot.shotId}
             data-remotion-shot-status={shot.status}
@@ -807,7 +807,7 @@ export function RemotionShotPreview({
                   <div
                     className={cn(
                       "h-full rounded-full transition-[width]",
-                      shot.status === "failed" || shot.status === "blocked" ? "bg-amber-300" : "bg-cyan-300",
+                      shot.status === "failed" || shot.status === "blocked" ? "bg-viz-glow" : "bg-info/20",
                     )}
                     style={{ width: `${Math.max(0, Math.min(1, shot.progress)) * 100}%` }}
                   />
@@ -819,7 +819,7 @@ export function RemotionShotPreview({
             </div>
             <div className="mt-1 flex flex-wrap gap-1 text-[9px]">
               <span className="rounded border border-border px-1.5 py-0.5">修订 {shot.revision ?? 1}</span>
-              <span className={cn("rounded border px-1.5 py-0.5", shot.ttsStatus === "ready" ? "border-emerald-300/35 text-emerald-200" : "border-amber-300/35 text-amber-200")}>
+              <span className={cn("rounded border px-1.5 py-0.5", shot.ttsStatus === "ready" ? "border-success/35 text-success/80" : "border-viz-glow/35 text-warning/80")}>
                 TTS {shot.ttsStatus === "ready" ? "已就绪" : shot.ttsStatus === "pending" ? "待生成" : shot.ttsStatus === "failed" ? "失败" : "缺失"}
               </span>
               <span className="rounded border border-border px-1.5 py-0.5">音频绑定 {shot.shotAudioBindingCount ?? 0}</span>
@@ -829,13 +829,13 @@ export function RemotionShotPreview({
               <span className="rounded border border-border px-1.5 py-0.5" title={shot.bindingFingerprints?.join("\n") ?? "未生成音频绑定指纹"}>
                 绑定指纹 {shortFingerprint(shot.bindingFingerprints?.[0])}
               </span>
-              <span className={cn("rounded border px-1.5 py-0.5", shot.sfxStatus === "ready" ? "border-emerald-300/35 text-emerald-200" : "border-border text-muted-foreground")}>
+              <span className={cn("rounded border px-1.5 py-0.5", shot.sfxStatus === "ready" ? "border-success/35 text-success/80" : "border-border text-muted-foreground")}>
                 SFX {shot.sfxStatus === "ready" ? "已就绪" : "未引用"}
               </span>
-              <span className={cn("rounded border px-1.5 py-0.5", shot.chapterSharedAudioReferenced ? "border-sky-300/35 text-sky-200" : "border-border text-muted-foreground")}>
+              <span className={cn("rounded border px-1.5 py-0.5", shot.chapterSharedAudioReferenced ? "border-primary/35 text-primary/80" : "border-border text-muted-foreground")}>
                 章级 BGM/环境 {shot.chapterSharedAudioReferenced ? "仅引用" : "未配置"}
               </span>
-              {shot.duplicateMixRisk ? <span className="rounded border border-rose-300/45 px-1.5 py-0.5 text-rose-200">重复混音风险</span> : null}
+              {shot.duplicateMixRisk ? <span className="rounded border border-destructive/45 px-1.5 py-0.5 text-destructive/80">重复混音风险</span> : null}
             </div>
             </div>
           ))}
@@ -846,7 +846,7 @@ export function RemotionShotPreview({
         </div>
       )}
       {summary?.error ? (
-        <div className="rounded-md border border-amber-300/35 bg-amber-300/10 px-3 py-2 text-[10px] text-amber-100">
+        <div className="rounded-md border border-viz-glow/35 bg-viz-glow/10 px-3 py-2 text-[10px] text-warning/80">
           队列读取失败：{summary.error}
         </div>
       ) : null}
@@ -861,9 +861,9 @@ function shortFingerprint(value: string | undefined) {
 
 function RemotionFlowStep({ label, detail }: { label: string; detail: string }) {
   return (
-    <div className="min-w-0 rounded border border-cyan-200/15 bg-background/20 px-2 py-1.5">
+    <div className="min-w-0 rounded border border-info/15 bg-background/20 px-2 py-1.5">
       <div className="truncate font-semibold">{label}</div>
-      <div className="mt-0.5 truncate text-[9px] text-cyan-100/65">{detail}</div>
+      <div className="mt-0.5 truncate text-[9px] text-info/80/65">{detail}</div>
     </div>
   );
 }
@@ -882,18 +882,18 @@ function RemotionSummaryCell({
       <div className="text-[9px] text-muted-foreground">{label}</div>
       <div className={cn(
         "mt-0.5 text-[13px] font-semibold tabular-nums",
-        tone === "success" && "text-emerald-200",
-        tone === "active" && "text-cyan-200",
-        tone === "warning" && "text-amber-200",
+        tone === "success" && "text-success/80",
+        tone === "active" && "text-info/80",
+        tone === "warning" && "text-warning/80",
       )}>{value}</div>
     </div>
   );
 }
 
 function RemotionStatusIcon({ status }: { status: ProductionFlowRemotionShot["status"] }) {
-  if (status === "succeeded") return <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-emerald-300" />;
-  if (status === "running" || status === "queued") return <RefreshCw className="h-3.5 w-3.5 shrink-0 animate-spin text-cyan-300" />;
-  if (status === "failed" || status === "blocked" || status === "canceled") return <TriangleAlert className="h-3.5 w-3.5 shrink-0 text-amber-300" />;
+  if (status === "succeeded") return <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-success" />;
+  if (status === "running" || status === "queued") return <RefreshCw className="h-3.5 w-3.5 shrink-0 animate-spin text-info" />;
+  if (status === "failed" || status === "blocked" || status === "canceled") return <TriangleAlert className="h-3.5 w-3.5 shrink-0 text-viz-glow" />;
   return <CircleDot className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />;
 }
 

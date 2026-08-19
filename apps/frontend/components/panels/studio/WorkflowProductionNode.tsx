@@ -155,11 +155,11 @@ export function ProductionFlowNode({ data }: NodeProps<Node<ProductionNodeData>>
       data-flow-node-id={data.node.id}
       className={cn(
         "production-flow-node-card group rounded-md border p-4 text-left text-card-foreground outline-none",
-        "hover:border-sky-300/55",
+        "hover:border-primary/55",
         NODE_SIZE_CLASS[data.node.id as ProductionFlowNodeId] ?? 'w-[640px]',
-        data.node.status === "ready" && "border-emerald-300/30",
-        data.node.status === "warning" && "border-amber-300/40",
-        data.node.status === "pending" && "border-sky-300/35",
+        data.node.status === "ready" && "border-success/30",
+        data.node.status === "warning" && "border-warning/40",
+        data.node.status === "pending" && "border-primary/35",
         data.node.status === "empty" && "border-border",
       )}
     >
@@ -167,20 +167,20 @@ export function ProductionFlowNode({ data }: NodeProps<Node<ProductionNodeData>>
         type="target"
         id={`${data.node.id}-target`}
         position={targetPosition}
-        className="!h-2.5 !w-2.5 !border !border-sky-100/70 !bg-sky-300"
+        className="!h-2.5 !w-2.5 !border !border-primary/70 !bg-primary/20"
       />
       <Handle
         type="source"
         id={`${data.node.id}-source`}
         position={sourcePosition}
-        className="!h-2.5 !w-2.5 !border !border-sky-100/70 !bg-sky-300"
+        className="!h-2.5 !w-2.5 !border !border-primary/70 !bg-primary/20"
       />
       {data.node.id === "script" ? (
         <Handle
           type="source"
           id="script-assets-source"
           position={sourcePosition === Position.Bottom ? Position.Right : Position.Bottom}
-          className="!h-2.5 !w-2.5 !border !border-sky-100/70 !bg-sky-300"
+          className="!h-2.5 !w-2.5 !border !border-primary/70 !bg-primary/20"
         />
       ) : null}
       <div className="workflow-node-titlebar flex cursor-grab items-start justify-between gap-3 active:cursor-grabbing">
@@ -206,7 +206,7 @@ export function ProductionFlowNode({ data }: NodeProps<Node<ProductionNodeData>>
           {canOpenJson ? (
             <button
               type="button"
-              className="inline-flex h-7 items-center gap-1.5 rounded-md border border-sky-300/30 bg-sky-300/10 px-2 text-[11px] font-medium text-sky-100 hover:border-sky-200/60 hover:bg-sky-300/18"
+              className="inline-flex h-7 items-center gap-1.5 rounded-md border border-primary/30 bg-primary/10 px-2 text-[11px] font-medium text-primary/80 hover:border-primary/60 hover:bg-primary/18"
               onClick={(event) => {
                 event.stopPropagation();
                 data.onNodeJson?.(data.node.id);
@@ -220,8 +220,8 @@ export function ProductionFlowNode({ data }: NodeProps<Node<ProductionNodeData>>
             <span
               className={cn(
                 "rounded-full px-2 py-0.5 text-[10px] font-semibold",
-                data.node.status === "warning" && "bg-amber-300/15 text-amber-200",
-                data.node.status === "pending" && "bg-sky-300/15 text-sky-200",
+                data.node.status === "warning" && "bg-warning/15 text-warning/80",
+                data.node.status === "pending" && "bg-primary/15 text-primary/80",
                 data.node.status === "empty" && "bg-muted text-muted-foreground",
               )}
             >
@@ -231,7 +231,7 @@ export function ProductionFlowNode({ data }: NodeProps<Node<ProductionNodeData>>
           {canEditNode ? (
             <button
               type="button"
-              className="inline-flex h-7 items-center gap-1.5 rounded-md border border-border bg-muted/35 px-2 text-[11px] font-medium text-card-foreground hover:border-sky-300/45 hover:bg-sky-300/12"
+              className="inline-flex h-7 items-center gap-1.5 rounded-md border border-border bg-muted/35 px-2 text-[11px] font-medium text-card-foreground hover:border-primary/45 hover:bg-primary/12"
               onClick={(event) => {
                 event.stopPropagation();
                 data.onNodeEdit?.(data.node.id);
@@ -244,7 +244,7 @@ export function ProductionFlowNode({ data }: NodeProps<Node<ProductionNodeData>>
           <button
             type="button"
             disabled={isStageEntryBlocked}
-            className="inline-flex h-7 items-center gap-1.5 rounded-md border border-border bg-muted/35 px-2 text-[11px] font-medium text-card-foreground hover:border-sky-300/45 hover:bg-sky-300/12"
+            className="inline-flex h-7 items-center gap-1.5 rounded-md border border-border bg-muted/35 px-2 text-[11px] font-medium text-card-foreground hover:border-primary/45 hover:bg-primary/12"
             onClick={(event) => {
               event.stopPropagation();
               data.onStageChange(data.node.targetStage);
@@ -304,9 +304,9 @@ export function ProductionFlowNode({ data }: NodeProps<Node<ProductionNodeData>>
             <div
               key={action.id}
               className={cn(
-                "rounded-md border border-sky-300/15 bg-sky-300/[0.055] p-2.5",
+                "rounded-md border border-primary/15 bg-primary/20/[0.055] p-2.5",
                 runningActionId === action.id &&
-                  "border-sky-300/45 bg-sky-300/[0.105]",
+                  "border-primary/45 bg-primary/20/[0.105]",
               )}
               aria-busy={runningActionId === action.id}
             >
@@ -323,7 +323,7 @@ export function ProductionFlowNode({ data }: NodeProps<Node<ProductionNodeData>>
                         placeholder={action.promptPlaceholder ?? "给 AI 补充本节点生成要求..."}
                         className={cn(
                           "min-h-[64px] w-full resize-none rounded border border-border bg-background/65 px-2.5 py-2 text-xs leading-5 text-foreground outline-none placeholder:text-muted-foreground",
-                          "focus:border-sky-300/55 focus:bg-background",
+                          "focus:border-primary/55 focus:bg-background",
                           isDisabled && "cursor-not-allowed opacity-55",
                         )}
                         onChange={(event) =>
@@ -347,7 +347,7 @@ export function ProductionFlowNode({ data }: NodeProps<Node<ProductionNodeData>>
                       {isRunning ? (
                         <div
                           role="status"
-                          className="inline-flex h-8 shrink-0 items-center gap-2 rounded-md border border-sky-300/45 bg-sky-300/18 px-3 text-xs font-semibold text-sky-50"
+                          className="inline-flex h-8 shrink-0 items-center gap-2 rounded-md border border-primary/45 bg-primary/18 px-3 text-xs font-semibold text-primary/80"
                         >
                           <Loader2 className="h-3.5 w-3.5 animate-spin" />
                           正在生成中，请稍候
@@ -357,8 +357,8 @@ export function ProductionFlowNode({ data }: NodeProps<Node<ProductionNodeData>>
                           type="button"
                           disabled={isDisabled}
                           className={cn(
-                            "inline-flex h-8 shrink-0 items-center gap-2 rounded-md border border-sky-300/30 bg-sky-300/12 px-3 text-xs font-medium text-sky-100",
-                            "hover:border-sky-200/60 hover:bg-sky-300/18",
+                            "inline-flex h-8 shrink-0 items-center gap-2 rounded-md border border-primary/30 bg-primary/12 px-3 text-xs font-medium text-primary/80",
+                            "hover:border-primary/60 hover:bg-primary/18",
                             isDisabled &&
                               "cursor-not-allowed border-border bg-muted/30 text-muted-foreground hover:border-border hover:bg-muted/30",
                           )}
@@ -370,7 +370,7 @@ export function ProductionFlowNode({ data }: NodeProps<Node<ProductionNodeData>>
                       )}
                     </div>
                     {isRunning ? (
-                      <div className="mt-2 rounded-md border border-sky-300/20 bg-background/45 px-2.5 py-2 text-[11px] leading-5 text-sky-100">
+                      <div className="mt-2 rounded-md border border-primary/20 bg-background/45 px-2.5 py-2 text-[11px] leading-5 text-primary/80">
                         本节点正在生成，完成后会自动写回当前节点。生成期间不能重复提交。
                       </div>
                     ) : null}

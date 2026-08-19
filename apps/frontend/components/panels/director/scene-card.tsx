@@ -38,16 +38,16 @@ import {
 
 // Mood presets for quick selection
 const MOOD_PRESETS = [
-  { id: "happy", label: "欢快", color: "bg-yellow-500" },
-  { id: "sad", label: "悲伤", color: "bg-blue-500" },
-  { id: "excited", label: "兴奋", color: "bg-orange-500" },
-  { id: "calm", label: "平静", color: "bg-green-500" },
-  { id: "mysterious", label: "神秘", color: "bg-purple-500" },
-  { id: "tense", label: "紧张", color: "bg-red-500" },
-  { id: "romantic", label: "浪漫", color: "bg-pink-500" },
-  { id: "curious", label: "好奇", color: "bg-cyan-500" },
-  { id: "nostalgic", label: "怀旧", color: "bg-amber-600" },
-  { id: "hopeful", label: "希望", color: "bg-emerald-500" },
+  { id: "happy", label: "欢快", color: "bg-warning" },
+  { id: "sad", label: "悲伤", color: "bg-primary" },
+  { id: "excited", label: "兴奋", color: "bg-warning" },
+  { id: "calm", label: "平静", color: "bg-success" },
+  { id: "mysterious", label: "神秘", color: "bg-viz-status-c" },
+  { id: "tense", label: "紧张", color: "bg-destructive" },
+  { id: "romantic", label: "浪漫", color: "bg-viz-status-c" },
+  { id: "curious", label: "好奇", color: "bg-info" },
+  { id: "nostalgic", label: "怀旧", color: "bg-warning" },
+  { id: "hopeful", label: "希望", color: "bg-success" },
 ] as const;
 
 interface SceneCardProps {
@@ -126,7 +126,7 @@ export function SceneCard({ scene, progress, isPreview, showImage, onRetryImage,
   // Get mood badge color
   const getMoodColor = (moodLabel: string) => {
     const preset = MOOD_PRESETS.find(p => p.label === moodLabel);
-    return preset?.color || "bg-gray-500";
+    return preset?.color || "bg-foreground/[0.06]";
   };
 
   // Determine status display
@@ -141,7 +141,7 @@ export function SceneCard({ scene, progress, isPreview, showImage, onRetryImage,
       case "generating":
         return <Loader2 className="h-4 w-4 text-primary animate-spin" />;
       case "completed":
-        return <CheckCircle2 className="h-4 w-4 text-green-500" />;
+        return <CheckCircle2 className="h-4 w-4 text-success" />;
       case "failed":
         return <AlertCircle className="h-4 w-4 text-destructive" />;
       default:
@@ -175,7 +175,7 @@ export function SceneCard({ scene, progress, isPreview, showImage, onRetryImage,
         );
       case "done":
         return (
-          <span className="text-xs text-green-500">
+          <span className="text-xs text-success">
             完成
           </span>
         );
@@ -203,7 +203,7 @@ export function SceneCard({ scene, progress, isPreview, showImage, onRetryImage,
         "hover:border-foreground/20",
         isSelected && "border-primary bg-primary/5",
         progress?.status === "failed" && "border-destructive/50 bg-destructive/5",
-        progress?.status === "completed" && "border-green-500/30 bg-green-500/5"
+        progress?.status === "completed" && "border-success/30 bg-success/5"
       )}
     >
       {/* Header */}
@@ -385,7 +385,7 @@ export function SceneCard({ scene, progress, isPreview, showImage, onRetryImage,
             <div
               className={cn(
                 "h-full transition-all duration-300",
-                progress.status === "completed" && "bg-green-500",
+                progress.status === "completed" && "bg-success",
                 progress.status === "failed" && "bg-destructive",
                 progress.status === "generating" && "bg-primary"
               )}

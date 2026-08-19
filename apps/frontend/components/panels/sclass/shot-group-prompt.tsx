@@ -126,8 +126,8 @@ export function ShotGroupPrompt({
                 className={cn(
                   "flex items-center gap-1 px-1.5 py-0.5 rounded",
                   result.refs.images.length > SEEDANCE_LIMITS.maxImages
-                    ? "bg-red-500/10 text-red-500"
-                    : "bg-blue-500/10 text-blue-600 dark:text-blue-400"
+                    ? "bg-destructive/10 text-destructive"
+                    : "bg-primary/10 text-primary dark:text-primary"
                 )}
               >
                 <ImageIcon className="h-3 w-3" />
@@ -157,7 +157,7 @@ export function ShotGroupPrompt({
                 className={cn(
                   "flex items-center gap-1 px-1.5 py-0.5 rounded",
                   result.refs.videos.length > 0
-                    ? "bg-purple-500/10 text-purple-600 dark:text-purple-400"
+                    ? "bg-viz-status-c/10 text-viz-status-c dark:text-viz-status-c"
                     : "bg-muted text-muted-foreground"
                 )}
               >
@@ -184,7 +184,7 @@ export function ShotGroupPrompt({
                 className={cn(
                   "flex items-center gap-1 px-1.5 py-0.5 rounded",
                   result.refs.audios.length > 0
-                    ? "bg-green-500/10 text-green-600 dark:text-green-400"
+                    ? "bg-success/10 text-success dark:text-success"
                     : "bg-muted text-muted-foreground"
                 )}
               >
@@ -205,7 +205,7 @@ export function ShotGroupPrompt({
 
         {/* 对白数 */}
         {result.dialogueSegments.length > 0 && (
-          <div className="flex items-center gap-1 px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-600 dark:text-amber-400">
+          <div className="flex items-center gap-1 px-1.5 py-0.5 rounded bg-warning/10 text-warning dark:text-warning">
             <MessageCircle className="h-3 w-3" />
             <span>{result.dialogueSegments.length} 段对白</span>
           </div>
@@ -213,7 +213,7 @@ export function ShotGroupPrompt({
 
         {/* 超限警告 */}
         {result.refs.overLimit && (
-          <div className="flex items-center gap-1 text-red-500">
+          <div className="flex items-center gap-1 text-destructive">
             <AlertCircle className="h-3 w-3" />
             <span>素材超限</span>
           </div>
@@ -224,7 +224,7 @@ export function ShotGroupPrompt({
           className={cn(
             "ml-auto flex items-center gap-1 px-1.5 py-0.5 rounded",
             isOverLimit
-              ? "bg-red-500/10 text-red-500"
+              ? "bg-destructive/10 text-destructive"
               : "bg-muted text-muted-foreground"
           )}
         >
@@ -245,7 +245,7 @@ export function ShotGroupPrompt({
               rows={8}
               className={cn(
                 "text-xs font-mono resize-y",
-                isOverLimit && "border-red-500"
+                isOverLimit && "border-destructive/40"
               )}
               placeholder="组级提示词..."
             />
@@ -300,7 +300,7 @@ export function ShotGroupPrompt({
 
       {/* ========== 超限警告详情 ========== */}
       {result.refs.limitWarnings.length > 0 && (
-        <div className="flex items-start gap-1.5 text-xs text-red-500 bg-red-500/5 rounded p-1.5">
+        <div className="flex items-start gap-1.5 text-xs text-destructive bg-destructive/5 rounded p-1.5">
           <AlertCircle className="h-3 w-3 mt-0.5 shrink-0" />
           <div>
             {result.refs.limitWarnings.map((w, i) => (
@@ -328,10 +328,10 @@ function highlightRefs(text: string): React.ReactNode {
   return parts.map((part, i) => {
     if (regex.test(part) || part.match(/^@(?:Image|Video|Audio)\d+$/)) {
       const type = part.startsWith("@Image")
-        ? "text-blue-500"
+        ? "text-primary"
         : part.startsWith("@Video")
-          ? "text-purple-500"
-          : "text-green-500";
+          ? "text-viz-status-c"
+          : "text-success";
       return (
         <span key={i} className={cn("font-semibold", type)}>
           {part}

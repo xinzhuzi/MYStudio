@@ -85,16 +85,16 @@ export function QuadGridDialog({
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent 
-        className="max-w-md p-4 bg-zinc-900 border-zinc-800"
+        className="max-w-md p-4 bg-muted/60 border-border"
         onEscapeKeyDown={(e) => isGenerating && e.preventDefault()}
         onPointerDownOutside={(e) => isGenerating && e.preventDefault()}
       >
         <DialogHeader className="pb-2">
           <DialogTitle className="text-sm text-foreground flex items-center gap-2">
-            <Grid2X2 className="h-4 w-4 text-cyan-400" />
+            <Grid2X2 className="h-4 w-4 text-info" />
             四宫格生成 - {frameType === "start" ? "首帧" : "尾帧"}
           </DialogTitle>
-          <DialogDescription className="text-xs text-zinc-400">
+          <DialogDescription className="text-xs text-muted-foreground">
             基于当前图片生成4张一致性变体，继承人物/场景/光色
           </DialogDescription>
         </DialogHeader>
@@ -103,13 +103,13 @@ export function QuadGridDialog({
           {/* 预览图 */}
           {previewUrl && (
             <div className="flex justify-center">
-              <div className="relative w-40 aspect-video rounded overflow-hidden border border-zinc-700">
+              <div className="relative w-40 aspect-video rounded overflow-hidden border border-border">
                 <img
                   src={previewUrl}
                   alt="锚点图"
                   className="w-full h-full object-cover"
                 />
-                <span className="absolute bottom-1 left-1 text-[10px] bg-cyan-500/80 text-white px-1.5 py-0.5 rounded">
+                <span className="absolute bottom-1 left-1 text-[10px] bg-viz-selection/80 text-white px-1.5 py-0.5 rounded">
                   锚点图
                 </span>
               </div>
@@ -118,7 +118,7 @@ export function QuadGridDialog({
 
           {/* 变体类型选择 */}
           <div className="space-y-2">
-            <Label className="text-xs text-zinc-400">选择变体类型</Label>
+            <Label className="text-xs text-muted-foreground">选择变体类型</Label>
             <div className="grid grid-cols-3 gap-2">
               {VARIATION_OPTIONS.map((option) => (
                 <button
@@ -128,14 +128,14 @@ export function QuadGridDialog({
                   className={cn(
                     "p-2 rounded border text-left transition-all",
                     selectedType === option.type
-                      ? "border-cyan-500 bg-cyan-500/10"
-                      : "border-zinc-700 hover:border-zinc-600 bg-zinc-800/50"
+                      ? "border-viz-selection bg-viz-selection/10"
+                      : "border-border hover:border-border bg-muted/60/50"
                   )}
                 >
                   <div className="text-xs font-medium text-foreground">
                     {option.label}
                   </div>
-                  <div className="text-[10px] text-zinc-500 mt-0.5">
+                  <div className="text-[10px] text-muted-foreground mt-0.5">
                     {option.description}
                   </div>
                 </button>
@@ -146,14 +146,14 @@ export function QuadGridDialog({
           {/* 预览4格内容 */}
           {selectedOption && (
             <div className="p-3 rounded bg-muted/50 border border-border">
-              <div className="text-[10px] text-zinc-500 mb-2">
+              <div className="text-[10px] text-muted-foreground mb-2">
                 将生成 2×2 四宫格：
               </div>
               <div className="grid grid-cols-2 gap-1.5">
                 {selectedOption.variations.map((v, i) => (
                   <div
                     key={i}
-                    className="text-[10px] text-zinc-300 bg-zinc-700/50 px-2 py-1 rounded"
+                    className="text-[10px] text-foreground bg-muted/50 px-2 py-1 rounded"
                   >
                     {i + 1}. {v}
                   </div>
@@ -168,11 +168,11 @@ export function QuadGridDialog({
               id="use-char-ref" 
               checked={useCharacterRef}
               onCheckedChange={(checked) => setUseCharacterRef(checked === true)}
-              className="border-zinc-600 data-[state=checked]:bg-cyan-500 data-[state=checked]:border-cyan-500"
+              className="border-border data-[state=checked]:bg-viz-selection data-[state=checked]:border-viz-selection"
             />
             <Label 
               htmlFor="use-char-ref" 
-              className="text-xs text-zinc-400 font-normal cursor-pointer select-none leading-none"
+              className="text-xs text-muted-foreground font-normal cursor-pointer select-none leading-none"
             >
               参考角色库形象（若画面人物混乱请关闭此项）
             </Label>
@@ -181,9 +181,9 @@ export function QuadGridDialog({
           {/* 按钮 */}
           <div className="flex gap-2 pt-2">
             {isGenerating ? (
-              <div className="flex-1 flex items-center justify-center gap-2 h-8 bg-cyan-500/20 rounded border border-cyan-500/50">
-                <Loader2 className="h-4 w-4 text-cyan-400 animate-spin" />
-                <span className="text-sm text-cyan-400">正在生成四宫格，请稍候...</span>
+              <div className="flex-1 flex items-center justify-center gap-2 h-8 bg-viz-selection/20 rounded border border-viz-selection/50">
+                <Loader2 className="h-4 w-4 text-info animate-spin" />
+                <span className="text-sm text-info">正在生成四宫格，请稍候...</span>
               </div>
             ) : (
               <>
@@ -191,14 +191,14 @@ export function QuadGridDialog({
                   variant="outline"
                   size="sm"
                   onClick={() => onOpenChange(false)}
-                  className="flex-1 h-8 text-xs bg-transparent border-zinc-700 hover:bg-zinc-800 text-foreground"
+                  className="flex-1 h-8 text-xs bg-transparent border-border hover:bg-muted/60 text-foreground"
                 >
                   取消
                 </Button>
                 <Button
                   size="sm"
                   onClick={handleGenerate}
-                  className="flex-1 h-8 text-xs bg-cyan-500 hover:bg-cyan-600 text-foreground"
+                  className="flex-1 h-8 text-xs bg-viz-selection hover:bg-info text-foreground"
                 >
                   <Sparkles className="h-3 w-3 mr-1" />
                   生成四宫格
