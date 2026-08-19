@@ -840,6 +840,18 @@ contextBridge.exposeInMainWorld('sfxGenRuntime', {
     ipcRenderer.invoke('sfx-gen-runtime-generate', payload),
 })
 
+// MiniMax-Music3 runtime API (08-19-minimax-music3-engine) — whole-song BGM,
+// native seed determinism, explicit ~12 GB download only.
+contextBridge.exposeInMainWorld('music3GenRuntime', {
+  status: (): Promise<unknown> => ipcRenderer.invoke('music3-gen-runtime-status'),
+  setup: (): Promise<unknown> => ipcRenderer.invoke('music3-gen-runtime-setup'),
+  scanModel: (): Promise<{ models: unknown[] }> => ipcRenderer.invoke('music3-gen-runtime-scan-model'),
+  downloadModel: (model: string): Promise<{ accepted: boolean; message: string }> =>
+    ipcRenderer.invoke('music3-gen-runtime-download-model', { model }),
+  generate: (payload: { prompt: string; seed?: number; seconds?: number; steps?: number; outputDir: string }): Promise<unknown> =>
+    ipcRenderer.invoke('music3-gen-runtime-generate', payload),
+})
+
 // Artifact Inventory API - read-only project/chapter scan
 contextBridge.exposeInMainWorld('artifactInventory', {
   scan: (projectId: string, chapterId?: string) =>

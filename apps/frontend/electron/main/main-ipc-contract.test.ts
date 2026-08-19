@@ -87,6 +87,11 @@ image-gen-runtime-status
 image-gen-runtime-stop
 image-host-upload
 move-image
+music3-gen-runtime-download-model
+music3-gen-runtime-generate
+music3-gen-runtime-scan-model
+music3-gen-runtime-setup
+music3-gen-runtime-status
 project-file-get-absolute-path
 project-file-move
 project-file-read-base64

@@ -104,6 +104,8 @@ import { createAudioGenRuntimeController } from '@rendering/plugins/audio_gen/au
 import { registerAudioGenIpcHandlers } from '../ipc/studio/audio-gen-ipc'
 import { createSfxGenRuntimeController } from '@rendering/plugins/sfx_gen/sfx-gen-runtime-controller'
 import { registerSfxGenIpcHandlers } from '../ipc/studio/sfx-gen-ipc'
+import { createMusic3GenRuntimeController } from '@rendering/plugins/music3_gen/music3-gen-runtime-controller'
+import { registerMusic3GenIpcHandlers } from '../ipc/studio/music3-gen-ipc'
 import { createVideoWorkflowRuntimeManager } from '@rendering/plugins/video-workflow/video-workflow-runtime-manager'
 import { selectSharedVideoToolchain } from '@rendering/plugins/video-workflow/video-workflow-runtime'
 import type {
@@ -1015,6 +1017,18 @@ const sfxGenIpc = registerSfxGenIpcHandlers({
   getExportDir: () => path.join(app.getPath('userData'), 'exports'),
 })
 
+// MiniMax-Music3 (MLX) whole-song BGM engine (08-19-minimax-music3-engine) —
+// self-contained repo snapshot, native --seed; explicit download (~12 GB).
+const music3GenRuntimeController = createMusic3GenRuntimeController({
+  storageBasePath: getStorageBasePath,
+  backendRoot: videoWorkflowBackendRoot,
+  modelCacheDir: () => ttsRuntimeController.getModelCacheDir(),
+})
+const music3GenIpc = registerMusic3GenIpcHandlers({
+  controller: music3GenRuntimeController,
+  getExportDir: () => path.join(app.getPath('userData'), 'exports'),
+})
+
 const remotionShotRenderer = new RemotionShotRenderer({
   workspaceRoot: getDataDir(),
   workspaceRootForProject: (projectId) => path.join(projectRootFor(projectId), "remotion"),
@@ -1540,6 +1554,7 @@ disposeRemotionRuntime = async () => {
   chapterQcIpc.dispose()
   audioGenIpc.dispose()
   sfxGenIpc.dispose()
+  music3GenIpc.dispose()
   remotionRuntime.dispose()
 }
 
