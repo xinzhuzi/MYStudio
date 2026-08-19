@@ -394,7 +394,7 @@ export function WardrobeModal({
                 {character.visualTraits || character.description || '未设置视觉描述'}
               </p>
               {!characterBaseImage && (
-                <p className="text-xs text-warning dark:text-warning mt-1">
+                <p className="text-xs text-warning mt-1">
                   ⚠ 请先生成角色基础图片，衣橱变体需要基础定妆照作为参考
                 </p>
               )}

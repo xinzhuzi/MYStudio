@@ -127,7 +127,7 @@ export function ShotGroupPrompt({
                   "flex items-center gap-1 px-1.5 py-0.5 rounded",
                   result.refs.images.length > SEEDANCE_LIMITS.maxImages
                     ? "bg-destructive/10 text-destructive"
-                    : "bg-primary/10 text-primary dark:text-primary"
+                    : "bg-primary/10 text-primary"
                 )}
               >
                 <ImageIcon className="h-3 w-3" />
@@ -157,7 +157,7 @@ export function ShotGroupPrompt({
                 className={cn(
                   "flex items-center gap-1 px-1.5 py-0.5 rounded",
                   result.refs.videos.length > 0
-                    ? "bg-viz-status-c/10 text-viz-status-c dark:text-viz-status-c"
+                    ? "bg-viz-status-c/10 text-viz-status-c"
                     : "bg-muted text-muted-foreground"
                 )}
               >
@@ -184,7 +184,7 @@ export function ShotGroupPrompt({
                 className={cn(
                   "flex items-center gap-1 px-1.5 py-0.5 rounded",
                   result.refs.audios.length > 0
-                    ? "bg-success/10 text-success dark:text-success"
+                    ? "bg-success/10 text-success"
                     : "bg-muted text-muted-foreground"
                 )}
               >
@@ -205,7 +205,7 @@ export function ShotGroupPrompt({
 
         {/* 对白数 */}
         {result.dialogueSegments.length > 0 && (
-          <div className="flex items-center gap-1 px-1.5 py-0.5 rounded bg-warning/10 text-warning dark:text-warning">
+          <div className="flex items-center gap-1 px-1.5 py-0.5 rounded bg-warning/10 text-warning">
             <MessageCircle className="h-3 w-3" />
             <span>{result.dialogueSegments.length} 段对白</span>
           </div>

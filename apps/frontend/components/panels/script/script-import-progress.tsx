@@ -1,4 +1,6 @@
+import { useEffect, useState } from "react";
 import { Loader2 } from "lucide-react";
+import { LiveJobFeedback } from "@/components/ui/live-job-feedback";
 
 interface ScriptImportProgressProps {
   importStatus?: "idle" | "importing" | "ready" | "error";
@@ -19,12 +21,18 @@ export function ScriptImportProgress({
   sceneCalibrationStatus,
   secondPassTypes,
 }: ScriptImportProgressProps) {
-  const isActive = importStatus === "importing"
+  const isActive =
+    importStatus === "importing"
     || calibrationStatus === "calibrating"
     || synopsisStatus === "generating"
     || viewpointAnalysisStatus === "analyzing"
     || characterCalibrationStatus === "calibrating"
     || sceneCalibrationStatus === "calibrating";
+  const [startedAt, setStartedAt] = useState<number | null>(null);
+  useEffect(() => {
+    if (isActive && startedAt === null) setStartedAt(Date.now());
+    if (!isActive && startedAt !== null) setStartedAt(null);
+  }, [isActive, startedAt]);
 
   if (!isActive) return null;
 
@@ -33,7 +41,7 @@ export function ScriptImportProgress({
   return (
     <div className="p-4 rounded-xl bg-primary/10 border-2 border-primary/30 space-y-3">
       <div className="flex items-center gap-3 text-primary">
-        <Loader2 className="h-6 w-6 animate-spin" />
+        <LiveJobFeedback active startedAt={startedAt ?? undefined} />
         <span className="text-lg font-bold">
           {isSecondPass ? "🔄 二次校准中..." : "正在处理中..."}
         </span>
@@ -51,7 +59,7 @@ export function ScriptImportProgress({
                   <span className="w-5 h-5 rounded-full border-2 border-current" />
                 )}
                 <span className="text-base">AI 校准分镜</span>
-                <span className="text-xs px-1.5 py-0.5 rounded bg-warning/15 text-warning dark:bg-warning/30 dark:text-warning">二次</span>
+                <span className="text-xs px-1.5 py-0.5 rounded bg-warning/15 text-warning dark:bg-warning/30">二次</span>
               </div>
             )}
             {secondPassTypes?.has("characters") && (
@@ -64,7 +72,7 @@ export function ScriptImportProgress({
                   <span className="w-5 h-5 rounded-full border-2 border-current" />
                 )}
                 <span className="text-base">AI 角色校准</span>
-                <span className="text-xs px-1.5 py-0.5 rounded bg-warning/15 text-warning dark:bg-warning/30 dark:text-warning">二次</span>
+                <span className="text-xs px-1.5 py-0.5 rounded bg-warning/15 text-warning dark:bg-warning/30">二次</span>
               </div>
             )}
             {secondPassTypes?.has("scenes") && (
@@ -77,7 +85,7 @@ export function ScriptImportProgress({
                   <span className="w-5 h-5 rounded-full border-2 border-current" />
                 )}
                 <span className="text-base">AI 场景校准</span>
-                <span className="text-xs px-1.5 py-0.5 rounded bg-warning/15 text-warning dark:bg-warning/30 dark:text-warning">二次</span>
+                <span className="text-xs px-1.5 py-0.5 rounded bg-warning/15 text-warning dark:bg-warning/30">二次</span>
               </div>
             )}
           </>

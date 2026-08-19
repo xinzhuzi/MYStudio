@@ -66,11 +66,11 @@ export interface ArtifactTableProps {
 }
 
 const STATE_ICONS_AND_COLORS: Record<ArtifactState, { icon: React.ReactNode; color: string }> = {
-  "active": { icon: <CheckCircle className="h-4 w-4" />, color: "text-success dark:text-success" },
-  "archived": { icon: <Clock className="h-4 w-4" />, color: "text-muted-foreground dark:text-muted-foreground" },
-  "orphaned": { icon: <XCircle className="h-4 w-4" />, color: "text-warning dark:text-warning" },
-  "blocked": { icon: <AlertCircle className="h-4 w-4" />, color: "text-destructive dark:text-destructive" },
-  "unknown": { icon: <AlertCircle className="h-4 w-4" />, color: "text-warning dark:text-warning" },
+  "active": { icon: <CheckCircle className="h-4 w-4" />, color: "text-success" },
+  "archived": { icon: <Clock className="h-4 w-4" />, color: "text-muted-foreground" },
+  "orphaned": { icon: <XCircle className="h-4 w-4" />, color: "text-warning" },
+  "blocked": { icon: <AlertCircle className="h-4 w-4" />, color: "text-destructive" },
+  "unknown": { icon: <AlertCircle className="h-4 w-4" />, color: "text-warning" },
 };
 
 function formatBytes(bytes?: number): string {
@@ -339,8 +339,8 @@ export function ArtifactTable({
                 className={cn(
                   "cursor-pointer",
                   selectedIds.has(artifact.id) && "bg-muted/50",
-                  artifact.state === 'orphaned' && "text-warning dark:text-warning",
-                  artifact.state === 'blocked' && "text-destructive dark:text-destructive",
+                  artifact.state === 'orphaned' && "text-warning",
+                  artifact.state === 'blocked' && "text-destructive",
                 )}
                 onClick={() => onArtifactClick?.(artifact)}
               >

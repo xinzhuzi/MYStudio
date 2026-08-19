@@ -205,7 +205,7 @@ export function AuthorPreferenceDialog(props: {
         <DialogFooter className="items-center gap-2">
           <span
             className={`mr-auto inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs ${
-              isOverLimit ? "bg-red-500/10 text-red-500" : "bg-muted text-muted-foreground"
+              isOverLimit ? "bg-destructive/10 text-destructive" : "bg-muted text-muted-foreground"
             }`}
             title={`上限 ${AUTHOR_PREFERENCE_MAX_CHARS} 字符，超限无法保存`}
           >

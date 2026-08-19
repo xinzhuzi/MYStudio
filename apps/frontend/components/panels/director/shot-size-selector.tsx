@@ -72,7 +72,7 @@ export function ShotSizeLabel({ shotSize }: { shotSize: ShotSizeType | null }) {
   if (!preset) return null;
 
   return (
-    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-primary/10 text-primary dark:text-primary rounded text-[10px] font-medium">
+    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-primary/10 text-primary rounded text-[10px] font-medium">
       <span className="font-mono">{preset.abbr}</span>
       <span>{preset.label}</span>
     </span>

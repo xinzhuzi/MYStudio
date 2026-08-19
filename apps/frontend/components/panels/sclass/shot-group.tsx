@@ -178,10 +178,10 @@ export function ShotGroupCard({
           <Layers className="h-3.5 w-3.5 text-primary shrink-0" />
           <span className="text-sm font-medium truncate">{group.name}</span>
           {isExtendChild && (
-            <span className="text-[10px] px-1.5 py-0.5 bg-viz-status-c/10 text-viz-status-c dark:text-viz-status-c rounded-full shrink-0">延长</span>
+            <span className="text-[10px] px-1.5 py-0.5 bg-viz-status-c/10 text-viz-status-c rounded-full shrink-0">延长</span>
           )}
           {isEditChild && (
-            <span className="text-[10px] px-1.5 py-0.5 bg-warning/10 text-warning dark:text-warning rounded-full shrink-0">编辑</span>
+            <span className="text-[10px] px-1.5 py-0.5 bg-warning/10 text-warning rounded-full shrink-0">编辑</span>
           )}
         </div>
 
@@ -258,7 +258,7 @@ export function ShotGroupCard({
                   size="sm"
                   className={cn(
                     "h-7 px-2 text-xs",
-                    isCalibrated && "border-viz-status-c/50 text-viz-status-c dark:text-viz-status-c",
+                    isCalibrated && "border-viz-status-c/50 text-viz-status-c",
                   )}
                   disabled={isCalibrating || isGenerating}
                   onClick={() => onCalibrateGroup?.(group.id)}
@@ -313,7 +313,7 @@ export function ShotGroupCard({
                     <Button
                       variant="outline"
                       size="sm"
-                      className="h-7 px-2 text-xs border-viz-status-c/50 text-viz-status-c dark:text-viz-status-c hover:bg-viz-status-c/10"
+                      className="h-7 px-2 text-xs border-viz-status-c/50 text-viz-status-c hover:bg-viz-status-c/10"
                       disabled={isGeneratingAny}
                       onClick={() => onExtendGroup?.(group.id)}
                     >
@@ -330,7 +330,7 @@ export function ShotGroupCard({
                     <Button
                       variant="outline"
                       size="sm"
-                      className="h-7 px-2 text-xs border-warning/50 text-warning dark:text-warning hover:bg-warning/10"
+                      className="h-7 px-2 text-xs border-warning/50 text-warning hover:bg-warning/10"
                       disabled={isGeneratingAny}
                       onClick={() => onEditGroup?.(group.id)}
                     >
@@ -409,7 +409,7 @@ export function ShotGroupCard({
             <div className="flex items-start gap-1.5">
               <Sparkles className="h-3 w-3 text-viz-status-c mt-0.5 shrink-0" />
               <div>
-                <span className="text-[10px] font-medium text-viz-status-c dark:text-viz-status-c">叙事弧线</span>
+                <span className="text-[10px] font-medium text-viz-status-c">叙事弧线</span>
                 <p className="text-xs text-muted-foreground mt-0.5">{group.narrativeArc}</p>
               </div>
             </div>
@@ -418,7 +418,7 @@ export function ShotGroupCard({
             <div className="flex items-start gap-1.5">
               <ChevronRight className="h-3 w-3 text-viz-status-c mt-0.5 shrink-0" />
               <div>
-                <span className="text-[10px] font-medium text-viz-status-c dark:text-viz-status-c">过渡设计</span>
+                <span className="text-[10px] font-medium text-viz-status-c">过渡设计</span>
                 <p className="text-xs text-muted-foreground mt-0.5">
                   {group.transitions.map((t, i) => `${i + 1}→${i + 2}: ${t}`).join('；')}
                 </p>
@@ -442,7 +442,7 @@ export function ShotGroupCard({
             <div>
               <div className="flex items-center gap-2 mb-1">
                 <ImageIcon className="h-3.5 w-3.5 text-primary" />
-                <span className="text-xs text-primary dark:text-primary">格子图</span>
+                <span className="text-xs text-primary">格子图</span>
                 <div className="ml-auto flex items-center gap-1">
                   <Button variant="ghost" size="sm" className="h-6 w-6 p-0" onClick={() => setGridPreviewOpen(!gridPreviewOpen)}>
                     <ZoomIn className="h-3 w-3" />
@@ -470,7 +470,7 @@ export function ShotGroupCard({
             <div>
               <div className="flex items-center gap-2">
                 <Copy className="h-3.5 w-3.5 text-warning" />
-                <span className="text-xs text-warning dark:text-warning">生成 Prompt</span>
+                <span className="text-xs text-warning">生成 Prompt</span>
                 <Button variant="ghost" size="sm" className="h-6 px-2 ml-auto text-xs" onClick={handleCopyPrompt}>
                   <Copy className="h-3 w-3 mr-1" />
                   复制
@@ -487,7 +487,7 @@ export function ShotGroupCard({
             <div>
               <div className="flex items-center gap-2 mb-1">
                 <Film className="h-3.5 w-3.5 text-success" />
-                <span className="text-xs text-success dark:text-success">视频已生成</span>
+                <span className="text-xs text-success">视频已生成</span>
               </div>
               <video
                 src={group.videoUrl}

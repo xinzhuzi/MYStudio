@@ -195,7 +195,7 @@ export function SClassEditingPanel({
       {scenes.some((scene) => !scene.videoPrompt.trim()) && (
         <div className="flex items-start gap-2 p-2 rounded-md bg-warning/10 border border-warning/20">
           <AlertCircle className="h-4 w-4 text-warning mt-0.5 shrink-0" />
-          <div className="text-xs text-warning dark:text-warning">
+          <div className="text-xs text-warning">
             <p>部分分镜缺少提示词，点击分镜下方的文字区域可编辑。</p>
           </div>
         </div>

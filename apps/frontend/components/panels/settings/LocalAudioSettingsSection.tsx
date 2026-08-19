@@ -52,7 +52,7 @@ export function LocalAudioSettingsSection({ embedded = false }: LocalAudioSettin
           aria-selected={engine === "minimax"}
           onClick={() => setEngine("minimax")}
           className={cn(
-            "rounded-md px-3 py-1.5 text-xs font-medium transition-colors",
+            "rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
             engine === "minimax" ? "bg-background text-foreground" : "text-muted-foreground hover:text-foreground",
           )}
         >
@@ -64,7 +64,7 @@ export function LocalAudioSettingsSection({ embedded = false }: LocalAudioSettin
           aria-selected={engine === "musicgen"}
           onClick={() => setEngine("musicgen")}
           className={cn(
-            "rounded-md px-3 py-1.5 text-xs font-medium transition-colors",
+            "rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
             engine === "musicgen" ? "bg-background text-foreground" : "text-muted-foreground hover:text-foreground",
           )}
         >
@@ -392,7 +392,7 @@ function MlxServCard({ runtime, onConfigured }: { runtime: ReturnType<typeof use
           <InstallWeightsBlock runtime={runtime} />
         </div>
       ) : (
-        <p className="text-xs text-success dark:text-success">权重完整(直接指向不拷贝,8bit/bf16 均支持)</p>
+        <p className="text-xs text-success">权重完整(直接指向不拷贝,8bit/bf16 均支持)</p>
       )}
 
       {!mlxServ.binaryFound ? (

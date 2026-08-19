@@ -103,7 +103,7 @@ export function ScenePromptPanel({
           color === "green" && "bg-success/5 hover:bg-success/10 border-success/10",
         )}
       >
-        <span className={cn("text-[11px] flex-1", lineClass, color === "orange" && "text-warning dark:text-warning", color === "green" && "text-success dark:text-success", color === "blue" && "text-muted-foreground")}>{values[kind] || fallback}</span>
+        <span className={cn("text-[11px] flex-1", lineClass, color === "orange" && "text-warning", color === "green" && "text-success", color === "blue" && "text-muted-foreground")}>{values[kind] || fallback}</span>
         {!disabled && <Edit3 className={cn("h-2.5 w-2.5 shrink-0 mt-0.5", color === "blue" && "text-primary/50", color === "orange" && "text-warning/50", color === "green" && "text-success/50")} />}
       </button>
     );

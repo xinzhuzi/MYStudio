@@ -73,7 +73,7 @@ export function SoundEffectTags({
         {value.map((tagId) => (
           <span
             key={tagId}
-            className="inline-flex items-center gap-0.5 px-1.5 py-0.5 bg-warning/10 text-warning dark:text-warning rounded text-[10px]"
+            className="inline-flex items-center gap-0.5 px-1.5 py-0.5 bg-warning/10 text-warning rounded text-[10px]"
           >
             <Volume2 className="h-2.5 w-2.5" />
             {getTagLabel(tagId)}

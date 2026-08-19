@@ -516,7 +516,7 @@ export function SClassSceneCard({
               className={cn(
                 "text-[9px] px-1.5 py-0.5 rounded shrink-0 w-12 text-center transition-colors",
                 scene.audioAmbientEnabled !== false
-                  ? "bg-success/20 text-success dark:text-success"
+                  ? "bg-success/20 text-success"
                   : "bg-muted text-muted-foreground line-through"
               )}
             >
@@ -539,7 +539,7 @@ export function SClassSceneCard({
               className={cn(
                 "text-[9px] px-1.5 py-0.5 rounded shrink-0 w-12 text-center transition-colors",
                 scene.audioSfxEnabled !== false
-                  ? "bg-success/20 text-success dark:text-success"
+                  ? "bg-success/20 text-success"
                   : "bg-muted text-muted-foreground line-through"
               )}
             >
@@ -562,7 +562,7 @@ export function SClassSceneCard({
               className={cn(
                 "text-[9px] px-1.5 py-0.5 rounded shrink-0 w-12 text-center transition-colors",
                 scene.audioDialogueEnabled !== false
-                  ? "bg-success/20 text-success dark:text-success"
+                  ? "bg-success/20 text-success"
                   : "bg-muted text-muted-foreground line-through"
               )}
             >
@@ -585,7 +585,7 @@ export function SClassSceneCard({
               className={cn(
                 "text-[9px] px-1.5 py-0.5 rounded shrink-0 w-12 text-center transition-colors",
                 scene.audioBgmEnabled === true
-                  ? "bg-success/20 text-success dark:text-success"
+                  ? "bg-success/20 text-success"
                   : "bg-muted text-muted-foreground line-through"
               )}
             >

@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { AnimatePresence, motion, useReducedMotion } from "motion/react";
+import { AnimatePresence, motion } from "motion/react";
 import { FolderOpen, Music2, Settings2, Sparkles, TriangleAlert } from "lucide-react";
 import { toast } from "sonner";
 import { Alert } from "@/components/ui/alert";
@@ -11,6 +11,7 @@ import { Card } from "@/components/ui/card";
 import { IconTile } from "@/components/ui/icon-tile";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { LiveJobFeedback } from "@/components/ui/live-job-feedback";
 import { PanelHeader } from "@/components/ui/panel-header";
 import { StatusPill } from "@/components/ui/status-pill";
 import { Textarea } from "@/components/ui/textarea";
@@ -52,34 +53,7 @@ interface GeneratedSong {
   prompt: string;
 }
 
-/** 生成中的活反馈:均衡器条; prefers-reduced-motion 时退化为静态条。 */
-function Equalizer({ active }: { active: boolean }) {
-  const reduced = useReducedMotion();
-  return (
-    <div className="flex h-6 items-end gap-[3px]" aria-hidden>
-      {[0, 1, 2, 3, 4].map((index) =>
-        reduced || !active ? (
-          <span key={index} className="w-[3px] rounded-full bg-primary/50" style={{ height: 6 + ((index * 5) % 14) }} />
-        ) : (
-          <motion.span
-            key={index}
-            className="w-[3px] rounded-full bg-primary/70"
-            initial={{ height: 6 }}
-            animate={{ height: [6, 20 - ((index * 3) % 9), 10, 18 - (index % 5) * 2, 6] }}
-            transition={{ duration: 1.1 + index * 0.13, repeat: Infinity, ease: "easeInOut" }}
-          />
-        ),
-      )}
-    </div>
-  );
-}
-
-function formatElapsed(startedAt: number): string {
-  const total = Math.max(0, Math.floor((Date.now() - startedAt) / 1000));
-  const minutes = Math.floor(total / 60);
-  const seconds = total % 60;
-  return `${minutes}:${String(seconds).padStart(2, "0")}`;
-}
+/** 生成中的活反馈已下沉原语 LiveJobFeedback(08-19 活反馈铺开);本文件只留接线。 */
 
 /**
  * 侧边栏「音乐」面板主体(08-19 工作台音乐生成升级为独立侧边栏界面)。
@@ -97,7 +71,6 @@ export function MusicTab(props: { projectId?: string; projectName: string }) {
   const [seconds, setSeconds] = useState("30");
   const [generating, setGenerating] = useState(false);
   const [startedAt, setStartedAt] = useState<number | null>(null);
-  const [elapsed, setElapsed] = useState("0:00");
   const [results, setResults] = useState<GeneratedSong[]>([]);
 
   useEffect(() => {
@@ -133,14 +106,6 @@ export function MusicTab(props: { projectId?: string; projectName: string }) {
       cancelled = true;
     };
   }, [bridge, props.projectId]);
-
-  // 生成中每秒刷新已进行时长(分钟级任务的诚实反馈)
-  useEffect(() => {
-    if (!generating || startedAt === null) return;
-    setElapsed(formatElapsed(startedAt));
-    const timer = window.setInterval(() => setElapsed(formatElapsed(startedAt)), 1000);
-    return () => window.clearInterval(timer);
-  }, [generating, startedAt]);
 
   const goToSettings = useCallback(() => {
     const nav = useMediaPanelStore.getState();
@@ -336,7 +301,7 @@ export function MusicTab(props: { projectId?: string; projectName: string }) {
             <Button onClick={() => void handleGenerate()} disabled={generating || !props.projectId} className="h-10 px-6">
               {generating ? (
                 <>
-                  <Equalizer active />
+                  <LiveJobFeedback active prefix="" />
                   <span className="ml-2">生成中…</span>
                 </>
               ) : (
@@ -348,14 +313,11 @@ export function MusicTab(props: { projectId?: string; projectName: string }) {
             </Button>
           </div>
 
-          {/* 进行中反馈:均衡器 + 已进行时长 + 预期说明 */}
+          {/* 进行中反馈:活反馈原语(均衡器+已进行计时)+ 预期说明 */}
           {generating ? (
             <div className="flex flex-wrap items-center gap-x-4 gap-y-2 rounded-lg border border-border/60 bg-muted/40 px-4 py-3">
-              <Equalizer active />
-              <span className="text-sm">
-                <span className="font-medium">生成中</span>
-                <span className="ml-2 font-mono text-xs text-muted-foreground">已进行 {elapsed}</span>
-              </span>
+              <LiveJobFeedback active startedAt={startedAt ?? undefined} />
+              <span className="text-sm font-medium">生成中</span>
               <span className="ml-auto text-xs text-muted-foreground">
                 30 秒约 5.5 分钟 · 60 秒约 11 分钟;完成自动落盘,可切走等待
               </span>

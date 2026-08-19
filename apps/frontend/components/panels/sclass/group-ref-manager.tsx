@@ -565,8 +565,8 @@ function RefChip({
       className={cn(
         "flex items-center gap-1 px-1.5 py-0.5 rounded text-xs border",
         isVideo
-          ? "bg-viz-status-c/5 border-viz-status-c/20 text-viz-status-c dark:text-viz-status-c"
-          : "bg-success/5 border-success/20 text-success dark:text-success"
+          ? "bg-viz-status-c/5 border-viz-status-c/20 text-viz-status-c"
+          : "bg-success/5 border-success/20 text-success"
       )}
     >
       {isVideo ? <Film className="h-3 w-3" /> : <Music className="h-3 w-3" />}

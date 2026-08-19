@@ -43,7 +43,7 @@ function FontOptionCard(props: { id: string; selected: boolean; onSelect: () => 
         <span className="font-medium text-foreground">{style.label}</span>
         {props.selected && <Check className="h-4 w-4 text-primary" aria-hidden="true" />}
       </div>
-      <p className="mt-2 text-xs leading-5 text-muted-foreground">{style.description}</p>
+      <p className="mt-2 text-sm leading-6 text-muted-foreground">{style.description}</p>
       {/* 样张=该字体成片输出的真实样式(同字体/字重/暖白/描边),缩放到卡片尺寸 */}
       <div className="mt-3 flex justify-center overflow-hidden rounded-lg bg-black/80 px-3 py-2.5" aria-hidden="true">
         <span
@@ -226,7 +226,7 @@ export function RenderingSettingsTab({ embedded = false }: RenderingSettingsTabP
           {/* 工作流说明 */}
           <div className="rounded-lg border border-border bg-muted/30 p-4 space-y-2">
             <h4 className="font-semibold text-foreground">视频工作流运行说明</h4>
-            <div className="space-y-1.5 text-xs leading-5 text-muted-foreground">
+            <div className="space-y-1.5 text-sm leading-6 text-muted-foreground">
               <p><span className="font-medium text-foreground">共享运行时</span>：video-use 复用本地配置页已准备的 Python 3.12，HyperFrames 复用 Electron 内置 Node（无需额外下载），FFmpeg / ffprobe 由系统提供，所有插件共享同一组。</p>
               <p><span className="font-medium text-foreground">执行顺序</span>：video-use 先完成原文对齐、EDL 编辑、字幕时间轴、调色、预览渲染与自评；用户确认时间线后，准备 HyperFrames 生成透明动效 overlay（无动效也会写入 no-op 记录）；最后由 Remotion 负责正式 Composition 与章节视频渲染。</p>
               <p><span className="font-medium text-foreground">失败处理</span>：任一阶段失败都会阻塞后续流程并在 UI 中提示，可点击「准备」或「修复」重试，无需重启应用。</p>
@@ -237,7 +237,7 @@ export function RenderingSettingsTab({ embedded = false }: RenderingSettingsTabP
           <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border bg-muted/30 p-4">
             <div>
               <h4 className="font-semibold text-foreground">硬件加速渲染</h4>
-              <p className="text-xs text-muted-foreground mt-1">开启后章节渲染使用系统 Chrome（Metal GPU）替代默认软渲（headless-shell + swangle）；需要本机安装 Google Chrome，未安装时自动回退软渲。对已渲染产物缓存无影响。</p>
+              <p className="text-sm leading-6 text-muted-foreground mt-1">开启后章节渲染使用系统 Chrome（Metal GPU）替代默认软渲（headless-shell + swangle）；需要本机安装 Google Chrome，未安装时自动回退软渲。对已渲染产物缓存无影响。</p>
             </div>
             <Switch
               aria-label="硬件加速渲染"
@@ -325,7 +325,7 @@ export function RenderingSettingsTab({ embedded = false }: RenderingSettingsTabP
                   <CollapsibleContent>
                   <p className="text-xs leading-5 text-muted-foreground">{definition.description}</p>
                   {plugin?.message ? (
-                    <p className={plugin.runtimeState === "error" || plugin.runtimeState === "blocked" || plugin.runtimeState === "needs-runtime" ? "text-xs text-warning dark:text-warning" : "text-xs text-muted-foreground"}>{plugin.message}</p>
+                    <p className={plugin.runtimeState === "error" || plugin.runtimeState === "blocked" || plugin.runtimeState === "needs-runtime" ? "text-xs text-warning" : "text-xs text-muted-foreground"}>{plugin.message}</p>
                   ) : null}
                   {plugin ? (
                     <dl className="grid gap-1 text-[10px] text-muted-foreground">
@@ -373,7 +373,7 @@ export function RenderingSettingsTab({ embedded = false }: RenderingSettingsTabP
                                 <span className="font-medium text-foreground">{option.title}</span>
                                 {selected && <Check className="h-4 w-4 text-primary" aria-hidden="true" />}
                               </div>
-                              <p className="mt-2 text-xs leading-5 text-muted-foreground">{option.description}</p>
+                              <p className="mt-2 text-sm leading-6 text-muted-foreground">{option.description}</p>
                             </button>
                           );
                         })}

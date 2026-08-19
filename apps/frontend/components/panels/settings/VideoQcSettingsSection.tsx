@@ -41,10 +41,10 @@ export function VideoQcSettingsSection({ embedded = false }: VideoQcSettingsSect
             ? "检查失败"
             : "未探测";
   const lifecycleStatusClass = lifecycleState === "ready"
-    ? "border-success/30 bg-success/10 text-success dark:text-success"
+    ? "border-success/30 bg-success/10 text-success"
     : lifecycleState === "blocked" || lifecycleState === "error"
       ? "border-destructive/30 bg-destructive/10 text-destructive"
-      : "border-warning/30 bg-warning/10 text-warning dark:text-warning";
+      : "border-warning/30 bg-warning/10 text-warning";
 
   const handleSetup = async () => {
     try {
@@ -111,8 +111,8 @@ export function VideoQcSettingsSection({ embedded = false }: VideoQcSettingsSect
             className={cn(
               "rounded-full border px-2.5 py-0.5 text-xs font-medium",
               modelReady
-                ? "border-success/30 bg-success/10 text-success dark:text-success"
-                : "border-warning/30 bg-warning/10 text-warning dark:text-warning",
+                ? "border-success/30 bg-success/10 text-success"
+                : "border-warning/30 bg-warning/10 text-warning",
             )}
           >
             {modelReady ? "模型已就绪" : (status?.modelCode === "arch-unavailable" ? "模型权重缺推理架构" : "模型未下载")}

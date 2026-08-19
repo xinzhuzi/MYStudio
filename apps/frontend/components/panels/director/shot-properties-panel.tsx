@@ -433,7 +433,7 @@ export function ShotPropertiesPanel({
                   {selectedShot.cameraMovement || "Static"}
                 </span>
                 {selectedShot.duration && (
-                  <span className="px-1.5 py-0.5 bg-warning/15 dark:bg-warning/30 text-warning dark:text-warning rounded text-[10px] flex items-center gap-0.5">
+                  <span className="px-1.5 py-0.5 bg-warning/15 dark:bg-warning/30 text-warning rounded text-[10px] flex items-center gap-0.5">
                     <Timer className="w-2.5 h-2.5" />
                     {selectedShot.duration}s
                   </span>
@@ -477,7 +477,7 @@ export function ShotPropertiesPanel({
                 {selectedShot.ambientSound && (
                   <div className="flex gap-1.5 text-xs">
                     <span className="text-muted-foreground shrink-0">环境声:</span>
-                    <span className="text-success dark:text-success">{selectedShot.ambientSound}</span>
+                    <span className="text-success">{selectedShot.ambientSound}</span>
                   </div>
                 )}
                 {selectedShot.soundEffect && (
@@ -486,7 +486,7 @@ export function ShotPropertiesPanel({
                       <Zap className="w-2.5 h-2.5" />
                       音效:
                     </span>
-                    <span className="text-warning dark:text-warning">{selectedShot.soundEffect}</span>
+                    <span className="text-warning">{selectedShot.soundEffect}</span>
                   </div>
                 )}
               </div>

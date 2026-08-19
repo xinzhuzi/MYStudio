@@ -328,7 +328,7 @@ export function ScriptInput({
         {!chatConfigured && (
           <div className="flex items-start gap-2 p-2 rounded-md bg-warning/10 border border-warning/20">
             <AlertCircle className="h-4 w-4 text-warning mt-0.5 shrink-0" />
-            <div className="text-xs text-warning dark:text-warning">
+            <div className="text-xs text-warning">
               <p className="font-medium">API 未配置</p>
               <p className="opacity-80">请在设置中配置API密钥</p>
             </div>

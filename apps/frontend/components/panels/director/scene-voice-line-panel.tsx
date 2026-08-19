@@ -321,7 +321,7 @@ export function SceneVoiceLinePanel({ scene }: SceneVoiceLinePanelProps) {
               : `${currentLine.mocked ? "占位音频" : currentLine.ttsBackend || currentLine.engine}${currentLine.modelSize ? ` / ${currentLine.modelSize}` : ""}`}
           </span>
           {currentLine.mocked && currentLine.warning && (
-            <p className="break-words text-warning dark:text-warning" title={currentLine.warning}>
+            <p className="break-words text-warning" title={currentLine.warning}>
               真实模型未运行，当前音频仅用于流程验证
             </p>
           )}

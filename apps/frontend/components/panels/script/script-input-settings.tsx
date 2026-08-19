@@ -34,7 +34,7 @@ export function ScriptInputSettings({
       {mode === "import" && (
         <div className="space-y-3">
           <div className="space-y-1">
-            <Label className="text-xs">剧本语言</Label>
+            <Label className="text-sm">剧本语言</Label>
             <Select
               value={language}
               onValueChange={onLanguageChange}
@@ -52,7 +52,7 @@ export function ScriptInputSettings({
           </div>
 
           <div className="space-y-1">
-            <Label className="text-xs">提示词语言</Label>
+            <Label className="text-sm">提示词语言</Label>
             <Select
               value={promptLanguage || "zh"}
               onValueChange={(v) => onPromptLanguageChange?.(v as PromptLanguage)}
@@ -76,7 +76,7 @@ export function ScriptInputSettings({
 
           <div className="grid grid-cols-2 gap-2">
             <div className="space-y-1">
-              <Label className="text-xs">场景数量（可选）</Label>
+              <Label className="text-sm">场景数量（可选）</Label>
               <Select
                 value={sceneCount || ""}
                 onValueChange={(v) => onSceneCountChange?.(v)}
@@ -97,7 +97,7 @@ export function ScriptInputSettings({
             </div>
 
             <div className="space-y-1">
-              <Label className="text-xs">分镜数量（可选）</Label>
+              <Label className="text-sm">分镜数量（可选）</Label>
               {showCustomShotInput ? (
                 <div className="flex gap-1">
                   <Input
@@ -183,7 +183,7 @@ export function ScriptInputSettings({
       {mode === "create" && (
         <div className="space-y-3">
           <div className="space-y-1">
-            <Label className="text-xs">提示词语言</Label>
+            <Label className="text-sm">提示词语言</Label>
             <Select
               value={promptLanguage || "zh"}
               onValueChange={(v) => onPromptLanguageChange?.(v as PromptLanguage)}
@@ -206,7 +206,7 @@ export function ScriptInputSettings({
           </div>
           <div className="grid grid-cols-3 gap-2">
             <div className="space-y-1">
-              <Label className="text-xs">语言</Label>
+              <Label className="text-sm">语言</Label>
               <Select
                 value={language}
                 onValueChange={onLanguageChange}
@@ -224,7 +224,7 @@ export function ScriptInputSettings({
             </div>
 
             <div className="space-y-1">
-              <Label className="text-xs">时长</Label>
+              <Label className="text-sm">时长</Label>
               <Select
                 value={targetDuration}
                 onValueChange={onDurationChange}
@@ -244,7 +244,7 @@ export function ScriptInputSettings({
             </div>
 
             <div className="space-y-1">
-              <Label className="text-xs">风格</Label>
+              <Label className="text-sm">风格</Label>
               <StylePicker
                 value={styleId}
                 onChange={(id) => onStyleChange(id)}
@@ -255,7 +255,7 @@ export function ScriptInputSettings({
 
           <div className="grid grid-cols-2 gap-2">
             <div className="space-y-1">
-              <Label className="text-xs">场景数量（可选）</Label>
+              <Label className="text-sm">场景数量（可选）</Label>
               <Select
                 value={sceneCount || ""}
                 onValueChange={(v) => onSceneCountChange?.(v)}
@@ -276,7 +276,7 @@ export function ScriptInputSettings({
             </div>
 
             <div className="space-y-1">
-              <Label className="text-xs">分镜数量（可选）</Label>
+              <Label className="text-sm">分镜数量（可选）</Label>
               {showCustomShotInput ? (
                 <div className="flex gap-1">
                   <Input

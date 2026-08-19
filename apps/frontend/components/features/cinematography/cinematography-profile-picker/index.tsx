@@ -131,7 +131,7 @@ export function CinematographyProfilePicker({
 
         {/* 媒介适配提示 */}
         {showAdaptHint && (
-          <div className="text-xs mb-3 px-2 py-1.5 rounded bg-warning/10 text-warning dark:text-warning border border-warning/20">
+          <div className="text-xs mb-3 px-2 py-1.5 rounded bg-warning/10 text-warning border border-warning/20">
             ⓘ 当前视觉风格为「{MEDIA_TYPE_LABELS[mediaType]}」媒介，摄影参数将自动适配
             {isFieldSkipped(mediaType, 'cameraRig') && '（器材/景深/转焦将被跳过）'}
           </div>

@@ -328,7 +328,7 @@ export function FeatureBindingPanel() {
                       {/* 配置提示 */}
                       {feature.recommendation && (
                         <div className="flex items-start gap-2 px-3 py-2.5 rounded-md bg-destructive/10 border border-destructive/30">
-                          <span className="text-sm font-bold text-destructive dark:text-destructive leading-relaxed">
+                          <span className="text-sm font-bold text-destructive leading-relaxed">
                             {feature.recommendation}
                           </span>
                         </div>
