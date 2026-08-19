@@ -178,6 +178,11 @@ export class RemotionRenderQueue {
       if (["queued", "running"].includes(existing.job.status)) {
         return { accepted: false, job: existing.job, reason: "duplicate-active" };
       }
+      // 中断恢复死锁修复（08-20 真机三连踩）：ready 等待态的存量 job 在 init/
+      // activateProject 时因 chapter scope 未设而无人调度；本方法的 ensureScope
+      // 是唯一设置 activeChapterId 的入口，duplicate 返回若不泵，存量 ready
+      // 将永不渲染（编排 probing 等镜→15 分钟超时）。此处补泵幂等无害。
+      this.schedulePump();
       return { accepted: false, job: existing.job, reason: "duplicate-active" };
     }
     if (!(["ready", "blocked", "stale", "failed", "canceled"].includes(input.job.status))) {
@@ -210,6 +215,8 @@ export class RemotionRenderQueue {
       if (existing.kind !== "chapter" || !sameJobIdentity(existing.job, input.job)) return invalid("重复 chapter jobId 绑定了不同的 render identity");
       if (["queued", "running"].includes(existing.job.status)) return { accepted: false, job: existing.job, reason: "duplicate-active" };
       if (existing.job.status === "succeeded") return { accepted: false, job: existing.job, reason: "already-succeeded" };
+      // 同 enqueueShot duplicate 补泵（中断恢复的 ready 存量依赖 enqueue 唤醒）。
+      this.schedulePump();
       return { accepted: false, job: existing.job, reason: "duplicate-active" };
     }
     const dependencyStatus = this.getDependencyStatus(dependencyJobIds);
