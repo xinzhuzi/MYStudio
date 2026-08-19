@@ -130,7 +130,7 @@ export function createStorageManager({ userDataPath, sessionDataPath = userDataP
     return base;
   };
   const getPythonRuntimeDir = () => path.join(getStorageBasePath(), "python");
-  const getModelCacheDir = () => path.join(getStorageBasePath(), "TTS", "model");
+  const getModelCacheDir = () => path.join(getStorageBasePath(), "model", "TTS");
   const getCacheDirs = () => [
     path.join(sessionDataPath, "Cache"),
     path.join(sessionDataPath, "Code Cache"),

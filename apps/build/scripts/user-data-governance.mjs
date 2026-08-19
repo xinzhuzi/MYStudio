@@ -8,6 +8,7 @@ import { spawnSync } from 'node:child_process'
 const PROTECTED_ROOTS = new Map([
   ['storage-config.json', 'configuration'], ['projects', 'user-projects'], ['media', 'user-media'],
   ['assets', 'active-assets'], ['skills', 'skills'], ['python', 'python-runtime'],
+  ['model', 'model-weights'],
   ['TTS', 'tts-runtime'], ['tts-models', 'legacy-models'], ['tts-runtime', 'legacy-tts-runtime'], ['remotion-runtime', 'remotion-runtime'],
   ['remotion-studio', 'remotion-studio'], ['logs', 'logs'], ['diagnostics', 'diagnostics'],
   ['self-media', 'self-media'],

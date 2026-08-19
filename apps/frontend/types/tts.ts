@@ -113,10 +113,12 @@ export interface TtsStorageLayout {
   legacyRuntimeDir: string;
   legacyModelsDir: string;
   legacyDefaultModelsDir: string;
+  legacyCacheModelsDir: string;
   legacyHuggingFaceHubDir: string;
   legacyRuntimeExists: boolean;
   legacyModelsExists: boolean;
   legacyDefaultModelsExists: boolean;
+  legacyCacheModelsExists: boolean;
   legacyHuggingFaceHubExists: boolean;
   migrationState: TtsStorageMigrationState;
   migrationMessage?: string;

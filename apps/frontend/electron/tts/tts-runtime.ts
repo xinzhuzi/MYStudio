@@ -553,10 +553,12 @@ export function createTtsRuntimeController(deps: TtsRuntimeControllerDeps): TtsR
   const legacyRuntimeDir = path.join(deps.userDataPath, "tts-runtime");
   const legacyModelsDir = () => path.join(storageBasePath(), "tts-models");
   const legacyDefaultModelsDir = () => path.join(ttsRootDir(), "models");
+  // 2026-08 前的默认模型缓存目录（<base>/TTS/model）；新布局统一收口到 <base>/model/<family>/
+  const legacyCacheModelsDir = () => path.join(ttsRootDir(), "model");
   const runtimePythonDir = () => path.join(storageBasePath(), "python");
   const runtimeArchiveDir = () => storageBasePath();
   const configPath = () => path.join(runtimeDataDir(), "config.json");
-  const defaultModelCacheDir = () => path.join(ttsRootDir(), "model");
+  const defaultModelCacheDir = () => path.join(storageBasePath(), "model", "TTS");
   let child: SpawnedProcess | null = null;
   let setupState: Pick<TtsRuntimeStatus, "setupStage" | "setupMessage" | "setupProgress"> = {
     setupStage: "idle",
@@ -636,6 +638,7 @@ export function createTtsRuntimeController(deps: TtsRuntimeControllerDeps): TtsR
     ...listModelRepositories(huggingFaceHubDir(), true),
     ...listModelRepositories(legacyDefaultModelsDir()),
     ...listModelRepositories(legacyModelsDir()),
+    ...listModelRepositories(legacyCacheModelsDir()),
   ];
 
   const getStorageLayout = (): TtsStorageLayout => {
@@ -644,6 +647,7 @@ export function createTtsRuntimeController(deps: TtsRuntimeControllerDeps): TtsR
     const legacyRuntimeExists = fileExists(legacyRuntimeDir);
     const legacyModelsExists = fileExists(legacyModelsDir());
     const legacyDefaultModelsExists = fileExists(legacyDefaultModelsDir());
+    const legacyCacheModelsExists = fileExists(legacyCacheModelsDir());
     const legacyHuggingFaceHubExists = fileExists(huggingFaceHubDir());
     const hasRuntimeConflict = legacyRuntimeExists && fileExists(runtimeDir);
     const hasModelRepositories = getModelRepositorySources().length > 0;
@@ -659,10 +663,12 @@ export function createTtsRuntimeController(deps: TtsRuntimeControllerDeps): TtsR
       legacyRuntimeDir,
       legacyModelsDir: legacyModelsDir(),
       legacyDefaultModelsDir: legacyDefaultModelsDir(),
+      legacyCacheModelsDir: legacyCacheModelsDir(),
       legacyHuggingFaceHubDir: huggingFaceHubDir(),
       legacyRuntimeExists,
       legacyModelsExists,
       legacyDefaultModelsExists,
+      legacyCacheModelsExists,
       legacyHuggingFaceHubExists,
       migrationState,
       migrationMessage: hasRuntimeConflict
@@ -1512,7 +1518,7 @@ export function createTtsRuntimeController(deps: TtsRuntimeControllerDeps): TtsR
       }
 
       const config = readConfig();
-      const legacyModelPaths = [layout.legacyModelsDir, layout.legacyDefaultModelsDir];
+      const legacyModelPaths = [layout.legacyModelsDir, layout.legacyDefaultModelsDir, layout.legacyCacheModelsDir];
       const configuredModelCacheDir = config.modelCacheDir;
       const usesLegacyOrUnsetModelDir = !configuredModelCacheDir || legacyModelPaths.some((legacyPath) => (
         normalizeUserPath(configuredModelCacheDir) === normalizeUserPath(legacyPath)

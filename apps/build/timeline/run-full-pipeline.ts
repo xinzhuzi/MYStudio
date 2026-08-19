@@ -453,10 +453,10 @@ export async function runFullPipeline(): Promise<Record<string, unknown>> {
 
   // ── 6. Instantiate adapters ──
   const backendRoot = path.join(appsRoot, "backend");
-  // The TTS runtime controller uses <storageBase>/TTS/model as its default model cache dir.
+  // The TTS runtime controller uses <storageBase>/model/TTS as its default model cache dir.
   // The video-use adapter sets MANYING_TTS_MODELS_DIR and VOICEBOX_MODELS_DIR from this value.
-  // The Whisper model lives at <storageBase>/TTS/model/models--mlx-community--whisper-large-v3-turbo
-  const modelCacheDir = path.join(storageBasePath, "TTS", "model");
+  // The Whisper model lives at <storageBase>/model/TTS/models--mlx-community--whisper-large-v3-turbo
+  const modelCacheDir = path.join(storageBasePath, "model", "TTS");
 
   const videoUseAdapter = createVideoUseAdapter({
     storageBasePath: () => storageBasePath,

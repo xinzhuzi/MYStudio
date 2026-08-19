@@ -29,10 +29,10 @@ describe("TTS runtime controller", () => {
       port: 17593,
       baseUrl: "http://127.0.0.1:17593",
       cacheDir: "/user-data/TTS/runtime",
-      modelCacheDir: "/user-data/TTS/model",
-      defaultModelCacheDir: "/user-data/TTS/model",
+      modelCacheDir: "/user-data/model/TTS",
+      defaultModelCacheDir: "/user-data/model/TTS",
     });
-    expect(controller.getModelCacheDir()).toBe("/user-data/TTS/model");
+    expect(controller.getModelCacheDir()).toBe("/user-data/model/TTS");
   });
 
   it("starts the Python sidecar with isolated runtime data", async () => {
@@ -74,9 +74,9 @@ describe("TTS runtime controller", () => {
         cwd: "/backend",
         env: expect.objectContaining({
           MANYING_TTS_DATA_DIR: "/project-storage/TTS/runtime",
-          MANYING_TTS_MODELS_DIR: "/project-storage/TTS/model",
-          VOICEBOX_MODELS_DIR: "/project-storage/TTS/model",
-          HF_HUB_CACHE: "/project-storage/TTS/model",
+          MANYING_TTS_MODELS_DIR: "/project-storage/model/TTS",
+          VOICEBOX_MODELS_DIR: "/project-storage/model/TTS",
+          HF_HUB_CACHE: "/project-storage/model/TTS",
           MANYING_TTS_CONTROL_TOKEN: expect.any(String),
         }),
       }),
@@ -130,7 +130,7 @@ describe("TTS runtime controller", () => {
       expect(controller.getStorageLayout()).toMatchObject({
         rootDir: path.join(storageBasePath, "TTS"),
         runtimeDir: path.join(storageBasePath, "TTS", "runtime"),
-        modelsDir: path.join(storageBasePath, "TTS", "model"),
+        modelsDir: path.join(storageBasePath, "model", "TTS"),
         migrationState: "ready",
       });
 
@@ -138,9 +138,54 @@ describe("TTS runtime controller", () => {
       expect(fs.existsSync(legacyRuntimeDir)).toBe(false);
       expect(fs.existsSync(legacyModelRepoDir)).toBe(false);
       expect(fs.readFileSync(path.join(storageBasePath, "TTS", "runtime", "tts.sqlite"), "utf8")).toBe("sqlite-data");
-      expect(fs.readFileSync(path.join(storageBasePath, "TTS", "model", "models--example--voice", "model.bin"), "utf8")).toBe("model-data");
+      expect(fs.readFileSync(path.join(storageBasePath, "model", "TTS", "models--example--voice", "model.bin"), "utf8")).toBe("model-data");
       expect(JSON.parse(fs.readFileSync(path.join(storageBasePath, "TTS", "runtime", "config.json"), "utf8")))
-        .toMatchObject({ modelCacheDir: path.join(storageBasePath, "TTS", "model"), controlToken: "existing-token" });
+        .toMatchObject({ modelCacheDir: path.join(storageBasePath, "model", "TTS"), controlToken: "existing-token" });
+      expect(controller.getStorageLayout().migrationState).toBe("up-to-date");
+    } finally {
+      fs.rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it("migrates the legacy TTS/model default cache into model/TTS and rewrites the persisted config", async () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), "mystudio-tts-legacy-cache-"));
+    const userDataPath = path.join(root, "user-data");
+    const storageBasePath = path.join(root, "storage");
+    const legacyCacheDir = path.join(storageBasePath, "TTS", "model");
+    const runtimeConfigPath = path.join(storageBasePath, "TTS", "runtime", "config.json");
+    const modelName = "models--mlx-community--Qwen3-TTS-12Hz-1.7B-Base-bf16";
+    try {
+      fs.mkdirSync(path.join(legacyCacheDir, modelName), { recursive: true });
+      fs.mkdirSync(path.dirname(runtimeConfigPath), { recursive: true });
+      fs.writeFileSync(path.join(legacyCacheDir, modelName, "model.bin"), "model-data");
+      fs.writeFileSync(runtimeConfigPath, JSON.stringify({
+        modelCacheDir: legacyCacheDir,
+        controlToken: "existing-token",
+      }));
+
+      const controller = createTtsRuntimeController({
+        appRoot: "/repo",
+        userDataPath,
+        storageBasePath,
+        huggingFaceHubDir: path.join(root, "huggingface", "hub"),
+        fetchJson: vi.fn().mockRejectedValue(new Error("offline")),
+        spawnProcess: vi.fn(),
+      });
+
+      expect(controller.getStorageLayout()).toMatchObject({
+        modelsDir: path.join(storageBasePath, "model", "TTS"),
+        legacyCacheModelsDir: legacyCacheDir,
+        legacyCacheModelsExists: true,
+        migrationState: "ready",
+      });
+      expect(controller.getModelCacheDir()).toBe(legacyCacheDir);
+
+      await expect(controller.migrateStorage()).resolves.toMatchObject({ success: true });
+      expect(fs.existsSync(path.join(legacyCacheDir, modelName))).toBe(false);
+      expect(fs.readFileSync(path.join(storageBasePath, "model", "TTS", modelName, "model.bin"), "utf8")).toBe("model-data");
+      expect(JSON.parse(fs.readFileSync(runtimeConfigPath, "utf8")))
+        .toMatchObject({ modelCacheDir: path.join(storageBasePath, "model", "TTS"), controlToken: "existing-token" });
+      expect(controller.getModelCacheDir()).toBe(path.join(storageBasePath, "model", "TTS"));
       expect(controller.getStorageLayout().migrationState).toBe("up-to-date");
     } finally {
       fs.rmSync(root, { recursive: true, force: true });
@@ -155,7 +200,7 @@ describe("TTS runtime controller", () => {
     const modelName = "models--hexgrad--Kokoro-82M";
     const globalModelDir = path.join(huggingFaceHubDir, modelName);
     const legacyModelDir = path.join(storageBasePath, "tts-models", modelName);
-    const targetModelDir = path.join(storageBasePath, "TTS", "model", modelName);
+    const targetModelDir = path.join(storageBasePath, "model", "TTS", modelName);
     try {
       fs.mkdirSync(globalModelDir, { recursive: true });
       fs.mkdirSync(legacyModelDir, { recursive: true });
@@ -216,7 +261,7 @@ describe("TTS runtime controller", () => {
     const modelName = "models--hexgrad--Kokoro-82M";
     const globalModelDir = path.join(huggingFaceHubDir, modelName);
     const legacyModelDir = path.join(storageBasePath, "tts-models", modelName);
-    const targetModelDir = path.join(storageBasePath, "TTS", "model", modelName);
+    const targetModelDir = path.join(storageBasePath, "model", "TTS", modelName);
     try {
       fs.mkdirSync(globalModelDir, { recursive: true });
       fs.mkdirSync(legacyModelDir, { recursive: true });
@@ -1413,8 +1458,8 @@ describe("TTS runtime stale-marker offline self-healing", () => {
       expect.any(Array),
       expect.objectContaining({
         env: expect.objectContaining({
-          MANYING_TTS_MODELS_DIR: "/project-storage/TTS/model",
-          VOICEBOX_MODELS_DIR: "/project-storage/TTS/model",
+          MANYING_TTS_MODELS_DIR: "/project-storage/model/TTS",
+          VOICEBOX_MODELS_DIR: "/project-storage/model/TTS",
         }),
       }),
     );
