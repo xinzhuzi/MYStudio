@@ -711,7 +711,7 @@ export function ScreenplayInput({ onGenerateStoryboard }: ScreenplayInputProps) 
                   <button
                     aria-label={`移除角色 ${char.characterName}`}
                     onClick={() => removeCharacter(char.characterId)}
-                    className="text-muted-foreground hover:text-destructive transition-colors"
+                    className="text-muted-foreground hover:text-destructive transition-colors rounded-md"
                   >
                     <X className="h-3 w-3" />
                   </button>

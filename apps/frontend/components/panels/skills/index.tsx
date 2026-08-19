@@ -480,7 +480,7 @@ export function SkillsView({
                 {visibleCount < filteredFiles.length ? (
                   <button
                     type="button"
-                    className="w-full py-2 text-center text-xs text-muted-foreground hover:text-foreground"
+                    className="w-full py-2 text-center text-xs text-muted-foreground hover:text-foreground rounded-md"
                     onClick={() => setVisibleCount((c) => c + 50)}
                   >
                     显示更多（{filteredFiles.length - visibleCount} 个）

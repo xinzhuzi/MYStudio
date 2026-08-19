@@ -174,7 +174,7 @@ export function AppearanceSettingsTab() {
                   type="button"
                   onClick={() => setColorPreset(preset.id as ColorPresetId)}
                   className={cn(
-                    "settings-preset-card appearance-preset-card group relative text-left rounded-2xl border bg-card/90 overflow-hidden transition-all duration-300 hover:scale-[1.02] hover:-translate-y-1 focus-visible:ring-2 focus-visible:ring-primary",
+                    "settings-preset-card appearance-preset-card group relative text-left rounded-2xl border bg-card/90 overflow-hidden transition-all duration-300 hover:scale-[1.02] hover:-translate-y-1 focus-visible:ring-2 focus-visible:ring-primary rounded-md",
                     isActive && "is-active ring-2 ring-primary border-primary"
                   )}
                   data-mode={preset.mode}

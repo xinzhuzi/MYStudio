@@ -9,6 +9,7 @@
  *   R4 scale-active  active:scale-* 按压反馈(HIG 禁忌)
  *   R5 pure-white    text-white / text-black 前景(应换 text-foreground)
  *   R6 白名单        allowPaths 跳过;severityOverrides 降级(桶B/待裁定)
+ *   R7 button-radius 裸 <button> 缺 rounded-* 圆角(Apple 扁平圆角;ui/ 原语内部自治不扫)
  *
  * 用法:
  *   node apps/build/scripts/design-lint.mjs                    # 全前端扫描
@@ -36,6 +37,7 @@ const RULES = {
   R3: { name: "gradient-btn", desc: "按钮上的渐变背景(HIG 禁忌)" },
   R4: { name: "scale-active", desc: "active:scale-* 按压缩放(HIG 禁忌)" },
   R5: { name: "pure-white", desc: "text-white/text-black 前景(应换 text-foreground)" },
+  R7: { name: "button-radius", desc: "裸 <button> 缺 rounded-* 圆角(Apple 扁平圆角规范)" },
 };
 
 const RE_SHADOW = /(?<![-\w])(?:[a-z-]+:)?shadow-(?:sm|md|lg|xl|2xl)\b/g;
@@ -47,6 +49,60 @@ const RE_PALETTE = new RegExp(
 const RE_GRADIENT = /(?<![-\w])bg-(?:gradient|linear)-to-[a-z]{1,2}\b/g;
 const RE_SCALE_ACTIVE = /(?<![-\w])(?:group-)?(?:active|pressed):scale-\d+(?:\.\d+)?/g;
 const RE_PURE_FOREGROUND = /(?<![-\w])(?:[a-z-]+:)?text-(white|black)\b/g;
+
+/**
+ * R7 辅助:找 <button 开标签的闭合 '>' 下标,正确跳过属性里的箭头函数/字符串/模板串。
+ * (朴素 [^>]* 会被 () => 里的 '>' 截断,漏掉后面的 className。)
+ */
+function findButtonTagEnd(src, start) {
+  let i = start;
+  const stack = [];
+  while (i < src.length) {
+    const c = src[i];
+    const top = stack[stack.length - 1];
+    if (top === '"' || top === "'" || top === "`") {
+      if (c === "\\") { i += 2; continue; }
+      if (top === "`" && c === "$" && src[i + 1] === "{") { stack.push("tmpl"); i += 2; continue; }
+      if (c === top) stack.pop();
+    } else if (top === "tmpl") {
+      if (c === "}") stack.pop();
+      else if (c === '"' || c === "'" || c === "`") stack.push(c);
+      else if (c === "{") stack.push("{");
+    } else {
+      if (c === '"' || c === "'" || c === "`") stack.push(c);
+      else if (c === "{" || c === "(") stack.push(c);
+      else if (c === "}" && top === "{") stack.pop();
+      else if (c === ")" && top === "(") stack.pop();
+      else if (c === ">" && stack.length === 0) return i;
+    }
+    i += 1;
+  }
+  return -1;
+}
+
+/** R7:面板层裸 <button> 必须声明 rounded-*;返回 findings(引用 matchAll 的结构)。 */
+function scanButtonRadius(content, relPath, baseSeverity, whitelist) {
+  const findings = [];
+  if (!/\.tsx$/.test(relPath)) return findings;
+  if (relPath.startsWith("components/ui/") || relPath.includes("/ui/")) return findings;
+  for (const m of content.matchAll(/<button\b/g)) {
+    const end = findButtonTagEnd(content, m.index);
+    if (end < 0) continue;
+    const tag = content.slice(m.index, end + 1);
+    if (/[{'"` ]rounded-[a-z]+/.test(tag)) continue;
+    const line = content.slice(0, m.index).split("\n").length;
+    const severity = overrideSeverity(whitelist, relPath, "R7") ?? baseSeverity;
+    findings.push({
+      rule: "R7",
+      severity,
+      file: relPath,
+      line,
+      match: "<button>",
+      snippet: tag.replace(/\s+/g, " ").slice(0, 160),
+    });
+  }
+  return findings;
+}
 
 function loadWhitelist() {
   const whitelistPath = join(SCRIPT_DIR, "design-lint-whitelist.json");
@@ -149,6 +205,7 @@ export function scanDesignViolations({ root = FRONTEND_ROOT, files } = {}) {
 
     findings.push(...matchAll(content, RE_SCALE_ACTIVE, relNorm, "R4", "error", whitelist));
     findings.push(...matchAll(content, RE_PURE_FOREGROUND, relNorm, "R5", "error", whitelist));
+    findings.push(...scanButtonRadius(content, relNorm, "error", whitelist));
   }
 
   const byFile = {};

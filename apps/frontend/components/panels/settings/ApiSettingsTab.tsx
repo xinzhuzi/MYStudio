@@ -126,7 +126,7 @@ export function ApiSettingsTab({
                           setSelectedProviderId(provider.id);
                           setActiveSection("service");
                         }}
-                        className="min-w-0 flex-1 text-left"
+                        className="min-w-0 flex-1 text-left rounded-md"
                       >
                         <span className="block truncate">{getProviderDisplayName(provider)}</span>
                         <span className="text-xs text-muted-foreground">{provider.model.length} 个模型</span>

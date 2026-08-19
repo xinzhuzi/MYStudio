@@ -204,7 +204,7 @@ export function ShotGridDetailPanel({
                       <button
                         onClick={() => onAngleSwitch("start")}
                         disabled={isAngleSwitching}
-                        className="text-[10px] text-warning hover:text-warning disabled:opacity-50 flex items-center gap-0.5"
+                        className="text-[10px] text-warning hover:text-warning disabled:opacity-50 flex items-center gap-0.5 rounded-md"
                       >
                         <RotateCw className="w-3 h-3" />
                         视角
@@ -213,7 +213,7 @@ export function ShotGridDetailPanel({
                     <button
                       onClick={() => onGenerateKeyframe(shot, "start")}
                       disabled={processingType === "start"}
-                      className="text-[10px] text-primary hover:text-foreground disabled:opacity-50"
+                      className="text-[10px] text-primary hover:text-foreground disabled:opacity-50 rounded-md"
                     >
                       {startImageUrl ? "重新生成" : "生成"}
                     </button>
@@ -243,7 +243,7 @@ export function ShotGridDetailPanel({
                       <button
                         onClick={() => onAngleSwitch("end")}
                         disabled={isAngleSwitching}
-                        className="text-[10px] text-warning hover:text-warning disabled:opacity-50 flex items-center gap-0.5"
+                        className="text-[10px] text-warning hover:text-warning disabled:opacity-50 flex items-center gap-0.5 rounded-md"
                       >
                         <RotateCw className="w-3 h-3" />
                         视角
@@ -252,7 +252,7 @@ export function ShotGridDetailPanel({
                     <button
                       onClick={() => onGenerateKeyframe(shot, "end")}
                       disabled={processingType === "end"}
-                      className="text-[10px] text-primary hover:text-foreground disabled:opacity-50"
+                      className="text-[10px] text-primary hover:text-foreground disabled:opacity-50 rounded-md"
                     >
                       {endKeyframe?.imageUrl ? "重新生成" : "生成"}
                     </button>

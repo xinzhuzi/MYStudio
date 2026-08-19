@@ -45,7 +45,7 @@ export function TabBar({ sidebarCollapsed}: TabBarProps) {
                 <button
                   onClick={() => { setActiveTab("dashboard"); }}
                   className={cn(
-                    "studio-nav-button w-full flex flex-col items-center py-2.5 transition-colors",
+                    "studio-nav-button w-full flex flex-col items-center py-2.5 transition-colors rounded-md",
                     activeTab === "dashboard"
                       ? "is-active text-primary bg-primary/10"
                       : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
@@ -82,7 +82,7 @@ export function TabBar({ sidebarCollapsed}: TabBarProps) {
                 <button
                   onClick={() => { setActiveTab("settings"); }}
                   className={cn(
-                    "studio-nav-button w-full flex flex-col items-center py-2 transition-colors",
+                    "studio-nav-button w-full flex flex-col items-center py-2 transition-colors rounded-md",
                     activeTab === "settings" ? "is-active text-primary" : "text-muted-foreground hover:text-foreground"
                   )}
                 >
@@ -112,7 +112,7 @@ export function TabBar({ sidebarCollapsed}: TabBarProps) {
             <TooltipTrigger asChild>
               <button
                 onClick={() => setInProject(false)}
-                className="studio-nav-button w-full flex flex-col items-center py-2.5 text-muted-foreground transition-colors hover:text-foreground hover:bg-muted/50"
+                className="studio-nav-button w-full flex flex-col items-center py-2.5 text-muted-foreground transition-colors hover:text-foreground hover:bg-muted/50 rounded-md"
               >
                 <Home className="h-5 w-5 mb-0.5" />
                 <span className="text-[9px]">主页</span>
@@ -133,7 +133,7 @@ export function TabBar({ sidebarCollapsed}: TabBarProps) {
                   <button
                     onClick={() => { setActiveTab(item.id); }}
                     className={cn(
-                      "studio-nav-button w-full flex flex-col items-center py-2.5 transition-colors",
+                      "studio-nav-button w-full flex flex-col items-center py-2.5 transition-colors rounded-md",
                       isActive
                         ? "is-active text-primary bg-primary/10"
                         : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
@@ -178,7 +178,7 @@ export function TabBar({ sidebarCollapsed}: TabBarProps) {
                   <button
                     onClick={() => { setActiveTab(item.id); }}
                     className={cn(
-                      "studio-nav-button w-full flex flex-col items-center py-2 transition-colors",
+                      "studio-nav-button w-full flex flex-col items-center py-2 transition-colors rounded-md",
                       isActive ? "is-active text-primary" : "text-muted-foreground hover:text-foreground"
                     )}
                   >

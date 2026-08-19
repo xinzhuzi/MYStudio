@@ -63,7 +63,7 @@ export function EpisodeTreeStructure({
             aria-label={`切换${episode.title}`}
             onClick={() => onToggleEpisode(episode.id)}
             className={cn(
-              "flex-1 min-w-0 flex items-center gap-1 px-2 py-1.5 rounded hover:bg-muted text-left overflow-hidden",
+              "flex-1 min-w-0 flex items-center gap-1 px-2 py-1.5 rounded-md hover:bg-muted text-left overflow-hidden",
               selectedItemId === `episode_${episode.index}` && selectedItemType === "episode" && "bg-primary/10",
             )}
           >
@@ -119,7 +119,7 @@ export function EpisodeTreeStructure({
                       aria-label={`切换${scene.name || scene.location}`}
                       onClick={() => onToggleScene(scene.id)}
                       className={cn(
-                        "flex-1 flex items-center gap-1 px-2 py-1 rounded hover:bg-muted text-left",
+                        "flex-1 flex items-center gap-1 px-2 py-1 rounded-md hover:bg-muted text-left",
                         selectedItemId === scene.id && selectedItemType === "scene" && "bg-primary/10",
                       )}
                     >
@@ -160,7 +160,7 @@ export function EpisodeTreeStructure({
                           <button
                             onClick={() => onSelectItem(shot.id, "shot")}
                             className={cn(
-                              "flex-1 flex items-center gap-2 px-2 py-1 rounded hover:bg-muted text-left",
+                              "flex-1 flex items-center gap-2 px-2 py-1 rounded-md hover:bg-muted text-left",
                               selectedItemId === shot.id && selectedItemType === "shot" && "bg-primary/10",
                             )}
                           >

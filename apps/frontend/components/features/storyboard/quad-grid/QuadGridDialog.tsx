@@ -126,7 +126,7 @@ export function QuadGridDialog({
                   onClick={() => setSelectedType(option.type)}
                   disabled={isGenerating}
                   className={cn(
-                    "p-2 rounded border text-left transition-all",
+                    "p-2 rounded-md border text-left transition-all",
                     selectedType === option.type
                       ? "border-viz-selection bg-viz-selection/10"
                       : "border-border hover:border-border bg-muted/60/50"

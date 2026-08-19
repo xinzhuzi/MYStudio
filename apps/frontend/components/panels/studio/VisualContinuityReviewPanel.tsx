@@ -176,7 +176,7 @@ export function VisualContinuityReviewPanel({
             aria-pressed={item.id === selected.id}
             onClick={() => setSelectedId(item.id)}
             className={cn(
-              "h-8 min-w-10 rounded border px-2 text-[11px] font-medium outline-none transition-colors focus-visible:ring-2 focus-visible:ring-warning/40",
+              "h-8 min-w-10 rounded-lg border px-2 text-[11px] font-medium outline-none transition-colors focus-visible:ring-2 focus-visible:ring-warning/40",
               item.id === selected.id
                 ? "border-warning bg-warning text-warning-foreground"
                 : item.visualReview?.status === "approved"

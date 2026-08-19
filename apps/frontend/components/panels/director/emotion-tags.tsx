@@ -110,7 +110,7 @@ export function EmotionTags({ value, onChange, disabled }: EmotionTagsProps) {
                 {!disabled && (
                   <button
                     onClick={() => removeTag(tagId)}
-                    className="ml-0.5 hover:text-destructive transition-colors"
+                    className="ml-0.5 hover:text-destructive transition-colors rounded-md"
                   >
                     <X className="h-3 w-3" />
                   </button>

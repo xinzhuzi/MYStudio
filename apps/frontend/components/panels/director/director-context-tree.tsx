@@ -88,7 +88,7 @@ export function DirectorContextTree({
             <div key={episode.id} className="space-y-0.5">
               <button
                 onClick={() => onToggleEpisode(episode.id)}
-                className="w-full flex items-center gap-1 px-2 py-1.5 rounded hover:bg-muted text-left"
+                className="w-full flex items-center gap-1 px-2 py-1.5 rounded-md hover:bg-muted text-left"
               >
                 {expandedEpisodes.has(episode.id) ? (
                   <ChevronDown className="h-3 w-3" />
@@ -121,7 +121,7 @@ export function DirectorContextTree({
                           <button
                             onClick={() => onToggleScene(scene.id)}
                             className={cn(
-                              "flex-1 flex items-center gap-1 px-2 py-1 rounded hover:bg-muted text-left",
+                              "flex-1 flex items-center gap-1 px-2 py-1 rounded-md hover:bg-muted text-left",
                               isSceneSelected &&
                                 "bg-primary/10 ring-1 ring-primary/30",
                             )}
@@ -186,7 +186,7 @@ export function DirectorContextTree({
                                       onClick={() => onSendShot(shot, scene)}
                                       onDoubleClick={() => onAddShot(shot, scene)}
                                       className={cn(
-                                        "flex-1 flex items-center gap-2 px-2 py-1 rounded hover:bg-muted text-left",
+                                        "flex-1 flex items-center gap-2 px-2 py-1 rounded-md hover:bg-muted text-left",
                                         isShotSelected &&
                                           "bg-primary/10 ring-1 ring-primary/30",
                                       )}

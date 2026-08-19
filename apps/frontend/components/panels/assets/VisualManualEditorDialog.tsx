@@ -283,7 +283,7 @@ export function VisualManualEditorDialog({
                       <div key={image.relativePath} className="group relative h-36 w-48 shrink-0 overflow-hidden rounded-md border border-border bg-muted">
                         <button
                           type="button"
-                          className="h-full w-full cursor-zoom-in"
+                          className="h-full w-full cursor-zoom-in rounded-md"
                           onClick={() => setPreviewImage(image)}
                           aria-label={`预览 ${image.name}`}
                         >
@@ -291,7 +291,7 @@ export function VisualManualEditorDialog({
                         </button>
                         <button
                           type="button"
-                          className="absolute right-1 top-1 rounded bg-black/60 p-1 text-white opacity-0 transition-opacity group-hover:opacity-100"
+                          className="absolute right-1 top-1 rounded-md bg-black/60 p-1 text-white opacity-0 transition-opacity group-hover:opacity-100"
                           onClick={(event) => {
                             event.stopPropagation();
                             removeImage(image.relativePath);
@@ -390,7 +390,7 @@ export function VisualManualEditorDialog({
       {previewImage ? (
         <button
           type="button"
-          className="fixed inset-0 z-[300] flex cursor-zoom-out items-center justify-center bg-black/80 p-8"
+          className="fixed inset-0 z-[300] flex cursor-zoom-out items-center justify-center bg-black/80 p-8 rounded-md"
           onClick={() => setPreviewImage(null)}
           aria-label="关闭图片预览"
         >

@@ -79,7 +79,7 @@ export function MediaLibrarySelector({
         <button
           disabled={disabled}
           className={cn(
-            "flex items-center gap-1 px-2 py-1 rounded border border-dashed text-xs transition-colors disabled:opacity-50",
+            "flex items-center gap-1 px-2 py-1 rounded-md border border-dashed text-xs transition-colors disabled:opacity-50",
             "border-viz-status-c/30 text-viz-status-c hover:border-viz-status-c/50 hover:text-viz-status-c/80 hover:bg-viz-status-c/5"
           )}
         >
@@ -111,7 +111,7 @@ export function MediaLibrarySelector({
                 <button
                   onClick={() => setSelectedFolderId(null)}
                   className={cn(
-                    "px-2 py-1 rounded text-xs transition-colors",
+                    "px-2 py-1 rounded-md text-xs transition-colors",
                     selectedFolderId === null
                       ? "bg-primary text-primary-foreground"
                       : "bg-muted hover:bg-muted/80 text-muted-foreground"
@@ -124,7 +124,7 @@ export function MediaLibrarySelector({
                     key={folder.id}
                     onClick={() => setSelectedFolderId(folder.id)}
                     className={cn(
-                      "px-2 py-1 rounded text-xs transition-colors flex items-center gap-1",
+                      "px-2 py-1 rounded-md text-xs transition-colors flex items-center gap-1",
                       selectedFolderId === folder.id
                         ? "bg-primary text-primary-foreground"
                         : "bg-muted hover:bg-muted/80 text-muted-foreground"
@@ -153,7 +153,7 @@ export function MediaLibrarySelector({
                       <button
                         key={img.id}
                         onClick={() => handleSelectImage(imageUrl)}
-                        className="relative group aspect-video rounded overflow-hidden border-2 border-transparent hover:border-primary transition-colors"
+                        className="relative group aspect-video rounded-md overflow-hidden border-2 border-transparent hover:border-primary transition-colors"
                       >
                         <img
                           src={imageUrl}

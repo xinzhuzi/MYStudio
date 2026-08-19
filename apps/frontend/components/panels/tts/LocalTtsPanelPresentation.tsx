@@ -150,7 +150,7 @@ export function ModelRow({
 
   return (
     <div className="grid grid-cols-[minmax(220px,1.4fr)_120px_160px_120px_180px] gap-3 items-center border-b border-white/[0.06] px-4 py-3 last:border-b-0 transition-colors hover:bg-white/[0.02]">
-      <button type="button" onClick={() => onOpen(row)} className="min-w-0 text-left">
+      <button type="button" onClick={() => onOpen(row)} className="min-w-0 text-left rounded-md">
         <div className="flex items-center gap-2">
           <ModelStateIcon state={state} />
           <span className="truncate text-sm font-medium text-foreground">{row.displayName}</span>

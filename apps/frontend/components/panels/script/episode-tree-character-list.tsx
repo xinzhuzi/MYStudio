@@ -62,7 +62,7 @@ export function EpisodeTreeCharacterList({
       <button
         onClick={() => onSelectItem(character.id, "character")}
         className={cn(
-          "flex items-center gap-1 px-2 py-1 rounded text-xs hover:bg-muted",
+          "flex items-center gap-1 px-2 py-1 rounded-md text-xs hover:bg-muted",
           selectedItemId === character.id && selectedItemType === "character" && "bg-primary/10",
         )}
       >
@@ -124,7 +124,7 @@ export function EpisodeTreeCharacterList({
       </div>
       {extraCharacters.length > 0 && (
         <div className="mt-2 border-t border-dashed pt-2">
-          <button onClick={() => setExtrasExpanded((expanded) => !expanded)} className="w-full px-2 py-1 text-xs text-muted-foreground flex items-center justify-between hover:bg-muted/50 rounded">
+          <button onClick={() => setExtrasExpanded((expanded) => !expanded)} className="w-full px-2 py-1 text-xs text-muted-foreground flex items-center justify-between hover:bg-muted/50 rounded-md">
             <div className="flex items-center gap-1">
               {extrasExpanded ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
               <span>群演配角 ({extraCharacters.length})</span>

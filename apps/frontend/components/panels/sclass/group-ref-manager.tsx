@@ -429,7 +429,7 @@ function AutoImageSection({
   return (
     <div className="space-y-1">
       <button
-        className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
+        className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors rounded-md"
         onClick={() => setExpanded(!expanded)}
       >
         <ImageIcon className="h-3 w-3 text-primary" />
@@ -576,7 +576,7 @@ function RefChip({
       )}
       {onRemove && (
         <button
-          className="ml-0.5 hover:text-destructive transition-colors"
+          className="ml-0.5 hover:text-destructive transition-colors rounded-md"
           onClick={(e) => {
             e.stopPropagation();
             onRemove();

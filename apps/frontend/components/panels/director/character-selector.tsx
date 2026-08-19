@@ -76,7 +76,7 @@ export function CharacterSelector({
       <PopoverTrigger asChild>
         <button
           disabled={disabled}
-          className="flex items-center gap-1 px-2 py-1 rounded border border-dashed border-muted-foreground/30 hover:border-primary/50 text-xs text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50"
+          className="flex items-center gap-1 px-2 py-1 rounded-md border border-dashed border-muted-foreground/30 hover:border-primary/50 text-xs text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50"
         >
           <Users className="h-3 w-3" />
           {validSelectedCount > 0 ? (
@@ -107,7 +107,7 @@ export function CharacterSelector({
                 <div key={char.id} className="space-y-0.5">
                   <button
                     onClick={() => toggleCharacter(char.id)}
-                    className="w-full flex items-center gap-2 p-1.5 rounded hover:bg-muted text-left"
+                    className="w-full flex items-center gap-2 p-1.5 rounded-md hover:bg-muted text-left"
                   >
                     {thumbnail ? (
                       <img src={thumbnail} alt={char.name} className="w-6 h-6 rounded object-cover" />
@@ -131,7 +131,7 @@ export function CharacterSelector({
                       <button
                         onClick={(e) => { e.stopPropagation(); onChangeVariation(char.id, undefined); }}
                         className={cn(
-                          "w-full flex items-center gap-1.5 p-1 rounded text-left hover:bg-muted/80 transition-colors",
+                          "w-full flex items-center gap-1.5 p-1 rounded-md text-left hover:bg-muted/80 transition-colors",
                           !selectedVarId && "bg-primary/10"
                         )}
                       >
@@ -151,7 +151,7 @@ export function CharacterSelector({
                           key={v.id}
                           onClick={(e) => { e.stopPropagation(); onChangeVariation(char.id, v.id); }}
                           className={cn(
-                            "w-full flex items-center gap-1.5 p-1 rounded text-left hover:bg-muted/80 transition-colors",
+                            "w-full flex items-center gap-1.5 p-1 rounded-md text-left hover:bg-muted/80 transition-colors",
                             selectedVarId === v.id && "bg-primary/10"
                           )}
                         >

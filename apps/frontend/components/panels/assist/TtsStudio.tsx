@@ -246,7 +246,7 @@ export function TtsStudio() {
             <button
               type="button"
               onClick={() => setVoiceExpanded(!voiceExpanded)}
-              className="w-full flex items-center gap-2 px-3 py-2 text-sm font-medium bg-muted/40 hover:bg-muted/60"
+              className="w-full flex items-center gap-2 px-3 py-2 text-sm font-medium bg-muted/40 hover:bg-muted/60 rounded-lg"
             >
               {voiceExpanded ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
               音色（{audioAssets.length}）
@@ -270,7 +270,7 @@ export function TtsStudio() {
             <button
               type="button"
               onClick={() => setLocalExpanded(!localExpanded)}
-              className="w-full flex items-center gap-2 px-3 py-2 text-sm font-medium bg-muted/40 hover:bg-muted/60 border-t border-border"
+              className="w-full flex items-center gap-2 px-3 py-2 text-sm font-medium bg-muted/40 hover:bg-muted/60 border-t border-border rounded-lg"
             >
               {localExpanded ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
               本地制作（{localAudio.length}）

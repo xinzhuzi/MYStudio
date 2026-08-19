@@ -32,7 +32,7 @@ export function CharacterPickerPopover({
         {variant === "empty" ? (
           <button
             aria-label="选择角色"
-            className="w-full h-[44px] flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors"
+            className="w-full h-[44px] flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors rounded-md"
           >
             <Plus className="h-6 w-6" />
           </button>
@@ -70,7 +70,7 @@ export function CharacterPickerPopover({
                   key={character.id}
                   aria-pressed={isSelected}
                   onClick={() => onToggle(character)}
-                  className="w-full flex items-center gap-2 p-2 hover:bg-muted transition-colors text-left"
+                  className="w-full flex items-center gap-2 p-2 hover:bg-muted transition-colors text-left rounded-md"
                 >
                   {thumbnail ? (
                     <img

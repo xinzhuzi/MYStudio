@@ -142,7 +142,7 @@ export function ProjectHeader({
           <>
             <ChevronRight className="project-chrome-separator h-3 w-3" />
             <button
-              className="project-chrome-episode text-xs text-primary hover:text-primary/80 font-medium transition-colors"
+              className="project-chrome-episode text-xs text-primary hover:text-primary/80 font-medium transition-colors rounded-md"
               onClick={backToSeries}
               title="返回全剧视图"
             >

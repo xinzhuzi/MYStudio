@@ -133,7 +133,7 @@ export function AngleSwitchResultDialog({
                   <button
                     key={item.timestamp}
                     onClick={() => onSelectHistory?.(index)}
-                    className={`shrink-0 w-32 aspect-video rounded overflow-hidden border-2 transition-all ${
+                    className={`shrink-0 w-32 aspect-video rounded-md overflow-hidden border-2 transition-all ${
                       selectedHistoryIndex === index
                         ? "border-primary ring-2 ring-primary ring-offset-1"
                         : "border-border hover:border-primary/50"

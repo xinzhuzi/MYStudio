@@ -78,7 +78,7 @@ export function ShotBreakdown({
                   key={shot.id}
                   onClick={() => onShotClick?.(shot)}
                   className={cn(
-                    "h-8 w-full flex items-center justify-center text-[10px] font-mono transition-colors",
+                    "h-8 w-full flex items-center justify-center text-[10px] font-mono transition-colors rounded-lg",
                     selectedShotId === shot.id
                       ? "bg-primary/20 text-primary"
                       : "text-muted-foreground hover:text-foreground hover:bg-muted/60"
@@ -157,7 +157,7 @@ function ShotRow({ shot, isSelected, onClick }: ShotRowProps) {
     <button
       onClick={onClick}
       className={cn(
-        "w-full text-left px-4 py-3 transition-colors",
+        "w-full text-left px-4 py-3 transition-colors rounded-lg",
         isSelected
           ? "bg-primary/10 border-l-2 border-primary/40"
           : "hover:bg-muted/60/50 border-l-2 border-transparent"

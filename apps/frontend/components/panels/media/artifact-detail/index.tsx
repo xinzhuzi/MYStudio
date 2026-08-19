@@ -483,7 +483,7 @@ export function ArtifactDetailPanel({
                     )}
                     <button
                       type="button"
-                      className="shrink-0 inline-flex items-center gap-1 px-2 py-1 bg-background border rounded hover:bg-muted"
+                      className="shrink-0 inline-flex items-center gap-1 px-2 py-1 bg-background border rounded-md hover:bg-muted"
                       title="复制完整路径"
                       onClick={() => {
                         void navigator.clipboard?.writeText(ref.path);
@@ -494,7 +494,7 @@ export function ArtifactDetailPanel({
                     {getRefDirectoryPath(ref) !== null && onOpenFolder && (
                       <button
                         type="button"
-                        className="shrink-0 inline-flex items-center gap-1 px-2 py-1 bg-background border rounded hover:bg-muted"
+                        className="shrink-0 inline-flex items-center gap-1 px-2 py-1 bg-background border rounded-md hover:bg-muted"
                         title="在产物中心打开所在文件夹"
                         onClick={() => handleOpenFolder(ref)}
                       >
@@ -504,7 +504,7 @@ export function ArtifactDetailPanel({
                     {
                       <button
                         type="button"
-                        className="shrink-0 inline-flex items-center gap-1 px-2 py-1 bg-background border rounded hover:bg-muted"
+                        className="shrink-0 inline-flex items-center gap-1 px-2 py-1 bg-background border rounded-md hover:bg-muted"
                         title="在 Finder 中打开产物文件夹"
                         onClick={() => void handleOpenSystemFolder(ref)}
                       >
@@ -513,7 +513,7 @@ export function ArtifactDetailPanel({
                     }
                     <button
                       type="button"
-                      className="shrink-0 inline-flex items-center gap-1 px-2 py-1 bg-background border rounded hover:bg-muted"
+                      className="shrink-0 inline-flex items-center gap-1 px-2 py-1 bg-background border rounded-md hover:bg-muted"
                       title="在文件夹中显示"
                       onClick={() => {
                         void handleRevealRef(ref);
@@ -547,7 +547,7 @@ export function ArtifactDetailPanel({
                   <div className="rounded border border-dashed border-muted-foreground/30">
                     <button
                       type="button"
-                      className="flex w-full items-center gap-2 px-2 py-1.5 text-xs text-muted-foreground hover:bg-muted/60 rounded"
+                      className="flex w-full items-center gap-2 px-2 py-1.5 text-xs text-muted-foreground hover:bg-muted/60 rounded-md"
                       onClick={() => setShowBackups((prev) => !prev)}
                       aria-expanded={showBackups}
                     >
@@ -582,7 +582,7 @@ export function ArtifactDetailPanel({
                           )}
                           <button
                             type="button"
-                            className="shrink-0 inline-flex items-center gap-1 px-2 py-1 bg-background border rounded hover:bg-muted"
+                            className="shrink-0 inline-flex items-center gap-1 px-2 py-1 bg-background border rounded-md hover:bg-muted"
                             title="复制完整路径"
                             onClick={() => {
                               void navigator.clipboard?.writeText(ref.path);
@@ -593,7 +593,7 @@ export function ArtifactDetailPanel({
                           {getRefDirectoryPath(ref) !== null && onOpenFolder && (
                             <button
                               type="button"
-                              className="shrink-0 inline-flex items-center gap-1 px-2 py-1 bg-background border rounded hover:bg-muted"
+                              className="shrink-0 inline-flex items-center gap-1 px-2 py-1 bg-background border rounded-md hover:bg-muted"
                               title="在产物中心打开所在文件夹"
                               onClick={() => handleOpenFolder(ref)}
                             >
@@ -603,7 +603,7 @@ export function ArtifactDetailPanel({
                           {
                             <button
                               type="button"
-                              className="shrink-0 inline-flex items-center gap-1 px-2 py-1 bg-background border rounded hover:bg-muted"
+                              className="shrink-0 inline-flex items-center gap-1 px-2 py-1 bg-background border rounded-md hover:bg-muted"
                               title="在 Finder 中打开产物文件夹"
                               onClick={() => void handleOpenSystemFolder(ref)}
                             >
@@ -612,7 +612,7 @@ export function ArtifactDetailPanel({
                           }
                           <button
                             type="button"
-                            className="shrink-0 inline-flex items-center gap-1 px-2 py-1 bg-background border rounded hover:bg-muted"
+                            className="shrink-0 inline-flex items-center gap-1 px-2 py-1 bg-background border rounded-md hover:bg-muted"
                             title="在文件夹中显示（备份为快照文件）"
                             onClick={() => {
                               void handleRevealRef(ref);

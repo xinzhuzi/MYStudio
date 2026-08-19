@@ -182,7 +182,7 @@ function DefaultManualGroupSection({
   return (
     <div>
       <button
-        className="flex w-full items-center gap-1.5 py-1 text-left text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
+        className="flex w-full items-center gap-1.5 py-1 text-left text-xs font-medium text-muted-foreground transition-colors hover:text-foreground rounded-md"
         onClick={onToggle}
       >
         {expanded ? (

@@ -264,7 +264,7 @@ export function CharacterDetail({ character }: CharacterDetailProps) {
                   <button
                     key={view.viewType}
                     className={cn(
-                      "w-12 h-12 rounded border overflow-hidden transition-all",
+                      "w-12 h-12 rounded-md border overflow-hidden transition-all",
                       "hover:ring-1 hover:ring-foreground/30",
                       selectedViewIndex === index && "ring-2 ring-primary"
                     )}
@@ -386,7 +386,7 @@ export function CharacterDetail({ character }: CharacterDetailProps) {
                     #{tag}
                     <button
                       onClick={() => handleRemoveTag(tag)}
-                      className="opacity-0 group-hover:opacity-100 transition-opacity"
+                      className="opacity-0 group-hover:opacity-100 transition-opacity rounded-md"
                     >
                       <X className="h-3 w-3" />
                     </button>

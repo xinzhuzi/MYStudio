@@ -131,7 +131,7 @@ export function QuadGridResultDialog({
                     key={index}
                     onClick={() => setSelectedIndex(index)}
                     className={cn(
-                      "aspect-video rounded overflow-hidden border-2 transition-all relative group",
+                      "aspect-video rounded-md overflow-hidden border-2 transition-all relative group",
                       selectedIndex === index
                         ? "border-viz-selection ring-2 ring-viz-selection/30"
                         : "border-border hover:border-border"
@@ -157,7 +157,7 @@ export function QuadGridResultDialog({
                           e.stopPropagation();
                           handleDownload(img, index);
                         }}
-                        className="p-1 rounded bg-foreground/20 text-foreground hover:bg-primary/60"
+                        className="p-1 rounded-md bg-foreground/20 text-foreground hover:bg-primary/60"
                         title="下载"
                       >
                         <Download className="h-3 w-3" />

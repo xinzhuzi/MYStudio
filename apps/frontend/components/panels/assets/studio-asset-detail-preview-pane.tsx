@@ -121,7 +121,7 @@ export function StudioAssetDetailPreviewPane({
                       {index > 0 || image.name !== "主图" ? (
                         <div className="flex gap-1">
                           <button
-                            className="rounded p-1 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+                            className="rounded-md p-1 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
                             onClick={() => onRemoveImage(image, index)}
                             title="删除"
                           >

@@ -91,8 +91,8 @@ export function SClassStoryboardConfigToolbar({
       <div className="flex items-center gap-2">
         <span className="text-xs text-muted-foreground whitespace-nowrap">图片生成方式:</span>
         <div className="flex rounded-md border overflow-hidden">
-          <button type="button" disabled={disabled} aria-pressed={imageGenerationMode === "single"} onClick={() => onImageGenerationModeChange("single")} className={cn("px-3 py-1.5 text-xs", imageGenerationMode === "single" ? "bg-primary text-primary-foreground" : "bg-background hover:bg-muted")}>单图生成</button>
-          <button type="button" disabled={disabled} aria-pressed={imageGenerationMode === "merged"} onClick={() => onImageGenerationModeChange("merged")} className={cn("px-3 py-1.5 text-xs border-l", imageGenerationMode === "merged" ? "bg-primary text-primary-foreground" : "bg-background hover:bg-muted")}>合并生成</button>
+          <button type="button" disabled={disabled} aria-pressed={imageGenerationMode === "single"} onClick={() => onImageGenerationModeChange("single")} className={cn("px-3 py-1.5 text-xs rounded-md", imageGenerationMode === "single" ? "bg-primary text-primary-foreground" : "bg-background hover:bg-muted")}>单图生成</button>
+          <button type="button" disabled={disabled} aria-pressed={imageGenerationMode === "merged"} onClick={() => onImageGenerationModeChange("merged")} className={cn("px-3 py-1.5 text-xs border-l rounded-md", imageGenerationMode === "merged" ? "bg-primary text-primary-foreground" : "bg-background hover:bg-muted")}>合并生成</button>
         </div>
       </div>
       <div className="flex-1 text-xs text-muted-foreground/70 truncate">{styleTokens?.slice(0, 2).join(", ")}...</div>

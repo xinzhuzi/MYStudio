@@ -31,7 +31,7 @@ export function SClassGenerationModeToggle({
           type="button"
           onClick={() => onGenerationModeChange("group")}
           className={cn(
-            "px-3 py-1.5 text-xs",
+            "px-3 py-1.5 text-xs rounded-md",
             generationMode === "group" ? "bg-primary text-primary-foreground" : "bg-background hover:bg-muted",
           )}
         >分组生成 ({groupCount} 组)</button>
@@ -39,7 +39,7 @@ export function SClassGenerationModeToggle({
           type="button"
           onClick={() => onGenerationModeChange("single")}
           className={cn(
-            "px-3 py-1.5 text-xs border-l",
+            "px-3 py-1.5 text-xs border-l rounded-md",
             generationMode === "single" ? "bg-primary text-primary-foreground" : "bg-background hover:bg-muted",
           )}
         >单镜生成 ({sceneCount} 镜)</button>

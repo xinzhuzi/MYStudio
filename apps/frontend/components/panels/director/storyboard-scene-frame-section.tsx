@@ -90,7 +90,7 @@ function FrameActionButtons({
           onAngleSwitch?.(sceneId, kind);
         }}
         disabled={isAngleSwitching}
-        className="p-0.5 rounded bg-black/50 text-white hover:bg-warning disabled:opacity-50"
+        className="p-0.5 rounded-md bg-black/50 text-white hover:bg-warning disabled:opacity-50"
         title="切换视角"
       >
         <RotateCw className="h-3 w-3" />
@@ -103,7 +103,7 @@ function FrameActionButtons({
           onQuadGrid?.(sceneId, kind);
         }}
         disabled={isQuadGridGenerating}
-        className="p-0.5 rounded bg-foreground/20 text-foreground hover:bg-primary/60 disabled:opacity-50"
+        className="p-0.5 rounded-md bg-foreground/20 text-foreground hover:bg-primary/60 disabled:opacity-50"
         title="四宫格生成"
       >
         <Grid2X2 className="h-3 w-3" />
@@ -115,7 +115,7 @@ function FrameActionButtons({
           event.preventDefault();
           onDownload();
         }}
-        className="p-0.5 rounded bg-foreground/20 text-foreground hover:bg-primary/60"
+        className="p-0.5 rounded-md bg-foreground/20 text-foreground hover:bg-primary/60"
         title={`下载${label}`}
       >
         <Download className="h-3 w-3" />
@@ -127,7 +127,7 @@ function FrameActionButtons({
           event.preventDefault();
           onRemove();
         }}
-        className="p-0.5 rounded bg-black/50 text-white hover:bg-destructive"
+        className="p-0.5 rounded-md bg-black/50 text-white hover:bg-destructive"
         title={`删除${label}`}
       >
         <X className="h-3 w-3" />
@@ -151,7 +151,7 @@ function StopGenerationButton({
         event.stopPropagation();
         onStop?.(sceneId);
       }}
-      className={`${className} px-2 py-0.5 rounded bg-destructive/80 hover:bg-destructive text-foreground text-[9px] flex items-center gap-0.5 transition-colors`}
+      className={`${className} px-2 py-0.5 rounded-md bg-destructive/80 hover:bg-destructive text-foreground text-[9px] flex items-center gap-0.5 transition-colors`}
       title="停止生成"
     >
       <Square className="h-2.5 w-2.5" />停止
@@ -265,7 +265,7 @@ export function StoryboardSceneFrameSection({
             <button
               onClick={() => setSelectedFrameTarget(kind)}
               className={cn(
-                "text-[10px] px-1.5 py-0.5 rounded transition-colors",
+                "text-[10px] px-1.5 py-0.5 rounded-md transition-colors",
                 isSelected
                   ? isStart
                     ? "bg-primary/20 text-primary font-medium"
@@ -280,7 +280,7 @@ export function StoryboardSceneFrameSection({
                 onClick={() => onUpdateNeedsEndFrame(scene.id, !scene.needsEndFrame)}
                 disabled={isGeneratingAny}
                 className={cn(
-                  "text-[9px] px-1 py-0.5 rounded transition-colors",
+                  "text-[9px] px-1 py-0.5 rounded-md transition-colors",
                   scene.needsEndFrame
                     ? "bg-warning/20 text-warning hover:bg-warning/30"
                     : "bg-muted text-muted-foreground/60 hover:bg-muted/80",
@@ -299,7 +299,7 @@ export function StoryboardSceneFrameSection({
                     onAngleSwitch?.(scene.id, kind);
                   }}
                   disabled={isAngleSwitching}
-                  className="text-[9px] px-1.5 py-0.5 rounded bg-warning/20 text-warning hover:bg-warning/30 disabled:opacity-50 flex items-center gap-0.5"
+                  className="text-[9px] px-1.5 py-0.5 rounded-md bg-warning/20 text-warning hover:bg-warning/30 disabled:opacity-50 flex items-center gap-0.5"
                 >
                   <RotateCw className="h-2.5 w-2.5" />视角
                 </button>
@@ -309,7 +309,7 @@ export function StoryboardSceneFrameSection({
                     onQuadGrid?.(scene.id, kind);
                   }}
                   disabled={isQuadGridGenerating}
-                  className="text-[9px] px-1.5 py-0.5 rounded bg-primary/15 text-primary hover:bg-primary/25 disabled:opacity-50 flex items-center gap-0.5"
+                  className="text-[9px] px-1.5 py-0.5 rounded-md bg-primary/15 text-primary hover:bg-primary/25 disabled:opacity-50 flex items-center gap-0.5"
                 >
                   <Grid2X2 className="h-2.5 w-2.5" />四宫格
                 </button>
@@ -323,7 +323,7 @@ export function StoryboardSceneFrameSection({
                 }}
                 disabled={isGeneratingAny || isGeneratingEnd}
                 className={cn(
-                  "text-[9px] px-1.5 py-0.5 rounded disabled:opacity-50",
+                  "text-[9px] px-1.5 py-0.5 rounded-md disabled:opacity-50",
                   scene.needsEndFrame
                     ? "bg-warning/20 text-warning hover:bg-warning/30"
                     : "bg-primary/20 text-primary hover:bg-primary/30",

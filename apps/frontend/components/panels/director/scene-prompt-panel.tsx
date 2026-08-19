@@ -97,7 +97,7 @@ export function ScenePromptPanel({
         disabled={disabled}
         onClick={() => beginEdit(kind)}
         className={cn(
-          "w-full flex items-start gap-2 text-left p-1.5 rounded transition-colors border",
+          "w-full flex items-start gap-2 text-left p-1.5 rounded-md transition-colors border",
           color === "blue" && "bg-primary/5 hover:bg-primary/10 border-primary/10",
           color === "orange" && (scene.needsEndFrame ? "bg-warning/10 hover:bg-warning/20 border-warning/20" : "bg-warning/5 hover:bg-warning/10 border-warning/10"),
           color === "green" && "bg-success/5 hover:bg-success/10 border-success/10",

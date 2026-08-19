@@ -74,13 +74,13 @@ export function AmbientSoundInput({
         </div>
         <button
           onClick={handleSave}
-          className="p-1 hover:bg-primary/10 rounded text-primary"
+          className="p-1 hover:bg-primary/10 rounded-md text-primary"
         >
           <Check className="h-3 w-3" />
         </button>
         <button
           onClick={handleCancel}
-          className="p-1 hover:bg-destructive/10 rounded text-muted-foreground hover:text-destructive"
+          className="p-1 hover:bg-destructive/10 rounded-md text-muted-foreground hover:text-destructive"
         >
           <X className="h-3 w-3" />
         </button>
@@ -92,7 +92,7 @@ export function AmbientSoundInput({
     <button
       onClick={() => !disabled && setIsEditing(true)}
       disabled={disabled}
-      className="flex items-center gap-1.5 px-2 py-1 w-full text-left border border-dashed border-muted-foreground/30 hover:border-primary/50 rounded text-xs text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+      className="flex items-center gap-1.5 px-2 py-1 w-full text-left border border-dashed border-muted-foreground/30 hover:border-primary/50 rounded-md text-xs text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
     >
       <Wind className="h-3 w-3 shrink-0" />
       {value ? (

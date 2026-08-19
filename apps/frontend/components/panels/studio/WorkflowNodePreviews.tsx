@@ -144,7 +144,7 @@ export function AssetDerivationPreview({
               key={filter.id}
               type="button"
               className={cn(
-                "nodrag nopan nowheel h-8 rounded px-2 text-[11px] font-medium transition-colors",
+                "nodrag nopan nowheel h-8 rounded-lg px-2 text-[11px] font-medium transition-colors",
                 selected
                   ? "bg-info/20 text-foreground"
                   : "text-muted-foreground hover:bg-muted hover:text-foreground",
@@ -274,7 +274,7 @@ export function AssetFlowCard({
           data-asset-workflow-id={card.imageWorkflowId ?? ""}
           data-asset-workflow-type={card.imageWorkflowTarget?.assetType ?? ""}
           data-asset-workflow-name={card.name}
-          className="nodrag nopan nowheel flex h-[112px] w-full items-center justify-center overflow-hidden rounded border border-info/35 bg-muted/30 ring-offset-background hover:border-info/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-info/40 focus-visible:ring-offset-2"
+          className="nodrag nopan nowheel flex h-[112px] w-full items-center justify-center overflow-hidden rounded-md border border-info/35 bg-muted/30 ring-offset-background hover:border-info/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-info/40 focus-visible:ring-offset-2"
           onClick={(event) => {
             event.stopPropagation();
             openImageWorkflow();
@@ -548,7 +548,7 @@ export function StoryboardGridPreview({
                 data-storyboard-id={tile.id}
                 data-storyboard-workflow-image-id={tile.imageWorkflowId ?? ""}
                 data-storyboard-workflow-id={tile.imageWorkflowId}
-                className="nodrag nopan nowheel relative block aspect-video w-full overflow-hidden rounded border border-info/35 bg-muted/30 text-left ring-offset-background hover:border-info/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-info/40 focus-visible:ring-offset-2"
+                className="nodrag nopan nowheel relative block aspect-video w-full overflow-hidden rounded-md border border-info/35 bg-muted/30 text-left ring-offset-background hover:border-info/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-info/40 focus-visible:ring-offset-2"
                 onClick={openStoryboardImageWorkflow}
               >
                 {previewTile}
@@ -563,7 +563,7 @@ export function StoryboardGridPreview({
                 type="button"
                 data-storyboard-id={tile.id}
                 data-storyboard-workflow-id={tile.imageWorkflowId}
-                className="mt-1 inline-flex w-full items-center justify-center gap-1 rounded border border-border bg-muted/30 px-1.5 py-1 text-[10px] text-muted-foreground hover:border-primary/45 hover:text-foreground"
+                className="mt-1 inline-flex w-full items-center justify-center gap-1 rounded-md border border-border bg-muted/30 px-1.5 py-1 text-[10px] text-muted-foreground hover:border-primary/45 hover:text-foreground"
                 onClick={openStoryboardImageWorkflow}
               >
                 <ImageIcon className="h-3 w-3" />
@@ -575,7 +575,7 @@ export function StoryboardGridPreview({
                 type="button"
                 data-storyboard-upscale-id={tile.id}
                 disabled={directUpscale.busyKey === `storyboard:${tile.id}` || tileAlready4k(tile.mediaPath, tileLongSides[tile.id])}
-                className="inline-flex w-full items-center justify-center gap-1 rounded border border-border bg-muted/30 px-1.5 py-1 text-[10px] text-muted-foreground hover:border-viz-glow/45 hover:text-foreground disabled:opacity-60"
+                className="inline-flex w-full items-center justify-center gap-1 rounded-md border border-border bg-muted/30 px-1.5 py-1 text-[10px] text-muted-foreground hover:border-viz-glow/45 hover:text-foreground disabled:opacity-60"
                 title={tileAlready4k(tile.mediaPath, tileLongSides[tile.id])
                   ? "已是 4K 超分结果，无需再放大"
                   : "本地 Real-ESRGAN 原生 ×4 放大(超分后视觉审核重置)"}

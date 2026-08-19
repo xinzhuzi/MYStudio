@@ -51,21 +51,21 @@ export function StoryboardMergedGenerationControls({
           <button
             onClick={() => onFrameModeChange("first")}
             className={cn(
-              "px-3 py-1.5 text-xs",
+              "px-3 py-1.5 text-xs rounded-md",
               frameMode === "first" ? "bg-primary text-primary-foreground" : "bg-background hover:bg-muted",
             )}
           >仅首帧</button>
           <button
             onClick={() => onFrameModeChange("last")}
             className={cn(
-              "px-3 py-1.5 text-xs border-l",
+              "px-3 py-1.5 text-xs border-l rounded-md",
               frameMode === "last" ? "bg-primary text-primary-foreground" : "bg-background hover:bg-muted",
             )}
           >仅尾帧</button>
           <button
             onClick={() => onFrameModeChange("both")}
             className={cn(
-              "px-3 py-1.5 text-xs border-l",
+              "px-3 py-1.5 text-xs border-l rounded-md",
               frameMode === "both" ? "bg-primary text-primary-foreground" : "bg-background hover:bg-muted",
             )}
           >首+尾</button>
@@ -86,7 +86,7 @@ export function StoryboardMergedGenerationControls({
         </Select>
         <button
           onClick={() => onUseExemplarChange(!useExemplar)}
-          className={cn("px-2 py-1 text-xs rounded border", useExemplar ? "bg-primary text-primary-foreground" : "bg-background hover:bg-muted")}
+          className={cn("px-2 py-1 text-xs rounded-md border", useExemplar ? "bg-primary text-primary-foreground" : "bg-background hover:bg-muted")}
           title="同组格引用已生成的范例成片作为锚点"
         >范例锚图 {useExemplar ? "开" : "关"}</button>
       </div>

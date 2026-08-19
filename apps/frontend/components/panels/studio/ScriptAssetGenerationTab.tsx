@@ -143,7 +143,7 @@ export function ScriptAssetGenerationTab({
             key={key}
             type="button"
             onClick={() => setActiveType(key)}
-            className={`flex items-center gap-1.5 rounded px-3 py-1.5 text-sm transition-colors ${
+            className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm transition-colors ${
               activeType === key
                 ? "bg-primary/15 font-medium text-primary"
                 : "text-muted-foreground hover:bg-muted/50 hover:text-foreground"

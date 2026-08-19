@@ -516,7 +516,7 @@ export function MediaView() {
         <div className="flex items-center gap-1 text-xs mb-2 overflow-x-auto">
           <button
             onClick={() => setCurrentFolder(null)}
-            className="hover:text-primary flex items-center gap-1 shrink-0"
+            className="hover:text-primary flex items-center gap-1 shrink-0 rounded-md"
           >
             <Home className="h-3 w-3" />
             根目录
@@ -526,7 +526,7 @@ export function MediaView() {
               <ChevronRight className="h-3 w-3 text-muted-foreground" />
               <button
                 onClick={() => setCurrentFolder(folder.id)}
-                className="hover:text-primary"
+                className="hover:text-primary rounded-md"
               >
                 {folder.name}
               </button>

@@ -69,7 +69,7 @@ export function AssetsBatchCard({
       <CardHeader className="flex-row items-center justify-between space-y-0 py-3">
         <button
           type="button"
-          className="flex min-w-0 items-center gap-2 text-left"
+          className="flex min-w-0 items-center gap-2 text-left rounded-md"
           onClick={() => onToggle(chapter.id)}
         >
           <ChevronDown
@@ -286,7 +286,7 @@ function AssetCategory({
       ) : (
         <button
           type="button"
-          className="text-xs text-primary hover:underline"
+          className="text-xs text-primary hover:underline rounded-md"
           onClick={() => onStartAdd(batch.episodeId, type)}
         >
           + 添加

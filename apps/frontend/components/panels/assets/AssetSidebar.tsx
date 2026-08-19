@@ -99,7 +99,7 @@ export function AssetSidebar({ activeSection, onSectionChange }: AssetSidebarPro
             {/* 模块标题 */}
             <button
               type="button"
-              className="asset-sidebar-module flex items-center gap-1.5 w-full px-3 py-1.5 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors"
+              className="asset-sidebar-module flex items-center gap-1.5 w-full px-3 py-1.5 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors rounded-md"
               onClick={() => toggleModule(mod.id)}
               aria-expanded={expanded.has(mod.id)}
               aria-controls={`asset-module-${mod.id}`}

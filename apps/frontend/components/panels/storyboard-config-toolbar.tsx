@@ -55,7 +55,7 @@ export function StoryboardConfigToolbar({
             aria-pressed={aspectRatio === "16:9"}
             onClick={() => onAspectRatioChange("16:9")}
             className={cn(
-              "flex items-center gap-1.5 px-3 py-1.5 text-xs transition-colors",
+              "flex items-center gap-1.5 px-3 py-1.5 text-xs transition-colors rounded-md",
               aspectRatio === "16:9" ? "bg-primary text-primary-foreground" : "bg-background hover:bg-muted",
             )}
           ><Monitor className="h-3.5 w-3.5" />横屏</button>
@@ -65,7 +65,7 @@ export function StoryboardConfigToolbar({
             aria-pressed={aspectRatio === "9:16"}
             onClick={() => onAspectRatioChange("9:16")}
             className={cn(
-              "flex items-center gap-1.5 px-3 py-1.5 text-xs transition-colors border-l",
+              "flex items-center gap-1.5 px-3 py-1.5 text-xs transition-colors border-l rounded-md",
               aspectRatio === "9:16" ? "bg-primary text-primary-foreground" : "bg-background hover:bg-muted",
             )}
           ><Smartphone className="h-3.5 w-3.5" />竖屏</button>
@@ -94,8 +94,8 @@ export function StoryboardConfigToolbar({
         <div className="flex items-center gap-2">
           <span className="text-xs text-muted-foreground whitespace-nowrap">图片生成方式:</span>
           <div className="flex rounded-md border overflow-hidden">
-            <button type="button" disabled={disabled} aria-pressed={imageGenerationMode === "single"} onClick={() => onImageGenerationModeChange("single")} className={cn("px-3 py-1.5 text-xs", imageGenerationMode === "single" ? "bg-primary text-primary-foreground" : "bg-background hover:bg-muted")}>单图生成</button>
-            <button type="button" disabled={disabled} aria-pressed={imageGenerationMode === "merged"} onClick={() => onImageGenerationModeChange("merged")} className={cn("px-3 py-1.5 text-xs border-l", imageGenerationMode === "merged" ? "bg-primary text-primary-foreground" : "bg-background hover:bg-muted")}>合并生成</button>
+            <button type="button" disabled={disabled} aria-pressed={imageGenerationMode === "single"} onClick={() => onImageGenerationModeChange("single")} className={cn("px-3 py-1.5 text-xs rounded-md", imageGenerationMode === "single" ? "bg-primary text-primary-foreground" : "bg-background hover:bg-muted")}>单图生成</button>
+            <button type="button" disabled={disabled} aria-pressed={imageGenerationMode === "merged"} onClick={() => onImageGenerationModeChange("merged")} className={cn("px-3 py-1.5 text-xs border-l rounded-md", imageGenerationMode === "merged" ? "bg-primary text-primary-foreground" : "bg-background hover:bg-muted")}>合并生成</button>
           </div>
         </div>
       )}

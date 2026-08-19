@@ -170,7 +170,7 @@ export function SceneLibrarySelector({
         <button
           disabled={disabled}
           className={cn(
-            "flex items-center gap-1 px-2 py-1 rounded border border-dashed text-xs transition-colors disabled:opacity-50",
+            "flex items-center gap-1 px-2 py-1 rounded-md border border-dashed text-xs transition-colors disabled:opacity-50",
             hasSelection 
               ? "border-primary/50 bg-primary/5 text-primary hover:bg-primary/10"
               : "border-muted-foreground/30 text-muted-foreground hover:border-primary/50 hover:text-foreground"
@@ -188,7 +188,7 @@ export function SceneLibrarySelector({
           {hasSelection && (
             <button
               onClick={handleClear}
-              className="text-xs px-2 py-1 rounded bg-muted text-muted-foreground hover:bg-muted/80"
+              className="text-xs px-2 py-1 rounded-md bg-muted text-muted-foreground hover:bg-muted/80"
             >
               清空选择
             </button>
@@ -216,7 +216,7 @@ export function SceneLibrarySelector({
                         key={s.id}
                         onClick={() => handleSelectScene(s.id)}
                         className={cn(
-                          "w-full flex items-center gap-2 p-2 rounded text-left transition-colors",
+                          "w-full flex items-center gap-2 p-2 rounded-md text-left transition-colors",
                           isSelected ? "bg-primary/15 ring-1 ring-primary/50" : "hover:bg-muted"
                         )}
                       >
@@ -248,7 +248,7 @@ export function SceneLibrarySelector({
                     <button
                       onClick={() => handleSelectViewpoint('')}
                       className={cn(
-                        "w-full flex items-center gap-2 p-1.5 rounded text-left transition-colors",
+                        "w-full flex items-center gap-2 p-1.5 rounded-md text-left transition-colors",
                         !selectedViewpointId ? "bg-primary/15 ring-1 ring-primary/50" : "hover:bg-muted"
                       )}
                     >
@@ -267,7 +267,7 @@ export function SceneLibrarySelector({
                           key={v.id}
                           onClick={() => handleSelectViewpoint(v.id)}
                           className={cn(
-                            "w-full flex items-center gap-2 p-1.5 rounded text-left transition-colors",
+                            "w-full flex items-center gap-2 p-1.5 rounded-md text-left transition-colors",
                             isSelected ? "bg-primary/15 ring-1 ring-primary/50" : "hover:bg-muted"
                           )}
                         >
@@ -300,7 +300,7 @@ export function SceneLibrarySelector({
                     <button
                       onClick={() => handleSelectSubView('')}
                       className={cn(
-                        "w-full flex items-center gap-2 p-1.5 rounded text-left transition-colors",
+                        "w-full flex items-center gap-2 p-1.5 rounded-md text-left transition-colors",
                         !selectedSubViewId ? "bg-primary/15 ring-1 ring-primary/50" : "hover:bg-muted"
                       )}
                     >
@@ -318,7 +318,7 @@ export function SceneLibrarySelector({
                           key={sv.id}
                           onClick={() => handleSelectSubView(sv.id)}
                           className={cn(
-                            "w-full flex items-center gap-2 p-1.5 rounded text-left transition-colors",
+                            "w-full flex items-center gap-2 p-1.5 rounded-md text-left transition-colors",
                             isSelected ? "bg-primary/15 ring-1 ring-primary/50" : "hover:bg-muted"
                           )}
                         >

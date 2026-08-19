@@ -303,7 +303,7 @@ export function VideoStudio() {
           <button
             type="button"
             onClick={onClear}
-            className="text-muted-foreground hover:text-destructive"
+            className="text-muted-foreground hover:text-destructive rounded-md"
           >
             <X className="h-3.5 w-3.5" />
           </button>
@@ -319,7 +319,7 @@ export function VideoStudio() {
         <button
           type="button"
           onClick={onPick}
-          className="h-24 w-full rounded border border-dashed flex flex-col items-center justify-center gap-1 text-muted-foreground hover:text-foreground hover:border-primary/40"
+          className="h-24 w-full rounded-md border border-dashed flex flex-col items-center justify-center gap-1 text-muted-foreground hover:text-foreground hover:border-primary/40"
         >
           <Upload className="h-4 w-4" />
           <span className="text-xs">上传图片</span>
@@ -541,7 +541,7 @@ export function VideoStudio() {
                               />
                               <button
                                 type="button"
-                                className="absolute top-1 right-1 p-1 rounded bg-black/60 text-white"
+                                className="absolute top-1 right-1 p-1 rounded-md bg-black/60 text-white"
                                 onClick={() => removeReference(asset.id)}
                               >
                                 <X className="h-3 w-3" />
@@ -552,7 +552,7 @@ export function VideoStudio() {
                             <button
                               type="button"
                               onClick={() => referenceInputRef.current?.click()}
-                              className="h-20 rounded border border-dashed flex flex-col items-center justify-center gap-1 text-muted-foreground hover:text-foreground hover:border-primary/40"
+                              className="h-20 rounded-md border border-dashed flex flex-col items-center justify-center gap-1 text-muted-foreground hover:text-foreground hover:border-primary/40"
                             >
                               <Upload className="h-4 w-4" />
                               <span className="text-[11px]">添加</span>

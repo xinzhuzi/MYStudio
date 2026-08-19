@@ -80,7 +80,7 @@ export function SoundEffectTags({
             {!disabled && (
               <button
                 onClick={() => removeTag(tagId)}
-                className="ml-0.5 hover:text-destructive"
+                className="ml-0.5 hover:text-destructive rounded-md"
               >
                 <X className="h-2.5 w-2.5" />
               </button>
@@ -92,7 +92,7 @@ export function SoundEffectTags({
         {value.length < maxTags && !disabled && (
           <Popover open={isOpen} onOpenChange={setIsOpen}>
             <PopoverTrigger asChild>
-              <button className="inline-flex items-center gap-0.5 px-1.5 py-0.5 border border-dashed border-muted-foreground/30 hover:border-primary/50 rounded text-[10px] text-muted-foreground hover:text-foreground transition-colors">
+              <button className="inline-flex items-center gap-0.5 px-1.5 py-0.5 border border-dashed border-muted-foreground/30 hover:border-primary/50 rounded-md text-[10px] text-muted-foreground hover:text-foreground transition-colors">
                 <Plus className="h-2.5 w-2.5" />
                 音效
               </button>
@@ -116,7 +116,7 @@ export function SoundEffectTags({
                               onClick={() => toggleTag(tag.id as SoundEffectTag)}
                               disabled={isDisabledTag}
                               className={cn(
-                                "px-1.5 py-0.5 rounded text-[10px] transition-colors",
+                                "px-1.5 py-0.5 rounded-md text-[10px] transition-colors",
                                 isSelected
                                   ? "bg-warning text-foreground"
                                   : "bg-muted hover:bg-muted-foreground/20",

@@ -204,7 +204,7 @@ export function SplitSceneCard({
               <button
                 type="button"
                 aria-label={`删除分镜 ${scene.id + 1}`}
-                className="p-1 rounded hover:bg-destructive/20 text-muted-foreground hover:text-destructive opacity-0 group-hover:opacity-100 focus-visible:opacity-100 transition-opacity"
+                className="p-1 rounded-md hover:bg-destructive/20 text-muted-foreground hover:text-destructive opacity-0 group-hover:opacity-100 focus-visible:opacity-100 transition-opacity"
               >
                 <Trash2 className="h-3.5 w-3.5" />
               </button>
@@ -349,7 +349,7 @@ export function SplitSceneCard({
                         onExtractVideoLastFrame?.(scene.id);
                       }}
                       disabled={isExtractingFrame || isGeneratingAny}
-                      className="p-1.5 rounded bg-primary/15 text-primary hover:bg-primary/25 disabled:opacity-50 transition-colors"
+                      className="p-1.5 rounded-md bg-primary/15 text-primary hover:bg-primary/25 disabled:opacity-50 transition-colors"
                     >
                       {isExtractingFrame ? (
                         <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -537,7 +537,7 @@ export function SplitSceneCard({
               onClick={() => onUpdateField?.(scene.id, 'audioAmbientEnabled', scene.audioAmbientEnabled === false)}
               disabled={isGeneratingAny}
               className={cn(
-                "text-[9px] px-1.5 py-0.5 rounded shrink-0 w-12 text-center transition-colors",
+                "text-[9px] px-1.5 py-0.5 rounded-md shrink-0 w-12 text-center transition-colors",
                 scene.audioAmbientEnabled !== false
                   ? "bg-success/20 text-success"
                   : "bg-muted text-muted-foreground line-through"
@@ -562,7 +562,7 @@ export function SplitSceneCard({
               onClick={() => onUpdateField?.(scene.id, 'audioSfxEnabled', scene.audioSfxEnabled === false)}
               disabled={isGeneratingAny}
               className={cn(
-                "text-[9px] px-1.5 py-0.5 rounded shrink-0 w-12 text-center transition-colors",
+                "text-[9px] px-1.5 py-0.5 rounded-md shrink-0 w-12 text-center transition-colors",
                 scene.audioSfxEnabled !== false
                   ? "bg-success/20 text-success"
                   : "bg-muted text-muted-foreground line-through"
@@ -587,7 +587,7 @@ export function SplitSceneCard({
               onClick={() => onUpdateField?.(scene.id, 'audioDialogueEnabled', scene.audioDialogueEnabled === false)}
               disabled={isGeneratingAny}
               className={cn(
-                "text-[9px] px-1.5 py-0.5 rounded shrink-0 w-12 text-center transition-colors",
+                "text-[9px] px-1.5 py-0.5 rounded-md shrink-0 w-12 text-center transition-colors",
                 scene.audioDialogueEnabled !== false
                   ? "bg-success/20 text-success"
                   : "bg-muted text-muted-foreground line-through"
@@ -612,7 +612,7 @@ export function SplitSceneCard({
               onClick={() => onUpdateField?.(scene.id, 'audioBgmEnabled', !(scene.audioBgmEnabled === true))}
               disabled={isGeneratingAny}
               className={cn(
-                "text-[9px] px-1.5 py-0.5 rounded shrink-0 w-12 text-center transition-colors",
+                "text-[9px] px-1.5 py-0.5 rounded-md shrink-0 w-12 text-center transition-colors",
                 scene.audioBgmEnabled === true
                   ? "bg-success/20 text-success"
                   : "bg-muted text-muted-foreground line-through"

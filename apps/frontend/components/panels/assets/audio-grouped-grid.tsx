@@ -166,7 +166,7 @@ export function AudioGroupedGrid({
         <button
           type="button"
           onClick={() => setVoiceExpanded(!voiceExpanded)}
-          className="flex items-center gap-2 flex-1 hover:opacity-80"
+          className="flex items-center gap-2 flex-1 hover:opacity-80 rounded-md"
         >
           {voiceExpanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
           音色
@@ -199,7 +199,7 @@ export function AudioGroupedGrid({
       <button
         type="button"
         onClick={() => setLocalExpanded(!localExpanded)}
-        className="sticky top-0 z-10 w-full flex items-center gap-2 px-4 py-2.5 text-sm font-medium bg-background border-b border-border hover:bg-muted/40"
+        className="sticky top-0 z-10 w-full flex items-center gap-2 px-4 py-2.5 text-sm font-medium bg-background border-b border-border hover:bg-muted/40 rounded-lg"
       >
         {localExpanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
         本地制作

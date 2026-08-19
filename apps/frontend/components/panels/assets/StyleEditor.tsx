@@ -298,7 +298,7 @@ export function StyleEditor({ styleId, onClose }: StyleEditorProps) {
                         className="w-full h-full object-cover"
                       />
                       <button
-                        className="absolute top-1 right-1 p-0.5 rounded bg-black/60 text-white opacity-0 group-hover:opacity-100 transition-opacity"
+                        className="absolute top-1 right-1 p-0.5 rounded-md bg-black/60 text-white opacity-0 group-hover:opacity-100 transition-opacity"
                         onClick={() => removeImage(i)}
                       >
                         <X className="w-3 h-3" />

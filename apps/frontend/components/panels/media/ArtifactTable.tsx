@@ -234,7 +234,7 @@ export function ArtifactTable({
     return (
       <button
         onClick={() => handleSort(column)}
-        className="flex items-center gap-1 hover:text-primary"
+        className="flex items-center gap-1 hover:text-primary rounded-md"
       >
         {column.toString().replace(/([A-Z])/g, ' $1').trim()}
         {isActive && <Icon className="h-3 w-3" />}

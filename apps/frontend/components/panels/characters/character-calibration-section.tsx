@@ -56,7 +56,7 @@ export function CharacterCalibrationSection(props: CharacterCalibrationSectionPr
                     {/* 折叠区头部 */}
                     <button
                       type="button"
-                      className="w-full flex items-center justify-between p-2 hover:bg-muted/50 transition-colors"
+                      className="w-full flex items-center justify-between p-2 hover:bg-muted/50 transition-colors rounded-md"
                       onClick={() => setCalibrationExpanded(!calibrationExpanded)}
                       disabled={isGenerating}
                     >

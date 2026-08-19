@@ -823,7 +823,7 @@ export function ArtifactCenter({
                     <div className="flex items-center gap-1 border-b bg-muted/20 px-3 py-2 text-xs text-muted-foreground">
                       <button
                         type="button"
-                        className={cn("hover:text-foreground", !currentDirectoryPath && "font-medium text-foreground")}
+                        className={cn("hover:text-foreground rounded-md", !currentDirectoryPath && "font-medium text-foreground")}
                         onClick={() => handleDirectoryClick("")}
                       >
                         {activeProjectNode?.name ?? "项目文件"}
@@ -831,7 +831,7 @@ export function ArtifactCenter({
                       {directoryBreadcrumbs.map((crumb) => (
                         <span key={crumb.path} className="inline-flex items-center gap-1">
                           <ChevronRight className="h-3 w-3" />
-                          <button type="button" className="hover:text-foreground" onClick={() => handleDirectoryClick(crumb.path)}>
+                          <button type="button" className="hover:text-foreground rounded-md" onClick={() => handleDirectoryClick(crumb.path)}>
                             {crumb.label}
                           </button>
                         </span>

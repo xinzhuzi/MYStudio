@@ -402,7 +402,7 @@ export function SceneDetail({ scene }: SceneDetailProps) {
                     #{tag}
                     <button
                       onClick={() => handleRemoveTag(tag)}
-                      className="opacity-0 group-hover:opacity-100 transition-opacity"
+                      className="opacity-0 group-hover:opacity-100 transition-opacity rounded-md"
                     >
                       <X className="h-3 w-3" />
                     </button>

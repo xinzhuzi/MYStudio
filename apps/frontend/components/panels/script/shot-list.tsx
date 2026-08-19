@@ -516,7 +516,7 @@ function CharacterVariationSelector({
         </div>
         <button
           className={cn(
-            "w-full flex items-center gap-2 px-2 py-1.5 rounded text-sm text-left hover:bg-muted",
+            "w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-sm text-left hover:bg-muted",
             !selectedVariationId && "bg-primary/10"
           )}
           onClick={() => onSelect(null)}
@@ -529,7 +529,7 @@ function CharacterVariationSelector({
           <button
             key={variation.id}
             className={cn(
-              "w-full flex items-center gap-2 px-2 py-1.5 rounded text-sm text-left hover:bg-muted",
+              "w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-sm text-left hover:bg-muted",
               selectedVariationId === variation.id && "bg-primary/10"
             )}
             onClick={() => onSelect(variation.id)}

@@ -370,7 +370,7 @@ export function SimpleTimeline() {
                         e.stopPropagation();
                         removeClip(clip.id);
                       }}
-                      className="absolute right-1 top-1 p-0.5 rounded bg-black/50 hover:bg-destructive text-white opacity-0 hover:opacity-100 focus-visible:opacity-100 transition-opacity"
+                      className="absolute right-1 top-1 p-0.5 rounded-md bg-black/50 hover:bg-destructive text-white opacity-0 hover:opacity-100 focus-visible:opacity-100 transition-opacity"
                     >
                       <Trash2 className="h-3 w-3" />
                     </button>

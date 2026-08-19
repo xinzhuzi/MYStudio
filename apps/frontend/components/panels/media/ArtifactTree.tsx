@@ -115,7 +115,7 @@ function TreeRow({
       {hasChildren ? (
         <button
           type="button"
-          className="p-0.5 hover:bg-muted rounded shrink-0"
+          className="p-0.5 hover:bg-muted rounded-md shrink-0"
           aria-label={expanded ? "折叠" : "展开"}
           onClick={(event) => {
             event.stopPropagation();
