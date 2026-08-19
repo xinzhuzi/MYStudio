@@ -2358,7 +2358,7 @@ async function verifyAssetVoiceFlow(evaluate) {
       closedRoleDetailDialog: closedRoleDetailDialog || Boolean(dialogsClosedBeforeAudio),
       openDialogCountBeforeAudio,
       clickedAudio: clickedAudio.clicked,
-      hasAudioLibrary: audioLibraryText.includes('音频库') && audioLibraryText.includes('音色'),
+      hasAudioLibrary: audioLibraryText.includes('配音库'),  // 1df6ef8 音频→配音改名对齐(旧断言 音频库/音色 已不存在)
       audioCardCount: audioCards.length,
       clickedAudioCard,
       hasAudioControls: Boolean(audioElement),
