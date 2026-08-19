@@ -524,13 +524,6 @@
       hsl(var(--background));
     background-attachment: fixed;
   }
-  /* 深色模式下同样把自定义光标应用到所有元素（覆盖浅色规则） */
-  :root.dark,
-  :root.dark *,
-  .dark,
-  .dark * {
-    cursor: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M2 2L10 18L12.3 12.7L17.6 10.4L2 2Z" fill="%230b0f14" stroke="%23ffffff" stroke-width="1.5"/><circle cx="12.3" cy="12.7" r="2" fill="%23d97706"/></svg>') 2 2, auto;
-  }
   /* Dark mode: 全局噪点纹理覆盖（SVG 生成，极低透明度） */
   :root.dark #root::before,
   .dark #root::before {
