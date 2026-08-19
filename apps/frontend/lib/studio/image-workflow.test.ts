@@ -12,6 +12,7 @@ import {
   createStoryboardImageWorkflowGraph,
   ensureAssetImageWorkflowGraph,
   setGeneratedImageResult,
+  addStoryboardLayeredNodes,
 } from "./image-workflow";
 
 describe("image workflow graph", () => {
@@ -562,5 +563,53 @@ describe("image workflow graph", () => {
     });
     expect(graph.edges.filter((edge) => edge.target === generated?.id && edge.source === "ref-file")).toHaveLength(1);
     expect(graph.edges.some((edge) => edge.source === "ref-thumb")).toBe(false);
+  });
+});
+
+describe("addStoryboardLayeredNodes(08-19 multilayer Child3)", () => {
+  const storyboard = { id: "shot-001", index: 3, prompt: "山崖边,白衣少女持剑而立,云海翻涌", continuityState: undefined };
+
+  function baseGraphWithRefs() {
+    return createStoryboardImageWorkflowGraph({
+      storyboard: storyboard as never,
+      prompt: storyboard.prompt,
+      resultImagePath: "/proj/workflow-images/c1/w1/shot.png",
+      projectName: "道劫",
+      referenceImages: [
+        { title: "晏清霜", imageUrl: "asset://char-1", assetType: "character", assetId: "char-1", order: 1 },
+        { title: "断云崖", imageUrl: "asset://scene-1", assetType: "scene", assetId: "scene-1", order: 2 },
+      ] as never,
+    });
+  }
+
+  it("追加背景板+人物净底两节点,场景 reference 只连背景板、角色 reference 只连人物", () => {
+    const layered = addStoryboardLayeredNodes(baseGraphWithRefs(), { storyboard: storyboard as never });
+    const bg = layered.nodes.find((node) => node.title === "分镜 3 背景板");
+    const subj = layered.nodes.find((node) => node.title === "分镜 3 人物净底");
+    expect(bg?.type).toBe("generated");
+    expect(subj?.type).toBe("generated");
+    expect(bg && "prompt" in bg ? bg.prompt : "").toContain("【背景板】");
+    expect(subj && "prompt" in subj ? subj.prompt : "").toContain("【人物净底图】");
+    const intoBg = layered.edges.filter((edge) => edge.target === bg!.id).map((edge) => edge.source);
+    const intoSubj = layered.edges.filter((edge) => edge.target === subj!.id).map((edge) => edge.source);
+    const nodeTypeById = new Map(layered.nodes.map((node) => [node.id, node] as const));
+    const isCharacter = (id: string) => {
+      const node = nodeTypeById.get(id);
+      return node?.type === "reference" && (node as { source?: { assetType?: string } }).source?.assetType === "character";
+    };
+    expect(intoBg.some(isCharacter)).toBe(false);          // 角色参考不进背景板
+    expect(intoSubj.every(isCharacter)).toBe(true);         // 人物节点只吃角色参考
+    expect(intoSubj.length).toBeGreaterThan(0);
+    expect(intoBg.length).toBeGreaterThan(0);
+  });
+
+  it("幂等:重复调用不重复建节点;存量图(无分层节点)零破坏", () => {
+    const once = addStoryboardLayeredNodes(baseGraphWithRefs(), { storyboard: storyboard as never });
+    const twice = addStoryboardLayeredNodes(once, { storyboard: storyboard as never });
+    expect(twice.nodes.filter((node) => node.title === "分镜 3 背景板")).toHaveLength(1);
+    expect(twice.nodes.filter((node) => node.title === "分镜 3 人物净底")).toHaveLength(1);
+    // 存量图原节点保留
+    const titles = twice.nodes.map((node) => node.title);
+    expect(titles).toContain("分镜 3 成图");
   });
 });

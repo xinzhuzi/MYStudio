@@ -12,6 +12,12 @@ import type {
   CharacterReferenceViewType,
   StoryboardItem,
 } from "@/types/studio";
+import {
+  BACKGROUND_PLATE_NEGATIVE_ANCHORS,
+  SUBJECT_CUTOUT_NEGATIVE_ANCHORS,
+  buildBackgroundPlatePrompt,
+  buildSubjectCutoutPrompt,
+} from "./layered-generation";
 import { useAppSettingsStore } from "@/stores/app/app-settings-store";
 import { buildContinuityPrompt } from "./visual-continuity";
 
@@ -897,4 +903,68 @@ export function createId(prefix: string, time = Date.now()) {
 
 function touchGraph(graph: ImageWorkflowGraph, updatedAt: number): ImageWorkflowGraph {
   return { ...graph, updatedAt };
+}
+
+/**
+ * 分层生图节点扩展（08-19 multilayer-composition Child3，parent D1 原生分层）：
+ * 在既有分镜图模型上追加两个 generated 节点——
+ *   背景板（无人物空镜，只连场景类 reference）+ 人物净底（纯绿幕，只连
+ *   角色类 reference——资产圣经身份锚点经 buildReferenceContinuityContract
+ *   自动注入，身份一致性不新造）。
+ * 产物经色键抠底（layered-generation.matteSolidBackground）后落
+ * <projectRoot>/remotion/layers/<chapterId>/<clipId>/，被章节渲染器按约定
+ * 发现（Child1 接线）。幂等：同层节点已存在（title 匹配）则原样返回。
+ */
+export function addStoryboardLayeredNodes(
+  graph: ImageWorkflowGraph,
+  input: {
+    storyboard: Pick<StoryboardItem, "index" | "prompt">;
+    /** 角色资产描述（人物净底 prompt 首段；缺省用画面描述兜底）。 */
+    characterPrompt?: string;
+    createdAt?: number;
+  },
+): ImageWorkflowGraph {
+  const now = input.createdAt ?? Date.now();
+  const titles = new Set(graph.nodes.map((node) => node.title));
+  const backgroundTitle = `分镜 ${input.storyboard.index} 背景板`;
+  const subjectTitle = `分镜 ${input.storyboard.index} 人物净底`;
+  if (titles.has(backgroundTitle) && titles.has(subjectTitle)) return graph;
+
+  const references = graph.nodes.filter(
+    (node): node is ImageWorkflowReferenceNode => node.type === "reference" && Boolean(node.imageUrl),
+  );
+  const sceneRefs = references.filter((node) => node.source?.assetType !== "character");
+  const characterRefs = references.filter((node) => node.source?.assetType === "character");
+  const basePrompt = input.storyboard.prompt ?? "";
+
+  let next = graph;
+  if (!titles.has(backgroundTitle)) {
+    const backgroundNodeId = createId("gen-bg", now);
+    next = addGeneratedImageNode(next, {
+      id: backgroundNodeId,
+      title: backgroundTitle,
+      prompt: buildBackgroundPlatePrompt(basePrompt),
+      negativePrompt: BACKGROUND_PLATE_NEGATIVE_ANCHORS.join(", "),
+      position: { x: 620, y: 340 },
+      createdAt: now,
+    });
+    for (const reference of sceneRefs) {
+      next = connectImageWorkflowNodes(next, { source: reference.id, target: backgroundNodeId }, now);
+    }
+  }
+  if (!titles.has(subjectTitle)) {
+    const subjectNodeId = createId("gen-subj", now);
+    next = addGeneratedImageNode(next, {
+      id: subjectNodeId,
+      title: subjectTitle,
+      prompt: buildSubjectCutoutPrompt(basePrompt, input.characterPrompt ?? basePrompt),
+      negativePrompt: SUBJECT_CUTOUT_NEGATIVE_ANCHORS.join(", "),
+      position: { x: 620, y: 560 },
+      createdAt: now,
+    });
+    for (const reference of characterRefs) {
+      next = connectImageWorkflowNodes(next, { source: reference.id, target: subjectNodeId }, now);
+    }
+  }
+  return touchGraph(next, now);
 }
