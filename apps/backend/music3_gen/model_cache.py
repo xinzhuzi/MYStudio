@@ -8,6 +8,7 @@ dirs non-empty + no .incomplete blobs.
 from __future__ import annotations
 
 import os
+import sys
 from pathlib import Path
 from typing import TypedDict
 
@@ -15,6 +16,14 @@ MODEL_WEIGHT_EXTENSIONS = (".safetensors", ".bin", ".npz", ".mlx")
 
 MIN_MUSIC3_DURATION_S = 10.0
 MAX_MUSIC3_DURATION_S = 300.0
+
+
+class Music3HardwareReqs(TypedDict):
+    """目录条目的硬件要求——不同平台按硬件选择不同模型(08-19 用户裁定)。"""
+
+    engine: str
+    platforms: tuple[str, ...]
+    arch: tuple[str, ...]
 
 
 class Music3ModelSpec(TypedDict):
@@ -26,6 +35,7 @@ class Music3ModelSpec(TypedDict):
     description: str
     engine: str
     enabled: bool
+    requires: Music3HardwareReqs
 
 
 # 自含仓库:权重+生成脚本一体(int8 量化 MLX)。mlx-community/mxfp8 裸权重
@@ -37,11 +47,73 @@ MUSIC3_MODELS: dict[str, Music3ModelSpec] = {
         "repo_ids": ("PocketAiHub/MiniMax-Music3-MLX",),
         "size_mb": 11900,
         "license": "MiniMax-Music3 Community License",
-        "description": "本地整曲 BGM 生成(10-300 秒/44.1kHz 立体声,[Instrumental] 纯音乐,原生种子确定性;约 12 GB)",
+        "description": "本地整曲 BGM 生成(10-300 秒/立体声 WAV,官方口径 32kHz 实测定案,[Instrumental] 纯音乐,原生种子确定性;约 12 GB)",
         "engine": "mlx-native-script",
         "enabled": True,
+        "requires": {"engine": "mlx", "platforms": ("darwin",), "arch": ("arm64",)},
     },
 }
+
+# 平台×模型矩阵(展示口径):官方路线(SGLang-Omni,需 2× NVIDIA CUDA GPU)由
+# 官方仓自行部署,本应用不代管;Intel Mac/无 GPU 无可用整曲模型。
+MUSIC3_PLATFORM_MATRIX: list[dict[str, str]] = [
+    {"platform": "Apple Silicon(macOS arm64)", "model": "MiniMax-Music3-MLX 自含仓(本应用)", "runnable": "可运行"},
+    {"platform": "NVIDIA Linux/Windows(2× CUDA)", "model": "官方仓 SGLang-Omni 路线", "runnable": "本应用不提供,官方仓自行部署"},
+    {"platform": "Intel Mac / 无 GPU", "model": "无可用整曲模型", "runnable": "不可用"},
+]
+
+
+class Music3HardwareProfile(TypedDict):
+    platform: str
+    machine: str
+    mlxImportable: bool
+
+
+class Music3Availability(TypedDict):
+    available: bool
+    reason: str
+
+
+def detect_hardware_profile() -> Music3HardwareProfile:
+    import platform as platform_module
+    import importlib.util
+
+    machine = platform_module.machine().lower()
+    if machine == "aarch64":
+        machine = "arm64"
+    try:
+        importlib.util.find_spec("mlx.core")
+        mlx_importable = True
+    except (ImportError, ModuleNotFoundError, ValueError):
+        mlx_importable = False
+    return {
+        "platform": sys.platform,
+        "machine": machine,
+        "mlxImportable": mlx_importable,
+    }
+
+
+def evaluate_availability(
+    spec: Music3ModelSpec, profile: Music3HardwareProfile | None = None
+) -> Music3Availability:
+    host = profile or detect_hardware_profile()
+    requires = spec["requires"]
+    if host["platform"] not in requires["platforms"] or host["machine"] not in requires["arch"]:
+        return {
+            "available": False,
+            "reason": (
+                f"本条目为 Apple Silicon(MLX)移植版,需要 macOS + arm64;"
+                f"当前宿主 {host['platform']}/{host['machine']}。"
+                "NVIDIA 双卡宿主请走官方仓 SGLang-Omni 路线(本应用不代管)。"
+            ),
+        }
+    if requires["engine"] == "mlx" and not host["mlxImportable"]:
+        return {
+            "available": False,
+            "reason": "MLX 依赖不可用(需随 Python 运行环境安装 mlx)",
+        }
+    return {"available": True, "reason": ""}
+
 
 
 class CachedMusic3Model(TypedDict):

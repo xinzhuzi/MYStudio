@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { useAudioGenRuntimeSettings } from "./useAudioGenRuntimeSettings";
 import { useMusic3GenRuntimeSettings } from "./useMusic3GenRuntimeSettings";
-import { MUSIC3_MAX_DURATION_S, MUSIC3_MIN_DURATION_S } from "@/types/music3-gen";
+import { MUSIC3_MAX_DURATION_S, MUSIC3_MIN_DURATION_S, MUSIC3_PLATFORM_MATRIX } from "@/types/music3-gen";
 
 type LocalAudioSettingsSectionProps = {
   embedded?: boolean;
@@ -211,6 +211,8 @@ function Music3EnginePanel() {
   const isReady = status?.setupStage === "ready";
   const downloaded = model?.downloaded ?? false;
   const downloading = status?.downloadStatus === "downloading";
+  const unsupported = model?.availability === "unsupported";
+  const hardware = status?.hardwareProfile;
   const [testPrompt, setTestPrompt] = useState("紧张激烈的仙侠配乐,鼓点密集,弦乐渐强");
   const [testSeed, setTestSeed] = useState("7");
   const [testSeconds, setTestSeconds] = useState("60");
@@ -250,6 +252,8 @@ function Music3EnginePanel() {
         toast.success(`整曲 BGM 已生成: ${result.outputPath}`);
       } else if (result.code === "model-not-downloaded") {
         toast.error("MiniMax-Music3 未下载,请先下载模型(约 12 GB)");
+      } else if (result.code === "platform-unsupported") {
+        toast.error(result.message || "本机硬件不满足 MiniMax-Music3 运行要求");
       } else {
         toast.error(result.message || "整曲生成失败");
       }
@@ -283,6 +287,32 @@ function Music3EnginePanel() {
         </Button>
       </div>
 
+      {unsupported ? (
+        <div className="space-y-2 rounded-lg border border-destructive/40 bg-destructive/10 p-3">
+          <p className="text-sm text-destructive">
+            本机硬件不满足 MiniMax-Music3 本地运行要求:{model?.unsupportedReason ?? "平台不受支持"}
+          </p>
+          <div className="overflow-hidden rounded-md border border-border">
+            <table className="w-full text-xs">
+              <tbody>
+                {MUSIC3_PLATFORM_MATRIX.map((row) => (
+                  <tr key={row.platform} className="border-b border-border/60 last:border-b-0">
+                    <td className="px-2.5 py-1.5 text-muted-foreground">{row.platform}</td>
+                    <td className="px-2.5 py-1.5">{row.model}</td>
+                    <td className="px-2.5 py-1.5 text-muted-foreground">{row.runnable}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <p className="text-xs text-muted-foreground">不同平台按硬件自动选择可用模型;当前无可下载条目。</p>
+        </div>
+      ) : hardware ? (
+        <p className="text-xs text-muted-foreground">
+          已按本机硬件自动匹配:Apple Silicon(MLX)整曲版({hardware.platform}/{hardware.machine})
+        </p>
+      ) : null}
+
       <div className="flex items-center justify-between gap-4">
         <div className="flex items-center gap-2 text-sm">
           {downloaded ? (
@@ -294,10 +324,10 @@ function Music3EnginePanel() {
             {model?.label ?? "MiniMax-Music3(MLX 整曲引擎)"}
             {downloaded && model?.sizeMb != null ? ` · ${(model.sizeMb / 1024).toFixed(1)} GB` : ""}
             {" — "}
-            {downloading ? "下载中" : downloaded ? "已就绪" : "未下载"}
+            {downloading ? "下载中" : downloaded ? "已就绪" : unsupported ? "本机不适用" : "未下载"}
           </span>
         </div>
-        <Button size="sm" onClick={() => void runtime.startDownload()} disabled={!isReady || downloading}>
+        <Button size="sm" onClick={() => void runtime.startDownload()} disabled={!isReady || downloading || unsupported}>
           {downloading ? (
             <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden />
           ) : (

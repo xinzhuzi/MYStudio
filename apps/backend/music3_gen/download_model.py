@@ -13,7 +13,7 @@ import threading
 import time
 from pathlib import Path
 
-from .model_cache import MUSIC3_MODELS, primary_hf_cache_dir, repo_cache_dir
+from .model_cache import MUSIC3_MODELS, evaluate_availability, primary_hf_cache_dir, repo_cache_dir
 
 
 def _write_progress(path: Path, payload: dict) -> None:
@@ -31,6 +31,18 @@ def download_model(model_name: str, progress_path: Path) -> int:
             {"modelName": model_name, "status": "error", "current": 0, "total": 0, "progress": 0,
              "error": f"未知模型: {model_name}", "updatedAt": int(time.time() * 1000)},
         )
+        return 2
+
+    # 平台×硬件门禁:不匹配宿主直接拒下(08-19 用户裁定)。
+    availability = evaluate_availability(spec)
+    if not availability["available"]:
+        _write_progress(
+            progress_path,
+            {"modelName": model_name, "status": "error", "current": 0, "total": 0, "progress": 0,
+             "error": availability["reason"], "updatedAt": int(time.time() * 1000)},
+        )
+        print(json.dumps({"status": "blocked", "code": "platform-unsupported",
+                          "message": availability["reason"]}, ensure_ascii=False))
         return 2
 
     total_bytes = spec["size_mb"] * 1024 * 1024

@@ -26,6 +26,8 @@ from .model_cache import (
     MAX_MUSIC3_DURATION_S,
     MIN_MUSIC3_DURATION_S,
     MUSIC3_MODELS,
+    detect_hardware_profile,
+    evaluate_availability,
     find_cached_music3_model,
 )
 
@@ -76,6 +78,11 @@ def generate_music3(
     snapshot_dir = _require_downloaded(model_name)
     spec = MUSIC3_MODELS[model_name]
     seconds = _clamp_duration(seconds)
+
+    # 平台×硬件门禁:不同平台按硬件选择不同模型(08-19 用户裁定)。
+    availability = evaluate_availability(spec)
+    if not availability["available"]:
+        raise Music3GenError("platform-unsupported", availability["reason"])
 
     output_file = Path(output_path)
     output_file.parent.mkdir(parents=True, exist_ok=True)
@@ -163,12 +170,18 @@ def main() -> None:
             import numpy  # noqa: F401
         except ImportError:
             deps_ok = False
-        status = "ready" if (cached and deps_ok) else "blocked"
+        hardware = detect_hardware_profile()
+        availability = evaluate_availability(spec, hardware) if spec else {
+            "available": False, "reason": f"未知模型: {args.model}",
+        }
+        status = "ready" if (cached and deps_ok and availability["available"]) else "blocked"
         print(json.dumps({
             "status": status,
             "model": args.model,
             "depsOk": deps_ok,
             "sizeMb": cached["size_mb"] if cached else None,
+            "hardware": hardware,
+            "availability": availability,
         }, ensure_ascii=False))
         return
 

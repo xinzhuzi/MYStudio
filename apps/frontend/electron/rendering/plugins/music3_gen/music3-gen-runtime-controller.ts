@@ -27,6 +27,15 @@ export interface Music3GenModelRow {
   downloaded: boolean;
   sizeMb: number | null;
   repoId: string;
+  /** 平台×硬件门控(08-19):不同平台按硬件选择不同模型 */
+  availability: "ok" | "unsupported";
+  unsupportedReason?: string;
+}
+
+export interface Music3HardwareProfile {
+  platform: string;
+  machine: string;
+  mlxImportable: boolean;
 }
 
 export interface Music3GenRuntimeStatus {
@@ -38,6 +47,8 @@ export interface Music3GenRuntimeStatus {
   downloadError: string | undefined;
   /** 模型实际落盘目录(与本地音乐生成/TTS 共用缓存),供设置页展示+打开 */
   modelCacheDir?: string;
+  /** 最近一次 probe 的宿主硬件画像(平台门控依据) */
+  hardwareProfile?: Music3HardwareProfile;
 }
 
 interface ControllerDeps {
@@ -63,6 +74,15 @@ export interface Music3GenGenerateResult {
   seed?: number;
   code?: string;
   message?: string;
+}
+
+interface ProbePayload {
+  status?: string;
+  model?: string;
+  depsOk?: boolean;
+  sizeMb?: number | null;
+  hardware?: { platform?: string; machine?: string; mlxImportable?: boolean };
+  availability?: { available?: boolean; reason?: string };
 }
 
 export function createMusic3GenRuntimeController(deps: ControllerDeps) {
@@ -106,18 +126,23 @@ export function createMusic3GenRuntimeController(deps: ControllerDeps) {
         ["-m", "music3_gen.worker", "--probe"],
         { cwd: deps.backendRoot, env: buildEnv(), timeout: 30_000, maxBuffer: 2 * 1024 * 1024 },
       );
-      const parsed = JSON.parse(stdout ?? "{}") as {
-        status?: string;
-        model?: string;
-        depsOk?: boolean;
-        sizeMb?: number | null;
-      };
+      const parsed = JSON.parse(stdout ?? "{}") as ProbePayload;
+      if (parsed.hardware?.platform) {
+        state.hardwareProfile = {
+          platform: parsed.hardware.platform,
+          machine: parsed.hardware.machine ?? "unknown",
+          mlxImportable: parsed.hardware.mlxImportable !== false,
+        };
+      }
+      const available = parsed.availability?.available !== false;
       state.models = [{
         modelName: parsed.model ?? "minimax-music3-mlx",
         label: "MiniMax-Music3(MLX 整曲引擎)",
         downloaded: parsed.status === "ready",
         sizeMb: typeof parsed.sizeMb === "number" ? parsed.sizeMb : null,
         repoId: "PocketAiHub/MiniMax-Music3-MLX",
+        availability: available ? "ok" : "unsupported",
+        unsupportedReason: available ? undefined : parsed.availability?.reason,
       }];
       return state.models;
     } catch {
@@ -175,6 +200,10 @@ export function createMusic3GenRuntimeController(deps: ControllerDeps) {
   async function downloadModel(modelName = "minimax-music3-mlx"): Promise<{ accepted: boolean; message: string }> {
     if (state.downloadStatus === "downloading") {
       return { accepted: false, message: "模型正在下载中" };
+    }
+    const row = state.models.find((model) => model.modelName === modelName);
+    if (row && row.availability === "unsupported") {
+      return { accepted: false, message: row.unsupportedReason ?? "本机硬件不满足该模型运行要求" };
     }
     const paths = getPaths();
     if (!fs.existsSync(paths.pythonExecutable)) {
@@ -253,11 +282,28 @@ export function createMusic3GenRuntimeController(deps: ControllerDeps) {
         message: typeof parsed.message === "string" ? parsed.message : "整曲生成失败",
       };
     } catch (error) {
+      // worker 以非零退出表达 blocked 时,payload JSON 打在 stdout——优先恢复。
+      const stdoutOf = (error as { stdout?: unknown }).stdout;
+      if (typeof stdoutOf === "string" && stdoutOf.trim().startsWith("{")) {
+        try {
+          const recovered = JSON.parse(stdoutOf) as { status?: string; code?: string; message?: string };
+          if (recovered.status === "blocked") {
+            return {
+              status: "blocked",
+              code: typeof recovered.code === "string" ? recovered.code : "generation-failed",
+              message: typeof recovered.message === "string" ? recovered.message : "整曲生成失败",
+            };
+          }
+        } catch {
+          // fall through to message sniffing
+        }
+      }
       const message = error instanceof Error ? error.message : String(error);
       const modelMissing = message.includes("model-not-downloaded") || message.includes("未下载");
+      const platformUnsupported = message.includes("platform-unsupported") || message.includes("Apple Silicon");
       return {
         status: "blocked",
-        code: modelMissing ? "model-not-downloaded" : "generation-failed",
+        code: modelMissing ? "model-not-downloaded" : platformUnsupported ? "platform-unsupported" : "generation-failed",
         message,
       };
     }

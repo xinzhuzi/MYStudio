@@ -12,6 +12,15 @@ export interface Music3GenModelRow {
   downloaded: boolean;
   sizeMb: number | null;
   repoId: string;
+  /** 平台×硬件门控(08-19):不同平台按硬件选择不同模型 */
+  availability: "ok" | "unsupported";
+  unsupportedReason?: string;
+}
+
+export interface Music3HardwareProfile {
+  platform: string;
+  machine: string;
+  mlxImportable: boolean;
 }
 
 export interface Music3GenRuntimeStatus {
@@ -22,7 +31,20 @@ export interface Music3GenRuntimeStatus {
   downloadProgress: number;
   downloadError: string | undefined;
   modelCacheDir?: string;
+  /** 最近一次 probe 的宿主硬件画像(平台门控依据) */
+  hardwareProfile?: Music3HardwareProfile;
 }
+
+/** 平台×模型矩阵(设置页展示口径;官方 CUDA 路线本应用不代管) */
+export const MUSIC3_PLATFORM_MATRIX: ReadonlyArray<{
+  platform: string;
+  model: string;
+  runnable: string;
+}> = [
+  { platform: "Apple Silicon(macOS arm64)", model: "MiniMax-Music3-MLX 自含仓", runnable: "可运行(本应用自动匹配)" },
+  { platform: "NVIDIA Linux/Windows(2× CUDA)", model: "官方仓 SGLang-Omni 路线", runnable: "本应用不提供,官方仓自行部署" },
+  { platform: "Intel Mac / 无 GPU", model: "无可用整曲模型", runnable: "不可用" },
+];
 
 export interface Music3GenGenerateResult {
   status: "accepted" | "blocked";
