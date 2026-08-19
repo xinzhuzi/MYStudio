@@ -1605,7 +1605,7 @@
   max-width: 620px;
   font-size: clamp(56px, 5vw, 86px);
   line-height: 0.94;
-  letter-spacing: 0;
+  letter-spacing: -0.02em;
   color: transparent;
   background: linear-gradient(
     135deg,
@@ -2361,7 +2361,7 @@
   font-size: 40px;
   font-weight: 900;
   line-height: 1.05;
-  letter-spacing: 0;
+  letter-spacing: -0.015em;
 }
 
 .appearance-subtitle {

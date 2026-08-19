@@ -124,20 +124,22 @@ export function Layout() {
         <div className="studio-shell h-full bg-background">
           <div className="studio-main h-full">
             <Suspense fallback={<PanelFallback />}>
-              {activeTab === "settings" ? (
-                <SettingsPanel
-                  sidebarCollapsed={sidebarCollapsed}
-                  onToggleSidebar={toggleSidebar}
-                  showHomeChrome
-                  initialTab={settingsTabRequest ?? undefined}
-                  onInitialTabConsumed={clearSettingsTabRequest}
-                />
-              ) : (
-                <Dashboard
-                  sidebarCollapsed={sidebarCollapsed}
-                  onToggleSidebar={toggleSidebar}
-                />
-              )}
+              <div key={activeTab} className="cinematic-route h-full min-h-0">
+                {activeTab === "settings" ? (
+                  <SettingsPanel
+                    sidebarCollapsed={sidebarCollapsed}
+                    onToggleSidebar={toggleSidebar}
+                    showHomeChrome
+                    initialTab={settingsTabRequest ?? undefined}
+                    onInitialTabConsumed={clearSettingsTabRequest}
+                  />
+                ) : (
+                  <Dashboard
+                    sidebarCollapsed={sidebarCollapsed}
+                    onToggleSidebar={toggleSidebar}
+                  />
+                )}
+              </div>
             </Suspense>
           </div>
         </div>
