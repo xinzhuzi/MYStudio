@@ -16,7 +16,12 @@ const CHAPTER_ID = "chapter-001";
 const REV = 49;
 const FPS = 30;
 const W = 1920, H = 1080;
-const ELECTRON = process.execPath; // vite-node 的 node 不可用,需用 Electron——后面有正确路径
+
+/** 队列/plan 的最小结构形状(只声明本脚本用到的字段) */
+interface PlanClip { id: string; trackKind?: string; durationUs: number }
+interface PlanTransition { fromClipId: string; effectId: string; durationUs: number }
+interface ChapterPlan { clips: PlanClip[]; transitions: PlanTransition[] }
+interface QueueJob { job: { target?: { kind?: string } }; plan?: ChapterPlan }
 
 // adapter.py 同款决策表(镜像)
 const TEMPLATES = ["light-leak","film-grain","lens-flare","vignette-pulse","particle-dust","letterbox-cinematic","highlight-box",
@@ -59,17 +64,16 @@ function glEnhance(name: string): [string, Record<string, number>] {
 
 async function main() {
   const q = JSON.parse(fs.readFileSync(QUEUE, "utf8"));
-  const jobs = (q as { jobs?: unknown[] }).jobs ?? (q as { state?: { jobs?: unknown[] } }).state!.jobs!;
-  const entry = (jobs as Array<{ job: { target?: { kind?: string } }; plan?: any }>)
-    .filter((it) => it.job.target?.kind === "chapter").pop();
+  const jobs = (q as { jobs?: QueueJob[] }).jobs ?? (q as { state?: { jobs?: QueueJob[] } }).state!.jobs!;
+  const entry = jobs.filter((it) => it.job.target?.kind === "chapter").pop();
   if (!entry?.plan) throw new Error("无 chapter 条目");
-  const plan = entry.plan;
+  const plan: ChapterPlan = entry.plan;
 
   // 镜头布局(与 adapter 同款:Σ时长−Σ重叠)
-  const clips = plan.clips.filter((c: any) => c.trackKind === "video" || c.trackKind === "image")
-    .filter((c: any) => c.id.startsWith("visual-sb"))
-    .sort((a: any, b: any) => a.id.localeCompare(b.id));
-  const trs = new Map(plan.transitions.map((t: any) => [t.fromClipId, t]));
+  const clips = plan.clips.filter((c) => c.trackKind === "video" || c.trackKind === "image")
+    .filter((c) => c.id.startsWith("visual-sb"))
+    .sort((a, b) => a.id.localeCompare(b.id));
+  const trs = new Map(plan.transitions.map((t) => [t.fromClipId, t] as const));
   const starts: number[] = [];
   let acc = 0;
   for (const c of clips) {
@@ -104,7 +108,7 @@ async function main() {
     const templateId = TEMPLATES[i % TEMPLATES.length];
     const params = { ...DEFAULT_PARAMS[templateId] ?? {} };
     if (templateId === "light-leak") params.hue = (i * 31) % 360;
-    let decDur = Math.min(dur, nextStart - start - enhanceUs, 1100);
+    const decDur = Math.min(dur, nextStart - start - enhanceUs, 1100);
     if (decDur > 0) {
       windows.push({
         slotId: `effect-${clip.id}`,

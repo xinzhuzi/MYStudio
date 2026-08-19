@@ -31,12 +31,18 @@ function sampleFrames(durationInFrames: number): number[] {
 const PSNR_FLOOR = 30; // dB — 低于此值=编码质量问题
 const SSIM_FLOOR = 0.90; // 低于此值=结构性失真
 
+/** 队列/plan/slot 的最小结构形状(只声明本脚本用到的字段) */
+interface QcClip { id: string; trackKind?: string; source?: { evidence?: { storyboardId?: string } } }
+interface QcPlan { clips: QcClip[] }
+interface QcSlot { target?: { kind?: string; shotId?: string }; evidence: { outputPath: string } }
+interface QcEntry { job?: { target?: { kind?: string } }; plan: QcPlan; currentShotSlots: QcSlot[] }
+
 export async function runEncodingQc(): Promise<{ pass: boolean; report: object }> {
   const t0 = Date.now();
   // ── 构造 props(与 standalone 渲染器同款) ──
   const q = JSON.parse(fs.readFileSync(QUEUE, "utf8"));
-  const jobs = (q as any).jobs ?? (q as any).state.jobs;
-  const entry = jobs.filter((j: any) => j?.job?.target?.kind === "chapter").pop();
+  const jobs = (q as { jobs?: QcEntry[] }).jobs ?? (q as { state?: { jobs?: QcEntry[] } }).state!.jobs!;
+  const entry = jobs.filter((j) => j?.job?.target?.kind === "chapter").pop();
   const plan = entry.plan;
   const slots = entry.currentShotSlots;
   const manifest = JSON.parse(fs.readFileSync(path.join(MA, "remotion/chapters/chapter-001.json"), "utf8"));
@@ -45,10 +51,10 @@ export async function runEncodingQc(): Promise<{ pass: boolean; report: object }
   await mediaBridge.listen();
   const session = mediaBridge.createSession();
   const mediaSources = plan.clips
-    .filter((c: any) => c.trackKind === "video" || c.trackKind === "image")
-    .map((c: any) => {
+    .filter((c) => c.trackKind === "video" || c.trackKind === "image")
+    .map((c) => {
       const sid = c.source?.evidence?.storyboardId;
-      const slot = slots.find((s: any) => s.target?.kind === "shot" && s.target.shotId === sid);
+      const slot = slots.find((s) => s.target?.kind === "shot" && s.target.shotId === sid);
       return { clipId: c.id, absolutePath: path.join(MA, "remotion", slot.evidence.outputPath) };
     });
   for (const src of mediaSources) session.register(src.clipId, src.absolutePath);
@@ -76,8 +82,8 @@ export async function runEncodingQc(): Promise<{ pass: boolean; report: object }
   const hasOverlay = fs.existsSync(overlayMov) && fs.existsSync(overlayArt);
   const overlayWindows = hasOverlay ? (JSON.parse(fs.readFileSync(overlayArt, "utf8")).windows ?? []) : [];
   if (hasOverlay) session.register("hyperframes-overlay", overlayMov);
-  const allUrls = mediaBridge.buildUrls(session, [...mediaSources.map((s: any) => s.clipId), ...(hasOverlay ? ["hyperframes-overlay"] : [])]);
-  const mediaUrlByClipId = Object.fromEntries(allUrls.map((e: any) => [e.assetId, e.url]));
+  const allUrls = mediaBridge.buildUrls(session, [...mediaSources.map((s) => s.clipId), ...(hasOverlay ? ["hyperframes-overlay"] : [])]);
+  const mediaUrlByClipId = Object.fromEntries(allUrls.map((e) => [e.assetId, e.url]));
 
   const projected = buildChapterVideoCompositionProps({
     plan, currentShotSlots: slots, chapterManifest: manifest,
@@ -85,7 +91,7 @@ export async function runEncodingQc(): Promise<{ pass: boolean; report: object }
     ...(Object.keys(lutUrlById).length > 0 ? { lutUrlById } : {}),
     ...(hasOverlay ? { hyperFramesOverlay: { src: mediaUrlByClipId["hyperframes-overlay"], windows: overlayWindows } } : {}),
   } as never);
-  if (!projected.success) throw new Error("props 失败: " + projected.issues.map((i: any) => i.message).join(";"));
+  if (!projected.success) throw new Error("props 失败: " + projected.issues.map((i) => i.message).join(";"));
   const props = projected.value;
 
   // ── renderStill 渲参考帧 ──
@@ -98,7 +104,7 @@ export async function runEncodingQc(): Promise<{ pass: boolean; report: object }
   process.chdir(runtimeDir);
   try {
     const browser = await ensureBrowser({ browserExecutable: undefined, chromiumOptions: {}, forceDeviceScaleFactor: undefined, allowFallback: true, onBrowserDownload: () => { throw new Error("禁止下载"); } } as never);
-    const browserPath = (browser as any).path;
+    const browserPath = (browser as { path?: string }).path;
     const composition = await selectComposition({ serveUrl: bundlePath, id: "ChapterVideo", inputProps: props as never, browserExecutable: browserPath, chromiumOptions: { gl: "swangle" } });
     for (const frame of frames) {
       await renderStill({ composition, serveUrl: bundlePath, output: path.join(qcDir, `ref-${frame}.png`), frame, inputProps: props as never, browserExecutable: browserPath, chromiumOptions: { gl: "swangle" } } as never);

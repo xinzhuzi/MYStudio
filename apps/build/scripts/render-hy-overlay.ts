@@ -73,7 +73,12 @@ html,body{margin:0;width:100%;height:100%;overflow:hidden;background:transparent
 `;
 
 // ── 模板渲染(与 worker renderWindow 同款逻辑) ──
-function renderWindow(w: any, idx: number): string {
+/** overlay 窗口的最小结构形状(生成端与渲染端共用字段) */
+interface OverlayWindow {
+  slotId: string; cueId?: string; startUs: number; durationUs: number;
+  templateId: string; parameters?: Record<string, number>;
+}
+function renderWindow(w: OverlayWindow, idx: number): string {
   const id = `hf-${w.slotId.replace(/[^A-Za-z0-9_-]/g, "-")}-${idx + 1}`;
   const startS = (w.startUs / 1e6).toFixed(3);
   const durS = (w.durationUs / 1e6).toFixed(3);
@@ -114,7 +119,7 @@ function renderWindow(w: any, idx: number): string {
   return `<div ${base} style="${style}"></div>`;
 }
 
-function buildHtml(windows: any[], durationUs: number): string {
+function buildHtml(windows: OverlayWindow[], durationUs: number): string {
   const durS = (durationUs / 1e6).toFixed(3);
   const divs = windows.map((w, i) => renderWindow(w, i)).join("\n");
   return `<!doctype html>\n<html><head><meta charset="utf-8"><style>${TEMPLATE_CSS}</style></head>\n<body>\n<div id="stage" data-composition-id="mystudio-overlay" data-no-timeline data-start="0" data-duration="${durS}" data-width="${W}" data-height="${H}" data-fps="${FPS}">\n${divs}\n</div></body></html>`;
@@ -148,20 +153,24 @@ const glE = (n: string): [string, Record<string, number>] => {
 };
 
 // ── 主逻辑 ──
+interface PlanClip { id: string; trackKind?: string; durationUs: number }
+interface PlanTransition { fromClipId: string; effectId: string; durationUs: number }
+interface ChapterPlan { clips: PlanClip[]; transitions: PlanTransition[] }
+interface QueueJob { job?: { target?: { kind?: string } }; plan: ChapterPlan }
 function main() {
   const q = JSON.parse(fs.readFileSync(QUEUE, "utf8"));
-  const jobs = (q as any).jobs ?? (q as any).state.jobs;
-  const plan = jobs.filter((j: any) => j?.job?.target?.kind === "chapter").pop().plan;
-  const clips = plan.clips.filter((c: any) => c.trackKind === "video" || c.trackKind === "image")
-    .filter((c: any) => c.id.startsWith("visual-sb")).sort((a: any, b: any) => a.id.localeCompare(b.id));
-  const trs = new Map(plan.transitions.map((t: any) => [t.fromClipId, t]));
+  const jobs = (q as { jobs?: QueueJob[] }).jobs ?? (q as { state?: { jobs?: QueueJob[] } }).state!.jobs!;
+  const plan = jobs.filter((j) => j?.job?.target?.kind === "chapter").pop()!.plan;
+  const clips = plan.clips.filter((c) => c.trackKind === "video" || c.trackKind === "image")
+    .filter((c) => c.id.startsWith("visual-sb")).sort((a, b) => a.id.localeCompare(b.id));
+  const trs = new Map(plan.transitions.map((t) => [t.fromClipId, t] as const));
   const starts: number[] = []; let acc = 0;
   for (const c of clips) {
     starts.push(acc);
     const t = trs.get(c.id);
     acc += Math.round(c.durationUs * FPS / 1e6) - (t && t.effectId !== "cut" ? Math.round(t.durationUs * FPS / 1e6) : 0);
   }
-  const windows: any[] = [];
+  const windows: OverlayWindow[] = [];
   for (let i = 0; i < clips.length; i++) {
     const clip = clips[i], start = starts[i];
     const t = trs.get(clip.id);
@@ -186,7 +195,7 @@ function main() {
   console.log(`windows: ${windows.length}`);
 
   // 分段(≤8 窗/段,连续帧边界)
-  const segs: any[][] = [];
+  const segs: OverlayWindow[][] = [];
   for (let i = 0; i < windows.length; i += MAX_PER_SEG) segs.push(windows.slice(i, i + MAX_PER_SEG));
   console.log(`segments: ${segs.length}`);
 
