@@ -31,7 +31,7 @@ export function StudioView() {
   const viewModel = useStudioViewModel();
 
   return (
-    <div className="studio-workspace studio-workspace-workflow h-full bg-[#20201f]">
+    <div className="studio-workspace studio-workspace-workflow h-full bg-panel">
       <Tabs
         value={viewModel.activeWorkflowTab}
         onValueChange={viewModel.handleStageChange}

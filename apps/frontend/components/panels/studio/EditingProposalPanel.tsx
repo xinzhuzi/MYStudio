@@ -129,7 +129,7 @@ function ProposalCard(props: EditingProposalPanelProps & { proposal: EditingProp
               aria-label={`建议 ${proposal.id} 效果`}
               value={effectId}
               onChange={(event) => updateEffect(event.target.value as EditingProposal["effectId"])}
-              className="mt-1 h-8 w-full rounded-md border border-white/10 bg-[#111514] px-2 text-xs text-foreground"
+              className="mt-1 h-8 w-full rounded-md border border-border bg-input px-2 text-xs text-foreground"
             >
               {PROPOSAL_EFFECTS.map((item) => <option key={item.id} value={item.id}>{item.id} · {item.preview}</option>)}
             </select>
@@ -140,7 +140,7 @@ function ProposalCard(props: EditingProposalPanelProps & { proposal: EditingProp
               aria-label={`建议 ${proposal.id} 目标片段`}
               value={targetClipId}
               onChange={(event) => updateTarget(event.target.value)}
-              className="mt-1 h-8 w-full rounded-md border border-white/10 bg-[#111514] px-2 text-xs text-foreground"
+              className="mt-1 h-8 w-full rounded-md border border-border bg-input px-2 text-xs text-foreground"
             >
               {props.project.clips
                 .filter((clip) => {
