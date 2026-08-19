@@ -33,13 +33,13 @@ export function ShotGridCard({
         }
       }}
       className={cn(
-        "group relative flex flex-col bg-[#1A1A1A] border rounded-lg overflow-hidden cursor-pointer transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40",
+        "group relative flex flex-col bg-card border border-border rounded-lg overflow-hidden cursor-pointer transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40",
         isActive
           ? "border-primary/40 ring-1 ring-primary/50"
           : "border-border hover:border-border",
       )}
     >
-      <div className="px-2 py-1.5 bg-[#151515] border-b border-border flex justify-between items-center">
+      <div className="px-2 py-1.5 bg-muted/40 border-b border-border flex justify-between items-center">
         <span
           className={cn(
             "font-mono text-[10px] font-bold",

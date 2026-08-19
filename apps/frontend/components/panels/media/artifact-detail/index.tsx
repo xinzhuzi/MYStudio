@@ -632,7 +632,7 @@ export function ArtifactDetailPanel({
               <div className="space-y-4">
                 {/* Upstream Dependencies */}
                 <div className="space-y-2">
-                  <h4 className="font-medium flex items-center gap-2 text-sm">
+                  <h4 className="font-semibold flex items-center gap-2 text-sm">
                     <LinkIcon className="h-4 w-4" />
                     上游依赖 ({artifact.upstreamIds.length})
                   </h4>
@@ -652,7 +652,7 @@ export function ArtifactDetailPanel({
 
                 {/* Downstream References */}
                 <div className="space-y-2">
-                  <h4 className="font-medium flex items-center gap-2 text-sm">
+                  <h4 className="font-semibold flex items-center gap-2 text-sm">
                     <LinkIcon className="h-4 w-4" />
                     下游引用 ({artifact.downstreamIds.length})
                   </h4>

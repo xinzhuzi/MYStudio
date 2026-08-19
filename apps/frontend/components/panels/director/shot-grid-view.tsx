@@ -390,7 +390,7 @@ export function ShotGridView({ onGenerateImage, onGenerateVideo }: ShotGridViewP
 
   if (shots.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center h-full text-muted-foreground bg-[#121212] p-8">
+      <div className="flex flex-col items-center justify-center h-full text-muted-foreground bg-background p-8">
         <AlertCircle className="w-12 h-12 mb-4 opacity-50" />
         <p className="text-sm">暂无镜头数据</p>
         <p className="text-xs text-muted-foreground mt-1">请先在剧本阶段生成分镜列表</p>
@@ -399,7 +399,7 @@ export function ShotGridView({ onGenerateImage, onGenerateVideo }: ShotGridViewP
   }
 
   return (
-    <div className="flex flex-col h-full bg-[#121212] relative overflow-hidden">
+    <div className="flex flex-col h-full bg-background relative overflow-hidden">
       {/* Batch Progress Overlay */}
       <BatchProgressOverlay
         isVisible={batchProgress.isVisible}
@@ -410,7 +410,7 @@ export function ShotGridView({ onGenerateImage, onGenerateVideo }: ShotGridViewP
       />
 
       {/* Toolbar */}
-      <div className="h-14 border-b border-border bg-[#1A1A1A] px-4 flex items-center justify-between shrink-0">
+      <div className="h-14 border-b border-border bg-panel px-4 flex items-center justify-between shrink-0">
         <div className="flex items-center gap-3">
           <LayoutGrid className="w-4 h-4 text-primary" />
           <span className="text-sm font-medium text-foreground">镜头网格</span>
