@@ -42,9 +42,11 @@ function buildTreatmentCompositionHtml(): string {
     }],
   } as never, DUR_US);
   // windows 的占位 div 换成全帧 media（保留 #stage 元数据与完整 CSS 骨架）。
+  // ⚠️ 上游 #3329 绕过(08-19 定位):data-color-grading 挂在带 CSS 入场动画的
+  // 元素上=白帧/黑帧;graded 媒体必须内联压制动画(class=clip 保留供 CLI selector)。
   return skeleton.replace(
     /<div id="hf-placeholder[^>]*><\/div>/,
-    `<img id="media-frame" class="clip" src="frame.png" data-start="0" data-duration="1" data-track-index="1" style="left:50%;top:50%;width:${W}px;height:${H}px;object-fit:cover;">`,
+    `<img id="media-frame" class="clip" src="frame.png" data-start="0" data-duration="1" data-track-index="1" style="left:50%;top:50%;width:${W}px;height:${H}px;object-fit:cover;opacity:1;animation:none;">`,
   );
 }
 
