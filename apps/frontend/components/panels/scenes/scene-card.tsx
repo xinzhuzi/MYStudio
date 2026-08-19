@@ -72,7 +72,7 @@ export function SceneCard({
       >
         <div
           className={cn(
-            "aspect-video rounded bg-muted flex items-center justify-center overflow-hidden mb-2 relative",
+            "aspect-video rounded-lg bg-muted flex items-center justify-center overflow-hidden mb-2 relative",
             hasChildren ? "cursor-pointer" : "cursor-zoom-in"
           )}
           title={hasChildren ? (isExpanded ? "双击收起子场景" : "双击展开子场景") : "双击查看大图"}

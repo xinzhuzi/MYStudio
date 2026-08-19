@@ -194,7 +194,7 @@ export function CharacterDetail({ character }: CharacterDetailProps) {
           </div>
         ) : (
           <div className="flex items-center justify-between">
-            <h3 className="font-medium text-sm truncate">{character.name}</h3>
+            <h3 className="font-semibold text-sm truncate">{character.name}</h3>
             <Button
               size="icon"
               variant="ghost"
