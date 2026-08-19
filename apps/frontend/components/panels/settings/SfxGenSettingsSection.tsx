@@ -72,7 +72,7 @@ export function SfxGenSettingsSection({ embedded = false }: SfxGenSettingsSectio
   };
 
   return (
-    <div className="space-y-4 px-5 py-4">
+    <div className={cn("space-y-4 px-5 py-4 rounded-xl border border-border bg-card/30", embedded && "mx-5 mb-4")}>
       {/* Runtime row */}
       <div className="flex items-center justify-between gap-4">
         <div className="flex items-center gap-2 text-sm">
