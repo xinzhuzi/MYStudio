@@ -23,13 +23,13 @@ export function ScenePreviewView({
       <h3 className="font-medium text-sm mb-3">预览场景概念图</h3>
       <ScrollArea className="flex-1">
         <div className="space-y-4">
-          <div className="relative rounded-lg overflow-hidden border-2 border-amber-500/50 bg-muted">
+          <div className="relative rounded-lg overflow-hidden border-2 border-warning/50 bg-muted">
             <img
               src={previewUrl}
               alt="场景概念图预览"
               className="w-full h-auto"
             />
-            <div className="absolute top-2 left-2 bg-amber-500 text-white text-xs px-2 py-1 rounded">
+            <div className="absolute top-2 left-2 bg-warning text-white text-xs px-2 py-1 rounded">
               预览
             </div>
           </div>

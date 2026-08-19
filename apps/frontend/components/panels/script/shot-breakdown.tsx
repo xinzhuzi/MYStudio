@@ -103,7 +103,7 @@ export function ShotBreakdown({
                   <span className="text-xs font-mono text-indigo-400 bg-indigo-500/10 px-1.5 py-0.5 rounded">
                     场景 {groupIdx + 1}
                   </span>
-                  <span className="text-sm font-medium text-white">
+                  <span className="text-sm font-medium text-foreground">
                     {group.scene.name || group.scene.location}
                   </span>
                 </div>

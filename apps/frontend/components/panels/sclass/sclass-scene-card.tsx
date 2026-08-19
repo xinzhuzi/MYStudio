@@ -154,7 +154,7 @@ export function SClassSceneCard({
     e.dataTransfer.effectAllowed = 'copy';
     
     const dragImage = document.createElement('div');
-    dragImage.className = 'bg-primary text-white px-2 py-1 rounded text-xs';
+    dragImage.className = 'bg-primary text-foreground px-2 py-1 rounded text-xs';
     dragImage.textContent = `分镜 ${scene.id + 1} 视频`;
     dragImage.style.position = 'absolute';
     dragImage.style.top = '-1000px';
@@ -312,10 +312,10 @@ export function SClassSceneCard({
               >
                 <video src={scene.videoUrl} className="w-full h-full object-cover" muted preload="none" poster={resolvedImageUrl || undefined} />
                 <div className="absolute inset-0 flex items-center justify-center bg-black/30">
-                  <Play className="h-4 w-4 text-white" />
+                  <Play className="h-4 w-4 text-foreground" />
                 </div>
                 {canDragVideo && (
-                  <span className="absolute bottom-0.5 right-0.5 text-[8px] bg-green-600 text-white px-1 rounded">拖到时间线</span>
+                  <span className="absolute bottom-0.5 right-0.5 text-[8px] bg-success text-white px-1 rounded">拖到时间线</span>
                 )}
               </div>
               {/* 提取尾帧按钮 */}
@@ -349,7 +349,7 @@ export function SClassSceneCard({
             <span className={cn(
               "text-xs flex items-center gap-1",
               isVideoModerationSkipped 
-                ? "text-amber-500" 
+                ? "text-warning" 
                 : "text-destructive"
             )}>
               <AlertCircle className="h-3 w-3" />
@@ -516,7 +516,7 @@ export function SClassSceneCard({
               className={cn(
                 "text-[9px] px-1.5 py-0.5 rounded shrink-0 w-12 text-center transition-colors",
                 scene.audioAmbientEnabled !== false
-                  ? "bg-green-500/20 text-green-600 dark:text-green-400"
+                  ? "bg-success/20 text-success dark:text-success"
                   : "bg-muted text-muted-foreground line-through"
               )}
             >
@@ -539,7 +539,7 @@ export function SClassSceneCard({
               className={cn(
                 "text-[9px] px-1.5 py-0.5 rounded shrink-0 w-12 text-center transition-colors",
                 scene.audioSfxEnabled !== false
-                  ? "bg-green-500/20 text-green-600 dark:text-green-400"
+                  ? "bg-success/20 text-success dark:text-success"
                   : "bg-muted text-muted-foreground line-through"
               )}
             >
@@ -562,7 +562,7 @@ export function SClassSceneCard({
               className={cn(
                 "text-[9px] px-1.5 py-0.5 rounded shrink-0 w-12 text-center transition-colors",
                 scene.audioDialogueEnabled !== false
-                  ? "bg-green-500/20 text-green-600 dark:text-green-400"
+                  ? "bg-success/20 text-success dark:text-success"
                   : "bg-muted text-muted-foreground line-through"
               )}
             >
@@ -585,7 +585,7 @@ export function SClassSceneCard({
               className={cn(
                 "text-[9px] px-1.5 py-0.5 rounded shrink-0 w-12 text-center transition-colors",
                 scene.audioBgmEnabled === true
-                  ? "bg-green-500/20 text-green-600 dark:text-green-400"
+                  ? "bg-success/20 text-success dark:text-success"
                   : "bg-muted text-muted-foreground line-through"
               )}
             >

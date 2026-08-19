@@ -71,13 +71,13 @@ export function CharacterCalibrationSection(props: CharacterCalibrationSectionPr
                       <div className="flex items-center gap-1">
                         {isManuallyModified ? (
                           <>
-                            <AlertTriangle className="h-3 w-3 text-amber-500" />
-                            <span className="text-[10px] text-amber-500">已修改</span>
+                            <AlertTriangle className="h-3 w-3 text-warning" />
+                            <span className="text-[10px] text-warning">已修改</span>
                           </>
                         ) : (
                           <>
-                            <CheckCircle2 className="h-3 w-3 text-green-500" />
-                            <span className="text-[10px] text-green-500">已校准</span>
+                            <CheckCircle2 className="h-3 w-3 text-success" />
+                            <span className="text-[10px] text-success">已校准</span>
                           </>
                         )}
                       </div>

@@ -15,7 +15,7 @@ describe("EpisodeTreeAIResultCard", () => {
 
     expect(screen.getByText("已找到场景")).toBeTruthy();
     expect(screen.getByText("场景详情")).toBeTruthy();
-    expect(container.querySelector(".text-green-500")).toBeTruthy();
+    expect(container.querySelector(".text-success")).toBeTruthy();
   });
 
   it("renders an unsuccessful lookup with the warning treatment", () => {
@@ -24,6 +24,6 @@ describe("EpisodeTreeAIResultCard", () => {
     );
 
     expect(screen.getByText("未找到角色")).toBeTruthy();
-    expect(container.querySelector(".text-amber-500")).toBeTruthy();
+    expect(container.querySelector(".text-warning")).toBeTruthy();
   });
 });

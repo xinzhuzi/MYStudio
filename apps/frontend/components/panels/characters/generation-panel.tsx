@@ -419,13 +419,13 @@ export function GenerationPanel({ onCharacterCreated }: GenerationPanelProps) {
         </div>
         <ScrollArea className="flex-1 min-h-0">
           <div className="p-3 space-y-4 pb-32">
-            <div className="relative rounded-lg overflow-hidden border-2 border-amber-500/50 bg-muted">
+            <div className="relative rounded-lg overflow-hidden border-2 border-warning/50 bg-muted">
               <img 
                 src={previewUrl} 
                 alt="角色设定预览"
                 className="w-full h-auto"
               />
-              <div className="absolute top-2 left-2 bg-amber-500 text-white text-xs px-2 py-1 rounded">
+              <div className="absolute top-2 left-2 bg-warning text-white text-xs px-2 py-1 rounded">
                 预览
               </div>
             </div>

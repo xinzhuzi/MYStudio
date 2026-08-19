@@ -28,8 +28,8 @@ interface EpisodeTreeCharacterListProps {
 }
 
 function CharacterStatusIcon({ status }: { status?: CompletionStatus }) {
-  if (status === "completed") return <CheckCircle2 className="h-3 w-3 text-green-500" />;
-  if (status === "in_progress") return <Clock className="h-3 w-3 text-yellow-500" />;
+  if (status === "completed") return <CheckCircle2 className="h-3 w-3 text-success" />;
+  if (status === "in_progress") return <Clock className="h-3 w-3 text-warning" />;
   return <Circle className="h-3 w-3 text-muted-foreground" />;
 }
 

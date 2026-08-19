@@ -125,7 +125,7 @@ function VoiceBadge({ speakerIds }: { speakerIds: ReturnType<typeof getRoleVoice
     return (
       <Badge
         variant="outline"
-        className="border-amber-500/60 bg-amber-500/10 text-amber-600 dark:text-amber-300"
+        className="border-warning/60 bg-warning/10 text-warning"
         title={`音色绑定指向不存在的 profile：${resolution.profileId}`}
       >
         音色异常

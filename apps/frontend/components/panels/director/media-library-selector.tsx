@@ -80,7 +80,7 @@ export function MediaLibrarySelector({
           disabled={disabled}
           className={cn(
             "flex items-center gap-1 px-2 py-1 rounded border border-dashed text-xs transition-colors disabled:opacity-50",
-            "border-purple-500/30 text-purple-400 hover:border-purple-500/50 hover:text-purple-300 hover:bg-purple-500/5"
+            "border-viz-status-c/30 text-viz-status-c hover:border-viz-status-c/50 hover:text-viz-status-c/80 hover:bg-viz-status-c/5"
           )}
         >
           <ImageIcon className="h-3 w-3" />
@@ -162,11 +162,11 @@ export function MediaLibrarySelector({
                         />
                         {/* 悬停遮罩 */}
                         <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                          <Check className="h-6 w-6 text-white" />
+                          <Check className="h-6 w-6 text-foreground" />
                         </div>
                         {/* 文件名 */}
                         <div className="absolute bottom-0 left-0 right-0 bg-black/60 px-1 py-0.5">
-                          <span className="text-[9px] text-white truncate block">
+                          <span className="text-[9px] text-foreground truncate block">
                             {img.name}
                           </span>
                         </div>

@@ -88,7 +88,7 @@ export function NovelChapterTable({
                   </div>
                   {chapter.eventNameWarnings?.length ? (
                     <span
-                      className="mt-0.5 shrink-0 text-amber-500"
+                      className="mt-0.5 shrink-0 text-warning"
                       title={`未在原著圣经人物表登记：${chapter.eventNameWarnings.join("、")}`}
                     >
                       <AlertTriangle className="h-3.5 w-3.5" />

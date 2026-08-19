@@ -56,7 +56,7 @@ export function SClassView() {
       <div>
         <h3 className="font-medium text-sm mb-1">S级 · Seedance 2.0 多模态创作</h3>
         <p className="text-xs text-muted-foreground max-w-[280px]">
-          请在右侧「剧本结构」栏中，点击 <span className="text-green-500 font-medium">+</span> 添加分镜到本面板，系统将自动分组进行多镜头合并叙事视频生成。
+          请在右侧「剧本结构」栏中，点击 <span className="text-success font-medium">+</span> 添加分镜到本面板，系统将自动分组进行多镜头合并叙事视频生成。
         </p>
         <p className="text-xs text-muted-foreground/60 mt-2 max-w-[280px]">
           如右侧未显示剧本结构，请先在「剧本」面板中导入并解析剧本。

@@ -63,7 +63,7 @@ export function WorkbenchTrackCard(props: {
               >
                 <div className="aspect-video bg-black">
                   {media.fileType === "audio" ? (
-                    <div className="flex h-full items-center justify-center text-xs text-zinc-300">
+                    <div className="flex h-full items-center justify-center text-xs text-foreground/80">
                       audio
                     </div>
                   ) : media.fileType === "video" ? (

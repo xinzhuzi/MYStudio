@@ -151,7 +151,7 @@ function StopGenerationButton({
         event.stopPropagation();
         onStop?.(sceneId);
       }}
-      className={`${className} px-2 py-0.5 rounded bg-red-600/80 hover:bg-red-600 text-white text-[9px] flex items-center gap-0.5 transition-colors`}
+      className={`${className} px-2 py-0.5 rounded bg-red-600/80 hover:bg-red-600 text-foreground text-[9px] flex items-center gap-0.5 transition-colors`}
       title="停止生成"
     >
       <Square className="h-2.5 w-2.5" />停止
@@ -395,8 +395,8 @@ export function StoryboardSceneFrameSection({
           )}
           {isStart && isImageGenerating && (
             <div className="absolute inset-0 bg-black/60 flex flex-col items-center justify-center gap-1">
-              <Loader2 className="h-4 w-4 text-white animate-spin" />
-              <span className="text-[10px] text-white">生成中 {scene.imageProgress}%</span>
+              <Loader2 className="h-4 w-4 text-foreground animate-spin" />
+              <span className="text-[10px] text-foreground">生成中 {scene.imageProgress}%</span>
               <StopGenerationButton sceneId={scene.id} onStop={onStopImageGeneration} />
             </div>
           )}

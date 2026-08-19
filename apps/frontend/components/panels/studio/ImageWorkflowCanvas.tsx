@@ -486,7 +486,7 @@ export function ImageWorkflowCanvas({
             className="[&_.react-flow__controls-button]:!border-border [&_.react-flow__controls-button]:!bg-card [&_.react-flow__controls-button]:!text-card-foreground"
           />
         </ReactFlow>
-        <div className="absolute left-3 right-3 top-3 z-20 flex flex-wrap items-center gap-2 rounded-md border border-border bg-card/92 p-2 text-card-foreground shadow-lg backdrop-blur">
+        <div className="absolute left-3 right-3 top-3 z-20 flex flex-wrap items-center gap-2 rounded-md border border-border bg-card/92 p-2 text-card-foreground backdrop-blur-xl backdrop-blur">
           {onBack ? (
             <Button size="sm" variant="ghost" onClick={onBack}>
               <ArrowLeft className="h-3.5 w-3.5" />
@@ -545,9 +545,9 @@ export function ImageWorkflowCanvas({
               {activeGraph.name}
             </div>
           )}
-          <div className="flex min-w-[180px] max-w-[320px] items-center gap-1.5 rounded-md border border-cyan-300/25 bg-cyan-300/10 px-2 py-1 text-[11px] text-cyan-100">
+          <div className="flex min-w-[180px] max-w-[320px] items-center gap-1.5 rounded-md border border-info/25 bg-info/10 px-2 py-1 text-[11px] text-info">
             <Save className="h-3.5 w-3.5 shrink-0" />
-            <span className="shrink-0 text-cyan-200/75">回写目标</span>
+            <span className="shrink-0 text-info/75">回写目标</span>
             <span className="truncate font-medium">{workflowWritebackTargetLabel}</span>
           </div>
           <Button
@@ -617,7 +617,7 @@ export function ImageWorkflowCanvas({
         </div>
         {nodes.length === 0 ? (
           <div className="pointer-events-none absolute inset-0 flex items-center justify-center px-6 text-center">
-            <div className="max-w-sm rounded-md border border-border bg-card/92 px-4 py-3 text-sm text-card-foreground shadow-lg backdrop-blur">
+            <div className="max-w-sm rounded-md border border-border bg-card/92 px-4 py-3 text-sm text-card-foreground backdrop-blur-xl backdrop-blur">
               <div className="font-semibold">当前图片工作流没有节点</div>
               <div className="mt-1 text-xs text-muted-foreground">
                 可从左上角新建节点，或回到工作流重新从资产/分镜卡片进入。
@@ -699,7 +699,7 @@ export function ImageWorkflowCanvas({
       {/* 批量超分进度浮层 */}
       {upscaleBatchState.running ? (
         <div
-          className="absolute bottom-4 right-4 z-30 w-[320px] rounded-lg border border-border bg-card/95 p-3 shadow-lg backdrop-blur"
+          className="absolute bottom-4 right-4 z-30 w-[320px] rounded-lg border border-border bg-card/95 p-3 backdrop-blur-xl backdrop-blur"
           data-image-workflow-batch-upscale-progress
         >
           <div className="mb-2 flex items-center justify-between gap-2 text-sm">

@@ -555,7 +555,7 @@ export function ModelSelector({ type, value, onChange, className }: ModelSelecto
         </PopoverContent>
       </Popover>
       {showUnavailableWarning && (
-        <div className="flex items-start gap-1.5 rounded-md border border-amber-500/40 bg-amber-500/10 px-2 py-1.5 text-xs text-amber-700 dark:text-amber-300">
+        <div className="flex items-start gap-1.5 rounded-md border border-warning/40 bg-warning/10 px-2 py-1.5 text-xs text-warning">
           <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
           <span>
             当前已选模型不可用（可能已下线或被当前面板过滤），请重新选择可用模型。

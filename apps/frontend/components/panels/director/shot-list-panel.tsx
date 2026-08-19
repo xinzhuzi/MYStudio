@@ -267,15 +267,15 @@ export function ShotListPanel({ onGenerateImage }: ShotListPanelProps) {
                       </div>
 
                       {hasVideo && (
-                        <div className="absolute top-1 right-1 p-0.5 bg-green-500 rounded">
-                          <Video className="w-2.5 h-2.5 text-white" />
+                        <div className="absolute top-1 right-1 p-0.5 bg-success rounded">
+                          <Video className="w-2.5 h-2.5 text-foreground" />
                         </div>
                       )}
 
                       {/* Status overlay */}
                       {shot.imageStatus === "generating" && (
                         <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
-                          <Clock className="w-4 h-4 text-white animate-pulse" />
+                          <Clock className="w-4 h-4 text-foreground animate-pulse" />
                         </div>
                       )}
                     </div>
@@ -349,10 +349,10 @@ export function ShotListPanel({ onGenerateImage }: ShotListPanelProps) {
                           {/* Status */}
                           <div className="flex items-center gap-1 shrink-0">
                             {hasImage && (
-                              <CheckCircle2 className="w-3 h-3 text-green-500" />
+                              <CheckCircle2 className="w-3 h-3 text-success" />
                             )}
                             {hasVideo && (
-                              <Video className="w-3 h-3 text-blue-500" />
+                              <Video className="w-3 h-3 text-primary" />
                             )}
                           </div>
                         </div>

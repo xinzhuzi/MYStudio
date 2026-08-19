@@ -90,7 +90,7 @@ export function QuadGridDialog({
         onPointerDownOutside={(e) => isGenerating && e.preventDefault()}
       >
         <DialogHeader className="pb-2">
-          <DialogTitle className="text-sm text-white flex items-center gap-2">
+          <DialogTitle className="text-sm text-foreground flex items-center gap-2">
             <Grid2X2 className="h-4 w-4 text-cyan-400" />
             四宫格生成 - {frameType === "start" ? "首帧" : "尾帧"}
           </DialogTitle>
@@ -132,7 +132,7 @@ export function QuadGridDialog({
                       : "border-zinc-700 hover:border-zinc-600 bg-zinc-800/50"
                   )}
                 >
-                  <div className="text-xs font-medium text-white">
+                  <div className="text-xs font-medium text-foreground">
                     {option.label}
                   </div>
                   <div className="text-[10px] text-zinc-500 mt-0.5">
@@ -191,14 +191,14 @@ export function QuadGridDialog({
                   variant="outline"
                   size="sm"
                   onClick={() => onOpenChange(false)}
-                  className="flex-1 h-8 text-xs bg-transparent border-zinc-700 hover:bg-zinc-800 text-white"
+                  className="flex-1 h-8 text-xs bg-transparent border-zinc-700 hover:bg-zinc-800 text-foreground"
                 >
                   取消
                 </Button>
                 <Button
                   size="sm"
                   onClick={handleGenerate}
-                  className="flex-1 h-8 text-xs bg-cyan-500 hover:bg-cyan-600 text-black"
+                  className="flex-1 h-8 text-xs bg-cyan-500 hover:bg-cyan-600 text-foreground"
                 >
                   <Sparkles className="h-3 w-3 mr-1" />
                   生成四宫格

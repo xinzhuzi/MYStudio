@@ -286,7 +286,7 @@ export function StoryboardPreview({ onBack, onSplitComplete }: StoryboardPreview
       {/* Header with info */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <CheckCircle2 className="h-4 w-4 text-green-500" />
+          <CheckCircle2 className="h-4 w-4 text-success" />
           <span className="text-sm font-medium">故事板已生成</span>
         </div>
         <span className="text-xs text-muted-foreground">

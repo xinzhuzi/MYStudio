@@ -366,7 +366,7 @@ export function CharacterDetail({ character }: CharacterDetailProps) {
                   </div>
                 </div>
               ) : (
-                <p className="text-xs bg-indigo-50 dark:bg-indigo-950/30 border border-indigo-200 dark:border-indigo-800 rounded p-2 text-indigo-800 dark:text-indigo-200">
+                <p className="text-xs bg-primary/15 dark:bg-primary/30 border border-primary/40 dark:border-primary/40 rounded p-2 text-primary">
                   {character.notes || '点击编辑添加备注...'}
                 </p>
               )}

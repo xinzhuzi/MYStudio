@@ -95,8 +95,8 @@ export function EpisodeTreeTrailerPanel({
             </Button>
           )}
         </div>
-        {!trailerApiOptions && <p className="text-xs text-amber-500">请先在设置中配置 AI API 密钥</p>}
-        {shots.length === 0 && <p className="text-xs text-amber-500">请先生成分镜</p>}
+        {!trailerApiOptions && <p className="text-xs text-warning">请先在设置中配置 AI API 密钥</p>}
+        {shots.length === 0 && <p className="text-xs text-warning">请先生成分镜</p>}
       </div>
 
       <ScrollArea className="flex-1">
@@ -144,7 +144,7 @@ export function EpisodeTreeTrailerPanel({
                           {calibrationStatus === "calibrating" ? (
                             <Loader2 className="h-3 w-3 animate-spin" />
                           ) : calibrationStatus === "completed" ? (
-                            <Check className="h-3 w-3 text-green-500" />
+                            <Check className="h-3 w-3 text-success" />
                           ) : calibrationStatus === "error" ? (
                             <X className="h-3 w-3 text-destructive" />
                           ) : (

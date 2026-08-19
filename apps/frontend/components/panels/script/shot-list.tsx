@@ -456,12 +456,12 @@ function ShotCard({
         {/* Status indicators */}
         <div className="flex items-center gap-1 ml-auto">
           {shot.imageStatus === 'completed' && (
-            <span className="text-green-500">
+            <span className="text-success">
               <ImageIcon className="h-3 w-3" />
             </span>
           )}
           {shot.videoStatus === 'completed' && (
-            <span className="text-green-500">
+            <span className="text-success">
               <Video className="h-3 w-3" />
             </span>
           )}

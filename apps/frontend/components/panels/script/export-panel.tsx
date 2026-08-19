@@ -127,11 +127,11 @@ export function ExportPanel({ projectName, scriptData, shots, targetDuration }: 
           <div className="text-xs text-muted-foreground">总镜头</div>
         </div>
         <div className="p-2 rounded bg-muted/50">
-          <div className="text-lg font-semibold text-green-500">{stats.imagesReady}</div>
+          <div className="text-lg font-semibold text-success">{stats.imagesReady}</div>
           <div className="text-xs text-muted-foreground">图片就绪</div>
         </div>
         <div className="p-2 rounded bg-muted/50">
-          <div className="text-lg font-semibold text-blue-500">{stats.videosReady}</div>
+          <div className="text-lg font-semibold text-primary">{stats.videosReady}</div>
           <div className="text-xs text-muted-foreground">视频就绪</div>
         </div>
       </div>

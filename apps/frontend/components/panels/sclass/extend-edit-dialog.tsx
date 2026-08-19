@@ -135,7 +135,7 @@ export function ExtendEditDialog({
       <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <Icon className={cn("h-4 w-4", isExtend ? "text-purple-500" : "text-orange-500")} />
+            <Icon className={cn("h-4 w-4", isExtend ? "text-viz-status-c" : "text-warning")} />
             {title}
           </DialogTitle>
           <DialogDescription>
@@ -254,8 +254,8 @@ export function ExtendEditDialog({
             size="sm"
             className={cn(
               isExtend
-                ? "bg-purple-600 hover:bg-purple-700 text-white"
-                : "bg-orange-600 hover:bg-orange-700 text-white",
+                ? "bg-viz-status-c hover:bg-viz-status-c text-foreground"
+                : "bg-warning hover:bg-warning text-foreground",
             )}
             disabled={isGenerating || !sourceGroup?.videoUrl}
             onClick={handleConfirm}

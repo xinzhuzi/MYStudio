@@ -99,11 +99,11 @@ export function SceneCard({
           {generatingTask && generatingTask.status !== 'done' && (
             <div className="absolute inset-0 bg-black/60 flex flex-col items-center justify-center gap-1 z-10">
               {generatingTask.status === 'error' ? (
-                <span className="text-red-400 text-[10px]">❌ 失败</span>
+                <span className="text-destructive text-[10px]">❌ 失败</span>
               ) : (
                 <>
-                  <Loader2 className="h-6 w-6 text-white animate-spin" />
-                  <span className="text-white text-[10px]">{generatingTask.message || '生成中...'}</span>
+                  <Loader2 className="h-6 w-6 text-foreground animate-spin" />
+                  <span className="text-foreground text-[10px]">{generatingTask.message || '生成中...'}</span>
                   <div className="w-3/4 h-1 bg-white/30 rounded-full overflow-hidden">
                     <div
                       className="h-full bg-primary rounded-full transition-all duration-300"
@@ -116,7 +116,7 @@ export function SceneCard({
           )}
           {/* 子场景标识 */}
           {depth > 0 && (
-            <div className="absolute top-1 left-1 bg-blue-500 text-white text-[8px] px-1 py-0.5 rounded">
+            <div className="absolute top-1 left-1 bg-primary text-white text-[8px] px-1 py-0.5 rounded">
               {scene.viewpointName || '视角'}
             </div>
           )}
@@ -125,7 +125,7 @@ export function SceneCard({
             <div
               className={cn(
                 "absolute top-1 right-1 px-1.5 py-0.5 rounded text-white text-[8px] flex items-center gap-0.5 cursor-pointer",
-                isExpanded ? "bg-primary" : "bg-green-500"
+                isExpanded ? "bg-primary" : "bg-success"
               )}
               onClick={(e) => {
                 e.stopPropagation();
@@ -172,7 +172,7 @@ export function SceneCard({
                 </span>
               </>
             ) : (
-              <span className="text-[10px] bg-blue-100 text-blue-700 px-1 py-0.5 rounded">
+              <span className="text-[10px] bg-primary/15 text-primary px-1 py-0.5 rounded">
                 {scene.viewpointName || '视角'}
               </span>
             )}
@@ -223,11 +223,11 @@ export function SceneCard({
         {/* 列表视图生成中遮罩 */}
         {generatingTask && generatingTask.status !== 'done' && generatingTask.status !== 'error' && (
           <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
-            <Loader2 className="h-4 w-4 text-white animate-spin" />
+            <Loader2 className="h-4 w-4 text-foreground animate-spin" />
           </div>
         )}
         {depth > 0 && (
-          <div className="absolute top-0 left-0 bg-blue-500 text-white text-[6px] px-0.5 rounded-br">
+          <div className="absolute top-0 left-0 bg-primary text-white text-[6px] px-0.5 rounded-br">
             视角
           </div>
         )}
@@ -237,7 +237,7 @@ export function SceneCard({
           {depth > 0 ? `└ ${scene.viewpointName || scene.name}` : scene.name}
         </p>
         {generatingTask && generatingTask.status !== 'done' ? (
-          <p className="text-xs text-amber-500 truncate flex items-center gap-1">
+          <p className="text-xs text-warning truncate flex items-center gap-1">
             <Loader2 className="h-3 w-3 animate-spin" />
             {generatingTask.message || '生成中...'}
           </p>
@@ -252,11 +252,11 @@ export function SceneCard({
           <>
             <span className="bg-muted px-1 py-0.5 rounded">{timeLabel}</span>
             {hasChildren && (
-              <span className="bg-green-100 text-green-700 px-1 py-0.5 rounded">{childCount} 个</span>
+              <span className="bg-success/15 text-success px-1 py-0.5 rounded">{childCount} 个</span>
             )}
           </>
         ) : (
-          <span className="bg-blue-100 text-blue-700 px-1 py-0.5 rounded">视角</span>
+          <span className="bg-primary/15 text-primary px-1 py-0.5 rounded">视角</span>
         )}
       </div>
     </div>

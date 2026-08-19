@@ -574,7 +574,7 @@ export function WorkflowNodeCanvas({
           </button>
           <button
             type="button"
-            className="pointer-events-auto inline-flex h-9 items-center gap-2 rounded-md border border-primary/60 bg-primary px-3 text-xs font-medium text-primary-foreground shadow-sm hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-60"
+            className="pointer-events-auto inline-flex h-9 items-center gap-2 rounded-md border border-primary/60 bg-primary px-3 text-xs font-medium text-primary-foreground hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-60"
             disabled={chapterAutoVideoRunning || !onRunChapterAutoVideo}
             onClick={() => void onRunChapterAutoVideo?.()}
           >

@@ -131,7 +131,7 @@ export function APISettings({ collapsed = true, onToggleCollapse }: APISettingsP
             <div className="flex items-center justify-between">
               <Label className="text-sm font-medium">{provider.name}</Label>
               {isConfigured(provider.id) && (
-                <span className="text-xs text-green-500 flex items-center gap-1">
+                <span className="text-xs text-success flex items-center gap-1">
                   <Check className="h-3 w-3" />
                   已配置
                 </span>
@@ -169,7 +169,7 @@ export function APISettings({ collapsed = true, onToggleCollapse }: APISettingsP
                 {testing === provider.id ? (
                   <Loader2 className="h-4 w-4 animate-spin" />
                 ) : testResults[provider.id] === true ? (
-                  <Check className="h-4 w-4 text-green-500" />
+                  <Check className="h-4 w-4 text-success" />
                 ) : testResults[provider.id] === false ? (
                   <X className="h-4 w-4 text-destructive" />
                 ) : (

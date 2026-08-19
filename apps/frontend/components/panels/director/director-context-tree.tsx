@@ -44,9 +44,9 @@ interface DirectorContextTreeProps {
 function StatusIcon({ status }: { status?: CompletionStatus }) {
   switch (status) {
     case "completed":
-      return <CheckCircle2 className="h-3 w-3 text-green-500" />;
+      return <CheckCircle2 className="h-3 w-3 text-success" />;
     case "in_progress":
-      return <Clock className="h-3 w-3 text-yellow-500" />;
+      return <Clock className="h-3 w-3 text-warning" />;
     default:
       return <Circle className="h-3 w-3 text-muted-foreground" />;
   }
@@ -135,7 +135,7 @@ export function DirectorContextTree({
                             ) : (
                               <span className="w-3" />
                             )}
-                            <MapPin className="h-3 w-3 text-blue-500" />
+                            <MapPin className="h-3 w-3 text-primary" />
                             <span className="text-xs flex-1 truncate">
                               {scene.name || scene.location}
                             </span>
@@ -154,7 +154,7 @@ export function DirectorContextTree({
                             }}
                             title="添加所有分镜到分镜编辑"
                           >
-                            <Plus className="h-3 w-3 text-green-500" />
+                            <Plus className="h-3 w-3 text-success" />
                           </Button>
                           <Button
                             variant="ghost"
@@ -213,7 +213,7 @@ export function DirectorContextTree({
                                       }}
                                       title="添加到分镜编辑"
                                     >
-                                      <Plus className="h-3 w-3 text-green-500" />
+                                      <Plus className="h-3 w-3 text-success" />
                                     </Button>
                                   </div>
                                 );

@@ -215,7 +215,7 @@ export function GenerationProgress() {
           <div
             className={cn(
               "h-full transition-all duration-500 ease-out",
-              isComplete ? "bg-green-500" : "bg-primary"
+              isComplete ? "bg-success" : "bg-primary"
             )}
             style={{ width: `${overallProgress.percent}%` }}
           />
@@ -224,7 +224,7 @@ export function GenerationProgress() {
         {/* Status breakdown */}
         <div className="flex items-center gap-4 text-xs">
           {statusCounts.completed > 0 && (
-            <span className="flex items-center gap-1 text-green-500">
+            <span className="flex items-center gap-1 text-success">
               <CheckCircle2 className="h-3 w-3" />
               {statusCounts.completed} 完成
             </span>

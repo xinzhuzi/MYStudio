@@ -243,7 +243,7 @@ export function CharacterCard({
                   className="w-full h-full object-cover"
                 />
                 <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                  <span className="text-[10px] text-white capitalize">
+                  <span className="text-[10px] text-foreground capitalize">
                     {view.viewType === 'front' ? '正面' : 
                      view.viewType === 'side' ? '侧面' : 
                      view.viewType === 'back' ? '背面' : '四分之三'}
@@ -277,7 +277,7 @@ export function CharacterCard({
                   </div>
                 )}
                 <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                  <span className="text-[10px] text-white text-center px-1">
+                  <span className="text-[10px] text-foreground text-center px-1">
                     {variation.name}
                   </span>
                 </div>

@@ -39,8 +39,8 @@ interface EpisodeTreeStructureProps {
 }
 
 function StatusIcon({ status }: { status?: CompletionStatus }) {
-  if (status === "completed") return <CheckCircle2 className="h-3 w-3 text-green-500" />;
-  if (status === "in_progress") return <Clock className="h-3 w-3 text-yellow-500" />;
+  if (status === "completed") return <CheckCircle2 className="h-3 w-3 text-success" />;
+  if (status === "in_progress") return <Clock className="h-3 w-3 text-warning" />;
   return <Circle className="h-3 w-3 text-muted-foreground" />;
 }
 
@@ -128,7 +128,7 @@ export function EpisodeTreeStructure({
                         : <span className="w-3" />}
                       {shotStatus === "generating" && sceneShots.length === 0
                         ? <Loader2 className="h-3 w-3 text-primary animate-spin" />
-                        : <MapPin className="h-3 w-3 text-blue-500" />}
+                        : <MapPin className="h-3 w-3 text-primary" />}
                       <span
                         className="text-xs flex-1 truncate"
                         onClick={(event) => {

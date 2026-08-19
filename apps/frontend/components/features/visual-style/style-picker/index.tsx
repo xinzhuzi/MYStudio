@@ -33,10 +33,10 @@ import { useCustomStyleStore } from "@/stores/library/custom-style-store";
 
 // 风格分类对应的背景色（图片已移除，使用色块占位）
 const CATEGORY_COLORS: Record<string, string> = {
-  '3d': 'bg-blue-500/20 text-blue-600',
-  '2d': 'bg-green-500/20 text-green-600',
-  'real': 'bg-amber-500/20 text-amber-600',
-  'stop_motion': 'bg-purple-500/20 text-purple-600',
+  '3d': 'bg-primary/20 text-primary',
+  '2d': 'bg-success/20 text-success',
+  'real': 'bg-warning/20 text-warning',
+  'stop_motion': 'bg-viz-status-c/20 text-viz-status-c',
 };
 
 interface StylePickerProps {

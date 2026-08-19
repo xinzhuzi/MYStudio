@@ -49,7 +49,7 @@ export function NovelBibleEditorDialog(props: {
           <span
             className={`mr-auto inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs ${
               isOverLimit
-                ? "bg-red-500/10 text-red-500"
+                ? "bg-destructive/10 text-destructive"
                 : "bg-muted text-muted-foreground"
             }`}
             title={`上限 ${SOURCE_BIBLE_MAX_CHARS} 字符，超限无法保存`}

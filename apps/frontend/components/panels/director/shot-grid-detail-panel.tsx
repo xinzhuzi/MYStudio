@@ -72,7 +72,7 @@ export function ShotGridDetailPanel({
             {String(shotIndex + 1).padStart(2, "0")}
           </span>
           <div>
-            <h3 className="text-white font-medium text-sm">镜头详情</h3>
+            <h3 className="text-foreground font-medium text-sm">镜头详情</h3>
             <p className="text-[10px] text-zinc-500">{shot.cameraMovement}</p>
           </div>
         </div>
@@ -117,7 +117,7 @@ export function ShotGridDetailPanel({
               </div>
 
               <div className="flex items-center justify-between">
-                <span className="text-sm font-medium text-white">{scene.location}</span>
+                <span className="text-sm font-medium text-foreground">{scene.location}</span>
                 <span className="text-xs text-zinc-500 flex items-center gap-1">
                   <Clock className="w-3 h-3" />
                   {scene.time}
@@ -213,7 +213,7 @@ export function ShotGridDetailPanel({
                     <button
                       onClick={() => onGenerateKeyframe(shot, "start")}
                       disabled={processingType === "start"}
-                      className="text-[10px] text-indigo-400 hover:text-white disabled:opacity-50"
+                      className="text-[10px] text-indigo-400 hover:text-foreground disabled:opacity-50"
                     >
                       {startImageUrl ? "重新生成" : "生成"}
                     </button>
@@ -252,7 +252,7 @@ export function ShotGridDetailPanel({
                     <button
                       onClick={() => onGenerateKeyframe(shot, "end")}
                       disabled={processingType === "end"}
-                      className="text-[10px] text-indigo-400 hover:text-white disabled:opacity-50"
+                      className="text-[10px] text-indigo-400 hover:text-foreground disabled:opacity-50"
                     >
                       {endKeyframe?.imageUrl ? "重新生成" : "生成"}
                     </button>
@@ -278,7 +278,7 @@ export function ShotGridDetailPanel({
 
           <div className="bg-[#141414] rounded-lg p-4 border border-zinc-800 space-y-3">
             <div className="flex items-center justify-between">
-              <span className="text-xs font-medium text-white flex items-center gap-1.5">
+              <span className="text-xs font-medium text-foreground flex items-center gap-1.5">
                 <Video className="w-3.5 h-3.5 text-indigo-500" />
                 视频生成
               </span>

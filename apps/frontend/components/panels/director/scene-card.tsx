@@ -223,7 +223,7 @@ export function SceneCard({ scene, progress, isPreview, showImage, onRetryImage,
                     className={cn(
                       "text-[10px] px-1.5 py-0 h-5 cursor-pointer hover:opacity-80",
                       getMoodColor(scene.mood),
-                      "text-white"
+                      "text-foreground"
                     )}
                   >
                     {scene.mood}
@@ -250,7 +250,7 @@ export function SceneCard({ scene, progress, isPreview, showImage, onRetryImage,
                         className={cn(
                           "cursor-pointer text-[10px] px-1.5 py-0 h-5",
                           preset.color,
-                          "text-white hover:opacity-80",
+                          "text-foreground hover:opacity-80",
                           scene.mood === preset.label && "ring-2 ring-offset-1 ring-primary"
                         )}
                         onClick={() => handleSetMood(preset.label)}
@@ -292,7 +292,7 @@ export function SceneCard({ scene, progress, isPreview, showImage, onRetryImage,
               className={cn(
                 "text-[10px] px-1.5 py-0 h-5",
                 getMoodColor(scene.mood),
-                "text-white"
+                "text-foreground"
               )}
             >
               {scene.mood}

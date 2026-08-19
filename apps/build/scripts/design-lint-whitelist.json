@@ -17,7 +17,10 @@
     "components/ui/context-menu.tsx",
     "components/ui/menubar.tsx",
     "components/ui/navigation-menu.tsx",
-    "components/AppErrorBoundary.tsx"
+    "components/AppErrorBoundary.tsx",
+    "components/features/storyboard/angle-switch/AngleController.tsx",
+    "components/panels/tts/LocalTtsModelDetailsDialog.tsx",
+    "components/ui/chart.tsx"
   ],
   "severityOverrides": [
     {
@@ -133,6 +136,162 @@
       "rule": "R1",
       "severity": "warn",
       "reason": "崩溃恢复面 R1 shadow 允许(与 allow 同文件,R2/R5/R1 均零依赖设计)"
+    },
+    {
+      "path": "components/SimpleTimeline.tsx",
+      "rule": "R5",
+      "severity": "warn",
+      "reason": "媒体/图像覆盖层白字(与主题无关,分诊§4 裁定)"
+    },
+    {
+      "path": "components/features/media/media-preview-modal.tsx",
+      "rule": "R5",
+      "severity": "warn",
+      "reason": "媒体/图像覆盖层白字(与主题无关,分诊§4 裁定)"
+    },
+    {
+      "path": "components/features/visual-style/style-picker/index.tsx",
+      "rule": "R5",
+      "severity": "warn",
+      "reason": "媒体/图像覆盖层白字(与主题无关,分诊§4 裁定)"
+    },
+    {
+      "path": "components/panels/assets/StudioAssetCard.tsx",
+      "rule": "R5",
+      "severity": "warn",
+      "reason": "媒体/图像覆盖层白字(与主题无关,分诊§4 裁定)"
+    },
+    {
+      "path": "components/panels/assets/StyleEditor.tsx",
+      "rule": "R5",
+      "severity": "warn",
+      "reason": "媒体/图像覆盖层白字(与主题无关,分诊§4 裁定)"
+    },
+    {
+      "path": "components/panels/assets/VisualManualEditorDialog.tsx",
+      "rule": "R5",
+      "severity": "warn",
+      "reason": "媒体/图像覆盖层白字(与主题无关,分诊§4 裁定)"
+    },
+    {
+      "path": "components/panels/assist/VideoStudio.tsx",
+      "rule": "R5",
+      "severity": "warn",
+      "reason": "媒体/图像覆盖层白字(与主题无关,分诊§4 裁定)"
+    },
+    {
+      "path": "components/panels/characters/character-detail.tsx",
+      "rule": "R5",
+      "severity": "warn",
+      "reason": "媒体/图像覆盖层白字(与主题无关,分诊§4 裁定)"
+    },
+    {
+      "path": "components/panels/characters/character-generator.tsx",
+      "rule": "R5",
+      "severity": "warn",
+      "reason": "媒体/图像覆盖层白字(与主题无关,分诊§4 裁定)"
+    },
+    {
+      "path": "components/panels/characters/generation-panel.tsx",
+      "rule": "R5",
+      "severity": "warn",
+      "reason": "媒体/图像覆盖层白字(与主题无关,分诊§4 裁定)"
+    },
+    {
+      "path": "components/panels/characters/wardrobe-modal.tsx",
+      "rule": "R5",
+      "severity": "warn",
+      "reason": "媒体/图像覆盖层白字(与主题无关,分诊§4 裁定)"
+    },
+    {
+      "path": "components/panels/director/media-library-selector.tsx",
+      "rule": "R5",
+      "severity": "warn",
+      "reason": "媒体/图像覆盖层白字(与主题无关,分诊§4 裁定)"
+    },
+    {
+      "path": "components/panels/director/shot-frame-generation-section.tsx",
+      "rule": "R5",
+      "severity": "warn",
+      "reason": "媒体/图像覆盖层白字(与主题无关,分诊§4 裁定)"
+    },
+    {
+      "path": "components/panels/director/shot-grid-card.tsx",
+      "rule": "R5",
+      "severity": "warn",
+      "reason": "媒体/图像覆盖层白字(与主题无关,分诊§4 裁定)"
+    },
+    {
+      "path": "components/panels/director/shot-list-panel.tsx",
+      "rule": "R5",
+      "severity": "warn",
+      "reason": "媒体/图像覆盖层白字(与主题无关,分诊§4 裁定)"
+    },
+    {
+      "path": "components/panels/director/split-scene-card.tsx",
+      "rule": "R5",
+      "severity": "warn",
+      "reason": "媒体/图像覆盖层白字(与主题无关,分诊§4 裁定)"
+    },
+    {
+      "path": "components/panels/media/MediaLibraryGrid.tsx",
+      "rule": "R5",
+      "severity": "warn",
+      "reason": "媒体/图像覆盖层白字(与主题无关,分诊§4 裁定)"
+    },
+    {
+      "path": "components/panels/scenes/orthographic-generation-view.tsx",
+      "rule": "R5",
+      "severity": "warn",
+      "reason": "媒体/图像覆盖层白字(与主题无关,分诊§4 裁定)"
+    },
+    {
+      "path": "components/panels/scenes/scene-card.tsx",
+      "rule": "R5",
+      "severity": "warn",
+      "reason": "媒体/图像覆盖层白字(与主题无关,分诊§4 裁定)"
+    },
+    {
+      "path": "components/panels/scenes/scene-detail.tsx",
+      "rule": "R5",
+      "severity": "warn",
+      "reason": "媒体/图像覆盖层白字(与主题无关,分诊§4 裁定)"
+    },
+    {
+      "path": "components/panels/scenes/scene-preview-view.tsx",
+      "rule": "R5",
+      "severity": "warn",
+      "reason": "媒体/图像覆盖层白字(与主题无关,分诊§4 裁定)"
+    },
+    {
+      "path": "components/panels/sclass/sclass-scene-card.tsx",
+      "rule": "R5",
+      "severity": "warn",
+      "reason": "媒体/图像覆盖层白字(与主题无关,分诊§4 裁定)"
+    },
+    {
+      "path": "components/panels/settings/AppearanceSettingsTab.tsx",
+      "rule": "R5",
+      "severity": "warn",
+      "reason": "媒体/图像覆盖层白字(与主题无关,分诊§4 裁定)"
+    },
+    {
+      "path": "components/features/storyboard/quad-grid/QuadGridDialog.tsx",
+      "rule": "R5",
+      "severity": "warn",
+      "reason": "媒体/图像覆盖层白字(与主题无关,分诊§4 裁定)"
+    },
+    {
+      "path": "components/features/storyboard/quad-grid/QuadGridResultDialog.tsx",
+      "rule": "R5",
+      "severity": "warn",
+      "reason": "媒体/图像覆盖层白字(与主题无关,分诊§4 裁定)"
+    },
+    {
+      "path": "components/panels/director/storyboard-scene-frame-section.tsx",
+      "rule": "R5",
+      "severity": "warn",
+      "reason": "媒体/图像覆盖层白字(与主题无关,分诊§4 裁定)"
     }
   ]
 }

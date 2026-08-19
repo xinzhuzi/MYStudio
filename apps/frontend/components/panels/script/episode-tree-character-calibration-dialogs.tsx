@@ -114,7 +114,7 @@ export function EpisodeTreeCharacterCalibrationDialogs({
                   {filteredCharacters.map((item, index) => (
                     <div key={`${item.name}_${index}`} className="flex items-center justify-between px-2 py-1 rounded hover:bg-muted text-xs">
                       <div className="flex items-center gap-2"><span className="text-muted-foreground line-through">{item.name}</span><span className="text-muted-foreground text-[10px]">({item.reason})</span></div>
-                      <Button aria-label={`恢复${item.name}`} variant="ghost" size="sm" className="h-5 w-5 p-0 text-green-600 hover:text-green-700" onClick={() => restoreCharacter(item.name)}><Check className="h-3 w-3" /></Button>
+                      <Button aria-label={`恢复${item.name}`} variant="ghost" size="sm" className="h-5 w-5 p-0 text-success hover:text-success" onClick={() => restoreCharacter(item.name)}><Check className="h-3 w-3" /></Button>
                     </div>
                   ))}
                 </div>
@@ -138,7 +138,7 @@ export function EpisodeTreeCharacterCalibrationDialogs({
                 {lastFilteredCharacters.map((item, index) => (
                   <div key={`${item.name}_${index}`} className="flex items-center justify-between px-2 py-1 rounded hover:bg-muted text-xs">
                     <div><span>{item.name}</span><span className="text-muted-foreground ml-2">({item.reason})</span></div>
-                    <Button variant="ghost" size="sm" className="h-5 text-xs px-1 text-green-600" onClick={() => onRestoreFilteredCharacter?.(item.name)}>恢复</Button>
+                    <Button variant="ghost" size="sm" className="h-5 text-xs px-1 text-success" onClick={() => onRestoreFilteredCharacter?.(item.name)}>恢复</Button>
                   </div>
                 ))}
               </div>

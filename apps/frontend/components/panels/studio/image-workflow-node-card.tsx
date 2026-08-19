@@ -37,9 +37,9 @@ const QUALITY_OPTIONS: Array<ImageWorkflowGeneratedNode["quality"]> = ["draft", 
 export function ImageWorkflowNodeCard({ data }: NodeProps<ImageWorkflowReactNode>) {
   const node = data.node;
   const borderClass = data.selected
-    ? "border-amber-300/80 shadow-[0_18px_42px_rgba(251,191,36,0.22)]"
+    ? "border-warning/80 shadow-[0_18px_42px_rgba(251,191,36,0.22)]"
     : node.type === "generated" && node.status === "ready"
-      ? "border-emerald-300/45"
+      ? "border-success/45"
       : "border-border";
   const nodeKindLabel =
     node.type === "reference" ? "Image" : node.type === "prompt" ? "图片生成" : "生成结果";
@@ -54,9 +54,9 @@ export function ImageWorkflowNodeCard({ data }: NodeProps<ImageWorkflowReactNode
       )}
     >
       {node.type === "generated" ? (
-        <Handle type="target" position={Position.Left} className="!h-3 !w-3 !border-cyan-100 !bg-cyan-300" />
+        <Handle type="target" position={Position.Left} className="!h-3 !w-3 !border-info/40 !bg-info/20" />
       ) : null}
-      <Handle type="source" position={Position.Right} className="!h-3 !w-3 !border-cyan-100 !bg-cyan-300" />
+      <Handle type="source" position={Position.Right} className="!h-3 !w-3 !border-info/40 !bg-info/20" />
       <div className="mb-3 flex items-start justify-between gap-2">
         <div className="flex min-w-0 items-center gap-2">
           <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-border bg-muted/35">
@@ -237,7 +237,7 @@ function GeneratedNodeEditor({
       </div>
       <div className="nodrag nopan flex items-center justify-between gap-2">
         <span className="flex min-w-0 items-center gap-1.5 text-[11px] text-muted-foreground">
-          {node.status === "ready" ? <CheckCircle2 className="h-3.5 w-3.5 text-emerald-300" /> : null}
+          {node.status === "ready" ? <CheckCircle2 className="h-3.5 w-3.5 text-success" /> : null}
           {node.status}
         </span>
         <div className="flex items-center gap-2">
@@ -269,7 +269,7 @@ function GeneratedNodeEditor({
           className="nodrag nopan space-y-3 rounded-md border border-border bg-background/80 p-3"
         >
           <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
-            <WandSparkles className="h-3.5 w-3.5 text-cyan-200" />
+            <WandSparkles className="h-3.5 w-3.5 text-info" />
             图片生成
           </div>
           <Textarea

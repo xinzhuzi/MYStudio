@@ -127,7 +127,7 @@ describe("ShotGridView cards", () => {
     expect(screen.getByText("镜头详情")).toBeTruthy();
     expect(screen.getAllByText("群山显现")).toHaveLength(2);
     expect(screen.getByText("SHOT 02").closest(".group")?.className).toContain(
-      "border-indigo-500",
+      "border-primary",
     );
   });
 
@@ -153,7 +153,7 @@ describe("ShotGridView cards", () => {
 
     fireEvent.click(previousButton!);
     expect(screen.getByText("SHOT 01").closest(".group")?.className).toContain(
-      "border-indigo-500",
+      "border-primary",
     );
     expect(previousButton?.hasAttribute("disabled")).toBe(true);
     expect(nextButton?.hasAttribute("disabled")).toBe(false);
@@ -216,7 +216,7 @@ describe("ShotGridView cards", () => {
 
     fireEvent.click(nextButton!);
     expect(screen.getByText("SHOT 02").closest(".group")?.className).toContain(
-      "border-indigo-500",
+      "border-primary",
     );
 
     fireEvent.click(screen.getByText("SHOT 03"));

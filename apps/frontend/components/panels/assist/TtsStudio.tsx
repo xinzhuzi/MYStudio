@@ -226,9 +226,9 @@ export function TtsStudio() {
         </div>
 
         {backendRunning === false && (
-          <div className="flex items-center gap-3 rounded-lg border border-orange-500/30 bg-orange-500/5 p-4">
-            <AlertCircle className="h-5 w-5 text-orange-500 shrink-0" />
-            <div className="flex-1 text-sm text-orange-700 dark:text-orange-300">
+          <div className="flex items-center gap-3 rounded-lg border border-warning/30 bg-warning/5 p-4">
+            <AlertCircle className="h-5 w-5 text-warning shrink-0" />
+            <div className="flex-1 text-sm text-warning">
               TTS 后端未运行，请先启动。
             </div>
             <Button size="sm" onClick={() => void handleStart()} disabled={starting}>

@@ -151,7 +151,7 @@ export function ChapterQcReportCard(props: { projectId?: string; chapterId: stri
   const layerStatus = (id: string) => report?.layers?.[id]?.status ?? "none";
   const layerChipClass = (status: string) =>
     status === "passed"
-      ? "border-green-500/30 bg-green-500/10 text-green-700 dark:text-green-300"
+      ? "border-success/30 bg-success/10 text-success"
       : status === "failed"
         ? "border-destructive/30 bg-destructive/10 text-destructive"
         : status === "skipped" || status === "pending" || status === "none"
@@ -216,7 +216,7 @@ export function ChapterQcReportCard(props: { projectId?: string; chapterId: stri
                   {finding.severity === "blocker" ? (
                     <TriangleAlert className="mt-0.5 h-3.5 w-3.5 shrink-0 text-destructive" />
                   ) : finding.severity === "warn" ? (
-                    <TriangleAlert className="mt-0.5 h-3.5 w-3.5 shrink-0 text-amber-500" />
+                    <TriangleAlert className="mt-0.5 h-3.5 w-3.5 shrink-0 text-warning" />
                   ) : (
                     <span className="mt-0.5 h-3.5 w-3.5 shrink-0 rounded-full border border-border" />
                   )}

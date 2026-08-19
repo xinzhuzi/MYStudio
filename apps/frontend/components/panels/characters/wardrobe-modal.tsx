@@ -318,13 +318,13 @@ export function WardrobeModal({
           </div>
 
           <div className="flex-1 min-h-0 overflow-y-auto px-6">
-            <div className="relative rounded-lg overflow-hidden border-2 border-amber-500/50 bg-muted">
+            <div className="relative rounded-lg overflow-hidden border-2 border-warning/50 bg-muted">
               <img 
                 src={previewData.imageUrl} 
                 alt={`${character.name} - ${variation?.name}`}
                 className="w-full h-auto"
               />
-              <div className="absolute top-2 left-2 bg-amber-500 text-white text-xs px-2 py-1 rounded">
+              <div className="absolute top-2 left-2 bg-warning text-white text-xs px-2 py-1 rounded">
                 预览
               </div>
             </div>
@@ -394,7 +394,7 @@ export function WardrobeModal({
                 {character.visualTraits || character.description || '未设置视觉描述'}
               </p>
               {!characterBaseImage && (
-                <p className="text-xs text-amber-600 dark:text-amber-400 mt-1">
+                <p className="text-xs text-warning dark:text-warning mt-1">
                   ⚠ 请先生成角色基础图片，衣橱变体需要基础定妆照作为参考
                 </p>
               )}
@@ -517,7 +517,7 @@ export function WardrobeModal({
                   >
                     {exists ? (
                       <>
-                        <Check className="h-3 w-3 mr-1 text-green-500" />
+                        <Check className="h-3 w-3 mr-1 text-success" />
                         {preset.name}
                       </>
                     ) : (

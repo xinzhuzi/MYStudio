@@ -205,6 +205,7 @@ describe("studio workflow tabs", () => {
     expect(workflowSource).not.toContain("bg-black/");
     expect(workflowSource).not.toContain("bg-white/[");
     expect(workflowSource).not.toContain("text-zinc-");
+    expect(workflowSource).not.toContain("text-gray-");
     expect(workflowSource).not.toContain("bg-[#181917]");
     expect(workflowSource).not.toContain("bg-[#111210]");
   });
@@ -703,8 +704,8 @@ describe("studio workflow tabs", () => {
     expect(statusSource).not.toContain("进度 {readiness.progress}%");
     expect(statusSource).not.toContain("flex-col gap-3 lg:flex-row");
     expect(statusSource).not.toContain("进入待处理阶段");
-    expect(statusSource).toContain("bg-emerald-500/8");
-    expect(statusSource).toContain("bg-amber-500/12");
+    expect(statusSource).toContain("bg-success/8");
+    expect(statusSource).toContain("bg-warning/12");
     expect(statusSource).not.toContain("点击当前阶段按钮可展开全部阶段");
     expect(indexSource).toContain("onStageChange={viewModel.handleStageChange}");
     expect(statusSource).not.toContain('onClick={() => onStageChange("flow")}');

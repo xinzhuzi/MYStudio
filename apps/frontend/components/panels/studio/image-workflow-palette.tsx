@@ -37,13 +37,13 @@ export function ImageWorkflowPaletteImageButton({
   return (
     <button
       type="button"
-      className="group overflow-hidden rounded-md border border-border bg-muted/20 text-left hover:border-cyan-300/50"
+      className="group overflow-hidden rounded-md border border-border bg-muted/20 text-left hover:border-info/50"
       onClick={onClick}
     >
       <div className="aspect-video bg-muted/30">
         <LocalImage src={imageUrl} alt={title} className="h-full w-full object-cover" />
       </div>
-      <div className="truncate px-2 py-1.5 text-[11px] text-muted-foreground group-hover:text-cyan-500">
+      <div className="truncate px-2 py-1.5 text-[11px] text-muted-foreground group-hover:text-info">
         {title}
       </div>
     </button>

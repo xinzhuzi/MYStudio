@@ -579,7 +579,7 @@ export function DirectorContextPanel() {
         </p>
         {/* 分镜编辑计数 */}
         {splitScenes.length > 0 && (
-          <div className="mt-2 px-2 py-1 bg-green-500/10 rounded text-xs text-green-600 flex items-center gap-1">
+          <div className="mt-2 px-2 py-1 bg-success/10 rounded text-xs text-success flex items-center gap-1">
             <Plus className="h-3 w-3" />
             <span>已添加 {splitScenes.length} 个分镜到编辑列表</span>
           </div>
@@ -607,7 +607,7 @@ export function DirectorContextPanel() {
       <div className="p-3 border-t space-y-2">
         {/* 模式说明 */}
         <div className="text-[10px] text-muted-foreground space-y-1">
-          <p><span className="text-green-500">+</span> 添加到分镜（单独生成图片）</p>
+          <p><span className="text-success">+</span> 添加到分镜（单独生成图片）</p>
           <p><span className="text-primary">→</span> 发送到输入（批量生成省钱）</p>
         </div>
         <Button

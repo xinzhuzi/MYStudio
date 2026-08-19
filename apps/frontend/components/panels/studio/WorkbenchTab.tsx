@@ -394,7 +394,7 @@ export function WorkbenchTab(props: {
       />
       <section
         aria-label="video-use 章节执行"
-        className="rounded-lg border border-cyan-300/30 bg-cyan-300/[0.06] px-4 py-3 text-xs"
+        className="rounded-lg border border-info/30 bg-info/20/[0.06] px-4 py-3 text-xs"
         data-video-use-preview
         data-video-use-status={editing.applying ? "applying" : editing.videoUseState}
         data-video-use-mode={videoUseMode}
@@ -587,7 +587,7 @@ export function WorkbenchTab(props: {
         ))}
         {chapterAudioError ? <p className="mt-2 text-destructive">{chapterAudioError}</p> : null}
       </section>
-      <section aria-label="首镜横屏预览" data-first-shot-preview className="rounded-lg border border-cyan-300/20 bg-cyan-300/[0.06] px-4 py-3 text-xs">
+      <section aria-label="首镜横屏预览" data-first-shot-preview className="rounded-lg border border-info/20 bg-info/20/[0.06] px-4 py-3 text-xs">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div>
             <span className="font-semibold">首镜横屏预览</span>
@@ -668,7 +668,7 @@ export function WorkbenchTab(props: {
                     <div className="truncate font-medium">S{String(storyboard.index).padStart(2, "0")} · {storyboard.videoDesc || storyboard.prompt || storyboard.id}</div>
                     {cinematicLabel ? (
                       <span
-                        className="shrink-0 rounded border border-amber-300/40 bg-amber-300/10 px-1.5 py-0.5 text-[10px] font-medium text-amber-200"
+                        className="shrink-0 rounded border border-warning/40 bg-warning/10 px-1.5 py-0.5 text-[10px] font-medium text-warning"
                         data-cinematic-badge
                         data-cinematic-preset={cinematicLabel}
                       >
@@ -724,7 +724,7 @@ export function WorkbenchTab(props: {
           <p className="mt-2 text-sm text-muted-foreground">
             当前章节仍在 video-use / HyperFrames 门禁之前。完成 video-use 预览、用户确认与 overlay/no-op 应用后，系统才会加载原生 Remotion Studio。
           </p>
-          <div className="mt-3 rounded-md border border-cyan-300/20 bg-cyan-300/[0.06] px-3 py-2 text-xs text-cyan-100">
+          <div className="mt-3 rounded-md border border-info/20 bg-info/20/[0.06] px-3 py-2 text-xs text-info">
             分镜物料 → <strong>StoryboardShot</strong> 单镜 MP4 → video-use → 用户确认 → HyperFrames overlay/no-op → 原生 Remotion Studio → <strong>ChapterVideo</strong>
           </div>
           {editing.videoUseState === "accepted" && editing.hyperFramesState === "blocked" ? (

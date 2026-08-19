@@ -66,7 +66,7 @@ export function VideoWorkflowReviewPanel(props: {
   return (
     <section
       aria-label="video-use 用户确认"
-      className="rounded-lg border border-amber-300/30 bg-amber-300/[0.06] px-4 py-3 text-xs"
+      className="rounded-lg border border-warning/30 bg-warning/20/[0.06] px-4 py-3 text-xs"
       data-video-use-review
       data-video-use-review-pending={String(reviewResult === "pending")}
       data-video-use-review-result={reviewResult}
@@ -74,7 +74,7 @@ export function VideoWorkflowReviewPanel(props: {
       <div className="flex flex-wrap items-center justify-between gap-2">
         <span className="font-semibold">video-use 预览确认</span>
         <span
-          className={reply?.success ? "text-emerald-400" : "text-muted-foreground"}
+          className={reply?.success ? "text-success" : "text-muted-foreground"}
           data-video-use-review-status
         >
           {reply?.success ? "已确认" : "等待确认"}
@@ -117,7 +117,7 @@ export function VideoWorkflowReviewPanel(props: {
       {!props.projectId ? <p className="mt-2 text-muted-foreground">请先选择项目；当前章节身份未就绪。</p> : null}
       {!hasRevision ? <p className="mt-2 text-muted-foreground">请先运行 video-use 章节预览，再确认对应 revision。</p> : null}
       {reply && !reply.success ? <p className="mt-2 text-destructive" role="alert">{reply.message ?? "video-use 确认被阻塞"}</p> : null}
-      {reply?.success && !applyError ? <p className="mt-2 text-emerald-400">已写入 review sidecar：{reply.artifactPath ?? "当前 revision"}</p> : null}
+      {reply?.success && !applyError ? <p className="mt-2 text-success">已写入 review sidecar：{reply.artifactPath ?? "当前 revision"}</p> : null}
       {applyError ? <p className="mt-2 text-destructive" role="alert">确认已写入，但后续 HyperFrames/EditingProject 应用被阻塞：{applyError}</p> : null}
       <div className="mt-3">
         <ChapterQcReportCard projectId={props.projectId} chapterId={props.chapterId} />

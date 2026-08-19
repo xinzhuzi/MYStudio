@@ -358,7 +358,7 @@ export function AngleController({
           >
             {previewUrl ? (
               <>
-                <div className="absolute inset-0 rounded-[8px] overflow-hidden bg-zinc-900 border border-white/10">
+                <div className="absolute inset-0 rounded-[8px] overflow-hidden bg-muted/60 border border-white/10">
                   <img
                     src={previewUrl}
                     className={cn("w-full h-full object-fill", isLoading && "opacity-50 blur-sm")}
@@ -482,7 +482,7 @@ export function AngleController({
       </div>
       
       {!compact && (
-        <div className="text-[9px] text-zinc-500 font-mono">
+        <div className="text-[9px] text-muted-foreground font-mono">
           [拖拽] 旋转 · [滚轮] 缩放
         </div>
       )}

@@ -28,7 +28,7 @@ export function EditingProposalPanel(props: EditingProposalPanelProps) {
   return (
     <section aria-label="AI 剪辑建议" className="mt-5 border-t border-white/10 pt-4">
       <div className="flex items-center justify-between gap-2">
-        <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-emerald-100/80">AI 剪辑建议</div>
+        <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-success/80">AI 剪辑建议</div>
         <Button
           type="button"
           variant="outline"

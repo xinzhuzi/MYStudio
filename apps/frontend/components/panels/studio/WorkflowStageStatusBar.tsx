@@ -37,7 +37,7 @@ export function WorkflowStageStatusBar({
     readiness.stages[0];
 
   return (
-    <div className="mb-4 rounded-lg border border-border/70 bg-card/80 px-4 py-3 shadow-sm">
+    <div className="mb-4 rounded-lg border border-border/70 bg-card/80 px-4 py-3">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1">
           <h3 className="text-base font-semibold text-foreground">
@@ -95,17 +95,17 @@ function WorkflowStageMenuItem({
       onClick={onClick}
       className={cn(
         "items-start gap-3 py-2",
-        stage.status === "ready" && "bg-emerald-500/8 text-emerald-900",
-        stage.status === "active" && "bg-amber-500/12 text-amber-950",
+        stage.status === "ready" && "bg-success/8 text-success",
+        stage.status === "active" && "bg-warning/12 text-warning",
       )}
     >
       <Icon
         className={cn(
           "mt-0.5 h-4 w-4",
           stage.status === "ready"
-            ? "text-emerald-500"
+            ? "text-success"
             : stage.status === "active"
-              ? "text-amber-500"
+              ? "text-warning"
               : "text-muted-foreground",
         )}
       />

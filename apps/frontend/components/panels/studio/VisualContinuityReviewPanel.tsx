@@ -305,7 +305,7 @@ export function VisualContinuityReviewPanel({
               disabled={!canApprove}
               onClick={() => submit("approved")}
               aria-label={`批准第 ${selected.index} 镜`}
-              className="bg-emerald-600 text-white hover:bg-emerald-500"
+              className="bg-emerald-600 text-foreground hover:bg-emerald-500"
             >
               <CheckCircle2 className="h-4 w-4" />人工批准
             </Button>

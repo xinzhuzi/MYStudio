@@ -382,7 +382,7 @@ export function SceneDetail({ scene }: SceneDetailProps) {
                   </div>
                 </div>
               ) : (
-                <p className="text-xs bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded p-2 text-amber-800 dark:text-amber-200">
+                <p className="text-xs bg-warning/15 dark:bg-warning/30 border border-warning/40 dark:border-warning/40 rounded p-2 text-warning">
                   {scene.notes || '点击编辑添加备注...'}
                 </p>
               )}

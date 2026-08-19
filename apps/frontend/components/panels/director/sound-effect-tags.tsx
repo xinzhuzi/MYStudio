@@ -73,7 +73,7 @@ export function SoundEffectTags({
         {value.map((tagId) => (
           <span
             key={tagId}
-            className="inline-flex items-center gap-0.5 px-1.5 py-0.5 bg-orange-500/10 text-orange-600 dark:text-orange-400 rounded text-[10px]"
+            className="inline-flex items-center gap-0.5 px-1.5 py-0.5 bg-warning/10 text-warning dark:text-warning rounded text-[10px]"
           >
             <Volume2 className="h-2.5 w-2.5" />
             {getTagLabel(tagId)}
@@ -118,7 +118,7 @@ export function SoundEffectTags({
                               className={cn(
                                 "px-1.5 py-0.5 rounded text-[10px] transition-colors",
                                 isSelected
-                                  ? "bg-orange-500 text-white"
+                                  ? "bg-warning text-foreground"
                                   : "bg-muted hover:bg-muted-foreground/20",
                                 isDisabledTag && "opacity-50 cursor-not-allowed"
                               )}

@@ -87,9 +87,9 @@ export function AngleSwitchDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-sm p-4 bg-zinc-900 border-zinc-800">
+      <DialogContent className="max-w-sm p-4 bg-muted/60 border-border">
         <DialogHeader className="pb-2">
-          <DialogTitle className="text-sm text-white">
+          <DialogTitle className="text-sm text-foreground">
             视角切换 - {frameType === "start" ? "首帧" : "尾帧"}
           </DialogTitle>
           <DialogDescription className="sr-only">
@@ -113,7 +113,7 @@ export function AngleSwitchDialog({
               size="sm"
               onClick={() => onOpenChange(false)}
               disabled={isGenerating}
-              className="flex-1 h-8 text-xs bg-transparent border-zinc-700 hover:bg-zinc-800 text-white"
+              className="flex-1 h-8 text-xs bg-transparent border-border hover:bg-muted/60 text-foreground"
             >
               取消
             </Button>
@@ -121,7 +121,7 @@ export function AngleSwitchDialog({
               size="sm"
               onClick={handleGenerate}
               disabled={isGenerating}
-              className="flex-1 h-8 text-xs bg-lime-500 hover:bg-lime-600 text-black"
+              className="flex-1 h-8 text-xs bg-success hover:bg-success text-foreground"
             >
               {isGenerating ? (
                 <><Loader2 className="h-3 w-3 mr-1 animate-spin" />生成中</>

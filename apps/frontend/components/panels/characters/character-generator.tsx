@@ -208,20 +208,20 @@ export function CharacterGenerator({ character }: CharacterGeneratorProps) {
       <div className="space-y-4">
         <div className="flex items-center justify-between">
           <h3 className="font-medium text-sm">预览角色设定图</h3>
-          <span className="text-xs text-amber-500 flex items-center gap-1">
+          <span className="text-xs text-warning flex items-center gap-1">
             <AlertCircle className="h-3 w-3" />
             待确认
           </span>
         </div>
 
         {/* Preview image */}
-        <div className="relative rounded-lg overflow-hidden border-2 border-amber-500/50 bg-muted">
+        <div className="relative rounded-lg overflow-hidden border-2 border-warning/50 bg-muted">
           <img 
             src={previewUrl} 
             alt={`${character.name} 角色设定预览`}
             className="w-full h-auto"
           />
-          <div className="absolute top-2 left-2 bg-amber-500 text-white text-xs px-2 py-1 rounded">
+          <div className="absolute top-2 left-2 bg-warning text-white text-xs px-2 py-1 rounded">
             预览
           </div>
         </div>
@@ -288,9 +288,9 @@ export function CharacterGenerator({ character }: CharacterGeneratorProps) {
             className="w-full h-auto"
           />
           <div className="absolute top-2 right-2">
-            <Check className="h-5 w-5 text-green-500 bg-white rounded-full p-0.5" />
+            <Check className="h-5 w-5 text-success bg-white rounded-full p-0.5" />
           </div>
-          <div className="absolute top-2 left-2 bg-green-500 text-white text-xs px-2 py-1 rounded">
+          <div className="absolute top-2 left-2 bg-success text-white text-xs px-2 py-1 rounded">
             已保存
           </div>
         </div>

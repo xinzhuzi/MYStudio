@@ -96,7 +96,7 @@ export function QuadGridResultDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl p-4 bg-zinc-900 border-zinc-800">
         <DialogHeader className="pb-2">
-          <DialogTitle className="text-sm text-white flex items-center gap-2">
+          <DialogTitle className="text-sm text-foreground flex items-center gap-2">
             <Grid2X2 className="h-4 w-4 text-cyan-400" />
             四宫格结果 - {frameType === "start" ? "首帧" : "尾帧"}
           </DialogTitle>
@@ -223,7 +223,7 @@ export function QuadGridResultDialog({
           <Button
             size="sm"
             onClick={() => onApply(selectedIndex)}
-            className="h-8 text-xs bg-cyan-500 hover:bg-cyan-600 text-black"
+            className="h-8 text-xs bg-cyan-500 hover:bg-cyan-600 text-foreground"
           >
             <Check className="h-3 w-3 mr-1" />
             应用到{frameType === "start" ? "首帧" : "尾帧"}

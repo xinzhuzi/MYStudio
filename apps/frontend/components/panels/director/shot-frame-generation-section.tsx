@@ -70,7 +70,7 @@ export function ShotFrameGenerationSection({
               )}
               {processingType === "start" && (
                 <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
-                  <Loader2 className="w-4 h-4 text-white animate-spin" />
+                  <Loader2 className="w-4 h-4 text-foreground animate-spin" />
                 </div>
               )}
             </div>
@@ -126,7 +126,7 @@ export function ShotFrameGenerationSection({
               )}
               {processingType === "end" && (
                 <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
-                  <Loader2 className="w-4 h-4 text-white animate-spin" />
+                  <Loader2 className="w-4 h-4 text-foreground animate-spin" />
                 </div>
               )}
             </div>
@@ -188,10 +188,10 @@ export function ShotFrameGenerationSection({
                 <img src={startImageUrl} className="w-full h-full object-cover" />
                 <div className="absolute inset-0 flex items-center justify-center bg-black/30">
                   <div className="w-8 h-8 rounded-full bg-white/90 flex items-center justify-center">
-                    <Play className="w-4 h-4 text-black ml-0.5" />
+                    <Play className="w-4 h-4 text-foreground ml-0.5" />
                   </div>
                 </div>
-                <div className="absolute bottom-1 right-1 px-1 py-0.5 bg-green-500 rounded text-[9px] text-white font-mono">
+                <div className="absolute bottom-1 right-1 px-1 py-0.5 bg-success rounded text-[9px] text-white font-mono">
                   已生成
                 </div>
               </>
@@ -202,7 +202,7 @@ export function ShotFrameGenerationSection({
             )}
             {processingType === "video" && (
               <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
-                <Loader2 className="w-5 h-5 text-white animate-spin" />
+                <Loader2 className="w-5 h-5 text-foreground animate-spin" />
               </div>
             )}
           </div>

@@ -1940,7 +1940,7 @@ describe("workflow stage action surfaces", () => {
 
     const brokenBadge = screen.getByText("音色异常");
     expect(brokenBadge).toBeTruthy();
-    expect(brokenBadge.className).toContain("border-amber");
+    expect(brokenBadge.className).toContain("border-warning");
     expect(screen.queryByText("未分配音色")).toBeNull();
   });
 

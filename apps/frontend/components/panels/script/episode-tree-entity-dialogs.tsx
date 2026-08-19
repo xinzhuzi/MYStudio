@@ -135,7 +135,7 @@ export function EpisodeTreeEntityDialogs({
                     {sceneSearching ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
                   </Button>
                 </div>
-                {!canFindScene && <p className="text-xs text-amber-500">请先导入剧本以启用 AI 查找</p>}
+                {!canFindScene && <p className="text-xs text-warning">请先导入剧本以启用 AI 查找</p>}
               </div>
 
               {sceneResult && (
@@ -232,7 +232,7 @@ export function EpisodeTreeEntityDialogs({
                     {characterSearching ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
                   </Button>
                 </div>
-                {!canFindCharacter && <p className="text-xs text-amber-500">请先导入剧本以启用 AI 查找</p>}
+                {!canFindCharacter && <p className="text-xs text-warning">请先导入剧本以启用 AI 查找</p>}
               </div>
 
               {characterResult && (

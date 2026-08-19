@@ -233,7 +233,7 @@ function AssetCategory({
           "font-normal",
           status === "missing" && "border-destructive text-destructive",
           status === "exists" &&
-            "border-yellow-500 text-yellow-600 dark:text-yellow-400",
+            "border-warning/40 text-warning dark:text-warning",
         );
         const title =
           status === "made"

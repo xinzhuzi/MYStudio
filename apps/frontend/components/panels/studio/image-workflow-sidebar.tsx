@@ -56,7 +56,7 @@ export function ImageWorkflowSidebar({
     <aside className="flex min-h-0 flex-col border-l border-border bg-card">
       <div className="border-b border-border p-3">
         <div className="flex items-center gap-2">
-          <GitBranch className="h-4 w-4 text-cyan-200" />
+          <GitBranch className="h-4 w-4 text-info" />
           <div className="min-w-0">
             <h3 className="truncate text-sm font-semibold">{activeGraph.name}</h3>
             <p className="text-[11px] text-muted-foreground">{projectName}</p>
@@ -64,20 +64,20 @@ export function ImageWorkflowSidebar({
         </div>
         {isScopedWorkflowDetail ? (
           <div className="mt-3 grid gap-2" data-scoped-image-workflow-summary>
-            <div className="rounded-md border border-cyan-300/20 bg-cyan-300/10 px-3 py-2 text-xs text-cyan-100">
-              <div className="text-[10px] uppercase tracking-[0.18em] text-cyan-200/70">来源</div>
+            <div className="rounded-md border border-info/20 bg-info/10 px-3 py-2 text-xs text-info">
+              <div className="text-[10px] uppercase tracking-[0.18em] text-info/70">来源</div>
               <div className="mt-1 truncate">
                 {sourceStageLabel ? `${sourceStageLabel} / ${sourceLabel}` : sourceLabel}
               </div>
             </div>
-            <div className="rounded-md border border-cyan-300/20 bg-cyan-300/10 px-3 py-2 text-xs text-cyan-100">
-              <div className="text-[10px] uppercase tracking-[0.18em] text-cyan-200/70">回写目标</div>
+            <div className="rounded-md border border-info/20 bg-info/10 px-3 py-2 text-xs text-info">
+              <div className="text-[10px] uppercase tracking-[0.18em] text-info/70">回写目标</div>
               <div className="mt-1 truncate">{workflowWritebackTargetLabel}</div>
             </div>
           </div>
         ) : activeGraph.target.kind === "asset" ? (
-          <div className="mt-3 rounded-md border border-cyan-300/20 bg-cyan-300/10 px-3 py-2 text-xs text-cyan-100">
-            <div className="text-[10px] uppercase tracking-[0.18em] text-cyan-200/70">回写目标</div>
+          <div className="mt-3 rounded-md border border-info/20 bg-info/10 px-3 py-2 text-xs text-info">
+            <div className="text-[10px] uppercase tracking-[0.18em] text-info/70">回写目标</div>
             <div className="mt-1 truncate">
               {assetTargetLabel(
                 activeGraph.target,

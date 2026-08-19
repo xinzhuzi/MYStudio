@@ -390,10 +390,10 @@ export function ShotGridView({ onGenerateImage, onGenerateVideo }: ShotGridViewP
 
   if (shots.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center h-full text-zinc-500 bg-[#121212] p-8">
+      <div className="flex flex-col items-center justify-center h-full text-muted-foreground bg-[#121212] p-8">
         <AlertCircle className="w-12 h-12 mb-4 opacity-50" />
         <p className="text-sm">暂无镜头数据</p>
-        <p className="text-xs text-zinc-600 mt-1">请先在剧本阶段生成分镜列表</p>
+        <p className="text-xs text-muted-foreground mt-1">请先在剧本阶段生成分镜列表</p>
       </div>
     );
   }
@@ -410,11 +410,11 @@ export function ShotGridView({ onGenerateImage, onGenerateVideo }: ShotGridViewP
       />
 
       {/* Toolbar */}
-      <div className="h-14 border-b border-zinc-800 bg-[#1A1A1A] px-4 flex items-center justify-between shrink-0">
+      <div className="h-14 border-b border-border bg-[#1A1A1A] px-4 flex items-center justify-between shrink-0">
         <div className="flex items-center gap-3">
-          <LayoutGrid className="w-4 h-4 text-indigo-500" />
-          <span className="text-sm font-medium text-white">镜头网格</span>
-          <span className="text-xs text-zinc-500 font-mono">
+          <LayoutGrid className="w-4 h-4 text-primary" />
+          <span className="text-sm font-medium text-foreground">镜头网格</span>
+          <span className="text-xs text-muted-foreground font-mono">
             {shots.filter((s) => s.imageUrl || s.keyframes?.find((k) => k.type === "start")?.imageUrl).length} / {shots.length}
           </span>
         </div>
@@ -434,7 +434,7 @@ export function ShotGridView({ onGenerateImage, onGenerateVideo }: ShotGridViewP
       {/* Main Content */}
       <div className="flex-1 overflow-hidden flex">
         {/* Grid View */}
-        <ScrollArea className={cn("flex-1 p-4", activeShotId && "border-r border-zinc-800")}>
+        <ScrollArea className={cn("flex-1 p-4", activeShotId && "border-r border-border")}>
           <div
             className={cn(
               "grid gap-3",

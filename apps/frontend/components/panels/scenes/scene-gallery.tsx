@@ -410,7 +410,7 @@ export function SceneGallery({ onSceneSelect, selectedSceneId }: SceneGalleryPro
                     onDoubleClick={() => setCurrentFolder(folder.id)}
                   >
                     <Folder className={cn(
-                      "text-yellow-500",
+                      "text-warning",
                       viewMode === "grid" ? "h-8 w-8" : "h-4 w-4"
                     )} />
                     <span className={cn(
