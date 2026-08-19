@@ -43,7 +43,7 @@ export function LocalAudioSettingsSection({ embedded = false }: LocalAudioSettin
   }, [engine]);
 
   return (
-    <div className={cn("space-y-4 px-5 py-4", !embedded && "rounded-xl border border-border")}>
+    <div className={cn("space-y-4 px-5 py-4 rounded-xl border border-border bg-card/30", embedded && "mx-5 mb-4")}>
       {/* 引擎切换 */}
       <div className="inline-flex rounded-lg border border-border bg-muted/40 p-0.5" role="tablist" aria-label="音乐引擎">
         <button

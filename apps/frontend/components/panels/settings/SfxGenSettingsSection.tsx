@@ -31,7 +31,7 @@ export function SfxGenSettingsSection({ embedded = false }: SfxGenSettingsSectio
 
   if (!runtime.hasRuntime) {
     return (
-      <div className={cn("px-5 py-4 text-sm text-muted-foreground", !embedded && "rounded-xl border border-border")}>
+      <div className={cn("px-5 py-4 text-sm text-muted-foreground rounded-xl border border-border bg-card/30", embedded && "mx-5 mb-4")}>
         本地音效生成配置仅在桌面应用中可用。
       </div>
     );
