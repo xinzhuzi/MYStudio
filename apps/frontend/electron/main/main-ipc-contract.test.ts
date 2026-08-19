@@ -87,6 +87,7 @@ image-gen-runtime-status
 image-gen-runtime-stop
 image-host-upload
 move-image
+music3-gen-runtime-configure
 music3-gen-runtime-download-model
 music3-gen-runtime-generate
 music3-gen-runtime-scan-model

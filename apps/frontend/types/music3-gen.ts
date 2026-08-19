@@ -23,6 +23,24 @@ export interface Music3HardwareProfile {
   mlxImportable: boolean;
 }
 
+/** mlx-serve 8bit 指向路线(ddalcu/MiniMax-Music3-MLX-Serve-8bit,零拷贝指向已下载目录) */
+export interface MlxServConfig {
+  weightsDir: string;
+  binaryPath: string;
+  port: number;
+  preferredEngine: "pocket" | "mlxserv";
+}
+
+export interface MlxServRuntimeStatus {
+  config: MlxServConfig;
+  weightsReady: boolean;
+  weightsReason: string;
+  binaryPath: string | null;
+  binaryFound: boolean;
+  serverRunning: boolean;
+  serverStarting: boolean;
+}
+
 export interface Music3GenRuntimeStatus {
   setupStage: Music3GenSetupStage;
   setupMessage: string | undefined;
@@ -33,6 +51,8 @@ export interface Music3GenRuntimeStatus {
   modelCacheDir?: string;
   /** 最近一次 probe 的宿主硬件画像(平台门控依据) */
   hardwareProfile?: Music3HardwareProfile;
+  /** mlx-serve 8bit 指向路线状态 */
+  mlxServ?: MlxServRuntimeStatus;
 }
 
 /** 平台×模型矩阵(设置页展示口径;官方 CUDA 路线本应用不代管) */
@@ -41,7 +61,7 @@ export const MUSIC3_PLATFORM_MATRIX: ReadonlyArray<{
   model: string;
   runnable: string;
 }> = [
-  { platform: "Apple Silicon(macOS arm64)", model: "MiniMax-Music3-MLX 自含仓", runnable: "可运行(本应用自动匹配)" },
+  { platform: "Apple Silicon(macOS arm64)", model: "MiniMax-Music3 8bit 量化系", runnable: "可运行,双路线:应用内下载版(PocketAiHub 自含仓)/指向版(mlx-serve 指向已下载权重)" },
   { platform: "NVIDIA Linux/Windows(2× CUDA)", model: "官方仓 SGLang-Omni 路线", runnable: "本应用不提供,官方仓自行部署" },
   { platform: "Intel Mac / 无 GPU", model: "无可用整曲模型", runnable: "不可用" },
 ];

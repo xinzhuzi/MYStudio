@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
+import { getStorageManagerBridge } from "@/lib/bridge/storage-manager";
 import { useAudioGenRuntimeSettings } from "./useAudioGenRuntimeSettings";
 import { useMusic3GenRuntimeSettings } from "./useMusic3GenRuntimeSettings";
 import { MUSIC3_MAX_DURATION_S, MUSIC3_MIN_DURATION_S, MUSIC3_PLATFORM_MATRIX } from "@/types/music3-gen";
@@ -203,6 +204,118 @@ function MusicGenEnginePanel() {
   );
 }
 
+/** mlx-serve 8bit 指向路线卡片:零拷贝使用已下载的 ddalcu 8bit 权重(08-19-music3-mlxserv-connector)。 */
+function MlxServCard({ runtime, onConfigured }: { runtime: ReturnType<typeof useMusic3GenRuntimeSettings>; onConfigured: () => void }) {
+  const mlxServ = runtime.status?.mlxServ;
+  const config = mlxServ?.config;
+  const [isPicking, setIsPicking] = useState(false);
+
+  if (!runtime.hasRuntime || !mlxServ || !config) return null;
+
+  const handlePickDir = async () => {
+    if (!runtime.bridge) return;
+    const storageManager = getStorageManagerBridge();
+    if (!storageManager?.selectDirectory) {
+      toast.error("选择文件夹仅在桌面应用中可用");
+      return;
+    }
+    setIsPicking(true);
+    try {
+      const picked = await storageManager.selectDirectory();
+      if (picked) {
+        await runtime.bridge.configure({ weightsDir: picked });
+        toast.success(`已指向权重目录: ${picked}`);
+        onConfigured();
+      }
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "选择目录失败");
+    } finally {
+      setIsPicking(false);
+    }
+  };
+
+  const setPreferred = async (preferredEngine: "pocket" | "mlxserv") => {
+    if (!runtime.bridge) return;
+    await runtime.bridge.configure({ preferredEngine });
+    onConfigured();
+  };
+
+  return (
+    <div className="space-y-2 rounded-lg border border-border p-3">
+      <div className="flex items-center justify-between gap-4">
+        <div className="flex items-center gap-2 text-sm">
+          {mlxServ.serverRunning ? (
+            <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" aria-hidden />
+          ) : mlxServ.weightsReady && mlxServ.binaryFound ? (
+            <Check className="h-4 w-4 text-green-500" aria-hidden />
+          ) : (
+            <Music className="h-4 w-4 text-muted-foreground" aria-hidden />
+          )}
+          <span className="font-medium">mlx-serve 8bit 指向版(免下载复用已有权重)</span>
+        </div>
+        <div className="flex items-center gap-1" role="radiogroup" aria-label="首选引擎">
+          <Button
+            size="sm"
+            variant={config.preferredEngine === "pocket" ? "default" : "outline"}
+            role="radio"
+            aria-checked={config.preferredEngine === "pocket"}
+            onClick={() => void setPreferred("pocket")}
+          >
+            下载版
+          </Button>
+          <Button
+            size="sm"
+            variant={config.preferredEngine === "mlxserv" ? "default" : "outline"}
+            role="radio"
+            aria-checked={config.preferredEngine === "mlxserv"}
+            disabled={!mlxServ.weightsReady || !mlxServ.binaryFound}
+            onClick={() => void setPreferred("mlxserv")}
+          >
+            指向版
+          </Button>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-[5rem_minmax(0,1fr)_auto] items-center gap-2 text-sm">
+        <span className="text-muted-foreground">权重目录</span>
+        <span className="truncate font-mono text-xs" title={config.weightsDir || "未指定"}>
+          {config.weightsDir || "未指定(选择已下载的 minimax-music3-mlx-8bit 目录)"}
+        </span>
+        <div className="flex items-center gap-1">
+          {config.weightsDir ? (
+            <Button size="sm" variant="outline" onClick={() => { void window.electronAPI?.openPath(config.weightsDir); }}>
+              <FolderOpen className="mr-1.5 h-3.5 w-3.5" aria-hidden />
+              打开
+            </Button>
+          ) : null}
+          <Button size="sm" variant="outline" onClick={() => void handlePickDir()} disabled={isPicking}>
+            <FolderOpen className="mr-1.5 h-3.5 w-3.5" aria-hidden />
+            选择目录
+          </Button>
+        </div>
+      </div>
+
+      {!mlxServ.weightsReady ? (
+        <p className="text-xs text-muted-foreground">{mlxServ.weightsReason}</p>
+      ) : (
+        <p className="text-xs text-green-600 dark:text-green-400">权重完整(13 GB 8bit 量化,直接指向不拷贝)</p>
+      )}
+
+      {!mlxServ.binaryFound ? (
+        <div className="space-y-1">
+          <p className="text-xs text-muted-foreground">未找到 mlx-serve 引擎,安装(Terminal 执行):</p>
+          <pre className="overflow-x-auto rounded-md border border-border bg-muted/50 px-2.5 py-1.5 text-xs">brew tap ddalcu/mlx-serve https://github.com/ddalcu/mlx-serve{"\n"}brew install mlx-serve</pre>
+        </div>
+      ) : (
+        <p className="text-xs text-muted-foreground">
+          引擎:{mlxServ.binaryPath}
+          {mlxServ.serverRunning ? " · 服务器运行中(10 分钟空闲自动回收)" : " · 按需启动"}
+        </p>
+      )}
+    </div>
+  );
+}
+
 /** MiniMax-Music3 引擎面板(整曲,默认)。 */
 function Music3EnginePanel() {
   const runtime = useMusic3GenRuntimeSettings();
@@ -213,6 +326,7 @@ function Music3EnginePanel() {
   const downloading = status?.downloadStatus === "downloading";
   const unsupported = model?.availability === "unsupported";
   const hardware = status?.hardwareProfile;
+  const mlxservReady = Boolean(status?.mlxServ?.weightsReady && status?.mlxServ?.binaryFound);
   const [testPrompt, setTestPrompt] = useState("紧张激烈的仙侠配乐,鼓点密集,弦乐渐强");
   const [testSeed, setTestSeed] = useState("7");
   const [testSeconds, setTestSeconds] = useState("60");
@@ -361,7 +475,9 @@ function Music3EnginePanel() {
         </div>
       ) : null}
 
-      {downloaded ? (
+      <MlxServCard runtime={runtime} onConfigured={() => { void runtime.refreshStatus(); }} />
+
+      {(downloaded || mlxservReady) ? (
         <div className="space-y-2">
           <div className="flex items-center gap-2">
             <Input

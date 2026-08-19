@@ -848,7 +848,9 @@ contextBridge.exposeInMainWorld('music3GenRuntime', {
   scanModel: (): Promise<{ models: unknown[] }> => ipcRenderer.invoke('music3-gen-runtime-scan-model'),
   downloadModel: (model: string): Promise<{ accepted: boolean; message: string }> =>
     ipcRenderer.invoke('music3-gen-runtime-download-model', { model }),
-  generate: (payload: { prompt: string; seed?: number; seconds?: number; steps?: number; outputDir: string }): Promise<unknown> =>
+  configure: (payload: { weightsDir?: string; binaryPath?: string; port?: number; preferredEngine?: 'pocket' | 'mlxserv' }): Promise<unknown> =>
+    ipcRenderer.invoke('music3-gen-runtime-configure', payload),
+  generate: (payload: { prompt: string; seed?: number; seconds?: number; steps?: number; engine?: 'pocket' | 'mlxserv'; outputDir: string }): Promise<unknown> =>
     ipcRenderer.invoke('music3-gen-runtime-generate', payload),
 })
 

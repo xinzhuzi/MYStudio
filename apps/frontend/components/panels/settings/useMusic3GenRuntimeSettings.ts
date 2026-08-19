@@ -7,7 +7,8 @@ interface Music3GenBridge {
   setup: () => Promise<Music3GenRuntimeStatus>;
   scanModel: () => Promise<{ models: Music3GenModelRow[] }>;
   downloadModel: (model: string) => Promise<{ accepted: boolean; message: string }>;
-  generate: (payload: { prompt: string; seed?: number; seconds?: number; steps?: number; outputDir: string }) => Promise<{ status: string; outputPath?: string; code?: string; message?: string }>;
+  configure: (payload: { weightsDir?: string; binaryPath?: string; port?: number; preferredEngine?: "pocket" | "mlxserv" }) => Promise<unknown>;
+  generate: (payload: { prompt: string; seed?: number; seconds?: number; steps?: number; engine?: "pocket" | "mlxserv"; outputDir: string }) => Promise<{ status: string; outputPath?: string; code?: string; message?: string; engine?: string }>;
 }
 
 function getMusic3GenBridge(): Music3GenBridge | undefined {
@@ -94,5 +95,14 @@ export function useMusic3GenRuntimeSettings() {
     }, 1200);
   }, [bridge, stopPolling]);
 
-  return { hasRuntime, status, isSettingUp, setupRuntime, startDownload, bridge };
+  const refreshStatus = useCallback(async () => {
+    if (!bridge) return;
+    try {
+      setStatus(await bridge.status());
+    } catch {
+      // 状态刷新失败保持现状
+    }
+  }, [bridge]);
+
+  return { hasRuntime, status, isSettingUp, setupRuntime, startDownload, refreshStatus, bridge };
 }

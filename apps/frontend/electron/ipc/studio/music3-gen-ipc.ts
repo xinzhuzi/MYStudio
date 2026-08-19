@@ -31,8 +31,19 @@ export function registerMusic3GenIpcHandlers(options: RegisterMusic3GenIpcOption
     const model = typeof input?.model === "string" && input.model.trim() ? input.model.trim() : "minimax-music3-mlx";
     return controller.downloadModel(model);
   });
+  ipcMain.handle("music3-gen-runtime-configure", async (_event, payload: unknown) => {
+    const input = payload as Partial<{ weightsDir: unknown; binaryPath: unknown; port: unknown; preferredEngine: unknown }> | null;
+    return controller.configureMlxServ({
+      ...(typeof input?.weightsDir === "string" ? { weightsDir: input.weightsDir } : {}),
+      ...(typeof input?.binaryPath === "string" ? { binaryPath: input.binaryPath } : {}),
+      ...(typeof input?.port === "number" ? { port: input.port } : {}),
+      ...(input?.preferredEngine === "mlxserv" || input?.preferredEngine === "pocket"
+        ? { preferredEngine: input.preferredEngine }
+        : {}),
+    });
+  });
   ipcMain.handle("music3-gen-runtime-generate", async (_event, payload: unknown) => {
-    const input = payload as { prompt?: unknown; seed?: unknown; seconds?: unknown; steps?: unknown; outputDir?: unknown } | null;
+    const input = payload as { prompt?: unknown; seed?: unknown; seconds?: unknown; steps?: unknown; outputDir?: unknown; engine?: unknown } | null;
     if (!input || typeof input.prompt !== "string" || !input.prompt.trim()) {
       return { status: "blocked" as const, code: "invalid-request", message: "prompt 必填" };
     }
@@ -47,6 +58,7 @@ export function registerMusic3GenIpcHandlers(options: RegisterMusic3GenIpcOption
       ...(typeof input.seed === "number" ? { seed: input.seed } : {}),
       ...(typeof input.seconds === "number" ? { seconds: input.seconds } : {}),
       ...(typeof input.steps === "number" ? { steps: input.steps } : {}),
+      ...(input.engine === "mlxserv" || input.engine === "pocket" ? { engine: input.engine } : {}),
       outputDir,
     });
   });
@@ -57,6 +69,7 @@ export function registerMusic3GenIpcHandlers(options: RegisterMusic3GenIpcOption
       ipcMain.removeHandler("music3-gen-runtime-setup");
       ipcMain.removeHandler("music3-gen-runtime-scan-model");
       ipcMain.removeHandler("music3-gen-runtime-download-model");
+      ipcMain.removeHandler("music3-gen-runtime-configure");
       ipcMain.removeHandler("music3-gen-runtime-generate");
     },
   };

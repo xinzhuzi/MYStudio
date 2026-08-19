@@ -8,6 +8,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { spawn } from "node:child_process";
 import { execFile } from "node:child_process";
+import { createHash } from "node:crypto";
 import { promisify } from "node:util";
 import { resolveVideoWorkflowRuntimePaths } from "@rendering/plugins/video-workflow/video-workflow-runtime";
 
@@ -18,6 +19,45 @@ export const MUSIC3_MIN_DURATION_S = 10;
 export const MUSIC3_MAX_DURATION_S = 300;
 /** 整曲生成为分钟级;给足执行窗口(backend 硬限 30min,这里同参) */
 export const MUSIC3_GENERATE_TIMEOUT_MS = 30 * 60_000;
+
+// ---- mlx-serve 8bit 引擎路线(08-19-music3-mlxserv-connector)----
+// 用户手绘的 ddalcu/MiniMax-Music3-MLX-Serve-8bit 是纯权重,推理靠 mlx-serve
+// (Zig+MLX,OpenAI 兼容 HTTP)。零 Python、零权重拷贝:直接指向已下载目录。
+export const MLXSERV_DEFAULT_PORT = 11273; // 避开 MLX Core 常用默认 11234
+const MLXSERV_HEALTH_TIMEOUT_MS = 5 * 60_000; // 13GB 冷装载预算
+const MLXSERV_IDLE_SHUTDOWN_MS = 10 * 60_000;
+const MLXSERV_REQUIRED_WEIGHTS = [
+  "language_model.safetensors",
+  "rvq_depth_decoder.safetensors",
+  "transformer.safetensors",
+  "condition_encoder.safetensors",
+  "vocoder.safetensors",
+] as const;
+const MLXSERV_REQUIRED_DIRS = ["tokenizer", "music_tokenizer"] as const;
+const MLXSERV_BINARY_CANDIDATES = [
+  "/opt/homebrew/bin/mlx-serve",
+  "/usr/local/bin/mlx-serve",
+];
+
+export interface MlxServConfig {
+  /** 已下载的 8bit 权重目录(ddalcu/MiniMax-Music3-MLX-Serve-8bit) */
+  weightsDir: string;
+  /** 空 = 自动探测(PATH / homebrew 常规位) */
+  binaryPath: string;
+  port: number;
+  /** 首选引擎:pocket(PocketAiHub 下载版)/ mlxserv(指向版) */
+  preferredEngine: "pocket" | "mlxserv";
+}
+
+export interface MlxServRuntimeStatus {
+  config: MlxServConfig;
+  weightsReady: boolean;
+  weightsReason: string;
+  binaryPath: string | null;
+  binaryFound: boolean;
+  serverRunning: boolean;
+  serverStarting: boolean;
+}
 
 export type Music3GenSetupStage = "idle" | "checking" | "ready" | "failed";
 
@@ -49,6 +89,8 @@ export interface Music3GenRuntimeStatus {
   modelCacheDir?: string;
   /** 最近一次 probe 的宿主硬件画像(平台门控依据) */
   hardwareProfile?: Music3HardwareProfile;
+  /** mlx-serve 8bit 指向路线状态(08-19-music3-mlxserv-connector) */
+  mlxServ?: MlxServRuntimeStatus;
 }
 
 interface ControllerDeps {
@@ -57,6 +99,12 @@ interface ControllerDeps {
   modelCacheDir?: () => string;
   spawnProcess?: typeof spawn;
   execFileFn?: ExecFileLike;
+  /** 注入以便单测;默认全局 fetch(Node 18+) */
+  fetchFn?: typeof fetch;
+  /** 覆盖探测候选(单测);默认 MLXSERV_BINARY_CANDIDATES */
+  binaryCandidates?: readonly string[];
+  /** 覆盖健康等待预算(单测);默认 MLXSERV_HEALTH_TIMEOUT_MS */
+  healthTimeoutMs?: number;
 }
 
 type ExecFileLike = (
@@ -72,6 +120,8 @@ export interface Music3GenGenerateResult {
   durationS?: number;
   samplingRate?: number;
   seed?: number;
+  /** 生成路线:pocket(PocketAiHub 脚本)/ mlx-serve(HTTP) */
+  engine?: "pocket" | "mlx-serve";
   code?: string;
   message?: string;
 }
@@ -117,6 +167,285 @@ export function createMusic3GenRuntimeController(deps: ControllerDeps) {
 
   function progressFile(): string {
     return path.join(profileDir(), "download-progress.json");
+  }
+
+  // ---- mlx-serve 路线:配置/完整性/探测/服务器/生成 ----
+
+  const mlxServ: MlxServConfig = loadMlxServConfig();
+  const serverState: {
+    child: ReturnType<typeof spawn> | null;
+    starting: boolean;
+    baseUrl: string;
+    idleTimer: NodeJS.Timeout | null;
+  } = { child: null, starting: false, baseUrl: "", idleTimer: null };
+  const doFetch = deps.fetchFn ?? fetch;
+  const binaryCandidates = deps.binaryCandidates ?? MLXSERV_BINARY_CANDIDATES;
+  const healthTimeoutMs = deps.healthTimeoutMs ?? MLXSERV_HEALTH_TIMEOUT_MS;
+
+  function mlxServConfigPath(): string {
+    return path.join(getPaths().storageBasePath, "music3-mlxserv-config.json");
+  }
+
+  function loadMlxServConfig(): MlxServConfig {
+    try {
+      const raw = JSON.parse(fs.readFileSync(mlxServConfigPath(), "utf8")) as Partial<MlxServConfig>;
+      return {
+        weightsDir: typeof raw.weightsDir === "string" ? raw.weightsDir : "",
+        binaryPath: typeof raw.binaryPath === "string" ? raw.binaryPath : "",
+        port: Number.isInteger(raw.port) && (raw.port as number) > 0 ? (raw.port as number) : MLXSERV_DEFAULT_PORT,
+        preferredEngine: raw.preferredEngine === "mlxserv" ? "mlxserv" : "pocket",
+      };
+    } catch {
+      return { weightsDir: "", binaryPath: "", port: MLXSERV_DEFAULT_PORT, preferredEngine: "pocket" };
+    }
+  }
+
+  function saveMlxServConfig(): void {
+    try {
+      fs.mkdirSync(path.dirname(mlxServConfigPath()), { recursive: true });
+      fs.writeFileSync(mlxServConfigPath(), JSON.stringify(mlxServ, null, 2), "utf8");
+    } catch {
+      // 配置写失败不阻断生成;下次读取回退默认。
+    }
+  }
+
+  function checkWeightsDir(dir: string): { ready: boolean; reason: string } {
+    if (!dir) return { ready: false, reason: "未指定权重目录" };
+    if (!fs.existsSync(dir)) return { ready: false, reason: `权重目录不存在: ${dir}` };
+    for (const name of MLXSERV_REQUIRED_WEIGHTS) {
+      if (!fs.existsSync(path.join(dir, name))) {
+        return { ready: false, reason: `缺少权重文件 ${name}(应为 ddalcu/MiniMax-Music3-MLX-Serve-8bit 仓库)` };
+      }
+    }
+    for (const name of MLXSERV_REQUIRED_DIRS) {
+      if (!fs.statSync(path.join(dir, name)).isDirectory()) {
+        return { ready: false, reason: `缺少目录 ${name}/` };
+      }
+    }
+    return { ready: true, reason: "" };
+  }
+
+  function detectBinary(): string | null {
+    if (mlxServ.binaryPath) return fs.existsSync(mlxServ.binaryPath) ? mlxServ.binaryPath : null;
+    for (const candidate of binaryCandidates) {
+      if (fs.existsSync(candidate)) return candidate;
+    }
+    return null;
+  }
+
+  function mlxServStatus(): MlxServRuntimeStatus {
+    const weights = checkWeightsDir(mlxServ.weightsDir);
+    return {
+      config: { ...mlxServ },
+      weightsReady: weights.ready,
+      weightsReason: weights.reason,
+      binaryPath: detectBinary(),
+      binaryFound: detectBinary() !== null,
+      serverRunning: serverState.child !== null && serverState.child.exitCode === null,
+      serverStarting: serverState.starting,
+    };
+  }
+
+  function scheduleIdleShutdown(): void {
+    if (serverState.idleTimer) clearTimeout(serverState.idleTimer);
+    serverState.idleTimer = setTimeout(() => {
+      stopServer("空闲回收");
+    }, MLXSERV_IDLE_SHUTDOWN_MS);
+    serverState.idleTimer.unref?.();
+  }
+
+  function stopServer(reason: string): void {
+    if (serverState.idleTimer) {
+      clearTimeout(serverState.idleTimer);
+      serverState.idleTimer = null;
+    }
+    if (serverState.child) {
+      try {
+        serverState.child.kill();
+      } catch {
+        // 进程可能已退出
+      }
+      serverState.child = null;
+      state.setupMessage = `mlx-serve 已停止(${reason})`;
+    }
+  }
+
+  async function ensureServer(): Promise<{ ok: true; baseUrl: string } | { ok: false; code: string; message: string }> {
+    const weights = checkWeightsDir(mlxServ.weightsDir);
+    if (!weights.ready) {
+      return { ok: false, code: "mlxserv-weights-missing", message: weights.reason };
+    }
+    const binary = detectBinary();
+    if (!binary) {
+      return {
+        ok: false,
+        code: "mlxserv-binary-missing",
+        message: "未找到 mlx-serve 引擎。安装:brew tap ddalcu/mlx-serve https://github.com/ddalcu/mlx-serve && brew install mlx-serve(或在配置中手动指定路径)",
+      };
+    }
+    const baseUrl = `http://127.0.0.1:${mlxServ.port}`;
+    // 已在跑且健康:直接复用(用户自己的 MLX Core/CLI 实例同端口时优先复用)
+    if (await healthCheck(baseUrl)) return { ok: true, baseUrl };
+    if (serverState.child && serverState.child.exitCode === null) {
+      // 子进程在但未就绪:等待其完成装载
+      const waited = await waitHealthy(baseUrl);
+      return waited
+        ? { ok: true, baseUrl }
+        : { ok: false, code: "mlxserv-start-timeout", message: `mlx-serve 启动/装载超时(${MLXSERV_HEALTH_TIMEOUT_MS / 60000} 分钟)` };
+    }
+    if (serverState.starting) {
+      const waited = await waitHealthy(baseUrl);
+      return waited
+        ? { ok: true, baseUrl }
+        : { ok: false, code: "mlxserv-start-timeout", message: "mlx-serve 启动/装载超时" };
+    }
+    serverState.starting = true;
+    try {
+      const child = spawnProcess(
+        binary,
+        ["serve", "--model", mlxServ.weightsDir, "--port", String(mlxServ.port), "--host", "127.0.0.1"],
+        { stdio: ["ignore", "ignore", "ignore"], env: { ...process.env } },
+      );
+      serverState.child = child;
+      serverState.baseUrl = baseUrl;
+      child.on("exit", () => {
+        if (serverState.child === child) serverState.child = null;
+      });
+      const ready = await waitHealthy(baseUrl);
+      if (!ready) {
+        stopServer("启动失败");
+        return { ok: false, code: "mlxserv-start-failed", message: "mlx-serve 启动后未就绪(看日志:~/.mlx-serve/logs/)" };
+      }
+      scheduleIdleShutdown();
+      return { ok: true, baseUrl };
+    } finally {
+      serverState.starting = false;
+    }
+  }
+
+  async function healthCheck(baseUrl: string): Promise<boolean> {
+    try {
+      const response = await doFetch(`${baseUrl}/v1/models`, { signal: AbortSignal.timeout(2000) });
+      return response.ok;
+    } catch {
+      return false;
+    }
+  }
+
+  async function waitHealthy(baseUrl: string): Promise<boolean> {
+    const deadline = Date.now() + healthTimeoutMs;
+    while (Date.now() < deadline) {
+      if (await healthCheck(baseUrl)) return true;
+      await new Promise((resolve) => setTimeout(resolve, 2000));
+    }
+    return false;
+  }
+
+  function parseWav(bytes: Uint8Array): { samplingRate: number; channels: number; durationS: number } {
+    // RIFF 头:采样率@24(LE)、声道@22;走块找 data 算时长;解析失败回退 44100/2/未知。
+    try {
+      const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+      if (view.getUint32(0, true) !== 0x46464952) throw new Error("not RIFF");
+      let offset = 12;
+      let samplingRate = 44100;
+      let channels = 2;
+      let bitsPerSample = 16;
+      while (offset + 8 <= bytes.byteLength) {
+        const chunkId = view.getUint32(offset, true);
+        const chunkSize = view.getUint32(offset + 4, true);
+        if (chunkId === 0x20746d66) {
+          channels = view.getUint16(offset + 10, true);
+          samplingRate = view.getUint32(offset + 12, true);
+          bitsPerSample = view.getUint16(offset + 22, true);
+        } else if (chunkId === 0x61746164) {
+          const bytesPerFrame = (channels * bitsPerSample) / 8;
+          return {
+            samplingRate,
+            channels,
+            durationS: bytesPerFrame > 0 ? Number((chunkSize / bytesPerFrame / samplingRate).toFixed(3)) : 0,
+          };
+        }
+        offset += 8 + chunkSize + (chunkSize % 2);
+      }
+      return { samplingRate, channels, durationS: 0 };
+    } catch {
+      return { samplingRate: 44100, channels: 2, durationS: 0 };
+    }
+  }
+
+  async function generateViaMlxServ(input: {
+    prompt: string;
+    seed?: number;
+    seconds?: number;
+    steps?: number;
+    outputDir: string;
+  }): Promise<Music3GenGenerateResult> {
+    const ensured = await ensureServer();
+    if (!ensured.ok) {
+      return { status: "blocked", code: ensured.code, message: ensured.message };
+    }
+    const seed = Number.isInteger(input.seed) ? (input.seed as number) : 7;
+    const seconds = Math.min(MUSIC3_MAX_DURATION_S, Math.max(MUSIC3_MIN_DURATION_S, input.seconds ?? 60));
+    const steps = Math.min(100, Math.max(4, input.steps ?? 30));
+    const safeName = `bgm3-mlxserv-${Date.now()}-${seed}.wav`;
+    const outputPath = path.join(input.outputDir, safeName);
+    try {
+      const response = await doFetch(`${ensured.baseUrl}/v1/audio/music-generations`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          prompt: input.prompt,
+          lyrics: "[Instrumental]",
+          duration_seconds: seconds,
+          steps,
+          seed,
+        }),
+        signal: AbortSignal.timeout(MUSIC3_GENERATE_TIMEOUT_MS),
+      });
+      scheduleIdleShutdown();
+      if (!response.ok) {
+        const text = await response.text().catch(() => "");
+        return {
+          status: "blocked",
+          code: response.status === 400 ? "mlxserv-bad-request" : "generation-failed",
+          message: `mlx-serve ${response.status}: ${text.slice(0, 300)}`,
+        };
+      }
+      const bytes = new Uint8Array(await response.arrayBuffer());
+      if (bytes.byteLength < 44) {
+        return { status: "blocked", code: "generation-failed", message: `mlx-serve 返回过短(${bytes.byteLength}B)` };
+      }
+      fs.mkdirSync(input.outputDir, { recursive: true });
+      fs.writeFileSync(outputPath, bytes);
+      const meta = parseWav(bytes);
+      return {
+        status: "accepted",
+        outputPath,
+        outputSha256: createHash("sha256").update(bytes).digest("hex"),
+        durationS: meta.durationS,
+        samplingRate: meta.samplingRate,
+        seed,
+        engine: "mlx-serve",
+      };
+    } catch (error) {
+      scheduleIdleShutdown();
+      const message = error instanceof Error ? error.message : String(error);
+      return { status: "blocked", code: "generation-failed", message };
+    }
+  }
+
+  function configureMlxServ(partial: Partial<MlxServConfig>): MlxServRuntimeStatus {
+    if (typeof partial.weightsDir === "string") mlxServ.weightsDir = partial.weightsDir;
+    if (typeof partial.binaryPath === "string") mlxServ.binaryPath = partial.binaryPath;
+    if (Number.isInteger(partial.port) && (partial.port as number) > 0) mlxServ.port = partial.port as number;
+    if (partial.preferredEngine === "mlxserv" || partial.preferredEngine === "pocket") {
+      mlxServ.preferredEngine = partial.preferredEngine;
+    }
+    if (serverState.child && serverState.baseUrl !== `http://127.0.0.1:${mlxServ.port}`) {
+      stopServer("配置变更");
+    }
+    saveMlxServConfig();
+    return mlxServStatus();
   }
 
   async function scanModelInventory(): Promise<Music3GenModelRow[]> {
@@ -240,6 +569,32 @@ export function createMusic3GenRuntimeController(deps: ControllerDeps) {
     seconds?: number;
     steps?: number;
     outputDir: string;
+    engine?: "pocket" | "mlxserv";
+  }): Promise<Music3GenGenerateResult> {
+    // 引擎选路:显式参数 > 首选配置;mlx-serve 路线权重不就绪时回退 pocket 并说明。
+    const requested = input.engine ?? mlxServ.preferredEngine;
+    if (requested === "mlxserv") {
+      const weights = checkWeightsDir(mlxServ.weightsDir);
+      if (weights.ready) {
+        return generateViaMlxServ(input);
+      }
+      const fallback = await generateViaPocket(input);
+      return {
+        ...fallback,
+        message: fallback.status === "accepted"
+          ? `${fallback.message ?? ""}(mlx-serve 权重未就绪,已走 PocketAiHub 路线)`
+          : `mlx-serve 权重未就绪(${weights.reason});PocketAiHub 路线:${fallback.message ?? ""}`,
+      };
+    }
+    return generateViaPocket(input);
+  }
+
+  async function generateViaPocket(input: {
+    prompt: string;
+    seed?: number;
+    seconds?: number;
+    steps?: number;
+    outputDir: string;
   }): Promise<Music3GenGenerateResult> {
     const paths = getPaths();
     if (!fs.existsSync(paths.pythonExecutable)) {
@@ -274,6 +629,7 @@ export function createMusic3GenRuntimeController(deps: ControllerDeps) {
           durationS: typeof parsed.durationS === "number" ? parsed.durationS : undefined,
           samplingRate: typeof parsed.samplingRate === "number" ? parsed.samplingRate : undefined,
           seed,
+          engine: "pocket",
         };
       }
       return {
@@ -311,7 +667,13 @@ export function createMusic3GenRuntimeController(deps: ControllerDeps) {
 
   function status(): Music3GenRuntimeStatus {
     refreshDownloadState();
-    return { ...state, models: [...state.models], modelCacheDir: deps.modelCacheDir?.() };
+    return {
+      ...state,
+      models: [...state.models],
+      modelCacheDir: deps.modelCacheDir?.(),
+      hardwareProfile: state.hardwareProfile,
+      mlxServ: mlxServStatus(),
+    };
   }
 
   return {
@@ -320,6 +682,8 @@ export function createMusic3GenRuntimeController(deps: ControllerDeps) {
     scanModelInventory,
     downloadModel,
     generateMusic3,
+    configureMlxServ,
+    stopServer,
   };
 }
 
