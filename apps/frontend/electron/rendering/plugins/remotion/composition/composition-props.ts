@@ -142,6 +142,9 @@ export interface CompositionVisualClipProps {
   /** 成片调色（08-18-haldclut-grade）：LUT 闭集见 cinematic-luts.ts；lutSrc 为
    * media-bridge URL（build 侧由 lutUrlById 注入）。渲染期由 GLGradeMedia 上屏。 */
   grade?: { lutId: string; lutSrc?: string; blend: number };
+  /** 图层分离分层渲染（08-19 图层分离探索）：存在时走 LayeredVisualClip
+   * 双层视差（背景运镜折减+主体 ambient），忽略单层媒体位（src 保留供音轨/转场）。 */
+  layers?: { backgroundSrc: string; subjectSrc: string; parallax?: number };
   // Video-only playback controls; ignored for images.
   trimStartFrames?: number;
   playbackRate?: number;

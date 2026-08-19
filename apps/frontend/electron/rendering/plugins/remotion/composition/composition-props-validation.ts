@@ -12,7 +12,7 @@ import {
   COMPOSITION_TRANSITION_EFFECTS,
   type CompositionTransitionEffect,
 } from "./timing";
-import { CINEMATIC_LUT_IDS } from "@/lib/studio/remotion/cinematic-luts";
+import { CINEMATIC_LUT_IDS } from "../../../../../lib/studio/remotion/cinematic-luts";
 // 固定 bundle 走 @remotion/bundler(webpack),不解析 vite 的 @/ 别名——
 // 共享注册表必须相对导入。
 import { isKnownSubtitleFontId } from "../../../../../lib/studio/remotion/subtitle-fonts";

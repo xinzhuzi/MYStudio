@@ -1,6 +1,7 @@
 import { AbsoluteFill, OffthreadVideo, Sequence, useCurrentFrame } from "remotion";
 import { AudioClip } from "./AudioClip";
 import { CinematicVisualClip } from "./CinematicVisualClip";
+import { LayeredVisualClip } from "./LayeredVisualClip";
 import { CustomFontFaceLoader } from "./CustomFontFaceLoader";
 import { GLTransitionLayer } from "./GLTransitionLayer";
 import { isGlTransitionEffect } from "./gl-transition-registry";
@@ -95,7 +96,20 @@ function TransitionedVisualClip({
     : 1;
   return (
     <AbsoluteFill style={{ opacity: incomingOpacity }}>
-      {clip.cinematic ? <CinematicVisualClip {...clip} /> : <VisualClip {...clip} />}
+      {clip.cinematic ? (
+        <CinematicVisualClip {...clip} />
+      ) : clip.layers ? (
+        <LayeredVisualClip
+          backgroundSrc={clip.layers.backgroundSrc}
+          subjectSrc={clip.layers.subjectSrc}
+          parallax={clip.layers.parallax}
+          durationInFrames={clip.durationInFrames}
+          panZoom={clip.panZoom}
+          ambient={clip.ambient}
+        />
+      ) : (
+        <VisualClip {...clip} />
+      )}
     </AbsoluteFill>
   );
 }
