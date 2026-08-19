@@ -22,7 +22,7 @@ export const SUBTITLE_FONT_IDS = [
 export type SubtitleFontId = (typeof SUBTITLE_FONT_IDS)[number];
 
 /** 源码级默认：毛笔楷书（仙侠武侠片题字质感，用户 08-18 拍板）。 */
-export const DEFAULT_SUBTITLE_FONT_ID: SubtitleFontId = "ma-shan-zheng";
+export const DEFAULT_SUBTITLE_FONT_ID: SubtitleFontId = "liu-jian-mao-cao";
 
 /** 风格分组：设置页按此分组展示。 */
 export const SUBTITLE_FONT_CATEGORIES = ["calligraphy", "modern", "custom"] as const;
