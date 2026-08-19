@@ -1074,3 +1074,26 @@ describe("atmosphere 效果投影进 layerStack(08-19 multilayer Child2)", () =>
       .toThrow("atmosphere 效果的模板不在闭集");
   });
 });
+
+describe("氛围-only 栈垫底渲染(08-20 修:视频镜不丢本体)", () => {
+  it("视频 clip 带 atmosphere 效果 → layerStack 只有氛围层(垫底媒体由渲染端渲染)", () => {
+    const slot = makeCurrentSlot();
+    const plan = chapterPlan(slot, "shot-001", "storyboardVideo");
+    plan.effects.push({
+      id: "fx-atmo-v",
+      effectId: "atmosphere",
+      targetClipId: "visual-shot-001",
+      startUs: 0,
+      durationUs: 1_000_000,
+      params: { template: "atmo:light-dust", intensity: 1 },
+      enabled: true,
+    });
+    const props = buildCompositionProps(plan, { "visual-shot-001": mediaUrl });
+    const clip = props.visualClips[0]!;
+    expect(clip.kind).toBe("video");
+    expect(clip.layerStack).toBeDefined();
+    expect(clip.layerStack!.every((layer) => layer.role === "atmosphere" && !layer.src)).toBe(true);
+    // src 保留(垫底媒体位),不会被 layerStack 覆盖掉语义
+    expect(clip.src).toBe(mediaUrl);
+  });
+});

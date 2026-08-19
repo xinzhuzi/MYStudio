@@ -6,7 +6,7 @@
 // - layers（旧二元组,兼容保留）：背景/主体双层视差（背景运镜折减+主体 ambient）。
 // 两路均为静帧图片层；单层（无 layers/layerStack）路径在 VisualClip,不在此。
 
-import { AbsoluteFill, Img, useCurrentFrame, useRemotionEnvironment, useVideoConfig } from "remotion";
+import { AbsoluteFill, Img, OffthreadVideo, useCurrentFrame, useRemotionEnvironment, useVideoConfig } from "remotion";
 import { GLGradeMedia } from "./GLGradeMedia";
 import { AtmosphereTemplateLayer, layerPanZoomDamp } from "./atmosphere-layers";
 import { ambientAtFrame, panZoomAtFrame } from "./pan-zoom";
@@ -26,6 +26,14 @@ export interface LayeredVisualClipProps {
   /** 层分支此前丢弃 grade/frameStep（RemotionComposition 不透传），Child1 修复。 */
   grade?: CompositionVisualClipProps["grade"];
   frameStep?: number;
+  /** 垫底媒体（氛围-only 栈用）：栈内无 background/subject 图片层时渲染原媒体
+   * （视频镜=OffthreadVideo、静帧=Img），grade/裁剪同单层语义——否则视频镜
+   * 只有氛围层会把本体丢成黑底（08-20 一键成片真跑暴露）。 */
+  baseSrc?: string;
+  baseKind?: "image" | "video";
+  trimStartFrames?: number;
+  playbackRate?: number;
+  muted?: boolean;
 }
 
 export function LayeredVisualClip(props: LayeredVisualClipProps): React.ReactElement {
@@ -67,8 +75,35 @@ function StackedLayersClip(props: Required<Pick<LayeredVisualClipProps, "layerSt
           ? props.grade.blendPulse.amp * Math.sin(frame / fps * props.grade.blendPulse.freq * Math.PI * 2 + (props.grade.blendPulse.phase ?? 0))
           : 0)))
     : undefined;
+  // 栈内含图片层(background/subject 带 src)=分层合成接管媒体位;
+  // 氛围-only 栈(视频镜典型)=原媒体垫底,氛围层叠加其上。
+  const hasImageLayers = props.layerStack.some((layer) => Boolean(layer.src));
+  const baseSrc = !hasImageLayers ? props.baseSrc : undefined;
   return (
     <AbsoluteFill>
+      {baseSrc ? (
+        props.grade?.lutSrc && isRendering ? (
+          <GLGradeMedia
+            src={baseSrc}
+            kind={props.baseKind ?? "image"}
+            trimStartFrames={props.trimStartFrames}
+            playbackRate={props.playbackRate}
+            durationInFrames={props.durationInFrames}
+            lutSrc={props.grade.lutSrc}
+            blend={gradeBlend ?? props.grade.blend}
+          />
+        ) : props.baseKind === "video" ? (
+          <OffthreadVideo
+            src={baseSrc}
+            trimBefore={props.trimStartFrames}
+            playbackRate={props.playbackRate ?? 1}
+            muted={props.muted ?? true}
+            style={COVER_STYLE}
+          />
+        ) : (
+          <Img src={baseSrc} style={COVER_STYLE} />
+        )
+      ) : null}
       {props.layerStack.map((layer, index) => {
         const damp = layerPanZoomDamp(layer);
         // 折减围绕 1.0 收敛（from=1 时该层不动）——与旧二元组公式一致。

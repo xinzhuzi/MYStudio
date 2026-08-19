@@ -121,6 +121,11 @@ function TransitionedVisualClip({
           panZoom={clip.panZoom}
           grade={clip.grade}
           frameStep={clip.frameStep}
+          baseSrc={clip.src}
+          baseKind={clip.kind}
+          trimStartFrames={clip.trimStartFrames}
+          playbackRate={clip.playbackRate}
+          muted={clip.muted}
         />
       ) : clip.layers ? (
         <LayeredVisualClip
