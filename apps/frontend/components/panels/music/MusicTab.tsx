@@ -2,12 +2,17 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
-import { FolderOpen, Loader2, Music2, Settings2, Sparkles, TriangleAlert } from "lucide-react";
+import { FolderOpen, Music2, Settings2, Sparkles, TriangleAlert } from "lucide-react";
 import { toast } from "sonner";
+import { Alert } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { IconTile } from "@/components/ui/icon-tile";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { PanelHeader } from "@/components/ui/panel-header";
+import { StatusPill } from "@/components/ui/status-pill";
 import { Textarea } from "@/components/ui/textarea";
 import { useMediaPanelStore } from "@/stores/navigation/media-panel-store";
 import { MUSIC3_MAX_DURATION_S, MUSIC3_MIN_DURATION_S } from "@/types/music3-gen";
@@ -211,42 +216,22 @@ export function MusicTab(props: { projectId?: string; projectName: string }) {
     <div className="mx-auto w-full max-w-3xl space-y-8 py-4">
       {/* 头部:层级化排版(overline → 标题 → 状态胶囊) */}
       <header className="space-y-4">
-        <div className="flex flex-wrap items-start justify-between gap-4">
-          <div className="flex min-w-0 items-start gap-3.5">
-            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-primary/20 bg-primary/10 text-primary">
-              <Music2 className="h-5 w-5" aria-hidden />
-            </div>
-            <div className="min-w-0 space-y-1.5">
-              <p className="text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
-                MiniMax-Music3 · bf16 本地引擎
-              </p>
-              <h1 className="truncate text-2xl font-semibold tracking-tight text-foreground">{title}</h1>
-            </div>
-          </div>
-          {readiness === "ready" ? (
-            <span className="inline-flex shrink-0 items-center gap-2 rounded-full border border-success/25 bg-success/10 px-3 py-1.5 text-xs font-medium text-success">
-              <span className="relative flex h-2 w-2">
-                <span className="absolute inline-flex h-full w-full rounded-full bg-success opacity-50 motion-safe:animate-ping" />
-                <span className="relative inline-flex h-2 w-2 rounded-full bg-success" />
-              </span>
-              引擎就绪
-            </span>
-          ) : readiness === "checking" ? (
-            <span className="inline-flex shrink-0 items-center gap-2 rounded-full border border-border bg-card/70 px-3 py-1.5 text-xs text-muted-foreground backdrop-blur-sm">
-              <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />
-              检查引擎…
-            </span>
-          ) : readiness === "missing" ? (
-            <span className="inline-flex shrink-0 items-center gap-2 rounded-full border border-destructive/25 bg-destructive/[0.08] px-3 py-1.5 text-xs font-medium text-destructive/90">
-              <span className="h-2 w-2 rounded-full bg-destructive" aria-hidden />
-              未就绪
-            </span>
-          ) : readiness === "unknown" ? (
-            <span className="inline-flex shrink-0 items-center gap-2 rounded-full border border-border bg-card/70 px-3 py-1.5 text-xs text-muted-foreground backdrop-blur-sm">
-              状态未知
-            </span>
-          ) : null}
-        </div>
+        <PanelHeader
+          icon={Music2}
+          overline="MiniMax-Music3 · bf16 本地引擎"
+          title={title}
+          badge={
+            readiness === "checking" ? (
+              <StatusPill state="checking" label="检查引擎…" />
+            ) : readiness === "missing" ? (
+              <StatusPill state="missing" />
+            ) : readiness === "unknown" ? (
+              <StatusPill state="unknown" />
+            ) : (
+              <StatusPill state="ready" label="引擎就绪" />
+            )
+          }
+        />
 
         {readiness === "ready" ? (
           <p className="max-w-xl text-sm leading-6 text-muted-foreground">
@@ -279,11 +264,9 @@ export function MusicTab(props: { projectId?: string; projectName: string }) {
 
       {/* 不就绪:结构化引导(原因 + 两步走 + 行动),warning 材质 */}
       {readiness === "missing" ? (
-        <section className="space-y-4 rounded-2xl border border-warning/25 bg-warning/[0.06] p-6 backdrop-blur-xl">
+        <Alert variant="warning" className="space-y-4 rounded-2xl p-6">
           <div className="flex items-start gap-3.5">
-            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-warning/25 bg-warning/10 text-warning">
-              <TriangleAlert className="h-4 w-4" aria-hidden />
-            </div>
+            <IconTile icon={TriangleAlert} size="sm" tone="warning" className="rounded-full" />
             <div className="min-w-0 space-y-1.5 pt-0.5">
               <h2 className="text-base font-semibold tracking-tight">引擎未就绪</h2>
               <p className="text-sm leading-6 text-foreground">{weightsReason}</p>
@@ -303,12 +286,12 @@ export function MusicTab(props: { projectId?: string; projectName: string }) {
             <Settings2 className="mr-2 h-4 w-4" aria-hidden />
             去设置
           </Button>
-        </section>
+        </Alert>
       ) : null}
 
       {/* 就绪:生成台(表单做主角) */}
       {readiness === "ready" ? (
-        <section aria-label="音乐生成" className="tts-glass-card space-y-5 rounded-2xl border border-border bg-card/50 p-6 backdrop-blur-xl">
+        <Card variant="glass" aria-label="音乐生成" className="space-y-5 p-6">
           <div className="space-y-2">
             <Label htmlFor="music-prompt" className="text-sm font-medium">
               音乐描述
@@ -378,7 +361,7 @@ export function MusicTab(props: { projectId?: string; projectName: string }) {
               </span>
             </div>
           ) : null}
-        </section>
+        </Card>
       ) : null}
 
       {/* 产物列表:卡片行,弹簧入场(临界阻尼,无过冲) */}

@@ -44,6 +44,15 @@
   --color-timeline-audio: hsl(var(--timeline-audio));
   --color-timeline-text: hsl(var(--timeline-text));
   --color-timeline-effect: hsl(var(--timeline-effect));
+
+  /* Design viz tokens — 数据可视化/状态编码(apple-hig-design-overhaul child2,桶B 接线用;
+     色相取自原硬编码色,替换零视觉漂移;预设不覆写(功能编码色随明暗两档)) */
+  --color-viz-selection: hsl(var(--viz-selection));
+  --color-viz-glow: hsl(var(--viz-glow));
+  --color-viz-status-a: hsl(var(--viz-status-a));
+  --color-viz-status-b: hsl(var(--viz-status-b));
+  --color-viz-status-c: hsl(var(--viz-status-c));
+  --color-viz-status-d: hsl(var(--viz-status-d));
   
   /* Radius */
   --radius-lg: var(--radius);
@@ -113,6 +122,14 @@
   --timeline-audio: 142 76% 36%;  /* 音频轨道 - 绿色 */
   --timeline-text: 38 92% 50%;    /* 文字轨道 - 橙色 */
   --timeline-effect: 262 83% 58%; /* 特效轨道 - 紫色 */
+
+  /* Viz tokens(浅色档:降亮度保对比) */
+  --viz-selection: 189 85% 36%;
+  --viz-glow: 40 90% 48%;
+  --viz-status-a: 142 60% 34%;
+  --viz-status-b: 34 80% 42%;
+  --viz-status-c: 262 45% 44%;
+  --viz-status-d: 199 70% 36%;
 
   /* Radius */
   --radius: 0.5rem;
@@ -338,6 +355,14 @@
   --timeline-audio: 142 50% 42%;
   --timeline-text: 38 50% 45%;
   --timeline-effect: 280 45% 50%;
+
+  /* Viz tokens(深色档:原硬编码色相近亮度) */
+  --viz-selection: 189 90% 50%;
+  --viz-glow: 43 95% 62%;
+  --viz-status-a: 142 60% 45%;
+  --viz-status-b: 38 90% 55%;
+  --viz-status-c: 262 55% 62%;
+  --viz-status-d: 199 75% 55%;
 }
 
 :root.theme-preset-cinema.dark,
@@ -459,13 +484,8 @@
   * {
     @apply border-border;
   }
-  /* cursor 不可继承，仅在 body 上设会让子元素（按钮等）回退到原生光标。
-     因此用通配选择器把自定义光标应用到所有元素，确保全程统一。 */
-  *,
-  *::before,
-  *::after {
-    cursor: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M2 2L10 18L12.3 12.7L17.6 10.4L2 2Z" fill="%23ffffff" stroke="%23111111" stroke-width="1.5"/><circle cx="12.3" cy="12.7" r="2" fill="%230091ff"/></svg>') 2 2, auto;
-  }
+  /* 自定义光标已于 08-19 移除(apple-hig-design-overhaul child2 裁定:回归系统光标,
+     恢复文本 I-beam/链接手型等原生行为;勿再添加通配 cursor 规则)。 */
   body {
     @apply bg-background text-foreground;
     margin: 0;

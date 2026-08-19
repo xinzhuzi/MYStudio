@@ -89,7 +89,7 @@ function StageGuideGrid(props: { onEnterStage: (stageId: string) => void }) {
         return (
           <div
             key={stage.id}
-            className="group relative flex flex-col justify-between rounded-lg border bg-card p-3.5 shadow-sm transition-all duration-200 hover:border-primary/50 hover:shadow-md"
+            className="group relative flex flex-col justify-between rounded-xl border border-border bg-card/60 p-3.5 backdrop-blur-xl transition-all duration-200 hover:border-primary/50 hover:bg-card/80"
           >
             <div>
               <div className="mb-2 flex items-center justify-between gap-2">

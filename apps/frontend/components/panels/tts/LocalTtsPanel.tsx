@@ -4,6 +4,7 @@ import { type ChangeEvent, useCallback, useEffect, useMemo, useRef, useState } f
 import { toast } from "sonner";
 import { getStorageManagerBridge } from "@/lib/bridge/storage-manager";
 import { getStudioAssetsBridge } from "@/lib/bridge/studio-assets";
+import { Card } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   TTS_MODEL_GROUPS,
@@ -546,7 +547,7 @@ export function LocalTtsPanel({ embedded = false }: LocalTtsPanelProps) {
         <ErrorBanner errors={errors} onClear={() => setErrors({})} />
 
         {groupedRows.map((group) => (
-          <section key={group.id} className="tts-glass-card rounded-2xl border border-border bg-card/50 backdrop-blur-xl overflow-hidden">
+          <Card variant="glass" key={group.id} className="overflow-hidden">
             <div className="border-b border-border px-4 py-3">
               <div className="flex items-center justify-between gap-3">
                 <div>
@@ -574,7 +575,7 @@ export function LocalTtsPanel({ embedded = false }: LocalTtsPanelProps) {
                 onCancel={handleCancel}
               />
             ))}
-          </section>
+          </Card>
         ))}
 
         <VoiceProfileSection

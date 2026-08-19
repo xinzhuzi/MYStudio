@@ -13,7 +13,10 @@
     "components/ui/sheet.tsx",
     "components/ui/sonner.tsx",
     "components/ui/toast.tsx",
-    "components/ui/toaster.tsx"
+    "components/ui/toaster.tsx",
+    "components/ui/context-menu.tsx",
+    "components/ui/menubar.tsx",
+    "components/ui/navigation-menu.tsx"
   ],
   "severityOverrides": [
     {
@@ -21,24 +24,6 @@
       "rule": "R1",
       "severity": "warn",
       "reason": "chrome 原语,材质化改造 vs 永久白名单待 child1 裁定案(shadow-whitelist-ruling.md)"
-    },
-    {
-      "path": "components/ui/menubar.tsx",
-      "rule": "R1",
-      "severity": "warn",
-      "reason": "同上,chrome 原语待裁定"
-    },
-    {
-      "path": "components/ui/context-menu.tsx",
-      "rule": "R1",
-      "severity": "warn",
-      "reason": "同上,chrome 原语待裁定"
-    },
-    {
-      "path": "components/ui/navigation-menu.tsx",
-      "rule": "R1",
-      "severity": "warn",
-      "reason": "同上,chrome 原语待裁定"
     },
     {
       "path": "components/panels/studio/VisualContinuityReviewPanel.tsx",

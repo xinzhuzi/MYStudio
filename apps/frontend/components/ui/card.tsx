@@ -1,20 +1,32 @@
 // Copyright (c) 2025 hotflow2024
 // Licensed under AGPL-3.0-or-later. See LICENSE for details.
-// Commercial licensing available. See COMMERCIAL_LICENSE.md.
+// Commercial licensing available. COMMERCIAL_LICENSE.md.
 import * as React from "react";
 
 import { cn } from "../../lib/utils";
 
-const Card = React.forwardRef<
-  HTMLDivElement,
-  React.HTMLAttributes<HTMLDivElement>
->(({ className, ...props }, ref) => (
-  <div
-    ref={ref}
-    className={cn("rounded-xl border bg-card text-card-foreground", className)}
-    {...props}
-  />
-));
+interface CardProps extends React.HTMLAttributes<HTMLDivElement> {
+  /**
+   * solid=结构区块(默认,历史行为不变);glass=玻璃材质浮层/生成台
+   * (design-spec.md 材质两级,母版=MusicTab/LocalTtsRuntimeCard)。
+   */
+  variant?: "solid" | "glass";
+}
+
+const Card = React.forwardRef<HTMLDivElement, CardProps>(
+  ({ className, variant = "solid", ...props }, ref) => (
+    <div
+      ref={ref}
+      className={cn(
+        "rounded-xl border bg-card text-card-foreground",
+        variant === "glass" &&
+          "tts-glass-card rounded-2xl border-border bg-card/50 backdrop-blur-xl",
+        className,
+      )}
+      {...props}
+    />
+  ),
+);
 Card.displayName = "Card";
 
 const CardHeader = React.forwardRef<

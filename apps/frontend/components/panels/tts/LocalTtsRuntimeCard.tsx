@@ -10,6 +10,7 @@ import {
   Unplug,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import type { TtsModelCacheInfo, TtsRuntimeStatus } from "@/types/tts";
@@ -69,7 +70,7 @@ export function LocalTtsRuntimeCard({
   const defaultModelCacheDir = runtimeStatus?.defaultModelCacheDir ?? "";
 
   return (
-    <div className="tts-glass-card rounded-2xl border border-border bg-card/50 backdrop-blur-xl p-5">
+    <Card variant="glass" className="p-5">
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div className="min-w-0 flex-1">
           <h3 className="text-lg font-semibold text-foreground flex items-center gap-2">
@@ -222,6 +223,6 @@ export function LocalTtsRuntimeCard({
           </div>
         </div>
       </div>
-    </div>
+    </Card>
   );
 }
