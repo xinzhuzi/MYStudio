@@ -124,6 +124,7 @@ import { validateEditingProject } from '../../lib/studio/editing/validation'
 import type { RemotionCurrentSlotV1 } from '../../types/remotion-workspace'
 import { compileTimelineRenderPlan } from '../../lib/studio/editing/timeline-render-compiler'
 import { mergeShotFxEditingEffects } from '../../lib/studio/remotion/shot-fx-decisions'
+import { applyWorkflowConfigToRenderSettings, type WorkflowConfigProjectionInput } from '../../lib/studio/remotion/workflow-config-projection'
 import {
   buildMinimalRemotionStudioStartOptions,
   RemotionStudioRenderQueueBridge,
@@ -1192,32 +1193,17 @@ async function loadChapterStudioProjection(request: { projectId: string; chapter
   // 2D 镜头语言/特效走 plan.effects 正门（video-use 编排 → Remotion 合成消费）：
   // 合并 shotFx 决策（AI 提示 > 关键词 > 镜序轮换），章节渲染身份哈希含
   // plan.effects → 运镜变化自动失效缓存。幂等：前缀识别旧 shotFx 条目并替换。
-  // chapterGrade/subtitleSfxEnabled（08-19 导演定调/字幕音效）经 workflowConfig
-  // 注水（兄弟=subtitleFont 惯例）：钉死时全章统一 grade，跳过 AI 逐镜选卡。
+  // chapterGrade/subtitleSfxEnabled/atmosphereMode/subtitleFont（导演定调四字段）
+  // 经 workflowConfig 注水——实现收敛在 applyWorkflowConfigToRenderSettings
+  // （08-20 修复：subtitleFont 曾只有注释承诺无实现，设置页选择从不进 plan）。
   const shotFxStoryboards = (() => {
     try {
       const store = readStudioWorkflowStore(getDataDir(), request.projectId)
       const storyboards = (store?.state?.storyboards ?? []) as Array<{ id: string; episodeId: string; prompt?: string; line?: string; shotFx?: { motion?: unknown } }>
-      const workflowConfig = store?.state?.workflowConfig as
-        | { chapterGrade?: { lutId?: unknown; blend?: unknown }; atmosphereMode?: unknown; subtitleSfxEnabled?: unknown }
-        | undefined
-      if (workflowConfig?.chapterGrade && typeof workflowConfig.chapterGrade.lutId === 'string') {
-        const blendRaw = Number(workflowConfig.chapterGrade.blend ?? 0.5)
-        plan.value.renderSettings = {
-          ...plan.value.renderSettings,
-          chapterGrade: {
-            lutId: workflowConfig.chapterGrade.lutId,
-            blend: Number.isFinite(blendRaw) ? Math.min(1, Math.max(0, blendRaw)) : 0.5,
-          },
-        }
-      }
-      if (typeof workflowConfig?.subtitleSfxEnabled === 'boolean') {
-        plan.value.renderSettings = { ...plan.value.renderSettings, subtitleSfxEnabled: workflowConfig.subtitleSfxEnabled }
-      }
-      // 氛围层模式（08-19 multilayer Child2）：off=全章关闭氛围层（人工覆盖）。
-      if (workflowConfig?.atmosphereMode === 'off' || workflowConfig?.atmosphereMode === 'ai') {
-        plan.value.renderSettings = { ...plan.value.renderSettings, atmosphereMode: workflowConfig.atmosphereMode }
-      }
+      plan.value.renderSettings = applyWorkflowConfigToRenderSettings(
+        plan.value.renderSettings,
+        store?.state?.workflowConfig as WorkflowConfigProjectionInput | undefined,
+      )
       return storyboards.filter((storyboard) => storyboard.episodeId === request.chapterId)
     } catch { /* store 缺失 → 仅规则轮换运镜 */ }
     return []

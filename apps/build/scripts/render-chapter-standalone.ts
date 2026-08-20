@@ -13,6 +13,7 @@ import { buildChapterVideoCompositionProps } from "@rendering/plugins/remotion/c
 import { customFontAbsolutePath } from "@/lib/studio/remotion/custom-font-store";
 import { customFontFamilyForId, isCustomSubtitleFontId } from "@/lib/studio/remotion/subtitle-fonts";
 import { mergeShotFxEditingEffects } from "@/lib/studio/remotion/shot-fx-decisions";
+import { applyWorkflowConfigToRenderSettings, type WorkflowConfigProjectionInput } from "@/lib/studio/remotion/workflow-config-projection";
 import { readStudioWorkflowStoreState } from "../timeline/storage-paths";
 import type { RemotionChapterManifestV2 } from "@/types/remotion-workspace";
 
@@ -85,9 +86,10 @@ async function main() {
     fs.readFileSync(path.join(MA, "remotion/chapters", CHAPTER_ID + ".json"), "utf8"),
   ) as RemotionChapterManifestV2;
 
-  // 决策单源重放（08-19 章节色调/字幕音效同源）：与 main.ts 投影同款——
-  // store 里分镜 shotFx + workflowConfig.chapterGrade 重新 merge 进 plan.effects
-  // （幂等：前缀识别旧 shotFx 条目并替换），钉死色卡时全章统一 grade。
+  // 决策单源重放：与 main.ts 投影同款——store 里分镜 shotFx + workflowConfig
+  // 四字段（chapterGrade/subtitleSfxEnabled/atmosphereMode/subtitleFont，收敛在
+  // applyWorkflowConfigToRenderSettings）重新 merge/注水；钉死色卡时全章统一
+  // grade。08-20 修复后字幕字体也在此重放（此前仅 chapterGrade/sfx）。
   const sfxCategoryByStoryboardId: Record<string, string> = {};
   try {
     const store = readStudioWorkflowStoreState(MA);
@@ -96,31 +98,27 @@ async function main() {
       shotFx?: { motion?: unknown; addons?: unknown; grade?: unknown; sfx?: unknown };
     }>;
     const chapterStoryboards = storyboards.filter((storyboard) => storyboard.episodeId === CHAPTER_ID);
-    const workflowConfig = store?.state.workflowConfig as
-      | { chapterGrade?: { lutId?: unknown; blend?: unknown }; subtitleSfxEnabled?: unknown }
-      | undefined;
-    let chapterGrade: { lutId: string; blend: number } | undefined;
-    if (workflowConfig?.chapterGrade && typeof workflowConfig.chapterGrade.lutId === "string") {
-      const blendRaw = Number(workflowConfig.chapterGrade.blend ?? 0.5);
-      chapterGrade = {
-        lutId: workflowConfig.chapterGrade.lutId,
-        blend: Number.isFinite(blendRaw) ? Math.min(1, Math.max(0, blendRaw)) : 0.5,
-      };
-    }
+    plan.renderSettings = applyWorkflowConfigToRenderSettings(
+      plan.renderSettings,
+      store?.state.workflowConfig as WorkflowConfigProjectionInput | undefined,
+    );
+    const chapterGrade = plan.renderSettings.chapterGrade;
     const shotFx = mergeShotFxEditingEffects(plan.effects, {
       planClips: plan.clips,
       storyboards: chapterStoryboards,
       ...(chapterGrade ? { chapterGrade } : {}),
     });
     plan.effects = shotFx.effects;
-    console.log(`[standalone] shot-fx re-merged: motion ${shotFx.counts.motion}${chapterGrade ? ` | chapterGrade=${chapterGrade.lutId}@${chapterGrade.blend}` : ""}`);
+    console.log(`[standalone] shot-fx re-merged: motion ${shotFx.counts.motion}`
+      + `${chapterGrade ? ` | chapterGrade=${chapterGrade.lutId}@${chapterGrade.blend}` : ""}`
+      + ` | subtitleFont=${plan.renderSettings.subtitleFont ?? "(plan 原值)"}`);
     for (const storyboard of chapterStoryboards) {
       if (typeof storyboard.shotFx?.sfx === "string") {
         sfxCategoryByStoryboardId[storyboard.id] = storyboard.shotFx.sfx;
       }
     }
   } catch (error) {
-    console.warn("studio-workflow store 读取失败（grade/sfx 按队列 plan 原样）:", error instanceof Error ? error.message : error);
+    console.warn("studio-workflow store 读取失败（grade/sfx/font 按队列 plan 原样）:", error instanceof Error ? error.message : error);
   }
 
   const runtimeDir = path.join(USER_DATA, "remotion-runtime");
