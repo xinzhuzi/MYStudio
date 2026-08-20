@@ -319,6 +319,19 @@ export class RemotionRenderQueue {
     if (!decision.allowed) return decision;
     this.activeProjectId = toProjectId;
     this.activeChapterId = undefined;
+    // 08-20 修(ready chapter 永不泵):activateProject 清了 activeChapterId,
+    // hasRunnableJob 要求两者都有——若有同项目 ready chapter,自动对齐 scope
+    // 让 init 的补泵真正可运行(打包版一键成片 enqueue 走 hostedStudio 仅开发版
+    // 可用,应用后无入队触点→ready 条目无人消费)。
+    const readyChapter = [...this.jobs.values()].find((item) =>
+      item.kind === "chapter"
+      && item.job.projectId === toProjectId
+      && item.job.status === "ready");
+    if (readyChapter) {
+      this.activeChapterId = readyChapter.job.target.kind === "chapter"
+        ? readyChapter.job.target.chapterId
+        : undefined;
+    }
     await this.writeSnapshot();
     this.schedulePump();
     return decision;
