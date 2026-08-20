@@ -33,6 +33,7 @@ import { assertBundleMatchesRuntime, type RemotionBundleManifest } from "@render
 import { buildRemotionRuntimeManifest } from "@rendering/plugins/remotion/browser/remotion-runtime-manifest";
 import { RemotionChapterManifestService } from "@rendering/plugins/remotion/manifest/remotion-chapter-manifest-service";
 import { createVideoUseAdapter } from "@rendering/plugins/video-use/video-use-adapter";
+import { ttsModelCacheDir } from "@/electron/storage/model-dirs";
 import { createHyperFramesAdapter } from "@rendering/plugins/hyperframes/hyperframes-adapter";
 import { createDepthAdapter } from "@rendering/plugins/depth/depth-adapter";
 import { createVideoWorkflowChapterService } from "@rendering/plugins/video-workflow/video-workflow-chapter-service";
@@ -466,7 +467,7 @@ export async function runFullPipeline(): Promise<Record<string, unknown>> {
   // The TTS runtime controller uses <storageBase>/model/TTS as its default model cache dir.
   // The video-use adapter sets MANYING_TTS_MODELS_DIR and VOICEBOX_MODELS_DIR from this value.
   // The Whisper model lives at <storageBase>/model/TTS/models--mlx-community--whisper-large-v3-turbo
-  const modelCacheDir = path.join(storageBasePath, "model", "TTS");
+  const modelCacheDir = ttsModelCacheDir(storageBasePath);
 
   const videoUseAdapter = createVideoUseAdapter({
     storageBasePath: () => storageBasePath,
