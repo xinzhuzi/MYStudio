@@ -245,14 +245,14 @@ export function MusicTab(props: { projectId?: string; projectName: string }) {
 
   if (!bridge) {
     return (
-      <section aria-label="音乐生成" className="mx-auto w-full max-w-3xl py-16 text-center">
+      <section aria-label="音乐生成" className="w-full py-16 text-center">
         <p className="text-sm text-muted-foreground">本地音乐生成仅在桌面应用中可用。</p>
       </section>
     );
   }
 
   return (
-    <div className="mx-auto w-full max-w-3xl space-y-8 py-4">
+    <div className="w-full space-y-8">
       {/* 头部:层级化排版(overline → 标题 → 状态胶囊) */}
       <header className="space-y-4">
         <PanelHeader

@@ -12,8 +12,9 @@ export { MusicTab } from "./MusicTab";
  */
 export function MusicPanel() {
   const activeProject = useProjectStore((state) => state.activeProject);
+  // 用户裁定(08-20):内容铺满面板区,四边只留 20px,不做居中窄幅。
   return (
-    <div className="h-full overflow-auto bg-background px-6 py-8">
+    <div className="h-full overflow-auto bg-background p-5">
       <MusicTab projectId={activeProject?.id} projectName={activeProject?.name ?? ""} />
     </div>
   );
