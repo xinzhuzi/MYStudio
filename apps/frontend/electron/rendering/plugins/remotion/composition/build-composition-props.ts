@@ -955,7 +955,8 @@ function deriveSubtitleSfxClips(input: {
     if (!category) continue;
     const asset = subtitleSfxAssetFor(category);
     if (!asset) continue; // 无资产类别（雨/脚步/钟/火）标注跳过
-    const src = input.sfxUrlById[asset];
+    // 注册键=sfx-<name>（各渲染入口统一约定：sfx-<file>.ogg → sfx-<name>）。
+    const src = input.sfxUrlById[asset] ?? input.sfxUrlById[`sfx-${asset}`];
     if (!src) continue;
     const ownerTiming = timingById.get(owner.id);
     if (!ownerTiming) continue;
