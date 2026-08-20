@@ -4,6 +4,7 @@ import path from "node:path";
 import { dialog, ipcMain } from "electron";
 import { createBlessedPathRegistry } from "../security/managed-paths";
 import { getStudioSkillStorageRoot, listStoredStudioSkillFiles } from "./studio-skills-storage";
+import { ttsModelCacheDir } from "./model-dirs";
 
 type StorageConfig = {
   basePath?: string;
@@ -130,7 +131,7 @@ export function createStorageManager({ userDataPath, sessionDataPath = userDataP
     return base;
   };
   const getPythonRuntimeDir = () => path.join(getStorageBasePath(), "python");
-  const getModelCacheDir = () => path.join(getStorageBasePath(), "model", "TTS");
+  const getModelCacheDir = () => ttsModelCacheDir(getStorageBasePath());
   const getCacheDirs = () => [
     path.join(sessionDataPath, "Cache"),
     path.join(sessionDataPath, "Code Cache"),

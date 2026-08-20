@@ -18,10 +18,12 @@ import type {
   TtsRuntimeStatus,
   TtsStorageLayout,
 } from "@/types/tts";
+import { ttsModelCacheDir } from "@/electron/storage/model-dirs";
 
 const DEFAULT_TTS_PORT = LOCAL_TTS_PORT;
 const DEFAULT_TTS_HOST = LOCAL_TTS_HOST;
 const DEFAULT_TTS_REQUEST_TIMEOUT_MS = 180_000;
+const TTS_AUDIO_POOL_MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000;
 const ALIGNMENT_MODEL_NAME = "whisper-large-v3-turbo";
 const DEFAULT_ALIGNMENT_MODEL_POLL_INTERVAL_MS = 1_000;
 const DEFAULT_ALIGNMENT_MODEL_POLL_ATTEMPTS = 1_800;
@@ -558,7 +560,7 @@ export function createTtsRuntimeController(deps: TtsRuntimeControllerDeps): TtsR
   const runtimePythonDir = () => path.join(storageBasePath(), "python");
   const runtimeArchiveDir = () => storageBasePath();
   const configPath = () => path.join(runtimeDataDir(), "config.json");
-  const defaultModelCacheDir = () => path.join(storageBasePath(), "model", "TTS");
+  const defaultModelCacheDir = () => ttsModelCacheDir(storageBasePath());
   let child: SpawnedProcess | null = null;
   let setupState: Pick<TtsRuntimeStatus, "setupStage" | "setupMessage" | "setupProgress"> = {
     setupStage: "idle",
@@ -584,6 +586,23 @@ export function createTtsRuntimeController(deps: TtsRuntimeControllerDeps): TtsR
   const getModelCacheDir = () => {
     const config = readConfig();
     return config.modelCacheDir ? normalizeUserPath(config.modelCacheDir) : defaultModelCacheDir();
+  };
+
+  /** 生成草稿池 GC:<runtime>/audio 下 mtime 超过 30 天的产物在启动时清理。
+   *  配音室「本地制作列表」仅引用新近条目(localStorage 截留 100 条),超龄失链可接受。 */
+  const cleanupAudioGenerationPool = () => {
+    const audioDir = path.join(runtimeDataDir(), "audio");
+    try {
+      if (!fs.existsSync(audioDir)) return;
+      const cutoff = Date.now() - TTS_AUDIO_POOL_MAX_AGE_MS;
+      for (const entry of fs.readdirSync(audioDir, { withFileTypes: true })) {
+        if (!entry.isFile()) continue;
+        const filePath = path.join(audioDir, entry.name);
+        try {
+          if (fs.statSync(filePath).mtimeMs < cutoff) fs.rmSync(filePath, { force: true });
+        } catch { /* 单文件清理失败忽略 */ }
+      }
+    } catch { /* 池清理失败不阻断启动 */ }
   };
 
   /** TTS 后端 catalog 中登记的模型 repo_id 及别名/对齐 tokenizer。
@@ -1149,6 +1168,7 @@ export function createTtsRuntimeController(deps: TtsRuntimeControllerDeps): TtsR
 
     const runtimeDir = runtimeDataDir();
     ensureDir(runtimeDir);
+    cleanupAudioGenerationPool();
     const modelCacheDir = getModelCacheDir();
     const hfHubCacheDir = resolveHfHubCacheDir(modelCacheDir, fileExists);
     ensureDir(modelCacheDir);

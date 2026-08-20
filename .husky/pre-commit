@@ -21,12 +21,12 @@ if [ $? -ne 0 ]; then
     exit 1
 fi
 
-echo "✅ Pre-commit passed: typecheck + lint green"
-exit 0
-
 # design-lint 全仓门禁(apple-hig-design-overhaul 收官护栏:error=0 才放行)
 node build/scripts/design-lint.mjs
 if [ $? -ne 0 ]; then
     echo "❌ Pre-commit failed: design-lint 违规(规范=design-spec.md;裁定豁免走 design-lint-whitelist.json)"
     exit 1
 fi
+
+echo "✅ Pre-commit passed: typecheck + lint + design-lint green"
+exit 0

@@ -83,6 +83,47 @@ describe("TTS runtime controller", () => {
     );
   });
 
+  it("cleans stale files from the generation audio pool on start", async () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), "mystudio-tts-pool-gc-"));
+    const userDataPath = path.join(root, "user-data");
+    const storageBasePath = path.join(root, "storage");
+    const audioDir = path.join(storageBasePath, "TTS", "runtime", "audio");
+    try {
+      fs.mkdirSync(audioDir, { recursive: true });
+      const stalePath = path.join(audioDir, "stale.wav");
+      const freshPath = path.join(audioDir, "fresh.wav");
+      fs.writeFileSync(stalePath, "old");
+      fs.writeFileSync(freshPath, "new");
+      const staleTime = new Date(Date.now() - 40 * 24 * 60 * 60 * 1000);
+      fs.utimesSync(stalePath, staleTime, staleTime);
+
+      const controller = createTtsRuntimeController({
+        appRoot: "/repo",
+        userDataPath,
+        storageBasePath: () => storageBasePath,
+        fileExists: (filePath) => (
+          filePath.includes("tts/main.py")
+          || filePath === path.join(storageBasePath, "python", "bin", "python3")
+        ),
+        ensureDir: vi.fn(),
+        readTextFile: (filePath) => (filePath.endsWith(".deps-hash") ? "ready" : null),
+        writeTextFile: vi.fn(),
+        runPython: mockPython312(),
+        spawnProcess: vi.fn(() => ({ pid: 42, kill: vi.fn() })),
+        fetchJson: vi.fn()
+          .mockRejectedValueOnce(new Error("offline"))
+          .mockResolvedValue({ ok: true }),
+      });
+
+      const result = await controller.start();
+      expect(result.success).toBe(true);
+      expect(fs.existsSync(stalePath)).toBe(false);
+      expect(fs.existsSync(freshPath)).toBe(true);
+    } finally {
+      fs.rmSync(root, { recursive: true, force: true });
+    }
+  });
+
   it("uses the project storage path for the deferred Python runtime", async () => {
     const controller = createTtsRuntimeController({
       appRoot: "/repo",

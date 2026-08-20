@@ -16,6 +16,7 @@ import {
   type VideoWorkflowRuntimePaths,
   type VideoWorkflowRuntimeProbeResult,
 } from "@rendering/plugins/video-workflow/video-workflow-runtime";
+import { ttsModelCacheDir } from "@/electron/storage/model-dirs";
 
 const execFileAsync = promisify(execFile);
 
@@ -142,7 +143,7 @@ export function createVideoUseAdapter(options: VideoUseAdapterOptions) {
     const configured = typeof options.modelCacheDir === "function"
       ? await options.modelCacheDir()
       : options.modelCacheDir;
-    const resolved = (configured ?? path.join(paths.storageBasePath, "model", "TTS")).trim();
+    const resolved = (configured ?? ttsModelCacheDir(paths.storageBasePath)).trim();
     if (!path.isAbsolute(resolved)) throw new Error("TTS 模型缓存路径必须是绝对路径");
     return resolved;
   };
