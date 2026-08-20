@@ -66,8 +66,11 @@ export function projectVideoUseArtifactToEditingProject(input: {
   if (artifact.projectId !== project.projectId || artifact.chapterId !== project.episodeId) {
     return { success: false, issues: [{ path: "identity", message: "video-use artifact 与 EditingProject project/chapter 不一致" }] };
   }
-  if (artifact.revision !== project.revision + 1) {
-    return { success: false, issues: [{ path: "revision", message: "video-use artifact 必须作为 EditingProject 的下一 revision 应用" }] };
+  // 08-20 修(死循环根因之二):旧闸只认精确 N+1,配合预览编号 max() 跳号,
+  // 失败轮次积累后编号永远追不上(r58-r69 十二轮实测)。artifact 自带完整
+  // EDL+槽位(自包含),向前应用语义安全——只拒旧不拒新,一次应用即重对齐。
+  if (artifact.revision <= project.revision) {
+    return { success: false, issues: [{ path: "revision", message: "video-use artifact 已被后续工程修订覆盖(artifact revision 过旧)" }] };
   }
   if (artifact.status !== "accepted" || artifact.stage !== "ready") {
     return { success: false, issues: [{ path: "artifact", message: "仅允许 ready/accepted artifact 投影" }] };
