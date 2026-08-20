@@ -244,9 +244,23 @@ DEFAULT_TEMPLATE_PARAMETERS: dict[str, dict[str, str | int | float | bool]] = {
     "snow-drift": {"count": 10, "speed": 9},
     "aura-pulse": {"intensity": 0.35, "speed": 2.5},
     "sword-flash": {"angle": 24},
+    # 08-18-hy-effects Phase 1 三模板漏补(08-20 修):轮换池有而本表无 →
+    # _template_for_mood 轮换落到这三槽 KeyError,整条 ChapterVideo 链被卡死。
+    # 缺省值与 hyperframes-worker.ts numberParameter 缺省逐项一致。
+    "speed-lines": {"intensity": 0.5, "direction": 0},
+    "shockwave-ring": {"intensity": 0.6, "speed": 1.5},
+    "breathing-light": {"intensity": 0.35, "speed": 3, "hue": 45},
     "seal-glow": {"intensity": 0.3},
     "dust-motes": {"count": 12, "speed": 18},
 }
+
+# 完备性断言(fail-closed,08-20 修):轮换池模板必须都有默认参数,缺键=轮换
+# 落到该槽时 KeyError 卡死整条章节链(前科:speed-lines/shockwave-ring/breathing-light)。
+assert set(HYPERFRAMES_DECORATIVE_TEMPLATES) <= set(DEFAULT_TEMPLATE_PARAMETERS), (
+    "HYPERFRAMES_DECORATIVE_TEMPLATES 轮换池模板缺 DEFAULT_TEMPLATE_PARAMETERS 条目: "
+    + str(sorted(set(HYPERFRAMES_DECORATIVE_TEMPLATES) - set(DEFAULT_TEMPLATE_PARAMETERS)))
+)
+
 
 
 # 08-18-hy-effects Phase 3：转场增强层（hy: overlay 增强）——每个非 cut 边界在
