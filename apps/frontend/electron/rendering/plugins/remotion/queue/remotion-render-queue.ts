@@ -326,7 +326,7 @@ export class RemotionRenderQueue {
     const readyChapter = [...this.jobs.values()].find((item) =>
       item.kind === "chapter"
       && item.job.projectId === toProjectId
-      && item.job.status === "ready");
+      && ["ready", "queued"].includes(item.job.status));
     if (readyChapter) {
       this.activeChapterId = readyChapter.job.target.kind === "chapter"
         ? readyChapter.job.target.chapterId
