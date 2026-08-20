@@ -67,15 +67,29 @@ export function VisualClip(props: CompositionVisualClipProps): React.ReactElemen
   return (
     <AbsoluteFill style={{ ...style, ...(shake ? { left: shake.x, top: shake.y } : {}), ...(filter ? { filter } : {}) }}>
       {useGradeMedia ? (
-        <GLGradeMedia
-          src={props.src}
-          kind={props.kind}
-          trimStartFrames={props.trimStartFrames}
-          playbackRate={props.playbackRate}
-          durationInFrames={props.durationInFrames}
-          lutSrc={props.grade!.lutSrc!}
-          blend={gradeBlend ?? props.grade!.blend}
-        />
+        <>
+          <GLGradeMedia
+            src={props.src}
+            kind={props.kind}
+            trimStartFrames={props.trimStartFrames}
+            playbackRate={props.playbackRate}
+            durationInFrames={props.durationInFrames}
+            lutSrc={props.grade!.lutSrc!}
+            blend={gradeBlend ?? props.grade!.blend}
+          />
+          {/* GLGradeMedia 是 WebGL 画布不带音轨——视频的烧录语音(shot MP4 内
+              TTS)经隐藏 OffthreadVideo 保留,否则调色章节全片丢语音
+              (08-20 修,存量:成片响度 -19dB→-35dB 实测定位)。 */}
+          {props.kind === "video" ? (
+            <OffthreadVideo
+              src={props.src}
+              trimBefore={props.trimStartFrames}
+              playbackRate={props.playbackRate ?? 1}
+              muted={props.muted ?? true}
+              style={HIDDEN_AUDIO_STYLE}
+            />
+          ) : null}
+        </>
       ) : props.kind === "image" ? (
         <Img src={props.src} style={mediaStyle} />
       ) : (
@@ -115,6 +129,15 @@ export function VisualClip(props: CompositionVisualClipProps): React.ReactElemen
     </AbsoluteFill>
   );
 }
+
+// 音轨载体专用:视觉由 GLGradeMedia 承担,此元素只携带音频(不可见)。
+const HIDDEN_AUDIO_STYLE: React.CSSProperties = {
+  position: "absolute",
+  width: 1,
+  height: 1,
+  opacity: 0,
+  pointerEvents: "none",
+};
 
 // Fill the composition frame while preserving the source aspect ratio.
 const COVER_STYLE: React.CSSProperties = {

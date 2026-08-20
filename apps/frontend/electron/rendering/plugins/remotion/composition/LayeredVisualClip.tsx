@@ -83,15 +83,26 @@ function StackedLayersClip(props: Required<Pick<LayeredVisualClipProps, "layerSt
     <AbsoluteFill>
       {baseSrc ? (
         props.grade?.lutSrc && isRendering ? (
-          <GLGradeMedia
-            src={baseSrc}
-            kind={props.baseKind ?? "image"}
-            trimStartFrames={props.trimStartFrames}
-            playbackRate={props.playbackRate}
-            durationInFrames={props.durationInFrames}
-            lutSrc={props.grade.lutSrc}
-            blend={gradeBlend ?? props.grade.blend}
-          />
+          <>
+            <GLGradeMedia
+              src={baseSrc}
+              kind={props.baseKind ?? "image"}
+              trimStartFrames={props.trimStartFrames}
+              playbackRate={props.playbackRate}
+              durationInFrames={props.durationInFrames}
+              lutSrc={props.grade.lutSrc}
+              blend={gradeBlend ?? props.grade.blend}
+            />
+            {props.baseKind === "video" ? (
+              <OffthreadVideo
+                src={baseSrc}
+                trimBefore={props.trimStartFrames}
+                playbackRate={props.playbackRate ?? 1}
+                muted={props.muted ?? true}
+                style={HIDDEN_AUDIO_STYLE}
+              />
+            ) : null}
+          </>
         ) : props.baseKind === "video" ? (
           <OffthreadVideo
             src={baseSrc}
@@ -238,6 +249,15 @@ function layerStyle(
     top: `${offsetY * 100}%`,
   };
 }
+
+// 音轨载体专用:视觉由 GLGradeMedia 承担,此元素只携带音频(不可见)。
+const HIDDEN_AUDIO_STYLE: React.CSSProperties = {
+  position: "absolute",
+  width: 1,
+  height: 1,
+  opacity: 0,
+  pointerEvents: "none",
+};
 
 const COVER_STYLE: React.CSSProperties = {
   width: "100%",
