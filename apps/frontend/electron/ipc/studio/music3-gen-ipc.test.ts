@@ -77,6 +77,14 @@ describe("music3-gen IPC · 项目音乐目录哨兵(08-19 工作台音乐生成
     expect(state.controller.generateMusic3).not.toHaveBeenCalled();
   });
 
+  it("lyrics 透传:控制器收到歌词(超长截断 8000)", async () => {
+    await call("music3-gen-runtime-generate", { prompt: "国风", lyrics: "[Verse]\n长夜未央", outputDir: "__APP_EXPORTS__" });
+    expect(state.controller.generateMusic3).toHaveBeenCalledWith(expect.objectContaining({ lyrics: "[Verse]\n长夜未央" }));
+    const long = "x".repeat(9000);
+    await call("music3-gen-runtime-generate", { prompt: "国风", lyrics: long, outputDir: "__APP_EXPORTS__" });
+    expect(state.controller.generateMusic3).toHaveBeenCalledWith(expect.objectContaining({ lyrics: "x".repeat(8000) }));
+  });
+
   it("__APP_EXPORTS__ 哨兵行为不回归(仍解析导出目录)", async () => {
     await call("music3-gen-runtime-generate", { prompt: "测试", outputDir: "__APP_EXPORTS__" });
     expect(state.controller.generateMusic3).toHaveBeenCalledWith(

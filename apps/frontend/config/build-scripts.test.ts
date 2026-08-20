@@ -71,6 +71,15 @@ function runNodeHelper(payload: unknown): Promise<{ status: number | null; stdou
 }
 
 describe("desktop build scripts", () => {
+  it("keeps the standalone HyperFrames renderer behind an explicit handshake and makes help side-effect free", () => {
+    const source = readBuildFile("build/scripts/render-hy-overlay.ts");
+
+    expect(source).toContain('process.env.MYSTUDIO_RENDER_HY_OVERLAY === "1"');
+    expect(source).toContain('process.argv.includes("--help")');
+    expect(source.indexOf('process.argv.includes("--help")'))
+      .toBeLessThan(source.lastIndexOf("main();"));
+  });
+
   it("does not treat an inactive hidden production canvas as the active storyboard stage", () => {
     const source = readBuildFile("build/smoke/measure-workflow-zoom-performance.mjs");
     const stageNavigation = source.slice(

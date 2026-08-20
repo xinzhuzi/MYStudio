@@ -856,7 +856,7 @@ contextBridge.exposeInMainWorld('music3GenRuntime', {
     ipcRenderer.invoke('music3-gen-install-weights'),
   musicDir: (projectId: string): Promise<{ dir?: string; error?: string }> =>
     ipcRenderer.invoke('music3-gen-music-dir', { projectId }),
-  generate: (payload: { prompt: string; seed?: number; seconds?: number; steps?: number; engine?: 'pocket' | 'mlxserv'; outputDir: string; projectId?: string }): Promise<unknown> =>
+  generate: (payload: { prompt: string; lyrics?: string; seed?: number; seconds?: number; steps?: number; engine?: 'pocket' | 'mlxserv'; outputDir: string; projectId?: string }): Promise<unknown> =>
     ipcRenderer.invoke('music3-gen-runtime-generate', payload),
 })
 

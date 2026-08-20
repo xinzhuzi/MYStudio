@@ -139,6 +139,41 @@ describe("video workflow persisted child contracts", () => {
     expect(validateHyperFramesOverlayArtifact(artifact).success).toBe(false);
   });
 
+  it("rejects placeholder provenance hashes before HyperFrames rendering or acceptance", () => {
+    const request = {
+      schemaVersion: 1,
+      projectId: "project-1",
+      chapterId: "chapter-1",
+      revision: 1,
+      sourceArtifactSha256: "0".repeat(64),
+      inputSha256: "0".repeat(64),
+      width: 640,
+      height: 360,
+      fps: 30,
+      alphaFormat: "prores-4444-mov",
+      outputPath: "/tmp/overlay.mov",
+      windows: [validOverlayWindow()],
+    };
+    const artifact = {
+      schemaVersion: 1,
+      projectId: "project-1",
+      chapterId: "chapter-1",
+      revision: 1,
+      status: "accepted",
+      sourceArtifactSha256: "0".repeat(64),
+      inputSha256: "0".repeat(64),
+      alphaFormat: "prores-4444-mov",
+      outputPath: "/tmp/overlay.mov",
+      outputSha256: hash,
+      windows: [validOverlayWindow()],
+      toolVersion: "hyperframes@test",
+      generatedAt: 1,
+    };
+
+    expect(validateHyperFramesOverlayRequest(request).success).toBe(false);
+    expect(validateHyperFramesOverlayArtifact(artifact).success).toBe(false);
+  });
+
   it("rejects PNG sequence before HyperFrames can create an artifact", () => {
     const request = {
       schemaVersion: 1,
@@ -225,6 +260,18 @@ describe("video-use EDL transitionToNext validation", () => {
   it("accepts a legal crossfade transition with style word provenance", () => {
     const result = validateVideoUseChapterArtifact(artifactWithTransition({ effectId: "crossfade", durationUs: 600_000, styleWord: "水墨晕染" }));
     expect(result.success).toBe(true);
+  });
+
+  it("accepts registered GL transitions and rejects unknown GL identifiers", () => {
+    expect(validateVideoUseChapterArtifact(artifactWithTransition({
+      effectId: "gl:swap",
+      durationUs: 600_000,
+      styleWord: "水墨晕染",
+    })).success).toBe(true);
+    expect(validateVideoUseChapterArtifact(artifactWithTransition({
+      effectId: "gl:NotInRegistry",
+      durationUs: 600_000,
+    })).success).toBe(false);
   });
 
   it("accepts a slow ink-wash crossfade at 1s (tuned ceiling 1.2s)", () => {

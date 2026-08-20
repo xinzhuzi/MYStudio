@@ -63,6 +63,7 @@ import {
 } from "@/lib/studio/remotion/remotion-current-slot";
 import { sha256CanonicalJson, sha256Text } from "@/lib/studio/remotion/canonical-json";
 import { validateEditingProject, validateTimelineRenderPlan } from "@/lib/studio/editing/validation";
+import { resolveStoreFilePathAny } from "@/electron/storage/project-store-layout";
 import {
   deriveStorageRoots,
   resolveTimelineSourcePath,
@@ -92,8 +93,17 @@ const appsRoot = path.resolve(new URL("../..", import.meta.url).pathname);
 function resolveDataFilePath(dataRoot: string, relativePath: string): string {
   const [pid, ...rest] = relativePath.split("/");
   const registered = registeredProjectDir(pid);
-  if (registered) return path.join(registered, ...rest);
+  if (registered) {
+    if (rest.length === 1 && rest[0] === "editing") {
+      return resolveFullPipelineEditingStorePath(registered);
+    }
+    return path.join(registered, ...rest);
+  }
   return path.join(dataRoot, "_p", ...relativePath.split("/"));
+}
+
+export function resolveFullPipelineEditingStorePath(projectRoot: string): string {
+  return resolveStoreFilePathAny(projectRoot, ["editing.json"]);
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

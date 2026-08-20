@@ -14,6 +14,7 @@ import { parseProjectFileUrl } from "@/electron/storage/storage-paths";
 import {
   validateHyperFramesOverlayArtifact,
   validateVideoUseChapterArtifact,
+  type HyperFramesOverlayWindowV1,
   type RemotionChapterGateInputV1,
   type RemotionChapterGateResult,
 } from "@rendering/contracts/video-workflow";
@@ -37,6 +38,19 @@ const execFileAsync = promisify(execFile);
 const PROJECT_ID = "49dce4c1-64b1-42de-85c2-9f266698aec4";
 const CHAPTER_ID = "chapter-001";
 const EXPECTED_VISUAL_COUNT = 43;
+
+export interface FormalHyperFramesProbe {
+  raw: unknown;
+  duration: number;
+  videoStreamCount: number;
+  audioStreamCount: number;
+  subtitleStreamCount: number;
+  videoCodec?: string;
+  videoPixelFormat?: string;
+  width?: number;
+  height?: number;
+  fps: number;
+}
 
 type ElectronMainModule = typeof import("electron");
 type FormalElectronMain = Pick<ElectronMainModule, "app" | "utilityProcess">;
@@ -148,6 +162,49 @@ export function resolveFormalTimelinePlanPath(input: {
   return explicitPlanPath
     ? path.resolve(explicitPlanPath)
     : path.join(input.sourceRunDir, "timeline-render-plan.json");
+}
+
+export function expectedHyperFramesDurationSeconds(
+  windows: readonly Pick<HyperFramesOverlayWindowV1, "startUs" | "durationUs">[],
+): number {
+  if (windows.length === 0) throw new Error("accepted HyperFrames artifact has no overlay windows");
+  const durationUs = Math.max(...windows.map((window) => window.startUs + window.durationUs));
+  if (!Number.isFinite(durationUs) || durationUs <= 0) {
+    throw new Error("accepted HyperFrames overlay timeline duration is invalid");
+  }
+  return durationUs / 1_000_000;
+}
+
+export function assertFormalHyperFramesProbe(
+  probe: FormalHyperFramesProbe,
+  expected: { expectedFps: number; expectedDurationSeconds: number },
+): void {
+  if (probe.videoStreamCount !== 1 || probe.audioStreamCount !== 0 || probe.subtitleStreamCount !== 0) {
+    throw new Error(
+      `HyperFrames stream count mismatch: video=${probe.videoStreamCount} audio=${probe.audioStreamCount} subtitle=${probe.subtitleStreamCount}`,
+    );
+  }
+  if (probe.videoCodec !== "prores") {
+    throw new Error(`HyperFrames codec mismatch: ${probe.videoCodec ?? "missing"}`);
+  }
+  if (probe.videoPixelFormat !== "yuva444p12le") {
+    throw new Error(`HyperFrames pixel format mismatch: ${probe.videoPixelFormat ?? "missing"}`);
+  }
+  if (probe.width !== 1920 || probe.height !== 1080) {
+    throw new Error(`HyperFrames dimensions mismatch: ${probe.width ?? "?"}x${probe.height ?? "?"}`);
+  }
+  if (!Number.isFinite(expected.expectedFps) || expected.expectedFps <= 0
+    || !Number.isFinite(probe.fps) || Math.abs(probe.fps - expected.expectedFps) > 0.001) {
+    throw new Error(`HyperFrames fps mismatch: ${probe.fps} expected ${expected.expectedFps}`);
+  }
+  const frameToleranceSeconds = 1 / expected.expectedFps;
+  if (!Number.isFinite(expected.expectedDurationSeconds) || expected.expectedDurationSeconds <= 0
+    || !Number.isFinite(probe.duration)
+    || Math.abs(probe.duration - expected.expectedDurationSeconds) > frameToleranceSeconds + 1e-6) {
+    throw new Error(
+      `HyperFrames duration mismatch: ${probe.duration}s expected ${expected.expectedDurationSeconds}s within one frame`,
+    );
+  }
 }
 
 export async function runAcceptedFormalRenderer(): Promise<void> {
@@ -295,6 +352,10 @@ export async function runAcceptedFormalRenderer(): Promise<void> {
       expectedVisualCount: EXPECTED_VISUAL_COUNT,
       productionRemotionRoot,
     });
+    const hyperFramesProbeExpectation = {
+      expectedFps: projectedPlan.renderSettings.fps,
+      expectedDurationSeconds: expectedHyperFramesDurationSeconds(hyperFramesValidation.value.windows),
+    };
 
     const chapterManifestService = new RemotionChapterManifestService({
       projectRootForProject: (projectId) => checkedProjectRoot(projectId, productionProjectRoot),
@@ -351,6 +412,7 @@ export async function runAcceptedFormalRenderer(): Promise<void> {
     await probeHyperFrames(
       hyperFramesOutputPath,
       process.env.MYSTUDIO_FFPROBE_PATH ?? "ffprobe",
+      hyperFramesProbeExpectation,
     );
     const hyperFramesDiskSha256Before = await hashFileSha256(hyperFramesOutputPath);
     if (hyperFramesDiskSha256Before !== hyperFramesValidation.value.outputSha256) {
@@ -473,6 +535,7 @@ export async function runAcceptedFormalRenderer(): Promise<void> {
     const hyperFramesProbe = await probeHyperFrames(
       hyperFramesOutputPath,
       process.env.MYSTUDIO_FFPROBE_PATH ?? "ffprobe",
+      hyperFramesProbeExpectation,
     );
     const hyperFramesDiskSha256 = await hashFileSha256(hyperFramesOutputPath);
     if (hyperFramesDiskSha256 !== hyperFramesDiskSha256Before
@@ -668,20 +731,50 @@ async function resolveAcceptedHyperFramesOutputPath(
   throw new Error(`accepted HyperFrames output is missing: ${candidates.join(" or ")}`);
 }
 
-async function probeHyperFrames(filePath: string, ffprobeExecutable: string): Promise<unknown> {
+async function probeHyperFrames(
+  filePath: string,
+  ffprobeExecutable: string,
+  expected: { expectedFps: number; expectedDurationSeconds: number },
+): Promise<FormalHyperFramesProbe> {
   const { stdout } = await execFileAsync(ffprobeExecutable, [
-    "-v", "error", "-show_entries", "format=duration:stream=codec_type,codec_name,profile,pix_fmt,width,height",
+    "-v", "error", "-show_entries", "format=duration:stream=codec_type,codec_name,pix_fmt,width,height,r_frame_rate",
     "-of", "json", filePath,
   ], { encoding: "utf8", maxBuffer: 4 * 1024 * 1024 });
   const parsed = JSON.parse(stdout || "{}") as {
-    streams?: Array<{ codec_type?: string; codec_name?: string; profile?: string; pix_fmt?: string; width?: number; height?: number }>;
+    streams?: Array<{
+      codec_type?: string;
+      codec_name?: string;
+      pix_fmt?: string;
+      width?: number;
+      height?: number;
+      r_frame_rate?: string;
+    }>;
+    format?: { duration?: string };
   };
-  const video = parsed.streams?.find((stream) => stream.codec_type === "video");
-  if (!video || video.codec_name !== "prores" || video.pix_fmt !== "yuva444p12le"
-    || video.width !== 1920 || video.height !== 1080) {
-    throw new Error("HyperFrames alpha probe mismatch");
-  }
-  return parsed;
+  const streams = parsed.streams ?? [];
+  const videoStreams = streams.filter((stream) => stream.codec_type === "video");
+  const video = videoStreams[0];
+  const probe: FormalHyperFramesProbe = {
+    raw: parsed,
+    duration: Number(parsed.format?.duration),
+    videoStreamCount: videoStreams.length,
+    audioStreamCount: streams.filter((stream) => stream.codec_type === "audio").length,
+    subtitleStreamCount: streams.filter((stream) => stream.codec_type === "subtitle").length,
+    videoCodec: video?.codec_name,
+    videoPixelFormat: video?.pix_fmt,
+    width: video?.width,
+    height: video?.height,
+    fps: parseFrameRate(video?.r_frame_rate),
+  };
+  assertFormalHyperFramesProbe(probe, expected);
+  return probe;
+}
+
+function parseFrameRate(value: string | undefined): number {
+  const [numerator, denominator] = (value ?? "").split("/").map(Number);
+  return Number.isFinite(numerator) && Number.isFinite(denominator) && denominator !== 0
+    ? numerator / denominator
+    : Number.NaN;
 }
 
 async function collisionInventory(files: readonly string[]): Promise<Record<string, FormalFileIdentity>> {

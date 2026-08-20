@@ -1,0 +1,11 @@
+# 配方:国风·烟雨行舟系(实证 199.8s 一发命中)
+
+> 出处:《道劫》片头曲《劫火燃天·终品》(seed7);skill 流程 Foundation=c-pop-chinese-traditional-fusion_0001 + Arrangement 卡合成。
+> 参数化:{{BRIEF}}=用户一句话意图;{{INTERLUDE}}/{{OUTRO}}=器乐填充指令(由 music-caption.ts 按词量与目标时长计算注入;无人声歌词的 BGM 模式下 Vocal Details 段整体替换为器乐声明)。
+
+Global Metadata
+C-Pop / Guofeng (traditional Chinese style) pop, mid-tempo around 78-84 BPM, minor tonality, flowing like a boat drifting through misted rain. User intent: {{BRIEF}} Emotional progression: serene ink-wash stillness, restrained melancholy verses, soaring yet elegant choruses, and a fragile luminous hope at the close. Production: wide airy soundstage, polished studio quality, acoustic traditional instruments placed distinctly against a modern backdrop, vocals prominent and clear in the mix.
+Vocal Details
+Solo female lead: clear, crystalline soprano with a slight breathiness, smooth and controlled, ethereal yet intimate. Verses use a soft narrative delivery with gentle vibrato; choruses open into a soaring legato line with light layered self-harmonies in parallel thirds that widen the sound without aggressive belting; the final outro is hushed and near-whispered. Natural voice purity, tasteful hall reverb with subtle delay tails.
+Arrangement
+Intro: a solo Dizi (bamboo flute) states the main motif with a breathy, expressive tone over low sustained strings and a soft pad; Guzheng arpeggios shimmer underneath. Verse 1: the lead enters over arpeggiated keys and Guzheng; no drums yet, only light Chinese percussion marking phrases. Pre-chorus verse: strings swell gently; a distant Xiao flute answers the vocal lines. Chorus 1: a soft cinematic kit enters (deep kick, airy snare) with light Pipa strumming and layered self-harmonies; the Dizi doubles the melody an octave above. Verse 2: the groove recedes into a Guzheng-and-Pipa conversation over string pads. Chorus 2: fuller texture with shaker and a cymbal swell.{{INTERLUDE}} Bridge: hushed, near-whisper vocal over sparse arpeggios, low strings and wind chimes. Reprise verse: the theme returns with quiet urgency as percussion rebuilds. Final triple Chorus: each pass adds one layer, first harmonies, then full strings and kit, then a Dizi countermelody soaring above. Outro: everything falls away except a solo Guzheng{{OUTRO}} playing a descending glissando figure, receding into silence like ripples fading on water.

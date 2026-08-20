@@ -1,4 +1,5 @@
 import type { EditingTransition, SubtitleAuthority, TimelineTimeUs } from "@/types/editing";
+import { COMPOSITION_TRANSITION_EFFECTS } from "@rendering/plugins/remotion/composition/timing";
 
 export const VIDEO_WORKFLOW_SCHEMA_VERSION = 1 as const;
 export const VIDEO_WORKFLOW_TIME_UNIT = "seconds" as const;
@@ -395,6 +396,10 @@ function isSha256(value: unknown): value is string {
   return typeof value === "string" && /^[a-f0-9]{64}$/.test(value);
 }
 
+function isNonPlaceholderSha256(value: unknown): value is string {
+  return isSha256(value) && value !== "0".repeat(64);
+}
+
 function isFiniteNonNegative(value: unknown): value is number {
   return typeof value === "number" && Number.isFinite(value) && value >= 0;
 }
@@ -547,7 +552,9 @@ function validateOverlayWindow(value: unknown, path: string, issues: VideoWorkfl
   return true;
 }
 
-const TRANSITION_EFFECT_IDS = new Set(["cut", "fade", "crossfade", "flash", "blackout"]);
+export const VIDEO_WORKFLOW_TRANSITION_EFFECT_IDS: ReadonlySet<string> = new Set(
+  COMPOSITION_TRANSITION_EFFECTS,
+);
 const TRANSITION_MIN_US = 200_000;
 const TRANSITION_MAX_US = 1_200_000;
 
@@ -563,7 +570,7 @@ function validateTransitionToNext(
     issues.push(issue(`${path}.transitionToNext`, "必须是对象"));
     return;
   }
-  if (typeof transition.effectId !== "string" || !TRANSITION_EFFECT_IDS.has(transition.effectId)) {
+  if (typeof transition.effectId !== "string" || !VIDEO_WORKFLOW_TRANSITION_EFFECT_IDS.has(transition.effectId)) {
     issues.push(issue(`${path}.transitionToNext.effectId`, "必须是内置转场类型"));
     return;
   }
@@ -731,7 +738,7 @@ export function validateHyperFramesOverlayRequest(value: unknown): VideoWorkflow
   if (!isRecord(value)) return { success: false, issues: [issue("$", "必须是对象")] };
   if (value.schemaVersion !== VIDEO_WORKFLOW_SCHEMA_VERSION) issues.push(issue("$.schemaVersion", "不支持的 schemaVersion"));
   validateIdentity(value, "$", issues);
-  if (!isSha256(value.sourceArtifactSha256) || !isSha256(value.inputSha256)) issues.push(issue("$.sourceArtifactSha256/inputSha256", "必须是 SHA-256"));
+  if (!isNonPlaceholderSha256(value.sourceArtifactSha256) || !isNonPlaceholderSha256(value.inputSha256)) issues.push(issue("$.sourceArtifactSha256/inputSha256", "必须是真实非零 SHA-256"));
   if (!isPositiveInteger(value.width) || !isPositiveInteger(value.height)) issues.push(issue("$.width/height", "必须是正整数"));
   if (typeof value.fps !== "number" || !Number.isFinite(value.fps) || value.fps <= 0) issues.push(issue("$.fps", "必须是正数"));
   if (!ALPHA_FORMATS.includes(value.alphaFormat as HyperFramesAlphaFormat)) issues.push(issue("$.alphaFormat", "透明格式无效"));
@@ -751,7 +758,7 @@ export function validateHyperFramesOverlayArtifact(value: unknown): VideoWorkflo
   if (value.schemaVersion !== VIDEO_WORKFLOW_SCHEMA_VERSION) issues.push(issue("$.schemaVersion", "不支持的 schemaVersion"));
   validateIdentity(value, "$", issues);
   if (!(["accepted", "noop", "blocked"] as const).includes(value.status as HyperFramesArtifactStatus)) issues.push(issue("$.status", "状态无效"));
-  if (!isSha256(value.sourceArtifactSha256) || !isSha256(value.inputSha256)) issues.push(issue("$.sourceArtifactSha256/inputSha256", "必须是 SHA-256"));
+  if (!isNonPlaceholderSha256(value.sourceArtifactSha256) || !isNonPlaceholderSha256(value.inputSha256)) issues.push(issue("$.sourceArtifactSha256/inputSha256", "必须是真实非零 SHA-256"));
   if (!ALPHA_FORMATS.includes(value.alphaFormat as HyperFramesAlphaFormat)) issues.push(issue("$.alphaFormat", "透明格式无效"));
   else if (!SUPPORTED_ALPHA_FORMATS.includes(value.alphaFormat as HyperFramesAlphaFormat)) issues.push(issue("$.alphaFormat", "png-sequence 暂不支持，不能进入 accepted/no-op artifact"));
   if (!Array.isArray(value.windows)) issues.push(issue("$.windows", "必须是数组"));

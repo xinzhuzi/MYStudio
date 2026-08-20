@@ -1,7 +1,7 @@
 /**
  * HY overlay 独立渲染——完全自包含（不 import worker 模块,避免 Electron guard 干扰）。
  * 直接用 HY CLI + Chromium headless shell,每段渲 mov 后 ffmpeg 拼接 ProRes 4444。
- * 运行: cd apps && npx vite-node --config build/timeline/vite-node.config.ts build/scripts/render-hy-overlay.ts
+ * 运行: cd apps && MYSTUDIO_RENDER_HY_OVERLAY=1 npx vite-node --config build/timeline/vite-node.config.ts build/scripts/render-hy-overlay.ts
  */
 import fs from "node:fs";
 import path from "node:path";
@@ -248,4 +248,8 @@ function main() {
   }, null, 2), "utf8");
   console.log(`✅ overlay 渲成: ${OVERLAY_MOV} (${(stat.size / 1e6).toFixed(1)}MB, windows=${windows.length} 已写回 artifact)`);
 }
-main();
+if (process.argv.includes("--help")) {
+  console.log("MYSTUDIO_RENDER_HY_OVERLAY=1 vite-node --config build/timeline/vite-node.config.ts build/scripts/render-hy-overlay.ts");
+} else if (process.env.MYSTUDIO_RENDER_HY_OVERLAY === "1") {
+  main();
+}

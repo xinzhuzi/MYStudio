@@ -70,6 +70,13 @@ extraResources:
     filter:
       - "**/*.ogg"
       - LICENSES.md
+  # MiniMax-Music3 音乐生成技能资产（08-20;caption 技能全文库 SKILL/references/templates
+  # + lessons + 实证配方;渲染层配方经 ?raw 进 asar,此处整库供主进程/未来 LLM 代理路径）。
+  - from: frontend/assets/minimax
+    to: minimax
+    filter:
+      - "**/*"
+      - "!**/.DS_Store"
       - "!story_skills/Daojie_xianxia/**"
       - "!**/.DS_Store"
       - "!**/__MACOSX/**"

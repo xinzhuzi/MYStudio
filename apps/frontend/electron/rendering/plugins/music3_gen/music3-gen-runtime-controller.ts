@@ -594,6 +594,7 @@ export function createMusic3GenRuntimeController(deps: ControllerDeps) {
 
   async function generateViaMlxServ(input: {
     prompt: string;
+    lyrics?: string;
     seed?: number;
     seconds?: number;
     steps?: number;
@@ -619,7 +620,7 @@ export function createMusic3GenRuntimeController(deps: ControllerDeps) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           prompt: input.prompt,
-          lyrics: "[Instrumental]",
+          lyrics: input.lyrics?.trim() || "[Instrumental]",
           duration_seconds: seconds,
           steps,
           seed,
@@ -789,6 +790,7 @@ export function createMusic3GenRuntimeController(deps: ControllerDeps) {
 
   async function generateMusic3(input: {
     prompt: string;
+    lyrics?: string;
     seed?: number;
     seconds?: number;
     steps?: number;
@@ -796,11 +798,28 @@ export function createMusic3GenRuntimeController(deps: ControllerDeps) {
     engine?: "pocket" | "mlxserv";
   }): Promise<Music3GenGenerateResult> {
     // 引擎选路:显式参数 > 首选配置;mlx-serve 路线权重不就绪时回退 pocket 并说明。
+    // 防静默降级(08-20):带人声歌词的请求只有 mlx-serve(bf16)能兑现,
+    // 权重不就绪/选了 pocket 时直接阻断——绝不静默给用户一首伴奏。
     const requested = input.engine ?? mlxServ.preferredEngine;
+    const vocalLyrics = input.lyrics?.trim() && input.lyrics.trim() !== "[Instrumental]";
+    if (vocalLyrics && requested !== "mlxserv") {
+      return {
+        status: "blocked",
+        code: "lyrics-requires-mlxserv",
+        message: "带人声歌词的生成必须走 mlx-serve(bf16)路线;请在设置 → 本地音乐生成 将首选引擎切到「指向版」(或获取权重)",
+      };
+    }
     if (requested === "mlxserv") {
       const weights = checkWeightsDir(mlxServ.weightsDir);
       if (weights.ready) {
         return generateViaMlxServ(input);
+      }
+      if (vocalLyrics) {
+        return {
+          status: "blocked",
+          code: "lyrics-requires-mlxserv",
+          message: `带人声歌词的生成必须走 mlx-serve(bf16),当前权重未就绪(${weights.reason});不会静默降级为纯伴奏`,
+        };
       }
       const fallback = await generateViaPocket(input);
       return {

@@ -428,3 +428,65 @@ describe("mlxserv bf16 权重获取(installMlxServWeights)", () => {
     expect(controller.status().mlxServWeightsInstall).toMatchObject({ status: "error", error: "网络中断" });
   });
 });
+
+describe("歌词人声链路(lyrics 透传+防静默降级)", () => {
+  function makeWeightsDir(): string {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "mlxserv-lyrics-"));
+    for (const name of ["language_model.safetensors", "rvq_depth_decoder.safetensors", "transformer.safetensors", "condition_encoder.safetensors", "vocoder.safetensors"]) {
+      fs.writeFileSync(path.join(dir, name), "x");
+    }
+    fs.mkdirSync(path.join(dir, "tokenizer"));
+    fs.mkdirSync(path.join(dir, "music_tokenizer"));
+    return dir;
+  }
+  const wav = (() => {
+    const bytes = Buffer.alloc(52);
+    bytes.write("RIFF", 0); bytes.write("WAVE", 8);
+    bytes.write("fmt ", 12); bytes.writeUInt32LE(16, 16); bytes.writeUInt16LE(1, 20);
+    bytes.writeUInt16LE(2, 20 + 2); bytes.writeUInt32LE(44100, 20 + 4);
+    bytes.write("data", 36); bytes.writeUInt32LE(4, 40);
+    return bytes;
+  })();
+
+  it("带词生成:请求体携带歌词(默认回退 [Instrumental] 不回归)", async () => {
+    const bodies: unknown[] = [];
+    const weightsDir = makeWeightsDir();
+    const fakeBinary = path.join(storageRoot, "fake-mlx-serve-lyrics");
+    fs.writeFileSync(fakeBinary, "#!/bin/sh\n");
+    const controller = createMusic3GenRuntimeController({
+      storageBasePath: storageRoot,
+      backendRoot,
+      execFileFn: async () => ({ stdout: probePayload() }),
+      binaryCandidates: [],
+      fetchFn: (async (_url: unknown, init?: { body?: string }) => {
+        if (typeof init?.body === "string") bodies.push(JSON.parse(init.body));
+        return new Response(wav, { status: 200 });
+      }) as unknown as typeof fetch,
+    });
+    controller.configureMlxServ({ weightsDir, binaryPath: fakeBinary });
+    const outDir = fs.mkdtempSync(path.join(os.tmpdir(), "music3-lyrics-out-"));
+    const vocal = await controller.generateMusic3({ prompt: "国风", lyrics: "[Verse]\n长夜未央", seed: 7, seconds: 10, engine: "mlxserv", outputDir: outDir });
+    expect(vocal.status).toBe("accepted");
+    expect(bodies.at(-1)).toMatchObject({ lyrics: "[Verse]\n长夜未央" });
+    const bgm = await controller.generateMusic3({ prompt: "国风", seed: 7, seconds: 10, engine: "mlxserv", outputDir: outDir });
+    expect(bgm.status).toBe("accepted");
+    expect(bodies.at(-1)).toMatchObject({ lyrics: "[Instrumental]" });
+    fs.rmSync(weightsDir, { recursive: true, force: true });
+    fs.rmSync(outDir, { recursive: true, force: true });
+  });
+
+  it("防静默降级:带词但权重未就绪/选了 pocket → 阻断,绝不偷给伴奏", async () => {
+    const spawns: string[][] = [];
+    const controller = createMusic3GenRuntimeController({
+      storageBasePath: storageRoot,
+      backendRoot,
+      execFileFn: async () => ({ stdout: probePayload() }),
+      spawnProcess: ((_file: string, args: string[]) => { spawns.push(args); return { on: () => ({}) } as unknown as ReturnType<typeof import("node:child_process").spawn>; }) as unknown as Parameters<typeof createMusic3GenRuntimeController>[0]["spawnProcess"],
+    });
+    const blocked = await controller.generateMusic3({ prompt: "国风", lyrics: "[Verse]\n长夜未央", engine: "mlxserv", outputDir: "/tmp" });
+    expect(blocked).toMatchObject({ status: "blocked", code: "lyrics-requires-mlxserv" });
+    const pocketBlocked = await controller.generateMusic3({ prompt: "国风", lyrics: "[Verse]\n长夜未央", engine: "pocket", outputDir: "/tmp" });
+    expect(pocketBlocked).toMatchObject({ code: "lyrics-requires-mlxserv" });
+    expect(spawns).toHaveLength(0); // pocket worker 也未被拉起
+  });
+});

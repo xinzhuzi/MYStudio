@@ -23,7 +23,9 @@ vi.mock("electron", () => ({
 }));
 
 import {
+  assertFormalHyperFramesProbe,
   assertFormalSlotSourceInventory,
+  expectedHyperFramesDurationSeconds,
   finishFormalRenderer,
   hashFormalRawFileSha256,
   runAcceptedFormalRenderer,
@@ -36,6 +38,25 @@ import {
   resolveFormalSlotSourceRoot,
   resolveFormalTimelinePlanPath,
 } from "./render-accepted-full-pipeline";
+import { resolveFullPipelineEditingStorePath } from "./run-full-pipeline";
+
+function makeHyperFramesProbe(
+  overrides: Partial<Parameters<typeof assertFormalHyperFramesProbe>[0]> = {},
+): Parameters<typeof assertFormalHyperFramesProbe>[0] {
+  return {
+    raw: {},
+    duration: 10,
+    videoStreamCount: 1,
+    audioStreamCount: 0,
+    subtitleStreamCount: 0,
+    videoCodec: "prores",
+    videoPixelFormat: "yuva444p12le",
+    width: 1920,
+    height: 1080,
+    fps: 30,
+    ...overrides,
+  };
+}
 
 function makePlan(visualCount = 43, textCount = 0): TimelineRenderPlan {
   return {
@@ -147,6 +168,11 @@ describe("invokeFormalChapterRenderer", () => {
 });
 
 describe("formal installed runtime lifecycle", () => {
+  it("resolves the full-pipeline EditingProject through the migrated store layout", () => {
+    expect(resolveFullPipelineEditingStorePath("/external/MA"))
+      .toBe("/external/MA/store/editing.json");
+  });
+
   it("prefers an explicit or registered external project root before the legacy bucket", () => {
     const base = {
       productUserData: "/user-data",
@@ -280,6 +306,40 @@ describe("formal installed runtime lifecycle", () => {
     } finally {
       fs.rmSync(root, { recursive: true, force: true });
     }
+  });
+});
+
+describe("formal HyperFrames media gate", () => {
+  const expected = { expectedFps: 30, expectedDurationSeconds: 10 };
+
+  it("accepts one alpha ProRes video stream with no audio or subtitles within one frame", () => {
+    expect(() => assertFormalHyperFramesProbe(
+      makeHyperFramesProbe({ duration: 10 + (1 / 30) }),
+      expected,
+    )).not.toThrow();
+  });
+
+  it("derives accepted overlay duration from the latest window end", () => {
+    expect(expectedHyperFramesDurationSeconds([
+      { startUs: 2_000_000, durationUs: 1_000_000 },
+      { startUs: 8_900_000, durationUs: 1_100_000 },
+      { startUs: 4_000_000, durationUs: 500_000 },
+    ])).toBe(10);
+  });
+
+  it.each([
+    ["missing video stream", { videoStreamCount: 0 }, "stream count mismatch"],
+    ["extra video stream", { videoStreamCount: 2 }, "stream count mismatch"],
+    ["audio stream", { audioStreamCount: 1 }, "stream count mismatch"],
+    ["subtitle stream", { subtitleStreamCount: 1 }, "stream count mismatch"],
+    ["codec", { videoCodec: "h264" }, "codec mismatch"],
+    ["alpha pixel format", { videoPixelFormat: "yuv444p12le" }, "pixel format mismatch"],
+    ["dimensions", { width: 1280 }, "dimensions mismatch"],
+    ["fps", { fps: 29.97 }, "fps mismatch"],
+    ["duration", { duration: 10 + (1 / 30) + 0.001 }, "duration mismatch"],
+  ] as const)("rejects a %s mismatch", (_label, overrides, message) => {
+    expect(() => assertFormalHyperFramesProbe(makeHyperFramesProbe(overrides), expected))
+      .toThrow(message);
   });
 });
 

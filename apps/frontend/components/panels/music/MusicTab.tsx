@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
-import { FolderOpen, Music2, Settings2, Sparkles, TriangleAlert } from "lucide-react";
+import { FolderOpen, Music2, Settings2, Sparkles, TriangleAlert, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { Alert } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -16,6 +16,9 @@ import { PanelHeader } from "@/components/ui/panel-header";
 import { StatusPill } from "@/components/ui/status-pill";
 import { Textarea } from "@/components/ui/textarea";
 import { useMediaPanelStore } from "@/stores/navigation/media-panel-store";
+import { buildStructuredCaption, MUSIC_STYLE_RECIPES, SEC_PER_LINE } from "@/lib/studio/music-caption";
+import { buildLyricMessages, parseLyricsDraft } from "@/lib/studio/song-lyrics";
+import { aiManager } from "@/lib/ai/ai-manager";
 import { MUSIC3_MAX_DURATION_S, MUSIC3_MIN_DURATION_S } from "@/types/music3-gen";
 import type { Music3GenRuntimeStatus } from "@/types/music3-gen";
 
@@ -24,6 +27,7 @@ interface Music3TabBridge {
   musicDir: (projectId: string) => Promise<{ dir?: string; error?: string }>;
   generate: (payload: {
     prompt: string;
+    lyrics?: string;
     seed?: number;
     seconds?: number;
     engine?: "pocket" | "mlxserv";
@@ -66,7 +70,13 @@ export function MusicTab(props: { projectId?: string; projectName: string }) {
   const [readiness, setReadiness] = useState<"checking" | "ready" | "missing" | "unknown">("checking");
   const [weightsReason, setWeightsReason] = useState<string>("");
   const [musicDir, setMusicDir] = useState<string>("");
+  const [mode, setMode] = useState<"bgm" | "song">("bgm");
   const [prompt, setPrompt] = useState("大气磅礴的仙侠交响,前段压抑后段爆发");
+  const [lyrics, setLyrics] = useState("");
+  const [lyricTheme, setLyricTheme] = useState("");
+  const [lyricReference, setLyricReference] = useState("");
+  const [writingLyrics, setWritingLyrics] = useState(false);
+  const [recipeKey, setRecipeKey] = useState(MUSIC_STYLE_RECIPES[0].key);
   const [seed, setSeed] = useState("7");
   const [seconds, setSeconds] = useState("30");
   const [generating, setGenerating] = useState(false);
@@ -113,6 +123,53 @@ export function MusicTab(props: { projectId?: string; projectName: string }) {
     nav.setActiveTab("settings");
   }, []);
 
+  const lyricLines = useMemo(
+    () => lyrics.split("\n").filter((line) => line.trim() && !line.trim().startsWith("[")).length,
+    [lyrics],
+  );
+
+  const handleWriteLyrics = useCallback(async () => {
+    const theme = lyricTheme.trim();
+    if (!theme) {
+      toast.error("请先填写创作主题(如:《道劫》片头曲:少年血仇逆天)");
+      return;
+    }
+    if (!aiManager.resolve({ agent: "universalAi" })) {
+      toast.error("云端 AI 未配置,无法 AI 写词。请前往 设置 → 云端AI 配置后重试", {
+        action: { label: "去设置", onClick: goToSettings },
+      });
+      return;
+    }
+    const clamped = Math.min(MUSIC3_MAX_DURATION_S, Math.max(MUSIC3_MIN_DURATION_S, Number.parseFloat(seconds) || 60));
+    const messages = buildLyricMessages({
+      theme,
+      reference: lyricReference,
+      styleLabel: MUSIC_STYLE_RECIPES.find((r) => r.key === recipeKey)?.label ?? MUSIC_STYLE_RECIPES[0].label,
+      targetSeconds: clamped,
+    });
+    setWritingLyrics(true);
+    try {
+      const result = await aiManager.text({
+        binding: { agent: "universalAi" },
+        messages: [
+          { role: "system", content: messages.system },
+          { role: "user", content: messages.user },
+        ],
+        temperature: 0.8,
+        maxTokens: 2048,
+      });
+      if (!result.success || !result.text) throw new Error(result.error || "AI 写词失败");
+      const parsed = parseLyricsDraft(result.text, clamped);
+      setLyrics(parsed.lyrics);
+      if (parsed.warnings.length) toast.info(parsed.warnings.join("；"));
+      else toast.success("歌词已生成,请审阅后再生成整曲");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "AI 写词失败");
+    } finally {
+      setWritingLyrics(false);
+    }
+  }, [goToSettings, lyricReference, lyricTheme, recipeKey, seconds]);
+
   const handleGenerate = useCallback(async () => {
     if (!bridge || !props.projectId) {
       toast.error("请先打开一个项目");
@@ -133,14 +190,29 @@ export function MusicTab(props: { projectId?: string; projectName: string }) {
       toast.error("时长必须是正数");
       return;
     }
+    // 一句话描述 → 专业结构化 caption(assets/minimax/music 技能资产包;配方锁风格、器乐填时)
+    const clampedSeconds = Math.min(MUSIC3_MAX_DURATION_S, Math.max(MUSIC3_MIN_DURATION_S, parsedSeconds));
+    const trimmedLyrics = lyrics.trim();
+    if (mode === "song" && !trimmedLyrics) {
+      toast.error("人声歌曲模式请填写歌词(段落标签独占一行)");
+      return;
+    }
+    const caption = buildStructuredCaption(
+      mode === "song"
+        ? { brief: trimmed, mode: "song", recipeKey, lineCount: lyricLines, targetSeconds: clampedSeconds }
+        : { brief: trimmed, mode: "bgm", targetSeconds: clampedSeconds },
+    );
     setGenerating(true);
     setStartedAt(Date.now());
-    toast.info("整曲生成为分钟级:30 秒约 5.5 分钟、60 秒约 11 分钟(bf16 实测,首次含模型装载),请耐心等待");
+    toast.info(mode === "song"
+      ? "人声歌曲生成按词量计时:45 行约 20-25 分钟(bf16 实测),可切走等待,完成自动落盘"
+      : "整曲生成为分钟级:30 秒约 5.5 分钟、60 秒约 11 分钟(bf16 实测,首次含模型装载),请耐心等待");
     try {
       const result = await bridge.generate({
-        prompt: trimmed,
+        prompt: caption,
+        ...(mode === "song" ? { lyrics: trimmedLyrics } : {}),
         seed: parsedSeed,
-        seconds: Math.min(MUSIC3_MAX_DURATION_S, Math.max(MUSIC3_MIN_DURATION_S, parsedSeconds)),
+        seconds: clampedSeconds,
         engine: "mlxserv",
         outputDir: "__PROJECT_MUSIC__",
         projectId: props.projectId,
@@ -153,6 +225,8 @@ export function MusicTab(props: { projectId?: string; projectName: string }) {
         toast.success(`生成完成:${result.durationS ? `${result.durationS.toFixed(1)} 秒 · ` : ""}已落项目 music/ 目录`);
         if (result.message) toast.info(result.message);
         if (!musicDir) setMusicDir(result.outputPath!.substring(0, result.outputPath!.lastIndexOf("/")));
+      } else if (result.code === "lyrics-requires-mlxserv") {
+        toast.error(result.message || "带人声歌词需 mlx-serve(bf16)路线,权重未就绪不会降级为伴奏");
       } else {
         toast.error(result.message || "整曲生成失败");
       }
@@ -162,7 +236,7 @@ export function MusicTab(props: { projectId?: string; projectName: string }) {
       setGenerating(false);
       setStartedAt(null);
     }
-  }, [bridge, musicDir, prompt, props.projectId, seconds, seed]);
+  }, [bridge, lyricLines, lyrics, mode, musicDir, prompt, props.projectId, recipeKey, seconds, seed]);
 
   const title = useMemo(
     () => (props.projectName ? `为《${props.projectName}》生成音乐` : "项目音乐生成"),
@@ -257,9 +331,113 @@ export function MusicTab(props: { projectId?: string; projectName: string }) {
       {/* 就绪:生成台(表单做主角) */}
       {readiness === "ready" ? (
         <Card variant="glass" aria-label="音乐生成" className="space-y-5 p-6">
+          {/* 模式:纯音乐 BGM / 人声歌曲 */}
+          <div className="flex items-center gap-1" role="radiogroup" aria-label="生成模式">
+            {([["bgm", "纯音乐 BGM"], ["song", "人声歌曲"]] as const).map(([value, label]) => (
+              <Button
+                key={value}
+                size="sm"
+                variant={mode === value ? "default" : "outline"}
+                role="radio"
+                aria-checked={mode === value}
+                disabled={generating}
+                onClick={() => setMode(value)}
+              >
+                {label}
+              </Button>
+            ))}
+          </div>
+
+          {mode === "song" ? (
+            <>
+              <div className="space-y-2">
+                <Label className="text-sm font-medium">风格配方</Label>
+                <div className="flex flex-wrap gap-1.5">
+                  {MUSIC_STYLE_RECIPES.map((recipe) => (
+                    <Button
+                      key={recipe.key}
+                      size="sm"
+                      variant={recipeKey === recipe.key ? "default" : "outline"}
+                      disabled={generating}
+                      onClick={() => setRecipeKey(recipe.key)}
+                    >
+                      {recipe.label}
+                    </Button>
+                  ))}
+                </div>
+              </div>
+              <details className="group rounded-lg border border-border/60 bg-muted/20 px-4 py-3">
+                <summary className="cursor-pointer select-none text-sm font-medium text-muted-foreground group-open:text-foreground">
+                  AI 写词(主题+参考材料 → 云端 LLM 按校准约束生成,人工审阅)
+                </summary>
+                <div className="mt-3 space-y-3">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="lyric-theme" className="text-xs text-muted-foreground">创作主题(必填)</Label>
+                    <Input
+                      id="lyric-theme"
+                      value={lyricTheme}
+                      onChange={(event) => setLyricTheme(event.currentTarget.value)}
+                      placeholder="如:《道劫》片头曲:少年血仇逆天,终成万界共主"
+                      className="h-9 text-sm"
+                      disabled={writingLyrics}
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="lyric-reference" className="text-xs text-muted-foreground">参考材料(可选,设定集摘录/原著圣经/既有词)</Label>
+                    <Textarea
+                      id="lyric-reference"
+                      value={lyricReference}
+                      onChange={(event) => setLyricReference(event.currentTarget.value)}
+                      rows={4}
+                      placeholder="粘贴设定集核心设定、人物与术语——AI 会遵守其中事实与用词"
+                      className="resize-y text-xs leading-5"
+                      disabled={writingLyrics}
+                    />
+                  </div>
+                  <Button size="sm" variant="outline" onClick={() => void handleWriteLyrics()} disabled={writingLyrics}>
+                    {writingLyrics ? <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden /> : <Sparkles className="mr-2 h-4 w-4" aria-hidden />}
+                    {writingLyrics ? "AI 写词中…" : "AI 写词"}
+                  </Button>
+                </div>
+              </details>
+
+              <div className="space-y-2">
+                <div className="flex items-center justify-between gap-2">
+                  <Label htmlFor="music-lyrics" className="text-sm font-medium">歌词</Label>
+                  <div className="flex flex-wrap gap-1">
+                    {(["Intro", "Verse", "Chorus", "Bridge", "Outro"] as const).map((tag) => (
+                      <Button
+                        key={tag}
+                        size="sm"
+                        variant="ghost"
+                        className="h-6 px-2 font-mono text-[11px]"
+                        disabled={generating}
+                        onClick={() => setLyrics((prev) => (prev ? `${prev.replace(/\s*$/, "")}\n\n[${tag}]\n` : `[${tag}]\n`))}
+                      >
+                        [{tag}]
+                      </Button>
+                    ))}
+                  </div>
+                </div>
+                <Textarea
+                  id="music-lyrics"
+                  value={lyrics}
+                  onChange={(event) => setLyrics(event.currentTarget.value)}
+                  rows={10}
+                  placeholder={"[Intro]\n前奏意象……\n\n[Verse]\n主歌第一句……\n\n[Chorus]\n副歌句……"}
+                  className="resize-y font-mono text-xs leading-6"
+                  disabled={generating}
+                />
+                <p className="text-xs text-muted-foreground">
+                  段落标签([Intro] 等)须独占一行,同行后续文字会被丢弃;当前 {lyricLines} 行唱词 ≈ 演唱 {Math.round(lyricLines * SEC_PER_LINE.mid)} 秒(中速校准),时长缺口由配方自动以器乐间奏/尾奏填充。
+                </p>
+              </div>
+            </>
+          ) : null}
+
           <div className="space-y-2">
             <Label htmlFor="music-prompt" className="text-sm font-medium">
-              音乐描述
+              {mode === "song" ? "歌曲补充意图(情绪/场景)" : "音乐描述"}
             </Label>
             <Textarea
               id="music-prompt"

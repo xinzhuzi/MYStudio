@@ -1,11 +1,14 @@
 import { describe, expect, it } from "vitest";
 import {
+  assertAudibleMeanVolume,
   assertDistinctFirstShots,
   assertFormalStreamCounts,
   assertSourceFrameMatch,
   expectedFormalDurationSeconds,
   formalQcSampleIndexes,
+  formalSourceMatchFilterGraph,
   parseBlackdetect,
+  parseMeanVolumeDb,
   parseSsim,
 } from "./render-accepted-full-pipeline-qc";
 
@@ -21,6 +24,17 @@ describe("formal renderer QC parsers", () => {
       "black_start:12.5 black_end:13.1 black_duration:0.6",
     ].join("\n");
     expect(parseBlackdetect(log)).toEqual([{ start: 12.5, end: 13.1, duration: 0.6 }]);
+  });
+
+  it("reads the decoded audio mean volume", () => {
+    expect(parseMeanVolumeDb("[Parsed_volumedetect_0] mean_volume: -23.4 dB"))
+      .toBeCloseTo(-23.4, 6);
+  });
+
+  it("rejects silent and invalid volume output", () => {
+    expect(() => parseMeanVolumeDb("mean_volume: -inf dB")).toThrow("silent");
+    expect(() => parseMeanVolumeDb("audio decode completed without statistics"))
+      .toThrow("missing mean_volume");
   });
 });
 
@@ -42,6 +56,12 @@ describe("formal renderer QC gates", () => {
     expect(formalQcSampleIndexes(43)).toEqual([0, 1, 21, 42]);
   });
 
+  it("compares source identity on a low-frequency luma projection so approved visual effects do not invalidate the source", () => {
+    expect(formalSourceMatchFilterGraph()).toBe(
+      "scale=96:54:flags=area,format=gray,gblur=sigma=3",
+    );
+  });
+
   it("rejects duplicate first shots and a mismatched second source", () => {
     expect(() => assertDistinctFirstShots(0.98)).toThrow("appear duplicated");
     expect(() => assertSourceFrameMatch("clip-2", 0.899)).toThrow("below 0.90");
@@ -58,5 +78,11 @@ describe("formal renderer QC gates", () => {
       audioStreamCount: 1,
       subtitleStreamCount: 1,
     })).toThrow("subtitle=1");
+  });
+
+  it("requires decoded audio mean volume above -60 dB", () => {
+    expect(() => assertAudibleMeanVolume(-60)).toThrow("must be greater than -60 dB");
+    expect(() => assertAudibleMeanVolume(Number.NaN)).toThrow("invalid");
+    expect(() => assertAudibleMeanVolume(-59.9)).not.toThrow();
   });
 });

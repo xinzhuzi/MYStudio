@@ -63,7 +63,7 @@ export function registerMusic3GenIpcHandlers(options: RegisterMusic3GenIpcOption
     });
   });
   ipcMain.handle("music3-gen-runtime-generate", async (_event, payload: unknown) => {
-    const input = payload as { prompt?: unknown; seed?: unknown; seconds?: unknown; steps?: unknown; outputDir?: unknown; engine?: unknown; projectId?: unknown } | null;
+    const input = payload as { prompt?: unknown; lyrics?: unknown; seed?: unknown; seconds?: unknown; steps?: unknown; outputDir?: unknown; engine?: unknown; projectId?: unknown } | null;
     if (!input || typeof input.prompt !== "string" || !input.prompt.trim()) {
       return { status: "blocked" as const, code: "invalid-request", message: "prompt 必填" };
     }
@@ -85,6 +85,7 @@ export function registerMusic3GenIpcHandlers(options: RegisterMusic3GenIpcOption
     }
     return controller.generateMusic3({
       prompt: input.prompt,
+      ...(typeof input.lyrics === "string" && input.lyrics.trim() ? { lyrics: input.lyrics.slice(0, 8000) } : {}),
       ...(typeof input.seed === "number" ? { seed: input.seed } : {}),
       ...(typeof input.seconds === "number" ? { seconds: input.seconds } : {}),
       ...(typeof input.steps === "number" ? { steps: input.steps } : {}),

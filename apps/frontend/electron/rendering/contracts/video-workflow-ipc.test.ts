@@ -72,6 +72,25 @@ describe("video workflow IPC contracts", () => {
     expect(validateVideoWorkflowChapterRunRequest(base).success).toBe(true);
     expect(validateVideoWorkflowChapterRunRequest({ ...base, derivedInputPolicy: "pad-video-to-audio" }).success).toBe(true);
     expect(validateVideoWorkflowChapterRunRequest({ ...base, derivedInputPolicy: "always-pad" }).success).toBe(false);
+    expect(validateVideoWorkflowChapterRunRequest({
+      ...base,
+      boundaryIntents: [{
+        fromShotId: "shot-1",
+        toShotId: "shot-2",
+        effectId: "gl:CrossZoom",
+        durationUs: 500_000,
+        styleWord: "境界跃迁",
+      }],
+    }).success).toBe(true);
+    expect(validateVideoWorkflowChapterRunRequest({
+      ...base,
+      boundaryIntents: [{
+        fromShotId: "shot-1",
+        toShotId: "shot-2",
+        effectId: "gl:NotInRegistry",
+        durationUs: 500_000,
+      }],
+    }).success).toBe(false);
   });
 
   it("rejects PNG sequence at the typed apply boundary", () => {

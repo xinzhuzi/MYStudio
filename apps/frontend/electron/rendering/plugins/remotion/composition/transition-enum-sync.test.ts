@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
+import { VIDEO_WORKFLOW_TRANSITION_EFFECT_IDS } from "@rendering/contracts/video-workflow";
 import { COMPOSITION_TRANSITION_EFFECTS } from "./timing";
 
 // TS↔Python 转场枚举孪生对拍（Trellis 08-18-gl-transitions R1）。
@@ -49,6 +50,10 @@ describe("转场枚举三处镜像孪生对拍", () => {
 
   it("timing.ts ↔ editing.ts Extract union 一致", () => {
     expect([...timingIds].sort()).toEqual([...editingIds].sort());
+  });
+
+  it("timing.ts ↔ video-workflow runtime validator 闭集一致", () => {
+    expect([...timingIds].sort()).toEqual([...VIDEO_WORKFLOW_TRANSITION_EFFECT_IDS].sort());
   });
 
   it("基线 5 种转场在位（扩展枚举只允许增，不允许破坏旧闭集）", () => {

@@ -20,10 +20,12 @@ export interface FormalOutputQcResult {
   videoStreamCount: number;
   audioStreamCount: number;
   subtitleStreamCount: number;
+  audioMeanVolumeDb: number;
   firstSecondSsim: number;
   sourceSamples: Array<{ clipId: string; ssim: number; outputFrame: string; sourceFrame: string }>;
   blackSegments: Array<{ start: number; end: number; duration: number }>;
   ffprobePath: string;
+  audioVolumedetectPath: string;
   blackdetectPath: string;
 }
 
@@ -36,6 +38,15 @@ export function assertFormalStreamCounts(input: {
     throw new Error(
       `formal MP4 stream count mismatch: video=${input.videoStreamCount} audio=${input.audioStreamCount} subtitle=${input.subtitleStreamCount}`,
     );
+  }
+}
+
+export function assertAudibleMeanVolume(meanVolumeDb: number): void {
+  if (!Number.isFinite(meanVolumeDb)) {
+    throw new Error("formal MP4 decoded audio mean_volume is invalid");
+  }
+  if (meanVolumeDb <= -60) {
+    throw new Error(`formal MP4 decoded audio mean_volume must be greater than -60 dB: ${meanVolumeDb} dB`);
   }
 }
 
@@ -52,6 +63,10 @@ export function formalQcSampleIndexes(visualCount: number): number[] {
     throw new Error("formal QC requires at least two visual clips");
   }
   return [...new Set([0, 1, Math.floor(visualCount / 2), visualCount - 1])];
+}
+
+export function formalSourceMatchFilterGraph(): string {
+  return "scale=96:54:flags=area,format=gray,gblur=sigma=3";
 }
 
 export function expectedFormalDurationSeconds(plan: TimelineRenderPlan): number {
@@ -86,6 +101,22 @@ export async function runFormalOutputQc(input: {
   const audioStreamCount = streams.filter((stream) => stream.codec_type === "audio").length;
   const subtitleStreamCount = streams.filter((stream) => stream.codec_type === "subtitle").length;
   assertFormalStreamCounts({ videoStreamCount, audioStreamCount, subtitleStreamCount });
+
+  const audioVolumedetectPath = path.join(input.evidenceDir, "audio-volumedetect.log");
+  let audioVolumedetect: Awaited<ReturnType<typeof execFileAsync>>;
+  try {
+    audioVolumedetect = await execFileAsync(ffmpegExecutable, [
+      "-hide_banner", "-nostats", "-v", "info", "-i", input.outputPath,
+      "-map", "0:a:0", "-vn", "-sn", "-dn", "-af", "volumedetect", "-f", "null", "-",
+    ], { encoding: "utf8", maxBuffer: 16 * 1024 * 1024 });
+  } catch (error) {
+    await fs.promises.writeFile(audioVolumedetectPath, commandFailureLog(error));
+    throw new Error(`formal MP4 audio decode failed; raw log: ${audioVolumedetectPath}`);
+  }
+  const audioVolumedetectLog = `${audioVolumedetect.stdout ?? ""}\n${audioVolumedetect.stderr ?? ""}`;
+  await fs.promises.writeFile(audioVolumedetectPath, audioVolumedetectLog);
+  const audioMeanVolumeDb = parseMeanVolumeDb(audioVolumedetectLog);
+  assertAudibleMeanVolume(audioMeanVolumeDb);
 
   const visualClips = input.plan.clips
     .filter((clip) => clip.trackKind === "video" || clip.trackKind === "image")
@@ -132,7 +163,7 @@ export async function runFormalOutputQc(input: {
       outputFrame,
     );
     await extractFrame(ffmpegExecutable, sourcePath, clip.trimStartUs + offsetUs, sourceFrame);
-    const comparison = await compareFrames(ffmpegExecutable, outputFrame, sourceFrame);
+    const comparison = await compareSourceFrames(ffmpegExecutable, outputFrame, sourceFrame);
     await fs.promises.writeFile(
       path.join(input.evidenceDir, `sample-${index + 1}-ssim.log`),
       comparison.log,
@@ -166,10 +197,12 @@ export async function runFormalOutputQc(input: {
     videoStreamCount,
     audioStreamCount,
     subtitleStreamCount,
+    audioMeanVolumeDb,
     firstSecondSsim: firstSecond.value,
     sourceSamples,
     blackSegments,
     ffprobePath,
+    audioVolumedetectPath,
     blackdetectPath,
   };
 }
@@ -178,6 +211,16 @@ export function parseSsim(log: string): number {
   const matches = [...log.matchAll(/All:([0-9]+(?:\.[0-9]+)?)/g)];
   const value = Number(matches.at(-1)?.[1]);
   if (!Number.isFinite(value)) throw new Error("FFmpeg SSIM output is missing All score");
+  return value;
+}
+
+export function parseMeanVolumeDb(log: string): number {
+  const matches = [...log.matchAll(/mean_volume:\s*(-inf|[-+]?(?:\d+(?:\.\d+)?|\.\d+))\s*dB/g)];
+  const rawValue = matches.at(-1)?.[1];
+  if (!rawValue) throw new Error("FFmpeg volumedetect output is missing mean_volume");
+  if (rawValue === "-inf") throw new Error("FFmpeg volumedetect reports silent audio");
+  const value = Number(rawValue);
+  if (!Number.isFinite(value)) throw new Error("FFmpeg volumedetect mean_volume is invalid");
   return value;
 }
 
@@ -207,6 +250,21 @@ async function compareFrames(
   const result = await execFileAsync(ffmpegExecutable, [
     "-hide_banner", "-v", "info", "-i", leftPath, "-i", rightPath,
     "-lavfi", "ssim", "-f", "null", "-",
+  ], { encoding: "utf8", maxBuffer: 8 * 1024 * 1024 });
+  const log = `${result.stdout ?? ""}\n${result.stderr ?? ""}`;
+  return { value: parseSsim(log), log };
+}
+
+async function compareSourceFrames(
+  ffmpegExecutable: string,
+  outputFrame: string,
+  sourceFrame: string,
+): Promise<{ value: number; log: string }> {
+  const filter = formalSourceMatchFilterGraph();
+  const result = await execFileAsync(ffmpegExecutable, [
+    "-hide_banner", "-v", "info", "-i", outputFrame, "-i", sourceFrame,
+    "-filter_complex", `[0:v]${filter}[output];[1:v]${filter}[source];[output][source]ssim`,
+    "-f", "null", "-",
   ], { encoding: "utf8", maxBuffer: 8 * 1024 * 1024 });
   const log = `${result.stdout ?? ""}\n${result.stderr ?? ""}`;
   return { value: parseSsim(log), log };
@@ -245,4 +303,13 @@ function compareTimelineClips(
   right: TimelineRenderPlan["clips"][number],
 ): number {
   return left.startUs - right.startUs || left.id.localeCompare(right.id);
+}
+
+function commandFailureLog(error: unknown): string {
+  if (typeof error !== "object" || error === null) return `${String(error)}\n`;
+  const output = error as { stdout?: unknown; stderr?: unknown; message?: unknown };
+  const stdout = typeof output.stdout === "string" ? output.stdout : "";
+  const stderr = typeof output.stderr === "string" ? output.stderr : "";
+  const message = typeof output.message === "string" ? output.message : String(error);
+  return `${stdout}\n${stderr}\n${message}\n`;
 }

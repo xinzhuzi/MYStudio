@@ -11,6 +11,7 @@ import {
   type VideoUseStoryboardSourcePolicy,
   type VideoWorkflowMode,
   SUPPORTED_ALPHA_FORMATS,
+  VIDEO_WORKFLOW_TRANSITION_EFFECT_IDS,
   validateVideoWorkflowPluginStatus,
   validateHyperFramesOverlayArtifact,
   validateVideoUseChapterArtifact,
@@ -278,7 +279,6 @@ export function validateVideoWorkflowChapterRunRequest(
   if (record.boundaryIntents !== undefined) {
     if (!Array.isArray(record.boundaryIntents)) issues.push({ path: "$.boundaryIntents", message: "boundaryIntents 必须是数组" });
     else {
-      const effectIds = new Set(["cut", "fade", "crossfade", "flash", "blackout"]);
       record.boundaryIntents.forEach((intent, index) => {
         const path = `$.boundaryIntents[${index}]`;
         if (typeof intent !== "object" || intent === null || Array.isArray(intent)) {
@@ -288,7 +288,7 @@ export function validateVideoWorkflowChapterRunRequest(
         const entry = intent as Record<string, unknown>;
         if (typeof entry.fromShotId !== "string" || !entry.fromShotId.trim()) issues.push({ path: `${path}.fromShotId`, message: "必须是非空字符串" });
         if (typeof entry.toShotId !== "string" || !entry.toShotId.trim()) issues.push({ path: `${path}.toShotId`, message: "必须是非空字符串" });
-        if (typeof entry.effectId !== "string" || !effectIds.has(entry.effectId)) issues.push({ path: `${path}.effectId`, message: "必须是内置转场类型" });
+        if (typeof entry.effectId !== "string" || !VIDEO_WORKFLOW_TRANSITION_EFFECT_IDS.has(entry.effectId)) issues.push({ path: `${path}.effectId`, message: "必须是已注册转场类型" });
         if (typeof entry.durationUs !== "number" || !Number.isSafeInteger(entry.durationUs) || entry.durationUs <= 0) issues.push({ path: `${path}.durationUs`, message: "必须是正整数微秒" });
         if (entry.styleWord !== undefined && typeof entry.styleWord !== "string") issues.push({ path: `${path}.styleWord`, message: "必须是字符串" });
         if (entry.moodWord !== undefined && typeof entry.moodWord !== "string") issues.push({ path: `${path}.moodWord`, message: "必须是字符串" });
