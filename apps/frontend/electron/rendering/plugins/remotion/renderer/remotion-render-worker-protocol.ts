@@ -135,7 +135,7 @@ function validateRenderInput(value: unknown): RemotionRenderWorkerValidationResu
     return { success: true, value: value as unknown as RemotionRenderInput };
   }
   if (value.target === "chapter") {
-    if (!hasOnlyKeys(value, ["target", "jobId", "compositionProps", "compositionId", "bundlePath", "outputPath", "browserExecutable", "remotionVersion", "binariesDirectory"])) {
+    if (!hasOnlyKeys(value, ["target", "jobId", "compositionProps", "compositionId", "bundlePath", "outputPath", "browserExecutable", "remotionVersion", "binariesDirectory", "hardwareRendering"])) {
       return failure("input", "chapter render worker input 包含未知字段");
     }
     if (!isNonEmptyString(value.jobId)) return failure("input.jobId", "chapter render jobId 必须是非空字符串");
