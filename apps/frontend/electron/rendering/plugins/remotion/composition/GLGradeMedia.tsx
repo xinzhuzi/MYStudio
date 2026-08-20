@@ -151,6 +151,11 @@ function GradeScene({
         lutTex.dispose();
         return;
       }
+      // LUT 是数据坐标采样而非贴图显示:generate-luts.py 的 8×8 块网格从图像顶行排布
+      // (y = by*RES + row),THREE 默认 flipY=true 会在上传时纵向翻转,shader 的 lutUv.y
+      // 就读成镜像行——灰阶 0 被映到亮青 (39,255,255) 这类错乱色(08-20 成片「青绿+暖红」
+      // 脏色根因)。媒体帧纹理是显示用途,保持默认 flipY=true 不动。
+      lutTex.flipY = false;
       lutTex.minFilter = THREE.LinearFilter;
       lutTex.magFilter = THREE.LinearFilter;
       lutTex.generateMipmaps = false;
