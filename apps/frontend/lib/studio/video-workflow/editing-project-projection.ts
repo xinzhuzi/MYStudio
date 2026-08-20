@@ -78,11 +78,13 @@ export function projectVideoUseArtifactToEditingProject(input: {
   const visualTrack = project.tracks.find((track) => track.kind === "video" || track.kind === "image");
   if (!visualTrack) return { success: false, issues: [{ path: "tracks", message: "EditingProject 缺少视觉轨道" }] };
   const oldVisual = new Map(project.clips.filter((clip) => clip.trackId === visualTrack.id).map((clip) => [clip.source.evidence.storyboardId, clip]));
-  const subtitleTrack = project.tracks.find((track) => track.kind === "text" && track.name === "字幕");
+  const subtitleTracks = project.tracks.filter(
+    (track) => track.kind === "text" && track.name.includes("字幕"),
+  );
+  const subtitleTrack = subtitleTracks.find((track) => track.name === "字幕") ?? subtitleTracks[0];
   const subtitleTrackId = subtitleTrack?.id ?? `${project.id}-video-use-subtitles`;
-  const oldSubtitles = subtitleTrack
-    ? project.clips.filter((clip) => clip.trackId === subtitleTrack.id)
-    : [];
+  const subtitleTrackIds = new Set(subtitleTracks.map((track) => track.id));
+  const oldSubtitles = project.clips.filter((clip) => subtitleTrackIds.has(clip.trackId));
   const edl = createTimelineEdlEntries(artifact.edl);
   const refs: VideoWorkflowEditingProjectArtifactRefs = {
     mode: artifact.mode,
@@ -133,6 +135,10 @@ export function projectVideoUseArtifactToEditingProject(input: {
         ? {
           remotionJobId: slot.job.jobId,
           remotionEvidenceSha256: slot.evidence.sha256,
+          // 08-20 修:main.ts 章节身份闸要求 remotionInputHash 三全——漏写此字段
+          // 导致每次 video-use 应用后「当前章节镜头与 slot identity 不一致」必挂,
+          // 一键成片链永远到不了入队步(实测 r58-r61 四轮复现)。
+          remotionInputHash: slot.job.inputHash,
           outputVersion: slot.target.shotRevision,
         }
         : {};
@@ -208,11 +214,13 @@ export function projectVideoUseArtifactToEditingProject(input: {
   }
   const replacedClips = new Set<EditingClip>([...oldVisual.values(), ...oldSubtitles]);
   const clips = [...project.clips.filter((clip) => !replacedClips.has(clip)), ...nextVisual, ...nextSubtitles];
-  const mappedTracks = project.tracks.map((track) => {
-    if (track.id === visualTrack.id) return { ...track, clipIds: nextVisual.map((clip) => clip.id) };
-    if (track.id === subtitleTrackId) return { ...track, clipIds: nextSubtitles.map((clip) => clip.id) };
-    return track;
-  });
+  const mappedTracks = project.tracks
+    .filter((track) => !subtitleTrackIds.has(track.id) || track.id === subtitleTrackId)
+    .map((track) => {
+      if (track.id === visualTrack.id) return { ...track, clipIds: nextVisual.map((clip) => clip.id) };
+      if (track.id === subtitleTrackId) return { ...track, clipIds: nextSubtitles.map((clip) => clip.id) };
+      return track;
+    });
   const tracks = subtitleTrack || nextSubtitles.length === 0
     ? mappedTracks
     : [...mappedTracks, {
