@@ -588,6 +588,13 @@ describe("addStoryboardLayeredNodes(08-19 multilayer Child3)", () => {
     const subj = layered.nodes.find((node) => node.title === "分镜 3 人物净底");
     expect(bg?.type).toBe("generated");
     expect(subj?.type).toBe("generated");
+    // 08-20 修:分层节点必须带相连 prompt 节点(生成请求 model 解析源),否则
+    // 连续性能力门禁拒「未配置」。模型继承图内既有 prompt 节点。
+    const bgPrompt = layered.nodes.find((node) => node.type === "prompt" && node.targetNodeId === bg!.id) as unknown as { id: string; model?: string } | undefined;
+    const subjPrompt = layered.nodes.find((node) => node.type === "prompt" && node.targetNodeId === subj!.id) as unknown as { id: string; model?: string } | undefined;
+    expect(bgPrompt?.model).toBe("gpt-image-2");
+    expect(subjPrompt?.model).toBe("gpt-image-2");
+    expect(layered.edges.some((edge) => edge.source === bgPrompt!.id && edge.target === bg!.id)).toBe(true);
     expect(bg && "prompt" in bg ? bg.prompt : "").toContain("【背景板】");
     expect(subj && "prompt" in subj ? subj.prompt : "").toContain("【人物净底图】");
     const intoBg = layered.edges.filter((edge) => edge.target === bg!.id).map((edge) => edge.source);
@@ -597,10 +604,12 @@ describe("addStoryboardLayeredNodes(08-19 multilayer Child3)", () => {
       const node = nodeTypeById.get(id);
       return node?.type === "reference" && (node as { source?: { assetType?: string } }).source?.assetType === "character";
     };
+    const refOnly = (ids: string[]) => ids.filter((id) => nodeTypeById.get(id)?.type === "reference");
     expect(intoBg.some(isCharacter)).toBe(false);          // 角色参考不进背景板
-    expect(intoSubj.every(isCharacter)).toBe(true);         // 人物节点只吃角色参考
-    expect(intoSubj.length).toBeGreaterThan(0);
-    expect(intoBg.length).toBeGreaterThan(0);
+    // 08-20 起人物节点另有一条 prompt 节点入边;参考图入边须全为角色
+    expect(refOnly(intoSubj).every(isCharacter)).toBe(true);
+    expect(refOnly(intoSubj).length).toBeGreaterThan(0);
+    expect(refOnly(intoBg).length).toBeGreaterThan(0);
   });
 
   it("幂等:重复调用不重复建节点;存量图(无分层节点)零破坏", () => {

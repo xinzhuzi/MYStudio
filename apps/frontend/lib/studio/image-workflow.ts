@@ -937,34 +937,74 @@ export function addStoryboardLayeredNodes(
   const characterRefs = references.filter((node) => node.source?.assetType === "character");
   const basePrompt = input.storyboard.prompt ?? "";
 
+  // 模型继承:生成请求的 model 解析自相连 prompt 节点(findPromptNodeForGenerated),
+  // 空 model=「未配置」会被连续性能力门禁拒(08-20 实测)。优先复用图内既有
+  // prompt 节点的模型(同图同源),缺省回落 gpt-image-2(门禁认可的连续性系)。
+  const inheritedModel = graph.nodes.find(
+    (node): node is ImageWorkflowPromptNode => node.type === "prompt" && Boolean(node.model),
+  )?.model ?? "gpt-image-2";
+  const addLayeredNode = (
+    base: ImageWorkflowGraph,
+    title: string,
+    idPrefix: "gen-bg" | "gen-subj",
+    prompt: string,
+    negativePrompt: string,
+    y: number,
+    references: readonly ImageWorkflowReferenceNode[],
+  ) => {
+    const generatedNodeId = createId(idPrefix, now);
+    const promptNodeId = createId(`${idPrefix}-prompt`, now);
+    const imageSettings = useAppSettingsStore.getState().imageGenerationSettings;
+    let next = addGeneratedImageNode(base, {
+      id: generatedNodeId,
+      title,
+      prompt,
+      negativePrompt,
+      model: inheritedModel,
+      position: { x: 620, y },
+      createdAt: now,
+    });
+    next = addPromptImageNode(next, {
+      id: promptNodeId,
+      title: `${title} 提示词`,
+      prompt,
+      negativePrompt,
+      model: inheritedModel,
+      aspectRatio: imageSettings.defaultAspectRatio,
+      resolution: imageSettings.defaultResolution,
+      targetNodeId: generatedNodeId,
+      position: { x: 320, y: y + 180 },
+      createdAt: now,
+    });
+    next = connectImageWorkflowNodes(next, { source: promptNodeId, target: generatedNodeId }, now);
+    for (const reference of references) {
+      next = connectImageWorkflowNodes(next, { source: reference.id, target: generatedNodeId }, now);
+    }
+    return next;
+  };
+
   let next = graph;
   if (!titles.has(backgroundTitle)) {
-    const backgroundNodeId = createId("gen-bg", now);
-    next = addGeneratedImageNode(next, {
-      id: backgroundNodeId,
-      title: backgroundTitle,
-      prompt: buildBackgroundPlatePrompt(basePrompt),
-      negativePrompt: BACKGROUND_PLATE_NEGATIVE_ANCHORS.join(", "),
-      position: { x: 620, y: 340 },
-      createdAt: now,
-    });
-    for (const reference of sceneRefs) {
-      next = connectImageWorkflowNodes(next, { source: reference.id, target: backgroundNodeId }, now);
-    }
+    next = addLayeredNode(
+      next,
+      backgroundTitle,
+      "gen-bg",
+      buildBackgroundPlatePrompt(basePrompt),
+      BACKGROUND_PLATE_NEGATIVE_ANCHORS.join(", "),
+      340,
+      sceneRefs,
+    );
   }
   if (!titles.has(subjectTitle)) {
-    const subjectNodeId = createId("gen-subj", now);
-    next = addGeneratedImageNode(next, {
-      id: subjectNodeId,
-      title: subjectTitle,
-      prompt: buildSubjectCutoutPrompt(basePrompt, input.characterPrompt ?? basePrompt),
-      negativePrompt: SUBJECT_CUTOUT_NEGATIVE_ANCHORS.join(", "),
-      position: { x: 620, y: 560 },
-      createdAt: now,
-    });
-    for (const reference of characterRefs) {
-      next = connectImageWorkflowNodes(next, { source: reference.id, target: subjectNodeId }, now);
-    }
+    next = addLayeredNode(
+      next,
+      subjectTitle,
+      "gen-subj",
+      buildSubjectCutoutPrompt(basePrompt, input.characterPrompt ?? basePrompt),
+      SUBJECT_CUTOUT_NEGATIVE_ANCHORS.join(", "),
+      560,
+      characterRefs,
+    );
   }
   return touchGraph(next, now);
 }
