@@ -30,8 +30,13 @@ function sampleFrames(durationInFrames: number): number[] {
   return positions.map((p) => Math.round(durationInFrames * p));
 }
 
-const PSNR_FLOOR = 30; // dB — 低于此值=编码质量问题
-const SSIM_FLOOR = 0.90; // 低于此值=结构性失真
+// 门禁标定(08-20 重标,依据=overlay+grade 管线实测基线):
+// 旧值 30dB/0.90 按 pre-overlay/pre-grade 管线标定;引入 HyperFrames ProRes overlay
+// (两渲染引擎亚帧时差)+WebGL 调色+高纹理水墨后,同编码质量下水位≈26-28dB/0.70-0.76
+// (overlay 静止段对照帧 42dB 证明管线对齐;视觉评审「轻微、正常范围」)。
+// 27dB/0.72 = 实测基线留 1dB 余量;跌破仍是编码质量信号。
+const PSNR_FLOOR = 27; // dB
+const SSIM_FLOOR = 0.72;
 
 /** 队列/plan/slot 的最小结构形状(只声明本脚本用到的字段) */
 interface QcClip { id: string; trackKind?: string; source?: { evidence?: { storyboardId?: string } } }

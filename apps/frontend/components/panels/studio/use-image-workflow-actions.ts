@@ -3,6 +3,7 @@ import type { Connection } from "@xyflow/react";
 import { toast } from "sonner";
 import {
   addGeneratedImageNode,
+  addStoryboardLayeredNodes as appendStoryboardLayeredNodes,
   addPromptImageNode,
   addReferenceImageNode,
   connectImageWorkflowNodes,
@@ -128,6 +129,16 @@ export function useImageWorkflowActions({
     }));
     setSelectedNodeId(id);
   }, [activeGraph, saveGraph, setSelectedNodeId]);
+
+  // 分层节点对(08-19 multilayer Child3→UI 接线):背景板+人物净底两生成节点
+  // (场景/角色 reference 各自连线=资产圣经自动生效),供原生分层生图流程。
+  const addStoryboardLayeredPair = useCallback(() => {
+    if (!activeGraph || activeGraph.target.kind !== "storyboard") return;
+    const storyboard = storyboards.find((item) => item.id === activeGraph.target.id);
+    if (!storyboard) return;
+    const next = appendStoryboardLayeredNodes(activeGraph, { storyboard });
+    saveGraph(next);
+  }, [activeGraph, storyboards, saveGraph]);
 
   const addGeneratedNode = useCallback(() => {
     if (!activeGraph) return;
@@ -293,6 +304,7 @@ export function useImageWorkflowActions({
     addReferenceFromMaterial,
     addReferenceFromStoryboard,
     addGeneratedNode,
+    addStoryboardLayeredPair,
     deleteNode,
     deleteSelectedEdge,
     handleConnect,

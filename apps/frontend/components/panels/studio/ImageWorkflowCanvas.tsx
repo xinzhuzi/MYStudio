@@ -21,6 +21,7 @@ import {
   Upload,
   WandSparkles,
   ZoomIn,
+  Layers,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -293,6 +294,7 @@ export function ImageWorkflowCanvas({
     addReferenceFromMaterial,
     addReferenceFromStoryboard,
     addGeneratedNode,
+    addStoryboardLayeredPair,
     deleteNode,
     deleteSelectedEdge,
     handleConnect,
@@ -539,6 +541,12 @@ export function ImageWorkflowCanvas({
                 <WandSparkles className="h-3.5 w-3.5" />
                 生成节点
               </Button>
+              {activeGraph?.target.kind === "storyboard" ? (
+                <Button size="sm" data-image-workflow-layered-action variant="outline" onClick={addStoryboardLayeredPair}>
+                  <Layers className="h-3.5 w-3.5" />
+                  分层节点对
+                </Button>
+              ) : null}
             </>
           ) : (
             <div className="max-w-[300px] truncate rounded-md border border-border bg-muted/30 px-2 py-1.5 text-xs font-medium text-card-foreground">
