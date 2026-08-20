@@ -3,6 +3,7 @@ import type {
   EditingEffectId,
 } from "@/types/editing";
 import { CINEMATIC_LUT_IDS } from "../remotion/cinematic-luts";
+import { ATMOSPHERE_TEMPLATES } from "../remotion/atmosphere-templates";
 import { COMPOSITION_TRANSITION_EFFECTS } from "@/electron/rendering/plugins/remotion/composition/timing";
 
 // 转场闭集全量对齐 composition/timing（单一事实源：08-20 真跑二连暴露逐个补齐
@@ -107,9 +108,10 @@ const EFFECT_DEFINITIONS: readonly EditingEffectDefinition[] = [
     numberParameter("amp", 0.08, 0.01, 0.5),
     numberParameter("freq", 0.3, 0.05, 2),
   ]),
-  // 程序化氛围层(08-19 multilayer-composition Child1):template id 由
-  // atmosphere-templates 闭集校验(Child2),params 透传渲染端模板参数。
+  // 程序化氛围层(08-19 multilayer-composition):template=闭集 enum(08-20 补——
+  // 应用内渲染的参数白名单校验拒未声明参数,craft/standalone 不走此闸故未早暴露)。
   definition("atmosphere", "style", "full", [
+    enumParameter("template", "atmo:fog-band", ATMOSPHERE_TEMPLATES.map((template) => template.id)),
     numberParameter("intensity", 1, 0, 2),
   ]),
   // 成片调色(08-18-haldclut-grade 存量补注册):lutId 闭集见 cinematic-luts.ts。

@@ -14,6 +14,8 @@ import { spawnSync } from "node:child_process";
 import { ensureBrowser, selectComposition, renderStill } from "@remotion/renderer";
 import { MediaBridgeServer } from "@rendering/plugins/remotion/media-bridge/media-bridge-server";
 import { buildChapterVideoCompositionProps } from "@rendering/plugins/remotion/composition/build-composition-props";
+import { mergeShotFxEditingEffects } from "@/lib/studio/remotion/shot-fx-decisions";
+import { readStudioWorkflowStoreState } from "../timeline/storage-paths";
 
 const MA = "/Users/zhengbingjin/Project/IP/MA";
 const QUEUE = "/Users/zhengbingjin/Library/Application Support/漫影工作室/projects/_remotion/queue/queue-state.json";
@@ -46,6 +48,35 @@ export async function runEncodingQc(): Promise<{ pass: boolean; report: object }
   const plan = entry.plan;
   const slots = entry.currentShotSlots;
   const manifest = JSON.parse(fs.readFileSync(path.join(MA, "remotion/chapters/chapter-001.json"), "utf8"));
+  // 决策单源重merge(08-20 补,与 render-chapter-standalone 同款):QC 参考帧必须
+  // 复刻渲染链的 store 决策(storyboards shotFx + workflowConfig.chapterGrade 钉死),
+  // 否则参考与成片在 grade 覆盖面上错位 → 全片 ~20dB 假性色差(帧 3961 单镜
+  // 偶合通过 42dB 的实测定位)。
+  try {
+    const store = readStudioWorkflowStoreState(MA);
+    const storyboards = ((store?.state.storyboards ?? []) as unknown[]).filter(
+      (sb) => (sb as { episodeId?: string }).episodeId === "chapter-001",
+    );
+    const workflowConfig = store?.state.workflowConfig as
+      | { chapterGrade?: { lutId?: unknown; blend?: unknown } }
+      | undefined;
+    let chapterGrade: { lutId: string; blend: number } | undefined;
+    if (workflowConfig?.chapterGrade && typeof workflowConfig.chapterGrade.lutId === "string") {
+      const blendRaw = Number(workflowConfig.chapterGrade.blend ?? 0.5);
+      chapterGrade = {
+        lutId: workflowConfig.chapterGrade.lutId,
+        blend: Number.isFinite(blendRaw) ? Math.min(1, Math.max(0, blendRaw)) : 0.5,
+      };
+    }
+    const merged = mergeShotFxEditingEffects(plan.effects, {
+      planClips: plan.clips as never,
+      storyboards: storyboards as never,
+      ...(chapterGrade ? { chapterGrade } : {}),
+    });
+    plan.effects = merged.effects;
+  } catch (err) {
+    console.warn("[QC] store 决策重merge失败(按队列 plan 原样):", err instanceof Error ? err.message : err);
+  }
 
   const mediaBridge = new MediaBridgeServer();
   await mediaBridge.listen();
@@ -123,7 +154,7 @@ export async function runEncodingQc(): Promise<{ pass: boolean; report: object }
     const sm = /All:([\d.]+)/.exec(rs.stderr || "");
     if (pm && sm) results.push({ frame, psnr: parseFloat(pm[1]), ssim: parseFloat(sm[1]) });
   }
-  fs.rmSync(qcDir, { recursive: true, force: true });
+  if (process.env.MYSTUDIO_QC_KEEP_FRAMES !== "1") fs.rmSync(qcDir, { recursive: true, force: true });
 
   // ── 汇总+门禁 ──
   const avgPsnr = results.reduce((s, r) => s + r.psnr, 0) / results.length;
