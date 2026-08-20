@@ -119,7 +119,7 @@ describe("MusicTab · AI 写词(一键成曲)", () => {
     installBridge();
     render(<MusicTab projectId="ma" projectName="道劫" />);
     fireEvent.click(await screen.findByRole("radio", { name: "人声歌曲" }));
-    fireEvent.click(screen.getByText(/AI 写词\(主题/)); // 展开折叠区(summary)
+    fireEvent.click(screen.getByText(/云端 LLM 按校准约束代写初稿/)); // 展开折叠区(summary 副标题)
     fireEvent.change(screen.getByLabelText(/创作主题/), { target: { value: "《道劫》片头曲:少年血仇逆天" } });
     fireEvent.click(screen.getByRole("button", { name: /^AI 写词$/ }));
     await waitFor(() => expect(aiTextMock).toHaveBeenCalledTimes(1));
@@ -137,7 +137,7 @@ describe("MusicTab · AI 写词(一键成曲)", () => {
     installBridge();
     render(<MusicTab projectId="ma" projectName="道劫" />);
     fireEvent.click(await screen.findByRole("radio", { name: "人声歌曲" }));
-    fireEvent.click(screen.getByText(/AI 写词\(主题/));
+    fireEvent.click(screen.getByText(/云端 LLM 按校准约束代写初稿/));
     fireEvent.change(screen.getByLabelText(/创作主题/), { target: { value: "测试主题" } });
     fireEvent.click(screen.getByRole("button", { name: /^AI 写词$/ }));
     await waitFor(() => expect(aiResolveMock).toHaveBeenCalled());

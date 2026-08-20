@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
-import { FolderOpen, Music2, Settings2, Sparkles, TriangleAlert, Loader2 } from "lucide-react";
+import { ChevronRight, FolderOpen, Info, Music2, Settings2, Sparkles, TriangleAlert, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { Alert } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -331,21 +331,24 @@ export function MusicTab(props: { projectId?: string; projectName: string }) {
       {/* 就绪:生成台(表单做主角) */}
       {readiness === "ready" ? (
         <Card variant="glass" aria-label="音乐生成" className="space-y-5 p-6">
-          {/* 模式:纯音乐 BGM / 人声歌曲 */}
-          <div className="flex items-center gap-1" role="radiogroup" aria-label="生成模式">
-            {([["bgm", "纯音乐 BGM"], ["song", "人声歌曲"]] as const).map(([value, label]) => (
-              <Button
-                key={value}
-                size="sm"
-                variant={mode === value ? "default" : "outline"}
-                role="radio"
-                aria-checked={mode === value}
-                disabled={generating}
-                onClick={() => setMode(value)}
-              >
-                {label}
-              </Button>
-            ))}
+          {/* 模式:纯音乐 BGM / 人声歌曲(与设置页引擎选择同款 Button 单选组) */}
+          <div className="space-y-2">
+            <Label className="text-sm font-medium">生成模式</Label>
+            <div className="flex items-center gap-1" role="radiogroup" aria-label="生成模式">
+              {([["bgm", "纯音乐 BGM"], ["song", "人声歌曲"]] as const).map(([value, label]) => (
+                <Button
+                  key={value}
+                  size="sm"
+                  variant={mode === value ? "default" : "outline"}
+                  role="radio"
+                  aria-checked={mode === value}
+                  disabled={generating}
+                  onClick={() => setMode(value)}
+                >
+                  {label}
+                </Button>
+              ))}
+            </div>
           </div>
 
           {mode === "song" ? (
@@ -366,11 +369,20 @@ export function MusicTab(props: { projectId?: string; projectName: string }) {
                   ))}
                 </div>
               </div>
-              <details className="group rounded-lg border border-border/60 bg-muted/20 px-4 py-3">
-                <summary className="cursor-pointer select-none text-sm font-medium text-muted-foreground group-open:text-foreground">
-                  AI 写词(主题+参考材料 → 云端 LLM 按校准约束生成,人工审阅)
+              {/* AI 写词:高级路径收进折叠区(常走路径=直接贴词),原生 details + 自绘 chevron */}
+              <details className="group rounded-xl border border-border/60 bg-muted/25 transition-colors hover:border-border">
+                <summary className="flex cursor-pointer select-none list-none items-center gap-2.5 px-4 py-3 text-sm font-medium text-foreground [&::-webkit-details-marker]:hidden">
+                  <ChevronRight
+                    className="h-4 w-4 shrink-0 text-muted-foreground transition-transform duration-200 motion-reduce:transition-none group-open:rotate-90"
+                    aria-hidden
+                  />
+                  <span className="shrink-0">AI 写词</span>
+                  <span className="min-w-0 truncate text-xs font-normal text-muted-foreground">
+                    云端 LLM 按校准约束代写初稿,回填后人工审阅
+                  </span>
+                  <span className="ml-auto shrink-0 text-[11px] font-normal text-muted-foreground/70 group-open:hidden">展开</span>
                 </summary>
-                <div className="mt-3 space-y-3">
+                <div className="space-y-3 border-t border-border/50 px-4 pb-4 pt-3.5">
                   <div className="space-y-1.5">
                     <Label htmlFor="lyric-theme" className="text-xs text-muted-foreground">创作主题(必填)</Label>
                     <Input
@@ -394,10 +406,13 @@ export function MusicTab(props: { projectId?: string; projectName: string }) {
                       disabled={writingLyrics}
                     />
                   </div>
-                  <Button size="sm" variant="outline" onClick={() => void handleWriteLyrics()} disabled={writingLyrics}>
-                    {writingLyrics ? <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden /> : <Sparkles className="mr-2 h-4 w-4" aria-hidden />}
-                    {writingLyrics ? "AI 写词中…" : "AI 写词"}
-                  </Button>
+                  <div className="flex flex-wrap items-center gap-3">
+                    <Button size="sm" variant="outline" onClick={() => void handleWriteLyrics()} disabled={writingLyrics}>
+                      {writingLyrics ? <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden /> : <Sparkles className="mr-2 h-4 w-4" aria-hidden />}
+                      {writingLyrics ? "AI 写词中…" : "AI 写词"}
+                    </Button>
+                    <p className="text-xs text-muted-foreground">仅写词不耗本地引擎;完成后回填下方歌词编辑器</p>
+                  </div>
                 </div>
               </details>
 
@@ -428,9 +443,17 @@ export function MusicTab(props: { projectId?: string; projectName: string }) {
                   className="resize-y font-mono text-xs leading-6"
                   disabled={generating}
                 />
-                <p className="text-xs text-muted-foreground">
-                  段落标签([Intro] 等)须独占一行,同行后续文字会被丢弃;当前 {lyricLines} 行唱词 ≈ 演唱 {Math.round(lyricLines * SEC_PER_LINE.mid)} 秒(中速校准),时长缺口由配方自动以器乐间奏/尾奏填充。
-                </p>
+                <div className="space-y-1 text-xs leading-5 text-muted-foreground">
+                  <p className="flex items-center gap-1.5">
+                    <Info className="h-3.5 w-3.5 shrink-0" aria-hidden />
+                    段落标签([Intro] 等)独占一行,同行后续文字会被丢弃
+                  </p>
+                  <p>
+                    当前 <span className="font-medium tabular-nums text-foreground/80">{lyricLines}</span> 行唱词 ≈ 演唱{" "}
+                    <span className="font-medium tabular-nums text-foreground/80">{Math.round(lyricLines * SEC_PER_LINE.mid)}</span> 秒(中速校准)
+                    ;时长缺口由配方自动以器乐间奏/尾奏填充。
+                  </p>
+                </div>
               </div>
             </>
           ) : null}
@@ -450,57 +473,60 @@ export function MusicTab(props: { projectId?: string; projectName: string }) {
             />
           </div>
 
-          <div className="flex flex-wrap items-end gap-3">
-            <div className="w-28 space-y-2">
-              <Label htmlFor="music-seed" className="text-xs text-muted-foreground">种子</Label>
-              <Input
-                id="music-seed"
-                value={seed}
-                onChange={(event) => setSeed(event.currentTarget.value)}
-                inputMode="numeric"
-                className="h-9 text-sm"
-                disabled={generating}
-              />
+          {/* 吸底操作条:歌曲模式内容超一屏时,生成入口恒可见(内容自半透明材质下滚过) */}
+          <div className="sticky bottom-0 z-10 -mx-6 -mb-6 space-y-3 rounded-b-2xl border-t border-border/60 bg-card/85 px-6 pb-5 pt-4 backdrop-blur-xl">
+            <div className="flex flex-wrap items-end gap-3">
+              <div className="w-28 space-y-2">
+                <Label htmlFor="music-seed" className="text-xs text-muted-foreground">种子</Label>
+                <Input
+                  id="music-seed"
+                  value={seed}
+                  onChange={(event) => setSeed(event.currentTarget.value)}
+                  inputMode="numeric"
+                  className="h-9 text-sm"
+                  disabled={generating}
+                />
+              </div>
+              <div className="w-36 space-y-2">
+                <Label htmlFor="music-seconds" className="text-xs text-muted-foreground">
+                  时长({MUSIC3_MIN_DURATION_S}-{MUSIC3_MAX_DURATION_S} 秒)
+                </Label>
+                <Input
+                  id="music-seconds"
+                  value={seconds}
+                  onChange={(event) => setSeconds(event.currentTarget.value)}
+                  inputMode="decimal"
+                  className="h-9 text-sm"
+                  disabled={generating}
+                />
+              </div>
+              <div className="min-w-32 flex-1" />
+              <Button onClick={() => void handleGenerate()} disabled={generating || !props.projectId} className="h-10 px-6">
+                {generating ? (
+                  <>
+                    <LiveJobFeedback active prefix="" />
+                    <span className="ml-2">生成中…</span>
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="mr-2 h-4 w-4" aria-hidden />
+                    生成整曲
+                  </>
+                )}
+              </Button>
             </div>
-            <div className="w-36 space-y-2">
-              <Label htmlFor="music-seconds" className="text-xs text-muted-foreground">
-                时长({MUSIC3_MIN_DURATION_S}-{MUSIC3_MAX_DURATION_S} 秒)
-              </Label>
-              <Input
-                id="music-seconds"
-                value={seconds}
-                onChange={(event) => setSeconds(event.currentTarget.value)}
-                inputMode="decimal"
-                className="h-9 text-sm"
-                disabled={generating}
-              />
-            </div>
-            <div className="min-w-32 flex-1" />
-            <Button onClick={() => void handleGenerate()} disabled={generating || !props.projectId} className="h-10 px-6">
-              {generating ? (
-                <>
-                  <LiveJobFeedback active prefix="" />
-                  <span className="ml-2">生成中…</span>
-                </>
-              ) : (
-                <>
-                  <Sparkles className="mr-2 h-4 w-4" aria-hidden />
-                  生成整曲
-                </>
-              )}
-            </Button>
-          </div>
 
-          {/* 进行中反馈:活反馈原语(均衡器+已进行计时)+ 预期说明 */}
-          {generating ? (
-            <div className="flex flex-wrap items-center gap-x-4 gap-y-2 rounded-lg border border-border/60 bg-muted/40 px-4 py-3">
-              <LiveJobFeedback active startedAt={startedAt ?? undefined} />
-              <span className="text-sm font-medium">生成中</span>
-              <span className="ml-auto text-xs text-muted-foreground">
-                30 秒约 5.5 分钟 · 60 秒约 11 分钟;完成自动落盘,可切走等待
-              </span>
-            </div>
-          ) : null}
+            {/* 进行中反馈:活反馈原语(均衡器+已进行计时)+ 预期说明 */}
+            {generating ? (
+              <div className="flex flex-wrap items-center gap-x-4 gap-y-2 rounded-lg border border-border/60 bg-muted/40 px-4 py-3">
+                <LiveJobFeedback active startedAt={startedAt ?? undefined} />
+                <span className="text-sm font-medium">生成中</span>
+                <span className="ml-auto text-xs text-muted-foreground">
+                  30 秒约 5.5 分钟 · 60 秒约 11 分钟;完成自动落盘,可切走等待
+                </span>
+              </div>
+            ) : null}
+          </div>
         </Card>
       ) : null}
 
