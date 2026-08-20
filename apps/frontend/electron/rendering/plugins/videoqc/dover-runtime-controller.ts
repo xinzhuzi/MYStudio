@@ -80,9 +80,26 @@ export function createVideoQcRuntimeController(deps: ControllerDeps) {
   const runFile = deps.execFile ?? execFileAsync;
   const now = deps.now ?? Date.now;
 
-  // --- config(缓存目录持久化,<storageBase>/VideoQcModel/config.json) ---
+  // --- config(缓存目录持久化,<storageBase>/model/videoqc/config.json) ---
+  // 08-19 模型目录规范:新家 <storageBase>/model/videoqc;旧 <storageBase>/VideoQcModel
+  // 在场且新家不存在时一次性整目录迁移(同卷 rename 保 config+权重+基线同迁;失败回退旧根)。
   function videoQcModelRoot(): string {
-    return path.join(getPaths().storageBasePath, "VideoQcModel");
+    const base = getPaths().storageBasePath;
+    const home = path.join(base, "model", "videoqc");
+    const legacy = path.join(base, "VideoQcModel");
+    try {
+      if (fs.existsSync(legacy) && !fs.existsSync(home)) {
+        try {
+          fs.mkdirSync(path.dirname(home), { recursive: true });
+          fs.renameSync(legacy, home);
+        } catch {
+          // 迁移失败(权限/跨卷):回退旧根,不阻断功能
+        }
+      }
+    } catch {
+      // 探测失败:按新家走
+    }
+    return fs.existsSync(legacy) && !fs.existsSync(home) ? legacy : home;
   }
 
   function configPath(): string {

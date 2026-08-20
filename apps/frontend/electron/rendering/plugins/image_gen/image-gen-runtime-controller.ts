@@ -80,11 +80,11 @@ export function createImageGenRuntimeController(deps: ControllerDeps) {
   };
 
   function buildEnv(): NodeJS.ProcessEnv {
-    const modelCacheDir = deps.modelCacheDir?.();
+    const modelCacheDir = getModelCacheDir();
     return {
       ...process.env,
       PYTHONPATH: deps.backendRoot,
-      ...(modelCacheDir ? { MYSTUDIO_IMAGE_MODEL_DIR: modelCacheDir } : {}),
+      MYSTUDIO_IMAGE_MODEL_DIR: modelCacheDir,
     };
   }
 
@@ -276,10 +276,28 @@ export function createImageGenRuntimeController(deps: ControllerDeps) {
     return true;
   }
 
+  // 08-19 模型目录规范:兜底新家 <storageBase>/model/imagegen;旧兜底 <storageBase>/python/models/image-gen
+  // (生产路径 main.ts 注入 TTS 共享缓存,此处兜底仅在无注入时生效);旧兜底在场且新家
+  // 不存在时一次性整目录迁移(同卷 rename;失败回退旧目录)。
   function getModelCacheDir(): string {
     const configured = deps.modelCacheDir?.();
     if (configured && path.isAbsolute(configured)) return configured;
-    return path.join(getPaths().pythonRuntimeDir, "models", "image-gen");
+    const paths = getPaths();
+    const home = path.join(paths.storageBasePath, "model", "imagegen");
+    const legacy = path.join(paths.pythonRuntimeDir, "models", "image-gen");
+    try {
+      if (fs.existsSync(legacy) && !fs.existsSync(home)) {
+        try {
+          fs.mkdirSync(path.dirname(home), { recursive: true });
+          fs.renameSync(legacy, home);
+        } catch {
+          // 迁移失败(权限/跨卷):回退旧目录,不阻断功能
+        }
+      }
+    } catch {
+      // 探测失败:按新家走
+    }
+    return fs.existsSync(legacy) && !fs.existsSync(home) ? legacy : home;
   }
 
   function activeModelDownloaded(): boolean {

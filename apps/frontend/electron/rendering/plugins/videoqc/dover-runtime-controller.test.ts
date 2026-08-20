@@ -71,14 +71,25 @@ describe("createVideoQcRuntimeController", () => {
 
   it("setModelCacheDir 持久化 config.json 并校验绝对路径", async () => {
     const controller = makeController(async () => ({ stdout: "" }));
-    mkdirSync(join(storageDir, "VideoQcModel"), { recursive: true });
     const bad = await controller.setModelCacheDir("relative/path");
     expect(bad.success).toBe(false);
-    const target = join(storageDir, "VideoQcModel");
+    const target = join(storageDir, "model", "videoqc");
     const good = await controller.setModelCacheDir(target);
     expect(good.success).toBe(true);
-    const config = JSON.parse(readFileSync(join(storageDir, "VideoQcModel", "config.json"), "utf-8"));
+    const config = JSON.parse(readFileSync(join(storageDir, "model", "videoqc", "config.json"), "utf-8"));
     expect(config.modelCacheDir).toBe(target);
+  });
+
+  it("旧 VideoQcModel 根一次性迁移到 model/videoqc(基线随迁)", async () => {
+    const legacy = join(storageDir, "VideoQcModel");
+    mkdirSync(legacy, { recursive: true });
+    writeFileSync(join(legacy, "baselines.json"), "{}", "utf-8");
+    const controller = makeController(async () => ({ stdout: "" }));
+    controller.recordBaseline("default", 0.7); // 首次根解析触发一次性迁移(同卷 rename)
+    const home = join(storageDir, "model", "videoqc");
+    expect(existsSync(legacy)).toBe(false);
+    expect(existsSync(join(home, "baselines.json"))).toBe(true);
+    expect(controller.getModelCacheDir()).toBe(home);
   });
 
   it("readDownloadProgress 读进度 JSON", async () => {
@@ -134,7 +145,7 @@ describe("createVideoQcRuntimeController", () => {
 
   it("baselines:在线更新均值/方差", async () => {
     const controller = makeController(async () => ({ stdout: "" }));
-    mkdirSync(join(storageDir, "VideoQcModel"), { recursive: true });
+    mkdirSync(join(storageDir, "model", "videoqc"), { recursive: true });
     controller.recordBaseline("default", 0.7);
     controller.recordBaseline("default", 0.8);
     controller.recordBaseline("default", 0.9);
@@ -142,6 +153,6 @@ describe("createVideoQcRuntimeController", () => {
     expect(baselines.default.sampleCount).toBe(3);
     expect(baselines.default.meanFused).toBeCloseTo(0.8, 5);
     expect(baselines.default.sigma).toBeGreaterThan(0.05);
-    expect(existsSync(join(storageDir, "VideoQcModel", "baselines.json"))).toBe(true);
+    expect(existsSync(join(storageDir, "model", "videoqc", "baselines.json"))).toBe(true);
   });
 });
