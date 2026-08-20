@@ -977,9 +977,30 @@ export function addStoryboardLayeredNodes(
       createdAt: now,
     });
     next = connectImageWorkflowNodes(next, { source: promptNodeId, target: generatedNodeId }, now);
-    for (const reference of references) {
-      next = connectImageWorkflowNodes(next, { source: reference.id, target: generatedNodeId }, now);
-    }
+    // 参考图克隆+顺序重排(08-20 修):直连原图参考会因子集连线断档
+    // (场景参考 order [2,3] 缺 [1])被连续性闸拒「顺序不连续」。克隆为专属
+    // 参考节点,continuityOrder 重排 1..k——不动原图连线,资产圣经锚点全保留。
+    references.forEach((reference, index) => {
+      const cloneId = createId(`${idPrefix}-ref`, now + index + 1);
+      next = addReferenceImageNode(next, {
+        id: cloneId,
+        title: `${reference.title || "参考图"}·分层`,
+        imageUrl: reference.imageUrl,
+        source: reference.source,
+        notes: reference.notes,
+        continuityOrder: index + 1,
+        continuityVersionId: reference.continuityVersionId,
+        referenceRole: reference.referenceRole,
+        identityAnchors: reference.identityAnchors,
+        negativePrompt: reference.negativePrompt,
+        wardrobeVersion: reference.wardrobeVersion,
+        characterViewType: reference.characterViewType,
+        sceneViewpointId: reference.sceneViewpointId,
+        position: { x: 40, y: y + index * 180 },
+        createdAt: now,
+      });
+      next = connectImageWorkflowNodes(next, { source: cloneId, target: generatedNodeId }, now);
+    });
     return next;
   };
 
