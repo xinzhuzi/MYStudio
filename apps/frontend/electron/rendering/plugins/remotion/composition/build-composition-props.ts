@@ -1088,13 +1088,15 @@ function gradeForClip(
   const params = effect.params as { lutId?: unknown; blend?: unknown } | undefined;
   const lutId = String(params?.lutId ?? "");
   if (!isCinematicLutId(lutId)) {
-    throw new Error(`镜 ${clipId} 的 grade.lutId 不在 LUT 闭集: ${lutId || "(空)"}`);
+    throw new Error(`镜 ${clipId} 的 grade.lutId 不在 LUT 闭集：${lutId || "(空)"}`);
   }
-  const blendRaw = Number(params?.blend ?? 1);
-  const blend = Number.isFinite(blendRaw) ? Math.min(1, Math.max(0, blendRaw)) : 1;
+  // 08-21 用户裁定:LUT 调色尽量压低，观众看不出来为佳——避免色彩占据主视觉不好看。
+  // blend 默认从 1→0.05(5%),保留微妙的胶片感而不破坏画面原生色调。
+  const blendRaw = Number(params?.blend ?? 0.05);
+  const blend = Number.isFinite(blendRaw) ? Math.min(1, Math.max(0, blendRaw)) : 0.05;
   const lutSrc = lutUrlById?.[lutId];
   if (!lutSrc) {
-    throw new Error(`镜 ${clipId} 的 grade 缺少 LUT 资源 URL（渲染入口须注册 LUT 资产: ${lutId}）`);
+    throw new Error(`镜 ${clipId} 的 grade 缺少 LUT 资源 URL（渲染入口须注册 LUT 资产：${lutId}）`);
   }
   return { grade: { lutId, lutSrc, blend, ...(pulse ? { blendPulse: pulse } : {}) } };
 }
