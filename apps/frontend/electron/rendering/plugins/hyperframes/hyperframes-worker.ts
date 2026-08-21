@@ -18,11 +18,61 @@ installUncaughtExceptionGuard({
 const TOOL_VERSION = `hyperframes@${HYPERFRAMES_NPM_VERSION}`;
 /**
  * HyperFrames' strict renderer becomes unreliable when one composition owns
- * all 43 full-frame overlays. Keep each strict composition deliberately
- * small, then concatenate the alpha-preserving ProRes segments.
+ * many full-frame overlays. Keep each strict composition deliberately small,
+ * then concatenate the alpha-preserving ProRes segments.
+ *
+ * 08-22 修(两段式):①三镜像失同步补门;②heavy-overlay 预算切分——HY strict
+ * lint 按 composition 内带 blur/radial-gradient/clip-path 的元素计数,08-21
+ * 新模板 CSS 普遍更重(bokeh+star+confetti+ink 四窗段实测 28 heavy 元素熔断,
+ * 且字段报告+本仓 alpha 探针实证:组合内 star 可见度掉到单模板的 1/7,捕获层
+ * 劣化是物理真实)。窗数上限之外再加 heavy 元素预算(估算器与 linter 同口径:
+ * 样式表中含 heavy 令牌的规则所涉 class,统计 body 内命中元素数)。
  */
-const MAX_WINDOWS_PER_COMPOSITION = 8;
-const SUPPORTED_TEMPLATES = new Set([
+const MAX_WINDOWS_PER_COMPOSITION = 4;
+const HEAVY_ELEMENT_BUDGET = 15;
+const HEAVY_CSS_TOKENS = /radial-gradient|blur\(|clip-path/;
+
+const heavyElementCache = new Map<string, number>();
+
+function estimateHeavyElementCount(window: HyperFramesOverlayRequestV1["windows"][number]): number {
+  const key = `${window.templateId}|${window.durationUs}|${JSON.stringify(window.parameters ?? {})}`;
+  const cached = heavyElementCache.get(key);
+  if (cached !== undefined) return cached;
+  const html = buildHyperFramesCompositionHtml({
+    schemaVersion: 1,
+    projectId: "heavy-estimate",
+    chapterId: "heavy-estimate",
+    revision: 1,
+    sourceArtifactSha256: "0".repeat(64),
+    inputSha256: "0".repeat(64),
+    width: 1920,
+    height: 1080,
+    fps: 30,
+    alphaFormat: "prores-4444-mov",
+    outputPath: "/tmp/heavy-estimate.mov",
+    windows: [window],
+  }, window.durationUs);
+  const style = html.match(/<style>([\s\S]*?)<\/style>/)?.[1] ?? "";
+  const heavyClasses = new Set<string>();
+  for (const rule of style.split("}")) {
+    if (!HEAVY_CSS_TOKENS.test(rule)) continue;
+    const selector = rule.split("{")[0] ?? "";
+    for (const match of selector.matchAll(/\.([a-zA-Z0-9_-]+)/g)) heavyClasses.add(match[1]!);
+  }
+  let count = 0;
+  // 任意标签(div/span 都有:star-twinkle 粒子是 span,08-22 实测 div-only 漏算 15)
+  for (const element of html.matchAll(/<\w+[^>]*\bclass="([^"]*)"[^>]*>/g)) {
+    if (element[1]!.split(/\s+/).some((cls) => heavyClasses.has(cls))) count += 1;
+  }
+  count += (html.match(/style="[^"]*(?:radial-gradient|blur\(|clip-path)[^"]*"/g) ?? []).length;
+  heavyElementCache.set(key, count);
+  return count;
+}
+// 08-22 修(三镜像失同步):08-21 剪映风扩容的 20 新模板进了决策池(adapter.py)
+// 与 TS 契约(HYPERFRAMES_DECORATIVE_TEMPLATE_IDS),也补齐了下方渲染 case,
+// 但漏加本 Set 门——重跑撞上新模板即 blocked「不支持的 templateId」。
+// 现导出供 hyperframes-template-sync.test.ts 与契约白名单对拍守护。
+export const SUPPORTED_TEMPLATES = new Set([
   "title-card",
   "kinetic-caption",
   "highlight-box",
@@ -52,6 +102,11 @@ const SUPPORTED_TEMPLATES = new Set([
   "speed-lines",
   "shockwave-ring",
   "breathing-light",
+  // 08-21 剪映风格扩容(20 新)——08-22 补入本门(见文件头注)
+  "glitch-rgb", "glitch-slice", "glitch-scanline", "vhs-rewind", "pixel-blur",
+  "strobe-flash", "neon-glow", "bokeh-lights", "star-twinkle", "confetti-burst",
+  "heart-float", "bubble-rise", "zoom-pulse", "shake-earthquake", "wobble-jelly",
+  "spin-hypnotic", "ripple-water", "fade-dip-black", "flash-white", "dream-soft",
 ]);
 
 type HyperFramesWorkerResult = {
@@ -173,6 +228,9 @@ const registryTemplateCache = new Map<string, { styles: string; body: string; sc
  * - 打包: Resources/hyperframes-registry(extraResources to: hyperframes-registry)
  */
 function resolveRegistryAssetsRoot(): string {
+  // 08-22:env 覆盖(esbuild 单文件 bundle 的 __dirname 相对推导会断链)
+  const envRoot = process.env.MYSTUDIO_HYPERFRAMES_REGISTRY_ASSETS?.trim();
+  if (envRoot) return envRoot;
   const dev = path.join(__dirname, "../../../../assets/hyperframes-registry");
   if (fs.existsSync(dev)) return dev;
   return path.join(process.resourcesPath ?? "", "hyperframes-registry");
@@ -894,11 +952,15 @@ export function splitHyperFramesRenderSegments(request: HyperFramesOverlayReques
     let selectedEndUs: number | undefined;
     for (const endUs of candidateBoundaries) {
       if (endUs <= startUs) continue;
-      const overlappingCount = request.windows.filter((window) => window.startUs < endUs && windowEndUs(window) > startUs).length;
-      if (overlappingCount <= MAX_WINDOWS_PER_COMPOSITION) selectedEndUs = endUs;
+      const overlapping = request.windows.filter((window) => window.startUs < endUs && windowEndUs(window) > startUs);
+      if (overlapping.length > MAX_WINDOWS_PER_COMPOSITION) continue;
+      // heavy 预算(08-22):单窗段豁免——模板自身超重不可再分,交给 strict 兜底。
+      const heavySum = overlapping.reduce((sum, window) => sum + estimateHeavyElementCount(window), 0);
+      if (overlapping.length > 1 && heavySum > HEAVY_ELEMENT_BUDGET) continue;
+      selectedEndUs = endUs;
     }
     if (!selectedEndUs) {
-      throw new Error(`HyperFrames 无法在 ${MAX_WINDOWS_PER_COMPOSITION} 个窗口内切分重叠时间轴`);
+      throw new Error(`HyperFrames 无法在 ${MAX_WINDOWS_PER_COMPOSITION} 个窗口/heavy≤${HEAVY_ELEMENT_BUDGET} 内切分重叠时间轴`);
     }
     boundaries.push(selectedEndUs);
   }
@@ -917,6 +979,10 @@ export function splitHyperFramesRenderSegments(request: HyperFramesOverlayReques
     });
     if (windows.length > MAX_WINDOWS_PER_COMPOSITION) {
       throw new Error(`HyperFrames 分段 ${index + 1} 包含 ${windows.length} 个窗口，拒绝绕过 strict-all 渲染上限`);
+    }
+    const segmentHeavy = windows.reduce((sum, window) => sum + estimateHeavyElementCount(window), 0);
+    if (windows.length > 1 && segmentHeavy > HEAVY_ELEMENT_BUDGET) {
+      throw new Error(`HyperFrames 分段 ${index + 1} heavy 元素 ${segmentHeavy} 超预算 ${HEAVY_ELEMENT_BUDGET}，拒绝绕过 heavy-overlay 熔断`);
     }
     return { startUs, durationUs: endUs - startUs, windows };
   });
@@ -1138,7 +1204,12 @@ function run(request: HyperFramesOverlayRequestV1, artifactPath: string): HyperF
       generatedAt: Date.now(),
     };
   } catch (error) {
-    return blocked(validated.value, "render-failed", error instanceof Error ? error.message : String(error));
+    // 08-22 观测性补:execFileSync 的 stderr 藏着 HY CLI 真实根因(strict 违例
+    // /浏览器崩溃等),此前被吞只剩命令行本身——排障必须能看见。
+    const detail = error instanceof Error
+      ? `${error.message}${typeof (error as unknown as { stderr?: unknown }).stderr === "string" && ((error as unknown as { stderr: string }).stderr).trim() ? ` | stderr: ${((error as unknown as { stderr: string }).stderr).trim().slice(-600)}` : ""}`
+      : String(error);
+    return blocked(validated.value, "render-failed", detail);
   } finally {
     fs.rmSync(projectDir, { recursive: true, force: true });
   }

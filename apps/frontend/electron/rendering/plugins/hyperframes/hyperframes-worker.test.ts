@@ -175,15 +175,18 @@ describe("HyperFrames worker composition boundary", () => {
 
     const segments = splitHyperFramesRenderSegments(heavyRequest);
 
-    expect(segments).toHaveLength(3);
+    // 08-22 修:cap 8→4(heavy-overlay lint 在 8 窗×新模板=31 heavy 元素必熔断)
+    expect(segments).toHaveLength(5);
     expect(segments.map((segment) => [segment.startUs, segment.durationUs, segment.windows.length])).toEqual([
-      [0, 8_000_000, 8],
-      [8_000_000, 7_000_000, 8],
-      [15_000_000, 2_000_000, 2],
+      [0, 4_000_000, 4],
+      [4_000_000, 3_000_000, 4],
+      [7_000_000, 3_000_000, 4],
+      [10_000_000, 4_000_000, 4],
+      [14_000_000, 3_000_000, 3],
     ]);
     expect(segments[1].windows.find((window) => window.slotId === "slot-1")).toMatchObject({
       startUs: 0,
-      durationUs: 1_000_000,
+      durationUs: 3_000_000,
     });
   });
 
@@ -205,15 +208,15 @@ describe("HyperFrames worker composition boundary", () => {
     const segment2 = segments[1];
     const html = buildHyperFramesCompositionHtml({ ...request, windows: segment2.windows }, segment2.durationUs);
 
-    // slot-1 尾段：段起点 8s，原始起点 0s → 相位回退 8s
-    expect(html).toContain("animation-delay:-8s;");
-    // 段内原生窗口（slot-9 起）不得携带负相位；17 窗 3 段里第 2 段唯一跨段窗口是 slot-1
+    // slot-1 尾段:段起点 4s(08-22 cap 8→4),原始起点 0s → 相位回退 4s
+    expect(html).toContain("animation-delay:-4s;");
+    // 段内原生窗口(slot-5 起)不得携带负相位;5 段里第 2 段唯一跨段窗口是 slot-1
     expect(html.match(/animation-delay:-/g)).toHaveLength(1);
-    // 跨段窗口时长被裁剪为 [8s,9s) 共 1s，与分段器输出一致
+    // 跨段窗口时长被裁剪为 [4s,7s) 共 3s,与分段器输出一致
     expect(segment2.windows.find((window) => window.slotId === "slot-1")).toMatchObject({
       startUs: 0,
-      durationUs: 1_000_000,
-      animationOffsetUs: 8_000_000,
+      durationUs: 3_000_000,
+      animationOffsetUs: 4_000_000,
     });
   });
 
@@ -238,8 +241,8 @@ describe("HyperFrames worker composition boundary", () => {
     const segment2 = splitHyperFramesRenderSegments(heavy)[1];
     const html = buildHyperFramesCompositionHtml({ ...request, windows: segment2.windows }, segment2.durationUs);
 
-    expect(html).toContain('class="hf-dust-particle" style="left:0%;top:0%;animation-delay:-8.0s;animation-duration:8s;"');
-    expect(html).toContain('class="hf-dust-particle" style="left:37%;top:53%;animation-delay:-7.7s;animation-duration:8s;"');
+    expect(html).toContain('class="hf-dust-particle" style="left:0%;top:0%;animation-delay:-4.0s;animation-duration:8s;"');
+    expect(html).toContain('class="hf-dust-particle" style="left:37%;top:53%;animation-delay:-3.7s;animation-duration:8s;"');
   });
 
   it("AC2: 重叠窗口超过段上限且无合法切点时 fail closed", () => {

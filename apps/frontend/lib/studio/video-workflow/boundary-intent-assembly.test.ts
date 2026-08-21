@@ -168,3 +168,56 @@ describe("assembleBoundaryIntents AI 转场决策层（08-19）", () => {
     expect(result.intents[1]).toMatchObject({ fromShotId: "shot-2", effectId: "impact-frame" });
   });
 });
+
+describe("assembleBoundaryIntents 08-22 转场密度裁定", () => {
+  function denseStoryboards(count: number, word = "水墨晕染") {
+    return Array.from({ length: count }, (_, i) => ({
+      id: `shot-${i + 1}`,
+      index: i + 1,
+      trackKey: `chapter-001-scene-1`,
+      ...(i + 1 < count ? { shotSemantics: { transitionToNext: { styleWord: word } } } : {}),
+    }));
+  }
+  const durationsOf = (count: number) =>
+    new Map(Array.from({ length: count }, (_, i) => [`shot-${i + 1}`, 4_000_000]));
+
+  it("同款转场 5 边界内重复 → 降级硬切并告警;间距 ≥5 保留", () => {
+    // 7 镜 6 边界全请求水墨晕染(gl:swap):保留边界 1、6,中间 4 个降级
+    const result = assembleBoundaryIntents({
+      storyboards: denseStoryboards(7),
+      shotDurationUsById: durationsOf(7),
+    });
+    expect(result.intents.map((intent) => intent.fromShotId)).toEqual(["shot-1", "shot-6"]);
+    expect(result.warnings).toHaveLength(4);
+    expect(result.warnings[0]).toContain("降级硬切");
+  });
+
+  it("硬切边界计入距离:隔 3 个硬切后再用同款仍算 5 窗口内重复", () => {
+    // 边界1=swap;边界2-4=无词表命中(硬切);边界5=同款 → 间距4<5 仍降级
+    const boards = denseStoryboards(6).map((board, i) =>
+      i === 1 || i === 2 || i === 3 ? { ...board, shotSemantics: undefined } : board,
+    );
+    const result = assembleBoundaryIntents({
+      storyboards: boards,
+      shotDurationUsById: durationsOf(6),
+    });
+    expect(result.intents.map((intent) => intent.fromShotId)).toEqual(["shot-1"]);
+    expect(result.warnings).toHaveLength(1);
+  });
+
+  it("不同款转场不受密度钳制", () => {
+    const boards = denseStoryboards(4).map((board, i) =>
+      i === 1
+        ? { ...board, shotSemantics: { transitionToNext: { styleWord: "境界跃迁" } } }
+        : i === 2
+          ? { ...board, shotSemantics: { transitionToNext: { styleWord: "剑痕" } } }
+          : board,
+    );
+    const result = assembleBoundaryIntents({
+      storyboards: boards,
+      shotDurationUsById: durationsOf(4),
+    });
+    expect(result.intents.map((intent) => intent.effectId)).toEqual(["gl:swap", "gl:CrossZoom", "flash"]);
+    expect(result.warnings).toHaveLength(0);
+  });
+});

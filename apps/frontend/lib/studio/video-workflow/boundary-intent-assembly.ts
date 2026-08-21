@@ -2,6 +2,7 @@ import type { VideoUseBoundaryIntentV1 } from "@rendering/contracts/video-workfl
 import { parseDirectorPlanBoundaryIntents } from "@/lib/studio/director-plan";
 import {
   clampTransitionDurationUs,
+  createTransitionDiversityTracker,
   isTransitionSemanticBucketId,
   semanticBucketTransition,
   styleWordTransition,
@@ -69,6 +70,19 @@ export function assembleBoundaryIntents(
   }
   const sceneIntents = parseDirectorPlanBoundaryIntents(input.scriptPlanTransitions);
   const intents: VideoUseBoundaryIntentV1[] = [];
+  // 08-22 转场密度裁定:同款 effectId 在任意连续 5 个边界内不得重复。
+  // 违反的意图不发出(该边界回落硬切),与「未命中词表保持硬切」同一语义。
+  const diversity = createTransitionDiversityTracker();
+  const emitIntent = (intent: VideoUseBoundaryIntentV1, boundaryIndex: number, label: string): void => {
+    if (!diversity.allows(intent.effectId, boundaryIndex)) {
+      warnings.push(
+        `镜 ${boundaryIndex + 1} ${label}→${intent.effectId} 与前 4 个边界内同款重复,边界降级硬切(08-22 转场密度裁定)`,
+      );
+      return;
+    }
+    diversity.record(intent.effectId, boundaryIndex);
+    intents.push(intent);
+  };
 
   for (let position = 0; position < storyboards.length - 1; position += 1) {
     const from = storyboards[position]!;
@@ -81,13 +95,13 @@ export function assembleBoundaryIntents(
       if (isTransitionSemanticBucketId(from.shotFx.transitionOut)) {
         const bucket = semanticBucketTransition(from.shotFx.transitionOut);
         if (bucket) {
-          intents.push({
+          emitIntent({
             fromShotId: from.id,
             toShotId: to.id,
             effectId: bucket.effectId,
             durationUs: clampTransitionDurationUs(bucket.durationUs, durationUs),
             styleWord: bucket.styleWord,
-          });
+          }, position, `AI 桶 ${from.shotFx.transitionOut}`);
           continue;
         }
       }
@@ -99,14 +113,14 @@ export function assembleBoundaryIntents(
     if (shotIntent?.styleWord?.trim()) {
       const transition = styleWordTransition(shotIntent.styleWord);
       if (transition) {
-        intents.push({
+        emitIntent({
           fromShotId: from.id,
           toShotId: to.id,
           effectId: transition.effectId,
           durationUs: clampTransitionDurationUs(transition.durationUs, durationUs),
           styleWord: transition.styleWord,
           ...(shotIntent.moodWord?.trim() ? { moodWord: shotIntent.moodWord.trim() } : {}),
-        });
+        }, position, `分镜语义 ${shotIntent.styleWord}`);
       } else if (shotIntent.styleWord.trim() !== "同场景硬切") {
         warnings.push(`镜 ${from.index} transitionToNext.styleWord 未命中词表(${shotIntent.styleWord})，边界保持硬切`);
       }
@@ -122,14 +136,14 @@ export function assembleBoundaryIntents(
     if (planShotIntent) {
       const transition = styleWordTransition(planShotIntent.styleWord);
       if (transition) {
-        intents.push({
+        emitIntent({
           fromShotId: from.id,
           toShotId: to.id,
           effectId: transition.effectId,
           durationUs: clampTransitionDurationUs(transition.durationUs, durationUs),
           styleWord: transition.styleWord,
           ...(planShotIntent.moodWord ? { moodWord: planShotIntent.moodWord } : {}),
-        });
+        }, position, `计划 ${planShotIntent.styleWord}`);
       }
       continue;
     }
@@ -139,13 +153,13 @@ export function assembleBoundaryIntents(
       // Priority 4: heuristic rule fallback（链尾：不抢分镜表/导演计划的明确裁定）。
       const heuristic = heuristicTransitionFor(from, warnings);
       if (heuristic) {
-        intents.push({
+        emitIntent({
           fromShotId: from.id,
           toShotId: to.id,
           effectId: heuristic.effectId,
           durationUs: clampTransitionDurationUs(heuristic.durationUs, durationUs),
           styleWord: heuristic.styleWord,
-        });
+        }, position, `启发式 ${heuristic.styleWord}`);
       }
       continue;
     }
@@ -155,26 +169,26 @@ export function assembleBoundaryIntents(
     if (!sceneIntent) {
       const heuristic = heuristicTransitionFor(from, warnings);
       if (heuristic) {
-        intents.push({
+        emitIntent({
           fromShotId: from.id,
           toShotId: to.id,
           effectId: heuristic.effectId,
           durationUs: clampTransitionDurationUs(heuristic.durationUs, durationUs),
           styleWord: heuristic.styleWord,
-        });
+        }, position, `启发式 ${heuristic.styleWord}`);
       }
       continue;
     }
     const transition = styleWordTransition(sceneIntent.styleWord);
     if (!transition) continue;
-    intents.push({
+    emitIntent({
       fromShotId: from.id,
       toShotId: to.id,
       effectId: transition.effectId,
       durationUs: clampTransitionDurationUs(transition.durationUs, durationUs),
       styleWord: transition.styleWord,
       ...(sceneIntent.moodWord ? { moodWord: sceneIntent.moodWord } : {}),
-    });
+    }, position, `场景计划 ${sceneIntent.styleWord}`);
   }
   return { intents, warnings };
 }

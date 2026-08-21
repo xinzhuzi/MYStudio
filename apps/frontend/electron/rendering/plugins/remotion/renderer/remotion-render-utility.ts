@@ -19,6 +19,8 @@ export interface UtilityProcessLike {
   off(event: "exit", listener: (code: number) => void): UtilityProcessLike;
   postMessage(message: unknown): void;
   kill(): boolean;
+  /** Electron utilityProcess 暴露的 stderr 流;捕获尾部并入失败消息(08-22 观测性补) */
+  stderr?: unknown;
 }
 
 export type RemotionRenderUtilityInput =
@@ -53,6 +55,7 @@ interface ActiveRequest {
   reject: (error: Error) => void;
   onMessage: (message: unknown) => void;
   onExit: (code: number) => void;
+  stderrTail?: () => string;
   cancelTimer?: ReturnType<typeof setTimeout>;
   cancelRequested: boolean;
 }
@@ -194,6 +197,13 @@ export class RemotionRenderUtilitySupervisor {
       });
       this.activeByJobId.set(active.jobId, active);
       this.activeByRequestId.set(active.requestId, active);
+      const stderrTail: Buffer[] = [];
+      const stderrStream = child.stderr as { on?(event: "data", listener: (chunk: Buffer) => void): unknown } | undefined;
+      stderrStream?.on?.("data", (chunk) => {
+        stderrTail.push(chunk);
+        if (stderrTail.reduce((sum, part) => sum + part.length, 0) > 64 * 1024) stderrTail.shift();
+      });
+      active.stderrTail = () => Buffer.concat(stderrTail).toString("utf8").slice(-1500).trim();
       child.on("message", active.onMessage);
       child.on("exit", active.onExit);
       try {
@@ -262,7 +272,11 @@ export class RemotionRenderUtilitySupervisor {
       this.finish(active, { success: false, jobId: active.jobId, canceled: true, error: `Remotion utility 渲染已取消: ${active.jobId}` });
       return;
     }
-    this.finish(active, failed(active.jobId, `Remotion render utility process 退出(code=${code})`));
+    const stderrTail = active.stderrTail?.() ?? "";
+    this.finish(active, failed(
+      active.jobId,
+      `Remotion render utility process 退出(code=${code})${stderrTail ? ` | stderr: ${stderrTail}` : ""}`,
+    ));
   }
 
   private finish(

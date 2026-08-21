@@ -122,6 +122,31 @@ export function clampTransitionDurationUs(
   return Math.min(Math.max(requestedUs, MIN_TRANSITION_US), Math.max(MIN_TRANSITION_US, ceiling));
 }
 
+/** 08-22 用户裁定:同款转场在任意连续 5 个镜头边界内不得重复出现
+ * (同一 effectId 的两次出现,边界序号差必须 ≥5)。违反者降级为硬切。 */
+export const TRANSITION_SAME_EFFECT_MIN_BOUNDARY_GAP = 5;
+
+export interface TransitionDiversityTracker {
+  allows(effectId: string, boundaryIndex: number): boolean;
+  record(effectId: string, boundaryIndex: number): void;
+}
+
+/** Density tracker over boundary indices (cut boundaries count as distance). */
+export function createTransitionDiversityTracker(
+  minBoundaryGap: number = TRANSITION_SAME_EFFECT_MIN_BOUNDARY_GAP,
+): TransitionDiversityTracker {
+  const lastBoundaryByEffect = new Map<string, number>();
+  return {
+    allows(effectId, boundaryIndex) {
+      const last = lastBoundaryByEffect.get(effectId);
+      return last === undefined || boundaryIndex - last >= minBoundaryGap;
+    },
+    record(effectId, boundaryIndex) {
+      lastBoundaryByEffect.set(effectId, boundaryIndex);
+    },
+  };
+}
+
 export function explicitTransitionDuration(
   from: Pick<EditingClip, "durationUs">,
   to: Pick<EditingClip, "durationUs">,
