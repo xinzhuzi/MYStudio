@@ -327,7 +327,10 @@ function renderWindow(window: HyperFramesSegmentWindow, index: number): string {
     if (!template) return ""; // 依赖缺失已告警,降级丢弃该窗不阻塞渲染
     const startS = window.startUs / 1_000_000;
     const durationS = window.durationUs / 1_000_000;
-    return `<div class="hy-registry-window" data-template="${window.templateId}" data-start="${startS}" data-duration="${durationS}" style="position:absolute;inset:0;width:100%;height:100%;overflow:hidden;">${template.body}</div>`;
+    // class="clip" 是运行时按 data-start/data-duration 控可见性的钩子;
+    // .clip 基础样式假设"居中点定位",registry 全幅窗用专属规则抵消
+    const id = `hyr-${window.templateId.replace(/[^A-Za-z0-9-]/g, "-")}-${index + 1}`;
+    return `<div id="${id}" class="clip hy-registry-window" data-template="${window.templateId}" data-start="${startS}" data-duration="${durationS}" style="position:absolute;inset:0;width:100%;height:100%;overflow:hidden;">${template.body}</div>`;
   }
   if (!SUPPORTED_TEMPLATES.has(window.templateId)) {
     throw new Error(`不支持的 HyperFrames templateId: ${window.templateId}`);
@@ -644,6 +647,17 @@ function renderWindow(window: HyperFramesSegmentWindow, index: number): string {
   return `<div id="${escapeHtml(elementId)}" class="clip ${className}" data-start="${startS}" data-duration="${durationS}" data-track-index="${index + 1}" style="${phaseStyle}left:${left}%;top:${top}%;font-size:${fontSize}px;color:${color};">${content}</div>`;
 }
 
+/** 本次请求中因依赖缺失被降级丢弃的 registry 模板(写进 artifact 供渲染证据链查询) */
+export function collectDegradedRegistryTemplates(request: HyperFramesOverlayRequestV1): string[] {
+  const degraded = new Set<string>();
+  for (const window of request.windows) {
+    if (isRegistryTemplate(window.templateId) && materializeRegistryTemplate(window.templateId) === null) {
+      degraded.add(window.templateId);
+    }
+  }
+  return [...degraded];
+}
+
 export function buildHyperFramesCompositionHtml(request: HyperFramesOverlayRequestV1, durationUs?: number): string {
   const derivedDurationUs = Math.max(...request.windows.map((window) => window.startUs + window.durationUs), 1_000);
   const compositionDurationUs = durationUs ?? derivedDurationUs;
@@ -692,6 +706,7 @@ export function buildHyperFramesCompositionHtml(request: HyperFramesOverlayReque
 html,body{margin:0;width:100%;height:100%;overflow:hidden;background:transparent}
 #stage{position:relative;width:${request.width}px;height:${request.height}px;background:transparent;overflow:hidden}
 .clip{position:absolute;transform:translate(-50%,-50%);opacity:0;white-space:nowrap;font-family:-apple-system,BlinkMacSystemFont,sans-serif;font-weight:700;text-shadow:0 3px 12px rgba(0,0,0,.45);animation:hf-in .24s ease-out forwards}
+.clip.hy-registry-window{transform:none;left:0;top:0;white-space:normal;opacity:1;animation:none;text-shadow:none;font-weight:400}
 .hf-caption{padding:.22em .48em;border-radius:.22em;background:rgba(0,0,0,.48);letter-spacing:.02em}
 .hf-title{letter-spacing:.04em}
 .hf-highlight{width:24%;height:14%;border:4px solid currentColor;border-radius:18px;box-shadow:0 0 26px currentColor}
@@ -835,7 +850,10 @@ window.__timelines["mystudio-overlay"] = {
 
 export function buildHyperFramesCliArgs(projectDir: string, request: HyperFramesOverlayRequestV1, outputPath = request.outputPath): string[] {
   const format = request.alphaFormat === "prores-4444-mov" ? "mov" : request.alphaFormat === "webm-vp9-alpha" ? "webm" : "png-sequence";
-  return ["render", projectDir, "--format", format, "--output", outputPath, "--fps", String(request.fps), "--quiet", "--strict-all"];
+  // registry 模板源码(上游 HTML)普遍含 Math.random/rAF/未作用域选择器,--strict-all
+  // 严格 lint 必拒(08-22 实证);仅纯本地合成保留 strict,registry 合成放宽 lint 仍走同渲染器
+  const strict = request.windows.some((w) => isRegistryTemplate(w.templateId)) ? [] : ["--strict-all"];
+  return ["render", projectDir, "--format", format, "--output", outputPath, "--fps", String(request.fps), "--quiet", ...strict];
 }
 
 type HyperFramesRenderSegment = {
@@ -1102,6 +1120,7 @@ function run(request: HyperFramesOverlayRequestV1, artifactPath: string): HyperF
     const outputSha256 = validated.value.alphaFormat === "png-sequence"
       ? crypto.createHash("sha256").update(fs.readdirSync(request.outputPath).sort().join("\n")).digest("hex")
       : crypto.createHash("sha256").update(fs.readFileSync(request.outputPath)).digest("hex");
+    const degradedTemplateIds = collectDegradedRegistryTemplates(validated.value);
     return {
       schemaVersion: 1,
       projectId: validated.value.projectId,
@@ -1114,6 +1133,7 @@ function run(request: HyperFramesOverlayRequestV1, artifactPath: string): HyperF
       outputPath: request.outputPath,
       outputSha256,
       windows: validated.value.windows,
+      ...(degradedTemplateIds.length ? { degradedTemplateIds } : {}),
       toolVersion: TOOL_VERSION,
       generatedAt: Date.now(),
     };

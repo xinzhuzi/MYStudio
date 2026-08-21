@@ -770,6 +770,8 @@ const videoUseAdapter = createVideoUseAdapter({
   backendRoot: videoWorkflowBackendRoot,
   workspaceRootForProject: videoWorkflowWorkspaceRootForProject,
 })
+// 子进程(python adapter 等)继承此 env,据 <deps>/.ready 判断是否可推 hy: 模板
+process.env.MYSTUDIO_REGISTRY_DEPS_DIR = path.join(app.getPath('userData'), 'hyperframes-registry-deps')
 const hyperFramesAdapter = createHyperFramesAdapter({
   storageBasePath: getStorageBasePath,
   workspaceRootForProject: (projectId: string) => path.join(projectRootFor(projectId), 'hyperframes'),

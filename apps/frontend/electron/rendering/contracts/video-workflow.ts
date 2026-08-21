@@ -278,6 +278,8 @@ export interface HyperFramesOverlayArtifactV1 {
   outputPath?: string;
   outputSha256?: string;
   windows: HyperFramesOverlayWindowV1[];
+  /** 渲染时因依赖缺失被降级丢弃的 registry 模板(08-22 可见性;空=无降级) */
+  degradedTemplateIds?: string[];
   toolVersion: string;
   generatedAt: number;
 }

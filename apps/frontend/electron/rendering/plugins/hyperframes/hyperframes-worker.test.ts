@@ -54,6 +54,13 @@ describe("HyperFrames worker composition boundary", () => {
     ]);
   });
 
+  it("drops --strict-all for registry-template compositions (upstream HTML trips strict lint)", () => {
+    const registryRequest = { ...request, windows: [{ ...request.windows[0], templateId: "hy:world-map" }] };
+    const args = buildHyperFramesCliArgs("/tmp/project", registryRequest);
+    expect(args).not.toContain("--strict-all");
+    expect(args).toContain("--quiet");
+  });
+
   it("uses worker-owned temporary paths for every supported output format", () => {
     const temporaryMovPath = buildHyperFramesWorkerTemporaryOutputPath("/tmp/hyperframes-project", "prores-4444-mov");
     expect(temporaryMovPath)

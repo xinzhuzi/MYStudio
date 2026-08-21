@@ -84,12 +84,31 @@ export function listRegistryDeps(): RegistryDep[] {
   return buildDepList();
 }
 
+const READY_MARKER = ".ready";
+
+/** .ready 标记:AI 决策层(python adapter)据此判断是否可推 hy: 模板 */
+function refreshReadyMarker(depsDir: string, installed: boolean): void {
+  try {
+    const marker = path.join(depsDir, READY_MARKER);
+    if (installed) {
+      fs.mkdirSync(depsDir, { recursive: true });
+      fs.writeFileSync(marker, new Date().toISOString(), "utf8");
+    } else if (fs.existsSync(marker)) {
+      fs.rmSync(marker);
+    }
+  } catch {
+    // 标记失败不影响主流程;worker 渲染时仍逐文件核验
+  }
+}
+
 export function checkRegistryDepsInstalled(depsDir: string): { installed: boolean; installedCount: number; totalCount: number; missingPaths: string[] } {
   const deps = buildDepList();
   if (deps.length === 0) return { installed: false, installedCount: 0, totalCount: 0, missingPaths: ["cdn-url-map.json 不可读"] };
   const missing = deps.filter((dep) => !depFileReady(path.join(depsDir, dep.localPath)));
+  const installed = missing.length === 0;
+  refreshReadyMarker(depsDir, installed);
   return {
-    installed: missing.length === 0,
+    installed,
     installedCount: deps.length - missing.length,
     totalCount: deps.length,
     missingPaths: missing.map((d) => d.localPath),

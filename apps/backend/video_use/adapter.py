@@ -331,9 +331,23 @@ def _mood_for_shot(request: dict[str, Any], shot_id: str) -> str | None:
     return None
 
 
+
+def _registry_deps_ready() -> bool:
+    """hy: 模板依赖是否已下载(Electron 侧维护 <deps>/.ready 标记)。
+
+    未接线(无 env)或未就绪时返回 False——_template_for_mood 回退本地 43 池,
+    避免 AI/决策层推了 hy: 模板却在渲染时被降级丢弃。
+    """
+    deps_dir = os.environ.get("MYSTUDIO_REGISTRY_DEPS_DIR", "").strip()
+    if not deps_dir:
+        return False
+    return os.path.isfile(os.path.join(deps_dir, ".ready"))
+
+
 def _template_for_mood(mood_word: str | None, index: int) -> tuple[str, dict[str, str | int | float | bool]]:
     # 08-21 hy-registry: 优先查 registry_decision 的情绪→大类→推荐模板
-    if mood_word:
+    # 08-22 门控: 依赖未就绪不推 hy:,直接走本地 43 池(渲染端仍有降级保底)
+    if mood_word and _registry_deps_ready():
         from .registry_decision import MOOD_CATEGORY_MAP, get_templates_by_category, is_full_frame
         for keyword, category in MOOD_CATEGORY_MAP.items():
             if keyword in mood_word:

@@ -1,9 +1,12 @@
 /**
  * HyperFrames Registry 依赖下载链实证(08-21 字体本地化):
- * 在临时目录全量跑 downloadRegistryDeps,验证三件事——
+ * 全量跑 downloadRegistryDeps,验证三件事——
  * 1. 全部依赖下载成功(含字体 CSS)
  * 2. 字体 CSS 内零 gstatic 外链(已改写为 _files/ 相对路径)
  * 3. checkRegistryDepsInstalled 完整性判定为 installed
+ *
+ * 目标目录:MYSTUDIO_DEPS_TARGET 覆盖(默认 /tmp 临时目录,不碰真机);
+ * 传真机 userData 依赖路径即可为装机应用补货/修复。
  *
  * 运行: cd apps && vite-node --config build/timeline/vite-node.config.ts build/scripts/registry-deps-verify.ts
  */
@@ -11,7 +14,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { downloadRegistryDeps, checkRegistryDepsInstalled } from "../../frontend/electron/rendering/plugins/hyperframes/registry-deps";
 
-const TMP_DIR = "/tmp/hy-registry-deps-verify";
+const TMP_DIR = process.env.MYSTUDIO_DEPS_TARGET?.trim() || "/tmp/hy-registry-deps-verify";
 
 async function main() {
   fs.rmSync(TMP_DIR, { recursive: true, force: true });

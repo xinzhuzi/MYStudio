@@ -106,13 +106,20 @@ const REGISTRY_GUIDE: ReadonlyArray<{ id: string; when: string }> = (() => {
   return entries;
 })();
 
-function buildPrompt(shots: ShotFxAiShotInput[]): string {
+function buildPrompt(shots: ShotFxAiShotInput[], opts?: { registryAvailable?: boolean }): string {
   const motionGuide = MOTION_GUIDE.map((g) => `- ${g.id}: ${g.when}`).join("\n");
   const addonGuide = ADDON_GUIDE.map((g) => `- ${g.id}: ${g.when}`).join("\n");
   const lutGuide = LUT_GUIDE.map((g) => `- ${g.id}: ${g.when}`).join("\n");
   const atmoGuide = ATMOSPHERE_GUIDE.map((g) => `- ${g.id}: ${g.when}`).join("\n");
   const transitionGuide = TRANSITION_SEMANTIC_BUCKETS.map((b) => `- ${b.id}: ${b.when}`).join("\n");
   const sfxGuide = availableSubtitleSfxCategories().map((c) => `- ${c.id}: ${c.label}`).join("\n");
+  const registrySection = opts?.registryAvailable === false
+    ? ""
+    : `
+GitHub Registry 特效模板（370 个 HTML 特效可选；hy: 前缀；每镜最多选 1 个；只在有强烈视觉需求时选，多数镜省略）：
+${REGISTRY_GUIDE.map((g) => `- ${g.id}: ${g.when}`).join("\n")}
+（以上为精选示例,完整列表含 370 个模板——transition/vfx/particle/caption/text-motion/camera/light/motion-gfx 八大类）
+`;
   const list = shots
     .map((s, i) => `${i + 1}. shotId=${s.shotId}\n   画面: ${s.description || "(无)"}\n   对白: ${s.dialogue || "(无)"}`)
     .join("\n");
@@ -129,11 +136,7 @@ ${lutGuide}
 
 氛围层——多层合成的前景遮挡/粒子（每镜可选 0~2 个；只给氛围强烈的镜配，安静镜与对白密集镜省略；雾带与薄纱雾不同镜选；克制使用防全片弥漫）：
 ${atmoGuide}
-
-GitHub Registry 特效模板（370 个 HTML 特效可选；hy: 前缀；每镜最多选 1 个；只在有强烈视觉需求时选，多数镜省略）：
-${REGISTRY_GUIDE.map((g) => `- ${g.id}: ${g.when}`).join("\n")}
-（以上为精选示例,完整列表含 370 个模板——transition/vfx/particle/caption/text-motion/camera/light/motion-gfx 八大类）
-
+${registrySection}
 镜间转场（为每个镜头决定「本镜结束进入下一镜」的转场方式，最后一镜省略；结合相邻两镜剧情连续性与情绪落差选择档位；默认 cut=同场景延续，多数边界应是 cut 或省略）：
 ${transitionGuide}
 
@@ -287,12 +290,20 @@ export async function selectShotFxMotions(
     return { motions: {}, addons: {}, grades: {}, atmospheres: {}, transitions: {}, sfxCategories: {}, source: "empty" };
   }
   const shotIds = new Set(shots.map((s) => s.shotId));
+  // 依赖未就绪时对 AI 隐藏 registry 模板段(选了也会在渲染时降级丢弃,不如不选)
+  let registryAvailable = true;
+  try {
+    const check = await window.electronAPI?.hyperFramesRegistryDepsCheck?.();
+    if (check && typeof check.installed === "boolean") registryAvailable = check.installed;
+  } catch {
+    // IPC 不可用(测试/非 Electron 宿主)保持原状
+  }
   try {
     const result = await aiManager.text({
       binding: { agent: "universalAi" },
       messages: [
         { role: "system", content: "你是专业电影摄影指导，只输出严格 JSON。" },
-        { role: "user", content: buildPrompt(shots) },
+        { role: "user", content: buildPrompt(shots, { registryAvailable }) },
       ],
       temperature: 0.3,
       maxTokens: 4096,
