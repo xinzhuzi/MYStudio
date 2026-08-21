@@ -734,6 +734,7 @@ function inspectChapterVideoSource(
     timingById,
     manifestShotById,
     visualTiming.fps,
+    input.plan.clips.filter((clip) => clip.trackKind === "text"),
   );
   if (transitionIssues.length > 0) return { success: false, issues: transitionIssues };
   const voiceIntervals: ChapterVoiceInterval[] = [];
@@ -864,6 +865,7 @@ export function validateTransitionVoiceSafety(
   timingById: ReadonlyMap<string, { from: number; durationInFrames: number }>,
   manifestShotById: ReadonlyMap<string, RemotionChapterManifestV2["shots"][number]>,
   fps: number,
+  textClips: ReadonlyArray<Pick<TimelineRenderClip, "trackKind" | "startUs" | "durationUs" | "source">> = [],
 ): Array<{ path: string; message: string }> {
   const issues: Array<{ path: string; message: string }> = [];
   const clipById = new Map(visualClips.map((clip) => [clip.id, clip]));
@@ -877,12 +879,30 @@ export function validateTransitionVoiceSafety(
     const shot = typeof storyboardId === "string" ? manifestShotById.get(storyboardId) : undefined;
     if (!shot) continue;
     const sourceEndUs = fromClip.trimStartUs + fromClip.durationUs * fromClip.speed;
-    let voiceEndUs = -Infinity;
+    let voiceBindingEndUs = -Infinity;
     for (const binding of shot.audioBindings) {
       if (binding.role !== "voice") continue;
-      voiceEndUs = Math.max(voiceEndUs, Math.min(binding.shotStartUs + binding.durationUs, sourceEndUs));
+      voiceBindingEndUs = Math.max(voiceBindingEndUs, Math.min(binding.shotStartUs + binding.durationUs, sourceEndUs));
     }
-    if (voiceEndUs === -Infinity) continue;
+    if (voiceBindingEndUs === -Infinity) continue;
+    // Whisper/alignment-backed text clips carry the sentence-level spoken end.
+    // Prefer that evidence over the full WAV binding, whose trailing silence is
+    // intentionally retained for shot padding. If no exact cue exists, keep the
+    // conservative binding end (fail-closed).
+    const alignedTextEndUs = textClips
+      .filter((clip) => clip.trackKind === "text"
+        && clip.source.evidence?.storyboardId === storyboardId
+        && Number.isFinite(clip.startUs)
+        && Number.isFinite(clip.durationUs)
+        && clip.durationUs > 0)
+      .reduce((latestEndUs, clip) => {
+        const sourceRelativeEndUs = fromClip.trimStartUs
+          + Math.max(0, (clip.startUs + clip.durationUs - fromClip.startUs) * fromClip.speed);
+        return Math.max(latestEndUs, Math.min(sourceRelativeEndUs, sourceEndUs));
+      }, -Infinity);
+    const voiceEndUs = alignedTextEndUs === -Infinity
+      ? voiceBindingEndUs
+      : Math.min(voiceBindingEndUs, alignedTextEndUs);
     const voiceEndFrame = fromTiming.from
       + usToFrames((voiceEndUs - fromClip.trimStartUs) / fromClip.speed, fps);
     if (toTiming.from < voiceEndFrame - 1) {

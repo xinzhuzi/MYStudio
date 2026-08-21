@@ -688,6 +688,53 @@ describe("buildChapterVideoCompositionProps", () => {
     }
   });
 
+  it("uses sentence-aligned text end instead of WAV tail silence", async () => {
+    const firstSlot = makeCurrentSlot();
+    const secondSlot = slotForShot("shot-002");
+    const plan = twoShotPlan(firstSlot, secondSlot);
+    const voice = await makeShotAudioBindingV2({ shotId: "shot-001", shotStartUs: 0, durationUs: 1_000_000 });
+    plan.clips.push(textPlanClip("aligned-voice-1", "shot-001", 0, 700_000));
+    const chapterManifest = await manifestForPlan(plan);
+    chapterManifest.requiredShotIds = ["shot-001", "shot-002"];
+    chapterManifest.shots = [
+      { ...chapterManifest.shots[0]!, audioBindings: [voice] },
+      { ...chapterManifest.shots[0]!, shotId: "shot-002", storyboardId: "shot-002", index: 1, audioBindings: [] },
+    ];
+
+    const result = buildChapterVideoCompositionProps({
+      plan,
+      currentShotSlots: [firstSlot, secondSlot],
+      chapterManifest,
+      mediaUrlByClipId: { "visual-shot-001": mediaUrl, "visual-shot-002": mediaUrl },
+      mediaUrlByBindingId: {},
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it("still rejects when an aligned text clip overlaps the transition", async () => {
+    const firstSlot = makeCurrentSlot();
+    const secondSlot = slotForShot("shot-002");
+    const plan = twoShotPlan(firstSlot, secondSlot);
+    const voice = await makeShotAudioBindingV2({ shotId: "shot-001", shotStartUs: 0, durationUs: 1_000_000 });
+    plan.clips.push(textPlanClip("aligned-voice-1", "shot-001", 0, 900_000));
+    const chapterManifest = await manifestForPlan(plan);
+    chapterManifest.requiredShotIds = ["shot-001", "shot-002"];
+    chapterManifest.shots = [
+      { ...chapterManifest.shots[0]!, audioBindings: [voice] },
+      { ...chapterManifest.shots[0]!, shotId: "shot-002", storyboardId: "shot-002", index: 1, audioBindings: [] },
+    ];
+
+    const result = buildChapterVideoCompositionProps({
+      plan,
+      currentShotSlots: [firstSlot, secondSlot],
+      chapterManifest,
+      mediaUrlByClipId: { "visual-shot-001": mediaUrl, "visual-shot-002": mediaUrl },
+      mediaUrlByBindingId: {},
+    });
+    expect(result.success).toBe(false);
+    if (!result.success) expect(result.issues.map((issue) => issue.message).join(";")).toContain("静默尾");
+  });
+
   it("allows a transition that only consumes the outgoing shot's silent tail (J-cut)", async () => {
     const firstSlot = makeCurrentSlot();
     const secondSlot = slotForShot("shot-002");
@@ -881,6 +928,22 @@ function audioPlanClip(
     speed: 1,
     volume: 1,
     muted: false,
+  };
+}
+
+function textPlanClip(id: string, storyboardId: string, startUs: number, durationUs: number): TimelineRenderPlan["clips"][number] {
+  return {
+    id,
+    trackId: "subtitles",
+    trackKind: "text",
+    source: { kind: "text", text: "aligned", evidence: { storyboardId } },
+    startUs,
+    durationUs,
+    trimStartUs: 0,
+    speed: 1,
+    volume: 0,
+    muted: true,
+    subtitle: { sourceFormat: "generated" },
   };
 }
 
