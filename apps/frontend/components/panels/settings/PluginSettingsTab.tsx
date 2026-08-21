@@ -292,11 +292,6 @@ export function PluginSettingsTab() {
               </div>
             </CollapsibleContent>
           </Collapsible>
-
-          {/* HyperFrames Registry 特效依赖(08-21) */}
-          <section aria-labelledby="plugin-hy-registry-heading" className="rounded-xl border border-border bg-card/30 px-5 py-4">
-            <HyperFramesRegistrySection />
-          </section>
         </section>
 
         <section aria-labelledby="plugin-video-heading" className="rounded-xl border border-border bg-card/30">
@@ -312,6 +307,10 @@ export function PluginSettingsTab() {
             </CollapsibleTrigger>
             <CollapsibleContent className="border-t border-border">
               <RenderingSettingsTab embedded />
+              {/* HyperFrames Registry 特效依赖(08-21):归属于视频工作流插件区块 */}
+              <div className="border-t border-border px-5 py-4">
+                <HyperFramesRegistrySection />
+              </div>
             </CollapsibleContent>
           </Collapsible>
         </section>
