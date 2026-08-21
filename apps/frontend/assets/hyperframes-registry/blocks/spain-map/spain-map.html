@@ -4,15 +4,14 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=1920, height=1080" />
     <title>Spain Map</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+
     <link
-      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=block"
+      href="../../registry-deps/fonts/Inter/Inter.css"
       rel="stylesheet"
     />
-    <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/d3@7/dist/d3.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/topojson-client@3.1.0/dist/topojson-client.min.js"></script>
+    <script src="../../registry-deps/gsap/3.14.2/gsap.min.js"></script>
+    <script src="../../registry-deps/d3/7/d3.min.js"></script>
+    <script src="../../registry-deps/topojson-client/3.1.0/topojson-client.min.js"></script>
     <style>
       * {
         margin: 0;
@@ -158,7 +157,7 @@
       <script>
         (function () {
           var SPAIN_TOPO_URL =
-            "https://cdn.jsdelivr.net/npm/es-atlas@0.6.0/es/autonomous_regions.json";
+            "../../registry-deps/es-atlas/0.6.0/autonomous_regions.json";
 
           var data = {
             "01": { name: "Andalucía", abbr: "AND", gdp: 20200 },
