@@ -7,12 +7,8 @@
 
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Loader2, Package, FolderOpen } from "lucide-react";
+import { Loader2, Package } from "lucide-react";
 import { toast } from "sonner";
-
-interface HyperFramesRegistrySectionProps {
-  userDataDir: string;
-}
 
 interface DepsStatus {
   installed: boolean;
@@ -20,24 +16,23 @@ interface DepsStatus {
   totalCount: number;
 }
 
-export function HyperFramesRegistrySection({ userDataDir }: HyperFramesRegistrySectionProps) {
+export function HyperFramesRegistrySection(): React.ReactElement {
   const [downloading, setDownloading] = useState(false);
   const [status, setStatus] = useState<DepsStatus | null>(null);
 
-  const depsDir = `${userDataDir}/hyperframes-registry-deps`;
-
   const checkStatus = async (): Promise<DepsStatus> => {
-    // TODO: 接 IPC(需要 preload+main 注册 hyperFramesRegistryDeps 通道)
-    // 当前先用本地状态模拟(下载管理模块在 main 进程侧)
-    return { installed: false, installedCount: 0, totalCount: 42 };
+    return await window.electronAPI?.hyperFramesRegistryDepsCheck() ?? { installed: false, installedCount: 0, totalCount: 0 };
   };
 
   const handleDownload = async (): Promise<void> => {
     setDownloading(true);
     try {
-      // TODO: 调 IPC 下载(接通后替换为 window.electronAPI.hyperFramesRegistryDeps.download())
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-      toast.info("特效依赖下载需接通 IPC 通道(下一步 preload+main 注册)");
+      const result = await window.electronAPI?.hyperFramesRegistryDepsDownload();
+      if (result?.success) {
+        toast.success(`特效依赖下载完成: ${result.downloaded} 个文件`);
+      } else {
+        toast.error(`下载失败 ${result?.failed?.length ?? "?"} 个文件,请重试`);
+      }
       setStatus(await checkStatus());
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "下载失败");
@@ -46,12 +41,8 @@ export function HyperFramesRegistrySection({ userDataDir }: HyperFramesRegistryS
     }
   };
 
-  const handleOpenDir = (): void => {
-    void window.electronAPI?.openPath?.(depsDir);
-  };
-
   return (
-    <div className="space-y-3 border-t border-border pt-4">
+    <div className="space-y-3">
       <div className="space-y-1">
         <h5 className="font-medium text-foreground flex items-center gap-2">
           <Package className="h-4 w-4" aria-hidden="true" />
@@ -62,29 +53,19 @@ export function HyperFramesRegistrySection({ userDataDir }: HyperFramesRegistryS
           已有 43 个本地模板无需下载即可使用。
         </p>
       </div>
-      <div className="grid gap-3 md:grid-cols-[5rem_minmax(0,1fr)_auto] items-center">
-        <span className="text-xs text-muted-foreground">缓存目录</span>
-        <code className="truncate rounded border border-border bg-muted/30 px-2 py-1 text-xs text-foreground">
-          {depsDir}
-        </code>
-        <div className="flex items-center gap-2">
-          <Button size="sm" variant="outline" onClick={handleOpenDir}>
-            <FolderOpen className="h-3.5 w-3.5" />
-            打开
-          </Button>
-          <Button size="sm" onClick={handleDownload} disabled={downloading}>
-            {downloading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Package className="h-3.5 w-3.5" />}
-            {downloading ? "下载中..." : "下载依赖"}
-          </Button>
-        </div>
+      <div className="flex items-center gap-2">
+        <Button size="sm" onClick={handleDownload} disabled={downloading}>
+          {downloading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Package className="h-3.5 w-3.5" />}
+          {downloading ? "下载中..." : "下载依赖"}
+        </Button>
+        {status && (
+          <span className="text-xs text-muted-foreground">
+            {status.installed ? "✓ " : ""}
+            {status.installedCount} / {status.totalCount} 就绪
+            {status.installed ? "(全部可用)" : "(需下载后 hy:* 模板才能离线渲染)"}
+          </span>
+        )}
       </div>
-      {status && (
-        <p className="text-xs text-muted-foreground">
-          {status.installed ? "✓ " : ""}
-          已安装 {status.installedCount} / {status.totalCount} 个依赖
-          {status.installed ? "(全部就绪)" : "(需下载后 hy:* 模板才能离线渲染)"}
-        </p>
-      )}
     </div>
   );
 }

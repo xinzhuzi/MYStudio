@@ -480,6 +480,8 @@ declare global {
       openPath: (targetPath: string) => Promise<{ success: boolean; error?: string }>;
       showItemInFolder: (targetPath: string) => Promise<{ success: boolean; error?: string }>;
       openDevTools: () => Promise<{ success: boolean; error?: string }>;
+      hyperFramesRegistryDepsCheck: () => Promise<{ installed: boolean; installedCount: number; totalCount: number }>;
+      hyperFramesRegistryDepsDownload: () => Promise<{ success: boolean; downloaded: number; failed: string[] }>;
       testModel: (payload: ModelTestRequest) => Promise<ModelTestResult>;
       textCompletion: (payload: TextCompletionRequest) => Promise<TextCompletionResult>;
       imageRequest: (payload: ImageRequestPayload) => Promise<ImageRequestResult>;

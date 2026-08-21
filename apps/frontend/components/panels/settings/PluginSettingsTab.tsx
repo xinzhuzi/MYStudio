@@ -295,7 +295,7 @@ export function PluginSettingsTab() {
 
           {/* HyperFrames Registry 特效依赖(08-21) */}
           <section aria-labelledby="plugin-hy-registry-heading" className="rounded-xl border border-border bg-card/30 px-5 py-4">
-            <HyperFramesRegistrySection userDataDir="" />
+            <HyperFramesRegistrySection />
           </section>
         </section>
 

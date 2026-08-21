@@ -366,6 +366,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
   openPath: (targetPath: string) => ipcRenderer.invoke('app-open-path', targetPath),
   showItemInFolder: (targetPath: string) => ipcRenderer.invoke('app-show-in-folder', targetPath),
   openDevTools: () => ipcRenderer.invoke('app-devtools-open'),
+  hyperFramesRegistryDepsCheck: (): Promise<{ installed: boolean; installedCount: number; totalCount: number }> =>
+    ipcRenderer.invoke('hy-registry-deps-check'),
+  hyperFramesRegistryDepsDownload: (): Promise<{ success: boolean; downloaded: number; failed: string[] }> =>
+    ipcRenderer.invoke('hy-registry-deps-download'),
   testModel: (payload: ModelTestRequest): Promise<ModelTestResult> => ipcRenderer.invoke('api-model-test', payload),
   textCompletion: (payload: TextCompletionRequest): Promise<TextCompletionResult> => ipcRenderer.invoke('api-text-completion', payload),
   imageRequest: (payload: ImageRequestPayload): Promise<ImageRequestResult> => ipcRenderer.invoke('api-image-request', payload),

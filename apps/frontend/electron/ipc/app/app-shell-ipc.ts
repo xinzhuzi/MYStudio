@@ -1,6 +1,11 @@
 import fs from "node:fs";
 import path from "node:path";
 import { app, BrowserWindow, ipcMain, shell } from "electron";
+import {
+  checkRegistryDepsInstalled,
+  downloadRegistryDeps,
+  getRegistryDepsDir,
+} from "../../rendering/plugins/hyperframes/registry-deps";
 
 type RegisterAppShellIpcHandlersContext = {
   resolveSourcePath: (targetPath: string) => string;
@@ -55,6 +60,23 @@ export function registerAppShellIpcHandlers({ resolveSourcePath }: RegisterAppSh
       return error ? { success: false, error } : { success: true };
     } catch (error) {
       return { success: false, error: error instanceof Error ? error.message : String(error) };
+    }
+  });
+
+  // HyperFrames Registry 特效依赖(08-21):检查+下载
+  ipcMain.handle("hy-registry-deps-check", async (): Promise<{ installed: boolean; installedCount: number; totalCount: number }> => {
+    try {
+      return checkRegistryDepsInstalled(getRegistryDepsDir(app.getPath("userData")));
+    } catch {
+      return { installed: false, installedCount: 0, totalCount: 0 };
+    }
+  });
+
+  ipcMain.handle("hy-registry-deps-download", async (): Promise<{ success: boolean; downloaded: number; failed: string[] }> => {
+    try {
+      return await downloadRegistryDeps(getRegistryDepsDir(app.getPath("userData")));
+    } catch (error) {
+      return { success: false, downloaded: 0, failed: [error instanceof Error ? error.message : String(error)] };
     }
   });
 

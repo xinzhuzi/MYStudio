@@ -89,6 +89,9 @@ vi.mock("./LocalAudioSettingsSection", () => ({
 vi.mock("./SfxGenSettingsSection", () => ({
   SfxGenSettingsSection: ({ embedded }: { embedded?: boolean }) => <div data-testid="sfx-gen-section">{String(embedded)}</div>,
 }));
+vi.mock("./HyperFramesRegistrySection", () => ({
+  HyperFramesRegistrySection: () => <div data-testid="hy-registry-section">mock</div>,
+}));
 vi.mock("@/components/panels/tts/LocalTtsPanel", () => ({
   LocalTtsPanel: ({ embedded }: { embedded?: boolean }) => <div data-testid="tts-section">{String(embedded)}</div>,
 }));
