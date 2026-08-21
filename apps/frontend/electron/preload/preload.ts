@@ -854,10 +854,12 @@ contextBridge.exposeInMainWorld('music3GenRuntime', {
     ipcRenderer.invoke('music3-gen-install-mlxserve'),
   installWeights: (): Promise<{ accepted: boolean; message: string }> =>
     ipcRenderer.invoke('music3-gen-install-weights'),
-  musicDir: (projectId: string): Promise<{ dir?: string; error?: string }> =>
-    ipcRenderer.invoke('music3-gen-music-dir', { projectId }),
-  generate: (payload: { prompt: string; lyrics?: string; seed?: number; seconds?: number; steps?: number; engine?: 'pocket' | 'mlxserv'; outputDir: string; projectId?: string }): Promise<unknown> =>
+  musicDir: (projectId: string, songName?: string): Promise<{ dir?: string; error?: string }> =>
+    ipcRenderer.invoke('music3-gen-music-dir', { projectId, ...(typeof songName === "string" && songName.trim() ? { songName } : {}) }),
+  generate: (payload: { prompt: string; lyrics?: string; seed?: number; seconds?: number; steps?: number; engine?: 'pocket' | 'mlxserv'; outputDir: string; projectId?: string; songName?: string }): Promise<unknown> =>
     ipcRenderer.invoke('music3-gen-runtime-generate', payload),
+  readAudioFile: (filePath: string): Promise<{ bytes?: Uint8Array; size?: number; error?: string }> =>
+    ipcRenderer.invoke('music3-gen-read-audio-file', { path: filePath }),
 })
 
 // Artifact Inventory API - read-only project/chapter scan

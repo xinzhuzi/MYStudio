@@ -16,6 +16,15 @@ import { resolveVideoWorkflowRuntimePaths } from "@rendering/plugins/video-workf
 
 const execFileAsync = promisify(execFile);
 
+/**
+ * 产物 wav 命名(单曲文件夹,08-21):带 songName 时用「<曲名>-seed<种子>-<时间戳>」
+ * (IPC 层已净化曲名并建好 <音乐根>/<曲名>/ 子目录);无 songName 维持
+ * 「<前缀>-<时间戳>-<种子>」旧行为,存量平铺产物命名不漂移。
+ */
+export function buildWavName(prefix: string, seed: number, songName?: string): string {
+  return songName ? `${songName}-seed${seed}-${Date.now()}.wav` : `${prefix}-${Date.now()}-${seed}.wav`;
+}
+
 /** 与 backend/music3_gen/worker.py 的钳制保持同参(整曲域 10-300s) */
 export const MUSIC3_MIN_DURATION_S = 10;
 export const MUSIC3_MAX_DURATION_S = 300;
@@ -598,6 +607,7 @@ export function createMusic3GenRuntimeController(deps: ControllerDeps) {
     seed?: number;
     seconds?: number;
     steps?: number;
+    songName?: string;
     outputDir: string;
   }): Promise<Music3GenGenerateResult> {
     const ensured = await ensureServer();
@@ -607,7 +617,7 @@ export function createMusic3GenRuntimeController(deps: ControllerDeps) {
     const seed = Number.isInteger(input.seed) ? (input.seed as number) : 7;
     const seconds = Math.min(MUSIC3_MAX_DURATION_S, Math.max(MUSIC3_MIN_DURATION_S, input.seconds ?? 60));
     const steps = Math.min(100, Math.max(4, input.steps ?? 30));
-    const safeName = `bgm3-mlxserv-${Date.now()}-${seed}.wav`;
+    const safeName = buildWavName("bgm3-mlxserv", seed, input.songName);
     const outputPath = path.join(input.outputDir, safeName);
     try {
       // 生成调用走长任务 dispatcher(见 LONG_JOB_AGENT 注释);单测注入的 fetchFn 优先。
@@ -794,6 +804,7 @@ export function createMusic3GenRuntimeController(deps: ControllerDeps) {
     seed?: number;
     seconds?: number;
     steps?: number;
+    songName?: string;
     outputDir: string;
     engine?: "pocket" | "mlxserv";
   }): Promise<Music3GenGenerateResult> {
@@ -837,6 +848,7 @@ export function createMusic3GenRuntimeController(deps: ControllerDeps) {
     seed?: number;
     seconds?: number;
     steps?: number;
+    songName?: string;
     outputDir: string;
   }): Promise<Music3GenGenerateResult> {
     const paths = getPaths();
@@ -846,7 +858,7 @@ export function createMusic3GenRuntimeController(deps: ControllerDeps) {
     const seed = Number.isInteger(input.seed) ? (input.seed as number) : 7;
     const seconds = Math.min(MUSIC3_MAX_DURATION_S, Math.max(MUSIC3_MIN_DURATION_S, input.seconds ?? 60));
     const steps = Math.min(30, Math.max(1, input.steps ?? 30));
-    const safeName = `bgm3-${Date.now()}-${seed}.wav`;
+    const safeName = buildWavName("bgm3", seed, input.songName);
     const outputPath = path.join(input.outputDir, safeName);
     const artifactPath = path.join(input.outputDir, `${safeName}.json`);
     try {
