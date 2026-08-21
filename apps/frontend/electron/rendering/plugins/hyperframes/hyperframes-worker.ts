@@ -159,7 +159,59 @@ export function moveValidatedOutput(temporaryPath: string, outputPath: string): 
   }
 }
 
+// hy: 前缀走 registry 路径(从 assets 加载外部 HTML)
+function isRegistryTemplate(templateId: string): boolean {
+  return templateId.startsWith("hy:");
+}
+
+// registry 模板缓存(避免同段多窗重复读盘)
+const registryTemplateCache = new Map<string, { styles: string; body: string; scripts: string }>();
+
+/**
+ * 加载 registry HTML 模板,提取 <style>/<body>/<script> 内容。
+ * blocks 是完整文档(拆出 style+body);components 是片段(直接用)。
+ */
+function loadRegistryTemplate(templateId: string): { styles: string; body: string; scripts: string } {
+  const cached = registryTemplateCache.get(templateId);
+  if (cached) return cached;
+  const name = templateId.slice(3); // strip "hy:"
+  const assetsRoot = path.join(__dirname, "../../../../assets/hyperframes-registry");
+  const blockPath = path.join(assetsRoot, "blocks", name, `${name}.html`);
+  const componentPath = path.join(assetsRoot, "components", name, `${name}.html`);
+  const filePath = fs.existsSync(blockPath) ? blockPath : fs.existsSync(componentPath) ? componentPath : null;
+  if (!filePath) throw new Error(`Registry 模板不存在: ${templateId}`);
+  const html = fs.readFileSync(filePath, "utf8");
+
+  // 提取 <style> 内容
+  const styles: string[] = [];
+  for (const m of html.matchAll(/<style[^>]*>([\s\S]*?)<\/style>/g)) {
+    styles.push(m[1]);
+  }
+  // 提取 <script> 内容(排除外部引用)
+  const scripts: string[] = [];
+  for (const m of html.matchAll(/<script(?![^>]*src=)[^>]*>([\s\S]*?)<\/script>/g)) {
+    const code = m[1].trim();
+    if (code && !code.includes("window.__timelines")) {
+      scripts.push(code);
+    }
+  }
+  // 提取 <body> 内容
+  const bodyMatch = html.match(/<body[^>]*>([\s\S]*?)<\/body>/);
+  const body = bodyMatch ? bodyMatch[1].trim() : html;
+
+  const result = { styles: styles.join("\n"), body, scripts: scripts.join("\n") };
+  registryTemplateCache.set(templateId, result);
+  return result;
+}
+
 function renderWindow(window: HyperFramesSegmentWindow, index: number): string {
+  // hy:* registry 模板:加载外部 HTML 并包装为定位容器
+  if (isRegistryTemplate(window.templateId)) {
+    const template = loadRegistryTemplate(window.templateId);
+    const startS = window.startUs / 1_000_000;
+    const durationS = window.durationUs / 1_000_000;
+    return `<div class="hy-registry-window" data-template="${window.templateId}" data-start="${startS}" data-duration="${durationS}" style="position:absolute;inset:0;width:100%;height:100%;overflow:hidden;">${template.body}</div>`;
+  }
   if (!SUPPORTED_TEMPLATES.has(window.templateId)) {
     throw new Error(`不支持的 HyperFrames templateId: ${window.templateId}`);
   }
@@ -483,6 +535,16 @@ export function buildHyperFramesCompositionHtml(request: HyperFramesOverlayReque
   }
   const durationS = compositionDurationUs / 1_000_000;
   const windows = request.windows.map(renderWindow).join("\n");
+  // 收集 hy:* registry 模板的 styles 和 scripts(注入到 composition 的 head/body)
+  const registryStyles: string[] = [];
+  const registryScripts: string[] = [];
+  for (const window of request.windows) {
+    if (isRegistryTemplate(window.templateId)) {
+      const template = loadRegistryTemplate(window.templateId);
+      if (template.styles) registryStyles.push(template.styles);
+      if (template.scripts) registryScripts.push(template.scripts);
+    }
+  }
   return `<!doctype html>
 <html><head><meta charset="utf-8"><style>
 html,body{margin:0;width:100%;height:100%;overflow:hidden;background:transparent}
@@ -558,6 +620,7 @@ html,body{margin:0;width:100%;height:100%;overflow:hidden;background:transparent
 @keyframes hf-letterbox-in{from{opacity:0}to{opacity:1}}
 
 @keyframes hf-in{from{opacity:0;transform:translate(-50%,-50%) scale(.96)}to{opacity:1;transform:translate(-50%,-50%) scale(1)}}
+${registryStyles.length ? `\n/* --- Registry templates (${registryStyles.length}) --- */\n${registryStyles.join("\n")}\n` : ""}
 
 /* --- 08-21 剪映风格特效 CSS(20 新) --- */
 /* 故障/复古类 */
@@ -614,7 +677,7 @@ html,body{margin:0;width:100%;height:100%;overflow:hidden;background:transparent
 
 </style></head><body><div id="stage" data-composition-id="mystudio-overlay" data-no-timeline data-start="0" data-duration="${durationS}" data-width="${request.width}" data-height="${request.height}" data-fps="${request.fps}">
 ${windows}
-</div><script>
+</div>${registryScripts.length ? `<script>\n${registryScripts.join("\n")}\n</script>` : ""}<script>
 window.__timelines = window.__timelines || {};
 window.__timelines["mystudio-overlay"] = {
   duration: () => ${durationS},
