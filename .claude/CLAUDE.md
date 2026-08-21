@@ -6,52 +6,76 @@
 - **技术栈**:Electron + React 18 + TypeScript + Zustand + Tailwind v4 + electron-vite/Vite + Vercel AI SDK(多 provider:anthropic/openai/google/deepseek/xai/qwen/zhipu/minimax)+ 本地 FFmpeg + Python TTS sidecar(`tts`)
 - **主代码**:`apps/frontend`(renderer:`components/` `stores/` `lib/` `hooks/` `types/` + electron:`main/main.ts`/`preload/preload.ts`/`ipc/`/`rendering/timeline-ffmpeg-command.ts`)、`apps/backend`(Python TTS)、`apps/build`(构建执行器:`chapter_video/` `timeline/` `smoke/` `packaging/`)
 - **关键约定**:**没有根 `package.json`**,所有 npm 命令从 `apps/` 执行(`cd apps && npm run dev`)。`apps/out/` `apps/release/` `apps/output/` 是构建产物,禁止 import。
-- **打包约定**:桌面打包统一从 `apps/` 执行；macOS 标准入口 `npm run build:mac` 必须经由 `sh ./build/packaging/build-mac.sh` 完成构建、覆盖安装、installed smoke 和关闭应用，不能只停在安装包。正常打包只校验并复用 `apps/.cache/remotion-bundle`，不得隐式运行 `npm run remotion:bundle`。Remotion 版本、composition 或 bundle 内容变化后，先显式运行 `cd apps && npm run remotion:bundle`，再运行 `cd apps && npm run remotion:versions` 和目标打包命令；固定 bundle 缺失或漂移时应让打包在 electron-vite 前失败。
-- **根目录产物约定**:根目录不得生成 `node_modules/`、`output/` 或 `backups/`；依赖使用 `apps/node_modules`，导出使用 `apps/output`，任务备份使用 `.trellis/tasks/<task>/backups/`。
-- **注意**:不要在根目录随意新增文件夹和文件
-- **必须**:渐进式,分段式,少量,多次输出,每次编辑/写入只改一点,逐次完毕
+- **打包约定**:桌面打包统一从 `apps/` 执行;macOS 标准入口 `npm run build:mac` 必须经由 `sh ./build/packaging/build-mac.sh` 完成构建、覆盖安装、installed smoke 和关闭应用,不能只停在安装包。正常打包只校验并复用 `apps/.cache/remotion-bundle`,不得隐式运行 `npm run remotion:bundle`。Remotion 版本、composition 或 bundle 内容变化后,先显式运行 `cd apps && npm run remotion:bundle`,再运行 `cd apps && npm run remotion:versions` 和目标打包命令;固定 bundle 缺失或漂移时应让打包在 electron-vite 前失败。
+- **根目录产物约定**:根目录不得生成 `node_modules/`、`output/` 或 `backups/`;依赖使用 `apps/node_modules`,导出使用 `apps/output`,任务备份使用 `.trellis/tasks/<task>/backups/`。
+- **注意**:不要在根目录随意新增文件夹以及文件
+- **必须**:渐进式,分段式,少量,多次输出,每次编辑/写入只修改一点,逐次完毕
 
-## Trellis 开放任务列表(用户问「还有什么任务」)
+## 🚨 铁律 0(最高优先级):先查找定位,验证假设,再动手
 
-用户问「还有什么任务 / Trellis 任务 / 还剩什么 / 任务列表」时:
+> 惨痛教训:因「信息不足就动手」反复返工。**此条优先级高于一切。**
+
+### 🔍 本地/网络搜索流程铁律
+
+**任何仓库、文件夹、文件、内容、仓库外本地数据或网络内容的搜索前,必须先完整读取 [`.claude/knowledge/search-sop.md`](knowledge/search-sop.md)**,再按其中的范围、工具与排噪规则执行。该 SOP 覆盖:仓库内热路径 + 仓库外本地五源(APP 数据/IP 项目/设定集/记忆/模型缓存)+ 网络搜索路由。
+
+#### 核心原则:找准位置才能操作
+
+| 场景 | 正确流程 | ❌ 错误做法 |
+|------|---------|-----------|
+| **找文件路径** | `fd/rg` 定位 → `Read` 验证 → `Edit` 修改 | 没查就瞎改 |
+| **查文件内容** | `rg` 搜索 → `Read` 上下文 → 决定下一步 | 凭记忆猜路径 |
+| **执行 Bash 命令** | `fd` 获取准确路径 → `Bash` 执行 | 手工拼写中文路径 |
+| **新建文件** | `Bash heredoc` 直接写 | 无需查找 |
+
+#### ⚠️ 两大陷阱
+
+**陷阱 1:中文路径空格问题**
+部分模型在中英文交界处会自动插入 U+0020 空格!
+- ❌ 错误:`.trellis/tasks/08-21 任务`(有空格)
+- ✅ 正确:`.trellis/tasks/08-21任务`(无空格)
+- 🔧 解决:**永远不要手工拼接中文路径**,用 `fd -a` 或 `os.listdir()` 动态获取;APP 数据目录 `~/Library/Application Support/漫影工作室` 是常驻中文路径,同样适用;`find` 仅用于已知路径的字节精确核验,**绝不手敲拼接**(`apps/out/` ≠ `apps/output/` ≠ `apps/release/`、`.config` ≠ `.claude` 等坑)
+
+**陷阱 2:未经 Read 就 Edit**
+- ❌ 错误:`Edit "file.md":old="xxx"`(old_string 不匹配报错)
+- ✅ 正确:**任何 Edit/Write 前必须先 Read** 确认原文内容和行号
+
+### 💡 铁律执行步骤
 
 ```bash
-python3 ./.trellis/scripts/open_task_board.py
+# Step 1:阅读 Search SOP(必须!)
+Read .claude/knowledge/search-sop.md
+
+# Step 2:查找定位
+fd "文件名" [目录]          # 找文件路径
+rg "关键词" [范围]           # 找内容位置
+
+# Step 3:验证假设
+Read <找到的文件路径>        # 确认内容 + 找准行号
+
+# Step 4:执行操作
+Edit <文件路径>:old=... new=...  # 精确替换
+Bash <命令>                       # 确保路径正确
+
+# Step 5:新建文件
+Bash cat > file.md << 'EOF'       # 直接写内容,无需查找
+EOF
 ```
 
-- 只列未完成 + 有歧义(内容齐但未归档、暂缓归档等)
-- 不列已归档、无需再做、统计债
-- 原样贴脚本输出,不自造简表
-- 规范:`.trellis/spec/guides/trellis-open-task-board-guide.md`
+### 💻 开发前验证清单(适用所有代码/文件操作)
 
-## Trellis 任务入口
+任何「写代码 / 改文件 / 审查 / 生成 / 修复」动作开始前,必须先把相关信息全部查清、把所有假设逐一验证。**信息不全、假设未证实,绝对禁止动手。**
 
-详细 Trellis 流程:[`.trellis/workflow.md`](../.trellis/workflow.md)。它是任务生命周期、阶段门禁、状态路由和运行模式(Channel-Driven Sub-Agent Dispatch)的唯一权威来源;本节只保留 MYStudio 项目级入口与不可省略的约束。
-
-- 重要、复杂、长线、多步骤、跨系统、批量治理、工作流/规则/提示词改造,或需持续验证与收口的任务,进入 Trellis;用户明确要求使用 Trellis 时同样必须进入。简单且边界清楚的一次性问答或只读查询可不建 task。
-- 任务入口脚本:`python3 ./.trellis/scripts/task.py`(子命令:`create` / `start` / `current` / `finish` / `archive` / `list` 等)。
-- **MYStudio 默认允许 git commit**(workflow Phase 3.4 为 required commit 步骤,但禁 amend/push);实际项目按 per-task 惯例常走 no-git/no-worktree。无论哪种,**所有 git 操作(commit/push/branch/删除)必须先获用户明确同意**(见全局铁律与下方「禁止破坏性操作」)。
-- 开始前先读 `.trellis/workflow.md`、当前 task、适用 spec/index 与目标文件;Phase 1/2/3 的详细步骤以该工作流为准。
-
-### 需求理解与澄清(Trellis 任务必加载)
-
-- 先评估真实目标、使用场景、关键要求和最终验收标准;能从仓库、文档或现有任务核验的事实必须先核验。
-- 只有关键不确定性会影响最终结果时,才一次询问一个最能消除不确定性的问题;必要时给出 2–4 个选项,并依据回答继续收敛。不得重复提问或为追问而追问。
-- 需求已经清楚时直接推进;进入实施或给出最终方案前,简要复述理解,确认不存在关键偏差后交付可直接执行的结果。
-
-## 铁律0(最高优先级):先充分了解信息,验证所有假设,再动手
-
-**任何「写代码 / 改文件 / 审查 / 生成 / 修复」动作开始前,必须先把相关信息全部查清、把所有假设逐一验证。信息不全、假设未证实,绝对禁止动手。**
-
-### 动手前必须先验证的(开发类任务)
 1. **运行时约束** — 先写最小探针测(模块能否 import?electron-vite 配置是否生效?vitest 能否跑?)。**绝不假设能力存在**。
 2. **接口/参数** — 要调的 CLI/函数,先 `--help` 或读源码确认,**绝不猜参数**。
-3. **依赖完整性** — 在最小范围确认要用的模块/文件;**绝不假设依赖齐全**。
+3. **依赖完整性** — 按 Search SOP 在最小范围确认要用的模块/文件;**绝不假设依赖齐全**。
 4. **数据结构** — 要解析的 JSON/字段,先 dump 真实样本确认字段名,**绝不猜字段**。
 5. **环境** — 要用的服务(Python TTS sidecar `127.0.0.1:17593`、FFmpeg)先探测,不可用要有兜底。
-6. **路径** — 特殊路径先用 `fd` 定位;`find` 仅用于已知路径的字节精确核验,**绝不手敲拼接**(`apps/out/` ≠ `apps/output/` ≠ `apps/release/` 等坑)。
+6. **路径** — 特殊路径先用 `fd` 定位;`find` 仅用于已知路径的字节精确核验,**绝不手敲拼接**。
+7. **改前引用面** — 改任何值/常量/配置前,先全树 `rg` 确认没有其它引用(Pre-Modification Rule,详见 `.trellis/spec/guides/index.md`)。
 
 ### 执行纪律
+
 接到任务先**列出所有假设和未知 → 逐一用最小探针/只读命令验证 → 全部确认后才写第一行**。出现「我以为/应该是/大概」立即停下查证。
 
 - 以动手实践为荣,以只看不练为耻
@@ -66,9 +90,7 @@ python3 ./.trellis/scripts/open_task_board.py
 - 以诚实求证为荣,以编造业务为耻
 - 以保留可追溯脚本为荣,以破坏性删除为耻
 
----
-
-### 下结论
+### 下结论三关
 
 **在证据充分之前,禁止下闭合式结论(「已修/没问题/不存在」)。拿到第一个支持性证据就停 = 返工。正确姿态:先找「哪里可能错」,再下「没问题」的判断。**
 
@@ -83,35 +105,23 @@ python3 ./.trellis/scripts/open_task_board.py
 
 ---
 
-## 铁律1:渐进式,分段式,发送、读、写、修改、接收,每次不要太多内容,每分钟不要超过 60 次请求频率
+## 🚨 铁律 1:渐进式分段 + 大量内容处理
 
-**发送**(长内容分段):
-- 长内容(>200 行)使用 Bash heredoc,避免工具参数被截断
-- 示例:`cat > file << 'EOF' ... EOF`
-- 避免在工具调用前写过多文字,防止响应被中断
+渐进式,分段式,发送、读、写、修改、接收,每次不要太多内容,每分钟不要超过 60 次请求频率,避免触发当前 API 的速率限制。
 
-**读取**(分段,总结):
-- 先了解文件夹关系、文件映射关系,再了解文件内容,而不是一次性全部读取
-- 大文件先用 `Read` 工具分段读取(每次 200–300 行)
-- 每段读取后立即总结关键信息,根据总结决定是否需要读取更多
+**发送**(长内容分段):长内容(>200 行)使用 Bash heredoc(`cat > file << 'EOF' ... EOF`),避免工具参数被截断;避免在工具调用前写过多文字,防止响应被中断。
 
-**写入**(Write 工具要求先 Read 才能使用):
-- 新建文件 → 用 Bash heredoc
-- 覆写已有文件 → 先 Read 该文件,再 Write
-- 局部修改 → 直接用 Edit 工具(不受 Read 限制)
-- 大内容(>300 行)分多次 Edit,每次修改后验证再继续
+**读取**(分段,总结):先了解文件夹关系、文件映射关系,再了解文件内容;大文件先用 `Read` 分段读取(每次 200–300 行);每段读取后立即总结关键信息,根据总结决定是否需要读取更多。
 
-**修改**:
-- 优先使用 Edit 工具精确替换
-- 大范围修改时分段进行,每段验证后再继续
+**写入**:新建文件 → Bash heredoc;覆写已有文件 → 先 Read 该文件,再 Write;局部修改 → 直接用 Edit;大内容(>300 行)分多次 Edit,每次修改后验证再继续。
 
-**接收**:
-- 工具返回结果过长时,关注关键信息
-- 必要时请求用户确认理解是否正确
+**修改**:优先使用 Edit 工具精确替换;大范围修改时分段进行,每段验证后再继续。
 
-## 大量内容处理铁律(防止上下文爆炸)
+**接收**:工具返回结果过长时,关注关键信息;必要时请求用户确认理解是否正确。
 
-- 先读摘要/结构,按需读取具体段落;如果必须读取所有内容,采用子代理读取、返回摘要的模式。当需要处理大量文本(>1 万字)的读取/转换/插入时,**必须用 Python/Node 脚本在本地处理,禁止通过 AI 上下文传递大文本**。**脚本统一放在 `apps/build/scripts/` 下,不需要删除。**
+### 大量内容处理(防止上下文爆炸)
+
+先读摘要/结构,按需读取具体段落;必须读取所有内容时,采用子代理读取、返回摘要的模式。当需要处理大量文本(>1 万字)的读取/转换/插入时,**必须用 Python/Node 脚本在本地处理,禁止通过 AI 上下文传递大文本**。**脚本统一放在 `apps/build/scripts/` 下,不需要删除。**
 
 | 场景 | 错误做法 | 正确做法 |
 |------|---------|---------|
@@ -122,54 +132,70 @@ python3 ./.trellis/scripts/open_task_board.py
 
 **核心原则**:AI 上下文只传递**元数据和指令**,不传递**大量原始内容**。用脚本做重活,AI 做决策。
 
-## 子代理使用铁律(探索探子)
+---
+
+## 🚨 铁律 2:子代理使用铁律(探索探子)
 
 子代理是主代理用于「宽而重」读取的探子。只在它能减少主线程上下文污染、提高并行度或提供独立核验时使用;工作的任何阶段只要命中条件即可派发,不限于对话开头。主代理负责分解、编排、方案取舍、修改和最终裁决。
 
 ### 何时直接处理
+
 - 已知位置的小文件、少量代码或单一事实。
 - 即将修改的确切代码;子代理至多帮助定位,原文必须由主代理亲读。
 - 派发、等待和复核成本不低于主代理直接读取的任务。
-- 奠基性文档(架构、设计、交接备忘录),无论多长都由主代理完整阅读。
+- 奠基性文档(架构文档、设计文档、交接备忘录等建立全局判断地基的材料),无论多长都由主代理完整阅读。
 
 ### 何时派发探索
+
 - 巨型非奠基文件、跨文件或跨目录检索。
 - 相互独立、可并行的探索或核验。
 - 长任务中重新确认模块现状。
 - 会产生大量日志、搜索结果或外围材料的阅读。
-- 多个独立问题必须在同一轮并发派发。
+- 多个独立问题必须在同一轮并发派发;并行上限以当前运行时实际返回为准,不臆造数字。
 
-### 派发契约(MYStudio 运行时)
+### 派发契约
+
 - MYStudio 默认运行时是 **Trellis channel-driven**(`trellis channel spawn --agent implement|check`)与 **Task subagent**(Explore / Plan / general-purpose 等)。派发探索优先用只读 **Explore subagent**。
+- 子代理使用当前框架的默认配置,不指定框架 schema 不支持的自定义参数,不得编造。
 - prompt 必须自包含:写明 active Trellis task(如有)、唯一问题、精确检索范围、允许读取范围、**禁止编辑、禁止 git/worktree、禁止破坏性操作**、验收标准和输出格式。
 - 精度重要时,必须返回 `file:line`、符号名和必要关键原文;缺少信息时只报告阻塞点,不自行扩大范围。
 - 探索批次保持轻量,避免把完整参考文件或大段原文塞进 prompt。
 
 ### 等待、回收与验证
-- 派发之后主代理**停止其余分析、检索、命令和文件修改**,等子代理返回。
-- **超时后的正确处理(按序)**:① 读一次子代理状态与最近输出;② 有新输出/状态推进才再等一次;③ **连续两次状态与输出均无变化 → 停止再等**,向用户报告阻塞诊断(写清:每个子代理 id/状态/最近输出时间与摘要、是否 hook/tool 失败、是否有已完成却未回收者),**不得盲目连打等待**。
-- **现象三分(下结论前必区分)**:① 正常超时轮询(随后做了状态检查);② 父代理忙轮询(超时后无检查立刻再等);③ 子代理/后端卡住(状态 running 但输出长时间不变)。
-- 每个子代理只用一轮,不复用、不追派。
-- 子代理默认只做探索、检索和核验,不修改代码或文档,不承担最终验证。
-- 子代理结果只是压缩后的线索。主代理顺着其 `file:line` 定点抽查,不重新通读已外包材料。**唯二必须由主代理亲自完整读原文的是:即将修改的确切代码、奠基性文档。最终验证必须由主代理基于当前磁盘和可复现命令完成。**
+
+- 派发之后主代理**立即调用一次**框架的等待/阻塞调用,停止其余分析、检索、命令和文件修改;**目标**是收齐本轮全部返回,但**不得**用无状态检查的忙轮询刷屏。
+- **禁止**在等待超时且无人完成后**立即**再次等待。超时是正常返回,不是「继续盲等」的许可。
+- **超时后的正确处理(必须按序)**:
+  1. **读取一次**子代理状态与最近输出(任务状态、最近消息、是否仍 running、有无 error/blocked)。
+  2. **有新输出或状态推进** → 可再等**一次**(仍禁止无检查的连打)。
+  3. **连续两次**状态与最近输出均无变化 → **停止再等**,向用户报告阻塞诊断(见下),不得第三次盲等。
+  4. 部分完成 → 先回收已完成者,仅对未完成者按上列规则处理;不得把整批当未开始重派。
+- **现象三分(下结论前必区分)**:
+  1. **正常超时轮询**:单次等待到期 → 无人完成 → 随后做了状态/输出检查再决定。
+  2. **父代理忙轮询(违规)**:超时后无状态检查、无退避,立刻再等待,形成循环。
+  3. **子代理/后端卡住**:状态检查显示 running 但最近输出长时间不变,或 error/无心跳;**不是**仅凭某条中间进度文本就断根因。
+- **阻塞诊断须核验的具体项**(报告用户时写清,禁止空泛「好像卡住」):
+  - 等待超时参数 / 本次等待调用次数与返回文案;
+  - 每个子代理 id、状态(running/done/error)、最近输出时间与摘要;
+  - 宿主/会话日志中 hook 或 tool 失败(若有);
+  - 是否有任一子代理已完成却未被回收。
+- 每个子代理只用一轮,不复用、不追派;框架提供回收/关闭调用时,收到结果后立即执行。
+- 子代理默认只做探索、检索和核验,不修改代码或文档,不做方案取舍,不承担最终验证。
+- 子代理结果只是压缩后的线索。主代理顺着其 `file:line` 和关键原文定点抽查,不重新通读已外包材料;结论重要、可疑或会影响修改时必须点验出处。
+- **唯二必须由主代理亲自完整读原文的是:即将修改的确切代码、奠基性文档。最终验证必须由主代理基于当前磁盘和可复现命令完成。**
 
 ### 失败处理
-1. `context too long`:立即缩小范围或拆批,不重复同一宽 prompt。
-2. 超时且无人完成:先做状态/输出检查与连续无变化判定;确认卡住后再缩范围、改 prompt 或改由主代理直做。
-3. 输出截断:要求只返回摘要和出处;大量结果写入已授权的 task `research/`,仍只回报摘要。
 
-## 禁止破坏性操作铁律(保护生产资料)
+1. `context too long`:立即缩小范围或拆批,不重复同一超大 prompt。
+2. **等待超时且无人完成**:先按上文做状态/输出检查与连续无变化判定;**禁止**无检查地重复等待调用。确认卡住后再缩范围、改 prompt 或改由主代理直做。
+3. 其它超时:检查是否误读奠基性大文档、范围开放或批次过大,再精简任务。
+4. 输出截断:要求只返回摘要和出处;大量结果写入已授权的 task `research/` 文件时,仍只回报摘要。
 
-> **🔒 Git 边界**:MYStudio 默认允许 commit(workflow Phase 3.4),但**所有 git 操作必须先获用户明确同意**。不得自行 `git push`、`git push --force`、`git commit --amend`、`git rebase`、`git reset --hard`、`git clean -f`、`git stash`。commit 前向用户说明范围。
+---
 
-- **绝对禁止(即使用户同意也不执行)**:`git checkout .`、`git reset --hard`、`git clean -f`、`rm -rf`、批量删除文件、`git push --force`、`git branch -D`、删除已有正文/代码内容、清空文件
-- **删除需确认**:删除任何已有内容(代码、文档)前必须先告知用户(见全局铁律:禁止删除文件)
-- **Edit 不删内容**:Edit 的 new_string 不得为空字符串(除非用户明确要求删除该内容)
-- **备份优先**:大范围修改前先用 `cp` 备份,确认无误后再清理备份
-- **禁止 worktree**:禁止任何形式的 worktree 功能(主代理/子代理),禁止在 `.claude/worktrees` 下写内容
-- **子代理同受约束**:子代理 prompt 必须包含本破坏性操作禁令
+## 🚨 铁律 3:行为准则 + 禁止破坏性操作
 
-## 行为准则
+### 行为准则
 
 | 规则 | 说明 |
 |------|------|
@@ -181,15 +207,31 @@ python3 ./.trellis/scripts/open_task_board.py
 | 简洁回复 | ≤4 行(不含代码),不加前言后语 |
 | 代码引用 | 格式 `file_path:line_number` |
 
+> ✅ **改动自检**:每一行改动都应能直接追溯到用户请求;无法追溯的改动 = 越界,不做。
+
+### 禁止破坏性操作铁律(保护生产资料)
+
+> **🔒 Git 边界**:MYStudio 默认允许 commit(workflow Phase 3.4 为 required commit 步骤,但禁 amend/push);实际项目按 per-task 惯例常走 no-git/no-worktree。无论哪种,**所有 git 操作(commit/push/branch/删除)必须先获用户明确同意**。不得自行 `git push`、`git push --force`、`git commit --amend`、`git rebase`、`git reset --hard`、`git clean -f`、`git stash`。commit 前向用户说明范围。
+
+- **绝对禁止(即使用户同意也不执行)**:`git checkout .`、`git reset --hard`、`git clean -f`、`rm -rf`、批量删除文件、`git push --force`、`git branch -D`、删除已有正文/代码内容、清空文件
+- **删除需确认**:删除任何已有内容(代码、文档)前必须先告知用户
+- **Edit 不删内容**:Edit 的 new_string 不得为空字符串(除非用户明确要求删除该内容)
+- **无关死代码只报告**:发现与当前任务无关的死代码/重复代码/废弃文件,向用户报告,不顺手删除(除非明确要求)
+- **备份优先**:大范围修改前先用 `cp` 备份(禁止自行使用 `git stash`),确认无误后再清理备份
+- **子代理同受约束**:子代理 prompt 必须包含本破坏性操作禁令
+- **禁止 worktree**:禁止任何形式的 worktree 功能(主代理/子代理),禁止在 `.claude/worktrees` 下写内容
+
 ---
 
-## 严禁猜测铁律(精确表述优先)
+## 🚨 铁律 4:严禁猜测铁律(精确表述优先)
 
 1. 严禁使用「candidate」等不确定表述。
 2. 严禁对任何标识符(键名、变量名、路径、字段)进行大小写/格式/结构匹配猜测。
 3. 不确定某个请求、配置、数据结构、变量名、JSON 路径时,必须先读相关文件(测试、日志、配置、源码)提取精确表述。
 4. 无法从现有文件找到精确信息时,必须向用户询问,由用户手动执行测试/抓包/检查获取。
 5. 除非用户明确允许,绝对不得自行猜测任何内容。
+
+---
 
 ## 工具优先级
 
@@ -203,14 +245,38 @@ python3 ./.trellis/scripts/open_task_board.py
 
 ---
 
-## 搜索标准操作(Search SOP)
+## Trellis
 
-> **先读后搜(强制)**:任何仓库搜索前,先完整读取 [`.trellis/spec/guides/search-sop-guide.md`](../.trellis/spec/guides/search-sop-guide.md),再按其中的范围、工具与排噪规则执行。
+### 开放任务列表(用户问「还有什么任务」)
 
-- 文件名用 `fd`;内容用 `rg`;TypeScript 符号用 LSP(`smart_search` / `smart_outline`)或 `tsserver`。
-- **默认范围**:`apps/frontend`(renderer 主体)、`apps/backend`(Python TTS)、`apps/build`(构建执行器);**不要**在 `apps/out`、`apps/release`、`apps/output`、`node_modules`、`.vite` 里搜源码。
-- **改任何值前先 `grep -r`**:确认没有其它引用(见 `.trellis/spec/guides/index.md` 的 Pre-Modification Rule)。
-- 完整热路径表、可执行配方与排除规则维护在 SOP;禁止全树无路径 `rg` / `grep`。
+用户问「还有什么任务 / Trellis 任务 / 还剩什么 / 任务列表」时:
+
+```bash
+python3 ./.trellis/scripts/open_task_board.py
+```
+
+- 只列未完成 + 有歧义(内容齐但未归档、暂缓归档等)
+- 不列已归档、无需再做、统计债
+- 原样贴脚本输出,不自造简表
+- 规范:`.trellis/spec/guides/trellis-open-task-board-guide.md`
+
+### Trellis 任务入口与硬约束
+
+详细 Trellis 流程:[`.trellis/workflow.md`](../.trellis/workflow.md)。它是任务生命周期、阶段门禁、状态路由和运行模式(Channel-Driven Sub-Agent Dispatch)的唯一权威来源;本节只保留 MYStudio 项目级入口与不可省略的约束。
+
+- 重要、复杂、长线、多步骤、跨系统、批量治理、工作流/规则/提示词改造,或需持续验证与收口的任务,进入 Trellis;用户明确要求使用 Trellis 时同样必须进入。简单且边界清楚的一次性问答或只读查询可不建 task。
+- 任务入口脚本:`python3 ./.trellis/scripts/task.py`(子命令:`create` / `start` / `current` / `finish` / `archive` / `list` 等)。
+- 开始前先读 `.trellis/workflow.md`、当前 task、适用 spec/index 与目标文件;Phase 1/2/3 的详细步骤以该工作流为准。
+
+### 需求理解与澄清(Trellis 任务必加载)
+
+- 先评估真实目标、使用场景、关键要求和最终验收标准;能从仓库、文档或现有任务核验的事实必须先核验;**使用 Search SOP(`.claude/knowledge/search-sop.md`)了解全面信息之后再判断执行下一步**。
+- 需要边界澄清时,优先使用项目内可用的访谈技能(如 `trellis-brainstorm`)询问用户边界信息、目标方向、中间过程与架构设计;AI 无法判断的必须询问用户,并给出建议。
+- 只有关键不确定性会影响最终结果时,才一次询问一个最能消除不确定性的问题;必要时给出 2–4 个选项,并依据回答继续收敛。不得重复提问或为追问而追问。
+- 需求已经清楚时直接推进;进入实施或给出最终方案前,简要复述理解,确认不存在关键偏差后交付可直接执行的结果。
+- **可验证目标优先**:把任务转成可验证的成功标准(「修复 bug」→「先写复现测试再修」)。强成功标准让你独立循环到底,弱成功标准(「让它能用」)只会不断来回澄清。
+
+---
 
 ## 文档索引
 
@@ -227,7 +293,8 @@ python3 ./.trellis/scripts/open_task_board.py
 | 跨层思考 | `.trellis/spec/guides/cross-layer-thinking-guide.md` | 跨层数据流 |
 | 图片外发安全 | `.trellis/spec/guides/image-transfer-safety-guide.md` | 图片外发缩略图/字节门 |
 | 开放任务看板规范 | `.trellis/spec/guides/trellis-open-task-board-guide.md` | 「还有什么任务」输出规则 |
-| 搜索 SOP | `.trellis/spec/guides/search-sop-guide.md` | 搜索范围/工具/排噪/热路径(先读后搜) |
+| **搜索 SOP(权威版)** | `.claude/knowledge/search-sop.md` | 搜索范围/工具/排噪/热路径 + 仓库外五源 + 网络路由(先读后搜) |
+| GitNexus 强制流程 | 根 `AGENTS.md`(gitnexus 管理块) | impact/detect_changes 必做与禁止清单(改动前必读) |
 | Python TTS sidecar | `apps/backend/README.md` | TTS API、环境变量、运行时目录 |
 | 自动化测试 skill | `.agents/skills/mystudio-automation-testing/` | typecheck / Vitest / 打包 / smoke 自验证 |
 | 工作流完整性 skill | `.agents/skills/mystudio-workflow-integrity-testing/` | 节点图 / Toonflow parity / 资产链接验证 |
