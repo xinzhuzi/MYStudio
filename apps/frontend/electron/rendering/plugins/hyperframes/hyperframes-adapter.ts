@@ -44,6 +44,8 @@ export interface HyperFramesAdapterOptions {
   electronExecutable?: string | (() => string);
   workspaceRootForProject: (projectId: string) => string;
   workerPath?: string;
+  /** registry 模板依赖目录(<userData>/hyperframes-registry-deps);worker 内联渲染时读取 */
+  registryDepsDir?: string | (() => string);
   probeRuntime?: (paths: VideoWorkflowRuntimePaths) => Promise<VideoWorkflowRuntimeProbeResult>;
   resolveBrowserPath?: () => Promise<string | undefined>;
   execFile?: ExecFileLike;
@@ -207,6 +209,7 @@ export function createHyperFramesAdapter(options: HyperFramesAdapterOptions) {
           MYSTUDIO_HYPERFRAMES_PROFILE_DIR: paths.hyperFramesProfileDir,
           MYSTUDIO_HYPERFRAMES_CLI: paths.hyperFramesCliPath,
           MYSTUDIO_HYPERFRAMES_NODE: paths.electronExecutable,
+          MYSTUDIO_REGISTRY_DEPS_DIR: typeof options.registryDepsDir === "function" ? options.registryDepsDir() : (options.registryDepsDir ?? ""),
           HYPERFRAMES_BROWSER_PATH: browserPath,
           PRODUCER_HEADLESS_SHELL_PATH: browserPath,
         }),

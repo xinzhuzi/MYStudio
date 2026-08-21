@@ -774,6 +774,8 @@ const hyperFramesAdapter = createHyperFramesAdapter({
   storageBasePath: getStorageBasePath,
   workspaceRootForProject: (projectId: string) => path.join(projectRootFor(projectId), 'hyperframes'),
   workerPath: path.join(MAIN_DIST, 'hyperframes-worker.cjs'),
+  // hy:* registry 模板依赖(GSAP/Three/字体)下载落位;worker 内联渲染时经 env 读取
+  registryDepsDir: path.join(app.getPath('userData'), 'hyperframes-registry-deps'),
   // 浏览器 utility 一次只服务一个请求:与设置页状态刷新并发时会被拒,重试一次避免瞬态"未找到可复用的 Headless Shell"误报
   resolveBrowserPath: async () => {
     const attempt = async () => (await remotionRuntime.controller.probeStatus()).executablePath

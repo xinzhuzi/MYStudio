@@ -164,50 +164,167 @@ function isRegistryTemplate(templateId: string): boolean {
   return templateId.startsWith("hy:");
 }
 
-// registry 模板缓存(避免同段多窗重复读盘)
-const registryTemplateCache = new Map<string, { styles: string; body: string; scripts: string }>();
+// registry 模板缓存(避免同段多窗重复读盘);raw 提取结果,依赖物化另行缓存
+const registryTemplateCache = new Map<string, { styles: string; body: string; scripts: string; depRels: string[] }>();
+
+/**
+ * registry assets 根:dev 与打包两种落位——
+ * - dev: apps/frontend/assets/hyperframes-registry(相对源码)
+ * - 打包: Resources/hyperframes-registry(extraResources to: hyperframes-registry)
+ */
+function resolveRegistryAssetsRoot(): string {
+  const dev = path.join(__dirname, "../../../../assets/hyperframes-registry");
+  if (fs.existsSync(dev)) return dev;
+  return path.join(process.resourcesPath ?? "", "hyperframes-registry");
+}
+
+const REGISTRY_DEP_REF = /\.\.\/\.\.\/registry-deps\/([^\s"'")]+)/g;
 
 /**
  * 加载 registry HTML 模板,提取 <style>/<body>/<script> 内容。
  * blocks 是完整文档(拆出 style+body);components 是片段(直接用)。
+ * 外部 <script src="../../registry-deps/..."> 不内联执行,这里剔除标签、
+ * 记录依赖清单,由 materializeRegistryTemplate 在渲染时物化。
  */
-function loadRegistryTemplate(templateId: string): { styles: string; body: string; scripts: string } {
+function loadRegistryTemplate(templateId: string): { styles: string; body: string; scripts: string; depRels: string[] } {
   const cached = registryTemplateCache.get(templateId);
   if (cached) return cached;
   const name = templateId.slice(3); // strip "hy:"
-  const assetsRoot = path.join(__dirname, "../../../../assets/hyperframes-registry");
+  const assetsRoot = resolveRegistryAssetsRoot();
   const blockPath = path.join(assetsRoot, "blocks", name, `${name}.html`);
   const componentPath = path.join(assetsRoot, "components", name, `${name}.html`);
   const filePath = fs.existsSync(blockPath) ? blockPath : fs.existsSync(componentPath) ? componentPath : null;
   if (!filePath) throw new Error(`Registry 模板不存在: ${templateId}`);
   const html = fs.readFileSync(filePath, "utf8");
 
+  const depRels = new Set<string>();
+  for (const m of html.matchAll(REGISTRY_DEP_REF)) {
+    depRels.add(m[1].replace(/[)'"]+$/, ""));
+  }
+
   // 提取 <style> 内容
   const styles: string[] = [];
   for (const m of html.matchAll(/<style[^>]*>([\s\S]*?)<\/style>/g)) {
     styles.push(m[1]);
   }
-  // 提取 <script> 内容(排除外部引用)
+  // 提取 <script> 内容(排除外部引用)。
+  // 保留含 window.__timelines 的脚本:注册时间线是 HyperFrames CLI 的驱动协议
+  // (CLI 逐帧 seek 注册的 timeline),剔除会令模板动画失去同步(308 个模板受累)。
   const scripts: string[] = [];
   for (const m of html.matchAll(/<script(?![^>]*src=)[^>]*>([\s\S]*?)<\/script>/g)) {
     const code = m[1].trim();
-    if (code && !code.includes("window.__timelines")) {
+    if (code) {
       scripts.push(code);
     }
   }
-  // 提取 <body> 内容
+  // 提取 <body> 内容(剔除指向 registry-deps 的外部 script 标签)
   const bodyMatch = html.match(/<body[^>]*>([\s\S]*?)<\/body>/);
-  const body = bodyMatch ? bodyMatch[1].trim() : html;
+  const body = (bodyMatch ? bodyMatch[1] : html)
+    .replace(/<script[^>]*src=["'][^"']*registry-deps[^"']*["'][^>]*>\s*<\/script>\s*/g, "")
+    .trim();
 
-  const result = { styles: styles.join("\n"), body, scripts: scripts.join("\n") };
+  const result = { styles: styles.join("\n"), body, scripts: scripts.join("\n"), depRels: [...depRels] };
   registryTemplateCache.set(templateId, result);
+  return result;
+}
+
+interface MaterializedRegistryTemplate {
+  styles: string;
+  body: string;
+  scripts: string;
+  /** 依赖 JS 库内容(内联进 head,执行先于模板内联脚本) */
+  libScripts: string[];
+  /** 字体 CSS(_files 字体已转 data URI,内联 <style>) */
+  fontStyles: string;
+  /** 地图等 JSON 数据预注入(window.__REGISTRY_DATA__) */
+  dataPreload: string;
+}
+
+const materializedRegistryCache = new Map<string, MaterializedRegistryTemplate | null>();
+
+/** 内联 JS 防 </script> 提前闭合 */
+function inlineSafeJs(code: string): string {
+  return code.replace(/<\/script/gi, "<\\/script");
+}
+
+/**
+ * 渲染时物化 registry 模板依赖:JS 库内联、字体 CSS+data URI 内联、
+ * d3.json 数据预注入——composition 完全自包含,无 file:// 跨源问题。
+ * 依赖缺失返回 null(调用方降级丢弃该窗,不阻塞整段渲染)。
+ */
+function materializeRegistryTemplate(templateId: string): MaterializedRegistryTemplate | null {
+  const depsRoot = process.env.MYSTUDIO_REGISTRY_DEPS_DIR?.trim();
+  // 缓存键含 depsRoot:依赖目录变化(下载完成/测试切换)不得命中陈旧结果
+  const cacheKey = `${depsRoot ?? ""}|${templateId}`;
+  if (materializedRegistryCache.has(cacheKey)) return materializedRegistryCache.get(cacheKey) ?? null;
+  const raw = loadRegistryTemplate(templateId);
+  let result: MaterializedRegistryTemplate | null;
+  if (raw.depRels.length === 0) {
+    result = { styles: raw.styles, body: raw.body, scripts: raw.scripts, libScripts: [], fontStyles: "", dataPreload: "" };
+  } else if (!depsRoot) {
+    console.warn(`[hyperframes-worker] ${templateId} 需要特效依赖但未配置 deps 目录;窗口已降级丢弃(设置→视频工作流→HyperFrames 下载依赖)`);
+    result = null;
+  } else {
+    const missing = raw.depRels.filter((rel) => !fs.existsSync(path.join(depsRoot, rel)));
+    if (missing.length > 0) {
+      console.warn(`[hyperframes-worker] ${templateId} 缺依赖 ${missing.join(", ")};窗口已降级丢弃(设置→视频工作流→HyperFrames 下载依赖)`);
+      result = null;
+    } else {
+      const libScripts: string[] = [];
+      const fontStyles: string[] = [];
+      const dataMap: Record<string, unknown> = {};
+      for (const rel of raw.depRels) {
+        const abs = path.join(depsRoot, rel);
+        if (rel.endsWith(".js")) {
+          libScripts.push(inlineSafeJs(fs.readFileSync(abs, "utf8")));
+        } else if (rel.endsWith(".css")) {
+          // 字体 CSS:内部 url(_files/x) 转 data URI,整段内联
+          let css = fs.readFileSync(abs, "utf8");
+          for (const m of css.matchAll(/url\(([^)]+)\)/g)) {
+            const ref = m[1].trim().replace(/^["']|["']$/g, "");
+            if (/^https?:\/\//.test(ref)) continue;
+            const fontAbs = path.join(path.dirname(abs), ref);
+            if (!fs.existsSync(fontAbs)) continue;
+            const buf = fs.readFileSync(fontAbs);
+            const mime = ref.endsWith(".woff2") ? "font/woff2" : ref.endsWith(".woff") ? "font/woff" : "font/ttf";
+            css = css.split(`url(${m[1]})`).join(`url(data:${mime};base64,${buf.toString("base64")})`);
+          }
+          fontStyles.push(css);
+        } else if (rel.endsWith(".json")) {
+          dataMap[rel] = JSON.parse(fs.readFileSync(abs, "utf8"));
+        }
+      }
+      // d3.json("...registry-deps/x.json") → 预注入数据(规避 file:// fetch 限制)
+      const scripts = raw.scripts.replace(
+        /d3\.json\((["'])(\.\.\/\.\.\/registry-deps\/[^"']+)\1\)/g,
+        (_all, _q, url: string) => {
+          const rel = url.replace("../../registry-deps/", "");
+          return `Promise.resolve(window.__REGISTRY_DATA__[${JSON.stringify(rel)}])`;
+        },
+      );
+      // styles/body 残余 registry-deps 引用(<img href 等)退回 file:// 绝对路径
+      let styles = raw.styles;
+      let body = raw.body;
+      for (const rel of raw.depRels) {
+        const fileUrl = `file://${path.join(depsRoot, rel)}`;
+        styles = styles.split(`../../registry-deps/${rel}`).join(fileUrl);
+        body = body.split(`../../registry-deps/${rel}`).join(fileUrl);
+      }
+      const dataPreload = Object.keys(dataMap).length
+        ? `window.__REGISTRY_DATA__=Object.assign(window.__REGISTRY_DATA__||{},${JSON.stringify(dataMap).replace(/</g, "\\u003c")});`
+        : "";
+      result = { styles, body, scripts, libScripts, fontStyles: fontStyles.join("\n"), dataPreload };
+    }
+  }
+  materializedRegistryCache.set(cacheKey, result);
   return result;
 }
 
 function renderWindow(window: HyperFramesSegmentWindow, index: number): string {
   // hy:* registry 模板:加载外部 HTML 并包装为定位容器
   if (isRegistryTemplate(window.templateId)) {
-    const template = loadRegistryTemplate(window.templateId);
+    const template = materializeRegistryTemplate(window.templateId);
+    if (!template) return ""; // 依赖缺失已告警,降级丢弃该窗不阻塞渲染
     const startS = window.startUs / 1_000_000;
     const durationS = window.durationUs / 1_000_000;
     return `<div class="hy-registry-window" data-template="${window.templateId}" data-start="${startS}" data-duration="${durationS}" style="position:absolute;inset:0;width:100%;height:100%;overflow:hidden;">${template.body}</div>`;
@@ -535,16 +652,41 @@ export function buildHyperFramesCompositionHtml(request: HyperFramesOverlayReque
   }
   const durationS = compositionDurationUs / 1_000_000;
   const windows = request.windows.map(renderWindow).join("\n");
-  // 收集 hy:* registry 模板的 styles 和 scripts(注入到 composition 的 head/body)
+  // 收集 hy:* registry 模板的物化产物:styles/scripts/JS库/字体/数据 注入 composition
   const registryStyles: string[] = [];
   const registryScripts: string[] = [];
+  const registryLibScripts: string[] = [];
+  const registryFontStyles: string[] = [];
+  const registryDataPreloads: string[] = [];
+  const seenLibRels = new Set<string>();
+  const seenTemplates = new Set<string>(); // 同模板多窗:body 逐窗渲染,脚本/样式只注入一次
   for (const window of request.windows) {
     if (isRegistryTemplate(window.templateId)) {
-      const template = loadRegistryTemplate(window.templateId);
+      const template = materializeRegistryTemplate(window.templateId);
+      if (!template) continue; // 依赖缺失,renderWindow 已同步降级丢弃
+      if (seenTemplates.has(window.templateId)) continue;
+      seenTemplates.add(window.templateId);
       if (template.styles) registryStyles.push(template.styles);
       if (template.scripts) registryScripts.push(template.scripts);
+      if (template.fontStyles) registryFontStyles.push(template.fontStyles);
+      if (template.dataPreload) registryDataPreloads.push(template.dataPreload);
+      // 同一库多窗复用时只内联一次:以内容前缀粗判去重(libScripts 按模板聚合)
+      for (const lib of template.libScripts) {
+        const key = lib.slice(0, 128);
+        if (seenLibRels.has(key)) continue;
+        seenLibRels.add(key);
+        registryLibScripts.push(lib);
+      }
     }
   }
+  const registryHeadInjection = [
+    registryFontStyles.length ? `<style>/* --- Registry fonts (inlined, data-URI) --- */\n${registryFontStyles.join("\n")}\n</style>` : "",
+    registryLibScripts.length || registryDataPreloads.length
+      ? `<script>/* --- Registry deps (inlined) --- */\n${registryDataPreloads.join("\n")}\n${registryLibScripts.join("\n;\n")}\n</script>`
+      : "",
+  ]
+    .filter(Boolean)
+    .join("\n");
   return `<!doctype html>
 <html><head><meta charset="utf-8"><style>
 html,body{margin:0;width:100%;height:100%;overflow:hidden;background:transparent}
@@ -675,7 +817,7 @@ ${registryStyles.length ? `\n/* --- Registry templates (${registryStyles.length}
 .hf-dream-soft{width:100%;height:100%;left:0;top:0;transform:none;backdrop-filter:blur(var(--hf-dream-blur,6px)) brightness(1.1) saturate(1.2);background:radial-gradient(ellipse at 50% 40%,rgba(255,200,255,calc(var(--hf-dream-glow,.4)*.3)),transparent 70%);mix-blend-mode:soft-light;animation:hf-dream-breathe 3s ease-in-out infinite alternate}
 @keyframes hf-dream-breathe{from{opacity:var(--hf-dream-glow,.4)}to{opacity:calc(var(--hf-dream-glow,.4) * .6)}}
 
-</style></head><body><div id="stage" data-composition-id="mystudio-overlay" data-no-timeline data-start="0" data-duration="${durationS}" data-width="${request.width}" data-height="${request.height}" data-fps="${request.fps}">
+</style>${registryHeadInjection}</head><body><div id="stage" data-composition-id="mystudio-overlay" data-no-timeline data-start="0" data-duration="${durationS}" data-width="${request.width}" data-height="${request.height}" data-fps="${request.fps}">
 ${windows}
 </div>${registryScripts.length ? `<script>\n${registryScripts.join("\n")}\n</script>` : ""}<script>
 window.__timelines = window.__timelines || {};
