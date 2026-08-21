@@ -119,6 +119,8 @@ function TransitionedVisualClip({
           layerStack={clip.layerStack}
           durationInFrames={clip.durationInFrames}
           panZoom={clip.panZoom}
+          ambient={clip.ambient}
+          fx={clip.fx}
           grade={clip.grade}
           frameStep={clip.frameStep}
           baseSrc={clip.src}

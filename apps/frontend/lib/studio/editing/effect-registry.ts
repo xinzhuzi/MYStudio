@@ -66,6 +66,10 @@ const EFFECT_DEFINITIONS: readonly EditingEffectDefinition[] = [
     numberParameter("scaleTo", 1.06, 1, 8),
     numberParameter("x", 0.5, 0, 1),
     numberParameter("y", 0.5, 0, 1),
+    // 弹性缓动(08-21 spring 接线,64f938c)：决策层 push-in 写 easing:"spring"，
+    // registry 未声明则 validateTimelineRenderPlan 拒「参数不在白名单」
+    // (08-20 grade/ambient 同款坑)。缺省 cubic=历史行为逐帧不变。
+    enumParameter("easing", "cubic", ["cubic", "spring"]),
   ]),
   definition("shake", "motion", "approximate", [
     numberParameter("intensity", 0.25, 0, 1),

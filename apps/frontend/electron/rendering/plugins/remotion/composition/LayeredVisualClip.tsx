@@ -10,6 +10,17 @@ import { AbsoluteFill, Img, OffthreadVideo, useCurrentFrame, useRemotionEnvironm
 import { GLGradeMedia } from "./GLGradeMedia";
 import { AtmosphereTemplateLayer, layerPanZoomDamp } from "./atmosphere-layers";
 import { ambientAtFrame, panZoomAtFrame } from "./pan-zoom";
+import {
+  fxChromaLayerStyle,
+  fxFilter,
+  fxGodRaysOverlayStyle,
+  fxGlowOverlayStyle,
+  fxGrainOverlayStyle,
+  fxShakeOffset,
+  fxSpeedSilhouetteStyle,
+  fxAliasingLayerStyle,
+} from "./visual-fx";
+import type { CompositionVisualFx } from "./visual-fx";
 import type { CompositionLayerSpec, CompositionPanZoom, CompositionVisualClipProps } from "./composition-props";
 import type { CompositionAmbient } from "./pan-zoom";
 
@@ -23,6 +34,9 @@ export interface LayeredVisualClipProps {
   durationInFrames: number;
   panZoom?: CompositionPanZoom;
   ambient?: CompositionAmbient;
+  /** 镜头级 2D 特效（08-21 补——此前 layerStack 分支不透传,8 个氛围镜的
+   * shake/glow/grain/godRays/残影全被静默丢弃,运镜同丢）。 */
+  fx?: CompositionVisualFx;
   /** 层分支此前丢弃 grade/frameStep（RemotionComposition 不透传），Child1 修复。 */
   grade?: CompositionVisualClipProps["grade"];
   frameStep?: number;
@@ -79,8 +93,35 @@ function StackedLayersClip(props: Required<Pick<LayeredVisualClipProps, "layerSt
   // 氛围-only 栈(视频镜典型)=原媒体垫底,氛围层叠加其上。
   const hasImageLayers = props.layerStack.some((layer) => Boolean(layer.src));
   const baseSrc = !hasImageLayers ? props.baseSrc : undefined;
+  // 垫底媒体的 clip 级运动(08-21 补——氛围-only 栈此前不接 panZoom/ambient,
+  // 8 个氛围镜运镜与环境动画全丢):满运镜(damp=1)+ambient 周期偏移,
+  // 与 VisualClip 单层路径同构。
+  const basePan = baseSrc && props.panZoom
+    ? panZoomAtFrame(frame, props.durationInFrames, props.panZoom, fps)
+    : undefined;
+  const baseAmbient = baseSrc && props.ambient
+    ? ambientAtFrame(frame, fps, props.ambient)
+    : null;
+  const baseMediaStyle: React.CSSProperties = {
+    transform: basePan || baseAmbient
+      ? `scale(${((basePan?.scale ?? 1) * (baseAmbient && baseAmbient.deltaScale !== 0 ? 1 + baseAmbient.deltaScale : 1)).toFixed(5)})${baseAmbient && baseAmbient.deltaRot !== 0 ? ` rotate(${baseAmbient.deltaRot.toFixed(3)}deg)` : ""}`
+      : undefined,
+    transformOrigin: basePan ? `${basePan.originX * 100}% ${basePan.originY * 100}%` : undefined,
+    left: `${((baseAmbient?.offsetX ?? 0) * 100).toFixed(3)}%`,
+    top: `${((baseAmbient?.offsetY ?? 0) * 100).toFixed(3)}%`,
+  };
+  // 镜头级 fx(08-21 补):shake 作用于整个容器(所有层一起抖,与 VisualClip 同);
+  // glow 的 brightness/saturate 提亮作用于容器;叠层在全部层之上。
+  const shake = props.fx ? fxShakeOffset(frame, props.fx) : undefined;
+  const containerFilter = props.fx ? fxFilter(props.fx) : undefined;
   return (
-    <AbsoluteFill>
+    <AbsoluteFill
+      style={{
+        ...(baseSrc ? baseMediaStyle : {}),
+        ...(shake ? { left: shake.x, top: shake.y } : {}),
+        ...(containerFilter ? { filter: containerFilter } : {}),
+      }}
+    >
       {baseSrc ? (
         props.grade?.lutSrc && isRendering ? (
           <>
@@ -166,6 +207,31 @@ function StackedLayersClip(props: Required<Pick<LayeredVisualClipProps, "layerSt
           </AbsoluteFill>
         );
       })}
+      {props.fx?.chroma && baseSrc ? (
+        <>
+          <AbsoluteFill style={fxChromaLayerStyle(props.fx, "red")}>
+            {props.baseKind === "image" ? <Img src={baseSrc} style={COVER_STYLE} /> : <OffthreadVideo src={baseSrc} muted style={COVER_STYLE} />}
+          </AbsoluteFill>
+          <AbsoluteFill style={fxChromaLayerStyle(props.fx, "cyan")}>
+            {props.baseKind === "image" ? <Img src={baseSrc} style={COVER_STYLE} /> : <OffthreadVideo src={baseSrc} muted style={COVER_STYLE} />}
+          </AbsoluteFill>
+        </>
+      ) : null}
+      {props.fx?.glow ? <AbsoluteFill style={fxGlowOverlayStyle(props.fx)} /> : null}
+      {props.fx?.grain ? <AbsoluteFill style={fxGrainOverlayStyle(props.fx)} /> : null}
+      {props.fx?.afterimage && baseSrc
+        ? Array.from({ length: props.fx.afterimage.copies }, (_, i) => (
+            <AbsoluteFill key={`afterimage-${i}`} style={fxAliasingLayerStyle(props.fx!, i + 1)}>
+              {props.baseKind === "image" ? <Img src={baseSrc} style={COVER_STYLE} /> : <OffthreadVideo src={baseSrc} muted style={COVER_STYLE} />}
+            </AbsoluteFill>
+          ))
+        : null}
+      {props.fx?.speedSilhouette ? (
+        <AbsoluteFill style={{ overflow: "hidden" }}>
+          <div style={fxSpeedSilhouetteStyle(rawFrame, fps, props.fx)} />
+        </AbsoluteFill>
+      ) : null}
+      {props.fx?.godRays ? <AbsoluteFill style={fxGodRaysOverlayStyle(rawFrame, props.fx)} /> : null}
     </AbsoluteFill>
   );
 }
