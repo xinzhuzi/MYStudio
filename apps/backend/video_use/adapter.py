@@ -209,6 +209,11 @@ HYPERFRAMES_DECORATIVE_TEMPLATES = (
     "candle-flicker", "moon-glow", "rain-streaks", "snow-drift", "aura-pulse",
     "sword-flash", "seal-glow", "dust-motes",
     "speed-lines", "shockwave-ring", "breathing-light",
+    # 08-21 剪映风格特效扩容(20 新模板,3 类:故障/光效粒子/动态)
+    "glitch-rgb", "glitch-slice", "glitch-scanline", "vhs-rewind", "pixel-blur",
+    "strobe-flash", "neon-glow", "bokeh-lights", "star-twinkle", "confetti-burst",
+    "heart-float", "bubble-rise", "zoom-pulse", "shake-earthquake", "wobble-jelly",
+    "spin-hypnotic", "ripple-water", "fade-dip-black", "flash-white", "dream-soft",
 )
 MOOD_TEMPLATE_RULES: dict[str, tuple[str, dict[str, str | int | float | bool]]] = {
     "战斗": ("lens-flare", {"x": 18, "y": 24, "size": 260}),
@@ -252,10 +257,29 @@ DEFAULT_TEMPLATE_PARAMETERS: dict[str, dict[str, str | int | float | bool]] = {
     "breathing-light": {"intensity": 0.35, "speed": 3, "hue": 45},
     "seal-glow": {"intensity": 0.3},
     "dust-motes": {"count": 12, "speed": 18},
+    # 08-21 剪映风格扩容(20 新):缺省值与 hyperframes-worker.ts numberParameter 一致。
+    "glitch-rgb": {"intensity": 0.6, "speed": 3},
+    "glitch-slice": {"intensity": 0.5, "slices": 6},
+    "glitch-scanline": {"intensity": 0.4, "speed": 8},
+    "vhs-rewind": {"intensity": 0.5, "hue": 280},
+    "pixel-blur": {"intensity": 0.5, "size": 12},
+    "strobe-flash": {"speed": 4, "color": 60},
+    "neon-glow": {"hue": 190, "intensity": 0.7},
+    "bokeh-lights": {"count": 12, "hue": 40, "speed": 5},
+    "star-twinkle": {"count": 15, "speed": 2},
+    "confetti-burst": {"count": 20, "speed": 3},
+    "heart-float": {"count": 8, "speed": 4},
+    "bubble-rise": {"count": 10, "speed": 6},
+    "zoom-pulse": {"intensity": 0.06, "speed": 2},
+    "shake-earthquake": {"intensity": 8, "speed": 10},
+    "wobble-jelly": {"intensity": 0.02, "speed": 3},
+    "spin-hypnotic": {"speed": 8, "size": 300},
+    "ripple-water": {"x": 50, "y": 50, "speed": 2},
+    "fade-dip-black": {"hold": 0.3},
+    "flash-white": {"hold": 0.15},
+    "dream-soft": {"blur": 6, "glow": 0.4},
 }
 
-# 完备性断言(fail-closed,08-20 修):轮换池模板必须都有默认参数,缺键=轮换
-# 落到该槽时 KeyError 卡死整条章节链(前科:speed-lines/shockwave-ring/breathing-light)。
 assert set(HYPERFRAMES_DECORATIVE_TEMPLATES) <= set(DEFAULT_TEMPLATE_PARAMETERS), (
     "HYPERFRAMES_DECORATIVE_TEMPLATES 轮换池模板缺 DEFAULT_TEMPLATE_PARAMETERS 条目: "
     + str(sorted(set(HYPERFRAMES_DECORATIVE_TEMPLATES) - set(DEFAULT_TEMPLATE_PARAMETERS)))

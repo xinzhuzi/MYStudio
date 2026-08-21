@@ -316,6 +316,145 @@ function renderWindow(window: HyperFramesSegmentWindow, index: number): string {
       const hue = numberParameter(parameters, "hue", 45, 0, 360);
       return `<div id="${escapeHtml(elementId)}" class="clip hf-breathing-light" data-start="${startS}" data-duration="${durationS}" data-track-index="${index + 1}" style="${phaseStyle}--hf-breathe-l:${intensity};--hf-breathe-speed:${speed}s;--hf-breathe-hue:${hue}deg;"></div>`;
     }
+    // --- 08-21 剪映风格特效扩容(20 新模板,3 类) ---
+    // 故障/复古类(5)
+    case "glitch-rgb": {
+      const intensity = numberParameter(parameters, "intensity", 0.6, 0, 1);
+      const speed = numberParameter(parameters, "speed", 3, 1, 10);
+      return `<div id="${escapeHtml(elementId)}" class="clip hf-glitch-rgb" data-start="${startS}" data-duration="${durationS}" data-track-index="${index + 1}" style="${phaseStyle}--hf-glitch-i:${intensity};--hf-glitch-spd:${speed}s;"></div>`;
+    }
+    case "glitch-slice": {
+      const intensity = numberParameter(parameters, "intensity", 0.5, 0, 1);
+      const slices = Math.round(numberParameter(parameters, "slices", 6, 2, 12));
+      let strips = "";
+      for (let i = 0; i < slices; i++) {
+        strips += `<span class="hf-glitch-strip" style="top:${Math.round((i * 100) / slices)}%;animation-delay:${(i * 0.08).toFixed(2)}s;"></span>`;
+      }
+      return `<div id="${escapeHtml(elementId)}" class="clip hf-glitch-slice" data-start="${startS}" data-duration="${durationS}" data-track-index="${index + 1}"${phaseStyle ? ` style="${phaseStyle}--hf-slice-i:${intensity};"` : ""}>${strips}</div>`;
+    }
+    case "glitch-scanline": {
+      const intensity = numberParameter(parameters, "intensity", 0.4, 0, 1);
+      const speed = numberParameter(parameters, "speed", 8, 1, 20);
+      return `<div id="${escapeHtml(elementId)}" class="clip hf-glitch-scanline" data-start="${startS}" data-duration="${durationS}" data-track-index="${index + 1}" style="${phaseStyle}--hf-scan-i:${intensity};--hf-scan-spd:${speed}s;"></div>`;
+    }
+    case "vhs-rewind": {
+      const intensity = numberParameter(parameters, "intensity", 0.5, 0, 1);
+      const hue = numberParameter(parameters, "hue", 280, 0, 360);
+      return `<div id="${escapeHtml(elementId)}" class="clip hf-vhs-rewind" data-start="${startS}" data-duration="${durationS}" data-track-index="${index + 1}" style="${phaseStyle}--hf-vhs-i:${intensity};--hf-vhs-hue:${hue}deg;"></div>`;
+    }
+    case "pixel-blur": {
+      const intensity = numberParameter(parameters, "intensity", 0.5, 0, 1);
+      const size = Math.round(numberParameter(parameters, "size", 12, 4, 30));
+      return `<div id="${escapeHtml(elementId)}" class="clip hf-pixel-blur" data-start="${startS}" data-duration="${durationS}" data-track-index="${index + 1}" style="${phaseStyle}--hf-pixel-i:${intensity};--hf-pixel-size:${size}px;"></div>`;
+    }
+    // 光效/粒子类(8)
+    case "strobe-flash": {
+      const speed = numberParameter(parameters, "speed", 4, 1, 10);
+      const color = numberParameter(parameters, "color", 60, 0, 360);
+      return `<div id="${escapeHtml(elementId)}" class="clip hf-strobe-flash" data-start="${startS}" data-duration="${durationS}" data-track-index="${index + 1}" style="${phaseStyle}--hf-strobe-spd:${speed}s;--hf-strobe-hue:${color}deg;"></div>`;
+    }
+    case "neon-glow": {
+      const hue = numberParameter(parameters, "hue", 190, 0, 360);
+      const intensity = numberParameter(parameters, "intensity", 0.7, 0, 1);
+      return `<div id="${escapeHtml(elementId)}" class="clip hf-neon-glow" data-start="${startS}" data-duration="${durationS}" data-track-index="${index + 1}" style="${phaseStyle}--hf-neon-hue:${hue}deg;--hf-neon-i:${intensity};"></div>`;
+    }
+    case "bokeh-lights": {
+      const count = Math.round(numberParameter(parameters, "count", 12, 4, 30));
+      const hue = numberParameter(parameters, "hue", 40, 0, 360);
+      const speed = numberParameter(parameters, "speed", 5, 1, 15);
+      let bokeh = "";
+      for (let i = 0; i < count; i++) {
+        const bx = Math.round((i * 61 + 13) % 100);
+        const by = Math.round((i * 37 + 29) % 100);
+        const sz = 30 + ((i * 19) % 60);
+        bokeh += `<span class="hf-bokeh" style="left:${bx}%;top:${by}%;width:${sz}px;height:${sz}px;--hf-bokeh-hue:${hue}deg;animation-duration:${(speed + (i % 3)).toFixed(1)}s;animation-delay:${(i * 0.4).toFixed(1)}s;"></span>`;
+      }
+      return `<div id="${escapeHtml(elementId)}" class="clip hf-bokeh-lights" data-start="${startS}" data-duration="${durationS}" data-track-index="${index + 1}"${phaseStyle ? ` style="${phaseStyle}"` : ""}>${bokeh}</div>`;
+    }
+    case "star-twinkle": {
+      const count = Math.round(numberParameter(parameters, "count", 15, 5, 40));
+      const speed = numberParameter(parameters, "speed", 2, 0.5, 6);
+      let stars = "";
+      for (let i = 0; i < count; i++) {
+        const sx = Math.round((i * 47 + 7) % 100);
+        const sy = Math.round((i * 31 + 19) % 100);
+        stars += `<span class="hf-star" style="left:${sx}%;top:${sy}%;animation-duration:${(speed + (i % 4) * 0.5).toFixed(1)}s;animation-delay:${(i * 0.15).toFixed(2)}s;"></span>`;
+      }
+      return `<div id="${escapeHtml(elementId)}" class="clip hf-star-twinkle" data-start="${startS}" data-duration="${durationS}" data-track-index="${index + 1}"${phaseStyle ? ` style="${phaseStyle}"` : ""}>${stars}</div>`;
+    }
+    case "confetti-burst": {
+      const count = Math.round(numberParameter(parameters, "count", 20, 5, 50));
+      const speed = numberParameter(parameters, "speed", 3, 1, 8);
+      let confetti = "";
+      const colors = ["#f44336", "#e91e63", "#9c27b0", "#2196f3", "#4caf50", "#ff9800", "#ffeb3b"];
+      for (let i = 0; i < count; i++) {
+        const cx = Math.round((i * 53 + 11) % 100);
+        confetti += `<span class="hf-confetti" style="left:${cx}%;background:${colors[i % colors.length]};animation-duration:${(speed + (i % 3) * 0.5).toFixed(1)}s;animation-delay:${(i * 0.1).toFixed(1)}s;"></span>`;
+      }
+      return `<div id="${escapeHtml(elementId)}" class="clip hf-confetti-burst" data-start="${startS}" data-duration="${durationS}" data-track-index="${index + 1}"${phaseStyle ? ` style="${phaseStyle}"` : ""}>${confetti}</div>`;
+    }
+    case "heart-float": {
+      const count = Math.round(numberParameter(parameters, "count", 8, 3, 20));
+      const speed = numberParameter(parameters, "speed", 4, 1, 10);
+      let hearts = "";
+      for (let i = 0; i < count; i++) {
+        const hx = Math.round((i * 67 + 17) % 100);
+        const hs = 14 + ((i * 11) % 20);
+        hearts += `<span class="hf-heart" style="left:${hx}%;font-size:${hs}px;animation-duration:${(speed + (i % 3)).toFixed(1)}s;animation-delay:${(i * 0.5).toFixed(1)}s;">♥</span>`;
+      }
+      return `<div id="${escapeHtml(elementId)}" class="clip hf-heart-float" data-start="${startS}" data-duration="${durationS}" data-track-index="${index + 1}"${phaseStyle ? ` style="${phaseStyle}"` : ""}>${hearts}</div>`;
+    }
+    case "bubble-rise": {
+      const count = Math.round(numberParameter(parameters, "count", 10, 4, 25));
+      const speed = numberParameter(parameters, "speed", 6, 2, 15);
+      let bubbles = "";
+      for (let i = 0; i < count; i++) {
+        const bx = Math.round((i * 43 + 23) % 100);
+        const bs = 12 + ((i * 17) % 30);
+        bubbles += `<span class="hf-bubble" style="left:${bx}%;width:${bs}px;height:${bs}px;animation-duration:${(speed + (i % 4)).toFixed(1)}s;animation-delay:${(i * 0.3).toFixed(1)}s;"></span>`;
+      }
+      return `<div id="${escapeHtml(elementId)}" class="clip hf-bubble-rise" data-start="${startS}" data-duration="${durationS}" data-track-index="${index + 1}"${phaseStyle ? ` style="${phaseStyle}"` : ""}>${bubbles}</div>`;
+    }
+    // 动态/过渡类(7)
+    case "zoom-pulse": {
+      const intensity = numberParameter(parameters, "intensity", 0.06, 0.01, 0.2);
+      const speed = numberParameter(parameters, "speed", 2, 0.5, 6);
+      return `<div id="${escapeHtml(elementId)}" class="clip hf-zoom-pulse" data-start="${startS}" data-duration="${durationS}" data-track-index="${index + 1}" style="${phaseStyle}--hf-zoom-i:${intensity};--hf-zoom-spd:${speed}s;"></div>`;
+    }
+    case "shake-earthquake": {
+      const intensity = numberParameter(parameters, "intensity", 8, 2, 20);
+      const speed = numberParameter(parameters, "speed", 10, 2, 20);
+      return `<div id="${escapeHtml(elementId)}" class="clip hf-shake-eq" data-start="${startS}" data-duration="${durationS}" data-track-index="${index + 1}" style="${phaseStyle}--hf-shake-i:${intensity}px;--hf-shake-spd:${(1 / speed).toFixed(3)}s;"></div>`;
+    }
+    case "wobble-jelly": {
+      const intensity = numberParameter(parameters, "intensity", 0.02, 0.01, 0.1);
+      const speed = numberParameter(parameters, "speed", 3, 1, 8);
+      return `<div id="${escapeHtml(elementId)}" class="clip hf-wobble-jelly" data-start="${startS}" data-duration="${durationS}" data-track-index="${index + 1}" style="${phaseStyle}--hf-wobble-i:${intensity};--hf-wobble-spd:${speed}s;"></div>`;
+    }
+    case "spin-hypnotic": {
+      const speed = numberParameter(parameters, "speed", 8, 2, 20);
+      const size = Math.round(numberParameter(parameters, "size", 300, 100, 600));
+      return `<div id="${escapeHtml(elementId)}" class="clip hf-spin-hypnotic" data-start="${startS}" data-duration="${durationS}" data-track-index="${index + 1}" style="${phaseStyle}--hf-spin-spd:${speed}s;--hf-spin-size:${size}px;"></div>`;
+    }
+    case "ripple-water": {
+      const x = numberParameter(parameters, "x", 50, 0, 100);
+      const y = numberParameter(parameters, "y", 50, 0, 100);
+      const speed = numberParameter(parameters, "speed", 2, 0.5, 5);
+      return `<div id="${escapeHtml(elementId)}" class="clip hf-ripple-water" data-start="${startS}" data-duration="${durationS}" data-track-index="${index + 1}" style="${phaseStyle}left:${x}%;top:${y}%;--hf-ripple-spd:${speed}s;"></div>`;
+    }
+    case "fade-dip-black": {
+      const hold = numberParameter(parameters, "hold", 0.3, 0.1, 1);
+      return `<div id="${escapeHtml(elementId)}" class="clip hf-fade-dip-black" data-start="${startS}" data-duration="${durationS}" data-track-index="${index + 1}" style="${phaseStyle}--hf-dip-hold:${hold}s;"></div>`;
+    }
+    case "flash-white": {
+      const hold = numberParameter(parameters, "hold", 0.15, 0.05, 0.5);
+      return `<div id="${escapeHtml(elementId)}" class="clip hf-flash-white" data-start="${startS}" data-duration="${durationS}" data-track-index="${index + 1}" style="${phaseStyle}--hf-flash-hold:${hold}s;"></div>`;
+    }
+    case "dream-soft": {
+      const blur = numberParameter(parameters, "blur", 6, 2, 20);
+      const glow = numberParameter(parameters, "glow", 0.4, 0.1, 1);
+      return `<div id="${escapeHtml(elementId)}" class="clip hf-dream-soft" data-start="${startS}" data-duration="${durationS}" data-track-index="${index + 1}" style="${phaseStyle}--hf-dream-blur:${blur}px;--hf-dream-glow:${glow};"></div>`;
+    }
     case "dust-motes": {
       const count = Math.round(numberParameter(parameters, "count", 12, 4, 16));
       const speed = numberParameter(parameters, "speed", 18, 6, 40);
@@ -419,6 +558,60 @@ html,body{margin:0;width:100%;height:100%;overflow:hidden;background:transparent
 @keyframes hf-letterbox-in{from{opacity:0}to{opacity:1}}
 
 @keyframes hf-in{from{opacity:0;transform:translate(-50%,-50%) scale(.96)}to{opacity:1;transform:translate(-50%,-50%) scale(1)}}
+
+/* --- 08-21 剪映风格特效 CSS(20 新) --- */
+/* 故障/复古类 */
+.hf-glitch-rgb{width:100%;height:100%;left:0;top:0;transform:none;mix-blend-mode:screen;opacity:var(--hf-glitch-i,.6);background:linear-gradient(90deg,rgba(255,0,60,.3) 0%,transparent 20%,rgba(0,255,255,.3) 80%,rgba(255,0,60,.3) 100%);animation:hf-glitch-shift var(--hf-glitch-spd,3s) steps(2) infinite}
+@keyframes hf-glitch-shift{0%{transform:translateX(0)}25%{transform:translateX(-6px)}50%{transform:translateX(4px)}75%{transform:translateX(-2px)}100%{transform:translateX(0)}}
+.hf-glitch-slice{width:100%;height:100%;left:0;top:0;transform:none;overflow:hidden;opacity:var(--hf-slice-i,.5)}
+.hf-glitch-strip{position:absolute;left:0;width:100%;height:16%;background:rgba(0,255,240,.08);border-top:1px solid rgba(255,0,60,.3);animation:hf-strip-jitter .3s steps(3) infinite}
+@keyframes hf-strip-jitter{0%{transform:translateX(0)}50%{transform:translateX(8px)}100%{transform:translateX(-4px)}}
+.hf-glitch-scanline{width:100%;height:100%;left:0;top:0;transform:none;opacity:var(--hf-scan-i,.4);background:repeating-linear-gradient(0deg,transparent 0 2px,rgba(0,255,255,.15) 2px 3px);animation:hf-scan-move var(--hf-scan-spd,8s) linear infinite}
+@keyframes hf-scan-move{from{background-position-y:0}to{background-position-y:100px}}
+.hf-vhs-rewind{width:100%;height:100%;left:0;top:0;transform:none;opacity:var(--hf-vhs-i,.5);background:linear-gradient(180deg,hsla(var(--hf-vhs-hue,280deg),80%,60%,.15) 0%,transparent 40%,hsla(120,80%,60%,.1) 100%);mix-blend-mode:screen;animation:hf-vhs-noise .2s steps(2) infinite}
+@keyframes hf-vhs-noise{0%{filter:hue-rotate(0deg) contrast(1.2)}50%{filter:hue-rotate(30deg) contrast(1.4)}100%{filter:hue-rotate(0deg) contrast(1.2)}}
+.hf-pixel-blur{width:100%;height:100%;left:0;top:0;transform:none;opacity:var(--hf-pixel-i,.5);backdrop-filter:blur(var(--hf-pixel-size,12px)) contrast(1.5) saturate(1.5);animation:hf-pixel-pulse 2s ease-in-out infinite alternate}
+@keyframes hf-pixel-pulse{from{opacity:var(--hf-pixel-i,.5)}to{opacity:calc(var(--hf-pixel-i,.5) * .5)}}
+
+/* 光效/粒子类 */
+.hf-strobe-flash{width:100%;height:100%;left:0;top:0;transform:none;background:hsla(var(--hf-strobe-hue,60deg),100%,80%,.6);mix-blend-mode:screen;animation:hf-strobe-blink var(--hf-strobe-spd,4s) steps(1) infinite}
+@keyframes hf-strobe-blink{0%,49%{opacity:0}50%,54%{opacity:.7}55%,100%{opacity:0}}
+.hf-neon-glow{width:100%;height:100%;left:0;top:0;transform:none;background:radial-gradient(ellipse at 50% 50%,hsla(var(--hf-neon-hue,190deg),100%,60%,calc(var(--hf-neon-i,.7)*.3)),hsla(calc(var(--hf-neon-hue,190deg) + 60deg),100%,50%,calc(var(--hf-neon-i,.7)*.1)) 50%,transparent 80%);mix-blend-mode:screen;animation:hf-neon-pulse 2s ease-in-out infinite alternate}
+@keyframes hf-neon-pulse{from{filter:brightness(1)}to{filter:brightness(1.4)}}
+.hf-bokeh-lights{width:100%;height:100%;left:0;top:0}
+.hf-bokeh{position:absolute;border-radius:50%;background:radial-gradient(circle,hsla(var(--hf-bokeh-hue,40deg),80%,70%,.5) 0%,transparent 70%);mix-blend-mode:screen;animation:hf-bokeh-drift ease-in-out infinite alternate}
+@keyframes hf-bokeh-drift{from{transform:translate(0,0) scale(.8);opacity:.4}to{transform:translate(15px,-25px) scale(1.1);opacity:.7}}
+.hf-star-twinkle{width:100%;height:100%;left:0;top:0}
+.hf-star{position:absolute;width:8px;height:8px;background:radial-gradient(circle,white 0%,rgba(255,255,200,.5) 40%,transparent 70%);clip-path:polygon(50% 0%,61% 35%,98% 35%,68% 57%,79% 91%,50% 70%,21% 91%,32% 57%,2% 35%,39% 35%);animation:hf-star-blink ease-in-out infinite alternate}
+@keyframes hf-star-blink{from{opacity:.2;transform:scale(.6) rotate(0deg)}to{opacity:1;transform:scale(1.2) rotate(15deg)}}
+.hf-confetti-burst{width:100%;height:100%;left:0;top:0}
+.hf-confetti{position:absolute;top:-3%;width:10px;height:16px;border-radius:2px;animation:hf-confetti-fall linear infinite}
+@keyframes hf-confetti-fall{from{transform:translateY(-10px) rotate(0deg);opacity:1}to{transform:translateY(110vh) rotate(360deg);opacity:.6}}
+.hf-heart-float{width:100%;height:100%;left:0;top:0}
+.hf-heart{position:absolute;bottom:-5%;color:rgba(255,80,120,.7);text-shadow:0 0 10px rgba(255,80,120,.4);animation:hf-heart-up linear infinite}
+@keyframes hf-heart-up{from{transform:translateY(0) scale(.8);opacity:.8}to{transform:translateY(-110vh) scale(1.2) rotate(20deg);opacity:.3}}
+.hf-bubble-rise{width:100%;height:100%;left:0;top:0}
+.hf-bubble{position:absolute;bottom:-5%;border-radius:50%;border:2px solid rgba(100,200,255,.3);background:radial-gradient(circle at 30% 30%,rgba(255,255,255,.3),rgba(100,200,255,.1) 60%,transparent);animation:hf-bubble-up linear infinite}
+@keyframes hf-bubble-up{from{transform:translateY(0);opacity:.5}to{transform:translateY(-110vh) translateX(10px);opacity:.2}}
+
+/* 动态/过渡类 */
+.hf-zoom-pulse{width:100%;height:100%;left:0;top:0;transform:scale(1);backdrop-filter:brightness(1.05);animation:hf-zoom-breath var(--hf-zoom-spd,2s) ease-in-out infinite alternate}
+@keyframes hf-zoom-breath{from{transform:scale(1)}to{transform:scale(calc(1 + var(--hf-zoom-i,.06)))}}
+.hf-shake-eq{width:100%;height:100%;left:0;top:0;transform:none;animation:hf-shake-rumble var(--hf-shake-spd,.1s) linear infinite}
+@keyframes hf-shake-rumble{0%{transform:translate(var(--hf-shake-i,8px),0)}25%{transform:translate(calc(var(--hf-shake-i,8px) * -.5),calc(var(--hf-shake-i,8px) * .5))}50%{transform:translate(calc(var(--hf-shake-i,8px) * .7),calc(var(--hf-shake-i,8px) * -.3))}75%{transform:translate(calc(var(--hf-shake-i,8px) * -.3),calc(var(--hf-shake-i,8px) * .7))}100%{transform:translate(var(--hf-shake-i,8px),0)}}
+.hf-wobble-jelly{width:100%;height:100%;left:0;top:0;transform:none;animation:hf-wobble-jello var(--hf-wobble-spd,3s) ease-in-out infinite}
+@keyframes hf-wobble-jello{0%,100%{transform:skewX(0deg) skewY(0deg)}25%{transform:skewX(calc(var(--hf-wobble-i,.02) * 100deg)) skewY(calc(var(--hf-wobble-i,.02) * -50deg))}50%{transform:skewX(calc(var(--hf-wobble-i,.02) * -100deg)) skewY(calc(var(--hf-wobble-i,.02) * 50deg))}75%{transform:skewX(calc(var(--hf-wobble-i,.02) * 50deg)) skewY(0deg)}}
+.hf-spin-hypnotic{left:50%;top:50%;width:var(--hf-spin-size,300px);height:var(--hf-spin-size,300px);border-radius:50%;border:6px dashed rgba(255,255,255,.3);border-top-color:rgba(100,200,255,.5);border-bottom-color:rgba(255,100,200,.5);animation:hf-spin-rotate var(--hf-spin-spd,8s) linear infinite}
+@keyframes hf-spin-rotate{from{transform:translate(-50%,-50%) rotate(0deg)}to{transform:translate(-50%,-50%) rotate(360deg)}}
+.hf-ripple-water{width:200px;height:200px;border-radius:50%;border:3px solid rgba(100,200,255,.4);animation:hf-ripple-expand var(--hf-ripple-spd,2s) ease-out infinite}
+@keyframes hf-ripple-expand{from{transform:translate(-50%,-50%) scale(.2);opacity:.8}to{transform:translate(-50%,-50%) scale(3);opacity:0}}
+.hf-fade-dip-black{width:100%;height:100%;left:0;top:0;transform:none;background:#000;animation:hf-dip-blink var(--hf-dip-hold,.3s) linear infinite}
+@keyframes hf-dip-blink{0%,100%{opacity:0}50%{opacity:.8}}
+.hf-flash-white{width:100%;height:100%;left:0;top:0;transform:none;background:white;animation:hf-flash-blink var(--hf-flash-hold,.15s) ease-out infinite}
+@keyframes hf-flash-blink{0%{opacity:.9}100%{opacity:0}}
+.hf-dream-soft{width:100%;height:100%;left:0;top:0;transform:none;backdrop-filter:blur(var(--hf-dream-blur,6px)) brightness(1.1) saturate(1.2);background:radial-gradient(ellipse at 50% 40%,rgba(255,200,255,calc(var(--hf-dream-glow,.4)*.3)),transparent 70%);mix-blend-mode:soft-light;animation:hf-dream-breathe 3s ease-in-out infinite alternate}
+@keyframes hf-dream-breathe{from{opacity:var(--hf-dream-glow,.4)}to{opacity:calc(var(--hf-dream-glow,.4) * .6)}}
+
 </style></head><body><div id="stage" data-composition-id="mystudio-overlay" data-no-timeline data-start="0" data-duration="${durationS}" data-width="${request.width}" data-height="${request.height}" data-fps="${request.fps}">
 ${windows}
 </div><script>
