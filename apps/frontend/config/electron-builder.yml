@@ -40,6 +40,11 @@ extraResources:
     to: remotion-bundle
     filter:
       - "**/*"
+  - from: frontend/assets/hyperframes-registry
+    to: hyperframes-registry
+    filter:
+      - "**/*"
+      - "!**/.DS_Store"
   - from: backend
     to: backend
     filter:
