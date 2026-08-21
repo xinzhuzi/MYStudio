@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   buildRemotionProductionProfile,
   ensureRemotionWorkspace,
+  legacyRemotionWorkspaceStorageKey,
   remotionWorkspaceStorageKey,
   syncRemotionWorkspaceProductionProfile,
   type RemotionWorkspaceRuntimeInfo,
@@ -133,5 +134,53 @@ describe("Remotion workspace storage", () => {
     const result = await ensureRemotionWorkspace("../project-a", runtime, { storage });
     expect(result).toMatchObject({ status: "blocked", code: "invalid-project-id", retryable: false });
     expect(writes).toHaveLength(0);
+  });
+
+  it("storage key carries no extension: resolveDataFilePath appends .json once", () => {
+    expect(remotionWorkspaceStorageKey("project-a")).toBe("_p/project-a/remotion/project");
+    expect(legacyRemotionWorkspaceStorageKey("project-a")).toBe("_p/project-a/remotion/project.json");
+  });
+
+  it("migrates a legacy double-suffix manifest into the canonical key on ensure", async () => {
+    const legacyManifest = `{"schemaVersion":1,"projectId":"project-a","workspaceId":"workspace-project-a","templateId":"mystudio-remotion-v1","templateVersion":"1.0.0","remotionVersion":"4.0.499","bundleContentHash":"${"a".repeat(64)}","compositionIds":["StoryboardShot","ChapterVideo"],"defaultRenderSettings":${JSON.stringify(runtime.defaultRenderSettings)},"createdAt":1,"updatedAt":1}\n`;
+    const legacy = new Map([[legacyRemotionWorkspaceStorageKey("project-a"), legacyManifest]]);
+    const removed: string[] = [];
+    const { storage, writes } = memoryStorage(legacy);
+    const storageWithRemove = {
+      ...storage,
+      removeItem: async (key: string) => { removed.push(key); },
+    };
+
+    const result = await ensureRemotionWorkspace("project-a", runtime, {
+      storage: storageWithRemove,
+      now: () => 123,
+    });
+
+    expect(result.status).toBe("ready");
+    if (result.status === "ready") {
+      // 旧 manifest 被沿用（created=false），不重建
+      expect(result.created).toBe(false);
+      expect(result.manifest.projectId).toBe("project-a");
+      expect(result.manifest.createdAt).toBe(1);
+    }
+    // 迁移写入目标必须是新键，且旧键被删除
+    expect(writes.map(([key]) => key)).toEqual([remotionWorkspaceStorageKey("project-a")]);
+    expect(removed).toEqual([legacyRemotionWorkspaceStorageKey("project-a")]);
+  });
+
+  it("syncRemotionWorkspaceProductionProfile migrates the legacy key before updating", async () => {
+    const legacy = new Map([[
+      legacyRemotionWorkspaceStorageKey("project-a"),
+      `{"schemaVersion":1,"projectId":"project-a","workspaceId":"workspace-project-a","templateId":"mystudio-remotion-v1","templateVersion":"1.0.0","remotionVersion":"4.0.499","bundleContentHash":"${"a".repeat(64)}","compositionIds":["StoryboardShot","ChapterVideo"],"defaultRenderSettings":${JSON.stringify(runtime.defaultRenderSettings)},"createdAt":1,"updatedAt":1}\n`,
+    ]]);
+    const { storage, writes } = memoryStorage(legacy);
+    const profile = buildRemotionProductionProfile({ platformSpec: "16:9" });
+
+    await expect(syncRemotionWorkspaceProductionProfile("project-a", profile, storage)).resolves.toBe("updated");
+    // 第一次写=迁移到新键，第二次写=profile 更新落在新键
+    expect(writes.map(([key]) => key)).toEqual([
+      remotionWorkspaceStorageKey("project-a"),
+      remotionWorkspaceStorageKey("project-a"),
+    ]);
   });
 });

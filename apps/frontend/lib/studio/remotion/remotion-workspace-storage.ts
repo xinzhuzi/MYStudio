@@ -8,7 +8,13 @@ import { fileStorage } from "@/lib/storage/indexed-db-storage";
 import { validateRemotionWorkspaceManifest } from "./remotion-manifest-validation";
 import { DEFAULT_SUBTITLE_FONT_ID } from "./subtitle-fonts";
 
-export const REMOTION_WORKSPACE_STORAGE_SUFFIX = "remotion/project.json";
+// resolveDataFilePath() 会对键无条件补 `.json`，键本身不得带扩展名；
+// 历史值 "remotion/project.json" 曾落盘成双后缀 project.json.json（08-21 修复，
+// 迁移见 legacyRemotionWorkspaceStorageKey）。
+export const REMOTION_WORKSPACE_STORAGE_SUFFIX = "remotion/project";
+
+/** 双后缀时代的旧键：键带 .json → 落盘 remotion/project.json.json，仅用于一次性迁移。 */
+export const LEGACY_REMOTION_WORKSPACE_STORAGE_SUFFIX = "remotion/project.json";
 
 export const DEFAULT_REMOTION_RENDER_SETTINGS: EditingRenderSettings = {
   width: 1920,
@@ -47,6 +53,7 @@ type RemotionWorkspaceBlockedCode =
 export interface RemotionWorkspaceStorage {
   getItem: (key: string) => Promise<string | null> | string | null;
   setItem: (key: string, value: string) => Promise<void> | void | unknown;
+  removeItem?: (key: string) => Promise<void> | void | unknown;
 }
 
 export interface EnsureRemotionWorkspaceOptions {
@@ -83,6 +90,39 @@ export function remotionWorkspaceStorageKey(projectId: string): string {
   return `_p/${projectId}/${REMOTION_WORKSPACE_STORAGE_SUFFIX}`;
 }
 
+export function legacyRemotionWorkspaceStorageKey(projectId: string): string {
+  return `_p/${projectId}/${LEGACY_REMOTION_WORKSPACE_STORAGE_SUFFIX}`;
+}
+
+/**
+ * 一次性迁移（08-21）：新键为空而双后缀旧键有数据时，把旧内容拷到新键并尽力删除旧文件。
+ * 失败一律返回 null（best-effort），调用方按“无数据”继续走创建路径。
+ */
+async function migrateLegacyWorkspace(
+  projectId: string,
+  storage: RemotionWorkspaceStorage,
+): Promise<string | null> {
+  const legacyKey = legacyRemotionWorkspaceStorageKey(projectId);
+  let legacyRaw: string | null;
+  try {
+    legacyRaw = await storage.getItem(legacyKey);
+  } catch {
+    return null;
+  }
+  if (legacyRaw === null) return null;
+  try {
+    await storage.setItem(remotionWorkspaceStorageKey(projectId), legacyRaw);
+  } catch {
+    return null;
+  }
+  try {
+    await storage.removeItem?.(legacyKey);
+  } catch {
+    // 尽力而为：删除旧文件失败只残留一个孤儿文件，不影响读写
+  }
+  return legacyRaw;
+}
+
 export async function ensureRemotionWorkspace(
   projectId: string,
   runtime: RemotionWorkspaceRuntimeInfo,
@@ -96,6 +136,10 @@ export async function ensureRemotionWorkspace(
   let existing: string | null;
   try {
     existing = await storage.getItem(key);
+    if (existing === null) {
+      // 双后缀旧文件一次性迁移（08-21-full-health-check P1）
+      existing = await migrateLegacyWorkspace(projectId, storage);
+    }
   } catch (error) {
     return blocked(projectId, "storage-failure", `读取 Remotion workspace 失败：${messageOf(error)}`, true);
   }
@@ -137,7 +181,10 @@ export async function syncRemotionWorkspaceProductionProfile(
 ): Promise<"updated" | "unchanged" | "missing"> {
   if (!isSafeProjectId(projectId)) return "missing";
   const key = remotionWorkspaceStorageKey(projectId);
-  const raw = await storage.getItem(key);
+  let raw = await storage.getItem(key);
+  if (raw === null) {
+    raw = await migrateLegacyWorkspace(projectId, storage);
+  }
   if (raw === null) return "missing";
   let value: unknown;
   try {

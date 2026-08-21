@@ -327,8 +327,8 @@ describe("artifact-dependency-graph", () => {
       };
       const unrelatedBlocker2: ArtifactRecord = {
         ...createArtifacts("blocker-missing-ownership"),
-        id: "blocker:remotion/project.json.json",
-        name: "project.json.json",
+        id: "blocker:remotion/project.json",
+        name: "project.json",
         chapterId: undefined,
       };
 

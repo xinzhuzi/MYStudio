@@ -79,7 +79,7 @@ describe("getArtifactDeleteImpact", () => {
     const impact = getArtifactDeleteImpact({
       deletePolicy: "blocker-missing-ownership",
       kind: "media-file",
-      physicalRefs: [{ type: "project-file", path: "remotion/project.json.json" }],
+      physicalRefs: [{ type: "project-file", path: "remotion/project.json" }],
     });
     expect(impact.level).toBe("blocked");
   });
