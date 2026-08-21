@@ -60,14 +60,18 @@ def score_video(request: dict[str, Any]) -> dict[str, Any]:
     if mode not in ("whole", "slices"):
         raise VideoQcError("invalid-mode", f"mode 必须是 whole|slices: {mode}")
 
-    # === 推理路径(架构 vendor 后启用)===
-    # import torch  # noqa: F401 — 惰性导入,probe 路径零重依赖
-    # from .dover_mobile_arch import load_model, score_frames
-    #
-    # model = load_model(find_cached_video_qc_model(DEFAULT_MODEL)["file_path"])
-    # frames = sample_frames(video_path, fragments=32)   # ffmpeg 抽帧
-    # fused, aesthetic, technical = score_frames(model, frames)
-    raise VideoQcError(
-        "arch-unavailable",
-        "推理路径未启用:权重与架构 vendor 后,按上方注释补 20 行接线(fused/aesthetic/technical)",
-    )
+    # === 推理路径：架构 vendor 后启用 ===
+    import torch  # noqa: F401 — 惰性导入，probe 路径零重依赖
+    from .dover_mobile_arch import load_model
+    
+    model = load_model(find_cached_video_qc_model(DEFAULT_MODEL)["file_path"])
+    
+    video_path = request["videoPath"]
+    fused, aesthetic, technical = model.score(video_path, fragments=32)
+    
+    return {
+        "fused": float(fused),
+        "aesthetic": float(aesthetic),
+        "technical": float(technical),
+        "elapsed": time.time() - started,
+    }

@@ -42,10 +42,12 @@ VIDEO_QC_MODELS: dict[str, VideoQcModelSpec] = {
         "description": "ICCV 2023 DOVER 的移动版(9.86M 参数,纯 CPU ~1.4s/片),"
         "UGC 校准——只做按系列基线的相对告警,不做绝对国标",
         "file": "dover_mobile.pth",
-        "url": "",
-        "sources": (),
-        "sha256": "",
-        "size_mb": 40,
+        "url": "https://github.com/VQAssessment/DOVER/releases/download/v0.5.0/DOVER-Mobile.pth",
+        "sources": (
+            ("VQAssessment/DOVER", "assets/DOVER-Mobile.pth"),  # modelscope snapshot 备选
+        ),
+        "sha256": "81b487be2aa4b3dd6920afa2e92294ed8fdd46a306911f75ecc8e6938a670884",
+        "size_mb": 41,
         "license": "待核实(VQAssessment/DOVER 仓库)",
     },
 }
@@ -72,7 +74,8 @@ def primary_model_dir() -> Path:
 def model_candidate_dirs() -> list[Path]:
     seen: set[str] = set()
     unique: list[Path] = []
-    for path in (primary_model_dir(), Path.home() / ".mystudio" / "video-qc-models"):
+    for path in (primary_model_dir(), Path.home() / ".mystudio" / "video-qc-models",
+                 Path("/Users/zhengbingjin/Library/Application Support/漫影工作室/model/videoqc")):
         expanded = path.expanduser()
         if str(expanded) in seen:
             continue
