@@ -58,7 +58,11 @@ function makeHyperFramesProbe(
   };
 }
 
-function makePlan(visualCount = 43, textCount = 0): TimelineRenderPlan {
+function makePlan(
+  visualCount = 43,
+  textCount = 0,
+  authorityMode: "source-embedded" | "clean-remotion" = "source-embedded",
+): TimelineRenderPlan {
   return {
     clips: [
       ...Array.from({ length: visualCount }, (_, index) => ({
@@ -68,19 +72,29 @@ function makePlan(visualCount = 43, textCount = 0): TimelineRenderPlan {
           path: `outputs/shots/chapter-001/shot-${index + 1}/current.mp4`,
           evidence: {
             storyboardId: `shot-${String(index + 1).padStart(3, "0")}`,
-            subtitleAuthority: { mode: "source-embedded" },
+            subtitleAuthority: { mode: authorityMode },
           },
         },
       })),
       ...Array.from({ length: textCount }, (_, index) => ({
         id: `text-${index + 1}`,
         trackKind: "text",
+        source: {
+          kind: "text",
+          text: `subtitle-${index + 1}`,
+          evidence: {
+            cueId: `cue-${index + 1}`,
+            subtitleAuthority: { mode: authorityMode },
+          },
+        },
+        startUs: index * 1_000_000,
+        durationUs: 800_000,
       })),
     ],
     projectId: "project-1",
     episodeId: "chapter-001",
     editingRevision: 9,
-    renderSettings: { subtitleMode: "none" },
+    renderSettings: { subtitleMode: authorityMode === "clean-remotion" ? "burn-in" : "none" },
   } as TimelineRenderPlan;
 }
 
@@ -107,6 +121,7 @@ describe("invokeFormalChapterRenderer", () => {
       plan,
       currentShotSlots,
       expectedVisualCount: 43,
+      expectedTextCount: 0,
     })).resolves.toBe(slot);
 
     expect(render).toHaveBeenCalledTimes(1);
@@ -121,6 +136,7 @@ describe("invokeFormalChapterRenderer", () => {
       plan: makePlan(),
       currentShotSlots: makeSlots(42),
       expectedVisualCount: 43,
+      expectedTextCount: 0,
     })).rejects.toThrow("expected 43 current shot slots, received 42");
 
     expect(render).not.toHaveBeenCalled();
@@ -134,6 +150,7 @@ describe("invokeFormalChapterRenderer", () => {
       plan: makePlan(42),
       currentShotSlots: makeSlots(),
       expectedVisualCount: 43,
+      expectedTextCount: 0,
     })).rejects.toThrow("expected 43 visual clips, received 42");
 
     expect(render).not.toHaveBeenCalled();
@@ -147,6 +164,7 @@ describe("invokeFormalChapterRenderer", () => {
       plan: makePlan(43, 1),
       currentShotSlots: makeSlots(),
       expectedVisualCount: 43,
+      expectedTextCount: 0,
     })).rejects.toThrow("expected 0 text clips, received 1");
 
     expect(render).not.toHaveBeenCalled();
@@ -160,8 +178,26 @@ describe("invokeFormalChapterRenderer", () => {
       plan: makePlan(),
       currentShotSlots: makeSlots(),
       expectedVisualCount: 43,
+      expectedTextCount: 0,
       timeoutMs: 5,
     })).rejects.toThrow("timed out after 5ms");
+
+    expect(render).toHaveBeenCalledOnce();
+  });
+
+  it("renders the accepted clean-remotion subtitle layer when its count matches", async () => {
+    const plan = makePlan(43, 50, "clean-remotion");
+    const currentShotSlots = makeSlots();
+    const slot = { target: { kind: "chapter" } } as RemotionCurrentSlotV1;
+    const render = vi.fn(async () => ({ success: true as const, slot }));
+
+    await expect(invokeFormalChapterRenderer({
+      renderer: { render },
+      plan,
+      currentShotSlots,
+      expectedVisualCount: 43,
+      expectedTextCount: 50,
+    })).resolves.toBe(slot);
 
     expect(render).toHaveBeenCalledOnce();
   });
@@ -357,6 +393,8 @@ describe("projectAcceptedTimelinePlan", () => {
       chapterId: "chapter-001",
       revision: 9,
       expectedVisualCount: 2,
+      subtitleAuthority: "source-embedded",
+      expectedTextClipCount: 0,
     });
 
     expect(projected.clips.map((clip) => clip.source.path)).toEqual([
@@ -373,6 +411,8 @@ describe("projectAcceptedTimelinePlan", () => {
       chapterId: "chapter-001",
       revision: 9,
       expectedVisualCount: 1,
+      subtitleAuthority: "source-embedded" as const,
+      expectedTextClipCount: 0,
       productionRemotionRoot: "/external/MA/remotion",
     };
 
@@ -382,6 +422,22 @@ describe("projectAcceptedTimelinePlan", () => {
     plan.clips[0]!.source.path = "/external/MA/outside.mp4";
     expect(() => projectAcceptedTimelinePlan(plan, expected))
       .toThrow("outside the production Remotion root");
+  });
+
+  it("preserves accepted clean-remotion text clips and burn-in mode", () => {
+    const plan = makePlan(2, 2, "clean-remotion");
+
+    const projected = projectAcceptedTimelinePlan(plan, {
+      projectId: "project-1",
+      chapterId: "chapter-001",
+      revision: 9,
+      expectedVisualCount: 2,
+      subtitleAuthority: "clean-remotion",
+      expectedTextClipCount: 2,
+    });
+
+    expect(projected.renderSettings.subtitleMode).toBe("burn-in");
+    expect(projected.clips.filter((clip) => clip.trackKind === "text")).toHaveLength(2);
   });
 });
 
@@ -402,6 +458,8 @@ describe("assertAcceptedArtifactProjection", () => {
       stage: "ready",
       mode: "editable-edl",
       evidence: { artifactSha256: "a".repeat(64), inputSha256: "b".repeat(64) },
+      subtitleAuthority: { mode: "source-embedded" },
+      subtitles: [],
       edl: [
         {
           shotId: "shot-001",
@@ -433,6 +491,7 @@ describe("assertAcceptedArtifactProjection", () => {
       windows: [
         { templateId: "film-grain", parameters: {} },
         { templateId: "light-leak", parameters: {} },
+        { templateId: "ink-bloom", parameters: {} },
       ],
     } as HyperFramesOverlayArtifactV1;
 
@@ -442,7 +501,12 @@ describe("assertAcceptedArtifactProjection", () => {
       hyperFrames,
       productionRemotionRoot: "/production/remotion",
       expectedVisualCount: 2,
-    })).toEqual({ videoUseEdlCount: 2, hyperFramesWindowCount: 2 });
+    })).toEqual({
+      videoUseEdlCount: 2,
+      hyperFramesWindowCount: 3,
+      subtitleAuthority: "source-embedded",
+      expectedTextClipCount: 0,
+    });
 
     hyperFrames.windows[0].templateId = "unknown-text-capable-template";
     expect(() => assertAcceptedArtifactProjection({
@@ -452,6 +516,61 @@ describe("assertAcceptedArtifactProjection", () => {
       productionRemotionRoot: "/production/remotion",
       expectedVisualCount: 2,
     })).toThrow("HyperFrames template is not verified as non-text");
+
+    hyperFrames.windows[0].templateId = "film-grain";
+    hyperFrames.windows = [];
+    expect(() => assertAcceptedArtifactProjection({
+      plan,
+      videoUse,
+      hyperFrames,
+      productionRemotionRoot: "/production/remotion",
+      expectedVisualCount: 2,
+    })).toThrow("HyperFrames artifact is not the accepted overlay for this plan");
+  });
+
+  it("proves clean-remotion cue ownership against the accepted subtitle set", () => {
+    const plan = makePlan(1, 2, "clean-remotion");
+    plan.clips[0].startUs = 0;
+    plan.clips[0].durationUs = 2_000_000;
+    plan.clips[0].trimStartUs = 0;
+    const videoUse = {
+      projectId: "project-1",
+      chapterId: "chapter-001",
+      revision: 9,
+      status: "accepted",
+      stage: "ready",
+      mode: "editable-edl",
+      evidence: { artifactSha256: "a".repeat(64), inputSha256: "b".repeat(64) },
+      subtitleAuthority: { mode: "clean-remotion" },
+      subtitles: [{ cueId: "cue-1" }, { cueId: "cue-2" }],
+      edl: [{
+        shotId: "shot-001",
+        sourcePath: "/production/remotion/outputs/shots/chapter-001/shot-1/current.mp4",
+        sourceInS: 0,
+        sourceOutS: 2,
+        timelineStartS: 0,
+        durationS: 2,
+      }],
+    } as VideoUseChapterArtifactV1;
+    const hyperFrames = {
+      projectId: "project-1",
+      chapterId: "chapter-001",
+      revision: 9,
+      status: "accepted",
+      sourceArtifactSha256: "a".repeat(64),
+      inputSha256: "b".repeat(64),
+      outputPath: "/production/hyperframes-overlay.mov",
+      outputSha256: "c".repeat(64),
+      windows: [{ templateId: "film-grain", parameters: {} }],
+    } as HyperFramesOverlayArtifactV1;
+
+    expect(assertAcceptedArtifactProjection({
+      plan,
+      videoUse,
+      hyperFrames,
+      productionRemotionRoot: "/production/remotion",
+      expectedVisualCount: 1,
+    })).toMatchObject({ subtitleAuthority: "clean-remotion", expectedTextClipCount: 2 });
   });
 });
 

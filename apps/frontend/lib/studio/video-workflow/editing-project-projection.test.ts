@@ -104,6 +104,46 @@ describe("video-use to EditingProject projection", () => {
     expect(result.artifactRefs.subtitleCues).toHaveLength(1);
   });
 
+  it("collapses legacy subtitle tracks when source media owns all subtitle cues", () => {
+    const baseProject = project();
+    baseProject.tracks.push({
+      id: "legacy-sentence-subtitles",
+      kind: "text",
+      name: "句级字幕",
+      order: 2,
+      clipIds: ["legacy-subtitle"],
+      muted: false,
+      locked: false,
+    });
+    baseProject.clips.push({
+      id: "legacy-subtitle",
+      trackId: "legacy-sentence-subtitles",
+      name: "legacy subtitle",
+      source: { kind: "text", text: "旧句级字幕", evidence: {} },
+      startUs: 0,
+      durationUs: 500_000,
+      trimStartUs: 0,
+      speed: 1,
+      volume: 0,
+      muted: true,
+    });
+    const sourceArtifact = artifact("editable-edl");
+    sourceArtifact.overlaySlots = [];
+    sourceArtifact.subtitleAuthority = {
+      mode: "source-embedded",
+      evidence: { mode: "source-embedded", decision: "human", sourceFingerprint: "b".repeat(64), evidencePaths: ["test"], reviewedAt: 3 },
+    };
+
+    const result = projectVideoUseArtifactToEditingProject({ project: baseProject, artifact: sourceArtifact, now: 10 });
+    expect(result.success).toBe(true);
+    if (!result.success) return;
+    expect(result.project.clips.filter((clip) => clip.source.kind === "text")).toEqual([]);
+    expect(result.project.tracks.filter((track) => track.kind === "text")).toEqual([
+      expect.objectContaining({ id: "subtitles", name: "字幕", clipIds: [] }),
+    ]);
+    expect(result.project.renderSettings.subtitleMode).toBe("none");
+  });
+
   it("blocks flat source-embedded MP4 when overlay metadata would duplicate subtitles", () => {
     const result = projectVideoUseArtifactToEditingProject({ project: project(), artifact: artifact("flat-shot-mp4"), now: 10 });
     expect(result.success).toBe(false);

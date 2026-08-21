@@ -350,6 +350,8 @@ export async function runAcceptedFormalRenderer(): Promise<void> {
       chapterId: CHAPTER_ID,
       revision,
       expectedVisualCount: EXPECTED_VISUAL_COUNT,
+      subtitleAuthority: artifactProjection.subtitleAuthority,
+      expectedTextClipCount: artifactProjection.expectedTextClipCount,
       productionRemotionRoot,
     });
     const hyperFramesProbeExpectation = {
@@ -501,6 +503,7 @@ export async function runAcceptedFormalRenderer(): Promise<void> {
       plan: projectedPlan,
       currentShotSlots: isolatedSlots,
       expectedVisualCount: EXPECTED_VISUAL_COUNT,
+      expectedTextCount: artifactProjection.expectedTextClipCount,
     });
     assertFormalChapterSlotIdentity(formalSlot, {
       projectId: PROJECT_ID,
@@ -610,8 +613,8 @@ export async function runAcceptedFormalRenderer(): Promise<void> {
       },
       media: {
         visualClipCount: EXPECTED_VISUAL_COUNT,
-        textClipCount: 0,
-        subtitleAuthority: "source-embedded",
+        textClipCount: artifactProjection.expectedTextClipCount,
+        subtitleAuthority: artifactProjection.subtitleAuthority,
         qc,
       },
       safety: {

@@ -4,9 +4,10 @@ import type { TimelineRenderPlan } from "@/types/editing";
 import type { RemotionCurrentSlotV1 } from "@/types/remotion-workspace";
 import { remotionCurrentSlotPaths } from "@/lib/studio/remotion/remotion-current-slot";
 import { createProjectFileUrl } from "@/electron/storage/storage-paths";
-import type {
-  HyperFramesOverlayArtifactV1,
-  VideoUseChapterArtifactV1,
+import {
+  HYPERFRAMES_DECORATIVE_TEMPLATE_IDS,
+  type HyperFramesOverlayArtifactV1,
+  type VideoUseChapterArtifactV1,
 } from "@rendering/contracts/video-workflow";
 import type {
   RemotionChapterRenderRequest,
@@ -24,17 +25,9 @@ export interface FormalFileIdentity {
   sha256: string;
 }
 
-const DEFAULT_FORMAL_RENDER_TIMEOUT_MS = 45 * 60_000;
+export type FormalSubtitleAuthorityMode = "source-embedded" | "clean-remotion";
 
-const VERIFIED_NON_TEXT_HYPERFRAMES_TEMPLATES = new Set([
-  "film-grain",
-  "highlight-box",
-  "lens-flare",
-  "letterbox-cinematic",
-  "light-leak",
-  "particle-dust",
-  "vignette-pulse",
-]);
+const DEFAULT_FORMAL_RENDER_TIMEOUT_MS = 45 * 60_000;
 
 export async function materializeIsolatedShotWorkspace(input: {
   sourceWorkspace: string;
@@ -73,7 +66,12 @@ export function assertAcceptedArtifactProjection(input: {
   hyperFrames: HyperFramesOverlayArtifactV1;
   productionRemotionRoot: string;
   expectedVisualCount: number;
-}): { videoUseEdlCount: number; hyperFramesWindowCount: number } {
+}): {
+  videoUseEdlCount: number;
+  hyperFramesWindowCount: number;
+  subtitleAuthority: FormalSubtitleAuthorityMode;
+  expectedTextClipCount: number;
+} {
   const { plan, videoUse, hyperFrames } = input;
   if (videoUse.status !== "accepted" || videoUse.stage !== "ready" || videoUse.mode !== "editable-edl") {
     throw new Error("video-use artifact must be accepted/ready/editable-edl");
@@ -89,6 +87,19 @@ export function assertAcceptedArtifactProjection(input: {
   if (visualClips.length !== input.expectedVisualCount || videoUse.edl.length !== input.expectedVisualCount) {
     throw new Error("video-use EDL and visual clip counts must match the accepted shot count");
   }
+  const subtitleAuthority = videoUse.subtitleAuthority?.mode;
+  if (subtitleAuthority !== "source-embedded" && subtitleAuthority !== "clean-remotion") {
+    throw new Error("video-use artifact must declare source-embedded or clean-remotion subtitle authority");
+  }
+  const expectedSubtitleMode = subtitleAuthority === "clean-remotion" ? "burn-in" : "none";
+  const expectedTextClipCount = subtitleAuthority === "clean-remotion" ? videoUse.subtitles.length : 0;
+  const textClips = plan.clips.filter((clip) => clip.trackKind === "text");
+  if (plan.renderSettings.subtitleMode !== expectedSubtitleMode) {
+    throw new Error(`accepted plan subtitle mode mismatch: expected ${expectedSubtitleMode}`);
+  }
+  if (textClips.length !== expectedTextClipCount) {
+    throw new Error(`accepted plan text clip count mismatch: expected ${expectedTextClipCount}, received ${textClips.length}`);
+  }
   visualClips.forEach((clip, index) => {
     const edl = videoUse.edl[index];
     const relativePath = clip.source.path;
@@ -98,6 +109,9 @@ export function assertAcceptedArtifactProjection(input: {
     }
     if (edl.shotId !== clip.source.evidence.storyboardId) {
       throw new Error(`video-use EDL shot identity mismatch at visual ${index}`);
+    }
+    if (clip.source.evidence.subtitleAuthority?.mode !== subtitleAuthority) {
+      throw new Error(`video-use subtitle authority mismatch at visual ${index}`);
     }
     const actualTiming = [
       secondsToUs(edl.timelineStartS),
@@ -110,6 +124,20 @@ export function assertAcceptedArtifactProjection(input: {
       throw new Error(`video-use EDL timing mismatch at visual ${index}`);
     }
   });
+  if (subtitleAuthority === "clean-remotion") {
+    const acceptedCueIds = videoUse.subtitles.map((cue) => cue.cueId).sort();
+    const planCueIds = textClips.map((clip, index) => {
+      if (clip.source.kind !== "text"
+        || clip.source.evidence.subtitleAuthority?.mode !== "clean-remotion"
+        || !clip.source.evidence.cueId) {
+        throw new Error(`clean-remotion subtitle evidence mismatch at text ${index}`);
+      }
+      return clip.source.evidence.cueId;
+    }).sort();
+    if (JSON.stringify(planCueIds) !== JSON.stringify(acceptedCueIds)) {
+      throw new Error("clean-remotion subtitle cue identity mismatch");
+    }
+  }
 
   if (hyperFrames.status !== "accepted"
     || hyperFrames.projectId !== plan.projectId
@@ -119,11 +147,13 @@ export function assertAcceptedArtifactProjection(input: {
     || hyperFrames.inputSha256 !== videoUse.evidence.inputSha256
     || !hyperFrames.outputPath
     || !hyperFrames.outputSha256
-    || hyperFrames.windows.length !== input.expectedVisualCount) {
+    || hyperFrames.windows.length === 0) {
     throw new Error("HyperFrames artifact is not the accepted overlay for this plan");
   }
   for (const window of hyperFrames.windows) {
-    if (!VERIFIED_NON_TEXT_HYPERFRAMES_TEMPLATES.has(window.templateId)) {
+    if (!HYPERFRAMES_DECORATIVE_TEMPLATE_IDS.includes(
+      window.templateId as typeof HYPERFRAMES_DECORATIVE_TEMPLATE_IDS[number],
+    )) {
       throw new Error(`HyperFrames template is not verified as non-text: ${window.templateId}`);
     }
     const textParameter = Object.keys(window.parameters).find((key) => /text|label/i.test(key));
@@ -132,6 +162,8 @@ export function assertAcceptedArtifactProjection(input: {
   return {
     videoUseEdlCount: videoUse.edl.length,
     hyperFramesWindowCount: hyperFrames.windows.length,
+    subtitleAuthority,
+    expectedTextClipCount,
   };
 }
 
@@ -142,6 +174,8 @@ export function projectAcceptedTimelinePlan(
     chapterId: string;
     revision: number;
     expectedVisualCount: number;
+    subtitleAuthority: FormalSubtitleAuthorityMode;
+    expectedTextClipCount: number;
     productionRemotionRoot?: string;
   },
 ): TimelineRenderPlan {
@@ -150,8 +184,9 @@ export function projectAcceptedTimelinePlan(
     || plan.editingRevision !== expected.revision) {
     throw new Error("accepted timeline plan identity mismatch");
   }
-  if (plan.renderSettings.subtitleMode !== "none") {
-    throw new Error("accepted timeline plan must disable the Remotion text subtitle layer");
+  const expectedSubtitleMode = expected.subtitleAuthority === "clean-remotion" ? "burn-in" : "none";
+  if (plan.renderSettings.subtitleMode !== expectedSubtitleMode) {
+    throw new Error(`accepted timeline plan subtitle mode must be ${expectedSubtitleMode}`);
   }
   const visualClips = plan.clips.filter(
     (clip) => clip.trackKind === "video" || clip.trackKind === "image",
@@ -162,14 +197,24 @@ export function projectAcceptedTimelinePlan(
     );
   }
   const textCount = plan.clips.filter((clip) => clip.trackKind === "text").length;
-  if (textCount !== 0) throw new Error(`expected 0 text clips, received ${textCount}`);
+  if (textCount !== expected.expectedTextClipCount) {
+    throw new Error(`expected ${expected.expectedTextClipCount} text clips, received ${textCount}`);
+  }
 
   return {
     ...plan,
     clips: plan.clips.map((clip) => {
+      if (clip.trackKind === "text") {
+        if (expected.subtitleAuthority !== "clean-remotion"
+          || clip.source.kind !== "text"
+          || clip.source.evidence.subtitleAuthority?.mode !== "clean-remotion") {
+          throw new Error(`text clip ${clip.id} does not use clean-remotion subtitle authority`);
+        }
+        return clip;
+      }
       if (clip.trackKind !== "video" && clip.trackKind !== "image") return clip;
-      if (clip.source.evidence.subtitleAuthority?.mode !== "source-embedded") {
-        throw new Error(`visual clip ${clip.id} does not use source-embedded subtitle authority`);
+      if (clip.source.evidence.subtitleAuthority?.mode !== expected.subtitleAuthority) {
+        throw new Error(`visual clip ${clip.id} does not use ${expected.subtitleAuthority} subtitle authority`);
       }
       const acceptedSourcePath = clip.source.path?.trim();
       if (!acceptedSourcePath || acceptedSourcePath.includes("://")) {
@@ -205,6 +250,7 @@ export async function invokeFormalChapterRenderer(input: {
   plan: TimelineRenderPlan;
   currentShotSlots: readonly RemotionCurrentSlotV1[];
   expectedVisualCount: number;
+  expectedTextCount: number;
   timeoutMs?: number;
 }): Promise<RemotionCurrentSlotV1> {
   const visualCount = input.plan.clips.filter(
@@ -214,8 +260,8 @@ export async function invokeFormalChapterRenderer(input: {
     throw new Error(`expected ${input.expectedVisualCount} visual clips, received ${visualCount}`);
   }
   const textCount = input.plan.clips.filter((clip) => clip.trackKind === "text").length;
-  if (textCount !== 0) {
-    throw new Error(`expected 0 text clips, received ${textCount}`);
+  if (textCount !== input.expectedTextCount) {
+    throw new Error(`expected ${input.expectedTextCount} text clips, received ${textCount}`);
   }
   if (input.currentShotSlots.length !== input.expectedVisualCount) {
     throw new Error(

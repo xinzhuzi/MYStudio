@@ -42,6 +42,19 @@ describe("editing effect registry", () => {
       preview: "approximate",
       finalRenderer: "ffmpeg",
     });
+    expect(getEditingEffectDefinition("gl:swap")).toMatchObject({
+      id: "gl:swap",
+      category: "transition",
+      preview: "full",
+      finalRenderer: "ffmpeg",
+    });
+    expect(getEditingEffectDefinition("gl:CrossZoom")).toMatchObject({
+      id: "gl:CrossZoom",
+      category: "transition",
+      preview: "full",
+      finalRenderer: "ffmpeg",
+    });
+    expect(getEditingEffectDefinition("gl:NotInRegistry")).toBeNull();
     expect(getEditingEffectDefinition("raw-filter")).toBeNull();
     expect(isEditingEffectId("speed")).toBe(true);
     expect(isEditingEffectId("-vf scale=1:1")).toBe(false);

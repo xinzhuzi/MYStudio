@@ -1219,7 +1219,11 @@ export async function runFullPipeline(): Promise<Record<string, unknown>> {
         // 锐度纪律：crf 16 + slow（默认 18/medium 在 grain/二次编码下软化明显）
         crf: 16, x264Preset: "slow",
         browserExecutable: renderBrowser, binariesDirectory, chromeMode: "headless-shell",
-        ...(cinematicEnabled && !useSystemChrome ? { chromiumOptions: { gl: "swangle" as const }, concurrency: 2 } : {}),
+        // GL transitions/grade also run when cinematic depth is disabled. The
+        // default Headless Shell ANGLE/Vulkan path cannot create a WebGL
+        // context on this host; keep the same SwiftShader route as the
+        // renderer worker. Explicit system-Chrome runs retain their Metal GL.
+        ...(!useSystemChrome ? { chromiumOptions: { gl: "swangle" as const }, concurrency: 2 } : {}),
         enforceAudioTrack: true, overwrite: true,
         onBrowserDownload: () => { throw new Error("禁止隐式下载 Headless Shell"); },
       });
