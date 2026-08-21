@@ -7,7 +7,7 @@
 
 export const CHAPTER_QC_SCHEMA_VERSION = 1;
 
-export type ChapterQcLayerId = "structural" | "ffmpegScan" | "aesthetic" | "semantic";
+export type ChapterQcLayerId = "structural" | "ffmpegScan" | "aesthetic" | "semantic" | "vision";
 
 export type ChapterQcSeverity = "blocker" | "warn" | "info";
 
@@ -63,6 +63,33 @@ export interface ChapterQcSemanticResultV1 {
   finishedAt: number;
 }
 
+/** L5 视觉审计帧物料种类:镜中/边界前/转场中/边界后 */
+export type ChapterQcVisionFrameKind = "mid" | "pre" | "blend" | "post";
+
+export interface ChapterQcVisionFrameTaskV1 {
+  shotId: string;
+  ordinal: number;
+  kind: ChapterQcVisionFrameKind;
+  /** 成片时间轴上的秒(压缩口径,与帧内容一致) */
+  tS: number;
+  frameUrl: string;
+}
+
+/**
+ * L5 视觉审计层(08-22-video-use-vision-release R2)。
+ * 确定性部分主进程即时跑:转场密度闸(08-22 裁定:连续 5 边界禁同款)。
+ * 模型判读部分:主进程只产帧物料(frames),渲染端 runner 按清单调图像理解
+ * 模型(L4 semantic 同款 pending 语义),跑完回写 findings。
+ */
+export interface ChapterQcVisionResultV1 {
+  frameCount: number;
+  frames: ChapterQcVisionFrameTaskV1[];
+  /** 密度闸检查的转场数(0=无转场) */
+  densityChecked: number;
+  /** 帧提取失败数(单帧跳过不整体失败) */
+  frameErrors: number;
+}
+
 export interface ChapterQcReportV1 {
   schemaVersion: typeof CHAPTER_QC_SCHEMA_VERSION;
   projectId: string;
@@ -80,6 +107,7 @@ export interface ChapterQcReportV1 {
   shots?: Array<{ shotId: string; ordinal: number; frameUrl: string; description?: string }>;
   aesthetic?: ChapterQcAestheticResultV1;
   semantic?: ChapterQcSemanticResultV1;
+  vision?: ChapterQcVisionResultV1;
 }
 
 export function summarizeChapterQcFindings(findings: ChapterQcFindingV1[]): ChapterQcReportV1["summary"] {

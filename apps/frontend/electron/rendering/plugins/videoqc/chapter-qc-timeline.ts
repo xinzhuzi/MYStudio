@@ -4,6 +4,7 @@
  */
 
 import type { VideoUseEdlEntryV1 } from "../../contracts/video-workflow";
+import { layoutVisualTimeline } from "../remotion/composition/timing";
 
 export interface ChapterQcShotSpan {
   shotId: string;
@@ -26,6 +27,86 @@ export function buildShotSpans(edl: VideoUseEdlEntryV1[]): ChapterQcShotSpan[] {
     endS: entry.timelineStartS + entry.durationS,
     durationS: entry.durationS,
   }));
+}
+
+/**
+ * 从渲染计划重建镜区间——成片时间轴的唯一权威。
+ *
+ * artifact EDL 的 timelineStartS 是未压缩时间轴(转场不重叠),而成片经
+ * Remotion layoutVisualTimeline 按转场重叠压缩(2026-08-22 审计实测:43 镜
+ * 未压缩 174.9s vs 成片 145.1s,尾段漂移可达 ~30s)——直接拿 artifact
+ * timelineStartS 对成片做镜归因会系统性错位,L2/L3 切片/L4 代表帧全受
+ * 污染。此函数复用渲染侧同一纯函数复算压缩时间轴,与画面逐帧对齐。
+ *
+ * 返回 null = 计划形状不完整(fail-closed,调用方回落 artifact 口径并留痕)。
+ */
+export interface ChapterQcRenderPlanSpans {
+  spans: ChapterQcShotSpan[];
+  /** 视觉 clip 顺序(clipId,与 transitions 的 fromClipId 对齐用) */
+  visualClipIds: string[];
+  /** render-plan 原始转场(非 cut),供密度闸等确定性检查消费 */
+  transitions: Array<{ fromClipId: string; toClipId: string; effectId: string; durationUs: number }>;
+  fps: number;
+}
+
+export function buildShotSpansFromRenderPlan(plan: unknown): ChapterQcRenderPlanSpans | null {
+  if (typeof plan !== "object" || plan === null) return null;
+  const record = plan as {
+    clips?: unknown;
+    transitions?: unknown;
+    renderSettings?: { fps?: unknown };
+  };
+  if (!Array.isArray(record.clips) || !Array.isArray(record.transitions)) return null;
+  const fps = Number(record.renderSettings?.fps ?? 30);
+  if (!Number.isFinite(fps) || fps <= 0) return null;
+
+  const visual: Array<{ clipId: string; storyboardId: string; startUs: number; durationUs: number }> = [];
+  for (const clip of record.clips) {
+    if (typeof clip !== "object" || clip === null) continue;
+    const entry = clip as {
+      id?: unknown;
+      trackKind?: unknown;
+      startUs?: unknown;
+      durationUs?: unknown;
+      source?: { kind?: unknown; evidence?: { storyboardId?: unknown } };
+    };
+    const isVisual = entry.trackKind === "video" || entry.trackKind === "image"
+      || entry.source?.kind === "storyboardVideo";
+    const storyboardId = entry.source?.evidence?.storyboardId;
+    if (!isVisual) continue;
+    if (typeof entry.id !== "string" || typeof storyboardId !== "string" || !storyboardId) return null;
+    const startUs = Number(entry.startUs);
+    const durationUs = Number(entry.durationUs);
+    if (!Number.isFinite(startUs) || !Number.isFinite(durationUs) || durationUs <= 0) return null;
+    visual.push({ clipId: entry.id, storyboardId, startUs, durationUs });
+  }
+  if (visual.length === 0) return null;
+  visual.sort((left, right) => left.startUs - right.startUs);
+
+  const transitions: ChapterQcRenderPlanSpans["transitions"] = [];
+  for (const transition of record.transitions) {
+    if (typeof transition !== "object" || transition === null) continue;
+    const entry = transition as { fromClipId?: unknown; toClipId?: unknown; effectId?: unknown; durationUs?: unknown };
+    if (typeof entry.fromClipId !== "string" || typeof entry.toClipId !== "string") return null;
+    if (entry.effectId === "cut") continue;
+    if (typeof entry.effectId !== "string" || !Number.isFinite(Number(entry.durationUs))) return null;
+    transitions.push({ fromClipId: entry.fromClipId, toClipId: entry.toClipId, effectId: entry.effectId, durationUs: Number(entry.durationUs) });
+  }
+
+  const timeline = layoutVisualTimeline(
+    visual.map((clip) => ({ clipId: clip.clipId, durationUs: clip.durationUs })),
+    transitions,
+    fps,
+  );
+  const framesPerSecond = timeline.fps;
+  const byClipId = new Map(visual.map((clip) => [clip.clipId, clip]));
+  const spans: ChapterQcShotSpan[] = timeline.clips.map((timing, index) => {
+    const clip = byClipId.get(timing.clipId)!;
+    const startS = timing.from / framesPerSecond;
+    const durationS = timing.durationInFrames / framesPerSecond;
+    return { shotId: clip.storyboardId, ordinal: index + 1, startS, endS: startS + durationS, durationS };
+  });
+  return { spans, visualClipIds: visual.map((clip) => clip.clipId), transitions, fps: framesPerSecond };
 }
 
 export function totalTimelineDurationS(spans: ChapterQcShotSpan[]): number {

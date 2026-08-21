@@ -12,7 +12,7 @@ function report(chapterId: string, createdAt: number): ChapterQcReportV1 {
     chapterId,
     outputPath: "/tmp/out.mp4",
     createdAt,
-    layers: { structural: { status: "passed" }, ffmpegScan: { status: "pending" }, aesthetic: { status: "pending" }, semantic: { status: "pending" } },
+    layers: { structural: { status: "passed" }, ffmpegScan: { status: "pending" }, aesthetic: { status: "pending" }, semantic: { status: "pending" }, vision: { status: "pending" } },
     findings: [],
     summary: { blockers: 0, warns: 0, infos: 0 },
   };

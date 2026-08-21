@@ -17,7 +17,9 @@ import { extractShotKeyframes } from "./chapter-qc-fftools";
 import { runFfmpegScanLayer } from "./chapter-qc-ffmpeg-scan";
 import { readChapterQcReport, writeChapterQcReport, chapterQcReportDir } from "./chapter-qc-report-store";
 import { runStructuralLayer } from "./chapter-qc-structural";
-import { buildShotSpans } from "./chapter-qc-timeline";
+import { buildShotSpans, buildShotSpansFromRenderPlan, type ChapterQcRenderPlanSpans } from "./chapter-qc-timeline";
+import { runVisionLayer } from "./chapter-qc-vision";
+import type { ChapterQcVisionResultV1 } from "./chapter-qc-types";
 import {
   CHAPTER_QC_SCHEMA_VERSION,
   summarizeChapterQcFindings,
@@ -129,6 +131,7 @@ export async function runChapterQc(
     ffmpegScan: { status: "pending" },
     aesthetic: { status: "pending" },
     semantic: { status: "pending" },
+    vision: { status: "pending" },
   };
   const findings: ChapterQcFindingV1[] = [];
   const notes: string[] = [];
@@ -182,7 +185,22 @@ export async function runChapterQc(
     notes.push(`workflow store 读取异常: ${error instanceof Error ? error.message : String(error)}`);
   }
 
-  const spans = buildShotSpans(edl);
+  // ---- 镜区间:render-plan(压缩时间轴权威)优先,artifact EDL 兜底 ----
+  // artifact timelineStartS 是未压缩口径(2026-08-22 审计:43 镜 174.9s vs
+  // 成片 145.1s,尾段漂移 ~30s),只在没有渲染计划时退回并留痕。
+  let renderPlanSpans: ChapterQcRenderPlanSpans | null = null;
+  try {
+    const planPath = path.join(workspaceRoot, "jobs", "chapter", input.chapterId, "current-render-plan.json");
+    if (fs.existsSync(planPath)) {
+      renderPlanSpans = buildShotSpansFromRenderPlan(JSON.parse(fs.readFileSync(planPath, "utf8")));
+      if (!renderPlanSpans) notes.push("render-plan 形状不完整,镜区间退回 artifact EDL 口径");
+    } else {
+      notes.push("render-plan 缺失,镜区间退回 artifact EDL 口径(未压缩,镜归因可能漂移)");
+    }
+  } catch (error) {
+    notes.push(`render-plan 读取异常: ${error instanceof Error ? error.message : String(error)}`);
+  }
+  const spans = renderPlanSpans ? renderPlanSpans.spans : buildShotSpans(edl);
 
   // ---- L1 结构比对 ----
   let probeDurationS: number | undefined;
@@ -308,6 +326,37 @@ export async function runChapterQc(
     }
   }
 
+  // ---- L5 视觉审计:密度闸(确定性)+ 帧物料(模型侧 runner 消费) ----
+  let vision: ChapterQcVisionResultV1 | undefined;
+  if (structuralBlocked) {
+    layers.vision = { status: "skipped", reason: "structural blocker 短路" };
+  } else if (!renderPlanSpans) {
+    layers.vision = { status: "skipped", reason: "skipped-no-render-plan" };
+  } else {
+    try {
+      const outcome = await runVisionLayer({
+        projectId: input.projectId,
+        chapterId: input.chapterId,
+        videoPath: outputPath,
+        spans: renderPlanSpans.spans,
+        transitions: renderPlanSpans.transitions,
+        visualClipIds: renderPlanSpans.visualClipIds,
+        reportDir: chapterQcReportDir(workspaceRoot, input.chapterId),
+      });
+      findings.push(...outcome.findings);
+      vision = {
+        frameCount: outcome.frames.length,
+        frames: outcome.frames,
+        densityChecked: outcome.densityChecked,
+        frameErrors: outcome.frameErrors,
+      };
+      if (outcome.frameErrors > 0) notes.push(`视觉审计帧提取失败 ${outcome.frameErrors} 帧(已跳过)`);
+      layers.vision = { status: "passed", finishedAt: now() };
+    } catch (error) {
+      layers.vision = { status: "failed", reason: error instanceof Error ? error.message : String(error), finishedAt: now() };
+    }
+  }
+
   // ---- 报告落盘 ----
   const summary = summarizeChapterQcFindings(findings);
   const report: ChapterQcReportV1 = {
@@ -333,6 +382,7 @@ export async function runChapterQc(
         }
       : {}),
     ...(aesthetic ? { aesthetic } : {}),
+    ...(vision ? { vision } : {}),
   };
   await writeChapterQcReport(workspaceRoot, input.chapterId, report);
   return report;
