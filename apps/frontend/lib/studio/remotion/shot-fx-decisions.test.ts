@@ -107,6 +107,7 @@ describe("buildShotFxEditingEffects 契约产出", () => {
       scaleTo: preset.toScale,
       x: preset.originX,
       y: preset.originY,
+      easing: "spring",
     });
     expect(panZoom?.startUs).toBe(0);
     expect(panZoom?.durationUs).toBe(1_000_000);
@@ -115,17 +116,29 @@ describe("buildShotFxEditingEffects 契约产出", () => {
     expect(counts.motion).toBe(1);
   });
 
-  it("动作词产出 punch-in 配方：急推 + shake 0.25 + chromaticAberration offset 3 成套 + 残影/帧步进(08-19 第二批规则注入)", () => {
+  it("spring 接线（08-21）：push-in 入场带 easing:spring，其余运镜不带 easing 键", () => {
+    // push-in：入场推进用 Remotion spring 弹性曲线
+    const pushIn = buildShotFxEditingEffects(buildInput([{ id: "s1", prompt: "庭院喝茶" }]));
+    expect(effectOf(pushIn.effects, "panZoom", "clip-1")?.params.easing).toBe("spring");
+    // punch-in（急推）：未标注配方 → 不带 easing 键（cubic 历史行为）
+    const punchIn = buildShotFxEditingEffects(buildInput([{ id: "s1", prompt: "爆炸轰鸣" }]));
+    expect(effectOf(punchIn.effects, "panZoom", "clip-1")?.params.easing).toBeUndefined();
+    // chase-in（追逐快推）：同样不带
+    const chase = buildShotFxEditingEffects(buildInput([{ id: "s1", prompt: "拼命奔逃" }]));
+    expect(effectOf(chase.effects, "panZoom", "clip-1")?.params.easing).toBeUndefined();
+  });
+
+  it("动作词产出 punch-in 配方：急推 + shake 0.25 成套 + 残影/帧步进(08-19 第二批规则注入;08-21 去默认色差)", () => {
     const { effects, counts } = buildShotFxEditingEffects(
       buildInput([{ id: "s1", prompt: "爆炸轰鸣" }]),
     );
     expect(effectOf(effects, "panZoom", "clip-1")?.params.scaleTo).toBe(1.12);
     expect(effectOf(effects, "shake", "clip-1")?.params).toEqual({ intensity: 0.25 });
-    expect(effectOf(effects, "chromaticAberration", "clip-1")?.params).toEqual({ offset: 3 });
+    expect(effectOf(effects, "chromaticAberration", "clip-1")).toBeUndefined();
     expect(effectOf(effects, "afterimage", "clip-1")?.params).toEqual({ copies: 3, offset: 26, opacity: 0.5 });
     expect(effectOf(effects, "onTwos", "clip-1")?.params).toEqual({ step: 2 });
     expect(counts.shake).toBe(1);
-    expect(counts.chroma).toBe(1);
+    expect(counts.chroma).toBe(0);
   });
 
   it("追逐词产出 chase-in 配方：快推 + 轻抖，无色差无辉光", () => {
@@ -160,12 +173,12 @@ describe("buildShotFxEditingEffects 契约产出", () => {
     expect(effectOf(effects, "glow", "clip-1")).toBeUndefined();
   });
 
-  it("AI 选成套配方则特效随之（非动作文本选 punch-in 亦带抖动+色差）", () => {
+  it("AI 选成套配方则特效随之（非动作文本选 punch-in 亦带抖动;08-21 去默认色差）", () => {
     const { effects } = buildShotFxEditingEffects(
       buildInput([{ id: "s1", prompt: "庭院里喝茶", shotFx: { motion: "punch-in", source: "ai" } }]),
     );
     expect(effectOf(effects, "shake", "clip-1")?.params).toEqual({ intensity: 0.25 });
-    expect(effectOf(effects, "chromaticAberration", "clip-1")?.params).toEqual({ offset: 3 });
+    expect(effectOf(effects, "chromaticAberration", "clip-1")).toBeUndefined();
   });
 
   it("hold 锁帧：AI 可选，fromScale=toScale=1.0 无默认特效", () => {
@@ -261,8 +274,8 @@ describe("mergeShotFxEditingEffects 合并语义", () => {
   });
 });
 
-describe("chapterGrade 章节统一色调（08-19 导演定调）", () => {
-  it("钉死时全章统一 grade 覆盖逐镜 AI 选卡；blend 钳 0..1", () => {
+describe("chapterGrade 章节统一色调（08-19 导演定调;08-21 裁定 blend 透传配置不设代码上限）", () => {
+  it("钉死时全章统一 grade 覆盖逐镜 AI 选卡；blend 钳 0..1 透传", () => {
     const storyboards: ShotFxStoryboardInput[] = [
       { id: "sb-1", shotFx: { motion: "push-in", grade: { lutId: "cn-yuebai", blend: 0.8 }, source: "ai" } },
       { id: "sb-2", shotFx: { motion: "drift", source: "ai" } },
@@ -278,7 +291,7 @@ describe("chapterGrade 章节统一色调（08-19 导演定调）", () => {
     }
   });
 
-  it("未钉死时逐镜 AI grade 原样（有 grade 的镜才有效果）", () => {
+  it("未钉死时逐镜 AI grade 透传（有 grade 的镜才有效果）", () => {
     const storyboards: ShotFxStoryboardInput[] = [
       { id: "sb-1", shotFx: { motion: "push-in", grade: { lutId: "cn-yuebai", blend: 0.8 }, source: "ai" } },
       { id: "sb-2", shotFx: { motion: "drift", source: "ai" } },

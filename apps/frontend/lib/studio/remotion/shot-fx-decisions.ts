@@ -56,6 +56,8 @@ export interface ShotFxPanZoom {
   toScale: number;
   originX: number;
   originY: number;
+  /** 缓动曲线（08-21 spring 接入）：缺省=cubic 历史行为；"spring"=Remotion 弹性曲线。 */
+  easing?: "cubic" | "spring";
 }
 
 /** 配方特效参数（registry 数值域：shake intensity 0..1（×24=amplitudePx）、glow intensity 0..1、chroma offset 0..24）。 */
@@ -89,14 +91,15 @@ export interface ShotFxRecipe {
   ambient: ShotFxAmbient | null;
 }
 
-/**
- * 镜头表现配方表（唯一权威来源，含缩放纪律上限）。
+/** 镜头表现配方表（唯一权威来源，含缩放纪律上限）。
  * 前七项为无特效基础运镜（轮换用）；后六项为带默认特效的成套配方
  * （未显式配置特效插件时的兜底）；hold 为锁帧节奏对比（仅 AI 可选）。
  */
 export const SHOT_FX_MOTION_PRESETS: Readonly<Record<ShotFxMotionId, ShotFxRecipe>> = {
   "push-in": {
-    panZoom: { fromScale: 1.0, toScale: 1.05, originX: 0.5, originY: 0.5 },
+    // 入场推进用弹性缓动（08-21）：spring 约 5% 过冲的「呼吸感」入场；
+    // 其余运镜保持 cubic 历史曲线，避免全片风格突变。
+    panZoom: { fromScale: 1.0, toScale: 1.05, originX: 0.5, originY: 0.5, easing: "spring" },
     fx: {},
     ambient: null,
   },
@@ -133,7 +136,9 @@ export const SHOT_FX_MOTION_PRESETS: Readonly<Record<ShotFxMotionId, ShotFxRecip
   // 动作爆点：急推，默认成套 强抖+色差
   "punch-in": {
     panZoom: { fromScale: 1.0, toScale: 1.12, originX: 0.5, originY: 0.5 },
-    fx: { shakeIntensity: 0.25, chromaOffset: 3 },
+    // 08-21 用户裁定:去掉 punch-in 默认 chromaOffset——色差特效在大面积红色画面上
+    // 会产生难看的红青色块分离,破坏整体色调统一性。
+    fx: { shakeIntensity: 0.25 },
     ambient: null,
   },
   // 退场收尾：拉远离席，默认无特效
@@ -371,6 +376,8 @@ export function buildShotFxEditingEffects(input: {
       scaleTo: recipe.panZoom.toScale,
       x: recipe.panZoom.originX,
       y: recipe.panZoom.originY,
+      // 08-21 spring 接线：配方标注才透传，未标注配方不带该键（cubic 历史行为）。
+      ...(recipe.panZoom.easing ? { easing: recipe.panZoom.easing } : {}),
     });
     counts.motion += 1;
 
@@ -391,18 +398,20 @@ export function buildShotFxEditingEffects(input: {
     }
 
     // 成片调色：chapterGrade 钉死（08-19 导演定调）全章覆盖；否则用
-    // storyboard.shotFx.grade 的 AI 逐镜选择（闭集校验+blend 钳 0..1）；
-    // 非法值按缺省=不调色。
+    // storyboard.shotFx.grade 的 AI 逐镜选择（闭集校验+blend 钳 0..1）;
+    // 非法值按缺省=不调色。08-21 用户裁定：blend 完全透传配置——代码不设
+    // 审美上限，压低调色由「不配 chapterGrade + AI 提示词引导 0.02~0.15」
+    // 实现（store 不再钉死,决策层不得复加硬钳）。
     const pinnedGrade = input.chapterGrade;
     if (pinnedGrade && isCinematicLutId(pinnedGrade.lutId)) {
       const blendRaw = Number(pinnedGrade.blend);
-      const blend = Number.isFinite(blendRaw) ? Math.min(1, Math.max(0, blendRaw)) : 0.5;
+      const blend = Number.isFinite(blendRaw) ? Math.min(1, Math.max(0, blendRaw)) : 0.05;
       pushEffect("grade", "grade", { lutId: pinnedGrade.lutId, blend });
     } else {
       const grade = storyboard?.shotFx?.grade as { lutId?: unknown; blend?: unknown } | undefined;
       if (grade && typeof grade.lutId === "string" && isCinematicLutId(grade.lutId)) {
-        const blendRaw = Number(grade.blend ?? 1);
-        const blend = Number.isFinite(blendRaw) ? Math.min(1, Math.max(0, blendRaw)) : 1;
+        const blendRaw = Number(grade.blend ?? 0.05);
+        const blend = Number.isFinite(blendRaw) ? Math.min(1, Math.max(0, blendRaw)) : 0.05;
         pushEffect("grade", "grade", { lutId: grade.lutId, blend });
       }
     }
