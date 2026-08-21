@@ -261,7 +261,7 @@ export async function runChapterQc(
           videoPath: outputPath,
           mode: "whole",
         });
-        if (outcome.status === "accepted") {
+        if (outcome.status === "accepted" && outcome.mode === "whole") {
           // seriesId v1 用 projectId(系列级基线的数据源在设置页录入,此处先项目级)
           const evaluation = evaluateAestheticAgainstBaseline(deps.videoQc, input.projectId, outcome.overall.fused);
           aesthetic = { ...outcome.overall, ...(evaluation.baseline ? { baseline: evaluation.baseline } : {}), elapsedMs: outcome.elapsedMs };
@@ -296,8 +296,11 @@ export async function runChapterQc(
             }
           }
           layers.aesthetic = { status: "passed", finishedAt: now() };
-        } else {
+        } else if (outcome.status === "blocked") {
           layers.aesthetic = { status: "failed", reason: `${outcome.code}: ${outcome.message}`, finishedAt: now() };
+        } else {
+          // slices artifact 意外混入 whole 调用:视为无效产物而非崩溃
+          layers.aesthetic = { status: "failed", reason: "invalid-artifact: slices outcome on whole request", finishedAt: now() };
         }
       } catch (error) {
         layers.aesthetic = { status: "failed", reason: error instanceof Error ? error.message : String(error), finishedAt: now() };

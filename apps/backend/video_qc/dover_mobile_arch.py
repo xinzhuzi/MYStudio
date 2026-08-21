@@ -1,15 +1,14 @@
-"""DOVER-Mobile 推理架构 —— vendor dual-backbone (VQAssessment/DOVER master f1ddc96)。
+"""DOVER-Mobile 推理架构与双视图预处理。
 
 溯源:
   - 仓库：VQAssessment/DOVER (https://github.com/VQAssessment/DOVER)
   - commit: f1ddc96215bc (2024-08-12 master)
-  - 许可：S-Lab License 1.0 (非商用目的允许再分发与修改，保留 LICENSE 注释)
-    原文：https://raw.githubusercontent.com/VQAssessment/DOVER/master/LICENSE
+  - 许可：S-Lab License 1.0；完整条款随包位于 DOVER_LICENSE.txt
 功能:
   - load_model(weight_path: str) -> DOVERMobileWrapper
-  - score_frames(model, video_path: str, fragments=32) -> tuple[fused, aesthetic, technical]
+  - score_frames(model, video_path, start_s=None, duration_s=None)
 依赖:
-  - torch>=2.0, torchvision, numpy; decord(抽帧), pyyaml(可选)
+  - torch、numpy、系统 ffmpeg/ffprobe；不要求 decord/torchvision
 注意:
   - 权重文件需为 VQAssessment/DOVER repo 的 pre-trained weight（如 DOVER-Mobile.pth）
   - 运行时 lazy import(probe 路径零重依赖)
@@ -17,9 +16,12 @@
 
 from __future__ import annotations
 
+import json
 import math
+import os
+import subprocess
 from pathlib import Path
-from typing import Optional, Tuple
+from typing import Iterator
 
 import numpy as np
 import torch
@@ -31,7 +33,7 @@ import torch.nn.functional as F
 # LICENSE NOTICE
 # ===========================================================================
 # This module is derived from VQAssessment/DOVER repository under S-Lab License 1.0.
-# Full license text available at https://raw.githubusercontent.com/VQAssessment/DOVER/master/LICENSE.
+# Full license text is shipped beside this module in DOVER_LICENSE.txt.
 # Redistribution and use for non-commercial purpose are permitted with proper attribution.
 
 # ===========================================================================
@@ -62,7 +64,7 @@ class LayerNorm(nn.Module):
     shape (batch_size, height, width, channels) while channels_first corresponds to inputs 
     with shape (batch_size, channels, height, width).
     """
-    def __init__(self, normalized_shape, eps=1e-6, data_format="channels_first"):
+    def __init__(self, normalized_shape, eps=1e-6, data_format="channels_last"):
         super().__init__()
         self.weight = nn.Parameter(torch.ones(normalized_shape))
         self.bias = nn.Parameter(torch.zeros(normalized_shape))
@@ -190,16 +192,21 @@ class ConvNeXtV23D(nn.Module):
             if m.bias is not None:
                 nn.init.constant_(m.bias, 0)
 
-    def forward_features(self, x: torch.Tensor) -> torch.Tensor:
+    def forward_features(self, x: torch.Tensor, return_spatial: bool = False) -> torch.Tensor:
         for i in range(4):
             x = self.downsample_layers[i](x)
             x = self.stages[i](x)
+        if return_spatial:
+            # Official ConvNeXtV23D applies the final norm in channels-last
+            # order, then restores (N,C,T,H,W) for VQAHead's Conv3d layers.
+            return self.norm(x.permute(0, 2, 3, 4, 1)).permute(0, 4, 1, 2, 3)
         # Global average pooling (N, C, T, H, W) -> (N, C)
         return self.norm(x.mean([-3, -2, -1]))
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        x = self.forward_features(x)
-        return self.head(x)
+        # Official ConvNeXtV23D.forward = forward_features(x, return_spatial=True);
+        # score-level pooling happens later in VQAHead/the evaluator.
+        return self.forward_features(x, return_spatial=True)
 
 
 # ===========================================================================
@@ -214,8 +221,8 @@ class VQAHead(nn.Module):
         dropout_ratio: the dropout ratio for features before the MLP (default 0.5)
         pre_pool: whether pre-pool the features or not (True for Aesthetic Attributes, False for Technical Attributes)
     """
-    def __init__(self, in_channels: int = 384, hidden_channels: int = 32, 
-                 dropout_ratio: float = 0.5, pre_pool: bool = True) -> None:
+    def __init__(self, in_channels: int = 384, hidden_channels: int = 32,
+                 dropout_ratio: float = 0.5, pre_pool: bool = False) -> None:
         super().__init__()
         self.dropout_ratio = dropout_ratio
         self.in_channels = in_channels
@@ -225,20 +232,21 @@ class VQAHead(nn.Module):
             self.dropout = nn.Dropout(p=self.dropout_ratio)
         else:
             self.dropout = None
-        # Use Conv3d with kernel size (1,1,1) to match official weight shapes
-        # Official DOVER-Mobile uses Conv3d(1,1,1) on (N,C,T,H,W)->(N,C,T,H,W) then pools
         self.fc_hid = nn.Conv3d(self.in_channels, self.hidden_channels, kernel_size=(1, 1, 1))
         self.fc_last = nn.Conv3d(self.hidden_channels, 1, kernel_size=(1, 1, 1))
         self.gelu = nn.GELU()
+        self.avg_pool = nn.AdaptiveAvgPool3d((1, 1, 1))
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        # x shape from backbone.forward_features: (N, C) - already pooled
-        # Need to expand back to (N, C, T, H, W) format for Conv3d processing
-        x = x.unsqueeze(-1).unsqueeze(-1).unsqueeze(-1)  # (N, C) -> (N, C, 1, 1, 1)
-        
-        x = self.dropout(x)
-        qlt_score = self.fc_last(self.dropout(self.gelu(self.fc_hid(x))))
-        return qlt_score.squeeze([1, 2, 3])  # (N, 1, 1, 1, 1) -> (N,)
+        if self.pre_pool:
+            x = self.avg_pool(x)
+        # dropout_ratio=0 leaves self.dropout unset — identity in that case
+        if self.dropout is not None:
+            x = self.dropout(x)
+            qlt_score = self.fc_last(self.dropout(self.gelu(self.fc_hid(x))))
+        else:
+            qlt_score = self.fc_last(self.gelu(self.fc_hid(x)))
+        return qlt_score
 
 
 # ===========================================================================
@@ -273,18 +281,38 @@ class DOVERMobile(nn.Module):
         del self.technical_backbone.head
         del self.aesthetic_backbone.head
 
-    def forward(self, x: torch.Tensor) -> dict[str, torch.Tensor]:
-        # Extract pooled features from both backbones (without classification head)
-        tech_feat = self.technical_backbone.forward_features(x)  # (N, C)
-        aest_feat = self.aesthetic_backbone.forward_features(x)  # (N, C)
-        
-        # Score from each head
-        technical_score = self.technical_head(tech_feat)
-        aesthetic_score = self.aesthetic_head(aest_feat)
-        # Fusion formula from official evaluate_one_video.py (fuse_results)
-        x = ((technical_score - 0.1107) / 0.07355 * 0.6104 +
-             (aesthetic_score + 0.08285) / 0.03774 * 0.3896)
-        fused = 1 / (1 + torch.exp(-x))  # sigmoid to map to [0,1]
+    def forward(
+        self,
+        technical_view: torch.Tensor | dict[str, torch.Tensor],
+        aesthetic_view: torch.Tensor | None = None,
+    ) -> dict[str, torch.Tensor]:
+        """Official routing: views dict {"technical": t, "aesthetic": a} runs each
+        branch on its own view and returns raw per-branch score maps
+        ({"technical", "aesthetic"}); callers pool and fuse, exactly like the
+        official evaluator. A bare tensor keeps the legacy single-view
+        fallback (both branches, fused score included) for old callers."""
+        if isinstance(technical_view, dict):
+            t_in = technical_view["technical"]
+            a_in = technical_view.get("aesthetic", t_in)
+            # Official evaluator calls each backbone module directly; its
+            # forward already returns spatial features (return_spatial=True).
+            tech_feat = self.technical_backbone(t_in)
+            aest_feat = self.aesthetic_backbone(a_in)
+            return {
+                "technical": self.technical_head(tech_feat),
+                "aesthetic": self.aesthetic_head(aest_feat),
+            }
+
+        # Single-view fallback: both branches see the same frames.
+        aesthetic_view = technical_view if aesthetic_view is None else aesthetic_view
+        tech_feat = self.technical_backbone.forward_features(technical_view, return_spatial=True)
+        aest_feat = self.aesthetic_backbone.forward_features(aesthetic_view, return_spatial=True)
+
+        # Official VQAHead returns a spatial-temporal score map; inference
+        # pools that map only after the head has seen the full feature volume.
+        technical_score = self.technical_head(tech_feat).mean(dim=(1, 2, 3, 4))
+        aesthetic_score = self.aesthetic_head(aest_feat).mean(dim=(1, 2, 3, 4))
+        fused = fuse_scores(technical_score, aesthetic_score)
         return {
             "fused": fused,
             "technical": technical_score,
@@ -292,27 +320,132 @@ class DOVERMobile(nn.Module):
         }
 
 
+def fuse_scores(technical: float | torch.Tensor, aesthetic: float | torch.Tensor) -> float | torch.Tensor:
+    """Score-level fusion — official evaluate_one_video.py fuse_results.
+
+    Weights/means are the DOVER release defaults (shared by DOVER-Mobile);
+    the trailing sigmoid bounds the fused score to [0, 1].
+    """
+    x = (technical - 0.1107) / 0.07355 * 0.6104 + (
+        aesthetic + 0.08285
+    ) / 0.03774 * 0.3896
+    if isinstance(x, torch.Tensor):
+        return 1 / (1 + torch.exp(-x))
+    # Numerically stable scalar sigmoid (extreme scores overflow plain exp).
+    if x >= 0:
+        return 1 / (1 + math.exp(-x))
+    exp_x = math.exp(x)
+    return exp_x / (1 + exp_x)
+
+
+# ===========================================================================
+# UNIFIED FRAME SAMPLER (exact vendor from dover_datasets.py line 273)
+# ===========================================================================
+class UnifiedFrameSampler:
+    """Official temporal sampler: fragments_t temporal fragments, each fsize_t
+    frames at frame_interval stride, optionally repeated over num_clips."""
+
+    def __init__(
+        self, fsize_t: int, fragments_t: int, frame_interval: int = 1,
+        num_clips: int = 1, drop_rate: float = 0.0,
+    ) -> None:
+        self.fragments_t = fragments_t
+        self.fsize_t = fsize_t
+        self.size_t = fragments_t * fsize_t
+        self.frame_interval = frame_interval
+        self.num_clips = num_clips
+        self.drop_rate = drop_rate
+
+    def get_frame_indices(self, num_frames: int, train: bool = False):
+        import random as _random
+
+        tgrids = np.array(
+            [num_frames // self.fragments_t * i for i in range(self.fragments_t)],
+            dtype=np.int32,
+        )
+        tlength = num_frames // self.fragments_t
+
+        if tlength > self.fsize_t * self.frame_interval:
+            rnd_t = np.atleast_1d(np.random.randint(
+                0, tlength - self.fsize_t * self.frame_interval, size=len(tgrids)
+            ))
+        else:
+            rnd_t = np.zeros(len(tgrids), dtype=np.int32)
+
+        ranges_t = (
+            np.arange(self.fsize_t)[None, :] * self.frame_interval
+            + rnd_t[:, None]
+            + tgrids[:, None]
+        )
+
+        drop = _random.sample(
+            list(range(self.fragments_t)), int(self.fragments_t * self.drop_rate)
+        )
+        dropped_ranges_t = []
+        for i, rt in enumerate(ranges_t):
+            if i not in drop:
+                dropped_ranges_t.append(rt)
+        return np.concatenate(dropped_ranges_t)
+
+    def __call__(self, total_frames: int, train: bool = False, start_index: int = 0):
+        frame_inds = []
+        for _i in range(self.num_clips):
+            frame_inds += [self.get_frame_indices(total_frames)]
+        frame_inds = np.concatenate(frame_inds)
+        frame_inds = np.mod(frame_inds + start_index, total_frames)
+        return frame_inds.astype(np.int32)
+
+
 # ===========================================================================
 # FRAME SAMPLING (partial vendor from dover_datasets.py)
 # ===========================================================================
-def sample_frames(video_path: str, fragments: int = 32, clip_len: int = 32, frame_interval: int = 2, num_clips: int = 1) -> torch.Tensor:
-    """Sample frames following DOVERMobile configuration. Returns (N, C, H, W) tensor preprocessed."""
+def _resolve_indices(total_frames: int, fps: float, sampler, fragments: int, clip_len: int,
+                     num_clips: int, start_s: float | None,
+                     duration_s: float | None) -> list[int]:
+    """Index selection shared by both decoders.
+
+    A UnifiedFrameSampler produces official fragment indices inside the
+    (optional) time window; without one the legacy even-span sampling runs.
+    All indices are clamped to valid frame numbers before decoding."""
+    window_lo, window_hi = _sampling_window(total_frames, start_s, duration_s, fps)
+    span = max(1, window_hi - window_lo)
+    if sampler is not None:
+        raw = np.asarray(sampler(span), dtype=np.int64) + window_lo
+    else:
+        indices = []
+        for c in range(num_clips):
+            span_lo = min(window_lo + c * max(1, (window_hi - window_lo) // num_clips),
+                          max(window_lo, window_hi - clip_len))
+            span_hi = min(span_lo + clip_len, window_hi)
+            step = max(1, (span_hi - span_lo) // max(1, fragments - 1))
+            indices.extend(range(span_lo, span_hi, step)[:fragments])
+        raw = np.asarray(indices if indices else [window_lo], dtype=np.int64)
+    return [int(min(max(i, 0), total_frames - 1)) for i in raw]
+
+
+def sample_frames(video_path: str, sampler: UnifiedFrameSampler | None = None,
+                  fragments: int = 32, clip_len: int = 32, frame_interval: int = 2,
+                  num_clips: int = 1, start_s: float | None = None,
+                  duration_s: float | None = None) -> torch.Tensor:
+    """Sample frames following DOVERMobile configuration. Returns (N, C, H, W) tensor preprocessed.
+
+    sampler overrides the legacy even-span index selection with the official
+    UnifiedFrameSampler. start_s/duration_s restrict sampling to a time window
+    (shot-level scoring).
+    """
     try:
         import decord
     except ImportError:
         # Fallback to ffmpeg + PIL when decord unavailable
-        return _sample_frames_ffmpeg(video_path, fragments, clip_len, frame_interval, num_clips)
+        return _sample_frames_ffmpeg(video_path, sampler=sampler, fragments=fragments,
+                                     clip_len=clip_len, frame_interval=frame_interval,
+                                     num_clips=num_clips, start_s=start_s, duration_s=duration_s)
 
     vr = decord.VideoReader(video_path, ctx=decord.cpu(0), width=224, height=224)
     total_frames = len(vr)
-    indices = []
-    for c in range(num_clips):
-        start = min(c * max(1, total_frames // num_clips), max(0, total_frames - clip_len))
-        end = min(start + clip_len, total_frames)
-        step = max(1, (end - start) // max(1, fragments - 1))
-        indices.extend(range(start, end, step)[:fragments])
-    if not indices:
-        indices = [0]
+    fps = getattr(vr, "get_avg_fps", lambda: 24.0)() or 24.0
+    indices = _resolve_indices(total_frames, fps, sampler, fragments, clip_len,
+                               num_clips, start_s, duration_s)
     frms = vr.get_batch(indices).asnumpy()
     vr.release()
     frms = torch.from_numpy(frms.astype(np.float32)).permute(0, 3, 1, 2) / 255.0
@@ -324,85 +457,117 @@ def sample_frames(video_path: str, fragments: int = 32, clip_len: int = 32, fram
     return frms
 
 
-def _sample_frames_ffmpeg(video_path: str, fragments: int = 32, clip_len: int = 32, 
-                          frame_interval: int = 2, num_clips: int = 1) -> torch.Tensor:
+def _sampling_window(total_frames: int, start_s: float | None,
+                     duration_s: float | None, fps: float = 24.0) -> tuple[int, int]:
+    """Map an optional [start_s, start_s+duration_s) window to frame bounds.
+
+    Without a window the whole video is the sampling range; the window is
+    clamped so slice scoring never reads past either end.
+    """
+    lo = min(max(0, int((start_s or 0.0) * fps)), max(0, total_frames - 1))
+    hi = total_frames if duration_s is None else min(total_frames, lo + max(1, int(duration_s * fps)))
+    if hi <= lo:
+        hi = min(total_frames, lo + 1)
+    return lo, hi
+
+
+def _sample_frames_ffmpeg(video_path: str, sampler: UnifiedFrameSampler | None = None,
+                          fragments: int = 32, clip_len: int = 32,
+                          frame_interval: int = 2, num_clips: int = 1,
+                          start_s: float | None = None,
+                          duration_s: float | None = None) -> torch.Tensor:
     """Fallback frame sampling using ffmpeg + PIL when decord unavailable"""
     import subprocess
-    from PIL import Image
     import tempfile
-    
-    # Get video metadata using ffprobe
-    cmd = ['ffprobe', '-v', 'error', '-show_entries', 'stream=codec_type,width,height,nb_frames',
-           '-of', 'csv=p=0', video_path]
-    result = subprocess.run(cmd, capture_output=True, text=True)
-    output = result.stdout.strip()
-    if not output:
-        raise RuntimeError(f"ffprobe failed to get metadata for {video_path}")
-    
-    lines = [line for line in output.split('\n') if line and 'video' in line.split(',')[0]]
-    if not lines:
-        raise RuntimeError(f"No video stream found in ffprobe output: {output}")
-    
-    first_video = lines[0].split(',')
-    total_frames = int(first_video[3]) if len(first_video) > 3 else 4134  # Fallback
-    native_width = int(first_video[1]) if len(first_video) > 1 else 1920
-    native_height = int(first_video[2]) if len(first_video) > 2 else 1080
-    
-    print(f"Video: {total_frames} frames, {native_width}x{native_height}")
-    
-    # Sample indices like decord version
-    indices = []
-    for c in range(num_clips):
-        start = min(c * max(1, total_frames // num_clips), max(0, total_frames - clip_len))
-        end = min(start + clip_len, total_frames)
-        step = max(1, (end - start) // max(1, fragments - 1))
-        indices.extend(range(start, end, step)[:fragments])
-    if not indices:
-        indices = [0]
-    
-    # Extract frames using ffmpeg
+    from PIL import Image
+
+    def _probe(*entries: str) -> str:
+        cmd = ['ffprobe', '-v', 'error', '-show_entries', ','.join(entries),
+               '-of', 'csv=p=0', video_path]
+        proc = subprocess.run(cmd, capture_output=True, text=True)
+        return proc.stdout.strip()
+
+    # Frame count: prefer nb_frames; some containers omit it, so fall back to
+    # duration × fps rather than assuming a hardcoded count or frame rate.
+    nb_frames_raw = _probe('stream=codec_type,nb_frames', 'stream=duration', 'stream=r_frame_rate')
+    video_rows = [row for row in nb_frames_raw.split('\n')
+                  if row and row.split(',')[0] == 'video']
+    if not video_rows:
+        raise RuntimeError(f"No video stream found for {video_path}")
+
+    parts = video_rows[0].split(',')
+    total_frames: int | None = None
+    if len(parts) > 1 and parts[1].isdigit() and int(parts[1]) > 0:
+        total_frames = int(parts[1])
+
+    fps = 24.0
+    if len(parts) > 2 and '/' in parts[2]:
+        num, _, den = parts[2].partition('/')
+        if den and float(den) > 0:
+            fps = float(num) / float(den)
+
+    if total_frames is None:
+        # duration follows nb_frames per stream row (some containers omit count)
+        rows = nb_frames_raw.split('\n')
+        probed_duration = 0.0
+        for row in rows:
+            cols = row.split(',')
+            if len(cols) >= 2 and cols[0] == 'video' and cols[1].replace('.', '', 1).isdigit():
+                probed_duration = float(cols[1])
+                break
+        if probed_duration > 0:
+            total_frames = max(1, int(probed_duration * fps))
+        else:
+            raise RuntimeError(f"Cannot determine frame count for {video_path}")
+
+    indices = _resolve_indices(total_frames, fps, sampler, fragments, clip_len,
+                               num_clips, start_s, duration_s)
+
+    # Extract frames one by one via -ss keyframe seeking; each temp file is
+    # removed after decoding so repeated scoring never leaks disk space.
     frames = []
     for i, idx in enumerate(indices):
-        with tempfile.NamedTemporaryFile(suffix='.jpg', delete=False) as f:
-            tmp_path = f.name
-        
-        # Use correct ffmpeg syntax: -ss before -i for keyframe seeking
-        ts = idx / 24.0  # 24fps assumed
-        cmd = [
-            'ffmpeg', '-y', '-ss', f'{ts:.3f}',
-            '-i', video_path, '-frames:v', '1', '-q:v', '2',
-            '-vf', 'scale=224:224', tmp_path
-        ]
-        proc_result = subprocess.run(cmd, capture_output=True, text=True)
-        
-        if proc_result.returncode != 0:
-            print(f"⚠️ Frame {i} extract failed: {proc_result.stderr[:100]}")
-            continue
-        
+        fd, tmp_path = tempfile.mkstemp(suffix='.jpg')
+        os.close(fd)
         try:
+            ts = idx / fps
+            cmd = [
+                'ffmpeg', '-y', '-ss', f'{ts:.3f}',
+                '-i', video_path, '-frames:v', '1', '-q:v', '2',
+                '-vf', 'scale=224:224', tmp_path
+            ]
+            proc_result = subprocess.run(cmd, capture_output=True, text=True)
+            if proc_result.returncode != 0:
+                print(f"⚠️ Frame {i} extract failed: {proc_result.stderr[:100]}")
+                continue
             img = Image.open(tmp_path).convert('RGB')
             frames.append(np.array(img))
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001 — single-frame failures degrade, not abort
             print(f"⚠️ Frame {i} decode failed: {e}")
-            continue
-    
-    if len(frames) < fragments:
-        print(f"⚠️ Only got {len(frames)}/{fragments} frames, zero-padding remainder")
-    
-    # Pad frames if needed
-    while len(frames) < fragments:
+        finally:
+            try:
+                os.unlink(tmp_path)
+            except OSError:
+                pass
+
+    # Pad to the expected index count (a UnifiedFrameSampler may yield more
+    # than `fragments` — e.g. the 96-frame technical view — so never truncate).
+    expected = len(indices)
+    if len(frames) < expected:
+        print(f"⚠️ Only got {len(frames)}/{expected} frames, zero-padding remainder")
+    while len(frames) < expected:
         frames.append(np.zeros((224, 224, 3), dtype=np.uint8))
-    
-    frms = np.stack(frames[:fragments], axis=0)  # (N, H, W, C) where N=num_clips*fragments
-    
+
+    frms = np.stack(frames, axis=0)  # (N, H, W, C) where N=len(indices)
+
     # Convert to tensor: (N, H, W, C) -> (N, C, H, W)
     frms_tensor = torch.from_numpy(frms).permute(0, 3, 1, 2).float() / 255.0
-    
+
     # Normalize using ImageNet stats (matching DOVER config)
     mean = torch.FloatTensor([0.485, 0.456, 0.406]).view(3, 1, 1)
     std = torch.FloatTensor([0.229, 0.224, 0.225]).view(3, 1, 1)
     frms_tensor = (frms_tensor - mean) / std
-    
+
     return frms_tensor
 
 
@@ -441,23 +606,40 @@ class DOVERMobileWrapper:
     def load(weight_path: str) -> "DOVERMobileWrapper":
         return DOVERMobileWrapper(weight_path)
 
-    def score(self, video_path: str, fragments: int = 32) -> tuple[float, float, float]:
-        """Score single video → (fused, aesthetic, technical) ∈ [0,1]"""
+    def score(self, video_path: str, fragments: int = 32, start_s: float | None = None,
+              duration_s: float | None = None) -> tuple[float, float, float]:
+        """Score a video (optionally a [start_s, start_s+duration_s) window)
+        → (fused, aesthetic, technical).
+
+        Official temporal decomposition (evaluate_one_video.py): the technical
+        branch sees 3 temporal fragments × 32 frames, the aesthetic branch one
+        32-frame span; both use frame_interval 2. The window clamps the span
+        for shot-level scoring."""
         with torch.no_grad():
-            # sample_frames returns (N, C, H, W) where N=num_frames sampled
-            frames = sample_frames(video_path, fragments=fragments, clip_len=32, frame_interval=2, num_clips=1)
-            
-            # DOVER-Mobile backbone expects (B, C, T, H, W) batch format
-            # Convert: (N, C, H, W) -> (C, N, H, W) -> (1, C, N, H, W)
-            batch = frames.permute(1, 0, 2, 3).unsqueeze(0)
-            
-            outputs = self.model(batch)
-            return outputs["fused"].item(), outputs["aesthetic"].item(), outputs["technical"].item()
+            technical_frames = sample_frames(
+                video_path, sampler=UnifiedFrameSampler(32, 3, 2),
+                start_s=start_s, duration_s=duration_s)
+            aesthetic_frames = sample_frames(
+                video_path, sampler=UnifiedFrameSampler(1, 32, 2, 1),
+                start_s=start_s, duration_s=duration_s)
+
+            # (N, C, H, W) -> (1, C, N, H, W): frames stack along the time axis
+            technical_view = technical_frames.permute(1, 0, 2, 3).unsqueeze(0)
+            aesthetic_view = aesthetic_frames.permute(1, 0, 2, 3).unsqueeze(0)
+
+            outputs = self.model({"technical": technical_view, "aesthetic": aesthetic_view})
+            # Official evaluator pools each branch's score map, then fuses.
+            technical = outputs["technical"].mean().item()
+            aesthetic = outputs["aesthetic"].mean().item()
+            fused = fuse_scores(technical, aesthetic)
+            return float(fused), float(aesthetic), float(technical)
 
 
 def load_model(weight_path: str) -> DOVERMobileWrapper:
     return DOVERMobileWrapper.load(weight_path)
 
 
-def score_frames(model: DOVERMobileWrapper, video_path: str) -> tuple[float, float, float]:
-    return model.score(video_path)
+def score_frames(model: DOVERMobileWrapper, video_path: str, start_s: float | None = None,
+                 duration_s: float | None = None) -> tuple[float, float, float]:
+    """Score a video (optionally a [start_s, start_s+duration_s) window)."""
+    return model.score(video_path, start_s=start_s, duration_s=duration_s)

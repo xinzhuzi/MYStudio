@@ -1,17 +1,8 @@
 """Video QC model cache helpers — mirrors upscale/model_cache.py conventions.
 
-⚠️ 2026-08-19 立项时的网络现实(记录在案):
-GitHub / HuggingFace 直连不可达(仅 modelscope.cn 通),DOVER-Mobile 的
-官方权重 release URL 与 sha256 未能核实,**严禁猜测编造**——所以 spec 留空
-(url/sha256/sources 均空),download_model 对空源返回明确错误
-"权重源未配置"。网络可达后补齐三行配置即激活全链:
-  1. url:官方 release 直链
-  2. sha256:首下载后回填固定
-  3. sources:modelscope 镜像 (repo_id, file) 对(若有)
-
-推理侧同理:架构代码需从 VQAssessment/DOVER 仓库 vendor 到本包
-`dover_mobile_arch.py`(带原仓库 LICENSE),dover_scoring.score_video 对
-缺失架构返回 arch-unavailable,不伪造分数。
+当前 DOVER-Mobile 激活配置已核实：官方 v0.5.0 release URL、首下载
+SHA-256 pin 与 modelscope 备选源均保留在下方 spec；推理架构位于本包
+`dover_mobile_arch.py`，并带 VQAssessment/DOVER 的 LICENSE 溯源。
 """
 
 from __future__ import annotations
@@ -30,7 +21,7 @@ class VideoQcModelSpec(TypedDict):
     # (repo_id, file inside repo) pairs tried via modelscope/HF snapshot before
     # the direct URL fallback. Empty tuple = no snapshot source.
     sources: tuple[tuple[str, str], ...]
-    # Empty string = 未核实,不 pin(首下载后回填)
+    # 固定 pin；find_cached_video_qc_model 会拒绝 hash 不一致的文件。
     sha256: str
     size_mb: int
     license: str
@@ -48,7 +39,7 @@ VIDEO_QC_MODELS: dict[str, VideoQcModelSpec] = {
         ),
         "sha256": "81b487be2aa4b3dd6920afa2e92294ed8fdd46a306911f75ecc8e6938a670884",
         "size_mb": 41,
-        "license": "待核实(VQAssessment/DOVER 仓库)",
+        "license": "S-Lab License 1.0 (non-commercial; attribution required)",
     },
 }
 
@@ -71,11 +62,26 @@ def primary_model_dir() -> Path:
     return Path.home() / ".mystudio" / "video-qc-models"
 
 
+def _electron_userdata_model_dir() -> Path | None:
+    # macOS Electron userData convention, HOME-based so it resolves for any
+    # user on this machine. Only offered as a standalone-CLI convenience when
+    # the runtime env var is absent — the TS controller always sets the env.
+    candidate = Path.home() / "Library" / "Application Support" / "漫影工作室" / "model" / "videoqc"
+    return candidate if candidate.is_dir() else None
+
+
 def model_candidate_dirs() -> list[Path]:
+    # Order: env-driven primary dir (set by the TS runtime controller to
+    # <storageBase>/model/videoqc) → HOME-derived Electron userData dir →
+    # standalone-CLI home fallback. No absolute user paths anywhere.
     seen: set[str] = set()
     unique: list[Path] = []
-    for path in (primary_model_dir(), Path.home() / ".mystudio" / "video-qc-models",
-                 Path("/Users/zhengbingjin/Library/Application Support/漫影工作室/model/videoqc")):
+    candidates: list[Path] = [primary_model_dir()]
+    userdata_dir = _electron_userdata_model_dir()
+    if userdata_dir is not None:
+        candidates.append(userdata_dir)
+    candidates.append(Path.home() / ".mystudio" / "video-qc-models")
+    for path in candidates:
         expanded = path.expanduser()
         if str(expanded) in seen:
             continue

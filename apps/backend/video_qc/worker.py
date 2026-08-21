@@ -75,16 +75,37 @@ def _run(input_path: str, output_path: str) -> dict[str, Any]:
     except Exception as exc:  # noqa: BLE001 — worker 边界统一兜底
         return _blocked(request, "unexpected-error", str(exc))
 
-    return {
+    base = {
         "schemaVersion": 1,
         "projectId": str(request.get("projectId", "unknown")),
         "chapterId": str(request.get("chapterId", "unknown")),
         "status": "accepted",
         "model": str(request.get("model", DEFAULT_MODEL)),
-        **result,
+        "mode": str(request.get("mode", "whole")),
         "toolVersion": TOOL_VERSION,
+        "elapsedMs": int(result.get("elapsedMs", round(float(result.get("elapsed", 0.0)) * 1000))),
         "generatedAt": int(time.time() * 1000),
     }
+
+    if str(request.get("mode", "whole")) == "slices":
+        # 低基线归因:slices 请求的 artifact 同时带整片 overall + per-shot 分数
+        base["slices"] = [
+            {"shotId": str(item["shotId"]), "fused": float(item["fused"])}
+            for item in result.get("slices", [])
+        ]
+        base["overall"] = {
+            "fused": float(result["fused"]),
+            "aesthetic": float(result["aesthetic"]),
+            "technical": float(result["technical"]),
+        }
+        return base
+
+    base["overall"] = {
+        "fused": float(result["fused"]),
+        "aesthetic": float(result["aesthetic"]),
+        "technical": float(result["technical"]),
+    }
+    return base
 
 
 def main() -> None:

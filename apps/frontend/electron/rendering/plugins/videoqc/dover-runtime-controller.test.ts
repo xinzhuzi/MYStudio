@@ -128,7 +128,7 @@ describe("createVideoQcRuntimeController", () => {
       projectId: "p", chapterId: "c", videoPath: "/tmp/v.mp4", mode: "whole",
     });
     expect(accepted.status).toBe("accepted");
-    if (accepted.status === "accepted") {
+    if (accepted.status === "accepted" && accepted.mode === "whole") {
       expect(accepted.overall.fused).toBeCloseTo(0.72, 3);
       expect(accepted.slices?.[0]).toEqual({ shotId: "s1", fused: 0.4 });
     }
@@ -140,6 +140,48 @@ describe("createVideoQcRuntimeController", () => {
     expect(blocked.status).toBe("blocked");
     if (blocked.status === "blocked") {
       expect(blocked.code).toBe("worker-failed");
+    }
+  });
+
+  it("runVideoQcScore slices 模式:仅验 per-shot 分数;空 slices 拒收", async () => {
+    const writeArtifact = (payload: unknown) =>
+      makeController(async (_file, args) => {
+        if (args.includes("--run")) {
+          const outputPath = args[args.indexOf("--output") + 1];
+          mkdirSync(join(outputPath, ".."), { recursive: true });
+          writeFileSync(outputPath, JSON.stringify(payload), "utf-8");
+          return { stdout: "" };
+        }
+        return { stdout: "" };
+      });
+
+    // slices artifact 没有 overall——解析层必须按 mode 分支而不是硬性要求 overall
+    const sliceController = writeArtifact({
+      status: "accepted",
+      slices: [
+        { shotId: "shot-1", fused: 0.55 },
+        { shotId: "shot-2", fused: 0.61 },
+      ],
+      elapsedMs: 8400,
+    });
+    const sliceOutcome = await sliceController.runVideoQcScore({
+      projectId: "p", chapterId: "c", videoPath: "/tmp/v.mp4", mode: "slices",
+      slices: [{ shotId: "shot-1", startS: 0, durationS: 2 }],
+    });
+    expect(sliceOutcome.status).toBe("accepted");
+    if (sliceOutcome.status === "accepted" && sliceOutcome.mode === "slices") {
+      expect(sliceOutcome.slices).toHaveLength(2);
+      expect(sliceOutcome.slices[1]).toEqual({ shotId: "shot-2", fused: 0.61 });
+      expect(sliceOutcome.elapsedMs).toBe(8400);
+    }
+
+    const emptyController = writeArtifact({ status: "accepted", slices: [], elapsedMs: 10 });
+    const emptyOutcome = await emptyController.runVideoQcScore({
+      projectId: "p", chapterId: "c", videoPath: "/tmp/v.mp4", mode: "slices", slices: [],
+    });
+    expect(emptyOutcome.status).toBe("blocked");
+    if (emptyOutcome.status === "blocked") {
+      expect(emptyOutcome.code).toBe("invalid-artifact");
     }
   });
 

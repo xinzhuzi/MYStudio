@@ -5,9 +5,8 @@ Usage:
   python -m video_qc.download_model --model dover-mobile --progress <progress.json>
 
 Mirrors depth_estimation/download_model.py: modelscope snapshot first, HF
-fallback, then direct-URL fallback for flat weight files. Progress JSON shape
-identical to the depth/TTS protocol. 当前 dover-mobile 的 url/sources 未配置
-(网络不可达未核实,见 model_cache.py 头注)→ 返回明确错误,不静默。
+fallback, then direct-URL fallback for the flat DOVER-Mobile weight file.
+Progress JSON shape is identical to the depth/TTS protocol.
 """
 
 from __future__ import annotations

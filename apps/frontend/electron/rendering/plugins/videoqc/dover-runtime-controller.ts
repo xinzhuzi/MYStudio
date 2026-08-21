@@ -58,7 +58,8 @@ interface ControllerDeps {
 }
 
 export type VideoQcScoreOutcome =
-  | { status: "accepted"; overall: { fused: number; aesthetic: number; technical: number }; slices?: Array<{ shotId: string; fused: number }>; elapsedMs: number }
+  | { status: "accepted"; mode: "whole"; overall: { fused: number; aesthetic: number; technical: number }; slices?: Array<{ shotId: string; fused: number }>; elapsedMs: number }
+  | { status: "accepted"; mode: "slices"; slices: Array<{ shotId: string; fused: number }>; elapsedMs: number }
   | { status: "blocked"; code: string; message: string };
 
 export function createVideoQcRuntimeController(deps: ControllerDeps) {
@@ -372,20 +373,32 @@ export function createVideoQcRuntimeController(deps: ControllerDeps) {
       }
       const raw = JSON.parse(fs.readFileSync(artifactPath, "utf8")) as Record<string, unknown>;
       if (raw.status === "accepted") {
+        const elapsedMs = typeof raw.elapsedMs === "number" ? raw.elapsedMs : 0;
+        const parseSlices = (): Array<{ shotId: string; fused: number }> =>
+          Array.isArray(raw.slices)
+            ? (raw.slices as Array<Record<string, unknown>>)
+                .filter((row) => typeof row.shotId === "string" && typeof row.fused === "number")
+                .map((row) => ({ shotId: row.shotId as string, fused: row.fused as number }))
+            : [];
+        if (request.mode === "slices") {
+          // 归因请求:worker artifact 只有 per-shot 分数,没有 overall。
+          const slices = parseSlices();
+          if (slices.length === 0) {
+            return { status: "blocked", code: "invalid-artifact", message: "观感评分未返回有效的切片分数" };
+          }
+          return { status: "accepted", mode: "slices", slices, elapsedMs };
+        }
         const overall = raw.overall as { fused: number; aesthetic: number; technical: number } | undefined;
         if (!overall || ![overall.fused, overall.aesthetic, overall.technical].every((v) => typeof v === "number")) {
           return { status: "blocked", code: "invalid-artifact", message: "观感评分返回了无效的分数" };
         }
-        const slices = Array.isArray(raw.slices)
-          ? (raw.slices as Array<Record<string, unknown>>)
-              .filter((row) => typeof row.shotId === "string" && typeof row.fused === "number")
-              .map((row) => ({ shotId: row.shotId as string, fused: row.fused as number }))
-          : undefined;
+        const slices = parseSlices();
         return {
           status: "accepted",
+          mode: "whole",
           overall,
-          ...(slices ? { slices } : {}),
-          elapsedMs: typeof raw.elapsedMs === "number" ? raw.elapsedMs : 0,
+          ...(slices.length > 0 ? { slices } : {}),
+          elapsedMs,
         };
       }
       return {
