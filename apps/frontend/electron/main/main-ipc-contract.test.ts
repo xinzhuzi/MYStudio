@@ -76,6 +76,8 @@ file-storage-rename
 file-storage-set
 get-absolute-path
 get-image-path
+hy-registry-deps-check
+hy-registry-deps-download
 image-gen-runtime-download-model
 image-gen-runtime-prepare
 image-gen-runtime-probe
