@@ -1,0 +1,5 @@
+# 项目根标记文件:供 lsp-code-analysis skill(lsp-cli)将本目录识别为 Python 项目根,
+# 使 apps/build 下的 .py 可被 LSP 语义查询(本目录仅有 requirements-ci.txt,不在其精确标记名单内)。
+# 无构建语义——勿添加 [project] 表,勿被 pip/uv 当作可安装包。
+[tool.mystudio]
+project-root-marker = true
