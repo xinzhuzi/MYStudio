@@ -215,6 +215,24 @@ describe("validateCompositionProps", () => {
     }
   });
 
+  it("accepts panZoom easing cubic/spring and rejects anything else（08-21 spring 接入）", () => {
+    const cubic = validProps();
+    cubic.visualClips[0].panZoom = { fromScale: 1, toScale: 1.1, originX: 0.5, originY: 0.5, easing: "cubic" };
+    expect(validateCompositionProps(cubic).success).toBe(true);
+
+    const spring = validProps();
+    spring.visualClips[0].panZoom = { fromScale: 1, toScale: 1.1, originX: 0.5, originY: 0.5, easing: "spring" };
+    expect(validateCompositionProps(spring).success).toBe(true);
+
+    const bogus = validProps();
+    bogus.visualClips[0].panZoom = { fromScale: 1, toScale: 1.1, originX: 0.5, originY: 0.5, easing: "bounce" as never };
+    const result = validateCompositionProps(bogus);
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.issues.some((issue) => issue.path === "visualClips[0].panZoom.easing")).toBe(true);
+    }
+  });
+
   it("rejects a non-array collection", () => {
     const props = { ...validProps(), visualClips: "nope" };
     const result = validateCompositionProps(props);

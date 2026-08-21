@@ -836,6 +836,65 @@ describe("buildChapterVideoCompositionProps", () => {
       });
     }
   });
+
+  it("panZoom 效果带 easing=spring 时透传，非法值回退缺省 cubic（08-21 spring 接入）", async () => {
+    const slot = makeCurrentSlot();
+    const plan = chapterPlan(slot, "shot-001", "storyboardVideo");
+    const clipId = plan.clips[0]!.id;
+    plan.effects = [{
+      id: "effect-shot-panzoom-spring",
+      effectId: "panZoom",
+      targetClipId: clipId,
+      startUs: 0,
+      durationUs: 2_000_000,
+      params: { scaleFrom: 1, scaleTo: 1.12, x: 0.5, y: 0.5, easing: "spring" },
+      enabled: true,
+    }];
+    const chapterManifest = await manifestForPlan(plan);
+
+    const result = buildChapterVideoCompositionProps({
+      plan,
+      currentShotSlots: [slot],
+      chapterManifest,
+      mediaUrlByClipId: { [clipId]: mediaUrl },
+      mediaUrlByBindingId: {},
+    });
+
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.value.visualClips[0]?.panZoom)
+        .toMatchObject({ fromScale: 1, toScale: 1.12, easing: "spring" });
+    }
+  });
+
+  it("panZoom 效果 easing 非法/缺省时不透传——出片默认曲线不变", async () => {
+    const slot = makeCurrentSlot();
+    const plan = chapterPlan(slot, "shot-001", "storyboardVideo");
+    const clipId = plan.clips[0]!.id;
+    plan.effects = [{
+      id: "effect-shot-panzoom-bad-easing",
+      effectId: "panZoom",
+      targetClipId: clipId,
+      startUs: 0,
+      durationUs: 2_000_000,
+      params: { scaleFrom: 1, scaleTo: 1.06, x: 0.5, y: 0.5, easing: "bounce" },
+      enabled: true,
+    }];
+    const chapterManifest = await manifestForPlan(plan);
+
+    const result = buildChapterVideoCompositionProps({
+      plan,
+      currentShotSlots: [slot],
+      chapterManifest,
+      mediaUrlByClipId: { [clipId]: mediaUrl },
+      mediaUrlByBindingId: {},
+    });
+
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.value.visualClips[0]?.panZoom?.easing).toBeUndefined();
+    }
+  });
 });
 
 describe("readableSubtitleCues", () => {

@@ -53,7 +53,7 @@ function main(): void {
   let totalFiles = 0;
   let modifiedFiles = 0;
   let totalReplacements = 0;
-  let fontImports = new Set<string>();
+  const fontImports = new Set<string>();
 
   const dirs = ["blocks", "components"];
   for (const dir of dirs) {

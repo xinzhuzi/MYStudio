@@ -7,6 +7,7 @@
 // [0, 1] so frames outside the clip hold the endpoints, matching FFmpeg's
 // min(max(t/duration,0),1).
 
+import { spring } from "remotion";
 import type { CompositionPanZoom } from "./composition-props";
 
 export interface PanZoomTransform {
@@ -20,12 +21,19 @@ export interface PanZoomTransform {
 
 // Ease-in-out cubic, curve-equivalent to Remotion's Easing.inOut(Easing.cubic)
 // (effect 08-18-effect-upgrade design §1.1). Kept hand-written like
-// cinematic-camera.ts so this module stays dependency-pure; symmetric, so the
-// exact midpoint still maps to the linear midpoint.
+// cinematic-camera.ts so the default curve stays dependency-pure; symmetric, so
+// the exact midpoint still maps to the linear midpoint.
 export function easeInOutCubic(progress: number): number {
   const t = Math.min(1, Math.max(0, progress));
   return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
 }
+
+/**
+ * Spring 缓动（08-21 spring 接入任务）：Remotion 原生 spring 采样 progress∈[0,1]，
+ * 约 5% 过冲后收敛——pan-zoom 的弹性「呼吸感」。仅 `easing: "spring"` 时启用；
+ * 缺省仍走手写 cubic，既有出片逐字节不变。config 固定不外露（决策层接线另立任务）。
+ */
+const PAN_ZOOM_SPRING_CONFIG = { damping: 14, mass: 1, stiffness: 100 } as const;
 
 // Eased interpolation of scale across the clip; origin is constant.
 /** 环境动画参数(从 ShotFxAmbient 量化而来,经 plan.effects → composition props)。 */
@@ -112,16 +120,20 @@ export function panZoomAtFrame(
   frame: number,
   durationInFrames: number,
   panZoom: CompositionPanZoom,
+  // spring 缓动需要 composition fps；缺省 30 = 默认渲染帧率（既有三参调用不变）。
+  fps = 30,
 ): PanZoomTransform {
   if (!Number.isInteger(durationInFrames) || durationInFrames <= 0) {
     throw new Error(`panZoom 时长必须是正整数帧: ${durationInFrames}`);
   }
   const span = durationInFrames - 1;
-  const progress = span <= 0
+  // easing 缺省 = cubic：与历史行为逐帧一致；spring 时 Remotion 原生采样（含过冲）。
+  const easedProgress = span <= 0
     ? 0
-    : Math.min(1, Math.max(0, frame / span));
-  const scale = panZoom.fromScale
-    + (panZoom.toScale - panZoom.fromScale) * easeInOutCubic(progress);
+    : panZoom.easing === "spring"
+      ? spring({ frame, fps, config: PAN_ZOOM_SPRING_CONFIG, durationInFrames: span })
+      : easeInOutCubic(Math.min(1, Math.max(0, frame / span)));
+  const scale = panZoom.fromScale + (panZoom.toScale - panZoom.fromScale) * easedProgress;
   return {
     scale,
     originX: clampUnit(panZoom.originX),

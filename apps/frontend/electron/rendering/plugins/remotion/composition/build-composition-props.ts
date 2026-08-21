@@ -1101,13 +1101,20 @@ function gradeForClip(
   return { grade: { lutId, lutSrc, blend, ...(pulse ? { blendPulse: pulse } : {}) } };
 }
 
+/** panZoom 缓动白名单（08-21 spring 接入）：非法/缺省一律回退 cubic（历史行为）。 */
+const PAN_ZOOM_EASING_VALUES = ["cubic", "spring"] as const;
+
 function panZoomForClip(effect: Pick<EditingEffect, "params"> | undefined): CompositionPanZoom | undefined {
   if (!effect) return undefined;
+  const easing = (PAN_ZOOM_EASING_VALUES as readonly string[]).includes(String(effect.params.easing))
+    ? (String(effect.params.easing) as CompositionPanZoom["easing"])
+    : undefined;
   return {
     fromScale: numberParam(effect.params.scaleFrom, 1),
     toScale: numberParam(effect.params.scaleTo, 1.06),
     originX: numberParam(effect.params.x, 0.5),
     originY: numberParam(effect.params.y, 0.5),
+    ...(easing ? { easing } : {}),
   };
 }
 

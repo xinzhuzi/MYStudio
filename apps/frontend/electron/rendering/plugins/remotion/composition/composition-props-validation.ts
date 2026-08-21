@@ -469,6 +469,9 @@ function validatePanZoom(value: unknown, path: string, issues: Issue[]): void {
       issues.push({ path: `${path}.${key}`, message: `${key} 必须位于 0..1` });
     }
   }
+  if (value.easing !== undefined && value.easing !== "cubic" && value.easing !== "spring") {
+    issues.push({ path: `${path}.easing`, message: "easing 必须是 cubic 或 spring" });
+  }
 }
 
 function validateSubtitle(value: unknown, path: string, issues: Issue[]): void {

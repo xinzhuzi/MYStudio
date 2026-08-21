@@ -29,7 +29,7 @@ export function VisualClip(props: CompositionVisualClipProps): React.ReactElemen
   const step = props.frameStep && props.frameStep > 1 ? props.frameStep : 1;
   const frame = Math.floor(rawFrame / step) * step;
   const panZoom = props.panZoom
-    ? panZoomAtFrame(frame, props.durationInFrames, props.panZoom)
+    ? panZoomAtFrame(frame, props.durationInFrames, props.panZoom, fps)
     : undefined;
   // 环境动画:sin/cos 周期运动叠加在 panZoom 缓动之上(频率按 composition 实际
   // fps 归一——旧硬编码 30 在非 30fps 渲染下频率失真,Child1 修复)

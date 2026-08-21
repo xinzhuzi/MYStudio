@@ -123,7 +123,7 @@ function StackedLayersClip(props: Required<Pick<LayeredVisualClipProps, "layerSt
               ...props.panZoom,
               fromScale: 1 + (props.panZoom.fromScale - 1) * damp,
               toScale: 1 + (props.panZoom.toScale - 1) * damp,
-            })
+            }, fps)
           : undefined;
         // clip 级 ambient 由 subject 层继承（旧二元组语义：主体独享环境动画）；
         // 层自带 ambient 优先,不双重施加。
@@ -193,7 +193,7 @@ function LegacyTwoLayerClip(props: {
   const bgDamp = 1 - 0.4 * parallax;
 
   const subjectPan = props.panZoom
-    ? panZoomAtFrame(frame, props.durationInFrames, props.panZoom)
+    ? panZoomAtFrame(frame, props.durationInFrames, props.panZoom, fps)
     : undefined;
   const backgroundPan = props.panZoom
     ? panZoomAtFrame(frame, props.durationInFrames, {
@@ -201,7 +201,7 @@ function LegacyTwoLayerClip(props: {
         // 折减围绕 1.0 收敛，保持首帧两层对齐（from=1 时背景不动）
         fromScale: 1 + (props.panZoom.fromScale - 1) * bgDamp,
         toScale: 1 + (props.panZoom.toScale - 1) * bgDamp,
-      })
+      }, fps)
     : undefined;
 
   const ambient = props.ambient

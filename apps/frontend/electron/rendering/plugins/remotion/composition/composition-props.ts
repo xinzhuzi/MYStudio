@@ -23,11 +23,13 @@ export interface CompositionTransform {
 
 // panZoom is expressed as an interpolation from a start to an end scale/origin,
 // matching the FFmpeg zoompan intent (design §6). origin values are 0..1.
+// easing 缺省 = cubic（历史行为）；"spring" = Remotion 原生弹性曲线（08-21 接入）。
 export interface CompositionPanZoom {
   fromScale: number;
   toScale: number;
   originX: number;
   originY: number;
+  easing?: "cubic" | "spring";
 }
 
 // ---------------------------------------------------------------------------
