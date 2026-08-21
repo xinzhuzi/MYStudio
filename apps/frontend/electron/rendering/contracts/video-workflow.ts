@@ -383,6 +383,11 @@ export const HYPERFRAMES_DECORATIVE_TEMPLATE_IDS = [
   "light-leak", "film-grain", "lens-flare", "vignette-pulse", "particle-dust", "letterbox-cinematic", "highlight-box",
   ...HY_EFFECTS_LOCAL_TEMPLATES,
 ] as const;
+// 08-21 hy-registry: hy:* 前缀走 Registry 路径(worker 从 assets 加载外部 HTML),
+// 不在静态白名单内——动态校验(worker 侧 loadRegistryTemplate fail-closed)。
+function isValidOverlayTemplateId(templateId: string): boolean {
+  return templateId.startsWith("hy:") || HYPERFRAMES_DECORATIVE_TEMPLATE_IDS.includes(templateId as typeof HYPERFRAMES_DECORATIVE_TEMPLATE_IDS[number]);
+}
 const PLUGIN_IDS: readonly VideoWorkflowPluginId[] = ["remotion", "video-use", "hyperframes", "seedance-prompt"];
 
 function issue(path: string, message: string): VideoWorkflowValidationIssue {
@@ -423,7 +428,7 @@ function validateOverlayDecision(value: Record<string, unknown>, path: string, i
     if (value.moodWord !== undefined && (typeof value.moodWord !== "string" || value.moodWord.length === 0)) issues.push(issue(`${path}.moodWord`, "moodWord 必须是非空字符串"));
     return;
   }
-  if (typeof value.templateId !== "string" || !HYPERFRAMES_DECORATIVE_TEMPLATE_IDS.includes(value.templateId as typeof HYPERFRAMES_DECORATIVE_TEMPLATE_IDS[number])) {
+  if (typeof value.templateId !== "string" || !isValidOverlayTemplateId(value.templateId)) {
     issues.push(issue(`${path}.templateId`, "装饰槽 templateId 必须是 HyperFrames 非文字模板"));
   }
   if (!isRecord(value.parameters)) issues.push(issue(`${path}.parameters`, "装饰槽必须携带 parameters 对象"));

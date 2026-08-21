@@ -17,6 +17,7 @@ import { UpscaleSettingsSection } from "./UpscaleSettingsSection";
 import { VideoQcSettingsSection } from "./VideoQcSettingsSection";
 import { LocalAudioSettingsSection } from "./LocalAudioSettingsSection";
 import { SfxGenSettingsSection } from "./SfxGenSettingsSection";
+import { HyperFramesRegistrySection } from "./HyperFramesRegistrySection";
 import { RenderingSettingsTab } from "./RenderingSettingsTab";
 
 const LocalTtsPanelLazy = lazy(() => import("@/components/panels/tts/LocalTtsPanel").then((module) => ({
@@ -291,6 +292,11 @@ export function PluginSettingsTab() {
               </div>
             </CollapsibleContent>
           </Collapsible>
+
+          {/* HyperFrames Registry 特效依赖(08-21) */}
+          <section aria-labelledby="plugin-hy-registry-heading" className="rounded-xl border border-border bg-card/30 px-5 py-4">
+            <HyperFramesRegistrySection userDataDir="" />
+          </section>
         </section>
 
         <section aria-labelledby="plugin-video-heading" className="rounded-xl border border-border bg-card/30">

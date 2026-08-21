@@ -332,7 +332,17 @@ def _mood_for_shot(request: dict[str, Any], shot_id: str) -> str | None:
 
 
 def _template_for_mood(mood_word: str | None, index: int) -> tuple[str, dict[str, str | int | float | bool]]:
+    # 08-21 hy-registry: 优先查 registry_decision 的情绪→大类→推荐模板
     if mood_word:
+        from .registry_decision import MOOD_CATEGORY_MAP, get_templates_by_category, is_full_frame
+        for keyword, category in MOOD_CATEGORY_MAP.items():
+            if keyword in mood_word:
+                # 从该大类找 overlay 兼容的(非全画面)
+                candidates = [t for t in get_templates_by_category(category) if not is_full_frame(t)]
+                if candidates:
+                    chosen = candidates[index % len(candidates)]
+                    return f"hy:{chosen['name']}", {}
+        # 本地 43 模板池 mood 规则
         for key, decision in MOOD_TEMPLATE_RULES.items():
             if key in mood_word:
                 template, base = decision
