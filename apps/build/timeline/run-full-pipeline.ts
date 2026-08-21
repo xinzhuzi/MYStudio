@@ -905,10 +905,12 @@ export async function runFullPipeline(): Promise<Record<string, unknown>> {
           | { chapterGrade?: { lutId?: unknown; blend?: unknown }; subtitleSfxEnabled?: unknown }
           | undefined;
         if (workflowConfig?.chapterGrade && typeof workflowConfig.chapterGrade.lutId === "string") {
-          const blendRaw = Number(workflowConfig.chapterGrade.blend ?? 0.5);
+          // 08-21 裁定：blend 透传 store 配置（0..1 合法域），代码不设审美上限；
+          // 「压低调色」由项目 store 不配 chapterGrade（AI 逐镜默认不调色）实现。
+          const blendRaw = Number(workflowConfig.chapterGrade.blend ?? 0.05);
           chapterGrade = {
             lutId: workflowConfig.chapterGrade.lutId,
-            blend: Number.isFinite(blendRaw) ? Math.min(1, Math.max(0, blendRaw)) : 0.5,
+            blend: Number.isFinite(blendRaw) ? Math.min(1, Math.max(0, blendRaw)) : 0.05,
           };
         }
         if (workflowConfig?.subtitleSfxEnabled === true) {

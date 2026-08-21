@@ -77,7 +77,9 @@ const ADDON_GUIDE: ReadonlyArray<{ id: ShotFxAddonId; when: string }> = [
   { id: "shake-hard", when: "明显震动（6px）——爆点、撞击、重击" },
   { id: "glow-warm", when: "暖调强辉光——灵光、焰火、神圣、仙气" },
   { id: "glow-dim", when: "暗调弱辉光——夜色、阴郁、神秘氛围" },
-  { id: "chroma", when: "RGB 色差分离——能量冲击、现实扭曲瞬间" },
+  // 08-21 用户裁定:chroma(RGB 色差)移出 AI 引导——渲染实现为全屏红/青
+  // 染色层(非边缘色差),大面积色彩叠加观感差,两次打回。能力保留在
+  // registry/SHOT_FX_ADDON_PRESETS,手动配置仍可用,AI 不再主动推荐。
 ];
 
 /** 成片调色 LUT 指南(08-19 裁定:AI 选卡集=32 张全中国风 cn-*;
