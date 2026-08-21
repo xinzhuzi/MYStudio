@@ -248,7 +248,7 @@ export class RemotionRenderWorker {
         codec: "h264",
         pixelFormat: "yuv420p",
         audioCodec: "aac",
-        timeoutInSeconds: 300,
+        timeoutInMilliseconds: 300_000,
         browserExecutable: (input.hardwareRendering ? detectSystemChrome() : null) ?? input.browserExecutable,
         binariesDirectory: input.binariesDirectory,
         chromeMode: "headless-shell",
