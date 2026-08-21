@@ -9,6 +9,7 @@ import "@fontsource/long-cang/400.css";
 import "@fontsource/liu-jian-mao-cao/400.css";
 import "lxgw-wenkai-webfont/lxgwwenkai-regular.css";
 import { Button } from "@/components/ui/button";
+import { HyperFramesRegistrySection } from "./HyperFramesRegistrySection";
 import { Switch } from "@/components/ui/switch";
 import {
   Select,
@@ -369,6 +370,9 @@ export function RenderingSettingsTab({ embedded = false }: RenderingSettingsTabP
                         </div>
                       ) : null)}
                     </dl>
+                  ) : null}
+                  {definition.id === "hyperframes" ? (
+                    <HyperFramesRegistrySection />
                   ) : null}
                   {definition.id === "remotion" ? (
                     <div className="space-y-4 border-t border-border pt-4">
