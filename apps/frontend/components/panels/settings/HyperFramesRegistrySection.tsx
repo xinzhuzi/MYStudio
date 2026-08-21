@@ -51,7 +51,7 @@ export function HyperFramesRegistrySection(): React.ReactElement {
           )}
           <span className="text-foreground font-medium">GitHub Registry 特效依赖</span>
           <span className="text-muted-foreground">
-            {status ? `${status.installedCount}/${status.totalCount}` : "373 个模板"}
+            {status ? `${status.installedCount}/${status.totalCount}` : "370 个模板"}
             {status?.installed ? " 已就绪" : " 未下载"}
           </span>
         </div>
@@ -73,7 +73,7 @@ export function HyperFramesRegistrySection(): React.ReactElement {
         </div>
       </div>
       <p className="text-[10px] leading-4 text-muted-foreground">
-        373 个 GitHub 特效模板的离线依赖(GSAP/Three.js/D3/字体);下载到 hyperframes-registry-deps/;
+        370 个 GitHub 特效模板的离线依赖(GSAP/Three.js/D3/字体);下载到 hyperframes-registry-deps/;
         已有 43 个本地模板无需下载即可使用。
       </p>
     </div>

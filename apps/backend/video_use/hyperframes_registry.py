@@ -1,6 +1,6 @@
 """HyperFrames GitHub Registry 模板池(08-21 全量接入,动态构建).
 
-从 catalog.json 单源动态加载(不硬编码);373 个模板(154 blocks + 219 components)。
+从 catalog.json 单源动态加载(不硬编码);370 个模板(151 blocks + 219 components;3D 设备 3 个已剔除)。
 """
 from __future__ import annotations
 

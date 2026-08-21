@@ -20,9 +20,7 @@ const CDN_TO_LOCAL: Record<string, string> = {
   "https://cdn.jsdelivr.net/npm/three@0.147.0/build/three.min.js": "three/0.147.0/three.min.js",
   "https://cdn.jsdelivr.net/npm/three@0.184.0/build/three.module.js": "three/0.184.0/three.module.js",
   "https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js": "three/r128/three.min.js",
-  // Three.js loaders/postprocessing
-  "https://cdn.jsdelivr.net/npm/three@0.147.0/examples/js/loaders/DRACOLoader.js": "three/0.147.0/DRACOLoader.js",
-  "https://cdn.jsdelivr.net/npm/three@0.147.0/examples/js/loaders/GLTFLoader.js": "three/0.147.0/GLTFLoader.js",
+  // Three.js loaders/postprocessing(DRACO/GLTFLoader 已随 3D 设备模板剔除,08-21 裁定)
   "https://cdn.jsdelivr.net/npm/three@0.147.0/examples/js/postprocessing/EffectComposer.js": "three/0.147.0/EffectComposer.js",
   "https://cdn.jsdelivr.net/npm/three@0.147.0/examples/js/postprocessing/RenderPass.js": "three/0.147.0/RenderPass.js",
   "https://cdn.jsdelivr.net/npm/three@0.147.0/examples/js/postprocessing/ShaderPass.js": "three/0.147.0/ShaderPass.js",
@@ -33,13 +31,10 @@ const CDN_TO_LOCAL: Record<string, string> = {
   "https://cdn.jsdelivr.net/npm/d3@7/dist/d3.min.js": "d3/7/d3.min.js",
   // TopoJSON
   "https://cdn.jsdelivr.net/npm/topojson-client@3.1.0/dist/topojson-client.min.js": "topojson-client/3.1.0/topojson-client.min.js",
-  // Atlas data
+  // Atlas data(模板只用 .json;.js 变体在 CDN 上不存在或无引用,已剔)
   "https://cdn.jsdelivr.net/npm/us-atlas@3/states-10m.json": "us-atlas/3/states-10m.json",
-  "https://cdn.jsdelivr.net/npm/us-atlas@3/states-10m.js": "us-atlas/3/states-10m.js",
   "https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json": "world-atlas/2/countries-110m.json",
-  "https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.js": "world-atlas/2/countries-110m.js",
   "https://cdn.jsdelivr.net/npm/es-atlas@0.6.0/es/autonomous_regions.json": "es-atlas/0.6.0/autonomous_regions.json",
-  "https://cdn.jsdelivr.net/npm/es-atlas@0.6.0/es/autonomous_regions.js": "es-atlas/0.6.0/autonomous_regions.js",
   // Font woff2
   "https://cdn.jsdelivr.net/npm/@fontsource-variable/roboto-flex@5.2.8/files/roboto-flex-latin-standard-normal.woff2": "fonts/roboto-flex/roboto-flex-latin-standard-normal.woff2",
 };

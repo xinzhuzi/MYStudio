@@ -92,7 +92,7 @@ const LUT_GUIDE: ReadonlyArray<{ id: string; when: string }> = CINEMATIC_LUTS
 const ATMOSPHERE_GUIDE: ReadonlyArray<{ id: AtmosphereTemplateId; when: string }> = ATMOSPHERE_TEMPLATES
   .map((template) => ({ id: template.id, when: template.description }));
 
-/** GitHub Registry 特效模板(08-21 全量接入):AI 可选 373 个 HTML 特效。
+/** GitHub Registry 特效模板(08-21 全量接入):AI 可选 370 个 HTML 特效。
  * 按 8 大类精选展示(每类前 5),全量 ID 在 HYPERFRAMES_REGISTRY_TEMPLATE_IDS。 */
 const REGISTRY_GUIDE: ReadonlyArray<{ id: string; when: string }> = (() => {
   const cats = ["transition", "vfx", "particle", "caption", "light"] as const;
@@ -130,9 +130,9 @@ ${lutGuide}
 氛围层——多层合成的前景遮挡/粒子（每镜可选 0~2 个；只给氛围强烈的镜配，安静镜与对白密集镜省略；雾带与薄纱雾不同镜选；克制使用防全片弥漫）：
 ${atmoGuide}
 
-GitHub Registry 特效模板（373 个 HTML 特效可选；hy: 前缀；每镜最多选 1 个；只在有强烈视觉需求时选，多数镜省略）：
+GitHub Registry 特效模板（370 个 HTML 特效可选；hy: 前缀；每镜最多选 1 个；只在有强烈视觉需求时选，多数镜省略）：
 ${REGISTRY_GUIDE.map((g) => `- ${g.id}: ${g.when}`).join("\n")}
-（以上为精选示例,完整列表含 373 个模板——transition/vfx/particle/caption/text-motion/camera/light/motion-gfx 八大类）
+（以上为精选示例,完整列表含 370 个模板——transition/vfx/particle/caption/text-motion/camera/light/motion-gfx 八大类）
 
 镜间转场（为每个镜头决定「本镜结束进入下一镜」的转场方式，最后一镜省略；结合相邻两镜剧情连续性与情绪落差选择档位；默认 cut=同场景延续，多数边界应是 cut 或省略）：
 ${transitionGuide}
