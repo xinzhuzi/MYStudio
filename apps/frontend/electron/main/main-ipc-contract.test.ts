@@ -90,6 +90,7 @@ move-image
 music3-gen-install-mlxserve
 music3-gen-install-weights
 music3-gen-music-dir
+music3-gen-read-audio-file
 music3-gen-runtime-configure
 music3-gen-runtime-download-model
 music3-gen-runtime-generate

@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
-import { ChevronRight, FolderOpen, Info, Music2, Settings2, Sparkles, TriangleAlert, Loader2 } from "lucide-react";
+import { AudioWaveform, ChevronRight, FolderOpen, Info, Music2, Settings2, Sparkles, TriangleAlert, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { Alert } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -18,6 +18,13 @@ import { Textarea } from "@/components/ui/textarea";
 import { useMediaPanelStore } from "@/stores/navigation/media-panel-store";
 import { buildStructuredCaption, MUSIC_STYLE_RECIPES, SEC_PER_LINE } from "@/lib/studio/music-caption";
 import { buildLyricMessages, parseLyricsDraft } from "@/lib/studio/song-lyrics";
+import {
+  buildAnalysisMessages,
+  decodeAudioFileBytes,
+  extractAudioFeatures,
+  extractStylePhrases,
+  parseAnalysisDraft,
+} from "@/lib/studio/music-analysis";
 import { aiManager } from "@/lib/ai/ai-manager";
 import { MUSIC3_MAX_DURATION_S, MUSIC3_MIN_DURATION_S } from "@/types/music3-gen";
 import type { Music3GenRuntimeStatus } from "@/types/music3-gen";
@@ -25,6 +32,8 @@ import type { Music3GenRuntimeStatus } from "@/types/music3-gen";
 interface Music3TabBridge {
   status: () => Promise<Music3GenRuntimeStatus>;
   musicDir: (projectId: string) => Promise<{ dir?: string; error?: string }>;
+  /** AI 参照曲解析:受管路径守卫的音频字节读取(managed-paths,仅对话框祝福/受管根内)。 */
+  readAudioFile: (filePath: string) => Promise<{ bytes?: Uint8Array; size?: number; error?: string }>;
   generate: (payload: {
     prompt: string;
     lyrics?: string;
@@ -82,6 +91,9 @@ export function MusicTab(props: { projectId?: string; projectName: string }) {
   const [generating, setGenerating] = useState(false);
   const [startedAt, setStartedAt] = useState<number | null>(null);
   const [results, setResults] = useState<GeneratedSong[]>([]);
+  const [refPath, setRefPath] = useState("");
+  const [analyzing, setAnalyzing] = useState(false);
+  const [analysis, setAnalysis] = useState("");
 
   useEffect(() => {
     let cancelled = false;
@@ -169,6 +181,66 @@ export function MusicTab(props: { projectId?: string; projectName: string }) {
       setWritingLyrics(false);
     }
   }, [goToSettings, lyricReference, lyricTheme, recipeKey, seconds]);
+
+  const handleBrowseRefAudio = useCallback(async () => {
+    const picked = await window.studioAssets?.selectAudioFile();
+    if (picked) setRefPath(picked);
+  }, []);
+
+  const handleAnalyzeReference = useCallback(async () => {
+    if (!bridge) {
+      toast.error("本地音频读取仅在桌面应用中可用");
+      return;
+    }
+    const target = refPath.trim();
+    if (!target) {
+      toast.error("请先填写或浏览选择参照曲路径");
+      return;
+    }
+    if (!aiManager.resolve({ agent: "universalAi" })) {
+      toast.error("云端 AI 未配置,无法 AI 解析。请前往 设置 → 云端AI 配置后重试", {
+        action: { label: "去设置", onClick: goToSettings },
+      });
+      return;
+    }
+    setAnalyzing(true);
+    try {
+      const reply = await bridge.readAudioFile(target);
+      if (reply.error || !reply.bytes) throw new Error(reply.error || "读取音频失败");
+      const audio = await decodeAudioFileBytes(reply.bytes);
+      const features = extractAudioFeatures(audio);
+      const messages = buildAnalysisMessages({
+        fileName: target.substring(target.lastIndexOf("/") + 1) || target,
+        features,
+      });
+      const result = await aiManager.text({
+        binding: { agent: "universalAi" },
+        messages: [
+          { role: "system", content: messages.system },
+          { role: "user", content: messages.user },
+        ],
+        temperature: 0.4,
+        maxTokens: 3000,
+      });
+      if (!result.success || !result.text) throw new Error(result.error || "AI 解析失败");
+      setAnalysis(parseAnalysisDraft(result.text));
+      toast.success("解析完成:六维度风格 DNA 已生成,可审阅后一键填入描述");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "AI 解析失败");
+    } finally {
+      setAnalyzing(false);
+    }
+  }, [bridge, goToSettings, refPath]);
+
+  const handleApplyAnalysis = useCallback(() => {
+    const phrases = extractStylePhrases(analysis);
+    if (!phrases) {
+      toast.error("解析结果里没有【风格短语】段,请手动摘抄后填入描述");
+      return;
+    }
+    setPrompt(phrases);
+    toast.success("已填入音乐描述");
+  }, [analysis]);
 
   const handleGenerate = useCallback(async () => {
     if (!bridge || !props.projectId) {
@@ -457,6 +529,65 @@ export function MusicTab(props: { projectId?: string; projectName: string }) {
               </div>
             </>
           ) : null}
+
+          {/* AI 解析参照曲:本地实测信号特征,云端 LLM 按技能资产(assets/minimax/musical-dna)出六维度 DNA */}
+          <details className="group rounded-xl border border-border/60 bg-muted/25 transition-colors hover:border-border">
+            <summary className="flex cursor-pointer select-none list-none items-center gap-2.5 px-4 py-3 text-sm font-medium text-foreground [&::-webkit-details-marker]:hidden">
+              <ChevronRight
+                className="h-4 w-4 shrink-0 text-muted-foreground transition-transform duration-200 motion-reduce:transition-none group-open:rotate-90"
+                aria-hidden
+              />
+              <span className="shrink-0">AI 解析参照曲</span>
+              <span className="min-w-0 truncate text-xs font-normal text-muted-foreground">
+                本地实测 BPM/响度/能量轨迹,云端 LLM 按六维度技能出风格 DNA
+              </span>
+              <span className="ml-auto shrink-0 text-[11px] font-normal text-muted-foreground/70 group-open:hidden">展开</span>
+            </summary>
+            <div className="space-y-3 border-t border-border/50 px-4 pb-4 pt-3.5">
+              <div className="space-y-1.5">
+                <Label htmlFor="music-ref-path" className="text-xs text-muted-foreground">参照曲路径(必填)</Label>
+                <div className="flex gap-2">
+                  <Input
+                    id="music-ref-path"
+                    value={refPath}
+                    onChange={(event) => setRefPath(event.currentTarget.value)}
+                    placeholder="/Users/…/reference.mp3(mp3/flac/m4a/wav 等本地音频)"
+                    className="h-9 min-w-0 flex-1 font-mono text-xs"
+                    disabled={analyzing}
+                  />
+                  <Button size="sm" variant="outline" className="h-9 shrink-0" disabled={analyzing} onClick={() => void handleBrowseRefAudio()}>
+                    <FolderOpen className="mr-1.5 h-3.5 w-3.5" aria-hidden />
+                    浏览
+                  </Button>
+                </div>
+              </div>
+              <div className="flex flex-wrap items-center gap-3">
+                <Button size="sm" variant="outline" onClick={() => void handleAnalyzeReference()} disabled={analyzing || !refPath.trim()}>
+                  {analyzing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden /> : <AudioWaveform className="mr-2 h-4 w-4" aria-hidden />}
+                  {analyzing ? "解析中…" : "AI 解析"}
+                </Button>
+                <p className="text-xs text-muted-foreground">读本地文件、测特征仅数秒;云端 LLM 按六维度技能产出风格 DNA</p>
+              </div>
+              {analysis ? (
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between gap-2">
+                    <Label htmlFor="music-analysis" className="text-xs text-muted-foreground">解析结果(可编辑)</Label>
+                    <Button size="sm" variant="ghost" className="h-7 px-2" onClick={handleApplyAnalysis}>
+                      <Sparkles className="mr-1 h-3.5 w-3.5" aria-hidden />
+                      填入描述
+                    </Button>
+                  </div>
+                  <Textarea
+                    id="music-analysis"
+                    value={analysis}
+                    onChange={(event) => setAnalysis(event.currentTarget.value)}
+                    rows={12}
+                    className="resize-y text-xs leading-5"
+                  />
+                </div>
+              ) : null}
+            </div>
+          </details>
 
           <div className="space-y-2">
             <Label htmlFor="music-prompt" className="text-sm font-medium">
