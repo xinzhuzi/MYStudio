@@ -143,6 +143,31 @@ describe("selectShotFxMotions", () => {
     expect(textMock).toHaveBeenCalledOnce();
   });
 
+  it("依赖未就绪时 prompt 隐藏 registry 模板段（08-22 AI 感知依赖）", async () => {
+    textMock.mockResolvedValue({
+      success: true,
+      text: '{"shots": [{"shotId": "s1", "motion": "punch-in"}, {"shotId": "s2", "motion": "drift"}, {"shotId": "s3", "motion": "tilt-up"}]}',
+    });
+    const g = globalThis as { electronAPI?: unknown };
+    const previous = g.electronAPI;
+    g.electronAPI = {
+      hyperFramesRegistryDepsCheck: async () => ({ installed: false, installedCount: 16, totalCount: 31, missingPaths: [] }),
+    };
+    try {
+      const result = await selectShotFxMotions(SHOTS);
+      expect(result.source).toBe("ai");
+      const prompt = (textMock.mock.calls[0]?.[0] as { messages?: Array<{ content: string }> })?.messages?.[1]?.content ?? "";
+      expect(prompt).not.toContain("GitHub Registry");
+      expect(prompt).not.toContain("hy:");
+    } finally {
+      if (previous === undefined) {
+        delete g.electronAPI;
+      } else {
+        g.electronAPI = previous;
+      }
+    }
+  });
+
   it("AI 失败时回落启发式（source=heuristic，不抛错，无插件配置走配方默认）", async () => {
     textMock.mockResolvedValue({ success: false, error: "未配置 AI" });
     const result = await selectShotFxMotions(SHOTS);

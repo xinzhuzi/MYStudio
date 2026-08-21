@@ -216,5 +216,7 @@ export async function downloadRegistryDeps(
       failed.push(dep.localPath);
     }
   }
+  // 下载成功即落 .ready(不依赖调用方再触发 check;AI 门控据此放开 hy: 模板)
+  refreshReadyMarker(depsDir, failed.length === 0);
   return { success: failed.length === 0, downloaded, failed };
 }

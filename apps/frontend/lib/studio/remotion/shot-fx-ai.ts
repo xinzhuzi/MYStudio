@@ -293,7 +293,11 @@ export async function selectShotFxMotions(
   // 依赖未就绪时对 AI 隐藏 registry 模板段(选了也会在渲染时降级丢弃,不如不选)
   let registryAvailable = true;
   try {
-    const check = await window.electronAPI?.hyperFramesRegistryDepsCheck?.();
+    // 经 globalThis 取桥:渲染进程 window 即全局对象,node 测试环境可注入
+    const bridge = (globalThis as {
+      electronAPI?: { hyperFramesRegistryDepsCheck?: () => Promise<{ installed: boolean }> };
+    }).electronAPI;
+    const check = await bridge?.hyperFramesRegistryDepsCheck?.();
     if (check && typeof check.installed === "boolean") registryAvailable = check.installed;
   } catch {
     // IPC 不可用(测试/非 Electron 宿主)保持原状
