@@ -200,13 +200,14 @@ Report fresh evidence only:
 
 ---
 
-## 现行视频工作流事实（2026-08-14 起）
+## 现行视频工作流事实（2026-08-22 起）
 
 唯一正式链路（所有验证以此为准）：
 
 1. `npm run remotion:chapter001:shots`（`render-shot-slots.ts`）— 43 镜 StoryboardShot MP4，**TTS 配音烘进每镜**（经 `bind-voice-audio.ts` + `update-storyboards-voice.ts` 完成 manifest/storyboard 绑定后重渲生效）。门禁开关：`MYSTUDIO_REQUIRE_HUMAN_APPROVAL=0`、`MYSTUDIO_CONTINUITY_POLICY=skip`（测试用途；正式发布仍需人工批准）。
-2. `npm run video:full-pipeline`（`run-full-pipeline.ts`）— video-use runChapter → accept → applyAcceptedArtifact（HyperFrames 透明特效层）→ chapter gate → 字幕归属校验（道劫 chapter-001 为 source-embedded：分镜图内嵌字幕，HyperFrames 禁文字模板、Remotion text clip=0）→ ChapterVideo 渲染。
+2. `npm run video:full-pipeline`（`run-full-pipeline.ts`）— Depth 首镜真实推理 preflight（在任何 project revision 写入前）→ video-use runChapter → accept → applyAcceptedArtifact（HyperFrames 透明特效层）→ chapter gate → 字幕归属校验（正式权威为 **clean-remotion**：执行时显式 `MYSTUDIO_SUBTITLE_AUTHORITY=clean-remotion`，Remotion SubtitleTrack 燃嵌 50 条句级 cue、text clip=50；旧 `source-embedded` 仅作 runner 默认兜底，非当前正式事实）→ `MYSTUDIO_CINEMATIC=1` 时 43 镜逐镜 Depth evidence 注入 cinematic config → ChapterVideo 渲染 → `chapter-video-evidence.json`/`editing-project.json`/`final-output-qc-expected.json` 随 run 落盘。
+   - HyperFrames worker 稳定副本：`MYSTUDIO_HYPERFRAMES_WORKER=apps/.cache/hyperframes-worker.cjs`（esbuild 自包含 bundle；`apps/out/main/` 产物会被并行构建清掉）。worker 失败单次 fail-closed，不删 artifact/不同路径重跑。
 
 已删除的旧入口（不要再引用）：`render-remotion-timeline.ts`、`render-editing-timeline.ts`、`render-derived-chapter.ts`、`video:chapter001:remotion`。旧 `MYSTUDIO_CHAPTER_VIDEO_*` 环境变量已改名 `MYSTUDIO_*`（项目专属的仅存于 `apps/build/chapter_video/`）。
 
-完整性断言清单需覆盖：accepted video-use artifact（43 EDL）、accepted HyperFrames artifact（43 窗口、无文字模板）、gate accepted、authority source-embedded、voice binding 烘进 shot MP4（抽镜 volumedetect 非静音）。
+完整性断言清单需覆盖：accepted video-use artifact（43 EDL）、accepted HyperFrames artifact（windows>0、无文字模板）、gate accepted、authority **clean-remotion**（subtitles=50）、`MYSTUDIO_CINEMATIC=1` 时 Depth enabled 且 43 条 evidence、voice binding 烘进 shot MP4（抽镜 volumedetect 非静音）。

@@ -83,8 +83,11 @@ import { extractFirstFrame } from "../remotion/extract-frame";
 import {
   buildFullPipelineCinematicDepthReport,
   buildFullPipelineDepthEvidence,
+  resolveFullPipelineDepthModelDir,
+  runFullPipelineDepthPreflight,
   type FullPipelineCinematicDepthEvidenceRecord,
 } from "./full-pipeline-depth-evidence";
+import { buildFullPipelineRunEvidence } from "./full-pipeline-run-evidence";
 
 const remotionVersion = "4.0.499";
 const appsRoot = path.resolve(new URL("../..", import.meta.url).pathname);
@@ -552,10 +555,11 @@ export async function runFullPipeline(): Promise<Record<string, unknown>> {
   const cinematicEnabled = process.env.MYSTUDIO_CINEMATIC === "1";
   const cinematicPreset: CinematicCameraPreset =
     (process.env.MYSTUDIO_CINEMATIC_PRESET as CinematicCameraPreset | undefined) ?? "cinematic-dolly-in";
-  if (cinematicEnabled && !process.env.MYSTUDIO_DEPTH_MODEL_DIR?.trim()) {
-    // CLI 侧模型目录契约对齐 depth-runtime-controller（App 主进程恒设此变量；
-    // buildDepthWorkerEnv 透传 process.env，worker 据此定位 <userData>/DeepModel 缓存）
-    process.env.MYSTUDIO_DEPTH_MODEL_DIR = path.join(userDataDir, "DeepModel");
+  if (cinematicEnabled) {
+    process.env.MYSTUDIO_DEPTH_MODEL_DIR = resolveFullPipelineDepthModelDir({
+      storageBasePath,
+      explicitModelDir: process.env.MYSTUDIO_DEPTH_MODEL_DIR,
+    });
   }
   const depthAdapter = cinematicEnabled
     ? createDepthAdapter({
@@ -601,6 +605,30 @@ export async function runFullPipeline(): Promise<Record<string, unknown>> {
   })();
   const shotInputs = await buildShotInputs(projectDir, projectId, chapterId, shotSlots, r2RunPath);
   console.log("[full-pipeline] shot inputs built:", shotInputs.length, "shots");
+
+  // Real inference must succeed before video-use, review, EditingProject, or
+  // HyperFrames can create a project-scoped revision. The timestamped run root
+  // retains the frame, depth PNG, worker artifact, and byte-bound receipt.
+  const firstShotInput = shotInputs[0];
+  const depthPreflight = cinematicEnabled && depthAdapter && firstShotInput
+    ? await runFullPipelineDepthPreflight({
+        projectId,
+        shotId: firstShotInput.shotId,
+        shotVideoPath: firstShotInput.videoPath,
+        preset: cinematicPreset,
+        preflightRoot: path.join(outputDir, "depth-preflight"),
+        extractFrame: async (inputVideoPath, outputImagePath) =>
+          extractFirstFrame(toolchain.ffmpegExecutable, inputVideoPath, outputImagePath),
+        estimateDepth: depthAdapter.estimateDepth,
+        hashFile: hashFileSha256,
+      })
+    : null;
+  if (cinematicEnabled && !depthPreflight) {
+    throw new Error("depth-preflight-input-missing: first current shot slot unavailable");
+  }
+  if (depthPreflight) {
+    console.log("[full-pipeline] Depth preflight ACCEPTED:", depthPreflight.reportPath);
+  }
 
   // ── 8. Determine next revision dynamically ──
   // Check what's already on disk: editing.json + video-use workspace
@@ -874,15 +902,7 @@ export async function runFullPipeline(): Promise<Record<string, unknown>> {
     }),
   };
   console.log("[full-pipeline] applying accepted artifact (calls HyperFrames)...");
-  // 管线内 overlay worker 偶发信号级死亡(无 blocked artifact,手动重跑必成,机理未明)——
-  // 清掉半成品 managed output 后重试 apply(仅重渲 overlay,python 结果复用)。
-  let applyResult = await chapterService.applyAcceptedArtifact(applyInput);
-  for (let attempt = 1; attempt <= 2 && !applyResult.success; attempt++) {
-    console.warn(`[full-pipeline] apply 失败(${applyResult.code}),${attempt}/2 重试(清 overlay 半成品)`);
-    const revDir = path.join(hyperFramesWorkspaceRootForProject(projectId), chapterId, `r${nextRevision}`);
-    fs.rmSync(revDir, { recursive: true, force: true });
-    applyResult = await chapterService.applyAcceptedArtifact(applyInput);
-  }
+  const applyResult = await chapterService.applyAcceptedArtifact(applyInput);
   if (!applyResult.success) {
     throw new Error(`applyAcceptedArtifact 失败: ${applyResult.code} — ${applyResult.message}`);
   }
@@ -1356,6 +1376,50 @@ export async function runFullPipeline(): Promise<Record<string, unknown>> {
       const expectedDuration = composition.durationInFrames / composition.fps;
       assertRenderedMediaEvidence({ label: "Daojie Full Pipeline", probe, expectedDuration, fps: composition.fps, width: plan.renderSettings.width, height: plan.renderSettings.height });
       const sha256 = await hashFileSha256(outputPath);
+      const outputStat = fs.statSync(outputPath);
+      const inputManifestPath = path.join(outputDir, "input-manifest.json");
+      const timelineRenderPlanPath = path.join(outputDir, "timeline-render-plan.json");
+      const editingSnapshotPath = path.join(outputDir, "editing-project.json");
+      const chapterEvidencePath = path.join(remotionOutputDir, "chapter-video-evidence.json");
+      const finalQcExpectedPath = path.join(outputDir, "final-output-qc-expected.json");
+      writeVideoWorkflowJson(inputManifestPath, {
+        schemaVersion: 1,
+        projectId,
+        chapterId,
+        revision: nextRevision,
+        gateInput,
+        chapterManifest,
+        currentShotSlots: shotSlots,
+      });
+      writeVideoWorkflowJson(timelineRenderPlanPath, plan);
+      writeVideoWorkflowJson(editingSnapshotPath, projectedProject);
+      const runEvidence = await buildFullPipelineRunEvidence({
+        projectId,
+        chapterId,
+        editingProjectId: projectedProject.id,
+        editingRevision: projectedProject.revision,
+        mode: acceptedArtifact.mode,
+        renderInputSha256: gateInput.inputSha256,
+        videoUseInputSha256: acceptedArtifact.evidence.inputSha256,
+        bundleContentHash: manifest.contentHash,
+        templateVersion: manifest.templateVersion,
+        remotionVersion,
+        renderSettings: plan.renderSettings,
+        expectedDurationS: expectedDuration,
+        runRoot: outputDir,
+        outputPath,
+        inputManifestPath,
+        renderPlanPath: timelineRenderPlanPath,
+        snapshotPath: editingSnapshotPath,
+        outputSizeBytes: outputStat.size,
+        outputMtimeMs: outputStat.mtimeMs,
+        outputSha256: sha256,
+        probe,
+        startedAt: renderStartedAt,
+        completedAt: Date.now(),
+      });
+      writeVideoWorkflowJson(chapterEvidencePath, runEvidence.evidence);
+      writeVideoWorkflowJson(finalQcExpectedPath, runEvidence.expected);
 
       const report = {
         ok: true,
@@ -1363,26 +1427,35 @@ export async function runFullPipeline(): Promise<Record<string, unknown>> {
         pipeline: "video-use adapter.runChapter → accept → applyAcceptedArtifact (HyperFrames) → gate → authority → buildChapterVideoCompositionProps → renderMedia",
         renderer: { requested: "remotion", actual: "remotion", version: remotionVersion, bundleVersion: manifest.contentHash },
         videoUse: {
+          artifactPath: applyResult.videoUseArtifactPath,
           revision: nextRevision,
           status: acceptedArtifact.status, stage: acceptedArtifact.stage, mode: acceptedArtifact.mode,
           alignmentCount: acceptedArtifact.alignment.length, edlCount: acceptedArtifact.edl.length,
           subtitleCount: acceptedArtifact.subtitles.length, overlaySlotCount: acceptedArtifact.overlaySlots.length,
           selfEvalPassed: acceptedArtifact.selfEval.passed, selfEvalScore: acceptedArtifact.selfEval.score,
         },
-        hyperFrames: { status: applyResult.hyperFramesArtifact.status, windowCount: applyResult.hyperFramesArtifact.windows.length },
+        hyperFrames: { artifactPath: applyResult.hyperFramesArtifactPath, status: applyResult.hyperFramesArtifact.status, windowCount: applyResult.hyperFramesArtifact.windows.length },
         gate: { accepted: true, videoUseArtifactSha256: gateResult.videoUseArtifactSha256, hyperFramesOutputPath: gateResult.hyperFramesOutputPath ?? "(noop)" },
         authority: { mode: subtitleAuthority.mode, passed: true, suppressedCueIds: authorityValidation.success ? authorityValidation.suppressedCueIds.size : 0 },
         cinematicDepth: buildFullPipelineCinematicDepthReport({
           enabled: cinematicEnabled,
           evidence: cinematicEvidence,
         }),
+        depthPreflight: depthPreflight?.report ?? null,
         composition: { visualClips: props.visualClips.length, subtitles: props.subtitles.length, audioClips: props.audioClips.length, overlayClips: props.overlayClips?.length ?? 0 },
-        output: { path: outputPath, sizeBytes: fs.statSync(outputPath).size, sha256, duration: probe.duration, width: probe.width, height: probe.height, streams: probe.streams },
+        output: { path: outputPath, sizeBytes: outputStat.size, sha256, duration: probe.duration, width: probe.width, height: probe.height, streams: probe.streams },
+        evidence: {
+          inputManifestPath,
+          timelineRenderPlanPath,
+          editingSnapshotPath,
+          chapterEvidencePath,
+          finalQcExpectedPath,
+          chapterJobId: runEvidence.evidence.jobId,
+        },
         editingProject: { id: projectedProject.id, revision: projectedProject.revision, clips: projectedProject.clips.length, subtitleMode: projectedProject.renderSettings.subtitleMode },
         renderDuration: (Date.now() - renderStartedAt) / 1000,
       };
       fs.writeFileSync(path.join(remotionOutputDir, "report.json"), `${JSON.stringify(report, null, 2)}\n`, "utf8");
-      fs.writeFileSync(path.join(outputDir, "timeline-render-plan.json"), `${JSON.stringify(plan, null, 2)}\n`, "utf8");
       process.stdout.write(`${JSON.stringify(report, null, 2)}\n`);
       return report;
     } finally {

@@ -254,6 +254,57 @@ describe("HyperFrames adapter", () => {
     expect(adapter.paths.electronExecutable).toBe(electronExecutable);
   });
 
+  it("preserves first-failure evidence and never reruns the worker in the same revision", async () => {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), "mystudio-hyperframes-worker-failure-"));
+    const workerPath = path.join(root, "hyperframes-worker.cjs");
+    const browserPath = path.join(root, "chrome-headless-shell");
+    const electronExecutable = path.join(root, "electron");
+    const workspaceRoot = path.join(root, "workspace");
+    const revisionDir = path.join(workspaceRoot, "chapter-1", "r1");
+    const artifactPath = path.join(revisionDir, "hyperframes-artifact.json");
+    const managedOutputPath = path.join(revisionDir, "hyperframes-overlay.mov");
+    await Promise.all([
+      fs.writeFile(workerPath, "worker", "utf8"),
+      fs.writeFile(browserPath, "browser", "utf8"),
+      fs.writeFile(electronExecutable, "electron", "utf8"),
+    ]);
+    let workerCalls = 0;
+    const adapter = createHyperFramesAdapter({
+      storageBasePath: root,
+      electronExecutable,
+      workspaceRootForProject: () => workspaceRoot,
+      workerPath,
+      resolveBrowserPath: async () => browserPath,
+      probeRuntime: async (paths) => ({ state: "ready", paths, missing: [], versions: {} }),
+      execFile: async () => {
+        workerCalls += 1;
+        if (workerCalls === 1) {
+          await fs.writeFile(managedOutputPath, "partial-overlay", "utf8");
+          await fs.writeFile(artifactPath, '{"status":"blocked","diagnostic":"first failure"}', "utf8");
+        }
+        throw new Error(`worker failed ${workerCalls}`);
+      },
+    });
+
+    await expect(adapter.renderOverlay({
+      schemaVersion: 1,
+      projectId: "project-1",
+      chapterId: "chapter-1",
+      revision: 1,
+      sourceArtifactSha256: hash,
+      inputSha256: hash,
+      width: 1920,
+      height: 1080,
+      fps: 30,
+      alphaFormat: "prores-4444-mov",
+      outputPath: managedOutputPath,
+      windows: [{ slotId: "title", cueId: "cue-1", startUs: 0, durationUs: 1_000_000, templateId: "title-card", parameters: {} }],
+    })).resolves.toMatchObject({ state: "blocked", code: "worker-failed", artifactPath });
+    expect(workerCalls).toBe(1);
+    await expect(fs.readFile(managedOutputPath, "utf8")).resolves.toBe("partial-overlay");
+    await expect(fs.readFile(artifactPath, "utf8")).resolves.toContain("first failure");
+  });
+
   it("does not accept output when the managed revision directory becomes a symlink after worker launch", async () => {
     const root = await fs.mkdtemp(path.join(os.tmpdir(), "mystudio-hyperframes-post-swap-"));
     const workerPath = path.join(root, "hyperframes-worker.cjs");

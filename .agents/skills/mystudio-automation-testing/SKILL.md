@@ -179,13 +179,15 @@ Keep the final report short and evidence-based:
 
 ---
 
-## 现行视频工作流事实（2026-08-14 起）
+## 现行视频工作流事实（2026-08-22 起）
 
 唯一正式链路（所有验证以此为准）：
 
 1. `npm run remotion:chapter001:shots`（`render-shot-slots.ts`）— 43 镜 StoryboardShot MP4，**TTS 配音烘进每镜**（经 `bind-voice-audio.ts` + `update-storyboards-voice.ts` 完成 manifest/storyboard 绑定后重渲生效）。门禁开关：`MYSTUDIO_REQUIRE_HUMAN_APPROVAL=0`、`MYSTUDIO_CONTINUITY_POLICY=skip`（测试用途；正式发布仍需人工批准）。
-2. `npm run video:full-pipeline`（`run-full-pipeline.ts`）— video-use runChapter → accept → applyAcceptedArtifact（HyperFrames 透明特效层）→ chapter gate → 字幕归属校验（道劫 chapter-001 为 source-embedded：分镜图内嵌字幕，HyperFrames 禁文字模板、Remotion text clip=0）→ ChapterVideo 渲染。
+2. `npm run video:full-pipeline`（`run-full-pipeline.ts`）— Depth 首镜真实推理 preflight → video-use runChapter → accept → applyAcceptedArtifact（HyperFrames 透明特效层）→ chapter gate → 字幕归属校验（正式权威 **clean-remotion**：显式 `MYSTUDIO_SUBTITLE_AUTHORITY=clean-remotion`，Remotion 燃嵌 50 条句级 cue；旧 `source-embedded` 仅 runner 默认兜底）→ `MYSTUDIO_CINEMATIC=1` 时 43 镜 Depth evidence → ChapterVideo 渲染 + evidence/expected/QC 输入随 run 落盘。
 
 已删除的旧入口（不要再引用）：`render-remotion-timeline.ts`、`render-editing-timeline.ts`、`render-derived-chapter.ts`、`video:chapter001:remotion`。旧 `MYSTUDIO_CHAPTER_VIDEO_*` 环境变量已改名 `MYSTUDIO_*`（项目专属的仅存于 `apps/build/chapter_video/`）。
 
-成片验收最低顶（smoke 之外）：逐镜抽帧 vs 源 SSIM ≥ 0.90、有声（mean_volume > -60dB）、blackdetect 0 黑段、时长与 EDL 一致（1 帧容差）。QC 参考实现：`.trellis/tasks/archive/2026-08/08-14-three-plugin-chapter-video/research/three-plugin-fresh-qc.py`。
+成片验收最低顶（smoke 之外）：有声（mean_volume > -60dB）、时长与 EDL 一致（1 帧容差）、43 镜/42 边界完整、连续五边界同款转场违规=0、字幕带逐帧统计无 intra-cue 缺口。**cinematic（Depth 运镜）成片禁用逐镜 source SSIM ≥ 0.90 作唯一门**——运镜改变视角，SSIM 只作异常诊断。blackdetect 暗段需人工判读（剧情暗场景口径）。QC 参考实现：`.trellis/tasks/08-22-plugin-rich-chapter-video/research/plugin-rich-cinematic-qc.py`（两阶段 capture-before/discover-and-qc + 169 帧视觉 manifest）。
+
+`smoke:video-workflow` 已知边界：隔离临时 profile 不含受管 Python，video-use probe 恒 blocked——该 smoke 只证明 UI/shell，不证明插件链；插件链验收以真实 run 的 artifact/QC 为准。

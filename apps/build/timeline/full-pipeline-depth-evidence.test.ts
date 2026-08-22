@@ -7,6 +7,8 @@ import type { DepthAdapterResult } from "@rendering/plugins/depth/depth-adapter"
 import {
   buildFullPipelineCinematicDepthReport,
   buildFullPipelineDepthEvidence,
+  resolveFullPipelineDepthModelDir,
+  runFullPipelineDepthPreflight,
 } from "./full-pipeline-depth-evidence";
 
 const INPUT_SHA = "a".repeat(64);
@@ -34,6 +36,81 @@ function readyResult(outputPath: string): DepthAdapterResult {
 }
 
 describe("full-pipeline depth evidence", () => {
+  it("resolves the explicit, current, then legacy Depth model directory without migration", () => {
+    const existing = new Set([
+      "/custom/depth",
+      "/storage/model/depth",
+      "/storage/DeepModel",
+    ]);
+    const fileExists = (filePath: string) => existing.has(filePath);
+
+    expect(resolveFullPipelineDepthModelDir({
+      storageBasePath: "/storage",
+      explicitModelDir: "/custom/depth",
+      fileExists,
+    })).toBe("/custom/depth");
+    expect(resolveFullPipelineDepthModelDir({
+      storageBasePath: "/storage",
+      fileExists,
+    })).toBe("/storage/model/depth");
+    existing.delete("/storage/model/depth");
+    expect(resolveFullPipelineDepthModelDir({
+      storageBasePath: "/storage",
+      fileExists,
+    })).toBe("/storage/DeepModel");
+  });
+
+  it("fails closed when no configured Depth model directory exists", () => {
+    expect(() => resolveFullPipelineDepthModelDir({
+      storageBasePath: "/storage",
+      fileExists: () => false,
+    })).toThrow("depth-model-dir-unavailable");
+  });
+
+  it("runs a real first-shot Depth preflight and writes byte-bound evidence", async () => {
+    const root = fs.mkdtempSync("/tmp/mystudio-depth-preflight-");
+    const preflightRoot = path.join(root, "depth-preflight");
+    const artifactPath = path.join(preflightRoot, "depth-artifact.json");
+    const calls: string[] = [];
+
+    const result = await runFullPipelineDepthPreflight({
+      projectId: "project-a",
+      shotId: "shot-1",
+      shotVideoPath: "/project/shot-1.mp4",
+      preset: "cinematic-dolly-in",
+      preflightRoot,
+      extractFrame: async (inputPath, outputPath) => {
+        calls.push(`extract:${inputPath}`);
+        fs.mkdirSync(path.dirname(outputPath), { recursive: true });
+        fs.writeFileSync(outputPath, "input-frame", "utf8");
+      },
+      estimateDepth: async (request) => {
+        calls.push(`estimate:${request.inputImagePath}`);
+        fs.writeFileSync(request.outputDepthPath, "depth-output", "utf8");
+        fs.writeFileSync(artifactPath, "{}", "utf8");
+        return { ...readyResult(request.outputDepthPath), artifactPath };
+      },
+      hashFile: async (filePath) => filePath.endsWith("input-frame.png") ? INPUT_SHA : OUTPUT_SHA,
+    });
+
+    expect(calls).toEqual([
+      "extract:/project/shot-1.mp4",
+      `estimate:${path.join(preflightRoot, "input-frame.png")}`,
+    ]);
+    expect(result.report).toMatchObject({
+      status: "accepted",
+      stage: "before-project-revision-writes",
+      projectId: "project-a",
+      shotId: "shot-1",
+      inputImagePath: "input-frame.png",
+      outputDepthPath: "depth.png",
+      artifactPath: "depth-artifact.json",
+      inputSha256: INPUT_SHA,
+      outputSha256: OUTPUT_SHA,
+    });
+    expect(JSON.parse(fs.readFileSync(result.reportPath, "utf8"))).toEqual(result.report);
+  });
+
   it("fails closed with the adapter code and artifact path", async () => {
     const hashFile = vi.fn(async () => INPUT_SHA);
 
@@ -211,10 +288,32 @@ describe("full-pipeline depth evidence", () => {
     expect(source).not.toContain("depth estimation blocked");
   });
 
+  it("runs the first-shot Depth preflight before any project revision write", () => {
+    const source = fs.readFileSync(new URL("./run-full-pipeline.ts", import.meta.url), "utf8");
+    const pipelineSource = source.slice(source.indexOf("export async function runFullPipeline"));
+    const preflightIndex = pipelineSource.indexOf("await runFullPipelineDepthPreflight({");
+
+    expect(preflightIndex).toBeGreaterThan(-1);
+    expect(preflightIndex).toBeLessThan(pipelineSource.indexOf("videoUseAdapter.runChapter(chapterRun)"));
+    expect(preflightIndex).toBeLessThan(pipelineSource.indexOf("acceptVideoUseArtifact(workspaceRootForProject"));
+    expect(preflightIndex).toBeLessThan(pipelineSource.indexOf("persistStudioEditingRevision(dataRoot, baseProject)"));
+    expect(preflightIndex).toBeLessThan(pipelineSource.indexOf("chapterService.applyAcceptedArtifact(applyInput)"));
+    expect(pipelineSource).toContain("depthPreflight: depthPreflight?.report ?? null");
+  });
+
   it("loads production shot identity from the current Remotion workspace", () => {
     const source = fs.readFileSync(new URL("./run-full-pipeline.ts", import.meta.url), "utf8");
 
     expect(source).toContain("await readRemotionCurrentShotSlotsFromWorkspace(");
     expect(source).not.toContain("chapter001-shot-slots.json");
+  });
+
+  it("fails closed after one HyperFrames apply without deleting the failed revision", () => {
+    const source = fs.readFileSync(new URL("./run-full-pipeline.ts", import.meta.url), "utf8");
+    const applyCalls = source.match(/chapterService\.applyAcceptedArtifact\(applyInput\)/g) ?? [];
+
+    expect(applyCalls).toHaveLength(1);
+    expect(source).not.toContain("fs.rmSync(revDir, { recursive: true, force: true })");
+    expect(source).toContain("throw new Error(`applyAcceptedArtifact 失败:");
   });
 });
