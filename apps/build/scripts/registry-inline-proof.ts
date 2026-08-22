@@ -45,7 +45,7 @@ function main(): void {
     buildRequest([{ templateId: "hy:vfx-shatter", startUs: 0, durationUs: 2_000_000 }]),
     2_000_000,
   );
-  checks.push(["缺依赖降级:窗口丢弃且不抛错", !degraded.includes("hy-registry-window")]);
+  checks.push(["缺依赖降级:窗口丢弃且不抛错", !degraded.includes('class="clip hy-registry-window"')]);
   checks.push(["缺依赖降级:composition 可构建", degraded.includes("<!doctype html>")]);
 
   // 场景 A:GSAP+字体模板(vfx-shatter)+ 地图数据模板(world-map: d3+topojson+atlas JSON)
@@ -58,7 +58,7 @@ function main(): void {
     4_000_000,
   );
 
-  checks.push(["两窗 body 均渲染", (html.match(/hy-registry-window/g) ?? []).length === 2]);
+  checks.push(["两窗 body 均渲染", (html.match(/class="clip hy-registry-window"/g) ?? []).length === 2]);
   checks.push(["GSAP 库内联(registerPlugin 特征)", /registerplugin/i.test(html)]);
   checks.push(["JS 库体量真实(≥500KB 内联)", html.length >= 500_000]);
   checks.push(["atlas JSON 预注入(__REGISTRY_DATA__)", html.includes(`__REGISTRY_DATA__["world-atlas/2/countries-110m.json"]`)]);

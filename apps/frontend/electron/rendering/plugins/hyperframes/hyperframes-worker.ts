@@ -2,6 +2,7 @@ import crypto from "node:crypto";
 import fs from "node:fs";
  
 import path from "node:path";
+import { pathToFileURL } from "node:url";
 import { execFileSync } from "node:child_process";
 import { validateHyperFramesOverlayRequest, type HyperFramesOverlayRequestV1 } from "@rendering/contracts/video-workflow";
 import { HYPERFRAMES_NPM_VERSION } from "@rendering/plugins/video-workflow/video-workflow-runtime";
@@ -308,7 +309,7 @@ function inlineSafeJs(code: string): string {
 /**
  * 渲染时物化 registry 模板依赖:JS 库内联、字体 CSS+data URI 内联、
  * d3.json 数据预注入——composition 完全自包含,无 file:// 跨源问题。
- * 依赖缺失返回 null(调用方降级丢弃该窗,不阻塞整段渲染)。
+ * 依赖缺失或依赖损坏(如截断的 JSON)一律返回 null(调用方降级丢弃该窗,不阻塞整段渲染)。
  */
 function materializeRegistryTemplate(templateId: string): MaterializedRegistryTemplate | null {
   const depsRoot = process.env.MYSTUDIO_REGISTRY_DEPS_DIR?.trim();
@@ -323,55 +324,73 @@ function materializeRegistryTemplate(templateId: string): MaterializedRegistryTe
     console.warn(`[hyperframes-worker] ${templateId} 需要特效依赖但未配置 deps 目录;窗口已降级丢弃(设置→视频工作流→HyperFrames 下载依赖)`);
     result = null;
   } else {
-    const missing = raw.depRels.filter((rel) => !fs.existsSync(path.join(depsRoot, rel)));
+    // 路径遏制:依赖相对路径不得逃出 deps 根(防御 map/HTML 被篡改时的路径穿越)
+    const rootAbs = path.resolve(depsRoot);
+    const safeRel = (rel: string): string | null => {
+      const abs = path.resolve(rootAbs, rel);
+      return abs.startsWith(rootAbs + path.sep) ? abs : null;
+    };
+    const missing: string[] = [];
+    const relAbs = new Map<string, string>();
+    for (const rel of raw.depRels) {
+      const abs = safeRel(rel);
+      if (abs === null || !fs.existsSync(abs)) missing.push(rel);
+      else relAbs.set(rel, abs);
+    }
     if (missing.length > 0) {
       console.warn(`[hyperframes-worker] ${templateId} 缺依赖 ${missing.join(", ")};窗口已降级丢弃(设置→视频工作流→HyperFrames 下载依赖)`);
       result = null;
     } else {
-      const libScripts: string[] = [];
-      const fontStyles: string[] = [];
-      const dataMap: Record<string, unknown> = {};
-      for (const rel of raw.depRels) {
-        const abs = path.join(depsRoot, rel);
-        if (rel.endsWith(".js")) {
-          libScripts.push(inlineSafeJs(fs.readFileSync(abs, "utf8")));
-        } else if (rel.endsWith(".css")) {
-          // 字体 CSS:内部 url(_files/x) 转 data URI,整段内联
-          let css = fs.readFileSync(abs, "utf8");
-          for (const m of css.matchAll(/url\(([^)]+)\)/g)) {
-            const ref = m[1].trim().replace(/^["']|["']$/g, "");
-            if (/^https?:\/\//.test(ref)) continue;
-            const fontAbs = path.join(path.dirname(abs), ref);
-            if (!fs.existsSync(fontAbs)) continue;
-            const buf = fs.readFileSync(fontAbs);
-            const mime = ref.endsWith(".woff2") ? "font/woff2" : ref.endsWith(".woff") ? "font/woff" : "font/ttf";
-            css = css.split(`url(${m[1]})`).join(`url(data:${mime};base64,${buf.toString("base64")})`);
+      try {
+        const libScripts: string[] = [];
+        const fontStyles: string[] = [];
+        const dataMap: Record<string, unknown> = {};
+        for (const [rel, abs] of relAbs) {
+          if (rel.endsWith(".js")) {
+            libScripts.push(inlineSafeJs(fs.readFileSync(abs, "utf8")));
+          } else if (rel.endsWith(".css")) {
+            // 字体 CSS:内部 url(_files/x) 转 data URI,整段内联
+            let css = fs.readFileSync(abs, "utf8");
+            for (const m of css.matchAll(/url\(([^)]+)\)/g)) {
+              const ref = m[1].trim().replace(/^["']|["']$/g, "");
+              if (/^https?:\/\//.test(ref)) continue;
+              const fontAbs = path.join(path.dirname(abs), ref);
+              if (!fs.existsSync(fontAbs)) continue;
+              const buf = fs.readFileSync(fontAbs);
+              const mime = ref.endsWith(".woff2") ? "font/woff2" : ref.endsWith(".woff") ? "font/woff" : "font/ttf";
+              css = css.split(`url(${m[1]})`).join(`url(data:${mime};base64,${buf.toString("base64")})`);
+            }
+            fontStyles.push(css);
+          } else if (rel.endsWith(".json")) {
+            // 截断/损坏的 JSON 在此抛错,由外层 catch 统一降级——不阻塞整段渲染
+            dataMap[rel] = JSON.parse(fs.readFileSync(abs, "utf8"));
           }
-          fontStyles.push(css);
-        } else if (rel.endsWith(".json")) {
-          dataMap[rel] = JSON.parse(fs.readFileSync(abs, "utf8"));
         }
+        // d3.json("...registry-deps/x.json") → 预注入数据(规避 file:// fetch 限制)
+        const scripts = raw.scripts.replace(
+          /d3\.json\((["'])(\.\.\/\.\.\/registry-deps\/[^"']+)\1\)/g,
+          (_all, _q, url: string) => {
+            const rel = url.replace("../../registry-deps/", "");
+            return `Promise.resolve(window.__REGISTRY_DATA__[${JSON.stringify(rel)}])`;
+          },
+        );
+        // styles/body 残余 registry-deps 引用(<img href 等)退回 file:// 绝对路径
+        // pathToFileURL 正确处理 userData 路径中的空格与中文
+        let styles = raw.styles;
+        let body = raw.body;
+        for (const [rel, abs] of relAbs) {
+          const fileUrl = pathToFileURL(abs).href;
+          styles = styles.split(`../../registry-deps/${rel}`).join(fileUrl);
+          body = body.split(`../../registry-deps/${rel}`).join(fileUrl);
+        }
+        const dataPreload = Object.keys(dataMap).length
+          ? `window.__REGISTRY_DATA__=Object.assign(window.__REGISTRY_DATA__||{},${JSON.stringify(dataMap).replace(/</g, "\\u003c")});`
+          : "";
+        result = { styles, body, scripts, libScripts, fontStyles: fontStyles.join("\n"), dataPreload };
+      } catch (error) {
+        console.warn(`[hyperframes-worker] ${templateId} 依赖物化失败(${error instanceof Error ? error.message : String(error)});窗口已降级丢弃`);
+        result = null;
       }
-      // d3.json("...registry-deps/x.json") → 预注入数据(规避 file:// fetch 限制)
-      const scripts = raw.scripts.replace(
-        /d3\.json\((["'])(\.\.\/\.\.\/registry-deps\/[^"']+)\1\)/g,
-        (_all, _q, url: string) => {
-          const rel = url.replace("../../registry-deps/", "");
-          return `Promise.resolve(window.__REGISTRY_DATA__[${JSON.stringify(rel)}])`;
-        },
-      );
-      // styles/body 残余 registry-deps 引用(<img href 等)退回 file:// 绝对路径
-      let styles = raw.styles;
-      let body = raw.body;
-      for (const rel of raw.depRels) {
-        const fileUrl = `file://${path.join(depsRoot, rel)}`;
-        styles = styles.split(`../../registry-deps/${rel}`).join(fileUrl);
-        body = body.split(`../../registry-deps/${rel}`).join(fileUrl);
-      }
-      const dataPreload = Object.keys(dataMap).length
-        ? `window.__REGISTRY_DATA__=Object.assign(window.__REGISTRY_DATA__||{},${JSON.stringify(dataMap).replace(/</g, "\\u003c")});`
-        : "";
-      result = { styles, body, scripts, libScripts, fontStyles: fontStyles.join("\n"), dataPreload };
     }
   }
   materializedRegistryCache.set(cacheKey, result);
@@ -739,7 +758,12 @@ export function buildHyperFramesCompositionHtml(request: HyperFramesOverlayReque
       if (seenTemplates.has(window.templateId)) continue;
       seenTemplates.add(window.templateId);
       if (template.styles) registryStyles.push(template.styles);
-      if (template.scripts) registryScripts.push(template.scripts);
+      if (template.scripts) {
+        // 每模板独立 IIFE+try/catch:34 个非 IIFE 模板的顶层标识符互不冲突,
+        // 单模板脚本失败不连坐(此前多模板脚本拼进同一 <script>,一错全灭)
+        const tag = window.templateId.replace(/[^A-Za-z0-9:-]/g, "");
+        registryScripts.push(`;(function(){try{\n${template.scripts}\n}catch(e){console.warn('[hy-registry:${tag}] script failed:',e)}})();`);
+      }
       if (template.fontStyles) registryFontStyles.push(template.fontStyles);
       if (template.dataPreload) registryDataPreloads.push(template.dataPreload);
       // 同一库多窗复用时只内联一次:以内容前缀粗判去重(libScripts 按模板聚合)

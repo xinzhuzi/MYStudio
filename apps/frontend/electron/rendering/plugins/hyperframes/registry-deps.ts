@@ -69,6 +69,8 @@ function buildDepList(): RegistryDep[] {
   const seen = new Set<string>();
   for (const [cdnUrl, localPath] of Object.entries(mappings)) {
     const normalized = normalizeLocalPath(localPath);
+    // 防御 map 被篡改:拒绝绝对路径与穿越段(下载写入必须锁死在 deps 根内)
+    if (path.isAbsolute(normalized) || /(^|\/)\.\.?(\/|$)/.test(normalized)) continue;
     if (seen.has(normalized)) continue;
     seen.add(normalized);
     deps.push({ localPath: normalized, url: cdnUrl });
@@ -124,7 +126,8 @@ function fontCssIsLocalized(cssPath: string): boolean {
     return false;
   }
   const urls = [...css.matchAll(/url\(([^)]+)\)/g)].map((m) => m[1].trim().replace(/^["']|["']$/g, ""));
-  if (urls.length === 0) return false;
+  // 无 url() 的 CSS 无需本地化(空文件已由 depFileReady 的 size 检查挡掉)
+  if (urls.length === 0) return true;
   return urls.every((u) => {
     if (/^https?:\/\//.test(u)) return false;
     return fs.existsSync(path.join(path.dirname(cssPath), u));
