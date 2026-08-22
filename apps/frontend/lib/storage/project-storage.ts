@@ -242,6 +242,11 @@ export function createStudioWorkflowShardedStorage(
   let domainCachePid: string | null = null;
   let saveCounter = 0;
   let lastVersion: number | null = null;
+  // 内存护栏:previousGeneration/domainCache 是「上一代整串分片」的强引用。
+  // store 越大(工作流/分镜/材料累积),这两个缓存驻留的字符串越大;
+  // 周期性硬重置强制丢弃整代,让 GC 能收走上代字符串(增量写会退化为全量
+  // 一次,代价是一次性 IO,换来堆不单边驻留)。
+  const CACHE_HARD_RESET_EVERY = 100;
   // 读链损坏标志：manifest 在场但分片缺失/损坏（getItem 已 throw）→ 本会话后续
   // 空工作区保存视为事故形态拒绝；健康读链上的合法重置（resetStudioWorkflow）不受影响
   let hydrationDamaged = false;
@@ -365,6 +370,15 @@ export function createStudioWorkflowShardedStorage(
           domainCache = null;
         }
         const forceFull = saveCounter % fullSaveEvery === 0;
+        // 内存护栏:每 CACHE_HARD_RESET_EVERY 次保存硬重置增量缓存——丢弃
+        // previousGeneration.filesByName + domainCache 持有的上一代整串分片,
+        // 让 GC 能收走这些字符串。代价是下一次保存退化为全量写(一次性 IO),
+        // 换来堆不单边驻留(内存优先于 IO,store 大时差值可达数百 MB)。
+        const hardResetCaches = saveCounter % CACHE_HARD_RESET_EVERY === 0;
+        if (hardResetCaches) {
+          previousGeneration = null;
+          domainCache = null;
+        }
         const canIncremental = Boolean(options.getLiveState);
         if (canIncremental && !domainCache) domainCache = new Map();
         const domainCachePidMismatch = domainCachePid !== pid;
@@ -462,11 +476,15 @@ export function createStudioWorkflowShardedStorage(
         if (manifestContent !== previousManifestContent) {
           await fileStorage.setItem(`${prefix}/manifest`, manifestContent);
         }
-        previousGeneration = {
-          pid,
-          manifest: plan.manifest,
-          filesByName: new Map(plan.files.map((file) => [file.name, file.content])),
-        };
+        // 内存护栏:硬重置当次不重建 previousGeneration,让上一代字符串彻底
+        // 失引、GC 可回收;下次保存走全量路径(previous=null),行为仍正确。
+        if (!hardResetCaches) {
+          previousGeneration = {
+            pid,
+            manifest: plan.manifest,
+            filesByName: new Map(plan.files.map((file) => [file.name, file.content])),
+          };
+        }
 
         // 旧单文件改名保留进 backups/store/（只改名不删；已改名过则为空操作）
         const legacyKey = `_p/${pid}/${storeName}`;

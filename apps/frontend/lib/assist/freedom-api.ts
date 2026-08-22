@@ -113,16 +113,23 @@ export async function generateFreedomImage(
     negativePrompt: normalizedPrompt.negativePrompt,
     referenceImages: await prepareReferenceImagesForTransfer(params.referenceImages),
   };
-  // 收集所有图片相关功能绑定的 provider，合并去重
+  // 收集所有图片相关功能绑定的 provider，合并去重。
+  // 内存护栏:fallback 不设上限时,配了 N 个 provider 就会把同一份 base64
+  // 参考图序列化 N 次经 IPC 发给主进程,每次响应又是 MB 级 base64 字符串——
+  // N 个全挂时单次生图在渲染进程同时挂 N×MB 字符串,GC 前堆瞬时翻倍。
+  // 兜底 2 个已能覆盖「主通道挂→备用顶上」,超出的 provider 不再进链。
+  const MAX_FALLBACK_PROVIDERS = 2;
   const seen = new Set<string>();
   const fallbackConfigs: FeatureConfig[] = [];
   for (const feature of ['freedom_image', 'character_generation', 'scene_generation'] as const) {
     for (const cfg of getAllFeatureConfigs(feature)) {
+      if (fallbackConfigs.length >= MAX_FALLBACK_PROVIDERS) break;
       const key = cfg.provider.id + ':' + cfg.baseUrl;
       if (seen.has(key)) continue;
       seen.add(key);
       fallbackConfigs.push(cfg);
     }
+    if (fallbackConfigs.length >= MAX_FALLBACK_PROVIDERS) break;
   }
 
   if (fallbackConfigs.length === 0) {
