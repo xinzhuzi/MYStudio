@@ -232,6 +232,24 @@ CURATED_REGISTRY_TEMPLATES = (
     "hy:inline-highlight", "hy:directional-wipe", "hy:echo-trail", "hy:facet-morph",
     "hy:grid-pixelate-wipe", "hy:halftone-field", "hy:iris-reveal", "hy:slit-scan-reveal",
 )
+# 轮换全池(deps 就绪时启用):策展隔行穿插(2 本地:1 策展)——追加式池尾会让
+# 小章节(槽位数 < 本地池长)永远轮不到 hy: 槽位,首航实证 45 槽只走到 index 40。
+def _interleave_pool() -> tuple[str, ...]:
+    pool: list[str] = []
+    li = ci = 0
+    local = list(HYPERFRAMES_DECORATIVE_TEMPLATES)
+    curated = list(CURATED_REGISTRY_TEMPLATES)
+    while li < len(local) or ci < len(curated):
+        for _ in range(2):
+            if li < len(local):
+                pool.append(local[li]); li += 1
+        if ci < len(curated):
+            pool.append(curated[ci]); ci += 1
+    return tuple(pool)
+
+
+_ROTATION_POOL_FULL = _interleave_pool()
+
 # catalog 漂移 fail-fast:策展名单里的模板一旦从 catalog.json 消失立即拒载。
 assert set(CURATED_REGISTRY_TEMPLATES) <= set(HYPERFRAMES_REGISTRY_TEMPLATES), (
     "策展 registry 模板不在 catalog.json: "
@@ -391,11 +409,7 @@ def _template_for_mood(mood_word: str | None, index: int) -> tuple[str, dict[str
                 template, base = decision
                 return template, dict(base)
     print(f"[video-use] overlay mood missing/unmatched; fallback rotation index={index}", file=sys.stderr)
-    rotation_pool = (
-        HYPERFRAMES_DECORATIVE_TEMPLATES + CURATED_REGISTRY_TEMPLATES
-        if _registry_deps_ready()
-        else HYPERFRAMES_DECORATIVE_TEMPLATES
-    )
+    rotation_pool = _ROTATION_POOL_FULL if _registry_deps_ready() else HYPERFRAMES_DECORATIVE_TEMPLATES
     template = rotation_pool[index % len(rotation_pool)]
     return template, dict(DEFAULT_TEMPLATE_PARAMETERS[template])
 
