@@ -275,6 +275,53 @@ describe("generateCharacterImage", () => {
     expect(retryBody.prompt).toContain("unwanted calligraphy");
   });
 
+  it("rotates to the next provider key when the gpt-image standard channel rejects the current key's group", async () => {
+    const multiKeyProvider = {
+      ...provider,
+      id: "fanren-multi",
+      apiKey: "sk-keyA\nsk-keyB",
+    };
+    useAPIConfigStore.setState({
+      providers: [multiKeyProvider],
+      featureBindings: {
+        character_generation: ["fanren-multi:gpt-image-2"],
+      },
+      modelEndpointTypes: {
+        "gpt-image-2": ["openai"],
+      },
+    } as never);
+    const fetchMock = vi.fn(async (_url: string, init?: RequestInit) => {
+      const headers = init?.headers as Record<string, string> | undefined;
+      const auth = String(headers?.Authorization ?? headers?.authorization ?? "");
+      if (auth.includes("sk-keyA")) {
+        return jsonResponse(
+          { error: { message: "分组 A 下模型 gpt-image-2 无可用渠道（distributor）" } },
+          { ok: false, status: 503 },
+        );
+      }
+      return jsonResponse({ data: [{ b64_json: "aGVsbG8=" }], output_format: "png" });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    // 钉死 keyManager 的随机起始索引=0,确定性从 keyA(无渠道)起步,轮转分支必被覆盖
+    vi.spyOn(Math, "random").mockReturnValue(0);
+
+    const result = await generateCharacterImage({
+      prompt: "管事",
+      aspectRatio: "1:1",
+      resolution: "1K",
+    });
+
+    expect(result.imageUrl).toBe("data:image/png;base64,aGVsbG8=");
+    const auths = fetchMock.mock.calls.map((call) => {
+      const headers = call[1]?.headers as Record<string, string> | undefined;
+      return String(headers?.Authorization ?? headers?.authorization ?? "");
+    });
+    // 起步 keyA 必然被拒,轮转后 keyB(有生图渠道)必须接手并成功
+    expect(auths.some((a) => a.includes("sk-keyA"))).toBe(true);
+    expect(auths.some((a) => a.includes("sk-keyB"))).toBe(true);
+    expect(auths[auths.length - 1]).toContain("sk-keyB");
+  });
+
   it("uses the configured compatibility retry size for gpt-image transport failures", async () => {
     useAppSettingsStore.getState().setImageGenerationSettings({
       compatibilityRetryEnabled: true,

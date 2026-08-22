@@ -23,6 +23,23 @@ describe("asset names", () => {
     expect(getSecondaryAssetNames("紫金通宝；紫金钱；紫金钱")).toEqual(["紫金钱"]);
   });
 
+  it("accepts English and Chinese commas as alias separators", () => {
+    expect(parseAssetNames("李先生,管事,教书先生").allNames).toEqual([
+      "李先生",
+      "管事",
+      "教书先生",
+    ]);
+    expect(getPrimaryAssetName("李先生，管事")).toBe("李先生");
+    expect(getSecondaryAssetNames("李先生，管事")).toEqual(["管事"]);
+  });
+
+  it("accepts mixed separators and matches any comma-separated alias", () => {
+    expect(parseAssetNames("铜钱，铜币;古钱").allNames).toEqual(["铜钱", "铜币", "古钱"]);
+    expect(assetNameMatchesQuery("李先生，管事", "管事")).toBe(true);
+    expect(assetNameMatchesQuery("李先生,管事", "李先生")).toBe(true);
+    expect(assetNameMatchesQuery("李先生；管事，教书先生", "教书先生")).toBe(true);
+  });
+
   it("formats primary and secondary names into the asset-library name field", () => {
     expect(formatAssetName("铜钱", ["铜币", "古钱", "铜钱"])).toBe("铜钱;铜币;古钱");
   });

@@ -63,7 +63,7 @@ def download_model(model_name: str, progress_path: Path) -> int:
         })
 
     if not spec["sources"] and not spec["url"]:
-        report("error", 0, 0, error="权重源未配置:DOVER-Mobile 官方 release URL 未核实(见 model_cache.py 头注),网络可达后补齐 url/sha256/sources 三项")
+        report("error", 0, 0, error="权重源未配置:请在 model_cache.py 补齐 url/sha256/sources")
         return 2
 
     report("downloading", 0, 0)

@@ -9,9 +9,10 @@ export interface ParsedAssetNames {
 
 export function parseAssetNames(value?: string | null, fallback = "未命名素材"): ParsedAssetNames {
   const rawName = value?.trim() ?? "";
+  // 别名分隔符:中英文分号与中英文逗号都认(2026-08-22 用户裁定;formatAssetName 落库仍统一归一为英文分号)
   const names = uniqueNames(
     rawName
-      .split(/[;；]/)
+      .split(/[;；,，]/)
       .map(cleanAssetNameSegment)
       .filter(Boolean),
   );

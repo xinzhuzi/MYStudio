@@ -184,6 +184,7 @@ export function RoleVoicePreviewButton({
     <Button
       variant="outline"
       size="sm"
+      data-profile-id={profileId}
       className={cn("mt-2 w-full gap-1.5 text-xs", className)}
       onClick={handleClick}
       disabled={loading}

@@ -4,6 +4,7 @@ import { act, cleanup, fireEvent, render, renderHook, screen, waitFor } from "@t
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { AssetsTab } from "./AssetsTab";
+import { eventBus } from "@/lib/events/event-bus";
 import { ScriptAssetManagementTab } from "./ScriptAssetManagementTab";
 import { ScriptAssetGenerationTab } from "./ScriptAssetGenerationTab";
 import { WorkbenchTab } from "./WorkbenchTab";
@@ -53,6 +54,15 @@ vi.mock("@/lib/ai/ai-manager", () => ({
   observe() {}
   unobserve() {}
   disconnect() {}
+};
+
+(globalThis as any).IntersectionObserver ??= class {
+  observe() {}
+  unobserve() {}
+  disconnect() {}
+  takeRecords() {
+    return [];
+  }
 };
 
 (globalThis as any).matchMedia ??= () => ({
@@ -1161,6 +1171,104 @@ describe("workflow stage action surfaces", () => {
     expect(screen.getByRole("button", { name: /自动分配音频/ })).toBeTruthy();
   });
 
+  it("refreshes extraction chip colors on asset-library events without preloading on render", async () => {
+    useStudioStore.getState().resetStudioWorkflow();
+    useCharacterLibraryStore.getState().reset();
+    useSceneStore.getState().reset();
+    usePropsLibraryStore.setState({
+      items: [],
+      folders: [],
+      selectedFolderId: "all",
+    });
+    useProjectStore.setState({
+      activeProjectId: "default-project",
+      activeProject: {
+        id: "default-project",
+        name: "漫影工作室项目",
+        createdAt: 1,
+        updatedAt: 1,
+      },
+    });
+    useStudioStore.setState({
+      workflowConfig: { visualManualId: "manual-1" },
+      entityExtractions: [
+        {
+          id: "extract-1",
+          episodeId: "chapter-001",
+          characters: [
+            { characterId: "char-1", name: "独孤剑尘", aliases: [], note: "冷静克制" },
+          ],
+          scenes: [],
+          props: [],
+        },
+      ],
+    });
+    // 资产中心:角色条目先「已有但无图」,生成保存后带主图
+    const listMock = vi.fn(async ({ type }: { type: string }) => ({
+      items:
+        type === "role"
+          ? [{ name: "独孤剑尘", description: "冷静克制", filePath: "" }]
+          : [],
+    }));
+    (window as any).studioAssets = { list: listMock };
+
+    render(
+      <ScriptAssetManagementTab
+        novelChapters={[
+          {
+            id: "chapter-001",
+            index: 1,
+            title: "第一章",
+            sourceText: "原文",
+            importedAt: 1,
+          },
+        ]}
+        agentWorkData={[
+          {
+            id: "work-script",
+            key: "scriptDraft",
+            episodeId: "chapter-001",
+            data: "第一章剧本",
+            createdAt: 1,
+            updatedAt: 1,
+          },
+        ]}
+        entityExtractions={useStudioStore.getState().entityExtractions}
+        extractAssets={vi.fn()}
+        updateExtraction={vi.fn()}
+        setHeaderActions={vi.fn()}
+        productionEpisodeId="chapter-001"
+        scriptPlanCount={0}
+        hasSeriesBible={false}
+      />,
+    );
+
+    // 契约:渲染提取视图不初始化独立资产库——本地库无此角色 → 红(未制作)
+    await screen.findByTitle("资产库中不存在，请先创建");
+    expect(listMock).not.toHaveBeenCalled();
+
+    // 用户点「重新识别」→ asset:rematch → 提取区拉资产中心:已有但无图 → 黄
+    await act(async () => {
+      eventBus.emit("asset:rematch");
+    });
+    const yellowChip = await screen.findByTitle("资产库已有，尚未生成图片");
+    expect(yellowChip.textContent).toContain("独孤剑尘");
+
+    // 详情弹窗生成保存 → asset:updated → 重拉,条目带主图 → 绿(已制作)
+    listMock.mockImplementation(async ({ type }: { type: string }) => ({
+      items:
+        type === "role"
+          ? [{ name: "独孤剑尘", description: "冷静克制", filePath: "role/1.png" }]
+          : [],
+    }));
+    await act(async () => {
+      eventBus.emit("asset:updated", { id: "asset-1", type: "role" });
+    });
+    const greenChip = await screen.findByTitle("已制作");
+    expect(greenChip.textContent).toContain("独孤剑尘");
+    expect(screen.queryByTitle("资产库已有，尚未生成图片")).toBeNull();
+  });
+
   it("renders extracted script assets from the split AssetsTab module", () => {
     render(
       <AssetsTab
@@ -1415,7 +1523,501 @@ describe("workflow stage action surfaces", () => {
 
     fireEvent.click(screen.getByRole("button", { name: /道具/ }));
     expect(await screen.findByText((_, element) => element?.textContent === "缺少道具资产")).toBeTruthy();
-    expect(batchMatch).not.toHaveBeenCalled();
+    // 2026-08-22 契约更新:挂载时对全部实体行静默重跑一次资产库匹配(无匹配仍显示缺少资产)
+    expect(batchMatch).toHaveBeenCalledWith({ type: "scene", names: ["悦来客栈"] });
+    expect(batchMatch).toHaveBeenCalledWith({ type: "tool", names: ["绿锈铜钱"] });
+  });
+
+  it("refreshes row bindings when the asset detail dialog closes", async () => {
+    useStudioStore.getState().resetStudioWorkflow();
+    useCharacterLibraryStore.getState().reset();
+    useTtsStore.setState({ activeProjectId: undefined, projects: {}, voiceProfiles: {} });
+    useProjectStore.setState({
+      activeProjectId: "default-project",
+      activeProject: {
+        id: "default-project",
+        name: "漫影工作室项目",
+        createdAt: 1,
+        updatedAt: 1,
+      },
+    });
+    const charId = useCharacterLibraryStore.getState().addCharacter({
+      name: "管事",
+      description: "塾馆管事",
+      visualTraits: "",
+      projectId: "default-project",
+      views: [],
+    });
+    useStudioStore.setState({
+      workflowConfig: { visualManualId: "manual-1" },
+      entityExtractions: [
+        {
+          id: "extract-1",
+          episodeId: "chapter-001",
+          characters: [
+            { characterId: charId, name: "管事", aliases: [], note: "塾馆管事" },
+          ],
+          scenes: [],
+          props: [],
+        },
+      ],
+    });
+    const batchMatch = vi.fn(async () => [
+      { name: "管事", asset: { id: "asset-lib-g", name: "李先生;管事", type: "role", thumbnailUrl: "file:///role/g.png" } },
+    ]);
+    (window as any).studioAssets = { batchMatch };
+
+    render(
+      <ScriptAssetGenerationTab
+        productionEpisodeId="chapter-001"
+        scriptPlanCount={0}
+        hasSeriesBible={false}
+      />,
+    );
+
+    // 挂载时第一次匹配
+    await waitFor(() => expect(screen.getByText("资产库已存在")).toBeTruthy());
+    expect(batchMatch).toHaveBeenCalledTimes(1);
+
+    // 打开行详情再关闭 → 行绑定按库内最新状态重算(详情里的修改即时反映)
+    fireEvent.click(screen.getByText("管事"));
+    await waitFor(() => expect(document.querySelector("[role='dialog']")).toBeTruthy());
+    fireEvent.keyDown(document, { key: "Escape" });
+    await waitFor(() => expect(batchMatch).toHaveBeenCalledTimes(2));
+  });
+
+  it("dual-binds one voice to every alias-linked character of a shared asset (李先生;管事 拆开都接住)", async () => {
+    useStudioStore.getState().resetStudioWorkflow();
+    useCharacterLibraryStore.getState().reset();
+    useTtsStore.setState({ activeProjectId: undefined, projects: {}, voiceProfiles: {} });
+    useProjectStore.setState({
+      activeProjectId: "default-project",
+      activeProject: { id: "default-project", name: "漫影工作室项目", createdAt: 1, updatedAt: 1 },
+    });
+    const mrLiId = useCharacterLibraryStore.getState().addCharacter({
+      name: "李先生",
+      description: "塾馆教书先生",
+      visualTraits: "",
+      projectId: "default-project",
+      views: [],
+    });
+    const managerId = useCharacterLibraryStore.getState().addCharacter({
+      name: "管事",
+      description: "塾馆管事",
+      visualTraits: "",
+      projectId: "default-project",
+      views: [],
+    });
+    useStudioStore.setState({
+      workflowConfig: { visualManualId: "manual-1" },
+      entityExtractions: [{
+        id: "extract-1", episodeId: "chapter-001",
+        characters: [
+          { characterId: mrLiId, name: "李先生", aliases: [], note: "先生" },
+          { characterId: managerId, name: "管事", aliases: [], note: "管事" },
+        ],
+        scenes: [], props: [],
+      }],
+    });
+    const sharedAsset = { id: "asset-lib-shared", name: "李先生;管事", type: "role" };
+    (window as any).studioAssets = {
+      batchMatch: vi.fn(async ({ type }: { type: string }) =>
+        type === "role"
+          ? [
+              { name: "李先生", asset: sharedAsset },
+              { name: "管事", asset: sharedAsset },
+            ]
+          : []),
+      getByName: vi.fn(async () => sharedAsset),
+      list: vi.fn(async ({ type }: { type: string }) =>
+        type === "audio"
+          ? { items: [{ id: "audio-1", name: "共享样本", type: "audio", filePath: "/tmp/shared.wav" }] }
+          : { items: [] }),
+    };
+    (window as any).projectFiles = { getAbsolutePath: vi.fn(async () => "/tmp/x.png") };
+
+    render(
+      <ScriptAssetGenerationTab productionEpisodeId="chapter-001" scriptPlanCount={0} hasSeriesBible={false} />,
+    );
+
+    // 从「管事」行打开共享资产详情并分配音色
+    await waitFor(() => expect(screen.getAllByText("资产库已存在").length).toBeGreaterThanOrEqual(2));
+    fireEvent.click(screen.getByText("管事"));
+    await waitFor(() => expect(document.querySelector("[role='dialog']")).toBeTruthy());
+    await waitFor(() => expect(screen.getByText(/尚未分配音色|更换音色/)).toBeTruthy());
+    fireEvent.click(screen.getByText(/尚未分配音色|更换音色/));
+    await waitFor(() => expect(screen.getByText("共享样本")).toBeTruthy());
+    fireEvent.click(screen.getByText("共享样本"));
+    fireEvent.click(screen.getByRole("button", { name: /确认分配/ }));
+
+    const bindings = useTtsStore.getState().projects["default-project"]?.bindings ?? {};
+    await waitFor(() => expect(bindings["character:asset-lib-shared"]).toBeTruthy());
+    // 拆开的两个角色键 + 资产键 三键同一 profile
+    expect(bindings[`character:${mrLiId}`]?.profileId).toBe(bindings["character:asset-lib-shared"]!.profileId);
+    expect(bindings[`character:${managerId}`]?.profileId).toBe(bindings["character:asset-lib-shared"]!.profileId);
+  });
+
+  it("prefers the asset-library (detail page) binding over the workflow-key binding", async () => {
+    useStudioStore.getState().resetStudioWorkflow();
+    useCharacterLibraryStore.getState().reset();
+    useTtsStore.setState({ activeProjectId: undefined, projects: {}, voiceProfiles: {} });
+    useProjectStore.setState({
+      activeProjectId: "default-project",
+      activeProject: { id: "default-project", name: "漫影工作室项目", createdAt: 1, updatedAt: 1 },
+    });
+    const charId = useCharacterLibraryStore.getState().addCharacter({
+      name: "独孤剑尘",
+      description: "剑主",
+      visualTraits: "",
+      projectId: "default-project",
+      views: [],
+    });
+    useTtsStore.setState({
+      activeProjectId: "default-project",
+      projects: {
+        "default-project": {
+          bindings: {
+            // 工作流键=自动分配的旧 profile;资产库键=详情页换绑的新 profile
+            [`character:${charId}`]: { speakerId: `character:${charId}`, profileId: "profile-auto-old", defaultEngine: "qwen", defaultModelSize: "1.7B" },
+            "character:asset-lib-dugu": { speakerId: "character:asset-lib-dugu", profileId: "profile-detail-new", defaultEngine: "qwen", defaultModelSize: "1.7B" },
+          },
+          voiceLines: {},
+        },
+      },
+      voiceProfiles: {
+        "profile-auto-old": { id: "profile-auto-old", name: "音色·自动分配", type: "reference", language: "zh", defaultEngine: "qwen", defaultModelSize: "1.7B", referenceAudioPath: "/tmp/old.wav", referenceText: "旧", createdAt: 1, updatedAt: 1 },
+        "profile-detail-new": { id: "profile-detail-new", name: "音色·详情页新绑", type: "reference", language: "zh", defaultEngine: "qwen", defaultModelSize: "1.7B", referenceAudioPath: "/tmp/new.wav", referenceText: "新", createdAt: 1, updatedAt: 1 },
+      },
+    });
+    useStudioStore.setState({
+      workflowConfig: { visualManualId: "manual-1" },
+      entityExtractions: [{
+        id: "extract-1", episodeId: "chapter-001",
+        characters: [{ characterId: charId, name: "独孤剑尘", aliases: [], note: "剑主" }],
+        scenes: [], props: [],
+      }],
+    });
+    (window as any).studioAssets = {
+      batchMatch: vi.fn(async () => [
+        { name: "独孤剑尘", asset: { id: "asset-lib-dugu", name: "独孤剑尘", type: "role" } },
+      ]),
+    };
+
+    render(
+      <ScriptAssetGenerationTab productionEpisodeId="chapter-001" scriptPlanCount={0} hasSeriesBible={false} />,
+    );
+
+    await waitFor(() => expect(screen.getByText("资产库已存在")).toBeTruthy());
+    // 资产库键(详情页)优先:行试听/徽章取新 profile —— 通过预览按钮的 profileId 属性验证
+    await waitFor(() => {
+      const btn = document.querySelector("[data-profile-id]");
+      expect(btn?.getAttribute("data-profile-id")).toBe("profile-detail-new");
+    });
+  });
+
+  it("shows voice assigned via the asset-library key through the read-side fallback", async () => {
+    useStudioStore.getState().resetStudioWorkflow();
+    useCharacterLibraryStore.getState().reset();
+    useTtsStore.setState({ activeProjectId: undefined, projects: {}, voiceProfiles: {} });
+    useProjectStore.setState({
+      activeProjectId: "default-project",
+      activeProject: {
+        id: "default-project",
+        name: "漫影工作室项目",
+        createdAt: 1,
+        updatedAt: 1,
+      },
+    });
+    const charId = useCharacterLibraryStore.getState().addCharacter({
+      name: "管事",
+      description: "塾馆管事",
+      visualTraits: "",
+      projectId: "default-project",
+      views: [],
+    });
+    useTtsStore.setState({
+      activeProjectId: "default-project",
+      projects: {
+        "default-project": {
+          // 只有资产库键有绑定(资产页/角色详情分配),角色库键为空
+          bindings: {
+            "character:asset-lib-guanshi": {
+              speakerId: "character:asset-lib-guanshi",
+              profileId: "profile-asset-side",
+              defaultEngine: "qwen",
+              defaultModelSize: "1.7B",
+            },
+          },
+          voiceLines: {},
+        },
+      },
+      voiceProfiles: {
+        "profile-asset-side": {
+          id: "profile-asset-side",
+          name: "音色·管事·资产页",
+          type: "reference",
+          language: "zh",
+          defaultEngine: "qwen",
+          defaultModelSize: "1.7B",
+          referenceAudioPath: "/tmp/voice.wav",
+          referenceText: "试音",
+          createdAt: 1,
+          updatedAt: 1,
+        },
+      },
+    });
+    useStudioStore.setState({
+      workflowConfig: { visualManualId: "manual-1" },
+      entityExtractions: [
+        {
+          id: "extract-1",
+          episodeId: "chapter-001",
+          characters: [
+            { characterId: charId, name: "管事", aliases: [], note: "塾馆管事" },
+          ],
+          scenes: [],
+          props: [],
+        },
+      ],
+    });
+    const libAsset = { id: "asset-lib-guanshi", name: "李先生;管事", type: "role" };
+    (window as any).studioAssets = {
+      batchMatch: vi.fn(async () => [{ name: "管事", asset: libAsset }]),
+    };
+
+    render(
+      <ScriptAssetGenerationTab
+        productionEpisodeId="chapter-001"
+        scriptPlanCount={0}
+        hasSeriesBible={false}
+      />,
+    );
+
+    // 行绑上资产库条目后,读取侧回退应认出资产库键的配音 → 参考音频 而非 未分配音色
+    await waitFor(() => expect(screen.getByText("参考音频 1/1")).toBeTruthy());
+    expect(screen.queryByText("未分配音色")).toBeNull();
+  });
+
+  it("dual-binds voice to workflow and asset-library speaker keys when assigned from a character row detail", async () => {
+    useStudioStore.getState().resetStudioWorkflow();
+    useCharacterLibraryStore.getState().reset();
+    useTtsStore.setState({ activeProjectId: undefined, projects: {}, voiceProfiles: {} });
+    useProjectStore.setState({
+      activeProjectId: "default-project",
+      activeProject: {
+        id: "default-project",
+        name: "漫影工作室项目",
+        createdAt: 1,
+        updatedAt: 1,
+      },
+    });
+    const charId = useCharacterLibraryStore.getState().addCharacter({
+      name: "管事",
+      description: "塾馆管事",
+      visualTraits: "",
+      projectId: "default-project",
+      views: [],
+    });
+    useStudioStore.setState({
+      workflowConfig: { visualManualId: "manual-1" },
+      entityExtractions: [
+        {
+          id: "extract-1",
+          episodeId: "chapter-001",
+          characters: [
+            { characterId: charId, name: "管事", aliases: [], note: "塾馆管事" },
+          ],
+          scenes: [],
+          props: [],
+        },
+      ],
+    });
+    const libAsset = {
+      id: "asset-lib-guanshi",
+      name: "李先生;管事",
+      type: "role",
+      thumbnailUrl: "file:///role/guanshi.png",
+    };
+    (window as any).studioAssets = {
+      batchMatch: vi.fn(async () => [{ name: "管事", asset: libAsset }]),
+      getByName: vi.fn(async () => libAsset),
+      list: vi.fn(async ({ type }: { type: string }) =>
+        type === "audio"
+          ? {
+              items: [
+                { id: "audio-1", name: "管事样本", type: "audio", filePath: "/tmp/guanshi.wav" },
+              ],
+            }
+          : { items: [] },
+      ),
+    };
+
+    render(
+      <ScriptAssetGenerationTab
+        productionEpisodeId="chapter-001"
+        scriptPlanCount={0}
+        hasSeriesBible={false}
+      />,
+    );
+
+    // 挂载静默匹配后行已绑资产库;点行打开详情
+    await waitFor(() => expect(screen.getByText("资产库已存在")).toBeTruthy());
+    fireEvent.click(screen.getByText("管事"));
+    // 详情弹窗:音色未分配块 → 打开分配对话框
+    await waitFor(() => expect(screen.getByText(/尚未分配音色/)).toBeTruthy());
+    fireEvent.click(screen.getByText(/尚未分配音色/));
+    // 分配对话框:选音频 → 确认分配
+    await waitFor(() => expect(screen.getByText("管事样本")).toBeTruthy());
+    fireEvent.click(screen.getByText("管事样本"));
+    fireEvent.click(screen.getByRole("button", { name: /确认分配/ }));
+
+    const bindings = useTtsStore.getState().projects["default-project"]?.bindings ?? {};
+    const workflowKey = `character:${charId}`;
+    const assetKey = "character:asset-lib-guanshi";
+    // 双写桥:两把 speaker 键指向同一 profile,工作流试听与角色详情一致
+    await waitFor(() => expect(bindings[workflowKey]).toBeTruthy());
+    expect(bindings[assetKey]).toBeTruthy();
+    expect(bindings[workflowKey]!.profileId).toBe(bindings[assetKey]!.profileId);
+  });
+
+  it("stores generated project-file images into the asset library with a resolved source file", async () => {
+    useStudioStore.getState().resetStudioWorkflow();
+    useCharacterLibraryStore.getState().reset();
+    useProjectStore.setState({
+      activeProjectId: "default-project",
+      activeProject: {
+        id: "default-project",
+        name: "漫影工作室项目",
+        createdAt: 1,
+        updatedAt: 1,
+      },
+    });
+    const charId = useCharacterLibraryStore.getState().addCharacter({
+      name: "铁山",
+      description: "断去一臂的贫苦汉子",
+      visualTraits: "男性角色四视图",
+      projectId: "default-project",
+      views: [],
+    });
+    useCharacterLibraryStore.getState().updateCharacter(charId, {
+      thumbnailUrl: "project-file://default-project/workflow-images/assets/character/tieshan.png",
+    });
+    useStudioStore.setState({
+      workflowConfig: { visualManualId: "manual-1" },
+      entityExtractions: [
+        {
+          id: "extract-1",
+          episodeId: "chapter-001",
+          characters: [
+            { characterId: charId, name: "铁山", aliases: [], note: "断去一臂的贫苦汉子" },
+          ],
+          scenes: [],
+          props: [],
+        },
+      ],
+    });
+    const add = vi.fn(async () => ({
+      id: "asset-lib-tieshan",
+      name: "铁山",
+      type: "role",
+      thumbnailUrl: "file:///assets/files/role/tieshan.png",
+    }));
+    (window as any).studioAssets = {
+      batchMatch: vi.fn(async () => []),
+      getByName: vi.fn(async () => null),
+      add,
+    };
+    (window as any).projectFiles = {
+      getAbsolutePath: vi.fn(async () => "/tmp/mystudio-tieshan.png"),
+    };
+
+    render(
+      <ScriptAssetGenerationTab
+        productionEpisodeId="chapter-001"
+        scriptPlanCount={0}
+        hasSeriesBible={false}
+      />,
+    );
+
+    fireEvent.click(await screen.findByRole("button", { name: /放入资产库/ }));
+    await waitFor(() => expect(add).toHaveBeenCalled());
+    // project-file:// 生图产物须解析为绝对路径随 payload 入库(此前缺失导致资产无图)
+    expect(add).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: "role",
+        name: "铁山",
+        sourceFilePath: "/tmp/mystudio-tieshan.png",
+      }),
+    );
+    // 入库成功后行绑定资产库,徽章即时翻转
+    await waitFor(() => expect(screen.getByText("资产库已存在")).toBeTruthy());
+  });
+
+  it("refreshes asset-library matches for entity rows via the re-match button", async () => {
+    useStudioStore.getState().resetStudioWorkflow();
+    useCharacterLibraryStore.getState().reset();
+    useProjectStore.setState({
+      activeProjectId: "default-project",
+      activeProject: {
+        id: "default-project",
+        name: "漫影工作室项目",
+        createdAt: 1,
+        updatedAt: 1,
+      },
+    });
+    useStudioStore.setState({
+      workflowConfig: { visualManualId: "manual-1" },
+      entityExtractions: [
+        {
+          id: "extract-1",
+          episodeId: "chapter-001",
+          characters: [
+            {
+              characterId: "char-1",
+              name: "管事",
+              aliases: [],
+              note: "金水塾馆管事，执竹筹发粥。",
+            },
+          ],
+          scenes: [],
+          props: [],
+        },
+      ],
+    });
+    const batchMatch = vi.fn(async ({ type }: { type: string }) =>
+      type === "role"
+        ? [
+            {
+              name: "管事",
+              asset: {
+                id: "asset-lib-1",
+                name: "李先生;管事",
+                type: "role",
+                thumbnailUrl: "file:///role/guanshi.png",
+              },
+            },
+          ]
+        : []);
+    (window as any).studioAssets = { batchMatch };
+
+    render(
+      <ScriptAssetGenerationTab
+        productionEpisodeId="chapter-001"
+        scriptPlanCount={0}
+        hasSeriesBible={false}
+      />,
+    );
+
+    // 初始未绑资产库:无任何行显示已就绪
+    expect(screen.queryByText("已就绪")).toBeNull();
+
+    fireEvent.click(screen.getByRole("button", { name: /重新识别/ }));
+    expect(
+      await waitFor(() => expect(batchMatch).toHaveBeenCalledWith({ type: "role", names: ["管事"] })),
+    ).toBeTruthy();
+    // 资产库手动改名(李先生;管事)后,重新识别应把行绑到匹配资产 → 徽章变「资产库已存在」
+    await waitFor(() => expect(screen.getByText("资产库已存在")).toBeTruthy());
+    expect(screen.queryByText("缺少角色资产")).toBeNull();
   });
 
   it("shows a store-in-asset-library action only when the script asset is missing from the asset library", async () => {
@@ -1654,6 +2256,8 @@ describe("workflow stage action surfaces", () => {
     expect(await screen.findByText("资产未找到")).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "立即生成" }));
 
+    // 确认后弹窗立即收起、生成转后台:不得用模态弹窗等生成结束(并发生图时的"卡死"修复)
+    await waitFor(() => expect(screen.queryByText("资产未找到")).toBeNull());
     await waitFor(() => expect(assetOrchestratorMocks.generateAsset).toHaveBeenCalled());
     const createdScene = useSceneStore
       .getState()
@@ -1668,9 +2272,97 @@ describe("workflow stage action surfaces", () => {
         description: "昏暗狭窄的客栈斗室",
         visualManualId: "manual-1",
       }),
+      expect.any(Function),
     );
     expect((window as any).studioAssets.add).not.toHaveBeenCalled();
     expect(screen.queryByText("资产库已存在")).toBeNull();
+  });
+
+  it("keeps the app usable while single-asset generation is in flight and blocks duplicate submissions", async () => {
+    useStudioStore.getState().resetStudioWorkflow();
+    useCharacterLibraryStore.getState().reset();
+    useSceneStore.getState().reset();
+    usePropsLibraryStore.setState({
+      items: [],
+      folders: [],
+      selectedFolderId: "all",
+    });
+    useProjectStore.setState({
+      activeProjectId: "default-project",
+      activeProject: {
+        id: "default-project",
+        name: "漫影工作室项目",
+        createdAt: 1,
+        updatedAt: 1,
+      },
+    });
+    useStudioStore.setState({
+      workflowConfig: { visualManualId: "manual-1" },
+      entityExtractions: [
+        {
+          id: "extract-1",
+          episodeId: "chapter-001",
+          characters: [],
+          scenes: [
+            {
+              sceneId: "scene-extracted-1",
+              name: "悦来客栈斗室",
+              note: "昏暗狭窄的客栈斗室",
+            },
+          ],
+          props: [],
+        },
+      ],
+    });
+    (window as any).imageStorage = {
+      getAbsolutePath: vi.fn(async () => "/tmp/yuelai.png"),
+    };
+    (window as any).studioAssets = {
+      batchMatch: vi.fn(async () => []),
+      getByName: vi.fn(async () => null),
+      add: vi.fn(async () => null),
+    };
+    // 模拟"其他 AI 正在生图"的慢通道:generateAsset 挂起不返回
+    let resolveGeneration: ((value: { phase: "done"; imageLocalPath: string }) => void) | undefined;
+    assetOrchestratorMocks.generateAsset.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          resolveGeneration = resolve;
+        }),
+    );
+
+    render(
+      <ScriptAssetGenerationTab
+        productionEpisodeId="chapter-001"
+        scriptPlanCount={0}
+        hasSeriesBible={false}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /场景/ }));
+    fireEvent.click(await screen.findByRole("button", { name: "打开资产 悦来客栈斗室" }));
+    expect(await screen.findByText("资产未找到")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "立即生成" }));
+
+    // 弹窗立即关闭,界面不再被模态锁死
+    await waitFor(() => expect(screen.queryByText("资产未找到")).toBeNull());
+    await waitFor(() => expect(assetOrchestratorMocks.generateAsset).toHaveBeenCalledTimes(1));
+
+    // 生成仍在后台进行时再点同一行:守卫在查询资产库之前拦截——不弹「资产未找到」确认框,也不重复提交生成
+    fireEvent.click(screen.getByRole("button", { name: "打开资产 悦来客栈斗室" }));
+    // flush 微任务回合:若守卫失效,getByName 会在这一回合被第二次调用、确认框随后弹出
+    await act(async () => {
+      await Promise.resolve();
+    });
+    expect((window as any).studioAssets.getByName).toHaveBeenCalledTimes(1);
+    expect(screen.queryByText("资产未找到")).toBeNull();
+    expect(assetOrchestratorMocks.generateAsset).toHaveBeenCalledTimes(1);
+
+    // 后台生成完成后守卫解除(不重复、不残留)
+    await act(async () => {
+      resolveGeneration?.({ phase: "done", imageLocalPath: "local-image://scenes/yuelai.png" });
+      await Promise.resolve();
+    });
   });
 
   it("does not auto-resolve role voice bindings through independent asset-library ids", async () => {
@@ -1753,7 +2445,8 @@ describe("workflow stage action surfaces", () => {
 
     expect(await screen.findByText("未分配音色")).toBeTruthy();
     expect(screen.queryByText("参考音频")).toBeNull();
-    expect(batchMatch).not.toHaveBeenCalled();
+    // 挂载静默匹配(2026-08-22):语音绑定结论不受影响——独立资产库条目不参与角色语音解析
+    expect(batchMatch).toHaveBeenCalledWith({ type: "role", names: ["独孤剑尘"] });
   });
 
   it("does not mark independent asset-library role id bindings as workflow voice errors", async () => {
@@ -1824,7 +2517,8 @@ describe("workflow stage action surfaces", () => {
     expect(await screen.findByText("未分配音色")).toBeTruthy();
     expect(screen.queryByText("音色异常")).toBeNull();
     expect(screen.queryByRole("button", { name: /试听音色/ })).toBeNull();
-    expect(batchMatch).not.toHaveBeenCalled();
+    // 挂载静默匹配(2026-08-22):资产库 role id 绑定不产生工作流语音误报
+    expect(batchMatch).toHaveBeenCalledWith({ type: "role", names: ["独孤剑尘"] });
   });
 
   it("keeps voice badges stable when the active TTS project has not been created yet", async () => {

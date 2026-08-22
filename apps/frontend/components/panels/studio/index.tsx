@@ -78,6 +78,7 @@ export function StudioView() {
                 saveAgentWorkData={viewModel.saveAgentWorkData}
                 runStage={viewModel.handleScriptStage}
                 runReview={viewModel.handleStageReview}
+                previewStageUserMessage={viewModel.previewStageUserMessage}
                 manualContext={viewModel.scriptStyleSummary}
                 directorContext={viewModel.scriptDirectorContext}
                 styleSummary={viewModel.scriptStyleSummary}

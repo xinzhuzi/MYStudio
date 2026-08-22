@@ -221,6 +221,28 @@ describe("asset alias matching", () => {
     expect(matches.has("铜")).toBe(false);
   });
 
+  it("matches assets by comma-separated secondary names (中英文逗号/分号都认)", async () => {
+    initTempAssetsStorage();
+    const englishComma = addAsset({
+      type: "role",
+      name: "李先生,管事",
+      description: "塾馆教书先生兼管事",
+    });
+    const chineseComma = addAsset({
+      type: "role",
+      name: "赵四，监工",
+      description: "码头监工",
+    });
+
+    await expect(getAssetByName("role", "管事")).resolves.toMatchObject({ id: englishComma.id });
+    await expect(getAssetByName("role", "监工")).resolves.toMatchObject({ id: chineseComma.id });
+
+    const matches = await batchMatchAssets("role", ["李先生", "赵四", "教书先生"]);
+    expect(matches.get("李先生")?.id).toBe(englishComma.id);
+    expect(matches.get("赵四")?.id).toBe(chineseComma.id);
+    expect(matches.has("教书先生")).toBe(false);
+  });
+
   it("prefers a populated alias match over an empty exact duplicate", async () => {
     initTempAssetsStorage();
     addAsset({

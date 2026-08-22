@@ -168,15 +168,43 @@ describe("validateCharactersAgainstBible", () => {
     "## 主要人物\n- 林逸（小逸、逸哥）：主角\n- 白有容：女主",
   );
 
-  it("flags names missing from both canonical names and aliases", () => {
+  it("passes genuinely new names (NPC 不入圣经,未登记新名静默放行)", () => {
     expect(
       validateCharactersAgainstBible(["林逸", "小逸", "神秘老者"], bibleCharacters),
-    ).toEqual(["神秘老者"]);
+    ).toEqual([]);
   });
 
   it("returns empty when every name is registered", () => {
     expect(
       validateCharactersAgainstBible(["林逸", "逸哥", "白有容"], bibleCharacters),
+    ).toEqual([]);
+  });
+
+  it("flags names one edit away from a registered name (疑似误写)", () => {
+    expect(
+      validateCharactersAgainstBible(["林忆", "白有客"], bibleCharacters),
+    ).toEqual(["林忆", "白有客"]);
+  });
+
+  it("passes address-style variants that contain a registered name", () => {
+    expect(
+      validateCharactersAgainstBible(["少年林逸", "白有容"], bibleCharacters),
+    ).toEqual([]);
+  });
+
+  it("exempts project-registered working characters (赵四 vs 圣经配角赵衡 一字差不报)", () => {
+    const withZhaoHeng = parseBibleCharacters(
+      "## 主要人物\n- 林逸（小逸、逸哥）：主角\n- 赵衡：男，圣宗情报核心",
+    );
+    // 未豁免时:赵四 与 赵衡 差一字 → 报警
+    expect(validateCharactersAgainstBible(["赵四"], withZhaoHeng)).toEqual(["赵四"]);
+    // 角色库已登记(实体提取确认过) → 豁免
+    expect(
+      validateCharactersAgainstBible(["赵四"], withZhaoHeng, new Set(["赵四"])),
+    ).toEqual([]);
+    // 库登记名为全称(监工赵四)而提取用短名(赵四)→ 包含式豁免
+    expect(
+      validateCharactersAgainstBible(["赵四"], withZhaoHeng, new Set(["监工赵四"])),
     ).toEqual([]);
   });
 

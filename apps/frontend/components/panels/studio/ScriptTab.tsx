@@ -33,6 +33,12 @@ export function ScriptTab(props: {
     options?: { useReviewFeedback?: boolean },
   ) => void;
   runReview: (stage: ReviewableStage, chapter: NovelChapter) => void;
+  /** 「AI提示词」预览源:返回与实际发送(未编辑时)一致的完整 user 消息(含作者偏好/原著圣经);缺省回退本地构建。 */
+  previewStageUserMessage?: (
+    stage: ScriptStageKey,
+    chapter: NovelChapter,
+    options?: { useReviewFeedback?: boolean },
+  ) => Promise<string | null>;
   manualContext: string;
   directorContext: string;
   styleSummary: string;
@@ -79,6 +85,8 @@ export function ScriptTab(props: {
   const reviewKey = SCRIPT_STAGE_REVIEW_KEY[activeStage as ReviewableStage];
   const reviewData = reviewKey ? stageData(reviewKey)?.data : undefined;
   const reviseMode = hasReviewIssues(reviewData);
+  const prereq = PREREQ[activeStage];
+  const hasPrereq = !prereq || Boolean(stageData(prereq));
 
   const setHeaderActions = props.setHeaderActions;
   useEffect(() => {
@@ -156,6 +164,29 @@ export function ScriptTab(props: {
     );
     return () => clearInterval(id);
   }, [isStreaming]);
+
+  // 完整提示词预览(hook 侧构建,含作者偏好/原著圣经/档案检索/项目记忆):所见即所发。
+  // null=加载中;""=构建失败,回退本地标准构建展示。
+  const [livePrompt, setLivePrompt] = useState<string | null>(null);
+  useEffect(() => {
+    let alive = true;
+    setLivePrompt(null);
+    if (!chapter || !hasPrereq || !props.previewStageUserMessage) return;
+    props
+      .previewStageUserMessage(activeStage, chapter, {
+        useReviewFeedback: reviseMode,
+      })
+      .then((text) => {
+        if (alive) setLivePrompt(text ?? "");
+      })
+      .catch(() => {
+        if (alive) setLivePrompt("");
+      });
+    return () => {
+      alive = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeStage, chapter?.id, reviseMode, hasPrereq, props.agentWorkData, props.previewStageUserMessage]);
   if (!props.novelChapters.length) {
     return (
       <div className="p-6 text-sm text-muted-foreground">
@@ -164,8 +195,6 @@ export function ScriptTab(props: {
     );
   }
 
-  const prereq = PREREQ[activeStage];
-  const hasPrereq = !prereq || Boolean(stageData(prereq));
   const output = stageData(activeStage)?.data ?? "";
   const standardMessages = chapter
     ? buildStageMessages(activeStage, {
@@ -180,24 +209,26 @@ export function ScriptTab(props: {
         previousOutput: output,
       })
     : { system: "", user: "" };
-  const reviewMessages = chapter
-    ? buildStageMessages(activeStage, {
-        manualContext: props.manualContext,
-        directorContext: props.directorContext,
-        chapterTitle: chapter.title,
-        chapterText: chapter.sourceText ?? "",
-        eventState: chapter.eventState,
-        skeleton: stageData("storySkeleton")?.data,
-        strategy: stageData("adaptationStrategy")?.data,
-        scriptDraft: stageData("scriptDraft")?.data,
-        reviewFeedback: reviseMode ? reviewData : undefined,
-        previousOutput: output,
-      })
-    : { system: "", user: "" };
-  const messages = reviseMode ? reviewMessages : standardMessages;
   const skill = getStageSkillContent(activeStage);
+  // 预览优先用 hook 完整构建(与发送一致);未接 hook 或加载失败回退本地构建
+  const basePrompt =
+    livePrompt === null
+      ? props.previewStageUserMessage
+        ? "（正在组装提示词…）"
+        : standardMessages.user
+      : livePrompt || standardMessages.user;
+  const promptSource = userDraft ?? basePrompt;
+  const memoryMarkers = [
+    promptSource.includes("原著圣经") ? "原著圣经" : "",
+    promptSource.includes("作者偏好") ? "作者偏好" : "",
+    promptSource.includes("原著档案检索") ? "原著档案(按需)" : "",
+    promptSource.includes("项目记忆") ? "项目记忆" : "",
+  ]
+    .filter(Boolean)
+    .join(" · ");
   const sentSummary = [
     "项目信息",
+    memoryMarkers,
     activeStage === "adaptationStrategy" || activeStage === "scriptDraft"
       ? "导演手法"
       : "",
@@ -224,7 +255,7 @@ export function ScriptTab(props: {
     .filter(Boolean)
     .join("\n\n");
   const skillMarkdown = skill || "# Skill 手册\n\n未找到该阶段 skill 手册。";
-  const promptMarkdown = userDraft ?? messages.user;
+  const promptMarkdown = promptSource;
   const generatedMarkdown =
     streamingText !== null
       ? liveMd || `# ${SCRIPT_STAGE_LABEL[activeStage]}\n\n生成中...`
@@ -306,7 +337,7 @@ export function ScriptTab(props: {
                     onClick={() =>
                       setEditor({
                         target: "context",
-                        value: userDraft ?? messages.user,
+                        value: promptSource,
                       })
                     }
                   >
@@ -337,7 +368,7 @@ export function ScriptTab(props: {
                       props.runStage(
                         activeStage,
                         chapter,
-                        userDraft ?? standardMessages.user,
+                        userDraft,
                         { useReviewFeedback: false },
                       )
                     }

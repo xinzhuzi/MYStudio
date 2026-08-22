@@ -701,25 +701,39 @@ class DOVERMobileWrapper:
             vqa_head_hidden=32,
             backbone_dims=(48, 96, 192, 384),
         )
-        # Load state dict carefully: map aesthetic_* to technical_* keys (shared weights)
-        # Official DOVER-Mobile uses tied weights between the two branches
+        # The release file contains the two VQA branches plus the original
+        # 1000-class classifier heads.  We remove those classifier modules
+        # above, so they are the only permitted source-only keys.
         state_dict = torch.load(weight_path, map_location="cpu", weights_only=True)
-        
-        # Full key mapping: every model key must find a weight (aesthetic/technical mutual fallback)
-        new_state = {}
-        for key in self.model.state_dict().keys():
-            if key in state_dict:
-                new_state[key] = state_dict[key]
-            elif key.replace("technical_", "aesthetic_") in state_dict:
-                new_state[key] = state_dict[key.replace("technical_", "aesthetic_")]
-            elif key.replace("aesthetic_", "technical_") in state_dict:
-                new_state[key] = state_dict[key.replace("aesthetic_", "technical_")]
-            else:
-                print(f"⚠️  Missing weight for {key}")
-        
-        # Load with strict=False (skip any remaining mismatches like head layers)
-        filtered_state = {k: new_state[k] for k in sorted(new_state.keys())}
-        self.model.load_state_dict(filtered_state, strict=False)
+        model_state = self.model.state_dict()
+        classifier_keys = {
+            "aesthetic_backbone.head.weight",
+            "aesthetic_backbone.head.bias",
+            "technical_backbone.head.weight",
+            "technical_backbone.head.bias",
+        }
+        source_keys = set(state_dict)
+        missing = set(model_state) - source_keys
+        unexpected = source_keys - set(model_state) - classifier_keys
+        if missing or unexpected or len(source_keys) != 288:
+            raise RuntimeError(
+                "DOVER-Mobile weight key contract mismatch: "
+                f"expected 288 source keys (284 model + 4 classifier), "
+                f"got {len(source_keys)}; missing={sorted(missing)[:5]}, "
+                f"unexpected={sorted(unexpected)[:5]}"
+            )
+        shape_mismatches = [
+            key for key in model_state
+            if tuple(model_state[key].shape) != tuple(state_dict[key].shape)
+        ]
+        if shape_mismatches:
+            raise RuntimeError(
+                "DOVER-Mobile weight shape contract mismatch: "
+                f"{shape_mismatches[:5]}"
+            )
+        self.model.load_state_dict(
+            {key: state_dict[key] for key in model_state}, strict=True
+        )
         self.model.eval()
 
     @staticmethod

@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
   Table,
   TableBody,
@@ -87,12 +88,39 @@ export function NovelChapterTable({
                     {chapter.eventSummary || "未填写"}
                   </div>
                   {chapter.eventNameWarnings?.length ? (
-                    <span
-                      className="mt-0.5 shrink-0 text-warning"
-                      title={`未在原著圣经人物表登记：${chapter.eventNameWarnings.join("、")}`}
-                    >
-                      <AlertTriangle className="h-3.5 w-3.5" />
-                    </span>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          aria-label="查看人物名校验警告"
+                          className="h-5 w-5 shrink-0 p-0 text-warning hover:text-warning"
+                        >
+                          <AlertTriangle className="h-3.5 w-3.5" />
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent side="top" align="end" className="w-72 p-3 text-xs">
+                        <div className="flex items-center gap-1.5 font-medium text-warning">
+                          <AlertTriangle className="h-3.5 w-3.5" />
+                          疑似圣经人物误写
+                        </div>
+                        <div className="mt-1.5 leading-5 text-muted-foreground">
+                          以下名字与原著圣经登记名仅差一字，可能是 AI 误写：
+                        </div>
+                        <ul className="mt-1.5 space-y-0.5">
+                          {chapter.eventNameWarnings.map((name) => (
+                            <li key={name} className="rounded bg-warning/10 px-1.5 py-0.5 text-warning">
+                              {name}
+                            </li>
+                          ))}
+                        </ul>
+                        <div className="mt-1.5 leading-5 text-muted-foreground">
+                          若为笔误请修正事件摘要；若确为新角色（NPC/新配角）可忽略，
+                          常驻配角建议在圣经补登记。
+                        </div>
+                      </PopoverContent>
+                    </Popover>
                   ) : null}
                 </div>
               </TableCell>

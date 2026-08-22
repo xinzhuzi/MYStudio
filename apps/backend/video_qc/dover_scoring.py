@@ -6,7 +6,8 @@
 
 任一闸门未过 → VideoQcError(blocked),QC 链把 aesthetic 层标
 skipped-model-missing / skipped-arch-unavailable。权重+架构齐后,
-score_video 按 DOVER 官方口径输出 fused/aesthetic/technical ∈ [0,1]。
+score_video 按 DOVER 官方口径输出 fused ∈ [0,1]，并保留
+aesthetic/technical 的有限 raw head 分数。
 """
 
 from __future__ import annotations

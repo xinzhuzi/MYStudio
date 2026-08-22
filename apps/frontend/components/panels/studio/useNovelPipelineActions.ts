@@ -21,6 +21,7 @@ import {
   validateCharactersAgainstBible,
 } from "@/lib/studio/source-bible";
 import { readSourceMemoryActionContext } from "@/lib/studio/source-memory";
+import { parseAssetNames } from "@/lib/studio/asset-names";
 import { useCharacterLibraryStore } from "@/stores/library/character-library-store";
 import { usePropsLibraryStore } from "@/stores/library/props-library-store";
 import { useSceneStore } from "@/stores/library/scene-store";
@@ -83,6 +84,16 @@ export function useNovelPipelineActions({
         return;
       }
       const bibleCharacters = parseBibleCharacters(memory.residentMemory ?? "");
+      // 项目角色库已登记名(含 notes 别名,如「监工赵四/赵四」)=经实体提取确认的
+      // 工作角色(NPC 在内),不按圣经误写报警
+      const knownCharacterNames = new Set<string>();
+      for (const character of useCharacterLibraryStore.getState().characters) {
+        knownCharacterNames.add(character.name.trim());
+        const aliasNote = (character.notes ?? "").replace(/^别名[：:]/, "").trim();
+        for (const alias of parseAssetNames(aliasNote, "").allNames) {
+          if (alias && alias !== "未命名素材") knownCharacterNames.add(alias.trim());
+        }
+      }
       let prevEventLine: string | undefined;
       for (const chapter of sortedChapters) {
         updateNovelChapter(chapter.id, {
@@ -110,7 +121,11 @@ export function useNovelPipelineActions({
             sourceId: chapter.sourceId ?? chapter.id,
             revision: chapter.revision ?? 1,
           });
-          const nameWarnings = validateCharactersAgainstBible(analysis.characters, bibleCharacters);
+          const nameWarnings = validateCharactersAgainstBible(
+            analysis.characters,
+            bibleCharacters,
+            knownCharacterNames,
+          );
           if (nameWarnings.length) warningChapterCount += 1;
           updateNovelChapter(chapter.id, {
             eventTaskState: "success",
@@ -136,7 +151,7 @@ export function useNovelPipelineActions({
 
       if (warningChapterCount) {
         toast.warning(
-          `原著圣经人物校验：${warningChapterCount} 章出现未登记人名，请检查事件摘要列的警告标记`,
+          `原著圣经人物校验：${warningChapterCount} 章出现疑似误写人名（与圣经登记名差一字），请检查事件摘要列的警告标记`,
         );
       }
       saveAgentWorkData(

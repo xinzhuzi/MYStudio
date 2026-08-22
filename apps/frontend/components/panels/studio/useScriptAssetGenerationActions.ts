@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import {
   buildRoleAudioCandidates,
   createNarratorVoiceTarget,
@@ -15,9 +15,11 @@ import {
 import { useStudioStore } from "@/stores/studio/studio-store";
 import { useTtsStore } from "@/stores/tts/tts-store";
 import { useCharacterLibraryStore } from "@/stores/library/character-library-store";
+import { parseAssetNames } from "@/lib/studio/asset-names";
 import { usePropsLibraryStore } from "@/stores/library/props-library-store";
 import { useSceneStore } from "@/stores/library/scene-store";
 import { eventBus } from "@/lib/events/event-bus";
+import { getProjectFilesBridge } from "@/lib/bridge/project-files";
 import type { EntityExtractionResult, ScriptPlan } from "@/types/studio";
 import type { StudioAssetSummary, StudioAssetKind } from "@/types/studio-assets";
 import { toast } from "sonner";
@@ -34,6 +36,7 @@ import {
 } from "./script-asset-generation-model";
 import { getAbsoluteImagePath } from "@/lib/media/image-storage";
 import { toRoleSpeakerId } from "@/lib/tts/role-speaker-id";
+import type { TtsSpeakerId } from "@/types/tts";
 import { getStudioAssetsBridge } from "@/lib/bridge/studio-assets";
 import { getTtsRuntimeBridge } from "@/lib/bridge/tts-runtime";
 
@@ -57,9 +60,14 @@ export function useScriptAssetGenerationActions({
   onAssetStored?: (row: AssetRow, asset: StudioAssetSummary) => void;
 }) {
   const [selectedAsset, setSelectedAsset] = useState<StudioAssetSummary | null>(null);
+  // 从角色行打开详情时,收集该资产全部别名对应的角色库条目 id(共享资产如「李先生;管事」
+  // 拆开的两行都要接住音色):分配时对这些工作流 speaker 键统一双写
+  const [selectedRowLinkedSpeakerIds, setSelectedRowLinkedSpeakerIds] = useState<TtsSpeakerId[]>([]);
   const [assetDialogOpen, setAssetDialogOpen] = useState(false);
   const [notFoundAsset, setNotFoundAsset] = useState<AssetRow | null>(null);
-  const [isGeneratingSingle, setIsGeneratingSingle] = useState(false);
+  // 后台生成中的行 key(同步 ref,不驱动渲染):确认弹窗关闭后生成转后台,
+  // 此集合用于拦截同一资产的重复提交(连点/再次打开行时提示而非重复生图)
+  const generatingRowKeysRef = useRef(new Set<string>());
   const [isAutoAssigningAudio, setIsAutoAssigningAudio] = useState(false);
   const [storingAssetKey, setStoringAssetKey] = useState<string | null>(null);
   const materials = useStudioStore((state) => state.materials);
@@ -109,10 +117,36 @@ export function useScriptAssetGenerationActions({
     }
   }, [activeProjectId, entityExtractions, productionEpisodeId, scriptPlans]);
 
+  /** 资产名全部分隔符别名解析后,收集项目内所有匹配的角色库条目 speaker 键(共享资产拆开也接得住)。 */
+  const collectLinkedSpeakerIds = useCallback(
+    (asset: StudioAssetSummary | null, fallbackRow?: AssetRow): TtsSpeakerId[] => {
+      const names = new Set(parseAssetNames(asset?.name ?? fallbackRow?.name ?? "").allNames);
+      const ids = useCharacterLibraryStore
+        .getState()
+        .characters.filter(
+          (character) =>
+            (!activeProjectId || character.projectId === activeProjectId) &&
+            names.has(character.name.trim()),
+        )
+        .map((character) => toRoleSpeakerId(character.id));
+      if (fallbackRow?.type === "character" && !ids.includes(toRoleSpeakerId(fallbackRow.id))) {
+        ids.push(toRoleSpeakerId(fallbackRow.id));
+      }
+      return ids;
+    },
+    [activeProjectId],
+  );
+
   const handleOpenAsset = useCallback(async (row: AssetRow) => {
     if (row.assetLibrary) {
+      setSelectedRowLinkedSpeakerIds(collectLinkedSpeakerIds(row.assetLibrary, row));
       setSelectedAsset(row.assetLibrary);
       setAssetDialogOpen(true);
+      return;
+    }
+    // 该行生成仍在后台进行:提示进度位置,不再弹「资产未找到」诱导重复提交
+    if (generatingRowKeysRef.current.has(assetLibraryRowKey(row))) {
+      toast.info(`「${row.name}」正在后台生成中，进度见顶部提示`);
       return;
     }
     try {
@@ -121,6 +155,7 @@ export function useScriptAssetGenerationActions({
         name: row.name,
       });
       if (asset) {
+        setSelectedRowLinkedSpeakerIds(collectLinkedSpeakerIds(asset, row));
         setSelectedAsset(asset);
         setAssetDialogOpen(true);
         return;
@@ -129,7 +164,7 @@ export function useScriptAssetGenerationActions({
     } catch {
       toast.error("查询资产库失败");
     }
-  }, []);
+  }, [collectLinkedSpeakerIds]);
 
   const handleStoreInAssetLibrary = useCallback(async (row: AssetRow) => {
     if (row.assetLibrary) return;
@@ -171,37 +206,61 @@ export function useScriptAssetGenerationActions({
     }
   }, [onAssetStored]);
 
-  const handleGenerateSingle = useCallback(async () => {
+  // 确认后立即收起弹窗、生成转后台:生图链路在 API 池被其他生成占用时会经历
+  // 503 重试/多绑定轮转/长轮询(可达数分钟),若用模态弹窗等它结束会把整个
+  // 界面锁死且无法取消。进度与结果一律走 toast,行状态由 store 订阅自动刷新。
+  const handleGenerateSingle = useCallback(() => {
     if (!notFoundAsset) return;
     if (!visualManualId) {
       toast.error("请先在「风格与导演」中选择视觉手册");
       return;
     }
-    setIsGeneratingSingle(true);
-    try {
-      const localRow = ensureLocalAssetForRow(notFoundAsset, {
-        activeProjectId,
-        productionEpisodeId,
-      });
-      const task = toGenerationTask(localRow, visualManualId, activeProjectId, productionEpisodeId);
-      if (!task) {
-        toast.error(`「${notFoundAsset.name}」缺少可生成的本地资产`);
-        return;
-      }
-      const result = await generateAsset(task);
-      if (result.phase !== "done") {
-        toast.error(`「${notFoundAsset.name}」生成失败：${result.error ?? "未知错误"}`);
-        return;
-      }
-      toast.success(`「${notFoundAsset.name}」资产生成成功`);
+    const row = notFoundAsset;
+    const rowKey = assetLibraryRowKey(row);
+    // 同一资产生成已在后台进行:只收起弹窗,不重复提交(ref 保证连点同步拦截)
+    if (generatingRowKeysRef.current.has(rowKey)) {
       setNotFoundAsset(null);
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "生成失败");
-    } finally {
-      setIsGeneratingSingle(false);
+      return;
     }
-// eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeProjectId, notFoundAsset, onAssetStored, productionEpisodeId, visualManualId]);
+    setNotFoundAsset(null);
+    generatingRowKeysRef.current.add(rowKey);
+    const toastId = `script-asset-generate:${rowKey}`;
+    toast.loading(`「${row.name}」生成任务已提交...`, { id: toastId });
+    void (async () => {
+      try {
+        const localRow = ensureLocalAssetForRow(row, {
+          activeProjectId,
+          productionEpisodeId,
+        });
+        const task = toGenerationTask(localRow, visualManualId, activeProjectId, productionEpisodeId);
+        if (!task) {
+          toast.error(`「${row.name}」缺少可生成的本地资产`, { id: toastId });
+          return;
+        }
+        const result = await generateAsset(task, (progress) => {
+          if (progress.phase === "polishing") {
+            toast.loading(`正在润色「${row.name}」的提示词...`, { id: toastId });
+          } else if (progress.phase === "generating") {
+            toast.loading(`正在生成「${row.name}」的图片...（排队或重试时可能较久，可继续其他操作）`, { id: toastId });
+          } else if (progress.phase === "saving") {
+            toast.loading(`正在保存「${row.name}」的图片...`, { id: toastId });
+          }
+        });
+        if (result.phase !== "done") {
+          toast.error(`「${row.name}」生成失败：${result.error ?? "未知错误"}`, { id: toastId });
+          return;
+        }
+        toast.success(`「${row.name}」资产生成成功`, { id: toastId });
+      } catch (error) {
+        toast.error(
+          error instanceof Error ? error.message : `「${row.name}」生成失败`,
+          { id: toastId },
+        );
+      } finally {
+        generatingRowKeysRef.current.delete(rowKey);
+      }
+    })();
+  }, [activeProjectId, notFoundAsset, productionEpisodeId, visualManualId]);
 
   const handleAutoAssignAudio = useCallback(async () => {
     if (activeType !== "character") return;
@@ -254,16 +313,44 @@ export function useScriptAssetGenerationActions({
       if (plan.errors.length > 0) {
         throw new Error(plan.errors.map((item) => item.message).join("；"));
       }
+      const createdFinalBindings: Array<{ speakerId: string; profileId: string }> = [];
       for (const item of plan.created) {
         const profile = createVoiceProfile(item.draft.profile);
-        bindSpeaker({
-          ...item.draft.binding,
-          profileId: profile.id,
-        });
+        const binding = { ...item.draft.binding, profileId: profile.id };
+        bindSpeaker(binding);
+        createdFinalBindings.push({ speakerId: binding.speakerId, profileId: binding.profileId });
       }
       // 同名角色跨 id 复用：直接绑定既有 profile（不重复建档），声音保持固定。
       for (const item of plan.rebound) {
         bindSpeaker(item.binding);
+      }
+      // 双写镜像(2026-08-22):工作流键(角色库 id)绑定同步到资产库键,角色详情页试听与工作流一致
+      const assetSpeakerByCharId = new Map(
+        currentRows
+          .filter(
+            (row) =>
+              row.type === "character" &&
+              row.id &&
+              row.assetLibrary &&
+              row.assetLibrary.id !== row.id,
+          )
+          .map((row) => [row.id, toRoleSpeakerId(row.assetLibrary!.id)] as const),
+      );
+      const mirrorBindingToAssetKey = (speakerId: string, profileId: string) => {
+        const assetSpeakerId = assetSpeakerByCharId.get(speakerId);
+        if (!assetSpeakerId) return;
+        bindSpeaker({
+          speakerId: assetSpeakerId,
+          profileId,
+          defaultEngine: "qwen",
+          defaultModelSize: "1.7B",
+        });
+      };
+      for (const binding of createdFinalBindings) {
+        mirrorBindingToAssetKey(binding.speakerId, binding.profileId);
+      }
+      for (const item of plan.rebound) {
+        mirrorBindingToAssetKey(item.binding.speakerId, item.binding.profileId);
       }
       toast.success(
         `固定音色校验完成：复用 ${plan.fixed.length}，跨id续用 ${plan.rebound.length}，新建 ${plan.created.length}`,
@@ -284,11 +371,12 @@ export function useScriptAssetGenerationActions({
   ]);
 
   return {
-    isGeneratingSingle,
     isAutoAssigningAudio,
     storingAssetKey,
     selectedAsset,
     setSelectedAsset,
+    selectedRowLinkedSpeakerIds,
+    setSelectedRowLinkedSpeakerIds,
     assetDialogOpen,
     setAssetDialogOpen,
     notFoundAsset,
@@ -407,6 +495,10 @@ async function resolveAssetSourceFilePath(image?: string) {
   if (!image) return undefined;
   if (image.startsWith("local-image://")) {
     return (await getAbsoluteImagePath(image)) ?? undefined;
+  }
+  if (image.startsWith("project-file://")) {
+    // 生图产物落在项目 workflow-images,经主进程 project-files 桥解析为绝对路径后才能入库拷贝
+    return (await getProjectFilesBridge()?.getAbsolutePath(image)) ?? undefined;
   }
   if (image.startsWith("file://")) {
     try {

@@ -21,7 +21,16 @@ export type RoleVoiceBindingResolution =
 
 export function getRoleVoiceSpeakerIds(row: AssetRow): TtsSpeakerId[] {
   if (row.type !== "character") return [];
-  return [toRoleSpeakerId(row.id)];
+  // 2026-08-22 用户裁定:以详情页(资产库键)的音色为准——资产库键优先,角色库键兜底。
+  // 背景:角色库键常由「自动分配音频」写入,与用户在详情页手动换绑的资产库键不一致时,
+  // 行内试听会播旧音色;详情页才是用户维护音色的权威面。
+  const ids: TtsSpeakerId[] = [];
+  const assetLibraryId = row.assetLibrary?.id;
+  if (assetLibraryId && assetLibraryId !== row.id) {
+    ids.push(toRoleSpeakerId(assetLibraryId));
+  }
+  ids.push(toRoleSpeakerId(row.id));
+  return ids;
 }
 
 export function resolveRoleVoiceBinding(

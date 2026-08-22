@@ -36,6 +36,7 @@ import { polishAssetPrompt, type PolishResult } from "@/lib/ai/prompt-polisher";
 import { generateAsset } from "@/lib/studio/asset-generation-orchestrator";
 import { parseAssetNames } from "@/lib/studio/asset-names";
 import { toRoleSpeakerId } from "@/lib/tts/role-speaker-id";
+import type { TtsSpeakerId } from "@/types/tts";
 import { usePropsLibraryStore } from "@/stores/library/props-library-store";
 import { useStudioStore } from "@/stores/studio/studio-store";
 import { useTtsStore } from "@/stores/tts/tts-store";
@@ -68,10 +69,14 @@ const TYPE_LABEL = {
 
 export function StudioAssetDetailDialog({
   asset,
+  linkedSpeakerIds,
   open,
   onOpenChange,
 }: {
   asset: StudioAssetSummary | null;
+  /** 从工作流(剧本资产管理)角色行打开时传入全部匹配别名的工作流 speaker 键:
+   *  分配音色时统一双写(共享资产如「李先生;管事」拆开的各角色键都接住),保证工作流试听/成片一致 */
+  linkedSpeakerIds?: TtsSpeakerId[];
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
@@ -331,6 +336,8 @@ export function StudioAssetDetailDialog({
           result.imageLocalPath,
           result.polishResult,
         );
+        // 广播资产库更新:提取区 chip 颜色等依赖资产库缓存的面据此自动刷新
+        eventBus.emit("asset:updated", { id: asset.id, type: asset.type });
         if (getStudioAssetsBridge()?.get) {
           const updated = await getStudioAssetsBridge()!.get(asset.id);
           if (updated) {
@@ -392,6 +399,7 @@ export function StudioAssetDetailDialog({
       try {
         const saved = await saveGeneratedAssetImageToLibrary(asset.id, data.url);
         if (saved) {
+          eventBus.emit("asset:updated", { id: asset.id, type: asset.type });
           toast.success("已自动保存回素材");
         }
       } catch (e) {
@@ -819,6 +827,7 @@ export function StudioAssetDetailDialog({
       {asset.type === "role" && (
         <RoleVoiceAssignDialog
           character={{ id: asset.id, name: parsedDraftName.primaryName }}
+          linkedSpeakerIds={linkedSpeakerIds}
           open={voiceAssignOpen}
           onOpenChange={setVoiceAssignOpen}
         />

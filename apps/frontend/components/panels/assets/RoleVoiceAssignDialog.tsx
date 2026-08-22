@@ -18,6 +18,7 @@ import { useProjectStore } from "@/stores/project/project-store";
 import { useStudioStore } from "@/stores/studio/studio-store";
 import { useTtsStore } from "@/stores/tts/tts-store";
 import type { StudioAssetSummary } from "@/types/studio-assets";
+import type { TtsSpeakerId } from "@/types/tts";
 import { cn } from "@/lib/utils";
 import { Search, Volume2 } from "lucide-react";
 import { toast } from "sonner";
@@ -33,10 +34,14 @@ export interface RoleVoiceAssignableCharacter {
 
 export function RoleVoiceAssignDialog({
   character,
+  linkedSpeakerIds,
   open,
   onOpenChange,
 }: {
   character: RoleVoiceAssignableCharacter;
+  /** 双写桥(2026-08-22):详情页以资产库 id 为 speaker 键绑定,而工作流(剧本资产管理/成片)以角色库 id 读取;
+   *  传入工作流侧 speakerId 时同一 profile 双写两键,两侧试听保持一致。 */
+  linkedSpeakerIds?: TtsSpeakerId[];
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
@@ -126,6 +131,14 @@ export function RoleVoiceAssignDialog({
         defaultEngine: "qwen",
         defaultModelSize: "1.7B",
       });
+      for (const linkedSpeakerId of linkedSpeakerIds ?? []) {
+        sink.bindSpeaker({
+          speakerId: linkedSpeakerId,
+          profileId,
+          defaultEngine: "qwen",
+          defaultModelSize: "1.7B",
+        });
+      }
       toast.success(`${character.name} 已绑定音色音频「${selectedAsset.name}」`);
       onOpenChange(false);
     } catch (err) {
@@ -133,7 +146,7 @@ export function RoleVoiceAssignDialog({
     } finally {
       setAssigning(false);
     }
-  }, [activeProjectId, character, ensureTtsProject, selectedAsset, setTtsActiveProjectId, onOpenChange]);
+  }, [activeProjectId, character, ensureTtsProject, linkedSpeakerIds, selectedAsset, setTtsActiveProjectId, onOpenChange]);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>

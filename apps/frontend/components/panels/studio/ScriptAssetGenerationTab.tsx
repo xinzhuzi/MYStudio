@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -16,18 +16,24 @@ import {
   Boxes,
   Loader2,
   Mic2,
+  RefreshCw,
 } from "lucide-react";
+import { toast } from "sonner";
+import { getStudioAssetsBridge } from "@/lib/bridge/studio-assets";
+import { eventBus } from "@/lib/events/event-bus";
 import { AssetGenerationRow } from "./ScriptAssetGenerationRow";
 import {
   ASSET_TYPES,
   assetLibraryRowKey,
   summarizeRows,
+  toRuntimeAssetType,
   typeLabel,
- 
   type AssetGenerationType,
 } from "./script-asset-generation-model";
 import { useScriptAssetGenerationActions } from "./useScriptAssetGenerationActions";
 import { useScriptAssetGenerationData } from "./useScriptAssetGenerationData";
+import { getRoleVoiceSpeakerIds, resolveRoleVoiceBinding } from "./script-asset-voice-binding";
+import { useTtsStore } from "@/stores/tts/tts-store";
 import type { StudioAssetSummary } from "@/types/studio-assets";
 
 export function ScriptAssetGenerationTab({
@@ -47,14 +53,15 @@ export function ScriptAssetGenerationTab({
 }) {
   const [activeType, setActiveType] = useState<AssetGenerationType>("character");
   const [storedAssetOverrides, setStoredAssetOverrides] = useState<Record<string, StudioAssetSummary>>({});
+  const [isRefreshingMatches, setIsRefreshingMatches] = useState(false);
   const {
     activeProjectId,
     currentRows,
     entityExtractions,
+    rows,
     scriptPlans,
     stats,
     visualManualId,
-    voiceStats,
   } = useScriptAssetGenerationData(activeType);
   const currentRowsWithStoredAssets = useMemo(
     () =>
@@ -67,6 +74,30 @@ export function ScriptAssetGenerationTab({
       }),
     [currentRows, storedAssetOverrides],
   );
+  // 表头语音计数用合并后的行:资产库键绑定的配音经读取侧回退也要计入
+  // (data hook 的 voiceStats 基于原始行,看不到 storedAssetOverrides 桥接)
+  const activeTtsProjectId = useTtsStore((state) => state.activeProjectId);
+  const ttsProjects = useTtsStore((state) => state.projects);
+  const ttsVoiceProfiles = useTtsStore((state) => state.voiceProfiles);
+  const mergedVoiceStats = useMemo(() => {
+    const bindings = activeTtsProjectId
+      ? (ttsProjects[activeTtsProjectId]?.bindings ?? {})
+      : {};
+    let assigned = 0;
+    for (const row of rows.character) {
+      const merged = currentRowsWithStoredAssets.find(
+        (item) => item.type === "character" && item.id === row.id,
+      );
+      const target = merged ?? row;
+      const resolution = resolveRoleVoiceBinding(
+        getRoleVoiceSpeakerIds(target),
+        bindings,
+        ttsVoiceProfiles,
+      );
+      if (resolution.state === "assigned") assigned += 1;
+    }
+    return { assigned, total: rows.character.length };
+  }, [activeTtsProjectId, currentRowsWithStoredAssets, rows.character, ttsProjects, ttsVoiceProfiles]);
   const displayCurrentStats = useMemo(
     () => summarizeRows(currentRowsWithStoredAssets),
     [currentRowsWithStoredAssets],
@@ -80,10 +111,11 @@ export function ScriptAssetGenerationTab({
   );
 
   const {
-    isGeneratingSingle,
     isAutoAssigningAudio,
     selectedAsset,
     setSelectedAsset,
+    selectedRowLinkedSpeakerIds,
+    setSelectedRowLinkedSpeakerIds,
     assetDialogOpen,
     setAssetDialogOpen,
     notFoundAsset,
@@ -110,6 +142,56 @@ export function ScriptAssetGenerationTab({
     },
   });
 
+  // 重新识别:对当前全部实体行重跑资产库匹配,覆盖/清理本地绑定(资产库手动改名/合并后无需重启)
+  const handleRefreshAssetMatches = async (options?: { silent?: boolean }) => {
+    const batchMatch = getStudioAssetsBridge()?.batchMatch;
+    if (!batchMatch) {
+      if (!options?.silent) toast.error("当前环境不支持资产库匹配");
+      return;
+    }
+    setIsRefreshingMatches(true);
+    try {
+      const nextOverrides: Record<string, StudioAssetSummary> = {};
+      const summary: string[] = [];
+      for (const type of ASSET_TYPES) {
+        const typeRows = rows[type.key];
+        if (!typeRows.length) continue;
+        const results = await batchMatch({
+          type: toRuntimeAssetType(type.key),
+          names: typeRows.map((row) => row.name),
+        });
+        let matched = 0;
+        for (const result of results) {
+          if (!result.asset) continue;
+          matched += 1;
+          nextOverrides[assetLibraryRowKey({ type: type.key, name: result.name })] = result.asset;
+        }
+        summary.push(`${type.label} ${matched}/${typeRows.length}`);
+      }
+      setStoredAssetOverrides(nextOverrides);
+      if (!options?.silent) toast.success(`重新识别完成:${summary.join(" · ") || "无实体行"}`);
+      // 用户显式重识别后广播:上方「资产提取」chip 颜色依赖资产中心缓存,
+      // 据此同步重拉,让「重新识别」对整个剧本资产管理页生效(静默轮不动资产库,
+      // 遵守「渲染提取视图不初始化独立资产库」契约)
+      if (!options?.silent) eventBus.emit("asset:rematch");
+    } catch (error) {
+      if (!options?.silent) toast.error(error instanceof Error ? error.message : "重新识别失败");
+    } finally {
+      setIsRefreshingMatches(false);
+    }
+  };
+
+  // 进入页面时静默重跑一次匹配:让「资产库已存在/放入资产库」状态跨页面切换保持正确,
+  // 而不是只靠手动点「重新识别」(本地 overrides 不持久,切走再回来必须重算)
+  const hasAnyRows = rows.character.length + rows.scene.length + rows.prop.length > 0;
+  const initialMatchDoneRef = useRef(false);
+  useEffect(() => {
+    if (initialMatchDoneRef.current || !hasAnyRows) return;
+    initialMatchDoneRef.current = true;
+    void handleRefreshAssetMatches({ silent: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hasAnyRows]);
+
   return (
     <div className="flex h-full min-h-0 flex-col bg-background/90">
       <div className="border-b border-border/70 bg-panel/80 px-4 py-3">
@@ -129,6 +211,15 @@ export function ScriptAssetGenerationTab({
             </p>
           </div>
           <div className="flex flex-wrap justify-end gap-2">
+            <Button
+              size="sm"
+              variant="secondary"
+              disabled={isRefreshingMatches || (rows.character.length + rows.scene.length + rows.prop.length) === 0}
+              onClick={() => void handleRefreshAssetMatches()}
+            >
+              <RefreshCw className={isRefreshingMatches ? "h-4 w-4 animate-spin" : "h-4 w-4"} />
+              重新识别
+            </Button>
             <Button size="sm" variant="secondary" disabled={scriptPlanCount === 0} onClick={handleDeriveAssets}>
               <Boxes className="h-4 w-4" />
               落地衍生资产
@@ -157,9 +248,9 @@ export function ScriptAssetGenerationTab({
           </button>
         ))}
         <div className="flex-1" />
-        {activeType === "character" && voiceStats.total > 0 ? (
+        {activeType === "character" && mergedVoiceStats.total > 0 ? (
           <span className="text-xs text-primary">
-            参考音频 {voiceStats.assigned}/{voiceStats.total}
+            参考音频 {mergedVoiceStats.assigned}/{mergedVoiceStats.total}
           </span>
         ) : null}
         {activeType === "character" ? (
@@ -167,7 +258,7 @@ export function ScriptAssetGenerationTab({
             type="button"
             size="sm"
             variant="outline"
-            disabled={isAutoAssigningAudio || voiceStats.total === 0}
+            disabled={isAutoAssigningAudio || mergedVoiceStats.total === 0}
             onClick={() => void handleAutoAssignAudio()}
           >
             {isAutoAssigningAudio ? (
@@ -202,10 +293,16 @@ export function ScriptAssetGenerationTab({
 
       <StudioAssetDetailDialog
         asset={selectedAsset}
+        linkedSpeakerIds={selectedRowLinkedSpeakerIds}
         open={assetDialogOpen}
         onOpenChange={(open) => {
           setAssetDialogOpen(open);
-          if (!open) setSelectedAsset(null);
+          if (!open) {
+            setSelectedAsset(null);
+            setSelectedRowLinkedSpeakerIds([]);
+            // 详情里的任何修改(提示词/图/信息/配音)在关闭时已落库——静默重跑匹配让行状态即时刷新
+            void handleRefreshAssetMatches({ silent: true });
+          }
         }}
       />
       <AlertDialog
@@ -222,10 +319,8 @@ export function ScriptAssetGenerationTab({
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={isGeneratingSingle}>取消</AlertDialogCancel>
-            <AlertDialogAction onClick={handleGenerateSingle} disabled={isGeneratingSingle}>
-              {isGeneratingSingle ? "生成中..." : "立即生成"}
-            </AlertDialogAction>
+            <AlertDialogCancel>取消</AlertDialogCancel>
+            <AlertDialogAction onClick={handleGenerateSingle}>立即生成</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

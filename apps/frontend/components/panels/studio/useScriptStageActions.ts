@@ -162,13 +162,16 @@ export function useScriptStageActions({
     });
   };
 
-  const handleScriptStage = useCallback(
+  /** 组装某阶段完整消息(作者偏好+原著圣经+档案检索+项目记忆全注入);供生成与预览共用。 */
+  const buildStageMessagesFull = useCallback(
     async (
       stage: ScriptStageKey,
       chapter: NovelChapter,
-      userOverride?: string,
       options?: { useReviewFeedback?: boolean },
-    ) => {
+    ): Promise<
+      | { ok: true; system: string; user: string }
+      | { ok: false; error: string }
+    > => {
       const skeleton = latestScriptStage("storySkeleton", chapter.id);
       const strategy = latestScriptStage("adaptationStrategy", chapter.id);
       const scriptDraft = latestScriptStage("scriptDraft", chapter.id);
@@ -188,20 +191,11 @@ export function useScriptStageActions({
         episodeId: chapter.id,
         query: `${chapter.title} ${chapter.eventSummary ?? ""} ${chapter.eventState ?? ""}`,
       }));
-      if (stage === "adaptationStrategy" && !skeleton) {
-        toast.error("请先生成故事骨架");
-        return;
-      }
-      if (stage === "scriptDraft" && (!skeleton || !strategy)) {
-        toast.error("请先生成故事骨架与改编策略");
-        return;
-      }
       const memory = await readBibleContext(
         `${chapter.title} ${chapter.eventSummary ?? ""} ${chapter.eventState ?? ""}`,
       );
       if (!memory.success) {
-        toast.error(memory.error);
-        return;
+        return { ok: false, error: memory.error };
       }
       const built = buildStageMessages(stage, {
         manualContext: scriptStyleSummary,
@@ -217,6 +211,46 @@ export function useScriptStageActions({
         reviewFeedback: useReviewFeedback && hasReviewIssues(review) ? review : undefined,
         previousOutput: latestScriptStage(stage, chapter.id),
       });
+      return { ok: true, system: built.system, user: built.user };
+    },
+    [latestScriptStage, scriptStyleSummary, scriptDirectorContext],
+  );
+
+  /** 「AI提示词」页预览:与实际发送(未编辑时)完全一致的完整 user 消息;失败返回 null 静默回退。 */
+  const previewStageUserMessage = useCallback(
+    async (
+      stage: ScriptStageKey,
+      chapter: NovelChapter,
+      options?: { useReviewFeedback?: boolean },
+    ): Promise<string | null> => {
+      const built = await buildStageMessagesFull(stage, chapter, options);
+      return built.ok ? built.user : null;
+    },
+    [buildStageMessagesFull],
+  );
+
+  const handleScriptStage = useCallback(
+    async (
+      stage: ScriptStageKey,
+      chapter: NovelChapter,
+      userOverride?: string,
+      options?: { useReviewFeedback?: boolean },
+    ) => {
+      const skeleton = latestScriptStage("storySkeleton", chapter.id);
+      const strategy = latestScriptStage("adaptationStrategy", chapter.id);
+      if (stage === "adaptationStrategy" && !skeleton) {
+        toast.error("请先生成故事骨架");
+        return;
+      }
+      if (stage === "scriptDraft" && (!skeleton || !strategy)) {
+        toast.error("请先生成故事骨架与改编策略");
+        return;
+      }
+      const built = await buildStageMessagesFull(stage, chapter, options);
+      if (!built.ok) {
+        toast.error(built.error);
+        return;
+      }
       return runScriptStage({
         agentKey:
           stage === "storySkeleton"
@@ -228,17 +262,16 @@ export function useScriptStageActions({
         stageKey: stage,
         scopeId: chapter.id,
         label: SCRIPT_STAGE_LABEL[stage],
-        revised: useReviewFeedback && hasReviewIssues(review),
+        revised:
+          options?.useReviewFeedback &&
+          hasReviewIssues(
+            latestScriptStage(SCRIPT_STAGE_REVIEW_KEY[stage as ReviewableStage], chapter.id) ?? "",
+          ),
         sourceId: chapter.sourceId ?? chapter.id,
         revision: chapter.revision ?? 1,
       });
     },
-    [
-      runScriptStage,
-      latestScriptStage,
-      scriptStyleSummary,
-      scriptDirectorContext,
-    ],
+    [runScriptStage, latestScriptStage, buildStageMessagesFull],
   );
 
   const handleStageReview = useCallback(
@@ -282,6 +315,7 @@ export function useScriptStageActions({
     scriptStyleSummary,
     scriptDirectorContext,
     scriptStreaming,
+    previewStageUserMessage,
     handleScriptStage,
     handleStageReview,
   };

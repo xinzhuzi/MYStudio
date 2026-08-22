@@ -496,6 +496,9 @@ export async function runFullPipeline(): Promise<Record<string, unknown>> {
     electronExecutable,
     workspaceRootForProject: hyperFramesWorkspaceRootForProject,
     workerPath: fs.existsSync(hyperFramesWorkerPath) ? hyperFramesWorkerPath : undefined,
+    // hy:* registry 模板依赖目录(与装机应用同源;python 侧经 process.env 同名透传)
+    registryDepsDir: process.env.MYSTUDIO_REGISTRY_DEPS_DIR?.trim()
+      ?? path.join(storageBasePath, "hyperframes-registry-deps"),
     resolveBrowserPath: async () => fs.existsSync(browserPath) ? browserPath : undefined,
   });
 
@@ -612,6 +615,71 @@ export async function runFullPipeline(): Promise<Record<string, unknown>> {
   // boundaries onto the shot list (storyboard trackKey scene grouping), and
   // translate each style word through the single-source transition policy.
   const boundaryIntents = await buildBoundaryIntents(projectDir, chapterId, shotInputs);
+
+  // hy:* registry 渲染验证注入(MYSTUDIO_HY_PROOF_MOODS=1):道劫存量分镜尚无
+  // moodWord 数据源(vision 层未在此项目流转),注入跨大类 mood 词让 python
+  // _build_overlay_slots 走 registry 分支——effect/duration 均为真实值。
+  if (process.env.MYSTUDIO_HY_PROOF_MOODS === "1") {
+    const proofMoods = ["战斗", "雪", "回忆", "星", "科技", "文字"];
+    const injected = boundaryIntents.length > 0 ? boundaryIntents.slice(0, proofMoods.length) : [];
+    if (boundaryIntents.length > 0) {
+      injected.forEach((intent, i) => { intent.moodWord = proofMoods[i % proofMoods.length]; });
+    } else {
+      const ids = shotInputs.map((s) => s.shotId);
+      const step = Math.max(1, Math.floor(ids.length / (proofMoods.length + 1)));
+      for (let i = 0; i < proofMoods.length; i++) {
+        const from = ids[(i + 1) * step - 1];
+        const to = ids[(i + 1) * step];
+        if (from && to && from !== to) {
+          injected.push({ fromShotId: from, toShotId: to, effectId: "crossfade", durationUs: 500_000, styleWord: "crossfade", moodWord: proofMoods[i] });
+        }
+      }
+      boundaryIntents.push(...injected);
+    }
+    console.log(`[full-pipeline] HY proof moods injected: ${injected.map((i) => `${i.fromShotId}→${i.toShotId}:${i.moodWord}`).join(", ")}`);
+  }
+
+  // 转场语音钳制(MYSTUDIO_HY_PROOF_MOODS 同门):按上一轮 artifact 的 EDL+字幕
+  // cue 把 intent 重叠收紧到"上一镜语音结束后的静默尾"内——组合 props 门的
+  // 语音挤压规则要求数据侧合规;python EDL 合并无 cue 钳制属独立缺口(留档)。
+  if (process.env.MYSTUDIO_HY_PROOF_MOODS === "1" && boundaryIntents.length > 0) {
+    const prevArtifactPath = (() => {
+      const root = path.join(workspaceRoot, chapterId);
+      if (!fs.existsSync(root)) return null;
+      const revs = fs.readdirSync(root).map((e) => e.match(/^r(\d+)$/)).filter(Boolean)
+        .map((m) => Number(m![1])).sort((a, b) => b - a);
+      for (const rev of revs) {
+        const c = path.join(root, `r${rev}`, "video-use-artifact.json");
+        if (fs.existsSync(c)) return c;
+      }
+      return null;
+    })();
+    if (prevArtifactPath) {
+      const prev = JSON.parse(fs.readFileSync(prevArtifactPath, "utf8")) as {
+        edl?: { ranges?: Array<{ source: string; start: number; end: number }> };
+        subtitles?: Array<{ shotId: string; startUs: number; durationUs: number }>;
+      };
+      const shotEnd = new Map<string, number>();
+      for (const r of prev.edl?.ranges ?? []) shotEnd.set(String(r.source), Math.round(r.end * 1_000_000));
+      const lastSpeechEnd = new Map<string, number>();
+      for (const c of prev.subtitles ?? []) {
+        const end = c.startUs + c.durationUs;
+        lastSpeechEnd.set(c.shotId, Math.max(lastSpeechEnd.get(c.shotId) ?? 0, end));
+      }
+      const guardUs = Math.round(2_000_000 / 30); // 留 2 帧安全余量
+      let clamped = 0, dropped = 0;
+      for (let i = boundaryIntents.length - 1; i >= 0; i--) {
+        const intent = boundaryIntents[i]!;
+        const end = shotEnd.get(intent.fromShotId);
+        const speech = lastSpeechEnd.get(intent.fromShotId);
+        if (end === undefined) continue;
+        const tailUs = end - (speech ?? 0) - guardUs;
+        if (tailUs < 200_000) { boundaryIntents.splice(i, 1); dropped++; continue; } // 静默尾不足→硬切
+        if (intent.durationUs > tailUs) { intent.durationUs = tailUs; clamped++; }
+      }
+      console.log(`[full-pipeline] transitions clamped=${clamped} dropped=${dropped} (speech-tail rule, from ${path.basename(path.dirname(prevArtifactPath))})`);
+    }
+  }
 
   // 分镜生成图路径表（overlay 装饰槽内容感知定位）：store mediaRef → 注册表解析绝对路径
   const imagePathByShotId = (() => {
@@ -791,7 +859,15 @@ export async function runFullPipeline(): Promise<Record<string, unknown>> {
     }),
   };
   console.log("[full-pipeline] applying accepted artifact (calls HyperFrames)...");
-  const applyResult = await chapterService.applyAcceptedArtifact(applyInput);
+  // 管线内 overlay worker 偶发信号级死亡(无 blocked artifact,手动重跑必成,机理未明)——
+  // 清掉半成品 managed output 后重试 apply(仅重渲 overlay,python 结果复用)。
+  let applyResult = await chapterService.applyAcceptedArtifact(applyInput);
+  for (let attempt = 1; attempt <= 2 && !applyResult.success; attempt++) {
+    console.warn(`[full-pipeline] apply 失败(${applyResult.code}),${attempt}/2 重试(清 overlay 半成品)`);
+    const revDir = path.join(hyperFramesWorkspaceRootForProject(projectId), chapterId, `r${nextRevision}`);
+    fs.rmSync(revDir, { recursive: true, force: true });
+    applyResult = await chapterService.applyAcceptedArtifact(applyInput);
+  }
   if (!applyResult.success) {
     throw new Error(`applyAcceptedArtifact 失败: ${applyResult.code} — ${applyResult.message}`);
   }
@@ -1153,7 +1229,7 @@ export async function runFullPipeline(): Promise<Record<string, unknown>> {
       }
 
       // Build composition props with gate result (the proper path)
-      const projected = buildChapterVideoCompositionProps({
+      const buildPropsOnce = (): ReturnType<typeof buildChapterVideoCompositionProps> => buildChapterVideoCompositionProps({
         plan,
         currentShotSlots: shotSlots,
         chapterManifest,
@@ -1173,6 +1249,28 @@ export async function runFullPipeline(): Promise<Record<string, unknown>> {
             }
           : {}),
       });
+      // 语音挤压收敛(MYSTUDIO_HY_PROOF_MOODS):python EDL 统一 1s 重叠未按 cue
+      // 钳制(独立缺口留档);渲前就地收敛——越界转场时长减半,静默尾不足回落硬切。
+      let projected = buildPropsOnce();
+      if (process.env.MYSTUDIO_HY_PROOF_MOODS === "1") {
+        for (let attempt = 0; attempt < 6 && !projected.success; attempt++) {
+          const violating = [...new Set(projected.issues
+            .filter((i) => i.message.includes("重叠侵入上一镜语音区"))
+            .map((i) => Number(/^plan\.transitions\[(\d+)\]/.exec(i.path)?.[1]))
+            .filter((n) => Number.isInteger(n) && plan.transitions[n] !== undefined))].sort((a, b) => b - a);
+          if (violating.length === 0) break;
+          for (const idx of violating) {
+            const tr = plan.transitions[idx]!;
+            if (tr.durationUs <= 160_000) {
+              plan.transitions.splice(idx, 1);
+              console.log(`[full-pipeline] transition ${tr.effectId}@${idx} 静默尾不足→硬切(语音挤压收敛)`);
+            } else {
+              tr.durationUs = Math.floor(tr.durationUs / 2);
+            }
+          }
+          projected = buildPropsOnce();
+        }
+      }
       if (!projected.success) throw new Error(`composition props 失败: ${projected.issues.map((i) => `${i.path}: ${i.message}`).join("；")}`);
       const props = projected.value;
 

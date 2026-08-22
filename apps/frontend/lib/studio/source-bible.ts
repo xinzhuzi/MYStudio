@@ -244,10 +244,17 @@ export function parseBibleCharacters(markdown: string): BibleCharacter[] {
   return characters;
 }
 
-/** 人物名机器校验：未登记（不在规范名/别名表内）的提取名列表；圣经无人物表时返回空（零误报）。 */
+/**
+ * 人物名机器校验(2026-08-22 裁定:NPC 不入圣经——全新名字静默放行):
+ * 只对「疑似误写已登记人物」的名字报警——与某规范名/别名编辑距离 ≤1(错字/漏字/多字);
+ * 含规范名的小前后缀称呼(如「少年晏燎」)视为已识别;圣经无人物表时返回空(零误报)。
+ * knownNames(项目角色库已登记名)额外豁免:经实体提取确认的工作角色名不按误写报警
+ * (否则「赵四」会撞上圣经配角「赵衡」这类一字差的真名对)。
+ */
 export function validateCharactersAgainstBible(
   characters: string[],
   bibleCharacters: BibleCharacter[],
+  knownNames?: ReadonlySet<string>,
 ): string[] {
   if (!bibleCharacters.length) return [];
   const registered = new Set<string>();
@@ -257,5 +264,52 @@ export function validateCharactersAgainstBible(
       registered.add(alias);
     }
   }
-  return characters.filter((name) => !registered.has(name.trim()));
+  const registeredList = [...registered];
+  return characters.filter((name) => {
+    const trimmed = name.trim();
+    if (registered.has(trimmed)) return false;
+    // 项目已登记角色(含别名)精确命中,或为其包含式称呼(赵四 ⊂ 监工赵四)→ 豁免
+    if (knownNames?.has(trimmed)) return false;
+    if (
+      knownNames &&
+      [...knownNames].some(
+        (k) =>
+          k.length > 1 &&
+          (trimmed.includes(k) || k.includes(trimmed)) &&
+          Math.abs(trimmed.length - k.length) <= 2,
+      )
+    ) {
+      return false;
+    }
+    // 带小前后缀的称呼:两侧包含且长度差 ≤2 → 已识别,放行
+    if (
+      registeredList.some(
+        (r) =>
+          (trimmed.includes(r) || r.includes(trimmed)) &&
+          Math.abs(trimmed.length - r.length) <= 2,
+      )
+    ) {
+      return false;
+    }
+    // 与任一规范名/别名差一个字 → 疑似误写,报警
+    return registeredList.some((r) => levenshteinWithin(trimmed, r, 1));
+  });
+}
+
+/** 编辑距离 ≤ max 的早停判定(名字都是短串,够用且免建整表)。 */
+function levenshteinWithin(a: string, b: string, max: number): boolean {
+  if (Math.abs(a.length - b.length) > max) return false;
+  let prev = Array.from({ length: b.length + 1 }, (_, i) => i);
+  for (let i = 1; i <= a.length; i++) {
+    const curr = [i];
+    let rowMin = i;
+    for (let j = 1; j <= b.length; j++) {
+      const cost = a[i - 1] === b[j - 1] ? 0 : 1;
+      curr[j] = Math.min(prev[j]! + 1, curr[j - 1]! + 1, prev[j - 1]! + cost);
+      rowMin = Math.min(rowMin, curr[j]!);
+    }
+    if (rowMin > max) return false;
+    prev = curr;
+  }
+  return prev[b.length]! <= max;
 }

@@ -233,6 +233,7 @@ export function useStudioViewModel() {
     scriptStyleSummary,
     scriptDirectorContext,
     scriptStreaming,
+    previewStageUserMessage,
     handleScriptStage,
     handleStageReview,
   } = useScriptStageActions({
@@ -290,6 +291,7 @@ export function useStudioViewModel() {
     scriptStyleSummary,
     scriptDirectorContext,
     scriptStreaming,
+    previewStageUserMessage,
     handleScriptStage,
     handleStageReview,
     scriptHeaderActions,

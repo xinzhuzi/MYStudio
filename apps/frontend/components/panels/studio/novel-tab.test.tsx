@@ -207,7 +207,7 @@ describe("NovelChapterTable", () => {
     expect(screen.getByText("删除")).toBeTruthy();
   });
 
-  it("未登记人物名时在事件摘要列显示警告标记", () => {
+  it("未登记人物名时在事件摘要列显示警告标记", async () => {
     render(
       <NovelChapterTable
         chapters={[{ ...chapter, eventNameWarnings: ["神秘老者"] }]}
@@ -221,8 +221,10 @@ describe("NovelChapterTable", () => {
       />,
     );
 
-    const marker = document.querySelector('span[title*="神秘老者"]');
+    const marker = screen.getByRole("button", { name: "查看人物名校验警告" });
     expect(marker).toBeTruthy();
-    expect(marker?.getAttribute("title")).toContain("未在原著圣经人物表登记");
+    fireEvent.click(marker);
+    await waitFor(() => expect(screen.getByText("疑似圣经人物误写")).toBeTruthy());
+    expect(screen.getByText("神秘老者")).toBeTruthy();
   });
 });

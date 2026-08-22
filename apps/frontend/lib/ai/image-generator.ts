@@ -473,7 +473,7 @@ async function submitImageTask(
   referenceImages?: string[],
   model?: string,
   baseUrl?: string,
-  keyManager?: { getCurrentKey: () => string | null; handleError: (status: number, errorText?: string) => boolean },
+  keyManager?: { getCurrentKey: () => string | null; handleError: (status: number, errorText?: string) => boolean; getTotalKeyCount?: () => number },
   endpointTypes?: string[],
   operationId?: string,
   provider?: Pick<IProvider, 'id' | 'platform' | 'name' | 'baseUrl' | 'apiKey'>,
@@ -502,8 +502,8 @@ async function submitImageTask(
 
 
   if (usesDefaultImagesEndpoint && model && provider && isGptImageModel(model)) {
-    const currentApiKey = keyManager?.getCurrentKey?.() || apiKey;
-    const sdkResult = await sdkGenerateImage({
+    let currentApiKey = keyManager?.getCurrentKey?.() || apiKey;
+    let sdkResult = await sdkGenerateImage({
       provider: { ...provider, apiKey: currentApiKey, baseUrl },
       model,
       prompt,
@@ -516,6 +516,48 @@ async function submitImageTask(
       timeoutMs: IMAGE_SUBMIT_TIMEOUT_MS,
       maxRetries: mikotoPaidBoundary ? 0 : 2,
     });
+    // 多 key 轮转(2026-08-22):同一 provider 配多把 key 时,标准通道失败(如分组无渠道 503)
+    // 后换下一把 key 重走同通道——sdk 内部重试不换 key,必须在调用方轮转(实弹验证:双 key
+    // 分组互补场景下,不轮转则生图永远打在无渠道分组上)。
+    if (!(sdkResult.success && sdkResult.imageUrl) && !mikotoPaidBoundary && keyManager?.handleError) {
+      const totalKeys = Math.max(1, keyManager.getTotalKeyCount?.() ?? 1);
+      for (let keyAttempt = 1; keyAttempt < totalKeys; keyAttempt++) {
+        if (!keyManager.handleError(sdkResult.status ?? 500, sdkResult.error)) break;
+        const nextKey = keyManager.getCurrentKey();
+        if (!nextKey || nextKey === currentApiKey) break;
+        currentApiKey = nextKey;
+        void logEvent({
+          level: 'warn',
+          category: 'ai',
+          operationId,
+          message: 'Image generation key rotation retry',
+          context: {
+            endpointFamily: 'images-generations',
+            providerId: provider.id,
+            providerName: provider.name,
+            model,
+            keyAttempt,
+            totalKeys,
+            status: sdkResult.status,
+            reason: sdkResult.error,
+          },
+        });
+        sdkResult = await sdkGenerateImage({
+          provider: { ...provider, apiKey: currentApiKey, baseUrl },
+          model,
+          prompt,
+          aspectRatio,
+          resolution,
+          negativePrompt,
+          referenceImages,
+          operationId,
+          endpointFamily: 'images-generations',
+          timeoutMs: IMAGE_SUBMIT_TIMEOUT_MS,
+          maxRetries: 2,
+        });
+        if (sdkResult.success && sdkResult.imageUrl) break;
+      }
+    }
     if (sdkResult.success && sdkResult.imageUrl) {
       return { imageUrl: sdkResult.imageUrl };
     }
