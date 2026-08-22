@@ -49,10 +49,10 @@ export function HyperFramesRegistrySection(): React.ReactElement {
           ) : (
             <Circle className="h-3.5 w-3.5 text-muted-foreground" aria-hidden="true" />
           )}
-          <span className="text-foreground font-medium">GitHub Registry 特效依赖</span>
+          <span className="text-foreground font-medium">GitHub Registry 特效</span>
           <span className="text-muted-foreground">
-            {status ? `${status.installedCount}/${status.totalCount}` : "370 个模板"}
-            {status?.installed ? " 已就绪" : " 未下载"}
+            370 个模板{status ? ` · 离线依赖 ${status.installedCount}/${status.totalCount}` : ""}
+            {status ? (status.installed ? " 已就绪" : " 未下载") : ""}
           </span>
         </div>
         <div className="flex items-center gap-1.5">
