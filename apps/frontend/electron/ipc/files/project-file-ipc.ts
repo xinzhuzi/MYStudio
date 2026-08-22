@@ -186,6 +186,45 @@ export function registerProjectFileIpcHandlers({
     }
   });
 
+  // 项目技能目录列举:供手册目录合并发现 <项目根>/skills 下的手册文件(项目侧真源)。
+  // 只列文件、限 skills/ 前缀、深度与数量封顶,复用 resolveProjectScopedFilePath 的项目根包含校验。
+  ipcMain.handle("project-file-list", async (
+    _event,
+    payload: { projectId: string; relativePath: string },
+  ) => {
+    try {
+      const dirPath = resolveProjectScopedFilePath(
+        getDataDir(),
+        payload.projectId,
+        payload.relativePath,
+      );
+      const stat = await fs.promises.stat(dirPath).catch(() => null);
+      if (!stat?.isDirectory()) {
+        return { success: true, files: [] as string[] };
+      }
+      const files: string[] = [];
+      const queue: string[] = [dirPath];
+      let visited = 0;
+      while (queue.length > 0 && files.length < 2000 && visited < 4000) {
+        const current = queue.shift()!;
+        visited += 1;
+        const entries = await fs.promises.readdir(current, { withFileTypes: true });
+        for (const entry of entries) {
+          if (entry.name.startsWith(".") || entry.name === "__MACOSX" || entry.name === "node_modules") continue;
+          const full = path.join(current, entry.name);
+          if (entry.isDirectory()) {
+            queue.push(full);
+          } else if (entry.isFile()) {
+            files.push(path.relative(dirPath, full).replace(/\\/g, "/"));
+          }
+        }
+      }
+      return { success: true, files };
+    } catch (error) {
+      return { success: false, error: error instanceof Error ? error.message : String(error) };
+    }
+  });
+
   ipcMain.handle("project-file-get-absolute-path", async (_event, projectFileUrl: string) => {
     try {
       const filePath = resolveProjectFileUrl(getDataDir(), projectFileUrl);

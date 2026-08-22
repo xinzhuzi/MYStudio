@@ -162,6 +162,21 @@ class DoverOfficialContractTest(unittest.TestCase):
         self.assertAlmostEqual(outputs["technical"].mean().item(), 1.0)
         self.assertAlmostEqual(outputs["aesthetic"].mean().item(), 2.0)
 
+    def test_weight_loader_rejects_missing_release_key(self) -> None:
+        """The release contract must not silently initialize an absent weight."""
+        template = arch.DOVERMobile().state_dict()
+        release = dict(template)
+        release.update({
+            "aesthetic_backbone.head.weight": arch.torch.zeros(1000, 384),
+            "aesthetic_backbone.head.bias": arch.torch.zeros(1000),
+            "technical_backbone.head.weight": arch.torch.zeros(1000, 384),
+            "technical_backbone.head.bias": arch.torch.zeros(1000),
+        })
+        release.pop("technical_head.fc_last.bias")
+        with patch.object(arch.torch, "load", return_value=release):
+            with self.assertRaisesRegex(RuntimeError, "weight key contract mismatch"):
+                arch.DOVERMobileWrapper("/ignored/dover_mobile.pth")
+
     def test_score_frames_preserves_time_window(self) -> None:
         class FakeWrapper:
             def score(self, video_path: str, *, start_s=None, duration_s=None):

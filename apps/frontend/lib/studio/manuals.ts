@@ -15,7 +15,7 @@ export interface BuildStoredStudioManualsOptions {
 
 const visualMarkdown = import.meta.glob([
   "../../assets/studio-manuals/art_skills/**/*.md",
-  "!../../assets/studio-manuals/art_skills/daojie_ink_guofeng/**",
+  
 ], {
   eager: true,
   query: "?raw",
@@ -42,7 +42,7 @@ const agentSkillMarkdown = import.meta.glob("../../assets/studio-manuals/*.md", 
 
 const visualImages = import.meta.glob([
   "../../assets/studio-manuals/art_skills/**/*.{png,jpg,jpeg,webp,gif,svg}",
-  "!../../assets/studio-manuals/art_skills/daojie_ink_guofeng/**",
+  
 ], {
   eager: true,
   query: "?url",

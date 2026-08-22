@@ -308,6 +308,7 @@ export function useProductionPlanningActions({
         scriptPlanContext: formatScriptPlanContext(plan),
         manualContext: buildStoryboardTableManualContext(store.workflowConfig, manualCatalog),
         bibleContext: memory.context,
+        assetsInventory: buildAssetsInventory(store, targetEpisodeId),
       });
       const userContent = userInstruction.trim()
         ? `${messages.user}\n\n【本次节点补充要求】\n${userInstruction.trim()}`
@@ -325,15 +326,20 @@ export function useProductionPlanningActions({
       });
 
       try {
-        const result = await aiManager.text({
-          binding: { agent: "productionAgent:storyboardTableAgent" },
-          messages: [
-            { role: "system", content: messages.system },
-            { role: "user", content: userContent },
-          ],
-          temperature: 0.35,
-          maxTokens: 8192,
-        });
+        // 流式生成:8 分钟集分镜表输出量大(4~6 分钟),非流式撞网关 524(~2 分钟切断);
+        // 与导演规划同走 textStream 保活(2026-08-22 实证:非流式 127s 必 524)
+        const result = await aiManager.textStream(
+          {
+            binding: { agent: "productionAgent:storyboardTableAgent" },
+            messages: [
+              { role: "system", content: messages.system },
+              { role: "user", content: userContent },
+            ],
+            temperature: 0.35,
+            maxTokens: 8192,
+          },
+          () => {},
+        );
         if (!result.success || !result.text) {
           throw new Error(result.error || "分镜表生成失败");
         }
@@ -643,4 +649,27 @@ export function collectDerivedAssetGenerationTasks(
     storeTasks,
     total: characterVariationTasks.length + storeTasks.length,
   };
+}
+
+/**
+ * 分镜表资产清单：角色/场景/道具实名+别名(entity-extraction 在册)。
+ * 技能铁律「资产真实、不得编造名称/ID」要求可引用资产真实在册——本链路无 get_flowData
+ * 工具,清单须随消息下发,否则模型按红线拒工(2026-08-22 实证:拒生成并索取 assets 数据)。
+ */
+function buildAssetsInventory(
+  store: StudioStore,
+  episodeId: string,
+): string {
+  const batch =
+    store.entityExtractions.find((item) => item.episodeId === episodeId) ??
+    store.entityExtractions[0];
+  if (!batch) return "";
+  const lines: string[] = [];
+  const roles = batch.characters.flatMap((item) => [item.name, ...item.aliases]).filter(Boolean);
+  const scenes = batch.scenes.map((item) => item.name).filter(Boolean);
+  const props = batch.props.map((item) => item.name).filter(Boolean);
+  if (roles.length) lines.push(`- 角色：${[...new Set(roles)].join("；")}`);
+  if (scenes.length) lines.push(`- 场景：${[...new Set(scenes)].join("；")}`);
+  if (props.length) lines.push(`- 道具：${[...new Set(props)].join("；")}`);
+  return lines.join("\n");
 }

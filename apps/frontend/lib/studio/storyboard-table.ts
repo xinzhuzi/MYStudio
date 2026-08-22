@@ -21,6 +21,9 @@ export interface BuildStoryboardTableInput {
   manualContext?: string;
   /** 原著圣经注入块（formatSourceBibleContext 产出）；空圣经时省略，零影响。 */
   bibleContext?: string;
+  /** 资产清单（角色/场景/道具实名列表）：分镜技能铁律「资产真实、不得编造」要求可引用资产
+   *  必须真实在册——本调用链无 get_flowData 工具,清单须随消息提供,否则模型按红线拒工(2026-08-22 实证)。 */
+  assetsInventory?: string;
 }
 
 export interface StoryboardTableMessages {
@@ -81,12 +84,16 @@ export function buildStoryboardTableMessages(input: BuildStoryboardTableInput): 
   const voiceoverGuard = [
     "分镜配音硬约束：每条分镜必须填写台词/旁白字段，作为后续配音、TTS 和角色音色绑定的输入。",
     "角色台词保留 `角色名：台词内容`，无角色台词时必须写 `旁白：解说内容`，不要留空或写无台词。",
+    "分镜序号铁律：全表分镜序号从 1 起全局连续递增（1..N），不得按场/按片段重置编号（2026-08-22 实证：逐场重编号会被解析整表拒绝）。",
   ].join("\n");
   return {
     system: [skill, input.bibleContext, input.manualContext, voiceoverGuard, input.scriptPlanContext].filter(Boolean).join("\n\n---\n\n"),
     user: [
       `当前集ID：${input.episodeId}`,
       input.scriptPlanContext ? `导演规划要点：\n${input.scriptPlanContext}` : "",
+      input.assetsInventory
+        ? `## 资产清单（引用资产名称只允许使用以下真实在册资产，不得编造）\n${input.assetsInventory}`
+        : "",
       "剧本正文：",
       input.scriptText,
     ]

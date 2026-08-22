@@ -16,12 +16,51 @@ import { sanitizeExtendedManualPrompt } from "@/lib/ai/prompt-polisher";
 import { EXTENDED_VISUAL_MANUAL_SEED_ID } from "@/lib/studio/visual-manual-classification";
 import { useStudioStore } from "@/stores/studio/studio-store";
 
-const manualModules = import.meta.glob(
-  "../../assets/studio-manuals/art_skills/daojie_ink_guofeng/art_prompt/art_storyboard_video.md",
-  { eager: true, query: "?raw", import: "default" },
-) as Record<string, string>;
+// 2026-08-22 起道劫手册移至项目真源(<项目根>/skills),构建期打包读取改为
+// 运行时读取:优先项目 skills → userData/skills(应用内编辑副本)。首次调用现读并缓存,
+// 失败/缺失时 fail-empty(不注入,不回退硬编码)——与原语义一致。
+const DAOJIE_ART_STORYBOARD_RELATIVE = "art_skills/daojie_ink_guofeng/art_prompt/art_storyboard_video.md";
 
-const manualContent = Object.values(manualModules)[0] ?? "";
+let manualContentCache: string | null = null;
+let manualContentLoading: Promise<string> | null = null;
+
+async function readDaojieArtStoryboardContent(): Promise<string> {
+  if (manualContentCache !== null) return manualContentCache;
+  if (manualContentLoading) return manualContentLoading;
+  manualContentLoading = (async () => {
+    let content = "";
+    try {
+      const projectStore = (await import("@/stores/project/project-store")).useProjectStore.getState();
+      const projectId = projectStore.activeProjectId;
+      const projectFiles = (await import("@/lib/bridge/project-files")).getProjectFilesBridge();
+      if (projectId && projectFiles?.readText) {
+        const fromProject = await projectFiles.readText({
+          projectId,
+          relativePath: `skills/${DAOJIE_ART_STORYBOARD_RELATIVE}`,
+        });
+        if (fromProject.success && fromProject.text) content = fromProject.text;
+      }
+      if (!content) {
+        const studioSkills = (await import("@/lib/bridge/studio-skills")).getStudioSkillsBridge();
+        if (studioSkills?.readText) {
+          const fromStored = await studioSkills.readText(DAOJIE_ART_STORYBOARD_RELATIVE);
+          if (fromStored.success && fromStored.content) content = fromStored.content;
+        }
+      }
+    } catch {
+      content = "";
+    }
+    manualContentCache = content;
+    return content;
+  })();
+  return manualContentLoading;
+}
+
+/** 重置内容缓存(测试用;手册文件更新后由调用方触发重载)。 */
+export function resetExtendedManualContentCache(): void {
+  manualContentCache = null;
+  manualContentLoading = null;
+}
 
 function parseMarkerBlock(content: string, name: string): string {
   const match = content.match(
@@ -31,20 +70,31 @@ function parseMarkerBlock(content: string, name: string): string {
 }
 
 /** 手册解析出的分镜帧生图风格 token 列表（每行一个；标记块缺失时为空数组）。 */
-export const EXTENDED_STORYBOARD_STYLE_TOKENS: readonly string[] = parseMarkerBlock(
-  manualContent,
-  "storyboard-image-style-tokens",
-)
-  .split(/\r?\n/)
-  .map((line) => line.trim())
-  .filter((line) => line.length > 0);
+function computeTokens(content: string): string[] {
+  return parseMarkerBlock(content, "storyboard-image-style-tokens")
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter((line) => line.length > 0);
+}
 
-const EXTENDED_STORYBOARD_STYLE_TOKENS_SUFFIX = EXTENDED_STORYBOARD_STYLE_TOKENS.join(", ");
+/** 当前已加载手册内容的 tokens(未加载时为空数组 fail-empty);预热后生效。 */
+export const EXTENDED_STORYBOARD_STYLE_TOKENS: readonly string[] = computeTokens("");
+
+/** 预热运行时手册内容(项目/存储侧);应用启动或手册变更后调用一次。
+ * 显式传入 content 时跳过桥读取(测试/已知内容场景)。 */
+export async function warmExtendedManualStyleTokens(content?: string): Promise<void> {
+  if (content === undefined) content = await readDaojieArtStoryboardContent();
+  (EXTENDED_STORYBOARD_STYLE_TOKENS as string[]).splice(0, EXTENDED_STORYBOARD_STYLE_TOKENS.length, ...computeTokens(content));
+  EXTENDED_STORYBOARD_STYLE_TOKENS_SUFFIX = computeTokens(content).join(", ");
+  EXTENDED_STYLE_GUIDE_CACHE = parseMarkerBlock(content, "storyboard-style-guide");
+}
+
+let EXTENDED_STORYBOARD_STYLE_TOKENS_SUFFIX = EXTENDED_STORYBOARD_STYLE_TOKENS.join(", ");
+let EXTENDED_STYLE_GUIDE_CACHE = "";
 
 /** 扩展手册分镜帧风格指南（注入分镜提示词撰写 LLM 的 system；标记块缺失为空字符串 → 不注入）。 */
 export function getExtendedStoryboardStyleGuide(): string {
-  const guide = parseMarkerBlock(manualContent, "storyboard-style-guide");
-  return guide ? `\n${guide}\n` : "";
+  return EXTENDED_STYLE_GUIDE_CACHE ? `\n${EXTENDED_STYLE_GUIDE_CACHE}\n` : "";
 }
 
 export function isExtendedVisualManual(visualManualId: string | undefined | null): boolean {

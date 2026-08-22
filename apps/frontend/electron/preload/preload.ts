@@ -281,6 +281,8 @@ contextBridge.exposeInMainWorld('projectFiles', {
   readAsBase64: (url: string) => ipcRenderer.invoke('project-file-read-base64', url),
   readText: (payload: { projectId: string; relativePath: string }) =>
     ipcRenderer.invoke('project-file-read-text', payload),
+  list: (payload: { projectId: string; relativePath: string }) =>
+    ipcRenderer.invoke('project-file-list', payload),
   getAbsolutePath: (url: string) => ipcRenderer.invoke('project-file-get-absolute-path', url),
   move: (payload: { projectId: string; fromRelative: string; toRelative: string }) =>
     ipcRenderer.invoke('project-file-move', payload),

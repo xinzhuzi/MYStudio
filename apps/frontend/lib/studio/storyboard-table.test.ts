@@ -8,6 +8,20 @@ import {
   toStoryboardItems,
 } from "./storyboard-table";
 
+describe("buildStoryboardTableMessages · 资产清单注入", () => {
+  it("includes the assets inventory block so the 资产真实 red line can be satisfied without tools", () => {
+    const messages = buildStoryboardTableMessages({
+      episodeId: "chapter-001",
+      scriptText: "剧本正文",
+      assetsInventory: "- 角色：独孤剑尘；晏燎\n- 场景：金水河码头",
+    });
+    expect(messages.user).toContain("## 资产清单（引用资产名称只允许使用以下真实在册资产，不得编造）");
+    expect(messages.user).toContain("独孤剑尘；晏燎");
+    expect(messages.user).toContain("剧本正文");
+    expect(messages.system).toContain("分镜序号铁律：全表分镜序号从 1 起全局连续递增");
+  });
+});
+
 describe("studio storyboard duration math", () => {
   it("resolves speech speed by emotion and computes duration with margin", () => {
     expect(resolveSpeed("愤怒轻蔑")).toBe(4);

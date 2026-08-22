@@ -483,7 +483,7 @@ describe("workflow stage action surfaces", () => {
     }));
     (window as any).projectFiles = { readText };
     (window as any).sourceMemory = { search };
-    aiManagerMocks.text.mockResolvedValue({ success: false, error: "stop-after-message" });
+    aiManagerMocks.textStream.mockResolvedValue({ success: false, error: "stop-after-message" });
     const { result } = renderHook(() => useProductionPlanningActions({
       activeProjectId: undefined,
       productionEpisodeId: "chapter-001",
@@ -501,7 +501,8 @@ describe("workflow stage action surfaces", () => {
     expect(readText).toHaveBeenCalledTimes(1);
     expect(search).toHaveBeenCalledTimes(1);
     expect(search).toHaveBeenCalledWith("project-fallback", expect.any(String), 4);
-    const system = String(aiManagerMocks.text.mock.calls[0]?.[0]?.messages?.[0]?.content);
+    // 2026-08-22 分镜表改流式(textStream,防网关 524)——断言改到 textStream 首调
+    const system = String(aiManagerMocks.textStream.mock.calls[0]?.[0]?.messages?.[0]?.content);
     expect(system.match(/## 原著档案检索/g)).toHaveLength(1);
   });
 

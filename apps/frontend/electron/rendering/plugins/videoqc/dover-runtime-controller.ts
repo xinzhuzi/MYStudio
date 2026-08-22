@@ -2,9 +2,9 @@
 // 镜像 upscale-runtime-controller 的形状,去掉 profile 安装(probe 路径零重依赖),
 // 增加 runVideoQcScore(编排器消费)与 baselines 读写(按系列基线)。
 //
-// 降级语义(08-19 立项网络现实,见 apps/backend/video_qc/model_cache.py 头注):
-// 权重源未配置/架构未 vendor → probe blocked(code=model-not-downloaded /
-// arch-unavailable),QC 链把 aesthetic 层标 skipped,不阻塞渲染交付。
+// 降级语义:权重未下载或架构不可用 → probe blocked
+// (code=model-not-downloaded / arch-unavailable),QC 链把 aesthetic 层标
+// skipped,不阻塞渲染交付。权重仍只在设置页显式下载。
 
 import fs from "node:fs";
 import path from "node:path";
