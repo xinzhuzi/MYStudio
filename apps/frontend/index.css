@@ -3156,6 +3156,20 @@ a:active,
   will-change: transform;
 }
 
+/* 图片工作流画布:交互(拖/平移/缩放)期间降级重活装饰,松手 180ms 恢复。
+   大阴影 + 半透明 + ReactFlow Background SVG pattern 每帧重算 pattern 都是
+   缩放/拖动时的 GPU 光栅热点;交互期把它们摘掉换流畅,静止后恢复视觉。 */
+.image-workflow-flow-host.workflow-canvas-interacting .react-flow__node .image-workflow-node-card {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3) !important;
+  transition: none !important;
+}
+.image-workflow-flow-host.workflow-canvas-interacting .react-flow__background {
+  opacity: 0.4 !important;
+}
+.image-workflow-flow-host .react-flow__viewport {
+  will-change: transform;
+}
+
 /* ===== Matrix Cyber Grid (scanline animation removed — replaced by DigitalRainBackground canvas) ===== */
 
 .dark .dashboard-shell::before,

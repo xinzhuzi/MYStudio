@@ -81,6 +81,9 @@ function DigitalRainCanvas({
     let lastFrameAt = 0;
     /** 任意指针按下(拖节点/拖画布/点按钮)期间暂停绘制,交互优先 */
     let pointerHeld = false;
+    /** 滚轮/触控板捏合缩放期间也暂停(滚轮没有 pointerdown,得单独拦) */
+    let wheelScrolling = false;
+    let wheelTimer: ReturnType<typeof setTimeout> | undefined;
 
     // 读取主题色（CSS 变量 --primary 是 "H S%" 三元组字符串）
     function readPrimaryHsl(): [number, number, number] {
@@ -164,7 +167,7 @@ function DigitalRainCanvas({
       rafId = requestAnimationFrame(drawFrame);
 
       const now = performance.now();
-      if (pointerHeld) return; // 按住拖节点期间让出主线程,松手自动续画
+      if (pointerHeld || wheelScrolling) return; // 交互(拖/缩放)期间让出主线程
       if (now - lastFrameAt < FRAME_INTERVAL_MS) return;
       lastFrameAt = now;
       const elapsed = now - startTime;
@@ -284,15 +287,25 @@ function DigitalRainCanvas({
     window.addEventListener("pointerup", onPointerUp, { capture: true, passive: true });
     window.addEventListener("pointercancel", onPointerUp, { capture: true, passive: true });
 
+    // 滚轮/捏合缩放没有 pointerdown,得靠 wheel 事件 + 去抖判断「正在缩放」
+    const onWheel = () => {
+      wheelScrolling = true;
+      clearTimeout(wheelTimer);
+      wheelTimer = setTimeout(() => { wheelScrolling = false; }, 180);
+    };
+    window.addEventListener("wheel", onWheel, { capture: true, passive: true });
+
     return () => {
       running = false;
       cancelAnimationFrame(rafId);
       clearTimeout(resizeTimer);
+      clearTimeout(wheelTimer);
       window.removeEventListener("resize", onResize);
       document.removeEventListener("visibilitychange", onVisibility);
       window.removeEventListener("pointerdown", onPointerDown, { capture: true });
       window.removeEventListener("pointerup", onPointerUp, { capture: true });
       window.removeEventListener("pointercancel", onPointerUp, { capture: true });
+      window.removeEventListener("wheel", onWheel, { capture: true });
     };
   }, [canvasRef]);
 

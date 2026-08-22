@@ -199,6 +199,14 @@ export function ImageWorkflowCanvas({
     if (trace.assetReferenceTitles?.length) chips.push(`参考资产 ${trace.assetReferenceTitles.join("、")}`);
     return chips;
   }, [activeGraph]);
+  // 进入画布首帧减负:工具栏重活块(风格依据 chips + 回写目标 chip)延后一帧渲染。
+  // 这两块都是 useMemo 同步拼装 + 一堆圆角 chip DOM,首帧与画布/reactFlow 节点
+  // 同时挂载会把主线程卡出一帧以上;defer 到第二帧,功能不变、视觉无感。
+  const [chromeReady, setChromeReady] = useState(false);
+  useEffect(() => {
+    const id = window.requestAnimationFrame(() => setChromeReady(true));
+    return () => window.cancelAnimationFrame(id);
+  }, []);
   const selectedGenerationBusy =
     activeGeneratedNode?.status === "generating" ||
     activeGeneratedNode?.status === "queued";
@@ -478,8 +486,8 @@ export function ImageWorkflowCanvas({
   }
 
   return (
-    <section className="grid h-full min-h-[calc(100vh-190px)] w-full flex-1 grid-cols-[minmax(0,1fr)_320px] overflow-hidden rounded-lg border border-border bg-background text-foreground">
-      <div className="relative min-w-0 overflow-hidden">
+    <section className="workflow-node-canvas grid h-full min-h-[calc(100vh-190px)] w-full flex-1 grid-cols-[minmax(0,1fr)_320px] overflow-hidden rounded-lg border border-border bg-background text-foreground">
+      <div className="workflow-node-static-background relative min-w-0 overflow-hidden">
         <ImageWorkflowFlowView
           activeGraph={activeGraph}
           focusedFitNodeIds={focusedFitNodeIds}
@@ -497,7 +505,7 @@ export function ImageWorkflowCanvas({
           uploadInputRef={uploadInputRef}
           onUploadReference={handleUploadReference}
         />
-        <div className="absolute left-3 right-3 top-3 z-20 flex flex-wrap items-center gap-2 rounded-md border border-border bg-card/92 p-2 text-card-foreground backdrop-blur-xl">
+        <div className="absolute left-3 right-3 top-3 z-20 flex flex-wrap items-center gap-2 rounded-md border border-border bg-card p-2 text-card-foreground">
           {onBack ? (
             <Button size="sm" variant="ghost" onClick={onBack}>
               <ArrowLeft className="h-3.5 w-3.5" />
@@ -516,7 +524,7 @@ export function ImageWorkflowCanvas({
               分层节点对
             </Button>
           ) : null}
-          {styleTraceChips.length ? (
+          {chromeReady && styleTraceChips.length ? (
             <div
               data-image-workflow-style-trace
               className="flex min-w-[220px] flex-1 flex-wrap items-center gap-1 border-l border-border pl-2 text-[10px] leading-4"
@@ -545,11 +553,36 @@ export function ImageWorkflowCanvas({
                 }}
                 className="h-8 max-w-[260px] rounded-md border border-border bg-background/80 px-2 text-xs text-foreground outline-none"
               >
-                {imageWorkflows.map((graph) => (
-                  <option key={graph.id} value={graph.id}>
-                    {graph.name}
-                  </option>
-                ))}
+                {/* 分代分组:当前代分镜工作流(带内容指纹)与上一代遗留分开列出,
+                    防止同名「分镜 N 图片工作流」新旧混淆(2026-08-23 用户实证割裂)。
+                    首帧只挂当前项,完整列表延后一帧(chromeReady)再补,避免进入画布
+                    瞬间一次性铺全部 <option> 卡顿(功能不变,展开时已补齐)。 */}
+                {chromeReady ? (
+                  <>
+                <optgroup label="当前代">
+                  {imageWorkflows
+                    .filter((graph) => !(graph.target.kind === "storyboard" && !graph.targetSourceFingerprint))
+                    .map((graph) => (
+                      <option key={graph.id} value={graph.id}>
+                        {graph.name}
+                      </option>
+                    ))}
+                </optgroup>
+                {imageWorkflows.some((graph) => graph.target.kind === "storyboard" && !graph.targetSourceFingerprint) ? (
+                  <optgroup label="上一代遗留(同 id 旧分镜表)">
+                    {imageWorkflows
+                      .filter((graph) => graph.target.kind === "storyboard" && !graph.targetSourceFingerprint)
+                      .map((graph) => (
+                        <option key={graph.id} value={graph.id}>
+                          {graph.name}
+                        </option>
+                      ))}
+                  </optgroup>
+                ) : null}
+                  </>
+                ) : (
+                  <option value={activeGraph.id}>{activeGraph.name}</option>
+                )}
               </select>
               <Button
                 size="sm"
@@ -732,7 +765,7 @@ export function ImageWorkflowCanvas({
       {/* 批量超分进度浮层 */}
       {upscaleBatchState.running ? (
         <div
-          className="absolute bottom-4 right-4 z-30 w-[320px] rounded-lg border border-border bg-card/95 p-3 backdrop-blur-xl"
+          className="absolute bottom-4 right-4 z-30 w-[320px] rounded-lg border border-border bg-card p-3"
           data-image-workflow-batch-upscale-progress
         >
           <div className="mb-2 flex items-center justify-between gap-2 text-sm">
@@ -810,6 +843,25 @@ function ImageWorkflowFlowView({
   const [flowInstance, setFlowInstance] =
     useState<ReactFlowInstance<ImageWorkflowReactNode, Edge> | null>(null);
 
+  // 交互(拖节点/平移/缩放)期间给容器打标,CSS 把卡片大阴影、ReactFlow
+  // Background pattern、毛玻璃等重活临时降级,松手/静止 180ms 后恢复。
+  const interactingRef = useRef<HTMLDivElement | null>(null);
+  const interactEndTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const setInteracting = useCallback((on: boolean) => {
+    const el = interactingRef.current;
+    if (!el) return;
+    clearTimeout(interactEndTimerRef.current);
+    if (on) {
+      el.classList.add("workflow-canvas-interacting");
+    } else {
+      // 拖/缩放结束稍微延迟摘标,避免最后一帧抖动闪烁
+      interactEndTimerRef.current = setTimeout(() => {
+        el.classList.remove("workflow-canvas-interacting");
+      }, 180);
+    }
+  }, []);
+  useEffect(() => () => clearTimeout(interactEndTimerRef.current), []);
+
   useEffect(() => {
     if (!flowInstance || nodes.length === 0) return;
     const focusNodes =
@@ -825,11 +877,15 @@ function ImageWorkflowFlowView({
         });
       }, 80);
     });
+    // 首帧 fitView 静止后补一帧交互标,确保初次缩放回位期间阴影/背景已降级
+    setInteracting(true);
+    const settleTimer = window.setTimeout(() => setInteracting(false), 400);
+    return () => window.clearTimeout(settleTimer);
 // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeGraph.id, flowInstance, focusedFitNodeKey, initialAssetContext, nodes.length]);
 
   return (
-    <>
+    <div ref={interactingRef} className="image-workflow-flow-host contents">
       <ReactFlow
         className="absolute inset-0 bg-muted/20"
         nodes={nodes}
@@ -839,7 +895,13 @@ function ImageWorkflowFlowView({
         onNodeClick={(_, node) => onNodeClick(node.id)}
         onPaneClick={onPaneClick}
         onEdgeClick={(_, edge) => onEdgeClick(edge.id)}
-        onNodeDragStop={(_, node) => onNodeDragStop(node.id, node.position)}
+        onNodeDragStart={() => setInteracting(true)}
+        onNodeDragStop={(_, node) => {
+          setInteracting(false);
+          onNodeDragStop(node.id, node.position);
+        }}
+        onMoveStart={() => setInteracting(true)}
+        onMoveEnd={() => setInteracting(false)}
         onConnect={onConnect}
         onInit={(instance) => {
           setFlowInstance(instance);
@@ -862,7 +924,7 @@ function ImageWorkflowFlowView({
       </ReactFlow>
       {nodes.length === 0 ? (
         <div className="pointer-events-none absolute inset-0 flex items-center justify-center px-6 text-center">
-          <div className="max-w-sm rounded-md border border-border bg-card/92 px-4 py-3 text-sm text-card-foreground backdrop-blur-xl">
+          <div className="max-w-sm rounded-md border border-border bg-card/92 px-4 py-3 text-sm text-card-foreground">
             <div className="font-semibold">当前图片工作流没有节点</div>
             <div className="mt-1 text-xs text-muted-foreground">
               可从左上角新建节点，或回到工作流重新从资产/分镜卡片进入。
@@ -877,6 +939,6 @@ function ImageWorkflowFlowView({
         className="hidden"
         onChange={(event) => void onUploadReference(event.target.files?.[0])}
       />
-    </>
+    </div>
   );
 }
