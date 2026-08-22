@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { checkTransitionDensity, visionSamplePoints, runVisionLayer } from "./chapter-qc-vision";
+import { buildVisionDecisions, checkTransitionDensity, visionSamplePoints, runVisionLayer } from "./chapter-qc-vision";
 import type { ChapterQcShotSpan } from "./chapter-qc-timeline";
 
 const clipIds = ["c1", "c2", "c3", "c4", "c5", "c6"];
@@ -54,6 +54,29 @@ describe("visionSamplePoints", () => {
     const post = points.find((point) => point.kind === "post")!;
     expect(post.tS).toBeCloseTo(4.25, 5);
     expect(post.shotId).toBe("sb-2");
+  });
+});
+
+describe("buildVisionDecisions", () => {
+  it("把镜描述、装饰效果和出镜转场绑定到同一镜序", () => {
+    const spans: ChapterQcShotSpan[] = [
+      { shotId: "sb-1", ordinal: 1, startS: 0, endS: 4, durationS: 4 },
+      { shotId: "sb-2", ordinal: 2, startS: 3, endS: 6, durationS: 3 },
+    ];
+    const decisions = buildVisionDecisions({
+      spans,
+      visualClipIds: ["c1", "c2"],
+      descriptionsByShotId: new Map([["sb-1", "晏燎拔剑"], ["sb-2", "敌人后退"]]),
+      transitions: [{ fromClipId: "c1", toClipId: "c2", effectId: "gl:swap", durationUs: 800_000 }],
+      effects: [{ targetClipId: "c1", effectId: "atmosphere", template: "atmo:fog-band" }],
+    });
+    expect(decisions[0]).toEqual({
+      shotId: "sb-1",
+      ordinal: 1,
+      description: "晏燎拔剑",
+      effects: [{ effectId: "atmosphere", template: "atmo:fog-band" }],
+      outgoingTransition: { toShotId: "sb-2", toOrdinal: 2, effectId: "gl:swap", durationS: 0.8 },
+    });
   });
 });
 

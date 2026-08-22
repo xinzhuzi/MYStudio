@@ -30,6 +30,7 @@ assets:get
 assets:get-by-name
 assets:import-from-toonflow
 assets:list
+assets:read-image-data-url
 assets:remove-image
 assets:rename-image
 assets:replace-image
@@ -45,6 +46,7 @@ audio-gen-runtime-status
 chapter-qc-get-report
 chapter-qc-run
 chapter-qc-submit-semantic
+chapter-qc-submit-vision-preflight
 depth-runtime-delete-model
 depth-runtime-download-model
 depth-runtime-download-progress
@@ -100,6 +102,7 @@ music3-gen-runtime-scan-model
 music3-gen-runtime-setup
 music3-gen-runtime-status
 project-file-get-absolute-path
+project-file-list
 project-file-move
 project-file-read-base64
 project-file-read-text

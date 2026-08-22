@@ -606,6 +606,7 @@ declare global {
       importFromToonflow: (payload: { type: string }) => Promise<{ success: boolean; imported: number }>;
       getByName: (payload: { type: string; name: string }) => Promise<StudioAssetSummary | null>;
       batchMatch: (payload: { type: string; names: string[] }) => Promise<Array<{ name: string; asset: StudioAssetSummary | null }>>;
+      readImageDataUrl: (id: string) => Promise<string | null>;
     };
     ttsRuntime?: {
       status: () => Promise<TtsRuntimeStatus>;

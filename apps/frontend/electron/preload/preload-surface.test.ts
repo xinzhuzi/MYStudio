@@ -15,6 +15,16 @@ describe("preload IPC surface", () => {
     expect(preloadSource).toContain("ipcRenderer.invoke('app-updater-check', options)");
   });
 
+  it("exposes independent chapter QC semantic and vision-preflight writebacks", () => {
+    expect(preloadSource).toContain("exposeInMainWorld('chapterQc'");
+    expect(preloadSource).toContain("submitSemantic: (payload:");
+    expect(preloadSource).toContain("ipcRenderer.invoke('chapter-qc-submit-semantic', payload)");
+    expect(preloadSource).toContain("submitVisionPreflight: (payload:");
+    expect(preloadSource).toContain("expectedCreatedAt: number");
+    expect(preloadSource).toContain("ipcRenderer.invoke('chapter-qc-submit-vision-preflight', payload)");
+    expect(preloadSource).toContain("ipcRenderer.removeListener('chapter-qc-report-updated', handler)");
+  });
+
   it("exposes the self-media IPC contract through a validated narrow facade", () => {
     expect(preloadSource).toContain("exposeInMainWorld('selfMedia'");
     expect(preloadSource).toContain("ipcRenderer.invoke(SELF_MEDIA_IPC.listProviders)");

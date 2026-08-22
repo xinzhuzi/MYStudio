@@ -12,6 +12,11 @@ function plan(overrides: Partial<Record<string, unknown>> = {}) {
     transitions: [
       { id: "tr-1", fromClipId: "c1", toClipId: "c2", effectId: "gl:swap", durationUs: 1_000_000 },
     ],
+    effects: [
+      { id: "fx-1", targetClipId: "c1", effectId: "atmosphere", enabled: true, params: { template: "atmo:fog-band" } },
+      { id: "fx-2", targetClipId: "c2", effectId: "grain", enabled: true, params: {} },
+      { id: "fx-disabled", targetClipId: "c1", effectId: "shake", enabled: false, params: {} },
+    ],
     ...overrides,
   };
 }
@@ -26,6 +31,10 @@ describe("buildShotSpansFromRenderPlan", () => {
     expect(result!.spans[1]).toMatchObject({ ordinal: 2, startS: 3, endS: 6 });
     expect(result!.visualClipIds).toEqual(["c1", "c2"]);
     expect(result!.transitions).toHaveLength(1);
+    expect(result!.effects).toEqual([
+      { targetClipId: "c1", effectId: "atmosphere", template: "atmo:fog-band" },
+      { targetClipId: "c2", effectId: "grain" },
+    ]);
   });
 
   it("cut 转场与无转场不压缩", () => {

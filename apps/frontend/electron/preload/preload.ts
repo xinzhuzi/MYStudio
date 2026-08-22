@@ -631,6 +631,7 @@ contextBridge.exposeInMainWorld('studioAssets', {
   importFromToonflow: (payload: { type: string }) => ipcRenderer.invoke('assets:import-from-toonflow', payload),
   getByName: (payload: { type: string; name: string }) => ipcRenderer.invoke('assets:get-by-name', payload),
   batchMatch: (payload: { type: string; names: string[] }) => ipcRenderer.invoke('assets:batch-match', payload),
+  readImageDataUrl: (id: string) => ipcRenderer.invoke('assets:read-image-data-url', id),
 })
 
 contextBridge.exposeInMainWorld('ttsRuntime', {
@@ -802,7 +803,7 @@ contextBridge.exposeInMainWorld('videoQcRuntime', {
     ipcRenderer.invoke('video-qc-runtime-delete-model', model),
 })
 
-// Chapter QC(成片体检单)API — 报告读取/手动重跑/L4 语义回写 + 报告更新事件。
+// Chapter QC(成片体检单)API — 报告读取/手动重跑/L4 语义与 AC4 视觉预审回写。
 contextBridge.exposeInMainWorld('chapterQc', {
   getReport: (payload: { projectId: string; chapterId: string }): Promise<unknown> =>
     ipcRenderer.invoke('chapter-qc-get-report', payload),
@@ -816,6 +817,15 @@ contextBridge.exposeInMainWorld('chapterQc', {
     findings: unknown[]
   }): Promise<{ success: boolean; message?: string }> =>
     ipcRenderer.invoke('chapter-qc-submit-semantic', payload),
+  submitVisionPreflight: (payload: {
+    projectId: string
+    chapterId: string
+    expectedCreatedAt: number
+    model?: string
+    stats: { checked: number; passed: number; failed: number; skipped: number }
+    findings: unknown[]
+  }): Promise<{ success: boolean; message?: string }> =>
+    ipcRenderer.invoke('chapter-qc-submit-vision-preflight', payload),
   onReportUpdated: (listener: (payload: { projectId: string; chapterId: string }) => void): (() => void) => {
     const handler = (_event: unknown, payload: { projectId: string; chapterId: string }) => listener(payload)
     ipcRenderer.on('chapter-qc-report-updated', handler)

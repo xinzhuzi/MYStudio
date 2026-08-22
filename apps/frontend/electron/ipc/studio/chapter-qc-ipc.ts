@@ -3,7 +3,11 @@
 
 import { ipcMain, type BrowserWindow } from "electron";
 
-import type { ChapterQcReportV1, ChapterQcFindingV1 } from "@rendering/plugins/videoqc/chapter-qc-types";
+import {
+  summarizeChapterQcFindings,
+  type ChapterQcReportV1,
+  type ChapterQcFindingV1,
+} from "@rendering/plugins/videoqc/chapter-qc-types";
 import type { runChapterQc, ChapterQcOrchestratorDeps } from "@rendering/plugins/videoqc/chapter-qc-orchestrator";
 
 export interface RegisterChapterQcIpcOptions {
@@ -24,6 +28,23 @@ interface SemanticSubmitPayload {
   model?: unknown;
   stats?: unknown;
   findings?: unknown;
+}
+
+interface VisionPreflightSubmitPayload extends SemanticSubmitPayload {
+  expectedCreatedAt?: unknown;
+}
+
+function readPreflightStats(value: unknown): { checked: number; passed: number; failed: number; skipped: number } | null {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) return null;
+  const record = value as Record<string, unknown>;
+  const keys = ["checked", "passed", "failed", "skipped"] as const;
+  if (!keys.every((key) => Number.isInteger(record[key]) && Number(record[key]) >= 0)) return null;
+  return {
+    checked: Number(record.checked),
+    passed: Number(record.passed),
+    failed: Number(record.failed),
+    skipped: Number(record.skipped),
+  };
 }
 
 function readIdentity(value: unknown): { projectId?: string; chapterId?: string } {
@@ -125,11 +146,76 @@ export function registerChapterQcIpcHandlers(options: RegisterChapterQcIpcOption
     return { success: true };
   });
 
+  ipcMain.handle("chapter-qc-submit-vision-preflight", async (_event, payload: unknown): Promise<{ success: boolean; message?: string }> => {
+    const submit = payload as VisionPreflightSubmitPayload;
+    const identity = readIdentity(payload);
+    if (!identity.projectId || !identity.chapterId) {
+      return { success: false, message: "projectId/chapterId 必填" };
+    }
+    if (typeof submit.expectedCreatedAt !== "number" || !Number.isFinite(submit.expectedCreatedAt)) {
+      return { success: false, message: "expectedCreatedAt 必填" };
+    }
+    const stats = readPreflightStats(submit.stats);
+    if (!stats) return { success: false, message: "stats 必须是非负整数" };
+    if (stats.checked !== stats.passed + stats.failed) {
+      return { success: false, message: "stats 计数不一致" };
+    }
+    if (!Array.isArray(submit.findings)) return { success: false, message: "findings 必须是数组" };
+
+    const request = identity as { projectId: string; chapterId: string };
+    const { readReport } = await import("@rendering/plugins/videoqc/chapter-qc-orchestrator");
+    const report: ChapterQcReportV1 | null = await readReport(deps, request);
+    if (!report?.vision) return { success: false, message: "QC 视觉物料不存在,无法回写预审" };
+    if (report.createdAt !== submit.expectedCreatedAt) {
+      return { success: false, message: "QC 报告已更新,请重新预审" };
+    }
+
+    const preflightFindings: ChapterQcFindingV1[] = [];
+    for (const raw of submit.findings) {
+      if (typeof raw !== "object" || raw === null) continue;
+      const finding = raw as Record<string, unknown>;
+      if (typeof finding.code !== "string" || !finding.code.startsWith("chapter-qc.vision.preflight.")) continue;
+      if (typeof finding.message !== "string" || !finding.message.trim()) continue;
+      preflightFindings.push({
+        code: finding.code,
+        layer: "vision",
+        severity: finding.severity === "blocker" || finding.severity === "warn" ? finding.severity : "info",
+        ...(typeof finding.shotId === "string" ? { shotId: finding.shotId } : {}),
+        ...(typeof finding.shotOrdinal === "number" ? { shotOrdinal: finding.shotOrdinal } : {}),
+        message: finding.message,
+        evidence: {
+          ...(typeof finding.evidence === "object" && finding.evidence !== null
+            ? finding.evidence as Record<string, unknown>
+            : {}),
+          source: "vision-preflight",
+        },
+      });
+    }
+
+    report.vision.preflight = {
+      ...stats,
+      ...(typeof submit.model === "string" ? { model: submit.model } : {}),
+      finishedAt: Date.now(),
+    };
+    report.findings = [
+      ...report.findings.filter((finding) =>
+        !(finding.layer === "vision" && finding.evidence?.source === "vision-preflight")),
+      ...preflightFindings,
+    ];
+    report.summary = summarizeChapterQcFindings(report.findings);
+
+    const { writeChapterQcReport } = await import("@rendering/plugins/videoqc/chapter-qc-report-store");
+    await writeChapterQcReport(deps.remotionWorkspaceRootForProject(identity.projectId), identity.chapterId, report);
+    broadcast(identity.projectId, identity.chapterId);
+    return { success: true };
+  });
+
   return {
     dispose: () => {
       ipcMain.removeHandler("chapter-qc-get-report");
       ipcMain.removeHandler("chapter-qc-run");
       ipcMain.removeHandler("chapter-qc-submit-semantic");
+      ipcMain.removeHandler("chapter-qc-submit-vision-preflight");
     },
   };
 }

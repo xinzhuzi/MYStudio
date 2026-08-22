@@ -46,6 +46,8 @@ export interface ChapterQcRenderPlanSpans {
   visualClipIds: string[];
   /** render-plan 原始转场(非 cut),供密度闸等确定性检查消费 */
   transitions: Array<{ fromClipId: string; toClipId: string; effectId: string; durationUs: number }>;
+  /** 视觉镜上的最小效果决策，供确认前视觉预审解释画面。 */
+  effects: Array<{ targetClipId: string; effectId: string; template?: string }>;
   fps: number;
 }
 
@@ -54,6 +56,7 @@ export function buildShotSpansFromRenderPlan(plan: unknown): ChapterQcRenderPlan
   const record = plan as {
     clips?: unknown;
     transitions?: unknown;
+    effects?: unknown;
     renderSettings?: { fps?: unknown };
   };
   if (!Array.isArray(record.clips) || !Array.isArray(record.transitions)) return null;
@@ -93,6 +96,26 @@ export function buildShotSpansFromRenderPlan(plan: unknown): ChapterQcRenderPlan
     transitions.push({ fromClipId: entry.fromClipId, toClipId: entry.toClipId, effectId: entry.effectId, durationUs: Number(entry.durationUs) });
   }
 
+  const visualClipIds = new Set(visual.map((clip) => clip.clipId));
+  const effects: ChapterQcRenderPlanSpans["effects"] = [];
+  for (const effect of Array.isArray(record.effects) ? record.effects : []) {
+    if (typeof effect !== "object" || effect === null) continue;
+    const entry = effect as {
+      targetClipId?: unknown;
+      effectId?: unknown;
+      enabled?: unknown;
+      params?: { template?: unknown };
+    };
+    if (entry.enabled === false) continue;
+    if (typeof entry.targetClipId !== "string" || !visualClipIds.has(entry.targetClipId)) continue;
+    if (typeof entry.effectId !== "string" || !entry.effectId) continue;
+    effects.push({
+      targetClipId: entry.targetClipId,
+      effectId: entry.effectId,
+      ...(typeof entry.params?.template === "string" ? { template: entry.params.template } : {}),
+    });
+  }
+
   const timeline = layoutVisualTimeline(
     visual.map((clip) => ({ clipId: clip.clipId, durationUs: clip.durationUs })),
     transitions,
@@ -106,7 +129,7 @@ export function buildShotSpansFromRenderPlan(plan: unknown): ChapterQcRenderPlan
     const durationS = timing.durationInFrames / framesPerSecond;
     return { shotId: clip.storyboardId, ordinal: index + 1, startS, endS: startS + durationS, durationS };
   });
-  return { spans, visualClipIds: visual.map((clip) => clip.clipId), transitions, fps: framesPerSecond };
+  return { spans, visualClipIds: visual.map((clip) => clip.clipId), transitions, effects, fps: framesPerSecond };
 }
 
 export function totalTimelineDurationS(spans: ChapterQcShotSpan[]): number {

@@ -18,7 +18,7 @@ import { runFfmpegScanLayer } from "./chapter-qc-ffmpeg-scan";
 import { readChapterQcReport, writeChapterQcReport, chapterQcReportDir } from "./chapter-qc-report-store";
 import { runStructuralLayer } from "./chapter-qc-structural";
 import { buildShotSpans, buildShotSpansFromRenderPlan, type ChapterQcRenderPlanSpans } from "./chapter-qc-timeline";
-import { runVisionLayer } from "./chapter-qc-vision";
+import { buildVisionDecisions, runVisionLayer } from "./chapter-qc-vision";
 import type { ChapterQcVisionResultV1 } from "./chapter-qc-types";
 import {
   CHAPTER_QC_SCHEMA_VERSION,
@@ -347,6 +347,13 @@ export async function runChapterQc(
       vision = {
         frameCount: outcome.frames.length,
         frames: outcome.frames,
+        decisions: buildVisionDecisions({
+          spans: renderPlanSpans.spans,
+          visualClipIds: renderPlanSpans.visualClipIds,
+          descriptionsByShotId: descriptionByShotId,
+          transitions: renderPlanSpans.transitions,
+          effects: renderPlanSpans.effects,
+        }),
         densityChecked: outcome.densityChecked,
         frameErrors: outcome.frameErrors,
       };

@@ -22,7 +22,12 @@ import {
   createTransitionDiversityTracker,
   TRANSITION_SAME_EFFECT_MIN_BOUNDARY_GAP,
 } from "@/lib/studio/editing/transition-policy";
-import type { ChapterQcFindingV1, ChapterQcVisionFrameKind } from "./chapter-qc-types";
+import type {
+  ChapterQcFindingV1,
+  ChapterQcVisionDecisionV1,
+  ChapterQcVisionFrameKind,
+} from "./chapter-qc-types";
+import type { ChapterQcRenderPlanSpans } from "./chapter-qc-timeline";
 import type { ChapterQcShotSpan } from "./chapter-qc-timeline";
 import { resolveQcFfTool, type QcCommandRunner } from "./chapter-qc-fftools";
 
@@ -116,6 +121,49 @@ export function visionSamplePoints(
     push(span.endS + 0.25, next, "post");
   });
   return points;
+}
+
+export function buildVisionDecisions(input: {
+  spans: readonly ChapterQcShotSpan[];
+  visualClipIds: readonly string[];
+  descriptionsByShotId: ReadonlyMap<string, string>;
+  transitions: ChapterQcRenderPlanSpans["transitions"];
+  effects: ChapterQcRenderPlanSpans["effects"];
+}): ChapterQcVisionDecisionV1[] {
+  const spanByClipId = new Map(
+    input.visualClipIds.map((clipId, index) => [clipId, input.spans[index]] as const),
+  );
+  const transitionByClipId = new Map(input.transitions.map((transition) => [transition.fromClipId, transition]));
+  const effectsByClipId = new Map<string, ChapterQcVisionDecisionV1["effects"]>();
+  for (const effect of input.effects) {
+    const current = effectsByClipId.get(effect.targetClipId) ?? [];
+    current.push({ effectId: effect.effectId, ...(effect.template ? { template: effect.template } : {}) });
+    effectsByClipId.set(effect.targetClipId, current);
+  }
+  return input.visualClipIds.flatMap((clipId) => {
+    const span = spanByClipId.get(clipId);
+    if (!span) return [];
+    const transition = transitionByClipId.get(clipId);
+    const nextSpan = transition ? spanByClipId.get(transition.toClipId) : undefined;
+    return [{
+      shotId: span.shotId,
+      ordinal: span.ordinal,
+      ...(input.descriptionsByShotId.get(span.shotId)
+        ? { description: input.descriptionsByShotId.get(span.shotId) }
+        : {}),
+      effects: effectsByClipId.get(clipId) ?? [],
+      ...(transition && nextSpan
+        ? {
+            outgoingTransition: {
+              toShotId: nextSpan.shotId,
+              toOrdinal: nextSpan.ordinal,
+              effectId: transition.effectId,
+              durationS: transition.durationUs / 1e6,
+            },
+          }
+        : {}),
+    }];
+  });
 }
 
 export async function runVisionLayer(input: ChapterQcVisionLayerInput): Promise<ChapterQcVisionLayerOutput> {

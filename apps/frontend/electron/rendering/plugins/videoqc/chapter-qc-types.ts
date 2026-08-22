@@ -75,6 +75,28 @@ export interface ChapterQcVisionFrameTaskV1 {
   frameUrl: string;
 }
 
+export interface ChapterQcVisionDecisionV1 {
+  shotId: string;
+  ordinal: number;
+  description?: string;
+  effects: Array<{ effectId: string; template?: string }>;
+  outgoingTransition?: {
+    toShotId: string;
+    toOrdinal: number;
+    effectId: string;
+    durationS: number;
+  };
+}
+
+export interface ChapterQcVisionPreflightResultV1 {
+  checked: number;
+  passed: number;
+  failed: number;
+  skipped: number;
+  model?: string;
+  finishedAt: number;
+}
+
 /**
  * L5 视觉审计层(08-22-video-use-vision-release R2)。
  * 确定性部分主进程即时跑:转场密度闸(08-22 裁定:连续 5 边界禁同款)。
@@ -84,10 +106,14 @@ export interface ChapterQcVisionFrameTaskV1 {
 export interface ChapterQcVisionResultV1 {
   frameCount: number;
   frames: ChapterQcVisionFrameTaskV1[];
+  /** 确认前预审的最小 EDL/转场/装饰决策上下文。 */
+  decisions: ChapterQcVisionDecisionV1[];
   /** 密度闸检查的转场数(0=无转场) */
   densityChecked: number;
   /** 帧提取失败数(单帧跳过不整体失败) */
   frameErrors: number;
+  /** 渲染端图片理解预审回写；缺省=尚未运行或无 binding。 */
+  preflight?: ChapterQcVisionPreflightResultV1;
 }
 
 export interface ChapterQcReportV1 {

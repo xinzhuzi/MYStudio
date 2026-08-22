@@ -465,10 +465,6 @@ class VideoUseAdapterTest(unittest.TestCase):
                     _derive_video_to_audio(source, target, 0.8, ffmpeg_path="/shared/ffmpeg", ffprobe_path="/shared/ffprobe", env={})
             self.assertEqual(raised.exception.code, "derived-input-duration-insufficient")
 
-
-if __name__ == "__main__":
-    unittest.main()
-
     def test_curated_registry_pool_in_rotation_and_catalog_bound(self):
         """08-22 R3 收官:策展 28 条 hy: 入轮换池(就绪时 43→71)+catalog 漂移 fail-fast。
 
@@ -507,3 +503,7 @@ if __name__ == "__main__":
                 self.assertTrue(any(t.startswith("hy:") for t in templates))
                 for t in templates:
                     self.assertEqual(DEFAULT_TEMPLATE_PARAMETERS.get(t, None) is not None or t.startswith("hy:"), True)
+
+
+if __name__ == "__main__":
+    unittest.main()
