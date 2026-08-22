@@ -127,4 +127,27 @@ describe("RemotionComposition", () => {
     expect(Number.isFinite(zIndex)).toBe(true);
     expect(zIndex).toBeGreaterThan(2);
   });
+
+  it("keeps the HyperFrames overlay above the GL transition canvas but below subtitles", () => {
+    // Regression (08-23 follow-up): the decorative HyperFrames overlay was
+    // also buried under the GL transition canvas (zIndex: 2), so decorative
+    // windows blinked out during gl:* overlaps. The overlay must restore its
+    // DOM-order position — above transitions, below the subtitle track.
+    const props = composition();
+    props.transitions = [
+      { fromClipId: "a", toClipId: "b", effectId: "gl:swap", overlapFrames: 5 },
+    ];
+    const rendered = render(<RemotionComposition {...props} />);
+    const overlay = rendered.container.querySelector('video[src="http://127.0.0.1:1/t/overlay"]');
+    expect(overlay).not.toBeNull();
+    const overlayZ = (overlay as HTMLElement).closest<HTMLElement>("div[style*='z-index']");
+    expect(overlayZ).not.toBeNull();
+    const overlayZIndex = Number(overlayZ?.style.zIndex);
+    expect(Number.isFinite(overlayZIndex)).toBe(true);
+    expect(overlayZIndex).toBeGreaterThan(2);
+    const cue = screen.getByText("字幕");
+    const subtitleZ = (cue.parentElement as HTMLElement | null)?.closest<HTMLElement>("div[style*='z-index']");
+    const subtitleZIndex = Number(subtitleZ?.style.zIndex);
+    expect(subtitleZIndex).toBeGreaterThan(overlayZIndex);
+  });
 });

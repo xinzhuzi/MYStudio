@@ -40,7 +40,11 @@ export function RemotionComposition(props: CompositionProps): React.ReactElement
           clips={props.visualClips}
         />
       ))}
-      <OverlayTrack clips={props.overlayClips ?? []} />
+      {/* HY 装饰层同样要压过 GL 转场画布(zIndex:2),否则装饰窗在 gl:*
+          overlap 窗口内闪烁消失;仍居字幕之下(DOM 顺序设计意图)。 */}
+      <AbsoluteFill style={{ zIndex: 3 }}>
+        <OverlayTrack clips={props.overlayClips ?? []} />
+      </AbsoluteFill>
       {props.audioClips.length === 0
         ? <SilentAudioTrack durationInFrames={props.durationInFrames} />
         : props.audioClips.map((clip) => (
@@ -57,7 +61,7 @@ export function RemotionComposition(props: CompositionProps): React.ReactElement
           (editing-audio-subtitles.md:Remotion 拥有最终可见字幕层),
           否则 gl:* 转场四边形整个 overlap 窗口盖掉燃嵌字幕
           (预览走 DOM crossfade 兜底无 zIndex,不吞——预览/渲染就此不一致)。 */}
-      <AbsoluteFill style={{ zIndex: 3 }}>
+      <AbsoluteFill style={{ zIndex: 4 }}>
         <SubtitleTrack cues={props.subtitles} font={props.subtitleFont} />
       </AbsoluteFill>
     </AbsoluteFill>
