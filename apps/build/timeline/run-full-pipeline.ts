@@ -480,6 +480,10 @@ export async function runFullPipeline(): Promise<Record<string, unknown>> {
     userDataDir, "remotion-runtime", "node_modules", ".remotion",
     "chrome-headless-shell", "mac-arm64", "chrome-headless-shell-mac-arm64", "chrome-headless-shell",
   );
+  // 08-22 深审修:worker 侧 HY CLI 找不到浏览器会静默退 1(无 stderr 无产物);
+  // 显式落进 process.env,与 generate-accepted-hyperframes.ts 同款保险
+  // (resolveBrowserPath 回调之外的 env 兜底链才能吃到)。
+  if (fs.existsSync(browserPath)) process.env.HYPERFRAMES_BROWSER_PATH = browserPath;
   // build-mac.sh periodically cleans apps/out during packaging rounds; the
   // MYSTUDIO_HYPERFRAMES_WORKER override lets pipeline runs point at a stable
   // worker copy (e.g. apps/.cache/hyperframes-worker.cjs) instead of racing
