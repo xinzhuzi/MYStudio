@@ -76,6 +76,9 @@ export interface VideoUseShotInputV1 {
   derivedInput?: VideoUseDerivedInputEvidenceV1;
   /** 生成图绝对路径（可选）：overlay 装饰槽内容感知定位（亮度质心）用。 */
   imagePath?: string;
+  /** hy:* registry 模板（可选，每镜至多 1）：AI shot-fx 决策的逐镜 overlay 提示；
+   * python 决策层校验存在性与依赖就绪后采用，非法/未就绪回落 mood 路由。 */
+  overlayTemplateId?: string;
 }
 
 export interface VideoUseChapterRunV1 {

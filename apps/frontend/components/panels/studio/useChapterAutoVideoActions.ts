@@ -400,6 +400,7 @@ export function useChapterAutoVideoActions({
                   const atmosphere = selection.atmospheres[shotId];
                   const transitionOut = selection.transitions[shotId];
                   const sfx = selection.sfxCategories[shotId];
+                  const registryOverlay = selection.registries[shotId];
                   useStudioStore.getState().updateStoryboard(shotId, {
                     shotFx: {
                       motion,
@@ -408,6 +409,7 @@ export function useChapterAutoVideoActions({
                       ...(atmosphere?.length ? { atmosphere } : {}),
                       ...(transitionOut ? { transitionOut } : {}),
                       ...(sfx ? { sfx } : {}),
+                      ...(registryOverlay ? { registryOverlay } : {}),
                       source: selection.source,
                     },
                   });

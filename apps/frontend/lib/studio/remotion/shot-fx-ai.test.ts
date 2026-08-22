@@ -36,6 +36,14 @@ describe("parseShotFxMotionResponse", () => {
     expect(parsed.addons).toEqual({ s1: ["shake-hard", "chroma"], s2: [] });
   });
 
+  it("registry 解析:合法 hy: 收录、非法/闭集外丢弃(08-22 AI 路接线)", () => {
+    const parsed = parseShotFxMotionResponse(
+      '{"shots": [{"shotId": "s1", "motion": "punch-in", "registry": "hy:light-sweep-pass"}, {"shotId": "s2", "motion": "drift", "registry": "hy:不存在模板"}, {"shotId": "s3", "motion": "tilt-up", "registry": "light-leak"}]}',
+      shotIds,
+    );
+    expect(parsed.registries).toEqual({ s1: "hy:light-sweep-pass" });
+  });
+
   it("grade 解析：合法 LUT 收录+blend 钳制；闭集外/缺省丢弃（08-18-haldclut-grade）", () => {
     const parsed = parseShotFxMotionResponse(
       JSON.stringify({
@@ -127,7 +135,7 @@ describe("selectShotFxMotions", () => {
   it("空分镜返回 empty", async () => {
     const result = await selectShotFxMotions([]);
     expect(result).toEqual({
-      motions: {}, addons: {}, grades: {}, atmospheres: {}, transitions: {}, sfxCategories: {}, source: "empty",
+      motions: {}, addons: {}, grades: {}, atmospheres: {}, transitions: {}, sfxCategories: {}, registries: {}, source: "empty",
     });
   });
 

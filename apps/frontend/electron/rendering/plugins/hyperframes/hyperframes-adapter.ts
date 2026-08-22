@@ -56,6 +56,17 @@ function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
 
+/** worker 子进程死亡的机理线索(exit code/被杀信号/超时),供重试仍败时诊断 */
+function describeWorkerFailure(error: unknown): string {
+  const detail = error as { code?: unknown; signal?: unknown; killed?: unknown };
+  const parts = [
+    typeof detail.code === "number" || typeof detail.code === "string" ? `exit=${detail.code}` : null,
+    typeof detail.signal === "string" ? `signal=${detail.signal}` : null,
+    detail.killed === true ? "killed" : null,
+  ].filter((part): part is string => part !== null);
+  return `worker死亡[${parts.join(" ") || "no-detail"}] ${errorMessage(error)}`.slice(0, 400);
+}
+
 function safeSegment(value: string, field: string): string {
   if (!/^[A-Za-z0-9._-]+$/.test(value) || value === "." || value === "..") throw new Error(`${field} 不能包含路径分隔符或目录跳转`);
   return value;
@@ -201,7 +212,8 @@ export function createHyperFramesAdapter(options: HyperFramesAdapterOptions) {
         rejectSymlinkComponentsUnderRoot(workspaceRoot, managedOutputPath),
       ]);
       writeVideoWorkflowJson(requestPath, normalizedRequest);
-      await runFile(paths.electronExecutable, buildHyperFramesWorkerArgs(options.workerPath, requestPath, artifactPath), {
+      const workerPath = options.workerPath;
+      const runWorkerOnce = (): ReturnType<typeof runFile> => runFile(paths.electronExecutable, buildHyperFramesWorkerArgs(workerPath, requestPath, artifactPath), {
         cwd: paths.hyperFramesProfileDir,
         env: buildSharedToolchainEnv(paths, {
           ELECTRON_RUN_AS_NODE: "1",
@@ -216,6 +228,19 @@ export function createHyperFramesAdapter(options: HyperFramesAdapterOptions) {
         timeout: 30 * 60_000,
         maxBuffer: 8 * 1024 * 1024,
       });
+      try {
+        await runWorkerOnce();
+      } catch (firstError) {
+        // 08-22 实证:worker 在管线内偶发信号级死亡(无 blocked artifact,手动重跑必成,
+        // 机理未明)——清残留后重试一次;重试仍败则抛出含 exit code/signal 的诊断信息
+        fs.rmSync(artifactPath, { force: true });
+        fs.rmSync(managedOutputPath, { force: true, recursive: true });
+        try {
+          await runWorkerOnce();
+        } catch (retryError) {
+          throw new Error(`${errorMessage(retryError)}(首次: ${describeWorkerFailure(firstError)})`);
+        }
+      }
       await Promise.all([
         rejectSymlinkComponentsUnderRoot(workspaceRoot, artifactPath),
         rejectSymlinkComponentsUnderRoot(workspaceRoot, managedOutputPath),

@@ -406,6 +406,8 @@ export interface StoryboardItem extends StudioStaleEvidence, StudioSourceIdentit
     atmosphere?: AtmosphereTemplateId[];
     transitionOut?: string;
     sfx?: string;
+    /** hy:* registry 模板(每镜至多 1,装饰层;python overlay 槽的逐镜 AI 提示) */
+    registryOverlay?: string;
     source: "ai" | "heuristic";
   };
 }

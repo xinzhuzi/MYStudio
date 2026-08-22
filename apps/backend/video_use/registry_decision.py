@@ -61,6 +61,12 @@ def categorize_template(item: dict) -> str:
             return cat
     return "motion-gfx"  # 兜底
 
+def has_template(name: str) -> bool:
+    """catalog 中是否存在该模板名(不含 hy: 前缀)。"""
+    clean = name.removeprefix("hy:")
+    return any(item.get("name") == clean for item in _load_catalog())
+
+
 def is_full_frame(item: dict) -> bool:
     tags = set(item.get("tags", []))
     return bool(tags & FULL_FRAME_TAGS) or item.get("type") == "block"

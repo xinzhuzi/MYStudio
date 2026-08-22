@@ -181,6 +181,7 @@ interface ShotSlotInfo {
   sourceSha256: string;
   audioSha256: string;
   textSha256: string;
+  overlayTemplateId?: string;
   durationUs: number;
 }
 
@@ -201,6 +202,19 @@ async function buildShotInputs(
       slotByShotId.set(slot.target.shotId, slot);
     }
   }
+
+  // AI shot-fx 的逐镜 registry 提示(store 单源)透传给 python 决策层
+  const registryOverlayByShotId = new Map<string, string>();
+  try {
+    const storeState = readStudioWorkflowStoreState(projectDir) as {
+      state?: { storyboards?: Array<{ id: string; shotFx?: { registryOverlay?: string } }> },
+    } | null;
+    for (const sb of storeState?.state?.storyboards ?? []) {
+      if (typeof sb.shotFx?.registryOverlay === "string" && sb.shotFx.registryOverlay) {
+        registryOverlayByShotId.set(sb.id, sb.shotFx.registryOverlay);
+      }
+    }
+  } catch { /* store 不可读则无提示 */ }
 
   const shots: ShotSlotInfo[] = [];
   for (const r2Shot of r2Run.shots) {
@@ -228,6 +242,7 @@ async function buildShotInputs(
       audioSha256: r2Shot.audioSha256 as string,
       textSha256,
       durationUs: slotEvidence.durationUs > 0 ? slotEvidence.durationUs : (r2Shot.durationUs as number),
+      ...(registryOverlayByShotId.has(shotId) ? { overlayTemplateId: registryOverlayByShotId.get(shotId)! } : {}),
     });
   }
   return shots;

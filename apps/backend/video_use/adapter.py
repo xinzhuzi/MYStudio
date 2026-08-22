@@ -449,6 +449,18 @@ def _build_overlay_slots(
     edl: dict[str, Any],
     artifact_edl: list[dict[str, Any]] | None = None,
 ) -> list[dict[str, Any]]:
+    # 08-22 接线:AI shot-fx 决策的逐镜 registry 提示(shots[].overlayTemplateId)——
+    # 校验存在性与依赖就绪后优先采用;非法/未就绪回落 mood 路由(原行为)。
+    overlay_hint_by_shot: dict[str, str] = {}
+    if _registry_deps_ready():
+        from .registry_decision import has_template
+
+        for shot in request.get("shots") or []:
+            if not isinstance(shot, dict):
+                continue
+            hint = str(shot.get("overlayTemplateId") or "")
+            if hint and has_template(hint):
+                overlay_hint_by_shot[str(shot["shotId"])] = hint.removeprefix("hy:")
     slots: list[dict[str, Any]] = []
     timeline_start_s = 0.0
     shifted_start_us_by_shot: dict[str, int] = {}
@@ -472,7 +484,11 @@ def _build_overlay_slots(
     for index, entry in enumerate(edl["ranges"]):
         shot_id = str(entry["source"])
         mood_word = _mood_for_shot(request, shot_id)
-        template_id, parameters = _template_for_mood(mood_word, index)
+        hint = overlay_hint_by_shot.get(shot_id)
+        if hint:
+            template_id, parameters = f"hy:{hint}", {}
+        else:
+            template_id, parameters = _template_for_mood(mood_word, index)
         # 内容感知定位：光效落位到画面最亮区域（质心），而非公式轮换位置。
         centroid = _bright_centroid(_image_path_for_shot(request, shot_id))
         # Keep deterministic per-shot variation while retaining mood/template
@@ -538,11 +554,23 @@ def _build_overlay_slots(
 
 
 def _shot_voice_end_s(alignment: dict[str, Any], shot_id: str) -> float | None:
-    """该镜语音（对齐词级时间）结束点，相对镜起点，单位秒；无对齐数据时返回 None。"""
+    """该镜语音结束点，相对镜起点，单位秒；无对齐数据时返回 None。
+
+    08-22 根修:取句级(aligned.sentences)末句结束——字幕 cue 与组合层语音挤压门
+    同口径;词级末词会低估语音结束(句尾停顿被当静默尾,转场重叠越界必被门拦)。
+    无句级数据时退词级(旧口径)。
+    """
     try:
         aligned = _alignment_for_shot(alignment, shot_id)
     except VideoUseAdapterError:
         return None
+    sentence_ends = [
+        float(sentence["endS"])
+        for sentence in aligned.get("sentences") or []
+        if isinstance(sentence, dict) and sentence.get("endS") is not None
+    ]
+    if sentence_ends:
+        return max(sentence_ends)
     ends = [
         float(word["endS"])
         for word in aligned.get("words") or []

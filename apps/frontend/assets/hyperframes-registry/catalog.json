@@ -4598,7 +4598,8 @@
         "video-primitive",
         "three-js",
         "webgl",
-        "hyperframes-native"
+        "hyperframes-native",
+        "showcase"
       ],
       "source": "hyperframes-github"
     },

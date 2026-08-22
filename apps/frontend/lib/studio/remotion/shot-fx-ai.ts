@@ -24,7 +24,7 @@ import {
 } from "./shot-fx-decisions";
 import { CINEMATIC_LUTS, isCinematicLutId } from "./cinematic-luts";
 import { ATMOSPHERE_TEMPLATES, isAtmosphereTemplateId, type AtmosphereTemplateId } from "./atmosphere-templates";
-import { registryTemplatesByTag } from "./hyperframes-registry-templates";
+import { registryTemplatesByTag, isHyperframesRegistryTemplate } from "./hyperframes-registry-templates";
 import {
   TRANSITION_SEMANTIC_BUCKETS,
   isTransitionSemanticBucketId,
@@ -113,6 +113,7 @@ function buildPrompt(shots: ShotFxAiShotInput[], opts?: { registryAvailable?: bo
   const atmoGuide = ATMOSPHERE_GUIDE.map((g) => `- ${g.id}: ${g.when}`).join("\n");
   const transitionGuide = TRANSITION_SEMANTIC_BUCKETS.map((b) => `- ${b.id}: ${b.when}`).join("\n");
   const sfxGuide = availableSubtitleSfxCategories().map((c) => `- ${c.id}: ${c.label}`).join("\n");
+  const registryFieldSpec = opts?.registryAvailable === false ? "" : '"registry": "hy:模板id或省略", ';
   const registrySection = opts?.registryAvailable === false
     ? ""
     : `
@@ -152,7 +153,7 @@ ${list}
 3. **转场纪律**：非 cut 转场是稀缺修辞——一章之内非 cut 边界占比不超过三分之一；ink-bleed 与 dream-warp 全章至多各一次；相邻边界避免同桶连用
 4. 风格整体性：组合要贴合本片题材气质（仙侠/热血/悬疑等），形成可辨识的镜头风格
 5. 同种特效只选一个档位（shake-soft 与 shake-hard 互斥，glow-warm 与 glow-dim 互斥）
-6. 只输出 JSON，格式：{"shots": [{"shotId": "...", "motion": "...", "fx": ["插件id", ...], "grade": {"lutId": "...", "blend": 0.2~0.9}, "atmosphere": ["模板id", ...], "transitionOut": "转场桶id或cut", "sfx": "音效类别id"}]}；不需要特效插件的镜头 fx 给空数组或省略；grade/atmosphere 无须时整个字段省略；transitionOut 为 cut 时可省略；无声学事件 sfx 省略
+6. 只输出 JSON，格式：{"shots": [{"shotId": "...", "motion": "...", "fx": ["插件id", ...], "grade": {"lutId": "...", "blend": 0.2~0.9}, "atmosphere": ["模板id", ...], ${registryFieldSpec}"transitionOut": "转场桶id或cut", "sfx": "音效类别id"}]}；不需要特效插件的镜头 fx 给空数组或省略；grade/atmosphere 无须时整个字段省略；transitionOut 为 cut 时可省略；无声学事件 sfx 省略
 7. 不要输出任何解释文字`;
 }
 
@@ -167,6 +168,7 @@ export function parseShotFxMotionResponse(
   atmospheres: Record<string, AtmosphereTemplateId[]>;
   transitions: Record<string, TransitionSemanticBucketId>;
   sfxCategories: Record<string, SubtitleSfxCategoryId>;
+  registries: Record<string, string>;
 } {
   const cleaned = raw.replace(/```json\n?|\n?```/g, "").trim();
   const start = cleaned.indexOf("{");
@@ -179,6 +181,7 @@ export function parseShotFxMotionResponse(
   const entries = Array.isArray(parsed.shots) ? parsed.shots : parsed.motions;
   const motions: Record<string, ShotFxMotionId> = {};
   const addons: Record<string, ShotFxAddonId[]> = {};
+  const registries: Record<string, string> = {};
   const grades: Record<string, { lutId: string; blend: number }> = {};
   const atmospheres: Record<string, AtmosphereTemplateId[]> = {};
   const transitions: Record<string, TransitionSemanticBucketId> = {};
@@ -221,6 +224,11 @@ export function parseShotFxMotionResponse(
         }
         if (valid.length > 0) atmospheres[shotId] = valid.slice(0, 2);
       }
+      // registry 模板(08-22 接线:此前 prompt 宣传但 parse 无承载字段,AI 选择被丢弃)
+      const registry = (entry as { registry?: unknown }).registry;
+      if (typeof registry === "string" && isHyperframesRegistryTemplate(registry)) {
+        registries[shotId] = registry;
+      }
       const fx = (entry as { fx?: unknown }).fx;
       if (Array.isArray(fx)) {
         // 显式插件配置（可为空数组=无特效）；同种效果取首个档位。
@@ -237,7 +245,7 @@ export function parseShotFxMotionResponse(
       }
     }
   }
-  return { motions, addons, grades, atmospheres, transitions, sfxCategories };
+  return { motions, addons, grades, atmospheres, transitions, sfxCategories, registries };
 }
 
 /** 关键词启发式兜底（无 AI 时的确定性选择，与渲染侧规则运镜共用单源）。 */
@@ -246,6 +254,7 @@ export function heuristicShotFxMotions(shots: ShotFxAiShotInput[]): {
   atmospheres: Record<string, AtmosphereTemplateId[]>;
   transitions: Record<string, TransitionSemanticBucketId>;
   sfxCategories: Record<string, SubtitleSfxCategoryId>;
+  registries: Record<string, string>;
 } {
   const motions: Record<string, ShotFxMotionId> = {};
   // 启发式不配氛围(对齐「启发式不配 grade」裁定:默认氛围刷满全片破坏视觉基线)。
@@ -265,7 +274,7 @@ export function heuristicShotFxMotions(shots: ShotFxAiShotInput[]): {
     const category = classifySubtitleSfx(shot.dialogue) ?? classifySubtitleSfx(shot.description);
     if (category) sfxCategories[shot.shotId] = category;
   });
-  return { motions, atmospheres, transitions, sfxCategories };
+  return { motions, atmospheres, transitions, sfxCategories, registries: {} };
 }
 
 /**
@@ -284,10 +293,11 @@ export async function selectShotFxMotions(
   atmospheres: Record<string, AtmosphereTemplateId[]>;
   transitions: Record<string, TransitionSemanticBucketId>;
   sfxCategories: Record<string, SubtitleSfxCategoryId>;
+  registries: Record<string, string>;
   source: "ai" | "heuristic" | "empty";
 }> {
   if (shots.length === 0) {
-    return { motions: {}, addons: {}, grades: {}, atmospheres: {}, transitions: {}, sfxCategories: {}, source: "empty" };
+    return { motions: {}, addons: {}, grades: {}, atmospheres: {}, transitions: {}, sfxCategories: {}, registries: {}, source: "empty" };
   }
   const shotIds = new Set(shots.map((s) => s.shotId));
   // 依赖未就绪时对 AI 隐藏 registry 模板段(选了也会在渲染时降级丢弃,不如不选)
@@ -315,13 +325,14 @@ export async function selectShotFxMotions(
     if (!result.success || !result.text) throw new Error(result.error || "AI 调用失败");
     const parsed = parseShotFxMotionResponse(result.text, shotIds);
     if (Object.keys(parsed.motions).length === 0) throw new Error("AI 未返回有效镜头表现");
-    return { ...parsed, source: "ai" };
+    return { ...parsed, registries: parsed.registries ?? {}, source: "ai" };
   } catch {
     // 启发式兜底不配 grade（AI 选型是增强而非必选；默认 LUT 刷满全片会破坏视觉基线）。
     return {
       ...heuristicShotFxMotions(shots),
       addons: {},
       grades: {},
+      registries: {},
       source: "heuristic",
     };
   }
