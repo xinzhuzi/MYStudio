@@ -581,8 +581,6 @@ def _sample_frames_ffmpeg(video_path: str, sampler: UnifiedFrameSampler | None =
                           view: str = VIEW_RESIZE) -> torch.Tensor:
     """Fallback frame sampling using ffmpeg + PIL when decord unavailable"""
     import subprocess
-    import tempfile
-    from PIL import Image
 
     def _probe(*entries: str) -> str:
         cmd = ['ffprobe', '-v', 'error', '-show_entries', ','.join(entries),
@@ -625,52 +623,72 @@ def _sample_frames_ffmpeg(video_path: str, sampler: UnifiedFrameSampler | None =
 
     indices = _resolve_indices(total_frames, fps, sampler, fragments, clip_len,
                                num_clips, start_s, duration_s)
+    window_lo, _ = _sampling_window(total_frames, start_s, duration_s, fps)
 
-    # Extract frames one by one via -ss keyframe seeking at NATIVE resolution
-    # (the fragments view must see true detail); each temp file is removed
-    # after decoding so repeated scoring never leaks disk space.
-    frames = []
-    first_shape: tuple[int, ...] | None = None
-    for i, idx in enumerate(indices):
-        fd, tmp_path = tempfile.mkstemp(suffix='.jpg')
-        os.close(fd)
-        try:
-            ts = idx / fps
-            cmd = [
-                'ffmpeg', '-y', '-ss', f'{ts:.3f}',
-                '-i', video_path, '-frames:v', '1', '-q:v', '2', tmp_path
-            ]
-            proc_result = subprocess.run(cmd, capture_output=True, text=True)
-            if proc_result.returncode != 0:
-                print(f"⚠️ Frame {i} extract failed: {proc_result.stderr[:100]}")
-                continue
-            img = Image.open(tmp_path).convert('RGB')
-            frame_np = np.array(img)
+    frames_np = _extract_frames_batch(video_path, indices, window_lo, fps)
+    return _normalize_views(_apply_view(frames_np, view))
+
+
+def _extract_frames_batch(video_path: str, indices: list[int],
+                          window_lo: int, fps: float) -> np.ndarray:
+    """Decode all requested frames with ONE ffmpeg process.
+
+    The official samplers emit overlapping/repeated frame numbers (the
+    UnifiedFrameSampler wraps short windows via mod); dedupe first, pull the
+    unique frames with a single `select` pass over the seeked window, then
+    expand back to the original order. Replaces the earlier per-frame
+    process spawn (~142ms/frame → one process per scoring call)."""
+    import glob
+    import shutil
+    import subprocess
+    import tempfile
+    from PIL import Image
+
+    unique_sorted = sorted(set(indices))
+    local_frames = [idx - window_lo for idx in unique_sorted]
+    # select() comma escaping inside -vf: eq(n\,<idx>)
+    select_expr = "+".join(f"eq(n\\,{idx})" for idx in local_frames)
+
+    out_dir = tempfile.mkdtemp(prefix="dover-frames-")
+    try:
+        cmd = [
+            'ffmpeg', '-y', '-ss', f'{window_lo / fps:.3f}',
+            '-i', video_path,
+            '-vf', f"select='{select_expr}'",
+            '-vsync', '0', '-q:v', '2',
+            os.path.join(out_dir, 'f_%05d.jpg'),
+        ]
+        proc = subprocess.run(cmd, capture_output=True, text=True)
+        if proc.returncode != 0:
+            raise RuntimeError(f"ffmpeg batch extract failed: {proc.stderr[:200]}")
+
+        # select emits in decode order == ascending local frame number
+        files = sorted(glob.glob(os.path.join(out_dir, 'f_*.jpg')))
+        if not files:
+            raise RuntimeError(f"ffmpeg batch extract produced no frames for {video_path}")
+
+        decoded: dict[int, np.ndarray] = {}
+        first_shape: tuple[int, ...] | None = None
+        for local_idx, file_path in zip(local_frames, files):
+            with Image.open(file_path) as img:
+                frame_np = np.array(img.convert('RGB'))
             if first_shape is None:
                 first_shape = frame_np.shape
             elif frame_np.shape != first_shape:
                 # decoders can emit odd sizes on the last frame — unify
-                frame_np = np.array(img.resize((first_shape[1], first_shape[0]), Image.BILINEAR))
-            frames.append(frame_np)
-        except Exception as e:  # noqa: BLE001 — single-frame failures degrade, not abort
-            print(f"⚠️ Frame {i} decode failed: {e}")
-        finally:
-            try:
-                os.unlink(tmp_path)
-            except OSError:
-                pass
+                frame_np = np.array(
+                    img.convert('RGB').resize((first_shape[1], first_shape[0]), Image.BILINEAR))
+            decoded[local_idx] = frame_np
 
-    # Pad to the expected index count (a UnifiedFrameSampler may yield more
-    # than `fragments` — e.g. the 96-frame technical view — so never truncate).
-    expected = len(indices)
-    if len(frames) < expected:
-        print(f"⚠️ Only got {len(frames)}/{expected} frames, zero-padding remainder")
-    pad_shape = first_shape if first_shape is not None else (224, 224, 3)
-    while len(frames) < expected:
-        frames.append(np.zeros(pad_shape, dtype=np.uint8))
-
-    frms = np.stack(frames, axis=0)  # (N, H, W, C) where N=len(indices)
-    return _normalize_views(_apply_view(frms, view))
+        if first_shape is None:
+            raise RuntimeError(f"no decodable frames in {video_path}")
+        pad = np.zeros(first_shape, dtype=np.uint8)
+        missing = [i for i in local_frames if i not in decoded]
+        if missing:
+            print(f"⚠️ {len(missing)} frames missing from batch extract, zero-padding")
+        return np.stack([decoded.get(idx - window_lo, pad) for idx in indices], axis=0)
+    finally:
+        shutil.rmtree(out_dir, ignore_errors=True)
 
 
 # ===========================================================================

@@ -163,6 +163,20 @@ class TestDoverMobileArch:
         with _pytest.raises(ValueError):
             _spatial_fragments_view(np.zeros((33, 448, 448, 3), dtype=np.uint8))
 
+    def test_sample_frames_preserves_order_with_repeats(self, test_video):
+        """Batch extraction dedupes internally but must restore the exact
+        requested order, including repeated frame numbers."""
+        from video_qc.dover_mobile_arch import _extract_frames_batch
+
+        # window_lo=0, fps=24 — indices with duplicates and unordered
+        indices = [10, 3, 10, 7, 3]
+        frames = _extract_frames_batch(test_video, indices, window_lo=0, fps=24.0)
+
+        assert frames.shape[0] == len(indices), "output must match index order 1:1"
+        assert (frames[0] == frames[2]).all(), "duplicate index 10 must reuse the same decode"
+        assert (frames[1] == frames[4]).all(), "duplicate index 3 must reuse the same decode"
+        assert not (frames[0] == frames[1]).all(), "distinct frames should differ"
+
     def test_grn_layer_normalization(self):
         """GRN preserves shape and stays finite."""
         from video_qc.dover_mobile_arch import GRN
