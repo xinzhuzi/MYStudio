@@ -362,7 +362,8 @@ export function createVideoQcRuntimeController(deps: ControllerDeps) {
         await runFile(paths.pythonExecutable, ["-m", "video_qc.worker", "--run", "--input", requestPath, "--output", artifactPath], {
           cwd: deps.backendRoot,
           env: buildEnv(paths),
-          timeout: 10 * 60_000,
+          // whole ≈18s;43 镜切片归因实测预算 ≈13.5 分钟,30 分钟留双倍余量
+          timeout: 30 * 60_000,
           maxBuffer: 8 * 1024 * 1024,
         });
       } catch {

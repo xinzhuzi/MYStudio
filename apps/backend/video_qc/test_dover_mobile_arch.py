@@ -66,7 +66,7 @@ class TestDoverMobileArch:
 
     def test_forward_pass_range(self, model, test_video):
         """Scores from a real video stay in sane ranges (fused is sigmoid → [0,1])."""
-        fused, aesthetic, technical = model.score(test_video, fragments=8)
+        fused, aesthetic, technical = model.score(test_video)
 
         assert 0 <= fused <= 1, f"Fused score out of range: {fused}"
         assert -5 < aesthetic < 5, f"Aesthetic unexpectedly extreme: {aesthetic}"
@@ -74,8 +74,8 @@ class TestDoverMobileArch:
 
     def test_forward_slice_window_differs(self, model, test_video):
         """Windowed (shot-level) scoring samples a different span than whole-video."""
-        whole_fused, _, _ = model.score(test_video, fragments=8)
-        slice_fused, _, _ = model.score(test_video, fragments=8, start_s=1.0, duration_s=2.0)
+        whole_fused, _, _ = model.score(test_video)
+        slice_fused, _, _ = model.score(test_video, start_s=1.0, duration_s=2.0)
 
         assert 0 <= slice_fused <= 1
         # Extremely unlikely to be bit-identical when the sampled span differs.

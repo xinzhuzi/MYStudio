@@ -16,12 +16,10 @@
 
 from __future__ import annotations
 
-import json
 import math
 import os
 import subprocess
 from pathlib import Path
-from typing import Iterator
 
 import numpy as np
 import torch
@@ -710,7 +708,7 @@ class DOVERMobileWrapper:
     def load(weight_path: str) -> "DOVERMobileWrapper":
         return DOVERMobileWrapper(weight_path)
 
-    def score(self, video_path: str, fragments: int = 32, start_s: float | None = None,
+    def score(self, video_path: str, start_s: float | None = None,
               duration_s: float | None = None) -> tuple[float, float, float]:
         """Score a video (optionally a [start_s, start_s+duration_s) window)
         → (fused, aesthetic, technical).
