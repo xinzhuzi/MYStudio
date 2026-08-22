@@ -50,6 +50,8 @@ const WAVE_PERIOD_MS = 8000; // 机械波浪周期
 const BASE_OPACITY = 0.13; // 低调氛围强度
 const TRAIL_FADE = 0.085; // 拖尾衰减覆盖 alpha
 const DPR_CAP = 2;
+/** 氛围背景不需要 60fps;30fps 足够,主线程让给交互 */
+const FRAME_INTERVAL_MS = 33;
 
 function randomChar() {
   return CHARSET[Math.floor(Math.random() * CHARSET.length)];
@@ -71,8 +73,14 @@ function DigitalRainCanvas({
     let cssHeight = 0;
     let columns: RainColumn[] = [];
     let rafId = 0;
-    let startTime = performance.now();
+    const startTime = performance.now();
     let running = true;
+    /** 主题色每帧 getComputedStyle 是同步样式计算,缓存到 resize/可见性恢复时刷新 */
+    let cachedBgRgb: [number, number, number] = [23, 25, 28];
+    let cachedPrimaryHsl: [number, number, number] = [212, 100, 48];
+    let lastFrameAt = 0;
+    /** 任意指针按下(拖节点/拖画布/点按钮)期间暂停绘制,交互优先 */
+    let pointerHeld = false;
 
     // 读取主题色（CSS 变量 --primary 是 "H S%" 三元组字符串）
     function readPrimaryHsl(): [number, number, number] {
@@ -153,15 +161,20 @@ function DigitalRainCanvas({
 
     function drawFrame() {
       if (!running) return;
+      rafId = requestAnimationFrame(drawFrame);
+
       const now = performance.now();
+      if (pointerHeld) return; // 按住拖节点期间让出主线程,松手自动续画
+      if (now - lastFrameAt < FRAME_INTERVAL_MS) return;
+      lastFrameAt = now;
       const elapsed = now - startTime;
 
       // 拖尾覆盖（用背景色半透明覆盖整个 canvas）
-      const [bgR, bgG, bgB] = readBackgroundRgb();
+      const [bgR, bgG, bgB] = cachedBgRgb;
       ctx!.fillStyle = `rgba(${bgR}, ${bgG}, ${bgB}, ${TRAIL_FADE})`;
       ctx!.fillRect(0, 0, cssWidth, cssHeight);
 
-      const [h, s, l] = readPrimaryHsl();
+      const [h, s, l] = cachedPrimaryHsl;
       const waveT = (elapsed % WAVE_PERIOD_MS) / WAVE_PERIOD_MS;
       const waveAngle = waveT * Math.PI * 2;
 
@@ -211,8 +224,6 @@ function DigitalRainCanvas({
           for (let j = 0; j < col.trailLength; j++) col.chars[j] = randomChar();
         }
       }
-
-      rafId = requestAnimationFrame(drawFrame);
     }
 
     // ─── 启动 ───
@@ -220,6 +231,11 @@ function DigitalRainCanvas({
       "(prefers-reduced-motion: reduce)"
     ).matches;
 
+    const refreshThemeCache = () => {
+      cachedBgRgb = readBackgroundRgb();
+      cachedPrimaryHsl = readPrimaryHsl();
+    };
+    refreshThemeCache();
     resize();
 
     if (prefersReducedMotion) {
@@ -252,11 +268,21 @@ function DigitalRainCanvas({
         cancelAnimationFrame(rafId);
       } else if (!prefersReducedMotion) {
         running = true;
-        startTime = performance.now() - (startTime > 0 ? 0 : 0);
+        refreshThemeCache(); // 回来顺手刷新主题色(可能刚切了主题)
         rafId = requestAnimationFrame(drawFrame);
       }
     };
     document.addEventListener("visibilitychange", onVisibility);
+
+    const onPointerDown = () => {
+      pointerHeld = true;
+    };
+    const onPointerUp = () => {
+      pointerHeld = false;
+    };
+    window.addEventListener("pointerdown", onPointerDown, { capture: true, passive: true });
+    window.addEventListener("pointerup", onPointerUp, { capture: true, passive: true });
+    window.addEventListener("pointercancel", onPointerUp, { capture: true, passive: true });
 
     return () => {
       running = false;
@@ -264,6 +290,9 @@ function DigitalRainCanvas({
       clearTimeout(resizeTimer);
       window.removeEventListener("resize", onResize);
       document.removeEventListener("visibilitychange", onVisibility);
+      window.removeEventListener("pointerdown", onPointerDown, { capture: true });
+      window.removeEventListener("pointerup", onPointerUp, { capture: true });
+      window.removeEventListener("pointercancel", onPointerUp, { capture: true });
     };
   }, [canvasRef]);
 

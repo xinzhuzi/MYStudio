@@ -25,6 +25,8 @@ export function createImageWorkflowReactNodes({
   onApplyToStoryboard,
   onDelete,
 }: CreateImageWorkflowReactNodesOptions): ImageWorkflowReactNode[] {
+  // 回调直挂稳定引用(拖动帧内画布 hook 全部 useCallback),配合节点卡片
+  // memo 的 data 引用比较,拖动时整组卡片不重渲染。
   return (graph?.nodes ?? []).map((node) => ({
     id: node.id,
     type: "imageWorkflow",
@@ -38,8 +40,8 @@ export function createImageWorkflowReactNodes({
       selected: node.id === selectedNodeId,
       storyboards,
       onUpdate,
-      onGenerate: (nodeId: string) => void onGenerate(nodeId),
-      onUpscale: (nodeId: string) => void onUpscale(nodeId),
+      onGenerate,
+      onUpscale,
       onApplyToStoryboard,
       onDelete,
     },

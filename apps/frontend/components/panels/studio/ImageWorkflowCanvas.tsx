@@ -4,6 +4,7 @@ import {
   MarkerType,
   ReactFlow,
   type Edge,
+  type OnConnect,
   type ReactFlowInstance,
   useNodesState,
 } from "@xyflow/react";
@@ -86,10 +87,13 @@ export function ImageWorkflowCanvas({
   projectName,
   initialAssetContext,
   onBack,
+  onOpenStoryboardWorkflow,
 }: {
   projectName: string;
   initialAssetContext?: ImageWorkflowOpenContext;
   onBack?: () => void;
+  /** scoped 视图切换分镜(由外层 openAssetImageWorkflow 承接,复用整条打开链) */
+  onOpenStoryboardWorkflow?: (context: ImageWorkflowOpenContext) => void;
 }) {
   const {
     imageWorkflows,
@@ -182,6 +186,19 @@ export function ImageWorkflowCanvas({
         : "未绑定目标",
     [initialAssetContext, storyboards],
   );
+  // 风格依据 chips:建流装配溯源(assemblyTrace)→ 可读标签(命中的手册资产清单)
+  const styleTraceChips = useMemo(() => {
+    const trace = activeGraph?.target.kind === "storyboard" ? activeGraph.assemblyTrace : undefined;
+    if (!trace) return [];
+    const chips: string[] = [];
+    if (trace.manualId) chips.push(`视觉手册 ${trace.manualId}`);
+    if (trace.templateId && trace.templateTitle) chips.push(`成片模板 ${trace.templateId}·${trace.templateTitle}`);
+    if (trace.factions?.length) chips.push(`阵营配色 ${trace.factions.join("/")}`);
+    if (trace.negativeApplied) chips.push("负面约束(五类)");
+    if (trace.styleTokenCount) chips.push(`风格令牌×${trace.styleTokenCount}`);
+    if (trace.assetReferenceTitles?.length) chips.push(`参考资产 ${trace.assetReferenceTitles.join("、")}`);
+    return chips;
+  }, [activeGraph]);
   const selectedGenerationBusy =
     activeGeneratedNode?.status === "generating" ||
     activeGeneratedNode?.status === "queued";
@@ -405,30 +422,37 @@ export function ImageWorkflowCanvas({
       upscaleNode,
     ],
   );
-  const [nodes, setNodes, onNodesChange] =
-    useNodesState<ImageWorkflowReactNode>(reactFlowNodes);
 
-  useEffect(() => {
-    setNodes(reactFlowNodes);
-  }, [reactFlowNodes, setNodes]);
-
-  useEffect(() => {
-    if (!flowInstance || nodes.length === 0) return;
-    const focusNodes =
-      initialAssetContext && focusedFitNodeIds.length > 0
-        ? focusedFitNodeIds.map((id) => ({ id }))
-        : undefined;
-    window.requestAnimationFrame(() => {
-      window.setTimeout(() => {
-        flowInstance?.fitView({
-          ...FIT_VIEW_OPTIONS,
-          duration: 180,
-          ...(focusNodes ? { nodes: focusNodes } : {}),
-        });
-      }, 80);
-    });
-// eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeGraph?.id, flowInstance, focusedFitNodeKey, initialAssetContext, nodes.length]);
+  const handleFlowNodeClick = useCallback(
+    (nodeId: string) => {
+      setSelectedNodeId(nodeId);
+      const targetNodeId = activeGraph
+        ? resolveGenerationTargetNodeId(activeGraph, nodeId)
+        : null;
+      if (targetNodeId) setPreferredGeneratedNodeId(targetNodeId);
+      setSelectedEdgeId(null);
+    },
+    [activeGraph],
+  );
+  const handleFlowPaneClick = useCallback(() => {
+    setSelectedNodeId(null);
+    setSelectedEdgeId(null);
+  }, []);
+  const handleFlowEdgeClick = useCallback((edgeId: string) => {
+    setSelectedEdgeId(edgeId);
+    setSelectedNodeId(null);
+  }, []);
+  const handleFlowNodeDragStop = useCallback(
+    (nodeId: string, position: { x: number; y: number }) => {
+      if (!activeGraph) return;
+      saveGraph(updateImageWorkflowNodePosition(activeGraph, nodeId, position));
+    },
+    [activeGraph, saveGraph],
+  );
+  const handleFitView = useCallback(
+    () => flowInstance?.fitView({ ...FIT_VIEW_OPTIONS, duration: 180 }),
+    [flowInstance],
+  );
 
   if (!activeGraph) {
     if (isScopedWorkflowDetail) {
@@ -456,51 +480,24 @@ export function ImageWorkflowCanvas({
   return (
     <section className="grid h-full min-h-[calc(100vh-190px)] w-full flex-1 grid-cols-[minmax(0,1fr)_320px] overflow-hidden rounded-lg border border-border bg-background text-foreground">
       <div className="relative min-w-0 overflow-hidden">
-        <ReactFlow
-          className="absolute inset-0 bg-muted/20"
-          nodes={nodes}
-          edges={reactFlowEdges}
-          nodeTypes={nodeTypes}
-          onNodesChange={onNodesChange}
-          onNodeClick={(_, node) => {
-            setSelectedNodeId(node.id);
-            const targetNodeId = resolveGenerationTargetNodeId(activeGraph, node.id);
-            if (targetNodeId) setPreferredGeneratedNodeId(targetNodeId);
-            setSelectedEdgeId(null);
-          }}
-          onPaneClick={() => {
-            setSelectedNodeId(null);
-            setSelectedEdgeId(null);
-          }}
-          onEdgeClick={(_, edge) => {
-            setSelectedEdgeId(edge.id);
-            setSelectedNodeId(null);
-          }}
-          onNodeDragStop={(_, node) => {
-            saveGraph(updateImageWorkflowNodePosition(activeGraph, node.id, node.position));
-          }}
+        <ImageWorkflowFlowView
+          activeGraph={activeGraph}
+          focusedFitNodeIds={focusedFitNodeIds}
+          focusedFitNodeKey={focusedFitNodeKey}
+          initialAssetContext={initialAssetContext}
+          reactFlowEdges={reactFlowEdges}
+          reactFlowNodes={reactFlowNodes}
           onConnect={handleConnect}
-          onInit={(instance) => {
-            setFlowInstance(instance);
-            window.requestAnimationFrame(() => instance.fitView(FIT_VIEW_OPTIONS));
-          }}
-          fitView
-          fitViewOptions={FIT_VIEW_OPTIONS}
-          nodesDraggable
-          nodesConnectable
-          elementsSelectable
-          panOnDrag={[0, 1]}
-          zoomOnScroll
-          zoomOnPinch
-          zoomOnDoubleClick={false}
-          proOptions={{ hideAttribution: true }}
-        >
-          <Background color="hsl(var(--border))" gap={28} size={1} />
-          <CanvasViewportControls
-            onFit={() => flowInstance?.fitView({ ...FIT_VIEW_OPTIONS, duration: 180 })}
-          />
-        </ReactFlow>
-        <div className="absolute left-3 right-3 top-3 z-20 flex flex-wrap items-center gap-2 rounded-md border border-border bg-card/92 p-2 text-card-foreground backdrop-blur-xl backdrop-blur">
+          onEdgeClick={handleFlowEdgeClick}
+          onFitView={handleFitView}
+          onInit={setFlowInstance}
+          onNodeClick={handleFlowNodeClick}
+          onNodeDragStop={handleFlowNodeDragStop}
+          onPaneClick={handleFlowPaneClick}
+          uploadInputRef={uploadInputRef}
+          onUploadReference={handleUploadReference}
+        />
+        <div className="absolute left-3 right-3 top-3 z-20 flex flex-wrap items-center gap-2 rounded-md border border-border bg-card/92 p-2 text-card-foreground backdrop-blur-xl">
           {onBack ? (
             <Button size="sm" variant="ghost" onClick={onBack}>
               <ArrowLeft className="h-3.5 w-3.5" />
@@ -518,6 +515,23 @@ export function ImageWorkflowCanvas({
               <Layers className="h-3.5 w-3.5" />
               分层节点对
             </Button>
+          ) : null}
+          {styleTraceChips.length ? (
+            <div
+              data-image-workflow-style-trace
+              className="flex min-w-[220px] flex-1 flex-wrap items-center gap-1 border-l border-border pl-2 text-[10px] leading-4"
+            >
+              <span className="shrink-0 text-muted-foreground">风格依据</span>
+              {styleTraceChips.map((chip) => (
+                <span
+                  key={chip}
+                  title={`本次生图装配引用:${chip}`}
+                  className="rounded-full border border-primary/25 bg-primary/10 px-1.5 py-0.5 text-primary/85"
+                >
+                  {chip}
+                </span>
+              ))}
+            </div>
           ) : null}
           {canUseGlobalWorkflowControls ? (
             <>
@@ -631,28 +645,11 @@ export function ImageWorkflowCanvas({
             size="icon"
             variant="ghost"
             aria-label="适配画布"
-            onClick={() => flowInstance?.fitView({ ...FIT_VIEW_OPTIONS, duration: 180 })}
+            onClick={handleFitView}
           >
             <Maximize2 className="h-4 w-4" />
           </Button>
         </div>
-        {nodes.length === 0 ? (
-          <div className="pointer-events-none absolute inset-0 flex items-center justify-center px-6 text-center">
-            <div className="max-w-sm rounded-md border border-border bg-card/92 px-4 py-3 text-sm text-card-foreground backdrop-blur-xl backdrop-blur">
-              <div className="font-semibold">当前图片工作流没有节点</div>
-              <div className="mt-1 text-xs text-muted-foreground">
-                可从左上角新建节点，或回到工作流重新从资产/分镜卡片进入。
-              </div>
-            </div>
-          </div>
-        ) : null}
-        <input
-          ref={uploadInputRef}
-          type="file"
-          accept="image/*"
-          className="hidden"
-          onChange={(event) => void handleUploadReference(event.target.files?.[0])}
-        />
       </div>
 
       <ImageWorkflowSidebar
@@ -672,6 +669,21 @@ export function ImageWorkflowCanvas({
         storyboardImages={storyboardImages}
         onAddReferenceFromMaterial={addReferenceFromMaterial}
         onAddReferenceFromStoryboard={addReferenceFromStoryboard}
+        onSwitchScopedStoryboard={onOpenStoryboardWorkflow ? (storyboard) => {
+          onOpenStoryboardWorkflow({
+            target: { kind: "storyboard", id: storyboard.id },
+            title: `分镜 ${storyboard.index}`,
+            prompt: storyboard.videoDesc || storyboard.prompt,
+            sourceImagePath: storyboard.mediaRef?.kind === "image" ? storyboard.mediaRef.path : undefined,
+            resultImagePath: storyboard.mediaRef?.kind === "image" ? storyboard.mediaRef.path : undefined,
+            imageWorkflowId: storyboard.imageWorkflowId ?? storyboard.mediaRef?.imageWorkflowId,
+            sourceStage: "storyboard",
+            sourceStageLabel: "分镜视频生成",
+            sourceLabel: `分镜成图 · 分镜 ${storyboard.index}`,
+            storyboardSourceFingerprint: storyboard.sourceFingerprint,
+            storyboardLines: storyboard.lines,
+          });
+        } : undefined}
       />
 
       {/* 批量超分勾选清单 */}
@@ -720,7 +732,7 @@ export function ImageWorkflowCanvas({
       {/* 批量超分进度浮层 */}
       {upscaleBatchState.running ? (
         <div
-          className="absolute bottom-4 right-4 z-30 w-[320px] rounded-lg border border-border bg-card/95 p-3 backdrop-blur-xl backdrop-blur"
+          className="absolute bottom-4 right-4 z-30 w-[320px] rounded-lg border border-border bg-card/95 p-3 backdrop-blur-xl"
           data-image-workflow-batch-upscale-progress
         >
           <div className="mb-2 flex items-center justify-between gap-2 text-sm">
@@ -750,5 +762,121 @@ export function ImageWorkflowCanvas({
         </div>
       ) : null}
     </section>
+  );
+}
+
+// ─── 画布子组件:nodes 每帧更新隔离在此,父级工具栏/侧栏不随拖动重渲染 ───
+
+function ImageWorkflowFlowView({
+  activeGraph,
+  focusedFitNodeIds,
+  focusedFitNodeKey,
+  initialAssetContext,
+  reactFlowEdges,
+  reactFlowNodes,
+  onConnect,
+  onEdgeClick,
+  onFitView,
+  onInit,
+  onNodeClick,
+  onNodeDragStop,
+  onPaneClick,
+  uploadInputRef,
+  onUploadReference,
+}: {
+  activeGraph: ImageWorkflowGraph;
+  focusedFitNodeIds: string[];
+  focusedFitNodeKey: string;
+  initialAssetContext?: ImageWorkflowOpenContext;
+  reactFlowEdges: Edge[];
+  reactFlowNodes: ImageWorkflowReactNode[];
+  onConnect: OnConnect;
+  onEdgeClick: (edgeId: string) => void;
+  onFitView: () => void;
+  onInit: (instance: ReactFlowInstance<ImageWorkflowReactNode, Edge>) => void;
+  onNodeClick: (nodeId: string) => void;
+  onNodeDragStop: (nodeId: string, position: { x: number; y: number }) => void;
+  onPaneClick: () => void;
+  uploadInputRef: React.MutableRefObject<HTMLInputElement | null>;
+  onUploadReference: (file: File | undefined) => void | Promise<void>;
+}) {
+  const [nodes, setNodes, onNodesChange] =
+    useNodesState<ImageWorkflowReactNode>(reactFlowNodes);
+
+  useEffect(() => {
+    setNodes(reactFlowNodes);
+  }, [reactFlowNodes, setNodes]);
+
+  const [flowInstance, setFlowInstance] =
+    useState<ReactFlowInstance<ImageWorkflowReactNode, Edge> | null>(null);
+
+  useEffect(() => {
+    if (!flowInstance || nodes.length === 0) return;
+    const focusNodes =
+      initialAssetContext && focusedFitNodeIds.length > 0
+        ? focusedFitNodeIds.map((id) => ({ id }))
+        : undefined;
+    window.requestAnimationFrame(() => {
+      window.setTimeout(() => {
+        flowInstance?.fitView({
+          ...FIT_VIEW_OPTIONS,
+          duration: 180,
+          ...(focusNodes ? { nodes: focusNodes } : {}),
+        });
+      }, 80);
+    });
+// eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeGraph.id, flowInstance, focusedFitNodeKey, initialAssetContext, nodes.length]);
+
+  return (
+    <>
+      <ReactFlow
+        className="absolute inset-0 bg-muted/20"
+        nodes={nodes}
+        edges={reactFlowEdges}
+        nodeTypes={nodeTypes}
+        onNodesChange={onNodesChange}
+        onNodeClick={(_, node) => onNodeClick(node.id)}
+        onPaneClick={onPaneClick}
+        onEdgeClick={(_, edge) => onEdgeClick(edge.id)}
+        onNodeDragStop={(_, node) => onNodeDragStop(node.id, node.position)}
+        onConnect={onConnect}
+        onInit={(instance) => {
+          setFlowInstance(instance);
+          onInit(instance);
+          window.requestAnimationFrame(() => instance.fitView(FIT_VIEW_OPTIONS));
+        }}
+        fitView
+        fitViewOptions={FIT_VIEW_OPTIONS}
+        nodesDraggable
+        nodesConnectable
+        elementsSelectable
+        panOnDrag={[0, 1]}
+        zoomOnScroll
+        zoomOnPinch
+        zoomOnDoubleClick={false}
+        proOptions={{ hideAttribution: true }}
+      >
+        <Background color="hsl(var(--border))" gap={28} size={1} />
+        <CanvasViewportControls onFit={onFitView} />
+      </ReactFlow>
+      {nodes.length === 0 ? (
+        <div className="pointer-events-none absolute inset-0 flex items-center justify-center px-6 text-center">
+          <div className="max-w-sm rounded-md border border-border bg-card/92 px-4 py-3 text-sm text-card-foreground backdrop-blur-xl">
+            <div className="font-semibold">当前图片工作流没有节点</div>
+            <div className="mt-1 text-xs text-muted-foreground">
+              可从左上角新建节点，或回到工作流重新从资产/分镜卡片进入。
+            </div>
+          </div>
+        </div>
+      ) : null}
+      <input
+        ref={uploadInputRef}
+        type="file"
+        accept="image/*"
+        className="hidden"
+        onChange={(event) => void onUploadReference(event.target.files?.[0])}
+      />
+    </>
   );
 }

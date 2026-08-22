@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { memo, useState } from "react";
 import { Handle, Position, type Node, type NodeProps } from "@xyflow/react";
 import { CheckCircle2, Image as ImageIcon, Loader2, Save, Trash2, WandSparkles, ZoomIn } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -34,7 +34,35 @@ const ASPECT_RATIOS = IMAGE_ASPECT_RATIOS;
 const RESOLUTION_OPTIONS = IMAGE_RESOLUTIONS;
 const QUALITY_OPTIONS: Array<ImageWorkflowGeneratedNode["quality"]> = ["draft", "standard", "hd"];
 
-export function ImageWorkflowNodeCard({ data }: NodeProps<ImageWorkflowReactNode>) {
+/**
+ * 拖动每帧重建 node wrapper(position/dragging 变化),但卡片内容只依赖
+ * data(selected/字段/回调)。data 引用不变即跳过渲染——卡片位置由 React Flow
+ * 外层 wrapper 的 transform 驱动,内容无需跟随拖动帧重渲染。
+ */
+function areNodeCardPropsEqual(
+  prev: NodeProps<ImageWorkflowReactNode>,
+  next: NodeProps<ImageWorkflowReactNode>,
+) {
+  return (
+    prev.id === next.id &&
+    prev.data === next.data &&
+    prev.selected === next.selected &&
+    prev.dragging === next.dragging &&
+    prev.isConnectable === next.isConnectable &&
+    prev.positionAbsoluteX === next.positionAbsoluteX &&
+    prev.positionAbsoluteY === next.positionAbsoluteY &&
+    prev.zIndex === next.zIndex &&
+    prev.type === next.type &&
+    prev.deletable === next.deletable &&
+    prev.selectable === next.selectable &&
+    prev.draggable === next.draggable &&
+    prev.parentId === next.parentId &&
+    prev.width === next.width &&
+    prev.height === next.height
+  );
+}
+
+export const ImageWorkflowNodeCard = memo(function ImageWorkflowNodeCard({ data }: NodeProps<ImageWorkflowReactNode>) {
   const node = data.node;
   const borderClass = data.selected
     ? "border-warning/80 shadow-[0_18px_42px_rgba(251,191,36,0.22)]"
@@ -93,7 +121,9 @@ export function ImageWorkflowNodeCard({ data }: NodeProps<ImageWorkflowReactNode
       )}
     </div>
   );
-}
+}, areNodeCardPropsEqual);
+
+ImageWorkflowNodeCard.displayName = "ImageWorkflowNodeCard";
 
 function ReferenceNodeEditor({
   node,
