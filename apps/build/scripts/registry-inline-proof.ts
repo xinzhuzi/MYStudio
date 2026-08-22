@@ -54,11 +54,13 @@ function main(): void {
     buildRequest([
       { templateId: "hy:vfx-shatter", startUs: 0, durationUs: 2_000_000 },
       { templateId: "hy:world-map", startUs: 2_000_000, durationUs: 2_000_000 },
+      // 第三窗重复 vfx-shatter:同段同模板必须丢弃(DOM id 串台防护)
+      { templateId: "hy:vfx-shatter", startUs: 3_000_000, durationUs: 1_000_000 },
     ]),
     4_000_000,
   );
 
-  checks.push(["两窗 body 均渲染", (html.match(/class="clip hy-registry-window"/g) ?? []).length === 2]);
+  checks.push(["两窗 body 均渲染(重复窗被丢弃)", (html.match(/class="clip hy-registry-window"/g) ?? []).length === 2]);
   checks.push(["GSAP 库内联(registerPlugin 特征)", /registerplugin/i.test(html)]);
   checks.push(["JS 库体量真实(≥500KB 内联)", html.length >= 500_000]);
   checks.push(["atlas JSON 预注入(__REGISTRY_DATA__)", html.includes(`__REGISTRY_DATA__["world-atlas/2/countries-110m.json"]`)]);

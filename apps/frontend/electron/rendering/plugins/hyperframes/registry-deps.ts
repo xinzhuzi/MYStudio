@@ -26,7 +26,8 @@ async function curlToFile(url: string, targetPath: string): Promise<void> {
 
 export interface RegistryDep {
   localPath: string;
-  url: string;
+  /** 同一本地文件的全部来源 URL(字体家族多个字重查询合并为一套 @font-face,杜绝字重缺档合成) */
+  urls: string[];
 }
 
 /**
@@ -65,17 +66,16 @@ function normalizeLocalPath(localPath: string): string {
 
 function buildDepList(): RegistryDep[] {
   const mappings = loadUrlMap();
-  const deps: RegistryDep[] = [];
-  const seen = new Set<string>();
+  const byPath = new Map<string, string[]>();
   for (const [cdnUrl, localPath] of Object.entries(mappings)) {
     const normalized = normalizeLocalPath(localPath);
     // 防御 map 被篡改:拒绝绝对路径与穿越段(下载写入必须锁死在 deps 根内)
     if (path.isAbsolute(normalized) || /(^|\/)\.\.?(\/|$)/.test(normalized)) continue;
-    if (seen.has(normalized)) continue;
-    seen.add(normalized);
-    deps.push({ localPath: normalized, url: cdnUrl });
+    const urls = byPath.get(normalized) ?? [];
+    if (!urls.includes(cdnUrl)) urls.push(cdnUrl);
+    byPath.set(normalized, urls);
   }
-  return deps;
+  return [...byPath.entries()].map(([localPath, urls]) => ({ localPath, urls }));
 }
 
 export function getRegistryDepsDir(userDataDir: string): string {
@@ -141,21 +141,31 @@ function depFileReady(filePath: string): boolean {
 }
 
 /**
- * 下载字体依赖并本地化:CSS 内的字体文件本体一并下载到 _files/
- * 并改写 CSS 为相对路径——离线渲染字形不退化。
+ * 下载字体依赖并本地化:同一本地文件的全部字重查询逐一抓取,
+ * @font-face 合并(重复 face 同字重后者覆盖,无害)、字体本体统一下载到共享 _files/
+ * 并改写为相对路径——离线渲染字重不缺档、字形不退化。
  * 直连失败自动切 loli 镜像;旧版只下了 CSS 未下本体的存量自动补齐。
  */
 async function downloadFontCssDep(dep: RegistryDep, targetPath: string): Promise<boolean> {
   if (fontCssIsLocalized(targetPath)) return true;
   fs.mkdirSync(path.dirname(targetPath), { recursive: true });
   try {
-    try {
-      await curlToFile(dep.url, targetPath);
-    } catch {
-      await curlToFile(fontMirrorUrl(dep.url), targetPath);
+    const cssTexts: string[] = [];
+    for (const url of dep.urls) {
+      try {
+        await curlToFile(url, targetPath);
+      } catch {
+        try {
+          await curlToFile(fontMirrorUrl(url), targetPath);
+        } catch {
+          continue; // 单个字重查询失败不放弃整族
+        }
+      }
+      cssTexts.push(fs.readFileSync(targetPath, "utf8"));
     }
-    const css = fs.readFileSync(targetPath, "utf8");
-    const fontUrls = [...new Set([...css.matchAll(/url\((https:\/\/[^)"']+)\)/g)].map((m) => m[1]))];
+    if (cssTexts.length === 0) return false;
+    // 跨字重变体收集全部字体文件 URL,统一下载
+    const fontUrls = [...new Set(cssTexts.flatMap((css) => [...css.matchAll(/url\((https:\/\/[^)"']+)\)/g)].map((m) => m[1])))];
     const filesDir = path.join(path.dirname(targetPath), "_files");
     for (const url of fontUrls) {
       const filename = path.basename(new URL(url).pathname);
@@ -169,12 +179,17 @@ async function downloadFontCssDep(dep: RegistryDep, targetPath: string): Promise
         }
       }
     }
-    let localized = css;
-    for (const url of fontUrls) {
-      const filename = path.basename(new URL(url).pathname);
-      localized = localized.split(url).join(`_files/${filename}`);
-    }
-    fs.writeFileSync(targetPath, localized, "utf8");
+    const merged = cssTexts
+      .map((css) => {
+        let localized = css;
+        for (const url of fontUrls) {
+          const filename = path.basename(new URL(url).pathname);
+          localized = localized.split(url).join(`_files/${filename}`);
+        }
+        return localized;
+      })
+      .join("\n");
+    fs.writeFileSync(targetPath, merged, "utf8");
   } catch {
     return false;
   }
@@ -209,7 +224,7 @@ export async function downloadRegistryDeps(
     }
     fs.mkdirSync(path.dirname(targetPath), { recursive: true });
     try {
-      await curlToFile(dep.url, targetPath);
+      await curlToFile(dep.urls[0], targetPath);
       if (fs.existsSync(targetPath) && fs.statSync(targetPath).size > 0) {
         downloaded++;
       } else {

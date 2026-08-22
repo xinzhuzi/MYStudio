@@ -742,7 +742,20 @@ export function buildHyperFramesCompositionHtml(request: HyperFramesOverlayReque
     throw new Error("HyperFrames composition 时长必须是正整数微秒");
   }
   const durationS = compositionDurationUs / 1_000_000;
-  const windows = request.windows.map(renderWindow).join("\n");
+  // 同段内同模板只渲染首个窗:模板 DOM id 全局唯一,重复渲染必串台
+  // (跨段无碍——每段是独立 composition 文档)
+  const renderedRegistryBodies = new Set<string>();
+  const windows = request.windows
+    .map((window, index) => {
+      if (!isRegistryTemplate(window.templateId)) return renderWindow(window, index);
+      if (renderedRegistryBodies.has(window.templateId)) {
+        console.warn(`[hyperframes-worker] ${window.templateId} 同段重复选用,后续窗口丢弃(重复 DOM id 会串台)`);
+        return "";
+      }
+      renderedRegistryBodies.add(window.templateId);
+      return renderWindow(window, index);
+    })
+    .join("\n");
   // 收集 hy:* registry 模板的物化产物:styles/scripts/JS库/字体/数据 注入 composition
   const registryStyles: string[] = [];
   const registryScripts: string[] = [];
