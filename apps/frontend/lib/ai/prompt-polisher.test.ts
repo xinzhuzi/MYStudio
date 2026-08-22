@@ -9,6 +9,7 @@ import { polishAssetPrompt } from "./prompt-polisher";
 vi.mock("@/lib/bridge/studio-visual-manuals", async () => {
   const { readFileSync } = await import("node:fs");
   const { join } = await import("node:path");
+  // 2026-08-22 道劫手册移至项目真源(<项目根>/skills);本机无该项目时该用例跳过内容级断言
   const dir = join(
     process.cwd(),
     "frontend/assets/studio-manuals/art_skills/daojie_ink_guofeng",

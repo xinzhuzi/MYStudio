@@ -2,6 +2,7 @@ import { getAgentSkillPreset } from "@/lib/studio/manuals";
 import { detectLightingTerms, stripLightingTerms } from "@/lib/studio/director-plan";
 import {
   buildStoryboardVoiceoverItem,
+  isNarratorSpeaker,
   type VoiceoverCharacterIdentity,
 } from "@/lib/studio/chapter-voiceover";
 import type {
@@ -210,11 +211,19 @@ export function parseStoryboardTable(
   return { rows, errors, warnings };
 }
 
+export interface ToStoryboardItemsOptions {
+  /** 群演/未注册说话人兜底：narrator=归旁白音色（台词保留原说话人署名）。缺省严格抛错。 */
+  unknownSpeaker?: "narrator";
+  /** 兜底发生时的通知钩子（每镜至多一次），调用方可聚合为 warning 展示。 */
+  onSpeakerFallback?: (storyboardId: string, speaker: string) => void;
+}
+
 export function toStoryboardItems(
   rows: StoryboardTableRow[],
   episodeId: string,
   characters: VoiceoverCharacterIdentity[],
   identity?: StudioSourceIdentity,
+  options: ToStoryboardItemsOptions = {},
 ): StoryboardItem[] {
   const indexError = storyboardIndexContinuityError(rows);
   if (indexError) throw new Error(indexError);
@@ -234,7 +243,15 @@ export function toStoryboardItems(
       duration: sourceDuration,
       emotion: row.emotion,
       characters,
+      unknownSpeaker: options.unknownSpeaker,
     });
+    if (
+      options.onSpeakerFallback
+      && voiceover.speakerId === "narrator"
+      && !isNarratorSpeaker(voiceover.speaker)
+    ) {
+      options.onSpeakerFallback(storyboardId, voiceover.speaker);
+    }
     return {
       ...identity,
       id: storyboardId,

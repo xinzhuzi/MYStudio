@@ -200,7 +200,8 @@ describe("studio workflow tabs", () => {
     expect(workflowSource).toContain("text-card-foreground");
     expect(canvasSource).toContain("bg-muted/20");
     expect(canvasSource).toContain('Background color="hsl(var(--border))"');
-    expect(canvasSource).toContain("react-flow__controls-button");
+    expect(canvasSource).toContain("CanvasViewportControls");
+    expect(canvasSource).not.toContain("<Controls");
     expect(workflowSource).not.toContain("border-white/");
     expect(workflowSource).not.toContain("bg-black/");
     expect(workflowSource).not.toContain("bg-white/[");
@@ -278,7 +279,7 @@ describe("studio workflow tabs", () => {
 
     expect(canvasSource).toContain("const canUseGlobalWorkflowControls = !isScopedWorkflowDetail;");
     expect(canvasSource).toContain("initialAssetContext.imageWorkflowId");
-    expect(canvasSource).toContain("isSameImageWorkflowTarget(item.target, initialAssetContext.target)");
+    expect(canvasSource).toContain("matchesStoryboardOpenContext(item, initialAssetContext)");
     expect(canvasSource).toContain("selectedGraph && selectedGraph.id === scopedWorkflow?.id");
     expect(canvasSource).toContain("scopedPendingWritebackTargetLabel");
     expect(canvasSource).toContain("<ImageWorkflowScopedPending");
@@ -423,16 +424,20 @@ describe("studio workflow tabs", () => {
     expect(canvasSource).toContain("ReactFlow");
     expect(canvasSource).not.toContain("<Controls");
     expect(canvasSource).toContain("CanvasViewportControls");
-    expect(canvasSource).toContain("workflow-node-viewport-controls");
-    expect(canvasSource).toContain("bg-card p-1 text-xs text-card-foreground");
+    const viewportControlsSource = readFileSync(
+      fileURLToPath(new URL("./CanvasViewportControls.tsx", import.meta.url)),
+      "utf8",
+    );
+    expect(viewportControlsSource).toContain("workflow-node-viewport-controls");
+    expect(viewportControlsSource).toContain("bg-card p-1 text-xs text-card-foreground");
+    expect(viewportControlsSource).toContain("useReactFlow");
+    expect(viewportControlsSource).toContain("useOnViewportChange");
+    expect(viewportControlsSource).toContain('aria-label="缩小画布"');
+    expect(viewportControlsSource).toContain('aria-label="放大画布"');
+    expect(viewportControlsSource).toContain('aria-label="适配画布"');
     expect(canvasSource).toContain("useNodesState");
-    expect(canvasSource).toContain("useReactFlow");
-    expect(canvasSource).toContain("useOnViewportChange");
     expect(canvasSource).toContain("useUpdateNodeInternals");
     expect(canvasSource).toContain("CanvasVisibilityMeasurementRefresh");
-    expect(canvasSource).toContain('aria-label="缩小画布"');
-    expect(canvasSource).toContain('aria-label="放大画布"');
-    expect(canvasSource).toContain('aria-label="适配画布"');
     expect(canvasSource).toContain('aria-label="重排当前画布"');
     expect(canvasSource).toContain("const PRODUCTION_CANVAS_MIN_ZOOM = 0.18");
     expect(canvasSource).toContain("const PRODUCTION_CANVAS_MAX_ZOOM = 2.0");
@@ -449,7 +454,7 @@ describe("studio workflow tabs", () => {
     expect(canvasSource).toContain(
       'canvasSectionRef.current?.classList.remove("workflow-node-canvas-interacting")',
     );
-    expect(canvasSource).toContain("{zoomPercent}%");
+    expect(viewportControlsSource).toContain("{zoomPercent}%");
     expect(canvasSource).not.toContain("Background,");
     expect(canvasSource).not.toContain("<Background");
     expect(canvasSource).toContain("workflow-node-canvas");

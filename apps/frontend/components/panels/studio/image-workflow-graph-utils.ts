@@ -8,6 +8,18 @@ import {
   setGeneratedImageResult,
 } from "@/lib/studio/image-workflow";
 import { useAppSettingsStore } from "@/stores/app/app-settings-store";
+import {
+  getExtendedStoryboardFactionData,
+  getExtendedStoryboardFrameNegative,
+  getExtendedStoryboardManualContent,
+  withActiveVisualManualStoryboardStyleTokens,
+} from "@/lib/studio/visual-manual-style-tokens";
+import {
+  buildStoryboardFactionColorSection,
+  buildStoryboardFramePrompt,
+  parseStoryboardFrameTemplates,
+  selectStoryboardFrameTemplate,
+} from "@/lib/studio/storyboard-frame-prompt";
 import type {
   AssetImageWorkflowContext,
   ImageWorkflowGeneratedNode,
@@ -174,6 +186,22 @@ export function isSameImageWorkflowTarget(
   return imageWorkflowTargetKey(left) === imageWorkflowTargetKey(right);
 }
 
+/**
+ * 打开上下文的工作流复用判定:目标一致,且分镜目标要求指纹时必须与工作流盖戳一致。
+ * 指纹不匹配=工作流属于「同 id 但已被替换的上一代分镜」(2026-08-22 实证:06-01
+ * 旧 43 镜工作流占着新 82 镜 1-43 的 id,旧提示词会生成旧镜头画面)。
+ * 上下文未带指纹(资产/素材目标)时退化为纯目标匹配,行为不变。
+ */
+export function matchesStoryboardOpenContext(
+  graph: ImageWorkflowGraph,
+  context: ImageWorkflowOpenContext,
+) {
+  if (!isSameImageWorkflowTarget(graph.target, context.target)) return false;
+  const required = context.storyboardSourceFingerprint;
+  if (context.target.kind !== "storyboard" || !required) return true;
+  return graph.targetSourceFingerprint === required;
+}
+
 export function assetWorkflowContextKey(context: ImageWorkflowOpenContext) {
   return [context.imageWorkflowId ?? "", imageWorkflowTargetKey(context.target)].join("|");
 }
@@ -193,6 +221,44 @@ export function createOpenImageWorkflowGraph(
     name: `${projectName} · ${context.title} 图片工作流`,
     target: context.target,
   });
+  if (context.storyboardSourceFingerprint) {
+    graph = { ...graph, targetSourceFingerprint: context.storyboardSourceFingerprint };
+  }
+  // 分镜工作流三件套(ma-gongbi-v1 手册资产,全部 fail-empty):
+  // ① 提示词按手册装配顺序结构化(【画面】+【构图】模板要点),再挂视觉手册风格锁
+  //    (生成链路幂等不双拼;手册未预热时退化裸描述,行为不变);
+  // ② Negative Prompt 预填五类英文负面词;
+  // ③ 关联资产参考图自动挂载(场景在前角色在后,order 1..k)。
+  const isStoryboard = context.target.kind === "storyboard";
+  const frameTemplate = isStoryboard
+    ? selectStoryboardFrameTemplate(
+        [context.prompt ?? "", context.storyboardLines ?? ""].join("\n"),
+        parseStoryboardFrameTemplates(getExtendedStoryboardManualContent()),
+      )
+    : null;
+  // 阵营色彩职责:参考资产按轨道分桶查阵营(场景→scene 轨/角色→person 轨)
+  const factionData = getExtendedStoryboardFactionData();
+  const colorSection = isStoryboard && frameTemplate
+    ? buildStoryboardFactionColorSection(
+        {
+          sceneNames: context.assetReferences?.filter((ref) => ref.assetType === "scene").map((ref) => ref.title),
+          personNames: context.assetReferences?.filter((ref) => ref.assetType === "character").map((ref) => ref.title),
+        },
+        factionData,
+      )
+    : "";
+  const basePrompt = isStoryboard
+    ? buildStoryboardFramePrompt({
+        description: context.prompt ?? "",
+        lines: context.storyboardLines,
+        template: frameTemplate,
+        colorSection,
+      })
+    : (context.prompt ?? "");
+  const prompt = isStoryboard
+    ? withActiveVisualManualStoryboardStyleTokens(basePrompt)
+    : basePrompt;
+  const negativePrompt = isStoryboard ? getExtendedStoryboardFrameNegative() : undefined;
   const generatedNodeId = createId("gen");
   const promptNodeId = createId("prompt");
   const referenceImagePath = context.sourceImagePath || context.resultImagePath;
@@ -207,16 +273,28 @@ export function createOpenImageWorkflowGraph(
       position: { x: 80, y: 100 },
     });
   }
+  const assetReferenceBaseY = referenceImagePath ? 280 : 100;
+  context.assetReferences?.forEach((reference, index) => {
+    graph = addReferenceImageNode(graph, {
+      id: createId("asset-ref", Date.now() + index + 1),
+      title: reference.title,
+      imageUrl: reference.imageUrl,
+      source: { kind: "asset", assetType: reference.assetType, id: reference.assetId },
+      continuityOrder: index + 1,
+      position: { x: 80, y: assetReferenceBaseY + index * 180 },
+    });
+  });
   graph = addGeneratedImageNode(graph, {
     id: generatedNodeId,
     title: `${context.title} 成图`,
-    prompt: context.prompt ?? "",
+    prompt,
     position: { x: referenceImagePath ? 620 : 160, y: 120 },
   });
   graph = addPromptImageNode(graph, {
     id: promptNodeId,
     title: "图片生成",
-    prompt: context.prompt ?? "",
+    prompt,
+    negativePrompt: negativePrompt || undefined,
     aspectRatio: imageSettings.defaultAspectRatio,
     resolution: imageSettings.defaultResolution,
     quality: "standard",
@@ -234,6 +312,14 @@ export function createOpenImageWorkflowGraph(
       target: generatedNodeId,
     });
   }
+  graph.nodes
+    .filter((node) => node.type === "reference" && node.id.includes("asset-ref"))
+    .forEach((node) => {
+      graph = connectImageWorkflowNodes(graph, {
+        source: node.id,
+        target: generatedNodeId,
+      });
+    });
   return connectImageWorkflowNodes(graph, {
     source: promptNodeId,
     target: generatedNodeId,

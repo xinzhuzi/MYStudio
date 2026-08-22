@@ -134,9 +134,10 @@ flicker, jitter, morphing face, identity drift, inconsistent costume, warped han
 
 ## 分镜帧生图风格锁（代码注入源）
 
-> 以下两个标记块由 `lib/studio/visual-manual-style-tokens.ts` 解析：
+> 以下三个标记块由 `lib/studio/visual-manual-style-tokens.ts` 解析：
 > `storyboard-image-style-tokens` — 追加到分镜帧生图提示词末尾的风格 token（每行一个）；
 > `storyboard-style-guide` — 注入分镜提示词撰写 LLM 系统提示的风格指南。
+> `storyboard-frame-negative` — 分镜帧生图工作流建流时预填进 Negative Prompt 的五类英文负面词(错媒介/错风格光/纸纹脏污/低质量结构/文字水印)。
 > 标记块缺失时不注入任何内容（fail-empty）。修改本节即全局生效。
 
 <!-- storyboard-image-style-tokens:start -->
@@ -144,6 +145,10 @@ Chinese ink wash painting style, xianxia immortal cultivation, traditional brush
 工笔线描，写意晕染，浅净平涂底，墨色层次丰富
 clear layered ink-wash composition, atmospheric depth, crisp gongbi linework throughout, clean finished gongbi quality
 <!-- storyboard-image-style-tokens:end -->
+
+<!-- storyboard-frame-negative:start -->
+photorealistic photography, 3D render, CGI, cel shading, anime style, western oil painting, western fantasy, cyberpunk, sci-fi, high saturation neon, three-point Hollywood lighting, heavy cinematic rim light, paper-wrinkle texture, crumpled-sheet folds, wave-like surface ripples, fiber streaks, pulp grain mesh, scanned-paper filter, yellowed aged sheet, full-frame paper texture, AI muddy noise, dirty texture, compression artifacts, oversharpening halos, low quality, blurry, messy ink, broken linework, bad anatomy, extra limbs, weapon passing through body, unstable stance, text, watermark, logo, subtitle, webtoon cover beauty portrait, idol poster, tattered clothing, ragged hems
+<!-- storyboard-frame-negative:end -->
 
 <!-- storyboard-style-guide:start -->
 【水墨国风风格约束（所有首帧/尾帧/视频提示词必须遵守）】

@@ -109,7 +109,7 @@ export function useWorkflowNodeEditor({
           return formatStoryboardJson(toStoryboardItems(parsed.rows, episodeId, characters, {
             sourceId: chapter?.sourceId ?? episodeId,
             revision: chapter?.revision ?? 1,
-          }));
+          }, { unknownSpeaker: "narrator" }));
         }
         return latestAgentWork(
           store.agentWorkData,
@@ -353,12 +353,18 @@ export function useWorkflowNodeEditor({
         (item) => item.episodeId === episodeId,
       )?.characters ?? [];
       const chapter = workflowStore.novelChapters.find((item) => item.id === episodeId);
+      const speakerFallbacks: string[] = [];
       const items = toStoryboardItems(parsed.rows, episodeId, characters, {
         sourceId: chapter?.sourceId ?? episodeId,
         revision: chapter?.revision ?? 1,
+      }, {
+        unknownSpeaker: "narrator",
+        onSpeakerFallback: (_storyboardId, speaker) => speakerFallbacks.push(speaker),
       });
       workflowStore.replaceStoryboardsForEpisode(episodeId, items);
-      toast.success(`分镜表已保存：${items.length} 条分镜`);
+      toast.success(
+        `分镜表已保存：${items.length} 条分镜${speakerFallbacks.length ? `，${speakerFallbacks.length} 条群演台词归旁白` : ""}`,
+      );
       setEditingWorkflowNodeId(null);
       return;
     }

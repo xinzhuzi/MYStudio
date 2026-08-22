@@ -198,6 +198,7 @@ export function useChapterAutoVideoActions({
                 sourceId: store.novelChapters.find((chapter) => chapter.id === episodeId)?.sourceId ?? episodeId,
                 revision: store.novelChapters.find((chapter) => chapter.id === episodeId)?.revision ?? 1,
               },
+              { unknownSpeaker: "narrator" },
             );
             useStudioStore
               .getState()

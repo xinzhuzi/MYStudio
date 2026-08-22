@@ -12,6 +12,16 @@ describe("feature binding capability detection", () => {
     expect(classifyModelByName("grok-imagine-image")).toEqual(["image_generation"]);
   });
 
+  it("classifies Z-Image models as image generation models", () => {
+    expect(classifyModelByName("Z-Image")).toEqual(["image_generation"]);
+    expect(classifyModelByName("z-image-turbo")).toEqual(["image_generation"]);
+  });
+
+  it("classifies Qwen-Image and GLM-Image models as image generation models", () => {
+    expect(classifyModelByName("qwen-image-max")).toEqual(["image_generation"]);
+    expect(classifyModelByName("glm-image")).toEqual(["image_generation"]);
+  });
+
   it("allows text-output models that support image input for image understanding", () => {
     expect(modelSupportsCapability("gpt-4o-mini", { platform: "openai-compatible" }, "vision")).toBe(true);
     expect(modelSupportsCapability("gemini-2.5-flash", { platform: "gemini-compatible" }, "vision")).toBe(true);

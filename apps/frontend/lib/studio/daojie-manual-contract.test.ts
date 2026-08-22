@@ -20,7 +20,10 @@ import {
 
 // 2026-08-22:道劫手册移至项目真源(<项目根>/skills);本契约测试跟随项目位置。
 // 仓库测试环境无 IP/MA 时跳过文件类断言,仅保留纯函数契约。
-const DAOJIE_DIR = "/Users/zhengbingjin/Project/IP/MA/skills/art_skills/daojie_ink_guofeng";
+const DAOJIE_DIR = join(
+  process.cwd(),
+  "frontend/assets/studio-manuals/art_skills/daojie_ink_guofeng",
+);
 const DAOJIE_PRESENT = existsSync(DAOJIE_DIR);
 const itFile = DAOJIE_PRESENT ? it : it.skip;
 
@@ -245,5 +248,36 @@ describe("成片模板库(art_storyboard_video)", () => {
     const templates = ["03", "07", "21", "26", "24", "25", "02", "09", "13", "30", "31", "28"];
     const missing = templates.filter((id) => !new RegExp(`### ${id}\\.`).test(manual));
     expect(missing, `缺少成片模板: ${missing.join("/")}`).toEqual([]);
+  });
+
+  itFile("分镜帧代码注入源三标记块齐备(令牌/指南/负面)", () => {
+    const manual = readManual("art_prompt/art_storyboard_video.md");
+    for (const block of ["storyboard-image-style-tokens", "storyboard-style-guide", "storyboard-frame-negative"]) {
+      const match = new RegExp(`<!-- ${block}:start -->\\n?([\\s\\S]*?)<!-- ${block}:end -->`).exec(manual);
+      expect(match, `标记块 ${block} 缺失或为空`).toBeTruthy();
+      expect(match?.[1]?.trim().length, `标记块 ${block} 内容为空`).toBeGreaterThan(0);
+    }
+    // 负面块必须覆盖五类关键负面词(错媒介/纸纹/低质量/文字水印)
+    const negative = /<!-- storyboard-frame-negative:start -->\n?([\s\S]*?)<!-- storyboard-frame-negative:end -->/.exec(manual)?.[1] ?? "";
+    for (const word of ["photorealistic", "paper-wrinkle", "bad anatomy", "watermark"]) {
+      expect(negative).toContain(word);
+    }
+  });
+
+  itFile("阵营配色数据(art_faction_palette)双标记块与关键映射齐备", () => {
+    const doc = readManual("art_prompt/art_faction_palette.md");
+    const members = /<!-- storyboard-faction-members:start -->\n?([\s\S]*?)<!-- storyboard-faction-members:end -->/.exec(doc)?.[1];
+    const palette = /<!-- storyboard-faction-palette:start -->\n?([\s\S]*?)<!-- storyboard-faction-palette:end -->/.exec(doc)?.[1];
+    expect(members).toBeTruthy();
+    expect(palette).toBeTruthy();
+    const membersData = JSON.parse(members!);
+    const paletteData = JSON.parse(palette!);
+    // 设定集实锤归属:独孤剑尘/晏燎=万劫圣宗;道口镇矿场凡人=人族
+    expect(membersData["独孤剑尘"]).toBe("万劫圣宗");
+    expect(membersData["晏燎"]).toBe("万劫圣宗");
+    expect(membersData["赵四"]).toBe("人族");
+    expect(Object.keys(paletteData)).toHaveLength(12);
+    expect(paletteData["万劫圣宗"].person).toContain("底色");
+    expect(paletteData["人族"].scene).toContain("主色");
   });
 });

@@ -360,11 +360,18 @@ export function useProductionPlanningActions({
         const characters = workflowStore.entityExtractions.find(
           (item) => item.episodeId === targetEpisodeId,
         )?.characters ?? [];
+        const speakerFallbacks: string[] = [];
         const items = toStoryboardItems(
           parsed.rows,
           targetEpisodeId,
           characters,
           sourceIdentity,
+          {
+            unknownSpeaker: "narrator",
+            onSpeakerFallback: (storyboardId, speaker) => {
+              speakerFallbacks.push(`${storyboardId} ${speaker}`);
+            },
+          },
         );
         workflowStore.replaceStoryboardsForEpisode(targetEpisodeId, items);
         workflowStore.finishAgentRun(runId, {
@@ -375,7 +382,10 @@ export function useProductionPlanningActions({
         const warningText = parsed.warnings.length
           ? `，提示 ${parsed.warnings.length} 条`
           : "";
-        toast.success(`分镜表完成：${items.length} 条分镜${warningText}`);
+        const fallbackText = speakerFallbacks.length
+          ? `，${speakerFallbacks.length} 条群演台词归旁白(${speakerFallbacks.slice(0, 2).map((entry) => entry.split(" ")[1]).join("、")}${speakerFallbacks.length > 2 ? "等" : ""})`
+          : "";
+        toast.success(`分镜表完成：${items.length} 条分镜${warningText}${fallbackText}`);
       } catch (error) {
         useStudioStore.getState().failAgentRun(runId, error instanceof Error ? error.message : String(error));
         toast.error(error instanceof Error ? error.message : String(error));

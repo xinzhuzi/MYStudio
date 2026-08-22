@@ -649,6 +649,17 @@ export interface ImageWorkflowOpenContext {
   sourceStage?: string;
   sourceStageLabel?: string;
   sourceLabel?: string;
+  /** 分镜目标的当前内容指纹:用于跳过「同 id 但属于被替换上一代分镜」的旧工作流 */
+  storyboardSourceFingerprint?: string;
+  /** 分镜台词(成片模板选型的对话信号;仅分镜目标消费) */
+  storyboardLines?: string;
+  /** 建流时自动挂载的资产参考图(场景在前、角色在后;连续性 order 由建流方重排) */
+  assetReferences?: Array<{
+    imageUrl: string;
+    title: string;
+    assetType: ImageWorkflowAssetTargetType;
+    assetId?: string;
+  }>;
 }
 
 export interface AssetImageWorkflowContext extends ImageWorkflowOpenContext {
@@ -732,6 +743,8 @@ export interface ImageWorkflowGraph {
   id: string;
   name: string;
   target: ImageWorkflowTarget;
+  /** 创建时绑定目标的分镜内容指纹(分镜目标);不匹配=属于被替换的上一代分镜,复用判定会跳过 */
+  targetSourceFingerprint?: string;
   nodes: ImageWorkflowNode[];
   edges: ImageWorkflowEdge[];
   viewport?: ImageWorkflowViewport;

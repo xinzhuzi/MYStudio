@@ -843,6 +843,54 @@ describe("workflow node component boundaries", () => {
     });
   });
 
+  it("opens fresh storyboard tiles (no image yet) as first-time image workflow entries", () => {
+    const onOpenImageWorkflow = vi.fn();
+    const node = {
+      id: "storyboard",
+      label: "分镜面板",
+      description: "分镜图、台词、配音与视频节点绑定。",
+      status: "ready",
+      metrics: ["82 个分镜", "0 个画面"],
+      previewTitle: "分镜面板",
+      previewLines: [],
+      previewKind: "storyboard-grid",
+      targetStage: "storyboard",
+      storyboardTiles: [
+        {
+          id: "sb-chapter-001-006",
+          index: 6,
+          title: "剑尘立于队列末尾，指节因握拳而发白。",
+          lines: "独孤剑尘OS：不是每一鞭，都值得我拔剑。",
+          state: "idle",
+          sourceFingerprint: "fp-storyboard-006",
+        },
+      ],
+    } satisfies ProductionFlowNodeModel;
+
+    render(
+      <StoryboardGridPreview
+        node={node}
+        onOpenImageWorkflow={onOpenImageWorkflow}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /打开分镜 6 图片工作流/ }));
+
+    expect(onOpenImageWorkflow).toHaveBeenCalledWith({
+      target: { kind: "storyboard", id: "sb-chapter-001-006" },
+      title: "分镜 6",
+      prompt: "剑尘立于队列末尾，指节因握拳而发白。",
+      sourceImagePath: undefined,
+      resultImagePath: undefined,
+      imageWorkflowId: undefined,
+      sourceStage: "storyboard",
+      sourceStageLabel: "分镜视频生成",
+      sourceLabel: "分镜成图 · 分镜 6",
+      storyboardSourceFingerprint: "fp-storyboard-006",
+      storyboardLines: "独孤剑尘OS：不是每一鞭，都值得我拔剑。",
+    });
+  });
+
   it("opens generated storyboard image tiles in their image workflow", () => {
     const onOpenImageWorkflow = vi.fn();
     const node = {
@@ -887,6 +935,7 @@ describe("workflow node component boundaries", () => {
       sourceStage: "storyboard",
       sourceStageLabel: "分镜视频生成",
       sourceLabel: "分镜成图 · 分镜 1",
+      storyboardLines: "旁白：他睁开眼。",
     });
   });
 

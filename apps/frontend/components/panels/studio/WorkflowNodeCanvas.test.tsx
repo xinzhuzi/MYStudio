@@ -3,6 +3,9 @@ import { act, cleanup, fireEvent, render, screen } from "@testing-library/react"
 import type { ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { WorkflowNodeCanvas } from "./WorkflowNodeCanvas";
+import * as WorkflowProductionNodeModule from "./WorkflowProductionNode";
+import * as React from "react";
+import * as XYFlow from "@xyflow/react";
 import { Position } from "@xyflow/react";
 import {
   PRODUCTION_FLOW_NODE_IDS,
@@ -514,5 +517,89 @@ describe("WorkflowNodeCanvas visibility lifecycle", () => {
 
     expect(reactFlowMock.zoomIn).toHaveBeenCalledOnce();
     expect(reactFlowMock.fitView).not.toHaveBeenCalled();
+  });
+});
+
+describe("storyboard node first-class image generation entry", () => {
+  const storyboardNode = {
+    id: "storyboard",
+    label: "分镜面板",
+    description: "分镜图、台词、配音与视频节点绑定。",
+    status: "ready",
+    metrics: ["3 个分镜", "1 个画面"],
+    previewTitle: "分镜面板",
+    previewLines: [],
+    previewKind: "storyboard-grid",
+    targetStage: "storyboard",
+    storyboardTiles: [
+      {
+        id: "sb-ep-001",
+        index: 1,
+        mediaPath: "project-file://demo/shot-001.png",
+        title: "第一镜已生成",
+        state: "ready",
+        sourceFingerprint: "fp-001",
+      },
+      {
+        id: "sb-ep-002",
+        index: 2,
+        title: "第二镜未生成",
+        lines: "旁白：铁链压境。",
+        state: "idle",
+        sourceFingerprint: "fp-002",
+      },
+      {
+        id: "sb-ep-003",
+        index: 3,
+        title: "第三镜未生成",
+        state: "idle",
+        sourceFingerprint: "fp-003",
+      },
+    ],
+  } satisfies ProductionFlowNodeModel;
+
+  function renderStoryboardNodeCard(overrides: Record<string, unknown> = {}) {
+    const ProductionFlowNode = WorkflowProductionNodeModule.ProductionFlowNode;
+    const data = {
+      node: storyboardNode,
+      onStageChange: vi.fn(),
+      ...overrides,
+    };
+    // 节点卡只消费 data;Handle 需要真实 ReactFlowProvider 上下文
+    return render(
+      React.createElement(
+        XYFlow.ReactFlowProvider,
+        null,
+        React.createElement(ProductionFlowNode, { data } as never),
+      ),
+    );
+  }
+
+  it("exposes a primary storyboard image entry that opens the first ungenerated shot", () => {
+    const onOpenAssetImageWorkflow = vi.fn();
+    renderStoryboardNodeCard({ onOpenAssetImageWorkflow });
+
+    fireEvent.click(screen.getByRole("button", { name: /分镜生图/ }));
+
+    expect(onOpenAssetImageWorkflow).toHaveBeenCalledWith({
+      target: { kind: "storyboard", id: "sb-ep-002" },
+      title: "分镜 2",
+      prompt: "第二镜未生成",
+      sourceImagePath: undefined,
+      resultImagePath: undefined,
+      imageWorkflowId: undefined,
+      sourceStage: "storyboard",
+      sourceStageLabel: "分镜视频生成",
+      sourceLabel: "分镜成图 · 分镜 2",
+      storyboardSourceFingerprint: "fp-002",
+      storyboardLines: "旁白：铁链压境。",
+    });
+  });
+
+  it("hides the same-stage no-op enter button on the storyboard node", () => {
+    renderStoryboardNodeCard({ onOpenAssetImageWorkflow: vi.fn() });
+
+    expect(screen.queryByRole("button", { name: "进入" })).toBeNull();
+    expect(screen.getByRole("button", { name: /分镜生图/ })).toBeTruthy();
   });
 });

@@ -3,7 +3,10 @@ import { getStudioSkillsBridge } from "@/lib/bridge/studio-skills";
 import { getStudioVisualManualsBridge } from "@/lib/bridge/studio-visual-manuals";
 import { getProjectFilesBridge } from "@/lib/bridge/project-files";
 import { useProjectStore } from "@/stores/project/project-store";
-import { warmExtendedManualStyleTokens } from "@/lib/studio/visual-manual-style-tokens";
+import {
+  warmExtendedManualFactionData,
+  warmExtendedManualStyleTokens,
+} from "@/lib/studio/visual-manual-style-tokens";
 import {
   buildStudioManualsFromSkillFiles,
   listStudioManualPresets,
@@ -94,6 +97,7 @@ export function useStudioManualCatalog() {
         if (!cancelled) {
           // 项目/存储手册合并完成后预热分镜风格锁 token(运行时读取道劫 art_storyboard_video)
           void warmExtendedManualStyleTokens();
+          void warmExtendedManualFactionData();
           setStoredManualCatalog({
             visual: buildStudioManualsFromSkillFiles("visual", [...merged.values()], {
               imagesByManualId,

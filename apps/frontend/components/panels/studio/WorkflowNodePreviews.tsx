@@ -33,6 +33,7 @@ import type {
   ProductionFlowNodeId,
   ProductionFlowNodeModel,
   ProductionFlowRemotionShot,
+  ProductionFlowStoryboardTile,
 } from "./workflow-node-model";
 import {
   formatRendererLabel,
@@ -482,6 +483,26 @@ function tileAlready4k(mediaPath: string | undefined, longSide: number | undefin
   return (longSide ?? 0) > UPSCALE_INPUT_MAX_LONG_SIDE;
 }
 
+/**
+ * 分镜瓦片 → 图片工作流打开上下文(节点卡一级「分镜生图」按钮与瓦片点击共用)。
+ * 携带分镜内容指纹,用于跳过「同 id 但属于被替换上一代分镜」的旧工作流。
+ */
+export function buildStoryboardImageOpenContext(tile: ProductionFlowStoryboardTile): ImageWorkflowOpenContext {
+  return {
+    target: { kind: "storyboard", id: tile.id },
+    title: `分镜 ${tile.index}`,
+    prompt: tile.title,
+    sourceImagePath: tile.mediaPath,
+    resultImagePath: tile.mediaPath,
+    imageWorkflowId: tile.imageWorkflowId,
+    sourceStage: "storyboard",
+    sourceStageLabel: "分镜视频生成",
+    sourceLabel: `分镜成图 · 分镜 ${tile.index}`,
+    storyboardSourceFingerprint: tile.sourceFingerprint,
+    storyboardLines: tile.lines,
+  };
+}
+
 export function StoryboardGridPreview({
   node,
   onOpenImageWorkflow,
@@ -497,19 +518,12 @@ export function StoryboardGridPreview({
     <div className="nodrag nowheel max-h-[360px] overflow-y-auto overscroll-contain pr-1">
       <div className="grid grid-cols-[repeat(auto-fit,minmax(132px,1fr))] gap-2">
         {tiles.map((tile) => {
-          const canOpenWorkflow = Boolean(tile.imageWorkflowId || tile.mediaPath);
+          // 任意分镜瓦片都是生图入口:无工作流/无图的新分镜点击后由画布按需创建
+          // 绑定该分镜的工作流(2026-08-22 实证:canOpenWorkflow 旧门禁把 82 个
+          // 新分镜挡在门外,首次生图无入口——只有二次进入才需要 imageWorkflowId)
+          const canOpenWorkflow = Boolean(tile.id && onOpenImageWorkflow);
           const openStoryboardImageWorkflow = () => {
-            onOpenImageWorkflow?.({
-              target: { kind: "storyboard", id: tile.id },
-              title: `分镜 ${tile.index}`,
-              prompt: tile.title,
-              sourceImagePath: tile.mediaPath,
-              resultImagePath: tile.mediaPath,
-              imageWorkflowId: tile.imageWorkflowId,
-              sourceStage: "storyboard",
-              sourceStageLabel: "分镜视频生成",
-              sourceLabel: `分镜成图 · 分镜 ${tile.index}`,
-            });
+            onOpenImageWorkflow?.(buildStoryboardImageOpenContext(tile));
           };
           const previewTile = (
             <>

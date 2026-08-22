@@ -404,6 +404,48 @@ describe("studio storyboard items mapping", () => {
     expect(items[0]?.lines).toBe("旁白：宗门灵舟压雾而来");
     expect(items[0]?.speakerId).toBe("narrator");
   });
+
+  it("tolerates off-screen notation and walk-on speakers via narrator fallback options", () => {
+    const { rows, errors } = parseStoryboardTable(
+      [
+        "<storyboardTable>",
+        "## 场1：金水河码头",
+        "| 序号 | 画面描述 | 时长 | 景别 | 运镜 | 台词 | 音效 |",
+        "|------|------|------|------|------|------|------|",
+        "| 1 | 剑尘立于雨中 | 6 | 中景 | 缓推 | 独孤剑尘OS：不是每一鞭，都值得我拔剑。 | 雨声 |",
+        "| 2 | 散修攥紧药草 | 6 | 近景 | 静止 | 断臂散修：这草是我拿命换的！ | 喧闹声 |",
+        "| 3 | 风声掠过街巷 | 6 | 远景 | 横移 | 街巷风声V.S.：一条命换不来一副药。 | 风声 |",
+        "| 4 | 剑尘回望 | 6 | 特写 | 静止 | 独孤剑尘V.S.：归元，为谁而鸣？ | 低鸣 |",
+        "</storyboardTable>",
+      ].join("\n"),
+      "chapter-001",
+    );
+    expect(errors).toHaveLength(0);
+
+    const characters = [
+      { characterId: "char-dugu", name: "独孤剑尘", aliases: [] },
+    ];
+    // 缺省严格：OS 记法已归一可解析，群演仍抛错
+    expect(() => toStoryboardItems(rows, "chapter-001", characters)).toThrow(
+      "speaker 无法解析到角色资产: 断臂散修",
+    );
+
+    const fallbacks: Array<[string, string]> = [];
+    const items = toStoryboardItems(rows, "chapter-001", characters, undefined, {
+      unknownSpeaker: "narrator",
+      onSpeakerFallback: (storyboardId, speaker) => fallbacks.push([storyboardId, speaker]),
+    });
+    expect(items).toHaveLength(4);
+    expect(items[0]?.speakerId).toBe("character:char-dugu");
+    expect(items[0]?.speaker).toBe("独孤剑尘OS");
+    expect(items[1]?.speakerId).toBe("narrator");
+    expect(items[1]?.speaker).toBe("断臂散修");
+    expect(items[3]?.speakerId).toBe("character:char-dugu");
+    expect(fallbacks).toEqual([
+      ["sb-chapter-001-002", "断臂散修"],
+      ["sb-chapter-001-003", "街巷风声V.S."],
+    ]);
+  });
 });
 
 describe("studio storyboard table messages", () => {

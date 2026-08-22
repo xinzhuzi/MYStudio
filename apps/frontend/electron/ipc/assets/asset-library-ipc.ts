@@ -121,6 +121,9 @@ export function registerAssetLibraryIpcHandlers({
       assetsStorage.getAssetByName(payload.type as AssetKind, payload.name)
     ))
   ));
+  ipcMain.handle("assets:read-image-data-url", async (_event, id: string) => (
+    runAssetDiagnostics("read-image-data-url", { id }, () => assetsStorage.readAssetImageDataUrl(id))
+  ));
   ipcMain.handle("assets:batch-match", async (_event, payload: { type: string; names: string[] }) => (
     runAssetDiagnostics("batch-match", {
       type: payload.type,

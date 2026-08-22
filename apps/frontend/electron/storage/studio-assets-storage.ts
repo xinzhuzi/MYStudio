@@ -732,6 +732,19 @@ function assetTagsCount(value: string | undefined) {
 
 // === 辅助 ===
 
+/** 资产主图 dataURL(分镜参考图挂载等渲染层消费;无图/解析失败返回 null)。 */
+export function readAssetImageDataUrl(id: string): string | null {
+  const dbPath = getDbPath();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const rows = runSqliteJsonSync<any[]>(dbPath, `SELECT * FROM assets WHERE id='${escapeSql(id)}' LIMIT 1;`);
+  if (!rows.length) return null;
+  const absPath = resolveManagedAssetPathOrUndefined(rows[0].filePath);
+  if (!absPath || !fs.existsSync(absPath)) return null;
+  const ext = path.extname(absPath).toLowerCase();
+  const mime = ext === ".png" ? "image/png" : ext === ".webp" ? "image/webp" : ext === ".gif" ? "image/gif" : "image/jpeg";
+  return `data:${mime};base64,${fs.readFileSync(absPath).toString("base64")}`;
+}
+
 function getAssetSync(id: string): StudioAssetSummary | null {
   const dbPath = getDbPath();
 // eslint-disable-next-line @typescript-eslint/no-explicit-any

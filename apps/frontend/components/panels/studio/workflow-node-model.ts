@@ -210,6 +210,7 @@ export interface ProductionFlowStoryboardTile {
   imageWorkflowId?: string;
   imageWorkflowNodeId?: string;
   shouldGenerateImage?: boolean;
+  sourceFingerprint?: string;
 }
 
 export interface ProductionFlowWorkbenchTrack {
@@ -343,6 +344,7 @@ export function buildProductionFlowModel(
       imageWorkflowId: item.imageWorkflowId ?? item.mediaRef?.imageWorkflowId,
       imageWorkflowNodeId: item.imageWorkflowNodeId ?? item.mediaRef?.imageWorkflowNodeId,
       shouldGenerateImage: item.shouldGenerateImage,
+      sourceFingerprint: item.sourceFingerprint,
     }));
   const workbenchTracks = flowData.workbench.tracks
     .slice(0, 8)

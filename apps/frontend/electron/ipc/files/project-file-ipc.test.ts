@@ -50,6 +50,7 @@ describe("registerProjectFileIpcHandlers", () => {
   it("registers all project-file channels", () => {
     expect([...mocks.handlers.keys()].sort()).toEqual([
       "project-file-get-absolute-path",
+      "project-file-list",
       "project-file-move",
       "project-file-read-base64",
       "project-file-read-text",

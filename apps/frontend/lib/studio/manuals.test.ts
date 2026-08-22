@@ -57,26 +57,14 @@ describe("studio manual presets", () => {
     });
     expect(visualManual?.modules.README).toContain("水墨国风修仙");
 
-    // 2026-08-22 起道劫两册移出应用打包种子(归项目 <项目根>/skills),打包预设里均不可见
-    expect(directorManual).toBeNull();
-    const directorManuals = buildStudioManualsFromSkillFiles("director", [
-      { relativePath: "story_skills/Daojie_xianxia/README.md", content: "# 道劫 · 水墨修仙\n\n三族灵气与万道归真" },
-      {
-        relativePath: "story_skills/Daojie_xianxia/driector_skills/director_planning_narrative.md",
-        content: "# 叙事规划",
-      },
-      {
-        relativePath: "story_skills/Daojie_xianxia/driector_skills/director_storyboard_table_narrative.md",
-        content: "# 分镜叙事",
-      },
-    ]);
-    const fromSkills = directorManuals.find((manual) => manual.id === EXTENDED_DIRECTOR_MANUAL_SEED_ID);
-    expect(fromSkills).toMatchObject({
+    expect(directorManual).toMatchObject({
       id: "Daojie_xianxia",
+      source: "toonflow-runtime",
       moduleCount: 3,
+      imageCount: 0,
       basePresetId: "Xianxia_fantasy",
     });
-    expect(fromSkills?.modules.README).toContain("三族灵气");
+    expect(directorManual?.modules.README).toContain("三族灵气");
   });
 
   it("builds a compact manual context for workflow prompts", () => {

@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Background,
-  Controls,
   MarkerType,
   ReactFlow,
   type Edge,
@@ -9,6 +8,8 @@ import {
   useNodesState,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
+import { CanvasViewportControls } from "./CanvasViewportControls";
+import { resolveStoryboardAssetReferences } from "./storyboard-asset-references";
 import {
   ArrowLeft,
  
@@ -64,7 +65,7 @@ import {
   focusNodeIdsForGenerated,
   imageWorkflowTargetKey,
   isAssetOpenContext,
-  isSameImageWorkflowTarget,
+  matchesStoryboardOpenContext,
   openContextTargetLabel,
   resolveActionGeneratedNode,
   resolveGenerationTargetNodeId,
@@ -119,7 +120,7 @@ export function ImageWorkflowCanvas({
         ? initialAssetContext.imageWorkflowId
           ? imageWorkflows.find((item) => item.id === initialAssetContext.imageWorkflowId)
           : imageWorkflows.find((item) =>
-              isSameImageWorkflowTarget(item.target, initialAssetContext.target),
+              matchesStoryboardOpenContext(item, initialAssetContext),
             )
         : undefined,
     [imageWorkflows, initialAssetContext],
@@ -223,14 +224,14 @@ export function ImageWorkflowCanvas({
     if (
       handledAssetContextKeyRef.current === contextKey &&
       activeGraph &&
-      isSameImageWorkflowTarget(activeGraph.target, initialAssetContext.target)
+      matchesStoryboardOpenContext(activeGraph, initialAssetContext)
     ) {
       return;
     }
     const existing = initialAssetContext.imageWorkflowId
       ? imageWorkflows.find((graph) => graph.id === initialAssetContext.imageWorkflowId)
       : imageWorkflows.find((graph) =>
-          isSameImageWorkflowTarget(graph.target, initialAssetContext.target),
+          matchesStoryboardOpenContext(graph, initialAssetContext),
         );
     if (existing) {
       const ensured = ensureImageWorkflowPromptNodes(
@@ -246,16 +247,28 @@ export function ImageWorkflowCanvas({
       handledAssetContextKeyRef.current = contextKey;
       return;
     }
-    const graph = isAssetOpenContext(initialAssetContext)
-      ? createAssetImageWorkflowGraph(initialAssetContext, projectName)
-      : createOpenImageWorkflowGraph(initialAssetContext, projectName);
-    upsertImageWorkflow(graph);
-    setActiveWorkflowId(graph.id);
-    const selectedId = resolveOpenContextGeneratedNodeId(graph, initialAssetContext);
-    setSelectedNodeId(selectedId);
-    setPreferredGeneratedNodeId(selectedId);
+    // 建新工作流:分镜目标先异步解析关联资产参考图(场景/角色),再建流挂载。
+    // handled key 前置防并发重复创建;解析失败按无参考建流(fail-soft)。
     handledAssetContextKeyRef.current = contextKey;
-  }, [activeGraph, imageWorkflows, initialAssetContext, projectName, upsertImageWorkflow]);
+    void (async () => {
+      const assetReferences = initialAssetContext.target.kind === "storyboard"
+        ? await resolveStoryboardAssetReferences(
+            storyboards.find((item) => item.id === initialAssetContext.target.id),
+          ).catch(() => [])
+        : undefined;
+      const graph = isAssetOpenContext(initialAssetContext)
+        ? createAssetImageWorkflowGraph(initialAssetContext, projectName)
+        : createOpenImageWorkflowGraph(
+            { ...initialAssetContext, assetReferences },
+            projectName,
+          );
+      upsertImageWorkflow(graph);
+      setActiveWorkflowId(graph.id);
+      const selectedId = resolveOpenContextGeneratedNodeId(graph, initialAssetContext);
+      setSelectedNodeId(selectedId);
+      setPreferredGeneratedNodeId(selectedId);
+    })();
+  }, [activeGraph, imageWorkflows, initialAssetContext, projectName, storyboards, upsertImageWorkflow]);
 
   const saveGraph = useCallback(
     (graph: ImageWorkflowGraph) => {
@@ -483,9 +496,8 @@ export function ImageWorkflowCanvas({
           proOptions={{ hideAttribution: true }}
         >
           <Background color="hsl(var(--border))" gap={28} size={1} />
-          <Controls
-            showInteractive={false}
-            className="[&_.react-flow__controls-button]:!border-border [&_.react-flow__controls-button]:!bg-card [&_.react-flow__controls-button]:!text-card-foreground"
+          <CanvasViewportControls
+            onFit={() => flowInstance?.fitView({ ...FIT_VIEW_OPTIONS, duration: 180 })}
           />
         </ReactFlow>
         <div className="absolute left-3 right-3 top-3 z-20 flex flex-wrap items-center gap-2 rounded-md border border-border bg-card/92 p-2 text-card-foreground backdrop-blur-xl backdrop-blur">

@@ -54,6 +54,50 @@ describe("chapter voiceover speaker identity", () => {
       "分镜 sb-conflict speaker 解析失败: speaker 对应多个角色资产: 守卫 -> guard-a, guard-b",
     );
   });
+
+  it("resolves off-screen notation suffixes (OS / V.S. / 画外音) to the underlying character", () => {
+    expect(resolveCanonicalSpeakerId("独孤剑尘OS", CHARACTERS)).toBe("character:char-dugu");
+    expect(resolveCanonicalSpeakerId("独孤剑尘V.S.", CHARACTERS)).toBe("character:char-dugu");
+    expect(resolveCanonicalSpeakerId("剑尘（OS）", CHARACTERS)).toBe("character:char-dugu");
+    expect(resolveCanonicalSpeakerId("独孤剑尘（画外音）", CHARACTERS)).toBe("character:char-dugu");
+  });
+
+  it("falls back unregistered walk-on speakers to narrator only when opted in", () => {
+    const input = {
+      storyboardId: "sb-walkon",
+      index: 6,
+      description: "断臂散修攥紧药草。",
+      lines: "断臂散修：这草是我拿命换的！",
+      duration: 3,
+      characters: CHARACTERS,
+    } as const;
+
+    expect(() => buildStoryboardVoiceoverItem({ ...input })).toThrow(
+      "分镜 sb-walkon speaker 解析失败: speaker 无法解析到角色资产: 断臂散修",
+    );
+
+    const item = buildStoryboardVoiceoverItem({ ...input, unknownSpeaker: "narrator" });
+    expect(item.speakerId).toBe("narrator");
+    expect(item.speaker).toBe("断臂散修");
+    expect(item.line).toBe("这草是我拿命换的！");
+  });
+
+  it("still throws on conflicting aliases even with narrator fallback enabled", () => {
+    expect(() =>
+      buildStoryboardVoiceoverItem({
+        storyboardId: "sb-conflict-fallback",
+        index: 2,
+        description: "两名守卫同时回头。",
+        lines: "守卫：停下。",
+        duration: 3,
+        characters: [
+          { characterId: "guard-a", name: "甲", aliases: ["守卫"] },
+          { characterId: "guard-b", name: "乙", aliases: ["守卫"] },
+        ],
+        unknownSpeaker: "narrator",
+      }),
+    ).toThrow("speaker 对应多个角色资产: 守卫 -> guard-a, guard-b");
+  });
 });
 
 describe("chapter voiceover item contract", () => {

@@ -19,6 +19,8 @@ export interface StoryboardVoiceoverInput extends StudioSourceIdentity {
   duration: number;
   emotion?: string;
   characters: VoiceoverCharacterIdentity[];
+  /** 未注册说话人（群演等）兜底策略：narrator=归旁白音色，台词保留原说话人署名。缺省严格抛错。 */
+  unknownSpeaker?: "narrator";
 }
 
 export interface StoryboardVoiceoverItem extends StudioSourceIdentity {
@@ -53,7 +55,13 @@ export function buildStoryboardVoiceoverItem(
     speakerId = resolveCanonicalSpeakerId(speech.speaker, input.characters);
   } catch (error) {
     const reason = error instanceof Error ? error.message : String(error);
-    throw new Error(`分镜 ${input.storyboardId} speaker 解析失败: ${reason}`);
+    // 群演兜底：仅「未注册说话人」可归旁白；一对多冲突是资产数据问题，恒抛错
+    const unresolved = error instanceof Error && error.message.includes("无法解析到角色资产");
+    if (input.unknownSpeaker === "narrator" && unresolved) {
+      speakerId = "narrator";
+    } else {
+      throw new Error(`分镜 ${input.storyboardId} speaker 解析失败: ${reason}`);
+    }
   }
   const ttsSpokenText = normalizeTtsSpokenText(speech.line);
   if (!ttsSpokenText) {
@@ -75,12 +83,23 @@ export function buildStoryboardVoiceoverItem(
   };
 }
 
+/** 画外音记法后缀（角色名后的 OS / V.S. / V.O. / 画外音，含括号形态）——确定性归一，非模糊匹配。 */
+const VOICEOVER_MARKER = String.raw`(?:O\.?S\.?|V\.?S\.?|V\.?O\.?|OS|VS|VO|画外音)`;
+const VOICEOVER_SUFFIX_RE = new RegExp(
+  String.raw`[\s(（\[【]*${VOICEOVER_MARKER}[\s)）\]】.]*$`,
+  "i",
+);
+
+export function isNarratorSpeaker(speaker: string): boolean {
+  return NARRATOR_LABELS.has(speaker.trim().toLocaleLowerCase("zh-Hans-CN"));
+}
+
 export function resolveCanonicalSpeakerId(
   speaker: string,
   characters: VoiceoverCharacterIdentity[],
 ): TtsSpeakerId {
   const value = speaker.trim();
-  if (NARRATOR_LABELS.has(value.toLocaleLowerCase("zh-Hans-CN"))) {
+  if (isNarratorSpeaker(value)) {
     return "narrator";
   }
 
@@ -90,11 +109,15 @@ export function resolveCanonicalSpeakerId(
     return requireUniqueCharacter(value, matches);
   }
 
-  const nameMatches = characters.filter((character) => character.name.trim() === value);
+  const stripped = value.replace(VOICEOVER_SUFFIX_RE, "").trim();
+  const candidates = stripped && stripped !== value ? [value, stripped] : [value];
+  const nameMatches = characters.filter((character) =>
+    candidates.includes(character.name.trim()),
+  );
   if (nameMatches.length > 0) return requireUniqueCharacter(value, nameMatches);
 
   const aliasMatches = characters.filter((character) =>
-    character.aliases.some((alias) => alias.trim() === value),
+    character.aliases.some((alias) => candidates.includes(alias.trim())),
   );
   return requireUniqueCharacter(value, aliasMatches);
 }

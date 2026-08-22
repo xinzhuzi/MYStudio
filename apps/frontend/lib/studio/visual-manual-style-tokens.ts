@@ -60,6 +60,9 @@ async function readDaojieArtStoryboardContent(): Promise<string> {
 export function resetExtendedManualContentCache(): void {
   manualContentCache = null;
   manualContentLoading = null;
+  EXTENDED_FRAME_NEGATIVE_CACHE = "";
+  factionDataCache = null;
+  factionDataLoading = null;
 }
 
 function parseMarkerBlock(content: string, name: string): string {
@@ -84,9 +87,14 @@ export const EXTENDED_STORYBOARD_STYLE_TOKENS: readonly string[] = computeTokens
  * 显式传入 content 时跳过桥读取(测试/已知内容场景)。 */
 export async function warmExtendedManualStyleTokens(content?: string): Promise<void> {
   if (content === undefined) content = await readDaojieArtStoryboardContent();
+  // 显式传入也写缓存:模板解析(getExtendedStoryboardManualContent)与标记块
+  // 解析共享同一份内容,避免「令牌已预热而模板为空」的半热状态
+  manualContentCache = content;
+  manualContentLoading = null;
   (EXTENDED_STORYBOARD_STYLE_TOKENS as string[]).splice(0, EXTENDED_STORYBOARD_STYLE_TOKENS.length, ...computeTokens(content));
   EXTENDED_STORYBOARD_STYLE_TOKENS_SUFFIX = computeTokens(content).join(", ");
   EXTENDED_STYLE_GUIDE_CACHE = parseMarkerBlock(content, "storyboard-style-guide");
+  EXTENDED_FRAME_NEGATIVE_CACHE = parseMarkerBlock(content, "storyboard-frame-negative");
 }
 
 let EXTENDED_STORYBOARD_STYLE_TOKENS_SUFFIX = EXTENDED_STORYBOARD_STYLE_TOKENS.join(", ");
@@ -95,6 +103,91 @@ let EXTENDED_STYLE_GUIDE_CACHE = "";
 /** 扩展手册分镜帧风格指南（注入分镜提示词撰写 LLM 的 system；标记块缺失为空字符串 → 不注入）。 */
 export function getExtendedStoryboardStyleGuide(): string {
   return EXTENDED_STYLE_GUIDE_CACHE ? `\n${EXTENDED_STYLE_GUIDE_CACHE}\n` : "";
+}
+
+/** 分镜帧生图工作流的五类英文负面词(建流时预填 Negative Prompt;标记块缺失为空 → 不预填)。 */
+let EXTENDED_FRAME_NEGATIVE_CACHE = "";
+export function getExtendedStoryboardFrameNegative(): string {
+  return EXTENDED_FRAME_NEGATIVE_CACHE;
+}
+
+/** 手册原始内容(预热后;分镜帧模板解析等下游消费,未预热为空串)。 */
+export function getExtendedStoryboardManualContent(): string {
+  return manualContentCache ?? "";
+}
+
+/** 阵营配色数据(art_faction_palette.md;ma-faction-palette-v1 应用侧拷贝)。 */
+export interface StoryboardFactionData {
+  /** 角色/场景名 → 阵营 */
+  members: Record<string, string>;
+  /** 阵营 → 三轨五职责色彩串(中文名) */
+  palette: Record<string, { person: string; scene: string }>;
+}
+
+let factionDataCache: StoryboardFactionData | null = null;
+let factionDataLoading: Promise<StoryboardFactionData> | null = null;
+const DAOJIE_ART_FACTION_RELATIVE = "art_skills/daojie_ink_guofeng/art_prompt/art_faction_palette.md";
+
+function parseFactionContent(content: string): StoryboardFactionData {
+  const empty: StoryboardFactionData = { members: {}, palette: {} };
+  if (!content) return empty;
+  try {
+    const members = JSON.parse(parseMarkerBlock(content, "storyboard-faction-members") || "{}");
+    const palette = JSON.parse(parseMarkerBlock(content, "storyboard-faction-palette") || "{}");
+    if (typeof members !== "object" || typeof palette !== "object") return empty;
+    return { members: members as Record<string, string>, palette: palette as StoryboardFactionData["palette"] };
+  } catch {
+    return empty;
+  }
+}
+
+function readDaojieArtFactionContent(): Promise<string> {
+  return (async () => {
+    let content = "";
+    try {
+      const projectStore = (await import("@/stores/project/project-store")).useProjectStore.getState();
+      const projectId = projectStore.activeProjectId;
+      const projectFiles = (await import("@/lib/bridge/project-files")).getProjectFilesBridge();
+      if (projectId && projectFiles?.readText) {
+        const fromProject = await projectFiles.readText({
+          projectId,
+          relativePath: `skills/${DAOJIE_ART_FACTION_RELATIVE}`,
+        });
+        if (fromProject.success && fromProject.text) content = fromProject.text;
+      }
+      if (!content) {
+        const studioSkills = (await import("@/lib/bridge/studio-skills")).getStudioSkillsBridge();
+        if (studioSkills?.readText) {
+          const fromStored = await studioSkills.readText(DAOJIE_ART_FACTION_RELATIVE);
+          if (fromStored.success && fromStored.content) content = fromStored.content;
+        }
+      }
+    } catch {
+      content = "";
+    }
+    return content;
+  })();
+}
+
+/** 预热阵营配色数据(与风格令牌同点调用);显式传入 content 供测试。 */
+export async function warmExtendedManualFactionData(content?: string): Promise<StoryboardFactionData> {
+  if (content === undefined) {
+    if (factionDataCache) return factionDataCache;
+    if (factionDataLoading) return factionDataLoading;
+    factionDataLoading = readDaojieArtFactionContent().then((raw) => {
+      factionDataCache = parseFactionContent(raw);
+      return factionDataCache;
+    });
+    return factionDataLoading;
+  }
+  factionDataCache = parseFactionContent(content);
+  factionDataLoading = null;
+  return factionDataCache;
+}
+
+/** 当前阵营配色数据(未预热为空结构 fail-empty)。 */
+export function getExtendedStoryboardFactionData(): StoryboardFactionData {
+  return factionDataCache ?? { members: {}, palette: {} };
 }
 
 export function isExtendedVisualManual(visualManualId: string | undefined | null): boolean {
