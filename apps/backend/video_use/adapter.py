@@ -232,8 +232,6 @@ CURATED_REGISTRY_TEMPLATES = (
     "hy:inline-highlight", "hy:directional-wipe", "hy:echo-trail", "hy:facet-morph",
     "hy:grid-pixelate-wipe", "hy:halftone-field", "hy:iris-reveal", "hy:slit-scan-reveal",
 )
-HYPERFRAMES_DECORATIVE_TEMPLATES = HYPERFRAMES_DECORATIVE_TEMPLATES + CURATED_REGISTRY_TEMPLATES
-
 # catalog 漂移 fail-fast:策展名单里的模板一旦从 catalog.json 消失立即拒载。
 assert set(CURATED_REGISTRY_TEMPLATES) <= set(HYPERFRAMES_REGISTRY_TEMPLATES), (
     "策展 registry 模板不在 catalog.json: "
@@ -375,6 +373,8 @@ def _template_for_mood(mood_word: str | None, index: int) -> tuple[str, dict[str
     # 08-22 门控修:依赖未就绪只跳过 registry 推荐,本地 mood 表必须照常生效——
     # 原实现把本地表一并收进门控 if 内,deps 未就绪时 mood 命中也掉轮换
     # (存量红测 test_overlay_slots_follow_mood_rules 的根因)。
+    # 08-22 深审补:轮换池同样过 deps 门控——未就绪退本地 43 池,避免决策层推
+    # hy: 却在渲染端被降级丢窗(_registry_deps_ready docstring 的设计意图)。
     if mood_word:
         if _registry_deps_ready():
             from .registry_decision import MOOD_CATEGORY_MAP, get_templates_by_category, is_full_frame
@@ -391,7 +391,12 @@ def _template_for_mood(mood_word: str | None, index: int) -> tuple[str, dict[str
                 template, base = decision
                 return template, dict(base)
     print(f"[video-use] overlay mood missing/unmatched; fallback rotation index={index}", file=sys.stderr)
-    template = HYPERFRAMES_DECORATIVE_TEMPLATES[index % len(HYPERFRAMES_DECORATIVE_TEMPLATES)]
+    rotation_pool = (
+        HYPERFRAMES_DECORATIVE_TEMPLATES + CURATED_REGISTRY_TEMPLATES
+        if _registry_deps_ready()
+        else HYPERFRAMES_DECORATIVE_TEMPLATES
+    )
+    template = rotation_pool[index % len(rotation_pool)]
     return template, dict(DEFAULT_TEMPLATE_PARAMETERS[template])
 
 

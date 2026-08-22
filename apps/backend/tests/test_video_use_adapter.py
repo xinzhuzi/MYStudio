@@ -470,19 +470,40 @@ if __name__ == "__main__":
     unittest.main()
 
     def test_curated_registry_pool_in_rotation_and_catalog_bound(self):
-        """08-22 R3 收官:策展 28 条 hy: 入轮换池(43→71)+catalog 漂移 fail-fast。"""
+        """08-22 R3 收官:策展 28 条 hy: 入轮换池(就绪时 43→71)+catalog 漂移 fail-fast。
+
+        深审修:轮换池过 _registry_deps_ready 门控——未就绪退本地 43 池
+        (未下载依赖的机器不得推 hy: → 渲染端降级丢窗)。
+        """
+        import os as _os
+        import tempfile as _tempfile
+        from unittest.mock import patch as _patch
         from video_use.adapter import (
             CURATED_REGISTRY_TEMPLATES,
             DEFAULT_TEMPLATE_PARAMETERS,
             HYPERFRAMES_DECORATIVE_TEMPLATES,
+            _template_for_mood,
         )
         from video_use.hyperframes_registry import HYPERFRAMES_REGISTRY_TEMPLATES
 
-        self.assertEqual(len(HYPERFRAMES_DECORATIVE_TEMPLATES), 71)
+        self.assertEqual(len(HYPERFRAMES_DECORATIVE_TEMPLATES), 43)
         self.assertEqual(len(CURATED_REGISTRY_TEMPLATES), 28)
         self.assertTrue(set(CURATED_REGISTRY_TEMPLATES) <= set(HYPERFRAMES_REGISTRY_TEMPLATES))
         self.assertTrue(set(CURATED_REGISTRY_TEMPLATES) <= set(DEFAULT_TEMPLATE_PARAMETERS))
-        # 轮换能落到 hy: 槽位(index 落在 43..70)
-        picked = HYPERFRAMES_DECORATIVE_TEMPLATES[50]
-        self.assertTrue(picked.startswith("hy:"))
-        self.assertEqual(DEFAULT_TEMPLATE_PARAMETERS[picked], {})
+
+        # deps 未就绪(无 env):轮换只落本地 43,永不 hy:
+        with _patch.dict(_os.environ, {}, clear=False):
+            _os.environ.pop("MYSTUDIO_REGISTRY_DEPS_DIR", None)
+            for index in range(71):
+                template, _ = _template_for_mood(None, index)
+                self.assertFalse(template.startswith("hy:"))
+
+        # deps 就绪(env 指向带 .ready 的目录):71 池,hy: 槽位可达
+        with _tempfile.TemporaryDirectory() as deps_dir:
+            _os.makedirs(deps_dir, exist_ok=True)
+            open(_os.path.join(deps_dir, ".ready"), "w").close()
+            with _patch.dict(_os.environ, {"MYSTUDIO_REGISTRY_DEPS_DIR": deps_dir}):
+                templates = [_template_for_mood(None, index)[0] for index in range(71)]
+                self.assertTrue(any(t.startswith("hy:") for t in templates))
+                for t in templates:
+                    self.assertEqual(DEFAULT_TEMPLATE_PARAMETERS.get(t, None) is not None or t.startswith("hy:"), True)
