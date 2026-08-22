@@ -488,6 +488,20 @@ def _normalize_views(frames_np: np.ndarray) -> torch.Tensor:
     return (frms - mean[:, None, None]) / std[:, None, None]
 
 
+def _to_clip_batches(frames: torch.Tensor, num_clips: int) -> torch.Tensor:
+    """Official evaluate_one_video regrouping: (N,C,H,W) → (num_clips,C,N/num_clips,H,W).
+
+    The sampler emits clips back-to-back (clip 0's frames, then clip 1's …);
+    this restores the batch structure so temporal convs stay inside one clip,
+    exactly like the official `reshape(C, num_clips, -1, H, W).transpose(0,1)`."""
+    n, c, h, w = frames.shape
+    if n % num_clips != 0:
+        raise ValueError(f"frame count {n} not divisible by num_clips {num_clips}")
+    per_clip = n // num_clips
+    return frames.permute(1, 0, 2, 3).reshape(c, num_clips, per_clip, h, w) \
+        .transpose(0, 1).contiguous()
+
+
 # ===========================================================================
 # FRAME SAMPLING (partial vendor from dover_datasets.py)
 # ===========================================================================
@@ -701,9 +715,11 @@ class DOVERMobileWrapper:
         """Score a video (optionally a [start_s, start_s+duration_s) window)
         → (fused, aesthetic, technical).
 
-        Official temporal decomposition (evaluate_one_video.py): the technical
-        branch sees 3 temporal fragments × 32 frames, the aesthetic branch one
-        32-frame span; both use frame_interval 2. The window clamps the span
+        Official decomposition (evaluate_one_video.py + dover.yml): the
+        technical branch sees 3 clips × 32 frames as mosaic fragments, the
+        aesthetic branch 32 frames resized — and each view is regrouped into
+        its (num_clips, C, T/num_clips, H, W) batches, so temporal convs never
+        mix one clip's frames with the next clip's. The window clamps the span
         for shot-level scoring."""
         with torch.no_grad():
             technical_frames = sample_frames(
@@ -713,9 +729,8 @@ class DOVERMobileWrapper:
                 video_path, sampler=UnifiedFrameSampler(1, 32, 2, 1),
                 start_s=start_s, duration_s=duration_s, view=VIEW_RESIZE)
 
-            # (N, C, H, W) -> (1, C, N, H, W): frames stack along the time axis
-            technical_view = technical_frames.permute(1, 0, 2, 3).unsqueeze(0)
-            aesthetic_view = aesthetic_frames.permute(1, 0, 2, 3).unsqueeze(0)
+            technical_view = _to_clip_batches(technical_frames, num_clips=3)
+            aesthetic_view = _to_clip_batches(aesthetic_frames, num_clips=1)
 
             outputs = self.model({"technical": technical_view, "aesthetic": aesthetic_view})
             # Official evaluator pools each branch's score map, then fuses.

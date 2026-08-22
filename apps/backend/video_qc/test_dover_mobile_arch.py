@@ -103,6 +103,22 @@ class TestDoverMobileArch:
         lo, hi = _sampling_window(100, 99.0, 5.0)  # window fully past the tail
         assert 0 <= lo < hi <= 100, f"past-tail window must clamp to a valid span, got ({lo},{hi})"
 
+    def test_to_clip_batches_matches_official_regrouping(self):
+        """Official reshape(C, num_clips, -1, H, W).transpose(0,1): clip k holds
+        source frames [k*per_clip, (k+1)*per_clip) — temporal convs stay per-clip."""
+        from video_qc.dover_mobile_arch import _to_clip_batches
+
+        frames = torch.arange(96, dtype=torch.float32).reshape(96, 1, 1, 1)
+        batched = _to_clip_batches(frames, num_clips=3)
+
+        assert batched.shape == (3, 1, 32, 1, 1)
+        for k in range(3):
+            for t in range(32):
+                assert batched[k, 0, t, 0, 0] == k * 32 + t, "clip regrouping dropped frame order"
+
+        with pytest.raises(ValueError):
+            _to_clip_batches(torch.zeros(34, 1, 1, 1), num_clips=3)  # 34 % 3 != 0
+
     def test_spatial_fragments_mosaic_provenance(self):
         """fragments view: each 32px mosaic cell comes from its source grid cell."""
         import numpy as np
