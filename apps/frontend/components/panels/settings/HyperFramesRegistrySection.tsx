@@ -20,7 +20,13 @@ export function HyperFramesRegistrySection(): React.ReactElement {
   const [status, setStatus] = useState<DepsStatus | null>(null);
 
   const checkStatus = async (): Promise<DepsStatus> => {
-    return await window.electronAPI?.hyperFramesRegistryDepsCheck?.() ?? { installed: false, installedCount: 0, totalCount: 0 };
+    try {
+      return await window.electronAPI?.hyperFramesRegistryDepsCheck?.()
+        ?? { installed: false, installedCount: 0, totalCount: 0 };
+    } catch {
+      // IPC 拒绝/超时不悬挂空态——回落未就绪,用户可点检查重试
+      return { installed: false, installedCount: 0, totalCount: 0 };
+    }
   };
 
   const handleDownload = async (): Promise<void> => {
@@ -73,8 +79,8 @@ export function HyperFramesRegistrySection(): React.ReactElement {
         </div>
       </div>
       <p className="text-[10px] leading-4 text-muted-foreground">
-        370 个 GitHub 特效模板的离线依赖(GSAP/Three.js/D3/字体);下载到 hyperframes-registry-deps/;
-        已有 43 个本地模板无需下载即可使用。
+        370 个特效模板已随应用内置,无需下载;此处仅下载模板引用的第三方运行库
+        (GSAP/Three.js/D3/字体)到 hyperframes-registry-deps/,一次下载永久离线。
       </p>
     </div>
   );
