@@ -976,7 +976,7 @@ const upscaleIpc = registerUpscaleIpcHandlers({ controller: upscaleRuntimeContro
 void upscaleRuntimeController.refresh()
 
 // Chapter video QC sidecar — DOVER-Mobile 观感层(出片后 QC 链 L3)。
-// 复用 managed Python(probe 路径零重依赖);权重显式下载,<storageBase>/VideoQcModel。
+// 复用 managed Python(probe 路径零重依赖);权重显式下载,<storageBase>/model/videoqc。
 const videoQcRuntimeController = createVideoQcRuntimeController({
   storageBasePath: getStorageBasePath,
   backendRoot: videoWorkflowBackendRoot,
