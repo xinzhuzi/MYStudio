@@ -103,6 +103,50 @@ class TestDoverMobileArch:
         lo, hi = _sampling_window(100, 99.0, 5.0)  # window fully past the tail
         assert 0 <= lo < hi <= 100, f"past-tail window must clamp to a valid span, got ({lo},{hi})"
 
+    def test_spatial_fragments_mosaic_provenance(self):
+        """fragments view: each 32px mosaic cell comes from its source grid cell."""
+        import numpy as np
+        from unittest.mock import patch
+
+        from video_qc.dover_mobile_arch import _spatial_fragments_view
+
+        # 448×448 source: 7×7 cells of 64px, one 32-frame group.
+        # Cell (i,j) filled with constant value i*7+j so provenance is checkable.
+        frames = np.zeros((32, 448, 448, 3), dtype=np.uint8)
+        for i in range(7):
+            for j in range(7):
+                frames[:, i * 64:(i + 1) * 64, j * 64:(j + 1) * 64] = i * 7 + j
+
+        with patch("numpy.random.randint", return_value=0):
+            mosaic = _spatial_fragments_view(frames)
+
+        assert mosaic.shape == (32, 224, 224, 3)
+        for i in range(7):
+            for j in range(7):
+                cell = mosaic[:, i * 32:(i + 1) * 32, j * 32:(j + 1) * 32]
+                assert (cell == i * 7 + j).all(), f"cell ({i},{j}) took the wrong block"
+
+    def test_spatial_fragments_upsamples_small_sources(self):
+        """Sources below 224px are bilinear-upsampled so the canvas still fills."""
+        import numpy as np
+
+        from video_qc.dover_mobile_arch import _spatial_fragments_view
+
+        frames = np.full((32, 112, 112, 3), 200, dtype=np.uint8)
+        mosaic = _spatial_fragments_view(frames)
+        assert mosaic.shape == (32, 224, 224, 3)
+        # after upsampling every cell samples the same uniform source
+        assert mosaic.min() > 150, "upsampled canvas should carry the source signal"
+
+    def test_spatial_fragments_rejects_bad_frame_count(self):
+        import numpy as np
+        import pytest as _pytest
+
+        from video_qc.dover_mobile_arch import _spatial_fragments_view
+
+        with _pytest.raises(ValueError):
+            _spatial_fragments_view(np.zeros((33, 448, 448, 3), dtype=np.uint8))
+
     def test_grn_layer_normalization(self):
         """GRN preserves shape and stays finite."""
         from video_qc.dover_mobile_arch import GRN

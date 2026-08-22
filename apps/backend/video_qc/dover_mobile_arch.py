@@ -397,6 +397,98 @@ class UnifiedFrameSampler:
 
 
 # ===========================================================================
+# VIEW TRANSFORMS (vendor of dover_datasets.py get_single_view semantics)
+# ===========================================================================
+VIEW_RESIZE = "resize"        # aesthetic branch: whole frame → 224×224
+VIEW_FRAGMENTS = "fragments"  # technical branch: 7×7 grid of 32px source blocks
+
+
+def _resize_view(frames_np: np.ndarray) -> np.ndarray:
+    """get_resized_video equivalent: (N,H,W,C) uint8 → (N,224,224,C) uint8."""
+    from PIL import Image
+
+    out = np.zeros((len(frames_np), 224, 224, frames_np.shape[3]), dtype=np.uint8)
+    for i, frame in enumerate(frames_np):
+        out[i] = np.array(Image.fromarray(frame).resize((224, 224), Image.BILINEAR))
+    return out
+
+
+def _spatial_fragments_view(frames_np: np.ndarray, fragments_h: int = 7, fragments_w: int = 7,
+                            fsize_h: int = 32, fsize_w: int = 32,
+                            aligned: int = 32) -> np.ndarray:
+    """Official get_spatial_fragments (dover_datasets.py line 22), inference path.
+
+    For each 32-frame temporal group, every (i,j) grid cell copies a random
+    32×32 block from its source-resolution cell into the 224×224 mosaic canvas
+    — the technical branch sees native-resolution detail, never a downscaled
+    frame. Sources smaller than the canvas are bilinear-upsampled first
+    (official fallback_type="upsample")."""
+    n = len(frames_np)
+    if n % aligned != 0:
+        raise ValueError(f"fragments view needs frame count divisible by {aligned}, got {n}")
+    res_h, res_w = frames_np.shape[1], frames_np.shape[2]
+    size_h, size_w = fragments_h * fsize_h, fragments_w * fsize_w
+
+    ratio = min(res_h / size_h, res_w / size_w)
+    if ratio < 1:
+        from PIL import Image
+
+        scale = 1.0 / ratio
+        new_h, new_w = int(res_h * scale), int(res_w * scale)
+        upscaled = np.zeros((n, new_h, new_w, frames_np.shape[3]), dtype=np.uint8)
+        for i, frame in enumerate(frames_np):
+            upscaled[i] = np.array(Image.fromarray(frame).resize((new_w, new_h), Image.BILINEAR))
+        frames_np = upscaled
+        res_h, res_w = new_h, new_w
+
+    hgrids = [min(res_h // fragments_h * i, res_h - fsize_h) for i in range(fragments_h)]
+    wgrids = [min(res_w // fragments_w * j, res_w - fsize_w) for j in range(fragments_w)]
+    hlength, wlength = res_h // fragments_h, res_w // fragments_w
+    groups = n // aligned
+
+    # Official inference keeps the per-cell random jitter (rnd_h/rnd_w).
+    def _jitter(bound: int) -> np.ndarray:
+        # broadcast keeps deterministic test mocks (scalar returns) working
+        shape = (fragments_h, fragments_w, groups)
+        arr = np.asarray(np.random.randint(0, bound, shape), dtype=np.int64)
+        if arr.shape != shape:
+            arr = np.broadcast_to(arr, shape).copy()
+        return arr
+
+    rnd_h = _jitter(hlength - fsize_h) if hlength > fsize_h \
+        else np.zeros((fragments_h, fragments_w, groups), dtype=np.int64)
+    rnd_w = _jitter(wlength - fsize_w) if wlength > fsize_w \
+        else np.zeros((fragments_h, fragments_w, groups), dtype=np.int64)
+
+    target = np.zeros((n, size_h, size_w, frames_np.shape[3]), dtype=np.uint8)
+    for i, hs in enumerate(hgrids):
+        for j, ws in enumerate(wgrids):
+            for g in range(groups):
+                t_s, t_e = g * aligned, (g + 1) * aligned
+                h_s, h_e = hs + rnd_h[i][j][g], hs + rnd_h[i][j][g] + fsize_h
+                w_s, w_e = ws + rnd_w[i][j][g], ws + rnd_w[i][j][g] + fsize_w
+                target[t_s:t_e, i * fsize_h:(i + 1) * fsize_h, j * fsize_w:(j + 1) * fsize_w] = \
+                    frames_np[t_s:t_e, h_s:h_e, w_s:w_e]
+    return target
+
+
+def _apply_view(frames_np: np.ndarray, view: str) -> np.ndarray:
+    if view == VIEW_FRAGMENTS:
+        return _spatial_fragments_view(frames_np)
+    if view == VIEW_RESIZE:
+        return _resize_view(frames_np)
+    raise ValueError(f"unknown view: {view}")
+
+
+def _normalize_views(frames_np: np.ndarray) -> torch.Tensor:
+    """(N,H,W,C) uint8 → (N,C,H,W) ImageNet-normalized float tensor."""
+    frms = torch.from_numpy(frames_np.astype(np.float32)).permute(0, 3, 1, 2) / 255.0
+    mean = torch.FloatTensor([0.485, 0.456, 0.406])
+    std = torch.FloatTensor([0.229, 0.224, 0.225])
+    return (frms - mean[:, None, None]) / std[:, None, None]
+
+
+# ===========================================================================
 # FRAME SAMPLING (partial vendor from dover_datasets.py)
 # ===========================================================================
 def _resolve_indices(total_frames: int, fps: float, sampler, fragments: int, clip_len: int,
@@ -426,12 +518,15 @@ def _resolve_indices(total_frames: int, fps: float, sampler, fragments: int, cli
 def sample_frames(video_path: str, sampler: UnifiedFrameSampler | None = None,
                   fragments: int = 32, clip_len: int = 32, frame_interval: int = 2,
                   num_clips: int = 1, start_s: float | None = None,
-                  duration_s: float | None = None) -> torch.Tensor:
+                  duration_s: float | None = None,
+                  view: str = VIEW_RESIZE) -> torch.Tensor:
     """Sample frames following DOVERMobile configuration. Returns (N, C, H, W) tensor preprocessed.
 
     sampler overrides the legacy even-span index selection with the official
-    UnifiedFrameSampler. start_s/duration_s restrict sampling to a time window
-    (shot-level scoring).
+    UnifiedFrameSampler. view picks the official spatial transform: resize
+    (aesthetic branch) or fragments (technical mosaic). start_s/duration_s
+    restrict sampling to a time window (shot-level scoring). Frames are
+    decoded at native resolution so the fragments view sees true detail.
     """
     try:
         import decord
@@ -439,22 +534,17 @@ def sample_frames(video_path: str, sampler: UnifiedFrameSampler | None = None,
         # Fallback to ffmpeg + PIL when decord unavailable
         return _sample_frames_ffmpeg(video_path, sampler=sampler, fragments=fragments,
                                      clip_len=clip_len, frame_interval=frame_interval,
-                                     num_clips=num_clips, start_s=start_s, duration_s=duration_s)
+                                     num_clips=num_clips, start_s=start_s,
+                                     duration_s=duration_s, view=view)
 
-    vr = decord.VideoReader(video_path, ctx=decord.cpu(0), width=224, height=224)
+    vr = decord.VideoReader(video_path, ctx=decord.cpu(0))
     total_frames = len(vr)
     fps = getattr(vr, "get_avg_fps", lambda: 24.0)() or 24.0
     indices = _resolve_indices(total_frames, fps, sampler, fragments, clip_len,
                                num_clips, start_s, duration_s)
-    frms = vr.get_batch(indices).asnumpy()
+    frames_np = vr.get_batch(indices).asnumpy()
     vr.release()
-    frms = torch.from_numpy(frms.astype(np.float32)).permute(0, 3, 1, 2) / 255.0
-
-    # Normalize using ImageNet stats (matching DOVER config)
-    mean = torch.FloatTensor([0.485, 0.456, 0.406])
-    std = torch.FloatTensor([0.229, 0.224, 0.225])
-    frms = (frms - mean[:, None, None]) / std[:, None, None]
-    return frms
+    return _normalize_views(_apply_view(frames_np, view))
 
 
 def _sampling_window(total_frames: int, start_s: float | None,
@@ -475,7 +565,8 @@ def _sample_frames_ffmpeg(video_path: str, sampler: UnifiedFrameSampler | None =
                           fragments: int = 32, clip_len: int = 32,
                           frame_interval: int = 2, num_clips: int = 1,
                           start_s: float | None = None,
-                          duration_s: float | None = None) -> torch.Tensor:
+                          duration_s: float | None = None,
+                          view: str = VIEW_RESIZE) -> torch.Tensor:
     """Fallback frame sampling using ffmpeg + PIL when decord unavailable"""
     import subprocess
     import tempfile
@@ -523,9 +614,11 @@ def _sample_frames_ffmpeg(video_path: str, sampler: UnifiedFrameSampler | None =
     indices = _resolve_indices(total_frames, fps, sampler, fragments, clip_len,
                                num_clips, start_s, duration_s)
 
-    # Extract frames one by one via -ss keyframe seeking; each temp file is
-    # removed after decoding so repeated scoring never leaks disk space.
+    # Extract frames one by one via -ss keyframe seeking at NATIVE resolution
+    # (the fragments view must see true detail); each temp file is removed
+    # after decoding so repeated scoring never leaks disk space.
     frames = []
+    first_shape: tuple[int, ...] | None = None
     for i, idx in enumerate(indices):
         fd, tmp_path = tempfile.mkstemp(suffix='.jpg')
         os.close(fd)
@@ -533,15 +626,20 @@ def _sample_frames_ffmpeg(video_path: str, sampler: UnifiedFrameSampler | None =
             ts = idx / fps
             cmd = [
                 'ffmpeg', '-y', '-ss', f'{ts:.3f}',
-                '-i', video_path, '-frames:v', '1', '-q:v', '2',
-                '-vf', 'scale=224:224', tmp_path
+                '-i', video_path, '-frames:v', '1', '-q:v', '2', tmp_path
             ]
             proc_result = subprocess.run(cmd, capture_output=True, text=True)
             if proc_result.returncode != 0:
                 print(f"⚠️ Frame {i} extract failed: {proc_result.stderr[:100]}")
                 continue
             img = Image.open(tmp_path).convert('RGB')
-            frames.append(np.array(img))
+            frame_np = np.array(img)
+            if first_shape is None:
+                first_shape = frame_np.shape
+            elif frame_np.shape != first_shape:
+                # decoders can emit odd sizes on the last frame — unify
+                frame_np = np.array(img.resize((first_shape[1], first_shape[0]), Image.BILINEAR))
+            frames.append(frame_np)
         except Exception as e:  # noqa: BLE001 — single-frame failures degrade, not abort
             print(f"⚠️ Frame {i} decode failed: {e}")
         finally:
@@ -555,20 +653,12 @@ def _sample_frames_ffmpeg(video_path: str, sampler: UnifiedFrameSampler | None =
     expected = len(indices)
     if len(frames) < expected:
         print(f"⚠️ Only got {len(frames)}/{expected} frames, zero-padding remainder")
+    pad_shape = first_shape if first_shape is not None else (224, 224, 3)
     while len(frames) < expected:
-        frames.append(np.zeros((224, 224, 3), dtype=np.uint8))
+        frames.append(np.zeros(pad_shape, dtype=np.uint8))
 
     frms = np.stack(frames, axis=0)  # (N, H, W, C) where N=len(indices)
-
-    # Convert to tensor: (N, H, W, C) -> (N, C, H, W)
-    frms_tensor = torch.from_numpy(frms).permute(0, 3, 1, 2).float() / 255.0
-
-    # Normalize using ImageNet stats (matching DOVER config)
-    mean = torch.FloatTensor([0.485, 0.456, 0.406]).view(3, 1, 1)
-    std = torch.FloatTensor([0.229, 0.224, 0.225]).view(3, 1, 1)
-    frms_tensor = (frms_tensor - mean) / std
-
-    return frms_tensor
+    return _normalize_views(_apply_view(frms, view))
 
 
 # ===========================================================================
@@ -618,10 +708,10 @@ class DOVERMobileWrapper:
         with torch.no_grad():
             technical_frames = sample_frames(
                 video_path, sampler=UnifiedFrameSampler(32, 3, 2),
-                start_s=start_s, duration_s=duration_s)
+                start_s=start_s, duration_s=duration_s, view=VIEW_FRAGMENTS)
             aesthetic_frames = sample_frames(
                 video_path, sampler=UnifiedFrameSampler(1, 32, 2, 1),
-                start_s=start_s, duration_s=duration_s)
+                start_s=start_s, duration_s=duration_s, view=VIEW_RESIZE)
 
             # (N, C, H, W) -> (1, C, N, H, W): frames stack along the time axis
             technical_view = technical_frames.permute(1, 0, 2, 3).unsqueeze(0)
