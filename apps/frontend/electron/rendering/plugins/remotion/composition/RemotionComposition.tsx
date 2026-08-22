@@ -53,7 +53,13 @@ export function RemotionComposition(props: CompositionProps): React.ReactElement
             <AudioClip {...clip} />
           </Sequence>
         ))}
-      <SubtitleTrack cues={props.subtitles} font={props.subtitleFont} />
+      {/* GLTransitionLayer 的 ThreeCanvas 带 zIndex:2;字幕须恒居其上
+          (editing-audio-subtitles.md:Remotion 拥有最终可见字幕层),
+          否则 gl:* 转场四边形整个 overlap 窗口盖掉燃嵌字幕
+          (预览走 DOM crossfade 兜底无 zIndex,不吞——预览/渲染就此不一致)。 */}
+      <AbsoluteFill style={{ zIndex: 3 }}>
+        <SubtitleTrack cues={props.subtitles} font={props.subtitleFont} />
+      </AbsoluteFill>
     </AbsoluteFill>
   );
 }

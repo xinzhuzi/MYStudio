@@ -108,4 +108,23 @@ describe("RemotionComposition", () => {
     const visual = rendered.container.querySelector('video[src="http://127.0.0.1:1/t/b"]');
     expect(visual?.getAttribute("data-transparent")).toBe("undefined");
   });
+
+  it("keeps the subtitle layer above the GL transition canvas (zIndex > 2)", () => {
+    // Regression (08-23): GLTransitionLayer mounts its ThreeCanvas with
+    // zIndex: 2. The subtitle track rendered after it in DOM order but
+    // without a z-index, so gl:* transition quads covered burned-in
+    // subtitles for the whole overlap window (render only — the Player's
+    // DOM-crossfade preview showed the cue, masking the bug).
+    const props = composition();
+    props.transitions = [
+      { fromClipId: "a", toClipId: "b", effectId: "gl:swap", overlapFrames: 5 },
+    ];
+    render(<RemotionComposition {...props} />);
+    const cue = screen.getByText("字幕");
+    const wrapperWithZ = (cue.parentElement as HTMLElement | null)?.closest<HTMLElement>("div[style*='z-index']");
+    expect(wrapperWithZ).not.toBeNull();
+    const zIndex = Number(wrapperWithZ?.style.zIndex);
+    expect(Number.isFinite(zIndex)).toBe(true);
+    expect(zIndex).toBeGreaterThan(2);
+  });
 });

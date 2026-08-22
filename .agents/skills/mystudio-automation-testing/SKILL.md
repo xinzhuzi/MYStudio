@@ -188,6 +188,6 @@ Keep the final report short and evidence-based:
 
 已删除的旧入口（不要再引用）：`render-remotion-timeline.ts`、`render-editing-timeline.ts`、`render-derived-chapter.ts`、`video:chapter001:remotion`。旧 `MYSTUDIO_CHAPTER_VIDEO_*` 环境变量已改名 `MYSTUDIO_*`（项目专属的仅存于 `apps/build/chapter_video/`）。
 
-成片验收最低顶（smoke 之外）：有声（mean_volume > -60dB）、时长与 EDL 一致（1 帧容差）、43 镜/42 边界完整、连续五边界同款转场违规=0、字幕带逐帧统计无 intra-cue 缺口。**cinematic（Depth 运镜）成片禁用逐镜 source SSIM ≥ 0.90 作唯一门**——运镜改变视角，SSIM 只作异常诊断。blackdetect 暗段需人工判读（剧情暗场景口径）。QC 参考实现：`.trellis/tasks/08-22-plugin-rich-chapter-video/research/plugin-rich-cinematic-qc.py`（两阶段 capture-before/discover-and-qc + 169 帧视觉 manifest）。
+成片验收最低顶（smoke 之外）：有声（mean_volume > -60dB）、时长与 EDL 一致（1 帧容差）、43 镜/42 边界完整、连续五边界同款转场违规=0。字幕验收**必须以布局时间轴投影窗口为基准**（cue 间对话停顿属正常，勿按音频时间轴 cue 窗口直接判"intra-cue 缺失"——转场重叠压缩累计可达秒级位移，08-23 已误判过一轮）；转场窗口内字幕必须仍可见（gl:* WebGL 转场 zIndex 吞字幕已修，回归看 RemotionComposition.test.tsx zIndex 断言）。**cinematic（Depth 运镜）成片禁用逐镜 source SSIM ≥ 0.90 作唯一门**——运镜改变视角，SSIM 只作异常诊断。blackdetect 暗段需人工判读（剧情暗场景口径）。QC 参考实现：`.trellis/tasks/archive/2026-08/08-22-plugin-rich-chapter-video/research/plugin-rich-cinematic-qc.py`（两阶段 capture-before/discover-and-qc + 169 帧视觉 manifest）。
 
 `smoke:video-workflow` 已知边界：隔离临时 profile 不含受管 Python，video-use probe 恒 blocked——该 smoke 只证明 UI/shell，不证明插件链；插件链验收以真实 run 的 artifact/QC 为准。
