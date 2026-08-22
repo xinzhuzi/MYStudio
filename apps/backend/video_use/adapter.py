@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Any
 
 from .alignment import AlignmentError, sha256_file, sha256_text
+from .hyperframes_registry import HYPERFRAMES_REGISTRY_TEMPLATES
 
 
 class VideoUseAdapterError(RuntimeError):
@@ -215,6 +216,29 @@ HYPERFRAMES_DECORATIVE_TEMPLATES = (
     "heart-float", "bubble-rise", "zoom-pulse", "shake-earthquake", "wobble-jelly",
     "spin-hypnotic", "ripple-water", "fade-dip-black", "flash-white", "dream-soft",
 )
+
+# 08-22 video-use-vision-release R3 收官:Registry 策展入池。370 模板经 tag/name
+# 双通道排除 dev 向(202 砍)→112 候选全量渲染实证(112/112)→确定性终审 PASS 28
+# (样本帧留档 .trellis 任务 research/hy-registry-samples/ 供人审)。轮换池 43→71,
+# 直击撞款(r3 实测 43 槽仅落 6 模板)。params 留空 dict:registry 模板默认值在各自
+# HTML 内(worker 物化),本地 DEFAULT_TEMPLATE_PARAMETERS 不适用。
+CURATED_REGISTRY_TEMPLATES = (
+    "hy:ripple-waves", "hy:ink-bleed-reveal", "hy:light-sweep-pass",
+    "hy:organic-light-leak-overlay", "hy:particle-image-reveal",
+    "hy:domain-warp-dissolve", "hy:grain-overlay", "hy:light-leak", "hy:glitch",
+    "hy:halftone-dissolve", "hy:yt-feather-highlight", "hy:chromatic-aberration-wipe",
+    "hy:cross-warp-morph", "hy:fade-through", "hy:grain-field", "hy:sdf-iris",
+    "hy:soft-blur-in", "hy:ascii-trail-reveal", "hy:aurora-drift", "hy:blur-in",
+    "hy:inline-highlight", "hy:directional-wipe", "hy:echo-trail", "hy:facet-morph",
+    "hy:grid-pixelate-wipe", "hy:halftone-field", "hy:iris-reveal", "hy:slit-scan-reveal",
+)
+HYPERFRAMES_DECORATIVE_TEMPLATES = HYPERFRAMES_DECORATIVE_TEMPLATES + CURATED_REGISTRY_TEMPLATES
+
+# catalog 漂移 fail-fast:策展名单里的模板一旦从 catalog.json 消失立即拒载。
+assert set(CURATED_REGISTRY_TEMPLATES) <= set(HYPERFRAMES_REGISTRY_TEMPLATES), (
+    "策展 registry 模板不在 catalog.json: "
+    + str(sorted(set(CURATED_REGISTRY_TEMPLATES) - set(HYPERFRAMES_REGISTRY_TEMPLATES)))
+)
 MOOD_TEMPLATE_RULES: dict[str, tuple[str, dict[str, str | int | float | bool]]] = {
     "战斗": ("lens-flare", {"x": 18, "y": 24, "size": 260}),
     "回忆": ("light-leak", {"intensity": 0.35, "hue": 0}),
@@ -278,6 +302,8 @@ DEFAULT_TEMPLATE_PARAMETERS: dict[str, dict[str, str | int | float | bool]] = {
     "fade-dip-black": {"hold": 0.3},
     "flash-white": {"hold": 0.15},
     "dream-soft": {"blur": 6, "glow": 0.4},
+    # 08-22 Registry 策展 28 条:参数留空(默认值在 registry HTML 内,worker 物化)
+    **{template: {} for template in CURATED_REGISTRY_TEMPLATES},
 }
 
 assert set(HYPERFRAMES_DECORATIVE_TEMPLATES) <= set(DEFAULT_TEMPLATE_PARAMETERS), (
@@ -346,17 +372,20 @@ def _registry_deps_ready() -> bool:
 
 def _template_for_mood(mood_word: str | None, index: int) -> tuple[str, dict[str, str | int | float | bool]]:
     # 08-21 hy-registry: 优先查 registry_decision 的情绪→大类→推荐模板
-    # 08-22 门控: 依赖未就绪不推 hy:,直接走本地 43 池(渲染端仍有降级保底)
-    if mood_word and _registry_deps_ready():
-        from .registry_decision import MOOD_CATEGORY_MAP, get_templates_by_category, is_full_frame
-        for keyword, category in MOOD_CATEGORY_MAP.items():
-            if keyword in mood_word:
-                # 从该大类找 overlay 兼容的(非全画面)
-                candidates = [t for t in get_templates_by_category(category) if not is_full_frame(t)]
-                if candidates:
-                    chosen = candidates[index % len(candidates)]
-                    return f"hy:{chosen['name']}", {}
-        # 本地 43 模板池 mood 规则
+    # 08-22 门控修:依赖未就绪只跳过 registry 推荐,本地 mood 表必须照常生效——
+    # 原实现把本地表一并收进门控 if 内,deps 未就绪时 mood 命中也掉轮换
+    # (存量红测 test_overlay_slots_follow_mood_rules 的根因)。
+    if mood_word:
+        if _registry_deps_ready():
+            from .registry_decision import MOOD_CATEGORY_MAP, get_templates_by_category, is_full_frame
+            for keyword, category in MOOD_CATEGORY_MAP.items():
+                if keyword in mood_word:
+                    # 从该大类找 overlay 兼容的(非全画面)
+                    candidates = [t for t in get_templates_by_category(category) if not is_full_frame(t)]
+                    if candidates:
+                        chosen = candidates[index % len(candidates)]
+                        return f"hy:{chosen['name']}", {}
+        # 本地 mood 表(恒生效;hy: 轮换池 08-22 扩到 71 见 CURATED_REGISTRY_TEMPLATES)
         for key, decision in MOOD_TEMPLATE_RULES.items():
             if key in mood_word:
                 template, base = decision

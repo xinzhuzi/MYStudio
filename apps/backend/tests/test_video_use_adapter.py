@@ -468,3 +468,21 @@ class VideoUseAdapterTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+    def test_curated_registry_pool_in_rotation_and_catalog_bound(self):
+        """08-22 R3 收官:策展 28 条 hy: 入轮换池(43→71)+catalog 漂移 fail-fast。"""
+        from video_use.adapter import (
+            CURATED_REGISTRY_TEMPLATES,
+            DEFAULT_TEMPLATE_PARAMETERS,
+            HYPERFRAMES_DECORATIVE_TEMPLATES,
+        )
+        from video_use.hyperframes_registry import HYPERFRAMES_REGISTRY_TEMPLATES
+
+        self.assertEqual(len(HYPERFRAMES_DECORATIVE_TEMPLATES), 71)
+        self.assertEqual(len(CURATED_REGISTRY_TEMPLATES), 28)
+        self.assertTrue(set(CURATED_REGISTRY_TEMPLATES) <= set(HYPERFRAMES_REGISTRY_TEMPLATES))
+        self.assertTrue(set(CURATED_REGISTRY_TEMPLATES) <= set(DEFAULT_TEMPLATE_PARAMETERS))
+        # 轮换能落到 hy: 槽位(index 落在 43..70)
+        picked = HYPERFRAMES_DECORATIVE_TEMPLATES[50]
+        self.assertTrue(picked.startswith("hy:"))
+        self.assertEqual(DEFAULT_TEMPLATE_PARAMETERS[picked], {})
