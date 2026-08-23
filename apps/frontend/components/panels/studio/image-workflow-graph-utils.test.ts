@@ -203,6 +203,14 @@ describe("storyboard workflow style-token prefill", () => {
       expect(promptNode.prompt).toContain("Chinese ink wash painting style");
       expect(promptNode.negativePrompt).toContain("photorealistic photography");
       expect(promptNode.negativePrompt).toContain("watermark");
+      expect(graph.assemblyTrace).toMatchObject({
+        manualId: "daojie_ink_guofeng",
+        templateId: "21",
+        factions: ["人族"],
+        negativeApplied: true,
+        styleTokenCount: 1,
+        assetReferenceTitles: ["金水河码头", "监工赵四"],
+      });
 
       const assetRefs = graph.nodes.filter(
         (node): node is Extract<typeof node, { type: "reference" }> =>

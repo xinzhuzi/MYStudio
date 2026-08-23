@@ -9,11 +9,13 @@ import {
 } from "@/lib/studio/image-workflow";
 import { useAppSettingsStore } from "@/stores/app/app-settings-store";
 import {
+  EXTENDED_STORYBOARD_STYLE_TOKENS,
   getExtendedStoryboardFactionData,
   getExtendedStoryboardFrameNegative,
   getExtendedStoryboardManualContent,
   withActiveVisualManualStoryboardStyleTokens,
 } from "@/lib/studio/visual-manual-style-tokens";
+import { useStudioStore } from "@/stores/studio/studio-store";
 import {
   buildStoryboardFactionColorSection,
   buildStoryboardFramePrompt,
@@ -238,15 +240,35 @@ export function createOpenImageWorkflowGraph(
     : null;
   // 阵营色彩职责:参考资产按轨道分桶查阵营(场景→scene 轨/角色→person 轨)
   const factionData = getExtendedStoryboardFactionData();
+  const sceneRefNames = context.assetReferences?.filter((ref) => ref.assetType === "scene").map((ref) => ref.title);
+  const personRefNames = context.assetReferences?.filter((ref) => ref.assetType === "character").map((ref) => ref.title);
   const colorSection = isStoryboard && frameTemplate
     ? buildStoryboardFactionColorSection(
-        {
-          sceneNames: context.assetReferences?.filter((ref) => ref.assetType === "scene").map((ref) => ref.title),
-          personNames: context.assetReferences?.filter((ref) => ref.assetType === "character").map((ref) => ref.title),
-        },
+        { sceneNames: sceneRefNames, personNames: personRefNames },
         factionData,
       )
     : "";
+  // 装配溯源(UI「风格依据」展示源):命中了哪些手册资产一目了然
+  if (isStoryboard) {
+    const tracedFactions = [...(personRefNames ?? []), ...(sceneRefNames ?? [])]
+      .map((name) => factionData.members[name.trim()])
+      .filter((factionName): factionName is string => Boolean(factionName));
+    graph = {
+      ...graph,
+      assemblyTrace: {
+        manualId: useStudioStore.getState().workflowConfig.visualManualId,
+        templateId: frameTemplate?.id,
+        templateTitle: frameTemplate?.title,
+        factions: [...new Set(tracedFactions)],
+        factionTracks: colorSection
+          ? [personRefNames?.length ? "person" : "", sceneRefNames?.length ? "scene" : ""].filter(Boolean)
+          : [],
+        negativeApplied: Boolean(getExtendedStoryboardFrameNegative()),
+        styleTokenCount: frameTemplate ? EXTENDED_STORYBOARD_STYLE_TOKENS.length : 0,
+        assetReferenceTitles: context.assetReferences?.map((ref) => ref.title),
+      },
+    };
+  }
   const basePrompt = isStoryboard
     ? buildStoryboardFramePrompt({
         description: context.prompt ?? "",

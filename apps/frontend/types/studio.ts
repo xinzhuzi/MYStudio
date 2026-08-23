@@ -745,6 +745,17 @@ export interface ImageWorkflowGraph {
   target: ImageWorkflowTarget;
   /** 创建时绑定目标的分镜内容指纹(分镜目标);不匹配=属于被替换的上一代分镜,复用判定会跳过 */
   targetSourceFingerprint?: string;
+  /** 分镜帧生图装配溯源(建流时命中了哪些手册资产;UI「风格依据」展示源) */
+  assemblyTrace?: {
+    manualId?: string;
+    templateId?: string;
+    templateTitle?: string;
+    factions?: string[];
+    factionTracks?: string[];
+    negativeApplied?: boolean;
+    styleTokenCount?: number;
+    assetReferenceTitles?: string[];
+  };
   nodes: ImageWorkflowNode[];
   edges: ImageWorkflowEdge[];
   viewport?: ImageWorkflowViewport;
