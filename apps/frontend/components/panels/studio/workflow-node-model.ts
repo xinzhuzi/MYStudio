@@ -88,6 +88,7 @@ export type ProductionFlowStage =
   | "script"
   | "assets"
   | "storyboard"
+  | "storyboardPanel"
   | "workbench";
 export type ProductionFlowNodeStatus =
   | "empty"
@@ -529,7 +530,7 @@ export function buildProductionFlowModel(
         storyboardTiles,
         skills: storyboardSkills,
         actions: [],
-        targetStage: "storyboard",
+        targetStage: "storyboardPanel",
       },
       {
         id: "remotionProduction",

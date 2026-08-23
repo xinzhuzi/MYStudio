@@ -18,6 +18,8 @@ import { WORKFLOW_TABS } from "@/components/panels/studio/workflow-tabs";
  * `lib/studio/workflow-readiness.ts` (STAGE_DEFS).
  */
 const STAGE_DESCRIPTIONS: Record<string, string> = {
+  storyboardPanel:
+    "浏览当前章节全部分镜,逐镜进入图片工作流生成画面。",
   manuals:
     "选定视觉风格与色彩基调，编写视觉、导演手册，确立全片统一的画面与镜头语言基调。",
   novel:

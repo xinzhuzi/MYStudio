@@ -303,7 +303,7 @@ describe("production workflow node model", () => {
       "storyboard",
       "assets",
       "storyboard",
-      "storyboard",
+      "storyboardPanel",
       "workbench",
       "workbench",
     ]);

@@ -27,6 +27,7 @@ import type {
   AssetImageWorkflowContext,
   ImageWorkflowOpenContext,
   ImageWorkflowTarget,
+  StoryboardItem,
 } from "@/types/studio";
 import type {
   ProductionFlowAssetCard,
@@ -501,6 +502,31 @@ export function buildStoryboardImageOpenContext(tile: ProductionFlowStoryboardTi
     storyboardSourceFingerprint: tile.sourceFingerprint,
     storyboardLines: tile.lines,
   };
+}
+
+/** StoryboardItem → 打开上下文(分镜面板全量视图用;瓦片路径请用 buildStoryboardImageOpenContext)。 */
+export function buildStoryboardItemOpenContext(item: {
+  id: string;
+  index: number;
+  mediaRef?: { kind: string; path: string; imageWorkflowId?: string };
+  videoDesc?: string;
+  prompt: string;
+  imageWorkflowId?: string;
+  sourceFingerprint?: string;
+  lines?: string;
+  state?: StoryboardItem["state"];
+}): ImageWorkflowOpenContext {
+  return buildStoryboardImageOpenContext({
+    id: item.id,
+    index: item.index,
+    mediaPath: item.mediaRef?.kind === "image" ? item.mediaRef.path : undefined,
+    title: item.videoDesc || item.prompt || `分镜 ${item.index}`,
+    imageWorkflowId: item.imageWorkflowId ?? item.mediaRef?.imageWorkflowId,
+    sourceFingerprint: item.sourceFingerprint,
+    lines: item.lines,
+    // ProductionFlowStoryboardTile.state 必填;面板视图的分镜行不一定带 state,兜底 ready
+    state: item.state ?? "ready",
+  });
 }
 
 export function StoryboardGridPreview({

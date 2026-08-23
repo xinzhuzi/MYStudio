@@ -3,6 +3,7 @@ import { Tabs, TabsContent } from "@/components/ui/tabs";
 import { ManualsTab } from "./ManualsTab";
 import { NovelTab } from "./NovelTab";
 import { ScriptTab } from "./ScriptTab";
+import { StoryboardPanelTab } from "./StoryboardPanelTab";
 import { WorkbenchTab } from "./WorkbenchTab";
 import { ImageWorkflowCanvas } from "./ImageWorkflowCanvas";
 import { ScriptAssetManagementTab } from "./ScriptAssetManagementTab";
@@ -122,6 +123,16 @@ export function StudioView() {
             </TabsContent>
 
             <TabsContent
+              value="storyboardPanel"
+              className="m-0 min-h-0 flex-1 data-[state=active]:flex data-[state=inactive]:hidden"
+            >
+              <StoryboardPanelTab
+                storyboards={viewModel.chapterStoryboards}
+                onOpenImageWorkflow={viewModel.openAssetImageWorkflow}
+              />
+            </TabsContent>
+
+            <TabsContent
               value="imageWorkflow"
               className="m-0 min-h-0 flex-1 data-[state=active]:flex data-[state=inactive]:hidden"
             >
@@ -129,6 +140,7 @@ export function StudioView() {
                 projectName={viewModel.projectName}
                 initialAssetContext={viewModel.assetImageWorkflowContext}
                 onBack={viewModel.closeAssetImageWorkflow}
+                onOpenStoryboardWorkflow={viewModel.openAssetImageWorkflow}
               />
             </TabsContent>
 

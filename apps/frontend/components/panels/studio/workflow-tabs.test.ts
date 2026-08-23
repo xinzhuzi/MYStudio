@@ -11,6 +11,7 @@ describe("studio workflow tabs", () => {
       "script",
       "assets",
       "storyboard",
+      "storyboardPanel",
       "imageWorkflow",
       "workbench",
     ]);
@@ -20,6 +21,7 @@ describe("studio workflow tabs", () => {
       "剧本生产阶段",
       "剧本资产管理",
       "分镜视频生成",
+      "分镜面板",
       "图像节点图",
       "视频工作台",
     ]);
@@ -289,6 +291,8 @@ describe("studio workflow tabs", () => {
     expect(canvasSource).toContain("{selectedEdgeId && canUseGlobalWorkflowControls ? (");
     expect(scopedPendingSource).toContain("data-scoped-image-workflow-summary");
     expect(canvasSource).toContain("data-image-workflow-selector");
+    expect(canvasSource).toContain('optgroup label="当前代"');
+    expect(canvasSource).toContain('optgroup label="上一代遗留(同 id 旧分镜表)"');
     expect(canvasSource).toContain("data-image-workflow-global-action");
   });
 
