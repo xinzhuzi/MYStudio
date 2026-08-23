@@ -1,4 +1,4 @@
-import { Image as ImageIcon } from "lucide-react";
+import { ArrowLeft, Image as ImageIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { ImageWorkflowOpenContext, StoryboardItem } from "@/types/studio";
 import { buildStoryboardItemOpenContext } from "./WorkflowNodePreviews";
@@ -13,9 +13,11 @@ import { toPreviewSrc } from "./WorkbenchTrackCard";
 export function StoryboardPanelTab({
   storyboards,
   onOpenImageWorkflow,
+  onBackToCanvas,
 }: {
   storyboards: StoryboardItem[];
   onOpenImageWorkflow: (context: ImageWorkflowOpenContext) => void;
+  onBackToCanvas?: () => void;
 }) {
   const ordered = storyboards.slice().sort((a, b) => a.index - b.index);
   const withImage = ordered.filter((item) => item.mediaRef?.kind === "image").length;
@@ -33,6 +35,17 @@ export function StoryboardPanelTab({
     <div className="flex h-full min-h-0 flex-col" data-storyboard-panel-tab>
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border/70 pb-3">
         <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1">
+          {onBackToCanvas ? (
+            <Button
+              size="sm"
+              variant="ghost"
+              data-storyboard-panel-back
+              onClick={onBackToCanvas}
+            >
+              <ArrowLeft className="h-3.5 w-3.5" />
+              返回节点图
+            </Button>
+          ) : null}
           <h3 className="text-base font-semibold text-foreground">分镜面板</h3>
           <span className="text-sm text-muted-foreground">
             {ordered.length ? `${ordered.length} 个分镜 · ${withImage} 个画面` : "尚无分镜,请先生成分镜表"}

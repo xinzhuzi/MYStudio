@@ -25,9 +25,7 @@ const storyboard = {
 afterEach(cleanup);
 
 describe("ImageWorkflowSidebar", () => {
-  it("keeps binding and palette actions in the extracted boundary", () => {
-    const onTargetStoryboardChange = vi.fn();
-    const onBindTargetStoryboard = vi.fn();
+  it("keeps palette actions and drops the two-step rebind control", () => {
     const onAddReferenceFromMaterial = vi.fn();
     const onAddReferenceFromStoryboard = vi.fn();
 
@@ -39,9 +37,6 @@ describe("ImageWorkflowSidebar", () => {
         sourceLabel="当前图片工作流"
         workflowWritebackTargetLabel="未绑定目标"
         storyboards={[storyboard]}
-        targetStoryboardId="storyboard-1"
-        onTargetStoryboardChange={onTargetStoryboardChange}
-        onBindTargetStoryboard={onBindTargetStoryboard}
         canUseGlobalWorkflowControls
         imageMaterials={[material]}
         storyboardImages={[storyboard]}
@@ -50,13 +45,12 @@ describe("ImageWorkflowSidebar", () => {
       />,
     );
 
-    fireEvent.change(screen.getByRole("combobox"), { target: { value: "storyboard-1" } });
-    fireEvent.click(screen.getByRole("button", { name: "绑定当前图" }));
+    // 改绑回写分镜+绑定按钮已删(2026-08-23 三次误用实证):全局分镜切换走「切换分镜工作流…」
+    expect(screen.queryByRole("button", { name: "绑定当前图" })).toBeNull();
+    expect((document.body.textContent || "").includes("改绑回写分镜")).toBe(false);
     fireEvent.click(screen.getByRole("button", { name: /角色参考/ }));
     fireEvent.click(screen.getByRole("button", { name: /分镜 1/ }));
 
-    expect(onTargetStoryboardChange).toHaveBeenCalledWith("storyboard-1");
-    expect(onBindTargetStoryboard).toHaveBeenCalledTimes(1);
     expect(onAddReferenceFromMaterial).toHaveBeenCalledWith(material);
     expect(onAddReferenceFromStoryboard).toHaveBeenCalledWith(storyboard);
   });
@@ -71,9 +65,6 @@ describe("ImageWorkflowSidebar", () => {
         sourceStageLabel="分镜视频生成"
         workflowWritebackTargetLabel="场景衍生"
         storyboards={[]}
-        targetStoryboardId=""
-        onTargetStoryboardChange={vi.fn()}
-        onBindTargetStoryboard={vi.fn()}
         canUseGlobalWorkflowControls={false}
         imageMaterials={[material]}
         storyboardImages={[storyboard]}
@@ -117,9 +108,6 @@ describe("scoped storyboard switcher", () => {
         sourceLabel="分镜成图 · 分镜 5"
         workflowWritebackTargetLabel="分镜 5 · 矿奴队列"
         storyboards={storyboards}
-        targetStoryboardId=""
-        onTargetStoryboardChange={vi.fn()}
-        onBindTargetStoryboard={vi.fn()}
         canUseGlobalWorkflowControls={false}
         imageMaterials={[]}
         storyboardImages={[]}
@@ -153,9 +141,6 @@ describe("scoped storyboard switcher", () => {
         sourceLabel="分镜成图 · 分镜 5"
         workflowWritebackTargetLabel="分镜 5"
         storyboards={storyboards}
-        targetStoryboardId=""
-        onTargetStoryboardChange={vi.fn()}
-        onBindTargetStoryboard={vi.fn()}
         canUseGlobalWorkflowControls={false}
         imageMaterials={[]}
         storyboardImages={[]}
@@ -192,9 +177,6 @@ describe("global-mode storyboard workflow switcher", () => {
         sourceLabel="分镜 5"
         workflowWritebackTargetLabel="分镜 5"
         storyboards={storyboards}
-        targetStoryboardId=""
-        onTargetStoryboardChange={vi.fn()}
-        onBindTargetStoryboard={vi.fn()}
         canUseGlobalWorkflowControls
         imageMaterials={[]}
         storyboardImages={[]}
@@ -207,5 +189,38 @@ describe("global-mode storyboard workflow switcher", () => {
     expect(switcher).toBeTruthy();
     fireEvent.change(switcher, { target: { value: "sb-7" } });
     expect(onSwitch).toHaveBeenCalledWith(expect.objectContaining({ id: "sb-7" }));
+  });
+});
+
+describe("reference palette completeness", () => {
+  it("renders every material and storyboard image beyond the old 24 cap with counts", () => {
+    const materials = Array.from({ length: 30 }, (_, i) => ({
+      id: `m-${i}`, name: `素材${i}.png`, localPath: `p://m${i}.png`, kind: "image" as const,
+    }));
+    const storyboards = Array.from({ length: 39 }, (_, i) => ({
+      id: `sb-${i}`, index: i + 1, prompt: `镜${i}`,
+      mediaRef: { kind: "image" as const, path: `p://s${i}.png` },
+    }));
+    render(
+      <ImageWorkflowSidebar
+        activeGraph={{ id: "g", name: "G", target: { kind: "free" }, nodes: [], edges: [], createdAt: 0, updatedAt: 0 } as never}
+        projectName="道劫"
+        isScopedWorkflowDetail={false}
+        sourceLabel="s"
+        workflowWritebackTargetLabel="t"
+        storyboards={storyboards as never}
+        canUseGlobalWorkflowControls
+        imageMaterials={materials as never}
+        storyboardImages={storyboards as never}
+        onAddReferenceFromMaterial={vi.fn()}
+        onAddReferenceFromStoryboard={vi.fn()}
+      />,
+    );
+    expect(screen.getByText("项目参考图 · 30")).toBeTruthy();
+    expect(screen.getByText("分镜成图 · 39")).toBeTruthy();
+    // 第 25/39 号(旧截断线之外)也渲染
+    expect(screen.getByText("素材24.png")).toBeTruthy();
+    expect(screen.getByText("素材29.png")).toBeTruthy();
+    expect(screen.getByText("分镜 39")).toBeTruthy();
   });
 });

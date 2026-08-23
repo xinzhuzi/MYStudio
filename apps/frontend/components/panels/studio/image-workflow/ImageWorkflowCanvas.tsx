@@ -9,8 +9,9 @@ import {
   useNodesState,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
-import { CanvasViewportControls } from "./CanvasViewportControls";
-import { resolveStoryboardAssetReferences } from "./storyboard-asset-references";
+import { CanvasViewportControls } from "../CanvasViewportControls";
+import { useScopedWorkflowLifecycle } from "./use-scoped-workflow-lifecycle";
+import { useStoryboardWorkflowSwitch } from "./use-storyboard-workflow-switch";
 import {
   ArrowLeft,
  
@@ -41,7 +42,6 @@ import {
   createAssetImageWorkflowGraph,
  
   ensureImageWorkflowPromptNodes,
-  ensureAssetImageWorkflowGraph,
   updateImageWorkflowNode,
   updateImageWorkflowNodePosition,
 } from "@/lib/studio/image-workflow";
@@ -61,16 +61,12 @@ import {
 } from "./image-workflow-node-card";
 import {
  
-  assetWorkflowContextKey,
-  createOpenImageWorkflowGraph,
   focusNodeIdsForGenerated,
-  imageWorkflowTargetKey,
   isAssetOpenContext,
   matchesStoryboardOpenContext,
   openContextTargetLabel,
   resolveActionGeneratedNode,
   resolveGenerationTargetNodeId,
-  resolveOpenContextGeneratedNodeId,
   workflowTargetLabel,
 } from "./image-workflow-graph-utils";
 import { createImageWorkflowReactNodes } from "./image-workflow-react-nodes";
@@ -114,8 +110,6 @@ export function ImageWorkflowCanvas({
   const [flowInstance, setFlowInstance] =
     useState<ReactFlowInstance<ImageWorkflowReactNode, Edge> | null>(null);
   const uploadInputRef = useRef<HTMLInputElement | null>(null);
-  const handledAssetContextKeyRef = useRef("");
-  const activeGraphTargetKeyRef = useRef("");
   const isScopedWorkflowDetail = Boolean(initialAssetContext);
 
   const scopedWorkflow = useMemo(
@@ -212,88 +206,20 @@ export function ImageWorkflowCanvas({
     activeGeneratedNode?.status === "queued";
   const canUseGlobalWorkflowControls = !isScopedWorkflowDetail;
 
-  useEffect(() => {
-    if (activeGraph) {
-      if (activeWorkflowId !== activeGraph.id) setActiveWorkflowId(activeGraph.id);
-      return;
-    }
-    if (initialAssetContext) return;
-    const id = createImageWorkflow({
-      name: `${projectName} 图像工作流`,
-      target: { kind: "free" },
-    });
-    setActiveWorkflowId(id);
-  }, [activeGraph, activeWorkflowId, createImageWorkflow, initialAssetContext, projectName]);
-
-  useEffect(() => {
-    if (!activeGraph) return;
-    const ensured = ensureImageWorkflowPromptNodes(activeGraph);
-    if (ensured !== activeGraph) upsertImageWorkflow(ensured);
-  }, [activeGraph, upsertImageWorkflow]);
-
-  useEffect(() => {
-    if (!activeGraph) return;
-    const targetKey = `${activeGraph.id}|${imageWorkflowTargetKey(activeGraph.target)}`;
-    if (activeGraphTargetKeyRef.current === targetKey) return;
-    activeGraphTargetKeyRef.current = targetKey;
-    setTargetStoryboardId(
-      activeGraph.target.kind === "storyboard" && activeGraph.target.id
-        ? activeGraph.target.id
-        : "",
-    );
-  }, [activeGraph]);
-
-  useEffect(() => {
-    if (!initialAssetContext) return;
-    const contextKey = assetWorkflowContextKey(initialAssetContext);
-    if (
-      handledAssetContextKeyRef.current === contextKey &&
-      activeGraph &&
-      matchesStoryboardOpenContext(activeGraph, initialAssetContext)
-    ) {
-      return;
-    }
-    const existing = initialAssetContext.imageWorkflowId
-      ? imageWorkflows.find((graph) => graph.id === initialAssetContext.imageWorkflowId)
-      : imageWorkflows.find((graph) =>
-          matchesStoryboardOpenContext(graph, initialAssetContext),
-        );
-    if (existing) {
-      const ensured = ensureImageWorkflowPromptNodes(
-        isAssetOpenContext(initialAssetContext)
-          ? ensureAssetImageWorkflowGraph(existing, initialAssetContext)
-          : existing,
-      );
-      if (ensured !== existing) upsertImageWorkflow(ensured);
-      setActiveWorkflowId(existing.id);
-      const selectedId = resolveOpenContextGeneratedNodeId(ensured, initialAssetContext);
-      setSelectedNodeId(selectedId);
-      setPreferredGeneratedNodeId(selectedId);
-      handledAssetContextKeyRef.current = contextKey;
-      return;
-    }
-    // 建新工作流:分镜目标先异步解析关联资产参考图(场景/角色),再建流挂载。
-    // handled key 前置防并发重复创建;解析失败按无参考建流(fail-soft)。
-    handledAssetContextKeyRef.current = contextKey;
-    void (async () => {
-      const assetReferences = initialAssetContext.target.kind === "storyboard"
-        ? await resolveStoryboardAssetReferences(
-            storyboards.find((item) => item.id === initialAssetContext.target.id),
-          ).catch(() => [])
-        : undefined;
-      const graph = isAssetOpenContext(initialAssetContext)
-        ? createAssetImageWorkflowGraph(initialAssetContext, projectName)
-        : createOpenImageWorkflowGraph(
-            { ...initialAssetContext, assetReferences },
-            projectName,
-          );
-      upsertImageWorkflow(graph);
-      setActiveWorkflowId(graph.id);
-      const selectedId = resolveOpenContextGeneratedNodeId(graph, initialAssetContext);
-      setSelectedNodeId(selectedId);
-      setPreferredGeneratedNodeId(selectedId);
-    })();
-  }, [activeGraph, imageWorkflows, initialAssetContext, projectName, storyboards, upsertImageWorkflow]);
+  useScopedWorkflowLifecycle({
+    activeGraph,
+    activeWorkflowId,
+    initialAssetContext,
+    imageWorkflows,
+    storyboards,
+    projectName,
+    upsertImageWorkflow,
+    createImageWorkflow,
+    setActiveWorkflowId,
+    setSelectedNodeId,
+    setPreferredGeneratedNodeId,
+    setTargetStoryboardId,
+  });
 
   const saveGraph = useCallback(
     (graph: ImageWorkflowGraph) => {
@@ -328,7 +254,6 @@ export function ImageWorkflowCanvas({
 
   const {
     createNewFlow,
-    bindTargetStoryboard,
     addReferenceFromMaterial,
     addReferenceFromStoryboard,
     addGeneratedNode,
@@ -360,6 +285,15 @@ export function ImageWorkflowCanvas({
     setSelectedNodeId,
     setPreferredGeneratedNodeId,
     setSelectedEdgeId,
+  });
+
+  const { switchTo: switchStoryboardWorkflowInCanvas } = useStoryboardWorkflowSwitch({
+    imageWorkflows,
+    projectName,
+    upsertImageWorkflow,
+    setActiveWorkflowId,
+    setSelectedNodeId,
+    setPreferredGeneratedNodeId,
   });
 
   const { generateNode } = useImageWorkflowGeneration({
@@ -694,28 +628,13 @@ export function ImageWorkflowCanvas({
         sourceStageLabel={sourceStageLabel}
         workflowWritebackTargetLabel={workflowWritebackTargetLabel}
         storyboards={storyboards}
-        targetStoryboardId={targetStoryboardId}
-        onTargetStoryboardChange={setTargetStoryboardId}
-        onBindTargetStoryboard={bindTargetStoryboard}
         canUseGlobalWorkflowControls={canUseGlobalWorkflowControls}
         imageMaterials={imageMaterials}
         storyboardImages={storyboardImages}
         onAddReferenceFromMaterial={addReferenceFromMaterial}
         onAddReferenceFromStoryboard={addReferenceFromStoryboard}
         onSwitchScopedStoryboard={onOpenStoryboardWorkflow ? (storyboard) => {
-          onOpenStoryboardWorkflow({
-            target: { kind: "storyboard", id: storyboard.id },
-            title: `分镜 ${storyboard.index}`,
-            prompt: storyboard.videoDesc || storyboard.prompt,
-            sourceImagePath: storyboard.mediaRef?.kind === "image" ? storyboard.mediaRef.path : undefined,
-            resultImagePath: storyboard.mediaRef?.kind === "image" ? storyboard.mediaRef.path : undefined,
-            imageWorkflowId: storyboard.imageWorkflowId ?? storyboard.mediaRef?.imageWorkflowId,
-            sourceStage: "storyboard",
-            sourceStageLabel: "分镜视频生成",
-            sourceLabel: `分镜成图 · 分镜 ${storyboard.index}`,
-            storyboardSourceFingerprint: storyboard.sourceFingerprint,
-            storyboardLines: storyboard.lines,
-          });
+          void switchStoryboardWorkflowInCanvas(storyboard);
         } : undefined}
       />
 

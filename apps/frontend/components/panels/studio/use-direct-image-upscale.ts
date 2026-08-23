@@ -4,7 +4,7 @@ import {
   fetchActiveModel,
   guardUpscaleReadiness,
   upscaleProjectImage,
-} from "./use-image-workflow-upscale";
+} from "./image-workflow/use-image-workflow-upscale";
 import { useStudioStore } from "@/stores/studio/studio-store";
 import { setGeneratedImageResult } from "@/lib/studio/image-workflow";
 import {

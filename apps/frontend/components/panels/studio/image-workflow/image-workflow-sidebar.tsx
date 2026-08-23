@@ -1,5 +1,4 @@
-import { GitBranch, Save } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { GitBranch } from "lucide-react";
 import type {
   ImageWorkflowGraph,
   ImageWorkflowOpenContext,
@@ -24,9 +23,6 @@ interface ImageWorkflowSidebarProps {
   sourceStageLabel?: string;
   workflowWritebackTargetLabel: string;
   storyboards: StoryboardItem[];
-  targetStoryboardId: string;
-  onTargetStoryboardChange: (value: string) => void;
-  onBindTargetStoryboard: () => void;
   canUseGlobalWorkflowControls: boolean;
   imageMaterials: StudioMaterial[];
   storyboardImages: StoryboardItem[];
@@ -45,9 +41,6 @@ export function ImageWorkflowSidebar({
   sourceStageLabel,
   workflowWritebackTargetLabel,
   storyboards,
-  targetStoryboardId,
-  onTargetStoryboardChange,
-  onBindTargetStoryboard,
   canUseGlobalWorkflowControls,
   imageMaterials,
   storyboardImages,
@@ -130,30 +123,16 @@ export function ImageWorkflowSidebar({
                 ))}
               </select>
             ) : null}
-            <select
-              value={targetStoryboardId}
-              onChange={(event) => onTargetStoryboardChange(event.target.value)}
-              className="h-8 rounded-md border border-border bg-background/80 px-2 text-xs text-foreground outline-none"
-              title="改变当前工作流的回写目标(选定后需点「绑定当前图」)"
-            >
-              <option value="">改绑回写分镜(选定后点绑定)</option>
-              {storyboards.map((storyboard) => (
-                <option key={storyboard.id} value={storyboard.id}>
-                  分镜 {storyboard.index} · {storyboard.prompt.slice(0, 18)}
-                </option>
-              ))}
-            </select>
-            <Button size="sm" variant="secondary" onClick={onBindTargetStoryboard} disabled={!targetStoryboardId}>
-              <Save className="h-3.5 w-3.5" />
-              绑定当前图
-            </Button>
           </div>
         )}
       </div>
       {canUseGlobalWorkflowControls ? (
         <div className="min-h-0 flex-1 overflow-y-auto p-3">
-          <ImageWorkflowPaletteSection title="项目参考图" emptyText="当前项目暂无参考图">
-            {imageMaterials.slice(0, 24).map((material) => (
+          <ImageWorkflowPaletteSection
+            title={`项目参考图 · ${imageMaterials.length}`}
+            emptyText="当前项目暂无参考图"
+          >
+            {imageMaterials.map((material) => (
               <ImageWorkflowPaletteImageButton
                 key={material.id}
                 title={material.name}
@@ -162,8 +141,11 @@ export function ImageWorkflowSidebar({
               />
             ))}
           </ImageWorkflowPaletteSection>
-          <ImageWorkflowPaletteSection title="分镜成图" emptyText="分镜尚未绑定图片">
-            {storyboardImages.slice(0, 24).map((storyboard) => (
+          <ImageWorkflowPaletteSection
+            title={`分镜成图 · ${storyboardImages.length}`}
+            emptyText="分镜尚未绑定图片"
+          >
+            {storyboardImages.map((storyboard) => (
               <ImageWorkflowPaletteImageButton
                 key={storyboard.id}
                 title={`分镜 ${storyboard.index}`}

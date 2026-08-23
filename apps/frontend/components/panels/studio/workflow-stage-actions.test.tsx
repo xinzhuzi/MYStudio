@@ -3109,3 +3109,18 @@ describe("workflow stage action surfaces", () => {
     expect(screen.getByRole("button", { name: "运行 video-use 预览" })).toBeTruthy();
   });
 });
+
+describe("workflow view entries in stage switcher", () => {
+  it("declares storyboardPanel and imageWorkflow entries in the status bar dropdown", async () => {
+    const { readFileSync } = await import("node:fs");
+    const source = readFileSync(
+      "frontend/components/panels/studio/WorkflowStageStatusBar.tsx",
+      "utf8",
+    );
+    expect(source).toContain("const WORKFLOW_VIEW_ITEMS = [");
+    expect(source).not.toContain('id: "storyboardPanel", label: "分镜面板"');
+    expect(source).toContain('{ id: "imageWorkflow", label: "图像节点图"');
+    expect(source).toContain('data-workflow-view-entry={view.id}');
+    expect(source).toContain("<DropdownMenuLabel>工作流视图</DropdownMenuLabel>");
+  });
+});

@@ -18,8 +18,16 @@ import {
   Check,
   CheckCircle2,
   Clock,
+  Image as ImageIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+
+/** 纯视图型 tab(不在 readiness 流水线,无就绪状态):下拉「工作流视图」组入口。
+ * 分镜面板刻意不在此列——唯一入口是节点图「分镜面板」节点的「进入」按钮
+ * (2026-08-23 用户裁定:其他位置不得出现进入分镜面板的途径)。 */
+const WORKFLOW_VIEW_ITEMS = [
+  { id: "imageWorkflow", label: "图像节点图", Icon: ImageIcon },
+] as const;
 
 export function WorkflowStageStatusBar({
   readiness,
@@ -66,6 +74,27 @@ export function WorkflowStageStatusBar({
                   active={stage.id === activeStage}
                   onClick={() => onStageChange(stage.id)}
                 />
+              ))}
+              <DropdownMenuSeparator />
+              <DropdownMenuLabel>工作流视图</DropdownMenuLabel>
+              {WORKFLOW_VIEW_ITEMS.map((view) => (
+                <DropdownMenuItem
+                  key={view.id}
+                  data-workflow-view-entry={view.id}
+                  className={cn(
+                    "flex items-center justify-between gap-3",
+                    view.id === activeStage && "bg-accent/60",
+                  )}
+                  onClick={() => onStageChange(view.id)}
+                >
+                  <span className="flex items-center gap-2">
+                    <view.Icon className="h-4 w-4 text-info" />
+                    {view.label}
+                  </span>
+                  {view.id === activeStage ? (
+                    <Check className="h-4 w-4 text-success" />
+                  ) : null}
+                </DropdownMenuItem>
               ))}
             </DropdownMenuContent>
           </DropdownMenu>

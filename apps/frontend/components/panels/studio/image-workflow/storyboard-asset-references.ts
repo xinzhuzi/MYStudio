@@ -16,7 +16,7 @@ import type { ImageWorkflowOpenContext, StoryboardItem } from "@/types/studio";
  * 桥缺失/无命中/无图 → 空数组(fail-empty,建流不挂参考)。
  */
 export async function resolveStoryboardAssetReferences(
-  storyboard: Pick<StoryboardItem, "associateAssetsNames"> | undefined,
+  storyboard: Pick<StoryboardItem, "associateAssetsNames"> & Partial<Pick<StoryboardItem, "id">> | undefined,
 ): Promise<ImageWorkflowOpenContext["assetReferences"]> {
   const names = storyboard?.associateAssetsNames ?? [];
   if (!names.length) return [];

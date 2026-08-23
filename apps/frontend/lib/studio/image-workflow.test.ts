@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  ensureStoryboardImageResult,
   addGeneratedImageNode,
   addReferenceImageNode,
   buildAssetImageWorkflowPatch,
@@ -620,5 +621,25 @@ describe("addStoryboardLayeredNodes(08-19 multilayer Child3)", () => {
     // 存量图原节点保留
     const titles = twice.nodes.map((node) => node.title);
     expect(titles).toContain("分镜 3 成图");
+  });
+});
+
+describe("ensureStoryboardImageResult(分镜挂图→成图节点联动愈合)", () => {
+  it("backfills the first empty generated node from a bypassed storyboard mediaRef", () => {
+    let graph = createImageWorkflowGraph({ name: "G", target: { kind: "storyboard", id: "sb-57" } });
+    const generatedId = "gen-x";
+    graph = addGeneratedImageNode(graph, { id: generatedId, title: "分镜 57 成图", prompt: "p", position: { x: 0, y: 0 } });
+    const healed = ensureStoryboardImageResult(graph, "/project/workflow-images/chapter-001/x/gen-1.png");
+    const healedNode = healed.nodes.find(
+      (node): node is Extract<typeof node, { type: "generated" }> =>
+        node.id === generatedId && node.type === "generated",
+    );
+    expect(healedNode?.resultUrl)
+      .toBe("/project/workflow-images/chapter-001/x/gen-1.png");
+    // 幂等:已有结果不动
+    const again = ensureStoryboardImageResult(healed, "/other.png");
+    expect(again).toBe(healed);
+    // 无图/无空节点不动
+    expect(ensureStoryboardImageResult(graph, undefined)).toBe(graph);
   });
 });

@@ -5,7 +5,7 @@ import { NovelTab } from "./NovelTab";
 import { ScriptTab } from "./ScriptTab";
 import { StoryboardPanelTab } from "./StoryboardPanelTab";
 import { WorkbenchTab } from "./WorkbenchTab";
-import { ImageWorkflowCanvas } from "./ImageWorkflowCanvas";
+import { ImageWorkflowCanvas } from "./image-workflow/ImageWorkflowCanvas";
 import { ScriptAssetManagementTab } from "./ScriptAssetManagementTab";
 import { WorkflowNodeCanvas } from "./WorkflowNodeCanvas";
 import { WorkflowNodeEditDialog } from "./WorkflowNodeEditDialog";
@@ -21,7 +21,7 @@ export { WORKFLOW_TABS, resolveVisibleWorkflowStage } from "./workflow-tabs";
 export { AssetsTab } from "./AssetsTab";
 export { ScriptAssetManagementTab } from "./ScriptAssetManagementTab";
 export { WorkbenchTab } from "./WorkbenchTab";
-export { ImageWorkflowCanvas } from "./ImageWorkflowCanvas";
+export { ImageWorkflowCanvas } from "./image-workflow/ImageWorkflowCanvas";
 export { NovelEmptyState, NovelTab } from "./NovelTab";
 export { ScriptTab } from "./ScriptTab";
 export { ManualsTab } from "./ManualsTab";
@@ -129,6 +129,7 @@ export function StudioView() {
               <StoryboardPanelTab
                 storyboards={viewModel.chapterStoryboards}
                 onOpenImageWorkflow={viewModel.openAssetImageWorkflow}
+                onBackToCanvas={() => viewModel.handleStageChange("storyboard")}
               />
             </TabsContent>
 

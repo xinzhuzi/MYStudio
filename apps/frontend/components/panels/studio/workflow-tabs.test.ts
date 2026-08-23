@@ -150,19 +150,19 @@ describe("studio workflow tabs", () => {
 
   it("keeps image workflow files in project-scoped storage instead of the asset library", () => {
     const canvasSource = readFileSync(
-      fileURLToPath(new URL("./ImageWorkflowCanvas.tsx", import.meta.url)),
+      fileURLToPath(new URL("./image-workflow/ImageWorkflowCanvas.tsx", import.meta.url)),
       "utf8",
     );
     const assetBridgeSource = readFileSync(
-      fileURLToPath(new URL("./image-workflow-asset-bridge.ts", import.meta.url)),
+      fileURLToPath(new URL("./image-workflow/image-workflow-asset-bridge.ts", import.meta.url)),
       "utf8",
     );
     const generationSource = readFileSync(
-      fileURLToPath(new URL("./use-image-workflow-generation.ts", import.meta.url)),
+      fileURLToPath(new URL("./image-workflow/use-image-workflow-generation.ts", import.meta.url)),
       "utf8",
     );
     const actionsSource = readFileSync(
-      fileURLToPath(new URL("./use-image-workflow-actions.ts", import.meta.url)),
+      fileURLToPath(new URL("./image-workflow/use-image-workflow-actions.ts", import.meta.url)),
       "utf8",
     );
     const workflowSource = `${canvasSource}\n${assetBridgeSource}\n${generationSource}\n${actionsSource}`;
@@ -173,26 +173,31 @@ describe("studio workflow tabs", () => {
     expect(generationSource).toContain("getProjectFilesBridge()?.saveImage");
     expect(workflowSource).toContain("project-file://");
     expect(canvasSource).toContain("initialAssetContext.imageWorkflowId");
-    expect(canvasSource).toContain("assetWorkflowContextKey");
+    expect(canvasSource).toContain("useScopedWorkflowLifecycle");
+    const lifecycleSource = readFileSync(
+      fileURLToPath(new URL("./image-workflow/use-scoped-workflow-lifecycle.ts", import.meta.url)),
+      "utf8",
+    );
+    expect(lifecycleSource).toContain("assetWorkflowContextKey");
     expect(canvasSource).not.toContain("saveImageToLocal");
     expect(canvasSource).not.toContain("window.studioAssets?.saveMaterial");
   });
 
   it("keeps image workflow detail chrome theme-aware for derived asset drill-down", () => {
     const canvasSource = readFileSync(
-      fileURLToPath(new URL("./ImageWorkflowCanvas.tsx", import.meta.url)),
+      fileURLToPath(new URL("./image-workflow/ImageWorkflowCanvas.tsx", import.meta.url)),
       "utf8",
     );
     const nodeSource = readFileSync(
-      fileURLToPath(new URL("./image-workflow-node-card.tsx", import.meta.url)),
+      fileURLToPath(new URL("./image-workflow/image-workflow-node-card.tsx", import.meta.url)),
       "utf8",
     );
     const sidebarSource = readFileSync(
-      fileURLToPath(new URL("./image-workflow-sidebar.tsx", import.meta.url)),
+      fileURLToPath(new URL("./image-workflow/image-workflow-sidebar.tsx", import.meta.url)),
       "utf8",
     );
     const paletteSource = readFileSync(
-      fileURLToPath(new URL("./image-workflow-palette.tsx", import.meta.url)),
+      fileURLToPath(new URL("./image-workflow/image-workflow-palette.tsx", import.meta.url)),
       "utf8",
     );
     const workflowSource = `${canvasSource}\n${nodeSource}\n${sidebarSource}\n${paletteSource}`;
@@ -215,19 +220,19 @@ describe("studio workflow tabs", () => {
 
   it("keeps image workflow drill-down navigable and non-blank", () => {
     const canvasSource = readFileSync(
-      fileURLToPath(new URL("./ImageWorkflowCanvas.tsx", import.meta.url)),
+      fileURLToPath(new URL("./image-workflow/ImageWorkflowCanvas.tsx", import.meta.url)),
       "utf8",
     );
     const nodeSource = readFileSync(
-      fileURLToPath(new URL("./image-workflow-node-card.tsx", import.meta.url)),
+      fileURLToPath(new URL("./image-workflow/image-workflow-node-card.tsx", import.meta.url)),
       "utf8",
     );
     const sidebarSource = readFileSync(
-      fileURLToPath(new URL("./image-workflow-sidebar.tsx", import.meta.url)),
+      fileURLToPath(new URL("./image-workflow/image-workflow-sidebar.tsx", import.meta.url)),
       "utf8",
     );
     const graphUtilsSource = readFileSync(
-      fileURLToPath(new URL("./image-workflow-graph-utils.ts", import.meta.url)),
+      fileURLToPath(new URL("./image-workflow/image-workflow-graph-utils.ts", import.meta.url)),
       "utf8",
     );
     const indexSource = readFileSync(
@@ -267,15 +272,15 @@ describe("studio workflow tabs", () => {
 
   it("keeps drill-down image workflow detail scoped to the opened node", () => {
     const canvasSource = readFileSync(
-      fileURLToPath(new URL("./ImageWorkflowCanvas.tsx", import.meta.url)),
+      fileURLToPath(new URL("./image-workflow/ImageWorkflowCanvas.tsx", import.meta.url)),
       "utf8",
     );
     const graphUtilsSource = readFileSync(
-      fileURLToPath(new URL("./image-workflow-graph-utils.ts", import.meta.url)),
+      fileURLToPath(new URL("./image-workflow/image-workflow-graph-utils.ts", import.meta.url)),
       "utf8",
     );
     const scopedPendingSource = readFileSync(
-      fileURLToPath(new URL("./image-workflow-scoped-pending.tsx", import.meta.url)),
+      fileURLToPath(new URL("./image-workflow/image-workflow-scoped-pending.tsx", import.meta.url)),
       "utf8",
     );
 
@@ -298,32 +303,36 @@ describe("studio workflow tabs", () => {
 
   it("keeps image workflow toolbar actions bound to the opened graph target", () => {
     const canvasSource = readFileSync(
-      fileURLToPath(new URL("./ImageWorkflowCanvas.tsx", import.meta.url)),
+      fileURLToPath(new URL("./image-workflow/ImageWorkflowCanvas.tsx", import.meta.url)),
       "utf8",
     );
     const graphUtilsSource = readFileSync(
-      fileURLToPath(new URL("./image-workflow-graph-utils.ts", import.meta.url)),
+      fileURLToPath(new URL("./image-workflow/image-workflow-graph-utils.ts", import.meta.url)),
       "utf8",
     );
 
     expect(canvasSource).toContain("preferredGeneratedNodeId");
-    expect(canvasSource).toContain("activeGraphTargetKeyRef");
-    expect(canvasSource).toContain("resolveOpenContextGeneratedNodeId");
+    const lifecycleSource = readFileSync(
+      fileURLToPath(new URL("./image-workflow/use-scoped-workflow-lifecycle.ts", import.meta.url)),
+      "utf8",
+    );
+    expect(lifecycleSource).toContain("activeGraphTargetKeyRef");
+    expect(lifecycleSource).toContain("resolveOpenContextGeneratedNodeId");
     expect(graphUtilsSource).toContain("context.resultImagePath");
-    expect(canvasSource).toContain('target: { kind: "free" }');
-    expect(canvasSource).toContain("setTargetStoryboardId(");
-    expect(canvasSource).toContain("? activeGraph.target.id");
-    expect(canvasSource).toContain(": \"\"");
+    expect(lifecycleSource).toContain('target: { kind: "free" }');
+    expect(lifecycleSource).toContain("setTargetStoryboardId(");
+    expect(lifecycleSource).toContain("? activeGraph.target.id");
+    expect(lifecycleSource).toContain(": \"\"");
   });
 
   it("hydrates legacy image workflows with prompt nodes from every entry path", () => {
-    const canvasSource = readFileSync(
-      fileURLToPath(new URL("./ImageWorkflowCanvas.tsx", import.meta.url)),
+    const lifecycleSource = readFileSync(
+      fileURLToPath(new URL("./image-workflow/use-scoped-workflow-lifecycle.ts", import.meta.url)),
       "utf8",
     );
-
-    expect(canvasSource).toContain("const ensured = ensureImageWorkflowPromptNodes(activeGraph);");
-    expect(canvasSource).toContain("if (ensured !== activeGraph) upsertImageWorkflow(ensured);");
+    expect(lifecycleSource).toContain("ensureImageWorkflowPromptNodes(");
+    expect(lifecycleSource).toContain("ensureStoryboardImageResult(activeGraph, storyboardMediaPath)");
+    expect(lifecycleSource).toContain("if (ensured !== activeGraph) upsertImageWorkflow(ensured);");
   });
 
   it("does not keep the removed Skill conversation implementation mounted", () => {

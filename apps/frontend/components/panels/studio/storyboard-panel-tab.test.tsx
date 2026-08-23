@@ -69,6 +69,19 @@ describe("StoryboardPanelTab(全量分镜面板)", () => {
     );
   });
 
+  it("exposes a back-to-canvas action when wired", () => {
+    const onBackToCanvas = vi.fn();
+    render(
+      <StoryboardPanelTab
+        storyboards={[shot({ id: "sb-1" })]}
+        onOpenImageWorkflow={vi.fn()}
+        onBackToCanvas={onBackToCanvas}
+      />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: /返回节点图/ }));
+    expect(onBackToCanvas).toHaveBeenCalledOnce();
+  });
+
   it("renders the empty state without shot cards", () => {
     render(<StoryboardPanelTab storyboards={[]} onOpenImageWorkflow={vi.fn()} />);
     expect(screen.getByText("尚无分镜,请先生成分镜表")).toBeTruthy();

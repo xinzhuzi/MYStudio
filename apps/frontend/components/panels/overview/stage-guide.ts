@@ -47,11 +47,12 @@ export interface OverviewStageGuideEntry {
  * Ordered stage guide for the project overview. Derived 1:1 from
  * {@link WORKFLOW_TABS} (same order) with a description attached to each.
  */
-export const OVERVIEW_STAGE_GUIDE: OverviewStageGuideEntry[] = WORKFLOW_TABS.map(
-  ({ value, label, Icon }) => ({
+export const OVERVIEW_STAGE_GUIDE: OverviewStageGuideEntry[] = WORKFLOW_TABS
+  // 分镜面板是节点图「进入」专属视图(用户裁定:唯一入口),概览阶段卡不列
+  .filter(({ value }) => value !== "storyboardPanel")
+  .map(({ value, label, Icon }) => ({
     id: value,
     label,
     Icon,
     description: STAGE_DESCRIPTIONS[value] ?? "",
-  }),
-);
+  }));
