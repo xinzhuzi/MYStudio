@@ -133,6 +133,11 @@ export function ImageWorkflowSidebar({
       </div>
       {canUseGlobalWorkflowControls ? (
         <div className="min-h-0 flex-1 overflow-y-auto p-3" data-image-workflow-reference-palette>
+          {assetReferences.length === 0 && workflowOutputs.length === 0 ? (
+            <div className="mb-4 rounded-md border border-border bg-muted/30 px-3 py-4 text-center text-xs text-muted-foreground">
+              当前项目暂无参考图
+            </div>
+          ) : null}
           <ReferencePaletteGroup title={`资产设定图 · ${assetReferences.length}`} defaultOpen>
             {assetReferences.map((material) => (
               <ImageWorkflowPaletteImageButton
