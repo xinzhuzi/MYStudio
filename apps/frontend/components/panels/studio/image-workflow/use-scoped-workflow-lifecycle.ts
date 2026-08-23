@@ -69,11 +69,13 @@ export function useScopedWorkflowLifecycle(input: {
   useEffect(() => {
     if (!activeGraph) return;
     // 联动愈合:分镜已挂图而工作流成图为空(旁路写入) → 补挂后再补提示词节点
-    const storyboardMediaPath = activeGraph.target.kind === "storyboard" && activeGraph.target.id
-      ? storyboards.find((item) => item.id === activeGraph.target.id)?.mediaRef?.kind === "image"
-        ? storyboards.find((item) => item.id === activeGraph.target!.id)?.mediaRef?.path
-        : undefined
+    const storyboardTargetId = activeGraph.target.kind === "storyboard"
+      ? activeGraph.target.id
       : undefined;
+    const storyboardMediaRef = storyboardTargetId
+      ? storyboards.find((item) => item.id === storyboardTargetId)?.mediaRef
+      : undefined;
+    const storyboardMediaPath = storyboardMediaRef?.kind === "image" ? storyboardMediaRef.path : undefined;
     const ensured = ensureImageWorkflowPromptNodes(
       ensureStoryboardImageResult(activeGraph, storyboardMediaPath),
     );
