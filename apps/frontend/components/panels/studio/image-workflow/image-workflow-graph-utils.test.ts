@@ -16,6 +16,7 @@ import {
   nextNodePosition,
   resolveActionGeneratedNode,
   resolveGenerationTargetNodeId,
+  splitImageMaterialsByOrigin,
 } from "./image-workflow-graph-utils";
 
 const context = {
@@ -227,5 +228,20 @@ describe("storyboard workflow style-token prefill", () => {
       resetExtendedManualContentCache();
       await warmExtendedManualStyleTokens("");
     }
+  });
+});
+
+describe("splitImageMaterialsByOrigin", () => {
+  it("splits palette materials into asset references vs workflow outputs by filename prefix", () => {
+    const material = (id: string, localPath: string) =>
+      ({ id, name: id, kind: "image", localPath, sourceName: id, size: 1, importedAt: 1 }) as never;
+    const { assetReferences, workflowOutputs } = splitImageMaterialsByOrigin([
+      material("m1", "project-file://x/assets/ref-abc-1.png"),
+      material("m2", "/p/workflow-images/chapter-001/wf1/gen-abc-2.png"),
+      material("m3", "/p/workflow-images/chapter-001/wf1/up4x-abc-3.png"),
+      material("m4", "uploads/character-sheet.png"),
+    ]);
+    expect(assetReferences.map((item) => item.id)).toEqual(["m1", "m4"]);
+    expect(workflowOutputs.map((item) => item.id)).toEqual(["m2", "m3"]);
   });
 });

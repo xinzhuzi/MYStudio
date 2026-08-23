@@ -1,4 +1,5 @@
-import { GitBranch } from "lucide-react";
+import { useState } from "react";
+import { ChevronDown, ChevronRight, GitBranch } from "lucide-react";
 import type {
   ImageWorkflowGraph,
   ImageWorkflowOpenContext,
@@ -8,6 +9,7 @@ import type {
 import {
   assetTargetLabel,
   isAssetOpenContext,
+  splitImageMaterialsByOrigin,
 } from "./image-workflow-graph-utils";
 import {
   ImageWorkflowPaletteImageButton,
@@ -48,6 +50,9 @@ export function ImageWorkflowSidebar({
   onAddReferenceFromStoryboard,
   onSwitchScopedStoryboard,
 }: ImageWorkflowSidebarProps) {
+  // T3 语义分组:材料库按成图回流(gen-/up4x- 前缀)拆「工作流成图」,
+  // 其余归「资产设定图」;分组与分镜成图三段并列
+  const { assetReferences, workflowOutputs } = splitImageMaterialsByOrigin(imageMaterials);
   return (
     <aside className="flex min-h-0 flex-col border-l border-border bg-card">
       <div className="border-b border-border p-3">
@@ -127,12 +132,9 @@ export function ImageWorkflowSidebar({
         )}
       </div>
       {canUseGlobalWorkflowControls ? (
-        <div className="min-h-0 flex-1 overflow-y-auto p-3">
-          <ImageWorkflowPaletteSection
-            title={`项目参考图 · ${imageMaterials.length}`}
-            emptyText="当前项目暂无参考图"
-          >
-            {imageMaterials.map((material) => (
+        <div className="min-h-0 flex-1 overflow-y-auto p-3" data-image-workflow-reference-palette>
+          <ReferencePaletteGroup title={`资产设定图 · ${assetReferences.length}`} defaultOpen>
+            {assetReferences.map((material) => (
               <ImageWorkflowPaletteImageButton
                 key={material.id}
                 title={material.name}
@@ -140,7 +142,17 @@ export function ImageWorkflowSidebar({
                 onClick={() => onAddReferenceFromMaterial(material)}
               />
             ))}
-          </ImageWorkflowPaletteSection>
+          </ReferencePaletteGroup>
+          <ReferencePaletteGroup title={`工作流成图 · ${workflowOutputs.length}`} defaultOpen>
+            {workflowOutputs.map((material) => (
+              <ImageWorkflowPaletteImageButton
+                key={material.id}
+                title={material.name}
+                imageUrl={material.localPath}
+                onClick={() => onAddReferenceFromMaterial(material)}
+              />
+            ))}
+          </ReferencePaletteGroup>
           <ImageWorkflowPaletteSection
             title={`分镜成图 · ${storyboardImages.length}`}
             emptyText="分镜尚未绑定图片"
@@ -157,5 +169,35 @@ export function ImageWorkflowSidebar({
         </div>
       ) : null}
     </aside>
+  );
+}
+
+/** 参考面板可折叠分组(T3):组多图杂,标题点击收起/展开即组级筛选;空组不渲染。 */
+function ReferencePaletteGroup({
+  title,
+  defaultOpen,
+  children,
+}: {
+  title: string;
+  defaultOpen?: boolean;
+  children: React.ReactNode;
+}) {
+  const [open, setOpen] = useState(Boolean(defaultOpen));
+  const items = Array.isArray(children) ? children : [children];
+  if (items.length === 0) return null;
+  return (
+    <section className="mb-4">
+      <button
+        type="button"
+        data-image-workflow-palette-group
+        aria-expanded={open}
+        onClick={() => setOpen((value) => !value)}
+        className="mb-2 flex w-full items-center gap-1 text-xs font-semibold text-card-foreground"
+      >
+        {open ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
+        {title}
+      </button>
+      {open ? <div className="grid grid-cols-2 gap-2">{children}</div> : null}
+    </section>
   );
 }

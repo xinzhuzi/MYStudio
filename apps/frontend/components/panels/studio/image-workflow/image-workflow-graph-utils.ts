@@ -31,6 +31,7 @@ import type {
   ImageWorkflowPromptNode,
   ImageWorkflowReferenceNode,
   StoryboardItem,
+  StudioMaterial,
 } from "@/types/studio";
 
 export function nextNodePosition(graph: ImageWorkflowGraph, type: ImageWorkflowNode["type"]) {
@@ -364,4 +365,24 @@ export function assetTargetLabel(
         ? "场景衍生"
         : "道具衍生";
   return `${typeLabel} · ${context?.title || target.id || "未命名"}`;
+}
+
+/**
+ * 参考面板材料分组(T3):材料库 kind=image 混着「用户上传/导入的设定参考图」与
+ * 「工作流成图回流」(generation/upscale 完成后 addMaterial 入库)。判据用
+ * createWorkflowFilename 的稳定文件名前缀(产品自写,非启发式):
+ * gen-*(成图)/up4x-*(超分成图) → workflow-output;ref-* 与其余 → asset-reference。
+ */
+export function splitImageMaterialsByOrigin(materials: StudioMaterial[]): {
+  assetReferences: StudioMaterial[];
+  workflowOutputs: StudioMaterial[];
+} {
+  const assetReferences: StudioMaterial[] = [];
+  const workflowOutputs: StudioMaterial[] = [];
+  for (const material of materials) {
+    const baseName = material.localPath.split("/").pop() ?? material.localPath;
+    if (/^(?:gen|up4x)-/i.test(baseName)) workflowOutputs.push(material);
+    else assetReferences.push(material);
+  }
+  return { assetReferences, workflowOutputs };
 }
