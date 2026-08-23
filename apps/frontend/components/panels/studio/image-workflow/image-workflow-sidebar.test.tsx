@@ -216,11 +216,37 @@ describe("reference palette completeness", () => {
         onAddReferenceFromStoryboard={vi.fn()}
       />,
     );
-    expect(screen.getByText("项目参考图 · 30")).toBeTruthy();
+    // T3 语义分组:无 gen-/up4x- 前缀的材料全归资产设定图
+    expect(screen.getByText("资产设定图 · 30")).toBeTruthy();
     expect(screen.getByText("分镜成图 · 39")).toBeTruthy();
     // 第 25/39 号(旧截断线之外)也渲染
     expect(screen.getByText("素材24.png")).toBeTruthy();
     expect(screen.getByText("素材29.png")).toBeTruthy();
     expect(screen.getByText("分镜 39")).toBeTruthy();
+  });
+
+  it("splits palette materials into asset references vs workflow outputs (T3 分组)", () => {
+    const genMaterial = { id: "m-gen", name: "成图A.png", localPath: "p://workflow-images/gen-abc-1.png", kind: "image" as const };
+    const upMaterial = { id: "m-up", name: "超分B.png", localPath: "p://workflow-images/up4x-abc-2.png", kind: "image" as const };
+    const refMaterial = { id: "m-ref", name: "设定C.png", localPath: "p://workflow-images/ref-abc-3.png", kind: "image" as const };
+    render(
+      <ImageWorkflowSidebar
+        activeGraph={{ id: "g", name: "G", target: { kind: "free" }, nodes: [], edges: [], createdAt: 0, updatedAt: 0 } as never}
+        projectName="道劫"
+        isScopedWorkflowDetail={false}
+        sourceLabel="s"
+        workflowWritebackTargetLabel="t"
+        storyboards={[]}
+        canUseGlobalWorkflowControls
+        imageMaterials={[genMaterial, upMaterial, refMaterial] as never}
+        storyboardImages={[]}
+        onAddReferenceFromMaterial={vi.fn()}
+        onAddReferenceFromStoryboard={vi.fn()}
+      />,
+    );
+    expect(screen.getByText("资产设定图 · 1")).toBeTruthy();
+    expect(screen.getByText("工作流成图 · 2")).toBeTruthy();
+    expect(screen.getByText("设定C.png")).toBeTruthy();
+    expect(screen.getByText("成图A.png")).toBeTruthy();
   });
 });

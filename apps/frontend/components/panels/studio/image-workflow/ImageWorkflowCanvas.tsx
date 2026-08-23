@@ -13,31 +13,12 @@ import { CanvasViewportControls } from "../CanvasViewportControls";
 import { useScopedWorkflowLifecycle } from "./use-scoped-workflow-lifecycle";
 import { useStoryboardWorkflowSwitch } from "./use-storyboard-workflow-switch";
 import {
-  ArrowLeft,
- 
   Image as _ImageIcon,
   Loader2,
-  Maximize2,
   Plus,
-  Save,
-  Trash2,
-  Upload,
-  WandSparkles,
-  ZoomIn,
-  Layers,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import { Progress } from "@/components/ui/progress";
 import {
   updateImageWorkflowNode,
   updateImageWorkflowNodePosition,
@@ -52,7 +33,6 @@ import type {
  
  
 } from "@/types/studio";
-import { cn } from "@/lib/utils";
 import {
   ImageWorkflowNodeCard,
   type ImageWorkflowReactNode,
@@ -73,6 +53,11 @@ import { useImageWorkflowGeneration } from "./use-image-workflow-generation";
 import { useImageWorkflowUpscale } from "./use-image-workflow-upscale";
 import { useImageWorkflowActions } from "./use-image-workflow-actions";
 import { ImageWorkflowSidebar } from "./image-workflow-sidebar";
+import { ImageWorkflowCanvasToolbar } from "./image-workflow-canvas-toolbar";
+import {
+  ImageWorkflowBatchUpscaleDialog,
+  ImageWorkflowBatchUpscaleProgress,
+} from "./image-workflow-batch-upscale-dialog";
 
 const nodeTypes = { imageWorkflow: ImageWorkflowNodeCard };
 const FIT_VIEW_OPTIONS = { padding: 0.18, minZoom: 0.35, maxZoom: 1.1 } as const;
@@ -454,184 +439,38 @@ export function ImageWorkflowCanvas({
           uploadInputRef={uploadInputRef}
           onUploadReference={handleUploadReference}
         />
-        <div className="absolute left-3 right-3 top-3 z-20 flex flex-wrap items-center gap-2 rounded-md border border-border bg-card p-2 text-card-foreground">
-          {onBack ? (
-            <Button size="sm" variant="ghost" onClick={onBack}>
-              <ArrowLeft className="h-3.5 w-3.5" />
-              返回
-            </Button>
-          ) : null}
-          <div className={cn("flex min-w-[180px] flex-1 items-center text-xs", onBack ? "border-l border-border pl-2" : "")}>
-            <span className="shrink-0 text-muted-foreground">来源</span>
-            <span className="ml-2 truncate font-medium">
-              {sourceStageLabel ? `${sourceStageLabel} / ${sourceLabel}` : sourceLabel}
-            </span>
-          </div>
-          {activeGraph?.target.kind === "storyboard" ? (
-            <Button size="sm" data-image-workflow-layered-action variant="outline" onClick={addStoryboardLayeredPair}>
-              <Layers className="h-3.5 w-3.5" />
-              分层节点对
-            </Button>
-          ) : null}
-          {chromeReady && styleTraceChips.length ? (
-            <div
-              data-image-workflow-style-trace
-              className="flex min-w-[220px] flex-1 flex-wrap items-center gap-1 border-l border-border pl-2 text-[10px] leading-4"
-            >
-              <span className="shrink-0 text-muted-foreground">风格依据</span>
-              {styleTraceChips.map((chip) => (
-                <span
-                  key={chip}
-                  title={`本次生图装配引用:${chip}`}
-                  className="rounded-full border border-primary/25 bg-primary/10 px-1.5 py-0.5 text-primary/85"
-                >
-                  {chip}
-                </span>
-              ))}
-            </div>
-          ) : null}
-          {canUseGlobalWorkflowControls ? (
-            <>
-              <select
-                data-image-workflow-selector
-                value={activeGraph.id}
-                onChange={(event) => {
-                  setActiveWorkflowId(event.target.value);
-                  setSelectedNodeId(null);
-                  setPreferredGeneratedNodeId(null);
-                }}
-                className="h-8 max-w-[260px] rounded-md border border-border bg-background/80 px-2 text-xs text-foreground outline-none"
-              >
-                {/* 分代分组:当前代分镜工作流(带内容指纹)与上一代遗留分开列出,
-                    防止同名「分镜 N 图片工作流」新旧混淆(2026-08-23 用户实证割裂)。
-                    首帧只挂当前项,完整列表延后一帧(chromeReady)再补,避免进入画布
-                    瞬间一次性铺全部 <option> 卡顿(功能不变,展开时已补齐)。 */}
-                {chromeReady ? (
-                  <>
-                <optgroup label="当前代">
-                  {imageWorkflows
-                    .filter((graph) => !(graph.target.kind === "storyboard" && !graph.targetSourceFingerprint))
-                    .map((graph) => (
-                      <option key={graph.id} value={graph.id}>
-                        {graph.name}
-                      </option>
-                    ))}
-                </optgroup>
-                {imageWorkflows.some((graph) => graph.target.kind === "storyboard" && !graph.targetSourceFingerprint) ? (
-                  <optgroup label="上一代遗留(同 id 旧分镜表)">
-                    {imageWorkflows
-                      .filter((graph) => graph.target.kind === "storyboard" && !graph.targetSourceFingerprint)
-                      .map((graph) => (
-                        <option key={graph.id} value={graph.id}>
-                          {graph.name}
-                        </option>
-                      ))}
-                  </optgroup>
-                ) : null}
-                  </>
-                ) : (
-                  <option value={activeGraph.id}>{activeGraph.name}</option>
-                )}
-              </select>
-              <Button
-                size="sm"
-                variant="secondary"
-                data-image-workflow-global-action
-                onClick={createNewFlow}
-              >
-                <Plus className="h-3.5 w-3.5" />
-                新建
-              </Button>
-              <Button
-                size="sm"
-                variant="outline"
-                data-image-workflow-global-action
-                onClick={() => uploadInputRef.current?.click()}
-              >
-                <Upload className="h-3.5 w-3.5" />
-                上传参考
-              </Button>
-              <Button size="sm" data-image-workflow-global-action onClick={addGeneratedNode}>
-                <WandSparkles className="h-3.5 w-3.5" />
-                生成节点
-              </Button>
-
-            </>
-          ) : (
-            <div className="max-w-[300px] truncate rounded-md border border-border bg-muted/30 px-2 py-1.5 text-xs font-medium text-card-foreground">
-              {activeGraph.name}
-            </div>
-          )}
-          <div className="flex min-w-[180px] max-w-[320px] items-center gap-1.5 rounded-md border border-info/25 bg-info/10 px-2 py-1 text-[11px] text-info">
-            <Save className="h-3.5 w-3.5 shrink-0" />
-            <span className="shrink-0 text-info/75">回写目标</span>
-            <span className="truncate font-medium">{workflowWritebackTargetLabel}</span>
-          </div>
-          <Button
-            size="sm"
-            onClick={() => activeGeneratedNode && void generateNode(activeGeneratedNode.id)}
-            disabled={!activeGeneratedNode || selectedGenerationBusy}
-          >
-            {selectedGenerationBusy ? (
-              <Loader2 className="h-3.5 w-3.5 animate-spin" />
-            ) : (
-              <WandSparkles className="h-3.5 w-3.5" />
-            )}
-            运行生成
-          </Button>
-          <Button
-            size="sm"
-            variant="secondary"
-            onClick={() => activeGeneratedNode && applyNodeToStoryboard(activeGeneratedNode.id)}
-            disabled={!activeGeneratedNode?.resultUrl}
-          >
-            <Save className="h-3.5 w-3.5" />
-            写回目标
-          </Button>
-          <Button
-            size="sm"
-            variant="outline"
-            data-image-workflow-batch-upscale
-            onClick={openBatchUpscaleDialog}
-            disabled={upscalableNodes.length === 0 || upscaleBatchState.running || isUpscaling}
-            title="勾选多个成图节点,本地 ×4 批量超分"
-          >
-            <ZoomIn className="h-3.5 w-3.5" />
-            批量超分
-          </Button>
-          {activeGraph.target.kind === "asset" ? (
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() =>
-                activeGeneratedNode && void storeGeneratedNodeInAssetLibrary(activeGeneratedNode.id)
-              }
-              disabled={!activeGeneratedNode?.resultUrl}
-            >
-              <Save className="h-3.5 w-3.5" />
-              放入资产库
-            </Button>
-          ) : null}
-          {selectedEdgeId && canUseGlobalWorkflowControls ? (
-            <Button
-              size="sm"
-              variant="destructive"
-              data-image-workflow-global-action
-              onClick={deleteSelectedEdge}
-            >
-              <Trash2 className="h-3.5 w-3.5" />
-              删除连线
-            </Button>
-          ) : null}
-          <Button
-            size="icon"
-            variant="ghost"
-            aria-label="适配画布"
-            onClick={handleFitView}
-          >
-            <Maximize2 className="h-4 w-4" />
-          </Button>
-        </div>
+        <ImageWorkflowCanvasToolbar
+          onBack={onBack}
+          sourceLabel={sourceLabel}
+          sourceStageLabel={sourceStageLabel}
+          activeGraph={activeGraph}
+          chromeReady={chromeReady}
+          styleTraceChips={styleTraceChips}
+          canUseGlobalWorkflowControls={canUseGlobalWorkflowControls}
+          imageWorkflows={imageWorkflows}
+          onSelectorChange={(workflowId) => {
+            setActiveWorkflowId(workflowId);
+            setSelectedNodeId(null);
+            setPreferredGeneratedNodeId(null);
+          }}
+          onCreateNewFlow={createNewFlow}
+          onUploadReferenceClick={() => uploadInputRef.current?.click()}
+          onAddGeneratedNode={addGeneratedNode}
+          onAddStoryboardLayeredPair={addStoryboardLayeredPair}
+          workflowWritebackTargetLabel={workflowWritebackTargetLabel}
+          activeGeneratedNode={activeGeneratedNode}
+          selectedGenerationBusy={selectedGenerationBusy}
+          onGenerate={(nodeId) => void generateNode(nodeId)}
+          onApplyToStoryboard={(nodeId) => void applyNodeToStoryboard(nodeId)}
+          upscalableCount={upscalableNodes.length}
+          upscaleRunning={upscaleBatchState.running || isUpscaling}
+          onOpenBatchUpscale={openBatchUpscaleDialog}
+          onStoreInAssetLibrary={(nodeId) => void storeGeneratedNodeInAssetLibrary(nodeId)}
+          showStoreInAssetLibrary={activeGraph.target.kind === "asset"}
+          selectedEdgeId={selectedEdgeId}
+          onDeleteSelectedEdge={deleteSelectedEdge}
+          onFitView={handleFitView}
+        />
       </div>
 
       <ImageWorkflowSidebar
@@ -653,81 +492,19 @@ export function ImageWorkflowCanvas({
         } : undefined}
       />
 
-      {/* 批量超分勾选清单 */}
-      <Dialog open={isBatchUpscaleDialogOpen} onOpenChange={setIsBatchUpscaleDialogOpen}>
-        <DialogContent className="max-w-[480px]">
-          <DialogHeader>
-            <DialogTitle>批量超分 4K</DialogTitle>
-            <DialogDescription>
-              勾选要放大的成图节点(本地 Real-ESRGAN 原生 ×4,逐张顺序执行,可随时取消)。
-            </DialogDescription>
-          </DialogHeader>
-          <div className="max-h-[320px] space-y-1.5 overflow-y-auto" data-image-workflow-batch-upscale-list>
-            {upscalableNodes.map((node) => (
-              <label
-                key={node.id}
-                className="flex cursor-pointer items-center gap-2 rounded-md border border-border bg-muted/20 px-3 py-2 text-sm"
-              >
-                <Checkbox
-                  checked={batchUpscaleSelection.has(node.id)}
-                  onCheckedChange={(checked) => {
-                    setBatchUpscaleSelection((previous) => {
-                      const next = new Set(previous);
-                      if (checked) next.add(node.id);
-                      else next.delete(node.id);
-                      return next;
-                    });
-                  }}
-                />
-                <span className="min-w-0 truncate">{node.title || node.id}</span>
-                <span className="ml-auto shrink-0 text-xs text-muted-foreground">{node.status}</span>
-              </label>
-            ))}
-          </div>
-          <DialogFooter>
-            <Button variant="ghost" size="sm" onClick={() => setIsBatchUpscaleDialogOpen(false)}>
-              取消
-            </Button>
-            <Button size="sm" onClick={startBatchUpscale} disabled={batchUpscaleSelection.size === 0}>
-              <ZoomIn className="mr-1 h-3.5 w-3.5" />
-              超分 {batchUpscaleSelection.size} 张
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* 批量超分进度浮层 */}
-      {upscaleBatchState.running ? (
-        <div
-          className="absolute bottom-4 right-4 z-30 w-[320px] rounded-lg border border-border bg-card p-3"
-          data-image-workflow-batch-upscale-progress
-        >
-          <div className="mb-2 flex items-center justify-between gap-2 text-sm">
-            <span className="flex min-w-0 items-center gap-1.5 font-medium">
-              <Loader2 className="h-3.5 w-3.5 animate-spin" />
-              <span className="truncate">批量超分：{upscaleBatchState.currentNodeTitle ?? "…"}</span>
-            </span>
-            <span className="shrink-0 text-xs text-muted-foreground">
-              {upscaleBatchState.completed + upscaleBatchState.failed}/{upscaleBatchState.total}
-            </span>
-          </div>
-          <Progress
-            value={
-              upscaleBatchState.total > 0
-                ? ((upscaleBatchState.completed + upscaleBatchState.failed) / upscaleBatchState.total) * 100
-                : 0
-            }
-          />
-          {upscaleBatchState.failed > 0 ? (
-            <p className="mt-1.5 text-xs text-destructive">失败 {upscaleBatchState.failed} 张(已跳过,继续处理)</p>
-          ) : null}
-          <div className="mt-2 flex justify-end">
-            <Button size="sm" variant="ghost" onClick={cancelUpscaleBatch}>
-              取消剩余
-            </Button>
-          </div>
-        </div>
-      ) : null}
+      {/* 批量超分勾选清单 + 进行中进度浮层(T2 抽组件) */}
+      <ImageWorkflowBatchUpscaleDialog
+        open={isBatchUpscaleDialogOpen}
+        onOpenChange={setIsBatchUpscaleDialogOpen}
+        upscalableNodes={upscalableNodes}
+        selection={batchUpscaleSelection}
+        onSelectionChange={setBatchUpscaleSelection}
+        onStart={startBatchUpscale}
+      />
+      <ImageWorkflowBatchUpscaleProgress
+        state={upscaleBatchState}
+        onCancel={cancelUpscaleBatch}
+      />
     </section>
   );
 }

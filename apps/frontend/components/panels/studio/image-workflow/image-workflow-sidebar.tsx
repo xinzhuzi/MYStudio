@@ -192,7 +192,7 @@ function ReferencePaletteGroup({
         data-image-workflow-palette-group
         aria-expanded={open}
         onClick={() => setOpen((value) => !value)}
-        className="mb-2 flex w-full items-center gap-1 text-xs font-semibold text-card-foreground"
+        className="mb-2 flex w-full items-center gap-1 rounded-md px-1 py-0.5 text-xs font-semibold text-card-foreground"
       >
         {open ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
         {title}

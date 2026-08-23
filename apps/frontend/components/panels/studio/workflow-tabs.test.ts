@@ -245,13 +245,17 @@ describe("studio workflow tabs", () => {
     );
 
     expect(canvasSource).toContain("onBack");
-    expect(canvasSource).toContain("返回");
-    expect(canvasSource).not.toContain(["返回", "工作流"].join(""));
-    expect(canvasSource).toContain("来源");
+    const toolbarSource = readFileSync(
+      fileURLToPath(new URL("./image-workflow/image-workflow-canvas-toolbar.tsx", import.meta.url)),
+      "utf8",
+    );
+    expect(toolbarSource).toContain("返回");
+    expect(toolbarSource).not.toContain(["返回", "工作流"].join(""));
+    expect(toolbarSource).toContain("来源");
     expect(canvasSource).toContain("initialAssetContext?.sourceLabel");
     expect(canvasSource).toContain("workflowWritebackTargetLabel");
-    expect(canvasSource).toContain("运行生成");
-    expect(canvasSource).toContain("写回目标");
+    expect(toolbarSource).toContain("运行生成");
+    expect(toolbarSource).toContain("写回目标");
     expect(canvasSource).toContain("isScopedWorkflowDetail");
     expect(canvasSource).toContain("canUseGlobalWorkflowControls");
     expect(sidebarSource).toContain("data-scoped-image-workflow-summary");
@@ -283,6 +287,10 @@ describe("studio workflow tabs", () => {
       fileURLToPath(new URL("./image-workflow/image-workflow-scoped-pending.tsx", import.meta.url)),
       "utf8",
     );
+    const toolbarSource = readFileSync(
+      fileURLToPath(new URL("./image-workflow/image-workflow-canvas-toolbar.tsx", import.meta.url)),
+      "utf8",
+    );
 
     expect(canvasSource).toContain("const canUseGlobalWorkflowControls = !isScopedWorkflowDetail;");
     expect(canvasSource).toContain("initialAssetContext.imageWorkflowId");
@@ -292,13 +300,13 @@ describe("studio workflow tabs", () => {
     expect(canvasSource).toContain("<ImageWorkflowScopedPending");
     expect(canvasSource).toContain("writebackTargetLabel={scopedPendingWritebackTargetLabel}");
     expect(graphUtilsSource).toContain("openContextTargetLabel");
-    expect(canvasSource).toContain("{canUseGlobalWorkflowControls ? (");
-    expect(canvasSource).toContain("{selectedEdgeId && canUseGlobalWorkflowControls ? (");
+    expect(toolbarSource).toContain("{canUseGlobalWorkflowControls ? (");
+    expect(toolbarSource).toContain("{selectedEdgeId && canUseGlobalWorkflowControls ? (");
     expect(scopedPendingSource).toContain("data-scoped-image-workflow-summary");
-    expect(canvasSource).toContain("data-image-workflow-selector");
-    expect(canvasSource).toContain('optgroup label="当前代"');
-    expect(canvasSource).toContain('optgroup label="上一代遗留(同 id 旧分镜表)"');
-    expect(canvasSource).toContain("data-image-workflow-global-action");
+    expect(toolbarSource).toContain("data-image-workflow-selector");
+    expect(toolbarSource).toContain('optgroup label="当前代"');
+    expect(toolbarSource).toContain('optgroup label="上一代遗留(同 id 旧分镜表)"');
+    expect(toolbarSource).toContain("data-image-workflow-global-action");
   });
 
   it("keeps image workflow toolbar actions bound to the opened graph target", () => {
