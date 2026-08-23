@@ -17,9 +17,9 @@ import {
   SUBJECT_CUTOUT_NEGATIVE_ANCHORS,
   buildBackgroundPlatePrompt,
   buildSubjectCutoutPrompt,
-} from "./layered-generation";
+} from "../layered-generation";
 import { useAppSettingsStore } from "@/stores/app/app-settings-store";
-import { buildContinuityPrompt } from "./visual-continuity";
+import { buildContinuityPrompt } from "../visual-continuity";
 
 export interface CreateImageWorkflowGraphInput {
   id?: string;
@@ -80,30 +80,6 @@ export interface AddPromptImageNodeInput {
   position: ImageWorkflowNodePosition;
   createdAt?: number;
 }
-
-export interface ImageWorkflowGenerationRequest {
-  prompt: string;
-  model?: string;
-  aspectRatio: string;
-  quality: ImageWorkflowGeneratedNode["quality"];
-  resolution?: string;
-  negativePrompt?: string;
-  referenceImages: string[];
-  orderedReferenceManifest: {
-    order: number;
-    imageUrl: string;
-    versionId?: string;
-    referenceRole?: string;
-    identityAnchors?: StoryboardOrderedReferenceMetadata["identityAnchors"];
-    negativePrompt?: StoryboardOrderedReferenceMetadata["negativePrompt"];
-    wardrobeVersion?: string;
-    characterViewType?: CharacterReferenceViewType;
-    sceneViewpointId?: string;
-  }[];
-  continuityRequired: boolean;
-  previousApprovedFrameIncluded: boolean;
-}
-
 export interface StoryboardImageWorkflowReferenceInput {
   assetId: string;
   assetType: ImageWorkflowAssetTargetType;
@@ -121,15 +97,7 @@ export interface StoryboardImageWorkflowReferenceInput {
   characterViewType?: CharacterReferenceViewType;
   sceneViewpointId?: string;
 }
-
-type StoryboardOrderedReferenceMetadata = NonNullable<StoryboardItem["orderedReferenceManifest"]>[number];
-
-export interface AssetImageWorkflowPatch {
-  imageUrl: string;
-  imageWorkflowId: string;
-  imageWorkflowNodeId: string;
-  generatedAt?: number;
-}
+export type StoryboardOrderedReferenceMetadata = NonNullable<StoryboardItem["orderedReferenceManifest"]>[number];
 
 export function createImageWorkflowGraph(input: CreateImageWorkflowGraphInput = {}): ImageWorkflowGraph {
   const now = input.createdAt ?? Date.now();
@@ -583,153 +551,6 @@ export function removeImageWorkflowEdge(
   }, updatedAt);
 }
 
-export function buildImageWorkflowGenerationRequest(
-  graph: ImageWorkflowGraph,
-  nodeId: string,
-): ImageWorkflowGenerationRequest {
-  const node = getGeneratedNode(graph, nodeId);
-  const promptNode = findPromptNodeForGenerated(graph, nodeId);
-  const promptSource = promptNode ?? node;
-  const connectedNodes = graph.edges
-    .filter((edge) => edge.target === nodeId)
-    .map((edge) => graph.nodes.find((candidate) => candidate.id === edge.source));
-  const orderedReferenceNodes = connectedNodes
-    .filter((candidate): candidate is ImageWorkflowReferenceNode => candidate?.type === "reference" && Boolean(candidate.imageUrl))
-    .sort((left, right) => (left.continuityOrder ?? Number.MAX_SAFE_INTEGER) - (right.continuityOrder ?? Number.MAX_SAFE_INTEGER));
-  const orderedReferenceManifest: ImageWorkflowGenerationRequest["orderedReferenceManifest"] = connectedNodes
-    .flatMap((candidate): ImageWorkflowGenerationRequest["orderedReferenceManifest"] => {
-      if (!candidate) return [];
-      if (candidate.type === "reference" && candidate.imageUrl) {
-        return [{
-          order: candidate.continuityOrder ?? Number.MAX_SAFE_INTEGER,
-          imageUrl: candidate.imageUrl,
-          versionId: candidate.continuityVersionId,
-          referenceRole: candidate.referenceRole,
-          identityAnchors: candidate.identityAnchors,
-          negativePrompt: candidate.negativePrompt,
-          wardrobeVersion: candidate.wardrobeVersion,
-          characterViewType: candidate.characterViewType,
-          sceneViewpointId: candidate.sceneViewpointId,
-        }];
-      }
-      if (candidate.type === "generated" && candidate.resultUrl) {
-        return [{
-          order: Number.MAX_SAFE_INTEGER,
-          imageUrl: candidate.resultUrl,
-          referenceRole: "previous-approved-frame" as const,
-        }];
-      }
-      return [];
-    })
-    .sort((left, right) => left.order - right.order);
-  const referenceImages = orderedReferenceManifest.map((reference) => reference.imageUrl);
-  const continuityRequired = orderedReferenceManifest.some((reference) => Boolean(reference.versionId));
-  const referenceContract = buildReferenceContinuityContract(orderedReferenceNodes);
-  const basePrompt = promptSource.prompt.trim();
-  const prompt = referenceContract && !basePrompt.includes("【资产圣经】")
-    ? `${basePrompt} ${referenceContract}`.trim()
-    : basePrompt;
-  const negativePrompt = mergeReferenceNegativePrompt(promptSource.negativePrompt, orderedReferenceNodes);
-
-  return {
-    prompt,
-    model: promptSource.model,
-    aspectRatio: promptSource.aspectRatio,
-    quality: promptSource.quality,
-    resolution: promptSource.resolution,
-    negativePrompt,
-    referenceImages,
-    orderedReferenceManifest,
-    continuityRequired,
-    previousApprovedFrameIncluded: orderedReferenceManifest.some(
-      (reference) => reference.referenceRole === "previous-approved-frame",
-    ),
-  };
-}
-
-function buildReferenceContinuityContract(references: ImageWorkflowReferenceNode[]): string {
-  const characterGroups = new Map<string, {
-    markers: string[];
-    title: string;
-    views: CharacterReferenceViewType[];
-  }>();
-  references.forEach((reference, index) => {
-    if (reference.source?.kind !== "asset" || reference.source.assetType !== "character") return;
-    const key = `${reference.source.id}:${reference.continuityVersionId ?? "base"}`;
-    const group = characterGroups.get(key) ?? {
-      markers: [],
-      title: reference.title,
-      views: [],
-    };
-    group.markers.push(`@图${index + 1}`);
-    if (reference.characterViewType) group.views.push(reference.characterViewType);
-    characterGroups.set(key, group);
-  });
-  const multiViewRules = [...characterGroups.values()]
-    .filter((group) => group.markers.length > 1 && group.views.length === group.markers.length)
-    .map((group) => (
-      `${group.markers.join("/")} 为${group.title}同一角色、同一版本的 ${group.views.join("/")} 参考视图，`
-      + "不是三个人；该角色在本镜只允许出现一个实例。"
-    ));
-  const rules = references.flatMap((reference, index) => {
-    const marker = `@图${index + 1}`;
-    if (reference.source?.assetType === "character") {
-      const anchors = reference.identityAnchors;
-      const anchorParts = [
-        anchors?.faceShape,
-        anchors?.jawline,
-        anchors?.cheekbones,
-        anchors?.eyeShape,
-        anchors?.eyeDetails,
-        anchors?.noseShape,
-        anchors?.lipShape,
-        ...(anchors?.uniqueMarks ?? []),
-        anchors?.skinTexture,
-        anchors?.hairStyle,
-        anchors?.hairlineDetails,
-      ].filter((value): value is string => Boolean(value?.trim()));
-      const colorText = Object.entries(anchors?.colorAnchors ?? {})
-        .filter((entry): entry is [string, string] => Boolean(entry[1]))
-        .map(([key, value]) => `${key}:${value}`)
-        .join("、");
-      if (!anchorParts.length && !colorText && !reference.wardrobeVersion) return [];
-      return [`${marker}身份锚点：${anchorParts.join("；")}${colorText ? `；色彩锚点：${colorText}` : ""}${reference.wardrobeVersion ? `；服装版本：${reference.wardrobeVersion}` : ""}${reference.characterViewType ? `；角色视图：${reference.characterViewType}` : ""}`];
-    }
-    if (reference.source?.assetType === "scene" && reference.sceneViewpointId) {
-      return [`${marker}场景圣经：视角：${reference.sceneViewpointId}`];
-    }
-    return [];
-  });
-  return [
-    multiViewRules.length ? `【多视图身份锁】${multiViewRules.join(" ")}` : "",
-    rules.length ? `【资产圣经】${rules.join(" ")}` : "",
-  ].filter(Boolean).join(" ");
-}
-
-function mergeReferenceNegativePrompt(
-  base: string | undefined,
-  references: ImageWorkflowReferenceNode[],
-): string | undefined {
-  const parts = [
-    base,
-    ...references.flatMap((reference) => [
-      ...(reference.negativePrompt?.avoid ?? []),
-      ...(reference.negativePrompt?.styleExclusions ?? []),
-    ]),
-  ].filter((value): value is string => Boolean(value?.trim()));
-  return parts.length ? [...new Set(parts)].join(", ") : undefined;
-}
-
-export function assertImageWorkflowContinuityCapability(request: ImageWorkflowGenerationRequest) {
-  if (!request.continuityRequired) return;
-  if (!request.model || !/(^|[-_:/])gpt[-_]?image/i.test(request.model)) {
-    throw new Error(`当前图片模型 ${request.model || "未配置"} 未通过多参考图连续性能力门禁`);
-  }
-  if (request.orderedReferenceManifest.some((reference, index) => reference.order !== index + 1)) {
-    throw new Error("连续性参考图顺序不连续");
-  }
-}
-
 export function setGeneratedImageStatus(
   graph: ImageWorkflowGraph,
   nodeId: string,
@@ -745,26 +566,6 @@ export function setGeneratedImageStatus(
     updatedAt,
   );
 }
-
-/**
- * 分镜挂图→工作流成图节点的联动愈合:批量脚本等旁路会把图直接写进
- * storyboard.mediaRef(2026-08-23 实证 21 镜),工作流成图节点因此空置,
- * 两个界面状态对不上。此处把首个无结果的 generated 节点补挂该图,
- * 使图像节点图与分镜面板所见一致(幂等:已有结果/无图不动)。
- */
-export function ensureStoryboardImageResult(
-  graph: ImageWorkflowGraph,
-  mediaRefPath: string | undefined,
-): ImageWorkflowGraph {
-  if (!mediaRefPath) return graph;
-  const node = graph.nodes.find(
-    (candidate): candidate is ImageWorkflowGeneratedNode =>
-      candidate.type === "generated" && !candidate.resultUrl,
-  );
-  if (!node) return graph;
-  return setGeneratedImageResult(graph, node.id, { imageUrl: mediaRefPath });
-}
-
 export function setGeneratedImageResult(
   graph: ImageWorkflowGraph,
   nodeId: string,
@@ -785,44 +586,6 @@ export function setGeneratedImageResult(
     generatedAt,
   );
 }
-
-export function buildStoryboardImageWorkflowPatch(
-  graph: ImageWorkflowGraph,
-  nodeId: string,
-): Pick<StoryboardItem, "mediaRef" | "imageWorkflowId" | "imageWorkflowNodeId" | "state"> {
-  const node = getGeneratedNode(graph, nodeId);
-  if (!node.resultUrl) {
-    throw new Error("生成节点还没有可回写的图片");
-  }
-  return {
-    mediaRef: {
-      kind: "image",
-      path: node.resultUrl,
-      imageWorkflowId: graph.id,
-      imageWorkflowNodeId: node.id,
-    },
-    imageWorkflowId: graph.id,
-    imageWorkflowNodeId: node.id,
-    state: "ready",
-  };
-}
-
-export function buildAssetImageWorkflowPatch(
-  graph: ImageWorkflowGraph,
-  nodeId: string,
-): AssetImageWorkflowPatch {
-  const node = getGeneratedNode(graph, nodeId);
-  if (!node.resultUrl) {
-    throw new Error("生成节点还没有可回写的图片");
-  }
-  return {
-    imageUrl: node.resultUrl,
-    imageWorkflowId: graph.id,
-    imageWorkflowNodeId: node.id,
-    generatedAt: node.generatedAt,
-  };
-}
-
 export function getGeneratedNode(graph: ImageWorkflowGraph, nodeId: string): ImageWorkflowGeneratedNode {
   const node = graph.nodes.find((item) => item.id === nodeId);
   if (!node || node.type !== "generated") {
@@ -831,7 +594,7 @@ export function getGeneratedNode(graph: ImageWorkflowGraph, nodeId: string): Ima
   return node;
 }
 
-function findPromptNodeForGenerated(
+export function findPromptNodeForGenerated(
   graph: ImageWorkflowGraph,
   generatedNodeId: string,
 ): ImageWorkflowPromptNode | undefined {
@@ -923,7 +686,6 @@ export function createId(prefix: string, time = Date.now()) {
 function touchGraph(graph: ImageWorkflowGraph, updatedAt: number): ImageWorkflowGraph {
   return { ...graph, updatedAt };
 }
-
 /**
  * 分层生图节点扩展（08-19 multilayer-composition Child3，parent D1 原生分层）：
  * 在既有分镜图模型上追加两个 generated 节点——
