@@ -39,13 +39,11 @@ import {
 } from "@/components/ui/dialog";
 import { Progress } from "@/components/ui/progress";
 import {
-  createAssetImageWorkflowGraph,
- 
-  ensureImageWorkflowPromptNodes,
   updateImageWorkflowNode,
   updateImageWorkflowNodePosition,
 } from "@/lib/studio/image-workflow";
 import { useStudioStore } from "@/stores/studio/studio-store";
+import { useStudioWorkflowHydrated } from "@/stores/studio/use-studio-workflow-hydrated";
 import type {
   ImageWorkflowGeneratedNode,
   ImageWorkflowGraph,
@@ -102,6 +100,8 @@ export function ImageWorkflowCanvas({
     applyImageWorkflowResultToAsset,
     applyImageWorkflowResultToStoryboard,
   } = useStudioStore();
+  // T4 水合竞态:启动/切项目 rehydrate 窗口内禁止自动新建工作流(storage 层另有拒写兜底)
+  const workflowStoreHydrated = useStudioWorkflowHydrated();
   const [activeWorkflowId, setActiveWorkflowId] = useState<string | null>(null);
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [preferredGeneratedNodeId, setPreferredGeneratedNodeId] = useState<string | null>(null);
@@ -209,6 +209,7 @@ export function ImageWorkflowCanvas({
   useScopedWorkflowLifecycle({
     activeGraph,
     activeWorkflowId,
+    hydrated: workflowStoreHydrated,
     initialAssetContext,
     imageWorkflows,
     storyboards,
@@ -406,6 +407,20 @@ export function ImageWorkflowCanvas({
           writebackTargetLabel={scopedPendingWritebackTargetLabel}
           onBack={onBack}
         />
+      );
+    }
+
+    // T4 水合竞态:store 装载中不展示「新建」空态——此时新建的 free 图会
+    // 挂在空 store 上,水合完成后造成误建工作流残留+盲保存风险
+    if (!workflowStoreHydrated) {
+      return (
+        <section
+          data-image-workflow-hydrating
+          className="flex min-h-[calc(100vh-190px)] items-center justify-center gap-2 rounded-lg border border-border bg-card text-sm text-muted-foreground"
+        >
+          <Loader2 className="h-4 w-4 animate-spin" />
+          正在装载图像工作流…
+        </section>
       );
     }
 

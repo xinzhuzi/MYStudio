@@ -421,4 +421,70 @@ describe("createStudioWorkflowShardedStorage", () => {
     const restored = await storage.getItem("studio-workflow-store");
     expect(JSON.parse(restored!)).toEqual({ state: {}, version: 10 });
   });
+
+  it("isHydrated 守卫：水合未完成(isHydrated=false)时对非空磁盘分片库的保存被拒（T4 启动/切项目竞态）", async () => {
+    // 铺非空分片库（正常实例，视为已水合）
+    await storage.setItem("studio-workflow-store", buildPersistedValue());
+    const manifestBefore = hoisted.files.get("_p/proj-1/studio-workflow/manifest");
+
+    // 水合窗口内的盲保存（空态+误建 free 图形态）→ 拒写
+    const racing = createStudioWorkflowShardedStorage("studio-workflow-store", {
+      isHydrated: () => false,
+    });
+    const racingValue = JSON.stringify({
+      state: {
+        novelChapters: [],
+        storyboards: [],
+        mediaTasks: [],
+        imageWorkflows: [{ id: "wf-free-1", target: { kind: "free" }, nodes: [], edges: [] }],
+      },
+      version: 10,
+    });
+    await racing.setItem("studio-workflow-store", racingValue);
+    expect(hoisted.files.get("_p/proj-1/studio-workflow/manifest")).toBe(manifestBefore);
+
+    // 水合完成后同一保存放行（守卫只拦窗口期）
+    const settled = createStudioWorkflowShardedStorage("studio-workflow-store", {
+      isHydrated: () => true,
+    });
+    await settled.setItem("studio-workflow-store", racingValue);
+    const manifestAfter = JSON.parse(hoisted.files.get("_p/proj-1/studio-workflow/manifest")!) as {
+      shards: string[];
+    };
+    expect(manifestAfter.shards.some((name) => name.startsWith("image-workflows"))).toBe(true);
+  });
+
+  it("isHydrated 守卫：磁盘为空（无 manifest）时未水合保存不拦——首装/新项目正常落盘", async () => {
+    const fresh = createStudioWorkflowShardedStorage("studio-workflow-store", {
+      isHydrated: () => false,
+    });
+    await fresh.setItem("studio-workflow-store", buildPersistedValue());
+    expect(hoisted.files.has("_p/proj-1/studio-workflow/manifest")).toBe(true);
+  });
+
+  it("空态守卫扩展：保存值含分镜目标 imageWorkflow 不算空工作区（T4）——读链损坏后含分镜工作流的保存不被误拒", async () => {
+    await storage.setItem("studio-workflow-store", buildPersistedValue());
+    // 制造读链损坏（分片缺失 → hydrationDamaged 置位）
+    const manifest = JSON.parse(hoisted.files.get("_p/proj-1/studio-workflow/manifest")!) as { shards: string[] };
+    hoisted.files.delete(`_p/proj-1/studio-workflow/${manifest.shards[0]!.replace(/\.json$/, "")}`);
+    await storage.getItem("studio-workflow-store");
+
+    // 章节/分镜/任务为空但带分镜目标工作流 → 非空态，空态拒写守卫不触发（走正常分片写）
+    const valueWithStoryboardWorkflow = JSON.stringify({
+      state: {
+        novelChapters: [],
+        storyboards: [],
+        mediaTasks: [],
+        imageWorkflows: [
+          { id: "wf-sb-1", target: { kind: "storyboard", id: "sb-1" }, nodes: [], edges: [] },
+        ],
+      },
+      version: 10,
+    });
+    await storage.setItem("studio-workflow-store", valueWithStoryboardWorkflow);
+    const manifestAfter = JSON.parse(hoisted.files.get("_p/proj-1/studio-workflow/manifest")!) as {
+      shards: string[];
+    };
+    expect(manifestAfter.shards.some((name) => name.startsWith("image-workflows"))).toBe(true);
+  });
 });

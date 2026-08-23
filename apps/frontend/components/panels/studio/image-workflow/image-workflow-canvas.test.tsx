@@ -7,6 +7,13 @@ import { useCharacterLibraryStore } from "@/stores/library/character-library-sto
 import { useProjectStore } from "@/stores/project/project-store";
 import { useStudioStore } from "@/stores/studio/studio-store";
 
+// T4 水合竞态：mock 水合标志（默认 true=已水合），既不依赖真实 persist 的
+// microtask 时序，也允许显式测「装载窗口内」场景
+const hydratedMock = vi.hoisted(() => ({ value: true }));
+vi.mock("@/stores/studio/use-studio-workflow-hydrated", () => ({
+  useStudioWorkflowHydrated: () => hydratedMock.value,
+}));
+
 (globalThis as any).ResizeObserver ??= class {
   observe() {}
   unobserve() {}
@@ -25,6 +32,7 @@ const initialCharacterState = useCharacterLibraryStore.getState();
 
 afterEach(() => {
   cleanup();
+  hydratedMock.value = true;
   useStudioStore.setState(initialStudioState, true);
   useProjectStore.setState(initialProjectState, true);
   useCharacterLibraryStore.setState(initialCharacterState, true);
@@ -33,6 +41,48 @@ afterEach(() => {
 });
 
 describe("ImageWorkflowCanvas", () => {
+  it("defers auto free-workflow creation and shows loading while the studio store is hydrating (T4 水合竞态)", () => {
+    hydratedMock.value = false;
+
+    useProjectStore.setState({ activeProjectId: "dao-project" });
+    const createImageWorkflow = vi.fn(() => "unused-global-flow");
+    useStudioStore.setState({
+      ...initialStudioState,
+      imageWorkflows: [],
+      materials: [],
+      storyboards: [],
+      createImageWorkflow,
+      upsertImageWorkflow: vi.fn(),
+    }, true);
+
+    render(<ImageWorkflowCanvas projectName="道劫" />);
+
+    // 装载态替代「新建」空态；不自动建 free 图
+    expect(screen.getByText("正在装载图像工作流…")).toBeTruthy();
+    expect(screen.queryByText("新建图像工作流")).toBeNull();
+    expect(createImageWorkflow).not.toHaveBeenCalled();
+  });
+
+  it("auto-creates the default free workflow once hydration is complete", () => {
+    useProjectStore.setState({ activeProjectId: "dao-project" });
+    const createImageWorkflow = vi.fn(() => "unused-global-flow");
+    useStudioStore.setState({
+      ...initialStudioState,
+      imageWorkflows: [],
+      materials: [],
+      storyboards: [],
+      createImageWorkflow,
+      upsertImageWorkflow: vi.fn(),
+    }, true);
+
+    render(<ImageWorkflowCanvas projectName="道劫" />);
+
+    expect(createImageWorkflow).toHaveBeenCalledWith({
+      name: "道劫 图像工作流",
+      target: { kind: "free" },
+    });
+  });
+
   it("keeps scoped drill-down chrome visible while the opened graph is being created", () => {
     const onBack = vi.fn();
 

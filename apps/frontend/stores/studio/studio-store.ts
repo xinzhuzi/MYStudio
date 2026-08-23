@@ -817,9 +817,12 @@ export const useStudioStore = create<StudioWorkflowStore>()(
     },
     {
       name: STUDIO_WORKFLOW_STORAGE_KEY,
-      // getLiveState 延迟求值注入：project-storage 反向 import 会成环，箭头闭包避开（design.md §2）
+      // getLiveState/isHydrated 延迟求值注入：project-storage 反向 import 会成环，箭头闭包避开（design.md §2）
       storage: createJSONStorage(() => createStudioWorkflowShardedStorage(STUDIO_WORKFLOW_STORAGE_KEY, {
         getLiveState: (): unknown => useStudioStore.getState(),
+        // T4 水合竞态守卫：启动/切项目 rehydrate 窗口内的保存是盲写（空态+误建
+        // free 图会清空 manifest 章索引），storage 层 fail-closed 拒写
+        isHydrated: (): boolean => useStudioStore.persist.hasHydrated(),
       })),
       version: STUDIO_WORKFLOW_PERSIST_VERSION,
       migrate: (persistedState) => migrateStudioWorkflowState(persistedState),

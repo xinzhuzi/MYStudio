@@ -8,6 +8,7 @@ import {
   createAssetImageWorkflowGraph,
   ensureAssetImageWorkflowGraph,
   ensureImageWorkflowPromptNodes,
+  ensureStoryboardImageResult,
 } from "@/lib/studio/image-workflow";
 import { resolveStoryboardAssetReferences } from "./storyboard-asset-references";
 import {
@@ -21,14 +22,15 @@ import {
 
 /**
  * 图像工作流画布的图生命周期(自 Canvas 等价抽取,行为零变化):
- * ① 无激活图且非 scoped → 建默认 free 图;
+ * ① 无激活图且非 scoped → 建默认 free 图(水合窗口内禁建,防 T4 竞态盲保存);
  * ② 激活图缺提示词节点 → ensure 补齐;
  * ③ 激活图目标变化 → 同步 targetStoryboardId;
- * ④ scoped 打开上下文 → 匹配既有图或按装配链现建(含资产参考异步解析)。
+ * ④ scoped 打开上下文 → 匹配既有图或按装配链现建(含资产参考异步解析;水合窗口内禁建)。
  */
 export function useScopedWorkflowLifecycle(input: {
   activeGraph?: ImageWorkflowGraph;
   activeWorkflowId: string | null;
+  hydrated: boolean;
   initialAssetContext?: ImageWorkflowOpenContext;
   imageWorkflows: ImageWorkflowGraph[];
   storyboards: StoryboardItem[];
@@ -43,7 +45,7 @@ export function useScopedWorkflowLifecycle(input: {
   const handledAssetContextKeyRef = useRef("");
   const activeGraphTargetKeyRef = useRef("");
   const {
-    activeGraph, activeWorkflowId, initialAssetContext, imageWorkflows,
+    activeGraph, activeWorkflowId, hydrated, initialAssetContext, imageWorkflows,
     storyboards, projectName, upsertImageWorkflow, createImageWorkflow,
     setActiveWorkflowId, setSelectedNodeId, setPreferredGeneratedNodeId, setTargetStoryboardId,
   } = input;
@@ -53,19 +55,30 @@ export function useScopedWorkflowLifecycle(input: {
       if (activeWorkflowId !== activeGraph.id) setActiveWorkflowId(activeGraph.id);
       return;
     }
+    // T4 水合竞态:store 未完成水合(启动/切项目 rehydrate 窗口)时禁止自动
+    // 新建 free 图——空 store 上的误建会触发整库盲保存(storage 层另有拒写兜底)
+    if (!hydrated) return;
     if (initialAssetContext) return;
     const id = createImageWorkflow({
       name: `${projectName} 图像工作流`,
       target: { kind: "free" },
     });
     setActiveWorkflowId(id);
-  }, [activeGraph, activeWorkflowId, createImageWorkflow, initialAssetContext, projectName, setActiveWorkflowId]);
+  }, [activeGraph, activeWorkflowId, createImageWorkflow, hydrated, initialAssetContext, projectName, setActiveWorkflowId]);
 
   useEffect(() => {
     if (!activeGraph) return;
-    const ensured = ensureImageWorkflowPromptNodes(activeGraph);
+    // 联动愈合:分镜已挂图而工作流成图为空(旁路写入) → 补挂后再补提示词节点
+    const storyboardMediaPath = activeGraph.target.kind === "storyboard" && activeGraph.target.id
+      ? storyboards.find((item) => item.id === activeGraph.target.id)?.mediaRef?.kind === "image"
+        ? storyboards.find((item) => item.id === activeGraph.target!.id)?.mediaRef?.path
+        : undefined
+      : undefined;
+    const ensured = ensureImageWorkflowPromptNodes(
+      ensureStoryboardImageResult(activeGraph, storyboardMediaPath),
+    );
     if (ensured !== activeGraph) upsertImageWorkflow(ensured);
-  }, [activeGraph, upsertImageWorkflow]);
+  }, [activeGraph, storyboards, upsertImageWorkflow]);
 
   useEffect(() => {
     if (!activeGraph) return;
@@ -81,6 +94,9 @@ export function useScopedWorkflowLifecycle(input: {
 
   useEffect(() => {
     if (!initialAssetContext) return;
+    // T4 水合竞态:水合窗口内禁止 scoped 现建(空 store 上建流同样触发盲保存);
+    // 水合完成后 hydrated 变化会重跑本 effect,正常补建
+    if (!hydrated) return;
     const contextKey = assetWorkflowContextKey(initialAssetContext);
     if (
       handledAssetContextKeyRef.current === contextKey &&
@@ -129,6 +145,6 @@ export function useScopedWorkflowLifecycle(input: {
       setSelectedNodeId(selectedId);
       setPreferredGeneratedNodeId(selectedId);
     })();
-  }, [activeGraph, imageWorkflows, initialAssetContext, projectName, storyboards, upsertImageWorkflow,
-      setActiveWorkflowId, setSelectedNodeId, setPreferredGeneratedNodeId]);
+  }, [activeGraph, hydrated, imageWorkflows, initialAssetContext, projectName, storyboards, upsertImageWorkflow,
+    setActiveWorkflowId, setSelectedNodeId, setPreferredGeneratedNodeId]);
 }

@@ -232,6 +232,10 @@ export function createStudioWorkflowShardedStorage(
     fullSaveEvery?: number;
     /** 测试/重置专用：允许空工作区覆写非空磁盘分片库（默认拒绝） */
     allowEmptyOverwrite?: boolean;
+    /** 水合状态注入（studio-store 传延迟求值 getter）：false=setItem 拒写，
+     *  防启动/切项目 rehydrate 窗口内 UI 触发的盲写（空态+误建 free 图会把
+     *  manifest.chapterIndex/activeChapterId 写空 → 项目索引全丢） */
+    isHydrated?: () => boolean;
   } = {},
 ): StateStorage {
   const serializeWrite = createWriteSerializer();
@@ -361,6 +365,18 @@ export function createStudioWorkflowShardedStorage(
 
       await serializeWrite(async () => {
         let skipOrphanCleanup = false;
+        // 水合竞态守卫（fail-closed）：store 尚未完成与磁盘对齐（启动/切项目的
+        // rehydrate 窗口）时，任何覆写都是在盲写未知磁盘状态——空态+误建 free 图
+        // 这类保存会把 manifest.chapterIndex/activeChapterId 写空（项目 UI 空壳）。
+        // 拒写无损：水合完成后下一次 setState 触发的保存会写回完整态。
+        if (options.isHydrated && !options.isHydrated() && !options.allowEmptyOverwrite) {
+          const diskManifestRaw = await fileStorage.getItem(`${shardFileKeyPrefix(pid)}/manifest`);
+          const diskManifest = diskManifestRaw ? parseStudioWorkflowShardManifest(diskManifestRaw) : null;
+          if (diskManifest && diskManifest.shards.length > 0) {
+            console.error('[StudioWorkflowShardedStorage] 拒绝未水合覆写：store 水合未完成（启动/切项目竞态）而磁盘分片库非空(' + diskManifest.shards.length + ' 片)，本次保存丢弃');
+            return;
+          }
+        }
         saveCounter += 1;
         // 版本探针：zustand 信封为紧凑 JSON、version 位于尾部——尾部切片正则，免全量 parse 判版本
         const versionProbe = /"version":\s*(-?\d+)\s*}\s*$/.exec(value.slice(-64));
@@ -390,9 +406,19 @@ export function createStudioWorkflowShardedStorage(
           try {
             const probe = JSON.parse(value) as { state?: Record<string, unknown> };
             const st = probe.state ?? {};
+            // imageWorkflows 纳入空态判定（T4）：只认「分镜目标工作流」为实质内容——
+            // 水合竞态误建的 free 图（target.kind="free"）不算，否则反而把守卫翻空
+            const hasStoryboardWorkflow = (Array.isArray(st.imageWorkflows) ? st.imageWorkflows : [])
+              .some((item) => {
+                if (!item || typeof item !== "object") return false;
+                const target = (item as Record<string, unknown>).target;
+                return Boolean(target && typeof target === "object"
+                  && (target as Record<string, unknown>).kind === "storyboard");
+              });
             const isEmptyWorkspace = (Array.isArray(st.novelChapters) ? st.novelChapters.length === 0 : true)
               && (Array.isArray(st.storyboards) ? st.storyboards.length === 0 : true)
-              && (Array.isArray(st.mediaTasks) ? st.mediaTasks.length === 0 : true);
+              && (Array.isArray(st.mediaTasks) ? st.mediaTasks.length === 0 : true)
+              && !hasStoryboardWorkflow;
             if (isEmptyWorkspace && hydrationDamaged) {
               const diskManifestRaw = await fileStorage.getItem(`${shardFileKeyPrefix(pid)}/manifest`);
               const diskManifest = diskManifestRaw ? parseStudioWorkflowShardManifest(diskManifestRaw) : null;
