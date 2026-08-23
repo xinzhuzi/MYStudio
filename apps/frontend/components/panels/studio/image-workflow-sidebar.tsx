@@ -32,6 +32,8 @@ interface ImageWorkflowSidebarProps {
   storyboardImages: StoryboardItem[];
   onAddReferenceFromMaterial: (material: StudioMaterial) => void;
   onAddReferenceFromStoryboard: (storyboard: StoryboardItem) => void;
+  /** scoped 单镜视图切换分镜:选中即走整条打开链(匹配/新建/装配) */
+  onSwitchScopedStoryboard?: (storyboard: StoryboardItem) => void;
 }
 
 export function ImageWorkflowSidebar({
@@ -51,6 +53,7 @@ export function ImageWorkflowSidebar({
   storyboardImages,
   onAddReferenceFromMaterial,
   onAddReferenceFromStoryboard,
+  onSwitchScopedStoryboard,
 }: ImageWorkflowSidebarProps) {
   return (
     <aside className="flex min-h-0 flex-col border-l border-border bg-card">
@@ -74,6 +77,27 @@ export function ImageWorkflowSidebar({
               <div className="text-[10px] uppercase tracking-[0.18em] text-info/70">回写目标</div>
               <div className="mt-1 truncate">{workflowWritebackTargetLabel}</div>
             </div>
+            {onSwitchScopedStoryboard ? (
+              <select
+                data-scoped-storyboard-switcher
+                value={initialAssetContext?.target.kind === "storyboard" ? initialAssetContext.target.id : ""}
+                onChange={(event) => {
+                  const next = storyboards.find((item) => item.id === event.target.value);
+                  if (next && next.id !== (initialAssetContext?.target as { id?: string } | undefined)?.id) {
+                    onSwitchScopedStoryboard(next);
+                  }
+                }}
+                className="h-8 rounded-md border border-border bg-background/80 px-2 text-xs text-foreground outline-none"
+                title="切换到其他分镜的工作流(选中即切换)"
+              >
+                <option value="">切换分镜…</option>
+                {storyboards.map((storyboard) => (
+                  <option key={storyboard.id} value={storyboard.id}>
+                    分镜 {storyboard.index} · {(storyboard.videoDesc || storyboard.prompt).slice(0, 18)}
+                  </option>
+                ))}
+              </select>
+            ) : null}
           </div>
         ) : activeGraph.target.kind === "asset" ? (
           <div className="mt-3 rounded-md border border-info/20 bg-info/10 px-3 py-2 text-xs text-info">
@@ -87,12 +111,32 @@ export function ImageWorkflowSidebar({
           </div>
         ) : (
           <div className="mt-3 grid gap-2">
+            {onSwitchScopedStoryboard ? (
+              <select
+                data-storyboard-workflow-switcher
+                value=""
+                onChange={(event) => {
+                  const next = storyboards.find((item) => item.id === event.target.value);
+                  if (next) onSwitchScopedStoryboard(next);
+                }}
+                className="h-8 rounded-md border border-border bg-background/80 px-2 text-xs text-foreground outline-none"
+                title="打开所选分镜的图片工作流(选中即切换)"
+              >
+                <option value="">切换分镜工作流…</option>
+                {storyboards.map((storyboard) => (
+                  <option key={storyboard.id} value={storyboard.id}>
+                    分镜 {storyboard.index} · {(storyboard.videoDesc || storyboard.prompt).slice(0, 18)}
+                  </option>
+                ))}
+              </select>
+            ) : null}
             <select
               value={targetStoryboardId}
               onChange={(event) => onTargetStoryboardChange(event.target.value)}
               className="h-8 rounded-md border border-border bg-background/80 px-2 text-xs text-foreground outline-none"
+              title="改变当前工作流的回写目标(选定后需点「绑定当前图」)"
             >
-              <option value="">选择回写分镜</option>
+              <option value="">改绑回写分镜(选定后点绑定)</option>
               {storyboards.map((storyboard) => (
                 <option key={storyboard.id} value={storyboard.id}>
                   分镜 {storyboard.index} · {storyboard.prompt.slice(0, 18)}

@@ -13,27 +13,25 @@ afterEach(() => {
 });
 
 function makeBridge(entries: {
-  scene?: Array<{ name: string; id?: string }>;
-  role?: Array<{ name: string; id?: string }>;
-  imageDataUrls?: Record<string, string | null>;
+  scene?: Array<{ name: string; id?: string; previewUrl?: string }>;
+  role?: Array<{ name: string; id?: string; previewUrl?: string }>;
 }) {
   return {
     batchMatch: vi.fn(({ type }: { type: string }) => Promise.resolve(
       (type === "scene" ? entries.scene ?? [] : entries.role ?? []).map((entry) => ({
         name: entry.name,
-        asset: { id: entry.id ?? `id-${entry.name}`, name: entry.name },
+        asset: {
+          id: entry.id ?? `id-${entry.name}`,
+          name: entry.name,
+          previewUrl: entry.previewUrl === undefined ? `file:///assets/${entry.name}.png` : entry.previewUrl,
+        },
       })),
-    )),
-    readImageDataUrl: vi.fn((id: string) => Promise.resolve(
-      entries.imageDataUrls?.[id] === undefined
-        ? `data:image/png;base64,${id}`
-        : entries.imageDataUrls[id],
     )),
   } as never;
 }
 
 describe("resolveStoryboardAssetReferences", () => {
-  it("collects scene-first then character references via dataURL reads", async () => {
+  it("collects lightweight file:// urls scene-first then characters with caps", async () => {
     bridgeMock.mockReturnValue(makeBridge({
       scene: [{ name: "金水河码头" }, { name: "道口镇" }],
       role: [
@@ -45,7 +43,7 @@ describe("resolveStoryboardAssetReferences", () => {
       associateAssetsNames: ["金水河码头", "道口镇", "独孤剑尘", "赵四", "老苦力", "铁山"],
     });
 
-    expect(refs?.map((ref) => [ref.title, ref.assetType, ref.imageUrl.startsWith("data:image/")])).toEqual([
+    expect(refs?.map((ref) => [ref.title, ref.assetType, ref.imageUrl.startsWith("file://")])).toEqual([
       ["金水河码头", "scene", true],
       ["独孤剑尘", "character", true],
       ["赵四", "character", true],
@@ -53,13 +51,13 @@ describe("resolveStoryboardAssetReferences", () => {
     ]);
   });
 
-  it("skips assets whose image read fails or is missing", async () => {
+  it("never returns data: urls (persistence discipline) and skips imageless matches", async () => {
     bridgeMock.mockReturnValue(makeBridge({
-      role: [{ name: "赵四" }, { name: "老苦力" }],
-      imageDataUrls: { "id-赵四": null, "id-老苦力": "data:image/png;base64,ok" },
+      role: [{ name: "赵四", previewUrl: "" }, { name: "老苦力" }],
     }));
     const refs = await resolveStoryboardAssetReferences({ associateAssetsNames: ["赵四", "老苦力"] });
     expect(refs?.map((ref) => ref.title)).toEqual(["老苦力"]);
+    expect(refs?.every((ref) => !ref.imageUrl.startsWith("data:"))).toBe(true);
   });
 
   it("fails empty when the bridge is missing or names are absent", async () => {

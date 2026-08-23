@@ -2,6 +2,7 @@ import { useCallback } from "react";
 import { toast } from "sonner";
 import { aiManager } from "@/lib/ai/ai-manager";
 import { getProjectFilesBridge } from "@/lib/bridge/project-files";
+import { getStudioAssetsBridge } from "@/lib/bridge/studio-assets";
 import {
   assertImageWorkflowContinuityCapability,
   buildImageWorkflowGenerationRequest,
@@ -50,7 +51,23 @@ export function useImageWorkflowGeneration({
     try {
       const projectId = useProjectStore.getState().activeProjectId;
       if (!projectId) throw new Error("请先选择项目");
-      const referenceImages = await prepareReferenceImages(request.referenceImages);
+      // 资产参考(file://)按需转 dataURL 传输:节点只存轻量 file:// 路径
+      // (持久化纪律,防 dataURL 入库 OOM),发送前经 IPC 读受管图转 base64
+      // ——与 project-file:// 参考同口径,不落盘。
+      const assetBridge = getStudioAssetsBridge();
+      const assetRefIdsByUrl = new Map(
+        graph.nodes
+          .filter((node): node is typeof node & { type: "reference"; imageUrl: string } =>
+            node.type === "reference" && Boolean(node.imageUrl?.startsWith("file://"))
+            && node.source?.kind === "asset" && Boolean(node.source.id))
+          .map((node) => [node.imageUrl as string, (node.source as { id: string }).id]),
+      );
+      const resolvedReferenceUrls = await Promise.all(request.referenceImages.map(async (url) => {
+        const assetId = assetRefIdsByUrl.get(url);
+        if (!assetId || !assetBridge?.readImageDataUrl) return url;
+        return await assetBridge.readImageDataUrl(assetId).catch(() => null) ?? url;
+      }));
+      const referenceImages = await prepareReferenceImages(resolvedReferenceUrls);
       // 分镜帧生图接入所选视觉手册风格锁(扩展手册: sanitize+水墨 token);
       // 仅限 storyboard 工作流,自由/资产工作流提示词不做覆盖。
       const prompt = graph.target.kind === "storyboard"

@@ -87,3 +87,125 @@ describe("ImageWorkflowSidebar", () => {
     expect(screen.queryByText("项目参考图")).toBeNull();
   });
 });
+
+describe("scoped storyboard switcher", () => {
+  const scopedGraph = {
+    id: "wf-1",
+    name: "道劫 · 分镜 5 图片工作流",
+    target: { kind: "storyboard" as const, id: "sb-5" },
+    nodes: [],
+    edges: [],
+    createdAt: 0,
+    updatedAt: 0,
+  };
+  const scopedContext = {
+    target: { kind: "storyboard" as const, id: "sb-5" },
+    title: "分镜 5",
+  };
+  const storyboards = [
+    { id: "sb-5", index: 5, prompt: "矿奴队列", videoDesc: "矿奴队列", lines: "赵四：快些！" },
+    { id: "sb-7", index: 7, prompt: "夜课灯下", videoDesc: "夜课灯下", lines: "旁白：灯亮。" },
+  ] as never[];
+
+  function renderScoped(onSwitch: ReturnType<typeof vi.fn>) {
+    return render(
+      <ImageWorkflowSidebar
+        activeGraph={scopedGraph}
+        projectName="道劫"
+        initialAssetContext={scopedContext}
+        isScopedWorkflowDetail
+        sourceLabel="分镜成图 · 分镜 5"
+        workflowWritebackTargetLabel="分镜 5 · 矿奴队列"
+        storyboards={storyboards}
+        targetStoryboardId=""
+        onTargetStoryboardChange={vi.fn()}
+        onBindTargetStoryboard={vi.fn()}
+        canUseGlobalWorkflowControls={false}
+        imageMaterials={[]}
+        storyboardImages={[]}
+        onAddReferenceFromMaterial={vi.fn()}
+        onAddReferenceFromStoryboard={vi.fn()}
+        onSwitchScopedStoryboard={onSwitch}
+      />,
+    );
+  }
+
+  it("switches to another storyboard immediately from the scoped sidebar", () => {
+    const onSwitch = vi.fn();
+    renderScoped(onSwitch);
+    const select = screen.getByRole("combobox");
+    fireEvent.change(select, { target: { value: "sb-7" } });
+    expect(onSwitch).toHaveBeenCalledWith(
+      expect.objectContaining({ id: "sb-7", index: 7 }),
+    );
+  });
+
+  it("does not re-open the same storyboard or render the switcher without a handler", () => {
+    const onSwitch = vi.fn();
+    const view = renderScoped(onSwitch);
+    fireEvent.change(screen.getByRole("combobox"), { target: { value: "sb-5" } });
+    expect(onSwitch).not.toHaveBeenCalled();
+    view.rerender(
+      <ImageWorkflowSidebar
+        activeGraph={scopedGraph}
+        projectName="道劫"
+        isScopedWorkflowDetail
+        sourceLabel="分镜成图 · 分镜 5"
+        workflowWritebackTargetLabel="分镜 5"
+        storyboards={storyboards}
+        targetStoryboardId=""
+        onTargetStoryboardChange={vi.fn()}
+        onBindTargetStoryboard={vi.fn()}
+        canUseGlobalWorkflowControls={false}
+        imageMaterials={[]}
+        storyboardImages={[]}
+        onAddReferenceFromMaterial={vi.fn()}
+        onAddReferenceFromStoryboard={vi.fn()}
+      />,
+    );
+    expect(screen.queryByRole("combobox")).toBeNull();
+  });
+});
+
+describe("global-mode storyboard workflow switcher", () => {
+  const globalGraph = {
+    id: "wf-global",
+    name: "道劫 · 分镜 5 图片工作流",
+    target: { kind: "storyboard" as const, id: "sb-5" },
+    nodes: [],
+    edges: [],
+    createdAt: 0,
+    updatedAt: 0,
+  };
+  const storyboards = [
+    { id: "sb-5", index: 5, prompt: "矿奴队列" },
+    { id: "sb-7", index: 7, prompt: "夜课灯下" },
+  ] as never[];
+
+  it("opens another storyboard workflow immediately from the global sidebar", () => {
+    const onSwitch = vi.fn();
+    render(
+      <ImageWorkflowSidebar
+        activeGraph={globalGraph}
+        projectName="道劫"
+        isScopedWorkflowDetail={false}
+        sourceLabel="分镜 5"
+        workflowWritebackTargetLabel="分镜 5"
+        storyboards={storyboards}
+        targetStoryboardId=""
+        onTargetStoryboardChange={vi.fn()}
+        onBindTargetStoryboard={vi.fn()}
+        canUseGlobalWorkflowControls
+        imageMaterials={[]}
+        storyboardImages={[]}
+        onAddReferenceFromMaterial={vi.fn()}
+        onAddReferenceFromStoryboard={vi.fn()}
+        onSwitchScopedStoryboard={onSwitch}
+      />,
+    );
+    const switcher = document.querySelector("[data-storyboard-workflow-switcher]") as HTMLSelectElement;
+    expect(switcher).toBeTruthy();
+    fireEvent.change(switcher, { target: { value: "sb-7" } });
+    expect(onSwitch).toHaveBeenCalledWith(expect.objectContaining({ id: "sb-7" }));
+  });
+});
