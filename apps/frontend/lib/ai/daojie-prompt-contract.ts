@@ -244,14 +244,17 @@ export async function compileDaojieStoryboardFramePrompt(
     "storyboard.frame": unicodeLength(positive),
     "negative.universal": unicodeLength(negative),
   };
-  // 门只按正文(positive)计: 帧负面是手册固定资产(五类全集 ~686 字符),
-  // ma-gongbi 的 300-800 是正文纪律——含固定负面必永超(686+min300=986>800,
-  // 生产死锁 08-24 实证,单测 fixture 负面短所以绿)。负面仍随 providerPrompt
-  // 传输,不参与门;正文超 800 依旧 fail-closed。
-  if (unicodeLength(positive) > DAOJIE_RUNTIME_CONTRACT.length.max) {
-    throw new DaojiePromptContractError("length_exceeded", unicodeLength(positive), {
-      totalChars: unicodeLength(positive),
+  // 分镜帧门只算正文(2026-08-25 800门死锁根修): 手册帧负面是固定段(680/686),
+  // 计入总门后正文可用窗口仅 ~112 字符——低于 warningBelow 300,自相矛盾死锁
+  // (实弹: 正文 540+固定负面 680=1230 全拒,批量 24 镜秒败)。按团队裁定
+  // 「帧负面 686 固定段不计门」,帧门=正文 >max 拒/<warningBelow 警;
+  // 资产轨(compileDaojiePrompt)保持 provider-visible 总长口径不变。
+  const positiveChars = moduleLengths["storyboard.frame"]!;
+  if (positiveChars > DAOJIE_RUNTIME_CONTRACT.length.max) {
+    throw new DaojiePromptContractError("length_exceeded", positiveChars, {
+      totalChars: length.totalChars,
       moduleLengths,
+      gate: "storyboard.frame",
     });
   }
   return {
@@ -267,10 +270,7 @@ export async function compileDaojieStoryboardFramePrompt(
       { moduleId: "negative.universal", required: true, singletonKey: "universal_negative", chars: moduleLengths["negative.universal"]! },
     ],
     totalChars: length.totalChars,
-    // 门已按正文口径(positive)前置;返回态同步用正文口径,固定帧负面不计入
-    status: unicodeLength(positive) < DAOJIE_RUNTIME_CONTRACT.length.warningBelow
-      ? "warning"
-      : "ok",
+    status: positiveChars < DAOJIE_RUNTIME_CONTRACT.length.warningBelow ? "warning" : "ok",
     contractVersion: DAOJIE_RUNTIME_CONTRACT.contractVersion,
     contractSha256: await getVerifiedContractSha256(),
   };
@@ -461,10 +461,7 @@ export async function compileDaojiePrompt(input: DaojiePromptInput): Promise<Com
     moduleLengths,
     moduleAudit,
     totalChars: length.totalChars,
-    // 门已按正文口径(positive)前置;返回态同步用正文口径,固定帧负面不计入
-    status: unicodeLength(positive) < DAOJIE_RUNTIME_CONTRACT.length.warningBelow
-      ? "warning"
-      : "ok",
+    status: length.status === "warning" ? "warning" : "ok",
     contractVersion: DAOJIE_RUNTIME_CONTRACT.contractVersion,
     contractSha256: await getVerifiedContractSha256(),
   };

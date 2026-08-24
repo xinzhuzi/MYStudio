@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import parityFixture from "../../assets/studio-manuals/art_skills/daojie_ink_guofeng/ma_sync/three-track-parity-fixture.json";
 import {
   DAOJIE_RUNTIME_CONTRACT,
   DaojiePromptContractError,
@@ -42,6 +43,38 @@ describe("Daojie three-track boundary", () => {
     expect(() => mapDaojieRuntimeTrack("任务")).toThrowError(
       expect.objectContaining({ code: "unsupported_track" }),
     );
+  });
+
+  it("matches the shared MYStudio-MA three-track parity fixture", async () => {
+    expect(parityFixture.contractVersion).toBe(DAOJIE_RUNTIME_CONTRACT.contractVersion);
+    for (const fixture of parityFixture.tracks) {
+      const mapping = mapDaojieLibraryAssetType(fixture.libraryType);
+      expect(mapping).toEqual({
+        libraryType: fixture.libraryType,
+        runtimeTrack: fixture.runtimeTrack,
+        maTrack: fixture.maTrack,
+      });
+      const compiled = await compileDaojiePrompt({
+        runtimeTrack: mapping.runtimeTrack,
+        subjectBody: parityFixture.subjectBody,
+        negativeTerms: parityFixture.negative,
+        paletteSchemeId: fixture.paletteSchemeId,
+        hasReferenceImage: true,
+      });
+      expect(compiled.moduleIds).toEqual(
+        parityFixture.moduleOrder.map((moduleId) => moduleId
+          .replace("{maTrack}", fixture.maTrack)
+          .replace("{paletteSchemeId}", fixture.paletteSchemeId)),
+      );
+    }
+    for (const fixture of parityFixture.lengthCases) {
+      const positive = "x".repeat(fixture.totalChars - "\nAvoid: ".length - 1);
+      expect(evaluateDaojiePromptLength(positive, "n")).toMatchObject({
+        totalChars: fixture.totalChars,
+        status: fixture.status,
+        ok: fixture.ok,
+      });
+    }
   });
 });
 
@@ -227,11 +260,14 @@ describe("Daojie provider-visible length policy", () => {
     });
     const compiled = await compileDaojiePrompt({
       runtimeTrack: "character",
-      subjectBody: "人物事实",
+      subjectBody: "x".repeat(5),
       negativeTerms: "Avoid: 水印, Avoid: 自定义缺陷",
     });
     expect(compiled.providerPrompt.match(/Avoid:/g)).toHaveLength(1);
     expect(compiled.negative).toContain("自定义缺陷");
+    // status 必须由完整 provider-visible 文本决定，而非只看 positive。
+    expect(compiled.positive.length).toBeLessThan(300);
+    expect(compiled.status).toBe("ok");
   });
 });
 
@@ -256,14 +292,33 @@ describe("Daojie storyboard frame transport compile", () => {
     expect(fallback.contractSha256).toMatch(/^[a-f0-9]{64}$/);
   });
 
-  it("enforces the same 800 gate before the network (正文口径,固定帧负面不计门)", async () => {
+  it.each([
+    [299, "warning"],
+    [300, "ok"],
+    [800, "ok"],
+  ] as const)("gates a %i-character storyboard 正文(frame negative excluded) as %s", async (positiveChars, status) => {
+    // 帧门只算正文(固定帧负面 680/686 不计门,2026-08-25 死锁根修)
+    const positive = "x".repeat(positiveChars);
     await expect(
-      compileDaojieStoryboardFramePrompt({ positive: "长".repeat(801) }),
+      compileDaojieStoryboardFramePrompt({ positive, negativeTerms: "n" }),
+    ).resolves.toMatchObject({ status, providerPrompt: `${positive}\nAvoid: n` });
+  });
+
+  it("fails closed at 801 storyboard 正文 characters before the network", async () => {
+    const positive = "x".repeat(801);
+    await expect(
+      compileDaojieStoryboardFramePrompt({ positive, negativeTerms: "n" }),
     ).rejects.toThrowError(expect.objectContaining({ code: "length_exceeded" }));
-    // 正文恰 800 = 门内(固定负面 686 随传不计);旧口径含负面必永超(生产死锁)已修
-    await expect(
-      compileDaojieStoryboardFramePrompt({ positive: "长".repeat(800) }),
-    ).resolves.toMatchObject({ status: expect.any(String) });
+  });
+
+  it("accepts a realistic frame whose fixed manual negative pushes total over 800 (deadlock regression)", async () => {
+    // 实弹死锁形态: 正文 540 + 手册帧负面 680 = 总 1228,正文门下必须放行
+    const compiled = await compileDaojieStoryboardFramePrompt({
+      positive: "x".repeat(540),
+      negativeTerms: "n".repeat(680),
+    });
+    expect(compiled.status).toBe("ok");
+    expect(compiled.totalChars).toBe(540 + "\nAvoid: ".length + 680);
   });
 
   it("rejects a positive that already carries a terminal Avoid section", async () => {
