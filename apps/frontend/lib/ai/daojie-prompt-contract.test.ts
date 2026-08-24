@@ -194,9 +194,13 @@ describe("Daojie storyboard frame transport compile", () => {
     expect(compiled.positive).not.toContain("TRACK=");
     expect(compiled.moduleIds).toEqual(["storyboard.frame", "negative.universal"]);
     expect(compiled.providerPrompt.match(/Avoid:/g)).toHaveLength(1);
+    // 负面唯一所有者:提供帧负面时不再叠加通用负面(避免双占与必然超 800)
     expect(compiled.negative).toContain("watermark");
-    expect(compiled.negative).toContain("压缩伪影");
-    expect(compiled.contractSha256).toMatch(/^[a-f0-9]{64}$/);
+    expect(compiled.negative).not.toContain("压缩伪影");
+    // 未提供帧负面时回退合同通用负面
+    const fallback = await compileDaojieStoryboardFramePrompt({ positive: "【画面】题材正文" });
+    expect(fallback.negative).toContain("压缩伪影");
+    expect(fallback.contractSha256).toMatch(/^[a-f0-9]{64}$/);
   });
 
   it("enforces the same 800 gate before the network", async () => {

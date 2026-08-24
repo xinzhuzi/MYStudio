@@ -234,8 +234,9 @@ export function getActiveVisualManualStoryboardStyleGuide(): string {
 
 /**
  * 道劫分镜帧传输编译:当前手册为道劫时,把分镜链已装配正文与手册帧负面编译为
- * ma-gongbi-v1 raw providerPrompt(唯一 Avoid+通用负面+300-800 长度门);
- * 非道劫返回 null(保持既有 enhanced 传输)。超 800 在网络前以可读错误拒绝。
+ * ma-gongbi-v1 raw providerPrompt(唯一 Avoid;帧负面块存在时它是负面唯一所有者,
+ * 未预热时回退合同通用负面;300-800 长度门);非道劫返回 null(保持既有 enhanced 传输)。
+ * 超 800 在网络前以可读错误拒绝。
  */
 export async function compileActiveDaojieStoryboardFramePrompt(
   positive: string,

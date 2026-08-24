@@ -33,8 +33,9 @@ describe("compileActiveDaojieStoryboardFramePrompt", () => {
     expect(compiled).not.toBeNull();
     expect(compiled!.providerPrompt).toContain("【画面】题材正文");
     expect(compiled!.providerPrompt.match(/Avoid:/g)).toHaveLength(1);
+    // 帧负面块存在 → 负面唯一所有者,不叠通用负面
     expect(compiled!.negative).toContain("watermark");
-    expect(compiled!.negative).toContain("压缩伪影");
+    expect(compiled!.negative).not.toContain("压缩伪影");
     expect(compiled!.contractVersion).toBe("ma-gongbi-v1");
   });
 

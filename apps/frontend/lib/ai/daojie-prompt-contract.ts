@@ -197,13 +197,17 @@ export function mapDaojieRuntimeTrack(input: unknown): { runtimeTrack: DaojieRun
 export interface DaojieStoryboardFramePromptInput {
   /** 分镜帧已装配正文(画面/构图/阵营色/风格 token;模板选择归分镜链,编译器不改写)。 */
   positive: string;
-  /** 分镜帧负面(手册 storyboard-frame-negative 块等),与通用负面合并去重。 */
+  /**
+   * 分镜帧负面(手册 storyboard-frame-negative 块等)。提供时它即本作业负面唯一所有者
+   * (去重后直接使用,不再叠加通用负面——手册帧负面已是 ma-gongbi-v1 对齐的五类全集,
+   * 叠加违反负面唯一所有者且必然超 800 门);未提供时回退合同通用负面。
+   */
   negativeTerms?: string | readonly string[];
 }
 
 /**
  * 分镜帧 ma-gongbi-v1 传输编译:不套静态资产七段、不追加轨道锁,
- * 只共享唯一 Avoid 段、通用负面、300-800 长度门与合同指纹,产物以 raw 策略直传 provider。
+ * 只共享唯一 Avoid 段、负面唯一所有者、300-800 长度门与合同指纹,产物以 raw 策略直传 provider。
  */
 export async function compileDaojieStoryboardFramePrompt(
   input: DaojieStoryboardFramePromptInput,
@@ -215,10 +219,11 @@ export async function compileDaojieStoryboardFramePrompt(
   if (/Avoid:/i.test(positive)) {
     throw new DaojiePromptContractError("invalid_subject", positive, { reason: "storyboard positive owns no terminal negative section" });
   }
-  const negative = mergeNegativeTerms(
-    input.negativeTerms,
-    DAOJIE_RUNTIME_CONTRACT.modules["negative.universal"].text,
-  );
+  const hasOwnNegative = input.negativeTerms !== undefined
+    && (typeof input.negativeTerms === "string" ? input.negativeTerms.trim() : input.negativeTerms.length > 0);
+  const negative = hasOwnNegative
+    ? mergeNegativeTerms(input.negativeTerms, "")
+    : DAOJIE_RUNTIME_CONTRACT.modules["negative.universal"].text;
   const length = evaluateDaojiePromptLength(positive, negative);
   const moduleLengths: Record<string, number> = {
     "storyboard.frame": unicodeLength(positive),
