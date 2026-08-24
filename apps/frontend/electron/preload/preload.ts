@@ -135,6 +135,7 @@ import type {
 import {
   REMOTION_QUEUE_CANCEL_CHANNEL,
   REMOTION_QUEUE_CHECK_SWITCH_CHANNEL,
+  REMOTION_QUEUE_ENQUEUE_CHAPTER_SCENES_CHANNEL,
   REMOTION_QUEUE_ENQUEUE_SHOT_CHANNEL,
   REMOTION_QUEUE_GET_CHANNEL,
   REMOTION_QUEUE_JOB_EVENT,
@@ -143,6 +144,8 @@ import {
   decodeRemotionQueueNotification,
   decodeRemotionQueueScopeReply,
   type RemotionQueueCancelReply,
+  type RemotionQueueEnqueueChapterScenesReply,
+  type RemotionQueueEnqueueChapterScenesRequest,
   type RemotionQueueEnqueueShotRequest,
   type RemotionQueueRetryReply,
   type RemotionQueueScopeReply,
@@ -571,6 +574,8 @@ contextBridge.exposeInMainWorld('remotionQueue', {
   },
   enqueueShot: (request: RemotionQueueEnqueueShotRequest): Promise<RemotionQueueRetryReply> =>
     ipcRenderer.invoke(REMOTION_QUEUE_ENQUEUE_SHOT_CHANNEL, request),
+  enqueueChapterScenes: (request: RemotionQueueEnqueueChapterScenesRequest): Promise<RemotionQueueEnqueueChapterScenesReply> =>
+    ipcRenderer.invoke(REMOTION_QUEUE_ENQUEUE_CHAPTER_SCENES_CHANNEL, request),
   retry: (jobId: string): Promise<RemotionQueueRetryReply> =>
     ipcRenderer.invoke(REMOTION_QUEUE_RETRY_CHANNEL, { jobId }),
   cancel: (jobId: string): Promise<RemotionQueueCancelReply> =>

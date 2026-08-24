@@ -103,6 +103,11 @@ export interface RemotionChapterRenderInput extends RemotionRenderInputBase {
   jobId: string;
   compositionProps: ChapterVideoCompositionProps;
   compositionId: typeof CHAPTER_VIDEO_COMPOSITION_ID;
+  /**
+   * 章内场景分段渲染（按场分段导出）：闭区间帧范围，与整章渲染共用同一
+   * bundle/compositionProps，仅裁渲染帧窗口。缺省=整章渲染。
+   */
+  frameRange?: readonly [number, number];
 }
 
 export type RemotionRenderInput = RemotionTimelineRenderInput | RemotionShotRenderInput | RemotionChapterRenderInput;
@@ -176,7 +181,11 @@ export class RemotionRenderWorker {
     } else if ("target" in input && input.target === "chapter") {
       const propsValidation = validateChapterVideoCompositionProps(input.compositionProps);
       if (!propsValidation.success) {
-        return this.fail(jobId, propsValidation.issues.map((issue) => `${issue.path}: ${issue.message}`).join("; "), false);
+        return this.fail(jobId, propsValidation.issues.map((issue) => `${issue.path}: ${issue.message}`).join("；"), false);
+      }
+      const frameRangeValidation = validateChapterFrameRange(input.frameRange);
+      if (!frameRangeValidation.success) {
+        return this.fail(jobId, frameRangeValidation.error, false);
       }
       compositionId = CHAPTER_VIDEO_COMPOSITION_ID;
       compositionProps = propsValidation.value;
@@ -239,12 +248,21 @@ export class RemotionRenderWorker {
           throw new Error("Remotion 导出禁止隐式下载 Headless Shell");
         },
       });
+      const frameRange = "target" in input && input.target === "chapter" ? input.frameRange : undefined;
+      if (frameRange && frameRange[1] >= composition.durationInFrames) {
+        return this.fail(
+          jobId,
+          `chapter 场景分段帧区间越界：[${frameRange[0]}, ${frameRange[1]}] / ${composition.durationInFrames}`,
+          false,
+        );
+      }
       this.emit(jobId, "rendering", 0.08, "Remotion 渲染中");
       await this.api.renderMedia({
         serveUrl: input.bundlePath,
         composition,
         inputProps: compositionProps,
         outputLocation: input.outputPath,
+        ...(frameRange ? { frameRange: [frameRange[0], frameRange[1]] as [number, number] } : {}),
         codec: "h264",
         pixelFormat: "yuv420p",
         audioCodec: "aac",
@@ -355,4 +373,15 @@ function readJobId(input: unknown): string {
   const record = input as { jobId?: unknown; plan?: { jobId?: unknown } };
   const value = record.jobId ?? record.plan?.jobId;
   return typeof value === "string" && value.trim() ? value.trim() : "unknown";
+}
+
+function validateChapterFrameRange(
+  frameRange: readonly [number, number] | undefined,
+): { success: true } | { success: false; error: string } {
+  if (frameRange === undefined) return { success: true };
+  const [start, end] = frameRange;
+  if (!Number.isInteger(start) || !Number.isInteger(end) || start < 0 || start > end) {
+    return { success: false, error: `chapter 场景分段帧区间非法：[${start}, ${end}]` };
+  }
+  return { success: true };
 }

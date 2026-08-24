@@ -63,7 +63,7 @@ export function validateRemotionEvidence(value: unknown): RemotionValidationResu
   if (target?.kind === "shot" && compositionId !== "StoryboardShot") {
     validator.issue("$.compositionId", "shot evidence 必须使用 StoryboardShot");
   }
-  if (target?.kind === "chapter" && compositionId !== "ChapterVideo") {
+  if ((target?.kind === "chapter" || target?.kind === "chapter-scene") && compositionId !== "ChapterVideo") {
     validator.issue("$.compositionId", "chapter evidence 必须使用 ChapterVideo");
   }
   validateRenderer(record.renderer, validator);

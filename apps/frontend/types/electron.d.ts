@@ -52,6 +52,8 @@ import type { RemotionShotRenderResult } from "@rendering/plugins/remotion/rende
 import type { RemotionStudioEditingUpdatedEvent } from "@/electron/ipc/studio/remotion-studio-ipc";
 import type {
   RemotionQueueCancelReply,
+  RemotionQueueEnqueueChapterScenesReply,
+  RemotionQueueEnqueueChapterScenesRequest,
   RemotionQueueEnqueueShotRequest,
   RemotionQueueRetryReply,
   RemotionQueueScopeReply,
@@ -572,6 +574,7 @@ declare global {
     remotionQueue?: {
       get: (scope: { projectId: string; chapterId: string }) => Promise<RemotionQueueScopeReply>;
       enqueueShot: (request: RemotionQueueEnqueueShotRequest) => Promise<RemotionQueueRetryReply>;
+      enqueueChapterScenes?: (request: RemotionQueueEnqueueChapterScenesRequest) => Promise<RemotionQueueEnqueueChapterScenesReply>;
       retry: (jobId: string) => Promise<RemotionQueueRetryReply>;
       cancel: (jobId: string) => Promise<RemotionQueueCancelReply>;
       switchProject: (toProjectId: string) => Promise<RemotionQueueSwitchReply>;

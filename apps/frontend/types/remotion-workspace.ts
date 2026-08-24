@@ -227,7 +227,8 @@ export interface RemotionShotHumanApprovalV1 {
 
 export type RemotionRenderJobTarget =
   | { kind: "shot"; chapterId: string; shotId: string; shotRevision: number }
-  | { kind: "chapter"; chapterId: string; editingProjectId: string; editingRevision: number };
+  | { kind: "chapter"; chapterId: string; editingProjectId: string; editingRevision: number }
+  | { kind: "chapter-scene"; chapterId: string; editingProjectId: string; editingRevision: number; sceneNo: number };
 
 export interface RemotionRenderJobIdentityV1 {
   projectId: string;

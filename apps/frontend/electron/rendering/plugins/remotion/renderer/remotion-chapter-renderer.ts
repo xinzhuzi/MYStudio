@@ -108,6 +108,31 @@ export interface RemotionChapterRenderIdentity extends RemotionRenderJobIdentity
   target: Extract<RemotionRenderJobTarget, { kind: "chapter" }>;
 }
 
+/** 按场分段渲染的身份：frameRange 与场景边界必须进 inputHash，
+ * 否则与整章 job 撞 identity（队列按 jobId 去重会拒绝）。 */
+export interface RemotionChapterSceneRenderIdentity extends RemotionRenderJobIdentityV1 {
+  jobId: string;
+  target: Extract<RemotionRenderJobTarget, { kind: "chapter-scene" }>;
+}
+
+export interface RemotionChapterSceneSegmentSpec {
+  sceneNo: number;
+  sceneName: string;
+  storyboardIds: readonly string[];
+  /** 闭区间帧范围（与整章同一 layoutVisualTimeline 布局轴）。 */
+  frameRange: readonly [number, number];
+  /** 相对 Remotion workspace 的产物路径（jobs/chapter/<ep>/scenes/...）。 */
+  outputRelativePath: string;
+}
+
+export interface RemotionChapterSceneRenderRequest extends RemotionChapterRenderRequest {
+  sceneSegment: RemotionChapterSceneSegmentSpec;
+}
+
+export type RemotionChapterSceneRenderResult =
+  | { success: true; job: RemotionRenderJobV1; evidence: RemotionEvidenceV1 }
+  | { success: false; jobId: string; canceled: boolean; error: string };
+
 export type ChapterVisualInputResolution = {
   sourcePath: string;
   expectedSha256: string;
@@ -192,7 +217,7 @@ async function discoverChapterLayerAssets(
   return found;
 }
 
-export async function createRemotionChapterRenderIdentity(input: {
+interface ChapterIdentityCoreInput {
   plan: TimelineRenderPlan;
   currentShotSlots: readonly RemotionCurrentSlotV1[];
   chapterManifest: RemotionChapterManifestV2;
@@ -206,7 +231,14 @@ export async function createRemotionChapterRenderIdentity(input: {
    * 否则 expectedJobId 失配。
    */
   layerWorkspaceRoot?: string;
-}): Promise<RemotionChapterRenderIdentity> {
+}
+
+async function buildChapterIdentityCore(input: ChapterIdentityCoreInput): Promise<{
+  renderSettingsHash: string;
+  /** 进 inputHash 的核心对象（未哈希；调用方可追加维度后一次性哈希）。 */
+  coreObject: Record<string, unknown>;
+  target: { chapterId: string; editingProjectId: string; editingRevision: number };
+}> {
   const voiceIntervals = mapEditedVoiceIntervals(input);
   if (!voiceIntervals.success) {
     throw new Error(voiceIntervals.issues.map((issue) => `${issue.path}: ${issue.message}`).join("；"));
@@ -215,7 +247,7 @@ export async function createRemotionChapterRenderIdentity(input: {
     ? await discoverChapterLayerAssets(input.plan, input.layerWorkspaceRoot)
     : [];
   const renderSettingsHash = await sha256CanonicalJson(input.plan.renderSettings);
-  const inputHash = await sha256CanonicalJson(jsonValueWithoutUndefined({
+  const coreObject = jsonValueWithoutUndefined({
     schemaVersion: 1,
     target: "chapter",
     projectId: input.plan.projectId,
@@ -254,16 +286,53 @@ export async function createRemotionChapterRenderIdentity(input: {
         outputSha256: slot.evidence.sha256,
       },
     })),
-  }));
-  const target = {
-    kind: "chapter" as const,
-    chapterId: input.plan.episodeId,
-    editingProjectId: input.plan.editingProjectId,
-    editingRevision: input.plan.editingRevision,
+  }) as Record<string, unknown>;
+  return {
+    renderSettingsHash,
+    coreObject,
+    target: {
+      chapterId: input.plan.episodeId,
+      editingProjectId: input.plan.editingProjectId,
+      editingRevision: input.plan.editingRevision,
+    },
   };
+}
+
+export async function createRemotionChapterRenderIdentity(
+  input: ChapterIdentityCoreInput,
+): Promise<RemotionChapterRenderIdentity> {
+  const { renderSettingsHash, coreObject, target } = await buildChapterIdentityCore(input);
+  const inputHash = await sha256CanonicalJson(coreObject);
   const identity = {
     projectId: input.plan.projectId,
-    target,
+    target: { kind: "chapter" as const, ...target },
+    inputHash,
+    bundleContentHash: input.bundleContentHash,
+    renderSettingsHash,
+  };
+  return { ...identity, jobId: await createRemotionRenderJobId(identity) };
+}
+
+export async function createRemotionChapterSceneRenderIdentity(input: {
+  plan: TimelineRenderPlan;
+  currentShotSlots: readonly RemotionCurrentSlotV1[];
+  chapterManifest: RemotionChapterManifestV2;
+  bundleContentHash: string;
+  layerWorkspaceRoot?: string;
+  sceneSegment: RemotionChapterSceneSegmentSpec;
+}): Promise<RemotionChapterSceneRenderIdentity> {
+  const { renderSettingsHash, coreObject, target } = await buildChapterIdentityCore(input);
+  // 分段维度进哈希：帧窗口 + 场景边界集 + 产物相对路径（改名重导出可去重）。
+  coreObject.sceneSegment = jsonValueWithoutUndefined({
+    sceneNo: input.sceneSegment.sceneNo,
+    frameRange: [input.sceneSegment.frameRange[0], input.sceneSegment.frameRange[1]],
+    storyboardIds: [...input.sceneSegment.storyboardIds],
+    outputRelativePath: input.sceneSegment.outputRelativePath,
+  });
+  const inputHash = await sha256CanonicalJson(coreObject);
+  const identity = {
+    projectId: input.plan.projectId,
+    target: { kind: "chapter-scene" as const, ...target, sceneNo: input.sceneSegment.sceneNo },
     inputHash,
     bundleContentHash: input.bundleContentHash,
     renderSettingsHash,
@@ -295,6 +364,30 @@ export async function createReadyRemotionChapterJob(input: {
   };
 }
 
+export async function createReadyRemotionChapterSceneJob(input: {
+  plan: TimelineRenderPlan;
+  currentShotSlots: readonly RemotionCurrentSlotV1[];
+  chapterManifest: RemotionChapterManifestV2;
+  bundleContentHash: string;
+  templateVersion: string;
+  remotionVersion: string;
+  now?: number;
+  layerWorkspaceRoot?: string;
+  sceneSegment: RemotionChapterSceneSegmentSpec;
+}): Promise<RemotionRenderJobV1> {
+  const identity = await createRemotionChapterSceneRenderIdentity(input);
+  return {
+    schemaVersion: 1,
+    ...identity,
+    templateVersion: input.templateVersion,
+    remotionVersion: input.remotionVersion,
+    status: "ready",
+    attempt: 0,
+    progress: 0,
+    createdAt: input.now ?? Date.now(),
+  };
+}
+
 /** Direct ChapterVideo renderer. It never invokes FFmpeg for generation. */
 export class RemotionChapterRenderer {
   private readonly mediaBridge = new MediaBridgeServer();
@@ -313,6 +406,20 @@ export class RemotionChapterRenderer {
   }
 
   async render(input: RemotionChapterRenderRequest): Promise<RemotionChapterRenderResult> {
+    const result = await this.renderWithOptionalScene(input);
+    if (result.success && !("slot" in result)) throw new Error("chapter render 返回了场景分段结果");
+    return result;
+  }
+
+  async renderScene(input: RemotionChapterSceneRenderRequest): Promise<RemotionChapterSceneRenderResult> {
+    const result = await this.renderWithOptionalScene(input);
+    if (result.success && "slot" in result) throw new Error("chapter scene render 返回了整章结果");
+    return result;
+  }
+
+  private async renderWithOptionalScene(
+    input: RemotionChapterRenderRequest & { sceneSegment?: RemotionChapterSceneSegmentSpec },
+  ): Promise<RemotionChapterRenderResult | RemotionChapterSceneRenderResult> {
     const planValidation = validateTimelineRenderPlan(input.plan);
     if (!planValidation.success) {
       return { success: false, jobId: "chapter:pending", canceled: false, error: planValidation.issues.map((issue) => issue.message).join("；") };
@@ -345,14 +452,23 @@ export class RemotionChapterRenderer {
     // expectedJobId 不因层资产进哈希而失配。
     const layerWorkspaceRoot = this.options.workspaceRootForProject?.(plan.projectId) ?? this.options.workspaceRoot;
     const layerAssets = await discoverChapterLayerAssets(plan, layerWorkspaceRoot);
-    const identity = await createRemotionChapterRenderIdentity({
-      plan,
-      currentShotSlots: input.currentShotSlots,
-      chapterManifest,
-      bundleContentHash: bundle.contentHash,
-      layerWorkspaceRoot,
-    });
-    const { target, jobId } = identity;
+    const identity = input.sceneSegment
+      ? await createRemotionChapterSceneRenderIdentity({
+          plan,
+          currentShotSlots: input.currentShotSlots,
+          chapterManifest,
+          bundleContentHash: bundle.contentHash,
+          layerWorkspaceRoot,
+          sceneSegment: input.sceneSegment,
+        })
+      : await createRemotionChapterRenderIdentity({
+          plan,
+          currentShotSlots: input.currentShotSlots,
+          chapterManifest,
+          bundleContentHash: bundle.contentHash,
+          layerWorkspaceRoot,
+        });
+    const { jobId } = identity;
     if (input.expectedJobId && input.expectedJobId !== jobId) {
       return {
         success: false,
@@ -387,6 +503,14 @@ export class RemotionChapterRenderer {
           error: `视频工作流章节 gate 检查失败: ${error instanceof Error ? error.message : String(error)}`,
         };
       }
+    }
+    if (input.sceneSegment && videoWorkflowGateResult?.accepted && videoWorkflowGateResult.mode === "flat-shot-mp4") {
+      return {
+        success: false,
+        jobId: input.expectedJobId ?? jobId,
+        canceled: false,
+        error: "flat-shot-mp4 章节只有一个视觉片段，无场可分",
+      };
     }
     const subtitleAuthorityValidation = validateSubtitleAuthorityForTimeline(
       plan,
@@ -600,6 +724,8 @@ export class RemotionChapterRenderer {
         outputPath: stagedOutputPath,
         remotionVersion: this.options.remotionVersion,
         binariesDirectory: this.options.binariesDirectory,
+        // 按场分段：同一 bundle/props，仅裁渲染帧窗口（闭区间）。
+        ...(input.sceneSegment ? { frameRange: input.sceneSegment.frameRange } : {}),
         // D3 硬件加速渲染（render-hw-mode；严禁进 plan/renderSettings——M2 缓存陷阱）。
         hardwareRendering: readRenderHwSettings(this.options.userDataDir ?? path.join(this.options.cwd, "..")).hardwareAcceleration,
       });
@@ -615,6 +741,56 @@ export class RemotionChapterRenderer {
       const sha256 = await hashFile(stagedOutputPath);
       const startedAt = Date.now();
       const completedAt = Date.now();
+      if (input.sceneSegment) {
+        // 场景分段产物：落 workspace 相对路径 + evidence 旁车文件，不发布
+        // current slot、不写 renderPlan/snapshot（那是整章 current-slot 语义）。
+        const finalRelative = input.sceneSegment.outputRelativePath;
+        const finalAbsolute = path.join(workspaceRoot, finalRelative);
+        const sceneJob: RemotionRenderJobV1 = {
+          schemaVersion: 1,
+          ...identity,
+          templateVersion: bundle.templateVersion,
+          remotionVersion: bundle.remotionVersion,
+          status: "succeeded",
+          attempt: 1,
+          progress: 1,
+          createdAt: startedAt,
+          startedAt,
+          completedAt,
+          outputPath: finalRelative,
+          evidencePath: `${finalRelative}.evidence.json`,
+        };
+        const sceneEvidence: RemotionEvidenceV1 = {
+          schemaVersion: 1,
+          ...identity,
+          jobId,
+          templateVersion: bundle.templateVersion,
+          remotionVersion: bundle.remotionVersion,
+          attempt: 1,
+          compositionId: CHAPTER_VIDEO_COMPOSITION_ID,
+          renderer: { requested: "remotion", actual: "remotion" },
+          outputPath: finalRelative,
+          sizeBytes: stat.size,
+          mtimeMs: Math.floor(stat.mtimeMs),
+          sha256,
+          width: probe.width,
+          height: probe.height,
+          durationUs: Math.round(probe.duration * 1_000_000),
+          streams: probe.streams,
+          inputManifestPath: `chapters/${plan.episodeId}.json`,
+          startedAt,
+          completedAt,
+        };
+        const sceneJobResult = await validateRemotionRenderJobIdentity(sceneJob);
+        if (!sceneJobResult.success) throw new Error(sceneJobResult.issues.map((issue) => issue.message).join("；"));
+        const sceneEvidenceResult = await validateRemotionEvidenceIdentity(sceneEvidence);
+        if (!sceneEvidenceResult.success) throw new Error(sceneEvidenceResult.issues.map((issue) => issue.message).join("；"));
+        await fs.promises.mkdir(path.dirname(finalAbsolute), { recursive: true });
+        await fs.promises.rename(stagedOutputPath, finalAbsolute);
+        await fs.promises.writeFile(`${finalAbsolute}.evidence.json`, `${JSON.stringify(sceneEvidence, null, 2)}\n`, "utf8");
+        return { success: true, job: sceneJob, evidence: sceneEvidence };
+      }
+      const target = identity.target as Extract<RemotionRenderJobTarget, { kind: "chapter" }>;
       const currentPaths = remotionCurrentSlotPaths(target);
       const job: RemotionRenderJobV1 = {
         schemaVersion: 1,

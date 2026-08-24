@@ -24,6 +24,8 @@ import { VisualContinuityReviewPanel } from "./VisualContinuityReviewPanel";
 import { useEditingWorkbenchActions } from "./useEditingWorkbenchActions";
 import { selectFirstStoryboard, useFirstShotPreviewActions } from "./use-first-shot-preview-actions";
 import { useRemotionQueueScope } from "./useRemotionQueueScope";
+import { useSceneSegmentExport } from "./useSceneSegmentExport";
+import { SceneSegmentExportDialog, SceneSegmentExportProgress } from "./SceneSegmentExportDialog";
 import type { RemotionQueueScopeState } from "./useRemotionQueueScope";
 import { toast } from "sonner";
 import { VideoWorkflowReviewPanel } from "./VideoWorkflowReviewPanel";
@@ -48,6 +50,13 @@ export function WorkbenchTab(props: {
   const reviewContinuityAssetVersionHuman = useStudioStore((state) => state.reviewContinuityAssetVersionHuman);
   const chapterId = props.episodeId ?? "episode-1";
   const queueScope = useRemotionQueueScope(props.projectId ?? activeProjectId ?? undefined, chapterId);
+  const [sceneSegmentDialogOpen, setSceneSegmentDialogOpen] = useState(false);
+  const [sceneSegmentSelection, setSceneSegmentSelection] = useState<Set<number>>(new Set());
+  const sceneSegmentExport = useSceneSegmentExport({
+    projectId: props.projectId ?? activeProjectId ?? undefined,
+    chapterId,
+    queueJobs: queueScope.jobs,
+  });
   const remotionShotSlots = resolveWorkbenchRemotionShotSlots(queueScope, props.remotionShotSlots);
   const [videoUseStoryboardSourcePolicy, setVideoUseStoryboardSourcePolicy] = useState<VideoUseStoryboardSourcePolicy>("current-ready");
   const editing = useEditingWorkbenchActions({
@@ -466,6 +475,36 @@ export function WorkbenchTab(props: {
           >
             {logBundleExporting ? "正在导出…" : "导出制作日志包"}
           </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            data-scene-segment-export
+            disabled={!chapterReady || !sceneSegmentExport.editingRevision || sceneSegmentExport.exporting}
+            title={sceneSegmentExport.sceneError ?? (sceneSegmentExport.editingRevision ? "按场分段导出（Remotion 范围渲染）" : "需先完成 video-use 验收")}
+            onClick={() => {
+              if (sceneSegmentExport.sceneError) {
+                toast.error(sceneSegmentExport.sceneError);
+                return;
+              }
+              setSceneSegmentSelection(new Set(sceneSegmentExport.scenes.map((scene) => scene.sceneNo)));
+              setSceneSegmentDialogOpen(true);
+            }}
+          >
+            按场分段导出
+          </Button>
+          <SceneSegmentExportDialog
+            open={sceneSegmentDialogOpen}
+            onOpenChange={setSceneSegmentDialogOpen}
+            scenes={sceneSegmentExport.scenes}
+            selection={sceneSegmentSelection}
+            onSelectionChange={setSceneSegmentSelection}
+            exporting={sceneSegmentExport.exporting}
+            onStart={(selected) => {
+              setSceneSegmentDialogOpen(false);
+              void sceneSegmentExport.exportScenes(selected);
+            }}
+          />
+          <SceneSegmentExportProgress items={sceneSegmentExport.pendingJobStatuses} />
           <span
             className="pb-2 text-muted-foreground"
             data-video-use-revision={editing.videoUseRevision ? String(editing.videoUseRevision) : ""}

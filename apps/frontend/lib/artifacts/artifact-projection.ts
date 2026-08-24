@@ -5,7 +5,7 @@
  
 import type { ArtifactRecord, DeletePolicy, RemotionManifest, RemotionJob } from "@/types/artifacts";
  
-import type { NovelChapter, AgentWorkData, EntityExtractionResult, StoryboardItem, ProductionTrack, VideoCandidate, ContinuityAssetVersion } from "@/types/studio";
+import type { NovelChapter, AgentWorkData, EntityExtractionResult, StoryboardItem, ProductionTrack, VideoCandidate, ContinuityAssetVersion, SceneSegmentRecord } from "@/types/studio";
 import type { Episode, ScriptData, ScriptScene as Scene } from "@/types/script";
 import type { StudioWorkflowState } from "@/stores/studio/studio-store";
 import type { DirectorState } from "@/stores/director/director-store-types";
@@ -81,6 +81,7 @@ export type ArtifactKind =
   | "storyboard-item"
   | "production-track"
   | "video-candidate"
+  | "scene-segment"
   | "tts-scene-voice-line"
   | "editing-project"
   | "editing-run"
@@ -380,6 +381,46 @@ export function projectVideoCandidates(
           : candidate.state === "failed"
             ? "Failed rendering state"
             : undefined };
+    });
+}
+
+/**
+ * Map scene segments (Remotion chapter-scene frameRange renders) to artifacts.
+ * Chapter-owned via record.chapterId; upstream is the storyboard chain.
+ */
+export function projectSceneSegmentArtifacts(
+  segments: SceneSegmentRecord[],
+  projectId: string,
+  chapterId?: string,
+): ArtifactRecord[] {
+  return segments
+    .filter((segment) => !chapterId || segment.chapterId === chapterId)
+    .map((segment) => {
+      const artId = buildArtifactId("production", "scene-segment", segment.id);
+      return {
+        id: artId,
+        projectId,
+        chapterId: segment.chapterId,
+        stage: "production",
+        kind: "scene-segment",
+        state: "active",
+        name: `场 ${segment.sceneNo} 分段 · ${segment.sceneName}`,
+        createdAt: segment.createdAt,
+        updatedAt: segment.createdAt,
+        physicalRefs: [
+          {
+            type: "exports",
+            path: segment.outputAbsolutePath,
+            bytes: undefined,
+            hash256: undefined },
+        ],
+        upstreamIds: segment.storyboardIds.map((storyboardId) =>
+          buildArtifactId("storyboard", "storyboard-item", storyboardId)),
+        downstreamIds: [],
+        deletePolicy: "delete-exclusive-downstream",
+        editRoute: `/studio/scene-segment/${segment.id}`,
+        retainedReason: undefined,
+        blockerReason: undefined };
     });
 }
 
@@ -1008,10 +1049,17 @@ export function projectAllFromStores(
     ));
   }
   const knownTrackIds = new Set(studioState.productionTracks.map((track) => track.id));
+  // 08-24：无法归轨且 stale 的候选（legacy ffmpeg 场分段等）不再投影成「章节
+  // 视频产出」——数据保留在 store，产物树只显示当前口径的产出。
   const unresolvedCandidates = studioState.videoCandidates.filter(
-    (candidate) => !knownTrackIds.has(candidate.trackId),
+    (candidate) => !knownTrackIds.has(candidate.trackId) && !candidate.stale,
   );
   artifacts.push(...projectVideoCandidates(unresolvedCandidates, projectId));
+  artifacts.push(...projectSceneSegmentArtifacts(
+    studioState.sceneSegments ?? [],
+    projectId,
+    projectionChapterId,
+  ));
   artifacts.push(...projectTTSVoiceLines(
     ttsVoiceLines,
     projectId,

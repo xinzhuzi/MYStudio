@@ -47,7 +47,7 @@ const emptySummary = {
     "character-variant": 0, "scene-derivative": 0, "prop-derivative": 0,
     "base-character": 0, "base-scene": 0, "base-prop": 0,
     "tts-scene-voice-line": 0, "tts-voice-profile": 0, "tts-voice-binding": 0,
-    "production-track": 0, "video-candidate": 0, "editing-project": 0,
+    "production-track": 0, "video-candidate": 0, "scene-segment": 0, "editing-project": 0,
     "editing-run": 0, "editing-render": 0, "remotion-manifest": 0,
     "remotion-job": 0, "remotion-audio": 0, "remotion-output": 0,
     "remotion-queue": 0, "remotion-current-slot": 0, "continuity-bible": 0,

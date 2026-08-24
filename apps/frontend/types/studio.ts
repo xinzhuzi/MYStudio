@@ -437,6 +437,30 @@ export interface VideoCandidate extends StudioStaleEvidence {
   createdAt: number;
 }
 
+/**
+ * 按场分段产物（Remotion chapter-scene job 成功后登记）。独立于
+ * videoCandidates/productionTracks（那是 ffmpeg 时代的 track 域）：场级分段
+ * 是章级 composition 的 frameRange 范围渲染，产物挂章节，不参与轨道选择。
+ */
+export interface SceneSegmentRecord extends StudioSourceIdentity {
+  id: string;
+  chapterId: string;
+  sceneNo: number;
+  sceneName: string;
+  storyboardIds: string[];
+  /** 闭区间帧范围（与整章 composition 同一布局轴）。 */
+  frameRange: [number, number];
+  /** 项目 Remotion workspace 相对路径。 */
+  outputRelativePath: string;
+  /** 绝对路径（渲染域展示/打开）。 */
+  outputAbsolutePath: string;
+  /** chapter-scene 队列 job ID（chapter-scene:<sha256>）。 */
+  jobId: string;
+  /** 渲染身份哈希（与 job inputHash 同源，用于失效判断）。 */
+  inputHash: string;
+  createdAt: number;
+}
+
 export type MediaGenerationTaskKind =
   | "storyboardImage"
   | "derivedAssetImage"

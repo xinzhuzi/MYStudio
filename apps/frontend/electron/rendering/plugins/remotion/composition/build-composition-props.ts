@@ -1225,6 +1225,39 @@ function compareTimelineClips(left: TimelineRenderClip, right: TimelineRenderCli
   return left.startUs - right.startUs || left.id.localeCompare(right.id);
 }
 
+/** 按场分段导出的帧布局：与正式 ChapterVideo 渲染同源（同排序、同
+ * layoutVisualTimeline、同转场重叠折叠），供入队侧计算场帧区间。 */
+export function layoutChapterVisualClipTimings(plan: TimelineRenderPlan): {
+  clips: Array<{ clipId: string; storyboardId: string; from: number; durationInFrames: number }>;
+  durationInFrames: number;
+} {
+  const visualClips = plan.clips
+    .filter((clip) => clip.trackKind === "video" || clip.trackKind === "image")
+    .sort(compareTimelineClips);
+  const timing = layoutVisualTimeline(
+    visualClips.map((clip) => ({ clipId: clip.id, durationUs: clip.durationUs })),
+    plan.transitions.map((transition) => ({
+      fromClipId: transition.fromClipId,
+      toClipId: transition.toClipId,
+      effectId: transition.effectId,
+      durationUs: transition.durationUs,
+    })),
+    plan.renderSettings.fps,
+  );
+  const storyboardIdByClipId = new Map(
+    visualClips.map((clip) => [clip.id, clip.source.evidence.storyboardId ?? ""]),
+  );
+  return {
+    clips: timing.clips.map((clip) => ({
+      clipId: clip.clipId,
+      storyboardId: storyboardIdByClipId.get(clip.clipId) ?? "",
+      from: clip.from,
+      durationInFrames: clip.durationInFrames,
+    })),
+    durationInFrames: timing.durationInFrames,
+  };
+}
+
 function requireCapabilityUrl(value: string | undefined, clipId: string): string {
   if (!value || !CAPABILITY_URL.test(value)) {
     throw new Error(`片段 ${clipId} 缺少 127.0.0.1 capability URL`);

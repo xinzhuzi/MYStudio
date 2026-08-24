@@ -51,6 +51,7 @@ const ArtifactKindSchema = z.enum([
   // Production tracks
   "production-track",
   "video-candidate",
+  "scene-segment",
   // Editing
   "editing-project",
   "editing-run",

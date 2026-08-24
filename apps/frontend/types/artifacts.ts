@@ -49,6 +49,8 @@ export type ArtifactKind =
   // Production tracks
   | "production-track"
   | "video-candidate"
+  // 按场分段（Remotion chapter-scene）
+  | "scene-segment"
   // Editing
   | "editing-project"
   | "editing-run"

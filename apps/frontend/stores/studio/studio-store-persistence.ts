@@ -19,9 +19,11 @@ type PersistedStudioWorkflowState = {
   mediaTasks?: unknown[];
   eventGraph?: unknown[];
   projectMemoryRecords?: unknown[];
+  sceneSegments?: unknown[];
   workflowConfig?: Partial<StudioWorkflowConfig>;
   [key: string]: unknown;
 };
+
 
 export function migrateStudioWorkflowState(persistedState: unknown): unknown {
   if (!persistedState || typeof persistedState !== "object") return persistedState;
@@ -39,6 +41,7 @@ export function migrateStudioWorkflowState(persistedState: unknown): unknown {
     mediaTasks: state.mediaTasks ?? [],
     eventGraph: state.eventGraph ?? [],
     projectMemoryRecords: state.projectMemoryRecords ?? [],
+    sceneSegments: state.sceneSegments ?? [],
     workflowConfig: normalizeWorkflowConfig(state.workflowConfig),
   };
 }

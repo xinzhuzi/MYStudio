@@ -164,7 +164,18 @@ export function validateRemotionJobTarget(
       ? { kind, chapterId, editingProjectId, editingRevision }
       : undefined;
   }
-  validator.issue(`${path}.kind`, "target.kind 必须是 shot 或 chapter");
+  if (kind === "chapter-scene") {
+    const record = validator.record(value, path, ["kind", "chapterId", "editingProjectId", "editingRevision", "sceneNo"]);
+    if (!record) return undefined;
+    const chapterId = validator.id(record.chapterId, `${path}.chapterId`);
+    const editingProjectId = validator.id(record.editingProjectId, `${path}.editingProjectId`);
+    const editingRevision = validator.integer(record.editingRevision, `${path}.editingRevision`, 1);
+    const sceneNo = validator.integer(record.sceneNo, `${path}.sceneNo`, 1);
+    return chapterId && editingProjectId && editingRevision !== undefined && sceneNo !== undefined
+      ? { kind, chapterId, editingProjectId, editingRevision, sceneNo }
+      : undefined;
+  }
+  validator.issue(`${path}.kind`, "target.kind 必须是 shot、chapter 或 chapter-scene");
   return undefined;
 }
 

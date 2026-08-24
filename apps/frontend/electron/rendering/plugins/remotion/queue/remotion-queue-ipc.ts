@@ -17,6 +17,7 @@ export const REMOTION_QUEUE_CANCEL_CHANNEL = "remotion-queue-cancel";
 export const REMOTION_QUEUE_SWITCH_CHANNEL = "remotion-queue-switch";
 export const REMOTION_QUEUE_CHECK_SWITCH_CHANNEL = "remotion-queue-check-switch";
 export const REMOTION_QUEUE_JOB_EVENT = "remotion-queue-job";
+export const REMOTION_QUEUE_ENQUEUE_CHAPTER_SCENES_CHANNEL = "remotion-queue-enqueue-chapter-scenes";
 
 export interface RemotionQueueScopeRequest {
   projectId: string;
@@ -42,6 +43,33 @@ export interface RemotionQueueEnqueueShotRequest {
   job: RemotionRenderJobV1;
   plan: import("@/lib/studio/remotion/shot-plan").RemotionShotPlanV1;
 }
+
+/** 按场分段导出入队请求：main 侧复用章级 projection 编译器并做场校验。 */
+export interface RemotionQueueEnqueueChapterScenesRequest {
+  projectId: string;
+  chapterId: string;
+  editingRevision: number;
+  segments: Array<{
+    sceneNo: number;
+    sceneName: string;
+    storyboardIds: string[];
+  }>;
+}
+
+export interface RemotionQueueEnqueueChapterScenesReplySegment {
+  sceneNo: number;
+  jobId: string;
+  /** 相对项目 Remotion workspace 的产物路径。 */
+  outputRelativePath: string;
+  /** 绝对路径（渲染域登记 sceneSegments 用）。 */
+  outputAbsolutePath: string;
+  /** 闭区间帧范围（与整章 composition 同一布局轴；登记进 sceneSegments）。 */
+  frameRange: [number, number];
+}
+
+export type RemotionQueueEnqueueChapterScenesReply =
+  | { accepted: true; segments: RemotionQueueEnqueueChapterScenesReplySegment[] }
+  | { accepted: false; message: string };
 
 export type RemotionQueueRetryReply = RemotionQueueEnqueueResult;
 export interface RemotionQueueCancelReply {

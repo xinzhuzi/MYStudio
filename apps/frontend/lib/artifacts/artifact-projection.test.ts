@@ -99,6 +99,58 @@ describe("artifact-projection", () => {
       expect(new Set(videos.map((item) => item.chapterId))).toEqual(new Set(["chapter-001", "chapter-002"]));
     });
 
+
+    test("projects scene segments as chapter-owned artifacts and drops stale unresolved legacy candidates", () => {
+      const fixture = buildSingleChapterFixture("chapter-001");
+      fixture.studio.sceneSegments = [
+        {
+          id: "scene-segment-1",
+          chapterId: "chapter-001",
+          sceneNo: 1,
+          sceneName: "河雾矿奴",
+          storyboardIds: [fixture.studio.storyboards[0]!.id, fixture.studio.storyboards[1]!.id],
+          frameRange: [0, 120],
+          outputRelativePath: "jobs/chapter/chapter-001/scenes/Sc01_test.mp4",
+          outputAbsolutePath: "/workspace/jobs/chapter/chapter-001/scenes/Sc01_test.mp4",
+          jobId: "chapter-scene:aaaa",
+          inputHash: "a".repeat(64),
+          createdAt: 100,
+        },
+      ];
+      // legacy ffmpeg 场候选：指向不存在的轨道且 stale——不得再投影成章节产出
+      fixture.studio.videoCandidates.push({
+        id: "legacy-scene-candidate",
+        trackId: "track-chapter-001-scene-1",
+        provider: "ffmpeg-local",
+        filePath: "/exports/legacy/scene_01.mp4",
+        state: "ready",
+        createdAt: 50,
+        stale: true,
+        staleReason: "track source changed",
+      });
+
+      const result = projectAllFromStores(
+        fixture.studio,
+        fixture.script,
+        fixture.director,
+        fixture.editing,
+        fixture.tts,
+        fixture.media,
+        fixture.remotion,
+        fixture.projectId,
+        fixture.chapterId,
+      );
+
+      const segments = result.artifacts.filter((item) => item.kind === "scene-segment");
+      expect(segments).toHaveLength(1);
+      expect(segments[0]).toMatchObject({
+        chapterId: "chapter-001",
+        name: expect.stringContaining("场 1") as unknown,
+      });
+      expect(segments[0]!.physicalRefs[0]).toMatchObject({ path: "/workspace/jobs/chapter/chapter-001/scenes/Sc01_test.mp4" });
+      expect(result.artifacts.some((item) => item.kind === "video-candidate" && item.name.includes("legacy-scene-candidate"))).toBe(false);
+    });
+
     test("scopes novel, script, and agent artifacts to one chapter and maps unique legacy work", () => {
       const fixture = buildSingleChapterFixture("chapter-001");
       const chapterB = buildSingleChapterFixture("chapter-002");

@@ -80,6 +80,19 @@ import { RemotionShotRenderer } from '@rendering/plugins/remotion/renderer/remot
 import type { CinematicCameraPreset } from '@rendering/plugins/remotion/composition/composition-props'
 import { RemotionChapterRenderer } from '@rendering/plugins/remotion/renderer/remotion-chapter-renderer'
 import {
+  createReadyRemotionChapterSceneJob,
+} from '@rendering/plugins/remotion/renderer/remotion-chapter-renderer'
+import { layoutChapterVisualClipTimings } from '@rendering/plugins/remotion/composition/build-composition-props'
+import {
+  planSceneSegmentFrameRanges,
+  sanitizeSceneSegmentName,
+} from '@/lib/studio/remotion/scene-segments'
+import type {
+  RemotionQueueEnqueueChapterScenesReply,
+  RemotionQueueEnqueueChapterScenesReplySegment,
+  RemotionQueueEnqueueChapterScenesRequest,
+} from '@rendering/plugins/remotion/queue/remotion-queue-ipc'
+import {
   createRemotionQueueFilePersistence,
   RemotionRenderQueue,
 } from '@rendering/plugins/remotion/queue/remotion-render-queue'
@@ -1098,6 +1111,7 @@ const remotionQueue = new RemotionRenderQueue({
   executor: {
     render: remotionShotRenderer.render.bind(remotionShotRenderer),
     renderChapter: remotionChapterRenderer.render.bind(remotionChapterRenderer),
+    renderChapterScene: remotionChapterRenderer.renderScene.bind(remotionChapterRenderer),
     cancel: (jobId) => {
       const shot = remotionShotRenderer.cancel(jobId)
       if (shot.success) return shot
@@ -1111,6 +1125,7 @@ const remotionQueue = new RemotionRenderQueue({
 })
 const remotionQueueIpc = registerRemotionQueueIpcHandlers(remotionQueue, {
   getCurrentShotSlots: readRemotionCurrentShotSlots,
+  enqueueChapterScenes: enqueueChapterSceneSegments,
 })
 let hostedStudioChapterContext: RemotionStudioChapterRenderContext | null = null
 const nativeStudioQueueBridge = new RemotionStudioRenderQueueBridge({
@@ -1454,6 +1469,119 @@ async function readEditingProjectSnapshot(request: { projectId: string; chapterI
 async function readRemotionCurrentShotSlots(scope: { projectId: string; chapterId: string }): Promise<RemotionCurrentSlotV1[]> {
   const workspaceRoot = path.join(projectRootFor(scope.projectId), 'remotion')
   return readRemotionCurrentShotSlotsFromWorkspace(workspaceRoot, scope.projectId, scope.chapterId)
+}
+
+/**
+ * 按场分段导出入队服务（渲染域 IPC → 本函数）：复用章级 projection 编译器
+ * 拿同一 plan/slots，场结构由渲染域从分镜表原文推导后随请求传入，这里只做
+ * 「分镜→渲染计划片段」的结构校验与帧分区。产物落项目 Remotion workspace
+ * `jobs/chapter/<chapterId>/scenes/`，不走 current slot、不触发章级 QC。
+ */
+async function enqueueChapterSceneSegments(
+  request: RemotionQueueEnqueueChapterScenesRequest,
+): Promise<RemotionQueueEnqueueChapterScenesReply> {
+  try {
+    // function 声明可早于模块级守卫被调用，这里自行收窄（模块级已有同款 throw）。
+    const resolvedRemotionVersion = remotionVersion
+    if (typeof resolvedRemotionVersion !== "string") {
+      return { accepted: false, message: "package.json 必须声明精确 Remotion 版本" }
+    }
+    const browser = await remotionRuntime.controller.probeStatus()
+    if (browser.status.state !== 'ready') {
+      return { accepted: false, message: `Remotion Headless Shell 未就绪: ${browser.status.message ?? browser.status.state}` }
+    }
+    const projection = await loadChapterStudioProjection({
+      projectId: request.projectId,
+      chapterId: request.chapterId,
+      revision: request.editingRevision,
+    })
+    const plan = projection.plan
+    const currentShotSlots = [...projection.currentShotSlots]
+    const layout = layoutChapterVisualClipTimings(plan)
+    const framePlan = planSceneSegmentFrameRanges({
+      clips: layout.clips,
+      durationInFrames: layout.durationInFrames,
+      scenes: request.segments.map((segment) => ({
+        sceneNo: segment.sceneNo,
+        sceneName: segment.sceneName,
+        storyboardIds: segment.storyboardIds,
+      })),
+    })
+    if (!framePlan.success) {
+      return { accepted: false, message: `按场分段校验失败：${framePlan.issues.join('；')}` }
+    }
+    const chapterManifest = await remotionChapterManifestService.read(request.projectId, request.chapterId)
+    if (!chapterManifest) return { accepted: false, message: '当前章节缺少 RemotionChapterManifestV2' }
+    const manifest = JSON.parse(await fs.promises.readFile(path.join(remotionBundlePath, 'manifest.json'), 'utf8')) as {
+      contentHash?: unknown;
+      templateVersion?: unknown;
+    }
+    if (typeof manifest.contentHash !== 'string' || typeof manifest.templateVersion !== 'string') {
+      return { accepted: false, message: 'Remotion bundle manifest 缺少 template/content hash' }
+    }
+    const layerWorkspaceRoot = path.join(projectRootFor(request.projectId), 'remotion')
+    const workspaceRoot = layerWorkspaceRoot
+    const replySegments: RemotionQueueEnqueueChapterScenesReplySegment[] = []
+    for (let index = 0; index < framePlan.segments.length; index += 1) {
+      const segment = framePlan.segments[index]!
+      const sceneRequest = request.segments.find((candidate) => candidate.sceneNo === segment.sceneNo)
+      if (!sceneRequest) return { accepted: false, message: `场 ${segment.sceneNo} 缺少请求参数` }
+      const outputRelativePath = `jobs/chapter/${request.chapterId}/scenes/Sc${String(segment.sceneNo).padStart(2, '0')}_${sanitizeSceneSegmentName(segment.sceneName)}.mp4`
+      const job = await createReadyRemotionChapterSceneJob({
+        plan,
+        currentShotSlots,
+        chapterManifest,
+        bundleContentHash: manifest.contentHash,
+        templateVersion: manifest.templateVersion,
+        remotionVersion: resolvedRemotionVersion,
+        layerWorkspaceRoot,
+        sceneSegment: {
+          sceneNo: segment.sceneNo,
+          sceneName: sceneRequest.sceneName,
+          storyboardIds: sceneRequest.storyboardIds,
+          frameRange: [segment.startFrame, segment.endFrame],
+          outputRelativePath,
+        },
+      })
+      const result = await remotionQueue.enqueueChapterScene({
+        kind: 'chapter-scene',
+        job,
+        dependencyJobIds: currentShotSlots.map((slot) => slot.job.jobId),
+        plan,
+        currentShotSlots,
+        sceneSegment: {
+          sceneNo: segment.sceneNo,
+          sceneName: sceneRequest.sceneName,
+          storyboardIds: sceneRequest.storyboardIds,
+          frameRange: [segment.startFrame, segment.endFrame],
+          outputRelativePath,
+        },
+      })
+      if (!result.accepted) {
+        if (result.reason === 'duplicate-active' || result.reason === 'already-succeeded') {
+          replySegments.push({
+            sceneNo: segment.sceneNo,
+            jobId: result.job.jobId,
+            outputRelativePath,
+            outputAbsolutePath: path.join(workspaceRoot, outputRelativePath),
+            frameRange: [segment.startFrame, segment.endFrame],
+          })
+          continue
+        }
+        return { accepted: false, message: 'message' in result ? result.message : `场 ${segment.sceneNo} 入队被拒绝: ${result.reason}` }
+      }
+      replySegments.push({
+        sceneNo: segment.sceneNo,
+        jobId: result.job.jobId,
+        outputRelativePath,
+        outputAbsolutePath: path.join(workspaceRoot, outputRelativePath),
+        frameRange: [segment.startFrame, segment.endFrame],
+      })
+    }
+    return { accepted: true, segments: replySegments }
+  } catch (error) {
+    return { accepted: false, message: error instanceof Error ? error.message : String(error) }
+  }
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

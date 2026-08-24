@@ -117,6 +117,10 @@ const CHAPTER_DOMAIN_RULES: Record<string, { slug: string; chapterKeyOf: Chapter
       return trackId ? context.episodeIdByTrackId.get(trackId) ?? null : null;
     },
   },
+  sceneSegments: {
+    slug: "scene-segments",
+    chapterKeyOf: (item) => recordField(item, "chapterId"),
+  },
 };
 
 /** 章节条目是否带全文（窗口化：带 sourceText 的才是完整章，落章分片；无=轻索引项，不落片） */

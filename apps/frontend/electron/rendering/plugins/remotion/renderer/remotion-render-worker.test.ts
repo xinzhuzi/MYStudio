@@ -138,6 +138,32 @@ describe("RemotionRenderWorker", () => {
     expect(result.success).toBe(true);
     expect(renderOptions).toMatchObject({ codec: "h264", audioCodec: "aac", outputLocation: outputPath });
   });
+  it("passes inclusive frameRange to renderMedia for scene segments and rejects out-of-range windows", async () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), "mystudio-remotion-scene-"));
+    const bundlePath = path.join(root, "bundle");
+    const outputPath = path.join(root, "scene.mp4");
+    fs.mkdirSync(bundlePath, { recursive: true });
+    fs.writeFileSync(path.join(bundlePath, "manifest.json"), JSON.stringify({ schemaVersion: 2, templateId: "mystudio-remotion-v1", templateVersion: "1.0.0", remotionVersion: "4.0.499", compositionIds: ["StoryboardShot", "ChapterVideo", "DaojieTimeline"], compositionId: "DaojieTimeline", contentHash: "b".repeat(64) }));
+    const props: ChapterVideoCompositionProps = { width: 1080, height: 1920, fps: 30, durationInFrames: 300, target: "chapter", projectId: "p", chapterId: "c", editingProjectId: "e", editingRevision: 1, visualClips: [{ clipId: "shot-1", kind: "video", src: `http://127.0.0.1:43123/${TOKEN}/current.mp4`, from: 0, durationInFrames: 300, transform: { x: 0, y: 0, scaleX: 1, scaleY: 1, rotation: 0, opacity: 1 } }], transitions: [], audioClips: [{ clipId: "bgm", kind: "bgm", renderScope: "chapter", src: audioUrl, from: 0, durationInFrames: 300, volume: 1 }], subtitles: [] };
+    let renderOptions: Record<string, unknown> | undefined;
+    let renderCalls = 0;
+    const worker = new RemotionRenderWorker({ emitProgress: () => undefined, api: { makeCancelSignal: () => ({ cancelSignal: () => undefined, cancel: () => undefined }), selectComposition: async (o) => ({ id: o.id, width: 1080, height: 1920, fps: 30, durationInFrames: 300 } as never), renderMedia: async (o) => { renderCalls += 1; renderOptions = o as unknown as Record<string, unknown>; fs.writeFileSync(outputPath, "mp4"); return {} as never; } } });
+    const result = await worker.render({ target: "chapter", jobId: "chapter-scene-job", compositionProps: props, compositionId: "ChapterVideo", bundlePath, outputPath, browserExecutable: "/bin/true", remotionVersion: "4.0.499", frameRange: [12, 240] });
+    expect(result.success).toBe(true);
+    expect(renderOptions).toMatchObject({ frameRange: [12, 240] });
+
+    // 越界窗口：endFrame 超过 composition 时 fail-closed，不触达 renderMedia
+    const before = renderCalls;
+    const outOfRange = await worker.render({ target: "chapter", jobId: "chapter-scene-job-2", compositionProps: props, compositionId: "ChapterVideo", bundlePath, outputPath: path.join(root, "scene2.mp4"), browserExecutable: "/bin/true", remotionVersion: "4.0.499", frameRange: [0, 300] });
+    expect(outOfRange.success).toBe(false);
+    if (!outOfRange.success) expect(outOfRange.error).toContain("帧区间越界");
+    expect(renderCalls).toBe(before);
+
+    // 非法窗口（start > end）：校验层直接拒绝
+    const inverted = await worker.render({ target: "chapter", jobId: "chapter-scene-job-3", compositionProps: props, compositionId: "ChapterVideo", bundlePath, outputPath: path.join(root, "scene3.mp4"), browserExecutable: "/bin/true", remotionVersion: "4.0.499", frameRange: [10, 5] });
+    expect(inverted.success).toBe(false);
+  });
+
   it("selects the fixed composition, renders H.264/AAC, and forwards progress", async () => {
     const root = fs.mkdtempSync(path.join(os.tmpdir(), "mystudio-remotion-worker-"));
     const bundlePath = path.join(root, "bundle");

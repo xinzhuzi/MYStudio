@@ -1061,3 +1061,47 @@ describe("studio workflow store", () => {
     });
   });
 });
+
+describe("scene segment registration (Remotion chapter-scene)", () => {
+  const baseRecord = {
+    id: "scene-segment-1",
+    chapterId: "chapter-001",
+    sceneNo: 1,
+    sceneName: "河雾矿奴",
+    storyboardIds: ["sb-1", "sb-2"],
+    frameRange: [0, 120] as [number, number],
+    outputRelativePath: "jobs/chapter/chapter-001/scenes/Sc01_test.mp4",
+    outputAbsolutePath: "/workspace/jobs/chapter/chapter-001/scenes/Sc01_test.mp4",
+    jobId: "chapter-scene:aaaa",
+    inputHash: "a".repeat(64),
+    createdAt: 100,
+  };
+
+  it("registers scene segments and dedupes by jobId", () => {
+    useStudioStore.getState().registerSceneSegment(baseRecord);
+    useStudioStore.getState().registerSceneSegment({ ...baseRecord, sceneName: "更新名" });
+    const state = useStudioStore.getState();
+    expect(state.sceneSegments).toHaveLength(1);
+    expect(state.sceneSegments[0]).toMatchObject({ sceneName: "更新名", sceneNo: 1 });
+  });
+
+  it("replaces same chapter+scene records when render identity changes", () => {
+    useStudioStore.getState().registerSceneSegment(baseRecord);
+    useStudioStore.getState().registerSceneSegment({
+      ...baseRecord,
+      id: "scene-segment-2",
+      jobId: "chapter-scene:bbbb",
+      inputHash: "b".repeat(64),
+      createdAt: 200,
+    });
+    const state = useStudioStore.getState();
+    expect(state.sceneSegments).toHaveLength(1);
+    expect(state.sceneSegments[0]).toMatchObject({ inputHash: "b".repeat(64) });
+  });
+
+  it("removes scene segments by id", () => {
+    useStudioStore.getState().registerSceneSegment(baseRecord);
+    useStudioStore.getState().removeSceneSegment(baseRecord.id);
+    expect(useStudioStore.getState().sceneSegments).toHaveLength(0);
+  });
+});

@@ -17,6 +17,7 @@ import { createNovelSliceActions } from "./novel-slice";
 import { createMemorySliceActions } from "./memory-slice";
 import { createEntitySliceActions } from "./entity-slice";
 import { createProductionSliceActions } from "./production-slice";
+import { createSceneSegmentSliceActions } from "./scene-segment-slice";
 import { createAgentWorkSliceActions } from "./agent-work-slice";
 import { createStoryboardSliceActions } from "./storyboard-slice";
 import { groupStoryboardsIntoTracks } from "@/lib/studio/production";
@@ -79,6 +80,7 @@ import type {
   StudioMaterial,
   VideoCandidate,
   StudioSourceIdentity,
+  SceneSegmentRecord,
 } from "@/types/studio";
 
 interface StudioWorkflowState {
@@ -96,6 +98,7 @@ interface StudioWorkflowState {
   continuityAssetVersions: ContinuityAssetVersion[];
   productionTracks: ProductionTrack[];
   videoCandidates: VideoCandidate[];
+  sceneSegments: SceneSegmentRecord[];
   imageWorkflows: ImageWorkflowGraph[];
   agentRuns: StudioAgentRun[];
   mediaTasks: MediaGenerationTask[];
@@ -191,6 +194,8 @@ interface StudioWorkflowActions {
   updateVideoCandidate: (id: string, updates: Partial<VideoCandidate>) => void;
   selectVideoCandidate: (trackId: string, videoId: string) => void;
   deleteVideoCandidate: (id: string) => void;
+  registerSceneSegment: (record: SceneSegmentRecord) => void;
+  removeSceneSegment: (id: string) => void;
   resetStudioWorkflow: () => void;
 }
 type StudioWorkflowStore = StudioWorkflowState & StudioWorkflowActions;
@@ -208,6 +213,7 @@ const initialState: StudioWorkflowState = {
   continuityAssetVersions: [],
   productionTracks: [],
   videoCandidates: [],
+  sceneSegments: [],
   imageWorkflows: [],
   agentRuns: [],
   mediaTasks: [],
@@ -232,6 +238,7 @@ export const useStudioStore = create<StudioWorkflowStore>()(
       const memorySlice = createMemorySliceActions(set as never, get as never);
       const entitySlice = createEntitySliceActions(set as never);
       const productionSlice = createProductionSliceActions(set as never);
+      const sceneSegmentSlice = createSceneSegmentSliceActions(set as never);
       const agentWorkSlice = createAgentWorkSliceActions(set as never, get as never);
       const storyboardSlice = createStoryboardSliceActions(set as never, get as never);
       return {
@@ -300,6 +307,7 @@ export const useStudioStore = create<StudioWorkflowStore>()(
           mediaTasks: mergeWindow("mediaTasks", loaded?.domains.mediaTasks) as MediaGenerationTask[],
           productionTracks: mergeWindow("productionTracks", loaded?.domains.productionTracks) as ProductionTrack[],
           videoCandidates: mergeWindow("videoCandidates", loaded?.domains.videoCandidates) as VideoCandidate[],
+          sceneSegments: mergeWindow("sceneSegments", loaded?.domains.sceneSegments) as SceneSegmentRecord[],
           agentWorkData: mergeWindow("agentWorkData", loaded?.domains.agentWorkData) as AgentWorkData[],
           imageWorkflows: mergeWindow("imageWorkflows", loaded?.domains.imageWorkflows) as ImageWorkflowGraph[],
         });
@@ -811,6 +819,8 @@ export const useStudioStore = create<StudioWorkflowStore>()(
 
       selectVideoCandidate: productionSlice.selectVideoCandidate,
       deleteVideoCandidate: productionSlice.deleteVideoCandidate,
+      registerSceneSegment: sceneSegmentSlice.registerSceneSegment,
+      removeSceneSegment: sceneSegmentSlice.removeSceneSegment,
 
       resetStudioWorkflow: () => set({ ...initialState }),
       };

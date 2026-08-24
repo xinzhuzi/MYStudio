@@ -25,6 +25,9 @@ import type {
 import type {
   RemotionChapterRenderRequest,
   RemotionChapterRenderResult,
+  RemotionChapterSceneRenderRequest,
+  RemotionChapterSceneRenderResult,
+  RemotionChapterSceneSegmentSpec,
 } from "../renderer/remotion-chapter-renderer";
 import type {
   RemotionShotRenderResult,
@@ -49,7 +52,18 @@ export interface RemotionQueueChapterInput {
   currentShotSlots?: RemotionCurrentSlotV1[];
 }
 
-export type RemotionQueueWorkItem = RemotionQueueShotInput | RemotionQueueChapterInput;
+/** 按场分段 job：与整章 job 同源（同一 plan/slots），但产物落 workspace
+ * scenes 相对路径，成功后不发布 current slot、不触发章级 QC 回调。 */
+export interface RemotionQueueChapterSceneInput {
+  kind: "chapter-scene";
+  job: RemotionRenderJobV1;
+  dependencyJobIds: string[];
+  plan: TimelineRenderPlan;
+  currentShotSlots: RemotionCurrentSlotV1[];
+  sceneSegment: RemotionChapterSceneSegmentSpec;
+}
+
+export type RemotionQueueWorkItem = RemotionQueueShotInput | RemotionQueueChapterInput | RemotionQueueChapterSceneInput;
 
 type RemotionQueueStateItem = RemotionQueueWorkItem;
 
@@ -83,6 +97,7 @@ export interface RemotionQueuePersistence {
 export interface RemotionQueueExecutor {
   render(plan: RemotionShotPlanV1): Promise<RemotionShotRenderResult>;
   renderChapter?: (input: RemotionChapterRenderRequest) => Promise<RemotionChapterRenderResult>;
+  renderChapterScene?: (input: RemotionChapterSceneRenderRequest) => Promise<RemotionChapterSceneRenderResult>;
   cancel(jobId: string): { success: boolean; jobId: string; canceled: boolean; error?: string };
 }
 
@@ -250,6 +265,60 @@ export class RemotionRenderQueue {
     return { accepted: true, job, reused: false };
   }
 
+  async enqueueChapterScene(input: RemotionQueueChapterSceneInput): Promise<RemotionQueueEnqueueResult> {
+    await this.init();
+    const jobValidation = await validateRemotionRenderJobIdentity(input.job);
+    if (!jobValidation.success) return invalid(jobValidation.issues.map((issue) => `${issue.path}: ${issue.message}`).join("; "));
+    if (input.job.target.kind !== "chapter-scene") return invalid("chapter-scene 队列 job target 必须是 chapter-scene");
+    if (input.job.target.sceneNo !== input.sceneSegment.sceneNo) return invalid("chapter-scene job target 与 sceneSegment.sceneNo 不一致");
+    const scopeError = this.ensureScope(input.job.projectId, input.job.target.chapterId);
+    if (scopeError) return { accepted: false, reason: "blocked", message: scopeError };
+    if (input.dependencyJobIds.some((id) => typeof id !== "string" || !id.trim())) {
+      return invalid("chapter-scene dependencyJobIds 必须是非空且唯一的 job ID");
+    }
+    const dependencyJobIds = [...new Set(input.dependencyJobIds)];
+    if (dependencyJobIds.length === 0 || dependencyJobIds.length !== input.dependencyJobIds.length) {
+      return invalid("chapter-scene dependencyJobIds 必须是非空且唯一的 job ID");
+    }
+    const dependencyError = this.validateChapterDependencies(input.job, dependencyJobIds);
+    if (dependencyError) return invalid(dependencyError);
+    const existing = this.jobs.get(input.job.jobId);
+    if (existing) {
+      if (existing.kind !== "chapter-scene" || !sameJobIdentity(existing.job, input.job)) return invalid("重复 chapter-scene jobId 绑定了不同的 render identity");
+      if (["queued", "running"].includes(existing.job.status)) return { accepted: false, job: existing.job, reason: "duplicate-active" };
+      if (existing.job.status === "succeeded") return { accepted: false, job: existing.job, reason: "already-succeeded" };
+      this.schedulePump();
+      return { accepted: false, job: existing.job, reason: "duplicate-active" };
+    }
+    const dependencyStatus = this.getDependencyStatus(dependencyJobIds);
+    let job = input.job;
+    if (dependencyStatus.failedJobId) {
+      job = asBlocked(job, this.now(), {
+        code: "chapter-dependency-failed",
+        message: `依赖 shot job 失败: ${dependencyStatus.failedJobId}`,
+        stage: "S5",
+      });
+    } else if (!dependencyStatus.allSucceeded) {
+      job = asBlocked(job, this.now(), {
+        code: "chapter-dependencies-pending",
+        message: "等待当前章全部 required shot 成功",
+        stage: "S5",
+      });
+    } else {
+      job = asReady(job);
+    }
+    await this.commit({
+      kind: "chapter-scene",
+      job,
+      dependencyJobIds,
+      plan: input.plan,
+      currentShotSlots: input.currentShotSlots,
+      sceneSegment: input.sceneSegment,
+    });
+    if (job.status === "ready") this.schedulePump();
+    return { accepted: true, job, reused: false };
+  }
+
   async retry(jobId: string): Promise<RemotionQueueEnqueueResult> {
     await this.init();
     const item = this.jobs.get(jobId);
@@ -324,11 +393,11 @@ export class RemotionRenderQueue {
     // 让 init 的补泵真正可运行(打包版一键成片 enqueue 走 hostedStudio 仅开发版
     // 可用,应用后无入队触点→ready 条目无人消费)。
     const readyChapter = [...this.jobs.values()].find((item) =>
-      item.kind === "chapter"
+      (item.kind === "chapter" || item.kind === "chapter-scene")
       && item.job.projectId === toProjectId
       && ["ready", "queued"].includes(item.job.status));
     if (readyChapter) {
-      this.activeChapterId = readyChapter.job.target.kind === "chapter"
+      this.activeChapterId = readyChapter.job.target.kind === "chapter" || readyChapter.job.target.kind === "chapter-scene"
         ? readyChapter.job.target.chapterId
         : undefined;
     }
@@ -353,7 +422,7 @@ export class RemotionRenderQueue {
   private hasRunnableJob(): boolean {
     return this.activeProjectId !== undefined
       && this.activeChapterId !== undefined
-      && [...this.jobs.values()].some((item) => (item.kind === "shot" || item.kind === "chapter")
+      && [...this.jobs.values()].some((item) => (item.kind === "shot" || item.kind === "chapter" || item.kind === "chapter-scene")
         && item.job.projectId === this.activeProjectId
         && targetChapterId(item.job.target) === this.activeChapterId
         && ["ready", "queued"].includes(item.job.status));
@@ -388,7 +457,7 @@ export class RemotionRenderQueue {
 
   private async drain(): Promise<void> {
     if (!this.initialized || this.activeJobId || !this.activeProjectId || !this.activeChapterId) return;
-    const next = [...this.jobs.values()].find((item) => (item.kind === "shot" || item.kind === "chapter")
+    const next = [...this.jobs.values()].find((item) => (item.kind === "shot" || item.kind === "chapter" || item.kind === "chapter-scene")
       && item.job.projectId === this.activeProjectId
       && targetChapterId(item.job.target) === this.activeChapterId
       && ["ready", "queued"].includes(item.job.status));
@@ -398,10 +467,21 @@ export class RemotionRenderQueue {
     const running = transitionOrThrow(queued, { status: "running", at: this.now() });
     await this.commit({ ...next, job: running });
     this.activeJobId = running.jobId;
-    let result: RemotionShotRenderResult | RemotionChapterRenderResult;
+    let result: RemotionShotRenderResult | RemotionChapterRenderResult | RemotionChapterSceneRenderResult;
     try {
       if (next.kind === "shot") {
         result = await this.options.executor.render(next.plan);
+      } else if (next.kind === "chapter-scene") {
+        if ("renderChapterScene" in this.options.executor && this.options.executor.renderChapterScene) {
+          result = await this.options.executor.renderChapterScene({
+            plan: next.plan,
+            currentShotSlots: next.currentShotSlots,
+            expectedJobId: running.jobId,
+            sceneSegment: next.sceneSegment,
+          });
+        } else {
+          result = { success: false, jobId: running.jobId, canceled: false, error: "chapter-scene job 缺少 executor.renderChapterScene" };
+        }
       } else if (next.plan && next.currentShotSlots
         && "renderChapter" in this.options.executor
         && this.options.executor.renderChapter) {
@@ -420,23 +500,34 @@ export class RemotionRenderQueue {
     const latest = this.jobs.get(running.jobId);
     if (!latest) return;
     if (result.success) {
-      const slotValidation = validateRemotionCurrentSlot(result.slot);
-      if (!slotValidation.success || slotValidation.value.job.jobId !== running.jobId || slotValidation.value.job.status !== "succeeded") {
-        await this.fail(latest, "evidence-invalid", "Remotion current slot/evidence 未通过 identity 验证");
-      } else {
-        await this.commit({ ...latest, job: slotValidation.value.job });
-        const succeededChapterId = targetChapterId(latest.job.target);
-        if (this.options.onChapterJobSucceeded && succeededChapterId) {
-          try {
-            this.options.onChapterJobSucceeded({
-              projectId: latest.job.projectId,
-              chapterId: succeededChapterId,
-              jobId: latest.job.jobId,
-              outputPath: slotValidation.value.job.outputPath ?? "",
-            });
-          } catch {
-            // QC 回调失败不影响队列
+      if ("slot" in result) {
+        const slotValidation = validateRemotionCurrentSlot(result.slot);
+        if (!slotValidation.success || slotValidation.value.job.jobId !== running.jobId || slotValidation.value.job.status !== "succeeded") {
+          await this.fail(latest, "evidence-invalid", "Remotion current slot/evidence 未通过 identity 验证");
+        } else {
+          await this.commit({ ...latest, job: slotValidation.value.job });
+          const succeededChapterId = targetChapterId(latest.job.target);
+          if (this.options.onChapterJobSucceeded && succeededChapterId) {
+            try {
+              this.options.onChapterJobSucceeded({
+                projectId: latest.job.projectId,
+                chapterId: succeededChapterId,
+                jobId: latest.job.jobId,
+                outputPath: slotValidation.value.job.outputPath ?? "",
+              });
+            } catch {
+              // QC 回调失败不影响队列
+            }
           }
+        }
+      } else {
+        // chapter-scene 成功：只 commit job（evidence 已由渲染器落盘旁车文件），
+        // 不发布 current slot、不触发章级 QC 回调。
+        const jobValidation = validateRemotionRenderJob(result.job);
+        if (!jobValidation.success || jobValidation.value.jobId !== running.jobId || jobValidation.value.status !== "succeeded") {
+          await this.fail(latest, "evidence-invalid", "chapter-scene job 未通过 identity 验证");
+        } else {
+          await this.commit({ ...latest, job: jobValidation.value });
         }
       }
     } else {
@@ -451,7 +542,7 @@ export class RemotionRenderQueue {
     const next = transitionOrThrow(item.job, {
       status: nextStatus,
       at: this.now(),
-      error: { code, message, stage: item.kind === "chapter" ? "S7" : "S4" },
+      error: { code, message, stage: item.kind === "shot" ? "S4" : "S7" },
     });
     await this.commit({ ...item, job: next });
   }
@@ -463,7 +554,7 @@ export class RemotionRenderQueue {
       attempt: Math.max(1, item.job.attempt),
       progress: 0,
       completedAt: this.now(),
-      error: { code: "user-canceled", message: "用户取消了排队中的 Remotion job", stage: item.kind === "chapter" ? "S7" : "S4" },
+      error: { code: "user-canceled", message: "用户取消了排队中的 Remotion job", stage: item.kind === "shot" ? "S4" : "S7" },
       outputPath: undefined,
       evidencePath: undefined,
     };
@@ -474,7 +565,8 @@ export class RemotionRenderQueue {
   }
 
   private async refreshChapterDependencies(projectId: string, chapterId: string): Promise<void> {
-    const chapters = [...this.jobs.values()].filter((item): item is RemotionQueueChapterInput => item.kind === "chapter"
+    const chapters = [...this.jobs.values()].filter((item): item is RemotionQueueChapterInput | RemotionQueueChapterSceneInput =>
+      (item.kind === "chapter" || item.kind === "chapter-scene")
       && item.job.projectId === projectId && targetChapterId(item.job.target) === chapterId);
     for (const chapter of chapters) {
       const dependencyStatus = this.getDependencyStatus(chapter.dependencyJobIds);
@@ -502,7 +594,9 @@ export class RemotionRenderQueue {
     chapterJob: RemotionRenderJobV1,
     dependencyJobIds: readonly string[],
   ): string | undefined {
-    if (chapterJob.target.kind !== "chapter") return "chapter dependency 只能属于 chapter job";
+    if (chapterJob.target.kind !== "chapter" && chapterJob.target.kind !== "chapter-scene") {
+      return "chapter dependency 只能属于 chapter/chapter-scene job";
+    }
     for (const dependencyJobId of dependencyJobIds) {
       const dependency = this.jobs.get(dependencyJobId);
       if (!dependency) return `chapter dependency job 不存在: ${dependencyJobId}`;
@@ -599,7 +693,7 @@ export class RemotionRenderQueue {
   }
 
   private restoreItem(value: unknown): void {
-    if (!isRecord(value) || (value.kind !== "shot" && value.kind !== "chapter")) throw new Error("Remotion queue item kind 无效");
+    if (!isRecord(value) || (value.kind !== "shot" && value.kind !== "chapter" && value.kind !== "chapter-scene")) throw new Error("Remotion queue item kind 无效");
     const jobResult = validateRemotionRenderJob(value.job);
     if (!jobResult.success) throw new Error(jobResult.issues.map((issue) => `${issue.path}: ${issue.message}`).join("; "));
     // A persisted running job has no trustworthy in-memory executor after restart.
@@ -617,6 +711,20 @@ export class RemotionRenderQueue {
       || value.dependencyJobIds.some((id) => typeof id !== "string" || !id.trim())
       || new Set(value.dependencyJobIds).size !== value.dependencyJobIds.length) {
       throw new Error("chapter queue dependencyJobIds 无效");
+    }
+    if (value.kind === "chapter-scene") {
+      if (!isRecord(value.plan) || !Array.isArray(value.currentShotSlots) || !isRecord(value.sceneSegment)) {
+        throw new Error("chapter-scene queue item 缺少 plan/currentShotSlots/sceneSegment");
+      }
+      this.jobs.set(jobResult.value.jobId, {
+        kind: "chapter-scene",
+        job: restoredJob,
+        dependencyJobIds: value.dependencyJobIds as string[],
+        plan: value.plan as unknown as TimelineRenderPlan,
+        currentShotSlots: value.currentShotSlots as RemotionCurrentSlotV1[],
+        sceneSegment: value.sceneSegment as unknown as RemotionChapterSceneSegmentSpec,
+      });
+      return;
     }
     const plan = value.plan as TimelineRenderPlan | undefined;
     const currentShotSlots = Array.isArray(value.currentShotSlots)
@@ -641,7 +749,7 @@ export class RemotionRenderQueue {
       }
     }
     for (const item of this.jobs.values()) {
-      if (item.kind !== "chapter") continue;
+      if (item.kind !== "chapter" && item.kind !== "chapter-scene") continue;
       const dependencyError = this.validateChapterDependencies(item.job, item.dependencyJobIds);
       if (dependencyError) throw new Error(dependencyError);
     }

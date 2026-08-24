@@ -135,12 +135,15 @@ function validateRenderInput(value: unknown): RemotionRenderWorkerValidationResu
     return { success: true, value: value as unknown as RemotionRenderInput };
   }
   if (value.target === "chapter") {
-    if (!hasOnlyKeys(value, ["target", "jobId", "compositionProps", "compositionId", "bundlePath", "outputPath", "browserExecutable", "remotionVersion", "binariesDirectory", "hardwareRendering"])) {
+    if (!hasOnlyKeys(value, ["target", "jobId", "compositionProps", "compositionId", "bundlePath", "outputPath", "browserExecutable", "remotionVersion", "binariesDirectory", "hardwareRendering", "frameRange"])) {
       return failure("input", "chapter render worker input 包含未知字段");
     }
     if (!isNonEmptyString(value.jobId)) return failure("input.jobId", "chapter render jobId 必须是非空字符串");
     if (value.compositionId !== "ChapterVideo") return failure("input.compositionId", "chapter render 必须使用 ChapterVideo");
     if (!isRecord(value.compositionProps)) return failure("input.compositionProps", "chapter Composition props 必须是对象");
+    if (value.frameRange !== undefined && !isInclusiveFrameRange(value.frameRange)) {
+      return failure("input.frameRange", "chapter frameRange 必须是闭区间整数帧对 [start, end]");
+    }
     return { success: true, value: value as unknown as RemotionRenderInput };
   }
   if (!hasOnlyKeys(value, ["plan", "bundlePath", "outputPath", "browserExecutable", "remotionVersion", "mediaUrlByClipId", "binariesDirectory", "compositionId"])) {
@@ -183,6 +186,13 @@ function isAbsolutePath(value: unknown): value is string {
 
 function isFiniteRatio(value: unknown): value is number {
   return typeof value === "number" && Number.isFinite(value) && value >= 0 && value <= 1;
+}
+
+function isInclusiveFrameRange(value: unknown): value is [number, number] {
+  return Array.isArray(value)
+    && value.length === 2
+    && value.every((frame) => Number.isInteger(frame) && frame >= 0)
+    && value[0]! <= value[1]!;
 }
 
 function failure<T>(pathValue: string, message: string): RemotionRenderWorkerValidationResult<T> {

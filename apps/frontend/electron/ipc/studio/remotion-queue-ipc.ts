@@ -2,6 +2,7 @@ import { BrowserWindow, ipcMain } from "electron";
 import {
   REMOTION_QUEUE_CANCEL_CHANNEL,
   REMOTION_QUEUE_ENQUEUE_SHOT_CHANNEL,
+  REMOTION_QUEUE_ENQUEUE_CHAPTER_SCENES_CHANNEL,
   REMOTION_QUEUE_GET_CHANNEL,
   REMOTION_QUEUE_JOB_EVENT,
   REMOTION_QUEUE_RETRY_CHANNEL,
@@ -9,6 +10,8 @@ import {
   REMOTION_QUEUE_CHECK_SWITCH_CHANNEL,
   type RemotionQueueJobRequest,
   type RemotionQueueEnqueueShotRequest,
+  type RemotionQueueEnqueueChapterScenesReply,
+  type RemotionQueueEnqueueChapterScenesRequest,
   type RemotionQueueScopeReply,
   type RemotionQueueScopeRequest,
   type RemotionQueueSwitchRequest,
@@ -19,6 +22,7 @@ import { RemotionRenderQueue, type RemotionQueueNotification } from "@rendering/
 export {
   REMOTION_QUEUE_CANCEL_CHANNEL,
   REMOTION_QUEUE_ENQUEUE_SHOT_CHANNEL,
+  REMOTION_QUEUE_ENQUEUE_CHAPTER_SCENES_CHANNEL,
   REMOTION_QUEUE_GET_CHANNEL,
   REMOTION_QUEUE_JOB_EVENT,
   REMOTION_QUEUE_RETRY_CHANNEL,
@@ -28,6 +32,10 @@ export {
 
 export interface RemotionQueueIpcOptions {
   getCurrentShotSlots?: (scope: RemotionQueueScopeRequest) => Promise<RemotionCurrentSlotV1[]>;
+  /** 按场分段导出入队服务（main 侧编译章级 projection 并做场校验后入队）。 */
+  enqueueChapterScenes?: (
+    request: RemotionQueueEnqueueChapterScenesRequest,
+  ) => Promise<RemotionQueueEnqueueChapterScenesReply>;
 }
 
 export function registerRemotionQueueIpcHandlers(
@@ -53,6 +61,12 @@ export function registerRemotionQueueIpcHandlers(
     const request = parseEnqueueShot(payload);
     return queue.enqueueShot({ kind: "shot", job: request.job, plan: request.plan });
   });
+  ipcMain.handle(REMOTION_QUEUE_ENQUEUE_CHAPTER_SCENES_CHANNEL, async (_event, payload: unknown): Promise<RemotionQueueEnqueueChapterScenesReply> => {
+    if (!options.enqueueChapterScenes) {
+      return { accepted: false, message: "按场分段导出服务不可用" };
+    }
+    return options.enqueueChapterScenes(parseEnqueueChapterScenes(payload));
+  });
   ipcMain.handle(REMOTION_QUEUE_RETRY_CHANNEL, async (_event, payload: unknown) => {
     const request = parseJob(payload);
     return queue.retry(request.jobId);
@@ -75,6 +89,7 @@ export function registerRemotionQueueIpcHandlers(
       unsubscribe();
       ipcMain.removeHandler(REMOTION_QUEUE_GET_CHANNEL);
       ipcMain.removeHandler(REMOTION_QUEUE_ENQUEUE_SHOT_CHANNEL);
+      ipcMain.removeHandler(REMOTION_QUEUE_ENQUEUE_CHAPTER_SCENES_CHANNEL);
       ipcMain.removeHandler(REMOTION_QUEUE_RETRY_CHANNEL);
       ipcMain.removeHandler(REMOTION_QUEUE_CANCEL_CHANNEL);
       ipcMain.removeHandler(REMOTION_QUEUE_SWITCH_CHANNEL);
@@ -104,6 +119,40 @@ function parseEnqueueShot(value: unknown): RemotionQueueEnqueueShotRequest {
     job: value.job as unknown as RemotionQueueEnqueueShotRequest["job"],
     plan: value.plan as unknown as RemotionQueueEnqueueShotRequest["plan"],
   };
+}
+
+function parseEnqueueChapterScenes(value: unknown): RemotionQueueEnqueueChapterScenesRequest {
+  if (!isRecord(value) || !Array.isArray(value.segments) || value.segments.length === 0) {
+    throw new Error("queue enqueue chapter scenes 请求字段无效");
+  }
+  const segments: RemotionQueueEnqueueChapterScenesRequest["segments"] = [];
+  for (const segment of value.segments) {
+    if (!isRecord(segment)
+      || !Number.isInteger(segment.sceneNo)
+      || Number(segment.sceneNo) < 1
+      || typeof segment.sceneName !== "string"
+      || !Array.isArray(segment.storyboardIds)
+      || segment.storyboardIds.length === 0
+      || segment.storyboardIds.some((id) => typeof id !== "string" || !id.trim())) {
+      throw new Error("queue enqueue chapter scenes segment 字段无效");
+    }
+    segments.push({
+      sceneNo: Number(segment.sceneNo),
+      sceneName: segment.sceneName,
+      storyboardIds: segment.storyboardIds as string[],
+    });
+  }
+  return {
+    projectId: parseId(value.projectId, "projectId"),
+    chapterId: parseId(value.chapterId, "chapterId"),
+    editingRevision: parseRevision(value.editingRevision),
+    segments,
+  };
+}
+
+function parseRevision(value: unknown): number {
+  if (!Number.isInteger(value) || Number(value) < 1) throw new Error("editingRevision 无效");
+  return Number(value);
 }
 
 function parseSwitch(value: unknown): RemotionQueueSwitchRequest {

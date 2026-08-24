@@ -382,6 +382,177 @@ describe("RemotionRenderQueue", () => {
     expect(queue.getJob(chapter.jobId)?.status).toBe("succeeded");
   });
 
+  it("executes chapter-scene segments after shots succeed, without chapter QC callback", async () => {
+    const persistence = new MemoryPersistence();
+    const first = await makeInput(0);
+    const second = await makeInput(1);
+    let sceneRenders = 0;
+    let chapterQcCalls = 0;
+    const queue = new RemotionRenderQueue({
+      persistence,
+      now: () => 200,
+      executor: {
+        async render(plan) {
+          const input = plan.shot.shotId === first.plan.shot.shotId ? first : second;
+          const job = queue.getJob(input.job.jobId)!;
+          return { success: true, slot: successSlot(job) };
+        },
+        async renderChapterScene(input) {
+          sceneRenders += 1;
+          expect(input.sceneSegment.frameRange[0]).toBeLessThanOrEqual(input.sceneSegment.frameRange[1]);
+          const job = queue.getJobs({ projectId: input.plan.projectId, chapterId: input.plan.episodeId })
+            .find((candidate) => candidate.target.kind === "chapter-scene");
+          if (!job) throw new Error("chapter-scene job fixture missing");
+          const succeeded: RemotionRenderJobV1 = {
+            ...job,
+            status: "succeeded",
+            attempt: 1,
+            progress: 1,
+            startedAt: 210,
+            completedAt: 220,
+            outputPath: `jobs/chapter/${input.plan.episodeId}/scenes/Sc01_test.mp4`,
+            evidencePath: `jobs/chapter/${input.plan.episodeId}/scenes/Sc01_test.mp4.evidence.json`,
+          };
+          return { success: true, job: succeeded, evidence: {} as never };
+        },
+        cancel: (jobId) => ({ success: true, jobId, canceled: true }),
+      },
+      onChapterJobSucceeded: () => { chapterQcCalls += 1; },
+    });
+    await queue.enqueueShot(first);
+    await queue.enqueueShot(second);
+    await queue.waitForIdle();
+    const qcCallsAfterShots = chapterQcCalls;
+    const sceneIdentity = {
+      projectId: first.plan.projectId,
+      target: { kind: "chapter-scene" as const, chapterId: first.plan.chapterId, editingProjectId: "editing-001", editingRevision: 1, sceneNo: 1 },
+      inputHash: "e".repeat(64),
+      bundleContentHash: "d".repeat(64),
+      renderSettingsHash: await sha256CanonicalJson(first.plan.renderSettings),
+    };
+    const sceneJob: RemotionRenderJobV1 = {
+      schemaVersion: 1,
+      jobId: await createRemotionRenderJobId(sceneIdentity),
+      ...sceneIdentity,
+      templateVersion: "1.0.0",
+      remotionVersion: "4.0.499",
+      status: "pending",
+      attempt: 0,
+      progress: 0,
+      createdAt: 100,
+    };
+    const shotSlots = [successSlot(queue.getJob(first.job.jobId)!), successSlot(queue.getJob(second.job.jobId)!)];
+    const chapterPlan = { projectId: first.plan.projectId, episodeId: first.plan.chapterId } as TimelineRenderPlan;
+    const result = await queue.enqueueChapterScene({
+      kind: "chapter-scene",
+      job: sceneJob,
+      dependencyJobIds: [first.job.jobId, second.job.jobId],
+      plan: chapterPlan,
+      currentShotSlots: shotSlots,
+      sceneSegment: {
+        sceneNo: 1,
+        sceneName: "河雾矿奴",
+        storyboardIds: ["sb-1", "sb-2"],
+        frameRange: [0, 120],
+        outputRelativePath: `jobs/chapter/${first.plan.chapterId}/scenes/Sc01_test.mp4`,
+      },
+    });
+    expect(result).toMatchObject({ accepted: true, job: { status: "ready" } });
+    await queue.waitForIdle();
+    expect(sceneRenders).toBe(1);
+    // scene job 不新增章级 QC 回调（该回调仍按既有口径对 shot/chapter 触发）
+    expect(chapterQcCalls).toBe(qcCallsAfterShots);
+    expect(queue.getJob(sceneJob.jobId)).toMatchObject({
+      status: "succeeded",
+      outputPath: `jobs/chapter/${first.plan.chapterId}/scenes/Sc01_test.mp4`,
+    });
+    // 同 identity 重复入队 → already-succeeded（分段身份哈希去重）
+    const duplicate = await queue.enqueueChapterScene({
+      kind: "chapter-scene",
+      job: sceneJob,
+      dependencyJobIds: [first.job.jobId, second.job.jobId],
+      plan: chapterPlan,
+      currentShotSlots: shotSlots,
+      sceneSegment: {
+        sceneNo: 1,
+        sceneName: "河雾矿奴",
+        storyboardIds: ["sb-1", "sb-2"],
+        frameRange: [0, 120],
+        outputRelativePath: `jobs/chapter/${first.plan.chapterId}/scenes/Sc01_test.mp4`,
+      },
+    });
+    expect(duplicate).toMatchObject({ accepted: false, reason: "already-succeeded" });
+  });
+
+  it("restores persisted chapter-scene items and drains them after restart", async () => {
+    const persistence = new MemoryPersistence();
+    const first = await makeInput(0);
+    const succeededShot = { ...first, job: { ...first.job, status: "succeeded" as const, attempt: 1, progress: 1, startedAt: 110, completedAt: 120, outputPath: "outputs/a.mp4", evidencePath: "evidence/a.json" } };
+    const sceneIdentity = {
+      projectId: first.plan.projectId,
+      target: { kind: "chapter-scene" as const, chapterId: first.plan.chapterId, editingProjectId: "editing-001", editingRevision: 1, sceneNo: 2 },
+      inputHash: "c".repeat(64),
+      bundleContentHash: "d".repeat(64),
+      renderSettingsHash: await sha256CanonicalJson(first.plan.renderSettings),
+    };
+    const sceneJob: RemotionRenderJobV1 = {
+      schemaVersion: 1,
+      jobId: await createRemotionRenderJobId(sceneIdentity),
+      ...sceneIdentity,
+      templateVersion: "1.0.0",
+      remotionVersion: "4.0.499",
+      status: "ready",
+      attempt: 0,
+      progress: 0,
+      createdAt: 100,
+    };
+    persistence.snapshot = {
+      schemaVersion: 1,
+      lastSeq: 1,
+      activeProjectId: first.plan.projectId,
+      activeChapterId: first.plan.chapterId,
+      jobs: [
+        succeededShot,
+        {
+          kind: "chapter-scene",
+          job: sceneJob,
+          dependencyJobIds: [first.job.jobId],
+          plan: { projectId: first.plan.projectId, episodeId: first.plan.chapterId } as TimelineRenderPlan,
+          currentShotSlots: [successSlot(succeededShot.job)],
+          sceneSegment: {
+            sceneNo: 2,
+            sceneName: "客栈",
+            storyboardIds: ["sb-3"],
+            frameRange: [10, 20],
+            outputRelativePath: "jobs/chapter/chapter-001/scenes/Sc02_test.mp4",
+          },
+        },
+      ],
+      updatedAt: 110,
+    };
+    let drained = 0;
+    const queue = new RemotionRenderQueue({
+      persistence,
+      executor: {
+        render: async () => { throw new Error("shot must not re-render"); },
+        async renderChapterScene(input) {
+          drained += 1;
+          const job = queue.getJob(sceneJob.jobId)!;
+          return {
+            success: true,
+            job: { ...job, status: "succeeded", attempt: 1, progress: 1, startedAt: 210, completedAt: 220, outputPath: input.sceneSegment.outputRelativePath, evidencePath: `${input.sceneSegment.outputRelativePath}.evidence.json` },
+            evidence: {} as never,
+          };
+        },
+        cancel: (jobId) => ({ success: true, jobId, canceled: true }),
+      },
+    });
+    await queue.init();
+    await queue.waitForIdle();
+    expect(drained).toBe(1);
+    expect(queue.getJob(sceneJob.jobId)?.status).toBe("succeeded");
+  });
+
   it("recovers running jobs as ready so restart can drain them", async () => {
     const persistence = new MemoryPersistence();
     const input = await makeInput();

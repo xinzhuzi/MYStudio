@@ -282,6 +282,11 @@ describe("preload IPC surface", () => {
     expect(bridgeBlock).not.toContain("outputPath");
   });
 
+  it("exposes the chapter-scene segment enqueue bridge (Remotion frameRange export)", () => {
+    expect(preloadSource).toContain("ipcRenderer.invoke(REMOTION_QUEUE_ENQUEUE_CHAPTER_SCENES_CHANNEL, request)");
+    expect(electronTypesSource).toContain("enqueueChapterScenes?: (request: RemotionQueueEnqueueChapterScenesRequest) => Promise<RemotionQueueEnqueueChapterScenesReply>");
+  });
+
   it("does not expose legacy FFmpeg candidate or concat operations", () => {
     expect(preloadSource).not.toContain("studio-render-track-candidate");
     expect(preloadSource).not.toContain("studio-merge-episode");
