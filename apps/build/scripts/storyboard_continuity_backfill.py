@@ -956,26 +956,29 @@ def main() -> int:
                                   chapter_dir=None, base_slug="assets-versions")
     old_sb = [n for n in manifest["shards"] if re.fullmatch(rf"chapters/{CHAPTER_ID}/storyboards-\d+-[0-9a-f]+\.json", n)]
     old_av = [n for n in manifest["shards"] if re.fullmatch(r"assets-versions(-\d+)?-[0-9a-f]+\.json", n)]
-    old_av_first_pos = manifest["shards"].index(old_av[0]) if old_av else None
 
     new_shards: list[str] = []
     sb_inserted = False
-    for pos, name in enumerate(manifest["shards"]):
+    av_inserted = False
+    for name in manifest["shards"]:
         if name in old_sb:
             if not sb_inserted:
                 new_shards.extend(n for n, _ in sb_files)
                 sb_inserted = True
             continue
         if name in old_av:
-            continue
-        if old_av_first_pos is not None and pos == old_av_first_pos:
-            new_shards.extend(n for n, _ in av_files)
+            # 在旧 assets-versions 条目原位换入新片(域序保持:分镜块后即版本块)
+            if not av_inserted:
+                new_shards.extend(n for n, _ in av_files)
+                av_inserted = True
             continue
         new_shards.append(name)
     if not sb_inserted:
         new_shards.extend(n for n, _ in sb_files)
-    if old_av and old_av_first_pos is None:
+    if not av_inserted:
         new_shards.extend(n for n, _ in av_files)
+    if not set(n for n, _ in sb_files + av_files) <= set(new_shards):
+        raise RuntimeError("manifest 插入自检失败:新分片未全部入列")
 
     for name, content in sb_files + av_files:
         target = sw / name
@@ -991,6 +994,12 @@ def main() -> int:
 
     # 写后复验:重读盘上数据,审计应只剩 review.missing(街巷镜另有 references.approval)
     sw2, manifest2, state2 = load_store(root)
+    if set(n for n, _ in sb_files + av_files) - set(manifest2["shards"]):
+        print("FATAL: 写后 manifest 缺少新分片:", set(n for n, _ in sb_files + av_files) - set(manifest2["shards"]))
+        return 1
+    if len(state2.get("continuityAssetVersions", [])) != len(versions):
+        print(f"FATAL: 写后版本数不符: 盘上 {len(state2.get('continuityAssetVersions', []))} / 预期 {len(versions)}")
+        return 1
     rows2 = [b for b in state2.get("storyboards", []) if b["episodeId"] == CHAPTER_ID]
     issues2 = audit_issues(rows2, state2.get("continuityAssetVersions", []))
     by_code2: dict[str, int] = {}
