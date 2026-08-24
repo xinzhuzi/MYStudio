@@ -4,6 +4,7 @@ import { buildStoryboardImageWorkflowPatch } from "@/lib/studio/image-workflow";
 import { useStudioStore } from "@/stores/studio/studio-store";
 import type { StoryboardItem } from "@/types/studio";
 import { buildStoryboardItemOpenContext } from "../WorkflowNodePreviews";
+import { getStudioAssetsBridge } from "@/lib/bridge/studio-assets";
 import { resolveStoryboardAssetReferences } from "./storyboard-asset-references";
 import {
   createOpenImageWorkflowGraph,
@@ -119,6 +120,25 @@ async function generateOneShot(shot: StoryboardItem, projectName: string): Promi
     ?? graph.nodes.find((node) => node.type === "generated")?.id;
   if (!targetNodeId) {
     throw new Error("工作流缺少成图节点");
+  }
+  // 生成前预检(不烧配额,08-24 装配门禁链收口): ①file:// 参考探活——经资产桥
+  // 轻读一次(读完即弃,不驻留 data: 防 OOM),断链(资产改名/文件损坏)在装配后
+  // 秒级可见,而非生成中「参考图无法解码」烧一次等待;②长度门前置——正文超
+  // 800 直接拒,提示精炼而非让编译器在网络前才拦
+  const assetBridge = getStudioAssetsBridge();
+  for (const node of graph.nodes) {
+    if (node.type !== "reference") continue;
+    const url = node.imageUrl ?? "";
+    const assetId = node.source?.kind === "asset" ? node.source.id : undefined;
+    if (!url.startsWith("file://") || !assetId || !assetBridge?.readImageDataUrl) continue;
+    const alive = await assetBridge.readImageDataUrl(assetId).then(() => true).catch(() => false);
+    if (!alive) {
+      throw new Error(`参考图[${node.title ?? "未命名"}]无法读取(资产可能已改名或损坏),请重建参考`);
+    }
+  }
+  const promptLength = graph.nodes.find((node) => node.type === "prompt")?.prompt?.length ?? 0;
+  if (promptLength > 800) {
+    throw new Error(`提示词 ${promptLength} 字符超 800 正文门,需精炼后再生成`);
   }
   const { imageUrl } = await runImageWorkflowNodeGeneration(graph, targetNodeId, {
     addMaterial: useStudioStore.getState().addMaterial,

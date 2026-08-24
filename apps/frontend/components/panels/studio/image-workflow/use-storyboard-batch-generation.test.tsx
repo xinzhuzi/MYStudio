@@ -12,7 +12,8 @@ vi.mock("sonner", () => ({ toast }));
 vi.mock("@/lib/bridge/project-files", () => ({
   getProjectFilesBridge: () => ({ saveImage }),
 }));
-vi.mock("@/lib/bridge/studio-assets", () => ({ getStudioAssetsBridge: () => null }));
+const assetsBridge = vi.hoisted(() => ({ readImageDataUrl: null as null | ((id: string) => Promise<string>) }));
+vi.mock("@/lib/bridge/studio-assets", () => ({ getStudioAssetsBridge: () => (assetsBridge.readImageDataUrl ? { readImageDataUrl: assetsBridge.readImageDataUrl } : null) }));
 vi.mock("@/lib/studio/visual-manual-style-tokens", () => ({
   // 手册装配链 fail-empty 形态:无手册内容/阵营数据时建流退化为裸描述
   withActiveVisualManualStoryboardStyleTokens: (prompt: string) => prompt,
@@ -342,6 +343,55 @@ describe("useStoryboardBatchGeneration(一键生图串行批量)", () => {
     const prompt = stored?.nodes.find((n) => n.type === "prompt")?.prompt ?? "";
     expect(prompt.startsWith("@图1 为道口镇街巷场景；@图2 为掌柜角色")).toBe(true);
     expect(prompt).toContain("测试画面");
+  });
+  it("pre-flight rejects a broken reference before touching the provider (不烧配额)", async () => {
+    resetStore([shot({ id: "sb-1", index: 1 })]);
+    const graph = {
+      ...createBareStoryboardGraph("sb-1", "wf-bare"),
+      nodes: [
+        ...createBareStoryboardGraph("sb-1", "wf-bare").nodes,
+        { id: "ref-dead", type: "reference", title: "独孤剑尘", imageUrl: "file://assets/dead.png",
+          source: { kind: "asset", assetType: "character", id: "dead-asset" },
+          position: { x: 0, y: 0 }, createdAt: 1, updatedAt: 1 } as never,
+      ],
+      edges: [{ id: "ref-dead->gen-x", source: "ref-dead", target: "gen-x" }],
+    } as unknown as ImageWorkflowGraph;
+    useStudioStore.setState({ imageWorkflows: [graph] });
+    resolvedReferences.value = [];
+    freedomImage.mockResolvedValue({ url: "https://provider.test/ok.png" });
+    assetsBridge.readImageDataUrl = async () => { throw new Error("missing"); };
+    try {
+      const { result } = renderHook(() =>
+        useStoryboardBatchGeneration({ storyboards: useStudioStore.getState().storyboards, projectName: "道劫" }),
+      );
+      act(() => result.current.start());
+      await waitFor(() => expect(result.current.state.running).toBe(false), { timeout: 8000 });
+
+      expect(freedomImage).not.toHaveBeenCalled();
+      expect(result.current.state.failed).toBe(1);
+      expect(toast.error).toHaveBeenCalledWith(expect.stringContaining("无法读取"));
+    } finally {
+      assetsBridge.readImageDataUrl = null;
+    }
+  });
+
+  it("pre-flight rejects an over-length prompt before touching the provider", async () => {
+    resetStore([shot({ id: "sb-1", index: 1 })]);
+    const longGraph = createBareStoryboardGraph("sb-1", "wf-bare");
+    for (const n of longGraph.nodes as never as Array<{ type?: string; prompt?: string }>) {
+      if (n.type === "prompt") n.prompt = "长".repeat(850);
+    }
+    useStudioStore.setState({ imageWorkflows: [longGraph] });
+    resolvedReferences.value = [];
+
+    const { result } = renderHook(() =>
+      useStoryboardBatchGeneration({ storyboards: useStudioStore.getState().storyboards, projectName: "道劫" }),
+    );
+    act(() => result.current.start());
+    await waitFor(() => expect(result.current.state.running).toBe(false), { timeout: 8000 });
+
+    expect(freedomImage).not.toHaveBeenCalled();
+    expect(toast.error).toHaveBeenCalledWith(expect.stringContaining("800"));
   });
 });
 
