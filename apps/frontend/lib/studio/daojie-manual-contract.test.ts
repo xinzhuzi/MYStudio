@@ -213,10 +213,14 @@ describe("ma-gongbi-v1 同步守护(ma_sync 锚点)", () => {
     expect(runtimeContract.modules["negative.universal"].singletonKey).toBe("universal_negative");
   });
 
-  const maWorkspacePresent = existsSync(anchors.maSources[0].path);
+  // maSources.path 自 f54fc32 起为 ma-imagegen 技能根内相对路径(种子去机器绝对路径),
+  // 直连比对按 DAOJIE_MA_ROOT(默认本机 MA 技能根)解析,与 daojie-ma-sync-check.py --ma-root 同构
+  const MA_SKILL_ROOT = process.env.DAOJIE_MA_ROOT ?? "/Users/zhengbingjin/Project/Unity/MA/.claude/skills/ma-imagegen";
+  const resolveMaSource = (relPath: string) => (relPath.startsWith("/") ? relPath : join(MA_SKILL_ROOT, relPath));
+  const maWorkspacePresent = existsSync(resolveMaSource(anchors.maSources[0].path));
   (maWorkspacePresent ? it : it.skip)("本机 MA 权威文件包含全部 maAnchor(防快照过期)", () => {
     const missing: string[] = [];
-    const sources = anchors.maSources.map((source) => readFileSync(source.path, "utf-8"));
+    const sources = anchors.maSources.map((source) => readFileSync(resolveMaSource(source.path), "utf-8"));
     for (const lock of anchors.locks) {
       const content = sources[lock.sourceIndex];
       for (const anchor of lock.maAnchors) {
