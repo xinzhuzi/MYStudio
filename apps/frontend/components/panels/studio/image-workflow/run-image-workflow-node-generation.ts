@@ -21,6 +21,19 @@ import {
 } from "./image-workflow-file-utils";
 
 /**
+ * 编译形态冗余段剥离(800 门死锁解除): 只剥 request 组装层为「自由画布可读
+ * 提示词」内嵌的参考锚点段——编译链的参考约束走 @图N+图本体+帧负面,这些段
+ * 在该形态下纯冗余且必然撑爆 800 门。非编译链(enhanced)不受影响。
+ */
+function stripCompiledFrameRedundantSections(prompt: string): string {
+  return prompt
+    .replace(/【多视图身份锁】[^【]*/g, "")
+    .replace(/【资产圣经】[^【]*/g, "")
+    .replace(/\n{2,}/g, "\n")
+    .trim();
+}
+
+/**
  * 单节点生图核心(自 use-image-workflow-generation.generateNode 提取,行为零变化):
  * 组装黄金公式请求→连续性门禁→file:// 参考按需转 dataURL 传输→风格锁→
  * freedomImage→项目内保存→材料入库→成图节点回写,返回最终轻量 URL。
@@ -66,8 +79,12 @@ export async function runImageWorkflowNodeGeneration(
     : request.prompt;
   // 道劫手册:分镜帧最终正文经 ma-gongbi-v1 编译(唯一 Avoid+负面唯一所有者+800 门)后
   // 以 raw 策略直传;非道劫(或非分镜)保持既有 enhanced 传输与分离负面。
+  // 800 门死锁解除(08-24 实证): request 组装层内嵌的【资产圣经】【多视图身份锁】
+  // 锚点段(~800+ 字符)会把任何正文顶爆 800 门(203 正文+锚点=1277 仍拒)。编译形
+  // 态下参考约束已由 @图N 标记+参考图本体+帧负面承担,锚点段冗余——进编译前剥离
+  // (S08 直连同款口径实证: 无锚点段+@图N+4 参考图=形象六项全对)。
   const compiledFrame = graph.target.kind === "storyboard"
-    ? await compileActiveDaojieStoryboardFramePrompt(styledPrompt)
+    ? await compileActiveDaojieStoryboardFramePrompt(stripCompiledFrameRedundantSections(styledPrompt))
     : null;
   const result = await aiManager.freedomImage({
     prompt: compiledFrame?.providerPrompt ?? styledPrompt,

@@ -256,10 +256,14 @@ describe("Daojie storyboard frame transport compile", () => {
     expect(fallback.contractSha256).toMatch(/^[a-f0-9]{64}$/);
   });
 
-  it("enforces the same 800 gate before the network", async () => {
+  it("enforces the same 800 gate before the network (正文口径,固定帧负面不计门)", async () => {
+    await expect(
+      compileDaojieStoryboardFramePrompt({ positive: "长".repeat(801) }),
+    ).rejects.toThrowError(expect.objectContaining({ code: "length_exceeded" }));
+    // 正文恰 800 = 门内(固定负面 686 随传不计);旧口径含负面必永超(生产死锁)已修
     await expect(
       compileDaojieStoryboardFramePrompt({ positive: "长".repeat(800) }),
-    ).rejects.toThrowError(expect.objectContaining({ code: "length_exceeded" }));
+    ).resolves.toMatchObject({ status: expect.any(String) });
   });
 
   it("rejects a positive that already carries a terminal Avoid section", async () => {

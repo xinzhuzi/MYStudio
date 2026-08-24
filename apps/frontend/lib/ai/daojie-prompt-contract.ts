@@ -244,9 +244,13 @@ export async function compileDaojieStoryboardFramePrompt(
     "storyboard.frame": unicodeLength(positive),
     "negative.universal": unicodeLength(negative),
   };
-  if (length.status === "over_limit") {
-    throw new DaojiePromptContractError("length_exceeded", length.totalChars, {
-      totalChars: length.totalChars,
+  // 门只按正文(positive)计: 帧负面是手册固定资产(五类全集 ~686 字符),
+  // ma-gongbi 的 300-800 是正文纪律——含固定负面必永超(686+min300=986>800,
+  // 生产死锁 08-24 实证,单测 fixture 负面短所以绿)。负面仍随 providerPrompt
+  // 传输,不参与门;正文超 800 依旧 fail-closed。
+  if (unicodeLength(positive) > DAOJIE_RUNTIME_CONTRACT.length.max) {
+    throw new DaojiePromptContractError("length_exceeded", unicodeLength(positive), {
+      totalChars: unicodeLength(positive),
       moduleLengths,
     });
   }
@@ -263,7 +267,10 @@ export async function compileDaojieStoryboardFramePrompt(
       { moduleId: "negative.universal", required: true, singletonKey: "universal_negative", chars: moduleLengths["negative.universal"]! },
     ],
     totalChars: length.totalChars,
-    status: length.status,
+    // 门已按正文口径(positive)前置;返回态同步用正文口径,固定帧负面不计入
+    status: unicodeLength(positive) < DAOJIE_RUNTIME_CONTRACT.length.warningBelow
+      ? "warning"
+      : "ok",
     contractVersion: DAOJIE_RUNTIME_CONTRACT.contractVersion,
     contractSha256: await getVerifiedContractSha256(),
   };
@@ -454,7 +461,10 @@ export async function compileDaojiePrompt(input: DaojiePromptInput): Promise<Com
     moduleLengths,
     moduleAudit,
     totalChars: length.totalChars,
-    status: length.status,
+    // 门已按正文口径(positive)前置;返回态同步用正文口径,固定帧负面不计入
+    status: unicodeLength(positive) < DAOJIE_RUNTIME_CONTRACT.length.warningBelow
+      ? "warning"
+      : "ok",
     contractVersion: DAOJIE_RUNTIME_CONTRACT.contractVersion,
     contractSha256: await getVerifiedContractSha256(),
   };
