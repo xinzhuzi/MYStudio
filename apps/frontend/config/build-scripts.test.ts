@@ -775,6 +775,20 @@ describe("desktop build scripts", () => {
     })).toBe(false);
   });
 
+  it("install-and-smoke prekill also terminates dev-form singleton-lock holders", () => {
+    const installScript = readBuildFile("build/packaging/install-and-smoke.mjs");
+    expect(installScript).toContain("killSingletonLockHolder");
+    expect(installScript).toContain("readlinkSync");
+    expect(installScript).toContain("SingletonLock");
+    // 预清理守卫内调用(受 MYSTUDIO_SMOKE_SKIP_PREKILL 保护),且不误杀自己
+    expect(installScript).toContain("pid === process.pid");
+    const prekillBody = installScript.slice(
+      installScript.indexOf("function stopInstalledAppIfRunning"),
+      installScript.indexOf("function assertNoBackupApps"),
+    );
+    expect(prekillBody).toContain("killSingletonLockHolder();");
+  });
+
   it("gates packaged and installed Remotion export smoke behind an explicit opt-in", () => {
     const smokeScript = readBuildFile("build/smoke/smoke-desktop.mjs");
     const installScript = readBuildFile("build/packaging/install-and-smoke.mjs");

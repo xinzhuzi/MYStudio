@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync } from 'node:fs';
+import { existsSync, mkdtempSync, readdirSync, readFileSync, readlinkSync, rmSync, statSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
 import { homedir, tmpdir } from 'node:os';
 import { resolve } from 'node:path';
@@ -66,7 +66,34 @@ function stopInstalledAppIfRunning() {
     runOptional('pkill', ['-x', processName]);
   }
   runOptional('pkill', ['-f', '漫影工作室.app/Contents']);
+  killSingletonLockHolder();
   console.log('Closed existing MYStudio instances before install smoke');
+}
+
+// 08-25 修复:dev 形态实例(npm run dev / electron .,进程名 Electron、bundle 不同)
+// 不会被上面的包名/bundle 清理命中,但它持有真实 userData 的单实例锁——
+// open-verify 以用户双击方式对真实 userData 启动,会被它静默弹退成「启动崩溃」。
+// 解析真实 userData SingletonLock 符号链接的持锁 pid 并终止,覆盖任何形态的锁持有者;
+// MYSTUDIO_SMOKE_SKIP_PREKILL=1 仍可整体跳过。
+function killSingletonLockHolder() {
+  const lockPath = resolve(
+    homedir(),
+    'Library/Application Support/漫影工作室/SingletonLock',
+  );
+  let target;
+  try {
+    target = readlinkSync(lockPath);
+  } catch {
+    return; // 无锁(正常空闲)
+  }
+  const match = /-(\d+)$/.exec(target);
+  if (!match) return;
+  const pid = Number(match[1]);
+  if (!Number.isInteger(pid) || pid <= 1 || pid === process.pid) return;
+  runOptional('kill', [String(pid)]);
+  sleepSync(1);
+  runOptional('kill', ['-9', String(pid)]);
+  console.log(`Killed singleton-lock holder pid=${pid} (${target})`);
 }
 
 function assertNoBackupApps() {
