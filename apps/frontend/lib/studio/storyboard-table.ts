@@ -117,6 +117,7 @@ export function parseStoryboardTable(
   let currentSceneIndex: number | undefined;
   let currentSegmentTitle = "";
   let currentAssetNames: string[] = [];
+  let currentAssetNamesKind: "sceneRoles" | "explicit" = "explicit";
   let currentAssetIds: string[] = [];
   const legacySceneIndexes = new Map<string, number>();
 
@@ -128,6 +129,7 @@ export function parseStoryboardTable(
       currentSceneIndex = sceneMeta.index;
       currentSegmentTitle = "";
       currentAssetNames = sceneMeta.roles;
+      currentAssetNamesKind = "sceneRoles";
       currentAssetIds = [];
       continue;
     }
@@ -139,6 +141,7 @@ export function parseStoryboardTable(
     const assetNames = parseAssetLine(line, "引用资产名称");
     if (assetNames) {
       currentAssetNames = assetNames;
+      currentAssetNamesKind = "explicit";
       continue;
     }
     const assetIds = parseAssetLine(line, "引用资产ID");
@@ -172,6 +175,7 @@ export function parseStoryboardTable(
                 sceneIndex: currentSceneIndex,
                 segmentTitle: currentSegmentTitle,
                 assetNames: currentAssetNames,
+                assetNamesKind: currentAssetNamesKind,
                 assetIds: currentAssetIds,
               },
               warnings,
@@ -186,6 +190,7 @@ export function parseStoryboardTable(
                 sceneIndex: currentSceneIndex,
                 segmentTitle: currentSegmentTitle,
                 assetNames: currentAssetNames,
+                assetNamesKind: currentAssetNamesKind,
                 assetIds: currentAssetIds,
               },
               warnings,
@@ -410,6 +415,8 @@ function buildGroupedRow(
     sceneIndex?: number;
     segmentTitle: string;
     assetNames: string[];
+    /** sceneRoles=场景标题「参演角色」继承(须按镜画面过滤人物);explicit=「引用资产名称」显式指定(不动) */
+    assetNamesKind?: "sceneRoles" | "explicit";
     assetIds: string[];
   },
   warnings: string[],
@@ -428,7 +435,11 @@ function buildGroupedRow(
     segmentTitle: context.segmentTitle,
     description,
     scene: context.scene,
-    associateAssetsNames: context.assetNames,
+    associateAssetsNames: filterSceneRolesToFrame(
+      context.assetNames,
+      context.assetNamesKind ?? "explicit",
+      [fields[1], fields[5], fields[6]].filter(Boolean).join("\n"),
+    ),
     duration: parseDuration(fields[2]!),
     shotSize: fields[3]!,
     cameraMove: fields[4]!,
@@ -582,6 +593,35 @@ function collectLightingWarnings(text: string, fieldName: string, warnings: stri
 }
 
 /** `[甲, 乙]` / `甲、乙` → ["甲","乙"]；`—`/空 → []。 */
+/**
+ * 场景段「参演角色」继承的镜级人物过滤(分镜源数据精确性,08-24 用户实证:
+ * 段级 roles 被段内所有镜继承,画面无此人的镜也挂)。仅 sceneRoles 继承时
+ * 过滤:名字(全名/去职业前缀/去姓)未出现在该镜画面描述/台词/音效中的
+ * 人物剔除;显式「引用资产名称」行不受影响。
+ */
+function filterSceneRolesToFrame(
+  names: string[],
+  kind: "sceneRoles" | "explicit",
+  frameText: string,
+): string[] {
+  if (kind !== "sceneRoles" || names.length === 0) return names;
+  const text = frameText.replace(/\s+/g, "");
+  if (!text) return names;
+  const mentioned = (name: string): boolean => {
+    if (!name) return false;
+    const probes = new Set<string>([name]);
+    for (const pre of ["监工", "管事", "老", "年轻", "小", "断臂"]) {
+      if (name.startsWith(pre) && name.length > pre.length + 1) probes.add(name.slice(pre.length));
+    }
+    if (name.length >= 3) probes.add(name.slice(1));
+    for (const probe of probes) {
+      if (probe.length >= 2 && text.includes(probe)) return true;
+    }
+    return false;
+  };
+  return names.filter((name) => mentioned(name));
+}
+
 function splitBracketList(value: string): string[] {
   const inner = value.replace(/^\[/, "").replace(/\]$/, "").trim();
   if (!inner || inner === "—" || inner === "-" || inner === "无") return [];

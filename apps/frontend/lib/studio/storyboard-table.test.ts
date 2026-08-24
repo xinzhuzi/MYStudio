@@ -470,4 +470,17 @@ describe("studio storyboard table messages", () => {
     expect(`${messages.system}\n${messages.user}`).toContain("配音");
     expect(`${messages.system}\n${messages.user}`).toContain("角色音色");
   });
+  it("filters scene-role inheritance to people actually in the shot frame (镜级人物精确性)", () => {
+    const md = [
+      "## 场1：道口镇街巷｜参演角色：[独孤剑尘, 老苦力, 年轻苦力, 铁山, 油布剑包]",
+      "| 1 | 两名妇人带孩子贴墙走，矿奴队列穿过；独孤剑尘被铁链隔在另一侧 | 6s | 中景 | 缓推 | 街巷妇孺与队列 | 旁白：街面嘈杂 | 环境音 |",
+      "| 2 | 断臂散修攥紧凝血草，伤处白布渗血 | 4s | 特写 | 固定 | 断臂手部 | 无 | 低鸣 |",
+    ].join("\n");
+    const parsed = parseStoryboardTable(md);
+    const rows = parsed.rows.sort((a, b) => a.index - b.index);
+    expect(rows[0]?.associateAssetsNames).toContain("独孤剑尘");
+    expect(rows[0]?.associateAssetsNames).not.toContain("铁山");
+    expect(rows[1]?.associateAssetsNames.every((n) => n !== "独孤剑尘" && n !== "铁山" && n !== "老苦力")).toBe(true);
+  });
 });
+
