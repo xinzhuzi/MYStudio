@@ -254,7 +254,11 @@ export function createStudioWorkflowShardedStorage(
   // 读链损坏标志：manifest 在场但分片缺失/损坏（getItem 已 throw）→ 本会话后续
   // 空工作区保存视为事故形态拒绝；健康读链上的合法重置（resetStudioWorkflow）不受影响
   let hydrationDamaged = false;
-  const envFullSaveEvery = Number.parseInt(process.env.MYSTUDIO_SHARD_FULL_SAVE_EVERY ?? "", 10);
+  // 裸 process.env 在 dev 渲染层不存在（vite 不注入 process，生产构建期被整体替换）
+  // → 适配器创建即抛 ReferenceError → zustand persist 静默失忆（dev 项目加载为空，
+  // 2026-08-25 实证）。运行时探测，dev 缺 process 时走默认值。
+  const shardEnv = typeof process !== 'undefined' ? (process.env?.MYSTUDIO_SHARD_FULL_SAVE_EVERY ?? '') : '';
+  const envFullSaveEvery = Number.parseInt(shardEnv, 10);
   const fullSaveEvery = options.fullSaveEvery ?? (Number.isFinite(envFullSaveEvery) ? envFullSaveEvery : 50);
 
   const readMergedShards = async (pid: string): Promise<string | null> => {
