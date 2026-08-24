@@ -614,6 +614,7 @@ function filterSceneRolesToFrame(
       if (name.startsWith(pre) && name.length > pre.length + 1) probes.add(name.slice(pre.length));
     }
     if (name.length >= 3) probes.add(name.slice(1));
+    if (name.length >= 3) probes.add(name.slice(0, 2)); // 姓(复姓如「独孤」的前两字指代)
     for (const probe of probes) {
       if (probe.length >= 2 && text.includes(probe)) return true;
     }
