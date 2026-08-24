@@ -120,6 +120,7 @@ export function StudioView() {
                 onNodeJson={viewModel.openNodeJson}
                 onNodeAction={viewModel.handleProductionNodeAction}
                 onOpenAssetImageWorkflow={viewModel.openAssetImageWorkflow}
+                storyboardBatch={storyboardBatch}
                 chapterAutoVideoStatus={viewModel.chapterAutoVideoStatus}
                 chapterAutoVideoRunning={viewModel.chapterAutoVideoRunning}
                 onRunChapterAutoVideo={viewModel.handleRunChapterAutoVideo}

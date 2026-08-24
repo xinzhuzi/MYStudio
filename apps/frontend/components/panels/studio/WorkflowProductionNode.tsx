@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { ImageWorkflowOpenContext } from "@/types/studio";
+import type { StoryboardBatchGenerationState } from "./image-workflow/use-storyboard-batch-generation";
 import type {
   ProductionFlowNodeAction,
   ProductionFlowNodeId,
@@ -29,7 +30,6 @@ import {
   StoryboardTablePreview,
   TextPreview,
   WorkbenchLanePreview,
-  buildStoryboardImageOpenContext,
 } from "./WorkflowNodePreviews";
 
 export interface ProductionNodeData extends Record<string, unknown> {
@@ -41,6 +41,12 @@ export interface ProductionNodeData extends Record<string, unknown> {
   onNodeJson?: (nodeId: ProductionFlowNodeId) => void;
   onNodeAction?: (action: ProductionFlowNodeAction) => void | Promise<void>;
   onOpenAssetImageWorkflow?: (context: ImageWorkflowOpenContext) => void;
+  /** 一键生图批量(与分镜面板同一 hook 实例),未注入时节点不渲染生图入口 */
+  storyboardBatch?: {
+    state: StoryboardBatchGenerationState;
+    start: () => void;
+    stop: () => void;
+  };
 }
 
 const NODE_ICONS = {
@@ -113,12 +119,12 @@ export function ProductionFlowNode({ data }: NodeProps<Node<ProductionNodeData>>
   const showPreviewChrome = !UNFRAMED_PREVIEW_NODE_IDS.includes(data.node.id);
   const isStageEntryBlocked = (data.node.id === "remotionProduction" || data.node.id === "workbench")
     && !data.node.remotionSummary?.chapterReady;
-  // 节点画布只挂在分镜阶段 tab 上:targetStage=storyboard 的「进入」恒为同阶段空操作,
+  // 节点卡只挂在分镜阶段 tab 上:targetStage=storyboard 的「进入」恒为同阶段空操作,
   // 渲染出来只会让用户点了没反应(2026-08-22 用户实证),藏掉
   const isStageEntryNoop = data.node.targetStage === "storyboard";
-  // 分镜面板一级生图入口:优先第一个未生成分镜(下一工作项),全生成后回落首镜
-  const storyboardTiles = data.node.storyboardTiles ?? [];
-  const nextImageTile = storyboardTiles.find((tile) => !tile.mediaPath) ?? storyboardTiles[0];
+  // 节点卡「一键生图」批量入口:与分镜面板共用同一 hook 实例,
+  // 已生成分镜自动跳过;旧的「跳转首个未生成镜」单镜入口已被本入口取代
+  const storyboardBatch = data.storyboardBatch;
   const previewContent =
     data.node.previewKind === "table" ? (
       <StoryboardTablePreview node={data.node} />
@@ -249,19 +255,41 @@ export function ProductionFlowNode({ data }: NodeProps<Node<ProductionNodeData>>
               <Edit3 className="h-3 w-3" />
             </button>
           ) : null}
-          {data.node.id === "storyboard" && nextImageTile && data.onOpenAssetImageWorkflow ? (
-            <button
-              type="button"
-              className="inline-flex h-7 items-center gap-1.5 rounded-md border border-primary/30 bg-primary/10 px-2 text-[11px] font-medium text-primary/80 hover:border-primary/60 hover:bg-primary/18"
-              title={`进入分镜 ${nextImageTile.index} 图片工作流${nextImageTile.mediaPath ? "" : "(首个未生成分镜)"}`}
-              onClick={(event) => {
-                event.stopPropagation();
-                data.onOpenAssetImageWorkflow?.(buildStoryboardImageOpenContext(nextImageTile));
-              }}
-            >
-              分镜生图
-              <ImageIcon className="h-3 w-3" />
-            </button>
+          {data.node.id === "storyboard" && storyboardBatch ? (
+            storyboardBatch.state.running ? (
+              <span
+                className="inline-flex h-7 items-center gap-1.5 rounded-md border border-primary/30 bg-primary/10 px-2 text-[11px] font-medium text-primary/80"
+                data-storyboard-node-batch-running
+              >
+                <Loader2 className="h-3 w-3 animate-spin" />
+                一键生图 {storyboardBatch.state.done}/{storyboardBatch.state.total}
+                <button
+                  type="button"
+                  className="ml-0.5 inline-flex items-center gap-1 rounded-md border-border text-[11px] text-muted-foreground hover:text-foreground"
+                  title="当前分镜完成后停止"
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    storyboardBatch.stop();
+                  }}
+                >
+                  停止
+                </button>
+              </span>
+            ) : (
+              <button
+                type="button"
+                className="inline-flex h-7 items-center gap-1.5 rounded-md border border-primary/30 bg-primary/10 px-2 text-[11px] font-medium text-primary/80 hover:border-primary/60 hover:bg-primary/18"
+                data-storyboard-node-batch-generate
+                title="一键生图:串行生成所有未生成分镜,已生成的自动跳过"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  storyboardBatch.start();
+                }}
+              >
+                一键生图
+                <ImageIcon className="h-3 w-3" />
+              </button>
+            )
           ) : null}
           {!isStageEntryNoop ? (
             <button

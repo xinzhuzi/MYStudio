@@ -31,6 +31,7 @@ import type {
 import { PRODUCTION_FLOW_EDGES } from "./workflow-node-model";
 import { ProductionFlowNode } from "./WorkflowProductionNode";
 import type { ProductionNodeData } from "./WorkflowProductionNode";
+import type { StoryboardBatchGenerationState } from "./image-workflow/use-storyboard-batch-generation";
 import type { ChapterAutoVideoStatus } from "@/lib/studio/chapter-auto-video";
 
 const PRODUCTION_NODE_WIDTHS = {
@@ -216,6 +217,7 @@ export function WorkflowNodeCanvas({
   onNodeJson,
   onNodeAction,
   onOpenAssetImageWorkflow,
+  storyboardBatch,
   chapterAutoVideoStatus,
   chapterAutoVideoRunning = false,
   onRunChapterAutoVideo,
@@ -229,6 +231,12 @@ export function WorkflowNodeCanvas({
   onNodeJson?: (nodeId: ProductionFlowNodeId) => void;
   onNodeAction?: (action: ProductionFlowNodeAction) => void | Promise<void>;
   onOpenAssetImageWorkflow?: (context: ImageWorkflowOpenContext) => void;
+  /** 一键生图批量控制,透传到分镜面板节点卡上的「一键生图」入口 */
+  storyboardBatch?: {
+    state: StoryboardBatchGenerationState;
+    start: () => void;
+    stop: () => void;
+  };
   chapterAutoVideoStatus?: ChapterAutoVideoStatus;
   chapterAutoVideoRunning?: boolean;
   onRunChapterAutoVideo?: () => void | Promise<void>;
@@ -276,6 +284,7 @@ export function WorkflowNodeCanvas({
           onNodeJson,
           onNodeAction,
           onOpenAssetImageWorkflow,
+          storyboardBatch,
         },
       })),
     [
@@ -287,6 +296,7 @@ export function WorkflowNodeCanvas({
       onOpenAssetImageWorkflow,
       onStageChange,
       positions,
+      storyboardBatch,
     ],
   );
   const [reactFlowNodes, setReactFlowNodes, applyReactFlowNodeChanges] =

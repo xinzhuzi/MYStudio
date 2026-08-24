@@ -575,31 +575,45 @@ describe("storyboard node first-class image generation entry", () => {
     );
   }
 
-  it("exposes a primary storyboard image entry that opens the first ungenerated shot", () => {
-    const onOpenAssetImageWorkflow = vi.fn();
-    renderStoryboardNodeCard({ onOpenAssetImageWorkflow });
+  it("exposes a one-click storyboard batch entry that starts generation without leaving the canvas", () => {
+    const storyboardBatch = {
+      state: { running: false, total: 0, done: 0, failed: 0, currentShotIndex: null },
+      start: vi.fn(),
+      stop: vi.fn(),
+    };
+    renderStoryboardNodeCard({ storyboardBatch });
 
-    fireEvent.click(screen.getByRole("button", { name: /分镜生图/ }));
+    fireEvent.click(screen.getByRole("button", { name: /一键生图/ }));
 
-    expect(onOpenAssetImageWorkflow).toHaveBeenCalledWith({
-      target: { kind: "storyboard", id: "sb-ep-002" },
-      title: "分镜 2",
-      prompt: "第二镜未生成",
-      sourceImagePath: undefined,
-      resultImagePath: undefined,
-      imageWorkflowId: undefined,
-      sourceStage: "storyboard",
-      sourceStageLabel: "分镜视频生成",
-      sourceLabel: "分镜成图 · 分镜 2",
-      storyboardSourceFingerprint: "fp-002",
-      storyboardLines: "旁白：铁链压境。",
-    });
+    expect(storyboardBatch.start).toHaveBeenCalledTimes(1);
+  });
+
+  it("renders batch progress with a stop control while the storyboard batch is running", () => {
+    const storyboardBatch = {
+      state: { running: true, total: 27, done: 3, failed: 1, currentShotIndex: 9 },
+      start: vi.fn(),
+      stop: vi.fn(),
+    };
+    renderStoryboardNodeCard({ storyboardBatch });
+
+    expect(screen.getByText(/一键生图 3\/27/)).toBeTruthy();
+    expect(screen.queryByRole("button", { name: /一键生图/ })).toBeNull();
+
+    fireEvent.click(screen.getByRole("button", { name: /停止/ }));
+
+    expect(storyboardBatch.stop).toHaveBeenCalledTimes(1);
   });
 
   it("hides the same-stage no-op enter button on the storyboard node", () => {
-    renderStoryboardNodeCard({ onOpenAssetImageWorkflow: vi.fn() });
+    renderStoryboardNodeCard({
+      storyboardBatch: {
+        state: { running: false, total: 0, done: 0, failed: 0, currentShotIndex: null },
+        start: vi.fn(),
+        stop: vi.fn(),
+      },
+    });
 
     expect(screen.queryByRole("button", { name: "进入" })).toBeNull();
-    expect(screen.getByRole("button", { name: /分镜生图/ })).toBeTruthy();
+    expect(screen.getByRole("button", { name: /一键生图/ })).toBeTruthy();
   });
 });

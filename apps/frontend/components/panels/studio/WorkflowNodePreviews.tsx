@@ -11,10 +11,12 @@ import {
   Layers3,
   Loader2,
   PackageOpen,
+  Play,
   RefreshCw,
   TriangleAlert,
   ZoomIn,
 } from "lucide-react";
+import { dispatchRemotionShotRenderRequest } from "@/lib/studio/remotion-shot-render-request";
 import { useState } from "react";
 import type { ReactNode } from "react";
 import { MdPreview } from "md-editor-rt";
@@ -485,7 +487,7 @@ function tileAlready4k(mediaPath: string | undefined, longSide: number | undefin
 }
 
 /**
- * 分镜瓦片 → 图片工作流打开上下文(节点卡一级「分镜生图」按钮与瓦片点击共用)。
+ * 分镜瓦片 → 图片工作流打开上下文(分镜面板卡片与节点预览瓦片点击共用)。
  * 携带分镜内容指纹,用于跳过「同 id 但属于被替换上一代分镜」的旧工作流。
  */
 export function buildStoryboardImageOpenContext(tile: ProductionFlowStoryboardTile): ImageWorkflowOpenContext {
@@ -842,7 +844,22 @@ export function RemotionShotPreview({
               <div className="min-w-0 flex-1">
                 <div className="flex items-start justify-between gap-2">
                   <span className="truncate text-[10px] font-medium">{shot.title}</span>
-                  <RemotionStatusIcon status={shot.status} />
+                  <span className="flex shrink-0 items-center gap-1">
+                    <button
+                      type="button"
+                      className="inline-flex h-5 items-center gap-1 rounded-md border border-info/35 bg-info/10 px-1.5 text-[9px] font-medium text-info/90 transition-colors hover:border-info/60 hover:bg-info/18 disabled:cursor-not-allowed disabled:opacity-45"
+                      data-remotion-shot-render={shot.shotId}
+                      title="单镜生产:仅生成/重渲本镜 MP4(自动补齐该镜 TTS 与音频绑定)"
+                      disabled={shot.status === "queued"
+                        || shot.status === "running"
+                        || ((summary?.running ?? 0) + (summary?.queued ?? 0)) > 0}
+                      onClick={() => dispatchRemotionShotRenderRequest(shot.shotId)}
+                    >
+                      <Play className="h-2.5 w-2.5" />
+                      生成本镜
+                    </button>
+                    <RemotionStatusIcon status={shot.status} />
+                  </span>
                 </div>
                 <div className="mt-1 flex items-center justify-between gap-2 text-[9px] text-muted-foreground">
                   <span>{remotionStatusLabel(shot.status)}</span>
@@ -984,7 +1001,7 @@ function WorkbenchStat({
 }
 
 export function toPreviewSrc(path: string) {
-  if (/^(https?:|data:|blob:|file:|local-image:\/\/|project-file:\/\/)/.test(path)) return path;
+  if (/^(https?:|data:|blob:|file:|asset-file:|local-image:\/\/|project-file:\/\/)/.test(path)) return path;
   if (path.startsWith("/")) return `file://${encodeURI(path)}`;
   return path;
 }
