@@ -118,8 +118,41 @@ function getSmokeAudioPath(): string {
   return `${userDataDir.replace(/[\\/]+$/, "")}/media/mystudio-smoke-voice.wav`;
 }
 
+const SMOKE_FRAME_PNG_BASE64 =
+  "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADtgGOSHzRgQAAAABJRU5ErkJggg==";
+
 export function getSmokeStoryboardFramePath() {
-  return "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADtgGOSHzRgQAAAABJRU5ErkJggg==";
+  return `data:image/png;base64,${SMOKE_FRAME_PNG_BASE64}`;
+}
+
+let smokeFrameGraphPathCache: string | null = null;
+
+/**
+ * 进工作流图的帧路径(种子数据纪律对齐): 1x1 PNG 经 writeBinary 落项目文件得
+ * project-file:// 轻量 URL——data: URL 被 assertImageWorkflowGraphMediaPersistable
+ * 拒持久化(2026-08-23 OOM 防线),种子中会成为图节点 imageUrl/resultUrl 的字段
+ * 必须轻量化;projectFiles 桥不可用(单测 jsdom)时 fail-soft 回退 data:。
+ */
+async function getSmokeFrameGraphPath(): Promise<string> {
+  if (smokeFrameGraphPathCache) return smokeFrameGraphPathCache;
+  const projectId = useProjectStore.getState().activeProjectId ?? SMOKE_PROJECT_ID;
+  const bridge = typeof window !== "undefined" ? window.projectFiles : undefined;
+  if (bridge?.writeBinary) {
+    try {
+      const binary = atob(SMOKE_FRAME_PNG_BASE64);
+      const bytes = new ArrayBuffer(binary.length);
+      const view = new Uint8Array(bytes);
+      for (let index = 0; index < binary.length; index += 1) view[index] = binary.charCodeAt(index);
+      const saved = await bridge.writeBinary({ projectId, relativePath: "smoke/frame.png", bytes });
+      if (saved?.success && saved.url) {
+        smokeFrameGraphPathCache = saved.url;
+        return saved.url;
+      }
+    } catch {
+      // fail-soft: 回退 data: URL(仅单测环境会走到)
+    }
+  }
+  return getSmokeStoryboardFramePath();
 }
 
 async function setWorkflowStage(stage: string): Promise<boolean> {
@@ -157,9 +190,9 @@ async function runStepwiseWorkflowStage(
   if (stage === "manuals") applyManualsStep();
   if (stage === "novel") applyNovelStep(now);
   if (stage === "script") applyScriptStep(now);
-  if (stage === "assets") applyAssetsStep(now);
-  if (stage === "storyboard") applyStoryboardStep(now);
-  if (stage === "workbench") applyWorkbenchStep(now);
+  if (stage === "assets") await applyAssetsStep(now);
+  if (stage === "storyboard") await applyStoryboardStep(now);
+  if (stage === "workbench") await applyWorkbenchStep(now);
   await waitForPersist();
   return recordStageEvidence(stage);
 }
@@ -219,9 +252,9 @@ function applyScriptStep(now: number) {
   }));
 }
 
-function applyAssetsStep(now: number) {
-  applyScriptStep(now);
-  const framePath = getSmokeStoryboardFramePath();
+async function applyAssetsStep(now: number) {
+  await applyScriptStep(now);
+  const framePath = await getSmokeFrameGraphPath();
   useCharacterLibraryStore.setState({
     characters: [
       {
@@ -289,9 +322,9 @@ function applyAssetsStep(now: number) {
   });
 }
 
-function applyStoryboardStep(now: number) {
-  applyAssetsStep(now);
-  const framePath = getSmokeStoryboardFramePath();
+async function applyStoryboardStep(now: number) {
+  await applyAssetsStep(now);
+  const framePath = await getSmokeFrameGraphPath();
   useCharacterLibraryStore.setState({
     characters: [
       {
@@ -496,8 +529,8 @@ function applyStoryboardStep(now: number) {
   bindSmokeVoice(now);
 }
 
-function applyWorkbenchStep(now: number) {
-  applyStoryboardStep(now);
+async function applyWorkbenchStep(now: number) {
+  await applyStoryboardStep(now);
   const videoPath = getSmokeVideoPath();
   useStudioStore.setState((state) => ({
     agentWorkData: upsertWorks(state.agentWorkData, [
@@ -558,7 +591,7 @@ async function seedCompleteWorkflow(): Promise<WorkflowSmokeResult> {
   const videoId = "smoke-video-1";
   const audioPath = getSmokeAudioPath();
   const videoPath = getSmokeVideoPath();
-  const framePath = getSmokeStoryboardFramePath();
+  const framePath = await getSmokeFrameGraphPath();
 
   useCharacterLibraryStore.setState({
     characters: [

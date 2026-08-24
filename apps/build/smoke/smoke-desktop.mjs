@@ -1948,13 +1948,13 @@ async function verifyWorkflowEndToEnd(evaluate) {
         && derivativeAssetNamesReady
         && derivativeParentRefsReady
         && derivativeFlowRefsReady
-        && assetsNode.querySelectorAll('img[src^="data:image"]').length >= 4,
+        && assetsNode.querySelectorAll('img[src^="data:image"], img[src^="project-file:"]').length >= 4,
       clickedDerivativeImageWorkflow,
       hasDerivativeImageWorkflowDetail: Boolean(derivativeImageWorkflowDetail),
       derivativeImageWorkflowDetail,
       hasStoryboardImagePreview: Boolean(storyboardNode)
         && storyboardText.includes('旁白：他在尘土里醒来。')
-        && Boolean(storyboardNode.querySelector('img[src^="data:image"]')),
+        && Boolean(storyboardNode.querySelector('img[src^="data:image"], img[src^="project-file:"]')),
       hasNoDefaultReactFlowControls: Boolean(flowCanvas)
         && !Boolean(flowCanvas.querySelector('.react-flow__controls')),
       hasThemeViewportControls: Boolean(themeControls)
