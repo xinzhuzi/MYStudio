@@ -54,6 +54,17 @@ export { buildAssetRegenerationPrompt, getAssetDisplayName, getAssetImageOpenTar
 export { persistGeneratedAssetPromptToLibrary, saveGeneratedAssetImageToLibrary } from "./studio-asset-generation-persistence";
 
 /**
+ * 再生成参考图:取当前查看的设定图(轮播位置)作参考,保身份一致性;
+ * 无已有图时返回 undefined(纯文生图)。道劫编译链据此装配 reference.denoise 锁。
+ */
+export function resolveAssetGenerationReferenceImage(
+  images: Array<{ url?: string }>,
+  currentIndex: number,
+): string | undefined {
+  return images[currentIndex]?.url || images[0]?.url || undefined;
+}
+
+/**
  * 资产库类型 → 生图三轨的唯一映射入口(道劫 ma-gongbi-v1 合同)。
  * clip/audio/任务及未知类型在此 fail-closed,不得默认回落人物或道具轨。
  */
@@ -317,6 +328,8 @@ export function StudioAssetDetailDialog({
         setDraftPrompt(prompt);
         setFullAsset((current) => current ? { ...current, prompt } : current);
       };
+      // 以当前查看的设定图为参考再生成(身份一致性;道劫链据此加参考图降噪锁)
+      const referenceImage = resolveAssetGenerationReferenceImage(images, currentIndex);
       const result = await generateAsset(
         {
           assetId: asset.id,
@@ -327,6 +340,7 @@ export function StudioAssetDetailDialog({
           visualManualId,
           skipPolish: !shouldGeneratePrompt,
           existingPrompt: shouldGeneratePrompt ? undefined : existingPrompt,
+          referenceImages: referenceImage ? [referenceImage] : undefined,
         },
         (progress) => {
           if (progress.polishResult?.status === "success" && progress.polishResult.prompt?.trim()) {

@@ -7,6 +7,7 @@ import {
   getAssetOperationError,
   getAssetSpokenText,
   persistGeneratedAssetPromptToLibrary,
+  resolveAssetGenerationReferenceImage,
   resolveThreeTrackAssetType,
   saveGeneratedAssetImageToLibrary,
   updateImagesAfterReplacingMainImage,
@@ -359,6 +360,26 @@ describe("buildAssetRegenerationPrompt", () => {
     expect(previewSource).toContain("setApi={onCarouselApi}");
     expect(carouselSource).toContain('api.selectedScrollSnap()');
     expect(source).toContain("getAssetImageOpenTarget(images, currentIndex, detail)");
+  });
+});
+
+describe("resolveAssetGenerationReferenceImage", () => {
+  it("uses the currently viewed asset image as the regeneration reference", () => {
+    const images = [{ url: "local-image://a.png" }, { url: "local-image://b.png" }];
+    expect(resolveAssetGenerationReferenceImage(images, 1)).toBe("local-image://b.png");
+    expect(resolveAssetGenerationReferenceImage(images, 0)).toBe("local-image://a.png");
+  });
+
+  it("falls back to the first image and returns undefined when the asset has none", () => {
+    expect(resolveAssetGenerationReferenceImage([{ url: "local-image://a.png" }], 5)).toBe("local-image://a.png");
+    expect(resolveAssetGenerationReferenceImage([], 0)).toBeUndefined();
+    expect(resolveAssetGenerationReferenceImage([{}], 0)).toBeUndefined();
+  });
+
+  it("wires the reference into one-click asset generation", () => {
+    const source = readFileSync(new URL("./StudioAssetDetailDialog.tsx", import.meta.url), "utf8");
+    expect(source).toContain("resolveAssetGenerationReferenceImage(images, currentIndex)");
+    expect(source).toContain("referenceImages: referenceImage ? [referenceImage] : undefined");
   });
 });
 
