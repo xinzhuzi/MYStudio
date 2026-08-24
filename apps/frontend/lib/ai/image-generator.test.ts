@@ -125,6 +125,58 @@ describe("generateCharacterImage", () => {
     );
   });
 
+  it("falls back to chat/completions when the images endpoint gateway-fails (502 non-JSON)", async () => {
+    // 08-24 qkmss 实态: images 端点 502 非 JSON,chat/completions 返回
+    // markdown 内嵌 base64 图;链B 经 tryGptImageFallbackChannels(job→chat)兜底
+    const fetchMock = vi.fn().mockImplementation(async (url: string | URL) => {
+      const target = String(url);
+      if (target.endsWith("/chat/completions")) {
+        return jsonResponse({
+          choices: [{ message: { role: "assistant", content: "![image_1](data:image/png;base64,aGVsbG8=)" } }],
+        });
+      }
+      return {
+        ok: false,
+        status: 502,
+        statusText: "Bad Gateway",
+        text: async () => "error code: 502",
+        json: async () => { throw new SyntaxError("Unexpected token in JSON"); },
+        clone: () => ({ text: async () => "error code: 502" }),
+      };
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const result = await generateCharacterImage({
+      prompt: "gateway fallback asset",
+      aspectRatio: "16:9",
+    });
+
+    expect(result.imageUrl).toBe("data:image/png;base64,aGVsbG8=");
+    const chatCalls = fetchMock.mock.calls.filter(([url]) => String(url).endsWith("/chat/completions"));
+    expect(chatCalls.length).toBeGreaterThan(0);
+    const chatBody = JSON.parse(String(chatCalls[0]?.[1]?.body));
+    expect(chatBody.model).toBe("gpt-image-2");
+  }, 30000);
+
+  it("does not try chat fallback on auth failures (401)", async () => {
+    const fetchMock = vi.fn().mockImplementation(async () => ({
+      ok: false,
+      status: 401,
+      statusText: "Unauthorized",
+      text: async () => JSON.stringify({ error: { message: "Invalid API key" } }),
+      json: async () => ({ error: { message: "Invalid API key" } }),
+      clone: () => ({ text: async () => "{}" }),
+    }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(generateCharacterImage({
+      prompt: "auth failure asset",
+      aspectRatio: "16:9",
+    })).rejects.toThrow();
+
+    expect(fetchMock.mock.calls.some(([url]) => String(url).endsWith("/chat/completions"))).toBe(false);
+  }, 30000);
+
   it("blocks malformed references before ordinary generation reaches fetch", async () => {
     const fetchMock = vi.fn();
     vi.stubGlobal("fetch", fetchMock);
