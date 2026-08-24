@@ -18,7 +18,49 @@ from pathlib import Path
 
 STORE = Path("/Users/zhengbingjin/Project/IP/MA/store/studio-workflow")
 ASSETS = Path("/Users/zhengbingjin/Library/Application Support/漫影工作室/assets")
+DATA_ROOT = Path("/Users/zhengbingjin/Library/Application Support/漫影工作室/projects")
 PREFIXES = ("监工", "管事", "老", "年轻", "小", "断臂")
+
+def _project_location(pid: str) -> Path:
+    """注册表 location 是项目实体位置唯一权威(镜像 redirectProjectScopedKey)。"""
+    reg = DATA_ROOT / "mystudio-project-store.json"
+    try:
+        data = json.loads(reg.read_text())
+    except OSError:
+        return DATA_ROOT / "_p" / pid
+    def walk(o):
+        if isinstance(o, dict):
+            if o.get("id") == pid and o.get("location"):
+                return o["location"]
+            for v in o.values():
+                r = walk(v)
+                if r: return r
+        elif isinstance(o, list):
+            for v in o:
+                r = walk(v)
+                if r: return r
+        return None
+    return Path(walk(data) or DATA_ROOT / "_p" / pid)
+
+def resolve_url(u: str) -> Path | None:
+    """镜像主进程协议解析:asset-file→assets/files;project-file→注册表 location+rest;
+    file:///绝对路径直读。返回 None=无法解析(按不存在报)。"""
+    if not u:
+        return None
+    if u.startswith("asset-file://"):
+        rest = u[len("asset-file://"):].split("?")[0]
+        from urllib.parse import unquote
+        return ASSETS / "files" / "/".join(unquote(x) for x in rest.split("/"))
+    if u.startswith("project-file://"):
+        rest = u[len("project-file://"):].split("?")[0]
+        from urllib.parse import unquote
+        pid, _, tail = rest.partition("/")
+        return _project_location(pid) / "/".join(unquote(x) for x in tail.split("/"))
+    if u.startswith("file://"):
+        return Path(u[len("file://"):])
+    if u.startswith("/"):
+        return Path(u)
+    return None
 
 def probes_of(name: str) -> set[str]:
     out = {name}
@@ -72,11 +114,12 @@ def main() -> None:
         for wf in by_target.get(sid, []):
             nodes = {n["id"]: n for n in wf.get("nodes", [])}
             refs = [n for n in wf.get("nodes", []) if n.get("type") == "reference"]
-            # I2 参考文件
+            # I2 参考文件(镜像主进程协议解析后落盘核验)
             for r in refs:
-                u = (r.get("imageUrl") or "").replace("file://", "")
-                if u and not Path(u).exists():
-                    issues.append(("I2", idx, f"参考[{r.get('title')}]文件不存在"))
+                u = r.get("imageUrl") or ""
+                p = resolve_url(u)
+                if p is None or not p.is_file():
+                    issues.append(("I2", idx, f"参考[{r.get('title')}]文件不存在({u[:60]})"))
             # I1 工作流参考层
             for r in refs:
                 title = (r.get("title") or "").replace("·分层", "")
