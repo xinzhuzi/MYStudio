@@ -259,6 +259,9 @@ export async function compileActiveDaojieStoryboardFramePrompt(
         status: compiled.status,
         moduleIds: compiled.moduleIds,
         moduleLengths: compiled.moduleLengths,
+        // 帧负面(手册固定段,门只算正文)与最终负面长度:观测帧负面形态与最终装配
+        frameNegativeChars: Array.from(getExtendedStoryboardFrameNegative()).length,
+        finalNegativeChars: Array.from(compiled.negative).length,
         contractVersion: compiled.contractVersion,
         contractSha256: compiled.contractSha256,
       },

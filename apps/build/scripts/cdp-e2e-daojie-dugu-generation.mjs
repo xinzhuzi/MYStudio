@@ -130,12 +130,14 @@ async function main() {
     if (!tabOk) tabOk = await c.domClick("button", `e => ((e.textContent||'').trim() === '资产')`);
     log("资产 tab:", tabOk);
     // 制作资产 → 角色 分区(默认可能停在风格库)
-    const inRole = await c.ev(vis(`[...document.querySelectorAll('[aria-label^="打开资产 "]')].length > 0`));
-    if (!inRole) {
-      const roleOk = await c.domClick("button,[role='tab']", `e => ((e.textContent||'').trim() === '角色')`);
-      log("角色 分区:", roleOk);
+    // 分区导航重试(应用刚起时水合慢,按钮可能未就绪)
+    for (let attempt = 0; attempt < 3; attempt++) {
+      const hasCard = await c.ev(vis(`[...document.querySelectorAll('button')].some(e => (e.textContent||'').includes(${JSON.stringify(TARGET_ASSET)}))`));
+      if (hasCard) break;
+      await c.domClick("button,[role='tab']", `e => ((e.textContent||'').trim() === '角色')`);
+      await sleep(1500);
     }
-    await waitFor(c, `[...document.querySelectorAll('button')].some(e => (e.textContent||'').includes(${JSON.stringify(TARGET_ASSET)}))`, { timeout: 25000, label: `${TARGET_ASSET} 卡片` });
+    await waitFor(c, `[...document.querySelectorAll('button')].some(e => (e.textContent||'').includes(${JSON.stringify(TARGET_ASSET)}))`, { timeout: 40000, label: `${TARGET_ASSET} 卡片` });
 
     // ③ 独孤剑尘(资产卡片按钮;兼容剧本资产管理的 aria 行形态)
     const rowLabel = `打开资产 ${TARGET_ASSET}`;
