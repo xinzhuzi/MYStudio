@@ -230,7 +230,23 @@ export function createHyperFramesAdapter(options: HyperFramesAdapterOptions) {
       if (bindingIssue) return { state: "blocked", ...bindingIssue, artifactPath };
       return { state: "ready", artifact: artifact.value, artifactPath };
     } catch (error) {
-      return { state: "blocked", code: "worker-failed", message: `HyperFrames worker 执行失败: ${errorMessage(error)}`, artifactPath };
+      // worker 非 accepted 时以 exitCode=2 退出并把 blocked 原因写进 artifact;
+      // execFile 只报"Command failed"会吞掉真实根因(如 EEXIST/render-failed),
+      // 死机理排障必须能看到。artifact 缺失=进程中途硬死,附 exit/signal。
+      let detail = errorMessage(error);
+      const execMeta = error as { code?: unknown; signal?: unknown; killed?: unknown };
+      const meta: string[] = [];
+      if (typeof execMeta.code === "number") meta.push(`exit=${execMeta.code}`);
+      if (typeof execMeta.signal === "string" && execMeta.signal) meta.push(`signal=${execMeta.signal}`);
+      if (execMeta.killed === true) meta.push("killed");
+      try {
+        const raw = JSON.parse(fs.readFileSync(artifactPath, "utf8")) as { status?: unknown; code?: unknown; message?: unknown };
+        if (raw && typeof raw === "object" && raw.status === "blocked") {
+          detail = `worker blocked(${String(raw.code ?? "unknown")}): ${String(raw.message ?? "")}`;
+        }
+      } catch { /* artifact 未写出=中途硬死,保留 execFile 原始信息 */ }
+      if (meta.length > 0) detail += ` [${meta.join(" ")}]`;
+      return { state: "blocked", code: "worker-failed", message: `HyperFrames worker 执行失败: ${detail}`, artifactPath };
     }
   }
 

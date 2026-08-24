@@ -305,6 +305,71 @@ describe("HyperFrames adapter", () => {
     await expect(fs.readFile(artifactPath, "utf8")).resolves.toContain("first failure");
   });
 
+  it("surfaces the worker artifact's blocked reason and exec exit metadata on failure", async () => {
+    // 08-24 观测性补:worker 非 accepted 时 exitCode=2 并把 blocked 原因写进
+    // artifact;adapter 只报"Command failed"会吞掉真实根因(EEXIST/render-failed
+    // 等),死机理排障必须能看见。硬死(无 artifact)时附 exit/signal。
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), "mystudio-hyperframes-worker-diag-"));
+    const workerPath = path.join(root, "hyperframes-worker.cjs");
+    const browserPath = path.join(root, "chrome-headless-shell");
+    const electronExecutable = path.join(root, "electron");
+    const workspaceRoot = path.join(root, "workspace");
+    const revisionDir = path.join(workspaceRoot, "chapter-1", "r1");
+    const artifactPath = path.join(revisionDir, "hyperframes-artifact.json");
+    const managedOutputPath = path.join(revisionDir, "hyperframes-overlay.mov");
+    await Promise.all([
+      fs.writeFile(workerPath, "worker", "utf8"),
+      fs.writeFile(browserPath, "browser", "utf8"),
+      fs.writeFile(electronExecutable, "electron", "utf8"),
+    ]);
+    const makeAdapter = (execFileImpl: NonNullable<unknown>) => createHyperFramesAdapter({
+      storageBasePath: root,
+      electronExecutable,
+      workspaceRootForProject: () => workspaceRoot,
+      workerPath,
+      resolveBrowserPath: async () => browserPath,
+      probeRuntime: async (paths) => ({ state: "ready", paths, missing: [], versions: {} }),
+      execFile: execFileImpl as never,
+    });
+    const request = {
+      schemaVersion: 1,
+      projectId: "project-1",
+      chapterId: "chapter-1",
+      revision: 1,
+      sourceArtifactSha256: hash,
+      inputSha256: hash,
+      width: 1920,
+      height: 1080,
+      fps: 30,
+      alphaFormat: "prores-4444-mov" as const,
+      outputPath: managedOutputPath,
+      windows: [{ slotId: "title", cueId: "cue-1", startUs: 0, durationUs: 1_000_000, templateId: "title-card" as never, parameters: {} }],
+    } as unknown as Parameters<ReturnType<typeof createHyperFramesAdapter>["renderOverlay"]>[0];
+
+    const blocked = await makeAdapter(async () => {
+      await fs.writeFile(artifactPath, JSON.stringify({
+        status: "blocked", code: "render-failed",
+        message: "HyperFrames 输出已存在，拒绝覆盖: /x/r1/hyperframes-overlay.mov",
+      }), "utf8");
+      const error = new Error("Command failed: electron worker") as Error & { code: number; signal: null; killed: false };
+      error.code = 2; error.signal = null; error.killed = false;
+      throw error;
+    }).renderOverlay(request);
+    expect(blocked).toMatchObject({ state: "blocked", code: "worker-failed" });
+    expect((blocked as { message: string }).message).toContain("render-failed");
+    expect((blocked as { message: string }).message).toContain("拒绝覆盖");
+    expect((blocked as { message: string }).message).toContain("exit=2");
+
+    const hardDeath = await makeAdapter(async () => {
+      const error = new Error("Command failed: electron worker") as Error & { code: number; signal: string; killed: boolean };
+      error.code = 1; error.signal = "SIGKILL"; error.killed = true;
+      throw error;
+    }).renderOverlay(request);
+    expect(hardDeath).toMatchObject({ state: "blocked", code: "worker-failed" });
+    expect((hardDeath as { message: string }).message).toContain("signal=SIGKILL");
+    expect((hardDeath as { message: string }).message).toContain("killed");
+  });
+
   it("does not accept output when the managed revision directory becomes a symlink after worker launch", async () => {
     const root = await fs.mkdtemp(path.join(os.tmpdir(), "mystudio-hyperframes-post-swap-"));
     const workerPath = path.join(root, "hyperframes-worker.cjs");
