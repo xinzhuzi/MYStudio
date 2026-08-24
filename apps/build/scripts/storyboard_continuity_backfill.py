@@ -58,12 +58,25 @@ STREET_VIEWPOINT = "street-main-axis"
 BACKFILL_SOURCE = "chapter001-backfill-20260824-source"
 
 # ---------------------------------------------------------------- 指纹算法 ----
-# 与 visual-continuity.ts stableSerialize 逐字节等价:递归键排序(仅 ASCII 键,
-# localeCompare==codepoint 序)+ 紧凑分隔符 + 非 ASCII 原样。已对拍历史数据。
+# 与 visual-continuity.ts stableSerialize 逐字节等价。关键:TS 用 localeCompare
+# 排键(大小写不敏感主序,如 reviewedAt<reviewer<reviewEvidenceSha256),与 ASCII
+# 码点序不同——必须按 (小写, 原串) 双键排序复刻,纯 sort_keys 会排错 mixed-case 键。
+
+
+def _sort_key(key: str):
+    return (key.lower(), key)
+
+
+def _stable_normalize(value):
+    if isinstance(value, dict):
+        return {k: _stable_normalize(value[k]) for k in sorted(value.keys(), key=_sort_key)}
+    if isinstance(value, list):
+        return [_stable_normalize(x) for x in value]
+    return value
 
 
 def stable(value) -> str:
-    return json.dumps(value, ensure_ascii=False, separators=(",", ":"), sort_keys=True)
+    return json.dumps(_stable_normalize(value), ensure_ascii=False, separators=(",", ":"))
 
 
 def compact(value: dict) -> dict:
@@ -661,10 +674,14 @@ def main() -> int:
         root = Path(proj["location"])
 
     if args.write:
-        probe = subprocess.run(["pgrep", "-f", "漫影工作室.app"], capture_output=True, text=True)
-        if probe.returncode == 0:
-            print("FATAL: 漫影工作室正在运行——store 会被内存态覆写。请先退出应用再 --write。")
-            return 2
+        # 只认占用真实 userData 的实例:安装版路径,或 --user-data-dir 指向
+        # Application Support/漫影工作室 的任何二进制(仓库内测试实例用临时
+        # profile,不碰本 store,不得误伤)
+        for pattern in (r"/Applications/漫影工作室\.app", r"user-data-dir=.*Application Support/漫影工作室"):
+            probe = subprocess.run(["pgrep", "-f", pattern], capture_output=True, text=True)
+            if probe.returncode == 0:
+                print(f"FATAL: 漫影工作室正在运行(匹配 {pattern})——store 会被内存态覆写。请先退出应用再 --write。")
+                return 2
 
     sw, manifest, state = load_store(root)
     characters = json.loads((root / "store" / "characters.json").read_text(encoding="utf-8"))["state"]["characters"]
@@ -690,7 +707,8 @@ def main() -> int:
         if not v.get("approval"):
             continue
         current_fp = continuity_asset_content_fingerprint(v)
-        if v.get("contentFingerprint") == current_fp:
+        current_af = continuity_asset_approval_fingerprint(v, v["approval"])
+        if v.get("contentFingerprint") == current_fp and v.get("approvalFingerprint") == current_af:
             if not is_version_approved(v):
                 report.append(f"WARN: 版本 {v['assetId']}/{v['versionId']} 指纹一致但批准链仍失效")
             continue
@@ -877,6 +895,11 @@ def main() -> int:
         new_row["continuityState"] = cs
         new_row["continuityState"]["inputFingerprint"] = visual_continuity_fingerprint(new_row)
         new_row["sourceFingerprint"] = source_fingerprint(new_row)
+        # 连续性基线由本次回填重建:清除上游变化级联的 stale 标记
+        # (S14 类无图镜被愈合逻辑触碰会把下游整组标 stale,非真实内容变化)
+        new_row["stale"] = False
+        new_row.pop("staleReason", None)
+        new_row.pop("staleSince", None)
 
         old_ok = (
             row.get("orderedReferenceManifest") == new_row["orderedReferenceManifest"]
