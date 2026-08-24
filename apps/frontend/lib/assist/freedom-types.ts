@@ -8,6 +8,8 @@ export interface FreedomImageParams {
   width?: number;
   height?: number;
   negativePrompt?: string;
+  /** raw=调用方已持有最终 provider-visible 文本(如道劫分镜帧编译产物),传输层禁止再追加/改写 */
+  promptPolicy?: "enhanced" | "raw";
   referenceImages?: string[];
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
   extraParams?: Record<string, any>;

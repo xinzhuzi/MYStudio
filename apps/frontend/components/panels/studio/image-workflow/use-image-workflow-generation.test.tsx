@@ -36,6 +36,8 @@ vi.mock("./image-workflow-file-utils", () => ({
 vi.mock("@/lib/studio/visual-manual-style-tokens", () => ({
   // 恒等透传:视觉手册风格锁依赖真实 store 形态,与本 hook 的路径逻辑无关
   withActiveVisualManualStoryboardStyleTokens: (prompt: string) => prompt,
+  // 非道劫/未预热语义:不进分镜帧编译
+  compileActiveDaojieStoryboardFramePrompt: async () => null,
 }));
 vi.mock("sonner", () => ({ toast }));
 

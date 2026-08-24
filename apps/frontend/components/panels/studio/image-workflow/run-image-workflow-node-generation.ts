@@ -6,7 +6,10 @@ import {
   buildImageWorkflowGenerationRequest,
   setGeneratedImageResult,
 } from "@/lib/studio/image-workflow";
-import { withActiveVisualManualStoryboardStyleTokens } from "@/lib/studio/visual-manual-style-tokens";
+import {
+  compileActiveDaojieStoryboardFramePrompt,
+  withActiveVisualManualStoryboardStyleTokens,
+} from "@/lib/studio/visual-manual-style-tokens";
 import { useProjectStore } from "@/stores/project/project-store";
 import { useStudioStore } from "@/stores/studio/studio-store";
 import type { ImageWorkflowGraph } from "@/types/studio";
@@ -58,15 +61,21 @@ export async function runImageWorkflowNodeGeneration(
   const referenceImages = await prepareReferenceImages(resolvedReferenceUrls);
   // 分镜帧生图接入所选视觉手册风格锁(扩展手册: sanitize+水墨 token);
   // 仅限 storyboard 工作流,自由/资产工作流提示词不做覆盖。
-  const prompt = graph.target.kind === "storyboard"
+  const styledPrompt = graph.target.kind === "storyboard"
     ? withActiveVisualManualStoryboardStyleTokens(request.prompt)
     : request.prompt;
+  // 道劫手册:分镜帧最终正文经 ma-gongbi-v1 编译(唯一 Avoid+负面唯一所有者+800 门)后
+  // 以 raw 策略直传;非道劫(或非分镜)保持既有 enhanced 传输与分离负面。
+  const compiledFrame = graph.target.kind === "storyboard"
+    ? await compileActiveDaojieStoryboardFramePrompt(styledPrompt)
+    : null;
   const result = await aiManager.freedomImage({
-    prompt,
+    prompt: compiledFrame?.providerPrompt ?? styledPrompt,
     model: request.model,
     aspectRatio: request.aspectRatio,
     resolution: request.resolution,
-    negativePrompt: request.negativePrompt,
+    negativePrompt: compiledFrame ? undefined : request.negativePrompt,
+    promptPolicy: compiledFrame ? "raw" : undefined,
     referenceImages,
     extraParams: request.quality === "hd" ? { quality: "hd" } : undefined,
   });

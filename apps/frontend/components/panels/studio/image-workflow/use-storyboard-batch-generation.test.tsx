@@ -16,6 +16,8 @@ vi.mock("@/lib/bridge/studio-assets", () => ({ getStudioAssetsBridge: () => null
 vi.mock("@/lib/studio/visual-manual-style-tokens", () => ({
   // 手册装配链 fail-empty 形态:无手册内容/阵营数据时建流退化为裸描述
   withActiveVisualManualStoryboardStyleTokens: (prompt: string) => prompt,
+  // 非道劫/未预热语义:不进分镜帧编译(enhanced 传输原样)
+  compileActiveDaojieStoryboardFramePrompt: async () => null,
   getExtendedStoryboardManualContent: () => "",
   parseStoryboardFrameTemplates: () => [],
   selectStoryboardFrameTemplate: () => null,

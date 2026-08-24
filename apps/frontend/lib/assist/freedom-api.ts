@@ -106,6 +106,7 @@ export async function generateFreedomImage(
   const normalizedPrompt = normalizeImagePromptForGeneration({
     prompt: params.prompt,
     negativePrompt: params.negativePrompt,
+    promptPolicy: params.promptPolicy,
   });
   const generationParams: FreedomImageParams = {
     ...params,
@@ -240,6 +241,7 @@ async function generateViaImagesEndpoint(
         width: params.width,
         height: params.height,
         negativePrompt: params.negativePrompt,
+        promptPolicy: params.promptPolicy,
         referenceImages: params.referenceImages,
         extraParams: params.extraParams,
       })
@@ -251,6 +253,7 @@ async function generateViaImagesEndpoint(
         width: params.width,
         height: params.height,
         negativePrompt: params.negativePrompt,
+        promptPolicy: params.promptPolicy,
         referenceImages: params.referenceImages,
         extraParams: params.extraParams,
       });
