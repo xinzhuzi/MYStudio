@@ -179,13 +179,31 @@ def generate_image(prompt: str, ref_paths: list[str], key_index: int = 1) -> byt
     raise ValueError(f"意外响应: {json.dumps(result)[:200]}")
 
 
+def _project_id() -> str:
+    """从项目注册表按 location 反查项目 id(08-24 裁定:引用只落虚拟路径,跟注册表走)。"""
+    registry = Path.home() / "Library" / "Application Support" / "漫影工作室" / "projects" / "mystudio-project-store.json"
+    data = json.loads(registry.read_text())
+    for project in data.get("state", data).get("projects", []):
+        if Path(project.get("location", "")).resolve() == PROJECT_ROOT.resolve():
+            return str(project["id"])
+    raise SystemExit(f"注册表未找到 location={PROJECT_ROOT} 的项目")
+
+
+def _virtual_ref(relative: Path) -> str:
+    """project-file://<projectId>/<rel>——与渲染端 buildProjectFileUrl 同构的逐段编码。"""
+    from urllib.parse import quote
+    segments = "/".join(quote(str(part), safe="") for part in relative.parts)
+    return f"project-file://{quote(_project_id(), safe='')}/{segments}"
+
+
 def save_and_writeback(shot_num: int, image_bytes: bytes, row: dict) -> str:
-    """保存图片到 workflow-images 并写回 store mediaRef。"""
+    """保存图片到 workflow-images 并写回 store mediaRef(虚拟路径,绝不写绝对路径)。"""
     chapter_dir = WORKFLOW_IMAGES / "chapter-001"
     chapter_dir.mkdir(parents=True, exist_ok=True)
     shot_id = f"sb-chapter-001-{shot_num:03d}"
     img_path = chapter_dir / f"{shot_id}-image.png"
     img_path.write_bytes(image_bytes)
+    ref = _virtual_ref(Path("workflow-images") / "chapter-001" / f"{shot_id}-image.png")
 
     # 写回 store(找对应的分片并更新 mediaRef)
     for shard in sorted(STORYBOARD_DIR.glob("storyboards-*.json")):
@@ -196,13 +214,13 @@ def save_and_writeback(shot_num: int, image_bytes: bytes, row: dict) -> str:
             if isinstance(value, list):
                 for b in value:
                     if isinstance(b, dict) and b.get("id") == shot_id:
-                        b["mediaRef"] = {"kind": "image", "path": str(img_path)}
+                        b["mediaRef"] = {"kind": "image", "path": ref}
                         b["state"] = "image_ready"
                         modified = True
         if modified:
             shard.write_text(json.dumps(data, ensure_ascii=False, indent=2) + "\n")
             break
-    return str(img_path)
+    return ref
 
 
 def main() -> int:

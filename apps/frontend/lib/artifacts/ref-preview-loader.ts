@@ -1,6 +1,7 @@
 import type { PhysicalRef } from "@/types/artifacts";
 import { getRefPreviewMode } from "./ref-preview-mode";
 import { parseProjectFilePath } from "./physical-path";
+import { buildProjectFileUrl } from "@/lib/upscale/project-file-url";
 
 /**
  * Resolved preview descriptor for a PhysicalRef.
@@ -30,27 +31,10 @@ export type ResolvedRefPreview =
     };
 
 /**
- * Renderer-safe construction of a `project-file://` URL.
- *
- * We deliberately do NOT import storage-paths.ts (it pulls in node:fs).
- * This mirrors the encoding already validated in shot-plan.ts /
- * storyboard-tts-runner.ts: `project-file://${enc(projectId)}/${enc(rel)}`.
- * The main process re-validates containment, so exact encoding only needs to
- * match what createProjectFileUrl produces for ordinary paths.
+ * `project-file://` URL 的拼装已收敛到全仓唯一实现(lib/upscale/project-file-url,
+ * 08-24 用户裁定:禁止内联模板/绝对路径),此处 re-export 维持既有导入路径。
  */
-export function buildProjectFileUrl(projectId: string, relativePath: string): string {
-  const parsed = parseProjectFilePath(relativePath);
-  if (parsed) {
-    if (parsed.projectId !== projectId) {
-      throw new Error("项目文件引用属于其他项目");
-    }
-    return relativePath;
-  }
-  return `project-file://${encodeURIComponent(projectId)}/${relativePath
-    .split("/")
-    .map((part) => encodeURIComponent(part))
-    .join("/")}`;
-}
+export { buildProjectFileUrl };
 
 /**
  * Convert an absolute filesystem path to a file:// URL for <audio>/<video> src.

@@ -1,9 +1,9 @@
 {
-  "comment": "道劫手册工笔硬锁 ↔ MA ma-imagegen 权威锚点对。manualAnchor 必须逐字出现在 prefix.md「工笔硬锁」节;maAnchor 必须逐字出现在 MA 权威文件中(本机存在时由测试直连校验)。词级对应关系是同步守护的依据。",
+  "comment": "道劫手册工笔硬锁 ↔ MA ma-imagegen 权威锚点对。manualAnchor 必须逐字出现在 prefix.md「工笔硬锁」节;maAnchor 必须逐字出现在 MA 权威文件中(由测试直连校验)。maSources.path 为 ma-imagegen 技能根内相对路径,本机工作区根由 daojie-ma-sync-check.py --ma-root 解析(08-24 起 seed 不再内嵌机器绝对路径,与 runtime-contract.json 同构)。",
   "syncedAt": "2026-08-15",
   "maSources": [
     {
-      "path": "/Users/zhengbingjin/Project/Unity/MA/.claude/skills/ma-imagegen/scripts/gongbi/daojie_gongbi_restyle.py",
+      "path": "scripts/gongbi/daojie_gongbi_restyle.py",
       "sha256": "5e99f2f952bb5c273b910ff3306f1c9662928e833c6c2befe6345542bcfd8bf8",
       "locks": [
         "风格底座锁",
@@ -16,14 +16,14 @@
       ]
     },
     {
-      "path": "/Users/zhengbingjin/Project/Unity/MA/.claude/skills/ma-imagegen/scripts/prompting/finish_locks.py",
+      "path": "scripts/prompting/finish_locks.py",
       "sha256": "365f0ca08d11c791b903642a25e9d866a4be0b91e47dff4a07b3988f1ac65cb3",
       "locks": [
         "成片质量锁"
       ]
     },
     {
-      "path": "/Users/zhengbingjin/Project/Unity/MA/.claude/skills/ma-imagegen/knowledge/prompt-templates/美术成片风格提示词模板库.md",
+      "path": "knowledge/prompt-templates/美术成片风格提示词模板库.md",
       "sha256": "977a0dab26ea414e1ad78c78e0755ff53cdeab06178f738f2020f082092758b9",
       "locks": [
         "成片主风格锁",
@@ -31,7 +31,7 @@
       ]
     },
     {
-      "path": "/Users/zhengbingjin/Project/Unity/MA/.claude/skills/ma-imagegen/scripts/data/三轨选色配料.toml",
+      "path": "scripts/data/三轨选色配料.toml",
       "sha256": "b1e94b569b743b361a90690d9df707dde03a862c2d2760db04a411b25917ca96",
       "locks": [
         "42 色卡",
@@ -39,7 +39,7 @@
       ]
     },
     {
-      "path": "/Users/zhengbingjin/Project/Unity/MA/.claude/skills/ma-imagegen/scripts/data/阵营配色与黄金公式.toml",
+      "path": "scripts/data/阵营配色与黄金公式.toml",
       "sha256": "88be5f17ce19a424f55f756a7fed8c3a96a9076a3e4582e35c978b7ae9e93f04",
       "locks": [
         "阵营配色配方"

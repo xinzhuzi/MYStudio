@@ -5,6 +5,7 @@ import {
   projectStoryboardShotCompositionProps,
   validateRemotionShotPlan,
 } from "@/lib/studio/remotion/shot-plan";
+import { buildProjectFileUrl } from "@/lib/upscale/project-file-url";
 import type { StoryboardShotCompositionProps } from "../composition/composition-props";
 import { buildCompositionProps, validateSubtitleAuthorityForTimeline } from "../composition/build-composition-props";
 import { MediaBridgeServer } from "../media-bridge/media-bridge-server";
@@ -70,7 +71,7 @@ export class RemotionPreviewService {
       const uniqueReferences = [...new Map(references.map((reference) => [referenceKey(reference), reference])).values()];
       const sources: MediaBridgeClipSource[] = uniqueReferences.map((reference) => ({
         clipId: referenceKey(reference),
-        absolutePath: this.options.resolveSourcePath(toProjectFileUrl(reference.projectId, reference.relativePath)),
+        absolutePath: this.options.resolveSourcePath(buildProjectFileUrl(reference.projectId, reference.relativePath)),
       }));
       const urls = buildMediaUrlMap(this.mediaBridge, session, sources);
       const projection = projectStoryboardShotCompositionProps(
@@ -110,9 +111,4 @@ export class RemotionPreviewService {
 
 function referenceKey(reference: { kind: string; projectId: string; relativePath: string; contentSha256: string }): string {
   return `${reference.kind}:${reference.projectId}:${reference.relativePath}:${reference.contentSha256}`;
-}
-
-function toProjectFileUrl(projectId: string, relativePath: string): string {
-  const encodedPath = relativePath.split("/").map((part) => encodeURIComponent(part)).join("/");
-  return `project-file://${encodeURIComponent(projectId)}/${encodedPath}`;
 }

@@ -10,6 +10,7 @@ import fs from "node:fs";
 import path from "node:path";
 
 import { readStudioWorkflowStore } from "../../../storage/studio-workflow-store-io";
+import { createProjectFileUrl } from "../../../storage/storage-paths";
 import { readLatestVideoWorkflowChapterArtifacts } from "../video-workflow/video-workflow-artifact-store";
 import type { VideoUseEdlEntryV1, VideoUseSubtitleCueV1 } from "../../contracts/video-workflow";
 import type { VideoQcRuntimeController } from "./dover-runtime-controller";
@@ -383,7 +384,7 @@ export async function runChapterQc(
           shots: extractedFrames.map((frame) => ({
             shotId: frame.shotId,
             ordinal: frame.ordinal,
-            frameUrl: `project-file://${input.projectId}/remotion/qc/chapters/${input.chapterId}/frames/${path.basename(frame.framePath)}`,
+            frameUrl: createProjectFileUrl(input.projectId, `remotion/qc/chapters/${input.chapterId}/frames/${path.basename(frame.framePath)}`),
             ...(descriptionByShotId.get(frame.shotId) ? { description: descriptionByShotId.get(frame.shotId) } : {}),
           })),
         }

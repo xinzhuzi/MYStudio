@@ -6,6 +6,7 @@ import os from "node:os";
 import { ensureBrowser, renderMedia, selectComposition } from "@remotion/renderer";
 import { buildRemotionShotPlans } from "@/lib/studio/remotion/remotion-shot-plan-builder";
 import { projectStoryboardShotCompositionProps } from "@/lib/studio/remotion/shot-plan";
+import { buildProjectFileUrl } from "@/lib/upscale/project-file-url";
 import { DEFAULT_REMOTION_RENDER_SETTINGS } from "@/lib/studio/remotion/remotion-workspace-storage";
 import { sha256CanonicalJson } from "@/lib/studio/remotion/canonical-json";
 import { createRemotionChapterManifestFingerprint } from "@/lib/studio/remotion/remotion-audio-fingerprint";
@@ -228,7 +229,7 @@ export async function runRemotionShotSlots(): Promise<ShotSlotReport> {
       const sources = [...new Map(references.map((reference) => [referenceKey(reference), reference])).values()].map((reference) => ({
         clipId: referenceKey(reference),
         absolutePath: resolveTimelineSourcePath({
-          sourcePath: toProjectFileUrl(reference.projectId, reference.relativePath),
+          sourcePath: buildProjectFileUrl(reference.projectId, reference.relativePath),
           dataRoot,
           mediaRoot: deriveStorageRoots(projectDir).mediaRoot,
         }),
@@ -348,10 +349,9 @@ function normalizeMediaRef(media: StoryboardMediaRef | undefined, projectDir: st
   const absolute = resolveTimelineSourcePath({ sourcePath: media.path, dataRoot, mediaRoot: deriveStorageRoots(projectDir).mediaRoot });
   const relative = path.relative(projectDir, absolute).split(path.sep).join("/");
   if (!relative || relative.startsWith("..") || path.isAbsolute(relative)) throw new Error(`分镜媒体必须位于当前项目: ${media.path}`);
-  return { ...media, path: `project-file://${projectId}/${relative}`, contentSha256: media.contentSha256 || crypto.createHash("sha256").update(fs.readFileSync(absolute)).digest("hex") };
+  return { ...media, path: buildProjectFileUrl(projectId, relative), contentSha256: media.contentSha256 || crypto.createHash("sha256").update(fs.readFileSync(absolute)).digest("hex") };
 }
 function referenceKey(reference: { kind: string; projectId: string; relativePath: string; contentSha256: string }): string { return `${reference.kind}:${reference.projectId}:${reference.relativePath}:${reference.contentSha256}`; }
-function toProjectFileUrl(projectId: string, relativePath: string): string { return `project-file://${encodeURIComponent(projectId)}/${relativePath.split("/").map((part) => encodeURIComponent(part)).join("/")}`; }
 function readBundleManifest(bundlePath: string): RemotionBundleManifest {
   return assertBundleMatchesRuntime(readJson(path.join(bundlePath, "manifest.json")), remotionVersion);
 }

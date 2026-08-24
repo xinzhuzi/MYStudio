@@ -19,6 +19,7 @@ import type {
   CinematicConfig,
   StoryboardShotCompositionProps,
 } from "@/electron/rendering/plugins/remotion/composition/composition-props";
+import { buildProjectFileUrl } from "@/lib/upscale/project-file-url";
 import {
   validateStoryboardShotCompositionProps,
 } from "@/electron/rendering/plugins/remotion/composition/composition-props-validation";
@@ -605,8 +606,7 @@ function validateStoryboardAudioReference(
     issue(issues, "$.storyboard.audioRef.contentSha256", "当前口播素材 fingerprint 与 shot voice binding 不一致");
     return;
   }
-  const expectedPath = `project-file://${encodeURIComponent(projectId)}/${voice.source.relativePath
-    .split("/").map((part) => encodeURIComponent(part)).join("/")}`;
+  const expectedPath = buildProjectFileUrl(projectId, voice.source.relativePath);
   if (audioRef.path !== expectedPath) {
     issue(issues, "$.storyboard.audioRef.path", "audioRef 必须精确镜像 canonical voice binding source");
   }

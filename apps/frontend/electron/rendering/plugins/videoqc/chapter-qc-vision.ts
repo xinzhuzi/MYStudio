@@ -22,6 +22,7 @@ import {
   createTransitionDiversityTracker,
   TRANSITION_SAME_EFFECT_MIN_BOUNDARY_GAP,
 } from "@/lib/studio/editing/transition-policy";
+import { createProjectFileUrl } from "../../../storage/storage-paths";
 import type {
   ChapterQcFindingV1,
   ChapterQcVisionDecisionV1,
@@ -189,7 +190,7 @@ export async function runVisionLayer(input: ChapterQcVisionLayerInput): Promise<
         ordinal: point.ordinal,
         kind: point.kind,
         tS: point.tS,
-        frameUrl: `project-file://${input.projectId}/remotion/qc/chapters/${input.chapterId}/vision-frames/${fileName}`,
+        frameUrl: createProjectFileUrl(input.projectId, `remotion/qc/chapters/${input.chapterId}/vision-frames/${fileName}`),
       });
     } catch {
       frameErrors += 1; // 单帧跳过,不整体失败

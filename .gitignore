@@ -132,3 +132,5 @@ apps/output/*
 .playwright-cli/
 # Vite/Vitest 本地缓存与测试结果输出
 .vite/
+# tsc 增量编译缓存(内嵌本机绝对路径,禁止入库)
+*.tsbuildinfo

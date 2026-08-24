@@ -20,6 +20,7 @@ import {
   validateRemotionShotPlan,
 } from "@/lib/studio/remotion/shot-plan";
 import { sha256CanonicalJson } from "@/lib/studio/remotion/canonical-json";
+import { buildProjectFileUrl } from "@/lib/upscale/project-file-url";
 import { createRemotionRenderJobId } from "@/lib/studio/remotion/remotion-job-identity";
 import {
   remotionCurrentSlotPaths,
@@ -410,7 +411,7 @@ async function collectVerifiedSources(
   resolveSourcePath: (sourcePath: string) => string,
 ): Promise<MediaBridgeClipSource[]> {
   const sources = new Map<string, MediaBridgeClipSource>();
-  const visualSourcePath = resolveSourcePath(toProjectFileUrl(
+  const visualSourcePath = resolveSourcePath(buildProjectFileUrl(
     shot.visualSource.projectId,
     shot.visualSource.relativePath,
   ));
@@ -436,10 +437,6 @@ async function collectVerifiedSources(
 
 function referenceKey(reference: { kind: string; projectId: string; relativePath: string; contentSha256: string }): string {
   return `${reference.kind}:${reference.projectId}:${reference.relativePath}:${reference.contentSha256}`;
-}
-
-function toProjectFileUrl(projectId: string, relativePath: string): string {
-  return `project-file://${encodeURIComponent(projectId)}/${relativePath.split("/").map((part) => encodeURIComponent(part)).join("/")}`;
 }
 
 function readBundle(bundlePath: string, remotionVersion: string) {

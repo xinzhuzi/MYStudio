@@ -8,6 +8,7 @@ import {
   startTtsRuntime,
 } from "@/lib/tts/client";
 import { validateVoiceProfileForGeneration } from "@/lib/tts/voice-profile-capabilities";
+import { buildProjectFileUrl } from "@/lib/upscale/project-file-url";
 import type {
   StoryboardItem,
   StoryboardMediaRef,
@@ -493,13 +494,9 @@ export async function createStoryboardVoiceBinding(input: {
 }
 
 export function createStoryboardAudioRefFromBinding(binding: RemotionShotAudioBindingV2): StoryboardMediaRef {
-  const encodedPath = binding.source.relativePath
-    .split("/")
-    .map((segment) => encodeURIComponent(segment))
-    .join("/");
   return {
     kind: "audio",
-    path: `project-file://${encodeURIComponent(binding.projectId)}/${encodedPath}`,
+    path: buildProjectFileUrl(binding.projectId, binding.source.relativePath),
     contentSha256: binding.source.contentSha256,
   };
 }

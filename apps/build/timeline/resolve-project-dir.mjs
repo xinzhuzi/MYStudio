@@ -3,7 +3,7 @@
 // 项目已外迁(/Users/zhengbingjin/Project/IP/MA),旧路径仅作未注册时的兜底。
 import fs from "node:fs";
 
-const DAOJIE_PROJECT_ID = "49dce4c1-64b1-42de-85c2-9f266698aec0";
+const DAOJIE_PROJECT_ID = "49dce4c1-64b1-42de-85c2-9f266698aec4";
 
 export function resolveProjectDir() {
   const legacy = `${process.env.HOME}/Library/Application Support/漫影工作室/projects/_p/${DAOJIE_PROJECT_ID}`;

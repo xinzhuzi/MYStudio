@@ -29,12 +29,8 @@ import type {
 } from "@/types/remotion-workspace";
 import type { StoryboardItem, StoryboardTtsJobV1 } from "@/types/studio";
 import { writeStudioWorkflowStore } from "@/electron/storage/studio-workflow-store-io";
+import { buildProjectFileUrl } from "@/lib/upscale/project-file-url";
 import { deriveStorageRoots, readStudioWorkflowStoreState, resolveProjectDir, resolveTimelineSourcePath } from "./storage-paths";
-
-function toProjectFileUrl(projectId: string, relativePath: string): string {
-  return `project-file://${encodeURIComponent(projectId)}/${relativePath
-    .split("/").map((part) => encodeURIComponent(part)).join("/")}`;
-}
 
 async function main(): Promise<void> {
   const projectDir = resolveProjectDir();
@@ -109,7 +105,7 @@ async function main(): Promise<void> {
     storyboard.shotAudioBindings = [binding];
     storyboard.audioRef = {
       kind: "audio",
-      path: toProjectFileUrl(projectId, binding.source.relativePath),
+      path: buildProjectFileUrl(projectId, binding.source.relativePath),
       contentSha256: binding.source.contentSha256,
     };
     storyboard.ttsJob = ttsJob;
