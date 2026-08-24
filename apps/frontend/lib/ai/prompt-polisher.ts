@@ -130,7 +130,7 @@ export async function polishAssetPrompt(
         // 道劫兜底:构造同合同的本地题材正文,不退化为英文逗号串;
         // 通用负面归编译器,这里只保留作业级负面。
         const subjectBody = buildDaojieLocalSubjectBody({ assetType, name, description, isDerivative });
-        const prefiltered = prefilterDaojiePaletteSchemes({ runtimeTrack: assetType, name, description });
+        const prefiltered = prefilterDaojiePaletteSchemes({ runtimeTrack: assetType, name, description, subjectBody });
         return {
           prompt: subjectBody,
           promptZh: `${name}：${description.trim() || name}`,
@@ -160,7 +160,7 @@ export async function polishAssetPrompt(
       // 自动层、唯一 Avoid 与 300-800 长度门由 daojie-prompt-contract 在生成前统一编译。
       const subjectBody = sanitizeExtendedManualPrompt(parsed.prompt);
       // AI 自动选配三轨配色方案(42 色卡/每轨 8 方案);失败降级规则预筛,再降级 source-facts-only
-      const schemeId = await selectDaojiePaletteSchemeForAsset({ assetType, name, description });
+      const schemeId = await selectDaojiePaletteSchemeForAsset({ assetType, name, description, subjectBody });
       return {
         ...parsed,
         prompt: subjectBody,
@@ -462,16 +462,21 @@ async function selectDaojiePaletteSchemeForAsset(input: {
   assetType: AssetType;
   name: string;
   description: string;
+  /** 润色产出的题材正文:其色彩段是五职责色相的权威信号,防止正文与配方同框打架。 */
+  subjectBody: string;
 }): Promise<string | null> {
   const maTrack = input.assetType === "character" ? "person" : input.assetType;
   const trackLabel: Record<AssetType, string> = { character: "人物", scene: "场景", prop: "道具" };
   const systemPrompt = [
     "你是道劫工笔生图的配色导演。42 色卡体系为每个轨道提供配色方案(五职责矿物色配方:底色/墨线/主色/辅色/点睛色)。",
-    "给定资产信息,从候选方案中选出最贴合其气质与用途的一个。",
-    "规则:匹配 suitable 气质用途,规避 forbidden;资产描述若已写明具体色相且与方案冲突,选 null(色相服从来源事实);绝不编造候选之外的 id。",
+    "给定资产信息与已写好的题材正文,从候选方案中选一个。",
+    "防冲突规则(按优先级):",
+    "1. 题材正文色彩段若已写明五职责色相(主色/辅色/点睛等),只允许选与之一致的方案;无一致方案必须输出 null(色相服从正文事实,不得让配方与正文同框打架)。",
+    "2. 正文未写明职责色相时,按资产气质/用途匹配 suitable,规避 forbidden。",
+    "3. 绝不编造候选之外的 id。",
     '只输出一个 JSON 对象:{"schemeId":"<候选id>"} 或 {"schemeId":null}',
   ].join("\n");
-  const userPrompt = `资产类型:${trackLabel[input.assetType]}\n名称:${input.name}\n描述:${input.description}\n\n候选方案:\n${buildDaojiePaletteSelectionCatalog(maTrack)}`;
+  const userPrompt = `资产类型:${trackLabel[input.assetType]}\n名称:${input.name}\n描述:${input.description}\n题材正文:\n${input.subjectBody}\n\n候选方案:\n${buildDaojiePaletteSelectionCatalog(maTrack)}`;
   for (const feature of PROMPT_POLISH_FEATURES) {
     try {
       const text = await aiManager.featureText(feature, systemPrompt, userPrompt, {
@@ -479,8 +484,9 @@ async function selectDaojiePaletteSchemeForAsset(input: {
         maxTokens: 256,
         disableThinking: true,
       });
-      const schemeId = parseDaojiePaletteSelectionResponse(text, maTrack);
-      if (schemeId) return schemeId;
+      const decision = parseDaojiePaletteSelectionResponse(text, maTrack);
+      // 合法决策(含显式 null)即停;格式坏才换下一通道
+      if (decision !== undefined) return decision;
     } catch {
       // 尝试下一 feature;全部失败走预筛兜底
     }
@@ -489,6 +495,7 @@ async function selectDaojiePaletteSchemeForAsset(input: {
     runtimeTrack: input.assetType,
     name: input.name,
     description: input.description,
+    subjectBody: input.subjectBody,
   });
   return prefiltered[0]?.scheme.schemeId ?? null;
 }

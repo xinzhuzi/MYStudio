@@ -64,6 +64,13 @@ describe("Daojie palette auto-selection", () => {
       name: "无关键词命中",
       description: "完全无关描述",
     })).toHaveLength(0);
+    // 题材正文色彩段参与预筛兜底信号
+    expect(prefilterDaojiePaletteSchemes({
+      runtimeTrack: "prop",
+      name: "某器物",
+      description: "描述",
+      subjectBody: "一柄刀剑，铁灰剑身。",
+    })[0]?.scheme.schemeId).toBe("prop.04");
   });
 
   it("catalog lists exactly the 8 schemes of the requested track", () => {
@@ -72,11 +79,13 @@ describe("Daojie palette auto-selection", () => {
     expect(catalog).toContain("prop.01");
   });
 
-  it("parses LLM selection strictly: valid id kept, unknown/cross-track/null rejected to null", () => {
+  it("parses LLM selection strictly: id / explicit null / malformed are distinguishable", () => {
     expect(parseDaojiePaletteSelectionResponse('{"schemeId": "scene.03"}', "scene")).toBe("scene.03");
+    // 显式 null = 合法决策(色相服从来源事实)
     expect(parseDaojiePaletteSelectionResponse('{"schemeId": null}', "scene")).toBeNull();
-    expect(parseDaojiePaletteSelectionResponse("模型闲聊没有 JSON", "scene")).toBeNull();
-    expect(parseDaojiePaletteSelectionResponse('{"schemeId": "person.02"}', "scene")).toBeNull();
-    expect(parseDaojiePaletteSelectionResponse('{"schemeId": "person.99"}', "person")).toBeNull();
+    // 格式坏/未知 id/跨轨 = undefined(调用方应换通道重试,而非当作决策)
+    expect(parseDaojiePaletteSelectionResponse("模型闲聊没有 JSON", "scene")).toBeUndefined();
+    expect(parseDaojiePaletteSelectionResponse('{"schemeId": "person.02"}', "scene")).toBeUndefined();
+    expect(parseDaojiePaletteSelectionResponse('{"schemeId": "person.99"}', "person")).toBeUndefined();
   });
 });

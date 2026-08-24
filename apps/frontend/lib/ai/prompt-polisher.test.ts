@@ -167,6 +167,36 @@ describe("polishAssetPrompt 道劫三轨合同(LLM 只拥有题材正文)", () =
     expect(result.daojie?.schemeId).toBe("person.02");
   });
 
+  it("防冲突:正文色彩段已写明职责色相时,选配只接受一致方案,否则 null", async () => {
+    const selectionCalls: string[] = [];
+    vi.mocked(aiManager.featureText)
+      .mockResolvedValueOnce([
+        "中文描述: 白衣剑修。",
+        "",
+        "白衣剑修，衣袂当风；色彩段:主色月白，辅烟灰，点睛旧银。",
+        "",
+        "Negative Prompt: watermark",
+      ].join("\n"))
+      .mockImplementationOnce(async (_f: unknown, _s: unknown, user: string) => {
+        selectionCalls.push(String(user));
+        return '{"schemeId": null}';
+      });
+
+    const result = await polishAssetPrompt({
+      assetType: "character",
+      name: "林霜",
+      description: "主持仪式、绘制符箓的剑修",
+      isDerivative: false,
+      visualManualId: "daojie_ink_guofeng",
+    });
+
+    expect(result.status).toBe("success");
+    // 选配 prompt 必须携带题材正文(色彩段可见)
+    expect(selectionCalls[0]).toContain("主色月白");
+    // 与正文职责色不一致 → 显式 null → 不带方案(避免同框双主色)
+    expect(result.daojie?.schemeId).toBeUndefined();
+  });
+
   it("AI 选配失败降级规则预筛,再降级 source-facts-only,不阻断润色", async () => {
     vi.mocked(aiManager.featureText)
       .mockResolvedValueOnce([

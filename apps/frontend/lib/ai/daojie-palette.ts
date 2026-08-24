@@ -148,9 +148,11 @@ export function prefilterDaojiePaletteSchemes(input: {
   runtimeTrack: DaojieRuntimeTrack | DaojieMaTrack;
   name: string;
   description: string;
+  /** 润色产出的题材正文(色彩段信号源);预筛兜底时一并纳入。 */
+  subjectBody?: string;
 }): Array<{ scheme: DaojiePaletteScheme; score: number }> {
   const track = input.runtimeTrack === "character" ? "person" : input.runtimeTrack;
-  const haystack = `${input.name} ${input.description}`;
+  const haystack = `${input.name} ${input.description} ${input.subjectBody ?? ""}`;
   const scored = DAOJIE_PALETTE_CANON.schemes
     .filter((scheme) => scheme.track === track)
     .map((scheme) => {
@@ -178,21 +180,27 @@ export function buildDaojiePaletteSelectionCatalog(maTrack: DaojieMaTrack): stri
   return lines.join("\n");
 }
 
-/** 解析 LLM 选配输出;任何不合法(未知 id/跨轨/格式坏)一律返回 null(source-facts-only 兜底),不抛错。 */
+/**
+ * 解析 LLM 选配输出:
+ * - 返回 string:合法且属当前轨的方案 id;
+ * - 返回 null:格式合法的显式决策 null(色相服从来源事实,不选方案);
+ * - 返回 undefined:格式坏/未知 id/跨轨(调用方应换通道重试,而不是当作决策)。
+ */
 export function parseDaojiePaletteSelectionResponse(
   rawText: string,
   maTrack: DaojieMaTrack,
-): string | null {
+): string | null | undefined {
   const match = rawText.match(/\{[\s\S]*\}/);
-  if (!match) return null;
+  if (!match) return undefined;
   try {
     const parsed = JSON.parse(match[0]) as { schemeId?: unknown };
-    if (parsed.schemeId === null || parsed.schemeId === undefined) return null;
-    if (typeof parsed.schemeId !== "string") return null;
+    if (parsed.schemeId === null) return null;
+    if (typeof parsed.schemeId !== "string") return undefined;
     const scheme = schemesById.get(parsed.schemeId);
-    if (!scheme || scheme.track !== maTrack) return null;
+    if (!scheme) return undefined;
+    if (scheme.track !== maTrack) return undefined;
     return scheme.schemeId;
   } catch {
-    return null;
+    return undefined;
   }
 }
