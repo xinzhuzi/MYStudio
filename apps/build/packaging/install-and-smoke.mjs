@@ -10,8 +10,12 @@ const installedApp = '/Applications/漫影工作室.app';
 const packagedAsar = resolve(packagedApp, 'Contents', 'Resources', 'app.asar');
 const installedAsar = resolve(installedApp, 'Contents', 'Resources', 'app.asar');
 const installedBin = resolve(installedApp, 'Contents', 'MacOS', '漫影工作室');
+const userDataDirFromEnv = process.env.MYSTUDIO_SMOKE_USER_DATA_DIR || '';
 const userDataDir =
-  process.env.MYSTUDIO_SMOKE_USER_DATA_DIR || mkdtempSync(resolve(tmpdir(), 'mystudio-installed-smoke-'));
+  userDataDirFromEnv || mkdtempSync(resolve(tmpdir(), 'mystudio-installed-smoke-'));
+// 08-24 根治「冒烟空壳」:本脚本自建的冒烟隔离 profile 在链尾整体清理
+// (MYSTUDIO_SMOKE_KEEP_USER_DATA=1 保留供排查)。
+const ownsUserDataDir = !userDataDirFromEnv;
 const debugPort = process.env.MYSTUDIO_SMOKE_DEBUG_PORT || '9363';
 const smokeCommandLabel = 'npm run smoke:desktop';
 const skipPrekill = process.env.MYSTUDIO_SMOKE_SKIP_PREKILL === '1';
@@ -198,3 +202,14 @@ try {
 }
 
 console.log('Installed app verified: smoke passed and app opens via Launch Services');
+
+// 冒烟空壳根治收尾:open-verify 已退出其拉起的实例,清掉自建隔离 profile。
+// (verifyRealOpen 用 Launch Services 起的是真实 userData 的普通实例,与此目录无关)
+if (ownsUserDataDir && process.env.MYSTUDIO_SMOKE_KEEP_USER_DATA !== '1') {
+  try {
+    rmSync(userDataDir, { recursive: true, force: true });
+    console.log(`[install-smoke] cleaned isolated userData: ${userDataDir}`);
+  } catch (error) {
+    console.warn(`[install-smoke] isolated userData 清理失败(可忽略,tmp 自清): ${error}`);
+  }
+}

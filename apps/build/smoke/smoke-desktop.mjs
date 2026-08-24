@@ -51,9 +51,14 @@ const appBin =
   appBinCandidates.find((candidate) => existsSync(candidate)) ??
   appBinCandidates[0];
 const debugPort = Number(process.env.MYSTUDIO_SMOKE_DEBUG_PORT || 9342);
+const userDataDirFromEnv = process.env.MYSTUDIO_SMOKE_USER_DATA_DIR || "";
 const userDataDir =
-  process.env.MYSTUDIO_SMOKE_USER_DATA_DIR ||
-  mkdtempSync(resolve(tmpdir(), "mystudio-smoke-"));
+  userDataDirFromEnv || mkdtempSync(resolve(tmpdir(), "mystudio-smoke-"));
+// 08-24 根治「冒烟空壳」:自建(非 env 注入)的临时 profile 在退出时整体清理,
+// 隔离 profile 里的「恢复的项目 (desktop-)」等一切痕迹随目录消亡;
+// MYSTUDIO_SMOKE_KEEP_USER_DATA=1 保留目录供人工排查。
+const ownsUserDataDir = !userDataDirFromEnv;
+const keepUserDataDir = process.env.MYSTUDIO_SMOKE_KEEP_USER_DATA === "1";
 const CDP_CALL_TIMEOUT_MS = Number(
   process.env.MYSTUDIO_SMOKE_CDP_TIMEOUT_MS || 10_000,
 );
@@ -3163,5 +3168,15 @@ try {
       }
     }
     rmSync(SMOKE_VIDEO_PATH, { force: true });
+    // 应用已确认终止后才清空自建临时 profile(冒烟空壳根治);
+    // keep-open 分支应用仍在跑,保留目录交人工处理。
+    if (ownsUserDataDir && !keepUserDataDir && !(keepSmokeAppOpen && smokePassed)) {
+      try {
+        rmSync(userDataDir, { recursive: true, force: true });
+        console.log(`[smoke] cleaned isolated userData: ${userDataDir}`);
+      } catch (error) {
+        console.warn(`[smoke] isolated userData 清理失败(可忽略,tmp 自清): ${error}`);
+      }
+    }
   }
 }
