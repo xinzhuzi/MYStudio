@@ -13,6 +13,7 @@
  */
 
 import { aiManager } from "@/lib/ai/ai-manager";
+import { createOperationId, logEvent } from "@/lib/diagnostics/logger";
 import {
   compileDaojiePrompt,
   DaojiePromptContractError,
@@ -164,6 +165,7 @@ export async function generateAsset(
         return { phase: "failed", error: "道劫提示词为空，已拒绝生成", polishResult };
       }
       let compiled;
+      const daoOpId = createOperationId("daojie-prompt-compile");
       try {
         compiled = await compileDaojiePrompt({
           runtimeTrack: task.assetType,
@@ -172,7 +174,33 @@ export async function generateAsset(
           hasReferenceImage: Boolean(task.referenceImages?.length),
           paletteSchemeId: task.paletteSchemeId ?? polishResult?.daojie?.schemeId,
         });
+        void logEvent({
+          level: "info",
+          category: "ai",
+          operationId: daoOpId,
+          message: "Daojie asset prompt compiled (ma-gongbi-v1)",
+          context: {
+            track: compiled.track,
+            maTrack: compiled.maTrack,
+            paletteSchemeId: task.paletteSchemeId ?? polishResult?.daojie?.schemeId ?? null,
+            totalChars: compiled.totalChars,
+            status: compiled.status,
+            moduleIds: compiled.moduleIds,
+            moduleLengths: compiled.moduleLengths,
+            contractVersion: compiled.contractVersion,
+            contractSha256: compiled.contractSha256,
+          },
+        });
       } catch (err) {
+        if (err instanceof DaojiePromptContractError && err.code === "length_exceeded") {
+          void logEvent({
+            level: "warn",
+            category: "ai",
+            operationId: daoOpId,
+            message: "Daojie asset prompt rejected before provider (over 800)",
+            context: { track: task.assetType, totalChars: err.input, moduleLengths: err.details.moduleLengths },
+          });
+        }
         if (err instanceof Error && /daojie palette scheme/.test(err.message)) {
           return { phase: "failed", error: `配色方案不可用: ${err.message}`, polishResult };
         }

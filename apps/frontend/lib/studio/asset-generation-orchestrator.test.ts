@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { aiManager } from "@/lib/ai/ai-manager";
+import { logEvent } from "@/lib/diagnostics/logger";
 import { saveImageToLocal } from "@/lib/media/image-storage";
 import { polishAssetPrompt } from "@/lib/ai/prompt-polisher";
 import { useCharacterLibraryStore } from "@/stores/library/character-library-store";
@@ -22,6 +23,11 @@ vi.mock("@/lib/ai/ai-manager", () => ({
   aiManager: {
     image: vi.fn().mockResolvedValue({ imageUrl: "https://example.com/prop.png" }),
   },
+}));
+
+vi.mock("@/lib/diagnostics/logger", () => ({
+  createOperationId: (prefix: string) => `${prefix}-test`,
+  logEvent: vi.fn().mockResolvedValue(undefined),
 }));
 
 vi.mock("@/lib/ai/prompt-polisher", () => ({
@@ -543,6 +549,16 @@ describe("asset-generation-orchestrator", () => {
       expect(params.prompt).toContain("压缩伪影");
       expect(params.prompt).not.toContain("Negative constraints");
       expect(params.prompt).not.toContain("clean image");
+      // 诊断日志:合同指纹+方案+长度可追溯,不含密钥
+      const compileLog = vi.mocked(logEvent).mock.calls.find(
+        ([entry]) => entry.message.includes("Daojie asset prompt compiled"),
+      );
+      expect(compileLog?.[0].context).toMatchObject({
+        maTrack: "person",
+        paletteSchemeId: null,
+        contractVersion: "ma-gongbi-v1",
+      });
+      expect(String(compileLog?.[0].context?.contractSha256)).toMatch(/^[a-f0-9]{64}$/);
     });
 
     it("已有提示词复用仍进编译与长度门(skipPolish≠skipCompile),作业负面不丢", async () => {
@@ -583,6 +599,11 @@ describe("asset-generation-orchestrator", () => {
       expect(result.phase).toBe("failed");
       expect(result.error).toContain("800");
       expect(aiManager.image).not.toHaveBeenCalled();
+      const rejectLog = vi.mocked(logEvent).mock.calls.find(
+        ([entry]) => entry.message.includes("rejected before provider"),
+      );
+      expect(rejectLog?.[0].level).toBe("warn");
+      expect(rejectLog?.[0].context?.totalChars).toBeGreaterThan(800);
     });
 
     it("参考图条件锁:有参考图追加降噪锁,无参考图不追加", async () => {

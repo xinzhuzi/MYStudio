@@ -1,5 +1,11 @@
 // @vitest-environment jsdom
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { logEvent } from "@/lib/diagnostics/logger";
+
+vi.mock("@/lib/diagnostics/logger", () => ({
+  createOperationId: (prefix: string) => `${prefix}-test`,
+  logEvent: vi.fn().mockResolvedValue(undefined),
+}));
 import { useStudioStore } from "@/stores/studio/studio-store";
 import {
   compileActiveDaojieStoryboardFramePrompt,
@@ -48,10 +54,21 @@ describe("compileActiveDaojieStoryboardFramePrompt", () => {
     expect(await compileActiveDaojieStoryboardFramePrompt("正文")).toBeNull();
   });
 
+  it("编译与拒绝均写诊断日志(合同指纹可追溯)", async () => {
+    await warmExtendedManualStyleTokens(DAOJIE_MANUAL);
+    const compiled = await compileActiveDaojieStoryboardFramePrompt("【画面】题材正文");
+    expect(compiled).not.toBeNull();
+    const okLog = vi.mocked(logEvent).mock.calls.find(([e]) => e.message.includes("storyboard frame compiled"));
+    expect(okLog?.[0].context).toMatchObject({ contractVersion: "ma-gongbi-v1", status: compiled!.status });
+    expect(String(okLog?.[0].context?.contractSha256)).toMatch(/^[a-f0-9]{64}$/);
+  });
+
   it("超 800 在网络前以可读错误拒绝", async () => {
     await warmExtendedManualStyleTokens(DAOJIE_MANUAL);
 
     await expect(compileActiveDaojieStoryboardFramePrompt("长".repeat(900))).rejects.toThrow("800");
+    const warnLog = vi.mocked(logEvent).mock.calls.find(([e]) => e.message.includes("rejected before provider"));
+    expect(warnLog?.[0].level).toBe("warn");
   });
 
   it("手册未预热时帧负面 fail-empty,仅剩通用负面", async () => {

@@ -20,6 +20,7 @@ import {
 } from "@/lib/ai/daojie-prompt-contract";
 import { EXTENDED_VISUAL_MANUAL_SEED_ID } from "@/lib/studio/visual-manual-classification";
 import { useStudioStore } from "@/stores/studio/studio-store";
+import { createOperationId, logEvent } from "@/lib/diagnostics/logger";
 
 // 2026-08-22 起道劫手册移至项目真源(<项目根>/skills),构建期打包读取改为
 // 运行时读取:优先项目 skills → userData/skills(应用内编辑副本)。首次调用现读并缓存,
@@ -242,13 +243,36 @@ export async function compileActiveDaojieStoryboardFramePrompt(
   positive: string,
 ): Promise<CompiledDaojiePrompt | null> {
   if (!isExtendedVisualManual(useStudioStore.getState().workflowConfig.visualManualId)) return null;
+  const operationId = createOperationId("daojie-storyboard-compile");
   try {
-    return await compileDaojieStoryboardFramePrompt({
+    const compiled = await compileDaojieStoryboardFramePrompt({
       positive,
       negativeTerms: getExtendedStoryboardFrameNegative(),
     });
+    void logEvent({
+      level: "info",
+      category: "ai",
+      operationId,
+      message: "Daojie storyboard frame compiled (ma-gongbi-v1)",
+      context: {
+        totalChars: compiled.totalChars,
+        status: compiled.status,
+        moduleIds: compiled.moduleIds,
+        moduleLengths: compiled.moduleLengths,
+        contractVersion: compiled.contractVersion,
+        contractSha256: compiled.contractSha256,
+      },
+    });
+    return compiled;
   } catch (err) {
     if (err instanceof DaojiePromptContractError && err.code === "length_exceeded") {
+      void logEvent({
+        level: "warn",
+        category: "ai",
+        operationId,
+        message: "Daojie storyboard frame rejected before provider (over 800)",
+        context: { totalChars: err.input, moduleLengths: err.details.moduleLengths },
+      });
       throw new Error(`道劫提示词超出 800 字符 provider 上限（实际 ${err.input} 字符），已拒绝生成`);
     }
     throw err;

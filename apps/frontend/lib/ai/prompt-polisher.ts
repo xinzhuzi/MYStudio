@@ -14,6 +14,7 @@ import { getManualModuleText as getBundledManualModuleText } from "@/lib/studio/
 import { aiManager, type AIBinding, type AITextResult } from "@/lib/ai/ai-manager";
 import { normalizeImagePromptForGeneration } from "@/lib/ai/ai-sdk-bridge";
 import { getStudioVisualManualsBridge } from "@/lib/bridge/studio-visual-manuals";
+import { createOperationId, logEvent } from "@/lib/diagnostics/logger";
 import { EXTENDED_VISUAL_MANUAL_SEED_ID } from "@/lib/studio/visual-manual-classification";
 import {
   buildDaojiePaletteSelectionCatalog,
@@ -477,6 +478,16 @@ async function selectDaojiePaletteSchemeForAsset(input: {
     '只输出一个 JSON 对象:{"schemeId":"<候选id>"} 或 {"schemeId":null}',
   ].join("\n");
   const userPrompt = `资产类型:${trackLabel[input.assetType]}\n名称:${input.name}\n描述:${input.description}\n题材正文:\n${input.subjectBody}\n\n候选方案:\n${buildDaojiePaletteSelectionCatalog(maTrack)}`;
+  const operationId = createOperationId("daojie-palette-select");
+  const logDecision = (schemeId: string | null, tier: "llm" | "prefilter" | "none") => {
+    void logEvent({
+      level: "info",
+      category: "ai",
+      operationId,
+      message: "Daojie palette scheme decision",
+      context: { maTrack, schemeId, tier, assetName: input.name },
+    });
+  };
   for (const feature of PROMPT_POLISH_FEATURES) {
     try {
       const text = await aiManager.featureText(feature, systemPrompt, userPrompt, {
@@ -486,7 +497,10 @@ async function selectDaojiePaletteSchemeForAsset(input: {
       });
       const decision = parseDaojiePaletteSelectionResponse(text, maTrack);
       // 合法决策(含显式 null)即停;格式坏才换下一通道
-      if (decision !== undefined) return decision;
+      if (decision !== undefined) {
+        logDecision(decision, "llm");
+        return decision;
+      }
     } catch {
       // 尝试下一 feature;全部失败走预筛兜底
     }
@@ -497,7 +511,9 @@ async function selectDaojiePaletteSchemeForAsset(input: {
     description: input.description,
     subjectBody: input.subjectBody,
   });
-  return prefiltered[0]?.scheme.schemeId ?? null;
+  const fallback = prefiltered[0]?.scheme.schemeId ?? null;
+  logDecision(fallback, fallback ? "prefilter" : "none");
+  return fallback;
 }
 
 /**

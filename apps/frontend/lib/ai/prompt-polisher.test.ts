@@ -5,7 +5,13 @@
  */
 import { describe, expect, it, vi } from "vitest";
 import { aiManager } from "@/lib/ai/ai-manager";
+import { logEvent } from "@/lib/diagnostics/logger";
 import { polishAssetPrompt } from "./prompt-polisher";
+
+vi.mock("@/lib/diagnostics/logger", () => ({
+  createOperationId: (prefix: string) => `${prefix}-test`,
+  logEvent: vi.fn().mockResolvedValue(undefined),
+}));
 
 vi.mock("@/lib/bridge/studio-visual-manuals", async () => {
   const { readFileSync } = await import("node:fs");
@@ -165,6 +171,9 @@ describe("polishAssetPrompt 道劫三轨合同(LLM 只拥有题材正文)", () =
 
     expect(result.status).toBe("success");
     expect(result.daojie?.schemeId).toBe("person.02");
+    const decision = [...vi.mocked(logEvent).mock.calls].reverse()
+      .find(([e]) => e.message.includes("palette scheme decision"));
+    expect(decision?.[0].context).toMatchObject({ schemeId: "person.02", tier: "llm", maTrack: "person" });
   });
 
   it("防冲突:正文色彩段已写明职责色相时,选配只接受一致方案,否则 null", async () => {
@@ -195,6 +204,9 @@ describe("polishAssetPrompt 道劫三轨合同(LLM 只拥有题材正文)", () =
     expect(selectionCalls[0]).toContain("主色月白");
     // 与正文职责色不一致 → 显式 null → 不带方案(避免同框双主色)
     expect(result.daojie?.schemeId).toBeUndefined();
+    const decision = [...vi.mocked(logEvent).mock.calls].reverse()
+      .find(([e]) => e.message.includes("palette scheme decision"));
+    expect(decision?.[0].context).toMatchObject({ schemeId: null, tier: "llm" });
   });
 
   it("AI 选配失败降级规则预筛,再降级 source-facts-only,不阻断润色", async () => {
