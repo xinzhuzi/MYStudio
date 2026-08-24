@@ -272,7 +272,48 @@ export function ensureStoryboardAssetReferences(
       next = connectImageWorkflowNodes(next, { source: node.id, target: generatedNodeId });
     }
   }
-  return next;
+  return ensureStoryboardBindingConsistency(next);
+}
+
+/**
+ * 装配门禁(08-24 S15 根因补): 参考集合变化(建流/补挂/清理)后,prompt 的
+ * @图N 绑定句必须与「连向主成图、按 continuityOrder 排序」的运行时参考
+ * 顺序一致——不一致时按现顺序重写头段。参考变了绑定句不跟着变 = 模型把
+ * @图2 的身份约束套到错误的参考图上(人物张冠李戴的机制性根源)。
+ */
+export function ensureStoryboardBindingConsistency(graph: ImageWorkflowGraph): ImageWorkflowGraph {
+  if (graph.target.kind !== "storyboard") return graph;
+  const mainGen = graph.nodes.find(
+    (node) => node.type === "generated"
+      && !node.title?.includes("背景板") && !node.title?.includes("净底"),
+  );
+  if (!mainGen) return graph;
+  const orderedRefs = graph.edges
+    .filter((edge) => edge.target === mainGen.id)
+    .map((edge) => graph.nodes.find((node) => node.id === edge.source))
+    .filter((node): node is ImageWorkflowReferenceNode => node?.type === "reference" && Boolean(node.title))
+    .sort((a, b) => (a.continuityOrder ?? Number.MAX_SAFE_INTEGER) - (b.continuityOrder ?? Number.MAX_SAFE_INTEGER));
+  if (orderedRefs.length === 0) return graph;
+  const kindLabel: Record<string, string> = { scene: "场景", character: "角色", prop: "道具" };
+  const head = orderedRefs
+    .map((ref, i) => `@图${i + 1} 为${ref.title}${kindLabel[(ref.source as { assetType?: string } | undefined)?.assetType ?? ""] ?? ""}`)
+    .join("；");
+  const expected = /@图\d+\s*为/.test(head) ? head : "";
+  let changed = false;
+  const nodes = graph.nodes.map((node) => {
+    if (node.type !== "prompt") return node;
+    const old = node.prompt ?? "";
+    if (expected) {
+      const bodyStart = old.indexOf("【");
+      const body = bodyStart >= 0 ? old.slice(bodyStart) : old.trim();
+      if (!body) return node;
+      const next = `${expected}\n${body}`;
+      if (next !== old) { changed = true; return { ...node, prompt: next }; }
+    }
+    return node;
+  });
+  if (!changed) return graph;
+  return { ...graph, nodes, updatedAt: Date.now() };
 }
 
 export function assetWorkflowContextKey(context: ImageWorkflowOpenContext) {
@@ -414,10 +455,11 @@ export function createOpenImageWorkflowGraph(
         target: generatedNodeId,
       });
     });
-  return connectImageWorkflowNodes(graph, {
+  // 装配门禁②:绑定句与最终参考集合一致(建流尾部即校验,而非等生成)
+  return ensureStoryboardBindingConsistency(connectImageWorkflowNodes(graph, {
     source: promptNodeId,
     target: generatedNodeId,
-  });
+  }));
 }
 
 export function imageWorkflowTargetKey(target: ImageWorkflowGraph["target"]) {

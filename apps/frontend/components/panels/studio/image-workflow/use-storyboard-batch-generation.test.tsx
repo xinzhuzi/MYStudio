@@ -323,5 +323,25 @@ describe("useStoryboardBatchGeneration(一键生图串行批量)", () => {
     expect(call?.referenceImages).toContain("file://assets/street.png");
     expect(call?.referenceImages).not.toContain("file://assets/inn.png");
   });
+  it("backfilled references regenerate a matching @图 binding head (S15 装配门禁)", async () => {
+    resetStore([shot({ id: "sb-1", index: 1 })]);
+    resolvedReferences.value = [
+      { imageUrl: "file://assets/street.png", title: "道口镇街巷", assetType: "scene", assetId: "sc-1" },
+      { imageUrl: "file://assets/guanshi.png", title: "掌柜", assetType: "character", assetId: "ch-1" },
+    ];
+    useStudioStore.setState({ imageWorkflows: [createBareStoryboardGraph("sb-1", "wf-bare")] });
+    freedomImage.mockResolvedValue({ url: "https://provider.test/ok.png" });
+
+    const { result } = renderHook(() =>
+      useStoryboardBatchGeneration({ storyboards: useStudioStore.getState().storyboards, projectName: "道劫" }),
+    );
+    act(() => result.current.start());
+    await waitFor(() => expect(result.current.state.running).toBe(false), { timeout: 8000 });
+
+    const stored = useStudioStore.getState().imageWorkflows.find((g) => g.id === "wf-bare");
+    const prompt = stored?.nodes.find((n) => n.type === "prompt")?.prompt ?? "";
+    expect(prompt.startsWith("@图1 为道口镇街巷场景；@图2 为掌柜角色")).toBe(true);
+    expect(prompt).toContain("测试画面");
+  });
 });
 
