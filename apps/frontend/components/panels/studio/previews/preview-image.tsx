@@ -1,0 +1,49 @@
+import { useState } from "react";
+import { ImageOff } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { toPreviewSrc } from "./preview-src";
+
+/**
+ * 节点预览统一 <img>:加载失败(死链/scheme 未注册)时落到占位卡片,
+ * 不再静默空白——QC 一眼可见。(08-24 审查 P2-7)
+ */
+export function PreviewImage({
+  src,
+  alt,
+  className,
+  fallbackLabel = "图片不可用",
+  onLoad,
+}: {
+  src: string;
+  alt: string;
+  className?: string;
+  fallbackLabel?: string;
+  onLoad?: (image: HTMLImageElement) => void;
+}) {
+  const [failed, setFailed] = useState(false);
+  if (failed) {
+    return (
+      <div
+        className={cn(
+          "flex h-full w-full flex-col items-center justify-center gap-1 bg-muted/30 text-muted-foreground",
+          className,
+        )}
+        data-preview-image-failed={alt}
+      >
+        <ImageOff className="h-5 w-5 text-muted-foreground/50" />
+        <span className="px-1 text-center text-[9px] leading-3">{fallbackLabel}</span>
+      </div>
+    );
+  }
+  return (
+    <img
+      src={toPreviewSrc(src)}
+      alt={alt}
+      className={className}
+      loading="lazy"
+      decoding="async"
+      onLoad={(event) => onLoad?.(event.currentTarget)}
+      onError={() => setFailed(true)}
+    />
+  );
+}

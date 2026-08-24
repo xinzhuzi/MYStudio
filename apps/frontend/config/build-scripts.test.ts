@@ -542,7 +542,7 @@ describe("desktop build scripts", () => {
     const packageJson = readBuildFile("package.json");
     const smokeScript = readBuildFile("build/smoke/smoke-desktop.mjs");
     const workflowPreviews = readBuildFile(
-      "frontend/components/panels/studio/WorkflowNodePreviews.tsx",
+      "frontend/components/panels/studio/previews/asset-flow-card.tsx",
     );
 
     expect(packageJson).toContain(

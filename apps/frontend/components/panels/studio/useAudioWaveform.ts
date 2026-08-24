@@ -5,7 +5,7 @@ import {
   loadCachedAudioWaveform,
 } from "@/lib/studio/editing/audio-waveform";
 import type { EditingClip } from "@/types/editing";
-import { toPreviewSrc } from "./WorkbenchTrackCard";
+import { toPreviewSrc } from "./previews/preview-src";
 
 export type AudioWaveformState =
   | { status: "idle" | "loading" | "error"; peaks: number[] }

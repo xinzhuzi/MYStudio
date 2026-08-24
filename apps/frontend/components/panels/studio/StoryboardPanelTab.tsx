@@ -1,8 +1,8 @@
 import { ArrowLeft, Image as ImageIcon, Loader2, Square } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { ImageWorkflowOpenContext, StoryboardItem } from "@/types/studio";
-import { buildStoryboardItemOpenContext } from "./WorkflowNodePreviews";
-import { toPreviewSrc } from "./WorkbenchTrackCard";
+import { buildStoryboardItemOpenContext } from "./storyboard-open-context";
+import { toPreviewSrc } from "./previews/preview-src";
 import type { StoryboardBatchGenerationState } from "./image-workflow/use-storyboard-batch-generation";
 
 /**

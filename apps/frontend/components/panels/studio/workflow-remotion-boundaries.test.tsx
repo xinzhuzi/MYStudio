@@ -1,10 +1,8 @@
 // @vitest-environment jsdom
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
-import {
-  RemotionShotPreview,
-  WorkbenchLanePreview,
-} from "./WorkflowNodePreviews";
+import { RemotionShotPreview } from "./previews/remotion-shot-preview";
+import { WorkbenchLanePreview } from "./previews/workbench-lane-preview";
 import type { ProductionFlowNodeModel } from "./workflow-node-model";
 
 describe("Remotion production UI boundaries", () => {

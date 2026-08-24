@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import type { ToonflowWorkbenchTrack } from "@/lib/studio/workbench-view-model";
 import { Play } from "lucide-react";
+import { toPreviewSrc } from "./previews/preview-src";
 
 export function WorkbenchTrackCard(props: {
   track: ToonflowWorkbenchTrack;
@@ -157,17 +158,4 @@ export function WorkbenchTrackCard(props: {
   );
 }
 
-export function toPreviewSrc(filePath: string) {
-  if (
-    filePath.startsWith("local-image://") ||
-    filePath.startsWith("asset-file://") ||
-    filePath.startsWith("file://") ||
-    filePath.startsWith("project-file://") ||
-    filePath.startsWith("data:") ||
-    filePath.startsWith("blob:") ||
-    filePath.startsWith("http://") ||
-    filePath.startsWith("https://")
-  )
-    return filePath;
-  return `file://${filePath}`;
-}
+

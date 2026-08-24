@@ -14,15 +14,13 @@ import {
   ProductionFlowNode,
   type ProductionNodeData,
 } from "./WorkflowProductionNode";
-import {
-  AssetDerivationPreview,
-  AssetFlowCard,
-  RemotionShotPreview,
-  StoryboardGridPreview,
-  StoryboardTablePreview,
-  WorkbenchLanePreview,
-  buildPreviewMarkdown,
-} from "./WorkflowNodePreviews";
+import { AssetDerivationPreview } from "./previews/asset-derivation-preview";
+import { AssetFlowCard } from "./previews/asset-flow-card";
+import { RemotionShotPreview } from "./previews/remotion-shot-preview";
+import { StoryboardGridPreview } from "./previews/storyboard-grid-preview";
+import { StoryboardTablePreview } from "./previews/storyboard-table-preview";
+import { WorkbenchLanePreview } from "./previews/workbench-lane-preview";
+import { buildPreviewMarkdown } from "./previews/text-preview";
 import type {
   ProductionFlowAssetCard,
   ProductionFlowNodeModel,
@@ -37,11 +35,25 @@ function readLocalSource(filename: string) {
   );
 }
 
+function readAllPreviewSources() {
+  return [
+    "previews/preview-image.tsx",
+    "previews/preview-src.ts",
+    "previews/text-preview.tsx",
+    "previews/asset-derivation-preview.tsx",
+    "previews/asset-flow-card.tsx",
+    "previews/storyboard-table-preview.tsx",
+    "previews/storyboard-grid-preview.tsx",
+    "previews/workbench-lane-preview.tsx",
+    "previews/remotion-shot-preview.tsx",
+  ].map(readLocalSource).join("\n");
+}
+
 describe("workflow node component boundaries", () => {
   it("keeps node shell and preview renderers outside the canvas module", () => {
     const canvasSource = readLocalSource("WorkflowNodeCanvas.tsx");
     const productionNodeSource = readLocalSource("WorkflowProductionNode.tsx");
-    const previewsSource = readLocalSource("WorkflowNodePreviews.tsx");
+    const previewsSource = readAllPreviewSources();
 
     expect(canvasSource).toContain("import { ProductionFlowNode }");
     expect(canvasSource).not.toContain("function ProductionFlowNode");
@@ -65,11 +77,11 @@ describe("workflow node component boundaries", () => {
     expect(previewsSource).toContain("export function StoryboardTablePreview");
     expect(previewsSource).toContain("export function StoryboardGridPreview");
     expect(previewsSource).toContain("export function WorkbenchLanePreview");
-    expect(previewsSource).toContain("export function toPreviewSrc");
+    expect(previewsSource).toContain("export function buildPreviewMarkdown");
   });
 
   it("renders text node previews with the same markdown preview surface as the script stage", () => {
-    const previewsSource = readLocalSource("WorkflowNodePreviews.tsx");
+    const previewsSource = readAllPreviewSources();
 
     expect(previewsSource).toContain('import { MdPreview } from "md-editor-rt"');
     expect(previewsSource).toContain("modelValue={buildPreviewMarkdown(node)}");
@@ -85,7 +97,7 @@ describe("workflow node component boundaries", () => {
 
   it("keeps script, director plan, and storyboard table previews free of nested frames", () => {
     const productionNodeSource = readLocalSource("WorkflowProductionNode.tsx");
-    const previewsSource = readLocalSource("WorkflowNodePreviews.tsx");
+    const previewsSource = readAllPreviewSources();
 
     expect(productionNodeSource).toContain("const UNFRAMED_PREVIEW_NODE_IDS");
     expect(productionNodeSource).toContain('"script",');
@@ -316,7 +328,7 @@ describe("workflow node component boundaries", () => {
 
   it("routes video workbench nodes to a structured lane preview instead of compact text", () => {
     const productionNodeSource = readLocalSource("WorkflowProductionNode.tsx");
-    const previewsSource = readLocalSource("WorkflowNodePreviews.tsx");
+    const previewsSource = readAllPreviewSources();
 
     expect(productionNodeSource).toContain('previewKind === "workbench-lanes"');
     expect(productionNodeSource).toContain("<WorkbenchLanePreview node={data.node} />");
@@ -476,7 +488,7 @@ describe("workflow node component boundaries", () => {
   });
 
   it("renders derived asset nodes with Toonflow-style type and keeps technical ids machine-readable", () => {
-    const previewsSource = readLocalSource("WorkflowNodePreviews.tsx");
+    const previewsSource = readAllPreviewSources();
 
     expect(previewsSource).toContain("asset-derive-summary");
     expect(previewsSource).toContain("导演预划");
@@ -597,7 +609,7 @@ describe("workflow node component boundaries", () => {
   });
 
   it("opens real derived asset cards in a Toonflow-style image workflow", () => {
-    const previewsSource = readLocalSource("WorkflowNodePreviews.tsx");
+    const previewsSource = readAllPreviewSources();
     const productionNodeSource = readLocalSource("WorkflowProductionNode.tsx");
     const canvasSource = readLocalSource("WorkflowNodeCanvas.tsx");
     const viewModelSource = readLocalSource("useStudioViewModel.ts");

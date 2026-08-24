@@ -226,6 +226,17 @@ export interface ProductionFlowWorkbenchTrack {
   reason?: string;
 }
 
+/** 节点宽度唯一事实源(px);卡片侧 Tailwind 类与测试钉奇偶(P3-8 归一)。 */
+export const PRODUCTION_NODE_WIDTH_PX = {
+  script: 1040,
+  scriptPlan: 680,
+  assets: 760,
+  storyboardTable: 700,
+  storyboard: 640,
+  remotionProduction: 760,
+  workbench: 760,
+} satisfies Record<ProductionFlowNodeId, number>;
+
 export const PRODUCTION_FLOW_EDGES = [
   ["script", "scriptPlan"],
   ["script", "assets"],
@@ -245,6 +256,33 @@ export interface ProductionFlowModel {
   remotionShotSlots?: RemotionCurrentSlotV1[];
 }
 
+type ProductionFlowBuildContext = {
+  input: ProductionFlowModelInput & { rendererSummary?: ProductionFlowRendererSummary };
+  chapterStoryboards: ReturnType<typeof buildProductionFlowModel> extends never ? never : StoryboardItem[];
+  flowData: ReturnType<typeof buildStudioFlowData>;
+  scriptDrafts: ProductionFlowModelInput["agentWorkData"];
+  scriptChars: number;
+  storyboardTableCount: number;
+  assetCounts: { total: number; character: number; scene: number; prop: number };
+  assetDerivation: ReturnType<typeof buildAssetDerivationModel>;
+  assetMetrics: string[];
+  assetPreviewLines: string[];
+  storyboardTableRows: ProductionFlowTableRow[];
+  visualStoryboardCount: number;
+  rendererSummary: ProductionFlowRendererSummary;
+  remotionFinalExportReady: boolean;
+  storyboardPreview: string[];
+  storyboardTiles: ProductionFlowStoryboardTile[];
+  workbenchTracks: ProductionFlowWorkbenchTrack[];
+  remotionShots: ProductionFlowRemotionShot[];
+  remotionSummary: ProductionFlowRemotionSummary;
+  directorPlanSkill: ProductionFlowNodeSkill | undefined;
+  directorPlanSkills: ProductionFlowNodeSkill[];
+  storyboardTableSkills: ProductionFlowNodeSkill[];
+  storyboardSkills: ProductionFlowNodeSkill[];
+  remotionShotSlots: ProductionFlowModelInput["remotionCurrentShotSlots"];
+};
+
 export function buildProductionFlowModel(
   input: ProductionFlowModelInput & { rendererSummary?: ProductionFlowRendererSummary },
 ): ProductionFlowModel {
@@ -259,23 +297,9 @@ export function buildProductionFlowModel(
     ...input,
     storyboards: chapterStoryboards,
   });
-  const directorPlanSkill = buildNodeSkill("production_execution_director_plan");
-  const directorPlanSkills = buildDirectorPlanSkills(
-    input.workflowConfig,
-    input.manualCatalog,
-  );
-  const storyboardTableSkills = buildStoryboardTableSkills(
-    input.workflowConfig,
-    input.manualCatalog,
-  );
-  const storyboardSkills = buildStoryboardSkills(
-    input.workflowConfig,
-    input.manualCatalog,
-  );
   const scriptDrafts = input.agentWorkData.filter(
     (item) => item.key === "scriptDraft" && item.data.trim(),
   );
-  const scriptChars = flowData.script.length;
   const storyboardTableCount = input.agentWorkData.filter(
     (item) => item.key === "storyboardTable" && item.data.trim(),
   ).length;
@@ -292,7 +316,6 @@ export function buildProductionFlowModel(
     input.scriptPlans,
     input.assetMediaById,
   );
-  const assetGroups = assetDerivation.groups;
   const assetMetrics = assetCounts.total
     ? [
         `${assetCounts.total} 个资产`,
@@ -309,27 +332,273 @@ export function buildProductionFlowModel(
           : []),
       ]
     : ["待提取资产"];
-  const assetPreviewLines = assetGroups.slice(0, 18).flatMap((group) => [
+  const assetPreviewLines = assetDerivation.groups.slice(0, 18).flatMap((group) => [
     `${group.source.typeLabel} · ${group.source.name}${group.source.note ? ` · ${group.source.note}` : ""}`,
     ...group.derived.map((item) => `衍生 · ${item.name}${item.reason ? ` · ${item.reason}` : ""}`),
   ]);
-  const storyboardTableRows = parseStoryboardPreviewRows(
-    flowData.storyboardTable,
-  );
-  const visualStoryboardCount = flowData.storyboard.filter(
-    (item) => item.mediaPath,
-  ).length;
   const rendererSummary = normalizeRemotionRendererSummary(input.rendererSummary);
-  const remotionFinalExportReady = rendererSummary.actual === "remotion"
-    && Boolean(rendererSummary.outputPath);
-  const storyboardPreview = flowData.storyboard.slice(0, 4).map((item) =>
-    [
-      `#${item.id}`,
-      `${item.duration}s`,
-      item.videoDesc || item.prompt || item.lines || "未填写分镜内容",
-    ].join(" · "),
-  );
-  const storyboardTiles = chapterStoryboards
+  const remotionShots = buildRemotionShots(chapterStoryboards, input, remotionShotSlots);
+  const ctx: ProductionFlowBuildContext = {
+    input,
+    chapterStoryboards,
+    flowData,
+    scriptDrafts,
+    scriptChars: flowData.script.length,
+    storyboardTableCount,
+    assetCounts,
+    assetDerivation,
+    assetMetrics,
+    assetPreviewLines,
+    storyboardTableRows: parseStoryboardPreviewRows(flowData.storyboardTable),
+    visualStoryboardCount: flowData.storyboard.filter((item) => item.mediaPath).length,
+    rendererSummary,
+    remotionFinalExportReady: rendererSummary.actual === "remotion"
+      && Boolean(rendererSummary.outputPath),
+    storyboardPreview: flowData.storyboard.slice(0, 4).map((item) =>
+      [
+        `#${item.id}`,
+        `${item.duration}s`,
+        item.videoDesc || item.prompt || item.lines || "未填写分镜内容",
+      ].join(" · "),
+    ),
+    storyboardTiles: buildStoryboardTiles(chapterStoryboards),
+    workbenchTracks: flowData.workbench.tracks
+      .slice(0, 8)
+      .map<ProductionFlowWorkbenchTrack>((track) => ({
+        id: track.id,
+        duration: track.duration,
+        state: track.state,
+        storyboardCount: track.storyboardIds.length,
+        mediaCount: track.medias.length,
+        videoCount: track.videoList.length,
+        selectedVideoPath: track.selectedVideoPath,
+        prompt: track.prompt,
+        reason: track.reason,
+      })),
+    remotionShots,
+    remotionSummary: summarizeRemotionShots(
+      remotionShots,
+      input.remotionQueueLoading,
+      input.remotionQueueError,
+    ),
+    directorPlanSkill: buildNodeSkill("production_execution_director_plan"),
+    directorPlanSkills: buildDirectorPlanSkills(input.workflowConfig, input.manualCatalog),
+    storyboardTableSkills: buildStoryboardTableSkills(input.workflowConfig, input.manualCatalog),
+    storyboardSkills: buildStoryboardSkills(input.workflowConfig, input.manualCatalog),
+    remotionShotSlots,
+  };
+  return {
+    nodes: [
+      buildScriptNode(ctx),
+      buildScriptPlanNode(ctx),
+      buildAssetsNode(ctx),
+      buildStoryboardTableNode(ctx),
+      buildStoryboardPanelNode(ctx),
+      buildRemotionProductionNode(ctx),
+      buildWorkbenchNode(ctx),
+    ],
+    edges: PRODUCTION_FLOW_EDGES,
+    remotionShotSlots,
+  };
+}
+
+function buildScriptNode(ctx: ProductionFlowBuildContext): ProductionFlowNodeModel {
+  return {
+    id: "script",
+    label: "剧本",
+    description: "章节剧本与正文台词输入。",
+    status: ctx.scriptDrafts.length > 0 ? "ready" : "empty",
+    metrics: ctx.scriptDrafts.length ? [`${ctx.scriptChars} 字`] : [],
+    previewTitle: "剧本内容",
+    previewLines: previewTextLines(ctx.flowData.script, "暂无剧本内容", 220),
+    targetStage: "script",
+  };
+}
+
+function buildScriptPlanNode(ctx: ProductionFlowBuildContext): ProductionFlowNodeModel {
+  return {
+    id: "scriptPlan",
+    label: "导演规划",
+    description: "场次、节奏、镜头策略和声音方向。",
+    status: ctx.input.scriptPlans.length > 0 ? "ready" : "empty",
+    metrics: ctx.input.scriptPlans.length
+      ? [`${ctx.input.scriptPlans.length} 份规划`]
+      : ["待运行导演规划"],
+    previewTitle: "导演规划",
+    previewLines: previewTextLines(
+      ctx.flowData.scriptPlan,
+      "暂无导演规划",
+      DIRECTOR_PLAN_PREVIEW_MAX_LINES,
+    ),
+    skill: ctx.directorPlanSkill,
+    skills: ctx.directorPlanSkills,
+    actions: [
+      {
+        id: "generate-director-plan",
+        label: ctx.input.scriptPlans.length > 0 ? "重新生成导演规划" : "生成导演规划",
+        targetStage: "storyboard",
+        disabled: ctx.scriptDrafts.length === 0,
+        promptPlaceholder:
+          "给导演规划补充要求，例如：节奏更压迫、保留所有对白、突出雨夜和断剑意象。",
+      },
+    ],
+    targetStage: "storyboard",
+  };
+}
+
+function buildAssetsNode(ctx: ProductionFlowBuildContext): ProductionFlowNodeModel {
+  return {
+    id: "assets",
+    label: "衍生资产",
+    description: "从剧本抽取角色、场景、道具，并作为分镜画面引用。",
+    status: ctx.assetCounts.total > 0 ? "ready" : "empty",
+    metrics: ctx.assetMetrics,
+    previewTitle: "剧本资产",
+    previewLines: ctx.assetPreviewLines.length
+      ? ctx.assetPreviewLines
+      : ["暂无角色、场景、道具资产"],
+    previewKind: "asset-derivation",
+    assetGroups: ctx.assetDerivation.groups,
+    assetSummary: ctx.assetDerivation.summary,
+    targetStage: "assets",
+  };
+}
+
+function buildStoryboardTableNode(ctx: ProductionFlowBuildContext): ProductionFlowNodeModel {
+  return {
+    id: "storyboardTable",
+    label: "分镜表",
+    description: "按导演规划拆出镜头表。",
+    status: ctx.storyboardTableCount > 0 ? "ready" : "empty",
+    metrics: ctx.storyboardTableCount
+      ? [`${ctx.storyboardTableCount} 份分镜表`]
+      : ["待生成分镜表"],
+    previewTitle: "分镜表",
+    previewLines: previewTextLines(ctx.flowData.storyboardTable, "暂无分镜表"),
+    previewKind: "table",
+    tableRows: ctx.storyboardTableRows,
+    skills: ctx.storyboardTableSkills,
+    actions: [
+      {
+        id: "generate-storyboard-table",
+        label: ctx.storyboardTableCount > 0 ? "重新生成分镜表" : "生成分镜表",
+        targetStage: "storyboard",
+        disabled: ctx.input.scriptPlans.length === 0,
+        promptPlaceholder:
+          "给分镜表补充要求，例如：每镜约 5 秒、台词不丢、道具和角色资产必须进入镜头。",
+      },
+    ],
+    targetStage: "storyboard",
+  };
+}
+
+function buildStoryboardPanelNode(ctx: ProductionFlowBuildContext): ProductionFlowNodeModel {
+  return {
+    id: "storyboard",
+    label: "分镜面板",
+    description: "分镜图、台词、配音与视频节点绑定。",
+    status: ctx.chapterStoryboards.length > 0 ? "ready" : "empty",
+    metrics: ctx.chapterStoryboards.length
+      ? [
+          `${ctx.chapterStoryboards.length} 个分镜`,
+          `${ctx.visualStoryboardCount} 个画面`,
+        ]
+      : ["待生成分镜"],
+    previewTitle: "分镜面板",
+    previewLines: ctx.storyboardPreview.length
+      ? ctx.storyboardPreview
+      : ["暂无分镜图、台词和音频绑定"],
+    previewKind: "storyboard-grid",
+    storyboardTiles: ctx.storyboardTiles,
+    skills: ctx.storyboardSkills,
+    actions: [],
+    targetStage: "storyboardPanel",
+  };
+}
+
+function buildRemotionProductionNode(ctx: ProductionFlowBuildContext): ProductionFlowNodeModel {
+  const summary = ctx.remotionSummary;
+  return {
+    id: "remotionProduction",
+    label: "Remotion 单镜生产",
+    description: "将当前章节的每个分镜分别生成 StoryboardShot MP4；全部通过后才能进入章节工作台。",
+    status: summary.failed || summary.blocked
+      ? "warning"
+      : summary.running || summary.queued
+        ? "pending"
+        : summary.chapterReady
+          ? "ready"
+          : "empty",
+    metrics: [
+      "Remotion renderer",
+      `${summary.succeeded}/${summary.total} 个分镜 MP4`,
+      ...(summary.running ? [`渲染中 ${summary.running}`] : []),
+      ...(summary.failed ? [`失败 ${summary.failed}`] : []),
+      ...(summary.blocked ? [`阻塞 ${summary.blocked}`] : []),
+    ],
+    previewTitle: "逐镜 Remotion 队列",
+    previewLines: ctx.remotionShots.length
+      ? ctx.remotionShots.slice(0, 6).map((shot) => `${String(shot.index).padStart(2, "0")} · ${shot.status} · ${Math.round(shot.progress * 100)}% · ${shot.title}`)
+      : ["等待分镜面板提供当前章节的分镜"],
+    previewKind: "remotion-shots",
+    remotionShots: ctx.remotionShots,
+    remotionSummary: summary,
+    actions: [
+      {
+        id: "enqueue-remotion-shots",
+        label: summary.chapterReady
+          ? "分镜视频已完成"
+          : summary.running || summary.queued
+            ? "Remotion 生产中"
+            : "生成当前章分镜视频",
+        targetStage: "workbench",
+        disabled: ctx.chapterStoryboards.length === 0 || summary.chapterReady || Boolean(summary.running || summary.queued),
+        showPromptInput: false,
+      },
+    ],
+    targetStage: "workbench",
+  };
+}
+
+function buildWorkbenchNode(ctx: ProductionFlowBuildContext): ProductionFlowNodeModel {
+  const summary = ctx.remotionSummary;
+  return {
+    id: "workbench",
+    label: "Remotion 视频工作台",
+    description: "加载当前章节的原生 Remotion Studio，进行时间线预览、剪辑和章节导出。",
+    status: summary.chapterReady || ctx.remotionFinalExportReady
+      ? "ready"
+      : summary.succeeded > 0
+        ? "pending"
+        : "empty",
+    metrics: [
+      "原生 Remotion Studio",
+      `${summary.succeeded}/${summary.total} 个分镜已就绪`,
+      ctx.rendererSummary.actual
+        ? `${formatRendererLabel(ctx.rendererSummary.lastRequested ?? ctx.rendererSummary.requested)} → ${formatRendererLabel(ctx.rendererSummary.actual)}`
+        : "章节成片待渲染",
+      ctx.remotionFinalExportReady ? "已导出章节成片" : "等待 ChapterVideo",
+    ],
+    previewTitle: "原生 Remotion Studio",
+    previewLines: [
+      `章节工作台 · ${summary.chapterReady ? "可进入" : "等待全部分镜成功"}`,
+      `${summary.succeeded}/${summary.total} StoryboardShot MP4 已就绪`,
+      "Studio Timeline / Preview / Inspector / Render",
+      ...(ctx.rendererSummary.outputPath ? [`ChapterVideo · ${ctx.rendererSummary.outputPath}`] : []),
+    ],
+    previewKind: "workbench-lanes",
+    workbenchTracks: ctx.workbenchTracks,
+    finalExportPath: ctx.flowData.workbench.finalExportPath,
+    rendererSummary: ctx.rendererSummary,
+    remotionSummary: summary,
+    targetStage: "workbench",
+  };
+}
+
+function buildStoryboardTiles(
+  chapterStoryboards: StoryboardItem[],
+): ProductionFlowStoryboardTile[] {
+  return chapterStoryboards
     .slice()
     .sort((a, b) => a.index - b.index)
     .map<ProductionFlowStoryboardTile>((item) => ({
@@ -347,19 +616,13 @@ export function buildProductionFlowModel(
       shouldGenerateImage: item.shouldGenerateImage,
       sourceFingerprint: item.sourceFingerprint,
     }));
-  const workbenchTracks = flowData.workbench.tracks
-    .slice(0, 8)
-    .map<ProductionFlowWorkbenchTrack>((track) => ({
-      id: track.id,
-      duration: track.duration,
-      state: track.state,
-      storyboardCount: track.storyboardIds.length,
-      mediaCount: track.medias.length,
-      videoCount: track.videoList.length,
-      selectedVideoPath: track.selectedVideoPath,
-      prompt: track.prompt,
-      reason: track.reason,
-    }));
+}
+
+function buildRemotionShots(
+  chapterStoryboards: StoryboardItem[],
+  input: ProductionFlowModelInput & { rendererSummary?: ProductionFlowRendererSummary },
+  remotionShotSlots: ProductionFlowModelInput["remotionCurrentShotSlots"],
+): ProductionFlowRemotionShot[] {
   const remotionJobs = input.remotionQueueJobs ?? [];
   const shotJobs = new Map(
     remotionJobs
@@ -367,9 +630,9 @@ export function buildProductionFlowModel(
       .map((job) => [job.target.shotId, job]),
   );
   const currentSlotByShotId = new Map(
-    remotionShotSlots.map((slot) => [slot.target.kind === "shot" ? slot.target.shotId : "", slot] as const),
+    (remotionShotSlots ?? []).map((slot) => [slot.target.kind === "shot" ? slot.target.shotId : "", slot] as const),
   );
-  const remotionShots = chapterStoryboards
+  return chapterStoryboards
     .slice()
     .sort((a, b) => a.index - b.index)
     .map<ProductionFlowRemotionShot>((storyboard) => {
@@ -426,187 +689,6 @@ export function buildProductionFlowModel(
         chapterSharedAudioReferenced: (input.chapterSharedAudioRoles?.length ?? 0) > 0,
       };
     });
-  const remotionSummary = summarizeRemotionShots(
-    remotionShots,
-    input.remotionQueueLoading,
-    input.remotionQueueError,
-  );
-  return {
-    nodes: [
-      {
-        id: "script",
-        label: "剧本",
-        description: "章节剧本与正文台词输入。",
-        status: scriptDrafts.length > 0 ? "ready" : "empty",
-        metrics: scriptDrafts.length ? [`${scriptChars} 字`] : [],
-        previewTitle: "剧本内容",
-        previewLines: previewTextLines(flowData.script, "暂无剧本内容", 220),
-        targetStage: "script",
-      },
-      {
-        id: "scriptPlan",
-        label: "导演规划",
-        description: "场次、节奏、镜头策略和声音方向。",
-        status: input.scriptPlans.length > 0 ? "ready" : "empty",
-        metrics: input.scriptPlans.length
-          ? [`${input.scriptPlans.length} 份规划`]
-          : ["待运行导演规划"],
-        previewTitle: "导演规划",
-        previewLines: previewTextLines(
-          flowData.scriptPlan,
-          "暂无导演规划",
-          DIRECTOR_PLAN_PREVIEW_MAX_LINES,
-        ),
-        skill: directorPlanSkill,
-        skills: directorPlanSkills,
-        actions: [
-          {
-            id: "generate-director-plan",
-            label: input.scriptPlans.length > 0 ? "重新生成导演规划" : "生成导演规划",
-            targetStage: "storyboard",
-            disabled: scriptDrafts.length === 0,
-            promptPlaceholder:
-              "给导演规划补充要求，例如：节奏更压迫、保留所有对白、突出雨夜和断剑意象。",
-          },
-        ],
-        targetStage: "storyboard",
-      },
-      {
-        id: "assets",
-        label: "衍生资产",
-        description: "从剧本抽取角色、场景、道具，并作为分镜画面引用。",
-        status: assetCounts.total > 0 ? "ready" : "empty",
-        metrics: assetMetrics,
-        previewTitle: "剧本资产",
-        previewLines: assetPreviewLines.length
-          ? assetPreviewLines
-          : ["暂无角色、场景、道具资产"],
-        previewKind: "asset-derivation",
-        assetGroups,
-        assetSummary: assetDerivation.summary,
-        targetStage: "assets",
-      },
-      {
-        id: "storyboardTable",
-        label: "分镜表",
-        description: "按导演规划拆出镜头表。",
-        status: storyboardTableCount > 0 ? "ready" : "empty",
-        metrics: storyboardTableCount
-          ? [`${storyboardTableCount} 份分镜表`]
-          : ["待生成分镜表"],
-        previewTitle: "分镜表",
-        previewLines: previewTextLines(flowData.storyboardTable, "暂无分镜表"),
-        previewKind: "table",
-        tableRows: storyboardTableRows,
-        skills: storyboardTableSkills,
-        actions: [
-          {
-            id: "generate-storyboard-table",
-            label: storyboardTableCount > 0 ? "重新生成分镜表" : "生成分镜表",
-            targetStage: "storyboard",
-            disabled: input.scriptPlans.length === 0,
-            promptPlaceholder:
-              "给分镜表补充要求，例如：每镜约 5 秒、台词不丢、道具和角色资产必须进入镜头。",
-          },
-        ],
-        targetStage: "storyboard",
-      },
-      {
-        id: "storyboard",
-        label: "分镜面板",
-        description: "分镜图、台词、配音与视频节点绑定。",
-        status: chapterStoryboards.length > 0 ? "ready" : "empty",
-        metrics: chapterStoryboards.length
-          ? [
-              `${chapterStoryboards.length} 个分镜`,
-              `${visualStoryboardCount} 个画面`,
-            ]
-          : ["待生成分镜"],
-        previewTitle: "分镜面板",
-        previewLines: storyboardPreview.length
-          ? storyboardPreview
-          : ["暂无分镜图、台词和音频绑定"],
-        previewKind: "storyboard-grid",
-        storyboardTiles,
-        skills: storyboardSkills,
-        actions: [],
-        targetStage: "storyboardPanel",
-      },
-      {
-        id: "remotionProduction",
-        label: "Remotion 单镜生产",
-        description: "将当前章节的每个分镜分别生成 StoryboardShot MP4；全部通过后才能进入章节工作台。",
-        status: remotionSummary.failed || remotionSummary.blocked
-          ? "warning"
-          : remotionSummary.running || remotionSummary.queued
-            ? "pending"
-            : remotionSummary.chapterReady
-              ? "ready"
-              : "empty",
-        metrics: [
-          "Remotion renderer",
-          `${remotionSummary.succeeded}/${remotionSummary.total} 个分镜 MP4`,
-          ...(remotionSummary.running ? [`渲染中 ${remotionSummary.running}`] : []),
-          ...(remotionSummary.failed ? [`失败 ${remotionSummary.failed}`] : []),
-          ...(remotionSummary.blocked ? [`阻塞 ${remotionSummary.blocked}`] : []),
-        ],
-        previewTitle: "逐镜 Remotion 队列",
-        previewLines: remotionShots.length
-          ? remotionShots.slice(0, 6).map((shot) => `${String(shot.index).padStart(2, "0")} · ${shot.status} · ${Math.round(shot.progress * 100)}% · ${shot.title}`)
-          : ["等待分镜面板提供当前章节的分镜"],
-        previewKind: "remotion-shots",
-        remotionShots,
-        remotionSummary,
-        actions: [
-          {
-            id: "enqueue-remotion-shots",
-            label: remotionSummary.chapterReady
-              ? "分镜视频已完成"
-              : remotionSummary.running || remotionSummary.queued
-                ? "Remotion 生产中"
-                : "生成当前章分镜视频",
-            targetStage: "workbench",
-            disabled: chapterStoryboards.length === 0 || remotionSummary.chapterReady || Boolean(remotionSummary.running || remotionSummary.queued),
-            showPromptInput: false,
-          },
-        ],
-        targetStage: "workbench",
-      },
-      {
-        id: "workbench",
-        label: "Remotion 视频工作台",
-        description: "加载当前章节的原生 Remotion Studio，进行时间线预览、剪辑和章节导出。",
-        status: remotionSummary.chapterReady || remotionFinalExportReady
-          ? "ready"
-          : remotionSummary.succeeded > 0
-            ? "pending"
-            : "empty",
-        metrics: [
-          "原生 Remotion Studio",
-          `${remotionSummary.succeeded}/${remotionSummary.total} 个分镜已就绪`,
-          rendererSummary.actual
-            ? `${formatRendererLabel(rendererSummary.lastRequested ?? rendererSummary.requested)} → ${formatRendererLabel(rendererSummary.actual)}`
-            : "章节成片待渲染",
-          remotionFinalExportReady ? "已导出章节成片" : "等待 ChapterVideo",
-        ],
-        previewTitle: "原生 Remotion Studio",
-        previewLines: [
-          `章节工作台 · ${remotionSummary.chapterReady ? "可进入" : "等待全部分镜成功"}`,
-          `${remotionSummary.succeeded}/${remotionSummary.total} StoryboardShot MP4 已就绪`,
-          "Studio Timeline / Preview / Inspector / Render",
-          ...(rendererSummary.outputPath ? [`ChapterVideo · ${rendererSummary.outputPath}`] : []),
-        ],
-        previewKind: "workbench-lanes",
-        workbenchTracks,
-        finalExportPath: flowData.workbench.finalExportPath,
-        rendererSummary,
-        remotionSummary,
-        targetStage: "workbench",
-      },
-    ],
-    edges: PRODUCTION_FLOW_EDGES,
-    remotionShotSlots,
-  };
 }
 
 function summarizeRemotionShots(

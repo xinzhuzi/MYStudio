@@ -3,7 +3,7 @@ import { toast } from "sonner";
 import { buildStoryboardImageWorkflowPatch } from "@/lib/studio/image-workflow";
 import { useStudioStore } from "@/stores/studio/studio-store";
 import type { StoryboardItem } from "@/types/studio";
-import { buildStoryboardItemOpenContext } from "../WorkflowNodePreviews";
+import { buildStoryboardItemOpenContext } from "../storyboard-open-context";
 import { getStudioAssetsBridge } from "@/lib/bridge/studio-assets";
 import { resolveStoryboardAssetReferences } from "./storyboard-asset-references";
 import {

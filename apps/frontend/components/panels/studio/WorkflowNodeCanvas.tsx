@@ -28,21 +28,13 @@ import type {
   ProductionFlowNodeModel,
   ProductionFlowStage,
 } from "./workflow-node-model";
-import { PRODUCTION_FLOW_EDGES } from "./workflow-node-model";
+import { PRODUCTION_FLOW_EDGES, PRODUCTION_NODE_WIDTH_PX } from "./workflow-node-model";
 import { ProductionFlowNode } from "./WorkflowProductionNode";
 import type { ProductionNodeData } from "./WorkflowProductionNode";
 import type { StoryboardBatchGenerationState } from "./image-workflow/use-storyboard-batch-generation";
 import type { ChapterAutoVideoStatus } from "@/lib/studio/chapter-auto-video";
 
-const PRODUCTION_NODE_WIDTHS = {
-  script: 1040,
-  scriptPlan: 680,
-  assets: 760,
-  storyboardTable: 700,
-  storyboard: 640,
-  remotionProduction: 760,
-  workbench: 760,
-} satisfies Record<ProductionFlowNodeId, number>;
+
 
 const PRODUCTION_LAYOUT_GUTTER = 200;
 const PRODUCTION_BRANCH_GUTTER = 200;
@@ -68,7 +60,7 @@ function productionNodeWidth(
   nodeId: ProductionFlowNodeId,
   measuredNodes?: Partial<Record<ProductionFlowNodeId, InternalNode<ProductionFlowReactNode>>>,
 ) {
-  return measuredNodes?.[nodeId]?.measured.width ?? PRODUCTION_NODE_WIDTHS[nodeId];
+  return measuredNodes?.[nodeId]?.measured.width ?? PRODUCTION_NODE_WIDTH_PX[nodeId];
 }
 
 function productionNodeHeight(
@@ -162,7 +154,7 @@ function measuredProductionPositions(
   layout: "LR" | "TB",
 ) {
   const measuredNodes = Object.fromEntries(
-    (Object.keys(PRODUCTION_NODE_WIDTHS) as ProductionFlowNodeId[]).map((nodeId) => [
+    (Object.keys(PRODUCTION_NODE_WIDTH_PX) as ProductionFlowNodeId[]).map((nodeId) => [
       nodeId,
       instance.getInternalNode(nodeId),
     ]),
@@ -307,6 +299,9 @@ export function WorkflowNodeCanvas({
     pendingLayoutFrameRef.current = null;
   }, []);
   const claimViewportForUser = useCallback(() => {
+    if (!userViewportOwnedRef.current) {
+      console.warn("[node-canvas] 用户接管视口,本次会话内自动 fitView 停用");
+    }
     userViewportOwnedRef.current = true;
     cancelPendingLayoutWork();
   }, [cancelPendingLayoutWork]);
@@ -334,6 +329,16 @@ export function WorkflowNodeCanvas({
       if (!hasAllMeasurements) {
         if (performance.now() < retryMeasurementUntil) {
           pendingLayoutFrameRef.current = window.requestAnimationFrame(applyMeasuredLayout);
+        } else {
+          // 渲染端 console 由主进程收进 diagnostics——静默放弃测量只会留下
+          // 「布局为何没贴合」的盲查(08-24 审查补)
+          const missing = currentNodeIds.filter(
+            (nodeId) => !flowInstance.getInternalNode(nodeId)?.measured?.height,
+          );
+          console.warn(
+            `[node-canvas] 布局测量 ${PRODUCTION_LAYOUT_MEASUREMENT_TIMEOUT_MS}ms 超时,沿用回退高度:`,
+            missing.join(","),
+          );
         }
         return;
       }

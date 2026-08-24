@@ -389,10 +389,19 @@ describe("studio workflow tabs", () => {
       fileURLToPath(new URL("./WorkflowProductionNode.tsx", import.meta.url)),
       "utf8",
     );
-    const previewSource = readFileSync(
-      fileURLToPath(new URL("./WorkflowNodePreviews.tsx", import.meta.url)),
-      "utf8",
-    );
+    const previewSource = [
+      "previews/preview-image.tsx",
+      "previews/preview-src.ts",
+      "previews/text-preview.tsx",
+      "previews/asset-derivation-preview.tsx",
+      "previews/asset-flow-card.tsx",
+      "previews/storyboard-table-preview.tsx",
+      "previews/storyboard-grid-preview.tsx",
+      "previews/workbench-lane-preview.tsx",
+      "previews/remotion-shot-preview.tsx",
+    ]
+      .map((name) => readFileSync(fileURLToPath(new URL(`./${name}`, import.meta.url)), "utf8"))
+      .join("\n");
     const flowUiSource = [canvasSource, productionNodeSource, previewSource].join("\n");
     const modelSource = readFileSync(
       fileURLToPath(new URL("./workflow-node-model.ts", import.meta.url)),
@@ -488,7 +497,7 @@ describe("studio workflow tabs", () => {
     expect(productionNodeSource).toContain("data-flow-node-id={data.node.id}");
     expect(productionNodeSource).toContain("script: \"w-[1040px]\"");
     expect(previewSource).toContain("script: \"max-h-[560px]\"");
-    expect(canvasSource).toContain("const PRODUCTION_NODE_WIDTHS =");
+    expect(canvasSource).toContain("PRODUCTION_NODE_WIDTH_PX[");
     expect(canvasSource).toContain("const PRODUCTION_LAYOUT_GUTTER = 200");
     expect(canvasSource).toContain("const PRODUCTION_BRANCH_GUTTER = 200");
     expect(canvasSource).toContain("function measuredProductionPositions");
@@ -656,7 +665,7 @@ describe("studio workflow tabs", () => {
     expect(editDialogSource).toContain("编辑当前节点 FlowData Markdown");
     expect(previewSource).toContain("buildPreviewMarkdown");
     expect(modelSource).toContain("previewTextLines");
-    expect(modelSource).toContain('previewTextLines(flowData.script, "暂无剧本内容", 220)');
+    expect(modelSource).toContain('previewTextLines(ctx.flowData.script, "暂无剧本内容", 220)');
     expect(modelSource).toContain("const DIRECTOR_PLAN_PREVIEW_MAX_LINES = 600");
     expect(modelSource).toContain('previewKind: "table"');
     expect(modelSource).toContain('previewKind: "storyboard-grid"');

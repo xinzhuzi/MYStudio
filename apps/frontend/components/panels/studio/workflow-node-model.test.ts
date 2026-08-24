@@ -1170,3 +1170,14 @@ describe("production workflow node model", () => {
     expect(matchNames.scene).toContain("晨雾版");
   });
 });
+
+describe("节点宽度单一事实源(P3-8 归一)", () => {
+  it("卡片 Tailwind 宽度类与布局数字表逐节点一致", async () => {
+    const { PRODUCTION_NODE_WIDTH_PX } = await import("./workflow-node-model");
+    const { NODE_SIZE_CLASS } = await import("./WorkflowProductionNode");
+    for (const [nodeId, px] of Object.entries(PRODUCTION_NODE_WIDTH_PX)) {
+      const widthClass = NODE_SIZE_CLASS[nodeId as keyof typeof NODE_SIZE_CLASS];
+      expect(widthClass, `${nodeId} 宽度类与数字表漂移`).toBe(`w-[${px}px]`);
+    }
+  });
+});

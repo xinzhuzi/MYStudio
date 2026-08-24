@@ -21,7 +21,7 @@ import type {
   StoryboardItem,
   StoryboardOrderedReference,
 } from "@/types/studio";
-import { toPreviewSrc } from "./WorkflowNodePreviews";
+import { toPreviewSrc } from "./previews/preview-src";
 
 type VisualContinuityReviewPanelProps = {
   storyboards: StoryboardItem[];

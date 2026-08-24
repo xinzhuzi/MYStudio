@@ -23,14 +23,12 @@ import type {
   ProductionFlowNodeModel,
   ProductionFlowStage,
 } from "./workflow-node-model";
-import {
-  AssetDerivationPreview,
-  RemotionShotPreview,
-  StoryboardGridPreview,
-  StoryboardTablePreview,
-  TextPreview,
-  WorkbenchLanePreview,
-} from "./WorkflowNodePreviews";
+import { AssetDerivationPreview } from "./previews/asset-derivation-preview";
+import { RemotionShotPreview } from "./previews/remotion-shot-preview";
+import { StoryboardGridPreview } from "./previews/storyboard-grid-preview";
+import { StoryboardTablePreview } from "./previews/storyboard-table-preview";
+import { TextPreview } from "./previews/text-preview";
+import { WorkbenchLanePreview } from "./previews/workbench-lane-preview";
 
 export interface ProductionNodeData extends Record<string, unknown> {
   node: ProductionFlowNodeModel;
@@ -59,7 +57,7 @@ const NODE_ICONS = {
   workbench: Film,
 } satisfies Record<ProductionFlowNodeId, typeof FileText>;
 
-const NODE_SIZE_CLASS = {
+export const NODE_SIZE_CLASS = {
   script: "w-[1040px]",
   scriptPlan: "w-[680px]",
   assets: "w-[760px]",

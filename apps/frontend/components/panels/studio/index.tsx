@@ -13,22 +13,6 @@ import { WorkflowStageStatusBar } from "./WorkflowStageStatusBar";
 import { useStudioViewModel } from "./useStudioViewModel";
 import { useStoryboardBatchGeneration } from "./image-workflow/use-storyboard-batch-generation";
 
-export {
-  resolveProductionEpisodeId,
-  resolveScriptPlanEpisodeId,
-  resolveScriptTextForEpisode,
-} from "./workflow-helpers";
-export { WORKFLOW_TABS, resolveVisibleWorkflowStage } from "./workflow-tabs";
-export { AssetsTab } from "./AssetsTab";
-export { ScriptAssetManagementTab } from "./ScriptAssetManagementTab";
-export { WorkbenchTab } from "./WorkbenchTab";
-export { ImageWorkflowCanvas } from "./image-workflow/ImageWorkflowCanvas";
-export { NovelEmptyState, NovelTab } from "./NovelTab";
-export { ScriptTab } from "./ScriptTab";
-export { ManualsTab } from "./ManualsTab";
-export { WorkflowNodeEditDialog } from "./WorkflowNodeEditDialog";
-export { WorkflowStageStatusBar } from "./WorkflowStageStatusBar";
-
 export function StudioView() {
   const viewModel = useStudioViewModel();
   const storyboardBatch = useStoryboardBatchGeneration({
