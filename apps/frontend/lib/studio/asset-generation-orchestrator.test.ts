@@ -5,7 +5,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { aiManager } from "@/lib/ai/ai-manager";
 import { logEvent } from "@/lib/diagnostics/logger";
 import { saveImageToLocal } from "@/lib/media/image-storage";
-import { polishAssetPrompt } from "@/lib/ai/prompt-polisher";
+import { polishAssetPrompt, selectDaojiePaletteSchemeForAsset } from "@/lib/ai/prompt-polisher";
 import { useCharacterLibraryStore } from "@/stores/library/character-library-store";
 import { useAppSettingsStore } from "@/stores/app/app-settings-store";
 import { useProjectStore } from "@/stores/project/project-store";
@@ -31,6 +31,7 @@ vi.mock("@/lib/diagnostics/logger", () => ({
 }));
 
 vi.mock("@/lib/ai/prompt-polisher", () => ({
+  selectDaojiePaletteSchemeForAsset: vi.fn().mockResolvedValue(null),
   polishAssetPrompt: vi.fn().mockResolvedValue({
     status: "success",
     prompt: "polished prop prompt",
@@ -655,6 +656,29 @@ describe("asset-generation-orchestrator", () => {
       const params = vi.mocked(aiManager.image).mock.calls[0][0];
       expect(params.prompt).toContain("配料方案（朱砂法脉）");
       expect(params.prompt).toContain("主色用朱砂");
+    });
+
+    it("skipPolish 再生成补一次 AI 选配,与首次生成配色行为一致", async () => {
+      vi.mocked(selectDaojiePaletteSchemeForAsset).mockResolvedValueOnce("prop.05");
+
+      const result = await generateAsset({
+        assetId: "prop-1",
+        assetType: "prop",
+        name: "碧玉药鼎",
+        description: "盛放灵药的玉鼎",
+        isDerivative: false,
+        visualManualId: "daojie_ink_guofeng",
+        skipPolish: true,
+        existingPrompt: "碧玉药鼎,玉石材质,鼎身刻云纹,单体居中。",
+      });
+
+      expect(result.phase).toBe("done");
+      // 选配收到已有题材正文(色彩信号可见)
+      const pickCall = vi.mocked(selectDaojiePaletteSchemeForAsset).mock.calls[0];
+      expect(pickCall?.[0].subjectBody).toContain("碧玉药鼎");
+      const params = vi.mocked(aiManager.image).mock.calls[0][0];
+      expect(params.prompt).toContain("配料方案（碧玉灵材）");
+      expect(params.prompt).toContain("主色用碧玉");
     });
 
     it("显式 task.paletteSchemeId 覆盖润色期选配,跨轨方案网络前 fail-closed", async () => {

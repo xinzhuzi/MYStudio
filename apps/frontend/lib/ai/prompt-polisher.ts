@@ -459,7 +459,7 @@ function parsePolishResult(
  * AI 自动选配三轨配色方案(ma-gongbi-palette-v1):
  * LLM 从当前轨 8 个方案中按资产气质挑选,输出严格 JSON;失败降级规则预筛,再降级 null(source-facts-only)。
  */
-async function selectDaojiePaletteSchemeForAsset(input: {
+export async function selectDaojiePaletteSchemeForAsset(input: {
   assetType: AssetType;
   name: string;
   description: string;

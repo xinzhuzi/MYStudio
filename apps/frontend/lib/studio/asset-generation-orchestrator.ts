@@ -25,6 +25,7 @@ import { getStudioAssetsBridge } from "@/lib/bridge/studio-assets";
 import {
   batchPolishAssetPrompts,
   polishAssetPrompt,
+  selectDaojiePaletteSchemeForAsset,
   type PolishRequest,
   type PolishResult,
   type AssetType,
@@ -172,7 +173,18 @@ export async function generateAsset(
           subjectBody,
           negativeTerms: [task.negativePrompt, negativePrompt].filter((term): term is string => Boolean(term)),
           hasReferenceImage: Boolean(task.referenceImages?.length),
-          paletteSchemeId: task.paletteSchemeId ?? polishResult?.daojie?.schemeId,
+          paletteSchemeId: task.paletteSchemeId
+            ?? polishResult?.daojie?.schemeId
+            // skipPolish 再生成没有润色产物,AI 选配会丢——基于已有题材正文补一次,
+            // 保持「再生成」与首次生成的配色行为一致
+            ?? (task.skipPolish
+              ? await selectDaojiePaletteSchemeForAsset({
+                assetType: task.assetType,
+                name: task.name,
+                description: task.description,
+                subjectBody,
+              }) ?? undefined
+              : undefined),
         });
         void logEvent({
           level: "info",
