@@ -104,6 +104,25 @@ def main() -> None:
         mid = mr.get("imageWorkflowId") or sb.get("imageWorkflowId")
         if mr.get("kind") == "image" and mid and mid not in wfs:
             issues.append(("I5", idx, f"mediaRef 指向不存在的工作流"))
+        # I7 参考类型一致性(id 反查资产库 type;id 不会串,type 串=源头标注错)
+        for wf2 in by_target.get(sid, []):
+            for r2 in wf2.get("nodes", []):
+                if r2.get("type") != "reference": continue
+                src = r2.get("source") or {}
+                aid = src.get("id") if src.get("kind") == "asset" else None
+                at = src.get("assetType")
+                if aid and at:
+                    row = con.execute("SELECT type FROM assets WHERE id=?", (aid,)).fetchone()
+                    if row and row[0] and {"role": "character", "scene": "scene", "tool": "prop"}.get(row[0], row[0]) != at:
+                        issues.append(("I7", idx, f"参考[{r2.get('title')}]assetType={at} 但资产库type={row[0]}"))
+        # I8 人名↔场景串型语义(名字与类型的语义冲突)
+        SCENE_WORDS = ("码头", "街", "巷", "馆", "客栈", "当铺", "铺", "塾", "院", "房", "斗室", "镇", "远山", "山河", "江面")  # 单字山/河是人名高频字(铁山),只认组合词
+        for n in names:
+            if n in roles and any(k in n for k in SCENE_WORDS) and not any(k in n for k in ("先生", "管事", "掌柜")):
+                issues.append(("I8", idx, f"清单[{n}]是人物但名字像场景(疑似串型)"))
+            scene_row = con.execute("SELECT 1 FROM assets WHERE type='scene' AND name LIKE ?", (f"%{n}%",)).fetchone()
+            if scene_row and n not in roles and not any(k in n for k in SCENE_WORDS):
+                issues.append(("I8", idx, f"清单[{n}]查无此型但像人名(疑似串型)"))
         # I6 双流
         if len(by_target.get(sid, [])) > 1:
             issues.append(("I6", idx, f"{len(by_target[sid])} 个工作流并存(核代际)"))

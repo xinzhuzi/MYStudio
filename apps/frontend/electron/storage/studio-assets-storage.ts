@@ -362,10 +362,18 @@ export async function batchMatchAssets(type: StudioAssetKind, names: string[]): 
   const rows = await runSqliteJson<any[]>(dbPath, query);
 
   for (const name of names) {
-    const match = pickBestAssetNameMatch(rows, name)
-      || pickBestAssetRow(rows.filter((row) => row.remark?.includes(name)));
-    if (match) {
-      result.set(name, rowToSummary(match));
+    const exact = pickBestAssetNameMatch(rows, name);
+    if (exact) {
+      result.set(name, rowToSummary(exact));
+      continue;
+    }
+    // remark 模糊兜底(人名/场景串型防线 08-24): 仅在唯一命中时采用——
+    // 多命中静默择优会把「道口镇街巷」这类查询串到 remark 都提过的多个
+    // 场景资产上;宁缺勿错,未挂参考由画面过滤/补挂链兜住
+    const fuzzy = rows.filter((row) => row.remark?.includes(name));
+    const usable = fuzzy.filter(isUsableAssetRow);
+    if (usable.length === 1) {
+      result.set(name, rowToSummary(usable[0]));
     }
   }
   return result;
