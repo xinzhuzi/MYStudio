@@ -244,7 +244,7 @@ export function WorkflowNodeEditDialog({
             {readOnlyJson
               ? "只读查看当前章节 Remotion 分镜清单；它由 canonical 分镜 JSON 派生，不会独立写回。"
               : writable && jsonMode
-                ? "编辑当前章节供 Remotion 视频生产使用的 canonical 分镜源数据。保存前会校验章节、镜头序号、素材引用和渲染状态；生成图片等 mediaRef 会保留。"
+                ? "编辑当前章节供 Remotion 单镜生产使用的 canonical 分镜源数据。保存前会校验章节、镜头序号、素材引用和渲染状态；生成图片等 mediaRef 会保留。"
                 : writable
               ? "编辑当前节点 FlowData Markdown，保存后会回写工作流数据。"
               : "该节点由结构化数据生成，可查看 Markdown 摘要；请进入对应阶段编辑明细。"}

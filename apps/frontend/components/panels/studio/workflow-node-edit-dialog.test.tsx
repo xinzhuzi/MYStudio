@@ -110,7 +110,7 @@ describe("WorkflowNodeEditDialog", () => {
 
     expect(
       screen.getByText(
-        "编辑当前章节供 Remotion 视频生产使用的 canonical 分镜源数据。保存前会校验章节、镜头序号、素材引用和渲染状态；生成图片等 mediaRef 会保留。",
+        "编辑当前章节供 Remotion 单镜生产使用的 canonical 分镜源数据。保存前会校验章节、镜头序号、素材引用和渲染状态；生成图片等 mediaRef 会保留。",
       ),
     ).toBeTruthy();
     expect(document.querySelector(".cm-scroller")).toBeTruthy();

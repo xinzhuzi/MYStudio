@@ -11,7 +11,7 @@ describe("Remotion production UI boundaries", () => {
   it("keeps the production node scoped to independent StoryboardShot MP4 jobs", () => {
     const node = {
       id: "remotionProduction",
-      label: "Remotion 视频生产",
+      label: "Remotion 单镜生产",
       description: "",
       status: "ready",
       metrics: [],

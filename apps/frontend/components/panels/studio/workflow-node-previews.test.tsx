@@ -358,7 +358,7 @@ describe("workflow node component boundaries", () => {
   it("makes the Remotion shot-to-chapter pipeline explicit in the production node", () => {
     const node = {
       id: "remotionProduction" as const,
-      label: "Remotion 视频生产",
+      label: "Remotion 单镜生产",
       description: "",
       status: "pending" as const,
       metrics: [],
@@ -1166,7 +1166,7 @@ describe("workflow node component boundaries", () => {
     const onNodeAction = vi.fn();
     const node = {
       id: "remotionProduction" as const,
-      label: "Remotion 视频生产",
+      label: "Remotion 单镜生产",
       description: "",
       status: "pending" as const,
       metrics: [],

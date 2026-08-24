@@ -534,7 +534,7 @@ export function buildProductionFlowModel(
       },
       {
         id: "remotionProduction",
-        label: "Remotion 视频生产",
+        label: "Remotion 单镜生产",
         description: "将当前章节的每个分镜分别生成 StoryboardShot MP4；全部通过后才能进入章节工作台。",
         status: remotionSummary.failed || remotionSummary.blocked
           ? "warning"
