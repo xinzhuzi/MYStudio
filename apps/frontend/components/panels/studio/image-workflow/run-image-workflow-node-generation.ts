@@ -91,30 +91,46 @@ export async function runImageWorkflowNodeGeneration(
   const compiledFrame = graph.target.kind === "storyboard"
     ? await compileActiveDaojieStoryboardFramePrompt(stripCompiledFrameRedundantSections(styledPrompt))
     : null;
-  const result = await aiManager.freedomImage({
-    prompt: compiledFrame?.providerPrompt ?? styledPrompt,
-    model: request.model,
-    aspectRatio: request.aspectRatio,
-    resolution: request.resolution,
-    negativePrompt: compiledFrame ? undefined : request.negativePrompt,
-    promptPolicy: compiledFrame ? "raw" : undefined,
-    referenceImages,
-    extraParams: request.quality === "hd" ? { quality: "hd" } : undefined,
-  });
   const node = graph.nodes.find((item) => item.id === targetNodeId);
   const chapterId = chapterScopeForWorkflowTarget(
     graph.target,
     useStudioStore.getState().storyboards,
   );
-  const saved = await getProjectFilesBridge()?.saveImage({
-    projectId,
-    relativePath: workflowImageRelativePath(
-      graph.id,
-      createWorkflowFilename("gen", targetNodeId, `${node?.title || "workflow-image"}.png`),
-      chapterId,
-    ),
-    source: result.url,
+  const buildRequest = (transport?: "chat") => ({
+    prompt: compiledFrame?.providerPrompt ?? styledPrompt,
+    model: request.model,
+    aspectRatio: request.aspectRatio,
+    resolution: request.resolution,
+    negativePrompt: compiledFrame ? undefined : request.negativePrompt,
+    promptPolicy: (compiledFrame ? "raw" : undefined) as "raw" | undefined,
+    referenceImages,
+    extraParams: request.quality === "hd" ? { quality: "hd" } : undefined,
+    transport,
   });
+  const generateAndSave = async (transport?: "chat") => {
+    const generated = await aiManager.freedomImage(buildRequest(transport));
+    const saved = await getProjectFilesBridge()?.saveImage({
+      projectId,
+      relativePath: workflowImageRelativePath(
+        graph.id,
+        createWorkflowFilename("gen", targetNodeId, `${node?.title || "workflow-image"}.png`),
+        chapterId,
+      ),
+      source: generated.url,
+    });
+    return { generated, saved };
+  };
+  let { generated: result, saved } = await generateAndSave();
+  if ((!saved?.success || !saved.url) && /^https?:/i.test(result.url)) {
+    // 08-24 结构修复:images 端点已成功(生成已计费)但远程 URL 下载失败
+    // (晚高峰 CDN 504/网关过载)——旧路径直接抛错丢图。此处回退 chat 形态
+    // 重试一次:base64 data-URL 直返、不经 CDN,保存走主进程 dataURL 解析。
+    console.warn(
+      "[image-workflow] 成图 URL 保存失败(下载类),回退 chat base64 重试一次:",
+      saved?.error || result.url.slice(0, 80),
+    );
+    ({ generated: result, saved } = await generateAndSave("chat"));
+  }
   if (!saved?.success || !saved.url) {
     throw new Error(saved?.error || "项目内图片保存失败");
   }

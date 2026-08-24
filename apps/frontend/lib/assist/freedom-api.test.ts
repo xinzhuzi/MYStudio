@@ -203,6 +203,27 @@ describe("generateFreedomImage", () => {
     expect(chatBody.messages[0].content[0].text).toContain("gateway fallback image");
   }, 20000);
 
+  it("routes straight to chat form (base64 in-band) when transport=chat is requested", async () => {
+    const fetchMock = vi.fn().mockImplementation(async (url: string | URL) => {
+      const target = String(url);
+      if (target.endsWith("/chat/completions")) {
+        return new Response(JSON.stringify({
+          choices: [{ message: { role: "assistant", content: "![image_1](data:image/png;base64,aGVsbG8=)" } }],
+        }), { status: 200 });
+      }
+      // images 端点即使可用也不应被触达(transport=chat 必须绕过智能路由)
+      return new Response(JSON.stringify({ data: [{ url: "https://cdn.test/should-not-use.png" }] }), { status: 200 });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const result = await generateFreedomImage({ prompt: "chat transport image", transport: "chat" });
+
+    expect(result.url).toBe("data:image/png;base64,aGVsbG8=");
+    expect(fetchMock.mock.calls.some(([url]) => String(url).endsWith("/images/generations"))).toBe(false);
+    const chatCall = fetchMock.mock.calls.find(([url]) => String(url).endsWith("/chat/completions"));
+    expect(chatCall).toBeTruthy();
+  }, 20000);
+
   it("does not fall back to chat form on deterministic auth failures (401)", async () => {
     const fetchMock = vi.fn().mockImplementation(async () => new Response(
       JSON.stringify({ error: { message: "Invalid API key" } }),

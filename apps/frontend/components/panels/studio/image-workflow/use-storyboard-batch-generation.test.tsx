@@ -101,6 +101,57 @@ function createBareStoryboardGraph(storyboardId: string, workflowId: string) {
 }
 
 describe("useStoryboardBatchGeneration(一键生图串行批量)", () => {
+  it("retries once via chat transport when the images endpoint succeeds but the URL download fails (504 类丢图根修)", async () => {
+    resetStore([
+      shot({ id: "sb-1", index: 1 }),
+    ]);
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    let saveCalls = 0;
+    saveImage.mockImplementation(async (_payload: unknown) => {
+      saveCalls += 1;
+      if (saveCalls === 1) return { success: false, error: "504 download timeout" };
+      return { success: true, url: "project-file://proj/workflow/gen-out.png", size: 10 };
+    });
+    freedomImage.mockImplementation(async (params: { transport?: string }) => {
+      if (params?.transport === "chat") return { url: "data:image/png;base64,QQ==" };
+      return { url: "https://cdn.test/remote.png" };
+    });
+
+    const { result } = renderHook(() =>
+      useStoryboardBatchGeneration({ storyboards: useStudioStore.getState().storyboards, projectName: "道劫" }),
+    );
+    act(() => result.current.start());
+    await waitFor(() => expect(result.current.state.running).toBe(false), { timeout: 4000 });
+
+    expect(freedomImage).toHaveBeenCalledTimes(2);
+    expect(freedomImage.mock.calls[0][0].transport).toBeUndefined();
+    expect(freedomImage.mock.calls[1][0].transport).toBe("chat");
+    expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining("回退 chat base64"), expect.anything());
+    const sb1 = useStudioStore.getState().storyboards.find((item) => item.id === "sb-1")!;
+    expect(sb1.mediaRef).toMatchObject({ kind: "image", path: "project-file://proj/workflow/gen-out.png" });
+    expect(result.current.state).toMatchObject({ total: 1, done: 1, failed: 0 });
+    warnSpy.mockRestore();
+  });
+
+  it("does not burn a chat retry when the failed save source is not a remote http URL", async () => {
+    resetStore([
+      shot({ id: "sb-1", index: 1 }),
+    ]);
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    saveImage.mockImplementation(async (_payload: unknown) => ({ success: false, error: "disk full" }));
+    freedomImage.mockImplementation(async () => ({ url: "data:image/png;base64,QQ==" }));
+
+    const { result } = renderHook(() =>
+      useStoryboardBatchGeneration({ storyboards: useStudioStore.getState().storyboards, projectName: "道劫" }),
+    );
+    act(() => result.current.start());
+    await waitFor(() => expect(result.current.state.running).toBe(false), { timeout: 4000 });
+
+    expect(freedomImage).toHaveBeenCalledTimes(1);
+    expect(result.current.state).toMatchObject({ total: 1, done: 1, failed: 1 });
+    warnSpy.mockRestore();
+  });
+
   it("skips generated shots, writes mediaRef back for success, and continues past failure in index order", async () => {
     resetStore([
       shot({ id: "sb-1", index: 1, mediaRef: { kind: "image", path: "project-file://a.png" } as StoryboardItem["mediaRef"] }),

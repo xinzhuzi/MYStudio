@@ -14,6 +14,13 @@ export interface FreedomImageParams {
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
   extraParams?: Record<string, any>;
   signal?: AbortSignal;
+  /**
+   * 传输形态(08-24 结构修复:API 成功但图片 URL 下载 504 会直接丢图):
+   * "chat"=绕过智能路由直走 chat/completions 形态,base64 data-URL 直返、
+   * 不经 CDN——供调用方在「images 端点成功、URL 落盘失败」后无损重试。
+   * 缺省 auto=按模型元数据智能路由(行为不变)。
+   */
+  transport?: "auto" | "chat";
 }
 
 export interface FreedomVideoParams {

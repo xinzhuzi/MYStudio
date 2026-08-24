@@ -193,6 +193,20 @@ async function _generateFreedomImageInner(
   const model = params.model || defaultModel;
   const normalizedBase = baseUrl.replace(/\/+$/, '');
 
+  // 显式 chat 传输:绕过智能路由直走 chat 形态(base64 直返,零 CDN 依赖)。
+  // 08-24 结构修复——「images 端点成功但 URL 下载 504」曾直接丢图白烧一次
+  // 生成;调用方现在可以在保存失败后用该形态无损重试。
+  if (params.transport === "chat") {
+    return await generateFreedomImageViaChat(
+      params,
+      model,
+      apiKey,
+      normalizedBase,
+      (url, prompt) => saveToMediaLibrary(url, prompt, 'ai-image'),
+      operationId,
+    );
+  }
+
   // ── Smart Routing: choose endpoint based on model metadata ──
   const endpointTypes = getModelEndpointTypes(model);
   const route = detectFreedomImageRoute(model, endpointTypes);
