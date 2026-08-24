@@ -327,10 +327,30 @@ export function buildChapterVideoCompositionProps(
   if (!sourceValidation.success) return sourceValidation;
 
   const base = buildCompositionProps(input.plan, input.mediaUrlByClipId, input.lutUrlById, input.layerUrlByClipId);
+  // 章节共享音频的 chapterStartUs 在编辑(音频)时间轴上,而合成帧网格是转场
+  // 重叠压缩后的布局轴(与字幕 layoutShiftFrames 同源)。经"所属镜头锚点"
+  // 映射:owner 布局起点 + 镜内偏移;跨边界时长按起终点映射差取值。
+  const visualPlanClips = input.plan.clips
+    .filter((clip) => clip.trackKind === "video" || clip.trackKind === "image")
+    .sort(compareTimelineClips);
+  const layoutFromByClipId = new Map(base.visualClips.map((clip) => [clip.clipId, clip.from]));
+  const chapterUsToLayoutFrame = (timeUs: number): number => {
+    let owner = visualPlanClips[0];
+    for (const clip of visualPlanClips) {
+      if (clip.startUs <= timeUs) owner = clip;
+      else break;
+    }
+    if (!owner) return 0;
+    const layoutFrom = layoutFromByClipId.get(owner.id) ?? 0;
+    return Math.max(0, layoutFrom + usToFrames(timeUs - owner.startUs, base.fps));
+  };
   const audioClips: Array<CompositionAudioClipProps & { renderScope: "chapter" }> =
     input.chapterManifest.sharedAudioBindings.flatMap((binding) => {
-      const from = usToFrames(binding.chapterStartUs, base.fps);
-      const requestedDurationInFrames = clipDurationInFrames(binding.durationUs, base.fps);
+      const from = chapterUsToLayoutFrame(binding.chapterStartUs);
+      const requestedDurationInFrames = Math.max(
+        1,
+        chapterUsToLayoutFrame(binding.chapterStartUs + binding.durationUs) - from,
+      );
       const durationInFrames = Math.min(
         requestedDurationInFrames,
         Math.max(0, base.durationInFrames - from),

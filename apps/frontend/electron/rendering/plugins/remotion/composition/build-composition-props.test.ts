@@ -658,6 +658,49 @@ describe("buildChapterVideoCompositionProps", () => {
     });
   });
 
+  it("projects shared chapter audio onto the layout grid, not the edited audio grid", async () => {
+    // Regression (08-24): shared bgm/ambience used usToFrames(chapterStartUs)
+    // — the edited/audio grid — while the composition frame grid is the
+    // transition-compressed layout grid (twoShotPlan: boundary at audio 1s
+    // lands at layout frame 24 after the 6-frame fade overlap). Audio-timed
+    // bindings drifted up to 2s late in real chapters and ducking envelopes
+    // misaligned against layout-time voice intervals.
+    const firstSlot = makeCurrentSlot();
+    const secondSlot = slotForShot("shot-002");
+    const plan = twoShotPlan(firstSlot, secondSlot);
+    const atBoundary = await makeChapterAudioBindingV2({
+      bindingId: "chapter-bgm-boundary",
+      chapterStartUs: 1_000_000,
+      durationUs: 600_000,
+    });
+    const crossing = await makeChapterAudioBindingV2({
+      bindingId: "chapter-bgm-crossing",
+      chapterStartUs: 800_000,
+      durationUs: 400_000,
+    });
+    const chapterManifest = await manifestForTwoShotPlan(plan, await makeShotAudioBindingV2({
+      shotId: "shot-002",
+      shotStartUs: 0,
+      durationUs: 0,
+    }));
+    chapterManifest.sharedAudioBindings = [atBoundary, crossing];
+    const result = buildChapterVideoCompositionProps({
+      plan,
+      currentShotSlots: [firstSlot, secondSlot],
+      chapterManifest,
+      mediaUrlByClipId: { "visual-shot-001": mediaUrl, "visual-shot-002": mediaUrl },
+      mediaUrlByBindingId: { "chapter-bgm-boundary": mediaUrl, "chapter-bgm-crossing": mediaUrl },
+    });
+    expect(result.success).toBe(true);
+    if (!result.success) return;
+    // 音频轴 1s=帧30;布局轴上边界被 6 帧重叠拉前 → 24。
+    expect(result.value.audioClips.find((audio) => audio.clipId === "chapter-bgm-boundary")?.from).toBe(24);
+    // 跨边界片段 0.8-1.2s: 起=24,布局终点=24+(1.2-1.0)*30=30 → 压缩后 6 帧。
+    const crossingClip = result.value.audioClips.find((audio) => audio.clipId === "chapter-bgm-crossing")!;
+    expect(crossingClip.from).toBe(24);
+    expect(crossingClip.durationInFrames).toBe(6);
+  });
+
   it("fail-closes when a transition overlap intrudes into the outgoing shot's voice", async () => {
     const firstSlot = makeCurrentSlot();
     const secondSlot = slotForShot("shot-002");
