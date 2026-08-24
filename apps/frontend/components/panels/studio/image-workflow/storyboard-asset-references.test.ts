@@ -53,11 +53,18 @@ describe("resolveStoryboardAssetReferences", () => {
 
   it("never returns data: urls (persistence discipline) and skips imageless matches", async () => {
     bridgeMock.mockReturnValue(makeBridge({
-      role: [{ name: "赵四", previewUrl: "" }, { name: "老苦力" }],
+      role: [
+        { name: "赵四", previewUrl: "" },
+        { name: "旧资产", previewUrl: "data:image/png;base64,QUJD" },
+        { name: "临时预览", previewUrl: "blob:https://example.test/transient" },
+        { name: "老苦力" },
+      ],
     }));
-    const refs = await resolveStoryboardAssetReferences({ associateAssetsNames: ["赵四", "老苦力"] });
+    const refs = await resolveStoryboardAssetReferences({
+      associateAssetsNames: ["赵四", "旧资产", "临时预览", "老苦力"],
+    });
     expect(refs?.map((ref) => ref.title)).toEqual(["老苦力"]);
-    expect(refs?.every((ref) => !ref.imageUrl.startsWith("data:"))).toBe(true);
+    expect(refs?.every((ref) => !/^(?:data|blob):/.test(ref.imageUrl))).toBe(true);
   });
 
   it("fails empty when the bridge is missing or names are absent", async () => {
@@ -66,4 +73,34 @@ describe("resolveStoryboardAssetReferences", () => {
     bridgeMock.mockReturnValue(makeBridge({}));
     expect(await resolveStoryboardAssetReferences({ associateAssetsNames: [] })).toEqual([]);
   });
+  it("filters off-frame characters when frame text exists (S08 身份防线)", async () => {
+    bridgeMock.mockReturnValue(makeBridge({
+      scene: [{ name: "金水河码头" }],
+      role: [
+        { name: "独孤剑尘" }, { name: "监工赵四" }, { name: "小杂役" },
+      ],
+    }));
+    // S08 画面: 小杂役+赵四扬鞭;独孤剑尘在 associateAssetsNames 但不在画面
+    const refs = await resolveStoryboardAssetReferences({
+      associateAssetsNames: ["金水河码头", "独孤剑尘", "小杂役", "灵矿藤筐"],
+      videoDesc: "小杂役指腹被灵矿倒刺扎破，抬头时赵四已从右侧逼近并扬起长鞭；小杂役缩住肩膀。",
+    });
+    expect(refs?.map((ref) => [ref.title, ref.assetType])).toEqual([
+      ["金水河码头", "scene"],
+      ["监工赵四", "character"],
+      ["小杂役", "character"],
+    ]);
+  });
+
+  it("keeps a character referenced by full name in frame text", async () => {
+    bridgeMock.mockReturnValue(makeBridge({
+      role: [{ name: "独孤剑尘" }, { name: "赵四" }],
+    }));
+    const refs = await resolveStoryboardAssetReferences({
+      associateAssetsNames: ["独孤剑尘", "赵四"],
+      prompt: "独孤剑尘低头从两人侧后方经过；赵四手腕压下。",
+    });
+    expect(refs?.map((ref) => ref.title)).toEqual(["独孤剑尘", "赵四"]);
+  });
 });
+

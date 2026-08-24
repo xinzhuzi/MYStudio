@@ -16,10 +16,19 @@ import type { ImageWorkflowOpenContext, StoryboardItem } from "@/types/studio";
  * 桥缺失/无命中/无图 → 空数组(fail-empty,建流不挂参考)。
  */
 export async function resolveStoryboardAssetReferences(
-  storyboard: Pick<StoryboardItem, "associateAssetsNames"> & Partial<Pick<StoryboardItem, "id">> | undefined,
+  storyboard: Pick<StoryboardItem, "associateAssetsNames">
+    & Partial<Pick<StoryboardItem, "videoDesc" | "prompt" | "lines" | "id">> | undefined,
 ): Promise<ImageWorkflowOpenContext["assetReferences"]> {
   const names = storyboard?.associateAssetsNames ?? [];
   if (!names.length) return [];
+  // 画面文本(身份防线 08-24 S08 实证): associateAssetsNames 记的是「镜所在
+  // 场景的在场实体」,可能含画面外角色(如 S08 的独孤剑尘)——角色参考必须
+  // 只挂画面描述/台词中提及者,否则参考图+身份锚点会把画面外主角画进镜里
+  // 或顶替画面角色形象。场景/道具不滤(挂入帮画面画对环境与道具)。
+  const frameText = [storyboard?.videoDesc, storyboard?.prompt, storyboard?.lines]
+    .filter(Boolean).join("\n");
+  // 无画面文本(最小调用/无描述)时不过滤——维持既有行为;有文本才执行画面过滤
+  const hasFrameText = frameText.trim().length > 0;
   const bridge = getStudioAssetsBridge();
   if (!bridge?.batchMatch) return [];
 
@@ -30,6 +39,12 @@ export async function resolveStoryboardAssetReferences(
 
   const references: NonNullable<ImageWorkflowOpenContext["assetReferences"]> = [];
   const seen = new Set<string>();
+  const mentionedInFrame = (title: string, queryName: string): boolean => {
+    if (frameText.includes(title) || frameText.includes(queryName)) return true;
+    // 简称兜底: 资产名「监工赵四」↔画面「赵四」(去职业前缀/取尾名比对)
+    const short = title.replace(/^(?:监工|管事|老|年轻|小)/, "");
+    return short.length >= 2 && frameText.includes(short);
+  };
   const collect = (
     entries: Array<{ name: string; asset: unknown }> | undefined,
     assetType: "scene" | "character",
@@ -44,7 +59,8 @@ export async function resolveStoryboardAssetReferences(
       } | null;
       const imageUrl = asset?.previewUrl ?? asset?.thumbnailUrl ?? "";
       const title = asset?.name || entry.name;
-      if (!imageUrl || seen.has(title)) continue;
+      if (!imageUrl || /^(?:data|blob):/i.test(imageUrl) || seen.has(title)) continue;
+      if (assetType === "character" && hasFrameText && !mentionedInFrame(title, entry.name)) continue;
       seen.add(title);
       references.push({ imageUrl, title, assetType, assetId: asset?.id });
       added += 1;
