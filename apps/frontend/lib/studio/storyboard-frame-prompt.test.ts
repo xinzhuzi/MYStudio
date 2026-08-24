@@ -102,18 +102,22 @@ describe("storyboard faction color section", () => {
     expect(buildStoryboardFactionColorSection({ sceneNames: ["无名之地"] }, faction)).toBe("");
     expect(buildStoryboardFactionColorSection({ personNames: ["独孤剑尘"] }, { members: {}, palette: {} })).toBe("");
   });
-
-  it("prop 阵营色 = not_applicable:结构只有 person/scene 两轨,不为三轨齐全凭空新增", () => {
-    // 合同结构:palette 每阵营只有 person/scene 两个键
-    expect(Object.keys(faction.palette.万劫圣宗).sort()).toEqual(["person", "scene"]);
-    const section = buildStoryboardFactionColorSection(
+  it("prop 阵营色 = 条件注入(弱倾向):仅在明确提供道具名时出现,不凭空补齐", () => {
+    const withProp = { ...faction, palette: { ...faction.palette, 万劫圣宗: { ...faction.palette.万劫圣宗, prop: "底色宣纸白+墨线浓墨+主色铁灰+辅色银灰+点睛旧金" } } };
+    // 未提供道具名 → 无道具轨输出(不为三轨齐全无条件补齐)
+    expect(buildStoryboardFactionColorSection(
       { sceneNames: ["金水河码头"], personNames: ["独孤剑尘"] },
-      faction,
+      withProp,
+    )).not.toContain("道具");
+    // 明确提供道具名 → (阵营·道具)弱倾向配方注入
+    const section = buildStoryboardFactionColorSection(
+      { sceneNames: ["金水河码头"], personNames: ["独孤剑尘"], propNames: ["戒律碑"] },
+      { ...withProp, members: { ...withProp.members, 戒律碑: "万劫圣宗" } },
     );
-    expect(section).not.toContain("道具");
-    // 源码层声明 not_applicable(合同声明与实现互锁)
-    const source = readFileSync(new URL("./storyboard-frame-prompt.ts", import.meta.url), "utf-8");
-    expect(source).toContain("prop 轨 = not_applicable");
+    expect(section).toContain("(万劫圣宗·道具)底色宣纸白");
+    // 源码层声明条件注入政策(合同声明与实现互锁)
+    const source = readFileSync(new URL("./storyboard-frame-prompt.ts", import.meta.url), "utf8");
+    expect(source).toContain("prop 仅在分镜明确提供道具资产名时注入");
   });
 
   it("feeds the color section into the frame prompt between composition and dialogue", () => {

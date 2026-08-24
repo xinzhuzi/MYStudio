@@ -18,6 +18,10 @@ REGISTERED_SOURCES = [
     "scripts/prompting/finish_locks.py",
     "knowledge/prompt-templates/美术成片风格提示词模板库.md",
 ]
+PALETTE_SOURCES = [
+    "scripts/data/三轨选色配料.toml",
+    "scripts/data/阵营配色与黄金公式.toml",
+]
 
 
 def run_check(*args: str) -> subprocess.CompletedProcess[str]:
@@ -29,12 +33,12 @@ def run_check(*args: str) -> subprocess.CompletedProcess[str]:
     )
 
 
-def make_temp_ma_root(mutations: dict[str, str] | None = None, drop: str | None = None) -> Path:
+def make_temp_ma_root(mutations: dict[str, str] | None = None, drop: str | None = None, include_palette: bool = False) -> Path:
     """以真实 MA 技能文件为底本搭建临时工作区,按需做非锚点文本漂移/删文件。"""
     temp_root = Path(tempfile.mkdtemp(prefix="daojie-ma-sync-"))
     skill = temp_root / ".claude" / "skills" / "ma-imagegen"
     real_skill = DEFAULT_MA_ROOT / ".claude" / "skills" / "ma-imagegen"
-    for rel in REGISTERED_SOURCES:
+    for rel in REGISTERED_SOURCES + (PALETTE_SOURCES if include_palette else []):
         target = skill / rel
         target.parent.mkdir(parents=True, exist_ok=True)
         text = (real_skill / rel).read_text(encoding="utf-8")
@@ -58,7 +62,7 @@ class DaojieMaSyncCheckTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         report = json.loads(result.stdout)
         self.assertTrue(report["ok"])
-        self.assertEqual(len(report["internal"]["registered_sources"]), 3)
+        self.assertEqual(len(report["internal"]["registered_sources"]), 5)
         self.assertEqual(report["internal"]["contract_version"], "ma-gongbi-v1")
 
     def test_real_ma_workspace_reports_no_drift(self):
@@ -113,6 +117,29 @@ class DaojieMaSyncCheckTests(unittest.TestCase):
             report = json.loads(result.stdout)
             kinds = [p["kind"] for p in report["problems"]]
             self.assertIn("ma_source_missing", kinds)
+        finally:
+            shutil.rmtree(temp_root)
+
+    def test_palette_canon_semantic_drift_is_detected(self):
+        temp_root = make_temp_ma_root(include_palette=True, mutations={
+            "scripts/data/三轨选色配料.toml": ("name = \"宣纸白\"", "name = \"漂白纸\""),
+        })
+        try:
+            result = run_check("--ma-root", str(temp_root), "--json")
+            self.assertEqual(result.returncode, 1, result.stdout)
+            report = json.loads(result.stdout)
+            diagnoses = [d["diagnosis"] for d in report.get("ma_drift", [])]
+            kinds = [p["kind"] for p in report["problems"]]
+            self.assertIn("palette_canon_source_drifted", diagnoses)
+            self.assertIn("palette_canon_semantic_mismatch", kinds)
+        finally:
+            shutil.rmtree(temp_root)
+
+    def test_palette_canon_clean_when_sources_unchanged(self):
+        temp_root = make_temp_ma_root(include_palette=True)
+        try:
+            result = run_check("--ma-root", str(temp_root), "--json")
+            self.assertEqual(result.returncode, 0, result.stdout)
         finally:
             shutil.rmtree(temp_root)
 

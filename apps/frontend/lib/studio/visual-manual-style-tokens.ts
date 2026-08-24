@@ -126,11 +126,11 @@ export interface StoryboardFactionData {
   /** 角色/场景名 → 阵营 */
   members: Record<string, string>;
   /**
-   * 阵营 → 各轨五职责色彩串(中文名)。
-   * prop 轨 = not_applicable:分镜阵营配色合同(ma-faction-palette-v1)只覆盖 person/scene 两轨,
-   * 不为「三轨齐全」凭空新增 prop 配色;仅当未来手册显式提供道具阵营规则时才扩展。
+   * 阵营 → 各轨五职责色彩串(中文名,由 ma_sync/palette-canon.json 再生成)。
+   * 三轨齐全(person/scene/prop)对齐 MA faction_visual_locks:person=服饰点缀、scene=全锁、
+   * prop=弱倾向(材质色优先+小纹样),prop 仅在分镜明确提供道具资产名时条件注入。
    */
-  palette: Record<string, { person: string; scene: string }>;
+  palette: Record<string, { person: string; scene: string; prop?: string }>;
 }
 
 let factionDataCache: StoryboardFactionData | null = null;

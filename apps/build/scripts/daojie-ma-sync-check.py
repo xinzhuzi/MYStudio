@@ -104,6 +104,19 @@ def check_internal_consistency(report: dict[str, Any]) -> None:
                 "actual": contract_sources[rel],
             })
 
+    canon_path = MA_SYNC_DIR / "palette-canon.json"
+    if canon_path.is_file():
+        canon_internal = load_json(canon_path)
+        for source in canon_internal.get("sources", []):
+            rel, sha = str(source.get("path", "")), str(source.get("sha256", ""))
+            if contract_sources.get(rel) != sha:
+                problems.append({
+                    "kind": "palette_canon_source_sha_mismatch",
+                    "source": rel,
+                    "contract_registered": contract_sources.get(rel),
+                    "canon_claims": sha,
+                })
+
     for module_id, module in contract.get("modules", {}).items():
         source = module.get("source", {})
         rel = str(source.get("path", ""))
@@ -122,6 +135,88 @@ def check_internal_consistency(report: dict[str, Any]) -> None:
         "contract_version": contract.get("contractVersion"),
         "contract_sha256": actual_contract_sha,
     }
+
+
+_PALETTE_ROLES = ["base", "ink", "primary", "secondary", "accent"]
+
+
+def project_palette_canon(palette_payload: dict, faction_payload: dict) -> dict:
+    """把 MA 两个 TOML 投影为与 ma_sync/palette-canon.json 相同的结构(语义比对用)。"""
+    p, f = palette_payload, faction_payload
+    return {
+        "canonVersion": "ma-gongbi-palette-v1",
+        "roleOrder": _PALETTE_ROLES,
+        "colorGroups": [{"groupId": g["group_id"], "name": g["name"]} for g in p["color_groups"]],
+        "colors": [
+            {"colorId": c["color_id"], "groupId": c["group_id"], "name": c["name"], "hex": c["hex"],
+             "mediumRole": c.get("medium_role", ""), "suitable": c.get("suitable", ""), "forbidden": c.get("forbidden", "")}
+            for c in p["colors"]
+        ],
+        "schemes": [
+            {"schemeId": s["scheme_id"], "track": s["track"], "name": s["name"], "roles": s["roles"],
+             "parts": s["parts"], "suitable": s.get("suitable", ""), "forbidden": s.get("forbidden", "")}
+            for s in p["schemes"]
+        ],
+        "factions": {
+            name: {
+                "alignment": data.get("alignment", ""),
+                "composition": data.get("composition", ""),
+                "imagery": data.get("imagery", ""),
+                "tracks": {
+                    track: {
+                        "roles": {r: t[r] for r in _PALETTE_ROLES if r in t},
+                        "parts": t.get("parts", {}),
+                        "suitable": t.get("suitable", ""),
+                        "forbidden": t.get("forbidden", ""),
+                    } for track, t in data.get("tracks", {}).items()
+                },
+            } for name, data in f["factions"].items()
+        },
+    }
+
+
+def check_palette_canon(report: dict[str, Any], skill_root: Path) -> None:
+    """色卡正典守护:①来源 SHA;②MA TOML 语义投影与正典逐字段一致。"""
+    import tomllib
+
+    problems = report["problems"]
+    canon_path = MA_SYNC_DIR / "palette-canon.json"
+    if not canon_path.is_file():
+        problems.append({"kind": "palette_canon_missing", "path": str(canon_path.relative_to(REPO_ROOT))})
+        return
+    canon = load_json(canon_path)
+    projected_input: dict[str, dict] = {}
+    for source in canon.get("sources", []):
+        rel = str(source.get("path", ""))
+        actual_path = skill_root / rel
+        if not actual_path.is_file():
+            problems.append({"kind": "palette_canon_source_missing", "source": rel})
+            return
+        actual_sha = sha256_bytes(actual_path.read_bytes())
+        if actual_sha != source.get("sha256"):
+            report.setdefault("ma_drift", []).append({
+                "source": rel,
+                "expected_sha256": source.get("sha256"),
+                "actual_sha256": actual_sha,
+                "anchors_intact": None,
+                "missing_anchors": [],
+                "diagnosis": "palette_canon_source_drifted",
+                "affected_modules": ["palette-canon.json"],
+            })
+        import tomllib as _tomllib
+        projected_input[rel.rsplit("/", 1)[-1]] = _tomllib.loads(actual_path.read_text(encoding="utf-8"))
+
+    palette = projected_input.get("三轨选色配料.toml")
+    faction = projected_input.get("阵营配色与黄金公式.toml")
+    if palette is None or faction is None:
+        return
+    projected = project_palette_canon(palette, faction)
+    stored = {k: v for k, v in canon.items() if k != "sources"}
+    if canonical_json(projected) != canonical_json(stored):
+        problems.append({
+            "kind": "palette_canon_semantic_mismatch",
+            "hint": "MA TOML 与 palette-canon.json 语义不一致:重跑投影更新正典(勿手改)",
+        })
 
 
 def check_ma_workspace(report: dict[str, Any], ma_root: Path) -> None:
@@ -173,6 +268,7 @@ def check_ma_workspace(report: dict[str, Any], ma_root: Path) -> None:
             ],
         })
     report["ma_drift"] = drift
+    check_palette_canon(report, skill_root)
 
 
 def build_report(ma_root: Path | None) -> dict[str, Any]:

@@ -49,7 +49,7 @@ describe("Daojie ma-gongbi-v1 runtime contract", () => {
   it("ships a bounded, source-fingerprinted machine contract", () => {
     expect(DAOJIE_RUNTIME_CONTRACT.contractVersion).toBe("ma-gongbi-v1");
     expect(DAOJIE_RUNTIME_CONTRACT.contractSha256).toBe(
-      "57c5c5602cd92736be7c7d9f045579313ddabcd69c22716ce300e30564eddf66",
+      "50b7505bb80a0c0396a878d80efa823328849ada46650b25be228ef2a7047602",
     );
     expect(DAOJIE_RUNTIME_CONTRACT.avoidSeparator).toBe("\nAvoid: ");
     expect(DAOJIE_RUNTIME_CONTRACT.length).toEqual({ warningBelow: 300, min: 300, max: 800 });
@@ -147,6 +147,41 @@ describe("Daojie ma-gongbi-v1 runtime contract", () => {
     expect(compiled.moduleIds.filter((moduleId) => moduleId.startsWith("style.gongbi-track."))).toEqual([
       `style.gongbi-track.${maTrack}`,
     ]);
+  });
+});
+
+describe("Daojie palette scheme compilation (ma-gongbi-palette-v1)", () => {
+  it("emits the MA-shaped recipe module when a scheme is selected", async () => {
+    const compiled = await compileDaojiePrompt({
+      runtimeTrack: "character",
+      subjectBody: "焚香仪式中的符修，面部与手势清晰。",
+      negativeTerms: ["水印"],
+      paletteSchemeId: "person.02",
+    });
+    expect(compiled.moduleIds).toContain("palette.person.02");
+    expect(compiled.moduleIds).not.toContain("palette.source-facts-only");
+    expect(compiled.positive).toContain("配料方案（朱砂法脉）：底色用米白；墨线用浓墨；主色用朱砂；辅色用赭石；点睛色用暗金。");
+    expect(compiled.moduleLengths["palette.person.02"]).toBeGreaterThan(0);
+    expect(compiled.moduleAudit.find((m) => m.moduleId === "palette.person.02")?.singletonKey).toBe("gongbi_palette_scheme");
+    expect(compiled.providerPrompt.match(/Avoid:/g)).toHaveLength(1);
+  });
+
+  it("defaults to source-facts-only without a scheme (byte-stable legacy path)", async () => {
+    const compiled = await compileDaojiePrompt({
+      runtimeTrack: "character",
+      subjectBody: "题材正文。",
+    });
+    expect(compiled.moduleIds).toContain("palette.source-facts-only");
+    expect(compiled.positive).toContain("不注入默认色相或默认职责色");
+  });
+
+  it.each([
+    ["unknown id", "person.99", "character"],
+    ["cross-track", "person.02", "scene"],
+  ] as const)("rejects %s scheme usage before compilation", (_label, schemeId, runtimeTrack) => {
+    void expect(
+      compileDaojiePrompt({ runtimeTrack, subjectBody: "题材正文。", paletteSchemeId: schemeId }),
+    ).rejects.toThrow(/daojie palette scheme/);
   });
 });
 

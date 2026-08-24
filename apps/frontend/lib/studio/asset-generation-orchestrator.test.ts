@@ -613,6 +613,50 @@ describe("asset-generation-orchestrator", () => {
       expect(withRef[0].prompt).toContain("参考图降噪");
     });
 
+    it("AI 选配方案随编译进入 provider 正文(具体矿物色可见)", async () => {
+      vi.mocked(polishAssetPrompt).mockResolvedValueOnce({
+        status: "success",
+        prompt: "焚香符修题材正文。",
+        negativePrompt: "水印",
+        daojie: { subjectBody: "焚香符修题材正文。", schemeId: "person.02" },
+      });
+
+      const result = await generateAsset({
+        assetId: "char-1",
+        assetType: "character",
+        name: "焚香符修",
+        description: "主持仪式",
+        isDerivative: false,
+        visualManualId: "daojie_ink_guofeng",
+      });
+
+      expect(result.phase).toBe("done");
+      const params = vi.mocked(aiManager.image).mock.calls[0][0];
+      expect(params.prompt).toContain("配料方案（朱砂法脉）");
+      expect(params.prompt).toContain("主色用朱砂");
+    });
+
+    it("显式 task.paletteSchemeId 覆盖润色期选配,跨轨方案网络前 fail-closed", async () => {
+      vi.mocked(polishAssetPrompt).mockResolvedValueOnce({
+        status: "success",
+        prompt: "矿场题材正文。",
+        negativePrompt: "",
+        daojie: { subjectBody: "矿场题材正文。", schemeId: "scene.01" },
+      });
+      const overridden = await generateAsset({
+        assetId: "scene-1",
+        assetType: "scene",
+        name: "矿场入口",
+        description: "夜雨矿场",
+        isDerivative: false,
+        visualManualId: "daojie_ink_guofeng",
+        paletteSchemeId: "prop.01",
+      });
+      expect(overridden.phase).toBe("failed");
+      expect(overridden.error).toContain("配色方案不可用");
+      expect(aiManager.image).not.toHaveBeenCalled();
+    });
+
     it("非道劫手册不进编译链,保持 enhanced 直传", async () => {
       await generateAsset({
         assetId: "prop-1",

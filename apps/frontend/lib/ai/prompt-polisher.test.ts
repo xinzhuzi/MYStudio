@@ -144,6 +144,55 @@ describe("polishAssetPrompt 道劫三轨合同(LLM 只拥有题材正文)", () =
     expect(result.negativePrompt).toBe("水印");
   });
 
+  it("AI 自动选配:LLM 第二调用返回合法方案,随题材正文一起返回", async () => {
+    vi.mocked(aiManager.featureText)
+      .mockResolvedValueOnce([
+        "中文描述: 焚香符修。",
+        "",
+        "焚香仪式中的符修，朱砂法脉气质，面部与手势清晰。",
+        "",
+        "Negative Prompt: watermark",
+      ].join("\n"))
+      .mockResolvedValueOnce('{"schemeId": "person.02"}');
+
+    const result = await polishAssetPrompt({
+      assetType: "character",
+      name: "焚香符修",
+      description: "主持仪式、绘制符箓",
+      isDerivative: false,
+      visualManualId: "daojie_ink_guofeng",
+    });
+
+    expect(result.status).toBe("success");
+    expect(result.daojie?.schemeId).toBe("person.02");
+  });
+
+  it("AI 选配失败降级规则预筛,再降级 source-facts-only,不阻断润色", async () => {
+    vi.mocked(aiManager.featureText)
+      .mockResolvedValueOnce([
+        "中文描述: 器物。",
+        "",
+        "丹炉一尊，铜质，炉口衔环。",
+        "",
+        "Negative Prompt: watermark",
+      ].join("\n"))
+      .mockRejectedValueOnce(new Error("选配模型不可用"))
+      .mockRejectedValueOnce(new Error("选配模型不可用"));
+
+    const result = await polishAssetPrompt({
+      assetType: "prop",
+      name: "丹炉",
+      description: "炼制丹药的铜炉，无关键词命中方案",
+      isDerivative: false,
+      visualManualId: "daojie_ink_guofeng",
+    });
+
+    expect(result.status).toBe("success");
+    expect(result.daojie?.subjectBody).toContain("丹炉");
+    // 预筛零命中 → 不带 schemeId(source-facts-only)
+    expect(result.daojie?.schemeId).toBeUndefined();
+  });
+
   it("非道劫手册保持既有 enhanced normalize 行为", async () => {
     const result = await polishAssetPrompt({
       assetType: "character",

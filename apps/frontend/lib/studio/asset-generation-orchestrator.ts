@@ -96,6 +96,8 @@ export interface AssetGenerationTask {
   skipPolish?: boolean;
   /** 已有的提示词（skipPolish=true 时使用） */
   existingPrompt?: string;
+  /** 显式指定三轨配色方案(ma-gongbi-palette-v1 id);缺省用润色期 AI 自动选配结果 */
+  paletteSchemeId?: string;
 }
 
 export interface AssetGenerationProgress {
@@ -168,8 +170,12 @@ export async function generateAsset(
           subjectBody,
           negativeTerms: [task.negativePrompt, negativePrompt].filter((term): term is string => Boolean(term)),
           hasReferenceImage: Boolean(task.referenceImages?.length),
+          paletteSchemeId: task.paletteSchemeId ?? polishResult?.daojie?.schemeId,
         });
       } catch (err) {
+        if (err instanceof Error && /daojie palette scheme/.test(err.message)) {
+          return { phase: "failed", error: `配色方案不可用: ${err.message}`, polishResult };
+        }
         if (err instanceof DaojiePromptContractError && err.code === "length_exceeded") {
           return {
             phase: "failed",

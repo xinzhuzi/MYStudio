@@ -15,6 +15,11 @@ import { aiManager, type AIBinding, type AITextResult } from "@/lib/ai/ai-manage
 import { normalizeImagePromptForGeneration } from "@/lib/ai/ai-sdk-bridge";
 import { getStudioVisualManualsBridge } from "@/lib/bridge/studio-visual-manuals";
 import { EXTENDED_VISUAL_MANUAL_SEED_ID } from "@/lib/studio/visual-manual-classification";
+import {
+  buildDaojiePaletteSelectionCatalog,
+  parseDaojiePaletteSelectionResponse,
+  prefilterDaojiePaletteSchemes,
+} from "@/lib/ai/daojie-palette";
 import type { AIFeature } from "@/lib/ai/feature-definitions";
 import type { CharacterIdentityAnchors } from "@/types/script";
 import type { StudioVisualManualDetail } from "@/types/studio-visual-manual";
@@ -54,8 +59,9 @@ export interface PolishResult {
   /**
    * 道劫 ma-gongbi-v1 合同标记:prompt 是题材正文(subject body),不是最终 provider 文本。
    * 自动层/长度门/Avoid 负面由 daojie-prompt-contract 编译器在生成前统一装配。
+   * schemeId=AI 自动挑选的三轨配色方案(ma-gongbi-palette-v1);未挑选时缺省。
    */
-  daojie?: { subjectBody: string };
+  daojie?: { subjectBody: string; schemeId?: string };
 }
 
 export interface BatchPolishConfig {
@@ -124,11 +130,12 @@ export async function polishAssetPrompt(
         // 道劫兜底:构造同合同的本地题材正文,不退化为英文逗号串;
         // 通用负面归编译器,这里只保留作业级负面。
         const subjectBody = buildDaojieLocalSubjectBody({ assetType, name, description, isDerivative });
+        const prefiltered = prefilterDaojiePaletteSchemes({ runtimeTrack: assetType, name, description });
         return {
           prompt: subjectBody,
           promptZh: `${name}：${description.trim() || name}`,
           negativePrompt: request.negativePrompt?.trim() ?? "",
-          daojie: { subjectBody },
+          daojie: { subjectBody, ...(prefiltered[0] ? { schemeId: prefiltered[0].scheme.schemeId } : {}) },
           status: "success",
         };
       }
@@ -152,11 +159,13 @@ export async function polishAssetPrompt(
       // 道劫:LLM 只拥有题材正文;不做通用 clean/denoise 追加,
       // 自动层、唯一 Avoid 与 300-800 长度门由 daojie-prompt-contract 在生成前统一编译。
       const subjectBody = sanitizeExtendedManualPrompt(parsed.prompt);
+      // AI 自动选配三轨配色方案(42 色卡/每轨 8 方案);失败降级规则预筛,再降级 source-facts-only
+      const schemeId = await selectDaojiePaletteSchemeForAsset({ assetType, name, description });
       return {
         ...parsed,
         prompt: subjectBody,
         negativePrompt: parsed.negativePrompt || request.negativePrompt || "",
-        daojie: { subjectBody },
+        daojie: { subjectBody, ...(schemeId ? { schemeId } : {}) },
         status: "success",
       };
     }
@@ -443,6 +452,45 @@ function parsePolishResult(
     promptZh: promptZh || undefined,
     negativePrompt,
   };
+}
+
+/**
+ * AI 自动选配三轨配色方案(ma-gongbi-palette-v1):
+ * LLM 从当前轨 8 个方案中按资产气质挑选,输出严格 JSON;失败降级规则预筛,再降级 null(source-facts-only)。
+ */
+async function selectDaojiePaletteSchemeForAsset(input: {
+  assetType: AssetType;
+  name: string;
+  description: string;
+}): Promise<string | null> {
+  const maTrack = input.assetType === "character" ? "person" : input.assetType;
+  const trackLabel: Record<AssetType, string> = { character: "人物", scene: "场景", prop: "道具" };
+  const systemPrompt = [
+    "你是道劫工笔生图的配色导演。42 色卡体系为每个轨道提供配色方案(五职责矿物色配方:底色/墨线/主色/辅色/点睛色)。",
+    "给定资产信息,从候选方案中选出最贴合其气质与用途的一个。",
+    "规则:匹配 suitable 气质用途,规避 forbidden;资产描述若已写明具体色相且与方案冲突,选 null(色相服从来源事实);绝不编造候选之外的 id。",
+    '只输出一个 JSON 对象:{"schemeId":"<候选id>"} 或 {"schemeId":null}',
+  ].join("\n");
+  const userPrompt = `资产类型:${trackLabel[input.assetType]}\n名称:${input.name}\n描述:${input.description}\n\n候选方案:\n${buildDaojiePaletteSelectionCatalog(maTrack)}`;
+  for (const feature of PROMPT_POLISH_FEATURES) {
+    try {
+      const text = await aiManager.featureText(feature, systemPrompt, userPrompt, {
+        temperature: 0,
+        maxTokens: 256,
+        disableThinking: true,
+      });
+      const schemeId = parseDaojiePaletteSelectionResponse(text, maTrack);
+      if (schemeId) return schemeId;
+    } catch {
+      // 尝试下一 feature;全部失败走预筛兜底
+    }
+  }
+  const prefiltered = prefilterDaojiePaletteSchemes({
+    runtimeTrack: input.assetType,
+    name: input.name,
+    description: input.description,
+  });
+  return prefiltered[0]?.scheme.schemeId ?? null;
 }
 
 /**

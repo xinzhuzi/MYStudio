@@ -1,4 +1,10 @@
 import runtimeContractJson from "../../assets/studio-manuals/art_skills/daojie_ink_guofeng/ma_sync/runtime-contract.json";
+import {
+  buildDaojiePaletteModuleText,
+  daojiePaletteModuleId,
+  resolveDaojiePaletteScheme,
+  type DaojiePaletteScheme,
+} from "./daojie-palette";
 import { sha256CanonicalJson } from "../studio/remotion/canonical-json";
 
 export type DaojieLibraryAssetType = "role" | "scene" | "tool";
@@ -268,6 +274,12 @@ export interface DaojiePromptInput {
   subjectBody: string;
   negativeTerms?: string | readonly string[];
   hasReferenceImage?: boolean;
+  /**
+   * 三轨配色方案 id(ma-gongbi-palette-v1,如 "person.02")。
+   * 提供时配色模块输出 MA 同构的五职责色配方(palette.<id>);缺省走 source-facts-only。
+   * 未知/跨轨方案 fail-closed(对齐 MA _resolve_palette_roles)。
+   */
+  paletteSchemeId?: string;
 }
 
 export interface DaojiePromptLengthResult {
@@ -382,9 +394,16 @@ export async function compileDaojiePrompt(input: DaojiePromptInput): Promise<Com
   const subjectBody = input.subjectBody.trim();
   assertSubjectOwnsNoAutomaticLayer(subjectBody);
   const trackModuleId = `style.gongbi-track.${maTrack}`;
+  const paletteScheme: DaojiePaletteScheme | null = input.paletteSchemeId
+    ? resolveDaojiePaletteScheme(input.paletteSchemeId, maTrack)
+    : null;
+  const paletteModuleId = paletteScheme ? daojiePaletteModuleId(paletteScheme) : "palette.source-facts-only";
+  const paletteText = paletteScheme
+    ? buildDaojiePaletteModuleText(paletteScheme)
+    : DAOJIE_RUNTIME_CONTRACT.modules["palette.source-facts-only"].text;
   const positiveModuleIds = [
     "subject.body",
-    "palette.source-facts-only",
+    paletteModuleId,
     "style.gongbi-base",
     trackModuleId,
     "finish.quality",
@@ -393,7 +412,7 @@ export async function compileDaojiePrompt(input: DaojiePromptInput): Promise<Com
   // MA 两阶段形态:composer 空格连接题材/配色/底座/轨道;transport 以换行追加成片与参考图锁
   const corePositive = [
     subjectBody,
-    DAOJIE_RUNTIME_CONTRACT.modules["palette.source-facts-only"].text,
+    paletteText,
     DAOJIE_RUNTIME_CONTRACT.modules["style.gongbi-base"].text,
     DAOJIE_RUNTIME_CONTRACT.modules[trackModuleId].text,
   ].join(DAOJIE_RUNTIME_CONTRACT.moduleSeparator);
@@ -406,7 +425,9 @@ export async function compileDaojiePrompt(input: DaojiePromptInput): Promise<Com
   const length = evaluateDaojiePromptLength(positive, negative);
   const moduleLengths: Record<string, number> = { "subject.body": unicodeLength(subjectBody) };
   for (const moduleId of positiveModuleIds.slice(1)) {
-    moduleLengths[moduleId] = unicodeLength(DAOJIE_RUNTIME_CONTRACT.modules[moduleId].text);
+    moduleLengths[moduleId] = moduleId === paletteModuleId
+      ? unicodeLength(paletteText)
+      : unicodeLength(DAOJIE_RUNTIME_CONTRACT.modules[moduleId].text);
   }
   moduleLengths["negative.universal"] = unicodeLength(negative);
   const moduleIds = [...positiveModuleIds, "negative.universal"];
@@ -415,7 +436,9 @@ export async function compileDaojiePrompt(input: DaojiePromptInput): Promise<Com
     required: true as const,
     singletonKey: moduleId === "subject.body"
       ? "subject_body"
-      : DAOJIE_RUNTIME_CONTRACT.modules[moduleId].singletonKey,
+      : moduleId === paletteModuleId
+        ? "gongbi_palette_scheme"
+        : DAOJIE_RUNTIME_CONTRACT.modules[moduleId].singletonKey,
     chars: moduleLengths[moduleId],
   }));
   if (length.status === "over_limit") {

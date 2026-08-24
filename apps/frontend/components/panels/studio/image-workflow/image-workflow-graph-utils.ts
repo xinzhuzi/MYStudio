@@ -243,9 +243,10 @@ export function createOpenImageWorkflowGraph(
   const factionData = getExtendedStoryboardFactionData();
   const sceneRefNames = context.assetReferences?.filter((ref) => ref.assetType === "scene").map((ref) => ref.title);
   const personRefNames = context.assetReferences?.filter((ref) => ref.assetType === "character").map((ref) => ref.title);
+  const propRefNames = context.assetReferences?.filter((ref) => ref.assetType === "prop").map((ref) => ref.title);
   const colorSection = isStoryboard && frameTemplate
     ? buildStoryboardFactionColorSection(
-        { sceneNames: sceneRefNames, personNames: personRefNames },
+        { sceneNames: sceneRefNames, personNames: personRefNames, propNames: propRefNames },
         factionData,
       )
     : "";

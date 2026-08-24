@@ -29,6 +29,21 @@
         "成片主风格锁",
         "通用成片负面"
       ]
+    },
+    {
+      "path": "/Users/zhengbingjin/Project/Unity/MA/.claude/skills/ma-imagegen/scripts/data/三轨选色配料.toml",
+      "sha256": "b1e94b569b743b361a90690d9df707dde03a862c2d2760db04a411b25917ca96",
+      "locks": [
+        "42 色卡",
+        "三轨配色方案"
+      ]
+    },
+    {
+      "path": "/Users/zhengbingjin/Project/Unity/MA/.claude/skills/ma-imagegen/scripts/data/阵营配色与黄金公式.toml",
+      "sha256": "88be5f17ce19a424f55f756a7fed8c3a96a9076a3e4582e35c978b7ae9e93f04",
+      "locks": [
+        "阵营配色配方"
+      ]
     }
   ],
   "locks": [

@@ -79,30 +79,33 @@ export function selectStoryboardFrameTemplate(
 }
 
 /**
- * 阵营色彩职责段(ma-faction-palette-v1):场景名→scene 轨、角色名→person 轨,
+ * 阵营色彩职责段(ma-faction-palette-v1):场景名→scene 轨、角色名→person 轨、
+ * 道具名→prop 轨(条件注入·弱倾向:材质色优先+小纹样,对齐 MA faction_visual_locks 政策),
  * 各自去重取一(同轨多阵营时取首个命中),拼「【色彩】(阵营·轨道):五职责串」。
- * prop 轨 = not_applicable:合同只有 person/scene 两轨,本函数不得输出道具阵营色。
+ * prop 仅在分镜明确提供道具资产名时注入,不为「三轨齐全」无条件补齐;
  * 数据未预热/无命中 → 空串(prefix 通用配色五职责已覆盖,不重复注入)。
  */
 export function buildStoryboardFactionColorSection(
-  input: { sceneNames?: string[]; personNames?: string[] },
+  input: { sceneNames?: string[]; personNames?: string[]; propNames?: string[] },
   faction: {
     members: Record<string, string>;
-    palette: Record<string, { person: string; scene: string }>;
+    palette: Record<string, { person: string; scene: string; prop?: string }>;
   },
 ): string {
-  const pick = (names: string[] | undefined, track: "person" | "scene") => {
+  const pick = (names: string[] | undefined, track: "person" | "scene" | "prop") => {
     for (const name of names ?? []) {
       const factionName = faction.members[name.trim()];
       const combo = factionName ? faction.palette[factionName] : undefined;
-      if (combo?.[track]) return `(${factionName}·${track === "person" ? "人物" : "场景"})${combo[track]}`;
+      const text = combo?.[track];
+      if (text) return `(${factionName}·${track === "person" ? "人物" : track === "scene" ? "场景" : "道具"})${text}`;
     }
     return "";
   };
   const personPart = pick(input.personNames, "person");
   const scenePart = pick(input.sceneNames, "scene");
-  return [personPart, scenePart].filter(Boolean).length
-    ? `【色彩】阵营色彩职责 ${[personPart, scenePart].filter(Boolean).join(";")}`
+  const propPart = pick(input.propNames, "prop");
+  return [personPart, scenePart, propPart].filter(Boolean).length
+    ? `【色彩】阵营色彩职责 ${[personPart, scenePart, propPart].filter(Boolean).join(";")}`
     : "";
 }
 

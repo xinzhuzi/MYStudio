@@ -1,6 +1,6 @@
 {
   "contractVersion": "ma-gongbi-v1",
-  "contractSha256": "57c5c5602cd92736be7c7d9f045579313ddabcd69c22716ce300e30564eddf66",
+  "contractSha256": "50b7505bb80a0c0396a878d80efa823328849ada46650b25be228ef2a7047602",
   "syncedAt": "2026-08-15",
   "maSources": [
     {
@@ -27,6 +27,16 @@
       "path": "scripts/prompting/length_policy.py",
       "sha256": "cddf7aa11a47fad87a188461bcda7e0a7056e19fb39fec4e4a682250ce0c0a86",
       "responsibility": "provider-visible 长度与 Avoid 分隔符"
+    },
+    {
+      "path": "scripts/data/三轨选色配料.toml",
+      "sha256": "b1e94b569b743b361a90690d9df707dde03a862c2d2760db04a411b25917ca96",
+      "responsibility": "42 色卡与三轨配色方案"
+    },
+    {
+      "path": "scripts/data/阵营配色与黄金公式.toml",
+      "sha256": "88be5f17ce19a424f55f756a7fed8c3a96a9076a3e4582e35c978b7ae9e93f04",
+      "responsibility": "12 阵营×3 轨配色配方"
     }
   ],
   "trackMappings": {
