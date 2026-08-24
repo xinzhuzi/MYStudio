@@ -7,7 +7,8 @@ import { buildStoryboardItemOpenContext } from "../WorkflowNodePreviews";
 import { resolveStoryboardAssetReferences } from "./storyboard-asset-references";
 import {
   createOpenImageWorkflowGraph,
-  matchesStoryboardOpenContext,
+  ensureStoryboardAssetReferences,
+  findStoryboardWorkflowForContext,
   resolveOpenContextGeneratedNodeId,
 } from "./image-workflow-graph-utils";
 import { runImageWorkflowNodeGeneration } from "./run-image-workflow-node-generation";
@@ -98,11 +99,21 @@ export function useStoryboardBatchGeneration(input: {
 async function generateOneShot(shot: StoryboardItem, projectName: string): Promise<void> {
   const context = buildStoryboardItemOpenContext(shot);
   const store = useStudioStore.getState();
-  let graph = store.imageWorkflows.find((item) => matchesStoryboardOpenContext(item, context));
+  // 身份防线:择优复用(有参考节点的旧代/新代并存时优先带参考者),
+  // 选中者无参考而分镜带资产清单→重解析补挂(S08 实证:空参考会让
+  // 模型自由发挥角色形象,监工被画成主角剑客相)
+  let graph = findStoryboardWorkflowForContext(store.imageWorkflows, context);
   if (!graph) {
     const assetReferences = await resolveStoryboardAssetReferences(shot).catch(() => []);
     graph = createOpenImageWorkflowGraph({ ...context, assetReferences }, projectName);
     useStudioStore.getState().upsertImageWorkflow(graph);
+  } else if (!graph.nodes.some((node) => node.type === "reference")) {
+    const references = await resolveStoryboardAssetReferences(shot).catch(() => []);
+    const ensured = ensureStoryboardAssetReferences(graph, references);
+    if (ensured !== graph) {
+      useStudioStore.getState().upsertImageWorkflow(ensured);
+      graph = ensured;
+    }
   }
   const targetNodeId = resolveOpenContextGeneratedNodeId(graph, context)
     ?? graph.nodes.find((node) => node.type === "generated")?.id;

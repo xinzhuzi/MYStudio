@@ -294,7 +294,7 @@ describe("studio workflow tabs", () => {
 
     expect(canvasSource).toContain("const canUseGlobalWorkflowControls = !isScopedWorkflowDetail;");
     expect(canvasSource).toContain("initialAssetContext.imageWorkflowId");
-    expect(canvasSource).toContain("matchesStoryboardOpenContext(item, initialAssetContext)");
+    expect(canvasSource).toContain("findStoryboardWorkflowForContext(imageWorkflows, initialAssetContext)");
     expect(canvasSource).toContain("selectedGraph && selectedGraph.id === scopedWorkflow?.id");
     expect(canvasSource).toContain("scopedPendingWritebackTargetLabel");
     expect(canvasSource).toContain("<ImageWorkflowScopedPending");

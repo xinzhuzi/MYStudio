@@ -14,6 +14,7 @@ import { resolveStoryboardAssetReferences } from "./storyboard-asset-references"
 import {
   assetWorkflowContextKey,
   createOpenImageWorkflowGraph,
+  findStoryboardWorkflowForContext,
   imageWorkflowTargetKey,
   isAssetOpenContext,
   matchesStoryboardOpenContext,
@@ -107,11 +108,16 @@ export function useScopedWorkflowLifecycle(input: {
     ) {
       return;
     }
-    const existing = initialAssetContext.imageWorkflowId
+    // 身份防线(08-24 S08 实证): context 带 imageWorkflowId 时按 id 命中,但命中的
+    // 分镜工作流若无参考节点(旧代空壳),先找带参考的替代(指纹/无指纹次优择优),
+    // 都没有再回落 id 命中者——空参考会让模型自由发挥角色形象
+    const byId = initialAssetContext.imageWorkflowId
       ? imageWorkflows.find((graph) => graph.id === initialAssetContext.imageWorkflowId)
-      : imageWorkflows.find((graph) =>
-          matchesStoryboardOpenContext(graph, initialAssetContext),
-        );
+      : undefined;
+    const existing = byId && byId.target.kind === "storyboard"
+      && !byId.nodes.some((node) => node.type === "reference")
+      ? findStoryboardWorkflowForContext(imageWorkflows, initialAssetContext) ?? byId
+      : byId ?? findStoryboardWorkflowForContext(imageWorkflows, initialAssetContext);
     if (existing) {
       const ensured = ensureImageWorkflowPromptNodes(
         isAssetOpenContext(initialAssetContext)

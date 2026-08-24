@@ -38,10 +38,9 @@ import {
   type ImageWorkflowReactNode,
 } from "./image-workflow-node-card";
 import {
- 
+  findStoryboardWorkflowForContext,
   focusNodeIdsForGenerated,
   isAssetOpenContext,
-  matchesStoryboardOpenContext,
   openContextTargetLabel,
   resolveActionGeneratedNode,
   resolveGenerationTargetNodeId,
@@ -100,11 +99,19 @@ export function ImageWorkflowCanvas({
   const scopedWorkflow = useMemo(
     () =>
       initialAssetContext
-        ? initialAssetContext.imageWorkflowId
-          ? imageWorkflows.find((item) => item.id === initialAssetContext.imageWorkflowId)
-          : imageWorkflows.find((item) =>
-              matchesStoryboardOpenContext(item, initialAssetContext),
-            )
+        // 身份防线(08-24 S08 实证,与 lifecycle 同款): id 命中的分镜工作流若无
+        // 参考节点(旧代空壳),优先展示带参考的替代工作流——空参考生成会让
+        // 模型自由发挥角色形象(监工被画成主角剑客相)
+        ? (() => {
+            const byId = initialAssetContext.imageWorkflowId
+              ? imageWorkflows.find((item) => item.id === initialAssetContext.imageWorkflowId)
+              : undefined;
+            if (byId && byId.target.kind === "storyboard"
+              && !byId.nodes.some((node) => node.type === "reference")) {
+              return findStoryboardWorkflowForContext(imageWorkflows, initialAssetContext) ?? byId;
+            }
+            return byId ?? findStoryboardWorkflowForContext(imageWorkflows, initialAssetContext);
+          })()
         : undefined,
     [imageWorkflows, initialAssetContext],
   );

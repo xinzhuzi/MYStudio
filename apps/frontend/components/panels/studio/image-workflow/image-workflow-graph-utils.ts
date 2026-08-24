@@ -205,6 +205,64 @@ export function matchesStoryboardOpenContext(
   return graph.targetSourceFingerprint === required;
 }
 
+/**
+ * 分镜工作流择优(身份防线 08-24): 同 target 同指纹的多代工作流并存时
+ * (历史形态:旧代 image-flow-* 空参考 + 新代 storyboard-flow-* 参考齐全),
+ * 优先返回带参考节点者——空参考工作流的提示词无 @图N/身份锚点,模型会
+ * 自由发挥角色形象(S08 实证:监工赵四被画成清瘦剑客相)。
+ */
+export function findStoryboardWorkflowForContext(
+  graphs: ImageWorkflowGraph[],
+  context: ImageWorkflowOpenContext,
+): ImageWorkflowGraph | undefined {
+  const hasReferences = (graph: ImageWorkflowGraph) => graph.nodes.some((node) => node.type === "reference");
+  const matched = graphs.filter((graph) => matchesStoryboardOpenContext(graph, context));
+  const refBearingExact = matched.find(hasReferences);
+  if (refBearingExact) return refBearingExact;
+  if (context.target.kind === "storyboard") {
+    // 次优:同目标、无指纹但带参考的工作流(旧建流函数不写 targetSourceFingerprint,
+    // 指纹门禁会误挡——参考对当前镜有效即可用;空参考无指纹者代次不明,不选)。
+    // 必须先于 matched[0] 兜底——否则空参考旧壳永远占位(08-24 S08 实证)
+    const secondary = graphs.find((graph) =>
+      isSameImageWorkflowTarget(graph.target, context.target)
+      && !graph.targetSourceFingerprint
+      && hasReferences(graph));
+    if (secondary) return secondary;
+  }
+  return matched[0];
+}
+
+/**
+ * 参考完备性补挂(身份防线 08-24): 复用既有分镜工作流而图内无资产参考时,
+ * 按 createOpenImageWorkflowGraph 同款参数补挂解析出的参考并连向成图节点;
+ * 幂等(已有参考节点原样返回)。
+ */
+export function ensureStoryboardAssetReferences(
+  graph: ImageWorkflowGraph,
+  references: ImageWorkflowOpenContext["assetReferences"],
+): ImageWorkflowGraph {
+  if (!references?.length) return graph;
+  if (graph.nodes.some((node) => node.type === "reference")) return graph;
+  let next = graph;
+  references.forEach((reference, index) => {
+    next = addReferenceImageNode(next, {
+      id: createId("asset-ref", Date.now() + index + 1),
+      title: reference.title,
+      imageUrl: reference.imageUrl,
+      source: { kind: "asset", assetType: reference.assetType, id: reference.assetId },
+      continuityOrder: index + 1,
+      position: { x: 80, y: 100 + index * 180 },
+    });
+  });
+  const generatedNodeId = next.nodes.find((node) => node.type === "generated")?.id;
+  if (generatedNodeId) {
+    for (const node of next.nodes.filter((item) => item.type === "reference")) {
+      next = connectImageWorkflowNodes(next, { source: node.id, target: generatedNodeId });
+    }
+  }
+  return next;
+}
+
 export function assetWorkflowContextKey(context: ImageWorkflowOpenContext) {
   return [context.imageWorkflowId ?? "", imageWorkflowTargetKey(context.target)].join("|");
 }
