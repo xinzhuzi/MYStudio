@@ -180,3 +180,36 @@ describe("generateFreedomImage", () => {
     expect(secondHeaders.Authorization ?? secondHeaders.authorization).toBe("Bearer sk-good");
   });
 });
+
+  it("falls back to chat/completions form when the images endpoint fails at the gateway (502 non-JSON)", async () => {
+    const fetchMock = vi.fn().mockImplementation(async (url: string | URL) => {
+      const target = String(url);
+      if (target.endsWith("/chat/completions")) {
+        return new Response(JSON.stringify({
+          choices: [{ message: { role: "assistant", content: "![image_1](data:image/png;base64,aGVsbG8=)" } }],
+        }), { status: 200 });
+      }
+      return new Response("error code: 502", { status: 502 });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const result = await generateFreedomImage({ prompt: "gateway fallback image" });
+
+    expect(result.url).toBe("data:image/png;base64,aGVsbG8=");
+    const chatCall = fetchMock.mock.calls.find(([url]) => String(url).endsWith("/chat/completions"));
+    expect(chatCall).toBeTruthy();
+    const chatBody = JSON.parse(String(chatCall?.[1]?.body));
+    expect(chatBody.model).toBe("gpt-image-2");
+    expect(chatBody.messages[0].content[0].text).toContain("gateway fallback image");
+  }, 20000);
+
+  it("does not fall back to chat form on deterministic auth failures (401)", async () => {
+    const fetchMock = vi.fn().mockImplementation(async () => new Response(
+      JSON.stringify({ error: { message: "Invalid API key" } }),
+      { status: 401 },
+    ));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(generateFreedomImage({ prompt: "auth failure image" })).rejects.toThrow();
+    expect(fetchMock.mock.calls.some(([url]) => String(url).endsWith("/chat/completions"))).toBe(false);
+  }, 20000);

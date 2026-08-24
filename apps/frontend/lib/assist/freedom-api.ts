@@ -88,6 +88,19 @@ function throwImageSdkError(result: { error?: string; status?: number }, fallbac
   throw new Error(message);
 }
 
+/**
+ * images 端点网关性失败判定(→ chat 形态回退的门槛): 仅网关/上游类瞬时故障
+ * (5xx 网关、非 JSON 错误体、超时、连接重置)才值得换端点重试;鉴权/参数等
+ * 确定性错误不回退,维持原语义免无效等待。08-24 实证:部分中转站(如 qkmss)
+ * 的 gpt-image 系在 /v1/images/generations 稳定 502,而 chat/completions
+ * 返回 markdown 内嵌 base64 图——同模型名在不同供应商的可用端点不同,
+ * 回退按「同渠道同 key 同模型」进行,不影响 images 端点健康的供应商。
+ */
+function isImagesEndpointGatewayFailure(error: unknown): boolean {
+  const message = error instanceof Error ? error.message : String(error);
+  return /invalid json|bad gateway|service unavailable|gateway time-?out|timed? out|etimedout|econnreset|econnrefused|socket hang up|network error|fetch failed|\b50[234]\b/i.test(message);
+}
+
 function withGlobalImageSizeDefaults(params: FreedomImageParams): FreedomImageParams {
   const imageSettings = useAppSettingsStore.getState().imageGenerationSettings;
   return {
@@ -213,7 +226,31 @@ async function _generateFreedomImageInner(
   if (route === 'replicate') {
     return await generateViaReplicateImageEndpoint(params, model, apiKey, normalizedBase, saveFreedomImage);
   }
-  return await generateViaImagesEndpoint(params, model, apiKey, normalizedBase, endpointTypes, operationId, config.provider);
+  try {
+    return await generateViaImagesEndpoint(params, model, apiKey, normalizedBase, endpointTypes, operationId, config.provider);
+  } catch (error) {
+    if (!isImagesEndpointGatewayFailure(error)) throw error;
+    await logEvent({
+      level: 'warn',
+      category: 'ai',
+      operationId,
+      message: 'Images endpoint gateway failure, falling back to chat form',
+      context: {
+        endpointFamily: 'freedom-image',
+        baseUrl,
+        model,
+        reason: error instanceof Error ? error.message : String(error),
+      },
+    });
+    return await generateFreedomImageViaChat(
+      params,
+      model,
+      apiKey,
+      normalizedBase,
+      (url, prompt) => saveToMediaLibrary(url, prompt, 'ai-image'),
+      operationId,
+    );
+  }
 }
 
 /**
