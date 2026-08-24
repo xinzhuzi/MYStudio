@@ -200,6 +200,38 @@ export function parseProjectFileUrl(projectFileUrl: string) {
   return { projectId, relativePath };
 }
 
+/**
+ * asset-file://<category>/<rest> —— APP 受管资产树(<storageBase>/assets/files)的
+ * 虚拟引用(08-24 裁定:store 绝不写绝对路径)。与 project-file://(项目根)和
+ * local-image://(media 树)三足并立;?thumb=1 变体解析到缩略图树。
+ */
+export function createAssetFileUrl(relativePath: string, options?: { thumb?: boolean }) {
+  const normalized = normalizeRelativePath(relativePath, "asset file path");
+  const query = options?.thumb ? "?thumb=1" : "";
+  return `asset-file://${encodeRelativePath(normalized)}${query}`;
+}
+
+export function parseAssetFileUrl(assetFileUrl: string) {
+  const withoutQuery = assetFileUrl.split("?")[0] ?? assetFileUrl;
+  const match = withoutQuery.match(/^asset-file:\/\/(.+)$/);
+  if (!match) return null;
+  return {
+    relativePath: normalizeRelativePath(
+      match[1].split("/").map((part) => decodeURIComponent(part)).join("/"),
+      "asset file path",
+    ),
+    thumb: /[?&]thumb=1\b/.test(assetFileUrl),
+  };
+}
+
+export function resolveAssetFilePath(assetsRoot: string, assetFileUrl: string) {
+  const parsed = parseAssetFileUrl(assetFileUrl);
+  if (!parsed) throw new Error("Invalid asset file url");
+  const treeRoot = path.resolve(assetsRoot, parsed.thumb ? "thumbs" : "files");
+  const resolved = path.resolve(treeRoot, parsed.relativePath);
+  return assertInsideRoot(treeRoot, resolved, "Asset file path");
+}
+
 export function resolveProjectScopedFilePath(dataRoot: string, projectId: string, relativePath: string) {
   const normalizedProjectId = normalizePathSegment(projectId, "project id");
   const normalizedRelativePath = normalizeRelativePath(relativePath, "project file path");

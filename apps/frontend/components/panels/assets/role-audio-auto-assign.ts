@@ -224,7 +224,9 @@ export function buildRoleAudioCandidates(
   const runtimeCandidates: RoleAudioCandidate[] = runtimeAssets
     .filter((item) => item.type === "audio")
     .flatMap((item) => {
-      const filePath = (item.sourcePath || item.filePath || "").trim();
+      // 08-24 路径裁定:候选 filePath 优先取虚拟 asset-file://(会被持久化进
+      // tts profile),绝对 sourcePath 仅作兜底(瞬态消费)
+      const filePath = (item.previewUrl || item.filePath || item.sourcePath || "").trim();
       if (!filePath) return [];
       return [{
         id: item.id,

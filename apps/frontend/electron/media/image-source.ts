@@ -1,6 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
-import { resolveLocalMediaPath, resolveProjectFileUrl } from "../storage/storage-paths";
+import { resolveAssetFilePath, resolveLocalMediaPath, resolveProjectFileUrl } from "../storage/storage-paths";
 
 export type ImageSource = {
   buffer: Buffer;
@@ -15,6 +15,7 @@ const IMAGE_SOURCE_MAX_BYTES_ENV = "MYSTUDIO_IMAGE_SOURCE_MAX_BYTES";
 type ImageSourceReaderOptions = {
   getDataDir: () => string;
   getMediaRoot: () => string;
+  getAssetsRoot?: () => string;
   /**
    * 绝对路径 / file:// 源的受管根守卫。未注入时绝对路径与 file:// 分支一律拒绝
    * (fail-closed)——readImageSource 的产物会外发到图床,不能当任意文件读取原语。
@@ -137,6 +138,7 @@ async function fetchImageBuffer(url: string, fetchImage: ImageSourceFetch, timeo
 export function createImageSourceReader({
   getDataDir,
   getMediaRoot,
+  getAssetsRoot,
   isAbsoluteImageSourceAllowed,
   fetchImage = (url, init) => fetch(url, init),
   fileExists = fs.existsSync,
@@ -148,6 +150,9 @@ export function createImageSourceReader({
     }
     if (imagePath.startsWith("local-image://")) {
       return resolveLocalMediaPath(getMediaRoot(), imagePath);
+    }
+    if (imagePath.startsWith("asset-file://") && getAssetsRoot) {
+      return resolveAssetFilePath(getAssetsRoot(), imagePath);
     }
     let candidate: string | null = null;
     if (imagePath.startsWith("file://")) {

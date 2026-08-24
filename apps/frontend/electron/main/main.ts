@@ -542,6 +542,7 @@ const {
   getProjectDataRoot,
   getMediaRoot,
   getSkillsRoot,
+  getAssetsRoot,
   scheduleAutoClean,
 } = storageManager
 
@@ -592,7 +593,7 @@ const isStudioSourcePathAllowed = (targetPath: string): boolean => (
   isPathInsideAnyRoot(getManagedSourceRoots(), targetPath) || blessedDialogPaths.has(targetPath)
 )
 
-const readImageSource = createImageSourceReader({ getDataDir, getMediaRoot, isAbsoluteImageSourceAllowed: isStudioSourcePathAllowed })
+const readImageSource = createImageSourceReader({ getDataDir, getMediaRoot, getAssetsRoot, isAbsoluteImageSourceAllowed: isStudioSourcePathAllowed })
 
 // Storage/media orchestration delegates registerLocalMediaIpcHandlers, image-host, and file-storage.
 registerStorageMediaIpcHandlers({
@@ -1817,6 +1818,7 @@ app.whenReady().then(async () => {
     getMediaRoot,
     getDataDir,
     getSkillsRoot,
+    getAssetsRoot,
   })
   
   createWindow()

@@ -1,7 +1,7 @@
 import type { Protocol } from "electron";
 import fs from "node:fs";
 import path from "node:path";
-import { resolveLocalMediaPath, resolveProjectFileUrl } from "../storage/storage-paths";
+import { resolveAssetFilePath, resolveLocalMediaPath, resolveProjectFileUrl } from "../storage/storage-paths";
 import { resolveToonflowAssetPath } from "../storage/studio-runtime-assets";
 
 type ReadFile = (filePath: string) => Uint8Array;
@@ -11,14 +11,17 @@ interface ProtocolHandlerOptions {
   getMediaRoot: () => string;
   getDataDir: () => string;
   getSkillsRoot: () => string;
+  getAssetsRoot: () => string;
   readFile?: ReadFile;
   resolveLocalMedia?: typeof resolveLocalMediaPath;
   resolveProjectFile?: typeof resolveProjectFileUrl;
+  resolveAssetFile?: typeof resolveAssetFilePath;
   resolveToonflowAsset?: typeof resolveToonflowAssetPath;
 }
 
 export function registerPrivilegedSchemes(protocol: Protocol) {
   protocol.registerSchemesAsPrivileged([
+    "asset-file",
     "local-image",
     "project-file",
     "studio-skill",
@@ -65,9 +68,11 @@ export function registerProtocolHandlers({
   getMediaRoot,
   getDataDir,
   getSkillsRoot,
+  getAssetsRoot,
   readFile = fs.readFileSync,
   resolveLocalMedia = resolveLocalMediaPath,
   resolveProjectFile = resolveProjectFileUrl,
+  resolveAssetFile = resolveAssetFilePath,
   resolveToonflowAsset = resolveToonflowAssetPath,
 }: ProtocolHandlerOptions) {
   const respondWithFile = (filePath: string) => new Response(Uint8Array.from(readFile(filePath)).buffer, {
@@ -88,6 +93,15 @@ export function registerProtocolHandlers({
       return respondWithFile(resolveProjectFile(getDataDir(), request.url));
     } catch (error) {
       console.error("Failed to load project file:", error);
+      return new Response("File not found", { status: 404 });
+    }
+  });
+
+  protocol.handle("asset-file", async (request) => {
+    try {
+      return respondWithFile(resolveAssetFile(getAssetsRoot(), request.url));
+    } catch (error) {
+      console.error("Failed to load asset file:", error);
       return new Response("File not found", { status: 404 });
     }
   });

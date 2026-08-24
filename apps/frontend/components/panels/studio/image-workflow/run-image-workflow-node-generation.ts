@@ -55,14 +55,19 @@ export async function runImageWorkflowNodeGeneration(
 
   const projectId = useProjectStore.getState().activeProjectId;
   if (!projectId) throw new Error("请先选择项目");
-  // 资产参考(file://)按需转 dataURL 传输:节点只存轻量 file:// 路径
-  // (持久化纪律,防 dataURL 入库 OOM),发送前经 IPC 读受管图转 base64
-  // ——与 project-file:// 参考同口径,不落盘。
+  // 资产参考(file:// 与 asset-file://)按需转 dataURL 传输:节点只存轻量
+  // 虚拟/受管路径(持久化纪律,防 dataURL 入库 OOM),发送前经 IPC 读受管图
+  // 转 base64——与 project-file:// 参考同口径,不落盘。
   const assetBridge = getStudioAssetsBridge();
   const assetRefIdsByUrl = new Map(
     graph.nodes
       .filter((node): node is typeof node & { type: "reference"; imageUrl: string } =>
-        node.type === "reference" && Boolean(node.imageUrl?.startsWith("file://"))
+        node.type === "reference"
+        && Boolean(
+          node.imageUrl?.startsWith("file://")
+          || node.imageUrl?.startsWith("asset-file://")
+          || node.imageUrl?.startsWith("/"),
+        )
         && node.source?.kind === "asset" && Boolean(node.source.id))
       .map((node) => [node.imageUrl as string, (node.source as { id: string }).id]),
   );

@@ -72,8 +72,8 @@ describe("registerAssetLibraryIpcHandlers", () => {
     registerHandlers();
     expect([...handlers.keys()].sort()).toEqual([
       "assets:add", "assets:add-image", "assets:batch-match", "assets:delete", "assets:get",
-      "assets:get-by-name", "assets:import-from-toonflow", "assets:list", "assets:read-image-data-url", "assets:remove-image",
-      "assets:rename-image", "assets:replace-image", "assets:select-audio-file", "assets:select-image-file", "assets:select-image-files", "assets:update",
+      "assets:get-by-name", "assets:import-from-toonflow", "assets:list", "assets:read-image-data-url", "assets:remove-image", "assets:rename-image",
+      "assets:replace-image", "assets:resolve-file-url", "assets:select-audio-file", "assets:select-image-file", "assets:select-image-files", "assets:update",
     ]);
     expect(assetStorageMocks.initAssetsStorage).not.toHaveBeenCalled();
   });

@@ -101,10 +101,12 @@ export async function upscaleProjectImage(input: {
     throw new Error("无法确定超分输出路径");
   }
   // 请求载荷携带与输入同形态的引用:project-file → 项目相对路径,
-  // local-image → URL。主进程按各自根域解析。
+  // local-image → URL,asset-file → 虚拟 URL。主进程按各自根域解析。
   const outputRequestRef: UpscaleMediaRef = ref.kind === "project-file"
     ? { kind: "project-file", projectId: ref.projectId, relativePath: siblingProjectPathForReport(ref.relativePath, filename) }
-    : { kind: "local-image", category: ref.category, filename };
+    : ref.kind === "asset-file"
+      ? { kind: "asset-file", relativePath: siblingProjectPathForReport(ref.relativePath, filename) }
+      : { kind: "local-image", category: ref.category, filename };
   const outputRelativePath: string = outputRequestRef.kind === "project-file" ? outputRequestRef.relativePath : filename;
   const artifact = await runUpscaleImage({
     schemaVersion: 1,

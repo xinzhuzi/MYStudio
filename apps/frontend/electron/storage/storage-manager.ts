@@ -657,6 +657,7 @@ export function createStorageManager({ userDataPath, sessionDataPath = userDataP
     getStorageBasePath,
     getProjectDataRoot,
     getMediaRoot,
+    getAssetsRoot,
     getSkillsRoot,
     scheduleAutoClean,
     registerIpcHandlers,

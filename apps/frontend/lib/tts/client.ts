@@ -10,6 +10,7 @@ import type {
   VoiceProfile,
 } from "@/types/tts";
 import { getTtsRuntimeBridge } from "@/lib/bridge/tts-runtime";
+import { getStudioAssetsBridge } from "@/lib/bridge/studio-assets";
 
 export { LOCAL_TTS_BASE_URL } from "./constants";
 
@@ -130,7 +131,22 @@ export function createBackendVoiceProfile(payload: Partial<VoiceProfile>) {
   return request<VoiceProfile>("POST", "/profiles", body);
 }
 
-export function ensureBackendVoiceProfile(profile: VoiceProfile) {
+/**
+ * TTS Python 后端只吃真实文件路径;store 持久化的 referenceAudioPath 已按
+ * 08-24 路径裁定虚拟化(asset-file://),在本边界(发往后端前)瞬态解析回
+ * 受管绝对路径——前端 store 形态保持虚拟不动。
+ */
+async function resolveBackendReferenceAudioPath(path: string | undefined): Promise<string | undefined> {
+  if (!path?.startsWith("asset-file://")) return path;
+  try {
+    const resolved = await getStudioAssetsBridge()?.resolveFileUrl?.(path);
+    return resolved ?? path;
+  } catch {
+    return path;
+  }
+}
+
+export async function ensureBackendVoiceProfile(profile: VoiceProfile) {
   return createBackendVoiceProfile({
     id: profile.id,
     name: profile.name,
@@ -138,7 +154,7 @@ export function ensureBackendVoiceProfile(profile: VoiceProfile) {
     language: profile.language,
     defaultEngine: profile.defaultEngine,
     defaultModelSize: profile.defaultModelSize,
-    referenceAudioPath: profile.referenceAudioPath,
+    referenceAudioPath: await resolveBackendReferenceAudioPath(profile.referenceAudioPath),
     referenceText: profile.referenceText,
     presetVoiceId: profile.presetVoiceId,
     instruct: profile.instruct,

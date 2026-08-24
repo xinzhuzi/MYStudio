@@ -610,6 +610,7 @@ declare global {
       getByName: (payload: { type: string; name: string }) => Promise<StudioAssetSummary | null>;
       batchMatch: (payload: { type: string; names: string[] }) => Promise<Array<{ name: string; asset: StudioAssetSummary | null }>>;
       readImageDataUrl: (id: string) => Promise<string | null>;
+      resolveFileUrl: (url: string) => Promise<string | null>;
     };
     ttsRuntime?: {
       status: () => Promise<TtsRuntimeStatus>;

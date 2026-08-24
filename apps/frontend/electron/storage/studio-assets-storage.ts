@@ -9,6 +9,7 @@ import { randomUUID } from "node:crypto";
 import { promisify } from "node:util";
 import type { AssetImage, StudioAssetKind, StudioAssetSummary } from "../../types/studio-assets";
 import { assetNameMatchesQuery } from "../../lib/studio/asset-names";
+import { createAssetFileUrl } from "./storage-paths";
 
 const execFileAsync = promisify(execFile);
 const SQLITE_BUSY_TIMEOUT_MS = 5000;
@@ -95,10 +96,10 @@ function getThumbUrl(filePath: string | undefined, type: string): string | undef
   if (!filePath) return undefined;
   if (!shouldCreateAssetThumbnail(type)) {
     const srcPath = resolveAssetManagedPath(getFilesDir(), filePath);
-    return fs.existsSync(srcPath) ? `file://${srcPath}` : undefined;
+    return fs.existsSync(srcPath) ? createAssetFileUrl(filePath) : undefined;
   }
   const thumbPath = resolveAssetManagedPath(getThumbsDir(), filePath);
-  if (fs.existsSync(thumbPath)) return `file://${thumbPath}`;
+  if (fs.existsSync(thumbPath)) return createAssetFileUrl(filePath, { thumb: true });
   // 异步生成缩略图（限流，不阻塞返回）
   const srcPath = resolveAssetManagedPath(getFilesDir(), filePath);
   if (!fs.existsSync(srcPath)) return undefined;
@@ -106,7 +107,7 @@ function getThumbUrl(filePath: string | undefined, type: string): string | undef
   fs.mkdirSync(thumbDir, { recursive: true });
   enqueueThumb(srcPath, thumbPath);
   // 首次返回原图 URL，下次就有缩略图了
-  return `file://${srcPath}`;
+  return createAssetFileUrl(filePath);
 }
 
 function resolveManagedAssetPathOrUndefined(relativePath: string | undefined) {
@@ -298,7 +299,9 @@ export async function listAssets(type: StudioAssetKind, search?: string, offset 
 
   const items: StudioAssetSummary[] = rows.map((row) => {
     const absPath = resolveManagedAssetPathOrUndefined(row.filePath);
-    const previewUrl = absPath ? `file://${absPath}` : undefined;
+    // 08-24 路径裁定:桥响应中会被持久化进 store 的字段一律虚拟
+    // asset-file://(sourcePath 为瞬态主进程消费字段,保持绝对)
+    const previewUrl = absPath ? createAssetFileUrl(row.filePath) : undefined;
     let tags: string[] = [];
     try { tags = row.tags ? JSON.parse(row.tags) : []; } catch { tags = []; }
     return {
@@ -763,7 +766,7 @@ function getAssetSync(id: string): StudioAssetSummary | null {
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function rowToSummary(row: any): StudioAssetSummary {
   const absPath = resolveManagedAssetPathOrUndefined(row.filePath);
-  const previewUrl = absPath ? `file://${absPath}` : undefined;
+  const previewUrl = absPath ? createAssetFileUrl(row.filePath) : undefined;
   let images: AssetImage[] | undefined;
   try {
     const parsed = JSON.parse(row.images || "[]");
@@ -776,7 +779,7 @@ function rowToSummary(row: any): StudioAssetSummary {
           return {
             name: img.name,
             filePath: img.filePath,
-            url: `file://${imagePath}`,
+            url: createAssetFileUrl(img.filePath),
           };
         })
         .filter((img: AssetImage | null): img is AssetImage => Boolean(img));

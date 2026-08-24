@@ -34,6 +34,7 @@ assets:read-image-data-url
 assets:remove-image
 assets:rename-image
 assets:replace-image
+assets:resolve-file-url
 assets:select-audio-file
 assets:select-image-file
 assets:select-image-files

@@ -1,7 +1,10 @@
 import { dialog, ipcMain } from "electron";
+import nodeFs from "node:fs";
+import nodePath from "node:path";
 import * as assetsStorage from "../../storage/studio-assets-storage";
 import { getAssetImagePickerDefaultPath } from "../../media/asset-image-picker";
 import { listStudioRuntimeAssets } from "../../storage/studio-runtime-assets";
+import { resolveAssetFilePath } from "../../storage/storage-paths";
 import type { DiagnosticsLogEntryInput } from "../../../types/diagnostics";
 
 type RegisterAssetLibraryIpcHandlersContext = {
@@ -124,6 +127,19 @@ export function registerAssetLibraryIpcHandlers({
   ipcMain.handle("assets:read-image-data-url", async (_event, id: string) => (
     runAssetDiagnostics("read-image-data-url", { id }, () => assetsStorage.readAssetImageDataUrl(id))
   ));
+  // asset-file:// 虚拟引用 → 受管绝对路径(瞬态解析,供 TTS Python 后端等
+  // 只吃真实路径的消费边界;store 持久化形态恒为虚拟——08-24 路径裁定)
+  ipcMain.handle("assets:resolve-file-url", (_event, url: string) => {
+    try {
+      const absolute = resolveAssetFilePath(
+        nodePath.join(getStorageBasePath(), "assets"),
+        String(url ?? ""),
+      );
+      return nodeFs.existsSync(absolute) ? absolute : null;
+    } catch {
+      return null;
+    }
+  });
   ipcMain.handle("assets:batch-match", async (_event, payload: { type: string; names: string[] }) => (
     runAssetDiagnostics("batch-match", {
       type: payload.type,

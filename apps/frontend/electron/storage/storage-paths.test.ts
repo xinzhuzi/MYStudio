@@ -3,9 +3,12 @@ import os from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import {
+  createAssetFileUrl,
   createProjectFileUrl,
+  parseAssetFileUrl,
   parseLocalMediaPath,
   parseProjectFileUrl,
+  resolveAssetFilePath,
   resolveDataDirPath,
   resolveDataFilePath,
   resolveLocalMediaPath,
@@ -74,6 +77,29 @@ describe("storage path helpers", () => {
     expect(() => createProjectFileUrl("dao\0project", "workflow-images/cover.png")).toThrow("Invalid");
     expect(() => parseProjectFileUrl("project-file://dao%2Fproject/workflow-images/cover.png")).toThrow("escapes");
     expect(() => resolveProjectScopedFilePath("/data/projects", "../dao", "workflow-images/cover.png")).toThrow("escapes");
+  });
+
+  it("builds and resolves asset-file virtual urls inside the managed assets tree", () => {
+    expect(createAssetFileUrl("role/hero-1.png")).toBe("asset-file://role/hero-1.png");
+    expect(createAssetFileUrl("role/hero-1.png", { thumb: true })).toBe("asset-file://role/hero-1.png?thumb=1");
+    expect(createAssetFileUrl("audio/试听.wav")).toBe("asset-file://audio/%E8%AF%95%E5%90%AC.wav");
+    expect(parseAssetFileUrl("asset-file://role/hero-1.png")).toEqual({
+      relativePath: "role/hero-1.png",
+      thumb: false,
+    });
+    expect(parseAssetFileUrl("asset-file://role/hero-1.png?thumb=1")).toEqual({
+      relativePath: "role/hero-1.png",
+      thumb: true,
+    });
+    expect(() => parseAssetFileUrl("asset-file://../secret.png")).toThrow("escapes");
+    expect(resolveAssetFilePath("/data/assets", "asset-file://role/hero-1.png")).toBe(
+      "/data/assets/files/role/hero-1.png",
+    );
+    expect(resolveAssetFilePath("/data/assets", "asset-file://role/hero-1.png?thumb=1")).toBe(
+      "/data/assets/thumbs/role/hero-1.png",
+    );
+    expect(() => resolveAssetFilePath("/data/assets", "asset-file://../../etc/passwd")).toThrow();
+    expect(() => createAssetFileUrl("../role/hero.png")).toThrow("escapes");
   });
 
   it("resolves the project root and rejects invalid or symlinked project ids", () => {

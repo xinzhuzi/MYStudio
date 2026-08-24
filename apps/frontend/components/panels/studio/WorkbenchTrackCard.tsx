@@ -160,6 +160,7 @@ export function WorkbenchTrackCard(props: {
 export function toPreviewSrc(filePath: string) {
   if (
     filePath.startsWith("local-image://") ||
+    filePath.startsWith("asset-file://") ||
     filePath.startsWith("file://") ||
     filePath.startsWith("project-file://") ||
     filePath.startsWith("data:") ||
