@@ -515,18 +515,23 @@ export function buildStoryboardItemOpenContext(item: {
   sourceFingerprint?: string;
   lines?: string;
   state?: StoryboardItem["state"];
+  associateAssetsNames?: string[];
 }): ImageWorkflowOpenContext {
-  return buildStoryboardImageOpenContext({
-    id: item.id,
-    index: item.index,
-    mediaPath: item.mediaRef?.kind === "image" ? item.mediaRef.path : undefined,
-    title: item.videoDesc || item.prompt || `分镜 ${item.index}`,
-    imageWorkflowId: item.imageWorkflowId ?? item.mediaRef?.imageWorkflowId,
-    sourceFingerprint: item.sourceFingerprint,
-    lines: item.lines,
-    // ProductionFlowStoryboardTile.state 必填;面板视图的分镜行不一定带 state,兜底 ready
-    state: item.state ?? "ready",
-  });
+  return {
+    ...buildStoryboardImageOpenContext({
+      id: item.id,
+      index: item.index,
+      mediaPath: item.mediaRef?.kind === "image" ? item.mediaRef.path : undefined,
+      title: item.videoDesc || item.prompt || `分镜 ${item.index}`,
+      imageWorkflowId: item.imageWorkflowId ?? item.mediaRef?.imageWorkflowId,
+      sourceFingerprint: item.sourceFingerprint,
+      lines: item.lines,
+      // ProductionFlowStoryboardTile.state 必填;面板视图的分镜行不一定带 state,兜底 ready
+      state: item.state ?? "ready",
+    }),
+    // 无指纹工作流的代际校验依据(次优择优内容对齐,S20 跨代流实证)
+    associateAssetsNames: item.associateAssetsNames,
+  };
 }
 
 export function StoryboardGridPreview({

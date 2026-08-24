@@ -653,6 +653,9 @@ export interface ImageWorkflowOpenContext {
   storyboardSourceFingerprint?: string;
   /** 分镜台词(成片模板选型的对话信号;仅分镜目标消费) */
   storyboardLines?: string;
+  /** 当前分镜行的关联资产清单:无指纹工作流的代际校验依据(次优择优内容
+   *  对齐——分镜表换代后同 id 镜内容已换,跨代旧流的参考资产不在当前清单) */
+  associateAssetsNames?: string[];
   /** 建流时自动挂载的资产参考图(场景在前、角色在后;连续性 order 由建流方重排) */
   assetReferences?: Array<{
     imageUrl: string;

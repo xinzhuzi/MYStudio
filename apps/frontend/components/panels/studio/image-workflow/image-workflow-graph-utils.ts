@@ -213,7 +213,7 @@ export function matchesStoryboardOpenContext(
  */
 export function findStoryboardWorkflowForContext(
   graphs: ImageWorkflowGraph[],
-  context: ImageWorkflowOpenContext,
+  context: ImageWorkflowOpenContext & { associateAssetsNames?: string[] },
 ): ImageWorkflowGraph | undefined {
   const hasReferences = (graph: ImageWorkflowGraph) => graph.nodes.some((node) => node.type === "reference");
   const matched = graphs.filter((graph) => matchesStoryboardOpenContext(graph, context));
@@ -221,12 +221,24 @@ export function findStoryboardWorkflowForContext(
   if (refBearingExact) return refBearingExact;
   if (context.target.kind === "storyboard") {
     // 次优:同目标、无指纹但带参考的工作流(旧建流函数不写 targetSourceFingerprint,
-    // 指纹门禁会误挡——参考对当前镜有效即可用;空参考无指纹者代次不明,不选)。
-    // 必须先于 matched[0] 兜底——否则空参考旧壳永远占位(08-24 S08 实证)
+    // 指纹门禁会误挡)。无指纹无法判代——分镜表换代后同 id 镜内容已换(S20 实证:
+    // 6月旧表的客栈镜工作流被当成新表街巷镜,参考压制画面生成错图)。代际校验=
+    // 内容对齐:工作流参考节点 title 须全部出现在当前分镜行的资产清单里,任一
+    // 清单外资产即视为跨代流拒绝;空参考无指纹者代次不明,同样不选。
+    const currentNames = new Set((context.associateAssetsNames ?? []).map((name) => name.trim()));
+    const alignedWithCurrentShot = (graph: ImageWorkflowGraph) =>
+      graph.nodes
+        .filter((node) => node.type === "reference")
+        .every((node) => {
+          const title = (node.title ?? "").replace(/·分层$/, "").trim();
+          return !title || currentNames.size === 0 || currentNames.has(title)
+            || [...currentNames].some((name) => title.includes(name) || name.includes(title));
+        });
     const secondary = graphs.find((graph) =>
       isSameImageWorkflowTarget(graph.target, context.target)
       && !graph.targetSourceFingerprint
-      && hasReferences(graph));
+      && hasReferences(graph)
+      && alignedWithCurrentShot(graph));
     if (secondary) return secondary;
   }
   return matched[0];

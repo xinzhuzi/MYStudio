@@ -293,5 +293,35 @@ describe("useStoryboardBatchGeneration(一键生图串行批量)", () => {
     await waitFor(() => expect(result.current.state.running).toBe(false), { timeout: 8000 });
     expect(freedomImage.mock.calls[0]?.[0]?.referenceImages).toContain("file://assets/ref-zhaosi.png");
   });
+  it("rejects a fingerprintless cross-generation workflow whose references are outside the current shot list (S20 形态)", async () => {
+    resetStore([shot({ id: "sb-1", index: 1, sourceFingerprint: "fp-real", associateAssetsNames: ["道口镇街巷", "独孤剑尘"] })]);
+    // 跨代旧流:参考是旧分镜表时代的资产(悦来客栈斗室),不在当前清单
+    const crossGen = {
+      ...createBareStoryboardGraph("sb-1", "wf-crossgen"),
+      targetSourceFingerprint: undefined,
+      nodes: [
+        ...createBareStoryboardGraph("sb-1", "wf-crossgen").nodes,
+        { id: "ref-old", type: "reference", title: "悦来客栈斗室", imageUrl: "file://assets/inn.png",
+          source: { kind: "asset", assetType: "scene", id: "sc-inn" },
+          position: { x: 0, y: 0 }, createdAt: 1, updatedAt: 1 } as never,
+      ],
+      edges: [{ id: "ref-old->gen-x", source: "ref-old", target: "gen-x" }],
+    } as unknown as ImageWorkflowGraph;
+    useStudioStore.setState({ imageWorkflows: [crossGen] });
+    resolvedReferences.value = [{ imageUrl: "file://assets/street.png", title: "道口镇街巷", assetType: "scene", assetId: "sc-street" }];
+    freedomImage.mockResolvedValue({ url: "https://provider.test/ok.png" });
+
+    const { result } = renderHook(() =>
+      useStoryboardBatchGeneration({ storyboards: useStudioStore.getState().storyboards, projectName: "道劫" }),
+    );
+    act(() => result.current.start());
+    await waitFor(() => expect(result.current.state.running).toBe(false), { timeout: 8000 });
+
+    // 跨代流被拒→不选它→走参考补挂?补挂在选中图上——选中集为空时建新流:
+    // 断言生成参考=当前清单解析出的街巷(而非客栈)
+    const call = freedomImage.mock.calls[0]?.[0];
+    expect(call?.referenceImages).toContain("file://assets/street.png");
+    expect(call?.referenceImages).not.toContain("file://assets/inn.png");
+  });
 });
 
