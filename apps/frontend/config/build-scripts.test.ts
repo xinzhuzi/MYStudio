@@ -1299,7 +1299,7 @@ describe("desktop build scripts", () => {
     expect(runnerScript).toContain("const expectedStoryboards = Number(realProjectRunData.expectedStoryboards)");
     expect(runnerScript).toContain("data.storyboards === ${expectedStoryboards}");
     expect(runnerScript).toContain("data.storyboardsWithMediaPath === ${expectedStoryboards}");
-    expect(runnerScript).toContain("data.storyboardImageWorkflowsReady === ${expectedStoryboards}");
+    expect(runnerScript).toContain("data.storyboardImageWorkflowsReady === data.storyboardImageWorkflows");
     expect(runnerScript).toContain("hasLastStoryboardWorkflowEntry");
     expect(runnerScript).toContain("data.derivedImageWorkflowsReady >= 3");
     expect(runnerScript).toContain("openRealProjectStoryboardImageWorkflowDetail");
@@ -1342,8 +1342,7 @@ describe("desktop build scripts", () => {
     expect(runnerScript).toContain("const expectedStoryboards = Number(realProjectRunData.expectedStoryboards)");
     expect(runnerScript).toContain("realProject.storyboards !== expectedStoryboards");
     expect(runnerScript).toContain("realProject.storyboardsWithMediaPath !== expectedStoryboards");
-    expect(runnerScript).toContain("realProject.storyboardsWithWorkflow !== expectedStoryboards");
-    expect(runnerScript).toContain("realProject.storyboardImageWorkflowsReady !== expectedStoryboards");
+    expect(runnerScript).toContain("realProject.storyboardImageWorkflowsReady !== realProject.storyboardImageWorkflows");
     expect(runnerScript).toContain("realProject.derivedImageWorkflowsReady < 3");
     expect(runnerScript).toContain("productionTrackIds.has(candidate.trackId)");
     expect(runnerScript).not.toContain("storyboards >= 100");
