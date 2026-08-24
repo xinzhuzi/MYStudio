@@ -1,8 +1,9 @@
-import { ArrowLeft, Image as ImageIcon } from "lucide-react";
+import { ArrowLeft, Image as ImageIcon, Loader2, Square } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { ImageWorkflowOpenContext, StoryboardItem } from "@/types/studio";
 import { buildStoryboardItemOpenContext } from "./WorkflowNodePreviews";
 import { toPreviewSrc } from "./WorkbenchTrackCard";
+import type { StoryboardBatchGenerationState } from "./image-workflow/use-storyboard-batch-generation";
 
 /**
  * 分镜面板 — 当前章节全部分镜的全量视图(与单镜图片工作流严格区分)。
@@ -14,14 +15,21 @@ export function StoryboardPanelTab({
   storyboards,
   onOpenImageWorkflow,
   onBackToCanvas,
+  batch,
 }: {
   storyboards: StoryboardItem[];
   onOpenImageWorkflow: (context: ImageWorkflowOpenContext) => void;
   onBackToCanvas?: () => void;
+  /** 一键生图(串行批量)状态与控制,由挂载点 useStoryboardBatchGeneration 注入 */
+  batch?: {
+    state: StoryboardBatchGenerationState;
+    start: () => void;
+    stop: () => void;
+  };
 }) {
   const ordered = storyboards.slice().sort((a, b) => a.index - b.index);
   const withImage = ordered.filter((item) => item.mediaRef?.kind === "image").length;
-  const firstUngenerated = ordered.find((item) => item.mediaRef?.kind !== "image") ?? ordered[0];
+  const remaining = ordered.length - withImage;
 
   const openShot = (storyboard: StoryboardItem) => {
     onOpenImageWorkflow({
@@ -51,16 +59,36 @@ export function StoryboardPanelTab({
             {ordered.length ? `${ordered.length} 个分镜 · ${withImage} 个画面` : "尚无分镜,请先生成分镜表"}
           </span>
         </div>
-        {firstUngenerated ? (
-          <Button
-            size="sm"
-            data-storyboard-panel-generate
-            title={`进入分镜 ${firstUngenerated.index} 图片工作流(首个未生成分镜)`}
-            onClick={() => openShot(firstUngenerated)}
-          >
-            <ImageIcon className="h-3.5 w-3.5" />
-            分镜生图
-          </Button>
+        {batch ? (
+          batch.state.running ? (
+            <div className="flex items-center gap-2" data-storyboard-panel-batch-running>
+              <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                一键生图 {batch.state.done}/{batch.state.total}
+                {batch.state.currentShotIndex != null ? ` · S${String(batch.state.currentShotIndex).padStart(2, "0")}` : ""}
+              </span>
+              <Button
+                size="sm"
+                variant="ghost"
+                data-storyboard-panel-batch-stop
+                onClick={batch.stop}
+                title="当前分镜完成后停止"
+              >
+                <Square className="h-3.5 w-3.5" />
+                停止
+              </Button>
+            </div>
+          ) : remaining > 0 ? (
+            <Button
+              size="sm"
+              data-storyboard-panel-generate
+              title={`串行生成剩余 ${remaining} 个未生成分镜`}
+              onClick={batch.start}
+            >
+              <ImageIcon className="h-3.5 w-3.5" />
+              一键生图
+            </Button>
+          ) : null
         ) : null}
       </div>
 

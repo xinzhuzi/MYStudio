@@ -157,10 +157,10 @@ describe("studio workflow tabs", () => {
       fileURLToPath(new URL("./image-workflow/image-workflow-asset-bridge.ts", import.meta.url)),
       "utf8",
     );
-    const generationSource = readFileSync(
-      fileURLToPath(new URL("./image-workflow/use-image-workflow-generation.ts", import.meta.url)),
-      "utf8",
-    );
+    const generationSource = [
+      "./image-workflow/use-image-workflow-generation.ts",
+      "./image-workflow/run-image-workflow-node-generation.ts",
+    ].map((rel) => readFileSync(fileURLToPath(new URL(rel, import.meta.url)), "utf8")).join("\n");
     const actionsSource = readFileSync(
       fileURLToPath(new URL("./image-workflow/use-image-workflow-actions.ts", import.meta.url)),
       "utf8",

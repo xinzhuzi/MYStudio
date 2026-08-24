@@ -11,6 +11,7 @@ import { WorkflowNodeCanvas } from "./WorkflowNodeCanvas";
 import { WorkflowNodeEditDialog } from "./WorkflowNodeEditDialog";
 import { WorkflowStageStatusBar } from "./WorkflowStageStatusBar";
 import { useStudioViewModel } from "./useStudioViewModel";
+import { useStoryboardBatchGeneration } from "./image-workflow/use-storyboard-batch-generation";
 
 export {
   resolveProductionEpisodeId,
@@ -30,6 +31,10 @@ export { WorkflowStageStatusBar } from "./WorkflowStageStatusBar";
 
 export function StudioView() {
   const viewModel = useStudioViewModel();
+  const storyboardBatch = useStoryboardBatchGeneration({
+    storyboards: viewModel.chapterStoryboards,
+    projectName: viewModel.projectName,
+  });
 
   return (
     <div className="studio-workspace studio-workspace-workflow h-full bg-panel">
@@ -130,6 +135,7 @@ export function StudioView() {
                 storyboards={viewModel.chapterStoryboards}
                 onOpenImageWorkflow={viewModel.openAssetImageWorkflow}
                 onBackToCanvas={() => viewModel.handleStageChange("storyboard")}
+                batch={storyboardBatch}
               />
             </TabsContent>
 

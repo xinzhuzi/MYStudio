@@ -51,22 +51,52 @@ describe("StoryboardPanelTab(全量分镜面板)", () => {
     );
   });
 
-  it("keeps the first-ungenerated entry button wired to that shot", () => {
+  it("starts serial batch generation from the one-click button (原单镜跳转语义已移除)", () => {
     const onOpenImageWorkflow = vi.fn();
+    const onStart = vi.fn();
     render(
       <StoryboardPanelTab
         storyboards={[
           shot({ id: "sb-1", index: 1, mediaRef: { kind: "image", path: "project-file://a.png" } as StoryboardItem["mediaRef"] }),
           shot({ id: "sb-2", index: 2 }),
+          shot({ id: "sb-3", index: 3 }),
         ]}
         onOpenImageWorkflow={onOpenImageWorkflow}
+        batch={{ state: { running: false, total: 2, done: 0, failed: 0, currentShotIndex: null }, start: onStart, stop: vi.fn() }}
       />,
     );
-    expect(screen.getByText("2 个分镜 · 1 个画面")).toBeTruthy();
-    fireEvent.click(screen.getByRole("button", { name: /分镜生图/ }));
-    expect(onOpenImageWorkflow).toHaveBeenCalledWith(
-      expect.objectContaining({ target: { kind: "storyboard", id: "sb-2" } }),
+    expect(screen.getByText("3 个分镜 · 1 个画面")).toBeTruthy();
+    const button = screen.getByRole("button", { name: /一键生图/ });
+    expect(button.getAttribute("title")).toContain("2");
+    fireEvent.click(button);
+    expect(onStart).toHaveBeenCalledTimes(1);
+    expect(onOpenImageWorkflow).not.toHaveBeenCalled();
+  });
+
+  it("shows live progress with stop while the serial batch is running", () => {
+    const onStop = vi.fn();
+    render(
+      <StoryboardPanelTab
+        storyboards={[shot({ id: "sb-1", index: 1 }), shot({ id: "sb-2", index: 2 })]}
+        onOpenImageWorkflow={vi.fn()}
+        batch={{ state: { running: true, total: 2, done: 1, failed: 0, currentShotIndex: 2 }, start: vi.fn(), stop: onStop }}
+      />,
     );
+    expect(screen.getByText(/一键生图 1\/2 · S02/)).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: /停止/ }));
+    expect(onStop).toHaveBeenCalledTimes(1);
+    expect(screen.queryByRole("button", { name: /一键生图/ })).toBeNull();
+  });
+
+  it("hides the batch button when every shot already has an image", () => {
+    render(
+      <StoryboardPanelTab
+        storyboards={[shot({ id: "sb-1", index: 1, mediaRef: { kind: "image", path: "project-file://a.png" } as StoryboardItem["mediaRef"] })]}
+        onOpenImageWorkflow={vi.fn()}
+        batch={{ state: { running: false, total: 0, done: 0, failed: 0, currentShotIndex: null }, start: vi.fn(), stop: vi.fn() }}
+      />,
+    );
+    expect(screen.queryByRole("button", { name: /一键生图/ })).toBeNull();
   });
 
   it("exposes a back-to-canvas action when wired", () => {

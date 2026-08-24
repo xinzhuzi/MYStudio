@@ -13,7 +13,11 @@ const toast = vi.hoisted(() => ({ error: vi.fn(), success: vi.fn() }));
 vi.mock("@/lib/ai/ai-manager", () => ({ aiManager: { freedomImage } }));
 vi.mock("@/stores/studio/studio-store", () => ({
   useStudioStore: Object.assign(vi.fn(), {
-    getState: () => ({ imageWorkflows: [currentGraph], storyboards: currentStoryboards }),
+    getState: () => ({
+      imageWorkflows: [currentGraph],
+      storyboards: currentStoryboards,
+      upsertImageWorkflow: (graph: ImageWorkflowGraph) => { currentGraph = graph; },
+    }),
   }),
 }));
 vi.mock("@/stores/project/project-store", () => ({
@@ -112,7 +116,8 @@ describe("useImageWorkflowGeneration", () => {
       localPath: "project://project-1/workflow/graph-1/generated-1.png",
       size: 123,
     });
-    expect(savedGraphs.at(-1)?.nodes[0]).toMatchObject({
+    // 成图回写经核心函数 store 直写(upsert),最终态看 currentGraph
+    expect(currentGraph.nodes[0]).toMatchObject({
       status: "ready",
       resultMediaId: "material-1",
       resultUrl: "project://project-1/workflow/graph-1/generated-1.png",

@@ -1,25 +1,13 @@
 import { useCallback } from "react";
 import { toast } from "sonner";
-import { aiManager } from "@/lib/ai/ai-manager";
-import { getProjectFilesBridge } from "@/lib/bridge/project-files";
-import { getStudioAssetsBridge } from "@/lib/bridge/studio-assets";
 import {
-  assertImageWorkflowContinuityCapability,
   buildImageWorkflowGenerationRequest,
-  setGeneratedImageResult,
   setGeneratedImageStatus,
 } from "@/lib/studio/image-workflow";
-import { withActiveVisualManualStoryboardStyleTokens } from "@/lib/studio/visual-manual-style-tokens";
-import { useProjectStore } from "@/stores/project/project-store";
 import { useStudioStore } from "@/stores/studio/studio-store";
 import type { ImageWorkflowGraph } from "@/types/studio";
-import {
-  chapterScopeForWorkflowTarget,
-  createWorkflowFilename,
-  prepareReferenceImages,
-  workflowImageRelativePath,
-} from "./image-workflow-file-utils";
 import { resolveGenerationTargetNodeId } from "./image-workflow-graph-utils";
+import { runImageWorkflowNodeGeneration } from "./run-image-workflow-node-generation";
 
 type UseImageWorkflowGenerationOptions = {
   workflowId?: string;
@@ -40,75 +28,15 @@ export function useImageWorkflowGeneration({
       toast.error("未找到要生成的图片节点");
       return;
     }
-    const request = buildImageWorkflowGenerationRequest(graph, targetNodeId);
-    if (!request.prompt.trim()) {
+    // 空 prompt 预检须在置 generating 前(原行为:零状态变化直接返回)
+    if (!buildImageWorkflowGenerationRequest(graph, targetNodeId).prompt.trim()) {
       toast.error("请先填写生成提示词");
       return;
     }
-    assertImageWorkflowContinuityCapability(request);
     saveGraph(setGeneratedImageStatus(graph, targetNodeId, "generating"));
 
     try {
-      const projectId = useProjectStore.getState().activeProjectId;
-      if (!projectId) throw new Error("请先选择项目");
-      // 资产参考(file://)按需转 dataURL 传输:节点只存轻量 file:// 路径
-      // (持久化纪律,防 dataURL 入库 OOM),发送前经 IPC 读受管图转 base64
-      // ——与 project-file:// 参考同口径,不落盘。
-      const assetBridge = getStudioAssetsBridge();
-      const assetRefIdsByUrl = new Map(
-        graph.nodes
-          .filter((node): node is typeof node & { type: "reference"; imageUrl: string } =>
-            node.type === "reference" && Boolean(node.imageUrl?.startsWith("file://"))
-            && node.source?.kind === "asset" && Boolean(node.source.id))
-          .map((node) => [node.imageUrl as string, (node.source as { id: string }).id]),
-      );
-      const resolvedReferenceUrls = await Promise.all(request.referenceImages.map(async (url) => {
-        const assetId = assetRefIdsByUrl.get(url);
-        if (!assetId || !assetBridge?.readImageDataUrl) return url;
-        return await assetBridge.readImageDataUrl(assetId).catch(() => null) ?? url;
-      }));
-      const referenceImages = await prepareReferenceImages(resolvedReferenceUrls);
-      // 分镜帧生图接入所选视觉手册风格锁(扩展手册: sanitize+水墨 token);
-      // 仅限 storyboard 工作流,自由/资产工作流提示词不做覆盖。
-      const prompt = graph.target.kind === "storyboard"
-        ? withActiveVisualManualStoryboardStyleTokens(request.prompt)
-        : request.prompt;
-      const result = await aiManager.freedomImage({
-        prompt,
-        model: request.model,
-        aspectRatio: request.aspectRatio,
-        resolution: request.resolution,
-        negativePrompt: request.negativePrompt,
-        referenceImages,
-        extraParams: request.quality === "hd" ? { quality: "hd" } : undefined,
-      });
-      const node = graph.nodes.find((item) => item.id === targetNodeId);
-      const chapterId = chapterScopeForWorkflowTarget(
-        graph.target,
-        useStudioStore.getState().storyboards,
-      );
-      const saved = await getProjectFilesBridge()?.saveImage({
-        projectId,
-        relativePath: workflowImageRelativePath(
-          graph.id,
-          createWorkflowFilename("gen", targetNodeId, `${node?.title || "workflow-image"}.png`),
-          chapterId,
-        ),
-        source: result.url,
-      });
-      if (!saved?.success || !saved.url) {
-        throw new Error(saved?.error || "项目内图片保存失败");
-      }
-      const materialId = addMaterial({
-        name: `${node?.title || "workflow-image"}.png`,
-        localPath: saved.url,
-        size: saved.size ?? 0,
-      });
-      const latest = useStudioStore.getState().imageWorkflows.find((item) => item.id === graph.id) ?? graph;
-      saveGraph(setGeneratedImageResult(latest, targetNodeId, {
-        imageUrl: saved.url,
-        mediaId: materialId ?? result.mediaId,
-      }));
+      await runImageWorkflowNodeGeneration(graph, targetNodeId, { addMaterial });
       toast.success("图片已生成并保存到当前项目");
     } catch (error) {
       const latest = useStudioStore.getState().imageWorkflows.find((item) => item.id === graph.id) ?? graph;
