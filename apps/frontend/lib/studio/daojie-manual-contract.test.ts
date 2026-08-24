@@ -230,6 +230,23 @@ describe("ma-gongbi-v1 同步守护(ma_sync 锚点)", () => {
     expect(missing, `MA 权威文件与 ma_sync 锚点漂移(需更新快照): ${missing.join("; ")}`).toEqual([]);
   });
 
+  (maWorkspacePresent ? it : it.skip)("写作指导四要素双侧逐字一致(guidanceLocks 直连)", () => {
+    const guidance = (anchors as unknown as { guidanceLocks: Array<{ name: string; manualFile: string; sourceIndex: number; manualAnchors: string[]; maAnchors: string[] }> }).guidanceLocks ?? [];
+    expect(guidance.length).toBeGreaterThanOrEqual(4);
+    const missing: string[] = [];
+    for (const lock of guidance) {
+      const manual = readManual(lock.manualFile);
+      const ma = readFileSync(resolveMaSource(anchors.maSources[lock.sourceIndex].path), "utf-8");
+      for (const a of lock.manualAnchors) {
+        if (!manual.includes(a)) missing.push(`[MY:${lock.name}] ${a}`);
+      }
+      for (const a of lock.maAnchors) {
+        if (!ma.includes(a)) missing.push(`[MA:${lock.name}] ${a}`);
+      }
+    }
+    expect(missing, `写作指导四要素锚点漂移(两侧须同步): ${missing.join("; ")}`).toEqual([]);
+  });
+
   itFile("本机 MA 不存在时直连比对跳过(CI 安全)", () => {
     // 显式记录行为:目录不存在 → 上一直连用例被 it.skip;此处断言守卫逻辑本身可用
     expect(typeof maWorkspacePresent).toBe("boolean");

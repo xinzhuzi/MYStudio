@@ -44,6 +44,20 @@
       "locks": [
         "阵营配色配方"
       ]
+    },
+    {
+      "path": "knowledge/prompt-templates/人物提示词.md",
+      "sha256": "fecfd22a184f7af565850896f26216cb0a242bbd52ca84d4fe9bdeb71217ae99",
+      "locks": [
+        "写作指导四要素"
+      ]
+    },
+    {
+      "path": "knowledge/prompt-templates/生图资产模板库.md",
+      "sha256": "1d734ab508ce9d3cf13eee0fda4132f7c10dfd01b1b5909dc4e1d226e419b099",
+      "locks": [
+        "资产模板写作指导"
+      ]
     }
   ],
   "locks": [
@@ -200,6 +214,52 @@
       ],
       "manualFile": "art_prompt/art_storyboard_video.md",
       "sourceIndex": 2
+    }
+  ],
+  "guidanceLocks": [
+    {
+      "name": "指导·光词汇",
+      "manualFile": "prefix.md",
+      "sourceIndex": 5,
+      "manualAnchors": [
+        "侧逆光勾铁线描边（点睛色提线）、发丝留金（点睛色职责）、矿物罩染的通透光泽"
+      ],
+      "maAnchors": [
+        "侧逆光勾铁线描边（点睛色提线）、发丝留金（点睛色职责）、矿物罩染的通透光泽"
+      ]
+    },
+    {
+      "name": "指导·神态",
+      "manualFile": "prefix.md",
+      "sourceIndex": 5,
+      "manualAnchors": [
+        "眼神情绪（锐利/沉静/含情/悲悯/冷峻/苍凉择一）、眉宇唇态、气质定语"
+      ],
+      "maAnchors": [
+        "眼神情绪（锐利/沉静/含情/悲悯/冷峻/苍凉择一）、眉宇唇态、气质定语"
+      ]
+    },
+    {
+      "name": "指导·材质微观",
+      "manualFile": "prefix.md",
+      "sourceIndex": 5,
+      "manualAnchors": [
+        "人物肤色匀净如瓷、矿物罩染通透分层；场景墨色浓淡干湿五阶"
+      ],
+      "maAnchors": [
+        "人物肤色匀净如瓷、矿物罩染通透分层；场景墨色浓淡干湿五阶"
+      ]
+    },
+    {
+      "name": "指导·动作精度",
+      "manualFile": "prefix.md",
+      "sourceIndex": 5,
+      "manualAnchors": [
+        "手持何物、遮/扶/按何处、身体与视线朝向谁"
+      ],
+      "maAnchors": [
+        "手持何物、遮/扶/按何处、身体与视线朝向谁"
+      ]
     }
   ]
 }

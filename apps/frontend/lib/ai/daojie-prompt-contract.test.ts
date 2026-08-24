@@ -82,7 +82,7 @@ describe("Daojie ma-gongbi-v1 runtime contract", () => {
   it("ships a bounded, source-fingerprinted machine contract", () => {
     expect(DAOJIE_RUNTIME_CONTRACT.contractVersion).toBe("ma-gongbi-v1");
     expect(DAOJIE_RUNTIME_CONTRACT.contractSha256).toBe(
-      "50b7505bb80a0c0396a878d80efa823328849ada46650b25be228ef2a7047602",
+      "65e70c47aea41c74075be7f7abef49d6461901b9f09ff35098eda02bfa4646bb",
     );
     expect(DAOJIE_RUNTIME_CONTRACT.avoidSeparator).toBe("\nAvoid: ");
     expect(DAOJIE_RUNTIME_CONTRACT.length).toEqual({ warningBelow: 300, min: 300, max: 800 });
