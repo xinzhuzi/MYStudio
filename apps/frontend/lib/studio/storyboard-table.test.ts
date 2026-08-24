@@ -476,7 +476,7 @@ describe("studio storyboard table messages", () => {
       "| 1 | 两名妇人带孩子贴墙走，矿奴队列穿过；独孤剑尘被铁链隔在另一侧 | 6s | 中景 | 缓推 | 街巷妇孺与队列 | 旁白：街面嘈杂 | 环境音 |",
       "| 2 | 断臂散修攥紧凝血草，伤处白布渗血 | 4s | 特写 | 固定 | 断臂手部 | 无 | 低鸣 |",
     ].join("\n");
-    const parsed = parseStoryboardTable(md);
+    const parsed = parseStoryboardTable(md, "episode-test");
     const rows = parsed.rows.sort((a, b) => a.index - b.index);
     expect(rows[0]?.associateAssetsNames).toContain("独孤剑尘");
     expect(rows[0]?.associateAssetsNames).not.toContain("铁山");
