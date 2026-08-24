@@ -88,7 +88,7 @@ export function useChapterAutoVideoActions({
     }
   }, [activeProjectId]);
 
-  const handleRunChapterAutoVideo = useCallback(async () => {
+  const handleRunChapterAutoVideo = useCallback(async (options?: { onlyStoryboardIds?: string[] }) => {
     if (running) return;
     if (!activeProjectId) {
       toast.error("未选择项目，无法自动成片");
@@ -130,6 +130,7 @@ export function useChapterAutoVideoActions({
         projectId: activeProjectId,
         episodeId,
         expectedIdentity,
+        onlyStoryboardIds: options?.onlyStoryboardIds,
         onStatus: setStatus,
         dependencies: {
           ensurePlanning: async () => {
@@ -646,6 +647,8 @@ export function useChapterAutoVideoActions({
           : `Remotion 分镜队列已阻塞：${result.blockedShotIds?.join("、") || "请检查分镜物料"}`);
       } else if (result.queueStatus === "awaiting-review") {
         toast.success(`video-use 预览已生成 revision ${result.videoUseRevision ?? "-"}，请在视频工作台确认`);
+      } else if (options?.onlyStoryboardIds?.length) {
+        toast.success(`已提交 ${result.remotionJobs?.length ?? 0} 个单镜 Remotion 任务，队列渲染中`);
       } else {
         toast.success(`已提交 ${result.remotionJobs?.length ?? 0} 个 Remotion 分镜任务，等待章节合成`);
       }

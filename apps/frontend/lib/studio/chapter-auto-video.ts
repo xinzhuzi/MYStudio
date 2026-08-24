@@ -152,6 +152,8 @@ function auditVoiceoverStoryboards(
 
 export interface PreparedChapterMedia {
   storyboards: StoryboardItem[];
+  /** 章节全量分镜(未收窄);供 manifest 完整性判定区分单镜/整章运行 */
+  allStoryboards: StoryboardItem[];
   blockedShotIds: string[];
   ttsErrors: Record<string, string>;
 }
@@ -160,12 +162,15 @@ export async function prepareChapterMedia({
   projectId,
   episodeId,
   expectedIdentity,
+  onlyStoryboardIds,
   dependencies,
   onStatus,
 }: {
   projectId: string;
   episodeId: string;
   expectedIdentity?: { sourceId: string; revision: number };
+  /** 单镜生产:口播审计/连续性/TTS/入队只碰这些镜,其余镜的缺字段不阻断本镜 */
+  onlyStoryboardIds?: string[];
   dependencies: ChapterAutoVideoDependencies;
   onStatus?: (status: ChapterAutoVideoStatus) => void;
 }): Promise<PreparedChapterMedia> {
@@ -173,13 +178,23 @@ export async function prepareChapterMedia({
   await dependencies.ensurePlanning();
 
   emit(onStatus, { stage: "voiceover", detail: "校验逐镜口播与 canonical speaker" });
-  let storyboards = dependencies.loadStoryboards();
-  const speakerIds = auditVoiceoverStoryboards(storyboards, episodeId, expectedIdentity);
-  storyboards = storyboards
+  let storyboards = dependencies.loadStoryboards()
     .filter((item) => item.episodeId === episodeId)
     .sort((left, right) => left.index - right.index);
+  const allStoryboards = storyboards;
+  if (onlyStoryboardIds?.length) {
+    const wanted = new Set(onlyStoryboardIds);
+    const selected = storyboards.filter((item) => wanted.has(item.id));
+    const missing = onlyStoryboardIds.filter((id) => !selected.some((item) => item.id === id));
+    if (missing.length > 0) {
+      throw new Error(`单镜生产未命中本章分镜:${missing.join("、")}`);
+    }
+    storyboards = selected;
+  }
+  const speakerIds = auditVoiceoverStoryboards(storyboards, episodeId, expectedIdentity);
+  // 连续性按整章链校验(子集会切断「上一镜」关系);单镜收窄的只是 TTS/入队范围
   assertVisualContinuityApproved(
-    storyboards,
+    allStoryboards,
     dependencies.loadContinuityAssetVersions(),
   );
 
@@ -222,6 +237,11 @@ export async function prepareChapterMedia({
     .loadStoryboards()
     .filter((item) => item.episodeId === episodeId)
     .sort((left, right) => left.index - right.index);
+  // 回写校验/媒体校验/阻塞判定也只看本镜:其余镜缺 TTS 不阻断单镜生产
+  if (onlyStoryboardIds?.length) {
+    const wanted = new Set(onlyStoryboardIds);
+    storyboards = storyboards.filter((item) => wanted.has(item.id));
+  }
   for (const storyboard of storyboards) {
     if (ttsErrors[storyboard.id]) continue;
     const bindingError = await validateCanonicalVoiceWriteback(
@@ -262,19 +282,22 @@ export async function prepareChapterMedia({
       ? `逐镜 TTS 完成，${blockedShotIds.length} 镜失败或取消；其他分镜继续`
       : `逐镜 TTS 完成，并发上限 ${concurrency}`,
   });
-  return { storyboards, blockedShotIds, ttsErrors };
+  return { storyboards, allStoryboards, blockedShotIds, ttsErrors };
 }
 
 export async function runChapterAutoVideo({
   projectId,
   episodeId,
   expectedIdentity,
+  onlyStoryboardIds,
   dependencies,
   onStatus,
 }: {
   projectId?: string;
   episodeId: string;
   expectedIdentity?: { sourceId: string; revision: number };
+  /** 单镜生产:收窄到指定分镜;跳过 video-use 章节预览与等待 */
+  onlyStoryboardIds?: string[];
   dependencies: ChapterAutoVideoDependencies;
   onStatus?: (status: ChapterAutoVideoStatus) => void;
 }): Promise<ChapterAutoVideoResult> {
@@ -285,13 +308,15 @@ export async function runChapterAutoVideo({
       projectId,
       episodeId,
       expectedIdentity,
+      onlyStoryboardIds,
       dependencies,
       onStatus,
     });
 
-    const { storyboards } = prepared;
+    const singleShotRun = Boolean(onlyStoryboardIds?.length);
+    const { storyboards, allStoryboards } = prepared;
     if (prepared.blockedShotIds.length > 0) {
-      const detail = `Remotion 分镜存在阻塞：${prepared.blockedShotIds.join("、")}；整章停止入队`;
+      const detail = `Remotion 分镜存在阻塞：${prepared.blockedShotIds.join("、")}；${singleShotRun ? "单镜" : "整章"}停止入队`;
       emit(onStatus, { stage: "blocked", detail });
       return {
         storyboards: storyboards.length,
@@ -310,11 +335,11 @@ export async function runChapterAutoVideo({
         projectId,
         chapterId: episodeId,
         storyboards: renderableStoryboards,
-        allStoryboards: storyboards,
+        allStoryboards,
       })
       : { jobs: [], blockedShotIds: [] };
     const blockedShotIds = [...new Set(submission.blockedShotIds)];
-    if (blockedShotIds.length === 0 && dependencies.runVideoUseChapter) {
+    if (blockedShotIds.length === 0 && !singleShotRun && dependencies.runVideoUseChapter) {
       emit(onStatus, {
         stage: "probing",
         detail: "等待全部 Remotion StoryboardShot MP4 完成后运行 video-use preview",
@@ -360,7 +385,9 @@ export async function runChapterAutoVideo({
       stage: queueStatus,
       detail: queueStatus === "blocked"
         ? `Remotion 分镜存在阻塞：${blockedShotIds.join("、")}`
-        : `已提交 ${submission.jobs.length} 个 Remotion 分镜任务，等待章节合成`,
+        : singleShotRun
+          ? `已提交 ${submission.jobs.length} 个单镜 Remotion 任务，队列渲染中`
+          : `已提交 ${submission.jobs.length} 个 Remotion 分镜任务，等待章节合成`,
     });
     return {
       storyboards: storyboards.length,

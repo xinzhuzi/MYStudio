@@ -12,6 +12,7 @@ import {
   buildRemotionProductionProfile,
   syncRemotionWorkspaceProductionProfile,
 } from "@/lib/studio/remotion/remotion-workspace-storage";
+import { subscribeRemotionShotRenderRequest } from "@/lib/studio/remotion-shot-render-request";
 import type { ImageWorkflowOpenContext } from "@/types/studio";
 import { resolveProductionEpisodeId } from "./workflow-helpers";
 import { useNovelPipelineActions } from "./useNovelPipelineActions";
@@ -227,6 +228,15 @@ export function useStudioViewModel() {
       await handleProductionNodeAction(action);
     },
     [handleProductionNodeAction, handleRunChapterAutoVideo],
+  );
+
+  // 单镜生产:逐镜队列卡片按钮经 DOM 事件请求(避免节点画布→预览层层接线),
+  // 收窄到单镜复用一键成片运行器——TTS/音频绑定/入队只碰该镜
+  useEffect(
+    () => subscribeRemotionShotRenderRequest(({ shotId }) => {
+      void handleRunChapterAutoVideo({ onlyStoryboardIds: [shotId] });
+    }),
+    [handleRunChapterAutoVideo],
   );
 
   const {

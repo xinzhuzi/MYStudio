@@ -365,6 +365,48 @@ describe("chapter auto video orchestration", () => {
     ]);
   });
 
+  it("scopes a single-shot run to the requested storyboard and skips the chapter preview", async () => {
+    const { dependencies, calls } = createDependencies({ storyboardCount: 3 });
+    const statuses: string[] = [];
+    dependencies.runVideoUseChapter = vi.fn(async () => {
+      throw new Error("单镜运行不应触发 video-use 章节预览");
+    });
+    const enqueueArgs: Array<{ storyboards: StoryboardItem[]; allStoryboards?: StoryboardItem[] }> = [];
+    const originalEnqueue = dependencies.enqueueRemotionShots;
+    dependencies.enqueueRemotionShots = async (input) => {
+      enqueueArgs.push({ storyboards: input.storyboards, allStoryboards: input.allStoryboards });
+      return originalEnqueue(input);
+    };
+
+    const result = await runChapterAutoVideo({
+      projectId: "project-1",
+      episodeId: "chapter-001",
+      onlyStoryboardIds: ["sb-2"],
+      dependencies,
+      onStatus: (status) => statuses.push(status.stage),
+    });
+
+    expect(calls).toEqual(["planning", "binding", "tts:sb-2", "remotion-queue"]);
+    expect(enqueueArgs).toHaveLength(1);
+    expect(enqueueArgs[0].storyboards.map((item) => item.id)).toEqual(["sb-2"]);
+    expect(enqueueArgs[0].allStoryboards).toHaveLength(3);
+    expect(result).toMatchObject({ storyboards: 1, queueStatus: "queued", blockedShotIds: [] });
+    expect(result.remotionJobs).toHaveLength(1);
+    expect(result.remotionJobs?.[0].jobId).toBe("remotion-sb-2");
+    expect(dependencies.runVideoUseChapter).not.toHaveBeenCalled();
+    expect(statuses[statuses.length - 1]).toBe("queued");
+  });
+
+  it("rejects single-shot requests that miss the chapter storyboard set", async () => {
+    const { dependencies } = createDependencies();
+    await expect(runChapterAutoVideo({
+      projectId: "project-1",
+      episodeId: "chapter-001",
+      onlyStoryboardIds: ["sb-missing"],
+      dependencies,
+    })).rejects.toThrow("单镜生产未命中本章分镜:sb-missing");
+  });
+
   it("waits for Remotion shots, runs video-use preview, and pauses for human review", async () => {
     const { dependencies, calls } = createDependencies();
     const statuses: string[] = [];

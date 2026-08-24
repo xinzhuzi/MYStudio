@@ -100,6 +100,35 @@ describe("useChapterAutoVideoActions", () => {
     });
   });
 
+  it("threads a single-shot scope into the chapter auto-video runner", async () => {
+    const autoVideo = vi.mocked(runChapterAutoVideo);
+    autoVideo.mockResolvedValueOnce({
+      storyboards: 1,
+      remotionJobs: [],
+      blockedShotIds: [],
+      queueStatus: "queued",
+    });
+    const { result } = renderHook(() =>
+      useChapterAutoVideoActions({
+        activeProjectId: "project-1",
+        productionEpisodeId: "chapter-001",
+        handleProductionNodeAction: vi.fn(),
+      }),
+    );
+
+    await act(async () => {
+      await result.current.handleRunChapterAutoVideo({ onlyStoryboardIds: ["sb-2"] });
+    });
+
+    expect(autoVideo).toHaveBeenCalledOnce();
+    expect(autoVideo).toHaveBeenCalledWith(expect.objectContaining({
+      projectId: "project-1",
+      episodeId: "chapter-001",
+      onlyStoryboardIds: ["sb-2"],
+    }));
+    expect(toast.success).toHaveBeenCalledWith("已提交 0 个单镜 Remotion 任务，队列渲染中");
+  });
+
   it("keeps the runner failed status and surfaces the thrown error", async () => {
     const autoVideo = vi.mocked(runChapterAutoVideo);
     autoVideo.mockImplementationOnce(async ({ onStatus }) => {
