@@ -13,6 +13,11 @@
  */
 
 import { sanitizeExtendedManualPrompt } from "@/lib/ai/prompt-polisher";
+import {
+  compileDaojieStoryboardFramePrompt,
+  DaojiePromptContractError,
+  type CompiledDaojiePrompt,
+} from "@/lib/ai/daojie-prompt-contract";
 import { EXTENDED_VISUAL_MANUAL_SEED_ID } from "@/lib/studio/visual-manual-classification";
 import { useStudioStore } from "@/stores/studio/studio-store";
 
@@ -120,7 +125,11 @@ export function getExtendedStoryboardManualContent(): string {
 export interface StoryboardFactionData {
   /** 角色/场景名 → 阵营 */
   members: Record<string, string>;
-  /** 阵营 → 三轨五职责色彩串(中文名) */
+  /**
+   * 阵营 → 各轨五职责色彩串(中文名)。
+   * prop 轨 = not_applicable:分镜阵营配色合同(ma-faction-palette-v1)只覆盖 person/scene 两轨,
+   * 不为「三轨齐全」凭空新增 prop 配色;仅当未来手册显式提供道具阵营规则时才扩展。
+   */
   palette: Record<string, { person: string; scene: string }>;
 }
 
@@ -221,4 +230,26 @@ export function withActiveVisualManualStoryboardStyleTokens(prompt: string): str
 export function getActiveVisualManualStoryboardStyleGuide(): string {
   const visualManualId = useStudioStore.getState().workflowConfig.visualManualId;
   return isExtendedVisualManual(visualManualId) ? getExtendedStoryboardStyleGuide() : "";
+}
+
+/**
+ * 道劫分镜帧传输编译:当前手册为道劫时,把分镜链已装配正文与手册帧负面编译为
+ * ma-gongbi-v1 raw providerPrompt(唯一 Avoid+通用负面+300-800 长度门);
+ * 非道劫返回 null(保持既有 enhanced 传输)。超 800 在网络前以可读错误拒绝。
+ */
+export async function compileActiveDaojieStoryboardFramePrompt(
+  positive: string,
+): Promise<CompiledDaojiePrompt | null> {
+  if (!isExtendedVisualManual(useStudioStore.getState().workflowConfig.visualManualId)) return null;
+  try {
+    return await compileDaojieStoryboardFramePrompt({
+      positive,
+      negativeTerms: getExtendedStoryboardFrameNegative(),
+    });
+  } catch (err) {
+    if (err instanceof DaojiePromptContractError && err.code === "length_exceeded") {
+      throw new Error(`道劫提示词超出 800 字符 provider 上限（实际 ${err.input} 字符），已拒绝生成`);
+    }
+    throw err;
+  }
 }

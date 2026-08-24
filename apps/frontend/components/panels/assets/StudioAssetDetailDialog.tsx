@@ -32,7 +32,9 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { eventBus } from "@/lib/events/event-bus";
-import { polishAssetPrompt, type PolishResult } from "@/lib/ai/prompt-polisher";
+import { polishAssetPrompt, type AssetType, type PolishResult } from "@/lib/ai/prompt-polisher";
+import { mapDaojieLibraryAssetType } from "@/lib/ai/daojie-prompt-contract";
+import type { StudioAssetKind } from "@/types/studio-assets";
 import { generateAsset } from "@/lib/studio/asset-generation-orchestrator";
 import { parseAssetNames } from "@/lib/studio/asset-names";
 import { toRoleSpeakerId } from "@/lib/tts/role-speaker-id";
@@ -50,6 +52,14 @@ import { StudioAssetRoleAttributes } from "./studio-asset-role-attributes";
 
 export { buildAssetRegenerationPrompt, getAssetDisplayName, getAssetImageOpenTarget, getAssetOperationError, getAssetSpokenText, updateImagesAfterReplacingMainImage } from "./studio-asset-detail-utils";
 export { persistGeneratedAssetPromptToLibrary, saveGeneratedAssetImageToLibrary } from "./studio-asset-generation-persistence";
+
+/**
+ * 资产库类型 → 生图三轨的唯一映射入口(道劫 ma-gongbi-v1 合同)。
+ * clip/audio/任务及未知类型在此 fail-closed,不得默认回落人物或道具轨。
+ */
+export function resolveThreeTrackAssetType(type: StudioAssetKind): AssetType {
+  return mapDaojieLibraryAssetType(type).runtimeTrack;
+}
 
 const TYPE_ICON = {
   role: UserCircle,
@@ -174,6 +184,8 @@ export function StudioAssetDetailDialog({
   const spokenText = recognizedText ?? (draftDescription.trim() || "");
   const audioSrc = asset.previewUrl || asset.filePath || "";
   const hasImagePreview = asset.type !== "audio" && images.length > 0;
+  // 三轨生图入口只对 role/scene/tool 开放;clip 等其余类型不展示、不触发(道劫合同 fail-closed)
+  const isThreeTrackAsset = asset.type === "role" || asset.type === "scene" || asset.type === "tool";
   const roleSpeakerId = toRoleSpeakerId(asset.id);
   const roleVoiceBindings = activeTtsProjectId ? (ttsProjects[activeTtsProjectId]?.bindings ?? {}) : {};
   const roleVoiceBinding = asset.type === "role" ? roleVoiceBindings[roleSpeakerId] : undefined;
@@ -188,10 +200,13 @@ export function StudioAssetDetailDialog({
 
     setIsPolishingPrompt(true);
     try {
-      const assetType = asset.type === "tool" ? "prop" as const
-        : asset.type === "role" ? "character" as const
-        : asset.type === "scene" ? "scene" as const
-        : "prop" as const;
+      let assetType: AssetType;
+      try {
+        assetType = resolveThreeTrackAssetType(asset.type);
+      } catch {
+        toast.error("该资产类型不支持生图提示词（仅角色/场景/道具三轨）");
+        return;
+      }
 
       const result = await polishAssetPrompt({
         assetType,
@@ -287,7 +302,14 @@ export function StudioAssetDetailDialog({
     setGeneratePhase(shouldGeneratePrompt ? "polishing" : "generating");
     setGenerateMessage(shouldGeneratePrompt ? `正在根据风格生成 ${asset.name} 的出图提示词...` : `正在生成 ${asset.name} 的图片...`);
     try {
-      const assetType = asset.type === "role" ? "character" as const : asset.type === "scene" ? "scene" as const : "prop" as const;
+      let assetType: AssetType;
+      try {
+        assetType = resolveThreeTrackAssetType(asset.type);
+      } catch {
+        toast.error("该资产类型不支持生成图片（仅角色/场景/道具三轨）");
+        setGeneratePhase(null);
+        return;
+      }
       let promptPersistPromise: Promise<boolean> | null = null;
       const applyPolishedPrompt = (polishResult?: PolishResult) => {
         const prompt = polishResult?.status === "success" ? polishResult.prompt?.trim() : "";
@@ -763,30 +785,34 @@ export function StudioAssetDetailDialog({
                       className="min-h-[80px] resize-none bg-muted/90 text-xs leading-5"
                     />
                     <div className="flex flex-wrap items-center gap-2">
-                      <Button
-                        variant="default"
-                        size="sm"
-                        className="h-6 gap-1 text-[11px]"
-                        onClick={handleOneClickGenerateAssetImage}
-                        disabled={!!generatePhase || !visualManualId}
-                      >
-                        {generatePhase ? <Loader2 className="h-3 w-3 animate-spin" /> : <Sparkles className="h-3 w-3" />}
-                        {generatePhase === "polishing" ? "生成提示词中..." : generatePhase === "generating" ? "生成图片中..." : generatePhase === "saving" ? "保存中..." : generatePhase === "done" ? "生成完成" : "一键生成资产生图"}
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-6 gap-1 text-[11px]"
-                        onClick={handlePolishPrompt}
-                        disabled={isPolishingPrompt || !visualManualId}
-                      >
-                        {isPolishingPrompt ? (
-                          <Loader2 className="h-3 w-3 animate-spin" />
-                        ) : (
-                          <Sparkles className="h-3 w-3" />
-                        )}
-                        {isPolishingPrompt ? "润色中..." : "润色提示词"}
-                      </Button>
+                      {isThreeTrackAsset && (
+                        <Button
+                          variant="default"
+                          size="sm"
+                          className="h-6 gap-1 text-[11px]"
+                          onClick={handleOneClickGenerateAssetImage}
+                          disabled={!!generatePhase || !visualManualId}
+                        >
+                          {generatePhase ? <Loader2 className="h-3 w-3 animate-spin" /> : <Sparkles className="h-3 w-3" />}
+                          {generatePhase === "polishing" ? "生成提示词中..." : generatePhase === "generating" ? "生成图片中..." : generatePhase === "saving" ? "保存中..." : generatePhase === "done" ? "生成完成" : "一键生成资产生图"}
+                        </Button>
+                      )}
+                      {isThreeTrackAsset && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-6 gap-1 text-[11px]"
+                          onClick={handlePolishPrompt}
+                          disabled={isPolishingPrompt || !visualManualId}
+                        >
+                          {isPolishingPrompt ? (
+                            <Loader2 className="h-3 w-3 animate-spin" />
+                          ) : (
+                            <Sparkles className="h-3 w-3" />
+                          )}
+                          {isPolishingPrompt ? "润色中..." : "润色提示词"}
+                        </Button>
+                      )}
                       <Button
                         variant="ghost"
                         size="sm"

@@ -671,6 +671,121 @@ describe("generateCharacterImage", () => {
   });
 });
 
+describe("daojie ma-gongbi-v1 exact/raw provider transport", () => {
+  const daojieProviderPrompt = "人物题材正文。风格底座（硬）：中国水彩水墨工笔画。\nAvoid: 水印、视觉噪点";
+
+  beforeEach(() => {
+    vi.restoreAllMocks();
+    resetFeatureRoundRobin();
+    useAppSettingsStore.getState().setImageGenerationSettings({
+      defaultAspectRatio: "16:9",
+      defaultResolution: "2K",
+      compatibilityRetryEnabled: true,
+      compatibilityRetryAspectRatio: "1:1",
+      compatibilityRetryResolution: "1K",
+    });
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("gpt-image 标准通道 byte-exact 传输已编译道劫提示词", async () => {
+    configureImageProvider();
+    const fetchMock = vi.fn().mockResolvedValue(jsonResponse({ data: [{ b64_json: "aGVsbG8=" }], output_format: "png" }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await generateCharacterImage({ prompt: daojieProviderPrompt, promptPolicy: "raw", aspectRatio: "16:9" });
+
+    const requestBody = JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body));
+    expect(requestBody.prompt).toBe(daojieProviderPrompt);
+    expect(requestBody.prompt).not.toContain("Negative constraints");
+    expect(requestBody.prompt).not.toContain("clean image");
+  });
+
+  it("provider-extension 通道传输同一正文且不另发 negative_prompt", async () => {
+    useAPIConfigStore.setState({
+      providers: [{ ...provider, model: ["aigc-image-qwen"] }],
+      featureBindings: { character_generation: ["fanren:aigc-image-qwen"] },
+      modelEndpointTypes: { "aigc-image-qwen": ["aigc-image"] },
+    } as never);
+    const fetchMock = vi.fn().mockResolvedValue(jsonResponse({ data: [{ url: "https://cdn.example/done.png" }] }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await generateCharacterImage({ prompt: daojieProviderPrompt, promptPolicy: "raw", aspectRatio: "16:9" });
+
+    const requestBody = JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body));
+    expect(requestBody.prompt).toBe(daojieProviderPrompt);
+    expect(requestBody.prompt).not.toContain("clean image");
+    expect(requestBody.negative_prompt ?? "").toBe("");
+  });
+
+  it("chat completions 通道收到同一 provider-visible 正文", async () => {
+    useAPIConfigStore.setState({
+      providers: [{ ...provider, model: ["gemini-image-preview"] }],
+      featureBindings: { character_generation: ["fanren:gemini-image-preview"] },
+      modelEndpointTypes: { "gemini-image-preview": ["openai"] },
+    } as never);
+    const fetchMock = vi.fn().mockResolvedValue(jsonResponse({
+      choices: [{ message: { content: [{ type: "image_url", image_url: { url: "https://cdn.example/chat.png" } }] } }],
+    }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await generateCharacterImage({ prompt: daojieProviderPrompt, promptPolicy: "raw", aspectRatio: "16:9" });
+
+    const requestBody = JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body));
+    const text = requestBody.messages[0].content[0].text;
+    expect(text).toContain(daojieProviderPrompt);
+    expect(text.match(/Avoid:/g)).toHaveLength(1);
+    expect(text).not.toContain("clean image");
+  });
+
+  it("grid 通道 raw 策略 byte-exact 传输已编译道劫分镜帧", async () => {
+    configureImageProvider();
+    const fetchMock = vi.fn().mockResolvedValue(jsonResponse({ data: [{ b64_json: "aGVsbG8=" }], output_format: "png" }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await submitGridImageRequest({
+      model: "gpt-image-2",
+      prompt: daojieProviderPrompt,
+      promptPolicy: "raw",
+      apiKey: "sk-test",
+      baseUrl: "https://console.fanrenapi.eu.cc/v1",
+      aspectRatio: "16:9",
+    });
+
+    const requestBody = JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body));
+    expect(requestBody.prompt).toBe(daojieProviderPrompt);
+    expect(requestBody.prompt).not.toContain("clean image");
+    expect(requestBody.prompt).not.toContain("Negative constraints");
+  });
+
+  it("raw 道劫提示词不触发兼容性改写重试", async () => {
+    configureImageProvider();
+    const fetchMock = vi.fn()
+      .mockRejectedValueOnce(new TypeError("fetch failed"))
+      .mockResolvedValue(jsonResponse({ data: [{ b64_json: "aGVsbG8=" }] }))
+      .mockResolvedValue(jsonResponse({ data: [{ b64_json: "aGVsbG8=" }] }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(
+      generateCharacterImage({ prompt: daojieProviderPrompt, promptPolicy: "raw", aspectRatio: "16:9" }),
+    ).rejects.toThrow();
+
+    // 无兼容性改写:所有已捕获请求(标准通道失败→job/chat 兜底通道)都携带原样 providerPrompt
+    expect(fetchMock.mock.calls.length).toBeGreaterThan(0);
+    for (const call of fetchMock.mock.calls) {
+      const body = JSON.parse(String(call[1]?.body));
+      const promptText: string = typeof body.prompt === "string"
+        ? body.prompt
+        : String(body.messages?.[0]?.content?.[0]?.text ?? "");
+      expect(promptText).toContain(daojieProviderPrompt);
+      expect(promptText).not.toContain("clean image");
+      expect(promptText).not.toContain("主体完整，构图简洁");
+    }
+  });
+});
+
 describe("pollTaskStatus contract", () => {
   afterEach(() => {
     vi.useRealTimers();

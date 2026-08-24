@@ -13,6 +13,11 @@
  */
 
 import { aiManager } from "@/lib/ai/ai-manager";
+import {
+  compileDaojiePrompt,
+  DaojiePromptContractError,
+} from "@/lib/ai/daojie-prompt-contract";
+import { EXTENDED_VISUAL_MANUAL_SEED_ID } from "@/lib/studio/visual-manual-classification";
 import { getProjectFilesBridge } from "@/lib/bridge/project-files";
 import { assetImageRelativePath, safePathSegment } from "@/lib/studio/chapter-paths";
 import { getStudioAssetsBridge } from "@/lib/bridge/studio-assets";
@@ -120,6 +125,7 @@ export async function generateAsset(
     // Phase 1: 提示词润色
     let prompt: string;
     let negativePrompt: string | undefined;
+    let promptPolicy: "enhanced" | "raw" | undefined;
 
     if (task.skipPolish && task.existingPrompt) {
       prompt = task.existingPrompt;
@@ -147,6 +153,37 @@ export async function generateAsset(
       negativePrompt = polishResult.negativePrompt;
     }
 
+    // Phase 1.5: 道劫 ma-gongbi-v1 确定性编译边界。
+    // 题材正文(润色产物或已有提示词)统一进入编译器装配自动层/唯一 Avoid/300-800 长度门,
+    // 编译产物 providerPrompt 以 raw 策略直传 provider,禁止 normalize 再追加。
+    if (task.visualManualId === EXTENDED_VISUAL_MANUAL_SEED_ID) {
+      const subjectBody = prompt.trim();
+      if (!subjectBody) {
+        return { phase: "failed", error: "道劫提示词为空，已拒绝生成", polishResult };
+      }
+      let compiled;
+      try {
+        compiled = await compileDaojiePrompt({
+          runtimeTrack: task.assetType,
+          subjectBody,
+          negativeTerms: [task.negativePrompt, negativePrompt].filter((term): term is string => Boolean(term)),
+          hasReferenceImage: Boolean(task.referenceImages?.length),
+        });
+      } catch (err) {
+        if (err instanceof DaojiePromptContractError && err.code === "length_exceeded") {
+          return {
+            phase: "failed",
+            error: `道劫提示词超出 800 字符 provider 上限（实际 ${err.input} 字符），已拒绝生成`,
+            polishResult,
+          };
+        }
+        throw err;
+      }
+      prompt = compiled.providerPrompt;
+      negativePrompt = undefined;
+      promptPolicy = "raw";
+    }
+
     // Phase 2: 图片生成
     onProgress?.({
       phase: "generating",
@@ -159,6 +196,7 @@ export async function generateAsset(
       {
         prompt,
         negativePrompt,
+        promptPolicy,
         resolution: task.resolution ?? imageSettings.defaultResolution,
         aspectRatio:
           task.aspectRatio

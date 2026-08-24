@@ -158,6 +158,7 @@
 ## 四、工笔硬锁（ma-gongbi-v1 自动层 · 生成提示词时自动携带）
 
 > 以下八把锁是生图公式的「自动层」,与 ma-imagegen 权威实现词级一致（快照见 `ma_sync/LOCK_SNAPSHOT.md`）。
+> 「自动携带」由运行时确定性编译器执行：MYStudio `lib/ai/daojie-prompt-contract.ts` 的 `compileDaojiePrompt`（资产三轨，`ma-gongbi-v1` 紧凑合同见 `ma_sync/runtime-contract.json`）与 `compileDaojieStoryboardFramePrompt`（分镜帧，共享唯一 Avoid/通用负面/长度门）在 provider 请求前装配本节自动层并施加 300-800 长度门——本节文本由编译器拥有,LLM 与调用方不负责追加。
 > 各技能的题材正文**不重复抄写**这些内容;正文禁止出现「Avoid: / 风格底座 / TRACK= / 轨道= / 成片质量（硬」等自动层标记;负面要求一律进 Negative Prompt 段,不在正向正文里写「不要/禁止」。
 
 ### 1. 风格底座锁（所有工笔资产通用）

@@ -511,6 +511,126 @@ describe("asset-generation-orchestrator", () => {
     expect(source).toContain("getStudioAssetsBridge()?.batchMatch");
     expect(source).not.toContain("window.studioAssets");
   });
+
+  describe("daojie ma-gongbi-v1 编译边界", () => {
+    it("道劫润色结果经确定性编译后以 raw providerPrompt 直传", async () => {
+      vi.mocked(polishAssetPrompt).mockResolvedValueOnce({
+        status: "success",
+        prompt: "人物题材正文:晏燎立于矿场入口,面容与剑修身份清晰。",
+        negativePrompt: "水印",
+      });
+
+      const result = await generateAsset({
+        assetId: "char-1",
+        assetType: "character",
+        name: "晏燎",
+        description: "青衫剑修",
+        isDerivative: false,
+        visualManualId: "daojie_ink_guofeng",
+      });
+
+      expect(result.phase).toBe("done");
+      const [params, kind] = vi.mocked(aiManager.image).mock.calls[0];
+      expect(kind).toBe("character");
+      expect(params.promptPolicy).toBe("raw");
+      expect(params.negativePrompt).toBeUndefined();
+      // 题材正文 + 自动层(底座/人物轨) + 唯一末尾 Avoid(作业负面+通用负面)
+      expect(params.prompt).toContain("人物题材正文");
+      expect(params.prompt).toContain("风格底座");
+      expect(params.prompt).toContain("TRACK=person");
+      expect(params.prompt.match(/Avoid:/g)).toHaveLength(1);
+      expect(params.prompt).toContain("水印");
+      expect(params.prompt).toContain("压缩伪影");
+      expect(params.prompt).not.toContain("Negative constraints");
+      expect(params.prompt).not.toContain("clean image");
+    });
+
+    it("已有提示词复用仍进编译与长度门(skipPolish≠skipCompile),作业负面不丢", async () => {
+      const result = await generateAsset({
+        assetId: "prop-1",
+        assetType: "prop",
+        name: "断剑",
+        description: "一柄断裂的古剑",
+        isDerivative: false,
+        visualManualId: "daojie_ink_guofeng",
+        skipPolish: true,
+        existingPrompt: "既有人物题材正文",
+        negativePrompt: "签名",
+      });
+
+      expect(result.phase).toBe("done");
+      expect(polishAssetPrompt).not.toHaveBeenCalled();
+      const params = vi.mocked(aiManager.image).mock.calls[0][0];
+      expect(params.promptPolicy).toBe("raw");
+      expect(params.prompt).toContain("既有人物题材正文");
+      expect(params.prompt).toContain("风格底座");
+      expect(params.prompt).toContain("TRACK=prop");
+      expect(params.prompt).toContain("签名");
+    });
+
+    it("超 800 字符在网络前 fail-closed,不触发 provider 请求", async () => {
+      const result = await generateAsset({
+        assetId: "prop-1",
+        assetType: "prop",
+        name: "断剑",
+        description: "一柄断裂的古剑",
+        isDerivative: false,
+        visualManualId: "daojie_ink_guofeng",
+        skipPolish: true,
+        existingPrompt: "长".repeat(700),
+      });
+
+      expect(result.phase).toBe("failed");
+      expect(result.error).toContain("800");
+      expect(aiManager.image).not.toHaveBeenCalled();
+    });
+
+    it("参考图条件锁:有参考图追加降噪锁,无参考图不追加", async () => {
+      await generateAsset({
+        assetId: "prop-1",
+        assetType: "prop",
+        name: "断剑",
+        description: "一柄断裂的古剑",
+        isDerivative: false,
+        visualManualId: "daojie_ink_guofeng",
+        skipPolish: true,
+        existingPrompt: "道具题材正文",
+      });
+      await generateAsset({
+        assetId: "prop-1",
+        assetType: "prop",
+        name: "断剑",
+        description: "一柄断裂的古剑",
+        isDerivative: false,
+        visualManualId: "daojie_ink_guofeng",
+        skipPolish: true,
+        existingPrompt: "道具题材正文",
+        referenceImages: ["data:image/png;base64,aGVsbG8="],
+      });
+
+      const [withoutRef, withRef] = vi.mocked(aiManager.image).mock.calls;
+      expect(withoutRef[0].prompt).not.toContain("参考图降噪");
+      expect(withRef[0].prompt).toContain("参考图降噪");
+    });
+
+    it("非道劫手册不进编译链,保持 enhanced 直传", async () => {
+      await generateAsset({
+        assetId: "prop-1",
+        assetType: "prop",
+        name: "断剑",
+        description: "一柄断裂的古剑",
+        isDerivative: false,
+        visualManualId: "ink",
+        skipPolish: true,
+        existingPrompt: "existing prop image prompt",
+      });
+
+      const params = vi.mocked(aiManager.image).mock.calls[0][0];
+      expect(params.prompt).toBe("existing prop image prompt");
+      expect(params.promptPolicy).toBeUndefined();
+      expect(params.prompt).not.toContain("风格底座");
+    });
+  });
 });
 
 function projectPropGenerationTask(): AssetGenerationTask {

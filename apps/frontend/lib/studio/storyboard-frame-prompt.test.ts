@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import {
   buildStoryboardFactionColorSection,
@@ -100,6 +101,19 @@ describe("storyboard faction color section", () => {
   it("returns empty for unknown names or empty data (fail-empty)", () => {
     expect(buildStoryboardFactionColorSection({ sceneNames: ["无名之地"] }, faction)).toBe("");
     expect(buildStoryboardFactionColorSection({ personNames: ["独孤剑尘"] }, { members: {}, palette: {} })).toBe("");
+  });
+
+  it("prop 阵营色 = not_applicable:结构只有 person/scene 两轨,不为三轨齐全凭空新增", () => {
+    // 合同结构:palette 每阵营只有 person/scene 两个键
+    expect(Object.keys(faction.palette.万劫圣宗).sort()).toEqual(["person", "scene"]);
+    const section = buildStoryboardFactionColorSection(
+      { sceneNames: ["金水河码头"], personNames: ["独孤剑尘"] },
+      faction,
+    );
+    expect(section).not.toContain("道具");
+    // 源码层声明 not_applicable(合同声明与实现互锁)
+    const source = readFileSync(new URL("./storyboard-frame-prompt.ts", import.meta.url), "utf-8");
+    expect(source).toContain("prop 轨 = not_applicable");
   });
 
   it("feeds the color section into the frame prompt between composition and dialogue", () => {

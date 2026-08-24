@@ -81,6 +81,7 @@ export function selectStoryboardFrameTemplate(
 /**
  * 阵营色彩职责段(ma-faction-palette-v1):场景名→scene 轨、角色名→person 轨,
  * 各自去重取一(同轨多阵营时取首个命中),拼「【色彩】(阵营·轨道):五职责串」。
+ * prop 轨 = not_applicable:合同只有 person/scene 两轨,本函数不得输出道具阵营色。
  * 数据未预热/无命中 → 空串(prefix 通用配色五职责已覆盖,不重复注入)。
  */
 export function buildStoryboardFactionColorSection(

@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import type { StoryboardGenerationUiController } from "./use-storyboard-generation-ui";
 import { executeStoryboardGridGeneration } from "./storyboard-grid-generation-executor";
 import { buildStoryboardQuadGridPrompt } from "./storyboard-quad-grid-prompt";
+import { compileActiveDaojieStoryboardFramePrompt } from "@/lib/studio/visual-manual-style-tokens";
 import type { SceneCharacterContext } from "./storyboard-reference-utils";
 
 type StoryboardConfig = DirectorProjectData["storyboardConfig"];
@@ -163,6 +164,8 @@ export function useDirectorQuadGridController({
         includeDialogueBoxConstraint: true,
       });
       const gridPrompt = buildPromptWithIdentityLock(baseGridPrompt, scene, model, hasCharacterRefs);
+      // 道劫手册:宫格最终正文经 ma-gongbi-v1 分镜帧编译(唯一 Avoid+800 门)后 raw 直传
+      const compiledGridPrompt = await compileActiveDaojieStoryboardFramePrompt(gridPrompt);
 
       const optimizedRefs = optimizeReferenceImagesForModel(model, [
         { kind: "anchor", images: [sourceImage] },
@@ -181,7 +184,8 @@ export function useDirectorQuadGridController({
  const { slicedImages } = await executeStoryboardGridGeneration({
         request: {
           model,
-          prompt: gridPrompt,
+          prompt: compiledGridPrompt?.providerPrompt ?? gridPrompt,
+          promptPolicy: compiledGridPrompt ? "raw" : undefined,
           apiKey,
           baseUrl: imageBaseUrl,
           aspectRatio: aspect,

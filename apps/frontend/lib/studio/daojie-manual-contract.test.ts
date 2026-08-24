@@ -12,6 +12,7 @@
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
+import { DAOJIE_RUNTIME_CONTRACT } from "../ai/daojie-prompt-contract";
 import {
   EXTENDED_STORYBOARD_STYLE_TOKENS,
   getExtendedStoryboardStyleGuide,
@@ -188,6 +189,28 @@ describe("ma-gongbi-v1 同步守护(ma_sync 锚点)", () => {
       "成片主风格锁",
       "通用成片负面",
     ]);
+  });
+
+  itFile("紧凑 runtime contract 与登记来源 SHA、三轨映射和模块所有权一致", () => {
+    const runtimeContract = JSON.parse(
+      readFileSync(join(DAOJIE_DIR, "ma_sync/runtime-contract.json"), "utf-8"),
+    ) as typeof DAOJIE_RUNTIME_CONTRACT;
+    expect(runtimeContract).toEqual(DAOJIE_RUNTIME_CONTRACT);
+    for (const registered of anchors.maSources) {
+      const compactSource = runtimeContract.maSources.find((source) => source.path.endsWith(
+        registered.path.replace("/Users/zhengbingjin/Project/Unity/MA/.claude/skills/ma-imagegen/", ""),
+      ));
+      expect(compactSource?.sha256, `runtime contract 缺来源 ${registered.path}`).toBe(registered.sha256);
+    }
+    expect(runtimeContract.trackMappings).toEqual({
+      role: { runtimeTrack: "character", maTrack: "person" },
+      scene: { runtimeTrack: "scene", maTrack: "scene" },
+      tool: { runtimeTrack: "prop", maTrack: "prop" },
+    });
+    expect(runtimeContract.modules["style.gongbi-track.person"].singletonKey).toBe("gongbi_style_track");
+    expect(runtimeContract.modules["style.gongbi-track.scene"].singletonKey).toBe("gongbi_style_track");
+    expect(runtimeContract.modules["style.gongbi-track.prop"].singletonKey).toBe("gongbi_style_track");
+    expect(runtimeContract.modules["negative.universal"].singletonKey).toBe("universal_negative");
   });
 
   const maWorkspacePresent = existsSync(anchors.maSources[0].path);

@@ -7,6 +7,7 @@ import {
   getAssetOperationError,
   getAssetSpokenText,
   persistGeneratedAssetPromptToLibrary,
+  resolveThreeTrackAssetType,
   saveGeneratedAssetImageToLibrary,
   updateImagesAfterReplacingMainImage,
 } from "./StudioAssetDetailDialog";
@@ -358,5 +359,29 @@ describe("buildAssetRegenerationPrompt", () => {
     expect(previewSource).toContain("setApi={onCarouselApi}");
     expect(carouselSource).toContain('api.selectedScrollSnap()');
     expect(source).toContain("getAssetImageOpenTarget(images, currentIndex, detail)");
+  });
+});
+
+describe("resolveThreeTrackAssetType", () => {
+  it("maps the three static image tracks exactly (role/scene/tool)", () => {
+    expect(resolveThreeTrackAssetType("role")).toBe("character");
+    expect(resolveThreeTrackAssetType("scene")).toBe("scene");
+    expect(resolveThreeTrackAssetType("tool")).toBe("prop");
+  });
+
+  it.each(["clip", "audio", "任务", "", "unknown", null, undefined])(
+    "rejects %j before any three-track generation entry",
+    (input) => {
+      expect(() => resolveThreeTrackAssetType(input as never)).toThrowError(
+        expect.objectContaining({ code: "unsupported_asset_type" }),
+      );
+    },
+  );
+
+  it("keeps the detail dialog generation entries fail-closed for clip instead of silently reusing the prop track", () => {
+    const source = readFileSync(new URL("./StudioAssetDetailDialog.tsx", import.meta.url), "utf8");
+    expect(source).toContain("resolveThreeTrackAssetType(asset.type)");
+    expect(source).not.toContain('asset.type === "scene" ? "scene" as const : "prop" as const');
+    expect(source).not.toContain(': "prop" as const\n        : "prop" as const');
   });
 });

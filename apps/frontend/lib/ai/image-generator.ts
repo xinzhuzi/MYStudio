@@ -48,6 +48,8 @@ import {
 export interface ImageGenerationParams {
   prompt: string;
   negativePrompt?: string;
+  /** raw=调用方已持有最终 provider-visible 文本(如道劫 ma-gongbi-v1 编译产物),传输层禁止再追加/改写 */
+  promptPolicy?: "enhanced" | "raw";
   width?: number;
   height?: number;
   aspectRatio?: ImageAspectRatio;
@@ -107,6 +109,7 @@ async function generateImage(
   const normalizedPrompt = normalizeImagePromptForGeneration({
     prompt: params.prompt,
     negativePrompt: params.negativePrompt,
+    promptPolicy: params.promptPolicy,
   });
   const generationParams = {
     ...params,
@@ -145,6 +148,8 @@ async function generateImage(
         aspectRatio,
         resolution,
         prompt: generationParams.prompt,
+        promptPolicy: params.promptPolicy ?? "enhanced",
+        promptChars: Array.from(generationParams.prompt).length,
         referenceImageCount: generationParams.referenceImages?.length ?? 0,
         attempt: attemptIndex + 1,
         attempts: attemptConfigs.length,
@@ -195,6 +200,7 @@ async function generateImage(
         operationId,
         featureConfig.provider,
         generationParams.negativePrompt,
+        params.promptPolicy,
       );
 
       if (result.imageUrl) {
@@ -478,6 +484,7 @@ async function submitImageTask(
   operationId?: string,
   provider?: Pick<IProvider, 'id' | 'platform' | 'name' | 'baseUrl' | 'apiKey'>,
   negativePrompt?: string,
+  promptPolicy?: 'enhanced' | 'raw',
 ): Promise<{ taskId?: string; imageUrl?: string; pollUrl?: string }> {
   if (!baseUrl) {
     throw new Error('请先在设置中配置图片生成服务映射');
@@ -487,8 +494,8 @@ async function submitImageTask(
   const imageSettings = useAppSettingsStore.getState().imageGenerationSettings;
   const mikotoPaidBoundary = isMikotoImageProvider(baseUrl);
   const builtRequest = usesDefaultImagesEndpoint
-    ? buildOpenAIImageRequestBody({ model, prompt, aspectRatio, resolution, referenceImages, negativePrompt })
-    : buildProviderExtensionImageRequestBody({ model, prompt, aspectRatio, resolution, referenceImages, negativePrompt });
+    ? buildOpenAIImageRequestBody({ model, prompt, aspectRatio, resolution, referenceImages, negativePrompt, promptPolicy })
+    : buildProviderExtensionImageRequestBody({ model, prompt, aspectRatio, resolution, referenceImages, negativePrompt, promptPolicy });
   const requestData = builtRequest.body;
 
   if (model && !requestData.size && needsPixelSize(model)) {
@@ -510,6 +517,7 @@ async function submitImageTask(
       aspectRatio,
       resolution,
       negativePrompt,
+      promptPolicy,
       referenceImages,
       operationId,
       endpointFamily: 'images-generations',
@@ -549,6 +557,7 @@ async function submitImageTask(
           aspectRatio,
           resolution,
           negativePrompt,
+          promptPolicy,
           referenceImages,
           operationId,
           endpointFamily: 'images-generations',
@@ -566,7 +575,9 @@ async function submitImageTask(
         `Mikoto 图片请求结果不确定，已停止兼容重试与 provider fallback: ${sdkResult.error || 'transport failure'}`,
       ));
     }
-    if (imageSettings.compatibilityRetryEnabled && !mikotoPaidBoundary && shouldRetryImageCompatibility(sdkResult)) {
+    // raw 策略=调用方已持有最终 provider-visible 文本(如道劫编译产物),
+    // 兼容性改写会截断/重写正文,禁止触发。
+    if (imageSettings.compatibilityRetryEnabled && promptPolicy !== 'raw' && !mikotoPaidBoundary && shouldRetryImageCompatibility(sdkResult)) {
       const compatibilityPrompt = buildCompatibilityImagePrompt(prompt);
       void logEvent({
         level: 'warn',
@@ -847,6 +858,9 @@ export async function submitGridImageRequest(params: {
   baseUrl: string;
   aspectRatio?: string;
   resolution?: string;
+  negativePrompt?: string;
+  /** raw=调用方已持有最终 provider-visible 文本(如道劫分镜帧编译产物),传输层禁止再追加/改写 */
+  promptPolicy?: "enhanced" | "raw";
   referenceImages?: string[];
   /** 可选：传入 keyManager 后，重试时自动用轮换后的新 key */
   keyManager?: { getCurrentKey: () => string | null; handleError: (status: number, errorText?: string) => boolean };
@@ -857,6 +871,8 @@ export async function submitGridImageRequest(params: {
   const {
     model,
     prompt,
+    negativePrompt,
+    promptPolicy,
     apiKey,
     baseUrl,
     aspectRatio = imageSettings.defaultAspectRatio,
@@ -865,7 +881,7 @@ export async function submitGridImageRequest(params: {
     keyManager,
     signal,
   } = params;
-  const normalizedPrompt = normalizeImagePromptForGeneration({ prompt });
+  const normalizedPrompt = normalizeImagePromptForGeneration({ prompt, negativePrompt, promptPolicy });
   const transferReferenceImages = await prepareReferenceImagesForTransfer(referenceImages);
   const normalizedBase = baseUrl.replace(/\/+$/, '');
   const mikotoPaidBoundary = isMikotoImageProvider(normalizedBase);
@@ -895,8 +911,8 @@ export async function submitGridImageRequest(params: {
   const endpoint = `${rootBase}${imagePaths.submit}`;
   const usesDefaultImagesEndpoint = imagePaths.submit === DEFAULT_IMAGE_ENDPOINT.submit;
   const builtRequest = usesDefaultImagesEndpoint
-    ? buildOpenAIImageRequestBody({ model, prompt: normalizedPrompt.prompt, aspectRatio, resolution, referenceImages: transferReferenceImages, negativePrompt: normalizedPrompt.negativePrompt })
-    : buildProviderExtensionImageRequestBody({ model, prompt: normalizedPrompt.prompt, aspectRatio, resolution, referenceImages: transferReferenceImages, negativePrompt: normalizedPrompt.negativePrompt });
+    ? buildOpenAIImageRequestBody({ model, prompt: normalizedPrompt.prompt, aspectRatio, resolution, referenceImages: transferReferenceImages, negativePrompt: normalizedPrompt.negativePrompt, promptPolicy })
+    : buildProviderExtensionImageRequestBody({ model, prompt: normalizedPrompt.prompt, aspectRatio, resolution, referenceImages: transferReferenceImages, negativePrompt: normalizedPrompt.negativePrompt, promptPolicy });
   const requestBody = builtRequest.body;
 
 
@@ -915,6 +931,7 @@ export async function submitGridImageRequest(params: {
       aspectRatio,
       resolution,
       negativePrompt: normalizedPrompt.negativePrompt,
+      promptPolicy,
       referenceImages: transferReferenceImages,
       operationId,
       endpointFamily: 'grid-images-generations',

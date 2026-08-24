@@ -51,6 +51,11 @@ export interface PolishResult {
   status: "success" | "failed";
   /** 失败原因 */
   error?: string;
+  /**
+   * 道劫 ma-gongbi-v1 合同标记:prompt 是题材正文(subject body),不是最终 provider 文本。
+   * 自动层/长度门/Avoid 负面由 daojie-prompt-contract 编译器在生成前统一装配。
+   */
+  daojie?: { subjectBody: string };
 }
 
 export interface BatchPolishConfig {
@@ -80,6 +85,7 @@ export async function polishAssetPrompt(
   binding?: AIBinding,
 ): Promise<PolishResult> {
   const { assetType, name, description, isDerivative, visualManualId, identityAnchors } = request;
+  const isDaojieManual = visualManualId === EXTENDED_VISUAL_MANUAL_SEED_ID;
 
   try {
     // Step 1: 确定模块键名
@@ -114,6 +120,18 @@ export async function polishAssetPrompt(
 
     if (!result.success || !result.text) {
       console.warn("[prompt-polisher] 文本模型不可用，使用视觉手册本地兜底提示词:", result.error);
+      if (isDaojieManual) {
+        // 道劫兜底:构造同合同的本地题材正文,不退化为英文逗号串;
+        // 通用负面归编译器,这里只保留作业级负面。
+        const subjectBody = buildDaojieLocalSubjectBody({ assetType, name, description, isDerivative });
+        return {
+          prompt: subjectBody,
+          promptZh: `${name}：${description.trim() || name}`,
+          negativePrompt: request.negativePrompt?.trim() ?? "",
+          daojie: { subjectBody },
+          status: "success",
+        };
+      }
       const fallback = buildLocalFallbackPolishResult({
         assetType,
         name,
@@ -130,11 +148,20 @@ export async function polishAssetPrompt(
 
     // Step 6: 解析输出
     const parsed = parsePolishResult(result.text);
+    if (isDaojieManual) {
+      // 道劫:LLM 只拥有题材正文;不做通用 clean/denoise 追加,
+      // 自动层、唯一 Avoid 与 300-800 长度门由 daojie-prompt-contract 在生成前统一编译。
+      const subjectBody = sanitizeExtendedManualPrompt(parsed.prompt);
+      return {
+        ...parsed,
+        prompt: subjectBody,
+        negativePrompt: parsed.negativePrompt || request.negativePrompt || "",
+        daojie: { subjectBody },
+        status: "success",
+      };
+    }
     const normalizedPrompt = normalizeImagePromptForGeneration({
-      prompt:
-        visualManualId === EXTENDED_VISUAL_MANUAL_SEED_ID
-          ? sanitizeExtendedManualPrompt(parsed.prompt)
-          : parsed.prompt,
+      prompt: parsed.prompt,
       negativePrompt: parsed.negativePrompt || request.negativePrompt,
     });
 
@@ -416,6 +443,33 @@ function parsePolishResult(
     promptZh: promptZh || undefined,
     negativePrompt,
   };
+}
+
+/**
+ * 道劫 LLM 失败兜底:按对应轨道职责构造最小题材正文(七段公式的紧凑本地形态)。
+ * 只写题材事实与轨道职责;风格底座/轨道锁/成片锁/通用负面归 daojie-prompt-contract 编译器。
+ */
+function buildDaojieLocalSubjectBody(input: {
+  assetType: AssetType;
+  name: string;
+  description: string;
+  isDerivative: boolean;
+}): string {
+  const description = input.description.trim() || input.name;
+  const trackDuty: Record<AssetType, string> = {
+    character: "面部、发式、手势、服饰与身份标识清晰可读；构图主体明确，背景次要",
+    scene: "建筑、地形与空间层次结构清楚，主体纯度高，结构线稳定",
+    prop: "单体器物为唯一主角，材质、轮廓与工艺边缘清晰",
+  };
+  const label: Record<AssetType, string> = { character: "人物", scene: "场景", prop: "道具" };
+  const parts = [
+    `${label[input.assetType]}设定：${input.name}。${description}。`,
+    `呈现职责：${trackDuty[input.assetType]}。`,
+  ];
+  if (input.isDerivative) {
+    parts.push("衍生变体：保持基础形象不变，仅叠加妆容、发型、服饰或配饰层级。");
+  }
+  return parts.join("");
 }
 
 function buildLocalFallbackPolishResult(input: {

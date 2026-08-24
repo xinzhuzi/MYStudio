@@ -3,7 +3,8 @@
 本目录是 MYStudio 道劫手册与 MA `ma-imagegen` 的同步锚点:
 
 - `lock-anchors.json` — 机器可读锚点对(manualAnchor↔maAnchor),契约测试 `lib/studio/daojie-manual-contract.test.ts` 据此校验:①手册硬锁节包含全部 manualAnchor(防手改漂移);②本机 MA 存在时,权威文件包含全部 maAnchor(防快照过期),MA 不存在自动跳过(CI 安全)。
-- 同步流程:MA 侧锁文本演化后,跑 `apps/build/scripts/daojie-ma-sync-check.py` 出漂移报告 → 人工更新 prefix.md 硬锁节与本快照(锚点+sha256+日期)。
+- `runtime-contract.json` — `ma-gongbi-v1` 紧凑运行时合同(三轨映射/模块顺序/分隔符/300-800 长度门/自动层文本),生产编译器 `lib/ai/daojie-prompt-contract.ts` 加载它装配确定性 provider 文本;缺字段/SHA 不匹配时 fail-closed。
+- 同步流程:MA 侧锁文本演化后,跑 `python3 apps/build/scripts/daojie-ma-sync-check.py --ma-root <MA 仓库根>` 出漂移报告(区分「锚点仍在但非锚点文本漂移」与「锚点缺失」;不传 `--ma-root` 时仅做 MYStudio 快照内部一致性校验,CI 安全;加 `--json` 得结构化报告) → 人工更新 prefix.md 硬锁节、runtime-contract.json 与本快照(锚点+sha256+日期)。配套单测:`python3 -m unittest test_daojie_ma_sync_check.py`(在 `apps/build/scripts/` 下运行)。
 
 ## 来源指纹(2026-08-15)
 

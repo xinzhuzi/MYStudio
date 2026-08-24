@@ -8,6 +8,7 @@ import { useCharacterLibraryStore } from "@/stores/library/character-library-sto
 import { toast } from "sonner";
 import type { StoryboardGenerationUiController } from "../director/use-storyboard-generation-ui";
 import { executeStoryboardGridGeneration } from "../director/storyboard-grid-generation-executor";
+import { compileActiveDaojieStoryboardFramePrompt } from "@/lib/studio/visual-manual-style-tokens";
 import { normalizeStoryboardReferenceImages } from "../director/storyboard-reference-image-normalizer";
 import { buildStoryboardQuadGridPrompt } from "../director/storyboard-quad-grid-prompt";
 
@@ -199,11 +200,13 @@ export function useSClassQuadGridController({
         max: 14,
         onReadError: (url) => console.warn("[QuadGrid] Failed to read local image:", url),
       });
- 
+      // 道劫手册:宫格最终正文经 ma-gongbi-v1 分镜帧编译(唯一 Avoid+800 门)后 raw 直传
+      const compiledGridPrompt = await compileActiveDaojieStoryboardFramePrompt(gridPrompt);
  const { slicedImages } = await executeStoryboardGridGeneration({
         request: {
           model,
-          prompt: gridPrompt,
+          prompt: compiledGridPrompt?.providerPrompt ?? gridPrompt,
+          promptPolicy: compiledGridPrompt ? "raw" : undefined,
           apiKey,
           baseUrl: imageBaseUrl,
           aspectRatio: aspect,
