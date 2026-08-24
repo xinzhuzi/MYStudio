@@ -49,7 +49,7 @@ describe("Daojie ma-gongbi-v1 runtime contract", () => {
   it("ships a bounded, source-fingerprinted machine contract", () => {
     expect(DAOJIE_RUNTIME_CONTRACT.contractVersion).toBe("ma-gongbi-v1");
     expect(DAOJIE_RUNTIME_CONTRACT.contractSha256).toBe(
-      "57e49bc6c92937e50bc5e195e938ce3d098b8cd681bd4571a500fd4788fff9f0",
+      "57c5c5602cd92736be7c7d9f045579313ddabcd69c22716ce300e30564eddf66",
     );
     expect(DAOJIE_RUNTIME_CONTRACT.avoidSeparator).toBe("\nAvoid: ");
     expect(DAOJIE_RUNTIME_CONTRACT.length).toEqual({ warningBelow: 300, min: 300, max: 800 });
@@ -126,6 +126,13 @@ describe("Daojie ma-gongbi-v1 runtime contract", () => {
     ]);
     expect(withReference.moduleAudit.every(({ required }) => required)).toBe(true);
     expect(withReference.contractSha256).toMatch(/^[a-f0-9]{64}$/);
+    // MA 传输形态:核心模块空格相连,成片/参考图锁以换行追加
+    expect(withReference.positive).toMatch(/% light。?\n成片质量（硬）/);
+    expect(withReference.positive).toMatch(/清晰度。\n参考图降噪（硬）/);
+    expect(withoutReference.positive.match(/\n/g)).toHaveLength(1);
+    expect(withoutReference.positive).not.toContain("参考图降噪");
+    // MA transport 负面方言:作业负面在前,词条以 ", " 连接
+    expect(withoutReference.negative).toMatch(/^水印, 自定义负面, AI 泥糊噪点/);
     expect(withReference.totalChars).toBe(withReference.providerPrompt.length);
     expect(withReference.moduleLengths["negative.universal"]).toBe(withReference.negative.length);
   });
@@ -141,6 +148,17 @@ describe("Daojie ma-gongbi-v1 runtime contract", () => {
       `style.gongbi-track.${maTrack}`,
     ]);
   });
+});
+
+describe("Daojie subject ownership (MA _assert_clean_primary 对齐)", () => {
+  it.each(["风格底座（硬）", "TRACK=person", "配料方案", "Avoid: 水印", "成片质量（硬"])(
+    "rejects subject body carrying automatic owner marker %j",
+    (fragment) => {
+      void expect(
+        compileDaojiePrompt({ runtimeTrack: "character", subjectBody: `题材正文。${fragment}。` }),
+      ).rejects.toThrowError(expect.objectContaining({ code: "invalid_subject" }));
+    },
+  );
 });
 
 describe("Daojie provider-visible length policy", () => {

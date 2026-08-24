@@ -34,8 +34,12 @@ export interface DaojieRuntimeContract {
   maSources: DaojieContractSource[];
   trackMappings: Record<DaojieLibraryAssetType, { runtimeTrack: DaojieRuntimeTrack; maTrack: DaojieMaTrack }>;
   moduleOrder: string[];
-  moduleSeparator: string;
-  negativeSeparator: string;
+  /** 核心题材模块(题材/配色/底座/轨道)间隔符,对齐 MA composer 的 " ".join。 */
+  moduleSeparator: " ";
+  /** 传输锁(成片/参考图)追加间隔符,对齐 MA finish_locks 的 "\n{lock}" 追加。 */
+  transportLockSeparator: "\n";
+  /** 负面词条连接符,对齐 MA merge_universal_negative 的 ", ".join。 */
+  negativeSeparator: ", ";
   avoidSeparator: "\nAvoid: ";
   length: { warningBelow: 300; min: 300; max: 800 };
   modules: Record<string, DaojieContractModule>;
@@ -121,7 +125,12 @@ export function validateDaojieRuntimeContract(value: unknown): DaojieRuntimeCont
   if (JSON.stringify(value.moduleOrder) !== JSON.stringify(EXPECTED_MODULE_ORDER)) {
     throw invalidContract(value, "moduleOrder");
   }
-  if (value.moduleSeparator !== " " || value.negativeSeparator !== "、" || value.avoidSeparator !== "\nAvoid: ") {
+  if (
+    value.moduleSeparator !== " "
+    || value.transportLockSeparator !== "\n"
+    || value.negativeSeparator !== ", "
+    || value.avoidSeparator !== "\nAvoid: "
+  ) {
     throw invalidContract(value, "separators");
   }
   if (!isRecord(value.length) || value.length.warningBelow !== 300 || value.length.min !== 300 || value.length.max !== 800) {
@@ -223,7 +232,7 @@ export async function compileDaojieStoryboardFramePrompt(
     && (typeof input.negativeTerms === "string" ? input.negativeTerms.trim() : input.negativeTerms.length > 0);
   const negative = hasOwnNegative
     ? mergeNegativeTerms(input.negativeTerms, "")
-    : DAOJIE_RUNTIME_CONTRACT.modules["negative.universal"].text;
+    : mergeNegativeTerms(DAOJIE_RUNTIME_CONTRACT.modules["negative.universal"].text, "");
   const length = evaluateDaojiePromptLength(positive, negative);
   const moduleLengths: Record<string, number> = {
     "storyboard.frame": unicodeLength(positive),
@@ -307,24 +316,62 @@ export function evaluateDaojiePromptLength(positive: string, negative: string): 
 
 function splitNegativeTerms(value: string): string[] {
   const cleaned = value.replace(/Avoid:\s*/gi, "");
+  // 对齐 MA merge_universal_negative:仅按 、;；, 切分(不切全角逗号),词条边缘剥 ,;，；
   return cleaned
-    .split(/[、,，;；]/)
-    .map((term) => term.trim())
+    .split(/[、;；,]/)
+    .map((term) => term.trim().replace(/^[,;，；]+|[,;，；]+$/g, ""))
     .filter(Boolean);
 }
 
+/**
+ * 负面合并,逐条对齐 MA merge_universal_negative:
+ * 先作业负面后通用负面;精确小写去重;新词若是任一已收词的子串(或等长互含)则抑制;
+ * 最终以 ", " 连接(MA transport 方言)。
+ */
 function mergeNegativeTerms(input: DaojiePromptInput["negativeTerms"], universal: string): string {
   const values = typeof input === "string" ? [input] : input ? [...input] : [];
   const terms: string[] = [];
   const seen = new Set<string>();
-  for (const value of [...values.flatMap(splitNegativeTerms), ...splitNegativeTerms(universal)]) {
+  const add = (raw: string): void => {
+    const value = raw;
     const key = value.toLowerCase();
-    if (!seen.has(key)) {
-      seen.add(key);
-      terms.push(value);
+    if (seen.has(key)) return;
+    for (const prior of seen) {
+      if ((key.includes(prior) || prior.includes(key)) && key.length <= prior.length) return;
     }
+    seen.add(key);
+    terms.push(value);
+  };
+  for (const value of [...values.flatMap(splitNegativeTerms), ...splitNegativeTerms(universal)]) {
+    add(value);
   }
   return terms.join(DAOJIE_RUNTIME_CONTRACT.negativeSeparator);
+}
+
+/**
+ * 题材正文不得携带自动层属主标记(对齐 MA _assert_clean_primary/OWNER_MARKERS):
+ * 防止把已编译产物再次当题材输入导致锁重复装配。
+ */
+const SUBJECT_OWNER_MARKERS = [
+  "avoid:",
+  "style lock",
+  "风格底座",
+  "track=",
+  "轨道=",
+  "成片质量（硬",
+  "参考图降噪",
+  "配料方案",
+] as const;
+
+function assertSubjectOwnsNoAutomaticLayer(subjectBody: string): void {
+  const lowered = subjectBody.toLowerCase();
+  for (const marker of SUBJECT_OWNER_MARKERS) {
+    if (lowered.includes(marker)) {
+      throw new DaojiePromptContractError("invalid_subject", subjectBody, {
+        reason: `subject body contains automatic owner marker: ${marker}`,
+      });
+    }
+  }
 }
 
 export async function compileDaojiePrompt(input: DaojiePromptInput): Promise<CompiledDaojiePrompt> {
@@ -333,9 +380,7 @@ export async function compileDaojiePrompt(input: DaojiePromptInput): Promise<Com
     throw new DaojiePromptContractError("invalid_subject", input.subjectBody);
   }
   const subjectBody = input.subjectBody.trim();
-  if (/Avoid:/i.test(subjectBody)) {
-    throw new DaojiePromptContractError("invalid_subject", subjectBody, { reason: "subject owns no terminal negative section" });
-  }
+  assertSubjectOwnsNoAutomaticLayer(subjectBody);
   const trackModuleId = `style.gongbi-track.${maTrack}`;
   const positiveModuleIds = [
     "subject.body",
@@ -345,15 +390,18 @@ export async function compileDaojiePrompt(input: DaojiePromptInput): Promise<Com
     "finish.quality",
     ...(input.hasReferenceImage ? ["reference.denoise"] : []),
   ];
-  const positiveParts = [
+  // MA 两阶段形态:composer 空格连接题材/配色/底座/轨道;transport 以换行追加成片与参考图锁
+  const corePositive = [
     subjectBody,
     DAOJIE_RUNTIME_CONTRACT.modules["palette.source-facts-only"].text,
     DAOJIE_RUNTIME_CONTRACT.modules["style.gongbi-base"].text,
     DAOJIE_RUNTIME_CONTRACT.modules[trackModuleId].text,
+  ].join(DAOJIE_RUNTIME_CONTRACT.moduleSeparator);
+  const positive = [
+    corePositive,
     DAOJIE_RUNTIME_CONTRACT.modules["finish.quality"].text,
     ...(input.hasReferenceImage ? [DAOJIE_RUNTIME_CONTRACT.modules["reference.denoise"].text] : []),
-  ];
-  const positive = positiveParts.join(DAOJIE_RUNTIME_CONTRACT.moduleSeparator);
+  ].join(DAOJIE_RUNTIME_CONTRACT.transportLockSeparator);
   const negative = mergeNegativeTerms(input.negativeTerms, DAOJIE_RUNTIME_CONTRACT.modules["negative.universal"].text);
   const length = evaluateDaojiePromptLength(positive, negative);
   const moduleLengths: Record<string, number> = { "subject.body": unicodeLength(subjectBody) };

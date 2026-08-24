@@ -1,6 +1,6 @@
 {
   "contractVersion": "ma-gongbi-v1",
-  "contractSha256": "57e49bc6c92937e50bc5e195e938ce3d098b8cd681bd4571a500fd4788fff9f0",
+  "contractSha256": "57c5c5602cd92736be7c7d9f045579313ddabcd69c22716ce300e30564eddf66",
   "syncedAt": "2026-08-15",
   "maSources": [
     {
@@ -30,9 +30,18 @@
     }
   ],
   "trackMappings": {
-    "role": { "runtimeTrack": "character", "maTrack": "person" },
-    "scene": { "runtimeTrack": "scene", "maTrack": "scene" },
-    "tool": { "runtimeTrack": "prop", "maTrack": "prop" }
+    "role": {
+      "runtimeTrack": "character",
+      "maTrack": "person"
+    },
+    "scene": {
+      "runtimeTrack": "scene",
+      "maTrack": "scene"
+    },
+    "tool": {
+      "runtimeTrack": "prop",
+      "maTrack": "prop"
+    }
   },
   "moduleOrder": [
     "subject.body",
@@ -44,68 +53,111 @@
     "negative.universal"
   ],
   "moduleSeparator": " ",
-  "negativeSeparator": "、",
+  "negativeSeparator": ", ",
   "avoidSeparator": "\nAvoid: ",
-  "length": { "warningBelow": 300, "min": 300, "max": 800 },
+  "length": {
+    "warningBelow": 300,
+    "min": 300,
+    "max": 800
+  },
   "modules": {
     "palette.source-facts-only": {
       "moduleId": "palette.source-facts-only",
       "text": "配料方案（source-facts-only）：色相与材质色完全服从 Source facts；不注入默认色相或默认职责色。",
       "required": true,
       "singletonKey": "gongbi_palette_scheme",
-      "source": { "path": "scripts/prompting/gongbi_contract.py", "sha256": "d7f755ef9be119c7374fae3b2e1a65637d134c74cc038b574a3b9ce18bee71ff", "anchor": "配料方案（source-facts-only）" }
+      "source": {
+        "path": "scripts/prompting/gongbi_contract.py",
+        "sha256": "d7f755ef9be119c7374fae3b2e1a65637d134c74cc038b574a3b9ce18bee71ff",
+        "anchor": "配料方案（source-facts-only）"
+      }
     },
     "style.gongbi-base": {
       "moduleId": "style.gongbi-base",
       "text": "风格底座（硬）：中国水彩水墨工笔画；工笔细线；宋代审美；淡彩矿物罩染与水墨底；浅净哑光平涂底；均匀平光。工笔线条质量（硬）：连续铁线描；曲线自然顺滑、直线笔直稳定、线宽连续有节奏，转折衔接与起收笔干净。",
       "required": true,
       "singletonKey": "gongbi_style_base",
-      "source": { "path": "scripts/gongbi/daojie_gongbi_restyle.py", "sha256": "5e99f2f952bb5c273b910ff3306f1c9662928e833c6c2befe6345542bcfd8bf8", "anchor": "GONGBI_STYLE_BASE_COMPACT" }
+      "source": {
+        "path": "scripts/gongbi/daojie_gongbi_restyle.py",
+        "sha256": "5e99f2f952bb5c273b910ff3306f1c9662928e833c6c2befe6345542bcfd8bf8",
+        "anchor": "GONGBI_STYLE_BASE_COMPACT"
+      }
     },
     "style.gongbi-track.person": {
       "moduleId": "style.gongbi-track.person",
       "text": "TRACK=person：优先 face/hair/hands/costume；~40% 工笔 + 30% key-art + 20% depth + 10% light。",
       "required": true,
       "singletonKey": "gongbi_style_track",
-      "requires": ["style.gongbi-base"],
-      "source": { "path": "scripts/gongbi/daojie_gongbi_restyle.py", "sha256": "5e99f2f952bb5c273b910ff3306f1c9662928e833c6c2befe6345542bcfd8bf8", "anchor": "GONGBI_TRACK_PERSON_LOCK_COMPACT" }
+      "requires": [
+        "style.gongbi-base"
+      ],
+      "source": {
+        "path": "scripts/gongbi/daojie_gongbi_restyle.py",
+        "sha256": "5e99f2f952bb5c273b910ff3306f1c9662928e833c6c2befe6345542bcfd8bf8",
+        "anchor": "GONGBI_TRACK_PERSON_LOCK_COMPACT"
+      }
     },
     "style.gongbi-track.scene": {
       "moduleId": "style.gongbi-track.scene",
       "text": "TRACK=scene: 场景为唯一视觉主角；原图已有的人物按原数量/位置/姿态/尺度保留为小型远中景叙事或尺度参照，不得肖像特写、居中海报化、前景英雄位或人物主导光线；原图无人不得新增人物；布局、比例与前中远景不变，只改工笔媒介。 结构线对齐不漂移。",
       "required": true,
       "singletonKey": "gongbi_style_track",
-      "requires": ["style.gongbi-base"],
-      "source": { "path": "scripts/gongbi/daojie_gongbi_restyle.py", "sha256": "5e99f2f952bb5c273b910ff3306f1c9662928e833c6c2befe6345542bcfd8bf8", "anchor": "GONGBI_TRACK_SCENE_LOCK_COMPACT" }
+      "requires": [
+        "style.gongbi-base"
+      ],
+      "source": {
+        "path": "scripts/gongbi/daojie_gongbi_restyle.py",
+        "sha256": "5e99f2f952bb5c273b910ff3306f1c9662928e833c6c2befe6345542bcfd8bf8",
+        "anchor": "GONGBI_TRACK_SCENE_LOCK_COMPACT"
+      }
     },
     "style.gongbi-track.prop": {
       "moduleId": "style.gongbi-track.prop",
       "text": "TRACK=prop：单体 hero；material+silhouette 优先；~50% 工笔 + 30% material + 20% staging；禁止 portrait takeover 和器物 sheet-wrinkle。",
       "required": true,
       "singletonKey": "gongbi_style_track",
-      "requires": ["style.gongbi-base"],
-      "source": { "path": "scripts/gongbi/daojie_gongbi_restyle.py", "sha256": "5e99f2f952bb5c273b910ff3306f1c9662928e833c6c2befe6345542bcfd8bf8", "anchor": "GONGBI_TRACK_PROP_LOCK_COMPACT" }
+      "requires": [
+        "style.gongbi-base"
+      ],
+      "source": {
+        "path": "scripts/gongbi/daojie_gongbi_restyle.py",
+        "sha256": "5e99f2f952bb5c273b910ff3306f1c9662928e833c6c2befe6345542bcfd8bf8",
+        "anchor": "GONGBI_TRACK_PROP_LOCK_COMPACT"
+      }
     },
     "finish.quality": {
       "moduleId": "finish.quality",
       "text": "成片质量（硬）：强制降噪，生产级最终画面清晰度。",
       "required": true,
       "singletonKey": "finish_quality",
-      "source": { "path": "scripts/prompting/finish_locks.py", "sha256": "365f0ca08d11c791b903642a25e9d866a4be0b91e47dff4a07b3988f1ac65cb3", "anchor": "FINISH_QUALITY_LOCK_COMPACT" }
+      "source": {
+        "path": "scripts/prompting/finish_locks.py",
+        "sha256": "365f0ca08d11c791b903642a25e9d866a4be0b91e47dff4a07b3988f1ac65cb3",
+        "anchor": "FINISH_QUALITY_LOCK_COMPACT"
+      }
     },
     "reference.denoise": {
       "moduleId": "reference.denoise",
       "text": "参考图降噪（硬）：主体与背景分开降噪；保留声明的参考角色事实，排除脏表面；低噪低对比平涂背景；排除压缩块、脏色、污渍、纸纹、重复纹理与背景杂物。",
       "required": true,
       "singletonKey": "reference_denoise",
-      "source": { "path": "scripts/prompting/finish_locks.py", "sha256": "365f0ca08d11c791b903642a25e9d866a4be0b91e47dff4a07b3988f1ac65cb3", "anchor": "REFERENCE_DENOISE_LOCK_COMPACT" }
+      "source": {
+        "path": "scripts/prompting/finish_locks.py",
+        "sha256": "365f0ca08d11c791b903642a25e9d866a4be0b91e47dff4a07b3988f1ac65cb3",
+        "anchor": "REFERENCE_DENOISE_LOCK_COMPACT"
+      }
     },
     "negative.universal": {
       "moduleId": "negative.universal",
       "text": "AI 泥糊噪点、视觉噪点、脏纹理、污垢、压缩伪影、过锐光晕、脏色块、断裂轮廓、线条抖动、毛刺、锯齿、断线、双重轮廓、重复描边、突然加粗、黑点、墨疙瘩、脏墨飞点、杂散墨点、纸纹褶皱、纤维噪点、好莱坞电影光、霓虹色、糖果色、水印、签名、多余题字、logo 文字",
       "required": true,
       "singletonKey": "universal_negative",
-      "source": { "path": "scripts/prompting/finish_locks.py", "sha256": "365f0ca08d11c791b903642a25e9d866a4be0b91e47dff4a07b3988f1ac65cb3", "anchor": "UNIVERSAL_NEGATIVE_TERMS_COMPACT" }
+      "source": {
+        "path": "scripts/prompting/finish_locks.py",
+        "sha256": "365f0ca08d11c791b903642a25e9d866a4be0b91e47dff4a07b3988f1ac65cb3",
+        "anchor": "UNIVERSAL_NEGATIVE_TERMS_COMPACT"
+      }
     }
-  }
+  },
+  "transportLockSeparator": "\n"
 }
