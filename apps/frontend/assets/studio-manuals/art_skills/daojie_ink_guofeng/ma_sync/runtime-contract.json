@@ -1,6 +1,6 @@
 {
   "contractVersion": "ma-gongbi-v1",
-  "contractSha256": "65e70c47aea41c74075be7f7abef49d6461901b9f09ff35098eda02bfa4646bb",
+  "contractSha256": "28a2192a0cf10abbed80b6f883f2a37932d3e20564a603e3119c0efd003bef41",
   "syncedAt": "2026-08-15",
   "maSources": [
     {
@@ -15,7 +15,7 @@
     },
     {
       "path": "knowledge/prompt-templates/美术成片风格提示词模板库.md",
-      "sha256": "977a0dab26ea414e1ad78c78e0755ff53cdeab06178f738f2020f082092758b9",
+      "sha256": "67df230117c50b19cddbc2c0f49ad109b8b57fdbbfbd1c9218cacc86f0f782e4",
       "responsibility": "成片主风格与通用负面同步锚点"
     },
     {
@@ -45,7 +45,7 @@
     },
     {
       "path": "knowledge/prompt-templates/生图资产模板库.md",
-      "sha256": "1d734ab508ce9d3cf13eee0fda4132f7c10dfd01b1b5909dc4e1d226e419b099",
+      "sha256": "acde9a800c2ea5f07fc13d8f2da12be7221d8154537dfca8b0955066cc710a29",
       "responsibility": "资产模板写作指导(骨架/角色/场景)"
     }
   ],

@@ -24,7 +24,7 @@
     },
     {
       "path": "knowledge/prompt-templates/美术成片风格提示词模板库.md",
-      "sha256": "977a0dab26ea414e1ad78c78e0755ff53cdeab06178f738f2020f082092758b9",
+      "sha256": "67df230117c50b19cddbc2c0f49ad109b8b57fdbbfbd1c9218cacc86f0f782e4",
       "locks": [
         "成片主风格锁",
         "通用成片负面"
@@ -54,7 +54,7 @@
     },
     {
       "path": "knowledge/prompt-templates/生图资产模板库.md",
-      "sha256": "1d734ab508ce9d3cf13eee0fda4132f7c10dfd01b1b5909dc4e1d226e419b099",
+      "sha256": "acde9a800c2ea5f07fc13d8f2da12be7221d8154537dfca8b0955066cc710a29",
       "locks": [
         "资产模板写作指导"
       ]
