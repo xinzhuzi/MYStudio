@@ -10,10 +10,10 @@ import {
   FileText,
   Film,
   ImageIcon,
+  Camera,
   Loader2,
-  Maximize2,
-  Split,
   Table2,
+  ZoomIn,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { buttonVariants } from "@/components/ui/button";
@@ -61,7 +61,7 @@ const NODE_ICONS = {
   scriptPlan: ClipboardList,
   assets: Boxes,
   storyboardTable: Table2,
-  storyboard: Split,
+  storyboard: Camera,
   remotionProduction: Clapperboard,
   workbench: Film,
 } satisfies Record<ProductionFlowNodeId, typeof FileText>;
@@ -263,81 +263,6 @@ export function ProductionFlowNode({ data }: NodeProps<Node<ProductionNodeData>>
               <Edit3 className="h-3 w-3" />
             </button>
           ) : null}
-          {data.node.id === "storyboard" && storyboardBatch ? (
-            storyboardBatch.state.running ? (
-              <span
-                className="inline-flex h-7 items-center gap-1.5 rounded-md border border-paid/30 bg-paid/10 px-2 text-[11px] font-medium text-paid/80"
-                data-storyboard-node-batch-running
-              >
-                <Loader2 className="h-3 w-3 animate-spin" />
-                一键生图 {storyboardBatch.state.done}/{storyboardBatch.state.total}
-                <button
-                  type="button"
-                  className="ml-0.5 inline-flex items-center gap-1 rounded-md border-border text-[11px] text-muted-foreground hover:text-foreground"
-                  title="当前分镜完成后停止"
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    storyboardBatch.stop();
-                  }}
-                >
-                  停止
-                </button>
-              </span>
-            ) : (
-              <button
-                type="button"
-                className={cn(
-                  buttonVariants({ variant: "paid" }),
-                  "h-7 items-center gap-1.5 rounded-md px-2 text-[11px] [&_svg]:size-3",
-                )}
-                data-storyboard-node-batch-generate
-                title="一键生图:串行生成所有未生成分镜,已生成的自动跳过"
-                onClick={(event) => {
-                  event.stopPropagation();
-                  storyboardBatch.start();
-                }}
-              >
-                一键生图
-                <ImageIcon className="h-3 w-3" />
-              </button>
-            )
-          ) : null}
-          {data.node.id === "storyboard" && storyboardUpscale ? (
-            storyboardUpscale.state.running ? (
-              <span
-                className="inline-flex h-7 items-center gap-1.5 rounded-md border border-primary/30 bg-primary/10 px-2 text-[11px] font-medium text-primary/80"
-                data-storyboard-node-upscale-running
-              >
-                <Loader2 className="h-3 w-3 animate-spin" />
-                一键超分 {storyboardUpscale.state.done}/{storyboardUpscale.state.total}
-                <button
-                  type="button"
-                  className="ml-0.5 inline-flex items-center gap-1 rounded-md border-border text-[11px] text-muted-foreground hover:text-foreground"
-                  title="当前分镜完成后停止"
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    storyboardUpscale.stop();
-                  }}
-                >
-                  停止
-                </button>
-              </span>
-            ) : (
-              <button
-                type="button"
-                className="inline-flex h-7 items-center gap-1.5 rounded-md border border-border bg-muted/35 px-2 text-[11px] font-medium text-card-foreground hover:border-primary/45 hover:bg-muted/12"
-                data-storyboard-node-batch-upscale
-                title="一键超分:把所有分镜图本地超分到 4K(x4)并换轨到超分产物;已超分的自动跳过"
-                onClick={(event) => {
-                  event.stopPropagation();
-                  storyboardUpscale.start();
-                }}
-              >
-                一键超分
-                <Maximize2 className="h-3 w-3" />
-              </button>
-            )
-          ) : null}
           {!isStageEntryNoop ? (
             <button
               type="button"
@@ -480,6 +405,85 @@ export function ProductionFlowNode({ data }: NodeProps<Node<ProductionNodeData>>
           ))}
         </div>
       ) : null}
+      {/* 批量动作 footer: 一键生图/一键超分置于节点卡最底(2026-08-25 布局裁定) */}
+      <div className="nodrag nopan mt-3 flex flex-wrap items-center gap-2">
+        {data.node.id === "storyboard" && storyboardBatch ? (
+            storyboardBatch.state.running ? (
+              <span
+                className="inline-flex h-7 items-center gap-1.5 rounded-md border border-paid/30 bg-paid/10 px-2 text-[11px] font-medium text-paid/80"
+                data-storyboard-node-batch-running
+              >
+                <Loader2 className="h-3 w-3 animate-spin" />
+                一键生图 {storyboardBatch.state.done}/{storyboardBatch.state.total}
+                <button
+                  type="button"
+                  className="ml-0.5 inline-flex items-center gap-1 rounded-md border-border text-[11px] text-muted-foreground hover:text-foreground"
+                  title="当前分镜完成后停止"
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    storyboardBatch.stop();
+                  }}
+                >
+                  停止
+                </button>
+              </span>
+            ) : (
+              <button
+                type="button"
+                className={cn(
+                  buttonVariants({ variant: "paid" }),
+                  "h-7 items-center gap-1.5 rounded-md px-2 text-[11px] [&_svg]:size-3",
+                )}
+                data-storyboard-node-batch-generate
+                title="一键生图:串行生成所有未生成分镜,已生成的自动跳过"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  storyboardBatch.start();
+                }}
+              >
+                一键生图
+                <ImageIcon className="h-3 w-3" />
+              </button>
+            )
+          ) : null}
+          {data.node.id === "storyboard" && storyboardUpscale ? (
+            storyboardUpscale.state.running ? (
+              <span
+                className="inline-flex h-7 items-center gap-1.5 rounded-md border border-primary/30 bg-primary/10 px-2 text-[11px] font-medium text-primary/80"
+                data-storyboard-node-upscale-running
+              >
+                <Loader2 className="h-3 w-3 animate-spin" />
+                一键超分 {storyboardUpscale.state.done}/{storyboardUpscale.state.total}
+                <button
+                  type="button"
+                  className="ml-0.5 inline-flex items-center gap-1 rounded-md border-border text-[11px] text-muted-foreground hover:text-foreground"
+                  title="当前分镜完成后停止"
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    storyboardUpscale.stop();
+                  }}
+                >
+                  停止
+                </button>
+              </span>
+            ) : (
+              <button
+                type="button"
+                className="inline-flex h-7 items-center gap-1.5 rounded-md border border-border bg-muted/35 px-2 text-[11px] font-medium text-card-foreground hover:border-primary/45 hover:bg-muted/12"
+                data-storyboard-node-batch-upscale
+                title="一键超分:把所有分镜图本地超分到 4K(x4)并换轨到超分产物;已超分的自动跳过"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  storyboardUpscale.start();
+                }}
+              >
+                一键超分
+                <ZoomIn className="h-3 w-3" />
+              </button>
+            )
+          ) : null}
+          
+      </div>
     </div>
   );
 }
