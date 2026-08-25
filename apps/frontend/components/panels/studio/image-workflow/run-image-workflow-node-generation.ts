@@ -90,7 +90,8 @@ export async function runImageWorkflowNodeGeneration(
   // 态下参考约束已由 @图N 标记+参考图本体+帧负面承担,锚点段冗余——进编译前剥离
   // (S08 直连同款口径实证: 无锚点段+@图N+4 参考图=形象六项全对)。
   const compiledFrame = graph.target.kind === "storyboard"
-    ? await compileActiveDaojieStoryboardFramePrompt(stripCompiledFrameRedundantSections(styledPrompt))
+    ? await compileActiveDaojieStoryboardFramePrompt(
+        hardenReferenceAnchors(stripCompiledFrameRedundantSections(styledPrompt)))
     : null;
   const node = graph.nodes.find((item) => item.id === targetNodeId);
   const chapterId = chapterScopeForWorkflowTarget(
@@ -161,4 +162,18 @@ export async function runImageWorkflowNodeGeneration(
   });
   useStudioStore.getState().upsertImageWorkflow(updated);
   return { imageUrl: saved.url };
+}
+
+/**
+ * 参考身份硬锚(2026-08-25 参考遵循度抽检根修): chat 回退通道对参考图遵循
+ * 偏松+文字锚点段已剥离,人物细节漂移(S44 白发画成黑发/S4 赵四形象漂移
+ * 实证)。发送时把 @图N 头段升级为硬锚句式,幂等(已是硬锚不再加),仅作用于
+ * 头段的绑定行,不改正文/不涨字数门(每行+~8 字,82 镜最大头段 4 行≈32 字)。
+ */
+function hardenReferenceAnchors(prompt: string): string {
+  return prompt.replace(
+    /@图(\d+)\s*为([^,;；\n]*?)(角色|场景|道具)(?![^\n]*一致)/g,
+    (_line, num: string, name: string, kind: string) =>
+      `@图${num} 为${name}${kind}，外观须与@图${num}一致`,
+  );
 }
