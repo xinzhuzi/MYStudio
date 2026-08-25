@@ -199,6 +199,25 @@ export function useImageWorkflowUpscale({
       saveGraph(setGeneratedImageResult(latest, nodeId, {
         imageUrl: result.outputUrl,
       }));
+      // 2026-08-25 回写补齐: 分镜工作流的主成图超分后同步分镜 mediaRef——
+      // 此前只写节点,分镜面板/成片时间线仍指 1K 原图,4K 角标与批量跳过
+      // (up4x- 判据)也全部失明(分镜1 实弹实证)。与瓦片直连超分同口径。
+      const target = latest.target;
+      if (target?.kind === "storyboard" && target.id) {
+        const store = useStudioStore.getState();
+        const shot = store.storyboards.find((item) => item.id === target.id);
+        const mr = shot?.mediaRef;
+        if (shot && mr?.kind === "image"
+          && mr.imageWorkflowId === latest.id && mr.imageWorkflowNodeId === nodeId) {
+          store.bindStoryboardMedia(target.id, {
+            kind: "image",
+            path: result.outputUrl,
+            contentSha256: result.artifact.outputSha256,
+            imageWorkflowId: latest.id,
+            imageWorkflowNodeId: nodeId,
+          });
+        }
+      }
       toast.success(
         `超分完成：${result.artifact.width}×${result.artifact.height}(×${result.artifact.scale}，${result.artifact.elapsedSeconds ?? "?"}s)`,
       );
