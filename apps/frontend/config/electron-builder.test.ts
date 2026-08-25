@@ -50,10 +50,16 @@ describe("electron-builder TTS packaging", () => {
   it("does not bundle Daojie-specific content manuals into the desktop app", () => {
     const source = readFileSync(new URL("./electron-builder.yml", import.meta.url), "utf8");
     const studioManualsStart = source.indexOf("  - from: frontend/assets/studio-manuals");
-    const asarStart = source.indexOf("\nasar:");
-    const studioManualsResource = source.slice(studioManualsStart, asarStart);
+    // 只切 studio-manuals 自己的块(到下一个 resource 块为止)——07-07 起
+    // story 排除行被误贴进 minimap filter,宽切片让断言假绿了 7 周。
+    const nextResourceStart = source.indexOf("  - from:", studioManualsStart + 1);
+    const studioManualsResource = source.slice(studioManualsStart, nextResourceStart);
 
     expect(studioManualsResource).toContain('"!art_skills/daojie_ink_guofeng/**"');
     expect(studioManualsResource).toContain('"!story_skills/Daojie_xianxia/**"');
+    // 道劫排除不得再出现在任何其它资源块的 filter 里(防误贴复发)。
+    const outsideSlice = source.slice(0, studioManualsStart) + source.slice(nextResourceStart);
+    expect(outsideSlice).not.toContain('"!story_skills/Daojie_xianxia/**"');
+    expect(outsideSlice).not.toContain('"!art_skills/daojie_ink_guofeng/**"');
   });
 });

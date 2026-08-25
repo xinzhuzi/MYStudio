@@ -62,7 +62,10 @@ extraResources:
     to: studio-manuals
     filter:
       - "**/*"
+      # 道劫=个人资产不入包(用户裁定 08-15);真源在项目侧 <项目根>/skills,
+      # 仓库种子仅作迁移源保留。story 侧 Daojie_xianxia 此前漏排(08-25 补)。
       - "!art_skills/daojie_ink_guofeng/**"
+      - "!story_skills/Daojie_xianxia/**"
   # 成片调色 LUT 资产（08-18-haldclut-grade；生成源 build/scripts/generate-luts.py）。
   - from: frontend/assets/luts
     to: luts
@@ -81,8 +84,6 @@ extraResources:
     to: minimax
     filter:
       - "**/*"
-      - "!**/.DS_Store"
-      - "!story_skills/Daojie_xianxia/**"
       - "!**/.DS_Store"
       - "!**/__MACOSX/**"
       - "!**/.cache/**"
