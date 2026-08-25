@@ -26,6 +26,11 @@ export function hasUpscaleRuntime(): boolean {
  */
 export const UPSCALE_INPUT_MAX_LONG_SIDE = 4096;
 
+/** 超分产物判据:up4x- 输出前缀(与 siblingOutputRef 命名同源,批量跳过/UI 角标共用)。 */
+export function isUpscaledMediaPath(path: string | undefined): boolean {
+  return typeof path === "string" && path.includes("up4x-");
+}
+
 export async function probeUpscaleRuntimeLifecycle(
   request?: UpscaleRuntimeLifecycleRequestV1,
 ): Promise<UpscaleRuntimeStatusV1> {

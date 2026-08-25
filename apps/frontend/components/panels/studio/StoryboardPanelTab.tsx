@@ -1,4 +1,5 @@
 import { ArrowLeft, Image as ImageIcon, Loader2, Square } from "lucide-react";
+import { isUpscaledMediaPath } from "@/lib/upscale/client";
 import { Button } from "@/components/ui/button";
 import type { ImageWorkflowOpenContext, StoryboardItem } from "@/types/studio";
 import { buildStoryboardItemOpenContext } from "./storyboard-open-context";
@@ -125,7 +126,7 @@ export function StoryboardPanelTab({
                   </span>
                   {mediaPath ? (
                     <span className="absolute right-1 top-1 rounded bg-background/80 px-1.5 py-0.5 text-[9px] text-foreground">
-                      已生成
+                      {isUpscaledMediaPath(mediaPath) ? "4K" : "已生成"}
                     </span>
                   ) : null}
                 </div>

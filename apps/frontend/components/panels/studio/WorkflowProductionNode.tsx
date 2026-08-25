@@ -53,6 +53,9 @@ export interface ProductionNodeData extends Record<string, unknown> {
     state: StoryboardBatchUpscaleState;
     start: () => void;
     stop: () => void;
+    /** 派生进度:已超分数/有图总数(空闲态按钮显示) */
+    upscaledCount?: number;
+    shotCount?: number;
   };
 }
 
@@ -471,13 +474,14 @@ export function ProductionFlowNode({ data }: NodeProps<Node<ProductionNodeData>>
                 type="button"
                 className="inline-flex h-7 items-center gap-1.5 rounded-md border border-border bg-muted/35 px-2 text-[11px] font-medium text-card-foreground hover:border-primary/45 hover:bg-muted/12"
                 data-storyboard-node-batch-upscale
-                title="一键超分:把所有分镜图本地超分到 4K(x4)并换轨到超分产物;已超分的自动跳过"
+                title="一键超分:把所有分镜图本地超分到 4K(x4)并换轨到超分产物;已超分的自动跳过(重生成的新图会自动补超分)"
                 onClick={(event) => {
                   event.stopPropagation();
                   storyboardUpscale.start();
                 }}
               >
                 一键超分
+                {storyboardUpscale.upscaledCount ? ` · 已4K ${storyboardUpscale.upscaledCount}/${storyboardUpscale.shotCount ?? 0}` : ""}
                 <ZoomIn className="h-3 w-3" />
               </button>
             )

@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { ImageIcon, Loader2, ZoomIn } from "lucide-react";
 import { useDirectImageUpscale } from "../use-direct-image-upscale";
-import { UPSCALE_INPUT_MAX_LONG_SIDE } from "@/lib/upscale/client";
+import { isUpscaledMediaPath, UPSCALE_INPUT_MAX_LONG_SIDE } from "@/lib/upscale/client";
 import type { ImageWorkflowOpenContext } from "@/types/studio";
 import type { ProductionFlowNodeModel } from "../workflow-node-model";
 import { buildStoryboardImageOpenContext } from "../storyboard-open-context";
@@ -13,7 +13,7 @@ import { TextPreview } from "./text-preview";
  * (onLoad 尽力而为，懒加载/缓存场景可能缺席——后端守卫兜底)。
  */
 function tileAlready4k(mediaPath: string | undefined, longSide: number | undefined): boolean {
-  if (typeof mediaPath === "string" && mediaPath.includes("up4x-")) return true;
+  if (isUpscaledMediaPath(mediaPath)) return true;
   return (longSide ?? 0) > UPSCALE_INPUT_MAX_LONG_SIDE;
 }
 
@@ -63,6 +63,11 @@ export function StoryboardGridPreview({
               <span className="absolute right-1 top-1 rounded bg-background/80 px-1.5 py-0.5 text-[9px] text-foreground">
                 {tile.state}
               </span>
+              {tileAlready4k(tile.mediaPath, tileLongSides[tile.id]) ? (
+                <span className="absolute bottom-1 right-1 rounded bg-primary/80 px-1.5 py-0.5 text-[9px] font-semibold text-primary-foreground">
+                  4K
+                </span>
+              ) : null}
             </>
           );
           return (

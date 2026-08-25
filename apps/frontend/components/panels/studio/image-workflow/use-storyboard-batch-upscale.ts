@@ -1,6 +1,7 @@
 import { useCallback, useRef, useState } from "react";
 import { toast } from "sonner";
 import { createOperationId, logEvent } from "@/lib/diagnostics/logger";
+import { isUpscaledMediaPath } from "@/lib/upscale/client";
 import { useStudioStore } from "@/stores/studio/studio-store";
 import type { StoryboardItem } from "@/types/studio";
 import {
@@ -29,7 +30,7 @@ const IDLE_STATE: StoryboardBatchUpscaleState = {
 /** 已是超分产物(up4x- 文件名标记)的镜跳过——重复点击不叠加放大。 */
 function isUpscaled(item: StoryboardItem): boolean {
   const path = item.mediaRef?.kind === "image" ? item.mediaRef.path : "";
-  return path.includes("up4x-");
+  return isUpscaledMediaPath(path);
 }
 
 /**
@@ -152,12 +153,15 @@ export function useStoryboardBatchUpscale(input: {
         },
       });
       if (stopRequestedRef.current) {
-        toast.info(`已停止：成功 ${done} · 失败 ${failed} · 剩余 ${queue.length - done - failed}`);
+        toast.info(`已停止：成功 ${done} · 失败 ${failed} · 剩余 ${queue.length - done - failed}${alreadyUpscaled ? ` · 跳过已超分 ${alreadyUpscaled}` : ""}`);
       } else {
-        toast.success(`一键超分完成：成功 ${done}${failed ? ` · 失败 ${failed}` : ""}`);
+        toast.success(`一键超分完成：成功 ${done}${failed ? ` · 失败 ${failed}` : ""}${alreadyUpscaled ? ` · 跳过已超分 ${alreadyUpscaled}` : ""}`);
       }
     })();
   }, [storyboards]);
 
-  return { state, start, stop };
+  // 派生进度(空闲态按钮显示「已 4K n/总」;廉价过滤,随 storyboards 重算)
+  const withImage = storyboards.filter((item) => item.mediaRef?.kind === "image");
+  const upscaledCount = withImage.filter(isUpscaled).length;
+  return { state, start, stop, upscaledCount, shotCount: withImage.length };
 }

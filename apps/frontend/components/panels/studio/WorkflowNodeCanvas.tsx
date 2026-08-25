@@ -236,6 +236,9 @@ export function WorkflowNodeCanvas({
     state: StoryboardBatchUpscaleState;
     start: () => void;
     stop: () => void;
+    /** 派生进度:已超分数/有图总数(空闲态按钮显示) */
+    upscaledCount?: number;
+    shotCount?: number;
   };
   chapterAutoVideoStatus?: ChapterAutoVideoStatus;
   chapterAutoVideoRunning?: boolean;
