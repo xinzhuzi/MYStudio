@@ -547,15 +547,20 @@ export function markContinuityDependentsStale(
       .map((storyboard) => storyboard.id),
   );
   return storyboards.map((storyboard) => {
-    if (!downstreamIds.has(storyboard.id)) return storyboard;
+    // 级联的语义=作废下游「已批准」审核的效力:只对带 visualReview 的行标
+    // stale。未审核行本就 pending,标 stale 会把它卡死——面板 canApprove 拒
+    // stale 行,而清 stale 只能靠该镜重生成,未审核行无既有效力可作废。
+    if (!downstreamIds.has(storyboard.id) || !storyboard.visualReview) return storyboard;
     return {
       ...storyboard,
       stale: true,
       staleReason: `上游连续镜头 ${changedStoryboardId} 已变化`,
       staleSince,
-      visualReview: storyboard.visualReview
-        ? { ...storyboard.visualReview, status: "pending" as const, reasons: ["上游连续镜头已变化，必须重新审核"] }
-        : storyboard.visualReview,
+      visualReview: {
+        ...storyboard.visualReview,
+        status: "pending" as const,
+        reasons: ["上游连续镜头已变化，必须重新审核"],
+      },
     };
   });
 }
