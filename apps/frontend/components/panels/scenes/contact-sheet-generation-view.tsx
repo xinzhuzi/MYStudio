@@ -9,6 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import type { VisualStyleId } from "@/lib/constants/visual-styles";
 import type { PromptLanguage } from "@/types/script";
 import { getLayoutDimensions, type ContactSheetLayout } from "./generation-panel-utils";
+import { ResolutionBadge } from "@/components/ui/image-resolution-badge";
 
 type ContactSheetViewpoint = {
   id: string;
@@ -207,7 +208,10 @@ export function ContactSheetGenerationView({
             <div className="space-y-2">
               <Label className="text-xs">联合图预览</Label>
               <div className="relative rounded-lg overflow-hidden border bg-muted">
-                <img src={image} alt="联合图预览" className="w-full h-auto" />
+                <>
+                  <img src={image} alt="联合图预览" className="w-full h-auto" />
+                  <ResolutionBadge src={image} />
+                </>
               </div>
               <Button onClick={onSplit} className="w-full" disabled={isSplitting}>
                 {isSplitting ? (
@@ -228,7 +232,12 @@ export function ContactSheetGenerationView({
                   return (
                     <div key={viewpoint.id} className="space-y-1">
                       <div className={`relative ${aspectRatio === "9:16" ? "aspect-[9/16]" : "aspect-video"} rounded overflow-hidden border bg-muted`}>
-                        {imageData ? <img src={imageData.imageUrl} alt={viewpoint.name} className="w-full h-full object-cover" /> : (
+                        {imageData ? (
+                          <>
+                            <img src={imageData.imageUrl} alt={viewpoint.name} className="w-full h-full object-cover" />
+                            <ResolutionBadge src={imageData.imageUrl} />
+                          </>
+                        ) : (
                           <div className="w-full h-full flex items-center justify-center"><ImageIcon className="h-4 w-4 text-muted-foreground" /></div>
                         )}
                       </div>

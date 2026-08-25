@@ -30,6 +30,7 @@ import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { delay, RATE_LIMITS } from "@/lib/utils/rate-limiter";
 import type { Shot } from "@/types/script";
+import { ResolutionBadge } from "@/components/ui/image-resolution-badge";
 
 interface ShotListPanelProps {
   onGenerateImage?: (shot: Shot, type: "start" | "end") => Promise<string>;
@@ -248,11 +249,14 @@ export function ShotListPanel({ onGenerateImage }: ShotListPanelProps) {
                     {/* Thumbnail */}
                     <div className="aspect-video bg-muted relative">
                       {hasImage ? (
-                        <img
-                          src={startKf?.imageUrl || shot.imageUrl}
-                          alt={`Shot ${idx + 1}`}
-                          className="w-full h-full object-cover"
-                        />
+                        <>
+                          <img
+                            src={startKf?.imageUrl || shot.imageUrl}
+                            alt={`Shot ${idx + 1}`}
+                            className="w-full h-full object-cover"
+                          />
+                          <ResolutionBadge src={startKf?.imageUrl || shot.imageUrl} />
+                        </>
                       ) : (
                         <div className="absolute inset-0 flex items-center justify-center">
                           <ImageIcon className="w-6 h-6 text-muted-foreground/30" />

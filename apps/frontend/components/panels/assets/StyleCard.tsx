@@ -11,6 +11,7 @@
 import { memo, useEffect, useRef, useState, type CSSProperties } from "react";
 import { cn } from "@/lib/utils";
 import { LocalImage } from "@/components/ui/local-image";
+import { ResolutionBadge } from "@/components/ui/image-resolution-badge";
 import type { StyleCategory } from "@/lib/constants/visual-styles";
 
 // 风格分类色块（与 StylePicker 一致）
@@ -102,15 +103,17 @@ function StyleCardComponent({
       {/* 缩略图区域 */}
       <div className="relative aspect-[4/3] bg-muted overflow-hidden">
         {displayImage && shouldLoadImage ? (
-          <LocalImage
-            src={displayImage}
-            alt={name}
-            className="w-full h-full object-cover"
-            loading="lazy"
-            decoding="async"
-            draggable={false}
-            resolutionBadge
-          />
+          <>
+            <LocalImage
+              src={displayImage}
+              alt={name}
+              className="w-full h-full object-cover"
+              loading="lazy"
+              decoding="async"
+              draggable={false}
+            />
+            <ResolutionBadge src={displayImage} className="bottom-1 left-1 right-auto top-auto" />
+          </>
         ) : displayImage ? (
           <div className="h-full w-full bg-muted/70" />
         ) : category ? (

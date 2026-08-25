@@ -19,6 +19,7 @@ import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { X, ImagePlus, Save, ArrowLeft, Sparkles, Loader2 } from "lucide-react";
 import { toast } from "sonner";
+import { ResolutionBadge } from "@/components/ui/image-resolution-badge";
 
 interface StyleEditorProps {
   styleId: string | null; // null = 新建, 'new' = 新建, 其他 = 编辑
@@ -297,6 +298,7 @@ export function StyleEditor({ styleId, onClose }: StyleEditorProps) {
                         alt={`参考图 ${i + 1}`}
                         className="w-full h-full object-cover"
                       />
+                      <ResolutionBadge src={img} className="bottom-1 left-1 right-auto top-auto" />
                       <button
                         className="absolute top-1 right-1 p-0.5 rounded-md bg-black/60 text-white opacity-0 group-hover:opacity-100 transition-opacity"
                         onClick={() => removeImage(i)}

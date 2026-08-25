@@ -36,6 +36,7 @@ import { toast } from "sonner";
 import { WardrobeModal } from "./wardrobe-modal";
 import { LocalImage } from "@/components/ui/local-image";
 import { ImagePreviewModal } from "@/components/features/media/media-preview-modal";
+import { ResolutionBadge } from "@/components/ui/image-resolution-badge";
 
 // View type labels
 const VIEW_LABELS: Record<string, string> = {
@@ -234,17 +235,23 @@ export function CharacterDetail({ character }: CharacterDetailProps) {
               }}
             >
             {currentView ? (
-                <LocalImage 
-                  src={currentView.imageUrl} 
-                  alt={`${character.name} - ${VIEW_LABELS[currentView.viewType] || currentView.viewType}`}
-                  className="w-full h-full object-contain"
-                />
+                <>
+                  <LocalImage 
+                    src={currentView.imageUrl} 
+                    alt={`${character.name} - ${VIEW_LABELS[currentView.viewType] || currentView.viewType}`}
+                    className="w-full h-full object-contain"
+                  />
+                  <ResolutionBadge src={currentView.imageUrl} className="bottom-1 right-1 top-auto" />
+                </>
               ) : character.thumbnailUrl ? (
-                <LocalImage 
-                  src={character.thumbnailUrl} 
-                  alt={character.name}
-                  className="w-full h-full object-contain"
-                />
+                <>
+                  <LocalImage 
+                    src={character.thumbnailUrl} 
+                    alt={character.name}
+                    className="w-full h-full object-contain"
+                  />
+                  <ResolutionBadge src={character.thumbnailUrl} className="bottom-1 right-1 top-auto" />
+                </>
               ) : (
                 <div className="w-full h-full flex items-center justify-center">
                   <User className="h-16 w-16 text-muted-foreground" />

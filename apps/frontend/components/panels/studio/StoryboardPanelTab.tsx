@@ -1,6 +1,6 @@
 import { ArrowLeft, Image as ImageIcon, Loader2, Square } from "lucide-react";
-import { isUpscaledMediaPath } from "@/lib/upscale/client";
 import { Button } from "@/components/ui/button";
+import { ResolutionBadge } from "@/components/ui/image-resolution-badge";
 import type { ImageWorkflowOpenContext, StoryboardItem } from "@/types/studio";
 import { buildStoryboardItemOpenContext } from "./storyboard-open-context";
 import { toPreviewSrc } from "./previews/preview-src";
@@ -124,11 +124,7 @@ export function StoryboardPanelTab({
                   <span className="absolute left-1 top-1 rounded bg-success/20 px-1.5 py-0.5 text-[10px] font-semibold text-foreground">
                     S{String(storyboard.index).padStart(2, "0")}
                   </span>
-                  {mediaPath ? (
-                    <span className="absolute right-1 top-1 rounded bg-background/80 px-1.5 py-0.5 text-[9px] text-foreground">
-                      {isUpscaledMediaPath(mediaPath) ? "4K" : "已生成"}
-                    </span>
-                  ) : null}
+                  {mediaPath ? <ResolutionBadge src={toPreviewSrc(mediaPath)} /> : null}
                 </div>
                 <div className="flex min-h-0 flex-1 flex-col gap-1 p-2">
                   <p className="line-clamp-2 text-[11px] leading-4 text-foreground">

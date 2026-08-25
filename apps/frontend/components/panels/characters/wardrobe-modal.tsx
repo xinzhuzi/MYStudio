@@ -52,6 +52,7 @@ import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { LocalImage } from "@/components/ui/local-image";
 import { ImagePreviewModal } from "@/components/features/media/media-preview-modal";
+import { ResolutionBadge } from "@/components/ui/image-resolution-badge";
 
 // Preset variation types for quick creation
 const VARIATION_PRESETS = [
@@ -324,6 +325,7 @@ export function WardrobeModal({
                 alt={`${character.name} - ${variation?.name}`}
                 className="w-full h-auto"
               />
+              <ResolutionBadge src={previewData.imageUrl} />
               <div className="absolute top-2 left-2 bg-warning text-white text-xs px-2 py-1 rounded">
                 预览
               </div>
@@ -573,6 +575,7 @@ export function WardrobeModal({
                         alt={`服装参考 ${idx + 1}`}
                         className="w-full h-full object-cover"
                       />
+                      <ResolutionBadge src={img} className="left-1 right-auto top-1" />
                       <button
                         onClick={() => handleRemoveClothingRef(idx)}
                         className="absolute top-0.5 right-0.5 p-0.5 rounded-full bg-black/60 text-white opacity-0 group-hover:opacity-100 transition-opacity"

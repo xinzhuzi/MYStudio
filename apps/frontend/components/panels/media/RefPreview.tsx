@@ -7,6 +7,7 @@ import { FileWarning, Loader2 } from "lucide-react";
 import type { PhysicalRef } from "@/types/artifacts";
 import { useThemeStore } from "@/stores/app/theme-store";
 import { resolveRefPreview, toFileUrl, type ResolvedRefPreview } from "@/lib/artifacts/ref-preview-loader";
+import { ResolutionBadge } from "@/components/ui/image-resolution-badge";
 
 const editorScrollTheme = EditorView.theme({
   ".cm-scroller": { overflowY: "auto" },
@@ -104,13 +105,14 @@ export function RefPreview({ physicalRef, projectId, className }: RefPreviewProp
 
   if (result.mode === "image") {
     return (
-      <div className="flex h-full items-center justify-center bg-black/5 p-4 dark:bg-black/20">
+      <div className="relative flex h-full items-center justify-center bg-black/5 p-4 dark:bg-black/20">
         <img
           src={result.dataUrl}
           alt={safePath ?? ""}
           className="max-h-full max-w-full object-contain"
           draggable={false}
         />
+        <ResolutionBadge src={result.dataUrl} />
       </div>
     );
   }

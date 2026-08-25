@@ -5,6 +5,7 @@ import { useDirectImageUpscale } from "../use-direct-image-upscale";
 import { UPSCALE_INPUT_MAX_LONG_SIDE } from "@/lib/upscale/client";
 import type { AssetImageWorkflowContext, ImageWorkflowTarget } from "@/types/studio";
 import type { ProductionFlowAssetCard } from "../workflow-node-model";
+import { ResolutionBadge } from "@/components/ui/image-resolution-badge";
 import { toPreviewSrc } from "./preview-src";
 
 export function AssetFlowCard({
@@ -66,6 +67,7 @@ export function AssetFlowCard({
       ) : (
         <PackageOpen className="h-9 w-9 text-muted-foreground/55" />
       )}
+      {card.mediaPath ? <ResolutionBadge src={toPreviewSrc(card.mediaPath)} /> : null}
     </>
   );
   return (
@@ -82,7 +84,7 @@ export function AssetFlowCard({
           data-asset-workflow-id={card.imageWorkflowId ?? ""}
           data-asset-workflow-type={card.imageWorkflowTarget?.assetType ?? ""}
           data-asset-workflow-name={card.name}
-          className="nodrag nopan nowheel flex h-[112px] w-full items-center justify-center overflow-hidden rounded-md border border-info/35 bg-muted/30 ring-offset-background hover:border-info/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-info/40 focus-visible:ring-offset-2"
+          className="nodrag nopan nowheel relative flex h-[112px] w-full items-center justify-center overflow-hidden rounded-md border border-info/35 bg-muted/30 ring-offset-background hover:border-info/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-info/40 focus-visible:ring-offset-2"
           onClick={(event) => {
             event.stopPropagation();
             openImageWorkflow();
@@ -91,7 +93,7 @@ export function AssetFlowCard({
           {previewFrame}
         </button>
       ) : (
-        <div className="flex h-[112px] items-center justify-center overflow-hidden rounded border border-border/60 bg-muted/30">
+        <div className="relative flex h-[112px] items-center justify-center overflow-hidden rounded border border-border/60 bg-muted/30">
           {previewFrame}
         </div>
       )}

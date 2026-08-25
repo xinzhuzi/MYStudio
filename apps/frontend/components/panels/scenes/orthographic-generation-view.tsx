@@ -16,6 +16,7 @@ import type { VisualStyleId } from "@/lib/constants/visual-styles";
 import { useSceneStore, type Scene } from "@/stores/library/scene-store";
 import type { PromptLanguage } from "@/types/script";
 import type { OrthographicViews } from "./generation-panel-utils";
+import { ResolutionBadge } from "@/components/ui/image-resolution-badge";
 
 interface OrthographicGenerationViewProps {
   selectedScene: Scene | null;
@@ -158,6 +159,7 @@ export function OrthographicGenerationView({
                   <div key={index} className="space-y-1">
                     <div className="relative rounded overflow-hidden border bg-muted aspect-video">
                       <img src={reference.src} alt={reference.label} className="w-full h-full object-cover" />
+                      <ResolutionBadge src={reference.src} />
                       <div className="absolute bottom-0 left-0 right-0 bg-black/60 text-white text-[10px] px-1.5 py-0.5 text-center">
                         {reference.label}
                       </div>
@@ -221,7 +223,10 @@ export function OrthographicGenerationView({
             <div className="space-y-2">
               <Label className="text-xs">四视图预览 ({aspectRatio})</Label>
               <div className={`relative rounded-lg overflow-hidden border bg-muted ${aspectRatio === "16:9" ? "aspect-video" : "aspect-[9/16]"}`}>
-                <img src={image} alt="四视图预览" className="w-full h-full object-contain" />
+                <>
+                  <img src={image} alt="四视图预览" className="w-full h-full object-contain" />
+                  <ResolutionBadge src={image} />
+                </>
               </div>
               <Button onClick={onSplit} className="w-full" disabled={isSplitting}>
                 {isSplitting ? (
@@ -246,7 +251,10 @@ export function OrthographicGenerationView({
                   <div key={view.key} className="space-y-1">
                     <div className={`relative rounded overflow-hidden border bg-muted ${aspectRatio === "16:9" ? "aspect-video" : "aspect-[9/16]"}`}>
                       {view.image ? (
-                        <img src={view.image} alt={view.name} className="w-full h-full object-cover" />
+                        <>
+                          <img src={view.image} alt={view.name} className="w-full h-full object-cover" />
+                          <ResolutionBadge src={view.image} />
+                        </>
                       ) : (
                         <div className="w-full h-full flex items-center justify-center">
                           <ImageIcon className="h-4 w-4 text-muted-foreground" />

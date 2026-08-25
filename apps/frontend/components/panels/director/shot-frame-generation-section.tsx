@@ -13,6 +13,7 @@ import {
 
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { ResolutionBadge } from "@/components/ui/image-resolution-badge";
 
 type FrameGenerationTarget = "start" | "end" | "video";
 
@@ -62,7 +63,10 @@ export function ShotFrameGenerationSection({
           >
             <div className="aspect-video bg-muted relative">
               {hasStartImage ? (
-                <img src={startImageUrl} className="w-full h-full object-cover" />
+                <>
+                  <img src={startImageUrl} className="w-full h-full object-cover" />
+                  <ResolutionBadge src={startImageUrl} />
+                </>
               ) : (
                 <div className="absolute inset-0 flex items-center justify-center">
                   <ImageIcon className="w-4 h-4 text-muted-foreground/30" />
@@ -118,7 +122,10 @@ export function ShotFrameGenerationSection({
           >
             <div className="aspect-video bg-muted relative">
               {hasEndImage ? (
-                <img src={endImageUrl} className="w-full h-full object-cover" />
+                <>
+                  <img src={endImageUrl} className="w-full h-full object-cover" />
+                  <ResolutionBadge src={endImageUrl} />
+                </>
               ) : (
                 <div className="absolute inset-0 flex items-center justify-center">
                   <span className="text-[9px] text-muted-foreground/50">可选</span>

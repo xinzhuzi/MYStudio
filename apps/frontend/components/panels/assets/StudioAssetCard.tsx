@@ -3,6 +3,7 @@
 import { memo, useEffect, useRef, useState, type CSSProperties } from "react";
 import { getPrimaryAssetName } from "@/lib/studio/asset-names";
 import type { StudioAssetSummary } from "@/types/studio-assets";
+import { ResolutionBadge } from "@/components/ui/image-resolution-badge";
 import { Box, Film, Map, Music2, UserCircle } from "lucide-react";
 
 const assetCardVisibilityStyle = {
@@ -105,14 +106,17 @@ function StudioAssetCardComponent({
           <div className="truncate text-[11px] font-medium text-foreground/80">{getAudioLine(asset)}</div>
         </div>
       ) : asset.thumbnailUrl && shouldLoad ? (
-        <img
-          src={asset.thumbnailUrl}
-          alt={displayName}
-          className="absolute inset-0 h-full w-full object-cover"
-          loading="lazy"
-          decoding="async"
-          draggable={false}
-        />
+        <>
+          <img
+            src={asset.thumbnailUrl}
+            alt={displayName}
+            className="absolute inset-0 h-full w-full object-cover"
+            loading="lazy"
+            decoding="async"
+            draggable={false}
+          />
+          <ResolutionBadge src={asset.thumbnailUrl} className="bottom-1 right-1 top-auto" />
+        </>
       ) : !asset.thumbnailUrl ? (
         <div className="flex h-full w-full items-center justify-center">
           <Icon className="h-10 w-10 text-muted-foreground/30" />

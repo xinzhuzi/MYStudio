@@ -28,6 +28,7 @@ import { FolderOpen, ImageIcon, ImagePlus, Save, Trash2 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { toast } from "sonner";
+import { ResolutionBadge } from "@/components/ui/image-resolution-badge";
 
 interface VisualManualEditorDialogProps {
   open: boolean;
@@ -289,6 +290,7 @@ export function VisualManualEditorDialog({
                         >
                           <LocalImage src={image.url} alt={image.name} className="h-full w-full object-cover" />
                         </button>
+                        <ResolutionBadge src={image.url} className="bottom-1 left-1 right-auto top-auto" />
                         <button
                           type="button"
                           className="absolute right-1 top-1 rounded-md bg-black/60 p-1 text-white opacity-0 transition-opacity group-hover:opacity-100"
@@ -401,6 +403,7 @@ export function VisualManualEditorDialog({
             onClick={(event) => event.stopPropagation()}
             draggable={false}
           />
+          <ResolutionBadge src={previewImage.url} />
         </button>
       ) : null}
     </Dialog>

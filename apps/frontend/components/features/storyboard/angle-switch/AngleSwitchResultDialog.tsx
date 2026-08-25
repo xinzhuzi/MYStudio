@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Check, X, RotateCw, Download } from "lucide-react";
+import { ResolutionBadge } from "@/components/ui/image-resolution-badge";
 
 export interface AngleSwitchResult {
   originalImage: string;
@@ -101,24 +102,26 @@ export function AngleSwitchResultDialog({
             {/* 原图 */}
             <div>
               <div className="text-xs text-muted-foreground mb-1">原图</div>
-              <div className="aspect-video bg-muted rounded overflow-hidden border-2 border-border">
+              <div className="relative aspect-video bg-muted rounded overflow-hidden border-2 border-border">
                 <img
                   src={result.originalImage}
                   alt="原图"
                   className="w-full h-full object-cover"
                 />
+                <ResolutionBadge src={result.originalImage} />
               </div>
             </div>
 
             {/* 当前选中 */}
             <div>
               <div className="text-xs text-primary mb-1">当前选中</div>
-              <div className="aspect-video bg-muted rounded overflow-hidden border-2 border-primary">
+              <div className="relative aspect-video bg-muted rounded overflow-hidden border-2 border-primary">
                 <img
                   src={currentImage}
                   alt="当前选中"
                   className="w-full h-full object-cover"
                 />
+                <ResolutionBadge src={currentImage} />
               </div>
               <div className="text-xs text-center mt-1 text-muted-foreground">{currentLabel}</div>
             </div>
@@ -133,7 +136,7 @@ export function AngleSwitchResultDialog({
                   <button
                     key={item.timestamp}
                     onClick={() => onSelectHistory?.(index)}
-                    className={`shrink-0 w-32 aspect-video rounded-md overflow-hidden border-2 transition-all ${
+                    className={`relative shrink-0 w-32 aspect-video rounded-md overflow-hidden border-2 transition-all ${
                       selectedHistoryIndex === index
                         ? "border-primary ring-2 ring-primary ring-offset-1"
                         : "border-border hover:border-primary/50"
@@ -144,6 +147,7 @@ export function AngleSwitchResultDialog({
                       alt={item.angleLabel}
                       className="w-full h-full object-cover"
                     />
+                    <ResolutionBadge src={item.imageUrl} />
                   </button>
                 ))}
               </div>

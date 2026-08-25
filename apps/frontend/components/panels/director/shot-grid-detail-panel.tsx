@@ -23,6 +23,7 @@ import {
 } from "@/components/ui/select";
 import type { Character } from "@/stores/library/character-library-store";
 import type { Keyframe, ScriptScene, Shot } from "@/types/script";
+import { ResolutionBadge } from "@/components/ui/image-resolution-badge";
 
 interface ShotGridDetailPanelProps {
   shot: Shot;
@@ -221,7 +222,10 @@ export function ShotGridDetailPanel({
                 </div>
                 <div className="aspect-video bg-black rounded border border-border overflow-hidden relative">
                   {startImageUrl ? (
-                    <img src={startImageUrl} className="w-full h-full object-cover" />
+                    <>
+                      <img src={startImageUrl} className="w-full h-full object-cover" />
+                      <ResolutionBadge src={startImageUrl} />
+                    </>
                   ) : (
                     <div className="absolute inset-0 flex items-center justify-center">
                       <div className="w-2 h-2 rounded-full bg-muted/60" />
@@ -260,7 +264,10 @@ export function ShotGridDetailPanel({
                 </div>
                 <div className="aspect-video bg-black rounded border border-border overflow-hidden relative">
                   {endKeyframe?.imageUrl ? (
-                    <img src={endKeyframe.imageUrl} className="w-full h-full object-cover" />
+                    <>
+                      <img src={endKeyframe.imageUrl} className="w-full h-full object-cover" />
+                      <ResolutionBadge src={endKeyframe.imageUrl} />
+                    </>
                   ) : (
                     <div className="absolute inset-0 flex items-center justify-center">
                       <span className="text-[9px] text-foreground">可选</span>

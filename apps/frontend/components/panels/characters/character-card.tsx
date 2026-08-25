@@ -33,6 +33,7 @@ import {
 import { cn } from "@/lib/utils";
 import { WardrobeModal } from "./wardrobe-modal";
 import { LocalImage } from "@/components/ui/local-image";
+import { ResolutionBadge } from "@/components/ui/image-resolution-badge";
 
 interface CharacterCardProps {
   character: Character;
@@ -242,6 +243,7 @@ export function CharacterCard({
                   alt={`${character.name} - ${view.viewType}`}
                   className="w-full h-full object-cover"
                 />
+                <ResolutionBadge src={view.imageUrl} />
                 <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                   <span className="text-[10px] text-foreground capitalize">
                     {view.viewType === 'front' ? '正面' : 
@@ -266,11 +268,14 @@ export function CharacterCard({
                 className="aspect-square rounded-md bg-muted overflow-hidden relative group"
               >
                 {variation.referenceImage ? (
-                  <img 
-                    src={variation.referenceImage} 
-                    alt={variation.name}
-                    className="w-full h-full object-cover"
-                  />
+                  <>
+                    <img 
+                      src={variation.referenceImage} 
+                      alt={variation.name}
+                      className="w-full h-full object-cover"
+                    />
+                    <ResolutionBadge src={variation.referenceImage} />
+                  </>
                 ) : (
                   <div className="w-full h-full flex items-center justify-center">
                     <Shirt className="h-4 w-4 text-muted-foreground" />

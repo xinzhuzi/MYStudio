@@ -5,12 +5,15 @@ import { isUpscaledMediaPath, UPSCALE_INPUT_MAX_LONG_SIDE } from "@/lib/upscale/
 import type { ImageWorkflowOpenContext } from "@/types/studio";
 import type { ProductionFlowNodeModel } from "../workflow-node-model";
 import { buildStoryboardImageOpenContext } from "../storyboard-open-context";
+import { ResolutionBadge } from "@/components/ui/image-resolution-badge";
 import { PreviewImage } from "./preview-image";
 import { TextPreview } from "./text-preview";
+import { toPreviewSrc } from "./preview-src";
 
 /**
- * 4K 预判：up4x- 输出路径必然 ≥4K(同步可靠)；其余依赖 <img> naturalWidth
- * (onLoad 尽力而为，懒加载/缓存场景可能缺席——后端守卫兜底)。
+ * 4K 预判(超分按钮禁用判据,非显示用):up4x- 输出路径必然 ≥4K(同步可靠);
+ * 其余依赖 <img> naturalWidth(onLoad 尽力而为——后端守卫兜底)。
+ * 显示角标统一走 ResolutionBadge(真实像素分档)。
  */
 function tileAlready4k(mediaPath: string | undefined, longSide: number | undefined): boolean {
   if (isUpscaledMediaPath(mediaPath)) return true;
@@ -63,10 +66,11 @@ export function StoryboardGridPreview({
               <span className="absolute right-1 top-1 rounded bg-background/80 px-1.5 py-0.5 text-[9px] text-foreground">
                 {tile.state}
               </span>
-              {tileAlready4k(tile.mediaPath, tileLongSides[tile.id]) ? (
-                <span className="absolute bottom-1 right-1 rounded bg-primary/80 px-1.5 py-0.5 text-[9px] font-semibold text-primary-foreground">
-                  4K
-                </span>
+              {tile.mediaPath ? (
+                <ResolutionBadge
+                  src={toPreviewSrc(tile.mediaPath)}
+                  className="bottom-1 right-1 top-auto"
+                />
               ) : null}
             </>
           );

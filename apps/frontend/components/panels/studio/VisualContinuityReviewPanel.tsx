@@ -21,6 +21,7 @@ import type {
   StoryboardItem,
   StoryboardOrderedReference,
 } from "@/types/studio";
+import { ResolutionBadge } from "@/components/ui/image-resolution-badge";
 import { toPreviewSrc } from "./previews/preview-src";
 
 type VisualContinuityReviewPanelProps = {
@@ -498,12 +499,13 @@ function AssetImageStrip({
       {paths.length ? (
         <div className="grid grid-cols-2 gap-1.5">
           {paths.map((path, index) => (
-            <figure key={`${path}:${index}`} className="overflow-hidden rounded border border-border bg-black">
+            <figure key={`${path}:${index}`} className="relative overflow-hidden rounded border border-border bg-black">
               <img
                 src={toPreviewSrc(path)}
                 alt={`${altPrefix} ${viewTypes[index] ?? `图${index + 1}`} ${altLabel}`}
                 className="aspect-video h-full w-full object-contain"
               />
+              <ResolutionBadge src={toPreviewSrc(path)} />
             </figure>
           ))}
         </div>
@@ -535,7 +537,7 @@ function FrameEvidence({
       <figcaption className="flex items-center justify-between border-b border-border px-2.5 py-1.5 text-[11px] text-muted-foreground">
         <span>{label}</span><span>{storyboard ? `#${storyboard.index}` : "—"}</span>
       </figcaption>
-      <div className="aspect-video bg-[radial-gradient(circle_at_50%_45%,#27272a,#09090b_70%)]">
+      <div className="relative aspect-video bg-[radial-gradient(circle_at_50%_45%,#27272a,#09090b_70%)]">
         {evidencePath ? (
           <img
             src={toPreviewSrc(evidencePath)}
@@ -545,6 +547,7 @@ function FrameEvidence({
         ) : (
           <div className="flex h-full items-center justify-center text-xs text-muted-foreground">无画面证据</div>
         )}
+        {evidencePath ? <ResolutionBadge src={toPreviewSrc(evidencePath)} /> : null}
       </div>
     </figure>
   );

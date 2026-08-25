@@ -1,5 +1,6 @@
 import type { CSSProperties } from "react";
 import type { LucideIcon } from "lucide-react";
+import { ResolutionBadge } from "@/components/ui/image-resolution-badge";
 import {
   Clipboard,
   ExternalLink,
@@ -108,13 +109,14 @@ export function StudioAssetDetailPreviewPane({
               <CarouselContent>
                 {images.map((image, index) => (
                   <CarouselItem key={image.filePath || index}>
-                    <div className="aspect-square overflow-hidden rounded-lg border border-border bg-background">
+                    <div className="relative aspect-square overflow-hidden rounded-lg border border-border bg-background">
                       <img
                         src={image.url}
                         alt={image.name}
                         className="h-full w-full object-contain"
                         draggable={false}
                       />
+                      <ResolutionBadge src={image.url} />
                     </div>
                     <div className="mt-2 flex items-center justify-between px-1">
                       <span className="truncate text-xs text-muted-foreground">{image.name}</span>

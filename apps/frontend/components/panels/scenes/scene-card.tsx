@@ -5,6 +5,7 @@ import {
 } from "@/stores/library/scene-store";
 import { cn } from "@/lib/utils";
 import { useResolvedImageUrl } from "@/hooks/use-resolved-image-url";
+import { ResolutionBadge } from "@/components/ui/image-resolution-badge";
 import {
   ChevronDown,
   ChevronRight,
@@ -87,11 +88,14 @@ export function SceneCard({
           }}
         >
           {displayImage ? (
-            <img 
-              src={resolvedImage || ''} 
-              alt={scene.name}
-              className="w-full h-full object-contain"
-            />
+            <>
+              <img 
+                src={resolvedImage || ''} 
+                alt={scene.name}
+                className="w-full h-full object-contain"
+              />
+              <ResolutionBadge src={resolvedImage || ''} />
+            </>
           ) : (
             <MapPin className="h-8 w-8 text-muted-foreground" />
           )}

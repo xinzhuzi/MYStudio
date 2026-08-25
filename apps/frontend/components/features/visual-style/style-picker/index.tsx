@@ -30,6 +30,7 @@ import {
 } from "@/lib/constants/visual-styles";
 import { getStyleThumbnailSource } from "@/lib/constants/visual-style-thumbnails";
 import { useCustomStyleStore } from "@/stores/library/custom-style-store";
+import { ResolutionBadge } from "@/components/ui/image-resolution-badge";
 
 // 风格分类对应的背景色（图片已移除，使用色块占位）
 const CATEGORY_COLORS: Record<string, string> = {
@@ -190,12 +191,15 @@ export function StylePicker({
               <div className="text-sm font-medium">未选择视觉风格</div>
             </div>
           ) : previewThumbnail ? (
-            <img
-              src={previewThumbnail}
-              alt={previewStyle.name}
-              className="w-full h-full object-cover"
-              draggable={false}
-            />
+            <>
+              <img
+                src={previewThumbnail}
+                alt={previewStyle.name}
+                className="w-full h-full object-cover"
+                draggable={false}
+              />
+              <ResolutionBadge src={previewThumbnail} />
+            </>
           ) : (
             <div className={cn(
               "w-full h-full flex flex-col items-center justify-center",

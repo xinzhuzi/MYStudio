@@ -12,6 +12,7 @@ import {
   getFolderIcon,
 } from "./media-context-menus";
 import { formatMediaDuration } from "./media-view-helpers";
+import { ResolutionBadge } from "@/components/ui/image-resolution-badge";
 
 export type MediaItemPreviewProps = {
   item: MediaFile;
@@ -20,13 +21,14 @@ export type MediaItemPreviewProps = {
 export function MediaItemPreview({ item }: MediaItemPreviewProps) {
   if (item.type === "image") {
     return (
-      <div className="w-full h-full flex items-center justify-center">
+      <div className="relative w-full h-full flex items-center justify-center">
         <img
           src={item.url}
           alt={item.name}
           className="w-full max-h-full object-cover"
           loading="lazy"
         />
+        <ResolutionBadge src={item.url} />
       </div>
     );
   }
