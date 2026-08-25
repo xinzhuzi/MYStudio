@@ -7,6 +7,7 @@ import type { AssetImageWorkflowContext, ImageWorkflowTarget } from "@/types/stu
 import type { ProductionFlowAssetCard } from "../workflow-node-model";
 import { ResolutionBadge, probeImagePixelSize } from "@/components/ui/image-resolution-badge";
 import { toPreviewSrc, withThumbVariant } from "./preview-src";
+import { PreviewImage } from "./preview-image";
 
 export function AssetFlowCard({
   card,
@@ -64,12 +65,11 @@ export function AssetFlowCard({
   const previewFrame = (
     <>
       {card.mediaPath ? (
-        <img
+        <PreviewImage
           src={withThumbVariant(toPreviewSrc(card.mediaPath))}
           alt={card.name}
           className="h-full w-full object-contain"
-          loading="lazy"
-          decoding="async"
+          fallbackLabel="成图丢失"
         />
       ) : status === "生成中" ? (
         <RefreshCw className="h-8 w-8 animate-spin text-primary/70" />

@@ -10,6 +10,7 @@ import {
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import { CanvasViewportControls } from "../CanvasViewportControls";
+import { interactionDeferBegin, interactionDeferEnd } from "../previews/interaction-defer";
 import { useScopedWorkflowLifecycle } from "./use-scoped-workflow-lifecycle";
 import { useStoryboardWorkflowSwitch } from "./use-storyboard-workflow-switch";
 import {
@@ -618,8 +619,14 @@ function ImageWorkflowFlowView({
           setInteracting(false);
           onNodeDragStop(node.id, node.position);
         }}
-        onMoveStart={() => setInteracting(true)}
-        onMoveEnd={() => setInteracting(false)}
+        onMoveStart={() => {
+          setInteracting(true);
+          interactionDeferBegin();
+        }}
+        onMoveEnd={() => {
+          setInteracting(false);
+          interactionDeferEnd();
+        }}
         onConnect={onConnect}
         onInit={(instance) => {
           setFlowInstance(instance);

@@ -201,6 +201,8 @@ function CanvasVisibilityMeasurementRefresh({
 
 const nodeTypes = { productionFlow: ProductionFlowNode };
 
+import { interactionDeferBegin, interactionDeferEnd } from "./previews/interaction-defer";
+
 export function WorkflowNodeCanvas({
   isVisible,
   projectName,
@@ -440,10 +442,12 @@ export function WorkflowNodeCanvas({
   }, [claimViewportForUser, flowInstance]);
   const handleViewportMoveStart = useCallback((event: MouseEvent | TouchEvent | null) => {
     canvasSectionRef.current?.classList.add("workflow-node-canvas-interacting");
+    interactionDeferBegin();
     if (event) claimViewportForUser();
   }, [claimViewportForUser]);
   const handleViewportMoveEnd = useCallback(() => {
     canvasSectionRef.current?.classList.remove("workflow-node-canvas-interacting");
+    interactionDeferEnd();
   }, []);
   const onNodesChange = useCallback((changes: NodeChange<ProductionFlowReactNode>[]) => {
     if (changes.some((change) => change.type === "position" && change.dragging)) {

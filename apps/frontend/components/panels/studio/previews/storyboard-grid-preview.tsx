@@ -9,6 +9,7 @@ import { ResolutionBadge, probeImagePixelSize } from "@/components/ui/image-reso
 import { PreviewImage } from "./preview-image";
 import { TextPreview } from "./text-preview";
 import { toPreviewSrc, withThumbVariant } from "./preview-src";
+import { handleDeferScroll } from "./interaction-defer";
 
 /**
  * 4K 预判(超分按钮禁用判据,非显示用):up4x- 输出路径必然 ≥4K(同步可靠);
@@ -50,7 +51,10 @@ export function StoryboardGridPreview({
   }, [tiles]);
   if (!tiles.length) return <TextPreview node={node} />;
   return (
-    <div className="nodrag nowheel max-h-[360px] overflow-y-auto overscroll-contain pr-1">
+    <div
+      className="nodrag nowheel max-h-[360px] overflow-y-auto overscroll-contain pr-1"
+      onScroll={handleDeferScroll}
+    >
       <div className="grid grid-cols-[repeat(auto-fit,minmax(132px,1fr))] gap-2">
         {tiles.map((tile) => {
           // 任意分镜瓦片都是生图入口:无工作流/无图的新分镜点击后由画布按需创建

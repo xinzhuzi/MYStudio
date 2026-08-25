@@ -5,6 +5,7 @@ import { Textarea } from "@/components/ui/textarea";
 import type { ToonflowWorkbenchTrack } from "@/lib/studio/workbench-view-model";
 import { Play } from "lucide-react";
 import { toPreviewSrc, withThumbVariant } from "./previews/preview-src";
+import { PreviewImage } from "./previews/preview-image";
 import { ResolutionBadge } from "@/components/ui/image-resolution-badge";
 
 export function WorkbenchTrackCard(props: {
@@ -76,12 +77,11 @@ export function WorkbenchTrackCard(props: {
                     />
                   ) : (
                     <>
-                      <img
+                      <PreviewImage
                         className="h-full w-full object-cover"
                         src={withThumbVariant(toPreviewSrc(media.src))}
                         alt={media.name ?? media.id}
-                        loading="lazy"
-                        decoding="async"
+                        fallbackLabel="图片不可用"
                       />
                       <ResolutionBadge src={toPreviewSrc(media.src)} />
                     </>

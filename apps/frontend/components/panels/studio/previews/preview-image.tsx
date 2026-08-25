@@ -2,6 +2,7 @@ import { useState } from "react";
 import { ImageOff } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toPreviewSrc } from "./preview-src";
+import { useRevealWhenSettled } from "./interaction-defer";
 
 /**
  * 节点预览统一 <img>:加载失败(死链/scheme 未注册)时落到占位卡片,
@@ -21,6 +22,17 @@ export function PreviewImage({
   onLoad?: (image: HTMLImageElement) => void;
 }) {
   const [failed, setFailed] = useState(false);
+  // 交互门闸:拖拽/滑动/缩放进行中不挂 <img>(零请求零解码),静止 1s 后
+  // 才开始加载;粘性放行,已显示的图交互期间不卸载不闪烁。
+  const revealed = useRevealWhenSettled();
+  if (!revealed) {
+    return (
+      <div
+        className={cn("bg-muted/30", className)}
+        data-preview-image-deferred={alt}
+      />
+    );
+  }
   if (failed) {
     return (
       <div

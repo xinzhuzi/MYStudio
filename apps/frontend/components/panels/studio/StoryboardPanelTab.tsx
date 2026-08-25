@@ -4,6 +4,8 @@ import { ResolutionBadge } from "@/components/ui/image-resolution-badge";
 import type { ImageWorkflowOpenContext, StoryboardItem } from "@/types/studio";
 import { buildStoryboardItemOpenContext } from "./storyboard-open-context";
 import { toPreviewSrc, withThumbVariant } from "./previews/preview-src";
+import { PreviewImage } from "./previews/preview-image";
+import { handleDeferScroll } from "./previews/interaction-defer";
 import type { StoryboardBatchGenerationState } from "./image-workflow/use-storyboard-batch-generation";
 
 /**
@@ -95,7 +97,10 @@ export function StoryboardPanelTab({
       </div>
 
       {ordered.length ? (
-        <div className="mt-3 grid grid-cols-[repeat(auto-fill,minmax(168px,1fr))] gap-3 overflow-y-auto pr-1">
+        <div
+          className="mt-3 grid grid-cols-[repeat(auto-fill,minmax(168px,1fr))] gap-3 overflow-y-auto pr-1"
+          onScroll={handleDeferScroll}
+        >
           {ordered.map((storyboard) => {
             const mediaPath = storyboard.mediaRef?.kind === "image" ? storyboard.mediaRef.path : undefined;
             return (
@@ -109,12 +114,11 @@ export function StoryboardPanelTab({
               >
                 <div className="relative aspect-video w-full overflow-hidden bg-muted/40">
                   {mediaPath ? (
-                    <img
+                    <PreviewImage
                       src={withThumbVariant(toPreviewSrc(mediaPath))}
                       alt={storyboard.prompt}
                       className="h-full w-full object-cover"
-                      loading="lazy"
-                      decoding="async"
+                      fallbackLabel="成图丢失"
                     />
                   ) : (
                     <div className="flex h-full items-center justify-center text-[11px] text-muted-foreground">
