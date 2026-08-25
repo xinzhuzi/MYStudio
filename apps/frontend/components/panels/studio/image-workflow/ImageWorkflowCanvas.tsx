@@ -619,13 +619,14 @@ function ImageWorkflowFlowView({
           setInteracting(false);
           onNodeDragStop(node.id, node.position);
         }}
-        onMoveStart={() => {
+        onMoveStart={(event) => {
           setInteracting(true);
-          interactionDeferBegin();
+          // 程序性视口变化(event=null)不关闸,仅用户手势延迟图片加载
+          if (event) interactionDeferBegin();
         }}
-        onMoveEnd={() => {
+        onMoveEnd={(event) => {
           setInteracting(false);
-          interactionDeferEnd();
+          if (event) interactionDeferEnd();
         }}
         onConnect={onConnect}
         onInit={(instance) => {

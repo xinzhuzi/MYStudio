@@ -442,13 +442,21 @@ export function WorkflowNodeCanvas({
   }, [claimViewportForUser, flowInstance]);
   const handleViewportMoveStart = useCallback((event: MouseEvent | TouchEvent | null) => {
     canvasSectionRef.current?.classList.add("workflow-node-canvas-interacting");
-    interactionDeferBegin();
-    if (event) claimViewportForUser();
+    // 程序性视口变化(event=null:挂载 fitView/布局对齐)不关闸——只有用户
+    // 手势(拖拽/滚轮/捏合)才延迟图片加载,否则首屏图片被误拦(装机 smoke
+    // 2026-08-26 实证失败)。
+    if (event) {
+      interactionDeferBegin();
+      claimViewportForUser();
+    }
   }, [claimViewportForUser]);
-  const handleViewportMoveEnd = useCallback(() => {
-    canvasSectionRef.current?.classList.remove("workflow-node-canvas-interacting");
-    interactionDeferEnd();
-  }, []);
+  const handleViewportMoveEnd = useCallback(
+    (event: MouseEvent | TouchEvent | null) => {
+      canvasSectionRef.current?.classList.remove("workflow-node-canvas-interacting");
+      if (event) interactionDeferEnd();
+    },
+    [],
+  );
   const onNodesChange = useCallback((changes: NodeChange<ProductionFlowReactNode>[]) => {
     if (changes.some((change) => change.type === "position" && change.dragging)) {
       claimViewportForUser();
