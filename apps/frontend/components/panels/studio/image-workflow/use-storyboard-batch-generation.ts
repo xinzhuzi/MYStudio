@@ -13,6 +13,7 @@ import {
   resolveOpenContextGeneratedNodeId,
 } from "./image-workflow-graph-utils";
 import { runImageWorkflowNodeGeneration } from "./run-image-workflow-node-generation";
+import { landStoryboardContinuity } from "./land-continuity";
 
 export interface StoryboardBatchGenerationState {
   running: boolean;
@@ -146,6 +147,9 @@ async function generateOneShot(shot: StoryboardItem, projectName: string): Promi
   if (!imageUrl) throw new Error("生成结果为空");
   // 分镜回写:核心函数已 upsert 含 resultUrl 的最新代图,直接组 patch
   const latest = useStudioStore.getState().imageWorkflows.find((item) => item.id === graph.id) ?? graph;
+  // 连续性接线(方案 2):媒体落库前先落三件套,图的 freshWrite 会顺带清
+  // sourceChanged 的 stale 标记;前置不满足时静默跳过,不阻塞生图主链
+  landStoryboardContinuity(shot.id, latest.id, targetNodeId);
   const patch = buildStoryboardImageWorkflowPatch(latest, targetNodeId);
   useStudioStore.getState().updateStoryboard(shot.id, patch);
 }

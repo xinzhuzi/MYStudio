@@ -38,6 +38,7 @@ import {
 } from "./image-workflow-file-utils";
 import { getProjectFilesBridge } from "@/lib/bridge/project-files";
 import { getStudioAssetsBridge } from "@/lib/bridge/studio-assets";
+import { landStoryboardContinuity } from "./land-continuity";
 
 type StudioState = ReturnType<typeof useStudioStore.getState>;
 
@@ -257,6 +258,8 @@ export function useImageWorkflowActions({
       toast.error("请先选择要回写的分镜");
       return;
     }
+    // 连续性接线(方案 2):媒体回写前先落三件套,回写的 freshWrite 清 stale
+    landStoryboardContinuity(storyboardId, activeGraph.id, nodeId);
     applyImageWorkflowResultToStoryboard(storyboardId, activeGraph.id, nodeId);
     toast.success("已回写到分镜媒体");
   }, [activeGraph, applyImageWorkflowResultToAsset, applyImageWorkflowResultToStoryboard, targetStoryboardId]);
