@@ -12,6 +12,7 @@
 import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
 import { ResolutionBadge } from "@/components/ui/image-resolution-badge";
+import { useRevealWhenSettled } from "@/components/panels/studio/previews/interaction-defer";
 
 interface LocalImageProps extends React.ImgHTMLAttributes<HTMLImageElement> {
   src: string;
@@ -23,6 +24,9 @@ interface LocalImageProps extends React.ImgHTMLAttributes<HTMLImageElement> {
 export function LocalImage({ src, fallback, className, alt, resolutionBadge = false, ...props }: LocalImageProps) {
   const [error, setError] = useState(false);
   const [currentSrc, setCurrentSrc] = useState(normalizeImageSrc(src));
+  // 交互门闸:拖拽/滑动/缩放期间不挂 <img>(零请求零解码),静止后加载;
+  // 粘性放行,已显示的图不闪烁卸载(未接闸场景默认开闸,行为不变)。
+  const revealed = useRevealWhenSettled();
 
   const handleError = () => {
     if (!error && fallback) {
@@ -37,6 +41,16 @@ export function LocalImage({ src, fallback, className, alt, resolutionBadge = fa
     setCurrentSrc(normalizeImageSrc(src));
     setError(false);
   }, [src]);
+
+  if (!revealed) {
+    return (
+      <div
+        className={cn("bg-muted/30", className)}
+        data-local-image-deferred={alt ?? ""}
+        style={props.style}
+      />
+    );
+  }
 
   if (error && !fallback) {
     return (

@@ -125,6 +125,23 @@ export function useRevealWhenSettled(): boolean {
   return revealed;
 }
 
+/**
+ * 等待交互静止(用户裁定 2026-08-26:交互期间「加载到内存」的一切逻辑都不执行):
+ * 已开闸立即返回;关闸中则挂起,直到 5s 防抖结束开闸才放行。探测 IPC 等
+ * 非图片加载路径统一经此排队。
+ */
+export function whenInteractionSettled(): Promise<void> {
+  if (!active) return Promise.resolve();
+  return new Promise((resolve) => {
+    const check = () => {
+      if (active) return;
+      listeners.delete(check);
+      resolve();
+    };
+    listeners.add(check);
+  });
+}
+
 /** 滚动容器接线:onScroll 时关闸,静止后开闸。 */
 export function handleDeferScroll() {
   interactionDeferBegin();

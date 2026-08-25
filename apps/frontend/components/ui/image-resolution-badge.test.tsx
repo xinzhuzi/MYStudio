@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
-import { cleanup, render, screen, waitFor } from "@testing-library/react";
+import { act, cleanup, render, screen, waitFor } from "@testing-library/react";
+import { interactionDeferBegin, interactionDeferEnd } from "@/components/panels/studio/previews/interaction-defer";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   ResolutionBadge,
@@ -42,6 +43,7 @@ function installFakeImage(dimTable: DimTable, onConstruct?: () => void) {
 }
 
 afterEach(() => {
+  vi.useRealTimers();
   cleanup();
   vi.unstubAllGlobals();
   vi.restoreAllMocks();
@@ -132,6 +134,33 @@ describe("ResolutionBadge", () => {
     expect(await screen.findByText("1K")).toBeTruthy();
   });
 
+
+  it("issues zero probes while an interaction is active, and probes after the 5s settle", async () => {
+    vi.useFakeTimers();
+    let imageConstructs = 0;
+    installFakeImage({}, () => {
+      imageConstructs++;
+    });
+    const probe = vi.fn(async () => ({ width: 3840, height: 2160 }));
+    vi.stubGlobal("imageProbe", { size: probe });
+    // 交互进行中挂载角标:不得有任何探测(IPC/文件头读取都不发生)
+    act(() => interactionDeferBegin());
+    render(<ResolutionBadge src="project-file://p/gated.png" />);
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(200);
+    });
+    expect(probe).not.toHaveBeenCalled();
+    expect(imageConstructs).toBe(0);
+    // 停手 + 5s 防抖走完:探测放行,角标出档
+    act(() => interactionDeferEnd());
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(5001);
+    });
+    expect(probe).toHaveBeenCalledWith("project-file://p/gated.png");
+    // 假定时器到此为止(findByText 轮询依赖真定时器)
+    vi.useRealTimers();
+    expect(await screen.findByText("4K")).toBeTruthy();
+  });
 });
 
 describe("useImageResolution", () => {

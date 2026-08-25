@@ -19,6 +19,7 @@ import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
 import type { ImageResolution } from "@/lib/ai/image-size-presets";
 import { classifyImageResolution, toResolutionProbeSrc } from "@/lib/image-resolution";
+import { whenInteractionSettled } from "@/components/panels/studio/previews/interaction-defer";
 
 interface ImagePixelSize {
   width: number;
@@ -69,6 +70,9 @@ function probeImageSize(src: string): Promise<ImagePixelSize | null> {
   const inflight = inflightProbes.get(src);
   if (inflight) return inflight;
   const probe = (async () => {
+    // 交互门闸(用户裁定):拖拽/缩放/滚轮期间不发起任何探测——含 IPC 文件头
+    // 读取;静止 5s 开闸后才放行。inflight 已先行登记,并发去重不受影响。
+    await whenInteractionSettled();
     const backend = await probeViaBackend(src);
     if (backend) return backend;
     return probeViaImageElement(src);

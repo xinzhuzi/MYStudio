@@ -6,6 +6,7 @@ import {
   interactionDeferBegin,
   interactionDeferEnd,
   useInteractionSettled,
+  whenInteractionSettled,
 } from "./interaction-defer";
 
 vi.useFakeTimers();
@@ -19,6 +20,29 @@ afterEach(() => {
   cleanup();
   __resetInteractionDeferForTests();
   vi.clearAllTimers();
+});
+
+describe("whenInteractionSettled (加载排队原语)", () => {
+  it("resolves immediately when the gate is open", async () => {
+    const t0 = performance.now();
+    await whenInteractionSettled();
+    expect(performance.now() - t0).toBeLessThan(50);
+  });
+
+  it("queues until the 5s settle debounce completes, not before", async () => {
+    let resolved = false;
+    act(() => interactionDeferBegin());
+    act(() => interactionDeferEnd());
+    // 关闸中创建等待:必须挂起到 5s 防抖走完
+    const p = whenInteractionSettled().then(() => {
+      resolved = true;
+    });
+    await vi.advanceTimersByTimeAsync(4999);
+    expect(resolved).toBe(false);
+    await vi.advanceTimersByTimeAsync(2);
+    expect(resolved).toBe(true);
+    void p;
+  });
 });
 
 describe("interaction defer gate", () => {
