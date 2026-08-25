@@ -1014,6 +1014,9 @@ def main() -> int:
     tmp.write_text(json.dumps(manifest, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     os.replace(tmp, sw / "manifest.json")
     for orphan in old_sb + old_av:
+        # 同 stamp 复写保护:内容与上代一致时分片名不变,新文件集内的名字绝不可删
+        if orphan in {n for n, _ in sb_files + av_files}:
+            continue
         (sw / orphan).unlink(missing_ok=True)
     print(f"写入分片: {[n for n, _ in sb_files]} + {[n for n, _ in av_files]}")
 
