@@ -725,8 +725,9 @@ describe("workflow node component boundaries", () => {
 
     rerender(<StoryboardGridPreview node={storyboardNode} />);
     const storyboardImage = screen.getByAltText("矿场醒来");
+    // 展示走 512px 按需缩略图(画布缩放卡顿根修);角标/预判仍探原图
     expect(storyboardImage.getAttribute("src")).toBe(
-      "project-file://dao/storyboard-images/shot-001.png",
+      "project-file://dao/storyboard-images/shot-001.png?thumb=1",
     );
     expect(storyboardImage.getAttribute("alt")).toBe("矿场醒来");
     expect(storyboardImage.getAttribute("loading")).toBe("lazy");

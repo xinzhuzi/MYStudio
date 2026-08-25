@@ -3,6 +3,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { resolveAssetFilePath, resolveLocalMediaPath, resolveProjectFileUrl } from "../storage/storage-paths";
 import { resolveToonflowAssetPath } from "../storage/studio-runtime-assets";
+import { createImageThumbCache, type ImageThumbCache } from "./image-thumb-cache";
 
 type ReadFile = (filePath: string) => Uint8Array | Promise<Uint8Array>;
 
@@ -12,6 +13,10 @@ interface ProtocolHandlerOptions {
   getDataDir: () => string;
   getSkillsRoot: () => string;
   getAssetsRoot: () => string;
+  /** 展示缩略图缓存目录(?thumb=1 请求用);不提供则缩略图请求回退原图。 */
+  getImageThumbDir?: () => string;
+  /** 缓存工厂(测试注入用);默认真 sips 实现。 */
+  createThumbCache?: (options: { cacheDir: string }) => ImageThumbCache;
   readFile?: ReadFile;
   resolveLocalMedia?: typeof resolveLocalMediaPath;
   resolveProjectFile?: typeof resolveProjectFileUrl;
@@ -69,6 +74,8 @@ export function registerProtocolHandlers({
   getDataDir,
   getSkillsRoot,
   getAssetsRoot,
+  getImageThumbDir,
+  createThumbCache = createImageThumbCache,
   readFile = fs.promises.readFile,
   resolveLocalMedia = resolveLocalMediaPath,
   resolveProjectFile = resolveProjectFileUrl,
@@ -94,9 +101,31 @@ export function registerProtocolHandlers({
     }
   });
 
+  // 展示缩略图(sips 按需生成,画布/面板 <img> 专用;角标/预判走
+  // image-probe-size 探原图,不受此影响)。生成失败/未启用一律回退原图。
+  let thumbCache: ImageThumbCache | null = null;
+  const resolveThumb = async (filePath: string) => {
+    if (!getImageThumbDir) return null;
+    thumbCache ??= createThumbCache({ cacheDir: getImageThumbDir() });
+    try {
+      return await thumbCache.getOrCreateThumb(filePath);
+    } catch {
+      return null;
+    }
+  };
+
   protocol.handle("project-file", async (request) => {
     try {
-      return respondWithFile(resolveProjectFile(getDataDir(), request.url));
+      const queryIndex = request.url.indexOf("?");
+      const cleanUrl = queryIndex === -1 ? request.url : request.url.slice(0, queryIndex);
+      const wantsThumb =
+        queryIndex !== -1 && new URLSearchParams(request.url.slice(queryIndex + 1)).has("thumb");
+      const filePath = resolveProjectFile(getDataDir(), cleanUrl);
+      if (wantsThumb) {
+        const thumbPath = await resolveThumb(filePath);
+        if (thumbPath) return respondWithFile(thumbPath);
+      }
+      return respondWithFile(filePath);
     } catch (error) {
       console.error("Failed to load project file:", error);
       return new Response("File not found", { status: 404 });

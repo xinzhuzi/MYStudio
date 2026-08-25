@@ -9,3 +9,13 @@ export function toPreviewSrc(path: string) {
   if (path.startsWith("/")) return `file://${encodeURI(path)}`;
   return path;
 }
+
+/**
+ * 展示缩略图变体:受管图片 scheme(project-file/asset-file)且无 query 时缀 ?thumb=1。
+ * 只用于 <img> 展示(主进程 sips 按需 512px 缓存);分辨率角标/尺寸预判
+ * 必须探原图(image-resolution 会剥掉本参数),展示与真值分层。
+ */
+export function withThumbVariant(src: string) {
+  if (/^(project-file:|asset-file:)/.test(src) && !src.includes("?")) return `${src}?thumb=1`;
+  return src;
+}

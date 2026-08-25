@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { ResolutionBadge } from "@/components/ui/image-resolution-badge";
 import type { ImageWorkflowOpenContext, StoryboardItem } from "@/types/studio";
 import { buildStoryboardItemOpenContext } from "./storyboard-open-context";
-import { toPreviewSrc } from "./previews/preview-src";
+import { toPreviewSrc, withThumbVariant } from "./previews/preview-src";
 import type { StoryboardBatchGenerationState } from "./image-workflow/use-storyboard-batch-generation";
 
 /**
@@ -110,7 +110,7 @@ export function StoryboardPanelTab({
                 <div className="relative aspect-video w-full overflow-hidden bg-muted/40">
                   {mediaPath ? (
                     <img
-                      src={toPreviewSrc(mediaPath)}
+                      src={withThumbVariant(toPreviewSrc(mediaPath))}
                       alt={storyboard.prompt}
                       className="h-full w-full object-cover"
                       loading="lazy"

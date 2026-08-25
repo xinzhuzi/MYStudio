@@ -1843,6 +1843,7 @@ app.whenReady().then(async () => {
     getDataDir,
     getSkillsRoot,
     getAssetsRoot,
+    getImageThumbDir: () => path.join(app.getPath('userData'), 'image-thumbs'),
   })
   
   createWindow()

@@ -58,6 +58,11 @@ function probeViaImageElement(url: string): Promise<ImagePixelSize | null> {
   });
 }
 
+/** 对外探测入口(带缓存/去重):分镜瓦片 4K 预判等非角标场景复用,勿绕行 new Image()。 */
+export function probeImagePixelSize(src: string): Promise<ImagePixelSize | null> {
+  return probeImageSize(src);
+}
+
 function probeImageSize(src: string): Promise<ImagePixelSize | null> {
   const cached = sizeCache.get(src);
   if (cached !== undefined) return Promise.resolve(cached);

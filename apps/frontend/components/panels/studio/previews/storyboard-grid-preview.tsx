@@ -1,14 +1,14 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { ImageIcon, Loader2, ZoomIn } from "lucide-react";
 import { useDirectImageUpscale } from "../use-direct-image-upscale";
 import { isUpscaledMediaPath, UPSCALE_INPUT_MAX_LONG_SIDE } from "@/lib/upscale/client";
 import type { ImageWorkflowOpenContext } from "@/types/studio";
 import type { ProductionFlowNodeModel } from "../workflow-node-model";
 import { buildStoryboardImageOpenContext } from "../storyboard-open-context";
-import { ResolutionBadge } from "@/components/ui/image-resolution-badge";
+import { ResolutionBadge, probeImagePixelSize } from "@/components/ui/image-resolution-badge";
 import { PreviewImage } from "./preview-image";
 import { TextPreview } from "./text-preview";
-import { toPreviewSrc } from "./preview-src";
+import { toPreviewSrc, withThumbVariant } from "./preview-src";
 
 /**
  * 4K 预判(超分按钮禁用判据,非显示用):up4x- 输出路径必然 ≥4K(同步可靠);
@@ -27,9 +27,27 @@ export function StoryboardGridPreview({
   node: ProductionFlowNodeModel;
   onOpenImageWorkflow?: (context: ImageWorkflowOpenContext) => void;
 }) {
-  const tiles = node.storyboardTiles ?? [];
+  const tiles = useMemo(() => node.storyboardTiles ?? [], [node.storyboardTiles]);
   const directUpscale = useDirectImageUpscale();
   const [tileLongSides, setTileLongSides] = useState<Record<string, number>>({});
+  // 4K 预判用原图真实尺寸(IPC 文件头探测,带缓存):展示 <img> 已改缩略图,
+  // onLoad naturalWidth 量到的是 512 缩略图,不能再用。
+  useEffect(() => {
+    let cancelled = false;
+    for (const tile of tiles) {
+      if (!tile.mediaPath) continue;
+      void probeImagePixelSize(toPreviewSrc(tile.mediaPath)).then((size) => {
+        if (cancelled || !size) return;
+        const longSide = Math.max(size.width, size.height);
+        setTileLongSides((previous) =>
+          previous[tile.id] === longSide ? previous : { ...previous, [tile.id]: longSide },
+        );
+      });
+    }
+    return () => {
+      cancelled = true;
+    };
+  }, [tiles]);
   if (!tiles.length) return <TextPreview node={node} />;
   return (
     <div className="nodrag nowheel max-h-[360px] overflow-y-auto overscroll-contain pr-1">
@@ -46,14 +64,10 @@ export function StoryboardGridPreview({
             <>
               {tile.mediaPath ? (
                 <PreviewImage
-                  src={tile.mediaPath}
+                  src={withThumbVariant(tile.mediaPath)}
                   alt={tile.title}
                   className="h-full w-full object-cover"
                   fallbackLabel="成图丢失"
-                  onLoad={(image) => {
-                    const longSide = Math.max(image.naturalWidth, image.naturalHeight);
-                    setTileLongSides((previous) => (previous[tile.id] === longSide ? previous : { ...previous, [tile.id]: longSide }));
-                  }}
                 />
               ) : (
                 <div className="flex h-full items-center justify-center text-[10px] text-muted-foreground">
