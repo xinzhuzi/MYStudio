@@ -17,6 +17,7 @@ import { createOperationId, logEvent } from "@/lib/diagnostics/logger";
 import {
   compileDaojiePrompt,
   DaojiePromptContractError,
+  lintDaojieSubjectRisks,
 } from "@/lib/ai/daojie-prompt-contract";
 import { EXTENDED_VISUAL_MANUAL_SEED_ID } from "@/lib/studio/visual-manual-classification";
 import { getProjectFilesBridge } from "@/lib/bridge/project-files";
@@ -167,6 +168,16 @@ export async function generateAsset(
       }
       let compiled;
       const daoOpId = createOperationId("daojie-prompt-compile");
+      const subjectRisks = lintDaojieSubjectRisks(subjectBody);
+      if (subjectRisks.length) {
+        void logEvent({
+          level: "warn",
+          category: "ai",
+          operationId: daoOpId,
+          message: "Daojie subject body carries risk phrases (soft lint)",
+          context: { risks: subjectRisks, assetName: task.name },
+        });
+      }
       try {
         compiled = await compileDaojiePrompt({
           runtimeTrack: task.assetType,

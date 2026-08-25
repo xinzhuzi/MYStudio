@@ -368,6 +368,23 @@ function mergeNegativeTerms(input: DaojiePromptInput["negativeTerms"], universal
 }
 
 /**
+ * 题材正文风险软检查(不阻断,供调用方 warn 日志):
+ * - 衣物破损邀请(裂痕/破洞/未缝补/褴褛)与衣物完整硬锁冲突,通用负面无对抗词;
+ * - 文字渲染邀请(刻满…文字/写着…字)与默认无字策略冲突。
+ * 返回命中的风险描述;空数组=干净。
+ */
+const SUBJECT_RISK_PATTERNS: Array<{ label: string; pattern: RegExp }> = [
+  { label: "clothing-damage-invite", pattern: /(裂痕|破洞|未缝补|褴褛|破烂|torn|ragged)/i },
+  { label: "text-render-invite", pattern: /(刻满[^。，]{0,8}文字|写着[^。，]{0,8}字|可读的文字)/ },
+];
+
+export function lintDaojieSubjectRisks(subjectBody: string): string[] {
+  return SUBJECT_RISK_PATTERNS
+    .filter(({ pattern }) => pattern.test(subjectBody))
+    .map(({ label }) => label);
+}
+
+/**
  * 题材正文不得携带自动层属主标记(对齐 MA _assert_clean_primary/OWNER_MARKERS):
  * 防止把已编译产物再次当题材输入导致锁重复装配。
  */

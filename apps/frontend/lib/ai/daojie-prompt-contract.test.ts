@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import parityFixture from "../../assets/studio-manuals/art_skills/daojie_ink_guofeng/ma_sync/three-track-parity-fixture.json";
 import {
   DAOJIE_RUNTIME_CONTRACT,
+  lintDaojieSubjectRisks,
   DaojiePromptContractError,
   compileDaojiePrompt,
   compileDaojieStoryboardFramePrompt,
@@ -215,6 +216,14 @@ describe("Daojie palette scheme compilation (ma-gongbi-palette-v1)", () => {
     void expect(
       compileDaojiePrompt({ runtimeTrack, subjectBody: "题材正文。", paletteSchemeId: schemeId }),
     ).rejects.toThrow(/daojie palette scheme/);
+  });
+});
+
+describe("Daojie subject risk soft lint", () => {
+  it("flags clothing-damage and text-render invites without blocking", () => {
+    expect(lintDaojieSubjectRisks("右肩裂痕从未缝补")).toContain("clothing-damage-invite");
+    expect(lintDaojieSubjectRisks("刻满上古文字的古剑")).toContain("text-render-invite");
+    expect(lintDaojieSubjectRisks("剑袍洗到发白，布片完整；篆纹不可读")).toEqual([]);
   });
 });
 

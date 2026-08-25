@@ -658,6 +658,24 @@ describe("asset-generation-orchestrator", () => {
       expect(params.prompt).toContain("主色用朱砂");
     });
 
+    it("题材正文带风险措辞时 warn 软检查日志,不阻断生成", async () => {
+      const result = await generateAsset({
+        assetId: "prop-1",
+        assetType: "prop",
+        name: "断剑",
+        description: "一柄断裂的古剑",
+        isDerivative: false,
+        visualManualId: "daojie_ink_guofeng",
+        skipPolish: true,
+        existingPrompt: "断剑一柄,剑身裂痕斜贯,刻满上古文字;工艺边缘清晰。",
+      });
+      expect(result.phase).toBe("done");
+      const riskLog = [...vi.mocked(logEvent).mock.calls].reverse()
+        .find(([e]) => e.message.includes("risk phrases"));
+      expect(riskLog?.[0].level).toBe("warn");
+      expect(riskLog?.[0].context?.risks).toEqual(expect.arrayContaining(["clothing-damage-invite", "text-render-invite"]));
+    });
+
     it("skipPolish 再生成补一次 AI 选配,与首次生成配色行为一致", async () => {
       vi.mocked(selectDaojiePaletteSchemeForAsset).mockResolvedValueOnce("prop.05");
 
