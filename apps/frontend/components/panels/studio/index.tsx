@@ -12,12 +12,16 @@ import { WorkflowNodeEditDialog } from "./WorkflowNodeEditDialog";
 import { WorkflowStageStatusBar } from "./WorkflowStageStatusBar";
 import { useStudioViewModel } from "./useStudioViewModel";
 import { useStoryboardBatchGeneration } from "./image-workflow/use-storyboard-batch-generation";
+import { useStoryboardBatchUpscale } from "./image-workflow/use-storyboard-batch-upscale";
 
 export function StudioView() {
   const viewModel = useStudioViewModel();
   const storyboardBatch = useStoryboardBatchGeneration({
     storyboards: viewModel.chapterStoryboards,
     projectName: viewModel.projectName,
+  });
+  const storyboardUpscale = useStoryboardBatchUpscale({
+    storyboards: viewModel.chapterStoryboards,
   });
 
   return (
@@ -105,6 +109,7 @@ export function StudioView() {
                 onNodeAction={viewModel.handleProductionNodeAction}
                 onOpenAssetImageWorkflow={viewModel.openAssetImageWorkflow}
                 storyboardBatch={storyboardBatch}
+                storyboardUpscale={storyboardUpscale}
                 chapterAutoVideoStatus={viewModel.chapterAutoVideoStatus}
                 chapterAutoVideoRunning={viewModel.chapterAutoVideoRunning}
                 onRunChapterAutoVideo={viewModel.handleRunChapterAutoVideo}

@@ -11,12 +11,14 @@ import {
   Film,
   ImageIcon,
   Loader2,
+  Maximize2,
   Split,
   Table2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { ImageWorkflowOpenContext } from "@/types/studio";
 import type { StoryboardBatchGenerationState } from "./image-workflow/use-storyboard-batch-generation";
+import type { StoryboardBatchUpscaleState } from "./image-workflow/use-storyboard-batch-upscale";
 import type {
   ProductionFlowNodeAction,
   ProductionFlowNodeId,
@@ -42,6 +44,12 @@ export interface ProductionNodeData extends Record<string, unknown> {
   /** 一键生图批量(与分镜面板同一 hook 实例),未注入时节点不渲染生图入口 */
   storyboardBatch?: {
     state: StoryboardBatchGenerationState;
+    start: () => void;
+    stop: () => void;
+  };
+  /** 一键超分批量(本地 x4 到 4K),未注入时节点不渲染超分入口 */
+  storyboardUpscale?: {
+    state: StoryboardBatchUpscaleState;
     start: () => void;
     stop: () => void;
   };
@@ -123,6 +131,7 @@ export function ProductionFlowNode({ data }: NodeProps<Node<ProductionNodeData>>
   // 节点卡「一键生图」批量入口:与分镜面板共用同一 hook 实例,
   // 已生成分镜自动跳过;旧的「跳转首个未生成镜」单镜入口已被本入口取代
   const storyboardBatch = data.storyboardBatch;
+  const storyboardUpscale = data.storyboardUpscale;
   const previewContent =
     data.node.previewKind === "table" ? (
       <StoryboardTablePreview node={data.node} />
@@ -214,7 +223,7 @@ export function ProductionFlowNode({ data }: NodeProps<Node<ProductionNodeData>>
             ))}
           </span>
         </div>
-        <div className="nodrag nopan flex shrink-0 items-center gap-2">
+        <div className="nodrag nopan flex shrink-0 flex-wrap items-center gap-2">
           {canOpenJson ? (
             <button
               type="button"
@@ -286,6 +295,42 @@ export function ProductionFlowNode({ data }: NodeProps<Node<ProductionNodeData>>
               >
                 一键生图
                 <ImageIcon className="h-3 w-3" />
+              </button>
+            )
+          ) : null}
+          {data.node.id === "storyboard" && storyboardUpscale ? (
+            storyboardUpscale.state.running ? (
+              <span
+                className="inline-flex h-7 items-center gap-1.5 rounded-md border border-primary/30 bg-primary/10 px-2 text-[11px] font-medium text-primary/80"
+                data-storyboard-node-upscale-running
+              >
+                <Loader2 className="h-3 w-3 animate-spin" />
+                一键超分 {storyboardUpscale.state.done}/{storyboardUpscale.state.total}
+                <button
+                  type="button"
+                  className="ml-0.5 inline-flex items-center gap-1 rounded-md border-border text-[11px] text-muted-foreground hover:text-foreground"
+                  title="当前分镜完成后停止"
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    storyboardUpscale.stop();
+                  }}
+                >
+                  停止
+                </button>
+              </span>
+            ) : (
+              <button
+                type="button"
+                className="inline-flex h-7 items-center gap-1.5 rounded-md border border-border bg-muted/35 px-2 text-[11px] font-medium text-card-foreground hover:border-primary/45 hover:bg-muted/12"
+                data-storyboard-node-batch-upscale
+                title="一键超分:把所有分镜图本地超分到 4K(x4)并换轨到超分产物;已超分的自动跳过"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  storyboardUpscale.start();
+                }}
+              >
+                一键超分
+                <Maximize2 className="h-3 w-3" />
               </button>
             )
           ) : null}

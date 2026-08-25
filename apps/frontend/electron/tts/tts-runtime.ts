@@ -2,9 +2,10 @@ import fs from "node:fs";
 import crypto from "node:crypto";
 import os from "node:os";
 import path from "node:path";
-import { execFile, spawn, type ChildProcessWithoutNullStreams, type SpawnOptionsWithoutStdio } from "node:child_process";
+import { execFile, spawn, type ChildProcess, type ChildProcessWithoutNullStreams, type SpawnOptionsWithoutStdio } from "node:child_process";
 import { promisify } from "node:util";
 import { LOCAL_TTS_HOST, LOCAL_TTS_PORT } from "../../lib/tts/constants";
+import { captureSidecarOutput } from "../diagnostics/sidecar-log-capture";
 import { assertSafeTarMembers } from "./archive-safety";
 import {
   getErrorMessage, isRecord, parseJsonString, readStringField,
@@ -1231,6 +1232,14 @@ export function createTtsRuntimeController(deps: TtsRuntimeControllerDeps): TtsR
         },
       },
     );
+    // 默认 stdio=pipe 却无人监听:输出被丢且管道塞满会卡死后端——统一捕获进 logs/sidecars/。
+    captureSidecarOutput({
+      module: "tts-backend",
+      // 真实 spawn 产物是完整 ChildProcess;SpawnedProcess 的 Pick 窄类型
+      // 仅为测试注入声明,此处还原全型交给捕获器。
+      child: child as ChildProcess,
+      label: `${backendPython} -m tts.main --port ${port}`,
+    });
 
     const healthy = await waitUntilHealthy();
     if (!healthy) {

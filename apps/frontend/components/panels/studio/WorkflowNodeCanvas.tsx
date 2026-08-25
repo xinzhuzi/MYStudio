@@ -32,6 +32,7 @@ import { PRODUCTION_FLOW_EDGES, PRODUCTION_NODE_WIDTH_PX } from "./workflow-node
 import { ProductionFlowNode } from "./WorkflowProductionNode";
 import type { ProductionNodeData } from "./WorkflowProductionNode";
 import type { StoryboardBatchGenerationState } from "./image-workflow/use-storyboard-batch-generation";
+import type { StoryboardBatchUpscaleState } from "./image-workflow/use-storyboard-batch-upscale";
 import type { ChapterAutoVideoStatus } from "@/lib/studio/chapter-auto-video";
 
 
@@ -210,6 +211,7 @@ export function WorkflowNodeCanvas({
   onNodeAction,
   onOpenAssetImageWorkflow,
   storyboardBatch,
+  storyboardUpscale,
   chapterAutoVideoStatus,
   chapterAutoVideoRunning = false,
   onRunChapterAutoVideo,
@@ -226,6 +228,12 @@ export function WorkflowNodeCanvas({
   /** 一键生图批量控制,透传到分镜面板节点卡上的「一键生图」入口 */
   storyboardBatch?: {
     state: StoryboardBatchGenerationState;
+    start: () => void;
+    stop: () => void;
+  };
+  /** 一键超分批量控制,透传到分镜面板节点卡上的「一键超分」入口 */
+  storyboardUpscale?: {
+    state: StoryboardBatchUpscaleState;
     start: () => void;
     stop: () => void;
   };
@@ -277,6 +285,7 @@ export function WorkflowNodeCanvas({
           onNodeAction,
           onOpenAssetImageWorkflow,
           storyboardBatch,
+          storyboardUpscale,
         },
       })),
     [
@@ -289,6 +298,7 @@ export function WorkflowNodeCanvas({
       onStageChange,
       positions,
       storyboardBatch,
+      storyboardUpscale,
     ],
   );
   const [reactFlowNodes, setReactFlowNodes, applyReactFlowNodeChanges] =
