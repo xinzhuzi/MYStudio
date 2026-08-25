@@ -1,5 +1,6 @@
 import type { ChangeEvent } from "react";
 import { ImagePlus, X } from "lucide-react";
+import { ResolutionBadge } from "@/components/ui/image-resolution-badge";
 
 interface ScreenplayReferenceImagesProps {
   images: File[];
@@ -26,11 +27,14 @@ export function ScreenplayReferenceImages({
       <div className="flex gap-2 flex-wrap">
         {images.map((_image, index) => (
           <div key={index} className="relative group">
-            <img
-              src={imageUrls[index]}
+            <>
+              <img
+                src={imageUrls[index]}
               alt={`Reference ${index + 1}`}
               className="w-16 h-16 object-cover rounded-md border"
-            />
+              />
+              <ResolutionBadge src={imageUrls[index]} />
+            </>
             <button
               onClick={() => onRemove(index)}
               className="absolute -top-1 -right-1 bg-destructive text-destructive-foreground rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition-opacity"

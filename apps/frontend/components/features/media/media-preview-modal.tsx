@@ -11,6 +11,7 @@
 
 import { useCallback, useEffect } from "react";
 import { X } from "lucide-react";
+import { ResolutionBadge } from "@/components/ui/image-resolution-badge";
 
 interface ImagePreviewModalProps {
   imageUrl: string;
@@ -46,6 +47,7 @@ export function ImagePreviewModal({
       onClick={onClose}
     >
       <div className="relative max-w-[90vw] max-h-[90vh]" onClick={(event) => event.stopPropagation()}>
+        <ResolutionBadge src={imageUrl} />
         <img
           src={imageUrl}
           alt="Preview"

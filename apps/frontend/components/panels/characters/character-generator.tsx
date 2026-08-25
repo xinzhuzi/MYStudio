@@ -35,6 +35,7 @@ import {
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { getStyleById } from "@/lib/constants/visual-styles";
+import { ResolutionBadge } from "@/components/ui/image-resolution-badge";
 
 // Character sheet elements that can be included
 const SHEET_ELEMENTS = [
@@ -216,11 +217,14 @@ export function CharacterGenerator({ character }: CharacterGeneratorProps) {
 
         {/* Preview image */}
         <div className="relative rounded-lg overflow-hidden border-2 border-warning/50 bg-muted">
-          <img 
-            src={previewUrl} 
-            alt={`${character.name} 角色设定预览`}
-            className="w-full h-auto"
-          />
+          <>
+            <img 
+              src={previewUrl} 
+              alt={`${character.name} 角色设定预览`}
+              className="w-full h-auto"
+            />
+            <ResolutionBadge src={previewUrl} />
+          </>
           <div className="absolute top-2 left-2 bg-warning text-white text-xs px-2 py-1 rounded">
             预览
           </div>
@@ -282,11 +286,14 @@ export function CharacterGenerator({ character }: CharacterGeneratorProps) {
       {/* Existing sheet preview */}
       {existingSheet && (
         <div className="relative rounded-lg overflow-hidden border bg-muted">
-          <img 
-            src={existingSheet.imageUrl} 
-            alt={`${character.name} 角色设定`}
-            className="w-full h-auto"
-          />
+          <>
+            <img 
+              src={existingSheet.imageUrl} 
+              alt={`${character.name} 角色设定`}
+              className="w-full h-auto"
+            />
+            <ResolutionBadge src={existingSheet.imageUrl} className="bottom-1 right-1 top-auto" />
+          </>
           <div className="absolute top-2 right-2">
             <Check className="h-5 w-5 text-success bg-white rounded-full p-0.5" />
           </div>

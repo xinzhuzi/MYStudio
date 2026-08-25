@@ -1,6 +1,7 @@
 import { Image as ImageIcon, Video } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { Shot } from "@/types/script";
+import { ResolutionBadge } from "@/components/ui/image-resolution-badge";
 
 interface ShotGridCardProps {
   shot: Shot;
@@ -55,11 +56,14 @@ export function ShotGridCard({
 
       <div className="aspect-video bg-muted/60 relative overflow-hidden">
         {imageUrl ? (
-          <img
-            src={imageUrl}
-            alt={`Shot ${index + 1}`}
-            className="w-full h-full object-cover transition-transform group-hover:scale-105"
-          />
+          <>
+            <img
+              src={imageUrl}
+              alt={`Shot ${index + 1}`}
+              className="w-full h-full object-cover transition-transform group-hover:scale-105"
+            />
+            <ResolutionBadge src={imageUrl} />
+          </>
         ) : (
           <div className="absolute inset-0 flex items-center justify-center text-foreground">
             <ImageIcon className="w-6 h-6 opacity-30" />

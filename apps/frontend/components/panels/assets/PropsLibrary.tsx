@@ -49,6 +49,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useResolvedImageUrl } from '@/hooks/use-resolved-image-url';
+import { ResolutionBadge } from "@/components/ui/image-resolution-badge";
 
 // ── PropCard 子组件 ──────────────────────────────────────────────────────────
 
@@ -72,14 +73,17 @@ function PropCard({ item }: { item: PropItem }) {
         {/* 图片区 */}
         <div className="aspect-square bg-muted relative overflow-hidden">
           {resolvedUrl ? (
-            <img
-              src={resolvedUrl}
-              alt={item.name}
-              className="w-full h-full object-cover"
-              onError={(e) => {
-                (e.target as HTMLImageElement).style.display = 'none';
-              }}
-            />
+            <>
+              <img
+                src={resolvedUrl}
+                alt={item.name}
+                className="w-full h-full object-cover"
+                onError={(e) => {
+                  (e.target as HTMLImageElement).style.display = 'none';
+                }}
+              />
+              <ResolutionBadge src={resolvedUrl} />
+            </>
           ) : (
             <div className="w-full h-full flex items-center justify-center">
               <Package className="w-8 h-8 text-muted-foreground/40" />

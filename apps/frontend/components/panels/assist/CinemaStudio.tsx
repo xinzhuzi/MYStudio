@@ -17,6 +17,7 @@ import {
  
  
 } from '@/lib/assist/camera-dictionary';
+import { ResolutionBadge } from "@/components/ui/image-resolution-badge";
 
 export function CinemaStudio() {
   const {
@@ -168,6 +169,7 @@ export function CinemaStudio() {
           </div>
         ) : cinemaResult ? (
           <div className="max-w-full max-h-full relative group">
+            <ResolutionBadge src={cinemaResult} className="left-1 right-auto top-1" />
             <img
               src={cinemaResult}
               alt="Cinema shot"

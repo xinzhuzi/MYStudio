@@ -32,6 +32,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { ResolutionBadge } from "@/components/ui/image-resolution-badge";
 
 interface StoryboardPreviewProps {
   onBack?: () => void;
@@ -296,12 +297,15 @@ export function StoryboardPreview({ onBack, onSplitComplete }: StoryboardPreview
 
       {/* Storyboard image preview */}
       <div className="relative rounded-lg border overflow-hidden bg-muted/30">
-        <img
-          src={storyboardImage}
-          alt="Storyboard contact sheet"
-          className="w-full h-auto object-contain"
-          style={{ maxHeight: '400px' }}
-        />
+        <>
+          <img
+            src={storyboardImage}
+            alt="Storyboard contact sheet"
+            className="w-full h-auto object-contain"
+            style={{ maxHeight: '400px' }}
+          />
+          <ResolutionBadge src={storyboardImage} />
+        </>
         
         {/* Splitting overlay */}
         {isSplitting && (

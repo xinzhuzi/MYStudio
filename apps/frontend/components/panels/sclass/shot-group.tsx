@@ -48,6 +48,7 @@ import type { Scene } from "@/stores/library/scene-store";
 import type { ShotGroup } from "@/stores/sclass/sclass-store";
 import { recalcGroupDuration } from "./auto-grouping";
 import { GroupRefManager } from "./group-ref-manager";
+import { ResolutionBadge } from "@/components/ui/image-resolution-badge";
 
 // ==================== Types ====================
 
@@ -439,7 +440,7 @@ export function ShotGroupCard({
         <div className="px-3 py-2 border-t bg-muted/5 space-y-2">
           {/* 格子图预览 + 下载 */}
           {group.gridImageUrl && (
-            <div>
+            <div className="relative">
               <div className="flex items-center gap-2 mb-1">
                 <ImageIcon className="h-3.5 w-3.5 text-primary" />
                 <span className="text-xs text-primary">格子图</span>
@@ -462,6 +463,7 @@ export function ShotGroupCard({
                 )}
                 onClick={() => setGridPreviewOpen(!gridPreviewOpen)}
               />
+              <ResolutionBadge src={group.gridImageUrl} />
             </div>
           )}
 

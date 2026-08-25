@@ -4,6 +4,7 @@
 import { useEffect, useRef } from "react";
 import { usePreviewStore } from "@/stores/playback/preview-store";
 import { Video } from "lucide-react";
+import { ResolutionBadge } from "@/components/ui/image-resolution-badge";
 
 export function PreviewPanel() {
   const { previewItem, shouldAutoPlay, setVideoRef, playNext, playlist } = usePreviewStore();
@@ -52,11 +53,14 @@ export function PreviewPanel() {
     <div className="h-full min-w-0 flex flex-col bg-foreground/[0.06] dark:bg-muted/60">
       <div className="flex-1 flex items-center justify-center overflow-hidden">
         {previewItem.type === "image" ? (
-          <img
-            src={previewItem.url}
-            alt={previewItem.name || "Preview"}
-            className="max-w-full max-h-full object-contain"
-          />
+          <div className="relative flex h-full w-full items-center justify-center">
+            <img
+              src={previewItem.url}
+              alt={previewItem.name || "Preview"}
+              className="max-w-full max-h-full object-contain"
+            />
+            <ResolutionBadge src={previewItem.url} />
+          </div>
         ) : (
           <video
             ref={videoRef}

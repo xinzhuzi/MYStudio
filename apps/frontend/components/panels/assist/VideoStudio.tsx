@@ -20,6 +20,7 @@ import {
   getResolutionsForModel,
 } from '@/lib/assist/model-registry';
 import { resolveVeoUploadCapability, type VeoUploadCapability } from '@/lib/assist/veo-capability';
+import { ResolutionBadge } from "@/components/ui/image-resolution-badge";
 
 interface LocalUploadAsset {
   id: string;
@@ -310,11 +311,14 @@ export function VideoStudio() {
         )}
       </div>
       {asset ? (
-        <img
-          src={asset.dataUrl}
-          alt={label}
-          className="h-24 w-full rounded object-cover"
-        />
+        <div className="relative">
+          <img
+            src={asset.dataUrl}
+            alt={label}
+            className="h-24 w-full rounded object-cover"
+          />
+          <ResolutionBadge src={asset.dataUrl} />
+        </div>
       ) : (
         <button
           type="button"
@@ -539,6 +543,7 @@ export function VideoStudio() {
                                 alt={`参考图 ${index + 1}`}
                                 className="h-20 w-full object-cover"
                               />
+                              <ResolutionBadge src={asset.dataUrl} className="bottom-0.5 left-0.5 right-auto top-auto" />
                               <button
                                 type="button"
                                 className="absolute top-1 right-1 p-1 rounded-md bg-black/60 text-white"

@@ -2,6 +2,7 @@ import { Check, RotateCcw } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { ResolutionBadge } from "@/components/ui/image-resolution-badge";
 
 interface ScenePreviewViewProps {
   previewUrl: string;
@@ -24,11 +25,14 @@ export function ScenePreviewView({
       <ScrollArea className="flex-1">
         <div className="space-y-4">
           <div className="relative rounded-lg overflow-hidden border-2 border-warning/50 bg-muted">
-            <img
-              src={previewUrl}
-              alt="场景概念图预览"
-              className="w-full h-auto"
-            />
+            <>
+              <img
+                src={previewUrl}
+                alt="场景概念图预览"
+                className="w-full h-auto"
+              />
+              <ResolutionBadge src={previewUrl} />
+            </>
             <div className="absolute top-2 left-2 bg-warning text-white text-xs px-2 py-1 rounded">
               预览
             </div>

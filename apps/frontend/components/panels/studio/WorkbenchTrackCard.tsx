@@ -5,6 +5,7 @@ import { Textarea } from "@/components/ui/textarea";
 import type { ToonflowWorkbenchTrack } from "@/lib/studio/workbench-view-model";
 import { Play } from "lucide-react";
 import { toPreviewSrc } from "./previews/preview-src";
+import { ResolutionBadge } from "@/components/ui/image-resolution-badge";
 
 export function WorkbenchTrackCard(props: {
   track: ToonflowWorkbenchTrack;
@@ -60,7 +61,7 @@ export function WorkbenchTrackCard(props: {
             {track.medias.map((media, index) => (
               <div
                 key={`${media.sources}-${media.id}-${media.fileType}-${index}`}
-                className="overflow-hidden rounded-md border border-border bg-background"
+                className="relative overflow-hidden rounded-md border border-border bg-background"
               >
                 <div className="aspect-video bg-black">
                   {media.fileType === "audio" ? (
@@ -74,11 +75,14 @@ export function WorkbenchTrackCard(props: {
                       muted
                     />
                   ) : (
-                    <img
-                      className="h-full w-full object-cover"
-                      src={toPreviewSrc(media.src)}
-                      alt={media.name ?? media.id}
-                    />
+                    <>
+                      <img
+                        className="h-full w-full object-cover"
+                        src={toPreviewSrc(media.src)}
+                        alt={media.name ?? media.id}
+                      />
+                      <ResolutionBadge src={toPreviewSrc(media.src)} />
+                    </>
                   )}
                 </div>
                 <div className="space-y-1 p-2">

@@ -14,6 +14,7 @@ import {
 import { StylePicker } from "@/components/features/visual-style/style-picker";
 import { Textarea } from "@/components/ui/textarea";
 import { ATMOSPHERE_PRESETS, TIME_PRESETS } from "@/stores/library/scene-store";
+import { ResolutionBadge } from "@/components/ui/image-resolution-badge";
 
 interface SceneGenerationFormProps {
   name: string;
@@ -108,7 +109,10 @@ export function SceneGenerationForm({
           <div className="flex gap-2 flex-wrap">
             {referenceImages.map((image, index) => (
               <div key={index} className="relative group">
-                <img src={image} alt={`参考图 ${index + 1}`} className="w-14 h-14 object-cover rounded-md border" />
+                <span className="relative inline-flex">
+                  <img src={image} alt={`参考图 ${index + 1}`} className="w-14 h-14 object-cover rounded-md border" />
+                  <ResolutionBadge src={image} />
+                </span>
                 <button
                   type="button"
                   aria-label={`删除参考图 ${index + 1}`}

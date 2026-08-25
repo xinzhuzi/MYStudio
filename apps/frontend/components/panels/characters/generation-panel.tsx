@@ -69,6 +69,7 @@ import {
   buildCharacterSheetPrompt,
   type SheetElementId,
 } from "./character-generation-prompt";
+import { ResolutionBadge } from "@/components/ui/image-resolution-badge";
 
 interface GenerationPanelProps {
   selectedCharacter: Character | null;
@@ -420,11 +421,14 @@ export function GenerationPanel({ onCharacterCreated }: GenerationPanelProps) {
         <ScrollArea className="flex-1 min-h-0">
           <div className="p-3 space-y-4 pb-32">
             <div className="relative rounded-lg overflow-hidden border-2 border-warning/50 bg-muted">
-              <img 
-                src={previewUrl} 
-                alt="角色设定预览"
-                className="w-full h-auto"
-              />
+              <>
+                <img 
+                  src={previewUrl} 
+                  alt="角色设定预览"
+                  className="w-full h-auto"
+                />
+                <ResolutionBadge src={previewUrl} />
+              </>
               <div className="absolute top-2 left-2 bg-warning text-white text-xs px-2 py-1 rounded">
                 预览
               </div>
@@ -561,6 +565,7 @@ export function GenerationPanel({ onCharacterCreated }: GenerationPanelProps) {
                     alt={`参考图 ${i + 1}`}
                     className="w-14 h-14 object-cover rounded-md border"
                   />
+                  <ResolutionBadge src={img} className="bottom-0.5 left-0.5 right-auto top-auto" />
                   <button
                     type="button"
                     onClick={() => removeImage(i)}

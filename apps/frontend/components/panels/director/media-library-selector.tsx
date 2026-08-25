@@ -19,6 +19,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import { ResolutionBadge } from "@/components/ui/image-resolution-badge";
 
 interface MediaLibrarySelectorProps {
   sceneId: number;
@@ -155,11 +156,14 @@ export function MediaLibrarySelector({
                         onClick={() => handleSelectImage(imageUrl)}
                         className="relative group aspect-video rounded-md overflow-hidden border-2 border-transparent hover:border-primary transition-colors"
                       >
-                        <img
-                          src={imageUrl}
+                        <>
+                          <img
+                            src={imageUrl}
                           alt={img.name}
                           className="w-full h-full object-cover"
-                        />
+                          />
+                          <ResolutionBadge src={imageUrl} />
+                        </>
                         {/* 悬停遮罩 */}
                         <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                           <Check className="h-6 w-6 text-foreground" />

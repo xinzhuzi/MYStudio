@@ -20,6 +20,7 @@ import { useResolvedImageUrl } from "@/hooks/use-resolved-image-url";
 import { CharacterSelector } from "./character-selector";
 import { MediaLibrarySelector } from "./media-library-selector";
 import { SceneLibrarySelector } from "./scene-library-selector";
+import { ResolutionBadge } from "@/components/ui/image-resolution-badge";
 
 export interface StoryboardSceneFrameSectionProps {
   scene: SplitScene;
@@ -356,7 +357,10 @@ export function StoryboardSceneFrameSection({
         >
           {hasFrame ? (
             <>
-              <img src={url || ""} alt={`分镜 ${scene.id + 1} ${isStart ? "首帧" : "尾帧"}`} className="w-full h-full object-cover" loading="lazy" decoding="async" />
+              <>
+                <img src={url || ""} alt={`分镜 ${scene.id + 1} ${isStart ? "首帧" : "尾帧"}`} className="w-full h-full object-cover" loading="lazy" decoding="async" />
+                <ResolutionBadge src={url || ""} />
+              </>
               <FrameActionButtons
                 kind={kind}
                 sceneId={scene.id}

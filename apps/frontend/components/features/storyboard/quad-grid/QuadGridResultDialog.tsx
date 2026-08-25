@@ -33,6 +33,7 @@ import {
   Grid2X2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { ResolutionBadge } from "@/components/ui/image-resolution-badge";
 
 export interface QuadGridResult {
   originalImage: string;
@@ -112,11 +113,14 @@ export function QuadGridResultDialog({
             <div className="w-1/4">
               <div className="text-[10px] text-muted-foreground mb-1">锚点原图</div>
               <div className="aspect-video rounded overflow-hidden border border-border">
-                <img
-                  src={result.originalImage}
+                <>
+                  <img
+                    src={result.originalImage}
                   alt="原图"
                   className="w-full h-full object-cover"
-                />
+                  />
+                  <ResolutionBadge src={result.originalImage} />
+                </>
               </div>
             </div>
 
@@ -142,6 +146,7 @@ export function QuadGridResultDialog({
                       alt={result.variationLabels[index]}
                       className="w-full h-full object-cover"
                     />
+                    <ResolutionBadge src={img} />
                     <span className="absolute bottom-1 left-1 text-[9px] bg-black/60 text-white px-1 py-0.5 rounded">
                       {index + 1}. {result.variationLabels[index]}
                     </span>

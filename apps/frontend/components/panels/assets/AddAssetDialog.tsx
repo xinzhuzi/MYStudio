@@ -13,6 +13,7 @@ import { getStudioAssetsBridge } from "@/lib/bridge/studio-assets";
 import type { StudioAssetKind } from "@/types/studio-assets";
 import { ImageIcon, Music2, Plus } from "lucide-react";
 import { toast } from "sonner";
+import { ResolutionBadge } from "@/components/ui/image-resolution-badge";
 
 const TYPE_LABEL = {
   role: "角色",
@@ -114,11 +115,14 @@ export function AddAssetDialog({
             <div className="space-y-2">
               <div className="text-xs font-medium text-muted-foreground">图片</div>
               <div
-                className="flex h-40 cursor-pointer items-center justify-center rounded-lg border border-dashed border-border bg-muted/30 hover:border-primary/50"
+                className="relative flex h-40 cursor-pointer items-center justify-center rounded-lg border border-dashed border-border bg-muted/30 hover:border-primary/50"
                 onClick={handleSelectImage}
               >
                 {imagePreview ? (
-                  <img src={imagePreview} alt="预览" className="h-full w-full rounded-lg object-contain" />
+                  <>
+                    <img src={imagePreview} alt="预览" className="h-full w-full rounded-lg object-contain" />
+                    <ResolutionBadge src={imagePreview} />
+                  </>
                 ) : (
                   <div className="flex flex-col items-center gap-2 text-muted-foreground">
                     <ImageIcon className="h-8 w-8" />

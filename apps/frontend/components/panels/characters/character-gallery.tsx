@@ -51,6 +51,7 @@ import {
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { ImagePreviewModal } from "@/components/features/media/media-preview-modal";
+import { ResolutionBadge } from "@/components/ui/image-resolution-badge";
 
 type ViewMode = "grid" | "list";
 
@@ -378,7 +379,7 @@ export function CharacterGallery({ onCharacterSelect, selectedCharacterId }: Cha
                       <>
                         {/* Grid view */}
                         <div
-                          className="aspect-square rounded bg-muted flex items-center justify-center overflow-hidden mb-2 cursor-zoom-in"
+                          className="relative aspect-square rounded bg-muted flex items-center justify-center overflow-hidden mb-2 cursor-zoom-in"
                           title="双击查看大图"
                           onDoubleClick={(e) => {
                             e.stopPropagation();
@@ -386,11 +387,14 @@ export function CharacterGallery({ onCharacterSelect, selectedCharacterId }: Cha
                           }}
                         >
                           {char.thumbnailUrl ? (
-                            <img 
-                              src={char.thumbnailUrl} 
-                              alt={char.name}
-                              className="w-full h-full object-contain"
-                            />
+                            <>
+                              <img 
+                                src={char.thumbnailUrl} 
+                                alt={char.name}
+                                className="w-full h-full object-contain"
+                              />
+                              <ResolutionBadge src={char.thumbnailUrl} />
+                            </>
                           ) : (
                             <User className="h-8 w-8 text-muted-foreground" />
                           )}

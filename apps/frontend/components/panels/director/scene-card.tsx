@@ -35,6 +35,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import { ResolutionBadge } from "@/components/ui/image-resolution-badge";
 
 // Mood presets for quick selection
 const MOOD_PRESETS = [
@@ -398,11 +399,14 @@ export function SceneCard({ scene, progress, isPreview, showImage, onRetryImage,
       {/* Generated image preview */}
       {showImage && (progress?.imageUrl || scene.imageUrl) && (
         <div className="mt-2 relative">
-          <img
-            src={progress?.imageUrl || scene.imageUrl}
-            alt={`Scene ${scene.sceneId}`}
-            className="w-full rounded-lg object-cover max-h-[200px]"
-          />
+          <>
+            <img
+              src={progress?.imageUrl || scene.imageUrl}
+              alt={`Scene ${scene.sceneId}`}
+              className="w-full rounded-lg object-cover max-h-[200px]"
+            />
+            <ResolutionBadge src={progress?.imageUrl || scene.imageUrl} />
+          </>
           {onRetryImage && (
             <Button
               size="sm"

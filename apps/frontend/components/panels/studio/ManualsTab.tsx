@@ -8,6 +8,7 @@ import type { StudioManualPreset, StudioWorkflowConfig } from "@/types/studio";
 import { BookMarked, Check, Edit3, Palette } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ManualEditDialog } from "./ManualEditDialog";
+import { ResolutionBadge } from "@/components/ui/image-resolution-badge";
 
 export function ManualsTab(props: {
   workflowConfig: StudioWorkflowConfig;
@@ -165,13 +166,16 @@ export function ManualsTab(props: {
                   >
                     <Edit3 className="h-3.5 w-3.5" />
                   </button>
-                  <div className="aspect-video overflow-hidden bg-muted">
+                  <div className="relative aspect-video overflow-hidden bg-muted">
                     {manual.images?.[0] ? (
-                      <img
-                        src={manual.images[0]}
-                        alt={manual.name}
-                        className="h-full w-full object-cover"
-                      />
+                      <>
+                        <img
+                          src={manual.images[0]}
+                          alt={manual.name}
+                          className="h-full w-full object-cover"
+                        />
+                        <ResolutionBadge src={manual.images[0]} />
+                      </>
                     ) : (
                       <div className="flex h-full items-center justify-center">
                         <Palette className="h-6 w-6 opacity-30" />

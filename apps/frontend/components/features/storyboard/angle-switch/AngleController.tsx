@@ -25,6 +25,7 @@ import {
   type ElevationAngle,
   type ShotSize,
 } from "@/lib/ai/runninghub-angles";
+import { ResolutionBadge } from "@/components/ui/image-resolution-badge";
 
 export interface AngleControllerProps {
   previewUrl?: string;
@@ -359,6 +360,7 @@ export function AngleController({
             {previewUrl ? (
               <>
                 <div className="absolute inset-0 rounded-[8px] overflow-hidden bg-muted/60 border border-white/10">
+                  <ResolutionBadge src={previewUrl} />
                   <img
                     src={previewUrl}
                     className={cn("w-full h-full object-fill", isLoading && "opacity-50 blur-sm")}

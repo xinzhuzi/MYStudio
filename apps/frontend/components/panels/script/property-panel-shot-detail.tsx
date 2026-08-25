@@ -21,6 +21,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { PropertyPanelStatusBadge } from "./property-panel-status-badge";
+import { ResolutionBadge } from "@/components/ui/image-resolution-badge";
 
 interface PropertyPanelShotDetailProps {
   shot: Shot;
@@ -79,7 +80,12 @@ export function PropertyPanelShotDetail({
           )}
         </div>
 
-        {shot.imageUrl && <div className="rounded-lg overflow-hidden"><img src={shot.imageUrl} alt={`Shot ${shot.index}`} className="w-full h-auto" /></div>}
+        {shot.imageUrl && (
+          <div className="relative rounded-lg overflow-hidden">
+            <img src={shot.imageUrl} alt={`Shot ${shot.index}`} className="w-full h-auto" />
+            <ResolutionBadge src={shot.imageUrl} />
+          </div>
+        )}
         <Separator />
 
         {isEditing ? (

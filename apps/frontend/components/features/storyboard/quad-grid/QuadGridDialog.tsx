@@ -21,6 +21,7 @@ import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Loader2, Grid2X2, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { ResolutionBadge } from "@/components/ui/image-resolution-badge";
 
 export type QuadVariationType = "angle" | "composition" | "moment";
 
@@ -104,11 +105,14 @@ export function QuadGridDialog({
           {previewUrl && (
             <div className="flex justify-center">
               <div className="relative w-40 aspect-video rounded overflow-hidden border border-border">
-                <img
-                  src={previewUrl}
+                <>
+                  <img
+                    src={previewUrl}
                   alt="锚点图"
                   className="w-full h-full object-cover"
-                />
+                  />
+                  <ResolutionBadge src={previewUrl} />
+                </>
                 <span className="absolute bottom-1 left-1 text-[10px] bg-viz-selection/80 text-white px-1.5 py-0.5 rounded">
                   锚点图
                 </span>

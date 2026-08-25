@@ -11,6 +11,7 @@ import { getManualModuleKeys, getManualModuleRelativePath, getManualSkillSource 
 import type { StudioManualPreset } from "@/types/studio";
 import { Loader2, Save } from "lucide-react";
 import { toast } from "sonner";
+import { ResolutionBadge } from "@/components/ui/image-resolution-badge";
 
 type ManualKind = "visual" | "director";
 
@@ -79,7 +80,10 @@ export function ManualEditDialog({
         {manual.images?.length ? (
           <div className="flex gap-2 overflow-x-auto pb-1">
             {manual.images.map((src, i) => (
-              <img key={i} src={src} alt={`${manual.name}-${i}`} className="h-16 w-24 shrink-0 rounded-md border object-cover" />
+              <span key={i} className="relative inline-flex h-16 w-24 shrink-0 overflow-hidden rounded-md border">
+                <img src={src} alt={`${manual.name}-${i}`} className="h-full w-full object-cover" />
+                <ResolutionBadge src={src} />
+              </span>
             ))}
           </div>
         ) : null}

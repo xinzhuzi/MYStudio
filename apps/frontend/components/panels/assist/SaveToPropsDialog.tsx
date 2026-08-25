@@ -24,6 +24,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
 import { FolderOpen, FolderPlus, Package, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
+import { ResolutionBadge } from "@/components/ui/image-resolution-badge";
 
 interface SaveToPropsDialogProps {
   open: boolean;
@@ -112,12 +113,13 @@ export function SaveToPropsDialog({
         <div className="space-y-4 py-2">
           {/* 图片预览 */}
           <div className="flex justify-center">
-            <div className="w-32 h-32 rounded-lg border border-border bg-muted overflow-hidden">
+            <div className="relative w-32 h-32 rounded-lg border border-border bg-muted overflow-hidden">
               <img
                 src={imageUrl}
                 alt="预览"
                 className="w-full h-full object-cover"
               />
+              <ResolutionBadge src={imageUrl} />
             </div>
           </div>
 

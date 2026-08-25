@@ -19,6 +19,7 @@ import {
   getT2IModelById,
   getAspectRatiosForT2IModel,
 } from '@/lib/assist/model-registry';
+import { ResolutionBadge } from "@/components/ui/image-resolution-badge";
 
 export function ImageStudio() {
   const [saveToPropsOpen, setSaveToPropsOpen] = useState(false);
@@ -294,6 +295,7 @@ export function ImageStudio() {
           </div>
         ) : imageResult ? (
           <div className="max-w-full max-h-full relative group">
+            <ResolutionBadge src={imageResult} className="left-1 right-auto top-1" />
             <img
               src={imageResult}
               alt="Generated"

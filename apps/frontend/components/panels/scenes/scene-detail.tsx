@@ -41,6 +41,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { ImagePreviewModal } from "@/components/features/media/media-preview-modal";
+import { ResolutionBadge } from "@/components/ui/image-resolution-badge";
 
 interface SceneDetailProps {
   scene: Scene | null;
@@ -218,11 +219,14 @@ export function SceneDetail({ scene }: SceneDetailProps) {
               }}
             >
             {scene.referenceImage ? (
-                <img 
-                  src={resolvedImage || ''} 
-                  alt={scene.name}
-                  className="w-full h-full object-contain"
-                />
+                <>
+                  <img 
+                    src={resolvedImage || ''} 
+                    alt={scene.name}
+                    className="w-full h-full object-contain"
+                  />
+                  <ResolutionBadge src={resolvedImage || ''} className="bottom-1 right-1 top-auto" />
+                </>
               ) : (
                 <div className="w-full h-full flex items-center justify-center">
                   <MapPin className="h-12 w-12 text-muted-foreground" />
