@@ -266,6 +266,27 @@ describe("buildStoryboardContinuityLanding", () => {
     expect(noPrev.continuityState.previousStoryboardId).toBeUndefined();
   });
 
+  it("资产库 UUID 经 resolveAssetKey 桥接到实体 id(双 id 空间)", () => {
+    const patch = buildStoryboardContinuityLanding({
+      storyboard: storyboardFixture(),
+      graph: graphWithReferences([
+        { id: "r1", title: "金水河码头", assetType: "scene", assetId: "ef3df572-asset-lib-uuid" },
+        { id: "r2", title: "监工赵四", assetType: "character", assetId: "d715e3de-asset-lib-uuid" },
+      ]),
+      generatedNodeId: "gen-1",
+      continuityAssetVersions: versions,
+      storyboards: [storyboardFixture()],
+      resolveAssetKey: (_assetType, _assetLibraryId, title) => {
+        if (title === "金水河码头") return "scene-dock";
+        if (title === "监工赵四") return "char-zhao";
+        return undefined;
+      },
+    })!;
+    expect(patch.orderedReferenceManifest.map((reference) => reference.assetId)).toEqual(["scene-dock", "char-zhao"]);
+    expect(patch.orderedReferenceManifest[0]!.versionId).toBe("scene-dock:dock-main-axis:v1");
+    expect(patch.continuityState.characters[0]!.characterId).toBe("char-zhao");
+  });
+
   it("前置不满足时返回 null:无逐镜语义/无场景版本/非分镜目标/无成图节点", () => {
     const graph = graphWithReferences([
       { id: "r1", title: "金水河码头", assetType: "scene", assetId: "scene-dock" },

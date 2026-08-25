@@ -12,7 +12,9 @@ continuityState / visualReview,单镜生产/一键成片被 assertVisualContinui
     + 角色(canonical,仅有已批准连续性版本者)+ 道具(prop-state,仅有版本者);
     参考 imagePath/referenceImageSha256/contentFingerprint 等逐字段复制自
     continuityAssetVersions 里的已批准版本记录(project-file:// 口径)。
-  - continuityState:groupId 按场景资产分组,previousStoryboardId 组内承接;
+  - continuityState:groupId 按「章:场景资产」分组(:scene: 格式,与应用端
+    continuity-landing.ts 一致;同场脚本旧代 :backfill: 格式经重跑即迁移),
+    previousStoryboardId 组内承接;
     characters 取 shotSemantics.visibleCharacters(画面内实体,身份防线:
     画面外角色不入参考)映射到有版本的角色;lighting/palette 承自场景版本。
   - 缺版本的场景(道口镇街巷,13 镜)按旧 v5 圣经目录结构补建自包含版本:
@@ -873,7 +875,7 @@ def main() -> int:
             refs.append(ref_for(p, v, "prop-state", order))
             order += 1
 
-        group_id = f"{CHAPTER_ID}:backfill:{primary['id']}"
+        group_id = f"{CHAPTER_ID}:scene:{primary['id']}"
         cs = {
             "groupId": group_id,
             "previousStoryboardId": group_prev.get(group_id),

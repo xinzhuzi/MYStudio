@@ -67,6 +67,9 @@ function namesMatch(semanticName: string, referenceTitle: string): boolean {
   return left.length >= 2 && (left.includes(right) || right.includes(left));
 }
 
+/** 实体名匹配(资产库↔角色/场景/道具库两套 id 空间的桥,胶水层建索引用)。 */
+export const entityNameMatches = namesMatch;
+
 function pickSceneVersion(versions: ContinuityAssetVersion[], label: string): ContinuityAssetVersion | undefined {
   if (versions.length <= 1) return versions[0];
   const text = label || "";
@@ -134,6 +137,12 @@ export interface StoryboardContinuityLandingInput {
   continuityAssetVersions: ContinuityAssetVersion[];
   /** 全章分镜:解析同场上一镜的 previousStoryboardId。 */
   storyboards: StoryboardItem[];
+  /**
+   * 资产库 id → 连续性实体键(角色/场景/道具库 id)解析器。参考节点的
+   * source.id 是资产库 UUID,连续性版本按实体 id 登记(双 id 空间),胶水
+   * 层用实体库名称索引桥接;缺省直接透传(参考节点存实体 id 的旧图兼容)。
+   */
+  resolveAssetKey?: (assetType: string, assetLibraryId: string, title: string) => string | undefined;
 }
 
 export interface StoryboardContinuityLandingPatch {
@@ -149,7 +158,7 @@ export interface StoryboardContinuityLandingPatch {
 export function buildStoryboardContinuityLanding(
   input: StoryboardContinuityLandingInput,
 ): StoryboardContinuityLandingPatch | null {
-  const { storyboard, graph, generatedNodeId, continuityAssetVersions, storyboards } = input;
+  const { storyboard, graph, generatedNodeId, continuityAssetVersions, storyboards, resolveAssetKey } = input;
   const semantics = storyboard.shotSemantics;
   if (graph.target.kind !== "storyboard" || !semantics) return null;
 
@@ -174,17 +183,18 @@ export function buildStoryboardContinuityLanding(
   const viewpointLabel = String(semantics.sceneViewpointId ?? "");
   const resolved = referenceNodes.flatMap((node) => {
     const source = node.source;
-    if (!source || source.kind !== "asset" || !source.id) return [];
-    const assetId = source.id;
-    const candidates = versionsByAsset.get(assetId) ?? [];
+    if (!source || source.kind !== "asset" || !source.id || !source.assetType) return [];
+    const title = node.title?.trim() || "";
+    const entityKey = resolveAssetKey?.(source.assetType, source.id, title) ?? source.id;
+    const candidates = versionsByAsset.get(entityKey) ?? [];
     const version = node.continuityVersionId
       ? candidates.find((candidate) => candidate.versionId === node.continuityVersionId)
         ?? pickSceneVersion(candidates, viewpointLabel)
       : pickSceneVersion(candidates, viewpointLabel);
     if (!version) return [];
     return [{
-      assetId,
-      assetName: node.title?.trim() || assetId,
+      assetId: entityKey,
+      assetName: title || entityKey,
       version,
     }];
   });
