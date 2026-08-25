@@ -24,7 +24,7 @@
     },
     {
       "path": "knowledge/prompt-templates/美术成片风格提示词模板库.md",
-      "sha256": "67df230117c50b19cddbc2c0f49ad109b8b57fdbbfbd1c9218cacc86f0f782e4",
+      "sha256": "6346fcab18c57642766b6b0653e41bf8b89159d20772748805b870e5eb10e2b8",
       "locks": [
         "成片主风格锁",
         "通用成片负面"

@@ -1,6 +1,6 @@
 {
   "contractVersion": "ma-gongbi-v1",
-  "contractSha256": "28a2192a0cf10abbed80b6f883f2a37932d3e20564a603e3119c0efd003bef41",
+  "contractSha256": "8440a2ae77234a7cb9f49c43519b646b6835c606560b66f173479872cec8733c",
   "syncedAt": "2026-08-15",
   "maSources": [
     {
@@ -15,7 +15,7 @@
     },
     {
       "path": "knowledge/prompt-templates/美术成片风格提示词模板库.md",
-      "sha256": "67df230117c50b19cddbc2c0f49ad109b8b57fdbbfbd1c9218cacc86f0f782e4",
+      "sha256": "6346fcab18c57642766b6b0653e41bf8b89159d20772748805b870e5eb10e2b8",
       "responsibility": "成片主风格与通用负面同步锚点"
     },
     {
