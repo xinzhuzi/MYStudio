@@ -202,6 +202,7 @@ function CanvasVisibilityMeasurementRefresh({
 const nodeTypes = { productionFlow: ProductionFlowNode };
 
 import { interactionDeferBegin, interactionDeferEnd } from "./previews/interaction-defer";
+import { useSmoothWheelZoom } from "./previews/smooth-wheel-zoom";
 import { InteractionDeferHint } from "./previews/interaction-defer-hint";
 
 export function WorkflowNodeCanvas({
@@ -252,6 +253,15 @@ export function WorkflowNodeCanvas({
   const [flowInstance, setFlowInstance] =
     useState<ReactFlowInstance<ProductionFlowReactNode, Edge> | null>(null);
   const canvasSectionRef = useRef<HTMLElement | null>(null);
+  // 滚轮平滑缩放:rAF 节流+指数插值,接管 d3 逐事件直应用(高速滚轮掉帧根修)
+  useSmoothWheelZoom(
+    canvasSectionRef,
+    flowInstance && {
+      getViewport: () => flowInstance.getViewport(),
+      setViewport: (viewport) => flowInstance.setViewport(viewport),
+    },
+    { minZoom: PRODUCTION_CANVAS_MIN_ZOOM, maxZoom: PRODUCTION_CANVAS_MAX_ZOOM },
+  );
   const pendingLayoutFrameRef = useRef<number | null>(null);
   const measuredLayoutKeyRef = useRef<string | null>(null);
   const measuredNodeDimensionsRef = useRef(new Map<string, string>());
@@ -616,7 +626,7 @@ export function WorkflowNodeCanvas({
           elementsSelectable
           panOnDrag={[0]}
           panOnScroll={false}
-          zoomOnScroll
+          zoomOnScroll={false}
           zoomOnPinch
           zoomOnDoubleClick={false}
           selectionOnDrag={false}

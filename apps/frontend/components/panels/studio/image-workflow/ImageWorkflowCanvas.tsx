@@ -11,6 +11,7 @@ import {
 import "@xyflow/react/dist/style.css";
 import { CanvasViewportControls } from "../CanvasViewportControls";
 import { interactionDeferBegin, interactionDeferEnd } from "../previews/interaction-defer";
+import { useSmoothWheelZoom } from "../previews/smooth-wheel-zoom";
 import { InteractionDeferHint } from "../previews/interaction-defer-hint";
 import { useScopedWorkflowLifecycle } from "./use-scoped-workflow-lifecycle";
 import { useStoryboardWorkflowSwitch } from "./use-storyboard-workflow-switch";
@@ -566,6 +567,15 @@ function ImageWorkflowFlowView({
   // 交互(拖节点/平移/缩放)期间给容器打标,CSS 把卡片大阴影、ReactFlow
   // Background pattern、毛玻璃等重活临时降级,松手/静止 180ms 后恢复。
   const interactingRef = useRef<HTMLDivElement | null>(null);
+  // 滚轮平滑缩放:rAF 节流+指数插值,接管 d3 逐事件直应用(高速滚轮掉帧根修)
+  useSmoothWheelZoom(
+    interactingRef,
+    flowInstance && {
+      getViewport: () => flowInstance.getViewport(),
+      setViewport: (viewport) => flowInstance.setViewport(viewport),
+    },
+    { minZoom: 0.5, maxZoom: 2 },
+  );
   const interactEndTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const setInteracting = useCallback((on: boolean) => {
     const el = interactingRef.current;
@@ -645,7 +655,7 @@ function ImageWorkflowFlowView({
         nodesConnectable
         elementsSelectable
         panOnDrag={[0, 1]}
-        zoomOnScroll
+        zoomOnScroll={false}
         zoomOnPinch
         zoomOnDoubleClick={false}
         proOptions={{ hideAttribution: true }}
