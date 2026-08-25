@@ -32,6 +32,7 @@ vi.mock("@/lib/diagnostics/logger", () => ({
 
 vi.mock("@/lib/ai/prompt-polisher", () => ({
   selectDaojiePaletteSchemeForAsset: vi.fn().mockResolvedValue(null),
+  sanitizeExtendedManualPrompt: vi.fn((text: string) => text.replace(/电影质感/g, "工笔成片质感").replace(/宣纸肌理|宣纸质感/g, "浅净平涂底")),
   polishAssetPrompt: vi.fn().mockResolvedValue({
     status: "success",
     prompt: "polished prop prompt",
@@ -656,6 +657,26 @@ describe("asset-generation-orchestrator", () => {
       const params = vi.mocked(aiManager.image).mock.calls[0][0];
       expect(params.prompt).toContain("配料方案（朱砂法脉）");
       expect(params.prompt).toContain("主色用朱砂");
+    });
+
+    it("已有提示词直出链同口径清洗:违禁词改写为工笔等效表达", async () => {
+      const result = await generateAsset({
+        assetId: "prop-1",
+        assetType: "prop",
+        name: "归元断剑",
+        description: "断裂的归元剑",
+        isDerivative: false,
+        visualManualId: "daojie_ink_guofeng",
+        skipPolish: true,
+        existingPrompt: "断剑一柄，宣纸质感底，电影质感成片，剑身斜断。",
+      });
+
+      expect(result.phase).toBe("done");
+      const params = vi.mocked(aiManager.image).mock.calls[0][0];
+      expect(params.prompt).not.toContain("宣纸质感");
+      expect(params.prompt).not.toContain("电影质感");
+      expect(params.prompt).toContain("浅净平涂底");
+      expect(params.prompt).toContain("工笔成片质感");
     });
 
     it("题材正文带风险措辞时 warn 软检查日志,不阻断生成", async () => {

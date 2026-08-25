@@ -26,6 +26,7 @@ import { getStudioAssetsBridge } from "@/lib/bridge/studio-assets";
 import {
   batchPolishAssetPrompts,
   polishAssetPrompt,
+  sanitizeExtendedManualPrompt,
   selectDaojiePaletteSchemeForAsset,
   type PolishRequest,
   type PolishResult,
@@ -162,7 +163,9 @@ export async function generateAsset(
     // 题材正文(润色产物或已有提示词)统一进入编译器装配自动层/唯一 Avoid/300-800 长度门,
     // 编译产物 providerPrompt 以 raw 策略直传 provider,禁止 normalize 再追加。
     if (task.visualManualId === EXTENDED_VISUAL_MANUAL_SEED_ID) {
-      const subjectBody = prompt.trim();
+      // 已有提示词直出链同口径清洗:润色路径产出的正文已过 sanitize,
+      // 存量/手写 draftPrompt 不过——违禁词(电影质感/景深/宣纸质感系)不得直通 provider
+      const subjectBody = sanitizeExtendedManualPrompt(prompt.trim());
       if (!subjectBody) {
         return { phase: "failed", error: "道劫提示词为空，已拒绝生成", polishResult };
       }
@@ -230,7 +233,7 @@ export async function generateAsset(
         if (err instanceof DaojiePromptContractError && err.code === "length_exceeded") {
           return {
             phase: "failed",
-            error: `道劫提示词超出 800 字符 provider 上限（实际 ${err.input} 字符），已拒绝生成`,
+            error: `道劫提示词超出 800 字符 provider 上限（实际 ${err.input} 字符），已拒绝生成；请重新润色或精简题材正文`,
             polishResult,
           };
         }
