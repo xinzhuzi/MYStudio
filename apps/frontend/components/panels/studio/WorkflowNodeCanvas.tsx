@@ -450,13 +450,13 @@ export function WorkflowNodeCanvas({
       claimViewportForUser();
     }
   }, [claimViewportForUser]);
-  const handleViewportMoveEnd = useCallback(
-    (event: MouseEvent | TouchEvent | null) => {
-      canvasSectionRef.current?.classList.remove("workflow-node-canvas-interacting");
-      if (event) interactionDeferEnd();
-    },
-    [],
-  );
+  const handleViewportMoveEnd = useCallback(() => {
+    canvasSectionRef.current?.classList.remove("workflow-node-canvas-interacting");
+    // 开闸必须无条件:wheel 手势的 onMoveEnd 未必带 event(d3 对滚轮与拖拽
+    // 走不同路径),若按 event 门控,首次滚轮后闸门永远关死→图片永久占位
+    // (2026-08-26 用户实弹「滚轮没效果」根因)。对已开的闸是无害空操作。
+    interactionDeferEnd();
+  }, []);
   const onNodesChange = useCallback((changes: NodeChange<ProductionFlowReactNode>[]) => {
     if (changes.some((change) => change.type === "position" && change.dragging)) {
       claimViewportForUser();

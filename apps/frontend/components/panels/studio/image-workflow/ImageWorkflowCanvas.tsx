@@ -624,9 +624,10 @@ function ImageWorkflowFlowView({
           // 程序性视口变化(event=null)不关闸,仅用户手势延迟图片加载
           if (event) interactionDeferBegin();
         }}
-        onMoveEnd={(event) => {
+        onMoveEnd={() => {
           setInteracting(false);
-          if (event) interactionDeferEnd();
+          // 同生产画布:开闸无条件,防 wheel end 无 event 导致闸门关死
+          interactionDeferEnd();
         }}
         onConnect={onConnect}
         onInit={(instance) => {
