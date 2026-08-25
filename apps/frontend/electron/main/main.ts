@@ -58,6 +58,7 @@ import {
 } from '../storage/storage-paths'
 import { createBlessedPathRegistry, isPathInsideAnyRoot } from '../security/managed-paths'
 import { registerProjectFileIpcHandlers } from '../ipc/files/project-file-ipc'
+import { registerImageProbeIpcHandlers } from '../ipc/media/image-probe-ipc'
 import { registerSourceMemoryIpcHandlers } from '../ipc/studio/source-memory-ipc'
 import { configureArtifactManagementIpc } from '../ipc/files/artifact-management-ipc'
 import { withFileStorageMutationLock } from '../ipc/files/file-storage-ipc'
@@ -658,6 +659,12 @@ registerProjectFileIpcHandlers({
   getDataDir,
   readImageSource,
   getMimeType,
+})
+
+registerImageProbeIpcHandlers({
+  getDataDir,
+  getMediaRoot,
+  getAssetsRoot,
 })
 
 configureArtifactManagementIpc({

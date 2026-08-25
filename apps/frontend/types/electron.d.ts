@@ -379,6 +379,9 @@ declare global {
       getAbsolutePath: (url: string) => Promise<string | null>;
       removeText: (key: string) => Promise<{ success: boolean; error?: string }>;
     };
+    imageProbe?: {
+      size: (url: string) => Promise<{ width: number; height: number } | null>;
+    };
     studioSkills?: {
       list: () => Promise<Array<{
         relativePath: string;

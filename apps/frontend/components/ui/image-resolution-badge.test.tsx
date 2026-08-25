@@ -97,6 +97,41 @@ describe("ResolutionBadge", () => {
     });
     expect(constructs).toBe(0);
   });
+
+  it("probes managed schemes via the backend IPC without loading image data", async () => {
+    let imageConstructs = 0;
+    installFakeImage({}, () => {
+      imageConstructs++;
+    });
+    vi.stubGlobal("imageProbe", {
+      size: vi.fn(async () => ({ width: 3840, height: 2160 })),
+    });
+    render(<ResolutionBadge src="project-file://p/workflow-images/shot.png" />);
+    expect(await screen.findByText("4K")).toBeTruthy();
+    expect(imageConstructs).toBe(0);
+    expect(window.imageProbe?.size).toHaveBeenCalledWith("project-file://p/workflow-images/shot.png");
+  });
+
+  it("falls back to the image-element probe when the backend cannot parse", async () => {
+    installFakeImage({ "asset-file://a/unknown.bin": [2016, 1536] });
+    vi.stubGlobal("imageProbe", {
+      size: vi.fn(async () => null),
+    });
+    render(<ResolutionBadge src="asset-file://a/unknown.bin" />);
+    expect(await screen.findByText("2K")).toBeTruthy();
+  });
+
+  it("falls back when the backend IPC throws", async () => {
+    installFakeImage({ "local-image://m/gone.png": [1280, 720] });
+    vi.stubGlobal("imageProbe", {
+      size: vi.fn(async () => {
+        throw new Error("IPC dead");
+      }),
+    });
+    render(<ResolutionBadge src="local-image://m/gone.png" />);
+    expect(await screen.findByText("1K")).toBeTruthy();
+  });
+
 });
 
 describe("useImageResolution", () => {

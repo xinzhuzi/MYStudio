@@ -4,7 +4,7 @@ import path from "node:path";
 import { resolveAssetFilePath, resolveLocalMediaPath, resolveProjectFileUrl } from "../storage/storage-paths";
 import { resolveToonflowAssetPath } from "../storage/studio-runtime-assets";
 
-type ReadFile = (filePath: string) => Uint8Array;
+type ReadFile = (filePath: string) => Uint8Array | Promise<Uint8Array>;
 
 interface ProtocolHandlerOptions {
   protocol: Protocol;
@@ -69,15 +69,21 @@ export function registerProtocolHandlers({
   getDataDir,
   getSkillsRoot,
   getAssetsRoot,
-  readFile = fs.readFileSync,
+  readFile = fs.promises.readFile,
   resolveLocalMedia = resolveLocalMediaPath,
   resolveProjectFile = resolveProjectFileUrl,
   resolveAssetFile = resolveAssetFilePath,
   resolveToonflowAsset = resolveToonflowAssetPath,
 }: ProtocolHandlerOptions) {
-  const respondWithFile = (filePath: string) => new Response(Uint8Array.from(readFile(filePath)).buffer, {
-    headers: { "Content-Type": getProtocolMimeType(filePath) },
-  });
+  // 异步读盘(不阻塞主进程事件环);Buffer/Uint8Array 视图直接作为
+  // Response body(带 byteOffset 语义,免去逐字节拷贝——多 MB 大图 ×N
+  // 并发时 Uint8Array.from 曾把主进程冻死,2026-08-25 分镜面板卡死根修)。
+  const respondWithFile = async (filePath: string) =>
+    // 运行时(Electron/undici)接受任意 ArrayBufferView;DOM lib 的 BodyInit
+    // 泛型只认 ArrayBuffer 载体,此处视图直传,绝不做逐字节拷贝。
+    new Response((await readFile(filePath)) as unknown as BodyInit, {
+      headers: { "Content-Type": getProtocolMimeType(filePath) },
+    });
 
   protocol.handle("local-image", async (request) => {
     try {

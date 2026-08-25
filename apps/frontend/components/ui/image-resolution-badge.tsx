@@ -6,10 +6,13 @@
 /**
  * 图片分辨率角标(1K/2K/4K)
  *
- * 展示时用 new Image() 探测真实像素尺寸并按长边分档;
- * 同一 URL 全局只探测一次(模块级缓存,失败也缓存,视频/坏路径不反复探测)。
- * 探测 URL 统一剥离 ?thumb=1(资产缩略图是 200×200 独立文件)。
- * 未知/失败/过小(<700 长边)一律渲染 null,不占位、不闪烁。
+ * 尺寸探测两级:受管 scheme(project-file/asset-file/local-image/file)优先走
+ * 主进程 `image-probe-size` IPC(只读文件头,零整图拉取/解码——图片密集
+ * 视图 82 张 4K 同发曾把应用冻死,2026-08-25 根修);IPC 不可用/不认识该
+ * 格式时回退 `new Image()` 探测(同现状)。同一 URL 全局只探测一次(模块级
+ * 缓存,失败也缓存,视频/坏路径不反复探测)。探测 URL 统一剥离 ?thumb=1
+ * (资产缩略图是 200×200 独立文件)。未知/失败/过小(<700 长边)一律渲染
+ * null,不占位、不闪烁。
  */
 
 import { useEffect, useState } from "react";
@@ -25,26 +28,48 @@ interface ImagePixelSize {
 const sizeCache = new Map<string, ImagePixelSize | null>();
 const inflightProbes = new Map<string, Promise<ImagePixelSize | null>>();
 
+/** 走主进程文件头解析的 scheme;其余(http/data/blob)只能 Image 探测。 */
+const BACKEND_PROBE_SCHEME = /^(?:project-file:|asset-file:|local-image:|file:)/;
+
+async function probeViaBackend(url: string): Promise<ImagePixelSize | null> {
+  if (!BACKEND_PROBE_SCHEME.test(url)) return null;
+  const probe = typeof window !== "undefined" ? window.imageProbe?.size : undefined;
+  if (typeof probe !== "function") return null;
+  try {
+    const size = await probe(url);
+    return size && size.width > 0 && size.height > 0 ? { width: size.width, height: size.height } : null;
+  } catch {
+    return null;
+  }
+}
+
+function probeViaImageElement(url: string): Promise<ImagePixelSize | null> {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => {
+      resolve(
+        img.naturalWidth > 0 && img.naturalHeight > 0
+          ? { width: img.naturalWidth, height: img.naturalHeight }
+          : null,
+      );
+    };
+    img.onerror = () => resolve(null);
+    img.src = url;
+  });
+}
+
 function probeImageSize(src: string): Promise<ImagePixelSize | null> {
   const cached = sizeCache.get(src);
   if (cached !== undefined) return Promise.resolve(cached);
   const inflight = inflightProbes.get(src);
   if (inflight) return inflight;
-  const probe = new Promise<ImagePixelSize | null>((resolve) => {
-    const img = new Image();
-    img.onload = () => {
-      const size =
-        img.naturalWidth > 0 && img.naturalHeight > 0
-          ? { width: img.naturalWidth, height: img.naturalHeight }
-          : null;
-      sizeCache.set(src, size);
-      resolve(size);
-    };
-    img.onerror = () => {
-      sizeCache.set(src, null);
-      resolve(null);
-    };
-    img.src = src;
+  const probe = (async () => {
+    const backend = await probeViaBackend(src);
+    if (backend) return backend;
+    return probeViaImageElement(src);
+  })().then((size) => {
+    sizeCache.set(src, size);
+    return size;
   });
   inflightProbes.set(src, probe);
   void probe.finally(() => inflightProbes.delete(src));

@@ -91,6 +91,7 @@ image-gen-runtime-setup
 image-gen-runtime-status
 image-gen-runtime-stop
 image-host-upload
+image-probe-size
 move-image
 music3-gen-install-mlxserve
 music3-gen-install-weights

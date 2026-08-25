@@ -292,6 +292,12 @@ contextBridge.exposeInMainWorld('projectFiles', {
   removeText: (key: string) => ipcRenderer.invoke('project-file-remove-text', key),
 })
 
+// Image header size probing — dimensions only, never transfers image data
+// (resolution badges must not pull multi-MB originals into the renderer).
+contextBridge.exposeInMainWorld('imageProbe', {
+  size: (url: string) => ipcRenderer.invoke('image-probe-size', url),
+})
+
 // Per-project external folder lifecycle (create/rename/remove/status + phase-2 move/import).
 // Move progress is pushed main→renderer on 'project-folder-move-progress' (one
 // payload per project move); the wrapper style mirrors selfMedia.onProgress.

@@ -330,6 +330,12 @@ describe("preload IPC surface", () => {
     expect(electronTypesSource).toContain("projectFolder?: ProjectFolderBridge & ProjectFolderMoveImportBridge;");
   });
 
+  it("exposes image header size probing without transferring image data", () => {
+    expect(preloadSource).toContain("exposeInMainWorld('imageProbe'");
+    expect(preloadSource).toContain("size: (url: string) => ipcRenderer.invoke('image-probe-size', url)");
+    expect(electronTypesSource).toContain("imageProbe?:");
+  });
+
   it("maps the project-folder move/import facade to the phase-2 IPC channels", () => {
     expect(preloadSource).toContain("move: (projectId: string, projectName: string, targetParentDir: string) =>");
     expect(preloadSource).toContain("ipcRenderer.invoke('project-folder-move', projectId, projectName, targetParentDir)");
