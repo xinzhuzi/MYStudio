@@ -14,6 +14,8 @@
   --color-panel-elevated: hsl(var(--panel-elevated));
   --color-primary: hsl(var(--primary));
   --color-primary-foreground: hsl(var(--primary-foreground));
+  /* 付费云端生成 CTA 专属金:跨主题/预设恒定(裁定 2026-08-25) */
+  --color-paid: hsl(var(--paid));
   --color-secondary: hsl(var(--secondary));
   --color-secondary-foreground: hsl(var(--secondary-foreground));
   --color-destructive: hsl(var(--destructive));
@@ -83,6 +85,9 @@
   /* Brand/Primary - 蓝色品牌色 */
   --primary: 212 100% 48%;        /* #0091ff - 主品牌色 */
   --primary-foreground: 0 0% 100%;
+
+  /* Paid CTA - 浅色模式用深琥珀金,保证淡底描边在纸面上可读 */
+  --paid: 32 90% 34%;
   
   /* Secondary */
   --secondary: 112 16% 76%;
@@ -316,6 +321,9 @@
   /* Brand/Primary - 护眼监看蓝 */
   --primary: 200 80% 48%;
   --primary-foreground: 210 14% 90%;
+
+  /* Paid CTA - 暗色模式用亮金,延续「金色=付费」语言且不随预设漂移 */
+  --paid: 42 92% 60%;
   
   /* Secondary */
   --secondary: 220 12% 15%;
@@ -583,12 +591,19 @@
 .dark .bg-background {
   background: transparent !important;
 }
-/* 边框微光 */
-.dark .border-border {
-  border-color: hsla(0 0% 100% / 0.06) !important;
+/* 边框微光:暗色下标准边框统一为白色 6% 微光。
+   机制(2026-08-25 统一裁定):
+   1) border-border/divide-border 等走 token:--color-border 在 .dark 被覆写为微光色;
+   2) 裸 border(未指定颜色的宽度类)由下面 @layer base 规则兜底——base 层整体低于
+      utilities 层,因此任何显式彩边 utility(border-paid/30、border-destructive/25、
+      border-primary/30 等)都会正确赢出,不再被旧版 .dark .border !important 吞掉。 */
+.dark {
+  --color-border: hsla(0 0% 100% / 0.06);
 }
-.dark .border {
-  border-color: hsla(0 0% 100% / 0.06) !important;
+@layer base {
+  .dark .border {
+    border-color: hsla(0 0% 100% / 0.06);
+  }
 }
 
 /* Custom scrollbar */

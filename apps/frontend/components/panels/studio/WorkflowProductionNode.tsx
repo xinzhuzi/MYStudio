@@ -266,7 +266,7 @@ export function ProductionFlowNode({ data }: NodeProps<Node<ProductionNodeData>>
           {data.node.id === "storyboard" && storyboardBatch ? (
             storyboardBatch.state.running ? (
               <span
-                className="inline-flex h-7 items-center gap-1.5 rounded-md border border-primary/30 bg-primary/10 px-2 text-[11px] font-medium text-primary/80"
+                className="inline-flex h-7 items-center gap-1.5 rounded-md border border-paid/30 bg-paid/10 px-2 text-[11px] font-medium text-paid/80"
                 data-storyboard-node-batch-running
               >
                 <Loader2 className="h-3 w-3 animate-spin" />
