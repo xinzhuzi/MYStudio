@@ -11,13 +11,16 @@
 
 import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
+import { ResolutionBadge } from "@/components/ui/image-resolution-badge";
 
 interface LocalImageProps extends React.ImgHTMLAttributes<HTMLImageElement> {
   src: string;
   fallback?: string;
+  /** 开启后在图片右上角叠加 1K/2K/4K 分辨率角标(默认关闭,关闭时渲染结构与纯 <img> 一致) */
+  resolutionBadge?: boolean;
 }
 
-export function LocalImage({ src, fallback, className, alt, ...props }: LocalImageProps) {
+export function LocalImage({ src, fallback, className, alt, resolutionBadge = false, ...props }: LocalImageProps) {
   const [error, setError] = useState(false);
   const [currentSrc, setCurrentSrc] = useState(normalizeImageSrc(src));
 
@@ -49,7 +52,7 @@ export function LocalImage({ src, fallback, className, alt, ...props }: LocalIma
     );
   }
 
-  return (
+  const image = (
     <img
       src={currentSrc}
       alt={alt}
@@ -57,6 +60,15 @@ export function LocalImage({ src, fallback, className, alt, ...props }: LocalIma
       onError={handleError}
       {...props}
     />
+  );
+
+  if (!resolutionBadge) return image;
+
+  return (
+    <span className="relative flex h-full w-full">
+      {image}
+      <ResolutionBadge src={currentSrc} />
+    </span>
   );
 }
 

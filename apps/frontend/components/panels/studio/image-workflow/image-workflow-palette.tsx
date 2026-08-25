@@ -41,7 +41,7 @@ export function ImageWorkflowPaletteImageButton({
       onClick={onClick}
     >
       <div className="aspect-video bg-muted/30">
-        <LocalImage src={imageUrl} alt={title} className="h-full w-full object-cover" />
+        <LocalImage src={imageUrl} alt={title} className="h-full w-full object-cover" resolutionBadge />
       </div>
       <div className="truncate px-2 py-1.5 text-[11px] text-muted-foreground group-hover:text-info">
         {title}

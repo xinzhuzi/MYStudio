@@ -109,6 +109,7 @@ function StyleCardComponent({
             loading="lazy"
             decoding="async"
             draggable={false}
+            resolutionBadge
           />
         ) : displayImage ? (
           <div className="h-full w-full bg-muted/70" />

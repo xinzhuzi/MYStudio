@@ -136,7 +136,7 @@ function ReferenceNodeEditor({
     <div className="space-y-2">
       <div className="aspect-video overflow-hidden rounded-md border border-border bg-muted/30">
         {node.imageUrl ? (
-          <LocalImage src={node.imageUrl} alt={node.title} className="h-full w-full object-cover" />
+          <LocalImage src={node.imageUrl} alt={node.title} className="h-full w-full object-cover" resolutionBadge />
         ) : (
           <div className="flex h-full items-center justify-center text-xs text-muted-foreground">暂无图片</div>
         )}
@@ -254,6 +254,7 @@ function GeneratedNodeEditor({
             src={node.resultUrl}
             alt={node.title}
             className="h-full w-full object-cover"
+            resolutionBadge
             onLoad={(event) => {
               const image = event.currentTarget;
               setImageLongSide(Math.max(image.naturalWidth, image.naturalHeight));

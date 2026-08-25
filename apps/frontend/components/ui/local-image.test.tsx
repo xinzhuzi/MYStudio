@@ -2,6 +2,7 @@
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { LocalImage } from "./local-image";
+import { __resetImageResolutionCacheForTests } from "./image-resolution-badge";
 
 describe("LocalImage", () => {
   beforeEach(() => {
@@ -10,6 +11,8 @@ describe("LocalImage", () => {
 
   afterEach(() => {
     vi.restoreAllMocks();
+    vi.unstubAllGlobals();
+    __resetImageResolutionCacheForTests();
     cleanup();
   });
 
@@ -64,5 +67,47 @@ describe("LocalImage", () => {
     expect(screen.getByAltText("preview").getAttribute("src")).toBe(
       "local-image://characters/dugu.png",
     );
+  });
+
+  it("keeps the default render as a bare <img> without any wrapper (layout red line)", () => {
+    const { container } = render(
+      <LocalImage src="local-image://m/a.png" alt="a" className="h-full w-full object-cover" />,
+    );
+    expect(container.children).toHaveLength(1);
+    const img = container.querySelector("img");
+    expect(img).not.toBeNull();
+    expect(img?.getAttribute("class")).toBe("h-full w-full object-cover");
+    expect(container.querySelector("span")).toBeNull();
+  });
+
+  it("keeps the no-fallback error branch wrapper-free", () => {
+    const { container } = render(<LocalImage src="file:///definitely-missing/x.png" alt="x" />);
+    fireEvent.error(screen.getByAltText("x"));
+    expect(container.querySelector("span")).toBeNull();
+    expect(container.textContent).toContain("图片加载失败");
+  });
+
+  it("wraps with a positioned span only in resolutionBadge mode", () => {
+    vi.stubGlobal(
+      "Image",
+      class {
+        onload: (() => void) | null = null;
+        onerror: (() => void) | null = null;
+        src = "";
+      },
+    );
+    const { container } = render(
+      <LocalImage
+        src="local-image://m/b.png"
+        alt="b"
+        className="h-full w-full object-cover"
+        resolutionBadge
+      />,
+    );
+    const wrapper = container.querySelector("span");
+    expect(wrapper).not.toBeNull();
+    expect(wrapper?.className).toContain("relative");
+    const img = wrapper?.querySelector("img");
+    expect(img?.getAttribute("class")).toBe("h-full w-full object-cover");
   });
 });
