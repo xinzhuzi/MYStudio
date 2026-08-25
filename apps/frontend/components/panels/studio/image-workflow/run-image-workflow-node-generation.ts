@@ -1,6 +1,7 @@
 import { aiManager } from "@/lib/ai/ai-manager";
 import { getProjectFilesBridge } from "@/lib/bridge/project-files";
 import { getStudioAssetsBridge } from "@/lib/bridge/studio-assets";
+import { createOperationId, logEvent } from "@/lib/diagnostics/logger";
 import {
   assertImageWorkflowContinuityCapability,
   buildImageWorkflowGenerationRequest,
@@ -125,6 +126,19 @@ export async function runImageWorkflowNodeGeneration(
     // 08-24 结构修复:images 端点已成功(生成已计费)但远程 URL 下载失败
     // (晚高峰 CDN 504/网关过载)——旧路径直接抛错丢图。此处回退 chat 形态
     // 重试一次:base64 data-URL 直返、不经 CDN,保存走主进程 dataURL 解析。
+    // 08-25 日志补齐:回退事件入 diagnostics(此前仅 console,排障盲区)。
+    void logEvent({
+      level: "warn",
+      category: "ai",
+      operationId: createOperationId("image-workflow-url-save-fallback"),
+      message: "Image URL save failed, falling back to chat base64 retry",
+      context: {
+        workflowId: graph.id,
+        targetNodeId,
+        saveError: (saved?.error || "").slice(0, 200),
+        remoteUrlPrefix: result.url.slice(0, 100),
+      },
+    });
     console.warn(
       "[image-workflow] 成图 URL 保存失败(下载类),回退 chat base64 重试一次:",
       saved?.error || result.url.slice(0, 80),

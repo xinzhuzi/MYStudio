@@ -1,5 +1,6 @@
 import { useCallback, useRef, useState } from "react";
 import { toast } from "sonner";
+import { createOperationId, logEvent } from "@/lib/diagnostics/logger";
 import { buildStoryboardImageWorkflowPatch } from "@/lib/studio/image-workflow";
 import { useStudioStore } from "@/stores/studio/studio-store";
 import type { StoryboardItem } from "@/types/studio";
@@ -67,6 +68,16 @@ export function useStoryboardBatchGeneration(input: {
     runningRef.current = true;
     stopRequestedRef.current = false;
     setState({ running: true, total: queue.length, done: 0, failed: 0, currentShotIndex: queue[0]!.index });
+    // 批量生命周期入诊断日志(2026-08-25 补齐: 此前只有 4s 即逝的 toast,单镜失败
+    // 原因/批量汇总对 diagnostics 完全不可见,排障只能 CDP 抓 DOM——实弹踩坑)
+    const batchOperationId = createOperationId("storyboard-batch-generate");
+    void logEvent({
+      level: "info",
+      category: "ai",
+      operationId: batchOperationId,
+      message: "Storyboard batch generation started",
+      context: { queueSize: queue.length, firstShotIndex: queue[0]!.index },
+    });
 
     void (async () => {
       let done = 0;
@@ -77,15 +88,41 @@ export function useStoryboardBatchGeneration(input: {
         try {
           await generateOneShot(shot, projectName);
           done += 1;
+          void logEvent({
+            level: "info",
+            category: "ai",
+            operationId: batchOperationId,
+            message: "Storyboard batch shot generated",
+            context: { shotIndex: shot.index, done, failed, storyboardId: shot.id },
+          });
         } catch (error) {
           failed += 1;
           const reason = error instanceof Error ? error.message : "生成失败";
+          void logEvent({
+            level: "warn",
+            category: "ai",
+            operationId: batchOperationId,
+            message: "Storyboard batch shot failed",
+            context: { shotIndex: shot.index, done, failed, reason: reason.slice(0, 300) },
+          });
           toast.error(`分镜 ${shot.index} 生成失败：${reason}`);
         }
         setState((previous) => ({ ...previous, done: done + failed, failed }));
       }
       runningRef.current = false;
       setState((previous) => ({ ...previous, running: false, currentShotIndex: null }));
+      void logEvent({
+        level: failed > 0 ? "warn" : "info",
+        category: "ai",
+        operationId: batchOperationId,
+        message: "Storyboard batch generation finished",
+        context: {
+          succeeded: done,
+          failed,
+          remaining: queue.length - done - failed,
+          stopped: stopRequestedRef.current,
+        },
+      });
       if (stopRequestedRef.current) {
         toast.info(`已停止：成功 ${done} · 失败 ${failed} · 剩余 ${queue.length - done - failed}`);
       } else {
