@@ -55,14 +55,14 @@ def check_internal_consistency(report: dict[str, Any]) -> None:
     contract = load_json(contract_path)
 
     # lock-anchors.json 结构与手册锚点
-    registered: dict[str, str] = {}
+    anchor_registered: dict[str, str] = {}
     for source in anchors.get("maSources", []):
         rel = str(source.get("path", ""))
         sha = str(source.get("sha256", ""))
         if not rel or len(sha) != 64:
             problems.append({"kind": "invalid_registered_source", "source": rel or "<empty>"})
             continue
-        registered[rel.rsplit("ma-imagegen/", 1)[-1]] = sha
+        anchor_registered[rel.rsplit("ma-imagegen/", 1)[-1]] = sha
 
     for lock in anchors.get("locks", []):
         manual_file = lock.get("manualFile")
@@ -92,8 +92,14 @@ def check_internal_consistency(report: dict[str, Any]) -> None:
             "path": str(contract_path.relative_to(REPO_ROOT)),
         })
 
-    contract_sources = {s["path"]: s["sha256"] for s in contract.get("maSources", [])}
-    for rel, sha in registered.items():
+    contract_sources = {
+        str(source.get("path", "")): str(source.get("sha256", ""))
+        for source in contract.get("maSources", [])
+    }
+    for rel, sha in contract_sources.items():
+        if not rel or len(sha) != 64:
+            problems.append({"kind": "invalid_runtime_contract_source", "source": rel or "<empty>"})
+    for rel, sha in anchor_registered.items():
         if rel not in contract_sources:
             problems.append({"kind": "runtime_contract_missing_source", "source": rel})
         elif contract_sources[rel] != sha:
@@ -131,7 +137,10 @@ def check_internal_consistency(report: dict[str, Any]) -> None:
             })
 
     report["internal"] = {
-        "registered_sources": registered,
+        # runtime-contract.json is the complete runtime registry.  The lock
+        # anchor file only covers the subset with prose anchors, so it cannot
+        # be used as the MA workspace SHA traversal source.
+        "registered_sources": contract_sources,
         "contract_version": contract.get("contractVersion"),
         "contract_sha256": actual_contract_sha,
     }

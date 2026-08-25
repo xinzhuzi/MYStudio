@@ -344,11 +344,12 @@ export function CharacterGenerator({ character }: CharacterGeneratorProps) {
       </div>
 
       {/* Generate button */}
-      <Button 
+      <Button
         onClick={handleGenerateSheet}
         disabled={isGenerating || selectedElements.length === 0 || !description.trim()}
         className="w-full"
         size="lg"
+        variant="paid"
       >
         {isGenerating ? (
           <>

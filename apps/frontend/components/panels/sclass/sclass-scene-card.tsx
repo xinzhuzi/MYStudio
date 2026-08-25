@@ -248,7 +248,7 @@ export function SClassSceneCard({
             <div className="flex items-center gap-1">
               <Button
                 size="sm"
-                variant="default"
+                variant="paid"
                 className="h-7 text-xs"
                 onClick={() => onGenerateImage?.(scene.id)}
                 disabled={isGeneratingAny || isImageGenerating}
@@ -275,7 +275,7 @@ export function SClassSceneCard({
             <div className="flex items-center gap-1">
               <Button
                 size="sm"
-                variant={isVideoReady ? "outline" : "default"}
+                variant="paid"
                 className="h-7 text-xs"
                 onClick={() => onGenerateVideo?.(scene.id)}
                 disabled={isGeneratingAny || isVideoGenerating}

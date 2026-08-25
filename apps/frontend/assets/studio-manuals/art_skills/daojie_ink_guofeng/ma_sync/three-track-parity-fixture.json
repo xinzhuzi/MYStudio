@@ -1,0 +1,40 @@
+{
+  "contractVersion": "ma-gongbi-v1",
+  "subjectBody": "题材正文",
+  "negative": "水印",
+  "tracks": [
+    {
+      "libraryType": "role",
+      "runtimeTrack": "character",
+      "maTrack": "person",
+      "paletteSchemeId": "person.01"
+    },
+    {
+      "libraryType": "scene",
+      "runtimeTrack": "scene",
+      "maTrack": "scene",
+      "paletteSchemeId": "scene.01"
+    },
+    {
+      "libraryType": "tool",
+      "runtimeTrack": "prop",
+      "maTrack": "prop",
+      "paletteSchemeId": "prop.01"
+    }
+  ],
+  "moduleOrder": [
+    "subject.body",
+    "palette.{paletteSchemeId}",
+    "style.gongbi-base",
+    "style.gongbi-track.{maTrack}",
+    "finish.quality",
+    "reference.denoise",
+    "negative.universal"
+  ],
+  "lengthCases": [
+    { "totalChars": 299, "status": "warning", "ok": true },
+    { "totalChars": 300, "status": "ok", "ok": true },
+    { "totalChars": 800, "status": "ok", "ok": true },
+    { "totalChars": 801, "status": "over_limit", "ok": false }
+  ]
+}

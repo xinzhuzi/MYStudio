@@ -801,7 +801,7 @@ export function StudioAssetDetailDialog({
                     <div className="flex flex-wrap items-center gap-2">
                       {isThreeTrackAsset && (
                         <Button
-                          variant="default"
+                          variant="paid"
                           size="sm"
                           className="h-6 gap-1 text-[11px]"
                           onClick={handleOneClickGenerateAssetImage}
@@ -813,7 +813,7 @@ export function StudioAssetDetailDialog({
                       )}
                       {isThreeTrackAsset && (
                         <Button
-                          variant="ghost"
+                          variant="paid"
                           size="sm"
                           className="h-6 gap-1 text-[11px]"
                           onClick={handlePolishPrompt}

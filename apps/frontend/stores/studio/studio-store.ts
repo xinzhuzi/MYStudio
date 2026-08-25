@@ -30,6 +30,8 @@ import {
  
 } from "@/lib/studio/visual-continuity";
 import {
+  assertImageWorkflowGraphMediaPersistable,
+  filterPersistedImageWorkflows,
   migrateStudioWorkflowState,
  
   STUDIO_WORKFLOW_PERSIST_VERSION,
@@ -606,6 +608,7 @@ export const useStudioStore = create<StudioWorkflowStore>()(
       },
 
       upsertImageWorkflow: (graph) => {
+        assertImageWorkflowGraphMediaPersistable(graph);
         set((state) => ({
           imageWorkflows: [
             graph,
@@ -616,11 +619,17 @@ export const useStudioStore = create<StudioWorkflowStore>()(
 
       updateImageWorkflow: (id, updates) => {
         set((state) => ({
-          imageWorkflows: state.imageWorkflows.map((item) =>
-            item.id === id
-              ? { ...item, ...updates, id: item.id, updatedAt: updates.updatedAt ?? Date.now() }
-              : item,
-          ),
+          imageWorkflows: state.imageWorkflows.map((item) => {
+            if (item.id !== id) return item;
+            const graph = {
+              ...item,
+              ...updates,
+              id: item.id,
+              updatedAt: updates.updatedAt ?? Date.now(),
+            };
+            assertImageWorkflowGraphMediaPersistable(graph);
+            return graph;
+          }),
         }));
       },
 
@@ -836,6 +845,16 @@ export const useStudioStore = create<StudioWorkflowStore>()(
       })),
       version: STUDIO_WORKFLOW_PERSIST_VERSION,
       migrate: (persistedState) => migrateStudioWorkflowState(persistedState),
+      merge: (persistedState, currentState) => {
+        const persisted = persistedState && typeof persistedState === "object"
+          ? persistedState as Partial<StudioWorkflowState>
+          : {};
+        return {
+          ...currentState,
+          ...persisted,
+          imageWorkflows: filterPersistedImageWorkflows(persisted.imageWorkflows),
+        };
+      },
       // 窗口化 v1：legacy 全量水合后锚定激活章并瘦身（下次保存即写 manifest 轻索引）
       onRehydrateStorage: () => (state) => {
         if (!state || state.activeChapterId) return;

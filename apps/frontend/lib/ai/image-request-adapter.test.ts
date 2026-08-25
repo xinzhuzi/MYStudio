@@ -12,6 +12,32 @@ describe('image request adapter', () => {
     expect((body.messages as any)[0].content).toHaveLength(2);
   });
 
+  it('sends raw Daojie provider-visible text byte-exactly without a chat wrapper', () => {
+    const providerPrompt = '人物题材正文。风格底座（硬）：中国水彩水墨工笔画。\nAvoid: 水印、视觉噪点';
+
+    const body = buildChatCompletionsImageRequest({
+      model: 'gemini-2.5-flash-image',
+      prompt: providerPrompt,
+      promptPolicy: 'raw',
+      aspectRatio: '16:9',
+      resolution: '2K',
+    });
+
+    expect((body.messages as any)[0].content[0].text).toBe(providerPrompt);
+  });
+
+  it('keeps the legacy size and generation wrapper when prompt policy is omitted', () => {
+    const body = buildChatCompletionsImageRequest({
+      model: 'legacy-image-model',
+      prompt: 'stone',
+      aspectRatio: '16:9',
+      resolution: '2K',
+    });
+
+    expect((body.messages as any)[0].content[0].text)
+      .toBe('Generate an image with aspect ratio 16:9. Output the image at 2048x1152 pixels resolution. stone');
+  });
+
   it('extracts inline and markdown image forms', () => {
     expect(extractChatCompletionsImageUrl({ choices: [{ message: { content: [{ type: 'image', data: 'abc' }] } }] })).toBe('data:image/png;base64,abc');
     expect(extractChatCompletionsImageUrl({ choices: [{ message: { content: '![x](https://cdn.test/a.png)' } }] })).toBe('https://cdn.test/a.png');

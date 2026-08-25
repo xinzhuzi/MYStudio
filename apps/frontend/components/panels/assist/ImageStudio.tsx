@@ -276,7 +276,7 @@ export function ImageStudio() {
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" /> 停止生成
               </Button>
             ) : (
-              <Button className="w-full h-11" onClick={handleGenerate} disabled={!canGenerateImage}>
+              <Button variant="paid" className="w-full h-11" onClick={handleGenerate} disabled={!canGenerateImage}>
                 <Sparkles className="mr-2 h-4 w-4" /> 生成图片
               </Button>
             )}

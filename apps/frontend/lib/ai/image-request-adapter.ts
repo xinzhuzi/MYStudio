@@ -8,6 +8,8 @@ import {
 export interface ChatImageRequestInput {
   model: string;
   prompt: string;
+  /** raw=calling code already owns the final provider-visible prompt. */
+  promptPolicy?: 'enhanced' | 'raw';
   aspectRatio: string;
   resolution?: string;
   referenceImages?: string[];
@@ -15,7 +17,7 @@ export interface ChatImageRequestInput {
 
 /** Pure provider boundary: builds the multimodal chat request without I/O. */
 export function buildChatCompletionsImageRequest(input: ChatImageRequestInput): Record<string, unknown> {
-  const { model, prompt, aspectRatio, resolution, referenceImages } = input;
+  const { model, prompt, promptPolicy, aspectRatio, resolution, referenceImages } = input;
   const isGemini = isGeminiImageModel(model);
   const geminiHasImageSize = isGemini && geminiSupportsImageSize(model);
   const targetDims = getTargetDimensions(aspectRatio, resolution);
@@ -23,7 +25,12 @@ export function buildChatCompletionsImageRequest(input: ChatImageRequestInput): 
     ? ` Output the image at ${targetDims.width}x${targetDims.height} pixels resolution.`
     : '';
   const content: Array<{ type: string; text?: string; image_url?: { url: string } }> = [
-    { type: 'text', text: `Generate an image with aspect ratio ${aspectRatio}.${sizeInstruction} ${prompt}` },
+    {
+      type: 'text',
+      text: promptPolicy === 'raw'
+        ? prompt
+        : `Generate an image with aspect ratio ${aspectRatio}.${sizeInstruction} ${prompt}`,
+    },
   ];
   for (const image of referenceImages ?? []) content.push({ type: 'image_url', image_url: { url: image } });
   const body: Record<string, unknown> = {

@@ -81,6 +81,7 @@ export function StoryboardPanelTab({
           ) : remaining > 0 ? (
             <Button
               size="sm"
+              variant="paid"
               data-storyboard-panel-generate
               title={`串行生成剩余 ${remaining} 个未生成分镜`}
               onClick={batch.start}

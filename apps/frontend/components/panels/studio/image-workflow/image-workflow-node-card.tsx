@@ -197,7 +197,7 @@ function PromptNodeEditor({
         >
           {RESOLUTION_OPTIONS.map((resolution) => <option key={resolution} value={resolution}>{resolution}</option>)}
         </select>
-        <Button size="sm" onClick={() => onGenerate(node.id)}>
+        <Button size="sm" variant="paid" onClick={() => onGenerate(node.id)}>
           <WandSparkles className="h-3.5 w-3.5" />
           生成
         </Button>
@@ -287,7 +287,7 @@ function GeneratedNodeEditor({
             {generating ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <ZoomIn className="h-3.5 w-3.5" />}
             超分 4K
           </Button>
-          <Button size="sm" onClick={() => onGenerate(node.id)} disabled={generating}>
+          <Button size="sm" variant="paid" onClick={() => onGenerate(node.id)} disabled={generating}>
             {generating ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <WandSparkles className="h-3.5 w-3.5" />}
             生成
           </Button>

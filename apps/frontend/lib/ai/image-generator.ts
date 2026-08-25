@@ -170,6 +170,7 @@ async function generateImage(
           featureConfig.keyManager,
           undefined,
           operationId,
+          params.promptPolicy,
         );
         void logEvent({ level: 'info', category: 'ai', operationId, message: 'Image generation completed', context: { model, hasImageUrl: Boolean(result.imageUrl), taskId: result.taskId, attempt: attemptIndex + 1 } });
         return result;
@@ -233,6 +234,7 @@ async function generateImage(
           baseUrl,
           keyManager: featureConfig.keyManager,
           operationId,
+          promptPolicy: params.promptPolicy,
           cause: error,
         });
         if (fallbackResult) {
@@ -288,10 +290,11 @@ async function submitViaChatCompletions(
   keyManager?: { getCurrentKey?: () => string | null; handleError?: (status: number, errorText?: string) => boolean },
   signal?: AbortSignal,
   operationId?: string,
+  promptPolicy?: ImageGenerationParams['promptPolicy'],
 ): Promise<ImageGenerationResult> {
   const endpoint = buildEndpoint(baseUrl, 'chat/completions');
 
-  const requestBody = buildChatCompletionsImageRequest({ model, prompt, aspectRatio, resolution, referenceImages });
+  const requestBody = buildChatCompletionsImageRequest({ model, prompt, promptPolicy, aspectRatio, resolution, referenceImages });
 
 
   const response = await retryOperation(async () => {
@@ -411,9 +414,10 @@ async function tryGptImageFallbackChannels(options: {
   baseUrl: string;
   keyManager?: { getCurrentKey?: () => string | null; handleError?: (status: number, errorText?: string) => boolean };
   operationId?: string;
+  promptPolicy?: ImageGenerationParams['promptPolicy'];
   cause: unknown;
 }): Promise<ImageGenerationResult | null> {
-  const { prompt, aspectRatio, resolution, apiKey, referenceImages, model, baseUrl, keyManager, operationId, cause } = options;
+  const { prompt, aspectRatio, resolution, apiKey, referenceImages, model, baseUrl, keyManager, operationId, promptPolicy, cause } = options;
 
   try {
     const submitted = await submitImageJobTask(prompt, aspectRatio, resolution, apiKey, referenceImages, model, baseUrl, keyManager, operationId);
@@ -445,7 +449,7 @@ async function tryGptImageFallbackChannels(options: {
   }
 
   try {
-    const chatResult = await submitViaChatCompletions(prompt, model, apiKey, baseUrl, aspectRatio, referenceImages, resolution, keyManager, undefined, operationId);
+    const chatResult = await submitViaChatCompletions(prompt, model, apiKey, baseUrl, aspectRatio, referenceImages, resolution, keyManager, undefined, operationId, promptPolicy);
     void logEvent({
       level: 'info',
       category: 'ai',
@@ -893,7 +897,7 @@ export async function submitGridImageRequest(params: {
 
   if (apiFormat === 'openai_chat') {
     // Gemini 等模型通过 chat completions 生图
-    const result = await submitViaChatCompletions(normalizedPrompt.prompt, model, apiKey, normalizedBase, aspectRatio, transferReferenceImages, resolution, keyManager, signal, operationId);
+    const result = await submitViaChatCompletions(normalizedPrompt.prompt, model, apiKey, normalizedBase, aspectRatio, transferReferenceImages, resolution, keyManager, signal, operationId, promptPolicy);
     return { imageUrl: result.imageUrl };
   }
 

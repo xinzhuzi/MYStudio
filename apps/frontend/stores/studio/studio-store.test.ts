@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
+  addReferenceImageNode,
   addGeneratedImageNode,
   createImageWorkflowGraph,
   setGeneratedImageResult,
@@ -167,6 +168,65 @@ describe("studio workflow store", () => {
       expect(state.setWorkflowConfig).toBe(actions.setWorkflowConfig);
       expect(state.resetStudioWorkflow).toBe(actions.resetStudioWorkflow);
     } finally {
+      useStudioStore.persist.setOptions(originalOptions);
+      useStudioStore.getState().resetStudioWorkflow();
+    }
+  });
+
+  it("rejects transient image media during legacy and same-version hydration", async () => {
+    const originalOptions = useStudioStore.persist.getOptions();
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    const validGraph = {
+      id: "workflow-valid",
+      name: "可恢复工作流",
+      target: { kind: "free" },
+      nodes: [],
+      edges: [],
+      createdAt: 1,
+      updatedAt: 1,
+    };
+    const legacyReferenceGraph = {
+      id: "workflow-data-url",
+      name: "历史参考图",
+      target: { kind: "free" },
+      nodes: [{ id: "ref-1", type: "reference", imageUrl: "data:image/png;base64,AAAA" }],
+      edges: [],
+      createdAt: 1,
+      updatedAt: 1,
+    };
+    const currentGeneratedGraph = {
+      id: "workflow-blob-url",
+      name: "当前生成图",
+      target: { kind: "free" },
+      nodes: [{ id: "gen-1", type: "generated", resultUrl: "blob:https://app.invalid/result" }],
+      edges: [],
+      createdAt: 1,
+      updatedAt: 1,
+    };
+
+    try {
+      for (const version of [9, 10]) {
+        useStudioStore.getState().resetStudioWorkflow();
+        useStudioStore.persist.setOptions({
+          storage: {
+            getItem: vi.fn(async () => ({
+              state: {
+                imageWorkflows: [legacyReferenceGraph, currentGeneratedGraph, validGraph],
+              },
+              version,
+            })),
+            setItem: vi.fn(async () => undefined),
+            removeItem: vi.fn(async () => undefined),
+          },
+        });
+
+        await expect(useStudioStore.persist.rehydrate()).resolves.toBeUndefined();
+        expect(useStudioStore.getState().imageWorkflows.map((graph) => graph.id)).toEqual(["workflow-valid"]);
+      }
+      expect(warn).toHaveBeenCalledTimes(4);
+      expect(warn.mock.calls.flat().join(" ")).not.toContain("base64");
+    } finally {
+      warn.mockRestore();
       useStudioStore.persist.setOptions(originalOptions);
       useStudioStore.getState().resetStudioWorkflow();
     }
@@ -637,6 +697,51 @@ describe("studio workflow store", () => {
         checkpointRef: "flow-1:gen-1",
       }),
     ]);
+  });
+
+  it("rejects an embedded image payload before mutating imageWorkflows", () => {
+    let graph = createImageWorkflowGraph({
+      id: "flow-embedded",
+      name: "embedded",
+      target: { kind: "free" },
+      createdAt: 3000,
+    });
+    graph = addReferenceImageNode(graph, {
+      id: "ref-data",
+      title: "oversized reference",
+      imageUrl: "data:image/png;base64,QUJD",
+      position: { x: 0, y: 0 },
+      createdAt: 3001,
+    });
+
+    expect(() => useStudioStore.getState().upsertImageWorkflow(graph))
+      .toThrow("imageWorkflows[flow-embedded].nodes[ref-data].imageUrl 禁止持久化 data: URL");
+    expect(useStudioStore.getState().imageWorkflows).toEqual([]);
+  });
+
+  it("rejects an embedded image payload from a partial workflow update", () => {
+    const graph = createImageWorkflowGraph({
+      id: "flow-update-embedded",
+      name: "update embedded",
+      target: { kind: "free" },
+      createdAt: 3100,
+    });
+    useStudioStore.getState().upsertImageWorkflow(graph);
+
+    const unsafeGraph = addReferenceImageNode(graph, {
+      id: "ref-blob",
+      title: "transient reference",
+      imageUrl: "blob:https://example.test/transient",
+      position: { x: 0, y: 0 },
+      createdAt: 3101,
+    });
+
+    expect(() => useStudioStore.getState().updateImageWorkflow(graph.id, {
+      nodes: unsafeGraph.nodes,
+    })).toThrow(
+      "imageWorkflows[flow-update-embedded].nodes[ref-blob].imageUrl 禁止持久化 blob: URL",
+    );
+    expect(useStudioStore.getState().imageWorkflows[0]?.nodes).toEqual([]);
   });
 
   it("records audio, video candidate, retry, and final export media task evidence", () => {

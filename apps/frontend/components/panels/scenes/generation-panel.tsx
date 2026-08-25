@@ -567,10 +567,11 @@ export function GenerationPanel({ selectedScene, onSceneCreated }: GenerationPan
               <p className="text-muted-foreground">可为每个子场景生成四视图（共 {savedChildSceneIds.length * 4} 张）</p>
             </div>
             <div className="flex gap-2">
-              <Button 
-                onClick={handleBatchGenerateOrthographic} 
+              <Button
+                onClick={handleBatchGenerateOrthographic}
                 className="flex-1"
                 size="sm"
+                variant="paid"
               >
                 <Box className="h-3 w-3 mr-1" />
                 批量生成四视图
@@ -594,9 +595,10 @@ export function GenerationPanel({ selectedScene, onSceneCreated }: GenerationPan
               创建场景
             </Button>
           ) : (
-            <Button 
-              onClick={handleGenerate} 
+            <Button
+              onClick={handleGenerate}
               className="w-full"
+              variant="paid"
               disabled={isGenerating || !location.trim()}
             >
               {isGenerating ? (
@@ -631,9 +633,10 @@ export function GenerationPanel({ selectedScene, onSceneCreated }: GenerationPan
               </Select>
             </div>
             {selectedScene ? (
-              <Button 
-                onClick={handleGenerateContactSheetPrompt} 
+              <Button
+                onClick={handleGenerateContactSheetPrompt}
                 className="w-full"
+                variant="paid"
                 disabled={isGenerating}
               >
                 <Grid3X3 className="h-4 w-4 mr-2" />
@@ -675,9 +678,10 @@ export function GenerationPanel({ selectedScene, onSceneCreated }: GenerationPan
               创建场景
             </Button>
           ) : (
-            <Button 
-              onClick={handleGenerateOrthographicPrompt} 
+            <Button
+              onClick={handleGenerateOrthographicPrompt}
               className="w-full"
+              variant="paid"
               disabled={isGenerating}
             >
               <Box className="h-4 w-4 mr-2" />

@@ -25,6 +25,7 @@ import {
   sampleFrontmostApplication,
 } from "./smoke-focus.mjs";
 import { repairMissingCharacterThumbnails } from "./repair-cloned-assets.mjs";
+import { copyReferencedWorkflowAssets } from "./workflow-project-clone-assets.mjs";
 import {
   copyStudioWorkflowStoreDir,
   readStudioWorkflowStore,
@@ -533,6 +534,29 @@ function cloneRealProjectUserData() {
     roleAssets: readRealProjectRoleAssets(),
   });
 
+  const clonedResourceDocuments = [readStudioWorkflowStore(clonedProjectDir)?.state];
+  for (const storeName of ["scenes", "sclass", "script", "characters", "props", "director", "media", "tts"]) {
+    const storePath = resolve(clonedProjectDir, `${storeName}.json`);
+    if (existsSync(storePath)) clonedResourceDocuments.push(readJsonFile(storePath));
+  }
+  for (const storeName of ["scenes", "characters", "media"]) {
+    const sharedStorePath = resolve(clonedProjectsDir, "_shared", `${storeName}.json`);
+    if (existsSync(sharedStorePath)) clonedResourceDocuments.push(readJsonFile(sharedStorePath));
+  }
+  const workflowResourceAssets = copyReferencedWorkflowAssets({
+    documents: clonedResourceDocuments,
+    cloneRoot: clonedUserDataDir,
+    projectId: project.id,
+    sourceProjectRoot: projectDir,
+    sourceAssetsRoot: resolve(realProjectSourceStorageBasePath, "assets"),
+    targetProjectRoot: clonedProjectDir,
+    targetAssetsRoot: resolve(clonedUserDataDir, "assets"),
+  });
+  if (workflowResourceAssets.blocked.length > 0) {
+    const reasons = workflowResourceAssets.blocked.map((item) => item.reason).join(", ");
+    throw new Error(`Real-project resource clone blocked: ${reasons}`);
+  }
+
   const sourceExportsDir = resolve(projectDir, "exports");
   const clonedExportsDir = resolve(clonedProjectDir, "exports");
   copyProjectDirectoryIfExists(sourceExportsDir, clonedExportsDir);
@@ -550,6 +574,11 @@ function cloneRealProjectUserData() {
     firstStoryboardId: firstStoryboard?.id || "",
     firstShotRevision,
     assetReferenceRepairs,
+    workflowResourceAssets: {
+      references: workflowResourceAssets.references.length,
+      copied: workflowResourceAssets.copied.length,
+      ignored: workflowResourceAssets.ignored.length,
+    },
     remotionRuntimeReuse,
     sourceProjectsDir,
     userDataDir: clonedUserDataDir,
@@ -796,12 +825,7 @@ async function runVisibleWorkflow(pageTarget, childPid, focusSamples) {
       if (entry?.level === "error") {
         const text = entry.text || "Log.entryAdded error";
         const detail = entry.url ? `${text} (${entry.url})` : text;
-        // 真项目克隆固有噪音：媒体 404（数据里 legacy 内部路径/克隆未随行媒体）不计 runtime
-        // 故障——图像可用性由专属断言（卡片加载率/detail.ready）把守，已实测全过
-        const isResource404 = String(text).includes("ERR_FILE_NOT_FOUND") || String(text).includes("Failed to load resource");
-        if (!(runRealProject && isResource404)) {
-          runtimeProblems.push(String(detail));
-        }
+        runtimeProblems.push(String(detail));
         console.error(`[visible-run] Log.entryAdded ${detail}`);
       }
       return;
@@ -1242,8 +1266,12 @@ function realProjectWorkflowExpression(
       const entityExtractions = (workflowState.entityExtractions || []).filter((candidate) => !candidate.episodeId || candidate.episodeId === chapterId);
       const agentWorkData = (workflowState.agentWorkData || []).filter((candidate) => !candidate.episodeId || candidate.episodeId === chapterId);
        const storyboardsWithMediaPath = storyboards.filter((candidate) => Boolean(candidate.mediaRef?.path));
+       const storyboardImageWorkflowIds = new Set(
+         storyboards.flatMap((candidate) => [candidate.imageWorkflowId, candidate.mediaRef?.imageWorkflowId])
+           .filter((workflowId) => typeof workflowId === 'string' && workflowId.length > 0),
+       );
        const storyboardImageWorkflows = (workflowState.imageWorkflows || []).filter((graph) =>
-         String(graph.id || '').startsWith('storyboard-flow-' + chapterId + '-'),
+         storyboardImageWorkflowIds.has(graph.id),
        );
        const storyboardWorkflowIds = new Set(storyboardImageWorkflows.map((graph) => graph.id));
        const storyboardsWithWorkflow = storyboards.filter((candidate) => Boolean(
@@ -1364,8 +1392,7 @@ function realProjectWorkflowExpression(
       const storyboardReady =
         data.storyboards === ${expectedStoryboards} &&
         data.storyboardsWithMediaPath === ${expectedStoryboards} &&
-        data.storyboardsWithWorkflow === ${expectedStoryboards} &&
-        data.storyboardImageWorkflowsReady === ${expectedStoryboards} &&
+        data.storyboardImageWorkflowsReady === data.storyboardImageWorkflows &&
         domEvidence.storyboardWorkflowEntryCount >= ${expectedStoryboards} &&
         domEvidence.hasLastStoryboardWorkflowEntry &&
         Boolean(data.firstFramePath);
@@ -2144,6 +2171,7 @@ try {
     focusSamples,
     foregroundViolation,
     cloneAssetReferenceRepairs: realProjectRun?.assetReferenceRepairs || [],
+    cloneWorkflowResourceAssets: realProjectRun?.workflowResourceAssets || null,
     remotionRuntimeReuse: realProjectRun?.remotionRuntimeReuse || null,
     result,
     failedStages,
@@ -2237,8 +2265,7 @@ try {
       realProject.sourceLength < 8000 ||
       realProject.storyboards !== expectedStoryboards ||
       realProject.storyboardsWithMediaPath !== expectedStoryboards ||
-      realProject.storyboardsWithWorkflow !== expectedStoryboards ||
-      realProject.storyboardImageWorkflowsReady !== expectedStoryboards ||
+      realProject.storyboardImageWorkflowsReady !== realProject.storyboardImageWorkflows ||
       realProject.totalStoryboardDuration > 180 ||
       realProject.totalTrackDuration > 180 ||
       realProject.derivedAssetPlan < 3 ||

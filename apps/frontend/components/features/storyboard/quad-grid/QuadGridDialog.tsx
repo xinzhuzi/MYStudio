@@ -197,8 +197,9 @@ export function QuadGridDialog({
                 </Button>
                 <Button
                   size="sm"
+                  variant="paid"
                   onClick={handleGenerate}
-                  className="flex-1 h-8 text-xs bg-viz-selection hover:bg-info text-foreground"
+                  className="flex-1 h-8 text-xs"
                 >
                   <Sparkles className="h-3 w-3 mr-1" />
                   生成四宫格

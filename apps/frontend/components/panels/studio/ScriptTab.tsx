@@ -362,6 +362,7 @@ export function ScriptTab(props: {
                   </Button>
                   <Button
                     size="sm"
+                    variant="paid"
                     disabled={!chapter || !hasPrereq || props.scriptStreaming !== null}
                     onClick={() =>
                       chapter &&
@@ -378,7 +379,7 @@ export function ScriptTab(props: {
                   </Button>
                   <Button
                     size="sm"
-                    variant="secondary"
+                    variant="paid"
                     disabled={
                       !chapter ||
                       !hasPrereq ||
@@ -415,7 +416,7 @@ export function ScriptTab(props: {
                   </Button>
                   <Button
                     size="sm"
-                    variant="secondary"
+                    variant="paid"
                     disabled={!chapter || !output || props.scriptStreaming !== null}
                     onClick={() =>
                       chapter &&

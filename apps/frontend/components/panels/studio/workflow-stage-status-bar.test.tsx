@@ -38,7 +38,7 @@ const readiness: WorkflowReadiness = {
 
 describe("WorkflowStageStatusBar", () => {
   it("renders the next workflow stage as a compact horizontal header", () => {
-    render(
+    const { container } = render(
       <WorkflowStageStatusBar
         readiness={readiness}
         activeStage="manuals"
@@ -51,6 +51,7 @@ describe("WorkflowStageStatusBar", () => {
     expect(screen.queryByText("当前阶段：风格与导演")).toBeNull();
     expect(screen.getByText("待推进：剧本生产阶段")).toBeTruthy();
     expect(screen.getByText("切换阶段")).toBeTruthy();
+    expect(container.querySelector('[data-workflow-active-stage="manuals"]')).toBeTruthy();
     expect(
       screen.getAllByText("生成故事骨架、改编策略和结构化剧本").length,
     ).toBeGreaterThan(0);

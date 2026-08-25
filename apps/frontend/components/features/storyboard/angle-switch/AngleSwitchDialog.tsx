@@ -119,9 +119,10 @@ export function AngleSwitchDialog({
             </Button>
             <Button
               size="sm"
+              variant="paid"
               onClick={handleGenerate}
               disabled={isGenerating}
-              className="flex-1 h-8 text-xs bg-success hover:bg-success text-foreground"
+              className="flex-1 h-8 text-xs"
             >
               {isGenerating ? (
                 <><Loader2 className="h-3 w-3 mr-1 animate-spin" />生成中</>

@@ -9,8 +9,25 @@ import { IconTile } from "./icon-tile";
 import { PanelHeader } from "./panel-header";
 import { Card } from "./card";
 import { Alert } from "./alert";
+import { Button, buttonVariants } from "./button";
 
 afterEach(cleanup);
+
+describe("Button paid 变体(付费云端生成 CTA,design-spec §4 裁定 2026-08-25)", () => {
+  it("paid=金色淡描边,专属付费语义且非实心", () => {
+    const { container } = render(<Button variant="paid">生成</Button>);
+    const btn = container.querySelector("button");
+    expect(btn?.className).toContain("border-primary/30");
+    expect(btn?.className).toContain("bg-primary/10");
+    expect(btn?.className).toContain("text-primary/80");
+    expect(btn?.className).toContain("hover:bg-primary/18");
+    expect(btn?.className).not.toContain("bg-primary ");
+  });
+
+  it("buttonVariants 暴露 paid 供 AlertDialogAction 等非 Button 载体复用", () => {
+    expect(buttonVariants({ variant: "paid" })).toContain("border-primary/30");
+  });
+});
 
 describe("StatusPill(状态胶囊四态)", () => {
   it("ready:success 着色+呼吸点+默认文案", () => {

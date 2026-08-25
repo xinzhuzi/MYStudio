@@ -86,7 +86,15 @@ export function selectStoryboardFrameTemplate(
  * 数据未预热/无命中 → 空串(prefix 通用配色五职责已覆盖,不重复注入)。
  */
 export function buildStoryboardFactionColorSection(
-  input: { sceneNames?: string[]; personNames?: string[]; propNames?: string[] },
+  input: {
+    sceneNames?: string[];
+    personNames?: string[];
+    propNames?: string[];
+    /** 缺省为 not_applicable；仅明确的道具聚焦镜头可请求 prop 阵营色。 */
+    propFactionColorApplicability?: "not_applicable" | "applicable";
+    /** 防止仅因关联资产含道具就把 prop 色自动拼入普通分镜。 */
+    propFocus?: boolean;
+  },
   faction: {
     members: Record<string, string>;
     palette: Record<string, { person: string; scene: string; prop?: string }>;
@@ -103,7 +111,10 @@ export function buildStoryboardFactionColorSection(
   };
   const personPart = pick(input.personNames, "person");
   const scenePart = pick(input.sceneNames, "scene");
-  const propPart = pick(input.propNames, "prop");
+  const propApplicability = input.propFactionColorApplicability ?? "not_applicable";
+  const propPart = input.propFocus && propApplicability === "applicable"
+    ? pick(input.propNames, "prop")
+    : "";
   return [personPart, scenePart, propPart].filter(Boolean).length
     ? `【色彩】阵营色彩职责 ${[personPart, scenePart, propPart].filter(Boolean).join(";")}`
     : "";

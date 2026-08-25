@@ -145,6 +145,7 @@ export function CinemaStudio() {
           )}
 
           <Button
+            variant="paid"
             className="w-full h-11"
             onClick={handleGenerate}
             disabled={cinemaGenerating || !cinemaPrompt.trim()}

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -320,7 +320,12 @@ export function ScriptAssetGenerationTab({
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>取消</AlertDialogCancel>
-            <AlertDialogAction onClick={handleGenerateSingle}>立即生成</AlertDialogAction>
+            <AlertDialogAction
+              className={buttonVariants({ variant: "paid" })}
+              onClick={handleGenerateSingle}
+            >
+              立即生成
+            </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

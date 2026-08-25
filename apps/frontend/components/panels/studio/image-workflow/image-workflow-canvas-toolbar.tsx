@@ -115,6 +115,7 @@ export function ImageWorkflowCanvasToolbar({
         <>
           <select
             data-image-workflow-selector
+            data-image-workflow-active-id={activeGraph.id}
             value={activeGraph.id}
             onChange={(event) => onSelectorChange(event.target.value)}
             className="h-8 max-w-[260px] rounded-md border border-border bg-background/80 px-2 text-xs text-foreground outline-none"
@@ -186,6 +187,7 @@ export function ImageWorkflowCanvasToolbar({
       </div>
       <Button
         size="sm"
+        variant="paid"
         onClick={() => activeGeneratedNode && onGenerate(activeGeneratedNode.id)}
         disabled={!activeGeneratedNode || selectedGenerationBusy}
       >

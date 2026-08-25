@@ -16,6 +16,7 @@ import {
   Table2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { buttonVariants } from "@/components/ui/button";
 import type { ImageWorkflowOpenContext } from "@/types/studio";
 import type { StoryboardBatchGenerationState } from "./image-workflow/use-storyboard-batch-generation";
 import type { StoryboardBatchUpscaleState } from "./image-workflow/use-storyboard-batch-upscale";
@@ -227,7 +228,7 @@ export function ProductionFlowNode({ data }: NodeProps<Node<ProductionNodeData>>
           {canOpenJson ? (
             <button
               type="button"
-              className="inline-flex h-7 items-center gap-1.5 rounded-md border border-primary/30 bg-primary/10 px-2 text-[11px] font-medium text-primary/80 hover:border-primary/60 hover:bg-primary/18"
+              className="inline-flex h-7 items-center gap-1.5 rounded-md border border-border bg-muted/35 px-2 text-[11px] font-medium text-card-foreground hover:border-primary/45 hover:bg-muted/12"
               onClick={(event) => {
                 event.stopPropagation();
                 data.onNodeJson?.(data.node.id);
@@ -285,7 +286,10 @@ export function ProductionFlowNode({ data }: NodeProps<Node<ProductionNodeData>>
             ) : (
               <button
                 type="button"
-                className="inline-flex h-7 items-center gap-1.5 rounded-md border border-primary/30 bg-primary/10 px-2 text-[11px] font-medium text-primary/80 hover:border-primary/60 hover:bg-primary/18"
+                className={cn(
+                  buttonVariants({ variant: "paid" }),
+                  "h-7 items-center gap-1.5 rounded-md px-2 text-[11px] [&_svg]:size-3",
+                )}
                 data-storyboard-node-batch-generate
                 title="一键生图:串行生成所有未生成分镜,已生成的自动跳过"
                 onClick={(event) => {

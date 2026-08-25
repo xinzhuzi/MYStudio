@@ -16,6 +16,7 @@ const buttonVariants = cva(
           "bg-foreground/[0.08] backdrop-blur-[2px] text-foreground/90 hover:bg-foreground/[0.14] hover:text-foreground active:bg-foreground/[0.18] border border-foreground/[0.06]",
         primary:
           "bg-primary text-primary-foreground hover:brightness-110 active:brightness-90 font-medium",
+        paid: "border border-primary/30 bg-primary/10 text-primary/80 hover:border-primary/60 hover:bg-primary/18 active:bg-primary/22",
         "primary-gradient":
           "bg-primary text-primary-foreground hover:brightness-110 active:brightness-90 font-medium",
         destructive:

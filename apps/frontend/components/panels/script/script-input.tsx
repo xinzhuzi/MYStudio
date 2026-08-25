@@ -252,7 +252,7 @@ export function ScriptInput({
               onClick={handleGenerate}
               disabled={!idea.trim() || isGenerating || !chatConfigured}
               className="w-full"
-              variant="outline"
+              variant="paid"
             >
               {isGenerating ? (
                 <>
@@ -387,7 +387,7 @@ export function ScriptInput({
               onClick={handleGenerateSynopses}
               disabled={isGeneratingSynopsis || synopsisStatus === 'generating'}
               className="w-full"
-              variant="outline"
+              variant="paid"
             >
               {isGeneratingSynopsis || synopsisStatus === 'generating' ? (
                 <>

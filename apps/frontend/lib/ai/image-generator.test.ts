@@ -787,9 +787,7 @@ describe("daojie ma-gongbi-v1 exact/raw provider transport", () => {
 
     const requestBody = JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body));
     const text = requestBody.messages[0].content[0].text;
-    expect(text).toContain(daojieProviderPrompt);
-    expect(text.match(/Avoid:/g)).toHaveLength(1);
-    expect(text).not.toContain("clean image");
+    expect(text).toBe(daojieProviderPrompt);
   });
 
   it("grid 通道 raw 策略 byte-exact 传输已编译道劫分镜帧", async () => {

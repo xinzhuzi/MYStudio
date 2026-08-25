@@ -160,7 +160,7 @@ export function AngleSwitchResultDialog({
             <Download className="h-4 w-4 mr-2" />
             下载
           </Button>
-          <Button variant="outline" onClick={onRegenerate}>
+          <Button variant="paid" onClick={onRegenerate}>
             <RotateCw className="h-4 w-4 mr-2" />
             重新生成
           </Button>

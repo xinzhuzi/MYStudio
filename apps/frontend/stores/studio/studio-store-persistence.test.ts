@@ -1,10 +1,12 @@
 import { describe, expect, it } from "vitest";
 import {
+  assertImageWorkflowGraphMediaPersistable,
   migrateStudioWorkflowState,
   normalizeWorkflowConfig,
   STUDIO_WORKFLOW_PERSIST_VERSION,
   STUDIO_WORKFLOW_STORAGE_KEY,
 } from "./studio-store-persistence";
+import type { ImageWorkflowGraph } from "@/types/studio";
 
 describe("studio workflow persistence contract", () => {
   it("keeps the stable storage key and version", () => {
@@ -39,5 +41,79 @@ describe("studio workflow persistence contract", () => {
 
     const missing = migrateStudioWorkflowState({}) as Record<string, unknown>;
     expect(missing.sourceBible).toBe("");
+  });
+
+  it("rejects embedded reference/result payloads with a precise field path", () => {
+    const graph: ImageWorkflowGraph = {
+      id: "flow-embedded",
+      name: "embedded",
+      target: { kind: "free" },
+      nodes: [
+        {
+          id: "ref-data",
+          type: "reference",
+          title: "reference",
+          imageUrl: "data:image/png;base64,DO_NOT_LOG_THIS_PAYLOAD",
+          position: { x: 0, y: 0 },
+          createdAt: 1,
+          updatedAt: 1,
+        },
+      ],
+      edges: [],
+      createdAt: 1,
+      updatedAt: 1,
+    };
+
+    expect(() => assertImageWorkflowGraphMediaPersistable(graph))
+      .toThrow("imageWorkflows[flow-embedded].nodes[ref-data].imageUrl 禁止持久化 data: URL");
+    try {
+      assertImageWorkflowGraphMediaPersistable(graph);
+    } catch (error) {
+      expect(String(error)).not.toContain("DO_NOT_LOG_THIS_PAYLOAD");
+    }
+
+    graph.nodes = [{
+      id: "gen-blob",
+      type: "generated",
+      title: "generated",
+      prompt: "prompt",
+      aspectRatio: "16:9",
+      quality: "standard",
+      status: "ready",
+      resultUrl: "blob:https://example.test/transient",
+      position: { x: 0, y: 0 },
+      createdAt: 1,
+      updatedAt: 1,
+    }];
+    expect(() => assertImageWorkflowGraphMediaPersistable(graph))
+      .toThrow("imageWorkflows[flow-embedded].nodes[gen-blob].resultUrl 禁止持久化 blob: URL");
+  });
+
+  it("preserves durable workflow media URL and path forms", () => {
+    for (const imageUrl of [
+      "file:///managed/asset.png",
+      "/managed/asset.png",
+      "project-file://project/workflow/ref.png",
+      "local-image://asset/ref.png",
+      "https://cdn.example.test/ref.png",
+    ]) {
+      expect(() => assertImageWorkflowGraphMediaPersistable({
+        id: `flow-${imageUrl.slice(0, 4)}`,
+        name: "durable",
+        target: { kind: "free" },
+        nodes: [{
+          id: "ref",
+          type: "reference",
+          title: "reference",
+          imageUrl,
+          position: { x: 0, y: 0 },
+          createdAt: 1,
+          updatedAt: 1,
+        }],
+        edges: [],
+        createdAt: 1,
+        updatedAt: 1,
+      })).not.toThrow();
+    }
   });
 });

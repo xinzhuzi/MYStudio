@@ -435,7 +435,7 @@ export function GenerationPanel({ onCharacterCreated }: GenerationPanelProps) {
           <Button onClick={handleSavePreview} className="w-full">
             保存设定图
           </Button>
-          <Button onClick={handleCreateAndGenerate} variant="outline" className="w-full" disabled={isGenerating}>
+          <Button onClick={handleCreateAndGenerate} variant="paid" className="w-full" disabled={isGenerating}>
             重新生成
           </Button>
           <Button onClick={handleDiscardPreview} variant="ghost" className="w-full text-muted-foreground" size="sm">
@@ -619,9 +619,10 @@ export function GenerationPanel({ onCharacterCreated }: GenerationPanelProps) {
 
           {/* Action button - inside scroll area */}
           <div className="pt-2 pb-4 space-y-2">
-            <Button 
-              onClick={handleCreateAndGenerate} 
+            <Button
+              onClick={handleCreateAndGenerate}
               className="w-full"
+              variant="paid"
               disabled={isGenerating || !name.trim() || !description.trim() || selectedElements.length === 0}
             >
               {isGenerating ? (

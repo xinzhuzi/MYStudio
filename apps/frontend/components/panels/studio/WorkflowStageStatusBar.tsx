@@ -45,7 +45,10 @@ export function WorkflowStageStatusBar({
     readiness.stages[0];
 
   return (
-    <div className="mb-4 rounded-lg border border-border/70 bg-card/80 px-4 py-3">
+    <div
+      data-workflow-active-stage={activeStage}
+      className="mb-4 rounded-lg border border-border/70 bg-card/80 px-4 py-3"
+    >
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1">
           <h3 className="text-base font-semibold text-foreground">
