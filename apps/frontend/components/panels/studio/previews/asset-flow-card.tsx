@@ -1,12 +1,12 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { ImageIcon, ImageOff, Loader2, PackageOpen, RefreshCw, ZoomIn } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useDirectImageUpscale } from "../use-direct-image-upscale";
 import { UPSCALE_INPUT_MAX_LONG_SIDE } from "@/lib/upscale/client";
 import type { AssetImageWorkflowContext, ImageWorkflowTarget } from "@/types/studio";
 import type { ProductionFlowAssetCard } from "../workflow-node-model";
-import { ResolutionBadge } from "@/components/ui/image-resolution-badge";
-import { toPreviewSrc } from "./preview-src";
+import { ResolutionBadge, probeImagePixelSize } from "@/components/ui/image-resolution-badge";
+import { toPreviewSrc, withThumbVariant } from "./preview-src";
 
 export function AssetFlowCard({
   card,
@@ -27,6 +27,19 @@ export function AssetFlowCard({
   const assetUpscaling = assetUpscaleTarget != null
     && directUpscale.busyKey === `asset:${assetUpscaleTarget.id}`;
   const [assetImageLongSide, setAssetImageLongSide] = useState(0);
+  // 已-4K 预判用原图真实尺寸(IPC 文件头探测,带缓存):展示 <img> 是缩略图,
+  // onLoad naturalWidth 只能量到 512,不能再用。
+  useEffect(() => {
+    if (!card.mediaPath) return;
+    let cancelled = false;
+    void probeImagePixelSize(toPreviewSrc(card.mediaPath)).then((size) => {
+      if (cancelled || !size) return;
+      setAssetImageLongSide(Math.max(size.width, size.height));
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [card.mediaPath]);
   const assetAlreadyUpscaled = (card.mediaPath || "").includes("up4x-")
     || assetImageLongSide > UPSCALE_INPUT_MAX_LONG_SIDE;
   const canOpenImageWorkflow =
@@ -52,15 +65,11 @@ export function AssetFlowCard({
     <>
       {card.mediaPath ? (
         <img
-          src={toPreviewSrc(card.mediaPath)}
+          src={withThumbVariant(toPreviewSrc(card.mediaPath))}
           alt={card.name}
           className="h-full w-full object-contain"
           loading="lazy"
           decoding="async"
-          onLoad={(event) => {
-            const image = event.currentTarget;
-            setAssetImageLongSide(Math.max(image.naturalWidth, image.naturalHeight));
-          }}
         />
       ) : status === "生成中" ? (
         <RefreshCw className="h-8 w-8 animate-spin text-primary/70" />

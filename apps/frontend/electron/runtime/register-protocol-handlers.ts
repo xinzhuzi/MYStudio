@@ -136,6 +136,19 @@ export function registerProtocolHandlers({
     try {
       return respondWithFile(resolveAssetFile(getAssetsRoot(), request.url));
     } catch (error) {
+      // 预生成缩略图(sips 200×200 树)可能不存在:剥 query 找原图,
+      // 按需缓存兜底,最后回退原图字节——绝不 404 断图。
+      try {
+        const queryIndex = request.url.indexOf("?");
+        if (queryIndex !== -1) {
+          const originalPath = resolveAssetFile(getAssetsRoot(), request.url.slice(0, queryIndex));
+          const thumbPath = await resolveThumb(originalPath);
+          if (thumbPath) return respondWithFile(thumbPath);
+          return respondWithFile(originalPath);
+        }
+      } catch {
+        // 走 404 分支
+      }
       console.error("Failed to load asset file:", error);
       return new Response("File not found", { status: 404 });
     }

@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react";
+import { memo, useCallback, useState } from "react";
 import { Handle, Position, type Node, type NodeProps } from "@xyflow/react";
 import {
   ArrowRight,
@@ -99,7 +99,11 @@ const UNFRAMED_PREVIEW_NODE_IDS: readonly ProductionFlowNodeId[] = [
   "storyboardTable",
 ];
 
-export function ProductionFlowNode({ data }: NodeProps<Node<ProductionNodeData>>) {
+/**
+ * React Flow 铁律:自定义节点必须 memo——否则任何 flow store 变化(缩放/选择/
+ * 视口派生态)都会全量重渲染节点内容;82 瓦片轨道卡被每帧重算就是卡顿源之一。
+ */
+export const ProductionFlowNode = memo(function ProductionFlowNode({ data }: NodeProps<Node<ProductionNodeData>>) {
   const Icon = NODE_ICONS[data.node.id];
   const sourcePosition = data.sourcePosition ?? Position.Right;
   const targetPosition = data.targetPosition ?? (
@@ -490,7 +494,7 @@ export function ProductionFlowNode({ data }: NodeProps<Node<ProductionNodeData>>
       </div>
     </div>
   );
-}
+});
 
 function NodeSkillDisclosure({ node }: { node: ProductionFlowNodeModel }) {
   const skills = node.skills?.length ? node.skills : node.skill ? [node.skill] : [];

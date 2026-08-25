@@ -63,7 +63,7 @@ describe("workflow node component boundaries", () => {
     expect(canvasSource).not.toContain("function StoryboardTablePreview");
     expect(canvasSource).not.toContain("function StoryboardGridPreview");
 
-    expect(productionNodeSource).toContain("export function ProductionFlowNode");
+    expect(productionNodeSource).toContain("export const ProductionFlowNode = memo(function ProductionFlowNode");
     expect(productionNodeSource).toContain("function NodeSkillDisclosure");
     expect(productionNodeSource).toContain("data-flow-node-id={data.node.id}");
     expect(productionNodeSource).toContain("position={sourcePosition}");
@@ -718,7 +718,8 @@ describe("workflow node component boundaries", () => {
 
     const { rerender } = render(<AssetFlowCard card={assetCard} />);
     const assetImage = screen.getByAltText("夜景版");
-    expect(assetImage.getAttribute("src")).toBe(assetCard.mediaPath);
+    // 展示走缩略图变体;角标仍探原图(2026-08-25 缩放卡顿根修)
+    expect(assetImage.getAttribute("src")).toBe(`${assetCard.mediaPath}?thumb=1`);
     expect(assetImage.getAttribute("alt")).toBe(assetCard.name);
     expect(assetImage.getAttribute("loading")).toBe("lazy");
     expect(assetImage.getAttribute("decoding")).toBe("async");
