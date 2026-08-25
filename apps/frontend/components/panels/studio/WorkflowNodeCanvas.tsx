@@ -202,6 +202,7 @@ function CanvasVisibilityMeasurementRefresh({
 const nodeTypes = { productionFlow: ProductionFlowNode };
 
 import { interactionDeferBegin, interactionDeferEnd } from "./previews/interaction-defer";
+import { InteractionDeferHint } from "./previews/interaction-defer-hint";
 
 export function WorkflowNodeCanvas({
   isVisible,
@@ -591,6 +592,9 @@ export function WorkflowNodeCanvas({
               </span>
             </button>
           ) : null}
+        </div>
+        <div className="pointer-events-none absolute bottom-3 left-3 z-10">
+          <InteractionDeferHint />
         </div>
         <ReactFlow
           className="production-flow-reactflow absolute inset-0"

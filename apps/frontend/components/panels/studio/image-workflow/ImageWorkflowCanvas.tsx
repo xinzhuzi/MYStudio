@@ -11,6 +11,7 @@ import {
 import "@xyflow/react/dist/style.css";
 import { CanvasViewportControls } from "../CanvasViewportControls";
 import { interactionDeferBegin, interactionDeferEnd } from "../previews/interaction-defer";
+import { InteractionDeferHint } from "../previews/interaction-defer-hint";
 import { useScopedWorkflowLifecycle } from "./use-scoped-workflow-lifecycle";
 import { useStoryboardWorkflowSwitch } from "./use-storyboard-workflow-switch";
 import {
@@ -605,6 +606,9 @@ function ImageWorkflowFlowView({
 
   return (
     <div ref={interactingRef} className="image-workflow-flow-host contents">
+      <div className="pointer-events-none absolute bottom-3 left-3 z-10">
+        <InteractionDeferHint />
+      </div>
       <ReactFlow
         className="absolute inset-0 bg-muted/20"
         nodes={nodes}

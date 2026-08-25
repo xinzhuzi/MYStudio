@@ -33,8 +33,8 @@ describe("interaction defer gate", () => {
     expect(screen.getByTestId("settled").textContent).toBe("false");
 
     act(() => interactionDeferEnd());
-    // 防抖窗口内仍关闸
-    act(() => vi.advanceTimersByTime(999));
+    // 防抖窗口(5s)内仍关闸
+    act(() => vi.advanceTimersByTime(4999));
     expect(screen.getByTestId("settled").textContent).toBe("false");
     act(() => vi.advanceTimersByTime(1));
     expect(screen.getByTestId("settled").textContent).toBe("true");

@@ -36,7 +36,7 @@ describe("PreviewImage interaction gate", () => {
     render(<PreviewImage src="project-file://p/c.png" alt="防抖" />);
     await act(async () => {
       interactionDeferEnd();
-      await vi.advanceTimersByTimeAsync(999);
+      await vi.advanceTimersByTimeAsync(4999);
     });
     expect(document.querySelector("img")).toBeNull();
     await act(async () => {

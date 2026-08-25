@@ -6,6 +6,7 @@ import { buildStoryboardItemOpenContext } from "./storyboard-open-context";
 import { toPreviewSrc, withThumbVariant } from "./previews/preview-src";
 import { PreviewImage } from "./previews/preview-image";
 import { handleDeferScroll } from "./previews/interaction-defer";
+import { InteractionDeferHint } from "./previews/interaction-defer-hint";
 import type { StoryboardBatchGenerationState } from "./image-workflow/use-storyboard-batch-generation";
 
 /**
@@ -61,6 +62,7 @@ export function StoryboardPanelTab({
           <span className="text-sm text-muted-foreground">
             {ordered.length ? `${ordered.length} 个分镜 · ${withImage} 个画面` : "尚无分镜,请先生成分镜表"}
           </span>
+          <InteractionDeferHint />
         </div>
         {batch ? (
           batch.state.running ? (
