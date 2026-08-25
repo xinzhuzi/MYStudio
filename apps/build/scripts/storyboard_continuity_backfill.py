@@ -904,7 +904,8 @@ def main() -> int:
         new_row.pop("staleSince", None)
 
         old_ok = (
-            row.get("orderedReferenceManifest") == new_row["orderedReferenceManifest"]
+            not row.get("stale")
+            and row.get("orderedReferenceManifest") == new_row["orderedReferenceManifest"]
             and (row.get("continuityState") or {}).get("inputFingerprint") == new_row["continuityState"]["inputFingerprint"]
             and (row.get("continuityState") or {}).get("sourceSemanticsFingerprint") == cs["sourceSemanticsFingerprint"]
         )
