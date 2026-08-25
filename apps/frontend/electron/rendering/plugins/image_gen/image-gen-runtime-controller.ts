@@ -14,6 +14,7 @@ import { spawn, type ChildProcess } from "node:child_process";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { resolveVideoWorkflowRuntimePaths } from "@rendering/plugins/video-workflow/video-workflow-runtime";
+import { captureSidecarOutput } from "@/electron/diagnostics/sidecar-log-capture";
 import type {
   ImageGenModelId,
   ImageGenRuntimeStatusV1,
@@ -180,8 +181,14 @@ export function createImageGenRuntimeController(deps: ControllerDeps) {
       child = spawnProcess(
         paths.pythonExecutable,
         ["-m", "image_gen.main", "--host", "127.0.0.1", "--port", String(LOCAL_IMAGE_PORT)],
-        { cwd: deps.backendRoot, env: buildEnv(), stdio: ["ignore", "ignore", "ignore"] },
+        { cwd: deps.backendRoot, env: buildEnv(), stdio: ["ignore", "pipe", "pipe"] },
       );
+      // 生图 sidecar 启动失败/运行期报错的证据进 logs/sidecars/image-gen-*
+      captureSidecarOutput({
+        module: "image-gen",
+        child,
+        label: `python -m image_gen.main --port ${LOCAL_IMAGE_PORT}`,
+      });
       child.on("exit", () => {
         child = null;
         state.running = false;

@@ -10,6 +10,7 @@ import { spawn } from "node:child_process";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { resolveVideoWorkflowRuntimePaths } from "@rendering/plugins/video-workflow/video-workflow-runtime";
+import { captureSidecarOutput } from "@/electron/diagnostics/sidecar-log-capture";
 
 const execFileAsync = promisify(execFile);
 
@@ -165,8 +166,14 @@ export function createAudioGenRuntimeController(deps: ControllerDeps) {
           "--model", "musicgen-small",
           "--progress", progressFile(),
         ],
-        { cwd: deps.backendRoot, env: buildEnv(), stdio: ["ignore", "ignore", "ignore"] },
+        { cwd: deps.backendRoot, env: buildEnv(), stdio: ["ignore", "pipe", "pipe"] },
       );
+      // 模型下载失败证据进 logs/sidecars/audio-gen-*
+      captureSidecarOutput({
+        module: "audio-gen",
+        child: downloader,
+        label: "python -m audio_gen.download_model --model musicgen-small",
+      });
       downloader.on("exit", () => {
         refreshDownloadState();
         void scanModelInventory();

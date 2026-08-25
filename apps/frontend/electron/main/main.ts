@@ -9,6 +9,7 @@ import os from 'node:os'
 import crypto from 'node:crypto'
 import packageMetadata from '../../../package.json'
 import { createDiagnosticsLogService } from '../diagnostics/diagnostics-log'
+import { configureSidecarLogCapture } from '../diagnostics/sidecar-log-capture'
 import { createTtsRuntimeController } from '../tts/tts-runtime'
 import {
   ensureStudioSkillsSynced,
@@ -94,6 +95,7 @@ import type {
 } from '@rendering/plugins/remotion/queue/remotion-queue-ipc'
 import {
   createRemotionQueueFilePersistence,
+  migrateQueueEventsFileIfNeeded,
   RemotionRenderQueue,
 } from '@rendering/plugins/remotion/queue/remotion-render-queue'
 import { resolveRemotionRuntimeDir } from '@rendering/plugins/remotion/browser/remotion-runtime-manifest'
@@ -234,6 +236,13 @@ function writeDiagnosticsLog(entry: DiagnosticsLogEntryInput) {
     console.warn('Failed to write diagnostics log:', error)
   })
 }
+
+// 子进程(Python sidecar/Electron worker)输出统一捕获到 <userData>/logs/sidecars/。
+// 未配置时捕获 no-op;各 spawn 现场只认 module 名。
+configureSidecarLogCapture({
+  getSidecarsDir: () => path.join(app.getPath('userData'), 'logs', 'sidecars'),
+  writeDiagnostics: writeDiagnosticsLog,
+})
 
 function createDiagnosticsOperationId(prefix: string) {
   return `${prefix}-${crypto.randomUUID()}`
@@ -950,7 +959,7 @@ const depthIpc = registerDepthIpcHandlers({
   controller: depthRuntimeController,
   getDataRoot: getDataDir,
   getDiagnosticsDir: () => path.join(app.getPath('userData'), 'logs', 'diagnostics'),
-  getExportDir: () => path.join(app.getPath('userData'), 'exports'),
+  getLogBundleDir: () => path.join(app.getPath('userData'), 'logs', 'pipeline-bundles'),
 })
 
 // Local image generation sidecar — OpenAI-compatible HTTP server (127.0.0.1:17595)
@@ -1107,8 +1116,16 @@ const remotionChapterRenderer = new RemotionChapterRenderer({
   },
 })
 const remotionShotIpc = registerRemotionShotIpcHandlers(remotionShotRenderer)
+// 日志统一归位:队列事件日志进 <userData>/logs/remotion-queue/,运行态快照留在数据根。
+// 一次性迁移旧布局(与快照同目录)的事件文件,必须在构造队列前同步完成。
+const remotionQueueStateRoot = path.join(getDataDir(), '_remotion', 'queue')
+const remotionQueueEventsRoot = path.join(app.getPath('userData'), 'logs', 'remotion-queue')
+migrateQueueEventsFileIfNeeded(
+  path.join(remotionQueueStateRoot, 'queue-events.jsonl'),
+  path.join(remotionQueueEventsRoot, 'queue-events.jsonl'),
+)
 const remotionQueue = new RemotionRenderQueue({
-  persistence: createRemotionQueueFilePersistence(path.join(getDataDir(), '_remotion', 'queue')),
+  persistence: createRemotionQueueFilePersistence({ stateRoot: remotionQueueStateRoot, eventsRoot: remotionQueueEventsRoot }),
   executor: {
     render: remotionShotRenderer.render.bind(remotionShotRenderer),
     renderChapter: remotionChapterRenderer.render.bind(remotionChapterRenderer),

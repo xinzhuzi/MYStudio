@@ -817,10 +817,19 @@ async function atomicWrite(filePath: string, content: string): Promise<void> {
   await fs.promises.rename(temporaryPath, filePath);
 }
 
-export function createRemotionQueueFilePersistence(root: string): RemotionQueuePersistence {
-  if (!path.isAbsolute(root)) throw new Error("Remotion queue persistence root 必须是绝对路径");
-  const eventsPath = path.join(root, "queue-events.jsonl");
-  const snapshotPath = path.join(root, "queue-state.json");
+export interface RemotionQueuePersistenceRoots {
+  /** queue-state.json 所在目录(队列运行态,跟随项目数据根,crash recovery 依赖)。 */
+  stateRoot: string;
+  /** queue-events.jsonl 所在目录(事件日志,统一归 <userData>/logs/remotion-queue)。 */
+  eventsRoot: string;
+}
+
+export function createRemotionQueueFilePersistence(roots: RemotionQueuePersistenceRoots): RemotionQueuePersistence {
+  for (const [label, value] of [["stateRoot", roots.stateRoot], ["eventsRoot", roots.eventsRoot]] as const) {
+    if (!path.isAbsolute(value)) throw new Error(`Remotion queue persistence ${label} 必须是绝对路径`);
+  }
+  const eventsPath = path.join(roots.eventsRoot, "queue-events.jsonl");
+  const snapshotPath = path.join(roots.stateRoot, "queue-state.json");
   // 进程内写互斥（08-20 真机修复）：append 是读改写全量重写，队列 pump/完成回调/
   // enqueue 连发会并发触发——无锁时丢事件+同名 tmp 互抢 rename ENOENT（曾致
   // queue-events.jsonl 出现交错损坏行，load 逐行 JSON.parse 崩→项目切换 IPC 永挂）。
@@ -849,6 +858,25 @@ export function createRemotionQueueFilePersistence(root: string): RemotionQueueP
       await serialize(() => atomicWrite(snapshotPath, `${JSON.stringify(snapshot, null, 2)}\n`));
     },
   };
+}
+
+/** 一次性迁移:旧布局事件日志与队列状态同目录;日志统一归位后搬到 logs/。
+ * 目标已存在或来源不存在时 no-op;rename 跨卷(EXDEV)回退 copy(tmp+rename 原子
+ * 落位,严防半截文件——load 逐行 JSON.parse 撞上即崩,08-20 事故同款死法)。
+ * 同步实现:main.ts 在构造队列前调用,杜绝与懒加载 init() 的竞态。 */
+export function migrateQueueEventsFileIfNeeded(sourcePath: string, targetPath: string): "moved" | "skipped" {
+  if (fs.existsSync(targetPath) || !fs.existsSync(sourcePath)) return "skipped";
+  fs.mkdirSync(path.dirname(targetPath), { recursive: true });
+  try {
+    fs.renameSync(sourcePath, targetPath);
+  } catch (error) {
+    if (!isNodeError(error) || error.code !== "EXDEV") throw error;
+    const tempPath = `${targetPath}.${process.pid}.migrating`;
+    fs.copyFileSync(sourcePath, tempPath);
+    fs.renameSync(tempPath, targetPath);
+    fs.unlinkSync(sourcePath);
+  }
+  return "moved";
 }
 
 async function readOptionalText(filePath: string): Promise<string | undefined> {

@@ -34,6 +34,7 @@ import {
   UPSCALE_TOOL_VERSION,
   type UpscaleRuntimePaths,
 } from "./upscale-runtime";
+import { captureSidecarOutput } from "@/electron/diagnostics/sidecar-log-capture";
 import { prepareUpscaleRuntime, rollbackUpscaleRuntime } from "./upscale-runtime-manager";
 
 const execFileAsync = promisify(execFile);
@@ -443,10 +444,16 @@ export function createUpscaleRuntimeController(deps: ControllerDeps) {
       {
         cwd: deps.backendRoot,
         env: buildEnv(paths),
-        stdio: ["ignore", "ignore", "ignore"],
+        stdio: ["ignore", "pipe", "pipe"],
         detached: false,
       },
     );
+    // 模型权重网络下载:失败证据进 logs/sidecars/upscale-*
+    captureSidecarOutput({
+      module: "upscale",
+      child,
+      label: `python -m upscale.download_model --model ${modelName}`,
+    });
     return child;
   }
 

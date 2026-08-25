@@ -82,7 +82,7 @@ function register(controller: DepthRuntimeController) {
     controller,
     getDataRoot: () => "/tmp/mystudio-data",
     getDiagnosticsDir: () => "/tmp/mystudio-diagnostics",
-    getExportDir: () => "/tmp/mystudio-exports",
+    getLogBundleDir: () => "/tmp/mystudio-log-bundles",
   });
 }
 

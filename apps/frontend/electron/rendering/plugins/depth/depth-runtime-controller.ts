@@ -23,6 +23,7 @@ import {
   type DepthRuntimePaths,
 } from "./depth-runtime";
 import { prepareDepthRuntime, rollbackDepthRuntime } from "./depth-runtime-manager";
+import { captureSidecarOutput } from "@/electron/diagnostics/sidecar-log-capture";
 
 const execFileAsync = promisify(execFile);
 
@@ -458,10 +459,16 @@ export function createDepthRuntimeController(deps: ControllerDeps) {
       {
         cwd: deps.backendRoot,
         env: buildEnv(paths),
-        stdio: ["ignore", "ignore", "ignore"],
+        stdio: ["ignore", "pipe", "pipe"],
         detached: false,
       },
     );
+    // 网络型长下载:断点/代理失败证据进 logs/sidecars/depth-*
+    captureSidecarOutput({
+      module: "depth",
+      child,
+      label: `python -m depth_estimation.download_model --progress ${progressFile()}`,
+    });
     return child;
   }
 

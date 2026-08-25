@@ -362,7 +362,8 @@ function inspectRemotionExportArtifact(remotionExport) {
     if (remotionExportSmokeMode === "cancel") {
       const queueRoot = resolve(SMOKE_PROJECT_DATA_ROOT, "_remotion", "queue");
       const queueStatePath = resolve(queueRoot, "queue-state.json");
-      const queueEventsPath = resolve(queueRoot, "queue-events.jsonl");
+      // 事件日志已统一归位 <userData>/logs/remotion-queue(运行态快照仍留数据根)
+      const queueEventsPath = resolve(userDataDir, "logs", "remotion-queue", "queue-events.jsonl");
       const artifactPaths = [queueStatePath, queueEventsPath];
       const cancellationArtifactsPresent = artifactPaths.every((artifactPath) => existsSync(artifactPath));
       const currentOutputPath = resolve(

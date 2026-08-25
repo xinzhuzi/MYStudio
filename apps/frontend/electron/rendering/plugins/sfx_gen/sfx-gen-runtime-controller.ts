@@ -10,6 +10,7 @@ import { spawn } from "node:child_process";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { resolveVideoWorkflowRuntimePaths } from "@rendering/plugins/video-workflow/video-workflow-runtime";
+import { captureSidecarOutput } from "@/electron/diagnostics/sidecar-log-capture";
 
 const execFileAsync = promisify(execFile);
 
@@ -173,8 +174,14 @@ export function createSfxGenRuntimeController(deps: ControllerDeps) {
           "--model", modelName,
           "--progress", progressFile(),
         ],
-        { cwd: deps.backendRoot, env: buildEnv(), stdio: ["ignore", "ignore", "ignore"] },
+        { cwd: deps.backendRoot, env: buildEnv(), stdio: ["ignore", "pipe", "pipe"] },
       );
+      // 模型下载失败证据进 logs/sidecars/sfx-gen-*
+      captureSidecarOutput({
+        module: "sfx-gen",
+        child: downloader,
+        label: `python -m sfx_gen.download_model --model ${modelName}`,
+      });
       downloader.on("exit", () => {
         refreshDownloadState();
         void scanModelInventory();

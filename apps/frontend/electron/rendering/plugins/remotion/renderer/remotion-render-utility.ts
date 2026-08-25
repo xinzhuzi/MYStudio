@@ -9,8 +9,9 @@ import type {
 } from "./remotion-render-worker";
 import {
   validateRemotionRenderWorkerEvent,
- 
+
 } from "./remotion-render-worker-protocol";
+import { dumpSidecarFailure } from "@/electron/diagnostics/sidecar-log-capture";
 
 export interface UtilityProcessLike {
   on(event: "message", listener: (message: unknown) => void): UtilityProcessLike;
@@ -273,6 +274,14 @@ export class RemotionRenderUtilitySupervisor {
       return;
     }
     const stderrTail = active.stderrTail?.() ?? "";
+    // 渲染 worker 硬死证据持久化:环形缓冲尾部(1500 字符)随失败落盘 logs/sidecars/remotion-worker-*
+    if (stderrTail) {
+      dumpSidecarFailure({
+        module: "remotion-worker",
+        title: `utility process 退出(code=${code}) job=${active.jobId}`,
+        detail: stderrTail,
+      });
+    }
     this.finish(active, failed(
       active.jobId,
       `Remotion render utility process 退出(code=${code})${stderrTail ? ` | stderr: ${stderrTail}` : ""}`,

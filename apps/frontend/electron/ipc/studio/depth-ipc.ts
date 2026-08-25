@@ -31,8 +31,8 @@ export interface RegisterDepthIpcOptions {
   getDataRoot: () => string;
   /** Diagnostics JSONL directory. */
   getDiagnosticsDir: () => string;
-  /** Export directory for log bundles. */
-  getExportDir: () => string;
+  /** Log bundle output directory (<userData>/logs/pipeline-bundles). */
+  getLogBundleDir: () => string;
 }
 
 export interface DepthIpc {
@@ -254,7 +254,7 @@ export function registerDepthIpcHandlers(options: RegisterDepthIpcOptions): Dept
         const stamp = new Date().toISOString().replace(/[:.]/g, "-");
         const outputPath = writeLogBundle(
           bundle,
-          path.join(options.getExportDir(), `video-pipeline-bundle-${projectId}-${chapterId}-${stamp}.json`),
+          path.join(options.getLogBundleDir(), `video-pipeline-bundle-${projectId}-${chapterId}-${stamp}.json`),
         );
         return { success: true, path: outputPath };
       } catch (error) {

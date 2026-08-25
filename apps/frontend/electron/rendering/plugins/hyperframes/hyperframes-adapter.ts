@@ -19,6 +19,7 @@ import {
 } from "@rendering/plugins/video-workflow/video-workflow-runtime";
 import { writeVideoWorkflowJson } from "@rendering/plugins/video-workflow/video-workflow-artifact-store";
 import { rejectSymlinkComponentsUnderRoot } from "@rendering/plugins/remotion/manifest/remotion-audio-source-verification";
+import { dumpSidecarFailure } from "@/electron/diagnostics/sidecar-log-capture";
 
 const execFileAsync = promisify(execFile);
 
@@ -246,9 +247,26 @@ export function createHyperFramesAdapter(options: HyperFramesAdapterOptions) {
         }
       } catch { /* artifact 未写出=中途硬死,保留 execFile 原始信息 */ }
       if (meta.length > 0) detail += ` [${meta.join(" ")}]`;
+      // 死机理排障证据持久化:execFile 的 stderr 尾部(4KB)与归因一并落盘
+      const stderrTail = tailText(readErrorStderr(error), 4096);
+      dumpSidecarFailure({
+        module: "hyperframes",
+        title: `worker 执行失败: ${detail}`,
+        detail: stderrTail ? `${detail}\n--- stderr tail ---\n${stderrTail}` : detail,
+      });
       return { state: "blocked", code: "worker-failed", message: `HyperFrames worker 执行失败: ${detail}`, artifactPath };
     }
   }
 
   return { get paths() { return getPaths(); }, probe, renderOverlay };
+}
+
+function readErrorStderr(error: unknown): string {
+  const stderr = (error as { stderr?: unknown }).stderr;
+  return typeof stderr === "string" ? stderr : "";
+}
+
+function tailText(text: string, maxBytes: number): string {
+  if (text.length <= maxBytes) return text;
+  return `...[前文截断]...\n${text.slice(-maxBytes)}`;
 }

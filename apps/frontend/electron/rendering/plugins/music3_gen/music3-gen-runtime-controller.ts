@@ -12,6 +12,7 @@ import { execFile } from "node:child_process";
 import { createHash } from "node:crypto";
 import { promisify } from "node:util";
 import { Agent, fetch as undiciFetch } from "undici";
+import { captureSidecarOutput, dumpSidecarFailure } from "@/electron/diagnostics/sidecar-log-capture";
 import { resolveVideoWorkflowRuntimePaths } from "@rendering/plugins/video-workflow/video-workflow-runtime";
 
 const execFileAsync = promisify(execFile);
@@ -356,6 +357,13 @@ export function createMusic3GenRuntimeController(deps: ControllerDeps) {
       return { installed: true, path: bin };
     } catch (error) {
       try { fs.unlinkSync(marker); } catch { /* 忽略 */ }
+      dumpSidecarFailure({
+        module: "music3",
+        title: `mlx-serve 二进制安装失败(${MLXSERV_DOWNLOAD_URL})`,
+        detail: error instanceof Error
+          ? [error.message, (error as { stderr?: string }).stderr].filter(Boolean).join("\n")
+          : String(error),
+      });
       return { installed: false, error: error instanceof Error ? error.message : String(error) };
     }
   }
@@ -459,8 +467,14 @@ export function createMusic3GenRuntimeController(deps: ControllerDeps) {
         "--out", pack,
         "--progress", mlxservWeightsProgressFile(),
       ],
-      { cwd: deps.backendRoot, env: buildEnv(), stdio: ["ignore", "ignore", "ignore"] },
+      { cwd: deps.backendRoot, env: buildEnv(), stdio: ["ignore", "pipe", "pipe"] },
     );
+    // 28.5GB 长下载:断点续传/网络中断的诊断证据进 logs/sidecars/music3-*
+    captureSidecarOutput({
+      module: "music3",
+      child,
+      label: `python -m music3_gen.install_mlxserv_weights --out ${pack}`,
+    });
     child.on("exit", () => {
       const after = readMlxServWeightsInstall();
       if (after?.status === "complete") {
@@ -532,8 +546,14 @@ export function createMusic3GenRuntimeController(deps: ControllerDeps) {
       const child = spawnProcess(
         binary,
         ["serve", "--model", mlxServ.weightsDir, "--port", String(mlxServ.port), "--host", "127.0.0.1"],
-        { stdio: ["ignore", "ignore", "ignore"], env: { ...process.env } },
+        { stdio: ["ignore", "pipe", "pipe"], env: { ...process.env } },
       );
+      // stderr 全程捕获进 logs/sidecars/music3-*(自有 ~/.mlx-serve/logs/ 之外的进程侧视角)
+      captureSidecarOutput({
+        module: "music3",
+        child,
+        label: `mlx-serve serve --model ${mlxServ.weightsDir} --port ${mlxServ.port}`,
+      });
       serverState.child = child;
       serverState.baseUrl = baseUrl;
       child.on("exit", () => {
