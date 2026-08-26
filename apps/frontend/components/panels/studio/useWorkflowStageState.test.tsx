@@ -53,16 +53,16 @@ describe("useWorkflowStageState 阶段进入门闸(效应驱动,含直写 store 
     expect(interactionDeferEnd).not.toHaveBeenCalled();
   });
 
-  it("closes the gate for 5s whenever workflowStage changes afterwards", () => {
+  it("closes the gate for 5s on non-canvas stage changes (workbench has images)", () => {
     const { rerender } = renderState("novel");
     act(() => {
-      rerender({ workflowStage: "storyboard" });
+      rerender({ workflowStage: "workbench" });
     });
     expect(interactionDeferBegin).toHaveBeenCalledTimes(1);
     expect(interactionDeferEnd).toHaveBeenCalledTimes(1);
     // 同值重渲不重复关闸
     act(() => {
-      rerender({ workflowStage: "storyboard" });
+      rerender({ workflowStage: "workbench" });
     });
     expect(interactionDeferBegin).toHaveBeenCalledTimes(1);
     // 再切换再关
@@ -80,7 +80,7 @@ describe("useWorkflowStageState 阶段进入门闸(效应驱动,含直写 store 
     // 桥先行标志(豁免生效):consume 返回 true → 不关闸
     consume.mockReturnValueOnce(true);
     act(() => {
-      rerender({ workflowStage: "storyboard" });
+      rerender({ workflowStage: "workbench" });
     });
     expect(interactionDeferBegin).not.toHaveBeenCalled();
     // 豁免一次性:再切正常关闸
@@ -95,7 +95,7 @@ describe("useWorkflowStageState 阶段进入门闸(效应驱动,含直写 store 
     act(() => {
       result.current.handleStageChange("storyboard");
     });
-    expect(setWorkflowConfig).toHaveBeenCalledWith({ workflowStage: "storyboard" });
+    expect(setWorkflowConfig).toHaveBeenCalledWith({ workflowStage: "workbench" });
     expect(result.current.activeWorkflowTab).toBe("storyboard");
     manualIds = { visualManualId: undefined, directorManualId: undefined };
     act(() => {
