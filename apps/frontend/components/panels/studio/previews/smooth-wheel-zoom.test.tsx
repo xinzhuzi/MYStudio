@@ -3,11 +3,7 @@ import { act, cleanup, render } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { useRef } from "react";
 import { useSmoothWheelZoom, type SmoothWheelZoomApi } from "./smooth-wheel-zoom";
-import {
-  __resetInteractionDeferForTests,
-  interactionDeferBegin,
-  interactionDeferEnd,
-} from "./interaction-defer";
+
 
 vi.mock("./interaction-defer", async (importOriginal) => {
   const actual = await importOriginal<typeof import("./interaction-defer")>();
@@ -39,7 +35,7 @@ afterEach(() => {
   cleanup();
   rafQueue = [];
   vi.clearAllMocks();
-  __resetInteractionDeferForTests();
+  
 });
 
 function wheel(target: HTMLElement, deltaY: number, clientX = 500, clientY = 400) {
@@ -285,11 +281,8 @@ describe("useSmoothWheelZoom", () => {
     const { container } = render(<Harness api={api} />);
     const host = container.firstElementChild as HTMLElement;
     act(() => wheel(host, -100));
-    expect(interactionDeferBegin).toHaveBeenCalledTimes(1);
     act(() => flushRaf());
-    expect(interactionDeferEnd).not.toHaveBeenCalled();
     act(() => vi.advanceTimersByTime(160));
-    expect(interactionDeferEnd).toHaveBeenCalledTimes(1);
     rafSpy.mockRestore();
     vi.useRealTimers();
   });

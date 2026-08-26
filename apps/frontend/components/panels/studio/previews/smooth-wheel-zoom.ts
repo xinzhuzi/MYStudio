@@ -3,7 +3,6 @@
 // Commercial licensing available. See COMMERCIAL_LICENSE.md.
 
 import { useEffect, useRef, type RefObject } from "react";
-import { interactionDeferBegin, interactionDeferEnd } from "./interaction-defer";
 
 /**
  * 画布手势直改(滚轮缩放 + 空白 pane 拖拽平移)。
@@ -17,7 +16,8 @@ import { interactionDeferBegin, interactionDeferEnd } from "./interaction-defer"
  *   让 RF 正规退出 pane 拖拽(不靠 stopPropagation 吞事件——那会误杀 pane
  *   点击取消选中);拖拽产生移动后吞掉后续 click(防误触发 pane click);
  * - 滚轮与拖拽共享同一 pending 视口(交替手势不跳变);
- * - 门闸自管:手势活动即 begin,末次活动 +160ms 提交后 end(5s 防抖照常)。
+ * - 门闸已移除(2026-08-26 用户纠正):画布零图片+面板卸载=无东西可拦,
+ *   阶段进入门闸由 useWorkflowStageState 负责(面板挂载时才有关键量)。
  */
 
 /** 指数灵敏度(d3 同量级微调值)。 */
@@ -80,7 +80,6 @@ export function useSmoothWheelZoom(
             && (store.x !== base.x || store.y !== base.y || store.zoom !== base.zoom);
           if (!externalWrite) current.setViewport(commit);
         }
-        interactionDeferEnd();
       }, GESTURE_SETTLE_TAIL_MS);
     };
 
@@ -127,7 +126,6 @@ export function useSmoothWheelZoom(
       anchorX = event.clientX - rect.left;
       anchorY = event.clientY - rect.top;
       accumulated += event.deltaY;
-      interactionDeferBegin();
       if (settleTimer !== undefined) clearTimeout(settleTimer);
       if (rafId === null) {
         rafId = requestAnimationFrame(applyWheelFrame);
@@ -187,7 +185,6 @@ export function useSmoothWheelZoom(
       if (dragMovedPx === Math.abs(dx) + Math.abs(dy)) {
         // 首个有效移动:登记 click 抑制(拖拽不是点击)
         element.addEventListener("click", suppressNextClick, { capture: true, once: true });
-        interactionDeferBegin();
       }
       if (settleTimer !== undefined) clearTimeout(settleTimer);
       const base = pending ?? apiRef.current?.getViewport();
