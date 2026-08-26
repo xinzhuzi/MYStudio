@@ -316,9 +316,6 @@ export const ProductionFlowNode = memo(function ProductionFlowNode({ data }: Nod
         ) : null}
         {previewContent}
       </div>
-      {data.node.skills?.length || data.node.skill ? (
-        <NodeSkillDisclosure node={data.node} />
-      ) : null}
       {data.node.actions?.length ? (
         <div
           className="nodrag nopan nowheel mt-4 space-y-3"
@@ -490,53 +487,3 @@ export const ProductionFlowNode = memo(function ProductionFlowNode({ data }: Nod
     </div>
   );
 });
-
-function NodeSkillDisclosure({ node }: { node: ProductionFlowNodeModel }) {
-  const skills = node.skills?.length ? node.skills : node.skill ? [node.skill] : [];
-  if (!skills.length) return null;
-  return (
-    <details className="nodrag nopan nowheel mt-3 rounded-md border border-border bg-muted/20">
-      <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-3 py-2 text-xs text-card-foreground">
-        <span className="min-w-0 truncate">
-          生成依据 · {skills.length} 项
-        </span>
-        <span className="shrink-0 rounded border border-border bg-muted/30 px-2 py-0.5 text-[10px] uppercase tracking-[0.14em] text-muted-foreground">
-          SKILLS
-        </span>
-      </summary>
-      <div className="space-y-2 border-t border-border px-3 py-2">
-        <div className="text-[10px] text-muted-foreground">
-          默认收起，展开查看本节点运行时使用的执行 skill、视觉风格、题材规则和通用技法。
-        </div>
-        {skills.map((skill) => (
-          <div
-            key={skill.id}
-            className="rounded border border-border bg-background/45 px-2.5 py-2"
-          >
-            <div className="mb-2 flex flex-wrap items-center gap-2 text-[10px] text-muted-foreground">
-              <span className="rounded bg-muted/40 px-1.5 py-0.5 text-card-foreground">
-                {skill.name}
-              </span>
-              <span className="rounded bg-muted/40 px-1.5 py-0.5">
-                {skill.source}
-              </span>
-              <span className="rounded bg-muted/40 px-1.5 py-0.5">
-                {skill.id}
-              </span>
-            </div>
-            <div className="max-h-[150px] space-y-1 overflow-y-auto pr-1 text-[11px] leading-5 text-muted-foreground [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-muted-foreground/25 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar]:w-1.5">
-              {skill.summaryLines.map((line, index) => (
-                <p
-                  key={`${node.id}-${skill.id}-skill-${index}`}
-                  className="whitespace-pre-wrap break-words"
-                >
-                  {line}
-                </p>
-              ))}
-            </div>
-          </div>
-        ))}
-      </div>
-    </details>
-  );
-}
