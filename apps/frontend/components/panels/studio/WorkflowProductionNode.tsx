@@ -26,12 +26,7 @@ import type {
   ProductionFlowNodeModel,
   ProductionFlowStage,
 } from "./workflow-node-model";
-import { AssetDerivationPreview } from "./previews/asset-derivation-preview";
-import { RemotionShotPreview } from "./previews/remotion-shot-preview";
-import { StoryboardGridPreview } from "./previews/storyboard-grid-preview";
-import { StoryboardTablePreview } from "./previews/storyboard-table-preview";
-import { TextPreview } from "./previews/text-preview";
-import { WorkbenchLanePreview } from "./previews/workbench-lane-preview";
+import { NodePointerCard } from "./previews/node-pointer-card";
 
 export interface ProductionNodeData extends Record<string, unknown> {
   node: ProductionFlowNodeModel;
@@ -140,32 +135,19 @@ export const ProductionFlowNode = memo(function ProductionFlowNode({ data }: Nod
   // 已生成分镜自动跳过;旧的「跳转首个未生成镜」单镜入口已被本入口取代
   const storyboardBatch = data.storyboardBatch;
   const storyboardUpscale = data.storyboardUpscale;
-  const previewContent =
-    data.node.previewKind === "table" ? (
-      <StoryboardTablePreview node={data.node} />
-    ) : data.node.previewKind === "storyboard-grid" ? (
-      <StoryboardGridPreview
-        node={data.node}
-        onOpenImageWorkflow={data.onOpenAssetImageWorkflow}
-        onOpenStoryboardPanel={
-          data.onStageChange ? () => data.onStageChange?.("storyboardPanel") : undefined
-        }
-      />
-    ) : data.node.previewKind === "asset-derivation" ? (
-      <AssetDerivationPreview
-        node={data.node}
-        onOpenAssetImageWorkflow={data.onOpenAssetImageWorkflow}
-      />
-    ) : data.node.previewKind === "workbench-lanes" ? (
-      <WorkbenchLanePreview node={data.node} />
-    ) : data.node.previewKind === "remotion-shots" ? (
-      <RemotionShotPreview
-        node={data.node}
-        onOpenShotPanel={data.onStageChange ? () => data.onStageChange?.("workbench") : undefined}
-      />
-    ) : (
-      <TextPreview node={data.node} />
-    );
+  // 终极瘦身(用户裁定 2026-08-26):画布节点只展示指针,全内容走独立模块
+  // (阶段面板)。此前 preview 区内嵌网格/列表/markdown 使单节点达 150-530
+  // DOM,7 节点合计 2000+;指针卡后每节点 ≈30 DOM,画布 ≤500。
+  const previewContent = (
+    <NodePointerCard
+      node={data.node}
+      onEnter={
+        data.onStageChange
+          ? () => data.onStageChange?.(data.node.targetStage)
+          : undefined
+      }
+    />
+  );
   const runNodeAction = useCallback(
     async (action: ProductionFlowNodeAction) => {
       if (action.disabled || runningActionId) return;

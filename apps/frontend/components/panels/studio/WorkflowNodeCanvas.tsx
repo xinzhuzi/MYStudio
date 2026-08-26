@@ -201,6 +201,27 @@ function CanvasVisibilityMeasurementRefresh({
 
 const nodeTypes = { productionFlow: ProductionFlowNode };
 
+/** 终极瘦身日志:节点图 DOM 计数写 diagnostics(用户裁定必须有日志)。 */
+function CanvasDomMetricsLogger({ isVisible }: { isVisible: boolean }) {
+  useEffect(() => {
+    if (!isVisible) return;
+    const t = setTimeout(() => {
+      const canvas = document.querySelector(".react-flow");
+      if (!canvas) return;
+      const total = canvas.querySelectorAll("*").length;
+      const nodes = canvas.querySelectorAll(".react-flow__node").length;
+      const imgs = canvas.querySelectorAll("img").length;
+      window.diagnosticsLog?.write({
+        level: "info",
+        category: "runtime",
+        message: `[node-pointer-cards] 画布瘦身: DOM=${total} nodes=${nodes} imgs=${imgs} (目标≤500)`,
+      });
+    }, 3000);
+    return () => clearTimeout(t);
+  }, [isVisible]);
+  return null;
+}
+
 import { interactionDeferBegin, interactionDeferEnd } from "./previews/interaction-defer";
 import { useSmoothWheelZoom } from "./previews/smooth-wheel-zoom";
 import { InteractionDeferHint } from "./previews/interaction-defer-hint";
@@ -632,6 +653,7 @@ export function WorkflowNodeCanvas({
           selectionOnDrag={false}
           proOptions={{ hideAttribution: true }}
         >
+          <CanvasDomMetricsLogger isVisible={isVisible && Boolean(flowInstance)} />
           <CanvasVisibilityMeasurementRefresh
             isVisible={isVisible && Boolean(flowInstance)}
             nodeIds={productionNodeIds}

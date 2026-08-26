@@ -601,8 +601,8 @@ describe("studio workflow tabs", () => {
     expect(productionNodeSource).toContain(
       'showPreviewChrome && "rounded-md border border-border bg-muted/20 p-3"',
     );
-    expect(productionNodeSource).toContain("StoryboardTablePreview");
-    expect(productionNodeSource).toContain("StoryboardGridPreview");
+    expect(productionNodeSource).toContain("NodePointerCard");
+    expect(productionNodeSource).toContain("NodePointerCard");
     expect(flowUiSource).not.toContain("max-h-[calc(100vh-210px)] overflow-y-auto");
     expect(productionNodeSource).toContain("workflow-node-titlebar");
     expect(flowUiSource).toContain("nowheel");
