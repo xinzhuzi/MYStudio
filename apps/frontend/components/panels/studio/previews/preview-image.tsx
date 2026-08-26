@@ -14,12 +14,16 @@ export function PreviewImage({
   className,
   fallbackLabel = "图片不可用",
   onLoad,
+  eager = false,
 }: {
   src: string;
   alt: string;
   className?: string;
   fallbackLabel?: string;
   onLoad?: (image: HTMLImageElement) => void;
+  /** eager=true 绕过 loading=lazy(5s 门闸场景:门闸已管加载时机,lazy 在
+   * overflow-y-auto 网格中会致 Chromium 可见性判定失灵,全部 pending)。 */
+  eager?: boolean;
 }) {
   const [failed, setFailed] = useState(false);
   // 交互门闸:拖拽/滑动/缩放进行中不挂 <img>(零请求零解码),静止 1s 后
@@ -52,7 +56,7 @@ export function PreviewImage({
       src={toPreviewSrc(src)}
       alt={alt}
       className={className}
-      loading="lazy"
+      loading={eager ? "eager" : "lazy"}
       decoding="async"
       onLoad={(event) => onLoad?.(event.currentTarget)}
       onError={() => setFailed(true)}

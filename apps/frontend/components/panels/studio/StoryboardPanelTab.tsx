@@ -121,6 +121,7 @@ export function StoryboardPanelTab({
                       alt={storyboard.prompt}
                       className="h-full w-full object-cover"
                       fallbackLabel="成图丢失"
+                      eager
                     />
                   ) : (
                     <div className="flex h-full items-center justify-center text-[11px] text-muted-foreground">
