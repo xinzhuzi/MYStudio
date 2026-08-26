@@ -24,8 +24,20 @@ await evaluate(`[...document.querySelectorAll('.studio-nav-button')].find(b=>b.t
 await sleep(4000);
 for (let i = 0; i < 12; i++) {
   if (await evaluate(`!!document.querySelector('[data-storyboard-node-batch-generate]')`) === true) break;
+  if (i === 2) {
+    // 视图纠偏: 分镜面板/图像工作流视图 → 返回节点图
+    await evaluate(`(() => { const b=[...document.querySelectorAll('button')].find(b=>b.textContent.trim()==='返回节点图'); if(b) b.click(); return true; })()`);
+    await sleep(4000);
+  }
   await sleep(5000);
 }
-const clicked = await evaluate(`(() => { const b = document.querySelector('[data-storyboard-node-batch-generate]'); if (!b) return false; b.click(); return true; })()`);
+const clicked = await evaluate(`(() => {
+  const b = document.querySelector('[data-storyboard-node-batch-generate]');
+  if (b) { b.click(); return 'node'; }
+  // 分镜面板视图回退: 文本匹配的一键生图按钮(非运行态)
+  const p = [...document.querySelectorAll('button')].find(x => x.textContent.trim().startsWith('一键生图') && !x.disabled);
+  if (p) { p.click(); return 'panel'; }
+  return false;
+})()`);
 console.log("clicked:", clicked, new Date().toISOString().slice(11, 19));
 process.exit(clicked ? 0 : 2);
