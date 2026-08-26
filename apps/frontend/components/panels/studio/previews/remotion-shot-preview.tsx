@@ -17,10 +17,18 @@ import { PreviewImage } from "./preview-image";
 
 export function RemotionShotPreview({
   node,
+  onOpenShotPanel,
 }: {
   node: ProductionFlowNodeModel;
+  /** 「查看全部」入口:进章节工作台(单镜生产全量面板) */
+  onOpenShotPanel?: () => void;
 }) {
-  const shots = node.remotionShots ?? [];
+  const allShots = node.remotionShots ?? [];
+  // 画布瘦身(2026-08-26):全量队列在独立面板,画布只留代表镜
+  // (该节点内嵌 82 镜=2294 DOM 是拖拽卡顿主源之一)。
+  const REMOTION_SHOT_CAP = 8;
+  const shots = allShots.length > REMOTION_SHOT_CAP ? allShots.slice(0, REMOTION_SHOT_CAP) : allShots;
+  const hiddenShots = allShots.length - shots.length;
   const summary = node.remotionSummary;
   return (
     <div className="remotion-shot-preview nodrag nowheel max-h-[480px] space-y-3 overflow-y-auto overscroll-contain pr-1">
@@ -147,7 +155,21 @@ export function RemotionShotPreview({
       {summary?.error ? (
         <div className="rounded-md border border-viz-glow/35 bg-viz-glow/10 px-3 py-2 text-[10px] text-warning/80">
           队列读取失败：{summary.error}
-        </div>
+          {hiddenShots > 0 ? (
+        <button
+          type="button"
+          data-remotion-open-shot-panel
+          className="inline-flex w-full items-center justify-center gap-1.5 rounded-md border border-info/40 bg-muted/30 px-2 py-1.5 text-[10px] font-medium text-foreground hover:border-info/70"
+          title={`画布仅预览前 ${REMOTION_SHOT_CAP} 镜;全量 ${allShots.length} 镜在单镜生产面板`}
+          onClick={(event) => {
+            event.stopPropagation();
+            onOpenShotPanel?.();
+          }}
+        >
+          共 {allShots.length} 镜 · 还有 {hiddenShots} 镜在单镜生产面板
+        </button>
+      ) : null}
+    </div>
       ) : null}
     </div>
   );

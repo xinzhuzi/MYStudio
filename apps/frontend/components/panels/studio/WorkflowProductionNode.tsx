@@ -147,6 +147,9 @@ export const ProductionFlowNode = memo(function ProductionFlowNode({ data }: Nod
       <StoryboardGridPreview
         node={data.node}
         onOpenImageWorkflow={data.onOpenAssetImageWorkflow}
+        onOpenStoryboardPanel={
+          data.onStageChange ? () => data.onStageChange?.("storyboardPanel") : undefined
+        }
       />
     ) : data.node.previewKind === "asset-derivation" ? (
       <AssetDerivationPreview
@@ -156,7 +159,10 @@ export const ProductionFlowNode = memo(function ProductionFlowNode({ data }: Nod
     ) : data.node.previewKind === "workbench-lanes" ? (
       <WorkbenchLanePreview node={data.node} />
     ) : data.node.previewKind === "remotion-shots" ? (
-      <RemotionShotPreview node={data.node} />
+      <RemotionShotPreview
+        node={data.node}
+        onOpenShotPanel={data.onStageChange ? () => data.onStageChange?.("workbench") : undefined}
+      />
     ) : (
       <TextPreview node={data.node} />
     );

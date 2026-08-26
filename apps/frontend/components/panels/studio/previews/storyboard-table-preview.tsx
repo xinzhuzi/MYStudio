@@ -29,7 +29,7 @@ export function StoryboardTablePreview({
         <span className="px-2 py-2">关联资产ID</span>
       </div>
       <div className="divide-y divide-border">
-        {rows.map((row) => (
+        {rows.slice(0, 10).map((row) => (
           <div
             key={`${node.id}-row-${row.index}`}
             className="grid min-w-[1920px] grid-cols-[44px_0.82fr_0.72fr_1.5fr_0.72fr_1.05fr_54px_0.62fr_0.72fr_1.35fr_0.82fr_0.95fr_0.72fr_1.2fr_0.82fr_0.9fr] text-[10px] leading-4 text-muted-foreground odd:bg-muted/35"
@@ -52,6 +52,11 @@ export function StoryboardTablePreview({
             <span className="whitespace-pre-wrap break-words px-2 py-2">{row.associateAssetsIds.join("、") || "—"}</span>
           </div>
         ))}
+        {rows.length > 10 ? (
+          <div className="px-2 py-1.5 text-[10px] text-muted-foreground">
+            画布仅预览前 10 行(共 {rows.length} 行),全量分镜表在分镜阶段界面
+          </div>
+        ) : null}
       </div>
     </div>
   );

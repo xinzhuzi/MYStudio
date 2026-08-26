@@ -986,20 +986,55 @@ describe("workflow node component boundaries", () => {
       />,
     );
 
-    expect(screen.getByText("S43")).toBeTruthy();
-    expect(screen.getByText("第43镜画面")).toBeTruthy();
+    // 画布瘦身裁定(2026-08-26):画布只渲染前 8 镜,全量走分镜面板独立界面
+    expect(screen.getByText("S01")).toBeTruthy();
+    expect(screen.getByText("第8镜画面")).toBeTruthy();
+    expect(screen.queryByText("第9镜画面")).toBeNull();
+    expect(screen.getByText(/共 43 镜 · 还有 35 镜在分镜面板/)).toBeTruthy();
 
-    fireEvent.click(screen.getByRole("button", { name: /打开分镜 43 图片工作流/ }));
+    fireEvent.click(screen.getByRole("button", { name: /打开分镜 1 图片工作流/ }));
 
     expect(onOpenImageWorkflow).toHaveBeenCalledWith(expect.objectContaining({
-      target: { kind: "storyboard", id: "sb-43" },
-      title: "分镜 43",
-      imageWorkflowId: "storyboard-flow-43",
-      sourceLabel: "分镜成图 · 分镜 43",
+      target: { kind: "storyboard", id: "sb-1" },
+      title: "分镜 1",
+      imageWorkflowId: "storyboard-flow-1",
+      sourceLabel: "分镜成图 · 分镜 1",
     }));
   });
 
-  it("renders all 43 storyboard table rows inside the table preview", () => {
+  it("canvas storyboard grid exposes the full-panel entry when tiles are capped", () => {
+    const onOpenStoryboardPanel = vi.fn();
+    const node = {
+      id: "storyboard",
+      label: "分镜面板",
+      description: "",
+      status: "ready" as const,
+      metrics: [],
+      previewTitle: "",
+      previewLines: [],
+      previewKind: "storyboard-grid" as const,
+      targetStage: "storyboard" as const,
+      storyboardTiles: Array.from({ length: 12 }, (_, index) => ({
+        id: `sb-${index + 1}`,
+        index: index + 1,
+        mediaPath: `project-file://dao/s/${index + 1}.png`,
+        title: `第${index + 1}镜`,
+        lines: "",
+        state: "ready" as const,
+      })),
+    } satisfies ProductionFlowNodeModel;
+    render(
+      <StoryboardGridPreview
+        node={node}
+        onOpenImageWorkflow={vi.fn()}
+        onOpenStoryboardPanel={onOpenStoryboardPanel}
+      />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: /共 12 镜/ }));
+    expect(onOpenStoryboardPanel).toHaveBeenCalledTimes(1);
+  });
+
+  it("caps the canvas table preview at 10 rows with a full-view note (画布瘦身裁定)", () => {
     const node = {
       id: "storyboardTable",
       label: "分镜表",
@@ -1035,8 +1070,9 @@ describe("workflow node component boundaries", () => {
 
     render(<StoryboardTablePreview node={node} />);
 
-    expect(screen.getByText("第43镜画面")).toBeTruthy();
-    expect(screen.getByText("第43镜完整画面描述")).toBeTruthy();
+    expect(screen.getByText("第10镜画面")).toBeTruthy();
+    expect(screen.queryByText("第43镜画面")).toBeNull();
+    expect(screen.getByText(/画布仅预览前 10 行\(共 43 行\)/)).toBeTruthy();
     expect(screen.getAllByText("道口镇").length).toBeGreaterThan(1);
   });
 

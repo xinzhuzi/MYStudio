@@ -21,14 +21,26 @@ function tileAlready4k(mediaPath: string | undefined, longSide: number | undefin
   return (longSide ?? 0) > UPSCALE_INPUT_MAX_LONG_SIDE;
 }
 
+/** 画布瓦片网格截断数:画布节点只为顺滑负责,全量走分镜面板独立界面
+ * (2026-08-26 架构瘦身:82 图内嵌=巨节点卡顿根源)。 */
+const CANVAS_TILE_CAP = 8;
+
 export function StoryboardGridPreview({
   node,
   onOpenImageWorkflow,
+  onOpenStoryboardPanel,
 }: {
   node: ProductionFlowNodeModel;
   onOpenImageWorkflow?: (context: ImageWorkflowOpenContext) => void;
+  /** 「查看全部」入口:跳分镜面板独立界面(画布瘦身后的全量视图) */
+  onOpenStoryboardPanel?: () => void;
 }) {
-  const tiles = useMemo(() => node.storyboardTiles ?? [], [node.storyboardTiles]);
+  const allTiles = useMemo(() => node.storyboardTiles ?? [], [node.storyboardTiles]);
+  const tiles = useMemo(
+    () => (allTiles.length > CANVAS_TILE_CAP ? allTiles.slice(0, CANVAS_TILE_CAP) : allTiles),
+    [allTiles],
+  );
+  const hiddenCount = allTiles.length - tiles.length;
   const directUpscale = useDirectImageUpscale();
   const [tileLongSides, setTileLongSides] = useState<Record<string, number>>({});
   // 4K 预判用原图真实尺寸(IPC 文件头探测,带缓存):展示 <img> 已改缩略图,
@@ -157,6 +169,21 @@ export function StoryboardGridPreview({
         );
         })}
       </div>
+      {hiddenCount > 0 ? (
+        <button
+          type="button"
+          data-storyboard-open-panel
+          className="mt-2 inline-flex w-full items-center justify-center gap-1.5 rounded-md border border-info/40 bg-muted/30 px-2 py-1.5 text-[10px] font-medium text-foreground hover:border-info/70"
+          title={`画布仅预览前 ${CANVAS_TILE_CAP} 镜保证顺滑;全量 ${allTiles.length} 镜在分镜面板独立界面查看`}
+          onClick={(event) => {
+            event.stopPropagation();
+            onOpenStoryboardPanel?.();
+          }}
+        >
+          <ImageIcon className="h-3 w-3" />
+          共 {allTiles.length} 镜 · 还有 {hiddenCount} 镜在分镜面板
+        </button>
+      ) : null}
     </div>
   );
 }

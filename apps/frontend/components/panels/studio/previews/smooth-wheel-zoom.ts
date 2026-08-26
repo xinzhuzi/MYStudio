@@ -51,6 +51,79 @@ export function useSmoothWheelZoom(
     let anchorX = 0;
     let anchorY = 0;
 
+    // ── 拖拽平移接管(与滚轮同款零 store 直改) ─────────────────
+    // 仅接管画布空白 pane 上的左键拖拽;节点拖拽/nodrag 区域不碰。
+    let dragActive = false;
+    let dragPointerId = -1;
+    let dragLastX = 0;
+    let dragLastY = 0;
+    let dragMoved = false;
+    let dragPending: SmoothWheelZoomViewport | null = null;
+
+    const paneAt = (target: EventTarget | null): HTMLElement | null => {
+      if (!(target instanceof Element)) return null;
+      if (target.closest(".react-flow__node")) return null;
+      if (target.closest("[class*='nodrag']")) return null;
+      const pane = target.closest(".react-flow__pane");
+      return pane instanceof HTMLElement ? pane : null;
+    };
+
+    const commitAndEndDefer = () => {
+      const current = apiRef.current;
+      const commit = dragPending;
+      dragPending = null;
+      if (current && commit) current.setViewport(commit);
+      if (settleTimer !== undefined) clearTimeout(settleTimer);
+      settleTimer = setTimeout(() => interactionDeferEnd(), WHEEL_SETTLE_TAIL_MS);
+    };
+
+    const onPointerDown = (event: PointerEvent) => {
+      if (event.button !== 0 || !event.isPrimary) return;
+      const pane = paneAt(event.target);
+      if (!pane) return;
+      event.preventDefault();
+      event.stopPropagation();
+      dragActive = true;
+      dragMoved = false;
+      dragPointerId = event.pointerId;
+      dragLastX = event.clientX;
+      dragLastY = event.clientY;
+      try {
+        pane.setPointerCapture(event.pointerId);
+      } catch {
+        // capture 失败不影响 window 级跟踪
+      }
+    };
+
+    const onPointerMove = (event: PointerEvent) => {
+      if (!dragActive || event.pointerId !== dragPointerId) return;
+      const dx = event.clientX - dragLastX;
+      const dy = event.clientY - dragLastY;
+      dragLastX = event.clientX;
+      dragLastY = event.clientY;
+      if (!dragMoved && Math.abs(dx) + Math.abs(dy) < 2) return;
+      dragMoved = true;
+      interactionDeferBegin();
+      const current = apiRef.current;
+      const base = dragPending ?? current?.getViewport();
+      const el = element.querySelector<HTMLElement>(".react-flow__viewport");
+      if (!base || !el || !current) return;
+      const next = { ...base, x: base.x + dx, y: base.y + dy };
+      dragPending = next;
+      el.style.transform = `translate(${next.x}px, ${next.y}px) scale(${next.zoom})`;
+      if (settleTimer !== undefined) clearTimeout(settleTimer);
+    };
+
+    const onPointerUp = (event: PointerEvent) => {
+      if (!dragActive || event.pointerId !== dragPointerId) return;
+      dragActive = false;
+      dragPointerId = -1;
+      if (dragMoved) {
+        event.preventDefault();
+        commitAndEndDefer();
+      }
+    };
+
     // 手势期间直接改 viewport 元素 transform(零 React/零 store/零全树样式重算
     // ——2026-08-26 trace 实证每帧 setViewport 造成 UpdateLayoutTree×61);
     // 停手才一次性 commit 回 store。viewport 元素缺失时回退逐帧 setViewport。
@@ -105,8 +178,16 @@ export function useSmoothWheelZoom(
     };
 
     element.addEventListener("wheel", onWheel, { capture: true, passive: false });
+    element.addEventListener("pointerdown", onPointerDown, { capture: true });
+    window.addEventListener("pointermove", onPointerMove, { capture: true });
+    window.addEventListener("pointerup", onPointerUp, { capture: true });
+    window.addEventListener("pointercancel", onPointerUp, { capture: true });
     return () => {
       element.removeEventListener("wheel", onWheel, { capture: true });
+      element.removeEventListener("pointerdown", onPointerDown, { capture: true });
+      window.removeEventListener("pointermove", onPointerMove, { capture: true });
+      window.removeEventListener("pointerup", onPointerUp, { capture: true });
+      window.removeEventListener("pointercancel", onPointerUp, { capture: true });
       if (rafId !== null) cancelAnimationFrame(rafId);
       if (settleTimer !== undefined) clearTimeout(settleTimer);
     };
