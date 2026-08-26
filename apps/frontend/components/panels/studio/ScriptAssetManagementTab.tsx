@@ -79,6 +79,8 @@ export function ScriptAssetManagementTab({
             <AssetDerivationPreview
               node={derivationNode}
               onOpenAssetImageWorkflow={onOpenAssetImageWorkflow}
+              sourceStage="assets"
+              sourceStageLabel="剧本资产管理"
             />
           </div>
         </section>

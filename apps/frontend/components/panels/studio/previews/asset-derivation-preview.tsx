@@ -12,9 +12,13 @@ import { TextPreview } from "./text-preview";
 export function AssetDerivationPreview({
   node,
   onOpenAssetImageWorkflow,
+  sourceStage = "storyboard",
+  sourceStageLabel = "分镜视频生成",
 }: {
   node: ProductionFlowNodeModel;
   onOpenAssetImageWorkflow?: (context: AssetImageWorkflowContext) => void;
+  sourceStage?: string;
+  sourceStageLabel?: string;
 }) {
   const groups = node.assetGroups ?? [];
   const [activeType, setActiveType] = useState<AssetDerivationFilter>("all");
@@ -73,7 +77,7 @@ export function AssetDerivationPreview({
           key={group.source.id}
           className="grid grid-cols-[188px_34px_minmax(188px,1fr)] items-stretch gap-3"
         >
-          <AssetFlowCard card={group.source} />
+          <AssetFlowCard card={group.source} sourceStage={sourceStage} sourceStageLabel={sourceStageLabel} />
           <div className="flex items-center justify-center text-muted-foreground">
             <ChevronRight className="h-6 w-6" />
           </div>
@@ -84,6 +88,8 @@ export function AssetDerivationPreview({
                   key={item.id}
                   card={item}
                   onOpenAssetImageWorkflow={onOpenAssetImageWorkflow}
+                  sourceStage={sourceStage}
+                  sourceStageLabel={sourceStageLabel}
                 />
               ))}
             </div>

@@ -12,9 +12,14 @@ import { PreviewImage } from "./preview-image";
 export function AssetFlowCard({
   card,
   onOpenAssetImageWorkflow,
+  sourceStage = "storyboard",
+  sourceStageLabel = "分镜视频生成",
 }: {
   card: ProductionFlowAssetCard;
   onOpenAssetImageWorkflow?: (context: AssetImageWorkflowContext) => void;
+  /** 返回目标阶段(资产阶段面板传 "assets",画布默认 "storyboard") */
+  sourceStage?: string;
+  sourceStageLabel?: string;
 }) {
   const status = card.generationState ?? (card.mediaPath ? "已完成" : "未生成");
   const directUpscale = useDirectImageUpscale();
@@ -56,8 +61,8 @@ export function AssetFlowCard({
       sourceImagePath: card.sourceImagePath,
       resultImagePath: card.mediaPath,
       imageWorkflowId: card.imageWorkflowId,
-      sourceStage: "storyboard",
-      sourceStageLabel: "分镜视频生成",
+      sourceStage,
+      sourceStageLabel,
       sourceLabel: `衍生资产 · ${card.name}`,
     });
   };
