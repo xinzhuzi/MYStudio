@@ -142,6 +142,17 @@ export function whenInteractionSettled(): Promise<void> {
   });
 }
 
+/** 一次性豁免:下一次阶段到达不开闸(测试桥程序化设阶段用,消费即失效)。 */
+let suppressNextArrival = false;
+export function suppressNextInteractionDeferArrival() {
+  suppressNextArrival = true;
+}
+export function consumeInteractionDeferArrivalSuppression(): boolean {
+  const value = suppressNextArrival;
+  suppressNextArrival = false;
+  return value;
+}
+
 /** 滚动容器接线:onScroll 时关闸,静止后开闸。 */
 export function handleDeferScroll() {
   interactionDeferBegin();

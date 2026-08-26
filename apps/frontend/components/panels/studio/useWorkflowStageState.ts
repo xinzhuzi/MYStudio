@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
+  consumeInteractionDeferArrivalSuppression,
   interactionDeferBegin,
   interactionDeferEnd,
 } from "./previews/interaction-defer";
@@ -61,10 +62,13 @@ export function useWorkflowStageState({
       current === visibleStage ? current : visibleStage,
     );
     // 阶段进入 = 一次交互(用户裁定 2026-08-26):新阶段图片先占位,静止 5s
-    // 后统一加载。首挂载跳过(冷启直入/初次进工作台不延迟,装机 smoke 依赖)。
-    if (stageChanged) {
+    // 后统一加载。首挂载跳过(冷启直入/初次进工作台不延迟,装机 smoke 依赖);
+    // 测试桥程序化设阶段的豁免在此消费(时序:桥先行标志,本效应后行)。
+    if (stageChanged && !consumeInteractionDeferArrivalSuppression()) {
       interactionDeferBegin();
       interactionDeferEnd();
+    } else {
+      consumeInteractionDeferArrivalSuppression();
     }
   }, [workflowStage]);
 
