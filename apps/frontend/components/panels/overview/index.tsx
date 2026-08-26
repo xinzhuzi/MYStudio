@@ -47,6 +47,7 @@ import { OVERVIEW_STAGE_GUIDE } from "./stage-guide";
 import { AuthorPreferenceDialog } from "./AuthorPreferenceDialog";
 import { readSourceMemoryActionContext } from "@/lib/studio/source-memory";
 import { OverviewAiFill } from "./OverviewAiFill";
+import { interactionDeferBegin, interactionDeferEnd } from "@/components/panels/studio/previews/interaction-defer";
 
 /** 工作流门户区头部（两分支共用）：导览标题/摘要 + 进入工作流/查看资产库 CTA。 */
 function WorkflowGuideHeader(props: { onPrimary: () => void; onSecondary: () => void }) {
@@ -127,10 +128,16 @@ export function OverviewPanel() {
   const {
     updateSeriesMeta,
   } = useScriptStore();
-  const { setActiveTab } = useMediaPanelStore();
+
+const { setActiveTab } = useMediaPanelStore();
 
   const handleEnterStage = useCallback((stageId: string) => {
     useStudioStore.getState().setWorkflowConfig({ workflowStage: stageId });
+    // 进入阶段 = 一次交互(用户裁定 2026-08-26):studio 面板全新挂载,阶段
+    // 变化效应的首到豁免盖不住这条显式点击路径——这里直接关闸,静止 5s 后
+    // 统一加载(与画布/面板同款倒计时提示)。
+    interactionDeferBegin();
+    interactionDeferEnd();
     setActiveTab("studio");
   }, [setActiveTab]);
 

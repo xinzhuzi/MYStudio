@@ -33,41 +33,55 @@ afterEach(() => {
 });
 
 function renderState(workflowStage = "novel") {
-  return renderHook(() =>
-    useWorkflowStageState({
-      activeProjectId: "p1",
-      workflowStage,
-      setWorkflowConfig,
-    }),
+  return renderHook(
+    (props: { workflowStage: string }) =>
+      useWorkflowStageState({
+        activeProjectId: "p1",
+        workflowStage: props.workflowStage,
+        setWorkflowConfig,
+      }),
+    { initialProps: { workflowStage } },
   );
 }
 
-describe("useWorkflowStageState 阶段进入门闸", () => {
-  it("closes the defer gate (begin+end → 5s 防抖) on every successful stage switch", () => {
+describe("useWorkflowStageState 阶段进入门闸(效应驱动,含直写 store 路径)", () => {
+  it("does not gate on first arrival (冷启/初次进工作台不延迟)", () => {
+    renderState("novel");
+    expect(interactionDeferBegin).not.toHaveBeenCalled();
+    expect(interactionDeferEnd).not.toHaveBeenCalled();
+  });
+
+  it("closes the gate for 5s whenever workflowStage changes afterwards", () => {
+    const { rerender } = renderState("novel");
+    act(() => {
+      rerender({ workflowStage: "storyboard" });
+    });
+    expect(interactionDeferBegin).toHaveBeenCalledTimes(1);
+    expect(interactionDeferEnd).toHaveBeenCalledTimes(1);
+    // 同值重渲不重复关闸
+    act(() => {
+      rerender({ workflowStage: "storyboard" });
+    });
+    expect(interactionDeferBegin).toHaveBeenCalledTimes(1);
+    // 再切换再关
+    act(() => {
+      rerender({ workflowStage: "workbench" });
+    });
+    expect(interactionDeferBegin).toHaveBeenCalledTimes(2);
+    expect(interactionDeferEnd).toHaveBeenCalledTimes(2);
+  });
+
+  it("still switches stages via the callback (rejected switches stay put)", () => {
     const { result } = renderState();
     act(() => {
       result.current.handleStageChange("storyboard");
     });
     expect(setWorkflowConfig).toHaveBeenCalledWith({ workflowStage: "storyboard" });
     expect(result.current.activeWorkflowTab).toBe("storyboard");
-    expect(interactionDeferBegin).toHaveBeenCalledTimes(1);
-    expect(interactionDeferEnd).toHaveBeenCalledTimes(1);
-
+    manualIds = { visualManualId: undefined, directorManualId: undefined };
     act(() => {
       result.current.handleStageChange("workbench");
     });
-    expect(interactionDeferBegin).toHaveBeenCalledTimes(2);
-    expect(interactionDeferEnd).toHaveBeenCalledTimes(2);
-  });
-
-  it("does not gate when the switch is rejected (manuals 未配置)", () => {
-    manualIds = { visualManualId: undefined, directorManualId: undefined };
-    const { result } = renderState();
-    act(() => {
-      result.current.handleStageChange("storyboard");
-    });
-    expect(result.current.activeWorkflowTab).toBe("novel");
-    expect(interactionDeferBegin).not.toHaveBeenCalled();
-    expect(interactionDeferEnd).not.toHaveBeenCalled();
+    expect(result.current.activeWorkflowTab).toBe("storyboard");
   });
 });

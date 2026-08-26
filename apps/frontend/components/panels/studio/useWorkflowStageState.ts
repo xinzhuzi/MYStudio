@@ -35,11 +35,6 @@ export function useWorkflowStageState({
       }
       setActiveWorkflowTab(visibleStage);
       setWorkflowConfig({ workflowStage: visibleStage });
-      // 阶段进入 = 一次交互(用户裁定 2026-08-26):新阶段挂载的图片先占位,
-      // 静止 5s 后统一加载,倒计时提示与画布/面板同款——否则进阶段瞬间
-      // 全量加载抢主线程,「一点进入就卡」。
-      interactionDeferBegin();
-      interactionDeferEnd();
     },
     [setWorkflowConfig],
   );
@@ -56,11 +51,21 @@ export function useWorkflowStageState({
     }
   }, [activeProjectId]);
 
+  const prevStageRef = useRef<string | null>(null);
   useEffect(() => {
     const visibleStage = resolveVisibleWorkflowStage(workflowStage);
+    const isFirstArrival = prevStageRef.current === null;
+    const stageChanged = !isFirstArrival && prevStageRef.current !== visibleStage;
+    prevStageRef.current = visibleStage;
     setActiveWorkflowTab((current) =>
       current === visibleStage ? current : visibleStage,
     );
+    // 阶段进入 = 一次交互(用户裁定 2026-08-26):新阶段图片先占位,静止 5s
+    // 后统一加载。首挂载跳过(冷启直入/初次进工作台不延迟,装机 smoke 依赖)。
+    if (stageChanged) {
+      interactionDeferBegin();
+      interactionDeferEnd();
+    }
   }, [workflowStage]);
 
   return {
