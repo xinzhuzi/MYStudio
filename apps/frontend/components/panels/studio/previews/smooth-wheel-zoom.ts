@@ -6,21 +6,26 @@ import { useEffect, useRef, type RefObject } from "react";
 import { interactionDeferBegin, interactionDeferEnd } from "./interaction-defer";
 
 /**
- * 滚轮平滑缩放(用户裁定 2026-08-26:「滚轮速度过快,跟不上/没有插值平滑」)。
+ * 画布手势直改(滚轮缩放 + 空白 pane 拖拽平移)。
  *
- * React Flow 默认走 d3-zoom 逐事件直应用:高速滚轮(120Hz+)每个事件同步改
- * transform + RF store 更新,主线程跟不上即掉帧。本挂钩接管滚轮:
- * - capture 阶段截获 wheel(preventDefault+stopPropagation,d3 不再处理),
- *   增量累积,**每帧(rAF)最多应用一次**——任意滚轮速度都恒定 ≤1 次更新/帧;
- * - 指数插值 factor = exp(-Δ·k)(d3 同款手感),光标位置为缩放锚点;
- * - 程序化 setViewport 不会触发 RF 的 onMoveStart,门闸由本挂钩自管:
- *   每个 wheel 关闸,最后一次应用 +160ms 后 interactionDeferEnd(5s 防抖照常)。
+ * React Flow/d3 默认逐事件同步写 transform 进 store,主线程跟不上即掉帧
+ * (trace 实证 UpdateLayoutTree×562)。本挂钩两条手势全部改为:
+ * - 手势期间直接改 .react-flow__viewport 元素 transform(零 React/零 store),
+ *   停手 160ms 尾一次性 setViewport 提交对齐 RF/d3;
+ * - 滚轮:增量累积,每帧(rAF)最多应用一次,exp(-Δ·k) 指数插值+光标锚点;
+ * - 拖拽:仅空白 pane 左键(节点/nodrag 不碰);画布需同时设 panOnDrag={false}
+ *   让 RF 正规退出 pane 拖拽(不靠 stopPropagation 吞事件——那会误杀 pane
+ *   点击取消选中);拖拽产生移动后吞掉后续 click(防误触发 pane click);
+ * - 滚轮与拖拽共享同一 pending 视口(交替手势不跳变);
+ * - 门闸自管:手势活动即 begin,末次活动 +160ms 提交后 end(5s 防抖照常)。
  */
 
-/** 指数灵敏度(d3 默认 -deltaY/100·…同量级,取微调值)。 */
+/** 指数灵敏度(d3 同量级微调值)。 */
 const WHEEL_SENSITIVITY = 0.0022;
-/** 滚轮流停止后多久认为手势结束(交还门闸 end)。 */
-const WHEEL_SETTLE_TAIL_MS = 160;
+/** 手势停止后多久提交 store 并交还门闸 end。 */
+const GESTURE_SETTLE_TAIL_MS = 160;
+/** 拖拽位移累计超过该阈值才算手势(点击不被误判)。 */
+const DRAG_THRESHOLD_PX = 2;
 
 export interface SmoothWheelZoomViewport {
   x: number;
@@ -50,88 +55,37 @@ export function useSmoothWheelZoom(
     let settleTimer: ReturnType<typeof setTimeout> | undefined;
     let anchorX = 0;
     let anchorY = 0;
-
-    // ── 拖拽平移接管(与滚轮同款零 store 直改) ─────────────────
-    // 仅接管画布空白 pane 上的左键拖拽;节点拖拽/nodrag 区域不碰。
-    let dragActive = false;
-    let dragPointerId = -1;
-    let dragLastX = 0;
-    let dragLastY = 0;
-    let dragMoved = false;
-    let dragPending: SmoothWheelZoomViewport | null = null;
-
-    const paneAt = (target: EventTarget | null): HTMLElement | null => {
-      if (!(target instanceof Element)) return null;
-      if (target.closest(".react-flow__node")) return null;
-      if (target.closest("[class*='nodrag']")) return null;
-      const pane = target.closest(".react-flow__pane");
-      return pane instanceof HTMLElement ? pane : null;
-    };
-
-    const commitAndEndDefer = () => {
-      const current = apiRef.current;
-      const commit = dragPending;
-      dragPending = null;
-      if (current && commit) current.setViewport(commit);
-      if (settleTimer !== undefined) clearTimeout(settleTimer);
-      settleTimer = setTimeout(() => interactionDeferEnd(), WHEEL_SETTLE_TAIL_MS);
-    };
-
-    const onPointerDown = (event: PointerEvent) => {
-      if (event.button !== 0 || !event.isPrimary) return;
-      const pane = paneAt(event.target);
-      if (!pane) return;
-      event.preventDefault();
-      event.stopPropagation();
-      dragActive = true;
-      dragMoved = false;
-      dragPointerId = event.pointerId;
-      dragLastX = event.clientX;
-      dragLastY = event.clientY;
-      try {
-        pane.setPointerCapture(event.pointerId);
-      } catch {
-        // capture 失败不影响 window 级跟踪
-      }
-    };
-
-    const onPointerMove = (event: PointerEvent) => {
-      if (!dragActive || event.pointerId !== dragPointerId) return;
-      const dx = event.clientX - dragLastX;
-      const dy = event.clientY - dragLastY;
-      dragLastX = event.clientX;
-      dragLastY = event.clientY;
-      if (!dragMoved && Math.abs(dx) + Math.abs(dy) < 2) return;
-      dragMoved = true;
-      interactionDeferBegin();
-      const current = apiRef.current;
-      const base = dragPending ?? current?.getViewport();
-      const el = element.querySelector<HTMLElement>(".react-flow__viewport");
-      if (!base || !el || !current) return;
-      const next = { ...base, x: base.x + dx, y: base.y + dy };
-      dragPending = next;
-      el.style.transform = `translate(${next.x}px, ${next.y}px) scale(${next.zoom})`;
-      if (settleTimer !== undefined) clearTimeout(settleTimer);
-    };
-
-    const onPointerUp = (event: PointerEvent) => {
-      if (!dragActive || event.pointerId !== dragPointerId) return;
-      dragActive = false;
-      dragPointerId = -1;
-      if (dragMoved) {
-        event.preventDefault();
-        commitAndEndDefer();
-      }
-    };
-
-    // 手势期间直接改 viewport 元素 transform(零 React/零 store/零全树样式重算
-    // ——2026-08-26 trace 实证每帧 setViewport 造成 UpdateLayoutTree×61);
-    // 停手才一次性 commit 回 store。viewport 元素缺失时回退逐帧 setViewport。
-    const viewportEl = () =>
-      element.querySelector<HTMLElement>(".react-flow__viewport") ?? null;
+    /** 滚轮/拖拽共享的未提交视口(交替手势同基准,不跳变)。 */
     let pending: SmoothWheelZoomViewport | null = null;
 
-    const apply = () => {
+    const viewportEl = () =>
+      element.querySelector<HTMLElement>(".react-flow__viewport") ?? null;
+
+    /** 手势静止尾部:一次性提交 store + 交还门闸 end。 */
+    const scheduleCommit = () => {
+      if (settleTimer !== undefined) clearTimeout(settleTimer);
+      settleTimer = setTimeout(() => {
+        settleTimer = undefined;
+        const commit = pending;
+        pending = null;
+        const current = apiRef.current;
+        if (commit && current) current.setViewport(commit);
+        interactionDeferEnd();
+      }, GESTURE_SETTLE_TAIL_MS);
+    };
+
+    const applyImperative = (next: SmoothWheelZoomViewport) => {
+      pending = next;
+      const el = viewportEl();
+      if (el) {
+        el.style.transform = `translate(${next.x}px, ${next.y}px) scale(${next.zoom})`;
+      } else {
+        apiRef.current?.setViewport(next);
+      }
+    };
+
+    // ── 滚轮缩放 ─────────────────────────────────────────────
+    const applyWheelFrame = () => {
       rafId = null;
       const current = apiRef.current;
       if (!current) return;
@@ -141,29 +95,17 @@ export function useSmoothWheelZoom(
       accumulated = 0;
       const zoom = Math.min(maxZoom, Math.max(minZoom, base.zoom * Math.exp(-delta * WHEEL_SENSITIVITY)));
       const scale = zoom / base.zoom;
-      const x = anchorX - (anchorX - base.x) * scale;
-      const y = anchorY - (anchorY - base.y) * scale;
-      pending = { x, y, zoom };
-      const el = viewportEl();
-      if (el) {
-        el.style.transform = `translate(${x}px, ${y}px) scale(${zoom})`;
-      } else {
-        current.setViewport({ x, y, zoom });
-      }
-      if (settleTimer !== undefined) clearTimeout(settleTimer);
-      settleTimer = setTimeout(() => {
-        // 手势结束:一次性提交 store(RF/d3 与视觉态对齐),随后交还门闸
-        const commit = pending;
-        pending = null;
-        if (commit) current.setViewport(commit);
-        interactionDeferEnd();
-      }, WHEEL_SETTLE_TAIL_MS);
+      applyImperative({
+        x: anchorX - (anchorX - base.x) * scale,
+        y: anchorY - (anchorY - base.y) * scale,
+        zoom,
+      });
+      scheduleCommit();
     };
 
     const onWheel = (event: WheelEvent) => {
-      // .nowheel 豁免(React Flow 同款语义):节点内滚动区(分镜视频卡/技能
-      // 摘要等 overflow-y-auto 容器)的滚轮必须留给原生滚动——capture 拦截
-      // 若不豁免,preventDefault 会吞掉所有内嵌列表的滚动(08-26 用户实证)。
+      // .nowheel 豁免(React Flow 同款语义):节点内滚动区(overflow-y-auto
+      // 容器)的滚轮留给原生滚动。
       if (event.target instanceof Element && event.target.closest(".nowheel")) return;
       event.preventDefault();
       event.stopPropagation();
@@ -172,9 +114,73 @@ export function useSmoothWheelZoom(
       anchorY = event.clientY - rect.top;
       accumulated += event.deltaY;
       interactionDeferBegin();
+      if (settleTimer !== undefined) clearTimeout(settleTimer);
       if (rafId === null) {
-        rafId = requestAnimationFrame(apply);
+        rafId = requestAnimationFrame(applyWheelFrame);
       }
+    };
+
+    // ── 空白 pane 拖拽平移(画布需配 panOnDrag={false}) ──────
+    let dragActive = false;
+    let dragPointerId = -1;
+    let dragLastX = 0;
+    let dragLastY = 0;
+    let dragMovedPx = 0;
+
+    const paneAt = (target: EventTarget | null): HTMLElement | null => {
+      if (!(target instanceof Element)) return null;
+      if (target.closest(".react-flow__node")) return null;
+      if (target.closest("[class*='nodrag']")) return null;
+      const pane = target.closest(".react-flow__pane");
+      return pane instanceof HTMLElement ? pane : null;
+    };
+
+    /** 拖拽产生移动后吞掉随之合成的 click(防误触发 pane click/取消选中)。 */
+    const suppressNextClick = (event: MouseEvent) => {
+      event.preventDefault();
+      event.stopPropagation();
+    };
+
+    const onPointerDown = (event: PointerEvent) => {
+      if (event.button !== 0 || !event.isPrimary) return;
+      // 不 preventDefault/stopPropagation:RF 的 pane 点击(取消选中)等
+      // 内建交互必须存活;panOnDrag={false} 已让 RF 不处理 pane 拖拽。
+      if (!paneAt(event.target)) return;
+      dragActive = true;
+      dragMovedPx = 0;
+      dragPointerId = event.pointerId;
+      dragLastX = event.clientX;
+      dragLastY = event.clientY;
+    };
+
+    const onPointerMove = (event: PointerEvent) => {
+      if (!dragActive || event.pointerId !== dragPointerId) return;
+      const dx = event.clientX - dragLastX;
+      const dy = event.clientY - dragLastY;
+      dragLastX = event.clientX;
+      dragLastY = event.clientY;
+      dragMovedPx += Math.abs(dx) + Math.abs(dy);
+      if (dragMovedPx < DRAG_THRESHOLD_PX) return;
+      if (dragMovedPx === Math.abs(dx) + Math.abs(dy)) {
+        // 首个有效移动:登记 click 抑制(拖拽不是点击)
+        element.addEventListener("click", suppressNextClick, { capture: true, once: true });
+        interactionDeferBegin();
+      }
+      if (settleTimer !== undefined) clearTimeout(settleTimer);
+      const base = pending ?? apiRef.current?.getViewport();
+      if (!base) return;
+      applyImperative({ ...base, x: base.x + dx, y: base.y + dy });
+    };
+
+    const onPointerUp = (event: PointerEvent) => {
+      if (!dragActive || event.pointerId !== dragPointerId) return;
+      dragActive = false;
+      dragPointerId = -1;
+      if (dragMovedPx >= DRAG_THRESHOLD_PX) {
+        event.preventDefault();
+        scheduleCommit();
+      }
+      // 未移动 = 纯点击:不吞、不提交,pane click 交给 RF(取消选中等)
     };
 
     element.addEventListener("wheel", onWheel, { capture: true, passive: false });
@@ -185,6 +191,7 @@ export function useSmoothWheelZoom(
     return () => {
       element.removeEventListener("wheel", onWheel, { capture: true });
       element.removeEventListener("pointerdown", onPointerDown, { capture: true });
+      element.removeEventListener("click", suppressNextClick, { capture: true });
       window.removeEventListener("pointermove", onPointerMove, { capture: true });
       window.removeEventListener("pointerup", onPointerUp, { capture: true });
       window.removeEventListener("pointercancel", onPointerUp, { capture: true });

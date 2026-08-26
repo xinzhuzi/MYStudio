@@ -682,7 +682,7 @@ describe("studio workflow tabs", () => {
     expect(canvasSource).toContain("grid h-full min-h-[calc(100vh-190px)] w-full flex-1");
     expect(canvasSource).not.toContain("h-[calc(100vh-176px)]");
     expect(canvasSource).not.toContain("h-[760px]");
-    expect(canvasSource).toContain("panOnDrag={[0]}");
+    expect(canvasSource).toContain("panOnDrag={false}");
     expect(canvasSource).toContain("panOnScroll={false}");
     expect(canvasSource).toContain("zoomOnScroll");
     expect(canvasSource).toContain("zoomOnPinch");

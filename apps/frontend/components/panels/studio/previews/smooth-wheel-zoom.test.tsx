@@ -119,6 +119,55 @@ describe("useSmoothWheelZoom", () => {
     rafSpy.mockRestore();
   });
 
+  it("owns pane drag imperatively: one commit, click suppressed after move, pure click untouched", async () => {
+    vi.useFakeTimers();
+    const setViewport = vi.fn();
+    let vp = { x: 0, y: 0, zoom: 1 };
+    const api: SmoothWheelZoomApi = {
+      getViewport: () => vp,
+      setViewport: (v) => { vp = v; setViewport(v); },
+    };
+    const rafSpy = vi
+      .spyOn(window, "requestAnimationFrame")
+      .mockImplementation((cb) => (rafQueue.push(cb), 1));
+    const { container } = render(<Harness api={api} />);
+    const host = container.firstElementChild as HTMLElement;
+    const pane = document.createElement("div");
+    pane.className = "react-flow__pane";
+    host.appendChild(pane);
+    const vpEl = document.createElement("div");
+    vpEl.className = "react-flow__viewport";
+    host.appendChild(vpEl);
+
+    const pd = (x: number, y: number) =>
+      pane.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true, cancelable: true, button: 0, buttons: 1, pointerId: 3, pointerType: "mouse", isPrimary: true, clientX: x, clientY: y }));
+    const pm = (x: number, y: number) =>
+      window.dispatchEvent(new PointerEvent("pointermove", { bubbles: true, cancelable: true, button: 0, buttons: 1, pointerId: 3, pointerType: "mouse", isPrimary: true, clientX: x, clientY: y }));
+    const pu = (x: number, y: number) =>
+      window.dispatchEvent(new PointerEvent("pointerup", { bubbles: true, cancelable: true, button: 0, buttons: 0, pointerId: 3, pointerType: "mouse", isPrimary: true, clientX: x, clientY: y }));
+
+    // 纯点击(无移动):不提交、不吞 click
+    let clicks = 0;
+    pane.addEventListener("click", () => { clicks += 1; });
+    act(() => { pd(100, 100); pu(100, 100); });
+    pane.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true }));
+    expect(clicks).toBe(1);
+    expect(setViewport).not.toHaveBeenCalled();
+
+    // 拖拽:直改 transform,松手 160ms 一次性提交;click 被吞
+    act(() => { pd(100, 100); });
+    act(() => { pm(140, 110); pm(180, 120); });
+    expect(vpEl.style.transform).toContain("translate(80px");
+    pane.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true }));
+    expect(clicks).toBe(1); // 被抑制
+    act(() => { pu(180, 120); });
+    act(() => { vi.advanceTimersByTime(160); });
+    expect(setViewport).toHaveBeenCalledTimes(1);
+    expect(setViewport.mock.calls[0][0]).toMatchObject({ x: 80, y: 20, zoom: 1 });
+    rafSpy.mockRestore();
+    vi.useRealTimers();
+  });
+
   it("gates loading during the wheel stream and ends after the settle tail", () => {
     vi.useFakeTimers();
     const api: SmoothWheelZoomApi = {

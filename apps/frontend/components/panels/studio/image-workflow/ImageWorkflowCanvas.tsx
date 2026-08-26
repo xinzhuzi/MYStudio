@@ -654,7 +654,7 @@ function ImageWorkflowFlowView({
         nodesDraggable
         nodesConnectable
         elementsSelectable
-        panOnDrag={[0, 1]}
+        panOnDrag={false}
         zoomOnScroll={false}
         zoomOnPinch
         zoomOnDoubleClick={false}
