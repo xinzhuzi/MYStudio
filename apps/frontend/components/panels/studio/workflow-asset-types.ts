@@ -84,6 +84,8 @@ export interface ProductionFlowModelInput {
   videoCandidates: VideoCandidate[];
   episodeId?: string;
   remotionQueueJobs?: RemotionRenderJobV1[];
+  /** 队列并发槽数(硬件感知);面板标签展示,缺省 1。 */
+  remotionQueueConcurrency?: number;
   remotionCurrentShotSlots?: RemotionCurrentSlotV1[];
   remotionQueueLoading?: boolean;
   remotionQueueError?: string;

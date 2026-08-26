@@ -98,6 +98,7 @@ import {
   createRemotionQueueFilePersistence,
   migrateQueueEventsFileIfNeeded,
   RemotionRenderQueue,
+  resolveHardwareQueueConcurrency,
 } from '@rendering/plugins/remotion/queue/remotion-render-queue'
 import { resolveRemotionRuntimeDir } from '@rendering/plugins/remotion/browser/remotion-runtime-manifest'
 import { RemotionChapterManifestService } from '@rendering/plugins/remotion/manifest/remotion-chapter-manifest-service'
@@ -1132,6 +1133,8 @@ migrateQueueEventsFileIfNeeded(
   path.join(remotionQueueEventsRoot, 'queue-events.jsonl'),
 )
 const remotionQueue = new RemotionRenderQueue({
+  // 硬件感知并发:每路渲染≈4核+8GB 预算,取约束最小值(M4 128G→3);缺省回落 1
+  concurrency: resolveHardwareQueueConcurrency(),
   persistence: createRemotionQueueFilePersistence({ stateRoot: remotionQueueStateRoot, eventsRoot: remotionQueueEventsRoot }),
   executor: {
     render: remotionShotRenderer.render.bind(remotionShotRenderer),

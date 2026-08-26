@@ -402,7 +402,7 @@ describe("workflow node component boundaries", () => {
 
     render(<RemotionShotPreview node={node} />);
 
-    expect(screen.getByText("StoryboardShot")).toBeTruthy();
+    expect(screen.getByText("单镜合成")).toBeTruthy();
     expect(screen.getByText("单镜 MP4")).toBeTruthy();
     expect(screen.queryByText("ChapterVideo")).toBeNull();
     expect(screen.queryByText("原生 Studio")).toBeNull();
@@ -435,9 +435,9 @@ describe("workflow node component boundaries", () => {
 
     render(<WorkbenchLanePreview node={node} />);
 
-    expect(screen.getByText("StoryboardShot MP4")).toBeTruthy();
+    expect(screen.getByText("单镜 MP4")).toBeTruthy();
     expect(screen.getByText("原生 Remotion Studio")).toBeTruthy();
-    expect(screen.getByText("ChapterVideo")).toBeTruthy();
+    expect(screen.getByText("全章合成")).toBeTruthy();
     expect(screen.getByText("章节 MP4")).toBeTruthy();
   });
 
@@ -1191,7 +1191,7 @@ describe("workflow node component boundaries", () => {
       actions: [
         {
           id: "enqueue-remotion-shots" as const,
-          label: "生成当前章分镜视频",
+          label: "一键生成所有视频",
           targetStage: "workbench" as const,
           showPromptInput: false,
         },
@@ -1219,7 +1219,7 @@ describe("workflow node component boundaries", () => {
       </ReactFlowProvider>,
     );
 
-    const button = screen.getByRole("button", { name: "生成当前章分镜视频" });
+    const button = screen.getByRole("button", { name: "一键生成所有视频" });
     expect(button).toBeTruthy();
     fireEvent.click(button);
 

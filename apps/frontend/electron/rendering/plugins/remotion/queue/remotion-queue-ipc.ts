@@ -37,6 +37,8 @@ export interface RemotionQueueScopeReply {
   chapterId: string;
   jobs: RemotionRenderJobV1[];
   currentShotSlots: RemotionCurrentSlotV1[];
+  /** 队列并发槽数(硬件感知;面板标签展示)。缺省 1(旧 preload 兼容)。 */
+  concurrency?: number;
 }
 
 export interface RemotionQueueEnqueueShotRequest {
@@ -102,7 +104,15 @@ export function decodeRemotionQueueScopeReply(value: unknown): RemotionQueueScop
       && slot.target.chapterId === value.chapterId,
   );
   if (currentShotSlots.length !== slotResult.value.length) return undefined;
-  return { projectId: value.projectId, chapterId: value.chapterId, jobs, currentShotSlots };
+  return {
+    projectId: value.projectId,
+    chapterId: value.chapterId,
+    jobs,
+    currentShotSlots,
+    ...(typeof value.concurrency === "number" && Number.isInteger(value.concurrency) && value.concurrency >= 1
+      ? { concurrency: value.concurrency }
+      : {}),
+  };
 }
 
 export function decodeRemotionQueueNotification(value: unknown): RemotionQueueNotification | undefined {

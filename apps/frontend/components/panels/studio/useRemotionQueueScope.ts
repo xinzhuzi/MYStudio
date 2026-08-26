@@ -10,6 +10,8 @@ export interface RemotionQueueScopeState {
   loading: boolean;
   /** True only after the desktop queue scope has answered for this chapter. */
   loaded: boolean;
+  /** 队列并发槽数(硬件感知,面板标签展示);旧 preload 缺省 1。 */
+  concurrency: number;
   error?: string;
 }
 
@@ -18,6 +20,7 @@ const EMPTY_SCOPE: RemotionQueueScopeState = {
   currentShotSlots: [],
   loading: false,
   loaded: false,
+  concurrency: 1,
 };
 
 /**
@@ -42,17 +45,21 @@ export function useRemotionQueueScope(
 
     const load = async (showLoading = false) => {
       const version = ++requestVersion;
-      if (showLoading) setState({ jobs: [], currentShotSlots: [], loading: true, loaded: false });
+      if (showLoading) setState({ ...EMPTY_SCOPE, loading: true });
       try {
         const scope = await queue.get({ projectId, chapterId });
         if (disposed || version !== requestVersion) return;
-        setState({ jobs: scope.jobs, currentShotSlots: scope.currentShotSlots, loading: false, loaded: true });
+        setState({
+          jobs: scope.jobs,
+          currentShotSlots: scope.currentShotSlots,
+          loading: false,
+          loaded: true,
+          concurrency: scope.concurrency ?? 1,
+        });
       } catch (error) {
         if (disposed || version !== requestVersion) return;
         setState({
-          jobs: [],
-          currentShotSlots: [],
-          loading: false,
+          ...EMPTY_SCOPE,
           loaded: true,
           error: error instanceof Error ? error.message : String(error),
         });

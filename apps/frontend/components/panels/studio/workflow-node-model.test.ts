@@ -477,7 +477,7 @@ describe("production workflow node model", () => {
     expect(model.nodes.find((node) => node.id === "remotionProduction")?.actions).toEqual([
       expect.objectContaining({
         id: "enqueue-remotion-shots",
-        label: "生成当前章分镜视频",
+        label: "一键生成所有视频",
         targetStage: "workbench",
         disabled: false,
       }),
@@ -600,7 +600,7 @@ describe("production workflow node model", () => {
     expect(model.nodes.find((node) => node.id === "remotionProduction")?.actions).toEqual([
       expect.objectContaining({
         id: "enqueue-remotion-shots",
-        label: "生成当前章分镜视频",
+        label: "一键生成所有视频",
         targetStage: "workbench",
         disabled: true,
       }),

@@ -118,6 +118,8 @@ export interface ProductionFlowNodeModel {
   workbenchTracks?: ProductionFlowWorkbenchTrack[];
   remotionShots?: ProductionFlowRemotionShot[];
   remotionSummary?: ProductionFlowRemotionSummary;
+  /** 队列并发槽数(硬件感知),预览标签展示。 */
+  remotionQueueConcurrency?: number;
   finalExportPath?: string;
   rendererSummary?: ProductionFlowRendererSummary;
   skills?: ProductionFlowNodeSkill[];
@@ -276,6 +278,8 @@ type ProductionFlowBuildContext = {
   workbenchTracks: ProductionFlowWorkbenchTrack[];
   remotionShots: ProductionFlowRemotionShot[];
   remotionSummary: ProductionFlowRemotionSummary;
+  /** 队列并发槽数(硬件感知),预览标签展示。 */
+  remotionQueueConcurrency?: number;
   directorPlanSkill: ProductionFlowNodeSkill | undefined;
   directorPlanSkills: ProductionFlowNodeSkill[];
   storyboardTableSkills: ProductionFlowNodeSkill[];
@@ -376,6 +380,7 @@ export function buildProductionFlowModel(
         reason: track.reason,
       })),
     remotionShots,
+    remotionQueueConcurrency: input.remotionQueueConcurrency ?? 1,
     remotionSummary: summarizeRemotionShots(
       remotionShots,
       input.remotionQueueLoading,
@@ -521,7 +526,7 @@ function buildRemotionProductionNode(ctx: ProductionFlowBuildContext): Productio
   return {
     id: "remotionProduction",
     label: "Remotion 单镜生产",
-    description: "将当前章节的每个分镜分别生成 StoryboardShot MP4；全部通过后才能进入章节工作台。",
+    description: "将当前章节的每个分镜分别生成一条单镜 MP4（自动带上旁白配音与音效）；全部通过后才能进入章节工作台。",
     status: summary.failed || summary.blocked
       ? "warning"
       : summary.running || summary.queued
@@ -543,6 +548,7 @@ function buildRemotionProductionNode(ctx: ProductionFlowBuildContext): Productio
     previewKind: "remotion-shots",
     remotionShots: ctx.remotionShots,
     remotionSummary: summary,
+    remotionQueueConcurrency: ctx.remotionQueueConcurrency,
     actions: [
       {
         id: "enqueue-remotion-shots",
@@ -550,7 +556,7 @@ function buildRemotionProductionNode(ctx: ProductionFlowBuildContext): Productio
           ? "分镜视频已完成"
           : summary.running || summary.queued
             ? "Remotion 生产中"
-            : "生成当前章分镜视频",
+            : "一键生成所有视频",
         targetStage: "workbench",
         disabled: ctx.chapterStoryboards.length === 0 || summary.chapterReady || Boolean(summary.running || summary.queued),
         showPromptInput: false,
@@ -582,7 +588,7 @@ function buildWorkbenchNode(ctx: ProductionFlowBuildContext): ProductionFlowNode
     previewTitle: "原生 Remotion Studio",
     previewLines: [
       `章节工作台 · ${summary.chapterReady ? "可进入" : "等待全部分镜成功"}`,
-      `${summary.succeeded}/${summary.total} StoryboardShot MP4 已就绪`,
+      `${summary.succeeded}/${summary.total} 单镜 MP4 已就绪`,
       "Studio Timeline / Preview / Inspector / Render",
       ...(ctx.rendererSummary.outputPath ? [`ChapterVideo · ${ctx.rendererSummary.outputPath}`] : []),
     ],

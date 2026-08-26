@@ -47,6 +47,7 @@ describe("Remotion queue IPC", () => {
       }),
       init: vi.fn(async () => undefined),
       getJobs: vi.fn(() => []),
+      getConcurrency: vi.fn(() => 3),
       enqueueShot: vi.fn(async () => ({ accepted: false, reason: "invalid", message: "invalid" })),
       retry: vi.fn(async (jobId: string) => ({ accepted: false, reason: "invalid", message: jobId })),
       cancel: vi.fn((jobId: string) => ({ success: true, jobId, canceled: true })),
@@ -59,7 +60,7 @@ describe("Remotion queue IPC", () => {
     await expect(electronState.handlers.get(REMOTION_QUEUE_GET_CHANNEL)!({}, { projectId: "../bad", chapterId: "chapter-1" }))
       .rejects.toThrow("projectId 无效");
     await expect(electronState.handlers.get(REMOTION_QUEUE_GET_CHANNEL)!({}, { projectId: "project-a", chapterId: "chapter-1" }))
-      .resolves.toEqual({ projectId: "project-a", chapterId: "chapter-1", jobs: [], currentShotSlots: [] });
+      .resolves.toEqual({ projectId: "project-a", chapterId: "chapter-1", jobs: [], currentShotSlots: [], concurrency: 3 });
     expect(queue.getJobs).toHaveBeenCalledWith({ projectId: "project-a", chapterId: "chapter-1" });
 
     await expect(electronState.handlers.get(REMOTION_QUEUE_ENQUEUE_SHOT_CHANNEL)!({}, { job: {}, plan: {}, extra: true }))

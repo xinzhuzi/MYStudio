@@ -55,6 +55,7 @@ export function registerRemotionQueueIpcHandlers(
       chapterId: request.chapterId,
       jobs,
       currentShotSlots,
+      concurrency: queue.getConcurrency(),
     };
   });
   ipcMain.handle(REMOTION_QUEUE_ENQUEUE_SHOT_CHANNEL, async (_event, payload: unknown) => {

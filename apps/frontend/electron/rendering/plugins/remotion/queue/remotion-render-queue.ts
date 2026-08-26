@@ -1,5 +1,6 @@
 import crypto from "node:crypto";
 import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import type { RemotionShotPlanV1 } from "@/lib/studio/remotion/shot-plan";
 import type { TimelineRenderPlan } from "@/types/editing";
@@ -36,7 +37,27 @@ import type {
 
 const QUEUE_SCHEMA_VERSION = 1 as const;
 const DEFAULT_CONCURRENCY = 1;
-const MAX_CONCURRENCY = 1;
+/**
+ * 队列并发上限(每路=一个 headless-shell 渲染进程,≈2GB 内存 + ≥4 逻辑核)。
+ * 并发>1 的语义:多个 shot job 同时渲染;chapter/chapter-scene job 与 shot
+ * 同池占槽。缺省仍为 1(单实例串行,测试/桥接兼容);装机 main 按硬件传入。
+ */
+export const MAX_QUEUE_CONCURRENCY = 4;
+
+/**
+ * 硬件感知队列并发:每路渲染按 4 逻辑核 + 8GB 内存预算,取两约束与上限的
+ * 最小值,下限 1。M4 128G(14 核)→ 3。
+ */
+export function resolveHardwareQueueConcurrency(
+  { cores, totalMemoryBytes }: { cores: number; totalMemoryBytes: number } = {
+    cores: os.availableParallelism(),
+    totalMemoryBytes: os.totalmem(),
+  },
+): number {
+  const byCores = Math.floor(cores / 4);
+  const byMemory = Math.floor(totalMemoryBytes / (8 * 1024 ** 3));
+  return Math.max(1, Math.min(MAX_QUEUE_CONCURRENCY, byCores, byMemory));
+}
 
 export interface RemotionQueueShotInput {
   kind: "shot";
@@ -147,15 +168,25 @@ export class RemotionRenderQueue {
   private sequence = 0;
   private activeProjectId: string | undefined;
   private activeChapterId: string | undefined;
-  private activeJobId: string | undefined;
+  /** 在跑 job(多槽并发);快照/恢复不持久化该集合,重启由 running→ready 兜底。 */
+  private readonly activeJobIds = new Set<string>();
+  /** 同步预留:drain 启动 runJob 到其落 active 之间存在异步间隙,防重复拾取。 */
+  private readonly reservedJobIds = new Set<string>();
   private pump: Promise<void> = Promise.resolve();
+  private readonly concurrencySlots: number;
 
   constructor(private readonly options: RemotionQueueOptions) {
     this.now = options.now ?? Date.now;
     const requested = options.concurrency ?? DEFAULT_CONCURRENCY;
-    if (!Number.isInteger(requested) || requested < 1 || requested > MAX_CONCURRENCY) {
-      throw new Error(`Remotion 队列并发必须在 1..${MAX_CONCURRENCY} 之间`);
+    if (!Number.isInteger(requested) || requested < 1 || requested > MAX_QUEUE_CONCURRENCY) {
+      throw new Error(`Remotion 队列并发必须在 1..${MAX_QUEUE_CONCURRENCY} 之间`);
     }
+    this.concurrencySlots = requested;
+  }
+
+  /** 队列并发槽数(装机=硬件感知值;面板标签透传展示)。 */
+  getConcurrency(): number {
+    return this.concurrencySlots;
   }
 
   async init(): Promise<void> {
@@ -205,6 +236,7 @@ export class RemotionRenderQueue {
     }
     const item: RemotionQueueShotInput = { kind: "shot", job: input.job, plan: input.plan };
     await this.commit(item);
+
     this.schedulePump();
     return { accepted: true, job: input.job, reused: false };
   }
@@ -415,7 +447,11 @@ export class RemotionRenderQueue {
     while (true) {
       const current = this.pump;
       await current;
-      if (current === this.pump && !this.activeJobId && !this.hasRunnableJob()) return;
+      if (current === this.pump && this.activeJobIds.size === 0 && this.reservedJobIds.size === 0 && !this.hasRunnableJob()) return;
+      // 多槽改造后 runJob 不再驻留 pump 链:pump 恒为已解决 promise,纯微任务
+      // 自旋会饿死事件循环(executor 的定时器/IO 永不触发→死锁)。每轮让出
+      // 一个宏任务,在跑 job 才能推进。
+      await new Promise((resolve) => setTimeout(resolve, 5));
     }
   }
 
@@ -447,94 +483,116 @@ export class RemotionRenderQueue {
 
   private schedulePump(): void {
     this.pump = this.pump.then(() => this.drain()).catch((error) => {
-      const jobId = this.activeJobId;
-      const item = jobId ? this.jobs.get(jobId) : undefined;
-      if (item) {
-        void this.fail(item, "queue-error", error instanceof Error ? error.message : String(error)).catch(() => undefined);
-      }
+      // runJob 自带错误处置且不 reject;此处仅兜底 drain 自身(如 transition 异常)
+      console.error("[remotion-queue] drain error:", error);
     });
   }
 
   private async drain(): Promise<void> {
-    if (!this.initialized || this.activeJobId || !this.activeProjectId || !this.activeChapterId) return;
-    const next = [...this.jobs.values()].find((item) => (item.kind === "shot" || item.kind === "chapter" || item.kind === "chapter-scene")
-      && item.job.projectId === this.activeProjectId
-      && targetChapterId(item.job.target) === this.activeChapterId
-      && ["ready", "queued"].includes(item.job.status));
-    if (!next) return;
-    const queued = transitionOrThrow(next.job, { status: "queued", at: this.now() });
-    await this.commit({ ...next, job: queued });
-    const running = transitionOrThrow(queued, { status: "running", at: this.now() });
-    await this.commit({ ...next, job: running });
-    this.activeJobId = running.jobId;
-    let result: RemotionShotRenderResult | RemotionChapterRenderResult | RemotionChapterSceneRenderResult;
+    if (!this.initialized || !this.activeProjectId || !this.activeChapterId) return;
+    while (this.activeJobIds.size + this.reservedJobIds.size < this.concurrencySlots) {
+      const next = [...this.jobs.values()].find((item) => (item.kind === "shot" || item.kind === "chapter" || item.kind === "chapter-scene")
+        && item.job.projectId === this.activeProjectId
+        && targetChapterId(item.job.target) === this.activeChapterId
+        && ["ready", "queued"].includes(item.job.status)
+        && !this.reservedJobIds.has(item.job.jobId));
+      if (!next) return;
+      this.reservedJobIds.add(next.job.jobId);
+      void this.runJob(next).finally(() => {
+        this.reservedJobIds.delete(next.job.jobId);
+        this.schedulePump();
+      });
+    }
+  }
+
+  /**
+   * 单 job 全生命周期(多槽并发下每个实例独立运行,永不 reject):
+   * 起跑转移(queued→running)→ executor 派发 → 成功落 slot/失败落 fail →
+   * 章依赖刷新。commit/transition 异常兜底为该 job 的 queue-error。
+   */
+  private async runJob(next: RemotionQueueStateItem): Promise<void> {
+    let running: RemotionRenderJobV1 | undefined;
     try {
-      if (next.kind === "shot") {
-        result = await this.options.executor.render(next.plan);
-      } else if (next.kind === "chapter-scene") {
-        if ("renderChapterScene" in this.options.executor && this.options.executor.renderChapterScene) {
-          result = await this.options.executor.renderChapterScene({
+      const queued = transitionOrThrow(next.job, { status: "queued", at: this.now() });
+      await this.commit({ ...next, job: queued });
+      running = transitionOrThrow(queued, { status: "running", at: this.now() });
+      await this.commit({ ...next, job: running });
+      this.activeJobIds.add(running.jobId);
+      // 预留使命完成(防 drain 同步启动到 active 落位间的重复拾取):落 active
+      // 即解除——否则与 active 双重计数,concurrency 槽实际只放行 ⌈N/2⌉ 个。
+      this.reservedJobIds.delete(running.jobId);
+      let result: RemotionShotRenderResult | RemotionChapterRenderResult | RemotionChapterSceneRenderResult;
+      try {
+        if (next.kind === "shot") {
+          result = await this.options.executor.render(next.plan);
+        } else if (next.kind === "chapter-scene") {
+          if ("renderChapterScene" in this.options.executor && this.options.executor.renderChapterScene) {
+            result = await this.options.executor.renderChapterScene({
+              plan: next.plan,
+              currentShotSlots: next.currentShotSlots,
+              expectedJobId: running.jobId,
+              sceneSegment: next.sceneSegment,
+            });
+          } else {
+            result = { success: false, jobId: running.jobId, canceled: false, error: "chapter-scene job 缺少 executor.renderChapterScene" };
+          }
+        } else if (next.plan && next.currentShotSlots
+          && "renderChapter" in this.options.executor
+          && this.options.executor.renderChapter) {
+          result = await this.options.executor.renderChapter({
             plan: next.plan,
             currentShotSlots: next.currentShotSlots,
             expectedJobId: running.jobId,
-            sceneSegment: next.sceneSegment,
           });
         } else {
-          result = { success: false, jobId: running.jobId, canceled: false, error: "chapter-scene job 缺少 executor.renderChapterScene" };
+          result = { success: false, jobId: running.jobId, canceled: false, error: "chapter job 缺少渲染输入或 executor.renderChapter" };
         }
-      } else if (next.plan && next.currentShotSlots
-        && "renderChapter" in this.options.executor
-        && this.options.executor.renderChapter) {
-        result = await this.options.executor.renderChapter({
-          plan: next.plan,
-          currentShotSlots: next.currentShotSlots,
-          expectedJobId: running.jobId,
-        });
-      } else {
-        result = { success: false, jobId: running.jobId, canceled: false, error: "chapter job 缺少渲染输入或 executor.renderChapter" };
+      } catch (error) {
+        result = { success: false, jobId: running.jobId, canceled: false, error: error instanceof Error ? error.message : String(error) };
       }
-    } catch (error) {
-      result = { success: false, jobId: running.jobId, canceled: false, error: error instanceof Error ? error.message : String(error) };
-    }
-    this.activeJobId = undefined;
-    const latest = this.jobs.get(running.jobId);
-    if (!latest) return;
-    if (result.success) {
-      if ("slot" in result) {
-        const slotValidation = validateRemotionCurrentSlot(result.slot);
-        if (!slotValidation.success || slotValidation.value.job.jobId !== running.jobId || slotValidation.value.job.status !== "succeeded") {
-          await this.fail(latest, "evidence-invalid", "Remotion current slot/evidence 未通过 identity 验证");
-        } else {
-          await this.commit({ ...latest, job: slotValidation.value.job });
-          const succeededChapterId = targetChapterId(latest.job.target);
-          if (this.options.onChapterJobSucceeded && succeededChapterId) {
-            try {
-              this.options.onChapterJobSucceeded({
-                projectId: latest.job.projectId,
-                chapterId: succeededChapterId,
-                jobId: latest.job.jobId,
-                outputPath: slotValidation.value.job.outputPath ?? "",
-              });
-            } catch {
-              // QC 回调失败不影响队列
+      this.activeJobIds.delete(running.jobId);
+      const latest = this.jobs.get(running.jobId);
+      if (!latest) return;
+      if (result.success) {
+        if ("slot" in result) {
+          const slotValidation = validateRemotionCurrentSlot(result.slot);
+          if (!slotValidation.success || slotValidation.value.job.jobId !== running.jobId || slotValidation.value.job.status !== "succeeded") {
+            await this.fail(latest, "evidence-invalid", "Remotion current slot/evidence 未通过 identity 验证");
+          } else {
+            await this.commit({ ...latest, job: slotValidation.value.job });
+            const succeededChapterId = targetChapterId(latest.job.target);
+            if (this.options.onChapterJobSucceeded && succeededChapterId) {
+              try {
+                this.options.onChapterJobSucceeded({
+                  projectId: latest.job.projectId,
+                  chapterId: succeededChapterId,
+                  jobId: latest.job.jobId,
+                  outputPath: slotValidation.value.job.outputPath ?? "",
+                });
+              } catch {
+                // QC 回调失败不影响队列
+              }
             }
+          }
+        } else {
+          // chapter-scene 成功：只 commit job（evidence 已由渲染器落盘旁车文件），
+          // 不发布 current slot、不触发章级 QC 回调。
+          const jobValidation = validateRemotionRenderJob(result.job);
+          if (!jobValidation.success || jobValidation.value.jobId !== running.jobId || jobValidation.value.status !== "succeeded") {
+            await this.fail(latest, "evidence-invalid", "chapter-scene job 未通过 identity 验证");
+          } else {
+            await this.commit({ ...latest, job: jobValidation.value });
           }
         }
       } else {
-        // chapter-scene 成功：只 commit job（evidence 已由渲染器落盘旁车文件），
-        // 不发布 current slot、不触发章级 QC 回调。
-        const jobValidation = validateRemotionRenderJob(result.job);
-        if (!jobValidation.success || jobValidation.value.jobId !== running.jobId || jobValidation.value.status !== "succeeded") {
-          await this.fail(latest, "evidence-invalid", "chapter-scene job 未通过 identity 验证");
-        } else {
-          await this.commit({ ...latest, job: jobValidation.value });
-        }
+        await this.fail(latest, result.canceled ? "canceled" : "render-failed", result.error);
       }
-    } else {
-      await this.fail(latest, result.canceled ? "canceled" : "render-failed", result.error);
+      await this.refreshChapterDependencies(latest.job.projectId, targetChapterId(latest.job.target));
+    } catch (error) {
+      if (running) this.activeJobIds.delete(running.jobId);
+      const item = this.jobs.get(next.job.jobId) ?? next;
+      await this.fail(item, "queue-error", error instanceof Error ? error.message : String(error)).catch(() => undefined);
     }
-    await this.refreshChapterDependencies(latest.job.projectId, targetChapterId(latest.job.target));
-    this.schedulePump();
   }
 
   private async fail(item: RemotionQueueStateItem, code: string, message: string): Promise<void> {

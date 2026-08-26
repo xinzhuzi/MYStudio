@@ -26,7 +26,7 @@ export function RemotionShotPreview({
     <div className="remotion-shot-preview nodrag nowheel max-h-[480px] space-y-3 overflow-y-auto overscroll-contain pr-1">
       <div className="flex items-center justify-between gap-2 rounded-md border border-info/25 bg-info/20/[0.06] px-3 py-2 text-[10px] text-info/80">
         <span className="font-semibold">当前章节 · {summary?.total ?? shots.length} 个分镜</span>
-        <span className="text-info/80/70">每个分镜独立生成一个 StoryboardShot MP4</span>
+        <span className="text-info/80/70">每个分镜单独渲染一条 MP4 短片</span>
       </div>
       <div
         aria-label="Remotion 分镜生产链路"
@@ -34,9 +34,9 @@ export function RemotionShotPreview({
       >
         <RemotionFlowStep label="分镜物料" detail="图像 · 音频 · 字幕" />
         <ArrowRight className="h-3.5 w-3.5 text-info/70" />
-        <RemotionFlowStep label="StoryboardShot" detail="逐镜 renderMedia" />
+        <RemotionFlowStep label="单镜合成" detail="逐镜渲染出片" />
         <ArrowRight className="h-3.5 w-3.5 text-info/70" />
-        <RemotionFlowStep label="单镜 MP4" detail="每镜独立输出" />
+        <RemotionFlowStep label="单镜 MP4" detail="每镜一条成片" />
       </div>
       <div className="grid grid-cols-4 gap-2 rounded-md border border-info/25 bg-info/20/[0.06] p-2 text-card-foreground">
         <RemotionSummaryCell label="分镜" value={`${summary?.total ?? shots.length}`} />
@@ -47,7 +47,7 @@ export function RemotionShotPreview({
       <div className="flex items-center justify-between gap-2 rounded-md border border-border bg-card px-3 py-2 text-[10px] text-muted-foreground">
         <span className="inline-flex items-center gap-1.5 font-medium text-info/80">
           <Gauge className="h-3.5 w-3.5" />
-          Remotion · StoryboardShot · 并发 1
+          Remotion 渲染 · 并发 {node.remotionQueueConcurrency ?? 1}
         </span>
         <span>{summary?.chapterReady ? "全部单镜 MP4 已就绪，可进入原生 Studio" : "全部单镜成功后才可进入原生 Studio"}</span>
       </div>
@@ -89,7 +89,7 @@ export function RemotionShotPreview({
                       type="button"
                       className="inline-flex h-5 items-center gap-1 rounded-md border border-info/35 bg-info/10 px-1.5 text-[9px] font-medium text-info/90 transition-colors hover:border-info/60 hover:bg-info/18 disabled:cursor-not-allowed disabled:opacity-45"
                       data-remotion-shot-render={shot.shotId}
-                      title="单镜生产:仅生成/重渲本镜 MP4(自动补齐该镜 TTS 与音频绑定)"
+                      title="单镜生产:仅生成/重渲本镜 MP4(自动补齐该镜配音与音效)"
                       disabled={shot.status === "queued"
                         || shot.status === "running"
                         || ((summary?.running ?? 0) + (summary?.queued ?? 0)) > 0}
@@ -117,25 +117,22 @@ export function RemotionShotPreview({
               </div>
             </div>
             <div className="mt-2 truncate text-[9px] text-muted-foreground" title={shot.outputPath ?? shot.error}>
-              {shot.error ? `失败：${shot.error}` : shot.outputPath ? `MP4 · ${basename(shot.outputPath)}` : shot.jobId ? `Job · ${shot.jobId}` : "等待提交 Remotion job"}
+              {shot.error ? `失败：${shot.error}` : shot.outputPath ? `MP4 · ${basename(shot.outputPath)}` : shot.jobId ? `任务 ${shot.jobId}` : "等待提交渲染任务"}
             </div>
             <div className="mt-1 flex flex-wrap gap-1 text-[9px]">
-              <span className="rounded border border-border px-1.5 py-0.5">修订 {shot.revision ?? 1}</span>
-              <span className={cn("rounded border px-1.5 py-0.5", shot.ttsStatus === "ready" ? "border-success/35 text-success/80" : "border-viz-glow/35 text-warning/80")}>
-                TTS {shot.ttsStatus === "ready" ? "已就绪" : shot.ttsStatus === "pending" ? "待生成" : shot.ttsStatus === "failed" ? "失败" : "缺失"}
+              <span className="rounded border border-border px-1.5 py-0.5">第 {shot.revision ?? 1} 版</span>
+              <span
+                className={cn("rounded border px-1.5 py-0.5", shot.ttsStatus === "ready" ? "border-success/35 text-success/80" : "border-viz-glow/35 text-warning/80")}
+                title="旁白配音是否已生成就绪"
+              >
+                旁白配音 {shot.ttsStatus === "ready" ? "已就绪" : shot.ttsStatus === "pending" ? "待生成" : shot.ttsStatus === "failed" ? "失败" : "缺失"}
               </span>
-              <span className="rounded border border-border px-1.5 py-0.5">音频绑定 {shot.shotAudioBindingCount ?? 0}</span>
-              <span className="rounded border border-border px-1.5 py-0.5" title={shot.ttsInputFingerprint ?? "未生成 TTS 指纹"}>
-                TTS 指纹 {shortFingerprint(shot.ttsInputFingerprint)}
-              </span>
-              <span className="rounded border border-border px-1.5 py-0.5" title={shot.bindingFingerprints?.join("\n") ?? "未生成音频绑定指纹"}>
-                绑定指纹 {shortFingerprint(shot.bindingFingerprints?.[0])}
-              </span>
+              <span className="rounded border border-border px-1.5 py-0.5">音轨 {shot.shotAudioBindingCount ?? 0} 条</span>
               <span className={cn("rounded border px-1.5 py-0.5", shot.sfxStatus === "ready" ? "border-success/35 text-success/80" : "border-border text-muted-foreground")}>
-                SFX {shot.sfxStatus === "ready" ? "已就绪" : "未引用"}
+                音效 {shot.sfxStatus === "ready" ? "已就绪" : "未添加"}
               </span>
               <span className={cn("rounded border px-1.5 py-0.5", shot.chapterSharedAudioReferenced ? "border-primary/35 text-primary/80" : "border-border text-muted-foreground")}>
-                章级 BGM/环境 {shot.chapterSharedAudioReferenced ? "仅引用" : "未配置"}
+                背景 BGM {shot.chapterSharedAudioReferenced ? "全章共用" : "未配置"}
               </span>
               {shot.duplicateMixRisk ? <span className="rounded border border-destructive/45 px-1.5 py-0.5 text-destructive/80">重复混音风险</span> : null}
             </div>
@@ -154,11 +151,6 @@ export function RemotionShotPreview({
       ) : null}
     </div>
   );
-}
-
-function shortFingerprint(value: string | undefined) {
-  if (!value) return "—";
-  return value.length > 12 ? `${value.slice(0, 8)}…${value.slice(-4)}` : value;
 }
 
 function RemotionFlowStep({ label, detail }: { label: string; detail: string }) {

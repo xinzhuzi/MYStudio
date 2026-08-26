@@ -382,7 +382,7 @@ export function auditVisibleProductionCanvasVideo({ productionCanvasVideo, expec
   if (value.enabled !== true) issues.push(issue("production-canvas.disabled", "production-canvas-video was not enabled"));
   if (value.stageClicked !== true) issues.push(issue("production-canvas.stage", "storyboard stage was not clicked"));
   if (value.clicked !== true) issues.push(issue("production-canvas.click", "production node action was not clicked"));
-  if (value.clickedText !== "生成当前章分镜视频") {
+  if (value.clickedText !== "一键生成所有视频" && value.clickedText !== "生成当前章分镜视频") {
     issues.push(issue("production-canvas.button-text", `unexpected button text: ${value.clickedText}`));
   }
   if (!Number.isFinite(startedAtMs) || startedAtMs <= 0) {

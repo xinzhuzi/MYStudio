@@ -1127,6 +1127,19 @@ describe("desktop build scripts", () => {
     }
   });
 
+  it("restarts a smoke store read when the workflow manifest changes mid-read", () => {
+    const workflowRunner = readBuildFile("build/smoke/run-visible-workflow-smoke.mjs");
+    const workflowStoreReader = workflowRunner.slice(
+      workflowRunner.indexOf("const readWorkflowStore = async () =>"),
+      workflowRunner.indexOf("const inspectProjectData = async () =>"),
+    );
+
+    expect(workflowStoreReader).toContain("for (let attempt = 0; attempt < 3; attempt += 1)");
+    expect(workflowStoreReader).toContain("const latestManifestRaw = await window.fileStorage?.getItem?.(manifestKey)");
+    expect(workflowStoreReader).toContain("latestManifestRaw !== manifestRaw");
+    expect(workflowStoreReader).toContain("throw readError");
+  });
+
   it("fails closed when a background focus sample cannot be collected", async () => {
     const focusModuleUrl = pathToFileURL(
       resolve(appsRoot, "build/smoke/smoke-focus.mjs"),
@@ -1218,8 +1231,34 @@ describe("desktop build scripts", () => {
     expect(runnerScript).toContain(
       "process.env.MYSTUDIO_SMOKE_STEP_DELAY_MS || defaultStepDelayMs",
     );
+    expect(runnerScript).toContain("MYSTUDIO_VISIBLE_WORKFLOW_TIMEOUT_MS");
+    expect(runnerScript).toContain(
+      "const realProjectWorkflowBaseTimeoutMs = 180_000 + 20 * safeStepDelayMs",
+    );
+    expect(runnerScript).toContain(
+      "MYSTUDIO_VISIBLE_WORKFLOW_TIMEOUT_MS must be at least",
+    );
+    expect(runnerScript).toContain("safeWorkflowTimeoutMs");
+    expect(runnerScript.match(/let stageMenuItem = await waitFor/g)).toHaveLength(2);
+    expect(runnerScript).toContain(
+      "document.querySelectorAll('[role=\"menuitem\"]')",
+    );
+    expect(runnerScript.match(/new KeyboardEvent\('keydown',/g)).toHaveLength(2);
+    expect(runnerScript.match(/key: 'ArrowDown'/g)).toHaveLength(2);
+    expect(runnerScript).toContain(
+      "getAttribute('data-workflow-active-stage') === stage.id",
+    );
+    expect(runnerScript).toContain("工作流阶段菜单未出现");
+    expect(runnerScript).toContain("工作流阶段切换未生效");
+    expect(
+      runnerScript.match(
+        /const changed = await window\.mystudioWorkflowSmoke\?\.setWorkflowStage\?\.\(stage\.id\)/g,
+      ),
+    ).toHaveLength(2);
     expect(runnerScript).toContain("ensureAppIsForeground");
     expect(runnerScript).toContain("getFrontmostApplicationName");
+    expect(runnerScript).not.toContain("nudgeAppToForeground");
+    expect(runnerScript).toContain('const focusWindowStatement = focusWindow ? "window.focus();" : ""');
     expect(runnerScript).toContain("[visible-run] stage");
     expect(runnerScript).toContain("frontmostApp");
     expect(runnerScript).toContain("writeVisibleRunReport");
@@ -1277,6 +1316,8 @@ describe("desktop build scripts", () => {
     expect(runnerScript).toContain("inspectClonedProjectData(userDataDir, realProjectRun?.projectId)");
     expect(runnerScript).toContain("mystudio-project-workflow-run-");
     expect(runnerScript).toContain("copyProjectDirectoryIfExists");
+    expect(runnerScript).toContain('const sourceSkillsDir = resolve(projectDir, "skills")');
+    expect(runnerScript).toContain("copyProjectDirectoryIfExists(sourceSkillsDir, clonedSkillsDir)");
     expect(runnerScript).toContain("repairMissingCharacterThumbnails");
     expect(runnerScript).toContain("readRealProjectRoleAssets");
     expect(runnerScript).toContain("cloneAssetReferenceRepairs");
@@ -1327,6 +1368,8 @@ describe("desktop build scripts", () => {
     expect(runnerScript).toContain("hasNoVisibleDuplicateGeneratedPromptPanel");
     expect(runnerScript).toContain("data-toonflow-generated-prompt-panel");
     expect(runnerScript).toContain("hasEditableImageWorkflowPrompt");
+    expect(runnerScript).toContain("hasRealProjectStoryboardPromptContract");
+    expect(runnerScript).not.toContain("hasRealProjectStoryboardPromptStyle");
     expect(runnerScript).toMatch(
       /const hasRealProjectDerivativePromptStyle = promptTextValues\.some\(\(value\) =>[\s\S]*?\/gongbi-v\[23\]\/\.test\(value\)[\s\S]*?value\.includes\('连续白描和铁线描'\)[\s\S]*?value\.includes\('3D\/CGI'\)/,
     );
@@ -1344,6 +1387,7 @@ describe("desktop build scripts", () => {
     expect(runnerScript).toContain("realProject.storyboardsWithMediaPath !== expectedStoryboards");
     expect(runnerScript).toContain("realProject.storyboardImageWorkflowsReady !== realProject.storyboardImageWorkflows");
     expect(runnerScript).toContain("realProject.derivedImageWorkflowsReady < 3");
+    expect(runnerScript).toContain("diskRealProject.projectSkillsReady !== true");
     expect(runnerScript).toContain("productionTrackIds.has(candidate.trackId)");
     expect(runnerScript).not.toContain("storyboards >= 100");
     expect(runnerScript).not.toContain("storyboards < 100");
@@ -1363,6 +1407,26 @@ describe("desktop build scripts", () => {
     expect(runnerScript).toContain("visible workflow focus evaluation returned no serializable value");
     expect(runnerScript).toContain('typeof pageFocus.result.value.windowVisibility !== "string"');
     expect(runnerScript).toContain('typeof pageFocus.result.value.documentHasFocus !== "boolean"');
+    const visibleRunFunction = runnerScript.slice(
+      runnerScript.indexOf("async function runVisibleWorkflow"),
+      runnerScript.indexOf("function visibleWorkflowExpression"),
+    );
+    expect(visibleRunFunction).toContain(
+      'await ensureAppIsForeground(childPid, "after workflow clicks")',
+    );
+    expect(visibleRunFunction).toContain(
+      'if (!runInBackground) {\n      await send("Page.bringToFront");',
+    );
+    expect(visibleRunFunction).toContain(
+      'const finalFrontmostApp = runInBackground\n      ? ""\n      : await ensureAppIsForeground',
+    );
+    expect(visibleRunFunction).toContain("const pageFocus = await samplePageFocus({");
+    expect(visibleRunFunction).toContain("requireVisibleAndFocused: !runInBackground");
+    expect(visibleRunFunction.match(/!runInBackground,/g)).toHaveLength(2);
+    expect(visibleRunFunction.indexOf("after workflow clicks")).toBeLessThan(
+      visibleRunFunction.indexOf("const pageFocus = await samplePageFocus({"),
+    );
+    expect(runnerScript).toContain('const frontmostApp = runInBackground ? "" : result.frontmostApp');
     expect(runnerScript.match(/node\?\.textContent/g)).toHaveLength(2);
     expect(runnerScript).toContain("arg.description");
     expect(runnerScript).toContain("[visible-run] console.error");
@@ -1416,7 +1480,7 @@ describe("desktop build scripts", () => {
     expect(runnerScript).toContain("runProductionCanvasVideoFlow");
     expect(runnerScript).toContain("auditVisibleProductionCanvasVideo");
     expect(runnerScript).toContain("[data-flow-node-id=\"remotionProduction\"]");
-    expect(runnerScript).toContain("生成当前章分镜视频");
+    expect(runnerScript).toContain("一键生成所有视频");
     expect(runnerScript).toContain("productionCanvasVideo");
     expect(runnerScript).toContain("preClickReviewCounts");
     expect(runnerScript).toContain("window.remotionQueue?.get");
@@ -1426,13 +1490,34 @@ describe("desktop build scripts", () => {
     expect(runnerScript).toContain("workbenchReady");
     expect(runnerScript).toContain("totalStoryboardDuration");
     expect(runnerScript).toContain("totalTrackDuration");
-    expect(runnerScript).toContain("realProject.totalStoryboardDuration > 180");
-    expect(runnerScript).toContain("realProject.totalTrackDuration > 180");
+    expect(runnerScript).toContain("realProject.totalStoryboardDuration <= 0");
+    expect(runnerScript).toContain(
+      "realProject.totalTrackDuration !== realProject.totalStoryboardDuration",
+    );
+    expect(runnerScript).not.toContain("realProject.totalStoryboardDuration > 180");
+    expect(runnerScript).not.toContain("realProject.totalTrackDuration > 180");
+    expect(runnerScript).toContain("diskRealProject.storyboardImageWorkflowsReady !== expectedStoryboards");
+    expect(runnerScript).toContain("diskRealProject.derivedAssets < 3");
     expect(runnerScript).toContain("buttonTexts");
     expect(runnerScript).toContain("stage switcher was not visible");
     expect(skill).toContain("npm run smoke:workflow:run:project");
     expect(skill).toContain("真实《道劫》第一章节项目");
     expect(skill).toContain("不是 empty smoke template");
+  });
+
+  it("waits until the real storyboard image workflow detail is ready", () => {
+    const runnerScript = readBuildFile("build/smoke/run-visible-workflow-smoke.mjs");
+    const storyboardDetail = runnerScript.slice(
+      runnerScript.indexOf("const openRealProjectStoryboardImageWorkflowDetail"),
+      runnerScript.indexOf("await waitFor(() => normalize(document.body).includes(projectName)"),
+    );
+
+    expect(storyboardDetail).toContain("if (!clicked) {\n        return {");
+    expect(storyboardDetail).toContain(
+      "lastDetail = evidence;\n        return evidence.ready ? evidence : null;",
+    );
+    expect(storyboardDetail.indexOf("lastDetail = evidence;"))
+      .toBeLessThan(storyboardDetail.indexOf("return evidence.ready ? evidence : null;"));
   });
 
   it("rejects the one-click auto-video runner outside a real project clone", () => {

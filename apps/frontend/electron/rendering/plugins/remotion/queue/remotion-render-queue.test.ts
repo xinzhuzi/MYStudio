@@ -15,6 +15,7 @@ import {
   type RemotionQueueEventV1,
   type RemotionQueuePersistence,
   type RemotionQueueShotInput,
+  resolveHardwareQueueConcurrency,
 } from "./remotion-render-queue";
 import { createReadyShotJob } from "@/lib/studio/remotion/remotion-job-factory";
 
@@ -179,6 +180,42 @@ function successChapterSlot(job: RemotionRenderJobV1): RemotionCurrentSlotV1 {
 }
 
 describe("RemotionRenderQueue", () => {
+  it("resolveHardwareQueueConcurrency 按核数/内存约束取最小并夹取 1..4", () => {
+    expect(resolveHardwareQueueConcurrency({ cores: 4, totalMemoryBytes: 8 * 1024 ** 3 })).toBe(1);
+    expect(resolveHardwareQueueConcurrency({ cores: 14, totalMemoryBytes: 128 * 1024 ** 3 })).toBe(3);
+    expect(resolveHardwareQueueConcurrency({ cores: 64, totalMemoryBytes: 512 * 1024 ** 3 })).toBe(4);
+    expect(resolveHardwareQueueConcurrency({ cores: 2, totalMemoryBytes: 4 * 1024 ** 3 })).toBe(1);
+  });
+
+  it("并发 3 时同时渲染三个 shot 且全部成功落 slot", async () => {
+    const persistence = new MemoryPersistence();
+    const inputs = await Promise.all([makeInput(0), makeInput(1), makeInput(2)]);
+    const running: string[] = [];
+    let maxRunning = 0;
+    const gate = { resolve: () => {} };
+    const queue = new RemotionRenderQueue({
+      persistence,
+      concurrency: 3,
+      executor: {
+        async render(plan) {
+          running.push(plan.shot.shotId);
+          maxRunning = Math.max(maxRunning, running.length);
+          await new Promise((resolve) => setTimeout(resolve, 20));
+          running.pop();
+          const job = queue.getJobs({ projectId: plan.projectId, chapterId: plan.chapterId }).find((candidate) => candidate.target.kind === "shot" && candidate.target.shotId === plan.shot.shotId)!;
+          return { success: true, slot: successSlot(job) };
+        },
+        cancel: (jobId) => ({ success: true, jobId, canceled: true }),
+      },
+    });
+    expect(queue.getConcurrency()).toBe(3);
+    gate.resolve();
+    for (const input of inputs) await queue.enqueueShot(input);
+    await queue.waitForIdle();
+    expect(maxRunning).toBe(3);
+    expect(queue.getJobs({ projectId: "project-a", chapterId: "chapter-001" }).every((job) => job.status === "succeeded")).toBe(true);
+  });
+
   it("runs one shot at a time, persists transitions, and accepts a verified current slot", async () => {
     const persistence = new MemoryPersistence();
     const inputs = await Promise.all([makeInput(0), makeInput(1)]);
