@@ -173,6 +173,48 @@ describe("useSmoothWheelZoom", () => {
     vi.useRealTimers();
   });
 
+  it("leaves Shift+drag to React Flow selection and never pans (框选手势不打架)", () => {
+    vi.useFakeTimers();
+    const setViewport = vi.fn();
+    const api: SmoothWheelZoomApi = { getViewport: () => ({ x: 0, y: 0, zoom: 1 }), setViewport };
+    const { container } = render(<Harness api={api} />);
+    const host = container.firstElementChild as HTMLElement;
+    const pane = document.createElement("div");
+    pane.className = "react-flow__pane";
+    host.appendChild(pane);
+    act(() => {
+      pane.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true, cancelable: true, button: 0, buttons: 1, shiftKey: true, pointerId: 9, pointerType: "mouse", isPrimary: true, clientX: 100, clientY: 100 }));
+      window.dispatchEvent(new PointerEvent("pointermove", { bubbles: true, cancelable: true, button: 0, buttons: 1, shiftKey: true, pointerId: 9, pointerType: "mouse", isPrimary: true, clientX: 200, clientY: 150 }));
+      window.dispatchEvent(new PointerEvent("pointerup", { bubbles: true, cancelable: true, button: 0, buttons: 0, shiftKey: true, pointerId: 9, pointerType: "mouse", isPrimary: true, clientX: 200, clientY: 150 }));
+    });
+    act(() => { vi.advanceTimersByTime(300); });
+    expect(setViewport).not.toHaveBeenCalled();
+    vi.useRealTimers();
+  });
+
+  it("keeps middle-button pan (图像工作流原生辅助键位)", () => {
+    vi.useFakeTimers();
+    const setViewport = vi.fn();
+    const api: SmoothWheelZoomApi = { getViewport: () => ({ x: 0, y: 0, zoom: 1 }), setViewport };
+    const { container } = render(<Harness api={api} />);
+    const host = container.firstElementChild as HTMLElement;
+    const pane = document.createElement("div");
+    pane.className = "react-flow__pane";
+    host.appendChild(pane);
+    const vpEl = document.createElement("div");
+    vpEl.className = "react-flow__viewport";
+    host.appendChild(vpEl);
+    act(() => {
+      pane.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true, cancelable: true, button: 1, buttons: 4, pointerId: 11, pointerType: "mouse", isPrimary: true, clientX: 100, clientY: 100 }));
+      window.dispatchEvent(new PointerEvent("pointermove", { bubbles: true, cancelable: true, button: 1, buttons: 4, pointerId: 11, pointerType: "mouse", isPrimary: true, clientX: 160, clientY: 130 }));
+      window.dispatchEvent(new PointerEvent("pointerup", { bubbles: true, cancelable: true, button: 1, buttons: 0, pointerId: 11, pointerType: "mouse", isPrimary: true, clientX: 160, clientY: 130 }));
+    });
+    act(() => { vi.advanceTimersByTime(160); });
+    expect(setViewport).toHaveBeenCalledTimes(1);
+    expect(setViewport.mock.calls[0][0]).toMatchObject({ x: 60, y: 30 });
+    vi.useRealTimers();
+  });
+
   it("gates loading during the wheel stream and ends after the settle tail", () => {
     vi.useFakeTimers();
     const api: SmoothWheelZoomApi = {

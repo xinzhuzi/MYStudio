@@ -145,7 +145,10 @@ export function useSmoothWheelZoom(
     };
 
     const onPointerDown = (event: PointerEvent) => {
-      if (event.button !== 0 || !event.isPrimary) return;
+      // Shift=RF 框选手势(selectionKeyCode),不能同时平移;中键=图像工作流
+      // 原生支持的辅助平移键位,保留(button 0/1)。
+      if (event.shiftKey) return;
+      if ((event.button !== 0 && event.button !== 1) || !event.isPrimary) return;
       // 不 preventDefault/stopPropagation:RF 的 pane 点击(取消选中)等
       // 内建交互必须存活;panOnDrag={false} 已让 RF 不处理 pane 拖拽。
       if (!paneAt(event.target)) return;
