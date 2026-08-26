@@ -220,6 +220,18 @@ export function useSmoothWheelZoom(
       window.removeEventListener("pointercancel", onPointerUp, { capture: true });
       if (rafId !== null) cancelAnimationFrame(rafId);
       if (settleTimer !== undefined) clearTimeout(settleTimer);
+      // 拖拽/滚轮中途卸载(切阶段等):尽力补交未提交视口,消除"回跳"边缘;
+      // 实例若已随画布销毁则静默放弃(不会比不补交更糟)。
+      const commit = pending;
+      pending = null;
+      pendingBase = null;
+      if (commit) {
+        try {
+          apiRef.current?.setViewport(commit);
+        } catch {
+          // 实例已销毁:无操作
+        }
+      }
     };
   }, [containerRef, minZoom, maxZoom]);
 }
