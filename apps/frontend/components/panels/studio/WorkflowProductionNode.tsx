@@ -74,6 +74,12 @@ export const NODE_SIZE_CLASS = {
   workbench: "w-[760px]",
 } satisfies Record<ProductionFlowNodeId, string>;
 
+/** 文档型节点:指针卡按钮打开编辑对话框(而非跳阶段),按钮自定义文案 */
+const WRITABLE_DOC_NODE_LABELS: Partial<Record<ProductionFlowNodeId, string>> = {
+  scriptPlan: "查看规划",
+  storyboardTable: "查看分镜表",
+};
+
 const WRITABLE_NODE_IDS: readonly ProductionFlowNodeId[] = [
   "script",
   "scriptPlan",
@@ -142,15 +148,15 @@ export const ProductionFlowNode = memo(function ProductionFlowNode({ data }: Nod
     <NodePointerCard
       node={data.node}
       onEnter={
-        // 导演规划等纯文档节点:打开编辑对话框查看全文(原始逻辑);
+        // 文档型节点(导演规划/分镜表):打开编辑对话框查看全文(原始逻辑);
         // 其余节点:跳转 targetStage(流程推进)
-        data.node.id === "scriptPlan" && data.onNodeEdit
+        WRITABLE_DOC_NODE_LABELS[data.node.id] && data.onNodeEdit
           ? () => data.onNodeEdit?.(data.node.id)
           : data.onStageChange
             ? () => data.onStageChange?.(data.node.targetStage)
             : undefined
       }
-      enterLabel={data.node.id === "scriptPlan" ? "查看规划" : undefined}
+      enterLabel={WRITABLE_DOC_NODE_LABELS[data.node.id] ?? undefined}
     />
   );
   const runNodeAction = useCallback(
