@@ -24,7 +24,7 @@ export function PreviewImage({
   const [failed, setFailed] = useState(false);
   // 交互门闸:拖拽/滑动/缩放进行中不挂 <img>(零请求零解码),静止 1s 后
   // 才开始加载;粘性放行,已显示的图交互期间不卸载不闪烁。
-  const revealed = useRevealWhenSettled();
+  const revealed = useRevealWhenSettled(toPreviewSrc(src));
   if (!revealed) {
     return (
       <div

@@ -48,6 +48,18 @@ describe("PreviewImage interaction gate", () => {
     );
   });
 
+  it("re-mounting a previously loaded src shows the img immediately, even while gated (源级粘性,不重复等待)", async () => {
+    // 首次:闸开加载
+    const first = render(<PreviewImage src="project-file://p/seen.png" alt="首次" />);
+    expect(document.querySelector("img")).toBeTruthy();
+    first.unmount();
+    // 关闸后全新挂载同源:必须立即可见(不再占位/不再等 5s)
+    act(() => interactionDeferBegin());
+    render(<PreviewImage src="project-file://p/seen.png" alt="复见" />);
+    expect(document.querySelector("img")).toBeTruthy();
+    expect(document.querySelector("[data-preview-image-deferred]")).toBeNull();
+  });
+
   it("keeps already-revealed images mounted when the gate closes again (sticky reveal)", async () => {
     render(<PreviewImage src="project-file://p/d.png" alt="粘性" />);
     expect(document.querySelector("img")).toBeTruthy();

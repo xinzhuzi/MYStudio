@@ -26,7 +26,7 @@ export function LocalImage({ src, fallback, className, alt, resolutionBadge = fa
   const [currentSrc, setCurrentSrc] = useState(normalizeImageSrc(src));
   // 交互门闸:拖拽/滑动/缩放期间不挂 <img>(零请求零解码),静止后加载;
   // 粘性放行,已显示的图不闪烁卸载(未接闸场景默认开闸,行为不变)。
-  const revealed = useRevealWhenSettled();
+  const revealed = useRevealWhenSettled(currentSrc);
 
   const handleError = () => {
     if (!error && fallback) {

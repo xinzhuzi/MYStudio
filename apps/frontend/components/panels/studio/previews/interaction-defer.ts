@@ -91,6 +91,7 @@ export function __resetInteractionDeferForTests() {
   releaseTimer = undefined;
   active = false;
   settling = false;
+  revealedSources.clear();
   notify();
 }
 
@@ -113,15 +114,29 @@ export function useInteractionDeferPhase(): "idle" | "active" | "settling" {
 }
 
 /**
- * 粘性显示:交互中挂载的组件保持占位,直到首个稳定窗口出现后永久放行
- * (此后闸再关也不回退——已加载内容不闪烁卸载,只拦「新加载」)。
+ * 会话级已放行源登记(用户裁定 2026-08-26:「已加载的不要再加载,不重复
+ * 做做好了的」):一旦某图源放行过,本会话内任何重新挂载立即可见——不再
+ * 占位、不再等 5s、不再发起请求(浏览器缓存直接命中)。
  */
-export function useRevealWhenSettled(): boolean {
+const revealedSources = new Set<string>();
+
+export function isInteractionSourceRevealed(src: string): boolean {
+  return revealedSources.has(src);
+}
+
+/**
+ * 粘性显示(源级):src 已放行过 → 立即 true;否则等首个稳定窗口。
+ * 不传 src = 仅闸门级粘性(组件实例语义,视频等少量场景)。
+ */
+export function useRevealWhenSettled(src?: string): boolean {
   const settled = useInteractionSettled();
-  const [revealed, setRevealed] = useState(settled);
+  const [revealed, setRevealed] = useState(() => !src || revealedSources.has(src) || settled);
   useEffect(() => {
-    if (settled) setRevealed(true);
-  }, [settled]);
+    // 闸门开或源已知 → 放行并登记;src 变化(换图/回退图)自动重估
+    const next = !src || revealedSources.has(src) || settled;
+    if (next && src) revealedSources.add(src);
+    setRevealed((previous) => (previous === next ? previous : next));
+  }, [settled, src]);
   return revealed;
 }
 
