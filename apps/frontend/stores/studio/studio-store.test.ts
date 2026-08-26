@@ -942,6 +942,125 @@ describe("studio workflow store", () => {
     });
   });
 
+  it("writes R1 parent anchors for derived asset images and never anchors parent assets", () => {
+    const characterId = useCharacterLibraryStore.getState().addCharacter({
+      name: "晏燎",
+      description: "少年修士",
+      visualTraits: "ink wash xianxia teen",
+      thumbnailUrl: "project-file://daojie/assets/parent-char.png",
+      views: [],
+      variations: [
+        { id: "var-anchor", name: "战损", visualPrompt: "破衣血痕" },
+      ],
+    });
+    useStudioStore.setState({
+      continuityAssetVersions: [{
+        assetId: characterId,
+        versionId: `${characterId}:v1`,
+        assetKind: "character" as const,
+        label: "基础形象",
+        referenceImagePaths: [],
+        structurallyComplete: true,
+        contentFingerprint: "char-approved-fp",
+        approved: true,
+        approval: { status: "approved", reviewer: "human", reviewedAt: 10, evidencePaths: [], contentFingerprint: "approval-fp" },
+        source: "test",
+      }],
+    });
+    const parentSceneId = useSceneStore.getState().addScene({
+      name: "义庄",
+      location: "义庄",
+      time: "夜",
+      atmosphere: "阴冷",
+      referenceImage: "project-file://daojie/assets/parent-scene.png",
+    });
+    const variantSceneId = useSceneStore.getState().addScene({
+      name: "义庄夜雨",
+      location: "义庄",
+      time: "夜",
+      atmosphere: "雨",
+      parentSceneId,
+      viewpointName: "夜雨视角",
+    });
+    const parentProp = usePropsLibraryStore.getState().addProp({
+      name: "木牌",
+      description: "父道具",
+      imageUrl: "project-file://daojie/assets/parent-prop.png",
+      folderId: null,
+    });
+    const derivedProp = usePropsLibraryStore.getState().addProp({
+      name: "裂纹木牌",
+      description: "衍生道具",
+      imageUrl: "",
+      folderId: null,
+      isDerivative: true,
+      parentId: parentProp.id,
+    });
+
+    const graphs = [
+      { graph: createImageWorkflowGraph({
+        id: "asset-flow-character-anchor",
+        name: "角色衍生图",
+        target: { kind: "asset", assetType: "character", parentId: characterId, id: "var-anchor" },
+        createdAt: 7000,
+      }), nodeId: "gen-character-anchor" },
+      { graph: createImageWorkflowGraph({
+        id: "asset-flow-scene-anchor",
+        name: "场景衍生图",
+        target: { kind: "asset", assetType: "scene", id: variantSceneId },
+        createdAt: 7100,
+      }), nodeId: "gen-scene-anchor" },
+      { graph: createImageWorkflowGraph({
+        id: "asset-flow-prop-anchor",
+        name: "道具衍生图",
+        target: { kind: "asset", assetType: "prop", parentId: parentProp.id, id: derivedProp.id },
+        createdAt: 7200,
+      }), nodeId: "gen-prop-anchor" },
+      // 父场景自身落图(无 parentSceneId):不应写锚
+      { graph: createImageWorkflowGraph({
+        id: "asset-flow-scene-parent",
+        name: "父场景图",
+        target: { kind: "asset", assetType: "scene", id: parentSceneId },
+        createdAt: 7300,
+      }), nodeId: "gen-scene-parent" },
+    ].map(({ graph, nodeId }) => {
+      let mutated = addGeneratedImageNode(graph, {
+        id: nodeId,
+        prompt: "anchor test",
+        position: { x: 620, y: 120 },
+        createdAt: graph.createdAt + 1,
+      });
+      mutated = setGeneratedImageResult(mutated, nodeId, {
+        imageUrl: `project-file://daojie/workflow-images/${nodeId}/out.png`,
+        generatedAt: graph.createdAt + 2,
+      });
+      useStudioStore.getState().upsertImageWorkflow(mutated);
+      useStudioStore
+        .getState()
+        .applyImageWorkflowResultToAsset(mutated.target, mutated.id, nodeId);
+      return mutated;
+    });
+    expect(graphs).toHaveLength(4);
+
+    // 角色衍生:锚=父当前缩略图路径 + 最新批准连续性指纹
+    expect(useCharacterLibraryStore.getState().getVariationById(characterId, "var-anchor")).toMatchObject({
+      parentAnchor: {
+        parentMediaPath: "project-file://daojie/assets/parent-char.png",
+        parentContinuityFingerprint: "char-approved-fp",
+      },
+    });
+    // 场景衍生:记录带 parentSceneId 才是衍生,锚=父场景当前参考图
+    expect(useSceneStore.getState().getSceneById(variantSceneId)).toMatchObject({
+      parentAnchor: { parentMediaPath: "project-file://daojie/assets/parent-scene.png" },
+    });
+    // 道具衍生:记录带 parentId 才是衍生,锚=父道具当前图
+    expect(usePropsLibraryStore.getState().getPropById(derivedProp.id)).toMatchObject({
+      parentAnchor: { parentMediaPath: "project-file://daojie/assets/parent-prop.png" },
+    });
+    // 父资产自身落图不写锚
+    expect(useSceneStore.getState().getSceneById(parentSceneId)?.parentAnchor).toBeUndefined();
+  });
+
   it("replaces stale storyboard rows for the same episode without losing existing media", () => {
     const store = useStudioStore.getState();
 

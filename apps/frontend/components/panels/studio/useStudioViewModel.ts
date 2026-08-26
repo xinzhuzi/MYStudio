@@ -97,6 +97,11 @@ export function useStudioViewModel() {
   const directorPlan = scriptPlans.find(
     (item) => item.episodeId === productionEpisodeId,
   );
+  // 衍生模型/资产库匹配名单只看当前章(与 directorPlan 同一收口径):
+  // 旧章的 ⑦ 预划不再并排展示,summary 与 batchMatch 名单不跨章累加。
+  const chapterScriptPlans = scriptPlans.filter(
+    (item) => item.episodeId === productionEpisodeId,
+  );
   const aspectRatio = seriesBible?.aspectRatio ?? workflowConfig.platformSpec;
   const workflowReadiness = useWorkflowReadiness({
     workflowConfig,
@@ -114,7 +119,7 @@ export function useStudioViewModel() {
     productionEpisodeId,
     agentWorkData,
     entityExtractions,
-    scriptPlans,
+    scriptPlans: chapterScriptPlans,
     storyboards,
     productionTracks,
     videoCandidates,

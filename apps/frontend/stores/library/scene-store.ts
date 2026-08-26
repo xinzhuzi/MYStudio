@@ -70,6 +70,17 @@ export interface Scene {
     gridIndex: number;
   }>;
 
+  /**
+   * 衍生图落库时的父资产锚(08-27 R1 过期判定,仅视角变体记录):这张衍生图
+   * 生成时参照的父场景样子——父当前媒体路径 + 父最新批准连续性指纹。旧数据
+   * 无此字段 = 代次未知,面板静默不标「过期」;结构与 character-library-store /
+   * props-library-store 的 parentAnchor 保持一致。
+   */
+  parentAnchor?: {
+    parentMediaPath?: string;
+    parentContinuityFingerprint?: string;
+  };
+
   /** 提示词润色状态 */
   promptState?: "none" | "polishing" | "ready" | "failed";
   /** 提示词润色错误信息 */

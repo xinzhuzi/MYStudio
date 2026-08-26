@@ -1,9 +1,21 @@
-import type { EntityExtractionResult, ScriptPlan } from "@/types/studio";
+import type {
+  ContinuityAssetVersion,
+  EntityExtractionResult,
+  ScriptPlan,
+  StoryboardItem,
+} from "@/types/studio";
 import type { StudioAssetSummary } from "@/types/studio-assets";
+import { useStudioStore } from "@/stores/studio/studio-store";
 import { buildStudioFlowData, type StudioFlowData } from "@/lib/studio/studio-flow-data";
+import {
+  crossCheckDerivedPlan,
+  type DerivedPlanCrossCheckParent,
+  type DerivedPlanCrossCheckResult,
+} from "./workflow-derived-plan-cross-check";
 import type {
   ProductionFlowAssetCard,
   ProductionFlowAssetGroup,
+  ProductionFlowAssetGroupUnplanned,
   ProductionFlowAssetLibraryMatches,
   ProductionFlowAssetMedia,
   ProductionFlowAssetSummary,
@@ -11,10 +23,17 @@ import type {
   ProductionFlowRuntimeAssetKind,
 } from "./workflow-asset-types";
 
+/** 交叉核对接线入参:分镜来自章过滤后的当前章;连续性版本缺省读 studio store 现势。 */
+export interface BuildAssetDerivationOptions {
+  chapterStoryboards?: StoryboardItem[];
+  continuityAssetVersions?: ContinuityAssetVersion[];
+}
+
 export function buildAssetDerivationModel(
   assets: ReturnType<typeof buildStudioFlowData>["assets"],
   scriptPlans: ScriptPlan[],
   assetMediaById: ProductionFlowModelInput["assetMediaById"] = {},
+  options?: BuildAssetDerivationOptions,
 ): { groups: ProductionFlowAssetGroup[]; summary: ProductionFlowAssetSummary } {
   const assetLookup = new Map<string, (typeof assets)[number]>();
   const mediaLookup = new Map<string, ProductionFlowAssetMedia>();
@@ -35,6 +54,8 @@ export function buildAssetDerivationModel(
     linked: 0,
     completed: 0,
     missingParent: 0,
+    unused: 0,
+    unplanned: 0,
   };
   const existingMediaIds = new Set<string>();
   const countExistingDerivedMedia = (media: ProductionFlowAssetMedia | undefined) => {
@@ -70,6 +91,7 @@ export function buildAssetDerivationModel(
         isDerived: true,
         sourceImagePath: sourceMedia?.path,
         imageWorkflowId: media?.imageWorkflowId || item.imageWorkflowId,
+        stale: media?.stale,
         imageWorkflowTarget:
           media?.imageWorkflowTarget ?? {
             kind: "asset",
@@ -101,6 +123,7 @@ export function buildAssetDerivationModel(
       isDerived: true,
       sourceImagePath: sourceMedia?.path,
       imageWorkflowId: media.imageWorkflowId,
+      stale: media.stale,
       imageWorkflowTarget:
         media.imageWorkflowTarget ?? {
           kind: "asset",
@@ -113,6 +136,47 @@ export function buildAssetDerivationModel(
       countExistingDerivedMedia(media);
       summary.linked += 1;
       if (media.path) summary.completed += 1;
+    }
+  }
+
+  // 08-27 R2 分镜反哺交叉核对(只读):⑦ 预划 × 当前章分镜结构化引用。
+  // 父资产解析走 id+名双通道(与上面衍生循环同一套桥),桥接失败的证据静默丢弃,
+  // 不误报。结果只做提示:unused 标到 ⑦ 来源的衍生卡,unplanned 挂到组行。
+  const crossCheck = options?.chapterStoryboards
+    ? crossCheckDerivedPlan({
+        planItems: scriptPlans.flatMap((plan) => plan.derivedAssetPlan),
+        chapterStoryboards: options.chapterStoryboards,
+        continuityAssetVersions:
+          options.continuityAssetVersions
+          ?? useStudioStore.getState().continuityAssetVersions,
+        resolveParent: buildCrossCheckParentResolver(assets, assetLookup, mediaLookup),
+        resolveSceneVariant: (sceneRef) => {
+          const media = mediaLookup.get(sceneRef);
+          if (!media?.parentAssetId || !media.state?.trim()) return null;
+          const parent = resolveParentAssetForMedia(media, assets, mediaLookup);
+          return parent
+            ? { parent: { id: parent.id, name: parent.name, kind: parent.type }, state: media.state.trim() }
+            : null;
+        },
+        hasDerivedVariant: (parent, state) =>
+          (derivedByParent.get(parent.id) ?? []).some(
+            (card) => card.state === state || card.name === state,
+          ),
+      })
+    : emptyCrossCheckResult();
+  summary.unused = crossCheck.unused.length;
+  summary.unplanned = crossCheck.unplanned.length;
+  const unplannedByParent = new Map<string, ProductionFlowAssetGroupUnplanned[]>();
+  for (const item of crossCheck.unplanned) {
+    const list = unplannedByParent.get(item.parentAssetId) ?? [];
+    list.push({ state: item.state, evidenceShotIds: item.evidenceShotIds });
+    unplannedByParent.set(item.parentAssetId, list);
+  }
+  for (const item of crossCheck.unused) {
+    for (const card of derivedByParent.get(item.parentAssetId) ?? []) {
+      if (card.state === item.state || card.name === item.state) {
+        card.unused = true;
+      }
     }
   }
 
@@ -132,9 +196,47 @@ export function buildAssetDerivationModel(
         isDerived: false,
       },
       derived: derivedByParent.get(asset.id) ?? [],
+      ...(unplannedByParent.has(asset.id)
+        ? { unplanned: unplannedByParent.get(asset.id) }
+        : {}),
     };
   });
   return { groups, summary };
+}
+
+function emptyCrossCheckResult(): DerivedPlanCrossCheckResult {
+  return { unplanned: [], unused: [] };
+}
+
+/**
+ * 交叉核对的父资产解析器:接受任意 id 空间的键——
+ * 1) 脚本空间 id/名字直接命中;
+ * 2) 衍生媒体键(库空间变体 id)→ 沿 parentAssetId/parentAssetName 桥回父资产;
+ * 3) 基础资产媒体键(库实体 id,如连续性 characterId)→ 按媒体名精确桥回脚本资产。
+ */
+function buildCrossCheckParentResolver(
+  assets: StudioFlowData["assets"],
+  assetLookup: Map<string, StudioFlowData["assets"][number]>,
+  mediaLookup: Map<string, ProductionFlowAssetMedia>,
+) {
+  const toParent = (asset: StudioFlowData["assets"][number]): DerivedPlanCrossCheckParent => ({
+    id: asset.id,
+    name: asset.name,
+    kind: asset.type,
+  });
+  return (key: string): DerivedPlanCrossCheckParent | null => {
+    const direct = assetLookup.get(key);
+    if (direct) return toParent(direct);
+    const media = mediaLookup.get(key);
+    if (!media) return null;
+    if (media.parentAssetId || media.parentAssetName) {
+      const parent = resolveParentAssetForMedia(media, assets, mediaLookup);
+      if (parent) return toParent(parent);
+    }
+    const mediaName = media.name?.trim();
+    const byName = mediaName ? assetLookup.get(mediaName) : undefined;
+    return byName ? toParent(byName) : null;
+  };
 }
 
 function indexAssetMedia(
@@ -266,19 +368,18 @@ function resolveParentAssetForMedia(
   assets: ReturnType<typeof buildStudioFlowData>["assets"],
   mediaLookup: Map<string, ProductionFlowAssetMedia>,
 ) {
+  // parentAssetId/parentAssetName 任一非空才参与匹配;候选里的 undefined 必须
+  // 剔除——否则 [.., undefined].includes(undefined) 恒真,任何无媒体资产都会
+  // 冒名认领别人的衍生媒体(08-27 R2 交叉核对首当其冲,逐处核实后修复)。
+  const parentAssetId = media.parentAssetId?.trim() || undefined;
+  const parentAssetName = media.parentAssetName?.trim() || undefined;
+  if (!parentAssetId && !parentAssetName) return undefined;
   return assets.find((asset) => {
     const parentMedia = resolveAssetMedia(asset, mediaLookup);
-    return [
-      asset.id,
-      asset.name,
-      parentMedia?.id,
-      parentMedia?.name,
-    ].includes(media.parentAssetId) || [
-      asset.id,
-      asset.name,
-      parentMedia?.id,
-      parentMedia?.name,
-    ].includes(media.parentAssetName);
+    const candidates = [asset.id, asset.name, parentMedia?.id, parentMedia?.name]
+      .filter((value): value is string => Boolean(value?.trim()));
+    return (parentAssetId ? candidates.includes(parentAssetId) : false)
+      || (parentAssetName ? candidates.includes(parentAssetName) : false);
   });
 }
 

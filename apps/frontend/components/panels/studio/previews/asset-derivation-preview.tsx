@@ -73,29 +73,46 @@ export function AssetDerivationPreview({
         })}
       </div>
       {visibleGroups.map((group) => (
-        <div
-          key={group.source.id}
-          className="grid grid-cols-[188px_34px_minmax(188px,1fr)] items-stretch gap-3"
-        >
-          <AssetFlowCard card={group.source} sourceStage={sourceStage} sourceStageLabel={sourceStageLabel} />
-          <div className="flex items-center justify-center text-muted-foreground">
-            <ChevronRight className="h-6 w-6" />
+        <div key={group.source.id} className="space-y-2">
+          <div className="grid grid-cols-[188px_34px_minmax(188px,1fr)] items-stretch gap-3">
+            <AssetFlowCard card={group.source} sourceStage={sourceStage} sourceStageLabel={sourceStageLabel} />
+            <div className="flex items-center justify-center text-muted-foreground">
+              <ChevronRight className="h-6 w-6" />
+            </div>
+            {group.derived.length ? (
+              <div className="grid grid-cols-2 gap-3">
+                {/* 滚动容器已就位(max-h+overflow-y-auto),衍生卡全量展示不截断 */}
+                {group.derived.map((item) => (
+                  <AssetFlowCard
+                    key={item.id}
+                    card={item}
+                    onOpenAssetImageWorkflow={onOpenAssetImageWorkflow}
+                    sourceStage={sourceStage}
+                    sourceStageLabel={sourceStageLabel}
+                  />
+                ))}
+              </div>
+            ) : (
+              <EmptyDerivedAssetCard />
+            )}
           </div>
-          {group.derived.length ? (
-            <div className="grid grid-cols-2 gap-3">
-              {group.derived.slice(0, 4).map((item) => (
-                <AssetFlowCard
-                  key={item.id}
-                  card={item}
-                  onOpenAssetImageWorkflow={onOpenAssetImageWorkflow}
-                  sourceStage={sourceStage}
-                  sourceStageLabel={sourceStageLabel}
-                />
+          {group.unplanned?.length ? (
+            <div
+              className="asset-derive-unplanned flex flex-wrap items-center gap-1.5 rounded-md border border-viz-glow/25 bg-viz-glow/5 px-2.5 py-1.5 text-[10px] text-warning/80"
+              title="分镜里实际用到了这些状态，但导演规划时没有预划它们。需要的话重跑一次导演规划。"
+            >
+              <span className="font-semibold">分镜用到·未预划</span>
+              {group.unplanned.map((entry) => (
+                <span
+                  key={`${group.source.id}:${entry.state}`}
+                  data-unplanned-state={entry.state}
+                  className="rounded border border-viz-glow/30 px-1.5 py-0.5"
+                >
+                  {entry.state} · {entry.evidenceShotIds.length} 镜
+                </span>
               ))}
             </div>
-          ) : (
-            <EmptyDerivedAssetCard />
-          )}
+          ) : null}
         </div>
       ))}
           </div>

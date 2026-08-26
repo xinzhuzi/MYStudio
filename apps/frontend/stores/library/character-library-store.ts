@@ -66,6 +66,17 @@ export interface CharacterVariation {
   episodeRange?: [number, number]; // 适用集数范围：[起始集, 结束集]
   ageDescription?: string;         // 该阶段年龄："25岁"、"50岁"
   stageDescription?: string;       // 阶段描述："创业初期"、"事业巅峰"
+
+  /**
+   * 衍生图落库时的父资产锚(08-27 R1 过期判定):记录这张衍生图生成时参照的
+   * 父角色样子——父当前媒体路径 + 父最新批准连续性指纹。旧数据无此字段 =
+   * 代次未知,面板静默不标「过期」;结构须与 scene-store/props-library-store
+   * 的 parentAnchor 保持一致(结构化兼容,勿单独改名)。
+   */
+  parentAnchor?: {
+    parentMediaPath?: string;
+    parentContinuityFingerprint?: string;
+  };
 }
 
 export interface Character {

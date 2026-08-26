@@ -1169,6 +1169,101 @@ describe("production workflow node model", () => {
     expect(matchNames.scene).toContain("道口镇街口");
     expect(matchNames.scene).toContain("晨雾版");
   });
+
+  it("cross-checks the chapter plan against storyboard usage (R2 未使用 / 分镜用到·未预划)", () => {
+    const model = buildProductionFlowModel({
+      episodeId: "chapter-001",
+      agentWorkData: [],
+      entityExtractions: [
+        {
+          id: "extract-1",
+          episodeId: "chapter-001",
+          characters: [
+            { characterId: "char-1", name: "独孤剑尘", aliases: [] },
+          ],
+          scenes: [{ sceneId: "scene-1", name: "义庄" }],
+          props: [{ assetId: "prop-1", name: "断剑" }],
+        },
+      ],
+      scriptPlans: [
+        {
+          id: "plan-1",
+          episodeId: "chapter-001",
+          theme: "",
+          visualStyle: "",
+          narrativeRhythm: "",
+          sceneIntents: [],
+          soundDirection: "",
+          transitions: "",
+          derivedAssetPlan: [
+            { parentAssetId: "prop-1", state: "裂纹版", reason: "战斗损坏" },
+            { parentAssetId: "prop-1", state: "开封版", reason: "后续开锋" },
+            { parentAssetId: "char-1", state: "雨夜破衣", reason: "受伤状态" },
+          ],
+        },
+      ],
+      storyboards: [
+        {
+          id: "shot-1",
+          episodeId: "chapter-001",
+          index: 1,
+          trackKey: "track-1",
+          trackId: "track-1",
+          duration: 4,
+          prompt: "义庄夜雨",
+          videoDesc: "义庄夜雨",
+          assetIds: ["scene-1-rain"],
+          state: "ready",
+          shotSemantics: {
+            sceneViewpointId: "dock",
+            personFree: false,
+            visibleCharacters: [],
+            visibleProps: [
+              { name: "断剑", position: "前景", state: "裂纹版" },
+              { name: "断剑", position: "前景", state: "染血版" },
+            ],
+            actionIn: "",
+            actionOut: "",
+          },
+        } satisfies StoryboardItem,
+      ],
+      productionTracks: [],
+      videoCandidates: [],
+      assetMediaById: {
+        "scene-1-rain": {
+          id: "scene-1-rain",
+          name: "夜雨视角",
+          path: "/tmp/scene-rain.png",
+          parentAssetId: "scene-1",
+          state: "夜雨视角",
+        },
+      },
+    });
+
+    const assetNode = model.nodes.find((node) => node.id === "assets");
+    const propGroup = assetNode?.assetGroups?.find((group) => group.source.id === "prop-1");
+    // 裂纹版:已预划 + 分镜引用 → 不标;开封版:预划零引用(道具证据通道存在)→ 未使用
+    expect(propGroup?.derived.find((card) => card.name === "裂纹版")?.unused).toBeUndefined();
+    expect(propGroup?.derived.find((card) => card.name === "开封版")?.unused).toBe(true);
+    // 染血版:分镜用到·未预划且无变体记录 → 组行聚合提示
+    expect(propGroup?.unplanned).toEqual([
+      { state: "染血版", evidenceShotIds: ["shot-1"] },
+    ]);
+    // 场景变体(夜雨视角)被分镜引用、未预划,但项目内已有该变体记录
+    // → 属于「清单与库的偏差」,不混入 unplanned(design 裁定不误报)
+    const sceneGroup = assetNode?.assetGroups?.find((group) => group.source.id === "scene-1");
+    expect(sceneGroup?.unplanned).toBeUndefined();
+    expect(sceneGroup?.derived[0]).toMatchObject({ name: "夜雨视角" });
+    // 角色:本章分镜无连续性数据(证据通道缺失)→ 不误报未使用
+    const charGroup = assetNode?.assetGroups?.find((group) => group.source.id === "char-1");
+    expect(charGroup?.derived.find((card) => card.name === "雨夜破衣")?.unused).toBeUndefined();
+    expect(assetNode?.assetSummary).toMatchObject({
+      planned: 3,
+      unused: 1,
+      unplanned: 1,
+    });
+    expect(assetNode?.metrics.join("\n")).toContain("未使用 1");
+  });
 });
 
 describe("节点宽度单一事实源(P3-8 归一)", () => {

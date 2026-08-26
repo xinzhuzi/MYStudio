@@ -521,6 +521,8 @@ describe("workflow node component boundaries", () => {
         linked: 3,
         completed: 3,
         missingParent: 0,
+        unused: 0,
+        unplanned: 0,
       },
       assetGroups: [
         {

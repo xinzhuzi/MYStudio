@@ -33,6 +33,16 @@ export interface PropItem {
   isDerivative?: boolean;
   /** 父资产 ID */
   parentId?: string;
+  /**
+   * 衍生图落库时的父资产锚(08-27 R1 过期判定,仅衍生道具记录):这张衍生图
+   * 生成时参照的父道具样子——父当前媒体路径 + 父最新批准连续性指纹。旧数据
+   * 无此字段 = 代次未知,面板静默不标「过期」;结构与 character-library-store /
+   * scene-store 的 parentAnchor 保持一致。
+   */
+  parentAnchor?: {
+    parentMediaPath?: string;
+    parentContinuityFingerprint?: string;
+  };
   /** 分类 */
   category?: string;
   folderId: string | null; // 所属目录，null = 根目录

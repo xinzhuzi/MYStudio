@@ -33,11 +33,28 @@ export interface ProductionFlowAssetCard {
   sourceImagePath?: string;
   imageWorkflowId?: string;
   imageWorkflowTarget?: ImageWorkflowTarget;
+  /**
+   * 08-27 R1 衍生图过期标记:父资产图已更新,这张衍生图还是按旧版生成的。
+   * 无父代锚的存量记录不设此字段(静默)。只提示,不自动删/重生。
+   */
+  stale?: boolean;
+  /** 08-27 R2 预划·分镜零引用:⑦ 清单预划了但当前章分镜一次都没用到。只提示。 */
+  unused?: boolean;
+}
+
+export interface ProductionFlowAssetGroupUnplanned {
+  state: string;
+  evidenceShotIds: string[];
 }
 
 export interface ProductionFlowAssetGroup {
   source: ProductionFlowAssetCard;
   derived: ProductionFlowAssetCard[];
+  /**
+   * 08-27 R2 分镜用到·未预划(只读提示):当前章分镜实际用到了该父资产的
+   * 这些衍生状态,但 ⑦ 清单没预划、项目内也无变体记录。无动作、无按钮。
+   */
+  unplanned?: ProductionFlowAssetGroupUnplanned[];
 }
 
 export interface ProductionFlowAssetSummary {
@@ -46,6 +63,10 @@ export interface ProductionFlowAssetSummary {
   linked: number;
   completed: number;
   missingParent: number;
+  /** 08-27 R2:预划了但当前章分镜零引用的状态数。 */
+  unused: number;
+  /** 08-27 R2:分镜用到·未预划的状态数。 */
+  unplanned: number;
 }
 
 export interface ProductionFlowAssetMedia {
@@ -61,6 +82,8 @@ export interface ProductionFlowAssetMedia {
   imageWorkflowTarget?: ImageWorkflowTarget;
   toonflowAssetId?: number;
   toonflowParentAssetId?: number;
+  /** 08-27 R1:衍生媒体与父代锚比对后的过期标记(无锚存量不设)。 */
+  stale?: boolean;
 }
 
 export type ProductionFlowRuntimeAssetKind = Extract<

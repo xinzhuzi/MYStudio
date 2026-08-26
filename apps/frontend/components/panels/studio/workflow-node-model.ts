@@ -319,6 +319,8 @@ export function buildProductionFlowModel(
     flowData.assets,
     input.scriptPlans,
     input.assetMediaById,
+    // R2 交叉核对吃章过滤后的分镜(与 chapterStoryboards 同一份数据)
+    { chapterStoryboards },
   );
   const assetMetrics = assetCounts.total
     ? [
@@ -328,7 +330,7 @@ export function buildProductionFlowModel(
         `${assetCounts.prop} 道具`,
         ...(assetDerivation.summary.planned || assetDerivation.summary.existing
           ? [
-              `衍生图 ${assetDerivation.summary.completed}/${assetDerivation.summary.linked} 已完成`,
+              `衍生图 ${assetDerivation.summary.completed}/${assetDerivation.summary.linked} 已完成${assetDerivation.summary.unused ? `，未使用 ${assetDerivation.summary.unused}` : ""}`,
             ]
           : []),
         ...(assetDerivation.summary.missingParent

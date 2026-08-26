@@ -126,7 +126,7 @@ export function AssetFlowCard({
           {card.isDerived ? "衍生" : "原资产"}
         </span>
       </div>
-      {showStatusChip || (card.isDerived && !card.sourceImagePath) ? (
+      {showStatusChip || (card.isDerived && !card.sourceImagePath) || card.stale || card.unused ? (
         <div className="mt-2 flex flex-wrap items-center gap-1.5">
           {showStatusChip ? (
             <span
@@ -141,6 +141,24 @@ export function AssetFlowCard({
               )}
             >
               {status}
+            </span>
+          ) : null}
+          {card.stale ? (
+            <span
+              title="父资产图已更新，这张衍生图是按旧版生成的"
+              data-asset-stale="true"
+              className="rounded border border-viz-glow/30 bg-viz-glow/10 px-1.5 py-0.5 text-[9px] font-semibold text-warning/80"
+            >
+              过期
+            </span>
+          ) : null}
+          {card.unused ? (
+            <span
+              title="导演预划了这个衍生状态，但当前章的分镜一次都没用到它"
+              data-asset-unused="true"
+              className="rounded border border-border bg-muted/30 px-1.5 py-0.5 text-[9px] font-semibold text-muted-foreground"
+            >
+              未使用
             </span>
           ) : null}
           {card.isDerived && !card.sourceImagePath ? (

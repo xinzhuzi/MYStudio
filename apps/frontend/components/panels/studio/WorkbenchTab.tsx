@@ -8,7 +8,7 @@ import { usePropsLibraryStore } from "@/stores/library/props-library-store";
 import { useSceneStore } from "@/stores/library/scene-store";
 import { useProjectStore } from "@/stores/project/project-store";
 import { useStudioStore } from "@/stores/studio/studio-store";
-import type { ScriptPlan } from "@/types/studio";
+import type { ContinuityAssetVersion, ScriptPlan } from "@/types/studio";
 import { createRemotionAudioBindingFingerprint, createRemotionChapterManifestFingerprint } from "@/lib/studio/remotion/remotion-audio-fingerprint";
 import type {
   RemotionChapterAudioBindingV2,
@@ -887,8 +887,51 @@ export function buildWorkbenchAssetMediaMap(
   characters: ReturnType<typeof useCharacterLibraryStore.getState>["characters"],
   scenes: ReturnType<typeof useSceneStore.getState>["scenes"],
   propsItems: ReturnType<typeof usePropsLibraryStore.getState>["items"],
-): Record<string, ToonflowWorkbenchAssetMedia> {
-  const entries: Record<string, ToonflowWorkbenchAssetMedia> = {};
+  continuityAssetVersions?: ContinuityAssetVersion[],
+): Record<string, ToonflowWorkbenchAssetMedia & { stale?: boolean }> {
+  const entries: Record<string, ToonflowWorkbenchAssetMedia & { stale?: boolean }> = {};
+  // 08-27 R1 衍生图过期判定:衍生记录带父代锚时与「父当前样子」比对——父媒体
+  // 路径变了 → stale;路径没变但锚里存了连续性指纹且父最新批准指纹漂移 → stale。
+  // 存量记录无锚 = 代次未知,不设 stale(静默,漏报优于误报)。
+  const latestApprovedByAssetId = new Map<string, ContinuityAssetVersion>();
+  for (const version of continuityAssetVersions ?? useStudioStore.getState().continuityAssetVersions) {
+    if (!version.approved) continue;
+    const incumbent = latestApprovedByAssetId.get(version.assetId);
+    const rank = (item: ContinuityAssetVersion) =>
+      item.approval?.reviewedAt ?? 0;
+    if (
+      !incumbent
+      || rank(version) > rank(incumbent)
+      || (rank(version) === rank(incumbent)
+        && version.versionId.localeCompare(incumbent.versionId) > 0)
+    ) {
+      latestApprovedByAssetId.set(version.assetId, version);
+    }
+  }
+  const evaluateDerivedStale = (
+    anchor: { parentMediaPath?: string; parentContinuityFingerprint?: string } | undefined,
+    parentCurrentPath: string | undefined,
+    parentAssetId: string | undefined,
+  ): boolean | undefined => {
+    if (!anchor) return undefined;
+    if (
+      anchor.parentMediaPath !== undefined
+      && anchor.parentMediaPath !== (parentCurrentPath ?? "")
+    ) {
+      return true;
+    }
+    const currentFingerprint = parentAssetId
+      ? latestApprovedByAssetId.get(parentAssetId)?.contentFingerprint
+      : undefined;
+    if (
+      anchor.parentContinuityFingerprint
+      && currentFingerprint
+      && anchor.parentContinuityFingerprint !== currentFingerprint
+    ) {
+      return true;
+    }
+    return undefined;
+  };
   for (const character of characters) {
     const path =
       character.thumbnailUrl ??
@@ -921,6 +964,7 @@ export function buildWorkbenchAssetMediaMap(
           parentId: character.id,
           id: variation.id,
         },
+        stale: evaluateDerivedStale(variation.parentAnchor, path, character.id),
       };
     }
   }
@@ -929,6 +973,14 @@ export function buildWorkbenchAssetMediaMap(
       scene.referenceImage ??
       scene.referenceImageBase64 ??
       getOptionalStringField(scene, "contactSheetImage");
+    const parentScene = scene.parentSceneId
+      ? scenes.find((item) => item.id === scene.parentSceneId)
+      : undefined;
+    const parentPath = parentScene
+      ? parentScene.referenceImage
+        ?? parentScene.referenceImageBase64
+        ?? getOptionalStringField(parentScene, "contactSheetImage")
+      : undefined;
     entries[scene.id] = {
       id: scene.id,
       name: scene.viewpointName || scene.name,
@@ -936,9 +988,7 @@ export function buildWorkbenchAssetMediaMap(
       path,
       prompt: scene.visualPrompt || scene.location || scene.atmosphere,
       parentAssetId: scene.parentSceneId,
-      parentAssetName: scene.parentSceneId
-        ? scenes.find((item) => item.id === scene.parentSceneId)?.name
-        : undefined,
+      parentAssetName: parentScene?.name,
       state: scene.viewpointName,
       reason: scene.notes || scene.spatialLayout,
       imageWorkflowId: scene.imageWorkflowId,
@@ -950,9 +1000,13 @@ export function buildWorkbenchAssetMediaMap(
             id: scene.id,
           }
         : undefined,
+      stale: evaluateDerivedStale(scene.parentAnchor, parentPath, scene.parentSceneId),
     };
   }
   for (const item of propsItems) {
+    const parentProp = item.parentId
+      ? propsItems.find((prop) => prop.id === item.parentId)
+      : undefined;
     entries[item.id] = {
       id: item.id,
       name: item.category || item.name,
@@ -960,9 +1014,7 @@ export function buildWorkbenchAssetMediaMap(
       path: item.imageUrl,
       prompt: item.visualPrompt || item.description,
       parentAssetId: item.parentId,
-      parentAssetName: item.parentId
-        ? propsItems.find((prop) => prop.id === item.parentId)?.name
-        : undefined,
+      parentAssetName: parentProp?.name,
       state: item.category,
       reason: item.description,
       imageWorkflowId: item.imageWorkflowId,
@@ -974,6 +1026,7 @@ export function buildWorkbenchAssetMediaMap(
             id: item.id,
           }
         : undefined,
+      stale: evaluateDerivedStale(item.parentAnchor, parentProp?.imageUrl, item.parentId),
     };
   }
   return entries;

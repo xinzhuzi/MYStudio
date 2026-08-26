@@ -5,6 +5,7 @@ import { useAppSettingsStore } from "@/stores/app/app-settings-store";
 import { useEditingStore } from "@/stores/editing/editing-store";
 import { usePropsLibraryStore } from "@/stores/library/props-library-store";
 import { useSceneStore } from "@/stores/library/scene-store";
+import { useStudioStore } from "@/stores/studio/studio-store";
 import {
   buildAssetLibraryMatchNamesForProductionFlow,
   buildAssetLibraryMediaMapForProductionFlow,
@@ -38,6 +39,10 @@ export function useProductionFlowModel({
   );
   const productionFlowScenes = useSceneStore((state) => state.scenes);
   const productionFlowProps = usePropsLibraryStore((state) => state.items);
+  // R1:显式订阅连续性版本,批准/版本变化即重算 stale 徽章(缺省会退化为惰性读,滞后到下次资产库变更)
+  const continuityAssetVersions = useStudioStore(
+    (state) => state.continuityAssetVersions,
+  );
   const activeProjectId = useProjectStore((state) => state.activeProjectId);
   const requestedRenderer = useAppSettingsStore((state) => state.renderingSettings.renderer);
   const remotionQueueScope = useRemotionQueueScope(activeProjectId ?? undefined, productionEpisodeId);
@@ -112,9 +117,11 @@ export function useProductionFlowModel({
         filterProjectItems(productionFlowCharacters, activeProjectId),
         filterProjectItems(productionFlowScenes, activeProjectId),
         filterProjectItems(productionFlowProps, activeProjectId),
+        continuityAssetVersions,
       ),
     [
       activeProjectId,
+      continuityAssetVersions,
       productionFlowCharacters,
       productionFlowProps,
       productionFlowScenes,

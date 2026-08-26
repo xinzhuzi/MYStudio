@@ -667,28 +667,87 @@ export const useStudioStore = create<StudioWorkflowStore>()(
         const graph = get().imageWorkflows.find((item) => item.id === workflowId);
         if (!graph) return;
         const patch = buildAssetImageWorkflowPatch(graph, nodeId);
+        // 08-27 R1 父代锚:衍生变体落图时记录「这张图参照的父样子」——父当前
+        // 媒体路径(v1 主判据)+ 父最新批准连续性指纹(加强判据,取不到就只写
+        // 路径)。锚只写衍生记录:character 需 target.parentId、scene 记录需带
+        // parentSceneId、prop 记录需带 parentId;父资产自身没有父,不写锚。
+        // 注意:父媒体路径的取图优先级必须与 WorkbenchTab.buildWorkbenchAssetMediaMap
+        // 完全一致,否则面板比对会假报「过期」。
+        const latestApprovedFingerprint = (assetId: string) => {
+          const approved = get().continuityAssetVersions
+            .filter((version) => version.assetId === assetId && version.approved)
+            .sort((left, right) =>
+              (right.approval?.reviewedAt ?? 0) - (left.approval?.reviewedAt ?? 0)
+              || right.versionId.localeCompare(left.versionId),
+            );
+          return approved[0]?.contentFingerprint;
+        };
+        const buildParentAnchor = (
+          parentMediaPath: string | undefined,
+          parentFingerprint: string | undefined,
+        ) =>
+          parentMediaPath || parentFingerprint
+            ? {
+                ...(parentMediaPath ? { parentMediaPath } : {}),
+                ...(parentFingerprint
+                  ? { parentContinuityFingerprint: parentFingerprint }
+                  : {}),
+              }
+            : undefined;
         if (target.assetType === "character") {
           if (!target.parentId) return;
+          const parent = useCharacterLibraryStore
+            .getState()
+            .characters.find((char) => char.id === target.parentId);
+          const parentMediaPath = parent
+            ? parent.thumbnailUrl
+              ?? parent.views.find((view) => view.imageUrl)?.imageUrl
+              ?? parent.referenceImages?.[0]
+            : undefined;
           useCharacterLibraryStore.getState().updateVariation(target.parentId, target.id, {
             referenceImage: patch.imageUrl,
             imageWorkflowId: patch.imageWorkflowId,
             imageWorkflowNodeId: patch.imageWorkflowNodeId,
             generatedAt: patch.generatedAt,
+            ...(parent
+              ? { parentAnchor: buildParentAnchor(parentMediaPath, latestApprovedFingerprint(parent.id)) }
+              : {}),
           });
           return;
         }
         if (target.assetType === "scene") {
+          const scene = useSceneStore.getState().scenes.find((item) => item.id === target.id);
+          const parentScene = scene?.parentSceneId
+            ? useSceneStore.getState().scenes.find((item) => item.id === scene.parentSceneId)
+            : undefined;
+          const parentMediaPath = parentScene
+            ? parentScene.referenceImage
+              ?? parentScene.referenceImageBase64
+              ?? (parentScene.contactSheetImage?.trim()
+                ? parentScene.contactSheetImage
+                : undefined)
+            : undefined;
           useSceneStore.getState().updateScene(target.id, {
             referenceImage: patch.imageUrl,
             imageWorkflowId: patch.imageWorkflowId,
             imageWorkflowNodeId: patch.imageWorkflowNodeId,
+            ...(parentScene
+              ? { parentAnchor: buildParentAnchor(parentMediaPath, latestApprovedFingerprint(parentScene.id)) }
+              : {}),
           });
           return;
         }
+        const prop = usePropsLibraryStore.getState().items.find((item) => item.id === target.id);
+        const parentProp = prop?.parentId
+          ? usePropsLibraryStore.getState().items.find((item) => item.id === prop.parentId)
+          : undefined;
         usePropsLibraryStore.getState().updateProp(target.id, {
           imageUrl: patch.imageUrl,
           imageWorkflowId: patch.imageWorkflowId,
           imageWorkflowNodeId: patch.imageWorkflowNodeId,
+          ...(parentProp
+            ? { parentAnchor: buildParentAnchor(parentProp.imageUrl, latestApprovedFingerprint(parentProp.id)) }
+            : {}),
         });
       },
 

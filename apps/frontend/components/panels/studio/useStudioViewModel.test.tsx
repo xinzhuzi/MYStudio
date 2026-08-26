@@ -2,7 +2,6 @@
 import { renderHook } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { ProductionFlowNodeModel } from "./workflow-node-model";
-
 // 重副作用子 hook 全部打桩——本测试只钉 useStudioViewModel 自身的推导契约
 vi.mock("./useNovelPipelineActions", () => ({ useNovelPipelineActions: () => ({}) }));
 vi.mock("./useProductionPlanningActions", () => ({ useProductionPlanningActions: () => ({}) }));
@@ -57,11 +56,13 @@ vi.mock("@/lib/studio/remotion-shot-render-request", () => ({
 vi.mock("@/lib/ai/ai-manager", () => ({ aiManager: {} }));
 
 import { useStudioViewModel } from "./useStudioViewModel";
+import { useProductionFlowModel } from "./useProductionFlowModel";
 import { useStudioStore } from "@/stores/studio/studio-store";
 import { useProjectStore } from "@/stores/project/project-store";
 
 describe("useStudioViewModel 数据枢纽契约(08-24 审查补测)", () => {
   beforeEach(() => {
+    vi.mocked(useProductionFlowModel).mockClear();
     useStudioStore.setState({
       storyboards: [
         { id: "sb-1", episodeId: "episode-1", index: 1, prompt: "本章镜" },
@@ -69,6 +70,7 @@ describe("useStudioViewModel 数据枢纽契约(08-24 审查补测)", () => {
       ] as never,
       scriptPlans: [
         { episodeId: "episode-1", id: "plan-1" },
+        { episodeId: "chapter-999", id: "plan-old" },
       ] as never,
       agentWorkData: [],
       entityExtractions: [],
@@ -104,5 +106,16 @@ describe("useStudioViewModel 数据枢纽契约(08-24 审查补测)", () => {
   it("directorPlan 取当前章节的规划", () => {
     const { result } = renderHook(() => useStudioViewModel());
     expect((result.current.directorPlan as { id: string } | undefined)?.id).toBe("plan-1");
+  });
+
+  it("production flow 只吃当前章 scriptPlans,旧章 ⑦ 预划不并排(R0 章过滤)", () => {
+    renderHook(() => useStudioViewModel());
+    // 重渲染会多次调用 hook,但每一次都必须只拿到当前章的规划
+    const calls = vi.mocked(useProductionFlowModel).mock.calls;
+    expect(calls.length).toBeGreaterThan(0);
+    for (const [input] of calls) {
+      expect(input.scriptPlans).toHaveLength(1);
+      expect((input.scriptPlans as Array<{ id: string }>)[0]?.id).toBe("plan-1");
+    }
   });
 });
