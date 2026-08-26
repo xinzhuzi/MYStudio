@@ -72,7 +72,7 @@ export function NodeDocViewer({
         </div>
 
         {/* 内容区 */}
-        <div className="min-h-0 flex-1 overflow-y-auto px-8 py-6">
+        <div className={`min-h-0 flex-1 px-8 py-6 ${isTable ? "overflow-auto" : "overflow-y-auto"}`}>
           {isTable ? (
             <TableRender node={node} />
           ) : (
@@ -109,7 +109,7 @@ function TableRender({ node }: { node: ProductionFlowNodeModel }) {
     { label: "时长", cls: "w-14 text-center" },
   ] as const;
   return (
-    <table className="w-full border-collapse text-[12px] leading-5">
+    <table className="w-full min-w-[900px] border-collapse text-[12px] leading-5">
       <thead>
         <tr className="border-b-2 border-border text-left text-[11px] font-medium text-muted-foreground">
           {cols.map((col) => (
