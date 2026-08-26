@@ -51,23 +51,47 @@ export function useSmoothWheelZoom(
     let anchorX = 0;
     let anchorY = 0;
 
+    // 手势期间直接改 viewport 元素 transform(零 React/零 store/零全树样式重算
+    // ——2026-08-26 trace 实证每帧 setViewport 造成 UpdateLayoutTree×61);
+    // 停手才一次性 commit 回 store。viewport 元素缺失时回退逐帧 setViewport。
+    const viewportEl = () =>
+      element.querySelector<HTMLElement>(".react-flow__viewport") ?? null;
+    let pending: SmoothWheelZoomViewport | null = null;
+
     const apply = () => {
       rafId = null;
       const current = apiRef.current;
-      const viewport = current?.getViewport();
-      if (!current || !viewport) return;
+      if (!current) return;
+      const base = pending ?? current.getViewport();
+      if (!base) return;
       const delta = accumulated;
       accumulated = 0;
-      const zoom = Math.min(maxZoom, Math.max(minZoom, viewport.zoom * Math.exp(-delta * WHEEL_SENSITIVITY)));
-      const scale = zoom / viewport.zoom;
-      const x = anchorX - (anchorX - viewport.x) * scale;
-      const y = anchorY - (anchorY - viewport.y) * scale;
-      current.setViewport({ x, y, zoom });
+      const zoom = Math.min(maxZoom, Math.max(minZoom, base.zoom * Math.exp(-delta * WHEEL_SENSITIVITY)));
+      const scale = zoom / base.zoom;
+      const x = anchorX - (anchorX - base.x) * scale;
+      const y = anchorY - (anchorY - base.y) * scale;
+      pending = { x, y, zoom };
+      const el = viewportEl();
+      if (el) {
+        el.style.transform = `translate(${x}px, ${y}px) scale(${zoom})`;
+      } else {
+        current.setViewport({ x, y, zoom });
+      }
       if (settleTimer !== undefined) clearTimeout(settleTimer);
-      settleTimer = setTimeout(() => interactionDeferEnd(), WHEEL_SETTLE_TAIL_MS);
+      settleTimer = setTimeout(() => {
+        // 手势结束:一次性提交 store(RF/d3 与视觉态对齐),随后交还门闸
+        const commit = pending;
+        pending = null;
+        if (commit) current.setViewport(commit);
+        interactionDeferEnd();
+      }, WHEEL_SETTLE_TAIL_MS);
     };
 
     const onWheel = (event: WheelEvent) => {
+      // .nowheel 豁免(React Flow 同款语义):节点内滚动区(分镜视频卡/技能
+      // 摘要等 overflow-y-auto 容器)的滚轮必须留给原生滚动——capture 拦截
+      // 若不豁免,preventDefault 会吞掉所有内嵌列表的滚动(08-26 用户实证)。
+      if (event.target instanceof Element && event.target.closest(".nowheel")) return;
       event.preventDefault();
       event.stopPropagation();
       const rect = element.getBoundingClientRect();

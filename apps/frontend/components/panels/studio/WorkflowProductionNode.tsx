@@ -183,6 +183,8 @@ export const ProductionFlowNode = memo(function ProductionFlowNode({ data }: Nod
     <div
       data-flow-node-id={data.node.id}
       className={cn(
+        // contain:样式重算关进本卡(2026-08-26 trace:拖拽每步全树 UpdateLayoutTree×4)
+        "[contain:layout_style]",
         "production-flow-node-card group rounded-md border p-4 text-left text-card-foreground outline-none",
         "hover:border-primary/55",
         NODE_SIZE_CLASS[data.node.id as ProductionFlowNodeId] ?? 'w-[640px]',

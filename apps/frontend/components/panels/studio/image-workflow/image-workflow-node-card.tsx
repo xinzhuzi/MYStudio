@@ -76,6 +76,7 @@ export const ImageWorkflowNodeCard = memo(function ImageWorkflowNodeCard({ data 
     <div
       data-image-workflow-node-kind={node.type}
       className={cn(
+        "[contain:layout_style]",
         "image-workflow-node-card rounded-md border bg-card/96 p-3 text-card-foreground shadow-[0_22px_54px_rgba(0,0,0,0.24)]",
         node.type === "prompt" || node.type === "generated" ? "w-[560px]" : "w-[420px]",
         borderClass,
