@@ -75,7 +75,7 @@ export function ScriptAssetManagementTab({
               源资产 → AI 生成变体;点击衍生卡进入图像工作流精修(指针卡裁定后从画布移入此面板)。
             </p>
           </div>
-          <div className="p-4">
+          <div className="max-h-[800px] overflow-y-auto p-4">
             <AssetDerivationPreview
               node={derivationNode}
               onOpenAssetImageWorkflow={onOpenAssetImageWorkflow}
