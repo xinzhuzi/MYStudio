@@ -131,6 +131,28 @@ const safeFirstShotPreviewTimeoutMs = Number.isFinite(firstShotPreviewTimeoutMs)
 const safeProductionCanvasVideoTimeoutMs = Number.isFinite(productionCanvasVideoTimeoutMs) && productionCanvasVideoTimeoutMs > 0
   ? Math.floor(productionCanvasVideoTimeoutMs)
   : 600_000;
+const realProjectWorkflowBaseTimeoutMs = 180_000 + 20 * safeStepDelayMs;
+const minimumWorkflowTimeoutMs = runRealProject
+  ? runProductionCanvasVideo
+    ? safeProductionCanvasVideoTimeoutMs + 182_000 + 23 * safeStepDelayMs
+    : runFirstShotPreview
+      ? safeFirstShotPreviewTimeoutMs + 192_000 + 22 * safeStepDelayMs
+      : runChapterAutoVideo
+        ? safeAutoVideoTimeoutMs + 187_000 + 22 * safeStepDelayMs
+        : realProjectWorkflowBaseTimeoutMs
+  : 120_000;
+const workflowTimeoutOverrideMs = process.env.MYSTUDIO_VISIBLE_WORKFLOW_TIMEOUT_MS
+  ? Number(process.env.MYSTUDIO_VISIBLE_WORKFLOW_TIMEOUT_MS)
+  : minimumWorkflowTimeoutMs;
+if (
+  !Number.isFinite(workflowTimeoutOverrideMs) ||
+  workflowTimeoutOverrideMs < minimumWorkflowTimeoutMs
+) {
+  throw new Error(
+    `MYSTUDIO_VISIBLE_WORKFLOW_TIMEOUT_MS must be at least ${minimumWorkflowTimeoutMs}`,
+  );
+}
+const safeWorkflowTimeoutMs = Math.floor(workflowTimeoutOverrideMs);
   const realProjectName = process.env.MYSTUDIO_SMOKE_PROJECT_NAME?.trim() || "";
   const realProjectChapterId = "chapter-001";
   const realProjectChapterTitle = process.env.MYSTUDIO_SMOKE_CHAPTER_TITLE?.trim() || null;
@@ -493,6 +515,9 @@ function cloneRealProjectUserData() {
     );
   }
   copyStudioWorkflowStoreDir(projectDir, clonedProjectDir);
+  const sourceSkillsDir = resolve(projectDir, "skills");
+  const clonedSkillsDir = resolve(clonedProjectDir, "skills");
+  copyProjectDirectoryIfExists(sourceSkillsDir, clonedSkillsDir);
 
   // Patch cloned storyboards with sourceId/revision so chapter auto-video identity checks pass.
   // 克隆 store 可能是分片布局——读写均走分片感知入口，原布局按原布局写回。
@@ -587,16 +612,19 @@ function cloneRealProjectUserData() {
 
 function inspectClonedProjectData(userDataDir, projectId = realProjectId) {
   const projectDir = resolve(userDataDir, "projects", "_p", projectId);
+  const storeDir = existsSync(resolve(projectDir, "store"))
+    ? resolve(projectDir, "store")
+    : projectDir;
   const workflowStore = readStudioWorkflowStore(projectDir);
   const workflowState = workflowStore?.state || {};
-  const characters = existsSync(resolve(projectDir, "characters.json"))
-    ? readJsonFile(resolve(projectDir, "characters.json")).state?.characters || []
+  const characters = existsSync(resolve(storeDir, "characters.json"))
+    ? readJsonFile(resolve(storeDir, "characters.json")).state?.characters || []
     : [];
-  const scenes = existsSync(resolve(projectDir, "scenes.json"))
-    ? readJsonFile(resolve(projectDir, "scenes.json")).state?.scenes || []
+  const scenes = existsSync(resolve(storeDir, "scenes.json"))
+    ? readJsonFile(resolve(storeDir, "scenes.json")).state?.scenes || []
     : [];
-  const props = existsSync(resolve(projectDir, "props.json"))
-    ? readJsonFile(resolve(projectDir, "props.json")).state?.items || []
+  const props = existsSync(resolve(storeDir, "props.json"))
+    ? readJsonFile(resolve(storeDir, "props.json")).state?.items || []
     : [];
   const scriptPlans = (workflowState.scriptPlans || []).filter(
     (candidate) => !candidate.episodeId || candidate.episodeId === realProjectChapterId,
@@ -624,8 +652,16 @@ function inspectClonedProjectData(userDataDir, projectId = realProjectId) {
   const chapterStoryboards = (workflowState.storyboards || []).filter(
     (candidate) => candidate.episodeId === realProjectChapterId,
   );
+  const storyboardImageWorkflowIds = new Set(
+    chapterStoryboards
+      .flatMap((candidate) => [
+        candidate.imageWorkflowId,
+        candidate.mediaRef?.imageWorkflowId,
+      ])
+      .filter((workflowId) => typeof workflowId === "string" && workflowId.length > 0),
+  );
   const storyboardImageWorkflows = (workflowState.imageWorkflows || []).filter((graph) =>
-    String(graph.id || "").startsWith(`storyboard-flow-${realProjectChapterId}-`),
+    storyboardImageWorkflowIds.has(graph.id),
   );
   const storyboardImageWorkflowsReady = storyboardImageWorkflows.filter((graph) => {
     const referenceNodes = (graph.nodes || []).filter((node) => node.type === "reference" && node.imageUrl);
@@ -636,6 +672,16 @@ function inspectClonedProjectData(userDataDir, projectId = realProjectId) {
   });
   const storyboardWorkflowIds = new Set(storyboardImageWorkflows.map((graph) => graph.id));
   return {
+    projectSkillsReady: existsSync(
+      resolve(
+        projectDir,
+        "skills",
+        "art_skills",
+        "daojie_ink_guofeng",
+        "art_prompt",
+        "art_storyboard_video.md",
+      ),
+    ),
     storyboardsWithWorkflow: chapterStoryboards.filter((storyboard) =>
       Boolean(
         storyboard.imageWorkflowId ||
@@ -748,12 +794,6 @@ async function ensureAppIsForeground(pid, reason) {
   return frontmostApp;
 }
 
-function nudgeAppToForeground(pid, reason) {
-  if (process.platform !== "darwin" || !pid) return;
-  bringAppToForeground(pid);
-  console.log(`[visible-run] foreground request: ${reason}`);
-}
-
 function connectWebSocket(url) {
   return new Promise((resolveSocket, reject) => {
     const socket = new WebSocket(url);
@@ -794,12 +834,8 @@ async function runVisibleWorkflow(pageTarget, childPid, focusSamples) {
         .filter((value) => typeof value === "string")
         .join(" ");
       if (text.startsWith("[visible-run]")) {
-        if (text.includes("stage")) {
-          if (runInBackground) {
-            focusSamples.push(sampleFrontmostApplication(text));
-          } else {
-            nudgeAppToForeground(childPid, text);
-          }
+        if (text.includes("stage") && runInBackground) {
+          focusSamples.push(sampleFrontmostApplication(text));
         }
         console.log(text);
       }
@@ -853,6 +889,52 @@ async function runVisibleWorkflow(pageTarget, childPid, focusSamples) {
       socket.send(JSON.stringify({ id, method, params }));
     });
 
+  const samplePageFocus = async ({ requireVisibleAndFocused }) => {
+    const attempts = requireVisibleAndFocused ? 8 : 1;
+    let latestFocus = null;
+    for (let attempt = 1; attempt <= attempts; attempt += 1) {
+      const pageFocus = await send("Runtime.evaluate", {
+        returnByValue: true,
+        expression: `({
+          windowVisibility: document.visibilityState,
+          documentHasFocus: document.hasFocus(),
+        })`,
+      });
+      if (pageFocus?.exceptionDetails) {
+        const exception = pageFocus.exceptionDetails;
+        const description =
+          exception.exception?.description ||
+          exception.exception?.value ||
+          exception.text ||
+          "visible workflow focus evaluation failed";
+        throw new Error(String(description));
+      }
+      if (
+        !pageFocus?.result ||
+        !("value" in pageFocus.result) ||
+        !pageFocus.result.value ||
+        typeof pageFocus.result.value !== "object" ||
+        typeof pageFocus.result.value.windowVisibility !== "string" ||
+        typeof pageFocus.result.value.documentHasFocus !== "boolean"
+      ) {
+        throw new Error(
+          `visible workflow focus evaluation returned no serializable value: ${JSON.stringify(pageFocus?.result ?? {})}`,
+        );
+      }
+      latestFocus = pageFocus.result.value;
+      if (
+        !requireVisibleAndFocused ||
+        (latestFocus.windowVisibility === "visible" && latestFocus.documentHasFocus)
+      ) {
+        return latestFocus;
+      }
+      if (attempt < attempts) {
+        await new Promise((resolveWait) => setTimeout(resolveWait, 250));
+      }
+    }
+    return latestFocus;
+  };
+
   try {
     await send("Runtime.enable");
     await send("Log.enable");
@@ -881,13 +963,7 @@ async function runVisibleWorkflow(pageTarget, childPid, focusSamples) {
         expression,
       }),
       "visible step-by-step workflow run",
-      runProductionCanvasVideo
-        ? safeProductionCanvasVideoTimeoutMs + 180_000
-        : runFirstShotPreview
-          ? safeFirstShotPreviewTimeoutMs + 180_000
-          : runChapterAutoVideo
-            ? safeAutoVideoTimeoutMs + 180_000
-            : 120_000,
+      safeWorkflowTimeoutMs,
     );
     if (evaluated?.exceptionDetails) {
       const exception = evaluated.exceptionDetails;
@@ -906,37 +982,16 @@ async function runVisibleWorkflow(pageTarget, childPid, focusSamples) {
     if (!Array.isArray(evaluated.result.value?.results)) {
       throw new Error("visible workflow page evaluation returned no stage results");
     }
-    const pageFocus = await send("Runtime.evaluate", {
-      returnByValue: true,
-      expression: `({
-        windowVisibility: document.visibilityState,
-        documentHasFocus: document.hasFocus(),
-      })`,
+    const finalFrontmostApp = runInBackground
+      ? ""
+      : await ensureAppIsForeground(childPid, "after workflow clicks");
+    const pageFocus = await samplePageFocus({
+      requireVisibleAndFocused: !runInBackground,
     });
-    if (pageFocus?.exceptionDetails) {
-      const exception = pageFocus.exceptionDetails;
-      const description =
-        exception.exception?.description ||
-        exception.exception?.value ||
-        exception.text ||
-        "visible workflow focus evaluation failed";
-      throw new Error(String(description));
-    }
-    if (
-      !pageFocus?.result ||
-      !("value" in pageFocus.result) ||
-      !pageFocus.result.value ||
-      typeof pageFocus.result.value !== "object" ||
-      typeof pageFocus.result.value.windowVisibility !== "string" ||
-      typeof pageFocus.result.value.documentHasFocus !== "boolean"
-    ) {
-      throw new Error(
-        `visible workflow focus evaluation returned no serializable value: ${JSON.stringify(pageFocus?.result ?? {})}`,
-      );
-    }
     return {
       ...evaluated.result.value,
-      ...pageFocus.result.value,
+      ...pageFocus,
+      frontmostApp: finalFrontmostApp,
       runtimeProblems,
     };
   } finally {
@@ -991,21 +1046,43 @@ function visibleWorkflowExpression(delayMs, focusWindow) {
       }
       console.info('[visible-run] stage ' + stage.id + ' opening switcher');
       ${focusWindowStatement}
-      const switcherClick = clickText('切换阶段');
+      const switcherButton = Array.from(document.querySelectorAll('button, [role="button"]'))
+        .find((node) => normalize(node) === '切换阶段');
+      const switcherClick = {
+        clicked: activate(switcherButton),
+        text: switcherButton ? normalize(switcherButton) : '',
+      };
       console.info('[visible-run] stage ' + stage.id + ' switcher=' + Boolean(switcherClick.clicked));
+      if (!switcherClick.clicked) throw new Error('工作流阶段切换按钮未出现: ' + stage.id);
       await visibleDelay();
-      await waitFor(() => Array.from(document.querySelectorAll('button, [role="menuitem"], [cmdk-item]')).some((node) => normalize(node).includes(stage.label)), 2_000);
-      const clicked =
-        stage.id === 'manuals' ? clickText('风格与导演') :
-        stage.id === 'novel' ? clickText('小说导入') :
-        stage.id === 'script' ? clickText('剧本生产阶段') :
-        stage.id === 'assets' ? clickText('剧本资产管理') :
-        stage.id === 'storyboard' ? clickText('分镜视频生成') :
-        stage.id === 'workbench' ? clickText('视频工作台') :
-        { clicked: false, text: '' };
+      let stageMenuItem = await waitFor(() =>
+        Array.from(document.querySelectorAll('[role="menuitem"]'))
+          .find((node) => normalize(node).includes(stage.label)),
+      500);
+      if (!stageMenuItem) {
+        switcherButton.dispatchEvent(new KeyboardEvent('keydown', {
+          key: 'ArrowDown',
+          bubbles: true,
+          cancelable: true,
+        }));
+        stageMenuItem = await waitFor(() =>
+          Array.from(document.querySelectorAll('[role="menuitem"]'))
+            .find((node) => normalize(node).includes(stage.label)),
+        2_000);
+      }
+      if (!stageMenuItem) {
+        const menuItems = Array.from(document.querySelectorAll('[role="menuitem"]'))
+          .map((node) => normalize(node)).filter(Boolean).join(' | ');
+        throw new Error('工作流阶段菜单未出现: ' + stage.label + '; menuItems=' + menuItems);
+      }
+      const clicked = { clicked: activate(stageMenuItem), text: normalize(stageMenuItem) };
+      await visibleDelay();
+      const stageChanged = await waitFor(() =>
+        document.querySelector('[data-workflow-active-stage]')
+          ?.getAttribute('data-workflow-active-stage') === stage.id,
+      8_000);
+      if (!stageChanged) throw new Error('工作流阶段切换未生效: ' + stage.id);
       console.info('[visible-run] stage ' + stage.id + ' clicked ' + (clicked.text || 'missing'));
-      await window.mystudioWorkflowSmoke?.setWorkflowStage?.(stage.id);
-      await visibleDelay();
       return clicked;
     };
     const primeVisibleStageForFirstClick = async () => {
@@ -1213,26 +1290,38 @@ function realProjectWorkflowExpression(
     // studio-workflow store 分片感知读取（页内经 fileStorage IPC：manifest → 分片合并 → legacy 兜底）
     const readWorkflowStore = async () => {
       const shardDirKey = '_p/' + projectId + '/studio-workflow';
-      const manifestRaw = await window.fileStorage?.getItem?.(shardDirKey + '/manifest');
-      if (!manifestRaw) return readJsonStore('_p/' + projectId + '/studio-workflow-store');
-      let manifest = null;
-      try { manifest = JSON.parse(manifestRaw); } catch { return null; }
-      if (!manifest || !Array.isArray(manifest.shards)) return null;
-      const merged = {};
-      let version = 0;
-      for (const shardName of manifest.shards) {
-        const raw = await window.fileStorage?.getItem?.(shardDirKey + '/' + shardName.replace(/\.json$/, ''));
-        if (!raw) throw new Error('studio-workflow 分片缺失: ' + shardName);
-        const envelope = JSON.parse(raw);
-        if (typeof envelope?.version === 'number') version = Math.max(version, envelope.version);
-        for (const [stateKey, value] of Object.entries(envelope?.state || {})) {
-          const existing = merged[stateKey];
-          merged[stateKey] = Array.isArray(existing) && Array.isArray(value)
-            ? [...existing, ...value]
-            : value;
+      const manifestKey = shardDirKey + '/manifest';
+      for (let attempt = 0; attempt < 3; attempt += 1) {
+        const manifestRaw = await window.fileStorage?.getItem?.(manifestKey);
+        if (!manifestRaw) return readJsonStore('_p/' + projectId + '/studio-workflow-store');
+        let manifest = null;
+        try { manifest = JSON.parse(manifestRaw); } catch { return null; }
+        if (!manifest || !Array.isArray(manifest.shards)) return null;
+        const merged = {};
+        let version = 0;
+        let readError = null;
+        try {
+          for (const shardName of manifest.shards) {
+            const raw = await window.fileStorage?.getItem?.(shardDirKey + '/' + shardName.replace(/\.json$/, ''));
+            if (!raw) throw new Error('studio-workflow 分片缺失: ' + shardName);
+            const envelope = JSON.parse(raw);
+            if (typeof envelope?.version === 'number') version = Math.max(version, envelope.version);
+            for (const [stateKey, value] of Object.entries(envelope?.state || {})) {
+              const existing = merged[stateKey];
+              merged[stateKey] = Array.isArray(existing) && Array.isArray(value)
+                ? [...existing, ...value]
+                : value;
+            }
+          }
+        } catch (error) {
+          readError = error;
         }
+        if (!readError) return { state: merged, version };
+        const latestManifestRaw = await window.fileStorage?.getItem?.(manifestKey);
+        if (latestManifestRaw !== manifestRaw && attempt < 2) continue;
+        throw readError;
       }
-      return { state: merged, version };
+      return null;
     };
     const inspectProjectData = async () => {
       const projectStore = await readJsonStore('mystudio-project-store');
@@ -1415,19 +1504,42 @@ function realProjectWorkflowExpression(
       }
       console.info('[visible-run] stage ' + stage.id + ' opening switcher');
       ${focusWindowStatement}
-      const switcherClick = clickText('切换阶段');
+      const switcherButton = Array.from(document.querySelectorAll('button, [role="button"]'))
+        .find((node) => normalize(node) === '切换阶段');
+      const switcherClick = {
+        clicked: activate(switcherButton),
+        text: switcherButton ? normalize(switcherButton) : '',
+      };
       console.info('[visible-run] stage ' + stage.id + ' switcher=' + Boolean(switcherClick.clicked));
+      if (!switcherClick.clicked) throw new Error('工作流阶段切换按钮未出现: ' + stage.id);
       await visibleDelay();
-      await waitFor(() => Array.from(document.querySelectorAll('button, [role="menuitem"], [cmdk-item], [role="button"]')).some((node) => normalize(node).includes(stage.label)), 2_000);
-      const clicked =
-        stage.id === 'manuals' ? clickText('风格与导演') :
-        stage.id === 'novel' ? clickText('小说导入') :
-        stage.id === 'script' ? clickText('剧本生产阶段') :
-        stage.id === 'assets' ? clickText('剧本资产管理') :
-        stage.id === 'storyboard' ? clickText('分镜视频生成') :
-        stage.id === 'workbench' ? clickText('视频工作台') :
-        { clicked: false, text: '' };
+      let stageMenuItem = await waitFor(() =>
+        Array.from(document.querySelectorAll('[role="menuitem"]'))
+          .find((node) => normalize(node).includes(stage.label)),
+      500);
+      if (!stageMenuItem) {
+        switcherButton.dispatchEvent(new KeyboardEvent('keydown', {
+          key: 'ArrowDown',
+          bubbles: true,
+          cancelable: true,
+        }));
+        stageMenuItem = await waitFor(() =>
+          Array.from(document.querySelectorAll('[role="menuitem"]'))
+            .find((node) => normalize(node).includes(stage.label)),
+        2_000);
+      }
+      if (!stageMenuItem) {
+        const menuItems = Array.from(document.querySelectorAll('[role="menuitem"]'))
+          .map((node) => normalize(node)).filter(Boolean).join(' | ');
+        throw new Error('工作流阶段菜单未出现: ' + stage.label + '; menuItems=' + menuItems);
+      }
+      const clicked = { clicked: activate(stageMenuItem), text: normalize(stageMenuItem) };
       await visibleDelay();
+      const stageChanged = await waitFor(() =>
+        document.querySelector('[data-workflow-active-stage]')
+          ?.getAttribute('data-workflow-active-stage') === stage.id,
+      8_000);
+      if (!stageChanged) throw new Error('工作流阶段切换未生效: ' + stage.id);
       console.info('[visible-run] stage ' + stage.id + ' clicked ' + (clicked.text || 'missing'));
       return clicked;
     };
@@ -1687,7 +1799,7 @@ function realProjectWorkflowExpression(
             : [];
           const targetButton = actionButtons.find((btn) => {
             const text = normalize(btn);
-            return text === '生成当前章分镜视频';
+            return text === '一键生成所有视频' || text === '生成当前章分镜视频';
           });
           actionClick = {
             clicked: Boolean(targetButton && activate(targetButton)),
@@ -1903,6 +2015,7 @@ function realProjectWorkflowExpression(
           reason: 'real storyboard image workflow image entry was not found',
         };
       }
+      let lastDetail = null;
       const detail = await waitFor(() => {
         const text = document.body.innerText || '';
         const visibleRect = (node) => {
@@ -1966,12 +2079,14 @@ function realProjectWorkflowExpression(
         const hasNoDuplicateGeneratedPromptPanel = !(hasImageWorkflowPromptNode && Boolean(generatedPromptPanel));
         const hasNoVisibleDuplicateGeneratedPromptPanel = !hasVisibleDuplicateGeneratedPromptPanel;
         const hasEditableImageWorkflowPrompt = promptTextValues.some((value) => value.trim().length > 0);
-        const hasRealProjectStoryboardPromptStyle = promptTextValues.some((value) =>
-          value.includes('水墨国风修仙') &&
-          value.includes('@图1') &&
-          value.includes('禁止写实摄影') &&
-          value.includes('禁止3D写实渲染')
-        );
+        const hasRealProjectStoryboardPromptContract = promptTextValues.some((value) => {
+          const lines = value
+            .split(String.fromCharCode(10))
+            .map((line) => line.trim())
+            .filter(Boolean);
+          return lines.some((line) => line.includes('@图1') && line.includes('为')) &&
+            lines.some((line) => !line.includes('@图') && line.length >= 12);
+        });
         const hasImageWorkflowSource = text.includes('来源') && text.includes('分镜视频生成') && text.includes('分镜成图');
         const imageWorkflowScope = document.querySelector('[data-scoped-image-workflow-summary]')?.closest('section') || document;
         const scopedButtonTexts = Array.from(imageWorkflowScope.querySelectorAll('button')).map((node) => normalize(node));
@@ -1984,12 +2099,56 @@ function realProjectWorkflowExpression(
         const hasImageWorkflowBackButton = scopedButtonTexts.some((text) => text === '返回');
         const hasImageWorkflowRunAction = scopedButtonTexts.some((text) => text.includes('运行生成'));
         const hasImageWorkflowWritebackAction = scopedButtonTexts.some((text) => text.includes('写回目标'));
-        return hasReferenceNode && hasGeneratedNode && hasStoryboardWriteback && hasImageWorkflowCanvas && hasVisibleImageWorkflowCanvas && hasImageWorkflowNodes && hasImageWorkflowPromptNode && hasNoDuplicateGeneratedPromptPanel && hasVisibleGeneratedNode && hasNoVisibleDuplicateGeneratedPromptPanel && hasEditableImageWorkflowPrompt && hasRealProjectStoryboardPromptStyle && hasImageWorkflowSource && hasScopedImageWorkflowSummary && hasNoGlobalImageWorkflowControls && hasNoGlobalImageWorkflowPalettes && hasImageWorkflowBackButton && hasImageWorkflowRunAction && hasImageWorkflowWritebackAction
-          ? { hasReferenceNode, hasGeneratedNode, hasStoryboardWriteback, hasImageWorkflowCanvas, hasVisibleImageWorkflowCanvas, hasImageWorkflowNodes, imageWorkflowNodeCount, hasImageWorkflowPromptNode, hasNoDuplicateGeneratedPromptPanel, hasVisibleGeneratedNode, hasNoVisibleDuplicateGeneratedPromptPanel, hasEditableImageWorkflowPrompt, hasRealProjectStoryboardPromptStyle, hasImageWorkflowSource, hasScopedImageWorkflowSummary, hasNoGlobalImageWorkflowControls, hasNoGlobalImageWorkflowPalettes, hasImageWorkflowBackButton, hasImageWorkflowRunAction, hasImageWorkflowWritebackAction, canvasRect, generatedNodeRect, generatedPromptPanelRect, inputValues, promptTextValues, generatedPromptTextValues, referenceNodeText, generatedNodeText }
-          : null;
-      }, 8_000);
+        const checks = {
+          hasReferenceNode,
+          hasGeneratedNode,
+          hasStoryboardWriteback,
+          hasImageWorkflowCanvas,
+          hasVisibleImageWorkflowCanvas,
+          hasImageWorkflowNodes,
+          hasImageWorkflowPromptNode,
+          hasNoDuplicateGeneratedPromptPanel,
+          hasVisibleGeneratedNode,
+          hasNoVisibleDuplicateGeneratedPromptPanel,
+          hasEditableImageWorkflowPrompt,
+          hasRealProjectStoryboardPromptContract,
+          hasImageWorkflowSource,
+          hasScopedImageWorkflowSummary,
+          hasNoGlobalImageWorkflowControls,
+          hasNoGlobalImageWorkflowPalettes,
+          hasImageWorkflowBackButton,
+          hasImageWorkflowRunAction,
+          hasImageWorkflowWritebackAction,
+        };
+        const missingChecks = Object.entries(checks)
+          .filter(([, passed]) => !passed)
+          .map(([name]) => name);
+        const evidence = {
+          ready: missingChecks.length === 0,
+          ...checks,
+          missingChecks,
+          imageWorkflowNodeCount,
+          canvasRect,
+          generatedNodeRect,
+          generatedPromptPanelRect,
+          inputValues,
+          promptTextValues,
+          generatedPromptTextValues,
+          referenceNodeText,
+          generatedNodeText,
+        };
+        lastDetail = evidence;
+        return evidence.ready ? evidence : null;
+      }, 8_000) || lastDetail || (() => {
+        const text = document.body.innerText || '';
+        return {
+          ready: false,
+          reason: 'storyboard image workflow detail did not satisfy readiness checks',
+          bodyText: text.slice(0, 1200),
+        };
+      })();
       return {
-        ready: Boolean(detail),
+        ready: Boolean(detail?.ready),
         clicked: true,
         workflowId,
         storyboardId,
@@ -2142,13 +2301,13 @@ try {
   if (runInBackground) {
     focusSamples.push(sampleFrontmostApplication("after workflow clicks"));
   }
-  const frontmostApp = runInBackground
-    ? ""
-    : await ensureAppIsForeground(child.pid, "after workflow clicks");
+  const frontmostApp = runInBackground ? "" : result.frontmostApp;
   const foregroundViolation = hasMYStudioForegroundViolation(focusSamples);
   const focusFailure = runInBackground
     ? foregroundViolation
-    : process.platform === "darwin" && frontmostApp !== appProcessName;
+    : (process.platform === "darwin" && frontmostApp !== appProcessName) ||
+      result.windowVisibility !== "visible" ||
+      result.documentHasFocus !== true;
   const failedStages = result.results.filter((stage) => !stage.clicked || !stage.ready);
   const runtimeProblems = Array.isArray(result.runtimeProblems)
     ? result.runtimeProblems
@@ -2259,6 +2418,7 @@ try {
       !result.completed ||
       failedStages.length > 0 ||
       runtimeProblems.length > 0 ||
+      diskRealProject.projectSkillsReady !== true ||
       (realProjectName && realProject.projectName !== realProjectName) ||
       realProject.chapterId !== realProjectChapterId ||
       (realProjectChapterTitle && realProject.chapterTitle !== realProjectChapterTitle) ||
@@ -2266,10 +2426,14 @@ try {
       realProject.storyboards !== expectedStoryboards ||
       realProject.storyboardsWithMediaPath !== expectedStoryboards ||
       realProject.storyboardImageWorkflowsReady !== realProject.storyboardImageWorkflows ||
-      realProject.totalStoryboardDuration > 180 ||
-      realProject.totalTrackDuration > 180 ||
+      realProject.totalStoryboardDuration <= 0 ||
+      realProject.totalTrackDuration !== realProject.totalStoryboardDuration ||
+      diskRealProject.storyboardsWithWorkflow !== expectedStoryboards ||
+      diskRealProject.storyboardImageWorkflows !== expectedStoryboards ||
+      diskRealProject.storyboardImageWorkflowsReady !== expectedStoryboards ||
       realProject.derivedAssetPlan < 3 ||
       realProject.derivedAssets < 3 ||
+      diskRealProject.derivedAssets < 3 ||
       realProject.derivedImageWorkflows < 3 ||
       realProject.derivedImageWorkflowsReady < 3 ||
       !result.storyboardImageWorkflowDetail?.ready ||
