@@ -22,6 +22,7 @@ import {
 } from "./workflow-smoke-editing-evidence";
 import { upsertRuns, upsertWorks } from "./workflow-smoke-helpers";
 import { buildWorkflowSmokeStageEvidenceText } from "./workflow-smoke-stage-evidence";
+import { interactionDeferBegin, interactionDeferEnd } from "@/components/panels/studio/previews/interaction-defer";
 
 export interface WorkflowSmokeResult {
   progress: number;
@@ -157,6 +158,10 @@ async function getSmokeFrameGraphPath(): Promise<string> {
 
 async function setWorkflowStage(stage: string): Promise<boolean> {
   useStudioStore.getState().setWorkflowConfig({ workflowStage: stage });
+  // 测试桥语义:程序化设阶段后立即放行交互门闸——smoke 断言不等 5s 静止
+  // (用户真实点击路径的门闸行为不受影响)
+  interactionDeferBegin();
+  interactionDeferEnd(0);
   return true;
 }
 

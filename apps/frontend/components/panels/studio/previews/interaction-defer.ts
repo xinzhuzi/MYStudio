@@ -56,10 +56,10 @@ export function interactionDeferBegin() {
  * wheel 手势未必携带 event,按 event 门控会让闸门永久关死(实弹教训)。
  * 未关闸时是无害空操作。
  */
-export function interactionDeferEnd() {
+export function interactionDeferEnd(settleMs: number = SETTLE_DEBOUNCE_MS) {
   if (!active) return;
   if (releaseTimer !== undefined) clearTimeout(releaseTimer);
-  releaseDeadline = Date.now() + SETTLE_DEBOUNCE_MS;
+  releaseDeadline = Date.now() + settleMs;
   settling = true;
   notify();
   releaseTimer = setTimeout(() => {
@@ -69,7 +69,7 @@ export function interactionDeferEnd() {
       active = false;
       notify();
     }
-  }, SETTLE_DEBOUNCE_MS);
+  }, settleMs);
 }
 
 /** 门闸瞬时快照(提示组件倒计时用):active=交互中,settleing=停手倒计时中。 */
