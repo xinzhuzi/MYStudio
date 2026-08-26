@@ -46,11 +46,15 @@ export function TextPreview({ node }: { node: ProductionFlowNodeModel }) {
   );
 }
 
+/** 画布侧 markdown 截断(2026-08-26 瘦身):全量文档在阶段内编辑器查看,
+ * 画布只渲染头部(导演规划节点全量渲染曾达 529 DOM)。 */
+const CANVAS_MARKDOWN_CAP = 1200;
+
 export function buildPreviewMarkdown(node: ProductionFlowNodeModel) {
   const markdown = node.previewLines.join("\n").trim() || "暂无内容";
   return node.id === "scriptPlan"
     ? unwrapTaggedMarkdown(markdown, "scriptPlan")
-    : markdown;
+    : canvasCap(markdown);
 }
 
 function unwrapTaggedMarkdown(markdown: string, tagName: string) {
@@ -62,5 +66,12 @@ function unwrapTaggedMarkdown(markdown: string, tagName: string) {
   const withoutLooseTags = markdown
     .replace(new RegExp(`</?${tagName}>`, "g"), "")
     .trim();
-  return withoutLooseTags || "暂无内容";
+  return canvasCap(withoutLooseTags || "暂无内容");
+}
+
+function canvasCap(markdown: string): string {
+  if (markdown.length <= CANVAS_MARKDOWN_CAP) return markdown;
+  return `${markdown.slice(0, CANVAS_MARKDOWN_CAP)}
+
+> …(画布仅预览文档头部,全量在阶段内查看)`;
 }

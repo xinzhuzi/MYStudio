@@ -57,6 +57,9 @@ export function useSmoothWheelZoom(
     let anchorY = 0;
     /** 滚轮/拖拽共享的未提交视口(交替手势同基准,不跳变)。 */
     let pending: SmoothWheelZoomViewport | null = null;
+    /** 本提交窗开始时的 store 基准:提交时若 store 已被外部改写(视口控制
+     * 按钮/fitView),放弃覆盖——最后写入者优先。 */
+    let pendingBase: SmoothWheelZoomViewport | null = null;
 
     const viewportEl = () =>
       element.querySelector<HTMLElement>(".react-flow__viewport") ?? null;
@@ -67,14 +70,25 @@ export function useSmoothWheelZoom(
       settleTimer = setTimeout(() => {
         settleTimer = undefined;
         const commit = pending;
+        const base = pendingBase;
         pending = null;
+        pendingBase = null;
         const current = apiRef.current;
-        if (commit && current) current.setViewport(commit);
+        if (commit && current) {
+          const store = current.getViewport();
+          const externalWrite = base != null && store != null
+            && (store.x !== base.x || store.y !== base.y || store.zoom !== base.zoom);
+          if (!externalWrite) current.setViewport(commit);
+        }
         interactionDeferEnd();
       }, GESTURE_SETTLE_TAIL_MS);
     };
 
     const applyImperative = (next: SmoothWheelZoomViewport) => {
+      if (pending === null) {
+        const store = apiRef.current?.getViewport();
+        if (store) pendingBase = store;
+      }
       pending = next;
       const el = viewportEl();
       if (el) {

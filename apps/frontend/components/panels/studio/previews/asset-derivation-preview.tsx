@@ -68,7 +68,7 @@ export function AssetDerivationPreview({
           );
         })}
       </div>
-      {visibleGroups.map((group) => (
+      {(visibleGroups.length > 3 ? visibleGroups.slice(0, 3) : visibleGroups).map((group) => (
         <div
           key={group.source.id}
           className="grid grid-cols-[188px_34px_minmax(188px,1fr)] items-stretch gap-3"
@@ -92,6 +92,11 @@ export function AssetDerivationPreview({
           )}
         </div>
       ))}
+      {visibleGroups.length > 3 ? (
+        <div className="px-1 py-1.5 text-[10px] text-muted-foreground">
+          画布仅预览前 3 组(共 {visibleGroups.length} 组);节点「进入」直达资产阶段查看全部
+        </div>
+      ) : null}
     </div>
   );
 }

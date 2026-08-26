@@ -215,6 +215,42 @@ describe("useSmoothWheelZoom", () => {
     vi.useRealTimers();
   });
 
+  it("yields to an external viewport write during the commit window (最后写入者优先)", () => {
+    vi.useFakeTimers();
+    let vp = { x: 0, y: 0, zoom: 1 };
+    const external = vi.fn();
+    const api: SmoothWheelZoomApi = {
+      getViewport: () => vp,
+      setViewport: (v) => { vp = v; external(v); },
+    };
+    const rafSpy = vi
+      .spyOn(window, "requestAnimationFrame")
+      .mockImplementation((cb) => (rafQueue.push(cb), 1));
+    const { container } = render(<Harness api={api} />);
+    const host = container.firstElementChild as HTMLElement;
+    const pane = document.createElement("div");
+    pane.className = "react-flow__pane";
+    host.appendChild(pane);
+    const vpEl = document.createElement("div");
+    vpEl.className = "react-flow__viewport";
+    host.appendChild(vpEl);
+    // 拖拽产生 pending
+    act(() => {
+      pane.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true, cancelable: true, button: 0, buttons: 1, pointerId: 13, pointerType: "mouse", isPrimary: true, clientX: 100, clientY: 100 }));
+      window.dispatchEvent(new PointerEvent("pointermove", { bubbles: true, cancelable: true, button: 0, buttons: 1, pointerId: 13, pointerType: "mouse", isPrimary: true, clientX: 160, clientY: 120 }));
+    });
+    // 提交窗内外部改写(如点视口控制按钮)
+    vp = { x: 99, y: 99, zoom: 1 };
+    act(() => {
+      window.dispatchEvent(new PointerEvent("pointerup", { bubbles: true, cancelable: true, button: 0, buttons: 0, pointerId: 13, pointerType: "mouse", isPrimary: true, clientX: 160, clientY: 120 }));
+      vi.advanceTimersByTime(160);
+    });
+    expect(external).not.toHaveBeenCalled(); // 我方提交让位
+    expect(vp).toMatchObject({ x: 99, y: 99 });
+    rafSpy.mockRestore();
+    vi.useRealTimers();
+  });
+
   it("gates loading during the wheel stream and ends after the settle tail", () => {
     vi.useFakeTimers();
     const api: SmoothWheelZoomApi = {
