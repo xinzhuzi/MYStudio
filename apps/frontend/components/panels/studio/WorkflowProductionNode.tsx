@@ -27,6 +27,7 @@ import type {
   ProductionFlowStage,
 } from "./workflow-node-model";
 import { NodePointerCard } from "./previews/node-pointer-card";
+import { NodeDocViewer } from "./NodeDocViewer";
 
 export interface ProductionNodeData extends Record<string, unknown> {
   node: ProductionFlowNodeModel;
@@ -105,6 +106,7 @@ const UNFRAMED_PREVIEW_NODE_IDS: readonly ProductionFlowNodeId[] = [
  * 视口派生态)都会全量重渲染节点内容;82 瓦片轨道卡被每帧重算就是卡顿源之一。
  */
 export const ProductionFlowNode = memo(function ProductionFlowNode({ data }: NodeProps<Node<ProductionNodeData>>) {
+  const [viewingDocNode, setViewingDocNode] = useState<ProductionFlowNodeModel | null>(null);
   const Icon = NODE_ICONS[data.node.id];
   const sourcePosition = data.sourcePosition ?? Position.Right;
   const targetPosition = data.targetPosition ?? (
@@ -150,8 +152,8 @@ export const ProductionFlowNode = memo(function ProductionFlowNode({ data }: Nod
       onEnter={
         // 文档型节点(导演规划/分镜表):打开编辑对话框查看全文(原始逻辑);
         // 其余节点:跳转 targetStage(流程推进)
-        WRITABLE_DOC_NODE_LABELS[data.node.id] && data.onNodeEdit
-          ? () => data.onNodeEdit?.(data.node.id)
+        WRITABLE_DOC_NODE_LABELS[data.node.id]
+          ? () => setViewingDocNode(data.node)
           : data.onStageChange
             ? () => data.onStageChange?.(data.node.targetStage)
             : undefined
@@ -490,6 +492,9 @@ export const ProductionFlowNode = memo(function ProductionFlowNode({ data }: Nod
           ) : null}
           
       </div>
-    </div>
+          {viewingDocNode ? (
+        <NodeDocViewer node={viewingDocNode} onClose={() => setViewingDocNode(null)} onEdit={data.onNodeEdit} />
+      ) : null}
+</div>
   );
 });
