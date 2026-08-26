@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import { AssetsTab } from "./AssetsTab";
 import { ScriptAssetGenerationTab } from "./ScriptAssetGenerationTab";
 import { useStudioStore } from "@/stores/studio/studio-store";
+import { AssetDerivationPreview } from "./previews/asset-derivation-preview";
 
 export function ScriptAssetManagementTab({
   novelChapters,
@@ -13,6 +14,8 @@ export function ScriptAssetManagementTab({
   productionEpisodeId,
   scriptPlanCount,
   hasSeriesBible,
+  derivationNode,
+  onOpenAssetImageWorkflow,
 }: {
   novelChapters: ReturnType<typeof useStudioStore.getState>["novelChapters"];
   agentWorkData: ReturnType<typeof useStudioStore.getState>["agentWorkData"];
@@ -29,6 +32,8 @@ export function ScriptAssetManagementTab({
   productionEpisodeId: string;
   scriptPlanCount: number;
   hasSeriesBible: boolean;
+  derivationNode?: import("./workflow-node-model").ProductionFlowNodeModel;
+  onOpenAssetImageWorkflow?: (context: import("@/types/studio").ImageWorkflowOpenContext) => void;
 }) {
   return (
     <div className="flex min-h-0 flex-col gap-4 pb-5">
@@ -61,6 +66,23 @@ export function ScriptAssetManagementTab({
           hasSeriesBible={hasSeriesBible}
         />
       </section>
+
+      {derivationNode?.assetGroups?.length ? (
+        <section className="overflow-hidden rounded-lg border border-border/70">
+          <div className="border-b border-border/70 px-4 py-3">
+            <h3 className="text-sm font-semibold text-foreground">衍生资产链</h3>
+            <p className="mt-0.5 text-xs text-muted-foreground">
+              源资产 → AI 生成变体;点击衍生卡进入图像工作流精修(指针卡裁定后从画布移入此面板)。
+            </p>
+          </div>
+          <div className="p-4">
+            <AssetDerivationPreview
+              node={derivationNode}
+              onOpenAssetImageWorkflow={onOpenAssetImageWorkflow}
+            />
+          </div>
+        </section>
+      ) : null}
     </div>
   );
 }
