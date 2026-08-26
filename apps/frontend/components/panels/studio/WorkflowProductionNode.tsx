@@ -142,10 +142,15 @@ export const ProductionFlowNode = memo(function ProductionFlowNode({ data }: Nod
     <NodePointerCard
       node={data.node}
       onEnter={
-        data.onStageChange
-          ? () => data.onStageChange?.(data.node.targetStage)
-          : undefined
+        // 导演规划等纯文档节点:打开编辑对话框查看全文(原始逻辑);
+        // 其余节点:跳转 targetStage(流程推进)
+        data.node.id === "scriptPlan" && data.onNodeEdit
+          ? () => data.onNodeEdit?.(data.node.id)
+          : data.onStageChange
+            ? () => data.onStageChange?.(data.node.targetStage)
+            : undefined
       }
+      enterLabel={data.node.id === "scriptPlan" ? "查看规划" : undefined}
     />
   );
   const runNodeAction = useCallback(

@@ -17,9 +17,11 @@ import type { ProductionFlowNodeModel } from "../workflow-node-model";
 export function NodePointerCard({
   node,
   onEnter,
+  enterLabel,
 }: {
   node: ProductionFlowNodeModel;
   onEnter?: () => void;
+  enterLabel?: string;
 }) {
   const summary = node.previewLines.slice(0, 3);
   const metric = node.metrics.slice(0, 2);
@@ -63,7 +65,7 @@ export function NodePointerCard({
           }}
         >
           <ArrowRight className="h-3 w-3" />
-          进入 {node.label}
+          {enterLabel ?? "进入 " + node.label}
         </button>
       ) : null}
     </div>

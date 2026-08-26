@@ -19,7 +19,7 @@ import { ClipboardList, Edit3, WandSparkles } from "lucide-react";
 import { MdPreview } from "md-editor-rt";
 import "md-editor-rt/lib/style.css";
 import { ScriptEditorDialog } from "./ScriptEditorDialog";
-import { DirectorPlanSection } from "./DirectorPlanSection";
+
 
 export function ScriptTab(props: {
   novelChapters: ReturnType<typeof useStudioStore.getState>["novelChapters"];
@@ -472,7 +472,6 @@ export function ScriptTab(props: {
           />
         </div>
       </div>
-          <DirectorPlanSection />
-</div>
+    </div>
   );
 }

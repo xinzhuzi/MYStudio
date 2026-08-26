@@ -441,13 +441,13 @@ function buildScriptPlanNode(ctx: ProductionFlowBuildContext): ProductionFlowNod
       {
         id: "generate-director-plan",
         label: ctx.input.scriptPlans.length > 0 ? "重新生成导演规划" : "生成导演规划",
-        targetStage: "script",
+        targetStage: "storyboard",
         disabled: ctx.scriptDrafts.length === 0,
         promptPlaceholder:
           "给导演规划补充要求，例如：节奏更压迫、保留所有对白、突出雨夜和断剑意象。",
       },
     ],
-    targetStage: "script",
+    targetStage: "storyboard",
   };
 }
 
