@@ -64,7 +64,10 @@ export function useWorkflowStageState({
     // 阶段进入 = 一次交互(用户裁定 2026-08-26):新阶段图片先占位,静止 5s
     // 后统一加载。首挂载跳过(冷启直入/初次进工作台不延迟,装机 smoke 依赖);
     // 测试桥程序化设阶段的豁免在此消费(时序:桥先行标志,本效应后行)。
-    if (stageChanged && !consumeInteractionDeferArrivalSuppression()) {
+    // 画布(storyboard)=纯指针卡零图片,门闸无意义(2026-08-26 用户实弹
+    // 「为什么左下角的提示还有」);仅对含图片的阶段面板关闸。
+    const isCanvasStage = visibleStage === "storyboard";
+    if (stageChanged && !isCanvasStage && !consumeInteractionDeferArrivalSuppression()) {
       interactionDeferBegin();
       interactionDeferEnd();
     } else {

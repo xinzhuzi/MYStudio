@@ -224,7 +224,6 @@ function CanvasDomMetricsLogger({ isVisible }: { isVisible: boolean }) {
 
 import { interactionDeferBegin, interactionDeferEnd } from "./previews/interaction-defer";
 import { useSmoothWheelZoom } from "./previews/smooth-wheel-zoom";
-import { InteractionDeferHint } from "./previews/interaction-defer-hint";
 
 export function WorkflowNodeCanvas({
   isVisible,
@@ -623,9 +622,6 @@ export function WorkflowNodeCanvas({
               </span>
             </button>
           ) : null}
-        </div>
-        <div className="pointer-events-none absolute bottom-3 left-3 z-10">
-          <InteractionDeferHint />
         </div>
         <ReactFlow
           className="production-flow-reactflow absolute inset-0"
