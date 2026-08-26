@@ -11,11 +11,13 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { useStudioStore } from "@/stores/studio/studio-store";
+import { buildStudioFlowData } from "@/lib/studio/studio-flow-data";
 import type { ProductionFlowNodeModel, ProductionFlowNodeId } from "./workflow-node-model";
 
 /**
  * NodeDocViewer——文档型节点的格式化阅读视图。
- * 全仓统一 Dialog 尺寸,干净排版:标题区 → 生成依据行 → 内容滚动区。
+ * 从 store 取全量 markdown(非截断 previewLines),MdPreview 大字号排版。
  */
 export function NodeDocViewer({
   node,
@@ -26,28 +28,34 @@ export function NodeDocViewer({
   onClose: () => void;
   onEdit?: (nodeId: ProductionFlowNodeId) => void;
 }) {
-  const markdown = buildDocMarkdown(node);
-  const skills = node.skills ?? [];
+  const state = useStudioStore();
+  const flowData = buildStudioFlowData({
+    agentWorkData: state.agentWorkData,
+    entityExtractions: state.entityExtractions,
+    scriptPlans: state.scriptPlans,
+    storyboards: state.storyboards ?? [],
+    productionTracks: state.productionTracks ?? [],
+    videoCandidates: state.videoCandidates ?? [],
+  });
   const isTable = node.previewKind === "table";
+  const markdown = isTable ? flowData.storyboardTable : flowData.scriptPlan;
+  const skills = node.skills ?? [];
 
   return (
     <Dialog open onOpenChange={(nextOpen) => { if (!nextOpen) onClose(); }}>
-      <DialogContent className="flex h-[88vh] max-w-[92vw] flex-col gap-0 border-border bg-card p-0 text-card-foreground sm:max-w-[92vw]">
+      <DialogContent className="flex h-[88vh] max-w-[92vw] flex-col gap-0 overflow-hidden border-border bg-card p-0 text-card-foreground sm:max-w-[92vw]">
         {/* 标题区 */}
-        <div className="flex items-start justify-between gap-4 border-b border-border px-6 py-4">
+        <div className="flex items-start justify-between gap-4 border-b border-border px-8 py-5">
           <div className="min-w-0 flex-1">
-            <DialogTitle className="text-lg font-semibold">{node.label}</DialogTitle>
-            <p className="mt-1 text-xs leading-4 text-muted-foreground">{node.description}</p>
+            <DialogTitle className="text-xl font-bold tracking-tight">{node.label}</DialogTitle>
+            <p className="mt-1.5 text-sm text-muted-foreground">{node.description}</p>
             {skills.length > 0 ? (
-              <div className="mt-2 flex flex-wrap items-center gap-1">
-                <span className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground/70">
-                  依据
-                </span>
+              <div className="mt-3 flex flex-wrap items-center gap-1.5">
                 {skills.map((skill) => (
                   <span
                     key={skill.id}
                     title={`${skill.name} (${skill.source})`}
-                    className="rounded-sm bg-muted/50 px-1.5 py-0.5 text-[10px] leading-4 text-muted-foreground"
+                    className="rounded-md border border-border/60 bg-muted/40 px-2 py-0.5 text-[11px] font-medium text-muted-foreground"
                   >
                     {skill.name}
                   </span>
@@ -60,25 +68,22 @@ export function NodeDocViewer({
               size="sm"
               variant="outline"
               className="mt-1 shrink-0 gap-1.5"
-              onClick={() => {
-                onClose();
-                onEdit(node.id);
-              }}
+              onClick={() => { onClose(); onEdit(node.id); }}
             >
-              <Edit3 className="h-3 w-3" />
+              <Edit3 className="h-3.5 w-3.5" />
               编辑
             </Button>
           ) : null}
         </div>
 
         {/* 内容区 */}
-        <div className={`min-h-0 flex-1 px-8 py-6 ${isTable ? "overflow-auto" : "overflow-y-auto"}`}>
+        <div className={`min-h-0 flex-1 ${isTable ? "overflow-auto" : "overflow-y-auto"} px-8 py-6`}>
           {isTable ? (
             <TableRender node={node} />
           ) : (
-            <div className="mx-auto max-w-3xl">
+            <div className="mx-auto max-w-4xl [&_.md-editor-preview]:!px-0 [&_.md-editor-preview]:!text-[15px] [&_.md-editor-preview]:!leading-[1.8] [&_.md-editor-preview_h1]:!mb-6 [&_.md-editor-preview_h1]:!mt-2 [&_.md-editor-preview_h1]:!text-2xl [&_.md-editor-preview_h1]:!font-bold [&_.md-editor-preview_h2]:!mb-4 [&_.md-editor-preview_h2]:!mt-8 [&_.md-editor-preview_h2]:!text-xl [&_.md-editor-preview_h2]:!font-semibold [&_.md-editor-preview_h3]:!mb-3 [&_.md-editor-preview_h3]:!mt-6 [&_.md-editor-preview_h3]:!text-lg [&_.md-editor-preview_p]:!mb-4 [&_.md-editor-preview_ul]:!mb-4 [&_.md-editor-preview_li]:!mb-1.5 [&_.md-editor-preview_blockquote]:!my-4 [&_.md-editor-preview_blockquote]:!border-l-2 [&_.md-editor-preview_blockquote]:!border-primary/40 [&_.md-editor-preview_blockquote]:!pl-4 [&_.md-editor-preview_blockquote]:!text-muted-foreground [&_.md-editor-preview_strong]:!text-foreground [&_.md-editor-preview_hr]:!my-6">
               <MdPreview
-                modelValue={markdown}
+                modelValue={markdown || "暂无内容"}
                 theme="dark"
                 previewTheme="github"
                 codeTheme="github"
@@ -93,57 +98,44 @@ export function NodeDocViewer({
   );
 }
 
-/** 分镜表渲染:干净表格,交替行色,宽松间距 */
+/** 分镜表渲染 */
 function TableRender({ node }: { node: ProductionFlowNodeModel }) {
   const rows = node.tableRows ?? [];
-  if (!rows.length) {
-    return <p className="text-sm text-muted-foreground">暂无分镜表数据</p>;
-  }
+  if (!rows.length) return <p className="text-sm text-muted-foreground">暂无分镜表数据</p>;
   const cols = [
-    { label: "序号", cls: "w-12 text-center" },
-    { label: "画面", cls: "min-w-[200px]" },
+    { label: "序号", cls: "w-14 text-center" },
+    { label: "画面", cls: "min-w-[220px]" },
     { label: "景别", cls: "w-16" },
     { label: "运镜", cls: "w-20" },
-    { label: "角色动作", cls: "min-w-[120px]" },
-    { label: "台词", cls: "min-w-[180px]" },
-    { label: "时长", cls: "w-14 text-center" },
+    { label: "角色动作", cls: "min-w-[140px]" },
+    { label: "台词", cls: "min-w-[200px]" },
+    { label: "时长", cls: "w-16 text-center" },
   ] as const;
   return (
-    <table className="w-full min-w-[900px] border-collapse text-[12px] leading-5">
+    <table className="w-full min-w-[1000px] border-collapse text-[13px] leading-6">
       <thead>
-        <tr className="border-b-2 border-border text-left text-[11px] font-medium text-muted-foreground">
+        <tr className="border-b-2 border-border text-left text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
           {cols.map((col) => (
-            <th key={col.label} className={`px-3 py-2.5 ${col.cls}`}>
-              {col.label}
-            </th>
+            <th key={col.label} className={`px-4 py-3 ${col.cls}`}>{col.label}</th>
           ))}
         </tr>
       </thead>
       <tbody>
         {rows.map((row, i) => (
-          <tr
-            key={row.index ?? i}
-            className={`border-b border-border/40 ${i % 2 === 1 ? "bg-muted/10" : ""} hover:bg-muted/20`}
-          >
-            <td className="px-3 py-2.5 text-center text-muted-foreground">{row.index ?? i + 1}</td>
-            <td className="px-3 py-2.5">
+          <tr key={row.index ?? i} className={`border-b border-border/30 ${i % 2 === 1 ? "bg-muted/15" : ""} hover:bg-primary/5`}>
+            <td className="px-4 py-3 text-center font-mono text-muted-foreground">{row.index ?? i + 1}</td>
+            <td className="px-4 py-3">
               <p className="font-medium text-foreground">{row.title}</p>
-              {row.description ? (
-                <p className="mt-0.5 text-[11px] leading-4 text-muted-foreground">{row.description}</p>
-              ) : null}
+              {row.description ? <p className="mt-1 text-[12px] leading-5 text-muted-foreground">{row.description}</p> : null}
             </td>
-            <td className="px-3 py-2.5 text-muted-foreground">{row.shotSize || "—"}</td>
-            <td className="px-3 py-2.5 text-muted-foreground">{row.cameraMove || "—"}</td>
-            <td className="px-3 py-2.5 text-muted-foreground">{row.action || "—"}</td>
-            <td className="px-3 py-2.5 text-muted-foreground">{row.lines || "—"}</td>
-            <td className="px-3 py-2.5 text-center text-muted-foreground">{row.duration ? `${row.duration}s` : "—"}</td>
+            <td className="px-4 py-3 text-muted-foreground">{row.shotSize || "—"}</td>
+            <td className="px-4 py-3 text-muted-foreground">{row.cameraMove || "—"}</td>
+            <td className="px-4 py-3 text-muted-foreground">{row.action || "—"}</td>
+            <td className="px-4 py-3 text-muted-foreground">{row.lines || "—"}</td>
+            <td className="px-4 py-3 text-center font-mono text-muted-foreground">{row.duration ? `${row.duration}s` : "—"}</td>
           </tr>
         ))}
       </tbody>
     </table>
   );
-}
-
-function buildDocMarkdown(node: ProductionFlowNodeModel): string {
-  return node.previewLines.join("\n").trim() || "暂无内容";
 }
