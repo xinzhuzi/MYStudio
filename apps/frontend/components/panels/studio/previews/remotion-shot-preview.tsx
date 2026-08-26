@@ -155,7 +155,9 @@ export function RemotionShotPreview({
       {summary?.error ? (
         <div className="rounded-md border border-viz-glow/35 bg-viz-glow/10 px-3 py-2 text-[10px] text-warning/80">
           队列读取失败：{summary.error}
-          {hiddenShots > 0 ? (
+        </div>
+      ) : null}
+      {hiddenShots > 0 ? (
         <button
           type="button"
           data-remotion-open-shot-panel
@@ -168,8 +170,6 @@ export function RemotionShotPreview({
         >
           共 {allShots.length} 镜 · 还有 {hiddenShots} 镜在单镜生产面板
         </button>
-      ) : null}
-    </div>
       ) : null}
     </div>
   );
