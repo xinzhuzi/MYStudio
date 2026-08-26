@@ -92,6 +92,10 @@ export function StudioView() {
                 productionEpisodeId={viewModel.productionEpisodeId}
                 scriptPlanCount={viewModel.scriptPlanCount}
                 hasSeriesBible={viewModel.hasSeriesBible}
+                derivationNode={viewModel.productionFlowNodes.find(
+                  (n) => n.previewKind === "asset-derivation",
+                )}
+                onOpenAssetImageWorkflow={viewModel.openAssetImageWorkflow}
               />
             </TabsContent>
 
@@ -167,6 +171,13 @@ export function StudioView() {
         onClose={viewModel.closeNodeEditor}
         onSave={viewModel.saveWorkflowNodeEdit}
         onEnterStage={viewModel.handleEnterWorkflowNodeStage}
+        skills={
+          viewModel.editingWorkflowNodeId
+            ? viewModel.productionFlowNodes.find(
+                (n) => n.id === viewModel.editingWorkflowNodeId,
+              )?.skills
+            : undefined
+        }
       />
     </div>
   );

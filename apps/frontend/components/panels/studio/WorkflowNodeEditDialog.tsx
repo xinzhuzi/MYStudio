@@ -217,6 +217,7 @@ export function WorkflowNodeEditDialog({
   onEnterStage,
   jsonMode = false,
   readOnlyJson = false,
+  skills,
 }: {
   open: boolean;
   title: string;
@@ -228,6 +229,8 @@ export function WorkflowNodeEditDialog({
   onEnterStage: () => void;
   jsonMode?: boolean;
   readOnlyJson?: boolean;
+  /** 生成依据(节点 skill 列表):在对话框头部展示生成时使用的技能/模块 */
+  skills?: { id: string; name: string; source: string }[];
 }) {
   const theme = useThemeStore((state) => state.theme);
   return (
@@ -250,6 +253,20 @@ export function WorkflowNodeEditDialog({
               : "该节点由结构化数据生成，可查看 Markdown 摘要；请进入对应阶段编辑明细。"}
           </DialogDescription>
         </DialogHeader>
+        {skills && skills.length > 0 ? (
+          <div className="flex flex-wrap gap-1.5 rounded-md border border-border/60 bg-muted/20 px-3 py-2">
+            <span className="text-[11px] font-medium text-muted-foreground">生成依据·{skills.length}项</span>
+            {skills.map((skill) => (
+              <span
+                key={skill.id}
+                title={`${skill.name} (${skill.source})`}
+                className="rounded bg-background/80 px-1.5 py-0.5 text-[10px] text-foreground"
+              >
+                {skill.name}
+              </span>
+            ))}
+          </div>
+        ) : null}
         <div className="min-h-0 flex-1 overflow-hidden rounded-md border border-border">
           {jsonMode ? <CodeMirror
             className="h-full"
