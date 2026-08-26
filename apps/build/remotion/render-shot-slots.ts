@@ -125,7 +125,9 @@ export async function runRemotionShotSlots(): Promise<ShotSlotReport> {
   const storePath = path.join(projectDir, "studio-workflow-store.json");
   const storeSnapshot = readStudioWorkflowStoreState(projectDir);
   if (!storeSnapshot) throw new Error(`studio-workflow store 不存在（分片/单文件均缺失）: ${storePath}`);
-  const state = requireState(storeSnapshot.state, storePath);
+  // requireState 校验信封形状 {state:{storyboards[]}}——必须传整个快照,
+  // 传 .state 会变双层读取恒败(分片 reader 契约回归,2026-08-26 实证)
+  const state = requireState(storeSnapshot, storePath);
   const storyboards = state.storyboards
     .filter((value) => isRecord(value) && value.episodeId === chapterId)
     .map((value) => normalizeStoryboard(value as StoryboardItem, projectDir, dataRoot, projectId))

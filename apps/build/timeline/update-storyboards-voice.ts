@@ -41,7 +41,12 @@ async function main(): Promise<void> {
 
   // Bindings source of truth: manifest revision written by bind-voice-audio.ts.
   const manifestService = new RemotionChapterManifestService({
-    projectRootForProject: (pid: string) => path.join(dataRoot, "_p", pid),
+    projectRootForProject: (pid: string) => {
+      // 外部注册项目:manifest 在项目根下(与 render-shot-slots 同口径),
+      // 不在 <dataRoot>/_p/<pid>(2026-08-26 外部项目 bind 实证 404)
+      if (pid !== projectId) throw new Error(`项目身份不一致: ${pid}`);
+      return projectDir;
+    },
     probeMedia: async (filePath: string) => {
       const probe = await probeRenderedMedia(filePath);
       return { durationUs: Math.round(probe.duration * 1_000_000), streams: probe.streams };
