@@ -140,12 +140,18 @@ export function useSmoothWheelZoom(
       event.preventDefault();
       event.stopPropagation();
     };
+    const clearStaleClickSuppression = () => {
+      element.removeEventListener("click", suppressNextClick, { capture: true });
+    };
 
     const onPointerDown = (event: PointerEvent) => {
       if (event.button !== 0 || !event.isPrimary) return;
       // 不 preventDefault/stopPropagation:RF 的 pane 点击(取消选中)等
       // 内建交互必须存活;panOnDrag={false} 已让 RF 不处理 pane 拖拽。
       if (!paneAt(event.target)) return;
+      // 上一轮拖拽若未伴随 click 合成(异常路径),滞留的一次性抑制器在此
+      // 清理——绝不吞下一次真实点击。
+      clearStaleClickSuppression();
       dragActive = true;
       dragMovedPx = 0;
       dragPointerId = event.pointerId;

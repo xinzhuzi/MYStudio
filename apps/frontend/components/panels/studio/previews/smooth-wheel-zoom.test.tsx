@@ -164,6 +164,11 @@ describe("useSmoothWheelZoom", () => {
     act(() => { vi.advanceTimersByTime(160); });
     expect(setViewport).toHaveBeenCalledTimes(1);
     expect(setViewport.mock.calls[0][0]).toMatchObject({ x: 80, y: 20, zoom: 1 });
+    // 滞留抑制器清理:拖拽后若无 click 合成(异常路径),新按下后的
+    // 纯点击必须透传(不被上一轮残留抑制器吞掉)
+    act(() => { pd(100, 100); pu(100, 100); });
+    pane.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true }));
+    expect(clicks).toBe(2);
     rafSpy.mockRestore();
     vi.useRealTimers();
   });
