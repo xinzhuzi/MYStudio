@@ -100,7 +100,7 @@ export function StoryboardPanelTab({
 
       {ordered.length ? (
         <div
-          className="mt-3 grid grid-cols-[repeat(auto-fill,minmax(168px,1fr))] gap-3 overflow-y-auto pr-1"
+          className="mt-3 grid min-h-0 flex-1 grid-cols-[repeat(auto-fill,minmax(168px,1fr))] gap-3 overflow-y-auto pr-1"
           onScroll={handleDeferScroll}
         >
           {ordered.map((storyboard) => {
@@ -114,17 +114,20 @@ export function StoryboardPanelTab({
                 onClick={() => openShot(storyboard)}
                 title={`进入分镜 ${storyboard.index} 图片工作流`}
               >
-                <div className="relative aspect-video w-full overflow-hidden bg-muted/40">
+                {/* 图片按自然比例完整展示:分镜图混有 16:9/方图/竖图(最长约 1:2.1),
+                    固定 aspect-video+object-cover 会把竖图裁剩中段一条。
+                    min-h-[94px]≈最小卡宽(168px)下 16:9 高度,兼作门闸期占位兜底。 */}
+                <div className="relative w-full bg-muted/40">
                   {mediaPath ? (
                     <PreviewImage
                       src={withThumbVariant(toPreviewSrc(mediaPath))}
                       alt={storyboard.prompt}
-                      className="h-full w-full object-cover"
+                      className="block h-auto min-h-[94px] w-full object-contain"
                       fallbackLabel="成图丢失"
                       eager
                     />
                   ) : (
-                    <div className="flex h-full items-center justify-center text-[11px] text-muted-foreground">
+                    <div className="flex aspect-video w-full items-center justify-center text-[11px] text-muted-foreground">
                       未生成
                     </div>
                   )}
@@ -134,11 +137,12 @@ export function StoryboardPanelTab({
                   {mediaPath ? <ResolutionBadge src={toPreviewSrc(mediaPath)} /> : null}
                 </div>
                 <div className="flex min-h-0 flex-1 flex-col gap-1 p-2">
-                  <p className="line-clamp-2 text-[11px] leading-4 text-foreground">
+                  {/* 文案不截断(用户裁定:分镜面板要展示完全;videoDesc 实测最长 56 字) */}
+                  <p className="text-[11px] leading-4 text-foreground">
                     {storyboard.videoDesc || storyboard.prompt}
                   </p>
                   {storyboard.lines ? (
-                    <p className="line-clamp-1 text-[10px] leading-4 text-muted-foreground">
+                    <p className="text-[10px] leading-4 text-muted-foreground">
                       {storyboard.lines}
                     </p>
                   ) : null}
