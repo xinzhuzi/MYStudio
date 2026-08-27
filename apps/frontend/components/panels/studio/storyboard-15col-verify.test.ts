@@ -31,4 +31,26 @@ describe("15 列全格式分镜表解析(真实源文件节选)", () => {
     expect(rows.every((r) => r.orientation === "—" || !r.orientation)).toBe(true);
     expect(rows.every((r) => r.spatialRelation === "—" || !r.spatialRelation)).toBe(true);
   });
+
+  it("parses the new manual contract: scene/segment headings + 15-col rows, no per-segment asset lines", () => {
+    const md = [
+      "## 场1：道口镇院子 ｜ 参演角色：林志强、林刚",
+      "### 片段一（约10s）",
+      "| 序号 | 画面描述 | 场景 | 关联资产名称 | 时长 | 景别 | 运镜 | 角色动作 | 朝向 | 空间关系 | 情绪 | 台词 | 音效 | 关联资产ID | 出镜语义JSON |",
+      "|------|------|------|------|------|------|------|------|------|------|------|------|------|------|------|",
+      '| 1 | 西瓜筐腾空炸裂，红瓤四溅。 | 道口镇院子 | [林志强, 西瓜筐] | 5 | 近景 | 缓推 | 林志强侧身避开碎瓤 | 林志强正面三分之四朝左 | 筐左前景，人右中格 | 突发紧张 | 旁白：西瓜炸裂。 | 音效：炸裂闷响 | [char_101, prop_301] | {"sceneViewpointId":"yard-axis","personFree":false,"visibleCharacters":[{"name":"林志强","position":"右中格","orientation":"正面三分之四朝左","actionIn":"低头看筐","actionOut":"侧身避开"}],"visibleProps":[],"actionIn":"筐腾空","actionOut":"碎瓤落地"} |',
+    ].join("\n");
+    const rows = parseStoryboardPreviewRows(md);
+    expect(rows.length).toBe(1);
+    const row = rows[0];
+    expect(row.scene).toBe("道口镇院子");
+    expect(row.associateAssetsNames).toEqual(["林志强", "西瓜筐"]);
+    expect(row.action).toBe("林志强侧身避开碎瓤");
+    expect(row.action).not.toBe(row.description);
+    expect(row.orientation).toBe("林志强正面三分之四朝左");
+    expect(row.spatialRelation).toBe("筐左前景，人右中格");
+    expect(row.emotion).toBe("突发紧张");
+    expect(row.associateAssetsIds).toEqual(["char_101", "prop_301"]);
+    expect(row.shotSemantics?.sceneViewpointId).toBe("yard-axis");
+  });
 });
