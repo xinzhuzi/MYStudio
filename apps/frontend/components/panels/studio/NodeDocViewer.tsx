@@ -105,31 +105,27 @@ export function NodeDocViewer({
 function TableRender({ node }: { node: ProductionFlowNodeModel }) {
   const rows = node.tableRows ?? [];
   if (!rows.length) return <p className="text-sm text-muted-foreground">暂无分镜表数据</p>;
-  const cols = [
-    { label: "序号", cls: "w-12 text-center" },
-    { label: "画面", cls: "w-[30%]" },
-    { label: "景别", cls: "w-[7%]" },
-    { label: "运镜", cls: "w-[8%]" },
-    { label: "角色动作", cls: "w-[15%]" },
-    { label: "台词", cls: "w-[26%]" },
-    { label: "时长", cls: "w-[6%] text-center" },
-  ] as const;
   return (
-    /* 列宽按比例分配,默认 7 列全可见;min-w 只是窄窗口的地板——低于它才出现
-       横向滚动(overflow-auto)。勿把 min-w 抬到弹窗内容宽之上强制横滚:
-       那会让默认视图藏住右端列(1400px 视口下「时长」整列不可见)。 */
-    <table className="w-full min-w-[960px] border-collapse text-[13px] leading-6">
+    /* 用户多次明确要求(08-27 裁定 #7):分镜表必须可以左右滑动。配方=
+       舒适固定列宽合计(~1780px)必然超出弹窗内容区 → overflow-auto 恒有横向
+       滚动;序号列冻结(sticky left)保住行归属,表头吸顶。勿再改回
+       w-full 自适应塞满弹窗——那会取消横向滚动。 */
+    <table className="w-full min-w-[1780px] border-collapse text-[13px] leading-6">
       <thead>
         <tr className="text-left text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-          {cols.map((col) => (
-            <th key={col.label} className={`sticky top-0 border-b-2 border-border bg-card px-4 py-3 ${col.cls}`}>{col.label}</th>
-          ))}
+          <th className="sticky left-0 top-0 z-20 w-[72px] border-b-2 border-r border-border bg-card px-4 py-3 text-center">序号</th>
+          <th className="sticky top-0 z-10 border-b-2 border-border bg-card px-4 py-3 w-[440px]">画面</th>
+          <th className="sticky top-0 z-10 border-b-2 border-border bg-card px-4 py-3 w-[88px]">景别</th>
+          <th className="sticky top-0 z-10 border-b-2 border-border bg-card px-4 py-3 w-[128px]">运镜</th>
+          <th className="sticky top-0 z-10 border-b-2 border-border bg-card px-4 py-3 w-[368px]">角色动作</th>
+          <th className="sticky top-0 z-10 border-b-2 border-border bg-card px-4 py-3 w-[368px]">台词</th>
+          <th className="sticky top-0 z-10 border-b-2 border-border bg-card px-4 py-3 w-[88px] text-center">时长</th>
         </tr>
       </thead>
       <tbody>
         {rows.map((row, i) => (
           <tr key={row.index ?? i} className={`border-b border-border/30 ${i % 2 === 1 ? "bg-muted/15" : ""} hover:bg-primary/5`}>
-            <td className="px-4 py-3 text-center font-mono text-muted-foreground">{row.index ?? i + 1}</td>
+            <td className="sticky left-0 z-[1] border-r border-border/50 bg-card px-4 py-3 text-center font-mono text-muted-foreground">{row.index ?? i + 1}</td>
             <td className="px-4 py-3">
               <p className="font-medium text-foreground">{row.title}</p>
               {row.description ? <p className="mt-1 text-[12px] leading-5 text-muted-foreground">{row.description}</p> : null}
