@@ -113,6 +113,8 @@ import { createImageGenRuntimeController } from '@rendering/plugins/image_gen/im
 import { registerImageGenIpcHandlers } from '../ipc/studio/image-gen-ipc'
 import { createUpscaleRuntimeController } from '@rendering/plugins/upscale/upscale-runtime-controller'
 import { registerUpscaleIpcHandlers } from '../ipc/studio/upscale-ipc'
+import { registerVlmReviewIpc } from '../ipc/studio/vlm-review-ipc'
+import { VlmReviewRuntimeController } from '../rendering/plugins/vlm_review/vlm-review-runtime-controller'
 import { createVideoQcRuntimeController } from '@rendering/plugins/videoqc/dover-runtime-controller'
 import { registerVideoQcIpcHandlers } from '../ipc/studio/video-qc-ipc'
 import { runChapterQc, type ChapterQcOrchestratorDeps } from '@rendering/plugins/videoqc/chapter-qc-orchestrator'
@@ -1005,6 +1007,22 @@ const upscaleIpc = registerUpscaleIpcHandlers({ controller: upscaleRuntimeContro
 // 非阻塞启动期刷新:冷启动后 status() 即反映真实运行时/模型状态,超分动作的
 // precheck(节点按钮/分镜 tile)无需用户先访问设置页。
 void upscaleRuntimeController.refresh()
+
+// VLM Review sidecar — Qwen3-VL visual consistency checking(生图后自动审核)。
+// 复用 managed Python;权重显式下载,<storageBase>/model/vlm。
+const vlmReviewController = new VlmReviewRuntimeController({
+  pythonExecutable: path.join(getStorageBasePath(), "python", "bin", "python3"),
+  backendRoot: path.join(app.getAppPath(), 'backend'),
+  storageBasePath: getStorageBasePath(),
+  resolveProjectFilePath: async (url) => {
+    try {
+      return resolveProjectScopedFilePath(getDataDir(), url.replace(/^project-file:\/\/[^/]+\//, ''), url)
+    } catch {
+      return null
+    }
+  },
+})
+registerVlmReviewIpc(vlmReviewController)
 
 // Chapter video QC sidecar — DOVER-Mobile 观感层(出片后 QC 链 L3)。
 // 复用 managed Python(probe 路径零重依赖);权重显式下载,<storageBase>/model/videoqc。
