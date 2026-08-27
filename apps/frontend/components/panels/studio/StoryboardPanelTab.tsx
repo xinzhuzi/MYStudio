@@ -115,7 +115,7 @@ export function StoryboardPanelTab({
 
       {ordered.length ? (
         <div
-          className="mt-3 grid min-h-0 flex-1 grid-cols-[repeat(auto-fill,minmax(168px,1fr))] gap-3 overflow-y-auto pr-1"
+          className="mt-3 grid min-h-0 flex-1 grid-cols-2 gap-4 overflow-y-auto pr-1 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6"
           onScroll={handleDeferScroll}
         >
           {ordered.map((storyboard) => {
@@ -136,7 +136,7 @@ export function StoryboardPanelTab({
                     条目 overflow-hidden 会触发 Chromium 行高坍缩(实测 45px);
                     裁切下沉到媒体框(overflow-hidden rounded-t-lg),卡片圆角
                     由 border-radius 裁自身背景。 */}
-                <div className="relative h-44 w-full overflow-hidden rounded-t-lg bg-muted/40">
+                <div className="relative aspect-video w-full overflow-hidden rounded-t-lg bg-muted/40">
                   {mediaPath ? (
                     <PreviewImage
                       src={withThumbVariant(toPreviewSrc(mediaPath))}
@@ -166,18 +166,18 @@ export function StoryboardPanelTab({
                     </span>
                   ) : null}
                 </div>
-                <div className="flex min-h-0 flex-1 flex-col gap-1 p-2">
-                  {/* 文案不截断(用户裁定:分镜面板要展示完全;videoDesc 实测最长 56 字) */}
-                  <p className="text-[11px] leading-4 text-foreground">
+                <div className="flex min-h-0 flex-1 flex-col gap-1.5 p-3">
+                  {/* 文案不截断(用户裁定:分镜面板要展示完全;大卡下整段可读) */}
+                  <p className="text-xs leading-5 text-foreground">
                     {storyboard.videoDesc || storyboard.prompt}
                   </p>
                   {storyboard.lines ? (
-                    <p className="text-[10px] leading-4 text-muted-foreground">
-                      {storyboard.lines}
+                    <p className="whitespace-pre-line text-[11px] leading-5 text-muted-foreground">
+                      {storyboard.lines.replace(/<br\s*\/?>/gi, "\n")}
                     </p>
                   ) : null}
-                  <span className="mt-auto inline-flex items-center gap-1 text-[10px] text-primary/75 group-hover:text-primary">
-                    <ImageIcon className="h-3 w-3" />
+                  <span className="mt-auto inline-flex items-center gap-1 text-[11px] text-primary/75 group-hover:text-primary">
+                    <ImageIcon className="h-3.5 w-3.5" />
                     进入图片工作流
                   </span>
                 </div>
