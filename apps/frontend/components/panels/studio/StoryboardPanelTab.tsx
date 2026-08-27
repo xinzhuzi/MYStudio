@@ -110,14 +110,18 @@ export function StoryboardPanelTab({
                 key={storyboard.id}
                 type="button"
                 data-storyboard-panel-shot={storyboard.id}
-                className="group flex flex-col overflow-hidden rounded-lg border border-border/70 bg-card/70 text-left transition-colors hover:border-primary/50"
+                className="group flex flex-col rounded-lg border border-border/70 bg-card/70 text-left transition-colors hover:border-primary/50"
                 onClick={() => openShot(storyboard)}
                 title={`进入分镜 ${storyboard.index} 图片工作流`}
               >
                 {/* 统一 176px 高度框 + object-contain:分镜图混有 16:9/方图/竖图
                     (最长约 1:2.1),完整显示零裁切且网格行高恒定(自然高度曾致
-                    网格行塌陷成 13px 扁条,勿改回 h-auto)。 */}
-                <div className="relative h-44 w-full bg-muted/40">
+                    网格行塌陷成 13px 扁条,勿改回 h-auto)。
+                    注意:卡片本体不可加 overflow-hidden——网格定高(flex-1)+
+                    条目 overflow-hidden 会触发 Chromium 行高坍缩(实测 45px);
+                    裁切下沉到媒体框(overflow-hidden rounded-t-lg),卡片圆角
+                    由 border-radius 裁自身背景。 */}
+                <div className="relative h-44 w-full overflow-hidden rounded-t-lg bg-muted/40">
                   {mediaPath ? (
                     <PreviewImage
                       src={withThumbVariant(toPreviewSrc(mediaPath))}
