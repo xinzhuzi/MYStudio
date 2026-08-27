@@ -106,18 +106,19 @@ function TableRender({ node }: { node: ProductionFlowNodeModel }) {
   const rows = node.tableRows ?? [];
   if (!rows.length) return <p className="text-sm text-muted-foreground">暂无分镜表数据</p>;
   const cols = [
-    { label: "序号", cls: "w-16 text-center" },
-    { label: "画面", cls: "min-w-[420px]" },
-    { label: "景别", cls: "w-20" },
-    { label: "运镜", cls: "w-28" },
-    { label: "角色动作", cls: "min-w-[260px]" },
-    { label: "台词", cls: "min-w-[380px]" },
-    { label: "时长", cls: "w-20 text-center" },
+    { label: "序号", cls: "w-12 text-center" },
+    { label: "画面", cls: "w-[30%]" },
+    { label: "景别", cls: "w-[7%]" },
+    { label: "运镜", cls: "w-[8%]" },
+    { label: "角色动作", cls: "w-[15%]" },
+    { label: "台词", cls: "w-[26%]" },
+    { label: "时长", cls: "w-[6%] text-center" },
   ] as const;
   return (
-    /* 宽于常规弹窗内容区(92vw 弹窗约 1300px 可视)才会产生横向滚动——
-       min-w 必须 > 弹窗内容宽,否则 w-full 永不溢出、横滚永远不触发 */
-    <table className="w-full min-w-[1500px] border-collapse text-[13px] leading-6">
+    /* 列宽按比例分配,默认 7 列全可见;min-w 只是窄窗口的地板——低于它才出现
+       横向滚动(overflow-auto)。勿把 min-w 抬到弹窗内容宽之上强制横滚:
+       那会让默认视图藏住右端列(1400px 视口下「时长」整列不可见)。 */
+    <table className="w-full min-w-[960px] border-collapse text-[13px] leading-6">
       <thead>
         <tr className="text-left text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
           {cols.map((col) => (

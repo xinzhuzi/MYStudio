@@ -44,7 +44,7 @@ export function StoryboardPanelTab({
   };
 
   return (
-    <div className="flex h-full min-h-0 flex-col" data-storyboard-panel-tab>
+    <div className="flex h-full min-h-0 w-full min-w-0 flex-1 flex-col" data-storyboard-panel-tab>
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border/70 pb-3">
         <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1">
           {onBackToCanvas ? (
@@ -114,20 +114,20 @@ export function StoryboardPanelTab({
                 onClick={() => openShot(storyboard)}
                 title={`进入分镜 ${storyboard.index} 图片工作流`}
               >
-                {/* 图片按自然比例完整展示:分镜图混有 16:9/方图/竖图(最长约 1:2.1),
-                    固定 aspect-video+object-cover 会把竖图裁剩中段一条。
-                    min-h-[94px]≈最小卡宽(168px)下 16:9 高度,兼作门闸期占位兜底。 */}
-                <div className="relative w-full bg-muted/40">
+                {/* 统一 176px 高度框 + object-contain:分镜图混有 16:9/方图/竖图
+                    (最长约 1:2.1),完整显示零裁切且网格行高恒定(自然高度曾致
+                    网格行塌陷成 13px 扁条,勿改回 h-auto)。 */}
+                <div className="relative h-44 w-full bg-muted/40">
                   {mediaPath ? (
                     <PreviewImage
                       src={withThumbVariant(toPreviewSrc(mediaPath))}
                       alt={storyboard.prompt}
-                      className="block h-auto min-h-[94px] w-full object-contain"
+                      className="h-full w-full object-contain"
                       fallbackLabel="成图丢失"
                       eager
                     />
                   ) : (
-                    <div className="flex aspect-video w-full items-center justify-center text-[11px] text-muted-foreground">
+                    <div className="flex h-full w-full items-center justify-center text-[11px] text-muted-foreground">
                       未生成
                     </div>
                   )}
