@@ -16,12 +16,17 @@ export interface AssetImageWorkflowPatch {
 export function ensureStoryboardImageResult(
   graph: ImageWorkflowGraph,
   mediaRefPath: string | undefined,
+  /** G7(M1d):多帧流按 frameId 定位空节点,消"首个空 gen"歧义;缺省维持原行为 */
+  frameId?: string,
 ): ImageWorkflowGraph {
   if (!mediaRefPath) return graph;
-  const node = graph.nodes.find(
+  const emptyNodes = graph.nodes.filter(
     (candidate): candidate is ImageWorkflowGeneratedNode =>
       candidate.type === "generated" && !candidate.resultUrl,
   );
+  const node = frameId
+    ? emptyNodes.find((candidate) => candidate.frameId === frameId) ?? emptyNodes[0]
+    : emptyNodes[0];
   if (!node) return graph;
   return setGeneratedImageResult(graph, node.id, { imageUrl: mediaRefPath });
 }

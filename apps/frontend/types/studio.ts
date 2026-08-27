@@ -699,6 +699,8 @@ export interface ImageWorkflowOpenContext {
   storyboardSourceFingerprint?: string;
   /** 分镜台词(成片模板选型的对话信号;仅分镜目标消费) */
   storyboardLines?: string;
+  /** 分镜关键帧序列(M1d):>1 帧时建流克隆 N 对帧节点(帧间链);缺省单帧行为不变 */
+  storyboardKeyframes?: StoryboardKeyframe[];
   /** 当前分镜行的关联资产清单:无指纹工作流的代际校验依据(次优择优内容
    *  对齐——分镜表换代后同 id 镜内容已换,跨代旧流的参考资产不在当前清单) */
   associateAssetsNames?: string[];
@@ -760,6 +762,10 @@ export interface ImageWorkflowGeneratedNode extends ImageWorkflowNodeBase {
   status: ImageWorkflowGenerationStatus;
   errorReason?: string;
   generatedAt?: number;
+  /** 关键帧序列(M1d):本节点对应分镜 keyframes 的哪一帧;单帧镜/资产流缺省 */
+  frameId?: string;
+  /** 帧时刻描述(规划器产物):建流时拼进本帧 prompt 的帧差异段 */
+  frameMoment?: string;
 }
 
 export interface ImageWorkflowPromptNode extends ImageWorkflowNodeBase {

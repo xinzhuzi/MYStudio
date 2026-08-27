@@ -91,6 +91,18 @@ export function resolveOpenContextGeneratedNodeId(
   const generatedNodes = graph.nodes.filter(
     (node): node is ImageWorkflowGeneratedNode => node.type === "generated",
   );
+  // G5(M1d):多帧流按 frameId 精确定位——resultUrl 匹配在回接帧预挂结果时
+  // 会撞首帧,禁用该启发式于多帧场景;单帧流维持原顺序。
+  const frameIds = new Set(
+    (context.storyboardKeyframes ?? []).map((frame) => frame.frameId).filter(Boolean),
+  );
+  if (frameIds.size > 1) {
+    const firstEmptyFrame = (context.storyboardKeyframes ?? [])
+      .map((frame) => generatedNodes.find((node) => node.frameId === frame.frameId && !node.resultUrl))
+      .find(Boolean);
+    const firstFrame = generatedNodes.find((node) => node.frameId && frameIds.has(node.frameId));
+    return firstEmptyFrame?.id ?? firstFrame?.id ?? generatedNodes[0]?.id ?? null;
+  }
   const resultMatch = context.resultImagePath
     ? generatedNodes.find((node) => node.resultUrl === context.resultImagePath)
     : undefined;
@@ -455,11 +467,83 @@ export function createOpenImageWorkflowGraph(
         target: generatedNodeId,
       });
     });
-  // 装配门禁②:绑定句与最终参考集合一致(建流尾部即校验,而非等生成)
-  return ensureStoryboardBindingConsistency(connectImageWorkflowNodes(graph, {
+  graph = connectImageWorkflowNodes(graph, {
     source: promptNodeId,
     target: generatedNodeId,
-  }));
+  });
+
+  // 关键帧序列(M1d,design §4.1):>1 帧时首对节点充当帧1,后续每帧克隆一对
+  // gen+prompt;共享参考全部连到每个帧 gen;gen(k-1)→gen(k) 构成
+  // previous-approved-frame 帧间连贯链;回接帧(已有图)预挂 resultUrl 入流。
+  const keyframes = (context.storyboardKeyframes ?? []).filter((frame) => frame.frameId);
+  if (isStoryboard && keyframes.length > 1 && keyframes.length <= 4) {
+    const sharedRefSources = graph.edges
+      .filter((edge) => edge.target === generatedNodeId && edge.source !== promptNodeId)
+      .map((edge) => edge.source);
+    // 首帧:既有 gen/prompt 对即帧1(标题/帧标记/时刻段)
+    const momentOf = (index: number) =>
+      keyframes[index].momentDescription
+        ? `\n\n【本帧时刻·第${index + 1}/${keyframes.length}帧·约${Math.round(keyframes[index].inUs / 1_000_000)}s】${keyframes[index].momentDescription}`
+        : "";
+    graph = {
+      ...graph,
+      nodes: graph.nodes.map((node) =>
+        node.id === generatedNodeId
+          ? {
+              ...node,
+              title: `${context.title} 成图 · 帧1/${keyframes.length}`,
+              frameId: keyframes[0].frameId,
+              frameMoment: keyframes[0].momentDescription,
+            }
+          : node.id === promptNodeId && node.type === "prompt"
+            ? { ...node, prompt: `${node.prompt}${momentOf(0)}` }
+            : node,
+      ),
+      updatedAt: Date.now(),
+    };
+    if (keyframes[0].mediaRef?.path) {
+      graph = setGeneratedImageResult(graph, generatedNodeId, { imageUrl: keyframes[0].mediaRef.path });
+    }
+    let previousGenId = generatedNodeId;
+    for (let index = 1; index < keyframes.length; index += 1) {
+      const frame = keyframes[index];
+      const frameGenId = createId("gen");
+      const framePromptId = createId("prompt");
+      const frameGenY = 120 + index * 280;
+      graph = addGeneratedImageNode(graph, {
+        id: frameGenId,
+        title: `${context.title} 成图 · 帧${index + 1}/${keyframes.length}`,
+        prompt,
+        position: { x: referenceImagePath ? 620 : 160, y: frameGenY },
+        frameId: frame.frameId,
+        frameMoment: frame.momentDescription,
+      });
+      graph = addPromptImageNode(graph, {
+        id: framePromptId,
+        title: `图片生成·帧${index + 1}`,
+        prompt: `${prompt}${momentOf(index)}`,
+        negativePrompt: negativePrompt || undefined,
+        aspectRatio: imageSettings.defaultAspectRatio,
+        resolution: imageSettings.defaultResolution,
+        quality: "standard",
+        targetNodeId: frameGenId,
+        position: { x: referenceImagePath ? 560 : 160, y: frameGenY + 380 },
+      });
+      for (const source of sharedRefSources) {
+        graph = connectImageWorkflowNodes(graph, { source, target: frameGenId });
+      }
+      graph = connectImageWorkflowNodes(graph, { source: framePromptId, target: frameGenId });
+      // 帧间连贯链:上一帧成图作为本帧参考(previous-approved-frame,request 组装层自动识别)
+      graph = connectImageWorkflowNodes(graph, { source: previousGenId, target: frameGenId });
+      if (frame.mediaRef?.path) {
+        graph = setGeneratedImageResult(graph, frameGenId, { imageUrl: frame.mediaRef.path });
+      }
+      previousGenId = frameGenId;
+    }
+  }
+
+  // 装配门禁②:绑定句与最终参考集合一致(建流尾部即校验,而非等生成)
+  return ensureStoryboardBindingConsistency(graph);
 }
 
 export function imageWorkflowTargetKey(target: ImageWorkflowGraph["target"]) {

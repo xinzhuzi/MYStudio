@@ -65,6 +65,9 @@ export interface AddGeneratedImageNodeInput {
   resolution?: string;
   position: ImageWorkflowNodePosition;
   createdAt?: number;
+  /** 关键帧序列(M1d):本节点对应的分镜帧 */
+  frameId?: string;
+  frameMoment?: string;
 }
 
 export interface AddPromptImageNodeInput {
@@ -445,6 +448,8 @@ export function addGeneratedImageNode(
     status: "idle",
     createdAt: now,
     updatedAt: now,
+    frameId: input.frameId,
+    frameMoment: input.frameMoment,
   };
   return touchGraph({
     ...graph,

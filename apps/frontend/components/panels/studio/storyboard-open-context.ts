@@ -1,6 +1,7 @@
 import type {
   ImageWorkflowOpenContext,
   StoryboardItem,
+  StoryboardKeyframe,
 } from "@/types/studio";
 import type { ProductionFlowStoryboardTile } from "./workflow-node-model";
 
@@ -37,6 +38,7 @@ export function buildStoryboardItemOpenContext(item: {
   lines?: string;
   state?: StoryboardItem["state"];
   associateAssetsNames?: string[];
+  keyframes?: StoryboardKeyframe[];
 }): ImageWorkflowOpenContext {
   return {
     ...buildStoryboardImageOpenContext({
@@ -52,5 +54,7 @@ export function buildStoryboardItemOpenContext(item: {
     }),
     // 无指纹工作流的代际校验依据(次优择优内容对齐,S20 跨代流实证)
     associateAssetsNames: item.associateAssetsNames,
+    // 关键帧序列(M1d):>1 帧时建流克隆帧节点对
+    storyboardKeyframes: item.keyframes,
   };
 }
