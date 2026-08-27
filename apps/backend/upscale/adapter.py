@@ -230,6 +230,30 @@ def _validate_output_quality(input_rgb, output_rgb, input_alpha, scale: int) -> 
         )
 
 
+# 4K 档位表(镜像前端 image-size-presets IMAGE_RESOLUTIONS 4K 行;
+# 超分收尾校准用——输出恒定落档,生图渠道的源尺寸浮动不再放大传播)
+_UPSCALE_SNAP_4K = (
+    (3840, 2160),  # 16:9
+    (2160, 3840),  # 9:16
+    (2880, 2880),  # 1:1
+    (3264, 2448),  # 4:3
+    (2448, 3264),  # 3:4
+    (3520, 2352),  # 3:2
+    (2352, 3520),  # 2:3
+    (3840, 1648),  # 21:9
+    (1648, 3840),  # 9:21
+)
+
+
+def _snap_target_4k(width: int, height: int) -> tuple[int, int] | None:
+    """按输出宽高比选最近 4K 档位;偏差>5% 视为非常规画幅不校准(保真)。"""
+    ratio = width / height
+    best = min(_UPSCALE_SNAP_4K, key=lambda t: abs(t[0] / t[1] - ratio))
+    if abs(best[0] / best[1] - ratio) / ratio > 0.05:
+        return None
+    return best
+
+
 def upscale_image(
     input_path: str,
     output_path: str,
@@ -237,6 +261,7 @@ def upscale_image(
     *,
     tile: int = DEFAULT_TILE,
     tile_pad: int = DEFAULT_TILE_PAD,
+    snap_4k: bool = False,
 ) -> dict[str, Any]:
     """Super-resolve one image. Returns the artifact field dict."""
     started = time.time()
@@ -290,6 +315,15 @@ def upscale_image(
     temporary = destination.with_name(f"{destination.name}.{os.getpid()}.tmp")
     try:
         output_image = Image.fromarray(result, mode="RGB")
+        if snap_4k:
+            # 档位校准:超分(x4 实际增益)完成后,把输出精确收到画幅最近的 4K 档
+            # (LANCZOS 仅做 ≤%个位数的收尾缩放,不是"纯缩放冒充超分"的禁令场景
+            # ——x4 上采样真实发生,这里只消灭渠道源尺寸的浮动)。非常规画幅不收。
+            target = _snap_target_4k(output_image.size[0], output_image.size[1])
+            if target and (target[0], target[1]) != output_image.size:
+                output_image = output_image.resize(target, Image.Resampling.LANCZOS)
+                scale = round(scale * output_image.size[0] / width, 2)
+                result = None  # noqa: F841 — result 不再落盘,尺寸以校准后为准
         if alpha is not None:
             output_alpha = alpha.resize(output_image.size, Image.Resampling.NEAREST)
             output_image.putalpha(output_alpha)

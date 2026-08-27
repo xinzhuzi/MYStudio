@@ -83,8 +83,10 @@ def _run(input_path: str, output_path: str) -> dict[str, Any]:
     if not input_image or not output_image:
         return _blocked(request, "missing-paths", "inputImagePath 和 outputImagePath 必须提供")
 
+    # 档位校准(用户裁定 08-27 晚:超分输出必须稳定落 4K 档,默认开)
+    snap_4k = bool(request.get("snap4k", True))
     try:
-        result = upscale_image(input_image, output_image, model)
+        result = upscale_image(input_image, output_image, model, snap_4k=snap_4k)
     except UpscaleError as exc:
         return _blocked(request, exc.code, exc.message)
     except Exception as exc:
