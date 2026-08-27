@@ -27,10 +27,23 @@ const IDLE_STATE: StoryboardBatchUpscaleState = {
   currentShotIndex: null,
 };
 
-/** 已是超分产物(up4x- 文件名标记)的镜跳过——重复点击不叠加放大。 */
+/** 已是超分产物(up4x- 文件名标记)的镜跳过——重复点击不叠加放大。
+ * M3b:多帧镜须全帧 up4x 才算超分完毕(幂等口径从首帧扩到全帧)。 */
 function isUpscaled(item: StoryboardItem): boolean {
-  const path = item.mediaRef?.kind === "image" ? item.mediaRef.path : "";
-  return isUpscaledMediaPath(path);
+  const paths = item.keyframes?.length
+    ? item.keyframes.filter((frame) => frame.mediaRef?.path).map((frame) => frame.mediaRef!.path)
+    : item.mediaRef?.kind === "image" ? [item.mediaRef.path] : [];
+  return paths.length > 0 && paths.every((path) => isUpscaledMediaPath(path));
+}
+
+/** M3b:镜内待超分帧清单(逐帧 4K;非 up4x 的有图帧) */
+function pendingUpscaleFrames(item: StoryboardItem): string[] {
+  const frames = item.keyframes?.length
+    ? item.keyframes.filter((frame) => frame.mediaRef?.path).map((frame) => ({ path: frame.mediaRef!.path, frame }))
+    : item.mediaRef?.kind === "image"
+      ? [{ path: item.mediaRef.path, frame: undefined as never }]
+      : [];
+  return frames.filter((entry) => !isUpscaledMediaPath(entry.path)).map((entry) => entry.path);
 }
 
 /**
@@ -60,7 +73,7 @@ export function useStoryboardBatchUpscale(input: {
       if (!(await guardUpscaleReadiness())) return;
       const activeModel = await fetchActiveModel().catch(() => "");
       const queue = storyboards
-        .filter((item) => item.mediaRef?.kind === "image" && !isUpscaled(item))
+        .filter((item) => pendingUpscaleFrames(item).length > 0)
         .sort((a, b) => a.index - b.index);
       const alreadyUpscaled = storyboards.filter(isUpscaled).length;
       if (queue.length === 0) {
@@ -89,31 +102,58 @@ export function useStoryboardBatchUpscale(input: {
         if (stopRequestedRef.current) break;
         setState((previous) => ({ ...previous, currentShotIndex: shot.index }));
         try {
-          const result = await upscaleProjectImage({
-            imageUrl: shot.mediaRef!.path,
-            title: `分镜 ${shot.index} 成图`,
-            shotId: shot.id,
-            idForFilename: shot.id,
-            activeModel,
-          });
-          // 换轨:mediaRef 指向 4K 产物;工作流成图节点同步,保持双源一致
+          // M3b:逐帧超分(镜内多帧各自 4K);换轨走 setStoryboardKeyframes
+          // 唯一写入口(I1 首帧镜像自动同步,弃手拼 mediaRef)
           const store = useStudioStore.getState();
           const latest = store.storyboards.find((item) => item.id === shot.id) ?? shot;
-          const mediaRef = { ...(latest.mediaRef as { kind: "image"; path: string } & Record<string, unknown>) };
-          mediaRef.path = result.outputUrl;
-          store.updateStoryboard(shot.id, { mediaRef } as Partial<StoryboardItem>);
-          const workflowId = mediaRef.imageWorkflowId;
-          if (typeof workflowId === "string") {
-            const graph = store.imageWorkflows.find((item) => item.id === workflowId);
-            const mainGen = graph?.nodes.find(
-              (node): node is typeof node & { type: "generated"; resultUrl?: string } =>
-                node.type === "generated"
-                && !node.title?.includes("背景板") && !node.title?.includes("净底"),
-            );
-            if (graph && mainGen) {
-              mainGen.resultUrl = result.outputUrl;
-              mainGen.updatedAt = Date.now();
-              store.updateImageWorkflow(graph.id, graph);
+          let frames = (latest.keyframes?.length ? latest.keyframes : undefined) as typeof latest.keyframes;
+          const pending = latest.keyframes?.length
+            ? latest.keyframes.filter((frame) => frame.mediaRef?.path && !isUpscaledMediaPath(frame.mediaRef.path))
+            : (latest.mediaRef?.kind === "image" && !isUpscaledMediaPath(latest.mediaRef.path)
+              ? ["first" as const]
+              : []);
+          for (const pendingEntry of pending) {
+            const sourcePath = pendingEntry === "first"
+              ? latest.mediaRef!.path
+              : pendingEntry.mediaRef!.path;
+            const result = await upscaleProjectImage({
+              imageUrl: sourcePath,
+              title: `分镜 ${shot.index} 成图${pendingEntry !== "first" ? ` · ${pendingEntry.frameId}` : ""}`,
+              shotId: shot.id,
+              idForFilename: shot.id,
+              activeModel,
+            });
+            if (frames?.length) {
+              const liveFrames = (useStudioStore.getState().storyboards.find((item) => item.id === shot.id)?.keyframes
+                ?? frames) as NonNullable<typeof frames>;
+              frames = liveFrames.map((frame) =>
+                frame.mediaRef?.path === sourcePath
+                  ? { ...frame, mediaRef: { ...frame.mediaRef, path: result.outputUrl } }
+                  : frame,
+              );
+              useStudioStore.getState().setStoryboardKeyframes(shot.id, frames, "upscale");
+            } else {
+              const mediaRef = { ...(latest.mediaRef as { kind: "image"; path: string } & Record<string, unknown>) };
+              mediaRef.path = result.outputUrl;
+              useStudioStore.getState().updateStoryboard(shot.id, { mediaRef } as Partial<StoryboardItem>);
+            }
+            // 工作流节点同步(G6):按帧 resultUrl 精确匹配,弃 title 启发式
+            const liveMedia = useStudioStore.getState().storyboards.find((item) => item.id === shot.id);
+            const syncPath = result.outputUrl;
+            const sourceWorkflowId = (pendingEntry === "first"
+              ? latest.mediaRef?.imageWorkflowId
+              : pendingEntry.mediaRef?.imageWorkflowId)
+              ?? liveMedia?.mediaRef?.imageWorkflowId;
+            if (typeof sourceWorkflowId === "string") {
+              const graph = useStudioStore.getState().imageWorkflows.find((item) => item.id === sourceWorkflowId);
+              const matched = graph?.nodes.find(
+                (node) => node.type === "generated" && (node as { resultUrl?: string }).resultUrl === sourcePath,
+              );
+              if (graph && matched) {
+                (matched as { resultUrl?: string }).resultUrl = syncPath;
+                matched.updatedAt = Date.now();
+                useStudioStore.getState().updateImageWorkflow(graph.id, graph);
+              }
             }
           }
           done += 1;
@@ -122,7 +162,7 @@ export function useStoryboardBatchUpscale(input: {
             category: "ai",
             operationId,
             message: "Storyboard batch upscale shot done",
-            context: { shotIndex: shot.index, done, failed, outputUrl: result.outputUrl.slice(0, 120) },
+            context: { shotIndex: shot.index, done, failed, frames: pending.length },
           });
         } catch (error) {
           failed += 1;

@@ -207,7 +207,29 @@ export function useImageWorkflowUpscale({
         const store = useStudioStore.getState();
         const shot = store.storyboards.find((item) => item.id === target.id);
         const mr = shot?.mediaRef;
-        if (shot && mr?.kind === "image"
+        const upscaledNode = latest.nodes.find((item) => item.id === nodeId) as
+          | { frameId?: string }
+          | undefined;
+        // M3b(G6):帧节点超分同步对应 keyframe(经唯一写入口,I1 自动镜像);
+        // 单帧镜/无 frameId 维持原 mediaRef 精确匹配口径
+        if (shot && upscaledNode?.frameId && shot.keyframes?.length) {
+          const frameMediaRef = shot.keyframes.find((frame) => frame.frameId === upscaledNode.frameId)?.mediaRef;
+          if (frameMediaRef?.path && frameMediaRef.imageWorkflowNodeId === nodeId) {
+            const updated = shot.keyframes.map((frame) =>
+              frame.frameId === upscaledNode.frameId
+                ? {
+                    ...frame,
+                    mediaRef: {
+                      ...frame.mediaRef,
+                      path: result.outputUrl,
+                      contentSha256: result.artifact.outputSha256,
+                    },
+                  }
+                : frame,
+            );
+            store.setStoryboardKeyframes(target.id, updated, "upscale");
+          }
+        } else if (shot && mr?.kind === "image"
           && mr.imageWorkflowId === latest.id && mr.imageWorkflowNodeId === nodeId) {
           store.bindStoryboardMedia(target.id, {
             kind: "image",

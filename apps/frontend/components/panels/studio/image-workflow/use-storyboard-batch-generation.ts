@@ -1,5 +1,7 @@
 import { useCallback, useRef, useState } from "react";
 import { toast } from "sonner";
+
+import { createBatchFailureReporter } from "../batch-failure-toast";
 import { createOperationId, logEvent } from "@/lib/diagnostics/logger";
 import { buildStoryboardImageWorkflowPatch } from "@/lib/studio/image-workflow";
 import { useStudioStore } from "@/stores/studio/studio-store";
@@ -23,6 +25,8 @@ export interface StoryboardBatchGenerationState {
   failed: number;
   /** 当前正在生成的镜序号(index),null=未在运行 */
   currentShotIndex: number | null;
+  /** M3a:当前帧标签(多帧镜如 "S12-KF2"),单帧镜缺省 */
+  currentFrameLabel?: string;
 }
 
 const IDLE_BATCH_STATE: StoryboardBatchGenerationState = {
@@ -57,17 +61,20 @@ export function useStoryboardBatchGeneration(input: {
 
   const start = useCallback(() => {
     if (runningRef.current) return;
-    // 队列快照:执行期不重算(中途已生成的不重复;外部并发写入按镜级幂等收敛)
-    const queue = storyboards
-      .filter((item) => item.mediaRef?.kind !== "image")
-      .sort((a, b) => a.index - b.index);
-    if (queue.length === 0) {
-      toast.info("所有分镜都已生成画面");
+    // 队列快照:执行期不重算(中途已生成的不重复;外部并发写入按镜级幂等收敛)。
+    // M3a:计数单位改帧——单帧镜(无 keyframes)=1 帧缺图即入队;多帧镜按缺图帧数计
+    const frameQueue = storyboards
+      .map((item) => ({ shot: item, missingFrames: countMissingFrames(item) }))
+      .filter((entry) => entry.missingFrames > 0)
+      .sort((a, b) => a.shot.index - b.shot.index);
+    const totalFrames = frameQueue.reduce((sum, entry) => sum + entry.missingFrames, 0);
+    if (frameQueue.length === 0) {
+      toast.info("所有分镜画面均已齐备");
       return;
     }
     runningRef.current = true;
     stopRequestedRef.current = false;
-    setState({ running: true, total: queue.length, done: 0, failed: 0, currentShotIndex: queue[0]!.index });
+    setState({ running: true, total: totalFrames, done: 0, failed: 0, currentShotIndex: frameQueue[0]!.shot.index });
     // 批量生命周期入诊断日志(2026-08-25 补齐: 此前只有 4s 即逝的 toast,单镜失败
     // 原因/批量汇总对 diagnostics 完全不可见,排障只能 CDP 抓 DOM——实弹踩坑)
     const batchOperationId = createOperationId("storyboard-batch-generate");
@@ -76,24 +83,29 @@ export function useStoryboardBatchGeneration(input: {
       category: "ai",
       operationId: batchOperationId,
       message: "Storyboard batch generation started",
-      context: { queueSize: queue.length, firstShotIndex: queue[0]!.index },
+      context: { queueShots: frameQueue.length, totalFrames, firstShotIndex: frameQueue[0]!.shot.index },
     });
 
     void (async () => {
       let done = 0;
       let failed = 0;
-      for (const shot of queue) {
+      // 同因失败合并计数(同一 toast 刷新「N 个分镜失败」),避免批量失败弹一摞复读弹窗
+      const failureReporter = createBatchFailureReporter("分镜");
+      for (const entry of frameQueue) {
         if (stopRequestedRef.current) break;
+        const shot = entry.shot;
         setState((previous) => ({ ...previous, currentShotIndex: shot.index }));
         try {
-          await generateOneShot(shot, projectName);
-          done += 1;
+          await generateOneShot(shot, projectName, {
+            onFrameStart: (label) => setState((previous) => ({ ...previous, currentFrameLabel: label })),
+          });
+          done += entry.missingFrames;
           void logEvent({
             level: "info",
             category: "ai",
             operationId: batchOperationId,
             message: "Storyboard batch shot generated",
-            context: { shotIndex: shot.index, done, failed, storyboardId: shot.id },
+            context: { shotIndex: shot.index, frames: entry.missingFrames, done, failed, storyboardId: shot.id },
           });
         } catch (error) {
           failed += 1;
@@ -105,9 +117,9 @@ export function useStoryboardBatchGeneration(input: {
             message: "Storyboard batch shot failed",
             context: { shotIndex: shot.index, done, failed, reason: reason.slice(0, 300) },
           });
-          toast.error(`分镜 ${shot.index} 生成失败：${reason}`);
+          failureReporter.report(`分镜 ${shot.index}`, reason);
         }
-        setState((previous) => ({ ...previous, done: done + failed, failed }));
+        setState((previous) => ({ ...previous, done: done + failed, failed, currentFrameLabel: undefined }));
       }
       runningRef.current = false;
       setState((previous) => ({ ...previous, running: false, currentShotIndex: null }));
@@ -119,14 +131,14 @@ export function useStoryboardBatchGeneration(input: {
         context: {
           succeeded: done,
           failed,
-          remaining: queue.length - done - failed,
+          remaining: totalFrames - done - failed,
           stopped: stopRequestedRef.current,
         },
       });
       if (stopRequestedRef.current) {
-        toast.info(`已停止：成功 ${done} · 失败 ${failed} · 剩余 ${queue.length - done - failed}`);
+        toast.info(`已停止：成功 ${done} 帧 · 失败 ${failed} · 剩余 ${totalFrames - done - failed} 帧`);
       } else {
-        toast.success(`一键生图完成：成功 ${done}${failed ? ` · 失败 ${failed}` : ""}`);
+        toast.success(`一键生图完成：成功 ${done} 帧${failed ? ` · 失败 ${failed}` : ""}`);
       }
     })();
   }, [projectName, storyboards]);
@@ -134,8 +146,24 @@ export function useStoryboardBatchGeneration(input: {
   return { state, start, stop };
 }
 
-/** 单镜执行:找既有分镜工作流(打开链同口径匹配)→无则全装配建流→生图→回写分镜。 */
-async function generateOneShot(shot: StoryboardItem, projectName: string): Promise<void> {
+/** M3a:缺帧计数——单帧镜无图=1;多帧镜=空槽帧数(mediaRef 缺图视为首帧空) */
+function countMissingFrames(shot: StoryboardItem): number {
+  if (!shot.keyframes?.length) {
+    return shot.mediaRef?.kind === "image" && shot.mediaRef.path ? 0 : 1;
+  }
+  return shot.keyframes.filter((frame) => !frame.mediaRef?.path).length;
+}
+
+/**
+ * 单镜执行:找既有分镜工作流(打开链同口径匹配)→无则全装配建流→生图→回写分镜。
+ * M3a 多帧:按 frameId 序逐帧串行生成(帧间链 gen(k-1)→gen(k) 自动喂上一帧
+ * 成图作连贯参考),每帧即时回写 keyframes(reason="generate");单帧镜走原路径。
+ */
+async function generateOneShot(
+  shot: StoryboardItem,
+  projectName: string,
+  hooks?: { onFrameStart?: (label: string) => void },
+): Promise<void> {
   const context = buildStoryboardItemOpenContext(shot);
   const store = useStudioStore.getState();
   // 身份防线:择优复用(有参考节点的旧代/新代并存时优先带参考者),
@@ -158,6 +186,21 @@ async function generateOneShot(shot: StoryboardItem, projectName: string): Promi
     ?? graph.nodes.find((node) => node.type === "generated")?.id;
   if (!targetNodeId) {
     throw new Error("工作流缺少成图节点");
+  }
+  // M3a 多帧:按帧串行生成并逐帧回写;帧间链要求顺序执行,中途失败抛错由批次层记录
+  const emptyFrames = (shot.keyframes ?? []).filter((frame) => !frame.mediaRef?.path);
+  if (emptyFrames.length > 0) {
+    for (const frame of emptyFrames) {
+      hooks?.onFrameStart?.(`S${String(shot.index).padStart(2, "0")}-${frame.frameId.slice(-3)}`);
+      const frameNodeId = graph.nodes.find(
+        (node) => node.type === "generated" && (node as { frameId?: string }).frameId === frame.frameId,
+      )?.id;
+      if (!frameNodeId) {
+        throw new Error(`工作流缺少帧节点 ${frame.frameId}(请重新进入该镜图片工作流建流)`);
+      }
+      await runFrameGenerationAndWriteback(graph, shot, frame, frameNodeId);
+    }
+    return;
   }
   // 生成前预检(不烧配额,08-24 装配门禁链收口): ①file:// 参考探活——经资产桥
   // 轻读一次(读完即弃,不驻留 data: 防 OOM),断链(资产改名/文件损坏)在装配后
@@ -189,4 +232,39 @@ async function generateOneShot(shot: StoryboardItem, projectName: string): Promi
   landStoryboardContinuity(shot.id, latest.id, targetNodeId);
   const patch = buildStoryboardImageWorkflowPatch(latest, targetNodeId);
   useStudioStore.getState().updateStoryboard(shot.id, patch);
+}
+
+
+/** M3a:单帧生成+回写(多帧路径复用;预检同单帧口径) */
+async function runFrameGenerationAndWriteback(
+  graph: ReturnType<typeof findStoryboardWorkflowForContext> extends infer T ? NonNullable<T> : never,
+  shot: StoryboardItem,
+  frame: NonNullable<StoryboardItem["keyframes"]>[number],
+  frameNodeId: string,
+): Promise<void> {
+  const { imageUrl } = await runImageWorkflowNodeGeneration(graph, frameNodeId, {
+    addMaterial: useStudioStore.getState().addMaterial,
+  });
+  if (!imageUrl) throw new Error("生成结果为空");
+  const latest = useStudioStore.getState().imageWorkflows.find((item) => item.id === graph.id) ?? graph;
+  landStoryboardContinuity(shot.id, latest.id, frameNodeId);
+  const node = latest.nodes.find((item) => item.id === frameNodeId);
+  const frameMediaRef = {
+    kind: "image" as const,
+    path: imageUrl,
+    imageWorkflowId: latest.id,
+    imageWorkflowNodeId: frameNodeId,
+  };
+  // 增量回写必须以 store 现势为基(批次快照里的 shot.keyframes 是旧值,
+  // 直接在其上映射会丢掉前几帧已落的写入——多帧串行实测坑)
+  const liveFrames = useStudioStore.getState().storyboards.find((item) => item.id === shot.id)?.keyframes
+    ?? shot.keyframes
+    ?? [];
+  const updatedFrames = liveFrames.map((candidate) =>
+    candidate.frameId === frame.frameId
+      ? { ...candidate, mediaRef: frameMediaRef }
+      : candidate,
+  );
+  useStudioStore.getState().setStoryboardKeyframes(shot.id, updatedFrames, "generate");
+  void node;
 }

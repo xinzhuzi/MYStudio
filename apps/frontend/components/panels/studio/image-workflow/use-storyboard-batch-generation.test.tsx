@@ -179,10 +179,44 @@ describe("useStoryboardBatchGeneration(一键生图串行批量)", () => {
     expect(sb2.imageWorkflowId).toBeTruthy();
     const sb3 = store.storyboards.find((item) => item.id === "sb-3")!;
     expect(sb3.mediaRef?.kind).not.toBe("image");
-    expect(toast.error).toHaveBeenCalledWith(expect.stringContaining("分镜 3"));
+    expect(toast.error).toHaveBeenCalledWith(expect.stringContaining("分镜 3"), expect.anything());
     expect(toast.success).toHaveBeenCalledWith(expect.stringContaining("成功 1"));
     expect(toast.success).toHaveBeenCalledWith(expect.stringContaining("失败 1"));
     expect(result.current.state).toMatchObject({ total: 2, done: 2, failed: 1, currentShotIndex: null });
+  });
+
+  it("M3a 多帧镜按空槽帧串行生成并逐帧回写 keyframes(帧间链保序)", async () => {
+    resetStore([
+      shot({
+        id: "sb-kf", index: 1, duration: 12, durationTarget: 12,
+        keyframes: [
+          { frameId: "sb-kf-kf-1", mediaRef: { kind: "image", path: "" }, inUs: 0 },
+          { frameId: "sb-kf-kf-2", mediaRef: { kind: "image", path: "" }, inUs: 6_000_000 },
+        ],
+      }),
+    ]);
+    const genCalls: string[] = [];
+    freedomImage.mockImplementation(async () => {
+      genCalls.push(`call-${genCalls.length + 1}`);
+      return { url: `https://provider.test/kf-${genCalls.length}.png` };
+    });
+
+    const { result } = renderHook(() =>
+      useStoryboardBatchGeneration({ storyboards: useStudioStore.getState().storyboards, projectName: "道劫" }),
+    );
+    act(() => result.current.start());
+    await waitFor(() => expect(result.current.state.running).toBe(false), { timeout: 4000 });
+
+    // 两帧都生成(建流克隆出的两对帧节点各一次)
+    expect(genCalls).toHaveLength(2);
+    const store = useStudioStore.getState();
+    const updated = store.storyboards.find((item) => item.id === "sb-kf")!;
+    expect(updated.keyframes).toHaveLength(2);
+    expect(updated.keyframes?.every((frame) => frame.mediaRef.path.includes("gen-out.png"))).toBe(true);
+    // I1 首帧镜像同步
+    expect(updated.mediaRef?.path).toBe(updated.keyframes?.[0].mediaRef.path);
+    // 进度按帧计
+    expect(result.current.state).toMatchObject({ total: 2, done: 2, failed: 0, currentShotIndex: null });
   });
 
   it("stops after the current shot when stop() is requested mid-run", async () => {
@@ -235,7 +269,7 @@ describe("useStoryboardBatchGeneration(一键生图串行批量)", () => {
     );
     act(() => result.current.start());
     expect(freedomImage).not.toHaveBeenCalled();
-    expect(toast.info).toHaveBeenCalledWith("所有分镜都已生成画面");
+    expect(toast.info).toHaveBeenCalledWith("所有分镜画面均已齐备");
     expect(result.current.state.running).toBe(false);
   });
 
@@ -420,7 +454,7 @@ describe("useStoryboardBatchGeneration(一键生图串行批量)", () => {
 
       expect(freedomImage).not.toHaveBeenCalled();
       expect(result.current.state.failed).toBe(1);
-      expect(toast.error).toHaveBeenCalledWith(expect.stringContaining("无法读取"));
+      expect(toast.error).toHaveBeenCalledWith(expect.stringContaining("无法读取"), expect.anything());
     } finally {
       assetsBridge.readImageDataUrl = null;
     }
@@ -442,7 +476,7 @@ describe("useStoryboardBatchGeneration(一键生图串行批量)", () => {
     await waitFor(() => expect(result.current.state.running).toBe(false), { timeout: 8000 });
 
     expect(freedomImage).not.toHaveBeenCalled();
-    expect(toast.error).toHaveBeenCalledWith(expect.stringContaining("800"));
+    expect(toast.error).toHaveBeenCalledWith(expect.stringContaining("800"), expect.anything());
   });
 });
 

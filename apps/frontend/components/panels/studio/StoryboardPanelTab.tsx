@@ -1,4 +1,5 @@
-import { ArrowLeft, Image as ImageIcon, Loader2, Square } from "lucide-react";
+import { useState } from "react";
+import { ArrowLeft, History, Image as ImageIcon, Loader2, Square } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ResolutionBadge } from "@/components/ui/image-resolution-badge";
 import type { ImageWorkflowOpenContext, StoryboardItem } from "@/types/studio";
@@ -8,6 +9,7 @@ import { PreviewImage } from "./previews/preview-image";
 import { handleDeferScroll } from "./previews/interaction-defer";
 import { InteractionDeferHint } from "./previews/interaction-defer-hint";
 import type { StoryboardBatchGenerationState } from "./image-workflow/use-storyboard-batch-generation";
+import { StoryboardKeyframeBackfillDialog } from "./StoryboardKeyframeBackfillDialog";
 
 /**
  * 分镜面板 — 当前章节全部分镜的全量视图(与单镜图片工作流严格区分)。
@@ -32,6 +34,7 @@ export function StoryboardPanelTab({
   };
 }) {
   const ordered = storyboards.slice().sort((a, b) => a.index - b.index);
+  const [backfillOpen, setBackfillOpen] = useState(false);
   const withImage = ordered.filter((item) => item.mediaRef?.kind === "image").length;
   const remaining = ordered.length - withImage;
 
@@ -96,7 +99,19 @@ export function StoryboardPanelTab({
             </Button>
           ) : null
         ) : null}
+        <Button
+          size="sm"
+          variant="outline"
+          data-storyboard-panel-backfill
+          title="导入回接脚本 mapping.json,把旧镜图接入新分镜的关键帧序列"
+          onClick={() => setBackfillOpen(true)}
+        >
+          <History className="h-3.5 w-3.5" />
+          回接旧镜图
+        </Button>
       </div>
+
+      <StoryboardKeyframeBackfillDialog open={backfillOpen} onClose={() => setBackfillOpen(false)} />
 
       {ordered.length ? (
         <div
@@ -139,6 +154,17 @@ export function StoryboardPanelTab({
                     S{String(storyboard.index).padStart(2, "0")}
                   </span>
                   {mediaPath ? <ResolutionBadge src={toPreviewSrc(mediaPath)} /> : null}
+                  {storyboard.keyframes?.length ? (
+                    <span className="absolute bottom-1 left-1 flex items-center gap-1" data-storyboard-frame-dots>
+                      {storyboard.keyframes.map((frame) => (
+                        <span
+                          key={frame.frameId}
+                          title={`${frame.frameId}${frame.mediaRef?.path ? "" : " · 缺图"}`}
+                          className={`h-1.5 w-1.5 rounded-full ${frame.mediaRef?.path ? "bg-primary/80" : "bg-muted-foreground/40"}`}
+                        />
+                      ))}
+                    </span>
+                  ) : null}
                 </div>
                 <div className="flex min-h-0 flex-1 flex-col gap-1 p-2">
                   {/* 文案不截断(用户裁定:分镜面板要展示完全;videoDesc 实测最长 56 字) */}

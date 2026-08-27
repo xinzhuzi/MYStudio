@@ -283,8 +283,8 @@ export function createStoryboardSliceActions(set: SetFn, get: GetFn) {
         (current.durationTarget ?? current.duration ?? 0) * 1_000_000 || undefined; // 秒→µs
       const issues = validateStoryboardKeyframes(normalized, {
         shotDurationUs,
-        // 帧规划器建槽允许空 mediaRef;其余来源必须有图
-        allowEmptySlots: reason === "plan",
+        // 建槽与增量生成允许空槽(帧逐个补齐是合法中间态);回接/超分/编辑必须全有图
+        allowEmptySlots: reason === "plan" || reason === "generate",
       });
       if (issues.length) {
         throw new Error(`关键帧序列非法(${reason}):${issues.join(";")}`);
