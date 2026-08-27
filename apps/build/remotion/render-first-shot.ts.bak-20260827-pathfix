@@ -44,14 +44,8 @@ const fps = 30;
 const width = 1920;
 const height = 1080;
 const runtimeDir = resolveRemotionRuntimeDir();
-// 当前项目采用 store/ 分片布局；保留旧单文件路径仅用于 fixture/迁移项目。
-const storeBase = path.join(projectRoot, "store");
-const sourceStorePath = fs.existsSync(path.join(storeBase, "studio-workflow", "manifest.json"))
-  ? path.join(storeBase, "studio-workflow", "manifest.json")
-  : path.join(projectRoot, "studio-workflow-store.json");
-const scriptPath = fs.existsSync(path.join(projectRoot, "script.json"))
-  ? path.join(projectRoot, "script.json")
-  : path.join(storeBase, "editing.json");
+const sourceStorePath = path.join(projectRoot, "studio-workflow-store.json");
+const scriptPath = path.join(projectRoot, "script.json");
 const imagePath = path.join(projectRoot, "backups/legacy-pipeline/exports/chapter-001/storyboard-frames/shot-001.png");
 const audioPath = path.join(projectRoot, "backups/legacy-pipeline/exports/chapter-001/voice-audio/shot-001.wav");
 const bundlePath = path.join(appsRoot, ".cache", "remotion-bundle");
@@ -349,16 +343,12 @@ export async function loadFirstShotSource(
   // store 读取走分片感知入口（legacy 单文件已随分片化改名）；sourceStorePath 仅作快照身份锚点保留。
   const sourceStore = readStudioWorkflowStoreState(projectRoot);
   if (!sourceStore) throw new Error(`studio-workflow store 不存在（分片/单文件均缺失）: ${projectRoot}`);
+  const script = await readJsonRecord(scriptPath);
   const state = sourceStore.state;
   const storyboards = requireArray(state.storyboards, `${sourceStorePath}.state.storyboards`);
   const storyboard = storyboards.find((value) => isRecord(value) && value.id === shotId);
   if (!isRecord(storyboard)) throw new Error(`未找到首镜 storyboard: ${projectId}/${chapterId}/${shotId}`);
-  const script = await readJsonRecord(scriptPath);
-  // 新布局没有独立 script.json；editing store 不含 shots 时，以同一 storyboard
-  // 作为脚本字段来源，避免正式入口依赖已迁移的根级旧文件。
-  const shots = Array.isArray(script.shots)
-    ? script.shots
-    : [storyboard];
+  const shots = requireArray(script.shots, `${scriptPath}.shots`);
   const shot = shots.find((value) => isRecord(value) && value.id === shotId);
   if (!isRecord(shot)) throw new Error(`未找到首镜 script shot: ${projectId}/${chapterId}/${shotId}`);
 

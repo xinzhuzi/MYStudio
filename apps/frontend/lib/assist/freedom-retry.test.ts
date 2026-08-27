@@ -12,6 +12,16 @@ describe("freedom retry", () => {
     expect(isRetryableFreedomError({ name: "AbortError", message: "aborted" })).toBe(false);
   });
 
+  it("retries transport-level network failures but not task-level poll timeouts", () => {
+    // 传输层失败:结构化标记 / 翻译后稳定前缀 / 原始 fetch 失败
+    expect(isRetryableFreedomError(Object.assign(new Error("网络请求失败:域名解析失败"), { networkFailure: true }))).toBe(true);
+    expect(isRetryableFreedomError(new Error("网络请求失败,未获取到具体原因(可能是断网、代理或防火墙拦截) · 目标 https://x.io"))).toBe(true);
+    expect(isRetryableFreedomError(new TypeError("fetch failed"))).toBe(true);
+    // 任务级轮询超时不整单重试(重复付费风险),用户取消仍不重试
+    expect(isRetryableFreedomError(new Error("视频生成超时(已轮询 180 次、约 15 分钟仍未出片)"))).toBe(false);
+    expect(isRetryableFreedomError(new Error("用户已取消"))).toBe(false);
+  });
+
   it("rotates a key and retries with exponential delay", async () => {
     vi.useFakeTimers();
     const operation = vi.fn()

@@ -1,6 +1,11 @@
 import fs from "node:fs";
 import path from "node:path";
-import { resolveAssetFilePath, resolveLocalMediaPath, resolveProjectFileUrl } from "../storage/storage-paths";
+import {
+  parseAssetFileUrl,
+  resolveAssetFilePath,
+  resolveLocalMediaPath,
+  resolveProjectFileUrl,
+} from "../storage/storage-paths";
 
 export type ImageSource = {
   buffer: Buffer;
@@ -179,9 +184,20 @@ export function createImageSourceReader({
       return parsedDataUrl;
     }
 
-    const resolvedPath = resolveImageSourcePath(imageData);
+    let resolvedPath = resolveImageSourcePath(imageData);
+    const parsedAssetFile = imageData.startsWith("asset-file://")
+      ? parseAssetFileUrl(imageData)
+      : null;
+    let resolvedPathExists = resolvedPath ? fileExists(resolvedPath) : false;
+    if (resolvedPath && !resolvedPathExists && parsedAssetFile?.thumb) {
+      const queryIndex = imageData.indexOf("?");
+      if (queryIndex !== -1) {
+        resolvedPath = resolveImageSourcePath(imageData.slice(0, queryIndex));
+        resolvedPathExists = resolvedPath ? fileExists(resolvedPath) : false;
+      }
+    }
     if (resolvedPath) {
-      if (!fileExists(resolvedPath)) {
+      if (!resolvedPathExists) {
         throw new Error("本地图片不存在");
       }
       const buffer = readFile(resolvedPath);

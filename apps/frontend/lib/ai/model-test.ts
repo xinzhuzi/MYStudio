@@ -1,4 +1,5 @@
 import { parseApiKeys, type IProvider } from "./core";
+import { describeFetchError } from "./fetch-error";
 import {
   buildOpenAIImageRequestBody,
   buildProviderExtensionImageRequestBody,
@@ -618,16 +619,17 @@ export async function runModelTestRequest(
       };
     } catch (error) {
       const elapsedMs = Date.now() - startedAt;
-      const isTimeout = error instanceof Error && error.name === "AbortError";
       attempts.push({
         protocol: attempt.protocol,
         label: attempt.label,
         endpoint: attempt.endpoint,
         success: false,
         elapsedMs,
-        error: isTimeout
-          ? `${payload.type === "image" ? "图片模型测试" : "模型测试"}超时 (${Math.round(timeoutMs / 1000)}s)`
-          : error instanceof Error ? error.message : String(error),
+        error: describeFetchError(error, {
+          timeoutLabel: payload.type === "image" ? "图片模型测试" : "模型测试",
+          timeoutMs,
+          endpoint: attempt.endpoint,
+        }),
       });
     } finally {
       clearTimeout(timer);

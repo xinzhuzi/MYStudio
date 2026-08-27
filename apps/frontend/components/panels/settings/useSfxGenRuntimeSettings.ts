@@ -36,6 +36,13 @@ export function useSfxGenRuntimeSettings() {
     bridge.status().then((next) => {
       if (cancelled) return;
       setStatus(next);
+      // 挂载即静默体检:idle 时自动跑一次运行时检查(对齐深度/超分等区块的挂载
+      // 自动探测),否则「未检查」会一直挂到用户手动点按钮(08-28 修)。
+      if (next.setupStage === "idle") {
+        bridge.setup()
+          .then((final) => { if (!cancelled) setStatus(final); })
+          .catch(() => undefined);
+      }
       if (next.downloadStatus === "downloading") {
         pollRef.current = window.setInterval(() => {
           bridge.status()

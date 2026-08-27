@@ -40,11 +40,11 @@ export async function pollTaskStatus(
         method: 'GET', headers: { 'Authorization': `Bearer ${apiKey}`, 'Cache-Control': 'no-cache' }, signal,
       }, { operationId, endpointFamily: 'images-generations-poll', taskId, pollAttempt: attempt + 1, maxRetries: maxAttempts });
       if (!response.ok) {
-        if (response.status === 404) throw markTerminalPollError(new Error('Task not found'));
+        if (response.status === 404) throw markTerminalPollError(new Error(`任务不存在或已过期(Task not found)·任务号 ${taskId}`));
         if (!isRetryableHttpStatus(response.status)) {
-          throw markTerminalPollError(new Error(`Failed to check task status: ${response.status}`));
+          throw markTerminalPollError(new Error(`查询任务状态失败(HTTP ${response.status})`));
         }
-        throw new Error(`Failed to check task status: ${response.status}`);
+        throw new Error(`查询任务状态失败(HTTP ${response.status},将重试)`);
       }
       const data = await response.json();
       // new-api job 接口把任务对象包在 job 字段里: {"job": {"status": "...", "assets": [...]}}
@@ -61,12 +61,12 @@ export async function pollTaskStatus(
         const assets = Array.isArray(job?.assets) ? job.assets as Array<Record<string, unknown>> : undefined;
         const assetUrl = assets?.map((asset) => asset.proxy_url ?? asset.url).find((url): url is string => typeof url === 'string' && url.length > 0);
         resultUrl = resultUrl || assetUrl || data.output_url || data.result_url || data.url;
-        if (!resultUrl) throw markTerminalPollError(new Error('Task completed but no URL in result'));
+        if (!resultUrl) throw markTerminalPollError(new Error('任务已完成,但响应里没有图片地址'));
         return resultUrl;
       }
       if (mappedStatus === 'failed') {
         const rawError = job?.error ?? job?.message ?? data.error ?? data.error_message ?? data.data?.error;
-        throw markTerminalPollError(new Error(rawError ? String(rawError) : 'Task failed'));
+        throw markTerminalPollError(new Error(rawError ? String(rawError) : '服务端返回任务失败,但未说明原因'));
       }
       transientRetryAttempt = 0;
       await waitForRetry(pollInterval, signal);
@@ -77,5 +77,5 @@ export async function pollTaskStatus(
       await waitForRetry(retryDelayMs(transientRetryAttempt++, pollInterval), signal);
     }
   }
-  throw new Error('图片生成超时');
+  throw new Error(`图片生成超时(已轮询 ${maxAttempts} 次、约 ${Math.round(maxAttempts * pollInterval / 1000)} 秒仍未出图)`);
 }

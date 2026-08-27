@@ -30,13 +30,13 @@ export function WorkbenchLanePreview({
     <div className="workbench-lane-preview nodrag nowheel max-h-[320px] space-y-3 overflow-y-auto overscroll-contain pr-1">
       {node.remotionSummary ? (
         <div className="flex items-center gap-2 rounded-md border border-success/20 bg-success/20/[0.06] px-3 py-2 text-[10px] text-success/80">
-          <span>StoryboardShot MP4</span>
-          <span className="text-success/80/70">voice/SFX 已烘入</span>
+          <span>单镜 MP4</span>
+          <span className="text-success/80/70">配音、音效已压入</span>
           <ArrowRight className="h-3.5 w-3.5 text-success/70" />
           <span>原生 Remotion Studio</span>
           <ArrowRight className="h-3.5 w-3.5 text-success/70" />
-          <span>ChapterVideo</span>
-          <span className="text-success/80/70">仅混入 BGM/环境</span>
+          <span>全章合成</span>
+          <span className="text-success/80/70">只补背景音乐、环境声</span>
           <ArrowRight className="h-3.5 w-3.5 text-success/70" />
           <span>章节 MP4</span>
         </div>

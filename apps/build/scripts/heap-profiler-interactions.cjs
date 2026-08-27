@@ -95,31 +95,46 @@ function usage() {
   ].join("\n");
 }
 
-function getJson(host, port, requestPath) {
+function getJson(host, port, requestPath, timeoutMs = DEFAULT_COMMAND_TIMEOUT_MS) {
   return new Promise((resolve, reject) => {
+    let settled = false;
+    const settleReject = (error) => {
+      if (settled) return;
+      settled = true;
+      reject(error);
+    };
     const request = http.get({ host, port, path: requestPath }, (response) => {
       let body = "";
       response.setEncoding("utf8");
       response.on("data", (chunk) => { body += chunk; });
       response.on("end", () => {
+        if (settled) return;
         if (response.statusCode !== 200) {
-          reject(new Error(`CDP endpoint returned HTTP ${response.statusCode}`));
+          settleReject(new Error(`CDP endpoint returned HTTP ${response.statusCode}`));
           return;
         }
         try {
+          settled = true;
           resolve(JSON.parse(body));
         } catch {
-          reject(new Error("CDP endpoint returned invalid JSON"));
+          settleReject(new Error("CDP endpoint returned invalid JSON"));
         }
       });
     });
-    request.on("error", (error) => reject(new Error(`CDP endpoint unavailable: ${error.message}`)));
+    request.setTimeout(timeoutMs, () => {
+      request.destroy();
+      settleReject(new Error(`CDP endpoint timed out after ${timeoutMs}ms`));
+    });
+    request.on("error", (error) => settleReject(new Error(`CDP endpoint unavailable: ${error.message}`)));
   });
 }
 
 function connectCdp(webSocketDebuggerUrl, commandTimeoutMs) {
   return new Promise((resolve, reject) => {
-    const socket = new WebSocket(webSocketDebuggerUrl, { maxPayload: 1024 * 1024 * 1024 });
+    const socket = new WebSocket(webSocketDebuggerUrl, {
+      maxPayload: 1024 * 1024 * 1024,
+      handshakeTimeout: commandTimeoutMs,
+    });
     const pending = new Map();
     let sequence = 0;
     let opened = false;
@@ -141,7 +156,13 @@ function connectCdp(webSocketDebuggerUrl, commandTimeoutMs) {
         rejectSend(new Error(`CDP command timed out: ${method}`));
       }, commandTimeoutMs);
       pending.set(id, { resolve: resolveSend, reject: rejectSend, timer });
-      socket.send(JSON.stringify({ id, method, params }));
+      try {
+        socket.send(JSON.stringify({ id, method, params }));
+      } catch (error) {
+        clearTimeout(timer);
+        pending.delete(id);
+        rejectSend(new Error(`CDP websocket send failed for ${method}: ${error instanceof Error ? error.message : String(error)}`));
+      }
     });
     socket.on("message", (data) => {
       let message;
@@ -168,6 +189,35 @@ function connectCdp(webSocketDebuggerUrl, commandTimeoutMs) {
 
 function sleep(milliseconds) {
   return new Promise((resolve) => setTimeout(resolve, milliseconds));
+}
+
+function isTargetNavigationError(error) {
+  const message = error instanceof Error ? error.message : String(error);
+  return /Inspected target navigated or closed|CDP websocket (?:closed|unavailable|is not open)|CDP endpoint (?:unavailable|timed out)/i.test(message);
+}
+
+async function connectToCurrentPage(options) {
+  const targets = await getJson(options.host, options.port, "/json/list", options.commandTimeoutMs);
+  const page = Array.isArray(targets)
+    ? targets.find((target) => target.type === "page" && target.webSocketDebuggerUrl)
+    : null;
+  if (!page) throw new Error(`no CDP page found at ${options.host}:${options.port}`);
+  const client = await connectCdp(page.webSocketDebuggerUrl, options.commandTimeoutMs);
+  return { ...client, page };
+}
+
+async function reconnectToCurrentPage(options) {
+  const deadline = Date.now() + Math.min(options.commandTimeoutMs, 5_000);
+  let lastError = null;
+  while (Date.now() < deadline) {
+    try {
+      return await connectToCurrentPage(options);
+    } catch (error) {
+      lastError = error;
+      await sleep(100);
+    }
+  }
+  throw lastError || new Error(`no CDP page found at ${options.host}:${options.port}`);
 }
 
 function evaluateValue(response, label) {
@@ -244,8 +294,10 @@ function buildIdentityExpression(options) {
   })()`;
 }
 
-function buildInteractionExpression(round) {
+function buildInteractionExpression(round, expectedProjectId = "49dce4c1-64b1-42de-85c2-9f266698aec4") {
+  const expectedProjectIdLiteral = JSON.stringify(expectedProjectId);
   return `(async () => {
+    const expectedProjectId = ${expectedProjectIdLiteral};
     const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
     const waitFor = async (predicate, timeoutMs = 1_000) => {
       const deadline = Date.now() + timeoutMs;
@@ -257,6 +309,13 @@ function buildInteractionExpression(round) {
       return null;
     };
     const normalize = (element) => (element?.textContent || '').replace(/\\s+/g, ' ').trim();
+    const isVisible = (element) => {
+      if (!element) return false;
+      const rect = element.getBoundingClientRect();
+      const style = getComputedStyle(element);
+      return style.visibility !== 'hidden' && style.display !== 'none' &&
+        rect.width > 0 && rect.height > 0;
+    };
     const click = (element) => {
       if (!element) return false;
       element.scrollIntoView({ block: 'center', inline: 'center' });
@@ -308,8 +367,8 @@ function buildInteractionExpression(round) {
       resizeActions: 0,
     };
 
-    const projectCard = document.querySelector('.dashboard-project-card');
-    if (projectCard && click(projectCard)) {
+    const projectCard = document.querySelector('[data-project-card="' + expectedProjectId + '"]');
+    if (isVisible(projectCard) && click(projectCard)) {
       counters.projectEntries += 1;
       await sleep(1000);
     }
@@ -330,9 +389,40 @@ function buildInteractionExpression(round) {
       }
     }
 
+    // A scoped asset/storyboard drill-down intentionally hides the global
+    // workflow selector. Exit that detail before the readiness gate; checking
+    // for the selector first makes every scoped start fail once and adds an
+    // avoidable stage remount on the next attempt.
+    if (!document.querySelector('select[data-image-workflow-selector]')) {
+      const scopedBackButton = candidates().find((button) =>
+        normalize(button) === '返回' && isVisible(button));
+      if (click(scopedBackButton)) {
+        await waitFor(() => !candidates().some((button) =>
+          normalize(button) === '返回' && isVisible(button)), 3_000);
+        if (!document.querySelector('[data-workflow-active-stage="' + stage + '"]') &&
+          await clickStage('imageWorkflow', '图像节点图')) {
+          counters.stageSwitches += 1;
+        }
+        await waitFor(() => document.querySelector('select[data-image-workflow-selector]'), 3_000);
+      }
+    }
+
+    // Exercise the real stage switch path on every round. Starting from the
+    // image-workflow stage is not enough to prove switching: explicitly leave
+    // it for storyboard and come back, then verify both commits before reading
+    // canvas state. This also prevents a stale initial route from producing a
+    // false-positive interaction run with stageSwitches=0.
+    const storyboardStageCommitted = await clickStage('storyboard', '分镜视频生成');
+    const imageWorkflowStageCommitted = await clickStage('imageWorkflow', '图像节点图');
+    if (storyboardStageCommitted) counters.stageSwitches += 1;
+    if (imageWorkflowStageCommitted) counters.stageSwitches += 1;
+    const stageSwitchCycleComplete = Boolean(
+      storyboardStageCommitted && imageWorkflowStageCommitted,
+    );
+
     // React Flow measures custom nodes asynchronously after stage/workflow changes.
     // Do not sample coordinates while nodes are still hidden by its measurement guard.
-    const waitForVisibleCanvas = () => waitFor(() => {
+    const collectCanvasReadiness = () => {
       const visibleNode = [...document.querySelectorAll('.react-flow__node')].find((node) => {
         const rect = node.getBoundingClientRect();
         const style = getComputedStyle(node);
@@ -344,19 +434,34 @@ function buildInteractionExpression(round) {
       const controlsElement = document.querySelector('.workflow-node-viewport-controls');
       const imageNode = document.querySelector('[data-image-workflow-node-kind]');
       const workflowSelector = document.querySelector('select[data-image-workflow-selector]');
-      return visibleNode && controlsElement && imageNode && workflowSelector ? true : null;
-    }, 2_000);
-    const canvasReady = await waitForVisibleCanvas();
+      return {
+        documentVisibilityState: document.visibilityState,
+        documentHasFocus: document.hasFocus(),
+        hasVisibleNode: Boolean(visibleNode),
+        hasViewportControls: Boolean(controlsElement),
+        hasImageWorkflowNode: Boolean(imageNode),
+        hasWorkflowSelector: Boolean(workflowSelector),
+        activeWorkflowId: workflowSelector?.getAttribute('data-image-workflow-active-id') || '',
+        workflowOptionCount: workflowSelector?.options.length || 0,
+      };
+    };
+    const waitForVisibleCanvas = async () => {
+      let diagnostics = collectCanvasReadiness();
+      const ready = await waitFor(() => {
+        diagnostics = collectCanvasReadiness();
+        return diagnostics.documentVisibilityState === 'visible' &&
+          diagnostics.documentHasFocus && diagnostics.hasVisibleNode && diagnostics.hasViewportControls &&
+          diagnostics.hasImageWorkflowNode && diagnostics.hasWorkflowSelector &&
+          diagnostics.workflowOptionCount > 1
+          ? diagnostics
+          : null;
+      }, 2_000);
+      return { ready: Boolean(ready), diagnostics };
+    };
+    const canvasBeforeSwitch = await waitForVisibleCanvas();
 
-    let globalCreateButton = [...document.querySelectorAll('[data-image-workflow-global-action]')]
+    const globalCreateButton = [...document.querySelectorAll('[data-image-workflow-global-action]')]
       .find((button) => normalize(button) === '新建');
-    if (!globalCreateButton) {
-      const backButton = candidates().find((button) => normalize(button) === '返回');
-      if (click(backButton)) {
-        globalCreateButton = await waitFor(() => [...document.querySelectorAll('[data-image-workflow-global-action]')]
-          .find((button) => normalize(button) === '新建'));
-      }
-    }
 
     if (${round} % 12 === 0) {
       const workflowSelectorBefore = document.querySelector('select[data-image-workflow-selector]');
@@ -410,7 +515,7 @@ function buildInteractionExpression(round) {
     }
 
     // Switching the native selector remounts React Flow and can briefly hide nodes again.
-    const canvasReadyAfterSwitch = await waitForVisibleCanvas();
+    const canvasAfterSwitch = await waitForVisibleCanvas();
 
     const viewport = document.querySelector('.react-flow__viewport');
     const viewportControls = document.querySelector('.workflow-node-viewport-controls');
@@ -465,7 +570,16 @@ function buildInteractionExpression(round) {
 
     return {
       counters,
-      ready: Boolean(canvasReady && canvasReadyAfterSwitch),
+      ready: Boolean(
+        stageSwitchCycleComplete && canvasBeforeSwitch.ready && canvasAfterSwitch.ready,
+      ),
+      documentVisibilityState: document.visibilityState,
+      documentHasFocus: document.hasFocus(),
+      stageSwitchCycleComplete,
+      readiness: {
+        beforeSwitch: canvasBeforeSwitch.diagnostics,
+        afterSwitch: canvasAfterSwitch.diagnostics,
+      },
       stage,
       title: document.title,
       hasWorkflowRoute: Boolean([...document.querySelectorAll('.studio-nav-button')]
@@ -557,44 +671,86 @@ async function dispatchCdpClick(send, target) {
 }
 
 async function runInteractions(options) {
-  const targets = await getJson(options.host, options.port, "/json/list");
-  const page = Array.isArray(targets)
-    ? targets.find((target) => target.type === "page" && target.webSocketDebuggerUrl)
-    : null;
-  if (!page) throw new Error(`no CDP page found at ${options.host}:${options.port}`);
-  const { socket, send } = await connectCdp(page.webSocketDebuggerUrl, options.commandTimeoutMs);
+  let { socket, send, page } = await connectToCurrentPage(options);
   const startedAt = Date.now();
   const deadline = startedAt + options.durationMs;
   const samples = [];
   const totals = {};
   let identity = null;
+  let attempt = 0;
   let round = 0;
-  try {
+  let unreadyAttempts = 0;
+  let lastReadiness = null;
+  let targetReconnects = 0;
+  const verifyIdentity = async () => {
     await send("Runtime.enable");
-    identity = evaluateValue(await send("Runtime.evaluate", {
+    const verified = evaluateValue(await send("Runtime.evaluate", {
       expression: buildIdentityExpression(options),
       awaitPromise: true,
       returnByValue: true,
     }), "real-project identity probe");
-    if (!identity?.ok) {
-      throw new Error(`real-project clone identity mismatch: ${JSON.stringify(identity || {})}`);
+    if (!verified?.ok) {
+      throw new Error(`real-project clone identity mismatch: ${JSON.stringify(verified || {})}`);
     }
-    if (identity.forbiddenPersistentMediaCount !== 0) {
-      throw new Error(`real-project clone contains ${identity.forbiddenPersistentMediaCount} forbidden persistent media values`);
+    if (verified.forbiddenPersistentMediaCount !== 0) {
+      throw new Error(`real-project clone contains ${verified.forbiddenPersistentMediaCount} forbidden persistent media values`);
     }
+    identity = verified;
+  };
+  const reconnectAfterTargetLoss = async () => {
+    try { socket.close(); } catch {}
+    ({ socket, send, page } = await reconnectToCurrentPage(options));
+    targetReconnects += 1;
+    await verifyIdentity();
+    console.log(`[heap-interaction] reconnected after target navigation count=${targetReconnects}`);
+  };
+  const sendRecoverable = async (method, params = {}) => {
+    let retried = false;
+    while (true) {
+      try {
+        return await send(method, params);
+      } catch (error) {
+        if (retried || !isTargetNavigationError(error) || Date.now() >= deadline) throw error;
+        retried = true;
+        await reconnectAfterTargetLoss();
+      }
+    }
+  };
+  const evaluateRecoverable = async (expression, label) => {
+    const response = await sendRecoverable("Runtime.evaluate", {
+      expression,
+      awaitPromise: true,
+      returnByValue: true,
+    });
+    return evaluateValue(response, label);
+  };
+  try {
+    await verifyIdentity();
     while (Date.now() < deadline) {
       const roundStartedAt = Date.now();
-      const value = evaluateValue(await send("Runtime.evaluate", {
-        expression: buildInteractionExpression(round),
-        awaitPromise: true,
-        returnByValue: true,
-      }), "interaction round");
+      let value;
+      try {
+        value = await evaluateRecoverable(
+          buildInteractionExpression(attempt, options.expectedProjectId),
+          "interaction round",
+        );
+      } catch (error) {
+        if (!isTargetNavigationError(error) || Date.now() >= deadline) throw error;
+        attempt += 1;
+        continue;
+      }
+      attempt += 1;
       if (!value) {
         throw new Error(`interaction page is not the real project workflow: ${JSON.stringify(value || {})}`);
       }
+      lastReadiness = value.readiness || lastReadiness;
       if (!value.ready) {
+        unreadyAttempts += 1;
         for (const [name, count] of Object.entries(value.counters || {})) {
           totals[name] = (totals[name] || 0) + Number(count || 0);
+        }
+        if (unreadyAttempts === 1 || unreadyAttempts % 3 === 0) {
+          console.log(`[heap-interaction] unready attempt=${attempt} readiness=${JSON.stringify(lastReadiness || {})}`);
         }
         const remaining = deadline - Date.now();
         if (remaining <= 0) break;
@@ -606,19 +762,19 @@ async function runInteractions(options) {
       }
       const zoomTargets = value.zoomTargets;
       if (zoomTargets?.beforeState && zoomTargets?.zoomIn && zoomTargets?.zoomOut) {
-        await dispatchCdpClick(send, zoomTargets.zoomIn);
-        const zoomed = await waitForViewportChange(send, zoomTargets.beforeState, "in");
+        await dispatchCdpClick(sendRecoverable, zoomTargets.zoomIn);
+        const zoomed = await waitForViewportChange(sendRecoverable, zoomTargets.beforeState, "in");
         if (zoomed) value.counters.zoomActions += 1;
-        await dispatchCdpClick(send, zoomTargets.zoomOut);
-        const restored = zoomed ? await waitForViewportChange(send, zoomed, "out") : null;
+        await dispatchCdpClick(sendRecoverable, zoomTargets.zoomOut);
+        const restored = zoomed ? await waitForViewportChange(sendRecoverable, zoomed, "out") : null;
         if (restored) value.counters.zoomActions += 1;
       }
       if (value.dragTarget) {
         const { startX, startY, nodeId, beforeNodeRects, x: beforeX, y: beforeY } = value.dragTarget;
-        await send("Input.dispatchMouseEvent", { type: "mouseMoved", x: startX, y: startY });
-        await send("Input.dispatchMouseEvent", { type: "mousePressed", x: startX, y: startY, button: "left", buttons: 1, clickCount: 1 });
+        await sendRecoverable("Input.dispatchMouseEvent", { type: "mouseMoved", x: startX, y: startY });
+        await sendRecoverable("Input.dispatchMouseEvent", { type: "mousePressed", x: startX, y: startY, button: "left", buttons: 1, clickCount: 1 });
         for (let step = 1; step <= 4; step += 1) {
-          await send("Input.dispatchMouseEvent", {
+          await sendRecoverable("Input.dispatchMouseEvent", {
             type: "mouseMoved",
             x: startX + step * 12,
             y: startY + step * 8,
@@ -627,11 +783,11 @@ async function runInteractions(options) {
           });
           await sleep(40);
         }
-        await send("Input.dispatchMouseEvent", { type: "mouseReleased", x: startX + 48, y: startY + 32, button: "left", buttons: 0, clickCount: 1 });
+        await sendRecoverable("Input.dispatchMouseEvent", { type: "mouseReleased", x: startX + 48, y: startY + 32, button: "left", buttons: 0, clickCount: 1 });
         let afterDrag = null;
         const dragVerificationDeadline = Date.now() + 3000;
         while (Date.now() < dragVerificationDeadline) {
-          afterDrag = evaluateValue(await send("Runtime.evaluate", {
+          afterDrag = evaluateValue(await sendRecoverable("Runtime.evaluate", {
             expression: buildDragVerificationExpression(nodeId, beforeNodeRects),
             returnByValue: true,
           }), "drag verification");
@@ -642,7 +798,7 @@ async function runInteractions(options) {
           value.counters.dragActions += 1;
         }
       }
-      const heapUsage = await send("Runtime.getHeapUsage");
+      const heapUsage = await sendRecoverable("Runtime.getHeapUsage");
       const usedJSHeapSize = Number(heapUsage?.usedSize) || 0;
       const totalJSHeapSize = Number(heapUsage?.totalSize) || 0;
       if (!(usedJSHeapSize > 0) || !(totalJSHeapSize >= usedJSHeapSize)) {
@@ -658,6 +814,8 @@ async function runInteractions(options) {
         imageWorkflowNodeCount: value.imageWorkflowNodeCount,
         reactFlowCount: value.reactFlowCount,
         stage: value.stage,
+        documentVisibilityState: value.documentVisibilityState,
+        documentHasFocus: value.documentHasFocus,
       });
       round += 1;
       if (round === 1 || round % 6 === 0) {
@@ -679,6 +837,10 @@ async function runInteractions(options) {
       durationMs: failedAt - startedAt,
       requestedDurationMs: options.durationMs,
       identity,
+      attempts: attempt,
+      unreadyAttempts,
+      targetReconnects,
+      lastReadiness,
       rounds: round,
       totals,
       samples,
@@ -699,6 +861,9 @@ async function runInteractions(options) {
     netGrowthBytes: usedHeapSamples.length > 1 ? usedHeapSamples.at(-1) - usedHeapSamples[0] : 0,
   };
   const missingActions = REQUIRED_ACTIONS.filter((name) => !(totals[name] > 0));
+  const foregroundViolation = samples.some((sample) =>
+    Boolean(sample.documentVisibilityState) &&
+    (sample.documentVisibilityState !== "visible" || sample.documentHasFocus !== true));
   try {
     if (finishedAt - startedAt < options.durationMs) {
       throw new Error(`interaction duration was too short: ${finishedAt - startedAt}ms`);
@@ -708,6 +873,9 @@ async function runInteractions(options) {
     }
     if (missingActions.length > 0) {
       throw new Error(`interaction run missed required actions: ${missingActions.join(", ")}; totals=${JSON.stringify(totals)}`);
+    }
+    if (foregroundViolation) {
+      throw new Error("interaction run lost foreground visibility or document focus");
     }
     if (heap.maxBytes >= 300 * 1024 * 1024 || heap.netGrowthBytes >= 100 * 1024 * 1024) {
       throw new Error(`interaction heap stability gate failed: max=${heap.maxBytes} netGrowth=${heap.netGrowthBytes}`);
@@ -723,9 +891,14 @@ async function runInteractions(options) {
       durationMs: finishedAt - startedAt,
       requestedDurationMs: options.durationMs,
       identity,
+      attempts: attempt,
+      unreadyAttempts,
+      targetReconnects,
+      lastReadiness,
       rounds: round,
       totals,
       missingActions,
+      foregroundViolation,
       heap,
       samples,
       error: error instanceof Error ? error.message : String(error),
@@ -745,9 +918,14 @@ async function runInteractions(options) {
     pageUrl: page.url,
     pageTitle: page.title,
     identity,
+    attempts: attempt,
+    unreadyAttempts,
+    targetReconnects,
+    lastReadiness,
     rounds: round,
     totals,
     missingActions,
+    foregroundViolation,
     heap,
     samples,
   };

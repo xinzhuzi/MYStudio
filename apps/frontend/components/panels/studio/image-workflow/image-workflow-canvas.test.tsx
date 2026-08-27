@@ -10,6 +10,14 @@ import { useStudioStore } from "@/stores/studio/studio-store";
 // T4 水合竞态：mock 水合标志（默认 true=已水合），既不依赖真实 persist 的
 // microtask 时序，也允许显式测「装载窗口内」场景
 const hydratedMock = vi.hoisted(() => ({ value: true }));
+const updateNodeInternalsMock = vi.hoisted(() => vi.fn());
+vi.mock("@xyflow/react", async () => {
+  const actual = await vi.importActual<typeof import("@xyflow/react")>("@xyflow/react");
+  return {
+    ...actual,
+    useUpdateNodeInternals: () => updateNodeInternalsMock,
+  };
+});
 vi.mock("@/stores/studio/use-studio-workflow-hydrated", () => ({
   useStudioWorkflowHydrated: () => hydratedMock.value,
 }));
@@ -33,6 +41,7 @@ const initialCharacterState = useCharacterLibraryStore.getState();
 afterEach(() => {
   cleanup();
   hydratedMock.value = true;
+  updateNodeInternalsMock.mockReset();
   useStudioStore.setState(initialStudioState, true);
   useProjectStore.setState(initialProjectState, true);
   useCharacterLibraryStore.setState(initialCharacterState, true);
@@ -188,6 +197,43 @@ describe("ImageWorkflowCanvas", () => {
     expect(screen.getByRole("button", { name: "返回" })).toBeTruthy();
     expect(screen.getByDisplayValue("水墨国风角色衍生三视图设定图")).toBeTruthy();
     expect(container.querySelector("[data-toonflow-generated-prompt-panel]")).toBeNull();
+  });
+
+  it("refreshes React Flow node measurements after the image canvas becomes visible", async () => {
+    const graph = createAssetImageWorkflowGraph(
+      {
+        target: {
+          kind: "asset",
+          assetType: "scene",
+          parentId: "scene-parent",
+          id: "scene-night",
+        },
+        title: "雨夜版",
+        prompt: "水墨国风雨夜街口",
+        sourceImagePath: "project-file://dao/assets/source.png",
+        resultImagePath: "project-file://dao/assets/night.png",
+        imageWorkflowId: "flow-scene-night",
+      },
+      "道劫",
+    );
+
+    useProjectStore.setState({ activeProjectId: "dao-project" });
+    useStudioStore.setState({
+      ...initialStudioState,
+      imageWorkflows: [graph],
+      materials: [],
+      storyboards: [],
+      createImageWorkflow: vi.fn(() => "unused-global-flow"),
+      upsertImageWorkflow: vi.fn(),
+    }, true);
+
+    render(<ImageWorkflowCanvas projectName="道劫" />);
+
+    await waitFor(() => {
+      expect(updateNodeInternalsMock).toHaveBeenCalledWith(
+        graph.nodes.map((node) => node.id),
+      );
+    });
   });
 
   it("stores a scoped derived asset generated image in the asset library from the image workflow", async () => {

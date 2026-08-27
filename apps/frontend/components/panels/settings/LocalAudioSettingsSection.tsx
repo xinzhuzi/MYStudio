@@ -522,9 +522,11 @@ function Music3EnginePanel() {
         </p>
       ) : null}
 
+      {/* 模型就绪判定 = 下载版缓存副本 OR 指向版权重(mlx-serve 路线);两者任一可用即就绪,
+          否则「权重完整」与「未下载」会同屏打架(08-28 修)。 */}
       <div className="flex items-center justify-between gap-4">
         <div className="flex items-center gap-2 text-sm">
-          {downloaded ? (
+          {downloaded || mlxservReady ? (
             <Check className="h-4 w-4 text-success" aria-hidden />
           ) : (
             <Download className="h-4 w-4 text-muted-foreground" aria-hidden />
@@ -533,7 +535,15 @@ function Music3EnginePanel() {
             {model?.label ?? "MiniMax-Music3(MLX 整曲引擎)"}
             {downloaded && model?.sizeMb != null ? ` · ${(model.sizeMb / 1024).toFixed(1)} GB` : ""}
             {" — "}
-            {downloading ? "下载中" : downloaded ? "已就绪" : unsupported ? "本机不适用" : "未下载"}
+            {downloading
+              ? "下载中"
+              : downloaded
+                ? "已就绪"
+                : mlxservReady
+                  ? "已就绪(指向版权重)"
+                  : unsupported
+                    ? "本机不适用"
+                    : "未下载"}
           </span>
         </div>
         <Button size="sm" onClick={() => void runtime.startDownload()} disabled={!isReady || downloading || unsupported}>
@@ -542,7 +552,7 @@ function Music3EnginePanel() {
           ) : (
             <Download className="mr-2 h-4 w-4" aria-hidden />
           )}
-          {downloading ? "下载中…" : downloaded ? "重新下载" : "下载模型(约 12 GB)"}
+          {downloading ? "下载中…" : downloaded ? "重新下载" : mlxservReady ? "下载独立副本(约 12 GB)" : "下载模型(约 12 GB)"}
         </Button>
       </div>
 
@@ -556,17 +566,22 @@ function Music3EnginePanel() {
       )}
 
       {status?.modelCacheDir ? (
-        <div className="grid grid-cols-[5rem_minmax(0,1fr)_auto] items-center gap-2 text-sm">
-          <span className="text-muted-foreground">模型缓存目录</span>
-          <span className="truncate font-mono text-xs" title={status.modelCacheDir}>{status.modelCacheDir}</span>
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() => { void window.electronAPI?.openPath(status.modelCacheDir!); }}
-          >
-            <FolderOpen className="mr-1.5 h-3.5 w-3.5" aria-hidden />
-            打开
-          </Button>
+        <div className="space-y-0.5">
+          <div className="grid grid-cols-[5rem_minmax(0,1fr)_auto] items-center gap-2 text-sm">
+            <span className="text-muted-foreground">下载版缓存</span>
+            <span className="truncate font-mono text-xs" title={status.modelCacheDir}>{status.modelCacheDir}</span>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => { void window.electronAPI?.openPath(status.modelCacheDir!); }}
+            >
+              <FolderOpen className="mr-1.5 h-3.5 w-3.5" aria-hidden />
+              打开
+            </Button>
+          </div>
+          <p className="text-[10px] leading-4 text-muted-foreground">
+            仅「下载版」用到:与配音/音效共用的模型仓库。{mlxservReady ? "当前使用指向版权重,此目录不参与生成。" : ""}
+          </p>
         </div>
       ) : null}
 

@@ -65,12 +65,15 @@ describe("useWorkflowStageState 阶段进入门闸(效应驱动,含直写 store 
       rerender({ workflowStage: "workbench" });
     });
     expect(interactionDeferBegin).toHaveBeenCalledTimes(1);
-    // 再切换再关
+    // 切换到另一阶段后再回到 workbench 再关
+    act(() => {
+      rerender({ workflowStage: "assets" });
+    });
     act(() => {
       rerender({ workflowStage: "workbench" });
     });
-    expect(interactionDeferBegin).toHaveBeenCalledTimes(2);
-    expect(interactionDeferEnd).toHaveBeenCalledTimes(2);
+    expect(interactionDeferBegin).toHaveBeenCalledTimes(3);
+    expect(interactionDeferEnd).toHaveBeenCalledTimes(3);
   });
 
   it("honors the one-shot suppression (测试桥程序化设阶段免闸)", async () => {
@@ -83,11 +86,14 @@ describe("useWorkflowStageState 阶段进入门闸(效应驱动,含直写 store 
       rerender({ workflowStage: "workbench" });
     });
     expect(interactionDeferBegin).not.toHaveBeenCalled();
-    // 豁免一次性:再切正常关闸
+    // 豁免一次性:切换到另一阶段后再回到 workbench 正常关闸
+    act(() => {
+      rerender({ workflowStage: "assets" });
+    });
     act(() => {
       rerender({ workflowStage: "workbench" });
     });
-    expect(interactionDeferBegin).toHaveBeenCalledTimes(1);
+    expect(interactionDeferBegin).toHaveBeenCalledTimes(2);
   });
 
   it("still switches stages via the callback (rejected switches stay put)", () => {
@@ -95,7 +101,7 @@ describe("useWorkflowStageState 阶段进入门闸(效应驱动,含直写 store 
     act(() => {
       result.current.handleStageChange("storyboard");
     });
-    expect(setWorkflowConfig).toHaveBeenCalledWith({ workflowStage: "workbench" });
+    expect(setWorkflowConfig).toHaveBeenCalledWith({ workflowStage: "storyboard" });
     expect(result.current.activeWorkflowTab).toBe("storyboard");
     manualIds = { visualManualId: undefined, directorManualId: undefined };
     act(() => {

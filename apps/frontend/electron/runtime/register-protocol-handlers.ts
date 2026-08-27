@@ -94,7 +94,7 @@ export function registerProtocolHandlers({
 
   protocol.handle("local-image", async (request) => {
     try {
-      return respondWithFile(resolveLocalMedia(getMediaRoot(), request.url));
+      return await respondWithFile(resolveLocalMedia(getMediaRoot(), request.url));
     } catch (error) {
       console.error("Failed to load local image:", error);
       return new Response("Image not found", { status: 404 });
@@ -119,13 +119,13 @@ export function registerProtocolHandlers({
       const queryIndex = request.url.indexOf("?");
       const cleanUrl = queryIndex === -1 ? request.url : request.url.slice(0, queryIndex);
       const wantsThumb =
-        queryIndex !== -1 && new URLSearchParams(request.url.slice(queryIndex + 1)).has("thumb");
+        queryIndex !== -1 && new URLSearchParams(request.url.slice(queryIndex + 1)).get("thumb") === "1";
       const filePath = resolveProjectFile(getDataDir(), cleanUrl);
       if (wantsThumb) {
         const thumbPath = await resolveThumb(filePath);
-        if (thumbPath) return respondWithFile(thumbPath);
+        if (thumbPath) return await respondWithFile(thumbPath);
       }
-      return respondWithFile(filePath);
+      return await respondWithFile(filePath);
     } catch (error) {
       console.error("Failed to load project file:", error);
       return new Response("File not found", { status: 404 });
@@ -134,7 +134,7 @@ export function registerProtocolHandlers({
 
   protocol.handle("asset-file", async (request) => {
     try {
-      return respondWithFile(resolveAssetFile(getAssetsRoot(), request.url));
+      return await respondWithFile(resolveAssetFile(getAssetsRoot(), request.url));
     } catch (error) {
       // 预生成缩略图(sips 200×200 树)可能不存在:剥 query 找原图,
       // 按需缓存兜底,最后回退原图字节——绝不 404 断图。
@@ -143,8 +143,8 @@ export function registerProtocolHandlers({
         if (queryIndex !== -1) {
           const originalPath = resolveAssetFile(getAssetsRoot(), request.url.slice(0, queryIndex));
           const thumbPath = await resolveThumb(originalPath);
-          if (thumbPath) return respondWithFile(thumbPath);
-          return respondWithFile(originalPath);
+          if (thumbPath) return await respondWithFile(thumbPath);
+          return await respondWithFile(originalPath);
         }
       } catch {
         // 走 404 分支
@@ -165,7 +165,7 @@ export function registerProtocolHandlers({
       if (filePath !== skillsRoot && !filePath.startsWith(skillsRoot + path.sep)) {
         throw new Error("Studio skill file path escapes storage root");
       }
-      return respondWithFile(filePath);
+      return await respondWithFile(filePath);
     } catch (error) {
       console.error("Failed to load studio skill file:", error);
       return new Response("File not found", { status: 404 });
@@ -174,7 +174,7 @@ export function registerProtocolHandlers({
 
   protocol.handle("toonflow-asset", async (request) => {
     try {
-      return respondWithFile(resolveToonflowAsset(request.url));
+      return await respondWithFile(resolveToonflowAsset(request.url));
     } catch (error) {
       console.error("Failed to load Toonflow asset:", error);
       return new Response("File not found", { status: 404 });

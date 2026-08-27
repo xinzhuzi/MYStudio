@@ -665,7 +665,8 @@ describe("desktop build scripts", () => {
       nodePreviewContractStart,
       nodePreviewContractEnd,
     );
-    expect(nodePreviewContract).toContain("['ChapterVideo', '章节 MP4']");
+    expect(nodePreviewContract).toContain("['独孤剑尘']");
+    expect(nodePreviewContract).toContain("['矿场']");
     expect(nodePreviewContract).not.toContain("mystudio-smoke-final.mp4");
     expect(smokeScript).toContain("hasNodeFlowDataPreview");
     expect(smokeScript).toContain("hasDirectorPlanPreview");
@@ -700,19 +701,13 @@ describe("desktop build scripts", () => {
     expect(smokeScript).toContain("hasNoDefaultReactFlowControls");
     expect(smokeScript).toContain("hasThemeViewportControls");
     expect(smokeScript).toContain(
-      "workflow node cards did not show Toonflow FlowData previews",
+      "workflow node pointer cards missing key summary lines",
     );
     expect(smokeScript).toContain(
-      "workflow node cards did not show director plan markdown content",
+      "workflow node canvas rendered above the workflow stage content",
     );
     expect(smokeScript).toContain(
-      "workflow node cards did not show Toonflow derivative asset links",
-    );
-    expect(smokeScript).toContain(
-      "workflow derivative asset card did not open Toonflow image workflow detail",
-    );
-    expect(smokeScript).toContain(
-      "storyboard workflow node did not show generated image previews",
+      "storyboard workflow node layout missing nodes",
     );
     expect(smokeScript).toContain(
       "storyboard workflow node rendered default white React Flow controls",
@@ -727,11 +722,14 @@ describe("desktop build scripts", () => {
       "workflow node canvas rendered inside 剧本资产管理 instead of 分镜视频生成",
     );
     expect(smokeScript).not.toContain("'Python 依赖'");
-    expect(smokeScript).toContain("所有本地 TTS、video-use Python worker 和 MLX 对齐都复用应用管理的 Python");
+    // 08-28 布局重做:折叠行只显示标题+状态胶囊,描述移入展开内容——头部句+行标题进必现文案
+    expect(smokeScript).toContain("按依赖顺序配置本地能力");
+    expect(smokeScript).not.toContain("所有本地 TTS、video-use Python worker 和 MLX 对齐都复用应用管理的 Python");
     // 本地配置区块默认全折叠后,区块内按钮不再出现在冒烟必现文案里
     expect(smokeScript).not.toContain("'开始配置'");
     expect(smokeScript).toContain("深度估计（电影级 3D）");
-    expect(smokeScript).toContain("声音（TTS · 音乐 · 音效）");
+    expect(smokeScript).toContain("视频评分模型");
+    expect(smokeScript).toContain("TTS 运行时与模型");
     expect(smokeScript).not.toContain("'安装明细'");
     expect(smokeScript).toContain("Python 运行环境");
     expect(smokeScript).toContain("制作流程推进");

@@ -67,6 +67,13 @@ export function useMusic3GenRuntimeSettings() {
       if (next.downloadStatus === "downloading" || isWeightsInstalling(next)) {
         beginPolling();
       }
+      // 挂载即静默体检:idle 时自动跑一次运行时检查(对齐深度/超分等区块的挂载
+      // 自动探测),否则「未检查」会一直挂到用户手动点按钮(08-28 修)。
+      if (next.setupStage === "idle") {
+        bridge.setup()
+          .then((final) => { if (!cancelled) setStatus(final); })
+          .catch(() => undefined);
+      }
     }).catch(() => undefined);
     return () => {
       cancelled = true;

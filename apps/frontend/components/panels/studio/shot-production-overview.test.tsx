@@ -82,11 +82,20 @@ describe("ShotProductionOverview(单镜生产总览)", () => {
     expect(screen.getAllByText("S01").length).toBeGreaterThan(0);
     expect(screen.getByText("单镜视频已生成")).toBeTruthy();
     expect(document.querySelector("video")?.getAttribute("src")).toContain("project-file://");
+    const videoFrame = document.querySelector("[data-shot-video]")?.parentElement;
+    expect(videoFrame?.getAttribute("class")).toContain("h-64");
+    expect(videoFrame?.getAttribute("class")).toContain("lg:h-[max(24rem,calc(100vh-22rem))]");
     // 声音三卡(配音/音效/BGM)默认收起:试听器不进 DOM;点「试听」才逐条可听
     expect(document.querySelector("audio")).toBeNull();
     expect(document.querySelector('[data-shot-sound-card="voice"]')!.textContent).toContain("1 条");
     expect(document.querySelector('[data-shot-sound-card="sfx"]')!.textContent).toContain("本镜无");
     expect(document.querySelector('[data-shot-sound-card="bgm"]')).toBeTruthy();
+    const soundCards = Array.from(document.querySelectorAll("[data-shot-sound-card]"));
+    expect(soundCards.map((card) => card.getAttribute("data-shot-sound-card"))).toEqual([
+      "voice",
+      "sfx",
+      "bgm",
+    ]);
     fireEvent.click(document.querySelector('[data-shot-audio-toggle="voice"]')!);
     expect(document.querySelector("audio")).toBeTruthy();
     expect(screen.getAllByText("旁白配音").length).toBeGreaterThan(1);
@@ -180,6 +189,25 @@ describe("ShotProductionOverview(单镜生产总览)", () => {
     );
     expect(screen.getAllByText(/渲染中 40%/).length).toBeGreaterThan(0);
     expect(document.querySelector('[data-shot-video-status="running"]')).toBeTruthy();
+  });
+
+  it("keeps failed jobs visible in the shot status", () => {
+    const failedSlot = slotFor("shot-001");
+    const failedJob = {
+      ...failedSlot.job,
+      status: "failed" as const,
+      progress: 0,
+    };
+    render(
+      <ShotProductionOverview
+        projectId="project-a"
+        storyboards={[shot({ id: "shot-001", index: 1 })]}
+        jobs={[failedJob]}
+        currentShotSlots={[]}
+      />,
+    );
+    expect(screen.getByText("渲染失败")).toBeTruthy();
+    expect(document.querySelector('[data-shot-video-status="failed"]')).toBeTruthy();
   });
 
   it("falls back to the latest succeeded job as a clearly-labeled stale video", () => {

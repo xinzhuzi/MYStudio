@@ -10,6 +10,7 @@ import { createDeepSeek } from "@ai-sdk/deepseek";
 import { createMinimax } from "vercel-minimax-ai-provider";
 import { generateImage, generateText, streamText } from "ai";
 import type { IProvider } from "./core";
+import { createDescribedFetchError, type NetworkFailureFlags } from "./fetch-error";
 import type { ProviderOptions } from "@ai-sdk/provider-utils";
 import { observedFetch, type ObservedFetchMeta } from "../diagnostics/network";
 import {
@@ -126,7 +127,7 @@ export async function sdkGenerateText(options: {
   providerOptions?: ProviderOptions;
   /** 整体超时（含 AI SDK 内部重试）；缺省 300s，与 HTTP 回退路径一致。 */
   timeoutMs?: number;
-}): Promise<{ success: boolean; text?: string; error?: string }> {
+}): Promise<{ success: boolean; text?: string; error?: string; networkFailure?: boolean; timeoutFailure?: boolean }> {
   const timeoutMs = options.timeoutMs ?? 300_000;
   const controller = new AbortController();
   const timer = setTimeout(
@@ -149,7 +150,13 @@ export async function sdkGenerateText(options: {
     if (e?.name === "TimeoutError" || controller.signal.aborted) {
       return { success: false, error: `API 请求超时（${Math.round(timeoutMs / 1000)}s）` };
     }
-    return { success: false, error: e?.message || String(e) };
+    const described = createDescribedFetchError(e, { endpoint: options.provider.baseUrl });
+    return {
+      success: false,
+      error: described.message,
+      networkFailure: described.networkFailure,
+      timeoutFailure: described.timeoutFailure,
+    };
   } finally {
     clearTimeout(timer);
   }
@@ -217,7 +224,7 @@ export interface SdkGenerateImageOptions extends BuildImageRequestBodyInput {
   fetcher?: typeof fetch;
 }
 
-export interface SdkGenerateImageResult {
+export interface SdkGenerateImageResult extends NetworkFailureFlags {
   success: boolean;
   imageUrl?: string;
   error?: string;
@@ -524,9 +531,23 @@ export async function sdkGenerateImage(options: SdkGenerateImageOptions): Promis
     if (controller.signal.aborted) {
       const reason = controller.signal.reason;
       const message = reason instanceof Error ? reason.message : getErrorMessage(error);
-      return { success: false, error: message, status: getErrorStatus(error), size, templateName };
+      const withDuration = message === "API 请求超时" ? `${message}(${Math.round(timeoutMs / 1000)}s)` : message;
+      return { success: false, error: withDuration, status: getErrorStatus(error), size, templateName };
     }
-    return { success: false, error: getErrorMessage(error), status: getErrorStatus(error), size, templateName };
+    const described = createDescribedFetchError(error, {
+      timeoutLabel: "图片生成请求",
+      timeoutMs,
+      endpoint: options.provider.baseUrl,
+    });
+    return {
+      success: false,
+      error: described.message,
+      networkFailure: described.networkFailure,
+      timeoutFailure: described.timeoutFailure,
+      status: getErrorStatus(error),
+      size,
+      templateName,
+    };
   } finally {
     clearTimeout(timeout);
     options.abortSignal?.removeEventListener("abort", onAbort);

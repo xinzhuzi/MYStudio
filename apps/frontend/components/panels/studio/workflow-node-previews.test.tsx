@@ -64,7 +64,8 @@ describe("workflow node component boundaries", () => {
     expect(canvasSource).not.toContain("function StoryboardGridPreview");
 
     expect(productionNodeSource).toContain("export const ProductionFlowNode = memo(function ProductionFlowNode");
-    expect(productionNodeSource).toContain("function NodeSkillDisclosure");
+    expect(productionNodeSource).not.toContain("function NodeSkillDisclosure");
+    expect(productionNodeSource).toContain("import { NodePointerCard }");
     expect(productionNodeSource).toContain("data-flow-node-id={data.node.id}");
     expect(productionNodeSource).toContain("position={sourcePosition}");
     expect(productionNodeSource).toContain("position={targetPosition}");

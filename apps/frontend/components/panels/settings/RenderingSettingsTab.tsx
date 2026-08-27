@@ -297,25 +297,44 @@ export function RenderingSettingsTab({ embedded = false }: RenderingSettingsTabP
               </CollapsibleTrigger>
               <CollapsibleContent>
                 <p className="text-xs leading-5 text-muted-foreground">视频工作流的所有插件复用同一组 FFmpeg 与 ffprobe，不按项目独立安装。</p>
+                <div className="space-y-1 pt-1">
+                  <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">使用位置</p>
+                  <ul className="space-y-1 text-xs leading-5 text-muted-foreground">
+                    <li><span className="text-foreground/80">素材预备(video-use)</span>——视频转码、抽帧与对齐探测</li>
+                    <li><span className="text-foreground/80">出片后质检</span>——逐帧画面比对、读取成片规格</li>
+                    <li><span className="text-foreground/80">章节成片导出</span>——音轨响度归一,保持各章音量一致</li>
+                    <li><span className="text-foreground/80">特效 overlay(HyperFrames)</span>——校验产物时长与画面规格</li>
+                    <li><span className="text-foreground/80">深度估计 / 图片超分</span>——探测与校验输入媒体规格</li>
+                  </ul>
+                </div>
                 {(() => {
                   const videoUsePlugin = plugins.getPlugin("video-use");
-                  const ffmpeg = videoUsePlugin?.dependencies?.ffmpeg;
-                  const ffprobe = videoUsePlugin?.dependencies?.ffprobe;
-                  if (!ffmpeg && !ffprobe) return null;
+                  const ffmpegVersion = videoUsePlugin?.dependencies?.ffmpeg;
+                  const ffprobeVersion = videoUsePlugin?.dependencies?.ffprobe;
+                  const ffmpegPath = videoUsePlugin?.ffmpegPath;
+                  const ffprobePath = videoUsePlugin?.ffprobePath;
+                  if (!ffmpegPath && !ffprobePath && !ffmpegVersion && !ffprobeVersion) {
+                    return (
+                      <p className="text-[10px] leading-4 text-muted-foreground">
+                        尚未探测到共享工具链——点上方「刷新状态」重试。
+                      </p>
+                    );
+                  }
+                  const toolRow = (label: string, exePath?: string, version?: string) => (
+                    (exePath || version) ? (
+                      <div className="grid grid-cols-[5rem_1fr] gap-2">
+                        <dt>{label}</dt>
+                        <dd className="min-w-0">
+                          {exePath && <span className="block truncate font-mono" title={exePath}>{exePath}</span>}
+                          {version && <span className="block truncate" title={version}>{version}</span>}
+                        </dd>
+                      </div>
+                    ) : null
+                  );
                   return (
-                    <dl className="grid gap-1 text-[10px] text-muted-foreground">
-                      {ffmpeg ? (
-                        <div className="grid grid-cols-[5rem_1fr] gap-2">
-                          <dt>ffmpeg</dt>
-                          <dd className="truncate font-mono" title={ffmpeg}>{ffmpeg}</dd>
-                        </div>
-                      ) : null}
-                      {ffprobe ? (
-                        <div className="grid grid-cols-[5rem_1fr] gap-2">
-                          <dt>ffprobe</dt>
-                          <dd className="truncate font-mono" title={ffprobe}>{ffprobe}</dd>
-                        </div>
-                      ) : null}
+                    <dl className="grid gap-1.5 text-[10px] text-muted-foreground">
+                      {toolRow("ffmpeg", ffmpegPath, ffmpegVersion)}
+                      {toolRow("ffprobe", ffprobePath, ffprobeVersion)}
                     </dl>
                   );
                 })()}

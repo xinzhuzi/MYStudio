@@ -785,5 +785,5 @@ async function waitForCurrentChapterShotSlots(
     if (currentSlots.length === expectedRevisions.size) return currentSlots;
     await new Promise<void>((resolve) => setTimeout(resolve, REMOTION_SHOT_POLL_INTERVAL_MS));
   }
-  throw new Error("等待全部 Remotion StoryboardShot MP4 超时，已阻止 video-use preview");
+  throw new Error("等待全部单镜 MP4 超时，已阻止 video-use preview");
 }

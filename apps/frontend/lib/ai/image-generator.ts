@@ -8,6 +8,7 @@
  */
 
 import { getFeatureConfig, getFeatureNotConfiguredMessage } from '@/lib/ai/feature-router';
+import { createDescribedFetchError } from '@/lib/ai/fetch-error';
 import { buildEndpoint, getRootBaseUrl, getImageEndpointPaths, IMAGE_ENDPOINT_PATHS, DEFAULT_IMAGE_ENDPOINT, getImageAttemptConfigs, parseImageApiErrorMessage, createImageApiHttpError, getTargetDimensions, needsPixelSize } from '@/lib/ai/image-generator-helpers';
 import {
   buildChatCompletionsImageRequest,
@@ -215,7 +216,7 @@ async function generateImage(
         return { imageUrl, taskId: result.taskId };
       }
 
-      throw new Error('Invalid API response');
+      throw new Error('图片接口响应异常:既没有返回图片地址,也没有返回任务号');
     } catch (error) {
       lastError = error;
       if (isAmbiguousPaidImageError(error)) {
@@ -224,7 +225,7 @@ async function generateImage(
       // gpt-image 系模型标准通道失败时（如中转站分组无 images/generations 通道），
       // 先用同一 binding 依次尝试 job 异步通道与 chat 通道，再考虑换绑
       if (apiFormat === 'openai_images' && model && isGptImageModel(model) && !isAuthStatusError(error)) {
-        const fallbackResult = await tryGptImageFallbackChannels({
+        const fallback = await tryGptImageFallbackChannels({
           prompt: generationParams.prompt,
           aspectRatio,
           resolution,
@@ -237,10 +238,12 @@ async function generateImage(
           promptPolicy: params.promptPolicy,
           cause: error,
         });
-        if (fallbackResult) {
+        if (fallback.result) {
+          const fallbackResult = fallback.result;
           void logEvent({ level: 'info', category: 'ai', operationId, message: 'Image generation completed via fallback channel', context: { model, hasImageUrl: Boolean(fallbackResult.imageUrl), taskId: fallbackResult.taskId, attempt: attemptIndex + 1 } });
           return fallbackResult;
         }
+        lastError = augmentErrorWithChannelFailures(error, fallback.channelFailures);
       }
       const hasNextAttempt = attemptIndex < attemptConfigs.length - 1;
       if (hasNextAttempt) {
@@ -263,7 +266,7 @@ async function generateImage(
         context: { feature, model, apiFormat, aspectRatio, resolution, attempt: attemptIndex + 1, attempts: attemptConfigs.length },
         error,
       });
-      throw error;
+      throw lastError;
     }
   }
 
@@ -369,7 +372,7 @@ async function submitViaChatCompletions(
         const abortErr = new Error(readableMsg) as Error & { status?: number };
         throw abortErr;
       }
-      throw fetchErr;
+      throw createDescribedFetchError(fetchErr, { endpoint });
     } finally {
       clearTimeout(timeoutId);
       if (signal) signal.removeEventListener('abort', onExternalAbort);
@@ -391,12 +394,21 @@ async function submitViaChatCompletions(
   const imageUrl = extractChatCompletionsImageUrl(data);
   if (imageUrl) return { imageUrl };
 
-  throw new Error('未能从响应中提取图片 URL');
+  throw new Error(`未能从响应中提取图片 URL(响应片段: ${responseText.slice(0, 120)})`);
 }
 
 function isAuthStatusError(error: unknown): boolean {
   const status = (error as { status?: unknown } | undefined)?.status;
   return status === 401 || status === 403;
+}
+
+/** 网络层失败统一翻译成带原因的中文错误(域名解析/拒连/超时/证书等)再上抛 */
+async function withDescribedFetchError<T>(run: () => Promise<T>, endpoint: string): Promise<T> {
+  try {
+    return await run();
+  } catch (error) {
+    throw createDescribedFetchError(error, { endpoint });
+  }
 }
 
 /**
@@ -416,8 +428,18 @@ async function tryGptImageFallbackChannels(options: {
   operationId?: string;
   promptPolicy?: ImageGenerationParams['promptPolicy'];
   cause: unknown;
-}): Promise<ImageGenerationResult | null> {
+}): Promise<{ result: ImageGenerationResult | null; channelFailures: string[] }> {
   const { prompt, aspectRatio, resolution, apiKey, referenceImages, model, baseUrl, keyManager, operationId, promptPolicy, cause } = options;
+
+  // 兜底通道失败原因要并入最终错误:用户此前只能看到主通道错误,兜底真实死因只进诊断日志,排查方向会被带偏。
+  const channelFailures: string[] = [];
+  const describeChannelFailure = (label: string, error: unknown): string => {
+    const message = error instanceof Error ? error.message : String(error);
+    const clipped = message.length > 120 ? `${message.slice(0, 120)}…` : message;
+    const line = `${label}:${clipped}`;
+    channelFailures.push(line);
+    return line;
+  };
 
   try {
     const submitted = await submitImageJobTask(prompt, aspectRatio, resolution, apiKey, referenceImages, model, baseUrl, keyManager, operationId);
@@ -436,14 +458,14 @@ async function tryGptImageFallbackChannels(options: {
       message: 'Image generation job fallback completed',
       context: { model, taskId: submitted.taskId },
     });
-    return { imageUrl, taskId: submitted.taskId };
+    return { result: { imageUrl, taskId: submitted.taskId }, channelFailures };
   } catch (jobError) {
     void logEvent({
       level: 'warn',
       category: 'ai',
       operationId,
       message: 'Image generation job fallback failed',
-      context: { model },
+      context: { model, failure: describeChannelFailure('job 异步通道', jobError) },
       error: jobError,
     });
   }
@@ -457,19 +479,32 @@ async function tryGptImageFallbackChannels(options: {
       message: 'Image generation chat fallback completed',
       context: { model, hasImageUrl: Boolean(chatResult.imageUrl) },
     });
-    return chatResult;
+    return { result: chatResult, channelFailures };
   } catch (chatError) {
     void logEvent({
       level: 'warn',
       category: 'ai',
       operationId,
       message: 'Image generation chat fallback failed',
-      context: { model },
+      context: { model, failure: describeChannelFailure('chat 多模态通道', chatError) },
       error: chatError,
     });
   }
 
-  return null;
+  return { result: null, channelFailures };
+}
+
+/** 把兜底通道失败原因并到主错误上,保留主错误的 status 与网络失败标记 */
+function augmentErrorWithChannelFailures(error: unknown, channelFailures: string[]): Error {
+  const base = error instanceof Error ? error : new Error(String(error));
+  type Carried = { status?: number; networkFailure?: boolean; timeoutFailure?: boolean };
+  const carried = base as Error & Carried;
+  if (!channelFailures.length) return base;
+  const augmented = new Error(`${base.message} · 兜底通道也失败(${channelFailures.join(';')})`) as Error & Carried;
+  if (typeof carried.status === 'number') augmented.status = carried.status;
+  augmented.networkFailure = carried.networkFailure;
+  augmented.timeoutFailure = carried.timeoutFailure;
+  return augmented;
 }
 
 /**
@@ -750,8 +785,14 @@ async function submitImageTask(
       throw markAmbiguousPaidImageError(error);
     }
     if (error instanceof Error) {
-      if (error.name === 'AbortError') throw new Error('API 请求超时');
-      throw error;
+      if (error.name === 'AbortError') {
+        throw new Error(`图片生成请求超时(${Math.round(IMAGE_SUBMIT_TIMEOUT_MS / 1000)}s),可重试或稍后再试`);
+      }
+      throw createDescribedFetchError(error, {
+        timeoutLabel: '图片生成请求',
+        timeoutMs: IMAGE_SUBMIT_TIMEOUT_MS,
+        endpoint: `${getRootBaseUrl(baseUrl)}${imagePaths.submit}`,
+      });
     }
     throw new Error('调用图片生成 API 时发生未知错误');
   }
@@ -1002,7 +1043,7 @@ export async function submitGridImageRequest(params: {
     if (mikotoPaidBoundary && isAmbiguousPaidImageException(error)) {
       throw markAmbiguousPaidImageError(error);
     }
-    throw error;
+    throw createDescribedFetchError(error, { endpoint });
   }
 
   // 标准格式: { data: [{ url, task_id }] } 或 OpenAI-compatible { data: [{ b64_json }] }
@@ -1052,7 +1093,7 @@ async function submitViaKlingImages(
   if (params.negativePrompt) body.negative_prompt = params.negativePrompt;
 
 
-  const data = await retryOperation(async () => {
+  const data = await withDescribedFetchError(() => retryOperation(async () => {
     const currentApiKey = keyManager?.getCurrentKey?.() || apiKey;
     if (signal?.aborted) throw signal.reason || new Error('用户已取消');
     const response = await observedFetch(`${rootBase}/${nativePath}`, {
@@ -1084,7 +1125,7 @@ async function submitViaKlingImages(
     onRetry: (attempt, delay) => {
       console.warn(`[ImageGenerator] Kling image retry ${attempt}, delay ${delay}ms`);
     },
-  });
+  }), `${rootBase}/${nativePath}`);
 
   const directUrl = data.data?.[0]?.url;
   if (directUrl) return { imageUrl: directUrl };
@@ -1196,6 +1237,6 @@ export async function imageUrlToBase64(url: string): Promise<string> {
     });
   } catch (error) {
     console.warn('[ImageGenerator] Shared image fetch also failed:', error);
-    throw error;
+    throw createDescribedFetchError(error, { endpoint: url });
   }
 }

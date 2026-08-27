@@ -22,6 +22,7 @@ import {
   sdkGenerateImage,
 } from '@/lib/ai/ai-sdk-bridge';
 import { createOperationId, logEvent } from '@/lib/diagnostics/logger';
+import { createDescribedFetchError, isNetworkFailureError, type NetworkFailureFlags } from '@/lib/ai/fetch-error';
 import { getModelEndpointTypes } from '@/lib/ai/config/store-adapter';
 import { useAppSettingsStore } from '@/stores/app/app-settings-store';
 import { getImageSizeLabel } from '@/lib/ai/image-size-presets';
@@ -80,12 +81,21 @@ const IMAGE_POLL_MAX_ATTEMPTS = 60;
 
 // ==================== Retry Logic ====================
 
-function throwImageSdkError(result: { error?: string; status?: number }, fallbackMessage: string): never {
+function throwImageSdkError(
+  result: { error?: string; status?: number; networkFailure?: boolean; timeoutFailure?: boolean },
+  fallbackMessage: string,
+): never {
   const message = result.error || fallbackMessage;
   if (typeof result.status === 'number') {
-    throw toHttpError(message, result.status, message);
+    const err = toHttpError(message, result.status, message);
+    err.networkFailure = result.networkFailure || undefined;
+    err.timeoutFailure = result.timeoutFailure || undefined;
+    throw err;
   }
-  throw new Error(message);
+  const err = new Error(message) as Error & NetworkFailureFlags;
+  err.networkFailure = result.networkFailure || undefined;
+  err.timeoutFailure = result.timeoutFailure || undefined;
+  throw err;
 }
 
 /**
@@ -97,8 +107,10 @@ function throwImageSdkError(result: { error?: string; status?: number }, fallbac
  * 回退按「同渠道同 key 同模型」进行,不影响 images 端点健康的供应商。
  */
 function isImagesEndpointGatewayFailure(error: unknown): boolean {
+  // 传输层网络失败(结构化标记/稳定前缀)直接判定可回退,与文案措辞解耦
+  if (isNetworkFailureError(error)) return true;
   const message = error instanceof Error ? error.message : String(error);
-  return /invalid json|bad gateway|service unavailable|gateway time-?out|timed? out|etimedout|econnreset|econnrefused|socket hang up|network error|fetch failed|\b50[234]\b/i.test(message);
+  return /invalid json|bad gateway|service unavailable|gateway time-?out|timed? out|etimedout|econnreset|econnrefused|socket hang up|network error|fetch failed|网络请求失败|enotfound|\b50[234]\b/i.test(message);
 }
 
 function withGlobalImageSizeDefaults(params: FreedomImageParams): FreedomImageParams {
@@ -151,6 +163,7 @@ export async function generateFreedomImage(
   }
 
   let lastError: Error | null = null;
+  let lastBaseUrl: string | undefined;
   for (const cfg of fallbackConfigs) {
     try {
       return await freedomRetry(
@@ -160,11 +173,12 @@ export async function generateFreedomImage(
       );
     } catch (err) {
       lastError = err instanceof Error ? err : new Error(String(err));
+      lastBaseUrl = cfg.baseUrl;
       console.warn(`[Freedom] Provider ${cfg.provider.name} (${cfg.baseUrl}) failed:`, lastError.message);
     }
   }
 
-  throw lastError!;
+  throw createDescribedFetchError(lastError, { endpoint: lastBaseUrl });
 }
 
 async function _generateFreedomImageInner(
@@ -421,7 +435,7 @@ async function generateViaImagesEndpoint(
 
   if (!response.ok) {
     const errText = await response.text();
-    throw toHttpError('Image generation failed', response.status, errText);
+    throw toHttpError('图片生成请求失败', response.status, errText);
   }
 
   const data = await response.json();
@@ -445,7 +459,7 @@ async function generateViaImagesEndpoint(
   }
 
   if (!imageUrl) {
-    throw new Error('No image URL in response');
+    throw new Error('接口响应里没有图片地址');
   }
 
   const mediaId = saveToMediaLibrary(imageUrl, params.prompt, 'ai-image');
@@ -457,8 +471,10 @@ async function generateViaImagesEndpoint(
  * Composite IDs like 'kling-image-v1-5' → 'kling-v1-5' (MemeFast version ID).
  * Video version IDs (kling-v2-6) pass through unchanged.
  */
-function toHttpError(prefix: string, status: number, body: string): Error & { status: number } {
-  const err = new Error(`${prefix}: ${status} ${body}`) as Error & { status: number };
+function toHttpError(prefix: string, status: number, body: string): Error & { status: number } & NetworkFailureFlags {
+  // 前缀(上游 SDK 错误)已含响应体时不再重复拼接,避免 toast 文案复读
+  const detail = body && prefix.includes(body) ? "" : ` ${body.slice(0, 240)}`;
+  const err = new Error(`${prefix}: ${status}${detail}`) as Error & { status: number } & NetworkFailureFlags;
   err.status = status;
   return err;
 }

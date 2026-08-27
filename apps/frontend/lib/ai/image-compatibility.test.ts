@@ -31,4 +31,13 @@ describe("image compatibility helpers", () => {
     expect(compatibilityPrompt).toContain("clean image");
     expect(compatibilityPrompt).toContain("controlled ink wash");
   });
+
+  it("trusts the structured network-failure flag over message text", () => {
+    expect(shouldRetryImageCompatibility({ networkFailure: true })).toBe(true);
+    // 有标记时即使文案完全认不出也判定可重试(改措辞不再弄坏判定)
+    expect(shouldRetryImageCompatibility({ error: "某种全新的错误说法", networkFailure: true })).toBe(true);
+    // 无标记时维持原文案判定
+    expect(shouldRetryImageCompatibility({ error: "fetch failed" })).toBe(true);
+    expect(shouldRetryImageCompatibility({ error: "无关错误" })).toBe(false);
+  });
 });

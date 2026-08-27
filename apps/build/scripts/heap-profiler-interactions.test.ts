@@ -10,6 +10,7 @@ import { afterEach, describe, expect, it } from "vitest";
 
 type MockSocket = {
   on: (event: "message", listener: (data: { toString: () => string }) => void) => void;
+  close: () => void;
   send: (data: string) => void;
 };
 
@@ -64,6 +65,14 @@ describe("heap-profiler-interactions", () => {
     expect(expression).toContain("new Event('change', { bubbles: true })");
     expect(expression).toContain("selector?.value === workflowTargetId");
     expect(expression).toContain("selector.getAttribute('data-image-workflow-active-id') === workflowTargetId");
+    expect(expression).toContain("clickStage('storyboard', '分镜视频生成')");
+    expect(expression).toContain("clickStage('imageWorkflow', '图像节点图')");
+    expect(expression).toContain("stageSwitchCycleComplete");
+    expect(expression).toContain("[data-project-card=\"");
+    expect(expression).toContain("normalize(button) === '返回' && isVisible(button)");
+    expect(expression).toContain("diagnostics.workflowOptionCount > 1");
+    expect(expression).toContain("documentVisibilityState: document.visibilityState");
+    expect(expression).toContain("documentHasFocus: document.hasFocus()");
     expect(expression).toContain(".workflow-node-viewport-controls");
     expect(expression).toContain("style.visibility !== 'hidden'");
     expect(expression).toContain("React Flow measures custom nodes asynchronously");
@@ -78,8 +87,18 @@ describe("heap-profiler-interactions", () => {
     );
     expect(committedSwitch).not.toContain("[data-image-workflow-node-kind]");
     expect(expression).toContain("stage,");
-    expect(expression).toContain("ready: Boolean(canvasReady && canvasReadyAfterSwitch)");
+    expect(expression).toContain("stageSwitchCycleComplete && canvasBeforeSwitch.ready && canvasAfterSwitch.ready");
+    expect(expression).toContain("hasVisibleNode: Boolean(visibleNode)");
+    expect(expression).toContain("hasViewportControls: Boolean(controlsElement)");
+    expect(expression).toContain("hasImageWorkflowNode: Boolean(imageNode)");
+    expect(expression).toContain("hasWorkflowSelector: Boolean(workflowSelector)");
     expect(expression).toContain("a CDP interaction round cannot consume its own command timeout");
+    expect(expression.indexOf("const scopedBackButton")).toBeLessThan(
+      expression.indexOf("const canvasBeforeSwitch"),
+    );
+    expect(expression.indexOf("const scopedBackButton")).toBeLessThan(
+      expression.indexOf("clickStage('storyboard', '分镜视频生成')"),
+    );
   });
 
   it("records real-project, non-paid interaction evidence with heap samples", async () => {
@@ -88,6 +107,7 @@ describe("heap-profiler-interactions", () => {
     const outputPath = resolve(outputDir, "interaction-evidence.json");
     const commands: string[] = [];
     const expressions: string[] = [];
+    let interactionAttempt = 0;
     let interactionRound = 0;
     let viewportEvaluation = 0;
     let debuggerUrl = "";
@@ -151,13 +171,15 @@ describe("heap-profiler-interactions", () => {
             }));
             return;
           }
-          interactionRound += 1;
+          interactionAttempt += 1;
+          const ready = interactionAttempt > 1;
+          if (ready) interactionRound += 1;
           socket.send(JSON.stringify({
             id: message.id,
             result: {
               result: {
                 value: {
-                  counters: {
+                  counters: ready ? {
                     projectEntries: 1,
                     routeEntries: 1,
                     stageSwitches: 2,
@@ -167,9 +189,19 @@ describe("heap-profiler-interactions", () => {
                     zoomActions: 0,
                     dragActions: 1,
                     resizeActions: 1,
+                  } : {
+                    projectEntries: 0,
+                    routeEntries: 0,
+                    stageSwitches: 0,
+                    workflowSwitches: 0,
+                    workflowCreates: 0,
+                    generatedNodeCreates: 0,
+                    zoomActions: 0,
+                    dragActions: 0,
+                    resizeActions: 0,
                   },
                   stage: "storyboard",
-                  ready: true,
+                  ready,
                   hasWorkflowRoute: true,
                   imageWorkflowNodeCount: 9,
                   reactFlowCount: 1,
@@ -230,6 +262,9 @@ describe("heap-profiler-interactions", () => {
       expect(commands.filter((command) => command === "Runtime.getHeapUsage")).toHaveLength(summary.rounds);
       expect(expressions).not.toEqual([]);
       expect(expressions.every((expression) => !expression.includes("fetch(") && !expression.includes("运行生成"))).toBe(true);
+      const interactionExpressions = expressions.filter((expression) => expression.includes("const counters = {"));
+      expect(interactionExpressions[0]).toContain("if (0 % 12 === 0)");
+      expect(interactionExpressions[1]).toContain("if (1 % 12 === 0)");
       expect(summary).toMatchObject({
         source: "real-project-clone",
         paidGenerationInvoked: false,
@@ -261,6 +296,225 @@ describe("heap-profiler-interactions", () => {
         expect.objectContaining({ usedJSHeapSize: 1024, imageWorkflowNodeCount: 9, reactFlowCount: 1 }),
       ]));
       expect(existsSync(outputPath)).toBe(true);
+    } finally {
+      await new Promise<void>((resolveClose) => webSocketServer.close(resolveClose));
+      await closeServer(server);
+    }
+  });
+
+  it("reconnects and revalidates the clone after the inspected page navigates", async () => {
+    const outputDir = await mkdtemp(resolve(tmpdir(), "mystudio-heap-interactions-reconnect-"));
+    tempRoots.push(outputDir);
+    const outputPath = resolve(outputDir, "interaction-evidence.json");
+    let debuggerUrl = "";
+    let connectionCount = 0;
+    let heapRound = 0;
+    const server = createServer((request, response) => {
+      response.setHeader("content-type", "application/json");
+      response.end(JSON.stringify(request.url === "/json/list" ? [{
+        type: "page",
+        title: "道劫 · 漫影工作室",
+        url: "app://mystudio/project/chapter-001",
+        webSocketDebuggerUrl: debuggerUrl,
+      }] : []));
+    });
+    const webSocketServer = new WebSocketServer({ server });
+    webSocketServer.on("connection", (socket) => {
+      connectionCount += 1;
+      const currentConnection = connectionCount;
+      socket.on("message", (raw) => {
+        const message = JSON.parse(raw.toString()) as {
+          id: number;
+          method: string;
+          params?: { expression?: string };
+        };
+        if (message.method === "Runtime.evaluate") {
+          const identity = message.params?.expression?.includes("forbiddenPersistentMediaCount");
+          if (identity) {
+            socket.send(JSON.stringify({
+              id: message.id,
+              result: {
+                result: {
+                  value: {
+                    ok: true,
+                    projectId: "49dce4c1-64b1-42de-85c2-9f266698aec4",
+                    projectName: "道劫",
+                    chapterId: "chapter-001",
+                    forbiddenPersistentMediaCount: 0,
+                  },
+                },
+              },
+            }));
+            return;
+          }
+          if (currentConnection === 1) {
+            socket.send(JSON.stringify({
+              id: message.id,
+              error: { message: "Inspected target navigated or closed" },
+            }));
+            return;
+          }
+          socket.send(JSON.stringify({
+            id: message.id,
+            result: {
+              result: {
+                value: {
+                  counters: {
+                    projectEntries: 1,
+                    routeEntries: 1,
+                    stageSwitches: 2,
+                    workflowSwitches: 1,
+                    workflowCreates: 1,
+                    generatedNodeCreates: 1,
+                    zoomActions: 2,
+                    dragActions: 1,
+                    resizeActions: 1,
+                  },
+                  stage: "imageWorkflow",
+                  ready: true,
+                  hasWorkflowRoute: true,
+                  imageWorkflowNodeCount: 2,
+                  reactFlowCount: 1,
+                  zoomTargets: null,
+                  dragTarget: null,
+                },
+              },
+            },
+          }));
+          return;
+        }
+        if (message.method === "Runtime.getHeapUsage") {
+          heapRound += 1;
+          socket.send(JSON.stringify({
+            id: message.id,
+            result: { usedSize: heapRound * 1024, totalSize: heapRound * 2048 },
+          }));
+          return;
+        }
+        socket.send(JSON.stringify({ id: message.id, result: {} }));
+      });
+    });
+    server.listen(0, "127.0.0.1");
+    await new Promise<void>((resolveListening) => server.once("listening", resolveListening));
+    const port = (server.address() as AddressInfo).port;
+    debuggerUrl = `ws://127.0.0.1:${port}`;
+
+    try {
+      const result = await runInteractionScript([
+        "--port", String(port),
+        "--duration-ms", "1000",
+        "--interval-ms", "250",
+        "--output", outputPath,
+      ]);
+      expect(result).toMatchObject({ code: 0, stderr: "" });
+      expect(connectionCount).toBeGreaterThanOrEqual(2);
+      expect(JSON.parse(readFileSync(outputPath, "utf8"))).toMatchObject({
+        status: "passed",
+        targetReconnects: 1,
+        paidGenerationInvoked: false,
+      });
+    } finally {
+      await new Promise<void>((resolveClose) => webSocketServer.close(resolveClose));
+      await closeServer(server);
+    }
+  });
+
+  it("reconnects after the websocket closes during heap sampling", async () => {
+    const outputDir = await mkdtemp(resolve(tmpdir(), "mystudio-heap-interactions-socket-close-"));
+    tempRoots.push(outputDir);
+    const outputPath = resolve(outputDir, "interaction-evidence.json");
+    let debuggerUrl = "";
+    let connectionCount = 0;
+    let heapRound = 0;
+    const server = createServer((request, response) => {
+      response.setHeader("content-type", "application/json");
+      response.end(JSON.stringify(request.url === "/json/list" ? [{
+        type: "page",
+        title: "道劫 · 漫影工作室",
+        url: "app://mystudio/project/chapter-001",
+        webSocketDebuggerUrl: debuggerUrl,
+      }] : []));
+    });
+    const webSocketServer = new WebSocketServer({ server });
+    webSocketServer.on("connection", (socket) => {
+      connectionCount += 1;
+      const currentConnection = connectionCount;
+      socket.on("message", (raw) => {
+        const message = JSON.parse(raw.toString()) as {
+          id: number;
+          method: string;
+          params?: { expression?: string };
+        };
+        if (message.method === "Runtime.evaluate") {
+          const identity = message.params?.expression?.includes("forbiddenPersistentMediaCount");
+          socket.send(JSON.stringify({
+            id: message.id,
+            result: {
+              result: {
+                value: identity
+                  ? {
+                      ok: true,
+                      projectId: "49dce4c1-64b1-42de-85c2-9f266698aec4",
+                      projectName: "道劫",
+                      chapterId: "chapter-001",
+                      forbiddenPersistentMediaCount: 0,
+                    }
+                  : {
+                      counters: {
+                        stageSwitches: 2,
+                        workflowSwitches: 1,
+                        workflowCreates: 1,
+                        generatedNodeCreates: 1,
+                        zoomActions: 2,
+                        dragActions: 1,
+                      },
+                      stage: "imageWorkflow",
+                      ready: true,
+                      hasWorkflowRoute: true,
+                      imageWorkflowNodeCount: 2,
+                      reactFlowCount: 1,
+                      zoomTargets: null,
+                      dragTarget: null,
+                    },
+              },
+            },
+          }));
+          return;
+        }
+        if (message.method === "Runtime.getHeapUsage") {
+          if (currentConnection === 1) {
+            socket.close();
+            return;
+          }
+          heapRound += 1;
+          socket.send(JSON.stringify({
+            id: message.id,
+            result: { usedSize: heapRound * 1024, totalSize: heapRound * 2048 },
+          }));
+          return;
+        }
+        socket.send(JSON.stringify({ id: message.id, result: {} }));
+      });
+    });
+    server.listen(0, "127.0.0.1");
+    await new Promise<void>((resolveListening) => server.once("listening", resolveListening));
+    const port = (server.address() as AddressInfo).port;
+    debuggerUrl = `ws://127.0.0.1:${port}`;
+
+    try {
+      const result = await runInteractionScript([
+        "--port", String(port),
+        "--duration-ms", "1000",
+        "--interval-ms", "250",
+        "--output", outputPath,
+      ]);
+      expect(result).toMatchObject({ code: 0, stderr: "" });
+      expect(connectionCount).toBeGreaterThanOrEqual(2);
+      expect(JSON.parse(readFileSync(outputPath, "utf8"))).toMatchObject({
+        status: "passed",
+        targetReconnects: 1,
+        paidGenerationInvoked: false,
+      });
     } finally {
       await new Promise<void>((resolveClose) => webSocketServer.close(resolveClose));
       await closeServer(server);
@@ -358,6 +612,102 @@ describe("heap-profiler-interactions", () => {
     }
   });
 
+  it("records the exact canvas readiness blocker when every interaction attempt stays unready", async () => {
+    const outputDir = await mkdtemp(resolve(tmpdir(), "mystudio-heap-interactions-unready-"));
+    tempRoots.push(outputDir);
+    const outputPath = resolve(outputDir, "interaction-evidence.json");
+    let debuggerUrl = "";
+    const server = createServer((request, response) => {
+      response.setHeader("content-type", "application/json");
+      response.end(JSON.stringify(request.url === "/json/list" ? [{
+        type: "page",
+        title: "道劫 · 漫影工作室",
+        url: "app://mystudio/project/chapter-001",
+        webSocketDebuggerUrl: debuggerUrl,
+      }] : []));
+    });
+    const webSocketServer = new WebSocketServer({ server });
+    webSocketServer.on("connection", (socket) => {
+      socket.on("message", (raw) => {
+        const message = JSON.parse(raw.toString()) as {
+          id: number;
+          method: string;
+          params?: { expression?: string };
+        };
+        if (message.method === "Runtime.evaluate") {
+          const identity = message.params?.expression?.includes("forbiddenPersistentMediaCount");
+          socket.send(JSON.stringify({
+            id: message.id,
+            result: {
+              result: {
+                value: identity
+                  ? {
+                      ok: true,
+                      projectId: "49dce4c1-64b1-42de-85c2-9f266698aec4",
+                      projectName: "道劫",
+                      chapterId: "chapter-001",
+                      forbiddenPersistentMediaCount: 0,
+                    }
+                  : {
+                      counters: { resizeActions: 1 },
+                      stage: "imageWorkflow",
+                      ready: false,
+                      readiness: {
+                        beforeSwitch: {
+                          hasVisibleNode: false,
+                          hasViewportControls: true,
+                          hasImageWorkflowNode: true,
+                          hasWorkflowSelector: true,
+                        },
+                        afterSwitch: {
+                          hasVisibleNode: false,
+                          hasViewportControls: true,
+                          hasImageWorkflowNode: true,
+                          hasWorkflowSelector: true,
+                        },
+                      },
+                      hasWorkflowRoute: true,
+                      imageWorkflowNodeCount: 1,
+                      reactFlowCount: 1,
+                    },
+              },
+            },
+          }));
+          return;
+        }
+        socket.send(JSON.stringify({ id: message.id, result: {} }));
+      });
+    });
+    server.listen(0, "127.0.0.1");
+    await new Promise<void>((resolveListening) => server.once("listening", resolveListening));
+    const port = (server.address() as AddressInfo).port;
+    debuggerUrl = `ws://127.0.0.1:${port}`;
+
+    try {
+      const result = await runInteractionScript([
+        "--port", String(port),
+        "--duration-ms", "1000",
+        "--interval-ms", "250",
+        "--output", outputPath,
+      ]);
+      expect(result.code).toBe(1);
+      expect(result.stderr).toContain("interaction run has invalid or missing CDP heap samples");
+      expect(JSON.parse(readFileSync(outputPath, "utf8"))).toMatchObject({
+        status: "failed",
+        source: "real-project-clone",
+        attempts: expect.any(Number),
+        unreadyAttempts: expect.any(Number),
+        lastReadiness: {
+          beforeSwitch: { hasVisibleNode: false },
+          afterSwitch: { hasVisibleNode: false },
+        },
+      });
+    } finally {
+      await new Promise<void>((resolveClose) => webSocketServer.close(resolveClose));
+      await closeServer(server);
+    }
+  });
+
   it("fails clearly when the debugging endpoint has no page target", async () => {
     const server = createServer((_request, response) => {
       response.setHeader("content-type", "application/json");
@@ -372,6 +722,27 @@ describe("heap-profiler-interactions", () => {
       expect(result.code).toBe(1);
       expect(result.stderr).toContain(`no CDP page found at 127.0.0.1:${port}`);
       expect(result.stderr).not.toContain("interaction-evidence");
+    } finally {
+      await closeServer(server);
+    }
+  });
+
+  it("fails clearly when the debugging endpoint does not respond", async () => {
+    const server = createServer(() => {
+      // Keep the request open to exercise the explicit HTTP timeout path.
+    });
+    server.listen(0, "127.0.0.1");
+    await new Promise<void>((resolveListening) => server.once("listening", resolveListening));
+    const port = (server.address() as AddressInfo).port;
+
+    try {
+      const result = await runInteractionScript([
+        "--port", String(port),
+        "--duration-ms", "1000",
+        "--command-timeout-ms", "1000",
+      ]);
+      expect(result.code).toBe(1);
+      expect(result.stderr).toContain("CDP endpoint timed out after 1000ms");
     } finally {
       await closeServer(server);
     }

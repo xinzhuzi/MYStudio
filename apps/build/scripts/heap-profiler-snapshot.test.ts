@@ -10,6 +10,7 @@ import { afterEach, describe, expect, it } from "vitest";
 
 type MockSocket = {
   on: (event: "message", listener: (data: { toString: () => string }) => void) => void;
+  close: () => void;
   send: (data: string) => void;
 };
 
@@ -19,6 +20,10 @@ type MockWebSocketServer = {
 };
 
 const require = createRequire(import.meta.url);
+const { connectCdp, getJson } = require("./heap-profiler-snapshot.cjs") as {
+  connectCdp: (url: string, timeoutMs?: number) => Promise<unknown>;
+  getJson: (host: string, port: number, requestPath: string, timeoutMs?: number) => Promise<unknown>;
+};
 const { WebSocketServer } = require("ws") as {
   WebSocketServer: new (options: { server: Server }) => MockWebSocketServer;
 };
@@ -145,7 +150,7 @@ describe("heap-profiler-snapshot", () => {
       };
       expect(commands).toEqual([
         "HeapProfiler.enable",
-        "Runtime.collectGarbage",
+        "HeapProfiler.collectGarbage",
         "HeapProfiler.takeHeapSnapshot",
       ]);
       expect(readFileSync(metadata.outputPath, "utf8")).toBe(snapshotJson);
@@ -193,6 +198,89 @@ describe("heap-profiler-snapshot", () => {
       expect(result.stderr).toContain(`no CDP page found at 127.0.0.1:${port}`);
       expect(result.stderr).not.toContain("snapshot\"");
     } finally {
+      await closeServer(server);
+    }
+  });
+
+  it("times out an unresponsive CDP HTTP endpoint", async () => {
+    const server = createServer(() => {
+      // Keep the response open so the client must enforce its own deadline.
+    });
+    server.listen(0, "127.0.0.1");
+    await new Promise<void>((resolveListening) => server.once("listening", resolveListening));
+    const port = (server.address() as AddressInfo).port;
+
+    try {
+      await expect(getJson("127.0.0.1", port, "/json/list", 25)).rejects.toThrow(
+        "CDP endpoint request timed out after 25ms",
+      );
+    } finally {
+      await closeServer(server);
+    }
+  });
+
+  it("times out a CDP websocket handshake", async () => {
+    const server = createServer(() => {
+      // Deliberately do not upgrade the connection.
+    });
+    server.listen(0, "127.0.0.1");
+    await new Promise<void>((resolveListening) => server.once("listening", resolveListening));
+    const port = (server.address() as AddressInfo).port;
+
+    try {
+      await expect(connectCdp(`ws://127.0.0.1:${port}`, 25)).rejects.toThrow(/timed out|timeout/i);
+    } finally {
+      await closeServer(server);
+    }
+  });
+
+  it("fails promptly and records metadata when the websocket closes mid-snapshot", async () => {
+    const outputDir = await mkdtemp(resolve(tmpdir(), "mystudio-heap-profiler-close-"));
+    tempRoots.push(outputDir);
+    let debuggerUrl = "";
+    const server = createServer((request, response) => {
+      response.setHeader("content-type", "application/json");
+      response.end(JSON.stringify(request.url === "/json/list" ? [{
+        type: "page",
+        title: "MYStudio test page",
+        url: "app://mystudio/studio",
+        webSocketDebuggerUrl: debuggerUrl,
+      }] : []));
+    });
+    const webSocketServer = new WebSocketServer({ server });
+    webSocketServer.on("connection", (socket) => {
+      socket.on("message", (raw) => {
+        const message = JSON.parse(raw.toString()) as { id: number; method: string };
+        if (message.method === "HeapProfiler.takeHeapSnapshot") {
+          socket.close();
+          return;
+        }
+        socket.send(JSON.stringify({ id: message.id, result: {} }));
+      });
+    });
+    server.listen(0, "127.0.0.1");
+    await new Promise<void>((resolveListening) => server.once("listening", resolveListening));
+    const port = (server.address() as AddressInfo).port;
+    debuggerUrl = `ws://127.0.0.1:${port}`;
+
+    try {
+      const result = await runSnapshotScript([
+        "--port", String(port),
+        "--label", "interaction",
+        "--output-dir", outputDir,
+      ]);
+      expect(result.code).toBe(1);
+      expect(result.stderr).toContain("CDP websocket closed");
+      const metadataFiles = await (await import("node:fs/promises")).readdir(outputDir);
+      const metadataName = metadataFiles.find((name) => name.endsWith(".json"));
+      expect(metadataName).toBeTruthy();
+      const metadata = JSON.parse(readFileSync(resolve(outputDir, metadataName!), "utf8")) as {
+        status: string;
+        error: string;
+      };
+      expect(metadata).toMatchObject({ status: "failed", error: "CDP websocket closed" });
+    } finally {
+      await new Promise<void>((resolveClose) => webSocketServer.close(resolveClose));
       await closeServer(server);
     }
   });

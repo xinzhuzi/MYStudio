@@ -107,6 +107,9 @@ describe("LocalAudioSettingsSection · mlx-serve bf16 权重获取 UI", () => {
     // 卡片显示就绪文案,获取按钮不出现
     expect(await screen.findByText(/权重完整/)).toBeTruthy();
     expect(screen.queryByRole("button", { name: /一键获取 bf16 权重/ })).toBeNull();
+    // 模型行同步反映指向版就绪(而非误报「未下载」,08-28 修)
+    expect(await screen.findByText(/已就绪\(指向版权重\)/)).toBeTruthy();
+    expect(screen.queryByText(/未下载/)).toBeNull();
   });
 
   it("点击获取:调用 installWeights 桥接(无参)", async () => {

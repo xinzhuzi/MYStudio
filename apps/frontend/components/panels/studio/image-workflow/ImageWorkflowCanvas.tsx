@@ -7,6 +7,7 @@ import {
   type OnConnect,
   type ReactFlowInstance,
   useNodesState,
+  useUpdateNodeInternals,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import { CanvasViewportControls } from "../CanvasViewportControls";
@@ -556,6 +557,10 @@ function ImageWorkflowFlowView({
 }) {
   const [nodes, setNodes, onNodesChange] =
     useNodesState<ImageWorkflowReactNode>(reactFlowNodes);
+  const measurementNodeIds = useMemo(
+    () => activeGraph.nodes.map((node) => node.id),
+    [activeGraph.nodes],
+  );
 
   useEffect(() => {
     setNodes(reactFlowNodes);
@@ -660,6 +665,10 @@ function ImageWorkflowFlowView({
         zoomOnDoubleClick={false}
         proOptions={{ hideAttribution: true }}
       >
+        <ImageWorkflowVisibilityMeasurementRefresh
+          isVisible={Boolean(flowInstance)}
+          nodeIds={measurementNodeIds}
+        />
         <Background color="hsl(var(--border))" gap={28} size={1} />
         <CanvasViewportControls onFit={onFitView} />
       </ReactFlow>
@@ -682,4 +691,25 @@ function ImageWorkflowFlowView({
       />
     </div>
   );
+}
+
+function ImageWorkflowVisibilityMeasurementRefresh({
+  isVisible,
+  nodeIds,
+}: {
+  isVisible: boolean;
+  nodeIds: string[];
+}) {
+  const updateNodeInternals = useUpdateNodeInternals();
+
+  useEffect(() => {
+    if (!isVisible || nodeIds.length === 0) return;
+
+    const refreshFrame = window.requestAnimationFrame(() => {
+      updateNodeInternals(nodeIds);
+    });
+    return () => window.cancelAnimationFrame(refreshFrame);
+  }, [isVisible, nodeIds, updateNodeInternals]);
+
+  return null;
 }

@@ -11,7 +11,6 @@ import { resolveProjectDir } from "./resolve-project-dir.mjs";
 import path from "node:path";
 import os from "node:os";
 import crypto from "node:crypto";
-import { readStudioWorkflowStore } from "../shared/studio-workflow-store.mjs";
 
 const PROJECT = resolveProjectDir();
 const FRAMES_DIR = path.join(PROJECT, "workflow-images", "inkwash-pilot");
@@ -71,8 +70,7 @@ function wrapLine(text) {
   return lines.filter((l) => l.length > 0);
 }
 
-const store = readStudioWorkflowStore(PROJECT);
-if (!store) throw new Error(`studio-workflow store 不存在（分片/单文件均缺失）: ${PROJECT}`);
+const store = JSON.parse(fs.readFileSync(path.join(PROJECT, "studio-workflow-store.json"), "utf8"));
 const storyboards = store.state.storyboards
   .filter((b) => b.episodeId === "chapter-001")
   .sort((a, b) => a.index - b.index || a.id.localeCompare(b.id));

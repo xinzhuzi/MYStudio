@@ -308,6 +308,9 @@ export interface VideoWorkflowPluginStatusV1 {
   runtimeState: VideoWorkflowPluginRuntimeState;
   runtimePath?: string;
   profilePath?: string;
+  /** 共享工具链可执行文件路径(设置页 FFmpeg 块展示);版本串在 dependencies.ffmpeg/ffprobe */
+  ffmpegPath?: string;
+  ffprobePath?: string;
   dependencies: {
     python?: string;
     node?: string;

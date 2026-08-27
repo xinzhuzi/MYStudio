@@ -119,6 +119,46 @@ describe("createImageSourceReader", () => {
     expect(readFile).not.toHaveBeenCalled();
   });
 
+  it("falls back to original asset bytes when a requested thumbnail is missing", async () => {
+    const fileExists = vi.fn((filePath: string) => filePath === "/assets/files/role/hero.png");
+    const readFile = vi.fn(() => Buffer.from("original-asset"));
+    const readImageSource = createImageSourceReader({
+      getDataDir: () => "/data",
+      getMediaRoot: () => "/media",
+      getAssetsRoot: () => "/assets",
+      fileExists,
+      readFile,
+    });
+
+    await expect(readImageSource("asset-file://role/hero.png?thumb=1")).resolves.toMatchObject({
+      mimeType: "image/png",
+      buffer: Buffer.from("original-asset"),
+    });
+    expect(fileExists).toHaveBeenNthCalledWith(1, "/assets/thumbs/role/hero.png");
+    expect(fileExists).toHaveBeenNthCalledWith(2, "/assets/files/role/hero.png");
+    expect(readFile).toHaveBeenCalledWith("/assets/files/role/hero.png");
+  });
+
+  it("keeps an existing asset thumbnail as the preferred image source", async () => {
+    const fileExists = vi.fn(() => true);
+    const readFile = vi.fn(() => Buffer.from("thumbnail-asset"));
+    const readImageSource = createImageSourceReader({
+      getDataDir: () => "/data",
+      getMediaRoot: () => "/media",
+      getAssetsRoot: () => "/assets",
+      fileExists,
+      readFile,
+    });
+
+    await expect(readImageSource("asset-file://role/hero.png?thumb=1")).resolves.toMatchObject({
+      mimeType: "image/png",
+      buffer: Buffer.from("thumbnail-asset"),
+    });
+    expect(fileExists).toHaveBeenCalledTimes(1);
+    expect(fileExists).toHaveBeenCalledWith("/assets/thumbs/role/hero.png");
+    expect(readFile).toHaveBeenCalledWith("/assets/thumbs/role/hero.png");
+  });
+
   it("fails closed on absolute and file:// sources without an allowlist guard", async () => {
     const readFile = vi.fn();
     const readImageSource = createImageSourceReader({

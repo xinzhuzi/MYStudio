@@ -1,6 +1,8 @@
 const RETRY_MAX_ATTEMPTS = 3;
 const RETRY_BASE_DELAY = 3000;
 
+import { isNetworkFailureError } from '@/lib/ai/fetch-error';
+
 type RetryError = { name?: string; status?: number; code?: number; message?: string };
 
 export type FreedomKeyManager = {
@@ -15,6 +17,9 @@ export function isRetryableFreedomError(error: unknown): boolean {
   if (!error) return false;
   const current = retryError(error);
   if (current.name === "AbortError") return false;
+  // 传输层网络失败(断网/DNS/拒连/超时,结构化标记+稳定前缀判定)属瞬时故障,值得重试;
+  // 任务级轮询超时(「已轮询 N 次」类)不带该标记,不整单重试,避免重复付费。
+  if (isNetworkFailureError(error)) return true;
   if ([429, 500, 502, 503, 529].includes(current.status ?? -1)) return true;
   if ([429, 500, 502, 503, 529].includes(current.code ?? -1)) return true;
   const message = (current.message || "").toLowerCase();

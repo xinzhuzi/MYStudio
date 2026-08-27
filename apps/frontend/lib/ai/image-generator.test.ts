@@ -496,7 +496,8 @@ describe("generateCharacterImage", () => {
     await vi.advanceTimersByTimeAsync(180_000);
     // 兜底链(job 提交 180s + chat 通道重试)也要在 fake timers 下走完,最终仍抛原始错误
     await vi.advanceTimersByTimeAsync(900_000);
-    await expect(rejection).resolves.toMatchObject({ message: "API 请求超时" });
+    await expect(rejection).resolves.toMatchObject({ message: expect.stringContaining("API 请求超时(180s)") });
+    await expect(rejection).resolves.toMatchObject({ message: expect.stringContaining("兜底通道也失败") });
   });
 
   it("surfaces subscription quota errors from OpenAI-compatible image providers", async () => {

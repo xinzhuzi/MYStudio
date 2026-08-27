@@ -258,7 +258,7 @@ export function createVideoQcRuntimeController(deps: ControllerDeps) {
 
   async function setup(): Promise<VideoQcRuntimeStatus> {
     state.setupStage = "checking";
-    state.message = "正在检查成片观感评分运行时…";
+    state.message = "正在检查视频评分模型运行时…";
     const probe = await probeVideoQcRuntime(getPaths());
     if (probe.state === "ready") {
       state.state = "ready";

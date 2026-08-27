@@ -92,7 +92,7 @@ function pluginStatus(
   checkedAt: number,
   dependencies: VideoWorkflowPluginStatusV1["dependencies"],
   message?: string,
-  paths?: { runtimePath?: string; profilePath?: string },
+  paths?: { runtimePath?: string; profilePath?: string; ffmpegPath?: string; ffprobePath?: string },
   runtimeCode?: string,
 ): VideoWorkflowPluginStatusV1 {
   return {
@@ -107,6 +107,8 @@ function pluginStatus(
     runtimeState,
     ...(paths?.runtimePath ? { runtimePath: paths.runtimePath } : {}),
     ...(paths?.profilePath ? { profilePath: paths.profilePath } : {}),
+    ...(paths?.ffmpegPath ? { ffmpegPath: paths.ffmpegPath } : {}),
+    ...(paths?.ffprobePath ? { ffprobePath: paths.ffprobePath } : {}),
     dependencies,
     checkedAt,
     ...(runtimeCode ? { runtimeCode } : {}),
@@ -165,8 +167,8 @@ export function registerVideoWorkflowIpcHandlers({
       checkedAt,
       plugins: [
         pluginStatus("remotion", appVersion, remotionVersion, "bundled-app", remotionState, checkedAt, { browser: remotionState, ffmpeg: dependencies.ffmpeg, ffprobe: dependencies.ffprobe }, remotion.message),
-        pluginStatus("video-use", appVersion, VIDEO_USE_SOURCE_COMMIT, VIDEO_USE_SOURCE_COMMIT, videoUse ? (videoUse.runtime.state === "update-available" ? "update-available" : videoUse.state === "ready" ? "ready" : videoUse.state === "blocked" ? "blocked" : "error") : runtimeStateToPluginState(runtime), checkedAt, dependencies, videoUse?.message ?? runtime.message, { runtimePath: paths.pythonExecutable, profilePath: paths.videoUseMarkerPath }, videoUse?.code),
-        pluginStatus("hyperframes", appVersion, HYPERFRAMES_NPM_VERSION, HYPERFRAMES_SOURCE_COMMIT, hyperFrames ? (hyperFrames.runtime.state === "update-available" ? "update-available" : hyperFrames.state === "ready" ? "ready" : hyperFrames.state === "blocked" ? "blocked" : "error") : runtimeStateToPluginState(runtime), checkedAt, { node: dependencies.node, browser: remotionState, ffmpeg: dependencies.ffmpeg, ffprobe: dependencies.ffprobe }, hyperFrames?.message ?? runtime.message, { runtimePath: paths.electronExecutable, profilePath: paths.hyperFramesMarkerPath }),
+        pluginStatus("video-use", appVersion, VIDEO_USE_SOURCE_COMMIT, VIDEO_USE_SOURCE_COMMIT, videoUse ? (videoUse.runtime.state === "update-available" ? "update-available" : videoUse.state === "ready" ? "ready" : videoUse.state === "blocked" ? "blocked" : "error") : runtimeStateToPluginState(runtime), checkedAt, dependencies, videoUse?.message ?? runtime.message, { runtimePath: paths.pythonExecutable, profilePath: paths.videoUseMarkerPath, ffmpegPath: paths.ffmpegExecutable, ffprobePath: paths.ffprobeExecutable }, videoUse?.code),
+        pluginStatus("hyperframes", appVersion, HYPERFRAMES_NPM_VERSION, HYPERFRAMES_SOURCE_COMMIT, hyperFrames ? (hyperFrames.runtime.state === "update-available" ? "update-available" : hyperFrames.state === "ready" ? "ready" : hyperFrames.state === "blocked" ? "blocked" : "error") : runtimeStateToPluginState(runtime), checkedAt, { node: dependencies.node, browser: remotionState, ffmpeg: dependencies.ffmpeg, ffprobe: dependencies.ffprobe }, hyperFrames?.message ?? runtime.message, { runtimePath: paths.electronExecutable, profilePath: paths.hyperFramesMarkerPath, ffmpegPath: paths.ffmpegExecutable, ffprobePath: paths.ffprobeExecutable }),
         pluginStatus("seedance-prompt", appVersion, "deferred", "deferred", "deferred", checkedAt, {}, "本轮仅保留提示词来源，不进入执行门禁"),
       ],
     };

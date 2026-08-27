@@ -2,6 +2,7 @@
 // Licensed under AGPL-3.0-or-later. See LICENSE for details.
 // Commercial licensing available. See COMMERCIAL_LICENSE.md.
 import { getFeatureConfig } from "@/lib/ai/feature-router";
+import { describeFetchError } from "@/lib/ai/fetch-error";
 import { uploadToImageHost, isImageHostConfigured } from "@/lib/media/image-host";
 import { saveVideoToLocal } from "@/lib/media/image-storage";
 import { getModelEndpointTypes } from "@/lib/ai/config/store-adapter";
@@ -228,6 +229,16 @@ async function ensureMinImageSize(
 
 // ==================== 视频生成主入口 ====================
 
+/** 视频链路网络层失败统一翻译成带原因的中文错误(DNS/拒连/超时/证书等)再上抛 */
+async function videoFetch(url: string, init?: RequestInit): Promise<Response> {
+  try {
+    return await fetch(url, init);
+  } catch (error) {
+    if (error instanceof Error && (error.name === 'AbortError' || error.name === 'TimeoutError')) throw error;
+    throw new Error(describeFetchError(error, { endpoint: url }));
+  }
+}
+
 /** AbortSignal 感知的 sleep：若信号触发则立即以 '用户已取消' 拒绝 */
 function sleepOrAbort(ms: number, signal?: AbortSignal): Promise<void> {
   return new Promise<void>((resolve, reject) => {
@@ -388,7 +399,7 @@ async function callUnifiedVideoApi(
   const submitUrl = `${rootBase}${endpointPaths.submit}`;
 
   // 提交：直接使用端点类型对应的 URL
-  const resp = await fetch(submitUrl, {
+  const resp = await videoFetch(submitUrl, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -436,7 +447,7 @@ async function callUnifiedVideoApi(
     onProgress?.(Math.min(20 + Math.floor((attempt / maxAttempts) * 80), 99));
     await sleepOrAbort(pollInterval, signal);
 
-    const statusResponse = await fetch(pollUrl, {
+    const statusResponse = await videoFetch(pollUrl, {
       method: 'GET',
       headers: {
         'Accept': 'application/json',
@@ -462,7 +473,7 @@ async function callUnifiedVideoApi(
       throw new Error(typeof errorMsg === 'string' ? errorMsg : JSON.stringify(errorMsg));
     }
   }
-  throw new Error('视频生成超时');
+  throw new Error(`视频生成超时(已轮询 ${maxAttempts} 次、约 ${Math.round((maxAttempts * pollInterval) / 60000)} 分钟仍未出片)`);
 }
 
 // ==================== Volcengine 豆包/Seedance 格式 ====================
@@ -833,7 +844,7 @@ export async function callJuxinVideoGenerationApi(
   const submitData = await retryOperation(async () => {
     // 每次重试动态取当前 key，利用 keyManager rotate 后的新 key
     const currentApiKey = keyManager?.getCurrentKey?.() || apiKey;
-    const submitResponse = await fetch(`${apiBaseUrl}/v1/video/create`, {
+    const submitResponse = await videoFetch(`${apiBaseUrl}/v1/video/create`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -895,7 +906,7 @@ export async function callJuxinVideoGenerationApi(
     const queryUrl = new URL(`${apiBaseUrl}/v1/video/query`);
     queryUrl.searchParams.set('id', taskId);
 
-    const statusResponse = await fetch(queryUrl.toString(), {
+    const statusResponse = await videoFetch(queryUrl.toString(), {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
@@ -938,5 +949,5 @@ export async function callJuxinVideoGenerationApi(
     await sleepOrAbort(pollInterval, signal);
   }
   
-  throw new Error('视频生成超时');
+  throw new Error(`视频生成超时(已轮询 ${maxAttempts} 次、约 ${Math.round((maxAttempts * pollInterval) / 60000)} 分钟仍未出片)`);
 }

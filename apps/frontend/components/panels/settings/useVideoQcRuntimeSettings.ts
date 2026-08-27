@@ -6,7 +6,7 @@ import { getVideoQcRuntimeBridge, type VideoQcRuntimeStatusPayload } from "@/lib
 const POLL_INTERVAL_MS = 500;
 
 /**
- * 成片观感评分(video_qc)运行时 hook — 镜像 useUpscaleRuntimeSettings 的
+ * 视频评分模型(video_qc)运行时 hook — 镜像 useUpscaleRuntimeSettings 的
  * 轮询/动作形状。下载中每 500ms 轮询状态,完成/出错停轮询并 toast。
  */
 export function useVideoQcRuntimeSettings() {

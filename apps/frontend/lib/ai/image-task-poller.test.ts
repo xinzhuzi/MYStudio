@@ -107,7 +107,7 @@ describe("pollTaskStatus with new-api job responses", () => {
 
     await expect(
       pollTaskStatus("task_no_url", "sk-test", "https://fanrenapi.com/v1", undefined, "https://fanrenapi.com/v1/images/jobs/task_no_url"),
-    ).rejects.toThrow("Task completed but no URL in result");
+    ).rejects.toThrow("任务已完成,但响应里没有图片地址");
     expect(fetchMock).toHaveBeenCalledTimes(1);
     warnSpy.mockRestore();
   });

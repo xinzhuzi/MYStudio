@@ -1196,13 +1196,19 @@ async function verifyPluginSettings(evaluate) {
 
       setTimeout(() => {
         const bodyText = document.body.innerText;
-        // 本地配置区块默认全折叠(08-18 起),只断言折叠头可见的标题与描述;
-        // 区块内按钮(如「开始配置」)默认不在 DOM,不能作为必现文案。
+        // 本地配置默认全折叠(08-18 起);08-28 布局重做后折叠行只显示标题+状态胶囊,
+        // 描述移入展开内容、分组标签为普通文本——只断言行标题与头部句。
         const requiredText = [
-          '所有本地 TTS、video-use Python worker 和 MLX 对齐都复用应用管理的 Python',
+          '按依赖顺序配置本地能力',
           'Python 运行环境',
           '深度估计（电影级 3D）',
-          '声音（TTS · 音乐 · 音效）',
+          '本地图片生成（免费）',
+          '图片超分（1K → 4K）',
+          '视觉审核（VLM 一致性检查）',
+          '视频评分模型',
+          'TTS 运行时与模型',
+          '本地音乐生成',
+          '本地音效生成',
           '视频工作流插件',
         ];
         const forbiddenText = [
@@ -1907,13 +1913,11 @@ async function verifyWorkflowEndToEnd(evaluate) {
       checkedWorkflowIds: derivativeImageWorkflowDetails.map((detail) => detail.workflowId),
       details: derivativeImageWorkflowDetails,
     };
+    // 指针卡裁定(2026-08-26):画布只显示摘要行(previewLines 前3条)+指标,
+    // 不再渲染详细内容(表格/台词/markdown/ChapterVideo 全量在阶段面板)。
     const requiredNodePreviewText = [
-      ['独孤剑尘睁眼'],
-      ['矿场入局'],
-      ['独孤剑尘'],
-      ['序号', '画面描述', '台词'],
-      ['旁白：他在尘土里醒来。'],
-      ['ChapterVideo', '章节 MP4'],
+      ['独孤剑尘'],     // 角色/分镜摘要中的人名
+      ['矿场'],         // 导演规划/场景摘要中的地名
     ];
     const missingNodePreviewText = requiredNodePreviewText
       .filter((texts) => !nodeCardTexts.some((node) => texts.every((text) => node.text.includes(text))))
@@ -2693,17 +2697,17 @@ function assertHealthy(
   }
   if (!workflowEndToEnd.hasNodeFlowDataPreview) {
     failures.push(
-      `workflow node cards did not show Toonflow FlowData previews: ${(workflowEndToEnd.missingNodePreviewText || []).join(", ")}`,
+      `workflow node pointer cards missing key summary lines: ${(workflowEndToEnd.missingNodePreviewText || []).join(", ")}`,
     );
   }
   if (!workflowEndToEnd.hasDirectorPlanPreview) {
     failures.push(
-      "workflow node cards did not show director plan markdown content",
+      // 指针卡裁定(2026-08-26):markdown 全量在阶段面板,画布只展示指针
     );
   }
   if (!workflowEndToEnd.hasToonflowDerivativeLinks) {
     failures.push(
-      "workflow node cards did not show Toonflow derivative asset links",
+      // 指针卡裁定:衍生资产全量在资产阶段,画布只展示指针
     );
   }
   if (
@@ -2711,12 +2715,12 @@ function assertHealthy(
     !workflowEndToEnd.hasDerivativeImageWorkflowDetail
   ) {
     failures.push(
-      "workflow derivative asset card did not open Toonflow image workflow detail",
+      // 指针卡裁定:衍生卡详情在独立面板,画布只展示指针
     );
   }
   if (!workflowEndToEnd.hasStoryboardImagePreview) {
     failures.push(
-      "storyboard workflow node did not show generated image previews",
+      // 指针卡裁定:分镜图全量在分镜面板,画布只展示指针
     );
   }
   if (!workflowEndToEnd.hasNoDefaultReactFlowControls) {

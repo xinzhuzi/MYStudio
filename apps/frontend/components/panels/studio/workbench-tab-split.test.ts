@@ -66,7 +66,7 @@ describe("WorkbenchTab split boundaries", () => {
     expect(tabSource).toContain("selectAudioFile");
     expect(tabSource).toContain("对白 ducking");
     expect(tabSource).toContain("分镜音频操作");
-    expect(tabSource).toContain("导入 SFX");
+    expect(tabSource).toContain("导入音效");
     expect(tabSource).toContain("重试分镜");
     expect(tabSource).toContain("取消分镜");
     expect(tabSource).toContain("useRemotionQueueScope");

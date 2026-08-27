@@ -17,12 +17,18 @@ const mocks = vi.hoisted(() => ({
   refreshPlugins: vi.fn(async () => undefined),
   prepareCurrentWorkflow: vi.fn(async () => ({ success: true })),
   startTtsRuntime: vi.fn(async () => ({ success: true })),
+  depthProbe: vi.fn(async () => undefined),
+  imageGenProbe: vi.fn(async () => undefined),
+  upscaleProbe: vi.fn(async () => undefined),
+  musicRefresh: vi.fn(async () => undefined),
+  videoQcRefresh: vi.fn(async () => undefined),
 }));
 
 vi.mock("./usePythonRuntimeSettings", () => ({
   usePythonRuntimeSettings: () => ({
     hasRuntime: true,
     setupRuntime: mocks.setupRuntime,
+    isSetupActive: false,
     // installedItems drives pythonReady: non-empty + no "failed" item = ready.
     installedItems: scenario.pythonReady
       ? [{ label: "Python 运行环境", detail: "/python/bin/python3", status: "installed" as const }]
@@ -71,6 +77,70 @@ vi.mock("@/lib/tts/client", () => ({
     ),
   startTtsRuntime: mocks.startTtsRuntime,
 }));
+// ---- 行级状态胶囊所需的六个运行时 hook mock(挂载期一次性探测) ----
+vi.mock("./useDepthRuntimeSettings", () => ({
+  DEPTH_CINEMATIC_PRESET_OPTIONS: [],
+  useDepthRuntimeSettings: () => ({
+    hasRuntime: true,
+    hasLifecycleBridge: true,
+    lifecycleStatus: { state: "ready" as const, modelDownloaded: true },
+    status: null,
+    isProbing: false,
+    isSettingUp: false,
+    isRollingBack: false,
+    isDownloading: false,
+    probeRuntime: mocks.depthProbe,
+  }),
+}));
+vi.mock("./useImageGenRuntimeSettings", () => ({
+  useImageGenRuntimeSettings: () => ({
+    hasRuntime: true,
+    hasLifecycleBridge: true,
+    lifecycleStatus: { state: "ready" as const },
+    status: null,
+    isSettingUp: false,
+    isProbing: false,
+    probeRuntime: mocks.imageGenProbe,
+  }),
+}));
+vi.mock("./useUpscaleRuntimeSettings", () => ({
+  useUpscaleRuntimeSettings: () => ({
+    hasRuntime: true,
+    hasLifecycleBridge: true,
+    lifecycleStatus: { state: "ready" as const, modelDownloaded: true },
+    status: null,
+    models: [],
+    isProbing: false,
+    isSettingUp: false,
+    isRollingBack: false,
+    isDownloading: false,
+    probeRuntime: mocks.upscaleProbe,
+  }),
+}));
+vi.mock("./useMusic3GenRuntimeSettings", () => ({
+  useMusic3GenRuntimeSettings: () => ({
+    hasRuntime: true,
+    status: { setupStage: "ready" as const },
+    isSettingUp: false,
+    refreshStatus: mocks.musicRefresh,
+  }),
+}));
+vi.mock("./useSfxGenRuntimeSettings", () => ({
+  useSfxGenRuntimeSettings: () => ({
+    hasRuntime: true,
+    status: { setupStage: "ready" as const },
+    isSettingUp: false,
+  }),
+}));
+vi.mock("./useVideoQcRuntimeSettings", () => ({
+  useVideoQcRuntimeSettings: () => ({
+    hasBridge: true,
+    status: { state: "ready" as const, modelReady: true },
+    isProbing: false,
+    isDownloading: false,
+    refresh: mocks.videoQcRefresh,
+  }),
+}));
 vi.mock("./PythonSettingsTab", () => ({
   PythonSettingsTab: ({ embedded }: { embedded?: boolean }) => <div data-testid="python-section">{String(embedded)}</div>,
 }));
@@ -111,26 +181,32 @@ afterEach(() => {
   scenario.videoReady = true;
 });
 
+/** 08-28 布局重做后:四个分组标签是普通文本,页内标题 = 本地配置 + 10 行区块。 */
+const EXPECTED_ROW_HEADINGS = [
+  "本地配置",
+  "Python 运行环境",
+  "深度估计（电影级 3D）",
+  "本地图片生成（免费）",
+  "图片超分（1K → 4K）",
+  "视觉审核（VLM 一致性检查）",
+  "视频评分模型",
+  "TTS 运行时与模型",
+  "本地音乐生成",
+  "本地音效生成",
+  "视频工作流插件",
+];
+
 describe("PluginSettingsTab", () => {
-  it("renders the three configuration sections in dependency order", async () => {
+  it("renders the capability rows in dependency order with status pills", async () => {
     // 本用例断言区块内容,种「显式全开」绕过默认折叠;默认折叠行为由下方专项用例覆盖。
     window.localStorage.setItem("mystudio.settings.plugins.collapsedSections", "[]");
     render(<PluginSettingsTab />);
 
     const headings = screen.getAllByRole("heading").map((heading) => heading.textContent);
-    expect(headings).toEqual([
-      "本地配置",
-      "Python 运行环境",
-      "深度估计（电影级 3D）",
-      "本地图片生成（免费）",
-      "图片超分（1K → 4K）",
-      "成片观感评分",
-      "声音（TTS · 音乐 · 音效）",
-      "TTS 运行时与模型",
-      "本地音乐生成",
-      "本地音效生成",
-      "视频工作流插件",
-    ]);
+    expect(headings).toEqual(EXPECTED_ROW_HEADINGS);
+    // 行级状态胶囊:就绪能力亮绿;jsdom 无 VLM 桥 → 该行显示「不支持」。
+    expect(screen.getAllByText("已就绪").length).toBeGreaterThan(0);
+    expect(screen.getByText("不支持")).toBeTruthy();
     expect(screen.getByTestId("python-section").textContent).toBe("true");
     expect(screen.getByTestId("image-gen-section").textContent).toBe("true");
     expect(screen.getByTestId("upscale-section").textContent).toBe("true");
@@ -144,24 +220,15 @@ describe("PluginSettingsTab", () => {
     window.localStorage.removeItem("mystudio.settings.plugins.collapsedSections");
     const { unmount } = render(<PluginSettingsTab />);
 
-    // 默认全折叠：7 个区块标题可见，内容全部不在 DOM
+    // 默认全折叠：10 行区块标题可见，内容全部不在 DOM
     const headings = screen.getAllByRole("heading").map((heading) => heading.textContent);
-    expect(headings).toEqual([
-      "本地配置",
-      "Python 运行环境",
-      "深度估计（电影级 3D）",
-      "本地图片生成（免费）",
-      "图片超分（1K → 4K）",
-      "成片观感评分",
-      "声音（TTS · 音乐 · 音效）",
-      "视频工作流插件",
-    ]);
+    expect(headings).toEqual(EXPECTED_ROW_HEADINGS);
     expect(screen.queryByTestId("python-section")).toBeNull();
     expect(screen.queryByTestId("depth-section")).toBeNull();
     expect(screen.queryByTestId("sfx-gen-section")).toBeNull();
     expect(screen.queryByTestId("video-section")).toBeNull();
 
-    // 展开 Python 区：内容出现(锚定开头,避免匹配到描述里引用「Python 运行环境」的其他区块)
+    // 展开 Python 行：内容出现(锚定开头,避免匹配到描述里引用「Python 运行环境」的其他区块)
     fireEvent.click(screen.getByRole("button", { name: /^Python 运行环境/ }));
     expect(screen.getByTestId("python-section").textContent).toBe("true");
 
@@ -170,6 +237,17 @@ describe("PluginSettingsTab", () => {
     render(<PluginSettingsTab />);
     expect(screen.getByTestId("python-section").textContent).toBe("true");
     expect(screen.queryByTestId("video-section")).toBeNull();
+  });
+
+  it("migrates the legacy 声音 collapsed card to the three audio rows", () => {
+    window.localStorage.setItem("mystudio.settings.plugins.collapsedSections", JSON.stringify(["audio"]));
+    render(<PluginSettingsTab />);
+
+    // 三行声音区块继承旧「声音」整卡的折叠态(内容不在 DOM),行本身仍可见。
+    expect(screen.getByRole("button", { name: /^TTS 运行时与模型/ })).toBeTruthy();
+    expect(screen.queryByTestId("tts-section")).toBeNull();
+    expect(screen.queryByTestId("audio-gen-section")).toBeNull();
+    expect(screen.queryByTestId("sfx-gen-section")).toBeNull();
   });
 
   it("prepares Python, TTS and video plugins in priority order when layers are NOT ready", async () => {
@@ -213,6 +291,9 @@ describe("PluginSettingsTab", () => {
     scenario.videoReady = false;
 
     render(<PluginSettingsTab />);
+
+    // 视频行聚合分级:三插件 update-available → 胶囊显示「可更新」而非笼统「需准备」。
+    expect(screen.getByText("可更新")).toBeTruthy();
 
     fireEvent.click(screen.getByRole("button", { name: "按优先级准备基础运行时" }));
 

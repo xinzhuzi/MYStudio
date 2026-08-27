@@ -14,7 +14,7 @@ type VideoQcSettingsSectionProps = {
 };
 
 /**
- * 成片观感评分(DOVER-Mobile)配置区块 — 设置 → 本地配置。
+ * 视频评分模型(DOVER-Mobile)配置区块 — 设置 → 本地配置。
  *
  * 出片后 QC 链的观感层:模型未下载/未就绪时该层自动跳过并在 QC 报告标注,
  * 不阻塞渲染交付。下载政策与深度/超分一致:绝不自动下载。
@@ -101,7 +101,7 @@ export function VideoQcSettingsSection({ embedded = false }: VideoQcSettingsSect
   };
 
   return (
-    <div className={cn("space-y-4", !embedded && "rounded-xl border border-border bg-card/30 p-4")}>
+    <div className={cn("space-y-4 px-5 py-4", !embedded && "rounded-xl border border-border bg-card/30 p-4")}>
       <div className="flex flex-wrap items-center gap-2">
         <span className={cn("rounded-full border px-2.5 py-0.5 text-xs font-medium", lifecycleStatusClass)}>
           {lifecycleStatusLabel}

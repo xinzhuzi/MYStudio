@@ -1,5 +1,6 @@
 import { ipcMain } from "electron";
 import { observedFetch, type ObservedFetchMeta } from "../../../lib/diagnostics/network";
+import { createDescribedFetchError, describeFetchError } from "../../../lib/ai/fetch-error";
 import { assertSafeOutboundRequestUrl } from "../../security/request-url-guard";
 import {
   getModelTestTimeoutMs,
@@ -145,6 +146,13 @@ export function registerApiRequestIpcHandlers({
       };
     } catch (error) {
       const durationMs = Math.round(performance.now() - startedAt);
+      // undici 的真实失败原因(DNS/拒连/超时/证书)只在主进程的 error.cause 里,
+      // 跨 IPC 抛回渲染层时 cause 会丢——必须在抛出前翻译成带原因的 message。
+      const describedError = describeFetchError(error, {
+        timeoutLabel: "图片请求",
+        timeoutMs,
+        endpoint: url,
+      });
       writeDiagnosticsLog({
         level: "error",
         category: "ipc",
@@ -157,10 +165,15 @@ export function registerApiRequestIpcHandlers({
           durationMs,
           errorName: error instanceof Error ? error.name : undefined,
           errorMessage: error instanceof Error ? error.message : String(error),
+          describedError,
         },
         error,
       });
-      throw error;
+      throw createDescribedFetchError(error, {
+        timeoutLabel: "图片请求",
+        timeoutMs,
+        endpoint: url,
+      });
     } finally {
       clearTimeout(timeout);
     }
@@ -228,6 +241,7 @@ export function registerApiRequestIpcHandlers({
         timeoutMs: textTimeoutMs,
       },
     });
+    const textStartedAt = Date.now();
     const provider = payload.provider;
     if (provider.platform && provider.apiKey) {
       try {
@@ -265,14 +279,30 @@ export function registerApiRequestIpcHandlers({
         });
       }
     }
+    // 整体预算=textTimeoutMs,SDK 阶段已消耗的部分从 HTTP 回退中扣除;耗尽则快速失败。
+    const textRemainingMs = textTimeoutMs - (Date.now() - textStartedAt);
+    if (textRemainingMs <= 2000) {
+      writeDiagnosticsLog({
+        level: "error",
+        category: "ipc",
+        operationId,
+        message: "Text completion budget exhausted after AI SDK attempt",
+        context: { elapsedMs: Date.now() - textStartedAt, timeoutMs: textTimeoutMs },
+      });
+      return {
+        success: false,
+        error: `文本模型调用总超时 (${Math.round(textTimeoutMs / 1000)}s),HTTP 回退未再尝试`,
+        elapsedMs: Date.now() - textStartedAt,
+      };
+    }
     const result = await runTextCompletionRequest(payload, createDiagnosticsFetch({
       operationId,
       endpointFamily: "text-completion",
       providerId: payload.provider.id,
       providerName: payload.provider.name,
       model: payload.model,
-      timeoutMs: textTimeoutMs,
-    }), textTimeoutMs);
+      timeoutMs: textRemainingMs,
+    }), textRemainingMs);
     writeDiagnosticsLog({
       level: result.success ? "info" : "error",
       category: "ipc",
@@ -306,30 +336,44 @@ export function registerApiRequestIpcHandlers({
         streamId: args.streamId,
       },
     });
+    const streamStartedAt = Date.now();
+    const streamBudgetMs = args.payload.timeoutMs ?? 300_000;
     const provider = args.payload.provider;
     if (provider.platform && provider.apiKey) {
       try {
         const textModel = args.payload.model || provider.model?.[0] || "";
-        const stream = await sdkStreamText({
-          provider: {
-            baseUrl: provider.baseUrl,
-            apiKey: provider.apiKey,
-            platform: provider.platform,
-            name: provider.name,
-          },
-          model: textModel,
-          messages: args.payload.messages,
-          temperature: args.payload.temperature,
-          maxTokens: args.payload.maxTokens,
-        });
+        // SDK 流式此前无任何超时,上游挂住时 IPC 永不返回;这里给整体预算内的中止信号。
+        const sdkStreamController = new AbortController();
+        const sdkStreamTimer = setTimeout(
+          () => sdkStreamController.abort(new DOMException("流式调用超时,回退一次性请求", "TimeoutError")),
+          streamBudgetMs,
+        );
+        let stream: Awaited<ReturnType<typeof sdkStreamText>>;
         let fullText = "";
-        for await (const chunk of stream.fullStream) {
-          if (chunk.type === "text-delta") {
-            fullText += chunk.text;
-            if (!event.sender.isDestroyed()) {
-              event.sender.send(`api-text-stream:${args.streamId}`, chunk.text);
+        try {
+          stream = await sdkStreamText({
+            provider: {
+              baseUrl: provider.baseUrl,
+              apiKey: provider.apiKey,
+              platform: provider.platform,
+              name: provider.name,
+            },
+            model: textModel,
+            messages: args.payload.messages,
+            temperature: args.payload.temperature,
+            maxTokens: args.payload.maxTokens,
+            abortSignal: sdkStreamController.signal,
+          });
+          for await (const chunk of stream.fullStream) {
+            if (chunk.type === "text-delta") {
+              fullText += chunk.text;
+              if (!event.sender.isDestroyed()) {
+                event.sender.send(`api-text-stream:${args.streamId}`, chunk.text);
+              }
             }
           }
+        } finally {
+          clearTimeout(sdkStreamTimer);
         }
         if (fullText.trim()) {
           writeDiagnosticsLog({
@@ -359,6 +403,8 @@ export function registerApiRequestIpcHandlers({
         });
       }
     }
+    // 回退只吃整体预算的剩余部分(SDK 流式阶段已消耗的计入)
+    const streamRemainingMs = streamBudgetMs - (Date.now() - streamStartedAt);
     const result = await runTextCompletionStreamRequest(args.payload, (delta) => {
       if (!event.sender.isDestroyed()) event.sender.send(`api-text-stream:${args.streamId}`, delta);
     }, createDiagnosticsFetch({
@@ -367,8 +413,8 @@ export function registerApiRequestIpcHandlers({
       providerId: args.payload.provider.id,
       providerName: args.payload.provider.name,
       model: args.payload.model,
-      timeoutMs: 300000,
-    }));
+      timeoutMs: Math.max(1000, streamRemainingMs),
+    }), Math.max(1000, streamRemainingMs));
     writeDiagnosticsLog({
       level: result.success ? "info" : "error",
       category: "ipc",

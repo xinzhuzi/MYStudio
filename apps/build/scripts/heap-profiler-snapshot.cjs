@@ -8,6 +8,8 @@ const WebSocket = require("../../node_modules/ws");
 
 const DEFAULT_HOST = "127.0.0.1";
 const DEFAULT_PORT = 9222;
+const DEFAULT_HTTP_TIMEOUT_MS = 10_000;
+const DEFAULT_COMMAND_TIMEOUT_MS = 60_000;
 const DEFAULT_OUTPUT_DIR = path.resolve(process.cwd(), "output", "automation", "heap-profiler");
 const LABELS = new Set(["clean", "interaction", "post-gc"]);
 
@@ -52,41 +54,77 @@ function usage() {
     "  --label clean|interaction|post-gc   snapshot state label (default: interaction)",
     "  --output-dir <path>                 output directory",
     "  --host <host> --port <port>         CDP endpoint (default: 127.0.0.1:9222)",
-    "  --gc                                request Runtime.collectGarbage first",
+    "  --gc                                request HeapProfiler.collectGarbage first",
   ].join("\n");
 }
 
-function getJson(host, port, requestPath) {
+function getJson(host, port, requestPath, timeoutMs = DEFAULT_HTTP_TIMEOUT_MS) {
   return new Promise((resolve, reject) => {
+    let settled = false;
+    const fail = (error) => {
+      if (settled) return;
+      settled = true;
+      reject(error);
+    };
     const request = http.get({ host, port, path: requestPath }, (response) => {
       let body = "";
       response.setEncoding("utf8");
       response.on("data", (chunk) => { body += chunk; });
       response.on("end", () => {
         if (response.statusCode !== 200) {
-          reject(new Error(`CDP endpoint returned HTTP ${response.statusCode}`));
+          fail(new Error(`CDP endpoint returned HTTP ${response.statusCode}`));
           return;
         }
         try {
+          settled = true;
           resolve(JSON.parse(body));
         } catch {
-          reject(new Error("CDP endpoint returned invalid JSON"));
+          fail(new Error("CDP endpoint returned invalid JSON"));
         }
       });
     });
-    request.on("error", (error) => reject(new Error(`CDP endpoint unavailable: ${error.message}`)));
+    request.setTimeout(timeoutMs, () => {
+      request.destroy();
+      fail(new Error(`CDP endpoint request timed out after ${timeoutMs}ms`));
+    });
+    request.on("error", (error) => fail(new Error(`CDP endpoint unavailable: ${error.message}`)));
   });
 }
 
-function connectCdp(webSocketDebuggerUrl) {
+function connectCdp(webSocketDebuggerUrl, commandTimeoutMs = DEFAULT_COMMAND_TIMEOUT_MS) {
   return new Promise((resolve, reject) => {
-    const socket = new WebSocket(webSocketDebuggerUrl, { maxPayload: 1024 * 1024 * 1024 });
+    const socket = new WebSocket(webSocketDebuggerUrl, {
+      maxPayload: 1024 * 1024 * 1024,
+      handshakeTimeout: commandTimeoutMs,
+    });
     const pending = new Map();
     let sequence = 0;
+    let opened = false;
+    const rejectPending = (error) => {
+      for (const request of pending.values()) {
+        clearTimeout(request.timer);
+        request.reject(error);
+      }
+      pending.clear();
+    };
     const send = (method, params = {}) => new Promise((resolveSend, rejectSend) => {
+      if (socket.readyState !== WebSocket.OPEN) {
+        rejectSend(new Error(`CDP websocket is not open for ${method}`));
+        return;
+      }
       const id = ++sequence;
-      pending.set(id, { resolve: resolveSend, reject: rejectSend });
-      socket.send(JSON.stringify({ id, method, params }));
+      const timer = setTimeout(() => {
+        pending.delete(id);
+        rejectSend(new Error(`CDP command timed out: ${method}`));
+      }, commandTimeoutMs);
+      pending.set(id, { resolve: resolveSend, reject: rejectSend, timer });
+      try {
+        socket.send(JSON.stringify({ id, method, params }));
+      } catch (error) {
+        clearTimeout(timer);
+        pending.delete(id);
+        rejectSend(new Error(`CDP command send failed for ${method}: ${error instanceof Error ? error.message : String(error)}`));
+      }
     });
     socket.on("message", (data) => {
       let message;
@@ -98,12 +136,25 @@ function connectCdp(webSocketDebuggerUrl) {
       if (message.id && pending.has(message.id)) {
         const request = pending.get(message.id);
         pending.delete(message.id);
+        clearTimeout(request.timer);
         if (message.error) request.reject(new Error(message.error.message || "CDP command failed"));
         else request.resolve(message.result);
       }
     });
-    socket.once("open", () => resolve({ socket, send }));
-    socket.once("error", (error) => reject(new Error(`CDP websocket unavailable: ${error.message}`)));
+    socket.once("open", () => {
+      opened = true;
+      resolve({ socket, send });
+    });
+    socket.on("error", (error) => {
+      const wrapped = new Error(`CDP websocket unavailable: ${error.message}`);
+      rejectPending(wrapped);
+      if (!opened) reject(wrapped);
+    });
+    socket.on("close", () => {
+      const closed = new Error("CDP websocket closed");
+      rejectPending(closed);
+      if (!opened) reject(closed);
+    });
   });
 }
 
@@ -313,7 +364,7 @@ async function captureSnapshot(options) {
   try {
     outputFd = fs.openSync(outputPath, "wx");
     await send("HeapProfiler.enable");
-    if (options.gc) await send("Runtime.collectGarbage");
+    if (options.gc) await send("HeapProfiler.collectGarbage");
     await send("HeapProfiler.takeHeapSnapshot", { reportProgress: false });
     fs.closeSync(outputFd);
     outputClosed = true;
@@ -332,6 +383,27 @@ async function captureSnapshot(options) {
     });
     fs.writeFileSync(metadataPath, `${JSON.stringify(metadata, null, 2)}\n`, "utf8");
     return metadata;
+  } catch (error) {
+    const finishedAt = Date.now();
+    try {
+      fs.writeFileSync(metadataPath, `${JSON.stringify({
+        schemaVersion: 1,
+        status: "failed",
+        label: options.label,
+        gcRequested: options.gc,
+        startedAt,
+        finishedAt,
+        durationMs: finishedAt - startedAt,
+        outputPath,
+        metadataPath,
+        bytes,
+        chunkCount,
+        pageUrl: page.url,
+        pageTitle: page.title,
+        error: error instanceof Error ? error.message : String(error),
+      }, null, 2)}\n`, "utf8");
+    } catch {}
+    throw error;
   } finally {
     if (outputFd !== null && !outputClosed) fs.closeSync(outputFd);
     socket.off("message", onMessage);
@@ -350,8 +422,11 @@ async function main() {
 }
 
 module.exports = {
+  DEFAULT_HTTP_TIMEOUT_MS,
   LABELS,
   buildSnapshotMetadata,
+  connectCdp,
+  getJson,
   parseArgs,
   safeLabel,
   summarizeHeapSnapshot,

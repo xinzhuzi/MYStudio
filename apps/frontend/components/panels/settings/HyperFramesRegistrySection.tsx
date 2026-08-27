@@ -4,7 +4,7 @@
  * 依赖下载到 <userData>/hyperframes-registry-deps/(由 main 侧提供路径)。
  */
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Loader2, Package, CheckCircle2, Circle } from "lucide-react";
 import { toast } from "sonner";
@@ -28,6 +28,13 @@ export function HyperFramesRegistrySection(): React.ReactElement {
       return { installed: false, installedCount: 0, totalCount: 0 };
     }
   };
+
+  // 打开即探测:此前 status 初始 null 且从不自动检查,空心圈+「下载依赖」被误读成
+  // 「没下载完」(08-28 修;实际依赖 08-22 已下全,点「检查」也一直能过)。
+  useEffect(() => {
+    void checkStatus().then(setStatus);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleDownload = async (): Promise<void> => {
     setDownloading(true);

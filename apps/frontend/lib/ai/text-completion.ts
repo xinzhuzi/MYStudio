@@ -1,4 +1,5 @@
 import { parseApiKeys, type IProvider } from "./core";
+import { describeFetchError } from "./fetch-error";
 import {
   buildGeminiCompatibleEndpoint,
   buildOpenAICompatibleEndpoint,
@@ -130,10 +131,25 @@ export async function runTextCompletionRequest(
   if (!prepared.attempts.length) return { success: false, error: "没有可用的接口协议" };
 
   const attempts: TextCompletionAttemptResult[] = [];
+  // timeoutMs 是「SDK+HTTP 回退」共享的整体预算(TextCompletionRequest 契约):
+  // 各协议按剩余时间分摊,不再每个协议各吃一份满额超时,半死不活的网络下也不至于等出 3 倍时长。
+  const deadline = Date.now() + timeoutMs;
   for (const attempt of prepared.attempts) {
+    const remainingMs = deadline - Date.now();
+    if (remainingMs <= 1000) {
+      attempts.push({
+        protocol: attempt.protocol,
+        label: attempt.label,
+        endpoint: attempt.endpoint,
+        success: false,
+        elapsedMs: 0,
+        error: `文本模型调用总超时 (${Math.round(timeoutMs / 1000)}s),后续协议未再尝试`,
+      });
+      break;
+    }
     const startedAt = Date.now();
     const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), timeoutMs);
+    const timer = setTimeout(() => controller.abort(), remainingMs);
     try {
       const response = await fetcher(attempt.endpoint, {
         method: "POST",
@@ -195,7 +211,11 @@ export async function runTextCompletionRequest(
         endpoint: attempt.endpoint,
         success: false,
         elapsedMs: Date.now() - startedAt,
-        error: error instanceof Error ? error.message : String(error),
+        error: describeFetchError(error, {
+          timeoutLabel: "文本模型调用",
+          timeoutMs: remainingMs,
+          endpoint: attempt.endpoint,
+        }),
       });
     } finally {
       clearTimeout(timer);
@@ -335,14 +355,16 @@ export async function runTextCompletionStreamRequest(
   if (!messages.length) return { success: false, error: "缺少消息内容" };
 
   const endpoint = buildOpenAICompatibleEndpoint(baseUrl, "chat/completions");
+  const deadline = Date.now() + timeoutMs;
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   const startedAt = Date.now();
   let full = "";
   // 流式失败（服务器拒绝 stream / 空响应 / 网络中断等）时回退到一次性请求；仅当尚未流出任何内容时才补发整段，避免重复。
+  // 回退只吃整体预算的剩余部分,流式已耗的时间计入。
   const fallbackOneShot = async (reason: string): Promise<TextCompletionResult> => {
     console.warn(`[text-stream] 流式失败(${reason}) → 回退一次性`);
-    const r = await runTextCompletionRequest(payload, fetcher, timeoutMs);
+    const r = await runTextCompletionRequest(payload, fetcher, Math.max(1000, deadline - Date.now()));
     if (r.success && r.text && !full) onDelta(r.text);
     return r;
   };

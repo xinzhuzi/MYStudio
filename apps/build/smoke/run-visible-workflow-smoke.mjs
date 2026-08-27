@@ -660,6 +660,15 @@ function inspectClonedProjectData(userDataDir, projectId = realProjectId) {
       ])
       .filter((workflowId) => typeof workflowId === "string" && workflowId.length > 0),
   );
+  // 新布局允许仅在 graph.target.id 上保留分镜关联；将其纳入校验，避免
+  // runner 因 storyboard.imageWorkflowId 历史字段缺失而漏掉合法工作流。
+  for (const graph of workflowState.imageWorkflows || []) {
+    const target = graph?.target;
+    if (target?.kind !== "storyboard" || typeof target.id !== "string") continue;
+    if (chapterStoryboards.some((storyboard) => storyboard.id === target.id)) {
+      storyboardImageWorkflowIds.add(graph.id);
+    }
+  }
   const storyboardImageWorkflows = (workflowState.imageWorkflows || []).filter((graph) =>
     storyboardImageWorkflowIds.has(graph.id),
   );
@@ -671,6 +680,11 @@ function inspectClonedProjectData(userDataDir, projectId = realProjectId) {
     return referenceNodes.every((node) => edgeKeys.has(`${node.id}->${generatedNode.id}`));
   });
   const storyboardWorkflowIds = new Set(storyboardImageWorkflows.map((graph) => graph.id));
+  const storyboardWorkflowStoryboardIds = new Set(
+    storyboardImageWorkflows
+      .map((graph) => graph?.target?.kind === "storyboard" ? graph.target.id : null)
+      .filter((storyboardId) => typeof storyboardId === "string" && storyboardId.length > 0),
+  );
   return {
     projectSkillsReady: existsSync(
       resolve(
@@ -686,6 +700,7 @@ function inspectClonedProjectData(userDataDir, projectId = realProjectId) {
       Boolean(
         storyboard.imageWorkflowId ||
         storyboard.mediaRef?.imageWorkflowId ||
+        storyboardWorkflowStoryboardIds.has(storyboard.id) ||
         storyboardWorkflowIds.has(`storyboard-flow-${storyboard.episodeId}-${String(storyboard.id || '').split('-').pop()}`),
       ),
     ).length,
@@ -1359,12 +1374,23 @@ function realProjectWorkflowExpression(
          storyboards.flatMap((candidate) => [candidate.imageWorkflowId, candidate.mediaRef?.imageWorkflowId])
            .filter((workflowId) => typeof workflowId === 'string' && workflowId.length > 0),
        );
+       for (const graph of workflowState.imageWorkflows || []) {
+         const target = graph?.target;
+         if (target?.kind !== 'storyboard' || typeof target.id !== 'string') continue;
+         if (storyboards.some((storyboard) => storyboard.id === target.id)) storyboardImageWorkflowIds.add(graph.id);
+       }
        const storyboardImageWorkflows = (workflowState.imageWorkflows || []).filter((graph) =>
          storyboardImageWorkflowIds.has(graph.id),
        );
        const storyboardWorkflowIds = new Set(storyboardImageWorkflows.map((graph) => graph.id));
+       const storyboardWorkflowStoryboardIds = new Set(
+         storyboardImageWorkflows
+           .map((graph) => graph?.target?.kind === 'storyboard' ? graph.target.id : null)
+           .filter((storyboardId) => typeof storyboardId === 'string' && storyboardId.length > 0),
+       );
        const storyboardsWithWorkflow = storyboards.filter((candidate) => Boolean(
          candidate.imageWorkflowId || candidate.mediaRef?.imageWorkflowId ||
+         storyboardWorkflowStoryboardIds.has(candidate.id) ||
          storyboardWorkflowIds.has('storyboard-flow-' + candidate.episodeId + '-' + String(candidate.id || '').split('-').pop()),
        ));
        const totalStoryboardDuration = storyboards.reduce((sum, storyboard) => sum + Number(storyboard.duration || 0), 0);

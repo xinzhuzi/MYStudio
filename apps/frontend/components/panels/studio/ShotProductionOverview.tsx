@@ -101,7 +101,7 @@ export function ShotProductionOverview({
               && item.target.chapterId === storyboard.episodeId
               && item.target.shotId === storyboard.id
               && item.target.shotRevision === revision
-              && (item.status === "running" || item.status === "queued"),
+              && (item.status === "running" || item.status === "queued" || item.status === "failed"),
           );
         const freshUrl =
           slot?.outputPath && projectId

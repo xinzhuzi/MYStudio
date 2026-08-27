@@ -15,7 +15,6 @@ from __future__ import annotations
 
 import json
 import re
-from pathlib import Path
 
 # 分类定义:tag 归并 → AI 可理解的大类
 CATEGORY_TAG_MAP: dict[str, set[str]] = {
@@ -45,10 +44,12 @@ MOOD_CATEGORY_MAP: dict[str, str] = {
 FULL_FRAME_TAGS = {"showcase", "background", "title-card", "lower-third", "terminal", "code"}
 
 def _load_catalog() -> list[dict]:
-    catalog_path = Path(__file__).parent.parent.parent / "frontend" / "assets" / "hyperframes-registry" / "catalog.json"
-    if not catalog_path.exists():
+    from .hyperframes_registry import catalog_path
+
+    resolved = catalog_path()
+    if resolved is None:
         return []
-    return json.loads(catalog_path.read_text()).get("items", [])
+    return json.loads(resolved.read_text()).get("items", [])
 
 _CATALOG = _load_catalog()
 

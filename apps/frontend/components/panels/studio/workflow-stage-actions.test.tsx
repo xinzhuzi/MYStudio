@@ -2998,9 +2998,9 @@ describe("workflow stage action surfaces", () => {
     );
 
     expect(screen.getByRole("region", { name: "分镜音频操作" })).toBeTruthy();
-    expect(screen.getByText("TTS 缺失 · SFX 未引用 · revision 1")).toBeTruthy();
+    expect(screen.getByText("旁白配音 缺失 · 音效 未添加 · 第 1 版")).toBeTruthy();
     expect(document.querySelector("[data-cinematic-badge]")?.textContent).toContain("orbit");
-    expect(screen.getByRole("button", { name: "导入 SFX" }).hasAttribute("disabled")).toBe(true);
+    expect(screen.getByRole("button", { name: "导入音效" }).hasAttribute("disabled")).toBe(true);
     const slot = document.querySelector("[data-storyboard-shot-current-slot]");
     expect(slot?.getAttribute("data-storyboard-shot-id")).toBe("shot-1");
     expect(slot?.getAttribute("data-storyboard-shot-slot-status")).toBe("missing");
