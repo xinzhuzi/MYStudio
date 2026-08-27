@@ -84,7 +84,7 @@ export function NodeDocViewer({
           {isTable ? (
             <TableRender node={node} />
           ) : (
-            <div className="mx-auto max-w-4xl [&_.md-editor-preview]:!px-0 [&_.md-editor-preview]:!text-[15px] [&_.md-editor-preview]:!leading-[1.8] [&_.md-editor-preview_h1]:!mb-6 [&_.md-editor-preview_h1]:!mt-2 [&_.md-editor-preview_h1]:!text-2xl [&_.md-editor-preview_h1]:!font-bold [&_.md-editor-preview_h2]:!mb-4 [&_.md-editor-preview_h2]:!mt-8 [&_.md-editor-preview_h2]:!text-xl [&_.md-editor-preview_h2]:!font-semibold [&_.md-editor-preview_h3]:!mb-3 [&_.md-editor-preview_h3]:!mt-6 [&_.md-editor-preview_h3]:!text-lg [&_.md-editor-preview_p]:!mb-4 [&_.md-editor-preview_ul]:!mb-4 [&_.md-editor-preview_li]:!mb-1.5 [&_.md-editor-preview_blockquote]:!my-4 [&_.md-editor-preview_blockquote]:!border-l-2 [&_.md-editor-preview_blockquote]:!border-primary/40 [&_.md-editor-preview_blockquote]:!pl-4 [&_.md-editor-preview_blockquote]:!text-muted-foreground [&_.md-editor-preview_strong]:!text-foreground [&_.md-editor-preview_hr]:!my-6">
+            <div className="[&_.md-editor-preview]:!px-0 [&_.md-editor-preview]:!text-[15px] [&_.md-editor-preview]:!leading-[1.8] [&_.md-editor-preview_h1]:!mb-6 [&_.md-editor-preview_h1]:!mt-2 [&_.md-editor-preview_h1]:!text-2xl [&_.md-editor-preview_h1]:!font-bold [&_.md-editor-preview_h2]:!mb-4 [&_.md-editor-preview_h2]:!mt-8 [&_.md-editor-preview_h2]:!text-xl [&_.md-editor-preview_h2]:!font-semibold [&_.md-editor-preview_h3]:!mb-3 [&_.md-editor-preview_h3]:!mt-6 [&_.md-editor-preview_h3]:!text-lg [&_.md-editor-preview_p]:!mb-4 [&_.md-editor-preview_ul]:!mb-4 [&_.md-editor-preview_li]:!mb-1.5 [&_.md-editor-preview_blockquote]:!my-4 [&_.md-editor-preview_blockquote]:!border-l-2 [&_.md-editor-preview_blockquote]:!border-primary/40 [&_.md-editor-preview_blockquote]:!pl-4 [&_.md-editor-preview_blockquote]:!text-muted-foreground [&_.md-editor-preview_strong]:!text-foreground [&_.md-editor-preview_hr]:!my-6">
               <MdPreview
                 modelValue={markdown || "暂无内容"}
                 theme="dark"
@@ -101,8 +101,9 @@ export function NodeDocViewer({
   );
 }
 
-/** 分镜表渲染——15 列契约全部平铺为直观列(用户裁定 2026-08-27 晚:
- * 场景/关联资产ID 也做成列,不要分组行等复杂布局;缺值显示"—")。
+/** 分镜表渲染——平铺直观列(用户裁定 2026-08-27 晚:全列平铺不要分组行;
+ * 随后裁定 关联资产ID 列撤下不展示——仅显示层撤渲染,解析与存储层
+ * associateAssetsIds 数据永不丢,再亮出随时可恢复)。
  * 序号冻结+表头吸顶+横向滚动保留。 */
 function TableRender({ node }: { node: ProductionFlowNodeModel }) {
   const rows = node.tableRows ?? [];
@@ -169,10 +170,6 @@ function TableRender({ node }: { node: ProductionFlowNodeModel }) {
     {
       key: "sound", label: "音效", cls: "w-[260px]", has: true,
       cell: (row) => <span className="text-muted-foreground">{row.sound || "—"}</span>,
-    },
-    {
-      key: "assetIds", label: "关联资产ID", cls: "w-[240px]", has: true,
-      cell: (row) => <span className="break-all font-mono text-[11px] text-muted-foreground">{row.associateAssetsIds.join("、") || "—"}</span>,
     },
     {
       key: "semantics", label: "出镜语义（角色/道具/承接）", cls: "w-[420px]", has: rows.some((r) => r.shotSemantics),
