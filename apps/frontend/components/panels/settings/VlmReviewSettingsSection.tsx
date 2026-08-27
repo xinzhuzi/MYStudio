@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Check, Download, FolderOpen, Loader2, RefreshCw, Trash2, Zap } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import type { VlmReviewProbeResult, VlmDownloadProgress } from "@/types/contracts/vlm-review-workflow";
 
@@ -148,13 +149,23 @@ export function VlmReviewSettingsSection({ embedded = false }: VlmReviewSettings
           <span className="w-20 shrink-0 text-muted-foreground">模型大小</span>
           <span>9.9 GB</span>
         </div>
-        <div className="flex items-center gap-2">
-          <span className="w-20 shrink-0 text-muted-foreground">缓存目录</span>
-          <span className="min-w-0 truncate font-mono text-xs text-muted-foreground" data-vlm-model-dir>
-            {probe?.modelDir ?? "~/Library/Application Support/漫影工作室/model/vlm/"}
-          </span>
-          <Button size="sm" variant="ghost" className="h-7 shrink-0 gap-1 px-2" onClick={() => void handleOpenCacheDir()}>
-            <FolderOpen className="h-3.5 w-3.5" />
+      </div>
+
+      {/* 缓存目录(沿超分同款 grid 布局:5rem label + 弹性路径 + 右侧按钮) */}
+      <div className="grid gap-3 md:grid-cols-[5rem_minmax(0,1fr)_auto] md:items-center">
+        <span className="text-xs text-muted-foreground">模型缓存目录</span>
+        <Input
+          readOnly
+          value={probe?.modelDir ?? "~/Library/Application Support/漫影工作室/model/vlm/"}
+          placeholder="…/model/vlm/"
+          containerClassName="w-full min-w-0"
+          className="min-w-0 font-mono text-xs truncate"
+          data-vlm-model-dir
+        />
+        <div className="flex flex-nowrap gap-2 md:justify-end">
+          <Button size="sm" variant="outline" onClick={() => void handleOpenCacheDir()} disabled={!probe?.modelDir}>
+            <FolderOpen className="mr-1 h-4 w-4" aria-hidden />
+            打开
           </Button>
         </div>
       </div>
