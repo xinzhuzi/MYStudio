@@ -294,6 +294,9 @@ export function createStoryboardSliceActions(set: SetFn, get: GetFn) {
       const updates: Partial<StoryboardItem> = { keyframes: normalized };
       if (firstImage && reason !== "plan") {
         updates.mediaRef = firstImage.mediaRef;
+        // 媒体落地即 ready(与生图回写 buildStoryboardImageWorkflowPatch 同语义;
+        // 回接首跑实证缺口:帧全图而 state=idle 把整镜挡在编译门外)
+        updates.state = "ready";
       }
       get().updateStoryboard(id, updates);
       const storyboard = get().storyboards.find((item) => item.id === id);

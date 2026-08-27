@@ -97,6 +97,8 @@ describe("setStoryboardKeyframes(唯一写入口)", () => {
     const updated = useStudioStore.getState().storyboards.find((item) => item.id === "sb-1");
     expect(updated?.keyframes).toHaveLength(2);
     expect(updated?.mediaRef?.path).toBe("project-file://p/a.png");
+    // 媒体落地即 ready(与生图回写同语义;回接首跑实证缺口)
+    expect(updated?.state).toBe("ready");
     const tasks = useStudioStore.getState().mediaTasks.filter((task) => task.targetId === "sb-1");
     expect(tasks.length).toBeGreaterThan(0);
     expect(tasks[tasks.length - 1].outputRefs).toContain("project-file://p/b.png");
