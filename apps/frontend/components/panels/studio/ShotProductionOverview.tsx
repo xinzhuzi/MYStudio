@@ -1,5 +1,5 @@
-import { useMemo, useState } from "react";
-import { ArrowLeft } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { ArrowLeft, ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ResolutionBadge } from "@/components/ui/image-resolution-badge";
 import { PreviewImage } from "./previews/preview-image";
@@ -12,12 +12,28 @@ import type {
   RemotionShotAudioBindingV2,
 } from "@/types/remotion-workspace";
 
+/** 详情媒体框高度:宽屏三栏占满首屏剩余可视高度(视口相对+22rem 下限);
+ * 窄屏纵向堆叠时回落固定 h-56,避免三栏各吃一屏把页面拉得过长。 */
+const DETAIL_MEDIA_BOX_CLASS = "h-56 lg:h-[max(22rem,calc(100vh-25rem))]";
+
+function shotDotClass(row: {
+  fresh: boolean;
+  videoUrl: string | null;
+  job?: RemotionRenderJobV1;
+}): string {
+  const running = row.job?.status === "running" || row.job?.status === "queued";
+  if (row.fresh) return "bg-success";
+  if (row.videoUrl) return "bg-warning";
+  if (running) return "bg-info animate-pulse";
+  if (row.job?.status === "failed") return "bg-destructive";
+  return "bg-muted-foreground/40";
+}
 /**
  * 单镜生产总览 — 「Remotion 单镜生产」进入后的第一屏。
  *
- * 按镜头标号选择,当前镜的视频/画面/音频一屏尽览(用户裁定 08-27:进入后要有
- * 返回按钮、布局一眼明晰、按镜号展示该镜的视频图片音频等信息)。
- * 布局纪律:媒体框固定高度 + object-contain(竖图零裁切);卡片不挂
+ * 按镜头标号选择,当前镜的视频/画面/音频一屏尽览(用户裁定 08-27:详情占满布局,
+ * 其他镜头默认不展示,点击镜号才在顶部展开横向滑动条;选中即收起)。
+ * 布局纪律:媒体框定高 + object-contain(竖图零裁切);卡片不挂
  * overflow-hidden(定高网格+条目裁切会触发 Chromium 行高坍缩,当日实测)。
  */
 export function ShotProductionOverview({
@@ -41,7 +57,18 @@ export function ShotProductionOverview({
     [storyboards],
   );
   const [selectedId, setSelectedId] = useState<string>();
+  const [stripOpen, setStripOpen] = useState(false);
+  const stripRef = useRef<HTMLDivElement>(null);
   const selected = ordered.find((item) => item.id === selectedId) ?? ordered[0];
+
+  // 展开横滑条时把当前镜滚入视野居中,两侧相邻镜同时可见(jsdom 无布局引擎,守卫跳过)。
+  useEffect(() => {
+    if (!stripOpen || !stripRef.current) return;
+    const active = stripRef.current.querySelector<HTMLElement>('[aria-pressed="true"]');
+    if (active && typeof active.scrollIntoView === "function") {
+      active.scrollIntoView({ block: "nearest", inline: "center" });
+    }
+  }, [stripOpen, selectedId]);
 
   /** 每镜视频产物:当前修订版 slot 优先;无 slot 时回退该镜最新成功任务
    *  (跨修订版=旧版产物,显式标注不冒充当前版——防旧音配新词门禁同源纪律)。 */
@@ -135,23 +162,40 @@ export function ShotProductionOverview({
               : "尚无分镜,请先生成分镜表"}
           </span>
         </div>
+        {selected && selectedRow ? (
+          <Button
+            size="sm"
+            variant="outline"
+            data-shot-strip-toggle
+            aria-expanded={stripOpen}
+            aria-controls="shot-strip"
+            aria-label={`${stripOpen ? "收起" : "展开"}镜号横滑条,当前镜头 S${String(selected.index).padStart(2, "0")}`}
+            title={stripOpen ? "收起镜号横滑条" : "展开镜号横滑条,点选其他镜头"}
+            onClick={() => setStripOpen((open) => !open)}
+            className="shrink-0 gap-1.5 font-mono"
+          >
+            <span className={`h-1.5 w-1.5 rounded-full ${shotDotClass(selectedRow)}`} />
+            S{String(selected.index).padStart(2, "0")}
+            <ChevronDown
+              className={`h-3.5 w-3.5 motion-safe:transition-transform ${stripOpen ? "rotate-180" : ""}`}
+            />
+          </Button>
+        ) : null}
       </div>
 
-      {/* 镜号选择条:状态点一眼分辨(绿=当前版视频 / 琥珀=旧版可看 / 蓝=渲染中 / 红=失败 / 灰=未生成) */}
-      {ordered.length ? (
-        <div className="flex flex-wrap gap-1" data-shot-chip-strip>
+      {/* 镜号横滑条:点击镜号才唤出,单行横滑;状态点一眼分辨(绿=当前版视频/琥珀=旧版
+          可看/蓝=渲染中/红=失败/灰=未生成);选中任一镜即收起,把布局还给当前镜详情。 */}
+      {ordered.length && stripOpen ? (
+        <div
+          id="shot-strip"
+          ref={stripRef}
+          aria-label="选择分镜镜头"
+          data-shot-chip-strip
+          className="flex gap-1 overflow-x-auto border-b border-border/60 bg-background/40 px-1 py-1.5"
+        >
           {rows.map(({ storyboard, videoUrl, fresh, job }) => {
             const running = job?.status === "running" || job?.status === "queued";
             const failed = job?.status === "failed";
-            const dotClass = fresh
-              ? "bg-success"
-              : videoUrl
-                ? "bg-warning"
-                : running
-                  ? "bg-info animate-pulse"
-                  : failed
-                    ? "bg-destructive"
-                    : "bg-muted-foreground/40";
             const active = storyboard.id === selected?.id;
             return (
               <button
@@ -160,14 +204,17 @@ export function ShotProductionOverview({
                 data-shot-chip={storyboard.id}
                 aria-pressed={active}
                 title={`S${String(storyboard.index).padStart(2, "0")} · ${fresh ? "已有当前版单镜视频" : videoUrl ? "有旧版单镜视频(内容已更新,需重渲)" : running ? "渲染中" : failed ? "渲染失败" : "未生成视频"}`}
-                className={`inline-flex items-center gap-1.5 rounded-md border px-1.5 py-1 font-mono text-[11px] leading-none transition-colors ${
+                className={`inline-flex shrink-0 items-center gap-1.5 rounded-md border px-1.5 py-1 font-mono text-[11px] leading-none transition-colors ${
                   active
                     ? "border-primary bg-primary/10 text-foreground"
                     : "border-border/70 bg-background/40 text-muted-foreground hover:border-primary/40 hover:text-foreground"
                 }`}
-                onClick={() => setSelectedId(storyboard.id)}
+                onClick={() => {
+                  setSelectedId(storyboard.id);
+                  setStripOpen(false);
+                }}
               >
-                <span className={`h-1.5 w-1.5 rounded-full ${dotClass}`} />
+                <span className={`h-1.5 w-1.5 rounded-full ${shotDotClass({ fresh, videoUrl, job })}`} />
                 {String(storyboard.index).padStart(2, "0")}
               </button>
             );
@@ -225,7 +272,7 @@ export function ShotProductionOverview({
             {/* 单镜视频 */}
             <figure className="flex min-w-0 flex-col gap-1.5">
               <figcaption className="text-[11px] font-medium text-muted-foreground">单镜视频（含旁白配音与音效）</figcaption>
-              <div className="flex h-56 items-center justify-center overflow-hidden rounded-md border border-border/70 bg-black">
+              <div className={`flex ${DETAIL_MEDIA_BOX_CLASS} items-center justify-center overflow-hidden rounded-md border border-border/70 bg-black`}>
                 {selectedRow.videoUrl ? (
                   <video
                     controls
@@ -249,7 +296,7 @@ export function ShotProductionOverview({
             {/* 分镜画面:完整显示零裁切 */}
             <figure className="flex min-w-0 flex-col gap-1.5">
               <figcaption className="text-[11px] font-medium text-muted-foreground">分镜画面</figcaption>
-              <div className="relative flex h-56 items-center justify-center overflow-hidden rounded-md border border-border/70 bg-muted/30">
+              <div className={`relative flex ${DETAIL_MEDIA_BOX_CLASS} items-center justify-center overflow-hidden rounded-md border border-border/70 bg-muted/30`}>
                 {mediaPath ? (
                   <>
                     <PreviewImage
@@ -270,7 +317,7 @@ export function ShotProductionOverview({
             {/* 本镜音频 */}
             <figure className="flex min-w-0 flex-col gap-1.5">
               <figcaption className="text-[11px] font-medium text-muted-foreground">本镜音频</figcaption>
-              <div className="flex h-56 flex-col gap-2 overflow-y-auto rounded-md border border-border/70 bg-background/40 p-2.5">
+              <div className={`flex ${DETAIL_MEDIA_BOX_CLASS} flex-col gap-2 overflow-y-auto rounded-md border border-border/70 bg-background/40 p-2.5`}>
                 {selected.shotAudioBindings?.length ? (
                   selected.shotAudioBindings.map((binding) => (
                     <ShotAudioRow key={binding.bindingId} binding={binding} />

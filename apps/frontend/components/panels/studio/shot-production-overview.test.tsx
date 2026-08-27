@@ -78,18 +78,23 @@ describe("ShotProductionOverview(单镜生产总览)", () => {
 
     expect(screen.getByText("2 个分镜 · 1 个视频 · 0 个画面 · 1 个旁白配音")).toBeTruthy();
     expect(screen.getByRole("button", { name: /返回节点图/ })).toBeTruthy();
-    // 默认选中 S01:视频已生成 + 旁白配音音频行
-    expect(screen.getByText("S01")).toBeTruthy();
+    // 默认选中 S01:视频已生成 + 旁白配音音频行;镜号横滑条默认收起,镜号按钮在头部
+    expect(screen.getAllByText("S01").length).toBeGreaterThan(0);
     expect(screen.getByText("单镜视频已生成")).toBeTruthy();
     expect(screen.getByText("旁白配音")).toBeTruthy();
     expect(document.querySelector("video")?.getAttribute("src")).toContain("project-file://");
     expect(document.querySelector("audio")).toBeTruthy();
+    expect(document.querySelector("[data-shot-chip-strip]")).toBeNull();
+    const toggle = document.querySelector("[data-shot-strip-toggle]")!;
+    expect(toggle.getAttribute("aria-expanded")).toBe("false");
+    expect(toggle.getAttribute("aria-controls")).toBe("shot-strip");
+    expect(toggle.getAttribute("aria-label")).toContain("展开镜号横滑条");
 
     fireEvent.click(screen.getByRole("button", { name: /返回节点图/ }));
     expect(onBackToCanvas).toHaveBeenCalledOnce();
   });
 
-  it("switches the detail panel when a shot chip is clicked", () => {
+  it("expands the horizontal shot strip from the shot-number toggle and collapses on pick", () => {
     render(
       <ShotProductionOverview
         projectId="project-a"
@@ -99,9 +104,31 @@ describe("ShotProductionOverview(单镜生产总览)", () => {
       />,
     );
 
-    expect(screen.getByText("单镜视频未生成")).toBeTruthy();
+    expect(document.querySelector("[data-shot-chip-strip]")).toBeNull();
+    const toggle = document.querySelector("[data-shot-strip-toggle]")!;
+    fireEvent.click(toggle);
+    const strip = document.querySelector("[data-shot-chip-strip]")!;
+    expect(strip.getAttribute("class")).toContain("overflow-x-auto");
+    expect(toggle.getAttribute("aria-expanded")).toBe("true");
+    expect(toggle.getAttribute("aria-label")).toContain("收起镜号横滑条");
+    expect(document.querySelector('[data-shot-chip="shot-001"]')!.getAttribute("aria-pressed")).toBe("true");
+    expect(document.querySelector('[data-shot-chip="shot-002"]')).toBeTruthy();
+
+    // 点选其他镜:详情切换 + 横滑条收起
     fireEvent.click(document.querySelector('[data-shot-chip="shot-002"]')!);
     expect(screen.getByText("赵四俯身指向老苦力。")).toBeTruthy();
+    expect(document.querySelector("[data-shot-chip-strip]")).toBeNull();
+    expect(toggle.getAttribute("aria-expanded")).toBe("false");
+
+    // 再次点击镜号按钮可重新展开,且新选中镜处于按下态
+    fireEvent.click(toggle);
+    expect(toggle.getAttribute("aria-expanded")).toBe("true");
+    expect(document.querySelector('[data-shot-chip="shot-002"]')!.getAttribute("aria-pressed")).toBe("true");
+
+    // 点选当前镜同样收起横滑条
+    fireEvent.click(document.querySelector('[data-shot-chip="shot-002"]')!);
+    expect(document.querySelector("[data-shot-chip-strip]")).toBeNull();
+    expect(toggle.getAttribute("aria-expanded")).toBe("false");
   });
 
   it("marks running and failed shots on the chip strip via job status", () => {
@@ -143,5 +170,6 @@ describe("ShotProductionOverview(单镜生产总览)", () => {
     render(<ShotProductionOverview projectId="project-a" storyboards={[]} jobs={[]} currentShotSlots={[]} />);
     expect(screen.getByText("尚无分镜,请先生成分镜表")).toBeTruthy();
     expect(document.querySelector("[data-shot-chip-strip]")).toBeNull();
+    expect(document.querySelector("[data-shot-strip-toggle]")).toBeNull();
   });
 });
