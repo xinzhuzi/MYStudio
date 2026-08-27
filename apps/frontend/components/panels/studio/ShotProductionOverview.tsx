@@ -58,8 +58,14 @@ export function ShotProductionOverview({
   );
   const [selectedId, setSelectedId] = useState<string>();
   const [stripOpen, setStripOpen] = useState(false);
+  const [audioExpanded, setAudioExpanded] = useState(false);
   const stripRef = useRef<HTMLDivElement>(null);
   const selected = ordered.find((item) => item.id === selectedId) ?? ordered[0];
+
+  // 换镜即收起:音频面板跟着镜头走,新镜默认只留一行汇总(用户裁定 08-27 二轮)。
+  useEffect(() => {
+    setAudioExpanded(false);
+  }, [selected?.id]);
 
   // 展开横滑条时把当前镜滚入视野居中,两侧相邻镜同时可见(jsdom 无布局引擎,守卫跳过)。
   useEffect(() => {
@@ -135,6 +141,14 @@ export function ShotProductionOverview({
   const selectedRow = rows.find((row) => row.storyboard.id === selected?.id);
   const mediaPath =
     selected?.mediaRef?.kind === "image" ? selected.mediaRef.path : undefined;
+  const audioBindings = selected?.shotAudioBindings ?? [];
+  const voiceCount = audioBindings.filter((binding) => binding.role === "voice").length;
+  const audioSummaryLine = [
+    voiceCount ? `旁白配音 ${voiceCount} 条` : "",
+    audioBindings.length - voiceCount ? `音效 ${audioBindings.length - voiceCount} 条` : "",
+  ]
+    .filter(Boolean)
+    .join(" · ");
 
   return (
     <section
@@ -314,20 +328,55 @@ export function ShotProductionOverview({
               </div>
             </figure>
 
-            {/* 本镜音频 */}
+            {/* 本镜音频:默认一行汇总,点开才逐条试听;换镜自动收起,跟着镜头走 */}
             <figure className="flex min-w-0 flex-col gap-1.5">
-              <figcaption className="text-[11px] font-medium text-muted-foreground">本镜音频</figcaption>
-              <div className={`flex ${DETAIL_MEDIA_BOX_CLASS} flex-col gap-2 overflow-y-auto rounded-md border border-border/70 bg-background/40 p-2.5`}>
-                {selected.shotAudioBindings?.length ? (
-                  selected.shotAudioBindings.map((binding) => (
-                    <ShotAudioRow key={binding.bindingId} binding={binding} />
-                  ))
+              <figcaption className="flex min-w-0 items-center justify-between gap-2 text-[11px] font-medium text-muted-foreground">
+                <span>本镜音频</span>
+                {audioBindings.length ? (
+                  <button
+                    type="button"
+                    data-shot-audio-toggle
+                    aria-expanded={audioExpanded}
+                    title={audioExpanded ? "收起音频列表" : "展开音频列表,逐条试听"}
+                    onClick={() => setAudioExpanded((open) => !open)}
+                    className="inline-flex shrink-0 items-center gap-0.5 rounded-md px-1 py-0.5 font-normal transition-colors hover:text-foreground"
+                  >
+                    {audioExpanded ? "收起" : "展开"}
+                    <ChevronDown
+                      className={`h-3 w-3 motion-safe:transition-transform ${audioExpanded ? "rotate-180" : ""}`}
+                    />
+                  </button>
+                ) : null}
+              </figcaption>
+              <div
+                data-shot-audio-state={audioBindings.length && audioExpanded ? "expanded" : "collapsed"}
+                className={`flex ${DETAIL_MEDIA_BOX_CLASS} flex-col rounded-md border border-border/70 bg-background/40 p-2.5 ${
+                  audioBindings.length && audioExpanded
+                    ? "gap-2 overflow-y-auto"
+                    : "items-center justify-center gap-1.5 text-center"
+                }`}
+              >
+                {audioBindings.length && audioExpanded ? (
+                  <>
+                    {audioBindings.map((binding) => (
+                      <ShotAudioRow key={binding.bindingId} binding={binding} />
+                    ))}
+                    <p className="mt-auto text-[10px] leading-4 text-muted-foreground">
+                      旁白配音与音效已压进单镜视频;背景音乐、环境声只在全章成片里混入。
+                    </p>
+                  </>
                 ) : (
-                  <span className="text-[11px] text-muted-foreground">本镜未绑定音频</span>
+                  <>
+                    <span className={audioBindings.length ? "text-xs text-foreground" : "text-[11px] text-muted-foreground"}>
+                      {audioBindings.length ? audioSummaryLine : "本镜未绑定音频"}
+                    </span>
+                    {audioBindings.length ? (
+                      <span className="text-[10px] leading-4 text-muted-foreground">
+                        已压进单镜视频;需要单独核对音轨时再展开试听
+                      </span>
+                    ) : null}
+                  </>
                 )}
-                <p className="mt-auto text-[10px] leading-4 text-muted-foreground">
-                  旁白配音与音效已压进单镜视频;背景音乐、环境声只在全章成片里混入。
-                </p>
               </div>
             </figure>
           </div>

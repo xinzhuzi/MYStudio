@@ -81,9 +81,14 @@ describe("ShotProductionOverview(单镜生产总览)", () => {
     // 默认选中 S01:视频已生成 + 旁白配音音频行;镜号横滑条默认收起,镜号按钮在头部
     expect(screen.getAllByText("S01").length).toBeGreaterThan(0);
     expect(screen.getByText("单镜视频已生成")).toBeTruthy();
-    expect(screen.getByText("旁白配音")).toBeTruthy();
     expect(document.querySelector("video")?.getAttribute("src")).toContain("project-file://");
+    // 音频默认收起:一行汇总、试听器不进 DOM;点开才逐条可听
+    expect(document.querySelector("[data-shot-audio-state]")!.getAttribute("data-shot-audio-state")).toBe("collapsed");
+    expect(document.querySelector("audio")).toBeNull();
+    expect(screen.getByText("旁白配音 1 条")).toBeTruthy();
+    fireEvent.click(document.querySelector("[data-shot-audio-toggle]")!);
     expect(document.querySelector("audio")).toBeTruthy();
+    expect(screen.getByText("旁白配音")).toBeTruthy();
     expect(document.querySelector("[data-shot-chip-strip]")).toBeNull();
     const toggle = document.querySelector("[data-shot-strip-toggle]")!;
     expect(toggle.getAttribute("aria-expanded")).toBe("false");
@@ -129,6 +134,31 @@ describe("ShotProductionOverview(单镜生产总览)", () => {
     fireEvent.click(document.querySelector('[data-shot-chip="shot-002"]')!);
     expect(document.querySelector("[data-shot-chip-strip]")).toBeNull();
     expect(toggle.getAttribute("aria-expanded")).toBe("false");
+  });
+
+  it("collapses the audio panel again when switching to another shot", () => {
+    render(
+      <ShotProductionOverview
+        projectId="project-a"
+        storyboards={[
+          shot({ id: "shot-001", index: 1, shotAudioBindings: [voiceBinding("shot-001") as never] }),
+          shot({ id: "shot-002", index: 2, shotAudioBindings: [voiceBinding("shot-002") as never] }),
+        ]}
+        jobs={[]}
+        currentShotSlots={[]}
+      />,
+    );
+
+    fireEvent.click(document.querySelector("[data-shot-audio-toggle]")!);
+    expect(document.querySelector("[data-shot-audio-state]")!.getAttribute("data-shot-audio-state")).toBe("expanded");
+    expect(document.querySelectorAll("audio").length).toBe(1);
+
+    // 经横滑条切到 S02:音频面板自动收起,汇总跟着新镜走
+    fireEvent.click(document.querySelector("[data-shot-strip-toggle]")!);
+    fireEvent.click(document.querySelector('[data-shot-chip="shot-002"]')!);
+    expect(document.querySelector("[data-shot-audio-state]")!.getAttribute("data-shot-audio-state")).toBe("collapsed");
+    expect(document.querySelector("audio")).toBeNull();
+    expect(screen.getByText("旁白配音 1 条")).toBeTruthy();
   });
 
   it("marks running and failed shots on the chip strip via job status", () => {
