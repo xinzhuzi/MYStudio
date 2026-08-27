@@ -14,6 +14,7 @@ import { PythonSettingsTab } from "./PythonSettingsTab";
 import { DepthSettingsSection } from "./DepthSettingsSection";
 import { LocalImageSettingsSection } from "./LocalImageSettingsSection";
 import { UpscaleSettingsSection } from "./UpscaleSettingsSection";
+import { VlmReviewSettingsSection } from "./VlmReviewSettingsSection";
 import { VideoQcSettingsSection } from "./VideoQcSettingsSection";
 import { LocalAudioSettingsSection } from "./LocalAudioSettingsSection";
 import { SfxGenSettingsSection } from "./SfxGenSettingsSection";
@@ -26,7 +27,7 @@ const LocalTtsPanelLazy = lazy(() => import("@/components/panels/tts/LocalTtsPan
 /** 大区块折叠记忆键：值为被折叠区块 id 数组；无记忆时默认全折叠（08-18 用户拍板）。 */
 const SECTION_STORAGE_KEY = "mystudio.settings.plugins.collapsedSections";
 
-const SECTION_IDS = ["python", "depth", "image-gen", "upscale", "video-qc", "audio", "video"] as const;
+const SECTION_IDS = ["python", "depth", "image-gen", "upscale", "vlm-review", "video-qc", "audio", "video"] as const;
 
 type SectionId = (typeof SECTION_IDS)[number];
 
@@ -231,6 +232,23 @@ export function PluginSettingsTab() {
             </CollapsibleTrigger>
             <CollapsibleContent className="border-t border-border">
               <UpscaleSettingsSection embedded />
+            </CollapsibleContent>
+          </Collapsible>
+        </section>
+
+        <section aria-labelledby="plugin-vlm-review-heading" className="rounded-xl border border-border bg-card/30">
+          <Collapsible open={!collapsedSections.has("vlm-review")} onOpenChange={() => toggleSectionCollapsed("vlm-review")}>
+            <CollapsibleTrigger className="w-full text-left">
+              <div className="px-5 py-4 flex items-start justify-between gap-3">
+                <div className="space-y-2">
+                  <h4 id="plugin-vlm-review-heading" className="text-base font-semibold text-foreground">视觉审核（VLM 一致性检查）</h4>
+                  <p className="text-xs text-muted-foreground">本地 Qwen3-VL 视觉模型,自动比对生成的分镜图与资产参考图,判断角色/服装/场景是否一致(依赖上方 Python 运行环境)。模型仅在用户点击下载时获取,审核时绝不自动下载。</p>
+                </div>
+                {sectionChevron("vlm-review")}
+              </div>
+            </CollapsibleTrigger>
+            <CollapsibleContent className="border-t border-border">
+              <VlmReviewSettingsSection embedded />
             </CollapsibleContent>
           </Collapsible>
         </section>

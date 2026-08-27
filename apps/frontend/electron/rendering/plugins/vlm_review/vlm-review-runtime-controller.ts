@@ -1,0 +1,128 @@
+// Copyright (c) 2025 hotflow2024
+/** VLM Review runtime controller — lifecycle + inference scheduling + artifact verification.
+ *  沿 upscale-runtime-controller.ts 模式(文件中介 worker CLI + sha256 回验)。 */
+
+import { execFile } from "node:child_process";
+import { promises as fs } from "node:fs";
+import path from "node:path";
+import { promisify } from "node:util";
+import type {
+  VlmReviewArtifactV1,
+  VlmReviewProbeResult,
+  VlmReviewRunPayload,
+  VlmDownloadProgress,
+} from "../../../../types/contracts/vlm-review-workflow";
+import {
+  buildVlmReviewProbeArgs,
+  buildVlmReviewWorkerArgs,
+} from "./vlm-review-runtime";
+
+const execFileAsync = promisify(execFile);
+const VLM_RUN_TIMEOUT_MS = 60_000; // 含冷装载(首次 30~60s)
+
+export interface VlmReviewRuntimeConfig {
+  pythonExecutable: string;
+  backendRoot: string;
+  storageBasePath: string;
+  resolveProjectFilePath: (url: string) => Promise<string | null>;
+}
+
+export class VlmReviewRuntimeController {
+  private readonly config: VlmReviewRuntimeConfig;
+
+  constructor(config: VlmReviewRuntimeConfig) {
+    this.config = config;
+  }
+
+  async probeReadiness(): Promise<VlmReviewProbeResult> {
+    try {
+      const { stdout } = await execFileAsync(
+        this.config.pythonExecutable,
+        buildVlmReviewProbeArgs(),
+        { cwd: this.config.backendRoot, env: { ...process.env, PYTHONPATH: this.config.backendRoot }, timeout: 15_000 },
+      );
+      const parsed = JSON.parse(stdout.trim()) as Partial<VlmReviewProbeResult>;
+      return {
+        status: parsed.status === "ready" ? "ready" : "blocked",
+        hardwareProfile: parsed.hardwareProfile,
+        mlxVlmAvailable: Boolean(parsed.mlxVlmAvailable),
+        mlxVlmVersion: parsed.mlxVlmVersion,
+        modelDir: parsed.modelDir ?? null,
+        code: parsed.code ?? null,
+        message: parsed.message ?? null,
+      };
+    } catch {
+      return { status: "blocked", mlxVlmAvailable: false, modelDir: null, code: "probe-failed", message: "VLM 运行时探测失败" };
+    }
+  }
+
+  async runReview(payload: VlmReviewRunPayload): Promise<VlmReviewArtifactV1> {
+    // 解析 project-file:// → 绝对路径
+    const generatedAbs = await this.resolvePath(payload.generatedImagePath);
+    const refImages = await Promise.all(
+      (payload.referenceImages ?? []).map(async (ref) => ({
+        ...ref,
+        path: (await this.resolvePath(ref.path)) ?? ref.path,
+      })),
+    );
+
+    const workspaceDir = path.join(this.config.storageBasePath, "profiles", "vlm-review", "runs", `${Date.now()}`);
+    await fs.mkdir(workspaceDir, { recursive: true });
+    const requestPath = path.join(workspaceDir, "request.json");
+    const artifactPath = path.join(workspaceDir, "artifact.json");
+
+    try {
+      await fs.writeFile(requestPath, JSON.stringify({ ...payload, generatedImagePath: generatedAbs, referenceImages: refImages }, null, 2));
+      const { stdout } = await execFileAsync(
+        this.config.pythonExecutable,
+        buildVlmReviewWorkerArgs(requestPath, artifactPath),
+        { cwd: this.config.backendRoot, env: { ...process.env, PYTHONPATH: this.config.backendRoot }, timeout: VLM_RUN_TIMEOUT_MS },
+      );
+      // Read artifact from file (more reliable than stdout for large payloads)
+      const artifactRaw = await fs.readFile(artifactPath, "utf-8").catch(() => stdout.trim());
+      const artifact = JSON.parse(artifactRaw) as VlmReviewArtifactV1;
+      // 回验:projectId/shotId 一致性
+      if (artifact.projectId !== payload.projectId || artifact.shotId !== payload.shotId) {
+        return this.blocked("artifact-mismatch", "审核产物与请求不匹配(防篡改校验失败)");
+      }
+      return artifact;
+    } catch (error) {
+      const stderr = (error as { stderr?: string }).stderr ?? "";
+      if (stderr.includes("exit code 2")) {
+        // blocked 结果(exit 2 也有完整 artifact)
+        try {
+          const artifactRaw = await fs.readFile(artifactPath, "utf-8");
+          return JSON.parse(artifactRaw) as VlmReviewArtifactV1;
+        } catch { /* fall through */ }
+      }
+      return this.blocked("run-failed", `VLM 审核执行失败: ${String(error).slice(0, 200)}`);
+    } finally {
+      await fs.rm(workspaceDir, { recursive: true, force: true }).catch(() => undefined);
+    }
+  }
+
+  async getDownloadProgress(progressFile: string): Promise<VlmDownloadProgress> {
+    try {
+      const raw = await fs.readFile(progressFile, "utf-8");
+      return JSON.parse(raw) as VlmDownloadProgress;
+    } catch {
+      return { status: "idle" };
+    }
+  }
+
+  private blocked(code: string, message: string): VlmReviewArtifactV1 {
+    return {
+      schemaVersion: 1, projectId: "", shotId: "", status: "blocked",
+      model: "", checks: {}, reasons: [], inferenceMs: 0, inputSha256: "",
+      code, message, generatedAt: Date.now(),
+    };
+  }
+
+  private async resolvePath(inputPath: string): Promise<string> {
+    if (inputPath.startsWith("project-file://")) {
+      const resolved = await this.config.resolveProjectFilePath(inputPath);
+      return resolved ?? inputPath;
+    }
+    return inputPath;
+  }
+}

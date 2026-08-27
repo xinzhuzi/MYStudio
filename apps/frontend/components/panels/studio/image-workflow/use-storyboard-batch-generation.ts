@@ -5,6 +5,7 @@ import { createBatchFailureReporter } from "../batch-failure-toast";
 import { createOperationId, logEvent } from "@/lib/diagnostics/logger";
 import { buildStoryboardImageWorkflowPatch } from "@/lib/studio/image-workflow";
 import { useStudioStore } from "@/stores/studio/studio-store";
+import { useProjectStore } from "@/stores/project/project-store";
 import type { StoryboardItem } from "@/types/studio";
 import { buildStoryboardItemOpenContext } from "../storyboard-open-context";
 import { getStudioAssetsBridge } from "@/lib/bridge/studio-assets";
@@ -154,6 +155,62 @@ function countMissingFrames(shot: StoryboardItem): number {
   return shot.keyframes.filter((frame) => !frame.mediaRef?.path).length;
 }
 
+
+/** VLM 视觉一致性审核:成图 vs 资产参考图(fail-open,模型未装=null 跳过)。 */
+async function reviewFrame(
+  imageUrl: string,
+  shot: StoryboardItem,
+): Promise<{ status: string; reasons: string[] } | null> {
+  const bridge = typeof window !== "undefined" ? window.vlmReview : undefined;
+  if (!bridge?.run) return null;
+  try {
+    const probe = await bridge.probe();
+    if (probe.status !== "ready") return null;
+    const referenceImages = (shot.orderedReferenceManifest ?? [])
+      .filter((ref) => ref.imagePath)
+      .map((ref) => ({
+        path: ref.imagePath!,
+        role: ((ref.assetKind as string) ?? "character") as "scene" | "character" | "prop",
+        assetName: ref.assetName ?? ref.assetId,
+      }));
+    if (referenceImages.length === 0) return null;
+    return await bridge.run({
+      schemaVersion: 1,
+      projectId: useProjectStore.getState().activeProjectId ?? "unknown",
+      shotId: shot.id,
+      generatedImagePath: imageUrl,
+      referenceImages,
+      expectedContent: shot.videoDesc || shot.prompt || "",
+      expectedCharacters: shot.associateAssetsNames ?? [],
+    });
+  } catch {
+    return null;
+  }
+}
+
+const VLM_MAX_RETRIES = 1;
+
+/** 生成+VLM审核循环:通过=返回 / rejected=重生一次 / 两次rejected=抛错。 */
+async function generateWithVlmReview(
+  graph: NonNullable<ReturnType<typeof findStoryboardWorkflowForContext>>,
+  targetNodeId: string,
+  shot: StoryboardItem,
+  opts: { addMaterial: ReturnType<typeof useStudioStore.getState>["addMaterial"] },
+): Promise<{ imageUrl: string; vlmStatus: string | null }> {
+  for (let attempt = 0; attempt <= VLM_MAX_RETRIES; attempt++) {
+    const { imageUrl } = await runImageWorkflowNodeGeneration(graph, targetNodeId, opts);
+    if (!imageUrl) throw new Error("生成结果为空");
+    const artifact = await reviewFrame(imageUrl, shot);
+    if (!artifact || artifact.status !== "rejected") {
+      return { imageUrl, vlmStatus: artifact?.status ?? null };
+    }
+    if (attempt === VLM_MAX_RETRIES) {
+      throw new Error(`VLM 审核不通过:${(artifact.reasons ?? []).join(";").slice(0, 120)}`);
+    }
+  }
+  throw new Error("VLM 审核不通过");
+}
+
 /**
  * 单镜执行:找既有分镜工作流(打开链同口径匹配)→无则全装配建流→生图→回写分镜。
  * M3a 多帧:按 frameId 序逐帧串行生成(帧间链 gen(k-1)→gen(k) 自动喂上一帧
@@ -221,7 +278,7 @@ async function generateOneShot(
   if (promptLength > 800) {
     throw new Error(`提示词 ${promptLength} 字符超 800 正文门,需精炼后再生成`);
   }
-  const { imageUrl } = await runImageWorkflowNodeGeneration(graph, targetNodeId, {
+  const { imageUrl } = await generateWithVlmReview(graph, targetNodeId, shot, {
     addMaterial: useStudioStore.getState().addMaterial,
   });
   if (!imageUrl) throw new Error("生成结果为空");
@@ -242,7 +299,7 @@ async function runFrameGenerationAndWriteback(
   frame: NonNullable<StoryboardItem["keyframes"]>[number],
   frameNodeId: string,
 ): Promise<void> {
-  const { imageUrl } = await runImageWorkflowNodeGeneration(graph, frameNodeId, {
+  const { imageUrl } = await generateWithVlmReview(graph, frameNodeId, shot, {
     addMaterial: useStudioStore.getState().addMaterial,
   });
   if (!imageUrl) throw new Error("生成结果为空");

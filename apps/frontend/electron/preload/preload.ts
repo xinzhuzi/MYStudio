@@ -796,6 +796,27 @@ contextBridge.exposeInMainWorld('upscaleRuntime', {
     ipcRenderer.invoke('upscale-runtime-delete-model', model),
 })
 
+// VLM Review runtime API — local visual consistency checking via Qwen3-VL.
+// Downloads are explicit and user-triggered; inference never auto-downloads.
+// Missing model = skip review (fail-open), does not block generation.
+contextBridge.exposeInMainWorld('vlmReview', {
+  probe: (): Promise<unknown> => ipcRenderer.invoke('vlm-review-runtime-probe'),
+  setup: (): Promise<unknown> => ipcRenderer.invoke('vlm-review-runtime-setup'),
+  downloadModel: (): Promise<unknown> => ipcRenderer.invoke('vlm-review-model-download'),
+  getDownloadProgress: (): Promise<unknown> => ipcRenderer.invoke('vlm-review-model-progress'),
+  deleteModel: (): Promise<unknown> => ipcRenderer.invoke('vlm-review-model-delete'),
+  run: (payload: {
+    schemaVersion: number
+    projectId: string
+    shotId: string
+    frameId?: string
+    generatedImagePath: string
+    referenceImages: Array<{ path: string; role: string; assetName: string; promptHint?: string }>
+    expectedContent: string
+    expectedCharacters: string[]
+  }): Promise<unknown> => ipcRenderer.invoke('vlm-review-run', payload),
+})
+
 // Chapter video QC (DOVER 观感层) runtime API — explicit downloads only,
 // mirrors the upscale runtime bridge. QC 层缺模型=跳过+标注,不阻塞出片。
 contextBridge.exposeInMainWorld('videoQcRuntime', {
