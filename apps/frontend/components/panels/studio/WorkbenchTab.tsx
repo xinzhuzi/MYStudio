@@ -33,6 +33,7 @@ import { SceneSegmentExportDialog, SceneSegmentExportProgress } from "./SceneSeg
 import type { RemotionQueueScopeState } from "./useRemotionQueueScope";
 import { toast } from "sonner";
 import { VideoWorkflowReviewPanel } from "./VideoWorkflowReviewPanel";
+import { ShotProductionOverview } from "./ShotProductionOverview";
 import type { VideoUseDerivedInputPolicy, VideoUseStoryboardSourcePolicy } from "@rendering/contracts/video-workflow";
 import type { SubtitleAuthority } from "@/types/editing";
 
@@ -44,6 +45,8 @@ export function WorkbenchTab(props: {
   aspectRatio?: string;
   storyboards: ReturnType<typeof useStudioStore.getState>["storyboards"];
   remotionShotSlots?: RemotionCurrentSlotV1[];
+  /** 返回工作流节点图(单镜生产/工作台阶段顶部「返回节点图」按钮) */
+  onBackToCanvas?: () => void;
   /** Legacy fixture compatibility; formal UI never reads these fields. */
   tracks?: ReturnType<typeof useStudioStore.getState>["productionTracks"];
   candidates?: ReturnType<typeof useStudioStore.getState>["videoCandidates"];
@@ -399,6 +402,14 @@ export function WorkbenchTab(props: {
   }, [firstShotAbsoluteOutputPath]);
   return (
     <div className="space-y-3" data-studio-workbench>
+      <ShotProductionOverview
+        projectId={props.projectId ?? activeProjectId ?? undefined}
+        storyboards={currentChapterStoryboards}
+        jobs={queueScope.jobs}
+        currentShotSlots={queueScope.currentShotSlots}
+        queueLoading={queueScope.loading}
+        onBackToCanvas={props.onBackToCanvas}
+      />
       <VisualContinuityReviewPanel
         storyboards={props.storyboards}
         continuityAssetVersions={continuityAssetVersions}
@@ -509,13 +520,12 @@ export function WorkbenchTab(props: {
             }}
           />
           <SceneSegmentExportProgress items={sceneSegmentExport.pendingJobStatuses} />
+          {/* 指纹值仅作测试/探针数据钩子,不对用户展示(2026-08-26 裁定:界面不出现指纹类术语) */}
           <span
-            className="pb-2 text-muted-foreground"
+            className="sr-only"
             data-video-use-revision={editing.videoUseRevision ? String(editing.videoUseRevision) : ""}
             data-video-use-input-sha={editing.videoUseInputSha ?? ""}
-          >
-            输入指纹 {editing.videoUseInputSha ? `${editing.videoUseInputSha.slice(0, 12)}…` : "-"}
-          </span>
+          />
         </div>
         <output
           className="sr-only"
@@ -536,8 +546,8 @@ export function WorkbenchTab(props: {
         onAccepted={async () => { await editing.applyVideoWorkflow(); }}
       />
       <section aria-label="章节共享音频配置" className="rounded-lg border border-border bg-card px-4 py-3 text-xs">
-        <div className="flex items-center justify-between"><span className="font-semibold">章节共享音频（BGM / 环境）</span><span className="text-muted-foreground">{chapterAudioStatus}{chapterManifest ? ` · 修订 ${chapterManifest.revision}` : ""}</span></div>
-        <p className="mt-1 text-muted-foreground">非时间线配置：{chapterManifest?.sharedAudioBindings.length ?? 0} 条共享音频绑定。voice/SFX 已烘入 StoryboardShot MP4；BGM/环境声只由 ChapterVideo 统一混入。编辑仍由原生 Remotion Studio 负责。</p>
+        <div className="flex items-center justify-between"><span className="font-semibold">章节共享音频（BGM / 环境）</span><span className="text-muted-foreground">{chapterAudioStatus}{chapterManifest ? ` · 第 ${chapterManifest.revision} 版` : ""}</span></div>
+        <p className="mt-1 text-muted-foreground">音频配置：{chapterManifest?.sharedAudioBindings.length ?? 0} 条全章共享音频。旁白配音和音效已压进每条单镜 MP4；背景音乐、环境声只在全章成片里统一混入。编辑仍在原生 Remotion Studio。</p>
         <div className="mt-3 flex flex-wrap gap-2">
           {(["bgm", "ambience"] as const).map((role) => (
             <Button key={role} size="sm" variant="outline" disabled={!chapterManifest || chapterAudioBusy} onClick={() => { void importSharedAudio(role); }}>
@@ -641,7 +651,7 @@ export function WorkbenchTab(props: {
           </span>
         </div>
         <p className="mt-1 text-muted-foreground">
-          直接使用当前章节 S01 的真实画面与 voice/SFX 绑定，通过 Remotion 队列生成项目内单镜 MP4，不需要终端命令。
+          直接使用当前章节 S01 的真实画面与配音、音效，通过 Remotion 队列生成项目内单镜 MP4，不需要终端命令。
         </p>
         {firstStoryboard ? (
           <div className="mt-3 flex flex-wrap items-center justify-between gap-2 rounded border border-border/70 bg-background/30 p-2">
@@ -684,7 +694,7 @@ export function WorkbenchTab(props: {
           <span className="font-semibold">分镜音频状态与操作</span>
           <span className="text-muted-foreground">{queueScope.loading ? "读取队列…" : `${props.storyboards.length} 个分镜`}</span>
         </div>
-        <p className="mt-1 text-muted-foreground">voice/TTS 与 SFX 只进入对应 StoryboardShot MP4；章节共享 BGM/环境声不会重复烘入单镜。</p>
+        <p className="mt-1 text-muted-foreground">旁白配音与音效只进入对应的单镜 MP4；全章共享的背景音乐、环境声不会重复压进单镜。</p>
         <div className="mt-3 space-y-2">
           {currentChapterStoryboards.map((storyboard) => {
             const job = selectCurrentShotJobForStoryboard(storyboard, queueScope.jobs, queueScope.currentShotSlots);
@@ -720,12 +730,12 @@ export function WorkbenchTab(props: {
                     ) : null}
                   </div>
                   <div className="mt-1 text-[10px] text-muted-foreground">
-                    TTS {voice?.ttsInputFingerprint ? "已绑定" : "缺失"} · SFX {sfx ? "已绑定" : "未引用"} · revision {storyboard.outputVersion ?? 1}
+                    旁白配音 {voice?.ttsInputFingerprint ? "已绑定" : "缺失"} · 音效 {sfx ? "已绑定" : "未添加"} · 第 {storyboard.outputVersion ?? 1} 版
                   </div>
                 </div>
                 <div className="flex flex-wrap gap-1.5">
-                  <Button size="sm" variant="outline" disabled={!chapterManifest || chapterAudioBusy} onClick={() => { void importShotSfx(storyboard.id); }}>导入 SFX</Button>
-                  <Button size="sm" variant="outline" disabled={!chapterManifest || chapterAudioBusy} onClick={() => openSfxGenerate(storyboard.id, `#${storyboard.index + 1}`)}>生成 SFX</Button>
+                  <Button size="sm" variant="outline" disabled={!chapterManifest || chapterAudioBusy} onClick={() => { void importShotSfx(storyboard.id); }}>导入音效</Button>
+                  <Button size="sm" variant="outline" disabled={!chapterManifest || chapterAudioBusy} onClick={() => openSfxGenerate(storyboard.id, `#${storyboard.index + 1}`)}>生成音效</Button>
                   {job && (job.status === "failed" || job.status === "canceled" || job.status === "stale") ? (
                     <Button size="sm" variant="outline" disabled={chapterAudioBusy} onClick={() => { void handleShotQueueAction(job, "retry"); }}>重试分镜</Button>
                   ) : null}

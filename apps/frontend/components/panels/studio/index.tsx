@@ -154,6 +154,7 @@ export function StudioView() {
                 aspectRatio={viewModel.aspectRatio}
                 storyboards={viewModel.chapterStoryboards}
                 remotionShotSlots={viewModel.remotionShotSlots ?? []}
+                onBackToCanvas={() => viewModel.handleStageChange("storyboard")}
               />
             </TabsContent>
 
