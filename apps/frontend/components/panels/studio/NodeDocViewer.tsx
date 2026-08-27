@@ -106,20 +106,22 @@ function TableRender({ node }: { node: ProductionFlowNodeModel }) {
   const rows = node.tableRows ?? [];
   if (!rows.length) return <p className="text-sm text-muted-foreground">暂无分镜表数据</p>;
   const cols = [
-    { label: "序号", cls: "w-14 text-center" },
-    { label: "画面", cls: "min-w-[220px]" },
-    { label: "景别", cls: "w-16" },
-    { label: "运镜", cls: "w-20" },
-    { label: "角色动作", cls: "min-w-[140px]" },
-    { label: "台词", cls: "min-w-[200px]" },
-    { label: "时长", cls: "w-16 text-center" },
+    { label: "序号", cls: "w-16 text-center" },
+    { label: "画面", cls: "min-w-[420px]" },
+    { label: "景别", cls: "w-20" },
+    { label: "运镜", cls: "w-28" },
+    { label: "角色动作", cls: "min-w-[260px]" },
+    { label: "台词", cls: "min-w-[380px]" },
+    { label: "时长", cls: "w-20 text-center" },
   ] as const;
   return (
-    <table className="w-full min-w-[1000px] border-collapse text-[13px] leading-6">
+    /* 宽于常规弹窗内容区(92vw 弹窗约 1300px 可视)才会产生横向滚动——
+       min-w 必须 > 弹窗内容宽,否则 w-full 永不溢出、横滚永远不触发 */
+    <table className="w-full min-w-[1500px] border-collapse text-[13px] leading-6">
       <thead>
-        <tr className="border-b-2 border-border text-left text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+        <tr className="text-left text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
           {cols.map((col) => (
-            <th key={col.label} className={`px-4 py-3 ${col.cls}`}>{col.label}</th>
+            <th key={col.label} className={`sticky top-0 border-b-2 border-border bg-card px-4 py-3 ${col.cls}`}>{col.label}</th>
           ))}
         </tr>
       </thead>
