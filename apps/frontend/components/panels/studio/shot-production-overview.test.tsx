@@ -122,6 +122,23 @@ describe("ShotProductionOverview(单镜生产总览)", () => {
     expect(document.querySelector('[data-shot-video-status="running"]')).toBeTruthy();
   });
 
+  it("falls back to the latest succeeded job as a clearly-labeled stale video", () => {
+    const base = makeCurrentSlot();
+    const staleJob = { ...base.job, target: { ...base.job.target, shotRevision: 1 } };
+    render(
+      <ShotProductionOverview
+        projectId="project-a"
+        storyboards={[shot({ id: "shot-001", index: 1, outputVersion: 3 })]}
+        jobs={[staleJob]}
+        currentShotSlots={[]}
+      />,
+    );
+    expect(screen.getByText(/旧版单镜视频\(第 1 版产物\)/)).toBeTruthy();
+    expect(document.querySelector("video")?.getAttribute("src")).toContain("project-file://");
+    expect(screen.getByText("1 个分镜 · 0 个视频 · 1 个旧版可看 · 0 个画面 · 0 个旁白配音")).toBeTruthy();
+    expect(document.querySelector('[data-shot-video-status="stale"]')).toBeTruthy();
+  });
+
   it("renders the empty state without chips", () => {
     render(<ShotProductionOverview projectId="project-a" storyboards={[]} jobs={[]} currentShotSlots={[]} />);
     expect(screen.getByText("尚无分镜,请先生成分镜表")).toBeTruthy();

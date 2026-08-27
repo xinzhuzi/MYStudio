@@ -43,7 +43,8 @@ export function ShotProductionOverview({
   const [selectedId, setSelectedId] = useState<string>();
   const selected = ordered.find((item) => item.id === selectedId) ?? ordered[0];
 
-  /** 每镜视频产物状态:current slot(当前修订版的最新产物)优先,回退队列任务 */
+  /** 每镜视频产物:当前修订版 slot 优先;无 slot 时回退该镜最新成功任务
+   *  (跨修订版=旧版产物,显式标注不冒充当前版——防旧音配新词门禁同源纪律)。 */
   const rows = useMemo(
     () =>
       ordered.map((storyboard) => {
@@ -65,16 +66,40 @@ export function ShotProductionOverview({
               && item.target.shotRevision === revision
               && (item.status === "running" || item.status === "queued"),
           );
-        const videoUrl =
+        const freshUrl =
           slot?.outputPath && projectId
             ? buildProjectFileUrl(projectId, `remotion/${slot.outputPath}`)
             : null;
-        return { storyboard, slot, job, videoUrl };
+        const staleJob = freshUrl
+          ? undefined
+          : jobs
+              .filter(
+                (item) =>
+                  item.target.kind === "shot"
+                  && item.target.chapterId === storyboard.episodeId
+                  && item.target.shotId === storyboard.id
+                  && item.status === "succeeded"
+                  && item.outputPath,
+              )
+              .sort((left, right) => (right.completedAt ?? 0) - (left.completedAt ?? 0))[0];
+        const staleUrl =
+          staleJob?.outputPath && projectId
+            ? buildProjectFileUrl(projectId, `remotion/${staleJob.outputPath}`)
+            : null;
+        return {
+          storyboard,
+          job,
+          videoUrl: freshUrl ?? staleUrl,
+          videoStaleRevision:
+            staleUrl && staleJob?.target.kind === "shot" ? staleJob.target.shotRevision : undefined,
+          fresh: Boolean(freshUrl),
+        };
       }),
     [ordered, currentShotSlots, jobs, projectId],
   );
 
-  const readyVideos = rows.filter((row) => row.videoUrl).length;
+  const readyVideos = rows.filter((row) => row.fresh).length;
+  const staleVideos = rows.filter((row) => !row.fresh && row.videoUrl).length;
   const withImage = ordered.filter((item) => item.mediaRef?.kind === "image").length;
   const withVoice = ordered.filter((item) =>
     item.shotAudioBindings?.some((binding) => binding.role === "voice"),
@@ -106,25 +131,27 @@ export function ShotProductionOverview({
           <h3 className="text-base font-semibold text-foreground">单镜生产总览</h3>
           <span className="text-sm text-muted-foreground">
             {ordered.length
-              ? `${ordered.length} 个分镜 · ${readyVideos} 个视频 · ${withImage} 个画面 · ${withVoice} 个旁白配音${queueLoading ? " · 读取渲染队列…" : ""}`
+              ? `${ordered.length} 个分镜 · ${readyVideos} 个视频${staleVideos ? ` · ${staleVideos} 个旧版可看` : ""} · ${withImage} 个画面 · ${withVoice} 个旁白配音${queueLoading ? " · 读取渲染队列…" : ""}`
               : "尚无分镜,请先生成分镜表"}
           </span>
         </div>
       </div>
 
-      {/* 镜号选择条:状态点一眼分辨(绿=有视频 / 蓝=渲染中 / 红=失败 / 灰=未生成) */}
+      {/* 镜号选择条:状态点一眼分辨(绿=当前版视频 / 琥珀=旧版可看 / 蓝=渲染中 / 红=失败 / 灰=未生成) */}
       {ordered.length ? (
         <div className="flex flex-wrap gap-1" data-shot-chip-strip>
-          {rows.map(({ storyboard, videoUrl, job }) => {
+          {rows.map(({ storyboard, videoUrl, fresh, job }) => {
             const running = job?.status === "running" || job?.status === "queued";
             const failed = job?.status === "failed";
-            const dotClass = videoUrl
+            const dotClass = fresh
               ? "bg-success"
-              : running
-                ? "bg-info animate-pulse"
-                : failed
-                  ? "bg-destructive"
-                  : "bg-muted-foreground/40";
+              : videoUrl
+                ? "bg-warning"
+                : running
+                  ? "bg-info animate-pulse"
+                  : failed
+                    ? "bg-destructive"
+                    : "bg-muted-foreground/40";
             const active = storyboard.id === selected?.id;
             return (
               <button
@@ -132,7 +159,7 @@ export function ShotProductionOverview({
                 type="button"
                 data-shot-chip={storyboard.id}
                 aria-pressed={active}
-                title={`S${String(storyboard.index).padStart(2, "0")} · ${videoUrl ? "已有单镜视频" : running ? "渲染中" : failed ? "渲染失败" : "未生成视频"}`}
+                title={`S${String(storyboard.index).padStart(2, "0")} · ${fresh ? "已有当前版单镜视频" : videoUrl ? "有旧版单镜视频(内容已更新,需重渲)" : running ? "渲染中" : failed ? "渲染失败" : "未生成视频"}`}
                 className={`inline-flex items-center gap-1.5 rounded-md border px-1.5 py-1 font-mono text-[11px] leading-none transition-colors ${
                   active
                     ? "border-primary bg-primary/10 text-foreground"
@@ -162,22 +189,26 @@ export function ShotProductionOverview({
               <span
                 className="rounded px-1.5 py-0.5 text-[10px] font-medium"
                 data-shot-video-status={
-                  selectedRow.videoUrl
+                  selectedRow.fresh
                     ? "ready"
-                    : selectedRow.job?.status === "running"
-                      ? "running"
-                      : selectedRow.job?.status === "failed"
-                        ? "failed"
-                        : "none"
+                    : selectedRow.videoUrl
+                      ? "stale"
+                      : selectedRow.job?.status === "running"
+                        ? "running"
+                        : selectedRow.job?.status === "failed"
+                          ? "failed"
+                          : "none"
                 }
               >
-                {selectedRow.videoUrl
+                {selectedRow.fresh
                   ? "单镜视频已生成"
-                  : selectedRow.job?.status === "running"
-                    ? `渲染中 ${Math.round((selectedRow.job.progress ?? 0) * 100)}%`
-                    : selectedRow.job?.status === "failed"
-                      ? "渲染失败"
-                      : "单镜视频未生成"}
+                  : selectedRow.videoUrl
+                    ? `旧版单镜视频(第 ${selectedRow.videoStaleRevision ?? "?"} 版产物) · 当前内容已更新,需重渲`
+                    : selectedRow.job?.status === "running"
+                      ? `渲染中 ${Math.round((selectedRow.job.progress ?? 0) * 100)}%`
+                      : selectedRow.job?.status === "failed"
+                        ? "渲染失败"
+                        : "单镜视频未生成"}
               </span>
             </div>
             <p className="mt-1.5 text-xs leading-5 text-foreground">
