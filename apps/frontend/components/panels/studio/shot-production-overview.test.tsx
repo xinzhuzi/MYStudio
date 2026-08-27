@@ -82,13 +82,14 @@ describe("ShotProductionOverview(单镜生产总览)", () => {
     expect(screen.getAllByText("S01").length).toBeGreaterThan(0);
     expect(screen.getByText("单镜视频已生成")).toBeTruthy();
     expect(document.querySelector("video")?.getAttribute("src")).toContain("project-file://");
-    // 音频默认收起:一行汇总、试听器不进 DOM;点开才逐条可听
-    expect(document.querySelector("[data-shot-audio-state]")!.getAttribute("data-shot-audio-state")).toBe("collapsed");
+    // 声音三卡(配音/音效/BGM)默认收起:试听器不进 DOM;点「试听」才逐条可听
     expect(document.querySelector("audio")).toBeNull();
-    expect(screen.getByText("旁白配音 1 条")).toBeTruthy();
-    fireEvent.click(document.querySelector("[data-shot-audio-toggle]")!);
+    expect(document.querySelector('[data-shot-sound-card="voice"]')!.textContent).toContain("1 条");
+    expect(document.querySelector('[data-shot-sound-card="sfx"]')!.textContent).toContain("本镜无");
+    expect(document.querySelector('[data-shot-sound-card="bgm"]')).toBeTruthy();
+    fireEvent.click(document.querySelector('[data-shot-audio-toggle="voice"]')!);
     expect(document.querySelector("audio")).toBeTruthy();
-    expect(screen.getByText("旁白配音")).toBeTruthy();
+    expect(screen.getAllByText("旁白配音").length).toBeGreaterThan(1);
     expect(document.querySelector("[data-shot-chip-strip]")).toBeNull();
     const toggle = document.querySelector("[data-shot-strip-toggle]")!;
     expect(toggle.getAttribute("aria-expanded")).toBe("false");
@@ -149,16 +150,14 @@ describe("ShotProductionOverview(单镜生产总览)", () => {
       />,
     );
 
-    fireEvent.click(document.querySelector("[data-shot-audio-toggle]")!);
-    expect(document.querySelector("[data-shot-audio-state]")!.getAttribute("data-shot-audio-state")).toBe("expanded");
+    fireEvent.click(document.querySelector('[data-shot-audio-toggle="voice"]')!);
     expect(document.querySelectorAll("audio").length).toBe(1);
 
-    // 经横滑条切到 S02:音频面板自动收起,汇总跟着新镜走
+    // 经横滑条切到 S02:试听卡自动收起,条数跟着新镜走
     fireEvent.click(document.querySelector("[data-shot-strip-toggle]")!);
     fireEvent.click(document.querySelector('[data-shot-chip="shot-002"]')!);
-    expect(document.querySelector("[data-shot-audio-state]")!.getAttribute("data-shot-audio-state")).toBe("collapsed");
     expect(document.querySelector("audio")).toBeNull();
-    expect(screen.getByText("旁白配音 1 条")).toBeTruthy();
+    expect(document.querySelector('[data-shot-sound-card="voice"]')!.textContent).toContain("1 条");
   });
 
   it("marks running and failed shots on the chip strip via job status", () => {

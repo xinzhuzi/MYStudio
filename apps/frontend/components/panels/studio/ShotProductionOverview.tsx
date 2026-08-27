@@ -12,9 +12,11 @@ import type {
   RemotionShotAudioBindingV2,
 } from "@/types/remotion-workspace";
 
-/** 详情媒体框高度:宽屏三栏占满首屏剩余可视高度(视口相对+22rem 下限);
- * 窄屏纵向堆叠时回落固定 h-56,避免三栏各吃一屏把页面拉得过长。 */
-const DETAIL_MEDIA_BOX_CLASS = "h-56 lg:h-[max(22rem,calc(100vh-25rem))]";
+/** 视频主角框:宽屏全宽占满首屏剩余可视高度(视口相对+24rem 下限);
+ * 窄屏回落固定 h-64。 */
+const VIDEO_HERO_CLASS = "h-64 lg:h-[max(24rem,calc(100vh-22rem))]";
+/** 分镜画面参考框:优先级最低,居中收窄、中高即可。 */
+const IMAGE_BOX_CLASS = "h-72 lg:h-96";
 
 function shotDotClass(row: {
   fresh: boolean;
@@ -58,13 +60,15 @@ export function ShotProductionOverview({
   );
   const [selectedId, setSelectedId] = useState<string>();
   const [stripOpen, setStripOpen] = useState(false);
-  const [audioExpanded, setAudioExpanded] = useState(false);
+  const [voiceOpen, setVoiceOpen] = useState(false);
+  const [sfxOpen, setSfxOpen] = useState(false);
   const stripRef = useRef<HTMLDivElement>(null);
   const selected = ordered.find((item) => item.id === selectedId) ?? ordered[0];
 
-  // 换镜即收起:音频面板跟着镜头走,新镜默认只留一行汇总(用户裁定 08-27 二轮)。
+  // 换镜即收起:试听卡跟着镜头走,新镜默认只看条数(用户裁定 08-27 二轮)。
   useEffect(() => {
-    setAudioExpanded(false);
+    setVoiceOpen(false);
+    setSfxOpen(false);
   }, [selected?.id]);
 
   // 展开横滑条时把当前镜滚入视野居中,两侧相邻镜同时可见(jsdom 无布局引擎,守卫跳过)。
@@ -142,13 +146,8 @@ export function ShotProductionOverview({
   const mediaPath =
     selected?.mediaRef?.kind === "image" ? selected.mediaRef.path : undefined;
   const audioBindings = selected?.shotAudioBindings ?? [];
-  const voiceCount = audioBindings.filter((binding) => binding.role === "voice").length;
-  const audioSummaryLine = [
-    voiceCount ? `旁白配音 ${voiceCount} 条` : "",
-    audioBindings.length - voiceCount ? `音效 ${audioBindings.length - voiceCount} 条` : "",
-  ]
-    .filter(Boolean)
-    .join(" · ");
+  const voiceBindings = audioBindings.filter((binding) => binding.role === "voice");
+  const sfxBindings = audioBindings.filter((binding) => binding.role !== "voice");
 
   return (
     <section
@@ -275,42 +274,72 @@ export function ShotProductionOverview({
             <p className="mt-1.5 text-xs leading-5 text-foreground">
               {selected.videoDesc || selected.prompt}
             </p>
-            {selected.lines ? (
-              <p className="mt-1 border-l-2 border-primary/40 pl-2 text-xs leading-5 text-muted-foreground">
-                {selected.lines}
-              </p>
-            ) : null}
           </div>
 
-          <div className="grid gap-3 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,0.85fr)_minmax(0,1fr)]">
-            {/* 单镜视频 */}
-            <figure className="flex min-w-0 flex-col gap-1.5">
-              <figcaption className="text-[11px] font-medium text-muted-foreground">单镜视频（含旁白配音与音效）</figcaption>
-              <div className={`flex ${DETAIL_MEDIA_BOX_CLASS} items-center justify-center overflow-hidden rounded-md border border-border/70 bg-black`}>
-                {selectedRow.videoUrl ? (
-                  <video
-                    controls
-                    preload="metadata"
-                    src={selectedRow.videoUrl}
-                    className="h-full w-full object-contain"
-                    data-shot-video={selected.id}
-                  />
-                ) : (
-                  <span className="px-4 text-center text-[11px] text-muted-foreground">
-                    {selectedRow.job?.status === "running"
-                      ? `渲染中 ${Math.round((selectedRow.job.progress ?? 0) * 100)}%`
-                      : selectedRow.job?.status === "failed"
-                        ? "渲染失败,可在下方分镜音频操作区重试"
-                        : "尚未生成单镜视频"}
-                  </span>
-                )}
-              </div>
-            </figure>
+          {/* 纵向优先级栈(用户裁定 08-27 三轮):视频主角 → 字幕台词 → 配音/音效/BGM → 图片 */}
+          <figure className="flex min-w-0 flex-col gap-1.5">
+            <figcaption className="text-[11px] font-medium text-muted-foreground">单镜视频（含旁白配音与音效）</figcaption>
+            <div className={`flex ${VIDEO_HERO_CLASS} items-center justify-center overflow-hidden rounded-md border border-border/70 bg-black`}>
+              {selectedRow.videoUrl ? (
+                <video
+                  controls
+                  preload="metadata"
+                  src={selectedRow.videoUrl}
+                  className="h-full w-full object-contain"
+                  data-shot-video={selected.id}
+                />
+              ) : (
+                <span className="px-4 text-center text-[11px] text-muted-foreground">
+                  {selectedRow.job?.status === "running"
+                    ? `渲染中 ${Math.round((selectedRow.job.progress ?? 0) * 100)}%`
+                    : selectedRow.job?.status === "failed"
+                      ? "渲染失败,可在下方分镜音频操作区重试"
+                      : "尚未生成单镜视频"}
+                </span>
+              )}
+            </div>
+          </figure>
 
-            {/* 分镜画面:完整显示零裁切 */}
-            <figure className="flex min-w-0 flex-col gap-1.5">
-              <figcaption className="text-[11px] font-medium text-muted-foreground">分镜画面</figcaption>
-              <div className={`relative flex ${DETAIL_MEDIA_BOX_CLASS} items-center justify-center overflow-hidden rounded-md border border-border/70 bg-muted/30`}>
+          {/* 字幕台词:紧随视频,边看边读 */}
+          {selected.lines ? (
+            <div className="rounded-md border border-border/60 bg-background/40 px-3 py-2">
+              <p className="text-[11px] font-medium text-muted-foreground">字幕台词</p>
+              <p className="mt-0.5 text-sm leading-6 text-foreground">{selected.lines}</p>
+            </div>
+          ) : null}
+
+          {/* 声音三卡:配音 → 音效 → 背景BGM;试听默认收起,换镜自动重置 */}
+          <div className="grid gap-3 md:grid-cols-3">
+            <ShotSoundCard
+              kind="voice"
+              label="旁白配音"
+              bindings={voiceBindings}
+              open={voiceOpen}
+              onToggle={() => setVoiceOpen((open) => !open)}
+            />
+            <ShotSoundCard
+              kind="sfx"
+              label="音效"
+              bindings={sfxBindings}
+              open={sfxOpen}
+              onToggle={() => setSfxOpen((open) => !open)}
+            />
+            <section
+              data-shot-sound-card="bgm"
+              className="flex min-w-0 flex-col gap-1 rounded-md border border-border/60 bg-background/40 p-2.5"
+            >
+              <span className="text-[11px] font-medium text-foreground">背景BGM</span>
+              <p className="text-xs leading-5 text-muted-foreground">
+                章级配置,不压进单镜视频;全章成片时统一铺底混入。
+              </p>
+            </section>
+          </div>
+
+          {/* 分镜画面:参照材料殿后,居中收窄 */}
+          <figure className="flex min-w-0 flex-col gap-1.5">
+            <figcaption className="text-[11px] font-medium text-muted-foreground">分镜画面</figcaption>
+            <div className="mx-auto w-full max-w-2xl">
+              <div className={`relative flex ${IMAGE_BOX_CLASS} items-center justify-center overflow-hidden rounded-md border border-border/70 bg-muted/30`}>
                 {mediaPath ? (
                   <>
                     <PreviewImage
@@ -326,60 +355,54 @@ export function ShotProductionOverview({
                   <span className="text-[11px] text-muted-foreground">未生成分镜图</span>
                 )}
               </div>
-            </figure>
+            </div>
+          </figure>
+        </div>
+      ) : null}
+    </section>
+  );
+}
 
-            {/* 本镜音频:默认一行汇总,点开才逐条试听;换镜自动收起,跟着镜头走 */}
-            <figure className="flex min-w-0 flex-col gap-1.5">
-              <figcaption className="flex min-w-0 items-center justify-between gap-2 text-[11px] font-medium text-muted-foreground">
-                <span>本镜音频</span>
-                {audioBindings.length ? (
-                  <button
-                    type="button"
-                    data-shot-audio-toggle
-                    aria-expanded={audioExpanded}
-                    title={audioExpanded ? "收起音频列表" : "展开音频列表,逐条试听"}
-                    onClick={() => setAudioExpanded((open) => !open)}
-                    className="inline-flex shrink-0 items-center gap-0.5 rounded-md px-1 py-0.5 font-normal transition-colors hover:text-foreground"
-                  >
-                    {audioExpanded ? "收起" : "展开"}
-                    <ChevronDown
-                      className={`h-3 w-3 motion-safe:transition-transform ${audioExpanded ? "rotate-180" : ""}`}
-                    />
-                  </button>
-                ) : null}
-              </figcaption>
-              <div
-                data-shot-audio-state={audioBindings.length && audioExpanded ? "expanded" : "collapsed"}
-                className={`flex ${DETAIL_MEDIA_BOX_CLASS} flex-col rounded-md border border-border/70 bg-background/40 p-2.5 ${
-                  audioBindings.length && audioExpanded
-                    ? "gap-2 overflow-y-auto"
-                    : "items-center justify-center gap-1.5 text-center"
-                }`}
-              >
-                {audioBindings.length && audioExpanded ? (
-                  <>
-                    {audioBindings.map((binding) => (
-                      <ShotAudioRow key={binding.bindingId} binding={binding} />
-                    ))}
-                    <p className="mt-auto text-[10px] leading-4 text-muted-foreground">
-                      旁白配音与音效已压进单镜视频;背景音乐、环境声只在全章成片里混入。
-                    </p>
-                  </>
-                ) : (
-                  <>
-                    <span className={audioBindings.length ? "text-xs text-foreground" : "text-[11px] text-muted-foreground"}>
-                      {audioBindings.length ? audioSummaryLine : "本镜未绑定音频"}
-                    </span>
-                    {audioBindings.length ? (
-                      <span className="text-[10px] leading-4 text-muted-foreground">
-                        已压进单镜视频;需要单独核对音轨时再展开试听
-                      </span>
-                    ) : null}
-                  </>
-                )}
-              </div>
-            </figure>
-          </div>
+function ShotSoundCard({
+  kind,
+  label,
+  bindings,
+  open,
+  onToggle,
+}: {
+  kind: "voice" | "sfx";
+  label: string;
+  bindings: RemotionShotAudioBindingV2[];
+  open: boolean;
+  onToggle: () => void;
+}) {
+  return (
+    <section
+      data-shot-sound-card={kind}
+      className="flex min-w-0 flex-col gap-1 rounded-md border border-border/60 bg-background/40 p-2.5"
+    >
+      <div className="flex items-center justify-between gap-2">
+        <span className="text-[11px] font-medium text-foreground">{label}</span>
+        {bindings.length ? (
+          <button
+            type="button"
+            data-shot-audio-toggle={kind}
+            aria-expanded={open}
+            title={open ? `收起${label}试听` : `展开${label}试听`}
+            onClick={onToggle}
+            className="inline-flex shrink-0 items-center gap-0.5 rounded-md px-1 py-0.5 text-[11px] font-normal text-muted-foreground transition-colors hover:text-foreground"
+          >
+            {open ? "收起" : "试听"}
+            <ChevronDown className={`h-3 w-3 motion-safe:transition-transform ${open ? "rotate-180" : ""}`} />
+          </button>
+        ) : null}
+      </div>
+      <p className="text-xs text-muted-foreground">{bindings.length ? `${bindings.length} 条` : "本镜无"}</p>
+      {open && bindings.length ? (
+        <div data-shot-audio-rows={kind} className="flex flex-col gap-2">
+          {bindings.map((binding) => (
+            <ShotAudioRow key={binding.bindingId} binding={binding} />
+          ))}
         </div>
       ) : null}
     </section>
