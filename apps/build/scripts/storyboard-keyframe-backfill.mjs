@@ -168,7 +168,11 @@ function main() {
       const ratio = (c.center - newPoint.start) / (newPoint.end - newPoint.start || 1);
       const inUs = frameIndex === 0
         ? 0
-        : Math.max(500_000, Math.round((ratio * newPoint.durationUs) / 500_000) * 500_000);
+        : Math.min(
+            // 上钳:末帧至少留 0.5s 画面(27/36 镜实弹坑:比例取整压满镜长被写入口校验拒)
+            newPoint.durationUs - 500_000,
+            Math.max(500_000, Math.round((ratio * newPoint.durationUs) / 500_000) * 500_000),
+          );
       return {
         frameId: `${newPoint.item.id}-kf-${frameIndex + 1}`,
         legacyIndex: c.legacyIndex + 1,
