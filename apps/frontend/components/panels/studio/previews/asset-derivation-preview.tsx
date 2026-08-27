@@ -49,6 +49,14 @@ export function AssetDerivationPreview({
           />
         </div>
       ) : null}
+      {summary?.planStale ? (
+        <div
+          className="asset-derive-plan-stale flex items-center gap-1.5 rounded-md border border-viz-glow/25 bg-viz-glow/5 px-2.5 py-1.5 text-[10px] text-warning/80"
+          title="剧本改过了，这份清单是按旧剧本规划的，重跑导演规划可更新。"
+        >
+          <span className="font-semibold">预划已过期·建议重跑导演规划</span>
+        </div>
+      ) : null}
       <div className="asset-derive-type-switch grid grid-cols-4 gap-1 rounded-md border border-border bg-muted/20 p-1">
         {filters.map((filter) => {
           const selected = activeType === filter.id;

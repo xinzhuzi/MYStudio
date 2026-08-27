@@ -319,8 +319,14 @@ export function buildProductionFlowModel(
     flowData.assets,
     input.scriptPlans,
     input.assetMediaById,
-    // R2 交叉核对吃章过滤后的分镜(与 chapterStoryboards 同一份数据)
-    { chapterStoryboards },
+    // R2 交叉核对吃章过滤后的分镜(与 chapterStoryboards 同一份数据);
+    // 二期 R1 透传当前章剧本指纹给 derivation summary 做 planStale 比对
+    {
+      chapterStoryboards,
+      ...(input.currentScriptFingerprint !== undefined
+        ? { currentScriptFingerprint: input.currentScriptFingerprint }
+        : {}),
+    },
   );
   const assetMetrics = assetCounts.total
     ? [

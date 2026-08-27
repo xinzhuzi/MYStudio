@@ -27,6 +27,11 @@ import type {
 export interface BuildAssetDerivationOptions {
   chapterStoryboards?: StoryboardItem[];
   continuityAssetVersions?: ContinuityAssetVersion[];
+  /**
+   * 08-27 二期 R1:当前章剧本正文指纹(scriptPlanSourceFingerprint)。传入才
+   * 做 planStale 比对;不传 = 静默(无指纹存量 plan 同样静默)。
+   */
+  currentScriptFingerprint?: string;
 }
 
 export function buildAssetDerivationModel(
@@ -166,6 +171,17 @@ export function buildAssetDerivationModel(
     : emptyCrossCheckResult();
   summary.unused = crossCheck.unused.length;
   summary.unplanned = crossCheck.unplanned.length;
+  // 08-27 二期 R1 预划剧本锚比对:本章 plan 盖过指纹且与当前剧本正文指纹
+  // 不一致 → planStale(预划已过期,只提示不重跑)。存量 plan 无指纹、或调用
+  // 方未传当前指纹 → 不设(静默,漏报优于误报)。
+  summary.planStale =
+    options?.currentScriptFingerprint !== undefined
+    && summary.planned > 0
+    && scriptPlans.some(
+      (plan) =>
+        plan.scriptFingerprint !== undefined
+        && plan.scriptFingerprint !== options?.currentScriptFingerprint,
+    );
   const unplannedByParent = new Map<string, ProductionFlowAssetGroupUnplanned[]>();
   for (const item of crossCheck.unplanned) {
     const list = unplannedByParent.get(item.parentAssetId) ?? [];

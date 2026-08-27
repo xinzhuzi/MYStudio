@@ -21,6 +21,9 @@ import { createSceneSegmentSliceActions } from "./scene-segment-slice";
 import { createAgentWorkSliceActions } from "./agent-work-slice";
 import { createStoryboardSliceActions } from "./storyboard-slice";
 import { groupStoryboardsIntoTracks } from "@/lib/studio/production";
+// 08-27 二期 R2:锚写入的父媒体路径改走共享候选解析(纯函数,零运行时依赖,
+// 与面板 buildWorkbenchAssetMediaMap 同一取图事实源)
+import { resolveAssetCurrentMediaPaths } from "@/components/panels/studio/workflow-asset-media-path";
 import {
   createHumanContinuityAssetApproval,
  
@@ -671,17 +674,20 @@ export const useStudioStore = create<StudioWorkflowStore>()(
         // 媒体路径(v1 主判据)+ 父最新批准连续性指纹(加强判据,取不到就只写
         // 路径)。锚只写衍生记录:character 需 target.parentId、scene 记录需带
         // parentSceneId、prop 记录需带 parentId;父资产自身没有父,不写锚。
-        // 注意:父媒体路径的取图优先级必须与 WorkbenchTab.buildWorkbenchAssetMediaMap
-        // 完全一致,否则面板比对会假报「过期」。
-        const latestApprovedFingerprint = (assetId: string) => {
+        // 08-27 二期 R2:父媒体路径改走共享候选解析(连续性最新批准图优先,
+        // legacy 链兜底),与 WorkbenchTab.buildWorkbenchAssetMediaMap 同一函数,
+        // 「两侧优先级必须一致」从注释约定升级为结构保证。
+        const latestApprovedVersion = (assetId: string) => {
           const approved = get().continuityAssetVersions
             .filter((version) => version.assetId === assetId && version.approved)
             .sort((left, right) =>
               (right.approval?.reviewedAt ?? 0) - (left.approval?.reviewedAt ?? 0)
               || right.versionId.localeCompare(left.versionId),
             );
-          return approved[0]?.contentFingerprint;
+          return approved[0];
         };
+        const latestApprovedFingerprint = (assetId: string) =>
+          latestApprovedVersion(assetId)?.contentFingerprint;
         const buildParentAnchor = (
           parentMediaPath: string | undefined,
           parentFingerprint: string | undefined,
@@ -700,9 +706,11 @@ export const useStudioStore = create<StudioWorkflowStore>()(
             .getState()
             .characters.find((char) => char.id === target.parentId);
           const parentMediaPath = parent
-            ? parent.thumbnailUrl
-              ?? parent.views.find((view) => view.imageUrl)?.imageUrl
-              ?? parent.referenceImages?.[0]
+            ? resolveAssetCurrentMediaPaths({
+                kind: "character",
+                character: parent,
+                latestApprovedVersion: latestApprovedVersion(parent.id),
+              })[0]
             : undefined;
           useCharacterLibraryStore.getState().updateVariation(target.parentId, target.id, {
             referenceImage: patch.imageUrl,
@@ -721,11 +729,11 @@ export const useStudioStore = create<StudioWorkflowStore>()(
             ? useSceneStore.getState().scenes.find((item) => item.id === scene.parentSceneId)
             : undefined;
           const parentMediaPath = parentScene
-            ? parentScene.referenceImage
-              ?? parentScene.referenceImageBase64
-              ?? (parentScene.contactSheetImage?.trim()
-                ? parentScene.contactSheetImage
-                : undefined)
+            ? resolveAssetCurrentMediaPaths({
+                kind: "scene",
+                scene: parentScene,
+                latestApprovedVersion: latestApprovedVersion(parentScene.id),
+              })[0]
             : undefined;
           useSceneStore.getState().updateScene(target.id, {
             referenceImage: patch.imageUrl,
@@ -741,12 +749,19 @@ export const useStudioStore = create<StudioWorkflowStore>()(
         const parentProp = prop?.parentId
           ? usePropsLibraryStore.getState().items.find((item) => item.id === prop.parentId)
           : undefined;
+        const parentMediaPath = parentProp
+          ? resolveAssetCurrentMediaPaths({
+              kind: "prop",
+              prop: parentProp,
+              latestApprovedVersion: latestApprovedVersion(parentProp.id),
+            })[0]
+          : undefined;
         usePropsLibraryStore.getState().updateProp(target.id, {
           imageUrl: patch.imageUrl,
           imageWorkflowId: patch.imageWorkflowId,
           imageWorkflowNodeId: patch.imageWorkflowNodeId,
           ...(parentProp
-            ? { parentAnchor: buildParentAnchor(parentProp.imageUrl, latestApprovedFingerprint(parentProp.id)) }
+            ? { parentAnchor: buildParentAnchor(parentMediaPath, latestApprovedFingerprint(parentProp.id)) }
             : {}),
         });
       },

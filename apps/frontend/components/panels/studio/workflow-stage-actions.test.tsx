@@ -24,6 +24,7 @@ import {
   resolveProductionEpisodeId,
   resolveScriptPlanEpisodeId,
   resolveScriptTextForEpisode,
+  scriptPlanSourceFingerprint,
 } from "./workflow-helpers";
 
 const assetOrchestratorMocks = vi.hoisted(() => ({
@@ -606,6 +607,64 @@ describe("workflow stage action surfaces", () => {
     );
     expect(diagnosticsWrite.mock.calls.find((call) => call[0].message === "directorPlan.audit.first")?.[0].context.audit.issueCodes).toContain(
       "legacy_three_block_format",
+    );
+  });
+
+  it("stamps the chapter script fingerprint on the director plan at writeback (二期 R1)", async () => {
+    useStudioStore.getState().resetStudioWorkflow();
+    installTextCompletionRuntime();
+    installDiagnosticsRuntime();
+    const saveAgentWorkData = vi.fn();
+    const saveScriptPlan = vi.fn();
+    const scriptText = "第一场金水河码头，独孤剑尘救下小杂役。第二场悦来客栈，断剑显露。";
+    aiManagerMocks.textStream.mockResolvedValue({ success: true, text: validSixSectionDirectorPlan() });
+    useStudioStore.setState({
+      agentWorkData: [
+        {
+          id: "script-draft-fp",
+          key: "scriptDraft",
+          episodeId: "chapter-001",
+          data: scriptText,
+          createdAt: 1,
+          updatedAt: 1,
+        },
+      ],
+      novelChapters: [],
+      scriptPlans: [],
+    });
+
+    const { result } = renderHook(() =>
+      useProductionPlanningActions({
+        activeProjectId: "dao-project",
+        productionEpisodeId: "chapter-001",
+        manualCatalog: { visual: [] } as any,
+        handleStageChange: vi.fn(),
+        saveAgentWorkData,
+        saveScriptPlan,
+        saveSeriesBible: vi.fn(),
+      }),
+    );
+
+    await act(async () => {
+      await result.current.handleProductionNodeAction({
+        id: "generate-director-plan",
+        targetStage: "storyboard",
+        userInstruction: "本次只做第一章铺垫",
+      });
+    });
+
+    expect(saveScriptPlan).toHaveBeenCalledTimes(1);
+    const savedPlan = saveScriptPlan.mock.calls[0]?.[0];
+    expect(savedPlan?.episodeId).toBe("chapter-001");
+    // 锚=同提取源+同公式的当前剧本指纹;userInstruction 不进锚
+    expect(savedPlan?.scriptFingerprint).toBe(
+      scriptPlanSourceFingerprint(
+        "chapter-001",
+        resolveScriptTextForEpisode(useStudioStore.getState(), "chapter-001"),
+      ),
+    );
+    expect(savedPlan?.scriptFingerprint).toBe(
+      scriptPlanSourceFingerprint("chapter-001", scriptText),
     );
   });
 

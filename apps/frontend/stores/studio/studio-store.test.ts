@@ -1061,6 +1061,67 @@ describe("studio workflow store", () => {
     expect(useSceneStore.getState().getSceneById(parentSceneId)?.parentAnchor).toBeUndefined();
   });
 
+  it("writes parent anchors from the continuity-first candidate when an approved version has images (二期 R2)", () => {
+    const characterId = useCharacterLibraryStore.getState().addCharacter({
+      name: "晏燎",
+      description: "少年修士",
+      visualTraits: "ink wash xianxia teen",
+      thumbnailUrl: "project-file://daojie/assets/legacy-thumb.png",
+      views: [],
+      variations: [
+        { id: "var-continuity-anchor", name: "战损", visualPrompt: "破衣血痕" },
+      ],
+    });
+    useStudioStore.setState({
+      continuityAssetVersions: [{
+        assetId: characterId,
+        versionId: `${characterId}:v2`,
+        assetKind: "character" as const,
+        label: "基础形象",
+        // 连续性最新批准版本带参考图:锚的父媒体路径取它的首图(候选首位)
+        referenceImagePaths: ["project-file://daojie/continuity/front.png"],
+        structurallyComplete: true,
+        contentFingerprint: "char-continuity-fp",
+        approved: true,
+        approval: { status: "approved", reviewer: "human", reviewedAt: 20, evidencePaths: [], contentFingerprint: "approval-fp" },
+        source: "test",
+      }],
+    });
+
+    let graph = createImageWorkflowGraph({
+      id: "asset-flow-character-continuity-anchor",
+      name: "角色衍生图",
+      target: { kind: "asset", assetType: "character", parentId: characterId, id: "var-continuity-anchor" },
+      createdAt: 7400,
+    });
+    graph = setGeneratedImageResult(
+      addGeneratedImageNode(graph, {
+        id: "gen-character-continuity",
+        prompt: "continuity anchor test",
+        position: { x: 620, y: 120 },
+        createdAt: graph.createdAt + 1,
+      }),
+      "gen-character-continuity",
+      {
+        imageUrl: "project-file://daojie/workflow-images/continuity/out.png",
+        generatedAt: graph.createdAt + 2,
+      },
+    );
+    useStudioStore.getState().upsertImageWorkflow(graph);
+    useStudioStore
+      .getState()
+      .applyImageWorkflowResultToAsset(graph.target, graph.id, "gen-character-continuity");
+
+    expect(
+      useCharacterLibraryStore.getState().getVariationById(characterId, "var-continuity-anchor"),
+    ).toMatchObject({
+      parentAnchor: {
+        parentMediaPath: "project-file://daojie/continuity/front.png",
+        parentContinuityFingerprint: "char-continuity-fp",
+      },
+    });
+  });
+
   it("replaces stale storyboard rows for the same episode without losing existing media", () => {
     const store = useStudioStore.getState();
 

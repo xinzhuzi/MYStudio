@@ -24,6 +24,7 @@ import { VisualContinuityReviewPanel } from "./VisualContinuityReviewPanel";
 import { useEditingWorkbenchActions } from "./useEditingWorkbenchActions";
 import { selectFirstStoryboard, useFirstShotPreviewActions } from "./use-first-shot-preview-actions";
 import { useRemotionQueueScope } from "./useRemotionQueueScope";
+import { resolveAssetCurrentMediaPaths } from "./workflow-asset-media-path";
 import { useSceneSegmentExport } from "./useSceneSegmentExport";
 import { SceneSegmentExportDialog, SceneSegmentExportProgress } from "./SceneSegmentExportDialog";
 import type { RemotionQueueScopeState } from "./useRemotionQueueScope";
@@ -910,13 +911,16 @@ export function buildWorkbenchAssetMediaMap(
   }
   const evaluateDerivedStale = (
     anchor: { parentMediaPath?: string; parentContinuityFingerprint?: string } | undefined,
-    parentCurrentPath: string | undefined,
+    parentCurrentCandidates: string[],
     parentAssetId: string | undefined,
   ): boolean | undefined => {
     if (!anchor) return undefined;
+    // 08-27 二期 R2:命中候选集合任一即不算路径过期——一期锚值是当时 legacy 链
+    // 首位(通常 thumbnailUrl),该资产出现连续性版本后 candidates[0] 切到连续性
+    // 图,若仍只比「首位」会全量假报过期;宁可漏报,指纹漂移仍是权威判据。
     if (
-      anchor.parentMediaPath !== undefined
-      && anchor.parentMediaPath !== (parentCurrentPath ?? "")
+      anchor.parentMediaPath
+      && !parentCurrentCandidates.includes(anchor.parentMediaPath)
     ) {
       return true;
     }
@@ -933,10 +937,14 @@ export function buildWorkbenchAssetMediaMap(
     return undefined;
   };
   for (const character of characters) {
-    const path =
-      character.thumbnailUrl ??
-      character.views.find((view) => view.imageUrl)?.imageUrl ??
-      character.referenceImages?.[0];
+    // 二期 R2:父卡显示与锚比对共用同一候选解析(连续性最新批准图优先,
+    // 无连续性版本时 legacy 链行为与一期完全一致)。
+    const parentCandidates = resolveAssetCurrentMediaPaths({
+      kind: "character",
+      character,
+      latestApprovedVersion: latestApprovedByAssetId.get(character.id),
+    });
+    const path = parentCandidates[0];
     if (path) {
       entries[character.id] = {
         id: character.id,
@@ -964,23 +972,32 @@ export function buildWorkbenchAssetMediaMap(
           parentId: character.id,
           id: variation.id,
         },
-        stale: evaluateDerivedStale(variation.parentAnchor, path, character.id),
+        stale: evaluateDerivedStale(variation.parentAnchor, parentCandidates, character.id),
       };
     }
   }
   for (const scene of scenes) {
-    const path =
-      scene.referenceImage ??
-      scene.referenceImageBase64 ??
-      getOptionalStringField(scene, "contactSheetImage");
+    // 基础场景(无 parentSceneId)是父卡:显示切连续性最新批准图优先;
+    // 视角变体保持自身取图链不变。
+    const path = scene.parentSceneId
+      ? scene.referenceImage
+        ?? scene.referenceImageBase64
+        ?? getOptionalStringField(scene, "contactSheetImage")
+      : resolveAssetCurrentMediaPaths({
+          kind: "scene",
+          scene,
+          latestApprovedVersion: latestApprovedByAssetId.get(scene.id),
+        })[0];
     const parentScene = scene.parentSceneId
       ? scenes.find((item) => item.id === scene.parentSceneId)
       : undefined;
-    const parentPath = parentScene
-      ? parentScene.referenceImage
-        ?? parentScene.referenceImageBase64
-        ?? getOptionalStringField(parentScene, "contactSheetImage")
-      : undefined;
+    const parentCandidates = parentScene
+      ? resolveAssetCurrentMediaPaths({
+          kind: "scene",
+          scene: parentScene,
+          latestApprovedVersion: latestApprovedByAssetId.get(parentScene.id),
+        })
+      : [];
     entries[scene.id] = {
       id: scene.id,
       name: scene.viewpointName || scene.name,
@@ -1000,18 +1017,33 @@ export function buildWorkbenchAssetMediaMap(
             id: scene.id,
           }
         : undefined,
-      stale: evaluateDerivedStale(scene.parentAnchor, parentPath, scene.parentSceneId),
+      stale: evaluateDerivedStale(scene.parentAnchor, parentCandidates, scene.parentSceneId),
     };
   }
   for (const item of propsItems) {
     const parentProp = item.parentId
       ? propsItems.find((prop) => prop.id === item.parentId)
       : undefined;
+    // 基础道具(无 parentId)是父卡:显示切连续性最新批准图优先;衍生道具保持自身图。
+    const path = item.parentId
+      ? item.imageUrl
+      : resolveAssetCurrentMediaPaths({
+          kind: "prop",
+          prop: item,
+          latestApprovedVersion: latestApprovedByAssetId.get(item.id),
+        })[0];
+    const parentCandidates = parentProp
+      ? resolveAssetCurrentMediaPaths({
+          kind: "prop",
+          prop: parentProp,
+          latestApprovedVersion: latestApprovedByAssetId.get(parentProp.id),
+        })
+      : [];
     entries[item.id] = {
       id: item.id,
       name: item.category || item.name,
       fileType: "image",
-      path: item.imageUrl,
+      path,
       prompt: item.visualPrompt || item.description,
       parentAssetId: item.parentId,
       parentAssetName: parentProp?.name,
@@ -1026,7 +1058,7 @@ export function buildWorkbenchAssetMediaMap(
             id: item.id,
           }
         : undefined,
-      stale: evaluateDerivedStale(item.parentAnchor, parentProp?.imageUrl, item.parentId),
+      stale: evaluateDerivedStale(item.parentAnchor, parentCandidates, item.parentId),
     };
   }
   return entries;

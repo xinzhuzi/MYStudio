@@ -111,4 +111,20 @@ describe("AssetDerivationPreview(R0 去截断)", () => {
       "分镜里实际用到了这些状态，但导演规划时没有预划它们。需要的话重跑一次导演规划。",
     );
   });
+
+  it("planStale 时 summary 下渲染「预划已过期」提示行与人话 tooltip;未过期静默", () => {
+    const staleNode = buildNodeWithDerivedCount(2);
+    staleNode.assetSummary!.planStale = true;
+    const { container: staleContainer } = render(<AssetDerivationPreview node={staleNode} />);
+    expect(screen.getByText("预划已过期·建议重跑导演规划")).toBeTruthy();
+    const hint = staleContainer.querySelector(".asset-derive-plan-stale");
+    expect(hint?.getAttribute("title")).toBe(
+      "剧本改过了，这份清单是按旧剧本规划的，重跑导演规划可更新。",
+    );
+
+    cleanup();
+    const freshNode = buildNodeWithDerivedCount(2);
+    const { container: freshContainer } = render(<AssetDerivationPreview node={freshNode} />);
+    expect(freshContainer.querySelector(".asset-derive-plan-stale")).toBeNull();
+  });
 });

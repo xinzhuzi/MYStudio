@@ -40,6 +40,8 @@ import {
   resolveProductionEpisodeId,
   resolveScriptPlanEpisodeId,
   resolveScriptTextForEpisode,
+  scriptPlanSourceFingerprint,
+  stableRunFingerprint,
 } from "./workflow-helpers";
  
 import type { ScriptPlan } from "@/types/studio";
@@ -215,6 +217,10 @@ export function useProductionPlanningActions({
         }
 
         const tools = createProductionAgentToolRegistry();
+        // 08-27 二期 R1 预划剧本锚:落库前闭包盖「该章剧本正文」指纹(不含
+        // manual/user 指令)。初跑与重跑同走本调用点,重跑后新指纹落库,
+        // 面板「预划已过期」提示自然消失。不改 writeDirectorPlan 签名。
+        const planScriptFingerprint = scriptPlanSourceFingerprint(targetEpisodeId, scriptText);
         const writeResult = tools.writeDirectorPlan({
           text: finalText,
           episodeId: targetEpisodeId,
@@ -223,7 +229,11 @@ export function useProductionPlanningActions({
             revision: chapterIdentity?.revision ?? 1,
           },
           saveAgentWorkData,
-          saveScriptPlan,
+          saveScriptPlan: (plan) =>
+            saveScriptPlan({
+              ...plan,
+              scriptFingerprint: planScriptFingerprint,
+            }),
         });
         if (!writeResult.approved || !writeResult.plan) {
           await logDirectorPlanWriteback("directorPlan.writeback.blocked", {
@@ -485,18 +495,6 @@ export function useProductionPlanningActions({
     handleProductionNodeAction,
     handleBuildSeriesBible,
   };
-}
-
-function stableRunFingerprint(value: unknown) {
-  return JSON.stringify(value, (_key, nested) => {
-    if (!nested || typeof nested !== "object" || Array.isArray(nested)) return nested;
-    return Object.keys(nested)
-      .sort()
-      .reduce<Record<string, unknown>>((acc, key) => {
-        acc[key] = (nested as Record<string, unknown>)[key];
-        return acc;
-      }, {});
-  });
 }
 
 type CharacterVariationGenerationTask = {

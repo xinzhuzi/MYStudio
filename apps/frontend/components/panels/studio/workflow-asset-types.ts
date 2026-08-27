@@ -67,6 +67,11 @@ export interface ProductionFlowAssetSummary {
   unused: number;
   /** 08-27 R2:分镜用到·未预划的状态数。 */
   unplanned: number;
+  /**
+   * 08-27 二期 R1:本章预划的剧本指纹与当前剧本正文不一致(预划已过期)。
+   * 存量 plan 无 scriptFingerprint 或比对侧未传当前指纹时不设(静默)。只提示。
+   */
+  planStale?: boolean;
 }
 
 export interface ProductionFlowAssetMedia {
@@ -106,6 +111,12 @@ export interface ProductionFlowModelInput {
   productionTracks: ProductionTrack[];
   videoCandidates: VideoCandidate[];
   episodeId?: string;
+  /**
+   * 08-27 二期 R1:当前章剧本正文指纹(scriptPlanSourceFingerprint,由视图模型
+   * 用与规划侧同一提取源算出)。传入后 derivation summary 才会比对 planStale;
+   * 不传 = 静默(测试/旧调用方兼容)。
+   */
+  currentScriptFingerprint?: string;
   remotionQueueJobs?: RemotionRenderJobV1[];
   /** 队列并发槽数(硬件感知);面板标签展示,缺省 1。 */
   remotionQueueConcurrency?: number;

@@ -118,3 +118,32 @@ export function resolveScriptPlanEpisodeId(
     resolveProductionEpisodeId(store, episodeId)
   );
 }
+
+/**
+ * 排序 key 的确定性 JSON 序列化(对象 key 排序,嵌套递归稳定)。
+ * 08-27 二期自 useProductionPlanningActions 提升为共享导出,行为逐字节不变——
+ * run 指纹与预划剧本锚共用同一序列化公式,杜绝两套公式各自漂移。
+ */
+export function stableRunFingerprint(value: unknown) {
+  return JSON.stringify(value, (_key, nested) => {
+    if (!nested || typeof nested !== "object" || Array.isArray(nested)) return nested;
+    return Object.keys(nested)
+      .sort()
+      .reduce<Record<string, unknown>>((acc, key) => {
+        acc[key] = (nested as Record<string, unknown>)[key];
+        return acc;
+      }, {});
+  });
+}
+
+/**
+ * 预划剧本指纹锚(08-27 二期 R1):只对「哪一章 + 剧本正文」盖戳,刻意不含
+ * manual/user 指令——改指令不该把预划判过期。导演规划落库侧与面板比对侧
+ * 共用本函数(剧本正文提取统一走 resolveScriptTextForEpisode)。
+ */
+export function scriptPlanSourceFingerprint(
+  episodeId: string,
+  scriptText: string,
+) {
+  return stableRunFingerprint({ episodeId, scriptText });
+}

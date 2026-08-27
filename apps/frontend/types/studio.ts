@@ -823,6 +823,12 @@ export interface EntityExtractionResult extends StudioSourceIdentity {
 export interface ScriptPlan extends StudioSourceIdentity {
   id: string;
   episodeId: string;
+  /**
+   * 预划剧本指纹锚(08-27 二期 R1):导演规划落库时对「该章剧本正文」盖的戳
+   * (scriptPlanSourceFingerprint,不含 manual/user 指令)。剧本再编辑后与当前
+   * 值不一致 → 面板提示「预划已过期」。存量 plan 无此字段 = 静默不比对。
+   */
+  scriptFingerprint?: string;
   theme: string;
   visualStyle: string;
   narrativeRhythm: string;

@@ -14,7 +14,7 @@ import {
 } from "@/lib/studio/remotion/remotion-workspace-storage";
 import { subscribeRemotionShotRenderRequest } from "@/lib/studio/remotion-shot-render-request";
 import type { ImageWorkflowOpenContext } from "@/types/studio";
-import { resolveProductionEpisodeId } from "./workflow-helpers";
+import { resolveProductionEpisodeId, resolveScriptTextForEpisode, scriptPlanSourceFingerprint } from "./workflow-helpers";
 import { useNovelPipelineActions } from "./useNovelPipelineActions";
 import { useProductionFlowModel } from "./useProductionFlowModel";
 import { useProductionPlanningActions } from "./useProductionPlanningActions";
@@ -102,6 +102,15 @@ export function useStudioViewModel() {
   const chapterScriptPlans = scriptPlans.filter(
     (item) => item.episodeId === productionEpisodeId,
   );
+  // 08-27 二期 R1:当前章剧本正文指纹(与导演规划落库同一提取源+同一公式),
+  // 传给 production flow 做「预划已过期」比对;plan 侧无指纹时模型静默。
+  const currentScriptFingerprint = scriptPlanSourceFingerprint(
+    productionEpisodeId,
+    resolveScriptTextForEpisode(
+      { agentWorkData, novelChapters, scriptPlans },
+      productionEpisodeId,
+    ),
+  );
   const aspectRatio = seriesBible?.aspectRatio ?? workflowConfig.platformSpec;
   const workflowReadiness = useWorkflowReadiness({
     workflowConfig,
@@ -120,6 +129,7 @@ export function useStudioViewModel() {
     agentWorkData,
     entityExtractions,
     scriptPlans: chapterScriptPlans,
+    currentScriptFingerprint,
     storyboards,
     productionTracks,
     videoCandidates,

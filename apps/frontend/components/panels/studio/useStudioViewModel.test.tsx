@@ -57,6 +57,7 @@ vi.mock("@/lib/ai/ai-manager", () => ({ aiManager: {} }));
 
 import { useStudioViewModel } from "./useStudioViewModel";
 import { useProductionFlowModel } from "./useProductionFlowModel";
+import { scriptPlanSourceFingerprint } from "./workflow-helpers";
 import { useStudioStore } from "@/stores/studio/studio-store";
 import { useProjectStore } from "@/stores/project/project-store";
 
@@ -116,6 +117,33 @@ describe("useStudioViewModel 数据枢纽契约(08-24 审查补测)", () => {
     for (const [input] of calls) {
       expect(input.scriptPlans).toHaveLength(1);
       expect((input.scriptPlans as Array<{ id: string }>)[0]?.id).toBe("plan-1");
+    }
+  });
+
+  it("production flow 拿到的当前剧本指纹 = 同提取源+同公式算出的值(二期 R1)", () => {
+    const scriptText = "第一场金水河码头，独孤剑尘救下小杂役。";
+    useStudioStore.setState({
+      agentWorkData: [
+        {
+          id: "script-draft-fp",
+          key: "scriptDraft",
+          episodeId: "episode-1",
+          data: scriptText,
+          createdAt: 1,
+          updatedAt: 1,
+        },
+      ] as never,
+    });
+    // 文件内前序测试的 hook 可能仍未卸载,beforeEach 的 setState 会触发它们
+    // 重渲染并记入 mock——只断言本次 setState 之后新增的调用。
+    const baseline = vi.mocked(useProductionFlowModel).mock.calls.length;
+    renderHook(() => useStudioViewModel());
+    const calls = vi.mocked(useProductionFlowModel).mock.calls.slice(baseline);
+    expect(calls.length).toBeGreaterThan(0);
+    for (const [input] of calls) {
+      expect(input.currentScriptFingerprint).toBe(
+        scriptPlanSourceFingerprint("episode-1", scriptText),
+      );
     }
   });
 });

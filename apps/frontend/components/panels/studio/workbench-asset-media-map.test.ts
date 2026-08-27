@@ -250,3 +250,152 @@ describe("buildWorkbenchAssetMediaMap 衍生图过期判定(R1 锚比对)", () =
     expect(entries["prop-1-crack"]?.stale).toBeUndefined();
   });
 });
+
+describe("buildWorkbenchAssetMediaMap 父图取最新版(二期 R2)", () => {
+  it("一期锚(thumbnailUrl 值)在连续性版本出现后仍不误报过期(命中集合兼容,必须钉住)", () => {
+    const entries = buildWorkbenchAssetMediaMap(
+      [
+        {
+          id: "char-1",
+          name: "独孤剑尘",
+          description: "",
+          visualTraits: "",
+          views: [],
+          variations: [
+            {
+              id: "var-legacy-anchor",
+              name: "战损",
+              visualPrompt: "破衣",
+              referenceImage: "/assets/char-1-var.png",
+              // 一期写入的锚:当时父图首位是 thumbnailUrl
+              parentAnchor: { parentMediaPath: "/assets/char-1.png" },
+            },
+          ],
+          thumbnailUrl: "/assets/char-1.png",
+          createdAt: 1,
+          updatedAt: 1,
+        },
+      ],
+      [],
+      [],
+      [
+        // 二期上线后同一资产出现连续性版本:candidates[0] 切到连续性图
+        {
+          ...approvedVersions[0]!,
+          referenceImagePaths: ["/dugu/front.png"],
+        },
+      ],
+    );
+    expect(entries["var-legacy-anchor"]?.stale).toBeUndefined();
+  });
+
+  it("父卡显示取候选首位:连续性最新批准图优先于 legacy 缩略图", () => {
+    const entries = buildWorkbenchAssetMediaMap(
+      [
+        {
+          id: "char-1",
+          name: "独孤剑尘",
+          description: "",
+          visualTraits: "",
+          views: [],
+          variations: [],
+          thumbnailUrl: "/assets/char-1.png",
+          createdAt: 1,
+          updatedAt: 1,
+        },
+      ],
+      [],
+      [],
+      approvedVersions,
+    );
+    expect(entries["char-1"]?.path).toBe("/dugu/front.png");
+  });
+
+  it("锚不在候选集合内(父图真的换了)仍报过期;父自身条目永不带 stale", () => {
+    const entries = buildWorkbenchAssetMediaMap(
+      [
+        {
+          id: "char-1",
+          name: "独孤剑尘",
+          description: "",
+          visualTraits: "",
+          views: [],
+          variations: [
+            {
+              id: "var-real-drift",
+              name: "战损",
+              visualPrompt: "破衣",
+              referenceImage: "/assets/char-1-var.png",
+              parentAnchor: { parentMediaPath: "/gone/old.png" },
+            },
+          ],
+          thumbnailUrl: "/assets/char-1.png",
+          createdAt: 1,
+          updatedAt: 1,
+        },
+      ],
+      [],
+      [],
+      approvedVersions,
+    );
+    expect(entries["var-real-drift"]?.stale).toBe(true);
+    expect(entries["char-1"]?.stale).toBeUndefined();
+  });
+
+  it("场景父卡与道具父卡同样取连续性首图;视角变体自身取图链不变", () => {
+    const entries = buildWorkbenchAssetMediaMap(
+      [],
+      [
+        {
+          id: "scene-1",
+          name: "义庄",
+          location: "义庄",
+          time: "夜",
+          atmosphere: "阴冷",
+          referenceImage: "/legacy/scene-1.png",
+          createdAt: 1,
+          updatedAt: 1,
+        },
+        {
+          id: "scene-1-rain",
+          name: "义庄夜雨",
+          location: "义庄",
+          time: "夜",
+          atmosphere: "雨",
+          parentSceneId: "scene-1",
+          viewpointName: "夜雨视角",
+          referenceImage: "/assets/scene-1-rain.png",
+          createdAt: 1,
+          updatedAt: 1,
+        },
+      ],
+      [
+        {
+          id: "prop-1",
+          name: "木牌",
+          description: "父道具",
+          imageUrl: "/legacy/prop-1.png",
+          folderId: null,
+          createdAt: 1,
+        },
+      ],
+      [
+        {
+          ...approvedVersions[0]!,
+          assetId: "scene-1",
+          assetKind: "scene" as const,
+          referenceImagePaths: ["/continuity/scene-1.png"],
+        },
+        {
+          ...approvedVersions[0]!,
+          assetId: "prop-1",
+          assetKind: "prop" as const,
+          referenceImagePaths: ["/continuity/prop-1.png"],
+        },
+      ],
+    );
+    expect(entries["scene-1"]?.path).toBe("/continuity/scene-1.png");
+    expect(entries["scene-1-rain"]?.path).toBe("/assets/scene-1-rain.png");
+    expect(entries["prop-1"]?.path).toBe("/continuity/prop-1.png");
+  });
+});
