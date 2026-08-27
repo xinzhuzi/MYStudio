@@ -168,7 +168,7 @@ export function PluginSettingsTab() {
           </div>
         </header>
 
-        <section aria-labelledby="plugin-python-heading" className="rounded-xl border border-border bg-card/30">
+        <section aria-labelledby="plugin-python-heading" className="rounded-xl border border-border/80 bg-card/70">
           <Collapsible open={!collapsedSections.has("python")} onOpenChange={() => toggleSectionCollapsed("python")}>
             <CollapsibleTrigger className="w-full text-left">
               <div className="px-5 py-4 flex items-start justify-between gap-3">
@@ -185,7 +185,7 @@ export function PluginSettingsTab() {
           </Collapsible>
         </section>
 
-        <section aria-labelledby="plugin-depth-heading" className="rounded-xl border border-border bg-card/30">
+        <section aria-labelledby="plugin-depth-heading" className="rounded-xl border border-border/80 bg-card/70">
           <Collapsible open={!collapsedSections.has("depth")} onOpenChange={() => toggleSectionCollapsed("depth")}>
             <CollapsibleTrigger className="w-full text-left">
               <div className="px-5 py-4 flex items-start justify-between gap-3">
@@ -202,7 +202,7 @@ export function PluginSettingsTab() {
           </Collapsible>
         </section>
 
-        <section aria-labelledby="plugin-image-gen-heading" className="rounded-xl border border-border bg-card/30">
+        <section aria-labelledby="plugin-image-gen-heading" className="rounded-xl border border-border/80 bg-card/70">
           <Collapsible open={!collapsedSections.has("image-gen")} onOpenChange={() => toggleSectionCollapsed("image-gen")}>
             <CollapsibleTrigger className="w-full text-left">
               <div className="px-5 py-4 flex items-start justify-between gap-3">
@@ -219,7 +219,7 @@ export function PluginSettingsTab() {
           </Collapsible>
         </section>
 
-        <section aria-labelledby="plugin-upscale-heading" className="rounded-xl border border-border bg-card/30">
+        <section aria-labelledby="plugin-upscale-heading" className="rounded-xl border border-border/80 bg-card/70">
           <Collapsible open={!collapsedSections.has("upscale")} onOpenChange={() => toggleSectionCollapsed("upscale")}>
             <CollapsibleTrigger className="w-full text-left">
               <div className="px-5 py-4 flex items-start justify-between gap-3">
@@ -236,7 +236,7 @@ export function PluginSettingsTab() {
           </Collapsible>
         </section>
 
-        <section aria-labelledby="plugin-vlm-review-heading" className="rounded-xl border border-border bg-card/30">
+        <section aria-labelledby="plugin-vlm-review-heading" className="rounded-xl border border-border/80 bg-card/70">
           <Collapsible open={!collapsedSections.has("vlm-review")} onOpenChange={() => toggleSectionCollapsed("vlm-review")}>
             <CollapsibleTrigger className="w-full text-left">
               <div className="px-5 py-4 flex items-start justify-between gap-3">
@@ -253,7 +253,7 @@ export function PluginSettingsTab() {
           </Collapsible>
         </section>
 
-        <section aria-labelledby="plugin-video-qc-heading" className="rounded-xl border border-border bg-card/30">
+        <section aria-labelledby="plugin-video-qc-heading" className="rounded-xl border border-border/80 bg-card/70">
           <Collapsible open={!collapsedSections.has("video-qc")} onOpenChange={() => toggleSectionCollapsed("video-qc")}>
             <CollapsibleTrigger className="w-full text-left">
               <div className="px-5 py-4 flex items-start justify-between gap-3">
@@ -270,7 +270,7 @@ export function PluginSettingsTab() {
           </Collapsible>
         </section>
 
-        <section aria-labelledby="plugin-audio-heading" className="rounded-xl border border-border bg-card/30">
+        <section aria-labelledby="plugin-audio-heading" className="rounded-xl border border-border/80 bg-card/70">
           <Collapsible open={!collapsedSections.has("audio")} onOpenChange={() => toggleSectionCollapsed("audio")}>
             <CollapsibleTrigger className="w-full text-left">
               <div className="px-5 py-4 flex items-start justify-between gap-3">
@@ -311,7 +311,7 @@ export function PluginSettingsTab() {
           </Collapsible>
         </section>
 
-        <section aria-labelledby="plugin-video-heading" className="rounded-xl border border-border bg-card/30">
+        <section aria-labelledby="plugin-video-heading" className="rounded-xl border border-border/80 bg-card/70">
           <Collapsible open={!collapsedSections.has("video")} onOpenChange={() => toggleSectionCollapsed("video")}>
             <CollapsibleTrigger className="w-full text-left">
               <div className="px-5 py-4 flex items-start justify-between gap-3">
