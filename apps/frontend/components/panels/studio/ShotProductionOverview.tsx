@@ -217,7 +217,7 @@ export function ShotProductionOverview({
                 data-shot-chip={storyboard.id}
                 aria-pressed={active}
                 title={`S${String(storyboard.index).padStart(2, "0")} · ${fresh ? "已有当前版单镜视频" : videoUrl ? "有旧版单镜视频(内容已更新,需重渲)" : running ? "渲染中" : failed ? "渲染失败" : "未生成视频"}`}
-                className={`inline-flex shrink-0 items-center gap-1.5 rounded-md border px-1.5 py-1 font-mono text-[11px] leading-none transition-colors ${
+                className={`inline-flex shrink-0 items-center gap-1.5 rounded-md border px-1.5 py-1 font-mono text-[11px] leading-none transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 ${
                   active
                     ? "border-primary bg-primary/10 text-foreground"
                     : "border-border/70 bg-background/40 text-muted-foreground hover:border-primary/40 hover:text-foreground"
@@ -390,7 +390,7 @@ function ShotSoundCard({
             aria-expanded={open}
             title={open ? `收起${label}试听` : `展开${label}试听`}
             onClick={onToggle}
-            className="inline-flex shrink-0 items-center gap-0.5 rounded-md px-1 py-0.5 text-[11px] font-normal text-muted-foreground transition-colors hover:text-foreground"
+            className="inline-flex shrink-0 items-center gap-0.5 rounded-md px-1 py-0.5 text-[11px] font-normal text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
           >
             {open ? "收起" : "试听"}
             <ChevronDown className={`h-3 w-3 motion-safe:transition-transform ${open ? "rotate-180" : ""}`} />

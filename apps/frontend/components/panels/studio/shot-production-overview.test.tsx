@@ -90,6 +90,8 @@ describe("ShotProductionOverview(单镜生产总览)", () => {
     fireEvent.click(document.querySelector('[data-shot-audio-toggle="voice"]')!);
     expect(document.querySelector("audio")).toBeTruthy();
     expect(screen.getAllByText("旁白配音").length).toBeGreaterThan(1);
+    // 键盘可达:试听按钮同为裸 button,必须自带焦点环
+    expect(document.querySelector('[data-shot-audio-toggle="voice"]')!.getAttribute("class")).toContain("focus-visible:ring");
     expect(document.querySelector("[data-shot-chip-strip]")).toBeNull();
     const toggle = document.querySelector("[data-shot-strip-toggle]")!;
     expect(toggle.getAttribute("aria-expanded")).toBe("false");
@@ -115,6 +117,8 @@ describe("ShotProductionOverview(单镜生产总览)", () => {
     fireEvent.click(toggle);
     const strip = document.querySelector("[data-shot-chip-strip]")!;
     expect(strip.getAttribute("class")).toContain("overflow-x-auto");
+    // 键盘可达:裸 chip 必须自带焦点环(仓内无全局 focus-visible 样式)
+    expect(document.querySelector('[data-shot-chip="shot-001"]')!.getAttribute("class")).toContain("focus-visible:ring");
     expect(toggle.getAttribute("aria-expanded")).toBe("true");
     expect(toggle.getAttribute("aria-label")).toContain("收起镜号横滑条");
     expect(document.querySelector('[data-shot-chip="shot-001"]')!.getAttribute("aria-pressed")).toBe("true");
