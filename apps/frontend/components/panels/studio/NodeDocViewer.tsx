@@ -102,26 +102,94 @@ export function NodeDocViewer({
   );
 }
 
-/** 分镜表渲染——与剧本分镜表同源 8 列全量展示(序号/画面描述/时长/景别/运镜/
- * 台词/音效/出镜语义),按「场」分组。用户裁定:内容不许缺列、必须可左右滑动。 */
+/** 分镜表渲染——列集合按数据动态判定:数据里有的字段全展示,没有的列不出现。
+ * 覆盖解析器全部变体(15/14/8/7 列):序号/画面描述/关联资产/时长/景别/运镜/
+ * 角色动作/朝向/空间关系/情绪/台词/音效/出镜语义,按「场」分组。
+ * 用户裁定:内容不许缺列、必须可左右滑动。 */
 function TableRender({ node }: { node: ProductionFlowNodeModel }) {
   const rows = node.tableRows ?? [];
   if (!rows.length) return <p className="text-sm text-muted-foreground">暂无分镜表数据</p>;
-  /* 舒适固定列宽合计(~1880px)必然超出弹窗内容区 → overflow-auto 恒有横向滚动;
+  type Row = (typeof rows)[number];
+
+  /* 列定义:has=数据存在性判定(序号/画面描述/时长/景别/运镜/台词/音效恒显,
+     其余列任一行有值即显示)。8 列变体里 action=description 去重后不展示。 */
+  const columns: {
+    key: string;
+    label: string;
+    cls: string;
+    has: boolean;
+    cell: (row: Row) => React.ReactNode;
+  }[] = [
+    {
+      key: "index", label: "序号", cls: "w-12 text-center", has: true,
+      cell: (row) => <span className="font-mono text-[12px] text-muted-foreground">{row.index}</span>,
+    },
+    {
+      key: "description", label: "画面描述", cls: "w-[380px]", has: true,
+      cell: (row) => <span className="text-foreground">{row.description || "—"}</span>,
+    },
+    {
+      key: "assets", label: "关联资产", cls: "w-[220px]", has: rows.some((r) => r.associateAssetsNames.length > 0),
+      cell: (row) => <span className="text-muted-foreground">{row.associateAssetsNames.join("、") || "—"}</span>,
+    },
+    {
+      key: "duration", label: "时长", cls: "w-[60px] text-center", has: true,
+      cell: (row) => <span className="font-mono text-muted-foreground">{row.duration ? `${row.duration}s` : "—"}</span>,
+    },
+    {
+      key: "shotSize", label: "景别", cls: "w-[76px]", has: true,
+      cell: (row) => <span className="text-muted-foreground">{row.shotSize || "—"}</span>,
+    },
+    {
+      key: "cameraMove", label: "运镜", cls: "w-[104px]", has: true,
+      cell: (row) => <span className="text-muted-foreground">{row.cameraMove || "—"}</span>,
+    },
+    {
+      key: "action", label: "角色动作", cls: "w-[300px]", has: rows.some((r) => r.action && r.action !== r.description),
+      cell: (row) => <span className="text-muted-foreground">{row.action || "—"}</span>,
+    },
+    {
+      key: "orientation", label: "朝向", cls: "w-[110px]", has: rows.some((r) => r.orientation && r.orientation !== "—"),
+      cell: (row) => <span className="text-muted-foreground">{row.orientation || "—"}</span>,
+    },
+    {
+      key: "spatialRelation", label: "空间关系", cls: "w-[140px]", has: rows.some((r) => r.spatialRelation && r.spatialRelation !== "—"),
+      cell: (row) => <span className="text-muted-foreground">{row.spatialRelation || "—"}</span>,
+    },
+    {
+      key: "emotion", label: "情绪", cls: "w-[110px]", has: rows.some((r) => r.emotion && r.emotion !== "—"),
+      cell: (row) => <span className="text-muted-foreground">{row.emotion || "—"}</span>,
+    },
+    {
+      key: "lines", label: "台词", cls: "w-[280px]", has: true,
+      cell: (row) => <span className="text-muted-foreground">{row.lines || "—"}</span>,
+    },
+    {
+      key: "sound", label: "音效", cls: "w-[260px]", has: true,
+      cell: (row) => <span className="text-muted-foreground">{row.sound || "—"}</span>,
+    },
+    {
+      key: "semantics", label: "出镜语义（角色/道具/承接）", cls: "w-[420px]", has: rows.some((r) => r.shotSemantics),
+      cell: (row) => (row.shotSemantics ? <SemanticsCell semantics={row.shotSemantics} /> : <span className="text-muted-foreground">—</span>),
+    },
+  ];
+  const visible = columns.filter((column) => column.has);
+  /* 舒适固定列宽合计必然超出弹窗内容区 → overflow-auto 恒有横向滚动;
      序号列窄格冻结(sticky left)保住行归属,表头吸顶。 */
   const headCls = "sticky top-0 z-10 border-b-2 border-border bg-card px-3 py-2.5";
   return (
     <table className="w-full min-w-[1880px] border-collapse text-[13px] leading-6">
       <thead>
         <tr className="text-left text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-          <th className="sticky left-0 top-0 z-20 w-12 border-b-2 border-r border-border bg-card px-2 py-2.5 text-center">序号</th>
-          <th className={`${headCls} w-[400px]`}>画面描述</th>
-          <th className={`${headCls} w-[60px] text-center`}>时长</th>
-          <th className={`${headCls} w-[76px]`}>景别</th>
-          <th className={`${headCls} w-[104px]`}>运镜</th>
-          <th className={`${headCls} w-[300px]`}>台词</th>
-          <th className={`${headCls} w-[270px]`}>音效</th>
-          <th className={`${headCls} w-[430px]`}>出镜语义（角色/道具/承接）</th>
+          {visible.map((column, colIndex) =>
+            colIndex === 0 ? (
+              <th key={column.key} className="sticky left-0 top-0 z-20 border-b-2 border-r border-border bg-card px-2 py-2.5 text-center">
+                {column.label}
+              </th>
+            ) : (
+              <th key={column.key} className={`${headCls} ${column.cls}`}>{column.label}</th>
+            ),
+          )}
         </tr>
       </thead>
       <tbody>
@@ -129,34 +197,24 @@ function TableRender({ node }: { node: ProductionFlowNodeModel }) {
           const sceneHeader =
             row.scene && row.scene !== rows[i - 1]?.scene ? (
               <tr key={`scene-${row.scene}-${row.index}`} className="bg-muted/30">
-                <td colSpan={8} className="border-y border-border/40 px-3 py-2 text-[12px] font-semibold text-foreground">
+                <td colSpan={visible.length} className="border-y border-border/40 px-3 py-2 text-[12px] font-semibold text-foreground">
                   {row.scene}
-                  {row.associateAssetsNames.length ? (
-                    <span className="ml-2 font-normal text-muted-foreground">
-                      参演资产：{row.associateAssetsNames.join("、")}
-                    </span>
-                  ) : null}
                 </td>
               </tr>
             ) : null;
-          const semantics = row.shotSemantics;
           return (
             <Fragment key={row.index ?? i}>
               {sceneHeader}
-              <tr className={`border-b border-border/30 ${i % 2 === 1 ? "bg-muted/15" : ""} hover:bg-primary/5`}>                <td className="sticky left-0 z-[1] border-r border-border/50 bg-card px-2 py-3 text-center font-mono text-[12px] text-muted-foreground">{row.index ?? i + 1}</td>
-                <td className="px-3 py-3 text-foreground">{row.description || "—"}</td>
-                <td className="px-3 py-3 text-center font-mono text-muted-foreground">{row.duration ? `${row.duration}s` : "—"}</td>
-                <td className="px-3 py-3 text-muted-foreground">{row.shotSize || "—"}</td>
-                <td className="px-3 py-3 text-muted-foreground">{row.cameraMove || "—"}</td>
-                <td className="px-3 py-3 text-muted-foreground">{row.lines || "—"}</td>
-                <td className="px-3 py-3 text-muted-foreground">{row.sound || "—"}</td>
-                <td className="px-3 py-3">
-                  {semantics ? (
-                    <SemanticsCell semantics={semantics} />
+              <tr className={`border-b border-border/30 ${i % 2 === 1 ? "bg-muted/15" : ""} hover:bg-primary/5`}>
+                {visible.map((column, colIndex) =>
+                  colIndex === 0 ? (
+                    <td key={column.key} className="sticky left-0 z-[1] border-r border-border/50 bg-card px-2 py-3 text-center">
+                      {column.cell(row)}
+                    </td>
                   ) : (
-                    <span className="text-muted-foreground">—</span>
-                  )}
-                </td>
+                    <td key={column.key} className="px-3 py-3 align-top">{column.cell(row)}</td>
+                  ),
+                )}
               </tr>
             </Fragment>
           );
