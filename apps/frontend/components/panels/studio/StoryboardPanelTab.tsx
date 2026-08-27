@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { ArrowLeft, History, Image as ImageIcon, Loader2, Square } from "lucide-react";
+import { useMemo, useState } from "react";
+import { ArrowLeft, ChevronLeft, ChevronRight, History, Image as ImageIcon, Loader2, Square } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ResolutionBadge } from "@/components/ui/image-resolution-badge";
 import type { ImageWorkflowOpenContext, StoryboardItem } from "@/types/studio";
@@ -115,77 +115,148 @@ export function StoryboardPanelTab({
 
       {ordered.length ? (
         <div
-          className="mt-3 grid min-h-0 flex-1 grid-cols-2 gap-4 overflow-y-auto pr-1 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6"
+          className="mt-4 grid min-h-0 flex-1 grid-cols-2 content-start gap-6 overflow-y-auto p-1 pr-3"
           onScroll={handleDeferScroll}
         >
-          {ordered.map((storyboard) => {
-            const mediaPath = storyboard.mediaRef?.kind === "image" ? storyboard.mediaRef.path : undefined;
-            return (
-              <button
-                key={storyboard.id}
-                type="button"
-                data-storyboard-panel-shot={storyboard.id}
-                className="group flex flex-col rounded-lg border border-border/70 bg-card/70 text-left transition-colors hover:border-primary/50"
-                onClick={() => openShot(storyboard)}
-                title={`进入分镜 ${storyboard.index} 图片工作流`}
-              >
-                {/* 统一 176px 高度框 + object-contain:分镜图混有 16:9/方图/竖图
-                    (最长约 1:2.1),完整显示零裁切且网格行高恒定(自然高度曾致
-                    网格行塌陷成 13px 扁条,勿改回 h-auto)。
-                    注意:卡片本体不可加 overflow-hidden——网格定高(flex-1)+
-                    条目 overflow-hidden 会触发 Chromium 行高坍缩(实测 45px);
-                    裁切下沉到媒体框(overflow-hidden rounded-t-lg),卡片圆角
-                    由 border-radius 裁自身背景。 */}
-                <div className="relative aspect-video w-full overflow-hidden rounded-t-lg bg-muted/40">
-                  {mediaPath ? (
-                    <PreviewImage
-                      src={withThumbVariant(toPreviewSrc(mediaPath))}
-                      alt={storyboard.prompt}
-                      className="h-full w-full object-contain"
-                      fallbackLabel="成图丢失"
-                      eager
-                    />
-                  ) : (
-                    <div className="flex h-full w-full items-center justify-center text-[11px] text-muted-foreground">
-                      未生成
-                    </div>
-                  )}
-                  <span className="absolute left-1 top-1 rounded bg-success/20 px-1.5 py-0.5 text-[10px] font-semibold text-foreground">
-                    S{String(storyboard.index).padStart(2, "0")}
-                  </span>
-                  {mediaPath ? <ResolutionBadge src={toPreviewSrc(mediaPath)} /> : null}
-                  {storyboard.keyframes?.length ? (
-                    <span className="absolute bottom-1 left-1 flex items-center gap-1" data-storyboard-frame-dots>
-                      {storyboard.keyframes.map((frame) => (
-                        <span
-                          key={frame.frameId}
-                          title={`${frame.frameId}${frame.mediaRef?.path ? "" : " · 缺图"}`}
-                          className={`h-1.5 w-1.5 rounded-full ${frame.mediaRef?.path ? "bg-primary/80" : "bg-muted-foreground/40"}`}
-                        />
-                      ))}
-                    </span>
-                  ) : null}
-                </div>
-                <div className="flex min-h-0 flex-1 flex-col gap-1.5 p-3">
-                  {/* 文案不截断(用户裁定:分镜面板要展示完全;大卡下整段可读) */}
-                  <p className="text-xs leading-5 text-foreground">
-                    {storyboard.videoDesc || storyboard.prompt}
-                  </p>
-                  {storyboard.lines ? (
-                    <p className="whitespace-pre-line text-[11px] leading-5 text-muted-foreground">
-                      {storyboard.lines.replace(/<br\s*\/?>/gi, "\n")}
-                    </p>
-                  ) : null}
-                  <span className="mt-auto inline-flex items-center gap-1 text-[11px] text-primary/75 group-hover:text-primary">
-                    <ImageIcon className="h-3.5 w-3.5" />
-                    进入图片工作流
-                  </span>
-                </div>
-              </button>
-            );
-          })}
+          {ordered.map((storyboard) => (
+            <StoryboardPanelCard
+              key={storyboard.id}
+              storyboard={storyboard}
+              onOpen={() => openShot(storyboard)}
+            />
+          ))}
         </div>
       ) : null}
+    </div>
+  );
+}
+
+/**
+ * 分镜卡(用户裁定 08-27 晚):每行 2 张大卡、留空隙、竖向滚动;
+ * 媒体框 16:9 画幅 + 多帧左右按钮切换(回接后每镜常为 2 关键帧)。
+ * 外层用 div(卡内含切换 button,button 嵌套非法),点击整卡进图工作流。
+ */
+function StoryboardPanelCard({
+  storyboard,
+  onOpen,
+}: {
+  storyboard: StoryboardItem;
+  onOpen: () => void;
+}) {
+  // 仅有图帧参与轮播;无帧/无图退回 mediaRef 单图
+  const frames = useMemo(() => {
+    const withPath = (storyboard.keyframes ?? []).filter((frame) => frame.mediaRef?.path);
+    if (withPath.length) return withPath.map((frame) => frame.mediaRef!.path);
+    return storyboard.mediaRef?.kind === "image" && storyboard.mediaRef.path
+      ? [storyboard.mediaRef.path]
+      : [];
+  }, [storyboard]);
+  const [frameIndex, setFrameIndex] = useState(0);
+  const currentPath = frames[frameIndex];
+  const goFrame = (delta: number) => {
+    if (frames.length < 2) return;
+    setFrameIndex((previous) => (previous + delta + frames.length) % frames.length);
+  };
+
+  return (
+    <div
+      data-storyboard-panel-shot={storyboard.id}
+      role="button"
+      tabIndex={0}
+      className="group flex cursor-pointer flex-col rounded-lg border border-border/70 bg-card/70 text-left transition-colors hover:border-primary/50 focus-visible:border-primary/60 focus-visible:outline-none"
+      onClick={onOpen}
+      onKeyDown={(event) => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          onOpen();
+        }
+      }}
+      title={`进入分镜 ${storyboard.index} 图片工作流`}
+    >
+      <div className="relative aspect-video w-full overflow-hidden rounded-t-lg bg-muted/40">
+        {currentPath ? (
+          <PreviewImage
+            key={currentPath}
+            src={withThumbVariant(toPreviewSrc(currentPath))}
+            alt={storyboard.prompt}
+            className="h-full w-full object-contain"
+            fallbackLabel="成图丢失"
+            eager
+          />
+        ) : (
+          <div className="flex h-full w-full items-center justify-center text-[11px] text-muted-foreground">
+            未生成
+          </div>
+        )}
+        <span className="absolute left-1.5 top-1.5 rounded bg-success/20 px-1.5 py-0.5 text-[10px] font-semibold text-foreground">
+          S{String(storyboard.index).padStart(2, "0")}
+        </span>
+        {currentPath ? <ResolutionBadge src={toPreviewSrc(currentPath)} /> : null}
+        {/* 多帧左右切换(用户裁定):圆形半透明箭头,点击不冒泡进卡 */}
+        {frames.length > 1 ? (
+          <>
+            <button
+              type="button"
+              aria-label="上一帧"
+              data-storyboard-frame-prev
+              className="absolute left-2 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full border border-border/60 bg-background/70 text-foreground/80 backdrop-blur-sm transition-colors hover:bg-background/90 hover:text-foreground"
+              onClick={(event) => {
+                event.stopPropagation();
+                goFrame(-1);
+              }}
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </button>
+            <button
+              type="button"
+              aria-label="下一帧"
+              data-storyboard-frame-next
+              className="absolute right-2 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full border border-border/60 bg-background/70 text-foreground/80 backdrop-blur-sm transition-colors hover:bg-background/90 hover:text-foreground"
+              onClick={(event) => {
+                event.stopPropagation();
+                goFrame(1);
+              }}
+            >
+              <ChevronRight className="h-4 w-4" />
+            </button>
+            <span
+              className="absolute bottom-1.5 left-1/2 flex -translate-x-1/2 items-center gap-1.5 rounded-full bg-background/70 px-2 py-0.5 backdrop-blur-sm"
+              data-storyboard-frame-dots
+            >
+              {frames.map((path, index) => (
+                <button
+                  key={path}
+                  type="button"
+                  aria-label={`第 ${index + 1} 帧`}
+                  className={`h-2 w-2 rounded-full transition-colors ${index === frameIndex ? "bg-primary" : "bg-muted-foreground/40 hover:bg-muted-foreground/70"}`}
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    setFrameIndex(index);
+                  }}
+                />
+              ))}
+              <span className="ml-0.5 font-mono text-[10px] text-muted-foreground">
+                {frameIndex + 1}/{frames.length}
+              </span>
+            </span>
+          </>
+        ) : null}
+      </div>
+      <div className="flex min-h-0 flex-1 flex-col gap-1.5 p-3">
+        {/* 文案不截断(用户裁定:分镜面板要展示完全;大卡下整段可读) */}
+        <p className="text-xs leading-5 text-foreground">
+          {storyboard.videoDesc || storyboard.prompt}
+        </p>
+        {storyboard.lines ? (
+          <p className="whitespace-pre-line text-[11px] leading-5 text-muted-foreground">
+            {storyboard.lines.replace(/<br\s*\/?>/gi, "\n")}
+          </p>
+        ) : null}
+        <span className="mt-auto inline-flex items-center gap-1 text-[11px] text-primary/75 group-hover:text-primary">
+          <ImageIcon className="h-3.5 w-3.5" />
+          进入图片工作流
+        </span>
+      </div>
     </div>
   );
 }
