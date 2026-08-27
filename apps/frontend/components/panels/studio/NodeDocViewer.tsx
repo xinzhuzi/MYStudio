@@ -2,6 +2,7 @@
 // Licensed under AGPL-3.0-or-later. See LICENSE for details.
 // Commercial licensing available. See COMMERCIAL_LICENSE.md.
 
+import { Fragment } from "react";
 import { Edit3 } from "lucide-react";
 import { MdPreview } from "md-editor-rt";
 import "md-editor-rt/lib/style.css";
@@ -101,43 +102,102 @@ export function NodeDocViewer({
   );
 }
 
-/** 分镜表渲染 */
+/** 分镜表渲染——与剧本分镜表同源 8 列全量展示(序号/画面描述/时长/景别/运镜/
+ * 台词/音效/出镜语义),按「场」分组。用户裁定:内容不许缺列、必须可左右滑动。 */
 function TableRender({ node }: { node: ProductionFlowNodeModel }) {
   const rows = node.tableRows ?? [];
   if (!rows.length) return <p className="text-sm text-muted-foreground">暂无分镜表数据</p>;
+  /* 舒适固定列宽合计(~1880px)必然超出弹窗内容区 → overflow-auto 恒有横向滚动;
+     序号列窄格冻结(sticky left)保住行归属,表头吸顶。 */
+  const headCls = "sticky top-0 z-10 border-b-2 border-border bg-card px-3 py-2.5";
   return (
-    /* 用户多次明确要求(08-27 裁定 #7):分镜表必须可以左右滑动。配方=
-       舒适固定列宽合计(~1780px)必然超出弹窗内容区 → overflow-auto 恒有横向
-       滚动;序号列冻结(sticky left)保住行归属,表头吸顶。勿再改回
-       w-full 自适应塞满弹窗——那会取消横向滚动。 */
-    <table className="w-full min-w-[1780px] border-collapse text-[13px] leading-6">
+    <table className="w-full min-w-[1880px] border-collapse text-[13px] leading-6">
       <thead>
         <tr className="text-left text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-          <th className="sticky left-0 top-0 z-20 w-[72px] border-b-2 border-r border-border bg-card px-4 py-3 text-center">序号</th>
-          <th className="sticky top-0 z-10 border-b-2 border-border bg-card px-4 py-3 w-[440px]">画面</th>
-          <th className="sticky top-0 z-10 border-b-2 border-border bg-card px-4 py-3 w-[88px]">景别</th>
-          <th className="sticky top-0 z-10 border-b-2 border-border bg-card px-4 py-3 w-[128px]">运镜</th>
-          <th className="sticky top-0 z-10 border-b-2 border-border bg-card px-4 py-3 w-[368px]">角色动作</th>
-          <th className="sticky top-0 z-10 border-b-2 border-border bg-card px-4 py-3 w-[368px]">台词</th>
-          <th className="sticky top-0 z-10 border-b-2 border-border bg-card px-4 py-3 w-[88px] text-center">时长</th>
+          <th className="sticky left-0 top-0 z-20 w-12 border-b-2 border-r border-border bg-card px-2 py-2.5 text-center">序号</th>
+          <th className={`${headCls} w-[400px]`}>画面描述</th>
+          <th className={`${headCls} w-[60px] text-center`}>时长</th>
+          <th className={`${headCls} w-[76px]`}>景别</th>
+          <th className={`${headCls} w-[104px]`}>运镜</th>
+          <th className={`${headCls} w-[300px]`}>台词</th>
+          <th className={`${headCls} w-[270px]`}>音效</th>
+          <th className={`${headCls} w-[430px]`}>出镜语义（角色/道具/承接）</th>
         </tr>
       </thead>
       <tbody>
-        {rows.map((row, i) => (
-          <tr key={row.index ?? i} className={`border-b border-border/30 ${i % 2 === 1 ? "bg-muted/15" : ""} hover:bg-primary/5`}>
-            <td className="sticky left-0 z-[1] border-r border-border/50 bg-card px-4 py-3 text-center font-mono text-muted-foreground">{row.index ?? i + 1}</td>
-            <td className="px-4 py-3">
-              <p className="font-medium text-foreground">{row.title}</p>
-              {row.description ? <p className="mt-1 text-[12px] leading-5 text-muted-foreground">{row.description}</p> : null}
-            </td>
-            <td className="px-4 py-3 text-muted-foreground">{row.shotSize || "—"}</td>
-            <td className="px-4 py-3 text-muted-foreground">{row.cameraMove || "—"}</td>
-            <td className="px-4 py-3 text-muted-foreground">{row.action || "—"}</td>
-            <td className="px-4 py-3 text-muted-foreground">{row.lines || "—"}</td>
-            <td className="px-4 py-3 text-center font-mono text-muted-foreground">{row.duration ? `${row.duration}s` : "—"}</td>
-          </tr>
-        ))}
+        {rows.map((row, i) => {
+          const sceneHeader =
+            row.scene && row.scene !== rows[i - 1]?.scene ? (
+              <tr key={`scene-${row.scene}-${row.index}`} className="bg-muted/30">
+                <td colSpan={8} className="border-y border-border/40 px-3 py-2 text-[12px] font-semibold text-foreground">
+                  {row.scene}
+                  {row.associateAssetsNames.length ? (
+                    <span className="ml-2 font-normal text-muted-foreground">
+                      参演资产：{row.associateAssetsNames.join("、")}
+                    </span>
+                  ) : null}
+                </td>
+              </tr>
+            ) : null;
+          const semantics = row.shotSemantics;
+          return (
+            <Fragment key={row.index ?? i}>
+              {sceneHeader}
+              <tr className={`border-b border-border/30 ${i % 2 === 1 ? "bg-muted/15" : ""} hover:bg-primary/5`}>                <td className="sticky left-0 z-[1] border-r border-border/50 bg-card px-2 py-3 text-center font-mono text-[12px] text-muted-foreground">{row.index ?? i + 1}</td>
+                <td className="px-3 py-3 text-foreground">{row.description || "—"}</td>
+                <td className="px-3 py-3 text-center font-mono text-muted-foreground">{row.duration ? `${row.duration}s` : "—"}</td>
+                <td className="px-3 py-3 text-muted-foreground">{row.shotSize || "—"}</td>
+                <td className="px-3 py-3 text-muted-foreground">{row.cameraMove || "—"}</td>
+                <td className="px-3 py-3 text-muted-foreground">{row.lines || "—"}</td>
+                <td className="px-3 py-3 text-muted-foreground">{row.sound || "—"}</td>
+                <td className="px-3 py-3">
+                  {semantics ? (
+                    <SemanticsCell semantics={semantics} />
+                  ) : (
+                    <span className="text-muted-foreground">—</span>
+                  )}
+                </td>
+              </tr>
+            </Fragment>
+          );
+        })}
       </tbody>
     </table>
+  );
+}
+
+/** 出镜语义单元格:把 JSON 渲染成人能读的结构(角色/道具/承接/转场) */
+function SemanticsCell({ semantics }: { semantics: NonNullable<ProductionFlowNodeModel["tableRows"]>[number]["shotSemantics"] }) {
+  const s = semantics;
+  if (!s) return <span className="text-muted-foreground">—</span>;
+  return (
+    <div className="text-[11px] leading-4 text-muted-foreground">
+      <p>
+        <span className="text-foreground/80">视角</span> {s.sceneViewpointId}
+        {s.personFree ? <span className="ml-1 rounded bg-muted/60 px-1 text-[10px]">无人出镜</span> : null}
+      </p>
+      {s.visibleCharacters?.map((character) => (
+        <p key={character.name}>
+          <span className="text-foreground/80">{character.name}</span>
+          （{character.position}·{character.orientation}）：{character.actionIn} → {character.actionOut}
+        </p>
+      ))}
+      {s.visibleProps?.map((prop) => (
+        <p key={prop.name}>
+          <span className="text-foreground/80">{prop.name}</span>（{prop.position}）：{prop.state}
+        </p>
+      ))}
+      {s.actionIn || s.actionOut ? (
+        <p>
+          <span className="text-foreground/80">本镜承接</span> {s.actionIn} → {s.actionOut}
+        </p>
+      ) : null}
+      {s.transitionToNext ? (
+        <p>
+          <span className="text-foreground/80">转场</span> {s.transitionToNext.styleWord}
+          {s.transitionToNext.moodWord ? `（${s.transitionToNext.moodWord}）` : ""}
+        </p>
+      ) : null}
+    </div>
   );
 }

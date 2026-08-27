@@ -1,4 +1,5 @@
 import { parseStoryboardTable } from "@/lib/studio/storyboard-table";
+import type { StoryboardShotSemantics } from "@/types/studio";
 
 export interface ProductionFlowTableRow {
   index: number;
@@ -6,6 +7,7 @@ export interface ProductionFlowTableRow {
   titleEn: string;
   description: string;
   scene: string;
+  sceneIndex?: number;
   associateAssetsNames: string[];
   duration: number;
   shotSize: string;
@@ -17,6 +19,8 @@ export interface ProductionFlowTableRow {
   lines: string;
   sound: string;
   associateAssetsIds: string[];
+  /** 出镜语义(角色位置/朝向/动作、道具状态、转场衔接)——分镜表第 8 列 */
+  shotSemantics?: StoryboardShotSemantics;
 }
 
 export function parseStoryboardPreviewRows(text: string): ProductionFlowTableRow[] {
@@ -29,6 +33,7 @@ export function parseStoryboardPreviewRows(text: string): ProductionFlowTableRow
       titleEn: `shot-${String(row.index).padStart(3, "0")}`,
       description: row.description,
       scene: row.scene,
+      sceneIndex: row.sceneIndex,
       associateAssetsNames: row.associateAssetsNames,
       duration: row.duration,
       shotSize: row.shotSize,
@@ -40,6 +45,7 @@ export function parseStoryboardPreviewRows(text: string): ProductionFlowTableRow
       lines: row.lines,
       sound: row.sound,
       associateAssetsIds: row.associateAssetsIds,
+      shotSemantics: row.shotSemantics,
     }));
   }
   return text
