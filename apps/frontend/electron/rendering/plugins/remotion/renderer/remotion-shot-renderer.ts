@@ -425,6 +425,23 @@ async function collectVerifiedSources(
     clipId: referenceKey(shot.visualSource),
     absolutePath: verifiedVisualSource.filePath,
   });
+  // M2:关键帧逐个校验入桥(帧1通常 ≡ visualSource,referenceKey 天然去重)
+  for (const [index, frame] of (shot.keyframes ?? []).entries()) {
+    const framePath = resolveSourcePath(buildProjectFileUrl(
+      frame.source.projectId,
+      frame.source.relativePath,
+    ));
+    const verified = await verifyRemotionProjectFileSource(
+      framePath,
+      projectRoot,
+      frame.source.contentSha256,
+      `keyframe_${index}`,
+    );
+    sources.set(referenceKey(frame.source), {
+      clipId: referenceKey(frame.source),
+      absolutePath: verified.filePath,
+    });
+  }
   for (const binding of shot.audioBindings) {
     const verified = await verifyRemotionAudioBindingSource(binding, projectRoot);
     sources.set(referenceKey(binding.source), {

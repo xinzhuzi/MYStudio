@@ -189,6 +189,33 @@ function buildShotDefinition(
     ? [storyboard.ttsSpokenText, storyboard.line, storyboard.lines].find((text) => Boolean(text?.trim()))?.trim()
     : undefined;
   const approvedContinuityVersion = storyboard.continuityState?.styleContractVersion;
+  // M2:关键帧展开(仅有图帧进入;空规划槽跳过)。帧引用校验失败=整镜 fail-closed。
+  const keyframeRefs = (storyboard.keyframes ?? [])
+    .filter((frame) => frame.mediaRef?.path)
+    .map((frame, index) => ({
+      frameId: frame.frameId,
+      inUs: frame.inUs,
+      source: toProjectMediaReference(
+        projectId,
+        frame.mediaRef,
+        storyboard.id,
+        "storyboard",
+        issues,
+        `keyframes[${index}].source`,
+      ),
+    }))
+    .filter((entry): entry is { frameId: string; inUs: number; source: NonNullable<ReturnType<typeof toProjectMediaReference>> } => Boolean(entry.source));
+  if (keyframeRefs.length > 1) {
+    const first = keyframeRefs[0];
+    if (first.inUs !== 0 || keyframeRefs.some((entry, index) => index > 0 && entry.inUs <= keyframeRefs[index - 1].inUs)) {
+      issues.push({ code: "shot-plan.keyframes", path: `shots.${storyboard.id}.keyframes`, message: "关键帧 inUs 须首帧 0 且严格递增" });
+      return undefined;
+    }
+    if (keyframeRefs[keyframeRefs.length - 1].inUs >= durationUs) {
+      issues.push({ code: "shot-plan.keyframes", path: `shots.${storyboard.id}.keyframes`, message: "关键帧末帧 inUs 须小于镜时长" });
+      return undefined;
+    }
+  }
   return {
     shotId: storyboard.id,
     storyboardId: storyboard.id,
@@ -197,6 +224,7 @@ function buildShotDefinition(
     sourceFingerprint: visualSource.contentSha256,
     durationUs,
     visualSource,
+    ...(keyframeRefs.length > 1 ? { keyframes: keyframeRefs } : {}),
     ...(subtitleText ? { subtitleText } : {}),
     audioBindings,
     motion: { kind: "static" },

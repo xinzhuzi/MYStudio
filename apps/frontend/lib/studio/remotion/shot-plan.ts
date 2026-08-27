@@ -15,6 +15,7 @@ import type {
   CompositionAudioClipProps,
   CompositionPanZoom,
   CompositionTransform,
+  CompositionTransitionProps,
   CinematicCameraPreset,
   CinematicConfig,
   StoryboardShotCompositionProps,
@@ -312,6 +313,7 @@ export function projectStoryboardShotCompositionProps(
         gain: point.gain,
       })),
     }));
+  let keyframeTransitions: CompositionTransitionProps[] = [];
   const props: StoryboardShotCompositionProps = {
     target: "shot",
     projectId: plan.projectId,
@@ -322,18 +324,39 @@ export function projectStoryboardShotCompositionProps(
     height: plan.renderSettings.height,
     fps,
     durationInFrames,
-    visualClips: [{
-      clipId: plan.shot.shotId,
-      kind: plan.visualKind,
-      src: visualUrl,
-      from: 0,
-      durationInFrames,
-      transform: plan.shot.transform as CompositionTransform,
-      panZoom: motionToPanZoom(plan.shot.motion),
-      ...(cinematic ? { cinematic } : {}),
-      muted: true,
-    }],
-    transitions: [],
+    visualClips: plan.shot.keyframes?.length
+      ? (() => {
+          const timeline = projectKeyframeTimeline(
+            fps,
+            durationInFrames,
+            plan.shot.keyframes!.map((frame, index) => ({
+              ...frame,
+              src: resolveUrl(frame.source, resolveCapabilityUrl, `$.shot.keyframes[${index}].source`, issues),
+            })),
+            issues,
+          );
+          keyframeTransitions = timeline.transitions;
+          return timeline.clips.map((clip) => ({
+            ...clip,
+            kind: plan.visualKind,
+            transform: plan.shot.transform as CompositionTransform,
+            panZoom: motionToPanZoom(plan.shot.motion),
+            ...(cinematic && clip.clipId === plan.shot.keyframes?.[0]?.frameId ? { cinematic } : {}),
+            muted: true,
+          }));
+        })()
+      : [{
+          clipId: plan.shot.shotId,
+          kind: plan.visualKind,
+          src: visualUrl,
+          from: 0,
+          durationInFrames,
+          transform: plan.shot.transform as CompositionTransform,
+          panZoom: motionToPanZoom(plan.shot.motion),
+          ...(cinematic ? { cinematic } : {}),
+          muted: true,
+        }],
+    transitions: keyframeTransitions,
     audioClips,
     subtitles: plan.shot.subtitleText?.trim()
       ? [{ cueId: `${plan.shot.shotId}:subtitle`, text: plan.shot.subtitleText.trim(), from: 0, durationInFrames }]
@@ -418,6 +441,60 @@ export async function validateRemotionShotPlan(
     issue(issues, "$.inputHash", "inputHash 与当前 shot plan 内容不一致");
   }
   return issues.length > 0 ? { success: false, issues } : { success: true, value: plan };
+}
+
+/** M2:关键帧序列 → 镜内逐帧 clip + 帧间水墨叠化。
+ * 布局契约(composition-props-validation 转场时序规则):入帧 clip 提前
+ * overlap 帧进场,出口 clip 跑到入帧完整边界——即 dur_k = boundary_{k+1} − entry_k,
+ * 恰好满足 to.from == from.from + from.duration − overlap。 */
+function projectKeyframeTimeline(
+  fps: number,
+  durationInFrames: number,
+  frames: Array<{ frameId: string; inUs: number; src?: string }>,
+  issues: ShotPlanIssue[],
+): {
+  clips: Array<{ clipId: string; src: string; from: number; durationInFrames: number }>;
+  transitions: CompositionTransitionProps[];
+} {
+  const resolved = frames.map((frame, index) => ({
+    frameId: frame.frameId,
+    boundary: index === 0 ? 0 : usToFrames(frame.inUs, fps),
+    src: frame.src,
+  }));
+  resolved.forEach((frame, index) => {
+    if (!frame.src) {
+      issue(issues, `$.shot.keyframes[${index}].source`, "关键帧媒体 URL 解析失败", "media.resolve");
+    }
+  });
+  const usable = resolved.filter((frame) => frame.src);
+  if (usable.length < 1) return { clips: [], transitions: [] };
+  // 帧间重叠窗:水墨叠化 600ms,钳制 ≤ 原始间隔一半
+  const overlapFor = (index: number) => {
+    const gap = usable[index].boundary - usable[index - 1].boundary;
+    return Math.max(1, Math.min(usToFrames(600_000, fps), Math.floor(gap / 2)));
+  };
+  const entries = usable.map((frame, index) =>
+    index === 0 ? 0 : Math.max(1, frame.boundary - overlapFor(index)),
+  );
+  const clips = usable.map((frame, index) => ({
+    clipId: frame.frameId,
+    src: frame.src as string,
+    from: entries[index],
+    durationInFrames: Math.max(
+      1,
+      (index + 1 < usable.length ? usable[index + 1].boundary : durationInFrames) - entries[index],
+    ),
+  }));
+  const transitions: CompositionTransitionProps[] = [];
+  for (let index = 1; index < usable.length; index += 1) {
+    transitions.push({
+      fromClipId: usable[index - 1].frameId,
+      toClipId: usable[index].frameId,
+      effectId: "ink-bleed",
+      overlapFrames: usable[index].boundary - entries[index],
+    });
+  }
+  return { clips, transitions };
 }
 
 function resolveUrl(

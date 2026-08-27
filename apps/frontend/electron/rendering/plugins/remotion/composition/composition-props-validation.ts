@@ -80,8 +80,27 @@ export function validateStoryboardShotCompositionProps(
   validateTargetIdentity(value, issues);
   requireNonEmptyString(value.shotId, "shotId", issues);
   requirePositiveInteger(value.shotRevision, "shotRevision", issues);
-  if (Array.isArray(value.visualClips) && value.visualClips.length !== 1) {
-    issues.push({ path: "visualClips", message: "StoryboardShot 必须且只能包含一个视觉片段" });
+  if (
+    Array.isArray(value.visualClips)
+    && (value.visualClips.length < 1 || value.visualClips.length > 4)
+  ) {
+    issues.push({ path: "visualClips", message: "StoryboardShot 视觉片段须为 1..4 个(关键帧序列)" });
+  }
+  if (Array.isArray(value.visualClips) && value.visualClips.length > 1) {
+    let cursor = -1;
+    for (let index = 0; index < value.visualClips.length; index += 1) {
+      const clip = value.visualClips[index] as { from?: unknown; durationInFrames?: unknown };
+      if (typeof clip.from !== "number" || typeof clip.durationInFrames !== "number") continue;
+      if (clip.from < 0 || clip.durationInFrames <= 0) {
+        issues.push({ path: `visualClips[${index}]`, message: "关键帧 clip 时间须为正" });
+        break;
+      }
+      if (clip.from <= cursor) {
+        issues.push({ path: `visualClips[${index}]`, message: "关键帧 clip from 须严格递增" });
+        break;
+      }
+      cursor = clip.from;
+    }
   }
   validateAudioScope(value.audioClips, "shot", issues);
   return issues.length > 0

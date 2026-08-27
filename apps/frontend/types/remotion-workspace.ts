@@ -201,6 +201,8 @@ export interface RemotionShotDefinitionV1 {
   sourceFingerprint: string;
   durationUs: number;
   visualSource: ProjectMediaReference;
+  /** 关键帧序列(M2):镜内逐帧视觉源,帧1 ≡ visualSource;缺省=单帧时代数据 */
+  keyframes?: Array<{ frameId: string; inUs: number; source: ProjectMediaReference }>;
   subtitleText?: string;
   audioBindings: RemotionShotAudioBindingV1[];
   motion: ShotMotionSpec;
