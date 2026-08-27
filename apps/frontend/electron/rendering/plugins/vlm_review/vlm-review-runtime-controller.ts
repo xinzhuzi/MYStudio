@@ -110,6 +110,46 @@ export class VlmReviewRuntimeController {
     }
   }
 
+  // 进度文件路径(下载时由 Python worker 写入,前端轮询读取)
+  private downloadProgressFile(): string {
+    return path.join(this.config.storageBasePath, "profiles", "vlm-review", "download-progress.json");
+  }
+
+  async readDownloadProgress(): Promise<VlmDownloadProgress> {
+    return this.getDownloadProgress(this.downloadProgressFile());
+  }
+
+  async downloadModel(): Promise<{ success: boolean; error?: string }> {
+    const progressFile = this.downloadProgressFile();
+    await fs.mkdir(path.dirname(progressFile), { recursive: true });
+    try {
+      // spawn Python download_model --progress <file>(异步,不 await 完成)
+      const { spawn } = await import("node:child_process");
+      const child = spawn(
+        this.config.pythonExecutable,
+        ["-m", "vlm_review.download_model", "--model", "qwen3-vl-8b-instruct-mlx-8bit", "--progress", progressFile],
+        { cwd: this.config.backendRoot, env: { ...process.env, PYTHONPATH: this.config.backendRoot }, stdio: "pipe" },
+      );
+      child.stderr?.on("data", (data: Buffer) => {
+        console.error(`[vlm-review-download] ${data.toString().trim()}`);
+      });
+      // 不等完成,返回 accepted(前端轮询进度文件)
+      return { success: true };
+    } catch (error) {
+      return { success: false, error: `模型下载启动失败: ${String(error).slice(0, 200)}` };
+    }
+  }
+
+  async deleteModel(): Promise<{ success: boolean; error?: string }> {
+    const modelDir = path.join(this.config.storageBasePath, "model", "vlm");
+    try {
+      await fs.rm(modelDir, { recursive: true, force: true });
+      return { success: true };
+    } catch (error) {
+      return { success: false, error: `删除模型失败: ${String(error).slice(0, 200)}` };
+    }
+  }
+
   private blocked(code: string, message: string): VlmReviewArtifactV1 {
     return {
       schemaVersion: 1, projectId: "", shotId: "", status: "blocked",
