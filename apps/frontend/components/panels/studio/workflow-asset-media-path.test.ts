@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 import type { ContinuityAssetVersion } from "@/types/studio";
-import { resolveAssetCurrentMediaPaths } from "./workflow-asset-media-path";
+import {
+  persistableProjectMediaPath,
+  resolveAssetCurrentMediaPaths,
+  resolvePersistableAssetCurrentMediaPaths,
+} from "./workflow-asset-media-path";
 
 function approvedVersion(
   assetId: string,
@@ -71,12 +75,12 @@ describe("resolveAssetCurrentMediaPaths(二期 R2 共享取图)", () => {
     })).toEqual(["/ref-0.png"]);
   });
 
-  it("场景 legacy 链:referenceImage → base64 → contactSheet(空白跳过)", () => {
+  it("场景 legacy 链:候选按优先级全量返回(不再首个非空遮蔽,08-27 路径裁定),空白跳过", () => {
     const base = { id: "scene-1", name: "义庄", location: "", time: "", atmosphere: "", createdAt: 1, updatedAt: 1 };
     expect(resolveAssetCurrentMediaPaths({
       kind: "scene",
       scene: { ...base, referenceImage: "/r.png", referenceImageBase64: "data:b64" },
-    })).toEqual(["/r.png"]);
+    })).toEqual(["/r.png", "data:b64"]);
     expect(resolveAssetCurrentMediaPaths({
       kind: "scene",
       scene: { ...base, referenceImageBase64: "data:b64", contactSheetImage: "  " },
@@ -165,5 +169,47 @@ describe("resolveAssetCurrentMediaPaths(二期 R2 共享取图)", () => {
         updatedAt: 1,
       },
     })).toEqual([]);
+  });
+});
+
+describe("persistableProjectMediaPath(08-27 路径裁定:项目目录相对地址才可落锚)", () => {
+  it("只认项目相对虚拟协议与裸相对路径", () => {
+    expect(persistableProjectMediaPath("project-file://daojie/assets/a.png")).toBe(true);
+    expect(persistableProjectMediaPath("asset-file://characters/b.png")).toBe(true);
+    expect(persistableProjectMediaPath("daojie/assets/c.png")).toBe(true);
+  });
+
+  it("data:/http(s)/file: 与绝对路径一律不算", () => {
+    expect(persistableProjectMediaPath("data:image/png;base64,AAAA")).toBe(false);
+    expect(persistableProjectMediaPath("https://example.test/x.png")).toBe(false);
+    expect(persistableProjectMediaPath("file:///tmp/x.png")).toBe(false);
+    expect(persistableProjectMediaPath("/Users/abs/x.png")).toBe(false);
+    expect(persistableProjectMediaPath("C:\\\\x.png")).toBe(false);
+    expect(persistableProjectMediaPath("")).toBe(false);
+    expect(persistableProjectMediaPath(undefined)).toBe(false);
+  });
+
+  it("resolvePersistableAssetCurrentMediaPaths:base64-only 场景 → 空集;混合候选滤掉 data:", () => {
+    const base64OnlyScene = {
+      id: "scene-b64",
+      name: "只有底图数据的场景",
+      referenceImageBase64: "data:image/png;base64,BBBB",
+      createdAt: 1,
+      updatedAt: 1,
+    } as never;
+    expect(
+      resolvePersistableAssetCurrentMediaPaths({ kind: "scene", scene: base64OnlyScene }),
+    ).toEqual([]);
+    const mixedScene = {
+      id: "scene-mixed",
+      name: "混合场景",
+      referenceImage: "data:image/png;base64,CCCC",
+      contactSheetImage: "project-file://daojie/scenes/sheet.png",
+      createdAt: 1,
+      updatedAt: 1,
+    } as never;
+    expect(
+      resolvePersistableAssetCurrentMediaPaths({ kind: "scene", scene: mixedScene }),
+    ).toEqual(["project-file://daojie/scenes/sheet.png"]);
   });
 });

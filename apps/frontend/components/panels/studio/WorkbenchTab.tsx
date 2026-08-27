@@ -24,7 +24,10 @@ import { VisualContinuityReviewPanel } from "./VisualContinuityReviewPanel";
 import { useEditingWorkbenchActions } from "./useEditingWorkbenchActions";
 import { selectFirstStoryboard, useFirstShotPreviewActions } from "./use-first-shot-preview-actions";
 import { useRemotionQueueScope } from "./useRemotionQueueScope";
-import { resolveAssetCurrentMediaPaths } from "./workflow-asset-media-path";
+import {
+  persistableProjectMediaPath,
+  resolveAssetCurrentMediaPaths,
+} from "./workflow-asset-media-path";
 import { useSceneSegmentExport } from "./useSceneSegmentExport";
 import { SceneSegmentExportDialog, SceneSegmentExportProgress } from "./SceneSegmentExportDialog";
 import type { RemotionQueueScopeState } from "./useRemotionQueueScope";
@@ -918,9 +921,14 @@ export function buildWorkbenchAssetMediaMap(
     // 08-27 二期 R2:命中候选集合任一即不算路径过期——一期锚值是当时 legacy 链
     // 首位(通常 thumbnailUrl),该资产出现连续性版本后 candidates[0] 切到连续性
     // 图,若仍只比「首位」会全量假报过期;宁可漏报,指纹漂移仍是权威判据。
+    // 路径裁定:比对只认可持久化候选(项目相对虚拟协议/裸相对路径),与锚
+    // 写入同口径;data:/http(s)/绝对路径不参与锚比对(父卡显示不受此限)。
+    const persistableCandidates = parentCurrentCandidates.filter(
+      persistableProjectMediaPath,
+    );
     if (
       anchor.parentMediaPath
-      && !parentCurrentCandidates.includes(anchor.parentMediaPath)
+      && !persistableCandidates.includes(anchor.parentMediaPath)
     ) {
       return true;
     }

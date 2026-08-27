@@ -23,7 +23,7 @@ import { createStoryboardSliceActions } from "./storyboard-slice";
 import { groupStoryboardsIntoTracks } from "@/lib/studio/production";
 // 08-27 二期 R2:锚写入的父媒体路径改走共享候选解析(纯函数,零运行时依赖,
 // 与面板 buildWorkbenchAssetMediaMap 同一取图事实源)
-import { resolveAssetCurrentMediaPaths } from "@/components/panels/studio/workflow-asset-media-path";
+import { resolvePersistableAssetCurrentMediaPaths } from "@/components/panels/studio/workflow-asset-media-path";
 import {
   createHumanContinuityAssetApproval,
  
@@ -706,7 +706,7 @@ export const useStudioStore = create<StudioWorkflowStore>()(
             .getState()
             .characters.find((char) => char.id === target.parentId);
           const parentMediaPath = parent
-            ? resolveAssetCurrentMediaPaths({
+            ? resolvePersistableAssetCurrentMediaPaths({
                 kind: "character",
                 character: parent,
                 latestApprovedVersion: latestApprovedVersion(parent.id),
@@ -729,7 +729,7 @@ export const useStudioStore = create<StudioWorkflowStore>()(
             ? useSceneStore.getState().scenes.find((item) => item.id === scene.parentSceneId)
             : undefined;
           const parentMediaPath = parentScene
-            ? resolveAssetCurrentMediaPaths({
+            ? resolvePersistableAssetCurrentMediaPaths({
                 kind: "scene",
                 scene: parentScene,
                 latestApprovedVersion: latestApprovedVersion(parentScene.id),
@@ -750,7 +750,7 @@ export const useStudioStore = create<StudioWorkflowStore>()(
           ? usePropsLibraryStore.getState().items.find((item) => item.id === prop.parentId)
           : undefined;
         const parentMediaPath = parentProp
-          ? resolveAssetCurrentMediaPaths({
+          ? resolvePersistableAssetCurrentMediaPaths({
               kind: "prop",
               prop: parentProp,
               latestApprovedVersion: latestApprovedVersion(parentProp.id),

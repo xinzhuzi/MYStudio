@@ -1061,6 +1061,62 @@ describe("studio workflow store", () => {
     expect(useSceneStore.getState().getSceneById(parentSceneId)?.parentAnchor).toBeUndefined();
   });
 
+  it("never persists data: URLs into parent anchors(08-27 路径裁定:只有项目相对地址可落锚)", () => {
+    const parentSceneId = useSceneStore.getState().addScene({
+      name: "荒祠",
+      location: "荒祠",
+      time: "夜",
+      atmosphere: "残破",
+      // 父场景只有 base64 底图,无任何项目相对文件图
+      referenceImageBase64: "data:image/png;base64,XXXX",
+    });
+    const variantSceneId = useSceneStore.getState().addScene({
+      name: "荒祠月洞视角",
+      location: "荒祠",
+      time: "夜",
+      atmosphere: "残破",
+      parentSceneId,
+      viewpointName: "月洞视角",
+    });
+    useStudioStore.setState({
+      continuityAssetVersions: [{
+        assetId: parentSceneId,
+        versionId: `${parentSceneId}:v1`,
+        assetKind: "scene" as const,
+        label: "主视图",
+        // 版本无参考图:唯一可锚的是指纹,父媒体路径必须缺席(data: 不落锚)
+        referenceImagePaths: [],
+        structurallyComplete: true,
+        contentFingerprint: "scene-b64-only-fp",
+        approved: true,
+        approval: { status: "approved", reviewer: "human", reviewedAt: 10, evidencePaths: [], contentFingerprint: "approval-fp" },
+        source: "test",
+      }],
+    });
+    let graph = createImageWorkflowGraph({
+      id: "asset-flow-scene-b64-parent",
+      name: "场景衍生图",
+      target: { kind: "asset", assetType: "scene", id: variantSceneId },
+    });
+    graph = addGeneratedImageNode(graph, {
+      id: "gen-scene-b64",
+      prompt: "月洞视角",
+      position: { x: 620, y: 120 },
+      createdAt: graph.createdAt + 1,
+    });
+    graph = setGeneratedImageResult(graph, "gen-scene-b64", {
+      imageUrl: "project-file://daojie/workflow-images/scene-b64-out.png",
+      generatedAt: graph.createdAt + 2,
+    });
+    useStudioStore.getState().upsertImageWorkflow(graph);
+    useStudioStore.getState().applyImageWorkflowResultToAsset(graph.target, graph.id, "gen-scene-b64");
+
+    const variant = useSceneStore.getState().scenes.find((item) => item.id === variantSceneId);
+    expect(variant?.parentAnchor).toBeDefined();
+    expect(variant?.parentAnchor?.parentMediaPath).toBeUndefined();
+    expect(variant?.parentAnchor?.parentContinuityFingerprint).toBe("scene-b64-only-fp");
+  });
+
   it("writes parent anchors from the continuity-first candidate when an approved version has images (二期 R2)", () => {
     const characterId = useCharacterLibraryStore.getState().addCharacter({
       name: "晏燎",
