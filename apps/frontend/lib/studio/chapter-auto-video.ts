@@ -264,6 +264,13 @@ export async function prepareChapterMedia({
     ) {
       throw new Error(`分镜 ${storyboard.id} 缺少可读分镜图，已停止成片`);
     }
+    // C2 门禁收口:多帧镜逐帧校验可读(空规划槽不在此拦截,由渲染层按帧消费时把关)
+    for (const frame of storyboard.keyframes ?? []) {
+      const framePath = frame.mediaRef?.path;
+      if (framePath && !(await dependencies.resolveMediaPath(framePath))) {
+        throw new Error(`分镜 ${storyboard.id} 关键帧 ${frame.frameId} 缺少可读画面，已停止成片`);
+      }
+    }
   }
 
   const blockedShotIds = storyboards

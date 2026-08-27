@@ -424,6 +424,7 @@ export function visualReviewInputFingerprint(storyboard: Pick<
   | "orderedReferenceManifest"
   | "continuityState"
   | "mediaRef"
+  | "keyframes"
   | "imageWorkflowId"
   | "imageWorkflowNodeId"
   | "outputVersion"
@@ -439,6 +440,22 @@ export function visualReviewInputFingerprint(storyboard: Pick<
           imageWorkflowNodeId: storyboard.mediaRef.imageWorkflowNodeId,
         })
       : undefined,
+    // C1 门禁收口:关键帧全量入指纹(仅 keyframes 存在时序列化——单帧时代数据
+    // 指纹保持逐字节不变,不误伤既有批准)。换帧 2~4 同样打回重审。
+    ...(storyboard.keyframes?.length
+      ? {
+          keyframes: storyboard.keyframes.map((frame) =>
+            compactNullishFields({
+              frameId: frame.frameId,
+              inUs: frame.inUs,
+              kind: frame.mediaRef?.kind,
+              path: frame.mediaRef?.path,
+              contentSha256: frame.mediaRef?.contentSha256,
+              origin: frame.origin,
+            }),
+          ),
+        }
+      : {}),
     imageWorkflowId: storyboard.imageWorkflowId,
     imageWorkflowNodeId: storyboard.imageWorkflowNodeId,
     outputVersion: storyboard.outputVersion,
@@ -462,8 +479,23 @@ export function approvedVisualReviewIssues(
     add("review.timestamp", `分镜 ${storyboard.id} 缺少有效人工审核时间`);
   }
   const evidencePaths = review.evidencePaths.map((path) => path.trim()).filter(Boolean);
+  // C1 门禁收口:有关键帧序列时,证据必须逐帧精确绑定(顺序一致,空槽跳过);
+  // 单帧时代数据维持"恰好一条且等于 mediaRef.path"的原判。
+  const expectedFramePaths = (storyboard.keyframes ?? [])
+    .map((frame) => frame.mediaRef?.path)
+    .filter((path): path is string => Boolean(path));
   if (evidencePaths.length === 0) {
     add("review.evidence", `分镜 ${storyboard.id} 缺少审核证据路径`);
+  } else if (expectedFramePaths.length > 0) {
+    const mismatch =
+      evidencePaths.length !== expectedFramePaths.length
+      || evidencePaths.some((path, index) => path !== expectedFramePaths[index]);
+    if (mismatch) {
+      add(
+        "review.evidence",
+        `分镜 ${storyboard.id} 的审核证据必须逐帧绑定当前关键帧序列(${expectedFramePaths.length} 帧)`,
+      );
+    }
   } else if (
     evidencePaths.length !== 1
     || (storyboard.mediaRef?.path && evidencePaths[0] !== storyboard.mediaRef.path)

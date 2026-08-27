@@ -223,6 +223,9 @@ export interface RemotionShotHumanApprovalV1 {
   reviewer: "human";
   approvedAt: number;
   evidencePath: string;
+  /** C2 门禁收口:多帧镜的逐帧审核证据(与分镜 keyframes 顺序一致)。
+   *  单帧时代数据无此字段;存在时消费方须校验其与当前帧序列精确一致。 */
+  evidencePaths?: string[];
 }
 
 export type RemotionRenderJobTarget =

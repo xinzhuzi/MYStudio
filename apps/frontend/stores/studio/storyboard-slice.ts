@@ -8,6 +8,7 @@
 import type {
   StoryboardItem,
   StoryboardMediaRef,
+  StoryboardKeyframe,
   HumanVisualReviewInput,
   ContinuityAssetVersion,
 } from "@/types/studio";
@@ -21,6 +22,10 @@ import {
   markContinuityDependentsStale,
   visualReviewInputFingerprint,
 } from "@/lib/studio/visual-continuity";
+import {
+  normalizeStoryboardKeyframes,
+  validateStoryboardKeyframes,
+} from "@/lib/studio/keyframes";
 
 /** Storyboard slice 契约。 */
 export interface StoryboardSlice {
@@ -28,6 +33,16 @@ export interface StoryboardSlice {
   addStoryboard: (item?: Partial<StoryboardItem>) => string;
   replaceStoryboardsForEpisode: (episodeId: string, items: StoryboardItem[]) => void;
   updateStoryboard: (id: string, updates: Partial<StoryboardItem>) => void;
+  /**
+   * 关键帧序列唯一写入口(design §1.2):校验 I2~I4 → 写 keyframes +
+   * 首帧镜像 mediaRef(I1) → 指纹级联(改帧打回审核/标 stale)→ 媒体任务轨迹。
+   * 其他任何地方禁止手拼 keyframes。
+   */
+  setStoryboardKeyframes: (
+    id: string,
+    frames: StoryboardKeyframe[],
+    reason: "backfill" | "generate" | "upscale" | "plan" | "edit",
+  ) => void;
   writeStoryboardAudio: (
     id: string,
     updates: Pick<
@@ -224,6 +239,18 @@ export function createStoryboardSliceActions(set: SetFn, get: GetFn) {
 
     bindStoryboardMedia: (id: string, mediaRef: StoryboardMediaRef): void => {
       get().updateStoryboard(id, { mediaRef });
+      // I1 镜像维护:绑新图(超分换轨等)时同步首帧,防 mediaRef 与 keyframes[0] 分叉
+      const current = get().storyboards.find((item) => item.id === id);
+      if (mediaRef.kind === "image" && current?.keyframes?.length) {
+        const patched = current.keyframes.map((frame, index) =>
+          index === 0 ? { ...frame, mediaRef } : frame,
+        );
+        set((state) => ({
+          storyboards: state.storyboards.map((item) =>
+            item.id === id ? { ...item, keyframes: patched } : item,
+          ),
+        }));
+      }
       const storyboard = get().storyboards.find((item) => item.id === id);
       const taskId = get().startMediaTask({
         kind: mediaRef.kind === "audio" ? "ttsAudio" : "storyboardImage",
@@ -242,6 +269,48 @@ export function createStoryboardSliceActions(set: SetFn, get: GetFn) {
           mediaRef.imageWorkflowNodeId,
         ].filter((ref): ref is string => Boolean(ref)),
       });
+    },
+
+    setStoryboardKeyframes: (
+      id: string,
+      frames: StoryboardKeyframe[],
+      reason,
+    ): void => {
+      const current = get().storyboards.find((item) => item.id === id);
+      if (!current) return;
+      const normalized = normalizeStoryboardKeyframes(frames);
+      const shotDurationUs =
+        (current.durationTarget ?? current.duration ?? 0) * 1_000_000 || undefined; // 秒→µs
+      const issues = validateStoryboardKeyframes(normalized, {
+        shotDurationUs,
+        // 帧规划器建槽允许空 mediaRef;其余来源必须有图
+        allowEmptySlots: reason === "plan",
+      });
+      if (issues.length) {
+        throw new Error(`关键帧序列非法(${reason}):${issues.join(";")}`);
+      }
+      // I1 首帧镜像:mediaRef 与 keyframes[0] 同源双写(空槽规划不覆盖现有 mediaRef)
+      const firstImage = normalized.find((frame) => frame.mediaRef?.path);
+      const updates: Partial<StoryboardItem> = { keyframes: normalized };
+      if (firstImage && reason !== "plan") {
+        updates.mediaRef = firstImage.mediaRef;
+      }
+      get().updateStoryboard(id, updates);
+      const storyboard = get().storyboards.find((item) => item.id === id);
+      if (storyboard) {
+        const taskId = get().startMediaTask({
+          kind: "storyboardImage",
+          targetId: id,
+          episodeId: storyboard.episodeId,
+          provider: "keyframes",
+          inputFingerprint: storyboardSourceFingerprint(storyboard),
+        });
+        get().finishMediaTask(taskId, {
+          outputRefs: storyboard.keyframes
+            ?.map((frame) => frame.mediaRef?.path)
+            .filter((path): path is string => Boolean(path)),
+        });
+      }
     },
   };
 }

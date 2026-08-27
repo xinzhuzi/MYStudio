@@ -143,6 +143,25 @@ export interface StoryboardMediaRef {
   imageWorkflowNodeId?: string;
 }
 
+/**
+ * 分镜关键帧：长镜(8~15s)一镜 2~4 帧中的一帧。
+ * 不变式(校验收敛于 lib/studio/keyframes.ts 与 setStoryboardKeyframes):
+ * I1 keyframes[0].mediaRef ≡ StoryboardItem.mediaRef(首帧镜像,双写同源);
+ * I2 帧数 1..4,inUs 严格递增且首帧为 0;
+ * I3 frameId 镜内唯一(约定 `${storyboardId}-kf-${n}`);
+ * I4 帧媒体 path 走受管虚拟协议(禁 data:/blob:/绝对路径)。
+ */
+export interface StoryboardKeyframe {
+  frameId: string;
+  mediaRef: StoryboardMediaRef;
+  /** 帧入点,相对本镜起点(微秒 µs,与 durationUs 同单位)。首帧恒 0;帧间严格递增;末帧须小于镜时长 */
+  inUs: number;
+  /** 来源:旧镜回接(携旧镜号,可沿旧审结论)/新生成;缺省视为生成 */
+  origin?: { kind: "legacy-shot"; legacyIndex: number } | { kind: "generated" };
+  /** 帧时刻描述(帧规划器规则生成,如"开场站位:…"/"收尾态:…");供生图提示词组装帧差异段 */
+  momentDescription?: string;
+}
+
 export interface StoryboardSourceEvidence {
   source: string;
   sourceProjectId?: string | number;
@@ -351,6 +370,9 @@ export interface StoryboardItem extends StudioStaleEvidence, StudioSourceIdentit
   videoDesc: string;
   assetIds: string[];
   mediaRef?: StoryboardMediaRef;
+  /** 关键帧序列(一镜多图)。undefined=单图时代数据,等价 [mediaRef] 单帧;
+   *  写入唯一走 setStoryboardKeyframes(首帧镜像 I1 由其保证) */
+  keyframes?: StoryboardKeyframe[];
   imageWorkflowId?: string;
   imageWorkflowNodeId?: string;
   shouldGenerateImage?: boolean;

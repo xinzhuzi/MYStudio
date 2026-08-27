@@ -61,6 +61,8 @@ export async function buildRemotionShotPlans(
       state: storyboard.state,
       stale: storyboard.stale ?? false,
       ...(storyboard.mediaRef ? { media: storyboard.mediaRef } : {}),
+      // C2:关键帧全量入章节内容哈希——换帧 2~4 必须产生新 revision
+      ...(storyboard.keyframes?.length ? { keyframes: storyboard.keyframes } : {}),
       ...(storyboard.shotAudioBindings ? { shotAudioBindings: storyboard.shotAudioBindings } : {}),
       ...(storyboard.visualReview ? { visualReview: storyboard.visualReview } : {}),
       ...(storyboard.continuityState ? { continuity: storyboard.continuityState } : {}),
@@ -251,7 +253,7 @@ function parseProjectRelativePath(projectId: string, value: string): string | un
   return isSafeRelativePath(value) ? value : undefined;
 }
 
-function buildHumanApproval(
+export function buildHumanApproval(
   projectId: string,
   chapterId: string,
   storyboard: StoryboardItem,
@@ -259,6 +261,18 @@ function buildHumanApproval(
 ): RemotionShotHumanApprovalV1 | undefined {
   const review = storyboard.visualReview;
   if (review?.status !== "approved" || review.reviewer !== "human" || !review.evidencePaths[0]) return undefined;
+  // C2 门禁收口:多帧镜的批准证据必须逐帧齐备且与当前帧序列精确一致,
+  // 否则视为未批准(阻断编译)——防"批了首帧、换了后帧"沿用旧批准。
+  const expectedFramePaths = (storyboard.keyframes ?? [])
+    .map((frame) => frame.mediaRef?.path)
+    .filter((path): path is string => Boolean(path));
+  if (expectedFramePaths.length > 1) {
+    const evidence = review.evidencePaths.map((path) => path.trim()).filter(Boolean);
+    const mismatch =
+      evidence.length !== expectedFramePaths.length
+      || evidence.some((path, index) => path !== expectedFramePaths[index]);
+    if (mismatch) return undefined;
+  }
   return {
     schemaVersion: 1,
     projectId,
@@ -269,6 +283,7 @@ function buildHumanApproval(
     reviewer: "human",
     approvedAt: review.reviewedAt ?? 0,
     evidencePath: review.evidencePaths[0],
+    ...(expectedFramePaths.length > 1 ? { evidencePaths: expectedFramePaths } : {}),
   };
 }
 

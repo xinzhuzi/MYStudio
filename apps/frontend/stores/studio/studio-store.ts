@@ -59,6 +59,7 @@ import { useCharacterLibraryStore } from "@/stores/library/character-library-sto
 import { usePropsLibraryStore } from "@/stores/library/props-library-store";
 import { useSceneStore } from "@/stores/library/scene-store";
 import type {
+  StoryboardKeyframe,
   AgentWorkData,
   AgentWorkKey,
   ContinuityAssetVersion,
@@ -186,6 +187,11 @@ interface StudioWorkflowActions {
   ) => void;
   reviewStoryboardHuman: (id: string, review: HumanVisualReviewInput) => void;
   bindStoryboardMedia: (id: string, mediaRef: StoryboardMediaRef) => void;
+  setStoryboardKeyframes: (
+    id: string,
+    frames: StoryboardKeyframe[],
+    reason: "backfill" | "generate" | "upscale" | "plan" | "edit",
+  ) => void;
   createImageWorkflow: (input?: Parameters<typeof createImageWorkflowGraph>[0]) => string;
   upsertImageWorkflow: (graph: ImageWorkflowGraph) => void;
   updateImageWorkflow: (id: string, updates: Partial<ImageWorkflowGraph>) => void;
@@ -598,6 +604,7 @@ export const useStudioStore = create<StudioWorkflowStore>()(
       writeStoryboardAudio: storyboardSlice.writeStoryboardAudio,
       reviewStoryboardHuman: storyboardSlice.reviewStoryboardHuman,
       bindStoryboardMedia: storyboardSlice.bindStoryboardMedia,
+      setStoryboardKeyframes: storyboardSlice.setStoryboardKeyframes,
 
       createImageWorkflow: (input = {}) => {
         const graph = createImageWorkflowGraph(input);

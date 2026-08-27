@@ -23,6 +23,7 @@ const CANONICAL_STORYBOARD_FIELDS = [
   "videoDesc",
   "assetIds",
   "mediaRef",
+  "keyframes",
   "imageWorkflowId",
   "imageWorkflowNodeId",
   "shouldGenerateImage",
@@ -136,6 +137,11 @@ function projectCanonicalStoryboardItem(item: StoryboardItem): Record<string, un
       if (media) projected[field] = media;
       continue;
     }
+    if (field === "keyframes") {
+      const frames = serializeCanonicalKeyframes(value as StoryboardItem["keyframes"]);
+      if (frames) projected[field] = frames;
+      continue;
+    }
     if (field === "cinematic") {
       projected[field] = value;
       continue;
@@ -156,6 +162,24 @@ function serializeCanonicalMediaRef(
     ...(media.imageWorkflowId ? { imageWorkflowId: media.imageWorkflowId } : {}),
     ...(media.imageWorkflowNodeId ? { imageWorkflowNodeId: media.imageWorkflowNodeId } : {}),
   };
+}
+
+/** C3 门禁收口:关键帧序列的 canonical 序列化(逐帧路径走持久化纪律,空槽整帧丢弃) */
+function serializeCanonicalKeyframes(frames: StoryboardItem["keyframes"]): unknown[] | undefined {
+  if (!frames?.length) return undefined;
+  const serialized = frames
+    .map((frame) => {
+      const media = serializeCanonicalMediaRef(frame.mediaRef);
+      if (!media) return undefined;
+      return {
+        frameId: frame.frameId,
+        mediaRef: media,
+        inUs: frame.inUs,
+        ...(frame.origin ? { origin: frame.origin } : {}),
+      };
+    })
+    .filter((frame) => frame !== undefined);
+  return serialized.length ? serialized : undefined;
 }
 
 function isPersistableMediaPath(path: string, projectId?: string): boolean {
@@ -223,6 +247,45 @@ export function validateStoryboardJson(raw: string, episodeId: string, projectId
       }
       if (!isPersistableMediaPath(media.path, projectId)) {
         return { error: `分镜 ${shot.id} ${field} 路径包含运行时 URL、凭据或临时路径` };
+      }
+    }
+    if (shot.keyframes !== undefined) {
+      if (!Array.isArray(shot.keyframes) || shot.keyframes.length === 0 || shot.keyframes.length > 4) {
+        return { error: `分镜 ${shot.id} keyframes 须为 1..4 帧数组` };
+      }
+      if (shot.keyframes[0].inUs !== 0) {
+        return { error: `分镜 ${shot.id} keyframes 首帧 inUs 须为 0` };
+      }
+      const frameIds = new Set<string>();
+      for (let frameIndex = 0; frameIndex < shot.keyframes.length; frameIndex += 1) {
+        const frame = shot.keyframes[frameIndex];
+        if (!frame || typeof frame !== "object" || typeof frame.frameId !== "string" || !frame.frameId.trim()) {
+          return { error: `分镜 ${shot.id} 第 ${frameIndex + 1} 帧 frameId 无效` };
+        }
+        if (frameIds.has(frame.frameId)) {
+          return { error: `分镜 ${shot.id} frameId 重复: ${frame.frameId}` };
+        }
+        frameIds.add(frame.frameId);
+        if (typeof frame.inUs !== "number" || !Number.isFinite(frame.inUs) || frame.inUs < 0) {
+          return { error: `分镜 ${shot.id} 第 ${frameIndex + 1} 帧 inUs 无效` };
+        }
+        if (frameIndex > 0 && frame.inUs <= shot.keyframes[frameIndex - 1].inUs) {
+          return { error: `分镜 ${shot.id} keyframes inUs 须严格递增` };
+        }
+        const media = frame.mediaRef;
+        if (media === undefined) continue;
+        if (
+          !media
+          || typeof media !== "object"
+          || !["image", "video", "audio"].includes(media.kind)
+          || typeof media.path !== "string"
+          || !media.path.trim()
+        ) {
+          return { error: `分镜 ${shot.id} 第 ${frameIndex + 1} 帧媒体引用无效` };
+        }
+        if (!isPersistableMediaPath(media.path, projectId)) {
+          return { error: `分镜 ${shot.id} 第 ${frameIndex + 1} 帧路径包含运行时 URL、凭据或临时路径` };
+        }
       }
     }
     items.push(projectCanonicalStoryboardItem(shot as StoryboardItem) as unknown as StoryboardItem);
