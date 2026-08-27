@@ -16,6 +16,7 @@ import {
   withActiveVisualManualStoryboardStyleTokens,
 } from "@/lib/studio/visual-manual-style-tokens";
 import { useStudioStore } from "@/stores/studio/studio-store";
+import { DEFAULT_REMOTION_RENDER_SETTINGS } from "@/lib/studio/remotion/remotion-workspace-storage";
 import {
   buildStoryboardFactionColorSection,
   buildStoryboardFramePrompt,
@@ -411,6 +412,11 @@ export function createOpenImageWorkflowGraph(
   const referenceImagePath = context.sourceImagePath || context.resultImagePath;
   const referenceNodeId = referenceImagePath ? createId("ref") : "";
   const imageSettings = useAppSettingsStore.getState().imageGenerationSettings;
+  // 生图画幅跟随成片(用户裁定 08-27 晚:横屏视频,分镜图必须 16:9;
+  // 全局设置曾是 1:1 方图导致分镜图乱七八糟)。资产/自由目标仍用用户设置。
+  const genAspectRatio = isStoryboard
+    ? (DEFAULT_REMOTION_RENDER_SETTINGS.width >= DEFAULT_REMOTION_RENDER_SETTINGS.height ? "16:9" : "9:16")
+    : imageSettings.defaultAspectRatio;
   if (referenceImagePath) {
     graph = addReferenceImageNode(graph, {
       id: referenceNodeId,
@@ -442,7 +448,7 @@ export function createOpenImageWorkflowGraph(
     title: "图片生成",
     prompt,
     negativePrompt: negativePrompt || undefined,
-    aspectRatio: imageSettings.defaultAspectRatio,
+    aspectRatio: genAspectRatio,
     resolution: imageSettings.defaultResolution,
     quality: "standard",
     targetNodeId: generatedNodeId,
@@ -523,7 +529,7 @@ export function createOpenImageWorkflowGraph(
         title: `图片生成·帧${index + 1}`,
         prompt: `${prompt}${momentOf(index)}`,
         negativePrompt: negativePrompt || undefined,
-        aspectRatio: imageSettings.defaultAspectRatio,
+        aspectRatio: genAspectRatio,
         resolution: imageSettings.defaultResolution,
         quality: "standard",
         targetNodeId: frameGenId,
