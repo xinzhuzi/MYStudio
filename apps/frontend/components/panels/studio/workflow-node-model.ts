@@ -185,6 +185,9 @@ export interface ProductionFlowNodeAction {
   promptPlaceholder?: string;
   showPromptInput?: boolean;
   userInstruction?: string;
+  /** 付费云端动作(LLM 生成类)——按钮必须用共享 Button variant="paid"
+   *  (2026-08-25 裁定:付费按钮统一金色模板;本地渲染类不标)。 */
+  paid?: boolean;
 }
 
 export interface ProductionFlowNodeSkill {
@@ -448,6 +451,7 @@ function buildScriptPlanNode(ctx: ProductionFlowBuildContext): ProductionFlowNod
     actions: [
       {
         id: "generate-director-plan",
+        paid: true,
         label: ctx.input.scriptPlans.length > 0 ? "重新生成导演规划" : "生成导演规划",
         targetStage: "storyboard",
         disabled: ctx.scriptDrafts.length === 0,
@@ -494,6 +498,7 @@ function buildStoryboardTableNode(ctx: ProductionFlowBuildContext): ProductionFl
     actions: [
       {
         id: "generate-storyboard-table",
+        paid: true,
         label: ctx.storyboardTableCount > 0 ? "重新生成分镜表" : "生成分镜表",
         targetStage: "storyboard",
         disabled: ctx.input.scriptPlans.length === 0,

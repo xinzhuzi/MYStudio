@@ -388,8 +388,10 @@ export const ProductionFlowNode = memo(function ProductionFlowNode({ data }: Nod
                           type="button"
                           disabled={isDisabled}
                           className={cn(
-                            "inline-flex h-8 shrink-0 items-center gap-2 rounded-md border border-primary/30 bg-primary/12 px-3 text-xs font-medium text-primary/80",
-                            "hover:border-primary/60 hover:bg-primary/18",
+                            action.paid
+                              ? // 付费云端动作走全仓统一金色付费模板(2026-08-25 裁定)
+                                buttonVariants({ variant: "paid", size: "sm" })
+                              : "inline-flex h-8 shrink-0 items-center gap-2 rounded-md border border-primary/30 bg-primary/12 px-3 text-xs font-medium text-primary/80 hover:border-primary/60 hover:bg-primary/18",
                             isDisabled &&
                               "cursor-not-allowed border-border bg-muted/30 text-muted-foreground hover:border-border hover:bg-muted/30",
                           )}
