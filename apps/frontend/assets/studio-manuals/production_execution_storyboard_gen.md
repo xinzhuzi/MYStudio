@@ -1,5 +1,5 @@
 ---
-name: production_execution_storyboard_gen.md
+name: 执行层 Agent — 分镜图生成
 description: >-
   视频制作执行层Agent技能 — 分镜图生成。
   负责读取分镜面板并调用图片生成工具生成分镜图片。

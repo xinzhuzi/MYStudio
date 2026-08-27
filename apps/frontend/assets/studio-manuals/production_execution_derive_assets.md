@@ -1,5 +1,5 @@
 ---
-name: production_execution_derive_assets.md
+name: 执行层 Agent — 衍生资产分析与信息写入
 description: >-
   视频制作执行层Agent技能 — 衍生资产分析与信息写入。
   负责分析剧本并识别每个资产的视觉状态变体，逐条写入衍生资产。

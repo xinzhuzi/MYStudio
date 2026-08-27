@@ -1,5 +1,5 @@
 ---
-name: production_execution_director_plan.md
+name: 导演规划
 description: >-
   导演规划Agent
 ---

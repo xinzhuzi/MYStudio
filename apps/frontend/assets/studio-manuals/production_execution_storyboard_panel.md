@@ -1,5 +1,5 @@
 ---
-name: production_execution_storyboard_panel.md
+name: 执行层 Agent — 分镜面板写入
 description: >-
   视频制作执行层Agent技能 — 分镜面板写入。
   采用路由模式：先识别决策层派发的写入模式（纯文本多参 / 故事板辅助多参 / 首位帧），

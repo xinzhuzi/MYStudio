@@ -1,5 +1,5 @@
 ---
-name: production_execution_generate_assets.md
+name: 执行层 Agent — 衍生资产图片生成
 description: >-
   视频制作执行层Agent技能 — 衍生资产图片生成。
   负责收集需要生成图片的资产并调用生成工具。

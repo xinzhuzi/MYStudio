@@ -2,7 +2,6 @@
 // Licensed under AGPL-3.0-or-later. See LICENSE for details.
 // Commercial licensing available. See COMMERCIAL_LICENSE.md.
 
-import { Fragment } from "react";
 import { Edit3 } from "lucide-react";
 import { MdPreview } from "md-editor-rt";
 import "md-editor-rt/lib/style.css";
@@ -102,10 +101,9 @@ export function NodeDocViewer({
   );
 }
 
-/** 分镜表渲染——列集合按数据动态判定:数据里有的字段全展示,没有的列不出现。
- * 覆盖解析器全部变体(15/14/8/7 列):序号/画面描述/关联资产/时长/景别/运镜/
- * 角色动作/朝向/空间关系/情绪/台词/音效/出镜语义,按「场」分组。
- * 用户裁定:内容不许缺列、必须可左右滑动。 */
+/** 分镜表渲染——15 列契约全部平铺为直观列(用户裁定 2026-08-27 晚:
+ * 场景/关联资产ID 也做成列,不要分组行等复杂布局;缺值显示"—")。
+ * 序号冻结+表头吸顶+横向滚动保留。 */
 function TableRender({ node }: { node: ProductionFlowNodeModel }) {
   const rows = node.tableRows ?? [];
   if (!rows.length) return <p className="text-sm text-muted-foreground">暂无分镜表数据</p>;
@@ -129,7 +127,11 @@ function TableRender({ node }: { node: ProductionFlowNodeModel }) {
       cell: (row) => <span className="text-foreground">{row.description || "—"}</span>,
     },
     {
-      key: "assets", label: "关联资产", cls: "w-[220px]", has: rows.some((r) => r.associateAssetsNames.length > 0),
+      key: "scene", label: "场景", cls: "w-[120px]", has: true,
+      cell: (row) => <span className="text-muted-foreground">{row.scene || "—"}</span>,
+    },
+    {
+      key: "assets", label: "关联资产", cls: "w-[220px]", has: true,
       cell: (row) => <span className="text-muted-foreground">{row.associateAssetsNames.join("、") || "—"}</span>,
     },
     {
@@ -169,6 +171,10 @@ function TableRender({ node }: { node: ProductionFlowNodeModel }) {
       cell: (row) => <span className="text-muted-foreground">{row.sound || "—"}</span>,
     },
     {
+      key: "assetIds", label: "关联资产ID", cls: "w-[240px]", has: true,
+      cell: (row) => <span className="break-all font-mono text-[11px] text-muted-foreground">{row.associateAssetsIds.join("、") || "—"}</span>,
+    },
+    {
       key: "semantics", label: "出镜语义（角色/道具/承接）", cls: "w-[420px]", has: rows.some((r) => r.shotSemantics),
       cell: (row) => (row.shotSemantics ? <SemanticsCell semantics={row.shotSemantics} /> : <span className="text-muted-foreground">—</span>),
     },
@@ -193,32 +199,19 @@ function TableRender({ node }: { node: ProductionFlowNodeModel }) {
         </tr>
       </thead>
       <tbody>
-        {rows.map((row, i) => {
-          const sceneHeader =
-            row.scene && row.scene !== rows[i - 1]?.scene ? (
-              <tr key={`scene-${row.scene}-${row.index}`} className="bg-muted/30">
-                <td colSpan={visible.length} className="border-y border-border/40 px-3 py-2 text-[12px] font-semibold text-foreground">
-                  {row.scene}
-                </td>
-              </tr>
-            ) : null;
-          return (
-            <Fragment key={row.index ?? i}>
-              {sceneHeader}
-              <tr className={`border-b border-border/30 ${i % 2 === 1 ? "bg-muted/15" : ""} hover:bg-primary/5`}>
-                {visible.map((column, colIndex) =>
-                  colIndex === 0 ? (
-                    <td key={column.key} className="sticky left-0 z-[1] border-r border-border/50 bg-card px-2 py-3 text-center">
-                      {column.cell(row)}
-                    </td>
-                  ) : (
-                    <td key={column.key} className="px-3 py-3 align-top">{column.cell(row)}</td>
-                  ),
-                )}
-              </tr>
-            </Fragment>
-          );
-        })}
+        {rows.map((row, i) => (
+            <tr key={row.index ?? i} className={`border-b border-border/30 ${i % 2 === 1 ? "bg-muted/15" : ""} hover:bg-primary/5`}>
+              {visible.map((column, colIndex) =>
+                colIndex === 0 ? (
+                  <td key={column.key} className="sticky left-0 z-[1] border-r border-border/50 bg-card px-2 py-3 text-center">
+                    {column.cell(row)}
+                  </td>
+                ) : (
+                  <td key={column.key} className="px-3 py-3 align-top">{column.cell(row)}</td>
+                ),
+              )}
+            </tr>
+        ))}
       </tbody>
     </table>
   );
@@ -230,10 +223,7 @@ function SemanticsCell({ semantics }: { semantics: NonNullable<ProductionFlowNod
   if (!s) return <span className="text-muted-foreground">—</span>;
   return (
     <div className="text-[11px] leading-4 text-muted-foreground">
-      <p>
-        <span className="text-foreground/80">视角</span> {s.sceneViewpointId}
-        {s.personFree ? <span className="ml-1 rounded bg-muted/60 px-1 text-[10px]">无人出镜</span> : null}
-      </p>
+      {s.personFree ? <p className="rounded bg-muted/60 px-1 text-[10px]">无人出镜</p> : null}
       {s.visibleCharacters?.map((character) => (
         <p key={character.name}>
           <span className="text-foreground/80">{character.name}</span>

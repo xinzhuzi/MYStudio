@@ -1,5 +1,5 @@
 ---
-name: production_execution_storyboard_table.md
+name: 分镜表
 description: >-
   分镜表
 ---
