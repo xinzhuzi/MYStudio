@@ -38,6 +38,13 @@
  *   GET  {base}/images/tasks/{id}         (Bearer)
  *   → {"status":"completed","data":[{"url":"https://…"}]}
  *
+ * 2026-08-28 深夜真 key 实弹定档(gpt-image-2,单图 125s):
+ *   - 终态 status="success"(非 "completed"),中间态 "running";本实现
+ *     靠「先提取结果 URL 再看失败态」的顺序兼容任意成功态措辞
+ *   - 轮询地址 /images/tasks/{id} 与 /v1/images/tasks/{id} 服务端都收
+ *   - 结果在 result.data[0].url;gpt-image-2 实际输出恒为 1672×941,
+ *     与请求 size 无关(供应商固定档,角标按新阈值如实标 1K)
+ *
  * 响应形态兼容:任务号取 id/task_id/taskId;结果取 resultUrl/result_url/
  * data[0].url/data[0].b64_json;部分实现提交即回图,直接采用。
  */
