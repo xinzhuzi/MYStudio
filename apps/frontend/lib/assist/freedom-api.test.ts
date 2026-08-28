@@ -5,6 +5,7 @@ import { useAppSettingsStore } from "@/stores/app/app-settings-store";
 import { resetFeatureRoundRobin } from "@/lib/ai/feature-router";
 import { clearAllManagers } from "@/lib/ai/core";
 import { generateFreedomImage } from "./freedom-api";
+import { resetImagesEndpointPoisonMemory } from "./freedom-image-endpoint-memory";
 
 const provider = {
   id: "torchai",
@@ -21,6 +22,7 @@ describe("generateFreedomImage", () => {
     vi.unstubAllGlobals();
     clearAllManagers();
     resetFeatureRoundRobin();
+    resetImagesEndpointPoisonMemory();
     useAPIConfigStore.setState({
       providers: [provider],
       featureBindings: {
@@ -234,3 +236,184 @@ describe("generateFreedomImage", () => {
     await expect(generateFreedomImage({ prompt: "auth failure image" })).rejects.toThrow();
     expect(fetchMock.mock.calls.some(([url]) => String(url).endsWith("/chat/completions"))).toBe(false);
   }, 20000);
+
+  it("lists every attempted provider and its reason when the whole fallback chain fails", async () => {
+    const backupProvider = {
+      id: "backup",
+      platform: "custom",
+      name: "backup",
+      baseUrl: "https://backup.example/v1",
+      apiKey: "sk-test",
+      model: ["gpt-image-2"],
+    };
+    useAPIConfigStore.setState({
+      providers: [provider, backupProvider],
+      featureBindings: {
+        freedom_image: ["torchai:gpt-image-2"],
+        character_generation: ["backup:gpt-image-2"],
+      },
+    } as never);
+    // 403 拒绝:确定性错误,不重试不回退 chat,每家只烧一次请求
+    const fetchMock = vi.fn().mockImplementation(async () => new Response("forbidden", { status: 403 }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const error: unknown = await generateFreedomImage({ prompt: "chain failure image" }).catch((err: unknown) => err);
+    const message = error instanceof Error ? error.message : String(error);
+    expect(message).toContain("已依次尝试 2 家生图服务均失败");
+    expect(message).toContain("1. torchai:");
+    expect(message).toContain("2. backup:");
+    expect(message).toContain("最后错误");
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  }, 20000);
+
+  it("skips the poisoned images endpoint on the next generation after a 200 non-JSON failure", async () => {
+    const chatOk = new Response(JSON.stringify({
+      choices: [{ message: { role: "assistant", content: "![image_1](data:image/png;base64,aGVsbG8=)" } }],
+    }), { status: 200 });
+    const fetchMock = vi.fn().mockImplementation(async (url: string | URL) => {
+      const target = String(url);
+      if (target.endsWith("/chat/completions")) return chatOk.clone();
+      // images 端点 200 但响应体非 JSON(钱咖API 08-28 实弹形态)
+      return new Response("<html>not json</html>", { status: 200 });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const first = await generateFreedomImage({ prompt: "poison probe one" });
+    expect(first.url).toBe("data:image/png;base64,aGVsbG8=");
+    // 第一次:先试 images(必败)再回退 chat
+    expect(fetchMock.mock.calls.some(([url]) => String(url).endsWith("/images/generations"))).toBe(true);
+
+    fetchMock.mockClear();
+    const second = await generateFreedomImage({ prompt: "poison probe two" });
+    expect(second.url).toBe("data:image/png;base64,aGVsbG8=");
+    // 第二次:坏点记忆命中,直接走 chat,不再烧 images 请求
+    expect(fetchMock.mock.calls.every(([url]) => String(url).endsWith("/chat/completions"))).toBe(true);
+  }, 20000);
+
+  it("fails fast without chat fallback or next provider when a mikoto image request outcome is ambiguous", async () => {
+    const backupProvider = {
+      id: "backup",
+      platform: "custom",
+      name: "backup",
+      baseUrl: "https://backup.example/v1",
+      apiKey: "sk-test",
+      model: ["gpt-image-2"],
+    };
+    useAPIConfigStore.setState({
+      providers: [{
+        id: "mikoto",
+        platform: "custom",
+        name: "mikoto",
+        baseUrl: "https://api.mikoto.vip/",
+        apiKey: "sk-test",
+        model: ["gpt-image-2"],
+      }, backupProvider],
+      featureBindings: {
+        freedom_image: ["mikoto:gpt-image-2"],
+        character_generation: ["backup:gpt-image-2"],
+      },
+    } as never);
+    // 51 秒 200 非 JSON 形态:请求很可能已被受理计费,结果不确定
+    const fetchMock = vi.fn().mockImplementation(async (url: string | URL) => {
+      const target = String(url);
+      if (target.endsWith("/chat/completions")) {
+        throw new Error("chat must not be called for ambiguous mikoto results");
+      }
+      return new Response("binary-garbage", { status: 200 });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const error: unknown = await generateFreedomImage({ prompt: "mikoto boundary" }).catch((err: unknown) => err);
+    const message = error instanceof Error ? error.message : String(error);
+    expect(message).toBeTruthy();
+    // 只烧一次 mikoto images 请求:无 SDK 重试、无 chat 回退、不换 backup 家
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(String(fetchMock.mock.calls[0]?.[0])).toContain("api.mikoto.vip");
+  }, 20000);
+
+  it("forces mikoto onto the async channel even when transport=chat is requested (sync channels closed)", async () => {
+    useAPIConfigStore.setState({
+      providers: [{
+        id: "mikoto",
+        platform: "custom",
+        name: "mikoto",
+        baseUrl: "https://api.mikoto.vip/",
+        apiKey: "sk-test",
+        model: ["gpt-image-2"],
+      }, {
+        id: "backup",
+        platform: "custom",
+        name: "backup",
+        baseUrl: "https://backup.example/v1",
+        apiKey: "sk-test",
+        model: ["gpt-image-2"],
+      }],
+      featureBindings: {
+        freedom_image: ["mikoto:gpt-image-2"],
+        character_generation: ["backup:gpt-image-2"],
+      },
+    } as never);
+    // 用户裁定 08-28:mikoto 同步通道暂时关闭,显式 transport=chat 也强制异步
+    const fetchMock = vi.fn().mockImplementation(async (url: string | URL) => {
+      const target = String(url);
+      if (target.endsWith("/v1/images/generations/async")) {
+        return new Response(JSON.stringify({ task_id: "chat-retry-task" }), { status: 200 });
+      }
+      if (target.endsWith("/images/tasks/chat-retry-task")) {
+        return new Response(JSON.stringify({ status: "completed", resultUrl: "https://cdn.mikoto.example/retry.png" }), { status: 200 });
+      }
+      throw new Error(`sync endpoint must not be hit for mikoto: ${target}`);
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    vi.useFakeTimers();
+
+    const promise = generateFreedomImage({ prompt: "mikoto sync closed", transport: "chat" }).then(
+      (value) => value,
+      (err: unknown) => err,
+    );
+    await vi.advanceTimersByTimeAsync(3001);
+    const outcome = await promise;
+
+    expect(outcome).toMatchObject({ url: "https://cdn.mikoto.example/retry.png" });
+    expect(fetchMock.mock.calls.every(([url]) => !String(url).includes("chat/completions"))).toBe(true);
+  }, 20000);
+
+  it("keeps prior-provider context when a mikoto ambiguous failure stops the chain", async () => {
+    useAppSettingsStore.getState().setImageGenerationSettings({ compatibilityRetryEnabled: false });
+    useAPIConfigStore.setState({
+      providers: [provider, {
+        id: "mikoto",
+        platform: "custom",
+        name: "mikoto",
+        baseUrl: "https://api.mikoto.vip/",
+        apiKey: "sk-test",
+        model: ["gpt-image-2"],
+      }],
+      featureBindings: {
+        freedom_image: ["torchai:gpt-image-2"],
+        character_generation: ["mikoto:gpt-image-2"],
+      },
+    } as never);
+    const fetchMock = vi.fn().mockImplementation(async (url: string | URL) => {
+      const target = String(url);
+      if (target.includes("torchai")) return new Response("forbidden", { status: 403 });
+      // mikoto images 端点 200 非 JSON(51 秒形态)
+      return new Response("binary-garbage", { status: 200 });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const error: unknown = await generateFreedomImage({ prompt: "ambiguous chain context" }).catch((err: unknown) => err);
+    const message = error instanceof Error ? error.message : String(error);
+    // 模糊终止也要带上前置家失败原因,不能只报 mikoto
+    expect(message).toContain("已依次尝试 1 家");
+    expect(message).toContain("1. torchai");
+    expect(message).toContain("api.mikoto.vip");
+    // mikoto 模糊终止必须零 chat 回退(前面用例真定时器的残留异步调用会
+    // 漏进本用例 mock,故只对本场景的 mikoto 域断言,不对全量调用断言)
+    expect(fetchMock.mock.calls.some(([url]) => {
+      const target = String(url);
+      return target.includes("api.mikoto.vip") && target.includes("chat/completions");
+    })).toBe(false);
+  }, 20000);
+
+

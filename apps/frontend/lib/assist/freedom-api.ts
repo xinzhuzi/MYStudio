@@ -52,6 +52,14 @@ import {
   resolveFreedomFeatureConfig,
 } from './freedom-routing';
 import { generateFreedomImageViaChat } from './freedom-image-chat';
+import { generateMikotoImageViaAsync } from '@/lib/ai/mikoto-async';
+import {
+  clearImagesEndpointPoison,
+  isImagesEndpointPoisoned,
+  markImagesEndpointPoisoned,
+} from './freedom-image-endpoint-memory';
+import { isMikotoImageProvider } from '@/lib/ai/image-generator';
+import { isAmbiguousPaidImageError } from '@/lib/ai/image-generation-errors';
 import { generateVideoViaReplicate } from './freedom-replicate-video';
 import { runFreedomVideoRoute } from './freedom-video-dispatch';
 import {
@@ -124,6 +132,13 @@ function withGlobalImageSizeDefaults(params: FreedomImageParams): FreedomImagePa
 
 // ==================== Image Generation ====================
 
+/** 兜底链失败摘要:按尝试顺序列出各家原因(截断),供最终错误拼接。 */
+function buildAttemptChainSummary(attempts: Array<{ name: string; error: string }>): string {
+  return attempts
+    .map((attempt, index) => `${index + 1}. ${attempt.name}:${attempt.error.slice(0, 90)}`)
+    .join(';');
+}
+
 export async function generateFreedomImage(
   params: FreedomImageParams
 ): Promise<GenerationResult> {
@@ -164,21 +179,64 @@ export async function generateFreedomImage(
 
   let lastError: Error | null = null;
   let lastBaseUrl: string | undefined;
+  const attempts: Array<{ name: string; error: string }> = [];
   for (const cfg of fallbackConfigs) {
+    // mikoto 专用:异步模块内部自带付费纪律,外层跳过 freedomRetry——
+    // 否则提交层 5xx 报错文案里的状态码会触发重试,违背「结果不确定不重烧」
+    const mikotoBoundary = isMikotoImageProvider(cfg.baseUrl);
     try {
-      return await freedomRetry(
-        () => _generateFreedomImageInner(generationParams, cfg, operationId),
-        'Image generation',
-        cfg.keyManager,
-      );
+      return await (mikotoBoundary
+        ? _generateFreedomImageInner(generationParams, cfg, operationId)
+        : freedomRetry(
+            () => _generateFreedomImageInner(generationParams, cfg, operationId),
+            'Image generation',
+            cfg.keyManager,
+          ));
     } catch (err) {
       lastError = err instanceof Error ? err : new Error(String(err));
       lastBaseUrl = cfg.baseUrl;
+      // 付费结果不确定(请求可能已被受理计费):立即失败,不再换家——换家
+      // 若成功等于一张图烧两次钱(08-28 实证:mikoto edits 51s 200 非 JSON
+      // 疑似已出图被丢弃,又跟了一次 chat)。前置家的失败原因一并带上,
+      // 否则报错又变回「只提最后一家」
+      if (isAmbiguousPaidImageError(err)) {
+        if (attempts.length > 0) {
+          lastError.message = `已依次尝试 ${attempts.length} 家生图服务均失败(${buildAttemptChainSummary(attempts)})最后错误:${lastError.message}`;
+        }
+        throw lastError;
+      }
+      attempts.push({ name: cfg.provider.name, error: lastError.message });
       console.warn(`[Freedom] Provider ${cfg.provider.name} (${cfg.baseUrl}) failed:`, lastError.message);
     }
   }
 
-  throw createDescribedFetchError(lastError, { endpoint: lastBaseUrl });
+  // 兜底链跑尽才到这;只报最后一家会把前置 provider 的真实失败原因藏掉
+  // (08-28 实证:钱咖API 先挂→mikoto 兜底也挂,报错只提 mikoto,用户以为
+  // 自己配的渠道被无视)。列出整条链各自的失败原因,最后错误保持原语义。
+  const described = createDescribedFetchError(lastError, { endpoint: lastBaseUrl });
+  if (attempts.length > 1) {
+    described.message = `已依次尝试 ${attempts.length} 家生图服务均失败(${buildAttemptChainSummary(attempts)})最后错误:${described.message}`;
+  }
+  throw described;
+}
+
+/** chat 形态统一入口(统一 saveToMediaLibrary 落库闭包)。mikoto 不在此列:
+ * 已在 _generateFreedomImageInner 顶部被异步通道拦截,永不触达 chat。 */
+async function generateChatForm(
+  params: FreedomImageParams,
+  model: string,
+  apiKey: string,
+  baseUrl: string,
+  operationId?: string,
+): Promise<GenerationResult> {
+  return generateFreedomImageViaChat(
+    params,
+    model,
+    apiKey,
+    baseUrl,
+    (url, prompt) => saveToMediaLibrary(url, prompt, 'ai-image'),
+    operationId,
+  );
 }
 
 async function _generateFreedomImageInner(
@@ -206,12 +264,14 @@ async function _generateFreedomImageInner(
   // 模型 ID 直接透传：UI 选的就是供应商原始 ID，无需转换
   const model = params.model || defaultModel;
   const normalizedBase = baseUrl.replace(/\/+$/, '');
+  const mikotoPaidBoundary = isMikotoImageProvider(normalizedBase);
 
-  // 显式 chat 传输:绕过智能路由直走 chat 形态(base64 直返,零 CDN 依赖)。
-  // 08-24 结构修复——「images 端点成功但 URL 下载 504」曾直接丢图白烧一次
-  // 生成;调用方现在可以在保存失败后用该形态无损重试。
-  if (params.transport === "chat") {
-    return await generateFreedomImageViaChat(
+  // mikoto 专用异步通道(用户裁定 2026-08-28:mikoto 必须走异步,同步
+  // images/chat 通道暂时关闭)。拦截置于一切路由/transport 之前——包括显式
+  // transport=chat 的保存失败重试,确保 mikoto 请求不触达任何同步端点。
+  // 付费纪律在异步模块内闭环:提交受理后失败即 ambiguous,不重试不换家。
+  if (mikotoPaidBoundary) {
+    return await generateMikotoImageViaAsync(
       params,
       model,
       apiKey,
@@ -219,6 +279,13 @@ async function _generateFreedomImageInner(
       (url, prompt) => saveToMediaLibrary(url, prompt, 'ai-image'),
       operationId,
     );
+  }
+
+  // 显式 chat 传输:绕过智能路由直走 chat 形态(base64 直返,零 CDN 依赖)。
+  // 08-24 结构修复——「images 端点成功但 URL 下载 504」曾直接丢图白烧一次
+  // 生成;调用方现在可以在保存失败后用该形态无损重试。
+  if (params.transport === "chat") {
+    return await generateChatForm(params, model, apiKey, normalizedBase, operationId);
   }
 
   // ── Smart Routing: choose endpoint based on model metadata ──
@@ -232,14 +299,7 @@ async function _generateFreedomImageInner(
     return await generateViaIdeogramEndpoint(params, model, apiKey, normalizedBase, saveFreedomImage);
   }
   if (route === 'openai_chat') {
-    return await generateFreedomImageViaChat(
-      params,
-      model,
-      apiKey,
-      normalizedBase,
-      (url, prompt) => saveToMediaLibrary(url, prompt, 'ai-image'),
-      operationId,
-    );
+    return await generateChatForm(params, model, apiKey, normalizedBase, operationId);
   }
   if (route === 'kling_image') {
     return await generateViaKlingImageEndpoint(
@@ -254,10 +314,31 @@ async function _generateFreedomImageInner(
   if (route === 'replicate') {
     return await generateViaReplicateImageEndpoint(params, model, apiKey, normalizedBase, saveFreedomImage);
   }
+
+  // 坏点记忆命中:images 端点近期稳定「200 非 JSON」,直接走 chat 形态,
+  // 省掉每镜一次的必败请求(mikoto 已在函数顶部被异步通道拦截,不会到这里)
+  if (isImagesEndpointPoisoned(config.provider.id, model)) {
+    await logEvent({
+      level: 'info',
+      category: 'ai',
+      operationId,
+      message: 'Images endpoint poisoned (recent 200 non-JSON), skipping to chat form',
+      context: { baseUrl, model, providerId: config.provider.id, providerName: config.provider.name },
+    });
+    return await generateChatForm(params, model, apiKey, normalizedBase, operationId);
+  }
+
   try {
-    return await generateViaImagesEndpoint(params, model, apiKey, normalizedBase, endpointTypes, operationId, config.provider);
+    const result = await generateViaImagesEndpoint(params, model, apiKey, normalizedBase, endpointTypes, operationId, config.provider);
+    clearImagesEndpointPoison(config.provider.id, model);
+    return result;
   } catch (error) {
     if (!isImagesEndpointGatewayFailure(error)) throw error;
+    // 「200 非 JSON」是服务端稳定损坏(非瞬时故障),记指纹让后续请求跳过
+    // images 端点;5xx/超时类瞬时故障不记,保留自愈机会
+    if (/invalid json/i.test(error instanceof Error ? error.message : String(error))) {
+      markImagesEndpointPoisoned(config.provider.id, model);
+    }
     await logEvent({
       level: 'warn',
       category: 'ai',
@@ -270,14 +351,7 @@ async function _generateFreedomImageInner(
         reason: error instanceof Error ? error.message : String(error),
       },
     });
-    return await generateFreedomImageViaChat(
-      params,
-      model,
-      apiKey,
-      normalizedBase,
-      (url, prompt) => saveToMediaLibrary(url, prompt, 'ai-image'),
-      operationId,
-    );
+    return await generateChatForm(params, model, apiKey, normalizedBase, operationId);
   }
 }
 

@@ -67,7 +67,7 @@ export interface ImageGenerationResult {
 type ImageGenerationFeature = 'character_generation' | 'scene_generation' | 'prop_generation';
 const IMAGE_SUBMIT_TIMEOUT_MS = 180_000;
 
-function isMikotoImageProvider(baseUrl: string): boolean {
+export function isMikotoImageProvider(baseUrl: string): boolean {
   try {
     return new URL(baseUrl).hostname.toLowerCase() === 'api.mikoto.vip';
   } catch {
