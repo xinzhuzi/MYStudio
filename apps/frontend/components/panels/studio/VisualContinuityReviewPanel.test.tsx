@@ -341,6 +341,31 @@ describe("VisualContinuityReviewPanel", () => {
     expect(screen.getByText("通过 · 文字与水印")).toBeTruthy();
   });
 
+  it("shows the VLM pre-review label without treating it as human approval", () => {
+    const item = storyboard(1);
+    item.visualReview = {
+      status: "pending",
+      reasons: ["角色 dugu 形象一致"],
+      characterChecks: [{ characterId: "dugu", passed: true }],
+      sceneChecks: [{ sceneVersionId: "dock:morning", passed: true }],
+      propChecks: [],
+      transitionChecks: [],
+      textWatermarkCheck: { passed: true },
+      reviewer: "vlm",
+      reviewedAt: 1,
+      evidencePaths: [],
+      inputFingerprint: visualReviewInputFingerprint(item),
+    };
+    render(<VisualContinuityReviewPanel
+      storyboards={[item]}
+      continuityAssetVersions={continuityVersions()}
+      onReview={vi.fn()}
+      onReviewAsset={vi.fn()}
+    />);
+    expect(screen.getByText("VLM 预审通过")).toBeTruthy();
+    expect(screen.queryByText("人工审核")).toBeNull();
+  });
+
   it("uses persisted review evidence when the generated media reference is unavailable", () => {
     const item = storyboard(1);
     item.mediaRef = undefined;

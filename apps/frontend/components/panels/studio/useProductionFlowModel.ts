@@ -44,6 +44,7 @@ export function useProductionFlowModel({
   const continuityAssetVersions = useStudioStore(
     (state) => state.continuityAssetVersions,
   );
+  const imageWorkflows = useStudioStore((state) => state.imageWorkflows);
   const activeProjectId = useProjectStore((state) => state.activeProjectId);
   const requestedRenderer = useAppSettingsStore((state) => state.renderingSettings.renderer);
   const remotionQueueScope = useRemotionQueueScope(activeProjectId ?? undefined, productionEpisodeId);
@@ -202,6 +203,7 @@ export function useProductionFlowModel({
         episodeId: productionEpisodeId,
         currentScriptFingerprint,
         storyboards,
+        imageWorkflows,
         productionTracks,
         videoCandidates,
         remotionQueueJobs: remotionQueueScope.jobs,
@@ -224,6 +226,7 @@ export function useProductionFlowModel({
       scriptPlans,
       currentScriptFingerprint,
       storyboards,
+      imageWorkflows,
       videoCandidates,
       workflowConfig,
       manualCatalog,

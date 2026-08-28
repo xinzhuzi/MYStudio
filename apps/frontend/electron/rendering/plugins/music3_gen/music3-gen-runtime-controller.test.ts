@@ -186,6 +186,17 @@ describe("mlx-serve 指向路线(08-19-music3-mlxserv-connector)", () => {
     fs.rmSync(weightsDir, { recursive: true, force: true });
   });
 
+  it("mlx-serve 首选路线:本地权重和二进制就绪时 inventory 标记 downloaded", async () => {
+    const weightsDir = makeWeightsDir();
+    const fakeBinary = path.join(storageRoot, "fake-mlx-serve");
+    fs.writeFileSync(fakeBinary, "#!/bin/sh\n");
+    const controller = makeController(async () => ({ stdout: probePayload({ status: "blocked" }) }));
+    controller.configureMlxServ({ weightsDir, binaryPath: fakeBinary, preferredEngine: "mlxserv" });
+    const models = await controller.scanModelInventory();
+    expect(models[0]).toMatchObject({ downloaded: true, availability: "ok" });
+    fs.rmSync(weightsDir, { recursive: true, force: true });
+  });
+
   it("目录不完整:明确原因,生成被拒", async () => {
     const partial = fs.mkdtempSync(path.join(os.tmpdir(), "mlxserv-partial-"));
     const controller = makeController(async () => ({ stdout: probePayload() }));

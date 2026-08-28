@@ -51,6 +51,42 @@ const manualCatalog: StudioManualCatalog = {
 };
 
 describe("production workflow node model", () => {
+  it("projects storyboard image workflow graph targets onto tiles", () => {
+    const storyboards = [{
+      id: "sb-035",
+      episodeId: "chapter-001",
+      index: 35,
+      trackKey: "track-1",
+      trackId: "track-1",
+      duration: 2,
+      prompt: "第三十五镜",
+      videoDesc: "第三十五镜",
+      assetIds: [],
+      state: "ready",
+    }] satisfies StoryboardItem[];
+    const model = buildProductionFlowModel({
+      episodeId: "chapter-001",
+      agentWorkData: [],
+      entityExtractions: [],
+      scriptPlans: [],
+      storyboards,
+      imageWorkflows: [{
+        id: "storyboard-flow-chapter-001-035",
+        name: "第三十五镜",
+        target: { kind: "storyboard", id: "sb-035" },
+        nodes: [],
+        edges: [],
+        createdAt: 1,
+        updatedAt: 2,
+      }],
+      productionTracks: [],
+      videoCandidates: [],
+    });
+    expect(model.nodes.find((node) => node.id === "storyboard")?.storyboardTiles).toEqual([
+      expect.objectContaining({ id: "sb-035", imageWorkflowId: "storyboard-flow-chapter-001-035" }),
+    ]);
+  });
+
   it("keeps the Remotion production scope chapter-local and requires a matching current slot", () => {
     const slot = makeCurrentSlot();
     const storyboards = [

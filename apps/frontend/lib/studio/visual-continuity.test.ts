@@ -10,6 +10,7 @@ import {
   continuityAssetContentFingerprint,
   createHumanContinuityAssetApproval,
   createHumanVisualReview,
+  createVlmVisualReview,
   isContinuityAssetVersionApproved,
   markContinuityDependentsStale,
   normalizeContinuityAssetVersion,
@@ -467,6 +468,54 @@ describe("storyboard visual continuity", () => {
       reviewedAt: 99,
       inputFingerprint: visualReviewInputFingerprint(item),
     });
+  });
+
+  it("maps an accepted VLM artifact to a pending, non-human review", () => {
+    const item = storyboard(1);
+    const review = createVlmVisualReview(item, {
+      schemaVersion: 1,
+      projectId: "project-1",
+      shotId: item.id,
+      status: "accepted",
+      model: "qwen3-vl-test",
+      checks: {
+        character_ok: true,
+        costume_ok: true,
+        scene_ok: true,
+        prop_ok: true,
+        text_watermark_ok: true,
+      },
+      reasons: ["角色 dugu 一致"],
+      inferenceMs: 12,
+      inputSha256: "a".repeat(64),
+      generatedAt: 123,
+    }, "/reviews/vlm-artifact.json");
+
+    expect(review).toMatchObject({
+      status: "pending",
+      reviewer: "vlm",
+      reviewedAt: 123,
+      evidencePaths: ["/reviews/vlm-artifact.json"],
+      inputFingerprint: visualReviewInputFingerprint(item),
+    });
+    expect(approvedVisualReviewIssues(item, review)).toEqual([]);
+  });
+
+  it("does not persist a blocked VLM artifact as a visual review", () => {
+    const item = storyboard(1);
+    expect(createVlmVisualReview(item, {
+      schemaVersion: 1,
+      projectId: "project-1",
+      shotId: item.id,
+      status: "blocked",
+      model: "",
+      checks: {},
+      reasons: [],
+      inferenceMs: 0,
+      inputSha256: "",
+      code: "model-not-downloaded",
+      generatedAt: 123,
+    })).toBeUndefined();
   });
 
   it("accepts one persisted review image when generated media is unavailable", () => {

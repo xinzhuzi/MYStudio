@@ -376,7 +376,7 @@ export function buildProductionFlowModel(
         item.videoDesc || item.prompt || item.lines || "未填写分镜内容",
       ].join(" · "),
     ),
-    storyboardTiles: buildStoryboardTiles(chapterStoryboards),
+    storyboardTiles: buildStoryboardTiles(chapterStoryboards, input.imageWorkflows),
     workbenchTracks: flowData.workbench.tracks
       .slice(0, 8)
       .map<ProductionFlowWorkbenchTrack>((track) => ({
@@ -616,7 +616,21 @@ function buildWorkbenchNode(ctx: ProductionFlowBuildContext): ProductionFlowNode
 
 function buildStoryboardTiles(
   chapterStoryboards: StoryboardItem[],
+  imageWorkflows: ProductionFlowModelInput["imageWorkflows"] = [],
 ): ProductionFlowStoryboardTile[] {
+  const workflowIdByStoryboardId = new Map<string, string>();
+  for (const graph of imageWorkflows) {
+    if (graph.target.kind !== "storyboard" || !graph.target.id) continue;
+    const previousId = workflowIdByStoryboardId.get(graph.target.id);
+    if (!previousId) {
+      workflowIdByStoryboardId.set(graph.target.id, graph.id);
+      continue;
+    }
+    const previous = imageWorkflows.find((item) => item.id === previousId);
+    if ((graph.updatedAt ?? 0) >= (previous?.updatedAt ?? 0)) {
+      workflowIdByStoryboardId.set(graph.target.id, graph.id);
+    }
+  }
   return chapterStoryboards
     .slice()
     .sort((a, b) => a.index - b.index)
@@ -630,7 +644,10 @@ function buildStoryboardTiles(
       title: item.videoDesc || item.prompt || `分镜 ${item.index}`,
       lines: item.lines,
       state: item.state,
-      imageWorkflowId: item.imageWorkflowId ?? item.mediaRef?.imageWorkflowId,
+      imageWorkflowId:
+        item.imageWorkflowId
+        ?? item.mediaRef?.imageWorkflowId
+        ?? workflowIdByStoryboardId.get(item.id),
       imageWorkflowNodeId: item.imageWorkflowNodeId ?? item.mediaRef?.imageWorkflowNodeId,
       shouldGenerateImage: item.shouldGenerateImage,
       sourceFingerprint: item.sourceFingerprint,
@@ -944,5 +961,3 @@ function previewTextLines(
     .slice(0, maxLines);
   return lines.length ? lines : [fallback];
 }
-
-

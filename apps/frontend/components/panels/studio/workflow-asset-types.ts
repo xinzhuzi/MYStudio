@@ -1,6 +1,7 @@
 import type {
   AgentWorkData,
   EntityExtractionResult,
+  ImageWorkflowGraph,
   ImageWorkflowTarget,
   ProductionTrack,
   ScriptPlan,
@@ -108,6 +109,8 @@ export interface ProductionFlowModelInput {
   entityExtractions: EntityExtractionResult[];
   scriptPlans: ScriptPlan[];
   storyboards: StoryboardItem[];
+  /** Persisted image workflow graphs are projected onto storyboard tiles by target. */
+  imageWorkflows?: ImageWorkflowGraph[];
   productionTracks: ProductionTrack[];
   videoCandidates: VideoCandidate[];
   episodeId?: string;

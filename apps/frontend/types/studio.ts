@@ -198,7 +198,7 @@ export interface StoryboardOrderedReference {
 
 export interface ContinuityAssetApproval {
   status: "pending" | "approved" | "rejected";
-  reviewer: "human" | "automated";
+  reviewer: "human" | "automated" | "vlm";
   reviewedAt?: number;
   reason?: string;
   evidencePaths: string[];
@@ -310,7 +310,7 @@ export interface VisualReviewResult {
   propChecks: { assetId: string; versionId?: string; passed: boolean; reason?: string }[];
   transitionChecks: { previousStoryboardId?: string; passed: boolean; reason?: string }[];
   textWatermarkCheck: { passed: boolean; reason?: string };
-  reviewer: "human" | "automated";
+  reviewer: "human" | "automated" | "vlm";
   reviewedAt?: number;
   evidencePaths: string[];
   inputFingerprint: string;

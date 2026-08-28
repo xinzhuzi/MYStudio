@@ -74,9 +74,13 @@ def download_model(model_name: str, progress_path: Path) -> int:
         monitor.start()
         try:
             try:
-                snapshot_download(repo_id=spec["repo_id"], cache_dir=cache_dir, endpoint="https://modelscope.cn")
-            except Exception:
-                snapshot_download(repo_id=spec["repo_id"], cache_dir=cache_dir, endpoint="https://huggingface.co")
+                # ModelScope 直链优先(实测 ~4-18MB/s;endpoint 参数路线协议不兼容从未生效)。
+                from modelscope_hub import download_repo_to_hf_cache
+
+                download_repo_to_hf_cache(spec["repo_id"], cache_dir)
+            except Exception as exc:
+                print(f"[download] ModelScope 直链失败,回退 HF: {exc}", file=sys.stderr)
+                snapshot_download(repo_id=spec["repo_id"], cache_dir=cache_dir)
         finally:
             stop_monitor.set()
 

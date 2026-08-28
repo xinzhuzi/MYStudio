@@ -711,6 +711,13 @@ export function createMusic3GenRuntimeController(deps: ControllerDeps) {
         { cwd: deps.backendRoot, env: buildEnv(), timeout: 30_000, maxBuffer: 2 * 1024 * 1024 },
       );
       const parsed = JSON.parse(stdout ?? "{}") as ProbePayload;
+      // The Python probe covers the Pocket/HuggingFace route. When the user
+      // explicitly selects mlx-serve, readiness comes from the configured
+      // local weights + executable instead of an HF snapshot.
+      const mlxStatus = mlxServStatus();
+      const mlxServReady = mlxServ.preferredEngine === "mlxserv"
+        && mlxStatus.weightsReady
+        && mlxStatus.binaryFound;
       if (parsed.hardware?.platform) {
         state.hardwareProfile = {
           platform: parsed.hardware.platform,
@@ -722,7 +729,7 @@ export function createMusic3GenRuntimeController(deps: ControllerDeps) {
       state.models = [{
         modelName: parsed.model ?? "minimax-music3-mlx",
         label: "MiniMax-Music3(MLX 整曲引擎)",
-        downloaded: parsed.status === "ready",
+        downloaded: parsed.status === "ready" || mlxServReady,
         sizeMb: typeof parsed.sizeMb === "number" ? parsed.sizeMb : null,
         repoId: "PocketAiHub/MiniMax-Music3-MLX",
         availability: available ? "ok" : "unsupported",

@@ -15,7 +15,7 @@ from typing import Any
 
 VLM_MODELS: dict[str, dict[str, Any]] = {
     "qwen3-vl-8b-instruct-mlx-8bit": {
-        "repo_id": "mlx-community/Qwen3-VL-8B-Instruct-MLX-8bit",
+        "repo_id": "mlx-community/Qwen3-VL-8B-Instruct-8bit",
         "display_name": "Qwen3-VL-8B-Instruct (MLX 8-bit)",
         "size_mb": 9900,
         "description": "8B 视觉语言模型,中文视觉推理最强,MLX 8-bit 提升判断一致性",

@@ -13,6 +13,10 @@ from pathlib import Path
 from typing import TypedDict
 
 MODEL_WEIGHT_EXTENSIONS = (".safetensors", ".bin", ".pt", ".pth", ".npz", ".onnx")
+# Keep auxiliary HF files (for example compression_state_dict.bin) from being
+# mistaken for runnable MusicGen weights.
+MODEL_CONFIG_FILES = ("config.json", "preprocessor_config.json")
+MODEL_WEIGHT_PREFIXES = ("model", "pytorch_model")
 
 MAX_SFX_DURATION_S = 5.0
 MIN_SFX_DURATION_S = 0.5
@@ -129,11 +133,18 @@ def _has_complete_model_files(cache: Path) -> bool:
     snapshots_dir = cache / "snapshots"
     if not snapshots_dir.exists():
         return False
-    return any(
-        file.is_file()
-        for extension in MODEL_WEIGHT_EXTENSIONS
-        for file in snapshots_dir.rglob(f"*{extension}")
-    )
+    snapshots = [path for path in snapshots_dir.iterdir() if path.is_dir()]
+    for snapshot in snapshots:
+        if not all((snapshot / name).is_file() for name in MODEL_CONFIG_FILES):
+            continue
+        if any(
+            file.is_file()
+            and file.suffix in MODEL_WEIGHT_EXTENSIONS
+            and file.name.startswith(MODEL_WEIGHT_PREFIXES)
+            for file in snapshot.rglob("*")
+        ):
+            return True
+    return False
 
 
 def _cache_size_mb(cache: Path) -> float:

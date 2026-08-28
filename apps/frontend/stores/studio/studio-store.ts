@@ -88,6 +88,7 @@ import type {
   StudioSourceIdentity,
   SceneSegmentRecord,
 } from "@/types/studio";
+import type { VlmReviewArtifactV1 } from "@/types/contracts/vlm-review-workflow";
 
 interface StudioWorkflowState {
   materials: StudioMaterial[];
@@ -186,6 +187,7 @@ interface StudioWorkflowActions {
     >,
   ) => void;
   reviewStoryboardHuman: (id: string, review: HumanVisualReviewInput) => void;
+  writeStoryboardVlmReview: (id: string, artifact: VlmReviewArtifactV1, evidencePath?: string) => void;
   bindStoryboardMedia: (id: string, mediaRef: StoryboardMediaRef) => void;
   setStoryboardKeyframes: (
     id: string,
@@ -603,6 +605,7 @@ export const useStudioStore = create<StudioWorkflowStore>()(
       updateStoryboard: storyboardSlice.updateStoryboard,
       writeStoryboardAudio: storyboardSlice.writeStoryboardAudio,
       reviewStoryboardHuman: storyboardSlice.reviewStoryboardHuman,
+      writeStoryboardVlmReview: storyboardSlice.writeStoryboardVlmReview,
       bindStoryboardMedia: storyboardSlice.bindStoryboardMedia,
       setStoryboardKeyframes: storyboardSlice.setStoryboardKeyframes,
 

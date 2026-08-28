@@ -33,7 +33,6 @@ export function HyperFramesRegistrySection(): React.ReactElement {
   // 「没下载完」(08-28 修;实际依赖 08-22 已下全,点「检查」也一直能过)。
   useEffect(() => {
     void checkStatus().then(setStatus);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleDownload = async (): Promise<void> => {

@@ -34,12 +34,23 @@ export class VlmReviewRuntimeController {
     this.config = config;
   }
 
+  /** python 子进程公共环境:PYTHONPATH 进 backendRoot,并显式注入 MYSTUDIO_STORAGE_BASE——
+   * python 侧 model_cache/downloader 都靠它定位 <storageBase>/model/vlm,此前从未传递,
+   * 导致模型下载完成后探测仍恒报 model-not-downloaded(08-28 修)。 */
+  private pythonEnv(): NodeJS.ProcessEnv {
+    return {
+      ...process.env,
+      PYTHONPATH: this.config.backendRoot,
+      MYSTUDIO_STORAGE_BASE: this.config.storageBasePath,
+    };
+  }
+
   async probeReadiness(): Promise<VlmReviewProbeResult> {
     try {
       const { stdout } = await execFileAsync(
         this.config.pythonExecutable,
         buildVlmReviewProbeArgs(),
-        { cwd: this.config.backendRoot, env: { ...process.env, PYTHONPATH: this.config.backendRoot }, timeout: 15_000 },
+        { cwd: this.config.backendRoot, env: this.pythonEnv(), timeout: 15_000 },
       );
       const parsed = JSON.parse(stdout.trim()) as Partial<VlmReviewProbeResult>;
       return {
@@ -76,7 +87,7 @@ export class VlmReviewRuntimeController {
       const { stdout } = await execFileAsync(
         this.config.pythonExecutable,
         buildVlmReviewWorkerArgs(requestPath, artifactPath),
-        { cwd: this.config.backendRoot, env: { ...process.env, PYTHONPATH: this.config.backendRoot }, timeout: VLM_RUN_TIMEOUT_MS },
+        { cwd: this.config.backendRoot, env: this.pythonEnv(), timeout: VLM_RUN_TIMEOUT_MS },
       );
       // Read artifact from file (more reliable than stdout for large payloads)
       const artifactRaw = await fs.readFile(artifactPath, "utf-8").catch(() => stdout.trim());
@@ -128,7 +139,7 @@ export class VlmReviewRuntimeController {
       const child = spawn(
         this.config.pythonExecutable,
         ["-m", "vlm_review.download_model", "--model", "qwen3-vl-8b-instruct-mlx-8bit", "--progress", progressFile],
-        { cwd: this.config.backendRoot, env: { ...process.env, PYTHONPATH: this.config.backendRoot }, stdio: "pipe" },
+        { cwd: this.config.backendRoot, env: this.pythonEnv(), stdio: "pipe" },
       );
       child.stderr?.on("data", (data: Buffer) => {
         console.error(`[vlm-review-download] ${data.toString().trim()}`);

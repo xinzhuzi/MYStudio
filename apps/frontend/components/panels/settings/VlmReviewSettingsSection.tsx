@@ -49,12 +49,27 @@ export function VlmReviewSettingsSection({ embedded = false }: VlmReviewSettings
   // Download progress polling
   useEffect(() => {
     if (!isDownloading || !window.vlmReview?.getDownloadProgress) return;
+    let idlePolls = 0;
     pollRef.current = setInterval(async () => {
       const p = await window.vlmReview!.getDownloadProgress();
       setProgress(p);
-      if (p.status === "done" || p.status === "error") {
+      if (p.status === "done") {
         setIsDownloading(false);
         void refresh();
+      } else if (p.status === "error") {
+        // 此前 error 分支静默停转——用户只看到按钮停了,不知道为什么失败(08-28 修)。
+        setIsDownloading(false);
+        toast.error(p.message || "模型下载失败");
+        void refresh();
+      } else if (p.status === "idle") {
+        // 进度文件始终未出现 = 下载进程秒死(spawn 失败/导入崩溃),15s 后停止幽灵转圈。
+        idlePolls += 1;
+        if (idlePolls >= 15) {
+          setIsDownloading(false);
+          toast.error("下载未真正启动(未收到任何进度),请重试或查看诊断日志");
+        }
+      } else {
+        idlePolls = 0;
       }
     }, 1000);
     return () => { if (pollRef.current) clearInterval(pollRef.current); };
@@ -65,7 +80,11 @@ export function VlmReviewSettingsSection({ embedded = false }: VlmReviewSettings
     setIsDownloading(true);
     setProgress({ status: "downloading", percentage: 0 });
     try {
-      await window.vlmReview!.downloadModel();
+      const result = await window.vlmReview!.downloadModel();
+      if (!result?.success) {
+        toast.error(result?.error || "下载启动失败");
+        setIsDownloading(false);
+      }
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "下载失败");
       setIsDownloading(false);

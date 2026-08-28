@@ -1228,13 +1228,20 @@ function realProjectWorkflowExpression(
       const interactive = Array.from(document.querySelectorAll('button, [role="menuitem"], [cmdk-item], [role="button"], .dashboard-project-card'));
       const buttonTexts = interactive.map(normalize).filter(Boolean).slice(0, 80);
       const bodyText = normalize(document.body).slice(0, 1600);
-      const storyboardWorkflowEntries = Array.from(document.querySelectorAll('[data-storyboard-id]'));
-      const storyboardWorkflowEntryIds = [...new Set(storyboardWorkflowEntries.map((entry) => entry.getAttribute('data-storyboard-id') || '').filter(Boolean))];
+      // 画布节点现在是轻量指针卡;全量分镜入口位于独立 StoryboardPanelTab。
+      // 兼容旧画布瓦片属性,同时采集现行面板卡片属性。
+      const storyboardWorkflowEntries = Array.from(document.querySelectorAll('[data-storyboard-id], [data-storyboard-panel-shot]'));
+      const storyboardWorkflowEntryIds = [...new Set(storyboardWorkflowEntries.map((entry) =>
+        entry.getAttribute('data-storyboard-id') || entry.getAttribute('data-storyboard-panel-shot') || '',
+      ).filter(Boolean))];
+      const hasStoryboardNodePointer = Boolean(document.querySelector('[data-node-pointer-enter="storyboard"]'));
       return {
         buttonTexts,
         bodyText,
         storyboardWorkflowEntryCount: storyboardWorkflowEntryIds.length,
-        hasLastStoryboardWorkflowEntry: Boolean(document.querySelector('[aria-label="打开分镜 ' + expectedStoryboards + ' 图片工作流"]')),
+        hasLastStoryboardWorkflowEntry: storyboardWorkflowEntryIds.length >= expectedStoryboards ||
+          Boolean(document.querySelector('[aria-label="打开分镜 ' + expectedStoryboards + ' 图片工作流"]')),
+        hasStoryboardNodePointer,
         hasStageSwitcher: buttonTexts.some((text) => text.includes('切换阶段')),
         hasWorkflowTab: buttonTexts.some((text) => text === '工作流' || text.includes('工作流')),
         hasProjectCard: Boolean(document.querySelector('.dashboard-project-card')),
@@ -1508,8 +1515,7 @@ function realProjectWorkflowExpression(
         data.storyboards === ${expectedStoryboards} &&
         data.storyboardsWithMediaPath === ${expectedStoryboards} &&
         data.storyboardImageWorkflowsReady === data.storyboardImageWorkflows &&
-        domEvidence.storyboardWorkflowEntryCount >= ${expectedStoryboards} &&
-        domEvidence.hasLastStoryboardWorkflowEntry &&
+        domEvidence.hasStoryboardNodePointer &&
         Boolean(data.firstFramePath);
       const workbenchReady = data.productionTracks >= 1 && data.videoCandidates >= 1 && (body.includes('添加 track') || body.includes('导出成片') || Boolean(data.finalVideoPath));
       const ready =
@@ -1881,7 +1887,8 @@ function realProjectWorkflowExpression(
       };
     };
     const openRealProjectDerivativeImageWorkflowDetail = async () => {
-      const storyboardClick = await clickStage({ id: 'storyboard', label: '分镜视频生成' });
+      // 衍生资产工作流入口属于「剧本资产管理」独立面板,不再从画布节点内嵌卡片查找。
+      const assetsClick = await clickStage({ id: 'assets', label: '剧本资产管理' });
       await visibleDelay();
       const workflowEntry = Array.from(document.querySelectorAll('[data-asset-workflow-image-id]'))
         .find((node) => String(node.getAttribute('data-asset-workflow-image-id') || '').startsWith('asset-flow-chapter-001'));
@@ -1894,7 +1901,7 @@ function realProjectWorkflowExpression(
           clicked: false,
           workflowId,
           workflowName,
-          stageClicked: Boolean(storyboardClick.clicked),
+          stageClicked: Boolean(assetsClick.clicked),
           reason: 'real derived asset workflow image entry was not found',
         };
       }
@@ -2019,7 +2026,7 @@ function realProjectWorkflowExpression(
         clicked: true,
         workflowId,
         workflowName,
-        stageClicked: Boolean(storyboardClick.clicked),
+        stageClicked: Boolean(assetsClick.clicked),
         detail,
         storyboardPaletteImages,
       };
@@ -2027,9 +2034,16 @@ function realProjectWorkflowExpression(
     const openRealProjectStoryboardImageWorkflowDetail = async () => {
       const storyboardClick = await clickStage({ id: 'storyboard', label: '分镜视频生成' });
       await visibleDelay();
-      const workflowEntry = document.querySelector('[data-storyboard-workflow-image-id]');
+      // 画布仅保留指针卡;先进入全量分镜面板,再点击当前分镜卡进入图像工作流。
+      const storyboardPanelPointer = document.querySelector('[data-node-pointer-enter="storyboard"]');
+      if (storyboardPanelPointer) {
+        activate(storyboardPanelPointer);
+        await waitFor(() => Boolean(document.querySelector('[data-storyboard-panel-tab]')), 8_000);
+      }
+      const workflowEntry = document.querySelector('[data-storyboard-panel-shot], [data-storyboard-workflow-image-id]');
       const workflowId = workflowEntry?.getAttribute('data-storyboard-workflow-image-id') || '';
-      const storyboardId = workflowEntry?.getAttribute('data-storyboard-id') || '';
+      const storyboardId = workflowEntry?.getAttribute('data-storyboard-panel-shot') ||
+        workflowEntry?.getAttribute('data-storyboard-id') || '';
       const clicked = activate(workflowEntry);
       if (!clicked) {
         return {

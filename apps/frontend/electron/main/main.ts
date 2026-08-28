@@ -978,7 +978,6 @@ const depthIpc = registerDepthIpcHandlers({
 const imageGenRuntimeController = createImageGenRuntimeController({
   storageBasePath: getStorageBasePath,
   backendRoot: videoWorkflowBackendRoot,
-  modelCacheDir: () => ttsRuntimeController.getModelCacheDir(),
 })
 const imageGenIpc = registerImageGenIpcHandlers({ controller: imageGenRuntimeController })
 
@@ -1012,7 +1011,8 @@ void upscaleRuntimeController.refresh()
 // 复用 managed Python;权重显式下载,<storageBase>/model/vlm。
 const vlmReviewController = new VlmReviewRuntimeController({
   pythonExecutable: path.join(getStorageBasePath(), "python", "bin", "python3"),
-  backendRoot: path.join(app.getAppPath(), 'backend'),
+  // 复用打包感知的 backend 根:app.asar/backend 是虚拟路径,spawn 会 ENOTDIR(08-28 修)。
+  backendRoot: videoWorkflowBackendRoot,
   storageBasePath: getStorageBasePath(),
   resolveProjectFilePath: async (url) => {
     try {

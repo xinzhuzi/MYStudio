@@ -35,7 +35,7 @@ describe("createImageGenRuntimeController getModelCacheDir(08-19 模型目录规
     expect(existsSync(join(storageDir, "model", "imagegen", "weights.bin"))).toBe(true);
   });
 
-  it("注入覆盖优先(生产= TTS 共享缓存,不落兜底)", () => {
+  it("显式注入覆盖优先(供隔离运行时使用)", () => {
     const controller = makeController({ modelCacheDir: () => "/shared/model/TTS" });
     expect(controller.getModelCacheDir()).toBe("/shared/model/TTS");
   });

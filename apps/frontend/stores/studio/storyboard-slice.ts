@@ -12,6 +12,7 @@ import type {
   HumanVisualReviewInput,
   ContinuityAssetVersion,
 } from "@/types/studio";
+import type { VlmReviewArtifactV1 } from "@/types/contracts/vlm-review-workflow";
 import { createStudioWorkflowId } from "./studio-store-runtime";
 import {
   mergeStoryboardReplacement,
@@ -19,6 +20,7 @@ import {
 } from "./studio-store-continuity-helpers";
 import {
   createHumanVisualReview,
+  createVlmVisualReview,
   markContinuityDependentsStale,
   visualReviewInputFingerprint,
 } from "@/lib/studio/visual-continuity";
@@ -58,6 +60,7 @@ export interface StoryboardSlice {
     >,
   ) => void;
   reviewStoryboardHuman: (id: string, review: HumanVisualReviewInput) => void;
+  writeStoryboardVlmReview: (id: string, artifact: VlmReviewArtifactV1, evidencePath?: string) => void;
   bindStoryboardMedia: (id: string, mediaRef: StoryboardMediaRef) => void;
 }
 
@@ -234,6 +237,16 @@ export function createStoryboardSliceActions(set: SetFn, get: GetFn) {
         storyboards: state.storyboards.map((item) =>
           item.id === id ? { ...item, visualReview } : item,
         ),
+      }));
+    },
+
+    writeStoryboardVlmReview: (id: string, artifact: VlmReviewArtifactV1, evidencePath?: string): void => {
+      const storyboard = get().storyboards.find((item) => item.id === id);
+      if (!storyboard) return;
+      const visualReview = createVlmVisualReview(storyboard, artifact, evidencePath);
+      if (!visualReview) return;
+      set((state) => ({
+        storyboards: state.storyboards.map((item) => item.id === id ? { ...item, visualReview } : item),
       }));
     },
 

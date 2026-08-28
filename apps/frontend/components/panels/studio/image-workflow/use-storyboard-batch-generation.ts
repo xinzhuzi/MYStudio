@@ -7,6 +7,7 @@ import { buildStoryboardImageWorkflowPatch } from "@/lib/studio/image-workflow";
 import { useStudioStore } from "@/stores/studio/studio-store";
 import { useProjectStore } from "@/stores/project/project-store";
 import type { StoryboardItem } from "@/types/studio";
+import type { VlmReviewArtifactV1 } from "@/types/contracts/vlm-review-workflow";
 import { buildStoryboardItemOpenContext } from "../storyboard-open-context";
 import { getStudioAssetsBridge } from "@/lib/bridge/studio-assets";
 import { resolveStoryboardAssetReferences } from "./storyboard-asset-references";
@@ -160,7 +161,7 @@ function countMissingFrames(shot: StoryboardItem): number {
 async function reviewFrame(
   imageUrl: string,
   shot: StoryboardItem,
-): Promise<{ status: string; reasons: string[] } | null> {
+): Promise<VlmReviewArtifactV1 | null> {
   const bridge = typeof window !== "undefined" ? window.vlmReview : undefined;
   if (!bridge?.run) return null;
   try {
@@ -196,13 +197,13 @@ async function generateWithVlmReview(
   targetNodeId: string,
   shot: StoryboardItem,
   opts: { addMaterial: ReturnType<typeof useStudioStore.getState>["addMaterial"] },
-): Promise<{ imageUrl: string; vlmStatus: string | null }> {
+): Promise<{ imageUrl: string; vlmStatus: string | null; vlmArtifact?: VlmReviewArtifactV1 }> {
   for (let attempt = 0; attempt <= VLM_MAX_RETRIES; attempt++) {
     const { imageUrl } = await runImageWorkflowNodeGeneration(graph, targetNodeId, opts);
     if (!imageUrl) throw new Error("生成结果为空");
     const artifact = await reviewFrame(imageUrl, shot);
     if (!artifact || artifact.status !== "rejected") {
-      return { imageUrl, vlmStatus: artifact?.status ?? null };
+      return { imageUrl, vlmStatus: artifact?.status ?? null, vlmArtifact: artifact ?? undefined };
     }
     if (attempt === VLM_MAX_RETRIES) {
       throw new Error(`VLM 审核不通过:${(artifact.reasons ?? []).join(";").slice(0, 120)}`);
@@ -278,7 +279,7 @@ async function generateOneShot(
   if (promptLength > 800) {
     throw new Error(`提示词 ${promptLength} 字符超 800 正文门,需精炼后再生成`);
   }
-  const { imageUrl } = await generateWithVlmReview(graph, targetNodeId, shot, {
+  const { imageUrl, vlmArtifact } = await generateWithVlmReview(graph, targetNodeId, shot, {
     addMaterial: useStudioStore.getState().addMaterial,
   });
   if (!imageUrl) throw new Error("生成结果为空");
@@ -289,6 +290,10 @@ async function generateOneShot(
   landStoryboardContinuity(shot.id, latest.id, targetNodeId);
   const patch = buildStoryboardImageWorkflowPatch(latest, targetNodeId);
   useStudioStore.getState().updateStoryboard(shot.id, patch);
+  if (vlmArtifact) useStudioStore.getState().writeStoryboardVlmReview(shot.id, {
+    ...vlmArtifact,
+    generatedAt: vlmArtifact.generatedAt || Date.now(),
+  }, imageUrl);
 }
 
 
@@ -299,7 +304,7 @@ async function runFrameGenerationAndWriteback(
   frame: NonNullable<StoryboardItem["keyframes"]>[number],
   frameNodeId: string,
 ): Promise<void> {
-  const { imageUrl } = await generateWithVlmReview(graph, frameNodeId, shot, {
+  const { imageUrl, vlmArtifact } = await generateWithVlmReview(graph, frameNodeId, shot, {
     addMaterial: useStudioStore.getState().addMaterial,
   });
   if (!imageUrl) throw new Error("生成结果为空");
@@ -323,5 +328,9 @@ async function runFrameGenerationAndWriteback(
       : candidate,
   );
   useStudioStore.getState().setStoryboardKeyframes(shot.id, updatedFrames, "generate");
+  if (vlmArtifact) useStudioStore.getState().writeStoryboardVlmReview(shot.id, {
+    ...vlmArtifact,
+    generatedAt: vlmArtifact.generatedAt || Date.now(),
+  }, imageUrl);
   void node;
 }

@@ -606,7 +606,11 @@ function ReviewEvidenceSummary({
         <Badge variant="outline" className={review.reviewer === "human"
           ? "border-success/50 bg-success/40 text-success/80"
           : "border-border bg-muted/60 text-muted-foreground"}>
-          {review.reviewer === "human" ? "人工审核" : "自动记录"}
+          {review.reviewer === "human"
+            ? "人工审核"
+            : review.reviewer === "vlm"
+              ? review.status === "rejected" ? "VLM 预审不通过" : "VLM 预审通过"
+              : "自动记录"}
         </Badge>
       </div>
       <div className="mt-1 grid gap-1 sm:grid-cols-2">

@@ -1,8 +1,9 @@
-import { memo, useState } from "react";
+import { memo, useEffect, useState } from "react";
 import { Handle, Position, type Node, type NodeProps } from "@xyflow/react";
 import { CheckCircle2, Image as ImageIcon, Loader2, Save, Trash2, WandSparkles, ZoomIn } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { LocalImage } from "@/components/ui/local-image";
+import { ResolutionBadge, probeImagePixelSize } from "@/components/ui/image-resolution-badge";
 import { Textarea } from "@/components/ui/textarea";
 import { ModelSelector } from "@/components/panels/assist/ModelSelector";
 import { UPSCALE_INPUT_MAX_LONG_SIDE } from "@/lib/upscale/client";
@@ -15,6 +16,7 @@ import type {
   ImageWorkflowReferenceNode,
   StoryboardItem,
 } from "@/types/studio";
+import { toPreviewSrc, withThumbVariant } from "../previews/preview-src";
 
 export interface ImageWorkflowNodeData extends Record<string, unknown> {
   node: ImageWorkflowNode;
@@ -137,7 +139,14 @@ function ReferenceNodeEditor({
     <div className="space-y-2">
       <div className="aspect-video overflow-hidden rounded-md border border-border bg-muted/30">
         {node.imageUrl ? (
-          <LocalImage src={node.imageUrl} alt={node.title} className="h-full w-full object-cover" resolutionBadge />
+          <span className="relative flex h-full w-full">
+            <LocalImage
+              src={withThumbVariant(toPreviewSrc(node.imageUrl))}
+              alt={node.title}
+              className="h-full w-full object-cover"
+            />
+            <ResolutionBadge src={toPreviewSrc(node.imageUrl)} />
+          </span>
         ) : (
           <div className="flex h-full items-center justify-center text-xs text-muted-foreground">暂无图片</div>
         )}
@@ -247,20 +256,33 @@ function GeneratedNodeEditor({
     onUpdate((promptNode ?? node).id, updates as Partial<ImageWorkflowNode>);
   };
 
+  useEffect(() => {
+    if (!node.resultUrl) {
+      setImageLongSide(0);
+      return;
+    }
+    let cancelled = false;
+    void probeImagePixelSize(toPreviewSrc(node.resultUrl)).then((size) => {
+      if (cancelled || !size) return;
+      setImageLongSide(Math.max(size.width, size.height));
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [node.resultUrl]);
+
   return (
     <div className="space-y-3">
       <div className="aspect-video overflow-hidden rounded-md border border-border bg-muted/30">
         {node.resultUrl ? (
-          <LocalImage
-            src={node.resultUrl}
-            alt={node.title}
-            className="h-full w-full object-cover"
-            resolutionBadge
-            onLoad={(event) => {
-              const image = event.currentTarget;
-              setImageLongSide(Math.max(image.naturalWidth, image.naturalHeight));
-            }}
-          />
+          <span className="relative flex h-full w-full">
+            <LocalImage
+              src={withThumbVariant(toPreviewSrc(node.resultUrl))}
+              alt={node.title}
+              className="h-full w-full object-cover"
+            />
+            <ResolutionBadge src={toPreviewSrc(node.resultUrl)} />
+          </span>
         ) : (
           <div className="flex h-full items-center justify-center text-xs text-muted-foreground">
             {node.status === "failed" ? node.errorReason || "生成失败" : "等待生成"}

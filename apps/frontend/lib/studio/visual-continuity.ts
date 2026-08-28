@@ -8,6 +8,7 @@ import type {
   StoryboardOrderedReference,
   VisualReviewResult,
 } from "@/types/studio";
+import type { VlmReviewArtifactV1 } from "@/types/contracts/vlm-review-workflow";
 
 export interface VisualContinuityIssue {
   storyboardId: string;
@@ -708,6 +709,41 @@ export function createHumanVisualReview(
     if (issues.length > 0) throw new Error(issues[0]!.message);
   }
   return review;
+}
+
+/** 将本地 VLM 产物落为可持久化的预审记录；blocked 由调用方跳过。 */
+export function createVlmVisualReview(
+  storyboard: StoryboardItem,
+  artifact: VlmReviewArtifactV1,
+  evidencePath?: string,
+): VisualReviewResult | undefined {
+  if (artifact.status === "blocked") return undefined;
+  const reasonFor = (key: string) => artifact.reasons.find((reason) => reason.includes(key));
+  return {
+    status: artifact.status === "accepted" ? "pending" : "rejected",
+    reasons: artifact.reasons.map((reason) => reason.trim()).filter(Boolean),
+    characterChecks: (storyboard.continuityState?.characters ?? []).map(({ characterId }) => ({
+      characterId,
+      passed: artifact.checks.character_ok !== false,
+      reason: reasonFor(characterId),
+    })),
+    sceneChecks: storyboard.continuityState?.sceneVersionId
+      ? [{ sceneVersionId: storyboard.continuityState.sceneVersionId, passed: artifact.checks.scene_ok !== false }]
+      : [],
+    propChecks: (storyboard.orderedReferenceManifest ?? [])
+      .filter((reference) => reference.referenceRole === "prop-state")
+      .map((reference) => ({
+        assetId: reference.assetId,
+        versionId: reference.versionId,
+        passed: artifact.checks.prop_ok !== false,
+      })),
+    transitionChecks: [],
+    textWatermarkCheck: { passed: artifact.checks.text_watermark_ok !== false },
+    reviewer: "vlm",
+    reviewedAt: artifact.generatedAt,
+    evidencePaths: evidencePath?.trim() ? [evidencePath.trim()] : [],
+    inputFingerprint: visualReviewInputFingerprint(storyboard),
+  };
 }
 
 function stableSerialize(value: unknown) {

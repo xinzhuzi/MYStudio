@@ -383,6 +383,7 @@ describe("workflow node component boundaries", () => {
         shotId: "shot-1",
         index: 1,
         title: "雨夜码头",
+        mediaPath: "project-file://dao/storyboard-images/shot-001.png",
         status: "succeeded" as const,
         progress: 1,
         outputPath: "/tmp/shot-1.mp4",
@@ -405,6 +406,9 @@ describe("workflow node component boundaries", () => {
 
     expect(screen.getByText("单镜合成")).toBeTruthy();
     expect(screen.getByText("单镜 MP4")).toBeTruthy();
+    expect(screen.getByAltText("雨夜码头").getAttribute("src")).toBe(
+      "project-file://dao/storyboard-images/shot-001.png?thumb=1",
+    );
     expect(screen.queryByText("ChapterVideo")).toBeNull();
     expect(screen.queryByText("原生 Studio")).toBeNull();
   });

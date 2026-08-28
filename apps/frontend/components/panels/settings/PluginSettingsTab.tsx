@@ -235,14 +235,10 @@ export function PluginSettingsTab() {
   }, []);
 
   const toggleSectionCollapsed = (sectionId: SectionId) => {
-    let nowCollapsed = false;
     setCollapsedSections((previous) => {
       const next = new Set(previous);
       if (next.has(sectionId)) next.delete(sectionId);
-      else {
-        next.add(sectionId);
-        nowCollapsed = true;
-      }
+      else next.add(sectionId);
       try {
         window.localStorage.setItem(SECTION_STORAGE_KEY, JSON.stringify([...next]));
       } catch {
@@ -250,8 +246,8 @@ export function PluginSettingsTab() {
       }
       return next;
     });
-    // 收起时重探行级状态,让胶囊吸收展开期间发生的变化。
-    if (nowCollapsed) refreshRowStatuses();
+    // 展开或收起都重探行级状态,吸收用户在别处(配音室/生成链)刚发生的启停。
+    refreshRowStatuses();
   };
 
   const prepareByPriority = async () => {
@@ -268,7 +264,7 @@ export function PluginSettingsTab() {
       // 2. Cal readiness signals
       const pythonReady = python.installedItems?.length > 0 && !python.installedItems.some((item) => item.status === "failed");
       const ttsStatus = await getTtsRuntimeStatus();
-      const ttsReady = ttsStatus.running && ttsStatus.setupStage === "ready";
+      const ttsReady = ttsStatus.running;
       const videoReady = VIDEO_GATE_PLUGIN_IDS.every((id) => videoPlugins.getPlugin(id)?.runtimeState === "ready");
 
       // 3. All ready → skip all, report success
@@ -422,9 +418,12 @@ export function PluginSettingsTab() {
             ? "needs-runtime"
             : "checking";
 
+  // TTS 就绪口径 = running(实时健康检查,镜像 LocalTtsPanel 的判定);
+  // setupStage 只反映上次启动流程收尾,应用重启后回 idle 但 sidecar 仍活着,
+  // 双条件会误报「需准备」(08-28 修)。
   const ttsPill: CapabilityPillKind = ttsRunning === null
     ? "checking"
-    : ttsRunning.running && ttsRunning.setupStage === "ready"
+    : ttsRunning.running
       ? "ready"
       : "needs-runtime";
 

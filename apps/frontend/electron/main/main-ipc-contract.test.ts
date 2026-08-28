@@ -234,6 +234,12 @@ video-qc-runtime-scan-model
 video-qc-runtime-set-model-cache-dir
 video-qc-runtime-setup
 video-qc-runtime-status
+vlm-review-model-delete
+vlm-review-model-download
+vlm-review-model-progress
+vlm-review-run
+vlm-review-runtime-probe
+vlm-review-runtime-setup
 `.trim().split("\n");
 
 const NAMED_IPC_CHANNELS = {
