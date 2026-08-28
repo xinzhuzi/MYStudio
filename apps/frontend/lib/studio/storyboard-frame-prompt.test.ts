@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import {
+  adaptTemplateBriefToCastCount,
   buildStoryboardFactionColorSection,
   buildStoryboardFramePrompt,
   parseStoryboardFrameTemplates,
@@ -141,5 +142,51 @@ describe("storyboard faction color section", () => {
     });
     expect(prompt.indexOf("【构图】")).toBeLessThan(prompt.indexOf("【色彩】"));
     expect(prompt.indexOf("【色彩】")).toBeLessThan(prompt.indexOf("【台词语境】"));
+  });
+});
+
+describe("adaptTemplateBriefToCastCount (R18 构图人物数自适应)", () => {
+  const BRIEF = "适用：谈判、冲突、师徒、对峙。要点：只有角色 A 与 B；明确前后或左右关系；工笔线描照亮脸和手。画幅 16:9 双人中景。";
+
+  it("n=1:双人约束改单人,双人中景改单人中景", () => {
+    const out = adaptTemplateBriefToCastCount(BRIEF, ["独孤剑尘"]);
+    expect(out).toContain("只有独孤剑尘一人");
+    expect(out).toContain("单人中景");
+    expect(out).not.toContain("只有角色 A 与 B");
+    expect(out).not.toContain("双人中景");
+  });
+
+  it("n=2或缺省:原样返回(fail-safe)", () => {
+    expect(adaptTemplateBriefToCastCount(BRIEF, ["独孤剑尘", "管事"])).toBe(BRIEF);
+    expect(adaptTemplateBriefToCastCount(BRIEF)).toBe(BRIEF);
+    expect(adaptTemplateBriefToCastCount(BRIEF, [])).toBe(BRIEF);
+  });
+
+  it("n=3:列名+三人中景", () => {
+    const out = adaptTemplateBriefToCastCount(BRIEF, ["独孤剑尘", "女孩", "男孩"]);
+    expect(out).toContain("独孤剑尘、女孩、男孩共3名角色同框");
+    expect(out).toContain("3人中景");
+  });
+
+  it("n>4:前4名+「等」", () => {
+    const out = adaptTemplateBriefToCastCount(BRIEF, ["甲", "乙", "丙", "丁", "戊"]);
+    expect(out).toContain("甲、乙、丙、丁等共5名角色同框");
+    expect(out).toContain("5人中景");
+  });
+
+  it("无双人条款的模板原样返回(幂等)", () => {
+    const plain = "适用：山川全境。要点：远景层叠；画幅 16:9 横卷。";
+    expect(adaptTemplateBriefToCastCount(plain, ["独孤剑尘"])).toBe(plain);
+  });
+
+  it("buildStoryboardFramePrompt 接线:castNames 传导到【构图】段", () => {
+    const templates = parseStoryboardFrameTemplates(MANUAL_SAMPLE);
+    const dialogue = templates.find((t) => t.id === "26") ?? templates[0]!;
+    const prompt = buildStoryboardFramePrompt({
+      description: "独孤握拳松拳",
+      template: { ...dialogue, brief: BRIEF },
+      castNames: ["独孤剑尘"],
+    });
+    expect(prompt).toContain("只有独孤剑尘一人");
   });
 });

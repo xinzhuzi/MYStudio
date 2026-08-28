@@ -20,6 +20,7 @@ import { DEFAULT_REMOTION_RENDER_SETTINGS } from "@/lib/studio/remotion/remotion
 import {
   buildStoryboardFactionColorSection,
   buildStoryboardFramePrompt,
+  resolveAssetFaction,
   parseStoryboardFrameTemplates,
   selectStoryboardFrameTemplate,
 } from "@/lib/studio/storyboard-frame-prompt";
@@ -377,7 +378,7 @@ export function createOpenImageWorkflowGraph(
   // 装配溯源(UI「风格依据」展示源):命中了哪些手册资产一目了然
   if (isStoryboard) {
     const tracedFactions = [...(personRefNames ?? []), ...(sceneRefNames ?? [])]
-      .map((name) => factionData.members[name.trim()])
+      .map((name) => resolveAssetFaction(name, factionData.members))
       .filter((factionName): factionName is string => Boolean(factionName));
     graph = {
       ...graph,
@@ -400,6 +401,8 @@ export function createOpenImageWorkflowGraph(
         description: context.prompt ?? "",
         lines: context.storyboardLines,
         template: frameTemplate,
+        // R18:构图模板按画面人数自适应(三人镜/单人镜不再被双人模板锁死)
+        castNames: context.storyboardVisibleCharacters,
         colorSection,
       })
     : (context.prompt ?? "");

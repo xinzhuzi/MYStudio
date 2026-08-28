@@ -39,6 +39,7 @@ export function buildStoryboardItemOpenContext(item: {
   state?: StoryboardItem["state"];
   associateAssetsNames?: string[];
   keyframes?: StoryboardKeyframe[];
+  shotSemantics?: StoryboardItem["shotSemantics"];
 }): ImageWorkflowOpenContext {
   return {
     ...buildStoryboardImageOpenContext({
@@ -56,5 +57,9 @@ export function buildStoryboardItemOpenContext(item: {
     associateAssetsNames: item.associateAssetsNames,
     // 关键帧序列(M1d):>1 帧时建流克隆帧节点对
     storyboardKeyframes: item.keyframes,
+    // 画面可见角色名(R18):构图模板按人数自适应;语义缺失不改写(fail-safe)
+    storyboardVisibleCharacters: (item.shotSemantics?.visibleCharacters ?? [])
+      .map((character) => character.name)
+      .filter(Boolean),
   };
 }

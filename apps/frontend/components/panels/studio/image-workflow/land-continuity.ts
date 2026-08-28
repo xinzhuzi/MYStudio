@@ -15,6 +15,8 @@
  * (entityNameMatches:精确→去前缀/后缀→包含)。
  */
 import { entityNameMatches, buildStoryboardContinuityLanding } from "@/lib/studio/image-workflow/continuity-landing";
+import { createOperationId, logEvent } from "@/lib/diagnostics/logger";
+import { storyboardSourceFingerprint } from "@/stores/studio/studio-store-continuity-helpers";
 import { useCharacterLibraryStore } from "@/stores/library/character-library-store";
 import { usePropsLibraryStore } from "@/stores/library/props-library-store";
 import { useSceneStore } from "@/stores/library/scene-store";
@@ -48,7 +50,44 @@ export function landStoryboardContinuity(
     storyboards: store.storyboards,
     resolveAssetKey: (assetType, _assetLibraryId, title) => resolveEntityKeyByName(assetType, title),
   });
-  if (!patch) return false;
+  if (!patch) {
+    // R16 可见性(08-28):版本解析失败(连续性圣经缺该实体版本——S10 实证「道口镇
+    // 街巷」实体在库但无版本)时 manifest 不刷新,分镜可能保留旧代清单,审核/离线
+    // 审计会拿陈旧参考判卷。不做 manifest 改写(会破坏章节闸门的 approved 校验),
+    // 但必须把陈旧性显式化:graph 实际参考 vs manifest 现值分叉时告警入诊断日志。
+    const graphRefNames = graph.nodes
+      .filter((node) => node.type === "reference")
+      .map((node) => node.title)
+      .filter(Boolean);
+    const manifestNames = (storyboard.orderedReferenceManifest ?? [])
+      .map((ref) => ref.assetName)
+      .filter(Boolean);
+    const diverged = manifestNames.length > 0
+      && graphRefNames.some((name) => name && !manifestNames.includes(name));
+    if (diverged) {
+      void logEvent({
+        level: "warn",
+        category: "ai",
+        operationId: createOperationId("continuity-landing-stale-manifest"),
+        message: "连续性版本解析失败,分镜 manifest 未刷新(审核参考可能陈旧)",
+        context: { storyboardId, graphRefNames, manifestNames },
+      });
+    }
+    return false;
+  }
   store.updateStoryboard(storyboardId, patch);
+  // R21 根修(08-28):落库写入 manifest/continuityState 后分镜 sourceFingerprint
+  // 随内容重算(mergeStoryboardReplacement);工作流若仍持有落库前指纹,下一轮
+  // findStoryboardWorkflowForContext 必失配 → 每轮新建流重新解析参考(注入随之
+  // 作废)。按落库后内容同步刷新本流指纹,保持同代工作流可复用。指纹哈希不含
+  // mediaRef,后续媒体回写不会再次改变它。
+  const landedFingerprint = storyboardSourceFingerprint({ ...storyboard, ...patch });
+  if (landedFingerprint && landedFingerprint !== graph.targetSourceFingerprint) {
+    useStudioStore.getState().upsertImageWorkflow({
+      ...graph,
+      targetSourceFingerprint: landedFingerprint,
+      updatedAt: Date.now(),
+    });
+  }
   return true;
 }

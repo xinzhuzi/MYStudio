@@ -13,8 +13,8 @@ afterEach(() => {
 });
 
 function makeBridge(entries: {
-  scene?: Array<{ name: string; id?: string; previewUrl?: string }>;
-  role?: Array<{ name: string; id?: string; previewUrl?: string }>;
+  scene?: Array<{ name: string; assetName?: string; id?: string; previewUrl?: string }>;
+  role?: Array<{ name: string; assetName?: string; id?: string; previewUrl?: string }>;
 }) {
   return {
     batchMatch: vi.fn(({ type }: { type: string }) => Promise.resolve(
@@ -22,7 +22,7 @@ function makeBridge(entries: {
         name: entry.name,
         asset: {
           id: entry.id ?? `id-${entry.name}`,
-          name: entry.name,
+          name: entry.assetName ?? entry.name,
           previewUrl: entry.previewUrl === undefined ? `file:///assets/${entry.name}.png` : entry.previewUrl,
         },
       })),
@@ -101,6 +101,20 @@ describe("resolveStoryboardAssetReferences", () => {
       prompt: "独孤剑尘低头从两人侧后方经过；赵四手腕压下。",
     });
     expect(refs?.map((ref) => ref.title)).toEqual(["独孤剑尘", "赵四"]);
+  });
+
+  it("keeps a character referenced by short name in frame text (R17 正文短名方向)", async () => {
+    bridgeMock.mockReturnValue(makeBridge({
+      scene: [{ name: "金水塾馆" }],
+      role: [{ name: "独孤剑尘" }, { name: "管事", assetName: "李先生;管事" }],
+    }));
+    // 正文只写「独孤」不写全名——旧逻辑静默滤掉参考,模型自由发挥画成黑发青年
+    // (08-28 S10/S21/S35 等实锤);前缀截取(独孤/独孤剑)命中即视为提名
+    const refs = await resolveStoryboardAssetReferences({
+      associateAssetsNames: ["金水塾馆", "独孤剑尘", "管事"],
+      videoDesc: "独孤观察、抬手又停，管事在门口持筹",
+    });
+    expect(refs?.map((ref) => ref.title)).toEqual(["金水塾馆", "独孤剑尘", "李先生;管事"]);
   });
 });
 

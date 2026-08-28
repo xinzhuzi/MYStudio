@@ -175,7 +175,7 @@ async function reviewFrame(
         assetName: ref.assetName ?? ref.assetId,
       }));
     if (referenceImages.length === 0) return null;
-    return await bridge.run({
+    const artifact = await bridge.run({
       schemaVersion: 1,
       projectId: useProjectStore.getState().activeProjectId ?? "unknown",
       shotId: shot.id,
@@ -184,6 +184,25 @@ async function reviewFrame(
       expectedContent: shot.videoDesc || shot.prompt || "",
       expectedCharacters: shot.associateAssetsNames ?? [],
     });
+    // R20 盲区可视化(08-28):VLM 只查「挂了参考的角色」,无参考角色(群演/孩童/
+    // 妇人等无资产条目者)静默放行。计算未覆盖名单写入工件随 vlmReview 落库
+    // (审核面板可见)+ diagnostics 留痕——不改 fail-open 语义,只把盲区变可见。
+    const uncoveredCharacters = (shot.associateAssetsNames ?? []).filter(
+      (name) => name && !referenceImages.some((ref) => {
+        const refName = ref.assetName ?? "";
+        return refName.includes(name) || name.includes(refName.split(/[;；]/)[0] ?? "");
+      }),
+    );
+    if (uncoveredCharacters.length > 0) {
+      void logEvent({
+        level: "warn",
+        category: "ai",
+        operationId: createOperationId("vlm-review-uncovered"),
+        message: "VLM 审核存在无参考角色盲区(该角色不在校验范围)",
+        context: { shotId: shot.id, uncoveredCharacters },
+      });
+    }
+    return { ...artifact, uncoveredCharacters };
   } catch {
     return null;
   }

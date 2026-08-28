@@ -701,6 +701,9 @@ export interface ImageWorkflowOpenContext {
   storyboardLines?: string;
   /** 分镜关键帧序列(M1d):>1 帧时建流克隆 N 对帧节点(帧间链);缺省单帧行为不变 */
   storyboardKeyframes?: StoryboardKeyframe[];
+  /** 画面可见角色名(shotSemantics.visibleCharacters,M3b/R18):建流时构图模板
+   *  按人数自适应改写「只有角色A与B」双人约束;缺省不改写(fail-safe) */
+  storyboardVisibleCharacters?: string[];
   /** 当前分镜行的关联资产清单:无指纹工作流的代际校验依据(次优择优内容
    *  对齐——分镜表换代后同 id 镜内容已换,跨代旧流的参考资产不在当前清单) */
   associateAssetsNames?: string[];

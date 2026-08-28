@@ -1016,7 +1016,17 @@ const vlmReviewController = new VlmReviewRuntimeController({
   storageBasePath: getStorageBasePath(),
   resolveProjectFilePath: async (url) => {
     try {
-      return resolveProjectScopedFilePath(getDataDir(), url.replace(/^project-file:\/\/[^/]+\//, ''), url)
+      // project-file://<projectId>/<percent-encoded 相对路径>——projectId 与每段
+      // 路径都必须 decodeURIComponent(08-28 R14 实证:成图文件名含中文,原样传
+      // 会让 VLM worker 拿到字面 %E5… 路径找不到文件,审核环产线整体失效)
+      const match = /^project-file:\/\/([^/]+)\/(.*)$/.exec(url)
+      if (!match) return null
+      const projectId = decodeURIComponent(match[1])
+      const relativePath = match[2]
+        .split('/')
+        .map((segment) => decodeURIComponent(segment))
+        .join('/')
+      return resolveProjectScopedFilePath(getDataDir(), projectId, relativePath)
     } catch {
       return null
     }

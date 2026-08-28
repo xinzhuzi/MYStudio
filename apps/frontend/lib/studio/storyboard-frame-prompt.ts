@@ -95,33 +95,151 @@ export function buildStoryboardFactionColorSection(
     /** 防止仅因关联资产含道具就把 prop 色自动拼入普通分镜。 */
     propFocus?: boolean;
   },
-  faction: {
-    members: Record<string, string>;
-    palette: Record<string, { person: string; scene: string; prop?: string }>;
-  },
+  faction: FactionData,
 ): string {
-  const pick = (names: string[] | undefined, track: "person" | "scene" | "prop") => {
-    for (const name of names ?? []) {
-      const factionName = faction.members[name.trim()];
-      const combo = factionName ? faction.palette[factionName] : undefined;
-      const text = combo?.[track];
-      if (text) return `(${factionName}·${track === "person" ? "人物" : track === "scene" ? "场景" : "道具"})${text}`;
-    }
-    return "";
-  };
-  const personPart = pick(input.personNames, "person");
-  const scenePart = pick(input.sceneNames, "scene");
+  const personPart = pickFactionTrackLine(input.personNames, "person", faction);
+  const scenePart = pickFactionTrackLine(input.sceneNames, "scene", faction);
   const propApplicability = input.propFactionColorApplicability ?? "not_applicable";
   const propPart = input.propFocus && propApplicability === "applicable"
-    ? pick(input.propNames, "prop")
+    ? pickFactionTrackLine(input.propNames, "prop", faction)
     : "";
-  return [personPart, scenePart, propPart].filter(Boolean).length
-    ? `【色彩】阵营色彩职责 ${[personPart, scenePart, propPart].filter(Boolean).join(";")}`
-    : "";
+  const body = [personPart, scenePart, propPart].filter(Boolean).join(";");
+  return body ? `【色彩】阵营色彩职责 ${body}` : "";
+}
+
+/**
+ * 逐镜配色锚(08-28 两套色彩系统衔接):为成片 AI 选卡(LUT)提供本镜阵营色方向。
+ * 人物轨=visibleCharacterNames;场景轨=assetNames 中能命中阵营表且不与人物名重叠者
+ * (复合名分段互斥)。输出不带【色彩】头的紧凑串,无命中空串(fail-empty,
+ * 未预热/旧镜无语义数据时提示词零变化)。
+ */
+export function buildShotColorMoodLine(
+  input: {
+    assetNames?: string[];
+    visibleCharacterNames?: string[];
+  },
+  faction: FactionData,
+): string {
+  const persons = (input.visibleCharacterNames ?? []).map((name) => name.trim()).filter(Boolean);
+  const personParts = new Set(persons.flatMap((name) => [name, ...splitCompoundAssetName(name)]));
+  const scenes = (input.assetNames ?? [])
+    .map((name) => name.trim())
+    .filter(Boolean)
+    .filter((name) => {
+      const parts = [name, ...splitCompoundAssetName(name)];
+      return !parts.some((part) => personParts.has(part))
+        && resolveAssetFaction(name, faction.members) !== undefined;
+    });
+  const body = [
+    pickFactionTrackLine(persons, "person", faction),
+    pickFactionTrackLine(scenes, "scene", faction),
+  ].filter(Boolean).join("; ");
+  return body;
+}
+
+export type PaletteTemperature = "warm" | "cool" | "neutral";
+
+const WARM_COLOR_WORDS = ["黄", "朱", "红", "金", "栗", "褐", "赭", "橙", "胭", "藤", "檀"] as const;
+const COOL_COLOR_WORDS = ["青", "蓝", "绿", "黛", "碧", "翠"] as const;
+
+/**
+ * 阵营盘温感(确定性关键词投票,禁 NLP 猜词):对若干五职责串取「主色/点睛」
+ * 色名段投票——暖词(黄朱红金栗褐赭橙胭藤檀) vs 冷词(青蓝绿黛碧翠),
+ * 紫灰黑白不计票;平票或零票=neutral。例:人族场景盘(主色赭石+点睛藤黄)=warm,
+ * 万劫圣宗新盘(靛蓝+朱砂+石青+赭石 各半)=neutral。
+ */
+export function classifyFactionPaletteTemperature(combos: string[]): PaletteTemperature {
+  let warm = 0;
+  let cool = 0;
+  for (const combo of combos) {
+    for (const match of combo.matchAll(/(?:主色|点睛)([^+;；]+)/g)) {
+      const token = match[1]!.trim();
+      if (WARM_COLOR_WORDS.some((word) => token.includes(word))) warm += 1;
+      else if (COOL_COLOR_WORDS.some((word) => token.includes(word))) cool += 1;
+    }
+  }
+  if (warm === 0 && cool === 0) return "neutral";
+  if (warm > cool) return "warm";
+  if (cool > warm) return "cool";
+  return "neutral";
+}
+
+/**
+ * 本章主导阵营(逐镜 associateAssetsNames 命中阵营的众数;每镜每阵营至多计一次,
+ * 平票取镜头数多者、再平取首见,确定性)。用于钉死调色卡的冷暖冲突提示。
+ */
+export function dominantChapterFaction(
+  shots: Array<{ associateAssetsNames?: string[] }>,
+  faction: FactionData,
+): string | undefined {
+  const counts = new Map<string, number>();
+  for (const shot of shots) {
+    const seen = new Set<string>();
+    for (const name of shot.associateAssetsNames ?? []) {
+      const factionName = resolveAssetFaction(name, faction.members);
+      if (factionName) seen.add(factionName);
+    }
+    for (const factionName of seen) {
+      counts.set(factionName, (counts.get(factionName) ?? 0) + 1);
+    }
+  }
+  let best: string | undefined;
+  let bestCount = 0;
+  for (const [factionName, count] of counts) {
+    if (count > bestCount) {
+      best = factionName;
+      bestCount = count;
+    }
+  }
+  return best;
+}
+
+/**
+ * 主导阵营盘温感(person+scene 两轨合并投票):供 UI 与选卡指南判定
+ * 「钉死 LUT 是否反向压色」。无主导阵营/盘缺失=neutral(永不误报)。
+ */
+export function chapterFactionTemperature(
+  shots: Array<{ associateAssetsNames?: string[] }>,
+  faction: FactionData,
+): { faction?: string; temperature: PaletteTemperature } {
+  const dominant = dominantChapterFaction(shots, faction);
+  const combo = dominant ? faction.palette[dominant] : undefined;
+  if (!dominant || !combo) return { temperature: "neutral" };
+  return {
+    faction: dominant,
+    temperature: classifyFactionPaletteTemperature([combo.person, combo.scene]),
+  };
+}
+
+/**
+ * 构图模板人物数自适应(08-28 R18 根修):手册模板要点常写死「只有角色 A 与 B…
+ * 双人中景」,三人镜(S21)/单人镜(S35)被套双人模板 → 模型每轮按 2 人画、丢角色
+ * 丢身份(跨数月同失败形态实证)。按 shotSemantics.visibleCharacters 的人数改写
+ * 人物数约束;人数=2 或缺省不改(fail-safe,无语义数据的旧镜保持原行为)。
+ * 幂等:不含「只有角色 A 与 B」条款的模板原样返回。
+ */
+export function adaptTemplateBriefToCastCount(
+  brief: string,
+  castNames?: string[],
+): string {
+  if (!brief.includes("只有角色 A 与 B")) return brief;
+  const names = (castNames ?? []).map((name) => name.trim()).filter(Boolean);
+  const count = names.length;
+  if (count === 0 || count === 2) return brief;
+  if (count === 1) {
+    return brief
+      .replace("只有角色 A 与 B", `只有${names[0]}一人`)
+      .replace("双人中景", "单人中景");
+  }
+  const nameList = names.slice(0, 4).join("、") + (count > 4 ? "等" : "");
+  return brief
+    .replace("只有角色 A 与 B", `${nameList}共${count}名角色同框`)
+    .replace("双人中景", `${count}人中景`);
 }
 
 /**
  * 按手册装配顺序组装分镜帧正文:【画面】题材事实 +【构图】模板要点(+【色彩】阵营职责)。
+ * 模板要点先经 adaptTemplateBriefToCastCount 按画面人物数自适应(08-28 R18)。
  * 风格 token 由调用方(withActiveVisualManualStoryboardStyleTokens)追加,负面词
  * 走 Negative Prompt,均不在本函数重复。手册未预热(无模板)时退化为裸描述。
  */
@@ -130,6 +248,8 @@ export function buildStoryboardFramePrompt(input: {
   lines?: string;
   template: StoryboardFrameTemplate | null;
   colorSection?: string;
+  /** 画面可见角色名(shotSemantics.visibleCharacters);缺省不做人物数自适应 */
+  castNames?: string[];
 }): string {
   const description = input.description.trim();
   if (!input.template) return description;
@@ -139,7 +259,7 @@ export function buildStoryboardFramePrompt(input: {
   const colorPart = input.colorSection?.trim() ? `\n${input.colorSection.trim()}` : "";
   return [
     `【画面】${description}`,
-    `【构图】${input.template.brief.replace(/\n+/g, " ")}`,
+    `【构图】${adaptTemplateBriefToCastCount(input.template.brief.replace(/\n+/g, " "), input.castNames)}`,
     colorPart.trim(),
     dialogueHint.trim(),
   ].filter(Boolean).join("\n");

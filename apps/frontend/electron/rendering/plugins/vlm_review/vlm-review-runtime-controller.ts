@@ -18,7 +18,7 @@ import {
 } from "./vlm-review-runtime";
 
 const execFileAsync = promisify(execFile);
-const VLM_RUN_TIMEOUT_MS = 60_000; // 含冷装载(首次 30~60s)
+const VLM_RUN_TIMEOUT_MS = 180_000; // 含冷装载(首次 30~60s)+多图推理;60s 会杀首审(08-28 R15 实证)
 
 export interface VlmReviewRuntimeConfig {
   pythonExecutable: string;
@@ -98,9 +98,12 @@ export class VlmReviewRuntimeController {
       }
       return artifact;
     } catch (error) {
-      const stderr = (error as { stderr?: string }).stderr ?? "";
-      if (stderr.includes("exit code 2")) {
-        // blocked 结果(exit 2 也有完整 artifact)
+      // blocked 结果 = worker exit 2 且 stdout 打印完整 artifact;Electron execFile
+      // 的退出码在 error.code,stderr 从不含 "exit code 2" 字样——旧判据
+      // stderr.includes("exit code 2") 永不命中,一切 blocked 被误归 run-failed
+      // (08-28 R15 实证:审核环产线整体失效的另一半根因)
+      const exitCode = (error as { code?: unknown }).code;
+      if (exitCode === 2 || String(error).includes("exit code 2")) {
         try {
           const artifactRaw = await fs.readFile(artifactPath, "utf-8");
           return JSON.parse(artifactRaw) as VlmReviewArtifactV1;

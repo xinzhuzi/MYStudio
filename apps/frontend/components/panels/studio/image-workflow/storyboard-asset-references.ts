@@ -43,7 +43,19 @@ export async function resolveStoryboardAssetReferences(
     if (frameText.includes(title) || frameText.includes(queryName)) return true;
     // 简称兜底: 资产名「监工赵四」↔画面「赵四」(去职业前缀/取尾名比对)
     const short = title.replace(/^(?:监工|管事|老|年轻|小)/, "");
-    return short.length >= 2 && frameText.includes(short);
+    if (short.length >= 2 && frameText.includes(short)) return true;
+    // 正文短名方向(08-28 R17 实证):正文写「独孤」而资产叫「独孤剑尘」时全名
+    // 前缀逐级截取(≥2字)命中即视为提名——先剥职业/年龄前缀再截,避免
+    // 「监工/管事」这类泛称单独触发把画面外角色放进参考
+    for (const name of new Set([
+      short,
+      queryName.replace(/^(?:监工|管事|老|年轻|小)/, ""),
+    ])) {
+      for (let len = 2; len < name.length; len += 1) {
+        if (frameText.includes(name.slice(0, len))) return true;
+      }
+    }
+    return false;
   };
   const collect = (
     entries: Array<{ name: string; asset: unknown }> | undefined,

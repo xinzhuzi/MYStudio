@@ -43,6 +43,9 @@ export interface VlmReviewArtifactV1 {
   message?: string;
   toolVersion?: string;
   generatedAt: number;
+  /** R20 盲区可视化(08-28):期望出场但无参考可比对的角色(群演/孩童等无资产
+   * 条目者)——VLM 未校验它们,人工终审需重点过目;渲染层附加,非 worker 产物 */
+  uncoveredCharacters?: string[];
 }
 
 export interface VlmReviewProbeResult {
