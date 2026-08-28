@@ -135,6 +135,7 @@ def review_image(
     try:
         model, processor = _load_model(model_dir)
         from mlx_vlm import generate as mlx_generate
+        from mlx_vlm.prompt_utils import apply_chat_template
 
         images = [str(gen)] + [str(Path(p)) for p in reference_paths if Path(p).is_file()]
         if len(images) < 2:
@@ -146,13 +147,23 @@ def review_image(
                 "generatedAt": int(time.time() * 1000),
             }
 
-        prompt = _build_review_prompt(
+        raw_prompt = _build_review_prompt(
             expected_content, expected_characters, len(images) - 1
         )
 
-        response = mlx_generate(
+        # mlx-vlm 需要经 chat template 生成图片占位符(num_images 告知有几张图)
+        prompt = apply_chat_template(
+            processor, model.config,
+            prompt=raw_prompt,
+            add_generation_prompt=True,
+            num_images=len(images),
+        )
+
+        result = mlx_generate(
             model, processor, prompt=prompt, image=images, max_tokens=512
         )
+        # mlx-vlm 0.6.x returns GenerationResult(需 .text 取字符串)
+        response = result.text if hasattr(result, 'text') else str(result)
         checks = _parse_vlm_json(response)
         reasons = checks.pop("reasons", [])
 
