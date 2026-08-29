@@ -13,9 +13,9 @@ import {
   getFreedomRootBaseUrl as getRootBaseUrl,
   toUploadBlob,
   toUploadHttpUrl,
-} from "./freedom-transport";
+} from "@/lib/ai/generation-transport";
 import { getUnifiedEndpointPaths } from "./freedom-routing";
-import { resolveKlingModelName } from "./freedom-model-names";
+import { resolveKlingModelName } from "@/lib/ai/generation-model-names";
 import type { FreedomVideoParams, GenerationResult } from "./freedom-types";
 
 const VIDEO_POLL_INTERVAL = 2000;

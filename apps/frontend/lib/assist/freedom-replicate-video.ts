@@ -4,7 +4,7 @@ import {
   freedomObservedFetch,
   getFreedomRootBaseUrl,
   toUploadHttpUrl,
-} from "./freedom-transport";
+} from "@/lib/ai/generation-transport";
 import { groupVideoUploadFiles } from "./video-upload-validation";
 
 const DEFAULT_POLL_INTERVAL_MS = 2000;

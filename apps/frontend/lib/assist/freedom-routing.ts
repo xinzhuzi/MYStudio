@@ -1,49 +1,14 @@
-import {
-  getAllFeatureConfigs,
-  getFeatureConfig,
-  type FeatureConfig,
-} from "@/lib/ai/feature-router";
-import { resolveImageApiFormat } from "@/lib/ai/core";
-import type { AIFeature } from "@/lib/ai/feature-definitions";
+/**
+ * 自由面板视频路由(08-28-freedom-image-engine-rename 批次 A 拆分):
+ * 图片路由已迁 lib/ai/image-routing,功能绑定解析迁 lib/ai/generation-feature-config;
+ * 本文件只剩视频侧,待二期视频链正名时迁入引擎层。FreedomEndpointPaths
+ * 类型由 image-routing 定义(生图视频共用端点路径形状),此处再导出保旧引用。
+ */
+import type { FreedomEndpointPaths } from '@/lib/ai/image-routing';
 
-export type FreedomImageRoute = "midjourney" | "ideogram" | "kling_image" | "openai_chat" | "openai_images" | "replicate";
+export type { FreedomEndpointPaths } from '@/lib/ai/image-routing';
+
 export type FreedomVideoRoute = "openai_official" | "unified" | "volc" | "wan" | "kling" | "replicate";
-export interface FreedomEndpointPaths {
-  submit: string;
-  poll: (id: string) => string;
-}
-
-export function pickFeatureConfig(feature: AIFeature, requestedModel?: string): FeatureConfig | null {
-  const all = getAllFeatureConfigs(feature);
-  if (all.length === 0) return null;
-  if (requestedModel) {
-    const exact = all.find((config) => config.model === requestedModel);
-    if (exact) return exact;
-  }
-  return getFeatureConfig(feature) ?? all[0];
-}
-
-export function resolveFreedomFeatureConfig(
-  feature: "freedom_image" | "freedom_video",
-  fallback: "character_generation" | "video_generation",
-  requestedModel?: string,
-): { config: FeatureConfig | null; source: string } {
-  const primary = pickFeatureConfig(feature, requestedModel);
-  if (primary) return { config: primary, source: feature };
-  const fallbackConfig = pickFeatureConfig(fallback, requestedModel);
-  if (fallbackConfig) return { config: fallbackConfig, source: `${fallback} (fallback)` };
-  return { config: null, source: feature };
-}
-
-export function detectFreedomImageRoute(model: string, endpointTypes?: string[]): FreedomImageRoute {
-  const hasEndpoint = (pattern: RegExp) => (endpointTypes || []).some((type) => pattern.test(type));
-  const hasExactEndpoint = (name: string) => (endpointTypes || []).includes(name);
-  if (/^mj_/i.test(model) || /midjourney/i.test(model) || /^niji-/i.test(model) || hasEndpoint(/midjourney/i)) return "midjourney";
-  if (/^ideogram_/i.test(model)) return "ideogram";
-  if (/^kling-(image|omni-image)/i.test(model) || hasExactEndpoint("kling生图") || hasExactEndpoint("omni-image") || hasExactEndpoint("文生图")) return "kling_image";
-  if ((endpointTypes || []).some((type) => type.includes("/") && type.endsWith("异步"))) return "replicate";
-  return resolveImageApiFormat(endpointTypes, model) === "openai_chat" ? "openai_chat" : "openai_images";
-}
 
 const FREEDOM_VIDEO_ROUTE_MAP: Record<string, FreedomVideoRoute> = {
   "openAI官方视频格式": "openai_official",
@@ -95,22 +60,6 @@ const DEFAULT_UNIFIED_ENDPOINT: FreedomEndpointPaths = {
   submit: "/v1/video/generations",
   poll: (id) => `/v1/video/generations/${id}`,
 };
-
-const IMAGE_ENDPOINT_PATHS: Record<string, FreedomEndpointPaths> = {
-  "aigc-image": { submit: "/tencent-vod/v1/aigc-image", poll: (id) => `/tencent-vod/v1/aigc-image/${id}` },
-  "vidu生图": { submit: "/ent/v2/reference2image", poll: (id) => `/ent/v2/task?task_id=${id}` },
-};
-export const DEFAULT_IMAGE_ENDPOINT: FreedomEndpointPaths = {
-  submit: "/v1/images/generations",
-  poll: (id) => `/v1/images/generations/${id}`,
-};
-
-export function getImageEndpointPaths(endpointTypes: string[]): FreedomEndpointPaths {
-  for (const type of endpointTypes) {
-    if (IMAGE_ENDPOINT_PATHS[type]) return IMAGE_ENDPOINT_PATHS[type];
-  }
-  return DEFAULT_IMAGE_ENDPOINT;
-}
 
 export function getUnifiedEndpointPaths(endpointTypes: string[]): FreedomEndpointPaths {
   for (const type of endpointTypes) {

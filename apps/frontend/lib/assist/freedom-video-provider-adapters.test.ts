@@ -1,14 +1,14 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useAPIConfigStore } from "@/stores/ai/api-config-store";
-import { freedomObservedFetch } from "./freedom-transport";
+import { freedomObservedFetch } from "@/lib/ai/generation-transport";
 import {
   generateVideoViaKling,
   generateVideoViaOpenAIOfficial,
   generateVideoViaUnified,
 } from "./freedom-video-provider-adapters";
 
-vi.mock("./freedom-transport", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("./freedom-transport")>();
+vi.mock("@/lib/ai/generation-transport", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/ai/generation-transport")>();
   return {
     ...actual,
     freedomObservedFetch: vi.fn(),
