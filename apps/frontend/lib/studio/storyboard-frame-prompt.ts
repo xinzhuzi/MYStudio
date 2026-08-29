@@ -212,6 +212,41 @@ export function chapterFactionTemperature(
 }
 
 /**
+ * 构图模板镜头类型自适应(08-29 S04 类根修):「谈判、冲突、师徒、对峙」模板
+ * 会把行走/擦肩/独行/队列镜硬拗成双人对峙戏(S04 实证:行走镜被画成对峙站位,
+ * 角色形象被对手戏路子带偏)。正文命中行进语义时改写适用域与张力句,幂等。
+ */
+const SHOT_MOTION_PATTERN = /(走过|行走|前行|沿街|沿码头|擦肩|擦过|独行|穿过|穿巷|队列|拖链|离场|赶路|迈步|踱|走进)/;
+
+export function adaptTemplateBriefToShotMotion(brief: string, frameText: string): string {
+  if (!SHOT_MOTION_PATTERN.test(frameText)) return brief;
+  let out = brief;
+  if (out.includes("适用：谈判、冲突、师徒、对峙。")) {
+    out = out.replace("适用：谈判、冲突、师徒、对峙。", "适用：行进途中、擦肩而过。");
+  }
+  if (out.includes("眼神方向和手部动作说明关系张力")) {
+    out = out.replace("眼神方向和手部动作说明关系张力", "人物保持行进姿态与身体朝向，动作自然连贯");
+  }
+  return out;
+}
+
+/**
+ * 台词语境画外音过滤(08-29 修正):OS/（V.S.）说话人的台词属明确画外音,
+ * 原样注入会被模型画进画面(S34 宗门弟子 V.S. 实证);旁白具氛围价值且无
+ * 实害故保留。过滤后只留画面内角色与旁白;全为 OS/V.S. 时语境段不注入。
+ */
+export function filterVoiceoverDialogue(lines?: string): string {
+  if (!lines?.trim()) return "";
+  const kept = lines.split(/<br\s*\/?>|\n/).filter((segment) => {
+    const match = /^([^：:]{1,16})[：:]/.exec(segment.trim());
+    if (!match) return true;
+    const speaker = match[1]!.trim();
+    return !(/^(?:OS|画外音)/.test(speaker) || /（V\.S\.）|V\.S\.?$/.test(speaker));
+  });
+  return kept.map((segment) => segment.trim()).filter(Boolean).join("\n");
+}
+
+/**
  * 构图模板人物数自适应(08-28 R18 根修):手册模板要点常写死「只有角色 A 与 B…
  * 双人中景」,三人镜(S21)/单人镜(S35)被套双人模板 → 模型每轮按 2 人画、丢角色
  * 丢身份(跨数月同失败形态实证)。按 shotSemantics.visibleCharacters 的人数改写
@@ -253,13 +288,18 @@ export function buildStoryboardFramePrompt(input: {
 }): string {
   const description = input.description.trim();
   if (!input.template) return description;
-  const dialogueHint = input.lines?.trim()
-    ? `\n【台词语境】${input.lines.trim().slice(0, 80)}`
+  const inFrameDialogue = filterVoiceoverDialogue(input.lines);
+  const dialogueHint = inFrameDialogue
+    ? `\n【台词语境】${inFrameDialogue.slice(0, 80)}`
     : "";
   const colorPart = input.colorSection?.trim() ? `\n${input.colorSection.trim()}` : "";
+  const motionAdapted = adaptTemplateBriefToShotMotion(
+    input.template.brief.replace(/\n+/g, " "),
+    `${input.description}\n${input.lines ?? ""}`,
+  );
   return [
     `【画面】${description}`,
-    `【构图】${adaptTemplateBriefToCastCount(input.template.brief.replace(/\n+/g, " "), input.castNames)}`,
+    `【构图】${adaptTemplateBriefToCastCount(motionAdapted, input.castNames)}`,
     colorPart.trim(),
     dialogueHint.trim(),
   ].filter(Boolean).join("\n");

@@ -19,6 +19,7 @@ import { useStudioStore } from "@/stores/studio/studio-store";
 import { DEFAULT_REMOTION_RENDER_SETTINGS } from "@/lib/studio/remotion/remotion-workspace-storage";
 import {
   adaptTemplateBriefToCastCount,
+  adaptTemplateBriefToShotMotion,
   buildStoryboardFactionColorSection,
   buildStoryboardFramePrompt,
   resolveAssetFaction,
@@ -340,6 +341,7 @@ export function ensureStoryboardBindingConsistency(graph: ImageWorkflowGraph): I
 export function healStoryboardPromptForCast(
   graph: ImageWorkflowGraph,
   castNames?: string[],
+  frameText?: string,
 ): ImageWorkflowGraph {
   if (graph.target.kind !== "storyboard") return graph;
   const names = (castNames ?? []).map((name) => name.trim()).filter(Boolean);
@@ -350,7 +352,11 @@ export function healStoryboardPromptForCast(
     const lines = node.prompt.split("\n");
     for (let i = 0; i < lines.length; i += 1) {
       if (!lines[i]!.startsWith("【构图】")) continue;
-      const healed = adaptTemplateBriefToCastCount(lines[i]!, names);
+      // 双重自愈:镜头类型(行进镜去对峙化) → 人数(双人约束按 cast 改写)
+      const healed = adaptTemplateBriefToCastCount(
+        adaptTemplateBriefToShotMotion(lines[i]!, frameText ?? ""),
+        names,
+      );
       if (healed !== lines[i]) { lines[i] = healed; nodeChanged = true; }
     }
     if (!nodeChanged) return node;

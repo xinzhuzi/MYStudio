@@ -258,6 +258,7 @@ async function generateOneShot(
     const healed = healStoryboardPromptForCast(
       graph,
       (shot.shotSemantics?.visibleCharacters ?? []).map((character) => character.name),
+      [shot.videoDesc, shot.prompt, shot.lines].filter(Boolean).join("\n"),
     );
     if (healed !== graph) {
       useStudioStore.getState().upsertImageWorkflow(healed);
