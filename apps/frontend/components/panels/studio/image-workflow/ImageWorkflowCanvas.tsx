@@ -143,15 +143,22 @@ export function ImageWorkflowCanvas({
           ? selectedGraph
           : libraryImageWorkflows(imageWorkflows)[0];
       }
-      // storyboard 域默认:直进工作流=分镜节点图,落本章第一条分镜流(优先带指纹的当前代)
+      // storyboard 域默认:直进工作流=分镜节点图,落本章首个有流的分镜
+      //(顺序按分镜表;优先带指纹的当前代流)
       if (selectedGraph) return selectedGraph;
-      const firstChapterStoryboardId = chapterStoryboards[0]?.id;
-      return imageWorkflows.find((graph) =>
-        graph.target.kind === "storyboard"
-        && graph.target.id === firstChapterStoryboardId
-        && graph.targetSourceFingerprint)
-        ?? imageWorkflows.find((graph) =>
-          graph.target.kind === "storyboard" && graph.target.id === firstChapterStoryboardId);
+      for (const storyboard of chapterStoryboards) {
+        const withFp = imageWorkflows.find((graph) =>
+          graph.target.kind === "storyboard"
+          && graph.target.id === storyboard.id
+          && graph.targetSourceFingerprint);
+        if (withFp) return withFp;
+      }
+      for (const storyboard of chapterStoryboards) {
+        const any = imageWorkflows.find((graph) =>
+          graph.target.kind === "storyboard" && graph.target.id === storyboard.id);
+        if (any) return any;
+      }
+      return undefined;
     },
     [activeWorkflowId, chapterStoryboards, imageWorkflows, isScopedWorkflowDetail, scopedWorkflow, workflowScope],
   );
@@ -520,6 +527,7 @@ export function ImageWorkflowCanvas({
           showStoreInAssetLibrary={activeGraph.target.kind === "asset"}
           selectedEdgeId={selectedEdgeId}
           onDeleteSelectedEdge={deleteSelectedEdge}
+          onTidyLayout={handleTidyLayout}
         />
       </div>
 
