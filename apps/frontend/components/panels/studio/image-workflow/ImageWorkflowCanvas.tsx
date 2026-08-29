@@ -469,8 +469,6 @@ export function ImageWorkflowCanvas({
         />
         <ImageWorkflowCanvasToolbar
           onBack={onBack}
-          sourceLabel={sourceLabel}
-          sourceStageLabel={sourceStageLabel}
           activeGraph={activeGraph}
           chromeReady={chromeReady}
           styleTraceChips={styleTraceChips}
@@ -508,8 +506,6 @@ export function ImageWorkflowCanvas({
           showStoreInAssetLibrary={activeGraph.target.kind === "asset"}
           selectedEdgeId={selectedEdgeId}
           onDeleteSelectedEdge={deleteSelectedEdge}
-          onFitView={handleFitView}
-          onTidyLayout={handleTidyLayout}
         />
       </div>
 

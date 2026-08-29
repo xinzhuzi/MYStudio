@@ -135,7 +135,6 @@ describe("ImageWorkflowCanvas", () => {
     expect(screen.getAllByText("分镜视频生成 / 衍生资产 · 雨夜版").length).toBeGreaterThan(0);
     expect(screen.getAllByText("场景衍生 · 雨夜版").length).toBeGreaterThan(0);
     expect((screen.getByRole("button", { name: "运行生成" }) as HTMLButtonElement).disabled).toBe(true);
-    expect((screen.getByRole("button", { name: "写回目标" }) as HTMLButtonElement).disabled).toBe(true);
     expect(container.querySelector("[data-scoped-image-workflow-summary]")).toBeTruthy();
     // 合并裁定(2026-08-30):切换器常驻 scoped 模式,但建流等待视图(pending)无工具条
     expect(container.querySelector("[data-image-workflow-selector]")).toBeNull();

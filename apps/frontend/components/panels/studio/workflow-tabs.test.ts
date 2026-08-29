@@ -251,7 +251,9 @@ describe("studio workflow tabs", () => {
     );
     expect(toolbarSource).toContain("返回");
     expect(toolbarSource).not.toContain(["返回", "工作流"].join(""));
-    expect(toolbarSource).toContain("来源");
+    // 08-30 精简裁定:来源/回写目标只留侧栏一处;风格依据折叠;低频操作入「更多」
+    expect(toolbarSource).toContain("风格依据 {styleTraceChips.length} 项");
+    expect(toolbarSource).toContain('data-image-workflow-more');
     expect(canvasSource).toContain("initialAssetContext?.sourceLabel");
     expect(canvasSource).toContain("workflowWritebackTargetLabel");
     expect(toolbarSource).toContain("运行生成");

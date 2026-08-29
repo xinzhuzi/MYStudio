@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { cleanup, fireEvent, render } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { ImageWorkflowGraph, StoryboardItem } from "@/types/studio";
 import { ImageWorkflowCanvasToolbar } from "./image-workflow-canvas-toolbar";
@@ -18,7 +18,6 @@ const flows = [
 function renderToolbar(overrides: Partial<Parameters<typeof ImageWorkflowCanvasToolbar>[0]> = {}) {
   return render(
     <ImageWorkflowCanvasToolbar
-      sourceLabel="分镜成图 · 分镜 1"
       activeGraph={flows[0]}
       chromeReady
       styleTraceChips={[]}
@@ -42,7 +41,6 @@ function renderToolbar(overrides: Partial<Parameters<typeof ImageWorkflowCanvasT
       showStoreInAssetLibrary={false}
       selectedEdgeId={null}
       onDeleteSelectedEdge={vi.fn()}
-      onFitView={vi.fn()}
       {...overrides}
     />,
   );
@@ -82,6 +80,20 @@ describe("merged storyboard/workflow switcher (2026-08-30)", () => {
     expect(onSelectorChange).not.toHaveBeenCalled();
     fireEvent.change(select, { target: { value: "wf-free" } });
     expect(onSelectorChange).toHaveBeenCalledWith("wf-free");
+  });
+
+  it("collapses style trace chips behind a trigger and hides low-frequency actions in 更多 (08-30 精简)", () => {
+    const { unmount } = renderToolbar({ styleTraceChips: ["视觉手册 daojie", "阵营配色 人族", "负面约束(五类)"] });
+    expect(screen.getByRole("button", { name: /风格依据 3 项/ })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "更多操作" })).toBeTruthy();
+    // 独立按钮已收进菜单:一级栏不再有 写回目标/批量超分/分层节点对/适配画布
+    expect(screen.queryByRole("button", { name: "写回目标" })).toBeNull();
+    expect(screen.queryByRole("button", { name: /批量超分/ })).toBeNull();
+    expect(screen.queryByRole("button", { name: /分层节点对/ })).toBeNull();
+    expect(screen.queryByRole("button", { name: "适配画布" })).toBeNull();
+    // 运行生成主按钮保留
+    expect(screen.getByRole("button", { name: "运行生成" })).toBeTruthy();
+    unmount();
   });
 
   it("renders in scoped mode too and falls back to a labelled option for cross-chapter storyboard flows", () => {

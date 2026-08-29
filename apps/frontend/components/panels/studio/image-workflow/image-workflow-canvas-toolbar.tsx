@@ -2,7 +2,8 @@ import {
   ArrowLeft,
   Layers,
   Loader2,
-  Maximize2,
+  MoreHorizontal,
+  Palette,
   Plus,
   Save,
   Trash2,
@@ -10,8 +11,14 @@ import {
   WandSparkles,
   ZoomIn,
 } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
 import type { ImageWorkflowGeneratedNode, ImageWorkflowGraph, StoryboardItem } from "@/types/studio";
 
 /**
@@ -25,8 +32,6 @@ import type { ImageWorkflowGeneratedNode, ImageWorkflowGraph, StoryboardItem } f
  */
 export function ImageWorkflowCanvasToolbar({
   onBack,
-  sourceLabel,
-  sourceStageLabel,
   activeGraph,
   chromeReady,
   styleTraceChips,
@@ -51,11 +56,8 @@ export function ImageWorkflowCanvasToolbar({
   showStoreInAssetLibrary,
   selectedEdgeId,
   onDeleteSelectedEdge,
-  onFitView,
 }: {
   onBack?: () => void;
-  sourceLabel: string;
-  sourceStageLabel?: string;
   activeGraph: ImageWorkflowGraph;
   chromeReady: boolean;
   styleTraceChips: string[];
@@ -82,7 +84,6 @@ export function ImageWorkflowCanvasToolbar({
   showStoreInAssetLibrary: boolean;
   selectedEdgeId: string | null;
   onDeleteSelectedEdge: () => void;
-  onFitView: () => void;
 }) {
   return (
     <div className="absolute left-3 right-3 top-3 z-20 flex flex-wrap items-center gap-2 rounded-md border border-border bg-card p-2 text-card-foreground">
@@ -92,34 +93,23 @@ export function ImageWorkflowCanvasToolbar({
           返回
         </Button>
       ) : null}
-      <div className={cn("flex min-w-[180px] flex-1 items-center text-xs", onBack ? "border-l border-border pl-2" : "")}>
-        <span className="shrink-0 text-muted-foreground">来源</span>
-        <span className="ml-2 truncate font-medium">
-          {sourceStageLabel ? `${sourceStageLabel} / ${sourceLabel}` : sourceLabel}
-        </span>
-      </div>
-      {activeGraph?.target.kind === "storyboard" ? (
-        <Button size="sm" data-image-workflow-layered-action variant="outline" onClick={onAddStoryboardLayeredPair}>
-          <Layers className="h-3.5 w-3.5" />
-          分层节点对
-        </Button>
-      ) : null}
       {chromeReady && styleTraceChips.length ? (
-        <div
-          data-image-workflow-style-trace
-          className="flex min-w-[220px] flex-1 flex-wrap items-center gap-1 border-l border-border pl-2 text-[10px] leading-4"
-        >
-          <span className="shrink-0 text-muted-foreground">风格依据</span>
-          {styleTraceChips.map((chip) => (
-            <span
-              key={chip}
-              title={`本次生图装配引用:${chip}`}
-              className="rounded-full border border-primary/25 bg-primary/10 px-1.5 py-0.5 text-primary/85"
-            >
-              {chip}
-            </span>
-          ))}
-        </div>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button size="sm" variant="ghost" data-image-workflow-style-trace title="本次生图装配引用清单">
+              <Palette className="h-3.5 w-3.5" />
+              风格依据 {styleTraceChips.length} 项
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start" className="max-w-[340px]">
+            <DropdownMenuLabel>风格依据(建流装配溯源)</DropdownMenuLabel>
+            {styleTraceChips.map((chip) => (
+              <DropdownMenuItem key={chip} className="whitespace-normal break-all text-xs" data-image-workflow-style-trace-item>
+                {chip}
+              </DropdownMenuItem>
+            ))}
+          </DropdownMenuContent>
+        </DropdownMenu>
       ) : null}
       {(() => {
         // 值域双命名空间:分镜项 `sb:<storyboardId>`(走分镜切换链),
@@ -225,16 +215,8 @@ export function ImageWorkflowCanvasToolbar({
           </Button>
 
         </>
-      ) : (
-        <div className="max-w-[300px] truncate rounded-md border border-border bg-muted/30 px-2 py-1.5 text-xs font-medium text-card-foreground">
-          {activeGraph.name}
-        </div>
-      )}
-      <div className="flex min-w-[180px] max-w-[320px] items-center gap-1.5 rounded-md border border-info/25 bg-info/10 px-2 py-1 text-[11px] text-info">
-        <Save className="h-3.5 w-3.5 shrink-0" />
-        <span className="shrink-0 text-info/75">回写目标</span>
-        <span className="truncate font-medium">{workflowWritebackTargetLabel}</span>
-      </div>
+      ) : null}
+      <div className="min-w-4 flex-1" />
       <Button
         size="sm"
         variant="paid"
@@ -247,26 +229,6 @@ export function ImageWorkflowCanvasToolbar({
           <WandSparkles className="h-3.5 w-3.5" />
         )}
         运行生成
-      </Button>
-      <Button
-        size="sm"
-        variant="secondary"
-        onClick={() => activeGeneratedNode && onApplyToStoryboard(activeGeneratedNode.id)}
-        disabled={!activeGeneratedNode?.resultUrl}
-      >
-        <Save className="h-3.5 w-3.5" />
-        写回目标
-      </Button>
-      <Button
-        size="sm"
-        variant="outline"
-        data-image-workflow-batch-upscale
-        onClick={onOpenBatchUpscale}
-        disabled={upscalableCount === 0 || upscaleRunning}
-        title="勾选多个成图节点,本地 ×4 批量超分"
-      >
-        <ZoomIn className="h-3.5 w-3.5" />
-        批量超分
       </Button>
       {showStoreInAssetLibrary ? (
         <Button
@@ -292,14 +254,39 @@ export function ImageWorkflowCanvasToolbar({
           删除连线
         </Button>
       ) : null}
-      <Button
-        size="icon"
-        variant="ghost"
-        aria-label="适配画布"
-        onClick={onFitView}
-      >
-        <Maximize2 className="h-4 w-4" />
-      </Button>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button size="sm" variant="ghost" data-image-workflow-more aria-label="更多操作">
+            <MoreHorizontal className="h-4 w-4" />
+            更多
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" className="max-w-[340px]">
+          <DropdownMenuItem
+            onClick={() => activeGeneratedNode && onApplyToStoryboard(activeGeneratedNode.id)}
+            disabled={!activeGeneratedNode?.resultUrl}
+            title={workflowWritebackTargetLabel}
+          >
+            <Save className="h-3.5 w-3.5" />
+            写回目标 · {workflowWritebackTargetLabel}
+          </DropdownMenuItem>
+          <DropdownMenuItem
+            data-image-workflow-batch-upscale
+            onClick={onOpenBatchUpscale}
+            disabled={upscalableCount === 0 || upscaleRunning}
+            title="勾选多个成图节点,本地 ×4 批量超分"
+          >
+            <ZoomIn className="h-3.5 w-3.5" />
+            批量超分{upscalableCount > 0 ? `(${upscalableCount})` : ""}
+          </DropdownMenuItem>
+          {activeGraph.target.kind === "storyboard" ? (
+            <DropdownMenuItem data-image-workflow-layered-action onClick={onAddStoryboardLayeredPair}>
+              <Layers className="h-3.5 w-3.5" />
+              分层节点对
+            </DropdownMenuItem>
+          ) : null}
+        </DropdownMenuContent>
+      </DropdownMenu>
     </div>
   );
 }
