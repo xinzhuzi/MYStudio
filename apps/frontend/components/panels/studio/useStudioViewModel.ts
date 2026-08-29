@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { useProjectStore } from "@/stores/project/project-store";
 import { useStudioStore } from "@/stores/studio/studio-store";
+import { useMediaPanelStore } from "@/stores/navigation/media-panel-store";
 import { loadSourceBibleMirrorForActiveProject } from "@/stores/studio/studio-store-runtime";
 import { aiManager } from "@/lib/ai/ai-manager";
 import {
@@ -63,6 +64,14 @@ export function useStudioViewModel() {
   const [, setAssetsHeaderActions] = useState<ReactNode>(null);
   const [assetImageWorkflowContext, setAssetImageWorkflowContext] =
     useState<ImageWorkflowOpenContext>();
+  // 08-30 残留上下文根修:离开图像阶段或离开工作流主页,资产上下文即失效——
+  // 否则从概览再进工作流会拿着旧上下文渲染成资产/自由域(bug 实弹)
+  const mainActiveTab = useMediaPanelStore((state) => state.activeTab);
+  useEffect(() => {
+    if (mainActiveTab !== "studio" || activeWorkflowTab !== "imageWorkflow") {
+      setAssetImageWorkflowContext(undefined);
+    }
+  }, [mainActiveTab, activeWorkflowTab]);
   const manualCatalog = useStudioManualCatalog();
 
   useEffect(() => {

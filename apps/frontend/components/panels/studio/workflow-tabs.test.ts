@@ -262,6 +262,8 @@ describe("studio workflow tabs", () => {
     expect(canvasSource).toContain("canUseGlobalWorkflowControls");
     // 08-30:侧栏去小标题;来源/回写目标只在建流等待视图(scoped-pending)
     expect(scopedPendingSource).toContain("data-scoped-image-workflow-summary");
+    // 08-30 残留上下文根修:离开图像阶段/离开工作流主页即清资产上下文
+    expect(viewModelSource).toContain('mainActiveTab !== "studio" || activeWorkflowTab !== "imageWorkflow"');
     expect(nodeSource).toContain("data-toonflow-generated-prompt-panel");
     expect(nodeSource).toContain("data-toonflow-generated-prompt-textarea");
     expect(graphUtilsSource).toContain("findLinkedPromptNodeForGenerated");
