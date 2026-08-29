@@ -9,7 +9,7 @@ import { useStudioStore } from "@/stores/studio/studio-store";
 import { useDirectImageUpscale } from "@/components/panels/studio/use-direct-image-upscale";
 import { isUpscaledMediaPath, UPSCALE_INPUT_MAX_LONG_SIDE } from "@/lib/upscale/client";
 import { probeImagePixelSize } from "@/components/ui/image-resolution-badge";
-import { toPreviewSrc } from "@/components/panels/studio/previews/preview-src";
+import { toPreviewSrc } from "@/lib/media/preview-src";
 import { useProjectStore } from "@/stores/project/project-store";
 import { useTtsStore } from "@/stores/tts/tts-store";
 import type { StudioAssetKind, StudioAssetSummary } from "@/types/studio-assets";

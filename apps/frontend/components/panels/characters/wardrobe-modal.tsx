@@ -51,7 +51,7 @@ import {
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { LocalImage } from "@/components/ui/local-image";
-import { ImagePreviewModal } from "@/components/features/media/media-preview-modal";
+import { ImagePreviewModal } from "@/components/ui/media-preview-modal";
 import { ResolutionBadge } from "@/components/ui/image-resolution-badge";
 
 // Preset variation types for quick creation

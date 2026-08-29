@@ -407,7 +407,7 @@ describe("studio workflow tabs", () => {
     );
     const previewSource = [
       "../../ui/local-image.tsx",
-      "previews/preview-src.ts",
+      "../../../lib/media/preview-src.ts",
       "previews/text-preview.tsx",
       "previews/asset-derivation-preview.tsx",
       "previews/asset-flow-card.tsx",

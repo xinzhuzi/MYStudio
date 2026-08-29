@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef } from "react";
-import { interactionDeferBegin, interactionDeferEnd } from "./previews/interaction-defer";
+import { interactionDeferBegin, interactionDeferEnd } from "@/hooks/interaction-defer";
 import { useSmoothWheelZoom, type SmoothWheelZoomApi } from "./previews/smooth-wheel-zoom";
 
 /**

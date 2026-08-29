@@ -3,7 +3,7 @@ import { act, cleanup, renderHook } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { useWorkflowStageState } from "./useWorkflowStageState";
 
-vi.mock("./previews/interaction-defer", () => ({
+vi.mock("@/hooks/interaction-defer", () => ({
   interactionDeferBegin: vi.fn(),
   interactionDeferEnd: vi.fn(),
   suppressNextInteractionDeferArrival: vi.fn(),
@@ -26,7 +26,7 @@ vi.mock("@/stores/studio/studio-store", () => ({
   },
 }));
 
-import { interactionDeferBegin, interactionDeferEnd } from "./previews/interaction-defer";
+import { interactionDeferBegin, interactionDeferEnd } from "@/hooks/interaction-defer";
 
 afterEach(() => {
   cleanup();
@@ -77,7 +77,7 @@ describe("useWorkflowStageState 阶段进入门闸(效应驱动,含直写 store 
   });
 
   it("honors the one-shot suppression (测试桥程序化设阶段免闸)", async () => {
-    const deferModule = await import("./previews/interaction-defer");
+    const deferModule = await import("@/hooks/interaction-defer");
     const consume = deferModule.consumeInteractionDeferArrivalSuppression as ReturnType<typeof vi.fn>;
     const { rerender } = renderState("novel");
     // 桥先行标志(豁免生效):consume 返回 true → 不关闸

@@ -5,8 +5,8 @@ import { useRef } from "react";
 import { useSmoothWheelZoom, type SmoothWheelZoomApi } from "./smooth-wheel-zoom";
 
 
-vi.mock("./interaction-defer", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("./interaction-defer")>();
+vi.mock("@/hooks/interaction-defer", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/hooks/interaction-defer")>();
   return {
     ...actual,
     interactionDeferBegin: vi.fn(),

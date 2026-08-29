@@ -22,7 +22,7 @@ import type {
   StoryboardOrderedReference,
 } from "@/types/studio";
 import { ResolutionBadge } from "@/components/ui/image-resolution-badge";
-import { toPreviewSrc } from "./previews/preview-src";
+import { toPreviewSrc } from "@/lib/media/preview-src";
 
 type VisualContinuityReviewPanelProps = {
   storyboards: StoryboardItem[];

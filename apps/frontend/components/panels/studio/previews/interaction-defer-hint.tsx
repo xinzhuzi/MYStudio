@@ -5,7 +5,7 @@ import { cn } from "@/lib/utils";
 import {
   getInteractionDeferInfo,
   useInteractionDeferPhase,
-} from "./interaction-defer";
+} from "@/hooks/interaction-defer";
 
 /**
  * 交互暂停加载提示(用户裁定 2026-08-26:暂停要可感知)。

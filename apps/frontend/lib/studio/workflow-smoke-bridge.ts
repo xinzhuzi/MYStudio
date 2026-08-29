@@ -22,7 +22,7 @@ import {
 } from "./workflow-smoke-editing-evidence";
 import { upsertRuns, upsertWorks } from "./workflow-smoke-helpers";
 import { buildWorkflowSmokeStageEvidenceText } from "./workflow-smoke-stage-evidence";
-import { suppressNextInteractionDeferArrival } from "@/components/panels/studio/previews/interaction-defer";
+import { suppressNextInteractionDeferArrival } from "@/hooks/interaction-defer";
 
 export interface WorkflowSmokeResult {
   progress: number;

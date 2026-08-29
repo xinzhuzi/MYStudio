@@ -3,7 +3,7 @@ import {
   consumeInteractionDeferArrivalSuppression,
   interactionDeferBegin,
   interactionDeferEnd,
-} from "./previews/interaction-defer";
+} from "@/hooks/interaction-defer";
 import { useStudioStore } from "@/stores/studio/studio-store";
 import { toast } from "sonner";
 import { resolveVisibleWorkflowStage } from "./workflow-tabs";

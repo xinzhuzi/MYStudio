@@ -20,9 +20,9 @@ import { createPortal } from "react-dom";
 import { ImageOff, Maximize2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ResolutionBadge } from "@/components/ui/image-resolution-badge";
-import { useRevealWhenSettled } from "@/components/panels/studio/previews/interaction-defer";
-import { toPreviewSrc } from "@/components/panels/studio/previews/preview-src";
-import { ImagePreviewModal } from "@/components/features/media/media-preview-modal";
+import { useRevealWhenSettled } from "@/hooks/interaction-defer";
+import { toPreviewSrc } from "@/lib/media/preview-src";
+import { ImagePreviewModal } from "@/components/ui/media-preview-modal";
 
 interface LocalImageProps extends React.ImgHTMLAttributes<HTMLImageElement> {
   src: string;

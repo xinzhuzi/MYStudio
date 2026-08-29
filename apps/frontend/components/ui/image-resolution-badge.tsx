@@ -19,7 +19,7 @@ import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
 import type { ImageResolution } from "@/lib/ai/image-size-presets";
 import { classifyImageResolution, toResolutionProbeSrc } from "@/lib/image-resolution";
-import { whenInteractionSettled } from "@/components/panels/studio/previews/interaction-defer";
+import { whenInteractionSettled } from "@/hooks/interaction-defer";
 
 interface ImagePixelSize {
   width: number;

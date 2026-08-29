@@ -14,7 +14,7 @@ import type {
   ProductionFlowRemotionShot,
 } from "../workflow-node-model";
 import { LocalImage } from "@/components/ui/local-image";
-import { toPreviewSrc, withThumbVariant } from "./preview-src";
+import { toPreviewSrc, withThumbVariant } from "@/lib/media/preview-src";
 
 export function RemotionShotPreview({
   node,

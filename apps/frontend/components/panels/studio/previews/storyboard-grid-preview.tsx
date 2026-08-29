@@ -8,8 +8,8 @@ import { buildStoryboardImageOpenContext } from "../storyboard-open-context";
 import { ResolutionBadge, probeImagePixelSize } from "@/components/ui/image-resolution-badge";
 import { LocalImage } from "@/components/ui/local-image";
 import { TextPreview } from "./text-preview";
-import { toPreviewSrc, withThumbVariant } from "./preview-src";
-import { handleDeferScroll } from "./interaction-defer";
+import { toPreviewSrc, withThumbVariant } from "@/lib/media/preview-src";
+import { handleDeferScroll } from "@/hooks/interaction-defer";
 
 /**
  * 4K 预判(超分按钮禁用判据,非显示用):up4x- 输出路径必然 ≥4K(同步可靠);

@@ -3,7 +3,7 @@ import { ArrowLeft, ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ResolutionBadge } from "@/components/ui/image-resolution-badge";
 import { LocalImage } from "@/components/ui/local-image";
-import { toPreviewSrc, withThumbVariant } from "./previews/preview-src";
+import { toPreviewSrc, withThumbVariant } from "@/lib/media/preview-src";
 import { buildProjectFileUrl } from "@/lib/upscale/project-file-url";
 import type { StoryboardItem } from "@/types/studio";
 import type {

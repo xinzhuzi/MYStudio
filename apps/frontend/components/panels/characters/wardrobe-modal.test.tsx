@@ -83,7 +83,7 @@ vi.mock("@/components/ui/local-image", () => ({
   ),
 }));
 
-vi.mock("@/components/features/media/media-preview-modal", () => ({
+vi.mock("@/components/ui/media-preview-modal", () => ({
   ImagePreviewModal: () => null,
 }));
 

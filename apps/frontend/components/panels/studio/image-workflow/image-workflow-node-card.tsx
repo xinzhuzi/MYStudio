@@ -18,7 +18,7 @@ import type {
   ImageWorkflowReferenceNode,
   StoryboardItem,
 } from "@/types/studio";
-import { toPreviewSrc, withThumbVariant } from "../previews/preview-src";
+import { toPreviewSrc, withThumbVariant } from "@/lib/media/preview-src";
 
 export interface ImageWorkflowNodeData extends Record<string, unknown> {
   node: ImageWorkflowNode;

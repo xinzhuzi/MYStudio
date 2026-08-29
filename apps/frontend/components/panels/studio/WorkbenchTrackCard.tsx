@@ -4,9 +4,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import type { ToonflowWorkbenchTrack } from "@/lib/studio/workbench-view-model";
 import { Play } from "lucide-react";
-import { toPreviewSrc, withThumbVariant } from "./previews/preview-src";
+import { toPreviewSrc, withThumbVariant } from "@/lib/media/preview-src";
 import { LocalImage } from "@/components/ui/local-image";
-import { useRevealWhenSettled } from "./previews/interaction-defer";
+import { useRevealWhenSettled } from "@/hooks/interaction-defer";
 import { ResolutionBadge } from "@/components/ui/image-resolution-badge";
 
 export function WorkbenchTrackCard(props: {

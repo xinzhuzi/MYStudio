@@ -40,7 +40,7 @@ import {
   Box,
 } from "lucide-react";
 import { toast } from "sonner";
-import { ImagePreviewModal } from "@/components/features/media/media-preview-modal";
+import { ImagePreviewModal } from "@/components/ui/media-preview-modal";
 import { ResolutionBadge } from "@/components/ui/image-resolution-badge";
 
 interface SceneDetailProps {

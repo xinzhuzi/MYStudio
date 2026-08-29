@@ -51,14 +51,6 @@ import {
   type DraggableMediaItemProps as LegacyDraggableMediaItemProps,
 } from "./ui/draggable-item";
 import {
-  ImagePreviewModal as CanonicalImagePreviewModal,
-  VideoPreviewModal as CanonicalVideoPreviewModal,
-} from "./features/media/media-preview-modal";
-import {
-  ImagePreviewModal as LegacyImagePreviewModal,
-  VideoPreviewModal as LegacyVideoPreviewModal,
-} from "./panels/director/media-preview-modal";
-import {
   buildVoiceReferenceAssets as canonicalBuildVoiceReferenceAssets,
   type VoiceReferenceAsset as CanonicalVoiceReferenceAsset,
 } from "@/lib/tts/voice-reference-assets";
@@ -256,18 +248,10 @@ describe("component ownership", () => {
     expectTypeOf<LegacyDraggableMediaItemProps>().toEqualTypeOf<MediaDraggableMediaItemProps>();
   });
 
-  it("preserves shared media-preview and voice-reference compatibility exports", () => {
-    expect(LegacyImagePreviewModal).toBe(CanonicalImagePreviewModal);
-    expect(LegacyVideoPreviewModal).toBe(CanonicalVideoPreviewModal);
+  it("preserves shared voice-reference compatibility exports (media-preview 已归 ui/ 并撤垫片 08-30)", () => {
     expect(legacyBuildVoiceReferenceAssets).toBe(canonicalBuildVoiceReferenceAssets);
     expectTypeOf<LegacyVoiceReferenceAsset>().toEqualTypeOf<CanonicalVoiceReferenceAsset>();
 
-    expect(readFileSync(
-      join(componentsRoot, "panels/director/media-preview-modal.tsx"),
-      "utf8",
-    ).trim()).toBe(
-      'export * from "@/components/features/media/media-preview-modal";',
-    );
     expect(readFileSync(
       join(componentsRoot, "panels/studio/voice-reference-assets.ts"),
       "utf8",

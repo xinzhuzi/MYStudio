@@ -6,7 +6,7 @@ import { UPSCALE_INPUT_MAX_LONG_SIDE } from "@/lib/upscale/client";
 import type { AssetImageWorkflowContext, ImageWorkflowTarget } from "@/types/studio";
 import type { ProductionFlowAssetCard } from "../workflow-node-model";
 import { ResolutionBadge, probeImagePixelSize } from "@/components/ui/image-resolution-badge";
-import { toPreviewSrc, withThumbVariant } from "./preview-src";
+import { toPreviewSrc, withThumbVariant } from "@/lib/media/preview-src";
 import { LocalImage } from "@/components/ui/local-image";
 
 export function AssetFlowCard({

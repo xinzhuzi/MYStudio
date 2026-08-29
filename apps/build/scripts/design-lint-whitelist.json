@@ -60,7 +60,7 @@
       "reason": "媒体/图像覆盖层白字(与主题无关,分诊§4 裁定)"
     },
     {
-      "path": "components/features/media/media-preview-modal.tsx",
+      "path": "components/ui/media-preview-modal.tsx",
       "rule": "R5",
       "severity": "warn",
       "reason": "媒体/图像覆盖层白字(与主题无关,分诊§4 裁定)"

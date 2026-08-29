@@ -54,7 +54,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
-import { ImagePreviewModal } from "@/components/features/media/media-preview-modal";
+import { ImagePreviewModal } from "@/components/ui/media-preview-modal";
 import { SceneCard } from "./scene-card";
 
 type ViewMode = "grid" | "list";
