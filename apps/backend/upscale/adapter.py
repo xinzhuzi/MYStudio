@@ -360,7 +360,10 @@ def upscale_image(
             target = _snap_target_4k(output_image.size[0], output_image.size[1])
             if target and (target[0], target[1]) != output_image.size:
                 output_image = output_image.resize(target, Image.Resampling.LANCZOS)
-                scale = round(scale * output_image.size[0] / width, 2)
+                # 证据语义=实际有效放大倍率(收口后 output/输入),旧公式
+                # scale*output/width 把模型倍率又乘一遍(1672→3840 算出 9.19);
+                # 控制器按输入输出实测尺寸核对,此处必须报真实比值
+                scale = round(output_image.size[0] / width, 2)
                 result = None  # noqa: F841 — result 不再落盘,尺寸以校准后为准
         if alpha is not None:
             output_alpha = alpha.resize(output_image.size, Image.Resampling.NEAREST)

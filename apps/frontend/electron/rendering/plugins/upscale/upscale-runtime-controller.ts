@@ -542,6 +542,42 @@ export function createUpscaleRuntimeController(deps: ControllerDeps) {
    * Guards: resolution must stay inside its root, and the output must land
    * in the same directory as the input.
    */
+  /**
+   * 期望有效放大倍率:优先读输入/输出 PNG 头实测(output/input);读不出
+   * (如 JPEG)回退模型倍率。snap_4k 收口后有效倍率必然小于模型倍率
+   * (如 1672→3840 = 2.29),按模型倍率硬校验会误杀合法产物(08-30 实弹)。
+   */
+  function expectedEffectiveScale(inputPath: string, outputPath: string, modelScale: number): number {
+    try {
+      const inputSize = readPngSize(inputPath);
+      const outputSize = readPngSize(outputPath);
+      if (inputSize && outputSize && inputSize.width > 0) {
+        return Math.round((outputSize.width / inputSize.width) * 100) / 100;
+      }
+    } catch {
+      // 读头失败回退模型倍率
+    }
+    return modelScale;
+  }
+
+  function readPngSize(filePath: string): { width: number; height: number } | null {
+    try {
+      const fd = fs.openSync(filePath, "r");
+      try {
+        const header = Buffer.alloc(24);
+        const bytes = fs.readSync(fd, header, 0, 24, 0);
+        if (bytes >= 24 && header.readUInt32BE(0) === 0x89504e47) {
+          return { width: header.readUInt32BE(16), height: header.readUInt32BE(20) };
+        }
+      } finally {
+        fs.closeSync(fd);
+      }
+    } catch {
+      // ignore
+    }
+    return null;
+  }
+
   async function runUpscaleNow(request: unknown): Promise<UpscaleRunResult> {
     const validated = validateUpscaleRunRequest(request);
     if (!validated.success) {
@@ -624,15 +660,17 @@ export function createUpscaleRuntimeController(deps: ControllerDeps) {
       if (artifact.value.status === "accepted") {
         const accepted = artifact.value;
         const expectedShotId = value.shotId ?? "unknown";
-        const expectedScale = UPSCALE_MODELS[value.model].scale;
         const resolvedOutput = path.resolve(outputAbsolute);
+        const expectedScale = expectedEffectiveScale(inputAbsolute, resolvedOutput, UPSCALE_MODELS[value.model].scale);
         const artifactOutput = path.resolve(accepted.outputPath);
         let mismatch: string | undefined;
         if (accepted.projectId !== value.projectId) mismatch = "projectId 不匹配";
         else if (accepted.shotId !== expectedShotId) mismatch = "shotId 不匹配";
         else if (accepted.model !== value.model) mismatch = "model 不匹配";
         else if (accepted.method !== "super_res") mismatch = "method 不匹配";
-        else if (accepted.scale !== expectedScale) mismatch = "scale 不匹配";
+        // scale 容差校验:Real-ESRGAN 对非标准尺寸输入可能产生 ±1% 的取整偏差
+        // (如 1254→5016 实际 ratio 3.999...),精确等值会误杀合法产物
+        else if (typeof accepted.scale !== "number" || Math.abs(accepted.scale - expectedScale) > expectedScale * 0.01) mismatch = "scale 不匹配";
         else if (artifactOutput !== resolvedOutput) mismatch = "outputPath 不匹配";
         else if (!fs.existsSync(resolvedOutput) || !fs.statSync(resolvedOutput).isFile()) mismatch = "输出文件不存在";
         else if (accepted.outputBytes !== fs.statSync(resolvedOutput).size) mismatch = "outputBytes 不匹配";
