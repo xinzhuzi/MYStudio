@@ -164,7 +164,7 @@ function ReferenceNodeEditor({
         value={node.notes ?? ""}
         onChange={(event) => onUpdate(node.id, { notes: event.target.value } as Partial<ImageWorkflowNode>)}
         placeholder="参考说明"
-        className="nodrag nopan min-h-[58px] border-border bg-background/80 text-xs text-foreground"
+        className="nodrag nopan min-h-[58px] [field-sizing:content] border-border bg-background/80 text-xs text-foreground"
       />
     </div>
   );
@@ -183,7 +183,7 @@ function PromptNodeEditor({
         value={node.prompt}
         onChange={(event) => onUpdate(node.id, { prompt: event.target.value } as Partial<ImageWorkflowNode>)}
         placeholder="描述要生成的图片"
-        className="nodrag nopan min-h-[160px] resize-y border-border bg-background/80 text-sm leading-6 text-foreground"
+        className="nodrag nopan min-h-[120px] [field-sizing:content] border-border bg-background/80 text-sm leading-6 text-foreground"
       />
       {/* 08-30 功能转移裁定:输入节点只管提示词(输入源);模型/画幅/分辨率/
           质量/生成全部在成图节点上。 */}
@@ -191,7 +191,7 @@ function PromptNodeEditor({
         value={node.negativePrompt ?? ""}
         onChange={(event) => onUpdate(node.id, { negativePrompt: event.target.value } as Partial<ImageWorkflowNode>)}
         placeholder="反向提示词（可选）"
-        className="nodrag nopan min-h-[54px] border-border bg-background/80 text-xs leading-5 text-foreground"
+        className="nodrag nopan min-h-[54px] [field-sizing:content] border-border bg-background/80 text-xs leading-5 text-foreground"
       />
       <p className="nodrag nopan text-[11px] text-muted-foreground">
         模型、画幅、分辨率、质量与生成入口在成图节点上。
@@ -375,7 +375,7 @@ function GeneratedNodeEditor({
             value={generationPrompt.prompt}
             onChange={(event) => updateGenerationPrompt({ prompt: event.target.value })}
             placeholder="描述要生成的图片"
-            className="min-h-[148px] resize-y border-border bg-card/80 text-sm leading-6 text-foreground"
+            className="min-h-[112px] [field-sizing:content] border-border bg-card/80 text-sm leading-6 text-foreground"
           />
           {/* 08-30 功能转移:参数与生成入口统一在节点 footer 参数行/按钮区;
               此内嵌面板只承载无连线时的提示词编辑。 */}
@@ -383,7 +383,7 @@ function GeneratedNodeEditor({
             value={generationPrompt.negativePrompt ?? ""}
             onChange={(event) => updateGenerationPrompt({ negativePrompt: event.target.value })}
             placeholder="反向提示词（可选）"
-            className="min-h-[44px] border-border bg-card/80 text-xs leading-5 text-foreground"
+            className="min-h-[44px] [field-sizing:content] border-border bg-card/80 text-xs leading-5 text-foreground"
           />
         </div>
       ) : null}
