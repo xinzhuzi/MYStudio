@@ -72,7 +72,7 @@ describe("ImageWorkflowCanvas", () => {
     expect(createImageWorkflow).not.toHaveBeenCalled();
   });
 
-  it("auto-creates the default free workflow once hydration is complete", () => {
+  it("直进工作流默认分镜域:空 store 不再自动建 free 流,给分镜面板指引(08-30)", () => {
     useProjectStore.setState({ activeProjectId: "dao-project" });
     const createImageWorkflow = vi.fn(() => "unused-global-flow");
     useStudioStore.setState({
@@ -86,10 +86,11 @@ describe("ImageWorkflowCanvas", () => {
 
     render(<ImageWorkflowCanvas projectName="道劫" />);
 
-    expect(createImageWorkflow).toHaveBeenCalledWith({
-      name: "道劫 图像工作流",
-      target: { kind: "free" },
-    });
+    // 原「图像工作流 N」空流误建之源已堵;分镜空态给回分镜面板指引
+    expect(createImageWorkflow).not.toHaveBeenCalled();
+    expect(screen.getByText(/回分镜面板,从分镜卡片进入即可自动创建/)).toBeTruthy();
+    expect(screen.queryByText("新建图像工作流")).toBeNull();
+    expect(screen.queryByText("新建自由工作流")).toBeNull();
   });
 
   it("keeps scoped drill-down chrome visible while the opened graph is being created", () => {
@@ -227,7 +228,17 @@ describe("ImageWorkflowCanvas", () => {
       upsertImageWorkflow: vi.fn(),
     }, true);
 
-    render(<ImageWorkflowCanvas projectName="道劫" />);
+    render(
+      <ImageWorkflowCanvas
+        projectName="道劫"
+        initialAssetContext={{
+          target: graph.target,
+          title: "雨夜版",
+          prompt: "水墨国风雨夜街口",
+          imageWorkflowId: graph.id,
+        }}
+      />,
+    );
 
     await waitFor(() => {
       expect(updateNodeInternalsMock).toHaveBeenCalledWith(

@@ -297,7 +297,8 @@ describe("studio workflow tabs", () => {
       "utf8",
     );
 
-    expect(canvasSource).toContain("const canUseGlobalWorkflowControls = !isScopedWorkflowDetail;");
+    // 08-30 默认分镜域:全局动作仅资产域
+    expect(canvasSource).toContain('const canUseGlobalWorkflowControls = workflowScope === "library";');
     expect(canvasSource).toContain("initialAssetContext.imageWorkflowId");
     expect(canvasSource).toContain("findStoryboardWorkflowForContext(imageWorkflows, initialAssetContext)");
     const sidebarSource = readFileSync(
@@ -349,7 +350,8 @@ describe("studio workflow tabs", () => {
     expect(lifecycleSource).toContain("activeGraphTargetKeyRef");
     expect(lifecycleSource).toContain("resolveOpenContextGeneratedNodeId");
     expect(graphUtilsSource).toContain("context.resultImagePath");
-    expect(lifecycleSource).toContain('target: { kind: "free" }');
+    // 08-30 默认分镜域:生命周期不再自动建 free 流(空流误建之源已堵)
+    expect(lifecycleSource).not.toContain('target: { kind: "free" }');
     expect(lifecycleSource).toContain("setTargetStoryboardId(");
     expect(lifecycleSource).toContain("? activeGraph.target.id");
     expect(lifecycleSource).toContain(": \"\"");

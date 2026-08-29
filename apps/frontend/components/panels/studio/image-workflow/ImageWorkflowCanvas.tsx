@@ -102,6 +102,11 @@ export function ImageWorkflowCanvas({
     useState<ReactFlowInstance<ImageWorkflowReactNode, Edge> | null>(null);
   const uploadInputRef = useRef<HTMLInputElement | null>(null);
   const isScopedWorkflowDetail = Boolean(initialAssetContext);
+  // 上下文作用域(08-30 默认分镜域):无上下文直进/分镜入口=storyboard;
+  // 资产入口=library。默认落点=分镜节点图(本章第一条分镜流)
+  const workflowScope = resolveImageWorkflowScope(initialAssetContext);
+  // 合并切换器的分镜口径:useChapterStoryboards(全仓唯一本章过滤,与分镜面板同源)
+  const chapterStoryboards = useChapterStoryboards();
 
   const scopedWorkflow = useMemo(
     () =>
@@ -127,16 +132,28 @@ export function ImageWorkflowCanvas({
       const selectedGraph = activeWorkflowId
         ? imageWorkflows.find((item) => item.id === activeWorkflowId)
         : undefined;
-      return isScopedWorkflowDetail
-        ? selectedGraph && selectedGraph.id === scopedWorkflow?.id
+      if (isScopedWorkflowDetail) {
+        return selectedGraph && selectedGraph.id === scopedWorkflow?.id
           ? selectedGraph
-          : scopedWorkflow
-        // library 域(非分镜入口)不落分镜流——分镜浏览回分镜面板(08-30 强隔离)
-        : selectedGraph && selectedGraph.target.kind !== "storyboard"
+          : scopedWorkflow;
+      }
+      // library 域(资产入口)不落分镜流——分镜浏览回分镜面板(08-30 强隔离)
+      if (workflowScope === "library") {
+        return selectedGraph && selectedGraph.target.kind !== "storyboard"
           ? selectedGraph
           : libraryImageWorkflows(imageWorkflows)[0];
+      }
+      // storyboard 域默认:直进工作流=分镜节点图,落本章第一条分镜流(优先带指纹的当前代)
+      if (selectedGraph) return selectedGraph;
+      const firstChapterStoryboardId = chapterStoryboards[0]?.id;
+      return imageWorkflows.find((graph) =>
+        graph.target.kind === "storyboard"
+        && graph.target.id === firstChapterStoryboardId
+        && graph.targetSourceFingerprint)
+        ?? imageWorkflows.find((graph) =>
+          graph.target.kind === "storyboard" && graph.target.id === firstChapterStoryboardId);
     },
-    [activeWorkflowId, imageWorkflows, isScopedWorkflowDetail, scopedWorkflow],
+    [activeWorkflowId, chapterStoryboards, imageWorkflows, isScopedWorkflowDetail, scopedWorkflow, workflowScope],
   );
   const imageMaterials = useMemo(
     () => materials.filter((item) => item.kind === "image"),
@@ -146,8 +163,6 @@ export function ImageWorkflowCanvas({
     () => storyboards.filter((item) => item.mediaRef?.kind === "image" && item.mediaRef.path),
     [storyboards],
   );
-  // 合并切换器的分镜口径:useChapterStoryboards(全仓唯一本章过滤,与分镜面板同源)
-  const chapterStoryboards = useChapterStoryboards();
   const sourceLabel = initialAssetContext?.sourceLabel || initialAssetContext?.title || "当前图片工作流";
   const sourceStageLabel = initialAssetContext?.sourceStageLabel;
   const activeGeneratedNode = useMemo(
@@ -207,9 +222,8 @@ export function ImageWorkflowCanvas({
   const selectedGenerationBusy =
     activeGeneratedNode?.status === "generating" ||
     activeGeneratedNode?.status === "queued";
-  const canUseGlobalWorkflowControls = !isScopedWorkflowDetail;
-  // 上下文强隔离(08-30):分镜入口=storyboard 域;其余入口=library 域
-  const workflowScope = resolveImageWorkflowScope(initialAssetContext);
+  // 全局动作(新建自由/上传参考/生成节点/参考面板)仅资产域;分镜域纯净(08-30)
+  const canUseGlobalWorkflowControls = workflowScope === "library";
 
   useScopedWorkflowLifecycle({
     activeGraph,
@@ -220,7 +234,6 @@ export function ImageWorkflowCanvas({
     storyboards,
     projectName,
     upsertImageWorkflow,
-    createImageWorkflow,
     setActiveWorkflowId,
     setSelectedNodeId,
     setPreferredGeneratedNodeId,
@@ -425,7 +438,7 @@ export function ImageWorkflowCanvas({
           sourceLabel={sourceLabel}
           sourceStageLabel={sourceStageLabel}
           writebackTargetLabel={scopedPendingWritebackTargetLabel}
-          onBack={onBack}
+          onBack={isScopedWorkflowDetail ? onBack : undefined}
         />
       );
     }
@@ -444,11 +457,23 @@ export function ImageWorkflowCanvas({
       );
     }
 
+    if (workflowScope === "storyboard") {
+      return (
+        <section
+          data-image-workflow-empty-storyboard
+          className="flex min-h-[calc(100vh-190px)] items-center justify-center rounded-lg border border-border bg-card"
+        >
+          <div className="max-w-sm px-6 text-center text-sm text-muted-foreground">
+            本章还没有分镜工作流——回分镜面板,从分镜卡片进入即可自动创建。
+          </div>
+        </section>
+      );
+    }
     return (
       <section className="flex min-h-[calc(100vh-190px)] items-center justify-center rounded-lg border border-border bg-card">
         <Button onClick={createNewFlow}>
           <Plus className="h-4 w-4" />
-          新建图像工作流
+          新建自由工作流
         </Button>
       </section>
     );
@@ -474,7 +499,7 @@ export function ImageWorkflowCanvas({
           onUploadReference={handleUploadReference}
         />
         <ImageWorkflowCanvasToolbar
-          onBack={onBack}
+          onBack={isScopedWorkflowDetail ? onBack : undefined}
           activeGraph={activeGraph}
           chromeReady={chromeReady}
           styleTraceChips={styleTraceChips}

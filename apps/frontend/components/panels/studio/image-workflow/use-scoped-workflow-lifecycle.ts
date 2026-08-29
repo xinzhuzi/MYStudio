@@ -37,7 +37,6 @@ export function useScopedWorkflowLifecycle(input: {
   storyboards: StoryboardItem[];
   projectName: string;
   upsertImageWorkflow: (graph: ImageWorkflowGraph) => void;
-  createImageWorkflow: (payload: { name: string; target: ImageWorkflowGraph["target"] }) => string;
   setActiveWorkflowId: (id: string) => void;
   setSelectedNodeId: (id: string | null) => void;
   setPreferredGeneratedNodeId: (id: string | null) => void;
@@ -47,7 +46,7 @@ export function useScopedWorkflowLifecycle(input: {
   const activeGraphTargetKeyRef = useRef("");
   const {
     activeGraph, activeWorkflowId, hydrated, initialAssetContext, imageWorkflows,
-    storyboards, projectName, upsertImageWorkflow, createImageWorkflow,
+    storyboards, projectName, upsertImageWorkflow,
     setActiveWorkflowId, setSelectedNodeId, setPreferredGeneratedNodeId, setTargetStoryboardId,
   } = input;
 
@@ -56,16 +55,9 @@ export function useScopedWorkflowLifecycle(input: {
       if (activeWorkflowId !== activeGraph.id) setActiveWorkflowId(activeGraph.id);
       return;
     }
-    // T4 水合竞态:store 未完成水合(启动/切项目 rehydrate 窗口)时禁止自动
-    // 新建 free 图——空 store 上的误建会触发整库盲保存(storage 层另有拒写兜底)
-    if (!hydrated) return;
-    if (initialAssetContext) return;
-    const id = createImageWorkflow({
-      name: `${projectName} 图像工作流`,
-      target: { kind: "free" },
-    });
-    setActiveWorkflowId(id);
-  }, [activeGraph, activeWorkflowId, createImageWorkflow, hydrated, initialAssetContext, projectName, setActiveWorkflowId]);
+    // 08-30 默认分镜域裁定:全局空态不再自动建 free 流(原「图像工作流 N」
+    // 空流误建之源);分镜流由分镜入口装配链创建,自由流只经资产域显式新建
+  }, [activeGraph, activeWorkflowId, setActiveWorkflowId]);
 
   useEffect(() => {
     if (!activeGraph) return;
