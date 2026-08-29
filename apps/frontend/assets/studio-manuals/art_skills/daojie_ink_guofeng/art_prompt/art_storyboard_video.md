@@ -4,8 +4,8 @@
 
 | 模式 | 风格标签 |
 |------|----------|
-| **通用多参模式（英文）** | `Chinese ink wash painting style, xianxia immortal cultivation, traditional brushwork, restrained mineral-color palette, smooth pale matte flat-wash ground, clear layered ink-wash composition, atmospheric depth` |
-| **通用首尾帧模式（英文）** | `Chinese ink wash painting style, xianxia immortal cultivation, traditional brushwork, restrained mineral-color palette, smooth pale matte flat-wash ground, clear layered ink-wash composition, atmospheric depth, crisp gongbi linework throughout` |
+| **通用多参模式（英文）** | `Chinese ink wash painting style, xianxia immortal cultivation, traditional brushwork, muted yet visible mineral-color palette with soft cyan-green and vermilion accents, smooth pale matte flat-wash ground, clear layered colored ink-wash composition with visible mineral pigments, atmospheric depth` |
+| **通用首尾帧模式（英文）** | `Chinese ink wash painting style, xianxia immortal cultivation, traditional brushwork, muted yet visible mineral-color palette with soft cyan-green and vermilion accents, smooth pale matte flat-wash ground, clear layered colored ink-wash composition with visible mineral pigments, atmospheric depth, crisp gongbi linework throughout` |
 | **Seedance 2.0（中文）** | `水墨国风修仙，工笔线描，写意泼墨，青绿淡彩，浅净平涂底，墨色层次丰富，连环画叙事感，前中远景分明构图` |
 | **Seedance 1.5（中文）** | `水墨国风，工笔线描，写意晕染，青绿淡彩，浅净平涂底，修仙题材，灵气流转，动态张力` |
 
@@ -116,12 +116,12 @@
 
 ### 正向质量锚点
 
-水墨国风修仙，Chinese ink wash xianxia，gongbi linework，smooth pale matte flat-wash ground，restrained mineral-color palette，layered ink wash，spiritual aura as ink diffusion，clear layered composition，clean finished image，readable detail。
+水墨国风修仙，Chinese ink wash xianxia，gongbi linework，smooth pale matte flat-wash ground，muted yet visible mineral-color palette with soft cyan-green and vermilion accents，layered ink wash，spiritual aura as ink diffusion，clear layered composition，clean finished image，readable detail。
 视频提示词必须补充镜头运动、主体运动、起承转合、淡墨空气透视变化、光影连续性和首尾帧一致性；补充 ink-wash motion, temporal continuity, stable composition, consistent subject identity。
 
 ### 反向规避提示词
 
-low quality, 3D render, CGI, photorealistic, cel-shaded anime, high saturation neon, western fantasy, sci-fi, modern city, plastic texture, messy ink, bad anatomy, watermark, text, signature。
+low quality, 3D render, CGI, photorealistic, cel-shaded anime, neon cyberpunk palette, western fantasy, sci-fi, modern city, plastic texture, messy ink, bad anatomy, watermark, text, signature。
 flicker, jitter, morphing face, identity drift, inconsistent costume, warped hands, broken motion, sudden scene jump, overexposed effect, text, watermark, logo。
 
 ### 输出净化规则
@@ -141,23 +141,13 @@ flicker, jitter, morphing face, identity drift, inconsistent costume, warped han
 > 标记块缺失时不注入任何内容（fail-empty）。修改本节即全局生效。
 
 <!-- storyboard-image-style-tokens:start -->
-Chinese ink wash painting style, xianxia immortal cultivation, traditional brushwork, restrained mineral-color palette, smooth pale matte flat-wash ground
-工笔线描，写意晕染，浅净平涂底，墨色层次丰富
-clear layered ink-wash composition, atmospheric depth, crisp gongbi linework throughout, clean finished gongbi quality
+Chinese ink wash painting style, xianxia immortal cultivation, traditional brushwork, muted yet visible mineral-color palette with soft cyan-green and vermilion accents, smooth pale matte flat-wash ground
+工笔线描，写意晕染，浅净平涂底，墨色层次丰富，青绿朱砂赭石淡彩点缀
+clear layered colored ink-wash composition with visible mineral pigments, atmospheric depth, crisp gongbi linework throughout, clean finished gongbi quality
 <!-- storyboard-image-style-tokens:end -->
 
 <!-- storyboard-frame-negative:start -->
-photorealistic photography, 3D render, CGI, cel shading, anime style, western oil painting, western fantasy, cyberpunk, sci-fi, high saturation neon, three-point Hollywood lighting, heavy cinematic rim light, paper-wrinkle texture, crumpled-sheet folds, wave-like surface ripples, fiber streaks, pulp grain mesh, scanned-paper filter, yellowed aged sheet, full-frame paper texture, AI muddy noise, dirty texture, compression artifacts, oversharpening halos, low quality, blurry, messy ink, broken linework, bad anatomy, extra limbs, weapon passing through body, unstable stance, text, watermark, logo, subtitle, webtoon cover beauty portrait, idol poster, tattered clothing, ragged hems
-<!-- storyboard-frame-negative:end -->
+photorealistic photography, 3D render, CGI, cel shading, anime style, western oil painting, western fantasy, cyberpunk, sci-fi, neon cyberpunk palette, three-point Hollywood lighting, heavy cinematic rim light, paper-wrinkle texture, crumpled-sheet folds, wave-like surface ripples, fiber streaks, pulp grain mesh, scanned-paper filter, yellowed aged sheet, full-frame paper texture, AI muddy noise, dirty texture, compression artifacts, oversharpening halos, low quality, blurry, messy ink, broken linework, bad anatomy, extra limbs, weapon passing through body, unstable stance, text, watermark, logo, subtitle, webtoon cover beauty portrait, idol poster, tattered clothing, ragged hems, monochrome, grayscale, black and white, ink-only lineart, washed-out colorless image
 
-<!-- storyboard-style-guide:start -->
-【水墨国风风格约束（所有首帧/尾帧/视频提示词必须遵守）】
-1. 每条提示词必须携带水墨风格锚词：水墨国风 / Chinese ink wash painting style、工笔线描 / gongbi line drawing、浅净平涂底 / smooth pale matte flat-wash ground、写意晕染。
-2. 严禁出现词：cinematic lighting、cinematic composition、volumetric fog、volumetric light、depth of field、shallow depth of field、电影质感、电影级光影、体积光、景深虚化、浅景深、宣纸质感、宣纸肌理、rice paper texture、xuan paper texture（纸纹褶皱是生产缺陷，纸面一律写「浅净平涂底」）。
-3. 等效表达：体积光 → 灵光如纸面散射 / paper-scattered light；景深虚化 → 远景淡墨晕染 / pale ink atmospheric perspective；电影质感 → 工笔成片质感 / clean finished gongbi quality；宣纸质感 → 浅净平涂底 / smooth pale matte flat-wash ground。
-4. 灵气/剑光等特效以水墨晕染与淡彩表达，禁止粒子特效词（V2/V3 规则同样适用）。
-5. 分镜帧会进入「深度估计 → 2.5D 运镜」管线：构图保持前中远景三层分明（DV1-DV7），源图不得要求镜头虚化。
-6. 彩色水墨默认成片：禁止整图灰白化/黑白滤镜/单色素描；色相跟随角色与场景设定事实，不写固定色板与色量百分比。
-7. 人物衣物完整可穿（整袖口整下摆闭合缝线），正面衣褶仅 2-4 条长结构褶，全员默认有头发，鞋靴性别与角色性别匹配——违反即不合格。
-8. 成片画面按「成片模板速查」选用**一个**模板骨架（按镜头用途选型），替换主体/地点/动作后生成；主风格锁与通用成片负面全文由调用方携带，正文不重复抄写。
+8. 画面洁净纪律：做旧止于淡灰晕染——禁止霉斑、污渍团块、泥点飞溅、灰蒙积垢；白衣与浅色区域保持干净底色，墙面至多轻微斑驳；纹理密度宁少勿多，保住工笔线描的清晰与画面通透。
 <!-- storyboard-style-guide:end -->
