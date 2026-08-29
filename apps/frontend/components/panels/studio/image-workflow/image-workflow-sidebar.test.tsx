@@ -19,6 +19,7 @@ const storyboard = {
   id: "storyboard-1",
   index: 1,
   prompt: "雨夜街口",
+  videoDesc: "雨夜街口,灯下人影匆匆",
   mediaRef: { kind: "image", path: "local-image://storyboard.png" },
 } as StoryboardItem;
 
@@ -72,6 +73,36 @@ describe("ImageWorkflowSidebar (08-30 切换器入驻+去小标题)", () => {
     // 单条分镜选自身不动作;切换分镜走链
     fireEvent.change(select, { target: { value: "sb:storyboard-1" } });
     expect(onSelectStoryboard).not.toHaveBeenCalled();
+  });
+
+  it("分镜域显示当前分镜的背景故事(纯文本无标题);library 域不显示", () => {
+    const first = render(
+      <ImageWorkflowSidebar
+        activeGraph={{ ...graph, target: { kind: "storyboard", id: "storyboard-1" } } as ImageWorkflowGraph}
+        canUseGlobalWorkflowControls={false}
+        imageMaterials={[]}
+        storyboardImages={[]}
+        onAddReferenceFromMaterial={vi.fn()}
+        onAddReferenceFromStoryboard={vi.fn()}
+        {...switcherBase}
+        scope="storyboard"
+      />,
+    );
+    expect(document.body.textContent).toContain("雨夜街口");
+    first.unmount();
+
+    render(
+      <ImageWorkflowSidebar
+        activeGraph={graph}
+        canUseGlobalWorkflowControls
+        imageMaterials={[]}
+        storyboardImages={[]}
+        onAddReferenceFromMaterial={vi.fn()}
+        onAddReferenceFromStoryboard={vi.fn()}
+        {...switcherBase}
+      />,
+    );
+    expect(document.body.textContent).not.toContain("雨夜街口");
   });
 
   it("keeps palette actions with counts", () => {

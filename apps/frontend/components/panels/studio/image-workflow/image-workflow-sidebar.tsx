@@ -52,6 +52,18 @@ export function ImageWorkflowSidebar({
   // T3 语义分组:材料库按成图回流(gen-/up4x- 前缀)拆「工作流成图」,
   // 其余归「资产设定图」;分组与分镜成图三段并列
   const { assetReferences, workflowOutputs } = splitImageMaterialsByOrigin(imageMaterials);
+  // 分镜背景故事(08-30 裁定):只讲当前分镜的故事,放侧栏即可,不加小标题
+  const activeStoryboard = scope === "storyboard" && activeGraph.target.kind === "storyboard"
+    ? storyboards.find((item) => item.id === activeGraph.target.id)
+    : undefined;
+  const storyboardStory = activeStoryboard
+    ? (activeStoryboard.videoDesc || activeStoryboard.prompt || "").trim()
+    : "";
+  const storyBlock = storyboardStory ? (
+    <p className="nodrag nopan mt-2 whitespace-pre-wrap text-xs leading-5 text-muted-foreground">
+      {storyboardStory}
+    </p>
+  ) : null;
   return (
     <aside className="flex min-h-0 flex-col border-l border-border bg-card">
       <div className="border-b border-border p-3">
@@ -64,6 +76,7 @@ export function ImageWorkflowSidebar({
           onSelectStoryboard={onSelectStoryboard}
           onSelectWorkflow={onSelectWorkflow}
         />
+        {storyBlock}
       </div>
       {canUseGlobalWorkflowControls ? (
         <div className="min-h-0 flex-1 overflow-y-auto p-3" data-image-workflow-reference-palette>
