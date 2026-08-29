@@ -543,7 +543,20 @@ export const useMediaStore = create<MediaStore>()(
           const category = getMediaStorageCategoryForNewUrl(type, source, targetFolder) as ImageCategory;
           const ext = type === 'video' ? '.mp4' : '.png';
           const filename = `${name.replace(/[^a-zA-Z0-9]/g, '_')}_${Date.now()}${ext}`;
-          const localPath = await saveImageToLocal(url, category, filename);
+          // 生图落库自动去噪(噪点治理 08-29):仅 AI 生图、仅设置开启时,
+          // 落盘前在渲染层做轻度双边滤波;任何失败原样落盘(fail-open)。
+          let urlToSave = url;
+          if (type === 'image' && source === 'ai-image') {
+            try {
+              const { applyAutoDenoise, isAutoDenoiseEnabled } = await import('@/lib/ai/image-auto-denoise');
+              if (isAutoDenoiseEnabled()) {
+                urlToSave = await applyAutoDenoise(url, true);
+              }
+            } catch {
+              urlToSave = url;
+            }
+          }
+          const localPath = await saveImageToLocal(urlToSave, category, filename);
           
           // Only update if we got a local path (not the original URL back)
           if (localPath !== url && localPath.startsWith('local-image://')) {

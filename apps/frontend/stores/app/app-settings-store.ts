@@ -41,6 +41,8 @@ export interface DevelopmentSettings {
 export interface ImageGenerationSettings {
   defaultAspectRatio: ImageAspectRatio;
   defaultResolution: ImageResolution;
+  /** 生图落库前自动轻度去噪(噪点治理 08-29);缺省关,保线稿双边滤波。 */
+  autoDenoiseEnabled: boolean;
   compatibilityRetryEnabled: boolean;
   compatibilityRetryAspectRatio: ImageAspectRatio;
   compatibilityRetryResolution: ImageResolution;
@@ -96,6 +98,7 @@ const defaultState: AppSettingsState = {
     showDevToolsControls: false,
   },
   imageGenerationSettings: {
+      autoDenoiseEnabled: false,
     defaultAspectRatio: DEFAULT_IMAGE_ASPECT_RATIO,
     defaultResolution: DEFAULT_IMAGE_RESOLUTION,
     compatibilityRetryEnabled: true,

@@ -34,6 +34,7 @@ describe("settings leaf tabs", () => {
         settings={{
           defaultAspectRatio: "16:9",
           defaultResolution: "2K",
+          autoDenoiseEnabled: false,
           compatibilityRetryEnabled: true,
           compatibilityRetryAspectRatio: "1:1",
           compatibilityRetryResolution: "1K",

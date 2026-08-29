@@ -93,6 +93,21 @@ export function ImageSizeSettingsTab({ settings, onChange }: ImageSizeSettingsTa
           <div className="rounded-xl border border-border bg-card p-5 space-y-4">
             <div className="flex items-start justify-between gap-4">
               <div>
+                <div className="text-sm font-semibold text-foreground">自动去噪（轻度）</div>
+                <div className="mt-1 text-xs text-muted-foreground">
+                  生图保存时自动压掉画面上的斑驳噪点和脏斑（保留人物、线稿和颜色，肉眼无感）。适合参考图容易带脏斑的出图；追求原图质感可关闭。
+                </div>
+              </div>
+              <Switch
+                checked={settings.autoDenoiseEnabled}
+                onCheckedChange={(checked) => onChange({ autoDenoiseEnabled: checked })}
+              />
+            </div>
+          </div>
+
+          <div className="rounded-xl border border-border bg-card p-5 space-y-4">
+            <div className="flex items-start justify-between gap-4">
+              <div>
                 <div className="text-sm font-semibold text-foreground">兼容重试</div>
                 <div className="mt-1 text-xs text-muted-foreground">
                   网络失败或供应商临时错误时，使用更保守的规格重试一次。
