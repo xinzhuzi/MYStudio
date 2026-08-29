@@ -13,10 +13,17 @@
  *    绑定/校验体系不动。
  */
 
-import type { RoleAudioCandidate } from "@/components/panels/assets/role-audio-auto-assign";
 import type { VoiceProfile } from "@/types/tts";
 
 /** 默认旁白音色家族（音色库资产命名前缀）。用户可通过 workflowConfig.narratorVoiceFamily 更换。 */
+export interface RoleAudioCandidate {
+  id: string;
+  name: string;
+  filePath: string;
+  referenceText?: string;
+  sourceLabel?: string;
+}
+
 export const DEFAULT_NARRATOR_VOICE_FAMILY = "木成";
 
 /** 家族名 → 匹配正则（默认木成额外兼容资产路径里的拼音 mucheng；其他家族按名称匹配）。 */

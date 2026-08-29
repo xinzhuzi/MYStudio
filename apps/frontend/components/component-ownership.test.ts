@@ -1,4 +1,4 @@
-import { readFileSync, readdirSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { dirname, join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, expectTypeOf, it } from "vitest";
@@ -26,30 +26,6 @@ import {
   getBrandIcon as legacyGetBrandIcon,
   type BrandIconFn as LegacyBrandIconFn,
 } from "./api-manager/brand-icons";
-import {
-  EditableTimecode as PlaybackEditableTimecode,
-  type EditableTimecodeProps as PlaybackEditableTimecodeProps,
-} from "./features/playback/editable-timecode";
-import {
-  VideoPlayer as PlaybackVideoPlayer,
-  type VideoPlayerProps as PlaybackVideoPlayerProps,
-} from "./features/playback/video-player";
-import {
-  DraggableMediaItem as MediaDraggableMediaItem,
-  type DraggableMediaItemProps as MediaDraggableMediaItemProps,
-} from "./features/media/draggable-item";
-import {
-  EditableTimecode as LegacyEditableTimecode,
-  type EditableTimecodeProps as LegacyEditableTimecodeProps,
-} from "./ui/editable-timecode";
-import {
-  VideoPlayer as LegacyVideoPlayer,
-  type VideoPlayerProps as LegacyVideoPlayerProps,
-} from "./ui/video-player";
-import {
-  DraggableMediaItem as LegacyDraggableMediaItem,
-  type DraggableMediaItemProps as LegacyDraggableMediaItemProps,
-} from "./ui/draggable-item";
 import {
   buildVoiceReferenceAssets as canonicalBuildVoiceReferenceAssets,
   type VoiceReferenceAsset as CanonicalVoiceReferenceAsset,
@@ -134,14 +110,9 @@ const angleSwitchRoot = join(componentsRoot, "angle-switch");
 const quadGridRoot = join(componentsRoot, "quad-grid");
 const storeImportPattern = /from\s+["'][^"']*stores\//;
 
-const compatibilityFacades = new Map([
-  [
-    "editable-timecode.tsx",
-    "@/components/features/playback/editable-timecode",
-  ],
-  ["video-player.tsx", "@/components/features/playback/video-player"],
-  ["draggable-item.tsx", "@/components/features/media/draggable-item"],
-]);
+// 08-30 分层收官:ui/ 的 video-player/draggable-item/editable-timecode 转发垫片已撤,
+// 不再列入兼容 facade(存在性由下方专项测试反向锁定)
+const compatibilityFacades = new Map<string, string>([]);
 
 const apiManagerCompatibilityFacades = new Map([
   ["index.ts", "@/components/panels/settings/api"],
@@ -238,14 +209,12 @@ describe("component ownership", () => {
     }
   });
 
-  it("resolves old value and prop-type exports to the canonical modules", () => {
-    expect(LegacyEditableTimecode).toBe(PlaybackEditableTimecode);
-    expect(LegacyVideoPlayer).toBe(PlaybackVideoPlayer);
-    expect(LegacyDraggableMediaItem).toBe(MediaDraggableMediaItem);
-
-    expectTypeOf<LegacyEditableTimecodeProps>().toEqualTypeOf<PlaybackEditableTimecodeProps>();
-    expectTypeOf<LegacyVideoPlayerProps>().toEqualTypeOf<PlaybackVideoPlayerProps>();
-    expectTypeOf<LegacyDraggableMediaItemProps>().toEqualTypeOf<MediaDraggableMediaItemProps>();
+  it("keeps ui/ free of features re-export shims (08-30 分层收官:三垫片已撤)", () => {
+    // ui/ 不再持有 video-player/draggable-item/editable-timecode 转发垫片;
+    // 消费方一律直连 features/ 真源,新增垫片由此测试拦截
+    for (const shim of ["ui/video-player.tsx", "ui/draggable-item.tsx", "ui/editable-timecode.tsx"]) {
+      expect(existsSync(join(componentsRoot, shim))).toBe(false);
+    }
   });
 
   it("preserves shared voice-reference compatibility exports (media-preview 已归 ui/ 并撤垫片 08-30)", () => {

@@ -52,7 +52,7 @@ import {
   filterNarratorVoiceFamily,
   resolveNarratorShotProfile,
 } from "@/lib/tts/narrator-voice";
-import type { RoleAudioCandidate } from "@/components/panels/assets/role-audio-auto-assign";
+import type { RoleAudioCandidate } from "@/lib/tts/narrator-voice";
 import { getStudioAssetsBridge } from "@/lib/bridge/studio-assets";
 import { getTtsRuntimeBridge } from "@/lib/bridge/tts-runtime";
 

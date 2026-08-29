@@ -1,3 +1,4 @@
+import type { RoleAudioCandidate } from "@/lib/tts/narrator-voice";
 import type { StudioMaterial } from "@/types/studio";
 import type { StudioAssetSummary } from "@/types/studio-assets";
 import type { ProjectVoiceBinding, TtsSpeakerId, VoiceProfile } from "@/types/tts";
@@ -29,14 +30,6 @@ const IMPORTANCE_ORDER: Record<RoleImportance, number> = {
   supporting: 1,
   npc: 2,
 };
-
-export interface RoleAudioCandidate {
-  id: string;
-  name: string;
-  filePath: string;
-  referenceText?: string;
-  sourceLabel?: string;
-}
 
 export interface RoleAudioAssignment {
   role: StudioAssetSummary;
