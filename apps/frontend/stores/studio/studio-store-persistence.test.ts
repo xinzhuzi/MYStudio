@@ -123,12 +123,13 @@ describe("legacy storyboard workflow purge (2026-08-30 merge ruling)", () => {
     id: "flow",
     name: "道劫 · 分镜 1 图片工作流",
     target: { kind: "free" },
-    nodes: [],
+    // 非空(空流清理另有裁定,此处聚焦指纹语义)
+    nodes: [{ id: "n", type: "generated", title: "t", position: { x: 0, y: 0 }, createdAt: 1, updatedAt: 1 }],
     edges: [],
     createdAt: 1,
     updatedAt: 1,
     ...overrides,
-  } as ImageWorkflowGraph);
+  } as unknown as ImageWorkflowGraph);
 
   it("drops fingerprint-less storyboard workflows during hydration", () => {
     const migrated = migrateStudioWorkflowState({
@@ -151,5 +152,46 @@ describe("legacy storyboard workflow purge (2026-08-30 merge ruling)", () => {
       ],
     }) as { imageWorkflows: ImageWorkflowGraph[] };
     expect(migrated.imageWorkflows.map((item) => (item as { id: string }).id)).toEqual(["material", "no-target-shape"]);
+  });
+});
+
+describe("stale workflow purge (2026-08-30 旧数据清理裁定)", () => {
+  const graph = (overrides: Record<string, unknown>): ImageWorkflowGraph => ({
+    id: "flow",
+    name: "流",
+    target: { kind: "free" },
+    nodes: [],
+    edges: [],
+    createdAt: 1,
+    updatedAt: 1,
+    ...overrides,
+  } as ImageWorkflowGraph);
+  const sb = (id: string) => graph({
+    id: `flow-${id}`,
+    target: { kind: "storyboard", id },
+    targetSourceFingerprint: `fp-${id}`,
+    nodes: [{ id: "n1", type: "generated", title: "成图", position: { x: 0, y: 0 }, createdAt: 1, updatedAt: 1 }],
+  });
+
+  it("drops empty non-storyboard flows and orphaned storyboard flows, keeps healthy ones", () => {
+    const migrated = migrateStudioWorkflowState({
+      storyboards: [{ id: "sb-1" }, { id: "sb-2" }],
+      imageWorkflows: [
+        graph({ id: "empty-free", name: "道劫 图像工作流 78" }),
+        graph({ id: "empty-asset", target: { kind: "asset", assetType: "scene", id: "s" } }),
+        graph({ id: "kept-free", nodes: [{ id: "n", type: "generated", title: "t", position: { x: 0, y: 0 }, createdAt: 1, updatedAt: 1 }] }),
+        sb("sb-1"),
+        sb("sb-gone"),
+      ],
+    }) as { imageWorkflows: ImageWorkflowGraph[] };
+    expect(migrated.imageWorkflows.map((item) => item.id)).toEqual(["kept-free", "flow-sb-1"]);
+  });
+
+  it("skips orphan purge when the storyboard window is empty (防误伤守卫)", () => {
+    const migrated = migrateStudioWorkflowState({
+      storyboards: [],
+      imageWorkflows: [sb("sb-anywhere")],
+    }) as { imageWorkflows: ImageWorkflowGraph[] };
+    expect(migrated.imageWorkflows.map((item) => item.id)).toEqual(["flow-sb-anywhere"]);
   });
 });

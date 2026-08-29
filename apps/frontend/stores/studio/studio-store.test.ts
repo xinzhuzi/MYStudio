@@ -181,7 +181,8 @@ describe("studio workflow store", () => {
       id: "workflow-valid",
       name: "可恢复工作流",
       target: { kind: "free" },
-      nodes: [],
+      // 非空(零节点空流按 08-30 旧数据清理裁定会被清掉,此处验证瞬态媒体拒绝语义)
+      nodes: [{ id: "gen-ok", type: "generated", resultUrl: "project-file://dao/ok.png" }],
       edges: [],
       createdAt: 1,
       updatedAt: 1,
