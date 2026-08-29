@@ -1,5 +1,5 @@
-import type { FreedomVideoParams, GenerationResult } from "./freedom-types";
-import type { FreedomVideoRoute } from "./freedom-routing";
+import type { FreedomVideoParams, GenerationResult } from "./generation-types";
+import type { FreedomVideoRoute } from "./video-routing";
 
 export type FreedomVideoRouteHandler = (
   params: FreedomVideoParams,

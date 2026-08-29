@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { detectFreedomVideoRoute, getUnifiedEndpointPaths } from "./freedom-routing";
+import { detectFreedomVideoRoute, getUnifiedEndpointPaths } from "./video-routing";
 
 describe("freedom video routing", () => {
   it("preserves video metadata precedence and model fallback", () => {

@@ -1,8 +1,6 @@
 /**
- * 自由面板视频路由(08-28-freedom-image-engine-rename 批次 A 拆分):
- * 图片路由已迁 lib/ai/image-routing,功能绑定解析迁 lib/ai/generation-feature-config;
- * 本文件只剩视频侧,待二期视频链正名时迁入引擎层。FreedomEndpointPaths
- * 类型由 image-routing 定义(生图视频共用端点路径形状),此处再导出保旧引用。
+ * 视频智能路由(2026-08-29 二期迁自 freedom-routing,已整体视频化)。
+ * FreedomEndpointPaths 类型由 image-routing 定义(生图视频共用端点路径形状)。
  */
 import type { FreedomEndpointPaths } from '@/lib/ai/image-routing';
 

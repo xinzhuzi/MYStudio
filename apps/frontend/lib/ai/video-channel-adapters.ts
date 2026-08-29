@@ -1,4 +1,4 @@
-import { isVeoModel, resolveVeoUploadCapability } from "@/lib/assist/veo-capability";
+import { isVeoModel, resolveVeoUploadCapability } from "./veo-capability";
 import { getModelEndpointTypes } from "@/lib/ai/config/store-adapter";
 import { toRunwayRatio, toSoraSize, toVeoOpenAIVideoSize } from "@/lib/ai/video-request-sizing";
 import {
@@ -14,9 +14,9 @@ import {
   toUploadBlob,
   toUploadHttpUrl,
 } from "@/lib/ai/generation-transport";
-import { getUnifiedEndpointPaths } from "./freedom-routing";
+import { getUnifiedEndpointPaths } from "./video-routing";
 import { resolveKlingModelName } from "@/lib/ai/generation-model-names";
-import type { FreedomVideoParams, GenerationResult } from "./freedom-types";
+import type { FreedomVideoParams, GenerationResult } from "./generation-types";
 
 const VIDEO_POLL_INTERVAL = 2000;
 const VIDEO_POLL_MAX_ATTEMPTS = 120;

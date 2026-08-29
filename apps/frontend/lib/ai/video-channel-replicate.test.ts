@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { generateVideoViaReplicate } from "./freedom-replicate-video";
+import { generateVideoViaReplicate } from "./video-channel-replicate";
 
 afterEach(() => {
   vi.restoreAllMocks();

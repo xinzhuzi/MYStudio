@@ -5,7 +5,7 @@ import {
   generateVideoViaKling,
   generateVideoViaOpenAIOfficial,
   generateVideoViaUnified,
-} from "./freedom-video-provider-adapters";
+} from "./video-channel-adapters";
 
 vi.mock("@/lib/ai/generation-transport", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/ai/generation-transport")>();

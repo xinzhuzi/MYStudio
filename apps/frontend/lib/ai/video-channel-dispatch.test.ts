@@ -1,10 +1,10 @@
 import { describe, expect, it, vi } from "vitest";
-import type { FreedomVideoRoute } from "./freedom-routing";
+import type { FreedomVideoRoute } from "./video-routing";
 import {
   runFreedomVideoRoute,
   type FreedomVideoRouteHandler,
   type FreedomVideoRouteHandlers,
-} from "./freedom-video-dispatch";
+} from "./video-channel-dispatch";
 
 describe("runFreedomVideoRoute", () => {
   it.each<FreedomVideoRoute>([
