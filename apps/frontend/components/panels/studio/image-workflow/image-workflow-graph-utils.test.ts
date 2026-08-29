@@ -17,6 +17,7 @@ import {
   resolveActionGeneratedNode,
   resolveGenerationTargetNodeId,
   splitImageMaterialsByOrigin,
+  healStoryboardPromptForCast,
 } from "./image-workflow-graph-utils";
 
 const context = {
@@ -55,7 +56,7 @@ describe("image workflow graph utils", () => {
       "workflow-derived|asset:character:character-parent:character-derived",
     );
     expect(nextNodePosition(graph, "reference").x).toBe(80);
-    expect(nextNodePosition(graph, "generated").x).toBe(620);
+    expect(nextNodePosition(graph, "generated").x).toBe(760);
   });
 });
 
@@ -243,5 +244,30 @@ describe("splitImageMaterialsByOrigin", () => {
     ]);
     expect(assetReferences.map((item) => item.id)).toEqual(["m1", "m4"]);
     expect(workflowOutputs.map((item) => item.id)).toEqual(["m2", "m3"]);
+  });
+});
+
+describe("healStoryboardPromptForCast (R18 存量自愈)", () => {
+  const OLD_PROMPT = "@图1 为金水塾馆场景\n【构图】适用：谈判。要点：只有角色 A 与 B；画幅 16:9 双人中景。\n【画面】三人同框";
+  function makeGraph(prompt: string) {
+    return {
+      id: "wf-1", name: "t", target: { kind: "storyboard", id: "sb-1" }, nodes: [
+        { id: "p1", type: "prompt", prompt },
+        { id: "g1", type: "generated" },
+      ], edges: [],
+    } as never;
+  }
+  it("老流双人约束按 3 人改写", () => {
+    const healed = healStoryboardPromptForCast(makeGraph(OLD_PROMPT), ["独孤剑尘", "女孩", "男孩"]);
+    const p = (healed.nodes[0] as { prompt: string }).prompt;
+    expect(p).toContain("共3名角色同框");
+    expect(p).not.toContain("只有角色 A 与 B");
+  });
+  it("n=2/缺省/已治愈:幂等原样返回", () => {
+    const g = makeGraph(OLD_PROMPT);
+    expect(healStoryboardPromptForCast(g, ["甲", "乙"])).toBe(g);
+    expect(healStoryboardPromptForCast(g)).toBe(g);
+    const healed = healStoryboardPromptForCast(g, ["独孤剑尘", "女孩", "男孩"]);
+    expect(healStoryboardPromptForCast(healed, ["独孤剑尘", "女孩", "男孩"])).toBe(healed);
   });
 });

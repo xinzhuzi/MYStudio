@@ -18,6 +18,7 @@ import {
 import { useStudioStore } from "@/stores/studio/studio-store";
 import { DEFAULT_REMOTION_RENDER_SETTINGS } from "@/lib/studio/remotion/remotion-workspace-storage";
 import {
+  adaptTemplateBriefToCastCount,
   buildStoryboardFactionColorSection,
   buildStoryboardFramePrompt,
   resolveAssetFaction,
@@ -327,6 +328,36 @@ export function ensureStoryboardBindingConsistency(graph: ImageWorkflowGraph): I
     return node;
   });
   if (!changed) return graph;
+  return { ...graph, nodes, updatedAt: Date.now() };
+}
+
+/**
+ * 存量工作流构图段自愈(08-29 R18 存量盲区根修):建流期的人物数自适应只覆盖
+ * 新建流;R21 让同代工作流持续复用后,修复前建的老流(构图段仍是「只有角色
+ * A 与 B」双人约束)永不刷新——S07 实证 4 人镜被双人模板逼出 5 人。重生复用
+ * 前按 shotSemantics.visibleCharacters 对 prompt 节点构图行补跑自适应,幂等。
+ */
+export function healStoryboardPromptForCast(
+  graph: ImageWorkflowGraph,
+  castNames?: string[],
+): ImageWorkflowGraph {
+  if (graph.target.kind !== "storyboard") return graph;
+  const names = (castNames ?? []).map((name) => name.trim()).filter(Boolean);
+  let anyChanged = false;
+  const nodes = graph.nodes.map((node) => {
+    if (node.type !== "prompt" || !node.prompt) return node;
+    let nodeChanged = false;
+    const lines = node.prompt.split("\n");
+    for (let i = 0; i < lines.length; i += 1) {
+      if (!lines[i]!.startsWith("【构图】")) continue;
+      const healed = adaptTemplateBriefToCastCount(lines[i]!, names);
+      if (healed !== lines[i]) { lines[i] = healed; nodeChanged = true; }
+    }
+    if (!nodeChanged) return node;
+    anyChanged = true;
+    return { ...node, prompt: lines.join("\n") };
+  });
+  if (!anyChanged) return graph;
   return { ...graph, nodes, updatedAt: Date.now() };
 }
 

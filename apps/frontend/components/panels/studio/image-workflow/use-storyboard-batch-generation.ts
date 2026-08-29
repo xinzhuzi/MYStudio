@@ -14,6 +14,7 @@ import { resolveStoryboardAssetReferences } from "./storyboard-asset-references"
 import {
   createOpenImageWorkflowGraph,
   ensureStoryboardAssetReferences,
+  healStoryboardPromptForCast,
   findStoryboardWorkflowForContext,
   resolveOpenContextGeneratedNodeId,
 } from "./image-workflow-graph-utils";
@@ -251,12 +252,24 @@ async function generateOneShot(
     const assetReferences = await resolveStoryboardAssetReferences(shot).catch(() => []);
     graph = createOpenImageWorkflowGraph({ ...context, assetReferences }, projectName);
     useStudioStore.getState().upsertImageWorkflow(graph);
-  } else if (!graph.nodes.some((node) => node.type === "reference")) {
-    const references = await resolveStoryboardAssetReferences(shot).catch(() => []);
-    const ensured = ensureStoryboardAssetReferences(graph, references);
-    if (ensured !== graph) {
-      useStudioStore.getState().upsertImageWorkflow(ensured);
-      graph = ensured;
+  } else {
+    // 存量流自愈(08-29):R21 复用机制下,修复前建的老流构图段仍是双人约束
+    // (S07 实证 4 人镜被逼出 5 人)——重生前按画面人数补跑自适应,幂等
+    const healed = healStoryboardPromptForCast(
+      graph,
+      (shot.shotSemantics?.visibleCharacters ?? []).map((character) => character.name),
+    );
+    if (healed !== graph) {
+      useStudioStore.getState().upsertImageWorkflow(healed);
+      graph = healed;
+    }
+    if (!graph.nodes.some((node) => node.type === "reference")) {
+      const references = await resolveStoryboardAssetReferences(shot).catch(() => []);
+      const ensured = ensureStoryboardAssetReferences(graph, references);
+      if (ensured !== graph) {
+        useStudioStore.getState().upsertImageWorkflow(ensured);
+        graph = ensured;
+      }
     }
   }
   const targetNodeId = resolveOpenContextGeneratedNodeId(graph, context)
