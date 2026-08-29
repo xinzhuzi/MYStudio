@@ -193,9 +193,6 @@ function PromptNodeEditor({
         placeholder="反向提示词（可选）"
         className="nodrag nopan min-h-[54px] [field-sizing:content] border-border bg-background/80 text-xs leading-5 text-foreground"
       />
-      <p className="nodrag nopan text-[11px] text-muted-foreground">
-        模型、画幅、分辨率、质量与生成入口在成图节点上。
-      </p>
     </div>
   );
 }
