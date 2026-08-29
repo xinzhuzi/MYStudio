@@ -757,6 +757,12 @@ export interface ImageWorkflowGeneratedNode extends ImageWorkflowNodeBase {
   prompt: string;
   negativePrompt?: string;
   model?: string;
+  /**
+   * 生成参数权威标记(08-30 功能转移裁定):true=模型/画幅/分辨率/质量以
+   * 成图节点自身字段为准;缺省=存量图回落连线提示词节点的旧值。
+   * 用户新建图与在成图节点改参数时置 true。
+   */
+  paramsEdited?: boolean;
   aspectRatio: string;
   quality: "draft" | "standard" | "hd";
   resolution?: string;

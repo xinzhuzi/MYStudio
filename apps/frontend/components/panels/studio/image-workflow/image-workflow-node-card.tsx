@@ -1,9 +1,11 @@
 import { memo, useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Handle, Position, type Node, type NodeProps } from "@xyflow/react";
-import { CheckCircle2, Image as ImageIcon, Loader2, Save, Trash2, WandSparkles, ZoomIn } from "lucide-react";
+import { CheckCircle2, Image as ImageIcon, Loader2, Maximize2, Save, Trash2, WandSparkles, ZoomIn } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { ImagePreviewModal } from "@/components/features/media/media-preview-modal";
 import { LocalImage } from "@/components/ui/local-image";
 import { ResolutionBadge, probeImagePixelSize } from "@/components/ui/image-resolution-badge";
 import { Textarea } from "@/components/ui/textarea";
@@ -113,7 +115,7 @@ export const ImageWorkflowNodeCard = memo(function ImageWorkflowNodeCard({ data 
       {node.type === "reference" ? (
         <ReferenceNodeEditor node={node} onUpdate={data.onUpdate} />
       ) : node.type === "prompt" ? (
-        <PromptNodeEditor node={node} onUpdate={data.onUpdate} onGenerate={data.onGenerate} />
+        <PromptNodeEditor node={node} onUpdate={data.onUpdate} />
       ) : (
         <GeneratedNodeEditor
           node={node}
@@ -129,6 +131,35 @@ export const ImageWorkflowNodeCard = memo(function ImageWorkflowNodeCard({ data 
 }, areNodeCardPropsEqual);
 
 ImageWorkflowNodeCard.displayName = "ImageWorkflowNodeCard";
+
+/**
+ * React Flow 节点外层带 transform,弹窗的 fixed 定位会相对节点而非视口,
+ * 因此用 portal 挂到 document.body;预览用原图地址(不带 ?thumb=1)。
+ */
+function NodeImagePreviewButton({ src, label }: { src: string; label: string }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <>
+      <Button
+        size="sm"
+        variant="secondary"
+        className="nodrag nopan"
+        onClick={() => setOpen(true)}
+        aria-label={label}
+        title="打开大图查看原图"
+      >
+        <Maximize2 className="h-3.5 w-3.5" />
+        展示
+      </Button>
+      {open
+        ? createPortal(
+            <ImagePreviewModal imageUrl={src} isOpen onClose={() => setOpen(false)} />,
+            document.body,
+          )
+        : null}
+    </>
+  );
+}
 
 function ReferenceNodeEditor({
   node,
@@ -153,6 +184,11 @@ function ReferenceNodeEditor({
           <div className="flex h-full items-center justify-center text-xs text-muted-foreground">暂无图片</div>
         )}
       </div>
+      {node.imageUrl ? (
+        <div className="nodrag nopan">
+          <NodeImagePreviewButton src={toPreviewSrc(node.imageUrl)} label={`展示参考图 ${node.title}`} />
+        </div>
+      ) : null}
       <input
         value={node.imageUrl}
         onChange={(event) => onUpdate(node.id, { imageUrl: event.target.value } as Partial<ImageWorkflowNode>)}
@@ -172,11 +208,9 @@ function ReferenceNodeEditor({
 function PromptNodeEditor({
   node,
   onUpdate,
-  onGenerate,
 }: {
   node: ImageWorkflowPromptNode;
   onUpdate: ImageWorkflowNodeData["onUpdate"];
-  onGenerate: ImageWorkflowNodeData["onGenerate"];
 }) {
   return (
     <div className="space-y-3">
@@ -186,50 +220,17 @@ function PromptNodeEditor({
         placeholder="描述要生成的图片"
         className="nodrag nopan min-h-[160px] resize-y border-border bg-background/80 text-sm leading-6 text-foreground"
       />
-      <div className="nodrag nopan grid grid-cols-[minmax(0,1fr)_88px_88px_92px] gap-2">
-        <ModelSelector
-          type="image"
-          value={node.model ?? ""}
-          onChange={(model) => onUpdate(node.id, { model } as Partial<ImageWorkflowNode>)}
-          className="w-full"
-        />
-        <select
-          value={node.aspectRatio}
-          onChange={(event) => onUpdate(node.id, { aspectRatio: event.target.value } as Partial<ImageWorkflowNode>)}
-          className="h-9 rounded-md border border-border bg-background/80 px-2 text-xs text-foreground outline-none"
-          aria-label="图片比例"
-        >
-          {ASPECT_RATIOS.map((ratio) => <option key={ratio} value={ratio}>{ratio}</option>)}
-        </select>
-        <select
-          value={node.resolution ?? ""}
-          onChange={(event) => onUpdate(node.id, { resolution: event.target.value } as Partial<ImageWorkflowNode>)}
-          className="h-9 rounded-md border border-border bg-background/80 px-2 text-xs text-foreground outline-none"
-          aria-label="图片分辨率"
-        >
-          {RESOLUTION_OPTIONS.map((resolution) => <option key={resolution} value={resolution}>{resolution}</option>)}
-        </select>
-        <Button size="sm" variant="paid" onClick={() => onGenerate(node.id)}>
-          <WandSparkles className="h-3.5 w-3.5" />
-          生成
-        </Button>
-      </div>
-      <div className="nodrag nopan grid grid-cols-[1fr_96px] gap-2">
-        <Textarea
-          value={node.negativePrompt ?? ""}
-          onChange={(event) => onUpdate(node.id, { negativePrompt: event.target.value } as Partial<ImageWorkflowNode>)}
-          placeholder="反向提示词（可选）"
-          className="min-h-[54px] border-border bg-background/80 text-xs leading-5 text-foreground"
-        />
-        <select
-          value={node.quality}
-          onChange={(event) => onUpdate(node.id, { quality: event.target.value as ImageWorkflowPromptNode["quality"] } as Partial<ImageWorkflowNode>)}
-          className="h-9 self-end rounded-md border border-border bg-background/80 px-2 text-xs text-foreground outline-none"
-          aria-label="生成质量"
-        >
-          {QUALITY_OPTIONS.map((quality) => <option key={quality} value={quality}>{quality}</option>)}
-        </select>
-      </div>
+      {/* 08-30 功能转移裁定:输入节点只管提示词(输入源);模型/画幅/分辨率/
+          质量/生成全部在成图节点上。 */}
+      <Textarea
+        value={node.negativePrompt ?? ""}
+        onChange={(event) => onUpdate(node.id, { negativePrompt: event.target.value } as Partial<ImageWorkflowNode>)}
+        placeholder="反向提示词（可选）"
+        className="nodrag nopan min-h-[54px] border-border bg-background/80 text-xs leading-5 text-foreground"
+      />
+      <p className="nodrag nopan text-[11px] text-muted-foreground">
+        模型、画幅、分辨率、质量与生成入口在成图节点上。
+      </p>
     </div>
   );
 }
@@ -293,12 +294,50 @@ function GeneratedNodeEditor({
           </div>
         )}
       </div>
+      {/* 08-30 功能转移:生成参数(模型/画幅/分辨率/质量)归属成图节点。
+          显示值回落连线提示词节点旧值(存量图零变化);改动即写本节点
+          并置 paramsEdited(参数权威转移)。 */}
+      <div className="nodrag nopan grid grid-cols-[minmax(0,1fr)_76px_64px_86px] gap-2" data-generated-node-params>
+        <ModelSelector
+          type="image"
+          value={node.model ?? promptNode?.model ?? ""}
+          onChange={(model) => onUpdate(node.id, { model, paramsEdited: true } as Partial<ImageWorkflowNode>)}
+          className="w-full"
+        />
+        <select
+          value={(node.paramsEdited ? node.aspectRatio : (promptNode?.aspectRatio ?? node.aspectRatio))}
+          onChange={(event) => onUpdate(node.id, { aspectRatio: event.target.value, paramsEdited: true } as Partial<ImageWorkflowNode>)}
+          className="h-8 rounded-md border border-border bg-card/80 px-1.5 text-xs text-foreground outline-none"
+          aria-label="图片比例"
+        >
+          {ASPECT_RATIOS.map((ratio) => <option key={ratio} value={ratio}>{ratio}</option>)}
+        </select>
+        <select
+          value={node.resolution ?? promptNode?.resolution ?? ""}
+          onChange={(event) => onUpdate(node.id, { resolution: event.target.value, paramsEdited: true } as Partial<ImageWorkflowNode>)}
+          className="h-8 rounded-md border border-border bg-card/80 px-1.5 text-xs text-foreground outline-none"
+          aria-label="图片分辨率"
+        >
+          {RESOLUTION_OPTIONS.map((resolution) => <option key={resolution} value={resolution}>{resolution}</option>)}
+        </select>
+        <select
+          value={(node.paramsEdited ? node.quality : (promptNode?.quality ?? node.quality))}
+          onChange={(event) => onUpdate(node.id, { quality: event.target.value as ImageWorkflowGeneratedNode["quality"], paramsEdited: true } as Partial<ImageWorkflowNode>)}
+          className="h-8 rounded-md border border-border bg-card/80 px-1.5 text-xs text-foreground outline-none"
+          aria-label="生成质量"
+        >
+          {QUALITY_OPTIONS.map((quality) => <option key={quality} value={quality}>{quality}</option>)}
+        </select>
+      </div>
       <div className="nodrag nopan flex items-center justify-between gap-2">
         <span className="flex min-w-0 items-center gap-1.5 text-[11px] text-muted-foreground">
           {node.status === "ready" ? <CheckCircle2 className="h-3.5 w-3.5 text-success" /> : null}
           {node.status}
         </span>
         <div className="flex items-center gap-2">
+          {node.resultUrl ? (
+            <NodeImagePreviewButton src={toPreviewSrc(node.resultUrl)} label={`展示成图 ${node.title}`} />
+          ) : null}
           <Button size="sm" variant="secondary" onClick={() => onApplyToStoryboard(node.id)} disabled={!node.resultUrl}>
             <Save className="h-3.5 w-3.5" />
             回写
@@ -375,65 +414,14 @@ function GeneratedNodeEditor({
             placeholder="描述要生成的图片"
             className="min-h-[148px] resize-y border-border bg-card/80 text-sm leading-6 text-foreground"
           />
-          <div className="grid grid-cols-[minmax(0,1fr)_104px_104px] gap-2">
-            <ModelSelector
-              type="image"
-              value={generationPrompt.model ?? ""}
-              onChange={(model) => updateGenerationPrompt({ model })}
-              className="w-full"
-            />
-            <select
-              value={generationPrompt.aspectRatio}
-              onChange={(event) => updateGenerationPrompt({ aspectRatio: event.target.value })}
-              className="h-9 rounded-md border border-border bg-card/80 px-2 text-xs text-foreground outline-none"
-              aria-label="图片比例"
-            >
-              {ASPECT_RATIOS.map((ratio) => <option key={ratio} value={ratio}>{ratio}</option>)}
-            </select>
-            <select
-              value={generationPrompt.resolution ?? ""}
-              onChange={(event) => updateGenerationPrompt({ resolution: event.target.value })}
-              className="h-9 rounded-md border border-border bg-card/80 px-2 text-xs text-foreground outline-none"
-              aria-label="图片分辨率"
-            >
-              {RESOLUTION_OPTIONS.map((resolution) => <option key={resolution} value={resolution}>{resolution}</option>)}
-            </select>
-          </div>
-          <div className="grid grid-cols-[minmax(0,1fr)_104px_40px_40px] gap-2">
-            <Textarea
-              value={generationPrompt.negativePrompt ?? ""}
-              onChange={(event) => updateGenerationPrompt({ negativePrompt: event.target.value })}
-              placeholder="反向提示词（可选）"
-              className="min-h-[44px] border-border bg-card/80 text-xs leading-5 text-foreground"
-            />
-            <select
-              value={generationPrompt.quality}
-              onChange={(event) => updateGenerationPrompt({ quality: event.target.value as ImageWorkflowPromptNode["quality"] })}
-              className="h-9 self-end rounded-md border border-border bg-card/80 px-2 text-xs text-foreground outline-none"
-              aria-label="生成质量"
-            >
-              {QUALITY_OPTIONS.map((quality) => <option key={quality} value={quality}>{quality}</option>)}
-            </select>
-            <Button
-              size="icon"
-              onClick={() => onGenerate(node.id)}
-              disabled={generating}
-              aria-label="运行生成"
-              className="self-end"
-            >
-              {generating ? <Loader2 className="h-4 w-4 animate-spin" /> : <WandSparkles className="h-4 w-4" />}
-            </Button>
-            <Button
-              size="icon"
-              variant="secondary"
-              onClick={() => onApplyToStoryboard(node.id)}
-              disabled={!node.resultUrl}
-              aria-label="写回目标"
-              className="self-end"
-            >
-              <Save className="h-4 w-4" />
-            </Button>
-          </div>
+          {/* 08-30 功能转移:参数与生成入口统一在节点 footer 参数行/按钮区;
+              此内嵌面板只承载无连线时的提示词编辑。 */}
+          <Textarea
+            value={generationPrompt.negativePrompt ?? ""}
+            onChange={(event) => updateGenerationPrompt({ negativePrompt: event.target.value })}
+            placeholder="反向提示词（可选）"
+            className="min-h-[44px] border-border bg-card/80 text-xs leading-5 text-foreground"
+          />
         </div>
       ) : null}
     </div>

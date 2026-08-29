@@ -81,12 +81,15 @@ export function buildImageWorkflowGenerationRequest(
     : basePrompt;
   const negativePrompt = mergeReferenceNegativePrompt(promptSource.negativePrompt, orderedReferenceNodes);
 
+  // 参数权威(08-30 功能转移):成图节点持有优先;存量图未迁移时回落
+  // 连线提示词节点的旧值,行为零变化。paramsEdited 见类型注释。
+  const paramAuthority = node.paramsEdited ? node : (promptNode ?? node);
   return {
     prompt,
-    model: promptSource.model,
-    aspectRatio: promptSource.aspectRatio,
-    quality: promptSource.quality,
-    resolution: promptSource.resolution,
+    model: node.model ?? promptSource.model,
+    aspectRatio: paramAuthority.aspectRatio,
+    quality: paramAuthority.quality,
+    resolution: node.resolution ?? promptSource.resolution,
     negativePrompt,
     referenceImages,
     orderedReferenceManifest,

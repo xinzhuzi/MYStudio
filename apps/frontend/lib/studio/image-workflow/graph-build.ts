@@ -441,6 +441,7 @@ export function addGeneratedImageNode(
     prompt: input.prompt ?? "",
     negativePrompt: input.negativePrompt,
     model: input.model,
+    paramsEdited: true,
     aspectRatio: input.aspectRatio ?? imageSettings.defaultAspectRatio,
     quality: input.quality ?? "standard",
     resolution: input.resolution,
