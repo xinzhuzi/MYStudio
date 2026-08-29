@@ -3,8 +3,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { resetFeatureRoundRobin } from "@/lib/ai/feature-router";
 import { clearAllManagers } from "@/lib/ai/core";
 import { useAPIConfigStore } from "@/stores/ai/api-config-store";
-import { generateFreedomVideo } from "./freedom-api";
-import { runFreedomVideoRoute } from "./freedom-video-dispatch";
+import { generateVideo } from "./video-generation-engine";
+import { runFreedomVideoRoute } from "./video-channel-dispatch";
 
 const mocks = vi.hoisted(() => ({
   addMediaFromUrl: vi.fn(() => "media-1"),
@@ -22,7 +22,7 @@ vi.mock("@/stores/project/project-store", () => ({
   },
 }));
 
-vi.mock("./freedom-video-dispatch", () => ({
+vi.mock("./video-channel-dispatch", () => ({
   runFreedomVideoRoute: vi.fn(),
 }));
 
@@ -67,7 +67,7 @@ describe("generateFreedomVideo", () => {
       duration: 5,
     };
 
-    const result = await generateFreedomVideo(params);
+    const result = await generateVideo(params);
 
     expect(runFreedomVideoRoute).toHaveBeenCalledWith(
       "openai_official",
@@ -106,7 +106,7 @@ describe("generateFreedomVideo", () => {
     } as never);
     vi.mocked(runFreedomVideoRoute).mockResolvedValue({ url: "https://video.test/fallback.mp4" });
 
-    await generateFreedomVideo({ prompt: "fallback" });
+    await generateVideo({ prompt: "fallback" });
 
     expect(runFreedomVideoRoute).toHaveBeenCalledWith(
       "openai_official",
@@ -127,7 +127,7 @@ describe("generateFreedomVideo", () => {
       },
     } as never);
 
-    await expect(generateFreedomVideo({ prompt: "unconfigured" })).rejects.toThrow();
+    await expect(generateVideo({ prompt: "unconfigured" })).rejects.toThrow();
     expect(runFreedomVideoRoute).not.toHaveBeenCalled();
     expect(mocks.addMediaFromUrl).not.toHaveBeenCalled();
   });
@@ -139,7 +139,7 @@ describe("generateFreedomVideo", () => {
       .mockRejectedValueOnce(Object.assign(new Error("upstream 503"), { status: 503 }))
       .mockResolvedValue({ url: "https://video.test/retried.mp4" });
 
-    const result = generateFreedomVideo({ prompt: "retry video" });
+    const result = generateVideo({ prompt: "retry video" });
     await vi.advanceTimersByTimeAsync(3000);
     expect(runFreedomVideoRoute).toHaveBeenCalledTimes(2);
     expect(mocks.addMediaFromUrl).not.toHaveBeenCalled();
@@ -163,7 +163,7 @@ describe("generateFreedomVideo", () => {
       .mockRejectedValueOnce(Object.assign(new Error("quota"), { status: 429 }))
       .mockResolvedValue({ url: "https://video.test/rotated.mp4" });
 
-    const result = generateFreedomVideo({ prompt: "rotate key" });
+    const result = generateVideo({ prompt: "rotate key" });
     await vi.advanceTimersByTimeAsync(3000);
     await expect(result).resolves.toEqual(expect.objectContaining({ url: "https://video.test/rotated.mp4" }));
 

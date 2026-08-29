@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { freedomRetry, isRetryableFreedomError } from "./freedom-retry";
+import { freedomRetry, isRetryableFreedomError } from "./generation-retry";
 
 afterEach(() => {
   vi.useRealTimers();

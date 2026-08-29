@@ -1,6 +1,11 @@
+/**
+ * 分层定位(2026-08-29 迁自 lib/assist/freedom-*,Trellis 08-28-freedom-image-engine-rename 批次 A):
+ * 渠道/引擎层——与 image-generator/mikoto-async 同层,服务于所有生图消费方
+ * (自由面板/分镜批量/资产生成),不隶属任何单一面板。行为零变更,纯迁移。
+ */
 import { DEFAULT_IMAGE_ASPECT_RATIO } from "@/lib/ai/image-size-presets";
-import { buildFreedomEndpoint, freedomObservedFetch } from "./freedom-transport";
-import type { FreedomImageParams, GenerationResult } from "./freedom-types";
+import { buildFreedomEndpoint, freedomObservedFetch } from "./generation-transport";
+import type { FreedomImageParams, GenerationResult } from "./generation-types";
 
 type ChatImagePart = {
   type?: string;

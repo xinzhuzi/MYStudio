@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { extractChatCompletionsImage, generateFreedomImageViaChat } from "./freedom-image-chat";
+import { extractChatCompletionsImage, generateFreedomImageViaChat } from "./image-channel-chat";
 
 describe("Freedom chat image adapter", () => {
   afterEach(() => {

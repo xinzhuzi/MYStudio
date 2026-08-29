@@ -3,43 +3,39 @@
 // Commercial licensing available. See COMMERCIAL_LICENSE.md.
 
 /**
- * 自由面板视频生成客户端(08-28-freedom-image-engine-rename 批次 A 拆分):
- * 生图引擎已整体迁 lib/ai/image-generation-engine.ts,此处保留——
- *   1. generateFreedomVideo(视频生成,二期正名迁出)
- *   2. 类型再导出;生图公共入口已正名 generateImage(ai-manager 直连引擎,
- *      批次 C 已完成,旧名再导出已移除)。
+ * 视频生成引擎(智能路由 + 渠道适配)。
+ *
+ * 分层定位(2026-08-29 迁自 lib/assist/freedom-api.ts,08-28-freedom-image-engine-rename
+ * 二期):渠道/引擎层,与 image-generation-engine 同层;消费方 ai-manager 门面 →
+ * 自由面板视频。公共入口 generateVideo(原 generateFreedomVideo,随批次 C 口径正名)。
  */
 import { getFeatureNotConfiguredMessage } from '@/lib/ai/feature-router';
 import { getModelEndpointTypes } from '@/lib/ai/config/store-adapter';
 import { toast } from 'sonner';
 import { freedomRetry } from '@/lib/ai/generation-retry';
 import { resolveFreedomFeatureConfig } from '@/lib/ai/generation-feature-config';
-import { detectFreedomVideoRoute } from './freedom-routing';
-import { generateVideoViaReplicate } from './freedom-replicate-video';
-import { runFreedomVideoRoute } from './freedom-video-dispatch';
+import { detectFreedomVideoRoute } from './video-routing';
+import { generateVideoViaReplicate } from './video-channel-replicate';
+import { runFreedomVideoRoute } from './video-channel-dispatch';
 import {
   generateVideoViaKling,
   generateVideoViaOpenAIOfficial,
   generateVideoViaUnified,
   generateVideoViaVolc,
   generateVideoViaWan,
-} from './freedom-video-provider-adapters';
+} from './video-channel-adapters';
 import { saveToMediaLibrary } from '@/lib/ai/generation-media';
-import type { FreedomVideoParams, GenerationResult } from './freedom-types';
-
-// ── 旧符号兼容再导出(批次 C 正名后移除)──
-export type { FreedomImageParams, GenerationResult } from '@/lib/ai/generation-types';
-export type { FreedomVideoUploadFile, FreedomVideoUploadRole } from './video-upload-validation';
+import type { FreedomVideoParams, GenerationResult } from './generation-types';
 
 // ==================== Video Generation ====================
-export async function generateFreedomVideo(
+export async function generateVideo(
   params: FreedomVideoParams
 ): Promise<GenerationResult> {
   const { config } = resolveFreedomFeatureConfig('freedom_video', 'video_generation', params.model);
-  return freedomRetry(() => _generateFreedomVideoInner(params), 'Video generation', config?.keyManager);
+  return freedomRetry(() => _generateVideoInner(params), 'Video generation', config?.keyManager);
 }
 
-async function _generateFreedomVideoInner(
+async function _generateVideoInner(
   params: FreedomVideoParams
 ): Promise<GenerationResult> {
   const { config } = resolveFreedomFeatureConfig(

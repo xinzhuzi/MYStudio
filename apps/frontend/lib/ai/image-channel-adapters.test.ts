@@ -1,14 +1,14 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { freedomObservedFetch, pollForFreedomResult } from "./freedom-transport";
+import { freedomObservedFetch, pollForFreedomResult } from "./generation-transport";
 import {
   generateViaIdeogramEndpoint,
   generateViaKlingImageEndpoint,
   generateViaMidjourneyEndpoint,
   generateViaReplicateImageEndpoint,
-} from "./freedom-image-provider-adapters";
+} from "./image-channel-adapters";
 
-vi.mock("./freedom-transport", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("./freedom-transport")>();
+vi.mock("./generation-transport", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("./generation-transport")>();
   return { ...actual, freedomObservedFetch: vi.fn(), pollForFreedomResult: vi.fn() };
 });
 

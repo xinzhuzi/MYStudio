@@ -1,11 +1,16 @@
-import type { FreedomImageParams, GenerationResult } from "./freedom-types";
+/**
+ * 分层定位(2026-08-29 迁自 lib/assist/freedom-*,Trellis 08-28-freedom-image-engine-rename 批次 A):
+ * 渠道/引擎层——与 image-generator/mikoto-async 同层,服务于所有生图消费方
+ * (自由面板/分镜批量/资产生成),不隶属任何单一面板。行为零变更,纯迁移。
+ */
+import type { FreedomImageParams, GenerationResult } from "./generation-types";
 import {
   extractFreedomImageUrl,
   freedomObservedFetch,
   getFreedomRootBaseUrl,
   pollForFreedomResult,
-} from "./freedom-transport";
-import { resolveKlingModelName } from "./freedom-model-names";
+} from "./generation-transport";
+import { resolveKlingModelName } from "./generation-model-names";
 
 const IMAGE_POLL_INTERVAL = 2000;
 const IMAGE_POLL_MAX_ATTEMPTS = 60;

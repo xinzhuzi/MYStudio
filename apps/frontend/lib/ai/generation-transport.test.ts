@@ -19,7 +19,7 @@ import {
   inferFreedomEndpointFamily,
   pollForFreedomResult,
   toUploadHttpUrl,
-} from "./freedom-transport";
+} from "./generation-transport";
 
 describe("freedom transport", () => {
   beforeEach(() => {

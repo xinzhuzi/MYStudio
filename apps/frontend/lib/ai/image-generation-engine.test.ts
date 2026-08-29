@@ -4,8 +4,8 @@ import { useAPIConfigStore } from "@/stores/ai/api-config-store";
 import { useAppSettingsStore } from "@/stores/app/app-settings-store";
 import { resetFeatureRoundRobin } from "@/lib/ai/feature-router";
 import { clearAllManagers } from "@/lib/ai/core";
-import { generateFreedomImage } from "./freedom-api";
-import { resetImagesEndpointPoisonMemory } from "./freedom-image-endpoint-memory";
+import { generateImage } from "./image-generation-engine";
+import { resetImagesEndpointPoisonMemory } from "./image-endpoint-memory";
 
 const provider = {
   id: "torchai",
@@ -16,7 +16,7 @@ const provider = {
   model: ["gpt-image-2"],
 };
 
-describe("generateFreedomImage", () => {
+describe("generateImage", () => {
   beforeEach(() => {
     vi.restoreAllMocks();
     vi.unstubAllGlobals();
@@ -51,7 +51,7 @@ describe("generateFreedomImage", () => {
     }), { status: 200 }));
     vi.stubGlobal("fetch", fetchMock);
 
-    const result = await generateFreedomImage({
+    const result = await generateImage({
       prompt: "old laborer character",
       negativePrompt: "no basket, no ragged backpack",
       aspectRatio: "16:9",
@@ -90,7 +90,7 @@ describe("generateFreedomImage", () => {
     }), { status: 200 }));
     vi.stubGlobal("fetch", fetchMock);
 
-    await generateFreedomImage({ prompt: "global freedom image" });
+    await generateImage({ prompt: "global freedom image" });
 
     const requestBody = JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body));
     expect(requestBody.size).toBe("2016x1344");
@@ -111,7 +111,7 @@ describe("generateFreedomImage", () => {
       }), { status: 200 }));
     vi.stubGlobal("fetch", fetchMock);
 
-    const result = await generateFreedomImage({
+    const result = await generateImage({
       prompt: longPrompt,
       aspectRatio: "16:9",
     });
@@ -164,7 +164,7 @@ describe("generateFreedomImage", () => {
       }), { status: 200 }));
     vi.stubGlobal("fetch", fetchMock);
 
-    const generation = generateFreedomImage({
+    const generation = generateImage({
       prompt: "old laborer character",
       aspectRatio: "1:1",
     });
@@ -195,7 +195,7 @@ describe("generateFreedomImage", () => {
     });
     vi.stubGlobal("fetch", fetchMock);
 
-    const result = await generateFreedomImage({ prompt: "gateway fallback image" });
+    const result = await generateImage({ prompt: "gateway fallback image" });
 
     expect(result.url).toBe("data:image/png;base64,aGVsbG8=");
     const chatCall = fetchMock.mock.calls.find(([url]) => String(url).endsWith("/chat/completions"));
@@ -218,7 +218,7 @@ describe("generateFreedomImage", () => {
     });
     vi.stubGlobal("fetch", fetchMock);
 
-    const result = await generateFreedomImage({ prompt: "chat transport image", transport: "chat" });
+    const result = await generateImage({ prompt: "chat transport image", transport: "chat" });
 
     expect(result.url).toBe("data:image/png;base64,aGVsbG8=");
     expect(fetchMock.mock.calls.some(([url]) => String(url).endsWith("/images/generations"))).toBe(false);
@@ -233,7 +233,7 @@ describe("generateFreedomImage", () => {
     ));
     vi.stubGlobal("fetch", fetchMock);
 
-    await expect(generateFreedomImage({ prompt: "auth failure image" })).rejects.toThrow();
+    await expect(generateImage({ prompt: "auth failure image" })).rejects.toThrow();
     expect(fetchMock.mock.calls.some(([url]) => String(url).endsWith("/chat/completions"))).toBe(false);
   }, 20000);
 
@@ -257,7 +257,7 @@ describe("generateFreedomImage", () => {
     const fetchMock = vi.fn().mockImplementation(async () => new Response("forbidden", { status: 403 }));
     vi.stubGlobal("fetch", fetchMock);
 
-    const error: unknown = await generateFreedomImage({ prompt: "chain failure image" }).catch((err: unknown) => err);
+    const error: unknown = await generateImage({ prompt: "chain failure image" }).catch((err: unknown) => err);
     const message = error instanceof Error ? error.message : String(error);
     expect(message).toContain("已依次尝试 2 家生图服务均失败");
     expect(message).toContain("1. torchai:");
@@ -278,13 +278,13 @@ describe("generateFreedomImage", () => {
     });
     vi.stubGlobal("fetch", fetchMock);
 
-    const first = await generateFreedomImage({ prompt: "poison probe one" });
+    const first = await generateImage({ prompt: "poison probe one" });
     expect(first.url).toBe("data:image/png;base64,aGVsbG8=");
     // 第一次:先试 images(必败)再回退 chat
     expect(fetchMock.mock.calls.some(([url]) => String(url).endsWith("/images/generations"))).toBe(true);
 
     fetchMock.mockClear();
-    const second = await generateFreedomImage({ prompt: "poison probe two" });
+    const second = await generateImage({ prompt: "poison probe two" });
     expect(second.url).toBe("data:image/png;base64,aGVsbG8=");
     // 第二次:坏点记忆命中,直接走 chat,不再烧 images 请求
     expect(fetchMock.mock.calls.every(([url]) => String(url).endsWith("/chat/completions"))).toBe(true);
@@ -323,7 +323,7 @@ describe("generateFreedomImage", () => {
     });
     vi.stubGlobal("fetch", fetchMock);
 
-    const error: unknown = await generateFreedomImage({ prompt: "mikoto boundary" }).catch((err: unknown) => err);
+    const error: unknown = await generateImage({ prompt: "mikoto boundary" }).catch((err: unknown) => err);
     const message = error instanceof Error ? error.message : String(error);
     expect(message).toBeTruthy();
     // 只烧一次 mikoto images 请求:无 SDK 重试、无 chat 回退、不换 backup 家
@@ -367,7 +367,7 @@ describe("generateFreedomImage", () => {
     vi.stubGlobal("fetch", fetchMock);
     vi.useFakeTimers();
 
-    const promise = generateFreedomImage({ prompt: "mikoto sync closed", transport: "chat" }).then(
+    const promise = generateImage({ prompt: "mikoto sync closed", transport: "chat" }).then(
       (value) => value,
       (err: unknown) => err,
     );
@@ -402,7 +402,7 @@ describe("generateFreedomImage", () => {
     });
     vi.stubGlobal("fetch", fetchMock);
 
-    const error: unknown = await generateFreedomImage({ prompt: "ambiguous chain context" }).catch((err: unknown) => err);
+    const error: unknown = await generateImage({ prompt: "ambiguous chain context" }).catch((err: unknown) => err);
     const message = error instanceof Error ? error.message : String(error);
     // 模糊终止也要带上前置家失败原因,不能只报 mikoto
     expect(message).toContain("已依次尝试 1 家");
