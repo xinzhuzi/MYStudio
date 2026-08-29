@@ -268,7 +268,9 @@ describe("studio workflow tabs", () => {
     expect(graphUtilsSource).toContain("当前分镜参考图");
     expect(canvasSource).toContain("flowInstance?.fitView");
     expect(graphUtilsSource).toContain("focusNodeIdsForGenerated");
-    expect(canvasSource).toContain("focusedFitNodeKey");
+    // 08-30 裁定:fitView 只在换流/打开时触发,选中/节点数不再驱动
+    // (旧标记 focusedFitNodeKey 已拆,新稳定键=initialAssetContextKey)
+    expect(canvasSource).toContain("initialAssetContextKey");
     expect(graphUtilsSource).toContain("slice(0, 3)");
     expect(indexSource).toContain("onBack={viewModel.closeAssetImageWorkflow}");
     expect(viewModelSource).toContain("closeAssetImageWorkflow");
@@ -343,6 +345,16 @@ describe("studio workflow tabs", () => {
     expect(lifecycleSource).toContain("ensureImageWorkflowPromptNodes(");
     expect(lifecycleSource).toContain("ensureStoryboardImageResult(activeGraph, storyboardMediaPath)");
     expect(lifecycleSource).toContain("if (ensured !== activeGraph) upsertImageWorkflow(ensured);");
+  });
+
+  it("auto-tidies overlapping legacy layouts once per session without fighting manual drags", () => {
+    const lifecycleSource = readFileSync(
+      fileURLToPath(new URL("./image-workflow/use-scoped-workflow-lifecycle.ts", import.meta.url)),
+      "utf8",
+    );
+    expect(lifecycleSource).toContain("imageWorkflowHasOverlappingCards(ensured)");
+    expect(lifecycleSource).toContain("tidyImageWorkflowLayout(ensured)");
+    expect(lifecycleSource).toContain("autoTidiedGraphIdsRef");
   });
 
   it("does not keep the removed Skill conversation implementation mounted", () => {
@@ -520,7 +532,7 @@ describe("studio workflow tabs", () => {
     expect(canvasSource).toContain("const workbenchX = nextProductionNodeX(\"remotionProduction\", remotionProductionX, measuredNodes)");
     expect(canvasSource).toContain("x: centerProductionNodeUnder(\"script\", \"assets\", scriptX, measuredNodes)");
     expect(canvasSource).toContain("type: \"smoothstep\"");
-    expect(canvasSource).toContain("interactionWidth: 18");
+    expect(canvasSource).toContain("interactionWidth: 10");
     expect(canvasSource).toContain("const resetLayout = useCallback");
     expect(canvasSource).toContain("onClick={resetLayout}");
     expect(canvasSource).not.toContain("assets: { x: 0, y: 660 }");
