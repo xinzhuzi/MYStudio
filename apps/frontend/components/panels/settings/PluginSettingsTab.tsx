@@ -491,7 +491,7 @@ export function PluginSettingsTab() {
             headingId="plugin-image-gen-heading"
             icon={ImageIcon}
             title="本地图片生成（免费）"
-            description="SDXL Turbo / FLUX.1-schnell 本地生图；生成入口仍需在云端 AI 设置中显式选择「本地图片生成」。"
+            description="Qwen-Image-Edit 2511 本地生图（大件指向 ComfyUI 现成文件零重下）；生成入口在云端 AI 设置中将生图绑定到「本地图片生成」。"
             pill={imageGenPill}
             collapsed={collapsedSections.has("image-gen")}
             onToggle={toggleSectionCollapsed}
@@ -556,7 +556,7 @@ export function PluginSettingsTab() {
             headingId="plugin-audio-music-heading"
             icon={Music2}
             title="本地音乐生成"
-            description="MiniMax-Music3 整曲生成（默认，约 12 GB）+ MusicGen 轻量备选；生成的音频可在工作台「章节共享音频」导入为 BGM 轨道。"
+            description="MiniMax-Music3 整曲生成（默认，bf16 约 28.5 GB）+ MusicGen 轻量备选；生成的音频可在工作台「章节共享音频」导入为 BGM 轨道。"
             pill={musicPill}
             collapsed={collapsedSections.has("audio-music")}
             onToggle={toggleSectionCollapsed}

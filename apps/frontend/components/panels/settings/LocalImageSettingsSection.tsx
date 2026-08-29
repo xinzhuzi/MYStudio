@@ -20,9 +20,11 @@ export function LocalImageSettingsSection({ embedded = false }: LocalImageSettin
   const runtime = useImageGenRuntimeSettings();
   const status = runtime.status;
   const lifecycleState = runtime.lifecycleStatus?.state;
-  const isReady = runtime.hasLifecycleBridge
+  const modelReady = runtime.hasLifecycleBridge
     ? lifecycleState === "ready"
-    : status?.setupStage === "ready" || status?.running;
+    : (status?.models ?? []).some((model) => model.downloaded);
+  const serverRunning = status?.running === true;
+  const isReady = modelReady && serverRunning;
   const setupFailed = runtime.lifecycleError || lifecycleState === "blocked" || lifecycleState === "error" || status?.setupStage === "failed";
 
   if (!runtime.hasRuntime) {
@@ -38,19 +40,19 @@ export function LocalImageSettingsSection({ embedded = false }: LocalImageSettin
       {/* Server row */}
       <div className="flex items-center justify-between gap-4">
         <div className="flex items-center gap-2 text-sm">
-          {isReady ? (
+          {modelReady ? (
             <Check className="h-4 w-4 text-success" aria-hidden />
           ) : (
             <ImageIcon className="h-4 w-4 text-muted-foreground" aria-hidden />
           )}
           <span className={cn("font-medium", setupFailed && "text-destructive")}>
-            {isReady
+            {serverRunning
               ? "本地生图服务运行中 (127.0.0.1:17595)"
               : setupFailed
                 ? (runtime.lifecycleError ?? status?.setupMessage ?? "服务启动失败")
-                : lifecycleState === "needs-runtime"
-                  ? "运行时未准备（请先准备模型）"
-                  : "服务未启动（依赖共享 Python 运行环境）"}
+                : modelReady
+                  ? "模型已就绪；本地服务未启动——点「准备运行时」拉起后即可生图"
+                  : "运行时未准备（请先准备模型）"}
           </span>
         </div>
         <div className="flex flex-wrap gap-2">

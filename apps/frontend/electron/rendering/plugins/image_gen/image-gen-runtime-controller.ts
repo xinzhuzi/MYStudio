@@ -318,9 +318,12 @@ export function createImageGenRuntimeController(deps: ControllerDeps) {
   function lifecycleStatus(): ImageGenRuntimeStatusV1 {
     const pythonAvailable = fs.existsSync(getPaths().pythonExecutable);
     const modelDownloaded = activeModelDownloaded();
+    // 就绪口径对齐视觉审核(VLM)区块:Python+模型大件在=ready,与本地服务
+    // 是否正在运行无关(服务由「准备运行时」/生图流程按需拉起)。旧口径把
+    // 服务未跑算 needs-runtime,导致模型明明就绪设置页却显示「需准备」。
     const stateValue: ImageGenRuntimeStatusV1["state"] = !pythonAvailable
       ? "blocked"
-      : !state.running || !modelDownloaded
+      : !modelDownloaded
         ? "needs-runtime"
         : "ready";
     return {
