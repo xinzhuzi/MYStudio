@@ -6,6 +6,7 @@ import { persist, createJSONStorage } from "zustand/middleware";
 import { createSplitStorage } from "@/lib/storage/project-storage";
 import { storageService } from "@/lib/storage/storage-service";
 import { generateUUID } from "@/lib/utils";
+import { useProjectStore } from "@/stores/project/project-store";
 import { MediaType, MediaFile, MediaFolder, MediaFolderCategory } from "@/types/media";
 import { saveImageToLocal, isElectron, moveLocalImageToCategory } from "@/lib/media/image-storage";
 import type { ImageCategory } from "@/lib/media/image-storage";
@@ -554,6 +555,37 @@ export const useMediaStore = create<MediaStore>()(
               }
             } catch {
               urlToSave = url;
+            }
+          }
+          // 副本库退役(08-30 B 方案):AI 生图媒体库落位从应用级
+          // media/ai-image 迁到活动项目 media/ai-image(project-file:// 协议);
+          // 无活动项目/桥不可用时回退应用级旧路径。
+          if (type === 'image' && source === 'ai-image') {
+            const projectIdNow = projectId ?? useProjectStore.getState().activeProjectId;
+            const projectFiles = (window as unknown as {
+              projectFiles?: {
+                saveImage: (payload: { projectId: string; relativePath: string; source: string }) =>
+                  Promise<{ success: boolean; url?: string; error?: string }>;
+              };
+            }).projectFiles;
+            if (projectIdNow && projectFiles?.saveImage) {
+              try {
+                const savedToProject = await projectFiles.saveImage({
+                  projectId: projectIdNow,
+                  relativePath: `media/ai-image/${filename}`,
+                  source: urlToSave,
+                });
+                if (savedToProject.success && savedToProject.url) {
+                  set((state) => ({
+                    mediaFiles: state.mediaFiles.map((f) =>
+                      f.id === id ? { ...f, url: savedToProject.url! } : f,
+                    ),
+                  }));
+                  return;
+                }
+              } catch {
+                // 回退应用级旧路径
+              }
             }
           }
           const localPath = await saveImageToLocal(urlToSave, category, filename);

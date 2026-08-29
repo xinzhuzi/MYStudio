@@ -66,6 +66,13 @@ import {
   generateViaReplicateImageEndpoint,
 } from './image-channel-adapters';
 import { saveFreedomImage, saveToMediaLibrary } from './generation-media';
+
+/** 媒体库落库闭包:persistMedia=false(分镜/资产自存项目真源)时跳过双写。 */
+function mediaSaverFor(persistMedia: boolean | undefined) {
+  return persistMedia === false
+    ? undefined
+    : (url: string, prompt: string) => saveToMediaLibrary(url, prompt, 'ai-image');
+}
 import type { FreedomImageParams, GenerationResult } from './generation-types';
 
 export type { FreedomImageParams, GenerationResult } from './generation-types';
@@ -222,7 +229,7 @@ async function generateChatForm(
     model,
     apiKey,
     baseUrl,
-    (url, prompt) => saveToMediaLibrary(url, prompt, 'ai-image'),
+    (url, prompt) => mediaSaverFor(params.persistMedia)!(url, prompt),
     operationId,
   );
 }
@@ -264,7 +271,7 @@ async function _generateFreedomImageInner(
       model,
       apiKey,
       normalizedBase,
-      (url, prompt) => saveToMediaLibrary(url, prompt, 'ai-image'),
+      (url, prompt) => mediaSaverFor(params.persistMedia)!(url, prompt),
       operationId,
     );
   }
@@ -456,7 +463,7 @@ async function generateViaImagesEndpoint(
               templateName: compatibilityResult.templateName,
             },
           });
-          const mediaId = saveToMediaLibrary(compatibilityResult.imageUrl, params.prompt, 'ai-image');
+          const mediaId = mediaSaverFor(params.persistMedia)?.(compatibilityResult.imageUrl, params.prompt);
           return { url: compatibilityResult.imageUrl, mediaId };
         }
         await logEvent({
@@ -476,7 +483,7 @@ async function generateViaImagesEndpoint(
       }
       throwImageSdkError(sdkResult, 'AI SDK 图片生成失败');
     }
-    const mediaId = saveToMediaLibrary(sdkResult.imageUrl, params.prompt, 'ai-image');
+    const mediaId = mediaSaverFor(params.persistMedia)?.(sdkResult.imageUrl, params.prompt);
     return { url: sdkResult.imageUrl, mediaId };
   }
 
@@ -524,7 +531,7 @@ async function generateViaImagesEndpoint(
     throw new Error('接口响应里没有图片地址');
   }
 
-  const mediaId = saveToMediaLibrary(imageUrl, params.prompt, 'ai-image');
+  const mediaId = mediaSaverFor(params.persistMedia)?.(imageUrl, params.prompt);
   return { url: imageUrl, taskId: taskId ? String(taskId) : undefined, mediaId };
 }
 

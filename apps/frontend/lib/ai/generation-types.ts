@@ -30,6 +30,11 @@ export interface FreedomImageParams {
    * 缺省 auto=按模型元数据智能路由(行为不变)。
    */
   transport?: "auto" | "chat";
+  /**
+   * false=调用方自存项目真源(分镜/资产生图链),跳过媒体库副本双写;
+   * 缺省 true=落媒体库 ai-image 分类(自由面板依赖返回的 mediaId)。
+   */
+  persistMedia?: boolean;
 }
 
 export interface FreedomVideoParams {
