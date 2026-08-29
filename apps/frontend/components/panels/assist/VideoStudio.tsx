@@ -12,14 +12,14 @@ import { useFreedomStore } from '@/stores/assist/freedom-store';
 import { useAPIConfigStore } from '@/stores/ai/api-config-store';
 import { ModelSelector } from './ModelSelector';
 import { GenerationHistory } from './GenerationHistory';
-import { type FreedomVideoUploadFile } from '@/lib/assist/freedom-api';
+import { type FreedomVideoUploadFile } from '@/lib/ai/video-upload-validation';
 import { aiManager } from '@/lib/ai/ai-manager';
 import {
   getAspectRatiosForT2VModel,
   getDurationsForModel,
   getResolutionsForModel,
 } from '@/lib/assist/model-registry';
-import { resolveVeoUploadCapability, type VeoUploadCapability } from '@/lib/assist/veo-capability';
+import { resolveVeoUploadCapability, type VeoUploadCapability } from '@/lib/ai/veo-capability';
 import { ResolutionBadge } from "@/components/ui/image-resolution-badge";
 
 interface LocalUploadAsset {
@@ -366,7 +366,7 @@ export function VideoStudio() {
     setVideoResult(null);
 
     try {
-      const result = await aiManager.freedomVideo({
+      const result = await aiManager.generateVideo({
         prompt: videoPrompt,
         model: selectedVideoModel,
         aspectRatio: videoAspectRatio,

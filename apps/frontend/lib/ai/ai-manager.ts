@@ -18,7 +18,7 @@ import {
 import { getWorkerBridge, initializeWorkerBridge, type AIWorkerBridge } from "@/lib/ai/worker-bridge";
 import { extractStyleTokens } from "@/lib/ai/style-extractor";
 import { generateImage as _engineGenerateImage } from "@/lib/ai/image-generation-engine";
-import { generateFreedomVideo } from "@/lib/assist/freedom-api";
+import { generateVideo as _engineGenerateVideo } from "@/lib/ai/video-generation-engine";
 import { callVideoGenerationApi } from "@/lib/ai/video-generator";
 import { generateSpeech } from "@/lib/tts/client";
 import {
@@ -163,8 +163,8 @@ function generateImage(...args: Parameters<typeof _engineGenerateImage>) {
 }
 
 /** 自由板块视频生成。 */
-function freedomVideo(...args: Parameters<typeof generateFreedomVideo>) {
-  return generateFreedomVideo(...args);
+function generateVideo(...args: Parameters<typeof _engineGenerateVideo>) {
+  return _engineGenerateVideo(...args);
 }
 
 /** 视频生成（统一直连视频 API：提交+轮询，支持 kling/grok/minimax/luma/runway/wan/vidu 等）。 */
@@ -187,6 +187,6 @@ export const aiManager = {
   chatMultimodal,
   vision,
   generateImage,
-  freedomVideo,
+  generateVideo,
   video,
 };

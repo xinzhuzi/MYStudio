@@ -1,11 +1,12 @@
+import type { FreedomVideoUploadFile } from './video-upload-validation';
+
 /**
  * 分层定位(2026-08-29 迁自 lib/assist/freedom-*,Trellis 08-28-freedom-image-engine-rename 批次 A):
  * 渠道/引擎层——与 image-generator/mikoto-async 同层,服务于所有生图消费方
  * (自由面板/分镜批量/资产生成),不隶属任何单一面板。行为零变更,纯迁移。
  */
 /**
- * 生图引擎通用契约(参数/结果)。视频参数(FreedomVideoParams)留在
- * lib/assist/freedom-types.ts,待二期视频链正名时一并迁入。
+ * 生图/生视频引擎通用契约(参数/结果)。
  */
 
 export interface FreedomImageParams {
@@ -29,6 +30,15 @@ export interface FreedomImageParams {
    * 缺省 auto=按模型元数据智能路由(行为不变)。
    */
   transport?: "auto" | "chat";
+}
+
+export interface FreedomVideoParams {
+  prompt: string;
+  model?: string;
+  aspectRatio?: string;
+  duration?: number;
+  resolution?: string;
+  uploadFiles?: FreedomVideoUploadFile[];
 }
 
 export interface GenerationResult {
