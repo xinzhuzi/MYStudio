@@ -1,4 +1,5 @@
 import { aiManager } from "@/lib/ai/ai-manager";
+import { maybeAutoDenoiseUrl } from "@/lib/ai/image-auto-denoise";
 import { getProjectFilesBridge } from "@/lib/bridge/project-files";
 import { getStudioAssetsBridge } from "@/lib/bridge/studio-assets";
 import { createOperationId, logEvent } from "@/lib/diagnostics/logger";
@@ -111,6 +112,9 @@ export async function runImageWorkflowNodeGeneration(
   });
   const generateAndSave = async (transport?: "chat") => {
     const generated = await aiManager.generateImage(buildRequest(transport));
+    // 生图落库自动去噪(噪点治理 08-29):开关开启时,成图在写入项目
+    // workflow-images 前先过轻度双边滤波;失败原样保存(fail-open)。
+    const denoisedSource = await maybeAutoDenoiseUrl(generated.url);
     const saved = await getProjectFilesBridge()?.saveImage({
       projectId,
       relativePath: workflowImageRelativePath(
@@ -118,7 +122,7 @@ export async function runImageWorkflowNodeGeneration(
         createWorkflowFilename("gen", targetNodeId, `${node?.title || "workflow-image"}.png`),
         chapterId,
       ),
-      source: generated.url,
+      source: denoisedSource,
     });
     return { generated, saved };
   };
@@ -172,7 +176,9 @@ export async function runImageWorkflowNodeGeneration(
  */
 function hardenReferenceAnchors(prompt: string): string {
   return prompt.replace(
-    /@图(\d+)\s*为([^,;；\n]*?)(角色|场景|道具)(?![^\n]*一致)/g,
+    // 名字段允许半角分号:复合资产名「李先生;管事」不可再截断(08-28 无色根修),
+    // 全角「；」仍是参考行分隔符、半/全角逗号仍排除。
+    /@图(\d+)\s*为([^,，；\n]*?)(角色|场景|道具)(?![^\n]*一致)/g,
     (_line, num: string, name: string, kind: string) =>
       `@图${num} 为${name}${kind}，外观须与@图${num}一致`,
   );

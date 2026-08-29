@@ -122,6 +122,11 @@ async function loadToCanvas(url: string): Promise<HTMLCanvasElement | null> {
   return canvas;
 }
 
+/** 落库前自动去噪入口(读设置开关):项目内落图消费方共用。 */
+export async function maybeAutoDenoiseUrl(url: string): Promise<string> {
+  return applyAutoDenoise(url, isAutoDenoiseEnabled());
+}
+
 /** 落库前自动去噪入口:失败/未启用/非图一律原样返回。 */
 export async function applyAutoDenoise(url: string, enabled: boolean): Promise<string> {
   if (!enabled || !url || !(url.startsWith("data:image") || url.startsWith("http"))) return url;

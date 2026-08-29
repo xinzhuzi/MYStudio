@@ -13,6 +13,7 @@
  */
 
 import { aiManager } from "@/lib/ai/ai-manager";
+import { maybeAutoDenoiseUrl } from "@/lib/ai/image-auto-denoise";
 import { createOperationId, logEvent } from "@/lib/diagnostics/logger";
 import {
   compileDaojiePrompt,
@@ -816,6 +817,8 @@ async function saveGeneratedAssetImage({
   category: ImageCategory;
 }) {
   const filename = `${safePathSegment(assetId, "asset")}-${safePathSegment(assetName, "asset")}-${Date.now()}.png`;
+  // 生图落库自动去噪(噪点治理 08-29):资产图入库前统一过一道;失败原样(fail-open)
+  source = await maybeAutoDenoiseUrl(source);
   if (!projectId) {
     if (isDerivative) {
       throw new Error("衍生资产图片必须保存到当前项目");
