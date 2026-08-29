@@ -67,13 +67,14 @@ def _build_review_prompt(
 3. scene_ok: 画面中的场景是否与场景参考图匹配(布局、色调、氛围)?
 4. prop_ok: 画面中的道具是否与参考图中的道具匹配(位置、状态)?
 5. text_watermark_ok: 画面中是否有不该出现的文字、水印或杂乱元素?
+6. noise_clean_ok: 画面是否干净(无斑驳噪点、霉斑、杂色颗粒;正常的水墨笔触和飞白不算噪点)?
 
 期望画面内容:{expected_content}
 期望出现的角色:{", ".join(expected_characters) if expected_characters else "无特定角色"}
 
 请严格用以下 JSON 格式回答(不要添加其他文字):
 {{"character_ok": true或false, "costume_ok": true或false, "scene_ok": true或false,
-  "prop_ok": true或false, "text_watermark_ok": true或false,
+  "prop_ok": true或false, "text_watermark_ok": true或false, "noise_clean_ok": true或false,
   "reasons": ["中文理由1", "中文理由2"]}}"""
 
 
@@ -93,7 +94,7 @@ def _parse_vlm_json(response: str) -> dict[str, Any]:
     except json.JSONDecodeError as exc:
         raise VlmReviewError("vlm-parse-failed", f"VLM JSON 解析失败: {exc}")
     checks: dict[str, Any] = {}
-    for key in ("character_ok", "costume_ok", "scene_ok", "prop_ok", "text_watermark_ok"):
+    for key in ("character_ok", "costume_ok", "scene_ok", "prop_ok", "text_watermark_ok", "noise_clean_ok"):
         checks[key] = bool(data.get(key, True))  # 默认 True(缺项不误杀)
     checks["reasons"] = [str(r) for r in data.get("reasons", []) if str(r).strip()]
     return checks
@@ -169,7 +170,7 @@ def review_image(
 
         all_ok = all(
             checks[k]
-            for k in ("character_ok", "costume_ok", "scene_ok", "prop_ok", "text_watermark_ok")
+            for k in ("character_ok", "costume_ok", "scene_ok", "prop_ok", "text_watermark_ok", "noise_clean_ok")
         )
         return {
             "status": "accepted" if all_ok else "rejected",

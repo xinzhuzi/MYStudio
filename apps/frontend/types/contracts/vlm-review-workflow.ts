@@ -27,6 +27,7 @@ export interface VlmReviewChecks {
   scene_ok: boolean;
   prop_ok: boolean;
   text_watermark_ok: boolean;
+  noise_clean_ok: boolean;
 }
 
 export interface VlmReviewArtifactV1 {
