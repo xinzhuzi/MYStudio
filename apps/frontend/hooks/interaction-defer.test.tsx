@@ -7,7 +7,7 @@ import {
   interactionDeferEnd,
   useInteractionSettled,
   whenInteractionSettled,
-} from "./interaction-defer";
+} from "@/hooks/interaction-defer";
 
 vi.useFakeTimers();
 

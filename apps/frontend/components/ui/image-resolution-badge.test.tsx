@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { act, cleanup, render, screen, waitFor } from "@testing-library/react";
-import { interactionDeferBegin, interactionDeferEnd } from "@/components/panels/studio/previews/interaction-defer";
+import { interactionDeferBegin, interactionDeferEnd } from "@/hooks/interaction-defer";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   ResolutionBadge,

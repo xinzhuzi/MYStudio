@@ -6,7 +6,7 @@ import {
   __resetInteractionDeferForTests,
   interactionDeferBegin,
   interactionDeferEnd,
-} from "@/components/panels/studio/previews/interaction-defer";
+} from "@/hooks/interaction-defer";
 
 vi.useFakeTimers();
 
