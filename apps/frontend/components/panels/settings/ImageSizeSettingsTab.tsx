@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Switch } from "@/components/ui/switch";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   GPT_IMAGE_SIZE_MAP,
   IMAGE_ASPECT_RATIOS,
@@ -101,10 +102,16 @@ export function ImageSizeSettingsTab({ settings, onChange }: ImageSizeSettingsTa
                   生图保存时自动压掉画面上的斑驳噪点和脏斑（保留人物、线稿和颜色，肉眼无感）。适合参考图容易带脏斑的出图；追求原图质感可关闭。
                 </div>
               </div>
-              <Switch
-                checked={settings.autoDenoiseEnabled}
-                onCheckedChange={(checked) => onChange({ autoDenoiseEnabled: checked })}
-              />
+              <label
+                className="flex cursor-pointer items-center gap-2 rounded-md border border-border bg-muted/20 px-3 py-2 text-sm"
+                data-image-auto-denoise-checkbox
+              >
+                <Checkbox
+                  checked={settings.autoDenoiseEnabled}
+                  onCheckedChange={(checked) => onChange({ autoDenoiseEnabled: checked === true })}
+                />
+                <span>{settings.autoDenoiseEnabled ? "已开启：生图保存时自动去噪" : "开启后生图保存时自动去噪"}</span>
+              </label>
             </div>
           </div>
 
