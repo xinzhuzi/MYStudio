@@ -1,11 +1,9 @@
 import { memo, useEffect, useState } from "react";
-import { createPortal } from "react-dom";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Handle, Position, type Node, type NodeProps } from "@xyflow/react";
-import { CheckCircle2, Image as ImageIcon, Loader2, Maximize2, Save, Trash2, WandSparkles, ZoomIn } from "lucide-react";
+import { CheckCircle2, Image as ImageIcon, Loader2, Save, Trash2, WandSparkles, ZoomIn } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { ImagePreviewModal } from "@/components/features/media/media-preview-modal";
 import { LocalImage } from "@/components/ui/local-image";
 import { ResolutionBadge, probeImagePixelSize } from "@/components/ui/image-resolution-badge";
 import { Textarea } from "@/components/ui/textarea";
@@ -132,35 +130,6 @@ export const ImageWorkflowNodeCard = memo(function ImageWorkflowNodeCard({ data 
 
 ImageWorkflowNodeCard.displayName = "ImageWorkflowNodeCard";
 
-/**
- * React Flow 节点外层带 transform,弹窗的 fixed 定位会相对节点而非视口,
- * 因此用 portal 挂到 document.body;预览用原图地址(不带 ?thumb=1)。
- */
-function NodeImagePreviewButton({ src, label }: { src: string; label: string }) {
-  const [open, setOpen] = useState(false);
-  return (
-    <>
-      <Button
-        size="sm"
-        variant="secondary"
-        className="nodrag nopan"
-        onClick={() => setOpen(true)}
-        aria-label={label}
-        title="打开大图查看原图"
-      >
-        <Maximize2 className="h-3.5 w-3.5" />
-        展示
-      </Button>
-      {open
-        ? createPortal(
-            <ImagePreviewModal imageUrl={src} isOpen onClose={() => setOpen(false)} />,
-            document.body,
-          )
-        : null}
-    </>
-  );
-}
-
 function ReferenceNodeEditor({
   node,
   onUpdate,
@@ -177,6 +146,7 @@ function ReferenceNodeEditor({
               src={withThumbVariant(toPreviewSrc(node.imageUrl))}
               alt={node.title}
               className="h-full w-full object-cover"
+              previewable
             />
             <ResolutionBadge src={toPreviewSrc(node.imageUrl)} />
           </span>
@@ -184,11 +154,6 @@ function ReferenceNodeEditor({
           <div className="flex h-full items-center justify-center text-xs text-muted-foreground">暂无图片</div>
         )}
       </div>
-      {node.imageUrl ? (
-        <div className="nodrag nopan">
-          <NodeImagePreviewButton src={toPreviewSrc(node.imageUrl)} label={`展示参考图 ${node.title}`} />
-        </div>
-      ) : null}
       <input
         value={node.imageUrl}
         onChange={(event) => onUpdate(node.id, { imageUrl: event.target.value } as Partial<ImageWorkflowNode>)}
@@ -285,6 +250,7 @@ function GeneratedNodeEditor({
               src={withThumbVariant(toPreviewSrc(node.resultUrl))}
               alt={node.title}
               className="h-full w-full object-cover"
+              previewable
             />
             <ResolutionBadge src={toPreviewSrc(node.resultUrl)} />
           </span>
@@ -335,9 +301,6 @@ function GeneratedNodeEditor({
           {node.status}
         </span>
         <div className="flex items-center gap-2">
-          {node.resultUrl ? (
-            <NodeImagePreviewButton src={toPreviewSrc(node.resultUrl)} label={`展示成图 ${node.title}`} />
-          ) : null}
           <Button size="sm" variant="secondary" onClick={() => onApplyToStoryboard(node.id)} disabled={!node.resultUrl}>
             <Save className="h-3.5 w-3.5" />
             回写

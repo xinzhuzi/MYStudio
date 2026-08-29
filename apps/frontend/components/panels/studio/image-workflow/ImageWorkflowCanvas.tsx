@@ -11,9 +11,8 @@ import {
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import { CanvasViewportControls } from "../CanvasViewportControls";
-import { interactionDeferBegin, interactionDeferEnd } from "../previews/interaction-defer";
-import { useSmoothWheelZoom } from "../previews/smooth-wheel-zoom";
 import { InteractionDeferHint } from "../previews/interaction-defer-hint";
+import { useCanvasGestureKernel } from "../use-canvas-gesture-kernel";
 import { useScopedWorkflowLifecycle } from "./use-scoped-workflow-lifecycle";
 import { buildSwitchContext, useStoryboardWorkflowSwitch } from "./use-storyboard-workflow-switch";
 import { useChapterStoryboards } from "../use-chapter-storyboards";
@@ -603,31 +602,23 @@ function ImageWorkflowFlowView({
 
   // 交互(拖节点/平移/缩放)期间给容器打标,CSS 把卡片大阴影、ReactFlow
   // Background pattern、毛玻璃等重活临时降级,松手/静止 180ms 后恢复。
+  // 手势层单源(08-30 收敛 Phase2):两画布共用 useCanvasGestureKernel,
+  // 类名/摘标延迟/缩放界为策略注入。
   const interactingRef = useRef<HTMLDivElement | null>(null);
-  // 滚轮平滑缩放:rAF 节流+指数插值,接管 d3 逐事件直应用(高速滚轮掉帧根修)
-  useSmoothWheelZoom(
-    interactingRef,
-    flowInstance && {
+  const {
+    setInteracting,
+    handleMoveStart,
+    handleMoveEnd,
+    handleNodeDragStart,
+  } = useCanvasGestureKernel({
+    containerRef: interactingRef,
+    viewportApi: flowInstance && {
       getViewport: () => flowInstance.getViewport(),
       setViewport: (viewport) => flowInstance.setViewport(viewport),
     },
-    { minZoom: 0.5, maxZoom: 2 },
-  );
-  const interactEndTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
-  const setInteracting = useCallback((on: boolean) => {
-    const el = interactingRef.current;
-    if (!el) return;
-    clearTimeout(interactEndTimerRef.current);
-    if (on) {
-      el.classList.add("workflow-canvas-interacting");
-    } else {
-      // 拖/缩放结束稍微延迟摘标,避免最后一帧抖动闪烁
-      interactEndTimerRef.current = setTimeout(() => {
-        el.classList.remove("workflow-canvas-interacting");
-      }, 180);
-    }
-  }, []);
-  useEffect(() => () => clearTimeout(interactEndTimerRef.current), []);
+    interactingClass: "workflow-canvas-interacting",
+    zoom: { minZoom: 0.5, maxZoom: 2 },
+  });
 
   useEffect(() => {
     if (!flowInstance || nodes.length === 0) return;
@@ -668,21 +659,13 @@ function ImageWorkflowFlowView({
         onNodeClick={(_, node) => onNodeClick(node.id)}
         onPaneClick={onPaneClick}
         onEdgeClick={(_, edge) => onEdgeClick(edge.id)}
-        onNodeDragStart={() => setInteracting(true)}
+        onNodeDragStart={handleNodeDragStart}
         onNodeDragStop={(_, node) => {
           setInteracting(false);
           onNodeDragStop(node.id, node.position);
         }}
-        onMoveStart={(event) => {
-          setInteracting(true);
-          // 程序性视口变化(event=null)不关闸,仅用户手势延迟图片加载
-          if (event) interactionDeferBegin();
-        }}
-        onMoveEnd={() => {
-          setInteracting(false);
-          // 同生产画布:开闸无条件,防 wheel end 无 event 导致闸门关死
-          interactionDeferEnd();
-        }}
+        onMoveStart={handleMoveStart}
+        onMoveEnd={handleMoveEnd}
         onConnect={onConnect}
         onInit={(instance) => {
           setFlowInstance(instance);

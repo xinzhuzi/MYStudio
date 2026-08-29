@@ -128,7 +128,7 @@ export function LocalImage({
               event.stopPropagation();
               setPreviewOpen(true);
             }}
-            className="absolute bottom-1.5 right-1.5 z-10 flex h-6 w-6 items-center justify-center rounded-md bg-background/80 text-foreground transition-colors hover:bg-background"
+            className="nodrag nopan absolute bottom-1.5 right-1.5 z-10 flex h-6 w-6 items-center justify-center rounded-md bg-background/80 text-foreground transition-colors hover:bg-background"
           >
             <Maximize2 className="h-3.5 w-3.5" />
           </button>

@@ -222,8 +222,7 @@ function CanvasDomMetricsLogger({ isVisible }: { isVisible: boolean }) {
   return null;
 }
 
-import { interactionDeferBegin, interactionDeferEnd } from "./previews/interaction-defer";
-import { useSmoothWheelZoom } from "./previews/smooth-wheel-zoom";
+import { useCanvasGestureKernel } from "./use-canvas-gesture-kernel";
 
 export function WorkflowNodeCanvas({
   isVisible,
@@ -273,15 +272,6 @@ export function WorkflowNodeCanvas({
   const [flowInstance, setFlowInstance] =
     useState<ReactFlowInstance<ProductionFlowReactNode, Edge> | null>(null);
   const canvasSectionRef = useRef<HTMLElement | null>(null);
-  // 滚轮平滑缩放:rAF 节流+指数插值,接管 d3 逐事件直应用(高速滚轮掉帧根修)
-  useSmoothWheelZoom(
-    canvasSectionRef,
-    flowInstance && {
-      getViewport: () => flowInstance.getViewport(),
-      setViewport: (viewport) => flowInstance.setViewport(viewport),
-    },
-    { minZoom: PRODUCTION_CANVAS_MIN_ZOOM, maxZoom: PRODUCTION_CANVAS_MAX_ZOOM },
-  );
   const pendingLayoutFrameRef = useRef<number | null>(null);
   const measuredLayoutKeyRef = useRef<string | null>(null);
   const measuredNodeDimensionsRef = useRef(new Map<string, string>());
@@ -473,23 +463,23 @@ export function WorkflowNodeCanvas({
     claimViewportForUser();
     void flowInstance.fitView({ ...FIT_VIEW_OPTIONS, duration: 0 });
   }, [claimViewportForUser, flowInstance]);
-  const handleViewportMoveStart = useCallback((event: MouseEvent | TouchEvent | null) => {
-    canvasSectionRef.current?.classList.add("workflow-node-canvas-interacting");
-    // 程序性视口变化(event=null:挂载 fitView/布局对齐)不关闸——只有用户
-    // 手势(拖拽/滚轮/捏合)才延迟图片加载,否则首屏图片被误拦(装机 smoke
-    // 2026-08-26 实证失败)。
-    if (event) {
-      interactionDeferBegin();
-      claimViewportForUser();
-    }
-  }, [claimViewportForUser]);
-  const handleViewportMoveEnd = useCallback(() => {
-    canvasSectionRef.current?.classList.remove("workflow-node-canvas-interacting");
-    // 开闸必须无条件:wheel 手势的 onMoveEnd 未必带 event(d3 对滚轮与拖拽
-    // 走不同路径),若按 event 门控,首次滚轮后闸门永远关死→图片永久占位
-    // (2026-08-26 用户实弹「滚轮没效果」根因)。对已开的闸是无害空操作。
-    interactionDeferEnd();
-  }, []);
+  // 手势层单源(08-30 收敛 Phase2):打标/门闸/平滑缩放共用 useCanvasGestureKernel;
+  // 主画布策略=立即摘标(classRemovalDelayMs 0)+用户手势接管视口所有权。
+  // 语义铁律(实弹教训,详见 hook 注释):程序性视口不关闸;开闸无条件。
+  const {
+    handleMoveStart: handleViewportMoveStart,
+    handleMoveEnd: handleViewportMoveEnd,
+  } = useCanvasGestureKernel({
+    containerRef: canvasSectionRef,
+    viewportApi: flowInstance && {
+      getViewport: () => flowInstance.getViewport(),
+      setViewport: (viewport) => flowInstance.setViewport(viewport),
+    },
+    interactingClass: "workflow-node-canvas-interacting",
+    classRemovalDelayMs: 0,
+    zoom: { minZoom: PRODUCTION_CANVAS_MIN_ZOOM, maxZoom: PRODUCTION_CANVAS_MAX_ZOOM },
+    onUserGestureStart: claimViewportForUser,
+  });
   const onNodesChange = useCallback((changes: NodeChange<ProductionFlowReactNode>[]) => {
     if (changes.some((change) => change.type === "position" && change.dragging)) {
       claimViewportForUser();

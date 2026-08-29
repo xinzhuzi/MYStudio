@@ -492,12 +492,19 @@ describe("studio workflow tabs", () => {
     expect(canvasSource).toContain("minZoom={PRODUCTION_CANVAS_MIN_ZOOM}");
     expect(canvasSource).toContain("maxZoom={PRODUCTION_CANVAS_MAX_ZOOM}");
     expect(canvasSource).toContain("onlyRenderVisibleElements");
-    expect(canvasSource).toContain(
-      'canvasSectionRef.current?.classList.add("workflow-node-canvas-interacting")',
+    // 08-30 收敛 Phase2:手势层(打标/门闸/平滑缩放)单源 useCanvasGestureKernel,
+    // 主画布以策略注入消费(类名/立即摘标/视口所有权接管)
+    expect(canvasSource).toContain("useCanvasGestureKernel({");
+    expect(canvasSource).toContain('interactingClass: "workflow-node-canvas-interacting"');
+    expect(canvasSource).toContain("classRemovalDelayMs: 0");
+    expect(canvasSource).toContain("onUserGestureStart: claimViewportForUser");
+    const gestureKernelSource = readFileSync(
+      fileURLToPath(new URL("./use-canvas-gesture-kernel.ts", import.meta.url)),
+      "utf8",
     );
-    expect(canvasSource).toContain(
-      'canvasSectionRef.current?.classList.remove("workflow-node-canvas-interacting")',
-    );
+    expect(gestureKernelSource).toContain('el.classList.add(interactingClass)');
+    expect(gestureKernelSource).toContain("interactionDeferBegin()");
+    expect(gestureKernelSource).toContain("interactionDeferEnd()");
     expect(viewportControlsSource).toContain("{zoomPercent}%");
     expect(canvasSource).not.toContain("Background,");
     expect(canvasSource).not.toContain("<Background");
@@ -545,7 +552,8 @@ describe("studio workflow tabs", () => {
     expect(canvasSource).toContain("layoutVersionRef");
     expect(canvasSource).toContain("measuredNodeDimensionsRef");
     expect(canvasSource).toContain("dimensionsChanged");
-    expect(canvasSource).toContain("if (event)");
+    // 程序性视口不关闸语义已随手势层收敛进 kernel(if (event) 分支)
+    expect(gestureKernelSource).toContain("if (event) {");
     expect(canvasSource).not.toContain("\n          fitView\n");
     expect(productionNodeSource).toContain('id="script-assets-source"');
     expect(canvasSource).toContain('sourceHandle:');
