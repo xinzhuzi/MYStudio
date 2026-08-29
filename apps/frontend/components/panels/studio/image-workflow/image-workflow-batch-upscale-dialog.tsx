@@ -32,6 +32,8 @@ export function ImageWorkflowBatchUpscaleDialog({
   selection,
   onSelectionChange,
   onStart,
+  denoise = false,
+  onDenoiseChange,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -39,6 +41,9 @@ export function ImageWorkflowBatchUpscaleDialog({
   selection: Set<string>;
   onSelectionChange: (next: Set<string>) => void;
   onStart: () => void;
+  /** 轻度去噪预处理开关(超分前压斑驳噪点;缺省关,存量行为不变)。 */
+  denoise?: boolean;
+  onDenoiseChange?: (next: boolean) => void;
 }) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -69,6 +74,18 @@ export function ImageWorkflowBatchUpscaleDialog({
             </label>
           ))}
         </div>
+        {onDenoiseChange ? (
+          <label
+            className="flex cursor-pointer items-center gap-2 rounded-md border border-border bg-muted/20 px-3 py-2 text-sm"
+            data-image-workflow-batch-upscale-denoise
+          >
+            <Checkbox
+              checked={denoise}
+              onCheckedChange={(checked) => onDenoiseChange(checked === true)}
+            />
+            <span>先去噪（轻度，压掉斑驳噪点再放大）</span>
+          </label>
+        ) : null}
         <DialogFooter>
           <Button variant="ghost" size="sm" onClick={() => onOpenChange(false)}>
             取消

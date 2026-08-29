@@ -31,6 +31,13 @@ describe("upscale workflow contracts", () => {
     expect(withShot.success).toBe(true);
   });
 
+  it("accepts optional denoise pre-pass flag and rejects non-boolean", () => {
+    expect(validateUpscaleRunRequest({ ...validRequest, denoise: true }).success).toBe(true);
+    expect(validateUpscaleRunRequest({ ...validRequest, denoise: false }).success).toBe(true);
+    expect(validateUpscaleRunRequest({ ...validRequest, denoise: "yes" }).success).toBe(false);
+    expect(validateUpscaleRunRequest({ ...validRequest, denoise: 1 }).success).toBe(false);
+  });
+
   it("accepts local-image:// media references", () => {
     const localImage = {
       ...validRequest,

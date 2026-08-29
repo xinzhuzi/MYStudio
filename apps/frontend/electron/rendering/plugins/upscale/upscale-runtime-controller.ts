@@ -592,6 +592,7 @@ export function createUpscaleRuntimeController(deps: ControllerDeps) {
       model: value.model,
       inputImagePath: inputAbsolute,
       outputImagePath: outputAbsolute,
+      ...(value.denoise ? { denoise: true } : {}),
     };
     fs.writeFileSync(requestPath, JSON.stringify(workerRequest, null, 2), "utf8");
 

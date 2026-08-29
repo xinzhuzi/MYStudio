@@ -24,6 +24,7 @@ import {
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
+  tidyImageWorkflowLayout,
   updateImageWorkflowNode,
   updateImageWorkflowNodePosition,
 } from "@/lib/studio/image-workflow";
@@ -241,6 +242,9 @@ export function ImageWorkflowCanvas({
         target: edge.target,
         label: edge.label,
         markerEnd: { type: MarkerType.ArrowClosed, color: "#67e8f9" },
+        // 连线层置于节点之上(见 index.css):隐形点击带收窄到 10px,
+        // 连线压过卡片时不吞卡片上按钮/输入的点击
+        interactionWidth: 10,
         style: {
           stroke: edge.id === selectedEdgeId ? "#fbbf24" : "#67e8f9",
           strokeWidth: edge.id === selectedEdgeId ? 3 : 2,
@@ -313,6 +317,7 @@ export function ImageWorkflowCanvas({
 
   const [isBatchUpscaleDialogOpen, setIsBatchUpscaleDialogOpen] = useState(false);
   const [batchUpscaleSelection, setBatchUpscaleSelection] = useState<Set<string>>(new Set());
+  const [batchUpscaleDenoise, setBatchUpscaleDenoise] = useState(false);
   const upscalableNodes = useMemo(
     () => (activeGraph?.nodes ?? []).filter(
       (node): node is ImageWorkflowGeneratedNode =>
@@ -335,8 +340,8 @@ export function ImageWorkflowCanvas({
       .filter((node) => batchUpscaleSelection.has(node.id))
       .map((node) => ({ nodeId: node.id, title: node.title, resultUrl: node.resultUrl as string }));
     setIsBatchUpscaleDialogOpen(false);
-    if (entries.length > 0) void upscaleBatch(entries);
-  }, [batchUpscaleSelection, upscaleBatch, upscalableNodes]);
+    if (entries.length > 0) void upscaleBatch(entries, { denoise: batchUpscaleDenoise });
+  }, [batchUpscaleDenoise, batchUpscaleSelection, upscaleBatch, upscalableNodes]);
 
   const reactFlowNodes = useMemo<ImageWorkflowReactNode[]>(
     () =>
@@ -392,6 +397,17 @@ export function ImageWorkflowCanvas({
     () => flowInstance?.fitView({ ...FIT_VIEW_OPTIONS, duration: 180 }),
     [flowInstance],
   );
+  const handleTidyLayout = useCallback(() => {
+    if (!activeGraph) return;
+    const tidied = tidyImageWorkflowLayout(activeGraph);
+    if (tidied === activeGraph) return;
+    saveGraph(tidied);
+    toast.success("已重排:输入(提示词/参考)居左、成图居右,连线走中间泳道");
+    // 布局生效后一帧再适配视口(与首帧 fitView 同款时机)
+    window.requestAnimationFrame(() => {
+      window.setTimeout(() => flowInstance?.fitView({ ...FIT_VIEW_OPTIONS, duration: 260 }), 80);
+    });
+  }, [activeGraph, flowInstance, saveGraph]);
 
   if (!activeGraph) {
     if (isScopedWorkflowDetail) {
@@ -481,6 +497,7 @@ export function ImageWorkflowCanvas({
           selectedEdgeId={selectedEdgeId}
           onDeleteSelectedEdge={deleteSelectedEdge}
           onFitView={handleFitView}
+          onTidyLayout={handleTidyLayout}
         />
       </div>
 
@@ -510,6 +527,8 @@ export function ImageWorkflowCanvas({
         upscalableNodes={upscalableNodes}
         selection={batchUpscaleSelection}
         onSelectionChange={setBatchUpscaleSelection}
+          denoise={batchUpscaleDenoise}
+          onDenoiseChange={setBatchUpscaleDenoise}
         onStart={startBatchUpscale}
       />
       <ImageWorkflowBatchUpscaleProgress

@@ -75,4 +75,6 @@ export interface UpscaleRunPayload {
   inputImagePath: string;
   /** Project-relative output path — same directory as the input. */
   outputImagePath: string;
+  /** 轻度去噪预处理(超分前, 噪点治理 08-29);缺省 false。 */
+  denoise?: boolean;
 }

@@ -85,8 +85,9 @@ def _run(input_path: str, output_path: str) -> dict[str, Any]:
 
     # 档位校准(用户裁定 08-27 晚:超分输出必须稳定落 4K 档,默认开)
     snap_4k = bool(request.get("snap4k", True))
+    denoise = bool(request.get("denoise", False))
     try:
-        result = upscale_image(input_image, output_image, model, snap_4k=snap_4k)
+        result = upscale_image(input_image, output_image, model, snap_4k=snap_4k, denoise=denoise)
     except UpscaleError as exc:
         return _blocked(request, exc.code, exc.message)
     except Exception as exc:

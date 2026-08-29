@@ -254,6 +254,38 @@ def _snap_target_4k(width: int, height: int) -> tuple[int, int] | None:
     return best
 
 
+
+def _lowfreq_denoise(rgb: "Image.Image", strength: float = 12.0, keep: float = 0.3) -> "Image.Image":
+    """双边滤波低频+高频软阈值保线稿(轻度去噪档)。
+
+    与 apps/build/scripts/image_lowfreq_denoise.py 同源(噪点治理 08-29);
+    只在超分前做预处理,gpt-image 斑驳噪点先压掉再放大。
+    """
+    import numpy as np
+    from PIL import Image
+
+    def bilateral(a: "np.ndarray", radius: int = 4, sigma_s: float = 4.0, sigma_r: float = 25.0) -> "np.ndarray":
+        out = np.zeros_like(a)
+        wsum = np.zeros(a.shape[:2] + (1,), dtype=np.float32)
+        gs = np.exp(-(np.arange(-radius, radius + 1) ** 2) / (2 * sigma_s**2))
+        for di in range(-radius, radius + 1):
+            for dj in range(-radius, radius + 1):
+                sh = np.roll(np.roll(a, di, axis=0), dj, axis=1)
+                dr = np.linalg.norm(sh - a, axis=2, keepdims=True)
+                wgt = gs[abs(di)] * gs[abs(dj)] * np.exp(-(dr**2) / (2 * sigma_r**2))
+                out += sh * wgt
+                wsum += wgt
+        return out / wsum
+
+    a = np.asarray(rgb, dtype=np.float32)
+    low = bilateral(a)
+    high = a - low
+    mag = np.abs(high).max(axis=2, keepdims=True)
+    gain = keep + (1.0 - keep) * np.clip(mag / max(strength, 1e-3), 0.0, 1.0)
+    out = low + high * gain
+    return Image.fromarray(np.clip(out, 0, 255).astype(np.uint8))
+
+
 def upscale_image(
     input_path: str,
     output_path: str,
@@ -262,8 +294,12 @@ def upscale_image(
     tile: int = DEFAULT_TILE,
     tile_pad: int = DEFAULT_TILE_PAD,
     snap_4k: bool = False,
+    denoise: bool = False,
 ) -> dict[str, Any]:
-    """Super-resolve one image. Returns the artifact field dict."""
+    """Super-resolve one image. Returns the artifact field dict.
+
+    denoise=True 时在超分前先做轻度高低频去噪(保线稿双边滤波)。"""
+
     started = time.time()
     source = Path(input_path)
     if not source.is_file():
@@ -292,6 +328,8 @@ def upscale_image(
             rgb = base.convert("RGB")
     except Exception as exc:
         raise UpscaleError("image-load-failed", f"无法读取图片: {exc}") from exc
+    if denoise:
+        rgb = _lowfreq_denoise(rgb)
 
     import numpy as np
 

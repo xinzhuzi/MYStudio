@@ -127,6 +127,9 @@ export interface UpscaleRunRequestV1 {
   /** Output image reference of the same kind as the input — same directory
    *  as the source, `up4x-` prefixed filename. */
   outputImagePath: string;
+  /** 轻度去噪预处理器(噪点治理 08-29):超分前先做保线稿双边滤波,
+   *  压掉 gpt-image 斑驳噪点再放大。缺省 false(存量行为不变)。 */
+  denoise?: boolean;
 }
 
 // ---------------------------------------------------------------------------
@@ -331,7 +334,10 @@ export function validateUpscaleRunRequest(
   if (!isString(value.model) || !(value.model in UPSCALE_MODELS)) {
     pushIssue(issues, "model", `必须是: ${Object.keys(UPSCALE_MODELS).join(", ")}`);
   }
-  rejectUnknownFields(value, ["schemaVersion", "projectId", "shotId", "model", "inputImagePath", "outputImagePath"], issues);
+  if (value.denoise !== undefined && typeof value.denoise !== "boolean") {
+    pushIssue(issues, "denoise", "必须是布尔值");
+  }
+  rejectUnknownFields(value, ["schemaVersion", "projectId", "shotId", "model", "inputImagePath", "outputImagePath", "denoise"], issues);
   if (issues.length > 0) return { success: false, issues };
   return { success: true, value: value as unknown as UpscaleRunRequestV1 };
 }

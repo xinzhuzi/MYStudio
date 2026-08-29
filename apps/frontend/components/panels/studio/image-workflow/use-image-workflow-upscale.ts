@@ -90,6 +90,8 @@ export async function upscaleProjectImage(input: {
   shotId?: string;
   idForFilename: string;
   activeModel: string;
+  /** 轻度去噪预处理(超分前压斑驳噪点,噪点治理 08-29);缺省关。 */
+  denoise?: boolean;
 }): Promise<UpscaleImageSuccess> {
   const ref = parseUpscaleMediaRef(input.imageUrl);
   if (!ref) {
@@ -115,6 +117,7 @@ export async function upscaleProjectImage(input: {
     model: input.activeModel,
     inputImagePath: mediaRefRequestPath(ref),
     outputImagePath: mediaRefRequestPath(outputRequestRef),
+    ...(input.denoise ? { denoise: true } : {}),
   });
   if (artifact.status !== "accepted") {
     throw new Error(artifact.message || `超分失败 (${artifact.code ?? "unknown"})`);
@@ -166,7 +169,7 @@ export function useImageWorkflowUpscale({
     });
   }, [addMaterial]);
 
-  const upscaleNode = useCallback(async (nodeId: string) => {
+  const upscaleNode = useCallback(async (nodeId: string, opts?: { denoise?: boolean }) => {
     const graph = useStudioStore.getState().imageWorkflows.find((item) => item.id === workflowId);
     if (!graph) return;
     const node = graph.nodes.find((item) => item.id === nodeId);
@@ -192,6 +195,7 @@ export function useImageWorkflowUpscale({
         title,
         idForFilename: nodeId,
         activeModel,
+        ...(opts?.denoise ? { denoise: true } : {}),
       });
       const filename = result.outputRelativePath.split("/").pop() ?? `${title}.png`;
       registerMaterial(filename.replace(/\.[^.]+$/, ""), result.outputUrl, result.artifact.outputBytes ?? 0);
@@ -257,7 +261,7 @@ export function useImageWorkflowUpscale({
     cancelRef.current = true;
   }, []);
 
-  const upscaleBatch = useCallback(async (entries: Array<{ nodeId: string; title: string; resultUrl: string }>) => {
+  const upscaleBatch = useCallback(async (entries: Array<{ nodeId: string; title: string; resultUrl: string }>, opts?: { denoise?: boolean }) => {
     if (entries.length === 0) return;
     if (!(await guardUpscaleReadiness())) return;
     const projectId = useProjectStore.getState().activeProjectId;
@@ -292,6 +296,7 @@ export function useImageWorkflowUpscale({
             title: entry.title || "workflow-image",
             idForFilename: entry.nodeId,
             activeModel,
+            ...(opts?.denoise ? { denoise: true } : {}),
           });
           const filename = result.outputRelativePath.split("/").pop() ?? `${entry.title}.png`;
           registerMaterial(filename.replace(/\.[^.]+$/, ""), result.outputUrl, result.artifact.outputBytes ?? 0);
