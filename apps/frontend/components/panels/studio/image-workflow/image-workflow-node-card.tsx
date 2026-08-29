@@ -1,4 +1,6 @@
 import { memo, useEffect, useState } from "react";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Handle, Position, type Node, type NodeProps } from "@xyflow/react";
 import { CheckCircle2, Image as ImageIcon, Loader2, Save, Trash2, WandSparkles, ZoomIn } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -25,7 +27,7 @@ export interface ImageWorkflowNodeData extends Record<string, unknown> {
   storyboards: StoryboardItem[];
   onUpdate: (nodeId: string, updates: Partial<ImageWorkflowNode>) => void;
   onGenerate: (nodeId: string) => void;
-  onUpscale: (nodeId: string) => void | Promise<void>;
+  onUpscale: (nodeId: string, opts?: { denoise?: boolean }) => void | Promise<void>;
   onApplyToStoryboard: (nodeId: string) => void;
   onDelete: (nodeId: string) => void;
 }
@@ -247,6 +249,8 @@ function GeneratedNodeEditor({
   onUpscale: ImageWorkflowNodeData["onUpscale"];
   onApplyToStoryboard: ImageWorkflowNodeData["onApplyToStoryboard"];
 }) {
+  const [upscaleConfirmOpen, setUpscaleConfirmOpen] = useState(false);
+  const [upscaleDenoise, setUpscaleDenoise] = useState(false);
   const generating = node.status === "generating" || node.status === "queued";
   const [imageLongSide, setImageLongSide] = useState(0);
   const alreadyUpscaled = (node.resultUrl || "").includes("up4x-")
@@ -302,7 +306,10 @@ function GeneratedNodeEditor({
           <Button
             size="sm"
             variant="outline"
-            onClick={() => void onUpscale(node.id)}
+            onClick={() => {
+              if (!node.resultUrl || generating || alreadyUpscaled) return;
+              setUpscaleConfirmOpen(true);
+            }}
             disabled={!node.resultUrl || generating || alreadyUpscaled}
             title={alreadyUpscaled
               ? "已是 4K 超分结果，无需再放大"
@@ -311,6 +318,41 @@ function GeneratedNodeEditor({
             {generating ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <ZoomIn className="h-3.5 w-3.5" />}
             超分 4K
           </Button>
+          <Dialog open={upscaleConfirmOpen} onOpenChange={setUpscaleConfirmOpen}>
+            <DialogContent className="max-w-[400px]">
+              <DialogHeader>
+                <DialogTitle>超分到 4K</DialogTitle>
+                <DialogDescription>
+                  本地 Real-ESRGAN 原生 ×4 放大，结果替换该节点成图。
+                </DialogDescription>
+              </DialogHeader>
+              <label
+                className="flex cursor-pointer items-center gap-2 rounded-md border border-border bg-muted/20 px-3 py-2 text-sm"
+                data-image-node-upscale-denoise
+              >
+                <Checkbox
+                  checked={upscaleDenoise}
+                  onCheckedChange={(checked) => setUpscaleDenoise(checked === true)}
+                />
+                <span>先去噪（轻度，压掉斑驳噪点再放大）</span>
+              </label>
+              <DialogFooter>
+                <Button variant="ghost" size="sm" onClick={() => setUpscaleConfirmOpen(false)}>
+                  取消
+                </Button>
+                <Button
+                  size="sm"
+                  onClick={() => {
+                    setUpscaleConfirmOpen(false);
+                    void onUpscale(node.id, { denoise: upscaleDenoise });
+                  }}
+                >
+                  <ZoomIn className="mr-1 h-3.5 w-3.5" />
+                  开始超分
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
           <Button size="sm" variant="paid" onClick={() => onGenerate(node.id)} disabled={generating}>
             {generating ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <WandSparkles className="h-3.5 w-3.5" />}
             生成

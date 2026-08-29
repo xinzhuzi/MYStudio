@@ -2,7 +2,7 @@ import type { ImageWorkflowGraph, StoryboardItem } from "@/types/studio";
 import type { ImageWorkflowNodeData, ImageWorkflowReactNode } from "./image-workflow-node-card";
 import { findLinkedPromptNodeForGenerated } from "./image-workflow-graph-utils";
 
-type ImageWorkflowAsyncNodeAction = (nodeId: string) => void | Promise<void>;
+type ImageWorkflowAsyncNodeAction = (nodeId: string, opts?: { denoise?: boolean }) => void | Promise<void>;
 
 export type CreateImageWorkflowReactNodesOptions = {
   graph: ImageWorkflowGraph | undefined;
