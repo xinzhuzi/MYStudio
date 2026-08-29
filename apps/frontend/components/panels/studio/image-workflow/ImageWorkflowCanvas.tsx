@@ -15,7 +15,8 @@ import { interactionDeferBegin, interactionDeferEnd } from "../previews/interact
 import { useSmoothWheelZoom } from "../previews/smooth-wheel-zoom";
 import { InteractionDeferHint } from "../previews/interaction-defer-hint";
 import { useScopedWorkflowLifecycle } from "./use-scoped-workflow-lifecycle";
-import { useStoryboardWorkflowSwitch } from "./use-storyboard-workflow-switch";
+import { buildSwitchContext, useStoryboardWorkflowSwitch } from "./use-storyboard-workflow-switch";
+import { resolveProductionEpisodeId } from "../workflow-helpers";
 import {
   Image as _ImageIcon,
   Loader2,
@@ -140,6 +141,17 @@ export function ImageWorkflowCanvas({
   const storyboardImages = useMemo(
     () => storyboards.filter((item) => item.mediaRef?.kind === "image" && item.mediaRef.path),
     [storyboards],
+  );
+  // 合并切换器的分镜口径:与分镜面板同源(resolveProductionEpisodeId),只列本章分镜
+  const agentWorkData = useStudioStore((state) => state.agentWorkData);
+  const novelChapters = useStudioStore((state) => state.novelChapters);
+  const scriptPlans = useStudioStore((state) => state.scriptPlans);
+  const chapterStoryboards = useMemo(
+    () => {
+      const productionEpisodeId = resolveProductionEpisodeId({ agentWorkData, novelChapters, scriptPlans });
+      return storyboards.filter((item) => item.episodeId === productionEpisodeId);
+    },
+    [agentWorkData, novelChapters, scriptPlans, storyboards],
   );
   const sourceLabel = initialAssetContext?.sourceLabel || initialAssetContext?.title || "当前图片工作流";
   const sourceStageLabel = initialAssetContext?.sourceStageLabel;
@@ -475,6 +487,17 @@ export function ImageWorkflowCanvas({
           styleTraceChips={styleTraceChips}
           canUseGlobalWorkflowControls={canUseGlobalWorkflowControls}
           imageWorkflows={imageWorkflows}
+          storyboards={chapterStoryboards}
+          onSelectStoryboard={(storyboard) => {
+            const currentStoryboardId = activeGraph.target.kind === "storyboard" ? activeGraph.target.id : null;
+            if (storyboard.id === currentStoryboardId) return;
+            // scoped 单镜模式走整条打开链重进;全局模式在画布内原地换流
+            if (isScopedWorkflowDetail) {
+              onOpenStoryboardWorkflow?.(buildSwitchContext(storyboard));
+              return;
+            }
+            void switchStoryboardWorkflowInCanvas(storyboard);
+          }}
           onSelectorChange={(workflowId) => {
             setActiveWorkflowId(workflowId);
             setSelectedNodeId(null);
@@ -515,9 +538,6 @@ export function ImageWorkflowCanvas({
         storyboardImages={storyboardImages}
         onAddReferenceFromMaterial={addReferenceFromMaterial}
         onAddReferenceFromStoryboard={addReferenceFromStoryboard}
-        onSwitchScopedStoryboard={onOpenStoryboardWorkflow ? (storyboard) => {
-          void switchStoryboardWorkflowInCanvas(storyboard);
-        } : undefined}
       />
 
       {/* 批量超分勾选清单 + 进行中进度浮层(T2 抽组件) */}

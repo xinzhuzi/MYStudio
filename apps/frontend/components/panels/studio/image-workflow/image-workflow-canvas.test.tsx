@@ -137,6 +137,7 @@ describe("ImageWorkflowCanvas", () => {
     expect((screen.getByRole("button", { name: "运行生成" }) as HTMLButtonElement).disabled).toBe(true);
     expect((screen.getByRole("button", { name: "写回目标" }) as HTMLButtonElement).disabled).toBe(true);
     expect(container.querySelector("[data-scoped-image-workflow-summary]")).toBeTruthy();
+    // 合并裁定(2026-08-30):切换器常驻 scoped 模式,但建流等待视图(pending)无工具条
     expect(container.querySelector("[data-image-workflow-selector]")).toBeNull();
     expect(container.querySelector("[data-image-workflow-global-action]")).toBeNull();
     expect(screen.queryByText("新建图像工作流")).toBeNull();

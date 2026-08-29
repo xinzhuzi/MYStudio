@@ -1,5 +1,6 @@
 import { useCallback } from "react";
 import type { ImageWorkflowGraph, ImageWorkflowOpenContext, StoryboardItem } from "@/types/studio";
+import { storyboardSourceFingerprint } from "@/stores/studio/studio-store-continuity-helpers";
 import { resolveStoryboardAssetReferences } from "./storyboard-asset-references";
 import { createOpenImageWorkflowGraph, matchesStoryboardOpenContext } from "./image-workflow-graph-utils";
 
@@ -46,11 +47,15 @@ export function useStoryboardWorkflowSwitch(input: {
   return { switchTo };
 }
 
-function buildSwitchContext(storyboard: {
-  id: string; index: number; prompt: string; videoDesc?: string;
-  mediaRef?: { kind: string; path: string; imageWorkflowId?: string };
-  imageWorkflowId?: string; sourceFingerprint?: string; lines?: string;
-}): ImageWorkflowOpenContext {
+/**
+ * 分镜 → 打开上下文。指纹缺失(旧分镜行)时现算兜底:
+ * 新建流恒带 targetSourceFingerprint,否则会被水合清理当成上一代遗留丢弃。
+ * toolbar 合并切换器的 scoped 链路也复用本函数(走 onOpenStoryboardWorkflow)。
+ */
+export function buildSwitchContext(storyboard: Pick<
+  StoryboardItem,
+  "id" | "index" | "prompt" | "videoDesc" | "imageWorkflowId" | "sourceFingerprint" | "lines" | "associateAssetsNames"
+> & { mediaRef?: StoryboardItem["mediaRef"] }): ImageWorkflowOpenContext {
   return {
     target: { kind: "storyboard", id: storyboard.id },
     title: `分镜 ${storyboard.index}`,
@@ -61,7 +66,7 @@ function buildSwitchContext(storyboard: {
     sourceStage: "storyboard",
     sourceStageLabel: "分镜视频生成",
     sourceLabel: `分镜成图 · 分镜 ${storyboard.index}`,
-    storyboardSourceFingerprint: storyboard.sourceFingerprint,
+    storyboardSourceFingerprint: storyboard.sourceFingerprint ?? storyboardSourceFingerprint(storyboard),
     storyboardLines: storyboard.lines,
   };
 }

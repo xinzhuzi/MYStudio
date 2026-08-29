@@ -87,6 +87,32 @@ export function filterPersistedImageWorkflows(value: unknown): ImageWorkflowGrap
   }) as ImageWorkflowGraph[];
 }
 
+function isLegacyStoryboardWorkflow(graph: unknown): boolean {
+  if (!graph || typeof graph !== "object") return false;
+  const record = graph as { target?: { kind?: unknown }; targetSourceFingerprint?: unknown };
+  return record.target?.kind === "storyboard" && typeof record.targetSourceFingerprint !== "string";
+}
+
+/**
+ * 上一代遗留分镜工作流清理(2026-08-30 用户裁定:不要旧流):
+ * storyboard 目标且无 targetSourceFingerprint 的流属于被替换的旧分镜表,
+ * 水合时直接丢弃。新流恒带指纹(切换链/绑定分镜均盖章),此过滤不会再误伤。
+ * 从 state 删除后分片存储按 manifest 原子换新+清孤儿,磁盘同步清理。
+ */
+export function dropLegacyStoryboardWorkflows(value: unknown): ImageWorkflowGraph[] {
+  if (!Array.isArray(value)) return [];
+  const kept = value.filter((graph) => {
+    if (!graph || typeof graph !== "object") return false;
+    return !isLegacyStoryboardWorkflow(graph);
+  });
+  if (kept.length !== value.length) {
+    console.warn(
+      `[studio-store] dropped ${value.length - kept.length} legacy storyboard image workflow(s) without targetSourceFingerprint`,
+    );
+  }
+  return kept as ImageWorkflowGraph[];
+}
+
 export function migrateStudioWorkflowState(persistedState: unknown): unknown {
   if (!persistedState || typeof persistedState !== "object") return persistedState;
   const state = persistedState as PersistedStudioWorkflowState;
@@ -98,7 +124,7 @@ export function migrateStudioWorkflowState(persistedState: unknown): unknown {
     sourceBible: typeof state.sourceBible === "string" ? state.sourceBible : "",
     episodeOutlines: state.episodeOutlines ?? [],
     continuityAssetVersions: (state.continuityAssetVersions ?? []).map(normalizeContinuityAssetVersion),
-    imageWorkflows: filterPersistedImageWorkflows(state.imageWorkflows),
+    imageWorkflows: dropLegacyStoryboardWorkflows(filterPersistedImageWorkflows(state.imageWorkflows)),
     agentRuns: state.agentRuns ?? [],
     mediaTasks: state.mediaTasks ?? [],
     eventGraph: state.eventGraph ?? [],

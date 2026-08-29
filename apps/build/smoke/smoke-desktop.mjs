@@ -1852,8 +1852,8 @@ async function verifyWorkflowEndToEnd(evaluate) {
         const scopedButtonTexts = Array.from(imageWorkflowScope.querySelectorAll('button')).map((node) => normalize(node));
         const scopedText = imageWorkflowScope.innerText || '';
         const hasScopedImageWorkflowSummary = Boolean(imageWorkflowScope.querySelector('[data-scoped-image-workflow-summary]'));
+        // 合并切换器(2026-08-30)常驻 scoped 模式,只再断言全局动作按钮不在
         const hasNoGlobalImageWorkflowControls =
-          !imageWorkflowScope.querySelector('[data-image-workflow-selector]') &&
           !imageWorkflowScope.querySelector('[data-image-workflow-global-action]');
         const hasNoGlobalImageWorkflowPalettes = !scopedText.includes('项目参考图');
         const hasImageWorkflowBackButton = scopedButtonTexts.some((buttonText) => buttonText === '返回');

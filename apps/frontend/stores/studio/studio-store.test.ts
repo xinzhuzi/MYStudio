@@ -127,7 +127,8 @@ describe("studio workflow store", () => {
       continuityAssetVersions: [{ assetId: "asset-restored", versionId: "asset-restored:v1", assetKind: "character", label: "恢复资产", referenceImagePaths: [] }],
       productionTracks: [{ id: "track-restored", episodeId: "chapter-001", storyboardIds: [], candidateVideoIds: [] }],
       videoCandidates: [{ id: "video-restored", trackId: "track-restored", provider: "ffmpeg-local", state: "ready" }],
-      imageWorkflows: [{ id: "workflow-restored", name: "恢复工作流", nodes: [], edges: [], target: { kind: "storyboard", id: "storyboard-restored" }, createdAt: 1, updatedAt: 1 }],
+      // 带指纹=当前代分镜流,水合保留(无指纹旧流会被 dropLegacyStoryboardWorkflows 清掉)
+      imageWorkflows: [{ id: "workflow-restored", name: "恢复工作流", nodes: [], edges: [], target: { kind: "storyboard", id: "storyboard-restored" }, targetSourceFingerprint: "fp-restored", createdAt: 1, updatedAt: 1 }],
       agentRuns: [{ id: "run-restored", key: "directorPlan", phase: "scriptPlan", status: "success", inputSummary: "恢复" }],
       mediaTasks: [{ id: "task-restored", kind: "storyboardImage", targetId: "storyboard-restored", status: "success" }],
       eventGraph: [{ id: "event-restored", projectId: "project-a", episodeId: "chapter-001", eventType: "test" }],

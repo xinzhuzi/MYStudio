@@ -14,6 +14,7 @@ import {
 import { useAppSettingsStore } from "@/stores/app/app-settings-store";
 import { useProjectStore } from "@/stores/project/project-store";
 import { useStudioStore } from "@/stores/studio/studio-store";
+import { storyboardSourceFingerprint } from "@/stores/studio/studio-store-continuity-helpers";
 import type {
   ImageWorkflowGeneratedNode,
   ImageWorkflowGraph,
@@ -101,9 +102,17 @@ export function useImageWorkflowActions({
 
   const bindTargetStoryboard = useCallback(() => {
     if (!activeGraph || !targetStoryboardId) return;
-    updateImageWorkflow(activeGraph.id, { target: { kind: "storyboard", id: targetStoryboardId } });
+    const storyboard = storyboards.find((item) => item.id === targetStoryboardId);
+    // 绑定分镜必须同步盖章指纹,否则会产出无指纹流——被水合清理当成上一代遗留丢弃
+    const fingerprint = storyboard
+      ? storyboard.sourceFingerprint ?? storyboardSourceFingerprint(storyboard)
+      : undefined;
+    updateImageWorkflow(activeGraph.id, {
+      target: { kind: "storyboard", id: targetStoryboardId },
+      ...(fingerprint ? { targetSourceFingerprint: fingerprint } : {}),
+    });
     toast.success("已绑定分镜");
-  }, [activeGraph, targetStoryboardId, updateImageWorkflow]);
+  }, [activeGraph, storyboards, targetStoryboardId, updateImageWorkflow]);
 
   const addReferenceFromMaterial = useCallback((material: StudioMaterial) => {
     if (!activeGraph) return;

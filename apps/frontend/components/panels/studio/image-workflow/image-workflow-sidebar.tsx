@@ -30,8 +30,6 @@ interface ImageWorkflowSidebarProps {
   storyboardImages: StoryboardItem[];
   onAddReferenceFromMaterial: (material: StudioMaterial) => void;
   onAddReferenceFromStoryboard: (storyboard: StoryboardItem) => void;
-  /** scoped 单镜视图切换分镜:选中即走整条打开链(匹配/新建/装配) */
-  onSwitchScopedStoryboard?: (storyboard: StoryboardItem) => void;
 }
 
 export function ImageWorkflowSidebar({
@@ -42,13 +40,11 @@ export function ImageWorkflowSidebar({
   sourceLabel,
   sourceStageLabel,
   workflowWritebackTargetLabel,
-  storyboards,
   canUseGlobalWorkflowControls,
   imageMaterials,
   storyboardImages,
   onAddReferenceFromMaterial,
   onAddReferenceFromStoryboard,
-  onSwitchScopedStoryboard,
 }: ImageWorkflowSidebarProps) {
   // T3 语义分组:材料库按成图回流(gen-/up4x- 前缀)拆「工作流成图」,
   // 其余归「资产设定图」;分组与分镜成图三段并列
@@ -64,6 +60,7 @@ export function ImageWorkflowSidebar({
           </div>
         </div>
         {isScopedWorkflowDetail ? (
+          // 分镜切换已并入工具条合并切换器(2026-08-30 合一裁定),侧栏只留上下文信息
           <div className="mt-3 grid gap-2" data-scoped-image-workflow-summary>
             <div className="rounded-md border border-info/20 bg-info/10 px-3 py-2 text-xs text-info">
               <div className="text-[10px] uppercase tracking-[0.18em] text-info/70">来源</div>
@@ -75,27 +72,6 @@ export function ImageWorkflowSidebar({
               <div className="text-[10px] uppercase tracking-[0.18em] text-info/70">回写目标</div>
               <div className="mt-1 truncate">{workflowWritebackTargetLabel}</div>
             </div>
-            {onSwitchScopedStoryboard ? (
-              <select
-                data-scoped-storyboard-switcher
-                value={initialAssetContext?.target.kind === "storyboard" ? initialAssetContext.target.id : ""}
-                onChange={(event) => {
-                  const next = storyboards.find((item) => item.id === event.target.value);
-                  if (next && next.id !== (initialAssetContext?.target as { id?: string } | undefined)?.id) {
-                    onSwitchScopedStoryboard(next);
-                  }
-                }}
-                className="h-8 rounded-md border border-border bg-background/80 px-2 text-xs text-foreground outline-none"
-                title="切换到其他分镜的工作流(选中即切换)"
-              >
-                <option value="">切换分镜…</option>
-                {storyboards.map((storyboard) => (
-                  <option key={storyboard.id} value={storyboard.id}>
-                    分镜 {storyboard.index} · {(storyboard.videoDesc || storyboard.prompt).slice(0, 18)}
-                  </option>
-                ))}
-              </select>
-            ) : null}
           </div>
         ) : activeGraph.target.kind === "asset" ? (
           <div className="mt-3 rounded-md border border-info/20 bg-info/10 px-3 py-2 text-xs text-info">
@@ -107,29 +83,7 @@ export function ImageWorkflowSidebar({
               )}
             </div>
           </div>
-        ) : (
-          <div className="mt-3 grid gap-2">
-            {onSwitchScopedStoryboard ? (
-              <select
-                data-storyboard-workflow-switcher
-                value=""
-                onChange={(event) => {
-                  const next = storyboards.find((item) => item.id === event.target.value);
-                  if (next) onSwitchScopedStoryboard(next);
-                }}
-                className="h-8 rounded-md border border-border bg-background/80 px-2 text-xs text-foreground outline-none"
-                title="打开所选分镜的图片工作流(选中即切换)"
-              >
-                <option value="">切换分镜工作流…</option>
-                {storyboards.map((storyboard) => (
-                  <option key={storyboard.id} value={storyboard.id}>
-                    分镜 {storyboard.index} · {(storyboard.videoDesc || storyboard.prompt).slice(0, 18)}
-                  </option>
-                ))}
-              </select>
-            ) : null}
-          </div>
-        )}
+        ) : null}
       </div>
       {canUseGlobalWorkflowControls ? (
         <div className="min-h-0 flex-1 overflow-y-auto p-3" data-image-workflow-reference-palette>

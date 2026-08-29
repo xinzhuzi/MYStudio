@@ -117,3 +117,39 @@ describe("studio workflow persistence contract", () => {
     }
   });
 });
+
+describe("legacy storyboard workflow purge (2026-08-30 merge ruling)", () => {
+  const graph = (overrides: Record<string, unknown>): ImageWorkflowGraph => ({
+    id: "flow",
+    name: "道劫 · 分镜 1 图片工作流",
+    target: { kind: "free" },
+    nodes: [],
+    edges: [],
+    createdAt: 1,
+    updatedAt: 1,
+    ...overrides,
+  } as ImageWorkflowGraph);
+
+  it("drops fingerprint-less storyboard workflows during hydration", () => {
+    const migrated = migrateStudioWorkflowState({
+      imageWorkflows: [
+        graph({ id: "legacy", target: { kind: "storyboard", id: "sb-1" } }),
+        graph({ id: "fresh", target: { kind: "storyboard", id: "sb-1" }, targetSourceFingerprint: "fp-1" }),
+        graph({ id: "free", target: { kind: "free" } }),
+        graph({ id: "asset", target: { kind: "asset", assetType: "scene", id: "scene-1" } }),
+      ],
+    }) as { imageWorkflows: ImageWorkflowGraph[] };
+    expect(migrated.imageWorkflows.map((item) => item.id)).toEqual(["fresh", "free", "asset"]);
+  });
+
+  it("keeps non-storyboard targets even without fingerprints and tolerates malformed entries", () => {
+    const migrated = migrateStudioWorkflowState({
+      imageWorkflows: [
+        null,
+        graph({ id: "material", target: { kind: "material", id: "mat-1" } }),
+        graph({ id: "no-target-shape", target: undefined }),
+      ],
+    }) as { imageWorkflows: ImageWorkflowGraph[] };
+    expect(migrated.imageWorkflows.map((item) => (item as { id: string }).id)).toEqual(["material", "no-target-shape"]);
+  });
+});

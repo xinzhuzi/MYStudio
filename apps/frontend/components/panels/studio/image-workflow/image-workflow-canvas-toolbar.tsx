@@ -12,12 +12,16 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import type { ImageWorkflowGeneratedNode, ImageWorkflowGraph } from "@/types/studio";
+import type { ImageWorkflowGeneratedNode, ImageWorkflowGraph, StoryboardItem } from "@/types/studio";
 
 /**
  * 图像节点图画布顶部工具条(T2 自 Canvas 抽取,行为零变化):
- * 返回/来源/分层节点对/风格依据chips/工作流选择器(分代分组)/新建/上传参考/
+ * 返回/来源/分层节点对/风格依据chips/合并切换器/新建/上传参考/
  * 生成节点/回写目标/运行生成/写回目标/批量超分/放入资产库/删除连线/适配画布。
+ *
+ * 2026-08-30 合并裁定:分镜切换只此一个入口——
+ * 「本章分镜」组按分镜走查找/装配链(恒当前代),「其他工作流」组按流 id 直切;
+ * 无指纹旧流已在持久化层清理,不再分组列出。scoped 单镜模式也常驻本选择器。
  */
 export function ImageWorkflowCanvasToolbar({
   onBack,
@@ -28,6 +32,8 @@ export function ImageWorkflowCanvasToolbar({
   styleTraceChips,
   canUseGlobalWorkflowControls,
   imageWorkflows,
+  storyboards,
+  onSelectStoryboard,
   onSelectorChange,
   onCreateNewFlow,
   onUploadReferenceClick,
@@ -55,6 +61,10 @@ export function ImageWorkflowCanvasToolbar({
   styleTraceChips: string[];
   canUseGlobalWorkflowControls: boolean;
   imageWorkflows: ImageWorkflowGraph[];
+  /** 本章分镜(已按生产章过滤):「本章分镜」组数据源 */
+  storyboards: StoryboardItem[];
+  /** 合并切换器选中分镜:全局模式画布内切换,scoped 模式走整条打开链 */
+  onSelectStoryboard: (storyboard: StoryboardItem) => void;
   onSelectorChange: (workflowId: string) => void;
   onCreateNewFlow: () => void;
   onUploadReferenceClick: () => void;
@@ -111,46 +121,69 @@ export function ImageWorkflowCanvasToolbar({
           ))}
         </div>
       ) : null}
-      {canUseGlobalWorkflowControls ? (
-        <>
+      {(() => {
+        // 值域双命名空间:分镜项 `sb:<storyboardId>`(走分镜切换链),
+        // 非分镜流项 `<graphId>`(按 id 直切)。当前流是分镜目标但不在本章
+        // 列表(跨章流)时补一项以流名兜底显示,选中不动作。
+        const activeStoryboardId =
+          activeGraph.target.kind === "storyboard" && typeof activeGraph.target.id === "string"
+            ? activeGraph.target.id
+            : null;
+        const selectorValue = activeStoryboardId ? `sb:${activeStoryboardId}` : activeGraph.id;
+        const currentStoryboardMissing =
+          activeStoryboardId !== null && !storyboards.some((item) => item.id === activeStoryboardId);
+        const nonStoryboardGraphs = imageWorkflows.filter((graph) => graph.target.kind !== "storyboard");
+        const storyboardOptionLabel = (storyboard: StoryboardItem) =>
+          `分镜 ${storyboard.index} · ${(storyboard.videoDesc || storyboard.prompt).slice(0, 18)}`;
+        return (
           <select
             data-image-workflow-selector
             data-image-workflow-active-id={activeGraph.id}
-            value={activeGraph.id}
-            onChange={(event) => onSelectorChange(event.target.value)}
+            value={selectorValue}
+            onChange={(event) => {
+              const nextValue = event.target.value;
+              if (nextValue === selectorValue) return;
+              if (nextValue.startsWith("sb:")) {
+                const storyboard = storyboards.find((item) => `sb:${item.id}` === nextValue);
+                if (storyboard) onSelectStoryboard(storyboard);
+                return;
+              }
+              onSelectorChange(nextValue);
+            }}
             className="h-8 max-w-[260px] rounded-md border border-border bg-background/80 px-2 text-xs text-foreground outline-none"
+            title="切换本章分镜或其他工作流"
+            aria-label="切换分镜工作流"
           >
-            {/* 分代分组:当前代分镜工作流(带内容指纹)与上一代遗留分开列出,
-                防止同名「分镜 N 图片工作流」新旧混淆(2026-08-23 用户实证割裂)。
-                首帧只挂当前项,完整列表延后一帧(chromeReady)再补,避免进入画布
+            {/* 首帧只挂当前项,完整列表延后一帧(chromeReady)再补,避免进入画布
                 瞬间一次性铺全部 <option> 卡顿(功能不变,展开时已补齐)。 */}
             {chromeReady ? (
               <>
-            <optgroup label="当前代">
-              {imageWorkflows
-                .filter((graph) => !(graph.target.kind === "storyboard" && !graph.targetSourceFingerprint))
-                .map((graph) => (
-                  <option key={graph.id} value={graph.id}>
-                    {graph.name}
-                  </option>
-                ))}
-            </optgroup>
-            {imageWorkflows.some((graph) => graph.target.kind === "storyboard" && !graph.targetSourceFingerprint) ? (
-              <optgroup label="上一代遗留(同 id 旧分镜表)">
-                {imageWorkflows
-                  .filter((graph) => graph.target.kind === "storyboard" && !graph.targetSourceFingerprint)
-                  .map((graph) => (
+                <optgroup label="本章分镜">
+                  {storyboards.map((storyboard) => (
+                    <option key={storyboard.id} value={`sb:${storyboard.id}`}>
+                      {storyboardOptionLabel(storyboard)}
+                    </option>
+                  ))}
+                  {currentStoryboardMissing ? (
+                    <option value={selectorValue}>{activeGraph.name}(其他章节)</option>
+                  ) : null}
+                </optgroup>
+                <optgroup label="其他工作流">
+                  {nonStoryboardGraphs.map((graph) => (
                     <option key={graph.id} value={graph.id}>
                       {graph.name}
                     </option>
                   ))}
-              </optgroup>
-            ) : null}
+                </optgroup>
               </>
             ) : (
-              <option value={activeGraph.id}>{activeGraph.name}</option>
+              <option value={selectorValue}>{activeGraph.name}</option>
             )}
           </select>
+        );
+      })()}
+      {canUseGlobalWorkflowControls ? (
+        <>
           <Button
             size="sm"
             variant="secondary"
