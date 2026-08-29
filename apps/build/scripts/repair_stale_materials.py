@@ -39,7 +39,10 @@ def to_disk_path(local_path: str, root: str) -> str | None:
 
 def main() -> int:
     root = sys.argv[1] if len(sys.argv) > 1 else "/Users/zhengbingjin/Project/IP/MA"
-    shards = glob.glob(f"{root}/store/studio-workflow/materials-*.json")
+    shards = [
+        f for f in glob.glob(f"{root}/store/studio-workflow/materials-*.json")
+        if ".bak" not in os.path.basename(f)
+    ]
     if not shards:
         print("未找到 materials 分片"); return 1
     stamp = time.strftime("%Y%m%d-%H%M%S")
