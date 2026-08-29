@@ -14,7 +14,8 @@ import {
 } from "@/lib/studio/visual-manual-style-tokens";
 import { useProjectStore } from "@/stores/project/project-store";
 import { useStudioStore } from "@/stores/studio/studio-store";
-import type { ImageWorkflowGraph } from "@/types/studio";
+import type {
+  ImageWorkflowNode, ImageWorkflowGraph } from "@/types/studio";
 import {
   chapterScopeForWorkflowTarget,
   createWorkflowFilename,
@@ -112,6 +113,64 @@ export async function runImageWorkflowNodeGeneration(
     // 分镜/工作流成图自存项目真源(projectFiles.saveImage),跳过媒体库副本双写
     persistMedia: false,
   });
+  /**
+   * 人物一致性硬闸门(08-30 用户裁定):单节点成图在节点置 ready 前拦截。
+   * - 仅当挂了角色类参考图且 VLM 模型就绪时生效;
+   * - character_ok=false → 抛错(节点 failed,文件留盘作证据但不进任何下游);
+   * - VLM 缺模型/审核异常一律 fail-open 放行(与批量链同语义)。
+   */
+  const assertCharacterGate = async (imageUrl: string): Promise<void> => {
+    const bridge = typeof window !== "undefined" ? window.vlmReview : undefined;
+    if (!bridge?.run) return;
+    let probeOk = false;
+    try {
+      probeOk = (await bridge.probe()).status === "ready";
+    } catch {
+      return;
+    }
+    if (!probeOk) return;
+    const byId = new Map(graph.nodes.map((n) => [n.id, n]));
+    const refNodes = graph.edges
+      .filter((edge) => edge.target === targetNodeId)
+      .map((edge) => byId.get(edge.source))
+      .filter(
+        (candidate): candidate is Extract<ImageWorkflowNode, { type: "reference" }> =>
+          candidate?.type === "reference" && Boolean(candidate.imageUrl),
+      );
+    const refs = refNodes.map((refNode) => ({
+      path: refNode.imageUrl!,
+      role: ((refNode.source as { assetType?: string } | undefined)?.assetType ?? "character") as "scene" | "character" | "prop",
+      assetName: refNode.title,
+    }));
+    const characterRefs = refs.filter((ref) => ref.role === "character");
+    if (characterRefs.length === 0) return;
+    try {
+      const artifact = await bridge.run({
+        schemaVersion: 1,
+        projectId,
+        shotId: chapterId ?? graph.id,
+        generatedImagePath: imageUrl,
+        referenceImages: refs,
+        expectedContent: request.prompt,
+        expectedCharacters: characterRefs.map((ref) => ref.assetName),
+      });
+      if (artifact.status === "rejected" && artifact.checks.character_ok === false) {
+        const reasons = (artifact.reasons ?? []).join("；");
+        void logEvent({
+          level: "warn",
+          category: "ai",
+          operationId: createOperationId("character-gate-rejected"),
+          message: "Character gate rejected generated image",
+          context: { targetNodeId, reasons, references: characterRefs.length },
+        });
+        throw new Error(`人物一致性未过（VLM 闸门）：${reasons || "成图角色与参考不一致"}`);
+      }
+    } catch (error) {
+      if (error instanceof Error && error.message.startsWith("人物一致性未过")) throw error;
+      // VLM 审核 runtime 异常:fail-open
+    }
+  };
+
   const generateAndSave = async (transport?: "chat") => {
     const generated = await aiManager.generateImage(buildRequest(transport));
     // 生图落库自动去噪(噪点治理 08-29):开关开启时,成图在写入项目
@@ -128,7 +187,14 @@ export async function runImageWorkflowNodeGeneration(
     });
     return { generated, saved };
   };
-  let { generated: result, saved } = await generateAndSave();
+  const generateAndGate = async (transport?: "chat") => {
+    const outcome = await generateAndSave(transport);
+    if (outcome.saved?.success && outcome.saved.url) {
+      await assertCharacterGate(outcome.saved.url);
+    }
+    return outcome;
+  };
+  let { generated: result, saved } = await generateAndGate();
   if ((!saved?.success || !saved.url) && /^https?:/i.test(result.url)) {
     // 08-24 结构修复:images 端点已成功(生成已计费)但远程 URL 下载失败
     // (晚高峰 CDN 504/网关过载)——旧路径直接抛错丢图。此处回退 chat 形态
@@ -150,7 +216,7 @@ export async function runImageWorkflowNodeGeneration(
       "[image-workflow] 成图 URL 保存失败(下载类),回退 chat base64 重试一次:",
       saved?.error || result.url.slice(0, 80),
     );
-    ({ generated: result, saved } = await generateAndSave("chat"));
+    ({ generated: result, saved } = await generateAndGate("chat"));
   }
   if (!saved?.success || !saved.url) {
     throw new Error(saved?.error || "项目内图片保存失败");
