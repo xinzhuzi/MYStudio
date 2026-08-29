@@ -353,3 +353,54 @@ class LegacyAliasTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class InferenceSerializationTests(unittest.TestCase):
+    def test_concurrent_second_request_fails_fast_with_busy(self) -> None:
+        import threading
+        import time
+
+        from PIL import Image
+
+        release = threading.Event()
+
+        class FakeResult:
+            images = [Image.new("RGB", (64, 36))]
+
+        class SlowPipe:
+            def __call__(self, **kwargs):  # noqa: ARG002
+                release.wait(timeout=5)
+                return FakeResult()
+
+        class FastPipe:
+            def __call__(self, **kwargs):  # noqa: ARG002
+                raise AssertionError("忙时不得进入推理")
+
+        outcomes: dict[str, object] = {}
+
+        def run_first():
+            with patch.object(pipeline, "_get_qwen_pipeline", return_value=SlowPipe()):
+                outcomes["first"] = pipeline._generate_qwen(
+                    "a", "1:1", None, 1, None, None
+                ) is not None
+
+        def run_second():
+            time.sleep(0.05)  # 确保先发请求已持锁
+            with patch.object(pipeline, "_get_qwen_pipeline", return_value=FastPipe()):
+                try:
+                    pipeline._generate_qwen("b", "1:1", None, 1, None, None)
+                    outcomes["second"] = "ran"
+                except pipeline.PipelineError as exc:
+                    outcomes["second"] = exc.code
+
+        first = threading.Thread(target=run_first)
+        second = threading.Thread(target=run_second)
+        first.start(); second.start()
+        second.join(timeout=3)
+        release.set()
+        first.join(timeout=3)
+
+        self.assertFalse(first.is_alive())
+        self.assertFalse(second.is_alive())
+        self.assertIs(outcomes.get("first"), True)
+        self.assertEqual(outcomes.get("second"), "generation-busy")

@@ -216,7 +216,12 @@ class Handler(BaseHTTPRequestHandler):
                 reference_image_b64=reference_b64,
             )
         except PipelineError as exc:
-            status = HTTPStatus.SERVICE_UNAVAILABLE if exc.code == "model-not-downloaded" else HTTPStatus.INTERNAL_SERVER_ERROR
+            if exc.code == "model-not-downloaded":
+                status = HTTPStatus.SERVICE_UNAVAILABLE
+            elif exc.code == "generation-busy":
+                status = HTTPStatus.CONFLICT
+            else:
+                status = HTTPStatus.INTERNAL_SERVER_ERROR
             self._send_error_json(status, exc.message, exc.code)
             return
         except Exception as exc:

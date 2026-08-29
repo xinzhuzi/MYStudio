@@ -64,6 +64,22 @@ class PipelineError(Exception):
 _lock = threading.Lock()
 _pipelines: dict[str, Any] = {}
 _img2img_pipelines: dict[str, Any] = {}
+# 推理互斥:diffusers 管线非线程安全(GGUF 量化层/tqdm 等共享态),两个请求并发
+# 调同一管线会互相拖死(实弹:双请求后 handler 线程永锁在 Python 锁上)。
+# 引擎语义=串行单飞;忙时快速报错,不排队(排队只会把 HTTP 拖到超时)。
+_infer_lock = threading.Lock()
+
+
+def _run_inference(pipe, kwargs: dict[str, Any]):
+    if not _infer_lock.acquire(blocking=False):
+        raise PipelineError(
+            "generation-busy",
+            "上一张图还在生成中(本地生图为串行引擎),请等待完成后再试。",
+        )
+    try:
+        return pipe(**kwargs)
+    finally:
+        _infer_lock.release()
 
 
 # ---------------------------------------------------------------------------
@@ -227,7 +243,9 @@ def _generate_qwen(
         kwargs["true_cfg_scale"] = 4.0
 
     try:
-        result = pipe(**kwargs)
+        result = _run_inference(pipe, kwargs)
+    except PipelineError:
+        raise
     except Exception as exc:
         raise PipelineError("inference-failed", f"图像生成失败: {exc}") from exc
 
@@ -379,7 +397,9 @@ def generate_image(
         kwargs["guidance_scale"] = 0.0
 
     try:
-        result = pipe(**kwargs)
+        result = _run_inference(pipe, kwargs)
+    except PipelineError:
+        raise
     except Exception as exc:
         raise PipelineError("inference-failed", f"图像生成失败: {exc}") from exc
 
