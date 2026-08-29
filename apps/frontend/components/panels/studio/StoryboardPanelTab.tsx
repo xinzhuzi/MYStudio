@@ -182,6 +182,7 @@ function StoryboardPanelCard({
             className="h-full w-full object-contain"
             fallbackLabel="成图丢失"
             eager
+            previewable
           />
         ) : (
           <div className="flex h-full w-full items-center justify-center text-[11px] text-muted-foreground">

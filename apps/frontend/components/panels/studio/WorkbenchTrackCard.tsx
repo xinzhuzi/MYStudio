@@ -90,6 +90,7 @@ export function WorkbenchTrackCard(props: {
                         src={withThumbVariant(toPreviewSrc(media.src))}
                         alt={media.name ?? media.id}
                         fallbackLabel="图片不可用"
+                        previewable
                       />
                       <ResolutionBadge src={toPreviewSrc(media.src)} />
                     </>

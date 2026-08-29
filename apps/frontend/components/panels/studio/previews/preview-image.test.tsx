@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { act, cleanup, render } from "@testing-library/react";
+import { act, cleanup, fireEvent, render } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { PreviewImage } from "./preview-image";
 import {
@@ -67,5 +67,32 @@ describe("PreviewImage interaction gate", () => {
     await vi.advanceTimersByTimeAsync(0);
     expect(document.querySelector("img")).toBeTruthy();
     expect(document.querySelector("[data-preview-image-deferred]")).toBeNull();
+  });
+});
+
+describe("PreviewImage previewable (08-30 展示大图入口)", () => {
+  it("does not render the preview button by default", () => {
+    render(<PreviewImage src="project-file://p/a.png" alt="分镜 1" className="h-full w-full" />);
+    expect(document.querySelector("button[aria-label^='展示大图']")).toBeNull();
+    expect(document.querySelector("img[alt='分镜 1']")).toBeTruthy();
+  });
+
+  it("opens the full-image modal with the thumb variant stripped", () => {
+    render(<PreviewImage src="project-file://p/a.png?thumb=1" alt="分镜 2" previewable />);
+    fireEvent.click(document.querySelector("button[aria-label^='展示大图']") as HTMLElement);
+    const modalImage = document.querySelector("img[alt='Preview']") as HTMLImageElement;
+    expect(modalImage).toBeTruthy();
+    expect(modalImage.getAttribute("src")).toBe("project-file://p/a.png");
+  });
+
+  it("stops propagation so tile click navigation is not triggered", () => {
+    const onTileClick = vi.fn();
+    render(
+      <div onClick={onTileClick}>
+        <PreviewImage src="project-file://p/b.png?thumb=1" alt="分镜 3" previewable />
+      </div>,
+    );
+    fireEvent.click(document.querySelector("button[aria-label^='展示大图']") as HTMLElement);
+    expect(onTileClick).not.toHaveBeenCalled();
   });
 });

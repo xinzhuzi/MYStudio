@@ -84,6 +84,7 @@ export function StoryboardGridPreview({
                   alt={tile.title}
                   className="h-full w-full object-cover"
                   fallbackLabel="成图丢失"
+                  previewable
                 />
               ) : (
                 <div className="flex h-full items-center justify-center text-[10px] text-muted-foreground">

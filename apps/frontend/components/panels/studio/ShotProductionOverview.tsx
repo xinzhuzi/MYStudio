@@ -348,6 +348,7 @@ export function ShotProductionOverview({
                       className="h-full w-full object-contain"
                       fallbackLabel="成图丢失"
                       eager
+                      previewable
                     />
                     <ResolutionBadge src={toPreviewSrc(mediaPath)} />
                   </>

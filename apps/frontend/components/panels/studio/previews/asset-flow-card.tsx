@@ -75,6 +75,7 @@ export function AssetFlowCard({
           alt={card.name}
           className="h-full w-full object-contain"
           fallbackLabel="成图丢失"
+          previewable
         />
       ) : status === "生成中" ? (
         <RefreshCw className="h-8 w-8 animate-spin text-primary/70" />

@@ -82,6 +82,7 @@ export function RemotionShotPreview({
                     alt={shot.title}
                     className="h-full w-full object-cover"
                     fallbackLabel="首帧丢失"
+                    previewable
                   />
                 ) : (
                   <div className="flex h-full items-center justify-center text-[9px] text-muted-foreground">无首帧</div>
