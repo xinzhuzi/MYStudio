@@ -32,7 +32,7 @@ const assetOrchestratorMocks = vi.hoisted(() => ({
 }));
 
 const aiManagerMocks = vi.hoisted(() => ({
-  freedomImage: vi.fn(),
+  generateImage: vi.fn(),
   resolve: vi.fn(),
   text: vi.fn(),
   textStream: vi.fn(),
@@ -44,7 +44,7 @@ vi.mock("@/lib/studio/asset-generation-orchestrator", () => ({
 
 vi.mock("@/lib/ai/ai-manager", () => ({
   aiManager: {
-    freedomImage: aiManagerMocks.freedomImage,
+    generateImage: aiManagerMocks.generateImage,
     resolve: aiManagerMocks.resolve,
     text: aiManagerMocks.text,
     textStream: aiManagerMocks.textStream,
@@ -1039,7 +1039,7 @@ describe("workflow stage action surfaces", () => {
       addImage: vi.fn(),
       saveMaterial: vi.fn(),
     };
-    aiManagerMocks.freedomImage.mockResolvedValue({
+    aiManagerMocks.generateImage.mockResolvedValue({
       url: "https://model.test/generated-shot.png",
     });
 
@@ -1066,7 +1066,7 @@ describe("workflow stage action surfaces", () => {
     });
 
     expect(handleStageChange).toHaveBeenCalledWith("storyboard");
-    expect(aiManagerMocks.freedomImage).not.toHaveBeenCalled();
+    expect(aiManagerMocks.generateImage).not.toHaveBeenCalled();
     expect(window.projectFiles?.saveImage).not.toHaveBeenCalled();
     expect(window.studioAssets?.add).not.toHaveBeenCalled();
     expect(window.studioAssets?.addImage).not.toHaveBeenCalled();

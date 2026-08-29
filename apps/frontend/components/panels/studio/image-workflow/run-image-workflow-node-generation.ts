@@ -37,7 +37,7 @@ function stripCompiledFrameRedundantSections(prompt: string): string {
 /**
  * 单节点生图核心(自 use-image-workflow-generation.generateNode 提取,行为零变化):
  * 组装黄金公式请求→连续性门禁→file:// 参考按需转 dataURL 传输→风格锁→
- * freedomImage→项目内保存→材料入库→成图节点回写,返回最终轻量 URL。
+ * generateImage→项目内保存→材料入库→成图节点回写,返回最终轻量 URL。
  * 不含:generating/failed 状态置位、toast、分镜回写——由调用方编排
  * (单镜 hook 与分镜面板批量串行 hook 各自决定失败策略)。
  */
@@ -110,7 +110,7 @@ export async function runImageWorkflowNodeGeneration(
     transport,
   });
   const generateAndSave = async (transport?: "chat") => {
-    const generated = await aiManager.freedomImage(buildRequest(transport));
+    const generated = await aiManager.generateImage(buildRequest(transport));
     const saved = await getProjectFilesBridge()?.saveImage({
       projectId,
       relativePath: workflowImageRelativePath(

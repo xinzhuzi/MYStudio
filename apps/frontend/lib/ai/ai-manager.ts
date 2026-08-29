@@ -17,7 +17,8 @@ import {
 } from "@/lib/ai/image-generator";
 import { getWorkerBridge, initializeWorkerBridge, type AIWorkerBridge } from "@/lib/ai/worker-bridge";
 import { extractStyleTokens } from "@/lib/ai/style-extractor";
-import { generateFreedomImage, generateFreedomVideo } from "@/lib/assist/freedom-api";
+import { generateImage as _engineGenerateImage } from "@/lib/ai/image-generation-engine";
+import { generateFreedomVideo } from "@/lib/assist/freedom-api";
 import { callVideoGenerationApi } from "@/lib/ai/video-generator";
 import { generateSpeech } from "@/lib/tts/client";
 import {
@@ -157,8 +158,8 @@ function vision(...args: Parameters<typeof extractStyleTokens>) {
 }
 
 /** 自由板块图片生成。 */
-function freedomImage(...args: Parameters<typeof generateFreedomImage>) {
-  return generateFreedomImage(...args);
+function generateImage(...args: Parameters<typeof _engineGenerateImage>) {
+  return _engineGenerateImage(...args);
 }
 
 /** 自由板块视频生成。 */
@@ -185,7 +186,7 @@ export const aiManager = {
   featureText,
   chatMultimodal,
   vision,
-  freedomImage,
+  generateImage,
   freedomVideo,
   video,
 };

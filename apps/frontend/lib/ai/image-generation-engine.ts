@@ -8,8 +8,8 @@
  * 分层定位(2026-08-29 迁自 lib/assist/freedom-api.ts,Trellis
  * 08-28-freedom-image-engine-rename 批次 A):渠道/引擎层,与 image-generator
  * (资产链)/mikoto-async 同层。消费方:ai-manager 门面 → 自由面板/分镜批量/
- * 画布节点生图。旧名 generateFreedomImage 由 lib/assist/freedom-api.ts
- * 再导出别名,外部调用点零改动(批次 C 再正名)。
+ * 画布节点生图。ai-manager 门面直接导入 generateImage(批次 C 已正名,
+ * freedom-api 的旧名再导出已移除)。
  *
  * 引擎职责:收集 freedom_image/character_generation/scene_generation 绑定组
  * 兜底链(≤2 家)→ mikoto 异步拦截 → 智能路由(images/chat/mj/ideogram/kling/

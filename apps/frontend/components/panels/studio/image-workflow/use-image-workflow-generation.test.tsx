@@ -7,10 +7,10 @@ import type { ImageWorkflowGraph } from "@/types/studio";
 let currentGraph: ImageWorkflowGraph;
 let currentStoryboards: Array<{ id: string; episodeId: string }>;
 let activeProjectId: string | null;
-const freedomImage = vi.hoisted(() => vi.fn());
+const generateImageMock = vi.hoisted(() => vi.fn());
 const toast = vi.hoisted(() => ({ error: vi.fn(), success: vi.fn() }));
 
-vi.mock("@/lib/ai/ai-manager", () => ({ aiManager: { freedomImage } }));
+vi.mock("@/lib/ai/ai-manager", () => ({ aiManager: { generateImage: generateImageMock } }));
 vi.mock("@/stores/studio/studio-store", () => ({
   useStudioStore: Object.assign(vi.fn(), {
     getState: () => ({
@@ -78,7 +78,7 @@ beforeEach(() => {
 
 describe("useImageWorkflowGeneration", () => {
   it("generates, saves, materializes, and marks the latest graph ready", async () => {
-    freedomImage.mockResolvedValue({ url: "https://provider.test/image.png", mediaId: "remote-media" });
+    generateImageMock.mockResolvedValue({ url: "https://provider.test/image.png", mediaId: "remote-media" });
     const saveImage = vi.fn().mockResolvedValue({
       success: true,
       url: "project://project-1/workflow/graph-1/generated-1.png",
@@ -103,7 +103,7 @@ describe("useImageWorkflowGeneration", () => {
     await act(async () => result.current.generateNode("generated-1"));
 
     expect(savedGraphs[0].nodes[0]).toMatchObject({ status: "generating" });
-    expect(freedomImage).toHaveBeenCalledWith(expect.objectContaining({
+    expect(generateImageMock).toHaveBeenCalledWith(expect.objectContaining({
       prompt: "cinematic portrait",
       model: "gpt-image-1",
       extraParams: { quality: "hd" },
@@ -130,7 +130,7 @@ describe("useImageWorkflowGeneration", () => {
   it("saves storyboard-targeted generations under the chapter scope", async () => {
     currentGraph = { ...createGraph(), target: { kind: "storyboard", id: "sb-chapter-001-005" } };
     currentStoryboards = [{ id: "sb-chapter-001-005", episodeId: "chapter-001" }];
-    freedomImage.mockResolvedValue({ url: "https://provider.test/image.png" });
+    generateImageMock.mockResolvedValue({ url: "https://provider.test/image.png" });
     const saveImage = vi.fn().mockResolvedValue({
       success: true,
       url: "project://project-1/workflow/chapter-001/graph-1/generated-1.png",
@@ -168,12 +168,12 @@ describe("useImageWorkflowGeneration", () => {
     await act(async () => result.current.generateNode("generated-1"));
 
     expect(saveGraph).not.toHaveBeenCalled();
-    expect(freedomImage).not.toHaveBeenCalled();
+    expect(generateImageMock).not.toHaveBeenCalled();
     expect(toast.error).toHaveBeenCalledWith("请先填写生成提示词");
   });
 
   it("preserves the project-save failure when the bridge is unavailable", async () => {
-    freedomImage.mockResolvedValue({ url: "https://provider.test/image.png" });
+    generateImageMock.mockResolvedValue({ url: "https://provider.test/image.png" });
     const savedGraphs: ImageWorkflowGraph[] = [];
     const saveGraph = vi.fn((graph: ImageWorkflowGraph) => {
       currentGraph = graph;

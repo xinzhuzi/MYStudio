@@ -4,11 +4,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { VlmReviewArtifactV1 } from "@/types/contracts/vlm-review-workflow";
 import type { ImageWorkflowGraph, StoryboardItem } from "@/types/studio";
 
-const freedomImage = vi.hoisted(() => vi.fn());
+const generateImageMock = vi.hoisted(() => vi.fn());
 const saveImage = vi.hoisted(() => vi.fn());
 const toast = vi.hoisted(() => ({ error: vi.fn(), success: vi.fn(), info: vi.fn() }));
 
-vi.mock("@/lib/ai/ai-manager", () => ({ aiManager: { freedomImage } }));
+vi.mock("@/lib/ai/ai-manager", () => ({ aiManager: { generateImage: generateImageMock } }));
 vi.mock("sonner", () => ({ toast }));
 vi.mock("@/lib/bridge/project-files", () => ({
   getProjectFilesBridge: () => ({ saveImage }),
@@ -113,7 +113,7 @@ describe("useStoryboardBatchGeneration(一键生图串行批量)", () => {
       if (saveCalls === 1) return { success: false, error: "504 download timeout" };
       return { success: true, url: "project-file://proj/workflow/gen-out.png", size: 10 };
     });
-    freedomImage.mockImplementation(async (params: { transport?: string }) => {
+    generateImageMock.mockImplementation(async (params: { transport?: string }) => {
       if (params?.transport === "chat") return { url: "data:image/png;base64,QQ==" };
       return { url: "https://cdn.test/remote.png" };
     });
@@ -124,9 +124,9 @@ describe("useStoryboardBatchGeneration(一键生图串行批量)", () => {
     act(() => result.current.start());
     await waitFor(() => expect(result.current.state.running).toBe(false), { timeout: 4000 });
 
-    expect(freedomImage).toHaveBeenCalledTimes(2);
-    expect(freedomImage.mock.calls[0][0].transport).toBeUndefined();
-    expect(freedomImage.mock.calls[1][0].transport).toBe("chat");
+    expect(generateImageMock).toHaveBeenCalledTimes(2);
+    expect(generateImageMock.mock.calls[0][0].transport).toBeUndefined();
+    expect(generateImageMock.mock.calls[1][0].transport).toBe("chat");
     expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining("回退 chat base64"), expect.anything());
     const sb1 = useStudioStore.getState().storyboards.find((item) => item.id === "sb-1")!;
     expect(sb1.mediaRef).toMatchObject({ kind: "image", path: "project-file://proj/workflow/gen-out.png" });
@@ -140,7 +140,7 @@ describe("useStoryboardBatchGeneration(一键生图串行批量)", () => {
     ]);
     const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => undefined);
     saveImage.mockImplementation(async (_payload: unknown) => ({ success: false, error: "disk full" }));
-    freedomImage.mockImplementation(async () => ({ url: "data:image/png;base64,QQ==" }));
+    generateImageMock.mockImplementation(async () => ({ url: "data:image/png;base64,QQ==" }));
 
     const { result } = renderHook(() =>
       useStoryboardBatchGeneration({ storyboards: useStudioStore.getState().storyboards, projectName: "道劫" }),
@@ -148,7 +148,7 @@ describe("useStoryboardBatchGeneration(一键生图串行批量)", () => {
     act(() => result.current.start());
     await waitFor(() => expect(result.current.state.running).toBe(false), { timeout: 4000 });
 
-    expect(freedomImage).toHaveBeenCalledTimes(1);
+    expect(generateImageMock).toHaveBeenCalledTimes(1);
     expect(result.current.state).toMatchObject({ total: 1, done: 1, failed: 1 });
     warnSpy.mockRestore();
   });
@@ -160,7 +160,7 @@ describe("useStoryboardBatchGeneration(一键生图串行批量)", () => {
       shot({ id: "sb-3", index: 3 }),
     ]);
     const callOrder: number[] = [];
-    freedomImage.mockImplementation(async () => {
+    generateImageMock.mockImplementation(async () => {
       const index = callOrder.length === 0 ? 2 : 3;
       callOrder.push(index);
         if (index === 2) return { url: "https://provider.test/ok.png" };
@@ -197,7 +197,7 @@ describe("useStoryboardBatchGeneration(一键生图串行批量)", () => {
       }),
     ]);
     const genCalls: string[] = [];
-    freedomImage.mockImplementation(async () => {
+    generateImageMock.mockImplementation(async () => {
       genCalls.push(`call-${genCalls.length + 1}`);
       return { url: `https://provider.test/kf-${genCalls.length}.png` };
     });
@@ -223,7 +223,7 @@ describe("useStoryboardBatchGeneration(一键生图串行批量)", () => {
   it("stops after the current shot when stop() is requested mid-run", async () => {
     resetStore([shot({ id: "sb-1", index: 1 }), shot({ id: "sb-2", index: 2 })]);
     const resolvers: Array<() => void> = [];
-    freedomImage.mockImplementation(() => new Promise<{ url: string }>((resolve) => {
+    generateImageMock.mockImplementation(() => new Promise<{ url: string }>((resolve) => {
       resolvers.push(() => resolve({ url: "https://provider.test/ok.png" }));
     }));
 
@@ -236,7 +236,7 @@ describe("useStoryboardBatchGeneration(一键生图串行批量)", () => {
     await act(async () => { resolvers[0]!(); });
     await waitFor(() => expect(result.current.state.running).toBe(false), { timeout: 4000 });
 
-    expect(freedomImage).toHaveBeenCalledTimes(1);
+    expect(generateImageMock).toHaveBeenCalledTimes(1);
     expect(useStudioStore.getState().storyboards.find((item) => item.id === "sb-1")!.mediaRef?.kind).toBe("image");
     expect(useStudioStore.getState().storyboards.find((item) => item.id === "sb-2")!.mediaRef?.kind).not.toBe("image");
     expect(toast.info).toHaveBeenCalledWith(expect.stringContaining("已停止"));
@@ -245,7 +245,7 @@ describe("useStoryboardBatchGeneration(一键生图串行批量)", () => {
   it("ignores re-entry while a batch is already running", async () => {
     resetStore([shot({ id: "sb-1", index: 1 })]);
     const resolvers: Array<() => void> = [];
-    freedomImage.mockImplementation(() => new Promise<{ url: string }>((resolve) => {
+    generateImageMock.mockImplementation(() => new Promise<{ url: string }>((resolve) => {
       resolvers.push(() => resolve({ url: "https://provider.test/ok.png" }));
     }));
 
@@ -258,7 +258,7 @@ describe("useStoryboardBatchGeneration(一键生图串行批量)", () => {
     await act(async () => { resolvers[0]!(); });
     await waitFor(() => expect(result.current.state.running).toBe(false), { timeout: 4000 });
 
-    expect(freedomImage).toHaveBeenCalledTimes(1);
+    expect(generateImageMock).toHaveBeenCalledTimes(1);
   });
 
   it("no-ops with a hint when every shot already has an image", () => {
@@ -269,7 +269,7 @@ describe("useStoryboardBatchGeneration(一键生图串行批量)", () => {
       useStoryboardBatchGeneration({ storyboards: useStudioStore.getState().storyboards, projectName: "道劫" }),
     );
     act(() => result.current.start());
-    expect(freedomImage).not.toHaveBeenCalled();
+    expect(generateImageMock).not.toHaveBeenCalled();
     expect(toast.info).toHaveBeenCalledWith("所有分镜画面均已齐备");
     expect(result.current.state.running).toBe(false);
   });
@@ -298,7 +298,7 @@ describe("useStoryboardBatchGeneration(一键生图串行批量)", () => {
     // 空壳排在前面(历史数组序)——择优必须跳过它
     useStudioStore.setState({ imageWorkflows: [bareGraph, richGraph] });
 
-    freedomImage.mockResolvedValue({ url: "https://provider.test/ok.png" });
+    generateImageMock.mockResolvedValue({ url: "https://provider.test/ok.png" });
     const { result } = renderHook(() =>
       useStoryboardBatchGeneration({ storyboards: useStudioStore.getState().storyboards, projectName: "道劫" }),
     );
@@ -306,7 +306,7 @@ describe("useStoryboardBatchGeneration(一键生图串行批量)", () => {
     await waitFor(() => expect(result.current.state.running).toBe(false), { timeout: 8000 });
 
     // 择优:生成走了带参考的 wf-rich(其既有参考直接生效)
-    expect(freedomImage.mock.calls[0]?.[0]?.referenceImages).toContain("file://assets/ref-zhaosi.png");
+    expect(generateImageMock.mock.calls[0]?.[0]?.referenceImages).toContain("file://assets/ref-zhaosi.png");
     // 空壳 wf-bare 未被补挂(未被选中)
     const bareInStore = useStudioStore.getState().imageWorkflows.find((g) => g.id === "wf-bare");
     expect(bareInStore?.nodes.some((n) => n.type === "reference")).toBe(false);
@@ -319,7 +319,7 @@ describe("useStoryboardBatchGeneration(一键生图串行批量)", () => {
       { imageUrl: "file://assets/ref-zhaosi.png", title: "监工赵四", assetType: "character", assetId: "ch-1" },
     ];
     useStudioStore.setState({ imageWorkflows: [createBareStoryboardGraph("sb-1", "wf-bare")] });
-    freedomImage.mockResolvedValue({ url: "https://provider.test/ok.png" });
+    generateImageMock.mockResolvedValue({ url: "https://provider.test/ok.png" });
 
     const { result } = renderHook(() =>
       useStoryboardBatchGeneration({ storyboards: useStudioStore.getState().storyboards, projectName: "道劫" }),
@@ -330,8 +330,8 @@ describe("useStoryboardBatchGeneration(一键生图串行批量)", () => {
     const stored = useStudioStore.getState().imageWorkflows.find((g) => g.id === "wf-bare");
     const refTitles = stored?.nodes.filter((n) => n.type === "reference").map((n) => n.title);
     expect(refTitles).toEqual(["金水河码头", "监工赵四"]);
-    expect(freedomImage.mock.calls[0]?.[0]?.referenceImages).toContain("file://assets/ref-scene.png");
-    expect(freedomImage.mock.calls[0]?.[0]?.referenceImages).toContain("file://assets/ref-zhaosi.png");
+    expect(generateImageMock.mock.calls[0]?.[0]?.referenceImages).toContain("file://assets/ref-scene.png");
+    expect(generateImageMock.mock.calls[0]?.[0]?.referenceImages).toContain("file://assets/ref-zhaosi.png");
     // 补挂的参考连向成图节点
     const genId = stored?.nodes.find((n) => n.type === "generated")?.id;
     expect(stored?.edges.some((e) => e.source === "existing-ref" || (e.target === genId && e.source !== "existing-ref"))).toBe(true);
@@ -343,7 +343,7 @@ describe("useStoryboardBatchGeneration(一键生图串行批量)", () => {
     const noFp = { ...createBareStoryboardGraph("sb-1", "wf-nofp"), targetSourceFingerprint: undefined } as ImageWorkflowGraph;
     useStudioStore.setState({ imageWorkflows: [bare, noFp] });
     resolvedReferences.value = [];
-    freedomImage.mockResolvedValue({ url: "https://provider.test/ok.png" });
+    generateImageMock.mockResolvedValue({ url: "https://provider.test/ok.png" });
     const { result } = renderHook(() =>
       useStoryboardBatchGeneration({ storyboards: useStudioStore.getState().storyboards, projectName: "道劫" }),
     );
@@ -372,13 +372,13 @@ describe("useStoryboardBatchGeneration(一键生图串行批量)", () => {
     } as unknown as ImageWorkflowGraph;
     useStudioStore.setState({ imageWorkflows: [bare, rich] });
     resolvedReferences.value = [];
-    freedomImage.mockResolvedValue({ url: "https://provider.test/ok.png" });
+    generateImageMock.mockResolvedValue({ url: "https://provider.test/ok.png" });
     const { result } = renderHook(() =>
       useStoryboardBatchGeneration({ storyboards: useStudioStore.getState().storyboards, projectName: "道劫" }),
     );
     act(() => result.current.start());
     await waitFor(() => expect(result.current.state.running).toBe(false), { timeout: 8000 });
-    expect(freedomImage.mock.calls[0]?.[0]?.referenceImages).toContain("file://assets/ref-zhaosi.png");
+    expect(generateImageMock.mock.calls[0]?.[0]?.referenceImages).toContain("file://assets/ref-zhaosi.png");
   });
   it("rejects a fingerprintless cross-generation workflow whose references are outside the current shot list (S20 形态)", async () => {
     resetStore([shot({ id: "sb-1", index: 1, sourceFingerprint: "fp-real", associateAssetsNames: ["道口镇街巷", "独孤剑尘"] })]);
@@ -396,7 +396,7 @@ describe("useStoryboardBatchGeneration(一键生图串行批量)", () => {
     } as unknown as ImageWorkflowGraph;
     useStudioStore.setState({ imageWorkflows: [crossGen] });
     resolvedReferences.value = [{ imageUrl: "file://assets/street.png", title: "道口镇街巷", assetType: "scene", assetId: "sc-street" }];
-    freedomImage.mockResolvedValue({ url: "https://provider.test/ok.png" });
+    generateImageMock.mockResolvedValue({ url: "https://provider.test/ok.png" });
 
     const { result } = renderHook(() =>
       useStoryboardBatchGeneration({ storyboards: useStudioStore.getState().storyboards, projectName: "道劫" }),
@@ -406,7 +406,7 @@ describe("useStoryboardBatchGeneration(一键生图串行批量)", () => {
 
     // 跨代流被拒→不选它→走参考补挂?补挂在选中图上——选中集为空时建新流:
     // 断言生成参考=当前清单解析出的街巷(而非客栈)
-    const call = freedomImage.mock.calls[0]?.[0];
+    const call = generateImageMock.mock.calls[0]?.[0];
     expect(call?.referenceImages).toContain("file://assets/street.png");
     expect(call?.referenceImages).not.toContain("file://assets/inn.png");
   });
@@ -417,7 +417,7 @@ describe("useStoryboardBatchGeneration(一键生图串行批量)", () => {
       { imageUrl: "file://assets/guanshi.png", title: "掌柜", assetType: "character", assetId: "ch-1" },
     ];
     useStudioStore.setState({ imageWorkflows: [createBareStoryboardGraph("sb-1", "wf-bare")] });
-    freedomImage.mockResolvedValue({ url: "https://provider.test/ok.png" });
+    generateImageMock.mockResolvedValue({ url: "https://provider.test/ok.png" });
 
     const { result } = renderHook(() =>
       useStoryboardBatchGeneration({ storyboards: useStudioStore.getState().storyboards, projectName: "道劫" }),
@@ -444,7 +444,7 @@ describe("useStoryboardBatchGeneration(一键生图串行批量)", () => {
     } as unknown as ImageWorkflowGraph;
     useStudioStore.setState({ imageWorkflows: [graph] });
     resolvedReferences.value = [];
-    freedomImage.mockResolvedValue({ url: "https://provider.test/ok.png" });
+    generateImageMock.mockResolvedValue({ url: "https://provider.test/ok.png" });
     assetsBridge.readImageDataUrl = async () => { throw new Error("missing"); };
     try {
       const { result } = renderHook(() =>
@@ -453,7 +453,7 @@ describe("useStoryboardBatchGeneration(一键生图串行批量)", () => {
       act(() => result.current.start());
       await waitFor(() => expect(result.current.state.running).toBe(false), { timeout: 8000 });
 
-      expect(freedomImage).not.toHaveBeenCalled();
+      expect(generateImageMock).not.toHaveBeenCalled();
       expect(result.current.state.failed).toBe(1);
       expect(toast.error).toHaveBeenCalledWith(expect.stringContaining("无法读取"), expect.anything());
     } finally {
@@ -476,7 +476,7 @@ describe("useStoryboardBatchGeneration(一键生图串行批量)", () => {
     act(() => result.current.start());
     await waitFor(() => expect(result.current.state.running).toBe(false), { timeout: 8000 });
 
-    expect(freedomImage).not.toHaveBeenCalled();
+    expect(generateImageMock).not.toHaveBeenCalled();
     expect(toast.error).toHaveBeenCalledWith(expect.stringContaining("800"), expect.anything());
   });
 });
@@ -523,7 +523,7 @@ describe("useStoryboardBatchGeneration(VLM 视觉一致性四象限)", () => {
 
   beforeEach(() => {
     resolvedReferences.value = [];
-    freedomImage.mockImplementation(async () => ({ url: "https://provider.test/ok.png" }));
+    generateImageMock.mockImplementation(async () => ({ url: "https://provider.test/ok.png" }));
   });
 
   afterEach(() => {
@@ -540,7 +540,7 @@ describe("useStoryboardBatchGeneration(VLM 视觉一致性四象限)", () => {
     act(() => result.current.start());
     await waitFor(() => expect(result.current.state.running).toBe(false), { timeout: 8000 });
 
-    expect(freedomImage).toHaveBeenCalledTimes(1);
+    expect(generateImageMock).toHaveBeenCalledTimes(1);
     expect(run).toHaveBeenCalledTimes(1);
     const sb1 = useStudioStore.getState().storyboards.find((item) => item.id === "sb-1")!;
     expect(sb1.mediaRef).toMatchObject({ kind: "image", path: "project-file://proj/workflow/gen-out.png" });
@@ -566,7 +566,7 @@ describe("useStoryboardBatchGeneration(VLM 视觉一致性四象限)", () => {
     act(() => result.current.start());
     await waitFor(() => expect(result.current.state.running).toBe(false), { timeout: 8000 });
 
-    expect(freedomImage).toHaveBeenCalledTimes(2);
+    expect(generateImageMock).toHaveBeenCalledTimes(2);
     const sb1 = useStudioStore.getState().storyboards.find((item) => item.id === "sb-1")!;
     expect(sb1.mediaRef).toMatchObject({ kind: "image" });
     expect(sb1.visualReview).toMatchObject({ status: "pending", reviewer: "vlm" });
@@ -585,7 +585,7 @@ describe("useStoryboardBatchGeneration(VLM 视觉一致性四象限)", () => {
     act(() => result.current.start());
     await waitFor(() => expect(result.current.state.running).toBe(false), { timeout: 8000 });
 
-    expect(freedomImage).toHaveBeenCalledTimes(2);
+    expect(generateImageMock).toHaveBeenCalledTimes(2);
     const sb1 = useStudioStore.getState().storyboards.find((item) => item.id === "sb-1")!;
     expect(sb1.mediaRef?.kind).not.toBe("image");
     expect(sb1.visualReview).toBeUndefined();
@@ -603,7 +603,7 @@ describe("useStoryboardBatchGeneration(VLM 视觉一致性四象限)", () => {
     act(() => result.current.start());
     await waitFor(() => expect(result.current.state.running).toBe(false), { timeout: 8000 });
 
-    expect(freedomImage).toHaveBeenCalledTimes(1);
+    expect(generateImageMock).toHaveBeenCalledTimes(1);
     expect(run).not.toHaveBeenCalled();
     const sb1 = useStudioStore.getState().storyboards.find((item) => item.id === "sb-1")!;
     expect(sb1.mediaRef).toMatchObject({ kind: "image" });

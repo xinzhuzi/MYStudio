@@ -79,7 +79,7 @@ export function ImageStudio() {
     abortRef.current = controller;
 
     try {
-      const result = await aiManager.freedomImage({
+      const result = await aiManager.generateImage({
         prompt: imagePrompt,
         model: selectedImageModel,
         aspectRatio: imageAspectRatio,

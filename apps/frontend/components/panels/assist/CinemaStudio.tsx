@@ -60,7 +60,7 @@ export function CinemaStudio() {
         selectedAperture
       );
 
-      const result = await aiManager.freedomImage({
+      const result = await aiManager.generateImage({
         prompt: fullPrompt,
       });
 

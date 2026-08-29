@@ -2,7 +2,7 @@
 /**
  * 分镜工作流节点生图核心的道劫编译边界测试:
  * 单镜 hook 与面板批量串行 hook(5edd0ee)共用本核心,道劫分镜帧必须
- * 经 ma-gongbi-v1 编译(唯一 Avoid+800 门)后以 raw 直传 freedomImage。
+ * 经 ma-gongbi-v1 编译(唯一 Avoid+800 门)后以 raw 直传 generateImage。
  */
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
@@ -12,7 +12,7 @@ import {
 import { runImageWorkflowNodeGeneration } from "./run-image-workflow-node-generation";
 
 vi.mock("@/lib/ai/ai-manager", () => ({
-  aiManager: { freedomImage: vi.fn().mockResolvedValue({ url: "https://cdn.example/frame.png", mediaId: "m1" }) },
+  aiManager: { generateImage: vi.fn().mockResolvedValue({ url: "https://cdn.example/frame.png", mediaId: "m1" }) },
 }));
 vi.mock("@/lib/bridge/project-files", () => ({
   getProjectFilesBridge: () => ({
@@ -76,7 +76,7 @@ describe("runImageWorkflowNodeGeneration 道劫分镜编译边界", () => {
     });
 
     expect(result.imageUrl).toBe("project-file://w/1.png");
-    const params = vi.mocked(aiManager.freedomImage).mock.calls[0][0];
+    const params = vi.mocked(aiManager.generateImage).mock.calls[0][0];
     expect(params.promptPolicy).toBe("raw");
     expect(params.negativePrompt).toBeUndefined();
     expect(params.prompt).toContain("【画面】独孤剑尘立于金水河码头");
@@ -91,7 +91,7 @@ describe("runImageWorkflowNodeGeneration 道劫分镜编译边界", () => {
 
     await runImageWorkflowNodeGeneration(storyboardGraph, "gen-1", { addMaterial: () => "mat-1" });
 
-    const params = vi.mocked(aiManager.freedomImage).mock.calls[0][0];
+    const params = vi.mocked(aiManager.generateImage).mock.calls[0][0];
     expect(params.promptPolicy).toBeUndefined();
     expect(params.negativePrompt).toBe("watermark");
     expect(params.prompt).not.toContain("Avoid:");
@@ -104,12 +104,12 @@ describe("runImageWorkflowNodeGeneration 道劫分镜编译边界", () => {
 
     await runImageWorkflowNodeGeneration(freedomGraph, "gen-1", { addMaterial: () => "mat-1" });
 
-    const params = vi.mocked(aiManager.freedomImage).mock.calls[0][0];
+    const params = vi.mocked(aiManager.generateImage).mock.calls[0][0];
     expect(params.promptPolicy).toBeUndefined();
     expect(params.negativePrompt).toBe("watermark");
   });
 
-  it("分镜帧超 800 字符在网络前 fail-closed,不触发 freedomImage", async () => {
+  it("分镜帧超 800 字符在网络前 fail-closed,不触发 generateImage", async () => {
     studioState.workflowConfig = { visualManualId: "daojie_ink_guofeng" };
     await warmExtendedManualStyleTokens(DAOJIE_MANUAL);
     const { buildImageWorkflowGenerationRequest } = await import("@/lib/studio/image-workflow");
@@ -126,6 +126,6 @@ describe("runImageWorkflowNodeGeneration 道劫分镜编译边界", () => {
     await expect(
       runImageWorkflowNodeGeneration(storyboardGraph, "gen-1", { addMaterial: () => "mat-1" }),
     ).rejects.toThrow("800");
-    expect(aiManager.freedomImage).not.toHaveBeenCalled();
+    expect(aiManager.generateImage).not.toHaveBeenCalled();
   });
 });

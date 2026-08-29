@@ -6,8 +6,8 @@
  * 自由面板视频生成客户端(08-28-freedom-image-engine-rename 批次 A 拆分):
  * 生图引擎已整体迁 lib/ai/image-generation-engine.ts,此处保留——
  *   1. generateFreedomVideo(视频生成,二期正名迁出)
- *   2. 旧符号再导出(generateFreedomImage 等),ai-manager/面板零改动;
- *      批次 C 公共名统一改为 generateImage 后移除。
+ *   2. 类型再导出;生图公共入口已正名 generateImage(ai-manager 直连引擎,
+ *      批次 C 已完成,旧名再导出已移除)。
  */
 import { getFeatureNotConfiguredMessage } from '@/lib/ai/feature-router';
 import { getModelEndpointTypes } from '@/lib/ai/config/store-adapter';
@@ -28,7 +28,6 @@ import { saveToMediaLibrary } from '@/lib/ai/generation-media';
 import type { FreedomVideoParams, GenerationResult } from './freedom-types';
 
 // ── 旧符号兼容再导出(批次 C 正名后移除)──
-export { generateImage as generateFreedomImage } from '@/lib/ai/image-generation-engine';
 export type { FreedomImageParams, GenerationResult } from '@/lib/ai/generation-types';
 export type { FreedomVideoUploadFile, FreedomVideoUploadRole } from './video-upload-validation';
 
