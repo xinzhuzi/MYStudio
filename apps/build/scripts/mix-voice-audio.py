@@ -1,9 +1,14 @@
 #!/usr/bin/env python3
 """
-Legacy bypass: 将旧流水线 voice-audio/WAV 文件混入 Remotion 章节 MP4。
+Legacy bypass: 将项目侧 voice WAV 混入 Remotion 章节 MP4。
 
 背景：临时跳过 TTS 后分镜 MP4 音频为静音，需要通过 ffmpeg 把
-旧 toonflow_audio 的 WAV 混入最终章节视频。
+项目配音 WAV 混入最终章节视频。
+
+音频源约定（2026-08-29 对齐台账 v2，Trellis 08-28-workflow-model-path-integrity B4）：
+- 物理文件：<项目根>/remotion/audio/<chapterId>/shots/<shotId>/voice/<sha256>.wav（内容寻址）
+- 映射真源：<项目根>/remotion/audio-ledger/<chapterId>.json（shots[].audio.relativePath）
+- 旧 exports/chapter-001/voice-audio/shot-XX.wav 仅作台账缺项时的逐文件回退
 
 关键教训（2026-08-07）：
 - 43 段独白不重叠（sequential），使用 amix:normalize=0 即可
@@ -13,7 +18,7 @@ Legacy bypass: 将旧流水线 voice-audio/WAV 文件混入 Remotion 章节 MP4�
 用法：
   cd apps && python3 build/scripts/mix-voice-audio.py
 
-前置：timeline-render-plan.json 与 voice-audio/*.wav 存在
+前置：timeline-render-plan.json 与输入 MP4 存在；台账或回退 WAV 至少一路可用
 输出：apps/output/automation/chapter001-timeline/remotion/output-with-audio.mp4
 """
 
@@ -22,12 +27,45 @@ import subprocess
 import os
 import sys
 
-PROJECT_DIR = "/Users/zhengbingjin/Library/Application Support/漫影工作室/projects/_p/49dce4c1-64b1-42de-85c2-9f266698aec0"
+# 项目实体在外部 IP/MA（注册表 location 权威；旧 _p 内部位已迁址,勿作主源）
+PROJECT_ROOT = "/Users/zhengbingjin/Project/IP/MA"
+CHAPTER_ID = "chapter-001"
+LEDGER_PATH = os.path.join(PROJECT_ROOT, "remotion", "audio-ledger", f"{CHAPTER_ID}.json")
+LEGACY_VOICE_DIR = os.path.join(
+    "/Users/zhengbingjin/Library/Application Support/漫影工作室/projects/_p",
+    "49dce4c1-64b1-42de-85c2-9f266698aec0", "exports", CHAPTER_ID, "voice-audio",
+)
 APPS_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 PLAN_PATH = os.path.join(APPS_DIR, "output", "automation", "chapter001-timeline", "timeline-render-plan.json")
-VOICE_DIR = os.path.join(PROJECT_DIR, "exports", "chapter-001", "voice-audio")
 INPUT_MP4 = os.path.join(APPS_DIR, "output", "automation", "chapter001-timeline", "remotion", "output.mp4")
 OUTPUT_MP4 = os.path.join(APPS_DIR, "output", "automation", "chapter001-timeline", "remotion", "output-with-audio.mp4")
+
+
+def load_ledger_voice_paths() -> dict[int, str]:
+    """台账 shot 序号 → WAV 绝对路径(内容寻址);台账缺失时返回空表走逐文件回退。"""
+    if not os.path.isfile(LEDGER_PATH):
+        print(f"WARN: audio ledger not found, falling back to legacy dir: {LEGACY_VOICE_DIR}", file=sys.stderr)
+        return {}
+    with open(LEDGER_PATH, encoding="utf-8") as f:
+        ledger = json.load(f)
+    mapping: dict[int, str] = {}
+    for shot in ledger.get("shots", []):
+        relative = (shot.get("audio") or {}).get("relativePath")
+        if not relative:
+            continue
+        absolute = os.path.join(PROJECT_ROOT, relative)
+        if os.path.isfile(absolute):
+            mapping[int(shot["manifestIndex"])] = absolute
+    return mapping
+
+
+def resolve_voice_wav(shot_num: int, ledger_paths: dict[int, str]) -> str | None:
+    """台账优先,旧 shot-XX.wav 逐文件回退;两路都缺返回 None(SKIP)。"""
+    wav = ledger_paths.get(shot_num)
+    if wav:
+        return wav
+    legacy = os.path.join(LEGACY_VOICE_DIR, f"shot-{shot_num}.wav")
+    return legacy if os.path.isfile(legacy) else None
 
 
 def main() -> None:
@@ -44,15 +82,17 @@ def main() -> None:
         print("No voice clips found in plan.")
         sys.exit(0)
 
+    ledger_paths = load_ledger_voice_paths()
+
     inputs: list[str] = []
     filters: list[str] = []
     labels: list[str] = []
 
     for i, vc in enumerate(voice_clips):
-        shot_num = vc["id"].rsplit("-", 1)[-1]
-        wav_path = os.path.join(VOICE_DIR, f"shot-{shot_num}.wav")
-        if not os.path.exists(wav_path):
-            print(f"SKIP missing: {wav_path}", file=sys.stderr)
+        shot_num = int(vc["id"].rsplit("-", 1)[-1])
+        wav_path = resolve_voice_wav(shot_num, ledger_paths)
+        if not wav_path:
+            print(f"SKIP missing voice for shot {shot_num} (ledger+legacy both absent)", file=sys.stderr)
             continue
 
         start_sec = vc["startUs"] / 1_000_000
