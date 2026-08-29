@@ -478,25 +478,7 @@ export function ImageWorkflowCanvas({
           activeGraph={activeGraph}
           chromeReady={chromeReady}
           styleTraceChips={styleTraceChips}
-          scope={workflowScope}
           canUseGlobalWorkflowControls={canUseGlobalWorkflowControls}
-          imageWorkflows={imageWorkflows}
-          storyboards={chapterStoryboards}
-          onSelectStoryboard={(storyboard) => {
-            const currentStoryboardId = activeGraph.target.kind === "storyboard" ? activeGraph.target.id : null;
-            if (storyboard.id === currentStoryboardId) return;
-            // 分镜域切镜恒走整条打开链(匹配/新建/装配),不留在原地换流
-            if (isScopedWorkflowDetail) {
-              onOpenStoryboardWorkflow?.(buildSwitchContext(storyboard));
-              return;
-            }
-            void switchStoryboardWorkflowInCanvas(storyboard);
-          }}
-          onSelectorChange={(workflowId) => {
-            setActiveWorkflowId(workflowId);
-            setSelectedNodeId(null);
-            setPreferredGeneratedNodeId(null);
-          }}
           onCreateNewFlow={createNewFlow}
           onUploadReferenceClick={() => uploadInputRef.current?.click()}
           onAddGeneratedNode={addGeneratedNode}
@@ -517,14 +499,26 @@ export function ImageWorkflowCanvas({
       </div>
 
       <ImageWorkflowSidebar
+        scope={workflowScope}
         activeGraph={activeGraph}
-        projectName={projectName}
-        initialAssetContext={initialAssetContext}
-        isScopedWorkflowDetail={isScopedWorkflowDetail}
-        sourceLabel={sourceLabel}
-        sourceStageLabel={sourceStageLabel}
-        workflowWritebackTargetLabel={workflowWritebackTargetLabel}
-        storyboards={storyboards}
+        storyboards={chapterStoryboards}
+        imageWorkflows={imageWorkflows}
+        chromeReady={chromeReady}
+        onSelectStoryboard={(storyboard) => {
+          const currentStoryboardId = activeGraph.target.kind === "storyboard" ? activeGraph.target.id : null;
+          if (storyboard.id === currentStoryboardId) return;
+          // 分镜域切镜恒走整条打开链(匹配/新建/装配)
+          if (isScopedWorkflowDetail) {
+            onOpenStoryboardWorkflow?.(buildSwitchContext(storyboard));
+            return;
+          }
+          void switchStoryboardWorkflowInCanvas(storyboard);
+        }}
+        onSelectWorkflow={(workflowId) => {
+          setActiveWorkflowId(workflowId);
+          setSelectedNodeId(null);
+          setPreferredGeneratedNodeId(null);
+        }}
         canUseGlobalWorkflowControls={canUseGlobalWorkflowControls}
         imageMaterials={imageMaterials}
         storyboardImages={storyboardImages}

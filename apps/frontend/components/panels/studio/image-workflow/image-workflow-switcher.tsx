@@ -42,8 +42,8 @@ export function ImageWorkflowSwitcher({
     (graph) => graph.target.kind === "asset" || graph.target.kind === "material",
   );
   const freeGraphs = libraryGraphs.filter((graph) => graph.target.kind === "free");
-  const storyboardOptionLabel = (storyboard: StoryboardItem) =>
-    `分镜 ${storyboard.index} · ${(storyboard.videoDesc || storyboard.prompt).slice(0, 18)}`;
+  // 08-30 裁定:分镜项只留「分镜 N」序号,不带描述尾巴(列表即纯索引)
+  const storyboardOptionLabel = (storyboard: StoryboardItem) => `分镜 ${storyboard.index}`;
 
   return (
     <select

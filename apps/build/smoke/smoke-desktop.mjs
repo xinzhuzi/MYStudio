@@ -921,7 +921,8 @@ async function inspectPage(pageTarget) {
     const state = await evaluate(
       `(() => {
     const root = document.getElementById('root');
-    const bodyBg = getComputedStyle(document.body).backgroundColor;
+    const body = document.body;
+    const bodyBg = body ? getComputedStyle(body).backgroundColor : '';
     const dashboardCard = document.querySelector('.dashboard-project-card');
     dashboardCard?.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
     return new Promise((resolve) => setTimeout(() => resolve({
@@ -929,15 +930,15 @@ async function inspectPage(pageTarget) {
       title: document.title,
       readyState: document.readyState,
       bodyBg,
-      bodyText: document.body.innerText,
-      bodyTextLength: document.body.innerText.trim().length,
+      bodyText: body?.innerText || '',
+      bodyTextLength: (body?.innerText || '').trim().length,
       rootChildren: root ? root.children.length : -1,
       hasDashboardCard: Boolean(dashboardCard),
-      hasProjectOverview: document.body.innerText.includes('项目概览'),
+      hasProjectOverview: (body?.innerText || '').includes('项目概览'),
       hasWorkspaceContent:
-        document.body.innerText.includes('当前工作区') ||
-        document.body.innerText.includes('剧情产物生成') ||
-        document.body.innerText.includes('风格与导演选择'),
+        (body?.innerText || '').includes('当前工作区') ||
+        (body?.innerText || '').includes('剧情产物生成') ||
+        (body?.innerText || '').includes('风格与导演选择'),
       hasWhiteBody: bodyBg === 'rgb(255, 255, 255)' || bodyBg === 'white',
       visibilityState: document.visibilityState,
       documentHasFocus: document.hasFocus(),
@@ -1847,11 +1848,12 @@ async function verifyWorkflowEndToEnd(evaluate) {
         const hasNoDuplicateGeneratedPromptPanel = !(hasImageWorkflowPromptNode && Boolean(generatedPromptPanel));
         const hasNoVisibleDuplicateGeneratedPromptPanel = !hasVisibleDuplicateGeneratedPromptPanel;
         const hasEditableImageWorkflowPrompt = promptTextValues.some((value) => value.trim().length > 0);
-        const hasImageWorkflowSource = text.includes('来源') && text.includes('分镜视频生成') && text.includes('衍生资产');
+        // 08-30:侧栏去小标题,上下文由切换器表达(scoped=storyboard 域)
+        const hasImageWorkflowSource = Boolean(imageWorkflowScope.querySelector('[data-image-workflow-selector][data-image-workflow-scope="storyboard"]'));
         const imageWorkflowScope = document.querySelector('[data-scoped-image-workflow-summary]')?.closest('section') || document;
         const scopedButtonTexts = Array.from(imageWorkflowScope.querySelectorAll('button')).map((node) => normalize(node));
         const scopedText = imageWorkflowScope.innerText || '';
-        const hasScopedImageWorkflowSummary = Boolean(imageWorkflowScope.querySelector('[data-scoped-image-workflow-summary]'));
+        const hasScopedImageWorkflowSummary = !imageWorkflowScope.querySelector('[data-image-workflow-reference-palette]');
         // 合并切换器(2026-08-30)常驻 scoped 模式,只再断言全局动作按钮不在
         const hasNoGlobalImageWorkflowControls =
           !imageWorkflowScope.querySelector('[data-image-workflow-global-action]');

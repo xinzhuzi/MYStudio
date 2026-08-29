@@ -19,9 +19,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
-import { ImageWorkflowSwitcher } from "./image-workflow-switcher";
-import type { ImageWorkflowScope } from "./image-workflow-scope";
-import type { ImageWorkflowGeneratedNode, ImageWorkflowGraph, StoryboardItem } from "@/types/studio";
+import type { ImageWorkflowGeneratedNode, ImageWorkflowGraph } from "@/types/studio";
 
 /**
  * 图像节点图画布顶部工具条(T2 自 Canvas 抽取,行为零变化):
@@ -37,12 +35,7 @@ export function ImageWorkflowCanvasToolbar({
   activeGraph,
   chromeReady,
   styleTraceChips,
-  scope,
   canUseGlobalWorkflowControls,
-  imageWorkflows,
-  storyboards,
-  onSelectStoryboard,
-  onSelectorChange,
   onCreateNewFlow,
   onUploadReferenceClick,
   onAddGeneratedNode,
@@ -64,15 +57,7 @@ export function ImageWorkflowCanvasToolbar({
   activeGraph: ImageWorkflowGraph;
   chromeReady: boolean;
   styleTraceChips: string[];
-  /** 作用域(08-30 强隔离裁定):storyboard=分镜域只列本章分镜;library=资产/自由域 */
-  scope: ImageWorkflowScope;
   canUseGlobalWorkflowControls: boolean;
-  imageWorkflows: ImageWorkflowGraph[];
-  /** 本章分镜(已按生产章过滤):「本章分镜」组数据源 */
-  storyboards: StoryboardItem[];
-  /** 合并切换器选中分镜:全局模式画布内切换,scoped 模式走整条打开链 */
-  onSelectStoryboard: (storyboard: StoryboardItem) => void;
-  onSelectorChange: (workflowId: string) => void;
   onCreateNewFlow: () => void;
   onUploadReferenceClick: () => void;
   onAddGeneratedNode: () => void;
@@ -116,15 +101,6 @@ export function ImageWorkflowCanvasToolbar({
           </DropdownMenuContent>
         </DropdownMenu>
       ) : null}
-      <ImageWorkflowSwitcher
-        scope={scope}
-        activeGraph={activeGraph}
-        storyboards={storyboards}
-        imageWorkflows={imageWorkflows}
-        chromeReady={chromeReady}
-        onSelectStoryboard={onSelectStoryboard}
-        onSelectWorkflow={onSelectorChange}
-      />
       {canUseGlobalWorkflowControls ? (
         <>
           <Button

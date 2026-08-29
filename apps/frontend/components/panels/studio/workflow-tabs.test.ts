@@ -227,10 +227,6 @@ describe("studio workflow tabs", () => {
       fileURLToPath(new URL("./image-workflow/image-workflow-node-card.tsx", import.meta.url)),
       "utf8",
     );
-    const sidebarSource = readFileSync(
-      fileURLToPath(new URL("./image-workflow/image-workflow-sidebar.tsx", import.meta.url)),
-      "utf8",
-    );
     const graphUtilsSource = readFileSync(
       fileURLToPath(new URL("./image-workflow/image-workflow-graph-utils.ts", import.meta.url)),
       "utf8",
@@ -251,6 +247,10 @@ describe("studio workflow tabs", () => {
     );
     expect(toolbarSource).toContain("返回");
     expect(toolbarSource).not.toContain(["返回", "工作流"].join(""));
+    const scopedPendingSource = readFileSync(
+      fileURLToPath(new URL("./image-workflow/image-workflow-scoped-pending.tsx", import.meta.url)),
+      "utf8",
+    );
     // 08-30 精简裁定:来源/回写目标只留侧栏一处;风格依据折叠;低频操作入「更多」
     expect(toolbarSource).toContain("风格依据 {styleTraceChips.length} 项");
     expect(toolbarSource).toContain('data-image-workflow-more');
@@ -260,7 +260,8 @@ describe("studio workflow tabs", () => {
     expect(toolbarSource).toContain("写回目标");
     expect(canvasSource).toContain("isScopedWorkflowDetail");
     expect(canvasSource).toContain("canUseGlobalWorkflowControls");
-    expect(sidebarSource).toContain("data-scoped-image-workflow-summary");
+    // 08-30:侧栏去小标题;来源/回写目标只在建流等待视图(scoped-pending)
+    expect(scopedPendingSource).toContain("data-scoped-image-workflow-summary");
     expect(nodeSource).toContain("data-toonflow-generated-prompt-panel");
     expect(nodeSource).toContain("data-toonflow-generated-prompt-textarea");
     expect(graphUtilsSource).toContain("findLinkedPromptNodeForGenerated");
@@ -299,6 +300,10 @@ describe("studio workflow tabs", () => {
     expect(canvasSource).toContain("const canUseGlobalWorkflowControls = !isScopedWorkflowDetail;");
     expect(canvasSource).toContain("initialAssetContext.imageWorkflowId");
     expect(canvasSource).toContain("findStoryboardWorkflowForContext(imageWorkflows, initialAssetContext)");
+    const sidebarSource = readFileSync(
+      fileURLToPath(new URL("./image-workflow/image-workflow-sidebar.tsx", import.meta.url)),
+      "utf8",
+    );
     expect(canvasSource).toContain("selectedGraph && selectedGraph.id === scopedWorkflow?.id");
     expect(canvasSource).toContain("scopedPendingWritebackTargetLabel");
     expect(canvasSource).toContain("<ImageWorkflowScopedPending");
@@ -312,8 +317,10 @@ describe("studio workflow tabs", () => {
       fileURLToPath(new URL("./image-workflow/image-workflow-switcher.tsx", import.meta.url)),
       "utf8",
     );
-    expect(toolbarSource).toContain("<ImageWorkflowSwitcher");
-    expect(toolbarSource).toContain("scope={scope}");
+    // 08-30:切换器入驻侧栏;工具条不再持有
+    expect(toolbarSource).not.toContain("ImageWorkflowSwitcher");
+    expect(sidebarSource).toContain("<ImageWorkflowSwitcher");
+    expect(sidebarSource).toContain("scope={scope}");
     expect(switcherSource).toContain('optgroup label="本章分镜"');
     expect(switcherSource).toContain('optgroup label="资产工作流"');
     expect(switcherSource).toContain('optgroup label="自由工作流"');
