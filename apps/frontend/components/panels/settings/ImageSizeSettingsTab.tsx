@@ -48,6 +48,9 @@ export function ImageSizeSettingsTab({ settings, onChange }: ImageSizeSettingsTa
           <div className="rounded-xl border border-border bg-card p-5 space-y-5">
             <div>
               <div className="text-sm font-semibold text-foreground">默认生图规格</div>
+              <p className="mt-1 text-xs text-muted-foreground">
+                分辨率档（1K/2K/4K）仅对云端供应商生效；本地图片生成（Qwen-Image-Edit）使用官方固定像素档（约 1.7MP），不受此处分辨率影响：1:1→1328×1328，16:9→1664×928，9:16→928×1664，4:3→1472×1140，3:4→1140×1472。
+              </p>
               <div className="mt-1 text-xs text-muted-foreground">
                 未传入 `aspectRatio / resolution` 的生图请求会使用这里的默认值。
               </div>
@@ -171,7 +174,7 @@ export function ImageSizeSettingsTab({ settings, onChange }: ImageSizeSettingsTa
 
         <div className="rounded-xl border border-border bg-card p-5">
           <div className="mb-4">
-            <div className="text-sm font-semibold text-foreground">GPT Image 规格矩阵</div>
+            <div className="text-sm font-semibold text-foreground">GPT Image 规格矩阵（仅云端 GPT 供应商）</div>
             <div className="mt-1 text-xs text-muted-foreground">
               GPT Image 请求会把比例和分辨率转换为标准 `size` 字段；其他供应商可能继续使用 `aspect_ratio / resolution`。
             </div>

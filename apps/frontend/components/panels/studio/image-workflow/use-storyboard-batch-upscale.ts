@@ -67,7 +67,7 @@ export function useStoryboardBatchUpscale(input: {
     toast.info("将在当前分镜完成后停止");
   }, []);
 
-  const start = useCallback(() => {
+  const start = useCallback((opts?: { denoise?: boolean }) => {
     if (runningRef.current) return;
     void (async () => {
       if (!(await guardUpscaleReadiness())) return;
@@ -93,7 +93,7 @@ export function useStoryboardBatchUpscale(input: {
         category: "ai",
         operationId,
         message: "Storyboard batch upscale started",
-        context: { queueSize: queue.length, skippedUpscaled: alreadyUpscaled, activeModel },
+        context: { queueSize: queue.length, skippedUpscaled: alreadyUpscaled, activeModel, denoise: opts?.denoise === true },
       });
 
       let done = 0;
@@ -122,6 +122,7 @@ export function useStoryboardBatchUpscale(input: {
               shotId: shot.id,
               idForFilename: shot.id,
               activeModel,
+              ...(opts?.denoise ? { denoise: true } : {}),
             });
             if (frames?.length) {
               const liveFrames = (useStudioStore.getState().storyboards.find((item) => item.id === shot.id)?.keyframes

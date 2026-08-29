@@ -258,7 +258,7 @@ export function WorkflowNodeCanvas({
   /** 一键超分批量控制,透传到分镜面板节点卡上的「一键超分」入口 */
   storyboardUpscale?: {
     state: StoryboardBatchUpscaleState;
-    start: () => void;
+    start: (opts?: { denoise?: boolean }) => void;
     stop: () => void;
     /** 派生进度:已超分数/有图总数(空闲态按钮显示) */
     upscaledCount?: number;
@@ -453,7 +453,9 @@ export function WorkflowNodeCanvas({
         data: { flowEdgeId: `${source}->${target}` },
         type: "smoothstep",
         className: "production-flow-edge",
-        interactionWidth: 18,
+        // 连线层置于节点之上(见 index.css):点击带收窄到 10px,
+        // 连线压过卡片时不吞节点卡上按钮/输入的点击
+        interactionWidth: 10,
         markerEnd: { type: MarkerType.ArrowClosed, color: PRODUCTION_EDGE_COLOR },
         style: { stroke: PRODUCTION_EDGE_COLOR, strokeWidth: PRODUCTION_EDGE_STROKE_WIDTH },
       })),

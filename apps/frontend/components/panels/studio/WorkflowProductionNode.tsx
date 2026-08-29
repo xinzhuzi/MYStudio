@@ -17,6 +17,9 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { buttonVariants } from "@/components/ui/button";
+import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import type { ImageWorkflowOpenContext } from "@/types/studio";
 import type { StoryboardBatchGenerationState } from "./image-workflow/use-storyboard-batch-generation";
 import type { StoryboardBatchUpscaleState } from "./image-workflow/use-storyboard-batch-upscale";
@@ -47,7 +50,7 @@ export interface ProductionNodeData extends Record<string, unknown> {
   /** 一键超分批量(本地 x4 到 4K),未注入时节点不渲染超分入口 */
   storyboardUpscale?: {
     state: StoryboardBatchUpscaleState;
-    start: () => void;
+    start: (opts?: { denoise?: boolean }) => void;
     stop: () => void;
     /** 派生进度:已超分数/有图总数(空闲态按钮显示) */
     upscaledCount?: number;
@@ -143,6 +146,8 @@ export const ProductionFlowNode = memo(function ProductionFlowNode({ data }: Nod
   // 已生成分镜自动跳过;旧的「跳转首个未生成镜」单镜入口已被本入口取代
   const storyboardBatch = data.storyboardBatch;
   const storyboardUpscale = data.storyboardUpscale;
+  const [batchUpscaleConfirmOpen, setBatchUpscaleConfirmOpen] = useState(false);
+  const [batchUpscaleDenoise, setBatchUpscaleDenoise] = useState(false);
   // 终极瘦身(用户裁定 2026-08-26):画布节点只展示指针,全内容走独立模块
   // (阶段面板)。此前 preview 区内嵌网格/列表/markdown 使单节点达 150-530
   // DOM,7 节点合计 2000+;指针卡后每节点 ≈30 DOM,画布 ≤500。
@@ -476,6 +481,7 @@ export const ProductionFlowNode = memo(function ProductionFlowNode({ data }: Nod
                 </button>
               </span>
             ) : (
+              <>
               <button
                 type="button"
                 className="inline-flex h-7 items-center gap-1.5 rounded-md border border-border bg-muted/35 px-2 text-[11px] font-medium text-card-foreground hover:border-primary/45 hover:bg-muted/12"
@@ -483,13 +489,49 @@ export const ProductionFlowNode = memo(function ProductionFlowNode({ data }: Nod
                 title="一键超分:把所有分镜图本地超分到 4K(x4)并换轨到超分产物;已超分的自动跳过(重生成的新图会自动补超分)"
                 onClick={(event) => {
                   event.stopPropagation();
-                  storyboardUpscale.start();
+                  setBatchUpscaleConfirmOpen(true);
                 }}
               >
                 一键超分
                 {storyboardUpscale.upscaledCount ? ` · 已4K ${storyboardUpscale.upscaledCount}/${storyboardUpscale.shotCount ?? 0}` : ""}
                 <ZoomIn className="h-3 w-3" />
               </button>
+              <Dialog open={batchUpscaleConfirmOpen} onOpenChange={setBatchUpscaleConfirmOpen}>
+                <DialogContent className="max-w-[420px]">
+                  <DialogHeader>
+                    <DialogTitle>一键超分到 4K</DialogTitle>
+                    <DialogDescription>
+                      把所有分镜图本地超分到 4K（已超分的自动跳过，可随时停止）。
+                    </DialogDescription>
+                  </DialogHeader>
+                  <label
+                    className="flex cursor-pointer items-center gap-2 rounded-md border border-border bg-muted/20 px-3 py-2 text-sm"
+                    data-storyboard-batch-upscale-denoise
+                  >
+                    <Checkbox
+                      checked={batchUpscaleDenoise}
+                      onCheckedChange={(checked) => setBatchUpscaleDenoise(checked === true)}
+                    />
+                    <span>先去噪（轻度，压掉斑驳噪点再放大）</span>
+                  </label>
+                  <DialogFooter>
+                    <Button variant="ghost" size="sm" onClick={() => setBatchUpscaleConfirmOpen(false)}>
+                      取消
+                    </Button>
+                    <Button
+                      size="sm"
+                      onClick={() => {
+                        setBatchUpscaleConfirmOpen(false);
+                        storyboardUpscale.start({ denoise: batchUpscaleDenoise });
+                      }}
+                    >
+                      <ZoomIn className="mr-1 h-3.5 w-3.5" />
+                      开始超分
+                    </Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
+              </>
             )
           ) : null}
           

@@ -44,7 +44,7 @@ describe("settings leaf tabs", () => {
     );
 
     expect(screen.getByRole("heading", { name: "图片规格" })).toBeTruthy();
-    expect(screen.getByText("GPT Image 规格矩阵")).toBeTruthy();
+    expect(screen.getByText("GPT Image 规格矩阵（仅云端 GPT 供应商）")).toBeTruthy();
     fireEvent.click(screen.getAllByRole("button", { name: "1:1" })[0]!);
     expect(onChange).toHaveBeenCalledWith({ defaultAspectRatio: "1:1" });
   });
