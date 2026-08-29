@@ -125,6 +125,7 @@ import { createSfxGenRuntimeController } from '@rendering/plugins/sfx_gen/sfx-ge
 import { registerSfxGenIpcHandlers } from '../ipc/studio/sfx-gen-ipc'
 import { createMusic3GenRuntimeController } from '@rendering/plugins/music3_gen/music3-gen-runtime-controller'
 import { registerMusic3GenIpcHandlers } from '../ipc/studio/music3-gen-ipc'
+import { audioModelCacheDir, music3ModelCacheDir, sfxModelCacheDir, ttsModelCacheDir } from '../storage/model-dirs'
 import { createVideoWorkflowRuntimeManager } from '@rendering/plugins/video-workflow/video-workflow-runtime-manager'
 import { selectSharedVideoToolchain } from '@rendering/plugins/video-workflow/video-workflow-runtime'
 import type {
@@ -799,7 +800,9 @@ const videoWorkflowBackendRoot = app.isPackaged
   : path.join(process.env.APP_ROOT ?? path.join(__dirname, '../..'), 'backend')
 const videoUseAdapter = createVideoUseAdapter({
   storageBasePath: getStorageBasePath,
-  modelCacheDir: () => ttsRuntimeController.getModelCacheDir(),
+  // video-use 权重住 TTS 家族缓存,但须经 model-dirs 单一拼装源(启动契约:生成类
+  // 运行时不得挂 ttsRuntimeController 实例;08-28 补完 audio/sfx/music3 同款收口)
+  modelCacheDir: () => ttsModelCacheDir(getStorageBasePath()),
   backendRoot: videoWorkflowBackendRoot,
   workspaceRootForProject: videoWorkflowWorkspaceRootForProject,
 })
