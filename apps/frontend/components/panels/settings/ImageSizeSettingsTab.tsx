@@ -2,7 +2,6 @@ import { Image as ImageIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Switch } from "@/components/ui/switch";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
   GPT_IMAGE_SIZE_MAP,
@@ -124,10 +123,16 @@ export function ImageSizeSettingsTab({ settings, onChange }: ImageSizeSettingsTa
                   网络失败或供应商临时错误时，使用更保守的规格重试一次。
                 </div>
               </div>
-              <Switch
-                checked={settings.compatibilityRetryEnabled}
-                onCheckedChange={(checked) => onChange({ compatibilityRetryEnabled: checked })}
-              />
+              <label
+                className="flex cursor-pointer items-center"
+                data-compatibility-retry-checkbox
+              >
+                <Checkbox
+                  checked={settings.compatibilityRetryEnabled}
+                  onCheckedChange={(checked) => onChange({ compatibilityRetryEnabled: checked === true })}
+                  aria-label="兼容重试"
+                />
+              </label>
             </div>
 
             <div className="rounded-lg border border-border/70 bg-muted/40 p-3">
