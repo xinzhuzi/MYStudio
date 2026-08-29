@@ -4,7 +4,6 @@ import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Switch } from "@/components/ui/switch";
 import { Checkbox } from "@/components/ui/checkbox";
-import { cn } from "@/lib/utils";
 import {
   GPT_IMAGE_SIZE_MAP,
   IMAGE_ASPECT_RATIOS,
@@ -113,9 +112,6 @@ export function ImageSizeSettingsTab({ settings, onChange }: ImageSizeSettingsTa
                   onCheckedChange={(checked) => onChange({ autoDenoiseEnabled: checked === true })}
                   aria-label="自动去噪（轻度）"
                 />
-                <span className={cn(settings.autoDenoiseEnabled ? "text-foreground" : undefined)}>
-                  {settings.autoDenoiseEnabled ? "已开启" : "已关闭"}
-                </span>
               </label>
             </div>
           </div>
