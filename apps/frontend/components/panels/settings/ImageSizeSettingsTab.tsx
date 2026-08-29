@@ -4,6 +4,7 @@ import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Switch } from "@/components/ui/switch";
 import { Checkbox } from "@/components/ui/checkbox";
+import { cn } from "@/lib/utils";
 import {
   GPT_IMAGE_SIZE_MAP,
   IMAGE_ASPECT_RATIOS,
@@ -103,14 +104,18 @@ export function ImageSizeSettingsTab({ settings, onChange }: ImageSizeSettingsTa
                 </div>
               </div>
               <label
-                className="flex cursor-pointer items-center gap-2 rounded-md border border-border bg-muted/20 px-3 py-2 text-sm"
+                className="flex cursor-pointer items-center gap-2 text-sm text-muted-foreground"
                 data-image-auto-denoise-checkbox
+                title="开启后生图保存时自动去噪"
               >
                 <Checkbox
                   checked={settings.autoDenoiseEnabled}
                   onCheckedChange={(checked) => onChange({ autoDenoiseEnabled: checked === true })}
+                  aria-label="自动去噪（轻度）"
                 />
-                <span>{settings.autoDenoiseEnabled ? "已开启：生图保存时自动去噪" : "开启后生图保存时自动去噪"}</span>
+                <span className={cn(settings.autoDenoiseEnabled ? "text-foreground" : undefined)}>
+                  {settings.autoDenoiseEnabled ? "已开启" : "已关闭"}
+                </span>
               </label>
             </div>
           </div>
