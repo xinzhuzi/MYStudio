@@ -44,6 +44,7 @@ import {
   type ImageWorkflowReactNode,
 } from "./image-workflow-node-card";
 import {
+  imageWorkflowTargetKey,
   findStoryboardWorkflowForContext,
   focusNodeIdsForGenerated,
   isAssetOpenContext,
@@ -169,7 +170,6 @@ export function ImageWorkflowCanvas({
         : [],
     [activeGeneratedNode, activeGraph],
   );
-  const focusedFitNodeKey = focusedFitNodeIds.join("|");
   const workflowWritebackTargetLabel = useMemo(
     () =>
       activeGraph
@@ -464,7 +464,6 @@ export function ImageWorkflowCanvas({
         <ImageWorkflowFlowView
           activeGraph={activeGraph}
           focusedFitNodeIds={focusedFitNodeIds}
-          focusedFitNodeKey={focusedFitNodeKey}
           initialAssetContext={initialAssetContext}
           reactFlowEdges={reactFlowEdges}
           reactFlowNodes={reactFlowNodes}
@@ -564,7 +563,6 @@ export function ImageWorkflowCanvas({
 function ImageWorkflowFlowView({
   activeGraph,
   focusedFitNodeIds,
-  focusedFitNodeKey,
   initialAssetContext,
   reactFlowEdges,
   reactFlowNodes,
@@ -580,7 +578,6 @@ function ImageWorkflowFlowView({
 }: {
   activeGraph: ImageWorkflowGraph;
   focusedFitNodeIds: string[];
-  focusedFitNodeKey: string;
   initialAssetContext?: ImageWorkflowOpenContext;
   reactFlowEdges: Edge[];
   reactFlowNodes: ImageWorkflowReactNode[];
@@ -607,6 +604,11 @@ function ImageWorkflowFlowView({
 
   const [flowInstance, setFlowInstance] =
     useState<ReactFlowInstance<ImageWorkflowReactNode, Edge> | null>(null);
+
+  // 08-30:fitView 触发键(稳定字符串,防对象身份抖动;不含选中/节点数)
+  const initialAssetContextKey = initialAssetContext
+    ? `${imageWorkflowTargetKey(initialAssetContext.target)}|${initialAssetContext.title}`
+    : "";
 
   // 交互(拖节点/平移/缩放)期间给容器打标,CSS 把卡片大阴影、ReactFlow
   // Background pattern、毛玻璃等重活临时降级,松手/静止 180ms 后恢复。
@@ -655,8 +657,11 @@ function ImageWorkflowFlowView({
     setInteracting(true);
     const settleTimer = window.setTimeout(() => setInteracting(false), 400);
     return () => window.clearTimeout(settleTimer);
+  // 08-30 裁定:fitView 只在换流/实例就绪/带资产上下文打开时触发一次;
+  // 旧依赖含 focusedFitNodeKey+nodes.length,点节点/按钮改选中或加节点
+  // 就重排视口,被用户打回(「不要每次点击都整理布局」)。
 // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeGraph.id, flowInstance, focusedFitNodeKey, initialAssetContext, nodes.length]);
+  }, [activeGraph.id, flowInstance, initialAssetContextKey]);
 
   return (
     <div ref={interactingRef} className="image-workflow-flow-host contents">
