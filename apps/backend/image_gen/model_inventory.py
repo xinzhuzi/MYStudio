@@ -10,7 +10,7 @@ from __future__ import annotations
 import json
 import sys
 
-from .model_cache import IMAGE_MODELS, find_cached_image_model_for_spec, qwen_small_pieces_status
+from .model_cache import qwen_pointed_big_files, IMAGE_MODELS, find_cached_image_model_for_spec, qwen_small_pieces_status
 
 
 def build_model_status() -> list[dict]:
@@ -28,6 +28,10 @@ def build_model_status() -> list[dict]:
                 "cacheDir": cached["cache_dir"] if cached else None,
                 "pointed": pointed,
                 "smallPiecesReady": qwen_small_pieces_status()["ready"] if pointed else None,
+                # 指向版大件的具体文件路径(绝对),设置页展示用;非指向版为 None
+                "pointedFiles": (
+                    [str(f) for f in qwen_pointed_big_files()] if pointed else None
+                ),
             }
         )
     return rows

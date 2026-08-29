@@ -96,6 +96,15 @@ export function LocalImageSettingsSection({ embedded = false }: LocalImageSettin
                 : "未下载";
         return (
           <div key={model.modelName} className="space-y-1.5">
+            {model.pointedFiles?.length ? (
+              <div className="space-y-0.5 rounded-md border border-border/60 bg-muted/30 px-2.5 py-1.5">
+                {model.pointedFiles.map((file) => (
+                  <p key={file} className="truncate font-mono text-[11px] leading-4 text-muted-foreground" title={file}>
+                    {file}
+                  </p>
+                ))}
+              </div>
+            ) : null}
             <div className="flex items-center justify-between gap-4">
               <div className="flex items-center gap-2 text-sm">
                 {model.downloaded && !needsSmallPieces ? (

@@ -16,6 +16,8 @@ export interface ImageGenModelRow {
   /** 指向版专用:大件在而小件缺时 UI 显示「补齐小件」(null=非指向版) */
   pointed?: boolean | null;
   smallPiecesReady?: boolean | null;
+  /** 指向版大件绝对路径列表(主模型/文本编码器),设置页展示用 */
+  pointedFiles?: string[] | null;
 }
 
 export interface ImageGenRuntimeStatus {
