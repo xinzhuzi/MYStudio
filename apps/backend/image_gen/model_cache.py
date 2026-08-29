@@ -1,4 +1,12 @@
-"""Image model cache helpers — mirrors depth_estimation/model_cache.py."""
+"""Image model cache helpers — HF snapshot layout + Qwen ComfyUI 指向版.
+
+两种布局(08-28-qwen-image-local-gen):
+- ``qwen-pointed``:大件(GGUF 主模型/文本编码器)不下载,直指 ComfyUI 现成文件;
+  VAE/scheduler/tokenizer/processor 等小件(~300MB)显式下载进应用图片模型缓存。
+- ``hf``(默认,当前无在册条目):整仓 HF snapshot 布局。
+
+推理绝不自动下载;缺件 fail-closed,报可操作的错误码。
+"""
 
 from __future__ import annotations
 
@@ -6,7 +14,56 @@ import os
 from pathlib import Path
 from typing import TypedDict
 
-MODEL_WEIGHT_EXTENSIONS = (".safetensors", ".bin", ".pt", ".pth", ".npz", ".onnx")
+MODEL_WEIGHT_EXTENSIONS = (".safetensors", ".bin", ".pt", ".pth", ".npz", ".onnx", ".gguf")
+
+QWEN_IMAGE_EDIT_MODEL = "qwen-image-edit-2511"
+
+# 指向版大件:ComfyUI models 目录下现成文件(用户已有,零重下)
+QWEN_COMFY_MAIN_FILE = "diffusion_models/qwen_image_edit_2511_Q8_0.gguf"
+QWEN_COMFY_TEXT_ENCODER_FILE = "text_encoders/qwen_2.5_vl_7b.safetensors"
+
+# 小件:两个官方仓的配置/分词器/VAE 权重,显式小下载(~300MB)
+QWEN_IMAGE_REPO = "Qwen/Qwen-Image"
+QWEN_VL_REPO = "Qwen/Qwen2.5-VL-7B-Instruct"
+QWEN_SMALL_PIECE_REPOS: tuple[tuple[str, tuple[str, ...]], ...] = (
+    (QWEN_IMAGE_REPO, ("vae/*", "scheduler/*", "transformer/config.json")),
+    (
+        QWEN_VL_REPO,
+        (
+            "config.json",
+            "preprocessor_config.json",
+            "processor_config.json",
+            "tokenizer.json",
+            "tokenizer_config.json",
+            "vocab.json",
+            "merges.txt",
+            "chat_template.json",
+            "special_tokens_map.json",
+        ),
+    ),
+)
+# ready 判定的最小必需文件(allow_patterns 中其余文件缺了不挡)
+QWEN_IMAGE_REQUIRED_FILES = (
+    "transformer/config.json",
+    "scheduler/scheduler_config.json",
+    "vae/config.json",
+    "vae/diffusion_pytorch_model.safetensors",
+)
+QWEN_VL_REQUIRED_FILES = (
+    "config.json",
+    "preprocessor_config.json",
+    "tokenizer.json",
+    "tokenizer_config.json",
+    "vocab.json",
+    "merges.txt",
+)
+QWEN_SMALL_PIECES_SIZE_MB = 300
+
+# 旧目录 id 归一(sdxl-turbo/flux-schnell 已退役,存量配置请求映射到 Qwen)
+LEGACY_IMAGE_MODEL_ALIASES: dict[str, str] = {
+    "sdxl-turbo": QWEN_IMAGE_EDIT_MODEL,
+    "flux-schnell": QWEN_IMAGE_EDIT_MODEL,
+}
 
 
 class ImageModelSpec(TypedDict):
@@ -19,26 +76,24 @@ class ImageModelSpec(TypedDict):
     description: str
 
 
-# Catalog — SDXL Turbo is the default: fastest (1-4 steps), Apache-ish open
-# license ( Stability AI Community License), ~6 GB download.
-IMAGE_MODELS: dict[str, ImageModelSpec] = {
-    "sdxl-turbo": {
-        "label": "SDXL Turbo",
-        "repo_id": "stabilityai/sdxl-turbo",
-        "repo_ids": ("stabilityai/sdxl-turbo",),
-        "size_mb": 6000,
-        "license": "Stability AI Community License (non-commercial)",
-        "steps": 4,
-        "description": "最快（1-4 步出图），适合分镜草图与批量生成",
-    },
-    "flux-schnell": {
-        "label": "FLUX.1 schnell",
-        "repo_id": "black-forest-labs/FLUX.1-schnell",
-        "repo_ids": ("black-forest-labs/FLUX.1-schnell",),
-        "size_mb": 12000,
+class PointedImageModelSpec(ImageModelSpec, total=False):
+    """指向版扩展字段——大件直用 ComfyUI 文件,不走 HF 缓存扫描。"""
+
+    layout: str
+
+
+# Catalog — Qwen-Image-Edit 2511(08-28 用户指令:替代从未准备过的 SDXL/FLUX)。
+# 尖刺实证:832²×8 步 107s(含装配),生产建议 20 步+官方分辨率档。
+IMAGE_MODELS: dict[str, PointedImageModelSpec] = {
+    QWEN_IMAGE_EDIT_MODEL: {
+        "label": "Qwen-Image-Edit 2511",
+        "repo_id": QWEN_IMAGE_REPO,
+        "repo_ids": (QWEN_IMAGE_REPO, QWEN_VL_REPO),
+        "size_mb": 36560,
         "license": "Apache-2.0",
-        "steps": 4,
-        "description": "质量更高，Apache-2.0 商用友好，约 12 GB",
+        "steps": 20,
+        "description": "本地编辑级生图（21.7B GGUF Q8_0，大件指向 ComfyUI 现成文件零重下；首次需补齐 VAE/文本编码器小件约 300MB）",
+        "layout": "qwen-pointed",
     },
 }
 
@@ -48,6 +103,36 @@ class CachedImageModel(TypedDict):
     cache_dir: str
     repo_cache_dir: str
     size_mb: float
+
+
+def comfyui_models_dir() -> Path:
+    override = os.environ.get("MYSTUDIO_QWEN_COMFYUI_MODELS_DIR")
+    if override:
+        return Path(override).expanduser()
+    return Path.home() / "Project" / "ComfyUI" / "models"
+
+
+def resolve_image_model_name(name: str) -> str:
+    return LEGACY_IMAGE_MODEL_ALIASES.get(name, name)
+
+
+def qwen_pointed_big_files() -> tuple[Path, Path]:
+    base = comfyui_models_dir()
+    return base / QWEN_COMFY_MAIN_FILE, base / QWEN_COMFY_TEXT_ENCODER_FILE
+
+
+def find_cached_qwen_pointed_model() -> CachedImageModel | None:
+    """指向版大件探测:主模型 + 文本编码器都在才算就绪(小件另查)。"""
+    main, text_encoder = qwen_pointed_big_files()
+    if not (main.is_file() and text_encoder.is_file()):
+        return None
+    size_mb = round((main.stat().st_size + text_encoder.stat().st_size) / 1024 / 1024, 2)
+    return {
+        "repo_id": f"comfyui:{QWEN_COMFY_MAIN_FILE}",
+        "cache_dir": str(comfyui_models_dir()),
+        "repo_cache_dir": str(main.parent),
+        "size_mb": size_mb,
+    }
 
 
 def primary_hf_cache_dir() -> Path:
@@ -118,6 +203,14 @@ def repo_cache_dir(repo_id: str, cache_dir: Path | None = None) -> Path:
     return (cache_dir or primary_hf_cache_dir()) / repo_cache_name(repo_id)
 
 
+def hf_snapshot_dir(repo_id: str, cache_dir: Path | None = None) -> Path | None:
+    snapshots = repo_cache_dir(repo_id, cache_dir) / "snapshots"
+    if not snapshots.is_dir():
+        return None
+    dirs = sorted(path for path in snapshots.iterdir() if path.is_dir())
+    return dirs[-1] if dirs else None
+
+
 def _has_complete_model_files(cache: Path) -> bool:
     if not cache.exists():
         return False
@@ -157,11 +250,35 @@ def find_cached_image_model(repo_ids: tuple[str, ...]) -> CachedImageModel | Non
     return None
 
 
+def qwen_small_pieces_status(cache_dir: Path | None = None) -> dict:
+    """小件完备性:两个官方仓 snapshot 内必需文件是否齐(缺件给定位清单)。"""
+    missing: list[str] = []
+    snapshot_dirs: dict[str, str | None] = {}
+    for repo_id, _patterns in QWEN_SMALL_PIECE_REPOS:
+        snapshot = hf_snapshot_dir(repo_id, cache_dir)
+        snapshot_dirs[repo_id] = str(snapshot) if snapshot else None
+        required = QWEN_IMAGE_REQUIRED_FILES if repo_id == QWEN_IMAGE_REPO else QWEN_VL_REQUIRED_FILES
+        if snapshot is None:
+            missing.extend(f"{repo_id}:{name}" for name in required)
+        else:
+            missing.extend(
+                f"{repo_id}:{name}" for name in required if not (snapshot / name).is_file()
+            )
+    return {"ready": not missing, "missing": missing, "snapshot_dirs": snapshot_dirs}
+
+
+def find_cached_image_model_for_spec(spec: ImageModelSpec) -> CachedImageModel | None:
+    """统一入口:按 spec 布局分派(指向版查 ComfyUI 大件,否则 HF 扫描)。"""
+    if spec.get("layout") == "qwen-pointed":
+        return find_cached_qwen_pointed_model()
+    return find_cached_image_model(spec["repo_ids"])
+
+
 def is_image_model_downloaded(model_name: str) -> tuple[bool, float | None]:
     spec = IMAGE_MODELS.get(model_name)
     if not spec:
         return False, None
-    cached = find_cached_image_model(spec["repo_ids"])
+    cached = find_cached_image_model_for_spec(spec)
     if not cached:
         return False, None
     return True, cached["size_mb"]

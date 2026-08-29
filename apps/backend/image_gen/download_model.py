@@ -15,7 +15,13 @@ import threading
 import time
 from pathlib import Path
 
-from .model_cache import IMAGE_MODELS, download_hf_cache_dir, repo_cache_dir
+from .model_cache import (
+    IMAGE_MODELS,
+    QWEN_SMALL_PIECE_REPOS,
+    QWEN_SMALL_PIECES_SIZE_MB,
+    download_hf_cache_dir,
+    repo_cache_dir,
+)
 
 
 def _write_progress(path: Path, payload: dict) -> None:
@@ -42,7 +48,8 @@ def download_model(model_name: str, progress_path: Path) -> int:
         )
         return 2
 
-    total_bytes = spec["size_mb"] * 1024 * 1024
+    total_bytes = (QWEN_SMALL_PIECES_SIZE_MB if spec.get("layout") == "qwen-pointed" else spec["size_mb"]) * 1024 * 1024
+    watched_dirs: list[Path] = []
 
     def report(status: str, current: int, progress: int, error: str | None = None) -> None:
         _write_progress(
@@ -53,7 +60,7 @@ def download_model(model_name: str, progress_path: Path) -> int:
                 "current": current,
                 "total": total_bytes,
                 "progress": progress,
-                "filename": spec["repo_id"],
+                "filename": "Qwen 小件(VAE/调度器/分词器)" if spec.get("layout") == "qwen-pointed" else spec["repo_id"],
                 "error": error,
                 "updatedAt": int(time.time() * 1000),
             },
@@ -64,19 +71,27 @@ def download_model(model_name: str, progress_path: Path) -> int:
         from huggingface_hub import snapshot_download
 
         cache_dir = str(download_hf_cache_dir())
-        repo_dir = repo_cache_dir(spec["repo_id"], Path(cache_dir))
+        if spec.get("layout") == "qwen-pointed":
+            watched_dirs = [
+                repo_cache_dir(repo_id, Path(cache_dir)) for repo_id, _patterns in QWEN_SMALL_PIECE_REPOS
+            ]
+        else:
+            watched_dirs = [repo_cache_dir(spec["repo_id"], Path(cache_dir))]
 
         stop_monitor = threading.Event()
 
         def _monitor_progress() -> None:
             while not stop_monitor.is_set():
                 try:
-                    if repo_dir.exists():
-                        downloaded = sum(
-                            f.stat().st_size for f in repo_dir.rglob("*") if f.is_file()
-                        )
-                        pct = min(99, int(downloaded / total_bytes * 100)) if total_bytes else 0
-                        report("downloading", downloaded, pct)
+                    downloaded = sum(
+                        f.stat().st_size
+                        for watched in watched_dirs
+                        if watched.exists()
+                        for f in watched.rglob("*")
+                        if f.is_file()
+                    )
+                    pct = min(99, int(downloaded / total_bytes * 100)) if total_bytes else 0
+                    report("downloading", downloaded, pct)
                 except Exception:
                     pass
                 stop_monitor.wait(1.0)
@@ -84,14 +99,23 @@ def download_model(model_name: str, progress_path: Path) -> int:
         monitor = threading.Thread(target=_monitor_progress, daemon=True)
         monitor.start()
         try:
-            try:
-                # ModelScope 直链优先(实测 ~4-18MB/s;endpoint 参数路线协议不兼容从未生效)。
-                from modelscope_hub import download_repo_to_hf_cache
+            if spec.get("layout") == "qwen-pointed":
+                # 指向版:大件直用 ComfyUI,此处只补齐官方仓小件(~300MB)
+                for repo_id, patterns in QWEN_SMALL_PIECE_REPOS:
+                    snapshot_download(
+                        repo_id=repo_id,
+                        allow_patterns=list(patterns),
+                        cache_dir=cache_dir,
+                    )
+            else:
+                try:
+                    # ModelScope 直链优先(实测 ~4-18MB/s;endpoint 参数路线协议不兼容从未生效)。
+                    from modelscope_hub import download_repo_to_hf_cache
 
-                download_repo_to_hf_cache(spec["repo_id"], cache_dir)
-            except Exception as exc:
-                print(f"[download] ModelScope 直链失败,回退 HF: {exc}", file=sys.stderr)
-                snapshot_download(repo_id=spec["repo_id"], cache_dir=cache_dir)
+                    download_repo_to_hf_cache(spec["repo_id"], cache_dir)
+                except Exception as exc:
+                    print(f"[download] ModelScope 直链失败,回退 HF: {exc}", file=sys.stderr)
+                    snapshot_download(repo_id=spec["repo_id"], cache_dir=cache_dir)
         finally:
             stop_monitor.set()
 

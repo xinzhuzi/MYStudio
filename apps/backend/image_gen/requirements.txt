@@ -1,0 +1,14 @@
+# Qwen-Image-Edit-2511 本地生图依赖(08-28 尖刺实证矩阵)
+# 版本坑(全部踩过,勿随意放宽):
+# - diffusers 0.40 元数据要 hub>=1.23(<2.0);transformers 4.57 要 hub<1.0 → 4.x 系排除,须 5.9
+# - get_cached_repo_tree ImportError = hub 被降到 0.x 的征兆,升回 1.x
+# - GGUF 主模型需 gguf + accelerate;TE 单文件直载需 safetensors
+torch>=2.5.1
+torchvision
+diffusers==0.40.0
+transformers==5.9.0
+huggingface_hub>=1.23,<2.0
+accelerate
+gguf
+safetensors
+pillow

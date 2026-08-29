@@ -10,21 +10,24 @@ from __future__ import annotations
 import json
 import sys
 
-from .model_cache import IMAGE_MODELS, find_cached_image_model
+from .model_cache import IMAGE_MODELS, find_cached_image_model_for_spec, qwen_small_pieces_status
 
 
 def build_model_status() -> list[dict]:
     rows: list[dict] = []
     for name, spec in IMAGE_MODELS.items():
-        cached = find_cached_image_model(spec["repo_ids"])
+        cached = find_cached_image_model_for_spec(spec)
+        pointed = spec.get("layout") == "qwen-pointed"
         rows.append(
             {
                 "modelName": name,
                 "label": spec["label"],
                 "downloaded": cached is not None,
                 "sizeMb": cached["size_mb"] if cached else None,
-                "repoId": spec["repo_id"],
+                "repoId": "ComfyUI 指向 + 官方仓小件" if pointed else spec["repo_id"],
                 "cacheDir": cached["cache_dir"] if cached else None,
+                "pointed": pointed,
+                "smallPiecesReady": qwen_small_pieces_status()["ready"] if pointed else None,
             }
         )
     return rows

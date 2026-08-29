@@ -28,7 +28,15 @@ from pathlib import Path
 from urllib.parse import urlparse
 
 from . import __version__
-from .model_cache import IMAGE_MODELS, find_cached_image_model
+from .model_cache import (
+    IMAGE_MODELS,
+    QWEN_IMAGE_EDIT_MODEL,
+    QWEN_SMALL_PIECE_REPOS,
+    QWEN_SMALL_PIECES_SIZE_MB,
+    find_cached_image_model_for_spec,
+    qwen_small_pieces_status,
+    resolve_image_model_name,
+)
 from .pipeline import PipelineError, generate_image
 
 LOCAL_TOKEN = "manying-local-image"
@@ -122,13 +130,17 @@ class Handler(BaseHTTPRequestHandler):
         if path == "/models/status":
             models = []
             for name, spec in IMAGE_MODELS.items():
-                cached = find_cached_image_model(spec["repo_ids"])
+                cached = find_cached_image_model_for_spec(spec)
+                pointed = spec.get("layout") == "qwen-pointed"
                 models.append(
                     {
                         "modelName": name,
                         "label": spec["label"],
                         "downloaded": cached is not None,
                         "sizeMb": cached["size_mb"] if cached else None,
+                        # 指向版专用:大件在而小件缺 → UI 显示「补齐小件」
+                        "smallPiecesReady": qwen_small_pieces_status()["ready"] if pointed else None,
+                        "pointed": pointed,
                     }
                 )
             self._send_json({"models": models})
@@ -161,7 +173,7 @@ class Handler(BaseHTTPRequestHandler):
     # -- handlers ---------------------------------------------------------
 
     def _handle_generate(self, payload: dict) -> None:
-        model = str(payload.get("model") or "sdxl-turbo")
+        model = resolve_image_model_name(str(payload.get("model") or QWEN_IMAGE_EDIT_MODEL))
         prompt = payload.get("prompt")
         if not isinstance(prompt, str) or not prompt.strip():
             self._send_error_json(HTTPStatus.BAD_REQUEST, "prompt 必须是非空字符串", "invalid_prompt")
@@ -218,6 +230,34 @@ class Handler(BaseHTTPRequestHandler):
         spec = IMAGE_MODELS.get(model_name)
         if not spec:
             self._send_error_json(HTTPStatus.BAD_REQUEST, f"未知模型: {model_name}", "unknown_model")
+            return
+
+        if spec.get("layout") == "qwen-pointed":
+            # 指向版:大件直用 ComfyUI,下载语义 = 补齐两个官方仓的小件(~300MB)
+            def _download_small_pieces() -> None:
+                total_bytes = QWEN_SMALL_PIECES_SIZE_MB * 1024 * 1024
+                _set_progress(model_name, status="downloading", progress=0, current=0,
+                              total=total_bytes, filename="Qwen 小件(VAE/调度器/分词器)")
+                try:
+                    from huggingface_hub import snapshot_download
+
+                    cache_dir = os.environ.get("MYSTUDIO_IMAGE_MODEL_DIR", "")
+                    if not cache_dir:
+                        from .model_cache import download_hf_cache_dir
+
+                        cache_dir = str(download_hf_cache_dir())
+                    for repo_id, patterns in QWEN_SMALL_PIECE_REPOS:
+                        snapshot_download(
+                            repo_id=repo_id,
+                            allow_patterns=list(patterns),
+                            cache_dir=cache_dir,
+                        )
+                    _set_progress(model_name, status="complete", progress=100)
+                except Exception as exc:
+                    _set_progress(model_name, status="error", progress=0, error=str(exc))
+
+            threading.Thread(target=_download_small_pieces, daemon=True).start()
+            self._send_json({"message": f"Model {model_name} small pieces download started"})
             return
 
         def _download() -> None:

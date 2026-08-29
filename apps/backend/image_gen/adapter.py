@@ -11,7 +11,13 @@ import time
 from pathlib import Path
 from typing import Any
 
-from .model_cache import IMAGE_MODELS, find_cached_image_model
+from .model_cache import (
+    IMAGE_MODELS,
+    QWEN_IMAGE_EDIT_MODEL,
+    find_cached_image_model_for_spec,
+    qwen_small_pieces_status,
+    resolve_image_model_name,
+)
 from .pipeline import PipelineError, generate_image
 
 FIXED_WIDTH = 1920
@@ -112,8 +118,9 @@ def validate_request(value: object) -> dict[str, Any]:
     required = ("projectId", "shotId", "model", "prompt", "outputPath")
     if any(not isinstance(value.get(key), str) or not value[key].strip() for key in required):
         raise ImageGenerationError("invalid-request", "projectId、shotId、model、prompt 和 outputPath 必须是非空字符串")
-    if value["model"] not in IMAGE_MODELS:
+    if value["model"] not in IMAGE_MODELS and resolve_image_model_name(value["model"]) not in IMAGE_MODELS:
         raise ImageGenerationError("unknown-model", f"未知图像模型: {value['model']}")
+    value = {**value, "model": resolve_image_model_name(value["model"])}
     if value.get("frozen") is True or os.environ.get("MYSTUDIO_IMAGE_GENERATION_FROZEN") == "1":
         raise ImageGenerationError("image-generation-frozen", "图像生成已冻结")
     if "frozen" in value and not isinstance(value["frozen"], bool):
@@ -138,22 +145,29 @@ def validate_request(value: object) -> dict[str, Any]:
     return normalized
 
 
-def _missing_dependencies() -> list[str]:
-    return [
-        label
-        for module, label in (("torch", "torch"), ("diffusers", "diffusers"), ("PIL", "pillow"))
-        if importlib.util.find_spec(module) is None
-    ]
+def _missing_dependencies(model_name: str = QWEN_IMAGE_EDIT_MODEL) -> list[str]:
+    spec = IMAGE_MODELS.get(model_name, {})
+    checks = (("torch", "torch"), ("diffusers", "diffusers"), ("PIL", "pillow"))
+    if spec.get("layout") == "qwen-pointed":
+        checks += (("transformers", "transformers"), ("accelerate", "accelerate"), ("gguf", "gguf"), ("safetensors", "safetensors"))
+    return [label for module, label in checks if importlib.util.find_spec(module) is None]
 
 
-def probe_model(model_name: str = "sdxl-turbo") -> dict[str, Any]:
+def probe_model(model_name: str = QWEN_IMAGE_EDIT_MODEL) -> dict[str, Any]:
+    model_name = resolve_image_model_name(model_name)
     spec = IMAGE_MODELS.get(model_name)
     if not spec:
         return {"status": "blocked", "code": "unknown-model", "message": f"未知图像模型: {model_name}"}
-    cached = find_cached_image_model(spec["repo_ids"])
+    cached = find_cached_image_model_for_spec(spec)
     if not cached:
+        if spec.get("layout") == "qwen-pointed":
+            return {
+                "status": "blocked",
+                "code": "model-not-downloaded",
+                "message": "Qwen 大件未就绪:需 ComfyUI models 目录下存在 qwen_image_edit_2511_Q8_0.gguf 与 qwen_2.5_vl_7b.safetensors",
+            }
         return {"status": "blocked", "code": "model-not-downloaded", "message": f"图像模型 {spec['label']} 未下载"}
-    missing = _missing_dependencies()
+    missing = _missing_dependencies(model_name)
     capabilities = {
         "textToImage": not missing,
         "controlNet": False,
@@ -168,11 +182,18 @@ def probe_model(model_name: str = "sdxl-turbo") -> dict[str, Any]:
             "dependencies": missing,
             "capabilities": capabilities,
         }
+    if spec.get("layout") == "qwen-pointed" and not qwen_small_pieces_status()["ready"]:
+        return {
+            "status": "blocked",
+            "code": "small-pieces-missing",
+            "message": "Qwen 小件未补齐(VAE/调度器/分词器,约 300MB),请前往设置页补齐小件",
+            "capabilities": capabilities,
+        }
     return {
         "status": "ready",
         "model": model_name,
         "modelRevision": str(cached.get("revision") or cached["repo_id"]),
-        "backend": "diffusers",
+        "backend": "diffusers-qwen-edit" if spec.get("layout") == "qwen-pointed" else "diffusers",
         "sizeMb": cached["size_mb"],
         "capabilities": capabilities,
     }

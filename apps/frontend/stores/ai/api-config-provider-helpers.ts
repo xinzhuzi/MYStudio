@@ -53,15 +53,15 @@ export function isLocalTtsProvider(provider: IProvider) {
 
 // ---------------------------------------------------------------------------
 // 本地图片生成 (manying-local-image) — OpenAI 兼容的本地生图 sidecar.
-// Models: SDXL Turbo / FLUX.1-schnell via diffusers; explicit downloads only.
+// Model: Qwen-Image-Edit 2511(大件指向 ComfyUI,显式小件下载);旧 sdxl/flux 已退役.
 // ---------------------------------------------------------------------------
 
 export const DEFAULT_LOCAL_IMAGE_PROVIDER_ID = "manying-local-image";
 export const LOCAL_IMAGE_BASE_URL = "http://127.0.0.1:17595";
 /** Fixed local token — the sidecar accepts it as Bearer key (loopback only). */
 export const LOCAL_IMAGE_API_KEY = "manying-local-image";
-export const LOCAL_IMAGE_MODELS = ["sdxl-turbo", "flux-schnell"] as const;
-export const DEFAULT_LOCAL_IMAGE_MODEL = "sdxl-turbo";
+export const LOCAL_IMAGE_MODELS = ["qwen-image-edit-2511"] as const;
+export const DEFAULT_LOCAL_IMAGE_MODEL = "qwen-image-edit-2511";
 
 export function createDefaultLocalImageProvider(): IProvider {
   return {

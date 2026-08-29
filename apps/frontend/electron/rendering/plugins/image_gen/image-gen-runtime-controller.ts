@@ -38,6 +38,9 @@ export interface ImageGenModelRow {
   downloaded: boolean;
   sizeMb: number | null;
   repoId: string;
+  /** 指向版专用:大件在而小件缺时 UI 显示「补齐小件」(null=非指向版) */
+  pointed?: boolean | null;
+  smallPiecesReady?: boolean | null;
 }
 
 export interface ImageGenRuntimeStatus {
@@ -74,7 +77,7 @@ export function createImageGenRuntimeController(deps: ControllerDeps) {
     setupStage: "idle",
     setupMessage: undefined,
     models: [],
-    activeModel: "sdxl-turbo",
+    activeModel: "qwen-image-edit-2511",
     downloadStatus: {},
     downloadProgress: {},
     downloadError: {},
@@ -277,7 +280,7 @@ export function createImageGenRuntimeController(deps: ControllerDeps) {
   }
 
   function setActiveModel(modelName: string): boolean {
-    const known: readonly ImageGenModelId[] = ["sdxl-turbo", "flux-schnell"];
+    const known: readonly ImageGenModelId[] = ["qwen-image-edit-2511"];
     if (!known.includes(modelName as ImageGenModelId)) return false;
     state.activeModel = modelName as ImageGenModelId;
     return true;

@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import type { VlmReviewArtifactV1 } from "@/types/contracts/vlm-review-workflow";
 import type { ImageWorkflowGraph, StoryboardItem } from "@/types/studio";
 
 const freedomImage = vi.hoisted(() => vi.fn());
@@ -477,6 +478,137 @@ describe("useStoryboardBatchGeneration(一键生图串行批量)", () => {
 
     expect(freedomImage).not.toHaveBeenCalled();
     expect(toast.error).toHaveBeenCalledWith(expect.stringContaining("800"), expect.anything());
+  });
+});
+
+/** R6 四象限批次测试(Trellis 08-27-vlm-visual-consistency):
+ * mock window.vlmReview 验证 accepted 正常回写 / rejected 重生一次 /
+ * 两次 rejected 标 failed / 模型未就绪(probe blocked)fail-open 跳过。 */
+describe("useStoryboardBatchGeneration(VLM 视觉一致性四象限)", () => {
+  function vlmArtifact(partial: Partial<VlmReviewArtifactV1> & { status: "accepted" | "rejected" }): VlmReviewArtifactV1 {
+    return {
+      schemaVersion: 1,
+      projectId: "proj",
+      shotId: "sb-1",
+      model: "qwen3-vl-8b-instruct-mlx-8bit",
+      checks: { character_ok: true, costume_ok: true, scene_ok: true, prop_ok: true, text_watermark_ok: true },
+      reasons: [],
+      inferenceMs: 1200,
+      inputSha256: "sha-test",
+      generatedAt: 1_700_000_000_000,
+      ...partial,
+    };
+  }
+
+  function vlmShot(): StoryboardItem {
+    return shot({
+      id: "sb-1",
+      index: 1,
+      associateAssetsNames: ["监工赵四"],
+      orderedReferenceManifest: [
+        { order: 1, assetId: "ch-1", assetName: "监工赵四", assetKind: "character", imagePath: "file://assets/ref-zhaosi.png" },
+      ],
+    });
+  }
+
+  function installVlmBridge(overrides?: {
+    probe?: () => Promise<unknown>;
+    run?: (payload: unknown) => Promise<unknown>;
+  }) {
+    const probe = vi.fn(overrides?.probe ?? (async () => ({ status: "ready" })));
+    const run = vi.fn(overrides?.run ?? (async () => vlmArtifact({ status: "accepted" })));
+    (window as unknown as { vlmReview: unknown }).vlmReview = { probe, run };
+    return { probe, run };
+  }
+
+  beforeEach(() => {
+    resolvedReferences.value = [];
+    freedomImage.mockImplementation(async () => ({ url: "https://provider.test/ok.png" }));
+  });
+
+  afterEach(() => {
+    delete (window as unknown as { vlmReview?: unknown }).vlmReview;
+  });
+
+  it("accepted:正常回写 mediaRef 且 visualReview 落库为 vlm 预审 pending", async () => {
+    resetStore([vlmShot()]);
+    const { run } = installVlmBridge();
+
+    const { result } = renderHook(() =>
+      useStoryboardBatchGeneration({ storyboards: useStudioStore.getState().storyboards, projectName: "道劫" }),
+    );
+    act(() => result.current.start());
+    await waitFor(() => expect(result.current.state.running).toBe(false), { timeout: 8000 });
+
+    expect(freedomImage).toHaveBeenCalledTimes(1);
+    expect(run).toHaveBeenCalledTimes(1);
+    const sb1 = useStudioStore.getState().storyboards.find((item) => item.id === "sb-1")!;
+    expect(sb1.mediaRef).toMatchObject({ kind: "image", path: "project-file://proj/workflow/gen-out.png" });
+    expect(sb1.visualReview).toMatchObject({ status: "pending", reviewer: "vlm" });
+    expect(result.current.state).toMatchObject({ total: 1, done: 1, failed: 0 });
+  });
+
+  it("rejected 后重生一次通过:共生成两次,终稿落库", async () => {
+    resetStore([vlmShot()]);
+    let runCalls = 0;
+    installVlmBridge({
+      run: async () => {
+        runCalls += 1;
+        return runCalls === 1
+          ? vlmArtifact({ status: "rejected", reasons: ["服装形制与参考不一致"], checks: { costume_ok: false } })
+          : vlmArtifact({ status: "accepted" });
+      },
+    });
+
+    const { result } = renderHook(() =>
+      useStoryboardBatchGeneration({ storyboards: useStudioStore.getState().storyboards, projectName: "道劫" }),
+    );
+    act(() => result.current.start());
+    await waitFor(() => expect(result.current.state.running).toBe(false), { timeout: 8000 });
+
+    expect(freedomImage).toHaveBeenCalledTimes(2);
+    const sb1 = useStudioStore.getState().storyboards.find((item) => item.id === "sb-1")!;
+    expect(sb1.mediaRef).toMatchObject({ kind: "image" });
+    expect(sb1.visualReview).toMatchObject({ status: "pending", reviewer: "vlm" });
+    expect(result.current.state).toMatchObject({ total: 1, done: 1, failed: 0 });
+  });
+
+  it("两次 rejected:镜计失败,toast 报 VLM 审核不通过,不回写画面", async () => {
+    resetStore([vlmShot()]);
+    installVlmBridge({
+      run: async () => vlmArtifact({ status: "rejected", reasons: ["角色面部与参考不符"], checks: { character_ok: false } }),
+    });
+
+    const { result } = renderHook(() =>
+      useStoryboardBatchGeneration({ storyboards: useStudioStore.getState().storyboards, projectName: "道劫" }),
+    );
+    act(() => result.current.start());
+    await waitFor(() => expect(result.current.state.running).toBe(false), { timeout: 8000 });
+
+    expect(freedomImage).toHaveBeenCalledTimes(2);
+    const sb1 = useStudioStore.getState().storyboards.find((item) => item.id === "sb-1")!;
+    expect(sb1.mediaRef?.kind).not.toBe("image");
+    expect(sb1.visualReview).toBeUndefined();
+    expect(toast.error).toHaveBeenCalledWith(expect.stringContaining("VLM 审核不通过"), expect.anything());
+    expect(result.current.state).toMatchObject({ total: 1, done: 1, failed: 1 });
+  });
+
+  it("模型未就绪(probe blocked):fail-open 跳过审核,生成照常成功", async () => {
+    resetStore([vlmShot()]);
+    const { run } = installVlmBridge({ probe: async () => ({ status: "blocked", code: "model-not-downloaded" }) });
+
+    const { result } = renderHook(() =>
+      useStoryboardBatchGeneration({ storyboards: useStudioStore.getState().storyboards, projectName: "道劫" }),
+    );
+    act(() => result.current.start());
+    await waitFor(() => expect(result.current.state.running).toBe(false), { timeout: 8000 });
+
+    expect(freedomImage).toHaveBeenCalledTimes(1);
+    expect(run).not.toHaveBeenCalled();
+    const sb1 = useStudioStore.getState().storyboards.find((item) => item.id === "sb-1")!;
+    expect(sb1.mediaRef).toMatchObject({ kind: "image" });
+    expect(sb1.visualReview).toBeUndefined();
+    expect(result.current.state).toMatchObject({ total: 1, done: 1, failed: 0 });
   });
 });
 

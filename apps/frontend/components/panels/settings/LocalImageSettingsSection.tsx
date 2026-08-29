@@ -12,10 +12,9 @@ type LocalImageSettingsSectionProps = {
 /**
  * 本地图片生成配置区块 — 设置 → 本地配置。
  *
- * Zero-cost local image generation (SDXL Turbo / FLUX.1-schnell via diffusers)
- * exposed as an OpenAI-compatible local provider so character/scene/prop
- * generation can replace cloud APIs. Models download explicitly here; the
- * generation endpoint NEVER downloads.
+ * Qwen-Image-Edit 2511 本地生图（21.7B 编辑级模型；大件指向 ComfyUI 现成文件
+ * 零重下，首次点「补齐小件」获取 ~300MB 官方小件）以 OpenAI 兼容本地提供方
+ * 暴露，可替代云端 API。模型显式获取；生成端点绝不自动下载。
  */
 export function LocalImageSettingsSection({ embedded = false }: LocalImageSettingsSectionProps) {
   const runtime = useImageGenRuntimeSettings();
@@ -82,11 +81,24 @@ export function LocalImageSettingsSection({ embedded = false }: LocalImageSettin
         const downloading = status?.downloadStatus?.[model.modelName] === "downloading";
         const failed = status?.downloadStatus?.[model.modelName] === "error";
         const progress = downloading ? (status?.downloadProgress?.[model.modelName] ?? 0) : undefined;
+        // 指向版三态:大件在+小件缺 → 「待补齐小件」;下载按钮语义同步切换
+        const needsSmallPieces = model.downloaded && model.smallPiecesReady === false;
+        const statusLabel = needsSmallPieces
+          ? "大件已就绪 · 待补齐小件(~300MB)"
+          : downloading
+            ? "下载中"
+            : model.downloaded
+              ? model.pointed
+                ? "已就绪（指向 ComfyUI 路径）"
+                : "已下载"
+              : failed
+                ? "下载失败"
+                : "未下载";
         return (
           <div key={model.modelName} className="space-y-1.5">
             <div className="flex items-center justify-between gap-4">
               <div className="flex items-center gap-2 text-sm">
-                {model.downloaded ? (
+                {model.downloaded && !needsSmallPieces ? (
                   <Check className="h-4 w-4 text-success" aria-hidden />
                 ) : (
                   <Download className="h-4 w-4 text-muted-foreground" aria-hidden />
@@ -95,7 +107,7 @@ export function LocalImageSettingsSection({ embedded = false }: LocalImageSettin
                   {model.label}
                   {model.downloaded && model.sizeMb != null ? ` · ${(model.sizeMb / 1024).toFixed(1)} GB` : ""}
                   {" — "}
-                  {downloading ? "下载中" : model.downloaded ? "已下载" : failed ? "下载失败" : "未下载"}
+                  {statusLabel}
                   {status?.activeModel === model.modelName ? " · 当前模型" : ""}
                 </span>
               </div>
@@ -115,7 +127,7 @@ export function LocalImageSettingsSection({ embedded = false }: LocalImageSettin
                   ) : (
                     <Download className="mr-2 h-4 w-4" aria-hidden />
                   )}
-                  {downloading ? "下载中…" : model.downloaded ? "重新下载" : "下载模型"}
+                  {downloading ? "补齐中…" : needsSmallPieces ? "补齐小件(~300MB)" : model.downloaded ? "重新下载小件" : "下载模型"}
                 </Button>
               </div>
             </div>
@@ -135,8 +147,9 @@ export function LocalImageSettingsSection({ embedded = false }: LocalImageSettin
       })}
 
       <p className="text-xs text-muted-foreground leading-5">
-        本地生图零 API 费用。准备运行时并下载模型后，在 设置 → 云端AI 中将「角色生图 / 场景生图 / 道具生图」绑定到
-        「本地图片生成」提供方即可替代云 API。模型仅在点击下载时获取（ModelScope 优先，HuggingFace 回退）。
+        本地生图零 API 费用（Qwen-Image-Edit 编辑级模型，大件直接复用 ComfyUI 已有文件，仅首次补齐约 300MB 小件）。
+        准备运行时后，在 设置 → 云端AI 中将「角色生图 / 场景生图 / 道具生图」绑定到
+        「本地图片生成」提供方即可替代云 API。小件仅在点击时获取。
       </p>
     </div>
   );

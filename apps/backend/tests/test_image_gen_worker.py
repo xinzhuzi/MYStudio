@@ -23,7 +23,7 @@ class ImageGenWorkerTest(unittest.TestCase):
             "schemaVersion": 1,
             "projectId": "p",
             "shotId": "s",
-            "model": "sdxl-turbo",
+            "model": "qwen-image-edit-2511",
             "prompt": "x",
             "mediaRoot": str(media_root),
             "outputPath": str(media_root / "image.png"),
@@ -136,10 +136,10 @@ class ImageGenWorkerTest(unittest.TestCase):
             self.assertEqual(context.exception.code, "invalid-dimensions")
 
     def test_probe_reports_missing_dependencies_after_cache_probe(self) -> None:
-        cached = {"repo_id": "stabilityai/sdxl-turbo", "size_mb": 1}
-        with patch.object(adapter, "find_cached_image_model", return_value=cached), patch.object(
+        cached = {"repo_id": "comfyui:pointed", "size_mb": 1}
+        with patch.object(adapter, "find_cached_image_model_for_spec", return_value=cached), patch.object(
             adapter, "_missing_dependencies", return_value=["diffusers"]
-        ):
+        ), patch.object(adapter, "qwen_small_pieces_status", return_value={"ready": True}):
             payload = adapter.probe_model()
         self.assertEqual(payload["status"], "blocked")
         self.assertEqual(payload["code"], "dependencies-missing")

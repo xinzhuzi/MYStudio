@@ -31,7 +31,7 @@ function lifecycleStatus(state: "ready" | "needs-runtime" = "needs-runtime") {
   return {
     schemaVersion: 1 as const,
     state,
-    activeModel: "sdxl-turbo" as const,
+    activeModel: "qwen-image-edit-2511" as const,
     modelCacheDir: "/tmp/mystudio-image-model",
     modelDownloaded: state === "ready",
     pythonAvailable: true,
@@ -44,7 +44,7 @@ function createController() {
     setupStage: "idle" as const,
     setupMessage: undefined,
     models: [],
-    activeModel: "sdxl-turbo",
+    activeModel: "qwen-image-edit-2511",
     downloadStatus: {},
     downloadProgress: {},
     downloadError: {},
