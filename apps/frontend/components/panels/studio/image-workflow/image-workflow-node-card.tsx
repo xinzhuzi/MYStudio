@@ -146,6 +146,7 @@ function ReferenceNodeEditor({
               src={withThumbVariant(toPreviewSrc(node.imageUrl))}
               alt={node.title}
               className="h-full w-full object-cover"
+              eager
               previewable
             />
             <ResolutionBadge src={toPreviewSrc(node.imageUrl)} />
@@ -247,6 +248,7 @@ function GeneratedNodeEditor({
               src={withThumbVariant(toPreviewSrc(node.resultUrl))}
               alt={node.title}
               className="h-full w-full object-cover"
+              eager
               previewable
             />
             <ResolutionBadge src={toPreviewSrc(node.resultUrl)} />
