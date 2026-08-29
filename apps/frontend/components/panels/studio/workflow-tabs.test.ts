@@ -307,7 +307,9 @@ describe("studio workflow tabs", () => {
     expect(scopedPendingSource).toContain("data-scoped-image-workflow-summary");
     expect(toolbarSource).toContain("data-image-workflow-selector");
     expect(toolbarSource).toContain('optgroup label="本章分镜"');
-    expect(toolbarSource).toContain('optgroup label="其他工作流"');
+    // 展示层铁律(08-30 裁定):不同功能模块分组列出,不扁平混排
+    expect(toolbarSource).toContain('optgroup label="资产工作流"');
+    expect(toolbarSource).toContain('optgroup label="自由工作流"');
     // 合并裁定(2026-08-30):旧流已在持久化层清理,选择器不再分组列出
     expect(toolbarSource).not.toContain("上一代遗留");
     expect(toolbarSource).toContain("data-image-workflow-global-action");

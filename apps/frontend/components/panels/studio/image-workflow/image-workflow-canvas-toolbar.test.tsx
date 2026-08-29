@@ -63,7 +63,7 @@ describe("merged storyboard/workflow switcher (2026-08-30)", () => {
     // storyboard 目标的流不再按流 id 出现(经分镜入口即达)
     expect(values).not.toContain("wf-sb1");
     // 无「上一代遗留」分组
-    expect(Array.from(select.querySelectorAll("optgroup")).map((group) => group.label)).toEqual(["本章分镜", "其他工作流"]);
+    expect(Array.from(select.querySelectorAll("optgroup")).map((group) => group.label)).toEqual(["本章分镜", "资产工作流", "自由工作流"]);
   });
 
   it("shows the storyboard entry as selected when the active graph targets a storyboard", () => {

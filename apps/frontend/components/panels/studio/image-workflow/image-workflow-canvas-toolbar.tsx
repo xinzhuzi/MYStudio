@@ -20,7 +20,7 @@ import type { ImageWorkflowGeneratedNode, ImageWorkflowGraph, StoryboardItem } f
  * 生成节点/回写目标/运行生成/写回目标/批量超分/放入资产库/删除连线/适配画布。
  *
  * 2026-08-30 合并裁定:分镜切换只此一个入口——
- * 「本章分镜」组按分镜走查找/装配链(恒当前代),「其他工作流」组按流 id 直切;
+ * 「本章分镜」组按分镜走查找/装配链(恒当前代),「资产工作流」「自由工作流」组按模块分组、按流 id 直切;
  * 无指纹旧流已在持久化层清理,不再分组列出。scoped 单镜模式也常驻本选择器。
  */
 export function ImageWorkflowCanvasToolbar({
@@ -133,6 +133,12 @@ export function ImageWorkflowCanvasToolbar({
         const currentStoryboardMissing =
           activeStoryboardId !== null && !storyboards.some((item) => item.id === activeStoryboardId);
         const nonStoryboardGraphs = imageWorkflows.filter((graph) => graph.target.kind !== "storyboard");
+        // 展示层铁律(08-30 用户裁定):不同功能模块的流分组列出,不扁平混排;
+        // material 为遗留空种,归资产域兜底。空组不渲染。
+        const assetGraphs = nonStoryboardGraphs.filter(
+          (graph) => graph.target.kind === "asset" || graph.target.kind === "material",
+        );
+        const freeGraphs = nonStoryboardGraphs.filter((graph) => graph.target.kind === "free");
         const storyboardOptionLabel = (storyboard: StoryboardItem) =>
           `分镜 ${storyboard.index} · ${(storyboard.videoDesc || storyboard.prompt).slice(0, 18)}`;
         return (
@@ -168,13 +174,24 @@ export function ImageWorkflowCanvasToolbar({
                     <option value={selectorValue}>{activeGraph.name}(其他章节)</option>
                   ) : null}
                 </optgroup>
-                <optgroup label="其他工作流">
-                  {nonStoryboardGraphs.map((graph) => (
-                    <option key={graph.id} value={graph.id}>
-                      {graph.name}
-                    </option>
-                  ))}
-                </optgroup>
+                {assetGraphs.length ? (
+                  <optgroup label="资产工作流">
+                    {assetGraphs.map((graph) => (
+                      <option key={graph.id} value={graph.id}>
+                        {graph.name}
+                      </option>
+                    ))}
+                  </optgroup>
+                ) : null}
+                {freeGraphs.length ? (
+                  <optgroup label="自由工作流">
+                    {freeGraphs.map((graph) => (
+                      <option key={graph.id} value={graph.id}>
+                        {graph.name}
+                      </option>
+                    ))}
+                  </optgroup>
+                ) : null}
               </>
             ) : (
               <option value={selectorValue}>{activeGraph.name}</option>
