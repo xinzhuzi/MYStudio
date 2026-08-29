@@ -242,12 +242,23 @@ def _generate_qwen(
         # true_cfg_scale 需配 negative_prompt 才生效;guidance_scale 会被忽略(非蒸馏引导)
         kwargs["true_cfg_scale"] = 4.0
 
+    import time as _time
+
+    _phase_start = _time.time()
     try:
         result = _run_inference(pipe, kwargs)
     except PipelineError:
         raise
     except Exception as exc:
         raise PipelineError("inference-failed", f"图像生成失败: {exc}") from exc
+
+    # 分相计时:tqdm 进度条在 MPS 异步执行下会说谎(kernel 排队快、真算慢,
+    # 实测 20 步条显 2s 实算 ~300s)——日志时间戳是唯一可信口径(08-29 实弹教训)
+    print(
+        f"[image-sidecar] qwen phase timing: steps={steps} negative={'yes' if negative_prompt else 'no'} "
+        f"size={width}x{height} inference={_time.time() - _phase_start:.1f}s",
+        flush=True,
+    )
 
     image = result.images[0]
     buffer = io.BytesIO()
