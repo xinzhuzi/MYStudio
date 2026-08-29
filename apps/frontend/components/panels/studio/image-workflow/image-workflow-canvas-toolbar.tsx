@@ -156,8 +156,8 @@ export function ImageWorkflowCanvasToolbar({
               }
               onSelectorChange(nextValue);
             }}
-            className="h-8 max-w-[260px] rounded-md border border-border bg-background/80 px-2 text-xs text-foreground outline-none"
-            title="切换本章分镜或其他工作流"
+            className="h-8 max-w-[260px] cursor-pointer rounded-md border border-border bg-background/80 px-2 text-xs text-foreground outline-none transition-colors hover:border-primary/45 focus-visible:border-primary/55 focus-visible:ring-2 focus-visible:ring-primary/25"
+            title="切换本章分镜、资产工作流或自由工作流"
             aria-label="切换分镜工作流"
           >
             {/* 首帧只挂当前项,完整列表延后一帧(chromeReady)再补,避免进入画布

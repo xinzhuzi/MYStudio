@@ -122,13 +122,13 @@ export function LocalImage({
         <>
           <button
             type="button"
-            aria-label={`展示大图 ${alt ?? ""}`}
+            aria-label={alt ? `展示大图 ${alt}` : "展示大图"}
             title="全屏查看原图"
             onClick={(event) => {
               event.stopPropagation();
               setPreviewOpen(true);
             }}
-            className="nodrag nopan absolute bottom-1.5 right-1.5 z-10 flex h-6 w-6 items-center justify-center rounded-md bg-background/80 text-foreground transition-colors hover:bg-background"
+            className="nodrag nopan absolute bottom-1.5 right-1.5 z-10 flex h-6 w-6 items-center justify-center rounded-md bg-background/80 text-foreground transition-colors hover:bg-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 active:bg-background"
           >
             <Maximize2 className="h-3.5 w-3.5" />
           </button>
