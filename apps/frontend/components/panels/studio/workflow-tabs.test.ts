@@ -307,11 +307,18 @@ describe("studio workflow tabs", () => {
     expect(toolbarSource).toContain("{canUseGlobalWorkflowControls ? (");
     expect(toolbarSource).toContain("{selectedEdgeId && canUseGlobalWorkflowControls ? (");
     expect(scopedPendingSource).toContain("data-scoped-image-workflow-summary");
-    expect(toolbarSource).toContain("data-image-workflow-selector");
-    expect(toolbarSource).toContain('optgroup label="本章分镜"');
-    // 展示层铁律(08-30 裁定):不同功能模块分组列出,不扁平混排
-    expect(toolbarSource).toContain('optgroup label="资产工作流"');
-    expect(toolbarSource).toContain('optgroup label="自由工作流"');
+    // 08-30 强隔离:切换器独立成件(image-workflow-switcher),两域组永不同框
+    const switcherSource = readFileSync(
+      fileURLToPath(new URL("./image-workflow/image-workflow-switcher.tsx", import.meta.url)),
+      "utf8",
+    );
+    expect(toolbarSource).toContain("<ImageWorkflowSwitcher");
+    expect(toolbarSource).toContain("scope={scope}");
+    expect(switcherSource).toContain('optgroup label="本章分镜"');
+    expect(switcherSource).toContain('optgroup label="资产工作流"');
+    expect(switcherSource).toContain('optgroup label="自由工作流"');
+    expect(switcherSource).toContain('scope === "storyboard" ?');
+    expect(switcherSource).toContain("data-image-workflow-selector");
     // 合并裁定(2026-08-30):旧流已在持久化层清理,选择器不再分组列出
     expect(toolbarSource).not.toContain("上一代遗留");
     expect(toolbarSource).toContain("data-image-workflow-global-action");

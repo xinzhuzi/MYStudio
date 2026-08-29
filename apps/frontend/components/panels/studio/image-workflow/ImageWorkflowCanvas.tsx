@@ -16,6 +16,7 @@ import { useCanvasGestureKernel } from "../use-canvas-gesture-kernel";
 import { useScopedWorkflowLifecycle } from "./use-scoped-workflow-lifecycle";
 import { buildSwitchContext, useStoryboardWorkflowSwitch } from "./use-storyboard-workflow-switch";
 import { useChapterStoryboards } from "../use-chapter-storyboards";
+import { libraryImageWorkflows, resolveImageWorkflowScope } from "./image-workflow-scope";
 import {
   Image as _ImageIcon,
   Loader2,
@@ -130,7 +131,10 @@ export function ImageWorkflowCanvas({
         ? selectedGraph && selectedGraph.id === scopedWorkflow?.id
           ? selectedGraph
           : scopedWorkflow
-        : selectedGraph ?? imageWorkflows[0];
+        // library 域(非分镜入口)不落分镜流——分镜浏览回分镜面板(08-30 强隔离)
+        : selectedGraph && selectedGraph.target.kind !== "storyboard"
+          ? selectedGraph
+          : libraryImageWorkflows(imageWorkflows)[0];
     },
     [activeWorkflowId, imageWorkflows, isScopedWorkflowDetail, scopedWorkflow],
   );
@@ -204,6 +208,8 @@ export function ImageWorkflowCanvas({
     activeGeneratedNode?.status === "generating" ||
     activeGeneratedNode?.status === "queued";
   const canUseGlobalWorkflowControls = !isScopedWorkflowDetail;
+  // 上下文强隔离(08-30):分镜入口=storyboard 域;其余入口=library 域
+  const workflowScope = resolveImageWorkflowScope(initialAssetContext);
 
   useScopedWorkflowLifecycle({
     activeGraph,
@@ -472,13 +478,14 @@ export function ImageWorkflowCanvas({
           activeGraph={activeGraph}
           chromeReady={chromeReady}
           styleTraceChips={styleTraceChips}
+          scope={workflowScope}
           canUseGlobalWorkflowControls={canUseGlobalWorkflowControls}
           imageWorkflows={imageWorkflows}
           storyboards={chapterStoryboards}
           onSelectStoryboard={(storyboard) => {
             const currentStoryboardId = activeGraph.target.kind === "storyboard" ? activeGraph.target.id : null;
             if (storyboard.id === currentStoryboardId) return;
-            // scoped 单镜模式走整条打开链重进;全局模式在画布内原地换流
+            // 分镜域切镜恒走整条打开链(匹配/新建/装配),不留在原地换流
             if (isScopedWorkflowDetail) {
               onOpenStoryboardWorkflow?.(buildSwitchContext(storyboard));
               return;

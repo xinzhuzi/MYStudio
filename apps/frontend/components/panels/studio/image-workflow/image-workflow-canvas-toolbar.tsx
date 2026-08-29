@@ -19,6 +19,8 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
+import { ImageWorkflowSwitcher } from "./image-workflow-switcher";
+import type { ImageWorkflowScope } from "./image-workflow-scope";
 import type { ImageWorkflowGeneratedNode, ImageWorkflowGraph, StoryboardItem } from "@/types/studio";
 
 /**
@@ -35,6 +37,7 @@ export function ImageWorkflowCanvasToolbar({
   activeGraph,
   chromeReady,
   styleTraceChips,
+  scope,
   canUseGlobalWorkflowControls,
   imageWorkflows,
   storyboards,
@@ -61,6 +64,8 @@ export function ImageWorkflowCanvasToolbar({
   activeGraph: ImageWorkflowGraph;
   chromeReady: boolean;
   styleTraceChips: string[];
+  /** 作用域(08-30 强隔离裁定):storyboard=分镜域只列本章分镜;library=资产/自由域 */
+  scope: ImageWorkflowScope;
   canUseGlobalWorkflowControls: boolean;
   imageWorkflows: ImageWorkflowGraph[];
   /** 本章分镜(已按生产章过滤):「本章分镜」组数据源 */
@@ -111,84 +116,15 @@ export function ImageWorkflowCanvasToolbar({
           </DropdownMenuContent>
         </DropdownMenu>
       ) : null}
-      {(() => {
-        // 值域双命名空间:分镜项 `sb:<storyboardId>`(走分镜切换链),
-        // 非分镜流项 `<graphId>`(按 id 直切)。当前流是分镜目标但不在本章
-        // 列表(跨章流)时补一项以流名兜底显示,选中不动作。
-        const activeStoryboardId =
-          activeGraph.target.kind === "storyboard" && typeof activeGraph.target.id === "string"
-            ? activeGraph.target.id
-            : null;
-        const selectorValue = activeStoryboardId ? `sb:${activeStoryboardId}` : activeGraph.id;
-        const currentStoryboardMissing =
-          activeStoryboardId !== null && !storyboards.some((item) => item.id === activeStoryboardId);
-        const nonStoryboardGraphs = imageWorkflows.filter((graph) => graph.target.kind !== "storyboard");
-        // 展示层铁律(08-30 用户裁定):不同功能模块的流分组列出,不扁平混排;
-        // material 为遗留空种,归资产域兜底。空组不渲染。
-        const assetGraphs = nonStoryboardGraphs.filter(
-          (graph) => graph.target.kind === "asset" || graph.target.kind === "material",
-        );
-        const freeGraphs = nonStoryboardGraphs.filter((graph) => graph.target.kind === "free");
-        const storyboardOptionLabel = (storyboard: StoryboardItem) =>
-          `分镜 ${storyboard.index} · ${(storyboard.videoDesc || storyboard.prompt).slice(0, 18)}`;
-        return (
-          <select
-            data-image-workflow-selector
-            data-image-workflow-active-id={activeGraph.id}
-            value={selectorValue}
-            onChange={(event) => {
-              const nextValue = event.target.value;
-              if (nextValue === selectorValue) return;
-              if (nextValue.startsWith("sb:")) {
-                const storyboard = storyboards.find((item) => `sb:${item.id}` === nextValue);
-                if (storyboard) onSelectStoryboard(storyboard);
-                return;
-              }
-              onSelectorChange(nextValue);
-            }}
-            className="h-8 max-w-[260px] cursor-pointer rounded-md border border-border bg-background/80 px-2 text-xs text-foreground outline-none transition-colors hover:border-primary/45 focus-visible:border-primary/55 focus-visible:ring-2 focus-visible:ring-primary/25"
-            title="切换本章分镜、资产工作流或自由工作流"
-            aria-label="切换分镜工作流"
-          >
-            {/* 首帧只挂当前项,完整列表延后一帧(chromeReady)再补,避免进入画布
-                瞬间一次性铺全部 <option> 卡顿(功能不变,展开时已补齐)。 */}
-            {chromeReady ? (
-              <>
-                <optgroup label="本章分镜">
-                  {storyboards.map((storyboard) => (
-                    <option key={storyboard.id} value={`sb:${storyboard.id}`}>
-                      {storyboardOptionLabel(storyboard)}
-                    </option>
-                  ))}
-                  {currentStoryboardMissing ? (
-                    <option value={selectorValue}>{activeGraph.name}(其他章节)</option>
-                  ) : null}
-                </optgroup>
-                {assetGraphs.length ? (
-                  <optgroup label="资产工作流">
-                    {assetGraphs.map((graph) => (
-                      <option key={graph.id} value={graph.id}>
-                        {graph.name}
-                      </option>
-                    ))}
-                  </optgroup>
-                ) : null}
-                {freeGraphs.length ? (
-                  <optgroup label="自由工作流">
-                    {freeGraphs.map((graph) => (
-                      <option key={graph.id} value={graph.id}>
-                        {graph.name}
-                      </option>
-                    ))}
-                  </optgroup>
-                ) : null}
-              </>
-            ) : (
-              <option value={selectorValue}>{activeGraph.name}</option>
-            )}
-          </select>
-        );
-      })()}
+      <ImageWorkflowSwitcher
+        scope={scope}
+        activeGraph={activeGraph}
+        storyboards={storyboards}
+        imageWorkflows={imageWorkflows}
+        chromeReady={chromeReady}
+        onSelectStoryboard={onSelectStoryboard}
+        onSelectWorkflow={onSelectorChange}
+      />
       {canUseGlobalWorkflowControls ? (
         <>
           <Button
@@ -198,7 +134,7 @@ export function ImageWorkflowCanvasToolbar({
             onClick={onCreateNewFlow}
           >
             <Plus className="h-3.5 w-3.5" />
-            新建
+            新建自由工作流
           </Button>
           <Button
             size="sm"

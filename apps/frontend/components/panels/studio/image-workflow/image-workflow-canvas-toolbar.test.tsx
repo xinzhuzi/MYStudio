@@ -16,11 +16,13 @@ const flows = [
 ] as unknown[] as ImageWorkflowGraph[];
 
 function renderToolbar(overrides: Partial<Parameters<typeof ImageWorkflowCanvasToolbar>[0]> = {}) {
+  // 默认 storyboards 为空 ⇒ storyboard 域只剩兜底项;用例按需覆写 scope/storyboards
   return render(
     <ImageWorkflowCanvasToolbar
       activeGraph={flows[0]}
       chromeReady
       styleTraceChips={[]}
+      scope="library"
       canUseGlobalWorkflowControls
       imageWorkflows={flows}
       storyboards={storyboards}
@@ -48,38 +50,45 @@ function renderToolbar(overrides: Partial<Parameters<typeof ImageWorkflowCanvasT
 
 afterEach(cleanup);
 
-describe("merged storyboard/workflow switcher (2026-08-30)", () => {
-  it("lists chapter storyboards and non-storyboard workflows; storyboard flows are not listed by id", () => {
-    renderToolbar();
+describe("scope-isolated workflow switcher (2026-08-30 强隔离裁定)", () => {
+  it("library 域只列资产/自由工作流,不列分镜组,分镜流不按 id 出现", () => {
+    renderToolbar({ scope: "library", activeGraph: flows[1] });
     const select = document.querySelector("[data-image-workflow-selector]") as HTMLSelectElement;
-    expect(select).toBeTruthy();
+    const values = Array.from(select.options).map((option) => option.value);
+    expect(values).toContain("wf-free");
+    expect(values).toContain("wf-asset");
+    expect(values).not.toContain("sb:sb-1");
+    expect(values).not.toContain("wf-sb1");
+    expect(Array.from(select.querySelectorAll("optgroup")).map((group) => group.label)).toEqual(["资产工作流", "自由工作流"]);
+  });
+
+  it("storyboard 域只列本章分镜,不列资产/自由组", () => {
+    renderToolbar({ scope: "storyboard", activeGraph: flows[0] });
+    const select = document.querySelector("[data-image-workflow-selector]") as HTMLSelectElement;
     const values = Array.from(select.options).map((option) => option.value);
     expect(values).toContain("sb:sb-1");
     expect(values).toContain("sb:sb-2");
-    expect(values).toContain("wf-free");
-    expect(values).toContain("wf-asset");
-    // storyboard 目标的流不再按流 id 出现(经分镜入口即达)
-    expect(values).not.toContain("wf-sb1");
-    // 无「上一代遗留」分组
-    expect(Array.from(select.querySelectorAll("optgroup")).map((group) => group.label)).toEqual(["本章分镜", "资产工作流", "自由工作流"]);
+    expect(values).not.toContain("wf-free");
+    expect(values).not.toContain("wf-asset");
+    expect(Array.from(select.querySelectorAll("optgroup")).map((group) => group.label)).toEqual(["本章分镜"]);
   });
 
-  it("shows the storyboard entry as selected when the active graph targets a storyboard", () => {
-    renderToolbar();
-    const select = document.querySelector("[data-image-workflow-selector]") as HTMLSelectElement;
-    expect(select.value).toBe("sb:sb-1");
-  });
-
-  it("dispatches onSelectStoryboard for storyboard entries and onSelectorChange for others", () => {
+  it("分镜域选中分镜项,library 域选中流 id;分派各走各链", () => {
     const onSelectStoryboard = vi.fn();
     const onSelectorChange = vi.fn();
-    renderToolbar({ onSelectStoryboard, onSelectorChange });
-    const select = document.querySelector("[data-image-workflow-selector]") as HTMLSelectElement;
-    fireEvent.change(select, { target: { value: "sb:sb-2" } });
+    const first = renderToolbar({ scope: "storyboard", activeGraph: flows[0], onSelectStoryboard, onSelectorChange });
+    const scopedSelect = document.querySelector("[data-image-workflow-selector]") as HTMLSelectElement;
+    expect(scopedSelect.value).toBe("sb:sb-1");
+    fireEvent.change(scopedSelect, { target: { value: "sb:sb-2" } });
     expect(onSelectStoryboard).toHaveBeenCalledWith(expect.objectContaining({ id: "sb-2" }));
     expect(onSelectorChange).not.toHaveBeenCalled();
-    fireEvent.change(select, { target: { value: "wf-free" } });
-    expect(onSelectorChange).toHaveBeenCalledWith("wf-free");
+    first.unmount();
+
+    renderToolbar({ scope: "library", activeGraph: flows[1], onSelectStoryboard, onSelectorChange });
+    const librarySelect = document.querySelector("[data-image-workflow-selector]") as HTMLSelectElement;
+    expect(librarySelect.value).toBe("wf-free");
+    fireEvent.change(librarySelect, { target: { value: "wf-asset" } });
+    expect(onSelectorChange).toHaveBeenCalledWith("wf-asset");
   });
 
   it("collapses style trace chips behind a trigger and hides low-frequency actions in 更多 (08-30 精简)", () => {
@@ -98,6 +107,7 @@ describe("merged storyboard/workflow switcher (2026-08-30)", () => {
 
   it("renders in scoped mode too and falls back to a labelled option for cross-chapter storyboard flows", () => {
     renderToolbar({
+      scope: "storyboard",
       canUseGlobalWorkflowControls: false,
       activeGraph: { ...flows[0], id: "wf-other-chapter", target: { kind: "storyboard", id: "sb-x" } } as ImageWorkflowGraph,
     });
