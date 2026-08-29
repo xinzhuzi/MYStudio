@@ -5,7 +5,7 @@ import { ResolutionBadge } from "@/components/ui/image-resolution-badge";
 import type { ImageWorkflowOpenContext, StoryboardItem } from "@/types/studio";
 import { buildStoryboardItemOpenContext } from "./storyboard-open-context";
 import { toPreviewSrc, withThumbVariant } from "./previews/preview-src";
-import { PreviewImage } from "./previews/preview-image";
+import { LocalImage } from "@/components/ui/local-image";
 import { handleDeferScroll } from "./previews/interaction-defer";
 import { InteractionDeferHint } from "./previews/interaction-defer-hint";
 import type { StoryboardBatchGenerationState } from "./image-workflow/use-storyboard-batch-generation";
@@ -175,7 +175,7 @@ function StoryboardPanelCard({
     >
       <div className="relative aspect-video w-full overflow-hidden rounded-t-lg bg-muted/40">
         {currentPath ? (
-          <PreviewImage
+          <LocalImage
             key={currentPath}
             src={withThumbVariant(toPreviewSrc(currentPath))}
             alt={storyboard.prompt}

@@ -37,7 +37,7 @@ function readLocalSource(filename: string) {
 
 function readAllPreviewSources() {
   return [
-    "previews/preview-image.tsx",
+    "../../ui/local-image.tsx",
     "previews/preview-src.ts",
     "previews/text-preview.tsx",
     "previews/asset-derivation-preview.tsx",

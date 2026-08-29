@@ -15,6 +15,7 @@ import {
 import { subscribeRemotionShotRenderRequest } from "@/lib/studio/remotion-shot-render-request";
 import type { ImageWorkflowOpenContext } from "@/types/studio";
 import { resolveProductionEpisodeId, resolveScriptTextForEpisode, scriptPlanSourceFingerprint } from "./workflow-helpers";
+import { useChapterStoryboards } from "./use-chapter-storyboards";
 import { useNovelPipelineActions } from "./useNovelPipelineActions";
 import { useProductionFlowModel } from "./useProductionFlowModel";
 import { useProductionPlanningActions } from "./useProductionPlanningActions";
@@ -92,9 +93,8 @@ export function useStudioViewModel() {
   const productionEpisodeId = resolveProductionEpisodeId(
     useStudioStore.getState(),
   );
-  const chapterStoryboards = storyboards.filter(
-    (storyboard) => storyboard.episodeId === productionEpisodeId,
-  );
+  // 本章分镜唯一口径:与 ImageWorkflowCanvas 共用 useChapterStoryboards(08-30 收敛)
+  const chapterStoryboards = useChapterStoryboards();
   const directorPlan = scriptPlans.find(
     (item) => item.episodeId === productionEpisodeId,
   );

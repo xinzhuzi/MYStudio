@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { ArrowLeft, ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ResolutionBadge } from "@/components/ui/image-resolution-badge";
-import { PreviewImage } from "./previews/preview-image";
+import { LocalImage } from "@/components/ui/local-image";
 import { toPreviewSrc, withThumbVariant } from "./previews/preview-src";
 import { buildProjectFileUrl } from "@/lib/upscale/project-file-url";
 import type { StoryboardItem } from "@/types/studio";
@@ -342,7 +342,7 @@ export function ShotProductionOverview({
               <div className={`relative flex ${IMAGE_BOX_CLASS} items-center justify-center overflow-hidden rounded-md border border-border/70 bg-muted/30`}>
                 {mediaPath ? (
                   <>
-                    <PreviewImage
+                    <LocalImage
                       src={withThumbVariant(toPreviewSrc(mediaPath))}
                       alt={selected.prompt}
                       className="h-full w-full object-contain"

@@ -13,7 +13,7 @@ import type {
   ProductionFlowNodeModel,
   ProductionFlowRemotionShot,
 } from "../workflow-node-model";
-import { PreviewImage } from "./preview-image";
+import { LocalImage } from "@/components/ui/local-image";
 import { toPreviewSrc, withThumbVariant } from "./preview-src";
 
 export function RemotionShotPreview({
@@ -77,7 +77,7 @@ export function RemotionShotPreview({
             <div className="flex gap-2">
               <div className="relative h-14 w-20 shrink-0 overflow-hidden rounded border border-border/70 bg-muted/30">
                 {shot.mediaPath ? (
-                  <PreviewImage
+                  <LocalImage
                     src={withThumbVariant(toPreviewSrc(shot.mediaPath))}
                     alt={shot.title}
                     className="h-full w-full object-cover"

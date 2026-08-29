@@ -6,7 +6,7 @@ import type { ImageWorkflowOpenContext } from "@/types/studio";
 import type { ProductionFlowNodeModel } from "../workflow-node-model";
 import { buildStoryboardImageOpenContext } from "../storyboard-open-context";
 import { ResolutionBadge, probeImagePixelSize } from "@/components/ui/image-resolution-badge";
-import { PreviewImage } from "./preview-image";
+import { LocalImage } from "@/components/ui/local-image";
 import { TextPreview } from "./text-preview";
 import { toPreviewSrc, withThumbVariant } from "./preview-src";
 import { handleDeferScroll } from "./interaction-defer";
@@ -79,7 +79,7 @@ export function StoryboardGridPreview({
           const previewTile = (
             <>
               {tile.mediaPath ? (
-                <PreviewImage
+                <LocalImage
                   src={withThumbVariant(tile.mediaPath)}
                   alt={tile.title}
                   className="h-full w-full object-cover"

@@ -16,7 +16,7 @@ import { useSmoothWheelZoom } from "../previews/smooth-wheel-zoom";
 import { InteractionDeferHint } from "../previews/interaction-defer-hint";
 import { useScopedWorkflowLifecycle } from "./use-scoped-workflow-lifecycle";
 import { buildSwitchContext, useStoryboardWorkflowSwitch } from "./use-storyboard-workflow-switch";
-import { resolveProductionEpisodeId } from "../workflow-helpers";
+import { useChapterStoryboards } from "../use-chapter-storyboards";
 import {
   Image as _ImageIcon,
   Loader2,
@@ -143,17 +143,8 @@ export function ImageWorkflowCanvas({
     () => storyboards.filter((item) => item.mediaRef?.kind === "image" && item.mediaRef.path),
     [storyboards],
   );
-  // 合并切换器的分镜口径:与分镜面板同源(resolveProductionEpisodeId),只列本章分镜
-  const agentWorkData = useStudioStore((state) => state.agentWorkData);
-  const novelChapters = useStudioStore((state) => state.novelChapters);
-  const scriptPlans = useStudioStore((state) => state.scriptPlans);
-  const chapterStoryboards = useMemo(
-    () => {
-      const productionEpisodeId = resolveProductionEpisodeId({ agentWorkData, novelChapters, scriptPlans });
-      return storyboards.filter((item) => item.episodeId === productionEpisodeId);
-    },
-    [agentWorkData, novelChapters, scriptPlans, storyboards],
-  );
+  // 合并切换器的分镜口径:useChapterStoryboards(全仓唯一本章过滤,与分镜面板同源)
+  const chapterStoryboards = useChapterStoryboards();
   const sourceLabel = initialAssetContext?.sourceLabel || initialAssetContext?.title || "当前图片工作流";
   const sourceStageLabel = initialAssetContext?.sourceStageLabel;
   const activeGeneratedNode = useMemo(

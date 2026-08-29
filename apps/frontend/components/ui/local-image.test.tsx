@@ -80,11 +80,14 @@ describe("LocalImage", () => {
     expect(container.querySelector("span")).toBeNull();
   });
 
-  it("keeps the no-fallback error branch wrapper-free", () => {
-    const { container } = render(<LocalImage src="file:///definitely-missing/x.png" alt="x" />);
+  it("keeps the no-fallback error branch as the terminal placeholder with marker and label (08-30 合一后统一占位形态)", () => {
+    const { container } = render(
+      <LocalImage src="file:///definitely-missing/x.png" alt="x" fallbackLabel="自定义文案" />,
+    );
     fireEvent.error(screen.getByAltText("x"));
-    expect(container.querySelector("span")).toBeNull();
-    expect(container.textContent).toContain("图片加载失败");
+    expect(container.querySelector("img")).toBeNull();
+    expect(container.querySelector("[data-local-image-failed]")?.getAttribute("data-local-image-failed")).toBe("x");
+    expect(container.textContent).toContain("自定义文案");
   });
 
   it("wraps with a positioned span only in resolutionBadge mode", () => {
