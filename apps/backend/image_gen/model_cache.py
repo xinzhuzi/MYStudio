@@ -22,6 +22,18 @@ QWEN_IMAGE_EDIT_MODEL = "qwen-image-edit-2511"
 QWEN_COMFY_MAIN_FILE = "diffusion_models/qwen_image_edit_2511_Q8_0.gguf"
 QWEN_COMFY_TEXT_ENCODER_FILE = "text_encoders/qwen_2.5_vl_7b.safetensors"
 
+# 自足回退大件仓(08-30 实拍,字节与本机 ComfyUI 文件一致,单文件分发——
+# 装配代码单文件+键名映射可原样复用;详见 .trellis/tasks/08-30-imagegen-selfcontained-fallback/prd.md)
+QWEN_GGUF_REPO = "unsloth/Qwen-Image-Edit-2511-GGUF"
+QWEN_GGUF_FILE = "qwen-image-edit-2511-Q8_0.gguf"  # 连字符命名(本机 ComfyUI 副本为下划线,同字节)
+QWEN_TE_REPO = "Comfy-Org/Qwen-Image_ComfyUI"
+QWEN_TE_FILE = "split_files/text_encoders/qwen_2.5_vl_7b.safetensors"
+# 每仓只拉清单内文件——Comfy-Org 仓整仓含 38G×数个扩散模型,严禁整仓拉
+QWEN_BIG_FILE_REPOS: tuple[tuple[str, tuple[str, ...]], ...] = (
+    (QWEN_GGUF_REPO, (QWEN_GGUF_FILE,)),
+    (QWEN_TE_REPO, (QWEN_TE_FILE,)),
+)
+
 # 小件:两个官方仓的配置/分词器/VAE 权重,显式小下载(~300MB)
 QWEN_IMAGE_REPO = "Qwen/Qwen-Image"
 QWEN_VL_REPO = "Qwen/Qwen2.5-VL-7B-Instruct"
@@ -59,6 +71,46 @@ QWEN_VL_REQUIRED_FILES = (
 )
 QWEN_SMALL_PIECES_SIZE_MB = 300
 
+# ── Z-Image-Turbo(08-30 多引擎接入,B 站 BV1vG8m6vETh 修复工作流同款底子)──
+Z_IMAGE_MODEL = "z-image-turbo"
+Z_COMFY_MAIN_FILE = "diffusion_models/z_image_turbo_bf16.safetensors"
+Z_COMFY_TEXT_ENCODER_FILE = "text_encoders/qwen_3_4b.safetensors"
+# 小件:VAE/调度器/分词器/双端 config(~400MB);大件 ComfyUI 指向零重下
+Z_IMAGE_SMALL_REPO = os.environ.get("MYSTUDIO_ZIMAGE_SMALL_REPO", "Tongyi-MAI/Z-Image-Turbo")
+Z_IMAGE_SMALL_PIECE_REPOS: tuple[tuple[str, tuple[str, ...]], ...] = (
+    (
+        Z_IMAGE_SMALL_REPO,
+        (
+            "vae/*",
+            "scheduler/*",
+            "transformer/config.json",
+            "text_encoder/config.json",
+            "tokenizer/*",
+        ),
+    ),
+)
+Z_IMAGE_SMALL_EXACT_FILES: tuple[str, ...] = (
+    "vae/config.json",
+    "vae/diffusion_pytorch_model.safetensors",
+    "scheduler/scheduler_config.json",
+    "transformer/config.json",
+    "text_encoder/config.json",
+    "tokenizer/tokenizer.json",
+    "tokenizer/tokenizer_config.json",
+    "tokenizer/vocab.json",
+    "tokenizer/merges.txt",
+    "tokenizer/special_tokens_map.json",
+)
+Z_IMAGE_REQUIRED_FILES = (
+    "transformer/config.json",
+    "scheduler/scheduler_config.json",
+    "vae/config.json",
+    "vae/diffusion_pytorch_model.safetensors",
+    "text_encoder/config.json",
+    "tokenizer/tokenizer_config.json",
+)
+
+
 # 旧目录 id 归一(sdxl-turbo/flux-schnell 已退役,存量配置请求映射到 Qwen)
 LEGACY_IMAGE_MODEL_ALIASES: dict[str, str] = {
     "sdxl-turbo": QWEN_IMAGE_EDIT_MODEL,
@@ -95,6 +147,16 @@ IMAGE_MODELS: dict[str, PointedImageModelSpec] = {
         "description": "本地编辑级生图（21.7B GGUF Q8_0，大件指向 ComfyUI 现成文件零重下；首次需补齐 VAE/文本编码器小件约 300MB）",
         "layout": "qwen-pointed",
     },
+    Z_IMAGE_MODEL: {
+        "label": "Z-Image-Turbo",
+        "repo_id": Z_IMAGE_SMALL_REPO,
+        "repo_ids": (Z_IMAGE_SMALL_REPO,),
+        "size_mb": 13700,
+        "license": "Apache-2.0",
+        "steps": 8,
+        "description": "本地快速生图（6B turbo 蒸馏，8 步出图；大件指向 ComfyUI 现成文件零重下；首次补齐 VAE/分词器小件约 400MB）",
+        "layout": "z-image-pointed",
+    },
 }
 
 
@@ -121,17 +183,107 @@ def qwen_pointed_big_files() -> tuple[Path, Path]:
     return base / QWEN_COMFY_MAIN_FILE, base / QWEN_COMFY_TEXT_ENCODER_FILE
 
 
-def find_cached_qwen_pointed_model() -> CachedImageModel | None:
-    """指向版大件探测:主模型 + 文本编码器都在才算就绪(小件另查)。"""
-    main, text_encoder = qwen_pointed_big_files()
-    if not (main.is_file() and text_encoder.is_file()):
+def qwen_appcache_big_files(cache_dir: Path | None = None) -> tuple[Path, Path] | None:
+    """自足回退布局探测:应用 HF 缓存内两仓 snapshot 的大件单文件。
+
+    ModelScope 助手平铺写 snapshots/main/<path>,HF snapshot 写 snapshots/<rev>/<path>,
+    两种布局都落在 hf_snapshot_dir() 的扫描范围内。GGUF 以 *Q8_0.gguf 兜底 glob,
+    兼容连字符/下划线两种文件名。
+    """
+    gguf_snapshot = hf_snapshot_dir(QWEN_GGUF_REPO, cache_dir)
+    main = next(iter(sorted(gguf_snapshot.rglob("*Q8_0.gguf"))), None) if gguf_snapshot else None
+    te_snapshot = hf_snapshot_dir(QWEN_TE_REPO, cache_dir)
+    te = (te_snapshot / QWEN_TE_FILE) if te_snapshot else None
+    if main is None or te is None or not (main.is_file() and te.is_file()):
         return None
-    size_mb = round((main.stat().st_size + text_encoder.stat().st_size) / 1024 / 1024, 2)
+    return main, te
+
+
+def resolve_qwen_big_files(cache_dir: Path | None = None) -> dict | None:
+    """大件统一解析(优先级):ComfyUI 指向(env 可覆写)→ 应用缓存自足布局。
+
+    返回 {"main": Path, "text_encoder": Path, "source": "comfyui"|"app-cache",
+    "cache_dir": str, "size_mb": float};两源皆缺返回 None。
+    """
+    main, te = qwen_pointed_big_files()
+    if main.is_file() and te.is_file():
+        return {
+            "main": main,
+            "text_encoder": te,
+            "source": "comfyui",
+            "cache_dir": str(comfyui_models_dir()),
+            "size_mb": round((main.stat().st_size + te.stat().st_size) / 1024 / 1024, 2),
+        }
+    appcache = qwen_appcache_big_files(cache_dir)
+    if appcache:
+        main, te = appcache
+        root = cache_dir or primary_hf_cache_dir()
+        return {
+            "main": main,
+            "text_encoder": te,
+            "source": "app-cache",
+            "cache_dir": str(root),
+            "size_mb": round((main.stat().st_size + te.stat().st_size) / 1024 / 1024, 2),
+        }
+    return None
+
+
+def find_cached_qwen_pointed_model() -> CachedImageModel | None:
+    """大件探测(两源,ComfyUI 指向优先,应用缓存自足回退);小件另查。"""
+    resolved = resolve_qwen_big_files()
+    if not resolved:
+        return None
+    main = resolved["main"]
     return {
-        "repo_id": f"comfyui:{QWEN_COMFY_MAIN_FILE}",
-        "cache_dir": str(comfyui_models_dir()),
+        "repo_id": f"{resolved['source']}:{main.name}",
+        "cache_dir": resolved["cache_dir"],
         "repo_cache_dir": str(main.parent),
-        "size_mb": size_mb,
+        "size_mb": resolved["size_mb"],
+    }
+
+
+def z_image_pointed_big_files() -> tuple[Path, Path]:
+    base = comfyui_models_dir()
+    return base / Z_COMFY_MAIN_FILE, base / Z_COMFY_TEXT_ENCODER_FILE
+
+
+def resolve_z_image_big_files(cache_dir: Path | None = None) -> dict | None:
+    """Z 大件解析:ComfyUI 指向(唯一源;无自足回退仓,大件缺失即未就绪)。"""
+    main, te = z_image_pointed_big_files()
+    if not (main.is_file() and te.is_file()):
+        return None
+    return {
+        "main": main,
+        "text_encoder": te,
+        "source": "comfyui",
+        "cache_dir": str(comfyui_models_dir()),
+        "size_mb": round((main.stat().st_size + te.stat().st_size) / 1024 / 1024, 2),
+    }
+
+
+def find_cached_z_image_model() -> CachedImageModel | None:
+    resolved = resolve_z_image_big_files()
+    if not resolved:
+        return None
+    return {
+        "repo_id": f"comfyui:{Z_COMFY_MAIN_FILE}",
+        "cache_dir": resolved["cache_dir"],
+        "repo_cache_dir": str(resolved["main"].parent),
+        "size_mb": resolved["size_mb"],
+    }
+
+
+def z_image_small_pieces_status(cache_dir: Path | None = None) -> dict:
+    snapshot = hf_snapshot_dir(Z_IMAGE_SMALL_REPO, cache_dir)
+    missing = (
+        [f"{Z_IMAGE_SMALL_REPO}:{name}" for name in Z_IMAGE_REQUIRED_FILES]
+        if snapshot is None
+        else [f"{Z_IMAGE_SMALL_REPO}:{name}" for name in Z_IMAGE_REQUIRED_FILES if not (snapshot / name).is_file()]
+    )
+    return {
+        "ready": not missing,
+        "missing": missing,
+        "snapshot_dirs": {Z_IMAGE_SMALL_REPO: str(snapshot) if snapshot else None},
     }
 
 
@@ -269,8 +421,11 @@ def qwen_small_pieces_status(cache_dir: Path | None = None) -> dict:
 
 def find_cached_image_model_for_spec(spec: ImageModelSpec) -> CachedImageModel | None:
     """统一入口:按 spec 布局分派(指向版查 ComfyUI 大件,否则 HF 扫描)。"""
-    if spec.get("layout") == "qwen-pointed":
+    layout = spec.get("layout")
+    if layout == "qwen-pointed":
         return find_cached_qwen_pointed_model()
+    if layout == "z-image-pointed":
+        return find_cached_z_image_model()
     return find_cached_image_model(spec["repo_ids"])
 
 

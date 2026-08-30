@@ -10,27 +10,49 @@ from __future__ import annotations
 import json
 import sys
 
-from .model_cache import qwen_pointed_big_files, IMAGE_MODELS, find_cached_image_model_for_spec, qwen_small_pieces_status
+from .model_cache import (
+    IMAGE_MODELS,
+    find_cached_image_model_for_spec,
+    qwen_small_pieces_status,
+    resolve_qwen_big_files,
+    resolve_z_image_big_files,
+    z_image_small_pieces_status,
+)
 
 
 def build_model_status() -> list[dict]:
     rows: list[dict] = []
     for name, spec in IMAGE_MODELS.items():
         cached = find_cached_image_model_for_spec(spec)
-        pointed = spec.get("layout") == "qwen-pointed"
+        layout = spec.get("layout")
+        pointed = layout == "qwen-pointed"
+        z_pointed = layout == "z-image-pointed"
+        # 大件实际生效来源与路径(按引擎分派解析;缺大件为 None)
+        if pointed:
+            resolved = resolve_qwen_big_files()
+            small_ready = qwen_small_pieces_status()["ready"]
+        elif z_pointed:
+            resolved = resolve_z_image_big_files()
+            small_ready = z_image_small_pieces_status()["ready"]
+        else:
+            resolved = None
+            small_ready = None
         rows.append(
             {
                 "modelName": name,
                 "label": spec["label"],
                 "downloaded": cached is not None,
                 "sizeMb": cached["size_mb"] if cached else None,
-                "repoId": "ComfyUI 指向 + 官方仓小件" if pointed else spec["repo_id"],
+                "repoId": "ComfyUI 指向 / 完整下载 + 官方仓小件" if (pointed or z_pointed) else spec["repo_id"],
                 "cacheDir": cached["cache_dir"] if cached else None,
-                "pointed": pointed,
-                "smallPiecesReady": qwen_small_pieces_status()["ready"] if pointed else None,
-                # 指向版大件的具体文件路径(绝对),设置页展示用;非指向版为 None
+                "pointed": pointed or z_pointed,
+                "bigFilesSource": resolved["source"] if resolved else None,
+                "smallPiecesReady": small_ready if (pointed or z_pointed) else None,
+                # 大件实际文件路径(绝对,两源通用),设置页展示用;缺大件时空表
                 "pointedFiles": (
-                    [str(f) for f in qwen_pointed_big_files()] if pointed else None
+                    [str(resolved["main"]), str(resolved["text_encoder"])]
+                    if resolved
+                    else ([] if (pointed or z_pointed) else None)
                 ),
             }
         )

@@ -78,7 +78,7 @@ export function createImageGenRuntimeController(deps: ControllerDeps) {
     setupStage: "idle",
     setupMessage: undefined,
     models: [],
-    activeModel: "qwen-image-edit-2511",
+    activeModel: "z-image-turbo",
     downloadStatus: {},
     downloadProgress: {},
     downloadError: {},
@@ -281,7 +281,7 @@ export function createImageGenRuntimeController(deps: ControllerDeps) {
   }
 
   function setActiveModel(modelName: string): boolean {
-    const known: readonly ImageGenModelId[] = ["qwen-image-edit-2511"];
+    const known: readonly ImageGenModelId[] = ["qwen-image-edit-2511", "z-image-turbo"];
     if (!known.includes(modelName as ImageGenModelId)) return false;
     state.activeModel = modelName as ImageGenModelId;
     return true;

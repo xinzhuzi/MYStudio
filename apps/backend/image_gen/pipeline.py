@@ -21,9 +21,12 @@ from .model_cache import (
     QWEN_IMAGE_EDIT_MODEL,
     QWEN_IMAGE_REPO,
     QWEN_VL_REPO,
+    Z_IMAGE_MODEL,
     find_cached_image_model_for_spec,
-    qwen_pointed_big_files,
+    resolve_qwen_big_files,
+    resolve_z_image_big_files,
     qwen_small_pieces_status,
+    z_image_small_pieces_status,
     resolve_image_model_name,
 )
 from .model_cache import IMAGE_MODELS
@@ -127,7 +130,8 @@ def _get_qwen_pipeline(model_name: str):
                 "model-not-downloaded",
                 "Qwen 大件未就绪:需 ComfyUI models 目录下存在 "
                 "diffusion_models/qwen_image_edit_2511_Q8_0.gguf 与 "
-                "text_encoders/qwen_2.5_vl_7b.safetensors。",
+                "text_encoders/qwen_2.5_vl_7b.safetensors,"
+                "或前往 设置 → 本地配置 → 本地图片生成 点击「下载完整模型」自足获取。",
             )
         pieces = qwen_small_pieces_status()
         if not pieces["ready"]:
@@ -143,7 +147,12 @@ def _get_qwen_pipeline(model_name: str):
 
         from pathlib import Path
 
-        main_file, text_encoder_file = qwen_pointed_big_files()
+        # 两源解析:ComfyUI 指向优先,应用缓存自足回退(均为单文件,装配无分支)
+        big_files = resolve_qwen_big_files()
+        if not big_files:
+            raise PipelineError("model-not-downloaded", "Qwen 大件在解析后仍缺失(两源皆无),请重新探测或下载。")
+        main_file = big_files["main"]
+        text_encoder_file = big_files["text_encoder"]
         image_dir = Path(image_snapshot)
         vl_dir = Path(vl_snapshot)
 
@@ -266,6 +275,155 @@ def _generate_qwen(
     return base64.b64encode(buffer.getvalue()).decode("ascii")
 
 
+_z_image_pipelines: dict[str, dict[str, Any]] = {}
+
+
+def _get_z_image_components() -> dict[str, Any]:
+    """Z-Image-Turbo 五件套装配(大件 ComfyUI 指向 + 小件应用缓存 snapshot)。
+
+    与 Qwen 指向版同纪律:缺件 fail-closed 报可操作错误码,绝不自动下载。
+    """
+    resolved = resolve_z_image_big_files()
+    if not resolved:
+        raise PipelineError(
+            "model-not-downloaded",
+            "Z-Image 大件未就绪:需 ComfyUI models 目录下存在 "
+            "diffusion_models/z_image_turbo_bf16.safetensors 与 "
+            "text_encoders/qwen_3_4b.safetensors。",
+        )
+    pieces = z_image_small_pieces_status()
+    if not pieces["ready"]:
+        raise PipelineError(
+            "small-pieces-missing",
+            "Z-Image 小件未补齐(VAE/调度器/分词器,约 400MB)。"
+            "请前往 设置 → 本地配置 → 本地图片生成 点击「补齐小件」。",
+        )
+    snapshot_str = next(iter(pieces["snapshot_dirs"].values()), None)
+    if not snapshot_str:
+        raise PipelineError("small-pieces-missing", "Z-Image 小件 snapshot 目录缺失,请重新补齐小件。")
+
+    from pathlib import Path as _P
+
+    snapshot = _P(snapshot_str)
+    try:
+        import torch
+        from diffusers import (
+            AutoencoderKL,
+            FlowMatchEulerDiscreteScheduler,
+            ZImageTransformer2DModel,
+        )
+        from transformers import AutoConfig, AutoTokenizer, Qwen3ForCausalLM
+        from safetensors.torch import load_file
+    except ImportError as exc:
+        raise PipelineError("diffusers-missing", f"Z-Image 生图依赖未安装: {exc}") from exc
+
+    try:
+        main_file = resolved["main"]
+        te_file = resolved["text_encoder"]
+        transformer = ZImageTransformer2DModel.from_single_file(
+            str(main_file),
+            config=str(snapshot / "transformer"),
+            torch_dtype=torch.bfloat16,
+        )
+        vae = AutoencoderKL.from_pretrained(snapshot, subfolder="vae", torch_dtype=torch.bfloat16)
+        scheduler = FlowMatchEulerDiscreteScheduler.from_pretrained(snapshot, subfolder="scheduler")
+        tokenizer = AutoTokenizer.from_pretrained(snapshot / "tokenizer")
+        te_config = AutoConfig.from_pretrained(snapshot / "text_encoder")
+        text_encoder = Qwen3ForCausalLM(te_config).to(torch.bfloat16)
+        state = load_file(str(te_file))
+        missing_keys, unexpected_keys = text_encoder.load_state_dict(state, strict=False)
+        text_encoder.eval()
+    except PipelineError:
+        raise
+    except Exception as exc:
+        raise PipelineError("model-load-failed", f"Z-Image 生图管线装配失败: {exc}") from exc
+
+    device = "mps" if torch.backends.mps.is_available() else ("cuda" if torch.cuda.is_available() else "cpu")
+    return {
+        "transformer": transformer.to(device),
+        "vae": vae.to(device),
+        "scheduler": scheduler,
+        "tokenizer": tokenizer,
+        "text_encoder": text_encoder.to(device),
+    }
+
+
+def _generate_z_image(
+    prompt: str,
+    aspect_ratio: str,
+    negative_prompt: str | None,
+    steps: int,
+    seed: int | None,
+    reference_image_b64: str | None,
+    strength: float = 0.35,
+) -> str:
+    """Z-Image-Turbo:T2I 直出;参考图走 Img2Img+strength(低重绘语义,B 站
+    修复工作流同源——strength 0.1~0.25 即精修档,留待后续修复链)。
+    默认 0.35 为实弹标定:0.55 重绘过度内容漂移(题材丢失),0.3 构图人物
+    全保(08-30 三苦力码头实弹)。"""
+    import time as _time
+
+    with _lock:
+        if "z" not in _z_image_pipelines:
+            _z_image_pipelines["z"] = _get_z_image_components()
+        comps = _z_image_pipelines["z"]
+
+    from diffusers import ZImageImg2ImgPipeline, ZImagePipeline
+    from PIL import Image
+
+    width, height = ASPECT_RATIOS.get(aspect_ratio, ASPECT_RATIOS["1:1"])
+
+    init_image = None
+    pipe: Any
+    if reference_image_b64:
+        raw = reference_image_b64
+        if raw.startswith("data:"):
+            raw = raw.split(",", 1)[-1]
+        try:
+            init_image = Image.open(io.BytesIO(base64.b64decode(raw))).convert("RGB")
+        except Exception as exc:
+            raise PipelineError("invalid-reference", f"参考图解码失败: {exc}") from exc
+        init_image = init_image.resize((width, height))
+        pipe = ZImageImg2ImgPipeline(**comps)
+    else:
+        pipe = ZImagePipeline(**comps)
+
+    kwargs: dict[str, Any] = {
+        "prompt": prompt,
+        "height": height,
+        "width": width,
+        "num_inference_steps": steps,
+        "guidance_scale": 1.0,
+    }
+    if negative_prompt:
+        kwargs["negative_prompt"] = negative_prompt
+        kwargs["guidance_scale"] = 4.0
+    if seed is not None:
+        import torch
+
+        kwargs["generator"] = torch.Generator(device="cpu").manual_seed(seed)
+    if init_image is not None:
+        kwargs["image"] = init_image
+        kwargs["strength"] = strength
+
+    phase_start = _time.time()
+    try:
+        result = _run_inference(pipe, kwargs)
+    except PipelineError:
+        raise
+    except Exception as exc:
+        raise PipelineError("inference-failed", f"Z-Image 生成失败: {exc}") from exc
+    print(
+        f"[image-sidecar] z-image phase timing: steps={steps} ref={'yes' if init_image else 'no'} "
+        f"size={width}x{height} inference={_time.time() - phase_start:.1f}s",
+        flush=True,
+    )
+    image = result.images[0]
+    buffer = io.BytesIO()
+    image.save(buffer, format="PNG")
+    return base64.b64encode(buffer.getvalue()).decode("ascii")
+
+
 def _require_downloaded(model_name: str) -> None:
     spec = IMAGE_MODELS.get(model_name)
     if not spec:
@@ -352,6 +510,15 @@ def generate_image(
     model_name = resolve_image_model_name(model_name)
     spec = IMAGE_MODELS[model_name]
 
+    if spec.get("layout") == "z-image-pointed":
+        return _generate_z_image(
+            prompt,
+            aspect_ratio,
+            negative_prompt,
+            num_inference_steps or spec["steps"],
+            seed,
+            reference_image_b64,
+        )
     if spec.get("layout") == "qwen-pointed":
         # Qwen 官方分辨率档固定,resolution 缩放旋钮不生效(非官方档质量下降)
         return _generate_qwen(

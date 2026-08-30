@@ -1,9 +1,20 @@
 "use client";
 
-import { Check, Download, Image as ImageIcon, Loader2, RefreshCw, RotateCcw } from "lucide-react";
+import { Check, Copy, Download, FolderOpen, Image as ImageIcon, Loader2, RefreshCw, RotateCcw } from "lucide-react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { useImageGenRuntimeSettings } from "./useImageGenRuntimeSettings";
+
+const copyPath = async (path: string) => {
+  try {
+    await navigator.clipboard.writeText(path);
+    toast.success("路径已复制");
+  } catch {
+    toast.error("复制路径失败");
+  }
+};
 
 type LocalImageSettingsSectionProps = {
   embedded?: boolean;
@@ -12,9 +23,10 @@ type LocalImageSettingsSectionProps = {
 /**
  * 本地图片生成配置区块 — 设置 → 本地配置。
  *
- * Qwen-Image-Edit 2511 本地生图（21.7B 编辑级模型；大件指向 ComfyUI 现成文件
- * 零重下，首次点「补齐小件」获取 ~300MB 官方小件）以 OpenAI 兼容本地提供方
- * 暴露，可替代云端 API。模型显式获取；生成端点绝不自动下载。
+ * 本地生图多引擎（08-30 起）：Z-Image-Turbo（主力，6B 快速生图）+
+ * Qwen-Image-Edit 2511（编辑级）共存，按模型行分派；大件指向 ComfyUI 现成
+ * 文件零重下，首次点「补齐小件」获取官方小件。OpenAI 兼容本地提供方暴露，
+ * 可替代云端 API。模型显式获取；生成端点绝不自动下载。
  */
 export function LocalImageSettingsSection({ embedded = false }: LocalImageSettingsSectionProps) {
   const runtime = useImageGenRuntimeSettings();
@@ -76,7 +88,33 @@ export function LocalImageSettingsSection({ embedded = false }: LocalImageSettin
       </div>
 
       {runtime.lifecycleStatus?.message && !runtime.lifecycleError ? <p className="text-xs text-muted-foreground">{runtime.lifecycleStatus.message}</p> : null}
-      {runtime.lifecycleStatus?.modelCacheDir ? <p className="truncate text-xs text-muted-foreground" title={runtime.lifecycleStatus.modelCacheDir}>模型缓存：{runtime.lifecycleStatus.modelCacheDir}</p> : null}
+      {/* 缓存目录(超分/VLM 同款 grid:label + 只读可选输入框 + 复制/打开按钮) */}
+      {runtime.lifecycleStatus?.modelCacheDir ? (
+        <div className="grid gap-3 md:grid-cols-[5rem_minmax(0,1fr)_auto] md:items-center">
+          <span className="text-xs text-muted-foreground">模型缓存目录</span>
+          <Input
+            readOnly
+            value={runtime.lifecycleStatus.modelCacheDir}
+            containerClassName="w-full min-w-0"
+            className="min-w-0 font-mono text-xs"
+            data-imagegen-model-cache-dir
+          />
+          <div className="flex flex-nowrap gap-2 md:justify-end">
+            <Button size="sm" variant="outline" onClick={() => void copyPath(runtime.lifecycleStatus!.modelCacheDir!)}>
+              <Copy className="mr-1 h-4 w-4" aria-hidden />
+              复制
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => { void window.electronAPI?.openPath(runtime.lifecycleStatus!.modelCacheDir!); }}
+            >
+              <FolderOpen className="mr-1 h-4 w-4" aria-hidden />
+              打开
+            </Button>
+          </div>
+        </div>
+      ) : null}
 
       {/* Model rows */}
       {(status?.models ?? []).map((model) => {
@@ -90,20 +128,34 @@ export function LocalImageSettingsSection({ embedded = false }: LocalImageSettin
           : downloading
             ? "下载中"
             : model.downloaded
-              ? model.pointed
-                ? "已就绪（指向 ComfyUI 路径）"
-                : "已下载"
+              ? model.bigFilesSource === "app-cache"
+                ? "已就绪（本地完整下载）"
+                : model.pointed
+                  ? "已就绪（指向 ComfyUI 路径）"
+                  : "已下载"
               : failed
                 ? "下载失败"
-                : "未下载";
+                : "未下载（可完整下载自足）";
         return (
           <div key={model.modelName} className="space-y-1.5">
             {model.pointedFiles?.length ? (
-              <div className="space-y-0.5 rounded-md border border-border/60 bg-muted/30 px-2.5 py-1.5">
+              <div className="space-y-1 rounded-md border border-border/60 bg-muted/30 px-2.5 py-1.5">
                 {model.pointedFiles.map((file) => (
-                  <p key={file} className="truncate font-mono text-[11px] leading-4 text-muted-foreground" title={file}>
-                    {file}
-                  </p>
+                  <div key={file} className="flex items-start gap-1.5">
+                    <p className="min-w-0 flex-1 select-text break-all font-mono text-[11px] leading-4 text-muted-foreground">
+                      {file}
+                    </p>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="h-6 w-6 shrink-0 p-0"
+                      aria-label="复制路径"
+                      title="复制路径"
+                      onClick={() => void copyPath(file)}
+                    >
+                      <Copy className="h-3.5 w-3.5" aria-hidden />
+                    </Button>
+                  </div>
                 ))}
               </div>
             ) : null}
@@ -131,14 +183,14 @@ export function LocalImageSettingsSection({ embedded = false }: LocalImageSettin
                 <Button
                   size="sm"
                   onClick={() => void runtime.startDownload(model.modelName)}
-                  disabled={!isReady || downloading}
+                  disabled={downloading}
                 >
                   {downloading ? (
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden />
                   ) : (
                     <Download className="mr-2 h-4 w-4" aria-hidden />
                   )}
-                  {downloading ? "补齐中…" : needsSmallPieces ? "补齐小件(~300MB)" : model.downloaded ? "重新下载小件" : "下载模型"}
+                  {downloading ? "补齐中…" : needsSmallPieces ? "补齐小件(~300MB)" : model.downloaded ? "重新下载小件" : "下载完整模型(~37GB)"}
                 </Button>
               </div>
             </div>
@@ -156,12 +208,6 @@ export function LocalImageSettingsSection({ embedded = false }: LocalImageSettin
           </div>
         );
       })}
-
-      <p className="text-xs text-muted-foreground leading-5">
-        本地生图零 API 费用（Qwen-Image-Edit 编辑级模型，大件直接复用 ComfyUI 已有文件，仅首次补齐约 300MB 小件）。
-        准备运行时后，在 设置 → 云端AI 中将「角色生图 / 场景生图 / 道具生图」绑定到
-        「本地图片生成」提供方即可替代云 API。小件仅在点击时获取。
-      </p>
     </div>
   );
 }
