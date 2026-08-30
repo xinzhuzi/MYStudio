@@ -18,6 +18,7 @@ import threading
 from typing import Any
 
 from .model_cache import (
+    FLUX2_KLEIN_MODEL,
     QWEN_IMAGE_EDIT_MODEL,
     QWEN_IMAGE_REPO,
     QWEN_VL_REPO,
@@ -25,6 +26,8 @@ from .model_cache import (
     find_cached_image_model_for_spec,
     resolve_qwen_big_files,
     resolve_z_image_big_files,
+    resolve_flux2_big_files,
+    flux2_small_pieces_status,
     qwen_small_pieces_status,
     z_image_small_pieces_status,
     resolve_image_model_name,
@@ -435,6 +438,139 @@ def _generate_z_image(
     return base64.b64encode(buffer.getvalue()).decode("ascii")
 
 
+_flux2_pipelines: dict[str, dict[str, Any]] = {}
+
+
+def _get_flux2_components() -> dict[str, Any]:
+    """FLUX.2 Klein 五件套装配(三大件 ComfyUI 指向 + 小件应用缓存)。"""
+    resolved = resolve_flux2_big_files()
+    if not resolved:
+        raise PipelineError(
+            "model-not-downloaded",
+            "FLUX.2 大件未就绪:需 ComfyUI models 目录下存在 "
+            "diffusion_models/flux2_klein_9b.safetensors、text_encoders/qwen_3_8b.safetensors "
+            "与 vae/flux2-vae.safetensors。",
+        )
+    pieces = flux2_small_pieces_status()
+    if not pieces["ready"]:
+        raise PipelineError(
+            "small-pieces-missing",
+            "FLUX.2 小件未补齐(调度器/配置/分词器,MB 级)。"
+            "请前往 设置 → 本地配置 → 本地图片生成 点击「补齐小件」。",
+        )
+    snapshot_str = next(iter(pieces["snapshot_dirs"].values()), None)
+    if not snapshot_str:
+        raise PipelineError("small-pieces-missing", "FLUX.2 小件 snapshot 目录缺失,请重新补齐小件。")
+
+    from pathlib import Path as _P
+
+    snapshot = _P(snapshot_str)
+    try:
+        import torch
+        from diffusers import AutoencoderKLFlux2, Flux2Transformer2DModel, FlowMatchEulerDiscreteScheduler
+        from transformers import AutoConfig, AutoTokenizer, Qwen3ForCausalLM
+        from safetensors.torch import load_file
+    except ImportError as exc:
+        raise PipelineError("diffusers-missing", f"FLUX.2 生图依赖未安装: {exc}") from exc
+
+    try:
+        main_file = resolved["main"]
+        te_file = resolved["text_encoder"]
+        transformer = Flux2Transformer2DModel.from_single_file(
+            str(main_file),
+            config=str(snapshot / "transformer"),
+            torch_dtype=torch.bfloat16,
+        )
+        # Klein VAE:走小件仓 diffusers 版(ComfyUI flux2-vae 为旧版键名,
+        # 与 diffusers 不兼容——实弹键全 miss;AutoencoderKLFlux2 亦无
+        # from_single_file)。336MB 显式下载。
+        vae = AutoencoderKLFlux2.from_pretrained(snapshot, subfolder="vae", torch_dtype=torch.bfloat16)
+        scheduler = FlowMatchEulerDiscreteScheduler.from_pretrained(snapshot, subfolder="scheduler")
+        tokenizer = AutoTokenizer.from_pretrained(snapshot / "tokenizer")
+        te_config = AutoConfig.from_pretrained(snapshot / "text_encoder")
+        text_encoder = Qwen3ForCausalLM(te_config).to(torch.bfloat16)
+        state = load_file(str(te_file))
+        text_encoder.load_state_dict(state, strict=False)
+        text_encoder.eval()
+    except PipelineError:
+        raise
+    except Exception as exc:
+        raise PipelineError("model-load-failed", f"FLUX.2 生图管线装配失败: {exc}") from exc
+
+    device = "mps" if torch.backends.mps.is_available() else ("cuda" if torch.cuda.is_available() else "cpu")
+    return {
+        "transformer": transformer.to(device),
+        "vae": vae.to(device),
+        "scheduler": scheduler,
+        "tokenizer": tokenizer,
+        "text_encoder": text_encoder.to(device),
+        "is_distilled": True,
+    }
+
+
+def _generate_flux2(
+    prompt: str,
+    aspect_ratio: str,
+    negative_prompt: str | None,
+    steps: int,
+    seed: int | None,
+    reference_image_b64: str | None,
+) -> str:
+    """FLUX.2 Klein:T2I 直出;参考图走原生 image 输入(Klein 编辑语义)。"""
+    import time as _time
+
+    with _lock:
+        if "flux2" not in _flux2_pipelines:
+            _flux2_pipelines["flux2"] = _get_flux2_components()
+        comps = _flux2_pipelines["flux2"]
+
+    from diffusers import Flux2KleinPipeline
+    from PIL import Image
+
+    width, height = ASPECT_RATIOS.get(aspect_ratio, ASPECT_RATIOS["1:1"])
+
+    init_image = None
+    if reference_image_b64:
+        raw = reference_image_b64
+        if raw.startswith("data:"):
+            raw = raw.split(",", 1)[-1]
+        try:
+            init_image = Image.open(io.BytesIO(base64.b64decode(raw))).convert("RGB")
+        except Exception as exc:
+            raise PipelineError("invalid-reference", f"参考图解码失败: {exc}") from exc
+
+    kwargs: dict[str, Any] = {
+        "prompt": prompt,
+        "height": height,
+        "width": width,
+        "num_inference_steps": steps,
+    }
+    if seed is not None:
+        import torch
+
+        kwargs["generator"] = torch.Generator(device="cpu").manual_seed(seed)
+    if init_image is not None:
+        kwargs["image"] = [init_image]
+
+    phase_start = _time.time()
+    try:
+        pipe = Flux2KleinPipeline(**comps)
+        result = _run_inference(pipe, kwargs)
+    except PipelineError:
+        raise
+    except Exception as exc:
+        raise PipelineError("inference-failed", f"FLUX.2 生成失败: {exc}") from exc
+    print(
+        f"[image-sidecar] flux2 phase timing: steps={steps} ref={'yes' if init_image else 'no'} "
+        f"size={width}x{height} inference={_time.time() - phase_start:.1f}s",
+        flush=True,
+    )
+    image = result.images[0]
+    buffer = io.BytesIO()
+    image.save(buffer, format="PNG")
+    return base64.b64encode(buffer.getvalue()).decode("ascii")
+
+
 def _require_downloaded(model_name: str) -> None:
     spec = IMAGE_MODELS.get(model_name)
     if not spec:
@@ -521,6 +657,15 @@ def generate_image(
     model_name = resolve_image_model_name(model_name)
     spec = IMAGE_MODELS[model_name]
 
+    if spec.get("layout") == "flux2-pointed":
+        return _generate_flux2(
+            prompt,
+            aspect_ratio,
+            negative_prompt,
+            num_inference_steps or spec["steps"],
+            seed,
+            reference_image_b64,
+        )
     if spec.get("layout") == "z-image-pointed":
         return _generate_z_image(
             prompt,

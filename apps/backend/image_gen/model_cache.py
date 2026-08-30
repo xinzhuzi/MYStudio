@@ -112,6 +112,52 @@ Z_IMAGE_REQUIRED_FILES = (
 )
 
 
+# ── FLUX.2 Klein 9B(08-30 三引擎,BFL 快速档;原生参考图编辑)──
+FLUX2_KLEIN_MODEL = "flux2-klein-9b"
+FLUX2_COMFY_MAIN_FILE = "diffusion_models/flux2_klein_9b.safetensors"
+FLUX2_COMFY_TEXT_ENCODER_FILE = "text_encoders/qwen_3_8b.safetensors"
+FLUX2_COMFY_VAE_FILE = "vae/flux2-vae.safetensors"
+# 小件:调度器/双端 config/分词器(KB-MB 级);大件 ComfyUI 指向零重下。
+# ModelScope 有 BFL 官方镜像(HF 仓 auto-gated 且当前网络不通)
+FLUX2_SMALL_REPO = os.environ.get("MYSTUDIO_FLUX2_SMALL_REPO", "black-forest-labs/FLUX.2-klein-9B")
+FLUX2_SMALL_EXACT_FILES: tuple[str, ...] = (
+    "scheduler/scheduler_config.json",
+    "transformer/config.json",
+    "vae/config.json",
+    "text_encoder/config.json",
+    "text_encoder/generation_config.json",
+    "tokenizer/added_tokens.json",
+    "tokenizer/chat_template.jinja",
+    "tokenizer/merges.txt",
+    "tokenizer/special_tokens_map.json",
+    "tokenizer/tokenizer.json",
+    "tokenizer/tokenizer_config.json",
+    "tokenizer/vocab.json",
+    "vae/diffusion_pytorch_model.safetensors",
+)
+FLUX2_SMALL_PIECE_REPOS: tuple[tuple[str, tuple[str, ...]], ...] = (
+    (
+        FLUX2_SMALL_REPO,
+        (
+            "scheduler/*",
+            "transformer/config.json",
+            "vae/config.json",
+            "text_encoder/config.json",
+            "text_encoder/generation_config.json",
+            "tokenizer/*",
+        ),
+    ),
+)
+FLUX2_REQUIRED_FILES = (
+    "transformer/config.json",
+    "scheduler/scheduler_config.json",
+    "vae/config.json",
+    "vae/diffusion_pytorch_model.safetensors",
+    "text_encoder/config.json",
+    "tokenizer/tokenizer_config.json",
+)
+
+
 # 旧目录 id 归一(sdxl-turbo/flux-schnell 已退役,存量配置请求映射到 Qwen)
 LEGACY_IMAGE_MODEL_ALIASES: dict[str, str] = {
     "sdxl-turbo": QWEN_IMAGE_EDIT_MODEL,
@@ -147,6 +193,16 @@ IMAGE_MODELS: dict[str, PointedImageModelSpec] = {
         "steps": 20,
         "description": "本地编辑级生图（21.7B GGUF Q8_0，大件指向 ComfyUI 现成文件零重下；首次需补齐 VAE/文本编码器小件约 300MB）",
         "layout": "qwen-pointed",
+    },
+    FLUX2_KLEIN_MODEL: {
+        "label": "FLUX.2 Klein 9B",
+        "repo_id": FLUX2_SMALL_REPO,
+        "repo_ids": (FLUX2_SMALL_REPO,),
+        "size_mb": 35000,
+        "license": "FLUX.2 Community License",
+        "steps": 8,
+        "description": "本地快速生图+参考图编辑（9B 蒸馏档，原生支持参考图生成；大件指向 ComfyUI 现成文件零重下；首次补齐配置/分词器小件）",
+        "layout": "flux2-pointed",
     },
     Z_IMAGE_MODEL: {
         "label": "Z-Image-Turbo",
@@ -432,6 +488,60 @@ def qwen_small_pieces_status(cache_dir: Path | None = None) -> dict:
     return {"ready": not missing, "missing": missing, "snapshot_dirs": snapshot_dirs}
 
 
+def flux2_pointed_big_files() -> tuple[Path, Path, Path]:
+    base = comfyui_models_dir()
+    return (
+        base / FLUX2_COMFY_MAIN_FILE,
+        base / FLUX2_COMFY_TEXT_ENCODER_FILE,
+        base / FLUX2_COMFY_VAE_FILE,
+    )
+
+
+def resolve_flux2_big_files(cache_dir: Path | None = None) -> dict | None:
+    """FLUX.2 Klein 三大件解析:ComfyUI 指向(唯一源);任一缺失即 None。"""
+    main, te, vae = flux2_pointed_big_files()
+    if not (main.is_file() and te.is_file()):
+        return None
+    # VAE 权重以小件仓 diffusers 版为准;ComfyUI flux2-vae 是旧版键名
+    # (encoder.down.0.block…),与 diffusers 不兼容,仅作展示参考不作就绪门槛
+    comfy_vae = vae if vae.is_file() else None
+    total = main.stat().st_size + te.stat().st_size
+    return {
+        "main": main,
+        "text_encoder": te,
+        "vae": comfy_vae,
+        "source": "comfyui",
+        "cache_dir": str(comfyui_models_dir()),
+        "size_mb": round(total / 1024 / 1024, 2),
+    }
+
+
+def find_cached_flux2_model() -> CachedImageModel | None:
+    resolved = resolve_flux2_big_files()
+    if not resolved:
+        return None
+    return {
+        "repo_id": f"comfyui:{FLUX2_COMFY_MAIN_FILE}",
+        "cache_dir": resolved["cache_dir"],
+        "repo_cache_dir": str(resolved["main"].parent),
+        "size_mb": resolved["size_mb"],
+    }
+
+
+def flux2_small_pieces_status(cache_dir: Path | None = None) -> dict:
+    snapshot = hf_snapshot_dir(FLUX2_SMALL_REPO, cache_dir)
+    missing = (
+        [f"{FLUX2_SMALL_REPO}:{name}" for name in FLUX2_REQUIRED_FILES]
+        if snapshot is None
+        else [f"{FLUX2_SMALL_REPO}:{name}" for name in FLUX2_REQUIRED_FILES if not (snapshot / name).is_file()]
+    )
+    return {
+        "ready": not missing,
+        "missing": missing,
+        "snapshot_dirs": {FLUX2_SMALL_REPO: str(snapshot) if snapshot else None},
+    }
+
+
 def find_cached_image_model_for_spec(spec: ImageModelSpec) -> CachedImageModel | None:
     """统一入口:按 spec 布局分派(指向版查 ComfyUI 大件,否则 HF 扫描)。"""
     layout = spec.get("layout")
@@ -439,6 +549,8 @@ def find_cached_image_model_for_spec(spec: ImageModelSpec) -> CachedImageModel |
         return find_cached_qwen_pointed_model()
     if layout == "z-image-pointed":
         return find_cached_z_image_model()
+    if layout == "flux2-pointed":
+        return find_cached_flux2_model()
     return find_cached_image_model(spec["repo_ids"])
 
 

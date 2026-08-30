@@ -21,7 +21,10 @@ from .model_cache import (
     QWEN_SMALL_PIECE_REPOS,
     Z_IMAGE_SMALL_PIECE_REPOS,
     Z_IMAGE_SMALL_EXACT_FILES,
+    FLUX2_SMALL_PIECE_REPOS,
+    FLUX2_SMALL_EXACT_FILES,
     resolve_z_image_big_files,
+    resolve_flux2_big_files,
     QWEN_SMALL_PIECES_SIZE_MB,
     download_hf_cache_dir,
     repo_cache_dir,
@@ -93,6 +96,27 @@ def fetch_z_image_pieces(cache_dir: str) -> None:
             )
 
 
+def fetch_flux2_pieces(cache_dir: str) -> None:
+    """抓取 FLUX.2 小件(调度器/双端 config/分词器,MB 级)。
+
+    ModelScope 有 BFL 官方镜像(主用精确清单直链),HF 回退。
+    """
+    from huggingface_hub import snapshot_download
+
+    for repo_id, _patterns in FLUX2_SMALL_PIECE_REPOS:
+        try:
+            from modelscope_hub import download_repo_to_hf_cache
+
+            download_repo_to_hf_cache(repo_id, cache_dir, allow_paths=list(FLUX2_SMALL_EXACT_FILES))
+        except Exception as exc:
+            print(f"[download] ModelScope 直链失败({repo_id}),回退 HF: {exc}", file=sys.stderr, flush=True)
+            snapshot_download(
+                repo_id=repo_id,
+                allow_patterns=["scheduler/*", "transformer/config.json", "vae/config.json", "text_encoder/config.json", "text_encoder/generation_config.json", "tokenizer/*"],
+                cache_dir=cache_dir,
+            )
+
+
 def download_model(model_name: str, progress_path: Path) -> int:
     spec = IMAGE_MODELS.get(model_name)
     if not spec:
@@ -139,7 +163,7 @@ def download_model(model_name: str, progress_path: Path) -> int:
                     if full_mode
                     else (
                         f"{big_resolver_label} 小件(VAE/调度器/分词器)"
-                        if (pointed or z_pointed)
+                        if (pointed or z_pointed or flux2_pointed)
                         else spec["repo_id"]
                     )
                 ),
@@ -162,6 +186,11 @@ def download_model(model_name: str, progress_path: Path) -> int:
             watched_dirs = [
                 repo_cache_dir(repo_id, Path(cache_dir))
                 for repo_id, _patterns in Z_IMAGE_SMALL_PIECE_REPOS
+            ]
+        elif flux2_pointed:
+            watched_dirs = [
+                repo_cache_dir(repo_id, Path(cache_dir))
+                for repo_id, _patterns in FLUX2_SMALL_PIECE_REPOS
             ]
         else:
             watched_dirs = [repo_cache_dir(spec["repo_id"], Path(cache_dir))]
@@ -210,6 +239,13 @@ def download_model(model_name: str, progress_path: Path) -> int:
                         "放入 ComfyUI models 目录(应用不代下大件)。"
                     )
                 fetch_z_image_pieces(cache_dir=cache_dir)
+            elif flux2_pointed:
+                if full_mode:
+                    raise RuntimeError(
+                        "FLUX.2 大件缺失:请将 flux2_klein_9b.safetensors、qwen_3_8b.safetensors "
+                        "与 flux2-vae.safetensors 放入 ComfyUI models 目录(应用不代下大件)。"
+                    )
+                fetch_flux2_pieces(cache_dir=cache_dir)
             elif pointed:
                 fetch_qwen_pieces(full=full_mode, cache_dir=cache_dir)
             else:
