@@ -442,7 +442,7 @@ export function ImageWorkflowCanvas({
           sourceLabel={sourceLabel}
           sourceStageLabel={sourceStageLabel}
           writebackTargetLabel={scopedPendingWritebackTargetLabel}
-          onBack={isScopedWorkflowDetail ? onBack : undefined}
+          onBack={onBack}
         />
       );
     }
@@ -503,7 +503,7 @@ export function ImageWorkflowCanvas({
           onUploadReference={handleUploadReference}
         />
         <ImageWorkflowCanvasToolbar
-          onBack={isScopedWorkflowDetail ? onBack : undefined}
+          onBack={onBack}
           activeGraph={activeGraph}
           chromeReady={chromeReady}
           styleTraceChips={styleTraceChips}
