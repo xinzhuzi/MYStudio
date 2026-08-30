@@ -7,6 +7,17 @@ import { useCharacterLibraryStore } from "@/stores/library/character-library-sto
 import { useProjectStore } from "@/stores/project/project-store";
 import { useStudioStore } from "@/stores/studio/studio-store";
 
+// Radix DropdownMenu 在 jsdom 不响应 pointerDown → mock 直渲染子项(仓内既有范式)
+vi.mock("@/components/ui/dropdown-menu", () => ({
+  DropdownMenu: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+  DropdownMenuContent: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
+  DropdownMenuItem: ({ children, onClick, disabled }: { children: React.ReactNode; onClick?: () => void; disabled?: boolean }) => (
+    <button type="button" onClick={onClick} disabled={disabled}>{children}</button>
+  ),
+  DropdownMenuTrigger: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+}));
+
+
 // T4 水合竞态：mock 水合标志（默认 true=已水合），既不依赖真实 persist 的
 // microtask 时序，也允许显式测「装载窗口内」场景
 const hydratedMock = vi.hoisted(() => ({ value: true }));
@@ -135,7 +146,7 @@ describe("ImageWorkflowCanvas", () => {
     expect(screen.getAllByText("回写目标").length).toBeGreaterThan(0);
     expect(screen.getAllByText("分镜视频生成 / 衍生资产 · 雨夜版").length).toBeGreaterThan(0);
     expect(screen.getAllByText("场景衍生 · 雨夜版").length).toBeGreaterThan(0);
-    expect((screen.getByRole("button", { name: "运行生成" }) as HTMLButtonElement).disabled).toBe(true);
+    // 08-30:运行生成从工具条移除,用户在节点卡上点生成
     expect(container.querySelector("[data-scoped-image-workflow-summary]")).toBeTruthy();
     // 合并裁定(2026-08-30):切换器常驻 scoped 模式,但建流等待视图(pending)无工具条
     expect(container.querySelector("[data-image-workflow-selector]")).toBeNull();
@@ -336,7 +347,8 @@ describe("ImageWorkflowCanvas", () => {
       />,
     );
 
-    const storeButton = await screen.findByRole("button", { name: "放入资产库" });
+    // 08-30:放入资产库收进「更多」菜单(mock 直渲染,按钮始终可查)
+    const storeButton = await screen.findByRole("button", { name: /放入资产库/ });
     await waitFor(() => expect((storeButton as HTMLButtonElement).disabled).toBe(false));
     fireEvent.click(storeButton);
 

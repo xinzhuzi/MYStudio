@@ -256,7 +256,8 @@ describe("studio workflow tabs", () => {
     expect(toolbarSource).toContain('data-image-workflow-more');
     expect(canvasSource).toContain("initialAssetContext?.sourceLabel");
     expect(canvasSource).toContain("workflowWritebackTargetLabel");
-    expect(toolbarSource).toContain("运行生成");
+    // 08-30 用户裁定:运行生成移到节点卡,工具条不再持有
+    expect(toolbarSource).not.toContain("运行生成");
     expect(toolbarSource).toContain("写回目标");
     expect(canvasSource).toContain("isScopedWorkflowDetail");
     expect(canvasSource).toContain("canUseGlobalWorkflowControls");

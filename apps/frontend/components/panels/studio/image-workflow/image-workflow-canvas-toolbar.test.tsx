@@ -18,13 +18,12 @@ function renderToolbar(overrides: Partial<Parameters<typeof ImageWorkflowCanvasT
       chromeReady
       styleTraceChips={[]}
       canUseGlobalWorkflowControls
+      onTidyLayout={vi.fn()}
       onCreateNewFlow={vi.fn()}
       onUploadReferenceClick={vi.fn()}
       onAddGeneratedNode={vi.fn()}
       onAddStoryboardLayeredPair={vi.fn()}
       workflowWritebackTargetLabel="分镜 1"
-      selectedGenerationBusy={false}
-      onGenerate={vi.fn()}
       onApplyToStoryboard={vi.fn()}
       upscalableCount={0}
       upscaleRunning={false}
@@ -50,8 +49,8 @@ describe("toolbar after switcher moved to sidebar (08-30)", () => {
     expect(screen.queryByRole("button", { name: /批量超分/ })).toBeNull();
     expect(screen.queryByRole("button", { name: /分层节点对/ })).toBeNull();
     expect(screen.queryByRole("button", { name: "适配画布" })).toBeNull();
-    // 运行生成主按钮保留
-    expect(screen.getByRole("button", { name: "运行生成" })).toBeTruthy();
+    // 08-30 用户裁定:运行生成从工具条移除,用户直接在节点卡上点生成
+    expect(screen.queryByRole("button", { name: "运行生成" })).toBeNull();
     unmount();
   });
 });

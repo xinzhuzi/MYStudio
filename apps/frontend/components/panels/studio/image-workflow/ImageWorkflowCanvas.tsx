@@ -226,9 +226,6 @@ export function ImageWorkflowCanvas({
     const id = window.requestAnimationFrame(() => setChromeReady(true));
     return () => window.cancelAnimationFrame(id);
   }, []);
-  const selectedGenerationBusy =
-    activeGeneratedNode?.status === "generating" ||
-    activeGeneratedNode?.status === "queued";
   // 全局动作(新建自由/上传参考/生成节点/参考面板)仅资产域;分镜域纯净(08-30)
   const canUseGlobalWorkflowControls = workflowScope === "library";
 
@@ -510,15 +507,13 @@ export function ImageWorkflowCanvas({
           activeGraph={activeGraph}
           chromeReady={chromeReady}
           styleTraceChips={styleTraceChips}
+          activeGeneratedNode={activeGeneratedNode}
           canUseGlobalWorkflowControls={canUseGlobalWorkflowControls}
           onCreateNewFlow={createNewFlow}
           onUploadReferenceClick={() => uploadInputRef.current?.click()}
           onAddGeneratedNode={addGeneratedNode}
           onAddStoryboardLayeredPair={addStoryboardLayeredPair}
           workflowWritebackTargetLabel={workflowWritebackTargetLabel}
-          activeGeneratedNode={activeGeneratedNode}
-          selectedGenerationBusy={selectedGenerationBusy}
-          onGenerate={(nodeId) => void generateNode(nodeId)}
           onApplyToStoryboard={(nodeId) => void applyNodeToStoryboard(nodeId)}
           upscalableCount={upscalableNodes.length}
           upscaleRunning={upscaleBatchState.running || isUpscaling}

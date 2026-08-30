@@ -1,7 +1,7 @@
 import {
   ArrowLeft,
   Layers,
-  Loader2,
+  LayoutGrid,
   MoreHorizontal,
   Palette,
   Plus,
@@ -24,7 +24,7 @@ import type { ImageWorkflowGeneratedNode, ImageWorkflowGraph } from "@/types/stu
 /**
  * 图像节点图画布顶部工具条(T2 自 Canvas 抽取,行为零变化):
  * 返回/来源/分层节点对/风格依据chips/合并切换器/新建/上传参考/
- * 生成节点/回写目标/运行生成/写回目标/批量超分/放入资产库/删除连线/适配画布。
+ * 生成节点(全局)/更多菜单(写回目标·批量超分·分层节点对·放入资产库)。
  *
  * 2026-08-30 合并裁定:分镜切换只此一个入口——
  * 「本章分镜」组按分镜走查找/装配链(恒当前代),「资产工作流」「自由工作流」组按模块分组、按流 id 直切;
@@ -40,10 +40,8 @@ export function ImageWorkflowCanvasToolbar({
   onUploadReferenceClick,
   onAddGeneratedNode,
   onAddStoryboardLayeredPair,
-  workflowWritebackTargetLabel,
   activeGeneratedNode,
-  selectedGenerationBusy,
-  onGenerate,
+  workflowWritebackTargetLabel,
   onApplyToStoryboard,
   upscalableCount,
   upscaleRunning,
@@ -52,6 +50,7 @@ export function ImageWorkflowCanvasToolbar({
   showStoreInAssetLibrary,
   selectedEdgeId,
   onDeleteSelectedEdge,
+  onTidyLayout,
 }: {
   onBack?: () => void;
   activeGraph: ImageWorkflowGraph;
@@ -62,10 +61,8 @@ export function ImageWorkflowCanvasToolbar({
   onUploadReferenceClick: () => void;
   onAddGeneratedNode: () => void;
   onAddStoryboardLayeredPair: () => void;
-  workflowWritebackTargetLabel: string;
   activeGeneratedNode?: ImageWorkflowGeneratedNode;
-  selectedGenerationBusy: boolean;
-  onGenerate: (nodeId: string) => void;
+  workflowWritebackTargetLabel: string;
   onApplyToStoryboard: (nodeId: string) => void;
   upscalableCount: number;
   upscaleRunning: boolean;
@@ -74,6 +71,7 @@ export function ImageWorkflowCanvasToolbar({
   showStoreInAssetLibrary: boolean;
   selectedEdgeId: string | null;
   onDeleteSelectedEdge: () => void;
+  onTidyLayout: () => void;
 }) {
   return (
     <div className="absolute left-3 right-3 top-3 z-20 flex flex-wrap items-center gap-2 rounded-md border border-border bg-card p-2 text-card-foreground">
@@ -129,19 +127,6 @@ export function ImageWorkflowCanvasToolbar({
         </>
       ) : null}
       <div className="min-w-4 flex-1" />
-      <Button
-        size="sm"
-        variant="paid"
-        onClick={() => activeGeneratedNode && onGenerate(activeGeneratedNode.id)}
-        disabled={!activeGeneratedNode || selectedGenerationBusy}
-      >
-        {selectedGenerationBusy ? (
-          <Loader2 className="h-3.5 w-3.5 animate-spin" />
-        ) : (
-          <WandSparkles className="h-3.5 w-3.5" />
-        )}
-        运行生成
-      </Button>
       {showStoreInAssetLibrary ? (
         <Button
           size="sm"
@@ -166,6 +151,16 @@ export function ImageWorkflowCanvasToolbar({
           删除连线
         </Button>
       ) : null}
+      <Button
+        size="sm"
+        variant="outline"
+        data-image-workflow-tidy-layout
+        onClick={onTidyLayout}
+        title="按「参考 → 提示词 → 成图」三列重排全部节点,消除重叠;只改位置,不动连线与内容"
+      >
+        <LayoutGrid className="h-3.5 w-3.5" />
+        整理布局
+      </Button>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button size="sm" variant="ghost" data-image-workflow-more aria-label="更多操作">
