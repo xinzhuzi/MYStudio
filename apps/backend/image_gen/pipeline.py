@@ -325,7 +325,18 @@ def _get_z_image_components() -> dict[str, Any]:
             config=str(snapshot / "transformer"),
             torch_dtype=torch.bfloat16,
         )
-        vae = AutoencoderKL.from_pretrained(snapshot, subfolder="vae", torch_dtype=torch.bfloat16)
+        # VAE 双源(08-30 用户补下 ComfyUI ae.safetensors):优先 ComfyUI
+        # 单文件直载;不在则回退小件仓 snapshot
+        vae_comfy = resolved.get("vae")
+        # from_single_file 不带 config 会按 sd/flux 默认猜,32 通道潜变量的
+        # Z-Image VAE 会撞 conv_out 形状(实弹)——必须喂小件仓的 vae config
+        vae = (
+            AutoencoderKL.from_single_file(
+                str(vae_comfy), config=str(snapshot / "vae"), torch_dtype=torch.bfloat16
+            )
+            if vae_comfy
+            else AutoencoderKL.from_pretrained(snapshot, subfolder="vae", torch_dtype=torch.bfloat16)
+        )
         scheduler = FlowMatchEulerDiscreteScheduler.from_pretrained(snapshot, subfolder="scheduler")
         tokenizer = AutoTokenizer.from_pretrained(snapshot / "tokenizer")
         te_config = AutoConfig.from_pretrained(snapshot / "text_encoder")

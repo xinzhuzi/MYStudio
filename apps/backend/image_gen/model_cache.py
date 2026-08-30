@@ -75,6 +75,9 @@ QWEN_SMALL_PIECES_SIZE_MB = 300
 Z_IMAGE_MODEL = "z-image-turbo"
 Z_COMFY_MAIN_FILE = "diffusion_models/z_image_turbo_bf16.safetensors"
 Z_COMFY_TEXT_ENCODER_FILE = "text_encoders/qwen_3_4b.safetensors"
+# 08-30 用户补下:ComfyUI vae/ae.safetensors(335MB)——VAE 权重优先指向,
+# 小件仓的 vae 权重降级为回退(不存在时才需要)
+Z_COMFY_VAE_FILE = "vae/ae.safetensors"
 # 小件:VAE/调度器/分词器/双端 config(~400MB);大件 ComfyUI 指向零重下
 Z_IMAGE_SMALL_REPO = os.environ.get("MYSTUDIO_ZIMAGE_SMALL_REPO", "Tongyi-MAI/Z-Image-Turbo")
 Z_IMAGE_SMALL_PIECE_REPOS: tuple[tuple[str, tuple[str, ...]], ...] = (
@@ -104,8 +107,6 @@ Z_IMAGE_SMALL_EXACT_FILES: tuple[str, ...] = (
 Z_IMAGE_REQUIRED_FILES = (
     "transformer/config.json",
     "scheduler/scheduler_config.json",
-    "vae/config.json",
-    "vae/diffusion_pytorch_model.safetensors",
     "text_encoder/config.json",
     "tokenizer/tokenizer_config.json",
 )
@@ -247,17 +248,29 @@ def z_image_pointed_big_files() -> tuple[Path, Path]:
     return base / Z_COMFY_MAIN_FILE, base / Z_COMFY_TEXT_ENCODER_FILE
 
 
+def z_image_comfy_vae_file() -> Path:
+    return comfyui_models_dir() / Z_COMFY_VAE_FILE
+
+
 def resolve_z_image_big_files(cache_dir: Path | None = None) -> dict | None:
-    """Z 大件解析:ComfyUI 指向(唯一源;无自足回退仓,大件缺失即未就绪)。"""
+    """Z 大件解析:ComfyUI 指向(唯一源;无自足回退仓,大件缺失即未就绪)。
+
+    vae 键:ComfyUI ae.safetensors 在 → 指向该文件;不在 → None(装配时
+    回退小件仓 snapshot 的 vae 权重)。
+    """
     main, te = z_image_pointed_big_files()
     if not (main.is_file() and te.is_file()):
         return None
+    vae_file = z_image_comfy_vae_file()
+    vae = vae_file if vae_file.is_file() else None
+    total = main.stat().st_size + te.stat().st_size + (vae.stat().st_size if vae else 0)
     return {
         "main": main,
         "text_encoder": te,
+        "vae": vae,
         "source": "comfyui",
         "cache_dir": str(comfyui_models_dir()),
-        "size_mb": round((main.stat().st_size + te.stat().st_size) / 1024 / 1024, 2),
+        "size_mb": round(total / 1024 / 1024, 2),
     }
 
 

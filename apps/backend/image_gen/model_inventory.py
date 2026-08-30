@@ -50,9 +50,12 @@ def build_model_status() -> list[dict]:
                 "smallPiecesReady": small_ready if (pointed or z_pointed) else None,
                 # 大件实际文件路径(绝对,两源通用),设置页展示用;缺大件时空表
                 "pointedFiles": (
-                    [str(resolved["main"]), str(resolved["text_encoder"])]
-                    if resolved
-                    else ([] if (pointed or z_pointed) else None)
+                    (
+                        [str(resolved["main"]), str(resolved["text_encoder"])]
+                        + ([str(resolved["vae"])] if resolved.get("vae") else [])
+                        if resolved
+                        else ([] if (pointed or z_pointed) else None)
+                    )
                 ),
             }
         )
