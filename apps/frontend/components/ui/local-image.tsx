@@ -128,9 +128,10 @@ export function LocalImage({
               event.stopPropagation();
               setPreviewOpen(true);
             }}
-            className="nodrag nopan absolute bottom-1.5 right-1.5 z-10 flex h-6 w-6 items-center justify-center rounded-md bg-background/80 text-foreground transition-colors hover:bg-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 active:bg-background"
+            className="nodrag nopan absolute bottom-1.5 right-1.5 z-10 inline-flex h-7 items-center gap-1 rounded-md border border-border bg-background/95 px-2 text-[10px] font-medium text-foreground transition-colors hover:border-primary/45 hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 active:bg-muted/40"
           >
-            <Maximize2 className="h-3.5 w-3.5" />
+            <Maximize2 className="h-3 w-3" />
+            展示
           </button>
           {previewOpen
             ? createPortal(
