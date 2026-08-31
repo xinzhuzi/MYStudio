@@ -4,7 +4,7 @@ export const IMAGE_GEN_SCHEMA_VERSION = 1 as const;
 
 // 本地生图模型 id —— 旧 sdxl-turbo/flux-schnell 已退役(从未准备过),存量
 // 配置由 Python 侧 LEGACY_IMAGE_MODEL_ALIASES 归一到 Qwen(08-28-qwen-image-local-gen)
-export type ImageGenModelId = "qwen-image-edit-2511" | "z-image-turbo" | "flux2-klein-9b";
+export type ImageGenModelId = "qwen-image-edit-2511" | "z-image-turbo" | "flux2-klein-9b" | "krea2-turbo";
 
 export const IMAGE_GEN_PROBE_CHANNEL = "image-gen-runtime-probe";
 export const IMAGE_GEN_PREPARE_CHANNEL = "image-gen-runtime-prepare";
@@ -89,7 +89,7 @@ function isAbsolutePath(value: unknown): value is string {
 }
 
 function isModel(value: unknown): value is ImageGenModelId {
-  return value === "qwen-image-edit-2511" || value === "z-image-turbo" || value === "flux2-klein-9b";
+  return value === "qwen-image-edit-2511" || value === "z-image-turbo" || value === "flux2-klein-9b" || value === "krea2-turbo";
 }
 
 function rejectUnknownFields(

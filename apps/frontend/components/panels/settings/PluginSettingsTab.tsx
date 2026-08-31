@@ -491,7 +491,7 @@ export function PluginSettingsTab() {
             headingId="plugin-image-gen-heading"
             icon={ImageIcon}
             title="本地图片生成（免费）"
-            description="本地生图零 API 费用，多引擎可选：FLUX.2 Klein 9B（主力，快速出图+参考图编辑）/ Z-Image-Turbo（6B 快速生图）/ Qwen-Image-Edit 2511（编辑级）。大件直接复用 ComfyUI 现成文件零重下，小件仅首次点击补齐（数百 MB）。准备运行时后，在 设置 → 云端AI 中将「角色生图 / 场景生图 / 道具生图」绑定到「本地图片生成」提供方，即可替代云 API。"
+            description="本地生图零 API 费用，多引擎可选：Krea2 Turbo（主力，快速出图+破限 LoRA 工作流）/ FLUX.2 Klein 9B（参考图编辑）/ Z-Image-Turbo / Qwen-Image-Edit 2511（编辑级）。大件直接复用 ComfyUI 现成文件零重下，小件仅首次点击补齐（数百 MB）。准备运行时后，在 设置 → 云端AI 中将「角色生图 / 场景生图 / 道具生图」绑定到「本地图片生成」提供方，即可替代云 API。"
             pill={imageGenPill}
             collapsed={collapsedSections.has("image-gen")}
             onToggle={toggleSectionCollapsed}

@@ -62,6 +62,7 @@ interface ControllerDeps {
   modelCacheDir?: () => string;
   spawnProcess?: typeof spawn;
   now?: () => number;
+  inventoryScanner?: () => Promise<ImageGenModelRow[]>;
 }
 
 export function createImageGenRuntimeController(deps: ControllerDeps) {
@@ -73,12 +74,39 @@ export function createImageGenRuntimeController(deps: ControllerDeps) {
   const now = deps.now ?? Date.now;
 
   let child: ChildProcess | null = null;
+  const configPath = () => path.join(getPaths().pythonRuntimeDir, "profiles", "image-gen", "config.json");
+
+  function readActiveModel(): ImageGenModelId {
+    try {
+      const raw = JSON.parse(fs.readFileSync(configPath(), "utf8")) as { activeModel?: unknown };
+      if (
+        raw.activeModel === "qwen-image-edit-2511" ||
+        raw.activeModel === "z-image-turbo" ||
+        raw.activeModel === "flux2-klein-9b" ||
+        raw.activeModel === "krea2-turbo"
+      ) {
+        return raw.activeModel;
+      }
+    } catch {
+      // Missing or malformed config uses the default engine.
+    }
+    return "flux2-klein-9b";
+  }
+
+  function persistActiveModel(modelName: ImageGenModelId): void {
+    const target = configPath();
+    fs.mkdirSync(path.dirname(target), { recursive: true });
+    const temp = `${target}.${process.pid}.tmp`;
+    fs.writeFileSync(temp, `${JSON.stringify({ activeModel: modelName }, null, 2)}\n`, "utf8");
+    fs.renameSync(temp, target);
+  }
+
   const state: ImageGenRuntimeStatus = {
     running: false,
     setupStage: "idle",
     setupMessage: undefined,
     models: [],
-    activeModel: "flux2-klein-9b",
+    activeModel: readActiveModel(),
     downloadStatus: {},
     downloadProgress: {},
     downloadError: {},
@@ -106,6 +134,10 @@ export function createImageGenRuntimeController(deps: ControllerDeps) {
   }
 
   async function scanModelInventory(): Promise<ImageGenModelRow[]> {
+    if (deps.inventoryScanner) {
+      state.models = await deps.inventoryScanner();
+      return state.models;
+    }
     try {
       const { stdout } = await execFileAsync(
         getPaths().pythonExecutable,
@@ -281,9 +313,10 @@ export function createImageGenRuntimeController(deps: ControllerDeps) {
   }
 
   function setActiveModel(modelName: string): boolean {
-    const known: readonly ImageGenModelId[] = ["qwen-image-edit-2511", "z-image-turbo", "flux2-klein-9b"];
+    const known: readonly ImageGenModelId[] = ["qwen-image-edit-2511", "z-image-turbo", "flux2-klein-9b", "krea2-turbo"];
     if (!known.includes(modelName as ImageGenModelId)) return false;
     state.activeModel = modelName as ImageGenModelId;
+    persistActiveModel(state.activeModel as ImageGenModelId);
     return true;
   }
 
@@ -312,7 +345,12 @@ export function createImageGenRuntimeController(deps: ControllerDeps) {
   }
 
   function activeModelDownloaded(): boolean {
-    return state.models.some((model) => model.modelName === state.activeModel && model.downloaded);
+    return state.models.some(
+      (model) =>
+        model.modelName === state.activeModel &&
+        model.downloaded === true &&
+        model.smallPiecesReady !== false,
+    );
   }
 
   function lifecycleStatus(): ImageGenRuntimeStatusV1 {

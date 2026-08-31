@@ -159,6 +159,48 @@ FLUX2_REQUIRED_FILES = (
     "vae/config.json",
     "vae/diffusion_pytorch_model.safetensors",
     "text_encoder/config.json",
+    "text_encoder/model.safetensors",
+    "tokenizer/tokenizer_config.json",
+)
+
+
+# ── Krea2 Turbo(08-31 四引擎主力,破限工作流底座)──
+KREA2_MODEL = "krea2-turbo"
+KREA2_COMFY_MAIN_FILE = "diffusion_models/krea2_turbo_bf16.safetensors"
+KREA2_COMFY_TEXT_ENCODER_FILE = "text_encoders/qwen3-vl-4b-heretic.safetensors"
+KREA2_COMFY_VAE_FILE = "vae/qwen_image_vae.safetensors"
+# 小件:config/tokenizer/调度器(KB-MB 级);ModelScope 有 krea 官方镜像
+KREA2_SMALL_REPO = os.environ.get("MYSTUDIO_KREA2_SMALL_REPO", "krea/Krea-2-Turbo")
+KREA2_SMALL_EXACT_FILES: tuple[str, ...] = (
+    "model_index.json",
+    "scheduler/scheduler_config.json",
+    "transformer/config.json",
+    "vae/config.json",
+    "text_encoder/config.json",
+    "tokenizer/chat_template.jinja",
+    "tokenizer/tokenizer.json",
+    "tokenizer/tokenizer_config.json",
+    "vae/diffusion_pytorch_model.safetensors",
+    "text_encoder/model.safetensors",
+)
+KREA2_SMALL_PIECE_REPOS: tuple[tuple[str, tuple[str, ...]], ...] = (
+    (
+        KREA2_SMALL_REPO,
+        (
+            "scheduler/*",
+            "transformer/config.json",
+            "vae/config.json",
+            "text_encoder/config.json",
+            "tokenizer/*",
+        ),
+    ),
+)
+KREA2_REQUIRED_FILES = (
+    "transformer/config.json",
+    "scheduler/scheduler_config.json",
+    "vae/config.json",
+    "vae/diffusion_pytorch_model.safetensors",
+    "text_encoder/config.json",
     "tokenizer/tokenizer_config.json",
 )
 
@@ -199,6 +241,16 @@ IMAGE_MODELS: dict[str, PointedImageModelSpec] = {
         "description": "本地编辑级生图（21.7B GGUF Q8_0，大件指向 ComfyUI 现成文件零重下；首次需补齐 VAE/文本编码器小件约 300MB）",
         "layout": "qwen-pointed",
     },
+    KREA2_MODEL: {
+        "label": "Krea2 Turbo",
+        "repo_id": KREA2_SMALL_REPO,
+        "repo_ids": (KREA2_SMALL_REPO,),
+        "size_mb": 35600,
+        "license": "Krea Community License",
+        "steps": 8,
+        "description": "本地主力生图（Turbo 蒸馏 8 步；Qwen3-VL 破限版文本编码器；LoRA 工作流可挂 NSFW/identity 编辑；大件指向 ComfyUI 现成文件零重下）",
+        "layout": "krea2-pointed",
+    },
     FLUX2_KLEIN_MODEL: {
         "label": "FLUX.2 Klein 9B",
         "repo_id": FLUX2_SMALL_REPO,
@@ -229,8 +281,8 @@ class CachedImageModel(TypedDict):
     size_mb: float
 
 
-def comfyui_models_dir() -> Path:
-    override = os.environ.get("MYSTUDIO_QWEN_COMFYUI_MODELS_DIR")
+def comfyui_models_dir(env_name: str = "MYSTUDIO_QWEN_COMFYUI_MODELS_DIR") -> Path:
+    override = os.environ.get(env_name)
     if override:
         return Path(override).expanduser()
     return Path.home() / "Project" / "ComfyUI" / "models"
@@ -305,12 +357,12 @@ def find_cached_qwen_pointed_model() -> CachedImageModel | None:
 
 
 def z_image_pointed_big_files() -> tuple[Path, Path]:
-    base = comfyui_models_dir()
+    base = comfyui_models_dir("MYSTUDIO_ZIMAGE_COMFYUI_MODELS_DIR")
     return base / Z_COMFY_MAIN_FILE, base / Z_COMFY_TEXT_ENCODER_FILE
 
 
 def z_image_comfy_vae_file() -> Path:
-    return comfyui_models_dir() / Z_COMFY_VAE_FILE
+    return comfyui_models_dir("MYSTUDIO_ZIMAGE_COMFYUI_MODELS_DIR") / Z_COMFY_VAE_FILE
 
 
 def resolve_z_image_big_files(cache_dir: Path | None = None) -> dict | None:
@@ -330,7 +382,7 @@ def resolve_z_image_big_files(cache_dir: Path | None = None) -> dict | None:
         "text_encoder": te,
         "vae": vae,
         "source": "comfyui",
-        "cache_dir": str(comfyui_models_dir()),
+        "cache_dir": str(comfyui_models_dir("MYSTUDIO_ZIMAGE_COMFYUI_MODELS_DIR")),
         "size_mb": round(total / 1024 / 1024, 2),
     }
 
@@ -364,8 +416,6 @@ def z_image_small_pieces_status(cache_dir: Path | None = None) -> dict:
 def primary_hf_cache_dir() -> Path:
     env_cache = (
         os.environ.get("MYSTUDIO_IMAGE_MODEL_DIR")
-        or os.environ.get("MANYING_TTS_MODELS_DIR")
-        or os.environ.get("VOICEBOX_MODELS_DIR")
         or os.environ.get("HF_HUB_CACHE")
     )
     if env_cache:
@@ -394,7 +444,7 @@ def download_hf_cache_dir() -> Path:
 
 def hf_cache_dirs() -> list[Path]:
     candidates: list[Path] = []
-    for env_name in ("MYSTUDIO_IMAGE_MODEL_DIR", "MANYING_TTS_MODELS_DIR", "VOICEBOX_MODELS_DIR", "HF_HUB_CACHE"):
+    for env_name in ("MYSTUDIO_IMAGE_MODEL_DIR", "HF_HUB_CACHE"):
         value = os.environ.get(env_name)
         if value:
             candidates.append(Path(value))
@@ -556,6 +606,56 @@ def flux2_small_pieces_status(cache_dir: Path | None = None) -> dict:
     }
 
 
+def krea2_pointed_big_files() -> tuple[Path, Path, Path]:
+    base = comfyui_models_dir()
+    return (
+        base / KREA2_COMFY_MAIN_FILE,
+        base / KREA2_COMFY_TEXT_ENCODER_FILE,
+        base / KREA2_COMFY_VAE_FILE,
+    )
+
+
+def resolve_krea2_big_files(cache_dir: Path | None = None) -> dict | None:
+    main, te, vae = krea2_pointed_big_files()
+    if not all(f.is_file() for f in (main, te, vae)):
+        return None
+    total = sum(f.stat().st_size for f in (main, te, vae))
+    return {
+        "main": main,
+        "text_encoder": te,
+        "vae": vae,
+        "source": "comfyui",
+        "cache_dir": str(comfyui_models_dir()),
+        "size_mb": round(total / 1024 / 1024, 2),
+    }
+
+
+def find_cached_krea2_model() -> CachedImageModel | None:
+    resolved = resolve_krea2_big_files()
+    if not resolved:
+        return None
+    return {
+        "repo_id": f"comfyui:{KREA2_COMFY_MAIN_FILE}",
+        "cache_dir": resolved["cache_dir"],
+        "repo_cache_dir": str(resolved["main"].parent),
+        "size_mb": resolved["size_mb"],
+    }
+
+
+def krea2_small_pieces_status(cache_dir: Path | None = None) -> dict:
+    snapshot = hf_snapshot_dir(KREA2_SMALL_REPO, cache_dir)
+    missing = (
+        [f"{KREA2_SMALL_REPO}:{name}" for name in KREA2_REQUIRED_FILES]
+        if snapshot is None
+        else [f"{KREA2_SMALL_REPO}:{name}" for name in KREA2_REQUIRED_FILES if not (snapshot / name).is_file()]
+    )
+    return {
+        "ready": not missing,
+        "missing": missing,
+        "snapshot_dirs": {KREA2_SMALL_REPO: str(snapshot) if snapshot else None},
+    }
+
+
 def find_cached_image_model_for_spec(spec: ImageModelSpec) -> CachedImageModel | None:
     """统一入口:按 spec 布局分派(指向版查 ComfyUI 大件,否则 HF 扫描)。"""
     layout = spec.get("layout")
@@ -563,6 +663,8 @@ def find_cached_image_model_for_spec(spec: ImageModelSpec) -> CachedImageModel |
         return find_cached_qwen_pointed_model()
     if layout == "z-image-pointed":
         return find_cached_z_image_model()
+    if layout == "krea2-pointed":
+        return find_cached_krea2_model()
     if layout == "flux2-pointed":
         return find_cached_flux2_model()
     return find_cached_image_model(spec["repo_ids"])

@@ -18,6 +18,7 @@ import threading
 from typing import Any
 
 from .model_cache import (
+    KREA2_MODEL,
     FLUX2_KLEIN_MODEL,
     QWEN_IMAGE_EDIT_MODEL,
     QWEN_IMAGE_REPO,
@@ -28,6 +29,8 @@ from .model_cache import (
     resolve_z_image_big_files,
     resolve_flux2_big_files,
     flux2_small_pieces_status,
+    resolve_krea2_big_files,
+    krea2_small_pieces_status,
     qwen_small_pieces_status,
     z_image_small_pieces_status,
     resolve_image_model_name,
@@ -581,6 +584,220 @@ def _generate_flux2(
     return base64.b64encode(buffer.getvalue()).decode("ascii")
 
 
+def _convert_krea2_comfyui_state(state: dict, model: Any) -> dict:
+    """ComfyUI krea2_turbo 单文件键名 → diffusers Krea2Transformer2DModel。
+
+    顶层 7 组平行(blocks/txtfusion/txtmlp/tmlp/last/first/tproj),子键按
+    对照表重写;两处 modulation 线性层需 reshape 成 scale_shift_table。
+    转换后键集必须与模型完全一致,否则抛错(绝不静默半载)。
+    """
+    import re
+
+    # config 是 FrozenDict:inner_dim = heads×head_dim(48×128=6144)
+    inner_dim = cfg.get("num_attention_heads", 48) * cfg.get("attention_head_dim", 128) if (cfg := dict(model.config) if hasattr(model, "config") else {}) else 6144
+    out: dict = {}
+    for key, tensor in state.items():
+        new_key = key
+        reshape = None
+        if key.startswith("blocks.") or (key.startswith("txtfusion.") and ".attn." in key) or (key.startswith("txtfusion.") and ".mlp." in key):
+            prefix, suffix = key.split(".", 1)
+            new_key = ("transformer_blocks." if prefix == "blocks" else "text_fusion.") + suffix
+        elif key.startswith("txtfusion."):
+            new_key = "text_fusion." + key[len("txtfusion."):]
+        if ".attn.wq." in new_key: new_key = new_key.replace(".attn.wq.", ".attn.to_q.")
+        if ".attn.wk." in new_key: new_key = new_key.replace(".attn.wk.", ".attn.to_k.")
+        if ".attn.wv." in new_key: new_key = new_key.replace(".attn.wv.", ".attn.to_v.")
+        if ".attn.wo." in new_key: new_key = new_key.replace(".attn.wo.", ".attn.to_out.0.")
+        if ".attn.gate." in new_key: new_key = new_key.replace(".attn.gate.", ".attn.to_gate.")
+        if ".attn.qknorm.qnorm.scale" in new_key: new_key = new_key.replace(".attn.qknorm.qnorm.scale", ".attn.norm_q.weight")
+        if ".attn.qknorm.knorm.scale" in new_key: new_key = new_key.replace(".attn.qknorm.knorm.scale", ".attn.norm_k.weight")
+        if ".mlp.down." in new_key: new_key = new_key.replace(".mlp.down.", ".ff.down.")
+        if ".mlp.gate." in new_key: new_key = new_key.replace(".mlp.gate.", ".ff.gate.")
+        if ".mlp.up." in new_key: new_key = new_key.replace(".mlp.up.", ".ff.up.")
+        if ".prenorm.scale" in new_key: new_key = new_key.replace(".prenorm.scale", ".norm1.weight")
+        if ".postnorm.scale" in new_key: new_key = new_key.replace(".postnorm.scale", ".norm2.weight")
+        if ".mod.lin" in new_key:
+            new_key = new_key.replace(".mod.lin", ".scale_shift_table")
+            reshape = ("blocks", 1)
+        # 头部组
+        table = [
+            ("txtmlp.0.scale", "txt_in.norm.weight"),
+            ("txtmlp.1.", "txt_in.linear_1."),
+            ("txtmlp.3.", "txt_in.linear_2."),
+            ("tmlp.0.", "time_embed.linear_1."),
+            ("tmlp.2.", "time_embed.linear_2."),
+            ("tproj.1.", "time_mod_proj."),
+            ("last.linear.", "final_layer.linear."),
+            ("last.norm.scale", "final_layer.norm.weight"),
+            ("last.modulation.lin", "final_layer.scale_shift_table"),
+            ("first.", "img_in."),
+        ]
+        for src, dst in table:
+            if new_key == src or new_key.startswith(src):
+                if src == "last.modulation.lin":
+                    reshape = ("final", 1)
+                new_key = dst + new_key[len(src):]
+                break
+        if reshape is not None and tensor.dim() == 1:
+            # 两个调制线性层:一维平铺 → (组数, inner_dim)
+            tensor = tensor.reshape(-1, inner_dim if inner_dim else 6144)
+        out[new_key] = tensor
+    model_keys = set(model.state_dict().keys())
+    missing = model_keys - set(out)
+    if missing:
+        raise PipelineError("model-load-failed", f"Krea2 权重转换后缺 {len(missing)} 键: {sorted(missing)[:4]}")
+    return out
+
+
+_krea2_pipelines: dict[str, dict[str, Any]] = {}
+
+
+def _get_krea2_components() -> dict[str, Any]:
+    """Krea2 Turbo 装配(三大件 ComfyUI 指向+小件应用缓存)。"""
+    resolved = resolve_krea2_big_files()
+    if not resolved:
+        raise PipelineError(
+            "model-not-downloaded",
+            "Krea2 大件未就绪:需 ComfyUI models 目录下存在 "
+            "diffusion_models/krea2_turbo_bf16.safetensors、text_encoders/qwen3-vl-4b-heretic.safetensors "
+            "与 vae/qwen_image_vae.safetensors。",
+        )
+    pieces = krea2_small_pieces_status()
+    if not pieces["ready"]:
+        raise PipelineError(
+            "small-pieces-missing",
+            "Krea2 小件未补齐(调度器/配置/分词器,MB 级)。"
+            "请前往 设置 → 本地配置 → 本地图片生成 点击「补齐小件」。",
+        )
+    snapshot_str = next(iter(pieces["snapshot_dirs"].values()), None)
+    if not snapshot_str:
+        raise PipelineError("small-pieces-missing", "Krea2 小件 snapshot 目录缺失,请重新补齐小件。")
+
+    from pathlib import Path as _P
+
+    snapshot = _P(snapshot_str)
+    try:
+        import torch
+        from diffusers import (
+            AutoencoderKLQwenImage,
+            FlowMatchEulerDiscreteScheduler,
+            Krea2Transformer2DModel,
+        )
+        from transformers import AutoConfig, AutoTokenizer, Qwen3VLModel
+        from safetensors.torch import load_file
+    except ImportError as exc:
+        raise PipelineError("diffusers-missing", f"Krea2 生图依赖未安装: {exc}") from exc
+
+    try:
+        main_file = resolved["main"]
+        te_file = resolved["text_encoder"]
+        vae_file = resolved["vae"]
+        # Krea2Transformer2DModel 无 from_single_file(0.40),ComfyUI 单文件是
+        # 原生命名(blocks/attn.wq…)——from_config 建 + 键名转换直灌(下述
+        # _convert_krea2_comfyui_state;430 键全覆盖严格校验)
+        transformer = Krea2Transformer2DModel.from_config(
+            Krea2Transformer2DModel.load_config(str(snapshot / "transformer"))
+        )
+        transformer = transformer.to(torch.bfloat16)
+        converted = _convert_krea2_comfyui_state(load_file(str(main_file)), transformer)
+        transformer.load_state_dict(converted, strict=True)
+        transformer.eval()
+        # Qwen 系 VAE 无 from_single_file 且 ComfyUI qwen_image_vae 是原生命名
+        # (conv1/head.gamma,194 键零交集——直灌=随机权重,出 magenta 网格,
+        # 实弹踩坑)——改用小件仓 diffusers 版(254MB 显式下载)
+        vae = AutoencoderKLQwenImage.from_pretrained(snapshot, subfolder="vae", torch_dtype=torch.bfloat16)
+        scheduler = FlowMatchEulerDiscreteScheduler.from_pretrained(snapshot, subfolder="scheduler")
+        tokenizer = AutoTokenizer.from_pretrained(snapshot / "tokenizer")
+        te_config = AutoConfig.from_pretrained(snapshot / "text_encoder")
+        # 管线要求裸 Qwen3VLModel(直收 3D mRoPE position_ids)。
+        # TE 双源:官方仓小件(language_model.*+visual.* 直载)优先;
+        # ComfyUI heretic 破限版(model.* 展平命名)做前缀重映射回退。
+        text_encoder = Qwen3VLModel(te_config).to(torch.bfloat16)
+        official_te = snapshot / "text_encoder" / "model.safetensors"
+        if official_te.is_file():
+            text_encoder.load_state_dict(load_file(str(official_te)), strict=True)
+        else:
+            state = load_file(str(te_file))
+            remapped = {
+                (
+                    k.replace("model.layers.", "language_model.layers.")
+                    .replace("model.embed_tokens.", "language_model.embed_tokens.")
+                    .replace("model.norm.", "language_model.norm.")
+                    .replace("model.visual.", "visual.")
+                ): v
+                for k, v in state.items()
+            }
+            text_encoder.load_state_dict(remapped, strict=False)
+        text_encoder.eval()
+    except PipelineError:
+        raise
+    except Exception as exc:
+        raise PipelineError("model-load-failed", f"Krea2 生图管线装配失败: {exc}") from exc
+
+    device = "mps" if torch.backends.mps.is_available() else ("cuda" if torch.cuda.is_available() else "cpu")
+    return {
+        "transformer": transformer.to(device),
+        "vae": vae.to(device),
+        "scheduler": scheduler,
+        "tokenizer": tokenizer,
+        "text_encoder": text_encoder.to(device),
+        "is_distilled": True,
+    }
+
+
+def _generate_krea2(
+    prompt: str,
+    aspect_ratio: str,
+    negative_prompt: str | None,
+    steps: int,
+    seed: int | None,
+    reference_image_b64: str | None,
+) -> str:
+    """Krea2 Turbo:T2I 直出(0.40 Krea2Pipeline 无 image 参——参考图/编辑
+    走 LoRA(identity_edit)与模块化管线,二期;先保 T2I+破限 LoRA 底座)。"""
+    import time as _time
+
+    with _lock:
+        if "krea2" not in _krea2_pipelines:
+            _krea2_pipelines["krea2"] = _get_krea2_components()
+        comps = _krea2_pipelines["krea2"]
+
+    from diffusers import Krea2Pipeline
+
+    width, height = ASPECT_RATIOS.get(aspect_ratio, ASPECT_RATIOS["1:1"])
+
+    kwargs: dict[str, Any] = {
+        "prompt": prompt,
+        "height": height,
+        "width": width,
+        "num_inference_steps": steps,
+    }
+    if negative_prompt:
+        kwargs["negative_prompt"] = negative_prompt
+    if seed is not None:
+        import torch
+
+        kwargs["generator"] = torch.Generator(device="cpu").manual_seed(seed)
+
+    phase_start = _time.time()
+    try:
+        pipe = Krea2Pipeline(**comps)
+        result = _run_inference(pipe, kwargs)
+    except PipelineError:
+        raise
+    except Exception as exc:
+        raise PipelineError("inference-failed", f"Krea2 生成失败: {exc}") from exc
+    print(
+        f"[image-sidecar] krea2 phase timing: steps={steps} "
+        f"size={width}x{height} inference={_time.time() - phase_start:.1f}s",
+        flush=True,
+    )
+    image = result.images[0]
+    buffer = io.BytesIO()
+    image.save(buffer, format="PNG")
+    return base64.b64encode(buffer.getvalue()).decode("ascii")
+
+
 def _require_downloaded(model_name: str) -> None:
     spec = IMAGE_MODELS.get(model_name)
     if not spec:
@@ -667,6 +884,15 @@ def generate_image(
     model_name = resolve_image_model_name(model_name)
     spec = IMAGE_MODELS[model_name]
 
+    if spec.get("layout") == "krea2-pointed":
+        return _generate_krea2(
+            prompt,
+            aspect_ratio,
+            negative_prompt,
+            num_inference_steps or spec["steps"],
+            seed,
+            reference_image_b64,
+        )
     if spec.get("layout") == "flux2-pointed":
         return _generate_flux2(
             prompt,

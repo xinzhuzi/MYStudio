@@ -23,8 +23,11 @@ from .model_cache import (
     Z_IMAGE_SMALL_EXACT_FILES,
     FLUX2_SMALL_PIECE_REPOS,
     FLUX2_SMALL_EXACT_FILES,
+    KREA2_SMALL_PIECE_REPOS,
+    KREA2_SMALL_EXACT_FILES,
     resolve_z_image_big_files,
     resolve_flux2_big_files,
+    resolve_krea2_big_files,
     QWEN_SMALL_PIECES_SIZE_MB,
     download_hf_cache_dir,
     repo_cache_dir,
@@ -117,6 +120,27 @@ def fetch_flux2_pieces(cache_dir: str) -> None:
             )
 
 
+def fetch_krea2_pieces(cache_dir: str) -> None:
+    """抓取 Krea2 小件(调度器/双端 config/分词器,MB 级)。
+
+    ModelScope 有 krea 官方镜像(精确清单直链),HF 回退。
+    """
+    from huggingface_hub import snapshot_download
+
+    for repo_id, _patterns in KREA2_SMALL_PIECE_REPOS:
+        try:
+            from modelscope_hub import download_repo_to_hf_cache
+
+            download_repo_to_hf_cache(repo_id, cache_dir, allow_paths=list(KREA2_SMALL_EXACT_FILES))
+        except Exception as exc:
+            print(f"[download] ModelScope 直链失败({repo_id}),回退 HF: {exc}", file=sys.stderr, flush=True)
+            snapshot_download(
+                repo_id=repo_id,
+                allow_patterns=["scheduler/*", "transformer/config.json", "vae/config.json", "text_encoder/config.json", "tokenizer/*"],
+                cache_dir=cache_dir,
+            )
+
+
 def download_model(model_name: str, progress_path: Path) -> int:
     spec = IMAGE_MODELS.get(model_name)
     if not spec:
@@ -136,16 +160,26 @@ def download_model(model_name: str, progress_path: Path) -> int:
 
     pointed = spec.get("layout") == "qwen-pointed"
     z_pointed = spec.get("layout") == "z-image-pointed"
+    flux2_pointed = spec.get("layout") == "flux2-pointed"
+    krea2_pointed = spec.get("layout") == "krea2-pointed"
     # 缺什么下什么:大件在(ComfyUI 指向或应用缓存自足)→ 只补小件;大件缺 → 完整
     if z_pointed:
         full_mode = resolve_z_image_big_files() is None
         small_mb = 400
         big_resolver_label = "Z-Image"
+    elif flux2_pointed:
+        full_mode = resolve_flux2_big_files() is None
+        small_mb = 400
+        big_resolver_label = "FLUX.2"
+    elif krea2_pointed:
+        full_mode = resolve_krea2_big_files() is None
+        small_mb = 400
+        big_resolver_label = "Krea2"
     else:
         full_mode = bool(pointed and resolve_qwen_big_files() is None)
         small_mb = QWEN_SMALL_PIECES_SIZE_MB
         big_resolver_label = "Qwen"
-    total_mb = spec["size_mb"] if (full_mode or not (pointed or z_pointed)) else small_mb
+    total_mb = spec["size_mb"] if (full_mode or not (pointed or z_pointed or flux2_pointed or krea2_pointed)) else small_mb
     total_bytes = total_mb * 1024 * 1024
     watched_dirs: list[Path] = []
 
@@ -163,7 +197,7 @@ def download_model(model_name: str, progress_path: Path) -> int:
                     if full_mode
                     else (
                         f"{big_resolver_label} 小件(VAE/调度器/分词器)"
-                        if (pointed or z_pointed or flux2_pointed)
+                        if (pointed or z_pointed or flux2_pointed or krea2_pointed)
                         else spec["repo_id"]
                     )
                 ),
@@ -173,6 +207,19 @@ def download_model(model_name: str, progress_path: Path) -> int:
         )
 
     report("downloading", 0, 0)
+    # Krea2 是指向版：应用不代下 35GB 级大件。大件缺失时必须在任何
+    # HuggingFace/ModelScope 调用和磁盘余量检查前 fail-closed。
+    if krea2_pointed and full_mode:
+        report(
+            "error",
+            0,
+            0,
+            error=(
+                "Krea2 大件缺失:请将 krea2_turbo_bf16.safetensors、qwen3-vl-4b-heretic.safetensors "
+                "与 qwen_image_vae.safetensors 放入 ComfyUI models 目录(应用不代下大件)。"
+            ),
+        )
+        return 2
     try:
         from huggingface_hub import snapshot_download  # noqa: F401 — fetch_qwen_pieces 内实际使用
 
@@ -191,6 +238,11 @@ def download_model(model_name: str, progress_path: Path) -> int:
             watched_dirs = [
                 repo_cache_dir(repo_id, Path(cache_dir))
                 for repo_id, _patterns in FLUX2_SMALL_PIECE_REPOS
+            ]
+        elif krea2_pointed:
+            watched_dirs = [
+                repo_cache_dir(repo_id, Path(cache_dir))
+                for repo_id, _patterns in KREA2_SMALL_PIECE_REPOS
             ]
         else:
             watched_dirs = [repo_cache_dir(spec["repo_id"], Path(cache_dir))]
@@ -246,6 +298,10 @@ def download_model(model_name: str, progress_path: Path) -> int:
                         "与 flux2-vae.safetensors 放入 ComfyUI models 目录(应用不代下大件)。"
                     )
                 fetch_flux2_pieces(cache_dir=cache_dir)
+            elif krea2_pointed:
+                if full_mode:
+                    raise AssertionError("unreachable: Krea2 missing-big guard returned before download")
+                fetch_krea2_pieces(cache_dir=cache_dir)
             elif pointed:
                 fetch_qwen_pieces(full=full_mode, cache_dir=cache_dir)
             else:
