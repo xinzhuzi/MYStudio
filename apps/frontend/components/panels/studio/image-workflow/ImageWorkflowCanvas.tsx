@@ -68,6 +68,7 @@ import { ImageWorkflowScopedPending } from "./image-workflow-scoped-pending";
 import { useImageWorkflowGeneration } from "./use-image-workflow-generation";
 import { useImageWorkflowUpscale } from "./use-image-workflow-upscale";
 import { useImageWorkflowActions } from "./use-image-workflow-actions";
+import { useImageWorkflowCommands } from "./use-image-workflow-commands";
 import { ImageWorkflowSidebar } from "./image-workflow-sidebar";
 import { ImageWorkflowCanvasToolbar } from "./image-workflow-canvas-toolbar";
 import {
@@ -358,6 +359,17 @@ export function ImageWorkflowCanvas({
     workflowId: activeGraph?.id,
     addMaterial,
     saveGraph,
+  });
+
+  // 指令通道(08-31-canvas-ops-layer):注册进 lib 总线,自动化测试经
+  // dispatchCanvasCommand("image-workflow", cmd) 驱动,替代 CDP 摸 DOM
+  useImageWorkflowCommands({
+    activeGraph,
+    saveGraph,
+    deleteNode,
+    generateNode,
+    setSelectedNodeId,
+    flowInstance,
   });
 
   const {
