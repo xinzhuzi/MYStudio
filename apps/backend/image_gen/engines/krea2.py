@@ -15,6 +15,7 @@ from typing import Any
 # ── 常量 ──
 MODEL_NAME = "krea2-turbo"
 LAYOUT = "krea2-pointed"
+SUPPORTS_REFERENCE = True  # SDEdit 图生图(08-31 实现,仿 ComfyUI KSampler denoise)
 
 COMFY_MAIN_FILE = "diffusion_models/krea2_turbo_bf16.safetensors"
 COMFY_TEXT_ENCODER_FILE = "text_encoders/qwen3-vl-4b-heretic.safetensors"
@@ -295,8 +296,30 @@ def get_lora_components(models_dir: Path, snapshot_dir: Path) -> dict[str, Any]:
     return lora_comps
 
 
-# ── 生成 ──
-def generate(prompt, aspect_ratio, negative_prompt, steps, seed, reference_b64, use_lora=False, **ctx) -> str:
+
+
+def _calc_krea2_mu(latents, scheduler):
+    """计算 dynamic shifting 的 mu(分辨率相关位移量,仿 FluxPipeline)。"""
+    import torch as _torch
+    image_seq_len = latents.shape[-2] * latents.shape[-1]
+    base_seq = scheduler.config.get("base_image_seq_len", 256)
+    max_seq = scheduler.config.get("max_image_seq_len", 4096)
+    base_shift = scheduler.config.get("base_shift", 0.5)
+    max_shift = scheduler.config.get("max_shift", 1.15)
+    # 线性插值 shift
+    m = (image_seq_len - base_seq) / (max_seq - base_seq)
+    m = m.clamp(0, 1) if hasattr(m, 'clamp') else max(0, min(1, m))
+    shift = base_shift + m * (max_shift - base_shift)
+    return _torch.tensor(shift)
+
+# ── 生成(双工作流:文生图+图生图 SDEdit) ──
+def generate(prompt, aspect_ratio, negative_prompt, steps, seed, reference_b64,
+             use_lora=False, strength=0.65, **ctx) -> str:
+    """Krea2 统一入口:有参考图走 SDEdit 图生图,无参考图走纯文生图。
+
+    strength(图生图):0.0=完全保留原图,1.0=纯噪声(等同文生图)。
+    ComfyUI KSampler 的 denoise 参数同义。
+    """
     import time as _time
     import torch
     from diffusers import Krea2Pipeline
@@ -314,21 +337,91 @@ def generate(prompt, aspect_ratio, negative_prompt, steps, seed, reference_b64, 
             comps = _pipeline_cache["krea2"]
 
     width, height = ASPECT_RATIOS.get(aspect_ratio, ASPECT_RATIOS["1:1"])
-    kwargs = {"prompt": prompt, "height": height, "width": width, "num_inference_steps": steps}
-    if negative_prompt:
-        kwargs["negative_prompt"] = negative_prompt
-    if seed is not None:
-        kwargs["generator"] = torch.Generator(device="cpu").manual_seed(seed)
-
+    generator = torch.Generator(device="cpu").manual_seed(seed) if seed is not None else None
     phase_start = _time.time()
+
     pipe = Krea2Pipeline(**comps)
-    result = pipe(**kwargs)
-    print(
-        f"[image-sidecar] krea2 timing: steps={steps} size={width}x{height} "
-        f"inference={_time.time() - phase_start:.1f}s",
-        flush=True,
-    )
-    image = result.images[0]
+
+    if reference_b64:
+        # ═══ 图生图(SDEdit,仿 ComfyUI KSampler denoise) ═══
+        # 策略:VAE 编码参考图→加噪→把加噪潜空间作为管线 latents 参数传入,
+        # 管线内部自动处理调度器(mu/dynamic shifting)与去噪循环。
+        raw = reference_b64.split(",", 1)[-1] if reference_b64.startswith("data:") else reference_b64
+        ref_img = Image.open(io.BytesIO(base64.b64decode(raw))).convert("RGB").resize((width, height))
+
+        # 1. VAE 编码参考图 → 归一化潜空间
+        import numpy as _np
+        ref_tensor = (
+            torch.from_numpy(_np.array(ref_img))
+            .permute(2, 0, 1).unsqueeze(0).unsqueeze(2)
+            .float() / 127.5 - 1
+        ).to(comps["vae"].device, comps["vae"].dtype)
+        vae_cfg = comps["vae"].config
+        lat_mean = torch.tensor(vae_cfg["latents_mean"]).view(1, -1, 1, 1, 1).to(ref_tensor.device, ref_tensor.dtype)
+        lat_std = torch.tensor(vae_cfg["latents_std"]).view(1, -1, 1, 1, 1).to(ref_tensor.device, ref_tensor.dtype)
+        with torch.no_grad():
+            raw_lat = comps["vae"].encode(ref_tensor).latent_dist.sample()
+            ref_latents = (raw_lat - lat_mean) / lat_std
+            # VAE 输出 5D (B,C,F,H,W);管线期望 4D (B,C,H,W)——squeeze 帧维
+            if ref_latents.dim() == 5:
+                ref_latents = ref_latents.squeeze(2)
+
+        # 2. 计算有效去噪步数(strength=0.6 → 跑 60% 的步数,跳过前 40%)
+        effective_steps = max(1, int(steps * strength))
+
+        # 3. 在起始 sigma 级别加噪
+        device = pipe._execution_device
+        scheduler = comps["scheduler"]
+        # 先跑一遍完整步数拿到 sigma 序列,取截断位置的 sigma
+        scheduler.set_timesteps(steps, device=device, mu=_calc_krea2_mu(ref_latents, scheduler))
+        num_skip = steps - effective_steps
+        sigma_start = scheduler.sigmas[num_skip].to(device, ref_latents.dtype)
+        noise = torch.randn(ref_latents.shape, generator=generator, device="cpu", dtype=torch.float32).to(device, ref_latents.dtype)
+        # Flow-matching 加噪: x_t = (1-σ)x_0 + σ·noise
+        noised_4d = (1.0 - sigma_start) * ref_latents + sigma_start * noise
+
+        # Patchify 4D→3D packed(管线 latents 参数要 (B,seq,in_channels)):
+        # (B,16,h,w) → patch_size=2 → (B,h/2*w/2,16*4=64)
+        patch_size = getattr(pipe, 'patch_size', 2)
+        B, C, H, W = noised_4d.shape
+        ph, pw = H // patch_size, W // patch_size
+        packed = noised_4d.reshape(B, C, ph, patch_size, pw, patch_size)
+        packed = packed.permute(0, 2, 4, 1, 3, 5)  # B,ph,pw,C,p1,p2
+        noised_latents = packed.reshape(B, ph * pw, C * patch_size * patch_size)
+
+        # 4. 交给管线去噪(管线自动处理 mu/调度/循环)
+        kwargs = {
+            "prompt": prompt,
+            "height": height, "width": width,
+            "num_inference_steps": effective_steps,
+            "latents": noised_latents,
+        }
+        if negative_prompt:
+            kwargs["negative_prompt"] = negative_prompt
+        if generator is not None:
+            kwargs["generator"] = generator
+        result = pipe(**kwargs)
+        image = result.images[0]
+        print(
+            f"[image-sidecar] krea2 img2img: strength={strength} eff_steps={effective_steps}/{steps} "
+            f"size={width}x{height} inference={_time.time() - phase_start:.1f}s",
+            flush=True,
+        )
+    else:
+        # ═══ 纯文生图 ═══
+        kwargs = {"prompt": prompt, "height": height, "width": width, "num_inference_steps": steps}
+        if negative_prompt:
+            kwargs["negative_prompt"] = negative_prompt
+        if generator is not None:
+            kwargs["generator"] = generator
+        result = pipe(**kwargs)
+        image = result.images[0]
+        print(
+            f"[image-sidecar] krea2 t2i: steps={steps} size={width}x{height} "
+            f"inference={_time.time() - phase_start:.1f}s",
+            flush=True,
+        )
+
     buffer = io.BytesIO()
     image.save(buffer, format="PNG")
     return base64.b64encode(buffer.getvalue()).decode("ascii")
