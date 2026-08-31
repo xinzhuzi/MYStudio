@@ -16,7 +16,10 @@ type ImageSizeSettingsTabProps = {
   onChange: (settings: Partial<ImageGenerationSettings>) => void;
 };
 
-export function ImageSizeSettingsTab({ settings, onChange }: ImageSizeSettingsTabProps) {
+export function ImageSizeSettingsTab({
+  settings,
+  onChange,
+}: ImageSizeSettingsTabProps) {
   return (
     <ScrollArea className="h-full">
       <div className="p-8 w-full space-y-8">
@@ -47,9 +50,14 @@ export function ImageSizeSettingsTab({ settings, onChange }: ImageSizeSettingsTa
         <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_340px]">
           <div className="rounded-xl border border-border bg-card p-5 space-y-5">
             <div>
-              <div className="text-sm font-semibold text-foreground">默认生图规格</div>
+              <div className="text-sm font-semibold text-foreground">
+                默认生图规格
+              </div>
               <p className="mt-1 text-xs text-muted-foreground">
-                分辨率档（1K/2K/4K）对云端供应商与本地 Z-Image-Turbo 生效；本地 Qwen-Image-Edit 使用官方固定像素档（约 1.7MP），不受此处分辨率影响：1:1→1328×1328，16:9→1664×928，9:16→928×1664，4:3→1472×1140，3:4→1140×1472。
+                分辨率档（1K/2K/4K）仅对云端供应商生效；本地 Krea2 Turbo（主力）、FLUX.2 Klein 9B 与 Z-Image-Turbo
+                使用内置画幅尺寸：1:1→1024×1024，16:9→1152×640，9:16→640×1152，4:3→1072×808，3:4→808×1072。本地
+                Qwen-Image-Edit 使用官方固定像素档（约
+                1.7MP），不受此处分辨率影响：1:1→1328×1328，16:9→1664×928，9:16→928×1664，4:3→1472×1140，3:4→1140×1472。
               </p>
               <div className="mt-1 text-xs text-muted-foreground">
                 未传入 `aspectRatio / resolution` 的生图请求会使用这里的默认值。
@@ -57,13 +65,19 @@ export function ImageSizeSettingsTab({ settings, onChange }: ImageSizeSettingsTa
             </div>
 
             <div className="space-y-2">
-              <Label className="text-xs text-muted-foreground">默认画幅比例</Label>
+              <Label className="text-xs text-muted-foreground">
+                默认画幅比例
+              </Label>
               <div className="flex flex-wrap gap-2">
                 {IMAGE_ASPECT_RATIOS.map((ratio) => (
                   <Button
                     key={ratio}
                     type="button"
-                    variant={settings.defaultAspectRatio === ratio ? "default" : "outline"}
+                    variant={
+                      settings.defaultAspectRatio === ratio
+                        ? "default"
+                        : "outline"
+                    }
                     size="sm"
                     className="h-8 px-3 text-xs"
                     onClick={() => onChange({ defaultAspectRatio: ratio })}
@@ -75,13 +89,19 @@ export function ImageSizeSettingsTab({ settings, onChange }: ImageSizeSettingsTa
             </div>
 
             <div className="space-y-2">
-              <Label className="text-xs text-muted-foreground">默认分辨率</Label>
+              <Label className="text-xs text-muted-foreground">
+                默认分辨率
+              </Label>
               <div className="flex flex-wrap gap-2">
                 {IMAGE_RESOLUTIONS.map((resolution) => (
                   <Button
                     key={resolution}
                     type="button"
-                    variant={settings.defaultResolution === resolution ? "default" : "outline"}
+                    variant={
+                      settings.defaultResolution === resolution
+                        ? "default"
+                        : "outline"
+                    }
                     size="sm"
                     className="h-8 px-4 text-xs"
                     onClick={() => onChange({ defaultResolution: resolution })}
@@ -96,7 +116,9 @@ export function ImageSizeSettingsTab({ settings, onChange }: ImageSizeSettingsTa
           <div className="rounded-xl border border-border bg-card p-5 space-y-4">
             <div className="flex items-start justify-between gap-4">
               <div>
-                <div className="text-sm font-semibold text-foreground">自动去噪（轻度）</div>
+                <div className="text-sm font-semibold text-foreground">
+                  自动去噪（轻度）
+                </div>
                 <div className="mt-1 text-xs text-muted-foreground">
                   生图保存时自动压掉画面上的斑驳噪点和脏斑（保留人物、线稿和颜色，肉眼无感）。适合参考图容易带脏斑的出图；追求原图质感可关闭。
                 </div>
@@ -108,7 +130,9 @@ export function ImageSizeSettingsTab({ settings, onChange }: ImageSizeSettingsTa
               >
                 <Checkbox
                   checked={settings.autoDenoiseEnabled}
-                  onCheckedChange={(checked) => onChange({ autoDenoiseEnabled: checked === true })}
+                  onCheckedChange={(checked) =>
+                    onChange({ autoDenoiseEnabled: checked === true })
+                  }
                   aria-label="自动去噪（轻度）"
                 />
               </label>
@@ -118,7 +142,9 @@ export function ImageSizeSettingsTab({ settings, onChange }: ImageSizeSettingsTa
           <div className="rounded-xl border border-border bg-card p-5 space-y-4">
             <div className="flex items-start justify-between gap-4">
               <div>
-                <div className="text-sm font-semibold text-foreground">兼容重试</div>
+                <div className="text-sm font-semibold text-foreground">
+                  兼容重试
+                </div>
                 <div className="mt-1 text-xs text-muted-foreground">
                   网络失败或供应商临时错误时，使用更保守的规格重试一次。
                 </div>
@@ -129,7 +155,9 @@ export function ImageSizeSettingsTab({ settings, onChange }: ImageSizeSettingsTa
               >
                 <Checkbox
                   checked={settings.compatibilityRetryEnabled}
-                  onCheckedChange={(checked) => onChange({ compatibilityRetryEnabled: checked === true })}
+                  onCheckedChange={(checked) =>
+                    onChange({ compatibilityRetryEnabled: checked === true })
+                  }
                   aria-label="兼容重试"
                 />
               </label>
@@ -152,11 +180,17 @@ export function ImageSizeSettingsTab({ settings, onChange }: ImageSizeSettingsTa
                   <Button
                     key={ratio}
                     type="button"
-                    variant={settings.compatibilityRetryAspectRatio === ratio ? "default" : "outline"}
+                    variant={
+                      settings.compatibilityRetryAspectRatio === ratio
+                        ? "default"
+                        : "outline"
+                    }
                     size="sm"
                     className="h-7 px-2 text-[11px]"
                     disabled={!settings.compatibilityRetryEnabled}
-                    onClick={() => onChange({ compatibilityRetryAspectRatio: ratio })}
+                    onClick={() =>
+                      onChange({ compatibilityRetryAspectRatio: ratio })
+                    }
                   >
                     {ratio}
                   </Button>
@@ -165,17 +199,25 @@ export function ImageSizeSettingsTab({ settings, onChange }: ImageSizeSettingsTa
             </div>
 
             <div className="space-y-2">
-              <Label className="text-xs text-muted-foreground">重试分辨率</Label>
+              <Label className="text-xs text-muted-foreground">
+                重试分辨率
+              </Label>
               <div className="flex flex-wrap gap-2">
                 {IMAGE_RESOLUTIONS.map((resolution) => (
                   <Button
                     key={resolution}
                     type="button"
-                    variant={settings.compatibilityRetryResolution === resolution ? "default" : "outline"}
+                    variant={
+                      settings.compatibilityRetryResolution === resolution
+                        ? "default"
+                        : "outline"
+                    }
                     size="sm"
                     className="h-7 px-3 text-[11px]"
                     disabled={!settings.compatibilityRetryEnabled}
-                    onClick={() => onChange({ compatibilityRetryResolution: resolution })}
+                    onClick={() =>
+                      onChange({ compatibilityRetryResolution: resolution })
+                    }
                   >
                     {resolution}
                   </Button>
@@ -187,27 +229,42 @@ export function ImageSizeSettingsTab({ settings, onChange }: ImageSizeSettingsTa
 
         <div className="rounded-xl border border-border bg-card p-5">
           <div className="mb-4">
-            <div className="text-sm font-semibold text-foreground">GPT Image 规格矩阵（仅云端 GPT 供应商）</div>
+            <div className="text-sm font-semibold text-foreground">
+              GPT Image 规格矩阵（仅云端 GPT 供应商）
+            </div>
             <div className="mt-1 text-xs text-muted-foreground">
-              GPT Image 请求会把比例和分辨率转换为标准 `size` 字段；其他供应商可能继续使用 `aspect_ratio / resolution`。
+              GPT Image 请求会把比例和分辨率转换为标准 `size`
+              字段；其他供应商可能继续使用 `aspect_ratio / resolution`。
             </div>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full min-w-[640px] border-separate border-spacing-0 text-sm">
               <thead>
                 <tr className="text-left text-xs text-muted-foreground">
-                  <th className="border-b border-border px-3 py-2 font-medium">比例</th>
+                  <th className="border-b border-border px-3 py-2 font-medium">
+                    比例
+                  </th>
                   {IMAGE_RESOLUTIONS.map((resolution) => (
-                    <th key={resolution} className="border-b border-border px-3 py-2 font-medium">{resolution}</th>
+                    <th
+                      key={resolution}
+                      className="border-b border-border px-3 py-2 font-medium"
+                    >
+                      {resolution}
+                    </th>
                   ))}
                 </tr>
               </thead>
               <tbody>
                 {IMAGE_ASPECT_RATIOS.map((ratio) => (
                   <tr key={ratio}>
-                    <td className="border-b border-border/60 px-3 py-2 font-medium text-foreground">{ratio}</td>
+                    <td className="border-b border-border/60 px-3 py-2 font-medium text-foreground">
+                      {ratio}
+                    </td>
                     {IMAGE_RESOLUTIONS.map((resolution) => (
-                      <td key={resolution} className="border-b border-border/60 px-3 py-2 text-muted-foreground">
+                      <td
+                        key={resolution}
+                        className="border-b border-border/60 px-3 py-2 text-muted-foreground"
+                      >
                         {GPT_IMAGE_SIZE_MAP[ratio][resolution]}
                       </td>
                     ))}
