@@ -5,7 +5,7 @@ import type {
   CanvasCommandResult,
 } from "@/lib/studio/canvas-commands";
 import { registerCanvasDispatcher } from "@/lib/studio/canvas-commands";
-import { getCanvasNodeDefinition } from "@/lib/studio/canvas-node-registry";
+import { getCanvasNodeEntry } from "@/lib/studio/canvas-node-registry";
 import {
   addGeneratedImageNode,
   addPromptImageNode,
@@ -54,7 +54,7 @@ export function useImageWorkflowCommands({
       if (!graph) return { ok: false, reason: "无活动图像工作流" };
       switch (command.kind) {
         case "add-node": {
-          if (!getCanvasNodeDefinition("image-workflow", command.nodeType)) {
+          if (!getCanvasNodeEntry("image-workflow", command.nodeType)) {
             return { ok: false, reason: `未注册节点类型 ${command.nodeType}` };
           }
           if (command.connectFrom) {

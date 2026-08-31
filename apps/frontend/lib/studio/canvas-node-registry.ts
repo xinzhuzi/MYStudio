@@ -15,7 +15,7 @@ export interface CanvasNodeResource {
   description: string;
 }
 
-export interface CanvasNodeDefinition {
+export interface CanvasNodeEntry {
   typeId: string;
   surface: CanvasSurface;
   /** 显示名(创建菜单/无障碍标签) */
@@ -32,7 +32,7 @@ export interface CanvasNodeDefinition {
   miniMapColor: string;
 }
 
-const IMAGE_WORKFLOW_DEFINITIONS: readonly CanvasNodeDefinition[] = [
+const IMAGE_WORKFLOW_DEFINITIONS: readonly CanvasNodeEntry[] = [
   {
     typeId: "reference",
     surface: "image-workflow",
@@ -63,18 +63,18 @@ const IMAGE_WORKFLOW_DEFINITIONS: readonly CanvasNodeDefinition[] = [
 ];
 
 /** panels 侧生产流定义经此注入(模块加载一次) */
-let productionFlowDefinitions: readonly CanvasNodeDefinition[] = [];
+let productionFlowDefinitions: readonly CanvasNodeEntry[] = [];
 
 export function registerProductionFlowNodeDefinitions(
-  definitions: readonly CanvasNodeDefinition[],
+  definitions: readonly CanvasNodeEntry[],
 ): void {
   productionFlowDefinitions = definitions;
 }
 
-export function getCanvasNodeDefinition(
+export function getCanvasNodeEntry(
   surface: CanvasSurface,
   typeId: string,
-): CanvasNodeDefinition | undefined {
+): CanvasNodeEntry | undefined {
   const pool =
     surface === "production-flow"
       ? productionFlowDefinitions
@@ -82,9 +82,9 @@ export function getCanvasNodeDefinition(
   return pool.find((definition) => definition.typeId === typeId);
 }
 
-export function listCanvasNodeDefinitions(
+export function listCanvasNodeEntrys(
   surface: CanvasSurface,
-): readonly CanvasNodeDefinition[] {
+): readonly CanvasNodeEntry[] {
   return surface === "production-flow"
     ? productionFlowDefinitions
     : IMAGE_WORKFLOW_DEFINITIONS;

@@ -1,4 +1,4 @@
-import type { CanvasNodeDefinition } from "@/lib/studio/canvas-node-registry";
+import type { CanvasNodeEntry } from "@/lib/studio/canvas-node-registry";
 import { registerProductionFlowNodeDefinitions } from "@/lib/studio/canvas-node-registry";
 import {
   PRODUCTION_FLOW_NODE_IDS,
@@ -15,7 +15,7 @@ import {
 
 const PRODUCTION_ACTIONS = ["open", "refresh"] as const;
 
-const PRODUCTION_FLOW_DEFINITIONS: readonly CanvasNodeDefinition[] =
+const PRODUCTION_FLOW_DEFINITIONS: readonly CanvasNodeEntry[] =
   PRODUCTION_FLOW_NODE_IDS.map((nodeId) => ({
     typeId: nodeId,
     surface: "production-flow" as const,

@@ -1,5 +1,5 @@
 import type { ImageWorkflowGraph } from "@/types/studio";
-import { getCanvasNodeDefinition } from "@/lib/studio/canvas-node-registry";
+import { getCanvasNodeEntry } from "@/lib/studio/canvas-node-registry";
 import {
   addGeneratedImageNode,
   addPromptImageNode,
@@ -40,7 +40,7 @@ export function getCreatableImageNodeTypes(
       : "创建并连入当前成图";
   return types.map((type) => ({
     type,
-    label: getCanvasNodeDefinition("image-workflow", type)?.label ?? type,
+    label: getCanvasNodeEntry("image-workflow", type)?.label ?? type,
     description: directionalDescription,
   }));
 }

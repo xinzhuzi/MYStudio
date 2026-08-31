@@ -3,14 +3,14 @@ import { describe, expect, it } from "vitest";
 import "./workflow-node-registry";
 import {
   canvasMiniMapNodeColor,
-  getCanvasNodeDefinition,
-  listCanvasNodeDefinitions,
+  getCanvasNodeEntry,
+  listCanvasNodeEntrys,
 } from "@/lib/studio/canvas-node-registry";
 import { PRODUCTION_FLOW_NODE_IDS } from "./workflow-node-model-schema";
 
 describe("生产流面注册(canvas-node-registry)", () => {
   it("生产流节点全部注册,声明宽度来自布局常量单源", () => {
-    const definitions = listCanvasNodeDefinitions("production-flow");
+    const definitions = listCanvasNodeEntrys("production-flow");
     expect(definitions.map((d) => d.typeId)).toEqual([...PRODUCTION_FLOW_NODE_IDS]);
     for (const definition of definitions) {
       expect(definition.defaultSize?.width).toBeGreaterThan(0);
@@ -21,6 +21,6 @@ describe("生产流面注册(canvas-node-registry)", () => {
   it("注册后小地图类型色可查", () => {
     const first = PRODUCTION_FLOW_NODE_IDS[0];
     expect(canvasMiniMapNodeColor(first)).not.toBe("hsl(var(--accent))");
-    expect(getCanvasNodeDefinition("production-flow", first)?.typeId).toBe(first);
+    expect(getCanvasNodeEntry("production-flow", first)?.typeId).toBe(first);
   });
 });
