@@ -3,7 +3,8 @@
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { MusicTab } from "./MusicTab";
+import { MusicStudio } from "./MusicStudio";
+import { useProjectStore } from "@/stores/project/project-store";
 
 const aiTextMock = vi.hoisted(() => vi.fn(async (_arg: { messages: Array<{ role: string; content: string }> }) => ({ success: true, text: "[Intro]\n长夜未央 天地苍茫\n\n[Verse]\nAI 主句一行" })));
 const aiResolveMock = vi.hoisted(() => vi.fn(() => true));
@@ -45,15 +46,22 @@ function installBridge(overrides: {
   };
 }
 
+function renderStudio() {
+  useProjectStore.setState({
+    activeProject: { id: "ma", name: "道劫", createdAt: 0, updatedAt: 0 },
+  });
+  return render(<MusicStudio />);
+}
+
 afterEach(() => {
   cleanup();
   delete (window as { music3GenRuntime?: unknown }).music3GenRuntime;
 });
 
-describe("MusicTab(工作台音乐生成)", () => {
+describe("MusicStudio(辅助·音乐工作室)", () => {
   it("就绪:展示生成目录(动态拼接)+ 表单", async () => {
     installBridge();
-    render(<MusicTab projectId="ma" projectName="道劫" />);
+    renderStudio();
     expect(await screen.findByText(/引擎就绪/)).toBeTruthy();
     expect(await screen.findByText("/projects/ma/music")).toBeTruthy();
     expect(await screen.findByRole("button", { name: /生成整曲/ })).toBeTruthy();
@@ -63,7 +71,7 @@ describe("MusicTab(工作台音乐生成)", () => {
     installBridge({
       status: () => ({ ...readyStatus(), mlxServ: { ...readyStatus().mlxServ!, weightsReady: false, weightsReason: "未指定权重目录" } }),
     });
-    render(<MusicTab projectId="ma" projectName="道劫" />);
+    renderStudio();
     expect(await screen.findByText(/去设置/)).toBeTruthy();
     expect(screen.queryByRole("button", { name: /生成整曲/ })).toBeNull();
   });
@@ -71,7 +79,7 @@ describe("MusicTab(工作台音乐生成)", () => {
   it("生成:payload 带 __PROJECT_MUSIC__ 哨兵 + projectId(渲染层不持绝对路径)", async () => {
     const generate = vi.fn(async () => ({ status: "accepted", outputPath: "/projects/ma/music/song.wav", durationS: 29.9, engine: "mlx-serve" }));
     installBridge({ generate });
-    render(<MusicTab projectId="ma" projectName="道劫" />);
+    renderStudio();
     fireEvent.click(await screen.findByRole("button", { name: /生成整曲/ }));
     await waitFor(() => expect(generate).toHaveBeenCalledTimes(1));
     expect(generate).toHaveBeenCalledWith(expect.objectContaining({
@@ -84,10 +92,10 @@ describe("MusicTab(工作台音乐生成)", () => {
   });
 });
 
-describe("MusicTab · 人声歌曲模式", () => {
+describe("MusicStudio · 人声歌曲模式", () => {
   it("切模式:歌词编辑器+配方+标签快捷插入出现,[Verse] 可插入", async () => {
     installBridge();
-    render(<MusicTab projectId="ma" projectName="道劫" />);
+    renderStudio();
     fireEvent.click(await screen.findByRole("radio", { name: "人声歌曲" }));
     expect(await screen.findByLabelText(/歌词/)).toBeTruthy();
     expect(screen.getByRole("button", { name: "国风·烟雨行舟系(女声空灵/笛筝主线/中速)" })).toBeTruthy();
@@ -99,7 +107,7 @@ describe("MusicTab · 人声歌曲模式", () => {
   it("生成:payload 带歌词与结构化 caption(含 Global Metadata),engine=mlxserv", async () => {
     const generate = vi.fn(async (_payload: Record<string, unknown>) => ({ status: "accepted", outputPath: "/projects/ma/music/song.wav", durationS: 9.9, engine: "mlx-serve" }));
     installBridge({ generate });
-    render(<MusicTab projectId="ma" projectName="道劫" />);
+    renderStudio();
     fireEvent.click(await screen.findByRole("radio", { name: "人声歌曲" }));
     const editor = await screen.findByLabelText(/歌词/);
     fireEvent.change(editor, { target: { value: "[Verse]\n长夜未央" } });
@@ -113,11 +121,11 @@ describe("MusicTab · 人声歌曲模式", () => {
   });
 });
 
-describe("MusicTab · AI 写词(一键成曲)", () => {
+describe("MusicStudio · AI 写词(一键成曲)", () => {
   it("主题+点击 → aiManager 调用(带校准约束)→ 歌词回填编辑器", async () => {
     aiTextMock.mockClear();
     installBridge();
-    render(<MusicTab projectId="ma" projectName="道劫" />);
+    renderStudio();
     fireEvent.click(await screen.findByRole("radio", { name: "人声歌曲" }));
     fireEvent.click(screen.getByText(/云端 LLM 按校准约束代写初稿/)); // 展开折叠区(summary 副标题)
     fireEvent.change(screen.getByLabelText(/创作主题/), { target: { value: "《道劫》片头曲:少年血仇逆天" } });
@@ -135,7 +143,7 @@ describe("MusicTab · AI 写词(一键成曲)", () => {
     aiResolveMock.mockReturnValueOnce(false);
     aiTextMock.mockClear();
     installBridge();
-    render(<MusicTab projectId="ma" projectName="道劫" />);
+    renderStudio();
     fireEvent.click(await screen.findByRole("radio", { name: "人声歌曲" }));
     fireEvent.click(screen.getByText(/云端 LLM 按校准约束代写初稿/));
     fireEvent.change(screen.getByLabelText(/创作主题/), { target: { value: "测试主题" } });
