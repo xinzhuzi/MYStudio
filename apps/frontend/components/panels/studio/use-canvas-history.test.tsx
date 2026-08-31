@@ -183,9 +183,9 @@ describe("useCanvasHistory 验收域隔离(R3 PRD)", () => {
   });
 
   it("选中态/视口不入史:撤销只回放结构变更,不含任何选中/视口字段", () => {
-    const state = { current: { nodes: ["a"], edges: [] } };
+    const state = { current: { nodes: ["a"] as string[], edges: [] as string[] } };
     const hook = renderHook(() =>
-      useCanvasHistory({ read: () => state.current, restore: (snap) => { state.current = snap; }, debounceMs: 10 }),
+      useCanvasHistory<{ nodes: string[]; edges: string[] }>({ read: () => state.current, restore: (snap) => { state.current = snap; }, debounceMs: 10 }),
     );
     // 模拟:结构变更 + (画布外)选中/视口频繁变化——历史只感知显式 commit
     act(() => hook.result.current.commit({ nodes: ["a", "b"], edges: [] }));
