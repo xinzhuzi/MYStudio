@@ -3,19 +3,31 @@
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-// 兄弟工作室 mock 成占位:本测试聚焦 FreedomView 容器接线,各 Studio 内部由各自测试覆盖。
+// 兄弟工作室 mock 成占位:本文件聚焦 FreedomView 容器接线,各 Studio 内部由各自测试覆盖。
 vi.mock("./ImageStudio", () => ({ ImageStudio: () => <div data-testid="image-stub" /> }));
 vi.mock("./VideoStudio", () => ({ VideoStudio: () => <div data-testid="video-stub" /> }));
 vi.mock("./CinemaStudio", () => ({ CinemaStudio: () => <div data-testid="cinema-stub" /> }));
 vi.mock("./TtsStudio", () => ({ TtsStudio: () => <div data-testid="tts-stub" /> }));
 
-import { FreedomView } from "./FreedomView";
+import { FreedomView, FREEDOM_STUDIO_MODES, isFreedomStudioMode } from "./FreedomView";
 
 const STORAGE_KEY = "mystudio-freedom";
 
 afterEach(() => {
   cleanup();
   window.localStorage.removeItem(STORAGE_KEY);
+});
+
+describe("FreedomView studio mode guard", () => {
+  it("accepts exactly the five supported studio modes", () => {
+    expect(FREEDOM_STUDIO_MODES).toEqual(["image", "video", "cinema", "tts", "music"]);
+    for (const mode of FREEDOM_STUDIO_MODES) expect(isFreedomStudioMode(mode)).toBe(true);
+  });
+
+  it("rejects values outside the supported tabs", () => {
+    expect(isFreedomStudioMode("unknown")).toBe(false);
+    expect(isFreedomStudioMode("")).toBe(false);
+  });
 });
 
 describe("FreedomView 渲染(08-31 音乐迁入后五工作室)", () => {
@@ -30,7 +42,7 @@ describe("FreedomView 渲染(08-31 音乐迁入后五工作室)", () => {
 
   it("切到音乐工作室:挂载 MusicStudio→MusicTab(无 bridge 空态),activeStudio 持久化为 music", () => {
     render(<FreedomView />);
-    // Radix Tabs v1.1.21 automatic 模式由 onFocus 激活(click/pointerdown 仅为辅助)
+    // Radix Tabs v1.1.21 automatic 激活走 onFocus(fireEvent.click/pointerdown 均无效)
     fireEvent.focus(screen.getByRole("tab", { name: /音乐工作室/ }));
     // MusicStudio 走真实链路:无 music3GenRuntime bridge 时 MusicTab 呈桌面限定空态
     expect(screen.getByText(/本地音乐生成仅在桌面应用中可用/)).toBeTruthy();
