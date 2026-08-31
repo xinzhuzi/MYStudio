@@ -21,7 +21,7 @@ export function classifyModelByName(modelName: string): ModelCapability[] {
     "dall-e", "dalle", "flux", "midjourney", "niji", "imagen", "cogview",
     "gpt-image", "ideogram", "sd3", "stable-diffusion", "sdxl",
     "playground", "recraft", "kolors", "seedream", "agnes-image", "grok-imagine-image",
-    "krea2", "z-image", "qwen-image", "glm-image",
+    "krea2", "comfyui-bridge", "z-image", "qwen-image", "glm-image",
   ];
   if (imageGenPatterns.some((pattern) => name.includes(pattern))) return ["image_generation"];
   if (/image[- ]?preview/.test(name)) return ["image_generation"];

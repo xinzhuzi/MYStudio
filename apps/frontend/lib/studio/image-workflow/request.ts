@@ -175,8 +175,10 @@ function mergeReferenceNegativePrompt(
 
 export function assertImageWorkflowContinuityCapability(request: ImageWorkflowGenerationRequest) {
   if (!request.continuityRequired) return;
-  if (!request.model || !/(^|[-_:/])gpt[-_]?image/i.test(request.model)) {
-    throw new Error(`当前图片模型 ${request.model || "未配置"} 未通过多参考图连续性能力门禁`);
+  // 多参考连续性放行:云端 gpt-image + 本地 ComfyUI 桥(仓内白名单工作流,
+  // 多参考槽位真正生效,08-31 D4 裁定其余本地引擎维持拒绝并指路)。
+  if (!request.model || !/(^|[-_:/])(gpt[-_]?image|comfyui[-_]?bridge)/i.test(request.model)) {
+    throw new Error(`当前图片模型 ${request.model || "未配置"} 未通过多参考图连续性能力门禁（多参考连续性目前支持 gpt-image 云端与 ComfyUI 桥本地引擎）`);
   }
   if (request.orderedReferenceManifest.some((reference, index) => reference.order !== index + 1)) {
     throw new Error("连续性参考图顺序不连续");

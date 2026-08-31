@@ -21,6 +21,10 @@ describe("feature binding capability detection", () => {
     expect(classifyModelByName("krea2-turbo")).toEqual(["image_generation"]);
   });
 
+  it("classifies the local ComfyUI bridge engine as an image generation model", () => {
+    expect(classifyModelByName("comfyui-bridge")).toEqual(["image_generation"]);
+  });
+
   it("classifies Qwen-Image and GLM-Image models as image generation models", () => {
     expect(classifyModelByName("qwen-image-max")).toEqual(["image_generation"]);
     expect(classifyModelByName("glm-image")).toEqual(["image_generation"]);

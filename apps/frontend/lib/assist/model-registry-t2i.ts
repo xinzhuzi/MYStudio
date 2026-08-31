@@ -660,4 +660,51 @@ export const T2I_MODELS: T2IModel[] = [
       },
     },
   },
+  // 50 — 本地引擎补录(08-31):自由生图此前选不到本地引擎(存量缺口)
+  {
+    id: 'krea2-turbo',
+    providerAliases: ["krea2-turbo"],
+    name: 'Krea2 Turbo (local)',
+    category: 'fast',
+    inputs: {
+      prompt: promptInput(),
+      aspect_ratio: aspectRatioInput([
+        '16:9', '9:16', '1:1', '4:3', '3:4',
+      ]),
+    },
+  },
+  // 51
+  {
+    id: 'flux2-klein-9b',
+    providerAliases: ["flux2-klein-9b"],
+    name: 'FLUX.2 Klein 9B (local)',
+    category: 'fast',
+    inputs: {
+      prompt: promptInput(),
+      aspect_ratio: aspectRatioInput([
+        '16:9', '9:16', '1:1', '4:3', '3:4',
+      ]),
+      image_url: {
+        type: 'string',
+        description: 'Reference image (optional, native edit)',
+      },
+    },
+  },
+  // 52 — ComfyUI 桥:本地多参考编辑,需 ComfyUI 正在运行
+  {
+    id: 'comfyui-bridge',
+    providerAliases: ["comfyui-bridge"],
+    name: 'ComfyUI Bridge (local, multi-reference)',
+    category: 'fast',
+    inputs: {
+      prompt: promptInput(),
+      aspect_ratio: aspectRatioInput([
+        '16:9', '9:16', '1:1', '4:3', '3:4',
+      ]),
+      image_url: {
+        type: 'string',
+        description: 'Reference image (optional)',
+      },
+    },
+  },
 ];
