@@ -161,7 +161,7 @@ describe("useCanvasHistoryShortcuts", () => {
 describe("useCanvasHistory 验收域隔离(R3 PRD)", () => {
   it("副作用隔离:快照域只含 nodes/edges,restore 仅收到视图模型", () => {
     const restored: Array<Record<string, unknown>> = [];
-    const state = { current: { nodes: ["a"], edges: [] } };
+    const state: { current: Record<string, unknown> } = { current: { nodes: ["a"], edges: [] } };
     const hook = renderHook(() =>
       useCanvasHistory<Record<string, unknown>>({
         read: () => state.current,
