@@ -12,6 +12,8 @@ import {
   createImageWorkflowGraph,
 } from "@/lib/studio/image-workflow";
 import { createMaterialSliceActions } from "./material-slice";
+import { createRunTaskSliceActions } from "./run-task-slice";
+import { createImageWorkflowSliceActions } from "./image-workflow-slice";
 import { createConfigSliceActions } from "./config-slice";
 import { createNovelSliceActions } from "./novel-slice";
 import { createMemorySliceActions } from "./memory-slice";
@@ -254,6 +256,8 @@ export const useStudioStore = create<StudioWorkflowStore>()(
       const sceneSegmentSlice = createSceneSegmentSliceActions(set as never);
       const agentWorkSlice = createAgentWorkSliceActions(set as never, get as never);
       const storyboardSlice = createStoryboardSliceActions(set as never, get as never);
+      const runTaskSlice = createRunTaskSliceActions(set as never, get as never);
+      const imageWorkflowSlice = createImageWorkflowSliceActions(set as never, get as never);
       return {
       ...initialState,
       addMaterial: materialSlice.addMaterial,
@@ -332,187 +336,17 @@ export const useStudioStore = create<StudioWorkflowStore>()(
       saveSourceBible: novelSlice.saveSourceBible,
       setWorkflowConfig: configSlice.setWorkflowConfig,
 
-      startAgentRun: (input) => {
-        const id = createStudioWorkflowId("run");
-        const now = Date.now();
-        const previous = input.retryOf ? get().agentRuns.find((run) => run.id === input.retryOf) : undefined;
-        const run: StudioAgentRun = {
-          id,
-          key: input.key,
-          phase: input.phase,
-          status: "running",
-          inputSummary: input.inputSummary,
-          inputFingerprint: input.inputFingerprint,
-          retryOf: input.retryOf,
-          retryCount: previous ? (previous.retryCount ?? 0) + 1 : 0,
-          checkpointRef: input.checkpointRef,
-          startedAt: now,
-        };
-        set((state) => ({ agentRuns: [...state.agentRuns, run] }));
-        return id;
-      },
-
-      finishAgentRun: (id, output = {}) => {
-        const now = Date.now();
-        set((state) => ({
-          agentRuns: state.agentRuns.map((run) =>
-            run.id === id
-              ? {
-                  ...run,
-                  ...output,
-                  status: "success",
-                  finishedAt: now,
-                  errorReason: undefined,
-                }
-              : run,
-          ),
-        }));
-      },
-
-      failAgentRun: (id, errorReason, checkpointRef) => {
-        const now = Date.now();
-        set((state) => ({
-          agentRuns: state.agentRuns.map((run) =>
-            run.id === id
-              ? {
-                  ...run,
-                  status: "failed",
-                  errorReason,
-                  checkpointRef: checkpointRef ?? run.checkpointRef,
-                  finishedAt: now,
-                }
-              : run,
-          ),
-        }));
-      },
-
-      cancelAgentRun: (id, errorReason = "Cancelled", checkpointRef) => {
-        const now = Date.now();
-        set((state) => ({
-          agentRuns: state.agentRuns.map((run) =>
-            run.id === id
-              ? {
-                  ...run,
-                  status: "canceled",
-                  errorReason,
-                  checkpointRef: checkpointRef ?? run.checkpointRef,
-                  finishedAt: now,
-                }
-              : run,
-          ),
-        }));
-      },
-
-      retryAgentRun: (id) => {
-        const previous = get().agentRuns.find((run) => run.id === id);
-        if (!previous) return null;
-        return get().startAgentRun({
-          key: previous.key,
-          phase: previous.phase,
-          inputSummary: previous.inputSummary,
-          inputFingerprint: previous.inputFingerprint,
-          checkpointRef: previous.checkpointRef,
-          retryOf: previous.id,
-        });
-      },
-
-      startMediaTask: (input) => {
-        const id = createStudioWorkflowId("media-task");
-        const now = Date.now();
-        const previous = input.retryOf ? get().mediaTasks.find((task) => task.id === input.retryOf) : undefined;
-        const task: MediaGenerationTask = {
-          id,
-          kind: input.kind,
-          targetId: input.targetId,
-          episodeId: input.episodeId,
-          provider: input.provider,
-          runId: input.runId,
-          checkpointRef: input.checkpointRef,
-          inputFingerprint: input.inputFingerprint,
-          retryOf: input.retryOf,
-          retryCount: previous ? (previous.retryCount ?? 0) + 1 : 0,
-          status: "running",
-          createdAt: now,
-          updatedAt: now,
-        };
-        set((state) => ({ mediaTasks: [...state.mediaTasks, task] }));
-        return id;
-      },
-
-      finishMediaTask: (id, output = {}) => {
-        const now = Date.now();
-        set((state) => ({
-          mediaTasks: state.mediaTasks.map((task) =>
-            task.id === id
-              ? {
-                  ...task,
-                  ...output,
-                  status: "success",
-                  errorReason: undefined,
-                  updatedAt: now,
-                  finishedAt: now,
-                }
-              : task,
-          ),
-        }));
-      },
-
-      failMediaTask: (id, errorReason, checkpointRef) => {
-        const now = Date.now();
-        set((state) => ({
-          mediaTasks: state.mediaTasks.map((task) =>
-            task.id === id
-              ? {
-                  ...task,
-                  status: "failed",
-                  errorReason,
-                  checkpointRef: checkpointRef ?? task.checkpointRef,
-                  updatedAt: now,
-                  finishedAt: now,
-                }
-              : task,
-          ),
-        }));
-      },
-
-      cancelMediaTask: (id, errorReason = "Cancelled", checkpointRef) => {
-        const now = Date.now();
-        set((state) => ({
-          mediaTasks: state.mediaTasks.map((task) =>
-            task.id === id
-              ? {
-                  ...task,
-                  status: "canceled",
-                  errorReason,
-                  checkpointRef: checkpointRef ?? task.checkpointRef,
-                  updatedAt: now,
-                  finishedAt: now,
-                }
-              : task,
-          ),
-        }));
-      },
-
-      retryMediaTask: (id) => {
-        const previous = get().mediaTasks.find((task) => task.id === id);
-        if (!previous || previous.status !== "failed") return null;
-        return get().startMediaTask({
-          kind: previous.kind,
-          targetId: previous.targetId,
-          episodeId: previous.episodeId,
-          provider: previous.provider,
-          runId: previous.runId,
-          checkpointRef: previous.checkpointRef,
-          inputFingerprint: previous.inputFingerprint,
-          retryOf: previous.id,
-        });
-      },
-
-      retryFailedMediaTasks: (kind) =>
-        get().mediaTasks
-          .filter((task) => task.status === "failed" && (!kind || task.kind === kind))
-          .map((task) => get().retryMediaTask(task.id))
-          .filter((id): id is string => Boolean(id)),
+      startAgentRun: runTaskSlice.startAgentRun,
+      finishAgentRun: runTaskSlice.finishAgentRun,
+      failAgentRun: runTaskSlice.failAgentRun,
+      cancelAgentRun: runTaskSlice.cancelAgentRun,
+      retryAgentRun: runTaskSlice.retryAgentRun,
+      startMediaTask: runTaskSlice.startMediaTask,
+      finishMediaTask: runTaskSlice.finishMediaTask,
+      failMediaTask: runTaskSlice.failMediaTask,
+      cancelMediaTask: runTaskSlice.cancelMediaTask,
+      retryMediaTask: runTaskSlice.retryMediaTask,
+      retryFailedMediaTasks: runTaskSlice.retryFailedMediaTasks,
 
       rebuildProjectMemoryFromChapters: memorySlice.rebuildProjectMemoryFromChapters,
       retrieveProjectMemory: memorySlice.retrieveProjectMemory,
@@ -609,172 +443,12 @@ export const useStudioStore = create<StudioWorkflowStore>()(
       bindStoryboardMedia: storyboardSlice.bindStoryboardMedia,
       setStoryboardKeyframes: storyboardSlice.setStoryboardKeyframes,
 
-      createImageWorkflow: (input = {}) => {
-        const graph = createImageWorkflowGraph(input);
-        set((state) => ({
-          imageWorkflows: [
-            graph,
-            ...state.imageWorkflows.filter((item) => item.id !== graph.id),
-          ],
-        }));
-        return graph.id;
-      },
-
-      upsertImageWorkflow: (graph) => {
-        assertImageWorkflowGraphMediaPersistable(graph);
-        set((state) => ({
-          imageWorkflows: [
-            graph,
-            ...state.imageWorkflows.filter((item) => item.id !== graph.id),
-          ],
-        }));
-      },
-
-      updateImageWorkflow: (id, updates) => {
-        set((state) => ({
-          imageWorkflows: state.imageWorkflows.map((item) => {
-            if (item.id !== id) return item;
-            const graph = {
-              ...item,
-              ...updates,
-              id: item.id,
-              updatedAt: updates.updatedAt ?? Date.now(),
-            };
-            assertImageWorkflowGraphMediaPersistable(graph);
-            return graph;
-          }),
-        }));
-      },
-
-      deleteImageWorkflow: (id) => {
-        set((state) => ({
-          imageWorkflows: state.imageWorkflows.filter((item) => item.id !== id),
-        }));
-      },
-
-      applyImageWorkflowResultToStoryboard: (storyboardId, workflowId, nodeId) => {
-        const graph = get().imageWorkflows.find((item) => item.id === workflowId);
-        if (!graph) return;
-        const patch = buildStoryboardImageWorkflowPatch(graph, nodeId);
-        get().updateStoryboard(storyboardId, patch);
-        if (patch.mediaRef) {
-          const storyboard = get().storyboards.find((item) => item.id === storyboardId);
-          const taskId = get().startMediaTask({
-            kind: "storyboardImage",
-            targetId: storyboardId,
-            episodeId: storyboard?.episodeId,
-            provider: "image",
-            checkpointRef: `${workflowId}:${nodeId}`,
-            inputFingerprint: storyboard ? storyboardSourceFingerprint(storyboard) : undefined,
-          });
-          get().finishMediaTask(taskId, {
-            outputRef: patch.mediaRef.path,
-            outputRefs: [patch.mediaRef.path, workflowId, nodeId],
-            checkpointRef: `${workflowId}:${nodeId}`,
-          });
-        }
-      },
-
-      applyImageWorkflowResultToAsset: (target, workflowId, nodeId) => {
-        if (target.kind !== "asset" || !target.assetType || !target.id) return;
-        const graph = get().imageWorkflows.find((item) => item.id === workflowId);
-        if (!graph) return;
-        const patch = buildAssetImageWorkflowPatch(graph, nodeId);
-        // 08-27 R1 父代锚:衍生变体落图时记录「这张图参照的父样子」——父当前
-        // 媒体路径(v1 主判据)+ 父最新批准连续性指纹(加强判据,取不到就只写
-        // 路径)。锚只写衍生记录:character 需 target.parentId、scene 记录需带
-        // parentSceneId、prop 记录需带 parentId;父资产自身没有父,不写锚。
-        // 08-27 二期 R2:父媒体路径改走共享候选解析(连续性最新批准图优先,
-        // legacy 链兜底),与 WorkbenchTab.buildWorkbenchAssetMediaMap 同一函数,
-        // 「两侧优先级必须一致」从注释约定升级为结构保证。
-        const latestApprovedVersion = (assetId: string) => {
-          const approved = get().continuityAssetVersions
-            .filter((version) => version.assetId === assetId && version.approved)
-            .sort((left, right) =>
-              (right.approval?.reviewedAt ?? 0) - (left.approval?.reviewedAt ?? 0)
-              || right.versionId.localeCompare(left.versionId),
-            );
-          return approved[0];
-        };
-        const latestApprovedFingerprint = (assetId: string) =>
-          latestApprovedVersion(assetId)?.contentFingerprint;
-        const buildParentAnchor = (
-          parentMediaPath: string | undefined,
-          parentFingerprint: string | undefined,
-        ) =>
-          parentMediaPath || parentFingerprint
-            ? {
-                ...(parentMediaPath ? { parentMediaPath } : {}),
-                ...(parentFingerprint
-                  ? { parentContinuityFingerprint: parentFingerprint }
-                  : {}),
-              }
-            : undefined;
-        if (target.assetType === "character") {
-          if (!target.parentId) return;
-          const parent = useCharacterLibraryStore
-            .getState()
-            .characters.find((char) => char.id === target.parentId);
-          const parentMediaPath = parent
-            ? resolvePersistableAssetCurrentMediaPaths({
-                kind: "character",
-                character: parent,
-                latestApprovedVersion: latestApprovedVersion(parent.id),
-              })[0]
-            : undefined;
-          useCharacterLibraryStore.getState().updateVariation(target.parentId, target.id, {
-            referenceImage: patch.imageUrl,
-            imageWorkflowId: patch.imageWorkflowId,
-            imageWorkflowNodeId: patch.imageWorkflowNodeId,
-            generatedAt: patch.generatedAt,
-            ...(parent
-              ? { parentAnchor: buildParentAnchor(parentMediaPath, latestApprovedFingerprint(parent.id)) }
-              : {}),
-          });
-          return;
-        }
-        if (target.assetType === "scene") {
-          const scene = useSceneStore.getState().scenes.find((item) => item.id === target.id);
-          const parentScene = scene?.parentSceneId
-            ? useSceneStore.getState().scenes.find((item) => item.id === scene.parentSceneId)
-            : undefined;
-          const parentMediaPath = parentScene
-            ? resolvePersistableAssetCurrentMediaPaths({
-                kind: "scene",
-                scene: parentScene,
-                latestApprovedVersion: latestApprovedVersion(parentScene.id),
-              })[0]
-            : undefined;
-          useSceneStore.getState().updateScene(target.id, {
-            referenceImage: patch.imageUrl,
-            imageWorkflowId: patch.imageWorkflowId,
-            imageWorkflowNodeId: patch.imageWorkflowNodeId,
-            ...(parentScene
-              ? { parentAnchor: buildParentAnchor(parentMediaPath, latestApprovedFingerprint(parentScene.id)) }
-              : {}),
-          });
-          return;
-        }
-        const prop = usePropsLibraryStore.getState().items.find((item) => item.id === target.id);
-        const parentProp = prop?.parentId
-          ? usePropsLibraryStore.getState().items.find((item) => item.id === prop.parentId)
-          : undefined;
-        const parentMediaPath = parentProp
-          ? resolvePersistableAssetCurrentMediaPaths({
-              kind: "prop",
-              prop: parentProp,
-              latestApprovedVersion: latestApprovedVersion(parentProp.id),
-            })[0]
-          : undefined;
-        usePropsLibraryStore.getState().updateProp(target.id, {
-          imageUrl: patch.imageUrl,
-          imageWorkflowId: patch.imageWorkflowId,
-          imageWorkflowNodeId: patch.imageWorkflowNodeId,
-          ...(parentProp
-            ? { parentAnchor: buildParentAnchor(parentMediaPath, latestApprovedFingerprint(parentProp.id)) }
-            : {}),
-        });
-      },
+      createImageWorkflow: imageWorkflowSlice.createImageWorkflow,
+      upsertImageWorkflow: imageWorkflowSlice.upsertImageWorkflow,
+      updateImageWorkflow: imageWorkflowSlice.updateImageWorkflow,
+      deleteImageWorkflow: imageWorkflowSlice.deleteImageWorkflow,
+      applyImageWorkflowResultToStoryboard: imageWorkflowSlice.applyImageWorkflowResultToStoryboard,
+      applyImageWorkflowResultToAsset: imageWorkflowSlice.applyImageWorkflowResultToAsset,
 
       createStoryboardsFromChapters: () => {
         // 窗口化 v1：只为激活章生成分镜（非激活章为轻索引项，无正文）
