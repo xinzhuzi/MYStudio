@@ -4,6 +4,7 @@ import {
   MarkerType,
   ReactFlow,
   type Edge,
+  type FinalConnectionState,
   type OnConnect,
   type ReactFlowInstance,
   useNodesState,
@@ -54,6 +55,13 @@ import {
   workflowTargetLabel,
 } from "./image-workflow-graph-utils";
 import { createImageWorkflowReactNodes } from "./image-workflow-react-nodes";
+import { ImageWorkflowConnectCreateMenu } from "./image-workflow-connect-create-menu";
+import {
+  connectCreateDirection,
+  createConnectedImageNode,
+  getCreatableImageNodeTypes,
+  type ConnectCreateInput,
+} from "@/lib/studio/image-workflow/connect-create";
 import { ImageWorkflowScopedPending } from "./image-workflow-scoped-pending";
 import { useImageWorkflowGeneration } from "./use-image-workflow-generation";
 import { useImageWorkflowUpscale } from "./use-image-workflow-upscale";
@@ -434,6 +442,19 @@ export function ImageWorkflowCanvas({
     });
   }, [activeGraph, flowInstance, saveGraph]);
 
+  // 连接落空创建(08-31-canvas-connect-create-menu):落点仅作菜单锚,
+  // 节点落位走布局单源(createConnectedImageNode 内 nextStackedPosition)
+  const handleConnectCreate = useCallback(
+    (input: ConnectCreateInput) => {
+      if (!activeGraph) return;
+      const result = createConnectedImageNode(activeGraph, input);
+      if (!result) return;
+      saveGraph(result.graph);
+      setSelectedNodeId(result.nodeId);
+    },
+    [activeGraph, saveGraph],
+  );
+
   if (!activeGraph) {
     if (isScopedWorkflowDetail) {
       return (
@@ -499,6 +520,7 @@ export function ImageWorkflowCanvas({
           onNodeClick={handleFlowNodeClick}
           onNodeDragStop={handleFlowNodeDragStop}
           onPaneClick={handleFlowPaneClick}
+          onConnectCreate={handleConnectCreate}
           uploadInputRef={uploadInputRef}
           onUploadReference={handleUploadReference}
         />
@@ -582,6 +604,7 @@ function ImageWorkflowFlowView({
   reactFlowEdges,
   reactFlowNodes,
   onConnect,
+  onConnectCreate,
   onEdgeClick,
   onFitView,
   onInit,
@@ -597,6 +620,7 @@ function ImageWorkflowFlowView({
   reactFlowEdges: Edge[];
   reactFlowNodes: ImageWorkflowReactNode[];
   onConnect: OnConnect;
+  onConnectCreate: (input: ConnectCreateInput) => void;
   onEdgeClick: (edgeId: string) => void;
   onFitView: () => void;
   onInit: (instance: ReactFlowInstance<ImageWorkflowReactNode, Edge>) => void;
@@ -619,6 +643,58 @@ function ImageWorkflowFlowView({
 
   const [flowInstance, setFlowInstance] =
     useState<ReactFlowInstance<ImageWorkflowReactNode, Edge> | null>(null);
+
+  // 连接落空创建菜单锚点(null=关);正常连上(isValid)不弹
+  const [connectCreateAnchor, setConnectCreateAnchor] = useState<{
+    x: number;
+    y: number;
+    fromNodeId: string;
+    fromHandleType: "source" | "target";
+  } | null>(null);
+
+  const handleConnectEnd = useCallback(
+    (event: MouseEvent | TouchEvent, connectionState: FinalConnectionState) => {
+      if (connectionState.isValid) return;
+      const fromNode = connectionState.fromNode;
+      const fromHandleType = connectionState.fromHandle?.type;
+      if (!fromNode || (fromHandleType !== "source" && fromHandleType !== "target")) return;
+      const point =
+        "clientX" in event
+          ? { x: event.clientX, y: event.clientY }
+          : {
+              x: event.changedTouches[0]?.clientX ?? 0,
+              y: event.changedTouches[0]?.clientY ?? 0,
+            };
+      setConnectCreateAnchor({
+        x: point.x,
+        y: point.y,
+        fromNodeId: fromNode.id,
+        fromHandleType,
+      });
+    },
+    [],
+  );
+
+  const connectCreateOptions = useMemo(
+    () =>
+      connectCreateAnchor
+        ? getCreatableImageNodeTypes(connectCreateDirection(connectCreateAnchor.fromHandleType))
+        : [],
+    [connectCreateAnchor],
+  );
+
+  const handleConnectCreateSelect = useCallback(
+    (type: "generated" | "prompt" | "reference") => {
+      if (!connectCreateAnchor) return;
+      onConnectCreate({
+        fromNodeId: connectCreateAnchor.fromNodeId,
+        fromHandleType: connectCreateAnchor.fromHandleType,
+        type,
+      });
+      setConnectCreateAnchor(null);
+    },
+    [connectCreateAnchor, onConnectCreate],
+  );
 
   // 08-30:fitView 触发键(稳定字符串,防对象身份抖动;不含选中/节点数)
   const initialAssetContextKey = initialAssetContext
@@ -692,6 +768,7 @@ function ImageWorkflowFlowView({
         onMoveStart={handleMoveStart}
         onMoveEnd={handleMoveEnd}
         onConnect={onConnect}
+        onConnectEnd={handleConnectEnd}
         onInit={(instance) => {
           setFlowInstance(instance);
           onInit(instance);
@@ -715,6 +792,15 @@ function ImageWorkflowFlowView({
         <Background color="hsl(var(--border))" gap={28} size={1} />
         <CanvasViewportControls onFit={onFitView} />
       </ReactFlow>
+      {connectCreateAnchor ? (
+        <ImageWorkflowConnectCreateMenu
+          x={connectCreateAnchor.x}
+          y={connectCreateAnchor.y}
+          options={connectCreateOptions}
+          onSelect={handleConnectCreateSelect}
+          onClose={() => setConnectCreateAnchor(null)}
+        />
+      ) : null}
       {nodes.length === 0 ? (
         <div className="pointer-events-none absolute inset-0 flex items-center justify-center px-6 text-center">
           <div className="max-w-sm rounded-md border border-border bg-card/92 px-4 py-3 text-sm text-card-foreground">
