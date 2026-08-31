@@ -14,6 +14,7 @@ import "@xyflow/react/dist/style.css";
 import { CanvasViewportControls } from "../CanvasViewportControls";
 import { InteractionDeferHint } from "../previews/interaction-defer-hint";
 import { useCanvasGestureKernel } from "../use-canvas-gesture-kernel";
+import { useCanvasHistory, useCanvasHistoryShortcuts } from "../use-canvas-history";
 import { useScopedWorkflowLifecycle } from "./use-scoped-workflow-lifecycle";
 import { buildSwitchContext, useStoryboardWorkflowSwitch } from "./use-storyboard-workflow-switch";
 import { useChapterStoryboards } from "../use-chapter-storyboards";
@@ -62,6 +63,7 @@ import {
   getCreatableImageNodeTypes,
   type ConnectCreateInput,
 } from "@/lib/studio/image-workflow/connect-create";
+import type { CanvasHistoryController } from "../use-canvas-history";
 import { ImageWorkflowScopedPending } from "./image-workflow-scoped-pending";
 import { useImageWorkflowGeneration } from "./use-image-workflow-generation";
 import { useImageWorkflowUpscale } from "./use-image-workflow-upscale";
@@ -252,11 +254,33 @@ export function ImageWorkflowCanvas({
     setTargetStoryboardId,
   });
 
+  // 撤销重做(08-31-canvas-undo-redo):快照只包 nodes+edges(视图模型),
+  // 选中/视口/目标绑定指纹不入史;restore 直写 store 不经包装防回环。
+  const activeGraphRef = useRef<ImageWorkflowGraph | null>(null);
+  activeGraphRef.current = activeGraph ?? null;
+  const canvasHistory = useCanvasHistory<{
+    nodes: ImageWorkflowGraph["nodes"];
+    edges: ImageWorkflowGraph["edges"];
+  }>({
+    read: () => ({
+      nodes: activeGraphRef.current?.nodes ?? [],
+      edges: activeGraphRef.current?.edges ?? [],
+    }),
+    resetKey: activeGraph?.id ?? "",
+    restore: (snapshot) => {
+      const current = activeGraphRef.current;
+      if (!current) return;
+      upsertImageWorkflow({ ...current, nodes: snapshot.nodes, edges: snapshot.edges });
+    },
+  });
+  useCanvasHistoryShortcuts({ undo: canvasHistory.undo, redo: canvasHistory.redo });
+
   const saveGraph = useCallback(
     (graph: ImageWorkflowGraph) => {
+      canvasHistory.commit({ nodes: graph.nodes, edges: graph.edges });
       upsertImageWorkflow(graph);
     },
-    [upsertImageWorkflow],
+    [canvasHistory, upsertImageWorkflow],
   );
 
   const updateNode = useCallback(
@@ -521,6 +545,7 @@ export function ImageWorkflowCanvas({
           onNodeDragStop={handleFlowNodeDragStop}
           onPaneClick={handleFlowPaneClick}
           onConnectCreate={handleConnectCreate}
+          canvasHistory={canvasHistory}
           uploadInputRef={uploadInputRef}
           onUploadReference={handleUploadReference}
         />
@@ -605,6 +630,7 @@ function ImageWorkflowFlowView({
   reactFlowNodes,
   onConnect,
   onConnectCreate,
+  canvasHistory,
   onEdgeClick,
   onFitView,
   onInit,
@@ -621,6 +647,10 @@ function ImageWorkflowFlowView({
   reactFlowNodes: ImageWorkflowReactNode[];
   onConnect: OnConnect;
   onConnectCreate: (input: ConnectCreateInput) => void;
+  canvasHistory: CanvasHistoryController<{
+    nodes: ImageWorkflowGraph["nodes"];
+    edges: ImageWorkflowGraph["edges"];
+  }>;
   onEdgeClick: (edgeId: string) => void;
   onFitView: () => void;
   onInit: (instance: ReactFlowInstance<ImageWorkflowReactNode, Edge>) => void;
@@ -790,7 +820,7 @@ function ImageWorkflowFlowView({
           nodeIds={measurementNodeIds}
         />
         <Background color="hsl(var(--border))" gap={28} size={1} />
-        <CanvasViewportControls onFit={onFitView} />
+        <CanvasViewportControls onFit={onFitView} history={canvasHistory} />
       </ReactFlow>
       {connectCreateAnchor ? (
         <ImageWorkflowConnectCreateMenu

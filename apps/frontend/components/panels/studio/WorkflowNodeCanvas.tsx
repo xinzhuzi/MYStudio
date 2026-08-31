@@ -21,6 +21,7 @@ import {
   RefreshCw,
 } from "lucide-react";
 import { CanvasViewportControls } from "./CanvasViewportControls";
+import { useCanvasHistory, useCanvasHistoryShortcuts } from "./use-canvas-history";
 import type { ImageWorkflowOpenContext } from "@/types/studio";
 import type {
   ProductionFlowNodeAction,
@@ -329,6 +330,41 @@ export function WorkflowNodeCanvas({
   );
   const [reactFlowNodes, setReactFlowNodes, applyReactFlowNodeChanges] =
     useNodesState<ProductionFlowReactNode>(initialReactFlowNodes);
+
+  // 撤销重做(08-31-canvas-undo-redo):生产流拓扑是确定性构造,用户显式
+  // 改动只有拖拽落位——快照只包位置;自动排版走 setReactFlowNodes 直写,
+  // 不经 onNodesChange,天然不入史(undo 只回放拖拽,不跟布局引擎打架)。
+  const reactFlowNodesRef = useRef(reactFlowNodes);
+  reactFlowNodesRef.current = reactFlowNodes;
+  const positionsSnapshot = useCallback(
+    () =>
+      reactFlowNodesRef.current.map((node) => ({
+        id: node.id,
+        x: node.position.x,
+        y: node.position.y,
+      })),
+    [],
+  );
+  const canvasHistory = useCanvasHistory<Array<{ id: string; x: number; y: number }>>({
+    read: positionsSnapshot,
+    restore: (snapshot) => {
+      const byId = new Map(snapshot.map((item) => [item.id, { x: item.x, y: item.y }]));
+      setReactFlowNodes((nodes) =>
+        nodes.map((node) => {
+          const position = byId.get(node.id);
+          return position ? { ...node, position, dragging: false, selected: false } : node;
+        }),
+      );
+    },
+    equals: (a, b) =>
+      a.length === b.length &&
+      a.every(
+        (item, index) =>
+          b[index]?.id === item.id && b[index].x === item.x && b[index].y === item.y,
+      ),
+  });
+  useCanvasHistoryShortcuts({ undo: canvasHistory.undo, redo: canvasHistory.redo });
+  const userPositionChangeRef = useRef(false);
   const cancelPendingLayoutWork = useCallback(() => {
     if (pendingLayoutFrameRef.current === null) return;
     window.cancelAnimationFrame(pendingLayoutFrameRef.current);
@@ -484,6 +520,9 @@ export function WorkflowNodeCanvas({
     if (changes.some((change) => change.type === "position" && change.dragging)) {
       claimViewportForUser();
     }
+    if (changes.some((change) => change.type === "position")) {
+      userPositionChangeRef.current = true;
+    }
     let dimensionsChanged = false;
     for (const change of changes) {
       if (change.type !== "dimensions" || !change.dimensions) continue;
@@ -503,6 +542,12 @@ export function WorkflowNodeCanvas({
     pendingLayoutFitModeRef.current = "initial";
     scheduleMeasuredLayoutFit(mode);
   }, [scheduleMeasuredLayoutFit]);
+  // 拖拽落位提交历史(防抖合并帧内 position 变更;自动排版不走此路径)
+  useEffect(() => {
+    if (!userPositionChangeRef.current) return;
+    userPositionChangeRef.current = false;
+    canvasHistory.commit(positionsSnapshot());
+  }, [canvasHistory, positionsSnapshot, reactFlowNodes]);
   useEffect(() => {
     cancelPendingLayoutWork();
     if (versionedLayoutKeyRef.current !== layoutKey) {
@@ -650,6 +695,7 @@ export function WorkflowNodeCanvas({
           <CanvasViewportControls
             onViewportControlStart={claimViewportForUser}
             onFit={handleExplicitFit}
+            history={canvasHistory}
           />
         </ReactFlow>
       </div>

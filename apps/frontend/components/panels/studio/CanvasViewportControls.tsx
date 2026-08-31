@@ -7,7 +7,7 @@ import {
   type Edge,
   type Node,
 } from "@xyflow/react";
-import { Map, Maximize2, ZoomIn, ZoomOut } from "lucide-react";
+import { Map, Maximize2, Redo2, Undo2, ZoomIn, ZoomOut } from "lucide-react";
 
 /**
  * 画布视口缩放控件(深色主题横排:缩小/百分比/放大/适配/小地图)。
@@ -51,9 +51,17 @@ function readMiniMapOpen(): boolean {
 export function CanvasViewportControls<TNode extends Node>({
   onViewportControlStart,
   onFit,
+  history,
 }: {
   onViewportControlStart?: () => void;
   onFit: () => void;
+  /** 撤销重做(08-31-canvas-undo-redo);未提供则不渲染两按钮 */
+  history?: {
+    canUndo: boolean;
+    canRedo: boolean;
+    undo: () => void;
+    redo: () => void;
+  };
 }) {
   const reactFlow = useReactFlow<TNode, Edge>();
   const [zoomPercent, setZoomPercent] = useState(100);
@@ -124,7 +132,31 @@ export function CanvasViewportControls<TNode extends Node>({
             <Maximize2 className="h-3.5 w-3.5" />
             适配
           </button>
-          <button
+          {history ? (
+          <>
+            <button
+              type="button"
+              aria-label="撤销"
+              title="撤销 (⌘Z)"
+              disabled={!history.canUndo}
+              className="inline-flex h-9 w-9 items-center justify-center rounded-md border border-border/70 bg-muted/70 text-muted-foreground hover:bg-accent hover:text-accent-foreground disabled:cursor-not-allowed disabled:opacity-50"
+              onClick={history.undo}
+            >
+              <Undo2 className="h-4 w-4" />
+            </button>
+            <button
+              type="button"
+              aria-label="重做"
+              title="重做 (⌘⇧Z)"
+              disabled={!history.canRedo}
+              className="inline-flex h-9 w-9 items-center justify-center rounded-md border border-border/70 bg-muted/70 text-muted-foreground hover:bg-accent hover:text-accent-foreground disabled:cursor-not-allowed disabled:opacity-50"
+              onClick={history.redo}
+            >
+              <Redo2 className="h-4 w-4" />
+            </button>
+          </>
+        ) : null}
+        <button
             type="button"
             aria-label={miniMapOpen ? "收起小地图" : "展开小地图"}
             title={miniMapOpen ? "收起小地图" : "展开小地图"}

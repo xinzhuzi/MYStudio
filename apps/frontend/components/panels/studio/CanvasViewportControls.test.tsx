@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import * as XYFlow from "@xyflow/react";
 import { CanvasViewportControls } from "./CanvasViewportControls";
 
@@ -57,5 +57,40 @@ describe("CanvasViewportControls 小地图", () => {
     expect(screen.getByRole("button", { name: "缩小画布" })).toBeTruthy();
     expect(screen.getByRole("button", { name: "放大画布" })).toBeTruthy();
     expect(screen.getByRole("button", { name: "适配画布" })).toBeTruthy();
+  });
+
+  it("提供 history 时渲染撤销/重做按钮并联动禁用态", () => {
+    const undo = vi.fn();
+    const redo = vi.fn();
+    const { rerender } = render(
+      <XYFlow.ReactFlowProvider>
+        <CanvasViewportControls
+          onFit={() => {}}
+          history={{ canUndo: false, canRedo: true, undo, redo }}
+        />
+      </XYFlow.ReactFlowProvider>,
+    );
+    const undoButton = screen.getByRole("button", { name: "撤销" }) as HTMLButtonElement;
+    const redoButton = screen.getByRole("button", { name: "重做" }) as HTMLButtonElement;
+    expect(undoButton.disabled).toBe(true);
+    expect(redoButton.disabled).toBe(false);
+    fireEvent.click(redoButton);
+    expect(redo).toHaveBeenCalledTimes(1);
+    rerender(
+      <XYFlow.ReactFlowProvider>
+        <CanvasViewportControls
+          onFit={() => {}}
+          history={{ canUndo: true, canRedo: false, undo, redo }}
+        />
+      </XYFlow.ReactFlowProvider>,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "撤销" }));
+    expect(undo).toHaveBeenCalledTimes(1);
+  });
+
+  it("未提供 history 时不渲染撤销/重做按钮", () => {
+    renderControls();
+    expect(screen.queryByRole("button", { name: "撤销" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "重做" })).toBeNull();
   });
 });
