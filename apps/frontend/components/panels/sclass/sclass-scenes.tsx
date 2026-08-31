@@ -50,17 +50,17 @@ import {
 import { DEFAULT_CINEMATOGRAPHY_PROFILE_ID } from "@/lib/constants/cinematography-profiles";
 import { buildEmotionDescription as buildEmotionDesc } from "@/lib/generation/prompt-builder";
 import { normalizeHorizontalVerticalAspectRatio } from "@/lib/ai/image-size-presets";
-import { useStoryboardGenerationUi } from "../director/use-storyboard-generation-ui";
-import { useStoryboardMediaLibrary } from "../director/use-storyboard-media-library";
-import { saveStoryboardSceneToLibrary } from "../director/storyboard-media-library-actions";
-import { useStoryboardSceneActions } from "../director/use-storyboard-scene-actions";
-import { StoryboardGenerationDialogs } from "../director/storyboard-generation-dialogs";
-import { useStoryboardAngleSwitch } from "../director/use-storyboard-angle-switch";
-import { useStoryboardResultActions } from "../director/use-storyboard-result-actions";
-import { useStoryboardVideoLastFrame } from "../director/use-storyboard-video-last-frame";
-import { normalizeStoryboardReferenceImages } from "../director/storyboard-reference-image-normalizer";
-import { collectMergedFrameReferenceImages } from "../director/storyboard-merged-reference-utils";
-import { runStoryboardMergedPages } from "../director/storyboard-merged-page-controller";
+import { useStoryboardGenerationUi } from "@/components/features/storyboard/use-storyboard-generation-ui";
+import { useStoryboardMediaLibrary } from "@/components/features/storyboard/use-storyboard-media-library";
+import { saveStoryboardSceneToLibrary } from "@/components/features/storyboard/storyboard-media-library-actions";
+import { useStoryboardSceneActions } from "@/components/features/storyboard/use-storyboard-scene-actions";
+import { StoryboardGenerationDialogs } from "@/components/features/storyboard/storyboard-generation-dialogs";
+import { useStoryboardAngleSwitch } from "@/components/features/storyboard/use-storyboard-angle-switch";
+import { useStoryboardResultActions } from "@/components/features/storyboard/use-storyboard-result-actions";
+import { useStoryboardVideoLastFrame } from "@/components/features/storyboard/use-storyboard-video-last-frame";
+import { normalizeStoryboardReferenceImages } from "@/components/features/storyboard/storyboard-reference-image-normalizer";
+import { collectMergedFrameReferenceImages } from "@/components/features/storyboard/storyboard-merged-reference-utils";
+import { runStoryboardMergedPages } from "@/components/features/storyboard/storyboard-merged-page-controller";
 import { createSClassMergedPageGenerator } from "./sclass-merged-page-generation";
 import { SClassEditingPanel } from "./sclass-editing-panel";
 import { SClassTrailerScenesPanel } from "../storyboard-trailer-scenes-panel";
@@ -70,7 +70,7 @@ import { useSClassQuadGridController } from "./use-sclass-quad-grid-controller";
 import { createSClassLegacyVideoGenerator } from "./sclass-legacy-video-generation";
 import { createSClassSingleVideoGenerator } from "./sclass-single-video-generation";
 import { createSClassEndFrameGenerator } from "./sclass-end-frame-generation";
-import { createStoryboardSingleImageGenerator } from "../director/storyboard-single-image-generation";
+import { createStoryboardSingleImageGenerator } from "@/components/features/storyboard/storyboard-single-image-generation";
 import { filterSClassTrailerScenes } from "./sclass-scenes-utils";
 import {
   allocateStoryboardAngles as _allocateAngles,
@@ -80,7 +80,7 @@ import {
   paginateMergedFrameTasks,
   composeStoryboardTilePrompt as _composeTilePrompt,
   type MergedFrameTask as GridTask,
-} from "../director/storyboard-merged-grid-utils";
+} from "@/components/features/storyboard/storyboard-merged-grid-utils";
 
 interface SplitScenesProps {
   onBack?: () => void;

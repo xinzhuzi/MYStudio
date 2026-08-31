@@ -2,16 +2,16 @@ import { aiManager } from "@/lib/ai/ai-manager";
 import { pollImageTaskUrl } from "@/lib/storyboard/image-task-transport";
 import type { PersistResult } from "@/lib/utils/image-persist";
 import type { SplitScene } from "@/stores/director/director-store";
-import { sliceStoryboardMergedGridImage } from "./storyboard-merged-grid-image-slicer";
+import { sliceStoryboardMergedGridImage } from "@/components/features/storyboard/storyboard-merged-grid-image-slicer";
 import {
   calculateMergedGridLayout,
   type MergedFrameTask,
-} from "./storyboard-merged-grid-utils";
-import { writeStoryboardMergedImages } from "./storyboard-merged-image-writeback";
+} from "@/components/features/storyboard/storyboard-merged-grid-utils";
+import { writeStoryboardMergedImages } from "@/components/features/storyboard/storyboard-merged-image-writeback";
 import {
   buildReferencePriorityHint,
   type SceneCharacterContext,
-} from "./storyboard-reference-utils";
+} from "@/components/features/storyboard/storyboard-reference-utils";
 
 type FeatureKeyManager = NonNullable<ReturnType<typeof aiManager.featureConfig>>["keyManager"];
 

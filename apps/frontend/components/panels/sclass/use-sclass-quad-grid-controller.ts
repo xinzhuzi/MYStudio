@@ -6,11 +6,11 @@ import type { EmotionTag } from "@/stores/director/director-presets";
 import type { DirectorProjectData, SplitScene } from "@/stores/director/director-store";
 import { useCharacterLibraryStore } from "@/stores/library/character-library-store";
 import { toast } from "sonner";
-import type { StoryboardGenerationUiController } from "../director/use-storyboard-generation-ui";
-import { executeStoryboardGridGeneration } from "../director/storyboard-grid-generation-executor";
+import type { StoryboardGenerationUiController } from "@/components/features/storyboard/use-storyboard-generation-ui";
+import { executeStoryboardGridGeneration } from "@/components/features/storyboard/storyboard-grid-generation-executor";
 import { compileActiveDaojieStoryboardFramePrompt } from "@/lib/studio/visual-manual-style-tokens";
-import { normalizeStoryboardReferenceImages } from "../director/storyboard-reference-image-normalizer";
-import { buildStoryboardQuadGridPrompt } from "../director/storyboard-quad-grid-prompt";
+import { normalizeStoryboardReferenceImages } from "@/components/features/storyboard/storyboard-reference-image-normalizer";
+import { buildStoryboardQuadGridPrompt } from "@/components/features/storyboard/storyboard-quad-grid-prompt";
 
 type StoryboardConfig = DirectorProjectData["storyboardConfig"];
 type QuadGridController = Pick<

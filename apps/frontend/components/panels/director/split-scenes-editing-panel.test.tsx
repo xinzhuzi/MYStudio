@@ -11,7 +11,7 @@ vi.mock("./storyboard-config-toolbar", () => ({
   ),
 }));
 
-vi.mock("./storyboard-merged-generation-controls", () => ({
+vi.mock("@/components/features/storyboard/storyboard-merged-generation-controls", () => ({
   StoryboardMergedGenerationControls: ({ onGenerate, onStop }: {
     onGenerate: (mode: "first", strategy: "cluster", useExemplar: true) => void;
     onStop: () => void;
@@ -29,7 +29,7 @@ vi.mock("./split-scenes-prompt-warning", () => ({
   ),
 }));
 
-vi.mock("./scene-voice-batch-toolbar", () => ({
+vi.mock("@/components/features/storyboard/scene-voice-batch-toolbar", () => ({
   SceneVoiceBatchToolbar: ({ scenes }: { scenes: SplitScene[] }) => (
     <div data-testid="voice-toolbar">{scenes.length}</div>
   ),

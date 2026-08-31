@@ -19,7 +19,7 @@ vi.mock("@/lib/ai/ai-manager", () => ({
 vi.mock("@/lib/constants/visual-styles", () => ({ getStylePrompt: () => "ink style" }));
 vi.mock("@/lib/storyboard/image-task-transport", () => ({ pollImageTaskUrl: mocks.poll }));
 vi.mock("@/lib/utils/image-persist", () => ({ persistSceneImage: mocks.persist }));
-vi.mock("../director/storyboard-reference-image-normalizer", () => ({
+vi.mock("@/components/features/storyboard/storyboard-reference-image-normalizer", () => ({
   normalizeStoryboardReferenceImages: mocks.normalize,
 }));
 vi.mock("sonner", () => ({

@@ -3,11 +3,11 @@ import type { QuadVariationType } from "@/components/features/storyboard/quad-gr
 import { aiManager } from "@/lib/ai/ai-manager";
 import type { DirectorProjectData, EmotionTag, SplitScene } from "@/stores/director/director-store";
 import { toast } from "sonner";
-import type { StoryboardGenerationUiController } from "./use-storyboard-generation-ui";
-import { executeStoryboardGridGeneration } from "./storyboard-grid-generation-executor";
-import { buildStoryboardQuadGridPrompt } from "./storyboard-quad-grid-prompt";
+import type { StoryboardGenerationUiController } from "@/components/features/storyboard/use-storyboard-generation-ui";
+import { executeStoryboardGridGeneration } from "@/components/features/storyboard/storyboard-grid-generation-executor";
+import { buildStoryboardQuadGridPrompt } from "@/components/features/storyboard/storyboard-quad-grid-prompt";
 import { compileActiveDaojieStoryboardFramePrompt } from "@/lib/studio/visual-manual-style-tokens";
-import type { SceneCharacterContext } from "./storyboard-reference-utils";
+import type { SceneCharacterContext } from "@/components/features/storyboard/storyboard-reference-utils";
 
 type StoryboardConfig = DirectorProjectData["storyboardConfig"];
 type QuadGridController = Pick<

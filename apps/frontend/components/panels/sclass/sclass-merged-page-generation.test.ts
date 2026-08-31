@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { SplitScene } from "@/stores/director/director-store";
-import type { MergedFrameTask } from "../director/storyboard-merged-grid-utils";
+import type { MergedFrameTask } from "@/components/features/storyboard/storyboard-merged-grid-utils";
 import { createSClassMergedPageGenerator } from "./sclass-merged-page-generation";
 
 const mocks = vi.hoisted(() => ({
@@ -12,8 +12,8 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock("@/lib/ai/ai-manager", () => ({ aiManager: { featureConfig: vi.fn(), imageGrid: mocks.imageGrid } }));
 vi.mock("@/lib/storyboard/image-task-transport", () => ({ pollImageTaskUrl: mocks.poll }));
-vi.mock("../director/storyboard-merged-grid-image-slicer", () => ({ sliceStoryboardMergedGridImage: mocks.slice }));
-vi.mock("../director/storyboard-merged-image-writeback", () => ({ writeStoryboardMergedImages: mocks.write }));
+vi.mock("@/components/features/storyboard/storyboard-merged-grid-image-slicer", () => ({ sliceStoryboardMergedGridImage: mocks.slice }));
+vi.mock("@/components/features/storyboard/storyboard-merged-image-writeback", () => ({ writeStoryboardMergedImages: mocks.write }));
 
 const tasks: MergedFrameTask[] = [
   { scene: { id: 1, characterIds: ["c1"], imagePromptZh: "首帧", width: 100, height: 200 } as unknown as SplitScene, type: "first" },

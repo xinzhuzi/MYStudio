@@ -1,10 +1,10 @@
 import { getStylePrompt } from "@/lib/constants/visual-styles";
 import type { SplitScene } from "@/stores/director/director-store";
-import { normalizeStoryboardReferenceImages } from "../director/storyboard-reference-image-normalizer";
+import { normalizeStoryboardReferenceImages } from "@/components/features/storyboard/storyboard-reference-image-normalizer";
 import {
   createStoryboardEndFrameGenerator,
   type StoryboardEndFrameGenerationOptions,
-} from "../director/storyboard-end-frame-generation";
+} from "@/components/features/storyboard/storyboard-end-frame-generation";
 
 type SClassEndFrameGenerationOptions = Omit<
   StoryboardEndFrameGenerationOptions,

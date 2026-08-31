@@ -1,0 +1,206 @@
+{
+ "generated": "architecture_coupling_audit.py",
+ "sections": {
+  "frontend_layer_violations": {
+   "count": 0,
+   "items": []
+  },
+  "frontend_cross_domain_panels": {
+   "edges": {
+    "(root) → settings": [
+     "components/panels/SettingsPanel.tsx imports components/panels/settings/AppearanceSettingsTab",
+     "components/panels/SettingsPanel.tsx imports components/panels/settings/SupportSettingsTab",
+     "components/panels/SettingsPanel.tsx imports components/panels/settings/ImageSizeSettingsTab",
+     "components/panels/SettingsPanel.tsx imports components/panels/settings/AdvancedSettingsTab",
+     "components/panels/SettingsPanel.tsx imports components/panels/settings/ImageHostSettingsContainer",
+     "components/panels/SettingsPanel.tsx imports components/panels/settings/DevelopmentSettingsContainer",
+     "components/panels/SettingsPanel.tsx imports components/panels/settings/StorageSettingsTab",
+     "components/panels/SettingsPanel.tsx imports components/panels/settings/PluginSettingsTab",
+     "components/panels/SettingsPanel.tsx imports components/panels/settings/ApiSettingsContainer",
+     "components/panels/SettingsPanel.tsx imports components/panels/settings/SettingsTabsBar"
+    ],
+    "assets → studio": [
+     "components/panels/assets/StudioAssetLibrary.tsx imports components/panels/studio/use-direct-image-upscale"
+    ],
+    "overview → studio": [
+     "components/panels/overview/stage-guide.test.ts imports components/panels/studio/workflow-tabs",
+     "components/panels/overview/stage-guide.ts imports components/panels/studio/workflow-tabs"
+    ],
+    "script → media": [
+     "components/panels/script/index.tsx imports components/panels/media/ArtifactDeleteDialog"
+    ],
+    "studio → assets": [
+     "components/panels/studio/ScriptAssetGenerationTab.tsx imports components/panels/assets/StudioAssetDetailDialog",
+     "components/panels/studio/useChapterAutoVideoActions.ts imports components/panels/assets/role-audio-auto-assign",
+     "components/panels/studio/ScriptAssetGenerationRow.tsx imports components/panels/assets/RoleVoicePreviewButton",
+     "components/panels/studio/useScriptAssetGenerationActions.ts imports components/panels/assets/role-audio-auto-assign"
+    ],
+    "studio → assist": [
+     "components/panels/studio/image-workflow/image-workflow-node-card.tsx imports components/panels/assist/ModelSelector"
+    ],
+    "studio → media": [
+     "components/panels/studio/NovelTab.tsx imports components/panels/media/ArtifactDeleteDialog"
+    ]
+   },
+   "edge_count": 7
+  },
+  "frontend_fanout_top": {
+   "top": [
+    {
+     "file": "electron/main/main.ts",
+     "imports": 109
+    },
+    {
+     "file": "components/panels/sclass/sclass-scenes.tsx",
+     "imports": 47
+    },
+    {
+     "file": "components/panels/director/split-scenes.tsx",
+     "imports": 44
+    },
+    {
+     "file": "components/panels/script/index.tsx",
+     "imports": 37
+    },
+    {
+     "file": "components/panels/studio/useChapterAutoVideoActions.ts",
+     "imports": 33
+    },
+    {
+     "file": "components/panels/assets/StudioAssetDetailDialog.tsx",
+     "imports": 32
+    },
+    {
+     "file": "electron/preload/preload.ts",
+     "imports": 31
+    },
+    {
+     "file": "components/panels/scenes/generation-panel.tsx",
+     "imports": 31
+    },
+    {
+     "file": "components/panels/studio/WorkbenchTab.tsx",
+     "imports": 30
+    },
+    {
+     "file": "components/panels/settings/PluginSettingsTab.tsx",
+     "imports": 28
+    },
+    {
+     "file": "components/panels/characters/generation-panel.tsx",
+     "imports": 27
+    },
+    {
+     "file": "components/panels/studio/image-workflow/ImageWorkflowCanvas.tsx",
+     "imports": 27
+    },
+    {
+     "file": "types/electron.d.ts",
+     "imports": 26
+    },
+    {
+     "file": "components/panels/assets/StudioAssetLibrary.tsx",
+     "imports": 26
+    },
+    {
+     "file": "components/Layout.tsx",
+     "imports": 25
+    },
+    {
+     "file": "electron/rendering/plugins/remotion/renderer/remotion-chapter-renderer.ts",
+     "imports": 25
+    },
+    {
+     "file": "components/panels/settings/RenderingSettingsTab.tsx",
+     "imports": 25
+    },
+    {
+     "file": "stores/studio/studio-store.ts",
+     "imports": 25
+    }
+   ]
+  },
+  "backend": {
+   "cross_pkg_imports": {
+    "audio_gen → modelscope_hub": [
+     "audio_gen/download_model.py: from modelscope_hub"
+    ],
+    "depth_estimation → modelscope_hub": [
+     "depth_estimation/download_model.py: from modelscope_hub"
+    ],
+    "image_gen → modelscope_hub": [
+     "image_gen/download_model.py: from modelscope_hub"
+    ],
+    "layer_separation → depth_estimation": [
+     "layer_separation/separator.py: from depth_estimation.adapter"
+    ],
+    "sfx_gen → modelscope_hub": [
+     "sfx_gen/download_model.py: from modelscope_hub"
+    ]
+   },
+   "sys_path_hacks": [
+    "vlm_review/run_full_audit.py",
+    "video_qc/test_dover_mobile_arch.py"
+   ],
+   "model_cache_dup_funcs": {
+    "hf_cache_dirs": [
+     "image_gen",
+     "audio_gen",
+     "sfx_gen",
+     "depth_estimation",
+     "tts",
+     "music3_gen"
+    ],
+    "primary_hf_cache_dir": [
+     "image_gen",
+     "audio_gen",
+     "sfx_gen",
+     "depth_estimation",
+     "tts",
+     "music3_gen"
+    ],
+    "repo_cache_dir": [
+     "image_gen",
+     "audio_gen",
+     "sfx_gen",
+     "depth_estimation",
+     "tts",
+     "music3_gen"
+    ],
+    "repo_cache_name": [
+     "image_gen",
+     "audio_gen",
+     "sfx_gen",
+     "depth_estimation",
+     "tts",
+     "music3_gen"
+    ]
+   },
+   "model_cache_pkgs": [
+    "audio_gen",
+    "depth_estimation",
+    "image_gen",
+    "music3_gen",
+    "sfx_gen",
+    "tts",
+    "upscale",
+    "video_qc",
+    "vlm_review"
+   ]
+  },
+  "electron": {
+   "main_ts": {
+    "lines": 1885,
+    "ipcMain_handle_count": 0
+   },
+   "plugin_cross_imports": {
+    "videoqc → remotion": [
+     "electron/rendering/plugins/videoqc/chapter-qc-timeline.ts"
+    ],
+    "video-workflow → hyperframes": [
+     "electron/rendering/plugins/video-workflow/video-workflow-chapter-service.ts"
+    ]
+   }
+  }
+ }
+}

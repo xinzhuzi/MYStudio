@@ -120,7 +120,7 @@
       "reason": "媒体/图像覆盖层白字(与主题无关,分诊§4 裁定)"
     },
     {
-      "path": "components/panels/director/media-library-selector.tsx",
+      "path": "components/features/storyboard/media-library-selector.tsx",
       "rule": "R5",
       "severity": "warn",
       "reason": "媒体/图像覆盖层白字(与主题无关,分诊§4 裁定)"
@@ -204,7 +204,7 @@
       "reason": "媒体/图像覆盖层白字(与主题无关,分诊§4 裁定)"
     },
     {
-      "path": "components/panels/director/storyboard-scene-frame-section.tsx",
+      "path": "components/features/storyboard/storyboard-scene-frame-section.tsx",
       "rule": "R5",
       "severity": "warn",
       "reason": "媒体/图像覆盖层白字(与主题无关,分诊§4 裁定)"

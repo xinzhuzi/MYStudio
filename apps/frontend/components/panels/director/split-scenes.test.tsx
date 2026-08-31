@@ -41,7 +41,7 @@ vi.mock("@/stores/ai/api-config-store", () => ({ useAPIConfigStore: () => ({ get
 vi.mock("@/lib/ai/ai-manager", () => ({ aiManager: { featureConfig: vi.fn() } }));
 
 // hooks
-vi.mock("./use-storyboard-generation-ui", () => ({
+vi.mock("@/components/features/storyboard/use-storyboard-generation-ui", () => ({
   useStoryboardGenerationUi: () => ({
     imageGenMode: "merged", setImageGenMode: vi.fn(),
     frameMode: "first", setFrameMode: vi.fn(),
@@ -65,7 +65,7 @@ vi.mock("@/hooks/use-merged-generation-cancellation", () => ({
     finish: vi.fn(),
   }),
 }));
-vi.mock("./use-storyboard-scene-actions", () => ({
+vi.mock("@/components/features/storyboard/use-storyboard-scene-actions", () => ({
   useStoryboardSceneActions: () => ({
     updateEndFrame: vi.fn(), updateCharacters: vi.fn(), updateCharacterVariationMap: vi.fn(),
     updateEmotions: vi.fn(), updateShotSize: vi.fn(), updateDuration: vi.fn(),
@@ -73,13 +73,13 @@ vi.mock("./use-storyboard-scene-actions", () => ({
     removeImage: vi.fn(), uploadImage: vi.fn(), goBack: vi.fn(),
   }),
 }));
-vi.mock("./use-storyboard-media-library", () => ({ useStoryboardMediaLibrary: () => ({ saveVideo: vi.fn(), saveImage: vi.fn() }) }));
-vi.mock("./use-storyboard-video-last-frame", () => ({ useStoryboardVideoLastFrame: () => ({ extractVideoLastFrame: vi.fn() }) }));
+vi.mock("@/components/features/storyboard/use-storyboard-media-library", () => ({ useStoryboardMediaLibrary: () => ({ saveVideo: vi.fn(), saveImage: vi.fn() }) }));
+vi.mock("@/components/features/storyboard/use-storyboard-video-last-frame", () => ({ useStoryboardVideoLastFrame: () => ({ extractVideoLastFrame: vi.fn() }) }));
 vi.mock("./use-split-scene-video-generation", () => ({
   useSplitSceneVideoGeneration: () => ({ stopVideoGeneration: vi.fn(), generateSingleVideo: vi.fn(), generateVideos: vi.fn() }),
 }));
-vi.mock("./use-storyboard-angle-switch", () => ({ useStoryboardAngleSwitch: () => ({ openAngleSwitch: vi.fn(), generate: vi.fn() }) }));
-vi.mock("./use-storyboard-result-actions", () => ({
+vi.mock("@/components/features/storyboard/use-storyboard-angle-switch", () => ({ useStoryboardAngleSwitch: () => ({ openAngleSwitch: vi.fn(), generate: vi.fn() }) }));
+vi.mock("@/components/features/storyboard/use-storyboard-result-actions", () => ({
   useStoryboardResultActions: () => ({ handleApplyQuadGrid: vi.fn(), handleCopyQuadGridToScene: vi.fn(), handleApplyAngleSwitch: vi.fn() }),
 }));
 vi.mock("./use-storyboard-prompt-generation", () => ({ useStoryboardPromptGeneration: () => ({ handleAutoGeneratePrompts: vi.fn() }) }));
@@ -91,8 +91,8 @@ vi.mock("../use-storyboard-resolution-toast-handlers", () => ({
 }));
 
 // factory functions
-vi.mock("./storyboard-end-frame-generation", () => ({ createStoryboardEndFrameGenerator: vi.fn(() => vi.fn()) }));
-vi.mock("./storyboard-single-image-generation", () => ({ createStoryboardSingleImageGenerator: vi.fn(() => vi.fn()) }));
+vi.mock("@/components/features/storyboard/storyboard-end-frame-generation", () => ({ createStoryboardEndFrameGenerator: vi.fn(() => vi.fn()) }));
+vi.mock("@/components/features/storyboard/storyboard-single-image-generation", () => ({ createStoryboardSingleImageGenerator: vi.fn(() => vi.fn()) }));
 vi.mock("./storyboard-merged-page-generation", () => ({ createStoryboardMergedPageGenerator: vi.fn() }));
 
 // child components — stubs
@@ -122,7 +122,7 @@ vi.mock("./split-scenes-empty-state", () => ({
 vi.mock("./split-scenes-trailer-tab", () => ({
   SplitScenesTrailerTab: () => <div data-testid="trailer-tab" />,
 }));
-vi.mock("./storyboard-generation-dialogs", () => ({
+vi.mock("@/components/features/storyboard/storyboard-generation-dialogs", () => ({
   StoryboardGenerationDialogs: () => <div data-testid="generation-dialogs" />,
 }));
 vi.mock("../storyboard-scenes-tabs", () => ({

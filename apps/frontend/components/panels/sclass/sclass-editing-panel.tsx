@@ -11,12 +11,12 @@ import type { Character } from "@/stores/library/character-library-store";
 import type { SplitScene } from "@/stores/director/director-store";
 import type { Scene } from "@/stores/library/scene-store";
 import type { SClassAspectRatio, ShotGroup } from "@/stores/sclass/sclass-store";
-import { SceneVoiceBatchToolbar } from "../director/scene-voice-batch-toolbar";
+import { SceneVoiceBatchToolbar } from "@/components/features/storyboard/scene-voice-batch-toolbar";
 import {
   StoryboardMergedGenerationControls,
   type StoryboardFrameMode,
   type StoryboardReferenceStrategy,
-} from "../director/storyboard-merged-generation-controls";
+} from "@/components/features/storyboard/storyboard-merged-generation-controls";
 import type { BatchGenerationProgress } from "./sclass-generation-types";
 import { SClassGenerationModeToggle } from "./sclass-generation-mode-toggle";
 import { SClassStoryboardConfigToolbar } from "./sclass-storyboard-config-toolbar";

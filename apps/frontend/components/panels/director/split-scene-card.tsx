@@ -45,9 +45,9 @@ import {
   Square,
 } from "lucide-react";
 import { toast } from "sonner";
-import { EmotionTags } from "./emotion-tags";
-import { ShotSizeSelector } from "./shot-size-selector";
-import { DurationSelector } from "./duration-selector";
+import { EmotionTags } from "@/components/features/storyboard/emotion-tags";
+import { ShotSizeSelector } from "@/components/features/storyboard/shot-size-selector";
+import { DurationSelector } from "@/components/features/storyboard/duration-selector";
 import {
   Tooltip,
   TooltipContent,
@@ -66,10 +66,10 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { usePreviewStore } from "@/stores/playback/preview-store";
-import { ScenePromptPanel } from "./scene-prompt-panel";
-import { SceneVoiceLinePanel } from "./scene-voice-line-panel";
+import { ScenePromptPanel } from "@/components/features/storyboard/scene-prompt-panel";
+import { SceneVoiceLinePanel } from "@/components/features/storyboard/scene-voice-line-panel";
 import { useResolvedImageUrl } from "@/hooks/use-resolved-image-url";
-import { StoryboardSceneFrameSection, type StoryboardSceneFrameSectionProps } from "./storyboard-scene-frame-section";
+import { StoryboardSceneFrameSection, type StoryboardSceneFrameSectionProps } from "@/components/features/storyboard/storyboard-scene-frame-section";
 
 export interface SplitSceneCardProps extends StoryboardSceneFrameSectionProps {
   /** 提示词语言设置（来自剧本面板），决定编辑/显示哪个语言字段 */

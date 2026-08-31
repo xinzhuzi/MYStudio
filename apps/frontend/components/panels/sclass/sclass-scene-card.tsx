@@ -44,9 +44,9 @@ import {
   Square,
 } from "lucide-react";
 import { toast } from "sonner";
-import { EmotionTags } from "../director/emotion-tags";
-import { ShotSizeSelector } from "../director/shot-size-selector";
-import { DurationSelector } from "../director/duration-selector";
+import { EmotionTags } from "@/components/features/storyboard/emotion-tags";
+import { ShotSizeSelector } from "@/components/features/storyboard/shot-size-selector";
+import { DurationSelector } from "@/components/features/storyboard/duration-selector";
 import {
   Tooltip,
   TooltipContent,
@@ -65,10 +65,10 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { usePreviewStore } from "@/stores/playback/preview-store";
-import { ScenePromptPanel } from "../director/scene-prompt-panel";
-import { SceneVoiceLinePanel } from "../director/scene-voice-line-panel";
+import { ScenePromptPanel } from "@/components/features/storyboard/scene-prompt-panel";
+import { SceneVoiceLinePanel } from "@/components/features/storyboard/scene-voice-line-panel";
 import { useResolvedImageUrl } from "@/hooks/use-resolved-image-url";
-import { StoryboardSceneFrameSection, type StoryboardSceneFrameSectionProps } from "../director/storyboard-scene-frame-section";
+import { StoryboardSceneFrameSection, type StoryboardSceneFrameSectionProps } from "@/components/features/storyboard/storyboard-scene-frame-section";
 
 export interface SplitSceneCardProps extends StoryboardSceneFrameSectionProps {
   onUpdateImagePrompt: (id: number, prompt: string, promptZh?: string) => void;

@@ -4,7 +4,7 @@ import { useRef } from "react";
 import { act, renderHook } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { SplitScene } from "@/stores/director/director-store";
-import { useStoryboardGenerationUi } from "./use-storyboard-generation-ui";
+import { useStoryboardGenerationUi } from "@/components/features/storyboard/use-storyboard-generation-ui";
 import { useDirectorQuadGridController } from "./use-director-quad-grid-controller";
 
 const executeStoryboardGridGeneration = vi.hoisted(() => vi.fn());
@@ -12,7 +12,7 @@ const featureConfig = vi.hoisted(() => vi.fn());
 const toast = vi.hoisted(() => ({ error: vi.fn(), success: vi.fn() }));
 
 vi.mock("@/lib/ai/ai-manager", () => ({ aiManager: { featureConfig } }));
-vi.mock("./storyboard-grid-generation-executor", () => ({ executeStoryboardGridGeneration }));
+vi.mock("@/components/features/storyboard/storyboard-grid-generation-executor", () => ({ executeStoryboardGridGeneration }));
 vi.mock("sonner", () => ({ toast }));
 
 const scene = {

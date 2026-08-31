@@ -1,0 +1,733 @@
+{
+ "packages": [
+  "audio_gen",
+  "depth_estimation",
+  "image_gen",
+  "music3_gen",
+  "sfx_gen",
+  "tts",
+  "upscale",
+  "video_qc",
+  "vlm_review"
+ ],
+ "per_pkg_lines": {
+  "audio_gen": 145,
+  "depth_estimation": 143,
+  "image_gen": 201,
+  "music3_gen": 279,
+  "sfx_gen": 166,
+  "tts": 102,
+  "upscale": 198,
+  "video_qc": 146,
+  "vlm_review": 114
+ },
+ "func_matrix": {
+  "primary_hf_cache_dir": {
+   "packages": [
+    "audio_gen",
+    "depth_estimation",
+    "image_gen",
+    "music3_gen",
+    "sfx_gen",
+    "tts"
+   ],
+   "variants": 6,
+   "identical": false,
+   "lines_per": {
+    "audio_gen": 16,
+    "depth_estimation": 2,
+    "image_gen": 13,
+    "music3_gen": 16,
+    "sfx_gen": 13,
+    "tts": 2
+   },
+   "wasted_lines": 50
+  },
+  "hf_cache_dirs": {
+   "packages": [
+    "audio_gen",
+    "depth_estimation",
+    "image_gen",
+    "music3_gen",
+    "sfx_gen",
+    "tts"
+   ],
+   "variants": 6,
+   "identical": false,
+   "lines_per": {
+    "audio_gen": 27,
+    "depth_estimation": 3,
+    "image_gen": 10,
+    "music3_gen": 27,
+    "sfx_gen": 27,
+    "tts": 3
+   },
+   "wasted_lines": 79
+  },
+  "repo_cache_name": {
+   "packages": [
+    "audio_gen",
+    "depth_estimation",
+    "image_gen",
+    "music3_gen",
+    "sfx_gen",
+    "tts"
+   ],
+   "variants": 2,
+   "identical": false,
+   "lines_per": {
+    "audio_gen": 2,
+    "depth_estimation": 2,
+    "image_gen": 2,
+    "music3_gen": 2,
+    "sfx_gen": 2,
+    "tts": 2
+   },
+   "wasted_lines": 0
+  },
+  "repo_cache_dir": {
+   "packages": [
+    "audio_gen",
+    "depth_estimation",
+    "image_gen",
+    "music3_gen",
+    "sfx_gen",
+    "tts"
+   ],
+   "variants": 2,
+   "identical": false,
+   "lines_per": {
+    "audio_gen": 2,
+    "depth_estimation": 2,
+    "image_gen": 2,
+    "music3_gen": 2,
+    "sfx_gen": 2,
+    "tts": 2
+   },
+   "wasted_lines": 0
+  },
+  "_cache_size_mb": {
+   "packages": [
+    "audio_gen",
+    "music3_gen",
+    "sfx_gen"
+   ],
+   "variants": 2,
+   "identical": false,
+   "lines_per": {
+    "audio_gen": 7,
+    "music3_gen": 7,
+    "sfx_gen": 7
+   },
+   "wasted_lines": 0
+  },
+  "download_hf_cache_dir": {
+   "packages": [
+    "depth_estimation",
+    "image_gen",
+    "tts"
+   ],
+   "variants": 3,
+   "identical": false,
+   "lines_per": {
+    "depth_estimation": 2,
+    "image_gen": 5,
+    "tts": 2
+   },
+   "wasted_lines": 3
+  },
+  "delete_cached_model": {
+   "packages": [
+    "depth_estimation",
+    "upscale",
+    "video_qc"
+   ],
+   "variants": 3,
+   "identical": false,
+   "lines_per": {
+    "depth_estimation": 15,
+    "upscale": 9,
+    "video_qc": 8
+   },
+   "wasted_lines": 8
+  },
+  "_has_complete_model_files": {
+   "packages": [
+    "audio_gen",
+    "sfx_gen"
+   ],
+   "variants": 1,
+   "identical": true,
+   "lines_per": {
+    "audio_gen": 21,
+    "sfx_gen": 21
+   },
+   "wasted_lines": 0
+  },
+  "detect_hardware_profile": {
+   "packages": [
+    "music3_gen",
+    "vlm_review"
+   ],
+   "variants": 2,
+   "identical": false,
+   "lines_per": {
+    "music3_gen": 17,
+    "vlm_review": 7
+   },
+   "wasted_lines": 10
+  },
+  "evaluate_availability": {
+   "packages": [
+    "music3_gen",
+    "vlm_review"
+   ],
+   "variants": 2,
+   "identical": false,
+   "lines_per": {
+    "music3_gen": 20,
+    "vlm_review": 12
+   },
+   "wasted_lines": 8
+  },
+  "primary_model_dir": {
+   "packages": [
+    "upscale",
+    "video_qc"
+   ],
+   "variants": 2,
+   "identical": false,
+   "lines_per": {
+    "upscale": 8,
+    "video_qc": 8
+   },
+   "wasted_lines": 0
+  },
+  "model_candidate_dirs": {
+   "packages": [
+    "upscale",
+    "video_qc"
+   ],
+   "variants": 2,
+   "identical": false,
+   "lines_per": {
+    "upscale": 2,
+    "video_qc": 10
+   },
+   "wasted_lines": 8
+  },
+  "file_sha256": {
+   "packages": [
+    "upscale",
+    "video_qc"
+   ],
+   "variants": 1,
+   "identical": true,
+   "lines_per": {
+    "upscale": 2,
+    "video_qc": 2
+   },
+   "wasted_lines": 0
+  },
+  "cached_model_path": {
+   "packages": [
+    "upscale",
+    "video_qc"
+   ],
+   "variants": 2,
+   "identical": false,
+   "lines_per": {
+    "upscale": 2,
+    "video_qc": 2
+   },
+   "wasted_lines": 0
+  },
+  "verify_model_sha256": {
+   "packages": [
+    "upscale",
+    "video_qc"
+   ],
+   "variants": 2,
+   "identical": false,
+   "lines_per": {
+    "upscale": 10,
+    "video_qc": 16
+   },
+   "wasted_lines": 6
+  },
+  "find_cached_audio_model": {
+   "packages": [
+    "audio_gen"
+   ],
+   "variants": 1,
+   "identical": true,
+   "lines_per": {
+    "audio_gen": 12
+   }
+  },
+  "resolve_snapshot_dir": {
+   "packages": [
+    "depth_estimation"
+   ],
+   "variants": 1,
+   "identical": true,
+   "lines_per": {
+    "depth_estimation": 14
+   }
+  },
+  "model_weight_sha256": {
+   "packages": [
+    "depth_estimation"
+   ],
+   "variants": 1,
+   "identical": true,
+   "lines_per": {
+    "depth_estimation": 18
+   }
+  },
+  "find_cached_depth_model": {
+   "packages": [
+    "depth_estimation"
+   ],
+   "variants": 1,
+   "identical": true,
+   "lines_per": {
+    "depth_estimation": 10
+   }
+  },
+  "is_depth_model_downloaded": {
+   "packages": [
+    "depth_estimation"
+   ],
+   "variants": 1,
+   "identical": true,
+   "lines_per": {
+    "depth_estimation": 8
+   }
+  },
+  "comfyui_models_dir": {
+   "packages": [
+    "image_gen"
+   ],
+   "variants": 1,
+   "identical": true,
+   "lines_per": {
+    "image_gen": 5
+   }
+  },
+  "resolve_image_model_name": {
+   "packages": [
+    "image_gen"
+   ],
+   "variants": 1,
+   "identical": true,
+   "lines_per": {
+    "image_gen": 2
+   }
+  },
+  "hf_snapshot_dir": {
+   "packages": [
+    "image_gen"
+   ],
+   "variants": 1,
+   "identical": true,
+   "lines_per": {
+    "image_gen": 10
+   }
+  },
+  "find_cached_image_model_for_spec": {
+   "packages": [
+    "image_gen"
+   ],
+   "variants": 1,
+   "identical": true,
+   "lines_per": {
+    "image_gen": 5
+   }
+  },
+  "_find_cached_hf": {
+   "packages": [
+    "image_gen"
+   ],
+   "variants": 1,
+   "identical": true,
+   "lines_per": {
+    "image_gen": 11
+   }
+  },
+  "is_image_model_downloaded": {
+   "packages": [
+    "image_gen"
+   ],
+   "variants": 1,
+   "identical": true,
+   "lines_per": {
+    "image_gen": 8
+   }
+  },
+  "resolve_qwen_big_files": {
+   "packages": [
+    "image_gen"
+   ],
+   "variants": 1,
+   "identical": true,
+   "lines_per": {
+    "image_gen": 2
+   }
+  },
+  "resolve_z_image_big_files": {
+   "packages": [
+    "image_gen"
+   ],
+   "variants": 1,
+   "identical": true,
+   "lines_per": {
+    "image_gen": 2
+   }
+  },
+  "resolve_flux2_big_files": {
+   "packages": [
+    "image_gen"
+   ],
+   "variants": 1,
+   "identical": true,
+   "lines_per": {
+    "image_gen": 2
+   }
+  },
+  "resolve_krea2_big_files": {
+   "packages": [
+    "image_gen"
+   ],
+   "variants": 1,
+   "identical": true,
+   "lines_per": {
+    "image_gen": 2
+   }
+  },
+  "qwen_small_pieces_status": {
+   "packages": [
+    "image_gen"
+   ],
+   "variants": 1,
+   "identical": true,
+   "lines_per": {
+    "image_gen": 2
+   }
+  },
+  "z_image_small_pieces_status": {
+   "packages": [
+    "image_gen"
+   ],
+   "variants": 1,
+   "identical": true,
+   "lines_per": {
+    "image_gen": 2
+   }
+  },
+  "flux2_small_pieces_status": {
+   "packages": [
+    "image_gen"
+   ],
+   "variants": 1,
+   "identical": true,
+   "lines_per": {
+    "image_gen": 2
+   }
+  },
+  "krea2_small_pieces_status": {
+   "packages": [
+    "image_gen"
+   ],
+   "variants": 1,
+   "identical": true,
+   "lines_per": {
+    "image_gen": 2
+   }
+  },
+  "qwen_pointed_big_files": {
+   "packages": [
+    "image_gen"
+   ],
+   "variants": 1,
+   "identical": true,
+   "lines_per": {
+    "image_gen": 2
+   }
+  },
+  "z_image_pointed_big_files": {
+   "packages": [
+    "image_gen"
+   ],
+   "variants": 1,
+   "identical": true,
+   "lines_per": {
+    "image_gen": 2
+   }
+  },
+  "_snapshot_dir": {
+   "packages": [
+    "music3_gen"
+   ],
+   "variants": 1,
+   "identical": true,
+   "lines_per": {
+    "music3_gen": 9
+   }
+  },
+  "_has_complete_music3": {
+   "packages": [
+    "music3_gen"
+   ],
+   "variants": 1,
+   "identical": true,
+   "lines_per": {
+    "music3_gen": 19
+   }
+  },
+  "_has_complete_music3_flat": {
+   "packages": [
+    "music3_gen"
+   ],
+   "variants": 1,
+   "identical": true,
+   "lines_per": {
+    "music3_gen": 13
+   }
+  },
+  "_flat_music3_dirs": {
+   "packages": [
+    "music3_gen"
+   ],
+   "variants": 1,
+   "identical": true,
+   "lines_per": {
+    "music3_gen": 8
+   }
+  },
+  "find_cached_music3_model": {
+   "packages": [
+    "music3_gen"
+   ],
+   "variants": 1,
+   "identical": true,
+   "lines_per": {
+    "music3_gen": 22
+   }
+  },
+  "find_cached_sfx_model": {
+   "packages": [
+    "sfx_gen"
+   ],
+   "variants": 1,
+   "identical": true,
+   "lines_per": {
+    "sfx_gen": 12
+   }
+  },
+  "model_repo_ids": {
+   "packages": [
+    "tts"
+   ],
+   "variants": 1,
+   "identical": true,
+   "lines_per": {
+    "tts": 2
+   }
+  },
+  "find_cached_repo": {
+   "packages": [
+    "tts"
+   ],
+   "variants": 1,
+   "identical": true,
+   "lines_per": {
+    "tts": 17
+   }
+  },
+  "has_cached_repo_files": {
+   "packages": [
+    "tts"
+   ],
+   "variants": 1,
+   "identical": true,
+   "lines_per": {
+    "tts": 12
+   }
+  },
+  "find_cached_model": {
+   "packages": [
+    "tts"
+   ],
+   "variants": 1,
+   "identical": true,
+   "lines_per": {
+    "tts": 2
+   }
+  },
+  "is_model_downloaded": {
+   "packages": [
+    "tts"
+   ],
+   "variants": 1,
+   "identical": true,
+   "lines_per": {
+    "tts": 5
+   }
+  },
+  "find_cached_upscale_model": {
+   "packages": [
+    "upscale"
+   ],
+   "variants": 1,
+   "identical": true,
+   "lines_per": {
+    "upscale": 16
+   }
+  },
+  "is_upscale_model_downloaded": {
+   "packages": [
+    "upscale"
+   ],
+   "variants": 1,
+   "identical": true,
+   "lines_per": {
+    "upscale": 5
+   }
+  },
+  "_electron_userdata_model_dir": {
+   "packages": [
+    "video_qc"
+   ],
+   "variants": 1,
+   "identical": true,
+   "lines_per": {
+    "video_qc": 6
+   }
+  },
+  "find_cached_video_qc_model": {
+   "packages": [
+    "video_qc"
+   ],
+   "variants": 1,
+   "identical": true,
+   "lines_per": {
+    "video_qc": 18
+   }
+  },
+  "is_video_qc_model_downloaded": {
+   "packages": [
+    "video_qc"
+   ],
+   "variants": 1,
+   "identical": true,
+   "lines_per": {
+    "video_qc": 5
+   }
+  },
+  "_candidate_model_dirs": {
+   "packages": [
+    "vlm_review"
+   ],
+   "variants": 1,
+   "identical": true,
+   "lines_per": {
+    "vlm_review": 17
+   }
+  },
+  "_is_valid_model_dir": {
+   "packages": [
+    "vlm_review"
+   ],
+   "variants": 1,
+   "identical": true,
+   "lines_per": {
+    "vlm_review": 11
+   }
+  },
+  "find_cached_vlm_model": {
+   "packages": [
+    "vlm_review"
+   ],
+   "variants": 1,
+   "identical": true,
+   "lines_per": {
+    "vlm_review": 14
+   }
+  },
+  "scan_vlm_model_inventory": {
+   "packages": [
+    "vlm_review"
+   ],
+   "variants": 1,
+   "identical": true,
+   "lines_per": {
+    "vlm_review": 15
+   }
+  }
+ },
+ "shared_3plus": [
+  "_cache_size_mb",
+  "delete_cached_model",
+  "download_hf_cache_dir",
+  "hf_cache_dirs",
+  "primary_hf_cache_dir",
+  "repo_cache_dir",
+  "repo_cache_name"
+ ],
+ "identical_3plus": [],
+ "divergent_3plus": [
+  "_cache_size_mb",
+  "delete_cached_model",
+  "download_hf_cache_dir",
+  "hf_cache_dirs",
+  "primary_hf_cache_dir",
+  "repo_cache_dir",
+  "repo_cache_name"
+ ],
+ "est_duplicated_lines": 172,
+ "divergence_detail": {
+  "primary_hf_cache_dir": {
+   "audio_gen": "def primary_hf_cache_dir() -> Path:\n    env_cache = os.environ.get('MYSTUDIO_AUDIO_MODEL_DIR') or os.environ.get('HF_HUB_CACHE')\n    if env_cache:\n        return Path(env_cache).expanduser()\n    hf_home = os.environ.get('HF_HOME')\n    if hf_home:\n        return Path(hf_home).expanduser() / 'hub'\n    try:\n        from huggingface_hub import constants as hf_constants\n        return Path(hf_constants",
+   "depth_estimation": "def primary_hf_cache_dir() -> Path:\n    return _core.primary_hf_cache_dir(_CACHE_ENV_NAMES[:1])",
+   "image_gen": "def primary_hf_cache_dir() -> Path:\n    env_cache = os.environ.get('MYSTUDIO_IMAGE_MODEL_DIR') or os.environ.get('MANYING_TTS_MODELS_DIR') or os.environ.get('VOICEBOX_MODELS_DIR') or os.environ.get('HF_HUB_CACHE')\n    if env_cache:\n        return Path(env_cache).expanduser()\n    hf_home = os.environ.get('HF_HOME')\n    if hf_home:\n        return Path(hf_home).expanduser()\n    return Path.home() / '",
+   "music3_gen": "def primary_hf_cache_dir() -> Path:\n    env_cache = os.environ.get('MYSTUDIO_MUSIC3_MODEL_DIR') or os.environ.get('HF_HUB_CACHE')\n    if env_cache:\n        return Path(env_cache).expanduser()\n    hf_home = os.environ.get('HF_HOME')\n    if hf_home:\n        return Path(hf_home).expanduser() / 'hub'\n    try:\n        from huggingface_hub import constants as hf_constants\n        return Path(hf_constant",
+   "sfx_gen": "def primary_hf_cache_dir() -> Path:\n    env_cache = os.environ.get('MYSTUDIO_SFX_MODEL_DIR') or os.environ.get('HF_HUB_CACHE')\n    if env_cache:\n        return Path(env_cache).expanduser()\n    hf_home = os.environ.get('HF_HOME')\n    if hf_home:\n        return Path(hf_home).expanduser() / 'hub'\n    try:\n        from huggingface_hub import constants as hf_constants\n        return Path(hf_constants.H",
+   "tts": "def primary_hf_cache_dir() -> Path:\n    return _core.primary_hf_cache_dir(_CACHE_ENV_NAMES)"
+  },
+  "hf_cache_dirs": {
+   "audio_gen": "def hf_cache_dirs() -> list[Path]:\n    candidates: list[Path] = []\n    for env_name in ('MYSTUDIO_AUDIO_MODEL_DIR', 'HF_HUB_CACHE'):\n        value = os.environ.get(env_name)\n        if value:\n            candidates.append(Path(value))\n    hf_home = os.environ.get('HF_HOME')\n    if hf_home:\n        candidates.append(Path(hf_home))\n        candidates.append(Path(hf_home) / 'hub')\n    candidates.exte",
+   "depth_estimation": "def hf_cache_dirs() -> list[Path]:\n    return _core.hf_cache_dirs(_CACHE_ENV_NAMES, probe_hf_constants=False, expand_hub_subdir=False)",
+   "image_gen": "def hf_cache_dirs() -> list[Path]:\n    seen: list[Path] = []\n    for candidate in (primary_hf_cache_dir(), download_hf_cache_dir(), Path.home() / '.cache' / 'huggingface', Path.home() / '.cache' / 'huggingface' / 'hub', Path.home() / 'Library' / 'Caches' / 'huggingface', Path.home() / 'Library' / 'Caches' / 'huggingface' / 'hub'):\n        if candidate not in seen:\n            seen.append(candidate",
+   "music3_gen": "def hf_cache_dirs() -> list[Path]:\n    candidates: list[Path] = []\n    for env_name in ('MYSTUDIO_MUSIC3_MODEL_DIR', 'HF_HUB_CACHE'):\n        value = os.environ.get(env_name)\n        if value:\n            candidates.append(Path(value))\n    hf_home = os.environ.get('HF_HOME')\n    if hf_home:\n        candidates.append(Path(hf_home))\n        candidates.append(Path(hf_home) / 'hub')\n    candidates.ext",
+   "sfx_gen": "def hf_cache_dirs() -> list[Path]:\n    candidates: list[Path] = []\n    for env_name in ('MYSTUDIO_SFX_MODEL_DIR', 'HF_HUB_CACHE'):\n        value = os.environ.get(env_name)\n        if value:\n            candidates.append(Path(value))\n    hf_home = os.environ.get('HF_HOME')\n    if hf_home:\n        candidates.append(Path(hf_home))\n        candidates.append(Path(hf_home) / 'hub')\n    candidates.extend",
+   "tts": "def hf_cache_dirs() -> list[Path]:\n    return _core.hf_cache_dirs(_CACHE_ENV_NAMES)"
+  },
+  "repo_cache_name": {
+   "audio_gen": "def repo_cache_name(repo_id: str) -> str:\n    return 'models--' + repo_id.replace('/', '--')",
+   "depth_estimation": "def repo_cache_name(repo_id: str) -> str:\n    return _core.repo_cache_name(repo_id)",
+   "image_gen": "def repo_cache_name(repo_id: str) -> str:\n    return 'models--' + repo_id.replace('/', '--')",
+   "music3_gen": "def repo_cache_name(repo_id: str) -> str:\n    return 'models--' + repo_id.replace('/', '--')",
+   "sfx_gen": "def repo_cache_name(repo_id: str) -> str:\n    return 'models--' + repo_id.replace('/', '--')",
+   "tts": "def repo_cache_name(repo_id: str) -> str:\n    return _core.repo_cache_name(repo_id)"
+  },
+  "repo_cache_dir": {
+   "audio_gen": "def repo_cache_dir(repo_id: str, cache_dir: Path | None=None) -> Path:\n    return (cache_dir or primary_hf_cache_dir()) / repo_cache_name(repo_id)",
+   "depth_estimation": "def repo_cache_dir(repo_id: str, cache_dir: Path | None=None) -> Path:\n    return (cache_dir or primary_hf_cache_dir()) / _core.repo_cache_name(repo_id)",
+   "image_gen": "def repo_cache_dir(repo_id: str, cache_dir: Path | None=None) -> Path:\n    return (cache_dir or primary_hf_cache_dir()) / repo_cache_name(repo_id)",
+   "music3_gen": "def repo_cache_dir(repo_id: str, cache_dir: Path | None=None) -> Path:\n    return (cache_dir or primary_hf_cache_dir()) / repo_cache_name(repo_id)",
+   "sfx_gen": "def repo_cache_dir(repo_id: str, cache_dir: Path | None=None) -> Path:\n    return (cache_dir or primary_hf_cache_dir()) / repo_cache_name(repo_id)",
+   "tts": "def repo_cache_dir(repo_id: str, cache_dir: Path | None=None) -> Path:\n    return (cache_dir or primary_hf_cache_dir()) / _core.repo_cache_name(repo_id)"
+  },
+  "_cache_size_mb": {
+   "audio_gen": "def _cache_size_mb(cache: Path) -> float:\n    size = sum((file.stat().st_size for file in cache.rglob('*') if file.is_file() and (not file.name.endswith('.incomplete'))))\n    return round(size / 1024 / 1024, 2)",
+   "music3_gen": "def _cache_size_mb(repo: Path) -> float:\n    size = sum((file.stat().st_size for file in repo.rglob('*') if file.is_file() and (not file.name.endswith('.incomplete'))))\n    return round(size / 1024 / 1024, 2)",
+   "sfx_gen": "def _cache_size_mb(cache: Path) -> float:\n    size = sum((file.stat().st_size for file in cache.rglob('*') if file.is_file() and (not file.name.endswith('.incomplete'))))\n    return round(size / 1024 / 1024, 2)"
+  },
+  "download_hf_cache_dir": {
+   "depth_estimation": "def download_hf_cache_dir() -> Path:\n    return _core.download_hf_cache_dir(_CACHE_ENV_NAMES[:1])",
+   "image_gen": "def download_hf_cache_dir() -> Path:\n    cache_dir = primary_hf_cache_dir()\n    if cache_dir.name == 'huggingface':\n        return cache_dir / 'hub'\n    return cache_dir",
+   "tts": "def download_hf_cache_dir() -> Path:\n    return _core.download_hf_cache_dir(_CACHE_ENV_NAMES)"
+  }
+ }
+}

@@ -8,9 +8,9 @@ import {
   StoryboardMergedGenerationControls,
   type StoryboardFrameMode,
   type StoryboardReferenceStrategy,
-} from "./storyboard-merged-generation-controls";
+} from "@/components/features/storyboard/storyboard-merged-generation-controls";
 import { SplitScenesPromptWarning } from "./split-scenes-prompt-warning";
-import { SceneVoiceBatchToolbar } from "./scene-voice-batch-toolbar";
+import { SceneVoiceBatchToolbar } from "@/components/features/storyboard/scene-voice-batch-toolbar";
 import { SplitSceneVideoActionBar } from "./split-scene-video-action-bar";
 
 type ImageResolution = "1K" | "2K" | "4K";

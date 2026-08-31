@@ -43,27 +43,27 @@ import {
 } from "@/lib/constants/visual-styles";
 import { DEFAULT_CINEMATOGRAPHY_PROFILE_ID } from "@/lib/constants/cinematography-profiles";
 import { buildEmotionDescription as buildEmotionDesc } from "@/lib/generation/prompt-builder";
-import { useStoryboardGenerationUi } from "./use-storyboard-generation-ui";
-import { useStoryboardMediaLibrary } from "./use-storyboard-media-library";
-import { saveStoryboardSceneToLibrary } from "./storyboard-media-library-actions";
-import { useStoryboardSceneActions } from "./use-storyboard-scene-actions";
-import { StoryboardGenerationDialogs } from "./storyboard-generation-dialogs";
-import { useStoryboardAngleSwitch } from "./use-storyboard-angle-switch";
-import { useStoryboardResultActions } from "./use-storyboard-result-actions";
+import { useStoryboardGenerationUi } from "@/components/features/storyboard/use-storyboard-generation-ui";
+import { useStoryboardMediaLibrary } from "@/components/features/storyboard/use-storyboard-media-library";
+import { saveStoryboardSceneToLibrary } from "@/components/features/storyboard/storyboard-media-library-actions";
+import { useStoryboardSceneActions } from "@/components/features/storyboard/use-storyboard-scene-actions";
+import { StoryboardGenerationDialogs } from "@/components/features/storyboard/storyboard-generation-dialogs";
+import { useStoryboardAngleSwitch } from "@/components/features/storyboard/use-storyboard-angle-switch";
+import { useStoryboardResultActions } from "@/components/features/storyboard/use-storyboard-result-actions";
 import { useStoryboardPromptGeneration } from "./use-storyboard-prompt-generation";
-import { useStoryboardVideoLastFrame } from "./use-storyboard-video-last-frame";
+import { useStoryboardVideoLastFrame } from "@/components/features/storyboard/use-storyboard-video-last-frame";
 import { useSplitSceneVideoGeneration } from "./use-split-scene-video-generation";
 import { SplitScenesEmptyState } from "./split-scenes-empty-state";
 import { SplitScenesTrailerTab } from "./split-scenes-trailer-tab";
 import { filterTrailerScenes } from "../storyboard-scenes-utils";
 import { StoryboardScenesTabs } from "../storyboard-scenes-tabs";
 import { useStoryboardResolutionToastHandlers } from "../use-storyboard-resolution-toast-handlers";
-import { createStoryboardEndFrameGenerator } from "./storyboard-end-frame-generation";
-import { createStoryboardSingleImageGenerator } from "./storyboard-single-image-generation";
+import { createStoryboardEndFrameGenerator } from "@/components/features/storyboard/storyboard-end-frame-generation";
+import { createStoryboardSingleImageGenerator } from "@/components/features/storyboard/storyboard-single-image-generation";
 import { useDirectorQuadGridController } from "./use-director-quad-grid-controller";
-import { normalizeStoryboardReferenceImages } from "./storyboard-reference-image-normalizer";
-import { collectOptimizedMergedFrameReferenceImages } from "./storyboard-merged-reference-utils";
-import { runStoryboardMergedPages } from "./storyboard-merged-page-controller";
+import { normalizeStoryboardReferenceImages } from "@/components/features/storyboard/storyboard-reference-image-normalizer";
+import { collectOptimizedMergedFrameReferenceImages } from "@/components/features/storyboard/storyboard-merged-reference-utils";
+import { runStoryboardMergedPages } from "@/components/features/storyboard/storyboard-merged-page-controller";
 import { createStoryboardMergedPageGenerator } from "./storyboard-merged-page-generation";
 import {
   allocateStoryboardAngles as _allocateAngles,
@@ -73,7 +73,7 @@ import {
   paginateMergedFrameTasks,
   composeStoryboardTilePrompt as _composeTilePrompt,
   type MergedFrameTask as GridTask,
-} from "./storyboard-merged-grid-utils";
+} from "@/components/features/storyboard/storyboard-merged-grid-utils";
 import {
   MAX_REFERENCE_IMAGES,
   collectCharacterReferenceImages,
@@ -83,7 +83,7 @@ import {
   buildSceneCharacterCastLine,
   optimizeReferenceImagesForModel,
   type SceneCharacterContext,
-} from "./storyboard-reference-utils";
+} from "@/components/features/storyboard/storyboard-reference-utils";
 import { SplitScenesProps, formatDirectorDeletedSceneNumber } from "./split-scenes-utils";
 
 export function SplitScenes({ onBack }: SplitScenesProps) {
