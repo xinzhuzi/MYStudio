@@ -313,7 +313,7 @@ export function createImageGenRuntimeController(deps: ControllerDeps) {
   }
 
   function setActiveModel(modelName: string): boolean {
-    const known: readonly ImageGenModelId[] = ["qwen-image-edit-2511", "z-image-turbo", "flux2-klein-9b", "krea2-turbo"];
+    const known: readonly ImageGenModelId[] = ["flux2-klein-9b", "krea2-turbo", "qwen-image-edit-2511", "z-image-turbo"];
     if (!known.includes(modelName as ImageGenModelId)) return false;
     state.activeModel = modelName as ImageGenModelId;
     persistActiveModel(state.activeModel as ImageGenModelId);

@@ -514,20 +514,11 @@ def _get_flux2_components() -> dict[str, Any]:
     except Exception as exc:
         raise PipelineError("model-load-failed", f"FLUX.2 生图管线装配失败: {exc}") from exc
 
-    # 用户裁定(08-31):优先 Krea2-NSFW 专业流——默认 LoRA 合并
-    lora_file = comfyui_models_dir() / KREA2_COMFY_LORA_DIR / KREA2_DEFAULT_LORA_FILE
-    if lora_file.is_file():
-        try:
-            _merge_krea2_comfyui_lora(transformer, str(lora_file), strength=1.0)
-        except Exception as exc:
-            print(f"[image-sidecar] krea2 lora merge 失败(继续裸模型): {exc}", file=sys.stderr, flush=True)
-
     device = "mps" if torch.backends.mps.is_available() else ("cuda" if torch.cuda.is_available() else "cpu")
     return {
         "transformer": transformer.to(device),
         "vae": vae.to(device),
         "scheduler": scheduler,
-        "tokenizer": tokenizer,
         "text_encoder": text_encoder.to(device),
         "is_distilled": True,
     }
@@ -731,6 +722,33 @@ def _map_krea2_comfyui_key(key: str) -> str:
 
 
 _krea2_pipelines: dict[str, dict[str, Any]] = {}
+_krea2_lora_pipelines: dict[str, dict[str, Any]] = {}
+
+
+def _get_krea2_lora_components() -> dict[str, Any]:
+    """带 NSFW LoRA 的管线(独立缓存,不污染裸模型;懒加载)。
+
+    深审(08-31)A/B 实弹:NSFW LoRA 对非 NSFW 人物有严重副作用(面部
+    模糊/色彩污染/细节丢失)——裸模型是一切非 NSFW 生成的默认,此路
+    仅显式请求时走。
+    """
+    if "krea2_lora" in _krea2_lora_pipelines:
+        return _krea2_lora_pipelines["krea2_lora"]
+
+    base = _get_krea2_components()  # 先取裸件(缓存)
+    import copy as _copy
+
+    lora_comps = dict(base)
+    # transformer 需独立副本(merge 是原地操作,不能污染裸缓存)
+    lora_comps["transformer"] = _copy.deepcopy(base["transformer"])
+    lora_file = comfyui_models_dir() / KREA2_COMFY_LORA_DIR / KREA2_DEFAULT_LORA_FILE
+    if lora_file.is_file():
+        try:
+            _merge_krea2_comfyui_lora(lora_comps["transformer"], str(lora_file), strength=1.0)
+        except Exception as exc:
+            print(f"[image-sidecar] krea2 lora merge 失败(降级裸模型): {exc}", file=sys.stderr, flush=True)
+    _krea2_lora_pipelines["krea2_lora"] = lora_comps
+    return lora_comps
 
 
 def _get_krea2_components() -> dict[str, Any]:
@@ -833,15 +851,19 @@ def _generate_krea2(
     steps: int,
     seed: int | None,
     reference_image_b64: str | None,
+    use_lora: bool = False,
 ) -> str:
     """Krea2 Turbo:T2I 直出(0.40 Krea2Pipeline 无 image 参——参考图/编辑
     走 LoRA(identity_edit)与模块化管线,二期;先保 T2I+破限 LoRA 底座)。"""
     import time as _time
 
     with _lock:
-        if "krea2" not in _krea2_pipelines:
-            _krea2_pipelines["krea2"] = _get_krea2_components()
-        comps = _krea2_pipelines["krea2"]
+        if use_lora:
+            comps = _get_krea2_lora_components()
+        else:
+            if "krea2" not in _krea2_pipelines:
+                _krea2_pipelines["krea2"] = _get_krea2_components()
+            comps = _krea2_pipelines["krea2"]
 
     from diffusers import Krea2Pipeline
 
@@ -973,6 +995,7 @@ def generate_image(
             num_inference_steps or spec["steps"],
             seed,
             reference_image_b64,
+            use_lora=False,  # 默认裸模型;NSFW 流走 extraParams 显式开
         )
     if spec.get("layout") == "flux2-pointed":
         return _generate_flux2(
