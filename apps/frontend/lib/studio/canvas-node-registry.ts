@@ -28,9 +28,12 @@ export interface CanvasNodeEntry {
   actions: readonly string[];
   /** 作为上游连接时输出的资源 */
   outputs: readonly CanvasNodeResource[];
-  /** 小地图节点色(hsl token) */
-  miniMapColor: string;
+  /** 小地图节点色:主题语义 token 名,渲染时按当前主题预设解析成具体色 */
+  miniMapToken: CanvasMiniMapToken;
 }
+
+/** 小地图可用的主题语义 token(随 colorPreset/明暗模式自动跟随) */
+export type CanvasMiniMapToken = "primary" | "info" | "success" | "warning" | "accent";
 
 const IMAGE_WORKFLOW_DEFINITIONS: readonly CanvasNodeEntry[] = [
   {
@@ -40,7 +43,7 @@ const IMAGE_WORKFLOW_DEFINITIONS: readonly CanvasNodeEntry[] = [
     description: "挂参考图供成图参照",
     actions: ["pick-image", "update", "delete"] as const,
     outputs: [{ kind: "reference-image", description: "作为下游成图的参考输入" }],
-    miniMapColor: "hsl(142 60% 45%)",
+    miniMapToken: "success",
   },
   {
     typeId: "prompt",
@@ -49,7 +52,7 @@ const IMAGE_WORKFLOW_DEFINITIONS: readonly CanvasNodeEntry[] = [
     description: "正/反向提示词与参数",
     actions: ["update", "generate", "delete"] as const,
     outputs: [{ kind: "prompt-text", description: "作为下游成图的提示词输入" }],
-    miniMapColor: "hsl(38 90% 50%)",
+    miniMapToken: "info",
   },
   {
     typeId: "generated",
@@ -58,7 +61,7 @@ const IMAGE_WORKFLOW_DEFINITIONS: readonly CanvasNodeEntry[] = [
     description: "生成结果与产线操作",
     actions: ["generate", "stop", "upscale", "apply-to-storyboard", "store-in-asset-library", "update", "delete"] as const,
     outputs: [{ kind: "generated-image", description: "生成图,可被超分/回写/入库消费" }],
-    miniMapColor: "hsl(var(--primary))",
+    miniMapToken: "primary",
   },
 ];
 
@@ -82,7 +85,7 @@ export function getCanvasNodeEntry(
   return pool.find((definition) => definition.typeId === typeId);
 }
 
-export function listCanvasNodeEntrys(
+export function listCanvasNodeDefinitions(
   surface: CanvasSurface,
 ): readonly CanvasNodeEntry[] {
   return surface === "production-flow"
@@ -90,10 +93,10 @@ export function listCanvasNodeEntrys(
     : IMAGE_WORKFLOW_DEFINITIONS;
 }
 
-/** 小地图类型色;未注册类型回退 accent */
-export function canvasMiniMapNodeColor(typeId: string): string {
+/** 小地图类型色 token;未注册类型回退 accent */
+export function canvasMiniMapNodeToken(typeId: string): CanvasMiniMapToken {
   for (const definition of [...IMAGE_WORKFLOW_DEFINITIONS, ...productionFlowDefinitions]) {
-    if (definition.typeId === typeId) return definition.miniMapColor;
+    if (definition.typeId === typeId) return definition.miniMapToken;
   }
-  return "hsl(var(--accent))";
+  return "accent";
 }

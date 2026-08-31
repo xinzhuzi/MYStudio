@@ -29,7 +29,7 @@ const PRODUCTION_FLOW_DEFINITIONS: readonly CanvasNodeEntry[] =
     outputs: [
       { kind: "production-status", description: "生产阶段状态供下游节点展示" },
     ],
-    miniMapColor: "hsl(280 60% 60%)",
+    miniMapToken: "warning",
   }));
 
 export function registerProductionFlowNodes(): void {

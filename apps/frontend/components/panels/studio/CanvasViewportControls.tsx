@@ -8,7 +8,8 @@ import {
   type Node,
 } from "@xyflow/react";
 import { Map, Maximize2, Redo2, Undo2, ZoomIn, ZoomOut } from "lucide-react";
-import { canvasMiniMapNodeColor } from "@/lib/studio/canvas-node-registry";
+import { canvasMiniMapNodeToken } from "@/lib/studio/canvas-node-registry";
+import { useThemeMiniMapPalette } from "./use-theme-mini-map";
 
 /**
  * 画布视口缩放控件(深色主题横排:缩小/百分比/放大/适配/小地图)。
@@ -47,6 +48,7 @@ export function CanvasViewportControls<TNode extends Node>({
   };
 }) {
   const reactFlow = useReactFlow<TNode, Edge>();
+  const miniMapPalette = useThemeMiniMapPalette();
   const [zoomPercent, setZoomPercent] = useState(100);
   const [miniMapOpen, setMiniMapOpen] = useState(readMiniMapOpen);
 
@@ -159,9 +161,9 @@ export function CanvasViewportControls<TNode extends Node>({
           pannable
           zoomable
           className="workflow-canvas-minimap nodrag nopan rounded-lg border border-border/80 bg-card/95"
-          nodeColor={(node) => canvasMiniMapNodeColor(node.type ?? "default")}
-          nodeStrokeColor="hsl(var(--border))"
-          maskColor="rgba(10, 10, 14, 0.55)"
+          nodeColor={(node) => miniMapPalette.node[canvasMiniMapNodeToken(node.type ?? "default")]}
+          nodeStrokeColor={miniMapPalette.border}
+          maskColor={miniMapPalette.mask}
         />
       ) : null}
     </>
