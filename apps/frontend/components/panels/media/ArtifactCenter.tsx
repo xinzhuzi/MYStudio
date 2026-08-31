@@ -21,6 +21,7 @@ import { useMediaPanelStore } from "@/stores/navigation/media-panel-store";
 import { toast } from "sonner";
 import type { ArtifactRecord, ArtifactStage, ArtifactState, DeletionConfirmation } from "@/types/artifacts";
 import { normalizeArtifactPhysicalPath } from "@/lib/artifacts/physical-path";
+import { SHARED_BUCKET_PREFIX } from "@/lib/artifacts/project-layout";
 import { logEvent } from "@/lib/diagnostics/logger";
 import { ArtifactTree, type ArtifactChapterTreeNode, type ArtifactFileTreeNode, type ArtifactTreeProject } from "./ArtifactTree";
 import { FilterBar, ArtifactTableSkeleton } from "./artifact-center-parts";
@@ -30,10 +31,10 @@ import { ArtifactDeleteDialog } from "./ArtifactDeleteDialog";
 import { ChapterMigrationDialog } from "./ChapterMigrationDialog";
 import { MediaView } from "./index";
 import {
-  buildArtifactFileTree, findFileTreeNode, fileTreeContainsArtifact, countFileTreeArtifacts,
+  findFileTreeNode, fileTreeContainsArtifact, countFileTreeArtifacts,
   parentDirectory, inferChapterId, chapterIdForDeletionPlan,
-  formatChapterLabel, formatBytes, formatArtifactTooltip, BACKUP_BUCKET_ID, NONE_BUCKET_ID,
-  artifactBucketId, STATE_LABELS,
+  formatBytes, formatArtifactTooltip, BACKUP_BUCKET_ID, NONE_BUCKET_ID,
+  STATE_LABELS,
 } from "./artifact-center-utils";
 
 /**
