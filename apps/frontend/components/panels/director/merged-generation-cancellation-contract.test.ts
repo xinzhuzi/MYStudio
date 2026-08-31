@@ -26,7 +26,7 @@ describe("merged generation cancellation wiring", () => {
   });
 
   it("keeps S-Class merged cancellation separate from quad-grid generation", () => {
-    const source = readPanelSource("../sclass/sclass-scenes.tsx");
+    const source = readPanelSource("../sclass/sclass-scenes-generation.ts");
     const mergedGeneration = getFunctionSource(source, "const handleMergedGenerate", "const handleGenerateEndFrameImage");
     const mergedPageAdapter = readPanelSource("../sclass/sclass-merged-page-generation.ts");
     const quadGridSource = readPanelSource("../sclass/use-sclass-quad-grid-controller.ts");

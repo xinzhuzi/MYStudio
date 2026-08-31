@@ -26,12 +26,9 @@ import {
 } from "lucide-react";
 import { useMediaStore } from "@/stores/media/media-store";
 import { toast } from "sonner";
-import { waitForAbortableDelay } from "@/lib/storyboard/image-task-transport";
+import { useSClassScenesGeneration } from "./sclass-scenes-generation";
 import { useMergedGenerationCancellation } from "@/hooks/use-merged-generation-cancellation";
 import { useAPIConfigStore } from "@/stores/ai/api-config-store";
-import { aiManager } from "@/lib/ai/ai-manager";
-import { readImageAsBase64 } from '@/lib/media/image-storage';
-import { persistSceneImage } from '@/lib/utils/image-persist';
 import { SClassSceneCard } from "./sclass-scene-card";
 import { useSClassStore, type SClassAspectRatio } from "@/stores/sclass/sclass-store";
 import { useAppSettingsStore } from "@/stores/app/app-settings-store";
@@ -58,10 +55,6 @@ import { StoryboardGenerationDialogs } from "@/components/features/storyboard/st
 import { useStoryboardAngleSwitch } from "@/components/features/storyboard/use-storyboard-angle-switch";
 import { useStoryboardResultActions } from "@/components/features/storyboard/use-storyboard-result-actions";
 import { useStoryboardVideoLastFrame } from "@/components/features/storyboard/use-storyboard-video-last-frame";
-import { normalizeStoryboardReferenceImages } from "@/components/features/storyboard/storyboard-reference-image-normalizer";
-import { collectMergedFrameReferenceImages } from "@/components/features/storyboard/storyboard-merged-reference-utils";
-import { runStoryboardMergedPages } from "@/components/features/storyboard/storyboard-merged-page-controller";
-import { createSClassMergedPageGenerator } from "./sclass-merged-page-generation";
 import { SClassEditingPanel } from "./sclass-editing-panel";
 import { SClassTrailerScenesPanel } from "../storyboard-trailer-scenes-panel";
 import { StoryboardScenesTabs } from "../storyboard-scenes-tabs";
@@ -69,17 +62,11 @@ import { useStoryboardResolutionToastHandlers } from "../use-storyboard-resoluti
 import { useSClassQuadGridController } from "./use-sclass-quad-grid-controller";
 import { createSClassLegacyVideoGenerator } from "./sclass-legacy-video-generation";
 import { createSClassSingleVideoGenerator } from "./sclass-single-video-generation";
-import { createSClassEndFrameGenerator } from "./sclass-end-frame-generation";
-import { createStoryboardSingleImageGenerator } from "@/components/features/storyboard/storyboard-single-image-generation";
 import { filterSClassTrailerScenes } from "./sclass-scenes-utils";
 import {
   allocateStoryboardAngles as _allocateAngles,
-  buildMergedFrameTasks,
   calculateMergedGridAspectRatio as _calculateGridAspectRatio,
-  isStoryboardSceneCompleted,
-  paginateMergedFrameTasks,
   composeStoryboardTilePrompt as _composeTilePrompt,
-  type MergedFrameTask as GridTask,
 } from "@/components/features/storyboard/storyboard-merged-grid-utils";
 
 interface SplitScenesProps {
@@ -438,221 +425,31 @@ export function SClassScenes({ onBack }: SplitScenesProps) {
     ],
   );
 
-  // 单图传输由共享控制器负责，S-Class 只提供提示词和参考图适配器。
-  const handleGenerateSingleImage = useMemo(
-    () => createStoryboardSingleImageGenerator({
-      getScene: (sceneId) => splitScenes.find((scene) => scene.id === sceneId),
-      aspectRatio: storyboardConfig.aspectRatio || defaultAspectRatio,
-      resolution: storyboardConfig.resolution || defaultResolution,
-      prepareRequest: async ({ scene, promptToUse }) => {
-        const stylePrompt = getStylePrompt(currentStyleId);
-        const prompt = stylePrompt ? `${promptToUse}. Style: ${stylePrompt}` : promptToUse;
-        const referenceImages: string[] = [];
-        if (scene.sceneReferenceImage) referenceImages.push(scene.sceneReferenceImage);
-        if (scene.characterIds?.length) {
-          referenceImages.push(...getCharacterReferenceImages(scene.characterIds, scene.characterVariationMap));
-        } else if (storyboardConfig.characterReferenceImages?.length) {
-          referenceImages.push(...storyboardConfig.characterReferenceImages);
-        }
-        if (storyboardImage) referenceImages.push(storyboardImage);
-        const processedReferences = await normalizeStoryboardReferenceImages(referenceImages, {
-          readLocalImage: readImageAsBase64,
-          max: 14,
-          onReadError: (url, error) => console.warn('[SplitScenes] Failed to read local image:', url, error),
-        });
-        return { prompt, referenceImages: processedReferences };
-      },
-      updateStatus: updateSplitSceneImageStatus,
-      updateImage: updateSplitSceneImage,
-      autoSaveImage: autoSaveImageToLibrary,
-      setGenerating: setIsGenerating,
-    }),
-// eslint-disable-next-line react-hooks/exhaustive-deps
-    [
-      splitScenes,
-      storyboardConfig,
-      storyboardImage,
-      defaultAspectRatio,
-      defaultResolution,
-      currentStyleId,
-      updateSplitSceneImage,
-      updateSplitSceneImageStatus,
-      autoSaveImageToLibrary,
-      getCharacterReferenceImages,
-    ],
-  );
-
-  // Shared merged-grid prompt rules live in storyboard-merged-grid-utils.
- 
-  const handleMergedGenerate = useCallback(async (mode: 'first'|'last'|'both', strategy: 'cluster'|'minimal'|'none' = 'cluster', _exemplar: boolean = true) => {
-    if (splitScenes.length === 0) {
-      toast.error('没有可生成的分镜');
-      return;
-    }
-
-    // 获取图像生成能力 - 使用服务映射配置
-    const featureConfig = aiManager.featureConfig('character_generation');
-    if (!featureConfig) {
-      toast.error('请先在设置中配置图片生成服务映射');
-      return;
-    }
-    
-    const keyManager = featureConfig.keyManager;
-    const apiKey = keyManager.getCurrentKey() || '';
-    if (!apiKey) {
-      toast.error('请先在设置中配置图片生成服务映射');
-      return;
-    }
-    const model = featureConfig.models?.[0];
-    if (!model) {
-      toast.error('请先在设置中配置图片生成模型');
-      return;
-    }
-    const imageBaseUrl = featureConfig.baseUrl?.replace(/\/+$/, '');
-    if (!imageBaseUrl) {
-      toast.error('请先在设置中配置图片生成服务映射');
-      return;
-    }
-    
-
-    setIsMergedRunning(true);
-    const mergedSignal = startMergedGeneration();
-
-    const aspect = storyboardConfig.aspectRatio || defaultAspectRatio;
-    // 始终使用 getStylePrompt 获取完整风格提示词（保证有默认值，即使 styleTokens 为空）
-    const fullStylePrompt = getStylePrompt(currentStyleId);
-    const fullStyleNegative = getStyleNegativePrompt(currentStyleId);
-
-    // === 统一任务列表方案：支持混合九宫格 ===
-    const tasks = buildMergedFrameTasks(splitScenes, mode);
-
-    // 检查是否有需要生成的
-    if (tasks.length === 0) {
-      toast.info('所有分镜已生成完成，无需重复生成');
-      finishMergedGeneration(mergedSignal);
-      setIsMergedRunning(false);
-      return;
-    }
-
-    // 统计信息
-    const firstCount = tasks.filter(t => t.type === 'first').length;
-    const endCount = tasks.filter(t => t.type === 'end').length;
-    const parts: string[] = [];
-    if (firstCount > 0) parts.push(`${firstCount}个首帧`);
-    if (endCount > 0) parts.push(`${endCount}个尾帧`);
-    const completedCount = splitScenes.filter(isStoryboardSceneCompleted).length;
-    const skipInfo = completedCount > 0 ? `（跳过${completedCount}个已完成视频）` : '';
-    toast.info(`开始九宫格合并生成：${parts.join('、')}${skipInfo}`);
-
-    const taskPages = paginateMergedFrameTasks(tasks);
-
-    const generateGridAndSlice = createSClassMergedPageGenerator({
-      aspect,
-      fullStylePrompt,
-      fullStyleNegative,
-      model,
-      apiKey,
-      imageBaseUrl,
-      resolution: storyboardConfig.resolution || defaultResolution,
-      keyManager,
-      signal: mergedSignal,
-      updateFirstFrameStatus: updateSplitSceneImageStatus,
-      updateEndFrameStatus: updateSplitSceneEndFrameStatus,
-      folderId: getImageFolderId,
-      projectId: mediaProjectId,
-      persistImage: persistSceneImage,
-      updateFirstFrame: updateSplitSceneImage,
-      updateEndFrame: updateSplitSceneEndFrame,
-      addMedia: addMediaFromUrl,
-      setLastGridImage,
-      readImage: readImageAsBase64,
-    });
-
-    // 辅助：重置一页中所有任务的状态为 failed
-    const resetPageTasksToError = (pageTasks: GridTask[], errorMsg: string) => {
-      for (const task of pageTasks) {
-        if (task.type === 'end') {
-          updateSplitSceneEndFrameStatus(task.scene.id, { endFrameStatus: 'failed', endFrameProgress: 0, endFrameError: errorMsg });
-        } else {
-          updateSplitSceneImageStatus(task.scene.id, { imageStatus: 'failed', imageProgress: 0, imageError: errorMsg });
-        }
-      }
-    };
-
-    await runStoryboardMergedPages({
-      pages: taskPages,
-      signal: mergedSignal,
-      isAborted: () => mergedAbortRef.current,
-      getTaskType: (task) => task.type,
-      collectReferences: (pageTasks) => collectMergedFrameReferenceImages(pageTasks, {
-        strategy,
-        getCharacterReferenceImages,
-      }),
-      generatePage: generateGridAndSlice,
-      resetPageTasksToError,
-      waitForRetry: waitForAbortableDelay,
-      finish: finishMergedGeneration,
-      setRunning: setIsMergedRunning,
-      notify: toast,
-    });
-// eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [
+  const { handleGenerateSingleImage, handleMergedGenerate, handleGenerateEndFrameImage } = useSClassScenesGeneration({
     splitScenes,
     storyboardConfig,
+    storyboardImage,
     defaultAspectRatio,
     defaultResolution,
     currentStyleId,
-    mediaProjectId,
-    getImageFolderId,
-    persistSceneImage,
-    addMediaFromUrl,
+    getStylePrompt,
+    getStyleNegativePrompt,
     getCharacterReferenceImages,
-    readImageAsBase64,
-    setLastGridImage,
-    mergedAbortRef,
-    setIsMergedRunning,
     updateSplitSceneImage,
     updateSplitSceneImageStatus,
     updateSplitSceneEndFrame,
     updateSplitSceneEndFrameStatus,
+    autoSaveImageToLibrary,
+    setIsGenerating,
+    setIsMergedRunning,
     startMergedGeneration,
     finishMergedGeneration,
-    getStylePrompt,
-    getStyleNegativePrompt,
-  ]);
-
-  // Generate end frame image for a single scene using image API
-  const handleGenerateEndFrameImage = useMemo(
-    () => createSClassEndFrameGenerator({
-      getScene: (sceneId) => splitScenes.find((scene) => scene.id === sceneId),
-      currentStyleId,
-      aspectRatio: storyboardConfig.aspectRatio || defaultAspectRatio,
-      resolution: storyboardConfig.resolution || defaultResolution,
-      readImage: readImageAsBase64,
-      getCharacterReferenceImages,
-      updateStatus: updateSplitSceneEndFrameStatus,
-      updateEndFrame: updateSplitSceneEndFrame,
-      setGenerating: setIsGenerating,
-      folderId: getImageFolderId,
-      projectId: mediaProjectId,
-      addMedia: addMediaFromUrl,
-    }),
-    [
-      splitScenes,
-      currentStyleId,
-      storyboardConfig.aspectRatio,
-      storyboardConfig.resolution,
-      defaultAspectRatio,
-      defaultResolution,
-      getCharacterReferenceImages,
-      updateSplitSceneEndFrameStatus,
-      updateSplitSceneEndFrame,
-      setIsGenerating,
-      getImageFolderId,
-      mediaProjectId,
-      addMediaFromUrl,
-    ],
-  );
+    mergedAbortRef,
+    getImageFolderId,
+    mediaProjectId,
+    addMediaFromUrl,
+    setLastGridImage,
+  });
   // Save to media library (image or video) - uses system category folders
   const handleSaveToLibrary = useCallback(async (scene: SplitScene, type: 'image' | 'video') => {
     saveStoryboardSceneToLibrary({
