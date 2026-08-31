@@ -22,7 +22,7 @@ import {
 import { ResolutionBadge } from "@/components/ui/image-resolution-badge";
 import { ImagePreviewModal } from "@/components/ui/media-preview-modal";
 import { runUpscaleImage } from "@/lib/upscale/client";
-import { parseUpscaleMediaRef, siblingOutputRef } from "@/lib/upscale/client";
+import { parseUpscaleMediaRef, siblingOutputRef } from "@/lib/upscale/project-file-url";
 
 export function ImageStudio() {
   const [saveToPropsOpen, setSaveToPropsOpen] = useState(false);
@@ -337,7 +337,7 @@ export function ImageStudio() {
                       projectId: ref.kind === "project-file" ? ref.projectId : projectId,
                       model: "realesrgan-x4plus-anime-6b",
                       inputImagePath: imageResult,
-                      outputImagePath: typeof outputUrl === "string" ? outputUrl : outputUrl.url,
+                      outputImagePath: outputUrl,
                     });
                     if (artifact.status === "accepted") {
                       toast.success("超分 4K 完成");
