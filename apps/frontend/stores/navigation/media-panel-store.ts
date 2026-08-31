@@ -13,7 +13,6 @@ import {
   PaletteIcon,
   LayoutDashboardIcon,
   FolderOpenIcon,
-  Music2Icon,
   WorkflowIcon,
   BookOpenTextIcon,
   Share2Icon,
@@ -29,7 +28,7 @@ import type {
 } from "@/types/script";
 
 // Tab-based navigation (simpler flat structure)
-export type Tab = "dashboard" | "overview" | "studio" | "music" | "script" | "characters" | "scenes" | "freedom" | "director" | "sclass" | "assets" | "media" | "self-media" | "skills" | "export" | "settings";
+export type Tab = "dashboard" | "overview" | "studio" | "script" | "characters" | "scenes" | "freedom" | "director" | "sclass" | "assets" | "media" | "self-media" | "skills" | "export" | "settings";
 
 export interface NavItem {
   id: Tab;
@@ -41,7 +40,6 @@ export interface NavItem {
 export const mainNavItems: NavItem[] = [
   { id: "overview", label: "概览", icon: LayoutDashboardIcon },
   { id: "studio", label: "工作流", icon: WorkflowIcon },
-  { id: "music", label: "音乐", icon: Music2Icon },
   { id: "skills", label: "技能", icon: BookOpenTextIcon },
   { id: "assets", label: "资产", icon: FolderOpenIcon },
   { id: "freedom", label: "辅助", icon: PaletteIcon },
@@ -74,7 +72,6 @@ export const tabs: { [key in Tab]: { icon: LucideIcon; label: string; stage?: St
   dashboard: { icon: FileTextIcon, label: "项目" },
   overview: { icon: LayoutDashboardIcon, label: "概览" },
   studio: { icon: WorkflowIcon, label: "工作流" },
-  music: { icon: Music2Icon, label: "音乐" },
   script: { icon: FileTextIcon, label: "剧本", stage: "script" },
   characters: { icon: UsersIcon, label: "角色", stage: "assets" },
   scenes: { icon: MapPinIcon, label: "场景", stage: "assets" },

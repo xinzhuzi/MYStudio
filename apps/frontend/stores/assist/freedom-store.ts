@@ -7,7 +7,8 @@ import { persist } from 'zustand/middleware';
 
 // ==================== Types ====================
 
-export type StudioMode = 'image' | 'video' | 'cinema' | 'tts';
+// 'music' 为 08-31 迁入的第五工作室;音乐生成态留在 MusicTab 组件内,不进本 store。
+export type StudioMode = 'image' | 'video' | 'cinema' | 'tts' | 'music';
 
 export interface HistoryEntry {
   id: string;

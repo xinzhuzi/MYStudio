@@ -6,8 +6,9 @@ import { ImageStudio } from './ImageStudio';
 import { VideoStudio } from './VideoStudio';
 import { CinemaStudio } from './CinemaStudio';
 import { TtsStudio } from './TtsStudio';
+import { MusicStudio } from './MusicStudio';
 
-export const FREEDOM_STUDIO_MODES = ['image', 'video', 'cinema', 'tts'] as const;
+export const FREEDOM_STUDIO_MODES = ['image', 'video', 'cinema', 'tts', 'music'] as const;
 
 export function isFreedomStudioMode(value: string): value is StudioMode {
   return FREEDOM_STUDIO_MODES.includes(value as StudioMode);
@@ -39,6 +40,9 @@ export function FreedomView() {
             <TabsTrigger value="tts" className="text-sm px-4">
               🎙️ TTS
             </TabsTrigger>
+            <TabsTrigger value="music" className="text-sm px-4">
+              🎵 音乐工作室
+            </TabsTrigger>
           </TabsList>
         </div>
         <TabsContent value="image" className="flex-1 m-0 overflow-hidden">
@@ -52,6 +56,9 @@ export function FreedomView() {
         </TabsContent>
         <TabsContent value="tts" className="flex-1 m-0 overflow-hidden">
           <TtsStudio />
+        </TabsContent>
+        <TabsContent value="music" className="flex-1 m-0 overflow-hidden">
+          <MusicStudio />
         </TabsContent>
       </Tabs>
     </div>
