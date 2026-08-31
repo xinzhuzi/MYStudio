@@ -45,6 +45,8 @@ vi.mock("@xyflow/react", async () => {
   return {
     ...actual,
     Panel: ({ children }: { children?: ReactNode }) => <div>{children}</div>,
+    // 真实 MiniMap 需要完整 ReactFlowProvider 上下文,本套件 stub 掉 ReactFlow,一并 stub
+    MiniMap: () => null,
     ReactFlow: ({
       children,
       onInit,
