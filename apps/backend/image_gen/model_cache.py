@@ -115,7 +115,12 @@ Z_IMAGE_REQUIRED_FILES = (
 # ── FLUX.2 Klein 9B(08-30 三引擎,BFL 快速档;原生参考图编辑)──
 FLUX2_KLEIN_MODEL = "flux2-klein-9b"
 FLUX2_COMFY_MAIN_FILE = "diffusion_models/flux2_klein_9b.safetensors"
-FLUX2_COMFY_TEXT_ENCODER_FILE = "text_encoders/qwen_3_8b.safetensors"
+# TE 双候选(08-30 用户换代):官方 bf16 或社区 uncensored Q8 GGUF,
+# 存在哪个用哪个;GGUF 经 transformers gguf_file 装载
+FLUX2_COMFY_TEXT_ENCODER_FILES: tuple[str, ...] = (
+    "text_encoders/qwen_3_8b.safetensors",
+    "text_encoders/flux2-klein-9b-uncensored-q8_0.gguf",
+)
 FLUX2_COMFY_VAE_FILE = "vae/flux2-vae.safetensors"
 # 小件:调度器/双端 config/分词器(KB-MB 级);大件 ComfyUI 指向零重下。
 # ModelScope 有 BFL 官方镜像(HF 仓 auto-gated 且当前网络不通)
@@ -488,11 +493,20 @@ def qwen_small_pieces_status(cache_dir: Path | None = None) -> dict:
     return {"ready": not missing, "missing": missing, "snapshot_dirs": snapshot_dirs}
 
 
-def flux2_pointed_big_files() -> tuple[Path, Path, Path]:
+def flux2_te_file() -> Path | None:
+    base = comfyui_models_dir()
+    for name in FLUX2_COMFY_TEXT_ENCODER_FILES:
+        candidate = base / name
+        if candidate.is_file():
+            return candidate
+    return None
+
+
+def flux2_pointed_big_files() -> tuple[Path, Path | None, Path]:
     base = comfyui_models_dir()
     return (
         base / FLUX2_COMFY_MAIN_FILE,
-        base / FLUX2_COMFY_TEXT_ENCODER_FILE,
+        flux2_te_file(),
         base / FLUX2_COMFY_VAE_FILE,
     )
 
@@ -500,7 +514,7 @@ def flux2_pointed_big_files() -> tuple[Path, Path, Path]:
 def resolve_flux2_big_files(cache_dir: Path | None = None) -> dict | None:
     """FLUX.2 Klein 三大件解析:ComfyUI 指向(唯一源);任一缺失即 None。"""
     main, te, vae = flux2_pointed_big_files()
-    if not (main.is_file() and te.is_file()):
+    if not (main.is_file() and te is not None):
         return None
     # VAE 权重以小件仓 diffusers 版为准;ComfyUI flux2-vae 是旧版键名
     # (encoder.down.0.block…),与 diffusers 不兼容,仅作展示参考不作就绪门槛

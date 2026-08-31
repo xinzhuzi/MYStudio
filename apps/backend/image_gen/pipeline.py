@@ -488,9 +488,19 @@ def _get_flux2_components() -> dict[str, Any]:
         scheduler = FlowMatchEulerDiscreteScheduler.from_pretrained(snapshot, subfolder="scheduler")
         tokenizer = AutoTokenizer.from_pretrained(snapshot / "tokenizer")
         te_config = AutoConfig.from_pretrained(snapshot / "text_encoder")
-        text_encoder = Qwen3ForCausalLM(te_config).to(torch.bfloat16)
-        state = load_file(str(te_file))
-        text_encoder.load_state_dict(state, strict=False)
+        if te_file.suffix == ".gguf":
+            # 用户 TE 换代(08-30):uncensored Q8 GGUF——transformers
+            # gguf_file 装载(自解量化到 bf16)
+            text_encoder = Qwen3ForCausalLM.from_pretrained(
+                str(te_file.parent),
+                gguf_file=te_file.name,
+                config=te_config,
+                torch_dtype=torch.bfloat16,
+            )
+        else:
+            text_encoder = Qwen3ForCausalLM(te_config).to(torch.bfloat16)
+            state = load_file(str(te_file))
+            text_encoder.load_state_dict(state, strict=False)
         text_encoder.eval()
     except PipelineError:
         raise
