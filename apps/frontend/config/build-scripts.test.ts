@@ -753,7 +753,7 @@ describe("desktop build scripts", () => {
     expect(smokeScript).toContain("MYSTUDIO_SMOKE_LAUNCH_MODE");
     expect(smokeScript).toContain("shouldFallbackToLaunchServices");
     expect(smokeScript).toContain("retrying through macOS LaunchServices");
-    expect(launchScript).toContain('spawn("open", ["-na", bundlePath, "--args"');
+    expect(launchScript).toContain('spawn("open", ["-nag", bundlePath, "--args"');
     expect(resolveAppBundlePath("/tmp/漫影工作室.app/Contents/MacOS/漫影工作室"))
       .toBe("/tmp/漫影工作室.app");
     expect(shouldFallbackToLaunchServices({
