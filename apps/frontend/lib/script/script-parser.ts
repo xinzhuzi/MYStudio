@@ -1,3 +1,4 @@
+import { callChatAPI } from "./script-parser-api";
 import { detectInputType } from "./input-type-detector";
 import { CREATIVE_SCRIPT_BASE_PROMPT, STORYBOARD_STRUCTURE_PROMPT } from "./script-parser-prompts";
 
