@@ -1,4 +1,5 @@
 import type { ImageWorkflowGraph } from "@/types/studio";
+import { getCanvasNodeDefinition } from "@/lib/studio/canvas-node-registry";
 import {
   addGeneratedImageNode,
   addPromptImageNode,
@@ -27,32 +28,21 @@ export interface ConnectCreatableTypeOption {
   description: string;
 }
 
-const DOWNSTREAM_OPTIONS: ConnectCreatableTypeOption[] = [
-  {
-    type: "generated",
-    label: "成图节点",
-    description: "创建成图并从当前节点连入",
-  },
-];
-
-const UPSTREAM_OPTIONS: ConnectCreatableTypeOption[] = [
-  {
-    type: "prompt",
-    label: "提示词节点",
-    description: "创建提示词并连入当前成图",
-  },
-  {
-    type: "reference",
-    label: "参考图节点",
-    description: "创建参考图并连入当前成图",
-  },
-];
-
-/** 可创建类型清单:注册表(canvas-node-registry)落地前的本地实现。 */
+/** 可创建类型清单:标签/描述取自节点注册表(canvas-node-registry)。 */
 export function getCreatableImageNodeTypes(
   direction: "downstream" | "upstream",
 ): ConnectCreatableTypeOption[] {
-  return direction === "downstream" ? DOWNSTREAM_OPTIONS : UPSTREAM_OPTIONS;
+  const types: ConnectCreatableNodeType[] =
+    direction === "downstream" ? ["generated"] : ["prompt", "reference"];
+  const directionalDescription =
+    direction === "downstream"
+      ? "创建成图并从当前节点连入"
+      : "创建并连入当前成图";
+  return types.map((type) => ({
+    type,
+    label: getCanvasNodeDefinition("image-workflow", type)?.label ?? type,
+    description: directionalDescription,
+  }));
 }
 
 export function connectCreateDirection(

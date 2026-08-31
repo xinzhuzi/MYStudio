@@ -22,6 +22,8 @@ import {
 } from "lucide-react";
 import { CanvasViewportControls } from "./CanvasViewportControls";
 import { useCanvasHistory, useCanvasHistoryShortcuts } from "./use-canvas-history";
+// 生产流节点注册进画布注册表(模块加载一次;小地图类型色等消费)
+import "./workflow-node-registry";
 import type { ImageWorkflowOpenContext } from "@/types/studio";
 import type {
   ProductionFlowNodeAction,

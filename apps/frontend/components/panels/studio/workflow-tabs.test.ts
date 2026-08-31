@@ -440,10 +440,18 @@ describe("studio workflow tabs", () => {
       .map((name) => readFileSync(fileURLToPath(new URL(`./${name}`, import.meta.url)), "utf8"))
       .join("\n");
     const flowUiSource = [canvasSource, productionNodeSource, previewSource].join("\n");
-    const modelSource = readFileSync(
-      fileURLToPath(new URL("./workflow-node-model.ts", import.meta.url)),
-      "utf8",
-    );
+    // 08-31-canvas-node-registry:巨石已按 schema/build/skills 拆分,
+    // 原 workflow-node-model.ts 保留为 barrel;源码断言读三模块合并
+    const modelSource = [
+      "./workflow-node-model-schema.ts",
+      "./workflow-node-model-build.ts",
+      "./workflow-node-model-node-builders.ts",
+      "./workflow-node-model-skills.ts",
+    ]
+      .map((name) =>
+        readFileSync(fileURLToPath(new URL(name, import.meta.url)), "utf8"),
+      )
+      .join("\n");
     const previewModelSource = readFileSync(
       fileURLToPath(
         new URL("./storyboard-preview-model.ts", import.meta.url),

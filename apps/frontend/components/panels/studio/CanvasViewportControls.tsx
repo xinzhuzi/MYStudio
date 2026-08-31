@@ -8,6 +8,7 @@ import {
   type Node,
 } from "@xyflow/react";
 import { Map, Maximize2, Redo2, Undo2, ZoomIn, ZoomOut } from "lucide-react";
+import { canvasMiniMapNodeColor } from "@/lib/studio/canvas-node-registry";
 
 /**
  * 画布视口缩放控件(深色主题横排:缩小/百分比/放大/适配/小地图)。
@@ -21,24 +22,6 @@ import { Map, Maximize2, Redo2, Undo2, ZoomIn, ZoomOut } from "lucide-react";
  * 映射,节点注册表(canvas-node-registry)落地后由注册表供给。
  */
 const MINI_MAP_PREF_KEY = "studio-canvas-minimap-open";
-
-/** 类型→小地图节点色:确定性本地映射(注册表落地前的过渡实现)。 */
-const MINI_MAP_TYPE_COLORS = [
-  "hsl(var(--primary))",
-  "hsl(var(--accent))",
-  "hsl(142 60% 45%)",
-  "hsl(38 90% 50%)",
-  "hsl(280 60% 60%)",
-] as const;
-
-function miniMapNodeColor(node: Node): string {
-  let hash = 0;
-  const type = node.type ?? "default";
-  for (let i = 0; i < type.length; i += 1) {
-    hash = (hash * 31 + type.charCodeAt(i)) % 997;
-  }
-  return MINI_MAP_TYPE_COLORS[hash % MINI_MAP_TYPE_COLORS.length];
-}
 
 function readMiniMapOpen(): boolean {
   try {
@@ -176,7 +159,7 @@ export function CanvasViewportControls<TNode extends Node>({
           pannable
           zoomable
           className="workflow-canvas-minimap nodrag nopan rounded-lg border border-border/80 bg-card/95"
-          nodeColor={miniMapNodeColor}
+          nodeColor={(node) => canvasMiniMapNodeColor(node.type ?? "default")}
           nodeStrokeColor="hsl(var(--border))"
           maskColor="rgba(10, 10, 14, 0.55)"
         />
