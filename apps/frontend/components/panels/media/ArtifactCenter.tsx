@@ -7,7 +7,6 @@ import { ArrowUp, ChevronRight, FolderInput, FolderKanban, FolderOpen, Loader2, 
 import { getArtifactDeleteImpact } from "@/lib/artifacts/delete-impact";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
-import { Skeleton } from "@/components/ui/skeleton";
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable";
 import { cn } from "@/lib/utils";
 import { useArtifactStore } from "@/stores/artifacts/artifact-store";
@@ -21,11 +20,11 @@ import { useProjectStore } from "@/stores/project/project-store";
 import { useMediaPanelStore } from "@/stores/navigation/media-panel-store";
 import { toast } from "sonner";
 import type { ArtifactRecord, ArtifactStage, ArtifactState, DeletionConfirmation } from "@/types/artifacts";
-import { FIXED_NAV_STAGES, STAGE_LABELS } from "@/lib/artifacts/stage-labels";
-import { sharedBucketLabel, SHARED_BUCKET_PREFIX } from "@/lib/artifacts/project-layout";
 import { normalizeArtifactPhysicalPath } from "@/lib/artifacts/physical-path";
 import { logEvent } from "@/lib/diagnostics/logger";
 import { ArtifactTree, type ArtifactChapterTreeNode, type ArtifactFileTreeNode, type ArtifactTreeProject } from "./ArtifactTree";
+import { FilterBar, ArtifactTableSkeleton } from "./artifact-center-parts";
+import { filterAndSortArtifacts, buildTreeProjects, buildChapterTreeNodes } from "./artifact-center-derivation";
 import { ArtifactDetailPanel } from "./artifact-detail";
 import { ArtifactDeleteDialog } from "./ArtifactDeleteDialog";
 import { ChapterMigrationDialog } from "./ChapterMigrationDialog";
@@ -73,78 +72,6 @@ export interface ArtifactCenterProps {
 
   /** Custom className for root element */
   className?: string;
-}
-
-interface FilterBarProps {
-  stageFilter: ArtifactStage | 'all';
-  stateFilter: ArtifactState | 'all';
-  onStageFilterChange: (stage: ArtifactStage | 'all') => void;
-  onStateFilterChange: (state: ArtifactState | 'all') => void;
-  totalArtifacts: number;
-}
-
-function FilterBar({
-  stageFilter,
-  stateFilter,
-  onStageFilterChange,
-  onStateFilterChange,
-  totalArtifacts,
-}: FilterBarProps) {
-  return (
-    <>
-      <div className="text-xs text-muted-foreground whitespace-nowrap">
-        共 {totalArtifacts} 个产物
-      </div>
-
-      {/* Stage filter */}
-      <select
-          value={stageFilter}
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-          onChange={(e) => onStageFilterChange(e.target.value as any)}
-          className="px-2 py-1 text-xs border rounded bg-background h-8"
-        >
-          <option value="all">所有阶段</option>
-          {FIXED_NAV_STAGES.map((stage) => (
-            <option key={stage} value={stage}>{STAGE_LABELS[stage]}</option>
-          ))}
-        </select>
-
-        {/* State filter */}
-        <select
-          value={stateFilter}
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-          onChange={(e) => onStateFilterChange(e.target.value as any)}
-          className="px-2 py-1 text-xs border rounded bg-background h-8"
-        >
-          <option value="all">所有状态</option>
-          <option value="active">活跃</option>
-          <option value="archived">已归档</option>
-          <option value="orphaned">孤儿</option>
-          <option value="blocked">已阻塞</option>
-        </select>
-    </>
-  );
-}
-
-// 产物表格加载骨架(镜像真实表 6 列列宽,加载→真实无 layout shift)
-// 遵循 emil-design-eng:用 Skeleton 自带 animate-pulse(opacity),主线程忙时比 JS 动画流畅
-function ArtifactTableSkeleton() {
-  return (
-    <table className="w-full text-sm" aria-hidden="true">
-      <tbody>
-        {Array.from({ length: 6 }).map((_, i) => (
-          <tr key={i} className="border-t">
-            <td className="p-2 w-10"><Skeleton className="h-4 w-4" /></td>
-            <td className="p-2"><Skeleton className="h-4 w-[60%]" /></td>
-            <td className="p-2 w-[110px]"><Skeleton className="h-3.5 w-16" /></td>
-            <td className="p-2 w-[100px]"><Skeleton className="h-5 w-16 rounded-full" /></td>
-            <td className="p-2 w-[100px]"><Skeleton className="h-3.5 w-12" /></td>
-            <td className="p-2 w-[180px]"><Skeleton className="h-3.5 w-28" /></td>
-          </tr>
-        ))}
-      </tbody>
-    </table>
-  );
 }
 
 export function ArtifactCenter({
@@ -205,91 +132,11 @@ export function ArtifactCenter({
   const artifacts = mockArtifacts ?? storeArtifacts;
 
   // Filter and sort artifacts
-  const filteredArtifacts = useMemo(() => {
-    let result = [...artifacts];
-
-    // Chapter filter. Must mirror how the left chapter column is grouped
-    // (inferChapterId, with "__none__" for ungrouped), otherwise inferred-
-    // chapter artifacts are counted in the column but filtered out of the
-    // table. See chapters useMemo and inferChapterId.
-    if (selectedChapterId && !fileNavigationActive) {
-      // 与 chapters useMemo 同源(artifactBucketId),防分桶/过滤漂移
-      result = result.filter(a => artifactBucketId(a) === selectedChapterId);
-    }
-
-    // Stage filter
-    if (stageFilter !== 'all') {
-      result = result.filter(a => a.stage === stageFilter);
-    }
-
-    // State filter
-    if (stateFilter !== 'all') {
-      result = result.filter(a => a.state === stateFilter);
-    }
-
-    // Sort
-    result.sort((a, b) => {
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-      let valueA: any = a[sortBy];
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-      let valueB: any = b[sortBy];
-
-      if (sortBy === 'createdAt' || sortBy === 'updatedAt') {
-        valueA = new Date(valueA).getTime();
-        valueB = new Date(valueB).getTime();
-      } else if (typeof valueA === 'string') {
-        valueA = valueA.toLowerCase();
-        valueB = valueB.toLowerCase();
-      }
-
-      if (valueA < valueB) return sortOrder === 'asc' ? -1 : 1;
-      if (valueA > valueB) return sortOrder === 'asc' ? 1 : -1;
-      return 0;
-    });
-
-    return result;
-  }, [artifacts, fileNavigationActive, selectedChapterId, stageFilter, stateFilter, sortBy, sortOrder]);
+  const filteredArtifacts = useMemo(() => filterAndSortArtifacts(artifacts, fileNavigationActive, selectedChapterId, stageFilter, stateFilter, sortBy, sortOrder), [artifacts, fileNavigationActive, selectedChapterId, stageFilter, stateFilter, sortBy, sortOrder]);
 
   // Build project metadata and the physical on-disk file tree. The tree is
   // derived from the current inventory refs, never from a stale cached list.
-  const projects = useMemo<ArtifactTreeProject[]>(() => {
-    if (mockProjects) {
-      return mockProjects.map((project) => ({
-        id: project.id,
-        name: project.name,
-        fileTree: project.fileTree ?? buildArtifactFileTree(artifacts.filter((artifact) => artifact.projectId === project.id)),
-        chapters: [],
-      }));
-    }
-
-    // Aggregate artifact counts by stage, keyed by projectId.
-    const stageCountByProject = new Map<string, Map<string, number>>();
-    for (const artifact of artifacts) {
-      if (!artifact.projectId) continue;
-      if (!stageCountByProject.has(artifact.projectId)) {
-        stageCountByProject.set(artifact.projectId, new Map());
-      }
-      const stageMap = stageCountByProject.get(artifact.projectId)!;
-      stageMap.set(artifact.stage, (stageMap.get(artifact.stage) ?? 0) + 1);
-    }
-
-    // Source projects: real project list from store. Active project is always
-    // shown (even with zero artifacts) so the user can tell which is open.
-    const sourceProjects = projectList.length > 0
-      ? projectList
-      : Array.from(stageCountByProject.keys()).map(id => ({ id, name: `项目 ${id.substring(0, 8)}` }));
-
-    return sourceProjects
-      .filter(p => p.id === activeProjectId || stageCountByProject.has(p.id))
-      .map(project => {
-        return {
-          id: project.id,
-          name: project.name,
-          fileTree: buildArtifactFileTree(artifacts.filter((artifact) => artifact.projectId === project.id)),
-          chapters: [],
-        };
-      });
-  }, [artifacts, mockProjects, projectList, activeProjectId]);
+  const projects = useMemo<ArtifactTreeProject[]>(() => buildTreeProjects(artifacts, mockProjects, projectList, activeProjectId), [artifacts, mockProjects, projectList, activeProjectId]);
 
   // Distinct chapter list for the active project. Drives the left chapter
   // column. Each artifact is bucketed into one of three synthetic groups or a
@@ -301,50 +148,7 @@ export function ArtifactCenter({
   //   - "__none__" (杂项): no chapter inferred (special/unclassified files).
   //   - real chapter id: formatted via formatChapterLabel ("第 N 章").
   // Sort order: "杂项" first, then "备份", then real chapters ascending.
-  const chapters = useMemo<ArtifactChapterTreeNode[]>(() => {
-    if (!activeProjectId) return [];
-    const projectArtifacts = artifacts.filter((artifact) => artifact.projectId === activeProjectId);
-    const groups = new Map<string, { count: number; stageCounts: Map<ArtifactStage, number> }>();
-    for (const artifact of projectArtifacts) {
-      const bucket = artifactBucketId(artifact);
-      const group = groups.get(bucket) ?? { count: 0, stageCounts: new Map<ArtifactStage, number>() };
-      group.count += 1;
-      group.stageCounts.set(artifact.stage, (group.stageCounts.get(artifact.stage) ?? 0) + 1);
-      groups.set(bucket, group);
-    }
-    // 两段式排序:章节(升序) → 公共资源 → 杂项 → 备份(垫底)
-    const bucketRank = (id: string): number =>
-      id.startsWith(SHARED_BUCKET_PREFIX) ? 1
-        : id === NONE_BUCKET_ID ? 2
-          : id === BACKUP_BUCKET_ID ? 3
-            : 0;
-    return [...groups.entries()]
-      .sort(([a], [b]) => {
-        const ra = bucketRank(a);
-        const rb = bucketRank(b);
-        if (ra !== rb) return ra - rb;
-        return a.localeCompare(b, undefined, { numeric: true });
-      })
-      .map(([id, group]) => ({
-        id,
-        label:
-          id === NONE_BUCKET_ID
-            ? "杂项"
-            : id === BACKUP_BUCKET_ID
-              ? "备份"
-              : sharedBucketLabel(id) ?? formatChapterLabel(id),
-        count: group.count,
-        stages: (id.startsWith(SHARED_BUCKET_PREFIX)
-          // 公共资源组展示全部出现过的 stage(project-store 不在 FIXED_NAV_STAGES)
-          ? [...group.stageCounts.entries()].filter(([, count]) => count > 0).map(([stage, count]) => ({ stage, count }))
-          : FIXED_NAV_STAGES.map((stage) => ({ stage, count: group.stageCounts.get(stage) ?? 0 })).filter(({ count }) => count > 0)
-        ).map(({ stage, count }) => ({
-          id: stage,
-          label: STAGE_LABELS[stage],
-          count,
-        })),
-      }));
-  }, [artifacts, activeProjectId]);
+  const chapters = useMemo<ArtifactChapterTreeNode[]>(() => buildChapterTreeNodes(artifacts, activeProjectId), [artifacts, activeProjectId]);
 
   const treeProjects = useMemo<ArtifactTreeProject[]>(() => projects.map((project) => ({
     ...project,
