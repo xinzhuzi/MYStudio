@@ -1,108 +1,60 @@
 /**
- * Slice 7: Transactional Execution & Recovery
+ * Slice 7: Transactional Execution & Recovery —— 门面
  *
- * Core responsibilities:
- * a) Project-scoped deletion mutex primitive (project-lock FIRST, then sorted per-file locks)
- * b) Rollback bundle writer (temp+fsync+parent-fsync+atomic-rename discipline)
- * c) Migration manifest for protected asset copies
- * d) Protected asset handling BEFORE source deletion
- * e) JSON/backup rewrite via temp+fsync+atomic-rename (NO legacy delete-image IPC)
- * f) Rehydrate stores under workflow freeze + run scans (orphan, invalid-path, residual-chapter)
- * g) Journal state machine: prepared -> commit-ready -> committed
- * h) Recovery logic (single-branch on journal state):
- *    - committed -> success, delete stale journal idempotently
- *    - commit-ready WITH bundle -> rollback from bundle
- *    - commit-ready WITHOUT bundle -> impossible/corrupt, block mutation
- *    - prepared WITH bundle -> rollback from bundle
- *
- * IMPORTANT: Import transforms from Slice 6:
- *   import { studioTransformDeleteNovelChapters, scriptTransformDeleteEpisodes } from '@/lib/stores/store-transforms';
- *
- * Use PURE functions to compute next-state snapshots BEFORE writing to disk.
+ * 计划注册表与指纹、executeDeletion 事务、queryRecovery 恢复;
+ * 工具/回滚束/持久层分别见 deletion-shared / deletion-bundle / deletion-stores。
+ * 历史 import 面(fingerprintPlan/registerDeletionPlan/getDeletionPlan/
+ * executeDeletion/queryRecovery)保持不变。
  */
 import fs from "node:fs";
 import fsp from "node:fs/promises";
 import path from "node:path";
-import { createHash, randomUUID } from "node:crypto";
 import type {
   DeletionPlan,
   ExecuteResult,
-  PostScanResult,
   RecoveryQueryResult,
   RecoveryState,
-  TypedExecuteError,
-  PhysicalRef,
 } from "@/types/artifacts";
-import {
- 
-  parseLocalMediaPath,
-  parseProjectFileUrl,
-  resolveLocalMediaPath,
-  resolveProjectRootPath,
-} from "../storage/storage-paths";
+import { resolveProjectRootPath } from "../storage/storage-paths";
 import { withProjectDeletionLock } from "../storage/project-mutex";
 import { withFileStorageMutationLocks } from "../ipc/files/file-storage-ipc";
 import { scanProjectInventory } from "./artifact-inventory-service";
 import { buildDeletionPlan } from "@/lib/artifacts/artifact-dependency-graph";
-import { rewriteRegisteredBackup } from "./backup-decoder-registry";
 import { studioTransformDeleteNovelChapters, scriptTransformDeleteEpisodes } from "@/lib/stores/store-transforms";
 import type { NovelChaptersSnapshot, ScriptDataSnapshot } from "@/lib/stores/store-transforms";
- 
-
-type Confirmation = {
-  type: "chapter" | "artifacts";
-  chapterTitle?: string;
-  chapterId?: string;
-  artifactCount?: number;
-};
-
-type DeletionContext = { dataRoot: string; mediaRoot?: string };
-
-type CapturedFile = {
-  file: string;
-  data: string;
-  mode: number;
-  bytes: number;
-  sha256: string;
-};
-
-type MigrationEntry = { from: string; to: string; sha256: string };
-type PlannedTarget = { path: string; type: PhysicalRef["type"]; hash256?: string };
-
-type Journal = {
-  schemaVersion: 1;
-  state: "prepared" | "commit-ready" | "committed";
-  planId: string;
-  bundlePath: string;
-  bundleSha256: string;
-  preFingerprint: string;
-  postFingerprint?: string;
-  migrationManifest: MigrationEntry[];
-};
-
-type RollbackBundle = { schemaVersion: 1; files: CapturedFile[]; migrations: MigrationEntry[] };
-
-const BACKUP_SUFFIX_RE = /\.(?:bak(?:[-_][^.]*)?$|codex[-_][^.]*$|smoke[-_][^.]*$)/i;
-const BACKUP_ROOT_DIRS = new Set(["backups", "visual-continuity-backups"]);
+import {
+  type Confirmation,
+  type DeletionContext,
+  type Journal,
+  type MigrationEntry,
+  type PlannedTarget,
+  type RollbackBundle,
+  atomicWrite,
+  captureFile,
+  fileHash,
+  getPlanItemTargets,
+  hasRequiredFreeSpace,
+  isEnospc,
+  isInside,
+  mapError,
+  resolveTarget,
+  stableHash,
+  unlinkDurably,
+} from "./deletion-shared";
+import {
+  capturedFingerprint,
+  currentProjectFingerprint,
+  journalState,
+  readBundle,
+  removeCreatedMigrationCopies,
+  restoreFiles,
+  validateBundlePaths,
+  verifyCapturedFingerprint,
+  writeBundle,
+} from "./deletion-bundle";
+import { collectPersistedFiles, postScan, rewritePersistedFiles } from "./deletion-stores";
 
 const plans = new Map<string, DeletionPlan>();
-
-const EMPTY_SCAN: PostScanResult = {
-  orphanRecords: 0,
-  invalidPaths: 0,
-  residualChapterFiles: 0,
-  backupResidue: 0,
-  crossProjectLeak: 0,
-  transactionResidue: 0,
-};
-
-function stableHash(value: unknown): string {
-  return createHash("sha256").update(JSON.stringify(value)).digest("hex");
-}
-
-function fileHash(data: Buffer): string {
-  return createHash("sha256").update(data).digest("hex");
-}
 
 export function fingerprintPlan(
   plan: Pick<DeletionPlan,
@@ -161,465 +113,6 @@ export function getDeletionPlan(planId: string): DeletionPlan | undefined {
 
 async function withProjectLock<T>(projectKey: string, action: () => Promise<T>): Promise<T> {
   return withProjectDeletionLock(projectKey, action);
-}
-
-function canonicalExistingPath(input: string): string {
-  let current = path.resolve(input);
-  const suffix: string[] = [];
-  while (true) {
-    try {
-      return path.join(fs.realpathSync(current), ...suffix);
-    } catch {
-      const parent = path.dirname(current);
-      if (parent === current) return path.resolve(input);
-      suffix.unshift(path.basename(current));
-      current = parent;
-    }
-  }
-}
-
-function isInside(root: string, target: string): boolean {
-  const canonicalRoot = canonicalExistingPath(root);
-  const canonicalTarget = canonicalExistingPath(target);
-  return canonicalTarget === canonicalRoot || canonicalTarget.startsWith(`${canonicalRoot}${path.sep}`);
-}
-
-async function resolveTarget(context: DeletionContext, projectRoot: string, rawPath: string, projectId: string): Promise<string> {
-  if (rawPath.startsWith("project-file://")) {
-    const parsed = parseProjectFileUrl(rawPath);
-    if (!parsed || parsed.projectId !== projectId) throw new Error("cross-root");
-    const resolved = path.resolve(projectRoot, parsed.relativePath);
-    if (!isInside(projectRoot, resolved)) throw new Error("cross-root");
-    return resolved;
-  }
-  if (rawPath.startsWith("local-image://") || rawPath.startsWith("local-video://")) {
-    if (!context.mediaRoot || !parseLocalMediaPath(rawPath)) throw new Error("cross-root");
-    const resolved = resolveLocalMediaPath(context.mediaRoot, rawPath);
-    if (!isInside(context.mediaRoot, resolved)) throw new Error("cross-root");
-    return resolved;
-  }
-  if (path.isAbsolute(rawPath)) {
-    const allowed = isInside(projectRoot, rawPath) || (context.mediaRoot ? isInside(context.mediaRoot, rawPath) : false);
-    if (!allowed) throw new Error("cross-root");
-    return path.resolve(rawPath);
-  }
-  const resolved = path.resolve(projectRoot, rawPath);
-  if (!isInside(projectRoot, resolved)) throw new Error("cross-root");
-  return resolved;
-}
-
-async function captureFile(file: string): Promise<CapturedFile> {
-  const stat = await fsp.lstat(file);
-  if (stat.isSymbolicLink()) throw new Error("symlink");
-  if (!stat.isFile()) throw new Error("special");
-  const data = await fsp.readFile(file);
-  return { file, data: data.toString("base64"), mode: stat.mode, bytes: data.byteLength, sha256: fileHash(data) };
-}
-
-async function atomicWrite(file: string, data: string | Buffer): Promise<void> {
-  await fsp.mkdir(path.dirname(file), { recursive: true });
-  const temporary = `${file}.${randomUUID()}.tmp`;
-  const handle = await fsp.open(temporary, "w", 0o600);
-  try {
-    if (Buffer.isBuffer(data)) await handle.writeFile(data);
-    else await handle.writeFile(data, "utf8");
-    await handle.sync();
-  } finally {
-    await handle.close();
-  }
-  await fsp.rename(temporary, file);
-  const parent = await fsp.open(path.dirname(file), "r").catch(() => null);
-  await parent?.sync().catch(() => undefined);
-  await parent?.close().catch(() => undefined);
-}
-
-function capturedFingerprint(files: CapturedFile[]): string {
-  return stableHash(files.map(({ file, bytes, sha256, mode }) => ({ file, bytes, sha256, mode })).sort((a, b) => a.file.localeCompare(b.file)));
-}
-
-async function currentProjectFingerprint(projectRoot: string): Promise<string> {
-  const entries: Array<{ path: string; bytes: number; sha256: string }> = [];
-  async function visit(directory: string): Promise<void> {
-    for (const entry of await fsp.readdir(directory, { withFileTypes: true })) {
-      if (entry.name === ".artifact-delete-journal.json" || /^\.artifact-delete-.*\.bundle\.json$/i.test(entry.name)) continue;
-      const target = path.join(directory, entry.name);
-      if (entry.isDirectory()) {
-        await visit(target);
-        continue;
-      }
-      const stat = await fsp.lstat(target);
-      if (stat.isSymbolicLink() || !stat.isFile()) throw new Error("special");
-      const data = await fsp.readFile(target);
-      entries.push({
-        path: path.relative(projectRoot, target).split(path.sep).join("/"),
-        bytes: data.byteLength,
-        sha256: fileHash(data),
-      });
-    }
-  }
-  if (fs.existsSync(projectRoot)) await visit(projectRoot);
-  return stableHash(entries.sort((left, right) => left.path.localeCompare(right.path)));
-}
-
-async function collectPersistedFiles(projectRoot: string): Promise<string[]> {
-  const files: string[] = [];
-  async function visit(dir: string): Promise<void> {
-    const entries = await fsp.readdir(dir, { withFileTypes: true });
-    for (const entry of entries) {
-      if (entry.name.startsWith(".")) continue;
-      const target = path.join(dir, entry.name);
-      if (entry.isDirectory()) await visit(target);
-      else if (/\.json$/i.test(entry.name) || BACKUP_SUFFIX_RE.test(entry.name)) files.push(target);
-    }
-  }
-  if (fs.existsSync(projectRoot)) await visit(projectRoot);
-  return files;
-}
-
-function recordMatches(value: Record<string, unknown>, chapterId: string, rawIds: Set<string>): boolean {
-  const id = typeof value.id === "string" ? value.id : undefined;
-  return Boolean((id && rawIds.has(id)) || value.chapterId === chapterId || value.episodeId === chapterId);
-}
-
-function pruneChapter(value: unknown, chapterId: string, rawIds: Set<string>, insideArray = false): { value: unknown; changed: boolean } {
-  if (Array.isArray(value)) {
-    let changed = false;
-    const next: unknown[] = [];
-    for (const item of value) {
-      if (item && typeof item === "object" && !Array.isArray(item) && recordMatches(item as Record<string, unknown>, chapterId, rawIds)) {
-        changed = true;
-        continue;
-      }
-      const child = pruneChapter(item, chapterId, rawIds, true);
-      changed ||= child.changed;
-      next.push(child.value);
-    }
-    return { value: next, changed };
-  }
-  if (!value || typeof value !== "object") return { value, changed: false };
-  const source = value as Record<string, unknown>;
-  if (insideArray && recordMatches(source, chapterId, rawIds)) return { value: undefined, changed: true };
-  let changed = false;
-  const next: Record<string, unknown> = { ...source };
-  for (const [key, item] of Object.entries(source)) {
-    if (key === chapterId || rawIds.has(key)) {
-      delete next[key];
-      changed = true;
-      continue;
-    }
-    const child = pruneChapter(item, chapterId, rawIds, false);
-    changed ||= child.changed;
-    next[key] = child.value;
-  }
-  return { value: next, changed };
-}
-
-function reindexScriptState(value: unknown): unknown {
-  if (!value || typeof value !== "object") return value;
-  const root = value as Record<string, unknown>;
-  const scriptData = root.scriptData;
-  if (!scriptData || typeof scriptData !== "object") return value;
-  const data = scriptData as Record<string, unknown>;
-  if (!Array.isArray(data.episodes)) return value;
-  const episodes = data.episodes.map((episode, index) => {
-    if (!episode || typeof episode !== "object") return episode;
-    return { ...(episode as Record<string, unknown>), index: index + 1 };
-  });
-  const next = { ...root, scriptData: { ...data, episodes } };
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-  if (Array.isArray((next as any).episodeRawScripts)) {
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (next as any).episodeRawScripts = (next as any).episodeRawScripts.map((raw, index) => {
-      if (!raw || typeof raw !== "object") return raw;
-      return { ...(raw as Record<string, unknown>), episodeIndex: index + 1 };
-    });
-  }
-  return next;
-}
-
-async function rewritePersistedFiles(
-  projectRoot: string,
-  chapterId: string,
-  rawIds: Set<string>,
-  backupImpacts: DeletionPlan["backupImpact"],
-): Promise<CapturedFile[]> {
-  const originals: CapturedFile[] = [];
-  for (const file of await collectPersistedFiles(projectRoot)) {
-    const text = await fsp.readFile(file, "utf8").catch(() => null);
-    if (text === null) continue;
-    let parsed: unknown;
-    try { parsed = JSON.parse(text); } catch { continue; }
-    const relativePath = path.relative(projectRoot, file).split(path.sep).join("/");
-    const backupImpact = backupImpacts.find((impact) => impact.filePath === relativePath);
-    if (backupImpact?.action === "block") throw new Error("backup format blocked");
-    if (backupImpact?.action === "delete") continue;
-    // Every backup suffix is fail-closed.  A .codex/.smoke backup without a
-    // registered impact must never fall through to the generic chapter walker,
-    // which could rewrite an unregistered historical format by accident.
-    if (inferPhysicalRefType(relativePath) === "backup" && !backupImpact) continue;
-    const rootChapterId = parsed && typeof parsed === "object" && !Array.isArray(parsed)
-      ? (parsed as Record<string, unknown>).chapterId
-      : undefined;
-    // A registered chapter-scoped store is already represented by a physical
-    // deletion target.  Do not partially rewrite it and leave a top-level
-    // chapterId behind; the unlink phase removes the whole file atomically.
-    const changed = backupImpact?.action === "rewrite"
-      ? rewriteRegisteredBackup(parsed, chapterId, rawIds)
-      : path.basename(file) === "artifacts.json"
-      ? (() => {
-          const root = parsed as Record<string, unknown>;
-          const overlays = root.overlays;
-          if (!overlays || typeof overlays !== "object" || Array.isArray(overlays)) return { value: parsed, changed: false };
-          const nextOverlays = Object.fromEntries(Object.entries(overlays as Record<string, unknown>).filter(([id]) => !rawIds.has(id) && !rawIds.has(id.split(":").pop() ?? id)));
-          return { value: { ...root, overlays: nextOverlays }, changed: Object.keys(nextOverlays).length !== Object.keys(overlays as Record<string, unknown>).length };
-        })()
-        : rootChapterId === chapterId
-          ? { value: parsed, changed: false }
-          : pruneChapter(parsed, chapterId, rawIds);
-    if (!changed.changed) continue;
-    const normalized = reindexScriptState(changed.value);
-    originals.push(await captureFile(file));
-    await atomicWrite(file, JSON.stringify(normalized, null, 2));
-  }
-  return originals;
-}
-
-async function restoreFiles(files: CapturedFile[]): Promise<void> {
-  for (const original of files) {
-    const data = Buffer.from(original.data, "base64");
-    if (fileHash(data) !== original.sha256 || data.byteLength !== original.bytes) throw new Error("bundle-corrupt");
-    await atomicWrite(original.file, data);
-    await fsp.chmod(original.file, original.mode).catch(() => undefined);
-  }
-}
-
-async function availableBytes(root: string): Promise<number | null> {
-  const statfs = (fsp as typeof fsp & { statfs?: (file: string) => Promise<{ bavail: bigint; bsize: bigint }> }).statfs;
-  if (!statfs) return null;
-  try {
-    const stats = await statfs(root);
-    return Number(stats.bavail * stats.bsize);
-  } catch {
-    return null;
-  }
-}
-
-async function hasRequiredFreeSpace(
-  root: string,
-  rollbackBundleBytes: number,
-  protectedAssetCopyBytes: number,
-  maxTempFileBytes: number,
-): Promise<boolean> {
-  const free = await availableBytes(root);
-  if (free === null) return true;
-  const required = (rollbackBundleBytes + protectedAssetCopyBytes + maxTempFileBytes) * 2;
-  return free >= required;
-}
-
-async function unlinkDurably(file: string): Promise<void> {
-  try {
-    await fsp.unlink(file);
-  } catch (error) {
-    if ((error as NodeJS.ErrnoException).code === "ENOENT") return;
-    throw error;
-  }
-  const parent = await fsp.open(path.dirname(file), "r").catch(() => null);
-  await parent?.sync().catch(() => undefined);
-  await parent?.close().catch(() => undefined);
-}
-
-function isEnospc(error: unknown): boolean {
-  return (error as NodeJS.ErrnoException)?.code === "ENOSPC"
-    || (error instanceof Error && error.message.includes("ENOSPC"));
-}
-
-async function verifyCapturedFingerprint(files: CapturedFile[], expected: string): Promise<boolean> {
-  try {
-    const current = await Promise.all(files.map((file) => captureFile(file.file)));
-    return capturedFingerprint(current) === expected;
-  } catch {
-    return false;
-  }
-}
-
-async function removeCreatedMigrationCopies(
-  projectRoot: string,
-  bundle: RollbackBundle,
-): Promise<void> {
-  const protectedRoot = path.join(projectRoot, "workflow-images", "assets", "protected");
-  for (const migration of bundle.migrations) {
-    const destinationWasCaptured = bundle.files.some((file) => file.file === migration.to);
-    if (destinationWasCaptured) continue;
-    if (!isInside(protectedRoot, migration.to)) throw new Error("bundle-corrupt");
-    await unlinkDurably(migration.to);
-  }
-}
-
-async function writeBundle(bundlePath: string, bundle: RollbackBundle): Promise<string> {
-  const serialized = JSON.stringify(bundle);
-  await atomicWrite(bundlePath, serialized);
-  const bytes = await fsp.readFile(bundlePath);
-  const sha256 = fileHash(bytes);
-  if (bytes.toString("utf8") !== serialized) throw new Error("rollback-bundle-write-failed");
-  return sha256;
-}
-
-async function readBundle(journal: Journal): Promise<RollbackBundle> {
-  const bytes = await fsp.readFile(journal.bundlePath);
-  if (fileHash(bytes) !== journal.bundleSha256) throw new Error("bundle-corrupt");
-  const bundle = JSON.parse(bytes.toString("utf8")) as RollbackBundle;
-  if (bundle.schemaVersion !== 1 || !Array.isArray(bundle.files) || !Array.isArray(bundle.migrations)) throw new Error("bundle-corrupt");
-  return bundle;
-}
-
-function validateBundlePaths(projectRoot: string, bundle: RollbackBundle, mediaRoot?: string): void {
-  for (const file of bundle.files) {
-    if (!isInside(projectRoot, file.file) && (!mediaRoot || !isInside(mediaRoot, file.file))) throw new Error("bundle-corrupt");
-  }
-  for (const migration of bundle.migrations) {
-    if ((!isInside(projectRoot, migration.from) && (!mediaRoot || !isInside(mediaRoot, migration.from)))
-      || !isInside(projectRoot, migration.to)) {
-      throw new Error("bundle-corrupt");
-    }
-  }
-}
-
-async function journalState(root: string): Promise<{ journalPath: string; journal?: Journal; error?: "corrupt" }> {
-  const journalPath = path.join(root, ".artifact-delete-journal.json");
-  try {
-    const parsed = JSON.parse(await fsp.readFile(journalPath, "utf8")) as Partial<Journal>;
-    if (parsed.schemaVersion !== 1
-      || (parsed.state !== "prepared" && parsed.state !== "commit-ready" && parsed.state !== "committed")
-      || typeof parsed.planId !== "string"
-      || typeof parsed.bundlePath !== "string"
-      || typeof parsed.bundleSha256 !== "string"
-      || typeof parsed.preFingerprint !== "string"
-      || !Array.isArray(parsed.migrationManifest)) {
-      return { journalPath, error: "corrupt" };
-    }
-    return { journalPath, journal: parsed as Journal };
-  } catch (error) {
-    if ((error as NodeJS.ErrnoException).code === "ENOENT") return { journalPath };
-    return { journalPath, error: "corrupt" };
-  }
-}
-
-function containsChapterRecord(value: unknown, chapterId: string, rawIds: ReadonlySet<string>): boolean {
-  if (Array.isArray(value)) return value.some((item) => containsChapterRecord(item, chapterId, rawIds));
-  if (!value || typeof value !== "object") return false;
-  const record = value as Record<string, unknown>;
-  if (record.chapterId === chapterId || record.episodeId === chapterId || record.id === chapterId) return true;
-  if (typeof record.id === "string" && rawIds.has(record.id)) return true;
-  if (Object.keys(record).some((key) => key === chapterId || rawIds.has(key))) return true;
-  return Object.values(record).some((child) => containsChapterRecord(child, chapterId, rawIds));
-}
-
-async function postScan(context: DeletionContext, projectId: string, chapterId: string, projectRoot: string, rawIds: ReadonlySet<string>): Promise<PostScanResult> {
-  const result: PostScanResult = { ...EMPTY_SCAN };
-  const inventory = await scanProjectInventory(
-    context.dataRoot,
-    projectId,
-    chapterId,
-    undefined,
-    { projectLockAlreadyHeld: true },
-  );
-  if (!inventory.success) {
-    result.orphanRecords = 1;
-    return result;
-  }
-  result.orphanRecords = inventory.data.discrepancies.length;
-  for (const artifact of inventory.data.artifacts) {
-    for (const ref of artifact.physicalRefs) {
-      if (ref.special) {
-        result.invalidPaths++;
-      } else {
-        try {
-          const resolved = await resolveTarget(context, projectRoot, ref.path, projectId);
-          if (!fs.existsSync(resolved)) result.invalidPaths++;
-        } catch {
-          result.invalidPaths++;
-        }
-      }
-      if (ref.type === "backup" && ref.path.includes(chapterId)) result.backupResidue++;
-      if (path.isAbsolute(ref.path) && !isInside(projectRoot, ref.path) && (!context.mediaRoot || !isInside(context.mediaRoot, ref.path))) result.crossProjectLeak++;
-    }
-  }
-  const files = await collectPersistedFiles(projectRoot);
-  for (const file of files) {
-    const baseName = path.basename(file);
-    if (baseName === ".artifact-delete-journal.json" || /^\.artifact-delete-.*\.bundle\.json$/i.test(baseName)) continue;
-    if (file.includes(chapterId)) result.residualChapterFiles++;
-    const text = await fsp.readFile(file, "utf8").catch(() => null);
-    if (text !== null) {
-      try {
-        if (containsChapterRecord(JSON.parse(text), chapterId, rawIds)) {
-          result.residualChapterFiles++;
-        }
-      } catch {
-        // Invalid JSON is already represented as an inventory discrepancy.
-      }
-    }
-  }
-  // The journal is intentionally present while this pre-commit scan runs;
-  // transaction residue is checked again after the committed journal/bundle
-  // are removed below.
-  return result;
-}
-
-function mapError(message: string): TypedExecuteError {
-  const typed: readonly TypedExecuteError[] = [
-    "fingerprint-drift",
-    "scope-expanded-across-chapters",
-    "confirmation-mismatch",
-    "insufficient-free-space",
-    "project-lock-hold",
-    "per-file-lock-failure",
-    "protected-asset-copy-failed",
-    "json-rewrite-failed",
-    "physical-delete-failed",
-    "store-rehydration-failed",
-    "post-scan-orphans",
-    "post-scan-invalid-paths",
-    "post-scan-residual-chapter",
-    "backup-rewrite-failed",
-    "rollback-bundle-write-failed",
-    "rollback-restore-failed",
-    "pre-fingerprint-mismatch",
-    "post-fingerprint-mismatch",
-    "journal-transition-failed",
-    "bundle-corrupt",
-    "missing-bundle-at-commit-ready",
-    "enospace-at-restore",
-  ];
-  if (typed.includes(message as TypedExecuteError)) return message as TypedExecuteError;
-  if (message === "fingerprint-drift") return "fingerprint-drift";
-  if (message === "symlink") return "symlink-detected";
-  if (message === "special") return "special-file-detected";
-  if (message === "cross-root") return "cross-root-path";
-  if (message === "backup" || message.includes("backup format") || message.includes("Backup rewrite") || message.includes("Backup untouched")) return "backup-rewrite-failed";
-  if (message === "bundle-corrupt") return "bundle-corrupt";
-  if (message === "rollback-bundle-write-failed") return "rollback-bundle-write-failed";
-  if (message === "post-scan") return "post-scan-orphans";
-  return "physical-delete-failed";
-}
-
-function inferPhysicalRefType(physicalPath: string): PhysicalRef["type"] {
-  const normalized = physicalPath.split(path.sep).join("/");
-  if (BACKUP_SUFFIX_RE.test(path.basename(normalized))
-    || normalized.split("/").some((segment) => BACKUP_ROOT_DIRS.has(segment))) {
-    return "backup";
-  }
-  if (/\.json$/i.test(physicalPath)) return "project-file";
-  return "local-media";
-}
-
-function getPlanItemTargets(item: DeletionPlan["deleteItems"][number]): PlannedTarget[] {
-  if (item.physicalRefs && item.physicalRefs.length > 0) {
-    return item.physicalRefs.map((ref) => ({ path: ref.path, type: ref.type, hash256: ref.hash256 }));
-  }
-  return item.physicalPath
-    ? [{ path: item.physicalPath, type: inferPhysicalRefType(item.physicalPath), hash256: item.physicalHash256 }]
-    : [];
 }
 
 export async function executeDeletion(
