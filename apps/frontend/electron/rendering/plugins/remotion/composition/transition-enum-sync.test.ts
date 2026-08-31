@@ -9,13 +9,13 @@ import { COMPOSITION_TRANSITION_EFFECTS } from "./timing";
 // 拉进同一断言：任何一侧增删 id 而其他侧未跟，这里立刻红。
 //   1. composition/timing.ts   COMPOSITION_TRANSITION_EFFECTS（运行时值，直接 import）
 //   2. types/editing.ts        EditingTransition.effectId 的 Extract union（类型层，读源文本）
-//   3. backend/video_use/adapter.py  _TRANSITION_EFFECT_IDS（读源文本）
+//   3. backend/video_use/adapter_creative.py  _TRANSITION_EFFECT_IDS（读源文本）
 // 注意：renderer-router.ts 的 REMOTION_SUPPORTED_EFFECT_IDS 是逐镜 fx 枚举
 // （panZoom/shake/...），与转场无关，刻意不纳入对拍（复审 M1）。
 
 const appsDir = process.cwd(); // vitest 从 apps/ 运行
 const adapterPySource = readFileSync(
-  path.join(appsDir, "backend", "video_use", "adapter.py"),
+  path.join(appsDir, "backend", "video_use", "adapter_creative.py"),
   "utf8",
 );
 const editingTsSource = readFileSync(
@@ -25,7 +25,7 @@ const editingTsSource = readFileSync(
 
 function extractPythonSetIds(source: string, varName: string): Set<string> {
   const match = source.match(new RegExp(`${varName}\\s*=\\s*\\{([^}]*)\\}`));
-  expect(match, `adapter.py 中未找到 ${varName} 集合定义`).toBeDefined();
+  expect(match, `adapter_creative.py 中未找到 ${varName} 集合定义`).toBeDefined();
   const ids = [...match![1].matchAll(/["']([^"']+)["']/g)].map((m) => m[1]);
   expect(ids.length, `${varName} 解析结果为空`).toBeGreaterThan(0);
   return new Set(ids);
