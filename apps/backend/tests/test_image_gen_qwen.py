@@ -7,6 +7,7 @@
 
 from __future__ import annotations
 
+import json
 import os
 import sys
 import tempfile
@@ -16,7 +17,7 @@ from contextlib import contextmanager
 from pathlib import Path
 from unittest.mock import patch
 
-from image_gen import model_cache, pipeline
+from image_gen import download_model, model_cache, model_inventory, pipeline
 
 
 class QwenKeyMappingTests(unittest.TestCase):
@@ -73,6 +74,66 @@ class PointedScanTests(unittest.TestCase):
                 model_cache.comfyui_models_dir(),
                 Path.home() / "Project" / "ComfyUI" / "models",
             )
+
+    def test_z_image_uses_its_dedicated_comfyui_override(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            base = Path(temp)
+            _write(base / model_cache.Z_COMFY_MAIN_FILE)
+            _write(base / model_cache.Z_COMFY_TEXT_ENCODER_FILE)
+            with patch.dict(
+                os.environ,
+                {
+                    "MYSTUDIO_ZIMAGE_COMFYUI_MODELS_DIR": str(base),
+                    "MYSTUDIO_QWEN_COMFYUI_MODELS_DIR": str(base / "qwen-not-z"),
+                },
+            ):
+                resolved = model_cache.resolve_z_image_big_files()
+        self.assertIsNotNone(resolved)
+        self.assertEqual(resolved["source"], "comfyui")
+        self.assertEqual(resolved["main"], base / model_cache.Z_COMFY_MAIN_FILE)
+
+
+class CacheIsolationTests(unittest.TestCase):
+    def test_image_cache_ignores_legacy_tts_environment_variables(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            tts_root = Path(temp) / "legacy-tts"
+            voicebox_root = Path(temp) / "legacy-voicebox"
+            with patch.dict(
+                os.environ,
+                {
+                    "MANYING_TTS_MODELS_DIR": str(tts_root),
+                    "VOICEBOX_MODELS_DIR": str(voicebox_root),
+                },
+                clear=True,
+            ):
+                primary = model_cache.primary_hf_cache_dir()
+                candidates = model_cache.hf_cache_dirs()
+
+        self.assertNotEqual(primary, tts_root)
+        self.assertNotEqual(primary, voicebox_root)
+        self.assertNotIn(tts_root, candidates)
+        self.assertNotIn(voicebox_root, candidates)
+
+    def test_hf_home_uses_hub_subdirectory_for_read_and_write(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            hf_home = Path(temp) / "huggingface"
+            with patch.dict(os.environ, {"HF_HOME": str(hf_home)}, clear=True):
+                primary = model_cache.primary_hf_cache_dir()
+                download = model_cache.download_hf_cache_dir()
+                primary_repo = model_cache.repo_cache_dir("Qwen/Test")
+                download_repo = model_cache.repo_cache_dir("Qwen/Test", download)
+                _write(download_repo / "snapshots" / "rev1" / "config.json", size=2)
+                cached = model_cache._find_cached_hf({
+                    "repo_id": "Qwen/Test",
+                    "repo_ids": ("Qwen/Test",),
+                })
+
+        expected = hf_home / "hub"
+        self.assertEqual(primary, expected)
+        self.assertEqual(download, expected)
+        self.assertEqual(primary_repo, download_repo)
+        self.assertIsNotNone(cached)
+        self.assertEqual(cached["cache_dir"], str(expected))
 
 
 class SmallPiecesTests(unittest.TestCase):
@@ -349,6 +410,360 @@ class LegacyAliasTests(unittest.TestCase):
         self.assertEqual(model_cache.resolve_image_model_name("sdxl-turbo"), "qwen-image-edit-2511")
         self.assertEqual(model_cache.resolve_image_model_name("flux-schnell"), "qwen-image-edit-2511")
         self.assertEqual(model_cache.resolve_image_model_name("qwen-image-edit-2511"), "qwen-image-edit-2511")
+
+
+# ---------------------------------------------------------------------------
+# 08-30 自足回退:两源解析 / 缺什么下什么 / 清单上报 / ModelScope 过滤
+# ---------------------------------------------------------------------------
+
+
+class TwoSourceResolveTests(unittest.TestCase):
+    """resolve_qwen_big_files 优先级:ComfyUI 指向 → 应用缓存自足布局 → None。"""
+
+    @staticmethod
+    def _fake_appcache(root: Path) -> Path:
+        """应用缓存自足布局:GGUF 仓 snapshot(HF 布局)+TE 仓 snapshot(ModelScope 平铺布局)。"""
+        cache = root / "cache"
+        gguf_snap = cache / "models--unsloth--Qwen-Image-Edit-2511-GGUF" / "snapshots" / "rev1"
+        _write(gguf_snap / "qwen-image-edit-2511-Q8_0.gguf", size=100)
+        te_snap = cache / "models--Comfy-Org--Qwen-Image_ComfyUI" / "snapshots" / "main"
+        _write(te_snap / "split_files" / "text_encoders" / "qwen_2.5_vl_7b.safetensors", size=24)
+        return cache
+
+    def test_appcache_layout_resolves_when_comfyui_missing(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            cache = self._fake_appcache(root)
+            env = {
+                "MYSTUDIO_QWEN_COMFYUI_MODELS_DIR": str(root / "no-comfy"),
+                "MYSTUDIO_IMAGE_MODEL_DIR": str(cache),
+            }
+            with patch.dict(os.environ, env):
+                resolved = model_cache.resolve_qwen_big_files()
+                cached = model_cache.find_cached_qwen_pointed_model()
+        self.assertIsNotNone(resolved)
+        self.assertEqual(resolved["source"], "app-cache")
+        self.assertTrue(resolved["main"].name.endswith("Q8_0.gguf"))
+        self.assertTrue(str(resolved["text_encoder"]).endswith("qwen_2.5_vl_7b.safetensors"))
+        self.assertEqual(resolved["size_mb"], round(124 / 1024 / 1024, 2))
+        self.assertTrue(cached["repo_id"].startswith("app-cache:"))
+
+    def test_comfyui_wins_over_appcache(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            comfy = root / "comfy"
+            _write(comfy / "diffusion_models" / "qwen_image_edit_2511_Q8_0.gguf", size=10)
+            _write(comfy / "text_encoders" / "qwen_2.5_vl_7b.safetensors", size=4)
+            cache = self._fake_appcache(root)
+            env = {
+                "MYSTUDIO_QWEN_COMFYUI_MODELS_DIR": str(comfy),
+                "MYSTUDIO_IMAGE_MODEL_DIR": str(cache),
+            }
+            with patch.dict(os.environ, env):
+                resolved = model_cache.resolve_qwen_big_files()
+        self.assertEqual(resolved["source"], "comfyui")
+
+    def test_partial_appcache_not_ready(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            cache = root / "cache"
+            gguf_snap = cache / "models--unsloth--Qwen-Image-Edit-2511-GGUF" / "snapshots" / "rev1"
+            _write(gguf_snap / "qwen-image-edit-2511-Q8_0.gguf", size=100)  # 只有 GGUF,无 TE
+            env = {
+                "MYSTUDIO_QWEN_COMFYUI_MODELS_DIR": str(root / "no-comfy"),
+                "MYSTUDIO_IMAGE_MODEL_DIR": str(cache),
+            }
+            with patch.dict(os.environ, env):
+                self.assertIsNone(model_cache.resolve_qwen_big_files())
+
+    def test_neither_source_resolves_none(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            env = {
+                "MYSTUDIO_QWEN_COMFYUI_MODELS_DIR": str(root / "a"),
+                "MYSTUDIO_IMAGE_MODEL_DIR": str(root / "b"),
+            }
+            with patch.dict(os.environ, env):
+                self.assertIsNone(model_cache.resolve_qwen_big_files())
+
+
+class DownloadModeTests(unittest.TestCase):
+    """缺什么下什么:大件在→只小件;大件缺→完整(ModelScope 过滤直链优先+磁盘余量门)。"""
+
+    def setUp(self) -> None:
+        self._temp = tempfile.TemporaryDirectory()
+        root = Path(self._temp.name)
+        self._root = root
+        self._cache = root / "cache"
+        self._cache.mkdir()
+        self._progress = root / "progress.json"
+        self._calls: list[tuple[str, str, tuple[str, ...]]] = []
+
+    def tearDown(self) -> None:
+        self._temp.cleanup()
+
+    def _fake_hub_modules(self) -> dict[str, object]:
+        def fake_snapshot_download(repo_id: str, allow_patterns=None, cache_dir=None):
+            self._calls.append(("hf", repo_id, tuple(allow_patterns or ())))
+
+        def fake_ms(repo_id: str, cache_dir: str, allow_paths=None):
+            self._calls.append(("ms", repo_id, tuple(allow_paths or ())))
+
+        return {
+            "huggingface_hub": types.SimpleNamespace(snapshot_download=fake_snapshot_download),
+            "modelscope_hub": types.SimpleNamespace(download_repo_to_hf_cache=fake_ms),
+        }
+
+    def _env(self, comfy: str) -> dict[str, str]:
+        return {
+            "MYSTUDIO_QWEN_COMFYUI_MODELS_DIR": comfy,
+            "MYSTUDIO_IMAGE_MODEL_DIR": str(self._cache),
+        }
+
+    def test_full_mode_when_big_missing(self) -> None:
+        env = self._env(str(self._root / "no-comfy"))
+        with patch.dict(sys.modules, self._fake_hub_modules()), patch.dict(os.environ, env):
+            rc = download_model.download_model(model_cache.QWEN_IMAGE_EDIT_MODEL, self._progress)
+        self.assertEqual(rc, 0)
+        repos = {(kind, repo) for kind, repo, _ in self._calls}
+        self.assertIn(("ms", model_cache.QWEN_GGUF_REPO), repos)  # 大件走 ModelScope 过滤直链
+        self.assertIn(("ms", model_cache.QWEN_TE_REPO), repos)
+        self.assertIn(("hf", model_cache.QWEN_IMAGE_REPO), repos)  # 小件照旧 HF snapshot
+        self.assertIn(("hf", model_cache.QWEN_VL_REPO), repos)
+        # 大件仓必须带 allow 清单(严禁整仓)
+        for kind, repo, paths in self._calls:
+            if kind == "ms" and repo in (model_cache.QWEN_GGUF_REPO, model_cache.QWEN_TE_REPO):
+                self.assertTrue(paths, f"{repo} 未带 allow_paths")
+        payload = json.loads(self._progress.read_text(encoding="utf-8"))
+        self.assertEqual(payload["status"], "complete")
+        self.assertIn("完整模型", payload["filename"])
+        spec = model_cache.IMAGE_MODELS[model_cache.QWEN_IMAGE_EDIT_MODEL]
+        self.assertEqual(payload["total"], spec["size_mb"] * 1024 * 1024)
+
+    def test_small_only_when_comfyui_present(self) -> None:
+        comfy = self._root / "comfy"
+        _write(comfy / "diffusion_models" / "qwen_image_edit_2511_Q8_0.gguf", size=10)
+        _write(comfy / "text_encoders" / "qwen_2.5_vl_7b.safetensors", size=4)
+        with patch.dict(sys.modules, self._fake_hub_modules()), patch.dict(os.environ, self._env(str(comfy))):
+            rc = download_model.download_model(model_cache.QWEN_IMAGE_EDIT_MODEL, self._progress)
+        self.assertEqual(rc, 0)
+        repos = {repo for _, repo, _ in self._calls}
+        self.assertNotIn(model_cache.QWEN_GGUF_REPO, repos)
+        self.assertNotIn(model_cache.QWEN_TE_REPO, repos)
+        self.assertIn(model_cache.QWEN_IMAGE_REPO, repos)
+        payload = json.loads(self._progress.read_text(encoding="utf-8"))
+        self.assertEqual(payload["status"], "complete")
+        self.assertEqual(payload["total"], model_cache.QWEN_SMALL_PIECES_SIZE_MB * 1024 * 1024)
+
+    def test_flux2_pointed_small_download_does_not_raise_name_error(self) -> None:
+        comfy = self._root / "flux-comfy"
+        _write(comfy / model_cache.FLUX2_COMFY_MAIN_FILE)
+        _write(comfy / model_cache.FLUX2_COMFY_TEXT_ENCODER_FILES[0])
+        env = {
+            "MYSTUDIO_QWEN_COMFYUI_MODELS_DIR": str(comfy),
+            "MYSTUDIO_IMAGE_MODEL_DIR": str(self._cache),
+        }
+        with patch.dict(sys.modules, self._fake_hub_modules()), patch.dict(os.environ, env):
+            rc = download_model.download_model(model_cache.FLUX2_KLEIN_MODEL, self._progress)
+        self.assertEqual(rc, 0)
+        self.assertIn(("ms", model_cache.FLUX2_SMALL_REPO), {(kind, repo) for kind, repo, _ in self._calls})
+        payload = json.loads(self._progress.read_text(encoding="utf-8"))
+        self.assertEqual(payload["status"], "complete")
+
+    def test_full_mode_insufficient_disk_fails_closed(self) -> None:
+        env = self._env(str(self._root / "no-comfy"))
+        with (
+            patch.dict(sys.modules, self._fake_hub_modules()),
+            patch.dict(os.environ, env),
+            patch("shutil.disk_usage", return_value=types.SimpleNamespace(free=0)),
+        ):
+            rc = download_model.download_model(model_cache.QWEN_IMAGE_EDIT_MODEL, self._progress)
+        self.assertEqual(rc, 2)
+        self.assertEqual(self._calls, [])  # 余量门在下任何字节之前
+        payload = json.loads(self._progress.read_text(encoding="utf-8"))
+        self.assertEqual(payload["status"], "error")
+        self.assertIn("磁盘空间不足", payload["error"])
+
+    def test_full_mode_falls_back_to_hf_when_modelscope_fails(self) -> None:
+        def fake_snapshot_download(repo_id: str, allow_patterns=None, cache_dir=None):
+            self._calls.append(("hf", repo_id, tuple(allow_patterns or ())))
+
+        def exploding_ms(repo_id: str, cache_dir: str, allow_paths=None):
+            if repo_id in (model_cache.QWEN_GGUF_REPO, model_cache.QWEN_TE_REPO):
+                raise RuntimeError("modelscope down")
+            self._calls.append(("ms", repo_id, tuple(allow_paths or ())))
+
+        modules = {
+            "huggingface_hub": types.SimpleNamespace(snapshot_download=fake_snapshot_download),
+            "modelscope_hub": types.SimpleNamespace(download_repo_to_hf_cache=exploding_ms),
+        }
+        with patch.dict(sys.modules, modules), patch.dict(os.environ, self._env(str(self._root / "no-comfy"))):
+            rc = download_model.download_model(model_cache.QWEN_IMAGE_EDIT_MODEL, self._progress)
+        self.assertEqual(rc, 0)
+        repos = {(kind, repo) for kind, repo, _ in self._calls}
+        self.assertIn(("hf", model_cache.QWEN_GGUF_REPO), repos)  # ModelScope 挂了走 HF 回退
+        self.assertIn(("hf", model_cache.QWEN_TE_REPO), repos)
+        payload = json.loads(self._progress.read_text(encoding="utf-8"))
+        self.assertEqual(payload["status"], "complete")
+
+    def test_flux2_small_only_when_comfyui_big_files_present(self) -> None:
+        comfy = self._root / "comfy-flux2"
+        _write(comfy / "diffusion_models" / "flux2_klein_9b.safetensors", size=10)
+        _write(comfy / "text_encoders" / "qwen_3_8b.safetensors", size=4)
+        _write(comfy / "vae" / "flux2-vae.safetensors", size=4)
+        env = {
+            "MYSTUDIO_QWEN_COMFYUI_MODELS_DIR": str(comfy),
+            "MYSTUDIO_IMAGE_MODEL_DIR": str(self._cache),
+        }
+        with patch.dict(sys.modules, self._fake_hub_modules()), patch.dict(os.environ, env):
+            rc = download_model.download_model(model_cache.FLUX2_KLEIN_MODEL, self._progress)
+        self.assertEqual(rc, 0)
+        repos = {repo for _, repo, _ in self._calls}
+        self.assertEqual(repos, {model_cache.FLUX2_SMALL_REPO})
+        payload = json.loads(self._progress.read_text(encoding="utf-8"))
+        self.assertEqual(payload["status"], "complete")
+        self.assertEqual(payload["total"], 400 * 1024 * 1024)
+
+    def test_flux2_missing_big_files_fails_closed_without_download(self) -> None:
+        env = {
+            "MYSTUDIO_QWEN_COMFYUI_MODELS_DIR": str(self._root / "no-comfy"),
+            "MYSTUDIO_IMAGE_MODEL_DIR": str(self._cache),
+        }
+        with patch.dict(sys.modules, self._fake_hub_modules()), patch.dict(os.environ, env):
+            rc = download_model.download_model(model_cache.FLUX2_KLEIN_MODEL, self._progress)
+        self.assertEqual(rc, 2)
+        self.assertEqual(self._calls, [])
+        payload = json.loads(self._progress.read_text(encoding="utf-8"))
+        self.assertEqual(payload["status"], "error")
+        self.assertIn("FLUX.2 大件缺失", payload["error"])
+
+    def test_krea2_missing_big_files_fails_closed_without_download(self) -> None:
+        env = {
+            "MYSTUDIO_QWEN_COMFYUI_MODELS_DIR": str(self._root / "no-comfy"),
+            "MYSTUDIO_IMAGE_MODEL_DIR": str(self._cache),
+        }
+        with patch.dict(sys.modules, self._fake_hub_modules()), patch.dict(os.environ, env):
+            rc = download_model.download_model(model_cache.KREA2_MODEL, self._progress)
+        self.assertEqual(rc, 2)
+        self.assertEqual(self._calls, [])
+        payload = json.loads(self._progress.read_text(encoding="utf-8"))
+        self.assertEqual(payload["status"], "error")
+        self.assertIn("Krea2 大件缺失", payload["error"])
+        self.assertIn("Krea2 完整模型", payload["filename"])
+        self.assertNotIn("Qwen", payload["filename"])
+
+    def test_krea2_small_only_when_comfyui_big_files_present(self) -> None:
+        comfy = self._root / "comfy-krea2"
+        _write(comfy / model_cache.KREA2_COMFY_MAIN_FILE, size=10)
+        _write(comfy / model_cache.KREA2_COMFY_TEXT_ENCODER_FILE, size=4)
+        _write(comfy / model_cache.KREA2_COMFY_VAE_FILE, size=4)
+        env = {
+            "MYSTUDIO_QWEN_COMFYUI_MODELS_DIR": str(comfy),
+            "MYSTUDIO_IMAGE_MODEL_DIR": str(self._cache),
+        }
+        with patch.dict(sys.modules, self._fake_hub_modules()), patch.dict(os.environ, env):
+            rc = download_model.download_model(model_cache.KREA2_MODEL, self._progress)
+        self.assertEqual(rc, 0)
+        self.assertIn(("ms", model_cache.KREA2_SMALL_REPO), {(kind, repo) for kind, repo, _ in self._calls})
+        payload = json.loads(self._progress.read_text(encoding="utf-8"))
+        self.assertEqual(payload["status"], "complete")
+        self.assertEqual(payload["total"], 400 * 1024 * 1024)
+        self.assertIn("Krea2 小件", payload["filename"])
+        self.assertEqual(
+            self._calls,
+            [("ms", model_cache.KREA2_SMALL_REPO, tuple(model_cache.KREA2_SMALL_EXACT_FILES))],
+        )
+
+
+class InventorySourceTests(unittest.TestCase):
+    def test_inventory_reports_comfyui_source_and_paths(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            comfy = root / "comfy"
+            _write(comfy / "diffusion_models" / "qwen_image_edit_2511_Q8_0.gguf", size=10)
+            _write(comfy / "text_encoders" / "qwen_2.5_vl_7b.safetensors", size=4)
+            env = {
+                "MYSTUDIO_QWEN_COMFYUI_MODELS_DIR": str(comfy),
+                "MYSTUDIO_IMAGE_MODEL_DIR": str(root / "cache"),
+            }
+            with patch.dict(os.environ, env):
+                rows = model_inventory.build_model_status()
+        row = next(r for r in rows if r["modelName"] == model_cache.QWEN_IMAGE_EDIT_MODEL)
+        self.assertTrue(row["downloaded"])
+        self.assertEqual(row["bigFilesSource"], "comfyui")
+        self.assertEqual(len(row["pointedFiles"]), 2)
+        self.assertTrue(row["pointedFiles"][0].endswith("qwen_image_edit_2511_Q8_0.gguf"))
+
+    def test_inventory_reports_missing_when_neither_source(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            env = {
+                "MYSTUDIO_QWEN_COMFYUI_MODELS_DIR": str(root / "a"),
+                "MYSTUDIO_IMAGE_MODEL_DIR": str(root / "b"),
+            }
+            with patch.dict(os.environ, env):
+                rows = model_inventory.build_model_status()
+        row = next(r for r in rows if r["modelName"] == model_cache.QWEN_IMAGE_EDIT_MODEL)
+        self.assertFalse(row["downloaded"])
+        self.assertIsNone(row["bigFilesSource"])
+        self.assertEqual(row["pointedFiles"], [])
+
+    def test_inventory_reports_appcache_source(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            cache = TwoSourceResolveTests._fake_appcache(root)
+            env = {
+                "MYSTUDIO_QWEN_COMFYUI_MODELS_DIR": str(root / "no-comfy"),
+                "MYSTUDIO_IMAGE_MODEL_DIR": str(cache),
+            }
+            with patch.dict(os.environ, env):
+                rows = model_inventory.build_model_status()
+        row = next(r for r in rows if r["modelName"] == model_cache.QWEN_IMAGE_EDIT_MODEL)
+        self.assertTrue(row["downloaded"])
+        self.assertEqual(row["bigFilesSource"], "app-cache")
+        self.assertTrue(row["pointedFiles"][0].endswith("Q8_0.gguf"))
+        self.assertTrue(row["pointedFiles"][1].endswith("qwen_2.5_vl_7b.safetensors"))
+
+
+class ModelScopeAllowPathsTests(unittest.TestCase):
+    def test_allow_paths_downloads_only_listed_files(self) -> None:
+        import modelscope_hub
+
+        captured: dict[str, object] = {}
+
+        class FakeResponse:
+            status_code = 200
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *args):
+                return False
+
+            def raise_for_status(self) -> None:
+                return None
+
+            def iter_content(self, chunk_size):  # noqa: ARG002
+                yield b"z" * 100
+
+        class FakeSession:
+            def get(self, url, stream=None, headers=None, timeout=None):  # noqa: ARG002
+                captured["url"] = url
+                return FakeResponse()
+
+        files = [("README.md", 10), ("big/Q8_0.gguf", 100), ("other/extra.bin", 50)]
+        with tempfile.TemporaryDirectory() as temp:
+            cache = str(Path(temp))
+            with (
+                patch.object(modelscope_hub, "list_modelscope_files", return_value=files),
+                patch("requests.Session", FakeSession),
+            ):
+                modelscope_hub.download_repo_to_hf_cache("org/repo", cache, allow_paths=("big/Q8_0.gguf",))
+            target = Path(cache) / "models--org--repo" / "snapshots" / "main"
+            self.assertEqual((target / "big" / "Q8_0.gguf").read_bytes(), b"z" * 100)
+            self.assertFalse((target / "README.md").exists())
+            self.assertFalse((target / "other" / "extra.bin").exists())
+        self.assertIn("resolve/master/big/Q8_0.gguf", str(captured["url"]))
 
 
 if __name__ == "__main__":

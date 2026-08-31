@@ -148,6 +148,41 @@ class ImageGenWorkerTest(unittest.TestCase):
         self.assertFalse(payload["capabilities"]["ipAdapter"])
         self.assertFalse(payload["capabilities"]["realEsrgan"])
 
+    def test_probe_dispatches_small_piece_status_for_every_pointed_layout(self) -> None:
+        cached = {"repo_id": "comfyui:pointed", "size_mb": 1}
+        status = {"ready": True}
+        with patch.object(adapter, "find_cached_image_model_for_spec", return_value=cached), patch.object(
+            adapter, "_missing_dependencies", return_value=[]
+        ), patch.object(adapter, "qwen_small_pieces_status", return_value=status) as qwen, patch.object(
+            adapter, "krea2_small_pieces_status", return_value=status
+        ) as krea, patch.object(adapter, "flux2_small_pieces_status", return_value=status) as flux, patch.object(
+            adapter, "z_image_small_pieces_status", return_value=status
+        ) as z:
+            for model_name in ("qwen-image-edit-2511", "krea2-turbo", "flux2-klein-9b", "z-image-turbo"):
+                self.assertEqual(adapter.probe_model(model_name)["status"], "ready")
+        qwen.assert_called_once_with()
+        krea.assert_called_once_with()
+        flux.assert_called_once_with()
+        z.assert_called_once_with()
+
+    def test_probe_fails_closed_when_non_qwen_small_pieces_are_missing(self) -> None:
+        cached = {"repo_id": "comfyui:pointed", "size_mb": 1}
+        with patch.object(adapter, "find_cached_image_model_for_spec", return_value=cached), patch.object(
+            adapter, "_missing_dependencies", return_value=[]
+        ), patch.object(adapter, "krea2_small_pieces_status", return_value={"ready": False}):
+            payload = adapter.probe_model("krea2-turbo")
+        self.assertEqual(payload["status"], "blocked")
+        self.assertEqual(payload["code"], "small-pieces-missing")
+
+    def test_missing_dependencies_include_pipeline_requirements(self) -> None:
+        def missing(module: str):
+            return object() if module in {"torch", "diffusers", "PIL"} else None
+
+        with patch.object(adapter.importlib.util, "find_spec", side_effect=missing):
+            self.assertEqual(adapter._missing_dependencies("krea2-turbo"), ["transformers", "safetensors"])
+            self.assertEqual(adapter._missing_dependencies("flux2-klein-9b"), ["transformers", "safetensors"])
+            self.assertEqual(adapter._missing_dependencies("z-image-turbo"), ["transformers", "safetensors"])
+
     def test_reference_request_fails_closed_until_capability_is_wired(self) -> None:
         with tempfile.TemporaryDirectory() as temp:
             request = {

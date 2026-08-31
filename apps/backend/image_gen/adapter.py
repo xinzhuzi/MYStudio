@@ -15,7 +15,10 @@ from .model_cache import (
     IMAGE_MODELS,
     QWEN_IMAGE_EDIT_MODEL,
     find_cached_image_model_for_spec,
-    hf_snapshot_dir,
+    qwen_small_pieces_status,
+    krea2_small_pieces_status,
+    flux2_small_pieces_status,
+    z_image_small_pieces_status,
     resolve_image_model_name,
 )
 from .engines import ALL_ENGINES as _ALL_ENGINES
@@ -160,10 +163,17 @@ def _missing_dependencies(model_name: str = QWEN_IMAGE_EDIT_MODEL) -> list[str]:
 
 
 def _small_pieces_status_for_layout(layout: str) -> dict[str, Any] | None:
-    engine = _ENGINE_BY_LAYOUT.get(layout)
-    if engine is None:
-        return None
-    return engine.small_pieces_status(hf_snapshot_dir)
+    # Keep status lookups patchable at this compatibility boundary.  The
+    # engine registry remains the source of truth; these aliases preserve the
+    # pre-separation adapter contract used by worker integrations and tests.
+    status_by_layout = {
+        "qwen-pointed": qwen_small_pieces_status,
+        "krea2-pointed": krea2_small_pieces_status,
+        "flux2-pointed": flux2_small_pieces_status,
+        "z-image-pointed": z_image_small_pieces_status,
+    }
+    resolver = status_by_layout.get(layout)
+    return resolver() if resolver else None
 
 
 def probe_model(model_name: str = QWEN_IMAGE_EDIT_MODEL) -> dict[str, Any]:

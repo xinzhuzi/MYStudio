@@ -3,26 +3,221 @@
   "name": "krea2_edit_ref",
   "comfyuiVersionMin": "0.33",
   "inputs": {
-    "prompt": {"node": "36", "field": "prompt"},
-    "seed": {"node": "30", "field": "seed"},
-    "steps": {"node": "30", "field": "steps"},
-    "references": [{"node": "45", "field": "image"}]
+    "prompt": {
+      "node": "36",
+      "field": "prompt"
+    },
+    "seed": {
+      "node": "30",
+      "field": "seed"
+    },
+    "steps": {
+      "node": "30",
+      "field": "steps"
+    },
+    "references": [
+      {
+        "node": "45",
+        "field": "image"
+      }
+    ]
   },
   "graph": {
-    "43": {"class_type": "UNETLoader", "inputs": {"unet_name": "krea2_turbo_bf16.safetensors", "weight_dtype": "default"}},
-    "42": {"class_type": "LoraLoaderModelOnly", "inputs": {"lora_name": "Krea2-功能/Krea2-编辑identity_edit_v1_2.safetensors", "strength_model": 1.0, "model": ["43", 0]}},
-    "40": {"class_type": "CLIPLoader", "inputs": {"clip_name": "qwen3-vl-4b-heretic.safetensors", "type": "krea2", "device": "default"}},
-    "41": {"class_type": "VAELoader", "inputs": {"vae_name": "qwen_image_vae.safetensors"}},
-    "45": {"class_type": "LoadImage", "inputs": {"image": ""}},
-    "51": {"class_type": "ImageScaleToTotalPixels", "inputs": {"image": ["45", 0], "upscale_method": "lanczos", "megapixels": 1.0, "resolution_steps": 8}},
-    "57": {"class_type": "GetImageSize+", "inputs": {"image": ["51", 0]}},
-    "44": {"class_type": "VAEEncode", "inputs": {"pixels": ["51", 0], "vae": ["41", 0]}},
-    "28": {"class_type": "EmptySD3LatentImage", "inputs": {"width": ["57", 0], "height": ["57", 1], "batch_size": 1}},
-    "34": {"class_type": "Krea2EditGroundedEncode", "inputs": {"clip": ["40", 0], "prompt": "", "image": ["51", 0], "grounding_px": 768, "system_prompt": ""}},
-    "36": {"class_type": "Krea2EditGroundedEncode", "inputs": {"clip": ["40", 0], "prompt": "", "image": ["51", 0], "grounding_px": 768, "system_prompt": ""}},
-    "35": {"class_type": "Krea2EditModelPatch", "inputs": {"model": ["42", 0], "source_latent": ["44", 0], "ref_boost": 4.0, "ref_boost_a": 1.0, "fit_mode": "fit", "vae": ["41", 0], "source_image": ["51", 0], "target_latent": ["28", 0]}},
-    "30": {"class_type": "KSampler", "inputs": {"model": ["35", 0], "positive": ["36", 0], "negative": ["34", 0], "latent_image": ["28", 0], "seed": 1, "steps": 10, "cfg": 1.0, "sampler_name": "euler", "scheduler": "simple", "denoise": 1.0}},
-    "29": {"class_type": "VAEDecode", "inputs": {"samples": ["30", 0], "vae": ["41", 0]}},
-    "27": {"class_type": "SaveImage", "inputs": {"images": ["29", 0], "filename_prefix": "MYStudio"}}
+    "43": {
+      "class_type": "UNETLoader",
+      "inputs": {
+        "unet_name": "krea2_turbo_bf16.safetensors",
+        "weight_dtype": "default"
+      }
+    },
+    "42": {
+      "class_type": "LoraLoaderModelOnly",
+      "inputs": {
+        "lora_name": "Krea2-功能/Krea2-编辑identity_edit_v1_2.safetensors",
+        "strength_model": 1.0,
+        "model": [
+          "43",
+          0
+        ]
+      }
+    },
+    "40": {
+      "class_type": "CLIPLoader",
+      "inputs": {
+        "clip_name": "qwen3-vl-4b-heretic.safetensors",
+        "type": "krea2",
+        "device": "default"
+      }
+    },
+    "41": {
+      "class_type": "VAELoader",
+      "inputs": {
+        "vae_name": "qwen_image_vae.safetensors"
+      }
+    },
+    "45": {
+      "class_type": "LoadImage",
+      "inputs": {
+        "image": ""
+      }
+    },
+    "51": {
+      "class_type": "ImageScaleToTotalPixels",
+      "inputs": {
+        "image": [
+          "45",
+          0
+        ],
+        "upscale_method": "lanczos",
+        "megapixels": 1.0,
+        "resolution_steps": 8
+      }
+    },
+    "57": {
+      "class_type": "GetImageSize+",
+      "inputs": {
+        "image": [
+          "51",
+          0
+        ]
+      }
+    },
+    "44": {
+      "class_type": "VAEEncode",
+      "inputs": {
+        "pixels": [
+          "51",
+          0
+        ],
+        "vae": [
+          "41",
+          0
+        ]
+      }
+    },
+    "28": {
+      "class_type": "EmptySD3LatentImage",
+      "inputs": {
+        "width": [
+          "57",
+          0
+        ],
+        "height": [
+          "57",
+          1
+        ],
+        "batch_size": 1
+      }
+    },
+    "34": {
+      "class_type": "Krea2EditGroundedEncode",
+      "inputs": {
+        "clip": [
+          "40",
+          0
+        ],
+        "prompt": "",
+        "image": [
+          "51",
+          0
+        ],
+        "grounding_px": 0,
+        "system_prompt": ""
+      }
+    },
+    "36": {
+      "class_type": "Krea2EditGroundedEncode",
+      "inputs": {
+        "clip": [
+          "40",
+          0
+        ],
+        "prompt": "",
+        "image": [
+          "51",
+          0
+        ],
+        "grounding_px": 0,
+        "system_prompt": ""
+      }
+    },
+    "35": {
+      "class_type": "Krea2EditModelPatch",
+      "inputs": {
+        "model": [
+          "42",
+          0
+        ],
+        "source_latent": [
+          "44",
+          0
+        ],
+        "ref_boost": 4.0,
+        "ref_boost_a": 1.0,
+        "fit_mode": "fit",
+        "vae": [
+          "41",
+          0
+        ],
+        "source_image": [
+          "51",
+          0
+        ],
+        "target_latent": [
+          "28",
+          0
+        ]
+      }
+    },
+    "30": {
+      "class_type": "KSampler",
+      "inputs": {
+        "model": [
+          "35",
+          0
+        ],
+        "positive": [
+          "36",
+          0
+        ],
+        "negative": [
+          "34",
+          0
+        ],
+        "latent_image": [
+          "28",
+          0
+        ],
+        "seed": 1,
+        "steps": 10,
+        "cfg": 1.0,
+        "sampler_name": "euler",
+        "scheduler": "simple",
+        "denoise": 1.0
+      }
+    },
+    "29": {
+      "class_type": "VAEDecode",
+      "inputs": {
+        "samples": [
+          "30",
+          0
+        ],
+        "vae": [
+          "41",
+          0
+        ]
+      }
+    },
+    "27": {
+      "class_type": "SaveImage",
+      "inputs": {
+        "images": [
+          "29",
+          0
+        ],
+        "filename_prefix": "MYStudio"
+      }
+    }
   }
 }

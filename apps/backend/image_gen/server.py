@@ -20,6 +20,7 @@ import argparse
 import base64
 import json
 import os
+import shutil
 import threading
 import time
 from http import HTTPStatus
@@ -32,9 +33,13 @@ from .model_cache import (
     DEFAULT_IMAGE_MODEL,
     IMAGE_MODELS,
     QWEN_SMALL_PIECES_SIZE_MB,
+    comfyui_models_dir,
     find_cached_image_model_for_spec,
+    download_hf_cache_dir,
+    hf_snapshot_dir,
     qwen_small_pieces_status,
     resolve_image_model_name,
+    z_image_comfyui_models_dir,
 )
 from .pipeline import PipelineError, generate_image
 
@@ -42,6 +47,15 @@ LOCAL_TOKEN = "manying-local-image"
 
 _progress_state: dict[str, dict] = {}
 _progress_lock = threading.Lock()
+
+
+def _nearest_existing_dir(path: Path) -> Path:
+    current = path
+    while not current.exists():
+        if current.parent == current:
+            return Path.home()
+        current = current.parent
+    return current
 
 
 def _set_progress(model_name: str, **fields) -> None:
@@ -186,16 +200,22 @@ class Handler(BaseHTTPRequestHandler):
         if not isinstance(negative_prompt, str):
             negative_prompt = None
 
-        # Reference image (character/scene consistency): the cloud flow sends
-        # data-URI references via image_urls; take the first for img2img.
-        reference_b64: str | None = None
+        # Reference images (character/scene consistency): collect data-URI
+        # entries in order, with the same four-image soft cap used by the
+        # bridge engine. Keep the first item in the legacy single-image field.
+        reference_images_b64: list[str] = []
         image_urls = payload.get("image_urls")
-        if isinstance(image_urls, list) and image_urls and isinstance(image_urls[0], str):
-            first = image_urls[0]
-            if first.startswith("data:image"):
-                reference_b64 = first
-            elif not first.startswith("http"):
-                reference_b64 = f"data:image/png;base64,{first}"
+        if isinstance(image_urls, list):
+            for item in image_urls:
+                if not isinstance(item, str) or item.startswith("http"):
+                    continue
+                if item.startswith("data:image"):
+                    reference_images_b64.append(item)
+                else:
+                    reference_images_b64.append(f"data:image/png;base64,{item}")
+                if len(reference_images_b64) == 4:
+                    break
+        reference_b64 = reference_images_b64[0] if reference_images_b64 else None
 
         # NSFW/identity LoRA 显式开关(默认关;仅 Krea2 消费,其余引擎经 **ctx 吸收)
         use_lora = payload.get("use_lora") is True
@@ -208,6 +228,7 @@ class Handler(BaseHTTPRequestHandler):
                 resolution=resolution,
                 negative_prompt=negative_prompt,
                 reference_image_b64=reference_b64,
+                reference_images_b64=reference_images_b64 or None,
                 use_lora=use_lora,
             )
         except PipelineError as exc:
@@ -217,6 +238,10 @@ class Handler(BaseHTTPRequestHandler):
                 status = HTTPStatus.CONFLICT
             elif exc.code == "reference-unsupported":
                 status = HTTPStatus.BAD_REQUEST
+            elif exc.code == "bridge-unreachable":
+                status = HTTPStatus.SERVICE_UNAVAILABLE
+            elif exc.code == "bridge-timeout":
+                status = HTTPStatus.GATEWAY_TIMEOUT
             else:
                 status = HTTPStatus.INTERNAL_SERVER_ERROR
             self._send_error_json(status, exc.message, exc.code)
@@ -228,13 +253,34 @@ class Handler(BaseHTTPRequestHandler):
         self._send_json({"created": int(time.time()), "data": [{"b64_json": b64}]})
 
     def _handle_download(self, payload: dict) -> None:
-        model_name = str(payload.get("model") or "")
+        model_name = resolve_image_model_name(str(payload.get("model") or ""))
         spec = IMAGE_MODELS.get(model_name)
         if not spec:
             self._send_error_json(HTTPStatus.BAD_REQUEST, f"未知模型: {model_name}", "unknown_model")
             return
 
         layout = spec.get("layout", "")
+        if layout == "comfyui-bridge":
+            from .engines import comfyui_bridge
+
+            if not comfyui_bridge.resolve_big_files():
+                self._send_error_json(
+                    HTTPStatus.SERVICE_UNAVAILABLE,
+                    "ComfyUI 没在运行，请先打开它再试",
+                    "bridge-unreachable",
+                )
+                return
+            template_status = comfyui_bridge.small_pieces_status()
+            if not template_status["ready"]:
+                self._send_error_json(
+                    HTTPStatus.INTERNAL_SERVER_ERROR,
+                    f"ComfyUI 工作流模板不可用: {', '.join(template_status['missing'])}",
+                    "bridge-template-missing",
+                )
+                return
+            _set_progress(model_name, status="complete", progress=100, current=0, total=0)
+            self._send_json({"message": "ComfyUI 桥接使用已运行服务，无需下载"})
+            return
         if "pointed" in layout:
             # 缺什么下什么:大件在 → 只补小件;大件缺 → 完整(引擎分派)
             from .engines import ALL_ENGINES as _ENGINES
@@ -243,25 +289,54 @@ class Handler(BaseHTTPRequestHandler):
                 self._send_error_json(HTTPStatus.BAD_REQUEST, f"未知布局: {layout}", "unknown_layout")
                 return
 
-            from .model_cache import comfyui_models_dir, hf_snapshot_dir
-            resolved = engine.resolve_big_files(comfyui_models_dir())
+            models_dir = z_image_comfyui_models_dir() if layout == "z-image-pointed" else comfyui_models_dir()
+            cache_dir = Path(download_hf_cache_dir())
+            if model_name == "qwen-image-edit-2511":
+                resolved = engine.resolve_big_files(models_dir, hf_snapshot_dir, cache_dir)
+            else:
+                resolved = engine.resolve_big_files(models_dir)
             full_mode = resolved is None
-            total_bytes = spec["size_mb"] * 1024 * 1024 if full_mode else 300 * 1024 * 1024
+            small_mb = getattr(engine, "SMALL_PIECES_SIZE_MB", 400)
+            total_bytes = spec["size_mb"] * 1024 * 1024 if full_mode else small_mb * 1024 * 1024
+            display_label = "Krea2" if model_name == "krea2-turbo" else ("FLUX.2" if model_name == "flux2-klein-9b" else spec["label"])
+
+            if full_mode and not hasattr(engine, "fetch_big_files"):
+                self._send_error_json(
+                    HTTPStatus.BAD_REQUEST,
+                    f"{display_label} 大件缺失,当前引擎不支持自动下载完整模型",
+                    "full-download-unsupported",
+                )
+                return
+            if full_mode:
+                required_bytes = max(
+                    total_bytes,
+                    38 * 1024**3 if model_name == "qwen-image-edit-2511" else total_bytes,
+                )
+                try:
+                    free_bytes = shutil.disk_usage(
+                        _nearest_existing_dir(cache_dir)
+                    ).free
+                except OSError as exc:
+                    self._send_error_json(HTTPStatus.INSUFFICIENT_STORAGE, f"无法检查磁盘空间: {exc}", "disk-space-check-failed")
+                    return
+                if free_bytes < required_bytes:
+                    self._send_error_json(
+                        HTTPStatus.INSUFFICIENT_STORAGE,
+                        f"磁盘空间不足:至少需要 {required_bytes / 1024**3:.1f} GiB",
+                        "insufficient-disk-space",
+                    )
+                    return
 
             def _download_pieces() -> None:
                 _set_progress(model_name, status="downloading", progress=0, current=0,
                               total=total_bytes,
-                              filename=(f"{spec['label']} 完整模型" if full_mode
-                                        else f"{spec['label']} 小件"))
+                              filename=(f"{display_label} 完整模型" if full_mode
+                                        else f"{display_label} 小件"))
                 try:
-                    cache_dir = os.environ.get("MYSTUDIO_IMAGE_MODEL_DIR", "")
-                    if not cache_dir:
-                        from .model_cache import download_hf_cache_dir
-                        cache_dir = str(download_hf_cache_dir())
-                    from huggingface_hub import snapshot_download as _hf_dl
-                    engine.fetch_small_pieces(cache_dir, _hf_dl)
+                    from .download_model import _hf_download, _ms_download
+                    engine.fetch_small_pieces(str(cache_dir), _hf_download, _ms_download)
                     if full_mode and hasattr(engine, "fetch_big_files"):
-                        engine.fetch_big_files(cache_dir, _hf_dl)
+                        engine.fetch_big_files(str(cache_dir), _hf_download, _ms_download)
                     _set_progress(model_name, status="complete", progress=100)
                 except Exception as exc:
                     _set_progress(model_name, status="error", progress=0, error=str(exc))

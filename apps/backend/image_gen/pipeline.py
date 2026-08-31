@@ -8,8 +8,10 @@ from __future__ import annotations
 import base64
 import io
 import threading
+from pathlib import Path
 from typing import Any
 
+from . import model_cache as _model_cache
 from .model_cache import (
     IMAGE_MODELS,
     comfyui_models_dir,
@@ -21,8 +23,15 @@ from .engines import krea2 as _krea2
 from .engines import flux2 as _flux2
 from .engines import z_image as _z_image
 from .engines import qwen as _qwen
+from .engines import comfyui_bridge as _comfyui_bridge
 
 _lock = threading.Lock()
+
+# Compatibility state for the pre-engine-separation worker API.  The Qwen
+# engine cache remains the single source of truth; exposing the same mapping
+# lets existing callers clear/reuse it without duplicating loaded weights.
+_pipelines = _qwen._cache
+_img2img_pipelines: dict[str, Any] = {}
 
 ASPECT_RATIOS: dict[str, tuple[int, int]] = {
     "1:1": (1024, 1024), "16:9": (1152, 640), "9:16": (640, 1152),
@@ -43,7 +52,154 @@ _ENGINE_BY_LAYOUT = {
     "flux2-pointed": _flux2,
     "z-image-pointed": _z_image,
     "qwen-pointed": _qwen,
+    "comfyui-bridge": _comfyui_bridge,
 }
+
+
+def convert_qwen25_vl_state_dict_key(key: str) -> str:
+    """Map ComfyUI Qwen-VL keys to the transformers module namespace."""
+    if key.startswith("visual."):
+        return "model." + key
+    if key.startswith("model.layers."):
+        return "model.language_model." + key[len("model."):]
+    if key.startswith("model.embed_tokens."):
+        return "model.language_model." + key[len("model."):]
+    if key.startswith("model.norm."):
+        return "model.language_model." + key[len("model."):]
+    return key
+
+
+def _get_qwen_pipeline(model_name: str = _qwen.MODEL_NAME):
+    """Build or return the legacy Qwen pipeline facade.
+
+    New production calls dispatch directly to ``engines.qwen.generate``;
+    this facade intentionally keeps the old worker/test seam available while
+    sharing the separated module's cache and path resolvers.
+    """
+    model_name = resolve_image_model_name(model_name)
+    if model_name in _pipelines:
+        return _pipelines[model_name]
+    if model_name != _qwen.MODEL_NAME:
+        raise PipelineError("unknown-model", f"未知图像模型: {model_name}")
+
+    cache_dir = _model_cache.primary_hf_cache_dir()
+    resolved = _qwen.resolve_big_files(
+        comfyui_models_dir(), _model_cache.hf_snapshot_dir, cache_dir
+    )
+    if not resolved:
+        raise PipelineError("model-not-downloaded", "Qwen 大件未就绪")
+    small = _qwen.small_pieces_status(_model_cache.hf_snapshot_dir, cache_dir)
+    if not small["ready"]:
+        raise PipelineError(
+            "small-pieces-missing",
+            f"{_qwen.SPEC['label']} 小件未补齐: {', '.join(small['missing'])}",
+        )
+
+    import torch
+    from diffusers import (
+        AutoencoderKLQwenImage,
+        FlowMatchEulerDiscreteScheduler,
+        QwenImageEditPlusPipeline,
+        QwenImageTransformer2DModel,
+    )
+    from transformers import AutoProcessor, AutoTokenizer, Qwen2_5_VLConfig, Qwen2_5_VLForConditionalGeneration
+    from safetensors.torch import load_file
+
+    snapshot_dirs = small.get("snapshot_dirs", {})
+    image_snapshot = Path(snapshot_dirs.get(_qwen.IMAGE_REPO) or "")
+    vl_snapshot = Path(snapshot_dirs.get(_qwen.VL_REPO) or "")
+    config_dir = image_snapshot / "transformer"
+    try:
+        from diffusers.quantizers.quantization_config import GGUFQuantizationConfig
+    except ImportError:
+        from diffusers.quantizers.gguf import GGUFQuantizationConfig
+
+    transformer = QwenImageTransformer2DModel.from_single_file(
+        str(resolved["main"]), config=str(config_dir),
+        quantization_config=GGUFQuantizationConfig(compute_dtype=torch.bfloat16),
+        torch_dtype=torch.bfloat16,
+    )
+    vae = AutoencoderKLQwenImage.from_pretrained(
+        image_snapshot, subfolder="vae", torch_dtype=torch.bfloat16
+    )
+    scheduler = FlowMatchEulerDiscreteScheduler.from_pretrained(image_snapshot, subfolder="scheduler")
+    tokenizer = AutoTokenizer.from_pretrained(vl_snapshot)
+    processor = AutoProcessor.from_pretrained(vl_snapshot)
+    config = Qwen2_5_VLConfig.from_json_file(str(vl_snapshot / "config.json"))
+    text_encoder = Qwen2_5_VLForConditionalGeneration(config)
+    state = load_file(str(resolved["text_encoder"]))
+    remapped = {convert_qwen25_vl_state_dict_key(key): value for key, value in state.items()}
+    text_encoder.load_state_dict(remapped, strict=False)
+    if hasattr(text_encoder, "eval"):
+        text_encoder.eval()
+    device = "mps" if torch.backends.mps.is_available() else "cpu"
+    pipe = QwenImageEditPlusPipeline(
+        transformer=transformer, vae=vae, text_encoder=text_encoder,
+        tokenizer=tokenizer, scheduler=scheduler, processor=processor,
+    ).to(device)
+    _pipelines[model_name] = pipe
+    return pipe
+
+
+def _get_pipeline(model_name: str):
+    """Legacy generic pipeline seam used by the image worker."""
+    return _get_qwen_pipeline(resolve_image_model_name(model_name))
+
+
+def _get_img2img_pipeline(model_name: str):
+    """Create an img2img pipeline without re-entering the load lock."""
+    model_name = resolve_image_model_name(model_name)
+    cached = _img2img_pipelines.get(model_name)
+    if cached is not None:
+        return cached
+    try:
+        from diffusers import AutoPipelineForImage2Image
+    except ImportError as exc:
+        raise PipelineError("dependency-missing", "缺少 diffusers 图生图管线") from exc
+    base = _get_pipeline(model_name)
+    image_pipeline = AutoPipelineForImage2Image.from_pipe(base)
+    _img2img_pipelines[model_name] = image_pipeline
+    return image_pipeline
+
+
+def _generate_qwen(
+    prompt: str,
+    aspect_ratio: str,
+    negative_prompt: str | None,
+    steps: int,
+    seed: int | None,
+    reference_image_b64: str | None,
+) -> str:
+    """Legacy Qwen generation seam retained for worker compatibility/tests."""
+    if not _lock.acquire(blocking=False):
+        raise PipelineError("generation-busy", "图像生成正忙，请稍后重试")
+    try:
+        from PIL import Image
+
+        pipe = _get_qwen_pipeline(_qwen.MODEL_NAME)
+        width, height = _qwen.QWEN_ASPECT_RATIOS.get(
+            aspect_ratio, _qwen.QWEN_ASPECT_RATIOS["1:1"]
+        )
+        if reference_image_b64:
+            raw = reference_image_b64.split(",", 1)[-1] if reference_image_b64.startswith("data:") else reference_image_b64
+            image = Image.open(io.BytesIO(base64.b64decode(raw))).convert("RGB").resize((width, height))
+        else:
+            image = Image.new("RGB", (width, height), "white")
+        kwargs: dict[str, Any] = {
+            "image": [image], "prompt": prompt, "num_inference_steps": steps,
+        }
+        if seed is not None:
+            import torch
+            kwargs["generator"] = torch.Generator("cpu").manual_seed(seed)
+        if negative_prompt:
+            kwargs["negative_prompt"] = negative_prompt
+            kwargs["true_cfg_scale"] = 4.0
+        result = pipe(**kwargs)
+        output = io.BytesIO()
+        result.images[0].save(output, format="PNG")
+        return base64.b64encode(output.getvalue()).decode("ascii")
+    finally:
+        _lock.release()
 
 
 def _require_downloaded(model_name: str) -> None:
@@ -67,6 +223,7 @@ def generate_image(
     num_inference_steps: int | None = None,
     seed: int | None = None,
     reference_image_b64: str | None = None,
+    reference_images_b64: list[str] | None = None,
     strength: float = 0.55,
     use_lora: bool = False,
 ) -> str:
@@ -80,10 +237,18 @@ def generate_image(
         raise PipelineError("unknown-model", f"未知布局: {layout}")
 
     # 能力门禁先于就绪检查:带参考图打到不支持的引擎,立刻得到可操作的指路
-    if reference_image_b64 and not getattr(engine, "SUPPORTS_REFERENCE", True):
+    references = reference_images_b64 if reference_images_b64 is not None else (
+        [reference_image_b64] if reference_image_b64 else []
+    )
+    if references and not getattr(engine, "SUPPORTS_REFERENCE", True):
         raise PipelineError(
             "reference-unsupported",
             f"{spec['label']} 暂不支持参考图。请切换 FLUX.2 Klein / Qwen-Image-Edit 或云端引擎。",
+        )
+    if len(references) > 1 and not getattr(engine, "SUPPORTS_MULTI_REFERENCE", False):
+        raise PipelineError(
+            "reference-unsupported",
+            f"{spec['label']} 暂不支持多张参考图。请切换 ComfyUI 桥接或云端引擎。",
         )
 
     _require_downloaded(model_name)
@@ -92,13 +257,14 @@ def generate_image(
 
     # 构建引擎上下文(各引擎从 ctx 取自己需要的路径)
     models_dir = comfyui_models_dir()
-    snapshot_dir = hf_snapshot_dir(
-        engine.SMALL_REPO if hasattr(engine, "SMALL_REPO") else engine.IMAGE_REPO,
-    )
+    small_repo = getattr(engine, "SMALL_REPO", getattr(engine, "IMAGE_REPO", None))
+    snapshot_dir = hf_snapshot_dir(small_repo) if small_repo else None
     ctx = {
         "models_dir": models_dir,
         "snapshot_dir": snapshot_dir,
     }
+    if reference_images_b64 is not None:
+        ctx["reference_images_b64"] = references
     if layout == "qwen-pointed":
         ctx["qwen_snapshot_dirs"] = {
             "Qwen/Qwen-Image": str(hf_snapshot_dir("Qwen/Qwen-Image") or ""),

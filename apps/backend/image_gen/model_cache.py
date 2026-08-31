@@ -14,6 +14,7 @@ from .engines import krea2 as _krea2
 from .engines import flux2 as _flux2
 from .engines import z_image as _z_image
 from .engines import qwen as _qwen
+from .engines import comfyui_bridge as _comfyui_bridge
 
 # ── 别名 ──
 LEGACY_IMAGE_MODEL_ALIASES: dict[str, str] = {
@@ -50,21 +51,27 @@ def comfyui_models_dir() -> Path:
         return Path(override).expanduser()
     return Path.home() / "Project" / "ComfyUI" / "models"
 
+
+def z_image_comfyui_models_dir() -> Path:
+    """Resolve the Z-Image-specific ComfyUI override before shared fallback."""
+    override = os.environ.get("MYSTUDIO_ZIMAGE_COMFYUI_MODELS_DIR")
+    return Path(override).expanduser() if override else comfyui_models_dir()
+
 def resolve_image_model_name(name: str) -> str:
     return LEGACY_IMAGE_MODEL_ALIASES.get(name, name)
 
 def primary_hf_cache_dir() -> Path:
-    env_cache = (
-        os.environ.get("MYSTUDIO_IMAGE_MODEL_DIR")
-        or os.environ.get("MANYING_TTS_MODELS_DIR")
-        or os.environ.get("VOICEBOX_MODELS_DIR")
-        or os.environ.get("HF_HUB_CACHE")
-    )
+    # Image weights must not inherit the TTS/voicebox cache roots.  Those
+    # variables belong to different sidecars and can point at incompatible
+    # layouts (or a read-only volume).  Keep this resolver scoped to image
+    # configuration plus the standard HF cache fallback.
+    env_cache = os.environ.get("MYSTUDIO_IMAGE_MODEL_DIR") or os.environ.get("HF_HUB_CACHE")
     if env_cache:
         return Path(env_cache).expanduser()
     hf_home = os.environ.get("HF_HOME")
     if hf_home:
-        return Path(hf_home).expanduser()
+        home_path = Path(hf_home).expanduser()
+        return home_path if home_path.name == "hub" else home_path / "hub"
     return Path.home() / ".cache" / "huggingface" / "hub"
 
 def download_hf_cache_dir() -> Path:
@@ -107,6 +114,7 @@ IMAGE_MODELS: dict[str, PointedImageModelSpec] = {
     _flux2.MODEL_NAME: _flux2.SPEC,
     _z_image.MODEL_NAME: _z_image.SPEC,
     _qwen.MODEL_NAME: _qwen.SPEC,
+    _comfyui_bridge.MODEL_NAME: _comfyui_bridge.SPEC,
 }
 
 # ── 引擎分派 ──
@@ -115,12 +123,25 @@ _ENGINE_BY_LAYOUT = {
     "flux2-pointed": _flux2,
     "z-image-pointed": _z_image,
     "qwen-pointed": _qwen,
+    "comfyui-bridge": _comfyui_bridge,
 }
 
 def find_cached_image_model_for_spec(spec: ImageModelSpec) -> CachedImageModel | None:
     engine = _ENGINE_BY_LAYOUT.get(spec.get("layout", ""))
     if engine is not None:
-        return engine.find_cached(comfyui_models_dir())
+        if engine is _qwen:
+            cached = engine.find_cached(
+                comfyui_models_dir(), hf_snapshot_dir, primary_hf_cache_dir()
+            )
+            if cached:
+                resolved = engine.resolve_big_files(
+                    comfyui_models_dir(), hf_snapshot_dir, primary_hf_cache_dir()
+                )
+                if resolved and resolved.get("source") == "app-cache":
+                    cached["repo_id"] = f"app-cache:{engine.GGUF_REPO}"
+            return cached
+        models_dir = z_image_comfyui_models_dir() if engine is _z_image else comfyui_models_dir()
+        return engine.find_cached(models_dir)
     return _find_cached_hf(spec)
 
 def _find_cached_hf(spec: ImageModelSpec) -> CachedImageModel | None:
@@ -158,6 +179,18 @@ QWEN_IMAGE_REQUIRED_FILES = _qwen.IMAGE_REQUIRED
 QWEN_VL_REQUIRED_FILES = _qwen.VL_REQUIRED
 QWEN_SMALL_PIECES_SIZE_MB = _qwen.SMALL_PIECES_SIZE_MB
 
+# Compatibility exports retained for callers/tests written against the
+# pre-separation image_gen module.  The source of truth remains engines/*.py.
+Z_COMFY_MAIN_FILE = _z_image.COMFY_MAIN_FILE
+Z_COMFY_TEXT_ENCODER_FILE = _z_image.COMFY_TEXT_ENCODER_FILE
+Z_COMFY_VAE_FILE = _z_image.COMFY_VAE_FILE
+FLUX2_COMFY_MAIN_FILE = _flux2.COMFY_MAIN_FILE
+FLUX2_COMFY_TEXT_ENCODER_FILES = _flux2.COMFY_TEXT_ENCODER_FILES
+FLUX2_COMFY_VAE_FILE = _flux2.COMFY_VAE_FILE
+KREA2_COMFY_MAIN_FILE = _krea2.COMFY_MAIN_FILE
+KREA2_COMFY_TEXT_ENCODER_FILE = _krea2.COMFY_TEXT_ENCODER_FILE
+KREA2_COMFY_VAE_FILE = _krea2.COMFY_VAE_FILE
+
 Z_IMAGE_MODEL = _z_image.MODEL_NAME
 Z_IMAGE_SMALL_REPO = _z_image.SMALL_REPO
 Z_IMAGE_SMALL_EXACT_FILES = _z_image.SMALL_EXACT_FILES
@@ -177,13 +210,18 @@ def resolve_qwen_big_files(cache_dir=None):
     return _qwen.resolve_big_files(comfyui_models_dir(), hf_snapshot_dir, cache_dir)
 
 def resolve_z_image_big_files(cache_dir=None):
-    return _z_image.resolve_big_files(comfyui_models_dir())
+    return _z_image.resolve_big_files(z_image_comfyui_models_dir())
 
 def resolve_flux2_big_files(cache_dir=None):
     return _flux2.resolve_big_files(comfyui_models_dir())
 
 def resolve_krea2_big_files(cache_dir=None):
     return _krea2.resolve_big_files(comfyui_models_dir())
+
+
+def find_cached_qwen_pointed_model(cache_dir=None):
+    """Legacy Qwen pointed-model lookup with the two-source resolver."""
+    return find_cached_image_model_for_spec(IMAGE_MODELS[QWEN_IMAGE_EDIT_MODEL])
 
 def qwen_small_pieces_status(cache_dir=None):
     return _qwen.small_pieces_status(hf_snapshot_dir, cache_dir)

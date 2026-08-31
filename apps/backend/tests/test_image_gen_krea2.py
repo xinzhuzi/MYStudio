@@ -47,6 +47,20 @@ class ReferenceCapabilityGateTest(unittest.TestCase):
         require_downloaded.assert_called_once_with("krea2-turbo")
         self.assertEqual(generate.call_args.kwargs["reference_b64"], None)
 
+    def test_krea2_reference_is_forwarded_to_sdedit_engine(self) -> None:
+        with mock.patch.object(pipeline, "_require_downloaded"), mock.patch.object(
+            krea2_engine, "generate", return_value="ZmFrZQ=="
+        ) as generate:
+            result = pipeline.generate_image(
+                "krea2-turbo",
+                "水墨山水",
+                reference_image_b64="data:image/png;base64,aGVsbG8=",
+                strength=0.7,
+            )
+        self.assertEqual(result, "ZmFrZQ==")
+        self.assertEqual(generate.call_args.kwargs["reference_b64"], "data:image/png;base64,aGVsbG8=")
+        self.assertEqual(generate.call_args.kwargs["strength"], 0.7)
+
 
 class UseLoraPassthroughTest(unittest.TestCase):
     def test_use_lora_reaches_engine(self) -> None:

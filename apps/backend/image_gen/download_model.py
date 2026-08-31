@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import shutil
 import sys
 import threading
 import time
@@ -16,6 +17,8 @@ from .model_cache import (
     IMAGE_MODELS,
     comfyui_models_dir,
     download_hf_cache_dir,
+    hf_snapshot_dir,
+    z_image_comfyui_models_dir,
     repo_cache_dir,
     resolve_image_model_name,
     QWEN_SMALL_PIECES_SIZE_MB,
@@ -72,13 +75,18 @@ def download_model(model_name: str, progress_path: Path) -> int:
         })
         return 2
 
-    # 判定 full 模式(大件缺)还是只补小件
-    models_dir = comfyui_models_dir()
-    resolved = engine.resolve_big_files(models_dir)
+    # 判定 full 模式(大件缺)还是只补小件。Qwen 支持应用缓存双源解析，
+    # 其余 pointed 引擎当前只有 ComfyUI 大件，不能误把小件下载当完整模型。
+    models_dir = z_image_comfyui_models_dir() if engine is _z_image else comfyui_models_dir()
+    cache_dir = Path(download_hf_cache_dir())
+    if engine is _qwen:
+        resolved = engine.resolve_big_files(models_dir, hf_snapshot_dir, cache_dir)
+    else:
+        resolved = engine.resolve_big_files(models_dir)
     full_mode = resolved is None
-    total_mb = spec["size_mb"] if full_mode else 100
+    total_mb = spec["size_mb"] if full_mode else getattr(engine, "SMALL_PIECES_SIZE_MB", 400)
     total_bytes = total_mb * 1024 * 1024
-    label = spec["label"]
+    label = "Krea2" if model_name == "krea2-turbo" else ("FLUX.2" if model_name == "flux2-klein-9b" else spec["label"])
 
     def report(status: str, current: int = 0, progress: int = 0, error: str | None = None):
         _write_progress(progress_path, {
@@ -90,7 +98,24 @@ def download_model(model_name: str, progress_path: Path) -> int:
 
     report("downloading", 0, 0)
 
-    cache_dir = str(download_hf_cache_dir())
+    if full_mode and not hasattr(engine, "fetch_big_files"):
+        report("error", 0, 0, error=f"{label} 大件缺失,当前引擎不支持自动下载完整模型")
+        return 2
+
+    if full_mode:
+        # 完整模型下载是显式用户操作，任何网络请求前必须先做余量门。
+        # PRD 约束 Qwen 干净机器至少预留 38 GiB；较小引擎取自身声明体积。
+        required_bytes = max(total_bytes, 38 * 1024**3 if model_name == "qwen-image-edit-2511" else total_bytes)
+        try:
+            free_bytes = shutil.disk_usage(_nearest_existing_dir(cache_dir)).free
+        except OSError as exc:
+            report("error", 0, 0, error=f"无法检查磁盘空间: {exc}")
+            return 2
+        if free_bytes < required_bytes:
+            report("error", 0, 0, error=f"磁盘空间不足:至少需要 {required_bytes / 1024**3:.1f} GiB")
+            return 2
+
+    cache_dir = str(cache_dir)
     try:
         engine.fetch_small_pieces(cache_dir, _hf_download, _ms_download)
         if full_mode and hasattr(engine, "fetch_big_files"):
