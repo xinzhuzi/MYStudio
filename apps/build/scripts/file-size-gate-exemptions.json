@@ -1,0 +1,8 @@
+{
+  "exempt": [
+    "apps/frontend/electron/aitoearn/vendor/aitoearn-core/electron/plat/douyin/index.ts",
+    "apps/frontend/electron/aitoearn/vendor/aitoearn-core/electron/plat/xiaohongshu/index.ts",
+    "apps/frontend/electron/aitoearn/vendor/aitoearn-core/electron/plat/shipinhao/index.ts"
+  ],
+  "notes": "aitoearn 三平台 vendor=第三方 AGPL 遗产整体引入,不拆;豁免须给理由。"
+}

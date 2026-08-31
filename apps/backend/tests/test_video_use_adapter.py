@@ -33,7 +33,7 @@ class VideoUseAdapterTest(unittest.TestCase):
             {"source": "shot-002", "start": 0.0, "end": 0.7},
             {"source": "shot-003", "start": 0.0, "end": 0.2},
         ]}
-        with patch("video_use.adapter.print") as log:
+        with patch("video_use.adapter_creative.print") as log:
             slots = _build_overlay_slots(request, edl)
         self.assertEqual(slots[0]["templateId"], "lens-flare")
         self.assertEqual(slots[0]["moodWord"], "战斗")
@@ -289,9 +289,9 @@ class VideoUseAdapterTest(unittest.TestCase):
                 output.parent.mkdir(parents=True, exist_ok=True)
                 output.write_bytes(b"generated")
 
-            with patch("video_use.adapter._run_helper", side_effect=fake_helper), patch(
-                "video_use.adapter._probe_output", return_value=(1.2, ["video", "audio"])
-            ), patch("video_use.adapter._probe_media_duration", return_value=1.0):
+            with patch("video_use.adapter_shared._run_helper", side_effect=fake_helper), patch(
+                "video_use.adapter_shared._probe_output", return_value=(1.2, ["video", "audio"])
+            ), patch("video_use.adapter_shared._probe_media_duration", return_value=1.0):
                 artifact = run_pinned_adapter(
                     request,
                     alignment,
@@ -329,9 +329,9 @@ class VideoUseAdapterTest(unittest.TestCase):
                 output.parent.mkdir(parents=True, exist_ok=True)
                 output.write_bytes(b"flat-generated" if "--no-subtitles" in args else b"preview-generated")
 
-            with patch("video_use.adapter._run_helper", side_effect=fake_helper), patch(
-                "video_use.adapter._probe_output", return_value=(1.2, ["video", "audio"])
-            ), patch("video_use.adapter._probe_media_duration", return_value=1.0):
+            with patch("video_use.adapter_shared._run_helper", side_effect=fake_helper), patch(
+                "video_use.adapter_shared._probe_output", return_value=(1.2, ["video", "audio"])
+            ), patch("video_use.adapter_shared._probe_media_duration", return_value=1.0):
                 artifact = run_pinned_adapter(
                     request,
                     alignment,
@@ -354,7 +354,7 @@ class VideoUseAdapterTest(unittest.TestCase):
             alignment["shots"] = alignment["shots"][:1]
             (root / "ffmpeg").write_text("", encoding="utf-8")
             (root / "ffprobe").write_text("", encoding="utf-8")
-            with patch("video_use.adapter._probe_media_duration", side_effect=[0.5, 0.8]):
+            with patch("video_use.adapter_shared._probe_media_duration", side_effect=[0.5, 0.8]):
                 with self.assertRaisesRegex(VideoUseAdapterError, "视频短于 TTS 音频") as raised:
                     run_pinned_adapter(
                         request,
@@ -397,10 +397,10 @@ class VideoUseAdapterTest(unittest.TestCase):
                 self.assertEqual(env["MYSTUDIO_FFPROBE_PATH"], str(ffprobe))
                 return 0.833
 
-            with patch("video_use.adapter._probe_media_duration", side_effect=[0.5, 0.8]), patch(
-                "video_use.adapter._derive_video_to_audio", side_effect=fake_derive
-            ), patch("video_use.adapter._run_helper", side_effect=fake_helper), patch(
-                "video_use.adapter._probe_output", return_value=(0.8, ["video", "audio"])
+            with patch("video_use.adapter_shared._probe_media_duration", side_effect=[0.5, 0.8]), patch(
+                "video_use.adapter_media_tools._derive_video_to_audio", side_effect=fake_derive
+            ), patch("video_use.adapter_shared._run_helper", side_effect=fake_helper), patch(
+                "video_use.adapter_shared._probe_output", return_value=(0.8, ["video", "audio"])
             ):
                 artifact = run_pinned_adapter(
                     request,
@@ -446,7 +446,7 @@ class VideoUseAdapterTest(unittest.TestCase):
             source = root / "source.mp4"
             source.write_bytes(b"source")
             target = root / "derived.mp4"
-            with patch("video_use.adapter._probe_media_duration", return_value=0.5), patch(
+            with patch("video_use.adapter_shared._probe_media_duration", return_value=0.5), patch(
                 "video_use.adapter.subprocess.run", return_value=None
             ):
                 with self.assertRaisesRegex(VideoUseAdapterError, "派生视频文件不存在") as raised:
@@ -457,7 +457,7 @@ class VideoUseAdapterTest(unittest.TestCase):
             def fake_run(*_args, **_kwargs):
                 target.write_bytes(b"short")
 
-            with patch("video_use.adapter._probe_media_duration", side_effect=[0.5, 0.6]), patch(
+            with patch("video_use.adapter_shared._probe_media_duration", side_effect=[0.5, 0.6]), patch(
                 "video_use.adapter.subprocess.run", side_effect=fake_run
             ):
                 with self.assertRaisesRegex(VideoUseAdapterError, "仍短于 TTS 音频") as raised:
