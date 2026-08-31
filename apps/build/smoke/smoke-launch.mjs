@@ -49,7 +49,9 @@ export function spawnSmokeApp({
   }
 
   return {
-    child: spawn("open", ["-na", bundlePath, "--args", ...args], {
+    // -g:后台冒烟铁律——LaunchServices 回退启动不得激活前台(否则 background
+    // 模式的 foregroundViolation 检测必报伪违例)。-n 新实例,-a 指定应用。
+    child: spawn("open", ["-nag", bundlePath, "--args", ...args], {
       cwd,
       env,
       detached,
