@@ -55,6 +55,10 @@
 
 ## 执行结果(2026-08-31 已完成)
 
+### 大文件瘦身 P1(尺寸裁定落地:HARD 38→32)
+
+七笔提交:deletion 998→4 / projection 1133→5 / hyperframes 1270→6 / image-generator 1242→5 / inventory 1055→4 / composition-props 1277→5(纯再导出门面)/ tts-runtime 1630→1142+490(工厂留专批)。全部体逐字搬移+门面再导出保 import 面;每件 typecheck+域测试绿(30/161/29/421/60/137/99)。通用配方 `ts_line_splitter.py`。剩余 32 个 HARD=P2 panels 域+P3 在途(main.ts 归 main-split 子任务)+tts 工厂专批。
+
 ### 治疗 #1:sclass↔director 共享分镜域抽取 ✅
 
 - **搬移**:`panels/director/` → `components/features/storyboard/` 共 **53 文件**(26 个被 sclass 直接引用的种子模块 + 5 个 director 内传递闭包模块[character-selector / editable-text-field / media-library-selector / scene-library-selector / storyboard-reference-utils] + 22 个配套测试),`git mv` 保留历史。
