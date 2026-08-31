@@ -1,4 +1,8 @@
 import { readFileSync } from "node:fs";
+const readDialogSources = () =>
+  readFileSync(new URL("./StudioAssetDetailDialog.tsx", import.meta.url), "utf8")
+  + readFileSync(new URL("./studio-asset-detail-actions.ts", import.meta.url), "utf8");
+
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   buildAssetRegenerationPrompt,
@@ -91,7 +95,7 @@ describe("buildAssetRegenerationPrompt", () => {
     };
 
     expect(getAssetDisplayName(asset)).toBe("铜钱");
-    const source = readFileSync(new URL("./StudioAssetDetailDialog.tsx", import.meta.url), "utf8");
+    const source = readDialogSources();
     expect(source).toContain("secondaryNames");
     expect(source).toContain("副名字");
   });
@@ -127,13 +131,13 @@ describe("buildAssetRegenerationPrompt", () => {
   });
 
   it("loads full asset data from an effect instead of mutating state during render", () => {
-    const source = readFileSync(new URL("./StudioAssetDetailDialog.tsx", import.meta.url), "utf8");
+    const source = readDialogSources();
     expect(source).not.toContain("if (asset && asset.id !== prevAssetId.current)");
     expect(source).toContain("useEffect(() =>");
   });
 
   it("routes asset IPC through the renderer bridge adapter", () => {
-    const source = readFileSync(new URL("./StudioAssetDetailDialog.tsx", import.meta.url), "utf8");
+    const source = readDialogSources();
     expect(source).toContain('from "@/lib/bridge/studio-assets"');
     expect(source).toContain("getStudioAssetsBridge");
     expect(source).not.toContain("window.studioAssets");
@@ -159,7 +163,7 @@ describe("buildAssetRegenerationPrompt", () => {
   });
 
   it("opens the reusable voice assignment dialog from role details", () => {
-    const source = readFileSync(new URL("./StudioAssetDetailDialog.tsx", import.meta.url), "utf8");
+    const source = readDialogSources();
     expect(source).toContain('import { RoleVoiceAssignDialog } from "./RoleVoiceAssignDialog";');
     expect(source).toContain("setVoiceAssignOpen(true)");
     expect(source).toContain("<RoleVoiceAssignDialog");
@@ -204,7 +208,7 @@ describe("buildAssetRegenerationPrompt", () => {
   });
 
   it("reuses the shared role voice preview button instead of owning a duplicate chain", () => {
-    const source = readFileSync(new URL("./StudioAssetDetailDialog.tsx", import.meta.url), "utf8");
+    const source = readDialogSources();
     expect(source).toContain('import { RoleVoicePreviewButton } from "./RoleVoicePreviewButton";');
     expect(source).toContain('from "@/lib/tts/role-speaker-id"');
     expect(source).toContain("toRoleSpeakerId(asset.id)");
@@ -212,7 +216,7 @@ describe("buildAssetRegenerationPrompt", () => {
   });
 
   it("delegates role attribute parsing and rendering to the focused leaf", () => {
-    const source = readFileSync(new URL("./StudioAssetDetailDialog.tsx", import.meta.url), "utf8");
+    const source = readDialogSources();
 
     expect(source).toContain(
       'import { StudioAssetRoleAttributes } from "./studio-asset-role-attributes";',
@@ -335,7 +339,7 @@ describe("buildAssetRegenerationPrompt", () => {
   });
 
   it("keeps one-click asset image generation from repolishing existing prompts while generating missing prompts", () => {
-    const source = readFileSync(new URL("./StudioAssetDetailDialog.tsx", import.meta.url), "utf8");
+    const source = readDialogSources();
     expect(source).toContain("const shouldGeneratePrompt = !existingPrompt");
     expect(source).toContain("skipPolish: !shouldGeneratePrompt");
     expect(source).toContain("existingPrompt");
@@ -344,14 +348,14 @@ describe("buildAssetRegenerationPrompt", () => {
   });
 
   it("keeps one-click asset image generation with the prompt actions instead of the empty-data notice", () => {
-    const source = readFileSync(new URL("./StudioAssetDetailDialog.tsx", import.meta.url), "utf8");
+    const source = readDialogSources();
     expect(source).toContain("handleOneClickGenerateAssetImage");
     expect(source).toContain("一键生成资产生图");
     expect(source).not.toContain("点击下方按钮将走完整生成流程");
   });
 
   it("uses the multi-select bridge for detail-image additions and syncs carousel selection", () => {
-    const source = readFileSync(new URL("./StudioAssetDetailDialog.tsx", import.meta.url), "utf8");
+    const source = readDialogSources();
     const previewSource = readFileSync(new URL("./studio-asset-detail-preview-pane.tsx", import.meta.url), "utf8");
     const carouselSource = readFileSync(new URL("./studio-asset-detail-carousel.ts", import.meta.url), "utf8");
     expect(source).toContain("selectImageFiles");
@@ -377,7 +381,7 @@ describe("resolveAssetGenerationReferenceImage", () => {
   });
 
   it("wires the reference into one-click asset generation", () => {
-    const source = readFileSync(new URL("./StudioAssetDetailDialog.tsx", import.meta.url), "utf8");
+    const source = readDialogSources();
     expect(source).toContain("resolveAssetGenerationReferenceImage(images, currentIndex)");
     expect(source).toContain("referenceImages: referenceImage ? [referenceImage] : undefined");
   });
@@ -400,7 +404,7 @@ describe("resolveThreeTrackAssetType", () => {
   );
 
   it("keeps the detail dialog generation entries fail-closed for clip instead of silently reusing the prop track", () => {
-    const source = readFileSync(new URL("./StudioAssetDetailDialog.tsx", import.meta.url), "utf8");
+    const source = readDialogSources();
     expect(source).toContain("resolveThreeTrackAssetType(asset.type)");
     expect(source).not.toContain('asset.type === "scene" ? "scene" as const : "prop" as const');
     expect(source).not.toContain(': "prop" as const\n        : "prop" as const');
