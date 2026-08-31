@@ -47,11 +47,25 @@ Then route:
   > "FYI, dirty files outside this task's scope — leaving them for the other window: `<list>`."
 - **Genuinely unsure** — ask the user once: "Are `<list>` this task's work I forgot to commit, or another window's? (commit / ignore)" — then route per their answer.
 
+## Step 2.5: Multi-AI archive precheck
+
+Before archiving ANY task, run the A1–A5 checklist from `.trellis/spec/guides/multi-agent-task-archive-gate-guide.md` (MYSTUDIO port 2026-08-31):
+
+- **A1 sibling tasks**: `task.py list` — same-parent or same-domain `in_progress`/`planning` tasks sharing artifacts or dependencies → refuse archive, report them by name.
+- **A2 dirty hunks**: `git status --porcelain` — hunks outside this task's scope with unknown ownership (parallel-session WIP) → report and leave untouched; never sweep them into this task's commits.
+- **A3 artifact mtime**: this task's files written by another session in the recent window → not quiescent.
+- **A4 commit completeness**: this task's outputs are committed (path-scoped) before archive.
+- **A5 AC matrix**: every PRD acceptance criterion closed, or scope formally reduced / handed off.
+
+Write evidence to the task's `research/archive_precheck_<YYYYMMDD>.md`. Any red = no archive, and do not offer archive as an option; report open items and parallel blockers instead.
+
 ## Step 3: Archive task(s)
 
 ```bash
-python3 ./.trellis/scripts/task.py archive <task-name>
+python3 ./.trellis/scripts/task.py archive <task-name> --skip-branch-validation
 ```
+
+(Flag is mandatory in this repo: 0.6.16 `create` defaults `base_branch=main` + remote present → branch validation refuses archive; tasks here are never PR-backed.)
 
 At minimum: the current active task (if any). Plus any extra tasks the user confirmed in Step 1. Each archive produces a `chore(task): archive ...` commit via the script's auto-commit.
 

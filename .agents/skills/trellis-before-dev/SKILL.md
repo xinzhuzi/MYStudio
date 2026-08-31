@@ -35,7 +35,13 @@ Execute these steps:
    cat .trellis/spec/guides/index.md
    ```
 
-7. **For a non-trivial task, state the change boundary before writing code.** Non-trivial means it touches more than one file, crosses a layer, changes a public interface, or edits code you did not just write. Write down:
+7. **Load discipline guides matched to the work** (from `.trellis/spec/guides/`, ported 2026-08-31):
+   - Behavior change / bugfix / refactor → `development-quality-discipline-guide.md`
+   - Complex multi-file task with design.md/implement.md → `implementation-planning-discipline-guide.md`
+   - Parallel sub-agents / channel workers → `agent-execution-discipline-guide.md`
+   - Session reporting / archive wording → `agent-user-reporting-discipline-guide.md` + `multi-agent-task-archive-gate-guide.md`
+
+8. **For a non-trivial task, state the change boundary before writing code.** Non-trivial means it touches more than one file, crosses a layer, changes a public interface, or edits code you did not just write. Write down:
    - the smallest behavior gap between what happens now and what should happen
    - where that behavior actually lives (not where it is easiest to intercept)
    - which files you expect to change, and why each one is necessary
@@ -46,7 +52,7 @@ Execute these steps:
 
    If the real scope turns out to be clearly larger than this, say so and why before continuing. Do not widen the change on your own.
 
-8. Understand the coding standards and patterns you need to follow, then proceed with your development plan.
+9. Understand the coding standards and patterns you need to follow, then proceed with your development plan.
 
 This step is **mandatory** before writing any code.
 
