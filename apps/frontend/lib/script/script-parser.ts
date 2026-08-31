@@ -1,5 +1,4 @@
 import { detectInputType } from "./input-type-detector";
-import { ParseOptions, ShotGenerationOptions, callChatAPI } from "./script-parser-api";
 import { CREATIVE_SCRIPT_BASE_PROMPT, STORYBOARD_STRUCTURE_PROMPT } from "./script-parser-prompts";
 
 export interface ScriptGenerationOptions {
