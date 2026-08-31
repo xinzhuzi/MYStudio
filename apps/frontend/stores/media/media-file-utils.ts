@@ -1,4 +1,4 @@
-import { MediaFile, MediaFolder, MediaFolderCategory, MediaType } from "@/types/media";
+import { MediaFile, MediaFolderCategory, MediaType } from "@/types/media";
 
 /**
  * 媒体文件工具族——类型侦测/图像尺寸/视频缩略图/时长/宽高比/删除守卫与系统分类常量(纯函数)。file-size-reduction zustand 专批拆出,体逐字保留。
