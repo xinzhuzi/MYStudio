@@ -157,3 +157,56 @@ describe("useCanvasHistoryShortcuts", () => {
     input.remove();
   });
 });
+
+describe("useCanvasHistory 验收域隔离(R3 PRD)", () => {
+  it("副作用隔离:快照域只含 nodes/edges,restore 仅收到视图模型", () => {
+    const restored: Array<Record<string, unknown>> = [];
+    const state = { current: { nodes: ["a"], edges: [] } };
+    const hook = renderHook(() =>
+      useCanvasHistory<Record<string, unknown>>({
+        read: () => state.current,
+        restore: (snap) => {
+          restored.push(snap);
+          state.current = snap;
+        },
+        debounceMs: 10,
+      }),
+    );
+    act(() => hook.result.current.commit({ nodes: ["a", "b"], edges: [] }));
+    act(() => vi.advanceTimersByTime(20));
+    act(() => hook.result.current.undo());
+    // restore 收到的每个快照都只有 nodes/edges 两键——IPC/落库/生成副作用
+    // 从结构上进不了历史通道,撤销不可能回放它们
+    for (const snap of restored) {
+      expect(Object.keys(snap).sort()).toEqual(["edges", "nodes"]);
+    }
+  });
+
+  it("选中态/视口不入史:撤销只回放结构变更,不含任何选中/视口字段", () => {
+    const state = { current: { nodes: ["a"], edges: [] } };
+    const hook = renderHook(() =>
+      useCanvasHistory({ read: () => state.current, restore: (snap) => { state.current = snap; }, debounceMs: 10 }),
+    );
+    // 模拟:结构变更 + (画布外)选中/视口频繁变化——历史只感知显式 commit
+    act(() => hook.result.current.commit({ nodes: ["a", "b"], edges: [] }));
+    act(() => vi.advanceTimersByTime(20));
+    act(() => hook.result.current.undo());
+    expect(state.current.nodes).toEqual(["a"]);
+    // 选中/视口从未经过 commit → 不产生历史、撤销不受干扰
+    expect(hook.result.current.canRedo).toBe(true);
+  });
+
+  it("持久化隔离:历史仅内存,commit/undo/redo 全程零存储写入", () => {
+    const setItem = vi.spyOn(Storage.prototype, "setItem");
+    const state = { current: { nodes: ["a"] } };
+    const hook = renderHook(() =>
+      useCanvasHistory({ read: () => state.current, restore: () => {}, debounceMs: 10 }),
+    );
+    act(() => hook.result.current.commit({ nodes: ["a", "b"] }));
+    act(() => vi.advanceTimersByTime(20));
+    act(() => hook.result.current.undo());
+    act(() => hook.result.current.redo());
+    expect(setItem).not.toHaveBeenCalled();
+    setItem.mockRestore();
+  });
+});
