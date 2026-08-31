@@ -1,80 +1,87 @@
 /**
- * tts-runtime 路径与文件系统纯工具函数 — 从 tts-runtime.ts 拆出(08-11-structure-refactor)。
- *
- * 这些函数处理路由/路径规整、HF Hub 缓存解析、SHA-256 校验与目录覆盖判定,
- * 无 TTS 运行时依赖,提取到独立文件降低 tts-runtime.ts 主文件行数。
+ * tts-runtime 路径与配置族——存储根/TTS 目录族/legacy 目录族/config 读写/
+ * 模型缓存目录/控制令牌。08-31 file-size-reduction 专批拆出,体逐字保留。
  */
-
-import fs from "node:fs";
 import crypto from "node:crypto";
-import os from "node:os";
 import path from "node:path";
+import os from "node:os";
+import type { TtsRuntimeControllerDeps, RuntimeConfig } from "./tts-runtime-shared";
+import { normalizeUserPath } from "./tts-runtime-shared";
+import { ttsModelCacheDir } from "@/electron/storage/model-dirs";
 
-export function normalizeRoutePath(routePath: string) {
-  return routePath.startsWith("/") ? routePath : `/${routePath}`;
+export type TtsRuntimePathsDeps = Pick<TtsRuntimeControllerDeps, "storageBasePath" | "huggingFaceHubDir" | "userDataPath">;
+export interface TtsRuntimePathsIo {
+  readTextFile: (filePath: string) => string | null;
+  writeTextFile: (filePath: string, text: string) => void;
+  ensureDir: (dirPath: string) => void;
 }
 
-export function sidecarMainPath(sidecarRoot: string) {
-  return path.join(sidecarRoot, "tts", "main.py");
-}
+export type TtsRuntimePaths = ReturnType<typeof createTtsRuntimePaths>;
 
-export function uniquePaths(paths: string[]) {
-  return [...new Set(paths.filter(Boolean))];
-}
+export function createTtsRuntimePaths(deps: TtsRuntimePathsDeps, io: TtsRuntimePathsIo) {
+  const { readTextFile, writeTextFile, ensureDir } = io;
 
-export function expandHome(inputPath: string) {
-  if (inputPath === "~") return os.homedir();
-  if (inputPath.startsWith("~/")) return path.join(os.homedir(), inputPath.slice(2));
-  return inputPath;
-}
+  const storageBasePath = () => {
+    if (typeof deps.storageBasePath === "function") return deps.storageBasePath();
+    return deps.storageBasePath || deps.userDataPath;
+  };
+  const huggingFaceHubDir = () => {
+    if (typeof deps.huggingFaceHubDir === "function") return deps.huggingFaceHubDir();
+    return deps.huggingFaceHubDir || path.join(os.homedir(), ".cache", "huggingface", "hub");
+  };
+  const ttsRootDir = () => path.join(storageBasePath(), "TTS");
+  const runtimeDataDir = () => path.join(ttsRootDir(), "runtime");
+  const legacyRuntimeDir = path.join(deps.userDataPath, "tts-runtime");
+  const legacyModelsDir = () => path.join(storageBasePath(), "tts-models");
+  const legacyDefaultModelsDir = () => path.join(ttsRootDir(), "models");
+  // 2026-08 前的默认模型缓存目录（<base>/TTS/model）；新布局统一收口到 <base>/model/<family>/
+  const legacyCacheModelsDir = () => path.join(ttsRootDir(), "model");
+  const runtimePythonDir = () => path.join(storageBasePath(), "python");
+  const runtimeArchiveDir = () => storageBasePath();
+  const configPath = () => path.join(runtimeDataDir(), "config.json");
+  const defaultModelCacheDir = () => ttsModelCacheDir(storageBasePath());
 
-export function normalizeUserPath(inputPath: string) {
-  return path.resolve(expandHome(inputPath.trim()));
-}
-
-export function resolveHfHubCacheDir(modelCacheDir: string, fileExists: (filePath: string) => boolean) {
-  if (path.basename(modelCacheDir) === "huggingface") {
-    return path.join(modelCacheDir, "hub");
-  }
-  if (path.basename(modelCacheDir) !== "hub" && fileExists(path.join(modelCacheDir, "hub"))) {
-    return path.join(modelCacheDir, "hub");
-  }
-  return modelCacheDir;
-}
-
-export function sha256File(filePath: string): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const hash = crypto.createHash("sha256");
-    const stream = fs.createReadStream(filePath);
-    stream.on("data", (chunk) => {
-      hash.update(chunk);
-    });
-    stream.on("error", reject);
-    stream.on("end", () => resolve(hash.digest("hex")));
-  });
-}
-
-export async function directoryIsCoveredBy(sourcePath: string, targetPath: string): Promise<boolean> {
-  try {
-    const source = fs.lstatSync(sourcePath);
-    const target = fs.lstatSync(targetPath);
-    if (source.isSymbolicLink() || target.isSymbolicLink()) {
-      return source.isSymbolicLink()
-        && target.isSymbolicLink()
-        && fs.readlinkSync(sourcePath) === fs.readlinkSync(targetPath);
+  const readConfig = (): RuntimeConfig => {
+    const raw = readTextFile(configPath());
+    if (!raw) return {};
+    try {
+      return JSON.parse(raw) as RuntimeConfig;
+    } catch {
+      return {};
     }
-    if (source.isDirectory() || target.isDirectory()) {
-      if (!source.isDirectory() || !target.isDirectory()) return false;
-      const targetEntries = new Set(fs.readdirSync(targetPath));
-      for (const entry of fs.readdirSync(sourcePath)) {
-        if (!targetEntries.has(entry)) return false;
-        if (!await directoryIsCoveredBy(path.join(sourcePath, entry), path.join(targetPath, entry))) return false;
-      }
-      return true;
-    }
-    if (!source.isFile() || !target.isFile() || source.size !== target.size) return false;
-    return (await sha256File(sourcePath)) === (await sha256File(targetPath));
-  } catch {
-    return false;
-  }
+  };
+
+  const writeConfig = (config: RuntimeConfig) => {
+    ensureDir(runtimeDataDir());
+    writeTextFile(configPath(), JSON.stringify(config, null, 2));
+  };
+
+  const getModelCacheDir = () => {
+    const config = readConfig();
+    return config.modelCacheDir ? normalizeUserPath(config.modelCacheDir) : defaultModelCacheDir();
+  };
+
+  const getControlToken = () => {
+    const config = readConfig();
+    if (config.controlToken) return config.controlToken;
+    const controlToken = crypto.randomUUID();
+    writeConfig({ ...config, controlToken });
+    return controlToken;
+  };
+
+  const saveModelCacheDir = (dirPath: string) => {
+    const modelCacheDir = dirPath.trim() ? normalizeUserPath(dirPath) : defaultModelCacheDir();
+    ensureDir(runtimeDataDir());
+    ensureDir(modelCacheDir);
+    const config = readConfig();
+    writeConfig({ ...config, modelCacheDir });
+    return modelCacheDir;
+  };
+
+  return {
+    storageBasePath, huggingFaceHubDir, ttsRootDir, runtimeDataDir, legacyRuntimeDir,
+    legacyModelsDir, legacyDefaultModelsDir, legacyCacheModelsDir, runtimePythonDir,
+    runtimeArchiveDir, configPath, defaultModelCacheDir, readConfig, writeConfig,
+    getModelCacheDir, saveModelCacheDir, getControlToken,
+  };
 }

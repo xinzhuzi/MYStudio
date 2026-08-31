@@ -1,14 +1,15 @@
 import fs from "node:fs";
 import crypto from "node:crypto";
-import os from "node:os";
 import path from "node:path";
 import { ChildProcess, spawn } from "node:child_process";
 import { captureSidecarOutput } from "../diagnostics/sidecar-log-capture";
+import { createTtsRuntimePaths } from "./tts-runtime-paths";
+import { createTtsRuntimeMigration } from "./tts-runtime-migration";
+import { createTtsRuntimePython } from "./tts-runtime-python";
 import { assertSafeTarMembers } from "./archive-safety";
 import { getErrorMessage, isRecord, parseJsonString } from "./tts-runtime-utils";
-import type { BackendModelStatus, TtsRuntimeCommandResult, TtsRuntimeConfig, TtsRuntimeInstalledItem, TtsRuntimeStatus, TtsStorageLayout } from "@/types/tts";
-import { ttsModelCacheDir } from "@/electron/storage/model-dirs";
-import { ALIGNMENT_MODEL_NAME, BackendHealth, DEFAULT_ALIGNMENT_MODEL_POLL_ATTEMPTS, DEFAULT_ALIGNMENT_MODEL_POLL_INTERVAL_MS, DEFAULT_TTS_HOST, DEFAULT_TTS_PORT, DEFAULT_TTS_REQUEST_TIMEOUT_MS, FetchJsonOptions, ModelMigrationAction, RuntimeConfig, SpawnedProcess, TTS_AUDIO_POOL_MAX_AGE_MS, TtsRuntimeController, TtsRuntimeControllerDeps, TtsRuntimeError, createTtsBackendHttpError, defaultFetchBytes, defaultFetchJson, defaultFetchRuntimeArchive, defaultFindListeningPids, defaultKillProcess, defaultPythonDownloadUrl, directoryIsCoveredBy, execFileAsync, expandHome, fetchWithTtsDeadline, isValidPythonRuntimeSha256, isValidPythonRuntimeUrl, makeStatus, normalizeRoutePath, normalizeUserPath, resolveHfHubCacheDir, sha256File, sidecarMainPath, uniquePaths, withTtsRequestContext } from "./tts-runtime-shared";
+import type { BackendModelStatus, TtsRuntimeCommandResult, TtsRuntimeConfig, TtsRuntimeInstalledItem, TtsRuntimeStatus } from "@/types/tts";
+import { ALIGNMENT_MODEL_NAME, BackendHealth, DEFAULT_ALIGNMENT_MODEL_POLL_ATTEMPTS, DEFAULT_ALIGNMENT_MODEL_POLL_INTERVAL_MS, DEFAULT_TTS_HOST, DEFAULT_TTS_PORT, DEFAULT_TTS_REQUEST_TIMEOUT_MS, FetchJsonOptions, SpawnedProcess, TtsRuntimeController, TtsRuntimeControllerDeps, TtsRuntimeError, createTtsBackendHttpError, defaultFetchBytes, defaultFetchJson, defaultFetchRuntimeArchive, defaultFindListeningPids, defaultKillProcess, defaultPythonDownloadUrl, execFileAsync, expandHome, fetchWithTtsDeadline, isValidPythonRuntimeSha256, isValidPythonRuntimeUrl, makeStatus, normalizeRoutePath, normalizeUserPath, resolveHfHubCacheDir, sidecarMainPath, uniquePaths, withTtsRequestContext } from "./tts-runtime-shared";
 
 export function createTtsRuntimeController(deps: TtsRuntimeControllerDeps): TtsRuntimeController {
   const port = deps.port ?? DEFAULT_TTS_PORT;
@@ -55,25 +56,18 @@ export function createTtsRuntimeController(deps: TtsRuntimeControllerDeps): TtsR
     path.join(deps.appRoot, "..", "backend"),
     typeof process.resourcesPath === "string" ? path.join(process.resourcesPath, "backend") : "",
   ]);
-  const storageBasePath = () => {
-    if (typeof deps.storageBasePath === "function") return deps.storageBasePath();
-    return deps.storageBasePath || deps.userDataPath;
-  };
-  const huggingFaceHubDir = () => {
-    if (typeof deps.huggingFaceHubDir === "function") return deps.huggingFaceHubDir();
-    return deps.huggingFaceHubDir || path.join(os.homedir(), ".cache", "huggingface", "hub");
-  };
-  const ttsRootDir = () => path.join(storageBasePath(), "TTS");
-  const runtimeDataDir = () => path.join(ttsRootDir(), "runtime");
-  const legacyRuntimeDir = path.join(deps.userDataPath, "tts-runtime");
-  const legacyModelsDir = () => path.join(storageBasePath(), "tts-models");
-  const legacyDefaultModelsDir = () => path.join(ttsRootDir(), "models");
-  // 2026-08 前的默认模型缓存目录（<base>/TTS/model）；新布局统一收口到 <base>/model/<family>/
-  const legacyCacheModelsDir = () => path.join(ttsRootDir(), "model");
-  const runtimePythonDir = () => path.join(storageBasePath(), "python");
-  const runtimeArchiveDir = () => storageBasePath();
-  const configPath = () => path.join(runtimeDataDir(), "config.json");
-  const defaultModelCacheDir = () => ttsModelCacheDir(storageBasePath());
+
+  const pathsApi = createTtsRuntimePaths(deps, { readTextFile, writeTextFile, ensureDir });
+  const {
+    runtimeDataDir,
+    runtimePythonDir,
+    defaultModelCacheDir, readConfig, writeConfig,
+    getModelCacheDir, saveModelCacheDir, getControlToken,
+  } = pathsApi;
+  const {
+    cleanupAudioGenerationPool,
+    getStorageLayout, buildModelMigrationPlan,
+  } = createTtsRuntimeMigration(pathsApi, { fileExists });
   let child: SpawnedProcess | null = null;
   let setupState: Pick<TtsRuntimeStatus, "setupStage" | "setupMessage" | "setupProgress"> = {
     setupStage: "idle",
@@ -81,194 +75,6 @@ export function createTtsRuntimeController(deps: TtsRuntimeControllerDeps): TtsR
     setupProgress: undefined,
   };
 
-  const readConfig = (): RuntimeConfig => {
-    const raw = readTextFile(configPath());
-    if (!raw) return {};
-    try {
-      return JSON.parse(raw) as RuntimeConfig;
-    } catch {
-      return {};
-    }
-  };
-
-  const writeConfig = (config: RuntimeConfig) => {
-    ensureDir(runtimeDataDir());
-    writeTextFile(configPath(), JSON.stringify(config, null, 2));
-  };
-
-  const getModelCacheDir = () => {
-    const config = readConfig();
-    return config.modelCacheDir ? normalizeUserPath(config.modelCacheDir) : defaultModelCacheDir();
-  };
-
-  /** 生成草稿池 GC:<runtime>/audio 下 mtime 超过 30 天的产物在启动时清理。
-   *  配音室「本地制作列表」仅引用新近条目(localStorage 截留 100 条),超龄失链可接受。 */
-  const cleanupAudioGenerationPool = () => {
-    const audioDir = path.join(runtimeDataDir(), "audio");
-    try {
-      if (!fs.existsSync(audioDir)) return;
-      const cutoff = Date.now() - TTS_AUDIO_POOL_MAX_AGE_MS;
-      for (const entry of fs.readdirSync(audioDir, { withFileTypes: true })) {
-        if (!entry.isFile()) continue;
-        const filePath = path.join(audioDir, entry.name);
-        try {
-          if (fs.statSync(filePath).mtimeMs < cutoff) fs.rmSync(filePath, { force: true });
-        } catch { /* 单文件清理失败忽略 */ }
-      }
-    } catch { /* 池清理失败不阻断启动 */ }
-  };
-
-  /** TTS 后端 catalog 中登记的模型 repo_id 及别名/对齐 tokenizer。
-   *  迁移扫描时只匹配这些 repo，避免把全局 HF hub 里其他程序的模型误判为待迁移。 */
-  const KNOWN_TTS_REPO_IDS: ReadonlySet<string> = new Set([
-    // voiceClone
-    "mlx-community/Qwen3-TTS-12Hz-1.7B-Base-bf16",
-    "mlx-community/Qwen3-TTS-12Hz-0.6B-Base-bf16",
-    "YatharthS/LuxTTS",
-    "ResembleAI/chatterbox",
-    "ResembleAI/chatterbox-turbo",
-    "HumeAI/tada-1b",
-    // presetVoice
-    "Qwen/Qwen3-TTS-12Hz-1.7B-CustomVoice",
-    "Qwen/Qwen3-TTS-12Hz-0.6B-CustomVoice",
-    "hexgrad/Kokoro-82M",
-    // longAudio
-    "HumeAI/tada-3b-ml",
-    // stt
-    "mlx-community/SenseVoiceSmall",
-    "mlx-community/whisper-large-v3-turbo",
-    "mlx-community/whisper-small",
-    // aliases (model_cache.py MODEL_REPO_ALIASES)
-    "Qwen/Qwen3-TTS-12Hz-1.7B-Base",
-    "Qwen/Qwen3-TTS-12Hz-0.6B-Base",
-    // alignment tokenizer (model_inventory.py)
-    "openai/whisper-large-v3-turbo",
-  ]);
-
-  /** 将磁盘上的 `models--org--name` 目录名还原为 `org/name` 形式的 repo_id。 */
-  const repoDirNameToId = (dirName: string): string => (
-    dirName.replace(/^models--/, "").replace(/--/g, "/")
-  );
-
-  const listModelRepositories = (rootDir: string, filterKnownTts = false) => {
-    if (!fileExists(rootDir)) return [];
-    try {
-      return fs.readdirSync(rootDir, { withFileTypes: true })
-        .filter((entry) => (
-          entry.isDirectory()
-          && entry.name.startsWith("models--")
-          && (!filterKnownTts || KNOWN_TTS_REPO_IDS.has(repoDirNameToId(entry.name)))
-        ))
-        .map((entry) => path.join(rootDir, entry.name))
-        .sort();
-    } catch {
-      return [];
-    }
-  };
-
-  const getModelRepositorySources = () => [
-    ...listModelRepositories(huggingFaceHubDir(), true),
-    ...listModelRepositories(legacyDefaultModelsDir()),
-    ...listModelRepositories(legacyModelsDir()),
-    ...listModelRepositories(legacyCacheModelsDir()),
-  ];
-
-  const getStorageLayout = (): TtsStorageLayout => {
-    const runtimeDir = runtimeDataDir();
-    const modelsDir = defaultModelCacheDir();
-    const legacyRuntimeExists = fileExists(legacyRuntimeDir);
-    const legacyModelsExists = fileExists(legacyModelsDir());
-    const legacyDefaultModelsExists = fileExists(legacyDefaultModelsDir());
-    const legacyCacheModelsExists = fileExists(legacyCacheModelsDir());
-    const legacyHuggingFaceHubExists = fileExists(huggingFaceHubDir());
-    const hasRuntimeConflict = legacyRuntimeExists && fileExists(runtimeDir);
-    const hasModelRepositories = getModelRepositorySources().length > 0;
-    const migrationState = hasRuntimeConflict
-      ? "conflict"
-      : legacyRuntimeExists || hasModelRepositories
-        ? "ready"
-        : "up-to-date";
-    return {
-      rootDir: ttsRootDir(),
-      runtimeDir,
-      modelsDir,
-      legacyRuntimeDir,
-      legacyModelsDir: legacyModelsDir(),
-      legacyDefaultModelsDir: legacyDefaultModelsDir(),
-      legacyCacheModelsDir: legacyCacheModelsDir(),
-      legacyHuggingFaceHubDir: huggingFaceHubDir(),
-      legacyRuntimeExists,
-      legacyModelsExists,
-      legacyDefaultModelsExists,
-      legacyCacheModelsExists,
-      legacyHuggingFaceHubExists,
-      migrationState,
-      migrationMessage: hasRuntimeConflict
-        ? "旧版运行数据目录与新的 TTS/runtime 同时存在，已阻止自动迁移。"
-        : legacyRuntimeExists || hasModelRepositories
-          ? "检测到旧版或 Hugging Face 模型，迁移时会逐项校验后移动。"
-          : undefined,
-    };
-  };
-
-  const buildModelMigrationPlan = async (modelsDir: string): Promise<{
-    actions: ModelMigrationAction[];
-    conflicts: string[];
-  }> => {
-    const byName = new Map<string, string[]>();
-    for (const sourceDir of getModelRepositorySources()) {
-      const modelName = path.basename(sourceDir);
-      const sources = byName.get(modelName) ?? [];
-      sources.push(sourceDir);
-      byName.set(modelName, sources);
-    }
-
-    const actions: ModelMigrationAction[] = [];
-    const conflicts: string[] = [];
-    for (const [modelName, sources] of byName) {
-      const targetDir = path.join(modelsDir, modelName);
-      if (fileExists(targetDir)) {
-        for (const sourceDir of sources) {
-          if (!await directoryIsCoveredBy(sourceDir, targetDir)) {
-            conflicts.push(modelName);
-            break;
-          }
-          actions.push({ kind: "remove", sourceDir });
-        }
-        continue;
-      }
-
-      const [primarySource, ...duplicateSources] = sources;
-      if (!primarySource) continue;
-      for (const sourceDir of duplicateSources) {
-        if (!await directoryIsCoveredBy(sourceDir, primarySource)) {
-          conflicts.push(modelName);
-          break;
-        }
-      }
-      if (conflicts.includes(modelName)) continue;
-      actions.push({ kind: "move", sourceDir: primarySource, targetDir });
-      actions.push(...duplicateSources.map((sourceDir) => ({ kind: "remove" as const, sourceDir })));
-    }
-    return { actions, conflicts };
-  };
-
-  const getControlToken = () => {
-    const config = readConfig();
-    if (config.controlToken) return config.controlToken;
-    const controlToken = crypto.randomUUID();
-    writeConfig({ ...config, controlToken });
-    return controlToken;
-  };
-
-  const saveModelCacheDir = (dirPath: string) => {
-    const modelCacheDir = dirPath.trim() ? normalizeUserPath(dirPath) : defaultModelCacheDir();
-    ensureDir(runtimeDataDir());
-    ensureDir(modelCacheDir);
-    const config = readConfig();
-    writeConfig({ ...config, modelCacheDir });
-    return modelCacheDir;
-  };
 
   const isManagedPythonInstallItem = (item: TtsRuntimeInstalledItem) => {
     if (item.label !== "Python 运行环境") return true;
@@ -336,227 +142,16 @@ export function createTtsRuntimeController(deps: TtsRuntimeControllerDeps): TtsR
 
   const resolveSidecarRoot = () => sidecarRoots.find((sidecarRoot) => fileExists(sidecarMainPath(sidecarRoot)));
 
-  function managedPythonExecutablePath(runtimeDir: string) {
-    return process.platform === "win32"
-      ? path.join(runtimeDir, "python.exe")
-      : path.join(runtimeDir, "bin", "python3");
-  }
 
-  function getBundledPython(sidecarRoot: string): string | null {
-    const pythonPath = managedPythonExecutablePath(sidecarRoot);
-    return fileExists(pythonPath) ? pythonPath : null;
-  }
-
-  function pythonDownloadUrl(): string | null {
-    const config = readConfig();
-    // 配置/环境变量下载源必须 HTTPS;非法值不落地执行,回退官方默认源。
-    const configuredUrl = config.pythonRuntimeUrl?.trim();
-    if (configuredUrl) {
-      if (!isValidPythonRuntimeUrl(configuredUrl)) {
-        console.warn("[TTS] pythonRuntimeUrl 非 HTTPS，已忽略并回退默认下载源:", configuredUrl.slice(0, 24));
-        return defaultPythonDownloadUrl();
-      }
-      return configuredUrl;
-    }
-    const override = process.env.MANYING_TTS_PYTHON_RUNTIME_URL?.trim();
-    if (override) {
-      if (!isValidPythonRuntimeUrl(override)) {
-        console.warn("[TTS] MANYING_TTS_PYTHON_RUNTIME_URL 非 HTTPS，已忽略并回退默认下载源");
-        return defaultPythonDownloadUrl();
-      }
-      return override;
-    }
-    return defaultPythonDownloadUrl();
-  }
-
-  function findManagedPython(): string | null {
-    return getBundledPython(runtimePythonDir());
-  }
-
-  async function validateManagedPython(python: string): Promise<{ success: boolean; error?: string }> {
-    try {
-      const versionResult = await runPython(python, ["--version"], { timeout: 30_000, maxBuffer: 1024 * 1024 }) as {
-        stdout?: string;
-        stderr?: string;
-      };
-      const versionText = `${versionResult.stdout ?? ""}${versionResult.stderr ?? ""}`.trim();
-      if (/Python\s+3\.12\./.test(versionText)) return { success: true };
-      return { success: false, error: `当前 Python 运行环境不是 Python 3.12: ${versionText || python}` };
-    } catch (error) {
-      return { success: false, error: `Python 3.12 运行环境校验失败: ${getErrorMessage(error)}` };
-    }
-  }
-
-  async function findReadyPython(): Promise<{ python?: string; error?: string }> {
-    updateSetupState({ setupStage: "checking", setupMessage: "正在检查 Python 运行环境", setupProgress: 0 });
-    const managedPython = findManagedPython();
-    if (managedPython) {
-      const validation = await validateManagedPython(managedPython);
-      if (!validation.success) {
-        updateSetupState({ setupStage: "failed", setupMessage: "Python 3.12 运行环境校验失败", setupProgress: 0 });
-        return { error: validation.error };
-      }
-      updateSetupState({
-        setupStage: "checking",
-        setupMessage: "已找到项目存储中的 Python 运行环境",
-        setupProgress: 100,
-      });
-      return { python: managedPython };
-    }
-    updateSetupState({ setupStage: "failed", setupMessage: "Python 3.12 运行环境未配置", setupProgress: 0 });
-    return { error: "请先到设置里的本地配置页的 Python 运行环境区块完成配置" };
-  }
-
-  async function ensurePython(): Promise<{ python?: string; error?: string }> {
-    updateSetupState({ setupStage: "checking", setupMessage: "正在检查 Python 3.12 运行环境", setupProgress: 0 });
-    const managedPython = findManagedPython();
-    if (managedPython) {
-      const validation = await validateManagedPython(managedPython);
-      if (!validation.success) {
-        updateSetupState({ setupStage: "failed", setupMessage: "Python 3.12 运行环境校验失败", setupProgress: 0 });
-        setInstalledItem({ label: "Python 运行环境", detail: managedPython, status: "failed" });
-        return { error: validation.error };
-      }
-      setInstalledItem({
-        label: "Python 运行环境",
-        detail: managedPython,
-        status: "skipped",
-      });
-      return { python: managedPython };
-    }
-    const runtimeDir = runtimePythonDir();
-    const url = pythonDownloadUrl();
-    if (!url) {
-      updateSetupState({ setupStage: "failed", setupMessage: "当前平台不支持自动下载 Python", setupProgress: 0 });
-      return { error: `不支持的平台: ${process.platform} ${process.arch}` };
-    }
-    const archiveDir = runtimeArchiveDir();
-    const partialArchive = path.join(archiveDir, "python-runtime.tar.gz.partial");
-    const archivePath = path.join(archiveDir, "python-runtime.tar.gz");
-    try {
-      ensureDir(archiveDir);
-      updateSetupState({ setupStage: "downloading-python", setupMessage: "正在下载 Python 运行环境", setupProgress: 0 });
-      const res = await fetchRuntimeArchive(url, partialArchive, (progress) => {
-        updateSetupState({
-          setupStage: "downloading-python",
-          setupMessage: "正在下载 Python 运行环境",
-          setupProgress: progress.progress,
-        });
-      });
-      if (!res.ok || !res.data) {
-        removeFile(partialArchive);
-        updateSetupState({ setupStage: "failed", setupMessage: "Python 下载失败", setupProgress: setupState.setupProgress });
-        return { error: `下载 Python 失败 (${res.status})` };
-      }
-      writeBinaryFile(partialArchive, res.data instanceof Uint8Array ? res.data : new Uint8Array(res.data));
-      renameFile(partialArchive, archivePath);
-      const expectedSha256 = readConfig().pythonRuntimeSha256?.trim().toLowerCase();
-      if (expectedSha256) {
-        const actualSha256 = await sha256File(archivePath);
-        if (actualSha256 !== expectedSha256) {
-          removeFile(archivePath);
-          updateSetupState({ setupStage: "failed", setupMessage: "Python 运行环境包完整性校验失败", setupProgress: 100 });
-          setInstalledItem({ label: "Python 运行环境", detail: runtimeDir, status: "failed" });
-          return { error: `Python 运行环境包 sha256 校验失败(期望 ${expectedSha256.slice(0, 12)}…，实际 ${actualSha256.slice(0, 12)}…)` };
-        }
-      }
-      updateSetupState({ setupStage: "extracting-python", setupMessage: "正在配置 Python 仓库", setupProgress: 100 });
-      await extractArchive(archivePath, archiveDir);
-      removeFile(archivePath);
-      const py = getBundledPython(runtimeDir);
-      if (!py) {
-        updateSetupState({ setupStage: "failed", setupMessage: "Python 解压后未找到可执行文件", setupProgress: 100 });
-        setInstalledItem({ label: "Python 运行环境", detail: runtimeDir, status: "failed" });
-        return { error: "Python 解压后未找到可执行文件" };
-      }
-      const validation = await validateManagedPython(py);
-      if (!validation.success) {
-        updateSetupState({ setupStage: "failed", setupMessage: "Python 3.12 运行环境校验失败", setupProgress: 100 });
-        setInstalledItem({ label: "Python 运行环境", detail: py, status: "failed" });
-        return { error: validation.error };
-      }
-      setInstalledItem({ label: "Python 运行环境", detail: py, status: "installed" });
-      return { python: py };
-    } catch (error) {
-      removeFile(partialArchive);
-      updateSetupState({ setupStage: "failed", setupMessage: "Python 下载失败", setupProgress: setupState.setupProgress });
-      setInstalledItem({ label: "Python 运行环境", detail: runtimeDir, status: "failed" });
-      return { error: `Python 下载失败: ${getErrorMessage(error)}` };
-    }
-  }
-
-  function getDepsPlan(sidecarRoot: string, python: string): {
-    reqPath?: string;
-    markerPath?: string;
-    reqHash?: string;
-  } {
-    const reqPath = path.join(sidecarRoot, "requirements.txt");
-    if (!fileExists(reqPath)) return {};
-    const markerPath = path.join(runtimeDataDir(), ".deps-hash");
-    const reqContent = readTextFile(reqPath) ?? "";
-    const reqHash = crypto.createHash("md5").update(`${python}\n${reqContent}`).digest("hex");
-    return { reqPath, markerPath, reqHash };
-  }
-
-  function depsAreReady(sidecarRoot: string, python: string) {
-    const depsPlan = getDepsPlan(sidecarRoot, python);
-    if (!depsPlan.markerPath || !depsPlan.reqHash) return true;
-    return readTextFile(depsPlan.markerPath)?.trim() === depsPlan.reqHash;
-  }
-
-  function decodePipInstallReport(value: unknown): { install: unknown[] } | null {
-    if (!isRecord(value)) return null;
-    const install = value.install;
-    if (!Array.isArray(install)) return null;
-    return { install };
-  }
-
-  /**
-   * Offline dependency proof for stale/missing markers: pip runs with
-   * `--dry-run` (mutates nothing) and `--no-index` (cannot contact any
-   * package index); only a structured report whose `install` list is empty
-   * counts as satisfied. Malformed output, pending installs, or command
-   * failure all fail closed and route to the explicit setup action.
-   */
-  async function verifyDepsWithoutInstall(reqPath: string, python: string): Promise<boolean> {
-    try {
-      const result = await runPython(
-        python,
-        ["-m", "pip", "install", "--dry-run", "--no-index", "--report", "-", "--quiet", "-r", reqPath],
-        { timeout: 120_000, maxBuffer: 8 * 1024 * 1024 },
-      ) as { stdout?: string };
-      const report = decodePipInstallReport(parseJsonString(result.stdout));
-      return report !== null && report.install.length === 0;
-    } catch {
-      return false;
-    }
-  }
-
-  async function ensureDeps(sidecarRoot: string, python: string): Promise<{ success: boolean; error?: string }> {
-    const { reqPath, markerPath, reqHash } = getDepsPlan(sidecarRoot, python);
-    if (!reqPath || !markerPath || !reqHash) return { success: true };
-    const installedHash = readTextFile(markerPath);
-    if (installedHash?.trim() === reqHash) {
-      setInstalledItem({ label: "TTS Python 依赖", detail: reqPath, status: "skipped" });
-      return { success: true };
-    }
-    try {
-      updateSetupState({ setupStage: "installing-deps", setupMessage: "正在安装 TTS 依赖", setupProgress: undefined });
-      if (process.platform === "win32") {
-        // PyPI 默认是 CPU 版 torch，Windows 需从 CUDA 专用 index 安装
-        await runPython(python, ["-m", "pip", "install", "torch", "--index-url", "https://download.pytorch.org/whl/cu121"], { timeout: 1_800_000, maxBuffer: 32 * 1024 * 1024 });
-      }
-      await runPython(python, ["-m", "pip", "install", "-r", reqPath], { timeout: 1_800_000, maxBuffer: 32 * 1024 * 1024 });
-      ensureDir(runtimeDataDir());
-      writeTextFile(markerPath, reqHash);
-      setInstalledItem({ label: "TTS Python 依赖", detail: reqPath, status: "installed" });
-    } catch (error) {
-      updateSetupState({ setupStage: "failed", setupMessage: "安装 TTS 依赖失败", setupProgress: undefined });
-      setInstalledItem({ label: "TTS Python 依赖", detail: reqPath, status: "failed" });
-      return { success: false, error: `安装依赖失败: ${getErrorMessage(error)}` };
-    }
-    return { success: true };
-  }
+  const {
+    managedPythonExecutablePath, findManagedPython,
+    findReadyPython, ensurePython, getDepsPlan, depsAreReady, verifyDepsWithoutInstall, ensureDeps,
+  } = createTtsRuntimePython(
+    pathsApi,
+    { fileExists, ensureDir, removeFile, writeBinaryFile, renameFile, readTextFile, writeTextFile },
+    { runPython, fetchRuntimeArchive, extractArchive },
+    { updateSetupState, setInstalledItem, currentSetupProgress: () => setupState.setupProgress },
+  );
 
   async function getBackendHealth(): Promise<BackendHealth> {
     try {
@@ -1142,5 +737,5 @@ export function createTtsRuntimeController(deps: TtsRuntimeControllerDeps): TtsR
 }
 
 
-export { ALIGNMENT_MODEL_NAME, DEFAULT_ALIGNMENT_MODEL_POLL_ATTEMPTS, DEFAULT_ALIGNMENT_MODEL_POLL_INTERVAL_MS, DEFAULT_TTS_HOST, DEFAULT_TTS_PORT, DEFAULT_TTS_REQUEST_TIMEOUT_MS, TTS_AUDIO_POOL_MAX_AGE_MS, TtsRuntimeError, createTtsBackendHttpError, decodeTtsErrorEnvelope, defaultFetchBytes, defaultFetchJson, defaultFetchRuntimeArchive, defaultFindListeningPids, defaultKillProcess, defaultPythonDownloadUrl, directoryIsCoveredBy, execFileAsync, expandHome, fetchWithTtsDeadline, findTtsErrorRecord, isValidPythonRuntimeSha256, isValidPythonRuntimeUrl, makeStatus, normalizeRoutePath, normalizeTtsTransportError, normalizeUserPath, resolveHfHubCacheDir, sha256File, sidecarMainPath, uniquePaths, withTtsRequestContext } from "./tts-runtime-shared";
+export { ALIGNMENT_MODEL_NAME, DEFAULT_ALIGNMENT_MODEL_POLL_ATTEMPTS, DEFAULT_ALIGNMENT_MODEL_POLL_INTERVAL_MS, DEFAULT_TTS_HOST, DEFAULT_TTS_PORT, DEFAULT_TTS_REQUEST_TIMEOUT_MS, TTS_AUDIO_POOL_MAX_AGE_MS, TtsRuntimeError, createTtsBackendHttpError, decodeTtsErrorEnvelope, defaultFetchBytes, defaultFetchJson, defaultFetchRuntimeArchive, defaultFindListeningPids, defaultKillProcess, defaultPythonDownloadUrl, execFileAsync, expandHome, fetchWithTtsDeadline, findTtsErrorRecord, isValidPythonRuntimeSha256, isValidPythonRuntimeUrl, makeStatus, normalizeRoutePath, normalizeTtsTransportError, normalizeUserPath, resolveHfHubCacheDir, sidecarMainPath, uniquePaths, withTtsRequestContext } from "./tts-runtime-shared";
 export type { BackendHealth, FetchBytesResult, FetchJsonOptions, ModelMigrationAction, RuntimeArchiveProgress, RuntimeArchiveResult, RuntimeConfig, SpawnedProcess, TtsRuntimeController, TtsRuntimeControllerDeps, TtsRuntimeErrorEnvelope } from "./tts-runtime-shared";
