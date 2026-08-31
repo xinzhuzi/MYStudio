@@ -14,11 +14,14 @@ from __future__ import annotations
 
 import base64
 import io
+import sys
 import threading
 from typing import Any
 
 from .model_cache import (
     KREA2_MODEL,
+    KREA2_COMFY_LORA_DIR,
+    KREA2_DEFAULT_LORA_FILE,
     FLUX2_KLEIN_MODEL,
     QWEN_IMAGE_EDIT_MODEL,
     QWEN_IMAGE_REPO,
@@ -31,6 +34,7 @@ from .model_cache import (
     flux2_small_pieces_status,
     resolve_krea2_big_files,
     krea2_small_pieces_status,
+    comfyui_models_dir,
     qwen_small_pieces_status,
     z_image_small_pieces_status,
     resolve_image_model_name,
@@ -510,6 +514,14 @@ def _get_flux2_components() -> dict[str, Any]:
     except Exception as exc:
         raise PipelineError("model-load-failed", f"FLUX.2 生图管线装配失败: {exc}") from exc
 
+    # 用户裁定(08-31):优先 Krea2-NSFW 专业流——默认 LoRA 合并
+    lora_file = comfyui_models_dir() / KREA2_COMFY_LORA_DIR / KREA2_DEFAULT_LORA_FILE
+    if lora_file.is_file():
+        try:
+            _merge_krea2_comfyui_lora(transformer, str(lora_file), strength=1.0)
+        except Exception as exc:
+            print(f"[image-sidecar] krea2 lora merge 失败(继续裸模型): {exc}", file=sys.stderr, flush=True)
+
     device = "mps" if torch.backends.mps.is_available() else ("cuda" if torch.cuda.is_available() else "cpu")
     return {
         "transformer": transformer.to(device),
@@ -647,6 +659,75 @@ def _convert_krea2_comfyui_state(state: dict, model: Any) -> dict:
     if missing:
         raise PipelineError("model-load-failed", f"Krea2 权重转换后缺 {len(missing)} 键: {sorted(missing)[:4]}")
     return out
+
+
+def _merge_krea2_comfyui_lora(
+    transformer: Any,
+    lora_path: str,
+    strength: float = 1.0,
+) -> int:
+    """把 ComfyUI 格式 Krea2 LoRA(diffusion_model.* 前缀+原生键名)手动合并
+    进 diffusers transformer。返回合并的权重对数。
+
+    原理:delta = B @ A * strength;直接加到 base weight 上(免 PEFT 依赖
+    与版本怪癖)。键名经与主权重同源转换器重写。
+    """
+    from safetensors.torch import load_file
+
+    raw = load_file(lora_path)
+    rank = next(iter(raw.values())).shape[0]
+    scale = strength  # ComfyUI LoRA alpha=rank → scale=strength
+    pairs: dict[str, dict[str, Any]] = {}
+    for key, tensor in raw.items():
+        # diffusion_model.blocks.0.attn.wk.lora_A.weight → (transformer_blocks.0.attn.to_k, A)
+        suffix = key.replace("diffusion_model.", "", 1)
+        if ".lora_A." in suffix:
+            base, _, _ = suffix.rpartition(".lora_A.weight")
+        elif ".lora_B." in suffix:
+            base, _, _ = suffix.rpartition(".lora_B.weight")
+        else:
+            continue
+        # 复用主转换规则(ComfyUI→diffusers 键名)
+        mapped = _map_krea2_comfyui_key(base)
+        side = "A" if ".lora_A." in suffix else "B"
+        pairs.setdefault(mapped, {})[side] = tensor.float()
+    merged = 0
+    with __import__("torch").no_grad():
+        sd = transformer.state_dict()
+        for target_key, ab in pairs.items():
+            # 映射产物无 .weight 尾;sd 键有
+            lookup = target_key + ".weight"
+            if lookup not in sd or "A" not in ab or "B" not in ab:
+                continue
+            delta = (ab["B"] @ ab["A"]).to(sd[lookup].device, sd[lookup].dtype) * scale
+            sd[lookup].add_(delta)
+            merged += 1
+    print(f"[image-sidecar] krea2 lora merged: {merged}/{len(pairs)} pairs (rank={rank}, strength={strength})", flush=True)
+    return merged
+
+
+def _map_krea2_comfyui_key(key: str) -> str:
+    """单键 ComfyUI→diffusers(与主转换器同规则,供 LoRA)。
+
+    LoRA 键去 .lora_A.weight 后无尾点(`blocks.0.attn.wk`),
+    而主转换器的规则带尾点(`.attn.wk.`)——此处补齐两种形态。
+    """
+    if key.startswith("blocks."):
+        key = "transformer_blocks." + key[len("blocks."):]
+    elif key.startswith("txtfusion."):
+        key = "text_fusion." + key[len("txtfusion."):]
+    for src, dst in (
+        (".attn.wq", ".attn.to_q"),
+        (".attn.wk", ".attn.to_k"),
+        (".attn.wv", ".attn.to_v"),
+        (".attn.wo", ".attn.to_out.0"),
+        (".attn.gate", ".attn.to_gate"),
+        (".mlp.down", ".ff.down"),
+        (".mlp.gate", ".ff.gate"),
+        (".mlp.up", ".ff.up"),
+    ):
+        key = key.replace(src + ".", dst + ".").replace(src, dst) if key.endswith(src) else key.replace(src + ".", dst + ".")
+    return key
 
 
 _krea2_pipelines: dict[str, dict[str, Any]] = {}

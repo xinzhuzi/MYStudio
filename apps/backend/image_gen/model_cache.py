@@ -205,6 +205,13 @@ KREA2_REQUIRED_FILES = (
 )
 
 
+# ── Krea2 LoRA 工作流(08-31 用户裁定:优先 NSFW 专业流)──
+# ComfyUI loras 目录下按子文件夹组织的 LoRA 适配器(512 键=448 blocks+64
+# txtfusion,r=64/32,alpha=rank)。文件名前缀 diffusion_model. + 原生键名。
+KREA2_COMFY_LORA_DIR = "loras/Krea2-NSFW"
+KREA2_DEFAULT_LORA_FILE = "Krea 2 NSFW V4.safetensors"
+
+
 # 旧目录 id 归一(sdxl-turbo/flux-schnell 已退役,存量配置请求映射到 Qwen)
 LEGACY_IMAGE_MODEL_ALIASES: dict[str, str] = {
     "sdxl-turbo": QWEN_IMAGE_EDIT_MODEL,
