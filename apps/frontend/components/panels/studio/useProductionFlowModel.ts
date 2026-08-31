@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useCharacterLibraryStore } from "@/stores/library/character-library-store";
 import { useProjectStore } from "@/stores/project/project-store";
 import { useAppSettingsStore } from "@/stores/app/app-settings-store";
@@ -137,6 +137,18 @@ export function useProductionFlowModel({
       }),
     [entityExtractions, scriptPlans],
   );
+  // 内容键守卫(2026-08-29 IPC 洪水实证):上游 entityExtractions/scriptPlans 的
+  // 身份在每次 store 写入后被重建,令下方 effect 以 ~65 轮/秒重跑,batchMatch
+  // 三连发打满 renderer↔main(装机 smoke 44 秒 8724 次,拖垮截图/求值)。
+  // 按序列化内容去重,身份翻动但内容不变时直接跳过。
+  const assetLibraryMatchKey = useMemo(
+    () => JSON.stringify(assetLibraryMatchNames),
+    [assetLibraryMatchNames],
+  );
+  const lastAssetLibraryMatchKeyRef = useRef<string | null>(null);
+  const assetLibraryMatchInFlightRef = useRef(false);
+  const assetLibraryMatchLatestKeyRef = useRef<string | null>(null);
+  const [assetLibraryMatchReloadTick, setAssetLibraryMatchReloadTick] = useState(0);
   const [assetLibraryMatches, setAssetLibraryMatches] =
     useState<ProductionFlowAssetLibraryMatches>({
       role: {},
@@ -144,8 +156,14 @@ export function useProductionFlowModel({
       tool: {},
     });
 
+  assetLibraryMatchLatestKeyRef.current = assetLibraryMatchKey;
   useEffect(() => {
-    let cancelled = false;
+    if (assetLibraryMatchInFlightRef.current) return;
+    if (lastAssetLibraryMatchKeyRef.current === assetLibraryMatchKey) return;
+    const loadedKey = assetLibraryMatchKey;
+    const namesSnapshot = assetLibraryMatchNames;
+    lastAssetLibraryMatchKeyRef.current = loadedKey;
+    assetLibraryMatchInFlightRef.current = true;
     async function loadAssetLibraryMatches() {
       const batchMatch = getStudioAssetsBridge()?.batchMatch;
       if (!batchMatch) {
@@ -158,7 +176,7 @@ export function useProductionFlowModel({
         tool: {},
       };
       for (const kind of ["role", "scene", "tool"] as const) {
-        const names = assetLibraryMatchNames[kind];
+        const names = namesSnapshot[kind];
         if (!names.length) continue;
         const results = await batchMatch({ type: kind, names });
         const bucket = nextMatches[kind]!;
@@ -166,17 +184,23 @@ export function useProductionFlowModel({
           if (result.asset) bucket[result.name] = result.asset;
         }
       }
-      if (!cancelled) setAssetLibraryMatches(nextMatches);
+      setAssetLibraryMatches(nextMatches);
     }
-    void loadAssetLibraryMatches().catch(() => {
-      if (!cancelled) {
+    // 不做取消清理:清理取消会把在途结果作废,而同键重跑又被守卫跳过,
+    // 恰好一次都不落地(测试实证)。React 18 对已卸载组件的 setState 是
+    // 安全 no-op;每内容键每挂载恰好加载一次,身份翻动不再放大成 IPC 洪水。
+    void loadAssetLibraryMatches()
+      .catch(() => {
         setAssetLibraryMatches({ role: {}, scene: {}, tool: {} });
-      }
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [assetLibraryMatchNames]);
+      })
+      .finally(() => {
+        assetLibraryMatchInFlightRef.current = false;
+        // 在途期间内容又变了 → 补一轮(tick 触发 effect 重跑)
+        if (assetLibraryMatchLatestKeyRef.current !== loadedKey) {
+          setAssetLibraryMatchReloadTick((tick) => tick + 1);
+        }
+      });
+  }, [assetLibraryMatchKey, assetLibraryMatchNames, assetLibraryMatchReloadTick]);
 
   const assetLibraryMediaById = useMemo(
     () =>

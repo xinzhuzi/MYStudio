@@ -1,8 +1,9 @@
-"""Music3 model cache helpers — mirrors audio_gen/sfx_gen model_cache.py.
+"""Music3 model cache helpers for Pocket HF and mlx-serve layouts.
 
-The repo is self-contained (weights + generate.py + minimax_mlx_model.py),
-downloaded as an HF snapshot; completeness = runtime files present + weights
-dirs non-empty + no .incomplete blobs.
+The legacy Pocket route is a self-contained HF snapshot.  The current MYStudio
+route is a converted mlx-serve pack with five root safetensors and tokenizer
+directories.  Both layouts are detected explicitly and incomplete downloads
+fail closed.
 """
 
 from __future__ import annotations
@@ -13,6 +14,15 @@ from pathlib import Path
 from typing import TypedDict
 
 MODEL_WEIGHT_EXTENSIONS = (".safetensors", ".bin", ".npz", ".mlx")
+
+MUSIC3_FLAT_WEIGHTS = (
+    "language_model.safetensors",
+    "rvq_depth_decoder.safetensors",
+    "transformer.safetensors",
+    "condition_encoder.safetensors",
+    "vocoder.safetensors",
+)
+MUSIC3_FLAT_DIRS = ("tokenizer", "music_tokenizer")
 
 MIN_MUSIC3_DURATION_S = 10.0
 MAX_MUSIC3_DURATION_S = 300.0
@@ -45,10 +55,10 @@ MUSIC3_MODELS: dict[str, Music3ModelSpec] = {
         "label": "MiniMax-Music3(MLX 整曲引擎)",
         "repo_id": "PocketAiHub/MiniMax-Music3-MLX",
         "repo_ids": ("PocketAiHub/MiniMax-Music3-MLX",),
-        "size_mb": 11900,
+        "size_mb": 28500,
         "license": "MiniMax-Music3 Community License",
-        "description": "本地整曲 BGM 生成(10-300 秒/立体声 WAV,官方口径 32kHz 实测定案,[Instrumental] 纯音乐,原生种子确定性;约 12 GB)",
-        "engine": "mlx-native-script",
+        "description": "本地整曲 BGM 生成(10-300 秒/立体声 WAV,44.1kHz,bf16 mlx-serve 权重,[Instrumental] 纯音乐,原生种子确定性;下载约 28.5 GB)",
+        "engine": "mlx-serve",
         "enabled": True,
         "requires": {"engine": "mlx", "platforms": ("darwin",), "arch": ("arm64",)},
     },
@@ -121,12 +131,12 @@ class CachedMusic3Model(TypedDict):
     cache_dir: str
     repo_cache_dir: str
     size_mb: float
+    layout: str
 
 
 def primary_hf_cache_dir() -> Path:
     env_cache = (
-        os.environ.get("MYSTUDIO_AUDIO_MODEL_DIR")
-        or os.environ.get("MANYING_TTS_MODELS_DIR")
+        os.environ.get("MYSTUDIO_MUSIC3_MODEL_DIR")
         or os.environ.get("HF_HUB_CACHE")
     )
     if env_cache:
@@ -144,7 +154,7 @@ def primary_hf_cache_dir() -> Path:
 
 def hf_cache_dirs() -> list[Path]:
     candidates: list[Path] = []
-    for env_name in ("MYSTUDIO_AUDIO_MODEL_DIR", "MANYING_TTS_MODELS_DIR", "HF_HUB_CACHE"):
+    for env_name in ("MYSTUDIO_MUSIC3_MODEL_DIR", "HF_HUB_CACHE"):
         value = os.environ.get(env_name)
         if value:
             candidates.append(Path(value))
@@ -197,6 +207,8 @@ def _has_complete_music3(repo: Path) -> bool:
     blobs_dir = repo / "blobs"
     if blobs_dir.exists() and any(blobs_dir.glob("*.incomplete")):
         return False
+    if any(path.is_file() and path.name.endswith(".incomplete") for path in snapshot.rglob("*")):
+        return False
     # 自含运行时文件在场
     for required in ("generate.py", "minimax_mlx_model.py", "model_manifest.json"):
         if not (snapshot / required).is_file():
@@ -207,6 +219,31 @@ def _has_complete_music3(repo: Path) -> bool:
         for weight_dir in ("diffusion_models", "text_encoders", "vae")
     )
     return has_weights
+
+
+def _has_complete_music3_flat(root: Path) -> bool:
+    """mlx-serve converted layout: five root safetensors + config/tokenizers."""
+    if not root.is_dir() or (root / ".incomplete").exists():
+        return False
+    if any(path.is_file() and path.name.endswith(".incomplete") for path in root.rglob("*")):
+        return False
+    if not (root / "config.json").is_file() or (root / "config.json").stat().st_size == 0:
+        return False
+    for name in MUSIC3_FLAT_WEIGHTS:
+        path = root / name
+        if not path.is_file() or path.stat().st_size == 0:
+            return False
+    return all((root / name).is_dir() for name in MUSIC3_FLAT_DIRS)
+
+
+def _flat_music3_dirs(cache_dir: Path) -> list[Path]:
+    """Known MYStudio model roots; keep HF cache probing separate."""
+    return [
+        cache_dir,
+        cache_dir / "music3-mlxserv-bf16",
+        cache_dir / "minimax" / "music3-mlxserv-bf16",
+        cache_dir / "model" / "minimax" / "music3-mlxserv-bf16",
+    ]
 
 
 def _cache_size_mb(repo: Path) -> float:
@@ -220,6 +257,15 @@ def _cache_size_mb(repo: Path) -> float:
 
 def find_cached_music3_model(repo_ids: tuple[str, ...]) -> CachedMusic3Model | None:
     for cache_dir in hf_cache_dirs():
+        for flat_dir in _flat_music3_dirs(cache_dir):
+            if _has_complete_music3_flat(flat_dir):
+                return {
+                    "repo_id": repo_ids[0] if repo_ids else "",
+                    "cache_dir": str(cache_dir),
+                    "repo_cache_dir": str(flat_dir),
+                    "size_mb": _cache_size_mb(flat_dir),
+                    "layout": "mlxserv",
+                }
         for repo_id in repo_ids:
             repo = repo_cache_dir(repo_id, cache_dir)
             if _has_complete_music3(repo):
@@ -228,5 +274,6 @@ def find_cached_music3_model(repo_ids: tuple[str, ...]) -> CachedMusic3Model | N
                     "cache_dir": str(cache_dir),
                     "repo_cache_dir": str(_snapshot_dir(repo)),
                     "size_mb": _cache_size_mb(repo),
+                    "layout": "pocket",
                 }
     return None

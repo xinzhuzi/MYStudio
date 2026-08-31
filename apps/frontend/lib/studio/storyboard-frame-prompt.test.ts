@@ -109,6 +109,16 @@ describe("storyboard faction color section", () => {
     expect(buildStoryboardFactionColorSection({ sceneNames: ["无名之地"] }, faction)).toBe("");
     expect(buildStoryboardFactionColorSection({ personNames: ["独孤剑尘"] }, { members: {}, palette: {} })).toBe("");
   });
+
+  it("resolves compound asset names by splitting on semicolons (08-28 无色根修)", () => {
+    // 复合资产标题「李先生;管事」「监工赵四;赵四」须按分号拆段命中阵营表单名
+    const section = buildStoryboardFactionColorSection(
+      { personNames: ["李先生;管事", "监工赵四;赵四"] },
+      { ...faction, members: { ...faction.members, 管事: "人族", 监工赵四: "人族", 赵四: "人族" } },
+    );
+    expect(section).toContain("(人族·人物)");
+    expect(section).not.toContain("万劫圣宗");
+  });
   it("defaults prop faction color to not_applicable and only injects for explicit applicable prop-focused input", () => {
     const withProp = { ...faction, palette: { ...faction.palette, 万劫圣宗: { ...faction.palette.万劫圣宗, prop: "底色宣纸白+墨线浓墨+主色铁灰+辅色银灰+点睛旧金" } } };
     // 未提供道具名 → 无道具轨输出(不为三轨齐全无条件补齐)

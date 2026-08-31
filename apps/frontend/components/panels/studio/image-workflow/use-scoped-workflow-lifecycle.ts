@@ -9,6 +9,8 @@ import {
   ensureAssetImageWorkflowGraph,
   ensureImageWorkflowPromptNodes,
   ensureStoryboardImageResult,
+  imageWorkflowHasOverlappingCards,
+  tidyImageWorkflowLayout,
 } from "@/lib/studio/image-workflow";
 import { resolveStoryboardAssetReferences } from "./storyboard-asset-references";
 import {
@@ -44,6 +46,9 @@ export function useScopedWorkflowLifecycle(input: {
 }) {
   const handledAssetContextKeyRef = useRef("");
   const activeGraphTargetKeyRef = useRef("");
+  // 存量层叠流自动整理的会话级去重:每条流至多自动重排一次——后续用户
+  // 手动把节点拖叠在一起不被抢回(手动整理走工具栏「整理布局」按钮)。
+  const autoTidiedGraphIdsRef = useRef(new Set<string>());
   const {
     activeGraph, activeWorkflowId, hydrated, initialAssetContext, imageWorkflows,
     storyboards, projectName, upsertImageWorkflow,
@@ -69,9 +74,18 @@ export function useScopedWorkflowLifecycle(input: {
       ? storyboards.find((item) => item.id === storyboardTargetId)?.mediaRef
       : undefined;
     const storyboardMediaPath = storyboardMediaRef?.kind === "image" ? storyboardMediaRef.path : undefined;
-    const ensured = ensureImageWorkflowPromptNodes(
+    let ensured = ensureImageWorkflowPromptNodes(
       ensureStoryboardImageResult(activeGraph, storyboardMediaPath),
     );
+    // 存量流打开即自动整理(2026-08-29 前建流的固定间距远小于卡高,历史流
+    // 几乎全部层叠):仅在实际存在卡片重叠时触发,用户自行摆好的非重叠布局
+    // 不被动;每条流每次会话只做一次。
+    if (!autoTidiedGraphIdsRef.current.has(activeGraph.id)) {
+      autoTidiedGraphIdsRef.current.add(activeGraph.id);
+      if (imageWorkflowHasOverlappingCards(ensured)) {
+        ensured = tidyImageWorkflowLayout(ensured);
+      }
+    }
     if (ensured !== activeGraph) upsertImageWorkflow(ensured);
   }, [activeGraph, storyboards, upsertImageWorkflow]);
 

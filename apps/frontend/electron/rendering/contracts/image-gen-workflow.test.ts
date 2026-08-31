@@ -36,6 +36,14 @@ describe("local image generation contract", () => {
     expect(validateImageGenRuntimeLifecycleRequest(null)).toMatchObject({ success: false });
   });
 
+  it("accepts the ComfyUI bridge as a service-backed image model", () => {
+    expect(validateImageGenRuntimeStatus({
+      ...status,
+      activeModel: "comfyui-bridge",
+      message: "需 ComfyUI 正在运行",
+    })).toMatchObject({ success: true });
+  });
+
   it("validates nested action status and fixed 1920x1080 artifact evidence", () => {
     expect(validateImageGenRuntimeActionReply({ schemaVersion: 1, success: true, status })).toMatchObject({ success: true });
     expect(validateImageGenRuntimeActionReply({ schemaVersion: 1, success: true, status: { ...status, extra: true } })).toMatchObject({ success: false });

@@ -512,6 +512,8 @@ describe("buildChapterLedger", () => {
       io: makeIo(files),
     });
     expect(ledger.summary.allChecksPass).toBe(true);
+    expect(ledger.summary.bindingSealPass).toBe(3);
+    expect(renderTtsLedgerMarkdown(ledger)).toContain("binding 封印 3/3");
     expect(ledger.summary.shotSfxBindings).toBe(1);
     expect(ledger.shots[0]!.chapterOverlay).toEqual([expect.objectContaining({ role: "bgm", overlapUs: 5_120_000 })]);
     expect(ledger.summary.chapterOverlayCoverage).toBe(1);
@@ -523,6 +525,50 @@ describe("buildChapterLedger", () => {
       referencedByChapters: [CHAPTER_ID],
     });
     expect(ledger.summary.orphansByRole).toEqual({ voice: 1, sfx: 2, ambience: 1 });
+
+    sharedBinding.volume = 0.25;
+    manifest.manifestFingerprint = await computeManifestFingerprint(manifest);
+    const bindingTampered = await buildChapterLedger({
+      manifest,
+      storyboardsById: new Map([["sb-chapter-001-001", makeStoryboard()]]),
+      profileCandidates: [],
+      projectRoot: "/projects/test",
+      io: makeIo(files),
+    });
+    expect(bindingTampered.summary.bindingSealFail).toBe(1);
+    expect(bindingTampered.summary.audioMissing).toBe(0);
+    expect(bindingTampered.summary.audioSha256Mismatch).toBe(0);
+    expect(bindingTampered.summary.allChecksPass).toBe(false);
+
+    sharedBinding.bindingFingerprint = await computeBindingFingerprint(sharedBinding);
+    const sharedSource = sharedBinding.source as Record<string, unknown>;
+    sharedSource.relativePath = `remotion/audio/${CHAPTER_ID}/shared/bgm/missing.ogg`;
+    sharedBinding.bindingFingerprint = await computeBindingFingerprint(sharedBinding);
+    manifest.manifestFingerprint = await computeManifestFingerprint(manifest);
+    const sharedAudioMissing = await buildChapterLedger({
+      manifest,
+      storyboardsById: new Map([["sb-chapter-001-001", makeStoryboard()]]),
+      profileCandidates: [],
+      projectRoot: "/projects/test",
+      io: makeIo(files),
+    });
+    expect(sharedAudioMissing.summary.bindingSealFail).toBe(0);
+    expect(sharedAudioMissing.summary.audioMissing).toBe(1);
+    expect(sharedAudioMissing.summary.allChecksPass).toBe(false);
+
+    const mismatchSha = sha256("tampered-shared-bgm");
+    sharedSource.relativePath = `remotion/audio/${CHAPTER_ID}/shared/bgm/${mismatchSha}.ogg`;
+    sharedBinding.bindingFingerprint = await computeBindingFingerprint(sharedBinding);
+    manifest.manifestFingerprint = await computeManifestFingerprint(manifest);
+    const sharedAudioMismatch = await buildChapterLedger({
+      manifest,
+      storyboardsById: new Map([["sb-chapter-001-001", makeStoryboard()]]),
+      profileCandidates: [],
+      projectRoot: "/projects/test",
+      io: makeIo({ ...files, [`remotion/audio/${CHAPTER_ID}/shared/bgm/${mismatchSha}.ogg`]: "wrong-bytes" }),
+    });
+    expect(sharedAudioMismatch.summary.audioSha256Mismatch).toBe(1);
+    expect(sharedAudioMismatch.summary.allChecksPass).toBe(false);
   });
 
   it("相切区间不计入 chapterOverlay", async () => {

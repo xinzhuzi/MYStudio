@@ -162,6 +162,8 @@ export function useImageWorkflowActions({
       && isSameImageWorkflowTarget(activeGraph.target, initialAssetContext.target)
       ? initialAssetContext
       : undefined;
+    // 新生成节点占成图列下一空位,提示词占输入列下一空位(两列+泳道布局):
+    // 「输入→成图」连线只走中间泳道,不被卡片遮挡。
     let next = addGeneratedImageNode(activeGraph, {
       id,
       title: targetAsset
@@ -182,10 +184,7 @@ export function useImageWorkflowActions({
       resolution: imageSettings.defaultResolution,
       quality: "standard",
       targetNodeId: id,
-      position: {
-        x: 560,
-        y: 500 + activeGraph.nodes.filter((node) => node.type === "prompt").length * 320,
-      },
+      position: nextNodePosition(activeGraph, "prompt"),
     });
     next = connectImageWorkflowNodes(next, { source: promptId, target: id });
     saveGraph(next);

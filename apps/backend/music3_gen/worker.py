@@ -52,6 +52,11 @@ def _require_downloaded(model_name: str) -> Path:
             "model-not-downloaded",
             f"音乐模型 {spec['label']} 未下载。请前往 设置 → 本地配置 → 本地音乐生成 下载。",
         )
+    if cached["layout"] != "pocket":
+        raise Music3GenError(
+            "mlxserv-only",
+            "当前音乐权重是 mlx-serve 扁平布局，请在运行时配置中选择 mlx-serve 引擎。",
+        )
     return Path(cached["repo_cache_dir"])
 
 
@@ -164,6 +169,10 @@ def main() -> None:
     if args.probe:
         spec = MUSIC3_MODELS.get(args.model)
         cached = find_cached_music3_model(spec["repo_ids"]) if spec else None
+        layout = cached["layout"] if cached else None
+        model_dir = cached["repo_cache_dir"] if cached else None
+        engine = "mlx-serve" if layout == "mlxserv" else "pocket" if layout == "pocket" else None
+        worker_runnable = layout == "pocket"
         deps_ok = True
         try:
             import mlx.core  # noqa: F401
@@ -174,12 +183,24 @@ def main() -> None:
         availability = evaluate_availability(spec, hardware) if spec else {
             "available": False, "reason": f"未知模型: {args.model}",
         }
-        status = "ready" if (cached and deps_ok and availability["available"]) else "blocked"
+        status = "ready" if (cached and worker_runnable and deps_ok and availability["available"]) else "blocked"
+        reason = None
+        if cached and layout == "mlxserv":
+            reason = "当前缓存为 mlx-serve 扁平布局，请由 Electron mlx-serve HTTP 路线运行；Python worker 仅支持 Pocket snapshot。"
+        elif cached and not worker_runnable:
+            reason = "当前缓存布局不是 Python worker 可运行的 Pocket snapshot。"
         print(json.dumps({
             "status": status,
             "model": args.model,
             "depsOk": deps_ok,
             "sizeMb": cached["size_mb"] if cached else None,
+            "cacheDir": cached["cache_dir"] if cached else None,
+            "repoCacheDir": cached["repo_cache_dir"] if cached else None,
+            "modelDir": model_dir,
+            "layout": layout,
+            "engine": engine,
+            "workerRunnable": worker_runnable,
+            "reason": reason,
             "hardware": hardware,
             "availability": availability,
         }, ensure_ascii=False))

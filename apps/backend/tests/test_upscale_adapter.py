@@ -119,7 +119,14 @@ class UpscaleAdapterTest(unittest.TestCase):
                 source = Path(temp) / "in.png"
                 destination = Path(temp) / "out.png"
                 Image.new("RGBA", (40, 24), (10, 200, 30, 128)).save(source)
-                result = upscale_image(str(source), str(destination), TINY_RRDB)
+                # The checkpoint is intentionally untrained; keep this test
+                # focused on PNG/alpha persistence with a deterministic visible
+                # inference result instead of coupling it to random brightness.
+                with patch(
+                    "upscale.adapter._tile_forward",
+                    return_value=torch.full((1, 3, 96, 160), 84, dtype=torch.uint8),
+                ):
+                    result = upscale_image(str(source), str(destination), TINY_RRDB)
                 self.assertEqual(result["scale"], 4)
                 self.assertEqual(result["width"], 160)
                 self.assertEqual(result["height"], 96)

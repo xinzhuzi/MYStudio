@@ -8,7 +8,7 @@
     },
     {
       "path": "scripts/data/阵营配色与黄金公式.toml",
-      "sha256": "88be5f17ce19a424f55f756a7fed8c3a96a9076a3e4582e35c978b7ae9e93f04",
+      "sha256": "0820d7b525e0888f46ea8408626688f2aae46a90d47be0a0e58edea68d5923a9",
       "responsibility": "12 阵营×3 轨配方+构图语言+意象"
     }
   ],
@@ -957,9 +957,9 @@
           "roles": {
             "base": "paper.03",
             "ink": "paper.05",
-            "primary": "metal.04",
-            "secondary": "purple.01",
-            "accent": "purple.04"
+            "primary": "blue.02",
+            "secondary": "blue.03",
+            "accent": "red.04"
           },
           "parts": {
             "base": 5,
@@ -975,9 +975,9 @@
           "roles": {
             "base": "paper.03",
             "ink": "paper.05",
-            "primary": "metal.04",
+            "primary": "blue.01",
             "secondary": "purple.01",
-            "accent": "metal.01"
+            "accent": "red.02"
           },
           "parts": {
             "base": 4,
@@ -993,7 +993,7 @@
           "roles": {
             "base": "paper.01",
             "ink": "paper.05",
-            "primary": "metal.04",
+            "primary": "blue.02",
             "secondary": "purple.04",
             "accent": "metal.01"
           },

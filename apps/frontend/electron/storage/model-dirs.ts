@@ -8,3 +8,18 @@ import path from "node:path";
 export function ttsModelCacheDir(storageBasePath: string): string {
   return path.join(storageBasePath, "model", "TTS");
 }
+
+/** MusicGen BGM weights live in their own HF cache family. */
+export function audioModelCacheDir(storageBasePath: string): string {
+  return path.join(storageBasePath, "model", "audio");
+}
+
+/** SFX weights live in their own cache family even when the model repo is shared. */
+export function sfxModelCacheDir(storageBasePath: string): string {
+  return path.join(storageBasePath, "model", "sfx");
+}
+
+/** MiniMax-Music3 weights/configuration use the minimax family root. */
+export function music3ModelCacheDir(storageBasePath: string): string {
+  return path.join(storageBasePath, "model", "minimax");
+}

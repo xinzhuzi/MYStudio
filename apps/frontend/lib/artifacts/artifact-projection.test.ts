@@ -110,8 +110,8 @@ describe("artifact-projection", () => {
           sceneName: "河雾矿奴",
           storyboardIds: [fixture.studio.storyboards[0]!.id, fixture.studio.storyboards[1]!.id],
           frameRange: [0, 120],
-          outputRelativePath: "jobs/chapter/chapter-001/scenes/Sc01_test.mp4",
-          outputAbsolutePath: "/workspace/jobs/chapter/chapter-001/scenes/Sc01_test.mp4",
+          outputRelativePath: "exports/chapter-001/scenes/Sc01_test.mp4",
+          outputAbsolutePath: "/workspace/exports/chapter-001/scenes/Sc01_test.mp4",
           jobId: "chapter-scene:aaaa",
           inputHash: "a".repeat(64),
           createdAt: 100,
@@ -147,7 +147,7 @@ describe("artifact-projection", () => {
         chapterId: "chapter-001",
         name: expect.stringContaining("场 1") as unknown,
       });
-      expect(segments[0]!.physicalRefs[0]).toMatchObject({ path: "/workspace/jobs/chapter/chapter-001/scenes/Sc01_test.mp4" });
+      expect(segments[0]!.physicalRefs[0]).toMatchObject({ path: "/workspace/exports/chapter-001/scenes/Sc01_test.mp4" });
       expect(result.artifacts.some((item) => item.kind === "video-candidate" && item.name.includes("legacy-scene-candidate"))).toBe(false);
     });
 

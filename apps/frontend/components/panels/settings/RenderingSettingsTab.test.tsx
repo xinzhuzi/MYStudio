@@ -11,6 +11,8 @@ import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/re
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useAppSettingsStore } from "@/stores/app/app-settings-store";
 import { useStudioStore } from "@/stores/studio/studio-store";
+import type { StoryboardItem } from "@/types/studio";
+import { warmExtendedManualFactionData } from "@/lib/studio/visual-manual-style-tokens";
 import type { RemotionBrowserDownloadProgress, RemotionBrowserStatus } from "@rendering/contracts/remotion-browser-status";
 import { RenderingSettingsTab } from "./RenderingSettingsTab";
 
@@ -51,6 +53,8 @@ afterEach(() => {
   Reflect.deleteProperty(window, "remotionRuntime");
   Reflect.deleteProperty(window, "videoWorkflowPlugins");
   vi.restoreAllMocks();
+  // 阵营配色缓存回空,避免跨用例污染(fail-empty 基线)
+  void warmExtendedManualFactionData("");
 });
 
 describe("RenderingSettingsTab", () => {
@@ -131,6 +135,45 @@ describe("RenderingSettingsTab", () => {
 
     fireEvent.click(screen.getByRole("radio", { name: /思源宋体/ }));
     expect(useStudioStore.getState().workflowConfig.subtitleFont).toBe("noto-serif-sc");
+  });
+
+  it("钉死调色卡与本章主导阵营温感反向时提示压色风险;同向/未钉死不提示(08-28 色彩衔接)", async () => {
+    // 预热阵营配色缓存(人族盘=暖)——marker 块格式对齐 art_faction_palette.md
+    void warmExtendedManualFactionData([
+      "<!-- storyboard-faction-members:start -->",
+      JSON.stringify({ 金水河码头: "人族", 赵四: "人族" }),
+      "<!-- storyboard-faction-members:end -->",
+      "<!-- storyboard-faction-palette:start -->",
+      JSON.stringify({
+        人族: {
+          person: "底色米白+墨线淡墨+主色赭石+辅色栗褐+点睛朱红",
+          scene: "底色米白+墨线淡墨+主色赭石+辅色栗褐+点睛藤黄",
+        },
+      }),
+      "<!-- storyboard-faction-palette:end -->",
+    ].join("\n"));
+    useStudioStore.setState((state) => ({
+      workflowConfig: { ...state.workflowConfig, chapterGrade: { lutId: "cn-daiqing", blend: 0.5 } },
+      storyboards: [
+        { id: "s1", associateAssetsNames: ["金水河码头", "赵四"] },
+        { id: "s2", associateAssetsNames: ["金水河码头"] },
+      ] as StoryboardItem[],
+    }));
+    render(<RenderingSettingsTab />);
+    await waitFor(() => expect(screen.getByRole("heading", { name: "章节色调（导演定调）" })).toBeTruthy());
+    expect(screen.getByText(/本章画面主色偏暖/).textContent).toContain("黛青");
+    expect(screen.getByText(/建议换暖调卡或调低强度/)).toBeTruthy();
+
+    // 换同向暖卡 → 提示消失(非阻塞、可自愈)
+    useStudioStore.setState((state) => ({
+      workflowConfig: { ...state.workflowConfig, chapterGrade: { lutId: "cn-tenghuang", blend: 0.5 } },
+    }));
+    await waitFor(() => expect(screen.queryByText(/可能压色/)).toBeNull());
+    // 恢复 AI 自动 → 同样不提示
+    useStudioStore.setState((state) => ({
+      workflowConfig: { ...state.workflowConfig, chapterGrade: undefined },
+    }));
+    expect(screen.queryByText(/可能压色/)).toBeNull();
   });
 
   it("renders every font option as a live specimen in its own output style", async () => {

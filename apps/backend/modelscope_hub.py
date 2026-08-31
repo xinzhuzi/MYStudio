@@ -44,9 +44,11 @@ def list_modelscope_files(repo_id: str) -> list[tuple[str, int]]:
     return files
 
 
-def download_repo_to_hf_cache(repo_id: str, cache_dir: str) -> Path:
-    """把仓库全部文件下载到 HF 快照布局的 snapshots/main/ 下;返回该目录。
+def download_repo_to_hf_cache(repo_id: str, cache_dir: str, allow_paths: tuple[str, ...] | list[str] | None = None) -> Path:
+    """把仓库文件下载到 HF 快照布局的 snapshots/main/ 下;返回该目录。
 
+    allow_paths 非空时只下载清单内的精确路径(08-30 imagegen 自足回退:
+    大件仓 Comfy-Org/Qwen-Image_ComfyUI 整仓含 38G×数个扩散模型,必须过滤)。
     已完整存在的文件跳过;部分文件按 Range 断点续传;任何失败抛异常。
     """
     import requests
@@ -56,6 +58,8 @@ def download_repo_to_hf_cache(repo_id: str, cache_dir: str) -> Path:
     session = requests.Session()
     last_progress_log = 0.0
     for path, expected_size in list_modelscope_files(repo_id):
+        if allow_paths is not None and path not in allow_paths:
+            continue
         dest = target / path
         dest.parent.mkdir(parents=True, exist_ok=True)
         have = dest.stat().st_size if dest.exists() else 0

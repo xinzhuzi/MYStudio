@@ -614,7 +614,12 @@ const EXTENDED_MANUAL_PROMPT_REPLACEMENTS: Array<[RegExp, string]> = [
   [/\bdepth\s+of\s+field\s+blur\b/gi, "ink-wash atmospheric perspective"],
   [/\bdepth\s+of\s+field\b/gi, "ink-wash atmospheric perspective"],
   [/\bfilm\s+grain\b/gi, "smooth matte finish"],
-  [/\b(?:muted|low[- ]saturation)\s+cyan[- ]green\s+palette\b/gi, "restrained mineral-color palette with readable warm and cool areas"],
+  [/\b(?:muted|low[- ]saturation)\s+cyan[- ]green\s+palette\b/gi, "muted yet visible mineral-color palette with soft cyan-green and vermilion accents"],
+  // 08-28 无色根修:存量旧提示词节点内嵌旧压色 token,发送前升级为新彩色口径
+  // (各规则幂等:替换产物不再命中自身);与手册 storyboard-image-style-tokens 同步演化。
+  [/\brestrained\s+mineral-color\s+palette\b/gi, "muted yet visible mineral-color palette with soft cyan-green and vermilion accents"],
+  [/墨色层次丰富(?!，青绿朱砂赭石淡彩点缀)/g, "墨色层次丰富，青绿朱砂赭石淡彩点缀"],
+  [/\bclear\s+layered\s+ink-wash\s+composition\b/gi, "clear layered colored ink-wash composition with visible mineral pigments"],
   [/\bHDR\s+highlights?\b/gi, "soft paper-scattered light"],
   [/\bmirror(?:ed)?\s+wet\s+reflections?\b/gi, "controlled matte material"],
   [/\b(?:rice|xuan)[- ]paper\s+texture\b/gi, "smooth pale matte flat-wash ground"],

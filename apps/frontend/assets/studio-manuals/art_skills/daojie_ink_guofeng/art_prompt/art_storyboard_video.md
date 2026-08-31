@@ -148,6 +148,8 @@ clear layered colored ink-wash composition with visible mineral pigments, atmosp
 
 <!-- storyboard-frame-negative:start -->
 photorealistic photography, 3D render, CGI, cel shading, anime style, western oil painting, western fantasy, cyberpunk, sci-fi, neon cyberpunk palette, three-point Hollywood lighting, heavy cinematic rim light, paper-wrinkle texture, crumpled-sheet folds, wave-like surface ripples, fiber streaks, pulp grain mesh, scanned-paper filter, yellowed aged sheet, full-frame paper texture, AI muddy noise, dirty texture, compression artifacts, oversharpening halos, low quality, blurry, messy ink, broken linework, bad anatomy, extra limbs, weapon passing through body, unstable stance, text, watermark, logo, subtitle, webtoon cover beauty portrait, idol poster, tattered clothing, ragged hems, monochrome, grayscale, black and white, ink-only lineart, washed-out colorless image
+<!-- storyboard-frame-negative:end -->
 
-8. 画面洁净纪律：做旧止于淡灰晕染——禁止霉斑、污渍团块、泥点飞溅、灰蒙积垢；白衣与浅色区域保持干净底色，墙面至多轻微斑驳；纹理密度宁少勿多，保住工笔线描的清晰与画面通透。
+<!-- storyboard-style-guide:start -->
+8. 画面洁净纪律：保持浅净平涂底，做旧止于淡灰晕染——禁止霉斑、污渍团块、泥点飞溅、灰蒙积垢；白衣与浅色区域保持干净底色，墙面至多轻微斑驳；纹理密度宁少勿多，保住工笔线描的清晰与画面通透。
 <!-- storyboard-style-guide:end -->

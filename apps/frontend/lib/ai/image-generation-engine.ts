@@ -361,7 +361,7 @@ async function generateViaImagesEndpoint(
   baseUrl: string,
   endpointTypes?: string[],
   operationId?: string,
-  provider?: Pick<FeatureConfig['provider'], 'id' | 'platform' | 'name' | 'baseUrl' | 'apiKey'>,
+  provider?: FeatureConfig['provider'],
 ): Promise<GenerationResult> {
   const imagePaths = getImageEndpointPaths(endpointTypes || []);
   const rootBase = getRootBaseUrl(baseUrl);

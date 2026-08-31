@@ -1620,11 +1620,47 @@
   to { width: 50px; opacity: 1; }
 }
 
+/* 主界面题字「漫影工作室」——毛笔楷书。复用字幕字体注册表已内置的
+   Ma Shan Zheng(OFL),只接线含标题五字(漫影工作室)的三个 unicode-range
+   子集(共 ~230KB),不整包引入;标题五字之外自动回落 Kaiti SC。 */
+@font-face {
+  font-family: "Ma Shan Zheng";
+  font-style: normal;
+  font-display: swap;
+  font-weight: 400;
+  src: url("@fontsource/ma-shan-zheng/files/ma-shan-zheng-115-400-normal.woff2") format("woff2");
+  unicode-range: U+25,U+4e14,U+4e1d,U+4e3d,U+4e49,U+4e60,U+4e9a,U+4eb2,U+4ec5,U+4efd,U+4f3c,U+4f4f,U+4f8b,U+4fbf,U+5019,U+5145,U+514b,U+516b,U+516d,U+5174,U+5178,U+517b,U+5199,U+519b,U+51b3,U+51b5,U+5207,U+5212,U+5219,U+521d,U+52bf,U+533b,U+5343,U+5347,U+534a,U+536b,U+5370,U+53e4,U+53f2,U+5403,U+542c,U+547d,U+54a8,U+54cd,U+54ea,U+552e,U+56f4,U+5747,U+575b,U+5883,U+589e,U+5931,U+5947,U+5956-5957,U+5a92,U+5b83,U+5ba4,U+5bb3,U+5bcc,U+5c14,U+5c1a,U+5c3d,U+5c40,U+5c45,U+5c5e,U+5df4,U+5e72,U+5e95,U+5f80,U+5f85,U+5fb7,U+5fd7,U+601d,U+626b,U+627f,U+62c9,U+62cd,U+6309,U+63a7,U+6545,U+65ad,U+65af,U+65c5,U+666e,U+667a,U+670b,U+671b,U+674e,U+677f,U+6781,U+6790,U+6797,U+6821,U+6838-6839,U+697c,U+6b27,U+6b62,U+6bb5,U+6c7d,U+6c99,U+6d4b,U+6d4e,U+6d6a,U+6e29,U+6e2f,U+6ee1,U+6f14,U+6f2b,U+72b6,U+72ec,U+7387,U+7533,U+753b,U+76ca,U+76d8,U+7701,U+773c,U+77ed,U+77f3,U+7814,U+793c,U+79bb,U+79c1,U+79d8,U+79ef,U+79fb,U+7a76,U+7b11,U+7b54,U+7b56,U+7b97,U+7bc7,U+7c73,U+7d20,U+7eaa,U+7ec8,U+7edd,U+7eed,U+7efc,U+7fa4,U+804c,U+8058,U+80cc,U+8111,U+817e,U+826f,U+8303,U+843d,U+89c9,U+89d2,U+8ba2,U+8bbf,U+8bc9,U+8bcd,U+8be6,U+8c22,U+8c61,U+8d22,U+8d26-8d27,U+8d8a,U+8f6f,U+8f7b,U+8f83,U+8f91,U+8fb9,U+8fd4,U+8fdc,U+9002,U+94b1,U+9519,U+95ed,U+961f,U+9632-9633,U+963f,U+968f-9690,U+96be,U+9876,U+9884,U+98de,U+9988,U+9999,U+9ec4,U+ff1b;
+}
+@font-face {
+  font-family: "Ma Shan Zheng";
+  font-style: normal;
+  font-display: swap;
+  font-weight: 400;
+  src: url("@fontsource/ma-shan-zheng/files/ma-shan-zheng-117-400-normal.woff2") format("woff2");
+  unicode-range: U+4e,U+201c-201d,U+3010-3011,U+4e07,U+4e1c,U+4e24,U+4e3e,U+4e48,U+4e50,U+4e5f,U+4e8b-4e8c,U+4ea4,U+4eab-4eac,U+4ecb,U+4ece,U+4ed6,U+4ee3,U+4ef6-4ef7,U+4efb,U+4f20,U+4f55,U+4f7f,U+4fdd,U+505a,U+5143,U+5149,U+514d,U+5171,U+5177,U+518c,U+51fb,U+521b,U+5229,U+522b,U+52a9,U+5305,U+5317,U+534e,U+5355,U+5357,U+535a,U+5373,U+539f,U+53bb,U+53ca,U+53cd,U+53d6,U+53e3,U+53f0,U+5458,U+5546,U+56db,U+573a,U+578b,U+57ce,U+58f0,U+590d,U+5934,U+5973,U+5b57,U+5b8c,U+5b98,U+5bb9,U+5bfc,U+5c06,U+5c11,U+5c31,U+5c55,U+5df2,U+5e03,U+5e38,U+5e76,U+5e94,U+5efa,U+5f71,U+5f97,U+5feb,U+6001,U+603b,U+60f3,U+611f,U+6216,U+624d,U+6253,U+6295,U+6301,U+6392,U+641c,U+652f,U+653e,U+6559,U+6599,U+661f,U+671f,U+672f,U+6761,U+67e5,U+6807,U+6837,U+683c,U+6848,U+6b22,U+6b64,U+6bd4,U+6c14,U+6c34,U+6c42,U+6ca1,U+6d41,U+6d77,U+6d88,U+6e05,U+6e38,U+6e90,U+7136,U+7231,U+7531,U+767e,U+76ee,U+76f4,U+771f,U+7801,U+793a,U+79cd,U+7a0b,U+7a7a,U+7acb,U+7ae0,U+7b2c,U+7b80,U+7ba1,U+7cbe,U+7d22,U+7ea7,U+7ed3,U+7ed9,U+7edf,U+7f16,U+7f6e,U+8001,U+800c,U+8272,U+8282,U+82b1,U+8350,U+88ab,U+88c5,U+897f,U+89c1,U+89c4,U+89e3,U+8a00,U+8ba1,U+8ba4,U+8bae-8bb0,U+8bbe,U+8bc1,U+8bc4,U+8bfb,U+8d28,U+8d39,U+8d77,U+8d85,U+8def,U+8eab,U+8f66,U+8f6c,U+8f7d,U+8fd0,U+9009,U+90ae,U+90fd,U+91cc-91cd,U+91cf,U+95fb,U+9650,U+96c6,U+9891,U+98ce,U+ff1f;
+}
+@font-face {
+  font-family: "Ma Shan Zheng";
+  font-style: normal;
+  font-display: swap;
+  font-weight: 400;
+  src: url("@fontsource/ma-shan-zheng/files/ma-shan-zheng-118-400-normal.woff2") format("woff2");
+  unicode-range: U+d,U+3e,U+5f,U+7c,U+a0,U+a9,U+4e09-4e0b,U+4e0d-4e0e,U+4e13,U+4e1a,U+4e2a,U+4e3a-4e3b,U+4e4b,U+4e86,U+4e8e,U+4ea7,U+4eba,U+4ee4-4ee5,U+4eec,U+4f1a,U+4f4d,U+4f53,U+4f5c,U+4f60,U+4fe1,U+5165,U+5168,U+516c,U+5173,U+5176,U+5185,U+51fa,U+5206,U+5230,U+5236,U+524d,U+529b,U+52a0-52a1,U+52a8,U+5316,U+533a,U+53cb,U+53d1,U+53ef,U+53f7-53f8,U+5408,U+540c-540e,U+544a,U+548c,U+54c1,U+56de,U+56fd-56fe,U+5728,U+5730,U+5907,U+5916,U+591a,U+5927,U+5929,U+597d,U+5982,U+5b50,U+5b66,U+5b89,U+5b9a,U+5b9e,U+5ba2,U+5bb6,U+5bf9,U+5c0f,U+5de5,U+5e02,U+5e73-5e74,U+5e7f,U+5ea6,U+5f00,U+5f0f,U+5f53,U+5f55,U+5fae,U+5fc3,U+6027,U+606f,U+60a8,U+60c5,U+610f,U+6210-6211,U+6237,U+6240,U+624b,U+6280,U+62a5,U+63a5,U+63a8,U+63d0,U+6536,U+6570,U+6587,U+65b9,U+65e0,U+65f6,U+660e,U+662d,U+662f,U+66f4,U+6700,U+670d,U+672c,U+673a,U+6743,U+6765,U+679c,U+682a,U+6b21,U+6b63,U+6cbb,U+6cd5,U+6ce8,U+6d3b,U+70ed,U+7247-7248,U+7269,U+7279,U+73b0,U+7406,U+751f,U+7528,U+7535,U+767b,U+76f8,U+770b,U+77e5,U+793e,U+79d1,U+7ad9,U+7b49,U+7c7b,U+7cfb,U+7ebf,U+7ecf,U+7f8e,U+8005,U+8054,U+80fd,U+81ea,U+85cf,U+884c,U+8868,U+8981,U+89c6,U+8bba,U+8bdd,U+8bf4,U+8bf7,U+8d44,U+8fc7,U+8fd8-8fd9,U+8fdb,U+901a,U+9053,U+90e8,U+91d1,U+957f,U+95e8,U+95ee,U+95f4,U+9762,U+9875,U+9898,U+9996,U+9ad8,U+ff01,U+ff08-ff09;
+}
+
 .dashboard-title {
   max-width: 620px;
+  font-family: "Ma Shan Zheng", "Kaiti SC", "STKaiti", "Songti SC", serif;
+  /* 毛笔楷书单字重:合成加粗会糊掉笔锋(与字幕字体注册表同裁定) */
+  font-weight: 400;
   font-size: clamp(56px, 5vw, 86px);
-  line-height: 0.94;
-  letter-spacing: -0.02em;
+  /* 0.94→1.2:毛笔字形墨迹出血到行盒外,而行内渐变背景只画在元素盒内,
+     盒外墨迹会隐形(=顶部被截);1.2 让墨迹回到盒内。 */
+  line-height: 1.2;
+  letter-spacing: 0.05em;
+  /* 上下出血补边:扩大渐变背景绘制区罩住全部墨迹,负 margin 抵消布局高度 */
+  padding: 0.12em 0;
+  margin: -0.12em 0;
   color: transparent;
   background: linear-gradient(
     135deg,
@@ -3183,6 +3219,27 @@ a:active,
 }
 .image-workflow-flow-host .react-flow__viewport {
   will-change: transform;
+}
+
+/* 图片工作流画布:连线层置于未选中节点之上(2026-08-29 用户裁定:节点不得
+   遮挡连线)。布局单源已把「输入→成图」连线全部约束在两列之间的空泳道,
+   此规则兜底其余形态(帧间连贯链绕行/用户手动拖放后的任意连线):
+   连线永远可见,只在描边本体上接收点击,不挡卡片交互。选中节点仍抬到
+   连线之上(z-index 1000),保证拖动跟手。 */
+.image-workflow-flow-host .react-flow__edges {
+  z-index: 4;
+}
+.image-workflow-flow-host .react-flow__edge {
+  pointer-events: stroke;
+}
+
+/* 漫影工作流主画布:同款裁定——布局本身按实测宽高+200px 泳道排布,连线
+   不穿卡;此规则只兜底用户手动拖乱后的形态,连线恒可见。 */
+.workflow-node-canvas .production-flow-reactflow .react-flow__edges {
+  z-index: 4;
+}
+.workflow-node-canvas .production-flow-reactflow .react-flow__edge {
+  pointer-events: stroke;
 }
 
 /* ===== Matrix Cyber Grid (scanline animation removed — replaced by DigitalRainBackground canvas) ===== */

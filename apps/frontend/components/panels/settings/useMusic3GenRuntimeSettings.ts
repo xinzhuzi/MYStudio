@@ -106,7 +106,7 @@ export function useMusic3GenRuntimeSettings() {
       toast.error(result.message);
       return;
     }
-    toast.info("MiniMax-Music3 开始下载(约 12 GB,自含运行时代码+权重)");
+    toast.info("MiniMax-Music3 开始下载(约 28.5 GB,bf16 权重+运行时转换)");
     beginPolling();
   }, [bridge, beginPolling]);
 

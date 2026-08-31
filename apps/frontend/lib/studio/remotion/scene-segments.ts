@@ -191,8 +191,13 @@ export function planSceneSegmentFrameRanges(input: {
   });
 
   const seenStoryboardIds = new Set<string>();
+  const seenSceneNos = new Set<number>();
   const firstClipIndexPerScene: number[] = [];
   for (const scene of scenes) {
+    if (!Number.isInteger(scene.sceneNo) || scene.sceneNo < 1 || seenSceneNos.has(scene.sceneNo)) {
+      issues.push(`场号非法或重复：${scene.sceneNo}`);
+    }
+    seenSceneNos.add(scene.sceneNo);
     if (scene.storyboardIds.length === 0) {
       issues.push(`场 ${scene.sceneNo} 没有任何分镜`);
       continue;

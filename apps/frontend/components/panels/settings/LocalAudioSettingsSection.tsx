@@ -392,7 +392,7 @@ function MlxServCard({ runtime, onConfigured }: { runtime: ReturnType<typeof use
           <InstallWeightsBlock runtime={runtime} />
         </div>
       ) : (
-        <p className="text-xs text-success">权重完整(直接指向不拷贝,8bit/bf16 均支持)</p>
+        <p className="text-xs text-success">权重完整(直接指向不拷贝,bf16 全精度)</p>
       )}
 
       {!mlxServ.binaryFound ? (
@@ -460,7 +460,7 @@ function Music3EnginePanel() {
       if (result.status === "accepted" && result.outputPath) {
         toast.success(`整曲 BGM 已生成: ${result.outputPath}`);
       } else if (result.code === "model-not-downloaded") {
-        toast.error("MiniMax-Music3 未下载,请先下载模型(约 12 GB)");
+        toast.error("MiniMax-Music3 未下载,请先下载模型(约 28.5 GB bf16)");
       } else if (result.code === "platform-unsupported") {
         toast.error(result.message || "本机硬件不满足 MiniMax-Music3 运行要求");
       } else {
@@ -552,7 +552,7 @@ function Music3EnginePanel() {
           ) : (
             <Download className="mr-2 h-4 w-4" aria-hidden />
           )}
-          {downloading ? "下载中…" : downloaded ? "重新下载" : mlxservReady ? "下载独立副本(约 12 GB)" : "下载模型(约 12 GB)"}
+          {downloading ? "下载中…" : downloaded ? "重新下载" : mlxservReady ? "下载独立副本(约 28.5 GB)" : "下载模型(约 28.5 GB)"}
         </Button>
       </div>
 
@@ -580,7 +580,7 @@ function Music3EnginePanel() {
             </Button>
           </div>
           <p className="text-[10px] leading-4 text-muted-foreground">
-            仅「下载版」用到:与配音/音效共用的模型仓库。{mlxservReady ? "当前使用指向版权重,此目录不参与生成。" : ""}
+            仅「下载版」用到:MiniMax-Music3 独立模型缓存,不与配音/音效共享。{mlxservReady ? "当前使用指向版权重,此目录不参与生成。" : ""}
           </p>
         </div>
       ) : null}
@@ -624,8 +624,8 @@ function Music3EnginePanel() {
 
       <p className="text-xs text-muted-foreground leading-5">
         MiniMax-Music3 本地整曲 BGM({MUSIC3_MIN_DURATION_S}-{MUSIC3_MAX_DURATION_S} 秒/立体声 WAV,
-        [Instrumental] 纯音乐,同提示词+同种子=同一文件;采样率以实测为准,官方口径 32kHz)。约 12 GB,仅在点击下载时获取,
-        与其他本地模型共用缓存目录;生成需数分钟(30 分钟硬限)。生成 WAV 经工作台
+        [Instrumental] 纯音乐,同提示词+同种子=同一文件;44.1kHz)。约 28.5 GB bf16 权重,仅在点击下载时获取,
+        存放于独立的 model/minimax 目录;生成需数分钟(30 分钟硬限)。生成 WAV 经工作台
         「章节共享音频」导入为 BGM。引擎来源:MiniMax-Music3 Community License
         (商用需在产品界面标注「MiniMax-Music3」;年营收超 2000 万美元需书面授权)。
       </p>

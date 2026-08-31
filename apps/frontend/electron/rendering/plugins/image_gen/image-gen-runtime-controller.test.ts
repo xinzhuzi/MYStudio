@@ -1,8 +1,9 @@
 import { describe, expect, it, beforeEach } from "vitest";
-import { mkdtempSync, mkdirSync, writeFileSync, existsSync } from "node:fs";
+import { mkdtempSync, mkdirSync, writeFileSync, existsSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createImageGenRuntimeController } from "./image-gen-runtime-controller";
+import type { ImageGenModelRow } from "./image-gen-runtime-controller";
 
 let storageDir: string;
 
@@ -38,5 +39,49 @@ describe("createImageGenRuntimeController getModelCacheDir(08-19 模型目录规
   it("显式注入覆盖优先(供隔离运行时使用)", () => {
     const controller = makeController({ modelCacheDir: () => "/shared/model/TTS" });
     expect(controller.getModelCacheDir()).toBe("/shared/model/TTS");
+  });
+});
+
+describe("image generation engine selection", () => {
+  it("persists the selected engine and restores it on a new controller", () => {
+    const first = makeController();
+    expect(first.setActiveModel("z-image-turbo")).toBe(true);
+    const configPath = join(storageDir, "python", "profiles", "image-gen", "config.json");
+    expect(JSON.parse(readFileSync(configPath, "utf8"))).toEqual({ activeModel: "z-image-turbo" });
+
+    const second = makeController();
+    expect(second.status().activeModel).toBe("z-image-turbo");
+  });
+
+  it("lifecycle readiness requires downloaded model and non-missing small pieces", async () => {
+    const row: ImageGenModelRow = {
+      modelName: "krea2-turbo",
+      label: "Krea2 Turbo",
+      downloaded: true,
+      sizeMb: 35000,
+      repoId: "krea/Krea-2-Turbo",
+      smallPiecesReady: false,
+    };
+    const controller = createImageGenRuntimeController({
+      storageBasePath: () => storageDir,
+      backendRoot: "/fake/backend",
+      inventoryScanner: async () => [row],
+    });
+    const status = await controller.probeLifecycle();
+    expect(status.modelDownloaded).toBe(false);
+  });
+
+  it("restores persisted Krea2 active model", () => {
+    const first = makeController();
+    expect(first.setActiveModel("krea2-turbo")).toBe(true);
+    const second = makeController();
+    expect(second.status().activeModel).toBe("krea2-turbo");
+  });
+
+  it("uses Krea2 by default and accepts the ComfyUI bridge", () => {
+    const controller = makeController();
+    expect(controller.status().activeModel).toBe("krea2-turbo");
+    expect(controller.setActiveModel("comfyui-bridge")).toBe(true);
+    expect(controller.status().activeModel).toBe("comfyui-bridge");
   });
 });

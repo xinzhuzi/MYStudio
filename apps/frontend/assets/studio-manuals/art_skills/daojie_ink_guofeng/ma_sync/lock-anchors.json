@@ -1,6 +1,6 @@
 {
   "comment": "道劫手册工笔硬锁 ↔ MA ma-imagegen 权威锚点对。manualAnchor 必须逐字出现在 prefix.md「工笔硬锁」节;maAnchor 必须逐字出现在 MA 权威文件中(由测试直连校验)。maSources.path 为 ma-imagegen 技能根内相对路径,本机工作区根由 daojie-ma-sync-check.py --ma-root 解析(08-24 起 seed 不再内嵌机器绝对路径,与 runtime-contract.json 同构)。",
-  "syncedAt": "2026-08-15",
+  "syncedAt": "2026-08-28",
   "maSources": [
     {
       "path": "scripts/gongbi/daojie_gongbi_restyle.py",
@@ -40,7 +40,7 @@
     },
     {
       "path": "scripts/data/阵营配色与黄金公式.toml",
-      "sha256": "88be5f17ce19a424f55f756a7fed8c3a96a9076a3e4582e35c978b7ae9e93f04",
+      "sha256": "0820d7b525e0888f46ea8408626688f2aae46a90d47be0a0e58edea68d5923a9",
       "locks": [
         "阵营配色配方"
       ]

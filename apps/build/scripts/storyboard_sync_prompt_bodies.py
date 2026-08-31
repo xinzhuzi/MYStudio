@@ -22,11 +22,25 @@ from pathlib import Path
 
 STORE = Path("/Users/zhengbingjin/Project/IP/MA/store/studio-workflow")
 
-STYLE_TAIL = (
-    ", Chinese ink wash painting style, xianxia immortal cultivation, traditional brushwork, "
-    "restrained mineral-color palette, smooth pale matte flat-wash ground, "
-    "工笔线描，写意晕染，浅净平涂底，墨色层次丰富, clear layered ink-wash composition, "
-    "atmospheric depth, crisp gongbi linework throughout, clean finished gongbi quality"
+MANUAL = Path(__file__).resolve().parents[2] / (
+    "frontend/assets/studio-manuals/art_skills/daojie_ink_guofeng"
+    "/art_prompt/art_storyboard_video.md"
+)
+
+
+def _manual_block(name: str) -> str:
+    """读手册标记块(08-28 无色根修:尾段跟手册演化,勿再硬编码 token)。"""
+    text = MANUAL.read_text(encoding="utf-8")
+    match = __import__("re").search(
+        rf"<!-- {name}:start -->\n?([\s\S]*?)<!-- {name}:end -->", text
+    )
+    if not match or not match.group(1).strip():
+        raise SystemExit(f"手册标记块 {name} 缺失: {MANUAL}")
+    return match.group(1).strip()
+
+
+STYLE_TAIL = ", " + ", ".join(
+    line.strip() for line in _manual_block("storyboard-image-style-tokens").splitlines() if line.strip()
 )
 KIND_LABEL = {"scene": "场景", "character": "角色", "prop": "道具"}
 

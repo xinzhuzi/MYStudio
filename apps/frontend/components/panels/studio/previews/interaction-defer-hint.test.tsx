@@ -6,7 +6,7 @@ import {
   __resetInteractionDeferForTests,
   interactionDeferBegin,
   interactionDeferEnd,
-} from "./interaction-defer";
+} from "@/hooks/interaction-defer";
 
 vi.useFakeTimers({ now: 1000000 });
 

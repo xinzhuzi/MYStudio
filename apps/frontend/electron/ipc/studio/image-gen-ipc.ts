@@ -27,9 +27,21 @@ export interface ImageGenIpc {
 
 function lifecycleStatus(controller: ImageGenRuntimeController): ImageGenRuntimeStatusV1 {
   const legacy = controller.status();
-  // 旧 sdxl-turbo/flux-schnell 已退役,统一归一到 Qwen(Python 侧同款别名兜底)
-  const activeModel: ImageGenModelId = "qwen-image-edit-2511";
-  const modelDownloaded = legacy.models.some((model) => model.modelName === activeModel && model.downloaded);
+  // Keep the lifecycle contract aligned with the controller's persisted/current
+  // engine.  Hard-coding Qwen here made FLUX/Z-Image selections report the
+  // wrong model and readiness state through the IPC bridge.
+  const activeModel: ImageGenModelId =
+    legacy.activeModel === "z-image-turbo" ||
+    legacy.activeModel === "flux2-klein-9b" ||
+    legacy.activeModel === "krea2-turbo"
+      ? legacy.activeModel
+      : "qwen-image-edit-2511";
+  const modelDownloaded = legacy.models.some(
+    (model) =>
+      model.modelName === activeModel &&
+      model.downloaded === true &&
+      model.smallPiecesReady !== false,
+  );
   const status: ImageGenRuntimeStatusV1 = {
     schemaVersion: IMAGE_GEN_SCHEMA_VERSION,
     state: legacy.running && modelDownloaded ? "ready" : "needs-runtime",

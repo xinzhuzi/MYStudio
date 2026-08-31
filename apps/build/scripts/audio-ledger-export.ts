@@ -604,11 +604,16 @@ export async function buildChapterLedger(input: {
 
   const shotSfxRecords = shotRecords.flatMap((shot) => shot.shotSfx);
   const shotSfxBindingSealFail = shotSfxRecords.filter((sfx) => !sfx.bindingSeal).length;
-  const bindingSealFail = shotRecords.filter((r) => !r.checks.bindingSeal).length + shotSfxBindingSealFail;
+  const sharedBindingSealFail = sharedAudio.filter((audio) => !audio.bindingSeal).length;
+  const bindingSealFail = shotRecords.filter((r) => !r.checks.bindingSeal).length
+    + shotSfxBindingSealFail
+    + sharedBindingSealFail;
   const audioMissing = shotRecords.filter((r) => r.bindingFingerprint !== null && !r.checks.audioPresent).length
-    + shotSfxRecords.filter((sfx) => !sfx.audioPresent).length;
+    + shotSfxRecords.filter((sfx) => !sfx.audioPresent).length
+    + sharedAudio.filter((audio) => !audio.audioPresent).length;
   const audioSha256Mismatch = shotRecords.filter((r) => r.checks.audioPresent && !r.checks.audioSha256Match).length
-    + shotSfxRecords.filter((sfx) => sfx.audioPresent && !sfx.audioSha256Match).length;
+    + shotSfxRecords.filter((sfx) => sfx.audioPresent && !sfx.audioSha256Match).length
+    + sharedAudio.filter((audio) => audio.audioPresent && !audio.audioSha256Match).length;
   const provenanceTts = shotRecords.filter((r) => r.provenance.chain === "tts-generated" && r.provenance.verified).length;
   const provenanceImport = shotRecords.filter((r) => r.provenance.chain === "voice-import" && r.provenance.verified).length;
   const provenanceUnresolved = shotRecords.length - provenanceTts - provenanceImport;
@@ -650,7 +655,7 @@ export async function buildChapterLedger(input: {
       shotCount: shotRecords.length,
     },
     summary: {
-      bindingSealPass: shotRecords.length + shotSfxRecords.length - bindingSealFail,
+      bindingSealPass: shotRecords.length + shotSfxRecords.length + sharedAudio.length - bindingSealFail,
       bindingSealFail,
       audioMissing,
       audioSha256Mismatch,
@@ -703,7 +708,7 @@ export function renderTtsLedgerMarkdown(ledger: TtsLedgerChapter): string {
   lines.push("");
   lines.push(`- 生成时间:${ledger.generatedAt}`);
   lines.push(`- manifest revision **${chapter.manifestRevision}**,封印校验 ${mark(chapter.manifestSealCheck === "pass")}(\`${shortFingerprint(chapter.manifestFingerprint)}\`)`);
-  const bindingSealChecks = chapter.shotCount + summary.shotSfxBindings;
+  const bindingSealChecks = chapter.shotCount + summary.shotSfxBindings + ledger.sharedAudio.length;
   lines.push(`- 镜数:**${chapter.shotCount}**;binding 封印 ${summary.bindingSealPass}/${bindingSealChecks} ${summary.bindingSealFail === 0 ? "✓" : "✗"}`);
   lines.push(`- 音频:缺失 ${summary.audioMissing},哈希不符 ${summary.audioSha256Mismatch}`);
   lines.push(`- 来源链回溯:TTS 生成链 ${summary.provenance.ttsGenerated} / 配音室导入链 ${summary.provenance.voiceImport} / 未定 ${summary.provenance.unresolved}(未定≠事故,见明细)`);
@@ -1003,9 +1008,10 @@ export async function runTtsLedgerExport(argv: readonly string[]): Promise<{
       io,
     });
     const jsonPath = args.check ? null : writeLedgerArtifact(projectDir, ledger);
+    const bindingSealChecks = ledger.chapter.shotCount + ledger.summary.shotSfxBindings + ledger.sharedAudio.length;
     process.stderr.write(
       `[audio-ledger] ${ledger.chapter.chapterId}: shots=${ledger.chapter.shotCount} `
-      + `seal=${ledger.summary.bindingSealPass}/${ledger.chapter.shotCount} `
+      + `seal=${ledger.summary.bindingSealPass}/${bindingSealChecks} `
       + `audio_fail=${ledger.summary.audioMissing + ledger.summary.audioSha256Mismatch} `
       + `provenance=tts:${ledger.summary.provenance.ttsGenerated}/import:${ledger.summary.provenance.voiceImport}/unresolved:${ledger.summary.provenance.unresolved} `
       + `orphans=${ledger.summary.orphanGenerations} `

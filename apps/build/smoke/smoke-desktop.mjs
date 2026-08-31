@@ -1969,9 +1969,13 @@ async function verifyWorkflowEndToEnd(evaluate) {
         && Boolean(storyboardNode.querySelector('img[src^="data:image"], img[src^="project-file:"]')),
       hasNoDefaultReactFlowControls: Boolean(flowCanvas)
         && !Boolean(flowCanvas.querySelector('.react-flow__controls')),
+      // 2026-08-31:视口控件新增小地图开关(08-31-canvas-minimap),按钮数不再恒为 3——
+      // 改为显式断言三个核心按钮存在(缩小/放大/适配),对控件扩展保持稳健。
+      // 注意:本段在 page.evaluate 模板字符串内执行,禁用内层反引号与插值写法。
       hasThemeViewportControls: Boolean(themeControls)
         && normalize(themeControls).includes('适配')
-        && themeControls.querySelectorAll('button[aria-label]').length === 3,
+        && ['缩小画布', '放大画布', '适配画布'].every((label) =>
+          Boolean(themeControls.querySelector('button[aria-label="' + label + '"]'))),
       missingNodePreviewText,
       nodeCardTexts,
       bodyTextSample: bodyText.slice(0, 1200),

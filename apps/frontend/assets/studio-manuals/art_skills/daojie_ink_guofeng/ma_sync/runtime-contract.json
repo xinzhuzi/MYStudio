@@ -1,6 +1,6 @@
 {
   "contractVersion": "ma-gongbi-v1",
-  "contractSha256": "8440a2ae77234a7cb9f49c43519b646b6835c606560b66f173479872cec8733c",
+  "contractSha256": "936c0d01a5dfe1171332d8cae14fd21725155cf215b5e7a3a6b65adbee26642a",
   "syncedAt": "2026-08-15",
   "maSources": [
     {
@@ -35,7 +35,7 @@
     },
     {
       "path": "scripts/data/阵营配色与黄金公式.toml",
-      "sha256": "88be5f17ce19a424f55f756a7fed8c3a96a9076a3e4582e35c978b7ae9e93f04",
+      "sha256": "0820d7b525e0888f46ea8408626688f2aae46a90d47be0a0e58edea68d5923a9",
       "responsibility": "12 阵营×3 轨配色配方"
     },
     {

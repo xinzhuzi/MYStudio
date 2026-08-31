@@ -17,7 +17,7 @@
 | scripts/prompting/gongbi_contract.py | d7f755ef…e71ff | source-facts-only 配料模块 |
 | scripts/prompting/length_policy.py | cddf7aa1…0c0a86 | provider-visible 长度与 Avoid 分隔符 |
 | scripts/data/三轨选色配料.toml | b1e94b56… | 42 色卡+三轨配色方案(palette-canon) |
-| scripts/data/阵营配色与黄金公式.toml | 88be5f17… | 12 阵营×3 轨配方(palette-canon) |
+| scripts/data/阵营配色与黄金公式.toml | 0820d7b5… | 12 阵营×3 轨配方(palette-canon) |
 | knowledge/prompt-templates/人物提示词.md | fecfd22a…7ae99 | 三轨写作指导四要素(神态/光词汇/材质微观/动作精度) |
 | knowledge/prompt-templates/生图资产模板库.md | 1d734ab5…419b099 | 资产模板写作指导(骨架/角色/场景) |
 

@@ -15,6 +15,10 @@ export interface Music3GenModelRow {
   /** 平台×硬件门控(08-19):不同平台按硬件选择不同模型 */
   availability: "ok" | "unsupported";
   unsupportedReason?: string;
+  /** Python probe 识别出的实际缓存布局与执行入口。 */
+  layout?: "mlxserv" | "pocket";
+  modelDir?: string;
+  engine?: "mlx-serve" | "pocket";
 }
 
 export interface Music3HardwareProfile {
@@ -23,7 +27,7 @@ export interface Music3HardwareProfile {
   mlxImportable: boolean;
 }
 
-/** mlx-serve 8bit 指向路线(ddalcu/MiniMax-Music3-MLX-Serve-8bit,零拷贝指向已下载目录) */
+/** mlx-serve bf16 指向路线(零拷贝指向已下载目录) */
 export interface MlxServConfig {
   weightsDir: string;
   binaryPath: string;
@@ -41,7 +45,7 @@ export interface MlxServRuntimeStatus {
   serverStarting: boolean;
 }
 
-/** bf16 权重获取流程状态(ModelScope 全量 → 本地转换;08-19 指向版补权重获取)。 */
+/** bf16 权重获取流程状态(ModelScope 全量 → 本地转换;完成后指向独立 minimax 目录)。 */
 export interface MlxServWeightsInstallState {
   status: "idle" | "downloading" | "converting" | "complete" | "error";
   progress: number;
@@ -57,14 +61,15 @@ export interface Music3GenRuntimeStatus {
   downloadStatus: "idle" | "downloading" | "complete" | "error";
   downloadProgress: number;
   downloadError: string | undefined;
+  /** MiniMax-Music3 下载版模型目录(独立于 TTS/MusicGen/SFX) */
   modelCacheDir?: string;
   /** 最近一次 probe 的宿主硬件画像(平台门控依据) */
   hardwareProfile?: Music3HardwareProfile;
-  /** mlx-serve 8bit 指向路线状态 */
+  /** mlx-serve bf16 指向路线状态 */
   mlxServ?: MlxServRuntimeStatus;
   /** 权重获取流程状态 */
   mlxServWeightsInstall?: MlxServWeightsInstallState;
-  /** 宿主总内存(GB,量化档位门禁依据) */
+  /** 宿主总内存(GB,bf16 权重内存门禁依据) */
   hostTotalRamGb?: number;
 }
 
@@ -77,7 +82,7 @@ export const MUSIC3_PLATFORM_MATRIX: ReadonlyArray<{
   model: string;
   runnable: string;
 }> = [
-  { platform: "Apple Silicon(macOS arm64)", model: "MiniMax-Music3 8bit 量化系", runnable: "可运行,双路线:应用内下载版(PocketAiHub 自含仓)/指向版(mlx-serve 指向已下载权重)" },
+  { platform: "Apple Silicon(macOS arm64)", model: "MiniMax-Music3 bf16 权重", runnable: "可运行,双路线:应用内下载版(PocketAiHub 自含仓)/指向版(mlx-serve 指向已下载权重)" },
   { platform: "NVIDIA Linux/Windows(2× CUDA)", model: "官方仓 SGLang-Omni 路线", runnable: "本应用不提供,官方仓自行部署" },
   { platform: "Intel Mac / 无 GPU", model: "无可用整曲模型", runnable: "不可用" },
 ];

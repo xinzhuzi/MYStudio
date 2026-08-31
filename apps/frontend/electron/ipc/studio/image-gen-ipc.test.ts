@@ -8,7 +8,10 @@ import {
   validateImageGenRuntimeActionReply,
   validateImageGenRuntimeStatus,
 } from "@rendering/contracts/image-gen-workflow";
-import type { ImageGenRuntimeController } from "@rendering/plugins/image_gen/image-gen-runtime-controller";
+import type {
+  ImageGenModelRow,
+  ImageGenRuntimeController,
+} from "@rendering/plugins/image_gen/image-gen-runtime-controller";
 
 type IpcHandler = (...args: unknown[]) => unknown | Promise<unknown>;
 
@@ -38,13 +41,16 @@ function lifecycleStatus(state: "ready" | "needs-runtime" = "needs-runtime") {
   };
 }
 
-function createController() {
+function createController(
+  activeModel: "qwen-image-edit-2511" | "z-image-turbo" | "flux2-klein-9b" | "krea2-turbo" = "qwen-image-edit-2511",
+  models: ImageGenModelRow[] = [],
+) {
   const legacy = {
     running: false,
     setupStage: "idle" as const,
     setupMessage: undefined,
-    models: [],
-    activeModel: "qwen-image-edit-2511",
+    models,
+    activeModel,
     downloadStatus: {},
     downloadProgress: {},
     downloadError: {},
@@ -52,8 +58,8 @@ function createController() {
   return {
     status: vi.fn(() => legacy),
     getModelCacheDir: vi.fn(() => "/tmp/mystudio-image-model"),
-    probeLifecycle: vi.fn(async () => lifecycleStatus()),
-    prepareLifecycle: vi.fn(async () => lifecycleStatus("ready")),
+    probeLifecycle: vi.fn(async () => ({ ...lifecycleStatus(), activeModel })),
+    prepareLifecycle: vi.fn(async () => ({ ...lifecycleStatus("ready"), activeModel })),
     rollbackLifecycle: vi.fn(async () => lifecycleStatus()),
     setup: vi.fn(async () => legacy),
     stop: vi.fn(async () => undefined),
@@ -89,6 +95,35 @@ describe("local image generation lifecycle IPC", () => {
     expect(controller.prepareLifecycle).not.toHaveBeenCalled();
     const rollback = await handlers.get(IMAGE_GEN_ROLLBACK_CHANNEL)?.({}, { schemaVersion: 1 });
     expect(rollback).toMatchObject({ success: true, status: { state: "needs-runtime" } });
+    registration.dispose();
+  });
+
+  it("reports the controller's selected engine through lifecycle IPC", async () => {
+    const controller = createController("flux2-klein-9b");
+    const registration = registerImageGenIpcHandlers({ controller });
+    const probe = await handlers.get(IMAGE_GEN_PROBE_CHANNEL)?.({});
+    expect(probe).toMatchObject({ activeModel: "flux2-klein-9b", modelDownloaded: false });
+    expect(validateImageGenRuntimeStatus(probe)).toMatchObject({ success: true });
+    registration.dispose();
+  });
+
+  it("keeps Krea2 selected and blocks it when small pieces are missing", async () => {
+    const controller = createController("krea2-turbo", [
+      {
+        modelName: "krea2-turbo",
+        label: "Krea2 Turbo",
+        downloaded: true,
+        sizeMb: 35_000,
+        repoId: "krea/Krea-2-Turbo",
+        smallPiecesReady: false,
+      },
+    ]);
+    const registration = registerImageGenIpcHandlers({ controller });
+    const invalid = await handlers.get(IMAGE_GEN_PREPARE_CHANNEL)?.({}, null);
+    expect(invalid).toMatchObject({
+      success: false,
+      status: { activeModel: "krea2-turbo", modelDownloaded: false },
+    });
     registration.dispose();
   });
 

@@ -73,8 +73,8 @@ export interface RemotionQueueChapterInput {
   currentShotSlots?: RemotionCurrentSlotV1[];
 }
 
-/** 按场分段 job：与整章 job 同源（同一 plan/slots），但产物落 workspace
- * scenes 相对路径，成功后不发布 current slot、不触发章级 QC 回调。 */
+/** 按场分段 job：与整章 job 同源（同一 plan/slots），但产物落项目根
+ * exports/<chapterId>/scenes 相对路径，成功后不发布 current slot、不触发章级 QC 回调。 */
 export interface RemotionQueueChapterSceneInput {
   kind: "chapter-scene";
   job: RemotionRenderJobV1;

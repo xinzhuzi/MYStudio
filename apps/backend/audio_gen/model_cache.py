@@ -47,8 +47,6 @@ class CachedAudioModel(TypedDict):
 def primary_hf_cache_dir() -> Path:
     env_cache = (
         os.environ.get("MYSTUDIO_AUDIO_MODEL_DIR")
-        or os.environ.get("MANYING_TTS_MODELS_DIR")
-        or os.environ.get("VOICEBOX_MODELS_DIR")
         or os.environ.get("HF_HUB_CACHE")
     )
     if env_cache:
@@ -66,7 +64,7 @@ def primary_hf_cache_dir() -> Path:
 
 def hf_cache_dirs() -> list[Path]:
     candidates: list[Path] = []
-    for env_name in ("MYSTUDIO_AUDIO_MODEL_DIR", "MANYING_TTS_MODELS_DIR", "VOICEBOX_MODELS_DIR", "HF_HUB_CACHE"):
+    for env_name in ("MYSTUDIO_AUDIO_MODEL_DIR", "HF_HUB_CACHE"):
         value = os.environ.get(env_name)
         if value:
             candidates.append(Path(value))

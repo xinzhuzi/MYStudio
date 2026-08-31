@@ -6,7 +6,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { aiManager } from "@/lib/ai/ai-manager";
 import { logEvent } from "@/lib/diagnostics/logger";
-import { polishAssetPrompt } from "./prompt-polisher";
+import { polishAssetPrompt, sanitizeExtendedManualPrompt } from "./prompt-polisher";
 
 vi.mock("@/lib/diagnostics/logger", () => ({
   createOperationId: (prefix: string) => `${prefix}-test`,
@@ -248,5 +248,30 @@ describe("polishAssetPrompt 道劫三轨合同(LLM 只拥有题材正文)", () =
     expect(result.daojie).toBeUndefined();
     expect(result.prompt).toContain("clean image");
     expect(result.negativePrompt).toContain("visual noise");
+  });
+});
+
+describe("sanitizeExtendedManualPrompt 旧压色 token 升级(08-28 无色根修)", () => {
+  it("存量旧 token 彩色化:restrained→muted yet visible,墨色行补点缀,分层句升级", () => {
+    const legacy =
+      "Chinese ink wash painting style, xianxia immortal cultivation, traditional brushwork, restrained mineral-color palette, smooth pale matte flat-wash ground, 工笔线描，写意晕染，浅净平涂底，墨色层次丰富, clear layered ink-wash composition, atmospheric depth, crisp gongbi linework throughout, clean finished gongbi quality";
+    const out = sanitizeExtendedManualPrompt(legacy);
+    expect(out).toContain("muted yet visible mineral-color palette with soft cyan-green and vermilion accents");
+    expect(out).not.toContain("restrained mineral-color");
+    expect(out).toContain("墨色层次丰富，青绿朱砂赭石淡彩点缀");
+    expect(out).toContain("clear layered colored ink-wash composition with visible mineral pigments");
+  });
+
+  it("幂等:升级产物再次净化不再变化", () => {
+    const once = sanitizeExtendedManualPrompt(
+      "工笔线描，写意晕染，浅净平涂底，墨色层次丰富, clear layered ink-wash composition, restrained mineral-color palette",
+    );
+    expect(sanitizeExtendedManualPrompt(once)).toBe(once);
+  });
+
+  it("muted cyan-green palette 输入词映射到新彩句(旧规则反向已解除)", () => {
+    expect(sanitizeExtendedManualPrompt("muted cyan-green palette")).toBe(
+      "muted yet visible mineral-color palette with soft cyan-green and vermilion accents",
+    );
   });
 });

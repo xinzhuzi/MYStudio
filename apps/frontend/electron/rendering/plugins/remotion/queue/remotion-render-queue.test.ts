@@ -447,8 +447,8 @@ describe("RemotionRenderQueue", () => {
             progress: 1,
             startedAt: 210,
             completedAt: 220,
-            outputPath: `jobs/chapter/${input.plan.episodeId}/scenes/Sc01_test.mp4`,
-            evidencePath: `jobs/chapter/${input.plan.episodeId}/scenes/Sc01_test.mp4.evidence.json`,
+            outputPath: `exports/${input.plan.episodeId}/scenes/Sc01_test.mp4`,
+            evidencePath: `exports/${input.plan.episodeId}/scenes/Sc01_test.mp4.evidence.json`,
           };
           return { success: true, job: succeeded, evidence: {} as never };
         },
@@ -491,7 +491,7 @@ describe("RemotionRenderQueue", () => {
         sceneName: "河雾矿奴",
         storyboardIds: ["sb-1", "sb-2"],
         frameRange: [0, 120],
-        outputRelativePath: `jobs/chapter/${first.plan.chapterId}/scenes/Sc01_test.mp4`,
+        outputRelativePath: `exports/${first.plan.chapterId}/scenes/Sc01_test.mp4`,
       },
     });
     expect(result).toMatchObject({ accepted: true, job: { status: "ready" } });
@@ -501,7 +501,7 @@ describe("RemotionRenderQueue", () => {
     expect(chapterQcCalls).toBe(qcCallsAfterShots);
     expect(queue.getJob(sceneJob.jobId)).toMatchObject({
       status: "succeeded",
-      outputPath: `jobs/chapter/${first.plan.chapterId}/scenes/Sc01_test.mp4`,
+      outputPath: `exports/${first.plan.chapterId}/scenes/Sc01_test.mp4`,
     });
     // 同 identity 重复入队 → already-succeeded（分段身份哈希去重）
     const duplicate = await queue.enqueueChapterScene({
@@ -515,7 +515,7 @@ describe("RemotionRenderQueue", () => {
         sceneName: "河雾矿奴",
         storyboardIds: ["sb-1", "sb-2"],
         frameRange: [0, 120],
-        outputRelativePath: `jobs/chapter/${first.plan.chapterId}/scenes/Sc01_test.mp4`,
+        outputRelativePath: `exports/${first.plan.chapterId}/scenes/Sc01_test.mp4`,
       },
     });
     expect(duplicate).toMatchObject({ accepted: false, reason: "already-succeeded" });
@@ -561,7 +561,7 @@ describe("RemotionRenderQueue", () => {
             sceneName: "客栈",
             storyboardIds: ["sb-3"],
             frameRange: [10, 20],
-            outputRelativePath: "jobs/chapter/chapter-001/scenes/Sc02_test.mp4",
+            outputRelativePath: "exports/chapter-001/scenes/Sc02_test.mp4",
           },
         },
       ],

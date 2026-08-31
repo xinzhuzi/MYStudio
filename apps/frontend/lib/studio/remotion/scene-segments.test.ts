@@ -133,6 +133,20 @@ describe("planSceneSegmentFrameRanges", () => {
     if (result.success) return;
     expect(result.issues.join()).toContain("顺序不一致");
   });
+
+  it("拒绝重复或非法场号，避免同场身份哈希冲突", () => {
+    const result = planSceneSegmentFrameRanges({
+      clips,
+      durationInFrames,
+      scenes: [
+        { sceneNo: 1, sceneName: "A", storyboardIds: ["sb-1"] },
+        { sceneNo: 1, sceneName: "B", storyboardIds: ["sb-2", "sb-3", "sb-4", "sb-5"] },
+      ],
+    });
+    expect(result.success).toBe(false);
+    if (result.success) return;
+    expect(result.issues.join()).toContain("场号非法或重复");
+  });
 });
 
 describe("sanitizeSceneSegmentName", () => {

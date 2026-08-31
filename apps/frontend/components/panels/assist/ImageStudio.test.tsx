@@ -1,9 +1,22 @@
+// Copyright (c) 2025 hotflow2024
+// Licensed under AGPL-3.0-or-later. See LICENSE for details.
+// Commercial licensing available. See COMMERCIAL_LICENSE.md.
+
 // @vitest-environment jsdom
-import { cleanup, render, screen } from "@testing-library/react";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { cleanup, render, screen, waitFor } from "@testing-library/react";
+import { afterEach, describe, expect, it, vi } from "vitest";
+
+vi.mock("@/components/panels/assist/ModelSelector", () => ({
+  ModelSelector: ({ value }: { value: string }) => (
+    <select data-testid="model-selector" value={value} disabled>
+      <option value={value}>{value || "默认模型"}</option>
+    </select>
+  ),
+}));
 
 import { ImageStudio } from "./ImageStudio";
 import { useFreedomStore } from "@/stores/assist/freedom-store";
+import { useImageStudioStore } from "@/stores/assist/image-studio-store";
 
 (globalThis as any).ResizeObserver ??= class {
   observe() {}
@@ -16,24 +29,28 @@ import { useFreedomStore } from "@/stores/assist/freedom-store";
   removeEventListener() {},
 });
 
-describe("ImageStudio", () => {
-  beforeEach(() => {
-    useFreedomStore.setState({
-      imagePrompt: "男性角色四视图设定图",
-      selectedImageModel: "",
-      imageGenerating: false,
-      imageResult: null,
-      imageHistory: [],
-    });
-  });
+const initialFreedomState = useFreedomStore.getState();
+const initialStudioState = useImageStudioStore.getState();
 
-  afterEach(() => {
-    cleanup();
-  });
+afterEach(() => {
+  cleanup();
+  useFreedomStore.setState(initialFreedomState, true);
+  useImageStudioStore.setState(initialStudioState, true);
+  localStorage.clear();
+});
 
-  it("requires a selected image model before generation", () => {
+describe("ImageStudio(画布宿主)", () => {
+  it("08-31 画布化:首帧装载后呈现工具栏与默认画布", async () => {
     render(<ImageStudio />);
-
-    expect((screen.getByRole("button", { name: /生成图片/ }) as HTMLButtonElement).disabled).toBe(true);
+    // rAF 首帧门闸:装载文案先出现,随后画布接管
+    await waitFor(
+      () => {
+        expect(screen.getByRole("button", { name: /文生图/ })).toBeTruthy();
+      },
+      { timeout: 3000 },
+    );
+    await waitFor(() => {
+      expect(useImageStudioStore.getState().workflows.length).toBeGreaterThanOrEqual(1);
+    });
   });
 });

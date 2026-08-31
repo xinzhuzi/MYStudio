@@ -890,7 +890,7 @@ contextBridge.exposeInMainWorld('sfxGenRuntime', {
 })
 
 // MiniMax-Music3 runtime API (08-19-minimax-music3-engine) — whole-song BGM,
-// native seed determinism, explicit ~12 GB download only.
+// native seed determinism, explicit ~28.5 GB bf16 download only; HTTP port 11273.
 contextBridge.exposeInMainWorld('music3GenRuntime', {
   status: (): Promise<unknown> => ipcRenderer.invoke('music3-gen-runtime-status'),
   setup: (): Promise<unknown> => ipcRenderer.invoke('music3-gen-runtime-setup'),

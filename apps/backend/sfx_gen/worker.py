@@ -14,6 +14,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import os
 import sys
 import time
 from pathlib import Path
@@ -76,6 +77,15 @@ def generate_sfx(
     output_file.parent.mkdir(parents=True, exist_ok=True)
 
     started = time.time()
+    # probe/inventory 认 MYSTUDIO_AUDIO_MODEL_DIR,但 transformers/huggingface_hub 只认
+    # HF_HUB_CACHE/HF_HOME(且在 import 时固化)。懒加载 transformers 前把应用缓存目录
+    # 翻译过去——否则模型在 model/TTS 时 probe ready、生成却 offline 找不到
+    # (2026-08-28 实证:model-load-failed "couldn't find them in the cached files")。
+    from .model_cache import primary_hf_cache_dir
+
+    primary_cache = primary_hf_cache_dir()
+    if str(primary_cache) != os.environ.get("HF_HUB_CACHE", ""):
+        os.environ["HF_HUB_CACHE"] = str(primary_cache)
     try:
         import torch
         from transformers import AutoProcessor, MusicgenForConditionalGeneration

@@ -40,6 +40,8 @@ export interface ImageGenModelRow {
   repoId: string;
   /** 指向版专用:大件在而小件缺时 UI 显示「补齐小件」(null=非指向版) */
   pointed?: boolean | null;
+  bigFilesSource?: "comfyui" | "app-cache" | "comfyui-service" | null;
+  comfyuiVersion?: string | null;
   smallPiecesReady?: boolean | null;
   pointedFiles?: string[] | null;
 }
@@ -83,14 +85,15 @@ export function createImageGenRuntimeController(deps: ControllerDeps) {
         raw.activeModel === "qwen-image-edit-2511" ||
         raw.activeModel === "z-image-turbo" ||
         raw.activeModel === "flux2-klein-9b" ||
-        raw.activeModel === "krea2-turbo"
+        raw.activeModel === "krea2-turbo" ||
+        raw.activeModel === "comfyui-bridge"
       ) {
         return raw.activeModel;
       }
     } catch {
       // Missing or malformed config uses the default engine.
     }
-    return "flux2-klein-9b";
+    return "krea2-turbo";
   }
 
   function persistActiveModel(modelName: ImageGenModelId): void {
@@ -118,6 +121,8 @@ export function createImageGenRuntimeController(deps: ControllerDeps) {
       ...process.env,
       PYTHONPATH: deps.backendRoot,
       MYSTUDIO_IMAGE_MODEL_DIR: modelCacheDir,
+      MYSTUDIO_COMFYUI_BRIDGE_URL:
+        process.env.MYSTUDIO_COMFYUI_BRIDGE_URL ?? "http://127.0.0.1:8000",
     };
   }
 
@@ -313,7 +318,7 @@ export function createImageGenRuntimeController(deps: ControllerDeps) {
   }
 
   function setActiveModel(modelName: string): boolean {
-    const known: readonly ImageGenModelId[] = ["flux2-klein-9b", "krea2-turbo", "qwen-image-edit-2511", "z-image-turbo"];
+    const known: readonly ImageGenModelId[] = ["flux2-klein-9b", "krea2-turbo", "qwen-image-edit-2511", "z-image-turbo", "comfyui-bridge"];
     if (!known.includes(modelName as ImageGenModelId)) return false;
     state.activeModel = modelName as ImageGenModelId;
     persistActiveModel(state.activeModel as ImageGenModelId);
@@ -364,8 +369,9 @@ export function createImageGenRuntimeController(deps: ControllerDeps) {
       );
       if (fallback && fallback.modelName !== state.activeModel) {
         state.activeModel = fallback.modelName as ImageGenModelId;
-        console.log(
+        process.emitWarning(
           `[image-gen] active model not downloaded, auto-fallback to ${fallback.modelName}`,
+          { code: "IMAGE_GEN_ACTIVE_MODEL_FALLBACK" },
         );
       }
     }

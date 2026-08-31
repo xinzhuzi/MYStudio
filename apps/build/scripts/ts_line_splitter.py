@@ -82,7 +82,7 @@ def split_module(src: Path, plan: dict, from_head: bool = True) -> None:
             is_type = name.startswith("type:")
             plain = name[5:] if is_type else name
             # export 化:对声明处加 export 前缀(限词边界)
-            body = re.sub(rf"(?m)^(\s*)((?:export )?)((?:async )?function {plain}\(|type {plain} =|interface {plain} |const {plain} =|class {plain} )",
+            body = re.sub(rf"(?m)^(\s*)((?:export )?)((?:async )?function {plain}(?:<[^)]*?>)?\(|type {plain} =|interface {plain} |const {plain}(?::[^=]*)?=|class {plain} )",
                           lambda m: f"{m.group(1)}export {m.group(3)}" if not m.group(2) else m.group(0), body, count=1)
             all_exported[plain] = Path(mod["file"]).stem
         bodies[mod["file"]] = f'/**\n * {mod["doc"]}\n */\n' + body
@@ -98,8 +98,15 @@ def split_module(src: Path, plan: dict, from_head: bool = True) -> None:
                 src_mod = stmt
                 needed_stmts.setdefault(stmt, []).append(name)
         # 同一语句多名字 → 合并重写为单条(按语句聚合名字,保持 from)
+        import_lines = []
         merged: dict[str, list[str]] = {}
         alias_of: dict[str, str] = {}
+        default_stmts = [stmt for stmt, names in needed_stmts.items()
+                         if not re.match(r"import (?:type )?\{", stmt.strip())]
+        for stmt in default_stmts:
+            import_lines.append(stmt.rstrip("\n"))
+        needed_stmts = {s: n for s, n in needed_stmts.items()
+                        if re.match(r"import (?:type )?\{", s.strip())}
         for stmt, names in needed_stmts.items():
             frm = re.search(r"from ['\"]([^'\"]+)['\"];", stmt).group(1)
             is_type = stmt.lstrip().startswith("import type")
@@ -113,7 +120,6 @@ def split_module(src: Path, plan: dict, from_head: bool = True) -> None:
                         continue
                     orig, alias = [x.strip() for x in item.split(" as ")]
                     alias_of[re.sub(r"^type ", "", alias)] = re.sub(r"^type ", "", orig)
-        import_lines = []
         for (frm, is_type), names in sorted(merged.items()):
             rendered = sorted({(alias_of.get(n, n) + f" as {n}") if n in alias_of else n for n in set(names)})
             import_lines.append(

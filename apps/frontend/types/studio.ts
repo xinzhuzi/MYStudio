@@ -472,7 +472,7 @@ export interface SceneSegmentRecord extends StudioSourceIdentity {
   storyboardIds: string[];
   /** 闭区间帧范围（与整章 composition 同一布局轴）。 */
   frameRange: [number, number];
-  /** 项目 Remotion workspace 相对路径。 */
+  /** 项目根相对路径（exports/<chapterId>/scenes/...）。 */
   outputRelativePath: string;
   /** 绝对路径（渲染域展示/打开）。 */
   outputAbsolutePath: string;

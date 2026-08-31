@@ -34,7 +34,7 @@ class SfxModelSpec(TypedDict):
 
 
 SFX_MODELS: dict[str, SfxModelSpec] = {
-    # P1 引擎:复用 MusicGen small 权重(与本地音乐生成同一缓存),提示词面向
+    # P1 引擎:复用 MusicGen small 权重(与本地音乐生成相同仓库,独立缓存目录),提示词面向
     # 短音效;种子确定性=torch.manual_seed。许可同 musicgen-small。
     "sfx-musicgen-small": {
         "label": "音效生成(MusicGen 引擎)",
@@ -69,11 +69,7 @@ class CachedSfxModel(TypedDict):
 
 
 def primary_hf_cache_dir() -> Path:
-    env_cache = (
-        os.environ.get("MYSTUDIO_AUDIO_MODEL_DIR")
-        or os.environ.get("MANYING_TTS_MODELS_DIR")
-        or os.environ.get("HF_HUB_CACHE")
-    )
+    env_cache = os.environ.get("MYSTUDIO_SFX_MODEL_DIR") or os.environ.get("HF_HUB_CACHE")
     if env_cache:
         return Path(env_cache).expanduser()
     hf_home = os.environ.get("HF_HOME")
@@ -89,7 +85,7 @@ def primary_hf_cache_dir() -> Path:
 
 def hf_cache_dirs() -> list[Path]:
     candidates: list[Path] = []
-    for env_name in ("MYSTUDIO_AUDIO_MODEL_DIR", "MANYING_TTS_MODELS_DIR", "HF_HUB_CACHE"):
+    for env_name in ("MYSTUDIO_SFX_MODEL_DIR", "HF_HUB_CACHE"):
         value = os.environ.get(env_name)
         if value:
             candidates.append(Path(value))

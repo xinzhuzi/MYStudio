@@ -51,7 +51,7 @@ describe("interaction defer gate", () => {
     expect(screen.getByTestId("settled").textContent).toBe("true");
   });
 
-  it("closes during interaction and reopens after the 1s settle debounce", () => {
+  it("closes during interaction and reopens after the 5s settle debounce", () => {
     render(<Probe />);
     act(() => interactionDeferBegin());
     expect(screen.getByTestId("settled").textContent).toBe("false");

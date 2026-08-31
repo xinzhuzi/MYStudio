@@ -240,4 +240,33 @@ describe("atmosphere 氛围层解析(08-19 multilayer Child2)", () => {
     expect(capturedPrompt).toContain("atmo:fireflies");
     expect(capturedPrompt).toContain('"atmosphere"');
   });
+
+  it("prompt 注入逐镜配色锚行与 LUT 同向指南句;无锚镜不加行(08-28 色彩衔接)", async () => {
+    const { selectShotFxMotions } = await import("./shot-fx-ai");
+    const { aiManager } = await import("@/lib/ai/ai-manager");
+    let capturedPrompt = "";
+    vi.mocked(aiManager.text).mockImplementationOnce(async (request) => {
+      capturedPrompt = request.messages[1]!.content as string;
+      return { success: true, text: JSON.stringify({ shots: [{ shotId: "s1", motion: "hold" }, { shotId: "s2", motion: "drift" }] }) };
+    });
+    const result = await selectShotFxMotions([
+      { shotId: "s1", description: "码头对峙", dialogue: "且慢。", colorMood: "(人族·场景)主色赭石+辅色栗褐+点睛藤黄" },
+      { shotId: "s2", description: "夜探宗门", dialogue: "" },
+    ]);
+    expect(result.source).toBe("ai");
+    expect(capturedPrompt).toContain("配色锚: (人族·场景)主色赭石+辅色栗褐+点睛藤黄");
+    // LUT 指南段含同向纪律句
+    expect(capturedPrompt).toContain("同暖调或同冷调");
+    expect(capturedPrompt).toContain("不得反向压色");
+    // 只有带锚的镜出现配色锚行(s2 无锚不加、无空行残留在解析侧)
+    expect(capturedPrompt.split("配色锚:").length - 1).toBe(1);
+    // 空白 colorMood 视同缺省
+    let promptEmpty = "";
+    vi.mocked(aiManager.text).mockImplementationOnce(async (request) => {
+      promptEmpty = request.messages[1]!.content as string;
+      return { success: true, text: JSON.stringify({ shots: [{ shotId: "s1", motion: "hold" }] }) };
+    });
+    await selectShotFxMotions([{ shotId: "s1", description: "", dialogue: "", colorMood: "  " }]);
+    expect(promptEmpty).not.toContain("配色锚:");
+  });
 });

@@ -40,7 +40,7 @@ http://127.0.0.1:17593
 |---|---|
 | `<storageBasePath>/python` | Python 3.12 runtime，设置页手动配置 |
 | `<storageBasePath>/model/TTS` | 默认 TTS 模型缓存目录（旧版 `<storageBasePath>/tts-models` 仅作迁移兼容） |
-| `<storageBasePath>/tts-runtime` | TTS sidecar 运行数据、`tts.sqlite`、生成音频、依赖 hash marker 和 runtime config |
+| `<storageBasePath>/TTS/runtime` | TTS sidecar 运行数据、`tts.sqlite`、生成音频、依赖 hash marker 和 runtime config（旧版 `<userData>/tts-runtime` 仅作迁移兼容） |
 
 `storageBasePath` 由应用存储设置决定；用户迁移项目存储目录后，Python runtime 和默认模型缓存的解析路径会指向新的存储根目录，但现有 `python/` 和 `TTS/` 内容不会随 move/export/import 自动复制。
 
@@ -53,10 +53,10 @@ http://127.0.0.1:17593
 启动命令由 `apps/frontend/electron/tts/tts-runtime.ts` 生成，核心形式如下：
 
 ```text
-python -m tts.main --host 127.0.0.1 --port 17593 --data-dir <storageBasePath>/tts-runtime
+python -m tts.main --host 127.0.0.1 --port 17593 --data-dir <storageBasePath>/TTS/runtime
 ```
 
-Electron 会先从开发时的 `apps/backend` 或打包后的 `Resources/backend` 定位 sidecar 源码；该目录只作为工作目录和 `PYTHONPATH`。随后它确认 `<storageBasePath>/python` 与依赖 hash marker 已就绪，创建模型与 sidecar 数据目录，并用该 managed Python 启动 `tts.main`。sidecar 状态和生成音频留在 `<storageBasePath>/tts-runtime`，不会写回 `apps/backend/`。
+Electron 会先从开发时的 `apps/backend` 或打包后的 `Resources/backend` 定位 sidecar 源码；该目录只作为工作目录和 `PYTHONPATH`。随后它确认 `<storageBasePath>/python` 与依赖 hash marker 已就绪，创建模型与 sidecar 数据目录，并用该 managed Python 启动 `tts.main`。sidecar 状态和生成音频留在 `<storageBasePath>/TTS/runtime`，不会写回 `apps/backend/`。
 
 关键环境变量：
 
@@ -118,7 +118,7 @@ video-use 完整产出 EDL、字幕时间、调色、preview 和 self-eval。ada
 
 Daojie chapter-001 直跑只有在显式设置 `MANYING_TTS_USE_HTTP=1` 时才会启动或复用 HTTP TTS。它会先复用已健康的 `127.0.0.1:17593` 服务；需要启动时，只检查其当前 managed 存储根目录下的 `python`，缺失时会提示先到 `设置 → 本地配置 -> Python 运行环境` 点击 `开始配置` 并完成 TTS 依赖安装。它不再探测 `apps/backend/python`，并仍以 `apps/backend` 作为 `PYTHONPATH`。
 
-默认 `video:daojie:chapter001` 自动链不会注入 `MANYING_TTS_USE_HTTP=1`，因此不会经过这条 HTTP-TTS 直跑分支。直跑脚本会按 `MYSTUDIO_STORAGE_BASE_PATH`、`<userData>/storage-config.json`、macOS development fallback 的顺序解析 managed 存储根；其中 `python/` 属于 `<storageBasePath>`，TTS 模型位于 `<storageBasePath>/model/TTS/`，运行数据位于 `<storageBasePath>/tts-runtime/`。
+默认 `video:daojie:chapter001` 自动链不会注入 `MANYING_TTS_USE_HTTP=1`，因此不会经过这条 HTTP-TTS 直跑分支。直跑脚本会按 `MYSTUDIO_STORAGE_BASE_PATH`、`<userData>/storage-config.json`、macOS development fallback 的顺序解析 managed 存储根；其中 `python/` 属于 `<storageBasePath>`，TTS 模型位于 `<storageBasePath>/model/TTS/`，运行数据位于 `<storageBasePath>/TTS/runtime/`。
 
 ## 测试
 

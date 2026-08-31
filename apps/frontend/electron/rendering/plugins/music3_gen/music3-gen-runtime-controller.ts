@@ -1,5 +1,5 @@
 // MiniMax-Music3 (MLX) runtime controller — whole-song BGM engine.
-// Same explicit-download policy as audio-gen/sfx-gen: the ~12 GB repo snapshot
+// Same explicit-download policy as audio-gen/sfx-gen: the ~28.5 GB bf16 weight pack
 // downloads ONLY from the settings panel; generation fails closed with
 // "model-not-downloaded" otherwise. Generation is minutes-scale (whole song),
 // so the IPC timeout is generous and progress is user-observable via exports.
@@ -44,10 +44,10 @@ const LONG_JOB_AGENT = new Agent({
 });
 
 // ---- mlx-serve 指向引擎路线(08-19-music3-mlxserv-connector)----
-// 指向本地已转换的 MiniMax-Music3 MLX 权重目录(8bit/bf16 均可,布局同 convert_music3_weights.py 产物)
+// 指向本地已转换的 MiniMax-Music3 MLX bf16 权重目录(布局同 convert_music3_weights.py 产物)
 // (Zig+MLX,OpenAI 兼容 HTTP)。零 Python、零权重拷贝:直接指向已下载目录。
-export const MLXSERV_DEFAULT_PORT = 11273; // 避开 MLX Core 常用默认 11234
-const MLXSERV_HEALTH_TIMEOUT_MS = 5 * 60_000; // 13GB 冷装载预算
+export const MLXSERV_DEFAULT_PORT = 11273; // MYStudio 专用端口(避开 MLX Core 常用 11234)
+const MLXSERV_HEALTH_TIMEOUT_MS = 5 * 60_000; // 28.5GB bf16 冷装载预算
 const MLXSERV_IDLE_SHUTDOWN_MS = 10 * 60_000;
 const MLXSERV_REQUIRED_WEIGHTS = [
   "language_model.safetensors",
@@ -74,7 +74,7 @@ const MLXSERV_DOWNLOAD_URL = "https://github.com/ddalcu/mlx-serve/releases/downl
 const MLXSERV_MANAGED_DIR_NAME = "mlx-serve-managed";
 
 export interface MlxServConfig {
-  /** 已下载的 MLX 权重目录(MiniMax-Music3 MLX 转换产物,8bit/bf16 均可) */
+  /** 已下载的 MLX bf16 权重目录(MiniMax-Music3 MLX 转换产物) */
   weightsDir: string;
   /** 空 = 自动探测(PATH / homebrew 常规位) */
   binaryPath: string;
@@ -113,6 +113,10 @@ export interface Music3GenModelRow {
   /** 平台×硬件门控(08-19):不同平台按硬件选择不同模型 */
   availability: "ok" | "unsupported";
   unsupportedReason?: string;
+  /** Python probe 识别出的实际缓存布局与执行入口。 */
+  layout?: "mlxserv" | "pocket";
+  modelDir?: string;
+  engine?: "mlx-serve" | "pocket";
 }
 
 export interface Music3HardwareProfile {
@@ -128,15 +132,15 @@ export interface Music3GenRuntimeStatus {
   downloadStatus: "idle" | "downloading" | "complete" | "error";
   downloadProgress: number;
   downloadError: string | undefined;
-  /** 模型实际落盘目录(与本地音乐生成/TTS 共用缓存),供设置页展示+打开 */
+  /** MiniMax-Music3 下载版模型实际落盘目录(独立于 TTS/MusicGen/SFX),供设置页展示+打开 */
   modelCacheDir?: string;
   /** 最近一次 probe 的宿主硬件画像(平台门控依据) */
   hardwareProfile?: Music3HardwareProfile;
   /** mlx-serve 指向路线状态(08-19-music3-mlxserv-connector) */
   mlxServ?: MlxServRuntimeStatus;
-  /** 权重获取流程状态(08-19:指向版补权重获取,量化两档) */
+  /** 权重获取流程状态(08-19:指向版补权重获取,bf16 单一规格) */
   mlxServWeightsInstall?: MlxServWeightsInstallState;
-  /** 宿主总内存(GB,量化档位门禁依据) */
+  /** 宿主总内存(GB,bf16 权重内存门禁依据) */
   hostTotalRamGb?: number;
 }
 
@@ -182,6 +186,9 @@ interface ProbePayload {
   sizeMb?: number | null;
   hardware?: { platform?: string; machine?: string; mlxImportable?: boolean };
   availability?: { available?: boolean; reason?: string };
+  layout?: "mlxserv" | "pocket";
+  modelDir?: string;
+  engine?: "mlx-serve" | "pocket";
 }
 
 export function createMusic3GenRuntimeController(deps: ControllerDeps) {
@@ -206,7 +213,7 @@ export function createMusic3GenRuntimeController(deps: ControllerDeps) {
     return {
       ...process.env,
       PYTHONPATH: deps.backendRoot,
-      ...(modelCacheDir ? { MYSTUDIO_AUDIO_MODEL_DIR: modelCacheDir } : {}),
+      ...(modelCacheDir ? { MYSTUDIO_MUSIC3_MODEL_DIR: modelCacheDir } : {}),
     };
   }
 
@@ -260,14 +267,42 @@ export function createMusic3GenRuntimeController(deps: ControllerDeps) {
 
   function checkWeightsDir(dir: string): { ready: boolean; reason: string } {
     if (!dir) return { ready: false, reason: "未指定权重目录" };
-    if (!fs.existsSync(dir)) return { ready: false, reason: `权重目录不存在: ${dir}` };
+    let root: fs.Stats;
+    try {
+      root = fs.statSync(dir);
+    } catch {
+      return { ready: false, reason: `权重目录不存在: ${dir}` };
+    }
+    if (!root.isDirectory()) return { ready: false, reason: `权重路径不是目录: ${dir}` };
+    if (fs.existsSync(path.join(dir, ".incomplete"))) {
+      return { ready: false, reason: `权重目录存在 .incomplete 标记: ${dir}` };
+    }
+    if (!fs.existsSync(path.join(dir, "config.json"))) {
+      return { ready: false, reason: "缺少权重配置 config.json" };
+    }
+    try {
+      if (fs.statSync(path.join(dir, "config.json")).size <= 0) {
+        return { ready: false, reason: "权重配置 config.json 为空" };
+      }
+    } catch {
+      return { ready: false, reason: "无法读取权重配置 config.json" };
+    }
     for (const name of MLXSERV_REQUIRED_WEIGHTS) {
-      if (!fs.existsSync(path.join(dir, name))) {
-        return { ready: false, reason: `缺少权重文件 ${name}(应为 MiniMax-Music3 MLX 转换产物目录,8bit/bf16 均可)` };
+      const weightPath = path.join(dir, name);
+      try {
+        if (!fs.statSync(weightPath).isFile() || fs.statSync(weightPath).size <= 0) {
+          return { ready: false, reason: `权重文件 ${name} 为空或不是文件` };
+        }
+      } catch {
+        return { ready: false, reason: `缺少权重文件 ${name}(应为 MiniMax-Music3 MLX bf16 转换产物目录)` };
       }
     }
     for (const name of MLXSERV_REQUIRED_DIRS) {
-      if (!fs.statSync(path.join(dir, name)).isDirectory()) {
+      try {
+        if (!fs.statSync(path.join(dir, name)).isDirectory()) {
+          return { ready: false, reason: `缺少目录 ${name}/` };
+        }
+      } catch {
         return { ready: false, reason: `缺少目录 ${name}/` };
       }
     }
@@ -734,6 +769,9 @@ export function createMusic3GenRuntimeController(deps: ControllerDeps) {
         repoId: "PocketAiHub/MiniMax-Music3-MLX",
         availability: available ? "ok" : "unsupported",
         unsupportedReason: available ? undefined : parsed.availability?.reason,
+        layout: parsed.layout,
+        modelDir: parsed.modelDir,
+        engine: parsed.engine,
       }];
       return state.models;
     } catch {
@@ -817,7 +855,7 @@ export function createMusic3GenRuntimeController(deps: ControllerDeps) {
         refreshDownloadState();
         void scanModelInventory();
       });
-      return { accepted: true, message: "MiniMax-Music3 模型下载已开始(约 12 GB)" };
+      return { accepted: true, message: "MiniMax-Music3 模型下载已开始(约 28.5 GB,bf16)" };
     } catch (error) {
       state.downloadStatus = "error";
       state.downloadError = error instanceof Error ? error.message : String(error);

@@ -48,6 +48,8 @@ import { checkDepthModelReady } from "./depth-model-precheck";
 import { getDepthRuntimeBridge } from "@/lib/bridge/depth-runtime";
 import { selectCinematicPresets } from "@/lib/studio/cinematic-preset-ai";
 import { selectShotFxMotions } from "@/lib/studio/remotion/shot-fx-ai";
+import { buildShotColorMoodLine } from "@/lib/studio/storyboard-frame-prompt";
+import { getExtendedStoryboardFactionData } from "@/lib/studio/visual-manual-style-tokens";
 import {
   filterNarratorVoiceFamily,
   resolveNarratorShotProfile,
@@ -393,6 +395,17 @@ export function useChapterAutoVideoActions({
                   shotId: storyboard.id,
                   description: String(storyboard.videoDesc ?? storyboard.prompt ?? ""),
                   dialogue: String(storyboard.ttsSpokenText ?? ""),
+                  // 逐镜配色锚(08-28 两套色彩系统衔接):阵营色方向供 LUT 选卡同向,
+                  // 数据未预热/旧镜无语义时为空串→省略,prompt 零变化。
+                  colorMood: buildShotColorMoodLine(
+                    {
+                      assetNames: storyboard.associateAssetsNames,
+                      visibleCharacterNames: storyboard.shotSemantics?.visibleCharacters?.map(
+                        (character) => character.name,
+                      ),
+                    },
+                    getExtendedStoryboardFactionData(),
+                  ) || undefined,
                 })),
               );
               if (selection.source !== "empty") {

@@ -1065,7 +1065,7 @@ const chapterQcIpc = registerChapterQcIpcHandlers({
 const audioGenRuntimeController = createAudioGenRuntimeController({
   storageBasePath: getStorageBasePath,
   backendRoot: videoWorkflowBackendRoot,
-  modelCacheDir: () => ttsRuntimeController.getModelCacheDir(),
+  modelCacheDir: () => audioModelCacheDir(getStorageBasePath()),
 })
 const audioGenIpc = registerAudioGenIpcHandlers({
   controller: audioGenRuntimeController,
@@ -1077,7 +1077,7 @@ const audioGenIpc = registerAudioGenIpcHandlers({
 const sfxGenRuntimeController = createSfxGenRuntimeController({
   storageBasePath: getStorageBasePath,
   backendRoot: videoWorkflowBackendRoot,
-  modelCacheDir: () => ttsRuntimeController.getModelCacheDir(),
+  modelCacheDir: () => sfxModelCacheDir(getStorageBasePath()),
 })
 const sfxGenIpc = registerSfxGenIpcHandlers({
   controller: sfxGenRuntimeController,
@@ -1085,11 +1085,11 @@ const sfxGenIpc = registerSfxGenIpcHandlers({
 })
 
 // MiniMax-Music3 (MLX) whole-song BGM engine (08-19-minimax-music3-engine) —
-// self-contained repo snapshot, native --seed; explicit download (~12 GB).
+// self-contained bf16 weight pack, native --seed; explicit download (~28.5 GB).
 const music3GenRuntimeController = createMusic3GenRuntimeController({
   storageBasePath: getStorageBasePath,
   backendRoot: videoWorkflowBackendRoot,
-  modelCacheDir: () => ttsRuntimeController.getModelCacheDir(),
+  modelCacheDir: () => music3ModelCacheDir(getStorageBasePath()),
 })
 const music3GenIpc = registerMusic3GenIpcHandlers({
   controller: music3GenRuntimeController,
@@ -1533,8 +1533,8 @@ async function readRemotionCurrentShotSlots(scope: { projectId: string; chapterI
 /**
  * 按场分段导出入队服务（渲染域 IPC → 本函数）：复用章级 projection 编译器
  * 拿同一 plan/slots，场结构由渲染域从分镜表原文推导后随请求传入，这里只做
- * 「分镜→渲染计划片段」的结构校验与帧分区。产物落项目 Remotion workspace
- * `jobs/chapter/<chapterId>/scenes/`，不走 current slot、不触发章级 QC。
+ * 「分镜→渲染计划片段」的结构校验与帧分区。产物落项目根
+ * `exports/<chapterId>/scenes/`，不走 current slot、不触发章级 QC。
  */
 async function enqueueChapterSceneSegments(
   request: RemotionQueueEnqueueChapterScenesRequest,
@@ -1578,14 +1578,14 @@ async function enqueueChapterSceneSegments(
     if (typeof manifest.contentHash !== 'string' || typeof manifest.templateVersion !== 'string') {
       return { accepted: false, message: 'Remotion bundle manifest 缺少 template/content hash' }
     }
-    const layerWorkspaceRoot = path.join(projectRootFor(request.projectId), 'remotion')
-    const workspaceRoot = layerWorkspaceRoot
+    const projectRoot = projectRootFor(request.projectId)
+    const layerWorkspaceRoot = path.join(projectRoot, 'remotion')
     const replySegments: RemotionQueueEnqueueChapterScenesReplySegment[] = []
     for (let index = 0; index < framePlan.segments.length; index += 1) {
       const segment = framePlan.segments[index]!
       const sceneRequest = request.segments.find((candidate) => candidate.sceneNo === segment.sceneNo)
       if (!sceneRequest) return { accepted: false, message: `场 ${segment.sceneNo} 缺少请求参数` }
-      const outputRelativePath = `jobs/chapter/${request.chapterId}/scenes/Sc${String(segment.sceneNo).padStart(2, '0')}_${sanitizeSceneSegmentName(segment.sceneName)}.mp4`
+      const outputRelativePath = `exports/${request.chapterId}/scenes/Sc${String(segment.sceneNo).padStart(2, '0')}_${sanitizeSceneSegmentName(segment.sceneName)}.mp4`
       const job = await createReadyRemotionChapterSceneJob({
         plan,
         currentShotSlots,
@@ -1622,7 +1622,7 @@ async function enqueueChapterSceneSegments(
             sceneNo: segment.sceneNo,
             jobId: result.job.jobId,
             outputRelativePath,
-            outputAbsolutePath: path.join(workspaceRoot, outputRelativePath),
+            outputAbsolutePath: path.join(projectRoot, outputRelativePath),
             frameRange: [segment.startFrame, segment.endFrame],
           })
           continue
@@ -1633,7 +1633,7 @@ async function enqueueChapterSceneSegments(
         sceneNo: segment.sceneNo,
         jobId: result.job.jobId,
         outputRelativePath,
-        outputAbsolutePath: path.join(workspaceRoot, outputRelativePath),
+        outputAbsolutePath: path.join(projectRoot, outputRelativePath),
         frameRange: [segment.startFrame, segment.endFrame],
       })
     }

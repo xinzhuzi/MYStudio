@@ -5,7 +5,7 @@ import os from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
-import { createMusic3GenRuntimeController } from "./music3-gen-runtime-controller";
+import { createMusic3GenRuntimeController, MLXSERV_DEFAULT_PORT } from "./music3-gen-runtime-controller";
 
 let storageRoot: string;
 let backendRoot: string;
@@ -129,8 +129,15 @@ describe("music3 hardware gating (平台×模型选择)", () => {
 });
 
 describe("mlx-serve 指向路线(08-19-music3-mlxserv-connector)", () => {
+  it("默认服务端口与当前 mlx-serve 约定一致", () => {
+    const controller = makeController(async () => ({ stdout: probePayload() }));
+    expect(MLXSERV_DEFAULT_PORT).toBe(11273);
+    expect(controller.status().mlxServ?.config.port).toBe(11273);
+  });
+
   function makeWeightsDir(): string {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), "mlxserv-weights-"));
+    fs.writeFileSync(path.join(dir, "config.json"), "{}", "utf8");
     for (const name of [
       "language_model.safetensors",
       "rvq_depth_decoder.safetensors",
@@ -197,6 +204,24 @@ describe("mlx-serve 指向路线(08-19-music3-mlxserv-connector)", () => {
     fs.rmSync(weightsDir, { recursive: true, force: true });
   });
 
+  it("inventory 保留 Python probe 识别出的布局、实际目录和引擎入口", async () => {
+    const modelDir = path.join(storageRoot, "model", "minimax", "music3-mlxserv-bf16");
+    const controller = makeController(async () => ({
+      stdout: probePayload({
+        layout: "mlxserv",
+        modelDir,
+        engine: "mlx-serve",
+        workerRunnable: false,
+      }),
+    }));
+    const models = await controller.scanModelInventory();
+    expect(models[0]).toMatchObject({
+      layout: "mlxserv",
+      modelDir,
+      engine: "mlx-serve",
+    });
+  });
+
   it("目录不完整:明确原因,生成被拒", async () => {
     const partial = fs.mkdtempSync(path.join(os.tmpdir(), "mlxserv-partial-"));
     const controller = makeController(async () => ({ stdout: probePayload() }));
@@ -206,6 +231,20 @@ describe("mlx-serve 指向路线(08-19-music3-mlxserv-connector)", () => {
     expect(result.status).toBe("blocked");
     expect(result.message).toContain("mlx-serve 权重未就绪");
     fs.rmSync(partial, { recursive: true, force: true });
+  });
+
+  it("权重目录存在 incomplete 标记或空文件时 fail-closed", () => {
+    const weightsDir = makeWeightsDir();
+    fs.writeFileSync(path.join(weightsDir, "transformer.safetensors"), "", "utf8");
+    const controller = makeController(async () => ({ stdout: probePayload() }));
+    controller.configureMlxServ({ weightsDir, binaryPath: "/nonexistent/mlx-serve" });
+    expect(controller.status().mlxServ?.weightsReady).toBe(false);
+    expect(controller.status().mlxServ?.weightsReason).toContain("为空");
+    fs.writeFileSync(path.join(weightsDir, "transformer.safetensors"), "x", "utf8");
+    fs.writeFileSync(path.join(weightsDir, ".incomplete"), "partial", "utf8");
+    expect(controller.status().mlxServ?.weightsReady).toBe(false);
+    expect(controller.status().mlxServ?.weightsReason).toContain(".incomplete");
+    fs.rmSync(weightsDir, { recursive: true, force: true });
   });
 
   it("生成成功:HTTP → WAV 落盘 + 元数据 + engine=mlx-serve", async () => {
@@ -336,6 +375,7 @@ describe("mlxserv bf16 权重获取(installMlxServWeights)", () => {
 
   function makeWeightsDirLocal(): string {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), "mlxserv-weights-install-"));
+    fs.writeFileSync(path.join(dir, "config.json"), "{}", "utf8");
     for (const name of [
       "language_model.safetensors",
       "rvq_depth_decoder.safetensors",
@@ -443,6 +483,7 @@ describe("mlxserv bf16 权重获取(installMlxServWeights)", () => {
 describe("歌词人声链路(lyrics 透传+防静默降级)", () => {
   function makeWeightsDir(): string {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), "mlxserv-lyrics-"));
+    fs.writeFileSync(path.join(dir, "config.json"), "{}", "utf8");
     for (const name of ["language_model.safetensors", "rvq_depth_decoder.safetensors", "transformer.safetensors", "condition_encoder.safetensors", "vocoder.safetensors"]) {
       fs.writeFileSync(path.join(dir, name), "x");
     }

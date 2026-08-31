@@ -770,7 +770,7 @@ export function Dashboard({
                 <span className="dashboard-kicker-line" />
                 <span>电影级 AI 漫剧工作流</span>
               </div>
-              <h2 className="dashboard-title text-3xl font-bold text-foreground">漫影工作室</h2>
+              <h2 className="dashboard-title text-foreground">漫影工作室</h2>
               <div className="dashboard-title-rule" />
               <div className="dashboard-stage-row mt-5">
                 {dashboardStages.map(({ label, detail, icon: StageIcon }) => (

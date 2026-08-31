@@ -79,6 +79,47 @@ export function selectStoryboardFrameTemplate(
 }
 
 /**
+ * 复合资产名拆分(08-28 无色根修):资产标题常为「李先生;管事」「监工赵四;赵四」
+ * 复合记法,阵营表键是单名——按半/全角分号拆开逐段匹配,先整名后分段。
+ */
+export function splitCompoundAssetName(name: string): string[] {
+  return name.split(/[;；]/).map((part) => part.trim()).filter(Boolean);
+}
+
+export function resolveAssetFaction(
+  name: string,
+  members: Record<string, string>,
+): string | undefined {
+  const trimmed = name.trim();
+  if (!trimmed) return undefined;
+  if (members[trimmed]) return members[trimmed];
+  for (const part of splitCompoundAssetName(trimmed)) {
+    if (members[part]) return members[part];
+  }
+  return undefined;
+}
+
+type FactionData = {
+  members: Record<string, string>;
+  palette: Record<string, { person: string; scene: string; prop?: string }>;
+};
+
+/** 轨道首次命中行「(阵营·轨道)五职责串」;未命中空串。 */
+function pickFactionTrackLine(
+  names: string[] | undefined,
+  track: "person" | "scene" | "prop",
+  faction: FactionData,
+): string {
+  for (const name of names ?? []) {
+    const factionName = resolveAssetFaction(name, faction.members);
+    const combo = factionName ? faction.palette[factionName] : undefined;
+    const text = combo?.[track];
+    if (text) return `(${factionName}·${track === "person" ? "人物" : track === "scene" ? "场景" : "道具"})${text}`;
+  }
+  return "";
+}
+
+/**
  * 阵营色彩职责段(ma-faction-palette-v1):场景名→scene 轨、角色名→person 轨、
  * 道具名→prop 轨(条件注入·弱倾向:材质色优先+小纹样,对齐 MA faction_visual_locks 政策),
  * 各自去重取一(同轨多阵营时取首个命中),拼「【色彩】(阵营·轨道):五职责串」。
@@ -108,9 +149,22 @@ export function buildStoryboardFactionColorSection(
 }
 
 /**
+ * 压缩五职责串为 主/辅/点睛 三职责(配色锚紧凑形态,08-28 蓝图样例口径):
+ * 底色跨阵营恒为纸白系、墨线恒为浓/淡墨,对 LUT 选向零区分度,只占 prompt 字数
+ * (82 镜全带锚时省 ~40% 字符,防撑爆输入上限逼 AI 链静默跌落启发式)。
+ */
+function compactFactionDutyText(text: string): string {
+  return text
+    .split("+")
+    .filter((segment) => !segment.startsWith("底色") && !segment.startsWith("墨线"))
+    .join("+");
+}
+
+/**
  * 逐镜配色锚(08-28 两套色彩系统衔接):为成片 AI 选卡(LUT)提供本镜阵营色方向。
  * 人物轨=visibleCharacterNames;场景轨=assetNames 中能命中阵营表且不与人物名重叠者
- * (复合名分段互斥)。输出不带【色彩】头的紧凑串,无命中空串(fail-empty,
+ * (复合名分段互斥)。输出不带【色彩】头的紧凑三职责串,如
+ * "(人族·场景)主色赭石+辅色栗褐+点睛藤黄";无命中空串(fail-empty,
  * 未预热/旧镜无语义数据时提示词零变化)。
  */
 export function buildShotColorMoodLine(
@@ -130,11 +184,17 @@ export function buildShotColorMoodLine(
       return !parts.some((part) => personParts.has(part))
         && resolveAssetFaction(name, faction.members) !== undefined;
     });
-  const body = [
+  const compactTrackLine = (line: string): string => {
+    const close = line.indexOf(")");
+    return close < 0 ? compactFactionDutyText(line) : line.slice(0, close + 1) + compactFactionDutyText(line.slice(close + 1));
+  };
+  return [
     pickFactionTrackLine(persons, "person", faction),
     pickFactionTrackLine(scenes, "scene", faction),
-  ].filter(Boolean).join("; ");
-  return body;
+  ]
+    .filter(Boolean)
+    .map(compactTrackLine)
+    .join("; ");
 }
 
 export type PaletteTemperature = "warm" | "cool" | "neutral";
@@ -274,7 +334,8 @@ export function adaptTemplateBriefToCastCount(
 
 /**
  * 按手册装配顺序组装分镜帧正文:【画面】题材事实 +【构图】模板要点(+【色彩】阵营职责)。
- * 模板要点先经 adaptTemplateBriefToCastCount 按画面人物数自适应(08-28 R18)。
+ * 模板要点先经镜头类型自适应(08-29 行进镜)与人物数自适应(R18);
+ * 台词语境过滤画外音说话人(旁白/OS/V.S. 不入画)。
  * 风格 token 由调用方(withActiveVisualManualStoryboardStyleTokens)追加,负面词
  * 走 Negative Prompt,均不在本函数重复。手册未预热(无模板)时退化为裸描述。
  */

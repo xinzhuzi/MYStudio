@@ -20,6 +20,12 @@ import {
 } from "../layered-generation";
 import { useAppSettingsStore } from "@/stores/app/app-settings-store";
 import { buildContinuityPrompt } from "../visual-continuity";
+import {
+  generatedSlotPosition,
+  nextStackedPosition,
+  promptSlotPosition,
+  referenceSlotPosition,
+} from "./layout";
 
 export interface CreateImageWorkflowGraphInput {
   id?: string;
@@ -138,7 +144,9 @@ export function createAssetImageWorkflowGraph(
             id: context.target.parentId,
           }
         : undefined,
-      position: { x: 80, y: 100 },
+      // 两列+泳道布局:参考图在输入列(提示词之下),成图列右置,
+      // 「输入→成图」连线全走中间空泳道,不被卡片遮挡
+      position: referenceSlotPosition(0, 1),
     });
   }
   graph = addGeneratedImageNode(graph, {
@@ -147,7 +155,7 @@ export function createAssetImageWorkflowGraph(
     prompt: context.prompt ?? "",
     aspectRatio: useAppSettingsStore.getState().imageGenerationSettings.defaultAspectRatio,
     quality: "standard",
-    position: { x: 620, y: 120 },
+    position: generatedSlotPosition(0),
   });
   graph = addPromptImageNode(graph, {
     id: createId("prompt"),
@@ -157,7 +165,7 @@ export function createAssetImageWorkflowGraph(
     resolution: useAppSettingsStore.getState().imageGenerationSettings.defaultResolution,
     quality: "standard",
     targetNodeId: generatedNodeId,
-    position: { x: 560, y: 500 },
+    position: promptSlotPosition(0),
   });
   if (context.resultImagePath) {
     graph = setGeneratedImageResult(graph, generatedNodeId, {
@@ -206,7 +214,7 @@ export function ensureAssetImageWorkflowGraph(
             id: context.target.parentId,
           }
         : undefined,
-      position: { x: 80, y: 100 },
+      position: nextStackedPosition(next.nodes, "reference"),
     });
   }
 
@@ -221,7 +229,7 @@ export function ensureAssetImageWorkflowGraph(
       prompt: context.prompt ?? "",
       aspectRatio: useAppSettingsStore.getState().imageGenerationSettings.defaultAspectRatio,
       quality: "standard",
-      position: { x: 620, y: 120 },
+      position: nextStackedPosition(next.nodes, "generated"),
     });
     generated = next.nodes.find(
       (node): node is ImageWorkflowGeneratedNode => node.id === generatedNodeId && node.type === "generated",
@@ -249,7 +257,7 @@ export function ensureAssetImageWorkflowGraph(
         quality: generated.quality,
         resolution: generated.resolution ?? useAppSettingsStore.getState().imageGenerationSettings.defaultResolution,
         targetNodeId: generated.id,
-        position: { x: 560, y: generated.position.y + 380 },
+        position: nextStackedPosition(next.nodes, "prompt"),
       });
     } else if (context.prompt && !promptNode.prompt.trim()) {
       next = updateImageWorkflowNode(next, promptNode.id, {
@@ -293,7 +301,7 @@ export function ensureImageWorkflowPromptNodes(graph: ImageWorkflowGraph): Image
         quality: generated.quality,
         resolution: generated.resolution ?? useAppSettingsStore.getState().imageGenerationSettings.defaultResolution,
         targetNodeId: generated.id,
-        position: { x: generated.position.x - 60, y: generated.position.y + 380 },
+        position: nextStackedPosition(next.nodes, "prompt"),
       });
       promptNode = findPromptNodeForGenerated(next, generated.id);
     }
@@ -359,7 +367,7 @@ export function createStoryboardImageWorkflowGraph({
       wardrobeVersion: reference.wardrobeVersion,
       characterViewType: reference.characterViewType,
       sceneViewpointId: reference.sceneViewpointId,
-      position: { x: 80, y: 80 + index * 180 },
+      position: referenceSlotPosition(index, 1),
     });
   });
   graph = addGeneratedImageNode(graph, {
@@ -370,7 +378,7 @@ export function createStoryboardImageWorkflowGraph({
     aspectRatio: aspectRatio ?? useAppSettingsStore.getState().imageGenerationSettings.defaultAspectRatio,
     quality: "standard",
     resolution,
-    position: { x: referenceImages.length ? 620 : 160, y: 120 },
+    position: generatedSlotPosition(0),
   });
   graph = addPromptImageNode(graph, {
     id: createId("prompt"),
@@ -381,7 +389,7 @@ export function createStoryboardImageWorkflowGraph({
     quality: "standard",
     resolution,
     targetNodeId: generatedNodeId,
-    position: { x: orderedReferences.length ? 560 : 160, y: 500 },
+    position: promptSlotPosition(0),
   });
   for (const reference of graph.nodes.filter((node) => node.type === "reference")) {
     graph = connectImageWorkflowNodes(graph, {
@@ -736,19 +744,22 @@ export function addStoryboardLayeredNodes(
     idPrefix: "gen-bg" | "gen-subj",
     prompt: string,
     negativePrompt: string,
-    y: number,
     references: readonly ImageWorkflowReferenceNode[],
   ) => {
     const generatedNodeId = createId(idPrefix, now);
     const promptNodeId = createId(`${idPrefix}-prompt`, now);
     const imageSettings = useAppSettingsStore.getState().imageGenerationSettings;
+    // 两列+泳道:该层成图占成图列下一空位,提示词进输入列下一空位,
+    // 克隆参考随后堆输入列——所有连线走中间泳道,不穿卡片。
+    const generatedPosition = nextStackedPosition(base.nodes, "generated");
+    const promptPosition = nextStackedPosition(base.nodes, "prompt");
     let next = addGeneratedImageNode(base, {
       id: generatedNodeId,
       title,
       prompt,
       negativePrompt,
       model: inheritedModel,
-      position: { x: 620, y },
+      position: generatedPosition,
       createdAt: now,
     });
     next = addPromptImageNode(next, {
@@ -760,7 +771,7 @@ export function addStoryboardLayeredNodes(
       aspectRatio: imageSettings.defaultAspectRatio,
       resolution: imageSettings.defaultResolution,
       targetNodeId: generatedNodeId,
-      position: { x: 320, y: y + 180 },
+      position: promptPosition,
       createdAt: now,
     });
     next = connectImageWorkflowNodes(next, { source: promptNodeId, target: generatedNodeId }, now);
@@ -783,7 +794,7 @@ export function addStoryboardLayeredNodes(
         wardrobeVersion: reference.wardrobeVersion,
         characterViewType: reference.characterViewType,
         sceneViewpointId: reference.sceneViewpointId,
-        position: { x: 40, y: y + index * 180 },
+        position: nextStackedPosition(next.nodes, "reference"),
         createdAt: now,
       });
       next = connectImageWorkflowNodes(next, { source: cloneId, target: generatedNodeId }, now);
@@ -799,7 +810,6 @@ export function addStoryboardLayeredNodes(
       "gen-bg",
       buildBackgroundPlatePrompt(basePrompt),
       BACKGROUND_PLATE_NEGATIVE_ANCHORS.join(", "),
-      340,
       sceneRefs,
     );
   }
@@ -810,7 +820,6 @@ export function addStoryboardLayeredNodes(
       "gen-subj",
       buildSubjectCutoutPrompt(basePrompt, input.characterPrompt ?? basePrompt),
       SUBJECT_CUTOUT_NEGATIVE_ANCHORS.join(", "),
-      560,
       characterRefs,
     );
   }

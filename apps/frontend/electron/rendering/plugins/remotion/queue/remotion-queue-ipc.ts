@@ -61,7 +61,7 @@ export interface RemotionQueueEnqueueChapterScenesRequest {
 export interface RemotionQueueEnqueueChapterScenesReplySegment {
   sceneNo: number;
   jobId: string;
-  /** 相对项目 Remotion workspace 的产物路径。 */
+  /** 相对项目根的产物路径（exports/<chapterId>/scenes/...）。 */
   outputRelativePath: string;
   /** 绝对路径（渲染域登记 sceneSegments 用）。 */
   outputAbsolutePath: string;

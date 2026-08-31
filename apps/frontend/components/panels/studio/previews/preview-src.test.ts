@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { toPreviewSrc, withThumbVariant } from "./preview-src";
+import { toPreviewSrc, withThumbVariant } from "@/lib/media/preview-src";
 
 describe("preview src helpers", () => {
   it("keeps toPreviewSrc semantics unchanged", () => {

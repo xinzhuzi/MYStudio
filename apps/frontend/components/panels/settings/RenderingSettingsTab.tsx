@@ -26,6 +26,8 @@ import { useVideoWorkflowPlugins } from "./useVideoWorkflowPlugins";
 import type { VideoWorkflowPluginId, VideoWorkflowPluginStatusV1 } from "@rendering/contracts/video-workflow";
 import { useStudioStore } from "@/stores/studio/studio-store";
 import { CINEMATIC_LUTS } from "@/lib/studio/remotion/cinematic-luts";
+import { detectChapterGradeTemperatureConflict } from "@/lib/studio/remotion/chapter-grade-conflict";
+import { getExtendedStoryboardFactionData } from "@/lib/studio/visual-manual-style-tokens";
 import {
   DEFAULT_SUBTITLE_FONT_ID,
   SUBTITLE_FONT_CATEGORIES,
@@ -126,6 +128,7 @@ export function RenderingSettingsTab({ embedded = false }: RenderingSettingsTabP
   const plugins = useVideoWorkflowPlugins();
   const workflowConfig = useStudioStore((state) => state.workflowConfig);
   const setWorkflowConfig = useStudioStore((state) => state.setWorkflowConfig);
+  const storyboards = useStudioStore((state) => state.storyboards);
   const selectedSubtitleFont = workflowConfig.subtitleFont ?? DEFAULT_SUBTITLE_FONT_ID;
   // 自定义字体：主进程 <userData>/SubtitleFonts 管理，UI 侧 FontFace 挂样张。
   const [customFonts, setCustomFonts] = React.useState<Array<{ id: string; label: string; family: string; fileName: string; sizeBytes: number }>>([]);
@@ -491,17 +494,17 @@ export function RenderingSettingsTab({ embedded = false }: RenderingSettingsTabP
                         </div>
                       </div>
 
-                      {/* 章节色调（08-19 导演定调）：钉死一张中国风色卡统一全章 grade */}
+                      {/* 章节色调（08-19 导演定调）：钉死一张中国风成片调色卡统一全章 grade */}
                       <div className="space-y-3 border-t border-border pt-4">
                         <div className="space-y-1">
                           <h5 className="font-medium text-foreground flex items-center gap-2">
                             <Palette className="h-4 w-4" aria-hidden="true" />
                             章节色调（导演定调）
                           </h5>
-                          <p className="text-xs text-muted-foreground">钉死一张中国风色卡统一全章调色，跳过 AI 逐镜选卡；缺省=AI 自动。对新发起的一键成片生效。</p>
+                          <p className="text-xs text-muted-foreground">钉死一张中国风成片调色卡统一全章调色，跳过 AI 逐镜选卡；缺省=AI 自动。对新发起的一键成片生效。这里选的是成片渲染期的整体调色（LUT），与分镜生图的配色盘（画面内容色）是两个阶段。</p>
                         </div>
                         <div className="grid gap-3 md:grid-cols-[5rem_minmax(0,1fr)_auto] items-center">
-                          <span className="text-xs text-muted-foreground">色卡</span>
+                          <span className="text-xs text-muted-foreground">成片调色卡</span>
                           <Select
                             value={workflowConfig.chapterGrade?.lutId ?? "auto"}
                             onValueChange={(value) => {
@@ -514,7 +517,7 @@ export function RenderingSettingsTab({ embedded = false }: RenderingSettingsTabP
                               });
                             }}
                           >
-                            <SelectTrigger className="min-w-0" aria-label="章节色调色卡">
+                            <SelectTrigger className="min-w-0" aria-label="章节色调成片调色卡">
                               <SelectValue />
                             </SelectTrigger>
                             <SelectContent>
@@ -556,6 +559,21 @@ export function RenderingSettingsTab({ embedded = false }: RenderingSettingsTabP
                             {(workflowConfig.chapterGrade?.blend ?? 0.5).toFixed(2)}
                           </span>
                         </div>
+                        {/* 钉死卡与本章主导阵营盘温感反向→非阻塞提示(08-28 两套色彩系统衔接;
+                            数据未预热/无阵营命中/neutral 一律不显示,永不误报) */}
+                        {(() => {
+                          const conflict = detectChapterGradeTemperatureConflict(
+                            workflowConfig.chapterGrade?.lutId,
+                            storyboards,
+                            getExtendedStoryboardFactionData(),
+                          );
+                          if (!conflict) return null;
+                          return (
+                            <p className="text-xs leading-5 text-warning" role="status">
+                              {conflict.message}
+                            </p>
+                          );
+                        })()}
                       </div>
 
                       {/* 氛围层（08-19 multilayer Child2）：全章关闭=人工覆盖最小面 */}

@@ -19,7 +19,7 @@ function installBridge(overrides: {
     downloadError: undefined,
     hostTotalRamGb: 128,
     mlxServ: {
-      config: { weightsDir: "", binaryPath: "", port: 11273, preferredEngine: "pocket" },
+      config: { weightsDir: "", binaryPath: "", port: 11234, preferredEngine: "pocket" },
       weightsReady: false,
       weightsReason: "未指定权重目录",
       binaryPath: null,
@@ -64,7 +64,7 @@ describe("LocalAudioSettingsSection · mlx-serve bf16 权重获取 UI", () => {
         downloadError: undefined,
         hostTotalRamGb: 128,
         mlxServ: {
-          config: { weightsDir: "", binaryPath: "", port: 11273, preferredEngine: "pocket" },
+          config: { weightsDir: "", binaryPath: "", port: 11234, preferredEngine: "pocket" },
           weightsReady: false,
           weightsReason: "未指定权重目录",
           binaryPath: null,
@@ -92,7 +92,7 @@ describe("LocalAudioSettingsSection · mlx-serve bf16 权重获取 UI", () => {
         downloadError: undefined,
         hostTotalRamGb: 128,
         mlxServ: {
-          config: { weightsDir: "/Users/x/Project/Models/minimax-music3-mlx-bf16", binaryPath: "", port: 11273, preferredEngine: "mlxserv" },
+          config: { weightsDir: "/Users/x/Project/Models/minimax-music3-mlx-bf16", binaryPath: "", port: 11234, preferredEngine: "mlxserv" },
           weightsReady: true,
           weightsReason: "",
           binaryPath: null,

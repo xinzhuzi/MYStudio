@@ -22,6 +22,11 @@
     "assets → studio": [
      "components/panels/assets/StudioAssetLibrary.tsx imports components/panels/studio/use-direct-image-upscale"
     ],
+    "assist → studio": [
+     "components/panels/assist/image-studio/ImageStudioCanvas.tsx imports components/panels/studio/CanvasViewportControls",
+     "components/panels/assist/image-studio/ImageStudioCanvas.tsx imports components/panels/studio/previews/interaction-defer-hint",
+     "components/panels/assist/image-studio/ImageStudioCanvas.tsx imports components/panels/studio/use-canvas-gesture-kernel"
+    ],
     "overview → studio": [
      "components/panels/overview/stage-guide.test.ts imports components/panels/studio/workflow-tabs",
      "components/panels/overview/stage-guide.ts imports components/panels/studio/workflow-tabs"
@@ -42,7 +47,7 @@
      "components/panels/studio/NovelTab.tsx imports components/panels/media/ArtifactDeleteDialog"
     ]
    },
-   "edge_count": 7
+   "edge_count": 8
   },
   "frontend_fanout_top": {
    "top": [
@@ -52,11 +57,11 @@
     },
     {
      "file": "components/panels/sclass/sclass-scenes.tsx",
-     "imports": 47
+     "imports": 38
     },
     {
      "file": "components/panels/director/split-scenes.tsx",
-     "imports": 44
+     "imports": 37
     },
     {
      "file": "components/panels/script/index.tsx",
@@ -67,7 +72,7 @@
      "imports": 33
     },
     {
-     "file": "components/panels/assets/StudioAssetDetailDialog.tsx",
+     "file": "components/panels/studio/image-workflow/ImageWorkflowCanvas.tsx",
      "imports": 32
     },
     {
@@ -87,11 +92,11 @@
      "imports": 28
     },
     {
-     "file": "components/panels/characters/generation-panel.tsx",
-     "imports": 27
+     "file": "components/panels/assets/StudioAssetDetailDialog.tsx",
+     "imports": 28
     },
     {
-     "file": "components/panels/studio/image-workflow/ImageWorkflowCanvas.tsx",
+     "file": "components/panels/characters/generation-panel.tsx",
      "imports": 27
     },
     {
@@ -101,10 +106,6 @@
     {
      "file": "components/panels/assets/StudioAssetLibrary.tsx",
      "imports": 26
-    },
-    {
-     "file": "components/Layout.tsx",
-     "imports": 25
     },
     {
      "file": "electron/rendering/plugins/remotion/renderer/remotion-chapter-renderer.ts",

@@ -115,10 +115,12 @@ export function getAllFeatureConfigs(feature: AIFeature): FeatureConfig[] {
 /**
  * Get configuration for an AI feature (with round-robin for multi-model)
  * Returns null if feature is not configured (no provider bound or no API key)
- * 
+ *
  * v2: 支持多模型轮询
+ * quiet: 只读探测(isFeatureReady/渲染期可用性检查)不告警——未绑定是正常配置态,
+ * 组件每次渲染都探测,告警会刷屏;真实调用路径保持告警。
  */
-export function getFeatureConfig(feature: AIFeature): FeatureConfig | null {
+export function getFeatureConfig(feature: AIFeature, options?: { quiet?: boolean }): FeatureConfig | null {
   const configs = getAllFeatureConfigs(feature);
   
   if (configs.length === 0) {
@@ -152,7 +154,7 @@ export function getFeatureConfig(feature: AIFeature): FeatureConfig | null {
         }
       }
     }
-    console.warn(`[FeatureRouter] No provider bound for feature: ${feature}`);
+    if (!options?.quiet) console.warn(`[FeatureRouter] No provider bound for feature: ${feature}`);
     return null;
   }
   
@@ -187,7 +189,7 @@ export function resetFeatureRoundRobin(feature?: AIFeature): void {
  * Check if a feature is properly configured
  */
 export function isFeatureReady(feature: AIFeature): boolean {
-  return getFeatureConfig(feature) !== null;
+  return getFeatureConfig(feature, { quiet: true }) !== null;
 }
 
 /**

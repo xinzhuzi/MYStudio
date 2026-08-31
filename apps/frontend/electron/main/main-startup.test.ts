@@ -19,6 +19,13 @@ const apiRequestIpcSource = readFileSync(new URL("../ipc/ai/api-request-ipc.ts",
 const assetLibraryIpcSource = readFileSync(new URL("../ipc/assets/asset-library-ipc.ts", import.meta.url), "utf8");
 
 describe("main process startup", () => {
+  it("routes generation runtimes to their model families instead of TTS cache", () => {
+    expect(mainSource).toContain("modelCacheDir: () => audioModelCacheDir(getStorageBasePath())");
+    expect(mainSource).toContain("modelCacheDir: () => sfxModelCacheDir(getStorageBasePath())");
+    expect(mainSource).toContain("modelCacheDir: () => music3ModelCacheDir(getStorageBasePath())");
+    expect(mainSource).not.toContain("modelCacheDir: () => ttsRuntimeController.getModelCacheDir()");
+  });
+
   it("consolidates Chromium session data under <userData>/Chromium before the single-instance lock", () => {
     const setPathIndex = mainSource.indexOf("app.setPath('sessionData'");
     const lockIndex = mainSource.indexOf("requestSingleInstanceLock()");

@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { ArrowLeft, ChevronLeft, ChevronRight, History, Image as ImageIcon, Loader2, Square } from "lucide-react";
+import { ArrowLeft, ChevronLeft, ChevronRight, Image as ImageIcon, Loader2, Square } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ResolutionBadge } from "@/components/ui/image-resolution-badge";
 import type { ImageWorkflowOpenContext, StoryboardItem } from "@/types/studio";
@@ -9,7 +9,6 @@ import { LocalImage } from "@/components/ui/local-image";
 import { handleDeferScroll } from "@/hooks/interaction-defer";
 import { InteractionDeferHint } from "./previews/interaction-defer-hint";
 import type { StoryboardBatchGenerationState } from "./image-workflow/use-storyboard-batch-generation";
-import { StoryboardKeyframeBackfillDialog } from "./StoryboardKeyframeBackfillDialog";
 
 /**
  * 分镜面板 — 当前章节全部分镜的全量视图(与单镜图片工作流严格区分)。
@@ -34,7 +33,6 @@ export function StoryboardPanelTab({
   };
 }) {
   const ordered = storyboards.slice().sort((a, b) => a.index - b.index);
-  const [backfillOpen, setBackfillOpen] = useState(false);
   const withImage = ordered.filter((item) => item.mediaRef?.kind === "image").length;
   const remaining = ordered.length - withImage;
 
@@ -99,19 +97,7 @@ export function StoryboardPanelTab({
             </Button>
           ) : null
         ) : null}
-        <Button
-          size="sm"
-          variant="outline"
-          data-storyboard-panel-backfill
-          title="导入回接脚本 mapping.json,把旧镜图接入新分镜的关键帧序列"
-          onClick={() => setBackfillOpen(true)}
-        >
-          <History className="h-3.5 w-3.5" />
-          回接旧镜图
-        </Button>
       </div>
-
-      <StoryboardKeyframeBackfillDialog open={backfillOpen} onClose={() => setBackfillOpen(false)} />
 
       {ordered.length ? (
         <div

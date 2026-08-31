@@ -60,7 +60,7 @@ export const DEFAULT_LOCAL_IMAGE_PROVIDER_ID = "manying-local-image";
 export const LOCAL_IMAGE_BASE_URL = "http://127.0.0.1:17595";
 /** Fixed local token — the sidecar accepts it as Bearer key (loopback only). */
 export const LOCAL_IMAGE_API_KEY = "manying-local-image";
-export const LOCAL_IMAGE_MODELS = ["flux2-klein-9b", "krea2-turbo", "z-image-turbo", "qwen-image-edit-2511"] as const;
+export const LOCAL_IMAGE_MODELS = ["flux2-klein-9b", "krea2-turbo", "z-image-turbo", "qwen-image-edit-2511", "comfyui-bridge"] as const;
 export const DEFAULT_LOCAL_IMAGE_MODEL = "krea2-turbo";
 
 export function createDefaultLocalImageProvider(): IProvider {

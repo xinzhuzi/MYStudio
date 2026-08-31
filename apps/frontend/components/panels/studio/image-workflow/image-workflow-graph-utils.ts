@@ -5,6 +5,10 @@ import {
   connectImageWorkflowNodes,
   createId,
   createImageWorkflowGraph,
+  generatedSlotPosition,
+  nextStackedPosition,
+  promptSlotPosition,
+  referenceSlotPosition,
   setGeneratedImageResult,
 } from "@/lib/studio/image-workflow";
 import { useAppSettingsStore } from "@/stores/app/app-settings-store";
@@ -38,13 +42,13 @@ import type {
   StudioMaterial,
 } from "@/types/studio";
 
+/**
+ * 手动加节点的落位:同类型列内最低卡片之下再落一张(布局单源
+ * lib/studio/image-workflow/layout)。旧版按同类计数×固定间距落位,
+ * 间距远小于实际卡高,加第二个节点起必与前者重叠。
+ */
 export function nextNodePosition(graph: ImageWorkflowGraph, type: ImageWorkflowNode["type"]) {
-  const count = graph.nodes.filter((node) => node.type === type).length;
-  return type === "reference"
-    ? { x: 80, y: 80 + count * 260 }
-    : type === "prompt"
-      ? { x: 560, y: 500 + count * 320 }
-      : { x: 620, y: 120 + count * 300 };
+  return nextStackedPosition(graph.nodes, type);
 }
 
 export function resolveGenerationTargetNodeId(graph: ImageWorkflowGraph, nodeId: string) {
@@ -279,7 +283,7 @@ export function ensureStoryboardAssetReferences(
       imageUrl: reference.imageUrl,
       source: { kind: "asset", assetType: reference.assetType, id: reference.assetId },
       continuityOrder: index + 1,
-      position: { x: 80, y: 100 + index * 180 },
+      position: nextStackedPosition(next.nodes, "reference"),
     });
   });
   const generatedNodeId = next.nodes.find((node) => node.type === "generated")?.id;
@@ -452,6 +456,11 @@ export function createOpenImageWorkflowGraph(
   const referenceImagePath = context.sourceImagePath || context.resultImagePath;
   const referenceNodeId = referenceImagePath ? createId("ref") : "";
   const imageSettings = useAppSettingsStore.getState().imageGenerationSettings;
+  // 关键帧序列声明上提:多帧流(2~4 帧)成对克隆 gen+prompt,输入列提示词区
+  // 须按帧数预留槽位,参考图才能排在所有提示词之下(两列+泳道布局)
+  const keyframes = (context.storyboardKeyframes ?? []).filter((frame) => frame.frameId);
+  const isMultiFrame = isStoryboard && keyframes.length > 1 && keyframes.length <= 4;
+  const frameSlotCount = isMultiFrame ? keyframes.length : 1;
   // 生图画幅跟随成片(用户裁定 08-27 晚:横屏视频,分镜图必须 16:9;
   // 全局设置曾是 1:1 方图导致分镜图乱七八糟)。资产/自由目标仍用用户设置。
   const genAspectRatio = isStoryboard
@@ -463,10 +472,12 @@ export function createOpenImageWorkflowGraph(
       title: context.target.kind === "storyboard" ? "当前分镜参考图" : "来源参考图",
       imageUrl: referenceImagePath,
       source: context.target,
-      position: { x: 80, y: 100 },
+      position: referenceSlotPosition(0, frameSlotCount),
     });
   }
-  const assetReferenceBaseY = referenceImagePath ? 280 : 100;
+  // 输入列垂直堆叠(布局单源):提示词区在上,来源参考图占参考区第 0 格,
+  // 资产参考依次向下;成图列右置,「输入→成图」连线全走中间空泳道,
+  // 不被卡片遮挡(2026-08-29 用户裁定)。
   context.assetReferences?.forEach((reference, index) => {
     graph = addReferenceImageNode(graph, {
       id: createId("asset-ref", Date.now() + index + 1),
@@ -474,14 +485,14 @@ export function createOpenImageWorkflowGraph(
       imageUrl: reference.imageUrl,
       source: { kind: "asset", assetType: reference.assetType, id: reference.assetId },
       continuityOrder: index + 1,
-      position: { x: 80, y: assetReferenceBaseY + index * 180 },
+      position: referenceSlotPosition((referenceImagePath ? 1 : 0) + index, frameSlotCount),
     });
   });
   graph = addGeneratedImageNode(graph, {
     id: generatedNodeId,
     title: `${context.title} 成图`,
     prompt,
-    position: { x: referenceImagePath ? 620 : 160, y: 120 },
+    position: generatedSlotPosition(0),
   });
   graph = addPromptImageNode(graph, {
     id: promptNodeId,
@@ -492,7 +503,7 @@ export function createOpenImageWorkflowGraph(
     resolution: imageSettings.defaultResolution,
     quality: "standard",
     targetNodeId: generatedNodeId,
-    position: { x: referenceImagePath ? 560 : 160, y: 500 },
+    position: promptSlotPosition(0),
   });
   if (context.resultImagePath) {
     graph = setGeneratedImageResult(graph, generatedNodeId, {
@@ -521,8 +532,7 @@ export function createOpenImageWorkflowGraph(
   // 关键帧序列(M1d,design §4.1):>1 帧时首对节点充当帧1,后续每帧克隆一对
   // gen+prompt;共享参考全部连到每个帧 gen;gen(k-1)→gen(k) 构成
   // previous-approved-frame 帧间连贯链;回接帧(已有图)预挂 resultUrl 入流。
-  const keyframes = (context.storyboardKeyframes ?? []).filter((frame) => frame.frameId);
-  if (isStoryboard && keyframes.length > 1 && keyframes.length <= 4) {
+  if (isMultiFrame) {
     const sharedRefSources = graph.edges
       .filter((edge) => edge.target === generatedNodeId && edge.source !== promptNodeId)
       .map((edge) => edge.source);
@@ -555,12 +565,13 @@ export function createOpenImageWorkflowGraph(
       const frame = keyframes[index];
       const frameGenId = createId("gen");
       const framePromptId = createId("prompt");
-      const frameGenY = 120 + index * 280;
+      // 每帧一对:提示词进输入列第 index 槽、成图进成图列第 index 槽
+      // (旧版堆叠间距小于卡高,多帧流从第二帧起互相层叠)。
       graph = addGeneratedImageNode(graph, {
         id: frameGenId,
         title: `${context.title} 成图 · 帧${index + 1}/${keyframes.length}`,
         prompt,
-        position: { x: referenceImagePath ? 620 : 160, y: frameGenY },
+        position: generatedSlotPosition(index),
         frameId: frame.frameId,
         frameMoment: frame.momentDescription,
       });
@@ -573,7 +584,7 @@ export function createOpenImageWorkflowGraph(
         resolution: imageSettings.defaultResolution,
         quality: "standard",
         targetNodeId: frameGenId,
-        position: { x: referenceImagePath ? 560 : 160, y: frameGenY + 380 },
+        position: promptSlotPosition(index),
       });
       for (const source of sharedRefSources) {
         graph = connectImageWorkflowNodes(graph, { source, target: frameGenId });

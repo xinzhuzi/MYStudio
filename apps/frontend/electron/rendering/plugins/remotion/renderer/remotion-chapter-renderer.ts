@@ -121,7 +121,7 @@ export interface RemotionChapterSceneSegmentSpec {
   storyboardIds: readonly string[];
   /** 闭区间帧范围（与整章同一 layoutVisualTimeline 布局轴）。 */
   frameRange: readonly [number, number];
-  /** 相对 Remotion workspace 的产物路径（jobs/chapter/<ep>/scenes/...）。 */
+  /** 相对项目根的产物路径（exports/<ep>/scenes/...）。 */
   outputRelativePath: string;
 }
 
@@ -745,7 +745,7 @@ export class RemotionChapterRenderer {
         // 场景分段产物：落 workspace 相对路径 + evidence 旁车文件，不发布
         // current slot、不写 renderPlan/snapshot（那是整章 current-slot 语义）。
         const finalRelative = input.sceneSegment.outputRelativePath;
-        const finalAbsolute = path.join(workspaceRoot, finalRelative);
+        const finalAbsolute = path.join(this.options.projectRootForProject(plan.projectId), finalRelative);
         const sceneJob: RemotionRenderJobV1 = {
           schemaVersion: 1,
           ...identity,
@@ -928,4 +928,3 @@ async function hashFile(filePath: string): Promise<string> {
   });
   return hash.digest("hex");
 }
-

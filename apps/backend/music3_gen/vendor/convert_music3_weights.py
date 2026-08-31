@@ -71,6 +71,22 @@ GROUP_SIZE = 64
 # a missing relation to `finetune` (tests/test_model_card_frontmatter.sh class).
 README = '---\nlicense: other\nlicense_name: minimax-music3-community-license\nlicense_link: LICENSE\nbase_model: MiniMaxAI/MiniMax-Music3\nbase_model_relation: quantized\nlibrary_name: mlx-serve\ntags:\n  - mlx\n  - mlx-serve\n  - music\n  - text-to-music\n  - minimax\npipeline_tag: text-to-audio\n---\n\n# MiniMax Music 3 for mlx-serve (8-bit)\n\n[MiniMax-Music3](https://huggingface.co/MiniMaxAI/MiniMax-Music3) converted for\n[mlx-serve](https://github.com/ddalcu/mlx-serve)\'s native Zig + MLX engine.\nFull songs with sung lyrics at 44.1 kHz stereo, generated locally on Apple\nSilicon.\n\nQuantization: affine 8-bit, group 64, on every real matmul (LLM, depth\ndecoder, DiT, lm_head). Kept dense on purpose: the embedding tables (gather\nreads), the condition encoder and the whole vocoder (VAE-class precision).\nWorst per-tensor reconstruction error 1.48% RMS. 13 GB on disk instead of the\n57 GB upstream repo (which ships its weights twice).\n\n| File | Contents |\n|---|---|\n| `language_model.safetensors` | Qwen3 8B global LLM, 36L, vocab 200k |\n| `rvq_depth_decoder.safetensors` | 0.6B local LLM, 7 residual codebooks |\n| `transformer.safetensors` | 2.4B flow-matching DiT, 36 blocks |\n| `condition_encoder.safetensors` | hidden-state mix + resampler, f32 |\n| `vocoder.safetensors` | Flow-VAE / DAC decoder, f32 |\n\nEngine parity against the fp32 reference on these exact weights: prefill\ncosine 0.9999, condition encoder 0.999999, DiT velocity 0.999, vocoder\n1.000000. The autoregressive stage runs about 44 ms per frame on an M-series\nMac, so a one-minute song takes roughly a minute of LLM time plus the\ndiffusion pass.\n\n## Run it\n\nDownload **[MLX Core.app](https://github.com/ddalcu/mlx-serve/releases/latest)**,\nopen the Music tab and pick **MiniMax Music 3**. Style prompt + lyrics in,\nWAV out.\n\nOver HTTP:\n\n```bash\nmlx-serve --serve\ncurl http://127.0.0.1:11234/v1/audio/music-generations \\\n  -H \'Content-Type: application/json\' -o song.wav -d \'{\n    "model": "MiniMax-Music3-MLX-Serve-8bit",\n    "prompt": "upbeat synthwave with driving bass and dreamy pads",\n    "lyrics": "[verse]\\nneon lights across the bay\\n[chorus]\\nwe run all night",\n    "duration_seconds": 60\n  }\'\n```\n\nLyrics are required (the model is lyric-conditioned) and structure tags like\n`[verse]` or `[chorus]` go on their own lines. `duration_seconds` (1-360) is\nan upper bound, the model may end the song earlier. ACE-Step style fields\n(bpm, keyscale, timesignature, vocal_language) do not exist on this model.\n\nRebuild from the upstream repo with\n[`scripts/convert_music3_weights.py`](https://github.com/ddalcu/mlx-serve/blob/main/scripts/convert_music3_weights.py).\n\nWeights are covered by the MiniMax-Music3 Community License (see `LICENSE`,\nacceptable-use policy included as Exhibit A).\n'
 
+# The vendored script still accepts legacy 4/8-bit builds, so preserve the
+# upstream card source and normalize the installer-supported bf16 route here.
+README = README.replace("MiniMax Music 3 for mlx-serve (8-bit)", "MiniMax Music 3 for mlx-serve (bf16)")
+README = README.replace("MiniMax-Music3-MLX-Serve-8bit", "MiniMax-Music3-MLX-Serve-bf16")
+README = README.replace("http://127.0.0.1:11234/v1/audio/music-generations", "http://127.0.0.1:11273/v1/audio/music-generations")
+README = README.replace(
+    """Quantization: affine 8-bit, group 64, on every real matmul (LLM, depth
+decoder, DiT, lm_head). Kept dense on purpose: the embedding tables (gather
+reads), the condition encoder and the whole vocoder (VAE-class precision).
+Worst per-tensor reconstruction error 1.48% RMS. 13 GB on disk instead of the
+57 GB upstream repo (which ships its weights twice).""",
+    """This pack is exported at bf16 (16-bit); no affine quantization is applied.
+The five component weights occupy approximately 28.5 GB on disk; the upstream
+repository is larger because it ships duplicate weight sets.""",
+)
+
 
 # Gather-read tables: dequantizing a row on every lookup buys nothing and costs
 # fidelity on the one table the whole autoregressive path indexes.

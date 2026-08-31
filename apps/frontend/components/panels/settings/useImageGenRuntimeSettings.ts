@@ -62,8 +62,17 @@ export function useImageGenRuntimeSettings() {
     if (!bridge) return;
     let cancelled = false;
     if (hasLifecycleBridge) {
-      bridge.probe?.().then((next) => {
-        if (!cancelled) setLifecycleStatus(next);
+      bridge.probe?.().then(async (next) => {
+        if (cancelled) return;
+        setLifecycleStatus(next);
+        // 探测顺带把模型清单(含 ComfyUI 指向路径)扫进主进程缓存;本 effect 开头那次
+        // status 快照先于扫描返回,这里必须补拉一次,否则首次进页模型行整块空白。
+        try {
+          const refreshed = await bridge?.status();
+          if (!cancelled && refreshed) setStatus(refreshed);
+        } catch {
+          // 补拉失败不打扰探测结果,保持旧快照
+        }
       }).catch((error) => {
         if (!cancelled) setLifecycleError(error instanceof Error ? error.message : "本地图片运行时探测失败");
       });
@@ -126,6 +135,12 @@ export function useImageGenRuntimeSettings() {
     try {
       const next = await bridge.probe();
       setLifecycleStatus(next);
+      // 探测刷新了主进程里的模型清单缓存,同步补拉一次让界面立即反映(同挂载期竞态)
+      try {
+        setStatus(await bridge.status());
+      } catch {
+        // 保持旧快照
+      }
       return next;
     } catch (error) {
       const message = error instanceof Error ? error.message : "本地图片运行时探测失败";

@@ -43,6 +43,12 @@ export interface ShotFxAiShotInput {
   description: string;
   /** 角色对白/旁白（ttsSpokenText） */
   dialogue: string;
+  /**
+   * 逐镜配色锚(08-28 两套色彩系统衔接):本镜阵营色方向(buildShotColorMoodLine 产物,
+   * 紧凑三职责形态,如 "(人族·场景)主色赭石+辅色栗褐+点睛藤黄")。
+   * 提供给 LUT 选卡保持与生图配色同向;缺省省略(旧调用方/未预热时零变化)。
+   */
+  colorMood?: string;
 }
 
 const MOTION_GUIDE: ReadonlyArray<{ id: ShotFxMotionId; when: string }> = [
@@ -122,7 +128,15 @@ ${REGISTRY_GUIDE.map((g) => `- ${g.id}: ${g.when}`).join("\n")}
 （以上为精选示例,完整列表含 370 个模板——transition/vfx/particle/caption/text-motion/camera/light/motion-gfx 八大类）
 `;
   const list = shots
-    .map((s, i) => `${i + 1}. shotId=${s.shotId}\n   画面: ${s.description || "(无)"}\n   对白: ${s.dialogue || "(无)"}`)
+    .map((s, i) => {
+      const lines = [
+        `${i + 1}. shotId=${s.shotId}`,
+        `   画面: ${s.description || "(无)"}`,
+        `   对白: ${s.dialogue || "(无)"}`,
+      ];
+      if (s.colorMood?.trim()) lines.push(`   配色锚: ${s.colorMood.trim()}`);
+      return lines.join("\n");
+    })
     .join("\n");
   return `你是电影摄影指导，为一部 2D 动态分镜影片逐镜设计镜头表现 = 运镜 + 特效插件 + 转场 + 字幕音效。
 
@@ -132,7 +146,7 @@ ${motionGuide}
 特效插件（每镜可选 0~2 个组合；不选则用该运镜的默认特效，显式给空数组则无特效）：
 ${addonGuide}
 
-成片调色 LUT——32 张中国风传统色卡（每镜可选一个或省略=不调色；blend 0.02~0.15 尽量压低，只保留微妙胶片感；只给氛围强烈的少数镜配，其余省略防全片刷色）：
+成片调色 LUT——32 张中国风传统色卡（每镜可选一个或省略=不调色；blend 0.02~0.15 尽量压低，只保留微妙胶片感；只给氛围强烈的少数镜配，其余省略防全片刷色）。分镜带「配色锚」时，所选 LUT 必须与该配色同向（同暖调或同冷调），不得反向压色：
 ${lutGuide}
 
 氛围层——多层合成的前景遮挡/粒子（每镜可选 0~2 个；只给氛围强烈的镜配，安静镜与对白密集镜省略；雾带与薄纱雾不同镜选；克制使用防全片弥漫）：
