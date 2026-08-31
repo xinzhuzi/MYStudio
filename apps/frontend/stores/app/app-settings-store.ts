@@ -43,6 +43,8 @@ export interface ImageGenerationSettings {
   defaultResolution: ImageResolution;
   /** 生图落库前自动轻度去噪(噪点治理 08-29);缺省关,保线稿双边滤波。 */
   autoDenoiseEnabled: boolean;
+  /** 本地生图专业流(LoRA)开关:开→本地 provider 请求带 use_lora(Krea2 挂 NSFW LoRA/桥走 NSFW 专业流)。缺省关——深审 A/B 实证对非该类画面有模糊/偏色副作用(D5 裁定)。 */
+  localImageLoraEnabled: boolean;
   compatibilityRetryEnabled: boolean;
   compatibilityRetryAspectRatio: ImageAspectRatio;
   compatibilityRetryResolution: ImageResolution;
@@ -99,6 +101,7 @@ const defaultState: AppSettingsState = {
   },
   imageGenerationSettings: {
       autoDenoiseEnabled: false,
+    localImageLoraEnabled: false,
     defaultAspectRatio: DEFAULT_IMAGE_ASPECT_RATIO,
     defaultResolution: DEFAULT_IMAGE_RESOLUTION,
     compatibilityRetryEnabled: true,

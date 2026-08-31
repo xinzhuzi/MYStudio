@@ -38,6 +38,7 @@ describe("generateImage", () => {
       compatibilityRetryEnabled: true,
       compatibilityRetryAspectRatio: "1:1",
       compatibilityRetryResolution: "1K",
+      localImageLoraEnabled: false,
     });
   });
 
@@ -94,6 +95,46 @@ describe("generateImage", () => {
 
     const requestBody = JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body));
     expect(requestBody.size).toBe("2016x1344");
+  });
+
+  it("injects use_lora for the local image provider when the local pro-flow switch is on", async () => {
+    useAPIConfigStore.setState({
+      providers: [{
+        id: "manying-local-image",
+        platform: "manying-local-image",
+        name: "本地图片生成",
+        baseUrl: "http://127.0.0.1:17595",
+        apiKey: "manying-local-image",
+        model: ["krea2-turbo"],
+        capabilities: ["image_generation"],
+      }],
+      featureBindings: { freedom_image: ["manying-local-image:krea2-turbo"] },
+      modelEndpointTypes: { "krea2-turbo": ["image-generation"] },
+    } as never);
+    useAppSettingsStore.getState().setImageGenerationSettings({ localImageLoraEnabled: true });
+    const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({
+      data: [{ b64_json: "aGVsbG8=", output_format: "png" }],
+    }), { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await generateImage({ prompt: "本地专业流" });
+
+    const requestBody = JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body));
+    expect(requestBody.model).toBe("krea2-turbo");
+    expect(requestBody.use_lora).toBe(true);
+  });
+
+  it("keeps cloud requests free of use_lora even with the local switch on", async () => {
+    useAppSettingsStore.getState().setImageGenerationSettings({ localImageLoraEnabled: true });
+    const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({
+      data: [{ b64_json: "aGVsbG8=", output_format: "png" }],
+    }), { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await generateImage({ prompt: "云端不受影响" });
+
+    const requestBody = JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body));
+    expect(requestBody.use_lora).toBeUndefined();
   });
 
   it("retries gpt-image transport failures with a compact 1024 prompt before provider fallback", async () => {

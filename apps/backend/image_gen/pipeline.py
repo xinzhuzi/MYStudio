@@ -208,6 +208,10 @@ def _require_downloaded(model_name: str) -> None:
         raise PipelineError("unknown-model", f"未知图像模型: {model_name}")
     cached = find_cached_image_model_for_spec(spec)
     if not cached:
+        # 桥的"大件"就是服务本身:不可达时给桥专属话术(server 映射 503),
+        # 别让用户按通用文案去设置页找不存在的下载按钮
+        if spec.get("layout") == "comfyui-bridge":
+            raise PipelineError("bridge-unreachable", "ComfyUI 没在运行，请先打开 ComfyUI 再试")
         raise PipelineError(
             "model-not-downloaded",
             f"图像模型 {spec['label']} 未就绪。请前往 设置 → 本地配置 → 本地图片生成 检查。",

@@ -33,6 +33,7 @@ import { createOperationId, logEvent } from '@/lib/diagnostics/logger';
 import { createDescribedFetchError, isNetworkFailureError, type NetworkFailureFlags } from '@/lib/ai/fetch-error';
 import { getModelEndpointTypes } from '@/lib/ai/config/store-adapter';
 import { useAppSettingsStore } from '@/stores/app/app-settings-store';
+import { isLocalImageProvider } from '@/stores/ai/api-config-provider-helpers';
 import { getImageSizeLabel } from '@/lib/ai/image-size-presets';
 import {
   buildCompatibilityImagePrompt,
@@ -393,6 +394,11 @@ async function generateViaImagesEndpoint(
       });
   const body = builtRequest.body;
   const imageSettings = useAppSettingsStore.getState().imageGenerationSettings;
+  if (provider && isLocalImageProvider(provider) && imageSettings.localImageLoraEnabled) {
+    // 本地专业流开关(D5):仅本地 provider 注入,云端请求零影响;
+    // Krea2 挂 NSFW LoRA / ComfyUI 桥路由 NSFW 专业流,引擎侧各自消费
+    body.use_lora = true;
+  }
   if (usesDefaultImagesEndpoint && isGptImageModel(model) && provider) {
     const sdkResult = await sdkGenerateImage({
       provider: { ...provider, apiKey, baseUrl },
