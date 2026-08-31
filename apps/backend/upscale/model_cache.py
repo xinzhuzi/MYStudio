@@ -10,10 +10,11 @@ assets, so one hash pins both the modelscope mirror and GitHub fallback).
 
 from __future__ import annotations
 
-import hashlib
 import os
 from pathlib import Path
 from typing import TypedDict
+
+import model_cache_core as _core
 
 
 class UpscaleModelSpec(TypedDict):
@@ -138,23 +139,11 @@ def primary_model_dir() -> Path:
 
 
 def model_candidate_dirs() -> list[Path]:
-    seen: set[str] = set()
-    unique: list[Path] = []
-    for path in (primary_model_dir(), Path.home() / ".mystudio" / "upscale-models"):
-        expanded = path.expanduser()
-        if str(expanded) in seen:
-            continue
-        seen.add(str(expanded))
-        unique.append(expanded)
-    return unique
+    return _core.unique_paths([primary_model_dir(), Path.home() / ".mystudio" / "upscale-models"])
 
 
 def file_sha256(path: Path) -> str:
-    digest = hashlib.sha256()
-    with path.open("rb") as handle:
-        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
-            digest.update(chunk)
-    return digest.hexdigest()
+    return _core.file_sha256(path)
 
 
 def cached_model_path(model_dir: Path, spec: UpscaleModelSpec) -> Path:
@@ -165,22 +154,18 @@ def find_cached_upscale_model(model_name: str) -> CachedUpscaleModel | None:
     spec = UPSCALE_MODELS.get(model_name)
     if not spec:
         return None
-    for model_dir in model_candidate_dirs():
-        path = cached_model_path(model_dir, spec)
-        if not path.is_file() or path.stat().st_size <= 0:
-            continue
-        try:
-            actual_sha256 = file_sha256(path)
-        except OSError:
-            continue
-        if actual_sha256 != spec["sha256"]:
-            continue
-        return {
-            "file_path": str(path),
-            "size_mb": round(path.stat().st_size / 1024 / 1024, 2),
-            "sha256": actual_sha256,
-        }
-    return None
+    hit = _core.find_pinned_file(
+        model_candidate_dirs(),
+        spec["file"],
+        spec["sha256"],
+    )
+    if hit is None:
+        return None
+    return {
+        "file_path": str(hit.file_path),
+        "size_mb": hit.size_mb,
+        "sha256": hit.sha256,
+    }
 
 
 def is_upscale_model_downloaded(model_name: str) -> tuple[bool, float | None]:
@@ -207,13 +192,7 @@ def delete_cached_model(model_name: str) -> bool:
     spec = UPSCALE_MODELS.get(model_name)
     if not spec:
         return False
-    removed = False
-    for model_dir in model_candidate_dirs():
-        path = cached_model_path(model_dir, spec)
-        if path.is_file():
-            try:
-                path.unlink()
-                removed = True
-            except OSError:
-                pass
-    return removed
+    return _core.delete_pinned_file(
+        model_candidate_dirs(),
+        spec["file"],
+    )

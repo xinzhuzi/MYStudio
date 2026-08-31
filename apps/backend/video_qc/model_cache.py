@@ -7,10 +7,11 @@ SHA-256 pin 与 modelscope 备选源均保留在下方 spec；推理架构位于
 
 from __future__ import annotations
 
-import hashlib
 import os
 from pathlib import Path
 from typing import TypedDict
+
+import model_cache_core as _core
 
 
 class VideoQcModelSpec(TypedDict):
@@ -74,28 +75,16 @@ def model_candidate_dirs() -> list[Path]:
     # Order: env-driven primary dir (set by the TS runtime controller to
     # <storageBase>/model/videoqc) → HOME-derived Electron userData dir →
     # standalone-CLI home fallback. No absolute user paths anywhere.
-    seen: set[str] = set()
-    unique: list[Path] = []
     candidates: list[Path] = [primary_model_dir()]
     userdata_dir = _electron_userdata_model_dir()
     if userdata_dir is not None:
         candidates.append(userdata_dir)
     candidates.append(Path.home() / ".mystudio" / "video-qc-models")
-    for path in candidates:
-        expanded = path.expanduser()
-        if str(expanded) in seen:
-            continue
-        seen.add(str(expanded))
-        unique.append(expanded)
-    return unique
+    return _core.unique_paths(candidates)
 
 
 def file_sha256(path: Path) -> str:
-    digest = hashlib.sha256()
-    with path.open("rb") as handle:
-        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
-            digest.update(chunk)
-    return digest.hexdigest()
+    return _core.file_sha256(path)
 
 
 def cached_model_path(model_dir: Path, spec: VideoQcModelSpec) -> Path:
@@ -106,23 +95,20 @@ def find_cached_video_qc_model(model_name: str) -> CachedVideoQcModel | None:
     spec = VIDEO_QC_MODELS.get(model_name)
     if not spec:
         return None
-    for model_dir in model_candidate_dirs():
-        path = cached_model_path(model_dir, spec)
-        if not path.is_file() or path.stat().st_size <= 0:
-            continue
-        # 空 pin(未核实)只验存在与大小;回填 sha256 后自动收紧为强校验
-        if spec["sha256"]:
-            try:
-                if file_sha256(path) != spec["sha256"]:
-                    continue
-            except OSError:
-                continue
-        return {
-            "file_path": str(path),
-            "size_mb": round(path.stat().st_size / 1024 / 1024, 2),
-            "sha256": "" if not spec["sha256"] else spec["sha256"],
-        }
-    return None
+    # 空 pin(未核实)只验存在与大小;回填 sha256 后自动收紧为强校验
+    hit = _core.find_pinned_file(
+        model_candidate_dirs(),
+        spec["file"],
+        spec["sha256"],
+        allow_empty_pin=True,
+    )
+    if hit is None:
+        return None
+    return {
+        "file_path": str(hit.file_path),
+        "size_mb": hit.size_mb,
+        "sha256": hit.sha256,
+    }
 
 
 def is_video_qc_model_downloaded(model_name: str) -> tuple[bool, float | None]:
@@ -154,13 +140,7 @@ def delete_cached_model(model_name: str) -> bool:
     spec = VIDEO_QC_MODELS.get(model_name)
     if not spec:
         return False
-    removed = False
-    for model_dir in model_candidate_dirs():
-        path = cached_model_path(model_dir, spec)
-        if path.is_file():
-            try:
-                path.unlink()
-                removed = True
-            except OSError:
-                pass
-    return removed
+    return _core.delete_pinned_file(
+        model_candidate_dirs(),
+        spec["file"],
+    )

@@ -1,0 +1,231 @@
+{
+ "depth_estimation:depth-dir": {
+  "cache_dirs": [
+   "<TMP>/d_cache",
+   "<TMP>/home/.cache/huggingface",
+   "<TMP>/home/.cache/huggingface/hub",
+   "<TMP>/home/Library/Caches/huggingface",
+   "<TMP>/home/Library/Caches/huggingface/hub"
+  ],
+  "download_dir": "<TMP>/d_cache",
+  "find_hit": null,
+  "find_miss": null,
+  "primary": "<TMP>/d_cache",
+  "repo_dir": "<TMP>/hf1/models--test--model"
+ },
+ "depth_estimation:hf-home": {
+  "cache_dirs": [
+   "<TMP>/hf_home",
+   "<TMP>/hf_home/hub",
+   "<TMP>/home/.cache/huggingface",
+   "<TMP>/home/.cache/huggingface/hub",
+   "<TMP>/home/Library/Caches/huggingface",
+   "<TMP>/home/Library/Caches/huggingface/hub"
+  ],
+  "download_dir": "<TMP>/hf_home/hub",
+  "find_hit": null,
+  "find_miss": null,
+  "primary": "<TMP>/hf_home/hub",
+  "repo_dir": "<TMP>/hf1/models--test--model"
+ },
+ "depth_estimation:hf-hub-hit": {
+  "cache_dirs": [
+   "<TMP>/hf1",
+   "<TMP>/home/.cache/huggingface",
+   "<TMP>/home/.cache/huggingface/hub",
+   "<TMP>/home/Library/Caches/huggingface",
+   "<TMP>/home/Library/Caches/huggingface/hub"
+  ],
+  "download_dir": "<TMP>/hf1",
+  "find_hit": {
+   "cache_dir": "<TMP>/hf1",
+   "repo_cache_dir": "<TMP>/hf1/models--test--model",
+   "repo_id": "test/model",
+   "size_mb": 0.0
+  },
+  "find_miss": null,
+  "primary": "<TMP>/hf1",
+  "repo_dir": "<TMP>/hf1/models--test--model"
+ },
+ "depth_estimation:no-env": {
+  "cache_dirs": [
+   "<TMP>/home/.cache/huggingface",
+   "<TMP>/home/.cache/huggingface/hub",
+   "<TMP>/home/Library/Caches/huggingface",
+   "<TMP>/home/Library/Caches/huggingface/hub"
+  ],
+  "download_dir": "<TMP>/home/.cache/huggingface/hub",
+  "find_hit": null,
+  "find_miss": null,
+  "primary": "<TMP>/home/.cache/huggingface/hub",
+  "repo_dir": "<TMP>/hf1/models--test--model"
+ },
+ "tts:hf-home": {
+  "cache_dirs": [
+   "<TMP>/hf_home",
+   "<TMP>/hf_home/hub",
+   "<TMP>/home/.cache/huggingface",
+   "<TMP>/home/.cache/huggingface/hub",
+   "<TMP>/home/Library/Caches/huggingface",
+   "<TMP>/home/Library/Caches/huggingface/hub"
+  ],
+  "download_dir": "<TMP>/hf_home/hub",
+  "find_complete": {
+   "cache_dir": "<TMP>/hf1",
+   "repo_cache_dir": "<TMP>/hf1/models--test--model",
+   "repo_id": "test/model",
+   "size_mb": 0.0
+  },
+  "find_incomplete": null,
+  "primary": "<TMP>/hf_home/hub",
+  "repo_dir_default": "<TMP>/hf_home/hub/models--test--model",
+  "repo_dir_explicit": "<TMP>/hf1/models--test--model",
+  "repo_name": "models--test--model",
+  "tok_missing": false,
+  "tok_ok": true
+ },
+ "tts:hf-hub": {
+  "cache_dirs": [
+   "<TMP>/hf_cache",
+   "<TMP>/hf_cache/hub",
+   "<TMP>",
+   "<TMP>/hub",
+   "<TMP>/home/.cache/huggingface",
+   "<TMP>/home/.cache/huggingface/hub",
+   "<TMP>/home/Library/Caches/huggingface",
+   "<TMP>/home/Library/Caches/huggingface/hub"
+  ],
+  "download_dir": "<TMP>/hf_cache",
+  "find_complete": {
+   "cache_dir": "<TMP>/hf1",
+   "repo_cache_dir": "<TMP>/hf1/models--test--model",
+   "repo_id": "test/model",
+   "size_mb": 0.0
+  },
+  "find_incomplete": null,
+  "primary": "<TMP>/hf_cache",
+  "repo_dir_default": "<TMP>/hf_cache/models--test--model",
+  "repo_dir_explicit": "<TMP>/hf1/models--test--model",
+  "repo_name": "models--test--model",
+  "tok_missing": false,
+  "tok_ok": true
+ },
+ "tts:no-env": {
+  "cache_dirs": [
+   "<TMP>/home/.cache/huggingface/hub",
+   "<TMP>/home/.cache/huggingface",
+   "<TMP>/home/Library/Caches/huggingface",
+   "<TMP>/home/Library/Caches/huggingface/hub"
+  ],
+  "download_dir": "<TMP>/home/.cache/huggingface/hub",
+  "find_complete": {
+   "cache_dir": "<TMP>/hf1",
+   "repo_cache_dir": "<TMP>/hf1/models--test--model",
+   "repo_id": "test/model",
+   "size_mb": 0.0
+  },
+  "find_incomplete": null,
+  "primary": "<TMP>/home/.cache/huggingface/hub",
+  "repo_dir_default": "<TMP>/home/.cache/huggingface/hub/models--test--model",
+  "repo_dir_explicit": "<TMP>/hf1/models--test--model",
+  "repo_name": "models--test--model",
+  "tok_missing": false,
+  "tok_ok": true
+ },
+ "tts:tts-dir": {
+  "cache_dirs": [
+   "<TMP>/tts_cache",
+   "<TMP>/tts_cache/hub",
+   "<TMP>/home/.cache/huggingface/hub",
+   "<TMP>/home/.cache/huggingface",
+   "<TMP>/home/Library/Caches/huggingface",
+   "<TMP>/home/Library/Caches/huggingface/hub"
+  ],
+  "download_dir": "<TMP>/tts_cache",
+  "find_complete": {
+   "cache_dir": "<TMP>/hf1",
+   "repo_cache_dir": "<TMP>/hf1/models--test--model",
+   "repo_id": "test/model",
+   "size_mb": 0.0
+  },
+  "find_incomplete": null,
+  "primary": "<TMP>/tts_cache",
+  "repo_dir_default": "<TMP>/tts_cache/models--test--model",
+  "repo_dir_explicit": "<TMP>/hf1/models--test--model",
+  "repo_name": "models--test--model",
+  "tok_missing": false,
+  "tok_ok": true
+ },
+ "tts:voicebox": {
+  "cache_dirs": [
+   "<TMP>/vb_cache",
+   "<TMP>/vb_cache/hub",
+   "<TMP>/home/.cache/huggingface/hub",
+   "<TMP>/home/.cache/huggingface",
+   "<TMP>/home/Library/Caches/huggingface",
+   "<TMP>/home/Library/Caches/huggingface/hub"
+  ],
+  "download_dir": "<TMP>/vb_cache",
+  "find_complete": {
+   "cache_dir": "<TMP>/hf1",
+   "repo_cache_dir": "<TMP>/hf1/models--test--model",
+   "repo_id": "test/model",
+   "size_mb": 0.0
+  },
+  "find_incomplete": null,
+  "primary": "<TMP>/vb_cache",
+  "repo_dir_default": "<TMP>/vb_cache/models--test--model",
+  "repo_dir_explicit": "<TMP>/hf1/models--test--model",
+  "repo_name": "models--test--model",
+  "tok_missing": false,
+  "tok_ok": true
+ },
+ "upscale:no-env": {
+  "candidates": [
+   "<TMP>/home/.mystudio/upscale-models"
+  ],
+  "find_wrong_pin": null,
+  "primary": "<TMP>/home/.mystudio/upscale-models",
+  "sha_of_pinned": "875198571c6dc071a45a79d9ed38631674e9e0b10c732756c7ad908a7488310a",
+  "verify_wrong_pin": [
+   false,
+   "model-not-downloaded"
+  ]
+ },
+ "upscale:upscale-dir": {
+  "candidates": [
+   "<TMP>/pin1",
+   "<TMP>/home/.mystudio/upscale-models"
+  ],
+  "find_wrong_pin": null,
+  "primary": "<TMP>/pin1",
+  "sha_of_pinned": "875198571c6dc071a45a79d9ed38631674e9e0b10c732756c7ad908a7488310a",
+  "verify_wrong_pin": [
+   false,
+   "model-not-downloaded"
+  ]
+ },
+ "video_qc:no-env": {
+  "candidates": [
+   "<TMP>/home/.mystudio/video-qc-models"
+  ],
+  "find_wrong_pin": null,
+  "primary": "<TMP>/home/.mystudio/video-qc-models",
+  "verify_wrong_pin": [
+   false,
+   "model-not-downloaded"
+  ]
+ },
+ "video_qc:qc-dir": {
+  "candidates": [
+   "<TMP>/pin1",
+   "<TMP>/home/.mystudio/video-qc-models"
+  ],
+  "find_wrong_pin": null,
+  "primary": "<TMP>/pin1",
+  "verify_wrong_pin": [
+   false,
+   "<TMP>/pin1/dover_mobile.pth"
+  ]
+ }
+}

@@ -236,11 +236,11 @@ def build_canonical_alignment(
 
 
 def _snapshot_for_repo(repo_id: str) -> Path:
-    # `video_use` and `tts` are sibling packages under the same managed
-    # backend interpreter.  The cache registry is owned by the TTS runtime;
-    # do not create a second model-cache implementation for alignment.  A
-    # worker receives the configured cache explicitly from Electron and must
-    # not fall back to an unrelated global Hugging Face cache.
+    # `video_use` shares the backend-wide model_cache_core cache registry
+    # (08-31 arch-coupling-governance); do not create a second model-cache
+    # implementation for alignment.  A worker receives the configured cache
+    # explicitly from Electron and must not fall back to an unrelated global
+    # Hugging Face cache.
     cache_value = os.environ.get("MANYING_TTS_MODELS_DIR") or os.environ.get("VOICEBOX_MODELS_DIR")
     if not cache_value:
         raise AlignmentError("alignment-model-missing", "未配置应用 TTS 模型缓存路径")
@@ -252,13 +252,13 @@ def _snapshot_for_repo(repo_id: str) -> Path:
         cache_dirs.append(configured_cache / "hub")
     elif configured_cache.name != "hub":
         cache_dirs.append(configured_cache / "hub")
-    from tts.model_cache import find_cached_repo, has_cached_repo_files, repo_cache_dir
+    from model_cache_core import find_weight_repo, has_repo_files, repo_cache_dir
 
     if repo_id == ALIGNMENT_TOKENIZER_REPO:
-        if not has_cached_repo_files(repo_id, ("tokenizer.json",), cache_dirs=cache_dirs):
+        if not has_repo_files(repo_id, ("tokenizer.json",), cache_dirs):
             raise AlignmentError("alignment-model-missing", f"本地模型未准备: {repo_id}")
     else:
-        cached = find_cached_repo((repo_id,), cache_dirs=cache_dirs)
+        cached = find_weight_repo((repo_id,), cache_dirs)
         if cached is None:
             raise AlignmentError("alignment-model-missing", f"本地模型未准备: {repo_id}")
         cache_root = cached.repo_cache_dir
@@ -266,7 +266,7 @@ def _snapshot_for_repo(repo_id: str) -> Path:
         cache_root = next(
             repo_cache_dir(repo_id, cache_dir)
             for cache_dir in cache_dirs
-            if has_cached_repo_files(repo_id, ("tokenizer.json",), cache_dirs=[cache_dir])
+            if has_repo_files(repo_id, ("tokenizer.json",), cache_dirs=[cache_dir])
         )
     refs_main = cache_root / "refs" / "main"
     revision = refs_main.read_text(encoding="utf-8").strip() if refs_main.is_file() else ""

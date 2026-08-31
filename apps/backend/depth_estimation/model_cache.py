@@ -1,4 +1,4 @@
-"""Depth model cache helpers — mirrors tts/model_cache.py conventions.
+"""Depth model cache helpers — thin wrapper over model_cache_core.
 
 Models are NEVER auto-downloaded at inference time. The settings panel calls
 model_inventory.py (scan) and download_model.py (explicit user-triggered
@@ -8,11 +8,17 @@ download) instead.
 from __future__ import annotations
 
 import hashlib
-import os
 from pathlib import Path
 from typing import TypedDict
 
-MODEL_WEIGHT_EXTENSIONS = (".safetensors", ".bin", ".pt", ".pth", ".npz", ".onnx")
+import model_cache_core as _core
+
+MODEL_WEIGHT_EXTENSIONS = _core.DEFAULT_WEIGHT_EXTENSIONS
+
+# env 表=Electron spawn 契约(见 model_cache_core 模块头)。
+# MYSTUDIO_DEPTH_MODEL_DIR 由 TS runtime controller 恒注入(<userData>/DeepModel),
+# 其余条目仅作独立 CLI 运行的兜底;多候选不含 huggingface_hub 常量探测(原实现如此)。
+_CACHE_ENV_NAMES = ("MYSTUDIO_DEPTH_MODEL_DIR", "MANYING_TTS_MODELS_DIR", "VOICEBOX_MODELS_DIR", "HF_HUB_CACHE")
 
 
 class DepthModelSpec(TypedDict):
@@ -42,69 +48,24 @@ class CachedDepthModel(TypedDict):
 
 
 def primary_hf_cache_dir() -> Path:
-    # MYSTUDIO_DEPTH_MODEL_DIR is always set by the TS runtime controller to
-    # the user-configured dir (default <userData>/DeepModel). Remaining entries
-    # are safety fallbacks for standalone CLI runs only.
-    env_cache = os.environ.get("MYSTUDIO_DEPTH_MODEL_DIR")
-    if env_cache:
-        return Path(env_cache).expanduser()
-
-    hf_home = os.environ.get("HF_HOME")
-    if hf_home:
-        return Path(hf_home).expanduser() / "hub"
-
-    try:
-        from huggingface_hub import constants as hf_constants
-
-        return Path(hf_constants.HF_HUB_CACHE).expanduser()
-    except Exception:
-        return Path.home() / ".cache" / "huggingface" / "hub"
+    return _core.primary_hf_cache_dir(_CACHE_ENV_NAMES[:1])
 
 
 def download_hf_cache_dir() -> Path:
-    cache_dir = primary_hf_cache_dir()
-    if cache_dir.name == "huggingface":
-        return cache_dir / "hub"
-    if cache_dir.name != "hub" and (cache_dir / "hub").exists():
-        return cache_dir / "hub"
-    return cache_dir
+    return _core.download_hf_cache_dir(_CACHE_ENV_NAMES[:1])
 
 
 def hf_cache_dirs() -> list[Path]:
-    candidates: list[Path] = []
-    for env_name in ("MYSTUDIO_DEPTH_MODEL_DIR", "MANYING_TTS_MODELS_DIR", "VOICEBOX_MODELS_DIR", "HF_HUB_CACHE"):
-        value = os.environ.get(env_name)
-        if value:
-            candidates.append(Path(value))
-    hf_home = os.environ.get("HF_HOME")
-    if hf_home:
-        candidates.append(Path(hf_home))
-        candidates.append(Path(hf_home) / "hub")
-    candidates.extend(
-        [
-            Path.home() / ".cache" / "huggingface",
-            Path.home() / ".cache" / "huggingface" / "hub",
-            Path.home() / "Library" / "Caches" / "huggingface",
-            Path.home() / "Library" / "Caches" / "huggingface" / "hub",
-        ]
-    )
-    seen: set[str] = set()
-    unique: list[Path] = []
-    for path in candidates:
-        expanded = path.expanduser()
-        if str(expanded) in seen:
-            continue
-        seen.add(str(expanded))
-        unique.append(expanded)
-    return unique
+    # depth 原实现为纯静态候选+去重(无 hf 常量探测/无 hub 子目录扩展),保持双关。
+    return _core.hf_cache_dirs(_CACHE_ENV_NAMES, probe_hf_constants=False, expand_hub_subdir=False)
 
 
 def repo_cache_name(repo_id: str) -> str:
-    return "models--" + repo_id.replace("/", "--")
+    return _core.repo_cache_name(repo_id)
 
 
 def repo_cache_dir(repo_id: str, cache_dir: Path | None = None) -> Path:
-    return (cache_dir or primary_hf_cache_dir()) / repo_cache_name(repo_id)
+    return (cache_dir or primary_hf_cache_dir()) / _core.repo_cache_name(repo_id)
 
 
 def resolve_snapshot_dir(repo_cache: str | Path) -> Path:
@@ -143,43 +104,16 @@ def model_weight_sha256(repo_cache: str | Path) -> str:
     return digest.hexdigest()
 
 
-def _has_complete_model_files(cache: Path) -> bool:
-    if not cache.exists():
-        return False
-    blobs_dir = cache / "blobs"
-    if blobs_dir.exists() and any(blobs_dir.glob("*.incomplete")):
-        return False
-    snapshots_dir = cache / "snapshots"
-    if not snapshots_dir.exists():
-        return False
-    return any(
-        file.is_file()
-        for extension in MODEL_WEIGHT_EXTENSIONS
-        for file in snapshots_dir.rglob(f"*{extension}")
-    )
-
-
-def _cache_size_mb(cache: Path) -> float:
-    size = sum(
-        file.stat().st_size
-        for file in cache.rglob("*")
-        if file.is_file() and not file.name.endswith(".incomplete")
-    )
-    return round(size / 1024 / 1024, 2)
-
-
 def find_cached_depth_model(repo_ids: tuple[str, ...]) -> CachedDepthModel | None:
-    for cache_dir in hf_cache_dirs():
-        for repo_id in repo_ids:
-            cache = repo_cache_dir(repo_id, cache_dir)
-            if _has_complete_model_files(cache):
-                return {
-                    "repo_id": repo_id,
-                    "cache_dir": str(cache_dir),
-                    "repo_cache_dir": str(cache),
-                    "size_mb": _cache_size_mb(cache),
-                }
-    return None
+    hit = _core.find_weight_repo(repo_ids, hf_cache_dirs())
+    if hit is None:
+        return None
+    return {
+        "repo_id": hit.repo_id,
+        "cache_dir": str(hit.cache_dir),
+        "repo_cache_dir": str(hit.repo_cache_dir),
+        "size_mb": hit.size_mb,
+    }
 
 
 def is_depth_model_downloaded(model_name: str) -> tuple[bool, float | None]:
