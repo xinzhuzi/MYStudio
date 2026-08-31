@@ -355,6 +355,20 @@ export function createImageGenRuntimeController(deps: ControllerDeps) {
 
   function lifecycleStatus(): ImageGenRuntimeStatusV1 {
     const pythonAvailable = fs.existsSync(getPaths().pythonExecutable);
+    // 08-31 修复:当前模型大件已删(用户换引擎)时自动回退到第一个就绪
+    // 引擎——Krea2 就绪但 activeModel 还指着已删的 FLUX.2,总览永远
+    // 橙胶囊「需准备」(用户实弹反馈)
+    if (!activeModelDownloaded()) {
+      const fallback = state.models.find(
+        (m) => m.downloaded === true && m.smallPiecesReady !== false,
+      );
+      if (fallback && fallback.modelName !== state.activeModel) {
+        state.activeModel = fallback.modelName as ImageGenModelId;
+        console.log(
+          `[image-gen] active model not downloaded, auto-fallback to ${fallback.modelName}`,
+        );
+      }
+    }
     const modelDownloaded = activeModelDownloaded();
     // 就绪口径对齐视觉审核(VLM)区块:Python+模型大件在=ready,与本地服务
     // 是否正在运行无关(服务由「准备运行时」/生图流程按需拉起)。旧口径把
