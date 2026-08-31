@@ -63,7 +63,7 @@ export function filterAndSortArtifacts(
 
 export function buildTreeProjects(
   artifacts: ArtifactRecord[],
-  mockProjects: ArtifactTreeProject[] | undefined,
+  mockProjects: ReadonlyArray<Pick<ArtifactTreeProject, "id" | "name"> & Partial<ArtifactTreeProject>> | undefined,
   projectList: Array<{ id: string; name: string }>,
   activeProjectId: string | null,
 ): ArtifactTreeProject[] {
