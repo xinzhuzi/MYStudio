@@ -7,6 +7,18 @@ description: "Deep bug analysis to break the fix-forget-repeat cycle. Analyzes r
 
 When debug is complete, use this for deep analysis to break the "fix bug -> forget -> repeat" cycle.
 
+<!-- MYSTUDIO-FUSION: superpowers (systematic-debugging + root-cause-tracing + defense-in-depth + condition-based-waiting), 2026-08-31 -->
+
+## Pre-Fix Iron Law
+
+This skill runs after a fix lands. The disciplines below govern the fixing itself — apply them BEFORE writing any fix, every time, including "quick" ones:
+
+- **No fixes without root-cause investigation.** Read the full error and stack trace first; reproduce consistently; check what recently changed (`git diff`, new dependencies, config, env). Not reproducible → gather more evidence, don't guess. Time pressure is when this law matters most, not least.
+- **Multi-component failures**: before proposing a fix, instrument each component boundary (what data enters / exits, whether env/config propagated) and run once to see WHERE it breaks. Then investigate that component only — not all of them.
+- **Trace bad values backward** up the call chain to the original trigger, then fix at the source. Fixing where the error surfaces is symptom patching — which is why "Surface Fix" is the first failure mode in dimension 2 below.
+- **Fix standard = defense in depth**: a validation added at one layer gets bypassed by other code paths, refactors, and mocks. Validate at every layer the bad value can pass through; prefer making the bug structurally impossible over catching it once.
+- **No arbitrary sleeps** in tests or waiting code: wait for the actual condition (event / state / file / count), not a guessed delay. If timing itself is under test, document why the timeout exists.
+
 ---
 
 ## Analysis Framework

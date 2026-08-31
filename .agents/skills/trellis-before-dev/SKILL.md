@@ -49,3 +49,12 @@ Execute these steps:
 8. Understand the coding standards and patterns you need to follow, then proceed with your development plan.
 
 This step is **mandatory** before writing any code.
+
+<!-- MYSTUDIO-FUSION: superpowers (executing-plans + subagent-driven-development rulings), 2026-08-31 -->
+
+## Plan Execution Discipline (when an implement.md exists)
+
+- **Review the plan critically before executing it.** Read it end to end first; if you see gaps, contradictions, or steps you don't understand, raise them before starting — a flawed plan executed faithfully produces flawed code. Fixing the plan silently mid-run is fine for trivial typos; for anything structural, say what changed.
+- **Follow the steps exactly; never skip a verification step.** The plan's "run X, expect Y" steps are the contract. If the actual output diverges from the expected output, that divergence is information — stop and read it, don't steamroll past it.
+- **Stop and ask instead of guessing** when: a dependency is missing, an instruction is genuinely ambiguous in a way that changes behavior, or a verification fails repeatedly (two failed fix attempts on the same step → escalate rather than attempt three).
+- **Rulings, not stalls, for plan defects that don't change behavior**: scope-adjacent cleanup decisions, naming, ordering of independent steps — decide them, record the decision in the task notes (`Ruling: <decision> — <why>`), keep moving. A wrong ruling costs visible rework; a session parked on a trivial question costs the day.

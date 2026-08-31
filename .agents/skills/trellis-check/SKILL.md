@@ -7,6 +7,30 @@ description: "Comprehensive quality verification: spec compliance, lint, type-ch
 
 Comprehensive quality verification for recently written code. Combines spec compliance, cross-layer safety, and pre-commit checks.
 
+<!-- MYSTUDIO-FUSION: superpowers (verification-before-completion + receiving-code-review), 2026-08-31 -->
+
+## Fresh Verification Gate
+
+**No completion claims without fresh verification evidence.** If you haven't run the verification command in this turn, you cannot claim it passes.
+
+Before reporting any Step 3 / Step 4 result as green:
+
+1. Run the FULL command fresh — no `cmd | tail` (it swallows the exit code), no reuse of a previous run's output.
+2. Read the complete output and the exit code; count the failures yourself.
+3. When a run produces a report file (e.g., smoke), the report JSON's `ok` field is the verdict — not the console tail, not a progress line.
+4. Subagent / channel-worker reports of "success" are claims, not evidence. Verify against the actual diff or output before repeating them.
+
+Red flags that mean STOP and run the command instead: "should pass", "probably fine", "passed earlier this session", "the worker said it's done", "just this once".
+
+## Review Feedback Evidence Gate
+
+Every CRITICAL / WARNING / Important finding from a reviewer (human, subagent, or tool) must be verified at the original `file:line` before it is acted on or reported as fixed. A reviewer summary is not a fact source.
+
+- Verify the claim against the codebase before implementing. If it conflicts with how this repo actually works, push back with technical reasoning instead of complying.
+- If any item in a multi-item review is unclear, clarify ALL unclear items before implementing ANY — items may be related; partial understanding produces wrong implementation.
+- No performative agreement ("you're absolutely right", "great catch"). State the fix and show it in the code.
+- YAGNI check: when a reviewer asks to "implement X properly", grep for actual usage first — unused surface gets removed, not hardened.
+
 ---
 
 ## Step 1: Identify What Changed

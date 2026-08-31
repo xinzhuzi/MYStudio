@@ -52,6 +52,16 @@ trellis channel context list <board> --scope global --thread <thread>
 - Forum channels are event-sourced. Do not parse `events.jsonl` first; use `forum`, `thread`, `messages --thread`, and `context list`.
 - `@mindfoldhq/trellis-core` owns reusable channel/thread state, event append, seq allocation, context/title projection, reducers, and task helpers. The CLI owns flags, terminal rendering, prompts, worker lifecycle, and process exits.
 
+<!-- MYSTUDIO-FUSION: superpowers (dispatching-parallel-agents + subagent-driven-development), 2026-08-31 -->
+
+## Dispatch Discipline
+
+- **One worker per independent problem domain.** Multiple failures in different subsystems with different root causes → parallel workers. Related failures (fixing one may fix others), shared state, or unclear scope → a single investigator first. Dispatching parallel workers on related failures wastes more than it saves.
+- **Construct the worker's context; never let it inherit yours.** The worker gets: specific scope (one file/subsystem), the goal, hard constraints ("do not change other code"), and the expected output format. Too broad → the worker gets lost; no constraints → it refactors everything; vague output ask → you can't tell what changed.
+- **Fresh worker per task, review between tasks.** Don't reuse one long-lived worker across unrelated tasks. After each worker returns: verify its claims against the actual diff/output (a worker's "success" report is a claim, not evidence), check fixes don't conflict, run the suite.
+- **Rulings, not stalls.** A dispatched plan does not wait on the user for trivia. Conflicts, ambiguities, and plan defects get decided and recorded (`Ruling: <decision> — <why> — <cost if wrong>`), then work continues. Only four things stop dispatch: irreversible/destructive operations, security-sensitive actions, side effects outside the workspace that norms say to ask about (merge, push to shared branch, publish), and a plan so broken every path is a guess.
+- **Completion signal**: rely on `--kind done` / `turn_finished` system events, never on a worker remembering to send a user tag (see Core Rules).
+
 ## Reference Files
 
 - `references/workflows.md` — canonical collaboration patterns A–F (peer brainstorm, spawned review, dispatch-and-wait, forum issue capture, interrupt-and-redirect, one-shot run).

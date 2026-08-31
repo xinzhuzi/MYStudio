@@ -69,3 +69,18 @@ python3 ./.trellis/scripts/add_session.py \
 Use the work-commit hashes produced in Phase 3.4 (visible in Step 1's `Recent commits` list, or via `git log --oneline`) for `--commit`. Do not include the archive commit hashes from Step 3. This produces a `chore: record journal` commit.
 
 Final git log order: `<work commits from 3.4>` → `chore(task): archive ...` (one or more) → `chore: record journal`.
+
+<!-- MYSTUDIO-FUSION: superpowers (finishing-a-development-branch), 2026-08-31 -->
+
+## Integration Decision Discipline
+
+- **Verify on the tree you are about to integrate, now.** "Tests passed earlier this session" is not evidence — a green run only proves the tree it ran on. Before archiving a task whose AC include checks, those checks must have been run after the last code change.
+- **The integration decision belongs to the user.** Archive / keep-open / extra cleanup are presented as options and waited on — never assumed from enthusiasm, silence, or "they obviously want it done". Discarding work happens only on an explicit request, confirmed in so many words.
+- **Known rationalizations — treat each as a stop sign**:
+
+| Rationalization | Reality |
+|---|---|
+| "Tests passed earlier this session" | Re-run on the final tree; earlier green proves nothing now |
+| "They obviously want it archived" | Present the state and wait for the explicit choice |
+| "This other dirty area looks stale — I'll clean it too" | Only what Step 2 classified as this task's; everything else gets reported, not touched |
+| "Unsure whether a dirty path is mine — commit it to be safe" | Ask once (Step 2), then route by the answer; committing another window's WIP corrupts both |

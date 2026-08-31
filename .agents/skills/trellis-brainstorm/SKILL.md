@@ -198,3 +198,26 @@ Before declaring planning ready:
 - In a subsequent message, the user explicitly approved that summary for implementation.
 
 Do not start implementation merely because the user originally asked for implementation.
+
+<!-- MYSTUDIO-FUSION: superpowers (brainstorming + writing-plans), 2026-08-31 -->
+
+## Path Classification (announce before planning)
+
+Classify the request into one of three paths and say the classification out loud before your first question, so the user can override it:
+
+- **Spike** — a feasibility question whose output is an answer, not kept code. Probe as cheaply as correctness allows; report a recommendation; anything built stays labeled throwaway.
+- **Bounded** — a well-scoped change to a flow that already exists in this repo. Clarifying questions + a short design in chat (a few sentences), then STOP for approval. No `design.md`/`implement.md` ceremony. "Bounded" measures the repo (the flow to change exists), not your familiarity with the app.
+- **Architectural** — new subsystems, restructuring how components fit, interfaces others depend on. Full artifacts: questions → 2–3 approaches with trade-offs and a recommendation → `design.md` → `implement.md`.
+
+The ratchet is one-way: hidden complexity discovered mid-task upgrades the path — stop, say so, step up. Nothing downgrades mid-task. When in doubt between two paths, take the heavier one.
+
+**Anti-pattern — "too simple to need approval"**: the approval gate applies to every path; what scales with simplicity is the artifact, never the approval. A bounded task's two-sentence design is still gated: present it and wait for an explicit yes. "Simple" tasks are where unexamined assumptions cause the most wasted work.
+
+## implement.md Granularity (architectural path)
+
+When writing `implement.md`, hold it to this bar:
+
+- **Bite-sized steps**: one action per step (write the failing test / run it and see it fail / minimal implementation / run and see it pass). A step that takes more than a few minutes is two steps. Commits batch at the workflow's close-out phase, NOT per step — parallel sessions share this repo's git index, and per-step commits sweep other windows' staged work.
+- **Exact commands with expected output** for every verification step — not "run the tests", but the command and what PASS and FAIL each look like.
+- **No placeholders**: "TBD", "add appropriate error handling", "write tests for the above" (without actual test code), "similar to Task N" are plan failures. Every step contains the actual content an engineer with zero context needs.
+- **Files and interfaces per task**: which files get created/modified (exact paths), what the task consumes from earlier tasks and produces for later ones (exact names and signatures).
