@@ -331,5 +331,6 @@ function assetTagsCount(value: string | undefined) {
 /** 资产主图 dataURL(分镜参考图挂载等渲染层消费;无图/解析失败返回 null)。 */
 
 
-export { StoredAssetImage, buildAssetNameCandidateCondition, buildAssetWhere, initAssetsStorage, resolveAssetManagedPath, rowToSummary, shouldCreateAssetThumbnail } from "./assets-sqlite";
+export type { StoredAssetImage } from "./assets-sqlite";
+export { buildAssetNameCandidateCondition, buildAssetWhere, initAssetsStorage, resolveAssetManagedPath, shouldCreateAssetThumbnail } from "./assets-sqlite";
 export { batchMatchAssets, getAsset, getAssetByName, listAssets, readAssetImageDataUrl, resetAssetsCache } from "./assets-queries";
