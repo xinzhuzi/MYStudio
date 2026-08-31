@@ -31,7 +31,6 @@ from . import __version__
 from .model_cache import (
     IMAGE_MODELS,
     QWEN_IMAGE_EDIT_MODEL,
-    QWEN_SMALL_PIECE_REPOS,
     QWEN_SMALL_PIECES_SIZE_MB,
     find_cached_image_model_for_spec,
     qwen_small_pieces_status,
@@ -128,21 +127,13 @@ class Handler(BaseHTTPRequestHandler):
             self._send_error_json(HTTPStatus.FORBIDDEN, "无效本地令牌", "invalid_local_token")
             return
         if path == "/models/status":
-            models = []
-            for name, spec in IMAGE_MODELS.items():
-                cached = find_cached_image_model_for_spec(spec)
-                pointed = spec.get("layout") == "qwen-pointed"
-                models.append(
-                    {
-                        "modelName": name,
-                        "label": spec["label"],
-                        "downloaded": cached is not None,
-                        "sizeMb": cached["size_mb"] if cached else None,
-                        # 指向版专用:大件在而小件缺 → UI 显示「补齐小件」
-                        "smallPiecesReady": qwen_small_pieces_status()["ready"] if pointed else None,
-                        "pointed": pointed,
-                    }
-                )
+            # Keep the HTTP status contract aligned with the offline inventory:
+            # every engine (Qwen/Z/FLUX.2) must expose its own big-file source,
+            # pointed paths, and small-piece readiness rather than silently
+            # reporting only Qwen's state.
+            from .model_inventory import build_model_status
+
+            models = build_model_status()
             self._send_json({"models": models})
             return
         if path.startswith("/models/progress-json/"):
@@ -237,32 +228,40 @@ class Handler(BaseHTTPRequestHandler):
             self._send_error_json(HTTPStatus.BAD_REQUEST, f"未知模型: {model_name}", "unknown_model")
             return
 
-        if spec.get("layout") == "qwen-pointed":
-            # 指向版:大件直用 ComfyUI,下载语义 = 补齐两个官方仓的小件(~300MB)
-            def _download_small_pieces() -> None:
-                total_bytes = QWEN_SMALL_PIECES_SIZE_MB * 1024 * 1024
-                _set_progress(model_name, status="downloading", progress=0, current=0,
-                              total=total_bytes, filename="Qwen 小件(VAE/调度器/分词器)")
-                try:
-                    from huggingface_hub import snapshot_download
+        layout = spec.get("layout", "")
+        if "pointed" in layout:
+            # 缺什么下什么:大件在 → 只补小件;大件缺 → 完整(引擎分派)
+            from .engines import ALL_ENGINES as _ENGINES
+            engine = next((e for e in _ENGINES if e.LAYOUT == layout), None)
+            if engine is None:
+                self._send_error_json(HTTPStatus.BAD_REQUEST, f"未知布局: {layout}", "unknown_layout")
+                return
 
+            from .model_cache import comfyui_models_dir, hf_snapshot_dir
+            resolved = engine.resolve_big_files(comfyui_models_dir())
+            full_mode = resolved is None
+            total_bytes = spec["size_mb"] * 1024 * 1024 if full_mode else 300 * 1024 * 1024
+
+            def _download_pieces() -> None:
+                _set_progress(model_name, status="downloading", progress=0, current=0,
+                              total=total_bytes,
+                              filename=(f"{spec['label']} 完整模型" if full_mode
+                                        else f"{spec['label']} 小件"))
+                try:
                     cache_dir = os.environ.get("MYSTUDIO_IMAGE_MODEL_DIR", "")
                     if not cache_dir:
                         from .model_cache import download_hf_cache_dir
-
                         cache_dir = str(download_hf_cache_dir())
-                    for repo_id, patterns in QWEN_SMALL_PIECE_REPOS:
-                        snapshot_download(
-                            repo_id=repo_id,
-                            allow_patterns=list(patterns),
-                            cache_dir=cache_dir,
-                        )
+                    from huggingface_hub import snapshot_download as _hf_dl
+                    engine.fetch_small_pieces(cache_dir, _hf_dl)
+                    if full_mode and hasattr(engine, "fetch_big_files"):
+                        engine.fetch_big_files(cache_dir, _hf_dl)
                     _set_progress(model_name, status="complete", progress=100)
                 except Exception as exc:
                     _set_progress(model_name, status="error", progress=0, error=str(exc))
 
-            threading.Thread(target=_download_small_pieces, daemon=True).start()
-            self._send_json({"message": f"Model {model_name} small pieces download started"})
+            threading.Thread(target=_download_pieces, daemon=True).start()
+            self._send_json({"message": f"Model {model_name} {'full' if full_mode else 'small pieces'} download started"})
             return
 
         def _download() -> None:
