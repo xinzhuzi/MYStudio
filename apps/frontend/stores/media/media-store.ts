@@ -1,47 +1,15 @@
-// Copyright (c) 2025 hotflow2024
-// Licensed under AGPL-3.0-or-later. See LICENSE for details.
-// Commercial licensing available. See COMMERCIAL_LICENSE.md.
 import { create } from "zustand";
-import { persist, createJSONStorage } from "zustand/middleware";
+import { createJSONStorage, persist } from "zustand/middleware";
 import { createSplitStorage } from "@/lib/storage/project-storage";
 import { storageService } from "@/lib/storage/storage-service";
 import { generateUUID } from "@/lib/utils";
 import { useProjectStore } from "@/stores/project/project-store";
-import { MediaType, MediaFile, MediaFolder, MediaFolderCategory } from "@/types/media";
-import { saveImageToLocal, isElectron, moveLocalImageToCategory } from "@/lib/media/image-storage";
+import type {  MediaFile, MediaFolder, MediaFolderCategory, MediaType } from "@/types/media";
+import { isElectron, moveLocalImageToCategory, saveImageToLocal } from "@/lib/media/image-storage";
 import type { ImageCategory } from "@/lib/media/image-storage";
-import {
-  getLocalMediaUrlCategory,
-  getMediaFileStorageMoveCategory,
-  getMediaStorageCategoryForNewUrl,
-  withMovedMediaUrl,
-} from "./media-file-move";
-import {
-  mergeMediaData,
- 
-  partializeMediaData,
-  splitMediaData,
-  type MediaPersistedState,
-} from "./media-store-persistence";
-
-export {
-  mergeMediaData,
-  normalizeMediaUrl,
-  partializeMediaData,
-  splitMediaData,
-} from "./media-store-persistence";
-
-// ==================== System Category Definitions ====================
-
-export const SYSTEM_CATEGORIES: Array<{
-  category: MediaFolderCategory;
-  name: string;
-  icon: string; // lucide icon name for UI reference
-}> = [
-  { category: 'ai-image', name: 'AI图片', icon: 'Sparkles' },
-  { category: 'ai-video', name: 'AI视频', icon: 'Film' },
-  { category: 'upload',   name: '上传文件', icon: 'CloudUpload' },
-];
+import { getLocalMediaUrlCategory, getMediaFileStorageMoveCategory, getMediaStorageCategoryForNewUrl, withMovedMediaUrl } from "./media-file-move";
+import { MediaPersistedState, mergeMediaData, partializeMediaData, splitMediaData } from "./media-store-persistence";
+import { SYSTEM_CATEGORIES, assertProjectMediaDeleteAllowed, generateVideoThumbnail } from "./media-file-utils";
 
 interface MediaStore {
   mediaFiles: MediaFile[];
@@ -91,139 +59,15 @@ interface MediaStore {
   assignProjectToUnscoped: (projectId: string) => void;
 }
 
-// Helper function to determine file type
-export const getFileType = (file: File): MediaType | null => {
-  const { type } = file;
+export {
+  mergeMediaData,
+  normalizeMediaUrl,
+  partializeMediaData,
+  splitMediaData,
+} from "./media-store-persistence";
 
-  if (type.startsWith("image/")) {
-    return "image";
-  }
-  if (type.startsWith("video/")) {
-    return "video";
-  }
-  if (type.startsWith("audio/")) {
-    return "audio";
-  }
+// ==================== System Category Definitions ====================
 
-  return null;
-};
-
-// Helper function to get image dimensions
-export const getImageDimensions = (
-  file: File
-): Promise<{ width: number; height: number }> => {
-  return new Promise((resolve, reject) => {
-    const img = new window.Image();
-
-    const objectUrl = URL.createObjectURL(file);
-
-    img.addEventListener("load", () => {
-      const width = img.naturalWidth;
-      const height = img.naturalHeight;
-      resolve({ width, height });
-      img.remove();
-      URL.revokeObjectURL(objectUrl);
-    });
-
-    img.addEventListener("error", () => {
-      reject(new Error("Could not load image"));
-      img.remove();
-      URL.revokeObjectURL(objectUrl);
-    });
-
-    img.src = objectUrl;
-  });
-};
-
-// Helper function to generate video thumbnail and get dimensions
-export const generateVideoThumbnail = (
-  file: File
-): Promise<{ thumbnailUrl: string; width: number; height: number }> => {
-  return new Promise((resolve, reject) => {
-    const video = document.createElement("video") as HTMLVideoElement;
-    const canvas = document.createElement("canvas") as HTMLCanvasElement;
-    const ctx = canvas.getContext("2d");
-
-    if (!ctx) {
-      reject(new Error("Could not get canvas context"));
-      return;
-    }
-
-    video.addEventListener("loadedmetadata", () => {
-      canvas.width = video.videoWidth;
-      canvas.height = video.videoHeight;
-
-      // Seek to 1 second or 10% of duration, whichever is smaller
-      video.currentTime = Math.min(1, video.duration * 0.1);
-    });
-
-    const objectUrl = URL.createObjectURL(file);
-
-    video.addEventListener("seeked", () => {
-      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-      const thumbnailUrl = canvas.toDataURL("image/jpeg", 0.8);
-      const width = video.videoWidth;
-      const height = video.videoHeight;
-
-      resolve({ thumbnailUrl, width, height });
-
-      video.remove();
-      canvas.remove();
-      URL.revokeObjectURL(objectUrl);
-    });
-
-    video.addEventListener("error", () => {
-      reject(new Error("Could not load video"));
-      video.remove();
-      canvas.remove();
-      URL.revokeObjectURL(objectUrl);
-    });
-
-    video.src = objectUrl;
-    video.load();
-  });
-};
-
-// Helper function to get media duration
-export const getMediaDuration = (file: File): Promise<number> => {
-  return new Promise((resolve, reject) => {
-    const element = document.createElement(
-      file.type.startsWith("video/") ? "video" : "audio"
-    ) as HTMLVideoElement;
-
-    const objectUrl = URL.createObjectURL(file);
-
-    element.addEventListener("loadedmetadata", () => {
-      resolve(element.duration);
-      element.remove();
-      URL.revokeObjectURL(objectUrl);
-    });
-
-    element.addEventListener("error", () => {
-      reject(new Error("Could not load media"));
-      element.remove();
-      URL.revokeObjectURL(objectUrl);
-    });
-
-    element.src = objectUrl;
-    element.load();
-  });
-};
-
-export const getMediaAspectRatio = (item: MediaFile): number => {
-  if (item.width && item.height) {
-    return item.width / item.height;
-  }
-  return 16 / 9; // Default aspect ratio
-};
-
-export function assertProjectMediaDeleteAllowed(
-  item: Pick<MediaFile, "projectId" | "ephemeral"> | undefined,
-): void {
-  if (item?.projectId && !item.ephemeral) {
-    throw new Error("project-owned media must be deleted through the artifact plan");
-  }
-}
 
 export const useMediaStore = create<MediaStore>()(
   persist<MediaStore, [], [], MediaPersistedState>(
@@ -814,3 +658,6 @@ async function migrateMediaDataUrls(state: MediaStore) {
   }
   
 }
+
+
+export { SYSTEM_CATEGORIES, assertProjectMediaDeleteAllowed, generateVideoThumbnail, getFileType, getImageDimensions, getMediaAspectRatio, getMediaDuration } from "./media-file-utils";
