@@ -7,6 +7,7 @@ from typing import Any
 
 MODEL_NAME = "flux2-klein-9b"
 LAYOUT = "flux2-pointed"
+SUPPORTS_REFERENCE = True
 
 COMFY_MAIN_FILE = "diffusion_models/flux2_klein_9b.safetensors"
 COMFY_TEXT_ENCODER_FILES = (

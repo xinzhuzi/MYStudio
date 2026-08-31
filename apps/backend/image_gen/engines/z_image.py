@@ -7,6 +7,7 @@ from typing import Any
 
 MODEL_NAME = "z-image-turbo"
 LAYOUT = "z-image-pointed"
+SUPPORTS_REFERENCE = True
 
 COMFY_MAIN_FILE = "diffusion_models/z_image_turbo_bf16.safetensors"
 COMFY_TEXT_ENCODER_FILE = "text_encoders/qwen_3_4b.safetensors"

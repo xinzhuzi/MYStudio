@@ -7,6 +7,7 @@ from typing import Any
 
 MODEL_NAME = "qwen-image-edit-2511"
 LAYOUT = "qwen-pointed"
+SUPPORTS_REFERENCE = True
 
 COMFY_MAIN_FILE = "diffusion_models/qwen_image_edit_2511_Q8_0.gguf"
 COMFY_TE_FILE = "text_encoders/qwen_2.5_vl_7b.safetensors"

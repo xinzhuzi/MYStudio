@@ -29,8 +29,8 @@ from urllib.parse import urlparse
 
 from . import __version__
 from .model_cache import (
+    DEFAULT_IMAGE_MODEL,
     IMAGE_MODELS,
-    QWEN_IMAGE_EDIT_MODEL,
     QWEN_SMALL_PIECES_SIZE_MB,
     find_cached_image_model_for_spec,
     qwen_small_pieces_status,
@@ -164,7 +164,7 @@ class Handler(BaseHTTPRequestHandler):
     # -- handlers ---------------------------------------------------------
 
     def _handle_generate(self, payload: dict) -> None:
-        model = resolve_image_model_name(str(payload.get("model") or QWEN_IMAGE_EDIT_MODEL))
+        model = resolve_image_model_name(str(payload.get("model") or DEFAULT_IMAGE_MODEL))
         prompt = payload.get("prompt")
         if not isinstance(prompt, str) or not prompt.strip():
             self._send_error_json(HTTPStatus.BAD_REQUEST, "prompt 必须是非空字符串", "invalid_prompt")
@@ -197,6 +197,9 @@ class Handler(BaseHTTPRequestHandler):
             elif not first.startswith("http"):
                 reference_b64 = f"data:image/png;base64,{first}"
 
+        # NSFW/identity LoRA 显式开关(默认关;仅 Krea2 消费,其余引擎经 **ctx 吸收)
+        use_lora = payload.get("use_lora") is True
+
         try:
             b64 = generate_image(
                 model,
@@ -205,12 +208,15 @@ class Handler(BaseHTTPRequestHandler):
                 resolution=resolution,
                 negative_prompt=negative_prompt,
                 reference_image_b64=reference_b64,
+                use_lora=use_lora,
             )
         except PipelineError as exc:
             if exc.code == "model-not-downloaded":
                 status = HTTPStatus.SERVICE_UNAVAILABLE
             elif exc.code == "generation-busy":
                 status = HTTPStatus.CONFLICT
+            elif exc.code == "reference-unsupported":
+                status = HTTPStatus.BAD_REQUEST
             else:
                 status = HTTPStatus.INTERNAL_SERVER_ERROR
             self._send_error_json(status, exc.message, exc.code)

@@ -21,6 +21,9 @@ LEGACY_IMAGE_MODEL_ALIASES: dict[str, str] = {
     "flux-schnell": _qwen.MODEL_NAME,
 }
 
+# 默认引擎(server 缺 model 时的兜底;主力 T2I=Krea2)
+DEFAULT_IMAGE_MODEL = _krea2.MODEL_NAME
+
 # ── 公共类型 ──
 class ImageModelSpec(TypedDict):
     label: str

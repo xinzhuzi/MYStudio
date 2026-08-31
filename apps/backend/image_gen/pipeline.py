@@ -68,17 +68,25 @@ def generate_image(
     seed: int | None = None,
     reference_image_b64: str | None = None,
     strength: float = 0.55,
+    use_lora: bool = False,
 ) -> str:
     """Generate an image and return it as base64 PNG."""
     model_name = resolve_image_model_name(model_name)
     spec = IMAGE_MODELS[model_name]
     layout = spec.get("layout", "")
 
-    _require_downloaded(model_name)
-
     engine = _ENGINE_BY_LAYOUT.get(layout)
     if engine is None:
         raise PipelineError("unknown-model", f"未知布局: {layout}")
+
+    # 能力门禁先于就绪检查:带参考图打到不支持的引擎,立刻得到可操作的指路
+    if reference_image_b64 and not getattr(engine, "SUPPORTS_REFERENCE", True):
+        raise PipelineError(
+            "reference-unsupported",
+            f"{spec['label']} 暂不支持参考图。请切换 FLUX.2 Klein / Qwen-Image-Edit 或云端引擎。",
+        )
+
+    _require_downloaded(model_name)
 
     steps = num_inference_steps or spec["steps"]
 
@@ -105,6 +113,8 @@ def generate_image(
             steps=steps,
             seed=seed,
             reference_b64=reference_image_b64,
+            strength=strength,
+            use_lora=use_lora,
             **ctx,
         )
     except PipelineError:
