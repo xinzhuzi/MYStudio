@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useMemo, useCallback, useRef } from 'react';
-import { ImageIcon, Loader2, Download, Sparkles, Archive } from 'lucide-react';
+import { ImageIcon, Loader2, Download, Sparkles, Archive, Maximize2, ZoomIn } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
@@ -20,9 +20,14 @@ import {
   getAspectRatiosForT2IModel,
 } from '@/lib/assist/model-registry';
 import { ResolutionBadge } from "@/components/ui/image-resolution-badge";
+import { ImagePreviewModal } from "@/components/ui/media-preview-modal";
+import { runUpscaleImage } from "@/lib/upscale/client";
+import { parseUpscaleMediaRef, siblingOutputRef } from "@/lib/upscale/client";
 
 export function ImageStudio() {
   const [saveToPropsOpen, setSaveToPropsOpen] = useState(false);
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const [upscaling, setUpscaling] = useState(false);
 
   const {
     imagePrompt, setImagePrompt,
@@ -299,9 +304,56 @@ export function ImageStudio() {
             <img
               src={imageResult}
               alt="Generated"
-              className="max-w-full max-h-[calc(100vh-200px)] rounded-lg object-contain"
+              className="max-w-full max-h-[calc(100vh-200px)] rounded-lg object-contain cursor-zoom-in"
+              onClick={() => setPreviewOpen(true)}
             />
-            <div className="absolute bottom-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity flex gap-2">
+            <div className="absolute bottom-3 right-3 flex gap-2 flex-wrap justify-end">
+              <Button size="sm" variant="secondary" onClick={() => setPreviewOpen(true)}>
+                <Maximize2 className="h-4 w-4 mr-1" /> 查看大图
+              </Button>
+              <Button
+                size="sm"
+                variant="secondary"
+                disabled={upscaling}
+                onClick={async () => {
+                  if (!imageResult) return;
+                  setUpscaling(true);
+                  try {
+                    toast.info("超分 4K 开始，请稍候…");
+                    const projectId = "local-media";
+                    const ref = parseUpscaleMediaRef(imageResult);
+                    if (!ref) {
+                      toast.error("图片不在应用存储内，无法超分（请先保存到媒体库）");
+                      return;
+                    }
+                    const filename = `up4x_studio_${Date.now()}.png`;
+                    const outputUrl = siblingOutputRef(ref, filename);
+                    if (!outputUrl) {
+                      toast.error("无法确定超分输出路径");
+                      return;
+                    }
+                    const artifact = await runUpscaleImage({
+                      schemaVersion: 1,
+                      projectId: ref.kind === "project-file" ? ref.projectId : projectId,
+                      model: "realesrgan-x4plus-anime-6b",
+                      inputImagePath: imageResult,
+                      outputImagePath: typeof outputUrl === "string" ? outputUrl : outputUrl.url,
+                    });
+                    if (artifact.status === "accepted") {
+                      toast.success("超分 4K 完成");
+                    } else {
+                      toast.error(`超分失败: ${artifact.message || artifact.code}`);
+                    }
+                  } catch (err) {
+                    toast.error(err instanceof Error ? err.message : "超分失败");
+                  } finally {
+                    setUpscaling(false);
+                  }
+                }}
+              >
+                {upscaling ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <ZoomIn className="h-4 w-4 mr-1" />}
+                {upscaling ? "超分中…" : "超分 4K"}
+              </Button>
               <Button size="sm" variant="secondary" onClick={() => setSaveToPropsOpen(true)}>
                 <Archive className="h-4 w-4 mr-1" /> 保存到道具库
               </Button>
@@ -337,6 +389,15 @@ export function ImageStudio() {
           onOpenChange={setSaveToPropsOpen}
           imageUrl={imageResult}
           prompt={imagePrompt}
+        />
+      )}
+
+      {/* 全屏预览 */}
+      {imageResult && previewOpen && (
+        <ImagePreviewModal
+          imageUrl={imageResult}
+          isOpen={previewOpen}
+          onClose={() => setPreviewOpen(false)}
         />
       )}
     </div>
