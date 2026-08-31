@@ -77,7 +77,14 @@ import {
 } from "./image-workflow-batch-upscale-dialog";
 
 const nodeTypes = { imageWorkflow: ImageWorkflowNodeCard };
-const FIT_VIEW_OPTIONS = { padding: 0.18, minZoom: 0.35, maxZoom: 1.1 } as const;
+// 上下让位:顶部悬浮工具栏(返回/风格依据/整理布局≈140px)与左下视口控件+
+// 右下小地图会盖住贴边节点(实弹审查实证),fitView 用方向 padding 避让
+const FIT_VIEW_OPTIONS = {
+  padding: { top: "150px", bottom: "150px", left: 0.16, right: 0.16 },
+  // 0.35 地板会让高图(82镜/多卡堆叠)装不下,顶部溢出压进悬浮工具栏
+  minZoom: 0.25,
+  maxZoom: 1.1,
+} as const;
 
 export function ImageWorkflowCanvas({
   projectName,

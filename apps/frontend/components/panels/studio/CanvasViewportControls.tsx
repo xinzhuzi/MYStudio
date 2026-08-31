@@ -160,8 +160,15 @@ export function CanvasViewportControls<TNode extends Node>({
           position="bottom-right"
           pannable
           zoomable
-          className="workflow-canvas-minimap nodrag nopan rounded-lg border border-border/80 bg-card/95"
-          nodeColor={(node) => miniMapPalette.node[canvasMiniMapNodeToken(node.type ?? "default")]}
+          className="workflow-canvas-minimap nodrag nopan rounded-lg border border-border/80"
+          style={{ backgroundColor: miniMapPalette.card }}
+          nodeColor={(node) => {
+            // React Flow 的 node.type 是渲染组件类型(imageWorkflow/生产流id);
+            // 领域类型在 data.node.type(prompt/generated/reference)
+            const data = node.data as { node?: { type?: string } } | undefined;
+            const domainType = data?.node?.type ?? node.type ?? "default";
+            return miniMapPalette.node[canvasMiniMapNodeToken(domainType)];
+          }}
           nodeStrokeColor={miniMapPalette.border}
           maskColor={miniMapPalette.mask}
         />
