@@ -1,19 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { ImageWorkflowFlowView } from "./ImageWorkflowFlowView";
 import {
-  Background,
   MarkerType,
-  ReactFlow,
   type Edge,
-  type FinalConnectionState,
-  type OnConnect,
   type ReactFlowInstance,
-  useNodesState,
   useUpdateNodeInternals,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
-import { CanvasViewportControls } from "../CanvasViewportControls";
-import { InteractionDeferHint } from "../previews/interaction-defer-hint";
-import { useCanvasGestureKernel } from "../use-canvas-gesture-kernel";
 import { useCanvasHistory, useCanvasHistoryShortcuts } from "../use-canvas-history";
 import { useScopedWorkflowLifecycle } from "./use-scoped-workflow-lifecycle";
 import { buildSwitchContext, useStoryboardWorkflowSwitch } from "./use-storyboard-workflow-switch";
@@ -46,7 +39,6 @@ import {
   type ImageWorkflowReactNode,
 } from "./image-workflow-node-card";
 import {
-  imageWorkflowTargetKey,
   findStoryboardWorkflowForContext,
   focusNodeIdsForGenerated,
   isAssetOpenContext,
@@ -56,14 +48,10 @@ import {
   workflowTargetLabel,
 } from "./image-workflow-graph-utils";
 import { createImageWorkflowReactNodes } from "./image-workflow-react-nodes";
-import { ImageWorkflowConnectCreateMenu } from "./image-workflow-connect-create-menu";
 import {
-  connectCreateDirection,
   createConnectedImageNode,
-  getCreatableImageNodeTypes,
   type ConnectCreateInput,
 } from "@/lib/studio/image-workflow/connect-create";
-import type { CanvasHistoryController } from "../use-canvas-history";
 import { ImageWorkflowScopedPending } from "./image-workflow-scoped-pending";
 import { useImageWorkflowGeneration } from "./use-image-workflow-generation";
 import { useImageWorkflowUpscale } from "./use-image-workflow-upscale";
@@ -77,10 +65,10 @@ import {
   ImageWorkflowBatchUpscaleProgress,
 } from "./image-workflow-batch-upscale-dialog";
 
-const nodeTypes = { imageWorkflow: ImageWorkflowNodeCard };
+export const nodeTypes = { imageWorkflow: ImageWorkflowNodeCard };
 // 上下让位:顶部悬浮工具栏(返回/风格依据/整理布局≈140px)与左下视口控件+
 // 右下小地图会盖住贴边节点(实弹审查实证),fitView 用方向 padding 避让
-const FIT_VIEW_OPTIONS = {
+export const FIT_VIEW_OPTIONS = {
   padding: { top: "150px", bottom: "150px", left: 0.16, right: 0.16 },
   // 0.35 地板会让高图(82镜/多卡堆叠)装不下,顶部溢出压进悬浮工具栏
   minZoom: 0.25,
@@ -642,240 +630,8 @@ export function ImageWorkflowCanvas({
 
 // ─── 画布子组件:nodes 每帧更新隔离在此,父级工具栏/侧栏不随拖动重渲染 ───
 
-function ImageWorkflowFlowView({
-  activeGraph,
-  focusedFitNodeIds,
-  initialAssetContext,
-  reactFlowEdges,
-  reactFlowNodes,
-  onConnect,
-  onConnectCreate,
-  canvasHistory,
-  onEdgeClick,
-  onFitView,
-  onInit,
-  onNodeClick,
-  onNodeDragStop,
-  onPaneClick,
-  uploadInputRef,
-  onUploadReference,
-}: {
-  activeGraph: ImageWorkflowGraph;
-  focusedFitNodeIds: string[];
-  initialAssetContext?: ImageWorkflowOpenContext;
-  reactFlowEdges: Edge[];
-  reactFlowNodes: ImageWorkflowReactNode[];
-  onConnect: OnConnect;
-  onConnectCreate: (input: ConnectCreateInput) => void;
-  canvasHistory: CanvasHistoryController<{
-    nodes: ImageWorkflowGraph["nodes"];
-    edges: ImageWorkflowGraph["edges"];
-  }>;
-  onEdgeClick: (edgeId: string) => void;
-  onFitView: () => void;
-  onInit: (instance: ReactFlowInstance<ImageWorkflowReactNode, Edge>) => void;
-  onNodeClick: (nodeId: string) => void;
-  onNodeDragStop: (nodeId: string, position: { x: number; y: number }) => void;
-  onPaneClick: () => void;
-  uploadInputRef: React.MutableRefObject<HTMLInputElement | null>;
-  onUploadReference: (file: File | undefined) => void | Promise<void>;
-}) {
-  const [nodes, setNodes, onNodesChange] =
-    useNodesState<ImageWorkflowReactNode>(reactFlowNodes);
-  const measurementNodeIds = useMemo(
-    () => activeGraph.nodes.map((node) => node.id),
-    [activeGraph.nodes],
-  );
 
-  useEffect(() => {
-    setNodes(reactFlowNodes);
-  }, [reactFlowNodes, setNodes]);
-
-  const [flowInstance, setFlowInstance] =
-    useState<ReactFlowInstance<ImageWorkflowReactNode, Edge> | null>(null);
-
-  // 连接落空创建菜单锚点(null=关);正常连上(isValid)不弹
-  const [connectCreateAnchor, setConnectCreateAnchor] = useState<{
-    x: number;
-    y: number;
-    fromNodeId: string;
-    fromHandleType: "source" | "target";
-  } | null>(null);
-
-  const handleConnectEnd = useCallback(
-    (event: MouseEvent | TouchEvent, connectionState: FinalConnectionState) => {
-      if (connectionState.isValid) return;
-      const fromNode = connectionState.fromNode;
-      const fromHandleType = connectionState.fromHandle?.type;
-      if (!fromNode || (fromHandleType !== "source" && fromHandleType !== "target")) return;
-      const point =
-        "clientX" in event
-          ? { x: event.clientX, y: event.clientY }
-          : {
-              x: event.changedTouches[0]?.clientX ?? 0,
-              y: event.changedTouches[0]?.clientY ?? 0,
-            };
-      setConnectCreateAnchor({
-        x: point.x,
-        y: point.y,
-        fromNodeId: fromNode.id,
-        fromHandleType,
-      });
-    },
-    [],
-  );
-
-  const connectCreateOptions = useMemo(
-    () =>
-      connectCreateAnchor
-        ? getCreatableImageNodeTypes(connectCreateDirection(connectCreateAnchor.fromHandleType))
-        : [],
-    [connectCreateAnchor],
-  );
-
-  const handleConnectCreateSelect = useCallback(
-    (type: "generated" | "prompt" | "reference") => {
-      if (!connectCreateAnchor) return;
-      onConnectCreate({
-        fromNodeId: connectCreateAnchor.fromNodeId,
-        fromHandleType: connectCreateAnchor.fromHandleType,
-        type,
-      });
-      setConnectCreateAnchor(null);
-    },
-    [connectCreateAnchor, onConnectCreate],
-  );
-
-  // 08-30:fitView 触发键(稳定字符串,防对象身份抖动;不含选中/节点数)
-  const initialAssetContextKey = initialAssetContext
-    ? `${imageWorkflowTargetKey(initialAssetContext.target)}|${initialAssetContext.title}`
-    : "";
-
-  // 交互(拖节点/平移/缩放)期间给容器打标,CSS 把卡片大阴影、ReactFlow
-  // Background pattern、毛玻璃等重活临时降级,松手/静止 180ms 后恢复。
-  // 手势层单源(08-30 收敛 Phase2):两画布共用 useCanvasGestureKernel,
-  // 类名/摘标延迟/缩放界为策略注入。
-  const interactingRef = useRef<HTMLDivElement | null>(null);
-  const {
-    setInteracting,
-    handleMoveStart,
-    handleMoveEnd,
-    handleNodeDragStart,
-  } = useCanvasGestureKernel({
-    containerRef: interactingRef,
-    viewportApi: flowInstance && {
-      getViewport: () => flowInstance.getViewport(),
-      setViewport: (viewport) => flowInstance.setViewport(viewport),
-    },
-    interactingClass: "workflow-canvas-interacting",
-    zoom: { minZoom: 0.5, maxZoom: 2 },
-  });
-
-  useEffect(() => {
-    if (!flowInstance || nodes.length === 0) return;
-    const focusNodes =
-      initialAssetContext && focusedFitNodeIds.length > 0
-        ? focusedFitNodeIds.map((id) => ({ id }))
-        : undefined;
-    window.requestAnimationFrame(() => {
-      window.setTimeout(() => {
-        flowInstance?.fitView({
-          ...FIT_VIEW_OPTIONS,
-          duration: 180,
-          ...(focusNodes ? { nodes: focusNodes } : {}),
-        });
-      }, 80);
-    });
-    // 首帧 fitView 静止后补一帧交互标,确保初次缩放回位期间阴影/背景已降级
-    setInteracting(true);
-    const settleTimer = window.setTimeout(() => setInteracting(false), 400);
-    return () => window.clearTimeout(settleTimer);
-  // 08-30 裁定:fitView 只在换流/实例就绪/带资产上下文打开时触发一次;
-  // 旧依赖含 focusedFitNodeKey+nodes.length,点节点/按钮改选中或加节点
-  // 就重排视口,被用户打回(「不要每次点击都整理布局」)。
-// eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeGraph.id, flowInstance, initialAssetContextKey]);
-
-  return (
-    <div ref={interactingRef} className="image-workflow-flow-host contents">
-      <div className="pointer-events-none absolute bottom-3 left-3 z-10">
-        <InteractionDeferHint />
-      </div>
-      {/* connectionMode=loose:允许从成图 target 手柄反向拖出建上游(提示词/
-          参考图,strict 下 target 起拖被整体禁止);连线合法性由
-          connectImageWorkflowNodes 域规则把关,不受 loose 放宽 */}
-      <ReactFlow
-        className="absolute inset-0 bg-muted/20"
-        nodes={nodes}
-        edges={reactFlowEdges}
-        nodeTypes={nodeTypes}
-        onNodesChange={onNodesChange}
-        onNodeClick={(_, node) => onNodeClick(node.id)}
-        onPaneClick={onPaneClick}
-        onEdgeClick={(_, edge) => onEdgeClick(edge.id)}
-        onNodeDragStart={handleNodeDragStart}
-        onNodeDragStop={(_, node) => {
-          setInteracting(false);
-          onNodeDragStop(node.id, node.position);
-        }}
-        onMoveStart={handleMoveStart}
-        onMoveEnd={handleMoveEnd}
-        onConnect={onConnect}
-        onConnectEnd={handleConnectEnd}
-        onInit={(instance) => {
-          setFlowInstance(instance);
-          onInit(instance);
-          window.requestAnimationFrame(() => instance.fitView(FIT_VIEW_OPTIONS));
-        }}
-        fitView
-        fitViewOptions={FIT_VIEW_OPTIONS}
-        nodesDraggable
-        nodesConnectable
-        elementsSelectable
-        panOnDrag={false}
-        zoomOnScroll={false}
-        zoomOnPinch
-        zoomOnDoubleClick={false}
-        proOptions={{ hideAttribution: true }}
-      >
-        <ImageWorkflowVisibilityMeasurementRefresh
-          isVisible={Boolean(flowInstance)}
-          nodeIds={measurementNodeIds}
-        />
-        <Background color="hsl(var(--border))" gap={28} size={1} />
-        <CanvasViewportControls onFit={onFitView} history={canvasHistory} />
-      </ReactFlow>
-      {connectCreateAnchor ? (
-        <ImageWorkflowConnectCreateMenu
-          x={connectCreateAnchor.x}
-          y={connectCreateAnchor.y}
-          options={connectCreateOptions}
-          onSelect={handleConnectCreateSelect}
-          onClose={() => setConnectCreateAnchor(null)}
-        />
-      ) : null}
-      {nodes.length === 0 ? (
-        <div className="pointer-events-none absolute inset-0 flex items-center justify-center px-6 text-center">
-          <div className="max-w-sm rounded-md border border-border bg-card/92 px-4 py-3 text-sm text-card-foreground">
-            <div className="font-semibold">当前图片工作流没有节点</div>
-            <div className="mt-1 text-xs text-muted-foreground">
-              可从左上角新建节点，或回到工作流重新从资产/分镜卡片进入。
-            </div>
-          </div>
-        </div>
-      ) : null}
-      <input
-        ref={uploadInputRef}
-        type="file"
-        accept="image/*"
-        className="hidden"
-        onChange={(event) => void onUploadReference(event.target.files?.[0])}
-      />
-    </div>
-  );
-}
-
-function ImageWorkflowVisibilityMeasurementRefresh({
+export function ImageWorkflowVisibilityMeasurementRefresh({
   isVisible,
   nodeIds,
 }: {
@@ -895,3 +651,6 @@ function ImageWorkflowVisibilityMeasurementRefresh({
 
   return null;
 }
+
+
+export { ImageWorkflowFlowView } from "./ImageWorkflowFlowView";
