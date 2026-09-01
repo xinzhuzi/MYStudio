@@ -1,12 +1,15 @@
 "use client";
 
-// MCP 服务设置 tab(09-01-mcp-settings-section):登记 MCP 服务器(stdio 本地命令 /
-// http 网络地址)+ 连通性测试。工具的实际消费是后续任务;本页管「存好+测通」。
+// MCP 服务设置 tab(09-01-mcp-settings-section)。
+// 布局仿「本地配置」页:分组标签 + 可折叠行 + 行级状态胶囊(PluginSettingsTab 同款范式,
+// 折叠态持久化 localStorage)。三组:服务连接(ComfyUI 桥+专业流开关)→ MCP 服务器 → JSON 配置。
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { Check, ChevronDown, FileJson, Loader2, Pencil, Plug, Plus, Server, Trash2, X } from "lucide-react";
 import { toast } from "sonner";
-import { Check, Loader2, Pencil, Plus, Server, Trash2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import {
   Dialog,
   DialogContent,
@@ -26,6 +29,8 @@ import {
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
+import { cn } from "@/lib/utils";
+import { useAppSettingsStore } from "@/stores/app/app-settings-store";
 import {
   useMcpServersStore,
   importMcpServersJson,
@@ -60,6 +65,82 @@ const emptyDraft: DraftForm = {
   enabled: true,
 };
 
+const COLLAPSED_STORAGE_KEY = "mystudio.settings.mcp.collapsedSections";
+type SectionId = "bridge" | "servers" | "json";
+type PillState = "ready" | "needs-runtime" | "neutral";
+
+const PILL_LABELS: Record<PillState, string> = {
+  ready: "已就绪",
+  "needs-runtime": "需准备",
+  neutral: "配置区",
+};
+
+const PILL_STYLES: Record<PillState, string> = {
+  ready: "border-success/40 bg-success/10 text-success",
+  "needs-runtime": "border-warning/40 bg-warning/10 text-warning",
+  neutral: "border-border bg-muted/50 text-muted-foreground",
+};
+
+function readCollapsedSections(): Set<SectionId> {
+  try {
+    const raw = window.localStorage.getItem(COLLAPSED_STORAGE_KEY);
+    return raw ? new Set(JSON.parse(raw) as SectionId[]) : new Set();
+  } catch {
+    return new Set();
+  }
+}
+
+function McpGroup({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <section aria-label={label} className="space-y-2">
+      <div className="px-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground">{label}</div>
+      <div className="divide-y divide-border overflow-hidden rounded-xl border border-border/80 bg-card/70">
+        {children}
+      </div>
+    </section>
+  );
+}
+
+function McpRow({
+  sectionId,
+  icon: Icon,
+  title,
+  pill,
+  collapsed,
+  onToggle,
+  children,
+}: {
+  sectionId: SectionId;
+  icon: typeof Server;
+  title: string;
+  pill: PillState;
+  collapsed: boolean;
+  onToggle: (id: SectionId) => void;
+  children: ReactNode;
+}) {
+  return (
+    <Collapsible open={!collapsed} onOpenChange={() => onToggle(sectionId)}>
+      <CollapsibleTrigger className="w-full text-left">
+        <div className="flex items-center gap-3 px-4 py-3">
+          <Icon className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+          <h4 className="min-w-0 flex-1 truncate text-sm font-medium text-foreground">{title}</h4>
+          <span
+            className={cn("shrink-0 rounded-full border px-2 py-0.5 text-xs font-medium", PILL_STYLES[pill])}
+            data-capability-pill={pill}
+          >
+            {PILL_LABELS[pill]}
+          </span>
+          <ChevronDown
+            className={cn("h-4 w-4 shrink-0 text-muted-foreground transition-transform", collapsed && "-rotate-90")}
+            aria-hidden="true"
+          />
+        </div>
+      </CollapsibleTrigger>
+      <CollapsibleContent className="border-t border-border">{children}</CollapsibleContent>
+    </Collapsible>
+  );
+}
+
 function parseEnvLines(text: string): Record<string, string> | undefined {
   const entries = text
     .split("\n")
@@ -90,18 +171,31 @@ function configToDraft(server: McpServerConfig): DraftForm {
 export function McpSettingsTab() {
   const { servers, addServer, updateServer, removeServer } = useMcpServersStore();
   const hasRuntime = typeof window !== "undefined" && Boolean(window.mcpRuntime);
+  const [collapsedSections, setCollapsedSections] = useState<Set<SectionId>>(() => readCollapsedSections());
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [draft, setDraft] = useState<DraftForm>(emptyDraft);
   const [formError, setFormError] = useState<string | null>(null);
   const [tests, setTests] = useState<Record<string, TestState>>({});
-  // JSON 配置区:业界统一格式(Claude Desktop/Claude Code/Cursor 同款),可互导
+  const [bridge, setBridge] = useState<{ ready: boolean; version?: string } | null>(null);
   const [jsonText, setJsonText] = useState("");
   const [jsonError, setJsonError] = useState<string | null>(null);
 
+  const localImageLoraEnabled = useAppSettingsStore(
+    (state) => state.imageGenerationSettings.localImageLoraEnabled,
+  );
+
+  const toggleSectionCollapsed = (sectionId: SectionId) => {
+    setCollapsedSections((prev) => {
+      const next = new Set(prev);
+      if (next.has(sectionId)) next.delete(sectionId);
+      else next.add(sectionId);
+      window.localStorage.setItem(COLLAPSED_STORAGE_KEY, JSON.stringify([...next]));
+      return next;
+    });
+  };
+
   useEffect(() => setJsonText(exportMcpServersJson()), [servers.length]);
-  // ComfyUI 桥=服务型引擎,状态展示从「本地图片生成」移此(服务连接分组)
-  const [bridge, setBridge] = useState<{ ready: boolean; version?: string } | null>(null);
 
   useEffect(() => () => setTests({}), []);
 
@@ -116,7 +210,7 @@ export function McpSettingsTab() {
         const row = (s.models ?? []).find((m) => m.modelName === "comfyui-bridge");
         if (row) setBridge({ ready: Boolean(row.downloaded), version: row.comfyuiVersion ?? undefined });
       } catch {
-        // 状态拉取失败保持空——卡片显示「探测中」态由 null 区分
+        // 拉取失败保持 null——胶囊显示「需准备」
       }
     })();
     return () => { cancelled = true; };
@@ -196,13 +290,10 @@ export function McpSettingsTab() {
     }
   };
 
-  const summary = useMemo(() => {
-    const enabled = servers.filter((s) => s.enabled).length;
-    return `共 ${servers.length} 个，已启用 ${enabled} 个`;
-  }, [servers]);
+  const enabledCount = useMemo(() => servers.filter((s) => s.enabled).length, [servers]);
 
   return (
-    <div className="p-8 w-full max-w-[1200px] mx-auto space-y-6">
+    <div className="p-8 w-full max-w-[1200px] mx-auto space-y-8">
       <header className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div>
           <h3 className="flex items-center gap-2 text-lg font-bold text-foreground">
@@ -213,159 +304,200 @@ export function McpSettingsTab() {
             登记你的 MCP 服务器（AI 工具联动的标准协议），先用「测试连接」确认能连上。这里只保存配置和做连通测试；具体能力的接入会逐步开放。
           </p>
         </div>
-        <Button onClick={openCreate} data-testid="mcp-add-server">
-          <Plus className="mr-2 h-4 w-4" aria-hidden />
-          添加服务器
-        </Button>
       </header>
 
-      {/* 服务连接分组 —— 服务型引擎的状态展示（ComfyUI 桥自「本地图片生成」移此） */}
-      <section className="space-y-3" data-testid="mcp-service-connections">
-        <h4 className="text-sm font-semibold text-foreground">服务连接</h4>
-        <div className="rounded-xl border border-border bg-card p-4 flex items-center justify-between gap-4" data-testid="comfyui-bridge-card">
-          <div className="min-w-0">
-            <div className="flex items-center gap-2">
-              <span className="text-sm font-medium">ComfyUI 桥接（多参考编辑）</span>
-              <span className="rounded-full bg-muted px-2 py-0.5 text-[11px] text-muted-foreground">生图引擎</span>
+      {/* ── 服务连接:ComfyUI 桥状态 + 专业流开关(自「本地图片生成」迁此) ── */}
+      <McpGroup label="服务连接">
+        <McpRow
+          sectionId="bridge"
+          icon={Plug}
+          title="ComfyUI 桥接（多参考编辑）"
+          pill={bridge?.ready ? "ready" : "needs-runtime"}
+          collapsed={collapsedSections.has("bridge")}
+          onToggle={toggleSectionCollapsed}
+        >
+          <div className="space-y-4 px-5 py-4">
+            <div>
+              {bridge === null ? (
+                <p className="text-xs text-muted-foreground">探测中…</p>
+              ) : bridge.ready ? (
+                <p className="text-xs text-success" data-testid="comfyui-bridge-ready">
+                  已就绪（ComfyUI {bridge.version ?? ""}）——连接本机正在运行的 ComfyUI 出图，支持多张参考图编辑。在生图引擎选择里选用，无需下载模型。
+                </p>
+              ) : (
+                <p className="text-xs text-muted-foreground" data-testid="comfyui-bridge-not-ready">
+                  未就绪（需 ComfyUI 正在运行）——打开 ComfyUI 后即可连上。
+                </p>
+              )}
             </div>
-            <p className="mt-1 text-xs text-muted-foreground">
-              连接本机正在运行的 ComfyUI 出图，支持多张参考图编辑。在生图引擎选择里选用，无需下载模型。
-            </p>
-          </div>
-          {bridge === null ? (
-            <span className="shrink-0 text-xs text-muted-foreground">探测中…</span>
-          ) : bridge.ready ? (
-            <span className="shrink-0 text-xs text-success" data-testid="comfyui-bridge-ready">
-              已就绪（ComfyUI {bridge.version ?? ""}）
-            </span>
-          ) : (
-            <span className="shrink-0 text-xs text-muted-foreground" data-testid="comfyui-bridge-not-ready">
-              未就绪（需 ComfyUI 正在运行）
-            </span>
-          )}
-        </div>
-      </section>
-
-      {/* JSON 配置 —— 业界统一格式,与 Claude Desktop / Claude Code / Cursor 等可直接互导 */}
-      <section className="space-y-3" data-testid="mcp-json-config">
-        <div className="flex items-center justify-between gap-4">
-          <div>
-            <h4 className="text-sm font-semibold text-foreground">JSON 配置（通用格式）</h4>
-            <p className="mt-1 text-xs text-muted-foreground">
-              与其他软件通用的配置格式：粘贴别处的 mcpServers 配置点「导入」（同名更新、新名新增）；也可以复制当前配置到别的软件用。
-            </p>
-          </div>
-          <div className="flex shrink-0 gap-2">
-            <Button size="sm" variant="outline" onClick={() => { void navigator.clipboard.writeText(jsonText); toast.success("已复制到剪贴板"); }}>
-              复制
-            </Button>
-            <Button size="sm" variant="outline" onClick={() => setJsonText(exportMcpServersJson())}>
-              刷新为当前配置
-            </Button>
-            <Button size="sm" onClick={() => {
-              const result = importMcpServersJson(jsonText);
-              if (result.ok) {
-                setJsonError(null);
-                toast.success(`导入成功：新增 ${result.added} 个，更新 ${result.updated} 个`);
-              } else {
-                setJsonError(result.error);
-              }
-            }}>
-              导入
-            </Button>
-          </div>
-        </div>
-        <Textarea
-          value={jsonText}
-          onChange={(event) => setJsonText(event.target.value)}
-          rows={8}
-          className="font-mono text-xs"
-          placeholder={'{\n  "mcpServers": {\n    "本地文件": {\n      "command": "npx",\n      "args": ["-y", "@modelcontextprotocol/server-filesystem", "/tmp"]\n    }\n  }\n}'}
-          aria-label="mcpServers JSON 配置"
-          data-testid="mcp-json-textarea"
-        />
-        {jsonError ? (
-          <p className="text-xs text-destructive" data-testid="mcp-json-error">{jsonError}</p>
-        ) : null}
-      </section>
-
-      {!hasRuntime ? (
-        <div className="rounded-xl border border-border bg-card px-5 py-4 text-sm text-muted-foreground">
-          MCP 服务配置仅在桌面应用中可用。
-        </div>
-      ) : servers.length === 0 ? (
-        <div className="rounded-xl border border-border bg-card px-5 py-10 text-center text-sm text-muted-foreground">
-          还没有登记 MCP 服务器。点右上角「添加服务器」开始。
-        </div>
-      ) : (
-        <div className="space-y-3">
-          <p className="text-xs text-muted-foreground" data-testid="mcp-summary">{summary}</p>
-          {servers.map((server) => {
-            const test = tests[server.id] ?? { status: "idle" };
-            return (
-              <div
-                key={server.id}
-                className="rounded-xl border border-border bg-card p-4 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between"
-                data-testid={`mcp-server-card-${server.name}`}
-              >
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm font-medium">{server.name}</span>
-                    <span className="rounded-full bg-muted px-2 py-0.5 text-[11px] text-muted-foreground">
-                      {transportLabel(server.transport)}
-                    </span>
-                  </div>
-                  <p className="mt-1 break-all font-mono text-xs text-muted-foreground">
-                    {server.transport === "stdio"
-                      ? [server.command, ...(server.args ?? [])].join(" ")
-                      : server.url}
-                  </p>
-                  {test.status === "ok" ? (
-                    <p className="mt-1 text-xs text-success" data-testid={`mcp-test-ok-${server.name}`}>
-                      已连上{test.serverName ? `（${test.serverName}）` : ""}，提供 {test.tools.length} 个能力
-                      {test.tools.length ? `：${test.tools.slice(0, 3).map((t) => t.name).join("、")}${test.tools.length > 3 ? " 等" : ""}` : ""}
-                    </p>
-                  ) : null}
-                  {test.status === "error" ? (
-                    <p className="mt-1 text-xs text-destructive" data-testid={`mcp-test-err-${server.name}`}>
-                      {test.message}
-                    </p>
-                  ) : null}
-                </div>
-                <div className="flex shrink-0 items-center gap-2">
-                  <label className="flex cursor-pointer items-center gap-2 text-xs text-muted-foreground">
-                    <Switch
-                      checked={server.enabled}
-                      onCheckedChange={(checked) => updateServer(server.id, { enabled: checked === true })}
-                      aria-label={`启用 ${server.name}`}
-                    />
-                    启用
-                  </label>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => void runTest(server)}
-                    disabled={test.status === "testing"}
-                  >
-                    {test.status === "testing" ? (
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden />
-                    ) : (
-                      <Check className="mr-2 h-4 w-4" aria-hidden />
-                    )}
-                    {test.status === "testing" ? "测试中…" : "测试连接"}
-                  </Button>
-                  <Button size="sm" variant="ghost" onClick={() => openEdit(server)} aria-label={`编辑 ${server.name}`}>
-                    <Pencil className="h-4 w-4" aria-hidden />
-                  </Button>
-                  <Button size="sm" variant="ghost" onClick={() => removeServer(server.id)} aria-label={`删除 ${server.name}`}>
-                    <Trash2 className="h-4 w-4 text-destructive" aria-hidden />
-                  </Button>
+            <div className="flex items-start justify-between gap-4 rounded-lg border border-border/60 bg-muted/30 px-3 py-2.5">
+              <div className="min-w-0">
+                <div className="text-sm font-medium">专业流增强（本地）</div>
+                <div className="mt-0.5 text-xs leading-5 text-muted-foreground">
+                  开启后本地生图自动走专业流：Krea2 挂 NSFW 增强组件，ComfyUI 桥改走 NSFW 专业流。默认关闭——对普通画面有模糊/偏色副作用；仅本地引擎生效，云端不受影响。
                 </div>
               </div>
-            );
-          })}
-        </div>
-      )}
+              <label
+                className="flex shrink-0 cursor-pointer items-center gap-2 text-sm text-muted-foreground"
+                data-local-image-lora-checkbox
+                title="开启后本地生图自动挂专业流增强"
+              >
+                <Checkbox
+                  checked={localImageLoraEnabled}
+                  onCheckedChange={(checked) =>
+                    useAppSettingsStore
+                      .getState()
+                      .setImageGenerationSettings({
+                        localImageLoraEnabled: checked === true,
+                      })
+                  }
+                  aria-label="专业流增强（本地）"
+                />
+              </label>
+            </div>
+          </div>
+        </McpRow>
+      </McpGroup>
+
+      {/* ── MCP 服务器 ── */}
+      <McpGroup label="MCP 服务器">
+        <McpRow
+          sectionId="servers"
+          icon={Server}
+          title={`MCP 服务器管理${servers.length ? `（共 ${servers.length} 个，已启用 ${enabledCount} 个）` : ""}`}
+          pill={enabledCount > 0 ? "ready" : "needs-runtime"}
+          collapsed={collapsedSections.has("servers")}
+          onToggle={toggleSectionCollapsed}
+        >
+          <div className="space-y-3 px-5 py-4">
+            <div className="flex justify-end">
+              <Button size="sm" onClick={openCreate} data-testid="mcp-add-server">
+                <Plus className="mr-2 h-4 w-4" aria-hidden />
+                添加服务器
+              </Button>
+            </div>
+            {!hasRuntime ? (
+              <p className="text-xs text-muted-foreground">桌面应用中可用。</p>
+            ) : servers.length === 0 ? (
+              <p className="px-1 text-xs text-muted-foreground">还没有登记 MCP 服务器。点右上角「添加服务器」开始。</p>
+            ) : (
+              servers.map((server) => {
+                const test = tests[server.id] ?? { status: "idle" };
+                return (
+                  <div
+                    key={server.id}
+                    className="rounded-lg border border-border bg-card p-3.5 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between"
+                    data-testid={`mcp-server-card-${server.name}`}
+                  >
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-medium">{server.name}</span>
+                        <span className="rounded-full bg-muted px-2 py-0.5 text-[11px] text-muted-foreground">
+                          {transportLabel(server.transport)}
+                        </span>
+                      </div>
+                      <p className="mt-1 break-all font-mono text-xs text-muted-foreground">
+                        {server.transport === "stdio"
+                          ? [server.command, ...(server.args ?? [])].join(" ")
+                          : server.url}
+                      </p>
+                      {test.status === "ok" ? (
+                        <p className="mt-1 text-xs text-success" data-testid={`mcp-test-ok-${server.name}`}>
+                          已连上{test.serverName ? `（${test.serverName}）` : ""}，提供 {test.tools.length} 个能力
+                          {test.tools.length ? `：${test.tools.slice(0, 3).map((t) => t.name).join("、")}${test.tools.length > 3 ? " 等" : ""}` : ""}
+                        </p>
+                      ) : null}
+                      {test.status === "error" ? (
+                        <p className="mt-1 text-xs text-destructive" data-testid={`mcp-test-err-${server.name}`}>
+                          {test.message}
+                        </p>
+                      ) : null}
+                    </div>
+                    <div className="flex shrink-0 items-center gap-2">
+                      <label className="flex cursor-pointer items-center gap-2 text-xs text-muted-foreground">
+                        <Switch
+                          checked={server.enabled}
+                          onCheckedChange={(checked) => updateServer(server.id, { enabled: checked === true })}
+                          aria-label={`启用 ${server.name}`}
+                        />
+                        启用
+                      </label>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => void runTest(server)}
+                        disabled={test.status === "testing"}
+                      >
+                        {test.status === "testing" ? (
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden />
+                        ) : (
+                          <Check className="mr-2 h-4 w-4" aria-hidden />
+                        )}
+                        {test.status === "testing" ? "测试中…" : "测试连接"}
+                      </Button>
+                      <Button size="sm" variant="ghost" onClick={() => openEdit(server)} aria-label={`编辑 ${server.name}`}>
+                        <Pencil className="h-4 w-4" aria-hidden />
+                      </Button>
+                      <Button size="sm" variant="ghost" onClick={() => removeServer(server.id)} aria-label={`删除 ${server.name}`}>
+                        <Trash2 className="h-4 w-4 text-destructive" aria-hidden />
+                      </Button>
+                    </div>
+                  </div>
+                );
+              })
+            )}
+          </div>
+        </McpRow>
+      </McpGroup>
+
+      {/* ── JSON 配置 ── */}
+      <McpGroup label="JSON 配置">
+        <McpRow
+          sectionId="json"
+          icon={FileJson}
+          title="JSON 配置（通用格式）"
+          pill="neutral"
+          collapsed={collapsedSections.has("json")}
+          onToggle={toggleSectionCollapsed}
+        >
+          <div className="space-y-3 px-5 py-4" data-testid="mcp-json-config">
+            <p className="text-xs leading-5 text-muted-foreground">
+              与其他软件通用的配置格式：粘贴别处的 mcpServers 配置点「导入」（同名更新、新名新增）；也可以复制当前配置到别的软件用。
+            </p>
+            <Textarea
+              value={jsonText}
+              onChange={(event) => setJsonText(event.target.value)}
+              rows={8}
+              className="font-mono text-xs"
+              placeholder={'{\n  "mcpServers": {\n    "本地文件": {\n      "command": "npx",\n      "args": ["-y", "@modelcontextprotocol/server-filesystem", "/tmp"]\n    }\n  }\n}'}
+              aria-label="mcpServers JSON 配置"
+              data-testid="mcp-json-textarea"
+            />
+            <div className="flex justify-end gap-2">
+              <Button size="sm" variant="outline" onClick={() => { void navigator.clipboard.writeText(jsonText); toast.success("已复制到剪贴板"); }}>
+                复制
+              </Button>
+              <Button size="sm" variant="outline" onClick={() => setJsonText(exportMcpServersJson())}>
+                刷新为当前配置
+              </Button>
+              <Button size="sm" onClick={() => {
+                const result = importMcpServersJson(jsonText);
+                if (result.ok) {
+                  setJsonError(null);
+                  toast.success(`导入成功：新增 ${result.added} 个，更新 ${result.updated} 个`);
+                } else {
+                  setJsonError(result.error);
+                }
+              }}>
+                导入
+              </Button>
+            </div>
+            {jsonError ? (
+              <p className="text-xs text-destructive" data-testid="mcp-json-error">{jsonError}</p>
+            ) : null}
+          </div>
+        </McpRow>
+      </McpGroup>
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="max-w-lg">

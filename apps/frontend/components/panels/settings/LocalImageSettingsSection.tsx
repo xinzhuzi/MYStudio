@@ -12,10 +12,8 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
-import { useAppSettingsStore } from "@/stores/app/app-settings-store";
 import { useImageGenRuntimeSettings } from "./useImageGenRuntimeSettings";
 
 const copyPath = async (path: string) => {
@@ -43,9 +41,6 @@ export function LocalImageSettingsSection({
   embedded = false,
 }: LocalImageSettingsSectionProps) {
   const runtime = useImageGenRuntimeSettings();
-  const localImageLoraEnabled = useAppSettingsStore(
-    (state) => state.imageGenerationSettings.localImageLoraEnabled,
-  );
   const status = runtime.status;
   const lifecycleState = runtime.lifecycleStatus?.state;
   const modelReady = runtime.hasLifecycleBridge
@@ -351,33 +346,6 @@ export function LocalImageSettingsSection({
           </div>
         );
       })}
-
-      {/* 专业流增强(本地 LoRA,D5):缺省关——深审 A/B 实证对非该类画面有副作用 */}
-      <div className="flex items-start justify-between gap-4 rounded-xl border border-border bg-card p-4">
-        <div className="min-w-0">
-          <div className="text-sm font-medium">专业流增强（本地）</div>
-          <div className="mt-1 text-xs text-muted-foreground">
-            开启后本地生图自动走专业流：Krea2 挂 NSFW 增强组件，ComfyUI 桥改走 NSFW 专业流。默认关闭——对普通画面会有模糊和偏色副作用；仅对本地引擎生效，云端不受影响。
-          </div>
-        </div>
-        <label
-          className="flex shrink-0 cursor-pointer items-center gap-2 text-sm text-muted-foreground"
-          data-local-image-lora-checkbox
-          title="开启后本地生图自动挂专业流增强"
-        >
-          <Checkbox
-            checked={localImageLoraEnabled}
-            onCheckedChange={(checked) =>
-              useAppSettingsStore
-                .getState()
-                .setImageGenerationSettings({
-                  localImageLoraEnabled: checked === true,
-                })
-            }
-            aria-label="专业流增强（本地）"
-          />
-        </label>
-      </div>
     </div>
   );
 }

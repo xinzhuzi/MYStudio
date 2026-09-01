@@ -18,7 +18,7 @@ describe("McpSettingsTab", () => {
 
   it("shows the desktop-only hint when the runtime bridge is absent", () => {
     render(<McpSettingsTab />);
-    expect(screen.getByText("MCP 服务配置仅在桌面应用中可用。")).toBeTruthy();
+    expect(screen.getByText("桌面应用中可用。")).toBeTruthy();
   });
 
   it("renders server cards and runs a successful connection test", async () => {
