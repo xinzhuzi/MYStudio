@@ -4,6 +4,22 @@ import os from "node:os";
 import path from "node:path";
 import type { RemotionShotPlanV1 } from "@/lib/studio/remotion/shot-plan";
 import type { TimelineRenderPlan } from "@/types/editing";
+import { validateRemotionShotPlan } from "@/lib/studio/remotion/shot-plan";
+import { canTransitionRemotionStatus, transitionRemotionRenderJob } from "@/lib/studio/remotion/remotion-workspace-state";
+import { validateRemotionCurrentSlot } from "@/lib/studio/remotion/remotion-slot-validation";
+import { validateRemotionRenderJob, validateRemotionRenderJobIdentity } from "@/lib/studio/remotion/remotion-render-validation";
+import type { RemotionCurrentSlotV1, RemotionJobError, RemotionRenderJobTarget, RemotionRenderJobV1, RemotionStageStatus } from "@/types/remotion-workspace";
+import type { RemotionChapterRenderRequest, RemotionChapterRenderResult, RemotionChapterSceneRenderRequest, RemotionChapterSceneRenderResult, RemotionChapterSceneSegmentSpec } from "../renderer/remotion-chapter-renderer";
+import type { RemotionShotRenderResult, RemotionShotRenderer } from "../renderer/remotion-shot-renderer";
+import { DEFAULT_CONCURRENCY, MAX_QUEUE_CONCURRENCY, QUEUE_SCHEMA_VERSION, RemotionQueueChapterInput, RemotionQueueChapterSceneInput, RemotionQueueEnqueueResult, RemotionQueueEventV1, RemotionQueueNotification, RemotionQueueOptions, RemotionQueueShotInput, RemotionQueueStateItem, RemotionQueueSwitchResult } from "./remotion-queue-contract";
+import { asBlocked, asReady, asStale, atomicWrite, invalid, isNodeError, isRecord, optionalString, readOptionalJson, readOptionalText, sameJobIdentity, targetChapterId, transitionOrThrow } from "./remotion-queue-utils";
+
+import crypto from "node:crypto";
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
+import type { RemotionShotPlanV1 } from "@/lib/studio/remotion/shot-plan";
+import type { TimelineRenderPlan } from "@/types/editing";
 import {
   validateRemotionShotPlan,
 } from "@/lib/studio/remotion/shot-plan";
@@ -35,131 +51,7 @@ import type {
   RemotionShotRenderer,
 } from "../renderer/remotion-shot-renderer";
 
-const QUEUE_SCHEMA_VERSION = 1 as const;
-const DEFAULT_CONCURRENCY = 1;
-/**
- * 队列并发上限(每路=一个 headless-shell 渲染进程,≈2GB 内存 + ≥4 逻辑核)。
- * 并发>1 的语义:多个 shot job 同时渲染;chapter/chapter-scene job 与 shot
- * 同池占槽。缺省仍为 1(单实例串行,测试/桥接兼容);装机 main 按硬件传入。
- */
-export const MAX_QUEUE_CONCURRENCY = 4;
 
-/**
- * 硬件感知队列并发:每路渲染按 4 逻辑核 + 8GB 内存预算,取两约束与上限的
- * 最小值,下限 1。M4 128G(14 核)→ 3。
- */
-export function resolveHardwareQueueConcurrency(
-  { cores, totalMemoryBytes }: { cores: number; totalMemoryBytes: number } = {
-    cores: os.availableParallelism(),
-    totalMemoryBytes: os.totalmem(),
-  },
-): number {
-  const byCores = Math.floor(cores / 4);
-  const byMemory = Math.floor(totalMemoryBytes / (8 * 1024 ** 3));
-  return Math.max(1, Math.min(MAX_QUEUE_CONCURRENCY, byCores, byMemory));
-}
-
-export interface RemotionQueueShotInput {
-  kind: "shot";
-  job: RemotionRenderJobV1;
-  plan: RemotionShotPlanV1;
-}
-
-export interface RemotionQueueChapterInput {
-  kind: "chapter";
-  job: RemotionRenderJobV1;
-  dependencyJobIds: string[];
-  plan?: TimelineRenderPlan;
-  currentShotSlots?: RemotionCurrentSlotV1[];
-}
-
-/** 按场分段 job：与整章 job 同源（同一 plan/slots），但产物落项目根
- * exports/<chapterId>/scenes 相对路径，成功后不发布 current slot、不触发章级 QC 回调。 */
-export interface RemotionQueueChapterSceneInput {
-  kind: "chapter-scene";
-  job: RemotionRenderJobV1;
-  dependencyJobIds: string[];
-  plan: TimelineRenderPlan;
-  currentShotSlots: RemotionCurrentSlotV1[];
-  sceneSegment: RemotionChapterSceneSegmentSpec;
-}
-
-export type RemotionQueueWorkItem = RemotionQueueShotInput | RemotionQueueChapterInput | RemotionQueueChapterSceneInput;
-
-type RemotionQueueStateItem = RemotionQueueWorkItem;
-
-export interface RemotionQueueSnapshotV1 {
-  schemaVersion: typeof QUEUE_SCHEMA_VERSION;
-  lastSeq: number;
-  activeProjectId?: string;
-  activeChapterId?: string;
-  jobs: RemotionQueueStateItem[];
-  updatedAt: number;
-}
-
-export interface RemotionQueueEventV1 {
-  schemaVersion: typeof QUEUE_SCHEMA_VERSION;
-  seq: number;
-  at: number;
-  projectId: string;
-  chapterId: string;
-  jobId: string;
-  item: RemotionQueueStateItem;
-  activeProjectId?: string;
-  activeChapterId?: string;
-}
-
-export interface RemotionQueuePersistence {
-  load(): Promise<{ snapshot?: unknown; events: unknown[] }>;
-  append(event: RemotionQueueEventV1): Promise<void>;
-  writeSnapshot(snapshot: RemotionQueueSnapshotV1): Promise<void>;
-}
-
-export interface RemotionQueueExecutor {
-  render(plan: RemotionShotPlanV1): Promise<RemotionShotRenderResult>;
-  renderChapter?: (input: RemotionChapterRenderRequest) => Promise<RemotionChapterRenderResult>;
-  renderChapterScene?: (input: RemotionChapterSceneRenderRequest) => Promise<RemotionChapterSceneRenderResult>;
-  cancel(jobId: string): { success: boolean; jobId: string; canceled: boolean; error?: string };
-}
-
-export interface RemotionQueueOptions {
-  persistence: RemotionQueuePersistence;
-  executor: RemotionQueueExecutor | Pick<RemotionShotRenderer, "render" | "cancel">;
-  now?: () => number;
-  concurrency?: number;
-  /** 章节成片 job 成功 commit 后的异步通知(出片后 QC 链挂点)。
-   * fire-and-forget:回调抛错被吞掉,绝不影响队列状态;缺省 no-op。 */
-  onChapterJobSucceeded?: (identity: {
-    projectId: string;
-    chapterId: string;
-    jobId: string;
-    outputPath: string;
-  }) => void;
-}
-
-export type RemotionQueueEnqueueResult =
-  | { accepted: true; job: RemotionRenderJobV1; reused: false }
-  | { accepted: false; job: RemotionRenderJobV1; reason: "duplicate-active" | "already-succeeded" }
-  | { accepted: false; reason: "blocked" | "invalid"; message: string };
-
-export type RemotionQueueSwitchResult =
-  | { allowed: true; fromProjectId?: string; toProjectId: string }
-  | { allowed: false; code: "running-jobs" | "queued-jobs" | "cleanup-pending"; jobIds: string[] };
-
-export interface RemotionQueueNotification {
-  type: "job";
-  projectId: string;
-  chapterId: string;
-  jobId: string;
-  status: RemotionStageStatus;
-}
-
-/**
- * Durable main-process scheduler for Remotion jobs.
- *
- * It owns scheduling state, but not renderer implementation.  The renderer is
- * injected so the queue can be replayed and tested without starting Chromium.
- */
 export class RemotionRenderQueue {
   private readonly jobs = new Map<string, RemotionQueueStateItem>();
   private readonly listeners = new Set<(notification: RemotionQueueNotification) => void>();
@@ -814,143 +706,7 @@ export class RemotionRenderQueue {
   }
 }
 
-function targetChapterId(target: RemotionRenderJobTarget): string {
-  return target.chapterId;
-}
 
-function sameJobIdentity(left: RemotionRenderJobV1, right: RemotionRenderJobV1): boolean {
-  return left.projectId === right.projectId
-    && JSON.stringify(left.target) === JSON.stringify(right.target)
-    && left.inputHash === right.inputHash
-    && left.bundleContentHash === right.bundleContentHash
-    && left.renderSettingsHash === right.renderSettingsHash;
-}
 
-function asReady(job: RemotionRenderJobV1): RemotionRenderJobV1 {
-  if (job.status === "ready") return job;
-  if (!canTransitionRemotionStatus(job.status, "ready")) throw new Error(`job ${job.jobId} 不允许恢复 ready`);
-  return transitionOrThrow(job, { status: "ready", at: Date.now() });
-}
-
-function asBlocked(job: RemotionRenderJobV1, at: number, error: RemotionJobError): RemotionRenderJobV1 {
-  if (job.status === "blocked") return { ...job, error };
-  return transitionOrThrow(job, { status: "blocked", at, error });
-}
-
-function asStale(job: RemotionRenderJobV1, at: number, error: RemotionJobError): RemotionRenderJobV1 {
-  if (job.status === "stale") return { ...job, error };
-  return transitionOrThrow(job, { status: "stale", at, error });
-}
-
-function transitionOrThrow(job: RemotionRenderJobV1, transition: {
-  status: RemotionStageStatus;
-  at: number;
-  error?: RemotionJobError;
-  outputPath?: string;
-  evidencePath?: string;
-}): RemotionRenderJobV1 {
-  const result = transitionRemotionRenderJob(job, transition);
-  if (!result.success) throw new Error(result.issues.map((issue) => `${issue.path}: ${issue.message}`).join("; "));
-  return result.value;
-}
-
-function invalid(message: string): { accepted: false; reason: "invalid"; message: string } {
-  return { accepted: false, reason: "invalid", message };
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
-function optionalString(value: unknown): string | undefined {
-  return typeof value === "string" && value.trim() ? value : undefined;
-}
-
-async function atomicWrite(filePath: string, content: string): Promise<void> {
-  await fs.promises.mkdir(path.dirname(filePath), { recursive: true });
-  // tmp 名含 pid+随机段：同进程并发原子写不得共用同名（rename 会互抢 ENOENT），
-  // 跨进程残留 tmp 也互不干扰；孤儿 tmp 由下次成功写自然覆盖/无害残留。
-  const temporaryPath = `${filePath}.${process.pid}-${crypto.randomUUID().slice(0, 8)}.tmp`;
-  await fs.promises.writeFile(temporaryPath, content, "utf8");
-  await fs.promises.rename(temporaryPath, filePath);
-}
-
-export interface RemotionQueuePersistenceRoots {
-  /** queue-state.json 所在目录(队列运行态,跟随项目数据根,crash recovery 依赖)。 */
-  stateRoot: string;
-  /** queue-events.jsonl 所在目录(事件日志,统一归 <userData>/logs/remotion-queue)。 */
-  eventsRoot: string;
-}
-
-export function createRemotionQueueFilePersistence(roots: RemotionQueuePersistenceRoots): RemotionQueuePersistence {
-  for (const [label, value] of [["stateRoot", roots.stateRoot], ["eventsRoot", roots.eventsRoot]] as const) {
-    if (!path.isAbsolute(value)) throw new Error(`Remotion queue persistence ${label} 必须是绝对路径`);
-  }
-  const eventsPath = path.join(roots.eventsRoot, "queue-events.jsonl");
-  const snapshotPath = path.join(roots.stateRoot, "queue-state.json");
-  // 进程内写互斥（08-20 真机修复）：append 是读改写全量重写，队列 pump/完成回调/
-  // enqueue 连发会并发触发——无锁时丢事件+同名 tmp 互抢 rename ENOENT（曾致
-  // queue-events.jsonl 出现交错损坏行，load 逐行 JSON.parse 崩→项目切换 IPC 永挂）。
-  let writeChain: Promise<unknown> = Promise.resolve();
-  function serialize<T>(task: () => Promise<T>): Promise<T> {
-    const run = writeChain.then(task, task);
-    writeChain = run.then(() => undefined, () => undefined);
-    return run;
-  }
-  return {
-    async load() {
-      const snapshot = await readOptionalJson(snapshotPath);
-      const rawEvents = await readOptionalText(eventsPath);
-      const events = rawEvents
-        ? rawEvents.split(/\r?\n/).filter(Boolean).map((line) => JSON.parse(line) as unknown)
-        : [];
-      return { snapshot, events };
-    },
-    async append(event) {
-      await serialize(async () => {
-        const previous = await readOptionalText(eventsPath) ?? "";
-        await atomicWrite(eventsPath, `${previous}${JSON.stringify(event)}\n`);
-      });
-    },
-    async writeSnapshot(snapshot) {
-      await serialize(() => atomicWrite(snapshotPath, `${JSON.stringify(snapshot, null, 2)}\n`));
-    },
-  };
-}
-
-/** 一次性迁移:旧布局事件日志与队列状态同目录;日志统一归位后搬到 logs/。
- * 目标已存在或来源不存在时 no-op;rename 跨卷(EXDEV)回退 copy(tmp+rename 原子
- * 落位,严防半截文件——load 逐行 JSON.parse 撞上即崩,08-20 事故同款死法)。
- * 同步实现:main.ts 在构造队列前调用,杜绝与懒加载 init() 的竞态。 */
-export function migrateQueueEventsFileIfNeeded(sourcePath: string, targetPath: string): "moved" | "skipped" {
-  if (fs.existsSync(targetPath) || !fs.existsSync(sourcePath)) return "skipped";
-  fs.mkdirSync(path.dirname(targetPath), { recursive: true });
-  try {
-    fs.renameSync(sourcePath, targetPath);
-  } catch (error) {
-    if (!isNodeError(error) || error.code !== "EXDEV") throw error;
-    const tempPath = `${targetPath}.${process.pid}.migrating`;
-    fs.copyFileSync(sourcePath, tempPath);
-    fs.renameSync(tempPath, targetPath);
-    fs.unlinkSync(sourcePath);
-  }
-  return "moved";
-}
-
-async function readOptionalText(filePath: string): Promise<string | undefined> {
-  try {
-    return await fs.promises.readFile(filePath, "utf8");
-  } catch (error) {
-    if (isNodeError(error) && error.code === "ENOENT") return undefined;
-    throw error;
-  }
-}
-
-async function readOptionalJson(filePath: string): Promise<unknown | undefined> {
-  const raw = await readOptionalText(filePath);
-  return raw === undefined ? undefined : JSON.parse(raw) as unknown;
-}
-
-function isNodeError(error: unknown): error is NodeJS.ErrnoException {
-  return error instanceof Error && "code" in error;
-}
+export { DEFAULT_CONCURRENCY, MAX_QUEUE_CONCURRENCY, QUEUE_SCHEMA_VERSION, RemotionQueueChapterInput, RemotionQueueChapterSceneInput, RemotionQueueEnqueueResult, RemotionQueueEventV1, RemotionQueueExecutor, RemotionQueueNotification, RemotionQueueOptions, RemotionQueuePersistence, RemotionQueueShotInput, RemotionQueueSnapshotV1, RemotionQueueStateItem, RemotionQueueSwitchResult, RemotionQueueWorkItem, resolveHardwareQueueConcurrency } from "./remotion-queue-contract";
+export { asBlocked, asReady, createRemotionQueueFilePersistence, migrateQueueEventsFileIfNeeded, sameJobIdentity, targetChapterId } from "./remotion-queue-utils";
