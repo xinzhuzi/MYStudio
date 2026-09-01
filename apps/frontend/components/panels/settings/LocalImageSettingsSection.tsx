@@ -201,8 +201,8 @@ export function LocalImageSettingsSection({
         </div>
       ) : null}
 
-      {/* Model rows */}
-      {(status?.models ?? []).map((model) => {
+      {/* Model rows —— ComfyUI 桥是服务连接而非本地模型,状态展示移至「MCP 服务」tab */}
+      {(status?.models ?? []).filter((model) => model.modelName !== "comfyui-bridge").map((model) => {
         const downloading =
           status?.downloadStatus?.[model.modelName] === "downloading";
         const failed = status?.downloadStatus?.[model.modelName] === "error";

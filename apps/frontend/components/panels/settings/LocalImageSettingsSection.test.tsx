@@ -146,7 +146,7 @@ describe("LocalImageSettingsSection 大件两源文案", () => {
     expect(screen.getByText("下载完整模型(~35GB)")).toBeTruthy();
   });
 
-  it("ComfyUI 桥接就绪:显示服务版本和地址且不提供下载按钮", () => {
+  it("ComfyUI 桥不再在本区展示(移至「MCP 服务」tab 的服务连接分组)", () => {
     scenario.models = [
       baseRow({
         modelName: "comfyui-bridge",
@@ -154,27 +154,12 @@ describe("LocalImageSettingsSection 大件两源文案", () => {
         downloaded: true,
         pointed: false,
         bigFilesSource: "comfyui-service",
-        comfyuiVersion: "0.33.0",
+        comfyuiVersion: "0.34.0",
         pointedFiles: ["http://127.0.0.1:8000"],
       }),
     ];
     render(<LocalImageSettingsSection />);
-    expect(screen.getByText(/已就绪（ComfyUI 0\.33\.0）/)).toBeTruthy();
-    expect(screen.getByText("http://127.0.0.1:8000")).toBeTruthy();
-    expect(screen.queryByText(/下载完整模型|补齐小件|重新下载小件/)).toBeNull();
-  });
-
-  it("ComfyUI 桥接未运行:明确提示先启动服务", () => {
-    scenario.models = [
-      baseRow({
-        modelName: "comfyui-bridge",
-        label: "ComfyUI 桥接（多参考编辑）",
-        downloaded: false,
-        pointed: false,
-        bigFilesSource: null,
-      }),
-    ];
-    render(<LocalImageSettingsSection />);
-    expect(screen.getByText(/未就绪（需 ComfyUI 正在运行）/)).toBeTruthy();
+    expect(screen.queryByText(/ComfyUI 桥接/)).toBeNull();
+    expect(screen.queryByText(/已就绪（ComfyUI/)).toBeNull();
   });
 });

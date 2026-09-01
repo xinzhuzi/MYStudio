@@ -65,3 +65,34 @@ describe("McpSettingsTab", () => {
     });
   });
 });
+
+describe("McpSettingsTab service connections (ComfyUI 桥移此)", () => {
+  afterEach(() => {
+    cleanup();
+    delete (window as unknown as { imageGenRuntime?: unknown }).imageGenRuntime;
+  });
+
+  it("shows the ComfyUI bridge card with ready status when the service is up", async () => {
+    (window as unknown as { imageGenRuntime: unknown }).imageGenRuntime = {
+      status: vi.fn().mockResolvedValue({
+        models: [{ modelName: "comfyui-bridge", downloaded: true, comfyuiVersion: "0.34.0" }],
+      }),
+    };
+    render(<McpSettingsTab />);
+    await waitFor(() => {
+      expect(screen.getByTestId("comfyui-bridge-ready").textContent).toContain("ComfyUI 0.34.0");
+    });
+  });
+
+  it("shows the not-ready hint when ComfyUI is not running", async () => {
+    (window as unknown as { imageGenRuntime: unknown }).imageGenRuntime = {
+      status: vi.fn().mockResolvedValue({
+        models: [{ modelName: "comfyui-bridge", downloaded: false, comfyuiVersion: null }],
+      }),
+    };
+    render(<McpSettingsTab />);
+    await waitFor(() => {
+      expect(screen.getByTestId("comfyui-bridge-not-ready").textContent).toContain("需 ComfyUI 正在运行");
+    });
+  });
+});

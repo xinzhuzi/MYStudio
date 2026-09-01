@@ -92,8 +92,27 @@ export function McpSettingsTab() {
   const [draft, setDraft] = useState<DraftForm>(emptyDraft);
   const [formError, setFormError] = useState<string | null>(null);
   const [tests, setTests] = useState<Record<string, TestState>>({});
+  // ComfyUI 桥=服务型引擎,状态展示从「本地图片生成」移此(服务连接分组)
+  const [bridge, setBridge] = useState<{ ready: boolean; version?: string } | null>(null);
 
   useEffect(() => () => setTests({}), []);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const runtime = (window as unknown as { imageGenRuntime?: { status: () => Promise<{ models?: { modelName: string; downloaded: boolean; comfyuiVersion?: string | null }[] }> } }).imageGenRuntime;
+        if (!runtime) return;
+        const s = await runtime.status();
+        if (cancelled) return;
+        const row = (s.models ?? []).find((m) => m.modelName === "comfyui-bridge");
+        if (row) setBridge({ ready: Boolean(row.downloaded), version: row.comfyuiVersion ?? undefined });
+      } catch {
+        // 状态拉取失败保持空——卡片显示「探测中」态由 null 区分
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
 
   const transportLabel = (transport: McpTransport) => (transport === "stdio" ? "本地命令" : "网络地址");
 
@@ -191,6 +210,33 @@ export function McpSettingsTab() {
           添加服务器
         </Button>
       </header>
+
+      {/* 服务连接分组 —— 服务型引擎的状态展示（ComfyUI 桥自「本地图片生成」移此） */}
+      <section className="space-y-3" data-testid="mcp-service-connections">
+        <h4 className="text-sm font-semibold text-foreground">服务连接</h4>
+        <div className="rounded-xl border border-border bg-card p-4 flex items-center justify-between gap-4" data-testid="comfyui-bridge-card">
+          <div className="min-w-0">
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-medium">ComfyUI 桥接（多参考编辑）</span>
+              <span className="rounded-full bg-muted px-2 py-0.5 text-[11px] text-muted-foreground">生图引擎</span>
+            </div>
+            <p className="mt-1 text-xs text-muted-foreground">
+              连接本机正在运行的 ComfyUI 出图，支持多张参考图编辑。在生图引擎选择里选用，无需下载模型。
+            </p>
+          </div>
+          {bridge === null ? (
+            <span className="shrink-0 text-xs text-muted-foreground">探测中…</span>
+          ) : bridge.ready ? (
+            <span className="shrink-0 text-xs text-success" data-testid="comfyui-bridge-ready">
+              已就绪（ComfyUI {bridge.version ?? ""}）
+            </span>
+          ) : (
+            <span className="shrink-0 text-xs text-muted-foreground" data-testid="comfyui-bridge-not-ready">
+              未就绪（需 ComfyUI 正在运行）
+            </span>
+          )}
+        </div>
+      </section>
 
       {!hasRuntime ? (
         <div className="rounded-xl border border-border bg-card px-5 py-4 text-sm text-muted-foreground">
