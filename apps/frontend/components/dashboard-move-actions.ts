@@ -2,7 +2,8 @@
  * Dashboard 项目移动钩子——handleMoveStart/handleCancelMove(OQ3 跨目录移动)。
  * Dashboard 四期拆出,体逐字保留;组件 state 经 ctx 注入。
  */
-import { useCallback } from "react";
+import { useCallback, useEffect } from "react";
+import type { Project } from "@/stores/project/project-store";
 import type { ProjectFolderMoveResult } from "@/types/electron";
 import { MOVE_INFLIGHT_PROBE_PROJECT_ID, MOVE_ERROR_HINTS } from "./Dashboard";
 import { toast } from "sonner";
@@ -12,8 +13,7 @@ import { useProjectStore } from "@/stores/project/project-store";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function useDashboardMoveActions(ctx: any) {
-  const { moveTarget, setMoveTarget, setMovePhase, setMoveProgress,
-    setActiveProject, setProjectLocation, setHighlightProjectId, projectLocationDefaults, setProjectLocationDefaults } = ctx;
+  const { moveTarget, setMoveTarget, setMovePhase, setMoveProgress, setActiveProject, setProjectLocation, setHighlightProjectId, projectLocationDefaults, setProjectLocationDefaults, movePhase } = ctx;
 
   const handleMoveStart = useCallback(async () => {
     const project = moveTarget;
@@ -114,5 +114,34 @@ export function useDashboardMoveActions(ctx: any) {
     window.setTimeout(() => setHighlightProjectId(null), 2000);
   }, []);
 
-  return { handleMoveStart, handleCancelMove, highlightProjectCard };
+  // Subscribe for the whole lifetime of the move dialog (not just the moving
+  // phase) so no early progress frame is missed between dialog open and the
+  // move() invoke.
+  useEffect(() => {
+    if (!moveTarget) return;
+    const bridge = getProjectFolderBridge();
+    const unsubscribe = bridge?.onMoveProgress?.((event) => {
+      if (event.projectId !== moveTarget.id) return;
+      setMoveProgress(event);
+    });
+    return () => unsubscribe?.();
+  }, [moveTarget]);
+
+  // ==================== Move (OQ3) ====================
+
+  const openMoveDialog = useCallback((project: Project) => {
+    setMoveTarget(project);
+    setMovePhase("confirm");
+    setMoveProgress(null);
+  }, []);
+
+  const closeMoveDialog = useCallback(() => {
+    // While moving, dismissal goes through the cancel button (cancelMove);
+    // the pending move() promise owns closing the dialog.
+    if (movePhase === "moving") return;
+    setMoveTarget(null);
+    setMoveProgress(null);
+  }, [movePhase]);
+
+  return { handleMoveStart, handleCancelMove, highlightProjectCard, openMoveDialog, closeMoveDialog };
 }
