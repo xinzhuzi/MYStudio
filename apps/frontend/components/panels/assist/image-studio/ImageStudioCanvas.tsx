@@ -27,6 +27,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { CanvasViewportControls } from "@/components/panels/studio/CanvasViewportControls";
+import { useAssistCanvasHistory } from "./use-assist-canvas-history";
 import { InteractionDeferHint } from "@/components/panels/studio/previews/interaction-defer-hint";
 import { useCanvasGestureKernel } from "@/components/panels/studio/use-canvas-gesture-kernel";
 // 画布手势内核/门闸提示与分镜画布共用(08-30 收敛 Phase2 之后再整体上提 features/)
@@ -79,6 +80,12 @@ export function ImageStudioCanvas() {
     () => workflows.find((workflow) => workflow.id === activeWorkflowId),
     [workflows, activeWorkflowId],
   );
+
+  // 撤销重做(09-02):订阅 activeGraph 引用变化提交快照(防抖合并)
+  const { history: canvasHistory, commitSnapshot } = useAssistCanvasHistory({ workflow: activeGraph });
+  useEffect(() => {
+    commitSnapshot();
+  }, [commitSnapshot]);
 
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [historyOpen, setHistoryOpen] = useState(false);
@@ -395,10 +402,25 @@ export function ImageStudioCanvas() {
         onAddPrompt={() => useImageStudioStore.getState().addPromptNode()}
         onTidy={() => useImageStudioStore.getState().applyLayout()}
         onToggleHistory={() => setHistoryOpen((open) => !open)}
+        onOpenFolder={() => {
+          // 生成图落在媒体库 ai-image 分类(<mediaRoot>/ai-image);主进程解析目录
+          // 并在 Finder 中揭示。桥缺席(非 Electron/测试)给可操作提示。
+          const bridge = typeof window !== "undefined" ? window.imageStorage : undefined;
+          if (!bridge?.openCategoryFolder) {
+            toast.error("当前环境不支持打开本地文件夹");
+            return;
+          }
+          void bridge.openCategoryFolder("ai-image").then((result) => {
+            if (!result?.success) {
+              toast.error(`打开生成文件夹失败：${result?.error ?? "未知错误"}`);
+            }
+          });
+        }}
       />
       <div className="flex min-h-0 flex-1">
         <ImageStudioFlowView
           graph={activeGraph}
+          canvasHistory={canvasHistory}
           reactFlowNodes={reactFlowNodes}
           reactFlowEdges={reactFlowEdges}
           onInit={setFlowInstance}
@@ -563,6 +585,7 @@ function ImageStudioVisibilityMeasurementRefresh({
 
 function ImageStudioFlowView({
   graph,
+  canvasHistory,
   reactFlowNodes,
   reactFlowEdges,
   onInit,
@@ -577,6 +600,7 @@ function ImageStudioFlowView({
   onViewportSettled,
 }: {
   graph: ImageWorkflowGraph | undefined;
+  canvasHistory: Parameters<typeof CanvasViewportControls>[0]["history"];
   reactFlowNodes: ImageStudioReactNode[];
   reactFlowEdges: Edge[];
   onInit: (instance: ReactFlowInstance<ImageStudioReactNode, Edge>) => void;
@@ -698,7 +722,7 @@ function ImageStudioFlowView({
           nodeIds={measurementNodeIds}
         />
         <Background color="hsl(var(--border))" gap={28} size={1} />
-        <CanvasViewportControls onFit={() => flowInstance?.fitView(FIT_VIEW_OPTIONS)} />
+        <CanvasViewportControls onFit={() => flowInstance?.fitView(FIT_VIEW_OPTIONS)} history={canvasHistory} />
       </ReactFlow>
       {nodes.length === 0 ? (
         <div className="pointer-events-none absolute inset-0 flex items-center justify-center px-6 text-center">
