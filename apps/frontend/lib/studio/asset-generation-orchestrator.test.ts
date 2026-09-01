@@ -508,10 +508,9 @@ describe("asset-generation-orchestrator", () => {
   });
 
   it("routes asset-library matching through the shared studio-assets bridge", () => {
-    const source = readFileSync(
-      join(process.cwd(), "frontend/lib/studio/asset-generation-orchestrator.ts"),
-      "utf8",
-    );
+    const source =
+      readFileSync(join(process.cwd(), "frontend/lib/studio/asset-generation-orchestrator.ts"), "utf8") +
+      readFileSync(join(process.cwd(), "frontend/lib/studio/asset-generation-store-writers.ts"), "utf8");
 
     expect(source).toContain(
       'import { getStudioAssetsBridge } from "@/lib/bridge/studio-assets";',
