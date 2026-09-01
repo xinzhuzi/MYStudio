@@ -47,6 +47,7 @@ import {
 import { ImageStudioToolbar } from "./image-studio-toolbar";
 import { useImageStudioGeneration } from "./use-image-studio-generation";
 import { PaneCreateMenu, type PaneCreateKind } from "./pane-create-menu";
+import { NodeContextMenu } from "./node-context-menu";
 
 const FIT_VIEW_OPTIONS = { padding: 0.18, minZoom: 0.35, maxZoom: 1.1 } as const;
 
@@ -205,6 +206,21 @@ export function ImageStudioCanvas() {
     },
     [generateNode],
   );
+
+  const [nodeMenu, setNodeMenu] = useState<{ x: number; y: number; nodeId: string } | null>(null);
+
+  const handleNodeContextMenu = useCallback((event: MouseEvent, nodeId: string) => {
+    event.preventDefault();
+    setNodeMenu({ x: event.clientX, y: event.clientY, nodeId });
+  }, []);
+
+  const handleNodeDuplicate = useCallback(() => {
+    if (nodeMenu) useImageStudioStore.getState().duplicateNode(nodeMenu.nodeId);
+  }, [nodeMenu]);
+
+  const handleNodeRemove = useCallback(() => {
+    if (nodeMenu) useImageStudioStore.getState().removeNode(nodeMenu.nodeId);
+  }, [nodeMenu]);
 
   const handlePaneCreate = useCallback(
     (kind: PaneCreateKind) => {
@@ -389,12 +405,22 @@ export function ImageStudioCanvas() {
           onNodeClick={setSelectedNodeId}
           onPaneClick={() => setSelectedNodeId(null)}
           onPaneContextMenu={handlePaneContextMenu}
+          onNodeContextMenu={handleNodeContextMenu}
           onConnect={handleConnect}
           onNodesDelete={(ids) => ids.forEach((id) => removeNode(id))}
           onEdgesDelete={(ids) => ids.forEach((id) => removeEdge(id))}
           onNodeDragStop={(nodeId, position) => moveNode(nodeId, position)}
           onViewportSettled={handleViewportSettled}
         />
+        {nodeMenu ? (
+          <NodeContextMenu
+            x={nodeMenu.x}
+            y={nodeMenu.y}
+            onDuplicate={handleNodeDuplicate}
+            onDelete={handleNodeRemove}
+            onClose={() => setNodeMenu(null)}
+          />
+        ) : null}
         {paneCreate ? (
           <PaneCreateMenu
             x={paneCreate.x}
@@ -543,6 +569,7 @@ function ImageStudioFlowView({
   onNodeClick,
   onPaneClick,
   onPaneContextMenu,
+  onNodeContextMenu,
   onConnect,
   onNodesDelete,
   onEdgesDelete,
@@ -556,6 +583,7 @@ function ImageStudioFlowView({
   onNodeClick: (nodeId: string) => void;
   onPaneClick: () => void;
   onPaneContextMenu: (event: MouseEvent) => void;
+  onNodeContextMenu: (event: MouseEvent, nodeId: string) => void;
   onConnect: (connection: { source: string | null; target: string | null }) => void;
   onNodesDelete: (nodeIds: string[]) => void;
   onEdgesDelete: (edgeIds: string[]) => void;
@@ -624,6 +652,9 @@ function ImageStudioFlowView({
         onPaneContextMenu={(event) => {
           event.preventDefault();
           onPaneContextMenu(event as unknown as MouseEvent);
+        }}
+        onNodeContextMenu={(event, node) => {
+          onNodeContextMenu(event as unknown as MouseEvent, node.id);
         }}
         onNodeDragStart={handleNodeDragStart}
         onNodeDragStop={(_, node) => {

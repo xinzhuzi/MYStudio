@@ -61,6 +61,8 @@ export interface ImageStudioStoreActions {
   updateNode: (nodeId: string, updates: Partial<ImageWorkflowNode>) => void;
   moveNode: (nodeId: string, position: ImageWorkflowNodePosition) => void;
   removeNode: (nodeId: string) => void;
+  /** 右键复制:同类型新节点携同类字段(prompt/图),落原位右下偏移 */
+  duplicateNode: (nodeId: string) => string | null;
   connect: (source: string, target: string) => void;
   removeEdge: (edgeId: string) => void;
   setViewport: (viewport: ImageWorkflowViewport) => void;
@@ -263,6 +265,43 @@ export const useImageStudioStore = create<ImageStudioStore>()(
           ),
           updatedAt: Date.now(),
         }));
+      },
+
+      duplicateNode: (nodeId) => {
+        ensureActiveCanvas(get, set);
+        const graph = selectActiveImageStudioWorkflow(get());
+        const source = graph?.nodes.find((node) => node.id === nodeId);
+        if (!graph || !source) return null;
+        const offset = { x: source.position.x + 48, y: source.position.y + 48 };
+        const id = createId(source.type === "generated" ? "gen" : source.type === "reference" ? "ref" : "prompt");
+        get().updateActiveWorkflow((current) => {
+          if (source.type === "reference") {
+            return addReferenceImageNode(current, {
+              id,
+              title: `${source.title} 副本`,
+              imageUrl: source.imageUrl,
+              position: offset,
+            });
+          }
+          if (source.type === "prompt") {
+            return addPromptImageNode(current, {
+              id,
+              title: `${source.title} 副本`,
+              prompt: source.prompt,
+              negativePrompt: source.negativePrompt,
+              position: offset,
+            });
+          }
+          return addGeneratedImageNode(current, {
+            id,
+            title: `${source.title} 副本`,
+            prompt: source.prompt,
+            negativePrompt: source.negativePrompt,
+            model: source.model,
+            position: offset,
+          });
+        });
+        return id;
       },
 
       removeNode: (nodeId) => {
