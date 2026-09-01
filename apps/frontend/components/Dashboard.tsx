@@ -26,10 +26,6 @@ import {
 import { getFileStorageBridge } from "@/lib/bridge/file-storage";
 import { getProjectFolderBridge } from "@/lib/bridge/project-folder";
 import { getStorageManagerBridge } from "@/lib/bridge/storage-manager";
-import {
-  copyProjectScopedStoreFiles,
-  waitForProjectStoreFile,
-} from "@/lib/project/project-duplication";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -64,7 +60,7 @@ import {
   Wand2,
   Waves,
 } from "lucide-react";
-import { cn, generateUUID } from "@/lib/utils";
+import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import type { Project } from "@/stores/project/project-store";
 import type {
