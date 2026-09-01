@@ -1,5 +1,26 @@
 import { ipcRenderer, contextBridge, type IpcRendererEvent } from 'electron'
+import type {
+  SelfMediaAccountListReply, SelfMediaConfigureProviderRequest, SelfMediaConfigureProviderReply,
+  SelfMediaCreateTaskRequest, SelfMediaCreateTaskReply, SelfMediaListAccountsRequest,
+  SelfMediaListTasksRequest, SelfMediaLoginReply, SelfMediaProviderListReply,
+  SelfMediaStartLoginRequest, SelfMediaTaskListReply, SelfMediaTaskProgressEvent,
+  SelfMediaTaskReply, SelfMediaTaskRequest,
+} from '../../lib/self-media/ipc-contract';
 import { SELF_MEDIA_IPC, decodeSelfMediaIpcReply, decodeSelfMediaProgressEvent } from '../../lib/self-media/ipc-contract'
+import type { ModelTestRequest, ModelTestResult } from '../../lib/ai/model-test'
+import type { TextCompletionRequest, TextCompletionResult } from '../../lib/ai/text-completion'
+import type { ImageRequestPayload, ImageRequestResult } from '../../types/api-image-request'
+import type { DiagnosticsLogEntryInput, DiagnosticsLogQuery } from '../../types/diagnostics'
+import type { TimelineRenderPlan } from '../../types/editing'
+import type { StudioVisualManualCreatePayload, StudioVisualManualImagesWritePayload, StudioVisualManualWritePayload } from '../../types/studio-visual-manual'
+import type { BackendModelStatus, TtsRuntimeCommandResult, TtsRuntimeConfig, TtsRuntimeStatus } from '../../types/tts'
+import type { UpdateCheckOptions } from '../../types/update'
+import type { ExecuteResult, RecoveryQueryResult, MetadataUpdateResult } from '../../types/artifacts'
+import {
+  SELF_MEDIA_IPC,
+  decodeSelfMediaIpcReply,
+  decodeSelfMediaProgressEvent,
+} from '../../lib/self-media/ipc-contract'
 import type { TimelineRenderPlan } from '../../types/editing'
 import type { BackendModelStatus, TtsRuntimeCommandResult, TtsRuntimeConfig, TtsRuntimeStatus } from '../../types/tts'
 import type { ExecuteResult, RecoveryQueryResult, MetadataUpdateResult } from '../../types/artifacts'
