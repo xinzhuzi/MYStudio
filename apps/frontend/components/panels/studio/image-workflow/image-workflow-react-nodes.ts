@@ -13,6 +13,7 @@ export type CreateImageWorkflowReactNodesOptions = {
   onUpscale: ImageWorkflowAsyncNodeAction;
   onApplyToStoryboard: ImageWorkflowNodeData["onApplyToStoryboard"];
   onDelete: ImageWorkflowNodeData["onDelete"];
+  onCrop?: ImageWorkflowNodeData["onCrop"];
 };
 
 export function createImageWorkflowReactNodes({
@@ -24,6 +25,7 @@ export function createImageWorkflowReactNodes({
   onUpscale,
   onApplyToStoryboard,
   onDelete,
+  onCrop,
 }: CreateImageWorkflowReactNodesOptions): ImageWorkflowReactNode[] {
   // 回调直挂稳定引用(拖动帧内画布 hook 全部 useCallback),配合节点卡片
   // memo 的 data 引用比较,拖动时整组卡片不重渲染。
@@ -44,6 +46,7 @@ export function createImageWorkflowReactNodes({
       onUpscale,
       onApplyToStoryboard,
       onDelete,
+      onCrop,
     },
   }));
 }

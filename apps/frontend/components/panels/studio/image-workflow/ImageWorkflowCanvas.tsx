@@ -58,6 +58,13 @@ import { useImageWorkflowUpscale } from "./use-image-workflow-upscale";
 import { denoiseModeToOpts, type UpscaleDenoiseMode } from "./upscale-denoise-mode";
 import { useImageWorkflowActions } from "./use-image-workflow-actions";
 import { useImageWorkflowCommands } from "./use-image-workflow-commands";
+import { CropFrameDialog } from "./crop-frame-dialog";
+import { useDerivedReferenceLanding } from "./use-derived-reference-landing";
+import {
+  cropImageData,
+  createBrowserCanvasCodec,
+} from "@/lib/studio/image-workflow/extraction-pixels";
+import type { NormRect } from "@/lib/studio/image-workflow/crop-geometry";
 import { ImageWorkflowSidebar } from "./image-workflow-sidebar";
 import { ImageWorkflowCanvasToolbar } from "./image-workflow-canvas-toolbar";
 import {
@@ -408,6 +415,55 @@ export function ImageWorkflowCanvas({
     if (entries.length > 0) void upscaleBatch(entries, denoiseModeToOpts(batchUpscaleDenoiseMode));
   }, [batchUpscaleDenoiseMode, batchUpscaleSelection, upscaleBatch, upscalableNodes]);
 
+  // 画布取材(09-01-extraction-crop):裁剪产物经 infra 通道落血缘参考节点
+  const landDerived = useDerivedReferenceLanding({
+    activeGraph,
+    saveGraph,
+    storyboards: chapterStoryboards,
+    addMaterial,
+    setSelectedNodeId,
+  });
+  const [cropTarget, setCropTarget] = useState<{
+    nodeId: string;
+    imageUrl: string;
+    title: string;
+  } | null>(null);
+
+  const handleCropConfirm = useCallback(
+    async (rect: NormRect) => {
+      const target = cropTarget;
+      if (!target) return;
+      setCropTarget(null);
+      try {
+        const codec = createBrowserCanvasCodec();
+        const sourcePixels = await codec.decode(target.imageUrl);
+        const cropped = cropImageData(sourcePixels, rect);
+        const dataUrl = codec.encode(cropped);
+        await landDerived([
+          {
+            sourceNodeId: target.nodeId,
+            pixels: { dataUrl, width: cropped.width, height: cropped.height },
+            title: `${target.title}·裁剪`,
+            derivation: { kind: "crop", sourceNodeId: target.nodeId, region: rect },
+          },
+        ]);
+      } catch (error) {
+        toast.error(error instanceof Error ? error.message : "裁剪取材失败");
+      }
+    },
+    [cropTarget, landDerived],
+  );
+
+  const handleCropEntry = useCallback((nodeId: string) => {
+    if (!activeGraph) return;
+    const node = activeGraph.nodes.find((item) => item.id === nodeId);
+    if (!node) return;
+    const imageUrl =
+      node.type === "reference" ? node.imageUrl : node.type === "generated" ? node.resultUrl : "";
+    if (!imageUrl) return;
+    setCropTarget({ nodeId, imageUrl: toPreviewSrc(imageUrl), title: node.title });
+  }, [activeGraph]);
+
   const reactFlowNodes = useMemo<ImageWorkflowReactNode[]>(
     () =>
       createImageWorkflowReactNodes({
@@ -419,10 +475,12 @@ export function ImageWorkflowCanvas({
         onUpscale: upscaleNode,
         onApplyToStoryboard: applyNodeToStoryboard,
         onDelete: deleteNode,
+        onCrop: handleCropEntry,
       }),
     [
       activeGraph,
       applyNodeToStoryboard,
+      handleCropEntry,
       deleteNode,
       generateNode,
       selectedNodeId,
@@ -610,6 +668,13 @@ export function ImageWorkflowCanvas({
       />
 
       {/* 批量超分勾选清单 + 进行中进度浮层(T2 抽组件) */}
+      <CropFrameDialog
+        open={Boolean(cropTarget)}
+        imageUrl={cropTarget?.imageUrl ?? null}
+        sourceTitle={cropTarget?.title ?? ""}
+        onClose={() => setCropTarget(null)}
+        onConfirm={(rect) => void handleCropConfirm(rect)}
+      />
       <ImageWorkflowBatchUpscaleDialog
         open={isBatchUpscaleDialogOpen}
         onOpenChange={setIsBatchUpscaleDialogOpen}

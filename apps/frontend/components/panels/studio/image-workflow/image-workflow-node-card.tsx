@@ -2,7 +2,7 @@ import { memo, useEffect, useState } from "react";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { UpscaleDenoiseModeField, denoiseModeToOpts, type UpscaleDenoiseMode } from "./upscale-denoise-mode";
 import { Handle, Position, type Node, type NodeProps } from "@xyflow/react";
-import { CheckCircle2, Image as ImageIcon, Loader2, Save, Trash2, WandSparkles, ZoomIn } from "lucide-react";
+import { CheckCircle2, Image as ImageIcon, Loader2, Save, Scissors, Trash2, WandSparkles, ZoomIn } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { LocalImage } from "@/components/ui/local-image";
 import { ResolutionBadge, probeImagePixelSize } from "@/components/ui/image-resolution-badge";
@@ -30,9 +30,18 @@ export interface ImageWorkflowNodeData extends Record<string, unknown> {
   onUpscale: (nodeId: string, opts?: { denoise?: boolean }) => void | Promise<void>;
   onApplyToStoryboard: (nodeId: string) => void;
   onDelete: (nodeId: string) => void;
+  /** 取材工具入口(09-01 画布取材):裁剪等,有图节点可用 */
+  onCrop?: (nodeId: string) => void;
 }
 
 export type ImageWorkflowReactNode = Node<ImageWorkflowNodeData>;
+
+/** 取材可用:参考图有 imageUrl;成图有 resultUrl */
+function extractableImageUrl(node: ImageWorkflowNode): string | null {
+  if (node.type === "reference") return node.imageUrl || null;
+  if (node.type === "generated") return node.resultUrl || null;
+  return null;
+}
 
 const ASPECT_RATIOS = IMAGE_ASPECT_RATIOS;
 const RESOLUTION_OPTIONS = IMAGE_RESOLUTIONS;
@@ -113,9 +122,22 @@ export const ImageWorkflowNodeCard = memo(function ImageWorkflowNodeCard({ data 
             </div>
           </div>
         </div>
-        <Button size="icon" variant="ghost" aria-label="删除节点" onClick={() => data.onDelete(node.id)}>
-          <Trash2 className="h-4 w-4" />
-        </Button>
+        <div className="flex shrink-0 items-center gap-0.5">
+          {data.onCrop && node.type !== "prompt" && extractableImageUrl(node) ? (
+            <Button
+              size="icon"
+              variant="ghost"
+              aria-label="裁剪取材"
+              title="裁剪并生成衍生参考图"
+              onClick={() => data.onCrop?.(node.id)}
+            >
+              <Scissors className="h-4 w-4" />
+            </Button>
+          ) : null}
+          <Button size="icon" variant="ghost" aria-label="删除节点" onClick={() => data.onDelete(node.id)}>
+            <Trash2 className="h-4 w-4" />
+          </Button>
+        </div>
       </div>
       {node.type === "reference" ? (
         <ReferenceNodeEditor node={node} onUpdate={data.onUpdate} />

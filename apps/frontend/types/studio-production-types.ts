@@ -307,9 +307,25 @@ interface ImageWorkflowNodeBase {
   updatedAt: number;
 }
 
+/**
+ * 取材血缘(09-01-canvas-material-extraction):记录节点由画布上哪张图的
+ * 哪个区域派生而来(crop/split/mask-inpaint/reverse-prompt)。
+ * 全可选——旧数据零迁移;父图更新时由衍生资产时效性体系感知过期。
+ */
+export interface ImageWorkflowDerivationSource {
+  kind: "crop" | "split" | "mask-inpaint" | "reverse-prompt";
+  sourceNodeId: string;
+  /** 归一化区域 [x,y,w,h](crop/split 格框;mask-inpaint 用涂抹包围盒) */
+  region?: { x: number; y: number; width: number; height: number };
+  /** split 格位(第 row 行第 col 列,0 起) */
+  cell?: { row: number; col: number };
+  createdAt: number;
+}
+
 export interface ImageWorkflowReferenceNode extends ImageWorkflowNodeBase {
   type: "reference";
   imageUrl: string;
+  derivedFrom?: ImageWorkflowDerivationSource;
   source?: ImageWorkflowTarget;
   notes?: string;
   continuityOrder?: number;
@@ -325,6 +341,7 @@ export interface ImageWorkflowReferenceNode extends ImageWorkflowNodeBase {
 export interface ImageWorkflowGeneratedNode extends ImageWorkflowNodeBase {
   type: "generated";
   prompt: string;
+  derivedFrom?: ImageWorkflowDerivationSource;
   negativePrompt?: string;
   model?: string;
   /**
