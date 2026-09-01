@@ -25,7 +25,6 @@ import {
 } from "@/lib/studio/remotion/remotion-workspace-storage";
 import { getFileStorageBridge } from "@/lib/bridge/file-storage";
 import { getProjectFolderBridge } from "@/lib/bridge/project-folder";
-import { getStorageManagerBridge } from "@/lib/bridge/storage-manager";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
