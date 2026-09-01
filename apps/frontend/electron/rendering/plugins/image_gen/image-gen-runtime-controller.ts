@@ -36,6 +36,8 @@ export async function reclaimOrphanSidecarPort(): Promise<boolean> {
     try {
       const { stdout: cmd } = await execFileAsync("ps", ["-p", pid, "-o", "command="]);
       if (cmd.includes("image_gen.main")) {
+        // SIGSTOP 冻结的孤儿收不到 SIGTERM——先 CONT 唤醒再 TERM
+        try { process.kill(Number(pid), "SIGCONT"); } catch { /* 已退出 */ }
         process.kill(Number(pid), "SIGTERM");
         reclaimed = true;
       }
