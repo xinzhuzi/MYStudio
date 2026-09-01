@@ -149,10 +149,13 @@ describe("studio workflow tabs", () => {
   });
 
   it("keeps image workflow files in project-scoped storage instead of the asset library", () => {
-    const canvasSource = readFileSync(
-      fileURLToPath(new URL("./image-workflow/ImageWorkflowCanvas.tsx", import.meta.url)),
-      "utf8",
-    );
+    // P3 拆分后 JSX 主体在 ImageWorkflowFlowView,源码断言合并读两文件
+    const canvasSource = [
+      "./image-workflow/ImageWorkflowCanvas.tsx",
+      "./image-workflow/ImageWorkflowFlowView.tsx",
+    ]
+      .map((name) => readFileSync(fileURLToPath(new URL(name, import.meta.url)), "utf8"))
+      .join("\n");
     const assetBridgeSource = readFileSync(
       fileURLToPath(new URL("./image-workflow/image-workflow-asset-bridge.ts", import.meta.url)),
       "utf8",
@@ -184,10 +187,13 @@ describe("studio workflow tabs", () => {
   });
 
   it("keeps image workflow detail chrome theme-aware for derived asset drill-down", () => {
-    const canvasSource = readFileSync(
-      fileURLToPath(new URL("./image-workflow/ImageWorkflowCanvas.tsx", import.meta.url)),
-      "utf8",
-    );
+    // P3 拆分后 JSX 主体在 ImageWorkflowFlowView,源码断言合并读两文件
+    const canvasSource = [
+      "./image-workflow/ImageWorkflowCanvas.tsx",
+      "./image-workflow/ImageWorkflowFlowView.tsx",
+    ]
+      .map((name) => readFileSync(fileURLToPath(new URL(name, import.meta.url)), "utf8"))
+      .join("\n");
     const nodeSource = readFileSync(
       fileURLToPath(new URL("./image-workflow/image-workflow-node-card.tsx", import.meta.url)),
       "utf8",
@@ -219,10 +225,13 @@ describe("studio workflow tabs", () => {
   });
 
   it("keeps image workflow drill-down navigable and non-blank", () => {
-    const canvasSource = readFileSync(
-      fileURLToPath(new URL("./image-workflow/ImageWorkflowCanvas.tsx", import.meta.url)),
-      "utf8",
-    );
+    // P3 拆分后 JSX 主体在 ImageWorkflowFlowView,源码断言合并读两文件
+    const canvasSource = [
+      "./image-workflow/ImageWorkflowCanvas.tsx",
+      "./image-workflow/ImageWorkflowFlowView.tsx",
+    ]
+      .map((name) => readFileSync(fileURLToPath(new URL(name, import.meta.url)), "utf8"))
+      .join("\n");
     const nodeSource = readFileSync(
       fileURLToPath(new URL("./image-workflow/image-workflow-node-card.tsx", import.meta.url)),
       "utf8",
@@ -283,10 +292,13 @@ describe("studio workflow tabs", () => {
   });
 
   it("keeps drill-down image workflow detail scoped to the opened node", () => {
-    const canvasSource = readFileSync(
-      fileURLToPath(new URL("./image-workflow/ImageWorkflowCanvas.tsx", import.meta.url)),
-      "utf8",
-    );
+    // P3 拆分后 JSX 主体在 ImageWorkflowFlowView,源码断言合并读两文件
+    const canvasSource = [
+      "./image-workflow/ImageWorkflowCanvas.tsx",
+      "./image-workflow/ImageWorkflowFlowView.tsx",
+    ]
+      .map((name) => readFileSync(fileURLToPath(new URL(name, import.meta.url)), "utf8"))
+      .join("\n");
     const graphUtilsSource = readFileSync(
       fileURLToPath(new URL("./image-workflow/image-workflow-graph-utils.ts", import.meta.url)),
       "utf8",
@@ -336,10 +348,13 @@ describe("studio workflow tabs", () => {
   });
 
   it("keeps image workflow toolbar actions bound to the opened graph target", () => {
-    const canvasSource = readFileSync(
-      fileURLToPath(new URL("./image-workflow/ImageWorkflowCanvas.tsx", import.meta.url)),
-      "utf8",
-    );
+    // P3 拆分后 JSX 主体在 ImageWorkflowFlowView,源码断言合并读两文件
+    const canvasSource = [
+      "./image-workflow/ImageWorkflowCanvas.tsx",
+      "./image-workflow/ImageWorkflowFlowView.tsx",
+    ]
+      .map((name) => readFileSync(fileURLToPath(new URL(name, import.meta.url)), "utf8"))
+      .join("\n");
     const graphUtilsSource = readFileSync(
       fileURLToPath(new URL("./image-workflow/image-workflow-graph-utils.ts", import.meta.url)),
       "utf8",
