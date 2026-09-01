@@ -82,14 +82,17 @@ export function useDerivedReferenceLanding({
       options?: LandDerivedOptions,
     ): Promise<Array<LandDerivedOk | LandDerivedFailure>> => {
       if (!activeGraph || inputs.length === 0) {
+        toast.error("无活动图像工作流,取材未执行");
         return inputs.map(() => ({ error: "无活动图像工作流" }));
       }
       const activeProjectId = useProjectStore.getState().activeProjectId;
       const sourceNode = activeGraph.nodes.find((node) => node.id === inputs[0].sourceNodeId);
       if (!activeProjectId) {
+        toast.error("请先选择项目,取材未执行");
         return inputs.map(() => ({ error: "请先选择项目" }));
       }
       if (!sourceNode) {
+        toast.error("取材源节点不存在");
         return inputs.map(() => ({ error: "源节点不存在" }));
       }
 

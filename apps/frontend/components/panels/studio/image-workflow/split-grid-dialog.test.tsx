@@ -28,11 +28,11 @@ describe("SplitGridDialog", () => {
     render(
       <SplitGridDialog open imageUrl="data:image/png;base64,AAAA" sourceTitle="测试" onClose={() => {}} onConfirm={() => {}} />,
     );
-    expect(screen.getByRole("button", { name: "行 减一" }).disabled).toBe(false);
+    expect((screen.getByRole("button", { name: "行 减一" }) as HTMLButtonElement).disabled).toBe(false);
     fireEvent.click(screen.getByRole("button", { name: "行 减一" }));
-    expect(screen.getByRole("button", { name: "行 减一" }).disabled).toBe(true);
+    expect((screen.getByRole("button", { name: "行 减一" }) as HTMLButtonElement).disabled).toBe(true);
     for (let i = 0; i < 5; i++) fireEvent.click(screen.getByRole("button", { name: "列 加一" }));
-    expect(screen.getByRole("button", { name: "列 加一" }).disabled).toBe(true);
+    expect((screen.getByRole("button", { name: "列 加一" }) as HTMLButtonElement).disabled).toBe(true);
     expect(screen.getByText(/切为 4 张/)).toBeTruthy();
   });
 

@@ -20,7 +20,9 @@ vi.mock("@/lib/media/preview-src", () => ({
   toPreviewSrc: (source: string) => source,
 }));
 
-afterEach(() => vi.clearAllMocks());
+afterEach(() => {
+  vi.clearAllMocks();
+});
 
 describe("reversePromptFromImage", () => {
   it("缩略后走多模态,返回去空白正文,system 提示词含『只输出提示词正文』", async () => {

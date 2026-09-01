@@ -470,14 +470,16 @@ export function ImageWorkflowCanvas({
         const sourcePixels = await codec.decode(target.imageUrl);
         const cropped = cropImageData(sourcePixels, rect);
         const dataUrl = codec.encode(cropped);
-        await landDerived([
-          {
-            sourceNodeId: target.nodeId,
-            pixels: { dataUrl, width: cropped.width, height: cropped.height },
-            title: `${target.title}·裁剪`,
-            derivation: { kind: "crop", sourceNodeId: target.nodeId, region: rect },
-          },
-        ]);
+        assertLanded(
+          await landDerived([
+            {
+              sourceNodeId: target.nodeId,
+              pixels: { dataUrl, width: cropped.width, height: cropped.height },
+              title: `${target.title}·裁剪`,
+              derivation: { kind: "crop", sourceNodeId: target.nodeId, region: rect },
+            },
+          ]),
+        );
       } catch (error) {
         toast.error(error instanceof Error ? error.message : "裁剪取材失败");
       }
@@ -516,8 +518,9 @@ export function ImageWorkflowCanvas({
         const codec = createBrowserCanvasCodec();
         const sourcePixels = await codec.decode(target.imageUrl);
         const pieces = splitImageData(sourcePixels, rows, cols);
-        await landDerived(
-          pieces.map((piece, index) => {
+        assertLanded(
+          await landDerived(
+            pieces.map((piece, index) => {
             const row = Math.floor(index / cols);
             const col = index % cols;
             return {
@@ -532,6 +535,7 @@ export function ImageWorkflowCanvas({
               },
             };
           }),
+          ),
         );
       } catch (error) {
         toast.error(error instanceof Error ? error.message : "切图取材失败");
@@ -550,45 +554,49 @@ export function ImageWorkflowCanvas({
         const basePixels = await codec.decode(target.imageUrl);
         const exportResult = exportMaskOverlay(basePixels, payload.maskData, (image) => codec.encode(image));
         if (!exportResult) throw new Error("蒙版为空");
-        const first = landed[0];
-        if (!("nodeId" in first)) throw new Error(first.error);
-        // ② 新成图节点经 appendGraph 与落图合并为一次 saveGraph(单步撤销,
-        //    09-01 mask 深审修复);生成链从 store 读最新图
+        // 新成图节点经 appendGraph 与落图合并为一次 saveGraph(单步撤销,
+        // 09-01 mask 深审修复);生成链从 store 读最新图
         const genId = `gen-${Date.now()}`;
-        await landDerived(
-          [
-            {
-              sourceNodeId: target.nodeId,
-              pixels: {
-                dataUrl: exportResult.overlayDataUrl,
-                width: payload.maskData.width,
-                height: payload.maskData.height,
+        assertLanded(
+          await landDerived(
+            [
+              {
+                sourceNodeId: target.nodeId,
+                pixels: {
+                  dataUrl: exportResult.overlayDataUrl,
+                  width: payload.maskData.width,
+                  height: payload.maskData.height,
+                },
+                title: `${target.title}·重绘区`,
+                derivation: {
+                  kind: "mask-inpaint",
+                  sourceNodeId: target.nodeId,
+                  region: exportResult.region,
+                },
               },
-              title: `${target.title}·重绘区`,
-              derivation: { kind: "mask-inpaint", sourceNodeId: target.nodeId, region: exportResult.region },
+            ],
+            {
+              appendGraph: (graph, landedIds) => {
+                const refId = landedIds[0];
+                const withGen = addGeneratedImageNode(graph, {
+                  id: genId,
+                  title: `${target.title}·局部重绘`,
+                  prompt: buildInpaintPrompt(payload.request),
+                  position: nextNodePosition(graph, "generated"),
+                });
+                return refId
+                  ? connectImageWorkflowNodes(withGen, { source: refId, target: genId })
+                  : withGen;
+              },
             },
-          ],
-          {
-            appendGraph: (graph, landedIds) => {
-              const refId = landedIds[0];
-              const withGen = addGeneratedImageNode(graph, {
-                id: genId,
-                title: `${target.title}·局部重绘`,
-                prompt: buildInpaintPrompt(payload.request),
-                position: nextNodePosition(graph, "generated"),
-              });
-              return refId
-                ? connectImageWorkflowNodes(withGen, { source: refId, target: genId })
-                : withGen;
-            },
-          },
+          ),
         );
         void generateNode(genId);
       } catch (error) {
         toast.error(error instanceof Error ? error.message : "局部重绘失败");
       }
     },
-    [activeGraph, generateNode, landDerived, maskTarget, saveGraph],
+    [activeGraph, generateNode, landDerived, maskTarget],
   );
 
   const runReversePrompt = useCallback(async () => {
@@ -682,6 +690,17 @@ export function ImageWorkflowCanvas({
       window.setTimeout(() => flowInstance?.fitView({ ...FIT_VIEW_OPTIONS, duration: 260 }), 80);
     });
   }, [activeGraph, flowInstance, saveGraph]);
+
+
+/** 取材落图结果检查:任一失败即 toast 并返回 false(此前静默吞 outcome 是实弹排查出的缺陷) */
+function assertLanded(outcomes: Array<{ nodeId: string } | { error: string }>): boolean {
+  const failed = outcomes.find((outcome) => "error" in outcome) as { error: string } | undefined;
+  if (failed) {
+    toast.error(failed.error);
+    return false;
+  }
+  return true;
+}
 
   // 反推入口设定后自动执行(与一键生成同款无中间确认)
   useEffect(() => {
