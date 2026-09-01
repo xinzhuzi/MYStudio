@@ -704,11 +704,6 @@ function ImageWorkflowFlowView({
 
   const handleConnectEnd = useCallback(
     (event: MouseEvent | TouchEvent, connectionState: FinalConnectionState) => {
-      console.log("[connect-end-debug]", JSON.stringify({
-        isValid: connectionState.isValid,
-        fromNode: connectionState.fromNode?.id ?? null,
-        fromHandleType: connectionState.fromHandle?.type ?? null,
-      }));
       if (connectionState.isValid) return;
       const fromNode = connectionState.fromNode;
       const fromHandleType = connectionState.fromHandle?.type;
