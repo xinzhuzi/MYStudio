@@ -62,19 +62,15 @@ export function CanvasViewportControls<TNode extends Node>({
   });
 
   const toggleMiniMap = useCallback(() => {
-    setMiniMapOpen((open) => {
-      const next = !open;
-      try {
-        window.localStorage.setItem(
-          MINI_MAP_PREF_KEY,
-          next ? "1" : "0",
-        );
-      } catch {
-        // localStorage 不可用(隐私模式/测试环境)时仅会话内生效
-      }
-      return next;
-    });
-  }, []);
+    // 副作用在 updater 外(updater 内做副作用是 StrictMode 双调用反模式)
+    const next = !miniMapOpen;
+    setMiniMapOpen(next);
+    try {
+      window.localStorage.setItem(MINI_MAP_PREF_KEY, next ? "1" : "0");
+    } catch {
+      // localStorage 不可用(隐私模式/测试环境)时仅会话内生效
+    }
+  }, [miniMapOpen]);
 
   return (
     <>
@@ -82,11 +78,11 @@ export function CanvasViewportControls<TNode extends Node>({
         position="bottom-left"
         className="workflow-node-viewport-controls nodrag nopan"
       >
-        <div className="flex max-w-[calc(100vw-3rem)] items-center gap-1 rounded-lg border border-border/80 bg-card p-1 text-xs text-card-foreground">
+        <div className="flex max-w-[calc(100vw-3rem)] items-center gap-1 rounded-lg border border-border/80 bg-card/90 p-1 text-xs text-card-foreground backdrop-blur-md">
           <button
             type="button"
             aria-label="缩小画布"
-            className="inline-flex h-9 w-9 items-center justify-center rounded-md border border-border/70 bg-muted/70 text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+            className="inline-flex h-9 w-9 items-center justify-center rounded-md border border-border/70 bg-muted/70 text-muted-foreground transition-colors duration-75 hover:bg-accent hover:text-accent-foreground active:bg-accent/70"
             onClick={() => {
               onViewportControlStart?.();
               void reactFlow.zoomOut({ duration: 180 });
@@ -100,7 +96,7 @@ export function CanvasViewportControls<TNode extends Node>({
           <button
             type="button"
             aria-label="放大画布"
-            className="inline-flex h-9 w-9 items-center justify-center rounded-md border border-border/70 bg-muted/70 text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+            className="inline-flex h-9 w-9 items-center justify-center rounded-md border border-border/70 bg-muted/70 text-muted-foreground transition-colors duration-75 hover:bg-accent hover:text-accent-foreground active:bg-accent/70"
             onClick={() => {
               onViewportControlStart?.();
               void reactFlow.zoomIn({ duration: 180 });
@@ -111,7 +107,7 @@ export function CanvasViewportControls<TNode extends Node>({
           <button
             type="button"
             aria-label="适配画布"
-            className="inline-flex h-9 items-center gap-1.5 rounded-md border border-border/70 bg-muted/70 px-3 text-foreground hover:bg-accent hover:text-accent-foreground"
+            className="inline-flex h-9 items-center gap-1.5 rounded-md border border-border/70 bg-muted/70 px-3 text-foreground transition-colors duration-75 hover:bg-accent hover:text-accent-foreground active:bg-accent/70"
             onClick={onFit}
           >
             <Maximize2 className="h-3.5 w-3.5" />

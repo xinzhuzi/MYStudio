@@ -1,4 +1,5 @@
 import { useEffect, useRef } from "react";
+import "./image-workflow-connect-create-menu.css";
 import { FileText, Image as ImageIcon, Images } from "lucide-react";
 import type { ConnectCreatableTypeOption } from "@/lib/studio/image-workflow/connect-create";
 
@@ -42,7 +43,7 @@ export function ImageWorkflowConnectCreateMenu({
       <div
         role="menu"
         aria-label="创建节点并连接"
-        className="absolute min-w-56 overflow-hidden rounded-lg border border-border bg-card p-1"
+        className="connect-create-menu absolute min-w-56 overflow-hidden rounded-lg border border-border bg-card/95 p-1 shadow-lg backdrop-blur-md"
         style={{ left: x, top: y }}
         onPointerDown={(event) => event.stopPropagation()}
         onKeyDown={(event) => {
@@ -75,7 +76,7 @@ export function ImageWorkflowConnectCreateMenu({
               role="menuitem"
               data-option
               ref={index === 0 ? firstButtonRef : undefined}
-              className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm text-card-foreground hover:bg-accent hover:text-accent-foreground"
+              className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm text-card-foreground transition-colors duration-75 hover:bg-accent hover:text-accent-foreground active:bg-accent/70"
               onClick={() => {
                 onSelect(option.type);
                 onClose();
