@@ -46,6 +46,7 @@ import {
 } from "./image-studio-node-card";
 import { ImageStudioToolbar } from "./image-studio-toolbar";
 import { useImageStudioGeneration } from "./use-image-studio-generation";
+import { PaneCreateMenu, type PaneCreateKind } from "./pane-create-menu";
 
 const FIT_VIEW_OPTIONS = { padding: 0.18, minZoom: 0.35, maxZoom: 1.1 } as const;
 
@@ -116,10 +117,60 @@ export function ImageStudioCanvas() {
     useFreedomStore.getState().setImagePrompt("");
   }, [seedPrompt, seedModel]);
 
+  const flowInstanceRef = useRef<ReactFlowInstance<ImageStudioReactNode, Edge> | null>(null);
+  flowInstanceRef.current = flowInstance;
+
+  // 右键创建(09-02,参考 infinite-canvas NodeCreateMenu 交互):落点即建位
+  const [paneCreate, setPaneCreate] = useState<{
+    x: number;
+    y: number;
+    world: { x: number; y: number };
+  } | null>(null);
+
+  const handlePaneContextMenu = useCallback(
+    (event: MouseEvent) => {
+      const world = flowInstanceRef.current?.screenToFlowPosition({
+        x: event.clientX,
+        y: event.clientY,
+      });
+      setPaneCreate({ x: event.clientX, y: event.clientY, world: world ?? { x: 0, y: 0 } });
+    },
+    [],
+  );
+
   const defaultModel = useCallback(
     () => useFreedomStore.getState().selectedImageModel || undefined,
     [],
   );
+
+  // 09-02 真机根修收尾:新建节点在 React Flow 完成测量前渲染为 visibility:hidden,
+  // 该窗口内用户点进提示词所落焦点会被浏览器丢弃(首字符即丢焦的三次报障根因)。
+  // 建组后等节点测完可见,自动把光标放进正向提示词——「点文生图→直接打字」
+  // 从交互上闭环;用户已聚焦在其他输入框打字时不抢焦点。
+  const focusPromptNodeWhenReady = useCallback((nodeId: string | undefined) => {
+    if (!nodeId) return;
+    let attempts = 0;
+    const tryFocus = () => {
+      attempts += 1;
+      const wrapper = document.querySelector(`.react-flow__node[data-id="${nodeId}"]`);
+      const textarea = wrapper?.querySelector<HTMLTextAreaElement>("textarea");
+      if (wrapper && textarea && getComputedStyle(wrapper).visibility === "visible") {
+        const active = document.activeElement;
+        const userTypingElsewhere =
+          active instanceof HTMLElement &&
+          active !== document.body &&
+          active !== textarea &&
+          (active.tagName === "INPUT" || active.tagName === "TEXTAREA");
+        if (!userTypingElsewhere) {
+          textarea.focus();
+          textarea.setSelectionRange(textarea.value.length, textarea.value.length);
+        }
+        return;
+      }
+      if (attempts < 40) window.requestAnimationFrame(tryFocus);
+    };
+    window.requestAnimationFrame(tryFocus);
+  }, []);
 
   const openPicker = useCallback((target: UploadTarget) => {
     uploadTargetRef.current = target;
@@ -153,6 +204,21 @@ export function ImageStudioCanvas() {
       void generateNode(nodeId);
     },
     [generateNode],
+  );
+
+  const handlePaneCreate = useCallback(
+    (kind: PaneCreateKind) => {
+      const store = useImageStudioStore.getState();
+      if (kind === "generation-group") {
+        const group = store.addGenerationGroup({ model: defaultModel(), position: paneCreate?.world });
+        focusPromptNodeWhenReady(group?.promptNodeId);
+      } else if (kind === "reference") {
+        store.addReferenceNode({ imageUrl: "", position: paneCreate?.world });
+      } else {
+        store.addPromptNode({ position: paneCreate?.world });
+      }
+    },
+    [defaultModel, focusPromptNodeWhenReady, paneCreate?.world],
   );
   const handleUpscale = useCallback(
     (nodeId: string) => {
@@ -304,8 +370,10 @@ export function ImageStudioCanvas() {
           setRenameOpen(true);
         }}
         onDelete={() => setDeleteOpen(true)}
-        onAddTextToImage={() =>
-          useImageStudioStore.getState().addGenerationGroup({ model: defaultModel() })}
+        onAddTextToImage={() => {
+          const group = useImageStudioStore.getState().addGenerationGroup({ model: defaultModel() });
+          focusPromptNodeWhenReady(group?.promptNodeId);
+        }}
         onAddImageToImage={() => openPicker({ mode: "new-group" })}
         onAddReference={() => openPicker({ mode: "new-reference" })}
         onAddPrompt={() => useImageStudioStore.getState().addPromptNode()}
@@ -320,12 +388,21 @@ export function ImageStudioCanvas() {
           onInit={setFlowInstance}
           onNodeClick={setSelectedNodeId}
           onPaneClick={() => setSelectedNodeId(null)}
+          onPaneContextMenu={handlePaneContextMenu}
           onConnect={handleConnect}
           onNodesDelete={(ids) => ids.forEach((id) => removeNode(id))}
           onEdgesDelete={(ids) => ids.forEach((id) => removeEdge(id))}
           onNodeDragStop={(nodeId, position) => moveNode(nodeId, position)}
           onViewportSettled={handleViewportSettled}
         />
+        {paneCreate ? (
+          <PaneCreateMenu
+            x={paneCreate.x}
+            y={paneCreate.y}
+            onSelect={handlePaneCreate}
+            onClose={() => setPaneCreate(null)}
+          />
+        ) : null}
         {historyOpen ? (
           <div className="w-[240px] shrink-0 border-l" data-image-studio-history-panel>
             <GenerationHistory
@@ -434,13 +511,25 @@ function ImageStudioVisibilityMeasurementRefresh({
 }) {
   const updateNodeInternals = useUpdateNodeInternals();
 
+  // 09-02 实弹复现根修:用户点文生图建组后立刻点进提示词打字(约 80-200ms 内),
+  // 节点集变化触发的全量 updateNodeInternals 让 React Flow 进入重测窗口
+  // (节点 visibility:hidden),隐藏元素不可聚焦 → 首字符即焦点丢给 body
+  // (用户三次报障的真时序;c1b27d0 只断了「打字触发」没断「建组后打字」)。
+  // 两全修法=防抖 + 排除焦点所在节点:正在输入的节点永不进入隐藏窗口,其尺寸
+  // 变化由 ResizeObserver 自然跟随(与打字路径一致);其余节点照刷保住
+  // handleBounds/连线可见性(08-31 连线零渲染案的既有承担,不可丢)。
   useEffect(() => {
     if (!isVisible || nodeIds.length === 0) return;
 
-    const refreshFrame = window.requestAnimationFrame(() => {
-      updateNodeInternals(nodeIds);
-    });
-    return () => window.cancelAnimationFrame(refreshFrame);
+    const refreshTimer = window.setTimeout(() => {
+      const focusedNode = document.activeElement?.closest(".react-flow__node");
+      const focusedNodeId = focusedNode?.getAttribute("data-id");
+      const ids = focusedNodeId ? nodeIds.filter((id) => id !== focusedNodeId) : nodeIds;
+      if (ids.length > 0) {
+        updateNodeInternals(ids);
+      }
+    }, 250);
+    return () => window.clearTimeout(refreshTimer);
   }, [isVisible, nodeIds, updateNodeInternals]);
 
   return null;
@@ -453,6 +542,7 @@ function ImageStudioFlowView({
   onInit,
   onNodeClick,
   onPaneClick,
+  onPaneContextMenu,
   onConnect,
   onNodesDelete,
   onEdgesDelete,
@@ -465,6 +555,7 @@ function ImageStudioFlowView({
   onInit: (instance: ReactFlowInstance<ImageStudioReactNode, Edge>) => void;
   onNodeClick: (nodeId: string) => void;
   onPaneClick: () => void;
+  onPaneContextMenu: (event: MouseEvent) => void;
   onConnect: (connection: { source: string | null; target: string | null }) => void;
   onNodesDelete: (nodeIds: string[]) => void;
   onEdgesDelete: (edgeIds: string[]) => void;
@@ -473,8 +564,19 @@ function ImageStudioFlowView({
 }) {
   const [nodes, setNodes, onNodesChange] = useNodesState<ImageStudioReactNode>(reactFlowNodes);
 
+
   useEffect(() => {
-    setNodes(reactFlowNodes);
+    // 09-02 日志终局根修:[isi] 实录每键 setNodes measured=0 → RF 判节点未测量
+    // → wrapper visibility:hidden 等重测 → 中文输入法组合会话被隐藏闪断,焦点丢
+    // BODY(用户五报「输入1字符即退出」的真因果链)。重建受控数组必须携带旧节点
+    // 已测尺寸;RF 视节点为已测量则永不进入隐藏窗口。下方测量刷新组件只是该
+    // 缺陷时代的创可贴(handleBounds 重置同根),保留作保底。
+    setNodes((current) =>
+      reactFlowNodes.map((next) => {
+        const prev = current.find((n) => n.id === next.id);
+        return prev?.measured ? { ...next, measured: prev.measured } : next;
+      }),
+    );
   }, [reactFlowNodes, setNodes]);
 
   // 节点集合签名判等(实弹报障根修):此前 deps=[graph?.nodes] 每次输入都产新数组
@@ -519,6 +621,10 @@ function ImageStudioFlowView({
         onNodesChange={onNodesChange}
         onNodeClick={(_, node) => onNodeClick(node.id)}
         onPaneClick={onPaneClick}
+        onPaneContextMenu={(event) => {
+          event.preventDefault();
+          onPaneContextMenu(event as unknown as MouseEvent);
+        }}
         onNodeDragStart={handleNodeDragStart}
         onNodeDragStop={(_, node) => {
           setInteracting(false);

@@ -65,8 +65,8 @@ export interface ImageStudioStoreActions {
   removeEdge: (edgeId: string) => void;
   setViewport: (viewport: ImageWorkflowViewport) => void;
   applyLayout: () => void;
-  addReferenceNode: (input: { imageUrl: string; title?: string }) => string;
-  addPromptNode: (input?: { prompt?: string; negativePrompt?: string }) => string;
+  addReferenceNode: (input: { imageUrl: string; title?: string; position?: ImageWorkflowNodePosition }) => string;
+  addPromptNode: (input?: { prompt?: string; negativePrompt?: string; position?: ImageWorkflowNodePosition }) => string;
   addGeneratedNode: (input?: { prompt?: string; model?: string }) => string;
   /** 一键建组:文生图=提示词+成图;带参考图地址则为图生图三件套 */
   addGenerationGroup: (input?: {
@@ -74,6 +74,8 @@ export interface ImageStudioStoreActions {
     negativePrompt?: string;
     model?: string;
     referenceImageUrl?: string;
+    /** 右键落点:成图列锚位(提示词落其左列) */
+    position?: ImageWorkflowNodePosition;
   }) => ImageStudioNodeGroup;
   setNodeStatus: (
     nodeId: string,
@@ -293,7 +295,7 @@ export const useImageStudioStore = create<ImageStudioStore>()(
         }));
       },
 
-      addReferenceNode: ({ imageUrl, title }) => {
+      addReferenceNode: ({ imageUrl, title, position }) => {
         ensureActiveCanvas(get, set);
         const id = createId("ref");
         get().updateActiveWorkflow((current) =>
@@ -301,7 +303,7 @@ export const useImageStudioStore = create<ImageStudioStore>()(
             id,
             title: title ?? "参考图",
             imageUrl,
-            position: nextColumnPosition(current, "reference"),
+            position: position ?? nextColumnPosition(current, "reference"),
           }),
         );
         return id;
@@ -316,7 +318,7 @@ export const useImageStudioStore = create<ImageStudioStore>()(
             title: "提示词",
             prompt: input?.prompt ?? "",
             negativePrompt: input?.negativePrompt,
-            position: nextColumnPosition(current, "prompt"),
+            position: input?.position ?? nextColumnPosition(current, "prompt"),
           }),
         );
         return id;
@@ -344,6 +346,8 @@ export const useImageStudioStore = create<ImageStudioStore>()(
         }
         const group: ImageStudioNodeGroup = { promptNodeId: "", generatedNodeId: "" };
         let current = graph;
+        // 右键落点(可选):组内以落点为成图列基准,提示词在其左列
+        const anchor = input?.position;
         if (input?.referenceImageUrl) {
           const referenceNodeId = createId("ref");
           current = addReferenceImageNode(current, {
@@ -360,7 +364,9 @@ export const useImageStudioStore = create<ImageStudioStore>()(
           title: "提示词",
           prompt: input?.prompt ?? "",
           negativePrompt: input?.negativePrompt,
-          position: nextColumnPosition(current, "prompt"),
+          position: anchor
+            ? { x: anchor.x - 380, y: anchor.y }
+            : nextColumnPosition(current, "prompt"),
         });
         group.promptNodeId = promptNodeId;
         const generatedNodeId = createId("gen");
@@ -369,7 +375,7 @@ export const useImageStudioStore = create<ImageStudioStore>()(
           title: "生成图",
           prompt: input?.prompt ?? "",
           model: input?.model,
-          position: nextColumnPosition(current, "generated"),
+          position: anchor ?? nextColumnPosition(current, "generated"),
         });
         group.generatedNodeId = generatedNodeId;
         if (group.referenceNodeId) {
