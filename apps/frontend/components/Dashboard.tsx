@@ -8,7 +8,7 @@
  * Features: create, open, rename, duplicate, batch select & delete
  */
 
-import { useCallback, useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useDashboardProjectActions } from "./dashboard-project-actions";
 import { DashboardDialogs } from "./dashboard-dialogs";
 import { useProjectStore } from "@/stores/project/project-store";
