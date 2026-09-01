@@ -149,11 +149,19 @@ export function createBrowserCanvasCodec(): ExtractionCanvasCodec {
   };
 }
 
-function loadImageElement(source: string): Promise<HTMLImageElement> {
+function loadImageElement(source: string, timeoutMs = 10_000): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
     const image = new Image();
-    image.onload = () => resolve(image);
-    image.onerror = () => reject(new Error("图片加载失败"));
+    // 挂起防护(实弹教训:协议图偶发既不 onload 也不 onerror → 确认链无声卡死)
+    const timer = window.setTimeout(() => reject(new Error("图片加载超时")), timeoutMs);
+    image.onload = () => {
+      window.clearTimeout(timer);
+      resolve(image);
+    };
+    image.onerror = () => {
+      window.clearTimeout(timer);
+      reject(new Error("图片加载失败"));
+    };
     image.src = source;
   });
 }
