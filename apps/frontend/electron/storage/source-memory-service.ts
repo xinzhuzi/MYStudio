@@ -6,22 +6,19 @@
  *  records.jsonl 是人可读事实层：raw 块存预览（可从源重导），结构化记录存全文（增量复用靠它）。 */
 import fs from "node:fs";
 import path from "node:path";
+import { createSourceMemoryPaths, STRUCTURED_KINDS, EXTRACTOR_VERSION } from "./source-memory-paths";
+import { createSourceMemoryBuild } from "./source-memory-build";
+import { createSourceMemoryPub } from "./source-memory-pub";
 import { createHash } from "node:crypto";
 import {
-  buildIndexSqlite,
-  chunkMarkdown,
   inspectIndexSqlite,
-  sha256Of,
   searchIndexSqlite,
-  type IndexRecord,
 } from "./source-memory-index";
 import { prettyJson } from "./pretty-json";
-import { withProjectDeletionLock } from "./project-mutex";
 import type {
   SourceMemoryBuildPlan,
   SourceMemoryBuildReply,
   SourceMemoryCommitBuildReply,
-  SourceMemoryExtractionChunk,
   SourceMemoryRecord,
   SourceMemoryRebuildIndexReply,
   SourceMemorySearchReply,
@@ -30,26 +27,7 @@ import type {
   SourceMemoryStatusReply,
 } from "../../types/source-memory";
 
-const SOURCES = ["novel/source-memory/MEMORY.md", "novel/chapters"] as const;
-const SCHEMA_VERSION = 3;
-const EXTRACTOR_VERSION = "source-memory-v3";
-const INDEX_VERSION = 1;
-
-const STRUCTURED_KINDS = new Set([
-  "character",
-  "alias",
-  "relation",
-  "event",
-  "timeline",
-  "world-rule",
-  "term",
-  "location",
-  "object",
-  "foreshadowing",
-  "adaptation-redline",
-]);
-
-interface ManifestFile {
+export interface ManifestFile {
   schemaVersion: number;
   extractorVersion: string;
   indexVersion: number;
@@ -60,7 +38,7 @@ interface ManifestFile {
   builtAt: string;
 }
 
-interface ScannedFile {
+export interface ScannedFile {
   rel: string;
   sha256: string;
   size: number;
@@ -68,14 +46,14 @@ interface ScannedFile {
   content: string;
 }
 
-interface ActiveGeneration {
+export interface ActiveGeneration {
   buildId: string;
   generationPath: string;
   manifestSha256: string;
   publishedAt: string;
 }
 
-interface BuildStateFile {
+export interface BuildStateFile {
   status: "ready" | "partial";
   buildId: string;
   recordCount: number;
@@ -91,10 +69,6 @@ type SourceMemoryFailpoint =
   | "after-generation-rename"
   | "before-pointer-rename";
 
-function chapterIdOfChapterFile(relFile: string): string {
-  return path.basename(relFile).replace(/\.md$/, "");
-}
-
 export function createSourceMemoryService({
   getProjectRoot,
   failpoint,
@@ -102,394 +76,13 @@ export function createSourceMemoryService({
   getProjectRoot: (projectId: string) => string;
   failpoint?: (point: SourceMemoryFailpoint) => void | Promise<void>;
 }) {
+  const io = createSourceMemoryPaths({ getProjectRoot });
+  const build = createSourceMemoryBuild(io);
   const writers = new Set<string>();
-  const memoryDir = (projectId: string) => path.join(getProjectRoot(projectId), "novel", "source-memory");
-  const activePath = (projectId: string) => path.join(memoryDir(projectId), "active.json");
-  const generationsDir = (projectId: string) => path.join(memoryDir(projectId), "generations");
-  const stagingDir = (projectId: string) => path.join(memoryDir(projectId), "staging");
-  const backupsDir = (projectId: string) => path.join(memoryDir(projectId), "backups", "recovery");
-  const legacyManifestPath = (projectId: string) => path.join(memoryDir(projectId), "manifest.json");
-  const legacyRecordsPath = (projectId: string) => path.join(memoryDir(projectId), "records.jsonl");
-
-  function readIfExists(filePath: string): string | null {
-    try {
-      return fs.readFileSync(filePath, "utf8");
-    } catch {
-      return null;
-    }
-  }
-
-  function readJsonIfExists<T>(filePath: string): T | null {
-    const raw = readIfExists(filePath);
-    if (raw === null) return null;
-    try {
-      return JSON.parse(raw) as T;
-    } catch {
-      return null;
-    }
-  }
-
-  function generationDirectory(projectId: string, generationPath: string): string | null {
-    if (!/^generations\/[a-zA-Z0-9._-]+$/.test(generationPath)) return null;
-    const root = path.resolve(generationsDir(projectId));
-    const resolved = path.resolve(memoryDir(projectId), generationPath);
-    return resolved.startsWith(`${root}${path.sep}`) ? resolved : null;
-  }
-
-  function readActiveSnapshot(projectId: string):
-    | { success: true; active: ActiveGeneration; directory: string; manifest: ManifestFile; state: BuildStateFile }
-    | { success: false; code: "active-missing" | "active-invalid" | "manifest-invalid"; error: string } {
-    const active = readJsonIfExists<ActiveGeneration>(activePath(projectId));
-    if (!active) return { success: false, code: "active-missing", error: "active generation missing" };
-    const directory = generationDirectory(projectId, active.generationPath);
-    if (!directory || !active.buildId || !/^[a-f0-9]{64}$/.test(active.manifestSha256 ?? "")) {
-      return { success: false, code: "active-invalid", error: "active pointer invalid" };
-    }
-    const manifestRaw = readIfExists(path.join(directory, "manifest.json"));
-    if (!manifestRaw || sha256Of(manifestRaw) !== active.manifestSha256) {
-      return { success: false, code: "manifest-invalid", error: "active manifest checksum mismatch" };
-    }
-    let manifest: ManifestFile;
-    try {
-      manifest = JSON.parse(manifestRaw) as ManifestFile;
-    } catch {
-      return { success: false, code: "manifest-invalid", error: "active manifest JSON invalid" };
-    }
-    const state = readJsonIfExists<BuildStateFile>(path.join(directory, "build-state.json"));
-    if (
-      manifest.schemaVersion !== SCHEMA_VERSION ||
-      manifest.extractorVersion !== EXTRACTOR_VERSION ||
-      manifest.indexVersion !== INDEX_VERSION ||
-      manifest.buildId !== active.buildId ||
-      !Array.isArray(manifest.sources) ||
-      !Number.isInteger(manifest.recordCount) ||
-      !/^[a-f0-9]{64}$/.test(manifest.recordsSha256 ?? "") ||
-      !state ||
-      state.buildId !== active.buildId
-    ) {
-      return { success: false, code: "manifest-invalid", error: "active manifest contract invalid" };
-    }
-    return { success: true, active, directory, manifest, state };
-  }
-
-  function readRecordsStrict(filePath: string, manifest: ManifestFile): IndexRecord[] {
-    const raw = readIfExists(filePath);
-    if (raw === null || sha256Of(raw) !== manifest.recordsSha256) {
-      throw new Error("records checksum mismatch");
-    }
-    const records: IndexRecord[] = [];
-    const sourceShaByPath = new Map(manifest.sources.map((source) => [source.path, source.sha256]));
-    const ids = new Set<string>();
-    for (const line of raw.split("\n")) {
-      if (!line.trim()) continue;
-      const parsed = JSON.parse(line) as Partial<IndexRecord>;
-      if (
-        typeof parsed.recordId !== "string" ||
-        ids.has(parsed.recordId) ||
-        typeof parsed.kind !== "string" ||
-        typeof parsed.title !== "string" ||
-        typeof parsed.sourcePath !== "string" ||
-        typeof parsed.sourceSha256 !== "string" ||
-        sourceShaByPath.get(parsed.sourcePath) !== parsed.sourceSha256 ||
-        typeof parsed.anchor !== "string" ||
-        typeof parsed.createdAt !== "string" ||
-        typeof parsed.updatedAt !== "string" ||
-        parsed.freshness !== "fresh" ||
-        typeof parsed.extractorVersion !== "string" ||
-        typeof parsed.body !== "string"
-      ) {
-        throw new Error("records JSONL contract invalid");
-      }
-      ids.add(parsed.recordId);
-      records.push(parsed as IndexRecord);
-    }
-    if (records.length !== manifest.recordCount) throw new Error("records count mismatch");
-    return records;
-  }
-
-  /** 扫描全部权威源：唯一常驻 MEMORY.md + 章节目录。 */
-  function scanSources(projectRoot: string): ScannedFile[] {
-    const files: ScannedFile[] = [];
-    for (const rel of SOURCES) {
-      const abs = path.join(projectRoot, rel);
-      if (rel.endsWith(".md")) {
-        const content = readIfExists(abs);
-        if (content === null || !content.trim()) continue;
-        const stat = fs.statSync(abs);
-        files.push({ rel, sha256: sha256Of(content), size: stat.size, mtimeMs: stat.mtimeMs, content });
-      } else {
-        let names: string[] = [];
-        try {
-          names = fs.readdirSync(abs).filter((f) => f.endsWith(".md")).sort();
-        } catch {
-          continue;
-        }
-        for (const name of names) {
-          const content = readIfExists(path.join(abs, name));
-          if (content === null || !content.trim()) continue;
-          const relFile = `${rel}/${name}`;
-          const stat = fs.statSync(path.join(abs, name));
-          files.push({ rel: relFile, sha256: sha256Of(content), size: stat.size, mtimeMs: stat.mtimeMs, content });
-        }
-      }
-    }
-    return files;
-  }
-
-  function computeBuildId(files: ScannedFile[]): string {
-    return createHash("sha256")
-      .update(files.map((f) => `${f.rel}:${f.sha256}`).join("\n"))
-      .digest("hex")
-      .slice(0, 12);
-  }
-
-  /** 读取上一 build 的结构化记录（事实层全文），供 unchanged 来源增量复用。 */
-  function loadCarriedStructured(
-    projectId: string,
-    currentFiles: ScannedFile[],
-  ): Array<SourceMemoryRecord & { body: string }> {
-    const shaByPath = new Map(currentFiles.map((f) => [f.rel, f.sha256]));
-    const active = readActiveSnapshot(projectId);
-    let sourceRecords: Array<Partial<IndexRecord>> = [];
-    if (active.success) {
-      sourceRecords = readRecordsStrict(path.join(active.directory, "records.jsonl"), active.manifest);
-    } else {
-      if (fs.existsSync(activePath(projectId))) return [];
-      const legacyManifest = readJsonIfExists<{
-        sources?: Array<{ path?: unknown; sha256?: unknown }>;
-      }>(legacyManifestPath(projectId));
-      const legacyRows = readIfExists(legacyRecordsPath(projectId));
-      const legacySources = new Map(
-        (legacyManifest?.sources ?? [])
-          .filter((source): source is { path: string; sha256: string } =>
-            typeof source.path === "string" && typeof source.sha256 === "string")
-          .map((source) => [source.path, source.sha256]),
-      );
-      const legacyMatches = [...shaByPath].every(([sourcePath, sha256]) => legacySources.get(sourcePath) === sha256);
-      if (legacyRows && legacyMatches) {
-        for (const line of legacyRows.split("\n")) {
-          if (!line.trim()) continue;
-          try {
-            sourceRecords.push(JSON.parse(line) as Partial<IndexRecord>);
-          } catch {
-            return [];
-          }
-        }
-      }
-    }
-    const now = new Date().toISOString();
-    return sourceRecords.flatMap((parsed) => {
-      if (
-        !parsed.kind ||
-        !STRUCTURED_KINDS.has(parsed.kind) ||
-        typeof parsed.recordId !== "string" ||
-        typeof parsed.title !== "string" ||
-        typeof parsed.sourcePath !== "string" ||
-        typeof parsed.sourceSha256 !== "string" ||
-        shaByPath.get(parsed.sourcePath) !== parsed.sourceSha256 ||
-        typeof parsed.anchor !== "string" ||
-        typeof parsed.body !== "string" ||
-        !parsed.body.trim()
-      ) {
-        return [];
-      }
-      return [{
-        recordId: parsed.recordId,
-        kind: parsed.kind,
-        title: parsed.title,
-        sourcePath: parsed.sourcePath,
-        sourceSha256: parsed.sourceSha256,
-        anchor: parsed.anchor,
-        createdAt: typeof parsed.createdAt === "string" ? parsed.createdAt : now,
-        updatedAt: typeof parsed.updatedAt === "string" ? parsed.updatedAt : now,
-        freshness: "fresh" as const,
-        chapterId: parsed.chapterId,
-        entities: parsed.entities,
-        confidence: parsed.confidence,
-        extractorVersion: parsed.extractorVersion ?? EXTRACTOR_VERSION,
-        body: parsed.body.trim(),
-      }];
-    });
-  }
-
-  /** raw 层记录：圣经/章节切块全文（投影可从源确定性重导）。 */
-  function buildRawRecords(files: ScannedFile[], createdAt: string): IndexRecord[] {
-    const records: IndexRecord[] = [];
-    for (const file of files) {
-      const isBible = !file.rel.startsWith("novel/chapters/");
-      const kind = isBible ? "bible" : "chapter-chunk";
-      const chapterId = isBible ? undefined : chapterIdOfChapterFile(file.rel);
-      for (const [chunkOrdinal, chunk] of chunkMarkdown(file.content).entries()) {
-        const anchor = `chunk-${chunkOrdinal + 1}:${chunk.title}`;
-        records.push({
-          recordId: `${kind}:${createHash("sha256")
-            .update([file.rel, file.sha256, chunkOrdinal, anchor].join("|"))
-            .digest("hex")
-            .slice(0, 24)}`,
-          kind,
-          title: chunk.title,
-          sourcePath: file.rel,
-          sourceSha256: file.sha256,
-          anchor,
-          createdAt,
-          updatedAt: createdAt,
-          freshness: "fresh",
-          extractorVersion: "raw-v1",
-          chapterId,
-          body: chunk.body,
-        });
-      }
-    }
-    return records;
-  }
-
-  /** changed 章节切块成抽取计划；圣经文件变化只影响 raw 层，不触发 AI 重抽。 */
-  function buildPlanChunks(files: ScannedFile[], prevShaByPath: Map<string, string>): SourceMemoryExtractionChunk[] {
-    const chunks: SourceMemoryExtractionChunk[] = [];
-    for (const file of files) {
-      if (!file.rel.startsWith("novel/chapters/")) continue;
-      if (prevShaByPath.get(file.rel) === file.sha256) continue;
-      for (const [chunkOrdinal, chunk] of chunkMarkdown(file.content).entries()) {
-        chunks.push({
-          sourcePath: file.rel,
-          sourceSha256: file.sha256,
-          chapterId: chapterIdOfChapterFile(file.rel),
-          anchor: `chunk-${chunkOrdinal + 1}:${chunk.title}`,
-          title: chunk.title,
-          text: chunk.body,
-        });
-      }
-    }
-    return chunks;
-  }
-
-  function sameSourceSnapshot(left: ScannedFile[], right: ScannedFile[]): boolean {
-    return left.length === right.length && left.every((source, index) => {
-      const other = right[index];
-      return other?.rel === source.rel && other.sha256 === source.sha256;
-    });
-  }
-
-  function listRecoverableArtifacts(projectId: string): string[] {
-    const dir = memoryDir(projectId);
-    const artifacts: string[] = [];
-    for (const relative of ["staging", "backups/recovery"]) {
-      const absolute = path.join(dir, relative);
-      try {
-        for (const name of fs.readdirSync(absolute).sort()) artifacts.push(`${relative}/${name}`);
-      } catch {
-        // 目录尚不存在。
-      }
-    }
-    return artifacts;
-  }
-
-  async function publishGeneration(
-    projectId: string,
-    files: ScannedFile[],
-    raw: IndexRecord[],
-    structured: SourceMemoryRecord[],
-    structuredBodies: Map<string, string>,
-    stateInput: Omit<BuildStateFile, "builtAt">,
-  ): Promise<ActiveGeneration> {
-    const dir = memoryDir(projectId);
-    const buildId = computeBuildId(files);
-    const builtAt = new Date().toISOString();
-    const merged: IndexRecord[] = [
-      ...raw,
-      ...structured.map((r) => ({ ...r, body: structuredBodies.get(r.recordId) ?? r.title })),
-    ];
-    const recordsContent = merged.map((record) => JSON.stringify(record)).join("\n") + "\n";
-    const recordsSha256 = sha256Of(recordsContent);
-    const generationId = `${buildId}-${createHash("sha256")
-      .update(`${recordsSha256}|${stateInput.status}|${builtAt}`)
-      .digest("hex")
-      .slice(0, 12)}`;
-    const buildStagingDir = path.join(stagingDir(projectId), buildId);
-    const tempGeneration = path.join(buildStagingDir, `generation.tmp-${generationId}`);
-    const finalGeneration = path.join(generationsDir(projectId), generationId);
-    fs.mkdirSync(tempGeneration, { recursive: true });
-    fs.mkdirSync(generationsDir(projectId), { recursive: true });
-    fs.writeFileSync(path.join(tempGeneration, "records.jsonl"), recordsContent, "utf8");
-    const manifest: ManifestFile = {
-      schemaVersion: SCHEMA_VERSION,
-      extractorVersion: EXTRACTOR_VERSION,
-      indexVersion: INDEX_VERSION,
-      buildId,
-      sources: files.map((source) => ({
-        path: source.rel,
-        sha256: source.sha256,
-        size: source.size,
-        mtimeMs: source.mtimeMs,
-      })),
-      recordCount: merged.length,
-      recordsSha256,
-      builtAt,
-    };
-    const manifestContent = prettyJson(manifest);
-    fs.writeFileSync(path.join(tempGeneration, "manifest.json"), manifestContent, "utf8");
-    fs.writeFileSync(path.join(tempGeneration, "build-state.json"), prettyJson({ ...stateInput, builtAt }), "utf8");
-    buildIndexSqlite(merged, path.join(tempGeneration, "index.sqlite"), { buildId, indexVersion: INDEX_VERSION });
-    await failpoint?.("after-index-build");
-
-    readRecordsStrict(path.join(tempGeneration, "records.jsonl"), manifest);
-    const inspected = inspectIndexSqlite(path.join(tempGeneration, "index.sqlite"), {
-      buildId,
-      indexVersion: INDEX_VERSION,
-      recordCount: merged.length,
-    });
-    if (!inspected.success) throw new Error(`${inspected.code}: ${inspected.error}`);
-    if (!sameSourceSnapshot(files, scanSources(getProjectRoot(projectId)))) {
-      throw new Error("sources-changed：构建期间正文已修改，请重新构建");
-    }
-
-    await failpoint?.("before-generation-rename");
-    fs.renameSync(tempGeneration, finalGeneration);
-    await failpoint?.("after-generation-rename");
-    const active: ActiveGeneration = {
-      buildId,
-      generationPath: `generations/${generationId}`,
-      manifestSha256: sha256Of(manifestContent),
-      publishedAt: new Date().toISOString(),
-    };
-    const activeTemp = path.join(dir, `active.json.tmp-${process.pid}-${Date.now()}`);
-    fs.mkdirSync(dir, { recursive: true });
-    fs.writeFileSync(activeTemp, prettyJson(active), "utf8");
-    await failpoint?.("before-pointer-rename");
-    fs.renameSync(activeTemp, activePath(projectId));
-    return active;
-  }
-
-  async function withWriter<T extends { success: boolean; error?: string; code?: string }>(
-    projectId: string,
-    action: () => Promise<T>,
-  ): Promise<T> {
-    if (writers.has(projectId)) {
-      return { success: false, code: "writer-busy", error: "writer-busy：该项目正在构建记忆库" } as T;
-    }
-    writers.add(projectId);
-    try {
-      return await withProjectDeletionLock(projectId, action);
-    } finally {
-      writers.delete(projectId);
-    }
-  }
-
-  function activeSourcesFresh(projectId: string, manifest: ManifestFile): boolean {
-    const current = scanSources(getProjectRoot(projectId));
-    if (current.length !== manifest.sources.length) return false;
-    return current.every((source, index) => {
-      const registered = manifest.sources[index];
-      return registered?.path === source.rel && registered.sha256 === source.sha256;
-    });
-  }
-
-  function indexHealthOf(code: string): "missing" | "corrupt" | "incompatible" {
-    if (code === "index-open-failed") return "missing";
-    if (code === "index-incompatible") return "incompatible";
-    return "corrupt";
-  }
-
+  const pub = createSourceMemoryPub(io, build, { failpoint: failpoint as ((point: string) => void | Promise<void>) | undefined, writers, getProjectRoot });
+  const { listRecoverableArtifacts, publishGeneration, withWriter, activeSourcesFresh, indexHealthOf } = pub;
+  const { scanSources, computeBuildId, loadCarriedStructured, buildRawRecords, buildPlanChunks } = build;
+  const { memoryDir, stagingDir, backupsDir, legacyManifestPath, legacyRecordsPath, readIfExists, readJsonIfExists, readActiveSnapshot, readRecordsStrict } = io;
   return {
     /** 全量扫源重建投影（raw + 复用的结构化记录），changed 章节以 plan 随 reply 返回。 */
     async build(projectId: string): Promise<SourceMemoryBuildReply> {
