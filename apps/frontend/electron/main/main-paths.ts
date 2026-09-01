@@ -1,9 +1,17 @@
 import { app } from "electron";
 import { createStorageManager } from "../storage/storage-manager";
 import { createProjectLocationStore } from "../storage/project-locations";
-import { setProjectLocationResolver, resolveProjectRootPath } from "../storage/storage-paths";
+import {
+  setProjectLocationResolver,
+  resolveProjectRootPath,
+  resolveProjectFileUrl,
+  resolveLocalMediaPath,
+} from "../storage/storage-paths";
+import { ensureStudioSkillsSynced } from "../storage/studio-skills-storage";
 import { createImageSourceReader } from "../media/image-source";
+import path from "node:path";
 import fs from "node:fs";
+import os from "node:os";
 import { createBlessedPathRegistry, isPathInsideAnyRoot } from "../security/managed-paths";
 
 
@@ -74,3 +82,83 @@ export const isStudioSourcePathAllowed = (targetPath: string): boolean => (
 
 export const readImageSource = createImageSourceReader({ getDataDir, getMediaRoot, getAssetsRoot, isAbsoluteImageSourceAllowed: isStudioSourcePathAllowed })
 
+// ==================== Studio 手册种子与技能同步 ====================
+export function getStudioManualsSourceRoot() {
+  // APP_ROOT is apps/ in electron-vite out layout (out/main -> ../..).
+  // Seed lives at apps/frontend/assets/studio-manuals (not legacy src/assets).
+  // Packaged builds ship the same tree via extraResources -> resources/studio-manuals.
+  const appRoot = process.env.APP_ROOT ?? path.join(__dirname, '../..')
+  const candidates = [
+    path.join(appRoot, 'frontend', 'assets', 'studio-manuals'),
+    path.join(app.getAppPath(), 'frontend', 'assets', 'studio-manuals'),
+    path.join(process.resourcesPath, 'studio-manuals'),
+  ]
+  return candidates.find((candidate) => fs.existsSync(candidate)) ?? candidates[0]
+}
+
+export function getToonflowRuntimeStudioManualsSourceRoot() {
+  return path.join(os.homedir(), 'Library', 'Application Support', 'toonflow', 'data', 'skills')
+}
+
+export function getStudioManualsFallbackSourceRoots() {
+  const primaryRoot = path.resolve(getStudioManualsSourceRoot())
+  return [getToonflowRuntimeStudioManualsSourceRoot()]
+    .map((candidate) => path.resolve(candidate))
+    .filter((candidate) => candidate !== primaryRoot && fs.existsSync(candidate))
+}
+
+export function getStudioSkillSyncOptions() {
+  return {
+    sourceRoot: getStudioManualsSourceRoot(),
+    fallbackSourceRoots: getStudioManualsFallbackSourceRoots(),
+    storageRoot: getSkillsRoot(),
+  }
+}
+
+export async function ensureStudioSkillsAvailableAtStartup() {
+  try {
+    await ensureStudioSkillsSynced(getStudioSkillSyncOptions())
+  } catch (error) {
+    console.warn('Failed to sync studio skills at startup:', error)
+  }
+}
+
+// ==================== Studio source URL→绝对路径解析 ====================
+export function resolveStudioSourcePath(sourcePath: string) {
+  if (sourcePath.startsWith('project-file://')) {
+    return resolveProjectFileUrl(getDataDir(), sourcePath)
+  }
+  if (sourcePath.startsWith('local-image://')) {
+    return resolveLocalMediaPath(getMediaRoot(), sourcePath)
+  }
+  if (sourcePath.startsWith('file://')) {
+    const filePath = sourcePath.replace('file://', '')
+    assertStudioSourcePathAllowed(filePath)
+    return filePath
+  }
+  if (path.isAbsolute(sourcePath)) {
+    assertStudioSourcePathAllowed(sourcePath)
+    return sourcePath
+  }
+  return sourcePath
+}
+
+function assertStudioSourcePathAllowed(filePath: string) {
+  if (!isStudioSourcePathAllowed(filePath)) {
+    throw new Error(`路径不在应用管理的目录范围内，已拒绝访问: ${filePath}`)
+  }
+}
+
+// macOS may expose the same inode as /var and /private/var; prefer realpath
+// identity while retaining lexical resolution for paths that do not exist yet.
+export function pathsEquivalent(left: string, right: string): boolean {
+  const resolveReal = (value: string) => {
+    const macAlias = value.replace(/^\/private\/var(?:\/|$)/, '/var/')
+    try {
+      return fs.realpathSync.native(macAlias)
+    } catch {
+      return path.resolve(macAlias)
+    }
+  }
+  return resolveReal(left) === resolveReal(right)
+}
