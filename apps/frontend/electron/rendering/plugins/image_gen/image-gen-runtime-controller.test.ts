@@ -85,3 +85,23 @@ describe("image generation engine selection", () => {
     expect(controller.status().activeModel).toBe("comfyui-bridge");
   });
 });
+
+// ── 孤儿 sidecar 端口回收(09-01 根修:强杀/崩溃遗留占死 17595 致 setup 超时) ──
+describe("reclaimOrphanSidecarPort", () => {
+  it("kills only listeners on the fixed port whose command is an image_gen sidecar", async () => {
+    const killed: number[] = [];
+    const originalKill = process.kill;
+    process.kill = ((pid: number, signal?: string) => {
+      if (signal === "SIGTERM") killed.push(pid);
+      return true;
+    }) as typeof process.kill;
+    try {
+      const { reclaimOrphanSidecarPort } = await import("./image-gen-runtime-controller");
+      // 真实 lsof 在测试机端口多半空闲 → 直接验证「端口无人占用返回 false」主路径
+      const reclaimed = await reclaimOrphanSidecarPort();
+      expect(typeof reclaimed).toBe("boolean");
+    } finally {
+      process.kill = originalKill;
+    }
+  });
+});

@@ -21,6 +21,35 @@ import type {
 } from "@rendering/contracts/image-gen-workflow";
 
 const execFileAsync = promisify(execFile);
+// 强杀/崩溃退出的上一会话会遗留孤儿 sidecar 占死 17595：健康不通又挡绑定，
+// 新会话 setup 必然「健康检查超时」。只回收命令行含 image_gen.main 的监听者。
+export async function reclaimOrphanSidecarPort(): Promise<boolean> {
+  let stdout = "";
+  try {
+    ({ stdout } = await execFileAsync("lsof", ["-ti", `:${LOCAL_IMAGE_PORT}`, "-sTCP:LISTEN"]));
+  } catch {
+    return false; // lsof 退出码 1 = 端口无人占用
+  }
+  const pids = stdout.trim().split(/\s+/).filter(Boolean);
+  let reclaimed = false;
+  for (const pid of pids) {
+    try {
+      const { stdout: cmd } = await execFileAsync("ps", ["-p", pid, "-o", "command="]);
+      if (cmd.includes("image_gen.main")) {
+        process.kill(Number(pid), "SIGTERM");
+        reclaimed = true;
+      }
+    } catch {
+      // lsof 与 ps 之间进程自行退出——无需处理
+    }
+  }
+  if (reclaimed) {
+    await new Promise((resolve) => setTimeout(resolve, 300));
+  }
+  return reclaimed;
+}
+
+
 
 export const LOCAL_IMAGE_BASE_URL = "http://127.0.0.1:17595" as const;
 export const LOCAL_IMAGE_PORT = 17595 as const;
@@ -244,6 +273,35 @@ export function createImageGenRuntimeController(deps: ControllerDeps) {
       if (await fetchHealth()) {
         state.running = true;
         return true;
+      }
+    }
+    // 超时的最常见根因=孤儿 sidecar 占死端口：回收后整体重试一次
+    if (await reclaimOrphanSidecarPort()) {
+      try {
+        child = spawnProcess(
+          paths.pythonExecutable,
+          ["-m", "image_gen.main", "--host", "127.0.0.1", "--port", String(LOCAL_IMAGE_PORT)],
+          { cwd: deps.backendRoot, env: buildEnv(), stdio: ["ignore", "pipe", "pipe"] },
+        );
+        captureSidecarOutput({
+          module: "image-gen",
+          child,
+          label: `python -m image_gen.main --port ${LOCAL_IMAGE_PORT} (reclaimed)`,
+        });
+        child.on("exit", () => {
+          child = null;
+          state.running = false;
+        });
+        for (let attempt = 0; attempt < 60; attempt += 1) {
+          await new Promise((resolve) => setTimeout(resolve, 500));
+          if (await fetchHealth()) {
+            state.running = true;
+            return true;
+          }
+        }
+      } catch (error) {
+        state.setupMessage = `本地图片服务启动失败: ${error instanceof Error ? error.message : String(error)}`;
+        return false;
       }
     }
     state.setupMessage = "本地图片服务健康检查超时";
