@@ -477,9 +477,15 @@ function ImageStudioFlowView({
     setNodes(reactFlowNodes);
   }, [reactFlowNodes, setNodes]);
 
+  // 节点集合签名判等(实弹报障根修):此前 deps=[graph?.nodes] 每次输入都产新数组
+  // → visibility refresh 每键全量 updateNodeInternals → React Flow 清空测量重测,
+  // 重测窗口内节点 visibility:hidden → 提示词 textarea 隐没失焦(「输入1字符退出」)。
+  // 打字只改节点内容不改节点集,按成员签名保持引用稳定,仅增删节点时刷新测量。
+  const nodeIdsSignature = graph?.nodes.map((node) => node.id).join("\u0001") ?? "";
   const measurementNodeIds = useMemo(
-    () => graph?.nodes.map((node) => node.id) ?? [],
-    [graph?.nodes],
+    () => (nodeIdsSignature ? nodeIdsSignature.split("\u0001") : []),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [nodeIdsSignature],
   );
 
   const [flowInstance, setFlowInstance] =
