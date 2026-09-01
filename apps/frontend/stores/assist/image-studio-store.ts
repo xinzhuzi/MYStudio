@@ -21,7 +21,7 @@ import {
   layoutImageStudioGraph,
   nextColumnPosition,
 } from "@/lib/assist/image-studio/layout";
-import type {
+import type { ImageWorkflowEdge,
   ImageWorkflowGeneratedNode,
   ImageWorkflowGraph,
   ImageWorkflowNode,
@@ -63,6 +63,8 @@ export interface ImageStudioStoreActions {
   removeNode: (nodeId: string) => void;
   /** 右键复制:同类型新节点携同类字段(prompt/图),落原位右下偏移 */
   duplicateNode: (nodeId: string) => string | null;
+  /** 导入画布 JSON(09-02 R2):校验形状→新画布落节点;media 失效节点降级占位 */
+  importWorkflow: (payload: unknown) => { ok: true; id: string } | { ok: false; error: string };
   connect: (source: string, target: string) => void;
   removeEdge: (edgeId: string) => void;
   setViewport: (viewport: ImageWorkflowViewport) => void;
@@ -268,6 +270,61 @@ export const useImageStudioStore = create<ImageStudioStore>()(
           ),
           updatedAt: Date.now(),
         }));
+      },
+
+      importWorkflow: (payload) => {
+        const data = payload as {
+          schemaVersion?: number;
+          name?: unknown;
+          nodes?: unknown;
+          edges?: unknown;
+        };
+        if (!data || typeof data !== "object") return { ok: false, error: "文件不是有效 JSON 对象" };
+        if (data.schemaVersion !== 1) return { ok: false, error: "schemaVersion 不支持" };
+        if (!Array.isArray(data.nodes) || !Array.isArray(data.edges)) {
+          return { ok: false, error: "缺少 nodes/edges 数组" };
+        }
+        const validTypes = new Set(["reference", "prompt", "generated"]);
+        const nodes = (data.nodes as Array<Record<string, unknown>>).filter(
+          (node) => typeof node.id === "string" && typeof node.type === "string" && validTypes.has(node.type),
+        );
+        if (nodes.length === 0) return { ok: false, error: "没有有效节点" };
+        const nodeIds = new Set(nodes.map((node) => node.id as string));
+        const edges = (data.edges as Array<Record<string, unknown>>).filter(
+          (edge) =>
+            typeof edge.id === "string" &&
+            typeof edge.source === "string" &&
+            typeof edge.target === "string" &&
+            nodeIds.has(edge.source as string) &&
+            nodeIds.has(edge.target as string),
+        );
+        const id = get().createWorkflow(
+          typeof data.name === "string" ? `${data.name}(导入)` : undefined,
+        );
+        set((state) => ({
+          workflows: state.workflows.map((workflow) =>
+            workflow.id === id
+              ? {
+                  ...workflow,
+                  nodes: nodes.map((node) => ({
+                    ...node,
+                    // media 失效引用降级空占位不报错
+                    imageUrl: typeof node.imageUrl === "string" ? node.imageUrl : "",
+                    position:
+                      node.position && typeof node.position === "object"
+                        ? node.position
+                        : { x: 80, y: 0 },
+                  })) as ImageWorkflowNode[],
+                  edges: edges.map((edge) => ({
+                    id: edge.id as string,
+                    source: edge.source as string,
+                    target: edge.target as string,
+                  })) as ImageWorkflowEdge[],
+                }
+              : workflow,
+          ),
+        }));
+        return { ok: true, id };
       },
 
       duplicateNode: (nodeId) => {

@@ -2,7 +2,7 @@
 // Licensed under AGPL-3.0-or-later. See LICENSE for details.
 // Commercial licensing available. See COMMERCIAL_LICENSE.md.
 
-import { MessageSquare } from "lucide-react";
+import { Download, MessageSquare, Upload } from "lucide-react";
 import { FolderOpen, Image as ImageIcon, ImagePlus, LayoutGrid, Pencil, Plus, Trash2, Type } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -33,6 +33,8 @@ export function ImageStudioToolbar({
   onTidy,
   onToggleHistory,
   onToggleAssistant,
+  onExport,
+  onImport,
   onOpenFolder,
 }: {
   workflows: ImageWorkflowGraph[];
@@ -49,6 +51,8 @@ export function ImageStudioToolbar({
   onTidy: () => void;
   onToggleHistory: () => void;
   onToggleAssistant?: () => void;
+  onExport?: () => void;
+  onImport?: () => void;
   onOpenFolder: () => void;
 }) {
   return (
@@ -130,6 +134,28 @@ export function ImageStudioToolbar({
       >
         <MessageSquare className="mr-1 h-3.5 w-3.5" />
         助手
+      </Button>
+      <Button
+        size="sm"
+        variant="ghost"
+        className="h-8"
+        onClick={onExport}
+        aria-label="导出画布"
+        title="当前画布导出为 JSON"
+      >
+        <Download className="mr-1 h-3.5 w-3.5" />
+        导出
+      </Button>
+      <Button
+        size="sm"
+        variant="ghost"
+        className="h-8"
+        onClick={onImport}
+        aria-label="导入画布"
+        title="从 JSON 导入为新画布"
+      >
+        <Upload className="mr-1 h-3.5 w-3.5" />
+        导入
       </Button>
       <Button
         size="sm"

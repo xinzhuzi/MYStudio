@@ -1,5 +1,11 @@
 // @vitest-environment jsdom
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+
+(globalThis as any).ResizeObserver ??= class {
+  observe() {}
+  unobserve() {}
+  disconnect() {}
+};
 import { afterEach, describe, expect, it, vi } from "vitest";
 import * as XYFlow from "@xyflow/react";
 import { CanvasViewportControls } from "./CanvasViewportControls";

@@ -1,5 +1,7 @@
 import { useCallback, useState } from "react";
 import {
+  Background,
+  BackgroundVariant,
   MiniMap,
   Panel,
   useOnViewportChange,
@@ -7,8 +9,10 @@ import {
   type Edge,
   type Node,
 } from "@xyflow/react";
-import { Map, Maximize2, Redo2, Undo2, ZoomIn, ZoomOut } from "lucide-react";
+import { Grid3x3, Map, Maximize2, Redo2, Undo2, ZoomIn, ZoomOut } from "lucide-react";
 import { canvasMiniMapNodeToken } from "@/lib/studio/canvas-node-registry";
+import { Slider } from "@/components/ui/slider";
+import { Button } from "@/components/ui/button";
 import { useThemeMiniMapPalette } from "./use-theme-mini-map";
 
 /**
@@ -50,6 +54,26 @@ export function CanvasViewportControls<TNode extends Node>({
   const reactFlow = useReactFlow<TNode, Edge>();
   const miniMapPalette = useThemeMiniMapPalette();
   const [zoomPercent, setZoomPercent] = useState(100);
+  // 背景三态(09-02 R3):点阵/网格/空白循环,偏好记忆
+  const [backgroundMode, setBackgroundMode] = useState<"dots" | "lines" | "blank">(() => {
+    try {
+      const saved = window.localStorage.getItem("studio-canvas-background");
+      return saved === "lines" || saved === "blank" ? saved : "dots";
+    } catch {
+      return "dots";
+    }
+  });
+  const cycleBackground = useCallback(() => {
+    setBackgroundMode((mode) => {
+      const next = mode === "dots" ? "lines" : mode === "lines" ? "blank" : "dots";
+      try {
+        window.localStorage.setItem("studio-canvas-background", next);
+      } catch {
+        // localStorage 不可用时仅会话内生效
+      }
+      return next;
+    });
+  }, []);
   const [miniMapOpen, setMiniMapOpen] = useState(readMiniMapOpen);
 
   useOnViewportChange({
@@ -113,7 +137,36 @@ export function CanvasViewportControls<TNode extends Node>({
             <Maximize2 className="h-3.5 w-3.5" />
             适配
           </button>
-          {history ? (
+          <div className="flex w-24 items-center">
+          <Slider
+            min={20}
+            max={200}
+            step={5}
+            value={[zoomPercent]}
+            onValueChange={(value) => {
+              const next = Math.min(200, Math.max(20, value[0] ?? 100));
+              const current = reactFlow.getViewport();
+              const scale = next / 100;
+              reactFlow.setViewport({
+                x: window.innerWidth / 2 - ((window.innerWidth / 2 - current.x) / current.zoom) * scale,
+                y: window.innerHeight / 2 - ((window.innerHeight / 2 - current.y) / current.zoom) * scale,
+                zoom: scale,
+              });
+            }}
+            aria-label="缩放滑杆"
+            className="nodrag nopan"
+          />
+        </div>
+        <Button
+          size="icon"
+          variant="ghost"
+          aria-label="切换背景"
+          title="点阵/网格/空白循环"
+          onClick={cycleBackground}
+        >
+          <Grid3x3 className="h-4 w-4" />
+        </Button>
+        {history ? (
           <>
             <button
               type="button"
@@ -151,6 +204,13 @@ export function CanvasViewportControls<TNode extends Node>({
           </button>
         </div>
       </Panel>
+      {backgroundMode !== "blank" ? (
+        <Background
+          variant={backgroundMode === "dots" ? BackgroundVariant.Dots : BackgroundVariant.Lines}
+          gap={28}
+          size={1}
+        />
+      ) : null}
       {miniMapOpen ? (
         <MiniMap
           position="bottom-right"

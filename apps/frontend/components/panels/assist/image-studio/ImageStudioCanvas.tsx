@@ -29,6 +29,7 @@ import { Input } from "@/components/ui/input";
 import { CanvasViewportControls } from "@/components/panels/studio/CanvasViewportControls";
 import { useAssistCanvasHistory } from "./use-assist-canvas-history";
 import { useImageStudioCommands } from "./use-image-studio-commands";
+import { copyNodesToClipboard, pasteFromClipboard, clipboardSize } from "./canvas-clipboard";
 import { AssistantPanel } from "./assistant-panel";
 import { relatedEdges } from "@/lib/studio/image-workflow/relation-graph";
 import { InteractionDeferHint } from "@/components/panels/studio/previews/interaction-defer-hint";
@@ -91,6 +92,70 @@ export function ImageStudioCanvas() {
   useEffect(() => {
     commitSnapshot();
   }, [commitSnapshot]);
+
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const importInputRef = useRef<HTMLInputElement | null>(null);
+
+  // 导出/导入画布 JSON(09-02 R2:导出保引用不打包;导入校验+失效降级)
+  const handleExportCanvas = useCallback(() => {
+    if (!activeGraph) return;
+    const payload = {
+      schemaVersion: 1,
+      name: activeGraph.name,
+      nodes: activeGraph.nodes,
+      edges: activeGraph.edges,
+    };
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `${activeGraph.name || "画布"}.json`;
+    link.click();
+    URL.revokeObjectURL(url);
+    toast.success("画布已导出");
+  }, [activeGraph]);
+
+  const handleImportCanvas = useCallback(async (file: File | undefined) => {
+    if (!file) return;
+    try {
+      const parsed = JSON.parse(await file.text());
+      const result = useImageStudioStore.getState().importWorkflow(parsed);
+      if (result.ok) {
+        useImageStudioStore.getState().ensureDefaultWorkflow();
+        useImageStudioStore.setState({ activeWorkflowId: result.id });
+        toast.success("画布已导入");
+      } else {
+        toast.error(result.error);
+      }
+    } catch {
+      toast.error("文件不是有效 JSON");
+    }
+  }, []);
+  // Ctrl+C/V 剪贴板(09-02 R1;输入框聚焦不抢)
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (!(event.metaKey || event.ctrlKey)) return;
+      const key = event.key.toLowerCase();
+      if (key !== "c" && key !== "v") return;
+      const target = event.target;
+      if (
+        target instanceof HTMLInputElement ||
+        target instanceof HTMLTextAreaElement ||
+        (target instanceof HTMLElement && target.isContentEditable)
+      ) return;
+      if (key === "c") {
+        const count = copyNodesToClipboard(selectedIds);
+        if (count > 0) toast.success(`已复制 ${count} 个节点`);
+        return;
+      }
+      if (clipboardSize() === 0) return;
+      event.preventDefault();
+      const pasted = pasteFromClipboard();
+      if (pasted.length > 0) toast.success(`已粘贴 ${pasted.length} 个节点`);
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [selectedIds]);
 
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [historyOpen, setHistoryOpen] = useState(false);
@@ -422,6 +487,8 @@ export function ImageStudioCanvas() {
         onTidy={() => useImageStudioStore.getState().applyLayout()}
         onToggleHistory={() => setHistoryOpen((open) => !open)}
         onToggleAssistant={() => setAssistantOpen((open) => !open)}
+        onExport={handleExportCanvas}
+        onImport={() => importInputRef.current?.click()}
         onOpenFolder={() => {
           // 生成图落在媒体库 ai-image 分类(<mediaRoot>/ai-image);主进程解析目录
           // 并在 Finder 中揭示。桥缺席(非 Electron/测试)给可操作提示。
@@ -447,12 +514,23 @@ export function ImageStudioCanvas() {
           onNodeClick={setSelectedNodeId}
           onPaneClick={() => setSelectedNodeId(null)}
           onPaneContextMenu={handlePaneContextMenu}
+          onSelection={setSelectedIds}
           onNodeContextMenu={handleNodeContextMenu}
           onConnect={handleConnect}
           onNodesDelete={(ids) => ids.forEach((id) => removeNode(id))}
           onEdgesDelete={(ids) => ids.forEach((id) => removeEdge(id))}
           onNodeDragStop={(nodeId, position) => moveNode(nodeId, position)}
           onViewportSettled={handleViewportSettled}
+        />
+        <input
+          ref={importInputRef}
+          type="file"
+          accept="application/json"
+          className="hidden"
+          onChange={(event) => {
+            void handleImportCanvas(event.target.files?.[0]);
+            event.target.value = "";
+          }}
         />
         {assistantOpen ? (
           <AssistantPanel selectedNodeId={selectedNodeId} onClose={() => setAssistantOpen(false)} />
@@ -615,6 +693,7 @@ function ImageStudioFlowView({
   onNodeClick,
   onPaneClick,
   onPaneContextMenu,
+  onSelection,
   onNodeContextMenu,
   onConnect,
   onNodesDelete,
@@ -630,6 +709,7 @@ function ImageStudioFlowView({
   onNodeClick: (nodeId: string) => void;
   onPaneClick: () => void;
   onPaneContextMenu: (event: MouseEvent) => void;
+  onSelection: (nodeIds: string[]) => void;
   onNodeContextMenu: (event: MouseEvent, nodeId: string) => void;
   onConnect: (connection: { source: string | null; target: string | null }) => void;
   onNodesDelete: (nodeIds: string[]) => void;
@@ -729,6 +809,10 @@ function ImageStudioFlowView({
         nodesConnectable
         elementsSelectable
         panOnDrag={false}
+        selectionOnDrag
+        onSelectionChange={(selected) => {
+          onSelection(selected.nodes.map((node) => node.id));
+        }}
         zoomOnScroll={false}
         zoomOnPinch
         zoomOnDoubleClick={false}
