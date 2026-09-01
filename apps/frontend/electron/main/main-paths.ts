@@ -162,3 +162,19 @@ export function pathsEquivalent(left: string, right: string): boolean {
   }
   return resolveReal(left) === resolveReal(right)
 }
+
+// TTS 固定音色参考音频的路径解析:保留收紧前的原语义(绝对路径存在即读)。
+// 依据 08-18 渲染层调用面审计:设置页「参考音频路径」是自由文本框,用户可
+// 手输/持久化任意外部绝对路径;该链路只把音频字节发给 127.0.0.1 的本地
+// sidecar,不外发网络,风险远低于 openPath/图床上传,收紧会打断音色克隆
+// 核心流程。其余 IPC 仍走 resolveStudioSourcePath 的受管根守卫。
+export function resolveReferenceAudioSourcePath(sourcePath: string) {
+  if (sourcePath.startsWith('project-file://')) {
+    return resolveProjectFileUrl(getDataDir(), sourcePath)
+  }
+  if (sourcePath.startsWith('local-image://')) {
+    return resolveLocalMediaPath(getMediaRoot(), sourcePath)
+  }
+  if (sourcePath.startsWith('file://')) return sourcePath.replace('file://', '')
+  return sourcePath
+}

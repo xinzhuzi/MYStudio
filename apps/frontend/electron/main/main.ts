@@ -1,7 +1,9 @@
 import { bindRuntimeControllerRoots, getStorageBasePath, getMediaRoot, getSkillsRoot, getAssetsRoot, getProjectDataRoot, scheduleAutoClean } from "./main-paths";
 import { blessedDialogPaths, getDataDir, isStudioSourcePathAllowed, projectLocationStore, projectRootFor, readImageSource, storageManager } from "./main-paths";
-import { ensureStudioSkillsAvailableAtStartup, getStudioManualsSourceRoot, getStudioSkillSyncOptions, resolveStudioSourcePath } from "./main-paths";
-import { bindChapterProjectionRuntime, enqueueChapterSceneSegments, evaluateVideoWorkflowChapterGate, isRecord, loadChapterStudioProjection, readEditingProjectSnapshot, readRemotionCurrentShotSlots } from "./main-chapter-projection";
+import { ensureStudioSkillsAvailableAtStartup, getStudioManualsSourceRoot, getStudioSkillSyncOptions, resolveReferenceAudioSourcePath, resolveStudioSourcePath } from "./main-paths";
+import { bindChapterProjectionRuntime, enqueueChapterSceneSegments, evaluateVideoWorkflowChapterGate, readEditingProjectSnapshot, readRemotionCurrentShotSlots } from "./main-chapter-projection";
+import { createDiagnosticsOperationId, diagnosticsFetchBytes, diagnosticsFetchJson, diagnosticsLogService, runTtsRuntimeDiagnostics, writeDiagnosticsLog } from "./main-diagnostics";
+import { bindHostedStudioRuntime, disposeHostedStudio, getHostedStudioChapterContext, hostedStudio, hostedStudioIpc, persistStudioEditingRevision } from "./main-hosted-studio";
 
 // Copyright (c) 2025 hotflow2024
 // Licensed under AGPL-3.0-or-later. See LICENSE for details.
@@ -12,14 +14,11 @@ import fs from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import crypto from 'node:crypto'
 import packageMetadata from '../../../package.json'
-import { createDiagnosticsLogService } from '../diagnostics/diagnostics-log'
 import { configureSidecarLogCapture } from '../diagnostics/sidecar-log-capture'
 import { createTtsRuntimeController } from '../tts/tts-runtime'
 import {
  
 } from '../storage/studio-runtime-assets'
-import { observedFetch } from '../../lib/diagnostics/network'
-import type { DiagnosticsLogEntryInput } from '../../types/diagnostics'
 import type { AvailableUpdateInfo } from '../../types/update'
 import {
   compareVersions,
@@ -46,10 +45,8 @@ import { registerRenderHwIpcHandlers } from '../ipc/rendering/render-hw-ipc'
 import { registerStorageMediaIpcHandlers } from '../ipc/media/storage-media-ipc'
 import { registerAppUpdaterIpcHandlers } from '../ipc/app/app-updater-ipc'
 import {
- 
-  resolveLocalMediaPath,
 
-  resolveProjectFileUrl,
+  resolveLocalMediaPath,
   resolveProjectScopedFilePath,
   isPathInsideRoot,
 } from '../storage/storage-paths'
@@ -57,7 +54,6 @@ import { registerProjectFileIpcHandlers } from '../ipc/files/project-file-ipc'
 import { registerImageProbeIpcHandlers } from '../ipc/media/image-probe-ipc'
 import { registerSourceMemoryIpcHandlers } from '../ipc/studio/source-memory-ipc'
 import { configureArtifactManagementIpc } from '../ipc/files/artifact-management-ipc'
-import { withFileStorageMutationLock } from '../ipc/files/file-storage-ipc'
 import { registerStudioContentIpcHandlers } from '../ipc/assets/studio-content-ipc'
 import { registerAppShellIpcHandlers } from '../ipc/app/app-shell-ipc'
 import { fetchUpdateManifest as fetchUpdateManifestFromConfig } from './main-update'
@@ -73,7 +69,6 @@ import { registerRemotionPreviewIpcHandlers } from '../ipc/studio/remotion-previ
 import { registerRemotionShotIpcHandlers } from '../ipc/studio/remotion-shot-ipc'
 import { registerRemotionQueueIpcHandlers } from '../ipc/studio/remotion-queue-ipc'
 import { registerRemotionChapterManifestIpcHandlers } from '../ipc/studio/remotion-chapter-manifest-ipc'
-import { broadcastRemotionStudioEditingUpdated, registerRemotionStudioIpcHandlers } from '../ipc/studio/remotion-studio-ipc'
 import { RemotionShotRenderer } from '@rendering/plugins/remotion/renderer/remotion-shot-renderer'
 import type { CinematicCameraPreset } from '@rendering/plugins/remotion/composition/composition-props'
 import { RemotionChapterRenderer } from '@rendering/plugins/remotion/renderer/remotion-chapter-renderer'
@@ -119,23 +114,13 @@ import type {
 import type { VideoWorkflowChapterRunRequestV1 } from '../rendering/contracts/video-workflow-ipc'
 import { createDefaultProjectMoveEngine } from '../storage/project-move-engine'
 import { registerProjectFolderIpcHandlers } from '../ipc/projects/project-folder-ipc'
-import { parseProjectFileUrl, resolveDataFilePath } from '../storage/storage-paths'
+import { parseProjectFileUrl } from '../storage/storage-paths'
 import { readStudioWorkflowStore } from '../storage/studio-workflow-store-io'
-import { validateEditingProject } from '../../lib/studio/editing/validation'
-import {
-  buildMinimalRemotionStudioStartOptions,
-  RemotionStudioRenderQueueBridge,
-  generateChapterStudioProjection,
-  RemotionStudioService,
-  type RemotionStudioChapterRenderContext,
-} from '@rendering/plugins/remotion/studio'
+import { RemotionStudioRenderQueueBridge } from '@rendering/plugins/remotion/studio'
 import {
   createReadyRemotionChapterJob,
 } from '@rendering/plugins/remotion/studio'
-import { watchChapterStudioProjection } from '@rendering/plugins/remotion/studio'
 import { readRemotionCurrentShotSlotsFromWorkspace } from '../../lib/studio/remotion/remotion-current-slot'
-import { MediaBridgeServer } from '@rendering/plugins/remotion/media-bridge/media-bridge-server'
-import { buildMediaUrlMap } from '@rendering/plugins/remotion/media-bridge/media-bridge-source-map'
 import {
   getProtocolMimeType as getMimeType,
   registerPrivilegedSchemes,
@@ -179,11 +164,6 @@ const hasSingleInstanceLock = app.requestSingleInstanceLock()
 if (process.env.MYSTUDIO_REMOTE_DEBUG === '1') {
   app.commandLine.appendSwitch('remote-debugging-port', '9222')
 }
-const diagnosticsLogService = createDiagnosticsLogService({
-  rootDir: path.join(app.getPath('userData'), 'logs', 'diagnostics'),
-  retentionDays: 30,
-})
-
 if (!hasSingleInstanceLock) {
   app.exit(0)
 }
@@ -207,12 +187,6 @@ if (!isNonEmptyString(remotionVersion)) {
   throw new Error('package.json 必须声明精确 Remotion 版本')
 }
 
-function writeDiagnosticsLog(entry: DiagnosticsLogEntryInput) {
-  diagnosticsLogService.write(entry).catch((error) => {
-    console.warn('Failed to write diagnostics log:', error)
-  })
-}
-
 // 子进程(Python sidecar/Electron worker)输出统一捕获到 <userData>/logs/sidecars/。
 // 未配置时捕获 no-op;各 spawn 现场只认 module 名。
 configureSidecarLogCapture({
@@ -220,9 +194,6 @@ configureSidecarLogCapture({
   writeDiagnostics: writeDiagnosticsLog,
 })
 
-function createDiagnosticsOperationId(prefix: string) {
-  return `${prefix}-${crypto.randomUUID()}`
-}
 
 // undici setTypeOfService EINVAL(上游 undici#5544)会以未捕获异常弹出 Electron
 // 崩溃框,对请求本身无害;进程级过滤吞掉,其余异常保持默认崩溃语义。
@@ -230,46 +201,6 @@ installUncaughtExceptionGuard({
   writeLog: (entry) => writeDiagnosticsLog({ ...entry, operationId: createDiagnosticsOperationId('uncaught-exception') }),
 })
 
-async function diagnosticsFetchJson(url: string, options: { method: string; headers?: Record<string, string>; body?: string }) {
-  const operationId = createDiagnosticsOperationId('tts-http')
-  const response = await observedFetch(url, options, {
-    operationId,
-    requestId: createDiagnosticsOperationId('req'),
-    endpointFamily: 'tts-runtime',
-    providerName: 'Manying Local TTS',
-    fetcher: fetch as typeof fetch,
-    logEvent: writeDiagnosticsLog,
-  })
-  if (!response.ok) {
-    const text = await response.text().catch(() => '')
-    throw new Error(text || `TTS backend request failed (${response.status})`)
-  }
-  const contentType = response.headers.get('content-type') ?? ''
-  if (!contentType.includes('application/json')) {
-    return response.text()
-  }
-  return response.json()
-}
-
-async function diagnosticsFetchBytes(url: string, options: { method: string; headers?: Record<string, string>; body?: string }) {
-  const operationId = createDiagnosticsOperationId('tts-http')
-  const response = await observedFetch(url, options, {
-    operationId,
-    requestId: createDiagnosticsOperationId('req'),
-    endpointFamily: 'tts-runtime-bytes',
-    providerName: 'Manying Local TTS',
-    fetcher: fetch as typeof fetch,
-    logEvent: writeDiagnosticsLog,
-  })
-  if (!response.ok) {
-    const text = await response.text().catch(() => '')
-    throw new Error(text || `TTS backend request failed (${response.status})`)
-  }
-  return {
-    data: await response.arrayBuffer(),
-    mimeType: response.headers.get('content-type') ?? undefined,
-  }
-}
 
 const ttsRuntimeController = createTtsRuntimeController({
   appRoot: process.env.APP_ROOT ?? path.join(__dirname, '../..'),
@@ -1020,9 +951,8 @@ bindChapterProjectionRuntime({
   remotionQueue,
   videoWorkflowChapterService,
 })
-let hostedStudioChapterContext: RemotionStudioChapterRenderContext | null = null
 const nativeStudioQueueBridge = new RemotionStudioRenderQueueBridge({
-  getContext: () => hostedStudioChapterContext ?? undefined,
+  getContext: () => getHostedStudioChapterContext(),
   enqueueChapter: async ({ context }) => {
     console.error('[chapter-video] step1: probeStatus...')
     const browser = await remotionRuntime.controller.probeStatus()
@@ -1080,131 +1010,11 @@ const nativeStudioQueueBridge = new RemotionStudioRenderQueueBridge({
   getJob: (jobId) => remotionQueue.getJob(jobId),
   cancelJob: (jobId) => remotionQueue.cancel(jobId),
 })
-
-const hostedStudio = new RemotionStudioService()
-const hostedStudioMedia = new MediaBridgeServer()
-let hostedStudioMediaSession: ReturnType<MediaBridgeServer['createSession']> | null = null
-let hostedStudioIdentity: { projectId: string; chapterId: string; revision: number } | null = null
-let hostedStudioProjectionWatcher: { close: () => void } | null = null
-async function closeHostedStudioSession(projectId: string): Promise<void> {
-  if (hostedStudioIdentity && hostedStudioIdentity.projectId !== projectId) {
-    throw new Error(`当前 Studio 会话属于项目 ${hostedStudioIdentity.projectId}，拒绝关闭 ${projectId}`)
-  }
-  hostedStudioProjectionWatcher?.close()
-  hostedStudioProjectionWatcher = null
-  hostedStudioChapterContext = null
-  await hostedStudio.close()
-  if (hostedStudioMediaSession) await hostedStudioMedia.revokeSession(hostedStudioMediaSession)
-  else await hostedStudioMedia.close()
-  hostedStudioMediaSession = null
-  hostedStudioIdentity = null
-}
-
-async function persistStudioEditingRevision(project: import('../../types/editing').EditingProjectV1): Promise<void> {
-  const editingPath = resolveDataFilePath(getDataDir(), `_p/${project.projectId}/editing`)
-  await withFileStorageMutationLock(editingPath, async () => {
-    const raw = JSON.parse(await fs.promises.readFile(editingPath, 'utf8')) as unknown
-    const state = isRecord(raw) && isRecord(raw.state) ? raw.state : raw
-    if (!isRecord(state) || !isRecord(state.editingProjects) || !isRecord(state.currentEditingProjectIdByEpisode)) {
-      throw new Error('Studio 回写时 editing 持久化状态结构无效')
-    }
-    const current = state.editingProjects[project.id]
-    const validated = validateEditingProject(current)
-    if (!validated.success || validated.value.revision !== project.revision - 1) {
-      throw new Error('Studio 回写目标已被更新或基线 revision 不连续，拒绝覆盖更新版本')
-    }
-    if (validated.value.projectId !== project.projectId || validated.value.episodeId !== project.episodeId) {
-      throw new Error('Studio 回写目标项目/章节不一致')
-    }
-    if (state.currentEditingProjectIdByEpisode[project.episodeId] !== project.id) {
-      throw new Error('Studio 回写目标不是当前章节工程，拒绝覆盖')
-    }
-    state.editingProjects[project.id] = project
-    state.currentEditingProjectIdByEpisode[project.episodeId] = project.id
-    const temporaryPath = `${editingPath}.${process.pid}.tmp`
-    await fs.promises.writeFile(temporaryPath, `${JSON.stringify(raw, null, 2)}\n`, 'utf8')
-    await fs.promises.rename(temporaryPath, editingPath)
-    broadcastRemotionStudioEditingUpdated(BrowserWindow.getAllWindows(), {
-      projectId: project.projectId,
-      chapterId: project.episodeId,
-      revision: project.revision,
-    }, (error) => {
-      console.error('[remotion-studio] editing revision notification failed', error)
-    })
-  })
-}
-const remotionStudioIpc = registerRemotionStudioIpcHandlers({
-  ensureSession: async (request) => {
-    hostedStudio.assertProjectCanEnsure(request.projectId)
-    const projection = await loadChapterStudioProjection(request)
-    const sameIdentity = hostedStudioIdentity?.projectId === request.projectId
-      && hostedStudioIdentity?.chapterId === request.chapterId
-      && hostedStudioIdentity?.revision === request.revision
-    if (!sameIdentity) {
-      hostedStudioProjectionWatcher?.close()
-      hostedStudioProjectionWatcher = null
-      await hostedStudioMedia.listen()
-      const nextMediaSession = hostedStudioMedia.createSession()
-      try {
-        const urls = buildMediaUrlMap(hostedStudioMedia, nextMediaSession, projection.sources)
-        const generated = generateChapterStudioProjection({
-          ...projection.input,
-          clips: projection.input.clips.map((clip) => ({ ...clip, src: urls[clip.shotId] ?? "" })),
-        })
-        await fs.promises.mkdir(path.dirname(projection.entryPoint), { recursive: true })
-        await fs.promises.writeFile(projection.entryPoint, generated.source, 'utf8')
-        const session = await hostedStudio.ensureSession(request, buildMinimalRemotionStudioStartOptions({
-          appsRoot: process.env.APP_ROOT ?? path.join(__dirname, '../..'),
-          entryPoint: projection.entryPoint,
-          renderQueue: nativeStudioQueueBridge,
-        }))
-        const previousMediaSession = hostedStudioMediaSession
-        hostedStudioMediaSession = nextMediaSession
-        hostedStudioIdentity = request
-        hostedStudioChapterContext = {
-          projectId: request.projectId,
-          chapterId: request.chapterId,
-          revision: request.revision,
-          plan: projection.plan,
-          currentShotSlots: projection.currentShotSlots,
-        }
-        const expectedIdentity = {
-          projectId: request.projectId,
-          chapterId: request.chapterId,
-          editingProjectId: projection.input.editingProjectId,
-          editingRevision: request.revision,
-          clips: projection.input.clips.map((clip) => ({ shotId: clip.shotId, src: urls[clip.shotId] ?? '' })),
-        }
-        hostedStudioProjectionWatcher = watchChapterStudioProjection({
-          sourcePath: projection.entryPoint,
-          expectedIdentity,
-          getCurrentProject: async () => readEditingProjectSnapshot(request),
-          onWriteback: async (result) => {
-            await persistStudioEditingRevision(result.project)
-            hostedStudioProjectionWatcher?.close()
-            hostedStudioProjectionWatcher = null
-          },
-        })
-        if (previousMediaSession) await hostedStudioMedia.revokeSession(previousMediaSession)
-        return session
-      } catch (error) {
-        await hostedStudioMedia.revokeSession(nextMediaSession).catch(() => undefined)
-        throw error
-      }
-    }
-    return hostedStudio.ensureSession(request, buildMinimalRemotionStudioStartOptions({
-      appsRoot: process.env.APP_ROOT ?? path.join(__dirname, '../..'),
-      entryPoint: projection.entryPoint,
-      renderQueue: nativeStudioQueueBridge,
-    }))
-  },
-  closeSession: closeHostedStudioSession,
-})
+bindHostedStudioRuntime(nativeStudioQueueBridge)
 
 disposeRemotionRuntime = async () => {
-  await remotionStudioIpc.dispose()
-  if (hostedStudioIdentity) await closeHostedStudioSession(hostedStudioIdentity.projectId)
-  else await hostedStudioMedia.close()
+  await hostedStudioIpc.dispose()
+  await disposeHostedStudio()
   remotionQueueIpc.dispose()
   remotionChapterManifestIpc.dispose()
   await remotionPreview.dispose()
@@ -1240,57 +1050,6 @@ registerAssetLibraryIpcHandlers({
   blessDialogPaths: blessedDialogPaths.bless,
 })
 
-async function runTtsRuntimeDiagnostics<T>(
-  action: string,
-  context: Record<string, unknown>,
-  run: () => Promise<T>,
-): Promise<T> {
-  const operationId = createDiagnosticsOperationId(`tts-${action}`)
-  writeDiagnosticsLog({
-    level: action === 'status' ? 'debug' : 'info',
-    category: 'tts',
-    operationId,
-    message: `TTS runtime ${action} started`,
-    context,
-  })
-  try {
-    const result = await run()
-    writeDiagnosticsLog({
-      level: 'info',
-      category: 'tts',
-      operationId,
-      message: `TTS runtime ${action} completed`,
-      context: { ...context, result },
-    })
-    return result
-  } catch (error) {
-    writeDiagnosticsLog({
-      level: 'error',
-      category: 'tts',
-      operationId,
-      message: `TTS runtime ${action} failed`,
-      context,
-      error,
-    })
-    throw error
-  }
-}
-
-// TTS 固定音色参考音频的路径解析:保留收紧前的原语义(绝对路径存在即读)。
-// 依据 08-18 渲染层调用面审计:设置页「参考音频路径」是自由文本框,用户可
-// 手输/持久化任意外部绝对路径;该链路只把音频字节发给 127.0.0.1 的本地
-// sidecar,不外发网络,风险远低于 openPath/图床上传,收紧会打断音色克隆
-// 核心流程。其余 IPC 仍走 resolveStudioSourcePath 的受管根守卫。
-function resolveReferenceAudioSourcePath(sourcePath: string) {
-  if (sourcePath.startsWith('project-file://')) {
-    return resolveProjectFileUrl(getDataDir(), sourcePath)
-  }
-  if (sourcePath.startsWith('local-image://')) {
-    return resolveLocalMediaPath(getMediaRoot(), sourcePath)
-  }
-  if (sourcePath.startsWith('file://')) return sourcePath.replace('file://', '')
-  return sourcePath
-}
 
 registerTtsIpcHandlers({
   controller: ttsRuntimeController,
