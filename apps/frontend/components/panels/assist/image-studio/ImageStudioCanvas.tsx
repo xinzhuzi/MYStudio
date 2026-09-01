@@ -28,6 +28,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { CanvasViewportControls } from "@/components/panels/studio/CanvasViewportControls";
 import { useAssistCanvasHistory } from "./use-assist-canvas-history";
+import { relatedEdges } from "@/lib/studio/image-workflow/relation-graph";
 import { InteractionDeferHint } from "@/components/panels/studio/previews/interaction-defer-hint";
 import { useCanvasGestureKernel } from "@/components/panels/studio/use-canvas-gesture-kernel";
 // 画布手势内核/门闸提示与分镜画布共用(08-30 收敛 Phase2 之后再整体上提 features/)
@@ -314,17 +315,31 @@ export function ImageStudioCanvas() {
     removeNode,
   ]);
 
+  // 上下游高亮(09-02-relation-highlight):选中节点时相关边金色加粗、无关边降暗
+  const relatedEdgeIds = useMemo(
+    () => relatedEdges(activeGraph?.edges ?? [], selectedNodeId),
+    [activeGraph?.edges, selectedNodeId],
+  );
+
   const reactFlowEdges = useMemo<Edge[]>(
     () =>
-      (activeGraph?.edges ?? []).map((edge) => ({
-        id: edge.id,
-        source: edge.source,
-        target: edge.target,
-        markerEnd: { type: MarkerType.ArrowClosed, color: "#67e8f9" },
-        interactionWidth: 10,
-        style: { stroke: "#67e8f9", strokeWidth: 2 },
-      })),
-    [activeGraph?.edges],
+      (activeGraph?.edges ?? []).map((edge) => {
+        const related = selectedNodeId && relatedEdgeIds.has(edge.id);
+        const dim = selectedNodeId && relatedEdgeIds.size > 0 && !related;
+        return {
+          id: edge.id,
+          source: edge.source,
+          target: edge.target,
+          markerEnd: { type: MarkerType.ArrowClosed, color: "#67e8f9" },
+          interactionWidth: 10,
+          style: {
+            stroke: related ? "#fbbf24" : "#67e8f9",
+            strokeWidth: related ? 3 : 2,
+            ...(dim ? { strokeOpacity: 0.22 } : {}),
+          },
+        };
+      }),
+    [activeGraph?.edges, relatedEdgeIds, selectedNodeId],
   );
 
   const handleConnect = useCallback(

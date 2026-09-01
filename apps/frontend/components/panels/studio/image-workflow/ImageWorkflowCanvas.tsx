@@ -65,6 +65,7 @@ import { MaskInpaintDialog } from "./mask-inpaint-dialog";
 import {
 } from "@/lib/studio/image-workflow/reverse-prompt";
 import { useDerivedReferenceLanding } from "./use-derived-reference-landing";
+import { relatedEdges } from "@/lib/studio/image-workflow/relation-graph";
 import { ImageWorkflowSidebar } from "./image-workflow-sidebar";
 import { ImageWorkflowCanvasToolbar } from "./image-workflow-canvas-toolbar";
 import {
@@ -295,23 +296,36 @@ export function ImageWorkflowCanvas({
     [activeGraph, saveGraph],
   );
 
+  // 上下游高亮(09-02-relation-highlight):判序=点边金色优先,否则节点关系
+  // 点亮(相关边金、无关边降暗);无选中全默认。
+  const relatedEdgeIds = useMemo(
+    () => relatedEdges(activeGraph?.edges ?? [], selectedNodeId),
+    [activeGraph?.edges, selectedNodeId],
+  );
+
   const reactFlowEdges = useMemo<Edge[]>(
     () =>
-      (activeGraph?.edges ?? []).map((edge) => ({
-        id: edge.id,
-        source: edge.source,
-        target: edge.target,
-        label: edge.label,
-        markerEnd: { type: MarkerType.ArrowClosed, color: "#67e8f9" },
-        // 连线层置于节点之上(见 index.css):隐形点击带收窄到 10px,
-        // 连线压过卡片时不吞卡片上按钮/输入的点击
-        interactionWidth: 10,
-        style: {
-          stroke: edge.id === selectedEdgeId ? "#fbbf24" : "#67e8f9",
-          strokeWidth: edge.id === selectedEdgeId ? 3 : 2,
-        },
-      })),
-    [activeGraph?.edges, selectedEdgeId],
+      (activeGraph?.edges ?? []).map((edge) => {
+        const edgeSelected = edge.id === selectedEdgeId;
+        const related = !edgeSelected && selectedNodeId && relatedEdgeIds.has(edge.id);
+        const dim = !edgeSelected && selectedNodeId && relatedEdgeIds.size > 0 && !related;
+        return {
+          id: edge.id,
+          source: edge.source,
+          target: edge.target,
+          label: edge.label,
+          markerEnd: { type: MarkerType.ArrowClosed, color: "#67e8f9" },
+          // 连线层置于节点之上(见 index.css):隐形点击带收窄到 10px,
+          // 连线压过卡片时不吞卡片上按钮/输入的点击
+          interactionWidth: 10,
+          style: {
+            stroke: edgeSelected || related ? "#fbbf24" : "#67e8f9",
+            strokeWidth: edgeSelected || related ? 3 : 2,
+            ...(dim ? { strokeOpacity: 0.22 } : {}),
+          },
+        };
+      }),
+    [activeGraph?.edges, relatedEdgeIds, selectedEdgeId, selectedNodeId],
   );
 
   const {
