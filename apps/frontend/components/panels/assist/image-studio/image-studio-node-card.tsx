@@ -4,6 +4,7 @@
 
 import { memo, useEffect, useState } from "react";
 import { Handle, Position, type Node, type NodeProps } from "@xyflow/react";
+import { useImageStudioStore } from "@/stores/assist/image-studio-store";
 import {
   Archive,
   CheckCircle2,
@@ -67,7 +68,6 @@ export type ImageStudioReactNode = Node<ImageStudioNodeData>;
 
 const ASPECT_RATIOS = IMAGE_ASPECT_RATIOS;
 const RESOLUTION_OPTIONS = IMAGE_RESOLUTIONS;
-const QUALITY_OPTIONS: Array<ImageWorkflowGeneratedNode["quality"]> = ["draft", "standard", "hd"];
 
 const STATUS_LABELS: Record<ImageWorkflowGeneratedNode["status"], string> = {
   idle: "待生成",
@@ -262,11 +262,23 @@ function PromptNodeEditor({
   node: ImageWorkflowPromptNode;
   onUpdate: ImageStudioNodeData["onUpdate"];
 }) {
+  // 09-02 组合期不受控根修(五报「输入1字符即退出/中文变拼音」终局):受控 value
+  // 在重渲染时被写回(可能落后一步),任何程序化 value 写入都会终止 Chromium
+  // 输入法组合会话。标准解法:组合期间 value 交还 DOM 自管(React 不写),
+  // compositionend 时一次性提交最终文本回 store,再恢复受控。
+  const [composing, setComposing] = useState(false);
   return (
     <div className="space-y-3">
       <Textarea
-        value={node.prompt}
-        onChange={(event) => onUpdate(node.id, { prompt: event.target.value } as Partial<ImageWorkflowNode>)}
+        value={composing ? undefined : node.prompt}
+        onChange={(event) => {
+          onUpdate(node.id, { prompt: event.target.value } as Partial<ImageWorkflowNode>);
+        }}
+        onCompositionStart={() => setComposing(true)}
+        onCompositionEnd={(event) => {
+          setComposing(false);
+          onUpdate(node.id, { prompt: event.currentTarget.value } as Partial<ImageWorkflowNode>);
+        }}
         placeholder="描述要生成的图片"
         className="nodrag nopan min-h-[96px] [field-sizing:content] border-border bg-background/80 text-sm leading-6 text-foreground"
       />
@@ -276,6 +288,96 @@ function PromptNodeEditor({
         placeholder="反向提示词（可选）"
         className="nodrag nopan min-h-[48px] [field-sizing:content] border-border bg-background/80 text-xs leading-5 text-foreground"
       />
+    </div>
+  );
+}
+
+/** 批量图片组渲染(09-02-batch-image-group):单图=原样;组=叠卡+角标+展开网格+设主图 */
+function BatchImageArea({
+  node,
+}: {
+  node: ImageWorkflowGeneratedNode;
+}) {
+  const [expanded, setExpanded] = useState(false);
+  const batch = node.imageBatch;
+  const isGroup = batch && batch.images.length > 1;
+
+  if (!node.resultUrl) {
+    return (
+      <div className="aspect-video overflow-hidden rounded-md border border-border bg-muted/30">
+        <div className="flex h-full items-center justify-center px-4 text-center text-xs text-muted-foreground">
+          {node.status === "failed" ? node.errorReason || "生成失败" : "等待生成"}
+        </div>
+      </div>
+    );
+  }
+
+  if (!isGroup) {
+    return (
+      <div className="aspect-video overflow-hidden rounded-md border border-border bg-muted/30">
+        <span className="relative flex h-full w-full">
+          <LocalImage
+            src={toPreviewSrc(node.resultUrl)}
+            alt={node.title}
+            className="h-full w-full object-cover"
+            eager
+            previewable
+          />
+          <ResolutionBadge src={toPreviewSrc(node.resultUrl)} />
+        </span>
+      </div>
+    );
+  }
+
+  const images = batch!.images;
+  return (
+    <div className="nodrag nopan space-y-2">
+      <div className="relative">
+        <div className="absolute -bottom-1.5 -right-1.5 h-[calc(100%-2px)] w-3 rounded-md border border-border bg-muted/60" aria-hidden />
+        <div className="absolute -bottom-0.5 -right-0.5 h-[calc(100%-2px)] w-3 rounded-md border border-border bg-muted/40" aria-hidden />
+        <div className="aspect-video overflow-hidden rounded-md border border-border bg-muted/30">
+          <span className="relative flex h-full w-full">
+            <LocalImage
+              src={toPreviewSrc(node.resultUrl)}
+              alt={node.title}
+              className="h-full w-full object-cover"
+              eager
+              previewable
+            />
+            <ResolutionBadge src={toPreviewSrc(node.resultUrl)} />
+          </span>
+        </div>
+        <button
+          type="button"
+          aria-label={expanded ? "收起图片组" : `展开图片组(${images.length}张)`}
+          className="absolute right-1.5 top-1.5 rounded-md border border-border bg-card/90 px-1.5 py-0.5 text-[10px] font-medium text-card-foreground transition-colors duration-75 hover:bg-accent hover:text-accent-foreground active:bg-accent/70"
+          onClick={() => setExpanded((value) => !value)}
+        >
+          {images.length} 张 {expanded ? "▴" : "▾"}
+        </button>
+      </div>
+      {expanded ? (
+        <div className="grid grid-cols-2 gap-1.5" data-image-studio-batch-grid>
+          {images.map((image, index) => (
+            <div key={`${image}-${index}`} className="relative overflow-hidden rounded-md border border-border">
+              <LocalImage src={toPreviewSrc(image)} alt={`${node.title} ${index + 1}`} className="aspect-video h-full w-full object-cover" eager previewable />
+              <button
+                type="button"
+                aria-label={`设为主图 ${index + 1}`}
+                disabled={index === batch!.primaryIndex}
+                className={`absolute bottom-1 left-1 rounded px-1.5 py-0.5 text-[10px] font-medium ${
+                  index === batch!.primaryIndex
+                    ? "cursor-default bg-primary text-primary-foreground"
+                    : "bg-card/90 text-card-foreground hover:bg-accent"
+                }`}
+                onClick={() => useImageStudioStore.getState().setBatchPrimary(node.id, index)}
+              >
+                {index === batch!.primaryIndex ? "主图" : "设为主图"}
+              </button>
+            </div>
+          ))}
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -338,25 +440,8 @@ function GeneratedNodeEditor({
 
   return (
     <div className="space-y-3">
-      <div className="aspect-video overflow-hidden rounded-md border border-border bg-muted/30">
-        {node.resultUrl ? (
-          <span className="relative flex h-full w-full">
-            <LocalImage
-              src={toPreviewSrc(node.resultUrl)}
-              alt={node.title}
-              className="h-full w-full object-cover"
-              eager
-              previewable
-            />
-            <ResolutionBadge src={toPreviewSrc(node.resultUrl)} />
-          </span>
-        ) : (
-          <div className="flex h-full items-center justify-center px-4 text-center text-xs text-muted-foreground">
-            {node.status === "failed" ? node.errorReason || "生成失败" : "等待生成"}
-          </div>
-        )}
-      </div>
-      <div className="nodrag nopan grid grid-cols-[minmax(0,1fr)_76px_64px_86px] gap-2" data-image-studio-node-params>
+      <BatchImageArea node={node} />
+      <div className="nodrag nopan grid grid-cols-[minmax(0,1fr)_76px_64px_56px] gap-2" data-image-studio-node-params>
         <ModelSelector
           type="image"
           value={model}
@@ -381,12 +466,13 @@ function GeneratedNodeEditor({
           {RESOLUTION_OPTIONS.map((resolution) => <option key={resolution} value={resolution}>{resolution}</option>)}
         </select>
         <select
-          value={node.quality}
-          onChange={(event) => onUpdate(node.id, { quality: event.target.value as ImageWorkflowGeneratedNode["quality"], paramsEdited: true } as Partial<ImageWorkflowNode>)}
+          value={String(extras?.count ?? 1)}
+          onChange={(event) => onUpdateExtras(node.id, { ...(extras ?? {}), count: Number(event.target.value) })}
           className="h-8 rounded-md border border-border bg-card/80 px-1.5 text-xs text-foreground outline-none"
-          aria-label="生成质量"
+          aria-label="生成张数"
+          title="一次生成多张聚为图片组"
         >
-          {QUALITY_OPTIONS.map((quality) => <option key={quality} value={quality}>{quality}</option>)}
+          {[1, 2, 3, 4].map((count) => <option key={count} value={count}>{count} 张</option>)}
         </select>
       </div>
       {hasMidjourneyParams ? (

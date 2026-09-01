@@ -85,6 +85,9 @@ export interface ImageStudioStoreActions {
     errorReason?: string,
   ) => void;
   setNodeResult: (nodeId: string, result: { imageUrl: string; mediaId?: string }) => void;
+  /** 批量组落图(09-02):images[primaryIndex] 为主图,组外消费零改动 */
+  setNodeBatchResult: (nodeId: string, images: string[], mediaId?: string) => void;
+  setBatchPrimary: (nodeId: string, index: number) => void;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   setNodeExtras: (nodeId: string, extras: Record<string, any>) => void;
 }
@@ -450,6 +453,47 @@ export const useImageStudioStore = create<ImageStudioStore>()(
               ? setGeneratedImageResult(workflow, nodeId, result)
               : workflow,
           ),
+        }));
+      },
+
+      setNodeBatchResult: (nodeId, images, mediaId) => {
+        if (images.length === 0) return;
+        set((state) => ({
+          workflows: state.workflows.map((workflow) => ({
+            ...workflow,
+            nodes: workflow.nodes.map((node) => {
+              if (node.id !== nodeId || node.type !== "generated") return node;
+              const next = setGeneratedImageResult(workflow, nodeId, {
+                imageUrl: images[0],
+                mediaId,
+              }).nodes.find((item) => item.id === nodeId);
+              return next
+                ? {
+                    ...next,
+                    imageBatch: images.length > 1 ? { images, primaryIndex: 0 } : undefined,
+                  }
+                : node;
+            }),
+          })),
+        }));
+      },
+
+      setBatchPrimary: (nodeId, index) => {
+        set((state) => ({
+          workflows: state.workflows.map((workflow) => ({
+            ...workflow,
+            nodes: workflow.nodes.map((node) => {
+              if (node.id !== nodeId || node.type !== "generated" || !node.imageBatch) return node;
+              const safeIndex = Math.max(0, Math.min(index, node.imageBatch.images.length - 1));
+              return safeIndex === node.imageBatch.primaryIndex
+                ? node
+                : {
+                    ...node,
+                    resultUrl: node.imageBatch.images[safeIndex],
+                    imageBatch: { ...node.imageBatch, primaryIndex: safeIndex },
+                  };
+            }),
+          })),
         }));
       },
 

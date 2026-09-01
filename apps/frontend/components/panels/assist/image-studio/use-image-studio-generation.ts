@@ -41,16 +41,42 @@ export function useImageStudioGeneration() {
     const controller = new AbortController();
     abortRef.current.set(nodeId, controller);
     store.setNodeStatus(nodeId, "generating");
+    // 批量组(09-02-batch-image-group):通道无原生 n,退化=顺序 N 次(N≤4)
+    // 聚合进一个生成节点;部分失败保留成功张。
+    const extras = useImageStudioStore.getState().nodeExtras[nodeId];
+    const count = Math.max(1, Math.min(4, Number(extras?.count) || 1));
     try {
-      const result = await runImageStudioNodeGeneration(graph, nodeId, {
-        extraParams: useImageStudioStore.getState().nodeExtras[nodeId],
-        signal: controller.signal,
-      });
+      const results: Awaited<ReturnType<typeof runImageStudioNodeGeneration>>[] = [];
+      for (let index = 0; index < count; index += 1) {
+        if (controller.signal.aborted) break;
+        try {
+          results.push(
+            await runImageStudioNodeGeneration(graph, nodeId, {
+              extraParams: extras,
+              signal: controller.signal,
+            }),
+          );
+        } catch (error) {
+          if (index === 0) throw error;
+          toast.warning(`批量生成第 ${index + 1} 张失败,已保留前 ${results.length} 张`);
+          break;
+        }
+      }
+      if (results.length === 0) throw new Error("批量生成全部失败");
+      const result = results[0];
       // 回写基于 store 最新图(生成期间画布可能已被编辑)
-      useImageStudioStore.getState().setNodeResult(nodeId, {
-        imageUrl: result.imageUrl,
-        mediaId: result.mediaId,
-      });
+      if (results.length > 1) {
+        useImageStudioStore.getState().setNodeBatchResult(
+          nodeId,
+          results.map((item) => item.imageUrl),
+          result.mediaId,
+        );
+      } else {
+        useImageStudioStore.getState().setNodeResult(nodeId, {
+          imageUrl: result.imageUrl,
+          mediaId: result.mediaId,
+        });
+      }
       useFreedomStore.getState().addHistoryEntry({
         id: `img_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
         prompt: result.prompt,

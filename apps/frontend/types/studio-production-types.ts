@@ -338,20 +338,29 @@ export interface ImageWorkflowReferenceNode extends ImageWorkflowNodeBase {
   sceneViewpointId?: string;
 }
 
+/**
+ * 批量生成图片组(09-02-batch-image-group):count>1 时产物聚于一个生成节点;
+ * resultUrl 恒=主图(组外消费者零改动),imageBatch 为组内明细。
+ */
+export interface ImageWorkflowImageBatch {
+  images: string[];
+  primaryIndex: number;
+}
+
 export interface ImageWorkflowGeneratedNode extends ImageWorkflowNodeBase {
   type: "generated";
   prompt: string;
   derivedFrom?: ImageWorkflowDerivationSource;
+  imageBatch?: ImageWorkflowImageBatch;
   negativePrompt?: string;
   model?: string;
   /**
-   * 生成参数权威标记(08-30 功能转移裁定):true=模型/画幅/分辨率/质量以
+   * 生成参数权威标记(08-30 功能转移裁定):true=模型/画幅/分辨率以
    * 成图节点自身字段为准;缺省=存量图回落连线提示词节点的旧值。
    * 用户新建图与在成图节点改参数时置 true。
    */
   paramsEdited?: boolean;
   aspectRatio: string;
-  quality: "draft" | "standard" | "hd";
   resolution?: string;
   resultUrl?: string;
   resultMediaId?: string;
@@ -371,7 +380,6 @@ export interface ImageWorkflowPromptNode extends ImageWorkflowNodeBase {
   negativePrompt?: string;
   model?: string;
   aspectRatio: string;
-  quality: "draft" | "standard" | "hd";
   resolution?: string;
   targetNodeId?: string;
 }
