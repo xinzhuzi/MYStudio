@@ -6,6 +6,7 @@ import {
   Layers,
   Palette,
   Plug,
+  Server,
   Terminal,
   Upload,
 } from "lucide-react";
@@ -15,6 +16,7 @@ export const SETTINGS_TABS = [
   { value: "appearance", label: "外观" },
   { value: "api", label: "云端AI" },
   { value: "plugins", label: "本地配置" },
+  { value: "mcp", label: "MCP 服务" },
   { value: "imageSize", label: "图片规格" },
   { value: "advanced", label: "高级选项" },
   { value: "imagehost", label: "图床配置" },
@@ -36,6 +38,8 @@ function renderSettingsTabIcon(value: SettingsTabId) {
       return <ImageIcon className="h-4 w-4 mr-2" />;
     case "plugins":
       return <Plug className="h-4 w-4 mr-2" />;
+    case "mcp":
+      return <Server className="h-4 w-4 mr-2" />;
     case "advanced":
       return <Layers className="h-4 w-4 mr-2" />;
     case "imagehost":

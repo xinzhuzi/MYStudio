@@ -22,6 +22,7 @@ import { ImageHostSettingsContainer } from "./settings/ImageHostSettingsContaine
 import { DevelopmentSettingsContainer } from "./settings/DevelopmentSettingsContainer";
 import { StorageSettingsTab } from "./settings/StorageSettingsTab";
 import { PluginSettingsTab } from "./settings/PluginSettingsTab";
+import { McpSettingsTab } from "./settings/McpSettingsTab";
 import { ApiSettingsContainer, ApiSettingsMigration } from "./settings/ApiSettingsContainer";
 import {
   DEFAULT_SETTINGS_TAB,
@@ -122,6 +123,11 @@ export function SettingsPanel({
         {/* Plugin Config Tab: Python → TTS → video workflow plugins */}
         <TabsContent value="plugins" className="flex-1 overflow-hidden mt-0">
           <PluginSettingsTab />
+        </TabsContent>
+
+        {/* MCP servers config Tab */}
+        <TabsContent value="mcp" className="flex-1 overflow-hidden mt-0">
+          <McpSettingsTab />
         </TabsContent>
 
         {/* Advanced Options Tab */}
