@@ -1,9 +1,9 @@
 import type {
-  ImageWorkflowGeneratedNode,
   ImageWorkflowGraph,
   ImageWorkflowReferenceNode,
   CharacterReferenceViewType,
 } from "@/types/studio";
+import { resolveMentionTokens } from "./mention-token";
 import {
   findPromptNodeForGenerated,
   getGeneratedNode,
@@ -14,7 +14,6 @@ export interface ImageWorkflowGenerationRequest {
   prompt: string;
   model?: string;
   aspectRatio: string;
-  quality: ImageWorkflowGeneratedNode["quality"];
   resolution?: string;
   negativePrompt?: string;
   referenceImages: string[];
@@ -75,7 +74,10 @@ export function buildImageWorkflowGenerationRequest(
   const referenceImages = orderedReferenceManifest.map((reference) => reference.imageUrl);
   const continuityRequired = orderedReferenceManifest.some((reference) => Boolean(reference.versionId));
   const referenceContract = buildReferenceContinuityContract(orderedReferenceNodes);
-  const basePrompt = promptSource.prompt.trim();
+  // @引用令牌出边界解析(09-02-at-mention-refs):节点存原文,发送才译码
+  const basePrompt = resolveMentionTokens(promptSource.prompt.trim(), (nodeId) =>
+    graph.nodes.find((candidate) => candidate.id === nodeId),
+  ).text;
   const prompt = referenceContract && !basePrompt.includes("【资产圣经】")
     ? `${basePrompt} ${referenceContract}`.trim()
     : basePrompt;
@@ -88,7 +90,6 @@ export function buildImageWorkflowGenerationRequest(
     prompt,
     model: node.model ?? promptSource.model,
     aspectRatio: paramAuthority.aspectRatio,
-    quality: paramAuthority.quality,
     resolution: node.resolution ?? promptSource.resolution,
     negativePrompt,
     referenceImages,

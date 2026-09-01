@@ -2,9 +2,14 @@
 // Licensed under AGPL-3.0-or-later. See LICENSE for details.
 // Commercial licensing available. See COMMERCIAL_LICENSE.md.
 
-import { memo, useEffect, useState } from "react";
+import { memo, useEffect, useRef, useState } from "react";
 import { Handle, Position, type Node, type NodeProps } from "@xyflow/react";
-import { useImageStudioStore } from "@/stores/assist/image-studio-store";
+import { MentionPicker } from "./mention-picker";
+import { buildMentionToken, mentionTriggerState, type MentionCandidate } from "@/lib/studio/image-workflow/mention-token";
+import {
+  selectActiveImageStudioWorkflow,
+  useImageStudioStore,
+} from "@/stores/assist/image-studio-store";
 import {
   Archive,
   CheckCircle2,
@@ -267,21 +272,72 @@ function PromptNodeEditor({
   // 输入法组合会话。标准解法:组合期间 value 交还 DOM 自管(React 不写),
   // compositionend 时一次性提交最终文本回 store,再恢复受控。
   const [composing, setComposing] = useState(false);
+  // @引用浮层(09-02-at-mention-refs):候选=同图全部节点;组合期不触发(IME 兼容)
+  const textareaRef = useRef<HTMLTextAreaElement | null>(null);
+  const [mention, setMention] = useState<{ x: number; y: number; query: string } | null>(null);
+  // 候选量级=画布节点数(数十),浮层打开才渲染计算,不设 memo(避免 deps 复杂表达式)
+  const mentionCandidates: MentionCandidate[] = mention
+    ? (selectActiveImageStudioWorkflow(useImageStudioStore.getState())?.nodes ?? [])
+        .filter((candidate) => candidate.id !== node.id)
+        .map((candidate) => ({
+          id: candidate.id,
+          type: candidate.type,
+          title: candidate.title,
+          thumbUrl:
+            candidate.type === "reference" || candidate.type === "generated"
+              ? (candidate.type === "reference" ? candidate.imageUrl : candidate.resultUrl) || undefined
+              : undefined,
+          summary: candidate.type === "prompt" ? candidate.prompt.slice(0, 24) : undefined,
+        }))
+    : [];
+  const syncMention = () => {
+    const textarea = textareaRef.current;
+    if (!textarea) return;
+    const state = mentionTriggerState(textarea.value, textarea.selectionStart ?? 0);
+    if (!state.active || composing) return setMention(null);
+    const rect = textarea.getBoundingClientRect();
+    setMention({ x: 8, y: rect.height + 4, query: state.query });
+  };
   return (
-    <div className="space-y-3">
+    <div className="relative space-y-3">
       <Textarea
+        ref={textareaRef}
         value={composing ? undefined : node.prompt}
         onChange={(event) => {
           onUpdate(node.id, { prompt: event.target.value } as Partial<ImageWorkflowNode>);
+          syncMention();
         }}
+        onKeyUp={syncMention}
+        onClick={syncMention}
         onCompositionStart={() => setComposing(true)}
         onCompositionEnd={(event) => {
           setComposing(false);
           onUpdate(node.id, { prompt: event.currentTarget.value } as Partial<ImageWorkflowNode>);
         }}
-        placeholder="描述要生成的图片"
+        placeholder="描述要生成的图片(@ 引用资源)"
         className="nodrag nopan min-h-[96px] [field-sizing:content] border-border bg-background/80 text-sm leading-6 text-foreground"
       />
+      {mention ? (
+        <MentionPicker
+          x={mention.x}
+          y={mention.y}
+          query={mention.query}
+          candidates={mentionCandidates}
+          onPick={(candidate) => {
+            const textarea = textareaRef.current;
+            setMention(null);
+            if (!textarea) return;
+            const before = textarea.value.slice(0, textarea.selectionStart ?? 0);
+            const after = textarea.value.slice(textarea.selectionStart ?? 0);
+            const at = before.lastIndexOf("@");
+            if (at < 0) return;
+            const token = `${buildMentionToken(candidate)} `;
+            const next = `${before.slice(0, at)}${token}${after}`;
+            onUpdate(node.id, { prompt: next } as Partial<ImageWorkflowNode>);
+          }}
+          onClose={() => setMention(null)}
+        />
+      ) : null}
       <Textarea
         value={node.negativePrompt ?? ""}
         onChange={(event) => onUpdate(node.id, { negativePrompt: event.target.value } as Partial<ImageWorkflowNode>)}
