@@ -3,37 +3,28 @@ import { blessedDialogPaths, getDataDir, isStudioSourcePathAllowed, projectLocat
 import { ensureStudioSkillsAvailableAtStartup, getStudioManualsSourceRoot, getStudioSkillSyncOptions, resolveReferenceAudioSourcePath, resolveStudioSourcePath } from "./main-paths";
 import { bindChapterProjectionRuntime, enqueueChapterSceneSegments, evaluateVideoWorkflowChapterGate, readEditingProjectSnapshot, readRemotionCurrentShotSlots } from "./main-chapter-projection";
 import { createDiagnosticsOperationId, diagnosticsFetchBytes, diagnosticsFetchJson, diagnosticsLogService, runTtsRuntimeDiagnostics, writeDiagnosticsLog } from "./main-diagnostics";
-import { bindHostedStudioRuntime, disposeHostedStudio, getHostedStudioChapterContext, hostedStudio, hostedStudioIpc, persistStudioEditingRevision } from "./main-hosted-studio";
+import { bindHostedStudioRuntime, disposeHostedStudio, hostedStudioIpc, persistStudioEditingRevision } from "./main-hosted-studio";
+import { isBackgroundSmoke, MAIN_DIST, RENDERER_DIST } from "./main-env";
+import { bindWindowRuntime, createWindow, getWin, resolveAvailableUpdate, setDisposeRemotionRuntime, stopLocalSidecars, typedPackageMetadata } from "./main-window";
+import { bindNativeBridgeRuntime, buildManagedVideoUseChapterRun, nativeStudioQueueBridge } from "./main-native-bridge";
 
 // Copyright (c) 2025 hotflow2024
 // Licensed under AGPL-3.0-or-later. See LICENSE for details.
 // Commercial licensing available. See COMMERCIAL_LICENSE.md.
-import { app, BrowserWindow, protocol, shell, utilityProcess } from 'electron'
+import { app, protocol, shell, utilityProcess } from 'electron'
 import path from 'node:path'
-import fs from 'node:fs'
-import { fileURLToPath } from 'node:url'
-import crypto from 'node:crypto'
-import packageMetadata from '../../../package.json'
 import { configureSidecarLogCapture } from '../diagnostics/sidecar-log-capture'
 import { createTtsRuntimeController } from '../tts/tts-runtime'
 import {
  
 } from '../storage/studio-runtime-assets'
-import type { AvailableUpdateInfo } from '../../types/update'
 import {
-  compareVersions,
   isNonEmptyString,
   sanitizeExternalUrl,
 } from '../runtime/update-policy'
 import {
   makeStudioSkillFileUrl,
 } from './main-utils'
-import {
-  createBeforeQuitCleanup,
-  createWindowAllClosedHandler,
-  shouldCreateWindowOnActivate,
-  shouldCreateWindowOnSecondInstance,
-} from '../runtime/app-lifecycle'
 import { installUncaughtExceptionGuard } from '../runtime/uncaught-exception-guard'
 import { registerTtsIpcHandlers } from '../ipc/tts/tts-ipc'
 import { registerSelfMediaIpcHandlers } from '../ipc/self-media/self-media-ipc'
@@ -45,10 +36,8 @@ import { registerRenderHwIpcHandlers } from '../ipc/rendering/render-hw-ipc'
 import { registerStorageMediaIpcHandlers } from '../ipc/media/storage-media-ipc'
 import { registerAppUpdaterIpcHandlers } from '../ipc/app/app-updater-ipc'
 import {
-
   resolveLocalMediaPath,
   resolveProjectScopedFilePath,
-  isPathInsideRoot,
 } from '../storage/storage-paths'
 import { registerProjectFileIpcHandlers } from '../ipc/files/project-file-ipc'
 import { registerImageProbeIpcHandlers } from '../ipc/media/image-probe-ipc'
@@ -56,7 +45,6 @@ import { registerSourceMemoryIpcHandlers } from '../ipc/studio/source-memory-ipc
 import { configureArtifactManagementIpc } from '../ipc/files/artifact-management-ipc'
 import { registerStudioContentIpcHandlers } from '../ipc/assets/studio-content-ipc'
 import { registerAppShellIpcHandlers } from '../ipc/app/app-shell-ipc'
-import { fetchUpdateManifest as fetchUpdateManifestFromConfig } from './main-update'
 import { registerApiRequestIpcHandlers } from '../ipc/ai/api-request-ipc'
 import { registerFileExportIpcHandlers } from '../ipc/files/file-export-ipc'
 import { registerAssetLibraryIpcHandlers } from '../ipc/assets/asset-library-ipc'
@@ -109,17 +97,10 @@ import { audioModelCacheDir, music3ModelCacheDir, sfxModelCacheDir, ttsModelCach
 import { createVideoWorkflowRuntimeManager } from '@rendering/plugins/video-workflow/video-workflow-runtime-manager'
 import { selectSharedVideoToolchain } from '@rendering/plugins/video-workflow/video-workflow-runtime'
 import type {
-  VideoUseChapterRunV1,
 } from '@rendering/contracts/video-workflow'
-import type { VideoWorkflowChapterRunRequestV1 } from '../rendering/contracts/video-workflow-ipc'
 import { createDefaultProjectMoveEngine } from '../storage/project-move-engine'
 import { registerProjectFolderIpcHandlers } from '../ipc/projects/project-folder-ipc'
-import { parseProjectFileUrl } from '../storage/storage-paths'
 import { readStudioWorkflowStore } from '../storage/studio-workflow-store-io'
-import { RemotionStudioRenderQueueBridge } from '@rendering/plugins/remotion/studio'
-import {
-  createReadyRemotionChapterJob,
-} from '@rendering/plugins/remotion/studio'
 import { readRemotionCurrentShotSlotsFromWorkspace } from '../../lib/studio/remotion/remotion-current-slot'
 import {
   getProtocolMimeType as getMimeType,
@@ -140,11 +121,6 @@ import { ensureChromiumDataDir } from '../runtime/chromium-data-dir'
 //
 process.env.APP_ROOT = path.join(__dirname, '../..')
 
-export const VITE_DEV_SERVER_URL = process.env['ELECTRON_RENDERER_URL'] || process.env['VITE_DEV_SERVER_URL']
-export const MAIN_DIST = path.join(__dirname)
-export const RENDERER_DIST = path.join(__dirname, '../renderer')
-const RENDERER_INDEX_HTML = path.join('renderer', 'index.html')
-const isBackgroundSmoke = process.env.MYSTUDIO_SMOKE_BACKGROUND === '1'
 
 process.env.VITE_PUBLIC = RENDERER_DIST
 
@@ -155,7 +131,6 @@ process.env.VITE_PUBLIC = RENDERER_DIST
 const chromiumDataDir = ensureChromiumDataDir({ userDataPath: app.getPath('userData') })
 if (chromiumDataDir) app.setPath('sessionData', chromiumDataDir)
 
-let win: BrowserWindow | null
 const hasSingleInstanceLock = app.requestSingleInstanceLock()
 
 // 开发调试:MYSTUDIO_REMOTE_DEBUG=1 时开放 9222 远程调试端口,
@@ -168,20 +143,6 @@ if (!hasSingleInstanceLock) {
   app.exit(0)
 }
 
-type PackageUpdateConfig = {
-  manifestUrl?: string
-  defaultGithubUrl?: string
-  defaultBaiduUrl?: string
-  defaultBaiduCode?: string
-}
-
-type PackageMetadata = {
-  updateConfig?: PackageUpdateConfig
-  dependencies?: { remotion?: string }
-}
-
-const typedPackageMetadata = packageMetadata as PackageMetadata
-const packageUpdateConfig = typedPackageMetadata.updateConfig ?? {}
 const remotionVersion = typedPackageMetadata.dependencies?.remotion
 if (!isNonEmptyString(remotionVersion)) {
   throw new Error('package.json 必须声明精确 Remotion 版本')
@@ -209,8 +170,6 @@ const ttsRuntimeController = createTtsRuntimeController({
   fetchJson: diagnosticsFetchJson,
   fetchBytes: diagnosticsFetchBytes,
 })
-let stopLocalSidecarsPromise: Promise<void> | null = null
-let disposeRemotionRuntime: (() => void | Promise<void>) | null = null
 const selfMediaCredentialVault = createCredentialVault(app.getPath('userData'))
 const officialPlatformTransports = createOfficialPlatformTransports({
   userDataPath: app.getPath('userData'),
@@ -233,225 +192,7 @@ const selfMediaIpc = registerSelfMediaIpcHandlers({
     return { assetId: asset.assetId, url: resolved, kind: asset.kind };
   },
 })
-
-function stopLocalSidecars() {
-  if (!stopLocalSidecarsPromise) {
-    stopLocalSidecarsPromise = (async () => {
-      const result = await ttsRuntimeController.stop()
-      if (!result.success) {
-        console.warn('Failed to stop local TTS backend:', result.error)
-      }
-    })().finally(() => {
-      stopLocalSidecarsPromise = null
-    })
-  }
-  return stopLocalSidecarsPromise
-}
-
-async function stopAllLocalServices() {
-  await selfMediaIpc.dispose()
-  await disposeRemotionRuntime?.()
-  disposeRemotionRuntime = null
-  await stopLocalSidecars()
-}
-
-// 更新清单抓取统一走 main-update.ts(含 GitHub Releases API 适配),
-// 本模块只注入 package.json 的 updateConfig。
-async function fetchUpdateManifest() {
-  return fetchUpdateManifestFromConfig(packageUpdateConfig)
-}
-
-async function resolveAvailableUpdate(currentVersion: string): Promise<AvailableUpdateInfo | null> {
-  const manifest = await fetchUpdateManifest()
-  if (compareVersions(manifest.version, currentVersion) <= 0) {
-    return null
-  }
-
-  return {
-    currentVersion,
-    latestVersion: manifest.version,
-    releaseNotes: manifest.releaseNotes,
-    publishedAt: manifest.publishedAt,
-    githubUrl: manifest.githubUrl,
-    baiduUrl: manifest.baiduUrl,
-    baiduCode: manifest.baiduCode,
-  }
-}
-
-function createWindow() {
-  win = new BrowserWindow({
-    title: '漫影工作室',
-    width: 1400,
-    height: 900,
-    minWidth: 1200,
-    minHeight: 700,
-    show: false,
-    backgroundColor: '#17191c',
-    titleBarStyle: 'hiddenInset',
-    trafficLightPosition: { x: 16, y: 14 },
-    webPreferences: {
-      preload: path.join(__dirname, '../preload/index.cjs'),
-      sandbox: true,
-      contextIsolation: true,
-      nodeIntegration: false,
-      backgroundThrottling: !isBackgroundSmoke,
-    },
-  })
-
-  let hasShownWindow = false
-  const showWindow = () => {
-    if (isBackgroundSmoke || !win || win.isDestroyed() || hasShownWindow) return
-    hasShownWindow = true
-    win.show()
-  }
-
-  win.once('ready-to-show', showWindow)
-
-  // Test active push message to Renderer-process.
-  win.webContents.on('did-finish-load', () => {
-    win?.webContents.send('main-process-message', (new Date).toLocaleString())
-    writeDiagnosticsLog({
-      level: 'info',
-      category: 'runtime',
-      message: 'Renderer finished loading',
-      context: { url: win?.webContents.getURL() },
-    })
-    showWindow()
-  })
-
-  win.webContents.once('did-fail-load', (_event, errorCode, errorDescription) => {
-    console.error(`Renderer failed to load (${errorCode}): ${errorDescription}`)
-    writeDiagnosticsLog({
-      level: 'error',
-      category: 'runtime',
-      message: 'Renderer failed to load',
-      context: { errorCode, errorDescription, url: win?.webContents.getURL() },
-    })
-    showWindow()
-  })
-
-  win.webContents.on('console-message', (_event, level, message, line, sourceId) => {
-    const logLevel = level >= 3 ? 'error' : level >= 2 ? 'warn' : level >= 1 ? 'info' : 'debug'
-    writeDiagnosticsLog({
-      level: logLevel,
-      category: 'runtime',
-      message: 'Renderer console message',
-      context: { consoleLevel: level, message, line, sourceId },
-    })
-  })
-
-  win.webContents.on('render-process-gone', (_event, details) => {
-    writeDiagnosticsLog({
-      level: 'error',
-      category: 'runtime',
-      message: 'Renderer process gone',
-      context: { reason: details.reason, exitCode: details.exitCode },
-    })
-  })
-
-  win.on('unresponsive', () => {
-    writeDiagnosticsLog({
-      level: 'warn',
-      category: 'runtime',
-      message: 'Main window became unresponsive',
-    })
-  })
-
-  // Open external links in system browser instead of inside Electron
-  win.webContents.setWindowOpenHandler(({ url }) => {
-    if (hostedStudio.isNavigationAllowed(url)) {
-      return { action: 'deny' }
-    }
-    if (url.startsWith('http://') || url.startsWith('https://')) {
-      shell.openExternal(url)
-    }
-    return { action: 'deny' }
-  })
-
-  const isRendererLocalFileUrl = (url: string) => {
-    if (!url.startsWith('file://')) return false
-    try {
-      return isPathInsideRoot(RENDERER_DIST, fileURLToPath(url))
-    } catch {
-      return false
-    }
-  }
-
-  win.webContents.on('will-navigate', (event, url) => {
-    // Allow navigating to the app itself (dev server or local renderer files only)
-    if (VITE_DEV_SERVER_URL && url.startsWith(VITE_DEV_SERVER_URL)) return
-    if (isRendererLocalFileUrl(url)) return
-    // Block and open externally
-    event.preventDefault()
-    shell.openExternal(url)
-  })
-
-  win.webContents.on('will-frame-navigate', (details) => {
-    const { url, isMainFrame } = details
-    if (!isMainFrame && hostedStudio.isNavigationAllowed(url)) return
-    if (isMainFrame && ((VITE_DEV_SERVER_URL && url.startsWith(VITE_DEV_SERVER_URL)) || isRendererLocalFileUrl(url))) return
-    details.preventDefault()
-  })
-
-  if (VITE_DEV_SERVER_URL) {
-    win.loadURL(new URL(RENDERER_INDEX_HTML, VITE_DEV_SERVER_URL).toString())
-  } else {
-    win.loadFile(path.join(RENDERER_DIST, RENDERER_INDEX_HTML))
-  }
-}
-
-app.on('second-instance', () => {
-  if (isBackgroundSmoke) return
-  if (win && !win.isDestroyed()) {
-    if (win.isMinimized()) {
-      win.restore()
-    }
-    win.focus()
-    return
-  }
-
-  if (shouldCreateWindowOnSecondInstance({
-    isAppReady: app.isReady(),
-    hasUsableWindow: false,
-  })) {
-    createWindow()
-  }
-})
-
-// Quit when all windows are closed, except on macOS. There, it's common
-// for applications and their menu bar to stay active until the user quits
-// explicitly with Cmd + Q.
-app.on('window-all-closed', createWindowAllClosedHandler({
-  platform: process.platform,
-  stopLocalServices: stopLocalSidecars,
-  quit: () => {
-    app.quit()
-    win = null
-  },
-  onError: (error) => {
-    console.warn('Failed to stop local services after all windows closed:', error)
-  },
-}))
-
-app.on('before-quit', createBeforeQuitCleanup({
-  stopLocalServices: stopAllLocalServices,
-  quit: () => app.quit(),
-  onError: (error) => {
-    console.warn('Failed to stop local services before quit:', error)
-  },
-}))
-
-app.on('activate', () => {
-  if (isBackgroundSmoke) return
-  // On OS X it's common to re-create a window in the app when the
-  // dock icon is clicked and there are no other windows open.
-  if (shouldCreateWindowOnActivate({
-    isAppReady: app.isReady(),
-    openWindowCount: BrowserWindow.getAllWindows().length,
-  })) {
-    createWindow()
-  }
-})
+bindWindowRuntime({ ttsRuntimeController, selfMediaIpc })
 
 
 registerSourceMemoryIpcHandlers({ getDataDir })
@@ -597,62 +338,6 @@ const videoWorkflowChapterService = createVideoWorkflowChapterService({
   writeChapterManifest: remotionChapterManifestService.writeCas.bind(remotionChapterManifestService),
   readCurrentShotSlots: (identity) => readRemotionCurrentShotSlotsFromWorkspace(path.join(projectRootFor(identity.projectId), 'remotion'), identity.projectId, identity.chapterId),
 })
-const buildManagedVideoUseChapterRun = (request: VideoWorkflowChapterRunRequestV1): VideoUseChapterRunV1 => {
-  const paths = videoUseAdapter.paths
-  const now = Date.now()
-  const packageLockSha256 = fs.existsSync(paths.videoUseLockPath)
-    ? crypto.createHash('sha256').update(fs.readFileSync(paths.videoUseLockPath)).digest('hex')
-    : '0'.repeat(64)
-  // overlay 装饰槽内容感知定位：从项目 store 补每镜生成图路径（缺失回退公式定位）
-  const imagePathByShotId = (() => {
-    const map = new Map<string, string>()
-    try {
-      const store = readStudioWorkflowStore(getDataDir(), request.projectId)
-      const storyboards = (store?.state?.storyboards ?? []) as Array<{ id: string; episodeId: string; mediaRef?: { path?: string } }>
-      for (const storyboard of storyboards) {
-        if (storyboard.episodeId !== request.chapterId || !storyboard.mediaRef?.path) continue
-        const parsed = parseProjectFileUrl(storyboard.mediaRef.path)
-        if (!parsed || parsed.projectId !== request.projectId) continue
-        try {
-          map.set(storyboard.id, resolveProjectScopedFilePath(getDataDir(), parsed.projectId, parsed.relativePath))
-        } catch { /* 单镜媒体缺失不阻塞 */ }
-      }
-    } catch { /* store 缺失 → 公式定位 */ }
-    return map
-  })()
-  return {
-    schemaVersion: 1,
-    projectId: request.projectId,
-    chapterId: request.chapterId,
-    revision: request.revision,
-    mode: request.mode,
-    derivedInputPolicy: request.derivedInputPolicy,
-    storyboardSourcePolicy: request.storyboardSourcePolicy ?? 'current-ready',
-    stage: 'preparing',
-    timeUnit: 'seconds',
-    shots: request.shots.map((shot) => ({
-      ...shot,
-      videoPath: resolveStudioSourcePath(shot.videoPath),
-      audioPath: resolveStudioSourcePath(shot.audioPath),
-      ...(imagePathByShotId.get(shot.shotId) ? { imagePath: imagePathByShotId.get(shot.shotId)! } : {}),
-    })),
-    ...(request.boundaryIntents ? { boundaryIntents: request.boundaryIntents } : {}),
-    sourceSha256: request.sourceSha256,
-    audioSha256: request.audioSha256,
-    textSha256: request.textSha256,
-    featureFlags: request.featureFlags,
-    runtime: {
-      profileId: 'video-use-managed-python-v1',
-      pythonExecutable: paths.pythonExecutable,
-      ffmpegExecutable: paths.ffmpegExecutable,
-      ffprobeExecutable: paths.ffprobeExecutable,
-      packageLockSha256,
-      markerPath: paths.videoUseMarkerPath,
-    },
-    createdAt: now,
-    updatedAt: now,
-  }
-}
 const videoWorkflowIpc = registerVideoWorkflowIpcHandlers({
   getStorageBasePath,
   appVersion: app.getVersion(),
@@ -813,7 +498,7 @@ const chapterQcOrchestratorDeps: ChapterQcOrchestratorDeps = {
 const chapterQcIpc = registerChapterQcIpcHandlers({
   deps: chapterQcOrchestratorDeps,
   runQc: runChapterQc,
-  getWindow: () => win,
+  getWindow: getWin,
 })
 
 // Local music generation sidecar — MusicGen BGM generation via CLI worker.
@@ -951,68 +636,17 @@ bindChapterProjectionRuntime({
   remotionQueue,
   videoWorkflowChapterService,
 })
-const nativeStudioQueueBridge = new RemotionStudioRenderQueueBridge({
-  getContext: () => getHostedStudioChapterContext(),
-  enqueueChapter: async ({ context }) => {
-    console.error('[chapter-video] step1: probeStatus...')
-    const browser = await remotionRuntime.controller.probeStatus()
-    if (browser.status.state !== 'ready') {
-      return { accepted: false, message: `Remotion Headless Shell 未就绪: ${browser.status.message ?? browser.status.state}` }
-    }
-    console.error('[chapter-video] step2: bundle manifest...')
-    const manifest = JSON.parse(await fs.promises.readFile(path.join(remotionBundlePath, 'manifest.json'), 'utf8')) as {
-      contentHash?: unknown;
-      templateVersion?: unknown;
-    }
-    if (typeof manifest.contentHash !== 'string' || typeof manifest.templateVersion !== 'string') {
-      return { accepted: false, message: 'Remotion bundle manifest 缺少 template/content hash' }
-    }
-    console.error('[chapter-video] step3: chapter manifest...')
-    const chapterManifest = await remotionChapterManifestService.read(context.projectId, context.chapterId)
-    if (!chapterManifest) return { accepted: false, message: '当前章节缺少 RemotionChapterManifestV2' }
-    console.error('[chapter-video] step4: createReadyRemotionChapterJob...')
-    const job = await createReadyRemotionChapterJob({
-      plan: context.plan,
-      currentShotSlots: context.currentShotSlots,
-      chapterManifest,
-      bundleContentHash: manifest.contentHash,
-      templateVersion: manifest.templateVersion,
-      remotionVersion,
-      // 分层发现根与 RemotionChapterRenderer.render 同款（08-19 multilayer Child1），
-      // 保证 expectedJobId 不因层资产进身份哈希而失配。
-      layerWorkspaceRoot: path.join(projectRootFor(context.projectId), 'remotion'),
-    })
-    console.error('[chapter-video] step5: evaluateVideoWorkflowChapterGate...')
-    const gate = await evaluateVideoWorkflowChapterGate({
-      projectId: context.projectId,
-      chapterId: context.chapterId,
-      revision: context.revision,
-      inputSha256: job.inputHash,
-    })
-    if (!gate.accepted) {
-      return { accepted: false, message: `视频工作流章节 gate blocked: ${gate.code} ${gate.message}` }
-    }
-    console.error('[chapter-video] step6: remotionQueue.enqueueChapter...')
-    const result = await remotionQueue.enqueueChapter({
-      kind: 'chapter',
-      job,
-      dependencyJobIds: context.currentShotSlots.map((slot) => slot.job.jobId),
-      plan: context.plan,
-      currentShotSlots: [...context.currentShotSlots],
-    })
-    if (!result.accepted) {
-      const message = 'message' in result ? result.message : `ChapterVideo 队列拒绝: ${result.reason}`
-      console.error('[chapter-video] enqueueChapter 拒绝:', message, 'deps:', context.currentShotSlots.length)
-      return { accepted: false, message }
-    }
-    return { accepted: true, job: result.job }
-  },
-  getJob: (jobId) => remotionQueue.getJob(jobId),
-  cancelJob: (jobId) => remotionQueue.cancel(jobId),
+bindNativeBridgeRuntime({
+  remotionVersion,
+  remotionBundlePath,
+  remotionRuntime,
+  remotionChapterManifestService,
+  remotionQueue,
+  videoUseAdapter,
 })
 bindHostedStudioRuntime(nativeStudioQueueBridge)
 
-disposeRemotionRuntime = async () => {
+setDisposeRemotionRuntime(async () => {
   await hostedStudioIpc.dispose()
   await disposeHostedStudio()
   remotionQueueIpc.dispose()
@@ -1032,7 +666,7 @@ disposeRemotionRuntime = async () => {
   sfxGenIpc.dispose()
   music3GenIpc.dispose()
   remotionRuntime.dispose()
-}
+})
 
 registerStudioRenderIpcHandlers({
   getMediaRoot,
@@ -1081,3 +715,4 @@ app.whenReady().then(async () => {
 
 
 export { blessedDialogPaths, getDataDir, getManagedSourceRoots, isStudioSourcePathAllowed, projectLocationStore, projectRootFor, readImageSource, storageManager } from "./main-paths";
+export { VITE_DEV_SERVER_URL, MAIN_DIST, RENDERER_DIST } from "./main-env";
