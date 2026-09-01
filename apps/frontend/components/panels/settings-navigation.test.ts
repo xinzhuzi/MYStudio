@@ -53,10 +53,11 @@ describe("SettingsPanel navigation", () => {
   });
 
   it("orders cloud AI and local configuration before image size settings", () => {
-    expect(SETTINGS_TABS.slice(0, 4)).toEqual([
+    expect(SETTINGS_TABS.slice(0, 5)).toEqual([
       { value: "appearance", label: "外观" },
       { value: "api", label: "云端AI" },
       { value: "plugins", label: "本地配置" },
+      { value: "mcp", label: "MCP 服务" },
       { value: "imageSize", label: "图片规格" },
     ]);
   });
