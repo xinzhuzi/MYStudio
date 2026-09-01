@@ -1,113 +1,92 @@
-import { bindRuntimeControllerRoots, getStorageBasePath, getMediaRoot, getSkillsRoot, getAssetsRoot, getProjectDataRoot, scheduleAutoClean } from "./main-paths";
-import { blessedDialogPaths, getDataDir, isStudioSourcePathAllowed, projectLocationStore, projectRootFor, readImageSource, storageManager } from "./main-paths";
-import { ensureStudioSkillsAvailableAtStartup, getStudioManualsSourceRoot, getStudioSkillSyncOptions, resolveReferenceAudioSourcePath, resolveStudioSourcePath } from "./main-paths";
-import { bindChapterProjectionRuntime, enqueueChapterSceneSegments, evaluateVideoWorkflowChapterGate, readEditingProjectSnapshot, readRemotionCurrentShotSlots } from "./main-chapter-projection";
-import { createDiagnosticsOperationId, diagnosticsFetchBytes, diagnosticsFetchJson, diagnosticsLogService, runTtsRuntimeDiagnostics, writeDiagnosticsLog } from "./main-diagnostics";
-import { bindHostedStudioRuntime, disposeHostedStudio, hostedStudioIpc, persistStudioEditingRevision } from "./main-hosted-studio";
-import { isBackgroundSmoke, MAIN_DIST, RENDERER_DIST } from "./main-env";
-import { bindWindowRuntime, createWindow, getWin, resolveAvailableUpdate, setDisposeRemotionRuntime, stopLocalSidecars, typedPackageMetadata } from "./main-window";
-import { bindNativeBridgeRuntime, buildManagedVideoUseChapterRun, nativeStudioQueueBridge } from "./main-native-bridge";
+import {bindRuntimeControllerRoots, getStorageBasePath, getMediaRoot, getSkillsRoot, getAssetsRoot, scheduleAutoClean} from "./main-paths";
+import {blessedDialogPaths, getDataDir, isStudioSourcePathAllowed, projectRootFor, readImageSource} from "./main-paths";
+import {ensureStudioSkillsAvailableAtStartup, resolveReferenceAudioSourcePath, resolveStudioSourcePath} from "./main-paths";
+import {bindChapterProjectionRuntime, enqueueChapterSceneSegments, evaluateVideoWorkflowChapterGate, readEditingProjectSnapshot, readRemotionCurrentShotSlots} from "./main-chapter-projection";
+import {createDiagnosticsOperationId, diagnosticsFetchBytes, diagnosticsFetchJson, runTtsRuntimeDiagnostics, writeDiagnosticsLog} from "./main-diagnostics";
+import {bindHostedStudioRuntime, disposeHostedStudio, hostedStudioIpc, persistStudioEditingRevision} from "./main-hosted-studio";
+import {isBackgroundSmoke, MAIN_DIST, RENDERER_DIST} from "./main-env";
+import {bindWindowRuntime, createWindow, getWin, setDisposeRemotionRuntime, stopLocalSidecars, typedPackageMetadata} from "./main-window";
+import {bindNativeBridgeRuntime, buildManagedVideoUseChapterRun, nativeStudioQueueBridge} from "./main-native-bridge";
+// IPC 注册群(存储/媒体/资产/更新/诊断/导出)整体外迁,副作用 import 即注册
+import "./main-ipc-bootstrap";
 
 // Copyright (c) 2025 hotflow2024
 // Licensed under AGPL-3.0-or-later. See LICENSE for details.
 // Commercial licensing available. See COMMERCIAL_LICENSE.md.
-import { app, protocol, shell, utilityProcess } from 'electron'
+import {app, protocol, utilityProcess} from 'electron'
 import path from 'node:path'
-import { configureSidecarLogCapture } from '../diagnostics/sidecar-log-capture'
-import { createTtsRuntimeController } from '../tts/tts-runtime'
-import {
- 
-} from '../storage/studio-runtime-assets'
+import {configureSidecarLogCapture} from '../diagnostics/sidecar-log-capture'
+import {createTtsRuntimeController} from '../tts/tts-runtime'
 import {
   isNonEmptyString,
-  sanitizeExternalUrl,
 } from '../runtime/update-policy'
-import {
-  makeStudioSkillFileUrl,
-} from './main-utils'
-import { installUncaughtExceptionGuard } from '../runtime/uncaught-exception-guard'
-import { registerTtsIpcHandlers } from '../ipc/tts/tts-ipc'
-import { registerSelfMediaIpcHandlers } from '../ipc/self-media/self-media-ipc'
-import { createCredentialVault } from '../aitoearn/credential-vault'
-import { createAitoearnLocalPlatformBridge } from '../aitoearn/providers/aitoearn-local/platform-bridge'
-import { createOfficialPlatformTransports } from '../aitoearn/providers/aitoearn-local/platforms/official/transports'
-import { registerDiagnosticsIpcHandlers } from '../ipc/diagnostics/diagnostics-ipc'
-import { registerRenderHwIpcHandlers } from '../ipc/rendering/render-hw-ipc'
-import { registerStorageMediaIpcHandlers } from '../ipc/media/storage-media-ipc'
-import { registerAppUpdaterIpcHandlers } from '../ipc/app/app-updater-ipc'
+import {installUncaughtExceptionGuard} from '../runtime/uncaught-exception-guard'
+import {registerTtsIpcHandlers} from '../ipc/tts/tts-ipc'
+import {registerSelfMediaIpcHandlers} from '../ipc/self-media/self-media-ipc'
+import {createCredentialVault} from '../aitoearn/credential-vault'
+import {createAitoearnLocalPlatformBridge} from '../aitoearn/providers/aitoearn-local/platform-bridge'
+import {createOfficialPlatformTransports} from '../aitoearn/providers/aitoearn-local/platforms/official/transports'
+import {registerStorageMediaIpcHandlers} from '../ipc/media/storage-media-ipc'
 import {
   resolveLocalMediaPath,
   resolveProjectScopedFilePath,
 } from '../storage/storage-paths'
-import { registerProjectFileIpcHandlers } from '../ipc/files/project-file-ipc'
-import { registerImageProbeIpcHandlers } from '../ipc/media/image-probe-ipc'
-import { registerSourceMemoryIpcHandlers } from '../ipc/studio/source-memory-ipc'
-import { configureArtifactManagementIpc } from '../ipc/files/artifact-management-ipc'
-import { registerStudioContentIpcHandlers } from '../ipc/assets/studio-content-ipc'
-import { registerAppShellIpcHandlers } from '../ipc/app/app-shell-ipc'
-import { registerApiRequestIpcHandlers } from '../ipc/ai/api-request-ipc'
-import { registerFileExportIpcHandlers } from '../ipc/files/file-export-ipc'
-import { registerAssetLibraryIpcHandlers } from '../ipc/assets/asset-library-ipc'
-import { probeStudioMediaEvidence, registerStudioRenderIpcHandlers } from '../ipc/studio/studio-render-ipc'
-import { registerRemotionRuntimeIpcHandlers } from '../ipc/studio/remotion-runtime-ipc'
-import { registerSubtitleFontsIpcHandlers } from '../ipc/studio/subtitle-fonts-ipc'
-import { customFontAbsolutePath } from '@/lib/studio/remotion/custom-font-store'
-import { registerVideoWorkflowIpcHandlers } from '../ipc/studio/video-workflow-ipc'
-import { registerRemotionPreviewIpcHandlers } from '../ipc/studio/remotion-preview-ipc'
-import { registerRemotionShotIpcHandlers } from '../ipc/studio/remotion-shot-ipc'
-import { registerRemotionQueueIpcHandlers } from '../ipc/studio/remotion-queue-ipc'
-import { registerRemotionChapterManifestIpcHandlers } from '../ipc/studio/remotion-chapter-manifest-ipc'
-import { RemotionShotRenderer } from '@rendering/plugins/remotion/renderer/remotion-shot-renderer'
-import type { CinematicCameraPreset } from '@rendering/plugins/remotion/composition/composition-props'
-import { RemotionChapterRenderer } from '@rendering/plugins/remotion/renderer/remotion-chapter-renderer'
+import {registerAssetLibraryIpcHandlers} from '../ipc/assets/asset-library-ipc'
+import {probeStudioMediaEvidence, registerStudioRenderIpcHandlers} from '../ipc/studio/studio-render-ipc'
+import {registerRemotionRuntimeIpcHandlers} from '../ipc/studio/remotion-runtime-ipc'
+import {registerSubtitleFontsIpcHandlers} from '../ipc/studio/subtitle-fonts-ipc'
+import {customFontAbsolutePath} from '@/lib/studio/remotion/custom-font-store'
+import {registerVideoWorkflowIpcHandlers} from '../ipc/studio/video-workflow-ipc'
+import {registerRemotionPreviewIpcHandlers} from '../ipc/studio/remotion-preview-ipc'
+import {registerRemotionShotIpcHandlers} from '../ipc/studio/remotion-shot-ipc'
+import {registerRemotionQueueIpcHandlers} from '../ipc/studio/remotion-queue-ipc'
+import {registerRemotionChapterManifestIpcHandlers} from '../ipc/studio/remotion-chapter-manifest-ipc'
+import {RemotionShotRenderer} from '@rendering/plugins/remotion/renderer/remotion-shot-renderer'
+import type {CinematicCameraPreset} from '@rendering/plugins/remotion/composition/composition-props'
+import {RemotionChapterRenderer} from '@rendering/plugins/remotion/renderer/remotion-chapter-renderer'
 import {
   createRemotionQueueFilePersistence,
   migrateQueueEventsFileIfNeeded,
   RemotionRenderQueue,
   resolveHardwareQueueConcurrency,
 } from '@rendering/plugins/remotion/queue/remotion-render-queue'
-import { resolveRemotionRuntimeDir } from '@rendering/plugins/remotion/browser/remotion-runtime-manifest'
-import { RemotionChapterManifestService } from '@rendering/plugins/remotion/manifest/remotion-chapter-manifest-service'
-import { createVideoWorkflowChapterService } from '@rendering/plugins/video-workflow/video-workflow-chapter-service'
-import { acceptVideoUseArtifact } from '@rendering/plugins/video-workflow/video-workflow-artifact-store'
-import { createVideoUseAdapter } from '@rendering/plugins/video-use/video-use-adapter'
-import { createHyperFramesAdapter } from '@rendering/plugins/hyperframes/hyperframes-adapter'
-import { createDepthAdapter } from '@rendering/plugins/depth/depth-adapter'
-import { createDepthRuntimeController } from '@rendering/plugins/depth/depth-runtime-controller'
-import { registerDepthIpcHandlers } from '../ipc/studio/depth-ipc'
-import { createImageGenRuntimeController } from '@rendering/plugins/image_gen/image-gen-runtime-controller'
-import { registerImageGenIpcHandlers } from '../ipc/studio/image-gen-ipc'
-import { createUpscaleRuntimeController } from '@rendering/plugins/upscale/upscale-runtime-controller'
-import { registerUpscaleIpcHandlers } from '../ipc/studio/upscale-ipc'
-import { registerSeedVr2IpcHandlers } from '../ipc/studio/seedvr2-ipc'
-import { registerMcpIpcHandlers } from '../ipc/studio/mcp-ipc'
-import { registerVlmReviewIpc } from '../ipc/studio/vlm-review-ipc'
-import { VlmReviewRuntimeController } from '../rendering/plugins/vlm_review/vlm-review-runtime-controller'
-import { createVideoQcRuntimeController } from '@rendering/plugins/videoqc/dover-runtime-controller'
-import { registerVideoQcIpcHandlers } from '../ipc/studio/video-qc-ipc'
-import { runChapterQc, type ChapterQcOrchestratorDeps } from '@rendering/plugins/videoqc/chapter-qc-orchestrator'
-import { registerChapterQcIpcHandlers } from '../ipc/studio/chapter-qc-ipc'
-import { createAudioGenRuntimeController } from '@rendering/plugins/audio_gen/audio-gen-runtime-controller'
-import { registerAudioGenIpcHandlers } from '../ipc/studio/audio-gen-ipc'
-import { createSfxGenRuntimeController } from '@rendering/plugins/sfx_gen/sfx-gen-runtime-controller'
-import { registerSfxGenIpcHandlers } from '../ipc/studio/sfx-gen-ipc'
-import { createMusic3GenRuntimeController } from '@rendering/plugins/music3_gen/music3-gen-runtime-controller'
-import { registerMusic3GenIpcHandlers } from '../ipc/studio/music3-gen-ipc'
-import { audioModelCacheDir, music3ModelCacheDir, sfxModelCacheDir, ttsModelCacheDir } from '../storage/model-dirs'
-import { createVideoWorkflowRuntimeManager } from '@rendering/plugins/video-workflow/video-workflow-runtime-manager'
-import { selectSharedVideoToolchain } from '@rendering/plugins/video-workflow/video-workflow-runtime'
-import type {
-} from '@rendering/contracts/video-workflow'
-import { createDefaultProjectMoveEngine } from '../storage/project-move-engine'
-import { registerProjectFolderIpcHandlers } from '../ipc/projects/project-folder-ipc'
-import { readStudioWorkflowStore } from '../storage/studio-workflow-store-io'
-import { readRemotionCurrentShotSlotsFromWorkspace } from '../../lib/studio/remotion/remotion-current-slot'
+import {resolveRemotionRuntimeDir} from '@rendering/plugins/remotion/browser/remotion-runtime-manifest'
+import {RemotionChapterManifestService} from '@rendering/plugins/remotion/manifest/remotion-chapter-manifest-service'
+import {createVideoWorkflowChapterService} from '@rendering/plugins/video-workflow/video-workflow-chapter-service'
+import {acceptVideoUseArtifact} from '@rendering/plugins/video-workflow/video-workflow-artifact-store'
+import {createVideoUseAdapter} from '@rendering/plugins/video-use/video-use-adapter'
+import {createHyperFramesAdapter} from '@rendering/plugins/hyperframes/hyperframes-adapter'
+import {createDepthAdapter} from '@rendering/plugins/depth/depth-adapter'
+import {createDepthRuntimeController} from '@rendering/plugins/depth/depth-runtime-controller'
+import {registerDepthIpcHandlers} from '../ipc/studio/depth-ipc'
+import {createImageGenRuntimeController} from '@rendering/plugins/image_gen/image-gen-runtime-controller'
+import {registerImageGenIpcHandlers} from '../ipc/studio/image-gen-ipc'
+import {createUpscaleRuntimeController} from '@rendering/plugins/upscale/upscale-runtime-controller'
+import {registerUpscaleIpcHandlers} from '../ipc/studio/upscale-ipc'
+import {registerSeedVr2IpcHandlers} from '../ipc/studio/seedvr2-ipc'
+import {registerMcpIpcHandlers} from '../ipc/studio/mcp-ipc'
+import {registerVlmReviewIpc} from '../ipc/studio/vlm-review-ipc'
+import {VlmReviewRuntimeController} from '../rendering/plugins/vlm_review/vlm-review-runtime-controller'
+import {createVideoQcRuntimeController} from '@rendering/plugins/videoqc/dover-runtime-controller'
+import {registerVideoQcIpcHandlers} from '../ipc/studio/video-qc-ipc'
+import {runChapterQc, type ChapterQcOrchestratorDeps} from '@rendering/plugins/videoqc/chapter-qc-orchestrator'
+import {registerChapterQcIpcHandlers} from '../ipc/studio/chapter-qc-ipc'
+import {createAudioGenRuntimeController} from '@rendering/plugins/audio_gen/audio-gen-runtime-controller'
+import {registerAudioGenIpcHandlers} from '../ipc/studio/audio-gen-ipc'
+import {createSfxGenRuntimeController} from '@rendering/plugins/sfx_gen/sfx-gen-runtime-controller'
+import {registerSfxGenIpcHandlers} from '../ipc/studio/sfx-gen-ipc'
+import {createMusic3GenRuntimeController} from '@rendering/plugins/music3_gen/music3-gen-runtime-controller'
+import {registerMusic3GenIpcHandlers} from '../ipc/studio/music3-gen-ipc'
+import {audioModelCacheDir, music3ModelCacheDir, sfxModelCacheDir, ttsModelCacheDir} from '../storage/model-dirs'
+import {createVideoWorkflowRuntimeManager} from '@rendering/plugins/video-workflow/video-workflow-runtime-manager'
+import {selectSharedVideoToolchain} from '@rendering/plugins/video-workflow/video-workflow-runtime'
+import {readStudioWorkflowStore} from '../storage/studio-workflow-store-io'
+import {readRemotionCurrentShotSlotsFromWorkspace} from '../../lib/studio/remotion/remotion-current-slot'
 import {
-  getProtocolMimeType as getMimeType,
   registerPrivilegedSchemes,
   registerProtocolHandlers,
 } from '../runtime/register-protocol-handlers'
-import { ensureChromiumDataDir } from '../runtime/chromium-data-dir'
+import {ensureChromiumDataDir} from '../runtime/chromium-data-dir'
 
 // electron-vite 构建后的目录结构
 //
@@ -193,61 +172,6 @@ const selfMediaIpc = registerSelfMediaIpcHandlers({
   },
 })
 bindWindowRuntime({ ttsRuntimeController, selfMediaIpc })
-
-
-registerSourceMemoryIpcHandlers({ getDataDir })
-registerProjectFileIpcHandlers({
-  getDataDir,
-  readImageSource,
-  getMimeType,
-})
-
-registerImageProbeIpcHandlers({
-  getDataDir,
-  getMediaRoot,
-  getAssetsRoot,
-})
-
-configureArtifactManagementIpc({
-  getDataDir,
-  getMediaRoot,
-})
-
-registerStudioContentIpcHandlers({
-  getSkillsRoot,
-  getStudioSkillSyncOptions,
-  makeStudioSkillFileUrl,
-})
-storageManager.registerIpcHandlers({ getStudioManualsSourceRoot })
-
-registerProjectFolderIpcHandlers({
-  locationStore: projectLocationStore,
-  getProjectsDataRoot: () => getProjectDataRoot({ ensure: false }),
-  createMoveEngine: () => createDefaultProjectMoveEngine(),
-})
-
-registerAppUpdaterIpcHandlers({
-  getVersion: () => app.getVersion(),
-  resolveAvailableUpdate,
-  sanitizeExternalUrl,
-  openExternal: (url) => shell.openExternal(url),
-})
-
-registerAppShellIpcHandlers({ resolveSourcePath: resolveStudioSourcePath })
-
-registerDiagnosticsIpcHandlers({
-  service: diagnosticsLogService,
-  openPath: (targetPath) => shell.openPath(targetPath),
-})
-
-registerRenderHwIpcHandlers(() => app.getPath('userData'))
-
-registerApiRequestIpcHandlers({
-  createOperationId: createDiagnosticsOperationId,
-  writeDiagnosticsLog,
-})
-
-registerFileExportIpcHandlers({ getDataDir, getMediaRoot })
 
 const remotionUserDataDir = app.getPath('userData')
 const remotionBundlePath = app.isPackaged

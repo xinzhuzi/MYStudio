@@ -11,6 +11,7 @@ const mainSource = readFileSync(new URL("./main.ts", import.meta.url), "utf8")
   + readFileSync(new URL("./main-env.ts", import.meta.url), "utf8")
   + readFileSync(new URL("./main-window.ts", import.meta.url), "utf8")
   + readFileSync(new URL("./main-native-bridge.ts", import.meta.url), "utf8")
+  + readFileSync(new URL("./main-ipc-bootstrap.ts", import.meta.url), "utf8")
   + readFileSync(new URL("../ipc/media/storage-media-ipc.ts", import.meta.url), "utf8");
 const mainDir = path.dirname(fileURLToPath(import.meta.url));
 /** Source: apps/frontend/electron/main → apps/ is ../../../ ; APP_ROOT in built main is also apps/. */
