@@ -1,6 +1,6 @@
 import { memo, useEffect, useState } from "react";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Checkbox } from "@/components/ui/checkbox";
+import { UpscaleDenoiseModeField, denoiseModeToOpts, type UpscaleDenoiseMode } from "./upscale-denoise-mode";
 import { Handle, Position, type Node, type NodeProps } from "@xyflow/react";
 import { CheckCircle2, Image as ImageIcon, Loader2, Save, Trash2, WandSparkles, ZoomIn } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -87,7 +87,14 @@ export const ImageWorkflowNodeCard = memo(function ImageWorkflowNodeCard({ data 
       )}
     >
       {node.type === "generated" ? (
-        <Handle type="target" position={Position.Left} className="!h-3 !w-3 !border-info/40 !bg-info/20" />
+        <Handle
+          type="target"
+          position={Position.Left}
+          // 08-31-connect-create-menu:target 手柄默认 connectableStart=false,
+          // 显式开启才能从成图输入拖出建上游(提示词/参考图)——上游菜单入口
+          isConnectableStart
+          className="!h-3 !w-3 !border-info/40 !bg-info/20"
+        />
       ) : null}
       <Handle type="source" position={Position.Right} className="!h-3 !w-3 !border-info/40 !bg-info/20" />
       <div className="mb-3 flex items-start justify-between gap-2">
@@ -214,7 +221,7 @@ function GeneratedNodeEditor({
   onApplyToStoryboard: ImageWorkflowNodeData["onApplyToStoryboard"];
 }) {
   const [upscaleConfirmOpen, setUpscaleConfirmOpen] = useState(false);
-  const [upscaleDenoise, setUpscaleDenoise] = useState(false);
+  const [upscaleDenoiseMode, setUpscaleDenoiseMode] = useState<UpscaleDenoiseMode>("off");
   const generating = node.status === "generating" || node.status === "queued";
   const [imageLongSide, setImageLongSide] = useState(0);
   const alreadyUpscaled = (node.resultUrl || "").includes("up4x-")
@@ -327,16 +334,9 @@ function GeneratedNodeEditor({
                   本地 Real-ESRGAN 原生 ×4 放大，结果替换该节点成图。
                 </DialogDescription>
               </DialogHeader>
-              <label
-                className="flex cursor-pointer items-center gap-2 rounded-md border border-border bg-muted/20 px-3 py-2 text-sm"
-                data-image-node-upscale-denoise
-              >
-                <Checkbox
-                  checked={upscaleDenoise}
-                  onCheckedChange={(checked) => setUpscaleDenoise(checked === true)}
-                />
-                <span>先去噪（轻度，压掉斑驳噪点再放大）</span>
-              </label>
+              <div data-image-node-upscale-denoise>
+                <UpscaleDenoiseModeField value={upscaleDenoiseMode} onChange={setUpscaleDenoiseMode} />
+              </div>
               <DialogFooter>
                 <Button variant="ghost" size="sm" onClick={() => setUpscaleConfirmOpen(false)}>
                   取消
@@ -345,7 +345,7 @@ function GeneratedNodeEditor({
                   size="sm"
                   onClick={() => {
                     setUpscaleConfirmOpen(false);
-                    void onUpscale(node.id, { denoise: upscaleDenoise });
+                    void onUpscale(node.id, denoiseModeToOpts(upscaleDenoiseMode));
                   }}
                 >
                   <ZoomIn className="mr-1 h-3.5 w-3.5" />
