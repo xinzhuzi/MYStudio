@@ -43,7 +43,7 @@ export function ImageWorkflowConnectCreateMenu({
       <div
         role="menu"
         aria-label="创建节点并连接"
-        className="connect-create-menu absolute min-w-56 overflow-hidden rounded-lg border border-border bg-card/95 p-1 shadow-lg backdrop-blur-md"
+        className="connect-create-menu absolute min-w-56 overflow-hidden rounded-lg border border-border bg-popover p-1 shadow-lg"
         style={{ left: x, top: y }}
         onPointerDown={(event) => event.stopPropagation()}
         onKeyDown={(event) => {

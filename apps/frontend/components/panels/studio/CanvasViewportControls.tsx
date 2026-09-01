@@ -78,7 +78,7 @@ export function CanvasViewportControls<TNode extends Node>({
         position="bottom-left"
         className="workflow-node-viewport-controls nodrag nopan"
       >
-        <div className="flex max-w-[calc(100vw-3rem)] items-center gap-1 rounded-lg border border-border/80 bg-card/90 p-1 text-xs text-card-foreground backdrop-blur-md">
+        <div className="flex max-w-[calc(100vw-3rem)] items-center gap-1 rounded-lg border border-border/80 bg-card p-1 text-xs text-card-foreground">
           <button
             type="button"
             aria-label="缩小画布"
