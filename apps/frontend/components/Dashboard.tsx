@@ -17,13 +17,11 @@ import { useProjectStore } from "@/stores/project/project-store";
 import { useStudioStore } from "@/stores/studio/studio-store";
 import { useMediaPanelStore } from "@/stores/navigation/media-panel-store";
 import { useAppSettingsStore } from "@/stores/app/app-settings-store";
-import { switchProject } from "@/lib/project/project-switcher";
 import {
   DEFAULT_REMOTION_RENDER_SETTINGS,
   buildRemotionProductionProfile,
   ensureRemotionWorkspace,
 } from "@/lib/studio/remotion/remotion-workspace-storage";
-import { getFileStorageBridge } from "@/lib/bridge/file-storage";
 import { getProjectFolderBridge } from "@/lib/bridge/project-folder";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
