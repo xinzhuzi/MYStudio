@@ -4,6 +4,7 @@
 // http 网络地址)+ 连通性测试。工具的实际消费是后续任务;本页管「存好+测通」。
 
 import { useEffect, useMemo, useState } from "react";
+import { toast } from "sonner";
 import { Check, Loader2, Pencil, Plus, Server, Trash2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -27,6 +28,8 @@ import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import {
   useMcpServersStore,
+  importMcpServersJson,
+  exportMcpServersJson,
   type McpServerConfig,
   type McpTransport,
 } from "@/stores/mcp/mcp-servers-store";
@@ -92,6 +95,11 @@ export function McpSettingsTab() {
   const [draft, setDraft] = useState<DraftForm>(emptyDraft);
   const [formError, setFormError] = useState<string | null>(null);
   const [tests, setTests] = useState<Record<string, TestState>>({});
+  // JSON 配置区:业界统一格式(Claude Desktop/Claude Code/Cursor 同款),可互导
+  const [jsonText, setJsonText] = useState("");
+  const [jsonError, setJsonError] = useState<string | null>(null);
+
+  useEffect(() => setJsonText(exportMcpServersJson()), [servers.length]);
   // ComfyUI 桥=服务型引擎,状态展示从「本地图片生成」移此(服务连接分组)
   const [bridge, setBridge] = useState<{ ready: boolean; version?: string } | null>(null);
 
@@ -236,6 +244,49 @@ export function McpSettingsTab() {
             </span>
           )}
         </div>
+      </section>
+
+      {/* JSON 配置 —— 业界统一格式,与 Claude Desktop / Claude Code / Cursor 等可直接互导 */}
+      <section className="space-y-3" data-testid="mcp-json-config">
+        <div className="flex items-center justify-between gap-4">
+          <div>
+            <h4 className="text-sm font-semibold text-foreground">JSON 配置（通用格式）</h4>
+            <p className="mt-1 text-xs text-muted-foreground">
+              与其他软件通用的配置格式：粘贴别处的 mcpServers 配置点「导入」（同名更新、新名新增）；也可以复制当前配置到别的软件用。
+            </p>
+          </div>
+          <div className="flex shrink-0 gap-2">
+            <Button size="sm" variant="outline" onClick={() => { void navigator.clipboard.writeText(jsonText); toast.success("已复制到剪贴板"); }}>
+              复制
+            </Button>
+            <Button size="sm" variant="outline" onClick={() => setJsonText(exportMcpServersJson())}>
+              刷新为当前配置
+            </Button>
+            <Button size="sm" onClick={() => {
+              const result = importMcpServersJson(jsonText);
+              if (result.ok) {
+                setJsonError(null);
+                toast.success(`导入成功：新增 ${result.added} 个，更新 ${result.updated} 个`);
+              } else {
+                setJsonError(result.error);
+              }
+            }}>
+              导入
+            </Button>
+          </div>
+        </div>
+        <Textarea
+          value={jsonText}
+          onChange={(event) => setJsonText(event.target.value)}
+          rows={8}
+          className="font-mono text-xs"
+          placeholder={'{\n  "mcpServers": {\n    "本地文件": {\n      "command": "npx",\n      "args": ["-y", "@modelcontextprotocol/server-filesystem", "/tmp"]\n    }\n  }\n}'}
+          aria-label="mcpServers JSON 配置"
+          data-testid="mcp-json-textarea"
+        />
+        {jsonError ? (
+          <p className="text-xs text-destructive" data-testid="mcp-json-error">{jsonError}</p>
+        ) : null}
       </section>
 
       {!hasRuntime ? (
