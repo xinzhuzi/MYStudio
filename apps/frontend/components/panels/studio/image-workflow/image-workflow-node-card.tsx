@@ -2,7 +2,7 @@ import { memo, useEffect, useState } from "react";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { UpscaleDenoiseModeField, denoiseModeToOpts, type UpscaleDenoiseMode } from "./upscale-denoise-mode";
 import { Handle, Position, type Node, type NodeProps } from "@xyflow/react";
-import { CheckCircle2, Image as ImageIcon, Loader2, Save, Scissors, Trash2, WandSparkles, ZoomIn } from "lucide-react";
+import { CheckCircle2, FileText, Grid2x2, Image as ImageIcon, Loader2, Save, Scissors, Trash2, WandSparkles, ZoomIn } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { LocalImage } from "@/components/ui/local-image";
 import { ResolutionBadge, probeImagePixelSize } from "@/components/ui/image-resolution-badge";
@@ -30,8 +30,8 @@ export interface ImageWorkflowNodeData extends Record<string, unknown> {
   onUpscale: (nodeId: string, opts?: { denoise?: boolean }) => void | Promise<void>;
   onApplyToStoryboard: (nodeId: string) => void;
   onDelete: (nodeId: string) => void;
-  /** 取材工具入口(09-01 画布取材):裁剪等,有图节点可用 */
-  onCrop?: (nodeId: string) => void;
+  /** 取材工具入口(09-01 画布取材):有图节点可用 */
+  onExtract?: (nodeId: string, tool: "crop" | "split" | "reverse") => void;
 }
 
 export type ImageWorkflowReactNode = Node<ImageWorkflowNodeData>;
@@ -123,16 +123,36 @@ export const ImageWorkflowNodeCard = memo(function ImageWorkflowNodeCard({ data 
           </div>
         </div>
         <div className="flex shrink-0 items-center gap-0.5">
-          {data.onCrop && node.type !== "prompt" && extractableImageUrl(node) ? (
-            <Button
-              size="icon"
-              variant="ghost"
-              aria-label="裁剪取材"
-              title="裁剪并生成衍生参考图"
-              onClick={() => data.onCrop?.(node.id)}
-            >
-              <Scissors className="h-4 w-4" />
-            </Button>
+          {data.onExtract && node.type !== "prompt" && extractableImageUrl(node) ? (
+            <>
+              <Button
+                size="icon"
+                variant="ghost"
+                aria-label="裁剪取材"
+                title="裁剪并生成衍生参考图"
+                onClick={() => data.onExtract?.(node.id, "crop")}
+              >
+                <Scissors className="h-4 w-4" />
+              </Button>
+              <Button
+                size="icon"
+                variant="ghost"
+                aria-label="切图取材"
+                title="按行列切分为多张参考图"
+                onClick={() => data.onExtract?.(node.id, "split")}
+              >
+                <Grid2x2 className="h-4 w-4" />
+              </Button>
+              <Button
+                size="icon"
+                variant="ghost"
+                aria-label="反推提示词"
+                title="从图片反推生图提示词"
+                onClick={() => data.onExtract?.(node.id, "reverse")}
+              >
+                <FileText className="h-4 w-4" />
+              </Button>
+            </>
           ) : null}
           <Button size="icon" variant="ghost" aria-label="删除节点" onClick={() => data.onDelete(node.id)}>
             <Trash2 className="h-4 w-4" />

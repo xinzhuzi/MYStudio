@@ -367,6 +367,7 @@ export interface ImageWorkflowGeneratedNode extends ImageWorkflowNodeBase {
 export interface ImageWorkflowPromptNode extends ImageWorkflowNodeBase {
   type: "prompt";
   prompt: string;
+  derivedFrom?: ImageWorkflowDerivationSource;
   negativePrompt?: string;
   model?: string;
   aspectRatio: string;

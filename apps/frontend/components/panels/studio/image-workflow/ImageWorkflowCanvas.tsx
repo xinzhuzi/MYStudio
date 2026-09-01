@@ -44,6 +44,7 @@ import {
   isAssetOpenContext,
   openContextTargetLabel,
   resolveActionGeneratedNode,
+  nextNodePosition,
   resolveGenerationTargetNodeId,
   workflowTargetLabel,
 } from "./image-workflow-graph-utils";
@@ -59,10 +60,18 @@ import { denoiseModeToOpts, type UpscaleDenoiseMode } from "./upscale-denoise-mo
 import { useImageWorkflowActions } from "./use-image-workflow-actions";
 import { useImageWorkflowCommands } from "./use-image-workflow-commands";
 import { CropFrameDialog } from "./crop-frame-dialog";
+import { SplitGridDialog } from "./split-grid-dialog";
+import {
+  reversePromptFromImage,
+} from "@/lib/studio/image-workflow/reverse-prompt";
+import { addPromptImageNode } from "@/lib/studio/image-workflow/graph-build";
+import { toPreviewSrc } from "@/lib/media/preview-src";
 import { useDerivedReferenceLanding } from "./use-derived-reference-landing";
 import {
+  cellRect,
   cropImageData,
   createBrowserCanvasCodec,
+  splitImageData,
 } from "@/lib/studio/image-workflow/extraction-pixels";
 import type { NormRect } from "@/lib/studio/image-workflow/crop-geometry";
 import { ImageWorkflowSidebar } from "./image-workflow-sidebar";
@@ -428,6 +437,17 @@ export function ImageWorkflowCanvas({
     imageUrl: string;
     title: string;
   } | null>(null);
+  const [splitTarget, setSplitTarget] = useState<{
+    nodeId: string;
+    imageUrl: string;
+    title: string;
+  } | null>(null);
+  const [reverseState, setReverseState] = useState<{
+    nodeId: string;
+    imageUrl: string;
+    title: string;
+    running: boolean;
+  } | null>(null);
 
   const handleCropConfirm = useCallback(
     async (rect: NormRect) => {
@@ -454,15 +474,83 @@ export function ImageWorkflowCanvas({
     [cropTarget, landDerived],
   );
 
-  const handleCropEntry = useCallback((nodeId: string) => {
-    if (!activeGraph) return;
-    const node = activeGraph.nodes.find((item) => item.id === nodeId);
-    if (!node) return;
-    const imageUrl =
-      node.type === "reference" ? node.imageUrl : node.type === "generated" ? node.resultUrl : "";
-    if (!imageUrl) return;
-    setCropTarget({ nodeId, imageUrl: toPreviewSrc(imageUrl), title: node.title });
-  }, [activeGraph]);
+  const extractImageUrl = (node: ImageWorkflowNode | undefined): string => {
+    if (!node) return "";
+    if (node.type === "reference") return node.imageUrl || "";
+    if (node.type === "generated") return node.resultUrl || "";
+    return "";
+  };
+
+  const handleExtractEntry = useCallback(
+    (nodeId: string, tool: "crop" | "split" | "reverse") => {
+      if (!activeGraph) return;
+      const node = activeGraph.nodes.find((item) => item.id === nodeId);
+      const rawUrl = extractImageUrl(node);
+      if (!node || !rawUrl) return;
+      const target = { nodeId, imageUrl: toPreviewSrc(rawUrl), title: node.title };
+      if (tool === "crop") setCropTarget(target);
+      else if (tool === "split") setSplitTarget(target);
+      else setReverseState({ ...target, running: false });
+    },
+    [activeGraph],
+  );
+
+  const handleSplitConfirm = useCallback(
+    async (rows: number, cols: number) => {
+      const target = splitTarget;
+      if (!target) return;
+      setSplitTarget(null);
+      try {
+        const codec = createBrowserCanvasCodec();
+        const sourcePixels = await codec.decode(target.imageUrl);
+        const pieces = splitImageData(sourcePixels, rows, cols);
+        await landDerived(
+          pieces.map((piece, index) => {
+            const row = Math.floor(index / cols);
+            const col = index % cols;
+            return {
+              sourceNodeId: target.nodeId,
+              pixels: { dataUrl: codec.encode(piece), width: piece.width, height: piece.height },
+              title: `${target.title}·${row + 1}-${col + 1}`,
+              derivation: {
+                kind: "split" as const,
+                sourceNodeId: target.nodeId,
+                cell: { row, col },
+                region: cellRect(rows, cols, row, col),
+              },
+            };
+          }),
+        );
+      } catch (error) {
+        toast.error(error instanceof Error ? error.message : "切图取材失败");
+      }
+    },
+    [landDerived, splitTarget],
+  );
+
+  const runReversePrompt = useCallback(async () => {
+    const target = reverseState;
+    if (!target || target.running) return;
+    setReverseState({ ...target, running: true });
+    try {
+      const prompt = await reversePromptFromImage(target.imageUrl);
+      if (!activeGraph) return;
+      const generatedTarget = resolveGenerationTargetNodeId(activeGraph, target.nodeId);
+      saveGraph(
+        addPromptImageNode(activeGraph, {
+          title: `${target.title}·反推`,
+          prompt,
+          position: nextNodePosition(activeGraph, "prompt"),
+          ...(generatedTarget ? { targetNodeId: generatedTarget } : {}),
+        }),
+      );
+      setReverseState(null);
+      toast.success("反推提示词已建节点");
+    } catch (error) {
+      setReverseState(null);
+      toast.error(error instanceof Error ? error.message : "反推提示词失败");
+    }
+  }, [activeGraph, resolveGenerationTargetNodeId, reverseState, saveGraph]);
 
   const reactFlowNodes = useMemo<ImageWorkflowReactNode[]>(
     () =>
@@ -475,12 +563,12 @@ export function ImageWorkflowCanvas({
         onUpscale: upscaleNode,
         onApplyToStoryboard: applyNodeToStoryboard,
         onDelete: deleteNode,
-        onCrop: handleCropEntry,
+        onExtract: handleExtractEntry,
       }),
     [
       activeGraph,
       applyNodeToStoryboard,
-      handleCropEntry,
+      handleExtractEntry,
       deleteNode,
       generateNode,
       selectedNodeId,
@@ -531,6 +619,12 @@ export function ImageWorkflowCanvas({
       window.setTimeout(() => flowInstance?.fitView({ ...FIT_VIEW_OPTIONS, duration: 260 }), 80);
     });
   }, [activeGraph, flowInstance, saveGraph]);
+
+  // 反推入口设定后自动执行(与一键生成同款无中间确认)
+  useEffect(() => {
+    if (reverseState && !reverseState.running) void runReversePrompt();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [reverseState]);
 
   // 连接落空创建(08-31-canvas-connect-create-menu):落点仅作菜单锚,
   // 节点落位走布局单源(createConnectedImageNode 内 nextStackedPosition)
@@ -675,6 +769,20 @@ export function ImageWorkflowCanvas({
         onClose={() => setCropTarget(null)}
         onConfirm={(rect) => void handleCropConfirm(rect)}
       />
+      <SplitGridDialog
+        open={Boolean(splitTarget)}
+        imageUrl={splitTarget?.imageUrl ?? null}
+        sourceTitle={splitTarget?.title ?? ""}
+        onClose={() => setSplitTarget(null)}
+        onConfirm={(rows, cols) => void handleSplitConfirm(rows, cols)}
+      />
+      {reverseState ? (
+        <div className="pointer-events-none absolute inset-0 z-40 flex items-center justify-center">
+          <div className="pointer-events-auto flex items-center gap-2 rounded-lg border border-border bg-card px-4 py-2 text-sm text-card-foreground">
+            {reverseState.running ? "正在反推提示词…" : "准备反推…"}
+          </div>
+        </div>
+      ) : null}
       <ImageWorkflowBatchUpscaleDialog
         open={isBatchUpscaleDialogOpen}
         onOpenChange={setIsBatchUpscaleDialogOpen}
