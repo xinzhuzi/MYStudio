@@ -52,7 +52,7 @@ describe("辅助画布提示词输入焦点", () => {
     useFreedomStore.setState({ imagePrompt: "剑客立于山门" });
     render(<ImageStudioCanvas />);
     const textarea = await waitFor(
-      () => screen.getByPlaceholderText("描述要生成的图片") as HTMLTextAreaElement,
+      () => screen.getByPlaceholderText(/描述要生成的图片/) as HTMLTextAreaElement,
       { timeout: 5000 },
     );
     textarea.focus();
