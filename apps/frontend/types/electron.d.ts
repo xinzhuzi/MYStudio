@@ -667,6 +667,19 @@ declare global {
       downloadModel: (model: string) => Promise<{ accepted: boolean; message: string }>;
       setActiveModel: (model: string) => Promise<{ accepted: boolean; message: string }>;
     };
+    mcpRuntime?: {
+      testServer: (config: {
+        transport: "stdio" | "http";
+        command?: string;
+        args?: string[];
+        env?: Record<string, string>;
+        url?: string;
+      }) => Promise<
+        | { ok: true; serverName?: string; tools: { name: string; description?: string }[] }
+        | { ok: false; error: string }
+      >;
+      disconnect: (serverId: string) => Promise<{ ok: boolean }>;
+    };
     upscaleRuntime?: {
       probe: (request?: UpscaleRuntimeLifecycleRequestV1) => Promise<UpscaleRuntimeStatusV1>;
       prepare: (request?: UpscaleRuntimeLifecycleRequestV1) => Promise<UpscaleRuntimeActionReplyV1>;
@@ -682,6 +695,9 @@ declare global {
       getConfig: () => Promise<{ modelCacheDir: string }>;
       setModelCacheDir: (dirPath: string) => Promise<{ success: boolean; error?: string }>;
       deleteModel: (model: string) => Promise<{ success: boolean; error?: string }>;
+    };
+    seedvr2Restore?: {
+      probe: () => Promise<import("@rendering/contracts/seedvr2-restore").SeedVr2ProbeResultV1>;
     };
     audioGenRuntime?: {
       status: () => Promise<import("@/types/audio-gen").AudioGenRuntimeStatus>;

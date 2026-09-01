@@ -78,7 +78,7 @@ export function createMcpHostController(): McpHostController {
         const listed = await withTimeout(client.listTools(), TEST_TIMEOUT_MS);
         return {
           ok: true,
-          serverName: listed.serverInfo?.name,
+          serverName: (listed.serverInfo as { name?: string } | undefined)?.name,
           tools: (listed.tools ?? []).map((tool) => ({
             name: tool.name,
             description: typeof tool.description === "string" ? tool.description.slice(0, 160) : undefined,

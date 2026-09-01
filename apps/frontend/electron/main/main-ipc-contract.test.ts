@@ -92,6 +92,8 @@ image-gen-runtime-status
 image-gen-runtime-stop
 image-host-upload
 image-probe-size
+mcp-server-disconnect
+mcp-server-test
 move-image
 music3-gen-install-mlxserve
 music3-gen-install-weights
@@ -136,6 +138,7 @@ render-hw-get
 render-hw-set
 save-file-dialog
 save-image
+seedvr2-restore-probe
 self-media:cancel-task
 self-media:configure-provider
 self-media:create-task
@@ -309,7 +312,7 @@ describe("Electron IPC contract", () => {
     });
 
     expect(channels).toHaveLength(new Set(channels).size);
-    expect([...channels].sort()).toEqual(EXPECTED_CHANNELS);
+expect([...channels].sort()).toEqual(EXPECTED_CHANNELS);
   });
 
   it("keeps every preload invoke mapped to a registered channel", () => {
@@ -317,8 +320,14 @@ describe("Electron IPC contract", () => {
       const source = fs.readFileSync(filePath, "utf8");
       return listIpcCallChannels(source, "ipcMain.handle");
     });
-    const preloadSource = fs.readFileSync(path.join(electronRoot, "preload", "preload.ts"), "utf8");
+    const preloadSource = fs.readFileSync(path.join(electronRoot, "preload", "preload.ts"), "utf8")
+      + fs.readFileSync(path.join(electronRoot, "preload", "preload-runtime.ts"), "utf8");
     const invokeChannels = listIpcCallChannels(preloadSource, "ipcRenderer.invoke");
+    {
+      const a=[...new Set(EXPECTED_CHANNELS)];
+      const b=[...new Set(handlerChannels)];
+      console.log('DIFF expected-not-found:', a.filter(c=>!b.includes(c)), 'found-not-expected:', b.filter(c=>!a.includes(c)));
+    }
     const handlerOnlyChannels = [...new Set(handlerChannels)]
       .filter((channel) => !new Set(invokeChannels).has(channel))
       .sort();
@@ -326,6 +335,7 @@ describe("Electron IPC contract", () => {
     expect(invokeChannels).toHaveLength(new Set(invokeChannels).size);
     expect(invokeChannels.every((channel) => EXPECTED_CHANNELS.includes(channel))).toBe(true);
     expect(handlerOnlyChannels).toEqual([
+      "seedvr2-restore-probe",
       "storage-export-media-data",
       "storage-export-project-data",
       "storage-import-media-data",

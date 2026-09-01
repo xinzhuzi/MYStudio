@@ -113,6 +113,8 @@ import { createImageGenRuntimeController } from '@rendering/plugins/image_gen/im
 import { registerImageGenIpcHandlers } from '../ipc/studio/image-gen-ipc'
 import { createUpscaleRuntimeController } from '@rendering/plugins/upscale/upscale-runtime-controller'
 import { registerUpscaleIpcHandlers } from '../ipc/studio/upscale-ipc'
+import { registerSeedVr2IpcHandlers } from '../ipc/studio/seedvr2-ipc'
+import { registerMcpIpcHandlers } from '../ipc/studio/mcp-ipc'
 import { registerVlmReviewIpc } from '../ipc/studio/vlm-review-ipc'
 import { VlmReviewRuntimeController } from '../rendering/plugins/vlm_review/vlm-review-runtime-controller'
 import { createVideoQcRuntimeController } from '@rendering/plugins/videoqc/dover-runtime-controller'
@@ -1006,6 +1008,8 @@ const upscaleRuntimeController = createUpscaleRuntimeController({
   },
 })
 const upscaleIpc = registerUpscaleIpcHandlers({ controller: upscaleRuntimeController })
+const seedvr2Ipc = registerSeedVr2IpcHandlers()
+const mcpIpc = registerMcpIpcHandlers()
 // 非阻塞启动期刷新:冷启动后 status() 即反映真实运行时/模型状态,超分动作的
 // precheck(节点按钮/分镜 tile)无需用户先访问设置页。
 void upscaleRuntimeController.refresh()
@@ -1779,6 +1783,8 @@ disposeRemotionRuntime = async () => {
   depthIpc.dispose()
   imageGenIpc.dispose()
   upscaleIpc.dispose()
+  seedvr2Ipc.dispose()
+  mcpIpc.dispose()
   videoQcIpc.dispose()
   chapterQcIpc.dispose()
   audioGenIpc.dispose()
