@@ -54,9 +54,13 @@ export function ImageWorkflowFlowView({
 }) {
   const [nodes, setNodes, onNodesChange] =
     useNodesState<ImageWorkflowReactNode>(reactFlowNodes);
+  // 节点集按成员签名判等(assist 面实弹失焦根修的同款隐患):打字只改节点
+  // 内容不改集合,防每键全量 updateNodeInternals → 重测窗口节点隐藏失焦。
+  const nodeIdsSignature = activeGraph.nodes.map((node) => node.id).join("\u0001");
   const measurementNodeIds = useMemo(
-    () => activeGraph.nodes.map((node) => node.id),
-    [activeGraph.nodes],
+    () => nodeIdsSignature.split("\u0001"),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [nodeIdsSignature],
   );
 
   useEffect(() => {
