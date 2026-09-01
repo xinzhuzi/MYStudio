@@ -61,7 +61,7 @@ describe("StoryboardPanelTab 分辨率角标", () => {
     __resetImageResolutionCacheForTests();
   });
 
-  it("按真实像素显示档位:4K 超分产物标 4K,1K 图标 1K,不再显示「已生成」", async () => {
+  it("按真实像素显示角标:超分产物与普通图均显示 W×H,不再显示「已生成」", async () => {
     installFakeImage({
       "project-file://p/workflow-images/chapter-001/f/up4x-gen-1.png": [4096, 4096],
       "project-file://p/workflow-images/chapter-001/f/gen-2.png": [1280, 720],
@@ -76,14 +76,14 @@ describe("StoryboardPanelTab 分辨率角标", () => {
       />,
     );
     await vi.waitFor(() => {
-      expect(screen.getByText("4K")).toBeTruthy();
+      expect(screen.getByText("4096×4096")).toBeTruthy();
     });
-    expect(screen.getByText("1K")).toBeTruthy();
+    expect(screen.getByText("1280×720")).toBeTruthy();
     expect(screen.queryByText("已生成")).toBeNull();
-    expect(screen.queryAllByText("4K")).toHaveLength(1);
+    expect(screen.queryAllByText("4096×4096")).toHaveLength(1);
   });
 
-  it("未生成与探测失败的镜不显示档位角标", async () => {
+  it("未生成的镜不显示像素角标,有效图片仍显示真实尺寸", async () => {
     installFakeImage({ "project-file://p/gen-3.png": [1024, 1024] });
     render(
       <StoryboardPanelTab
@@ -92,9 +92,9 @@ describe("StoryboardPanelTab 分辨率角标", () => {
       />,
     );
     await vi.waitFor(() => {
-      expect(screen.getByText("1K")).toBeTruthy();
+      expect(screen.getByText("1024×1024")).toBeTruthy();
     });
-    expect(screen.queryByText("4K")).toBeNull();
+    expect(screen.queryByText("4096×4096")).toBeNull();
     // S## 序号标仍在
     expect(screen.getByText("S03")).toBeTruthy();
   });

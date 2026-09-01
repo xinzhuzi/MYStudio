@@ -16,6 +16,7 @@ import { useSceneStore } from "@/stores/library/scene-store";
 import { useResolvedImageUrl } from "@/hooks/use-resolved-image-url";
 import { useAppSettingsStore } from "@/stores/app/app-settings-store";
 import { useProjectStore } from "@/stores/project/project-store";
+import { ResolutionBadge } from "@/components/ui/image-resolution-badge";
 import {
   Popover,
   PopoverContent,
@@ -38,9 +39,26 @@ interface SceneLibrarySelectorProps {
 }
 
 /** 解析 local-image:// 缩略图 */
-function ResolvedImg({ src, alt, className }: { src: string; alt: string; className?: string }) {
+function ResolvedImg({
+  src,
+  alt,
+  className,
+  showResolutionBadge = false,
+}: {
+  src: string;
+  alt: string;
+  className?: string;
+  showResolutionBadge?: boolean;
+}) {
   const resolved = useResolvedImageUrl(src);
-  return <img src={resolved || ''} alt={alt} className={className} />;
+  const image = <img src={resolved || ''} alt={alt} className={className} />;
+  if (!showResolutionBadge) return image;
+  return (
+    <span className="relative block">
+      {image}
+      {resolved ? <ResolutionBadge src={resolved} /> : null}
+    </span>
+  );
 }
 
 export function SceneLibrarySelector({
@@ -221,7 +239,12 @@ export function SceneLibrarySelector({
                         )}
                       >
                       {thumbnail ? (
-                          <ResolvedImg src={thumbnail} alt={s.name} className="w-12 h-12 rounded object-contain bg-muted shrink-0" />
+                          <ResolvedImg
+                            src={thumbnail}
+                            alt={s.name}
+                            className="w-12 h-12 rounded object-contain bg-muted shrink-0"
+                            showResolutionBadge
+                          />
                         ) : (
                           <div className="w-12 h-12 rounded bg-muted flex items-center justify-center shrink-0">
                             <Layers className="h-4 w-4" />
@@ -344,7 +367,12 @@ export function SceneLibrarySelector({
               <Label className="text-xs text-muted-foreground mb-2 block">参考图预览</Label>
               {previewRefImage ? (
                 <div className="w-full rounded-lg bg-muted flex items-center justify-center min-h-[120px] max-h-[240px] overflow-hidden">
-                  <ResolvedImg src={previewRefImage} alt="参考图" className="max-w-full max-h-[240px] rounded-lg object-contain" />
+                  <ResolvedImg
+                    src={previewRefImage}
+                    alt="参考图"
+                    className="max-w-full max-h-[240px] rounded-lg object-contain"
+                    showResolutionBadge
+                  />
                 </div>
               ) : (
                 <div className="w-full aspect-video rounded-lg bg-muted flex items-center justify-center">

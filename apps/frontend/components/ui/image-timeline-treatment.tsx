@@ -6,6 +6,7 @@
 import { useState } from "react";
 import { cn } from "@/lib/utils";
 import type { BackgroundType } from "@/types/editor";
+import { ResolutionBadge } from "@/components/ui/image-resolution-badge";
 
 interface ImageTimelineTreatmentProps {
   src: string;
@@ -91,6 +92,7 @@ export function ImageTimelineTreatment({
           onLoad={handleImageLoad}
         />
       </div>
+      <ResolutionBadge src={src} />
 
       {/* Loading state */}
       {!imageLoaded && (

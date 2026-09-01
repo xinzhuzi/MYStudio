@@ -4,21 +4,20 @@
 "use client";
 
 /**
- * 图片分辨率角标(1K/2K/4K)
+ * 图片真实像素尺寸角标(例如 1920×1080)
  *
  * 尺寸探测两级:受管 scheme(project-file/asset-file/local-image/file)优先走
  * 主进程 `image-probe-size` IPC(只读文件头,零整图拉取/解码——图片密集
- * 视图 82 张 4K 同发曾把应用冻死,2026-08-25 根修);IPC 不可用/不认识该
+ * 视图 82 张高分辨率图片同发曾把应用冻死,2026-08-25 根修);IPC 不可用/不认识该
  * 格式时回退 `new Image()` 探测(同现状)。同一 URL 全局只探测一次(模块级
  * 缓存,失败也缓存,视频/坏路径不反复探测)。探测 URL 统一剥离 ?thumb=1
- * (资产缩略图是 200×200 独立文件)。未知/失败/过小(<700 长边)一律渲染
- * null,不占位、不闪烁。
+ * (资产缩略图是 200×200 独立文件)。探测成功(宽高均大于 0)即显示真实
+ * 像素尺寸;未知/失败仍渲染 null,不占位、不闪烁。
  */
 
 import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
-import type { ImageResolution } from "@/lib/ai/image-size-presets";
-import { classifyImageResolution, toResolutionProbeSrc } from "@/lib/image-resolution";
+import { toResolutionProbeSrc } from "@/lib/image-resolution";
 import { whenInteractionSettled } from "@/hooks/interaction-defer";
 
 interface ImagePixelSize {
@@ -59,7 +58,7 @@ function probeViaImageElement(url: string): Promise<ImagePixelSize | null> {
   });
 }
 
-/** 对外探测入口(带缓存/去重):分镜瓦片 4K 预判等非角标场景复用,勿绕行 new Image()。 */
+/** 对外探测入口(带缓存/去重):分镜瓦片分辨率预判等非角标场景复用,勿绕行 new Image()。 */
 export function probeImagePixelSize(src: string): Promise<ImagePixelSize | null> {
   return probeImageSize(src);
 }
@@ -85,49 +84,46 @@ function probeImageSize(src: string): Promise<ImagePixelSize | null> {
   return probe;
 }
 
-function classifyCached(src: string): ImageResolution | null {
-  const cached = sizeCache.get(src);
-  if (!cached) return null;
-  return classifyImageResolution(cached.width, cached.height);
-}
-
 /** 仅供测试:清空模块级探测缓存。 */
 export function __resetImageResolutionCacheForTests() {
   sizeCache.clear();
   inflightProbes.clear();
 }
 
-export function useImageResolution(src?: string): ImageResolution | null {
-  const [resolution, setResolution] = useState<ImageResolution | null>(() =>
-    src ? classifyCached(src) : null,
+export function useImagePixelSize(src?: string): ImagePixelSize | null {
+  const [size, setSize] = useState<ImagePixelSize | null>(() =>
+    src ? sizeCache.get(src) ?? null : null,
   );
 
   useEffect(() => {
     if (!src) {
-      setResolution(null);
+      setSize(null);
       return;
     }
     const cached = sizeCache.get(src);
     if (cached !== undefined) {
-      setResolution(classifyCached(src));
+      setSize(cached);
       return;
     }
+    // 未探测过的 src 先清空旧值:探测是异步的(交互门闸下最长延迟数秒),
+    // 不清空会在新图上短暂显示上一张图的尺寸。
+    setSize(null);
     let cancelled = false;
-    void probeImageSize(src).then(() => {
-      if (!cancelled) setResolution(classifyCached(src));
+    void probeImageSize(src).then((nextSize) => {
+      if (!cancelled) setSize(nextSize);
     });
     return () => {
       cancelled = true;
     };
   }, [src]);
 
-  return resolution;
+  return size;
 }
 
 export function ResolutionBadge({ src, className }: { src?: string; className?: string }) {
   const probeSrc = src ? toResolutionProbeSrc(src) : undefined;
-  const resolution = useImageResolution(probeSrc);
-  if (!resolution) return null;
+  const size = useImagePixelSize(probeSrc);
+  if (!size) return null;
   return (
     <span
       className={cn(
@@ -135,7 +131,7 @@ export function ResolutionBadge({ src, className }: { src?: string; className?: 
         className,
       )}
     >
-      {resolution}
+      {size.width}×{size.height}
     </span>
   );
 }

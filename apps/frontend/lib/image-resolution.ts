@@ -2,31 +2,6 @@
 // Licensed under AGPL-3.0-or-later. See LICENSE for details.
 // Commercial licensing available. See COMMERCIAL_LICENSE.md.
 
-import type { ImageResolution } from "@/lib/ai/image-size-presets";
-
-/**
- * 图片分辨率档位分类(展示时探测真实像素,不依赖数据层字段)。
- *
- * 阈值依据 GPT_IMAGE_SIZE_MAP 各档长边阶梯:
- *   1K 档长边 544~1280 / 2K 档长边 2016~2048 / 4K 档长边 2880~3840,
- * 档间空隙干净,取 2000/2800 双侧留余量;长边 < 700 视为缩略图/图标,不标。
- * 本地超分 ×4 结果(≥2880)天然落入 4K。
- *
- * 2026-08-28 校准:旧 1600/2400 偏宽,把 1920×1080(行业口径 1080p)和
- * 供应商自选尺寸(如 gpt-image-2 经 chat 通道回的 1672×941)都标成了 2K,
- * 与用户对「2K=2048 级」的直觉冲突;2000/2800 后 1080p 归 1K、2048 级归
- * 2K、2880 级(含 1:1 的 4K 档)归 4K,行业叫法与应用档位表双对齐。
- */
-export function classifyImageResolution(width: number, height: number): ImageResolution | null {
-  if (!Number.isFinite(width) || !Number.isFinite(height)) return null;
-  if (width <= 0 || height <= 0) return null;
-  const longEdge = Math.max(width, height);
-  if (longEdge >= 2800) return "4K";
-  if (longEdge >= 2000) return "2K";
-  if (longEdge >= 700) return "1K";
-  return null;
-}
-
 /**
  * 探测用 URL:剥离 ?thumb=1 变体。
  * 资产缩略图是 sips 200×200 独立文件(storage-paths.ts 解析到 thumbs 树),
