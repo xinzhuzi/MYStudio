@@ -51,7 +51,7 @@ export function resizeCropRect(
   locked: boolean,
   box: { width: number; height: number },
 ): NormRect {
-  let next: NormRect = { ...rect };
+  const next: NormRect = { ...rect };
   if (handle.includes("e")) next.width = rect.width + dxN;
   if (handle.includes("s")) next.height = rect.height + dyN;
   if (handle.includes("w")) {

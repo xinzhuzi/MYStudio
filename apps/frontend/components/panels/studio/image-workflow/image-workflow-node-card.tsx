@@ -2,7 +2,7 @@ import { memo, useEffect, useState } from "react";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { UpscaleDenoiseModeField, denoiseModeToOpts, type UpscaleDenoiseMode } from "./upscale-denoise-mode";
 import { Handle, Position, type Node, type NodeProps } from "@xyflow/react";
-import { CheckCircle2, FileText, Grid2x2, Image as ImageIcon, Loader2, Save, Scissors, Trash2, WandSparkles, ZoomIn } from "lucide-react";
+import { Brush, CheckCircle2, FileText, Grid2x2, Image as ImageIcon, Loader2, Save, Scissors, Trash2, WandSparkles, ZoomIn } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { LocalImage } from "@/components/ui/local-image";
 import { ResolutionBadge, probeImagePixelSize } from "@/components/ui/image-resolution-badge";
@@ -31,7 +31,7 @@ export interface ImageWorkflowNodeData extends Record<string, unknown> {
   onApplyToStoryboard: (nodeId: string) => void;
   onDelete: (nodeId: string) => void;
   /** 取材工具入口(09-01 画布取材):有图节点可用 */
-  onExtract?: (nodeId: string, tool: "crop" | "split" | "reverse") => void;
+  onExtract?: (nodeId: string, tool: "crop" | "split" | "reverse" | "mask") => void;
 }
 
 export type ImageWorkflowReactNode = Node<ImageWorkflowNodeData>;
@@ -142,6 +142,15 @@ export const ImageWorkflowNodeCard = memo(function ImageWorkflowNodeCard({ data 
                 onClick={() => data.onExtract?.(node.id, "split")}
               >
                 <Grid2x2 className="h-4 w-4" />
+              </Button>
+              <Button
+                size="icon"
+                variant="ghost"
+                aria-label="局部重绘"
+                title="涂抹蒙版局部重绘"
+                onClick={() => data.onExtract?.(node.id, "mask")}
+              >
+                <Brush className="h-4 w-4" />
               </Button>
               <Button
                 size="icon"
