@@ -1,3 +1,6 @@
+import { bindRuntimeControllerRoots, getStorageBasePath, getMediaRoot, getSkillsRoot, getAssetsRoot, getProjectDataRoot, scheduleAutoClean } from "./main-paths";
+import { blessedDialogPaths, getDataDir, isStudioSourcePathAllowed, projectLocationStore, projectRootFor, readImageSource, storageManager } from "./main-paths";
+
 // Copyright (c) 2025 hotflow2024
 // Licensed under AGPL-3.0-or-later. See LICENSE for details.
 // Commercial licensing available. See COMMERCIAL_LICENSE.md.
@@ -51,12 +54,9 @@ import {
   resolveLocalMediaPath,
 
   resolveProjectFileUrl,
-  resolveProjectRootPath,
   resolveProjectScopedFilePath,
-  setProjectLocationResolver,
   isPathInsideRoot,
 } from '../storage/storage-paths'
-import { createBlessedPathRegistry, isPathInsideAnyRoot } from '../security/managed-paths'
 import { registerProjectFileIpcHandlers } from '../ipc/files/project-file-ipc'
 import { registerImageProbeIpcHandlers } from '../ipc/media/image-probe-ipc'
 import { registerSourceMemoryIpcHandlers } from '../ipc/studio/source-memory-ipc'
@@ -136,8 +136,6 @@ import type {
   VideoUseChapterRunV1,
 } from '@rendering/contracts/video-workflow'
 import type { VideoWorkflowChapterRunRequestV1 } from '../rendering/contracts/video-workflow-ipc'
-import { createStorageManager } from '../storage/storage-manager'
-import { createProjectLocationStore } from '../storage/project-locations'
 import { createDefaultProjectMoveEngine } from '../storage/project-move-engine'
 import { registerProjectFolderIpcHandlers } from '../ipc/projects/project-folder-ipc'
 import { parseProjectFileUrl, resolveDataFilePath } from '../storage/storage-paths'
@@ -166,7 +164,6 @@ import {
 } from '../../lib/studio/remotion/remotion-current-slot'
 import { MediaBridgeServer } from '@rendering/plugins/remotion/media-bridge/media-bridge-server'
 import { buildMediaUrlMap } from '@rendering/plugins/remotion/media-bridge/media-bridge-source-map'
-import { createImageSourceReader } from '../media/image-source'
 import {
   getProtocolMimeType as getMimeType,
   registerPrivilegedSchemes,
@@ -552,73 +549,7 @@ app.on('activate', () => {
     createWindow()
   }
 })
-const storageManager = createStorageManager({ userDataPath: app.getPath('userData'), sessionDataPath: app.getPath('sessionData') })
-const {
-  getStorageBasePath,
-  getProjectDataRoot,
-  getMediaRoot,
-  getSkillsRoot,
-  getAssetsRoot,
-  scheduleAutoClean,
-} = storageManager
 
-// 每项目外部位置表(主进程解析权威):<userData>/project-locations.json。
-// resolver 必须先于任何 IPC handler 首次调用就位——所有 `_p/<pid>` 前缀的
-// 路径解析(file-storage / artifact / project-file / image-source)据此重定向;
-// 未注册位置的项目行为与 legacy 完全一致。
-const projectLocationStore = createProjectLocationStore({
-  userDataPath: app.getPath('userData'),
-  getProjectsDataRoot: () => getProjectDataRoot({ ensure: false }),
-})
-setProjectLocationResolver(projectLocationStore.get)
-
-// ==================== File Storage for App Data ====================
-const getDataDir = () => {
-  const dataDir = getProjectDataRoot()
-  if (!fs.existsSync(dataDir)) {
-    fs.mkdirSync(dataDir, { recursive: true })
-  }
-  return dataDir
-}
-// resolver-aware 项目根:外部位置项目 → <location>;legacy → <dataRoot>/_p/<pid>。
-const projectRootFor = (projectId: string) => resolveProjectRootPath(getDataDir(), projectId)
-
-// ===== IPC 路径原语的受管根守卫(安全加固 H-2/H-3)=====
-// 渲染进程提供的绝对路径只有两类可信:位于应用受管目录内,或刚由主进程
-// 原生对话框选出(短期「祝福」)。其余绝对路径一律拒绝,防止被攻破的
-// renderer 把 fs/shell/ffprobe 当任意读写原语。协议分支(project-file:///
-// local-image://)自带 realpath 级根约束,不经此守卫。
-const blessedDialogPaths = createBlessedPathRegistry()
-const getManagedSourceRoots = (): string[] => {
-  const roots = [
-    getDataDir(),
-    getMediaRoot(),
-    app.getPath('userData'),
-    // 存储基地址可被用户 link 到外部目录:python 运行时/assets 库/projects/media/
-    // skills 及深度/超分模型的默认缓存都在它之下,必须整体受管。
-    getStorageBasePath(),
-    ...Object.values(projectLocationStore.all()),
-    ttsRuntimeController.getModelCacheDir(),
-    // 深度/超分模型缓存目录可由用户配置为任意外部绝对路径(设置页「打开目录」等入口)。
-    depthRuntimeController.getModelCacheDir(),
-    upscaleRuntimeController.getModelCacheDir(),
-  ]
-  return Array.from(new Set(roots.filter((root) => typeof root === 'string' && root.trim() !== '')))
-}
-const isStudioSourcePathAllowed = (targetPath: string): boolean => (
-  isPathInsideAnyRoot(getManagedSourceRoots(), targetPath) || blessedDialogPaths.has(targetPath)
-)
-
-const readImageSource = createImageSourceReader({ getDataDir, getMediaRoot, getAssetsRoot, isAbsoluteImageSourceAllowed: isStudioSourcePathAllowed })
-
-// Storage/media orchestration delegates registerLocalMediaIpcHandlers, image-host, and file-storage.
-registerStorageMediaIpcHandlers({
-  getDataDir,
-  getMediaRoot,
-  createOperationId: createDiagnosticsOperationId,
-  writeDiagnosticsLog,
-  readImageSource,
-})
 
 function getStudioManualsSourceRoot() {
   // APP_ROOT is apps/ in electron-vite out layout (out/main -> ../..).
@@ -1007,6 +938,15 @@ const upscaleRuntimeController = createUpscaleRuntimeController({
     }
   },
 })
+registerStorageMediaIpcHandlers({
+  getDataDir,
+  getMediaRoot,
+  createOperationId: createDiagnosticsOperationId,
+  writeDiagnosticsLog,
+  readImageSource,
+})
+
+bindRuntimeControllerRoots(() => [ttsRuntimeController.getModelCacheDir(), depthRuntimeController.getModelCacheDir(), upscaleRuntimeController.getModelCacheDir()])
 const upscaleIpc = registerUpscaleIpcHandlers({ controller: upscaleRuntimeController })
 const seedvr2Ipc = registerSeedVr2IpcHandlers()
 const mcpIpc = registerMcpIpcHandlers()
@@ -1888,3 +1828,6 @@ app.whenReady().then(async () => {
   
   createWindow()
 })
+
+
+export { blessedDialogPaths, getDataDir, getManagedSourceRoots, isStudioSourcePathAllowed, projectLocationStore, projectRootFor, readImageSource, storageManager } from "./main-paths";
