@@ -77,4 +77,6 @@ export interface UpscaleRunPayload {
   outputImagePath: string;
   /** 轻度去噪预处理(超分前, 噪点治理 08-29);缺省 false。 */
   denoise?: boolean;
+  /** SeedVR2 模型修复预处理(超分前, 09-01);缺省不修复。 */
+  restore?: "seedvr2";
 }

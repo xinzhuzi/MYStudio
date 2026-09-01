@@ -67,6 +67,7 @@ import type { CanvasHistoryController } from "../use-canvas-history";
 import { ImageWorkflowScopedPending } from "./image-workflow-scoped-pending";
 import { useImageWorkflowGeneration } from "./use-image-workflow-generation";
 import { useImageWorkflowUpscale } from "./use-image-workflow-upscale";
+import { denoiseModeToOpts, type UpscaleDenoiseMode } from "./upscale-denoise-mode";
 import { useImageWorkflowActions } from "./use-image-workflow-actions";
 import { useImageWorkflowCommands } from "./use-image-workflow-commands";
 import { ImageWorkflowSidebar } from "./image-workflow-sidebar";
@@ -393,7 +394,7 @@ export function ImageWorkflowCanvas({
 
   const [isBatchUpscaleDialogOpen, setIsBatchUpscaleDialogOpen] = useState(false);
   const [batchUpscaleSelection, setBatchUpscaleSelection] = useState<Set<string>>(new Set());
-  const [batchUpscaleDenoise, setBatchUpscaleDenoise] = useState(false);
+  const [batchUpscaleDenoiseMode, setBatchUpscaleDenoiseMode] = useState<UpscaleDenoiseMode>("off");
   const upscalableNodes = useMemo(
     () => (activeGraph?.nodes ?? []).filter(
       (node): node is ImageWorkflowGeneratedNode =>
@@ -416,8 +417,8 @@ export function ImageWorkflowCanvas({
       .filter((node) => batchUpscaleSelection.has(node.id))
       .map((node) => ({ nodeId: node.id, title: node.title, resultUrl: node.resultUrl as string }));
     setIsBatchUpscaleDialogOpen(false);
-    if (entries.length > 0) void upscaleBatch(entries, { denoise: batchUpscaleDenoise });
-  }, [batchUpscaleDenoise, batchUpscaleSelection, upscaleBatch, upscalableNodes]);
+    if (entries.length > 0) void upscaleBatch(entries, denoiseModeToOpts(batchUpscaleDenoiseMode));
+  }, [batchUpscaleDenoiseMode, batchUpscaleSelection, upscaleBatch, upscalableNodes]);
 
   const reactFlowNodes = useMemo<ImageWorkflowReactNode[]>(
     () =>
@@ -627,8 +628,8 @@ export function ImageWorkflowCanvas({
         upscalableNodes={upscalableNodes}
         selection={batchUpscaleSelection}
         onSelectionChange={setBatchUpscaleSelection}
-          denoise={batchUpscaleDenoise}
-          onDenoiseChange={setBatchUpscaleDenoise}
+          denoiseMode={batchUpscaleDenoiseMode}
+          onDenoiseModeChange={setBatchUpscaleDenoiseMode}
         onStart={startBatchUpscale}
       />
       <ImageWorkflowBatchUpscaleProgress
@@ -705,10 +706,8 @@ function ImageWorkflowFlowView({
     (event: MouseEvent | TouchEvent, connectionState: FinalConnectionState) => {
       console.log("[connect-end-debug]", JSON.stringify({
         isValid: connectionState.isValid,
-        status: connectionState.status,
         fromNode: connectionState.fromNode?.id ?? null,
         fromHandleType: connectionState.fromHandle?.type ?? null,
-        toHandle: connectionState.toHandle?.id ?? null,
       }));
       if (connectionState.isValid) return;
       const fromNode = connectionState.fromNode;
@@ -807,6 +806,9 @@ function ImageWorkflowFlowView({
       <div className="pointer-events-none absolute bottom-3 left-3 z-10">
         <InteractionDeferHint />
       </div>
+      {/* connectionMode=loose:允许从成图 target 手柄反向拖出建上游(提示词/
+          参考图,strict 下 target 起拖被整体禁止);连线合法性由
+          connectImageWorkflowNodes 域规则把关,不受 loose 放宽 */}
       <ReactFlow
         className="absolute inset-0 bg-muted/20"
         nodes={nodes}

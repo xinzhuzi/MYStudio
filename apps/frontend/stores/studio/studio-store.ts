@@ -7,8 +7,6 @@ import {
 } from "@/lib/storage/project-storage";
 import { useProjectStore } from "@/stores/project/project-store";
 import {
-  buildAssetImageWorkflowPatch,
-  buildStoryboardImageWorkflowPatch,
   createImageWorkflowGraph,
 } from "@/lib/studio/image-workflow";
 import { createMaterialSliceActions } from "./material-slice";
@@ -25,7 +23,6 @@ import { createStoryboardSliceActions } from "./storyboard-slice";
 import { groupStoryboardsIntoTracks } from "@/lib/studio/production";
 // 08-27 二期 R2:锚写入的父媒体路径改走共享候选解析(纯函数,零运行时依赖,
 // 与面板 buildWorkbenchAssetMediaMap 同一取图事实源)
-import { resolvePersistableAssetCurrentMediaPaths } from "@/components/panels/studio/workflow-asset-media-path";
 import {
   createHumanContinuityAssetApproval,
  
@@ -35,7 +32,6 @@ import {
  
 } from "@/lib/studio/visual-continuity";
 import {
-  assertImageWorkflowGraphMediaPersistable,
   filterPersistedImageWorkflows,
   migrateStudioWorkflowState,
  
@@ -53,13 +49,9 @@ import {
   invalidateStoryboardsForAssetVersionChanges,
   markStale,
  
-  storyboardSourceFingerprint,
   trackSourceFingerprint,
   videoCandidateFingerprint,
 } from "./studio-store-continuity-helpers";
-import { useCharacterLibraryStore } from "@/stores/library/character-library-store";
-import { usePropsLibraryStore } from "@/stores/library/props-library-store";
-import { useSceneStore } from "@/stores/library/scene-store";
 import type {
   StoryboardKeyframe,
   AgentWorkData,
