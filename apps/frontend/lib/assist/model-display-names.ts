@@ -31,7 +31,7 @@ export const MODEL_DISPLAY_NAMES: Record<string, string> = {
   'qwen-image-max': '通义万相 Max',
   'qwen-image-max-2025-12-30': '通义万相 Max (2025-12-30)',
   'qwen-image-plus': '通义万相 Plus',
-  'z-image-turbo': 'Z-Image Turbo',
+  'z-image-turbo': 'Z-Image Turbo (本地)',
 
   // --- Flux ---
   'flux-dev': 'Flux Dev',
@@ -366,6 +366,10 @@ export const MODEL_DISPLAY_NAMES: Record<string, string> = {
   'suno_lyrics': 'Suno 歌词生成',
   'suno_upload': 'Suno 音频上传',
   'suno_fetch': 'Suno 任务查询',
+  'krea2-turbo': 'Krea2 Turbo (本地)',
+  'flux2-klein-9b': 'FLUX.2 Klein 9B (本地)',
+  'comfyui-bridge': 'ComfyUI 桥接 (本地)',
+  'qwen-image-edit-2511': 'Qwen 图像编辑 2511 (本地)',
 };
 
 /**

@@ -705,8 +705,8 @@ function assertLanded(outcomes: Array<{ nodeId: string } | { error: string }>): 
         upscalableNodes={upscalableNodes}
         selection={batchUpscaleSelection}
         onSelectionChange={setBatchUpscaleSelection}
-          denoiseMode={batchUpscaleDenoiseMode}
-          onDenoiseModeChange={setBatchUpscaleDenoiseMode}
+        denoiseMode={batchUpscaleDenoiseMode}
+        onDenoiseModeChange={setBatchUpscaleDenoiseMode}
         onStart={startBatchUpscale}
       />
       <ImageWorkflowBatchUpscaleProgress

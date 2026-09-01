@@ -3,22 +3,178 @@
   "name": "krea2_nsfw_pro",
   "comfyuiVersionMin": "0.33",
   "inputs": {
-    "prompt": {"node": "55", "field": "text"},
-    "seed": {"node": "57", "field": "seed"},
-    "steps": {"node": "57", "field": "steps"},
-    "width": {"node": "56", "field": "width"},
-    "height": {"node": "56", "field": "height"}
+    "prompt": {
+      "node": "55",
+      "field": "text",
+      "class_type": "CLIPTextEncode"
+    },
+    "seed": {
+      "node": "57",
+      "field": "seed",
+      "class_type": "KSampler"
+    },
+    "steps": {
+      "node": "57",
+      "field": "steps",
+      "class_type": "KSampler"
+    },
+    "width": {
+      "node": "56",
+      "field": "width",
+      "class_type": "EmptyLatentImage"
+    },
+    "height": {
+      "node": "56",
+      "field": "height",
+      "class_type": "EmptyLatentImage"
+    },
+    "negative_prompt": {
+      "node": "80",
+      "field": "text",
+      "class_type": "CLIPTextEncode"
+    }
   },
   "graph": {
-    "59": {"class_type": "UNETLoader", "inputs": {"unet_name": "krea2_turbo_bf16.safetensors", "weight_dtype": "default"}},
-    "75": {"class_type": "LoraLoaderModelOnly", "inputs": {"lora_name": "Krea2-NSFW/Krea 2 NSFW V4.safetensors", "strength_model": 1.0, "model": ["59", 0]}},
-    "60": {"class_type": "CLIPLoader", "inputs": {"clip_name": "qwen3-vl-4b-heretic.safetensors", "type": "krea2", "device": "default"}},
-    "55": {"class_type": "CLIPTextEncode", "inputs": {"text": "", "clip": ["60", 0]}},
-    "62": {"class_type": "ConditioningZeroOut", "inputs": {"conditioning": ["55", 0]}},
-    "56": {"class_type": "EmptyLatentImage", "inputs": {"width": 1024, "height": 1024, "batch_size": 1}},
-    "57": {"class_type": "KSampler", "inputs": {"model": ["75", 0], "positive": ["55", 0], "negative": ["62", 0], "latent_image": ["56", 0], "seed": 1, "steps": 8, "cfg": 1.0, "sampler_name": "euler", "scheduler": "simple", "denoise": 1.0}},
-    "61": {"class_type": "VAELoader", "inputs": {"vae_name": "qwen_image_vae.safetensors"}},
-    "58": {"class_type": "VAEDecode", "inputs": {"samples": ["57", 0], "vae": ["61", 0]}},
-    "29": {"class_type": "SaveImage", "inputs": {"images": ["58", 0], "filename_prefix": "MYStudio"}}
+    "59": {
+      "class_type": "UNETLoader",
+      "inputs": {
+        "unet_name": "krea2_turbo_bf16.safetensors",
+        "weight_dtype": "default"
+      }
+    },
+    "75": {
+      "class_type": "LoraLoaderModelOnly",
+      "inputs": {
+        "lora_name": "Krea2-NSFW/KREA 2 Mystic XXX v3.safetensors",
+        "strength_model": 1.0,
+        "model": [
+          "59",
+          0
+        ]
+      }
+    },
+    "60": {
+      "class_type": "CLIPLoader",
+      "inputs": {
+        "clip_name": "qwen3-vl-4b-heretic.safetensors",
+        "type": "krea2",
+        "device": "default"
+      }
+    },
+    "55": {
+      "class_type": "CLIPTextEncode",
+      "inputs": {
+        "text": "",
+        "clip": [
+          "60",
+          0
+        ]
+      }
+    },
+    "62": {
+      "class_type": "ConditioningZeroOut",
+      "inputs": {
+        "conditioning": [
+          "79",
+          0
+        ]
+      }
+    },
+    "56": {
+      "class_type": "EmptyLatentImage",
+      "inputs": {
+        "width": 1024,
+        "height": 1024,
+        "batch_size": 1
+      }
+    },
+    "57": {
+      "class_type": "KSampler",
+      "inputs": {
+        "model": [
+          "78",
+          0
+        ],
+        "positive": [
+          "79",
+          0
+        ],
+        "negative": [
+          "80",
+          0
+        ],
+        "latent_image": [
+          "56",
+          0
+        ],
+        "seed": 1,
+        "steps": 8,
+        "cfg": 1.0,
+        "sampler_name": "euler",
+        "scheduler": "simple",
+        "denoise": 1.0
+      }
+    },
+    "61": {
+      "class_type": "VAELoader",
+      "inputs": {
+        "vae_name": "qwen_image_vae.safetensors"
+      }
+    },
+    "58": {
+      "class_type": "VAEDecode",
+      "inputs": {
+        "samples": [
+          "57",
+          0
+        ],
+        "vae": [
+          "61",
+          0
+        ]
+      }
+    },
+    "29": {
+      "class_type": "SaveImage",
+      "inputs": {
+        "images": [
+          "58",
+          0
+        ],
+        "filename_prefix": "MYStudio"
+      }
+    },
+    "78": {
+      "class_type": "LoraLoaderModelOnly",
+      "inputs": {
+        "lora_name": "Krea2-NSFW/Krea 2 pussy.safetensors",
+        "strength_model": 0.3,
+        "model": [
+          "75",
+          0
+        ]
+      }
+    },
+    "79": {
+      "class_type": "ConditioningKrea2Rebalance",
+      "inputs": {
+        "conditioning": [
+          "55",
+          0
+        ],
+        "multiplier": 1.0,
+        "per_layer_weights": "1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,5.0,1.0,1.0,1.0"
+      }
+    },
+    "80": {
+      "class_type": "CLIPTextEncode",
+      "inputs": {
+        "text": "",
+        "clip": [
+          "60",
+          0
+        ]
+      }
+    }
   }
 }

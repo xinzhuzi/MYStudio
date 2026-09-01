@@ -1,55 +1,15 @@
-import crypto from "node:crypto";
-import fs from "node:fs";
-import os from "node:os";
-import path from "node:path";
 import type { RemotionShotPlanV1 } from "@/lib/studio/remotion/shot-plan";
 import type { TimelineRenderPlan } from "@/types/editing";
 import { validateRemotionShotPlan } from "@/lib/studio/remotion/shot-plan";
-import { canTransitionRemotionStatus, transitionRemotionRenderJob } from "@/lib/studio/remotion/remotion-workspace-state";
 import { validateRemotionCurrentSlot } from "@/lib/studio/remotion/remotion-slot-validation";
 import { validateRemotionRenderJob, validateRemotionRenderJobIdentity } from "@/lib/studio/remotion/remotion-render-validation";
-import type { RemotionCurrentSlotV1, RemotionJobError, RemotionRenderJobTarget, RemotionRenderJobV1, RemotionStageStatus } from "@/types/remotion-workspace";
-import type { RemotionChapterRenderRequest, RemotionChapterRenderResult, RemotionChapterSceneRenderRequest, RemotionChapterSceneRenderResult, RemotionChapterSceneSegmentSpec } from "../renderer/remotion-chapter-renderer";
-import type { RemotionShotRenderResult, RemotionShotRenderer } from "../renderer/remotion-shot-renderer";
-import { DEFAULT_CONCURRENCY, MAX_QUEUE_CONCURRENCY, QUEUE_SCHEMA_VERSION, RemotionQueueChapterInput, RemotionQueueChapterSceneInput, RemotionQueueEnqueueResult, RemotionQueueEventV1, RemotionQueueNotification, RemotionQueueOptions, RemotionQueueShotInput, RemotionQueueStateItem, RemotionQueueSwitchResult } from "./remotion-queue-contract";
-import { asBlocked, asReady, asStale, atomicWrite, invalid, isNodeError, isRecord, optionalString, readOptionalJson, readOptionalText, sameJobIdentity, targetChapterId, transitionOrThrow } from "./remotion-queue-utils";
+import type { RemotionCurrentSlotV1, RemotionRenderJobV1 } from "@/types/remotion-workspace";
+import type { RemotionChapterRenderResult, RemotionChapterSceneRenderResult, RemotionChapterSceneSegmentSpec } from "../renderer/remotion-chapter-renderer";
+import type { RemotionShotRenderResult } from "../renderer/remotion-shot-renderer";
+import { DEFAULT_CONCURRENCY, MAX_QUEUE_CONCURRENCY, QUEUE_SCHEMA_VERSION } from "./remotion-queue-contract";
+import type { RemotionQueueChapterInput, RemotionQueueChapterSceneInput, RemotionQueueEnqueueResult, RemotionQueueEventV1, RemotionQueueNotification, RemotionQueueOptions, RemotionQueueShotInput, RemotionQueueStateItem, RemotionQueueSwitchResult } from "./remotion-queue-contract";
+import { asBlocked, asReady, asStale, invalid, isRecord, optionalString, sameJobIdentity, targetChapterId, transitionOrThrow } from "./remotion-queue-utils";
 
-import crypto from "node:crypto";
-import fs from "node:fs";
-import os from "node:os";
-import path from "node:path";
-import type { RemotionShotPlanV1 } from "@/lib/studio/remotion/shot-plan";
-import type { TimelineRenderPlan } from "@/types/editing";
-import {
-  validateRemotionShotPlan,
-} from "@/lib/studio/remotion/shot-plan";
-import {
-  canTransitionRemotionStatus,
-  transitionRemotionRenderJob,
-} from "@/lib/studio/remotion/remotion-workspace-state";
-import { validateRemotionCurrentSlot } from "@/lib/studio/remotion/remotion-slot-validation";
-import {
-  validateRemotionRenderJob,
-  validateRemotionRenderJobIdentity,
-} from "@/lib/studio/remotion/remotion-render-validation";
-import type {
-  RemotionCurrentSlotV1,
-  RemotionJobError,
-  RemotionRenderJobV1,
-  RemotionRenderJobTarget,
-  RemotionStageStatus,
-} from "@/types/remotion-workspace";
-import type {
-  RemotionChapterRenderRequest,
-  RemotionChapterRenderResult,
-  RemotionChapterSceneRenderRequest,
-  RemotionChapterSceneRenderResult,
-  RemotionChapterSceneSegmentSpec,
-} from "../renderer/remotion-chapter-renderer";
-import type {
-  RemotionShotRenderResult,
-  RemotionShotRenderer,
-} from "../renderer/remotion-shot-renderer";
 
 
 export class RemotionRenderQueue {
@@ -708,5 +668,6 @@ export class RemotionRenderQueue {
 
 
 
-export { DEFAULT_CONCURRENCY, MAX_QUEUE_CONCURRENCY, QUEUE_SCHEMA_VERSION, RemotionQueueChapterInput, RemotionQueueChapterSceneInput, RemotionQueueEnqueueResult, RemotionQueueEventV1, RemotionQueueExecutor, RemotionQueueNotification, RemotionQueueOptions, RemotionQueuePersistence, RemotionQueueShotInput, RemotionQueueSnapshotV1, RemotionQueueStateItem, RemotionQueueSwitchResult, RemotionQueueWorkItem, resolveHardwareQueueConcurrency } from "./remotion-queue-contract";
+export { DEFAULT_CONCURRENCY, MAX_QUEUE_CONCURRENCY, QUEUE_SCHEMA_VERSION, resolveHardwareQueueConcurrency } from "./remotion-queue-contract";
+export type { RemotionQueueChapterInput, RemotionQueueChapterSceneInput, RemotionQueueEnqueueResult, RemotionQueueEventV1, RemotionQueueExecutor, RemotionQueueNotification, RemotionQueueOptions, RemotionQueuePersistence, RemotionQueueShotInput, RemotionQueueSnapshotV1, RemotionQueueStateItem, RemotionQueueSwitchResult, RemotionQueueWorkItem } from "./remotion-queue-contract";
 export { asBlocked, asReady, createRemotionQueueFilePersistence, migrateQueueEventsFileIfNeeded, sameJobIdentity, targetChapterId } from "./remotion-queue-utils";

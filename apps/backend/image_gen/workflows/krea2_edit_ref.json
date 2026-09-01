@@ -5,20 +5,46 @@
   "inputs": {
     "prompt": {
       "node": "36",
-      "field": "prompt"
+      "field": "prompt",
+      "class_type": "Krea2EditGroundedEncode"
+    },
+    "negative_prompt": {
+      "node": "34",
+      "field": "prompt",
+      "class_type": "Krea2EditGroundedEncode"
     },
     "seed": {
       "node": "30",
-      "field": "seed"
+      "field": "seed",
+      "class_type": "KSampler"
     },
     "steps": {
       "node": "30",
-      "field": "steps"
+      "field": "steps",
+      "class_type": "KSampler"
+    },
+    "width": {
+      "node": "28",
+      "field": "width",
+      "class_type": "EmptySD3LatentImage"
+    },
+    "height": {
+      "node": "28",
+      "field": "height",
+      "class_type": "EmptySD3LatentImage"
     },
     "references": [
       {
         "node": "45",
-        "field": "image"
+        "field": "image",
+        "class_type": "LoadImage",
+        "slot": 0
+      },
+      {
+        "node": "46",
+        "field": "image",
+        "class_type": "LoadImage",
+        "slot": 1
       }
     ]
   },
@@ -61,6 +87,12 @@
         "image": ""
       }
     },
+    "46": {
+      "class_type": "LoadImage",
+      "inputs": {
+        "image": ""
+      }
+    },
     "51": {
       "class_type": "ImageScaleToTotalPixels",
       "inputs": {
@@ -71,6 +103,31 @@
         "upscale_method": "lanczos",
         "megapixels": 1.0,
         "resolution_steps": 8
+      }
+    },
+    "52": {
+      "class_type": "ImageScaleToTotalPixels",
+      "inputs": {
+        "image": [
+          "46",
+          0
+        ],
+        "upscale_method": "lanczos",
+        "megapixels": 1.0,
+        "resolution_steps": 8
+      }
+    },
+    "53": {
+      "class_type": "VAEEncode",
+      "inputs": {
+        "pixels": [
+          "52",
+          0
+        ],
+        "vae": [
+          "41",
+          0
+        ]
       }
     },
     "57": {
@@ -98,14 +155,8 @@
     "28": {
       "class_type": "EmptySD3LatentImage",
       "inputs": {
-        "width": [
-          "57",
-          0
-        ],
-        "height": [
-          "57",
-          1
-        ],
+        "width": 1024,
+        "height": 1024,
         "batch_size": 1
       }
     },
@@ -119,6 +170,10 @@
         "prompt": "",
         "image": [
           "51",
+          0
+        ],
+        "image_b": [
+          "52",
           0
         ],
         "grounding_px": 0,
@@ -135,6 +190,10 @@
         "prompt": "",
         "image": [
           "51",
+          0
+        ],
+        "image_b": [
+          "52",
           0
         ],
         "grounding_px": 0,
@@ -161,6 +220,14 @@
         ],
         "source_image": [
           "51",
+          0
+        ],
+        "source_latent_b": [
+          "53",
+          0
+        ],
+        "source_image_b": [
+          "52",
           0
         ],
         "target_latent": [

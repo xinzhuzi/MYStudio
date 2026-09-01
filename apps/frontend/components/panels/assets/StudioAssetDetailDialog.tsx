@@ -182,22 +182,10 @@ export function StudioAssetDetailDialog({
 // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [asset?.id]);
 
-  if (!asset) return null;
-
-  const detail = fullAsset || asset;
-  const Icon = TYPE_ICON[asset.type];
-  const displayName = getAssetDisplayName(asset);
-  const parsedDraftName = parseAssetNames(draftName || detail.name || asset.name);
-  const spokenText = recognizedText ?? (draftDescription.trim() || "");
-  const audioSrc = asset.previewUrl || asset.filePath || "";
-  const hasImagePreview = asset.type !== "audio" && images.length > 0;
-  // 三轨生图入口只对 role/scene/tool 开放;clip 等其余类型不展示、不触发(道劫合同 fail-closed)
-  const isThreeTrackAsset = asset.type === "role" || asset.type === "scene" || asset.type === "tool";
-  const roleSpeakerId = toRoleSpeakerId(asset.id);
-  const roleVoiceBindings = activeTtsProjectId ? (ttsProjects[activeTtsProjectId]?.bindings ?? {}) : {};
-  const roleVoiceBinding = asset.type === "role" ? roleVoiceBindings[roleSpeakerId] : undefined;
-  const roleVoiceProfile = roleVoiceBinding ? voiceProfiles[roleVoiceBinding.profileId] : undefined;
-
+  // This action factory is named with a use* prefix for historical API
+  // compatibility, but it is a pure closure factory. Invoke it on every
+  // render before the nullable-asset early return so React hook ordering is
+  // stable even while the dialog is closed or clearing its selection.
   const {
     handlePolishPrompt, handleSave, handleDelete, copyText,
     handleOneClickGenerateAssetImage, handleRegenerate, handleOpenSource,
@@ -207,7 +195,7 @@ export function StudioAssetDetailDialog({
     asset,
     onOpenChange,
     visualManualId,
-    detail,
+    detail: fullAsset || asset,
     images,
     currentIndex,
     draftName,
@@ -232,6 +220,23 @@ export function StudioAssetDetailDialog({
     resolveAssetGenerationReferenceImage,
     resolveThreeTrackAssetType,
   });
+
+  if (!asset) return null;
+
+  const detail = fullAsset || asset;
+  const Icon = TYPE_ICON[asset.type];
+  const displayName = getAssetDisplayName(asset);
+  const parsedDraftName = parseAssetNames(draftName || detail.name || asset.name);
+  const spokenText = recognizedText ?? (draftDescription.trim() || "");
+  const audioSrc = asset.previewUrl || asset.filePath || "";
+  const hasImagePreview = asset.type !== "audio" && images.length > 0;
+  // 三轨生图入口只对 role/scene/tool 开放;clip 等其余类型不展示、不触发(道劫合同 fail-closed)
+  const isThreeTrackAsset = asset.type === "role" || asset.type === "scene" || asset.type === "tool";
+  const roleSpeakerId = toRoleSpeakerId(asset.id);
+  const roleVoiceBindings = activeTtsProjectId ? (ttsProjects[activeTtsProjectId]?.bindings ?? {}) : {};
+  const roleVoiceBinding = asset.type === "role" ? roleVoiceBindings[roleSpeakerId] : undefined;
+  const roleVoiceProfile = roleVoiceBinding ? voiceProfiles[roleVoiceBinding.profileId] : undefined;
+
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>

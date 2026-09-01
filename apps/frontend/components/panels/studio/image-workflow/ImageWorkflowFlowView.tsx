@@ -59,7 +59,6 @@ export function ImageWorkflowFlowView({
   const nodeIdsSignature = activeGraph.nodes.map((node) => node.id).join("\u0001");
   const measurementNodeIds = useMemo(
     () => nodeIdsSignature.split("\u0001"),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
     [nodeIdsSignature],
   );
 
@@ -250,4 +249,3 @@ export function ImageWorkflowFlowView({
     </div>
   );
 }
-

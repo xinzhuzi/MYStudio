@@ -33,9 +33,10 @@ function lifecycleStatus(controller: ImageGenRuntimeController): ImageGenRuntime
   const activeModel: ImageGenModelId =
     legacy.activeModel === "z-image-turbo" ||
     legacy.activeModel === "flux2-klein-9b" ||
-    legacy.activeModel === "krea2-turbo"
+    legacy.activeModel === "krea2-turbo" ||
+    legacy.activeModel === "comfyui-bridge"
       ? legacy.activeModel
-      : "qwen-image-edit-2511";
+      : "krea2-turbo";
   const modelDownloaded = legacy.models.some(
     (model) =>
       model.modelName === activeModel &&
@@ -44,7 +45,7 @@ function lifecycleStatus(controller: ImageGenRuntimeController): ImageGenRuntime
   );
   const status: ImageGenRuntimeStatusV1 = {
     schemaVersion: IMAGE_GEN_SCHEMA_VERSION,
-    state: legacy.running && modelDownloaded ? "ready" : "needs-runtime",
+    state: modelDownloaded ? "ready" : "needs-runtime",
     activeModel,
     modelCacheDir: controller.getModelCacheDir(),
     modelDownloaded,

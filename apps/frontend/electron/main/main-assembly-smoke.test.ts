@@ -57,7 +57,10 @@ describe("main-native-bridge 装配冒烟(bind 门语义)", () => {
     bindNativeBridgeRuntime({
       remotionVersion: "4.0.0-smoke",
       remotionBundlePath: "/tmp/mystudio-smoke-bundle",
-      remotionRuntime: { controller: { probeStatus: async () => ({ status: { state: "ready" } }) } },
+      remotionRuntime: {
+        controller: { probeStatus: async () => ({ status: { state: "ready" } }) },
+        dispose: () => undefined,
+      },
       remotionChapterManifestService: { read: async () => ({}) },
       remotionQueue: {
         enqueueChapter: async () => ({ accepted: true, job: { jobId: "smoke-job" } }),
@@ -73,17 +76,19 @@ describe("main-native-bridge 装配冒烟(bind 门语义)", () => {
           videoUseMarkerPath: "/tmp/marker",
         },
       },
-    } as Parameters<typeof bindNativeBridgeRuntime>[0]);
+    } as unknown as Parameters<typeof bindNativeBridgeRuntime>[0]);
 
     const run = buildManagedVideoUseChapterRun({
+      schemaVersion: 1,
       projectId: "p1",
       chapterId: "c1",
       revision: 3,
-      mode: "clean-mp4",
+      mode: "flat-shot-mp4",
       shots: [{ shotId: "s1", videoPath: "/tmp/v.mp4", audioPath: "/tmp/a.wav" }],
       sourceSha256: "0".repeat(64),
       audioSha256: "0".repeat(64),
       textSha256: "0".repeat(64),
+      featureFlags: { alignment: true, edl: true, subtitles: true, grade: true, preview: true, selfEval: true },
     } as Parameters<typeof buildManagedVideoUseChapterRun>[0]);
 
     expect(run.schemaVersion).toBe(1);

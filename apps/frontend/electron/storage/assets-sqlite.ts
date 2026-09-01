@@ -18,6 +18,19 @@ export interface StoredAssetImage {
   filePath: string;
 }
 
+interface AssetDbRow {
+  id: string;
+  type: StudioAssetSummary["type"];
+  name: string;
+  description?: string;
+  prompt?: string;
+  setting?: string;
+  remark?: string;
+  tags?: string;
+  filePath?: string;
+  images?: string;
+}
+
 let basePath: string = "";
 
 export function initAssetsStorage(storageBasePath: string) {
@@ -284,9 +297,9 @@ function migrateFromJson(jsonPath: string, dbPath: string) {
 // === CRUD ===
 
 
-export function rowToSummary(row: any): StudioAssetSummary {
+export function rowToSummary(row: AssetDbRow): StudioAssetSummary {
   const absPath = resolveManagedAssetPathOrUndefined(row.filePath);
-  const previewUrl = absPath ? createAssetFileUrl(row.filePath) : undefined;
+  const previewUrl = absPath ? createAssetFileUrl(row.filePath!) : undefined;
   let images: AssetImage[] | undefined;
   try {
     const parsed = JSON.parse(row.images || "[]");

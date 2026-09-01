@@ -119,7 +119,8 @@ describe("generateImage", () => {
 
     await generateImage({ prompt: "本地专业流" });
 
-    const requestBody = JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body));
+    const genCall = fetchMock.mock.calls.find(([url]) => String(url).includes("/v1/images/generations"));
+    const requestBody = JSON.parse(String(genCall?.[1]?.body));
     expect(requestBody.model).toBe("krea2-turbo");
     expect(requestBody.use_lora).toBe(true);
   });
@@ -458,3 +459,203 @@ describe("generateImage", () => {
   }, 20000);
 
 
+
+describe("generateImage 模型归属路由", () => {
+  const localProvider = {
+    id: "manying-local-image",
+    platform: "manying-local-image",
+    name: "本地图片生成",
+    baseUrl: "http://127.0.0.1:17595",
+    apiKey: "manying-local-image",
+    model: ["krea2-turbo"],
+    capabilities: ["image_generation"],
+  };
+  const cloudProvider = {
+    id: "mikoto",
+    platform: "custom",
+    name: "mikoto",
+    baseUrl: "https://api.mikoto.vip/",
+    apiKey: "sk-test",
+    model: ["gpt-image-2"],
+  };
+
+  beforeEach(() => {
+    vi.restoreAllMocks();
+    vi.unstubAllGlobals();
+    clearAllManagers();
+    resetFeatureRoundRobin();
+    resetImagesEndpointPoisonMemory();
+    useAppSettingsStore.getState().setImageGenerationSettings({ localImageLoraEnabled: false });
+  });
+
+  const okLocal = () => new Response(JSON.stringify({
+    data: [{ b64_json: "bG9jYWw=", output_format: "png" }],
+  }), { status: 200 });
+
+  it("本地模型请求钉死本地 provider,即使云端排在绑定第一位(09-01 mikoto 实弹回归)", async () => {
+    useAPIConfigStore.setState({
+      providers: [cloudProvider, localProvider],
+      featureBindings: {
+        freedom_image: ["mikoto:gpt-image-2", "manying-local-image:krea2-turbo"],
+        character_generation: ["mikoto:gpt-image-2"],
+      },
+      modelEndpointTypes: { "krea2-turbo": ["image-generation"], "gpt-image-2": ["openai"] },
+    } as never);
+    const fetchMock = vi.fn().mockImplementation(async (url: string | URL) => {
+      if (String(url).includes("17595")) return okLocal();
+      throw new Error(`cloud must not be called for a local model: ${url}`);
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const result = await generateImage({ prompt: "本地模型归本地", model: "krea2-turbo" });
+
+    expect(result.url).toBe("data:image/png;base64,bG9jYWw=");
+    expect(fetchMock.mock.calls.every(([url]) => String(url).includes("17595"))).toBe(true);
+    const genCall = fetchMock.mock.calls.find(([url]) => String(url).includes("/v1/images/generations"));
+    expect(genCall).toBeTruthy();
+    const requestBody = JSON.parse(String(genCall?.[1]?.body));
+    expect(requestBody.model).toBe("krea2-turbo");
+  }, 20000);
+
+  it("本地模型在零绑定下也直接走本地 provider(选中本地即意图本地)", async () => {
+    useAPIConfigStore.setState({
+      providers: [cloudProvider, localProvider],
+      featureBindings: { freedom_image: ["mikoto:gpt-image-2"] },
+      modelEndpointTypes: { "krea2-turbo": ["image-generation"], "gpt-image-2": ["openai"] },
+    } as never);
+    const fetchMock = vi.fn().mockImplementation(async (url: string | URL) => {
+      if (String(url).includes("17595")) return okLocal();
+      throw new Error(`cloud must not be called for a local model: ${url}`);
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const result = await generateImage({ prompt: "零绑定也走本地", model: "krea2-turbo" });
+
+    expect(result.url).toBe("data:image/png;base64,bG9jYWw=");
+    expect(fetchMock.mock.calls.every(([url]) => String(url).includes("17595"))).toBe(true);
+  }, 20000);
+
+  it("本地失败不切云端:链里只剩本地,报错带本地上下文", async () => {
+    useAPIConfigStore.setState({
+      providers: [cloudProvider, localProvider],
+      featureBindings: {
+        freedom_image: ["mikoto:gpt-image-2", "manying-local-image:krea2-turbo"],
+        character_generation: ["mikoto:gpt-image-2"],
+      },
+      modelEndpointTypes: { "krea2-turbo": ["image-generation"], "gpt-image-2": ["openai"] },
+    } as never);
+    const fetchMock = vi.fn().mockImplementation(async (url: string | URL) => {
+      if (String(url).includes("17595")) {
+        return new Response(JSON.stringify({ error: { message: "sidecar not ready" } }), { status: 400 });
+      }
+      throw new Error(`cloud must not be called for a local model: ${url}`);
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const error: unknown = await generateImage({ prompt: "本地失败不烧云端", model: "krea2-turbo" }).catch((err: unknown) => err);
+    const message = error instanceof Error ? error.message : String(error);
+    expect(message).toContain("本地图片生成失败");
+    expect(fetchMock.mock.calls.every(([url]) => String(url).includes("17595"))).toBe(true);
+  }, 20000);
+
+  it("云端模型名优先发给绑定了它的 provider,不再盲按绑定顺序", async () => {
+    const backupProvider = {
+      id: "backup",
+      platform: "custom",
+      name: "backup",
+      baseUrl: "https://backup.example/v1",
+      apiKey: "sk-test",
+      model: ["flux-dev"],
+    };
+    useAPIConfigStore.setState({
+      providers: [cloudProvider, backupProvider],
+      featureBindings: {
+        freedom_image: ["mikoto:gpt-image-2"],
+        character_generation: ["backup:flux-dev"],
+      },
+      modelEndpointTypes: { "gpt-image-2": ["openai"] },
+    } as never);
+    const fetchMock = vi.fn().mockImplementation(async (url: string | URL) => {
+      if (String(url).includes("backup.example")) {
+        return new Response(JSON.stringify({ data: [{ url: "https://cdn.test/flux.png" }] }), { status: 200 });
+      }
+      throw new Error(`first attempt must hit the model owner, got: ${url}`);
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const result = await generateImage({ prompt: "模型归属优先", model: "flux-dev" });
+
+    expect(result.url).toBe("https://cdn.test/flux.png");
+    expect(String(fetchMock.mock.calls[0]?.[0])).toContain("backup.example");
+    expect(fetchMock.mock.calls.every(([url]) => String(url).includes("backup.example"))).toBe(true);
+  }, 20000);
+
+  it("本地通道图片请求超时放宽到 15 分钟(实测 1024² 推理 186s > 默认 180s)", async () => {
+    useAPIConfigStore.setState({
+      providers: [localProvider],
+      featureBindings: { freedom_image: ["manying-local-image:krea2-turbo"] },
+      modelEndpointTypes: { "krea2-turbo": ["image-generation"] },
+    } as never);
+    const imageRequest = vi.fn(async (_payload: { url: string; timeoutMs?: number }) => ({
+      status: 200,
+      statusText: "OK",
+      headers: {},
+      body: JSON.stringify({ data: [{ b64_json: "bG9jYWw=", output_format: "png" }] }),
+    }));
+    vi.stubGlobal("window", { electronAPI: { imageRequest } });
+
+    const result = await generateImage({ prompt: "本地超时豁免", model: "krea2-turbo", persistMedia: false });
+
+    expect(result.url).toBe("data:image/png;base64,bG9jYWw=");
+    expect(imageRequest).toHaveBeenCalled();
+    const payload = imageRequest.mock.calls[0]?.[0];
+    expect(payload.url).toContain("127.0.0.1:17595");
+    expect(payload.timeoutMs).toBe(900_000);
+  }, 20000);
+
+  it("本地 provider 被 store 整表重写洗掉时,按常量合成仍走本地(09-01 用户机器实弹形态)", async () => {
+    useAPIConfigStore.setState({
+      providers: [cloudProvider],
+      featureBindings: { freedom_image: ["mikoto:gpt-image-2"] },
+      modelEndpointTypes: { "gpt-image-2": ["openai"], "krea2-turbo": ["image-generation"] },
+    } as never);
+    const fetchMock = vi.fn().mockImplementation(async (url: string | URL) => {
+      if (String(url).includes("17595")) return okLocal();
+      throw new Error(`cloud must not be called for a local model: ${url}`);
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const result = await generateImage({ prompt: "洗掉也能本地", model: "krea2-turbo" });
+
+    expect(result.url).toBe("data:image/png;base64,bG9jYWw=");
+    expect(fetchMock.mock.calls.every(([url]) => String(url).includes("17595"))).toBe(true);
+  }, 20000);
+
+  it("sidecar 缺席时生成前自动拉起(health 失败→prepare 自愈→生成成功)", async () => {
+    useAPIConfigStore.setState({
+      providers: [localProvider],
+      featureBindings: { freedom_image: ["manying-local-image:krea2-turbo"] },
+      modelEndpointTypes: { "krea2-turbo": ["image-generation"] },
+    } as never);
+    let healthProbed = 0;
+    const fetchMock = vi.fn().mockImplementation(async (url: string | URL) => {
+      if (String(url).endsWith("/health")) {
+        healthProbed += 1;
+        throw new TypeError("fetch failed");
+      }
+      if (String(url).includes("17595")) return okLocal();
+      throw new Error(`unexpected: ${url}`);
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    const prepare = vi.fn(async () => ({ success: true }));
+    vi.stubGlobal("window", { imageGenRuntime: { prepare } });
+
+    const result = await generateImage({ prompt: "缺席自愈", model: "krea2-turbo" });
+
+    expect(result.url).toBe("data:image/png;base64,bG9jYWw=");
+    expect(healthProbed).toBeGreaterThanOrEqual(1);
+    expect(prepare).toHaveBeenCalledTimes(1);
+    const genCall = fetchMock.mock.calls.find(([url]) => String(url).includes("/v1/images/generations"));
+    expect(genCall).toBeTruthy();
+  }, 20000);
+});

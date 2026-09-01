@@ -484,7 +484,6 @@ function ImageStudioFlowView({
   const nodeIdsSignature = graph?.nodes.map((node) => node.id).join("\u0001") ?? "";
   const measurementNodeIds = useMemo(
     () => (nodeIdsSignature ? nodeIdsSignature.split("\u0001") : []),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
     [nodeIdsSignature],
   );
 

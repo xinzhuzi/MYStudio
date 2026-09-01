@@ -104,6 +104,27 @@ function areNodeCardPropsEqual(
   );
 }
 
+/** 生成中已用秒数:HTTP 生图接口没有进度事件,以起表时间做可感知进度。 */
+function useElapsedSeconds(active: boolean): number {
+  const [elapsed, setElapsed] = useState(0);
+  useEffect(() => {
+    if (!active) return;
+    const startedAt = Date.now();
+    setElapsed(0);
+    const timer = window.setInterval(() => {
+      setElapsed(Math.floor((Date.now() - startedAt) / 1000));
+    }, 1000);
+    return () => window.clearInterval(timer);
+  }, [active]);
+  return elapsed;
+}
+
+function formatElapsedSeconds(total: number): string {
+  const minutes = Math.floor(total / 60);
+  const seconds = total % 60;
+  return minutes > 0 ? `${minutes}分${seconds.toString().padStart(2, "0")}秒` : `${seconds}秒`;
+}
+
 export const ImageStudioNodeCard = memo(function ImageStudioNodeCard({
   data,
 }: NodeProps<ImageStudioReactNode>) {
@@ -283,6 +304,7 @@ function GeneratedNodeEditor({
   onSaveToProps: ImageStudioNodeData["onSaveToProps"];
 }) {
   const generating = node.status === "generating" || node.status === "queued";
+  const elapsedSeconds = useElapsedSeconds(generating);
   const [imageLongSide, setImageLongSide] = useState(0);
   const alreadyUpscaled =
     (node.resultUrl || "").includes("up4x-") || imageLongSide > UPSCALE_INPUT_MAX_LONG_SIDE;
@@ -451,7 +473,7 @@ function GeneratedNodeEditor({
       <div className="nodrag nopan flex items-center justify-between gap-2">
         <span className="flex min-w-0 items-center gap-1.5 text-[11px] text-muted-foreground">
           {node.status === "ready" ? <CheckCircle2 className="h-3.5 w-3.5 text-success" /> : null}
-          {STATUS_LABELS[node.status]}
+          {generating ? `${STATUS_LABELS[node.status]} · 已用 ${formatElapsedSeconds(elapsedSeconds)}` : STATUS_LABELS[node.status]}
         </span>
         <div className="flex items-center gap-1.5">
           <Button
@@ -517,7 +539,8 @@ function GeneratedNodeEditor({
       {generating && !node.resultUrl ? (
         <div className="nodrag nopan flex items-center justify-center gap-2 text-xs text-muted-foreground">
           <Loader2 className="h-3.5 w-3.5 animate-spin" />
-          正在生成,通常需要几十秒
+          正在生成 · 已用 {formatElapsedSeconds(elapsedSeconds)}
+          <span className="text-[10px] opacity-70">(云端通常几十秒,本地大模型可能需要数分钟)</span>
         </div>
       ) : null}
     </div>

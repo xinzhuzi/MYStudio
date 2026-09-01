@@ -1,4 +1,5 @@
 import { ipcMain } from "electron";
+import { Agent, fetch as undiciFetch } from "undici";
 import { observedFetch, type ObservedFetchMeta } from "../../../lib/diagnostics/network";
 import { createDescribedFetchError, describeFetchError } from "../../../lib/ai/fetch-error";
 import { assertSafeOutboundRequestUrl } from "../../security/request-url-guard";
@@ -37,6 +38,24 @@ function requestInputUrl(input: RequestInfo | URL): string {
 
 function validateHttpRequestUrl(rawUrl: string) {
   return assertSafeOutboundRequestUrl(rawUrl);
+}
+
+/**
+ * 图片长任务专用 fetch:本地大模型推理(Krea2 挂 LoRA 首跑=深拷贝+合并+生成)
+ * 实测可超 5 分钟,而全局 fetch 的 undici 默认 headersTimeout=300s 会在响应
+ * 头到达前掐断(09-01 实弹 301s 处被斩;AbortSignal 给到 900s 也管不到它——
+ * music3 LONG_JOB_AGENT 同款坑同款解)。headersTimeout 抬到 IPC 上限之上;
+ * 与 undici 自家 fetch 同实例配对,避免跨副本 dispatcher 符号不兼容。实际
+ * 时长仍由 handler 的 AbortController(payload.timeoutMs)治理,云端默认
+ * 180s 行为零变更。
+ */
+const IMAGE_LONG_JOB_AGENT = new Agent({
+  headersTimeout: 1_800_000,
+  bodyTimeout: 0,
+});
+
+function imageRequestFetcher(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
+  return undiciFetch(input as never, { ...(init as object), dispatcher: IMAGE_LONG_JOB_AGENT } as never) as unknown as Promise<Response>;
 }
 
 export function registerApiRequestIpcHandlers({
@@ -118,7 +137,7 @@ export function registerApiRequestIpcHandlers({
         taskId: payload.taskId,
         pollAttempt: payload.pollAttempt,
         pollStatus: payload.pollStatus,
-        fetcher: fetch as typeof fetch,
+        fetcher: imageRequestFetcher as typeof fetch,
         logEvent: writeDiagnosticsLog,
       });
       const body = await response.text();

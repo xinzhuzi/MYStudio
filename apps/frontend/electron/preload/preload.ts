@@ -1,4 +1,8 @@
 import { ipcRenderer, contextBridge, type IpcRendererEvent } from 'electron'
+// c6ece0e 拆分后 vite 构建入口仍只有本文件:不引回 runtime 侧,其 29 个桥
+// (ttsRuntime/studioAssets/mystudioSmoke/imageGenRuntime 生命周期等)整体缺席
+// 打包产物。两侧桥名零交集,side-effect 装配安全。
+import './preload-runtime'
 import type { ModelTestRequest, ModelTestResult } from '../../lib/ai/model-test'
 import type { TextCompletionRequest, TextCompletionResult } from '../../lib/ai/text-completion'
 import type { ImageRequestPayload, ImageRequestResult } from '../../types/api-image-request'

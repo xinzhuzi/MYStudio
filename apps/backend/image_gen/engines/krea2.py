@@ -21,7 +21,25 @@ COMFY_MAIN_FILE = "diffusion_models/krea2_turbo_bf16.safetensors"
 COMFY_TEXT_ENCODER_FILE = "text_encoders/qwen3-vl-4b-heretic.safetensors"
 COMFY_VAE_FILE = "vae/qwen_image_vae.safetensors"
 COMFY_LORA_DIR = "loras/Krea2-NSFW"
-DEFAULT_LORA_FILE = "Krea 2 NSFW V4.safetensors"
+
+# ── 「Krea2-NSFW专业流」固定流程(09-01 逐节点对照 ComfyUI 原版工作流移植+深审修正) ──
+# 原版 = ~/Project/ComfyUI/user/default/workflows/K2图像/Krea2-NSFW专业流.json:
+#   PowerLoraLoader 开关态 = Mystic XXX v3@1.0 + pussy@0.3(NSFW V4 为关闭态);
+#   两文件深审实证:512 键全 diffusion_model.*、零 alpha/dora 键 → ComfyUI
+#   calculate_weight 的缩放系数 = 纯 strength(无 alpha/rank 因子),无 TE 侧权重;
+#   ConditioningKrea2Rebalance 节点51(multiplier=1, 12 带 weights 第9带×5;节点76 未连线);
+#   负条件 = ZeroOut(重平衡后正条件); KSampler euler/simple 8步 cfg=1。
+PRO_LORA_STACK = (
+    ("KREA 2 Mystic XXX v3.safetensors", 1.0),
+    ("Krea 2 pussy.safetensors", 0.3),
+)
+# 12 权重 = Krea2Pipeline text_encoder_select_layers=(2,5,...,35) 升序 12 层
+# (与 ComfyUI 编码器 (B,12,seq,2560) 升序展平到末维同构)
+PRO_REBALANCE_MULTIPLIER = 1.0
+PRO_REBALANCE_WEIGHTS = (1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 5.0, 1.0, 1.0, 1.0)
+# ComfyUI sampling_function: math.isclose(cfg,1.0) → uncond=None(跳负通道纯正向);
+# diffusers do_cfg = s>0 且混合式同构 → s=0 为逐位同义,且免负通道计算(耗时减半)
+GUIDANCE_SCALE = 0.0
 
 SMALL_REPO = "krea/Krea-2-Turbo"
 SMALL_EXACT_FILES = (
@@ -64,15 +82,18 @@ SPEC = {
     "layout": LAYOUT,
 }
 
+# ComfyUI ResolutionSelector 公式对齐:1MP 目标、round(w*s/multiple)*multiple;
+# multiple 取 16(管线的 vae_scale_factor*patch_size 整除校验,ComfyUI 的 8 会被
+# 管线 ValueError 拒绝):1:1=1024²、16:9=1360×768、4:3=1184×880
 ASPECT_RATIOS = {
     "1:1": (1024, 1024),
-    "16:9": (1152, 640),
-    "9:16": (640, 1152),
-    "4:3": (1072, 808),
-    "3:4": (808, 1072),
+    "16:9": (1360, 768),
+    "9:16": (768, 1360),
+    "4:3": (1184, 880),
+    "3:4": (880, 1184),
 }
 
-_lock = threading.Lock()
+_lock = threading.RLock()  # generate() 持锁调 get_lora_components() 内部再抢锁:必须可重入(09-01 实弹:普通 Lock 下 use_lora 首跑自锁 0%CPU 挂死)
 _pipeline_cache: dict[str, dict[str, Any]] = {}
 _lora_cache: dict[str, dict[str, Any]] = {}
 
@@ -250,10 +271,10 @@ def get_components(models_dir: Path, snapshot_dir: Path) -> dict[str, Any]:
 
     te_config = AutoConfig.from_pretrained(snapshot_dir / "text_encoder")
     text_encoder = Qwen3VLModel(te_config).to(torch.bfloat16)
+    # 原版工作流恒用 ComfyUI 的 heretic 破限版 TE(两个 K2 工作流同);官方 TE 仅
+    # 在 heretic 大件缺席时兜底。heretic→Qwen3VL 键名走 remap(08-31 shard 对拍)
     official_te = snapshot_dir / "text_encoder" / "model.safetensors"
-    if official_te.is_file():
-        text_encoder.load_state_dict(load_file(str(official_te)), strict=True)
-    else:
+    if Path(te_file).is_file():
         state = load_file(str(te_file))
         remapped = {
             k.replace("model.layers.", "language_model.layers.")
@@ -263,6 +284,8 @@ def get_components(models_dir: Path, snapshot_dir: Path) -> dict[str, Any]:
             for k, v in state.items()
         }
         text_encoder.load_state_dict(remapped, strict=False)
+    elif official_te.is_file():
+        text_encoder.load_state_dict(load_file(str(official_te)), strict=True)
     text_encoder.eval()
 
     device = "mps" if torch.backends.mps.is_available() else ("cuda" if torch.cuda.is_available() else "cpu")
@@ -286,14 +309,42 @@ def get_lora_components(models_dir: Path, snapshot_dir: Path) -> dict[str, Any]:
     base = _pipeline_cache["krea2"]
     lora_comps = dict(base)
     lora_comps["transformer"] = _copy.deepcopy(base["transformer"])
-    lora_file = models_dir / COMFY_LORA_DIR / DEFAULT_LORA_FILE
-    if lora_file.is_file():
-        try:
-            merge_lora(lora_comps["transformer"], str(lora_file), 1.0)
-        except Exception as exc:
-            print(f"[image-sidecar] krea2 lora merge 失败: {exc}", file=sys.stderr)
+    for lora_name, strength in PRO_LORA_STACK:
+        lora_file = models_dir / COMFY_LORA_DIR / lora_name
+        if lora_file.is_file():
+            try:
+                merge_lora(lora_comps["transformer"], str(lora_file), strength)
+            except Exception as exc:
+                print(f"[image-sidecar] krea2 lora merge 失败({lora_name}): {exc}", file=sys.stderr)
+        else:
+            print(f"[image-sidecar] krea2 专业流 LoRA 缺失,跳过: {lora_file}", file=sys.stderr)
     _lora_cache["krea2_lora"] = lora_comps
     return lora_comps
+
+
+def _rebalance_prompt_embeds(embeds: Any, weights: "tuple[float, ...]", multiplier: float) -> Any:
+    """逐层条带缩放,移植 ComfyUI ConditioningKrea2Rebalance._scale_cond_tensor。
+    形状对齐(09-01 深审实锤):ComfyUI 把 12 层栈 (B,12,seq,2560) 升序展平到
+    末维 (B,seq,12*2560) 后按末维均分条带;diffusers encode_prompt 保持 4D
+    (B,seq,12,2560)——层在轴 -2。若按末维均分,2560%12≠0 恒走兜底 ×multiplier
+    =静默无效。此处按真实形状选轴:4D 缩轴 -2,3D 末维均分。"""
+    import torch
+    n = len(weights)
+    if n <= 1:
+        return embeds * multiplier
+    orig_dtype = embeds.dtype
+    t = embeds.float()
+    gains = torch.tensor(weights, dtype=t.dtype, device=t.device)
+    if t.dim() >= 3 and t.shape[-2] == n:
+        t = t * gains.view(*([1] * (t.dim() - 2)), n, 1)
+    else:
+        flat = int(t.shape[-1])
+        if flat % n != 0:
+            return embeds * multiplier
+        t = t.view(*t.shape[:-1], n, flat // n)
+        t = t * gains.view(*([1] * (t.dim() - 2)), n, 1)
+        t = t.view(*t.shape[:-2], flat)
+    return t.to(orig_dtype) * multiplier
 
 
 
@@ -341,6 +392,15 @@ def generate(prompt, aspect_ratio, negative_prompt, steps, seed, reference_b64,
     phase_start = _time.time()
 
     pipe = Krea2Pipeline(**comps)
+
+    def build_text_inputs(text: str) -> dict:
+        """专业流=先编码再注入(重平衡在 embeds 上做);普通流=直接传文本。
+        guidance=0(cfg=1 同义)时负条件整条跳过,与原版 ZeroOut+cfg1 语义一致。"""
+        if not use_lora:
+            return {"prompt": text}
+        embeds, embeds_mask = pipe.encode_prompt(prompt=text)
+        embeds = _rebalance_prompt_embeds(embeds, PRO_REBALANCE_WEIGHTS, PRO_REBALANCE_MULTIPLIER)
+        return {"prompt_embeds": embeds, "prompt_embeds_mask": embeds_mask}
 
     if reference_b64:
         # ═══ 图生图(SDEdit,仿 ComfyUI KSampler denoise) ═══
@@ -391,13 +451,12 @@ def generate(prompt, aspect_ratio, negative_prompt, steps, seed, reference_b64,
 
         # 4. 交给管线去噪(管线自动处理 mu/调度/循环)
         kwargs = {
-            "prompt": prompt,
+            **build_text_inputs(prompt),
             "height": height, "width": width,
             "num_inference_steps": effective_steps,
+            "guidance_scale": GUIDANCE_SCALE,
             "latents": noised_latents,
         }
-        if negative_prompt:
-            kwargs["negative_prompt"] = negative_prompt
         if generator is not None:
             kwargs["generator"] = generator
         result = pipe(**kwargs)
@@ -409,16 +468,20 @@ def generate(prompt, aspect_ratio, negative_prompt, steps, seed, reference_b64,
         )
     else:
         # ═══ 纯文生图 ═══
-        kwargs = {"prompt": prompt, "height": height, "width": width, "num_inference_steps": steps}
-        if negative_prompt:
-            kwargs["negative_prompt"] = negative_prompt
+        kwargs = {
+            **build_text_inputs(prompt),
+            "height": height, "width": width,
+            "num_inference_steps": steps,
+            "guidance_scale": GUIDANCE_SCALE,
+        }
         if generator is not None:
             kwargs["generator"] = generator
         result = pipe(**kwargs)
         image = result.images[0]
         print(
             f"[image-sidecar] krea2 t2i: steps={steps} size={width}x{height} "
-            f"inference={_time.time() - phase_start:.1f}s",
+            f"inference={_time.time() - phase_start:.1f}s "
+            f"(guidance={GUIDANCE_SCALE} lora={'专业流' if use_lora else '无'})",
             flush=True,
         )
 

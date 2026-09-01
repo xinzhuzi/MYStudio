@@ -23,32 +23,45 @@ import type {
 const execFileAsync = promisify(execFile);
 // 强杀/崩溃退出的上一会话会遗留孤儿 sidecar 占死 17595：健康不通又挡绑定，
 // 新会话 setup 必然「健康检查超时」。只回收命令行含 image_gen.main 的监听者。
-export async function reclaimOrphanSidecarPort(): Promise<boolean> {
+// 09-01 实弹:SIGSTOP 冻结孤儿经 CONT+TERM 仍可能占住端口(打包 smoke 隔离实例
+// 遗留的系统 python 僵尸实锤),TERM 后必须复验;未放行升级 SIGKILL;返回值=端口确认空闲。
+async function listImageGenPortHolders(): Promise<string[]> {
   let stdout = "";
   try {
     ({ stdout } = await execFileAsync("lsof", ["-ti", `:${LOCAL_IMAGE_PORT}`, "-sTCP:LISTEN"]));
   } catch {
-    return false; // lsof 退出码 1 = 端口无人占用
+    return []; // lsof 退出码 1 = 端口无人占用
   }
-  const pids = stdout.trim().split(/\s+/).filter(Boolean);
-  let reclaimed = false;
-  for (const pid of pids) {
+  const pids: string[] = [];
+  for (const pid of stdout.trim().split(/\s+/).filter(Boolean)) {
     try {
       const { stdout: cmd } = await execFileAsync("ps", ["-p", pid, "-o", "command="]);
-      if (cmd.includes("image_gen.main")) {
-        // SIGSTOP 冻结的孤儿收不到 SIGTERM——先 CONT 唤醒再 TERM
-        try { process.kill(Number(pid), "SIGCONT"); } catch { /* 已退出 */ }
-        process.kill(Number(pid), "SIGTERM");
-        reclaimed = true;
-      }
+      if (cmd.includes("image_gen.main")) pids.push(pid);
     } catch {
       // lsof 与 ps 之间进程自行退出——无需处理
     }
   }
-  if (reclaimed) {
-    await new Promise((resolve) => setTimeout(resolve, 300));
+  return pids;
+}
+
+export async function reclaimOrphanSidecarPort(): Promise<boolean> {
+  const orphans = await listImageGenPortHolders();
+  if (orphans.length === 0) return false;
+  for (const pid of orphans) {
+    // SIGSTOP 冻结的孤儿收不到 SIGTERM——先 CONT 唤醒再 TERM
+    try { process.kill(Number(pid), "SIGCONT"); } catch { /* 已退出 */ }
+    try { process.kill(Number(pid), "SIGTERM"); } catch { /* 已退出 */ }
   }
-  return reclaimed;
+  await new Promise((resolve) => setTimeout(resolve, 300));
+  let stubborn = await listImageGenPortHolders();
+  if (stubborn.length > 0) {
+    for (const pid of stubborn) {
+      try { process.kill(Number(pid), "SIGKILL"); } catch { /* 已退出 */ }
+    }
+    await new Promise((resolve) => setTimeout(resolve, 300));
+    stubborn = await listImageGenPortHolders();
+  }
+  return stubborn.length === 0;
 }
 
 
@@ -153,7 +166,7 @@ export function createImageGenRuntimeController(deps: ControllerDeps) {
       PYTHONPATH: deps.backendRoot,
       MYSTUDIO_IMAGE_MODEL_DIR: modelCacheDir,
       MYSTUDIO_COMFYUI_BRIDGE_URL:
-        process.env.MYSTUDIO_COMFYUI_BRIDGE_URL ?? "http://127.0.0.1:8000",
+        process.env.MYSTUDIO_COMFYUI_BRIDGE_URL ?? "http://127.0.0.1:17598",
     };
   }
 
@@ -276,6 +289,8 @@ export function createImageGenRuntimeController(deps: ControllerDeps) {
         state.running = true;
         return true;
       }
+      // 子进程已秒退(典型=固定端口被孤儿占住 bind 失败)——剩余轮询注定空转,直接进回收
+      if (!child || child.exitCode !== null) break;
     }
     // 超时的最常见根因=孤儿 sidecar 占死端口：回收后整体重试一次
     if (await reclaimOrphanSidecarPort()) {
@@ -294,12 +309,21 @@ export function createImageGenRuntimeController(deps: ControllerDeps) {
           child = null;
           state.running = false;
         });
+        let retryDiedEarly = false;
         for (let attempt = 0; attempt < 60; attempt += 1) {
           await new Promise((resolve) => setTimeout(resolve, 500));
           if (await fetchHealth()) {
             state.running = true;
             return true;
           }
+          if (!child || child.exitCode !== null) {
+            retryDiedEarly = true;
+            break;
+          }
+        }
+        if (retryDiedEarly) {
+          state.setupMessage = `本地图片服务端口被顽固占用(回收后仍无法绑定 ${LOCAL_IMAGE_PORT})`;
+          return false;
         }
       } catch (error) {
         state.setupMessage = `本地图片服务启动失败: ${error instanceof Error ? error.message : String(error)}`;

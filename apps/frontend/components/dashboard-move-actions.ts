@@ -84,6 +84,9 @@ export function useDashboardMoveActions(ctx: any) {
   }, [
     moveTarget,
     projectLocationDefaults.lastParentDir,
+    setMovePhase,
+    setMoveProgress,
+    setMoveTarget,
     setProjectLocation,
     setProjectLocationDefaults,
     setActiveProject,
@@ -112,7 +115,7 @@ export function useDashboardMoveActions(ctx: any) {
         ?.scrollIntoView?.({ behavior: "smooth", block: "nearest" });
     });
     window.setTimeout(() => setHighlightProjectId(null), 2000);
-  }, []);
+  }, [setHighlightProjectId]);
 
   // Subscribe for the whole lifetime of the move dialog (not just the moving
   // phase) so no early progress frame is missed between dialog open and the
@@ -125,7 +128,7 @@ export function useDashboardMoveActions(ctx: any) {
       setMoveProgress(event);
     });
     return () => unsubscribe?.();
-  }, [moveTarget]);
+  }, [moveTarget, setMoveProgress]);
 
   // ==================== Move (OQ3) ====================
 
@@ -133,7 +136,7 @@ export function useDashboardMoveActions(ctx: any) {
     setMoveTarget(project);
     setMovePhase("confirm");
     setMoveProgress(null);
-  }, []);
+  }, [setMovePhase, setMoveProgress, setMoveTarget]);
 
   const closeMoveDialog = useCallback(() => {
     // While moving, dismissal goes through the cancel button (cancelMove);
@@ -141,7 +144,7 @@ export function useDashboardMoveActions(ctx: any) {
     if (movePhase === "moving") return;
     setMoveTarget(null);
     setMoveProgress(null);
-  }, [movePhase]);
+  }, [movePhase, setMoveProgress, setMoveTarget]);
 
   return { handleMoveStart, handleCancelMove, highlightProjectCard, openMoveDialog, closeMoveDialog };
 }

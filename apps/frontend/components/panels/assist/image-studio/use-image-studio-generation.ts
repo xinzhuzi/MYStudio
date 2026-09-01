@@ -73,7 +73,11 @@ export function useImageStudioGeneration() {
         toast.warning("生成成功,但本地落盘失败——正在媒体库后台重试保存");
       }
     } catch (error) {
-      if (error instanceof Error && error.name === "AbortError") {
+      // 中止语义根修(09-01 实弹第7bug):引擎轮询超时也会抛 AbortError 形状,
+      // 按 name 判「用户停止」会把真失败静默回 idle。只有本钩子发出的
+      // controller 真的 abort 过才算用户停止。
+      const abortedByUser = controller.signal.aborted;
+      if (abortedByUser && error instanceof Error && error.name === "AbortError") {
         useImageStudioStore.getState().setNodeStatus(nodeId, "idle");
       } else {
         const message = error instanceof Error ? error.message : "生成失败";

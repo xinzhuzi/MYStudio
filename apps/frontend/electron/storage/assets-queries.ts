@@ -174,8 +174,6 @@ export function getAssetSync(id: string): StudioAssetSummary | null {
   return rows.length ? rowToSummary(rows[0]) : null;
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-
 export function resetAssetsCache() {
   // no-op for SQLite version
 }

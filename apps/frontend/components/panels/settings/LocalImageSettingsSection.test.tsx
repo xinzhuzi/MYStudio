@@ -155,7 +155,7 @@ describe("LocalImageSettingsSection 大件两源文案", () => {
         pointed: false,
         bigFilesSource: "comfyui-service",
         comfyuiVersion: "0.34.0",
-        pointedFiles: ["http://127.0.0.1:8000"],
+        pointedFiles: ["http://127.0.0.1:17598"],
       }),
     ];
     render(<LocalImageSettingsSection />);

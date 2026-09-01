@@ -33,7 +33,15 @@ import { createOperationId, logEvent } from '@/lib/diagnostics/logger';
 import { createDescribedFetchError, isNetworkFailureError, type NetworkFailureFlags } from '@/lib/ai/fetch-error';
 import { getModelEndpointTypes } from '@/lib/ai/config/store-adapter';
 import { useAppSettingsStore } from '@/stores/app/app-settings-store';
-import { isLocalImageProvider } from '@/stores/ai/api-config-provider-helpers';
+import {
+  LOCAL_IMAGE_MODELS,
+  LOCAL_IMAGE_BASE_URL,
+  createDefaultLocalImageProvider,
+  isLocalImageProvider,
+} from '@/stores/ai/api-config-provider-helpers';
+import { getAIConfigStore } from '@/lib/ai/config/store-adapter';
+import { getProviderKeyManager, parseApiKeys } from '@/lib/ai/core';
+import { AI_FEATURES } from '@/lib/ai/feature-definitions';
 import { getImageSizeLabel } from '@/lib/ai/image-size-presets';
 import {
   buildCompatibilityImagePrompt,
@@ -77,6 +85,107 @@ function mediaSaverFor(persistMedia: boolean | undefined) {
 import type { FreedomImageParams, GenerationResult } from './generation-types';
 
 export type { FreedomImageParams, GenerationResult } from './generation-types';
+
+/** 图片系功能绑定域(模型归属查找范围,与兜底链收集域一致)。 */
+const IMAGE_FEATURE_CHAIN = ['freedom_image', 'character_generation', 'scene_generation'] as const;
+
+/**
+ * 模型归属路由(2026-09-01 实弹教训):节点选中的模型必须优先发给「绑定了
+ * 该模型」的 provider。旧逻辑只按绑定顺序挑 provider 再透传模型名,导致
+ * 本地模型 krea2-turbo 被发给云端第一家 mikoto(images endpoint requires
+ * an image model),本地 sidecar 从未被尝试。本地模型在无任何绑定时也直接
+ * 走本地 provider——选中「本地免费」即意图本地,不依赖绑定体操。
+ */
+function findModelOwnerConfig(requestedModel: string | undefined, isLocalModel: boolean): FeatureConfig | undefined {
+  if (!requestedModel) return undefined;
+  for (const feature of IMAGE_FEATURE_CHAIN) {
+    const exact = getAllFeatureConfigs(feature).find((config) => config.model === requestedModel);
+    if (exact) return exact;
+  }
+  if (!isLocalModel) return undefined;
+  // store 里的本地 provider 可能被云端模型同步等整表重写洗掉(09-01 实弹:
+  // 用户机器上 providers 列表已无本地条目);本地 sidecar 是固定端口+固定
+  // 令牌的内置能力,缺席时直接按常量合成,不依赖绑定/迁移体操
+  const provider = getAIConfigStore().providers.find(isLocalImageProvider) ?? createDefaultLocalImageProvider();
+  const keys = parseApiKeys(provider.apiKey);
+  if (keys.length === 0) return undefined;
+  const keyManager = getProviderKeyManager(provider.id, provider.apiKey, `freedom_image:${requestedModel}`);
+  return {
+    feature: 'freedom_image',
+    featureName: AI_FEATURES.find((f) => f.key === 'freedom_image')?.name || 'freedom_image',
+    provider,
+    apiKey: keyManager.getCurrentKey() || keys[0],
+    allApiKeys: keys,
+    keyManager,
+    platform: provider.platform,
+    baseUrl: provider.baseUrl,
+    models: [requestedModel],
+    model: requestedModel,
+  };
+}
+
+/** 设置页同款本地图片运行时桥(自动拉起 sidecar 用)。 */
+interface LocalImageRuntimeBridge {
+  prepare?: () => Promise<{ success: boolean; message?: string }>;
+  setup?: () => Promise<{ setupStage?: string; setupMessage?: string }>;
+}
+
+function getLocalImageRuntimeBridge(): LocalImageRuntimeBridge | undefined {
+  if (typeof window === 'undefined') return undefined;
+  return (window as { imageGenRuntime?: LocalImageRuntimeBridge }).imageGenRuntime;
+}
+
+let localSidecarEnsureInFlight: Promise<boolean> | null = null;
+
+/**
+ * 本地生成前自愈:sidecar 只在「准备运行时」时拉起,装机重启/崩溃后会缺席
+ * 或僵尸化(09-01 实弹:进程活、端口在听、但对 health 零回复)。生成链对
+ * 17595 是盲发,缺席即「网络请求失败」。这里生成前先探测 health,不健康
+ * 就走设置页同款 prepare(控制器内部自带僵尸端口回收+spawn+30s 健康轮询)。
+ */
+async function ensureLocalImageSidecarRunning(operationId?: string): Promise<boolean> {
+  try {
+    const probe = await fetch(`${LOCAL_IMAGE_BASE_URL}/health`, { signal: AbortSignal.timeout(2000) });
+    if (probe.ok) return true;
+  } catch {
+    // 未运行/僵尸:走拉起
+  }
+  const bridge = getLocalImageRuntimeBridge();
+  if (!bridge) return false;
+  if (localSidecarEnsureInFlight) return localSidecarEnsureInFlight;
+  localSidecarEnsureInFlight = (async () => {
+    void logEvent({
+      level: 'info',
+      category: 'ai',
+      operationId,
+      message: 'Local image sidecar absent before generation, auto-starting',
+    });
+    toast.info('本地图片服务未就绪，正在自动启动（首次约半分钟）…');
+    try {
+      if (bridge.prepare) {
+        const reply = await bridge.prepare();
+        if (!reply.success) {
+          toast.error(reply.message || '本地图片服务启动失败，请到「设置-本地配置」检查');
+          return false;
+        }
+        return true;
+      }
+      if (bridge.setup) {
+        const status = await bridge.setup();
+        const ready = status.setupStage === 'ready';
+        if (!ready) toast.error(status.setupMessage || '本地图片服务启动失败，请到「设置-本地配置」检查');
+        return ready;
+      }
+      return false;
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : '本地图片服务启动失败');
+      return false;
+    } finally {
+      localSidecarEnsureInFlight = null;
+    }
+  })();
+  return localSidecarEnsureInFlight;
+}
 
 // ==================== Constants ====================
 
@@ -156,32 +265,59 @@ export async function generateImage(
   // N 个全挂时单次生图在渲染进程同时挂 N×MB 字符串,GC 前堆瞬时翻倍。
   // 兜底 2 个已能覆盖「主通道挂→备用顶上」,超出的 provider 不再进链。
   const MAX_FALLBACK_PROVIDERS = 2;
+  const requestedModel = generationParams.model?.trim() || undefined;
+  const isLocalModel = requestedModel
+    ? (LOCAL_IMAGE_MODELS as readonly string[]).includes(requestedModel)
+    : false;
+  const ownerConfig = findModelOwnerConfig(requestedModel, isLocalModel);
+
   const seen = new Set<string>();
   const fallbackConfigs: FeatureConfig[] = [];
-  for (const feature of ['freedom_image', 'character_generation', 'scene_generation'] as const) {
+  const pushConfig = (cfg: FeatureConfig): void => {
+    const key = cfg.provider.id + ':' + cfg.baseUrl;
+    if (seen.has(key)) return;
+    seen.add(key);
+    fallbackConfigs.push(cfg);
+  };
+
+  // 模型归属 provider 钉死第一个:请求里的模型名必须发给拥有它的渠道
+  if (ownerConfig) pushConfig(ownerConfig);
+
+  for (const feature of IMAGE_FEATURE_CHAIN) {
     for (const cfg of getAllFeatureConfigs(feature)) {
       if (fallbackConfigs.length >= MAX_FALLBACK_PROVIDERS) break;
-      const key = cfg.provider.id + ':' + cfg.baseUrl;
-      if (seen.has(key)) continue;
-      seen.add(key);
-      fallbackConfigs.push(cfg);
+      pushConfig(cfg);
     }
     if (fallbackConfigs.length >= MAX_FALLBACK_PROVIDERS) break;
   }
+
+  // 本地模型只走本地 provider:云端渠道没有这个模型名,换家只会把本地模型
+  // 名发给云端白烧请求(mikoto 实弹)
+  const localOnlyConfigs = isLocalModel
+    ? fallbackConfigs.filter((cfg) => isLocalImageProvider(cfg.provider))
+    : [];
+  const chainConfigs = localOnlyConfigs.length > 0 ? localOnlyConfigs : fallbackConfigs;
 
   if (fallbackConfigs.length === 0) {
     throw new Error('图片生成未配置：请在设置中配置服务');
   }
 
+  // 本地生成前自愈:sidecar 缺席/僵尸时自动拉起(用户期望「打开软件直接生图」)
+  if (chainConfigs.some((cfg) => isLocalImageProvider(cfg.provider))) {
+    await ensureLocalImageSidecarRunning(operationId);
+  }
+
   let lastError: Error | null = null;
   let lastBaseUrl: string | undefined;
   const attempts: Array<{ name: string; error: string }> = [];
-  for (const cfg of fallbackConfigs) {
+  for (const cfg of chainConfigs) {
     // mikoto 专用:异步模块内部自带付费纪律,外层跳过 freedomRetry——
     // 否则提交层 5xx 报错文案里的状态码会触发重试,违背「结果不确定不重烧」
-    const mikotoBoundary = isMikotoImageProvider(cfg.baseUrl);
+    // 本地 sidecar 同样直调:免费且确定性,超时后再自动重试两轮等于几十
+    // 分钟不可接受;瞬时连接拒绝由用户重按「生成」覆盖
+    const skipFreedomRetry = isMikotoImageProvider(cfg.baseUrl) || isLocalImageProvider(cfg.provider);
     try {
-      return await (mikotoBoundary
+      return await (skipFreedomRetry
         ? _generateFreedomImageInner(generationParams, cfg, operationId)
         : freedomRetry(
             () => _generateFreedomImageInner(generationParams, cfg, operationId),
@@ -210,8 +346,10 @@ export async function generateImage(
   // (08-28 实证:钱咖API 先挂→mikoto 兜底也挂,报错只提 mikoto,用户以为
   // 自己配的渠道被无视)。列出整条链各自的失败原因,最后错误保持原语义。
   const described = createDescribedFetchError(lastError, { endpoint: lastBaseUrl });
-  if (attempts.length > 1) {
-    described.message = `已依次尝试 ${attempts.length} 家生图服务均失败(${buildAttemptChainSummary(attempts)})最后错误:${described.message}`;
+  if (localOnlyConfigs.length > 0) {
+    described.message = `本地图片生成失败:${described.message}(本地模型不切云端;可在本地配置检查运行时,或在节点上换云端模型)`;
+  } else if (chainConfigs.length > 1) {
+    described.message = `已依次尝试 ${chainConfigs.length} 家生图服务均失败(${buildAttemptChainSummary(attempts)})最后错误:${described.message}`;
   }
   throw described;
 }
@@ -506,6 +644,9 @@ async function generateViaImagesEndpoint(
     endpointFamily: 'freedom-image',
     model,
     templateName: builtRequest.templateName,
+    // 本地推理 1024² 实测 ~186s,1MP 更久:本地通道放宽到 15 分钟(有「停止」
+    // 按钮兜底);云端维持主进程默认(180s)不变
+    ...(provider && isLocalImageProvider(provider) ? { timeoutMs: 900_000 } : {}),
   });
 
   if (!response.ok) {

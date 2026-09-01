@@ -43,6 +43,7 @@ export const BRAND_REGISTRY: Record<string, BrandInfo> = {
   runway:       { displayName: 'Runway',               color: '#333333' },
   ideogram:     { displayName: 'Ideogram',             color: '#333333' },
   suno:         { displayName: 'Suno',                 color: '#333333' },
+  'local-image': { displayName: '本地免费',             color: '#34D399' },
   other:        { displayName: '其他',                  color: '#6B7280' },
 };
 

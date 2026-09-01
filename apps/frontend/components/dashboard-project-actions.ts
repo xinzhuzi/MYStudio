@@ -42,7 +42,7 @@ export function useDashboardProjectActions(ctx: any) {
       if (prev) setSelectedIds(new Set()); // Clear on exit
       return !prev;
     });
-  }, []);
+  }, [setSelectedIds, setSelectionMode]);
 
   const toggleSelect = useCallback((id: string) => {
     setSelectedIds((prev) => {
@@ -51,7 +51,7 @@ export function useDashboardProjectActions(ctx: any) {
       else next.add(id);
       return next;
     });
-  }, []);
+  }, [setSelectedIds]);
 
   const cancelHoldSelect = useCallback(() => {
     if (holdSelectTimerRef.current !== null) {
@@ -60,7 +60,7 @@ export function useDashboardProjectActions(ctx: any) {
     }
     holdSelectStartRef.current = null;
     setHoldSelectProjectId(null);
-  }, []);
+  }, [holdSelectStartRef, holdSelectTimerRef, setHoldSelectProjectId]);
 
   const startHoldSelect = useCallback(
     (projectId: string, event: ReactPointerEvent<HTMLDivElement>) => {
@@ -75,7 +75,14 @@ export function useDashboardProjectActions(ctx: any) {
         toggleSelect(projectId);
       }, SELECT_HOLD_MS);
     },
-    [selectionMode, toggleSelect],
+    [
+      holdSelectFiredRef,
+      holdSelectStartRef,
+      holdSelectTimerRef,
+      selectionMode,
+      setHoldSelectProjectId,
+      toggleSelect,
+    ],
   );
 
   const moveHoldSelect = useCallback(
@@ -85,7 +92,7 @@ export function useDashboardProjectActions(ctx: any) {
       const dy = event.clientY - holdSelectStartRef.current.y;
       if (Math.hypot(dx, dy) > SELECT_HOLD_CANCEL_DISTANCE_PX) cancelHoldSelect();
     },
-    [cancelHoldSelect],
+    [cancelHoldSelect, holdSelectStartRef, holdSelectTimerRef],
   );
 
   // 卸载时清掉在途的长按计时器
@@ -93,7 +100,7 @@ export function useDashboardProjectActions(ctx: any) {
     if (holdSelectTimerRef.current !== null) {
       window.clearTimeout(holdSelectTimerRef.current);
     }
-  }, []);
+  }, [holdSelectTimerRef]);
 
   const handleSelectAll = useCallback(() => {
     if (selectedIds.size === projects.length) {
@@ -101,7 +108,7 @@ export function useDashboardProjectActions(ctx: any) {
     } else {
       setSelectedIds(new Set(projects.map((p) => p.id)));
     }
-  }, [projects, selectedIds.size]);
+  }, [projects, selectedIds.size, setSelectedIds]);
 
   // ==================== Delete (management-mode batch path only) ====================
 
@@ -126,7 +133,7 @@ export function useDashboardProjectActions(ctx: any) {
       }
       return removed;
     },
-    [deleteProject],
+    [deleteProject, getProjectFolderBridge],
   );
 
   // ==================== Batch Delete ====================
@@ -141,14 +148,21 @@ export function useDashboardProjectActions(ctx: any) {
     setSelectedIds(new Set());
     setBatchDeleteConfirm(false);
     setSelectionMode(false);
-  }, [projects, selectedIds, deleteProjectsOrchestrated]);
+  }, [
+    projects,
+    selectedIds,
+    deleteProjectsOrchestrated,
+    setBatchDeleteConfirm,
+    setSelectedIds,
+    setSelectionMode,
+  ]);
 
   // ==================== Rename ====================
   const openRenameDialog = useCallback((id: string, name: string) => {
     setRenameTarget({ id, name });
     setRenameValue(name);
     setRenameDialogOpen(true);
-  }, []);
+  }, [setRenameDialogOpen, setRenameTarget, setRenameValue]);
 
   const handleRename = useCallback(async () => {
     if (!renameTarget || !renameValue.trim()) return;
@@ -176,7 +190,15 @@ export function useDashboardProjectActions(ctx: any) {
     setRenameDialogOpen(false);
     setRenameTarget(null);
     toast.success("项目已重命名");
-  }, [renameTarget, renameValue, projects, renameProject]);
+  }, [
+    renameTarget,
+    renameValue,
+    projects,
+    getProjectFolderBridge,
+    renameProject,
+    setRenameDialogOpen,
+    setRenameTarget,
+  ]);
 
   // ==================== Duplicate ====================
 

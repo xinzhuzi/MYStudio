@@ -85,3 +85,111 @@ class DefaultEngineTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class ProWorkflowParityTest(unittest.TestCase):
+    """「Krea2-NSFW专业流」固定流程对拍(09-01 深审修正版):常量与 ComfyUI
+    原版工作流逐项一致;重平衡数学按真实 4D 形状逐位对拍 ComfyUI 参考;
+    分辨率表按 ComfyUI nodes_resolution 公式(1MP,步进16)复算。"""
+
+    def test_pro_lora_stack_matches_original_workflow_toggles(self) -> None:
+        # 原版 PowerLoraLoader 开关态:Mystic XXX v3@1.0 + pussy@0.3(NSFW V4 关闭);
+        # 深审实证两文件零 alpha/dora 键、纯 diffusion_model.* → 缩放=纯 strength
+        self.assertEqual(
+            krea2_engine.PRO_LORA_STACK,
+            (("KREA 2 Mystic XXX v3.safetensors", 1.0), ("Krea 2 pussy.safetensors", 0.3)),
+        )
+        self.assertNotIn(
+            "Krea 2 NSFW V4", [name for name, _ in krea2_engine.PRO_LORA_STACK]
+        )
+
+    def test_rebalance_constants_match_original_node(self) -> None:
+        # 原版节点51(在连线内):multiplier=1, 12 带 weights 第9带×5;节点76 未连线
+        self.assertEqual(krea2_engine.PRO_REBALANCE_MULTIPLIER, 1.0)
+        self.assertEqual(
+            krea2_engine.PRO_REBALANCE_WEIGHTS,
+            (1.0,) * 8 + (5.0,) + (1.0,) * 3,
+        )
+
+    def test_guidance_zero_matches_comfyui_cfg_one(self) -> None:
+        # ComfyUI sampling_function: isclose(cfg,1.0)→uncond=None;diffusers s=0 同义
+        self.assertEqual(krea2_engine.GUIDANCE_SCALE, 0.0)
+
+    def test_aspect_table_matches_comfyui_resolution_formula(self) -> None:
+        import math
+
+        ratios = {"1:1": (1, 1), "16:9": (16, 9), "9:16": (9, 16), "4:3": (4, 3), "3:4": (3, 4)}
+        for ratio, (wr, hr) in ratios.items():
+            with self.subTest(ratio=ratio):
+                total = 1.0 * 1024 * 1024
+                scale = math.sqrt(total / (wr * hr))
+                w = round(wr * scale / 16) * 16
+                h = round(hr * scale / 16) * 16
+                self.assertEqual(krea2_engine.ASPECT_RATIOS[ratio], (w, h))
+                self.assertEqual(w % 16, 0)
+                self.assertEqual(h % 16, 0)
+
+    def test_rebalance_embeds_4d_bitwise_matches_comfyui_flatten_reference(self) -> None:
+        import torch as _torch
+
+        # 真实生产形态:diffusers encode_prompt 返回 (B, seq, 12, 2560);
+        # ComfyUI 参考 = 升序展平到末维 (B, seq, 12*2560) 后按 _scale_cond_tensor 缩放
+        def comfy_reference_flat(t4, scale, weights):
+            # ComfyUI 路径:(B,12,seq,h) 展平为 (B,seq,12*h) 后逐位 _scale_cond_tensor。
+            # 此处 t4 已是 (B,seq,12,h) 连续形态,等价展平 = reshape(不需要 permute——
+            # 首版参考误加了 ComfyUI 的 permute,把 seq/层维搅乱导致假失败)
+            b, seq, n, h = t4.shape
+            flat = t4.reshape(b, seq, n * h).clone()
+            layer_dim = h
+            orig_dtype = flat.dtype
+            flat = flat.float()
+            flat = flat.view(*flat.shape[:-1], n, layer_dim)
+            gains = _torch.tensor(weights, dtype=flat.dtype, device=flat.device)
+            flat = flat * gains.view(*([1] * (flat.dim() - 2)), n, 1)
+            flat = flat.view(*flat.shape[:-2], n * h)
+            return flat.to(orig_dtype) * scale
+
+        _torch.manual_seed(11)
+        embeds = _torch.randn(2, 37, 12, 2560, dtype=_torch.bfloat16)
+        ours = krea2_engine._rebalance_prompt_embeds(
+            embeds, krea2_engine.PRO_REBALANCE_WEIGHTS, krea2_engine.PRO_REBALANCE_MULTIPLIER
+        )
+        ref = comfy_reference_flat(
+            embeds.clone(), krea2_engine.PRO_REBALANCE_MULTIPLIER, list(krea2_engine.PRO_REBALANCE_WEIGHTS)
+        )
+        self.assertEqual(ours.shape, embeds.shape)
+        self.assertTrue(_torch.equal(ours.reshape(*embeds.shape), ref.view(*ours.shape)))
+        # 第9层(index 8)范数 ≈ 原层 ×5,其余层不变(旧实现的静默无效即在此暴露)
+        orig_layers = embeds.float()
+        ours_layers = ours.float()
+        ratio9 = ours_layers[..., 8, :].norm() / orig_layers[..., 8, :].norm()
+        ratio1 = ours_layers[..., 0, :].norm() / orig_layers[..., 0, :].norm()
+        self.assertAlmostEqual(ratio9.item(), 5.0, delta=0.2)
+        self.assertAlmostEqual(ratio1.item(), 1.0, delta=0.05)
+
+    def test_rebalance_embeds_3d_concat_bitwise_matches_comfyui_reference(self) -> None:
+        import torch as _torch
+
+        def comfy_reference(t, scale, weights):
+            flat = t.shape[-1]
+            n_layers = len(weights)
+            if n_layers > 1 and flat % n_layers == 0:
+                layer_dim = flat // n_layers
+                orig_dtype = t.dtype
+                t = t.float()
+                t = t.view(*t.shape[:-1], n_layers, layer_dim)
+                gains = _torch.tensor(weights, dtype=t.dtype, device=t.device)
+                t = t * gains.view(*([1] * (t.dim() - 2)), n_layers, 1)
+                t = t.view(*t.shape[:-2], flat)
+                return t.to(orig_dtype) * scale
+            return t * scale
+
+        _torch.manual_seed(7)
+        embeds = _torch.randn(2, 17, 12 * 2560, dtype=_torch.bfloat16)
+        ours = krea2_engine._rebalance_prompt_embeds(
+            embeds, krea2_engine.PRO_REBALANCE_WEIGHTS, krea2_engine.PRO_REBALANCE_MULTIPLIER
+        )
+        ref = comfy_reference(
+            embeds.clone(), krea2_engine.PRO_REBALANCE_MULTIPLIER, list(krea2_engine.PRO_REBALANCE_WEIGHTS)
+        )
+        self.assertTrue(_torch.equal(ours, ref))

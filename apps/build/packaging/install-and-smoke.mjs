@@ -66,6 +66,9 @@ function stopInstalledAppIfRunning() {
     runOptional('pkill', ['-x', processName]);
   }
   runOptional('pkill', ['-f', '漫影工作室.app/Contents']);
+  // 09-01 根修:detached 图片 sidecar(image_gen.main)不随 app 退出,覆盖安装后
+  // 穿成「health 200 但文件态陈旧」的假健康进程,新装 app 直接复用→生成秒败 500。
+  runOptional('pkill', ['-f', 'image_gen.main']);
   killSingletonLockHolder();
   console.log('Closed existing MYStudio instances before install smoke');
 }

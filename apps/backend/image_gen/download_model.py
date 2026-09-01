@@ -62,10 +62,11 @@ def download_model(model_name: str, progress_path: Path) -> int:
         return 2
 
     layout = spec.get("layout", "")
-    from .engines import krea2 as _krea2, flux2 as _flux2, z_image as _z_image, qwen as _qwen
+    from .engines import krea2 as _krea2, flux2 as _flux2, z_image as _z_image, qwen as _qwen, comfyui_bridge as _bridge
     engine_map = {
         "krea2-pointed": _krea2, "flux2-pointed": _flux2,
         "z-image-pointed": _z_image, "qwen-pointed": _qwen,
+        "comfyui-bridge": _bridge,
     }
     engine = engine_map.get(layout)
     if engine is None:
@@ -74,6 +75,28 @@ def download_model(model_name: str, progress_path: Path) -> int:
             "progress": 0, "error": f"未知布局: {layout}", "updatedAt": int(time.time()*1000),
         })
         return 2
+
+    if engine is _bridge:
+        status = engine.small_pieces_status()
+        if not status["ready"]:
+            _write_progress(progress_path, {
+                "modelName": model_name, "status": "error", "current": 0, "total": 0,
+                "progress": 0, "error": f"ComfyUI 工作流模板不可用: {', '.join(status['missing'])}",
+                "updatedAt": int(time.time() * 1000),
+            })
+            return 2
+        if not engine.resolve_big_files():
+            _write_progress(progress_path, {
+                "modelName": model_name, "status": "error", "current": 0, "total": 0,
+                "progress": 0, "error": "ComfyUI 没在运行，请先打开 ComfyUI 再试",
+                "updatedAt": int(time.time() * 1000),
+            })
+            return 2
+        _write_progress(progress_path, {
+            "modelName": model_name, "status": "complete", "current": 0, "total": 0,
+            "progress": 100, "filename": "ComfyUI 服务(本机)", "updatedAt": int(time.time() * 1000),
+        })
+        return 0
 
     # 判定 full 模式(大件缺)还是只补小件。Qwen 支持应用缓存双源解析，
     # 其余 pointed 引擎当前只有 ComfyUI 大件，不能误把小件下载当完整模型。

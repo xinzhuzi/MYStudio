@@ -14,6 +14,7 @@ import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { useAPIConfigStore } from '@/stores/ai/api-config-store';
 import { extractBrandFromModel, getBrandInfo } from '@/lib/ai/core/providers/brand-mapping';
+import { LOCAL_IMAGE_MODELS } from '@/stores/ai/api-config-provider-helpers';
 import { getModelDisplayName } from '@/lib/assist/model-display-names';
 
 interface ModelSelectorProps {
@@ -412,8 +413,7 @@ export function ModelSelector({ type, value, onChange, className }: ModelSelecto
   // 格式: ["memefast:gemini-3-pro-image-preview", "memefast:flux-dev", ...]
   const models = useMemo((): SelectorModel[] => {
     const feature = type === 'image' ? 'freedom_image' : 'freedom_video';
-    const bindings = getFeatureBindings(feature);
-    if (!bindings || bindings.length === 0) return [];
+    const bindings = getFeatureBindings(feature) ?? [];
 
     const result: SelectorModel[] = [];
     const seen = new Set<string>();
@@ -435,6 +435,19 @@ export function ModelSelector({ type, value, onChange, className }: ModelSelecto
           id: expandedModel,
           name: getModelDisplayName(expandedModel),
           brandId: extractBrandFromModel(expandedModel),
+        });
+      }
+    }
+
+    // 本地免费模型组常驻可选(引擎侧按模型归属路由,不依赖绑定体操)
+    if (type === 'image') {
+      for (const localModel of LOCAL_IMAGE_MODELS) {
+        if (seen.has(localModel)) continue;
+        seen.add(localModel);
+        result.push({
+          id: localModel,
+          name: getModelDisplayName(localModel),
+          brandId: 'local-image',
         });
       }
     }

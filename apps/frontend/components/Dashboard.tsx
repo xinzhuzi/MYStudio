@@ -8,7 +8,7 @@
  * Features: create, open, rename, duplicate, batch select & delete
  */
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { useDashboardProjectLifecycle } from "./dashboard-project-lifecycle";
 import { useDashboardMoveActions } from "./dashboard-move-actions";
 import { useDashboardProjectActions } from "./dashboard-project-actions";

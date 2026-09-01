@@ -787,6 +787,16 @@ describe("desktop build scripts", () => {
     expect(prekillBody).toContain("killSingletonLockHolder();");
   });
 
+  it("install-and-smoke prekill also kills detached image sidecars (09-01 假健康地雷)", () => {
+    const installScript = readBuildFile("build/packaging/install-and-smoke.mjs");
+    const prekillBody = installScript.slice(
+      installScript.indexOf("function stopInstalledAppIfRunning"),
+      installScript.indexOf("function assertNoBackupApps"),
+    );
+    // image_gen.main 不随 app 退出,穿到新装=health 200 但文件态陈旧→生成秒败 500
+    expect(prekillBody).toContain("image_gen.main");
+  });
+
   it("gates packaged and installed Remotion export smoke behind an explicit opt-in", () => {
     const smokeScript = readBuildFile("build/smoke/smoke-desktop.mjs");
     const installScript = readBuildFile("build/packaging/install-and-smoke.mjs");

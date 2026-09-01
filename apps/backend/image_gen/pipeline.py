@@ -15,6 +15,7 @@ from . import model_cache as _model_cache
 from .model_cache import (
     IMAGE_MODELS,
     comfyui_models_dir,
+    z_image_comfyui_models_dir,
     hf_snapshot_dir,
     resolve_image_model_name,
     find_cached_image_model_for_spec,
@@ -26,6 +27,8 @@ from .engines import qwen as _qwen
 from .engines import comfyui_bridge as _comfyui_bridge
 
 _lock = threading.Lock()
+# 生成互斥的排队上限(秒):拿不到锁时排队等待,超时按「正忙」拒绝
+_GENERATION_LOCK_TIMEOUT_S = 600
 
 # Compatibility state for the pre-engine-separation worker API.  The Qwen
 # engine cache remains the single source of truth; exposing the same mapping
@@ -217,6 +220,26 @@ def _require_downloaded(model_name: str) -> None:
             f"图像模型 {spec['label']} 未就绪。请前往 设置 → 本地配置 → 本地图片生成 检查。",
         )
 
+    # Big files alone are not enough for the native pointed engines: the
+    # diffusers config/tokenizer/VAE pieces are loaded at generation time.
+    # Keep this gate in the shared dispatcher so every engine fails closed
+    # with a stable, actionable error instead of surfacing an import or
+    # from_pretrained traceback after a request has already started.
+    layout = spec.get("layout", "")
+    if layout == "comfyui-bridge":
+        return
+    engine = _ENGINE_BY_LAYOUT.get(layout)
+    if engine is None or not hasattr(engine, "small_pieces_status"):
+        return
+    cache_dir = _model_cache.primary_hf_cache_dir()
+    small = engine.small_pieces_status(_model_cache.hf_snapshot_dir, cache_dir)
+    if not small.get("ready"):
+        missing = ", ".join(str(item) for item in small.get("missing", []))
+        raise PipelineError(
+            "small-pieces-missing",
+            f"{spec['label']} 小件未补齐: {missing}",
+        )
+
 
 def generate_image(
     model_name: str,
@@ -260,7 +283,11 @@ def generate_image(
     steps = num_inference_steps or spec["steps"]
 
     # 构建引擎上下文(各引擎从 ctx 取自己需要的路径)
-    models_dir = comfyui_models_dir()
+    models_dir = (
+        z_image_comfyui_models_dir()
+        if layout == "z-image-pointed"
+        else comfyui_models_dir()
+    )
     small_repo = getattr(engine, "SMALL_REPO", getattr(engine, "IMAGE_REPO", None))
     snapshot_dir = hf_snapshot_dir(small_repo) if small_repo else None
     ctx = {
@@ -275,6 +302,12 @@ def generate_image(
             "Qwen/Qwen2.5-VL-7B-Instruct": str(hf_snapshot_dir("Qwen/Qwen2.5-VL-7B-Instruct") or ""),
         }
 
+    # 09-01 稳定性浸泡实锤:引擎组件(scheduler/管线)是进程级共享可变状态,
+    # 并发 generate 会互踩(实测双 500 index out of bounds)。08-31 引擎拆分时
+    # 旧 _generate_qwen 的互斥没搬进新分发器——此处补回:队列式互斥,短暂争用
+    # 排队等待(画布多节点连点体验=依次完成),600s 仍拿不到锁才报正忙。
+    if not _lock.acquire(timeout=_GENERATION_LOCK_TIMEOUT_S):
+        raise PipelineError("generation-busy", "图像生成正忙，请稍后重试")
     try:
         return engine.generate(
             prompt=prompt,
@@ -291,3 +324,5 @@ def generate_image(
         raise
     except Exception as exc:
         raise PipelineError("inference-failed", f"图像生成失败: {exc}") from exc
+    finally:
+        _lock.release()

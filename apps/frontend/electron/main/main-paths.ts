@@ -57,9 +57,7 @@ export const projectRootFor = (projectId: string) => resolveProjectRootPath(getD
 // local-image://)自带 realpath 级根约束,不经此守卫。
 export const blessedDialogPaths = createBlessedPathRegistry()
 // tts/depth/upscale 控制器在 main.ts 装配后注入(装配顺序:控制器晚于路径族)
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 let _controllerRoots: (() => string[]) | null = null
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function bindRuntimeControllerRoots(provider: () => string[]): void {
   _controllerRoots = provider
 }

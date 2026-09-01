@@ -10,6 +10,7 @@ import base64
 import copy
 import json
 import os
+import re
 import time
 import uuid
 from pathlib import Path
@@ -40,8 +41,25 @@ _WORKFLOWS_DIR = Path(__file__).resolve().parent.parent / "workflows"
 _REQUIRED_TEMPLATES = ("krea2_t2i", "krea2_edit_ref", "krea2_nsfw_pro")
 
 
+def _version_tuple(value: Any) -> tuple[int, ...]:
+    numbers = re.findall(r"\d+", str(value))
+    return tuple(int(number) for number in numbers[:3]) or (0,)
+
+
+def _warn_if_version_below_min(stats: dict[str, Any], template: dict[str, Any]) -> None:
+    minimum = template.get("comfyuiVersionMin")
+    actual = stats.get("comfyui_version")
+    if minimum and actual and _version_tuple(actual) < _version_tuple(minimum):
+        print(
+            f"[image-sidecar] comfyui-bridge: ComfyUI {actual} is below template minimum {minimum}; continuing for compatibility",
+            flush=True,
+        )
+
+
 def bridge_url() -> str:
-    return os.environ.get("MYSTUDIO_COMFYUI_BRIDGE_URL", "http://127.0.0.1:8000").rstrip("/")
+    # 17598 is the current local ComfyUI service port; deployments may override
+    # it without changing the bundled bridge contract.
+    return os.environ.get("MYSTUDIO_COMFYUI_BRIDGE_URL", "http://127.0.0.1:17598").rstrip("/")
 
 
 def _pipeline_error(code: str, message: str) -> Exception:
@@ -58,6 +76,10 @@ def _http_json(method: str, url: str, payload: dict[str, Any] | None = None, tim
         with request.urlopen(req, timeout=timeout) as response:
             return json.loads(response.read().decode("utf-8"))
     except error.HTTPError as exc:
+        if exc.code == 404 and method.upper() == "GET" and "/history/" in url:
+            # A prompt can be submitted before ComfyUI has materialized its
+            # history entry.  Treat that short window as queued, not offline.
+            return {}
         # ComfyUI reports workflow/node validation failures as HTTP 400 with
         # a JSON body; preserve it so generate() can map node_errors to the
         # bridge-execution-failed contract instead of hiding it as unreachable.
@@ -121,7 +143,15 @@ def load_template(name: str) -> dict[str, Any]:
             bindings = [bindings]
         for item in bindings:
             node = template["graph"].get(str(item.get("node"))) if isinstance(item, dict) else None
-            if not isinstance(node, dict) or not node.get("class_type") or not item.get("field"):
+            expected_class = item.get("class_type") if isinstance(item, dict) else None
+            if (
+                not isinstance(node, dict)
+                or not node.get("class_type")
+                or not isinstance(node.get("inputs"), dict)
+                or not item.get("field")
+                or not isinstance(expected_class, str)
+                or node.get("class_type") != expected_class
+            ):
                 raise _pipeline_error("bridge-template-missing", f"ComfyUI 工作流节点缺失: {name}:{key}")
     if not any(node.get("class_type") == "SaveImage" for node in template["graph"].values() if isinstance(node, dict)):
         raise _pipeline_error("bridge-template-missing", f"ComfyUI 工作流缺少 SaveImage: {name}")
@@ -142,8 +172,20 @@ def instantiate_template(template: dict[str, Any], prompt: str, negative_prompt:
     for name, value in values.items():
         if name in bindings:
             _set_input(graph, bindings[name], value)
-    for binding, uploaded_name in zip(bindings.get("references", []), reference_names):
-        _set_input(graph, binding, uploaded_name)
+    for index, binding in enumerate(bindings.get("references", [])):
+        slot = binding.get("slot", index)
+        if isinstance(slot, int) and 0 <= slot < len(reference_names):
+            _set_input(graph, binding, reference_names[slot])
+    if len(reference_names) < 2 and template.get("name") == "krea2_edit_ref":
+        # The second Krea2 reference path is optional.  Remove its whole
+        # LoadImage → scale → VAE chain for single-reference requests so an
+        # empty LoadImage widget can never reach ComfyUI validation.
+        for node_id in ("46", "52", "53"):
+            graph.pop(node_id, None)
+        for node_id in ("34", "36"):
+            graph.get(node_id, {}).get("inputs", {}).pop("image_b", None)
+        graph.get("35", {}).get("inputs", {}).pop("source_latent_b", None)
+        graph.get("35", {}).get("inputs", {}).pop("source_image_b", None)
     return graph
 
 
@@ -217,16 +259,22 @@ def generate(prompt: str, aspect_ratio: str, negative_prompt: str | None, steps:
     else:
         template_name = "krea2_t2i"
     template = load_template(template_name)
+    _warn_if_version_below_min(stats, template)
     uploaded = []
-    for index, image in enumerate(references):
-        response = _upload_image(f"{bridge_url()}/upload/image", image, f"mystudio-ref-{index}.png")
+    for image in references:
+        response = _upload_image(
+            f"{bridge_url()}/upload/image",
+            image,
+            f"mystudio-bridge-{uuid.uuid4().hex[:8]}.png",
+        )
         name = response.get("name")
         if not isinstance(name, str) or not name:
             raise _pipeline_error("bridge-execution-failed", "ComfyUI 未返回参考图文件名")
         subfolder = response.get("subfolder") or ""
         uploaded.append(f"{subfolder}/{name}" if subfolder else name)
     graph = instantiate_template(template, prompt, negative_prompt, steps, seed, aspect_ratio, uploaded)
-    submitted = _http_json("POST", f"{bridge_url()}/prompt", {"prompt": graph, "client_id": str(uuid.uuid4())}, timeout=20)
+    client_id = str(uuid.uuid4())
+    submitted = _http_json("POST", f"{bridge_url()}/prompt", {"prompt": graph, "client_id": client_id}, timeout=20)
     if submitted.get("node_errors"):
         raise _pipeline_error("bridge-execution-failed", f"ComfyUI 拒绝工作流: {str(submitted['node_errors'])[:500]}")
     prompt_id = submitted.get("prompt_id")
@@ -242,4 +290,11 @@ def generate(prompt: str, aspect_ratio: str, negative_prompt: str | None, steps:
             query = parse.urlencode({"filename": image["filename"], "subfolder": image.get("subfolder", ""), "type": image.get("type", "output")})
             return base64.b64encode(_fetch_bytes(f"{bridge_url()}/view?{query}")).decode("ascii")
         time.sleep(1)
+    try:
+        _http_json("POST", f"{bridge_url()}/interrupt", {"client_id": client_id}, timeout=5)
+    except Exception:
+        # Interrupt is cleanup-only.  A ComfyUI instance may reject it after
+        # the job has already left the queue; the timeout contract remains
+        # authoritative for the caller.
+        pass
     raise _pipeline_error("bridge-timeout", "ComfyUI 生成超时，请检查队列后重试")

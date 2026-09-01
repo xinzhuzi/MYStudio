@@ -18,6 +18,9 @@ from pathlib import Path
 from unittest.mock import patch
 
 from image_gen import download_model, model_cache, model_inventory, pipeline
+from image_gen.engines import flux2 as flux2_engine
+from image_gen.engines import krea2 as krea2_engine
+from image_gen.engines import z_image as z_image_engine
 
 
 class QwenKeyMappingTests(unittest.TestCase):
@@ -91,6 +94,46 @@ class PointedScanTests(unittest.TestCase):
         self.assertIsNotNone(resolved)
         self.assertEqual(resolved["source"], "comfyui")
         self.assertEqual(resolved["main"], base / model_cache.Z_COMFY_MAIN_FILE)
+
+
+class NativeEngineReadinessTests(unittest.TestCase):
+    def test_pointed_engines_fail_closed_when_small_pieces_are_missing(self) -> None:
+        cases = (
+            ("z-image-turbo", z_image_engine),
+            ("flux2-klein-9b", flux2_engine),
+            ("krea2-turbo", krea2_engine),
+        )
+        for model_name, engine in cases:
+            with self.subTest(model_name=model_name), patch.object(
+                pipeline, "find_cached_image_model_for_spec", return_value={"size_mb": 1}
+            ), patch.object(
+                engine,
+                "small_pieces_status",
+                return_value={"ready": False, "missing": ["required/config.json"]},
+            ):
+                with self.assertRaises(pipeline.PipelineError) as context:
+                    pipeline._require_downloaded(model_name)
+
+            self.assertEqual(context.exception.code, "small-pieces-missing")
+            self.assertIn("required/config.json", context.exception.message)
+
+    def test_z_image_generation_uses_dedicated_comfyui_override(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            z_dir = Path(temp) / "z-models"
+            shared_dir = Path(temp) / "shared-models"
+            with patch.dict(
+                os.environ,
+                {
+                    "MYSTUDIO_ZIMAGE_COMFYUI_MODELS_DIR": str(z_dir),
+                    "MYSTUDIO_QWEN_COMFYUI_MODELS_DIR": str(shared_dir),
+                },
+            ), patch.object(pipeline, "_require_downloaded"), patch.object(
+                z_image_engine, "generate", return_value="ZmFrZQ=="
+            ) as generate:
+                result = pipeline.generate_image("z-image-turbo", "一只仙鹤")
+
+        self.assertEqual(result, "ZmFrZQ==")
+        self.assertEqual(generate.call_args.kwargs["models_dir"], z_dir)
 
 
 class CacheIsolationTests(unittest.TestCase):

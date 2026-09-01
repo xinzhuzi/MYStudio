@@ -41,7 +41,7 @@ export function useImageCanvasProcessing(ctx: any) {
         toast.error(error instanceof Error ? error.message : "裁剪取材失败");
       }
     },
-    [cropTarget, landDerived],
+    [assertLanded, cropTarget, landDerived, setCropTarget],
   );
 
   const extractImageUrl = (node: ImageWorkflowNode | undefined): string => {
@@ -63,7 +63,7 @@ export function useImageCanvasProcessing(ctx: any) {
       else if (tool === "mask") setMaskTarget(target);
       else setReverseState({ ...target, running: false });
     },
-    [activeGraph],
+    [activeGraph, setCropTarget, setMaskTarget, setReverseState, setSplitTarget],
   );
 
   const handleSplitConfirm = useCallback(
@@ -98,7 +98,7 @@ export function useImageCanvasProcessing(ctx: any) {
         toast.error(error instanceof Error ? error.message : "切图取材失败");
       }
     },
-    [landDerived, splitTarget],
+    [assertLanded, landDerived, setSplitTarget, splitTarget],
   );
 
   const handleMaskConfirm = useCallback(
@@ -153,7 +153,7 @@ export function useImageCanvasProcessing(ctx: any) {
         toast.error(error instanceof Error ? error.message : "局部重绘失败");
       }
     },
-    [activeGraph, generateNode, landDerived, maskTarget],
+    [activeGraph, assertLanded, generateNode, landDerived, maskTarget, setMaskTarget],
   );
 
   const runReversePrompt = useCallback(async () => {
@@ -178,7 +178,7 @@ export function useImageCanvasProcessing(ctx: any) {
       setReverseState(null);
       toast.error(error instanceof Error ? error.message : "反推提示词失败");
     }
-  }, [activeGraph, reverseState, saveGraph]);
+  }, [activeGraph, reverseState, saveGraph, setReverseState]);
 
 
   return { handleCropConfirm, handleExtractEntry, handleSplitConfirm, handleMaskConfirm, runReversePrompt };

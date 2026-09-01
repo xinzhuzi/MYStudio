@@ -4,19 +4,53 @@
  * 体逐字保留;沿用 material-slice 的 set/get 注入模式。
  */
 import { createStudioWorkflowId } from "./studio-store-runtime";
-import type { StudioAgentRun, MediaGenerationTask } from "@/types/studio";
+import type {
+  AgentWorkKey,
+  MediaGenerationTask,
+  MediaGenerationTaskKind,
+  StudioAgentRun,
+} from "@/types/studio";
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type RunTaskSliceStore = Record<string, any> & {
-  agentRuns: any[];
-  mediaTasks: any[];
+type StartAgentRunInput = {
+  key: AgentWorkKey;
+  phase: string;
+  inputSummary: string;
+  inputFingerprint?: string;
+  checkpointRef?: string;
+  retryOf?: string;
+};
+
+type StartMediaTaskInput = {
+  kind: MediaGenerationTaskKind;
+  targetId: string;
+  episodeId?: string;
+  provider?: string;
+  runId?: string;
+  checkpointRef?: string;
+  inputFingerprint?: string;
+  retryOf?: string;
+};
+
+type TaskOutput = {
+  outputRef?: string;
+  outputRefs?: string[];
+  checkpointRef?: string;
+};
+
+type RunTaskSliceStore = {
+  agentRuns: StudioAgentRun[];
+  mediaTasks: MediaGenerationTask[];
+  startAgentRun: (input: StartAgentRunInput) => string;
+  startMediaTask: (input: StartMediaTaskInput) => string;
+  retryAgentRun: (id: string) => string | null;
+  retryMediaTask: (id: string) => string | null;
 };
 type SetFn = (fn: (state: RunTaskSliceStore) => Partial<RunTaskSliceStore>) => void;
 type GetFn = () => RunTaskSliceStore;
 
 export function createRunTaskSliceActions(set: SetFn, get: GetFn) {
   return {
-      startAgentRun: (input) => {
+      startAgentRun: (input: StartAgentRunInput) => {
         const id = createStudioWorkflowId("run");
         const now = Date.now();
         const previous = input.retryOf ? get().agentRuns.find((run) => run.id === input.retryOf) : undefined;
@@ -36,7 +70,7 @@ export function createRunTaskSliceActions(set: SetFn, get: GetFn) {
         return id;
       },
 
-      finishAgentRun: (id, output = {}) => {
+      finishAgentRun: (id: string, output: TaskOutput = {}) => {
         const now = Date.now();
         set((state) => ({
           agentRuns: state.agentRuns.map((run) =>
@@ -53,7 +87,7 @@ export function createRunTaskSliceActions(set: SetFn, get: GetFn) {
         }));
       },
 
-      failAgentRun: (id, errorReason, checkpointRef) => {
+      failAgentRun: (id: string, errorReason: string, checkpointRef?: string) => {
         const now = Date.now();
         set((state) => ({
           agentRuns: state.agentRuns.map((run) =>
@@ -70,7 +104,7 @@ export function createRunTaskSliceActions(set: SetFn, get: GetFn) {
         }));
       },
 
-      cancelAgentRun: (id, errorReason = "Cancelled", checkpointRef) => {
+      cancelAgentRun: (id: string, errorReason = "Cancelled", checkpointRef?: string) => {
         const now = Date.now();
         set((state) => ({
           agentRuns: state.agentRuns.map((run) =>
@@ -87,7 +121,7 @@ export function createRunTaskSliceActions(set: SetFn, get: GetFn) {
         }));
       },
 
-      retryAgentRun: (id) => {
+      retryAgentRun: (id: string) => {
         const previous = get().agentRuns.find((run) => run.id === id);
         if (!previous) return null;
         return get().startAgentRun({
@@ -100,7 +134,7 @@ export function createRunTaskSliceActions(set: SetFn, get: GetFn) {
         });
       },
 
-      startMediaTask: (input) => {
+      startMediaTask: (input: StartMediaTaskInput) => {
         const id = createStudioWorkflowId("media-task");
         const now = Date.now();
         const previous = input.retryOf ? get().mediaTasks.find((task) => task.id === input.retryOf) : undefined;
@@ -123,7 +157,7 @@ export function createRunTaskSliceActions(set: SetFn, get: GetFn) {
         return id;
       },
 
-      finishMediaTask: (id, output = {}) => {
+      finishMediaTask: (id: string, output: TaskOutput = {}) => {
         const now = Date.now();
         set((state) => ({
           mediaTasks: state.mediaTasks.map((task) =>
@@ -141,7 +175,7 @@ export function createRunTaskSliceActions(set: SetFn, get: GetFn) {
         }));
       },
 
-      failMediaTask: (id, errorReason, checkpointRef) => {
+      failMediaTask: (id: string, errorReason: string, checkpointRef?: string) => {
         const now = Date.now();
         set((state) => ({
           mediaTasks: state.mediaTasks.map((task) =>
@@ -159,7 +193,7 @@ export function createRunTaskSliceActions(set: SetFn, get: GetFn) {
         }));
       },
 
-      cancelMediaTask: (id, errorReason = "Cancelled", checkpointRef) => {
+      cancelMediaTask: (id: string, errorReason = "Cancelled", checkpointRef?: string) => {
         const now = Date.now();
         set((state) => ({
           mediaTasks: state.mediaTasks.map((task) =>
@@ -177,7 +211,7 @@ export function createRunTaskSliceActions(set: SetFn, get: GetFn) {
         }));
       },
 
-      retryMediaTask: (id) => {
+      retryMediaTask: (id: string) => {
         const previous = get().mediaTasks.find((task) => task.id === id);
         if (!previous || previous.status !== "failed") return null;
         return get().startMediaTask({
@@ -192,7 +226,7 @@ export function createRunTaskSliceActions(set: SetFn, get: GetFn) {
         });
       },
 
-      retryFailedMediaTasks: (kind) =>
+      retryFailedMediaTasks: (kind?: MediaGenerationTaskKind) =>
         get().mediaTasks
           .filter((task) => task.status === "failed" && (!kind || task.kind === kind))
           .map((task) => get().retryMediaTask(task.id))

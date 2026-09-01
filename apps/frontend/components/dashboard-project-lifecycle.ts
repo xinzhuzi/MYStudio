@@ -29,7 +29,7 @@ export function useDashboardProjectLifecycle(ctx: any) {
     if (!dir) return;
     setNewProjectParentDir(dir);
     setNewProjectError(null);
-  }, [projectLocationDefaults.lastParentDir]);
+  }, [projectLocationDefaults.lastParentDir, setNewProjectError, setNewProjectParentDir]);
 
   const handleCreateProject = async () => {
     const name = newProjectName.trim();
@@ -181,7 +181,7 @@ export function useDashboardProjectLifecycle(ctx: any) {
     } finally {
       setDuplicatingId(null);
     }
-  }, [projects]);
+  }, [projects, setDuplicatingId]);
 
   const handleImportProject = useCallback(async () => {
     const storage = getStorageManagerBridge();

@@ -103,7 +103,7 @@ class ImageGenerateRouteTests(unittest.TestCase):
         handler = _GenerateHandler.__new__(_GenerateHandler)
         with patch("image_gen.server.comfyui_models_dir", return_value=None), patch(
             "image_gen.engines.comfyui_bridge.resolve_big_files",
-            return_value={"source": "comfyui-service", "cache_dir": "http://127.0.0.1:8000"},
+            return_value={"source": "comfyui-service", "cache_dir": "http://127.0.0.1:17598"},
         ), patch(
             "image_gen.engines.comfyui_bridge.small_pieces_status",
             return_value={"ready": True, "missing": [], "snapshot_dirs": {}},

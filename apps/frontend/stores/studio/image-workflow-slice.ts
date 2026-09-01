@@ -5,6 +5,13 @@ import { useCharacterLibraryStore } from "@/stores/library/character-library-sto
 import { usePropsLibraryStore } from "@/stores/library/props-library-store";
 import { useSceneStore } from "@/stores/library/scene-store";
 import { storyboardSourceFingerprint } from "./studio-store-continuity-helpers";
+import type {
+  ContinuityAssetVersion,
+  ImageWorkflowGraph,
+  ImageWorkflowTarget,
+  MediaGenerationTaskKind,
+  StoryboardItem,
+} from "@/types/studio";
 
 /**
  * Image-workflow slice —— 图像工作流的创建/更新/删除与结果回接分镜/资产。
@@ -12,16 +19,30 @@ import { storyboardSourceFingerprint } from "./studio-store-continuity-helpers";
  * 体逐字保留;沿用 material-slice 的 set/get 注入模式。
  */
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type ImageWorkflowSliceStore = Record<string, any> & {
-  imageWorkflows: any[];
+type ImageWorkflowSliceStore = {
+  imageWorkflows: ImageWorkflowGraph[];
+  storyboards: StoryboardItem[];
+  continuityAssetVersions: ContinuityAssetVersion[];
+  updateStoryboard: (id: string, updates: Partial<StoryboardItem>) => void;
+  startMediaTask: (input: {
+    kind: MediaGenerationTaskKind;
+    targetId: string;
+    episodeId?: string;
+    provider?: string;
+    checkpointRef?: string;
+    inputFingerprint?: string;
+  }) => string;
+  finishMediaTask: (
+    id: string,
+    output?: { outputRef?: string; outputRefs?: string[]; checkpointRef?: string },
+  ) => void;
 };
 type SetFn = (fn: (state: ImageWorkflowSliceStore) => Partial<ImageWorkflowSliceStore>) => void;
 type GetFn = () => ImageWorkflowSliceStore;
 
 export function createImageWorkflowSliceActions(set: SetFn, get: GetFn) {
   return {
-      createImageWorkflow: (input = {}) => {
+      createImageWorkflow: (input: Parameters<typeof createImageWorkflowGraph>[0] = {}) => {
         const graph = createImageWorkflowGraph(input);
         set((state) => ({
           imageWorkflows: [
@@ -32,7 +53,7 @@ export function createImageWorkflowSliceActions(set: SetFn, get: GetFn) {
         return graph.id;
       },
 
-      upsertImageWorkflow: (graph) => {
+      upsertImageWorkflow: (graph: ImageWorkflowGraph) => {
         assertImageWorkflowGraphMediaPersistable(graph);
         set((state) => ({
           imageWorkflows: [
@@ -42,7 +63,7 @@ export function createImageWorkflowSliceActions(set: SetFn, get: GetFn) {
         }));
       },
 
-      updateImageWorkflow: (id, updates) => {
+      updateImageWorkflow: (id: string, updates: Partial<ImageWorkflowGraph>) => {
         set((state) => ({
           imageWorkflows: state.imageWorkflows.map((item) => {
             if (item.id !== id) return item;
@@ -58,13 +79,13 @@ export function createImageWorkflowSliceActions(set: SetFn, get: GetFn) {
         }));
       },
 
-      deleteImageWorkflow: (id) => {
+      deleteImageWorkflow: (id: string) => {
         set((state) => ({
           imageWorkflows: state.imageWorkflows.filter((item) => item.id !== id),
         }));
       },
 
-      applyImageWorkflowResultToStoryboard: (storyboardId, workflowId, nodeId) => {
+      applyImageWorkflowResultToStoryboard: (storyboardId: string, workflowId: string, nodeId: string) => {
         const graph = get().imageWorkflows.find((item) => item.id === workflowId);
         if (!graph) return;
         const patch = buildStoryboardImageWorkflowPatch(graph, nodeId);
@@ -87,7 +108,7 @@ export function createImageWorkflowSliceActions(set: SetFn, get: GetFn) {
         }
       },
 
-      applyImageWorkflowResultToAsset: (target, workflowId, nodeId) => {
+      applyImageWorkflowResultToAsset: (target: ImageWorkflowTarget, workflowId: string, nodeId: string) => {
         if (target.kind !== "asset" || !target.assetType || !target.id) return;
         const graph = get().imageWorkflows.find((item) => item.id === workflowId);
         if (!graph) return;

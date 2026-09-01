@@ -1,6 +1,9 @@
 // @vitest-environment jsdom
 import { describe, expect, it } from "vitest";
-import { buildImageWorkflowGenerationRequest } from "@/lib/studio/image-workflow/request";
+import {
+  assertImageWorkflowContinuityCapability,
+  buildImageWorkflowGenerationRequest,
+} from "@/lib/studio/image-workflow/request";
 import type { ImageWorkflowGraph, ImageWorkflowGeneratedNode, ImageWorkflowPromptNode } from "@/types/studio";
 
 /** 08-30 功能转移裁定的回归锁:参数权威归成图节点,存量图回落提示词节点。 */
@@ -82,5 +85,27 @@ describe("buildImageWorkflowGenerationRequest 参数权威(功能转移)", () =>
     expect(request.resolution).toBe("2K");
     expect(request.aspectRatio).toBe("1:1");
     expect(request.prompt).toBe("正文");
+  });
+});
+
+describe("assertImageWorkflowContinuityCapability 模型白名单", () => {
+  const request = (model: string) => ({
+    model,
+    continuityRequired: true,
+    orderedReferenceManifest: [{ order: 1, imageUrl: "data:image/png;base64,ref", versionId: "v1" }],
+  });
+
+  it("允许 gpt-image 版本和 ComfyUI 桥精确标识", () => {
+    expect(() => assertImageWorkflowContinuityCapability(request("gpt-image-2") as never)).not.toThrow();
+    expect(() => assertImageWorkflowContinuityCapability(request("comfyui-bridge") as never)).not.toThrow();
+  });
+
+  it("拒绝带恶意后缀的伪造模型标识", () => {
+    expect(() => assertImageWorkflowContinuityCapability(request("comfyui-bridge-malicious") as never)).toThrow(
+      /未通过多参考图连续性能力门禁/,
+    );
+    expect(() => assertImageWorkflowContinuityCapability(request("gpt-image-2-malicious") as never)).toThrow(
+      /未通过多参考图连续性能力门禁/,
+    );
   });
 });
