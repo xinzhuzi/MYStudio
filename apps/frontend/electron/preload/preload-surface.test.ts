@@ -1,7 +1,8 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
-const preloadSource = readFileSync(new URL("./preload.ts", import.meta.url), "utf8");
+const preloadSource = readFileSync(new URL("./preload.ts", import.meta.url), "utf8")
+  + readFileSync(new URL("./preload-runtime.ts", import.meta.url), "utf8");
 const electronTypesSource = readFileSync(new URL("../../types/electron.d.ts", import.meta.url), "utf8");
 
 describe("preload IPC surface", () => {
