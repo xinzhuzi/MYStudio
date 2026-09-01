@@ -421,7 +421,7 @@ function BatchImageArea({
                 type="button"
                 aria-label={`设为主图 ${index + 1}`}
                 disabled={index === batch!.primaryIndex}
-                className={`absolute bottom-1 left-1 rounded px-1.5 py-0.5 text-[10px] font-medium ${
+                className={`absolute bottom-1 left-1 rounded-md px-1.5 py-0.5 text-[10px] font-medium ${
                   index === batch!.primaryIndex
                     ? "cursor-default bg-primary text-primary-foreground"
                     : "bg-card/90 text-card-foreground hover:bg-accent"

@@ -8,7 +8,7 @@
  * hook 中注册,路由到既有 store actions——不改任何现有行为,只加通道。
  */
 
-export type CanvasCommandSurface = "image-workflow" | "production-flow";
+export type CanvasCommandSurface = "image-workflow" | "production-flow" | "image-studio";
 
 export interface CanvasNodePatch {
   title?: string;

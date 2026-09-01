@@ -28,6 +28,8 @@ import {
 import { Input } from "@/components/ui/input";
 import { CanvasViewportControls } from "@/components/panels/studio/CanvasViewportControls";
 import { useAssistCanvasHistory } from "./use-assist-canvas-history";
+import { useImageStudioCommands } from "./use-image-studio-commands";
+import { AssistantPanel } from "./assistant-panel";
 import { relatedEdges } from "@/lib/studio/image-workflow/relation-graph";
 import { InteractionDeferHint } from "@/components/panels/studio/previews/interaction-defer-hint";
 import { useCanvasGestureKernel } from "@/components/panels/studio/use-canvas-gesture-kernel";
@@ -84,6 +86,8 @@ export function ImageStudioCanvas() {
 
   // 撤销重做(09-02):订阅 activeGraph 引用变化提交快照(防抖合并)
   const { history: canvasHistory, commitSnapshot } = useAssistCanvasHistory({ workflow: activeGraph });
+  useImageStudioCommands({ workflow: activeGraph });
+  const [assistantOpen, setAssistantOpen] = useState(false);
   useEffect(() => {
     commitSnapshot();
   }, [commitSnapshot]);
@@ -417,6 +421,7 @@ export function ImageStudioCanvas() {
         onAddPrompt={() => useImageStudioStore.getState().addPromptNode()}
         onTidy={() => useImageStudioStore.getState().applyLayout()}
         onToggleHistory={() => setHistoryOpen((open) => !open)}
+        onToggleAssistant={() => setAssistantOpen((open) => !open)}
         onOpenFolder={() => {
           // 生成图落在媒体库 ai-image 分类(<mediaRoot>/ai-image);主进程解析目录
           // 并在 Finder 中揭示。桥缺席(非 Electron/测试)给可操作提示。
@@ -449,6 +454,9 @@ export function ImageStudioCanvas() {
           onNodeDragStop={(nodeId, position) => moveNode(nodeId, position)}
           onViewportSettled={handleViewportSettled}
         />
+        {assistantOpen ? (
+          <AssistantPanel selectedNodeId={selectedNodeId} onClose={() => setAssistantOpen(false)} />
+        ) : null}
         {nodeMenu ? (
           <NodeContextMenu
             x={nodeMenu.x}

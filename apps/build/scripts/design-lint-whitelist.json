@@ -23,7 +23,8 @@
     "components/ui/chart.tsx",
     "components/panels/studio/image-workflow/image-workflow-connect-create-menu.tsx",
     "components/panels/assist/image-studio/pane-create-menu.tsx",
-    "components/panels/assist/image-studio/node-context-menu.tsx"
+    "components/panels/assist/image-studio/node-context-menu.tsx",
+    "components/panels/assist/image-studio/mention-picker.tsx"
   ],
   "severityOverrides": [
     {

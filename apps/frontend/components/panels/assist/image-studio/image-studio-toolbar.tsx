@@ -2,7 +2,8 @@
 // Licensed under AGPL-3.0-or-later. See LICENSE for details.
 // Commercial licensing available. See COMMERCIAL_LICENSE.md.
 
-import { Image as ImageIcon, ImagePlus, LayoutGrid, Pencil, Plus, Trash2, Type } from "lucide-react";
+import { MessageSquare } from "lucide-react";
+import { FolderOpen, Image as ImageIcon, ImagePlus, LayoutGrid, Pencil, Plus, Trash2, Type } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Select,
@@ -31,6 +32,8 @@ export function ImageStudioToolbar({
   onAddPrompt,
   onTidy,
   onToggleHistory,
+  onToggleAssistant,
+  onOpenFolder,
 }: {
   workflows: ImageWorkflowGraph[];
   activeWorkflowId: string | null;
@@ -45,6 +48,8 @@ export function ImageStudioToolbar({
   onAddPrompt: () => void;
   onTidy: () => void;
   onToggleHistory: () => void;
+  onToggleAssistant?: () => void;
+  onOpenFolder: () => void;
 }) {
   return (
     <div className="flex h-11 shrink-0 items-center gap-2 border-b bg-background px-3">
@@ -104,6 +109,27 @@ export function ImageStudioToolbar({
       <Button size="sm" variant="ghost" className="h-8" onClick={onTidy} title="按参考图/提示词/成图三列重排全部节点">
         <LayoutGrid className="mr-1 h-3.5 w-3.5" />
         整理布局
+      </Button>
+      <Button
+        size="icon"
+        variant="ghost"
+        className="h-8 w-8"
+        onClick={onOpenFolder}
+        title="打开生成文件夹（媒体库 ai-image）"
+        data-image-studio-open-folder
+      >
+        <FolderOpen className="h-4 w-4" />
+      </Button>
+      <Button
+        size="sm"
+        variant="ghost"
+        className="h-8"
+        onClick={onToggleAssistant}
+        aria-label="画布助手"
+        title="选中节点后对话,回答可插回画布"
+      >
+        <MessageSquare className="mr-1 h-3.5 w-3.5" />
+        助手
       </Button>
       <Button
         size="sm"
