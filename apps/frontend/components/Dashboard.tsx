@@ -9,6 +9,7 @@
  */
 
 import { useCallback, useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
+import { useDashboardProjectActions } from "./dashboard-project-actions";
 import { DashboardDialogs } from "./dashboard-dialogs";
 import { useProjectStore } from "@/stores/project/project-store";
 import { useStudioStore } from "@/stores/studio/studio-store";
@@ -144,12 +145,12 @@ const IMPORT_ERROR_HINTS: Record<Extract<ProjectFolderImportResult, { ok: false 
  * 当前 active 项目本身。用一个永不可能是真实项目 id 的哨兵值即可触发与
  * project-switcher 完全相同的 running/queued 作业判定。
  */
-const MOVE_INFLIGHT_PROBE_PROJECT_ID = "__project-move-inflight-probe__";
+export const MOVE_INFLIGHT_PROBE_PROJECT_ID = "__project-move-inflight-probe__";
 
 /** 选择模式长按选中:按住保持 2 秒才切换选中,普通点击不选中(防误触)。 */
-const SELECT_HOLD_MS = 2_000;
+export const SELECT_HOLD_MS = 2_000;
 /** 按住期间指针位移超过该距离视为取消(容忍手抖,不干扰拖动/滚动意图)。 */
-const SELECT_HOLD_CANCEL_DISTANCE_PX = 8;
+export const SELECT_HOLD_CANCEL_DISTANCE_PX = 8;
 
 export function Dashboard({
   sidebarCollapsed = false,
@@ -247,172 +248,11 @@ export function Dashboard({
     setActiveTab("overview");
   };
 
-  const handleOpenProject = async (projectId: string) => {
-    if (selectionMode) return; // Don't open in selection mode
-    const project = projects.find((p) => p.id === projectId);
-    if (project?.location) {
-      const folderBridge = getProjectFolderBridge();
-      if (folderBridge) {
-        const status = await folderBridge.status(projectId);
-        if (!status.exists) {
-          toast.error("项目文件夹不存在，无法打开", {
-            description: `${status.location ?? project.location}——可在项目列表使用「导入项目」重新挂接该文件夹`,
-          });
-          return;
-        }
-      }
-    }
-    // force:启动恢复的活跃项目可能存在 store 水合竞态(空数据),显式打开须走完整 rehydrate
-    await switchProject(projectId, { force: true });
-    await initializeRemotionWorkspace(projectId);
-    setActiveTab("overview");
-  };
-
-  // ==================== Selection ====================
-
-  const toggleSelectionMode = useCallback(() => {
-    setSelectionMode((prev) => {
-      if (prev) setSelectedIds(new Set()); // Clear on exit
-      return !prev;
-    });
-  }, []);
-
-  const toggleSelect = useCallback((id: string) => {
-    setSelectedIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-  }, []);
-
-  const cancelHoldSelect = useCallback(() => {
-    if (holdSelectTimerRef.current !== null) {
-      window.clearTimeout(holdSelectTimerRef.current);
-      holdSelectTimerRef.current = null;
-    }
-    holdSelectStartRef.current = null;
-    setHoldSelectProjectId(null);
-  }, []);
-
-  const startHoldSelect = useCallback(
-    (projectId: string, event: ReactPointerEvent<HTMLDivElement>) => {
-      if (!selectionMode || event.button !== 0 || holdSelectTimerRef.current !== null) return;
-      holdSelectFiredRef.current = false;
-      holdSelectStartRef.current = { x: event.clientX, y: event.clientY };
-      setHoldSelectProjectId(projectId);
-      holdSelectTimerRef.current = window.setTimeout(() => {
-        holdSelectTimerRef.current = null;
-        setHoldSelectProjectId(null);
-        holdSelectFiredRef.current = true;
-        toggleSelect(projectId);
-      }, SELECT_HOLD_MS);
-    },
-    [selectionMode, toggleSelect],
-  );
-
-  const moveHoldSelect = useCallback(
-    (event: ReactPointerEvent<HTMLDivElement>) => {
-      if (holdSelectTimerRef.current === null || holdSelectStartRef.current === null) return;
-      const dx = event.clientX - holdSelectStartRef.current.x;
-      const dy = event.clientY - holdSelectStartRef.current.y;
-      if (Math.hypot(dx, dy) > SELECT_HOLD_CANCEL_DISTANCE_PX) cancelHoldSelect();
-    },
-    [cancelHoldSelect],
-  );
-
-  // 卸载时清掉在途的长按计时器
-  useEffect(() => () => {
-    if (holdSelectTimerRef.current !== null) {
-      window.clearTimeout(holdSelectTimerRef.current);
-    }
-  }, []);
-
-  const handleSelectAll = useCallback(() => {
-    if (selectedIds.size === projects.length) {
-      setSelectedIds(new Set());
-    } else {
-      setSelectedIds(new Set(projects.map((p) => p.id)));
-    }
-  }, [projects, selectedIds.size]);
-
-  // ==================== Delete (management-mode batch path only) ====================
-
-  const deleteProjectsOrchestrated = useCallback(
-    async (targets: Project[]): Promise<number> => {
-      let removed = 0;
-      for (const project of targets) {
-        if (project.location) {
-          const folderBridge = getProjectFolderBridge();
-          if (!folderBridge) {
-            toast.error(`删除「${project.name}」需要桌面端环境`);
-            continue;
-          }
-          const result = await folderBridge.remove(project.id);
-          if (!result.ok) {
-            toast.error(`删除「${project.name}」的文件夹失败`, { description: result.message });
-            continue;
-          }
-        }
-        deleteProject(project.id);
-        removed += 1;
-      }
-      return removed;
-    },
-    [deleteProject],
-  );
-
-  // ==================== Batch Delete ====================
-
-  const handleBatchDelete = useCallback(async () => {
-    const targets = projects.filter((p) => selectedIds.has(p.id));
-    if (targets.length === 0) return;
-    const removed = await deleteProjectsOrchestrated(targets);
-    if (removed > 0) {
-      toast.success(`已删除 ${removed} 个项目`);
-    }
-    setSelectedIds(new Set());
-    setBatchDeleteConfirm(false);
-    setSelectionMode(false);
-  }, [projects, selectedIds, deleteProjectsOrchestrated]);
-
-  // ==================== Rename ====================
-
-  const openRenameDialog = useCallback((id: string, name: string) => {
-    setRenameTarget({ id, name });
-    setRenameValue(name);
-    setRenameDialogOpen(true);
-  }, []);
-
-  const handleRename = useCallback(async () => {
-    if (!renameTarget || !renameValue.trim()) return;
-    const newName = renameValue.trim();
-    const target = projects.find((p) => p.id === renameTarget.id);
-    if (target?.location) {
-      const folderBridge = getProjectFolderBridge();
-      if (!folderBridge) {
-        toast.error("重命名外部项目需要桌面端环境");
-        return;
-      }
-      const result = await folderBridge.rename(renameTarget.id, newName);
-      if (!result.ok) {
-        toast.error("重命名失败", { description: result.message });
-        return;
-      }
-      // Keep the registry location in sync with the renamed folder.
-      useProjectStore.setState((state) => ({
-        projects: state.projects.map((p) =>
-          p.id === renameTarget.id ? { ...p, location: result.location } : p,
-        ),
-      }));
-    }
-    renameProject(renameTarget.id, newName);
-    setRenameDialogOpen(false);
-    setRenameTarget(null);
-    toast.success("项目已重命名");
-  }, [renameTarget, renameValue, projects, renameProject]);
-
-  // ==================== Duplicate ====================
+  const { handleOpenProject, handleSelectAll, handleBatchDelete, handleRename, openRenameDialog, toggleSelectionMode, toggleSelect, startHoldSelect, moveHoldSelect, cancelHoldSelect } = useDashboardProjectActions({
+    projects, selectionMode, setSelectionMode, selectedIds, setSelectedIds,
+    setBatchDeleteConfirm, setRenameDialogOpen, renameTarget, setRenameTarget,
+    renameValue, setRenameValue, getProjectFolderBridge, deleteProject, renameProject, initializeRemotionWorkspace, setActiveTab, holdSelectTimerRef, holdSelectStartRef, holdSelectFiredRef, setHoldSelectProjectId,
+  });
 
   const handleDuplicate = useCallback(async (projectId: string) => {
     const source = projects.find((p) => p.id === projectId);
