@@ -550,32 +550,39 @@ export function ImageWorkflowCanvas({
         const basePixels = await codec.decode(target.imageUrl);
         const exportResult = exportMaskOverlay(basePixels, payload.maskData, (image) => codec.encode(image));
         if (!exportResult) throw new Error("蒙版为空");
-        // ① 叠加参考图落盘(血缘=mask-inpaint+包围盒)
-        const landed = await landDerived([
-          {
-            sourceNodeId: target.nodeId,
-            pixels: {
-              dataUrl: exportResult.overlayDataUrl,
-              width: payload.maskData.width,
-              height: payload.maskData.height,
-            },
-            title: `${target.title}·重绘区`,
-            derivation: { kind: "mask-inpaint", sourceNodeId: target.nodeId, region: exportResult.region },
-          },
-        ]);
         const first = landed[0];
         if (!("nodeId" in first)) throw new Error(first.error);
-        // ② 新成图节点(蒙版指引提示词)连叠加参考并触发生成
-        const graphNow = useStudioStore.getState().imageWorkflows.find((w) => w.id === activeGraph.id) ?? activeGraph;
+        // ② 新成图节点经 appendGraph 与落图合并为一次 saveGraph(单步撤销,
+        //    09-01 mask 深审修复);生成链从 store 读最新图
         const genId = `gen-${Date.now()}`;
-        let next = addGeneratedImageNode(graphNow, {
-          id: genId,
-          title: `${target.title}·局部重绘`,
-          prompt: buildInpaintPrompt(payload.request),
-          position: nextNodePosition(graphNow, "generated"),
-        });
-        next = connectImageWorkflowNodes(next, { source: first.nodeId, target: genId });
-        saveGraph(next);
+        await landDerived(
+          [
+            {
+              sourceNodeId: target.nodeId,
+              pixels: {
+                dataUrl: exportResult.overlayDataUrl,
+                width: payload.maskData.width,
+                height: payload.maskData.height,
+              },
+              title: `${target.title}·重绘区`,
+              derivation: { kind: "mask-inpaint", sourceNodeId: target.nodeId, region: exportResult.region },
+            },
+          ],
+          {
+            appendGraph: (graph, landedIds) => {
+              const refId = landedIds[0];
+              const withGen = addGeneratedImageNode(graph, {
+                id: genId,
+                title: `${target.title}·局部重绘`,
+                prompt: buildInpaintPrompt(payload.request),
+                position: nextNodePosition(graph, "generated"),
+              });
+              return refId
+                ? connectImageWorkflowNodes(withGen, { source: refId, target: genId })
+                : withGen;
+            },
+          },
+        );
         void generateNode(genId);
       } catch (error) {
         toast.error(error instanceof Error ? error.message : "局部重绘失败");

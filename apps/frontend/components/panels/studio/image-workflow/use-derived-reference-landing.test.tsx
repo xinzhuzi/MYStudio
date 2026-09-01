@@ -144,6 +144,37 @@ describe("useDerivedReferenceLanding", () => {
     expect(ys[2]).toBeGreaterThan(ys[1]);
   });
 
+
+  it("appendGraph:附加图变更与落图合并为一次 saveGraph(蒙版单步撤销)", async () => {
+    const graph = seededStore();
+    mockBridge();
+    const savedGraphs: unknown[] = [];
+    const { result } = renderHook(() =>
+      useDerivedReferenceLanding({
+        activeGraph: graph,
+        saveGraph: (g) => savedGraphs.push(g),
+        storyboards: [],
+        addMaterial: () => "mat-1",
+        setSelectedNodeId: () => {},
+      }),
+    );
+
+    await act(async () => {
+      const outcomes = await result.current(
+        [{ sourceNodeId: "gen-seed", pixels: { dataUrl: "data:image/png;base64,AAAA", width: 5, height: 5 }, title: "重绘区", derivation: { kind: "mask-inpaint", sourceNodeId: "gen-seed" } }],
+        {
+          appendGraph: (g) =>
+            ({ ...g, nodes: [...g.nodes, { ...g.nodes[0], id: "gen-appended", title: "附加成图" }] }) as typeof g,
+        },
+      );
+      expect(outcomes).toHaveLength(1);
+    });
+
+    expect(savedGraphs).toHaveLength(1); // 单次 saveGraph=单条撤销历史
+    const saved = savedGraphs[0] as typeof graph;
+    expect(saved.nodes.some((n) => n.id === "gen-appended")).toBe(true); // 附加变更已并入
+  });
+
   it("落盘失败:整批失败,零节点落地", async () => {
     const graph = seededStore();
     (window as any).projectFiles = {

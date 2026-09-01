@@ -31,6 +31,15 @@ export interface LandDerivedInput {
   connectToGeneratedId?: string;
 }
 
+export interface LandDerivedOptions {
+  /**
+   * 附加图变换(09-01 mask 深审修复):在落图产物之上追加节点/边并
+   * 与落图合并为**一次 saveGraph**(单条撤销历史)——蒙版链的新成图
+   * 节点经此并入,⌘Z 一步完全回退。
+   */
+  appendGraph?: (graph: ImageWorkflowGraph, landedNodeIds: string[]) => ImageWorkflowGraph;
+}
+
 export interface LandDerivedOk {
   nodeId: string;
 }
@@ -68,7 +77,10 @@ export function useDerivedReferenceLanding({
   setSelectedNodeId: (nodeId: string | null) => void;
 }) {
   return useCallback(
-    async (inputs: LandDerivedInput[]): Promise<Array<LandDerivedOk | LandDerivedFailure>> => {
+    async (
+      inputs: LandDerivedInput[],
+      options?: LandDerivedOptions,
+    ): Promise<Array<LandDerivedOk | LandDerivedFailure>> => {
       if (!activeGraph || inputs.length === 0) {
         return inputs.map(() => ({ error: "无活动图像工作流" }));
       }
@@ -138,6 +150,9 @@ export function useDerivedReferenceLanding({
           }
           createdIds.push(id);
           landed.push({ nodeId: id });
+        }
+        if (options?.appendGraph) {
+          nextGraph = options.appendGraph(nextGraph, createdIds);
         }
         saveGraph(nextGraph);
         if (createdIds.length > 1) {
