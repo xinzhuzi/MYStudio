@@ -19,7 +19,6 @@ import {
   Loader2,
   Sparkles,
   Square,
-  Trash2,
   Type,
   Upload,
   WandSparkles,
@@ -212,18 +211,7 @@ export const ImageStudioNodeCard = memo(function ImageStudioNodeCard({
             </div>
           </div>
         </div>
-        {/* 09-02 用户裁定:删除按钮不常驻——悬停节点/选中时浮现(右键菜单也可删) */}
-        <Button
-          size="icon"
-          variant="ghost"
-          aria-label="删除节点"
-          title="删除此节点(⌘Z 可撤销;右键菜单也可)"
-          className="h-7 w-7 opacity-0 transition-opacity duration-150 group-hover/node:opacity-100 focus-visible:opacity-100 data-[selected=true]:opacity-100"
-          data-selected={data.selected}
-          onClick={() => data.onDelete(node.id)}
-        >
-          <Trash2 className="h-3.5 w-3.5 text-muted-foreground hover:text-destructive" />
-        </Button>
+        {/* 09-02 用户终裁:删除只走右键菜单(复制/删除),节点卡不设删除按钮 */}
       </div>
       {node.type === "reference" ? (
         <ReferenceNodeEditor node={node} onPickImage={data.onPickImage} onUpdate={data.onUpdate} />
