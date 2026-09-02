@@ -3,7 +3,7 @@ import http from "node:http";
 import type { IncomingHttpHeaders } from "node:http";
 import https from "node:https";
 import path from "node:path";
-import { ipcMain } from "electron";
+import { ipcMain, shell } from "electron";
 import { parseLocalMediaPath, resolveLocalMediaPath } from "../../storage/storage-paths";
 
 type RegisterLocalMediaIpcHandlersContext = {
@@ -174,6 +174,19 @@ function downloadImage(url: string, filePath: string, maxRedirects = 5, maxBytes
 }
 
 export function registerLocalMediaIpcHandlers({ getMediaRoot }: RegisterLocalMediaIpcHandlersContext) {
+  // 图片工作室「打开生成文件夹」:按分类建目录并在 Finder/资源管理器中揭示。
+  // 目录由主进程解析(不向渲染层暴露媒体根路径),shell.openPath 原生弹窗。
+  ipcMain.handle("open-media-category", (_event, category: string) => {
+    try {
+      const normalized = normalizeLocalMediaCategory(category);
+      const dir = getImagesDir(getMediaRoot(), normalized);
+      void shell.openPath(dir);
+      return { success: true, path: dir };
+    } catch (error) {
+      return { success: false, error: error instanceof Error ? error.message : String(error) };
+    }
+  });
+
   ipcMain.handle("save-image", async (_event, payload: { url: string; category: string; filename: string }) => {
     try {
       const { url, filename } = payload;

@@ -14,6 +14,7 @@ const mocks = vi.hoisted(() => ({
   createWriteStream: vi.fn(),
   httpGet: vi.fn(),
   httpsGet: vi.fn(),
+  shellOpenPath: vi.fn(),
 }));
 
 vi.mock("electron", () => ({
@@ -21,6 +22,9 @@ vi.mock("electron", () => ({
     handle: vi.fn((channel: string, handler: (...args: unknown[]) => unknown) => {
       mocks.handlers.set(channel, handler);
     }),
+  },
+  shell: {
+    openPath: mocks.shellOpenPath,
   },
 }));
 
@@ -51,6 +55,7 @@ vi.mock("node:https", () => ({
   },
 }));
 
+import path from "node:path";
 import { registerLocalMediaIpcHandlers } from "./local-media-ipc";
 
 type FakeResponse = {
@@ -144,11 +149,23 @@ describe("registerLocalMediaIpcHandlers", () => {
     }
   });
 
+  it("open-media-category reveals the category folder via shell", () => {
+    const handler = mocks.handlers.get("open-media-category") as (_event: unknown, category: string) => { success: boolean; path?: string };
+    expect(handler).toBeTruthy();
+    const result = handler({}, "ai-image");
+    expect(result.success).toBe(true);
+    expect(result.path).toBe(path.join("/media", "ai-image"));
+    // 目录不存在时先建再开
+    expect(mocks.mkdirSync).toHaveBeenCalledWith(expect.stringContaining("ai-image"), { recursive: true });
+    expect(mocks.shellOpenPath).toHaveBeenCalledWith(result.path);
+  });
+
   it("registers the established local media channels", () => {
     expect([...mocks.handlers.keys()].sort()).toEqual([
       "get-absolute-path",
       "get-image-path",
       "move-image",
+      "open-media-category",
       "read-image-base64",
       "save-image",
     ]);

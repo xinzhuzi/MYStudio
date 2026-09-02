@@ -29,6 +29,10 @@ contextBridge.exposeInMainWorld('imageStorage', {
   getImagePath: (localPath: string) => 
     ipcRenderer.invoke('get-image-path', localPath),
   
+  // Open the OS folder for a media category (e.g. 'ai-image' generated images)
+  openCategoryFolder: (category: string) =>
+    ipcRenderer.invoke('open-media-category', category),
+
   // Move a local media file into another storage category
   moveImage: (localPath: string, category: string) =>
     ipcRenderer.invoke('move-image', { localPath, category }),

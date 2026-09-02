@@ -17,6 +17,7 @@ declare global {
       moveImage: (localPath: string, category: string) => Promise<{ success: boolean; localPath?: string; error?: string }>;
       readAsBase64: (localPath: string) => Promise<{ success: boolean; base64?: string; mimeType?: string; size?: number; error?: string }>;
       getAbsolutePath: (localPath: string) => Promise<string | null>;
+      openCategoryFolder: (category: string) => Promise<{ success: boolean; path?: string; error?: string }>;
     };
   }
 }

@@ -94,13 +94,32 @@ describe("ImageStudioCanvas", () => {
     expect(refreshedIds).toEqual(graph?.nodes.map((node) => node.id));
   });
 
-  it("生成记录抽屉开合", async () => {
+  it("打开生成文件夹:经「⋯」菜单走 imageStorage 桥打开 ai-image 分类", async () => {
+    const openCategoryFolder = vi.fn().mockResolvedValue({ success: true });
+    const w = window as unknown as { imageStorage?: unknown };
+    const had = "imageStorage" in w;
+    w.imageStorage = { openCategoryFolder };
+    try {
+      render(<ImageStudioCanvas />);
+      // 09-02 工具栏分族收敛:文件夹入口收进「画布与工具」菜单
+      const menuButton = await waitFor(() => screen.getByRole("button", { name: /画布与工具菜单/ }));
+      fireEvent.keyDown(menuButton, { key: "Enter" });
+      const item = await waitFor(() => screen.getByRole("menuitem", { name: /打开生成文件夹/ }));
+      fireEvent.click(item);
+      await waitFor(() => expect(openCategoryFolder).toHaveBeenCalledWith("ai-image"));
+    } finally {
+      if (had) delete w.imageStorage;
+      else (w as { imageStorage?: unknown }).imageStorage = undefined;
+    }
+  });
+
+  it("生成记录抽屉开合(经「⋯」菜单的勾选项)", async () => {
     render(<ImageStudioCanvas />);
-    await waitFor(() => {
-      expect(screen.getByRole("button", { name: /生成记录/ })).toBeTruthy();
-    });
+    const menuButton = await waitFor(() => screen.getByRole("button", { name: /画布与工具菜单/ }));
     expect(document.querySelector("[data-image-studio-history-panel]")).toBeNull();
-    fireEvent.click(screen.getByRole("button", { name: /生成记录/ }));
+    fireEvent.keyDown(menuButton, { key: "Enter" });
+    const item = await waitFor(() => screen.getByRole("menuitemcheckbox", { name: /生成记录面板/ }));
+    fireEvent.click(item);
     await waitFor(() => {
       expect(document.querySelector("[data-image-studio-history-panel]")).toBeTruthy();
     });

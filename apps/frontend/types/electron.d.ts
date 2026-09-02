@@ -234,6 +234,7 @@ declare global {
       saveImage: (url: string, category: string, filename: string) => Promise<{ success: boolean; localPath?: string; error?: string }>;
       getImagePath: (localPath: string) => Promise<string | null>;
       moveImage: (localPath: string, category: string) => Promise<{ success: boolean; localPath?: string; error?: string }>;
+      openCategoryFolder: (category: string) => Promise<{ success: boolean; path?: string; error?: string }>;
       readAsBase64: (localPath: string) => Promise<string | null>;
       getAbsolutePath: (localPath: string) => Promise<string | null>;
     };
