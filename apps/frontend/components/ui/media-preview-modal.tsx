@@ -7,10 +7,19 @@
  * 媒体预览模态组件 (Media Preview Modals)
  * 用于全屏预览图片和视频
  * 支持: HTTP URL / data URI / local-image:// 协议
+ *
+ * 图片大图预览整体套用 yet-another-react-lightbox(MIT)+ 官方 Zoom 插件:
+ * 滚轮缩放 / 双击放大还原 / 触控板与触屏捏合 / 拖拽平移 / 工具栏
+ * 放大缩小按钮 / Esc 与背景点击关闭,均为插件自带能力,零手写手势。
+ * 左上角像素角标经 render.toolbar 注入,与默认工具栏并存。
  */
 
 import { useCallback, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { X } from "lucide-react";
+import Lightbox from "yet-another-react-lightbox";
+import Zoom from "yet-another-react-lightbox/plugins/zoom";
+import "yet-another-react-lightbox/styles.css";
 import { ResolutionBadge } from "@/components/ui/image-resolution-badge";
 
 interface ImagePreviewModalProps {
@@ -41,29 +50,40 @@ export function ImagePreviewModal({
 
   if (!isOpen) return null;
 
-  return (
-    <div
-      className="fixed inset-0 z-[999] bg-black/80 flex items-center justify-center cursor-zoom-out"
-      onClick={onClose}
-    >
-      <div className="relative max-w-[90vw] max-h-[90vh]" onClick={(event) => event.stopPropagation()}>
-        <ResolutionBadge src={imageUrl} />
-        <img
-          src={imageUrl}
-          alt="Preview"
-          className="max-w-[90vw] max-h-[90vh] object-contain rounded"
-        />
-        <button
-          onClick={onClose}
-          className="absolute top-2 right-2 p-2 rounded-full bg-black/50 text-white hover:bg-black/70 transition-colors"
-        >
-          <X className="h-5 w-5" />
-        </button>
-        <div className="absolute bottom-2 left-1/2 -translate-x-1/2 text-white/60 text-xs bg-black/40 px-3 py-1 rounded-full pointer-events-none">
-          点击空白处或按 Esc 关闭
-        </div>
-      </div>
-    </div>
+  return createPortal(
+    <Lightbox
+      open={isOpen}
+      close={onClose}
+      controller={{ closeOnBackdropClick: true }}
+      slides={[{ src: imageUrl, alt: "Preview" }]}
+      plugins={[Zoom]}
+      zoom={{
+        // 滚轮/触控板滚动缩放默认关闭,显式开启(桌面看图核心诉求)
+        scrollToZoom: true,
+      }}
+      carousel={{ finite: true }}
+      labels={{
+        Close: "关闭预览",
+        "Zoom in": "放大",
+        "Zoom out": "缩小",
+        Previous: "上一张",
+        Next: "下一张",
+      }}
+      toolbar={{
+        buttons: [
+          <span
+            key="resolution-badge"
+            style={{ pointerEvents: "none", cursor: "default", alignSelf: "center" }}
+            aria-hidden
+          >
+            <ResolutionBadge src={imageUrl} />
+          </span>,
+          "close",
+        ],
+      }}
+      styles={{ container: { backgroundColor: "rgba(0, 0, 0, .82)" } }}
+    />,
+    document.body,
   );
 }
 
