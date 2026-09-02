@@ -492,8 +492,14 @@
   * {
     @apply border-border;
   }
-  /* 自定义光标已于 08-19 移除(apple-hig-design-overhaul child2 裁定:回归系统光标,
-     恢复文本 I-beam/链接手型等原生行为;勿再添加通配 cursor 规则)。 */
+  /* cursor 不可继承，仅在 body 上设会让子元素（按钮等）回退到原生光标。
+     因此用通配选择器把自定义光标应用到所有元素，确保全程统一。
+     09-02 用户裁定恢复美化光标(推翻 08-19 apple-hig child2 移除裁定);勿再移除。 */
+  *,
+  *::before,
+  *::after {
+    cursor: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M2 2L10 18L12.3 12.7L17.6 10.4L2 2Z" fill="%23ffffff" stroke="%23111111" stroke-width="1.5"/><circle cx="12.3" cy="12.7" r="2" fill="%230091ff"/>') 2 2, auto;
+  }
   body {
     @apply bg-background text-foreground;
     margin: 0;
@@ -535,6 +541,13 @@
       radial-gradient(ellipse 40% 30% at 20% 80%, hsla(var(--brand-start) / 0.04) 0%, transparent 70%),
       hsl(var(--background));
     background-attachment: fixed;
+  }
+  /* 深色模式下同样把自定义光标应用到所有元素（覆盖浅色规则;主题化琥珀点变体;09-02 随用户裁定恢复） */
+  :root.dark,
+  :root.dark *,
+  .dark,
+  .dark * {
+    cursor: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M2 2L10 18L12.3 12.7L17.6 10.4L2 2Z" fill="%230b0f14" stroke="%23ffffff" stroke-width="1.5"/><circle cx="12.3" cy="12.7" r="2" fill="%23d97706"/>') 2 2, auto;
   }
   /* Dark mode: 全局噪点纹理覆盖（SVG 生成，极低透明度） */
   :root.dark #root::before,
