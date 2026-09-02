@@ -78,7 +78,6 @@ describe("studio workflow persistence contract", () => {
       title: "generated",
       prompt: "prompt",
       aspectRatio: "16:9",
-      quality: "standard",
       status: "ready",
       resultUrl: "blob:https://example.test/transient",
       position: { x: 0, y: 0 },

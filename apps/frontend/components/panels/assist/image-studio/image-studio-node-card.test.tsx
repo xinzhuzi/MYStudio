@@ -64,7 +64,6 @@ function generatedNode(overrides: Partial<ImageWorkflowGeneratedNode> = {}): Ima
     title: "生成图",
     prompt: "山门晨雾",
     aspectRatio: "16:9",
-    quality: "standard",
     status: "idle",
     position: { x: 0, y: 0 },
     createdAt: 1,

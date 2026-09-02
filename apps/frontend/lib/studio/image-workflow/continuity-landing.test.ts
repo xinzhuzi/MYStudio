@@ -92,7 +92,6 @@ function graphWithReferences(refs: Array<{ id: string; title: string; assetType:
     position: { x: 600, y: 120 },
     prompt: "",
     aspectRatio: "16:9",
-    quality: "standard",
     status: "idle",
     createdAt: 1,
     updatedAt: 1,

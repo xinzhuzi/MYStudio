@@ -22,7 +22,6 @@ export function addPromptImageNode(
     negativePrompt: input.negativePrompt,
     model: input.model,
     aspectRatio: input.aspectRatio ?? imageSettings.defaultAspectRatio,
-    quality: input.quality ?? "standard",
     resolution: input.resolution ?? imageSettings.defaultResolution,
     targetNodeId: input.targetNodeId,
     position: input.position,

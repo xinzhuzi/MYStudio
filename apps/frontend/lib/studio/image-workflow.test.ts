@@ -44,10 +44,9 @@ describe("image workflow graph", () => {
       id: "gen-1",
       title: "成图",
       prompt: "水墨风横版战斗分镜",
-      model: "gemini-3-pro-image-preview",
-      aspectRatio: "16:9",
-      quality: "hd",
-      position: { x: 420, y: 80 },
+    model: "gemini-3-pro-image-preview",
+    aspectRatio: "16:9",
+    position: { x: 420, y: 80 },
       createdAt: 1003,
     });
     graph = connectImageWorkflowNodes(graph, {
@@ -71,7 +70,6 @@ describe("image workflow graph", () => {
       prompt: "水墨风横版战斗分镜",
       model: "gemini-3-pro-image-preview",
       aspectRatio: "16:9",
-      quality: "hd",
       referenceImages: [
         "local-image://characters/hero.png",
         "https://example.test/scene.png",

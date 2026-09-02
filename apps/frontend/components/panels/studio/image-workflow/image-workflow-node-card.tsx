@@ -45,7 +45,6 @@ function extractableImageUrl(node: ImageWorkflowNode): string | null {
 
 const ASPECT_RATIOS = IMAGE_ASPECT_RATIOS;
 const RESOLUTION_OPTIONS = IMAGE_RESOLUTIONS;
-const QUALITY_OPTIONS: Array<ImageWorkflowGeneratedNode["quality"]> = ["draft", "standard", "hd"];
 
 /**
  * 拖动每帧重建 node wrapper(position/dragging 变化),但卡片内容只依赖
@@ -245,7 +244,7 @@ function PromptNodeEditor({
         className="nodrag nopan min-h-[120px] [field-sizing:content] border-border bg-background/80 text-sm leading-6 text-foreground"
       />
       {/* 08-30 功能转移裁定:输入节点只管提示词(输入源);模型/画幅/分辨率/
-          质量/生成全部在成图节点上。 */}
+          生成全部在成图节点上。 */}
       <Textarea
         value={node.negativePrompt ?? ""}
         onChange={(event) => onUpdate(node.id, { negativePrompt: event.target.value } as Partial<ImageWorkflowNode>)}
@@ -317,10 +316,10 @@ function GeneratedNodeEditor({
           </div>
         )}
       </div>
-      {/* 08-30 功能转移:生成参数(模型/画幅/分辨率/质量)归属成图节点。
+      {/* 08-30 功能转移:生成参数(模型/画幅/分辨率)归属成图节点。
           显示值回落连线提示词节点旧值(存量图零变化);改动即写本节点
           并置 paramsEdited(参数权威转移)。 */}
-      <div className="nodrag nopan grid grid-cols-[minmax(0,1fr)_76px_64px_86px] gap-2" data-generated-node-params>
+      <div className="nodrag nopan grid grid-cols-[minmax(0,1fr)_76px_64px] gap-2" data-generated-node-params>
         <ModelSelector
           type="image"
           value={node.model ?? promptNode?.model ?? ""}
@@ -342,14 +341,6 @@ function GeneratedNodeEditor({
           aria-label="图片分辨率"
         >
           {RESOLUTION_OPTIONS.map((resolution) => <option key={resolution} value={resolution}>{resolution}</option>)}
-        </select>
-        <select
-          value={(node.paramsEdited ? node.quality : (promptNode?.quality ?? node.quality))}
-          onChange={(event) => onUpdate(node.id, { quality: event.target.value as ImageWorkflowGeneratedNode["quality"], paramsEdited: true } as Partial<ImageWorkflowNode>)}
-          className="h-8 rounded-md border border-border bg-card/80 px-1.5 text-xs text-foreground outline-none"
-          aria-label="生成质量"
-        >
-          {QUALITY_OPTIONS.map((quality) => <option key={quality} value={quality}>{quality}</option>)}
         </select>
       </div>
       <div className="nodrag nopan flex items-center justify-between gap-2">

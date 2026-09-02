@@ -501,7 +501,6 @@ export function createOpenImageWorkflowGraph(
     negativePrompt: negativePrompt || undefined,
     aspectRatio: genAspectRatio,
     resolution: imageSettings.defaultResolution,
-    quality: "standard",
     targetNodeId: generatedNodeId,
     position: promptSlotPosition(0),
   });
@@ -582,7 +581,6 @@ export function createOpenImageWorkflowGraph(
         negativePrompt: negativePrompt || undefined,
         aspectRatio: genAspectRatio,
         resolution: imageSettings.defaultResolution,
-        quality: "standard",
         targetNodeId: frameGenId,
         position: promptSlotPosition(index),
       });

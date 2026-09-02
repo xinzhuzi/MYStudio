@@ -31,7 +31,6 @@ vi.mock("@/lib/studio/image-workflow", () => ({
     resolution: "2K",
     negativePrompt: "watermark",
     referenceImages: [],
-    quality: undefined,
   }),
   setGeneratedImageResult: vi.fn().mockImplementation((graph) => graph),
 }));

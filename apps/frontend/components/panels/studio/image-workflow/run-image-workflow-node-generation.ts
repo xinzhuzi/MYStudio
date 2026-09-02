@@ -108,7 +108,6 @@ export async function runImageWorkflowNodeGeneration(
     negativePrompt: compiledFrame ? undefined : request.negativePrompt,
     promptPolicy: (compiledFrame ? "raw" : undefined) as "raw" | undefined,
     referenceImages,
-    extraParams: request.quality === "hd" ? { quality: "hd" } : undefined,
     transport,
     // 分镜/工作流成图自存项目真源(projectFiles.saveImage),跳过媒体库副本双写
     persistMedia: false,

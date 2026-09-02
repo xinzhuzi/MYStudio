@@ -56,7 +56,6 @@ function createGraph(prompt = "cinematic portrait"): ImageWorkflowGraph {
       model: "gpt-image-1",
       aspectRatio: "16:9",
       resolution: "2K",
-      quality: "hd",
       status: "idle",
       position: { x: 0, y: 0 },
       createdAt: 1,
@@ -106,7 +105,6 @@ describe("useImageWorkflowGeneration", () => {
     expect(generateImageMock).toHaveBeenCalledWith(expect.objectContaining({
       prompt: "cinematic portrait",
       model: "gpt-image-1",
-      extraParams: { quality: "hd" },
     }));
     expect(saveImage).toHaveBeenCalledWith({
       projectId: "project-1",

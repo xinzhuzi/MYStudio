@@ -26,7 +26,6 @@ function buildGraph(): ImageWorkflowGraph {
     prompt: "unused-inline",
     model: "krea2-turbo",
     aspectRatio: "16:9",
-    quality: "hd",
     position: { x: 100, y: 0 },
   });
   graph = connectImageWorkflowNodes(graph, { source: "prompt-1", target: "gen-1" });
@@ -41,7 +40,6 @@ describe("buildImageStudioGenerationRequest", () => {
     expect(request.referenceImages).toEqual([]);
     expect(request.model).toBe("krea2-turbo");
     expect(request.aspectRatio).toBe("16:9");
-    expect(request.quality).toBe("hd");
   });
 
   it("图生图:参考图节点按连线顺序收集", () => {

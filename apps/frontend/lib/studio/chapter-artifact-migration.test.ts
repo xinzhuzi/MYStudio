@@ -18,7 +18,6 @@ function graph(id: string, imageUrls: string[]): ImageWorkflowGraph {
       model: "m",
       aspectRatio: "16:9",
       resolution: "2K",
-      quality: "standard",
       status: "ready",
       position: { x: 0, y: 0 },
       createdAt: 1,

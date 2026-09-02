@@ -194,7 +194,6 @@ export interface BuildImageRequestBodyInput extends ResolveImageSizeInput {
   prompt: string;
   promptPolicy?: "enhanced" | "raw";
   n?: number;
-  quality?: string;
   outputFormat?: string;
   outputCompression?: number;
   negativePrompt?: string;
@@ -313,7 +312,6 @@ export function buildOpenAIImageRequestBody(input: BuildImageRequestBodyInput): 
   const normalizedPrompt = normalizeImagePromptForGeneration(input);
   const prompt = buildSdkImagePromptText(normalizedPrompt.prompt, normalizedPrompt.negativePrompt);
   const body: Record<string, unknown> = { model: input.model, prompt, n: input.n ?? 1, size };
-  assignIfDefined(body, "quality", input.quality);
   assignIfDefined(body, "output_format", input.outputFormat);
   assignIfDefined(body, "output_compression", input.outputCompression);
   if (input.referenceImages?.length) body.image_urls = input.referenceImages;

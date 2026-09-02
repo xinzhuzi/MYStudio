@@ -1,4 +1,4 @@
-import type { AssetImageWorkflowContext, CharacterReferenceViewType, ImageWorkflowAssetTargetType, ImageWorkflowEdge, ImageWorkflowGeneratedNode, ImageWorkflowGraph, ImageWorkflowNode, ImageWorkflowNodePosition, ImageWorkflowPromptNode, ImageWorkflowReferenceNode, ImageWorkflowTarget, StoryboardItem } from "@/types/studio";
+import type { AssetImageWorkflowContext, CharacterReferenceViewType, ImageWorkflowAssetTargetType, ImageWorkflowEdge, ImageWorkflowGeneratedNode, ImageWorkflowGraph, ImageWorkflowNode, ImageWorkflowNodePosition, ImageWorkflowReferenceNode, ImageWorkflowTarget, StoryboardItem } from "@/types/studio";
 import { useAppSettingsStore } from "@/stores/app/app-settings-store";
 import { buildContinuityPrompt } from "../visual-continuity";
 import { generatedSlotPosition, nextStackedPosition, promptSlotPosition, referenceSlotPosition } from "./layout";
@@ -45,7 +45,6 @@ export interface AddGeneratedImageNodeInput {
   negativePrompt?: string;
   model?: string;
   aspectRatio?: string;
-  quality?: ImageWorkflowGeneratedNode["quality"];
   resolution?: string;
   position: ImageWorkflowNodePosition;
   createdAt?: number;
@@ -61,7 +60,6 @@ export interface AddPromptImageNodeInput {
   negativePrompt?: string;
   model?: string;
   aspectRatio?: string;
-  quality?: ImageWorkflowPromptNode["quality"];
   resolution?: string;
   targetNodeId?: string;
   position: ImageWorkflowNodePosition;
@@ -132,7 +130,6 @@ export function createAssetImageWorkflowGraph(
     title: `${context.title} 成图`,
     prompt: context.prompt ?? "",
     aspectRatio: useAppSettingsStore.getState().imageGenerationSettings.defaultAspectRatio,
-    quality: "standard",
     position: generatedSlotPosition(0),
   });
   graph = addPromptImageNode(graph, {
@@ -141,7 +138,6 @@ export function createAssetImageWorkflowGraph(
     prompt: context.prompt ?? "",
     aspectRatio: useAppSettingsStore.getState().imageGenerationSettings.defaultAspectRatio,
     resolution: useAppSettingsStore.getState().imageGenerationSettings.defaultResolution,
-    quality: "standard",
     targetNodeId: generatedNodeId,
     position: promptSlotPosition(0),
   });
@@ -206,7 +202,6 @@ export function ensureAssetImageWorkflowGraph(
       title: `${context.title} 成图`,
       prompt: context.prompt ?? "",
       aspectRatio: useAppSettingsStore.getState().imageGenerationSettings.defaultAspectRatio,
-      quality: "standard",
       position: nextStackedPosition(next.nodes, "generated"),
     });
     generated = next.nodes.find(
@@ -232,7 +227,6 @@ export function ensureAssetImageWorkflowGraph(
         prompt: context.prompt || generated.prompt,
         model: generated.model,
         aspectRatio: generated.aspectRatio,
-        quality: generated.quality,
         resolution: generated.resolution ?? useAppSettingsStore.getState().imageGenerationSettings.defaultResolution,
         targetNodeId: generated.id,
         position: nextStackedPosition(next.nodes, "prompt"),
@@ -276,7 +270,6 @@ export function ensureImageWorkflowPromptNodes(graph: ImageWorkflowGraph): Image
         negativePrompt: generated.negativePrompt,
         model: generated.model,
         aspectRatio: generated.aspectRatio,
-        quality: generated.quality,
         resolution: generated.resolution ?? useAppSettingsStore.getState().imageGenerationSettings.defaultResolution,
         targetNodeId: generated.id,
         position: nextStackedPosition(next.nodes, "prompt"),
@@ -354,7 +347,6 @@ export function createStoryboardImageWorkflowGraph({
     prompt: finalPrompt,
     model,
     aspectRatio: aspectRatio ?? useAppSettingsStore.getState().imageGenerationSettings.defaultAspectRatio,
-    quality: "standard",
     resolution,
     position: generatedSlotPosition(0),
   });
@@ -364,7 +356,6 @@ export function createStoryboardImageWorkflowGraph({
     prompt: finalPrompt,
     model,
     aspectRatio: aspectRatio ?? useAppSettingsStore.getState().imageGenerationSettings.defaultAspectRatio,
-    quality: "standard",
     resolution,
     targetNodeId: generatedNodeId,
     position: promptSlotPosition(0),
@@ -429,7 +420,6 @@ export function addGeneratedImageNode(
     model: input.model,
     paramsEdited: true,
     aspectRatio: input.aspectRatio ?? imageSettings.defaultAspectRatio,
-    quality: input.quality ?? "standard",
     resolution: input.resolution,
     position: input.position,
     status: "idle",

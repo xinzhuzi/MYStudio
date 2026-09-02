@@ -92,8 +92,8 @@ function createBareStoryboardGraph(storyboardId: string, workflowId: string) {
     target: context.target,
     targetSourceFingerprint: "fp-1",
     nodes: [
-      { id: "gen-x", type: "generated", title: "分镜 1 成图", prompt: "测试画面", aspectRatio: "16:9", quality: "standard", status: "idle", position: { x: 600, y: 120 }, createdAt: now, updatedAt: now },
-      { id: "prompt-x", type: "prompt", title: "图片生成", prompt: "测试画面", aspectRatio: "16:9", quality: "standard", targetNodeId: "gen-x", position: { x: 560, y: 500 }, createdAt: now, updatedAt: now },
+      { id: "gen-x", type: "generated", title: "分镜 1 成图", prompt: "测试画面", aspectRatio: "16:9", status: "idle", position: { x: 600, y: 120 }, createdAt: now, updatedAt: now },
+      { id: "prompt-x", type: "prompt", title: "图片生成", prompt: "测试画面", aspectRatio: "16:9", targetNodeId: "gen-x", position: { x: 560, y: 500 }, createdAt: now, updatedAt: now },
     ],
     edges: [],
     createdAt: now,

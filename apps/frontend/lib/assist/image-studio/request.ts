@@ -7,7 +7,6 @@ import {
   getGeneratedNode,
 } from "@/lib/studio/image-workflow/graph-build";
 import type {
-  ImageWorkflowGeneratedNode,
   ImageWorkflowGraph,
 } from "@/types/studio";
 
@@ -16,7 +15,7 @@ import type {
  *
  * 与分镜链 `buildImageWorkflowGenerationRequest` 的分工:分镜链带资产圣经
  * 连续性契约/多参考排序 manifest/风格锁,自由画布一概不注入——提示词、
- * 负面词原样透传,参考图按连线顺序收集。模型/画幅/分辨率/质量参数权威在
+ * 负面词原样透传,参考图按连线顺序收集。模型/画幅/分辨率参数权威在
  * 成图节点(graph-build.addGeneratedImageNode 恒置 paramsEdited)。
  */
 export interface ImageStudioGenerationRequest {
@@ -25,7 +24,6 @@ export interface ImageStudioGenerationRequest {
   model?: string;
   aspectRatio: string;
   resolution?: string;
-  quality: ImageWorkflowGeneratedNode["quality"];
   /** 参考图地址(受管 scheme):参考图节点 imageUrl + 上游成图 resultUrl,按连线顺序 */
   referenceImages: string[];
 }
@@ -55,7 +53,6 @@ export function buildImageStudioGenerationRequest(
     model: node.model ?? promptSource.model,
     aspectRatio: node.aspectRatio,
     resolution: node.resolution ?? promptSource.resolution,
-    quality: node.quality,
     referenceImages,
   };
 }

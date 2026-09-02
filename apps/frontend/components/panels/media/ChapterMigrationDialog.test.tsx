@@ -42,7 +42,7 @@ function legacyGraph(suffix: string): ImageWorkflowGraph {
     target: { kind: "storyboard", id: "sb-1" },
     nodes: [{
       id: "n1", type: "generated", title: "t", prompt: "", model: "m",
-      aspectRatio: "16:9", resolution: "2K", quality: "standard", status: "ready",
+      aspectRatio: "16:9", resolution: "2K", status: "ready",
       position: { x: 0, y: 0 }, createdAt: 1, updatedAt: 1,
       imageUrl: `project-file://p1/workflow-images/storyboard-flow-chapter-001-${suffix}/gen-a.png`,
     }] as unknown as ImageWorkflowGraph["nodes"],

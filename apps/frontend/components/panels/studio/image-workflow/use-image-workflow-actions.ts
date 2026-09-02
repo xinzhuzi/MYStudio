@@ -173,7 +173,6 @@ export function useImageWorkflowActions({
           : "生成图",
       prompt: targetAsset?.prompt ?? targetStoryboard?.prompt ?? "",
       aspectRatio: imageSettings.defaultAspectRatio,
-      quality: "standard",
       position: nextNodePosition(activeGraph, "generated"),
     });
     next = addPromptImageNode(next, {
@@ -182,7 +181,6 @@ export function useImageWorkflowActions({
       prompt: targetAsset?.prompt ?? targetStoryboard?.prompt ?? "",
       aspectRatio: imageSettings.defaultAspectRatio,
       resolution: imageSettings.defaultResolution,
-      quality: "standard",
       targetNodeId: id,
       position: nextNodePosition(activeGraph, "prompt"),
     });

@@ -15,7 +15,6 @@ function promptNode(overrides: Partial<ImageWorkflowPromptNode> = {}): ImageWork
     title: "图片生成",
     prompt: "正文",
     aspectRatio: "16:9",
-    quality: "standard",
     resolution: "1K",
     model: "gpt-image-2",
     position: { x: 0, y: 0 },
@@ -30,7 +29,6 @@ function generatedNode(overrides: Partial<ImageWorkflowGeneratedNode> = {}): Ima
     title: "成图",
     prompt: "正文",
     aspectRatio: "1:1",
-    quality: "draft",
     position: { x: 100, y: 0 },
     status: "idle",
     ...overrides,
@@ -53,21 +51,19 @@ function graph(nodes: Array<ImageWorkflowPromptNode | ImageWorkflowGeneratedNode
 
 describe("buildImageWorkflowGenerationRequest 参数权威(功能转移)", () => {
   it("存量图(paramsEdited 缺省):回落连线提示词节点旧值,行为零变化", () => {
-    const gen = generatedNode(); // aspect 1:1 / draft / 无 model —— 存量孤值
-    const prompt = promptNode(); // 16:9 / standard / gpt-image-2 / 1K
+    const gen = generatedNode(); // aspect 1:1 / 无 model —— 存量孤值
+    const prompt = promptNode(); // 16:9 / gpt-image-2 / 1K
     const request = buildImageWorkflowGenerationRequest(graph([prompt, gen], true), gen.id);
     expect(request.aspectRatio).toBe("16:9");
-    expect(request.quality).toBe("standard");
     expect(request.model).toBe("gpt-image-2");
     expect(request.resolution).toBe("1K");
   });
 
   it("paramsEdited=true:成图节点自身字段为权威", () => {
-    const gen = generatedNode({ paramsEdited: true, aspectRatio: "9:16", quality: "hd" });
+    const gen = generatedNode({ paramsEdited: true, aspectRatio: "9:16" });
     const prompt = promptNode();
     const request = buildImageWorkflowGenerationRequest(graph([prompt, gen], true), gen.id);
     expect(request.aspectRatio).toBe("9:16");
-    expect(request.quality).toBe("hd");
   });
 
   it("paramsEdited 且节点未填 model/resolution:仍回落提示词节点可选值", () => {
