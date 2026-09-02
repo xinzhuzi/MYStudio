@@ -200,8 +200,19 @@ export function ImageStudioCanvas() {
   const seedDoneRef = useRef(false);
   const viewportSaveTimer = useRef<number | null>(null);
 
+  // 项目侧持久化(09-03)后水合是异步的:默认画布种子必须等水合完成,
+  // 否则会把空态写进项目分片覆盖真实画布(storage 层另有写守卫兜底)
   useEffect(() => {
-    useImageStudioStore.getState().ensureDefaultWorkflow();
+    const store = useImageStudioStore;
+    if (store.persist.hasHydrated()) {
+      store.getState().ensureDefaultWorkflow();
+      return;
+    }
+    const unsubscribe = store.persist.onFinishHydration(() => {
+      unsubscribe();
+      store.getState().ensureDefaultWorkflow();
+    });
+    return () => unsubscribe();
   }, []);
 
   // 种子提示词(资产弹窗「带入图片工作室」):进入时物化一次生成组

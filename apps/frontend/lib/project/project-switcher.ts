@@ -22,6 +22,7 @@ import { useSimpleTimelineStore } from '@/stores/editing/simple-timeline-store';
 import { useSClassStore } from '@/stores/sclass/sclass-store';
 import { useTtsStore } from '@/stores/tts/tts-store';
 import { useEditingStore } from '@/stores/editing/editing-store';
+import { useImageStudioStore } from '@/stores/assist/image-studio-store';
 import { useSelfMediaStore } from '@/stores/self-media/self-media-store';
 import { useStudioStore } from '@/stores/studio/studio-store';
 
@@ -152,6 +153,13 @@ export async function switchProject(
     await useStudioStore.persist.rehydrate();
   } catch (e) {
     console.warn('[ProjectSwitcher] Failed to rehydrate studio workflow store:', e);
+  }
+
+  try {
+    // 图片工作室画布(09-03 项目侧持久化):换项目=换画布集
+    await useImageStudioStore.persist.rehydrate();
+  } catch (e) {
+    console.warn('[ProjectSwitcher] Failed to rehydrate image studio store:', e);
   }
 
   // 4. NOW sync internal activeProjectId in stores that track it.
