@@ -2,7 +2,7 @@ import { memo, useEffect, useState } from "react";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { UpscaleDenoiseModeField, denoiseModeToOpts, type UpscaleDenoiseMode } from "./upscale-denoise-mode";
 import { Handle, Position, type Node, type NodeProps } from "@xyflow/react";
-import { Brush, CheckCircle2, FileText, Grid2x2, Image as ImageIcon, Loader2, Save, Scissors, Trash2, WandSparkles, ZoomIn } from "lucide-react";
+import { Brush, CheckCircle2, FileText, Grid2x2, Image as ImageIcon, Loader2, Save, Scissors, Trash2, Type, WandSparkles, ZoomIn } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { LocalImage } from "@/components/ui/local-image";
 import { ResolutionBadge, probeImagePixelSize } from "@/components/ui/image-resolution-badge";
@@ -89,7 +89,9 @@ export const ImageWorkflowNodeCard = memo(function ImageWorkflowNodeCard({ data 
       data-image-workflow-node-kind={node.type}
       className={cn(
         "[contain:layout_style]",
-        "image-workflow-node-card rounded-md border bg-card/96 p-3 text-card-foreground shadow-[0_22px_54px_rgba(0,0,0,0.24)]",
+        "image-workflow-node-card group/node rounded-xl border bg-card/96 p-3.5 text-card-foreground",
+        "shadow-[0_1px_2px_rgba(0,0,0,0.18)] transition-[border-color,box-shadow] duration-200",
+        "hover:border-border/90 hover:shadow-[0_4px_16px_rgba(0,0,0,0.22)]",
         node.type === "prompt" || node.type === "generated" ? "w-[560px]" : "w-[420px]",
         borderClass,
       )}
@@ -107,8 +109,23 @@ export const ImageWorkflowNodeCard = memo(function ImageWorkflowNodeCard({ data 
       <Handle type="source" position={Position.Right} className="!h-3 !w-3 !border-info/40 !bg-info/20" />
       <div className="mb-3 flex items-start justify-between gap-2">
         <div className="flex min-w-0 items-center gap-2">
-          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-border bg-muted/35">
-            {node.type === "reference" ? <ImageIcon className="h-4 w-4" /> : <WandSparkles className="h-4 w-4" />}
+          <span
+            className={cn(
+              "flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border",
+              node.type === "reference"
+                ? "border-success/30 bg-success/10 text-success"
+                : node.type === "prompt"
+                  ? "border-info/30 bg-info/10 text-info"
+                  : "border-primary/30 bg-primary/10 text-primary",
+            )}
+          >
+            {node.type === "reference" ? (
+              <ImageIcon className="h-4 w-4" />
+            ) : node.type === "prompt" ? (
+              <Type className="h-4 w-4" />
+            ) : (
+              <WandSparkles className="h-4 w-4" />
+            )}
           </span>
           <div className="min-w-0">
             <input
@@ -116,7 +133,16 @@ export const ImageWorkflowNodeCard = memo(function ImageWorkflowNodeCard({ data 
               onChange={(event) => data.onUpdate(node.id, { title: event.target.value } as Partial<ImageWorkflowNode>)}
               className="nodrag nopan w-full truncate bg-transparent text-sm font-semibold outline-none"
             />
-            <div className="mt-0.5 text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
+            <div
+              className={cn(
+                "mt-0.5 text-[10px] font-medium uppercase tracking-[0.14em]",
+                node.type === "reference"
+                  ? "text-success/80"
+                  : node.type === "prompt"
+                    ? "text-info/80"
+                    : "text-primary/80",
+              )}
+            >
               {nodeKindLabel}
             </div>
           </div>
