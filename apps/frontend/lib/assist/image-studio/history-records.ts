@@ -2,6 +2,7 @@
 // Licensed under AGPL-3.0-or-later. See LICENSE for details.
 
 import type { HistoryEntry } from "@/stores/assist/freedom-store";
+import { buildProjectFileUrl, parseProjectFileUrl } from "@/lib/upscale/project-file-url";
 
 /**
  * 生成记录数据层(09-03 弹窗):localStorage 历史与项目内磁盘 ledger 的
@@ -79,10 +80,14 @@ function decodeURIComponentSafe(value: string): string {
   }
 }
 
-/** localStorage 历史 + 磁盘 ledger 合并:按图片身份(解码文件名)去重,新→旧排序 */
+/** localStorage 历史 + 磁盘 ledger 合并:按图片身份(解码文件名)去重,新→旧排序。
+ *  projectId 非空时 ledger 条目地址归一化为 project-file:// 完整 URL(裸相对
+ *  路径在展示层必坏:缩略图/大图/访达揭示全链——09-03 实锤);null=无项目,
+ *  ledger 条目保持磁盘原样(旧行为,测试与降级场景)。 */
 export function mergeGenerationRecords(
   local: HistoryEntry[],
   ledger: GenerationLedgerEntry[],
+  projectId: string | null,
 ): GenerationRecord[] {
   const localRecords: GenerationRecord[] = local
     .filter((entry) => entry.type === "image")
@@ -109,7 +114,9 @@ export function mergeGenerationRecords(
     id: `disk_${item.ts}_${item.file}`,
     prompt: item.prompt,
     model: item.model,
-    resultUrl: item.file,
+    resultUrl: projectId
+      ? buildProjectFileUrl(projectId, `media/ai-image/${item.file}`)
+      : item.file,
     createdAt: item.ts,
     params: readGenerationParams(item as unknown as Record<string, unknown>),
     origin: "ledger" as const,
@@ -162,4 +169,67 @@ export function generationSourceLabel(source: string | undefined): string {
   if (!source) return "—";
   if (source === "image-studio-canvas") return "图片工作室画布";
   return source;
+}
+
+interface ProjectFilesWriteBridge {
+  readText: (payload: { projectId: string; relativePath: string }) => Promise<{ text?: string } | string>;
+  writeText: (key: string, value: string) => Promise<unknown>;
+  deleteFile?: (payload: { projectId: string; relativePath: string }) => Promise<{ success?: boolean } | unknown>;
+}
+
+/** 从 project-file URL 提取 ledger 身份(「2026-09/xxx.png」);非项目内
+ *  media/ai-image 地址(data:/远程/local-image://)不属于本清理链,返回 null。 */
+export function mediaAiImageLedgerIdentity(url: string): string | null {
+  const parsed = parseProjectFileUrl(url);
+  if (!parsed) return null;
+  const match = /^media\/ai-image\/(\d{4}-\d{2})\/([^/]+)$/.exec(parsed.relativePath);
+  if (!match || match[2] === "ledger.json") return null;
+  return `${match[1]}/${decodeURIComponentSafe(match[2])}`;
+}
+
+/** 磁盘 ledger 条目移除(读改写,与写入侧 appendProjectLedger 同键同构):
+ *  只删条目不动图文件。返回是否确有移除(条目本就不在= false)。 */
+export async function removeLedgerEntryByFile(input: {
+  projectId: string;
+  file: string;
+}): Promise<boolean> {
+  const bridge = (window as unknown as { projectFiles?: ProjectFilesWriteBridge }).projectFiles;
+  if (!bridge?.readText || !bridge.writeText) return false;
+  const month = input.file.split("/")[0] ?? "";
+  if (!/^\d{4}-\d{2}$/.test(month)) return false;
+  const relativePath = `media/ai-image/${month}/ledger.json`;
+  let entries: GenerationLedgerEntry[] = [];
+  try {
+    const result = await bridge.readText({ projectId: input.projectId, relativePath });
+    const text = typeof result === "string" ? result : result?.text;
+    const parsed = text ? JSON.parse(text) : [];
+    if (Array.isArray(parsed)) entries = parsed;
+  } catch {
+    return false; // 坏文件/读失败:不动(宁留勿坏)
+  }
+  const kept = entries.filter((item) => item.file !== input.file);
+  if (kept.length === entries.length) return false;
+  await bridge.writeText(
+    `_p/${input.projectId}/${relativePath}`,
+    JSON.stringify(kept.slice(-2000), null, 2),
+  );
+  return true;
+}
+
+/** 删除项目内图文件(物理)。仅 project-file:// 且属当前项目的地址;
+ *  其他 scheme(远程/data/local-image)不在本链,返回 false 不视为失败。 */
+export async function deleteProjectImageFile(projectId: string, url: string): Promise<boolean> {
+  const parsed = parseProjectFileUrl(url);
+  if (!parsed || parsed.projectId !== projectId) return false;
+  const bridge = (window as unknown as { projectFiles?: ProjectFilesWriteBridge }).projectFiles;
+  if (!bridge?.deleteFile) return false;
+  try {
+    const result = await bridge.deleteFile({
+      projectId: parsed.projectId,
+      relativePath: parsed.relativePath,
+    });
+    return Boolean((result as { success?: boolean } | null)?.success);
+  } catch {
+    return false;
+  }
 }

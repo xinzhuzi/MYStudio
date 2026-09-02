@@ -17,13 +17,17 @@ import { LocalImage } from "@/components/ui/local-image";
 import { toPreviewSrc } from "@/lib/media/preview-src";
 import { dispatchCanvasCommand } from "@/lib/studio/canvas-commands";
 import {
+  deleteProjectImageFile,
   generationSourceLabel,
+  mediaAiImageLedgerIdentity,
   mergeGenerationRecords,
   readLedgerEntries,
+  removeLedgerEntryByFile,
   type GenerationLedgerEntry,
   type GenerationRecord,
 } from "@/lib/assist/image-studio/history-records";
 import { useFreedomStore } from "@/stores/assist/freedom-store";
+import { useMediaStore } from "@/stores/media/media-store";
 import { useProjectStore } from "@/stores/project/project-store";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -65,6 +69,7 @@ export function GenerationHistoryDialog({
   const imageHistory = useFreedomStore((state) => state.imageHistory);
   const removeHistoryEntry = useFreedomStore((state) => state.removeHistoryEntry);
   const clearHistory = useFreedomStore((state) => state.clearHistory);
+  const activeProjectId = useProjectStore((state) => state.activeProjectId);
   const [ledger, setLedger] = useState<GenerationLedgerEntry[]>([]);
   const [search, setSearch] = useState("");
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -84,7 +89,10 @@ export function GenerationHistoryDialog({
     };
   }, [open]);
 
-  const records = useMemo(() => mergeGenerationRecords(imageHistory, ledger), [imageHistory, ledger]);
+  const records = useMemo(
+    () => mergeGenerationRecords(imageHistory, ledger, activeProjectId),
+    [imageHistory, ledger, activeProjectId],
+  );
 
   useEffect(() => {
     if (!open) return;
@@ -223,6 +231,60 @@ export function GenerationHistoryDialog({
     }
   };
 
+  /** 删除记录=相关清理完毕(09-03 用户裁定):本地条目+磁盘 ledger 条目+
+   * 物理图文件(含批量组每张)。媒体库条目属产物图域——project-owned 直删
+   * 被域门禁拒绝(须走媒体库审查计划),合规尝试,拒留只提示,不绕门禁。 */
+  const deleteRecord = async (record: GenerationRecord) => {
+    const urls = Array.from(
+      new Set([record.resultUrl, ...(record.params.batchUrls ?? [])].filter(Boolean)),
+    );
+    const identities = new Set(
+      urls
+        .map((url) => mediaAiImageLedgerIdentity(url))
+        .filter((item): item is string => item !== null),
+    );
+    const failedSteps: string[] = [];
+    let filesDeleted = 0;
+    if (activeProjectId) {
+      for (const url of urls) {
+        try {
+          if (await deleteProjectImageFile(activeProjectId, url)) filesDeleted += 1;
+        } catch {
+          failedSteps.push("图文件删除失败");
+        }
+      }
+      for (const file of identities) {
+        try {
+          await removeLedgerEntryByFile({ projectId: activeProjectId, file });
+        } catch {
+          failedSteps.push("台账更新失败");
+        }
+      }
+    }
+    let mediaKept = 0;
+    const mediaStore = useMediaStore.getState();
+    for (const url of urls) {
+      const item = mediaStore.mediaFiles.find((media) => media.url === url);
+      if (!item) continue;
+      try {
+        await mediaStore.removeMediaFile(item.projectId ?? activeProjectId ?? "", item.id);
+      } catch {
+        mediaKept += 1;
+      }
+    }
+    if (record.origin === "local") removeHistoryEntry(record.id);
+    if (identities.size > 0) {
+      setLedger((previous) => previous.filter((item) => !identities.has(item.file)));
+    }
+    if (selectedId === record.id) setSelectedId(null);
+    const keptNote = mediaKept > 0 ? `;${mediaKept} 个媒体库条目请在媒体库中删除` : "";
+    if (failedSteps.length > 0) {
+      toast.warning(`记录已移除,但部分清理未完成:${[...new Set(failedSteps)].join("、")}${keptNote}`);
+    } else {
+      toast.success(`已清理完毕:记录+台账+图文件 ${filesDeleted} 张${keptNote}`);
+    }
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
@@ -305,29 +367,25 @@ export function GenerationHistoryDialog({
                           ) : null}
                         </div>
                       </div>
-                      {record.origin === "local" ? (
-                        <span
-                          role="button"
-                          tabIndex={0}
-                          aria-label="删除这条记录"
-                          title="删除这条记录"
-                          className="hidden h-6 w-6 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:text-destructive group-hover:flex"
-                          onClick={(event) => {
+                      <span
+                        role="button"
+                        tabIndex={0}
+                        aria-label="删除这条记录"
+                        title="删除这条记录(含磁盘图文件与台账条目)"
+                        className="hidden h-6 w-6 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:text-destructive group-hover:flex"
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          void deleteRecord(record);
+                        }}
+                        onKeyDown={(event) => {
+                          if (event.key === "Enter" || event.key === " ") {
                             event.stopPropagation();
-                            removeHistoryEntry(record.id);
-                            if (selectedId === record.id) setSelectedId(null);
-                          }}
-                          onKeyDown={(event) => {
-                            if (event.key === "Enter" || event.key === " ") {
-                              event.stopPropagation();
-                              removeHistoryEntry(record.id);
-                              if (selectedId === record.id) setSelectedId(null);
-                            }
-                          }}
-                        >
-                          <Trash2 className="h-3 w-3" />
-                        </span>
-                      ) : null}
+                            void deleteRecord(record);
+                          }
+                        }}
+                      >
+                        <Trash2 className="h-3 w-3" />
+                      </span>
                     </button>
                   );
                 })}
@@ -501,20 +559,16 @@ export function GenerationHistoryDialog({
                 <Copy className="mr-1 h-3.5 w-3.5" />
                 复制提示词
               </Button>
-              {selected.origin === "local" ? (
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  className="h-8 text-xs text-muted-foreground hover:text-destructive"
-                  onClick={() => {
-                    removeHistoryEntry(selected.id);
-                    setSelectedId(null);
-                  }}
-                >
-                  <Trash2 className="mr-1 h-3.5 w-3.5" />
-                  删除记录
-                </Button>
-              ) : null}
+              <Button
+                size="sm"
+                variant="ghost"
+                className="h-8 text-xs text-muted-foreground hover:text-destructive"
+                title="删除记录并清理磁盘图文件与台账条目"
+                onClick={() => void deleteRecord(selected)}
+              >
+                <Trash2 className="mr-1 h-3.5 w-3.5" />
+                删除记录
+              </Button>
               <Button
                 size="sm"
                 className="h-8 text-xs"

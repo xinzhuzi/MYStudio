@@ -8,6 +8,7 @@ const mocks = vi.hoisted(() => ({
   readFile: vi.fn(async () => Buffer.from("image")),
   unlink: vi.fn(async () => undefined),
   renameSync: vi.fn(),
+  rm: vi.fn(async () => undefined),
 }));
 
 vi.mock("electron", () => ({
@@ -26,6 +27,7 @@ vi.mock("node:fs", () => ({
       writeFile: mocks.writeFile,
       readFile: mocks.readFile,
       unlink: mocks.unlink,
+      rm: mocks.rm,
     },
     renameSync: mocks.renameSync,
   },
@@ -49,6 +51,7 @@ describe("registerProjectFileIpcHandlers", () => {
 
   it("registers all project-file channels", () => {
     expect([...mocks.handlers.keys()].sort()).toEqual([
+      "project-file-delete",
       "project-file-get-absolute-path",
       "project-file-list",
       "project-file-move",
@@ -59,6 +62,19 @@ describe("registerProjectFileIpcHandlers", () => {
       "project-file-write-binary",
       "project-file-write-text",
     ]);
+  });
+
+  it("deletes project files with force semantics; directory removal (no recursive) rejects to error shape", async () => {
+    const del = mocks.handlers.get("project-file-delete")!;
+    await expect(del({}, { projectId: "project-a", relativePath: "media/ai-image/2026-09/a.png" }))
+      .resolves.toEqual({ success: true });
+    // 项目根遏制:路径穿越拒绝
+    const escape = await del({}, { projectId: "project-a", relativePath: "../escape.png" });
+    expect(escape).toMatchObject({ success: false });
+    // 目录(readdir 形状的 ENOTDIR/EPERM 等)→ 失败形状而非抛出
+    mocks.rm.mockRejectedValueOnce(Object.assign(new Error("EPERM: operation not permitted"), { code: "EPERM" }));
+    await expect(del({}, { projectId: "project-a", relativePath: "media/ai-image/2026-09" }))
+      .resolves.toMatchObject({ success: false });
   });
 
   it("writes text and binary files with the established result shapes", async () => {

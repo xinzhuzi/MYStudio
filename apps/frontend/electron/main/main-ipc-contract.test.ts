@@ -106,6 +106,7 @@ music3-gen-runtime-scan-model
 music3-gen-runtime-setup
 music3-gen-runtime-status
 open-media-category
+project-file-delete
 project-file-get-absolute-path
 project-file-list
 project-file-move

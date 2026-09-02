@@ -27,6 +27,11 @@ type ProjectFileMovePayload = {
   toRelative: string;
 };
 
+type ProjectFileDeletePayload = {
+  projectId: string;
+  relativePath: string;
+};
+
 type RegisterProjectFileIpcHandlersContext = {
   getDataDir: () => string;
   readImageSource: (source: string) => Promise<{ buffer: Buffer; mimeType: string }>;
@@ -126,6 +131,19 @@ export function registerProjectFileIpcHandlers({
       fs.mkdirSync(path.dirname(toPath), { recursive: true });
       fs.renameSync(fromPath, toPath);
       return { success: true, url: createProjectFileUrl(payload.projectId, payload.toRelative) };
+    } catch (error) {
+      return { success: false, error: error instanceof Error ? error.message : String(error) };
+    }
+  });
+
+  // 删除项目内单个文件(生成记录「清理完毕」链的物理删除通道)。
+  // 仅文件:rm 不带 recursive,目录必然 reject=天然防呆;force=true 对
+  // 已不存在的文件幂等成功(手动清理过/重复删除均不报错)。
+  ipcMain.handle("project-file-delete", async (_event, payload: ProjectFileDeletePayload) => {
+    try {
+      const filePath = resolveProjectScopedFilePath(getDataDir(), payload.projectId, payload.relativePath);
+      await fs.promises.rm(filePath, { force: true });
+      return { success: true };
     } catch (error) {
       return { success: false, error: error instanceof Error ? error.message : String(error) };
     }

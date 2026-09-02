@@ -122,6 +122,7 @@ describe("preload IPC surface", () => {
     expect(preloadSource).toContain("ipcRenderer.invoke('project-file-read-base64', url)");
     expect(preloadSource).toContain("ipcRenderer.invoke('project-file-get-absolute-path', url)");
     expect(preloadSource).toContain("ipcRenderer.invoke('project-file-remove-text', key)");
+    expect(preloadSource).toContain("ipcRenderer.invoke('project-file-delete', payload)");
     expect(electronTypesSource).toContain("writeText: (key: string, value: string)");
     expect(electronTypesSource).toContain("writeBinary: (payload: { projectId: string; relativePath: string; bytes: ArrayBuffer })");
     expect(electronTypesSource).toContain("saveImage: (payload: { projectId: string; relativePath: string; source: string })");

@@ -2,7 +2,7 @@
 // Licensed under AGPL-3.0-or-later. See LICENSE for details.
 
 // @vitest-environment jsdom
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 (globalThis as any).Element.prototype.scrollTo ??= () => {};
@@ -14,6 +14,7 @@ import {
   type CanvasCommand,
 } from "@/lib/studio/canvas-commands";
 import { useFreedomStore, type HistoryEntry } from "@/stores/assist/freedom-store";
+import { useProjectStore } from "@/stores/project/project-store";
 
 /**
  * 09-03 生成记录弹窗:全面展示+一键复原(ops restore-generation)。
@@ -31,6 +32,7 @@ afterEach(() => {
   cleanup();
   __resetCanvasCommandBusForTests();
   useFreedomStore.setState(useFreedomStore.getState(), true);
+  useProjectStore.setState({ activeProjectId: null });
   localStorage.clear();
   vi.clearAllMocks();
 });
@@ -152,6 +154,118 @@ describe("GenerationHistoryDialog(09-03 弹窗)", () => {
       // 换选中自动收起
       fireEvent.click(screen.getByText("旧记录"));
       await waitForGone(view);
+    } finally {
+      delete windowMock.projectFiles;
+      view.unmount();
+    }
+  });
+
+  it("删除=清理完毕(09-03):ledger 行可删,台账条目+图文件全清,本地行不受牵连", async () => {
+    useProjectStore.setState({ activeProjectId: "p1" });
+    seedHistory();
+    const ledgerJson = JSON.stringify([
+      { ts: 300, prompt: "磁盘台账记录", model: "krea2-turbo", file: "2026-09/led.png" },
+    ]);
+    const fileDeletes: Array<{ projectId: string; relativePath: string }> = [];
+    const writes: Array<{ key: string; value: string }> = [];
+    const windowMock = window as unknown as {
+      projectFiles?: {
+        readText: (payload: { projectId: string; relativePath: string }) => Promise<string>;
+        writeText: (key: string, value: string) => Promise<void>;
+        deleteFile: (payload: { projectId: string; relativePath: string }) => Promise<{ success: boolean }>;
+        getAbsolutePath: (url: string) => Promise<string | null>;
+      };
+    };
+    windowMock.projectFiles = {
+      // 只本月有台账(readLedgerEntries 会拉本月+上月两个月,全给会渲染成两行)
+      readText: vi.fn(async (payload) =>
+        payload.relativePath === "media/ai-image/2026-09/ledger.json" ? ledgerJson : "",
+      ),
+      writeText: vi.fn(async (key, value) => {
+        writes.push({ key, value });
+      }),
+      deleteFile: vi.fn(async (payload) => {
+        fileDeletes.push(payload);
+        return { success: true };
+      }),
+      getAbsolutePath: vi.fn(async () => null),
+    };
+    const view = render(<GenerationHistoryDialog open onOpenChange={() => {}} />);
+    try {
+      // ledger 行出现后手动选中(选中锚定首条 local,后到的 ledger 不会夺走);
+      // 列表+详情两处同文=详情已切到 ledger 行,此时点删除才删的是台账行
+      expect(await screen.findByText("磁盘台账记录")).toBeTruthy();
+      fireEvent.click(screen.getByText("磁盘台账记录"));
+      expect((await screen.findAllByText("磁盘台账记录")).length).toBeGreaterThanOrEqual(2);
+      fireEvent.click(screen.getByRole("button", { name: /删除记录/ }));
+      await waitFor(() => {
+        expect(fileDeletes).toEqual([
+          { projectId: "p1", relativePath: "media/ai-image/2026-09/led.png" },
+        ]);
+      });
+      expect(writes.map((write) => write.key)).toEqual(["_p/p1/media/ai-image/2026-09/ledger.json"]);
+      expect(JSON.parse(writes[0].value)).toEqual([]);
+      expect(toastSuccessMock).toHaveBeenCalledWith("已清理完毕:记录+台账+图文件 1 张");
+      // 台账行消失,本地行仍在
+      await waitFor(() => expect(screen.queryByText("磁盘台账记录")).toBeNull());
+      expect(screen.getAllByText("水墨仙山,云雾缭绕").length).toBeGreaterThanOrEqual(1);
+    } finally {
+      delete windowMock.projectFiles;
+      view.unmount();
+    }
+  });
+
+  it("删除 local 行:项目内成图+批量组文件全删,本地条目移除;无 ledger 不写盘", async () => {
+    useProjectStore.setState({ activeProjectId: "p1" });
+    useFreedomStore.setState({
+      imageHistory: [
+        {
+          id: "rec_pf",
+          type: "image",
+          prompt: "项目内成图",
+          model: "m",
+          resultUrl: "project-file://p1/media/ai-image/2026-09/main.png",
+          params: { batchUrls: ["project-file://p1/media/ai-image/2026-09/b2.png"] },
+          createdAt: 200,
+        } as HistoryEntry,
+      ],
+    });
+    const fileDeletes: Array<{ projectId: string; relativePath: string }> = [];
+    const writes: Array<{ key: string; value: string }> = [];
+    const windowMock = window as unknown as {
+      projectFiles?: {
+        readText: (payload: { projectId: string; relativePath: string }) => Promise<string>;
+        writeText: (key: string, value: string) => Promise<void>;
+        deleteFile: (payload: { projectId: string; relativePath: string }) => Promise<{ success: boolean }>;
+      };
+    };
+    windowMock.projectFiles = {
+      readText: vi.fn(async () => ""),
+      writeText: vi.fn(async (key, value) => {
+        writes.push({ key, value });
+      }),
+      deleteFile: vi.fn(async (payload) => {
+        fileDeletes.push(payload);
+        return { success: true };
+      }),
+    };
+    const view = render(<GenerationHistoryDialog open onOpenChange={() => {}} />);
+    try {
+      expect((await screen.findAllByText("项目内成图")).length).toBeGreaterThanOrEqual(1);
+      fireEvent.click(screen.getByRole("button", { name: /删除记录/ }));
+      await waitFor(() => {
+        expect(fileDeletes.map((item) => item.relativePath).sort()).toEqual([
+          "media/ai-image/2026-09/b2.png",
+          "media/ai-image/2026-09/main.png",
+        ]);
+      });
+      // ledger 本为空:removeLedgerEntryByFile 无条目可移除,不写盘
+      expect(writes).toEqual([]);
+      await waitFor(() => {
+        expect(useFreedomStore.getState().imageHistory).toHaveLength(0);
+      });
+      // 列表与详情两处空态都渲染该文案
+      expect(screen.getAllByText("暂无生成记录").length).toBeGreaterThanOrEqual(1);
     } finally {
       delete windowMock.projectFiles;
       view.unmount();
