@@ -3,7 +3,7 @@
 // Commercial licensing available. See COMMERCIAL_LICENSE.md.
 
 // @vitest-environment jsdom
-import { cleanup, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, cleanup, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("@/components/panels/assist/ModelSelector", () => ({
@@ -45,7 +45,14 @@ describe("ImageStudio(画布宿主)", () => {
     // rAF 首帧门闸:装载文案先出现,随后画布接管
     await waitFor(
       () => {
-        expect(screen.getByRole("button", { name: /文生图/ })).toBeTruthy();
+        expect(screen.getByRole("button", { name: /添加节点/ })).toBeTruthy();
+      },
+      { timeout: 3000 },
+    );
+    fireEvent.keyDown(screen.getByRole("button", { name: /添加节点/ }), { key: "Enter" });
+    await waitFor(
+      () => {
+        expect(screen.getByRole("menuitem", { name: /^文生图/ })).toBeTruthy();
       },
       { timeout: 3000 },
     );

@@ -1,10 +1,29 @@
-// Copyright (c) 2025 hotflow2024
+// Copyright © 2025 hotflow2024
 // Licensed under AGPL-3.0-or-later. See LICENSE for details.
 // Commercial licensing available. See COMMERCIAL_LICENSE.md.
 
-import { Download, MessageSquare, Upload } from "lucide-react";
-import { FolderOpen, Image as ImageIcon, ImagePlus, LayoutGrid, Pencil, Plus, Trash2, Type } from "lucide-react";
+import {
+  Download,
+  FolderOpen,
+  Image as ImageIcon,
+  ImagePlus,
+  LayoutGrid,
+  MoreHorizontal,
+  Pencil,
+  Plus,
+  Trash2,
+  Type,
+  Upload,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuCheckboxItem,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
   Select,
   SelectContent,
@@ -15,13 +34,16 @@ import {
 import type { ImageWorkflowGraph } from "@/types/studio";
 
 /**
- * 图片工作室画布顶部工具栏:画布切换/管理 + 节点组快捷添加 + 整理布局 +
- * 历史抽屉开关。
+ * 图片工作室画布顶部工具栏(09-02 分族收敛:14 控件→6)。
+ * 布局=画布切换 + 主操作「文生图」一键直达 + 添加族下拉(图生图/参考图/提示词)
+ * + 面板开关(助手/生成记录) + 管理与工具下拉(布局/文件夹/画布管理/导入导出)。
+ * 高频主操作不进菜单;同功能族合并;破坏性操作(删画布)收进菜单远离日常区。
  */
 export function ImageStudioToolbar({
   workflows,
   activeWorkflowId,
   historyOpen,
+  assistantOpen,
   onSwitch,
   onCreate,
   onRename,
@@ -40,6 +62,7 @@ export function ImageStudioToolbar({
   workflows: ImageWorkflowGraph[];
   activeWorkflowId: string | null;
   historyOpen: boolean;
+  assistantOpen: boolean;
   onSwitch: (workflowId: string) => void;
   onCreate: () => void;
   onRename: () => void;
@@ -69,103 +92,106 @@ export function ImageStudioToolbar({
           ))}
         </SelectContent>
       </Select>
-      <Button size="icon" variant="ghost" className="h-8 w-8" onClick={onCreate} title="新建画布">
-        <Plus className="h-4 w-4" />
-      </Button>
-      <Button
-        size="icon"
-        variant="ghost"
-        className="h-8 w-8"
-        onClick={onRename}
-        disabled={!activeWorkflowId}
-        title="重命名当前画布"
-      >
-        <Pencil className="h-4 w-4" />
-      </Button>
-      <Button
-        size="icon"
-        variant="ghost"
-        className="h-8 w-8"
-        onClick={onDelete}
-        disabled={!activeWorkflowId}
-        title="删除当前画布"
-      >
-        <Trash2 className="h-4 w-4" />
-      </Button>
-      <div className="mx-1 h-5 w-px bg-border" />
-      <Button size="sm" variant="secondary" className="h-8" onClick={onAddTextToImage} data-image-studio-add-t2i>
-        <Type className="mr-1 h-3.5 w-3.5" />
-        文生图
-      </Button>
-      <Button size="sm" variant="secondary" className="h-8" onClick={onAddImageToImage} data-image-studio-add-i2i>
-        <ImagePlus className="mr-1 h-3.5 w-3.5" />
-        图生图
-      </Button>
-      <Button size="sm" variant="ghost" className="h-8" onClick={onAddReference} data-image-studio-add-reference>
-        <ImageIcon className="mr-1 h-3.5 w-3.5" />
-        参考图
-      </Button>
-      <Button size="sm" variant="ghost" className="h-8" onClick={onAddPrompt}>
-        <Type className="mr-1 h-3.5 w-3.5" />
-        提示词
-      </Button>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button
+            size="sm"
+            variant="secondary"
+            className="h-8"
+            aria-label="添加节点"
+            title="文生图 / 图生图 / 参考图 / 提示词节点"
+            data-image-studio-add-more
+          >
+            <Plus className="mr-1 h-3.5 w-3.5" />
+            添加
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="start">
+          <DropdownMenuItem onSelect={onAddTextToImage} data-image-studio-add-t2i>
+            <Type className="mr-2 h-3.5 w-3.5" />
+            文生图
+          </DropdownMenuItem>
+          <DropdownMenuItem onSelect={onAddImageToImage} data-image-studio-add-i2i>
+            <ImagePlus className="mr-2 h-3.5 w-3.5" />
+            图生图(选参考图建组)
+          </DropdownMenuItem>
+          <DropdownMenuItem onSelect={onAddReference} data-image-studio-add-reference>
+            <ImageIcon className="mr-2 h-3.5 w-3.5" />
+            参考图节点
+          </DropdownMenuItem>
+          <DropdownMenuItem onSelect={onAddPrompt}>
+            <Type className="mr-2 h-3.5 w-3.5" />
+            提示词节点
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
       <div className="flex-1" />
-      <Button size="sm" variant="ghost" className="h-8" onClick={onTidy} title="按参考图/提示词/成图三列重排全部节点">
-        <LayoutGrid className="mr-1 h-3.5 w-3.5" />
-        整理布局
-      </Button>
-      <Button
-        size="icon"
-        variant="ghost"
-        className="h-8 w-8"
-        onClick={onOpenFolder}
-        title="打开生成文件夹（媒体库 ai-image）"
-        data-image-studio-open-folder
-      >
-        <FolderOpen className="h-4 w-4" />
-      </Button>
-      <Button
-        size="sm"
-        variant="ghost"
-        className="h-8"
-        onClick={onToggleAssistant}
-        aria-label="画布助手"
-        title="选中节点后对话,回答可插回画布"
-      >
-        <MessageSquare className="mr-1 h-3.5 w-3.5" />
-        助手
-      </Button>
-      <Button
-        size="sm"
-        variant="ghost"
-        className="h-8"
-        onClick={onExport}
-        aria-label="导出画布"
-        title="当前画布导出为 JSON"
-      >
-        <Download className="mr-1 h-3.5 w-3.5" />
-        导出
-      </Button>
-      <Button
-        size="sm"
-        variant="ghost"
-        className="h-8"
-        onClick={onImport}
-        aria-label="导入画布"
-        title="从 JSON 导入为新画布"
-      >
-        <Upload className="mr-1 h-3.5 w-3.5" />
-        导入
-      </Button>
-      <Button
-        size="sm"
-        variant={historyOpen ? "secondary" : "ghost"}
-        className="h-8"
-        onClick={onToggleHistory}
-        data-image-studio-history-toggle
-      >
-        生成记录
-      </Button>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button
+            size="icon"
+            variant="ghost"
+            className="h-8 w-8"
+            aria-label="画布与工具菜单"
+            title="布局 / 生成文件夹 / 画布管理 / 导入导出"
+            data-image-studio-tools-menu
+          >
+            <MoreHorizontal className="h-4 w-4" />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end">
+          <DropdownMenuCheckboxItem
+            checked={historyOpen}
+            onCheckedChange={onToggleHistory}
+            data-image-studio-history-toggle
+            title="右侧生成记录抽屉"
+          >
+            生成记录面板
+          </DropdownMenuCheckboxItem>
+          <DropdownMenuCheckboxItem
+            checked={assistantOpen}
+            onCheckedChange={onToggleAssistant}
+            title="选中节点后对话,回答可插回画布"
+          >
+            画布助手面板
+          </DropdownMenuCheckboxItem>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem onSelect={onTidy} title="按参考图/提示词/成图三列重排全部节点">
+            <LayoutGrid className="mr-2 h-3.5 w-3.5" />
+            整理布局
+          </DropdownMenuItem>
+          <DropdownMenuItem onSelect={onOpenFolder} data-image-studio-open-folder title="媒体库 ai-image 分类">
+            <FolderOpen className="mr-2 h-3.5 w-3.5" />
+            打开生成文件夹
+          </DropdownMenuItem>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem onSelect={onCreate}>
+            <Plus className="mr-2 h-3.5 w-3.5" />
+            新建画布
+          </DropdownMenuItem>
+          <DropdownMenuItem onSelect={onRename} disabled={!activeWorkflowId}>
+            <Pencil className="mr-2 h-3.5 w-3.5" />
+            重命名当前画布
+          </DropdownMenuItem>
+          <DropdownMenuItem
+            onSelect={onDelete}
+            disabled={!activeWorkflowId}
+            className="text-destructive focus:text-destructive"
+          >
+            <Trash2 className="mr-2 h-3.5 w-3.5" />
+            删除当前画布
+          </DropdownMenuItem>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem onSelect={onExport} disabled={!onExport} title="当前画布导出为 JSON">
+            <Download className="mr-2 h-3.5 w-3.5" />
+            导出画布
+          </DropdownMenuItem>
+          <DropdownMenuItem onSelect={onImport} disabled={!onImport} title="从 JSON 导入为新画布">
+            <Upload className="mr-2 h-3.5 w-3.5" />
+            导入画布
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
     </div>
   );
 }

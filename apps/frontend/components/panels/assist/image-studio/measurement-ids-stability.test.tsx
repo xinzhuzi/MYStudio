@@ -97,16 +97,17 @@ describe("测量刷新稳定性", () => {
     await new Promise((resolve) => setTimeout(resolve, 600));
     updateNodeInternalsMock.mockClear();
 
-    // 复刻用户操作:点「文生图」按钮(不手动聚焦,等自动聚焦)
+    // 复刻用户操作:经「添加」菜单点「文生图」(09-02 工具栏收敛后主创建入口)
     // (jsdom 的 ResizeObserver 是空壳→节点永远「未测量」,真机由测量翻可见;
     //  这里对 getComputedStyle 打桩放行可见门,聚焦逻辑本身保持真逻辑)
     const computedSpy = vi
       .spyOn(window, "getComputedStyle")
       .mockImplementation(() => ({ visibility: "visible" } as CSSStyleDeclaration));
     try {
-    const t2iButton = screen.getAllByRole("button").find((b) => b.textContent?.includes("文生图"));
-    expect(t2iButton).toBeTruthy();
-    fireEvent.click(t2iButton!);
+    const addButton = screen.getByRole("button", { name: /添加节点/ });
+    fireEvent.keyDown(addButton, { key: "Enter" });
+    const t2iItem = await waitFor(() => screen.getByRole("menuitem", { name: /^文生图/ }));
+    fireEvent.click(t2iItem);
     const textareas = await waitFor(() => {
       const all = screen.getAllByPlaceholderText(/描述要生成的图片/) as HTMLTextAreaElement[];
       expect(all.length).toBeGreaterThanOrEqual(2);
