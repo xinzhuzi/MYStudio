@@ -26,8 +26,20 @@ vi.mock("@/lib/media/image-storage", () => ({
   readImageAsBase64: vi.fn(async () => null),
 }));
 vi.mock("@/lib/bridge/project-files", () => ({
-  getProjectFilesBridge: vi.fn(() => null),
+  // 09-02 治理:生成图落项目内(项目桥必须可用才落盘);测试统一给可用桥
+  getProjectFilesBridge: vi.fn(() => ({
+    saveImage: saveImageMock,
+    readText: vi.fn(async () => ({ text: "" })),
+    writeText: vi.fn(async () => ({ success: true })),
+  })),
 }));
+
+const saveImageMock = vi.hoisted(() =>
+  vi.fn(async (_payload: { projectId: string; relativePath: string; source: string }) => ({
+    success: true,
+    url: `project-file://mock/${_payload.relativePath}`,
+  })),
+);
 vi.mock("@/lib/studio/image-workflow-references", () => ({
   prepareImageWorkflowReferenceImages: prepareReferencesMock,
 }));
@@ -55,7 +67,6 @@ function buildGraph(): ImageWorkflowGraph {
     prompt: "山门晨雾",
     model: "krea2-turbo",
     aspectRatio: "16:9",
-    quality: "standard",
     position: { x: 100, y: 0 },
   });
   graph = addReferenceImageNode(graph, {
@@ -70,15 +81,18 @@ function buildGraph(): ImageWorkflowGraph {
 
 beforeEach(() => {
   generateImageMock.mockReset();
-  saveImageToLocalMock.mockReset();
-  saveImageToLocalMock.mockResolvedValue("local-image://ai-image/studio_saved.png");
+  saveImageMock.mockReset();
+  saveImageMock.mockImplementation(async (payload: { relativePath: string }) => ({
+    success: true,
+    url: `project-file://mock/${payload.relativePath}`,
+  }));
   maybeAutoDenoiseMock.mockClear();
   prepareReferencesMock.mockClear();
   saveToMediaLibraryMock.mockClear();
 });
 
 describe("runImageStudioNodeGeneration", () => {
-  it("图生图全链:参考图经转换透传,persistMedia:false,结果回稳定地址+媒体库", async () => {
+  it("图生图全链:参考图经转换透传,persistMedia:false,结果落项目内稳定地址+媒体库", async () => {
     generateImageMock.mockResolvedValueOnce({ url: "https://cdn.example.com/x.png", mediaId: undefined });
 
     const result = await runImageStudioNodeGeneration(buildGraph(), "gen-1");
@@ -92,30 +106,24 @@ describe("runImageStudioNodeGeneration", () => {
     expect(params.aspectRatio).toBe("16:9");
     expect(params.persistMedia).toBe(false);
     expect(maybeAutoDenoiseMock).toHaveBeenCalledWith("https://cdn.example.com/x.png");
-    expect(result.imageUrl).toBe("local-image://ai-image/studio_saved.png");
+    // 09-02 治理:落项目内 media/ai-image/YYYY-MM/(project-file://,随项目走)
+    expect(result.imageUrl).toMatch(/^project-file:\/\/mock\/media\/ai-image\/\d{4}-\d{2}\//);
     expect(result.persisted).toBe(true);
     expect(result.mediaId).toBe("media-1");
     expect(saveToMediaLibraryMock).toHaveBeenCalledWith(
-      "local-image://ai-image/studio_saved.png",
+      result.imageUrl,
       "山门晨雾",
       "ai-image",
     );
   });
 
-  it("hd 质量与模型专属参数合并进 extraParams", async () => {
-    let graph = buildGraph();
-    graph = {
-      ...graph,
-      nodes: graph.nodes.map((node) =>
-        node.id === "gen-1" && node.type === "generated" ? { ...node, quality: "hd" } : node,
-      ),
-    };
+  it("模型专属参数原样透传进 extraParams(质量档已随节点字段下线)", async () => {
     generateImageMock.mockResolvedValueOnce({ url: "https://cdn.example.com/x.png" });
 
-    await runImageStudioNodeGeneration(graph, "gen-1", { extraParams: { stylization: 250 } });
+    await runImageStudioNodeGeneration(buildGraph(), "gen-1", { extraParams: { stylization: 250 } });
 
     const params = generateImageMock.mock.calls[0][0];
-    expect(params.extraParams).toEqual({ quality: "hd", stylization: 250 });
+    expect(params.extraParams).toEqual({ stylization: 250 });
   });
 
   it("空提示词直接抛错,不触发生图", async () => {
@@ -128,25 +136,25 @@ describe("runImageStudioNodeGeneration", () => {
     expect(generateImageMock).not.toHaveBeenCalled();
   });
 
-  it("远程 URL 落盘失败→chat 形态重试一次,重试成功返回稳定地址", async () => {
+  it("项目落盘失败→chat 形态重试一次,重试成功返回项目稳定地址", async () => {
     generateImageMock
       .mockResolvedValueOnce({ url: "https://cdn.example.com/lost.png" })
       .mockResolvedValueOnce({ url: "data:image/png;base64,ZZZ" });
-    saveImageToLocalMock
-      .mockResolvedValueOnce("https://cdn.example.com/lost.png") // 首次落盘失败(原样返回)
-      .mockResolvedValueOnce("local-image://ai-image/studio_retry.png");
+    saveImageMock
+      .mockRejectedValueOnce(new Error("项目落盘失败"))
+      .mockResolvedValueOnce({ success: true, url: "project-file://mock/media/ai-image/2026-09/retry.png" });
 
     const result = await runImageStudioNodeGeneration(buildGraph(), "gen-1");
 
     expect(generateImageMock).toHaveBeenCalledTimes(2);
     expect(generateImageMock.mock.calls[1][0].transport).toBe("chat");
-    expect(result.imageUrl).toBe("local-image://ai-image/studio_retry.png");
+    expect(result.imageUrl).toBe("project-file://mock/media/ai-image/2026-09/retry.png");
     expect(result.persisted).toBe(true);
   });
 
-  it("两次落盘都失败:降级返回原始地址并标记 persisted:false", async () => {
+  it("项目桥持续失败:返回原始地址并标记 persisted:false(绝不回退 userData)", async () => {
     generateImageMock.mockResolvedValue({ url: "data:image/png;base64,ZZZ" });
-    saveImageToLocalMock.mockResolvedValue("data:image/png;base64,ZZZ"); // 非 Electron 原样返回
+    saveImageMock.mockRejectedValue(new Error("项目落盘失败"));
 
     const result = await runImageStudioNodeGeneration(buildGraph(), "gen-1");
 

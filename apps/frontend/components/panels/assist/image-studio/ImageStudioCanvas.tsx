@@ -488,6 +488,7 @@ export function ImageStudioCanvas() {
         onAddPrompt={() => useImageStudioStore.getState().addPromptNode()}
         onTidy={() => useImageStudioStore.getState().applyLayout()}
         onToggleHistory={() => setHistoryOpen((open) => !open)}
+        assistantOpen={assistantOpen}
         onToggleAssistant={() => setAssistantOpen((open) => !open)}
         onExport={handleExportCanvas}
         onImport={() => importInputRef.current?.click()}
@@ -558,12 +559,13 @@ export function ImageStudioCanvas() {
           <div className="w-[240px] shrink-0 border-l" data-image-studio-history-panel>
             <GenerationHistory
               type="image"
-              onSelect={(entry) => {
+              onSendToCanvas={(entry) => {
                 useImageStudioStore.getState().addGenerationGroup({
                   prompt: entry.prompt,
                   model: entry.model || undefined,
                   referenceImageUrl: entry.resultUrl || undefined,
                 });
+                toast.success("已送入当前画布");
               }}
             />
           </div>

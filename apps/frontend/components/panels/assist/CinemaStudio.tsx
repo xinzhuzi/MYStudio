@@ -195,7 +195,7 @@ export function CinemaStudio() {
 
       {/* Right: History */}
       <div className="w-[240px] border-l">
-        <GenerationHistory type="cinema" onSelect={(entry) => {
+        <GenerationHistory type="cinema" onSendToCanvas={(entry) => {
           setCinemaPrompt(entry.prompt);
           if (entry.params.camera) setSelectedCamera(entry.params.camera);
           if (entry.params.lens) setSelectedLens(entry.params.lens);

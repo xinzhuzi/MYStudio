@@ -6,7 +6,8 @@ import { aiManager } from "@/lib/ai/ai-manager";
 import { saveToMediaLibrary } from "@/lib/ai/generation-media";
 import { maybeAutoDenoiseUrl } from "@/lib/ai/image-auto-denoise";
 import { getProjectFilesBridge } from "@/lib/bridge/project-files";
-import { readImageAsBase64, saveImageToLocal, type ImageCategory } from "@/lib/media/image-storage";
+import { readImageAsBase64 } from "@/lib/media/image-storage";
+import { useProjectStore } from "@/stores/project/project-store";
 import { prepareImageWorkflowReferenceImages } from "@/lib/studio/image-workflow-references";
 import type { ImageWorkflowGraph } from "@/types/studio";
 import { buildImageStudioGenerationRequest } from "./request";
@@ -21,7 +22,6 @@ import { buildImageStudioGenerationRequest } from "./request";
  */
 
 /** 媒体库 ai-image 分类实际落在 local-image://ai-image/(分类字面量随媒体库口径) */
-const AI_IMAGE_CATEGORY = "ai-image" as ImageCategory;
 
 export interface RunImageStudioNodeGenerationInput {
   /** 模型专属附加参数(Midjourney speed/stylization、Ideogram render_speed/style 等) */
@@ -68,7 +68,6 @@ export async function runImageStudioNodeGeneration(
     negativePrompt: request.negativePrompt,
     referenceImages,
     extraParams: {
-      ...(request.quality === "hd" ? { quality: "hd" } : {}),
       ...(input.extraParams ?? {}),
     },
     signal: input.signal,
@@ -77,14 +76,74 @@ export async function runImageStudioNodeGeneration(
     persistMedia: false,
   });
 
+
+/** 项目内 ledger 追加(09-02 治理):读改写,坏 JSON 重建为空数组 */
+async function appendProjectLedger(input: {
+  projectId: string;
+  relativePath: string;
+  entry: { ts: number; prompt: string; model: string; file: string };
+}): Promise<void> {
+  const bridge = getProjectFilesBridge();
+  if (!bridge?.writeText || !bridge.readText) return;
+  let entries: Array<{ ts: number; prompt: string; model: string; file: string }> = [];
+  try {
+    const existing = await bridge.readText({
+      projectId: input.projectId,
+      relativePath: input.relativePath,
+    });
+    const text = typeof existing === "string" ? existing : existing?.text;
+    if (text) {
+      const parsed = JSON.parse(text);
+      if (Array.isArray(parsed)) entries = parsed;
+    }
+  } catch {
+    entries = []; // 坏文件重建
+  }
+  entries.push(input.entry);
+  await bridge.writeText(
+    `projects/${input.projectId}/${input.relativePath}`,
+    JSON.stringify(entries.slice(-2000), null, 2),
+  );
+}
+
+function monthFolderOf(url: string): string {
+  const match = /\/(\d{4}-\d{2})\//.exec(url);
+  return match?.[1] ?? new Date().toISOString().slice(0, 7);
+}
+
+function filenameOf(url: string): string {
+  const clean = url.split("?")[0].split("#")[0];
+  return clean.slice(clean.lastIndexOf("/") + 1) || "image.png";
+}
+
+  const projectId = useProjectStore.getState().activeProjectId;
   const persistToLocal = async (url: string): Promise<string | null> => {
     // 生图落库自动去噪(设置开关控制;未启用/失败原样返回)
     const denoised = await maybeAutoDenoiseUrl(url);
+    const now = new Date();
+    const month = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
     const filename = `studio_${safeFilenameSeed(request.prompt)}_${Date.now()}.png`;
-    const saved = await saveImageToLocal(denoised, AI_IMAGE_CATEGORY, filename);
-    return saved.startsWith("local-image://") || saved.startsWith("project-file://")
-      ? saved
-      : null;
+    // 项目作用域正源(09-02 生成记录治理,对齐 cloud 链 08-30 副本库退役通道):
+    // 落当前项目 media/ai-image/YYYY-MM/(project-file://,随项目走);
+    // 无活动项目=禁落盘(绝不回退 userData 应用级旧路径——该位置已裁定退役)。
+    if (!projectId) {
+      throw new Error("请先选择项目(生成图落项目内存储)");
+    }
+    const projectFiles = getProjectFilesBridge();
+    if (!projectFiles?.saveImage) {
+      throw new Error("项目文件桥不可用,无法落盘");
+    }
+    const saved = await projectFiles.saveImage({
+      projectId,
+      relativePath: `media/ai-image/${month}/${filename}`,
+      source: denoised,
+    }).catch(() => undefined);
+    if (!saved?.success || !saved.url) {
+      // 落盘失败返回 null:远程 URL 走 chat 重试链;两次失败降级原始地址
+      // (媒体库内部异步下载是第二落盘机会)——绝不回退 userData 旧路径
+      return null;
+    }
+    return saved.url;
   };
 
   let generated = await aiManager.generateImage(buildParams());
@@ -99,6 +158,25 @@ export async function runImageStudioNodeGeneration(
   // 媒体库记录:传入受管地址时 addMediaFromUrl 跳过异步下载、条目地址即刻
   // 稳定;降级传远程 URL 时其内部会后台下载并改写条目地址(第二落盘机会)
   const mediaId = saveToMediaLibrary(finalUrl, request.prompt, "ai-image");
+  // 磁盘 ledger(09-02 治理):与图片同存项目内,永不与图脱钩;localStorage
+  // 历史不再作为唯一索引(50 条上限丢记录的根修)。失败不阻断返回。
+  const ledgerRelative = stableUrl
+    ? `media/ai-image/${monthFolderOf(stableUrl)}/ledger.json`
+    : null;
+  if (projectId && ledgerRelative && stableUrl) {
+    void appendProjectLedger({
+      projectId,
+      relativePath: ledgerRelative,
+      entry: {
+        ts: Date.now(),
+        prompt: request.prompt,
+        model: request.model ?? "",
+        file: `${monthFolderOf(stableUrl)}/${filenameOf(stableUrl)}`,
+      },
+    }).catch(() => {
+      // ledger 写失败静默(下次生成重试;面板回落 localStorage)
+    });
+  }
   return {
     imageUrl: finalUrl,
     mediaId,

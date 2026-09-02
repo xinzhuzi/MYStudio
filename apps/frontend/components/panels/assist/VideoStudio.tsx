@@ -665,7 +665,7 @@ export function VideoStudio() {
 
       {/* Right: History */}
       <div className="w-[240px] border-l">
-        <GenerationHistory type="video" onSelect={(entry) => {
+        <GenerationHistory type="video" onSendToCanvas={(entry) => {
           setVideoPrompt(entry.prompt);
           setSelectedVideoModel(entry.model);
           setVideoResult(entry.resultUrl);
