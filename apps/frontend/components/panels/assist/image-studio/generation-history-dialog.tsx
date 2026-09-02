@@ -214,7 +214,9 @@ export function GenerationHistoryDialog({
       generatedAt: record.createdAt,
     });
     if (result.ok) {
-      toast.success("已复原到画布:参考图、提示词与成图已重建");
+      toast.success(
+        `已复原到新画布${result.detail?.workflowName ? `「${result.detail.workflowName}」` : ""}:参考图、提示词与成图已重建`,
+      );
       onOpenChange(false);
     } else {
       toast.error(`复原失败:${result.reason}`);

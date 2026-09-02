@@ -58,8 +58,15 @@ export type CanvasCommand =
 
 export interface CanvasCommandOk {
   ok: true;
-  /** 新建节点 id(add-node)等回执;建组时附 promptNodeId(组内提示词节点) */
-  detail?: { nodeId?: string; edgeId?: string; promptNodeId?: string };
+  /** 新建节点 id(add-node)等回执;建组时附 promptNodeId(组内提示词节点);
+   * restore-generation 落在新建画布时附该画布 id+名称 */
+  detail?: {
+    nodeId?: string;
+    edgeId?: string;
+    promptNodeId?: string;
+    workflowId?: string;
+    workflowName?: string;
+  };
 }
 
 export interface CanvasCommandFailure {

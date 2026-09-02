@@ -107,8 +107,13 @@ export function useImageStudioCommands({
           return { ok: true };
         }
         case "restore-generation": {
-          // 复原生成记录:单条指令=整组重建(参考边+提示词+成图),单份撤销
+          // 复原=独立新画布(用户裁定 09-03):记录是「当时那张画布」的快照,
+          // 落进当前画布会污染现场;先建「复原·<记录时间>」画布再整组重建
           if (!graph) return { ok: false, reason: "画布未就绪" };
+          const stampDate = new Date(command.generatedAt ?? Date.now());
+          const pad = (value: number) => String(value).padStart(2, "0");
+          const workflowName = `复原·${pad(stampDate.getMonth() + 1)}${pad(stampDate.getDate())} ${pad(stampDate.getHours())}:${pad(stampDate.getMinutes())}`;
+          const workflowId = store.createWorkflow(workflowName);
           const group = store.restoreGenerationGroup({
             prompt: command.prompt,
             negativePrompt: command.negativePrompt,
@@ -121,7 +126,12 @@ export function useImageStudioCommands({
           });
           return {
             ok: true,
-            detail: { nodeId: group.generatedNodeId, promptNodeId: group.promptNodeId },
+            detail: {
+              nodeId: group.generatedNodeId,
+              promptNodeId: group.promptNodeId,
+              workflowId,
+              workflowName,
+            },
           };
         }
         default:

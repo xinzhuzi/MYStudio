@@ -130,9 +130,13 @@ describe("image-studio 指令执行器(二期扩容)", () => {
     if (!missing.ok) expect(missing.reason).toContain("生成编排未就绪");
   });
 
-  it("restore-generation:单条指令整组复原(参考边+反向词+result+批量组)", () => {
+  it("restore-generation:新建「复原·」画布整组复原,旧画布零污染", () => {
     seedGroup();
     mountExecutor();
+    const store = useImageStudioStore.getState();
+    const workflowCountBefore = store.workflows.length;
+    const oldCanvasId = store.activeWorkflowId;
+    const oldCanvasNodesBefore = activeGraph()!.nodes.length;
 
     const result = dispatch({
       kind: "restore-generation",
@@ -150,12 +154,24 @@ describe("image-studio 指令执行器(二期扩容)", () => {
       generatedAt: 12345,
     });
     expect(result.ok).toBe(true);
-    const graph = activeGraph()!;
-    const detail = (result as { detail?: { nodeId?: string; promptNodeId?: string } }).detail;
-    const generated = graph.nodes.find(
-      (node): node is Extract<typeof node, { status?: string }> =>
-        node.id === detail?.nodeId,
-    ) as { status?: string; resultUrl?: string; aspectRatio?: string; imageBatch?: { images: string[]; primaryIndex: number } } | undefined;
+    const detail = (result as { detail?: { nodeId?: string; promptNodeId?: string; workflowId?: string; workflowName?: string } }).detail;
+    expect(detail?.workflowId).toBeTruthy();
+    expect(detail?.workflowName).toMatch(/^复原·/);
+
+    // 新画布已建并切激活;复原组落在新画布
+    const state = useImageStudioStore.getState();
+    expect(state.workflows.length).toBe(workflowCountBefore + 1);
+    expect(state.activeWorkflowId).toBe(detail?.workflowId);
+    const newCanvas = state.workflows.find((workflow) => workflow.id === detail?.workflowId)!;
+    expect(newCanvas.name).toMatch(/^复原·/);
+    // 旧画布一个节点都没动(复原不污染现场)
+    const oldCanvas = state.workflows.find((workflow) => workflow.id === oldCanvasId)!;
+    expect(oldCanvas.nodes.length).toBe(oldCanvasNodesBefore);
+
+    const graph = newCanvas;
+    const generated = graph.nodes.find((node) => node.id === detail?.nodeId) as
+      | { status?: string; resultUrl?: string; aspectRatio?: string; imageBatch?: { images: string[] } }
+      | undefined;
     expect(generated?.status).toBe("ready");
     expect(generated?.resultUrl).toBe("project-file://p/media/ai-image/2026-09/out.png");
     expect(generated?.aspectRatio).toBe("16:9");
