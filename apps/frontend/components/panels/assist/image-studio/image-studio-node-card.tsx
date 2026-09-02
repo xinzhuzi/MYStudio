@@ -13,7 +13,6 @@ import {
 } from "@/stores/assist/image-studio-store";
 import {
   Archive,
-  CheckCircle2,
   ChevronLeft,
   ChevronRight,
   Download,

@@ -2,7 +2,7 @@ import { memo, useEffect, useState } from "react";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { UpscaleDenoiseModeField, denoiseModeToOpts, type UpscaleDenoiseMode } from "./upscale-denoise-mode";
 import { Handle, Position, type Node, type NodeProps } from "@xyflow/react";
-import { Brush, CheckCircle2, FileText, Grid2x2, Image as ImageIcon, Loader2, Save, Scissors, Trash2, Type, WandSparkles, ZoomIn } from "lucide-react";
+import { Brush, FileText, Grid2x2, Image as ImageIcon, Loader2, Save, Scissors, Trash2, Type, WandSparkles, ZoomIn } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { LocalImage } from "@/components/ui/local-image";
 import { ResolutionBadge, probeImagePixelSize } from "@/components/ui/image-resolution-badge";
