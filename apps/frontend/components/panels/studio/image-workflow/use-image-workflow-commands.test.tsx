@@ -149,6 +149,23 @@ describe("image-workflow 指令通道(集成)", () => {
       activeGraph().nodes.find((node) => node.id === "gen-1")?.title,
     ).toBe("改名成图");
 
+    // prompt 透传(09-03 二期):patch.prompt 显式落节点,不被共享契约扩容忽略
+    expect(
+      dispatch({
+        kind: "update-node",
+        surface: "image-workflow",
+        nodeId: "prompt-1",
+        patch: { prompt: "水墨山门,晨雾" },
+      }).ok,
+    ).toBe(true);
+    expect(
+      (
+        activeGraph().nodes.find((node) => node.id === "prompt-1") as
+          | { prompt?: string }
+          | undefined
+      )?.prompt,
+    ).toBe("水墨山门,晨雾");
+
     // 幂等拒绝:重复 disconnect 已不存在的边
     const repeat = dispatch({
       kind: "disconnect",

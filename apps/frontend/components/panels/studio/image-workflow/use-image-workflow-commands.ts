@@ -100,8 +100,13 @@ export function useImageWorkflowCommands({
               updateImageWorkflowNodePosition(graph, command.nodeId, command.patch.position),
             );
           }
-          if (command.patch.title !== undefined) {
-            saveGraph(updateImageWorkflowNode(graph, command.nodeId, { title: command.patch.title }));
+          // 内容字段合并为一次 saveGraph(两次=两条撤销快照);prompt 二期透传,
+          // 不显式处理会被共享契约扩容静默忽略
+          const contentPatch: { title?: string; prompt?: string } = {};
+          if (command.patch.title !== undefined) contentPatch.title = command.patch.title;
+          if (command.patch.prompt !== undefined) contentPatch.prompt = command.patch.prompt;
+          if (contentPatch.title !== undefined || contentPatch.prompt !== undefined) {
+            saveGraph(updateImageWorkflowNode(graph, command.nodeId, contentPatch));
           }
           return { ok: true, detail: { nodeId: command.nodeId } };
         }

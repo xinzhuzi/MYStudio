@@ -57,6 +57,7 @@ import { PaneCreateMenu, type PaneCanvasAction, type PaneCreateKind } from "./pa
 import { NodeContextMenu } from "./node-context-menu";
 import { effectiveBatchImages } from "./image-studio-batch";
 import { buildNodeClearPlan } from "@/lib/assist/image-studio/clear-node";
+import { logEvent } from "@/lib/diagnostics/logger";
 import { CanvasHints } from "./canvas-hints";
 import { useImageDrop } from "./use-image-drop";
 
@@ -93,7 +94,9 @@ export function ImageStudioCanvas() {
 
   // 撤销重做(09-02):订阅 activeGraph 引用变化提交快照(防抖合并)
   const { history: canvasHistory, commitSnapshot } = useAssistCanvasHistory({ workflow: activeGraph });
-  useImageStudioCommands({ workflow: activeGraph });
+  // 生成编排先取再注入执行器(trigger-node-action "generate" 走同一状态机)
+  const { generateNode, stopNode, upscaleNode } = useImageStudioGeneration();
+  useImageStudioCommands({ workflow: activeGraph, generateNode });
   const [assistantOpen, setAssistantOpen] = useState(false);
   useEffect(() => {
     commitSnapshot();
@@ -196,8 +199,6 @@ export function ImageStudioCanvas() {
   const uploadTargetRef = useRef<UploadTarget | null>(null);
   const seedDoneRef = useRef(false);
   const viewportSaveTimer = useRef<number | null>(null);
-
-  const { generateNode, stopNode, upscaleNode } = useImageStudioGeneration();
 
   useEffect(() => {
     useImageStudioStore.getState().ensureDefaultWorkflow();
@@ -337,20 +338,53 @@ export function ImageStudioCanvas() {
   /**
    * 右键「清空内容」(09-02 用户需求):清理文本框+该节点已存在/已生成的
    * 图片,节点本身保留;分型计划见 buildNodeClearPlan(纯函数,含测试)。
+   * 全链诊断日志走 diagnostics(action 类),排查「点了没反应」类反馈。
    */
   const handleNodeClear = useCallback(() => {
     if (!nodeMenu) return;
     const storeState = useImageStudioStore.getState();
     const graph = selectActiveImageStudioWorkflow(storeState);
     if (!graph) return;
+    const node = graph.nodes.find((item) => item.id === nodeMenu.nodeId);
+    void logEvent({
+      category: "action",
+      level: "info",
+      message: "[image-studio-clear] menu action received",
+      context: {
+        nodeId: nodeMenu.nodeId,
+        nodeType: node?.type ?? null,
+        status: node?.type === "generated" ? node.status : null,
+        hadResult: node?.type === "generated" ? Boolean(node.resultUrl) : null,
+        batchCount: node?.type === "generated" && node.imageBatch ? node.imageBatch.images.length : null,
+        promptLength: node && (node.type === "generated" || node.type === "prompt") ? node.prompt.length : null,
+      },
+    });
     const plan = buildNodeClearPlan(graph, nodeMenu.nodeId);
     if (plan.busy) {
+      void logEvent({
+        category: "action",
+        level: "info",
+        message: "[image-studio-clear] blocked: generation in flight",
+        context: { nodeId: nodeMenu.nodeId },
+      });
       toast.info("正在生成中,停止后再清理");
       return;
     }
     for (const target of plan.targets) {
       storeState.updateNode(target.nodeId, target.updates);
+      void logEvent({
+        category: "action",
+        level: "info",
+        message: "[image-studio-clear] update applied",
+        context: { nodeId: target.nodeId, clearedKeys: Object.keys(target.updates) },
+      });
     }
+    void logEvent({
+      category: "action",
+      level: "info",
+      message: "[image-studio-clear] done",
+      context: { nodeId: nodeMenu.nodeId, targetCount: plan.targets.length },
+    });
   }, [nodeMenu]);
 
   const handlePaneCreate = useCallback(

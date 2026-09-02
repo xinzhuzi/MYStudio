@@ -13,6 +13,8 @@ export type CanvasCommandSurface = "image-workflow" | "production-flow" | "image
 export interface CanvasNodePatch {
   title?: string;
   position?: { x: number; y: number };
+  /** 提示词正文(二期透传:面板/agent 写提示词不再绕 ops 直改 store) */
+  prompt?: string;
 }
 
 export type CanvasCommand =
@@ -42,8 +44,8 @@ export type CanvasCommand =
 
 export interface CanvasCommandOk {
   ok: true;
-  /** 新建节点 id(add-node)等回执 */
-  detail?: { nodeId?: string; edgeId?: string };
+  /** 新建节点 id(add-node)等回执;建组时附 promptNodeId(组内提示词节点) */
+  detail?: { nodeId?: string; edgeId?: string; promptNodeId?: string };
 }
 
 export interface CanvasCommandFailure {

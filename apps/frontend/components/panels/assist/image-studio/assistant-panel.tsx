@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Loader2, MessageSquare, Send, Sparkles, Trash2, X } from "lucide-react";
+import { ImagePlus, Loader2, MessageSquare, Send, Sparkles, Trash2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { callFeatureMultimodalAPI } from "@/lib/ai/feature-router";
@@ -12,16 +12,19 @@ import { useImageStudioStore } from "@/stores/assist/image-studio-store";
 import { aiManager } from "@/lib/ai/ai-manager";
 
 /**
- * 画布助手面板(09-02-canvas-assistant,压轴):
+ * 画布助手面板(09-02-canvas-assistant,压轴;二期=09-03-canvas-assistant-phase2):
  * 选中节点+上游自动引用;问答(带图走 image_understanding 多模态,纯文走
- * aiManager.text);回答可插回画布为提示词节点(**全经 ops 指令层,零 store
- * 直写**)。交互形态参考 infinite-canvas 画布助手,实现从零(AGPL)。
+ * aiManager.text);回答可插回为提示词节点或**直接生图**(建组→写提示词→触发,
+ * 三连 ops 指令,生成状态机复用画布既有编排)。交互形态参考 infinite-canvas
+ * 画布助手,实现从零(AGPL)。
  */
 
 interface AssistantMessage {
   id: string;
   role: "user" | "assistant";
   text: string;
+  /** system=插入/生成/错误等状态消息,不出现操作按钮 */
+  kind?: "answer" | "system";
 }
 
 const ASSISTANT_SYSTEM_PROMPT = `你是图片工作室里的画布助手。用户会给你当前画布上选中的节点及其上游参考(图片与提示词)。根据这些上下文回答问题或给出建议:改进提示词的写法、指出画面问题、建议构图调整等。回答简洁实用,使用中文。`;
@@ -132,7 +135,15 @@ export function AssistantPanel({
     }
   }, [input, references, running]);
 
-  /** 插回画布:全经 ops 指令层(零 store 直写) */
+  /** 追加一条状态消息(不挂操作按钮) */
+  const pushSystemMessage = useCallback((text: string) => {
+    setMessages((current) => [
+      ...current,
+      { id: `s_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`, role: "assistant", text, kind: "system" },
+    ]);
+  }, []);
+
+  /** 插回画布:全经 ops 指令层(prompt 二期透传,零 store 直写) */
   const insertAsPromptNode = useCallback(
     (text: string) => {
       const graph = useImageStudioStore.getState().workflows.find(
@@ -146,26 +157,62 @@ export function AssistantPanel({
         ...(source ? { connectFrom: { nodeId: source.id, handleType: "target" } } : {}),
       });
       if (result.ok) {
-        const update = dispatchCanvasCommand("image-studio", {
+        dispatchCanvasCommand("image-studio", {
           kind: "update-node",
           surface: "image-studio",
           nodeId: result.detail?.nodeId ?? "",
-          patch: { title: "助手建议" },
+          patch: { title: "助手建议", prompt: text },
         });
-        // 提示词正文走 store 唯一入口(ops 的 update-node patch 类型不含 prompt 透传:
-        // 这里用 connect 后 prompt 直写属于会话域豁免——一期从简,二期扩 ops patch)
-        if (update.ok && result.detail?.nodeId) {
-          useImageStudioStore.getState().updateNode(result.detail.nodeId, {
-            prompt: text,
-          } as never);
-        }
-        setMessages((current) => [
-          ...current,
-          { id: `i_${Date.now()}`, role: "assistant", text: "已插入为提示词节点。" },
-        ]);
+        pushSystemMessage("已插入为提示词节点。");
       }
     },
-    [selectedNodeId],
+    [selectedNodeId, pushSystemMessage],
+  );
+
+  /** 面板内生图(二期):建组→写提示词→触发生成,三连 ops;
+   *  生成状态机(状态/toast/落库/历史/事件广播)全在 useImageStudioGeneration,零重复 */
+  const generateFromText = useCallback(
+    (text: string) => {
+      const graph = useImageStudioStore.getState().workflows.find(
+        (workflow) => workflow.id === useImageStudioStore.getState().activeWorkflowId,
+      );
+      const source = graph?.nodes.find((node) => node.id === selectedNodeId);
+      const add = dispatchCanvasCommand("image-studio", {
+        kind: "add-node",
+        surface: "image-studio",
+        nodeType: "generated",
+        ...(source ? { connectFrom: { nodeId: source.id, handleType: "target" } } : {}),
+      });
+      if (!add.ok) {
+        pushSystemMessage(`无法开始生成:${add.reason}`);
+        return;
+      }
+      const generatedNodeId = add.detail?.nodeId;
+      if (!generatedNodeId) {
+        pushSystemMessage("无法开始生成:建组回执缺节点 id");
+        return;
+      }
+      if (add.detail?.promptNodeId) {
+        dispatchCanvasCommand("image-studio", {
+          kind: "update-node",
+          surface: "image-studio",
+          nodeId: add.detail.promptNodeId,
+          patch: { prompt: text },
+        });
+      }
+      const trigger = dispatchCanvasCommand("image-studio", {
+        kind: "trigger-node-action",
+        surface: "image-studio",
+        nodeId: generatedNodeId,
+        action: "generate",
+      });
+      pushSystemMessage(
+        trigger.ok
+          ? "已开始生成:成图节点已落在画布上,完成后自动显示(本地每张约 2-3 分钟)。"
+          : `生成未能开始:${trigger.reason}`,
+      );
+    },
+    [selectedNodeId, pushSystemMessage],
   );
 
   return (
@@ -200,15 +247,25 @@ export function AssistantPanel({
             }`}
           >
             <p className="whitespace-pre-wrap">{message.text}</p>
-            {message.role === "assistant" && message.text.length > 8 ? (
-              <button
-                type="button"
-                className="mt-1.5 inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[10px] text-muted-foreground transition-colors duration-75 hover:bg-accent hover:text-accent-foreground"
-                onClick={() => insertAsPromptNode(message.text)}
-              >
-                <Sparkles className="h-3 w-3" />
-                插为提示词节点
-              </button>
+            {message.role === "assistant" && message.kind !== "system" && message.text.length > 8 ? (
+              <div className="mt-1.5 flex items-center gap-1">
+                <button
+                  type="button"
+                  className="inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[10px] text-muted-foreground transition-colors duration-75 hover:bg-accent hover:text-accent-foreground"
+                  onClick={() => insertAsPromptNode(message.text)}
+                >
+                  <Sparkles className="h-3 w-3" />
+                  插为提示词节点
+                </button>
+                <button
+                  type="button"
+                  className="inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[10px] text-muted-foreground transition-colors duration-75 hover:bg-accent hover:text-accent-foreground"
+                  onClick={() => generateFromText(message.text)}
+                >
+                  <ImagePlus className="h-3 w-3" />
+                  按此生图
+                </button>
+              </div>
             ) : null}
           </div>
         ))}

@@ -23,6 +23,7 @@ import {
 } from "@/stores/assist/image-studio-store";
 import { setGeneratedImageResult } from "@/lib/studio/image-workflow/graph-build";
 import { registerCanvasDispatcher } from "@/lib/studio/canvas-commands";
+import type { CanvasCommand } from "@/lib/studio/canvas-commands";
 
 afterEach(() => {
   cleanup();
@@ -50,7 +51,8 @@ function seedWithSelection() {
 
 function renderPanel(selectedNodeId: string | null) {
   // 插回测试需要执行器:手动注册 image-studio surface 的最小执行器
-  // (真实挂载在 ImageStudioCanvas 的 useImageStudioCommands)
+  // (真实挂载在 ImageStudioCanvas 的 useImageStudioCommands);
+  // update-node 如实回放 patch(prompt 二期透传后,插回正文走这条指令)
   const unregister = registerCanvasDispatcher("image-studio", (command) => {
     const store = useImageStudioStore.getState();
     if (command.kind === "add-node" && command.nodeType === "prompt") {
@@ -58,6 +60,10 @@ function renderPanel(selectedNodeId: string | null) {
       return { ok: true, detail: { nodeId } };
     }
     if (command.kind === "update-node") {
+      store.updateNode(command.nodeId, {
+        ...(command.patch.title !== undefined ? { title: command.patch.title } : {}),
+        ...(command.patch.prompt !== undefined ? { prompt: command.patch.prompt } : {}),
+      });
       return { ok: true };
     }
     return { ok: false, reason: "测试执行器仅支持 add/update" };
@@ -119,6 +125,56 @@ describe("AssistantPanel", () => {
       (node) => node.type === "prompt" && node.prompt.includes("建议"),
     );
     expect(inserted).toBeTruthy();
+  });
+
+  it("按此生图:建组→写提示词→触发生成 三连 ops,零 store 直写", async () => {
+    const genId = seedWithSelection();
+    const dispatched: CanvasCommand[] = [];
+    // 记录型执行器:只回执不动 store——若面板绕过 ops 直写,画布图会原样不动
+    // 而断言的指令序列也不会出现
+    const unregister = registerCanvasDispatcher("image-studio", (command) => {
+      dispatched.push(command);
+      if (command.kind === "add-node") {
+        return { ok: true, detail: { nodeId: "gen-x", promptNodeId: "prompt-x" } };
+      }
+      return { ok: true };
+    });
+    const view = render(<AssistantPanel selectedNodeId={genId} onClose={() => {}} />);
+    try {
+      await waitFor(() => {
+        expect(screen.getByText(/引用:1 张图/)).toBeTruthy();
+      });
+      fireEvent.change(screen.getByPlaceholderText("问点什么…"), { target: { value: "给建议" } });
+      fireEvent.keyDown(screen.getByPlaceholderText("问点什么…"), { key: "Enter" });
+      await waitFor(() => {
+        expect(screen.getByRole("button", { name: /按此生图/ })).toBeTruthy();
+      });
+      const nodeCountBefore = activeGraph()!.nodes.length;
+      fireEvent.click(screen.getByRole("button", { name: /按此生图/ }));
+      await waitFor(() => {
+        expect(screen.getByText(/已开始生成/)).toBeTruthy();
+      });
+      expect(dispatched.map((command) => command.kind)).toEqual([
+        "add-node",
+        "update-node",
+        "trigger-node-action",
+      ]);
+      const addCommand = dispatched[0] as Extract<CanvasCommand, { kind: "add-node" }>;
+      expect(addCommand.connectFrom?.nodeId).toBe(genId);
+      const updateCommand = dispatched[1] as Extract<CanvasCommand, { kind: "update-node" }>;
+      expect(updateCommand.nodeId).toBe("prompt-x");
+      expect(updateCommand.patch.prompt).toContain("建议");
+      const triggerCommand = dispatched[2] as Extract<
+        CanvasCommand,
+        { kind: "trigger-node-action" }
+      >;
+      expect(triggerCommand.nodeId).toBe("gen-x");
+      expect(triggerCommand.action).toBe("generate");
+      expect(activeGraph()!.nodes.length).toBe(nodeCountBefore);
+    } finally {
+      unregister();
+      view.unmount();
+    }
   });
 
   it("清空对话可用", async () => {

@@ -1,0 +1,132 @@
+// @vitest-environment jsdom
+import { act, cleanup, renderHook } from "@testing-library/react";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import {
+  __resetCanvasCommandBusForTests,
+  dispatchCanvasCommand,
+} from "@/lib/studio/canvas-commands";
+import {
+  selectActiveImageStudioWorkflow,
+  useImageStudioStore,
+} from "@/stores/assist/image-studio-store";
+import { useImageStudioCommands } from "./use-image-studio-commands";
+
+/**
+ * 09-03-canvas-assistant-phase2 R2:执行器扩容实证——
+ * add-node 建组回执带 promptNodeId + connectFrom 按契约接边、
+ * update-node prompt 透传、trigger-node-action "generate" 路由注入编排。
+ */
+
+const initialImageStudioState = useImageStudioStore.getState();
+
+afterEach(() => {
+  cleanup();
+  __resetCanvasCommandBusForTests();
+  useImageStudioStore.setState(initialImageStudioState, true);
+  vi.clearAllMocks();
+});
+
+function seedGroup() {
+  useImageStudioStore.getState().ensureDefaultWorkflow();
+  return useImageStudioStore.getState().addGenerationGroup();
+}
+
+function mountExecutor(generateNode?: (nodeId: string) => void | Promise<void>) {
+  const workflow = selectActiveImageStudioWorkflow(useImageStudioStore.getState());
+  return renderHook(() => useImageStudioCommands({ workflow, generateNode }));
+}
+
+function dispatch(command: Parameters<typeof dispatchCanvasCommand>[1]) {
+  let result!: ReturnType<typeof dispatchCanvasCommand>;
+  act(() => {
+    result = dispatchCanvasCommand("image-studio", command);
+  });
+  return result;
+}
+
+function activeGraph() {
+  return selectActiveImageStudioWorkflow(useImageStudioStore.getState());
+}
+
+describe("image-studio 指令执行器(二期扩容)", () => {
+  it("add-node connectFrom:建组回执带 promptNodeId,源→成图按契约接边", () => {
+    const group = seedGroup();
+    mountExecutor();
+
+    const before = activeGraph()!.nodes.length;
+    const result = dispatch({
+      kind: "add-node",
+      surface: "image-studio",
+      nodeType: "generated",
+      connectFrom: { nodeId: group.promptNodeId, handleType: "target" },
+    });
+
+    expect(result.ok).toBe(true);
+    const detail = (result as { detail?: { nodeId?: string; promptNodeId?: string } }).detail;
+    expect(detail?.nodeId).toBeTruthy();
+    expect(detail?.promptNodeId).toBeTruthy();
+    const graph = activeGraph()!;
+    expect(graph.nodes.length).toBe(before + 2);
+    expect(
+      graph.edges.some(
+        (edge) =>
+          edge.source === group.promptNodeId && edge.target === detail?.nodeId,
+      ),
+    ).toBe(true);
+  });
+
+  it("update-node:patch.prompt 透传落节点(面板直写归零的执行器侧支撑)", () => {
+    const group = seedGroup();
+    mountExecutor();
+
+    const result = dispatch({
+      kind: "update-node",
+      surface: "image-studio",
+      nodeId: group.promptNodeId,
+      patch: { prompt: "助手写的提示词" },
+    });
+
+    expect(result.ok).toBe(true);
+    // ImageWorkflowNode 是联合类型,reference 节点无 prompt 字段,断言前收窄
+    const updated = activeGraph()!.nodes.find(
+      (node) => node.id === group.promptNodeId,
+    ) as { prompt?: string } | undefined;
+    expect(updated?.prompt).toBe("助手写的提示词");
+  });
+
+  it("trigger-node-action generate:路由到注入编排;未注入/未知动作可操作失败", () => {
+    const group = seedGroup();
+    const generateNode = vi.fn();
+    mountExecutor(generateNode);
+
+    const result = dispatch({
+      kind: "trigger-node-action",
+      surface: "image-studio",
+      nodeId: group.generatedNodeId,
+      action: "generate",
+    });
+    expect(result.ok).toBe(true);
+    expect(generateNode).toHaveBeenCalledTimes(1);
+    expect(generateNode).toHaveBeenCalledWith(group.generatedNodeId);
+
+    const unknown = dispatch({
+      kind: "trigger-node-action",
+      surface: "image-studio",
+      nodeId: group.generatedNodeId,
+      action: "explode",
+    });
+    expect(unknown.ok).toBe(false);
+
+    cleanup();
+    __resetCanvasCommandBusForTests();
+    mountExecutor();
+    const missing = dispatch({
+      kind: "trigger-node-action",
+      surface: "image-studio",
+      nodeId: group.generatedNodeId,
+      action: "generate",
+    });
+    expect(missing.ok).toBe(false);
+    if (!missing.ok) expect(missing.reason).toContain("生成编排未就绪");
+  });
+});

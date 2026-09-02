@@ -18,8 +18,11 @@ import type { ImageWorkflowGraph } from "@/types/studio";
  */
 export function useImageStudioCommands({
   workflow,
+  generateNode,
 }: {
   workflow: ImageWorkflowGraph | undefined;
+  /** 生成编排注入(trigger-node-action "generate");未注入时触发返回可操作失败 */
+  generateNode?: (nodeId: string) => void | Promise<void>;
 }) {
   const dispatcherRef = useRef<CanvasCommandDispatcher | null>(null);
 
@@ -33,13 +36,20 @@ export function useImageStudioCommands({
             return { ok: false, reason: "surface 不一致" };
           }
           if (command.connectFrom) {
-            // 组装:文生图组(锚点=成图位,提示词落左列)
+            const { nodeId: fromNodeId, handleType } = command.connectFrom;
+            // 组装:文生图组(锚点=成图位,提示词落左列);源节点存在时按契约
+            // 「创建后自动连线」接边(源→成图,边域规则由 store.connect 把关)——
+            // 选中+上游引用的生图语义依赖这条边(buildRequest 只认指向成图的边)
             const group = store.addGenerationGroup({
-              position: command.connectFrom.handleType === "target"
-                ? { x: 360, y: 0 }
-                : undefined,
+              position: handleType === "target" ? { x: 360, y: 0 } : undefined,
             });
-            return { ok: true, detail: { nodeId: group.generatedNodeId } };
+            if (graph?.nodes.some((item) => item.id === fromNodeId)) {
+              store.connect(fromNodeId, group.generatedNodeId);
+            }
+            return {
+              ok: true,
+              detail: { nodeId: group.generatedNodeId, promptNodeId: group.promptNodeId },
+            };
           }
           if (command.nodeType === "prompt") {
             const id = store.addPromptNode();
@@ -50,7 +60,10 @@ export function useImageStudioCommands({
             return { ok: true, detail: { nodeId: id } };
           }
           const group = store.addGenerationGroup();
-          return { ok: true, detail: { nodeId: group.generatedNodeId } };
+          return {
+            ok: true,
+            detail: { nodeId: group.generatedNodeId, promptNodeId: group.promptNodeId },
+          };
         }
         case "update-node": {
           const node = graph?.nodes.find((item) => item.id === command.nodeId);
@@ -83,11 +96,21 @@ export function useImageStudioCommands({
         case "select": {
           return { ok: true };
         }
+        case "trigger-node-action": {
+          const node = graph?.nodes.find((item) => item.id === command.nodeId);
+          if (!node) return { ok: false, reason: `节点不存在 ${command.nodeId}` };
+          if (command.action !== "generate") {
+            return { ok: false, reason: `暂不支持的节点动作 ${command.action}` };
+          }
+          if (!generateNode) return { ok: false, reason: "生成编排未就绪" };
+          void generateNode(command.nodeId);
+          return { ok: true };
+        }
         default:
           return { ok: false, reason: `image-studio 面暂不支持 ${command.kind}` };
       }
     },
-    [workflow],
+    [workflow, generateNode],
   );
 
   dispatcherRef.current = dispatch;
