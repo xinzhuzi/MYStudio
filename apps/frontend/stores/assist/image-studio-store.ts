@@ -22,6 +22,7 @@ import {
   nextColumnPosition,
 } from "@/lib/assist/image-studio/layout";
 import { createImageStudioProjectStorage } from "@/lib/storage/image-studio-project-storage";
+import { logEvent } from "@/lib/diagnostics/logger";
 import type { ImageWorkflowEdge,
   ImageWorkflowGeneratedNode,
   ImageWorkflowGraph,
@@ -251,6 +252,17 @@ export const useImageStudioStore = create<ImageStudioStore>()(
 
       switchWorkflow: (workflowId) => {
         if (get().workflows.some((workflow) => workflow.id === workflowId)) {
+          const target = get().workflows.find((workflow) => workflow.id === workflowId);
+          void logEvent({
+            category: "action",
+            level: "info",
+            message: "[canvas-switch-race] switchWorkflow",
+            context: {
+              workflowId,
+              from: get().activeWorkflowId,
+              nodeCount: target?.nodes.length ?? 0,
+            },
+          });
           set({ activeWorkflowId: workflowId });
         }
       },

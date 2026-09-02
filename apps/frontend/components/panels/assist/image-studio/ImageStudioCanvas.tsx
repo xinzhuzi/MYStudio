@@ -252,17 +252,6 @@ export function ImageStudioCanvas() {
     world: { x: number; y: number };
   } | null>(null);
 
-  const handlePaneContextMenu = useCallback(
-    (event: MouseEvent) => {
-      const world = flowInstanceRef.current?.screenToFlowPosition({
-        x: event.clientX,
-        y: event.clientY,
-      });
-      setPaneCreate({ x: event.clientX, y: event.clientY, world: world ?? { x: 0, y: 0 } });
-    },
-    [],
-  );
-
   const defaultModel = useCallback(
     () => useFreedomStore.getState().selectedImageModel || undefined,
     [],
@@ -333,8 +322,55 @@ export function ImageStudioCanvas() {
 
   const [nodeMenu, setNodeMenu] = useState<{ x: number; y: number; nodeId: string } | null>(null);
 
+  const handlePaneContextMenu = useCallback(
+    (event: MouseEvent) => {
+      // 竞态修复②兜底改道(09-03 任务根因:切换画布后测量窗口未闭合,节点
+      // visibility:hidden 致右键 target 与 elementFromPoint 双双穿透):改用
+      // 几何命中——遍历节点 rect 含右键坐标(hidden 元素 rect 依然有效),
+      // 症状层面保证右键节点永远得到节点菜单,不依赖测量状态
+      const hitNodeId =
+        [...document.querySelectorAll<HTMLElement>(".react-flow__node")].find((el) => {
+          const q = el.getBoundingClientRect();
+          return (
+            q.width > 0 &&
+            event.clientX >= q.left &&
+            event.clientX <= q.right &&
+            event.clientY >= q.top &&
+            event.clientY <= q.bottom
+          );
+        })?.getAttribute("data-id") ?? null;
+      void logEvent({
+        category: "action",
+        level: "info",
+        message: "[canvas-switch-race] pane menu open",
+        context: {
+          targetClass: (event.target as HTMLElement | null)?.className?.toString().slice(0, 60) ?? null,
+          hitInsideNode: hitNodeId,
+          rerouted: Boolean(hitNodeId),
+        },
+      });
+      if (hitNodeId) {
+        event.preventDefault();
+        setNodeMenu({ x: event.clientX, y: event.clientY, nodeId: hitNodeId });
+        return;
+      }
+      const world = flowInstanceRef.current?.screenToFlowPosition({
+        x: event.clientX,
+        y: event.clientY,
+      });
+      setPaneCreate({ x: event.clientX, y: event.clientY, world: world ?? { x: 0, y: 0 } });
+    },
+    [],
+  );
+
   const handleNodeContextMenu = useCallback((event: MouseEvent, nodeId: string) => {
     event.preventDefault();
+    void logEvent({
+      category: "action",
+      level: "info",
+      message: "[canvas-switch-race] node menu open",
+      context: { nodeId },
+    });
     setNodeMenu({ x: event.clientX, y: event.clientY, nodeId });
   }, []);
 
@@ -861,13 +897,54 @@ function ImageStudioFlowView({
     // BODY(用户五报「输入1字符即退出」的真因果链)。重建受控数组必须携带旧节点
     // 已测尺寸;RF 视节点为已测量则永不进入隐藏窗口。下方测量刷新组件只是该
     // 缺陷时代的创可贴(handleBounds 重置同根),保留作保底。
-    setNodes((current) =>
-      reactFlowNodes.map((next) => {
-        const prev = current.find((n) => n.id === next.id);
-        return prev?.measured ? { ...next, measured: prev.measured } : next;
-      }),
-    );
+    setNodes((current) => {
+      let carried = 0;
+      const next = reactFlowNodes.map((node) => {
+        const prev = current.find((n) => n.id === node.id);
+        if (prev?.measured) carried += 1;
+        return prev?.measured ? { ...node, measured: prev.measured } : node;
+      });
+      if (reactFlowNodes.length > 0 && carried < reactFlowNodes.length) {
+        void logEvent({
+          category: "action",
+          level: "info",
+          message: "[canvas-switch-race] nodes rebuilt (partial/no measured carry)",
+          context: { total: reactFlowNodes.length, carried },
+        });
+      }
+      return next;
+    });
   }, [reactFlowNodes, setNodes]);
+
+  // 竞态修复①(09-03-canvas-switch-rc-race):跨画布切换=全新节点 id,measured
+  // 零携带(carry 按 id 匹配),RF 需重测;实测该窗口在重建循环下可达数秒不
+  // 闭合(节点 visibility:hidden→右键穿透为 pane)。切换后 rAF 轮询直读 DOM
+  // 尺寸注入 measured(与上方 carry 同机制),一步闭合 hasDimensions。
+  useEffect(() => {
+    if (!graph || graph.nodes.length === 0) return;
+    let raf = 0;
+    let tries = 0;
+    const poll = () => {
+      let patchedCount = 0;
+      setNodes((current) => {
+        if (current.every((node) => node.measured)) return current;
+        const patched = current.map((node) => {
+          if (node.measured) return node;
+          const el = document.querySelector<HTMLElement>(`.react-flow__node[data-id="${node.id}"]`);
+          if (!el || el.offsetWidth === 0) return node;
+          patchedCount += 1;
+          return { ...node, measured: { width: el.offsetWidth, height: el.offsetHeight } };
+        });
+        return patchedCount > 0 ? patched : current;
+      });
+      tries += 1;
+      if (tries < 30) raf = requestAnimationFrame(poll);
+    };
+    raf = requestAnimationFrame(poll);
+    return () => cancelAnimationFrame(raf);
+    // graph?.id=画布身份信号:仅切换画布时重跑;节点增删由上方 carry/刷新链负责
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [graph?.id, setNodes]);
 
   // 节点集合签名判等(实弹报障根修):此前 deps=[graph?.nodes] 每次输入都产新数组
   // → visibility refresh 每键全量 updateNodeInternals → React Flow 清空测量重测,
