@@ -369,12 +369,18 @@ def _cancel_step_callback():
 
     延迟导入避免 engines→pipeline 环(与 _pipeline_error 同法)。部分管线
     不支持 callback_on_step_end 时由调用方降级(不接取消)。
+
+    返回值是 diffusers 契约的一部分:管线拿回调返回值 dict 去 pop
+    "latents"/"prompt_embeds"(pipeline_flux.py 无 None 保护)。返回 None
+    会在第一步去噪后 NoneType.pop 必崩(0dc6724 装机首跑实锤)——正常
+    路径必须把 callback_kwargs 原样透传(不改写张量输入)。
     """
     from ..pipeline import is_generation_cancelled
 
-    def _on_step_end(*_args, **_kwargs):
+    def _on_step_end(_pipe, _step_index, _t, callback_kwargs):
         if is_generation_cancelled():
             raise RuntimeError("generation-cancelled")
+        return callback_kwargs
 
     return _on_step_end
 
