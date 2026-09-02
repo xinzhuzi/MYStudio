@@ -58,8 +58,11 @@ describe("ImageStudioCanvas", () => {
       expect(useImageStudioStore.getState().workflows).toHaveLength(1);
     });
     expect(screen.getByText("画布 1")).toBeTruthy();
-    expect(screen.getByRole("button", { name: /文生图/ })).toBeTruthy();
-    expect(screen.getByRole("button", { name: /图生图/ })).toBeTruthy();
+    // 09-02 工具栏分族收敛:文生图/图生图从直钮收进「添加节点」菜单
+    expect(screen.getByRole("button", { name: /添加节点/ })).toBeTruthy();
+    fireEvent.keyDown(screen.getByRole("button", { name: /添加节点/ }), { key: "Enter" });
+    expect(await screen.findByRole("menuitem", { name: /^文生图/ })).toBeTruthy();
+    expect(screen.getByRole("menuitem", { name: /^图生图/ })).toBeTruthy();
     expect(screen.getByText("空画布")).toBeTruthy();
   });
 
@@ -78,7 +81,9 @@ describe("ImageStudioCanvas", () => {
     await waitFor(() => {
       expect(useImageStudioStore.getState().workflows).toHaveLength(1);
     });
-    fireEvent.click(screen.getByRole("button", { name: /文生图/ }));
+    // 经「添加节点」菜单建组(工具栏收敛后主创建入口)
+    fireEvent.keyDown(screen.getByRole("button", { name: /添加节点/ }), { key: "Enter" });
+    fireEvent.click(await screen.findByRole("menuitem", { name: /^文生图/ }));
 
     const graph = selectActiveImageStudioWorkflow(useImageStudioStore.getState());
     expect(graph?.nodes).toHaveLength(2);

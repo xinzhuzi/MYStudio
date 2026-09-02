@@ -100,9 +100,19 @@ describe("测量刷新稳定性", () => {
     // 复刻用户操作:经「添加」菜单点「文生图」(09-02 工具栏收敛后主创建入口)
     // (jsdom 的 ResizeObserver 是空壳→节点永远「未测量」,真机由测量翻可见;
     //  这里对 getComputedStyle 打桩放行可见门,聚焦逻辑本身保持真逻辑)
+    // 只覆写 visibility 供聚焦门放行;其余(getPropertyValue 等)透传真实现,
+    // 否则 getByRole 的可达名计算会拿到缺方法的裸对象而炸
+    const realGetComputedStyle = window.getComputedStyle.bind(window);
     const computedSpy = vi
       .spyOn(window, "getComputedStyle")
-      .mockImplementation(() => ({ visibility: "visible" } as CSSStyleDeclaration));
+      .mockImplementation((el: Element) =>
+        new Proxy(realGetComputedStyle(el), {
+          get(target, prop, receiver) {
+            if (prop === "visibility") return "visible";
+            return Reflect.get(target, prop, receiver);
+          },
+        }) as CSSStyleDeclaration,
+      );
     try {
     const addButton = screen.getByRole("button", { name: /添加节点/ });
     fireEvent.keyDown(addButton, { key: "Enter" });
