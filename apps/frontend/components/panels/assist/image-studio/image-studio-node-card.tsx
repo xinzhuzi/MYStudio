@@ -4,6 +4,7 @@
 
 import { memo, useEffect, useRef, useState } from "react";
 import { Handle, Position, type Node, type NodeProps } from "@xyflow/react";
+import { useCanvasDraftValue } from "./image-studio-draft-input";
 import { MentionPicker } from "./mention-picker";
 import { buildMentionToken, mentionTriggerState, type MentionCandidate } from "@/lib/studio/image-workflow/mention-token";
 import {
@@ -153,9 +154,19 @@ export const ImageStudioNodeCard = memo(function ImageStudioNodeCard({
       )}
     >
       {node.type === "generated" ? (
-        <Handle type="target" position={Position.Left} className="!h-3 !w-3 !border-info/40 !bg-info/20" />
+        <Handle
+          type="target"
+          position={Position.Left}
+          className="!h-3 !w-3 !border-info/40 !bg-info/20"
+          title="输入口:上游参考图/提示词连到这里"
+        />
       ) : null}
-      <Handle type="source" position={Position.Right} className="!h-3 !w-3 !border-info/40 !bg-info/20" />
+      <Handle
+        type="source"
+        position={Position.Right}
+        className="!h-3 !w-3 !border-info/40 !bg-info/20"
+        title="输出口:拖出去连下游成图,或拖到空白处快速建节点"
+      />
       <div className="mb-3 flex items-start justify-between gap-2">
         <div className="flex min-w-0 items-center gap-2">
           <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-border bg-muted/35">
@@ -171,14 +182,17 @@ export const ImageStudioNodeCard = memo(function ImageStudioNodeCard({
             <input
               value={node.title}
               onChange={(event) => data.onUpdate(node.id, { title: event.target.value } as Partial<ImageWorkflowNode>)}
+              title="节点标题(双击画布空白处可新建节点)"
               className="nodrag nopan w-full truncate bg-transparent text-sm font-semibold outline-none"
             />
-            <div className="mt-0.5 text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
+            {/* 09-02 对比度根修:副标题原 text-muted-foreground 在深色卡上近乎不可见
+                (VLM 实拍透明度估 30-40%),升到 foreground/70 保次级层级且可读 */}
+            <div className="mt-0.5 text-[10px] uppercase tracking-[0.16em] text-foreground/70">
               {meta}
             </div>
           </div>
         </div>
-        <Button size="icon" variant="ghost" aria-label="删除节点" onClick={() => data.onDelete(node.id)}>
+        <Button size="icon" variant="ghost" aria-label="删除节点" title="删除此节点(⌘Z 可撤销)" onClick={() => data.onDelete(node.id)}>
           <Trash2 className="h-4 w-4" />
         </Button>
       </div>
@@ -267,11 +281,18 @@ function PromptNodeEditor({
   node: ImageWorkflowPromptNode;
   onUpdate: ImageStudioNodeData["onUpdate"];
 }) {
-  // 09-02 组合期不受控根修(五报「输入1字符即退出/中文变拼音」终局):受控 value
-  // 在重渲染时被写回(可能落后一步),任何程序化 value 写入都会终止 Chromium
-  // 输入法组合会话。标准解法:组合期间 value 交还 DOM 自管(React 不写),
-  // compositionend 时一次性提交最终文本回 store,再恢复受控。
+  // 草稿态终局(09-02 光标跳末尾/输入法连环案):编辑期间本地持有值,store
+  // 防抖提交——受控写回消失,光标/删除/输入法天然正常(composing 仅服务
+  // @浮层的 IME 门控,不再参与 value 控制)。
   const [composing, setComposing] = useState(false);
+  const promptInput = useCanvasDraftValue({
+    committed: node.prompt,
+    commit: (value) => onUpdate(node.id, { prompt: value } as Partial<ImageWorkflowNode>),
+  });
+  const negativeInput = useCanvasDraftValue({
+    committed: node.negativePrompt ?? "",
+    commit: (value) => onUpdate(node.id, { negativePrompt: value } as Partial<ImageWorkflowNode>),
+  });
   // @引用浮层(09-02-at-mention-refs):候选=同图全部节点;组合期不触发(IME 兼容)
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
   const [mention, setMention] = useState<{ x: number; y: number; query: string } | null>(null);
@@ -302,18 +323,16 @@ function PromptNodeEditor({
     <div className="relative space-y-3">
       <Textarea
         ref={textareaRef}
-        value={composing ? undefined : node.prompt}
+        value={promptInput.value}
         onChange={(event) => {
-          onUpdate(node.id, { prompt: event.target.value } as Partial<ImageWorkflowNode>);
+          promptInput.onChange(event.target.value);
           syncMention();
         }}
+        onBlur={promptInput.onBlur}
         onKeyUp={syncMention}
         onClick={syncMention}
         onCompositionStart={() => setComposing(true)}
-        onCompositionEnd={(event) => {
-          setComposing(false);
-          onUpdate(node.id, { prompt: event.currentTarget.value } as Partial<ImageWorkflowNode>);
-        }}
+        onCompositionEnd={() => setComposing(false)}
         placeholder="描述要生成的图片(@ 引用资源)"
         className="nodrag nopan min-h-[96px] [field-sizing:content] border-border bg-background/80 text-sm leading-6 text-foreground"
       />
@@ -333,14 +352,15 @@ function PromptNodeEditor({
             if (at < 0) return;
             const token = `${buildMentionToken(candidate)} `;
             const next = `${before.slice(0, at)}${token}${after}`;
-            onUpdate(node.id, { prompt: next } as Partial<ImageWorkflowNode>);
+            promptInput.setValue(next);
           }}
           onClose={() => setMention(null)}
         />
       ) : null}
       <Textarea
-        value={node.negativePrompt ?? ""}
-        onChange={(event) => onUpdate(node.id, { negativePrompt: event.target.value } as Partial<ImageWorkflowNode>)}
+        value={negativeInput.value}
+        onChange={(event) => negativeInput.onChange(event.target.value)}
+        onBlur={negativeInput.onBlur}
         placeholder="反向提示词（可选）"
         className="nodrag nopan min-h-[48px] [field-sizing:content] border-border bg-background/80 text-xs leading-5 text-foreground"
       />
@@ -467,11 +487,14 @@ function GeneratedNodeEditor({
   const alreadyUpscaled =
     (node.resultUrl || "").includes("up4x-") || imageLongSide > UPSCALE_INPUT_MAX_LONG_SIDE;
   const generationPrompt = promptNode ?? node;
-  const updateGenerationPrompt = (
-    updates: Partial<ImageWorkflowPromptNode | ImageWorkflowGeneratedNode>,
-  ) => {
-    onUpdate((promptNode ?? node).id, updates as Partial<ImageWorkflowNode>);
-  };
+  const genPromptInput = useCanvasDraftValue({
+    committed: generationPrompt.prompt,
+    commit: (value) => onUpdate((promptNode ?? node).id, { prompt: value } as Partial<ImageWorkflowNode>),
+  });
+  const genNegativeInput = useCanvasDraftValue({
+    committed: generationPrompt.negativePrompt ?? "",
+    commit: (value) => onUpdate((promptNode ?? node).id, { negativePrompt: value } as Partial<ImageWorkflowNode>),
+  });
   const model = node.model ?? promptNode?.model ?? "";
   const hasMidjourneyParams = /midjourney|^mj_|^niji-/i.test(model);
   const hasIdeogramParams = model.includes("ideogram");
@@ -646,12 +669,17 @@ function GeneratedNodeEditor({
             </Button>
           ) : null}
           {generating ? (
-            <Button size="sm" variant="destructive" onClick={() => onStop(node.id)}>
+            <Button size="sm" variant="destructive" onClick={() => onStop(node.id)} title="中断本次生成(已计费的请求可能无法退款)">
               <Square className="mr-1 h-3.5 w-3.5" />
               停止
             </Button>
           ) : (
-            <Button size="sm" variant="paid" onClick={() => onGenerate(node.id)}>
+            <Button
+              size="sm"
+              variant="paid"
+              onClick={() => onGenerate(node.id)}
+              title="按当前提示词+参考图生成图片(云端按张计费;张数在上方下拉选)"
+            >
               <Sparkles className="mr-1 h-3.5 w-3.5" />
               生成
             </Button>
@@ -665,14 +693,16 @@ function GeneratedNodeEditor({
             提示词(未连线提示词节点,在此填写)
           </div>
           <Textarea
-            value={generationPrompt.prompt}
-            onChange={(event) => updateGenerationPrompt({ prompt: event.target.value })}
+            value={genPromptInput.value}
+            onChange={(event) => genPromptInput.onChange(event.target.value)}
+            onBlur={genPromptInput.onBlur}
             placeholder="描述要生成的图片"
             className="min-h-[80px] [field-sizing:content] border-border bg-card/80 text-sm leading-6 text-foreground"
           />
           <Textarea
-            value={generationPrompt.negativePrompt ?? ""}
-            onChange={(event) => updateGenerationPrompt({ negativePrompt: event.target.value })}
+            value={genNegativeInput.value}
+            onChange={(event) => genNegativeInput.onChange(event.target.value)}
+            onBlur={genNegativeInput.onBlur}
             placeholder="反向提示词（可选）"
             className="min-h-[40px] [field-sizing:content] border-border bg-card/80 text-xs leading-5 text-foreground"
           />

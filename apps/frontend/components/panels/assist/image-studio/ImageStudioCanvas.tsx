@@ -54,6 +54,7 @@ import { ImageStudioToolbar } from "./image-studio-toolbar";
 import { useImageStudioGeneration } from "./use-image-studio-generation";
 import { PaneCreateMenu, type PaneCreateKind } from "./pane-create-menu";
 import { NodeContextMenu } from "./node-context-menu";
+import { CanvasHints } from "./canvas-hints";
 
 const FIT_VIEW_OPTIONS = { padding: 0.18, minZoom: 0.35, maxZoom: 1.1 } as const;
 
@@ -538,6 +539,7 @@ export function ImageStudioCanvas() {
         {assistantOpen ? (
           <AssistantPanel selectedNodeId={selectedNodeId} onClose={() => setAssistantOpen(false)} />
         ) : null}
+        <CanvasHints />
         {nodeMenu ? (
           <NodeContextMenu
             x={nodeMenu.x}
