@@ -28,7 +28,7 @@ export function MediaItemPreview({ item }: MediaItemPreviewProps) {
           className="w-full max-h-full object-cover"
           loading="lazy"
         />
-        <ResolutionBadge src={item.url} />
+        <ResolutionBadge src={item.url} className="right-1 left-auto top-1" />
       </div>
     );
   }

@@ -162,7 +162,7 @@ export function MediaLibrarySelector({
                           alt={img.name}
                           className="w-full h-full object-cover"
                           />
-                          <ResolutionBadge src={imageUrl} />
+                          <ResolutionBadge src={imageUrl} className="right-1 left-auto top-1" />
                         </>
                         {/* 悬停遮罩 */}
                         <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">

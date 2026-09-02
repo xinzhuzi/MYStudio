@@ -427,7 +427,7 @@ export function GenerationPanel({ onCharacterCreated }: GenerationPanelProps) {
                   alt="角色设定预览"
                   className="w-full h-auto"
                 />
-                <ResolutionBadge src={previewUrl} />
+                <ResolutionBadge src={previewUrl} className="right-1 left-auto top-1" />
               </>
               <div className="absolute top-2 left-2 bg-warning text-white text-xs px-2 py-1 rounded">
                 预览

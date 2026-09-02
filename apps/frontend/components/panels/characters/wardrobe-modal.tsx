@@ -325,7 +325,7 @@ export function WardrobeModal({
                 alt={`${character.name} - ${variation?.name}`}
                 className="w-full h-auto"
               />
-              <ResolutionBadge src={previewData.imageUrl} />
+              <ResolutionBadge src={previewData.imageUrl} className="right-1 left-auto top-1" />
               <div className="absolute top-2 left-2 bg-warning text-white text-xs px-2 py-1 rounded">
                 预览
               </div>

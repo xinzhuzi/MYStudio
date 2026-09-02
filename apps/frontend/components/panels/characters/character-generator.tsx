@@ -223,7 +223,7 @@ export function CharacterGenerator({ character }: CharacterGeneratorProps) {
               alt={`${character.name} 角色设定预览`}
               className="w-full h-auto"
             />
-            <ResolutionBadge src={previewUrl} />
+            <ResolutionBadge src={previewUrl} className="right-1 left-auto top-1" />
           </>
           <div className="absolute top-2 left-2 bg-warning text-white text-xs px-2 py-1 rounded">
             预览
@@ -292,7 +292,7 @@ export function CharacterGenerator({ character }: CharacterGeneratorProps) {
               alt={`${character.name} 角色设定`}
               className="w-full h-auto"
             />
-            <ResolutionBadge src={existingSheet.imageUrl} className="bottom-1 right-1 top-auto" />
+            <ResolutionBadge src={existingSheet.imageUrl} className="bottom-1 right-1 left-auto top-auto" />
           </>
           <div className="absolute top-2 right-2">
             <Check className="h-5 w-5 text-success bg-white rounded-full p-0.5" />

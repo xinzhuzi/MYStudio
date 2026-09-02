@@ -255,7 +255,7 @@ export function ShotListPanel({ onGenerateImage }: ShotListPanelProps) {
                             alt={`Shot ${idx + 1}`}
                             className="w-full h-full object-cover"
                           />
-                          <ResolutionBadge src={startKf?.imageUrl || shot.imageUrl} />
+                          <ResolutionBadge src={startKf?.imageUrl || shot.imageUrl} className="right-1 left-auto top-1" />
                         </>
                       ) : (
                         <div className="absolute inset-0 flex items-center justify-center">

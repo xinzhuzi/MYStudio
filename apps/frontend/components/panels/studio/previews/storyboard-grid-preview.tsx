@@ -100,7 +100,7 @@ export function StoryboardGridPreview({
               {tile.mediaPath ? (
                 <ResolutionBadge
                   src={toPreviewSrc(tile.mediaPath)}
-                  className="bottom-1 right-1 top-auto"
+                  className="bottom-1 right-1 left-auto top-auto"
                 />
               ) : null}
             </>

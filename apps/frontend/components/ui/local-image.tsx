@@ -10,7 +10,7 @@
  * - src 归一化走 toPreviewSrc(preview-src.ts,全仓唯一入口)
  * - 交互门闸:拖拽/滑动/缩放期间不挂 <img>,静止后加载;粘性放行
  * - fallback=备用图地址(失败换图);fallbackLabel=终态占位文案(默认「图片加载失败」)
- * - resolutionBadge:右上角真实像素尺寸角标(例如 1920×1080)
+ * - resolutionBadge:左上角真实像素尺寸角标(例如 1920×1080)
  * - previewable:右下角常驻「展示」角标,点击经 portal 全屏弹 ImagePreviewModal
  *   看原图(自动剥 ?thumb=1);角标 stopPropagation 不触发宿主点击导航
  */
@@ -29,7 +29,7 @@ interface LocalImageProps extends React.ImgHTMLAttributes<HTMLImageElement> {
   fallback?: string;
   /** 终态失败占位文案(fallback 图也失败/未提供时展示) */
   fallbackLabel?: string;
-  /** 开启后在图片右上角叠加真实像素尺寸角标(默认关闭,关闭时渲染结构与纯 <img> 一致) */
+  /** 开启后在图片左上角叠加真实像素尺寸角标(默认关闭,关闭时渲染结构与纯 <img> 一致) */
   resolutionBadge?: boolean;
   /** 显式 loading="eager"(门闸已管加载时机的网格须开,见 preview-image 旧注) */
   eager?: boolean;

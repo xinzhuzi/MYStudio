@@ -241,7 +241,7 @@ export function CharacterDetail({ character }: CharacterDetailProps) {
                     alt={`${character.name} - ${VIEW_LABELS[currentView.viewType] || currentView.viewType}`}
                     className="w-full h-full object-contain"
                   />
-                  <ResolutionBadge src={currentView.imageUrl} className="bottom-1 right-1 top-auto" />
+                  <ResolutionBadge src={currentView.imageUrl} className="bottom-1 right-1 left-auto top-auto" />
                 </>
               ) : character.thumbnailUrl ? (
                 <>
@@ -250,7 +250,7 @@ export function CharacterDetail({ character }: CharacterDetailProps) {
                     alt={character.name}
                     className="w-full h-full object-contain"
                   />
-                  <ResolutionBadge src={character.thumbnailUrl} className="bottom-1 right-1 top-auto" />
+                  <ResolutionBadge src={character.thumbnailUrl} className="bottom-1 right-1 left-auto top-auto" />
                 </>
               ) : (
                 <div className="w-full h-full flex items-center justify-center">

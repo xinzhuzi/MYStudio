@@ -178,7 +178,7 @@ function StoryboardPanelCard({
         <span className="absolute left-1.5 top-1.5 rounded bg-success/20 px-1.5 py-0.5 text-[10px] font-semibold text-foreground">
           S{String(storyboard.index).padStart(2, "0")}
         </span>
-        {currentPath ? <ResolutionBadge src={toPreviewSrc(currentPath)} /> : null}
+        {currentPath ? <ResolutionBadge src={toPreviewSrc(currentPath)} className="right-1 left-auto top-1" /> : null}
         {/* 多帧左右切换(用户裁定):圆形半透明箭头,点击不冒泡进卡 */}
         {frames.length > 1 ? (
           <>

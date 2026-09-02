@@ -94,7 +94,7 @@ export function SceneCard({
                 alt={scene.name}
                 className="w-full h-full object-contain"
               />
-              <ResolutionBadge src={resolvedImage || ''} />
+              <ResolutionBadge src={resolvedImage || ''} className="right-1 left-auto top-1" />
             </>
           ) : (
             <MapPin className="h-8 w-8 text-muted-foreground" />

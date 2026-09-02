@@ -225,7 +225,7 @@ export function SceneDetail({ scene }: SceneDetailProps) {
                     alt={scene.name}
                     className="w-full h-full object-contain"
                   />
-                  <ResolutionBadge src={resolvedImage || ''} className="bottom-1 right-1 top-auto" />
+                  <ResolutionBadge src={resolvedImage || ''} className="bottom-1 right-1 left-auto top-auto" />
                 </>
               ) : (
                 <div className="w-full h-full flex items-center justify-center">

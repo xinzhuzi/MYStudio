@@ -119,7 +119,7 @@ export function QuadGridResultDialog({
                   alt="原图"
                   className="w-full h-full object-cover"
                   />
-                  <ResolutionBadge src={result.originalImage} />
+                  <ResolutionBadge src={result.originalImage} className="right-1 left-auto top-1" />
                 </>
               </div>
             </div>
@@ -146,7 +146,7 @@ export function QuadGridResultDialog({
                       alt={result.variationLabels[index]}
                       className="w-full h-full object-cover"
                     />
-                    <ResolutionBadge src={img} />
+                    <ResolutionBadge src={img} className="right-1 left-auto top-1" />
                     <span className="absolute bottom-1 left-1 text-[9px] bg-black/60 text-white px-1 py-0.5 rounded">
                       {index + 1}. {result.variationLabels[index]}
                     </span>

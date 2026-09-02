@@ -127,7 +127,7 @@ export function ResolutionBadge({ src, className }: { src?: string; className?: 
   return (
     <span
       className={cn(
-        "pointer-events-none absolute right-1 top-1 z-[1] rounded bg-background/80 px-1.5 py-0.5 text-[9px] font-semibold leading-none text-foreground select-none",
+        "pointer-events-none absolute left-1 top-1 z-[1] rounded bg-background/80 px-1.5 py-0.5 text-[9px] font-semibold leading-none text-foreground select-none",
         className,
       )}
     >

@@ -115,7 +115,7 @@ function StudioAssetCardComponent({
             decoding="async"
             draggable={false}
           />
-          <ResolutionBadge src={asset.thumbnailUrl} className="bottom-1 right-1 top-auto" />
+          <ResolutionBadge src={asset.thumbnailUrl} className="bottom-1 right-1 left-auto top-auto" />
         </>
       ) : !asset.thumbnailUrl ? (
         <div className="flex h-full w-full items-center justify-center">
