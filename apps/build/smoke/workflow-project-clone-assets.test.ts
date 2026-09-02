@@ -63,6 +63,27 @@ describe("copyReferencedWorkflowAssets", () => {
     expect(fs.readFileSync(path.join(fixture.targetAssetsRoot, "thumbs", "role", "asset-thumb.png"), "utf8")).toBe("asset-thumbnail");
   });
 
+  it("resolves project-file store segments from a migrated project store", () => {
+    const fixture = createFixture();
+    const storedMedia = path.join(fixture.sourceProjectRoot, "store", "media", "ai-image", "stored.png");
+    fs.mkdirSync(path.dirname(storedMedia), { recursive: true });
+    fs.writeFileSync(storedMedia, "stored-media", "utf8");
+
+    const result = copyReferencedWorkflowAssets({
+      documents: [{ media: "project-file://project-1/media/ai-image/stored.png" }],
+      cloneRoot: fixture.cloneRoot,
+      projectId: "project-1",
+      sourceProjectRoot: fixture.sourceProjectRoot,
+      sourceAssetsRoot: fixture.sourceAssetsRoot,
+      targetProjectRoot: fixture.targetProjectRoot,
+      targetAssetsRoot: fixture.targetAssetsRoot,
+    });
+
+    expect(result.blocked).toEqual([]);
+    expect(result.copied).toHaveLength(1);
+    expect(fs.readFileSync(path.join(fixture.targetProjectRoot, "media", "ai-image", "stored.png"), "utf8")).toBe("stored-media");
+  });
+
   it("does not copy missing, traversal, or symlink-escaping references", () => {
     const fixture = createFixture();
     const externalFile = path.join(fixture.root, "outside.png");

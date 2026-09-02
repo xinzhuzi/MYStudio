@@ -8,6 +8,24 @@ import {
 } from "node:fs";
 import { dirname, isAbsolute, relative, resolve, sep } from "node:path";
 
+const STORE_LAYOUT_SEGMENTS = new Set([
+  "script",
+  "director",
+  "editing",
+  "timeline",
+  "self-media",
+  "tts",
+  "sclass",
+  "media",
+  "characters",
+  "scenes",
+  "props",
+  "studio-workflow",
+  "studio-workflow-store",
+  "overview",
+  "剧本",
+]);
+
 function canonicalPath(input) {
   const unresolved = [];
   let current = resolve(input);
@@ -164,6 +182,13 @@ function copyReferencedFile({ reference, protocol, cloneRoot, sourceRoot, target
   }
 }
 
+function resolveProjectSourceRoot(sourceProjectRoot, relativePath) {
+  const firstSegment = relativePath.split("/", 1)[0];
+  if (!STORE_LAYOUT_SEGMENTS.has(firstSegment)) return sourceProjectRoot;
+  const storeRoot = resolve(sourceProjectRoot, "store");
+  return existsSync(storeRoot) ? storeRoot : sourceProjectRoot;
+}
+
 export function copyReferencedWorkflowAssets({
   documents,
   cloneRoot,
@@ -190,7 +215,7 @@ export function copyReferencedWorkflowAssets({
           reference,
           protocol: "project-file",
           cloneRoot,
-          sourceRoot: sourceProjectRoot,
+          sourceRoot: resolveProjectSourceRoot(sourceProjectRoot, parsed.relativePath),
           targetRoot: targetProjectRoot,
           relativePath: parsed.relativePath,
         });
