@@ -71,6 +71,14 @@ export function setDisposeRemotionRuntime(fn: (() => void | Promise<void>) | nul
   disposeRemotionRuntime = fn
 }
 
+// 图片生图 sidecar 停止回调:控制器在 main.ts 后段创建(晚于 bindWindowRuntime),
+// 经此回填;quit/window-all-closed 时一并停,杜绝孤儿占死 17595(09-02 僵尸窗口根修)
+let stopImageGenSidecar: (() => void | Promise<void>) | null = null
+
+export function setStopImageGenSidecar(fn: (() => void | Promise<void>) | null): void {
+  stopImageGenSidecar = fn
+}
+
 export function stopLocalSidecars() {
   if (!stopLocalSidecarsPromise) {
     const { ttsRuntimeController } = requireWindowRuntime()
@@ -78,6 +86,11 @@ export function stopLocalSidecars() {
       const result = await ttsRuntimeController.stop()
       if (!result.success) {
         console.warn('Failed to stop local TTS backend:', result.error)
+      }
+      try {
+        await stopImageGenSidecar?.()
+      } catch (error) {
+        console.warn('Failed to stop local image sidecar:', error)
       }
     })().finally(() => {
       stopLocalSidecarsPromise = null

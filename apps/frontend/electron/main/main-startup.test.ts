@@ -79,6 +79,13 @@ describe("main process startup", () => {
     expect(mainSource).not.toContain("?? '4.0.499'");
   });
 
+  it("图片生图 sidecar 随本地服务一并停止(09-02 僵尸端口窗口根修)", () => {
+    expect(mainSource).toContain("setStopImageGenSidecar(() => imageGenRuntimeController.stop())");
+    const windowSource = readFileSync(new URL("./main-window.ts", import.meta.url), "utf8");
+    expect(windowSource).toContain("await stopImageGenSidecar?.()");
+    expect(windowSource).toContain("Failed to stop local image sidecar");
+  });
+
   it("pins the Remotion render worker to the managed runtime and compositor directories", () => {
     expect(mainSource).toContain("resolveRemotionRuntimeDir(remotionUserDataDir)");
     expect(mainSource).toContain("binariesDirectory: remotionBinariesDirectory");

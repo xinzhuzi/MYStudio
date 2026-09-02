@@ -5,7 +5,7 @@ import {bindChapterProjectionRuntime, enqueueChapterSceneSegments, evaluateVideo
 import {createDiagnosticsOperationId, diagnosticsFetchBytes, diagnosticsFetchJson, runTtsRuntimeDiagnostics, writeDiagnosticsLog} from "./main-diagnostics";
 import {bindHostedStudioRuntime, disposeHostedStudio, hostedStudioIpc, persistStudioEditingRevision} from "./main-hosted-studio";
 import {isBackgroundSmoke, MAIN_DIST, RENDERER_DIST} from "./main-env";
-import {bindWindowRuntime, createWindow, getWin, setDisposeRemotionRuntime, stopLocalSidecars, typedPackageMetadata} from "./main-window";
+import {bindWindowRuntime, createWindow, getWin, setDisposeRemotionRuntime, setStopImageGenSidecar, stopLocalSidecars, typedPackageMetadata} from "./main-window";
 import {bindNativeBridgeRuntime, buildManagedVideoUseChapterRun, nativeStudioQueueBridge} from "./main-native-bridge";
 // IPC 注册群(存储/媒体/资产/更新/诊断/导出)整体外迁,副作用 import 即注册
 import "./main-ipc-bootstrap";
@@ -337,6 +337,7 @@ const imageGenRuntimeController = createImageGenRuntimeController({
   backendRoot: videoWorkflowBackendRoot,
 })
 const imageGenIpc = registerImageGenIpcHandlers({ controller: imageGenRuntimeController })
+setStopImageGenSidecar(() => imageGenRuntimeController.stop())
 
 // Local image super-resolution sidecar — pure-torch Real-ESRGAN CLI worker for
 // 1K→4K upscaling of cloud/local generated images. Same explicit-download
