@@ -3,7 +3,7 @@
 // Commercial licensing available. See COMMERCIAL_LICENSE.md.
 
 import { useEffect, useRef } from "react";
-import { Copy, Trash2 } from "lucide-react";
+import { Copy, Eraser, Trash2 } from "lucide-react";
 import { CONTEXT_MENU_ARRIVAL_CLASS, useContextMenuClamp } from "./context-menu-craft";
 
 /**
@@ -17,12 +17,14 @@ export function NodeContextMenu({
   x,
   y,
   onDuplicate,
+  onClear,
   onDelete,
   onClose,
 }: {
   x: number;
   y: number;
   onDuplicate: () => void;
+  onClear: () => void;
   onDelete: () => void;
   onClose: () => void;
 }) {
@@ -87,6 +89,20 @@ export function NodeContextMenu({
       >
         <Copy className="text-muted-foreground" />
         <span className="text-popover-foreground">复制</span>
+      </button>
+      <button
+        type="button"
+        role="menuitem"
+        data-option
+        className={ITEM_CLASS}
+        title="清空提示词与已生成图片(节点保留)"
+        onClick={() => {
+          onClear();
+          onClose();
+        }}
+      >
+        <Eraser className="text-muted-foreground" />
+        <span className="text-popover-foreground">清空内容</span>
       </button>
       <button
         type="button"

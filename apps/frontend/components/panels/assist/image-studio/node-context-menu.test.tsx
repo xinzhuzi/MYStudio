@@ -9,34 +9,50 @@ import {
 
 afterEach(cleanup);
 
-function renderMenu(onDuplicate = vi.fn(), onDelete = vi.fn(), onClose = vi.fn()) {
+function renderMenu(
+  onDuplicate = vi.fn(),
+  onDelete = vi.fn(),
+  onClose = vi.fn(),
+  onClear = vi.fn(),
+) {
   return render(
-    <NodeContextMenu x={100} y={80} onDuplicate={onDuplicate} onDelete={onDelete} onClose={onClose} />,
+    <NodeContextMenu
+      x={100}
+      y={80}
+      onDuplicate={onDuplicate}
+      onClear={onClear}
+      onDelete={onDelete}
+      onClose={onClose}
+    />,
   );
 }
 
 describe("NodeContextMenu", () => {
-  it("渲染复制/删除两项并锚定坐标", () => {
+  it("渲染复制/清空内容/删除三项并锚定坐标", () => {
     renderMenu();
     const menu = screen.getByRole("menu", { name: "节点操作" });
     expect(menu.style.left).toBe("100px");
     expect(menu.style.top).toBe("80px");
     expect(screen.getByRole("menuitem", { name: "复制" })).toBeTruthy();
+    expect(screen.getByRole("menuitem", { name: "清空内容" })).toBeTruthy();
     expect(screen.getByRole("menuitem", { name: "删除" })).toBeTruthy();
   });
 
-  it("复制/删除回调并关闭;ESC 关闭零副作用", () => {
+  it("复制/清空内容/删除回调并关闭;ESC 关闭零副作用", () => {
     const onDuplicate = vi.fn();
     const onDelete = vi.fn();
     const onClose = vi.fn();
-    renderMenu(onDuplicate, onDelete, onClose);
+    const onClear = vi.fn();
+    renderMenu(onDuplicate, onDelete, onClose, onClear);
     fireEvent.click(screen.getByRole("menuitem", { name: "复制" }));
     expect(onDuplicate).toHaveBeenCalledTimes(1);
+    fireEvent.click(screen.getByRole("menuitem", { name: "清空内容" }));
+    expect(onClear).toHaveBeenCalledTimes(1);
     fireEvent.click(screen.getByRole("menuitem", { name: "删除" }));
     expect(onDelete).toHaveBeenCalledTimes(1);
-    expect(onClose).toHaveBeenCalledTimes(2);
-    fireEvent.keyDown(screen.getByRole("menu", { name: "节点操作" }), { key: "Escape" });
     expect(onClose).toHaveBeenCalledTimes(3);
+    fireEvent.keyDown(screen.getByRole("menu", { name: "节点操作" }), { key: "Escape" });
+    expect(onClose).toHaveBeenCalledTimes(4);
   });
 
   it("store.duplicateNode:提示词复制携正文落偏移位", () => {

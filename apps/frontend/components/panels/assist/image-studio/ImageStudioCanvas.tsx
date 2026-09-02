@@ -56,6 +56,7 @@ import { useImageStudioGeneration } from "./use-image-studio-generation";
 import { PaneCreateMenu, type PaneCanvasAction, type PaneCreateKind } from "./pane-create-menu";
 import { NodeContextMenu } from "./node-context-menu";
 import { effectiveBatchImages } from "./image-studio-batch";
+import { buildNodeClearPlan } from "@/lib/assist/image-studio/clear-node";
 import { CanvasHints } from "./canvas-hints";
 import { useImageDrop } from "./use-image-drop";
 
@@ -333,6 +334,25 @@ export function ImageStudioCanvas() {
     if (nodeMenu) useImageStudioStore.getState().removeNode(nodeMenu.nodeId);
   }, [nodeMenu]);
 
+  /**
+   * 右键「清空内容」(09-02 用户需求):清理文本框+该节点已存在/已生成的
+   * 图片,节点本身保留;分型计划见 buildNodeClearPlan(纯函数,含测试)。
+   */
+  const handleNodeClear = useCallback(() => {
+    if (!nodeMenu) return;
+    const storeState = useImageStudioStore.getState();
+    const graph = selectActiveImageStudioWorkflow(storeState);
+    if (!graph) return;
+    const plan = buildNodeClearPlan(graph, nodeMenu.nodeId);
+    if (plan.busy) {
+      toast.info("正在生成中,停止后再清理");
+      return;
+    }
+    for (const target of plan.targets) {
+      storeState.updateNode(target.nodeId, target.updates);
+    }
+  }, [nodeMenu]);
+
   const handlePaneCreate = useCallback(
     (kind: PaneCreateKind | PaneCanvasAction) => {
       // 画布操作(09-02 业界对齐:右键菜单兼带画布级操作)
@@ -597,6 +617,7 @@ export function ImageStudioCanvas() {
             x={nodeMenu.x}
             y={nodeMenu.y}
             onDuplicate={handleNodeDuplicate}
+            onClear={handleNodeClear}
             onDelete={handleNodeRemove}
             onClose={() => setNodeMenu(null)}
           />
