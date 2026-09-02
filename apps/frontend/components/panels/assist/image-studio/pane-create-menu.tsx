@@ -1,6 +1,6 @@
 import { useEffect, useRef } from "react";
 import { ImagePlus, LayoutGrid, Maximize, Type, WandSparkles, X } from "lucide-react";
-import { CONTEXT_MENU_ARRIVAL_CLASS, contextMenuPosition } from "./context-menu-craft";
+import { CONTEXT_MENU_ARRIVAL_CLASS, useContextMenuClamp } from "./context-menu-craft";
 
 /**
  * 画布右键创建菜单(09-02,交互形态参考 infinite-canvas NodeCreateMenu,实现从零/AGPL):
@@ -51,7 +51,7 @@ export function PaneCreateMenu({
   onClose: () => void;
 }) {
   const firstRef = useRef<HTMLButtonElement | null>(null);
-  const rootRef = useRef<HTMLDivElement | null>(null);
+  const rootRef = useContextMenuClamp({ x, y });
 
   useEffect(() => {
     firstRef.current?.focus();
@@ -60,6 +60,8 @@ export function PaneCreateMenu({
     };
     document.addEventListener("pointerdown", onPointerDown, true);
     return () => document.removeEventListener("pointerdown", onPointerDown, true);
+    // rootRef 来自 useContextMenuClamp 内部 useRef,跨渲染稳定,不入 deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [onClose]);
 
   return (
@@ -68,7 +70,7 @@ export function PaneCreateMenu({
         role="menu"
         aria-label="创建节点"
         className={`fixed z-50 min-w-60 overflow-hidden rounded-lg border border-border bg-popover p-1 shadow-xl backdrop-blur-md ${CONTEXT_MENU_ARRIVAL_CLASS}`}
-        style={contextMenuPosition(x, y, 260, 250)}
+        style={{ left: x, top: y }}
         onPointerDown={(event) => event.stopPropagation()}
         onKeyDown={(event) => {
           if (event.key === "Escape") {

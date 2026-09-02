@@ -1,6 +1,6 @@
 import { useEffect, useRef } from "react";
 import { Copy, Trash2 } from "lucide-react";
-import { CONTEXT_MENU_ARRIVAL_CLASS, contextMenuPosition } from "./context-menu-craft";
+import { CONTEXT_MENU_ARRIVAL_CLASS, useContextMenuClamp } from "./context-menu-craft";
 
 /**
  * 节点右键菜单(09-02,交互形态参考 infinite-canvas CanvasNodeContextMenu,实现从零/AGPL):
@@ -19,7 +19,7 @@ export function NodeContextMenu({
   onDelete: () => void;
   onClose: () => void;
 }) {
-  const rootRef = useRef<HTMLDivElement | null>(null);
+  const rootRef = useContextMenuClamp({ x, y });
   const firstRef = useRef<HTMLButtonElement | null>(null);
 
   useEffect(() => {
@@ -29,6 +29,8 @@ export function NodeContextMenu({
     };
     document.addEventListener("pointerdown", onPointerDown, true);
     return () => document.removeEventListener("pointerdown", onPointerDown, true);
+    // rootRef 来自 useContextMenuClamp 内部 useRef,跨渲染稳定,不入 deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [onClose]);
 
   return (
@@ -37,7 +39,7 @@ export function NodeContextMenu({
       role="menu"
       aria-label="节点操作"
       className={`fixed z-50 min-w-40 overflow-hidden rounded-lg border border-border bg-popover p-1 shadow-xl backdrop-blur-md ${CONTEXT_MENU_ARRIVAL_CLASS}`}
-      style={contextMenuPosition(x, y, 180, 100)}
+      style={{ left: x, top: y }}
       onPointerDown={(event) => event.stopPropagation()}
       onKeyDown={(event) => {
         if (event.key === "Escape") {
