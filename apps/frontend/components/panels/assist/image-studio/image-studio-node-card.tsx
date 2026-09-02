@@ -282,10 +282,10 @@ function ReferenceNodeEditor({
           value={node.imageUrl.startsWith("data:") ? "" : node.imageUrl}
           onChange={(event) => onUpdate(node.id, { imageUrl: event.target.value } as Partial<ImageWorkflowNode>)}
           placeholder="或粘贴图片地址 local-image:// / https://"
-          className="nodrag nopan h-8 min-w-0 flex-1 rounded-md border border-border bg-background/80 px-2 text-xs text-foreground outline-none"
+          className="nodrag nopan h-9 min-w-0 flex-1 rounded-md border border-border bg-background/80 px-2 text-xs text-foreground outline-none"
         />
         {node.imageUrl ? (
-          <Button size="sm" variant="outline" className="h-8 shrink-0" onClick={() => onPickImage(node.id)}>
+          <Button size="sm" variant="outline" className="h-9 shrink-0" onClick={() => onPickImage(node.id)}>
             <Upload className="mr-1 h-3.5 w-3.5" /> 更换
           </Button>
         ) : null}
@@ -565,12 +565,12 @@ function GeneratedNodeEditor({
           type="image"
           value={model}
           onChange={(value) => onUpdate(node.id, { model: value, paramsEdited: true } as Partial<ImageWorkflowNode>)}
-          className="w-full"
+          className="h-9 w-full"
         />
         <select
           value={node.aspectRatio}
           onChange={(event) => onUpdate(node.id, { aspectRatio: event.target.value, paramsEdited: true } as Partial<ImageWorkflowNode>)}
-          className="h-8 rounded-md border border-border bg-card/80 px-1.5 text-xs text-foreground outline-none"
+          className="h-9 rounded-md border border-border bg-card/80 px-1.5 text-xs text-foreground outline-none"
           aria-label="图片比例"
         >
           {ASPECT_RATIOS.map((ratio) => <option key={ratio} value={ratio}>{ratio}</option>)}
@@ -578,7 +578,7 @@ function GeneratedNodeEditor({
         <select
           value={node.resolution ?? ""}
           onChange={(event) => onUpdate(node.id, { resolution: event.target.value, paramsEdited: true } as Partial<ImageWorkflowNode>)}
-          className="h-8 rounded-md border border-border bg-card/80 px-1.5 text-xs text-foreground outline-none"
+          className="h-9 rounded-md border border-border bg-card/80 px-1.5 text-xs text-foreground outline-none"
           aria-label="图片分辨率"
         >
           <option value="">自动</option>
@@ -587,7 +587,7 @@ function GeneratedNodeEditor({
         <select
           value={String(extras?.count ?? 1)}
           onChange={(event) => onUpdateExtras(node.id, { ...(extras ?? {}), count: Number(event.target.value) })}
-          className="h-8 rounded-md border border-border bg-card/80 px-1.5 text-xs text-foreground outline-none"
+          className="h-9 rounded-md border border-border bg-card/80 px-1.5 text-xs text-foreground outline-none"
           aria-label="生成张数"
           title="一次生成多张聚为图片组"
         >
@@ -599,14 +599,14 @@ function GeneratedNodeEditor({
           <select
             value={extras?.speed ?? "fast"}
             onChange={(event) => onUpdateExtras(node.id, { ...(extras ?? {}), speed: event.target.value })}
-            className="h-8 rounded-md border border-border bg-card/80 px-1.5 text-xs text-foreground outline-none"
+            className="h-9 rounded-md border border-border bg-card/80 px-1.5 text-xs text-foreground outline-none"
             aria-label="Midjourney 速度"
           >
             <option value="relaxed">Relaxed</option>
             <option value="fast">Fast</option>
             <option value="turbo">Turbo</option>
           </select>
-          <label className="flex items-center gap-1.5 rounded-md border border-border bg-card/80 px-2 text-[11px] text-muted-foreground">
+          <label className="flex h-9 items-center gap-1.5 rounded-md border border-border bg-card/80 px-2 text-[11px] text-muted-foreground">
             风格化
             <input
               type="range"
@@ -618,7 +618,7 @@ function GeneratedNodeEditor({
               className="min-w-0 flex-1 accent-[hsl(var(--primary))]"
             />
           </label>
-          <label className="flex items-center gap-1.5 rounded-md border border-border bg-card/80 px-2 text-[11px] text-muted-foreground">
+          <label className="flex h-9 items-center gap-1.5 rounded-md border border-border bg-card/80 px-2 text-[11px] text-muted-foreground">
             怪异度
             <input
               type="range"
@@ -637,7 +637,7 @@ function GeneratedNodeEditor({
           <select
             value={extras?.render_speed ?? "Balanced"}
             onChange={(event) => onUpdateExtras(node.id, { ...(extras ?? {}), render_speed: event.target.value })}
-            className="h-8 rounded-md border border-border bg-card/80 px-1.5 text-xs text-foreground outline-none"
+            className="h-9 rounded-md border border-border bg-card/80 px-1.5 text-xs text-foreground outline-none"
             aria-label="Ideogram 渲染速度"
           >
             <option value="Turbo">Turbo</option>
@@ -647,7 +647,7 @@ function GeneratedNodeEditor({
           <select
             value={extras?.style ?? "Auto"}
             onChange={(event) => onUpdateExtras(node.id, { ...(extras ?? {}), style: event.target.value })}
-            className="h-8 rounded-md border border-border bg-card/80 px-1.5 text-xs text-foreground outline-none"
+            className="h-9 rounded-md border border-border bg-card/80 px-1.5 text-xs text-foreground outline-none"
             aria-label="Ideogram 风格"
           >
             <option value="Auto">Auto</option>
@@ -690,7 +690,7 @@ function GeneratedNodeEditor({
           <Button
             size="icon"
             variant="outline"
-            className="h-8 w-8 rounded-lg"
+            className="h-9 w-9 rounded-lg"
             onClick={() => onUpscale(node.id)}
             disabled={!node.resultUrl || generating || alreadyUpscaled}
             title={alreadyUpscaled ? "已是 4K 超分结果,无需再放大" : "超分:本地 Real-ESRGAN ×4 放大"}
@@ -701,7 +701,7 @@ function GeneratedNodeEditor({
           <Button
             size="icon"
             variant="outline"
-            className="h-8 w-8 rounded-lg"
+            className="h-9 w-9 rounded-lg"
             onClick={() => onSaveToProps(node.id)}
             disabled={!node.resultUrl}
             title={
@@ -716,7 +716,7 @@ function GeneratedNodeEditor({
             <Button
               size="icon"
               variant="outline"
-              className="h-8 w-8 rounded-lg"
+              className="h-9 w-9 rounded-lg"
               onClick={downloadAllImages}
               title={batchImages.length > 1 ? `下载全部 ${batchImages.length} 张(自动编号)` : "下载图片"}
             >
@@ -731,7 +731,7 @@ function GeneratedNodeEditor({
           <Button
             size="sm"
             variant="destructive"
-            className="w-full"
+            className="h-9 w-full"
             onClick={() => onStop(node.id)}
             title="中断本次生成(已计费的请求可能无法退款)"
           >
@@ -742,7 +742,7 @@ function GeneratedNodeEditor({
           <Button
             size="sm"
             variant="paid"
-            className="w-full"
+            className="h-9 w-full"
             onClick={() => onGenerate(node.id)}
             title="按当前提示词+参考图生成图片(云端按张计费;张数在上方下拉选)"
           >
