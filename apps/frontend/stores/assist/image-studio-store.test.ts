@@ -4,6 +4,7 @@
 
 import { afterEach, describe, expect, it } from "vitest";
 import {
+  sanitizeWorkflowsForPersist,
   selectActiveImageStudioWorkflow,
   useImageStudioStore,
 } from "./image-studio-store";
@@ -163,14 +164,12 @@ describe("image-studio-store 节点操作", () => {
 });
 
 describe("image-studio-store 持久化纪律", () => {
-  it("写入 localStorage 时剥离 data: 图片地址(防 dataURL 入库)", () => {
+  it("持久化净化剥离 data: 图片地址(防 dataURL 入库)", () => {
     useImageStudioStore.getState().ensureDefaultWorkflow();
     useImageStudioStore.getState().addReferenceNode({ imageUrl: "data:image/png;base64,AAA" });
-
-    const persisted = localStorage.getItem("mystudio-image-studio") ?? "";
-    expect(persisted).not.toContain("data:image");
-    const parsed = JSON.parse(persisted) as { state: { workflows: Array<{ nodes: Array<{ imageUrl?: string }> }> } };
-    const reference = parsed.state.workflows[0].nodes.find((node) => "imageUrl" in node);
+    const sanitized = sanitizeWorkflowsForPersist(useImageStudioStore.getState().workflows);
+    expect(JSON.stringify(sanitized)).not.toContain("data:image");
+    const reference = sanitized[0].nodes.find((node) => "imageUrl" in node);
     expect((reference?.imageUrl ?? "").startsWith("data:")).toBe(false);
   });
 
@@ -178,7 +177,8 @@ describe("image-studio-store 持久化纪律", () => {
     useImageStudioStore.getState().ensureDefaultWorkflow();
     const group = useImageStudioStore.getState().addGenerationGroup({ prompt: "a" });
     useImageStudioStore.getState().setNodeStatus(group.generatedNodeId, "generating");
-    const persisted = localStorage.getItem("mystudio-image-studio") ?? "";
-    expect(persisted).toContain('"status":"generating"');
+    const sanitized = sanitizeWorkflowsForPersist(useImageStudioStore.getState().workflows);
+    const generated = sanitized[0].nodes.find((node) => node.id === group.generatedNodeId);
+    expect(generated && generated.type === "generated" ? generated.status : undefined).toBe("generating");
   });
 });

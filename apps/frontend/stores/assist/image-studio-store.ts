@@ -127,7 +127,7 @@ function nextCanvasName(workflows: ImageWorkflowGraph[]): string {
 }
 
 /** 持久化净化:节点图片地址禁 data:/blob:(内存爆炸+跨会话失真),写入前剥离 */
-function sanitizeWorkflowsForPersist(workflows: ImageWorkflowGraph[]): ImageWorkflowGraph[] {
+export function sanitizeWorkflowsForPersist(workflows: ImageWorkflowGraph[]): ImageWorkflowGraph[] {
   return workflows.map((workflow) => ({
     ...workflow,
     nodes: workflow.nodes.map((node) => {
