@@ -172,7 +172,7 @@ export function ImageStudioCanvas() {
 
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [historyOpen, setHistoryOpen] = useState(false);
-  const [propsDialog, setPropsDialog] = useState<{ imageUrl: string; prompt: string } | null>(null);
+  const [propsDialog, setPropsDialog] = useState<{ imageUrls: string[]; prompt: string } | null>(null);
   const [renameOpen, setRenameOpen] = useState(false);
   const [renameValue, setRenameValue] = useState("");
   const [deleteOpen, setDeleteOpen] = useState(false);
@@ -357,10 +357,14 @@ export function ImageStudioCanvas() {
       const graph = selectActiveImageStudioWorkflow(useImageStudioStore.getState());
       const node = graph?.nodes.find((item) => item.id === nodeId);
       if (node?.type === "generated" && node.resultUrl) {
+        // 批量组整组进弹窗(每张自动编号落库);单图/旧数据回落主图
+        const imageUrls = node.imageBatch?.images?.length
+          ? node.imageBatch.images
+          : [node.resultUrl];
         // 弹窗 prompt 标签取生效提示词(连线提示词节点优先,成图节点内联回落)
         const promptNode = graph ? findPromptNodeForGenerated(graph, nodeId) : undefined;
         setPropsDialog({
-          imageUrl: node.resultUrl,
+          imageUrls,
           prompt: promptNode?.prompt || node.prompt,
         });
       }
@@ -629,7 +633,7 @@ export function ImageStudioCanvas() {
           onOpenChange={(open) => {
             if (!open) setPropsDialog(null);
           }}
-          imageUrl={propsDialog.imageUrl}
+          imageUrls={propsDialog.imageUrls}
           prompt={propsDialog.prompt}
         />
       ) : null}

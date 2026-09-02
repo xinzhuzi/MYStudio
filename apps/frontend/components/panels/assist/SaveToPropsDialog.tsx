@@ -29,8 +29,8 @@ import { ResolutionBadge } from "@/components/ui/image-resolution-badge";
 interface SaveToPropsDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  /** 待保存的图片URL（可能是远程URL） */
-  imageUrl: string;
+  /** 待保存的图片URL列表(批量生成时多张;可能是远程URL) */
+  imageUrls: string[];
   /** 生成时的提示词，可选 */
   prompt?: string;
 }
@@ -38,7 +38,7 @@ interface SaveToPropsDialogProps {
 export function SaveToPropsDialog({
   open,
   onOpenChange,
-  imageUrl,
+  imageUrls,
   prompt = '',
 }: SaveToPropsDialogProps) {
   const { folders, addProp, addFolder, setSelectedFolderId } =
@@ -61,24 +61,32 @@ export function SaveToPropsDialog({
   };
 
   const handleSave = async () => {
-    const name = propName.trim() || `道具_${Date.now()}`;
+    const total = imageUrls.length;
+    if (total === 0) return;
+    const baseName = propName.trim() || `道具_${Date.now()}`;
+    // 多张=每张一条道具记录,名称自动顺序编号(宽度对齐保证排序稳定)
+    const width = String(total).length;
     setSaving(true);
     try {
-      // 尝试持久化到本地存储（Electron），浏览器端回退为原始URL
-      const localPath = await saveImageToLocal(
-        imageUrl,
-        'props',
-        `prop_${Date.now()}.png`
-      );
-      addProp({
-        name,
-        imageUrl: localPath,
-        description: prompt,
-        folderId: selectedFolderId,
-      });
+      for (let index = 0; index < total; index += 1) {
+        // 尝试持久化到本地存储（Electron），浏览器端回退为原始URL
+        const localPath = await saveImageToLocal(
+          imageUrls[index],
+          'props',
+          `prop_${Date.now()}_${index + 1}.png`
+        );
+        addProp({
+          name: total > 1 ? `${baseName}-${String(index + 1).padStart(width, '0')}` : baseName,
+          imageUrl: localPath,
+          description: prompt,
+          folderId: selectedFolderId,
+        });
+      }
       // 同步道具库侧边栏选中状态（跳转到目标目录）
       setSelectedFolderId(selectedFolderId ?? 'all');
-      toast.success(`「${name}」已保存到道具库`);
+      toast.success(
+        total > 1 ? `「${baseName}」${total} 张已编号保存到道具库` : `「${baseName}」已保存到道具库`
+      );
       onOpenChange(false);
       // 重置表单
       setPropName('');
@@ -111,22 +119,27 @@ export function SaveToPropsDialog({
         </DialogHeader>
 
         <div className="space-y-4 py-2">
-          {/* 图片预览 */}
+          {/* 图片预览(批量=主图+张数角标) */}
           <div className="flex justify-center">
             <div className="relative w-32 h-32 rounded-lg border border-border bg-muted overflow-hidden">
               <img
-                src={imageUrl}
+                src={imageUrls[0]}
                 alt="预览"
                 className="w-full h-full object-cover"
               />
-              <ResolutionBadge src={imageUrl} />
+              <ResolutionBadge src={imageUrls[0]} />
+              {imageUrls.length > 1 ? (
+                <span className="absolute bottom-1 right-1 rounded bg-background/80 px-1.5 py-0.5 text-[10px] font-medium text-foreground backdrop-blur-sm">
+                  共 {imageUrls.length} 张
+                </span>
+              ) : null}
             </div>
           </div>
 
           {/* 道具名称 */}
           <div className="space-y-1.5">
             <Label htmlFor="prop-name" className="text-xs">
-              道具名称
+              道具名称{imageUrls.length > 1 ? '(每张自动追加编号)' : ''}
             </Label>
             <Input
               id="prop-name"
@@ -240,7 +253,7 @@ export function SaveToPropsDialog({
             ) : (
               <>
                 <Package className="mr-2 h-4 w-4" />
-                保存
+                {imageUrls.length > 1 ? `保存 ${imageUrls.length} 张` : '保存'}
               </>
             )}
           </Button>

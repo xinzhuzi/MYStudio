@@ -76,8 +76,8 @@ export type ImageStudioReactNode = Node<ImageStudioNodeData>;
 const ASPECT_RATIOS = IMAGE_ASPECT_RATIOS;
 const RESOLUTION_OPTIONS = IMAGE_RESOLUTIONS;
 
-const STATUS_LABELS: Record<ImageWorkflowGeneratedNode["status"], string> = {
-  idle: "待生成",
+// 状态文字只用于 queued/generating/failed;ready=图标,idle=不渲染(去文字化)
+const STATUS_LABELS: Record<Exclude<ImageWorkflowGeneratedNode["status"], "idle">, string> = {
   queued: "排队中",
   generating: "生成中",
   ready: "已完成",
@@ -489,6 +489,26 @@ function GeneratedNodeEditor({
   const generating = node.status === "generating" || node.status === "queued";
   const elapsedSeconds = useElapsedSeconds(generating);
   const [imageLongSide, setImageLongSide] = useState(0);
+  // 批量组全量图(保存/下载都以组为单位;单图与旧数据回落主图)
+  const batchImages = node.imageBatch?.images?.length
+    ? node.imageBatch.images
+    : node.resultUrl
+      ? [node.resultUrl]
+      : [];
+  const downloadAllImages = () => {
+    const total = batchImages.length;
+    if (total === 0) return;
+    const width = String(total).length;
+    batchImages.forEach((url, index) => {
+      const anchor = document.createElement("a");
+      anchor.href = toPreviewSrc(url);
+      anchor.target = "_blank";
+      anchor.rel = "noopener";
+      // 多张=自动顺序编号文件名;单张=浏览器/协议侧默认命名(与旧行为一致)
+      anchor.download = total > 1 ? `图片-${String(index + 1).padStart(width, "0")}.png` : "";
+      window.setTimeout(() => anchor.click(), index * 200);
+    });
+  };
   const alreadyUpscaled =
     (node.resultUrl || "").includes("up4x-") || imageLongSide > UPSCALE_INPUT_MAX_LONG_SIDE;
   const generationPrompt = promptNode ?? node;
@@ -639,27 +659,29 @@ function GeneratedNodeEditor({
           已挂 {referenceCount} 张参考图
         </div>
       ) : (
-        <div className="nodrag nopan flex items-center gap-1.5 text-[10px] text-muted-foreground/70">
-          <WandSparkles className="h-3 w-3" aria-hidden />
-          纯文生图——拖参考图节点连线可挂图
-        </div>
+        <span className="sr-only">纯文生图,拖参考图节点连线可挂图</span>
       )}
       {/* 操作区:左侧状态徽章,右侧次要动作;生成/停止独立成行压底(视觉锚) */}
       <div className="nodrag nopan flex items-center justify-between border-t border-border/60 pt-2">
         <span className="flex min-w-0 items-center gap-1.5 text-[10px] font-medium text-muted-foreground">
-          {node.status === "ready" ? <CheckCircle2 className="h-3.5 w-3.5 text-success" /> : null}
-          {generating ? `${STATUS_LABELS[node.status]} · 已用 ${formatElapsedSeconds(elapsedSeconds)}` : STATUS_LABELS[node.status]}
+          {node.status === "ready" ? <CheckCircle2 className="h-3.5 w-3.5 text-success" aria-label="已完成" /> : null}
+          {generating
+            ? `${STATUS_LABELS[node.status]} · 已用 ${formatElapsedSeconds(elapsedSeconds)}`
+            : node.status === "failed"
+              ? STATUS_LABELS[node.status]
+              : null}
         </span>
         <div className="flex items-center gap-1">
           <Button
-            size="sm"
+            size="icon"
             variant="outline"
+            className="h-8 w-8 rounded-lg"
             onClick={() => onUpscale(node.id)}
             disabled={!node.resultUrl || generating || alreadyUpscaled}
-            title={alreadyUpscaled ? "已是 4K 超分结果,无需再放大" : "本地 Real-ESRGAN 原生 ×4 放大"}
+            title={alreadyUpscaled ? "已是 4K 超分结果,无需再放大" : "超分:本地 Real-ESRGAN ×4 放大"}
+            aria-label="超分"
           >
-            <ZoomIn className="h-3.5 w-3.5" />
-            超分
+            <ZoomIn className="h-4 w-4" />
           </Button>
           <Button
             size="icon"
@@ -667,15 +689,23 @@ function GeneratedNodeEditor({
             className="h-8 w-8 rounded-lg"
             onClick={() => onSaveToProps(node.id)}
             disabled={!node.resultUrl}
-            title="保存到道具库"
+            title={
+              batchImages.length > 1
+                ? `保存 ${batchImages.length} 张到道具库(每张自动编号)`
+                : "保存到道具库"
+            }
           >
             <Archive className="h-3.5 w-3.5" />
           </Button>
           {node.resultUrl ? (
-            <Button size="icon" variant="outline" className="h-8 w-8 rounded-lg" asChild title="下载图片">
-              <a href={toPreviewSrc(node.resultUrl)} download target="_blank" rel="noopener">
-                <Download className="h-3.5 w-3.5" />
-              </a>
+            <Button
+              size="icon"
+              variant="outline"
+              className="h-8 w-8 rounded-lg"
+              onClick={downloadAllImages}
+              title={batchImages.length > 1 ? `下载全部 ${batchImages.length} 张(自动编号)` : "下载图片"}
+            >
+              <Download className="h-3.5 w-3.5" />
             </Button>
           ) : null}
         </div>
