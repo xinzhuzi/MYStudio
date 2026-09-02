@@ -1,8 +1,8 @@
 // Copyright (c) 2025 hotflow2024
 // Licensed under AGPL-3.0-or-later. See LICENSE for details.
 
-import { useEffect, useMemo, useState } from "react";
-import { Clock, Copy, RotateCcw, Search, Trash2 } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { ChevronDown, ChevronUp, Clock, Copy, FolderOpen, FileJson, RotateCcw, Search, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -68,6 +68,10 @@ export function GenerationHistoryDialog({
   const [ledger, setLedger] = useState<GenerationLedgerEntry[]>([]);
   const [search, setSearch] = useState("");
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  // 落盘位置展开态:收起=截断单行;展开=完整虚拟地址+主进程解析的绝对路径
+  const [pathExpanded, setPathExpanded] = useState(false);
+  const [absolutePath, setAbsolutePath] = useState<string | null>(null);
+  const [pathResolving, setPathResolving] = useState(false);
 
   useEffect(() => {
     if (!open) return;
@@ -98,6 +102,103 @@ export function GenerationHistoryDialog({
   const selected: GenerationRecord | undefined = records.find((record) => record.id === selectedId);
   const references = selected?.params.references ?? [];
   const batchUrls = selected?.params.batchUrls ?? [];
+
+  // 换选中即收起路径并清掉上一条的解析结果(展开时再懒解析)
+  const resolvedPathCache = useRef(new Map<string, string>());
+  useEffect(() => {
+    setPathExpanded(false);
+    setAbsolutePath(null);
+  }, [selectedId]);
+
+  useEffect(() => {
+    const url = selected?.resultUrl;
+    if (!pathExpanded || !url) return;
+    const cached = resolvedPathCache.current.get(url);
+    if (cached !== undefined) {
+      setAbsolutePath(cached);
+      return;
+    }
+    const bridge = (window as unknown as {
+      projectFiles?: { getAbsolutePath?: (url: string) => Promise<string | null> };
+    }).projectFiles;
+    if (!bridge?.getAbsolutePath) {
+      setAbsolutePath("");
+      return;
+    }
+    let cancelled = false;
+    setPathResolving(true);
+    void bridge
+      .getAbsolutePath(url)
+      .then((resolved) => {
+        resolvedPathCache.current.set(url, resolved ?? "");
+        if (!cancelled) setAbsolutePath(resolved ?? "");
+      })
+      .catch(() => {
+        resolvedPathCache.current.set(url, "");
+        if (!cancelled) setAbsolutePath("");
+      })
+      .finally(() => {
+        if (!cancelled) setPathResolving(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [pathExpanded, selected?.resultUrl]);
+
+  /** 在访达中揭示该文件(经主进程解析绝对路径,渲染层不拼路径) */
+  const revealInFinder = async (url: string) => {
+    const electronAPI = (window as unknown as {
+      electronAPI?: {
+        showItemInFolder?: (targetPath: string) => Promise<{ success: boolean; error?: string }>;
+      };
+    }).electronAPI;
+    const bridge = (window as unknown as {
+      projectFiles?: { getAbsolutePath?: (url: string) => Promise<string | null> };
+    }).projectFiles;
+    if (!electronAPI?.showItemInFolder || !bridge?.getAbsolutePath) {
+      toast.error("当前环境不支持打开本地文件");
+      return;
+    }
+    try {
+      const resolved = await bridge.getAbsolutePath(url);
+      if (!resolved) {
+        toast.error("无法解析该地址(可能不在项目存储内)");
+        return;
+      }
+      const result = await electronAPI.showItemInFolder(resolved);
+      if (!result.success) toast.error(`打开失败:${result.error ?? "未知错误"}`);
+    } catch {
+      toast.error("打开本地文件失败");
+    }
+  };
+
+  /** 单条记录导出 JSON(结构化,与复原同源数据;画布级导入导出走工具栏既有功能) */
+  const exportRecordJson = (record: GenerationRecord) => {
+    const payload = {
+      schemaVersion: 1,
+      kind: "mystudio-generation-record",
+      exportedAt: new Date().toISOString(),
+      record: {
+        prompt: record.prompt,
+        model: record.model,
+        resultUrl: record.resultUrl,
+        mediaId: record.mediaId ?? null,
+        createdAt: record.createdAt,
+        origin: record.origin,
+        params: record.params,
+      },
+    };
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    const stamp = new Date(record.createdAt);
+    const pad = (value: number) => String(value).padStart(2, "0");
+    link.download = `生成记录-${stamp.getFullYear()}${pad(stamp.getMonth() + 1)}${pad(stamp.getDate())}-${pad(stamp.getHours())}${pad(stamp.getMinutes())}.json`;
+    link.click();
+    URL.revokeObjectURL(url);
+    toast.success("记录 JSON 已导出");
+  };
 
   const restore = (record: GenerationRecord) => {
     const result = dispatchCanvasCommand("image-studio", {
@@ -331,11 +432,61 @@ export function GenerationHistoryDialog({
                     >
                       <Copy className="h-3 w-3" />
                     </Button>
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      className="h-7 w-7 shrink-0"
+                      aria-label="在访达中显示"
+                      title="在访达中显示该文件"
+                      onClick={() => void revealInFinder(selected.resultUrl)}
+                    >
+                      <FolderOpen className="h-3 w-3" />
+                    </Button>
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      className="h-7 w-7 shrink-0"
+                      aria-label={pathExpanded ? "收起完整路径" : "展开完整路径"}
+                      title={pathExpanded ? "收起完整路径" : "展开完整路径"}
+                      onClick={() => setPathExpanded((expanded) => !expanded)}
+                    >
+                      {pathExpanded ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+                    </Button>
                   </div>
+                  {pathExpanded ? (
+                    <div className="mt-1.5 space-y-1 rounded-md border border-border bg-background/60 px-2 py-1.5">
+                      <div className="text-[11px] leading-4 text-muted-foreground">应用内地址</div>
+                      <p className="break-all text-[11px] leading-4 text-foreground select-text">
+                        {selected.resultUrl}
+                      </p>
+                      <div className="pt-0.5 text-[11px] leading-4 text-muted-foreground">磁盘绝对路径</div>
+                      {pathResolving ? (
+                        <p className="text-[11px] leading-4 text-muted-foreground">解析中…</p>
+                      ) : absolutePath ? (
+                        <p className="break-all text-[11px] leading-4 text-foreground select-text">
+                          {absolutePath}
+                        </p>
+                      ) : (
+                        <p className="text-[11px] leading-4 text-muted-foreground">
+                          无法解析(该地址可能不在项目存储内,如远程 URL)
+                        </p>
+                      )}
+                    </div>
+                  ) : null}
                 </div>
               </div>
             </div>
             <div className="flex items-center justify-end gap-2 border-t border-border px-4 py-2.5">
+              <Button
+                size="sm"
+                variant="ghost"
+                className="h-8 text-xs text-muted-foreground"
+                title="把这条记录的结构化数据(提示词/参数/参考图地址)存为 JSON 文件"
+                onClick={() => exportRecordJson(selected)}
+              >
+                <FileJson className="mr-1 h-3.5 w-3.5" />
+                导出 JSON
+              </Button>
               <Button
                 size="sm"
                 variant="ghost"

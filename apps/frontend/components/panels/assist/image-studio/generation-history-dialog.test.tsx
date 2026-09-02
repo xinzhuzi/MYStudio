@@ -133,4 +133,68 @@ describe("GenerationHistoryDialog(09-03 弹窗)", () => {
     fireEvent.click(screen.getByRole("button", { name: /复原到画布/ }));
     expect(toastErrorMock).toHaveBeenCalledWith("复原失败:画布未就绪");
   });
+
+  it("落盘位置:展开显示完整地址+主进程解析的绝对路径;换选中自动收起", async () => {
+    seedHistory();
+    const windowMock = window as unknown as {
+      projectFiles?: { getAbsolutePath: (url: string) => Promise<string | null> };
+    };
+    windowMock.projectFiles = {
+      getAbsolutePath: vi.fn(async () => "/Users/who/Projects/IP-MA/media/ai-image/2026-09/a.png"),
+    };
+    const view = render(<GenerationHistoryDialog open onOpenChange={() => {}} />);
+    try {
+      // 收起态:只见截断输入框,无「应用内地址」标签
+      expect(screen.queryByText("应用内地址")).toBeNull();
+      fireEvent.click(screen.getByRole("button", { name: /展开完整路径/ }));
+      expect(await screen.findByText("应用内地址")).toBeTruthy();
+      expect(await screen.findByText(/IP-MA\/media\/ai-image/)).toBeTruthy();
+      // 换选中自动收起
+      fireEvent.click(screen.getByText("旧记录"));
+      await waitForGone(view);
+    } finally {
+      delete windowMock.projectFiles;
+      view.unmount();
+    }
+  });
+
+  it("导出 JSON:下载结构化记录(与复原同源数据)", () => {
+    seedHistory();
+    const blobs: Blob[] = [];
+    const createdUrls: string[] = [];
+    const originalCreate = URL.createObjectURL;
+    const originalRevoke = URL.revokeObjectURL;
+    (URL as unknown as { createObjectURL: (b: Blob) => string }).createObjectURL = (blob: Blob) => {
+      blobs.push(blob);
+      const url = `blob:mock-${createdUrls.length}`;
+      createdUrls.push(url);
+      return url;
+    };
+    (URL as unknown as { revokeObjectURL: (u: string) => void }).revokeObjectURL = () => {};
+    const view = render(<GenerationHistoryDialog open onOpenChange={() => {}} />);
+    try {
+      fireEvent.click(screen.getByRole("button", { name: /导出 JSON/ }));
+      expect(blobs).toHaveLength(1);
+      expect(toastSuccessMock).toHaveBeenCalledWith("记录 JSON 已导出");
+    } finally {
+      (URL as unknown as { createObjectURL: (b: Blob) => string }).createObjectURL = originalCreate;
+      (URL as unknown as { revokeObjectURL: (u: string) => void }).revokeObjectURL = originalRevoke;
+      view.unmount();
+    }
+  });
 });
+
+/** 展开区随选中切换收起的等待(jsdom 无 transition,一帧轮询即可) */
+function waitForGone(view: { container: HTMLElement }) {
+  return new Promise<void>((resolve) => {
+    const started = Date.now();
+    const tick = () => {
+      if (!view.container.textContent?.includes("应用内地址") || Date.now() - started > 1500) {
+        resolve();
+        return;
+      }
+      setTimeout(tick, 25);
+    };
+    tick();
+  });
+}
