@@ -871,7 +871,7 @@ function ImageStudioFlowView({
         nodesDraggable
         nodesConnectable
         elementsSelectable
-        panOnDrag={false}
+        panOnDrag={[2]}
         selectionOnDrag
         onSelectionChange={(selected) => {
           onSelection(selected.nodes.map((node) => node.id));
