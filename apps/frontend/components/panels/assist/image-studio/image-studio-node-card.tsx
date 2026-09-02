@@ -136,7 +136,7 @@ export const ImageStudioNodeCard = memo(function ImageStudioNodeCard({
 }: NodeProps<ImageStudioReactNode>) {
   const node = data.node;
   const borderClass = data.selected
-    ? "border-warning/80 shadow-[0_18px_42px_rgba(251,191,36,0.22)]"
+    ? "border-primary/70 shadow-[0_0_0_1px_hsl(var(--primary)/0.35),0_6px_20px_rgba(0,0,0,0.28)]"
     : node.type === "generated" && node.status === "ready"
       ? "border-success/45"
       : "border-border";
@@ -148,7 +148,9 @@ export const ImageStudioNodeCard = memo(function ImageStudioNodeCard({
       data-image-studio-node-kind={node.type}
       className={cn(
         "[contain:layout_style]",
-        "image-workflow-node-card rounded-md border bg-card/96 p-3 text-card-foreground shadow-[0_22px_54px_rgba(0,0,0,0.24)]",
+        "image-workflow-node-card group/node rounded-xl border bg-card/96 p-3.5 text-card-foreground",
+        "shadow-[0_1px_2px_rgba(0,0,0,0.18)] transition-[border-color,box-shadow] duration-200",
+        "hover:border-border/90 hover:shadow-[0_4px_16px_rgba(0,0,0,0.22)]",
         node.type === "reference" ? "w-[360px]" : node.type === "prompt" ? "w-[480px]" : "w-[560px]",
         borderClass,
       )}
@@ -169,7 +171,16 @@ export const ImageStudioNodeCard = memo(function ImageStudioNodeCard({
       />
       <div className="mb-3 flex items-start justify-between gap-2">
         <div className="flex min-w-0 items-center gap-2">
-          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-border bg-muted/35">
+          <span
+            className={cn(
+              "flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border",
+              node.type === "reference"
+                ? "border-success/30 bg-success/10 text-success"
+                : node.type === "prompt"
+                  ? "border-info/30 bg-info/10 text-info"
+                  : "border-primary/30 bg-primary/10 text-primary",
+            )}
+          >
             {node.type === "reference" ? (
               <ImageIcon className="h-4 w-4" />
             ) : node.type === "prompt" ? (
@@ -187,13 +198,31 @@ export const ImageStudioNodeCard = memo(function ImageStudioNodeCard({
             />
             {/* 09-02 对比度根修:副标题原 text-muted-foreground 在深色卡上近乎不可见
                 (VLM 实拍透明度估 30-40%),升到 foreground/70 保次级层级且可读 */}
-            <div className="mt-0.5 text-[10px] uppercase tracking-[0.16em] text-foreground/70">
+            <div
+              className={cn(
+                "mt-0.5 text-[10px] font-medium uppercase tracking-[0.14em]",
+                node.type === "reference"
+                  ? "text-success/80"
+                  : node.type === "prompt"
+                    ? "text-info/80"
+                    : "text-primary/80",
+              )}
+            >
               {meta}
             </div>
           </div>
         </div>
-        <Button size="icon" variant="ghost" aria-label="删除节点" title="删除此节点(⌘Z 可撤销)" onClick={() => data.onDelete(node.id)}>
-          <Trash2 className="h-4 w-4" />
+        {/* 09-02 用户裁定:删除按钮不常驻——悬停节点/选中时浮现(右键菜单也可删) */}
+        <Button
+          size="icon"
+          variant="ghost"
+          aria-label="删除节点"
+          title="删除此节点(⌘Z 可撤销;右键菜单也可)"
+          className="h-7 w-7 opacity-0 transition-opacity duration-150 group-hover/node:opacity-100 focus-visible:opacity-100 data-[selected=true]:opacity-100"
+          data-selected={data.selected}
+          onClick={() => data.onDelete(node.id)}
+        >
+          <Trash2 className="h-3.5 w-3.5 text-muted-foreground hover:text-destructive" />
         </Button>
       </div>
       {node.type === "reference" ? (
@@ -636,7 +665,7 @@ function GeneratedNodeEditor({
         <div className="nodrag nopan text-[11px] text-muted-foreground">文生图:无参考图连线</div>
       )}
       <div className="nodrag nopan flex items-center justify-between gap-2">
-        <span className="flex min-w-0 items-center gap-1.5 text-[11px] text-muted-foreground">
+        <span className="flex min-w-0 items-center gap-1.5 rounded-full bg-muted/40 px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
           {node.status === "ready" ? <CheckCircle2 className="h-3.5 w-3.5 text-success" /> : null}
           {generating ? `${STATUS_LABELS[node.status]} · 已用 ${formatElapsedSeconds(elapsedSeconds)}` : STATUS_LABELS[node.status]}
         </span>
@@ -654,7 +683,7 @@ function GeneratedNodeEditor({
           <Button
             size="icon"
             variant="outline"
-            className="h-7 w-7"
+            className="h-8 w-8 rounded-lg"
             onClick={() => onSaveToProps(node.id)}
             disabled={!node.resultUrl}
             title="保存到道具库"
@@ -662,7 +691,7 @@ function GeneratedNodeEditor({
             <Archive className="h-3.5 w-3.5" />
           </Button>
           {node.resultUrl ? (
-            <Button size="icon" variant="outline" className="h-7 w-7" asChild title="下载图片">
+            <Button size="icon" variant="outline" className="h-8 w-8 rounded-lg" asChild title="下载图片">
               <a href={toPreviewSrc(node.resultUrl)} download target="_blank" rel="noopener">
                 <Download className="h-3.5 w-3.5" />
               </a>
