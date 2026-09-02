@@ -14,6 +14,8 @@ import {
 import {
   Archive,
   CheckCircle2,
+  ChevronLeft,
+  ChevronRight,
   Download,
   Image as ImageIcon,
   Loader2,
@@ -385,15 +387,23 @@ function PromptNodeEditor({
   );
 }
 
-/** 批量图片组渲染(09-02-batch-image-group):单图=原样;组=叠卡+角标+展开网格+设主图 */
+/**
+ * 批量图片组渲染(09-02 用户终裁):图片上左右箭头切图,右下角当前序号;
+ * 不做叠卡/展开网格/张数角标。主图切换=翻页即切(setBatchPrimary 同步
+ * resultUrl,组外消费零改动)。
+ */
 function BatchImageArea({
   node,
 }: {
   node: ImageWorkflowGeneratedNode;
 }) {
-  const [expanded, setExpanded] = useState(false);
+  const [viewIndex, setViewIndex] = useState(0);
   const batch = node.imageBatch;
-  const isGroup = batch && batch.images.length > 1;
+  const images = batch?.images ?? [];
+  // 图片数变化(重新生成)时钳回有效范围
+  const safeIndex = Math.min(viewIndex, Math.max(0, images.length - 1));
+  const current =
+    (images.length > 0 ? images[safeIndex] : undefined) ?? node.resultUrl ?? "";
 
   if (!node.resultUrl) {
     return (
@@ -405,71 +415,47 @@ function BatchImageArea({
     );
   }
 
-  if (!isGroup) {
-    return (
+  const isGroup = images.length > 1;
+
+  return (
+    <div className="nodrag nopan relative">
       <div className="aspect-video overflow-hidden rounded-md border border-border bg-muted/30">
         <span className="relative flex h-full w-full">
           <LocalImage
-            src={toPreviewSrc(node.resultUrl)}
-            alt={node.title}
+            src={toPreviewSrc(current)}
+            alt={`${node.title} ${safeIndex + 1}`}
             className="h-full w-full object-cover"
             eager
             previewable
           />
-          <ResolutionBadge src={toPreviewSrc(node.resultUrl)} />
+          <ResolutionBadge src={toPreviewSrc(current)} />
         </span>
       </div>
-    );
-  }
-
-  const images = batch!.images;
-  return (
-    <div className="nodrag nopan space-y-2">
-      <div className="relative">
-        <div className="absolute -bottom-1.5 -right-1.5 h-[calc(100%-2px)] w-3 rounded-md border border-border bg-muted/60" aria-hidden />
-        <div className="absolute -bottom-0.5 -right-0.5 h-[calc(100%-2px)] w-3 rounded-md border border-border bg-muted/40" aria-hidden />
-        <div className="aspect-video overflow-hidden rounded-md border border-border bg-muted/30">
-          <span className="relative flex h-full w-full">
-            <LocalImage
-              src={toPreviewSrc(node.resultUrl)}
-              alt={node.title}
-              className="h-full w-full object-cover"
-              eager
-              previewable
-            />
-            <ResolutionBadge src={toPreviewSrc(node.resultUrl)} />
+      {isGroup ? (
+        <>
+          <button
+            type="button"
+            aria-label="上一张"
+            disabled={safeIndex === 0}
+            className="absolute left-1.5 top-1/2 grid h-8 w-8 -translate-y-1/2 place-items-center rounded-full border border-border/60 bg-card/85 text-card-foreground backdrop-blur-sm transition-colors duration-75 hover:bg-accent hover:text-accent-foreground active:bg-accent/70 disabled:pointer-events-none disabled:opacity-0"
+            onClick={() => setViewIndex(safeIndex - 1)}
+          >
+            <ChevronLeft className="h-4 w-4" />
+          </button>
+          <button
+            type="button"
+            aria-label="下一张"
+            disabled={safeIndex === images.length - 1}
+            className="absolute right-1.5 top-1/2 grid h-8 w-8 -translate-y-1/2 place-items-center rounded-full border border-border/60 bg-card/85 text-card-foreground backdrop-blur-sm transition-colors duration-75 hover:bg-accent hover:text-accent-foreground active:bg-accent/70 disabled:pointer-events-none disabled:opacity-0"
+            onClick={() => setViewIndex(safeIndex + 1)}
+          >
+            <ChevronRight className="h-4 w-4" />
+          </button>
+          {/* 右下角轻序号:当前/总数,当前张即主图(resultUrl 同步) */}
+          <span className="absolute bottom-1.5 right-1.5 rounded-full bg-black/55 px-2 py-0.5 text-[10px] font-medium tabular-nums text-primary-foreground backdrop-blur-sm">
+            {safeIndex + 1} / {images.length}
           </span>
-        </div>
-        <button
-          type="button"
-          aria-label={expanded ? "收起图片组" : `展开图片组(${images.length}张)`}
-          className="absolute right-1.5 top-1.5 rounded-md border border-border bg-card/90 px-1.5 py-0.5 text-[10px] font-medium text-card-foreground transition-colors duration-75 hover:bg-accent hover:text-accent-foreground active:bg-accent/70"
-          onClick={() => setExpanded((value) => !value)}
-        >
-          {images.length} 张 {expanded ? "▴" : "▾"}
-        </button>
-      </div>
-      {expanded ? (
-        <div className="grid grid-cols-2 gap-1.5" data-image-studio-batch-grid>
-          {images.map((image, index) => (
-            <div key={`${image}-${index}`} className="relative overflow-hidden rounded-md border border-border">
-              <LocalImage src={toPreviewSrc(image)} alt={`${node.title} ${index + 1}`} className="aspect-video h-full w-full object-cover" eager previewable />
-              <button
-                type="button"
-                aria-label={`设为主图 ${index + 1}`}
-                disabled={index === batch!.primaryIndex}
-                className={`absolute bottom-1 left-1 rounded-md px-1.5 py-0.5 text-[10px] font-medium ${
-                  index === batch!.primaryIndex
-                    ? "cursor-default bg-primary text-primary-foreground"
-                    : "bg-card/90 text-card-foreground hover:bg-accent"
-                }`}
-                onClick={() => useImageStudioStore.getState().setBatchPrimary(node.id, index)}
-              >
-                {index === batch!.primaryIndex ? "主图" : "设为主图"}
-              </button>
-            </div>
-          ))}
-        </div>
+        </>
       ) : null}
     </div>
   );
