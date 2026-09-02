@@ -63,6 +63,42 @@ describe("buildImageStudioGenerationRequest", () => {
     ]);
   });
 
+  it("混合参考:参考图节点+上游成图按连线顺序交错收集;无 resultUrl 的上游跳过", () => {
+    let graph = buildGraph();
+    graph = addReferenceImageNode(graph, {
+      id: "ref-1",
+      imageUrl: "local-image://upload/a.png",
+      position: { x: 0, y: 100 },
+    });
+    graph = addGeneratedImageNode(graph, {
+      id: "gen-upstream-a",
+      prompt: "上游A",
+      position: { x: 0, y: 200 },
+    });
+    graph = addGeneratedImageNode(graph, {
+      id: "gen-upstream-b",
+      prompt: "上游B",
+      position: { x: 0, y: 300 },
+    });
+    // 连线顺序:参考图→上游A(无结果,跳过)→上游B(有结果,计入)
+    graph = connectImageWorkflowNodes(graph, { source: "ref-1", target: "gen-1" });
+    graph = connectImageWorkflowNodes(graph, { source: "gen-upstream-a", target: "gen-1" });
+    graph = connectImageWorkflowNodes(graph, { source: "gen-upstream-b", target: "gen-1" });
+    graph = {
+      ...graph,
+      nodes: graph.nodes.map((node) =>
+        node.id === "gen-upstream-b"
+          ? { ...node, status: "ready", resultUrl: "local-image://ai-image/up-b.png" }
+          : node,
+      ),
+    };
+    const request = buildImageStudioGenerationRequest(graph, "gen-1");
+    expect(request.referenceImages).toEqual([
+      "local-image://upload/a.png",
+      "local-image://ai-image/up-b.png",
+    ]);
+  });
+
   it("链式图生图:上游成图 resultUrl 计入参考图", () => {
     let graph = buildGraph();
     graph = addGeneratedImageNode(graph, {

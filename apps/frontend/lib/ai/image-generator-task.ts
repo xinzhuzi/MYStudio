@@ -334,6 +334,16 @@ export async function submitImageJobTask(
       throw new Error('job 通道参考图必须是缩略后的 data:image base64 格式');
     }
     requestBody.image = base64;
+    // 供应商契约单 image 字段(fanrenapi 已验证),多参考会被截为一张——
+    // 主通道(SDK 直传数组)才承全量;打点留痕,排查不被静默截单误导
+    if ((referenceImages?.length ?? 0) > 1) {
+      void logEvent({
+        category: 'network',
+        level: 'info',
+        message: '[image-job] 参考图多于一张,兜底通道仅传第一张(供应商契约)',
+        context: { model, referenceCount: referenceImages?.length ?? 0 },
+      });
+    }
   }
 
   const controller = new AbortController();
