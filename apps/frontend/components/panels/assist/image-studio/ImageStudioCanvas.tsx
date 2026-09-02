@@ -28,6 +28,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { CanvasViewportControls } from "@/components/panels/studio/CanvasViewportControls";
+import { useProjectStore } from "@/stores/project/project-store";
 import { useAssistCanvasHistory } from "./use-assist-canvas-history";
 import { useImageStudioCommands } from "./use-image-studio-commands";
 import { copyNodesToClipboard, pasteFromClipboard, clipboardSize } from "./canvas-clipboard";
@@ -55,6 +56,7 @@ import { useImageStudioGeneration } from "./use-image-studio-generation";
 import { PaneCreateMenu, type PaneCreateKind } from "./pane-create-menu";
 import { NodeContextMenu } from "./node-context-menu";
 import { CanvasHints } from "./canvas-hints";
+import { useImageDrop } from "./use-image-drop";
 
 const FIT_VIEW_OPTIONS = { padding: 0.18, minZoom: 0.35, maxZoom: 1.1 } as const;
 
@@ -138,13 +140,22 @@ export function ImageStudioCanvas() {
     const onKeyDown = (event: KeyboardEvent) => {
       if (!(event.metaKey || event.ctrlKey)) return;
       const key = event.key.toLowerCase();
-      if (key !== "c" && key !== "v") return;
+      if (key !== "c" && key !== "v" && key !== "a") return;
       const target = event.target;
       if (
         target instanceof HTMLInputElement ||
         target instanceof HTMLTextAreaElement ||
         (target instanceof HTMLElement && target.isContentEditable)
       ) return;
+      if (key === "a") {
+        event.preventDefault();
+        // React Flow 无命令式全选 API:给全部节点下 selected 变更
+        useImageStudioStore.getState().updateActiveWorkflow((graph) => ({
+          ...graph,
+          nodes: graph.nodes.map((node) => ({ ...node, selected: true })),
+        }));
+        return;
+      }
       if (key === "c") {
         const count = copyNodesToClipboard(selectedIds);
         if (count > 0) toast.success(`已复制 ${count} 个节点`);
@@ -200,6 +211,16 @@ export function ImageStudioCanvas() {
 
   const flowInstanceRef = useRef<ReactFlowInstance<ImageStudioReactNode, Edge> | null>(null);
   flowInstanceRef.current = flowInstance;
+
+  // 拖拽图片到画布(09-02 对账缺口#1):松手位置建参考图节点(项目内落盘)
+  const { handlers: dropHandlers, dragOver } = useImageDrop({
+    projectId: useProjectStore.getState().activeProjectId ?? undefined,
+    flowApi: {
+      screenToFlowPosition: (point) =>
+        flowInstanceRef.current?.screenToFlowPosition(point) ?? point,
+    },
+    addReferenceNode: (input) => useImageStudioStore.getState().addReferenceNode(input),
+  });
 
   // 右键创建(09-02,参考 infinite-canvas NodeCreateMenu 交互):落点即建位
   const [paneCreate, setPaneCreate] = useState<{
@@ -519,6 +540,7 @@ export function ImageStudioCanvas() {
           onPaneClick={() => setSelectedNodeId(null)}
           onPaneContextMenu={handlePaneContextMenu}
           onSelection={setSelectedIds}
+          dropHandlers={dropHandlers}
           onNodeContextMenu={handleNodeContextMenu}
           onConnect={handleConnect}
           onNodesDelete={(ids) => ids.forEach((id) => removeNode(id))}
@@ -538,6 +560,13 @@ export function ImageStudioCanvas() {
         />
         {assistantOpen ? (
           <AssistantPanel selectedNodeId={selectedNodeId} onClose={() => setAssistantOpen(false)} />
+        ) : null}
+        {dragOver ? (
+          <div className="pointer-events-none absolute inset-2 z-30 flex items-center justify-center rounded-xl border-2 border-dashed border-info/60 bg-info/5">
+            <span className="rounded-lg bg-card/90 px-3 py-1.5 text-sm font-medium text-card-foreground shadow-md backdrop-blur-md">
+              松手放入画布 → 参考图节点
+            </span>
+          </div>
         ) : null}
         <CanvasHints />
         {nodeMenu ? (
@@ -700,6 +729,7 @@ function ImageStudioFlowView({
   onPaneClick,
   onPaneContextMenu,
   onSelection,
+  dropHandlers,
   onNodeContextMenu,
   onConnect,
   onNodesDelete,
@@ -716,6 +746,12 @@ function ImageStudioFlowView({
   onPaneClick: () => void;
   onPaneContextMenu: (event: MouseEvent) => void;
   onSelection: (nodeIds: string[]) => void;
+  dropHandlers: {
+    onDragEnter: (event: React.DragEvent) => void;
+    onDragOver: (event: React.DragEvent) => void;
+    onDragLeave: () => void;
+    onDrop: (event: React.DragEvent) => void;
+  };
   onNodeContextMenu: (event: MouseEvent, nodeId: string) => void;
   onConnect: (connection: { source: string | null; target: string | null }) => void;
   onNodesDelete: (nodeIds: string[]) => void;
@@ -794,6 +830,10 @@ function ImageStudioFlowView({
           event.preventDefault();
           onPaneContextMenu(event as unknown as MouseEvent);
         }}
+        onDragEnter={dropHandlers.onDragEnter}
+        onDragOver={dropHandlers.onDragOver}
+        onDragLeave={dropHandlers.onDragLeave}
+        onDrop={dropHandlers.onDrop}
         onNodeContextMenu={(event, node) => {
           onNodeContextMenu(event as unknown as MouseEvent, node.id);
         }}

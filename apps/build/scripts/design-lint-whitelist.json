@@ -25,7 +25,8 @@
     "components/panels/assist/image-studio/pane-create-menu.tsx",
     "components/panels/assist/image-studio/node-context-menu.tsx",
     "components/panels/assist/image-studio/mention-picker.tsx",
-    "components/panels/assist/image-studio/canvas-hints.tsx"
+    "components/panels/assist/image-studio/canvas-hints.tsx",
+    "components/panels/assist/image-studio/ImageStudioCanvas.tsx"
   ],
   "severityOverrides": [
     {
