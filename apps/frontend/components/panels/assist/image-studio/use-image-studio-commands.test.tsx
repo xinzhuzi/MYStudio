@@ -67,10 +67,18 @@ describe("image-studio 指令执行器(二期扩容)", () => {
     expect(detail?.promptNodeId).toBeTruthy();
     const graph = activeGraph()!;
     expect(graph.nodes.length).toBe(before + 2);
+    // 09-03 一个成图只吃一根提示词:新组自带提示词(promptNodeId),旧提示词的
+    // 额外连线被单源拒绝——不再出现第二根提示词边
     expect(
       graph.edges.some(
         (edge) =>
           edge.source === group.promptNodeId && edge.target === detail?.nodeId,
+      ),
+    ).toBe(false);
+    expect(
+      graph.edges.some(
+        (edge) =>
+          edge.source === detail?.promptNodeId && edge.target === detail?.nodeId,
       ),
     ).toBe(true);
   });

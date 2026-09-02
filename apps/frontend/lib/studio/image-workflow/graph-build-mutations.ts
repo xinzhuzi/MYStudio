@@ -75,11 +75,7 @@ export function connectImageWorkflowNodes(
   edge: Omit<ImageWorkflowEdge, "id"> & { id?: string },
   updatedAt = Date.now(),
 ): ImageWorkflowGraph {
-  if (edge.source === edge.target) return graph;
-  const source = graph.nodes.find((node) => node.id === edge.source);
-  const target = graph.nodes.find((node) => node.id === edge.target);
-  if (!source || !target || target.type !== "generated") return graph;
-  if (graph.edges.some((item) => item.source === edge.source && item.target === edge.target)) return graph;
+  if (!isValidImageEdge(graph, edge.source, edge.target)) return graph;
 
   return touchGraph({
     ...graph,
@@ -93,6 +89,35 @@ export function connectImageWorkflowNodes(
       },
     ],
   }, updatedAt);
+}
+
+/**
+ * 连线域规则单源谓词(两卡 isValidConnection/handleConnect 共用):
+ * 目标必须成图 / 非自环 / 同向去重 / 一个成图只吃一根提示词边(09-03 用户裁定:
+ * 第二根会被装配静默忽略,歧义消灭在源头)。
+ */
+export function isValidImageEdge(
+  graph: ImageWorkflowGraph,
+  source: string,
+  target: string,
+): boolean {
+  if (source === target) return false;
+  const sourceNode = graph.nodes.find((node) => node.id === source);
+  const targetNode = graph.nodes.find((node) => node.id === target);
+  if (!sourceNode || !targetNode || targetNode.type !== "generated") return false;
+  if (graph.edges.some((item) => item.source === source && item.target === target)) return false;
+  if (sourceNode.type === "prompt") {
+    // 一个成图只吃一根提示词(09-03):已挂「别的」提示词(边或 targetNodeId
+    // 直挂)才拒——自身首根边必须放行(建组流程 prompt 先经 targetNodeId 挂靠)
+    const existing = findPromptNodeForGenerated(graph, target);
+    if (existing && existing.id !== source) return false;
+  }
+  return true;
+}
+
+/** 该成图节点是否已挂提示词源(targetNodeId 直挂或入边) */
+export function hasPromptSource(graph: ImageWorkflowGraph, generatedNodeId: string): boolean {
+  return findPromptNodeForGenerated(graph, generatedNodeId) !== undefined;
 }
 
 export function removeImageWorkflowEdge(

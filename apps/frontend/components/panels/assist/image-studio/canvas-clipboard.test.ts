@@ -99,3 +99,23 @@ describe("importWorkflow 边域规则(09-03 对比补口)", () => {
     expect(imported.edges.map((edge) => edge.id).sort()).toEqual(["e1", "e5"]);
   });
 });
+
+describe("一个成图只接一根提示词边(09-03 用户裁定)", () => {
+  it("第二根提示词边被单源拒绝;断开后可再连", () => {
+    useImageStudioStore.getState().ensureDefaultWorkflow();
+    const group = useImageStudioStore.getState().addGenerationGroup();
+    const store = useImageStudioStore.getState();
+    const second = store.addPromptNode();
+    // 已有一根 p→gen:第二根被拒
+    store.connect(second, group.generatedNodeId);
+    let graph = activeGraph()!;
+    expect(graph.edges.some((edge) => edge.source === second)).toBe(false);
+    // 断开原提示词边后:第二根可连
+    store.removeEdge(`${group.promptNodeId}->${group.generatedNodeId}`);
+    useImageStudioStore.getState().connect(second, group.generatedNodeId);
+    graph = activeGraph()!;
+    expect(
+      graph.edges.some((edge) => edge.source === second && edge.target === group.generatedNodeId),
+    ).toBe(true);
+  });
+});

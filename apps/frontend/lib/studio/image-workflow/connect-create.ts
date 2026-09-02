@@ -6,6 +6,7 @@ import {
   addReferenceImageNode,
   connectImageWorkflowNodes,
   createId,
+  hasPromptSource,
 } from "./graph-build";
 import { nextStackedPosition } from "./layout";
 
@@ -84,6 +85,10 @@ export function createConnectedImageNode(
   }
   // upstream 的连线终点是 fromNode,必须是成图节点
   if (direction === "upstream" && fromNode.type !== "generated") return null;
+  // 该成图已挂提示词源时不再新建提示词(单源会拒边→留下悬空节点)
+  if (direction === "upstream" && input.type === "prompt" && hasPromptSource(graph, input.fromNodeId)) {
+    return null;
+  }
 
   // 布局单源假设节点带 position;历史无位节点(如未摆放的种子)不参与堆叠计算
   const positionedNodes = graph.nodes.filter((node) => node.position);

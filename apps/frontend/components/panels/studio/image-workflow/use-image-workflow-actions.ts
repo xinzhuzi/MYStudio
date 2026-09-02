@@ -8,6 +8,7 @@ import {
   addReferenceImageNode,
   connectImageWorkflowNodes,
   createId,
+  hasPromptSource,
   removeImageWorkflowEdge,
   removeImageWorkflowNode,
 } from "@/lib/studio/image-workflow";
@@ -205,6 +206,16 @@ export function useImageWorkflowActions({
 
   const handleConnect = useCallback((connection: Connection) => {
     if (!activeGraph || !connection.source || !connection.target) return;
+    const target = activeGraph.nodes.find((node) => node.id === connection.target);
+    if (target?.type !== "generated") {
+      toast.error("连线目标必须是成图节点");
+      return;
+    }
+    const source = activeGraph.nodes.find((node) => node.id === connection.source);
+    if (source?.type === "prompt" && hasPromptSource(activeGraph, connection.target)) {
+      toast.error("该成图已接提示词:一个成图只接一根提示词连线,请先断开原有的再连");
+      return;
+    }
     saveGraph(connectImageWorkflowNodes(activeGraph, {
       source: connection.source,
       target: connection.target,

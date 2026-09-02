@@ -436,4 +436,4 @@ export function addGeneratedImageNode(
 
 
 
-export { addPromptImageNode, addStoryboardLayeredNodes, collapseEquivalentReferenceNodes, connectImageWorkflowNodes, createId, findPromptNodeForGenerated, getGeneratedNode, removeImageWorkflowEdge, removeImageWorkflowNode, setGeneratedImageResult, setGeneratedImageStatus, updateImageWorkflowNode, updateImageWorkflowNodePosition } from "./graph-build-mutations";
+export { addPromptImageNode, addStoryboardLayeredNodes, collapseEquivalentReferenceNodes, connectImageWorkflowNodes, createId, findPromptNodeForGenerated, getGeneratedNode, hasPromptSource, isValidImageEdge, removeImageWorkflowEdge, removeImageWorkflowNode, setGeneratedImageResult, setGeneratedImageStatus, updateImageWorkflowNode, updateImageWorkflowNodePosition } from "./graph-build-mutations";

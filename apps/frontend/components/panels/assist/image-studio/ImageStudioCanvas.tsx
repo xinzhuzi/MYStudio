@@ -37,7 +37,7 @@ import { relatedEdges } from "@/lib/studio/image-workflow/relation-graph";
 import { InteractionDeferHint } from "@/components/panels/studio/previews/interaction-defer-hint";
 import { useCanvasGestureKernel } from "@/components/panels/studio/use-canvas-gesture-kernel";
 // 画布手势内核/门闸提示与分镜画布共用(08-30 收敛 Phase2 之后再整体上提 features/)
-import { findPromptNodeForGenerated } from "@/lib/studio/image-workflow/graph-build";
+import { findPromptNodeForGenerated, hasPromptSource } from "@/lib/studio/image-workflow/graph-build";
 import { saveReferenceFile } from "@/lib/assist/image-studio/reference-upload";
 import { useFreedomStore } from "@/stores/assist/freedom-store";
 import {
@@ -568,6 +568,11 @@ export function ImageStudioCanvas() {
         toast.error("连线目标必须是成图节点");
         return;
       }
+      const source = graph?.nodes.find((node) => node.id === connection.source);
+      if (source?.type === "prompt" && graph && hasPromptSource(graph, connection.target)) {
+        toast.error("该成图已接提示词:一个成图只接一根提示词连线,请先断开原有的再连");
+        return;
+      }
       connect(connection.source, connection.target);
     },
     [connect],
@@ -1022,7 +1027,12 @@ function ImageStudioFlowView({
         onEdgesDelete={(deleted) => onEdgesDelete(deleted.map((edge) => edge.id))}
         isValidConnection={(connection) =>
           connection.target !== connection.source &&
-          graph?.nodes.find((node) => node.id === connection.target)?.type === "generated"
+          graph?.nodes.find((node) => node.id === connection.target)?.type === "generated" &&
+          !(
+            connection.source &&
+            graph?.nodes.find((node) => node.id === connection.source)?.type === "prompt" &&
+            hasPromptSource(graph, connection.target)
+          )
         }
         onInit={(instance) => {
           setFlowInstance(instance);

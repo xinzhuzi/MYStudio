@@ -117,13 +117,26 @@ export function ImageWorkflowFlowView({
     [],
   );
 
-  const connectCreateOptions = useMemo(
-    () =>
-      connectCreateAnchor
-        ? getCreatableImageNodeTypes(connectCreateDirection(connectCreateAnchor.fromHandleType))
-        : [],
-    [connectCreateAnchor],
-  );
+  const connectCreateOptions = useMemo(() => {
+    if (!connectCreateAnchor) return [];
+    const options = getCreatableImageNodeTypes(
+      connectCreateDirection(connectCreateAnchor.fromHandleType),
+    );
+    // upstream(从成图输入手柄拖出)且该成图已挂提示词源:不再提供提示词候选
+    // ——一个成图只接一根提示词边(09-03),提供必被单源拒绝的死选项只会困惑
+    if (connectCreateAnchor.fromHandleType === "target") {
+      const graph = activeGraph;
+      const hasPrompt =
+        graph &&
+        graph.edges.some(
+          (edge) =>
+            edge.target === connectCreateAnchor.fromNodeId &&
+            graph.nodes.find((node) => node.id === edge.source)?.type === "prompt",
+        );
+      if (hasPrompt) return options.filter((option) => option.type !== "prompt");
+    }
+    return options;
+  }, [connectCreateAnchor, activeGraph]);
 
   const handleConnectCreateSelect = useCallback(
     (type: "generated" | "prompt" | "reference") => {
@@ -213,6 +226,19 @@ export function ImageWorkflowFlowView({
         onMoveStart={handleMoveStart}
         onMoveEnd={handleMoveEnd}
         onConnect={onConnect}
+        isValidConnection={(connection) =>
+          connection.target !== connection.source &&
+          activeGraph?.nodes.find((node) => node.id === connection.target)?.type === "generated" &&
+          !(
+            connection.source &&
+            activeGraph?.nodes.find((node) => node.id === connection.source)?.type === "prompt" &&
+            activeGraph.edges.some(
+              (edge) =>
+                edge.target === connection.target &&
+                activeGraph.nodes.find((node) => node.id === edge.source)?.type === "prompt",
+            )
+          )
+        }
         onConnectEnd={handleConnectEnd}
         onInit={(instance) => {
           setFlowInstance(instance);
