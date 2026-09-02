@@ -31,6 +31,8 @@ interface SaveToPropsDialogProps {
   onOpenChange: (open: boolean) => void;
   /** 待保存的图片URL列表(批量生成时多张;可能是远程URL) */
   imageUrls: string[];
+  /** 预览图(默认首张;批量组传当前主图,预览与节点一致) */
+  previewUrl?: string;
   /** 生成时的提示词，可选 */
   prompt?: string;
 }
@@ -39,6 +41,7 @@ export function SaveToPropsDialog({
   open,
   onOpenChange,
   imageUrls,
+  previewUrl,
   prompt = '',
 }: SaveToPropsDialogProps) {
   const { folders, addProp, addFolder, setSelectedFolderId } =
@@ -68,13 +71,18 @@ export function SaveToPropsDialog({
     const width = String(total).length;
     setSaving(true);
     try {
+      // saveImageToLocal 失败不抛错、静默回落原 URL(深审 P2-1)——按返回值
+      // 如实分类:落库(local-image://props 新址)vs 直接引用原图地址
+      let persistedCount = 0;
       for (let index = 0; index < total; index += 1) {
         // 尝试持久化到本地存储（Electron），浏览器端回退为原始URL
+        const source = imageUrls[index];
         const localPath = await saveImageToLocal(
-          imageUrls[index],
+          source,
           'props',
           `prop_${Date.now()}_${index + 1}.png`
         );
+        if (localPath !== source) persistedCount += 1;
         addProp({
           name: total > 1 ? `${baseName}-${String(index + 1).padStart(width, '0')}` : baseName,
           imageUrl: localPath,
@@ -84,9 +92,16 @@ export function SaveToPropsDialog({
       }
       // 同步道具库侧边栏选中状态（跳转到目标目录）
       setSelectedFolderId(selectedFolderId ?? 'all');
-      toast.success(
-        total > 1 ? `「${baseName}」${total} 张已编号保存到道具库` : `「${baseName}」已保存到道具库`
-      );
+      const linkedCount = total - persistedCount;
+      if (linkedCount === 0) {
+        toast.success(
+          total > 1 ? `「${baseName}」${total} 张已编号保存到道具库` : `「${baseName}」已保存到道具库`
+        );
+      } else {
+        toast.warning(
+          `「${baseName}」${persistedCount}/${total} 张已落库,${linkedCount} 张未能落库,直接引用原图地址`
+        );
+      }
       onOpenChange(false);
       // 重置表单
       setPropName('');
@@ -119,15 +134,15 @@ export function SaveToPropsDialog({
         </DialogHeader>
 
         <div className="space-y-4 py-2">
-          {/* 图片预览(批量=主图+张数角标) */}
+          {/* 图片预览(批量=主图+张数角标;previewUrl=节点当前主图) */}
           <div className="flex justify-center">
             <div className="relative w-32 h-32 rounded-lg border border-border bg-muted overflow-hidden">
               <img
-                src={imageUrls[0]}
+                src={previewUrl ?? imageUrls[0]}
                 alt="预览"
                 className="w-full h-full object-cover"
               />
-              <ResolutionBadge src={imageUrls[0]} />
+              <ResolutionBadge src={previewUrl ?? imageUrls[0]} />
               {imageUrls.length > 1 ? (
                 <span className="absolute bottom-1 right-1 rounded bg-background/80 px-1.5 py-0.5 text-[10px] font-medium text-foreground backdrop-blur-sm">
                   共 {imageUrls.length} 张

@@ -182,7 +182,7 @@ export function ImageStudioCanvas() {
 
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [historyOpen, setHistoryOpen] = useState(false);
-  const [propsDialog, setPropsDialog] = useState<{ imageUrls: string[]; prompt: string } | null>(null);
+  const [propsDialog, setPropsDialog] = useState<{ imageUrls: string[]; primaryUrl?: string; prompt: string } | null>(null);
   const [renameOpen, setRenameOpen] = useState(false);
   const [renameValue, setRenameValue] = useState("");
   const [deleteOpen, setDeleteOpen] = useState(false);
@@ -374,6 +374,7 @@ export function ImageStudioCanvas() {
         const promptNode = graph ? findPromptNodeForGenerated(graph, nodeId) : undefined;
         setPropsDialog({
           imageUrls,
+          primaryUrl: node.resultUrl,
           prompt: promptNode?.prompt || node.prompt,
         });
       }
@@ -643,6 +644,7 @@ export function ImageStudioCanvas() {
             if (!open) setPropsDialog(null);
           }}
           imageUrls={propsDialog.imageUrls}
+          previewUrl={propsDialog.primaryUrl}
           prompt={propsDialog.prompt}
         />
       ) : null}

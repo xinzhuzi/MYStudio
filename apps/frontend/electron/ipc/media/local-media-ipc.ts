@@ -211,6 +211,10 @@ export function registerLocalMediaIpcHandlers({ getMediaRoot }: RegisterLocalMed
           return { success: false, error: "Decoded base64 data is empty (0 bytes)" };
         }
         fs.writeFileSync(filePath, buffer);
+      } else if (url.startsWith("local-image://")) {
+        // 本地媒体源=同根复制入目标分类(此前恒走下载分支必失败,道具库
+        // 只能引用 ai-image 原址,资产治理清理后道具会断链)
+        fs.copyFileSync(resolveLocalMediaPath(getMediaRoot(), url), filePath);
       } else {
         await downloadImage(url, filePath);
       }

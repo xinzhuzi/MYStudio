@@ -2,7 +2,7 @@
 // Licensed under AGPL-3.0-or-later. See LICENSE for details.
 // Commercial licensing available. See COMMERCIAL_LICENSE.md.
 
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { ImagePlus, LayoutGrid, Maximize, Type, WandSparkles } from "lucide-react";
 import { CONTEXT_MENU_ARRIVAL_CLASS, useContextMenuClamp } from "./context-menu-craft";
 
@@ -41,18 +41,23 @@ export function PaneCreateMenu({
   onClose: () => void;
 }) {
   const rootRef = useContextMenuClamp({ x, y });
+  const onCloseRef = useRef(onClose);
+  useEffect(() => {
+    onCloseRef.current = onClose;
+  }, [onClose]);
 
   useEffect(() => {
     const first = rootRef.current?.querySelector<HTMLButtonElement>("button[data-option]");
     first?.focus();
     const onPointerDown = (event: PointerEvent) => {
-      if (rootRef.current && !rootRef.current.contains(event.target as Node)) onClose();
+      if (rootRef.current && !rootRef.current.contains(event.target as Node)) onCloseRef.current();
     };
     document.addEventListener("pointerdown", onPointerDown, true);
     return () => document.removeEventListener("pointerdown", onPointerDown, true);
-    // rootRef 来自 useContextMenuClamp 内部 useRef,跨渲染稳定,不入 deps
+    // rootRef 来自 useContextMenuClamp 内部 useRef,跨渲染稳定;onClose 经 ref
+    // 透传,父组件 inline arrow 重渲染不再重挂监听抢回焦点
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [onClose]);
+  }, []);
 
   return (
     <div
@@ -73,8 +78,14 @@ export function PaneCreateMenu({
           event.currentTarget.querySelectorAll<HTMLButtonElement>("button[data-option]"),
         );
         const current = buttons.indexOf(document.activeElement as HTMLButtonElement);
-        const delta = event.key === "ArrowDown" ? 1 : -1;
-        buttons[(current + delta + buttons.length) % buttons.length]?.focus();
+        // 未聚焦时 ArrowDown=首项、ArrowUp=末项((-1-1+n)%n 会跳过末项)
+        const nextIndex =
+          current < 0
+            ? event.key === "ArrowDown"
+              ? 0
+              : buttons.length - 1
+            : (current + (event.key === "ArrowDown" ? 1 : -1) + buttons.length) % buttons.length;
+        buttons[nextIndex]?.focus();
       }}
     >
       {CREATE_ITEMS.map((item) => (

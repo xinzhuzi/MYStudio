@@ -47,4 +47,21 @@ describe("PaneCreateMenu", () => {
     fireEvent.keyDown(menu, { key: "Escape" });
     expect(onClose).toHaveBeenCalledTimes(1);
   });
+
+  it("未聚焦时 ArrowUp 直达末项(不跳过最后一项)", () => {
+    renderMenu();
+    const menu = screen.getByRole("menu", { name: "创建节点" });
+    fireEvent.keyDown(menu, { key: "ArrowUp" });
+    expect(document.activeElement).toBe(screen.getByRole("menuitem", { name: /^适配画布/ }));
+  });
+
+  it("父组件重渲染不抢回键盘焦点(onClose 经 ref 透传)", () => {
+    const onClose = vi.fn();
+    const { rerender } = render(<PaneCreateMenu x={0} y={0} onSelect={vi.fn()} onClose={onClose} />);
+    const second = screen.getByRole("menuitem", { name: /^参考图/ });
+    fireEvent.keyDown(screen.getByRole("menuitem", { name: /^文生图/ }), { key: "ArrowDown" });
+    expect(document.activeElement).toBe(second);
+    rerender(<PaneCreateMenu x={0} y={0} onSelect={vi.fn()} onClose={onClose} />);
+    expect(document.activeElement).toBe(second);
+  });
 });
