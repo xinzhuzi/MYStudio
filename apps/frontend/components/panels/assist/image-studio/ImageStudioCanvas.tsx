@@ -55,6 +55,7 @@ import { ImageStudioToolbar } from "./image-studio-toolbar";
 import { useImageStudioGeneration } from "./use-image-studio-generation";
 import { PaneCreateMenu, type PaneCanvasAction, type PaneCreateKind } from "./pane-create-menu";
 import { NodeContextMenu } from "./node-context-menu";
+import { effectiveBatchImages } from "./image-studio-batch";
 import { CanvasHints } from "./canvas-hints";
 import { useImageDrop } from "./use-image-drop";
 
@@ -98,6 +99,15 @@ export function ImageStudioCanvas() {
   }, [commitSnapshot]);
 
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  // onSelectionChange 在 jsdom 里可能被重复派发(同 id 新数组),裸 setState 会造出
+  // 「回调→重渲染→再回调」的无限微任务循环把 worker 饿死;同值必须复用旧引用断链。
+  const handleSelectionIds = useCallback((nodeIds: string[]) => {
+    setSelectedIds((prev) =>
+      prev.length === nodeIds.length && prev.every((id, i) => id === nodeIds[i])
+        ? prev
+        : nodeIds,
+    );
+  }, []);
   const importInputRef = useRef<HTMLInputElement | null>(null);
 
   // 导出/导入画布 JSON(09-02 R2:导出保引用不打包;导入校验+失效降级)
@@ -357,10 +367,9 @@ export function ImageStudioCanvas() {
       const graph = selectActiveImageStudioWorkflow(useImageStudioStore.getState());
       const node = graph?.nodes.find((item) => item.id === nodeId);
       if (node?.type === "generated" && node.resultUrl) {
-        // 批量组整组进弹窗(每张自动编号落库);单图/旧数据回落主图
-        const imageUrls = node.imageBatch?.images?.length
-          ? node.imageBatch.images
-          : [node.resultUrl];
+        // 生效组整组进弹窗(不变量:超分/单张重生成后回落主图);每张自动编号落库
+        const imageUrls = effectiveBatchImages(node);
+        if (imageUrls.length === 0) return;
         // 弹窗 prompt 标签取生效提示词(连线提示词节点优先,成图节点内联回落)
         const promptNode = graph ? findPromptNodeForGenerated(graph, nodeId) : undefined;
         setPropsDialog({
@@ -552,7 +561,7 @@ export function ImageStudioCanvas() {
           onNodeClick={setSelectedNodeId}
           onPaneClick={() => setSelectedNodeId(null)}
           onPaneContextMenu={handlePaneContextMenu}
-          onSelection={setSelectedIds}
+          onSelection={handleSelectionIds}
           dropHandlers={dropHandlers}
           onNodeContextMenu={handleNodeContextMenu}
           onConnect={handleConnect}
@@ -774,6 +783,14 @@ function ImageStudioFlowView({
 }) {
   const [nodes, setNodes, onNodesChange] = useNodesState<ImageStudioReactNode>(reactFlowNodes);
 
+  // 回调身份稳定:内联箭头每次渲染换新引用,会放大 jsdom 下 selection 派发循环
+  const handleSelectionChange = useCallback(
+    (selected: { nodes: Array<{ id: string }> }) => {
+      onSelection(selected.nodes.map((node) => node.id));
+    },
+    [onSelection],
+  );
+
 
   useEffect(() => {
     // 09-02 日志终局根修:[isi] 实录每键 setNodes measured=0 → RF 判节点未测量
@@ -877,9 +894,7 @@ function ImageStudioFlowView({
         elementsSelectable
         panOnDrag={[2]}
         selectionOnDrag
-        onSelectionChange={(selected) => {
-          onSelection(selected.nodes.map((node) => node.id));
-        }}
+        onSelectionChange={handleSelectionChange}
         zoomOnScroll={false}
         zoomOnPinch
         zoomOnDoubleClick={false}

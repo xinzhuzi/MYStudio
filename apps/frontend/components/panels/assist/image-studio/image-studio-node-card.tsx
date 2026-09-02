@@ -33,6 +33,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { ModelSelector } from "@/components/panels/assist/ModelSelector";
 import { IMAGE_ASPECT_RATIOS, IMAGE_RESOLUTIONS } from "@/lib/ai/image-size-presets";
 import { referenceCapacityForModel } from "./image-studio-node-registry";
+import { effectiveBatchImages } from "./image-studio-batch";
 import { toPreviewSrc } from "@/lib/media/preview-src";
 import { UPSCALE_INPUT_MAX_LONG_SIDE } from "@/lib/upscale/client";
 import { cn } from "@/lib/utils";
@@ -398,12 +399,11 @@ function BatchImageArea({
   node: ImageWorkflowGeneratedNode;
 }) {
   const [viewIndex, setViewIndex] = useState(0);
-  const batch = node.imageBatch;
-  const images = batch?.images ?? [];
+  // 生效组(不变量见 effectiveBatchImages):超分/单张重生成后旧 batch 不再显示
+  const images = effectiveBatchImages(node);
   // 图片数变化(重新生成)时钳回有效范围
   const safeIndex = Math.min(viewIndex, Math.max(0, images.length - 1));
-  const current =
-    (images.length > 0 ? images[safeIndex] : undefined) ?? node.resultUrl ?? "";
+  const current = images[safeIndex] ?? node.resultUrl ?? "";
 
   if (!node.resultUrl) {
     return (
@@ -489,16 +489,31 @@ function GeneratedNodeEditor({
   const generating = node.status === "generating" || node.status === "queued";
   const elapsedSeconds = useElapsedSeconds(generating);
   const [imageLongSide, setImageLongSide] = useState(0);
-  // 批量组全量图(保存/下载都以组为单位;单图与旧数据回落主图)
-  const batchImages = node.imageBatch?.images?.length
-    ? node.imageBatch.images
-    : node.resultUrl
-      ? [node.resultUrl]
-      : [];
+  // 生效组整组图(保存/下载都以组为单位;超分/单张重生成后旧组回落主图)
+  const batchImages = effectiveBatchImages(node);
   const downloadAllImages = () => {
     const total = batchImages.length;
     if (total === 0) return;
     const width = String(total).length;
+    // Electron 下载正路=原生另存对话框(媒体库同款):local-image:// 协议
+    // 响应无 Content-Disposition,<a download> 对其不可靠(深审 P1-3);
+    // 多张=逐张弹原生对话框,defaultPath 预填顺序编号,取消即停后续。
+    if (typeof window !== "undefined" && window.electronAPI?.saveFileDialog) {
+      const saveViaDialog = window.electronAPI.saveFileDialog;
+      void (async () => {
+        for (let index = 0; index < total; index += 1) {
+          const suffix = total > 1 ? `-${String(index + 1).padStart(width, "0")}` : "";
+          const result = await saveViaDialog({
+            localPath: batchImages[index],
+            defaultPath: `图片${suffix}.png`,
+            filters: [{ name: "Image", extensions: ["png", "jpg", "jpeg", "webp"] }],
+          });
+          if (!result?.success) return;
+        }
+      })();
+      return;
+    }
+    // 浏览器回退:锚点错峰下载
     batchImages.forEach((url, index) => {
       const anchor = document.createElement("a");
       anchor.href = toPreviewSrc(url);
@@ -664,7 +679,7 @@ function GeneratedNodeEditor({
       {/* 操作区:左侧状态徽章,右侧次要动作;生成/停止独立成行压底(视觉锚) */}
       <div className="nodrag nopan flex items-center justify-between border-t border-border/60 pt-2">
         <span className="flex min-w-0 items-center gap-1.5 text-[10px] font-medium text-muted-foreground">
-          {node.status === "ready" ? <CheckCircle2 className="h-3.5 w-3.5 text-success" aria-label="已完成" /> : null}
+          {node.status === "ready" ? <CheckCircle2 role="img" className="h-3.5 w-3.5 text-success" aria-label="已完成" /> : null}
           {generating
             ? `${STATUS_LABELS[node.status]} · 已用 ${formatElapsedSeconds(elapsedSeconds)}`
             : node.status === "failed"
