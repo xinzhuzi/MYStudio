@@ -212,7 +212,31 @@ function createElectronImageProxyFetch(
       pollAttempt: meta.pollAttempt,
       pollStatus: meta.pollStatus,
     };
-    return resultToResponse(await imageRequest(payload));
+
+    // 09-02 停止失效根修:此前 init.signal 被整体丢弃——本地生成走 imageRequest
+    // IPC,渲染层 abort 后无人响应,请求一直挂到主进程完成(用户点停止无效)。
+    // IPC 本身不可中途取消,这里与 abort 信号竞速:停止瞬间以 AbortError 出队
+    // (上层 abortedByUser 分支按用户停止回 idle),主进程侧计算自然跑完丢弃。
+    const signal = init instanceof Request ? init.signal : init?.signal;
+    if (signal?.aborted) {
+      throw signal.reason ?? new DOMException("用户已停止", "AbortError");
+    }
+    const pending = imageRequest(payload);
+    if (!signal) {
+      return resultToResponse(await pending);
+    }
+    return resultToResponse(
+      await Promise.race([
+        pending,
+        new Promise<never>((_, reject) => {
+          signal.addEventListener(
+            "abort",
+            () => reject(signal.reason ?? new DOMException("用户已停止", "AbortError")),
+            { once: true },
+          );
+        }),
+      ]),
+    );
   };
 }
 

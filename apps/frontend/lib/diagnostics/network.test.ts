@@ -198,4 +198,69 @@ describe("observedFetch", () => {
       size: "1024x1024",
     });
   });
+
+  /**
+   * 防回归(09-02 停止失效根修):本地生图走 imageRequest IPC,此前代理层把
+   * init.signal 整体丢弃——用户点「停止」后请求挂到主进程完成(界面卡生成中)。
+   * 契约=信号 abort 瞬间以 AbortError 出队;IPC 未取消也不产生未处理拒绝。
+   */
+  it("image proxy aborts immediately when the caller's signal fires (stop button)", async () => {
+    const logEvent = vi.fn();
+    let releaseIpc: (value: unknown) => void = () => {};
+    const imageRequest = vi.fn(
+      (_payload: unknown) => new Promise((resolve) => { releaseIpc = resolve as (value: unknown) => void; }),
+    );
+    vi.stubGlobal("fetch", vi.fn());
+    vi.stubGlobal("window", { electronAPI: { imageRequest } });
+
+    const controller = new AbortController();
+    const pending = observedFetch(
+      "http://127.0.0.1:17595/v1/images/generations",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ model: "krea2-turbo", prompt: "x" }),
+        signal: controller.signal,
+      },
+      {
+        operationId: "op-stop",
+        endpointFamily: "images-generations",
+        providerId: "local",
+        providerName: "本地",
+        model: "krea2-turbo",
+        timeoutMs: 900_000,
+        logEvent,
+      },
+    );
+    await new Promise((resolve) => setTimeout(resolve, 10));
+    controller.abort();
+    await expect(pending).rejects.toMatchObject({ name: "AbortError" });
+    // IPC 侧迟到完成不炸未处理拒绝
+    releaseIpc({ ok: true, status: 200, statusText: "OK", headers: {}, body: "{}" });
+    await new Promise((resolve) => setTimeout(resolve, 10));
+  });
+
+  it("image proxy rejects immediately when the signal is already aborted", async () => {
+    const imageRequest = vi.fn(async () => ({ ok: true, status: 200, statusText: "OK", headers: {}, body: "{}" }));
+    vi.stubGlobal("fetch", vi.fn());
+    vi.stubGlobal("window", { electronAPI: { imageRequest } });
+    const controller = new AbortController();
+    controller.abort();
+    await expect(
+      observedFetch(
+        "http://127.0.0.1:17595/v1/images/generations",
+        { method: "POST", signal: controller.signal },
+        {
+          operationId: "op-stop2",
+          endpointFamily: "images-generations",
+          providerId: "local",
+          providerName: "本地",
+          model: "krea2-turbo",
+          timeoutMs: 900_000,
+          logEvent: vi.fn(),
+        },
+      ),
+    ).rejects.toMatchObject({ name: "AbortError" });
+    expect(imageRequest).not.toHaveBeenCalled();
+  });
 });
