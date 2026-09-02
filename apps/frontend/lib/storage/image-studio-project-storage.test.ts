@@ -159,6 +159,46 @@ describe("image-studio 分片式项目存储(09-03)", () => {
     }
   });
 
+  it("事故回归:manifest 在场+legacy 在→按 id 并入救回,消费后才退役;无 legacy 不退役", async () => {
+    useProjectStore.setState({ activeProjectId: "p1" });
+    const files = new Map<string, string>();
+    const { uninstall } = installFileStorageBridge(files);
+    const storage = createImageStudioProjectStorage({ sanitizeWorkflow: identity });
+    try {
+      // 先落一个只有 A 的 manifest
+      await storage.getItem("mystudio-image-studio");
+      await storage.setItem(
+        "mystudio-image-studio",
+        persisted([{ id: "canvas-a", name: "A", updatedAt: 1, nodes: [], edges: [] }]),
+      );
+      // 模拟事故现场:localStorage 里还躺着没被迁移的旧账(含 B/C,A 同 id)
+      localStorage.setItem(
+        "mystudio-image-studio",
+        persisted([
+          { id: "canvas-a", name: "A旧", updatedAt: 0, nodes: [], edges: [] },
+          { id: "canvas-b", name: "B旧账", updatedAt: 0, nodes: [], edges: [] },
+        ]),
+      );
+      // 新 storage 实例(新会话):manifest 服务,但旧账被并入救回(A 冲突 manifest 胜)
+      const storage2 = createImageStudioProjectStorage({ sanitizeWorkflow: identity });
+      const raw = await storage2.getItem("mystudio-image-studio");
+      const names = JSON.parse(raw!).state.workflows.map((w: { name: string }) => w.name);
+      expect(names).toEqual(["A", "B旧账"]);
+      // 写入后:救回的 B 落分片,旧账退役
+      await storage2.setItem("mystudio-image-studio", raw!);
+      expect(files.has(`${P}/canvas-b`)).toBe(true);
+      expect(localStorage.getItem("mystudio-image-studio")).toBeNull();
+
+      // 无 legacy 的纯 manifest 流:任何写入都不退役(不存在的)旧账——键保持 null 不炸
+      const storage3 = createImageStudioProjectStorage({ sanitizeWorkflow: identity });
+      const raw3 = await storage3.getItem("mystudio-image-studio");
+      await storage3.setItem("mystudio-image-studio", raw3!);
+      expect(localStorage.getItem("mystudio-image-studio")).toBeNull();
+    } finally {
+      uninstall();
+    }
+  });
+
   it("预水合写守卫:首读前的 setItem 丢弃;无项目走 legacy", async () => {
     useProjectStore.setState({ activeProjectId: "p1" });
     const files = new Map<string, string>();

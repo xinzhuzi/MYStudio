@@ -139,6 +139,9 @@ export function createImageStudioProjectStorage<T extends { id: string }>(
 ): StateStorage {
   const sanitizeWorkflow = options.sanitizeWorkflow as unknown as ImageStudioShardedStorageOptions["sanitizeWorkflow"];
   let hydratedOnce = false;
+  /** legacy(localStorage 旧账)是否被消费过(服务或合并)——只有消费过才允许退役,
+   * 防止 manifest 在场时把没读过的旧账直接删掉(09-03 退役时机事故根因) */
+  let legacyConsumed = false;
   /** 旧账(localStorage 键+legacy 文件)只退修一次——首个成功项目写入后 */
   let legacyRetired = false;
   /** 上次落盘快照(增量写 diff 基线):canvasId→分片串 + manifest 串 */
@@ -175,6 +178,20 @@ export function createImageStudioProjectStorage<T extends { id: string }>(
           const nodeExtras = manifest.nodeExtras && typeof manifest.nodeExtras === "object"
             ? manifest.nodeExtras
             : {};
+          // 自愈(09-03 事故根因):manifest 在场时旧账若还在(localStorage 未被
+          // 正常迁移),按 id 并入(冲突时 manifest 侧胜)——旧数据不搁浅,
+          // 下次写入随全量落分片,随后退役才安全
+          const legacyRaw = localStorage.getItem(name);
+          if (legacyRaw !== null) {
+            const legacyState = parseOrNull(legacyRaw) as
+              | { state?: { workflows?: unknown } }
+              | null;
+            const present = new Set(canvases.map((canvas) => canvas.id));
+            for (const legacyCanvas of asCanvasList(legacyState?.state?.workflows)) {
+              if (!present.has(legacyCanvas.id)) canvases.push(legacyCanvas);
+            }
+            legacyConsumed = true;
+          }
           return assemblePersisted(
             canvases,
             typeof manifest.activeWorkflowId === "string" ? manifest.activeWorkflowId : null,
@@ -203,6 +220,7 @@ export function createImageStudioProjectStorage<T extends { id: string }>(
         const legacy = localStorage.getItem(name);
         if (legacy !== null) {
           hydratedOnce = true;
+          legacyConsumed = true;
           return legacy;
         }
         // 新鲜项目:manifest 确不存在 → 空态;存在但读失败 → null(保持内存态)
@@ -258,8 +276,9 @@ export function createImageStudioProjectStorage<T extends { id: string }>(
       }
       lastWrittenCanvases = next;
       lastWrittenManifest = manifestString;
-      // 写入已落项目分片:退役旧账(localStorage 键+legacy 文件),只做一次
-      if (!legacyRetired) {
+      // 退役旧账只发生在「legacy 被消费过」(服务过或合并救回过)且尚未退修——
+      // 没读过就删=丢数据(09-03 事故);未消费的旧账原地保留
+      if (legacyConsumed && !legacyRetired) {
         localStorage.removeItem(name);
         await fileStorage.removeItem(name);
         legacyRetired = true;
