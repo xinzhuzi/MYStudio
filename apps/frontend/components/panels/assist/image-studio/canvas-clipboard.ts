@@ -1,4 +1,5 @@
 import { useImageStudioStore } from "@/stores/assist/image-studio-store";
+import { connectImageWorkflowNodes } from "@/lib/studio/image-workflow/graph-build";
 import type { ImageWorkflowEdge, ImageWorkflowNode } from "@/types/studio";
 
 /**
@@ -61,13 +62,9 @@ export function pasteFromClipboard(): string[] {
       const source = idMap.get(edge.source);
       const target = idMap.get(edge.target);
       if (!source || !target) continue;
-      next = {
-        ...next,
-        edges: [
-          ...next.edges,
-          { ...edge, id: `${source}->${target}`, source, target },
-        ],
-      };
+      // 边复建必经域规则单源(connectImageWorkflowNodes:目标成图/非自环/
+      // 去重)——粘贴不私设旁路,规则闸口唯一
+      next = connectImageWorkflowNodes(next, { ...edge, id: `${source}->${target}`, source, target });
     }
     return next;
   });

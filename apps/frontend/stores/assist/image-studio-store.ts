@@ -307,14 +307,27 @@ export const useImageStudioStore = create<ImageStudioStore>()(
         );
         if (nodes.length === 0) return { ok: false, error: "没有有效节点" };
         const nodeIds = new Set(nodes.map((node) => node.id as string));
-        const edges = (data.edges as Array<Record<string, unknown>>).filter(
-          (edge) =>
-            typeof edge.id === "string" &&
-            typeof edge.source === "string" &&
-            typeof edge.target === "string" &&
-            nodeIds.has(edge.source as string) &&
-            nodeIds.has(edge.target as string),
-        );
+        const nodeTypeById = new Map(nodes.map((node) => [node.id as string, node.type as string]));
+        // 边域规则与单源对齐(connectImageWorkflowNodes 三条):目标必须成图/
+        // 非自环/同向去重——不合规边丢弃(与 media 失效降级同哲学:宽容导入)
+        const seenEdgePairs = new Set<string>();
+        const edges = (data.edges as Array<Record<string, unknown>>).filter((edge) => {
+          if (
+            typeof edge.id !== "string" ||
+            typeof edge.source !== "string" ||
+            typeof edge.target !== "string" ||
+            !nodeIds.has(edge.source as string) ||
+            !nodeIds.has(edge.target as string)
+          ) {
+            return false;
+          }
+          if (edge.source === edge.target) return false;
+          if (nodeTypeById.get(edge.target as string) !== "generated") return false;
+          const pair = `${edge.source}->${edge.target}`;
+          if (seenEdgePairs.has(pair)) return false;
+          seenEdgePairs.add(pair);
+          return true;
+        });
         const id = get().createWorkflow(
           typeof data.name === "string" ? `${data.name}(导入)` : undefined,
         );
