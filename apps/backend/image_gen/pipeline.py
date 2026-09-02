@@ -29,6 +29,20 @@ from .engines import comfyui_bridge as _comfyui_bridge
 _lock = threading.Lock()
 # 生成互斥的排队上限(秒):拿不到锁时排队等待,超时按「正忙」拒绝
 _GENERATION_LOCK_TIMEOUT_S = 600
+# 服务端真取消(09-02):用户点「停止」→渲染层对 sidecar 发 /v1/images/cancel
+# →置位本事件→引擎逐步回调检测到即中止,生成锁立即释放(此前 IPC 不可中途
+# 取消,停止后已开跑的图要空转 2-3 分钟,期间再点生成只能排队)。每次新
+# 生成在持锁后清位。
+_CANCEL_EVENT = threading.Event()
+
+
+def cancel_generation() -> None:
+    """请求中止当前在途生成(幂等;无在途生成时无副作用)。"""
+    _CANCEL_EVENT.set()
+
+
+def is_generation_cancelled() -> bool:
+    return _CANCEL_EVENT.is_set()
 
 # Compatibility state for the pre-engine-separation worker API.  The Qwen
 # engine cache remains the single source of truth; exposing the same mapping
@@ -308,6 +322,7 @@ def generate_image(
     # 排队等待(画布多节点连点体验=依次完成),600s 仍拿不到锁才报正忙。
     if not _lock.acquire(timeout=_GENERATION_LOCK_TIMEOUT_S):
         raise PipelineError("generation-busy", "图像生成正忙，请稍后重试")
+    _CANCEL_EVENT.clear()
     try:
         return engine.generate(
             prompt=prompt,

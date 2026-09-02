@@ -170,6 +170,13 @@ class Handler(BaseHTTPRequestHandler):
         if path == "/v1/images/generations":
             self._handle_generate(payload)
             return
+        if path == "/v1/images/cancel":
+            # 服务端真取消(09-02):置位取消事件,在途推理逐步中止,锁即释放
+            from .pipeline import cancel_generation
+
+            cancel_generation()
+            self._send_json({"ok": True, "cancelled": True})
+            return
         if path == "/models/download":
             self._handle_download(payload)
             return
@@ -247,6 +254,12 @@ class Handler(BaseHTTPRequestHandler):
             self._send_error_json(status, exc.message, exc.code)
             return
         except Exception as exc:
+            from .pipeline import is_generation_cancelled
+
+            if is_generation_cancelled():
+                # 用户主动停止:取消位在锁释放前保持,下一个请求持锁后会清位
+                self._send_error_json(HTTPStatus.OK, "已停止", "generation-cancelled")
+                return
             self._send_error_json(HTTPStatus.INTERNAL_SERVER_ERROR, f"生成失败: {exc}")
             return
 

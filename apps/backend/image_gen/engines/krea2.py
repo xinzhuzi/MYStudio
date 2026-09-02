@@ -364,6 +364,21 @@ def _calc_krea2_mu(latents, scheduler):
     return _torch.tensor(shift)
 
 # ── 生成(双工作流:文生图+图生图 SDEdit) ──
+def _cancel_step_callback():
+    """diffusers 逐步回调:检测服务端取消即中止(锁随异常释放)。
+
+    延迟导入避免 engines→pipeline 环(与 _pipeline_error 同法)。部分管线
+    不支持 callback_on_step_end 时由调用方降级(不接取消)。
+    """
+    from ..pipeline import is_generation_cancelled
+
+    def _on_step_end(*_args, **_kwargs):
+        if is_generation_cancelled():
+            raise RuntimeError("generation-cancelled")
+
+    return _on_step_end
+
+
 def generate(prompt, aspect_ratio, negative_prompt, steps, seed, reference_b64,
              use_lora=False, strength=0.65, **ctx) -> str:
     """Krea2 统一入口:有参考图走 SDEdit 图生图,无参考图走纯文生图。
@@ -459,7 +474,12 @@ def generate(prompt, aspect_ratio, negative_prompt, steps, seed, reference_b64,
         }
         if generator is not None:
             kwargs["generator"] = generator
-        result = pipe(**kwargs)
+        step_cb = _cancel_step_callback()
+        try:
+            result = pipe(**kwargs, callback_on_step_end=step_cb)
+        except TypeError:
+            # 管线不支持逐步回调时不接取消(降级:取消仅在步骤间生效于支持管线)
+            result = pipe(**kwargs)
         image = result.images[0]
         print(
             f"[image-sidecar] krea2 img2img: strength={strength} eff_steps={effective_steps}/{steps} "
@@ -476,7 +496,12 @@ def generate(prompt, aspect_ratio, negative_prompt, steps, seed, reference_b64,
         }
         if generator is not None:
             kwargs["generator"] = generator
-        result = pipe(**kwargs)
+        step_cb = _cancel_step_callback()
+        try:
+            result = pipe(**kwargs, callback_on_step_end=step_cb)
+        except TypeError:
+            # 管线不支持逐步回调时不接取消(降级:取消仅在步骤间生效于支持管线)
+            result = pipe(**kwargs)
         image = result.images[0]
         print(
             f"[image-sidecar] krea2 t2i: steps={steps} size={width}x{height} "

@@ -116,3 +116,31 @@ class ImageGenerateRouteTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class CancelRouteTests(unittest.TestCase):
+    """服务端真取消路由(09-02):置位 pipeline 取消事件并应答 ok。"""
+
+    def test_cancel_route_sets_event_and_responds(self) -> None:
+        handler = _StatusHandler.__new__(_StatusHandler)
+        handler.path = "/v1/images/cancel"
+        payload_holder = {}
+
+        class _Reader:
+            def __call__(self):
+                payload_holder["called"] = True
+                return {}
+
+        handler._read_json = _Reader()
+        from image_gen import pipeline
+        pipeline._CANCEL_EVENT.clear()
+        try:
+            with patch("image_gen.pipeline.cancel_generation") as cancel_mock:
+                handler.do_POST()
+            cancel_mock.assert_called_once_with()
+            self.assertEqual(
+                handler.response,
+                ({"ok": True, "cancelled": True}, HTTPStatus.OK),
+            )
+        finally:
+            pipeline._CANCEL_EVENT.clear()

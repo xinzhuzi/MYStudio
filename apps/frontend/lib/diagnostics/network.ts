@@ -231,7 +231,23 @@ function createElectronImageProxyFetch(
         new Promise<never>((_, reject) => {
           signal.addEventListener(
             "abort",
-            () => reject(signal.reason ?? new DOMException("用户已停止", "AbortError")),
+            () => {
+              reject(signal.reason ?? new DOMException("用户已停止", "AbortError"));
+              // 本地生图停止=服务端真取消(09-02):对 sidecar 顺发取消,在途推理
+              // 逐步中止、生成锁立即释放——否则已开跑的图空转 2-3 分钟,期间
+              // 再点生成只能排队。仅本地 sidecar 域生效;fire-and-forget。
+              try {
+                const target = getInputUrl(input);
+                if (target.includes("127.0.0.1:17595")) {
+                  void fetch(new URL("/v1/images/cancel", target).toString(), {
+                    method: "POST",
+                    headers: (init?.headers as Record<string, string> | undefined) ?? {},
+                  }).catch(() => {});
+                }
+              } catch {
+                /* 取消通知尽力而为 */
+              }
+            },
             { once: true },
           );
         }),

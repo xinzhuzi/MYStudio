@@ -86,3 +86,64 @@ class GenerateImageConcurrencyTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class ServerCancelTest(unittest.TestCase):
+    """服务端真取消(09-02):取消事件原语 + 取消中止在途生成并立即释放锁。"""
+
+    def test_cancel_event_primitives(self):
+        from image_gen import pipeline
+        pipeline.cancel_generation()
+        self.assertTrue(pipeline.is_generation_cancelled())
+        # 新生成持锁后清位(由 generate_image 保证);直接验证 clear 语义
+        pipeline._CANCEL_EVENT.clear()
+        self.assertFalse(pipeline.is_generation_cancelled())
+
+    def test_cancelled_generation_aborts_and_releases_lock(self):
+        """慢引擎中途置取消 → generate_image 以取消异常出队 → 锁已释放可立即再生成。"""
+        import threading
+        import time
+        from unittest import mock
+        from image_gen import pipeline
+
+        class SlowEngine:
+            SUPPORTS_REFERENCE = True
+            SMALL_REPO = None
+
+            def generate(self, **_kwargs):
+                from image_gen.pipeline import is_generation_cancelled
+                for _ in range(200):
+                    if is_generation_cancelled():
+                        raise RuntimeError("generation-cancelled")
+                    time.sleep(0.01)
+                return "aGk="
+
+        spec = {"label": "慢引擎", "layout": "slow", "steps": 8}
+        patches = [
+            mock.patch.dict(pipeline._ENGINE_BY_LAYOUT, {"slow": SlowEngine()}),
+            mock.patch.dict(pipeline.IMAGE_MODELS, {"slow-model": spec}),
+            mock.patch.object(pipeline, "_require_downloaded", lambda _n: None),
+            mock.patch.object(pipeline, "comfyui_models_dir", lambda: "/tmp/fake"),
+        ]
+        for p_ in patches:
+            p_.start()
+            self.addCleanup(p_.stop)
+
+        def cancel_soon():
+            time.sleep(0.05)
+            pipeline.cancel_generation()
+
+        threading.Thread(target=cancel_soon, daemon=True).start()
+        with self.assertRaises(pipeline.PipelineError) as ctx:
+            pipeline.generate_image("slow-model", "p")
+        self.assertIn("generation-cancelled", str(ctx.exception))
+        # 取消出队后事件保持置位(server 以此归类);下一次生成会清位
+        self.assertTrue(pipeline.is_generation_cancelled())
+        # 锁已释放:清除事件后立刻再生成一次可完成
+        pipeline._CANCEL_EVENT.clear()
+        FastEngine = type("FastEngine", (), {
+            "SUPPORTS_REFERENCE": True, "SMALL_REPO": None,
+            "generate": staticmethod(lambda **_k: "aGk="),
+        })
+        with mock.patch.dict(pipeline._ENGINE_BY_LAYOUT, {"slow": FastEngine()}):
+            self.assertEqual(pipeline.generate_image("slow-model", "p"), "aGk=")

@@ -210,7 +210,9 @@ describe("observedFetch", () => {
     const imageRequest = vi.fn(
       (_payload: unknown) => new Promise((resolve) => { releaseIpc = resolve as (value: unknown) => void; }),
     );
-    vi.stubGlobal("fetch", vi.fn());
+    // 取消通知(服务端真取消):本地 sidecar 域才会发
+    const cancelFetch = vi.fn(async () => new Response("{}"));
+    vi.stubGlobal("fetch", cancelFetch);
     vi.stubGlobal("window", { electronAPI: { imageRequest } });
 
     const controller = new AbortController();
@@ -218,7 +220,7 @@ describe("observedFetch", () => {
       "http://127.0.0.1:17595/v1/images/generations",
       {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", Authorization: "Bearer t" },
         body: JSON.stringify({ model: "krea2-turbo", prompt: "x" }),
         signal: controller.signal,
       },
@@ -235,9 +237,43 @@ describe("observedFetch", () => {
     await new Promise((resolve) => setTimeout(resolve, 10));
     controller.abort();
     await expect(pending).rejects.toMatchObject({ name: "AbortError" });
+    // 停止即对 sidecar 顺发 /v1/images/cancel(在途推理中止,生成锁立即释放)
+    await new Promise((resolve) => setTimeout(resolve, 10));
+    expect(cancelFetch).toHaveBeenCalledWith(
+      "http://127.0.0.1:17595/v1/images/cancel",
+      expect.objectContaining({ method: "POST" }),
+    );
     // IPC 侧迟到完成不炸未处理拒绝
     releaseIpc({ ok: true, status: 200, statusText: "OK", headers: {}, body: "{}" });
     await new Promise((resolve) => setTimeout(resolve, 10));
+  });
+
+  it("cloud image abort does NOT fire local cancel", async () => {
+    const imageRequest = vi.fn(
+      () => new Promise(() => {}),
+    );
+    const cancelFetch = vi.fn(async () => new Response("{}"));
+    vi.stubGlobal("fetch", cancelFetch);
+    vi.stubGlobal("window", { electronAPI: { imageRequest } });
+    const controller = new AbortController();
+    const pending = observedFetch(
+      "https://relay.example.com/v1/images/generations",
+      { method: "POST", body: "{}", signal: controller.signal },
+      {
+        operationId: "op-stop3",
+        endpointFamily: "images-generations",
+        providerId: "relay",
+        providerName: "Relay",
+        model: "gpt-image-2",
+        timeoutMs: 180_000,
+        logEvent: vi.fn(),
+      },
+    );
+    await new Promise((resolve) => setTimeout(resolve, 10));
+    controller.abort();
+    await expect(pending).rejects.toMatchObject({ name: "AbortError" });
+    await new Promise((resolve) => setTimeout(resolve, 10));
+    expect(cancelFetch).not.toHaveBeenCalled();
   });
 
   it("image proxy rejects immediately when the signal is already aborted", async () => {
