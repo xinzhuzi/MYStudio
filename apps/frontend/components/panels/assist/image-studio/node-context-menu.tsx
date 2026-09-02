@@ -1,11 +1,18 @@
+// Copyright © 2025 hotflow2024
+// Licensed under AGPL-3.0-or-later. See LICENSE for details.
+// Commercial licensing available. See COMMERCIAL_LICENSE.md.
+
 import { useEffect, useRef } from "react";
 import { Copy, Trash2 } from "lucide-react";
 import { CONTEXT_MENU_ARRIVAL_CLASS, useContextMenuClamp } from "./context-menu-craft";
 
 /**
- * 节点右键菜单(09-02,交互形态参考 infinite-canvas CanvasNodeContextMenu,实现从零/AGPL):
- * 右键节点 → 复制(同类型携字段,落右下偏移)/删除。房子样式+键盘可达。
+ * 节点右键菜单(09-02 终裁格式统一):与创建菜单/工具栏下拉同一种格式
+ * ——单行项、同尺寸比例、无多余文字。复制(同类型携字段,落右下偏移)/删除。
  */
+const ITEM_CLASS =
+  "flex w-full cursor-pointer select-none items-center gap-2 rounded-sm px-2 py-1.5 text-left text-sm outline-hidden transition-colors duration-75 hover:bg-accent hover:text-accent-foreground active:bg-accent/70 [&>svg]:size-4 [&>svg]:shrink-0";
+
 export function NodeContextMenu({
   x,
   y,
@@ -38,7 +45,7 @@ export function NodeContextMenu({
       ref={rootRef}
       role="menu"
       aria-label="节点操作"
-      className={`fixed z-50 min-w-40 overflow-hidden rounded-lg border border-border bg-popover p-1 shadow-xl backdrop-blur-md ${CONTEXT_MENU_ARRIVAL_CLASS}`}
+      className={`fixed z-50 min-w-40 overflow-hidden rounded-md border border-border bg-popover p-1 shadow-xl backdrop-blur-md ${CONTEXT_MENU_ARRIVAL_CLASS}`}
       style={{ left: x, top: y }}
       onPointerDown={(event) => event.stopPropagation()}
       onKeyDown={(event) => {
@@ -61,26 +68,26 @@ export function NodeContextMenu({
         role="menuitem"
         data-option
         ref={firstRef}
-        className="flex w-full items-center gap-2 rounded-md px-2 py-2 text-left text-sm transition-colors duration-75 hover:bg-accent hover:text-accent-foreground active:bg-accent/70"
+        className={ITEM_CLASS}
         onClick={() => {
           onDuplicate();
           onClose();
         }}
       >
-        <Copy className="h-4 w-4 text-muted-foreground" />
+        <Copy className="text-muted-foreground" />
         <span className="text-popover-foreground">复制</span>
       </button>
       <button
         type="button"
         role="menuitem"
         data-option
-        className="flex w-full items-center gap-2 rounded-md px-2 py-2 text-left text-sm transition-colors duration-75 hover:bg-accent hover:text-accent-foreground active:bg-accent/70"
+        className={ITEM_CLASS}
         onClick={() => {
           onDelete();
           onClose();
         }}
       >
-        <Trash2 className="h-4 w-4 text-destructive" />
+        <Trash2 className="text-destructive" />
         <span className="text-destructive">删除</span>
       </button>
     </div>

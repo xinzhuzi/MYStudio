@@ -1,43 +1,33 @@
-import { useEffect, useRef } from "react";
-import { ImagePlus, LayoutGrid, Maximize, Type, WandSparkles, X } from "lucide-react";
+// Copyright © 2025 hotflow2024
+// Licensed under AGPL-3.0-or-later. See LICENSE for details.
+// Commercial licensing available. See COMMERCIAL_LICENSE.md.
+
+import { useEffect } from "react";
+import { ImagePlus, LayoutGrid, Maximize, Type, WandSparkles } from "lucide-react";
 import { CONTEXT_MENU_ARRIVAL_CLASS, useContextMenuClamp } from "./context-menu-craft";
 
 /**
- * 画布右键创建菜单(09-02,交互形态参考 infinite-canvas NodeCreateMenu,实现从零/AGPL):
- * 右键空白处弹出,列出可建节点类型,选中后在**右键落点**创建。
- * 房子样式(bg-popover 弹层材质+design-lint 白名单内);键盘可达(↑↓/Enter/ESC)。
+ * 画布右键创建菜单(09-02 终裁格式统一):与工具栏下拉/节点菜单同一种格式
+ * ——单行项(图标+名称)、同尺寸比例、无说明文字/无标题/无关闭钮,与
+ * ui/dropdown-menu 项类名逐字对齐。右键空白弹出,选中后在落点创建;
+ * 键盘 ↑↓/Enter/ESC 可达。
  */
 export type PaneCreateKind = "generation-group" | "reference" | "prompt";
-/** 画布操作项(09-02 业界对齐:ComfyUI/Figma 右键=创建+画布操作) */
 export type PaneCanvasAction = "tidy-layout" | "fit-view";
 
-export interface PaneCreateOption {
-  kind: PaneCreateKind;
-  label: string;
-  description: string;
-  icon: React.ReactNode;
-}
+const ITEM_CLASS =
+  "flex w-full cursor-pointer select-none items-center gap-2 rounded-sm px-2 py-1.5 text-left text-sm outline-hidden transition-colors duration-75 hover:bg-accent hover:text-accent-foreground active:bg-accent/70 [&>svg]:size-4 [&>svg]:shrink-0";
 
-export const PANE_CREATE_OPTIONS: readonly PaneCreateOption[] = [
-  {
-    kind: "generation-group",
-    label: "文生图",
-    description: "提示词+成图一组,落点为成图位",
-    icon: <WandSparkles className="h-4 w-4 text-muted-foreground" />,
-  },
-  {
-    kind: "reference",
-    label: "参考图",
-    description: "空参考图节点,再挑图",
-    icon: <ImagePlus className="h-4 w-4 text-muted-foreground" />,
-  },
-  {
-    kind: "prompt",
-    label: "提示词",
-    description: "独立提示词节点",
-    icon: <Type className="h-4 w-4 text-muted-foreground" />,
-  },
-] as const;
+const CREATE_ITEMS: { kind: PaneCreateKind; label: string; icon: React.ReactNode }[] = [
+  { kind: "generation-group", label: "文生图", icon: <WandSparkles className="text-muted-foreground" /> },
+  { kind: "reference", label: "参考图", icon: <ImagePlus className="text-muted-foreground" /> },
+  { kind: "prompt", label: "提示词", icon: <Type className="text-muted-foreground" /> },
+];
+
+const ACTION_ITEMS: { action: PaneCanvasAction; label: string; icon: React.ReactNode }[] = [
+  { action: "tidy-layout", label: "整理布局", icon: <LayoutGrid className="text-muted-foreground" /> },
+  { action: "fit-view", label: "适配画布", icon: <Maximize className="text-muted-foreground" /> },
+];
 
 export function PaneCreateMenu({
   x,
@@ -50,11 +40,11 @@ export function PaneCreateMenu({
   onSelect: (kind: PaneCreateKind | PaneCanvasAction) => void;
   onClose: () => void;
 }) {
-  const firstRef = useRef<HTMLButtonElement | null>(null);
   const rootRef = useContextMenuClamp({ x, y });
 
   useEffect(() => {
-    firstRef.current?.focus();
+    const first = rootRef.current?.querySelector<HTMLButtonElement>("button[data-option]");
+    first?.focus();
     const onPointerDown = (event: PointerEvent) => {
       if (rootRef.current && !rootRef.current.contains(event.target as Node)) onClose();
     };
@@ -65,81 +55,61 @@ export function PaneCreateMenu({
   }, [onClose]);
 
   return (
-      <div
-        ref={rootRef}
-        role="menu"
-        aria-label="创建节点"
-        className={`fixed z-50 min-w-60 overflow-hidden rounded-lg border border-border bg-popover p-1 shadow-xl backdrop-blur-md ${CONTEXT_MENU_ARRIVAL_CLASS}`}
-        style={{ left: x, top: y }}
-        onPointerDown={(event) => event.stopPropagation()}
-        onKeyDown={(event) => {
-          if (event.key === "Escape") {
-            event.stopPropagation();
+    <div
+      ref={rootRef}
+      role="menu"
+      aria-label="创建节点"
+      className={`fixed z-50 min-w-40 overflow-hidden rounded-md border border-border bg-popover p-1 shadow-xl backdrop-blur-md ${CONTEXT_MENU_ARRIVAL_CLASS}`}
+      style={{ left: x, top: y }}
+      onPointerDown={(event) => event.stopPropagation()}
+      onKeyDown={(event) => {
+        if (event.key === "Escape") {
+          event.stopPropagation();
+          onClose();
+        }
+        if (event.key !== "ArrowDown" && event.key !== "ArrowUp") return;
+        event.preventDefault();
+        const buttons = Array.from(
+          event.currentTarget.querySelectorAll<HTMLButtonElement>("button[data-option]"),
+        );
+        const current = buttons.indexOf(document.activeElement as HTMLButtonElement);
+        const delta = event.key === "ArrowDown" ? 1 : -1;
+        buttons[(current + delta + buttons.length) % buttons.length]?.focus();
+      }}
+    >
+      {CREATE_ITEMS.map((item) => (
+        <button
+          key={item.kind}
+          type="button"
+          role="menuitem"
+          data-option
+          className={ITEM_CLASS}
+          onClick={() => {
+            onSelect(item.kind);
             onClose();
-          }
-          if (event.key !== "ArrowDown" && event.key !== "ArrowUp") return;
-          event.preventDefault();
-          const buttons = Array.from(
-            event.currentTarget.querySelectorAll<HTMLButtonElement>("button[data-option]"),
-          );
-          const current = buttons.indexOf(document.activeElement as HTMLButtonElement);
-          const delta = event.key === "ArrowDown" ? 1 : -1;
-          buttons[(current + delta + buttons.length) % buttons.length]?.focus();
-        }}
-      >
-        <div className="flex items-center justify-between px-2 pb-1 pt-0.5">
-          <span className="text-xs text-muted-foreground">在此处创建</span>
-          <button
-            type="button"
-            aria-label="关闭"
-            className="grid size-6 place-items-center rounded-md text-muted-foreground hover:bg-accent hover:text-accent-foreground"
-            onClick={onClose}
-          >
-            <X className="h-3.5 w-3.5" />
-          </button>
-        </div>
-        {PANE_CREATE_OPTIONS.map((option, index) => (
-          <button
-            key={option.kind}
-            type="button"
-            role="menuitem"
-            data-option
-            ref={index === 0 ? firstRef : undefined}
-            className="flex w-full items-center gap-2 rounded-md px-2 py-2 text-left transition-colors duration-75 hover:bg-accent hover:text-accent-foreground active:bg-accent/70"
-            onClick={() => {
-              onSelect(option.kind);
-              onClose();
-            }}
-          >
-            {option.icon}
-            <span className="min-w-0">
-              <span className="block text-sm font-medium text-popover-foreground">{option.label}</span>
-              <span className="block text-xs text-muted-foreground">{option.description}</span>
-            </span>
-          </button>
-        ))}
-        <div className="mx-2 my-1 h-px bg-border" />
-        {(
-          [
-            { action: "tidy-layout" as const, label: "整理布局", icon: <LayoutGrid className="h-4 w-4 text-muted-foreground" /> },
-            { action: "fit-view" as const, label: "适配画布", icon: <Maximize className="h-4 w-4 text-muted-foreground" /> },
-          ]
-        ).map((item) => (
-          <button
-            key={item.action}
-            type="button"
-            role="menuitem"
-            data-option
-            className="flex w-full items-center gap-2 rounded-md px-2 py-2 text-left transition-colors duration-75 hover:bg-accent hover:text-accent-foreground active:bg-accent/70"
-            onClick={() => {
-              onSelect(item.action);
-              onClose();
-            }}
-          >
-            {item.icon}
-            <span className="text-sm font-medium text-popover-foreground">{item.label}</span>
-          </button>
-        ))}
-      </div>
+          }}
+        >
+          {item.icon}
+          <span className="text-popover-foreground">{item.label}</span>
+        </button>
+      ))}
+      <div className="mx-2 my-1 h-px bg-border" />
+      {ACTION_ITEMS.map((item) => (
+        <button
+          key={item.action}
+          type="button"
+          role="menuitem"
+          data-option
+          className={ITEM_CLASS}
+          onClick={() => {
+            onSelect(item.action);
+            onClose();
+          }}
+        >
+          {item.icon}
+          <span className="text-popover-foreground">{item.label}</span>
+        </button>
+      ))}
+    </div>
   );
 }
