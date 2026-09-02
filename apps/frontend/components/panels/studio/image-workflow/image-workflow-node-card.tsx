@@ -127,6 +127,7 @@ export const ImageWorkflowNodeCard = memo(function ImageWorkflowNodeCard({ data 
               <Button
                 size="icon"
                 variant="ghost"
+                className="h-8 w-8"
                 aria-label="裁剪取材"
                 title="裁剪并生成衍生参考图"
                 onClick={() => data.onExtract?.(node.id, "crop")}
@@ -136,6 +137,7 @@ export const ImageWorkflowNodeCard = memo(function ImageWorkflowNodeCard({ data 
               <Button
                 size="icon"
                 variant="ghost"
+                className="h-8 w-8"
                 aria-label="切图取材"
                 title="按行列切分为多张参考图"
                 onClick={() => data.onExtract?.(node.id, "split")}
@@ -145,6 +147,7 @@ export const ImageWorkflowNodeCard = memo(function ImageWorkflowNodeCard({ data 
               <Button
                 size="icon"
                 variant="ghost"
+                className="h-8 w-8"
                 aria-label="局部重绘"
                 title="涂抹蒙版局部重绘"
                 onClick={() => data.onExtract?.(node.id, "mask")}
@@ -154,6 +157,7 @@ export const ImageWorkflowNodeCard = memo(function ImageWorkflowNodeCard({ data 
               <Button
                 size="icon"
                 variant="ghost"
+                className="h-8 w-8"
                 aria-label="反推提示词"
                 title="从图片反推生图提示词"
                 onClick={() => data.onExtract?.(node.id, "reverse")}
@@ -162,7 +166,7 @@ export const ImageWorkflowNodeCard = memo(function ImageWorkflowNodeCard({ data 
               </Button>
             </>
           ) : null}
-          <Button size="icon" variant="ghost" aria-label="删除节点" onClick={() => data.onDelete(node.id)}>
+          <Button size="icon" variant="ghost" className="h-8 w-8" aria-label="删除节点" onClick={() => data.onDelete(node.id)}>
             <Trash2 className="h-4 w-4" />
           </Button>
         </div>
@@ -216,7 +220,7 @@ function ReferenceNodeEditor({
         value={node.imageUrl}
         onChange={(event) => onUpdate(node.id, { imageUrl: event.target.value } as Partial<ImageWorkflowNode>)}
         placeholder="project-file://、local-image:// 或 https://"
-        className="nodrag nopan h-8 w-full rounded-md border border-border bg-background/80 px-2 text-xs text-foreground outline-none"
+        className="nodrag nopan h-9 w-full rounded-md border border-border bg-background/80 px-2 text-xs text-foreground outline-none"
       />
       <Textarea
         value={node.notes ?? ""}
@@ -329,7 +333,7 @@ function GeneratedNodeEditor({
         <select
           value={(node.paramsEdited ? node.aspectRatio : (promptNode?.aspectRatio ?? node.aspectRatio))}
           onChange={(event) => onUpdate(node.id, { aspectRatio: event.target.value, paramsEdited: true } as Partial<ImageWorkflowNode>)}
-          className="h-8 rounded-md border border-border bg-card/80 px-1.5 text-xs text-foreground outline-none"
+          className="h-9 rounded-md border border-border bg-card/80 px-1.5 text-xs text-foreground outline-none"
           aria-label="图片比例"
         >
           {ASPECT_RATIOS.map((ratio) => <option key={ratio} value={ratio}>{ratio}</option>)}
@@ -337,7 +341,7 @@ function GeneratedNodeEditor({
         <select
           value={node.resolution ?? promptNode?.resolution ?? ""}
           onChange={(event) => onUpdate(node.id, { resolution: event.target.value, paramsEdited: true } as Partial<ImageWorkflowNode>)}
-          className="h-8 rounded-md border border-border bg-card/80 px-1.5 text-xs text-foreground outline-none"
+          className="h-9 rounded-md border border-border bg-card/80 px-1.5 text-xs text-foreground outline-none"
           aria-label="图片分辨率"
         >
           {RESOLUTION_OPTIONS.map((resolution) => <option key={resolution} value={resolution}>{resolution}</option>)}
@@ -349,12 +353,13 @@ function GeneratedNodeEditor({
           {node.status}
         </span>
         <div className="flex items-center gap-2">
-          <Button size="sm" variant="secondary" onClick={() => onApplyToStoryboard(node.id)} disabled={!node.resultUrl}>
+          <Button size="sm" className="h-9" variant="secondary" onClick={() => onApplyToStoryboard(node.id)} disabled={!node.resultUrl}>
             <Save className="h-3.5 w-3.5" />
             回写
           </Button>
           <Button
             size="sm"
+            className="h-9"
             variant="outline"
             onClick={() => {
               if (!node.resultUrl || generating || alreadyUpscaled) return;
@@ -380,11 +385,12 @@ function GeneratedNodeEditor({
                 <UpscaleDenoiseModeField value={upscaleDenoiseMode} onChange={setUpscaleDenoiseMode} />
               </div>
               <DialogFooter>
-                <Button variant="ghost" size="sm" onClick={() => setUpscaleConfirmOpen(false)}>
+                <Button variant="ghost" size="sm" className="h-9" onClick={() => setUpscaleConfirmOpen(false)}>
                   取消
                 </Button>
                 <Button
                   size="sm"
+                  className="h-9"
                   onClick={() => {
                     setUpscaleConfirmOpen(false);
                     void onUpscale(node.id, denoiseModeToOpts(upscaleDenoiseMode));
@@ -396,7 +402,7 @@ function GeneratedNodeEditor({
               </DialogFooter>
             </DialogContent>
           </Dialog>
-          <Button size="sm" variant="paid" onClick={() => onGenerate(node.id)} disabled={generating}>
+          <Button size="sm" className="h-9" variant="paid" onClick={() => onGenerate(node.id)} disabled={generating}>
             {generating ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <WandSparkles className="h-3.5 w-3.5" />}
             生成
           </Button>

@@ -696,7 +696,7 @@ function GeneratedNodeEditor({
             title={alreadyUpscaled ? "已是 4K 超分结果,无需再放大" : "超分:本地 Real-ESRGAN ×4 放大"}
             aria-label="超分"
           >
-            <ZoomIn className="h-4 w-4" />
+            <ZoomIn className="h-3.5 w-3.5" />
           </Button>
           <Button
             size="icon"
