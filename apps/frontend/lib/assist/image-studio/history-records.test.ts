@@ -77,16 +77,16 @@ describe("history-records(09-03 弹窗数据层)", () => {
         references: ["r.png"],
         source: "image-studio-canvas",
       },
-      // 与 local a 同 prompt 但 ts 不同:不去重(时间键不同,面板两行各自可复原)
-      { ts: 250, prompt: "晨雾山门", model: "krea2-turbo", file: "2026-09/a.png" },
+      // 与 local a 同一张图(URL 编码态):按图片身份去重,毫秒 ts 对不齐也不出重复行
+      {
+        ts: 250,
+        prompt: "晨雾山门",
+        model: "krea2-turbo",
+        file: "2026-09/a.png",
+      },
     ]);
-    expect(records.map((record) => record.id)).toEqual([
-      "disk_250_2026-09/a.png",
-      "a",
-      "disk_150_2026-09/old.png",
-      "b",
-    ]);
-    const diskOld = records[2];
+    expect(records.map((record) => record.id)).toEqual(["a", "disk_150_2026-09/old.png", "b"]);
+    const diskOld = records[1];
     expect(diskOld.origin).toBe("ledger");
     expect(diskOld.params).toMatchObject({
       references: ["r.png"],
@@ -94,7 +94,7 @@ describe("history-records(09-03 弹窗数据层)", () => {
       aspectRatio: "16:9",
       source: "image-studio-canvas",
     });
-    expect(records[1].params.batchUrls).toEqual(["b1.png", "b2.png"]);
+    expect(records[0].params.batchUrls).toEqual(["b1.png", "b2.png"]);
   });
 
   it("generationSourceLabel:已知来源大白话,未知原样,缺失为破折号", () => {

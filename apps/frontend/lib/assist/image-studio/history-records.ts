@@ -70,7 +70,16 @@ export function readGenerationParams(raw: Record<string, unknown> | undefined): 
   };
 }
 
-/** localStorage 历史 + 磁盘 ledger 合并:按 createdAt+prompt 去重,新→旧排序 */
+/** 解码文件名(容错:坏编码原样返回) */
+function decodeURIComponentSafe(value: string): string {
+  try {
+    return decodeURIComponent(value);
+  } catch {
+    return value;
+  }
+}
+
+/** localStorage 历史 + 磁盘 ledger 合并:按图片身份(解码文件名)去重,新→旧排序 */
 export function mergeGenerationRecords(
   local: HistoryEntry[],
   ledger: GenerationLedgerEntry[],
@@ -87,6 +96,14 @@ export function mergeGenerationRecords(
       params: readGenerationParams(entry.params),
       origin: "local" as const,
     }));
+  /** 图片身份键:解码后的文件名(跨 localStorage URL/ledger 相对路径一致);
+   *  无文件形态(极端)退回时间+提示词。毫秒级 ts 对不齐也不再出重复行 */
+  const identityOf = (record: { resultUrl: string; createdAt: number; prompt: string }): string => {
+    const tail = record.resultUrl.split("?")[0].split("#")[0].split("/").pop() ?? "";
+    const decoded = tail ? decodeURIComponentSafe(tail) : "";
+    return decoded || `${record.createdAt}_${record.prompt}`;
+  };
+  const localIdentities = new Set(localRecords.map(identityOf));
   const localKeys = new Set(localRecords.map((record) => `${record.createdAt}_${record.prompt}`));
   const ledgerRecords: GenerationRecord[] = ledger.map((item) => ({
     id: `disk_${item.ts}_${item.file}`,
@@ -97,9 +114,12 @@ export function mergeGenerationRecords(
     params: readGenerationParams(item as unknown as Record<string, unknown>),
     origin: "ledger" as const,
   }));
-  return [...localRecords, ...ledgerRecords.filter((r) => !localKeys.has(`${r.createdAt}_${r.prompt}`))].sort(
-    (a, b) => b.createdAt - a.createdAt,
-  );
+  return [
+    ...localRecords,
+    ...ledgerRecords.filter(
+      (record) => !localIdentities.has(identityOf(record)) && !localKeys.has(`${record.createdAt}_${record.prompt}`),
+    ),
+  ].sort((a, b) => b.createdAt - a.createdAt);
 }
 
 interface ProjectFilesBridge {
