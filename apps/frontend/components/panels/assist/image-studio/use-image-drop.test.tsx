@@ -41,7 +41,7 @@ function fileDrag(target: Element, files: File[]) {
 
 describe("useImageDrop(拖拽图片到画布)", () => {
   it("拖入图片文件→项目内落盘→参考图节点建在松手世界坐标", async () => {
-    const saveMock = vi.fn(async (payload: { relativePath: string }) => ({
+    const saveMock = vi.fn(async (payload: { projectId: string; relativePath: string }) => ({
       success: true,
       url: `project-file://mock/${payload.relativePath}`,
     }));
@@ -87,7 +87,7 @@ describe("useImageDrop(拖拽图片到画布)", () => {
     (window as unknown as { projectFiles: unknown }).projectFiles = {
       saveImage: vi.fn(async () => ({ success: true, url: "x" })),
     };
-    const { result } = setup();
+    setup();
     // 诊断:桥 mock 是否就位
     expect((window as unknown as { projectFiles?: unknown }).projectFiles).toBeTruthy();
     await act(async () => {

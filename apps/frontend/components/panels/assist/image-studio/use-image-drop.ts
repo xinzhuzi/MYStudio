@@ -30,7 +30,7 @@ export function useImageDrop({
       reader.readAsDataURL(file);
     });
 
-  const persistToProject = async (dataUrl: string, filename: string): Promise<string> => {
+  const persistToProject = useCallback(async (dataUrl: string, filename: string): Promise<string> => {
     const bridge = (window as unknown as {
       projectFiles?: {
         saveImage: (payload: { projectId: string; relativePath: string; source: string }) =>
@@ -48,7 +48,7 @@ export function useImageDrop({
     });
     if (!saved.success || !saved.url) throw new Error(saved.error || "项目内落盘失败");
     return saved.url;
-  };
+  }, [projectId]);
 
   const handlers = {
     onDragEnter: useCallback((event: React.DragEvent) => {
@@ -95,7 +95,7 @@ export function useImageDrop({
           if (files.length > 0) toast.success(`已放入 ${files.length} 张参考图`);
         })();
       },
-      [addReferenceNode, flowApi],
+      [addReferenceNode, flowApi, persistToProject],
     ),
   };
 
