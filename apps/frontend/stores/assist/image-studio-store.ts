@@ -81,6 +81,17 @@ export interface ImageStudioStoreActions {
     /** 右键落点:成图列锚位(提示词落其左列) */
     position?: ImageWorkflowNodePosition;
   }) => ImageStudioNodeGroup;
+  /** 复原生成记录(09-03 弹窗):单快照重建 参考图×N+提示词(含反向)+成图+连线+result 回填 */
+  restoreGenerationGroup: (input: {
+    prompt: string;
+    negativePrompt?: string;
+    model?: string;
+    aspectRatio?: string;
+    references?: string[];
+    result: { imageUrl: string; mediaId?: string };
+    batchImageUrls?: string[];
+    generatedAt?: number;
+  }) => ImageStudioNodeGroup;
   setNodeStatus: (
     nodeId: string,
     status: ImageWorkflowGeneratedNode["status"],
@@ -489,6 +500,69 @@ export const useImageStudioStore = create<ImageStudioStore>()(
         });
         get().updateActiveWorkflow(() => current);
         return group;
+      },
+
+      restoreGenerationGroup: (input) => {
+        ensureActiveCanvas(get, set);
+        const graph = selectActiveImageStudioWorkflow(get());
+        if (!graph) {
+          throw new Error("画布未就绪");
+        }
+        // 整组建构走图纯函数、最后一次 updateActiveWorkflow=单份撤销快照
+        let current = graph;
+        const references = (input.references ?? []).slice(0, 4);
+        const referenceNodeIds: string[] = [];
+        for (const imageUrl of references) {
+          const referenceNodeId = createId("ref");
+          referenceNodeIds.push(referenceNodeId);
+          current = addReferenceImageNode(current, {
+            id: referenceNodeId,
+            title: "参考图",
+            imageUrl,
+            position: nextColumnPosition(current, "reference"),
+          });
+        }
+        const promptNodeId = createId("prompt");
+        current = addPromptImageNode(current, {
+          id: promptNodeId,
+          title: "提示词",
+          prompt: input.prompt,
+          negativePrompt: input.negativePrompt,
+          position: nextColumnPosition(current, "prompt"),
+        });
+        const generatedNodeId = createId("gen");
+        current = addGeneratedImageNode(current, {
+          id: generatedNodeId,
+          title: "生成图",
+          prompt: input.prompt,
+          model: input.model,
+          position: nextColumnPosition(current, "generated"),
+        });
+        for (const referenceNodeId of referenceNodeIds) {
+          current = connectImageWorkflowNodes(current, {
+            source: referenceNodeId,
+            target: generatedNodeId,
+          });
+        }
+        current = connectImageWorkflowNodes(current, {
+          source: promptNodeId,
+          target: generatedNodeId,
+        });
+        if (input.aspectRatio) {
+          current = updateImageWorkflowNode(current, generatedNodeId, {
+            aspectRatio: input.aspectRatio,
+          });
+        }
+        current = setGeneratedImageResult(current, generatedNodeId, {
+          imageUrl: input.result.imageUrl,
+          mediaId: input.result.mediaId,
+          generatedAt: input.generatedAt,
+        });
+        get().updateActiveWorkflow(() => current);
+        if (input.batchImageUrls && input.batchImageUrls.length > 1) {
+          get().setNodeBatchResult(generatedNodeId, input.batchImageUrls, input.result.mediaId);
+        }
+        return { promptNodeId, generatedNodeId };
       },
 
       setNodeStatus: (nodeId, status, errorReason) => {

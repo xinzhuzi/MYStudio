@@ -32,7 +32,7 @@ import { useProjectStore } from "@/stores/project/project-store";
 import { useAssistCanvasHistory } from "./use-assist-canvas-history";
 import { useImageStudioCommands } from "./use-image-studio-commands";
 import { copyNodesToClipboard, pasteFromClipboard, clipboardSize } from "./canvas-clipboard";
-import { AssistantPanel } from "./assistant-panel";
+import { CanvasAssistantDialog } from "./canvas-assistant-dialog";
 import { relatedEdges } from "@/lib/studio/image-workflow/relation-graph";
 import { InteractionDeferHint } from "@/components/panels/studio/previews/interaction-defer-hint";
 import { useCanvasGestureKernel } from "@/components/panels/studio/use-canvas-gesture-kernel";
@@ -45,7 +45,7 @@ import {
   useImageStudioStore,
 } from "@/stores/assist/image-studio-store";
 import type { ImageWorkflowGraph, ImageWorkflowNode } from "@/types/studio";
-import { GenerationHistory } from "../GenerationHistory";
+import { GenerationHistoryDialog } from "./generation-history-dialog";
 import { SaveToPropsDialog } from "../SaveToPropsDialog";
 import {
   imageStudioNodeTypes,
@@ -185,7 +185,7 @@ export function ImageStudioCanvas() {
   }, [selectedIds]);
 
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
-  const [historyOpen, setHistoryOpen] = useState(false);
+  const [historyDialogOpen, setHistoryDialogOpen] = useState(false);
   const [propsDialog, setPropsDialog] = useState<{ imageUrls: string[]; primaryUrl?: string; prompt: string } | null>(null);
   const [renameOpen, setRenameOpen] = useState(false);
   const [renameValue, setRenameValue] = useState("");
@@ -570,7 +570,6 @@ export function ImageStudioCanvas() {
       <ImageStudioToolbar
         workflows={workflows}
         activeWorkflowId={activeWorkflowId}
-        historyOpen={historyOpen}
         onSwitch={(id) => useImageStudioStore.getState().switchWorkflow(id)}
         onCreate={() => useImageStudioStore.getState().createWorkflow()}
         onRename={() => {
@@ -586,9 +585,8 @@ export function ImageStudioCanvas() {
         onAddReference={() => openPicker({ mode: "new-reference" })}
         onAddPrompt={() => useImageStudioStore.getState().addPromptNode()}
         onTidy={() => useImageStudioStore.getState().applyLayout()}
-        onToggleHistory={() => setHistoryOpen((open) => !open)}
-        assistantOpen={assistantOpen}
-        onToggleAssistant={() => setAssistantOpen((open) => !open)}
+        onOpenHistory={() => setHistoryDialogOpen(true)}
+        onOpenAssistant={() => setAssistantOpen(true)}
         onExport={handleExportCanvas}
         onImport={() => importInputRef.current?.click()}
         onOpenFolder={() => {
@@ -636,7 +634,13 @@ export function ImageStudioCanvas() {
           }}
         />
         {assistantOpen ? (
-          <AssistantPanel selectedNodeId={selectedNodeId} onClose={() => setAssistantOpen(false)} />
+          <CanvasAssistantDialog
+            open
+            onOpenChange={(next) => {
+              if (!next) setAssistantOpen(false);
+            }}
+            selectedNodeId={selectedNodeId}
+          />
         ) : null}
         {dragOver ? (
           <div className="pointer-events-none absolute inset-2 z-30 flex items-center justify-center rounded-xl border-2 border-dashed border-info/60 bg-info/5">
@@ -664,20 +668,11 @@ export function ImageStudioCanvas() {
             onClose={() => setPaneCreate(null)}
           />
         ) : null}
-        {historyOpen ? (
-          <div className="w-[240px] shrink-0 border-l" data-image-studio-history-panel>
-            <GenerationHistory
-              type="image"
-              onSendToCanvas={(entry) => {
-                useImageStudioStore.getState().addGenerationGroup({
-                  prompt: entry.prompt,
-                  model: entry.model || undefined,
-                  referenceImageUrl: entry.resultUrl || undefined,
-                });
-                toast.success("已送入当前画布");
-              }}
-            />
-          </div>
+        {historyDialogOpen ? (
+          <GenerationHistoryDialog
+            open
+            onOpenChange={(next) => setHistoryDialogOpen(next)}
+          />
         ) : null}
       </div>
 

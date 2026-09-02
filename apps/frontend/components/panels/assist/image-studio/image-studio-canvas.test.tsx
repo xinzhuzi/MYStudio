@@ -118,15 +118,15 @@ describe("ImageStudioCanvas", () => {
     }
   });
 
-  it("生成记录抽屉开合(经「⋯」菜单的勾选项)", async () => {
+  it("生成记录弹窗开合(经「⋯」菜单项,09-03 侧栏改弹窗)", async () => {
     render(<ImageStudioCanvas />);
     const menuButton = await waitFor(() => screen.getByRole("button", { name: /画布与工具菜单/ }));
-    expect(document.querySelector("[data-image-studio-history-panel]")).toBeNull();
+    expect(document.querySelector("[data-image-studio-history-dialog]")).toBeNull();
     fireEvent.keyDown(menuButton, { key: "Enter" });
-    const item = await waitFor(() => screen.getByRole("menuitemcheckbox", { name: /生成记录面板/ }));
+    const item = await waitFor(() => screen.getByRole("menuitem", { name: /生成记录…/ }));
     fireEvent.click(item);
     await waitFor(() => {
-      expect(document.querySelector("[data-image-studio-history-panel]")).toBeTruthy();
+      expect(document.querySelector("[data-image-studio-history-dialog]")).toBeTruthy();
     });
   });
 });

@@ -77,15 +77,28 @@ export async function runImageStudioNodeGeneration(
   });
 
 
+/** ledger 条目(09-03 弹窗增丰):复原所需输入快照为可选键,读侧宽容旧记录 */
+type ProjectLedgerEntry = {
+  ts: number;
+  prompt: string;
+  model: string;
+  file: string;
+  negativePrompt?: string | null;
+  aspectRatio?: string;
+  resolution?: string | null;
+  references?: string[];
+  source?: string;
+};
+
 /** 项目内 ledger 追加(09-02 治理):读改写,坏 JSON 重建为空数组 */
 async function appendProjectLedger(input: {
   projectId: string;
   relativePath: string;
-  entry: { ts: number; prompt: string; model: string; file: string };
+  entry: ProjectLedgerEntry;
 }): Promise<void> {
   const bridge = getProjectFilesBridge();
   if (!bridge?.writeText || !bridge.readText) return;
-  let entries: Array<{ ts: number; prompt: string; model: string; file: string }> = [];
+  let entries: ProjectLedgerEntry[] = [];
   try {
     const existing = await bridge.readText({
       projectId: input.projectId,
@@ -172,6 +185,11 @@ function filenameOf(url: string): string {
         prompt: request.prompt,
         model: request.model ?? "",
         file: `${monthFolderOf(stableUrl)}/${filenameOf(stableUrl)}`,
+        negativePrompt: request.negativePrompt ?? null,
+        aspectRatio: request.aspectRatio,
+        resolution: request.resolution ?? null,
+        references: request.referenceImages,
+        source: "image-studio-canvas",
       },
     }).catch(() => {
       // ledger 写失败静默(下次生成重试;面板回落 localStorage)

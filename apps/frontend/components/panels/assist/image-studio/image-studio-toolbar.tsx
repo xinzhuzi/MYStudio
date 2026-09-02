@@ -18,7 +18,6 @@ import {
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
-  DropdownMenuCheckboxItem,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuSeparator,
@@ -42,8 +41,6 @@ import type { ImageWorkflowGraph } from "@/types/studio";
 export function ImageStudioToolbar({
   workflows,
   activeWorkflowId,
-  historyOpen,
-  assistantOpen,
   onSwitch,
   onCreate,
   onRename,
@@ -53,16 +50,14 @@ export function ImageStudioToolbar({
   onAddReference,
   onAddPrompt,
   onTidy,
-  onToggleHistory,
-  onToggleAssistant,
+  onOpenHistory,
+  onOpenAssistant,
   onExport,
   onImport,
   onOpenFolder,
 }: {
   workflows: ImageWorkflowGraph[];
   activeWorkflowId: string | null;
-  historyOpen: boolean;
-  assistantOpen: boolean;
   onSwitch: (workflowId: string) => void;
   onCreate: () => void;
   onRename: () => void;
@@ -72,8 +67,8 @@ export function ImageStudioToolbar({
   onAddReference: () => void;
   onAddPrompt: () => void;
   onTidy: () => void;
-  onToggleHistory: () => void;
-  onToggleAssistant?: () => void;
+  onOpenHistory: () => void;
+  onOpenAssistant: () => void;
   onExport?: () => void;
   onImport?: () => void;
   onOpenFolder: () => void;
@@ -140,21 +135,20 @@ export function ImageStudioToolbar({
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
-          <DropdownMenuCheckboxItem
-            checked={historyOpen}
-            onCheckedChange={onToggleHistory}
+          <DropdownMenuItem
+            onSelect={onOpenHistory}
             data-image-studio-history-toggle
-            title="右侧生成记录抽屉"
+            title="弹窗查看历史生成,可一键复原到画布"
           >
-            生成记录面板
-          </DropdownMenuCheckboxItem>
-          <DropdownMenuCheckboxItem
-            checked={assistantOpen}
-            onCheckedChange={onToggleAssistant}
-            title="选中节点后对话,回答可插回画布"
+            生成记录…
+          </DropdownMenuItem>
+          <DropdownMenuItem
+            onSelect={onOpenAssistant}
+            data-image-studio-assistant-toggle
+            title="选中节点后对话,回答可插为提示词节点或直接生图"
           >
-            画布助手面板
-          </DropdownMenuCheckboxItem>
+            画布助手…
+          </DropdownMenuItem>
           <DropdownMenuSeparator />
           <DropdownMenuItem onSelect={onTidy} title="按参考图/提示词/成图三列重排全部节点">
             <LayoutGrid className="mr-2 h-3.5 w-3.5" />

@@ -40,6 +40,20 @@ export type CanvasCommand =
       surface: CanvasCommandSurface;
       nodeId: string;
       action: string;
+    }
+  | {
+      kind: "restore-generation";
+      surface: CanvasCommandSurface;
+      /** 复原一条生成记录当时的画布效果:参考图×N+提示词(含反向)+成图+连线 */
+      prompt: string;
+      negativePrompt?: string;
+      model?: string;
+      aspectRatio?: string;
+      references?: string[];
+      result: { imageUrl: string; mediaId?: string };
+      batchImageUrls?: string[];
+      /** 记录的成图时间,回填节点 generatedAt 保持时序忠实 */
+      generatedAt?: number;
     };
 
 export interface CanvasCommandOk {

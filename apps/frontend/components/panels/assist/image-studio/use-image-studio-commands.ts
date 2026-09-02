@@ -106,6 +106,24 @@ export function useImageStudioCommands({
           void generateNode(command.nodeId);
           return { ok: true };
         }
+        case "restore-generation": {
+          // 复原生成记录:单条指令=整组重建(参考边+提示词+成图),单份撤销
+          if (!graph) return { ok: false, reason: "画布未就绪" };
+          const group = store.restoreGenerationGroup({
+            prompt: command.prompt,
+            negativePrompt: command.negativePrompt,
+            model: command.model,
+            aspectRatio: command.aspectRatio,
+            references: command.references,
+            result: command.result,
+            batchImageUrls: command.batchImageUrls,
+            generatedAt: command.generatedAt,
+          });
+          return {
+            ok: true,
+            detail: { nodeId: group.generatedNodeId, promptNodeId: group.promptNodeId },
+          };
+        }
         default:
           return { ok: false, reason: `image-studio 面暂不支持 ${command.kind}` };
       }

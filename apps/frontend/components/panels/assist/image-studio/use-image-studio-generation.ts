@@ -27,13 +27,15 @@ export function useImageStudioGeneration() {
     const store = useImageStudioStore.getState();
     const graph = selectActiveImageStudioWorkflow(store);
     if (!graph) return;
-    let prompt = "";
+    // 请求在生成前捕获=当时真实输入(画布生成期间可被编辑,回填记录须用开工快照)
+    let request: ReturnType<typeof buildImageStudioGenerationRequest> | null = null;
     try {
       // 预检:空提示词不进入 generating 态(失败态会误导用户以为参数有误)
-      prompt = buildImageStudioGenerationRequest(graph, nodeId).prompt;
+      request = buildImageStudioGenerationRequest(graph, nodeId);
     } catch {
       return;
     }
+    const prompt = request.prompt;
     if (!prompt) {
       toast.error("请先填写生成提示词");
       return;
@@ -93,7 +95,18 @@ export function useImageStudioGeneration() {
         prompt: result.prompt,
         model: result.model ?? "",
         resultUrl: result.imageUrl,
-        params: { source: "image-studio-canvas" },
+        // 生成记录弹窗(09-03):带全复原所需输入快照,旧记录无这些键照常读
+        params: {
+          source: "image-studio-canvas",
+          references: request.referenceImages,
+          negativePrompt: request.negativePrompt,
+          aspectRatio: request.aspectRatio,
+          resolution: request.resolution,
+          count,
+          ...(results.length > 1
+            ? { batchUrls: results.map((item) => item.imageUrl) }
+            : {}),
+        },
         createdAt: Date.now(),
         mediaId: result.mediaId,
         type: "image",

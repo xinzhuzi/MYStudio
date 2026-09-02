@@ -129,4 +129,44 @@ describe("image-studio 指令执行器(二期扩容)", () => {
     expect(missing.ok).toBe(false);
     if (!missing.ok) expect(missing.reason).toContain("生成编排未就绪");
   });
+
+  it("restore-generation:单条指令整组复原(参考边+反向词+result+批量组)", () => {
+    seedGroup();
+    mountExecutor();
+
+    const result = dispatch({
+      kind: "restore-generation",
+      surface: "image-studio",
+      prompt: "黄昏暖色",
+      negativePrompt: "模糊",
+      model: "krea2-turbo",
+      aspectRatio: "16:9",
+      references: ["project-file://p/media/ai-image/2026-09/ref.png"],
+      result: { imageUrl: "project-file://p/media/ai-image/2026-09/out.png", mediaId: "m9" },
+      batchImageUrls: [
+        "project-file://p/media/ai-image/2026-09/out.png",
+        "project-file://p/media/ai-image/2026-09/b.png",
+      ],
+      generatedAt: 12345,
+    });
+    expect(result.ok).toBe(true);
+    const graph = activeGraph()!;
+    const detail = (result as { detail?: { nodeId?: string; promptNodeId?: string } }).detail;
+    const generated = graph.nodes.find(
+      (node): node is Extract<typeof node, { status?: string }> =>
+        node.id === detail?.nodeId,
+    ) as { status?: string; resultUrl?: string; aspectRatio?: string; imageBatch?: { images: string[]; primaryIndex: number } } | undefined;
+    expect(generated?.status).toBe("ready");
+    expect(generated?.resultUrl).toBe("project-file://p/media/ai-image/2026-09/out.png");
+    expect(generated?.aspectRatio).toBe("16:9");
+    expect(generated?.imageBatch?.images).toHaveLength(2);
+    // 参考边+提示词边都指向成图
+    const edgesToGenerated = graph.edges.filter((edge) => edge.target === detail?.nodeId);
+    expect(edgesToGenerated).toHaveLength(2);
+    const promptNode = graph.nodes.find((node) => node.id === detail?.promptNodeId) as
+      | { prompt?: string; negativePrompt?: string }
+      | undefined;
+    expect(promptNode?.prompt).toBe("黄昏暖色");
+    expect(promptNode?.negativePrompt).toBe("模糊");
+  });
 });

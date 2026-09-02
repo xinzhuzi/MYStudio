@@ -201,6 +201,12 @@ describe("useImageStudioGeneration 中止语义(实弹根修回归)", () => {
     expect(node).toMatchObject({ status: "ready", resultUrl: "local-image://ai-image/ok.png" });
     const history = useFreedomStore.getState().imageHistory[0];
     expect(history).toMatchObject({ resultUrl: "local-image://ai-image/ok.png", mediaId: "m-live" });
+    // 09-03 增丰:记录带复原所需输入快照(无参考=空数组;批量>1 时另有 batchUrls)
+    expect(history.params).toMatchObject({
+      source: "image-studio-canvas",
+      count: 1,
+      references: [],
+    });
     expect(eventBusEmitMock).toHaveBeenCalledWith("image:generated", {
       url: "local-image://ai-image/ok.png",
       prompt: "山门",
