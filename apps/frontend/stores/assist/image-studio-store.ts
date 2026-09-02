@@ -164,22 +164,14 @@ function resetTransientNodeStatus(state?: Partial<ImageStudioStoreState>): void 
   }));
 }
 
-/** 持久化前净化:瞬态媒体(data:/blob:)禁入项目分片,防把超大负载写盘 */
-function sanitizePersistedValue(raw: string): string {
-  try {
-    const parsed = JSON.parse(raw) as {
-      state?: { workflows?: ImageWorkflowGraph[] };
-    };
-    if (parsed.state?.workflows) {
-      parsed.state.workflows = sanitizeWorkflowsForPersist(parsed.state.workflows);
-    }
-    return JSON.stringify(parsed);
-  } catch {
-    return raw;
-  }
+/** 持久化前净化单个画布:瞬态媒体(data:/blob:)禁入项目分片 */
+function sanitizePersistedCanvas(canvas: ImageWorkflowGraph): ImageWorkflowGraph {
+  return sanitizeWorkflowsForPersist([canvas])[0] ?? canvas;
 }
 
-const imageStudioProjectStorage = createImageStudioProjectStorage(sanitizePersistedValue);
+const imageStudioProjectStorage = createImageStudioProjectStorage<ImageWorkflowGraph>({
+  sanitizeWorkflow: sanitizePersistedCanvas,
+});
 
 /** add 类动作自愈:画布被删光/激活失效时先确保默认画布存在 */
 function ensureActiveCanvas(
