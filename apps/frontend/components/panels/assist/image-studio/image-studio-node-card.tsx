@@ -676,17 +676,16 @@ function GeneratedNodeEditor({
       ) : (
         <span className="sr-only">纯文生图,拖参考图节点连线可挂图</span>
       )}
-      {/* 状态行:完成/耗时/失败文案(仅文案,不与按钮混排) */}
-      <div className="nodrag nopan flex items-center border-t border-border/60 pt-2">
-        <span className="flex min-w-0 items-center gap-1.5 text-[10px] font-medium text-muted-foreground">
-          {node.status === "ready" ? <CheckCircle2 role="img" className="h-3.5 w-3.5 text-success" aria-label="已完成" /> : null}
-          {generating
-            ? `${STATUS_LABELS[node.status]} · 已用 ${formatElapsedSeconds(elapsedSeconds)}`
-            : node.status === "failed"
-              ? STATUS_LABELS[node.status]
-              : null}
-        </span>
-      </div>
+      {/* 状态行:仅生成中/失败时有文案;完成态零渲染(用户裁定:不要孤零零的对号) */}
+      {generating || node.status === "failed" ? (
+        <div className="nodrag nopan flex items-center border-t border-border/60 pt-2">
+          <span className="flex min-w-0 items-center gap-1.5 text-[10px] font-medium text-muted-foreground">
+            {generating
+              ? `${STATUS_LABELS[node.status]} · 已用 ${formatElapsedSeconds(elapsedSeconds)}`
+              : STATUS_LABELS[node.status]}
+          </span>
+        </div>
+      ) : null}
       {/* 操作行:超分/保存/下载/生成(或停止)一行等宽排布(09-03 用户裁定:
           四钮一行、横向等宽;主次分层靠颜色——生成保留金色,不再靠宽度) */}
       <div className="nodrag nopan flex items-center gap-2">

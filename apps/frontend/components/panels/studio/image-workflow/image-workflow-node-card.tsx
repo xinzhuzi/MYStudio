@@ -375,7 +375,6 @@ function GeneratedNodeEditor({
       </div>
       <div className="nodrag nopan flex items-center border-t border-border/60 pt-2">
         <span className="flex min-w-0 items-center gap-1.5 text-[11px] text-muted-foreground">
-          {node.status === "ready" ? <CheckCircle2 className="h-3.5 w-3.5 text-success" /> : null}
           {node.status}
         </span>
       </div>

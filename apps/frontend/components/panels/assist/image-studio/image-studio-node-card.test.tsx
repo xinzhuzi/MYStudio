@@ -92,7 +92,8 @@ describe("ImageStudioNodeCard 成图卡", () => {
       ...callbacks,
     });
     expect(screen.getByTestId("local-image").getAttribute("src")).toBe("local-image://ai-image/x.png");
-    expect(screen.getByLabelText('已完成')).toBeTruthy();
+    // 09-03 用户裁定:完成态零状态渲染(孤零零的对号已删)
+    expect(screen.queryByLabelText("已完成")).toBeNull();
     expect(screen.getByText(/纯文生图/)).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: /生成/ }));
     expect(callbacks.onGenerate).toHaveBeenCalledWith("gen-1");
