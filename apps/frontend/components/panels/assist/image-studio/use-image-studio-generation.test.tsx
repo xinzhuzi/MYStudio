@@ -9,6 +9,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 const generateImageMock = vi.hoisted(() => vi.fn());
 const saveToMediaLibraryMock = vi.hoisted(() => vi.fn(() => "media-1"));
 const toastErrorMock = vi.hoisted(() => vi.fn());
+const toastInfoMock = vi.hoisted(() => vi.fn());
 const toastSuccessMock = vi.hoisted(() => vi.fn());
 const eventBusEmitMock = vi.hoisted(() => vi.fn());
 const runGenerationMock = vi.hoisted(() => vi.fn());
@@ -25,7 +26,7 @@ vi.mock("@/lib/studio/image-workflow-references", () => ({
   prepareImageWorkflowReferenceImages: vi.fn(async (values: string[]) => values),
 }));
 vi.mock("sonner", () => ({
-  toast: { error: toastErrorMock, success: toastSuccessMock, info: vi.fn(), warning: vi.fn() },
+  toast: { error: toastErrorMock, success: toastSuccessMock, info: toastInfoMock, warning: vi.fn() },
 }));
 vi.mock("@/lib/events/event-bus", () => ({
   eventBus: { emit: eventBusEmitMock, on: vi.fn(), once: vi.fn(), off: vi.fn() },
@@ -81,6 +82,36 @@ describe("useImageStudioGeneration 中止语义(实弹根修回归)", () => {
       expect(node).toMatchObject({ status: "failed", errorReason: "轮询超时" });
     });
     expect(toastErrorMock).toHaveBeenCalledWith(expect.stringContaining("轮询超时"));
+  });
+
+  it("批量 count=2:逐张扇出+进度报数+聚合图片组", async () => {
+    const group = useImageStudioStore.getState().addGenerationGroup({ prompt: "山门" });
+    useImageStudioStore.setState({
+      nodeExtras: { [group.generatedNodeId]: { count: 2 } },
+    });
+    runGenerationMock.mockImplementation(async (_graph: unknown, _id: string) => ({
+      prompt: "山门",
+      model: "krea2-turbo",
+      imageUrl: "local-image://ai-image/b.png",
+      mediaId: "m1",
+      persisted: true,
+    }));
+
+    const { result } = renderHook(() => useImageStudioGeneration());
+    await act(async () => {
+      await result.current.generateNode(group.generatedNodeId);
+    });
+
+    expect(runGenerationMock).toHaveBeenCalledTimes(2);
+    expect(toastInfoMock).toHaveBeenCalledWith(expect.stringContaining("第 1 张"));
+    expect(toastInfoMock).toHaveBeenCalledWith(expect.stringContaining("第 2 张"));
+    const workflow = useImageStudioStore.getState().workflows.find(
+      (w) => w.id === useImageStudioStore.getState().activeWorkflowId,
+    );
+    const node = workflow?.nodes.find((n) => n.id === group.generatedNodeId);
+    const generated = node && node.type === "generated" ? node : null;
+    expect(generated?.imageBatch?.images).toHaveLength(2);
+    expect(generated?.status).toBe("ready");
   });
 
   it("用户主动停止(真 abort)→回 idle 且不报错", async () => {

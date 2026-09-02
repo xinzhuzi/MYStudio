@@ -49,6 +49,13 @@ export function useImageStudioGeneration() {
       const results: Awaited<ReturnType<typeof runImageStudioNodeGeneration>>[] = [];
       for (let index = 0; index < count; index += 1) {
         if (controller.signal.aborted) break;
+        // 逐张进度反馈:批量=顺序 N 次且结果最后才聚合,中途零反馈会被当成
+        // 卡死(本地每张 2-3 分钟,4 张≈12 分钟盲等)。每张开始时明确报数。
+        if (count > 1) {
+          toast.info(
+            `批量 ${count} 张:正在生成第 ${index + 1} 张(本地每张约 2-3 分钟,完成后自动开始下一张)`,
+          );
+        }
         try {
           results.push(
             await runImageStudioNodeGeneration(graph, nodeId, {
