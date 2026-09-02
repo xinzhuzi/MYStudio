@@ -11,7 +11,6 @@ import {
   Send,
   Sparkles,
   Trash2,
-  X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -79,26 +78,15 @@ export function CanvasAssistantDialog({
           <DialogDescription>针对选中节点提问,回答可一键插回画布或直接生图</DialogDescription>
         </DialogHeader>
 
-        {/* 标题区:名字+实际作用一句话+显性关闭 */}
-        <div className="flex items-start justify-between border-b border-border px-4 py-3">
-          <div className="space-y-1">
-            <div className="flex items-center gap-1.5 text-sm font-medium text-card-foreground">
-              <MessageSquareText className="h-4 w-4 text-info" />
-              画布助手
-            </div>
-            <p className="text-xs text-muted-foreground">
-              针对选中节点提问;回答可一键插为提示词节点,或直接开生成。
-            </p>
+        {/* 标题区:名字+实际作用一句话(关闭用 DialogContent 自带右上钮,双钮用户已打回) */}
+        <div className="space-y-1 border-b border-border px-4 py-3 pr-12">
+          <div className="flex items-center gap-1.5 text-sm font-medium text-card-foreground">
+            <MessageSquareText className="h-4 w-4 text-info" />
+            画布助手
           </div>
-          <Button
-            size="icon"
-            variant="ghost"
-            className="h-8 w-8"
-            aria-label="关闭助手"
-            onClick={() => onOpenChange(false)}
-          >
-            <X className="h-4 w-4" />
-          </Button>
+          <p className="text-xs text-muted-foreground">
+            针对选中节点提问;回答可一键插为提示词节点,或直接开生成。
+          </p>
         </div>
 
         {/* 引用摘要:本次对话带了哪些上下文 */}

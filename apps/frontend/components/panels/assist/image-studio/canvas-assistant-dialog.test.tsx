@@ -219,7 +219,7 @@ describe("CanvasAssistantDialog 画布助手弹窗", () => {
     await waitFor(() => {
       expect(onOpenChange).toHaveBeenCalledWith(false);
     });
-    fireEvent.click(screen.getByRole("button", { name: "关闭助手" }));
+    fireEvent.click(screen.getByRole("button", { name: "Close" }));
     await waitFor(() => {
       expect(onOpenChange).toHaveBeenCalledWith(false);
     });
