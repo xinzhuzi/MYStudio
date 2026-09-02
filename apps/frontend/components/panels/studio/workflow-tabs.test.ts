@@ -212,7 +212,10 @@ describe("studio workflow tabs", () => {
     expect(workflowSource).toContain("bg-card/96");
     expect(workflowSource).toContain("text-card-foreground");
     expect(canvasSource).toContain("bg-muted/20");
-    expect(canvasSource).toContain('Background color="hsl(var(--border))"');
+    // 09-02 背景三态化:Background 改由 backgroundMode 驱动(FlowView 内),
+    // 源码断言改为存在 Background 渲染与三态分支
+    expect(canvasSource).toContain('Background');
+    expect(canvasSource).toContain('backgroundMode');
     expect(canvasSource).toContain("CanvasViewportControls");
     expect(canvasSource).not.toContain("<Controls");
     expect(workflowSource).not.toContain("border-white/");

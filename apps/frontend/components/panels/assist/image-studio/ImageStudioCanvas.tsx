@@ -6,6 +6,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
+  BackgroundVariant,
   Background,
   MarkerType,
   ReactFlow,
@@ -166,6 +167,7 @@ export function ImageStudioCanvas() {
   const [flowInstance, setFlowInstance] = useState<
     ReactFlowInstance<ImageStudioReactNode, Edge> | null
   >(null);
+
 
   const uploadInputRef = useRef<HTMLInputElement | null>(null);
   const uploadTargetRef = useRef<UploadTarget | null>(null);
@@ -746,6 +748,14 @@ function ImageStudioFlowView({
 
   const [flowInstance, setFlowInstance] =
     useState<ReactFlowInstance<ImageStudioReactNode, Edge> | null>(null);
+  const [backgroundMode, setBackgroundMode] = useState<"dots" | "lines" | "blank">(() => {
+    try {
+      const saved = window.localStorage.getItem("studio-canvas-background");
+      return saved === "lines" || saved === "blank" ? saved : "dots";
+    } catch {
+      return "dots";
+    }
+  });
 
   const interactingRef = useRef<HTMLDivElement | null>(null);
   const {
@@ -828,8 +838,19 @@ function ImageStudioFlowView({
           isVisible={Boolean(flowInstance)}
           nodeIds={measurementNodeIds}
         />
-        <Background color="hsl(var(--border))" gap={28} size={1} />
-        <CanvasViewportControls onFit={() => flowInstance?.fitView(FIT_VIEW_OPTIONS)} history={canvasHistory} />
+        {backgroundMode === "blank" ? null : (
+          <Background
+            variant={backgroundMode === "dots" ? BackgroundVariant.Dots : BackgroundVariant.Lines}
+            color="hsl(var(--border))"
+            gap={28}
+            size={1}
+          />
+        )}
+        <CanvasViewportControls
+            onFit={() => flowInstance?.fitView(FIT_VIEW_OPTIONS)}
+            history={canvasHistory}
+            onBackgroundModeChange={setBackgroundMode}
+          />
       </ReactFlow>
       {nodes.length === 0 ? (
         <div className="pointer-events-none absolute inset-0 flex items-center justify-center px-6 text-center">

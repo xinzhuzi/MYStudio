@@ -1,7 +1,5 @@
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
-  Background,
-  BackgroundVariant,
   MiniMap,
   Panel,
   useOnViewportChange,
@@ -40,9 +38,12 @@ export function CanvasViewportControls<TNode extends Node>({
   onViewportControlStart,
   onFit,
   history,
+  onBackgroundModeChange,
 }: {
   onViewportControlStart?: () => void;
   onFit: () => void;
+  /** 背景模式变化(09-02 R3);画布据此渲染自己的 Background */
+  onBackgroundModeChange?: (mode: "dots" | "lines" | "blank") => void;
   /** 撤销重做(08-31-canvas-undo-redo);未提供则不渲染两按钮 */
   history?: {
     canUndo: boolean;
@@ -74,7 +75,14 @@ export function CanvasViewportControls<TNode extends Node>({
       return next;
     });
   }, []);
+  // 画布自渲染 Background(避免与画布自带双重渲染);对上层暴露当前模式
+  useEffect(() => {
+    onBackgroundModeChange?.(backgroundMode);
+  }, [backgroundMode, onBackgroundModeChange]);
   const [miniMapOpen, setMiniMapOpen] = useState(readMiniMapOpen);
+  // 滑杆按需展开(Radix Slider 挂载会抢焦点,常驻会打断画布内输入——
+  // 点百分比区展开,点外/操作完自动收起)
+  const [sliderOpen, setSliderOpen] = useState(false);
 
   useOnViewportChange({
     onChange: (viewport) => {
@@ -114,9 +122,6 @@ export function CanvasViewportControls<TNode extends Node>({
           >
             <ZoomOut className="h-4 w-4" />
           </button>
-          <span className="min-w-16 px-2 text-center text-sm font-semibold tabular-nums text-foreground">
-            {zoomPercent}%
-          </span>
           <button
             type="button"
             aria-label="放大画布"
@@ -137,7 +142,16 @@ export function CanvasViewportControls<TNode extends Node>({
             <Maximize2 className="h-3.5 w-3.5" />
             适配
           </button>
-          <div className="flex w-24 items-center">
+          <button
+          type="button"
+          aria-label="展开缩放滑杆"
+          className="inline-flex h-9 min-w-14 items-center justify-center rounded-md border border-border/70 bg-muted/70 text-sm font-semibold tabular-nums text-foreground transition-colors duration-75 hover:bg-accent hover:text-accent-foreground active:bg-accent/70"
+          onClick={() => setSliderOpen((open) => !open)}
+        >
+          {zoomPercent}%
+        </button>
+        {sliderOpen ? (
+        <div className="flex w-24 items-center" onBlur={() => setSliderOpen(false)}>
           <Slider
             min={20}
             max={200}
@@ -157,6 +171,7 @@ export function CanvasViewportControls<TNode extends Node>({
             className="nodrag nopan"
           />
         </div>
+        ) : null}
         <Button
           size="icon"
           variant="ghost"
@@ -204,13 +219,6 @@ export function CanvasViewportControls<TNode extends Node>({
           </button>
         </div>
       </Panel>
-      {backgroundMode !== "blank" ? (
-        <Background
-          variant={backgroundMode === "dots" ? BackgroundVariant.Dots : BackgroundVariant.Lines}
-          gap={28}
-          size={1}
-        />
-      ) : null}
       {miniMapOpen ? (
         <MiniMap
           position="bottom-right"

@@ -3,6 +3,12 @@ import { act, cleanup, fireEvent, render, screen } from "@testing-library/react"
 import type { ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { WorkflowNodeCanvas } from "./WorkflowNodeCanvas";
+
+(globalThis as any).ResizeObserver ??= class {
+  observe() {}
+  unobserve() {}
+  disconnect() {}
+};
 import * as WorkflowProductionNodeModule from "./WorkflowProductionNode";
 import * as React from "react";
 import * as XYFlow from "@xyflow/react";
@@ -45,8 +51,9 @@ vi.mock("@xyflow/react", async () => {
   return {
     ...actual,
     Panel: ({ children }: { children?: ReactNode }) => <div>{children}</div>,
-    // 真实 MiniMap 需要完整 ReactFlowProvider 上下文,本套件 stub 掉 ReactFlow,一并 stub
+    // 真实 MiniMap/Background 需要完整 ReactFlowProvider 上下文,本套件 stub 掉 ReactFlow,一并 stub
     MiniMap: () => null,
+    Background: () => null,
     ReactFlow: ({
       children,
       onInit,

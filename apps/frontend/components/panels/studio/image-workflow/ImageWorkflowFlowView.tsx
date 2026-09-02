@@ -8,7 +8,16 @@ import { imageWorkflowTargetKey } from "./image-workflow-graph-utils";
 import { ImageWorkflowReactNode } from "./image-workflow-node-card";
 import { ConnectCreateInput, connectCreateDirection, getCreatableImageNodeTypes } from "@/lib/studio/image-workflow/connect-create";
 import type { ImageWorkflowGraph, ImageWorkflowOpenContext } from "@/types/studio";
-import { Background, Edge, FinalConnectionState, OnConnect, ReactFlow, ReactFlowInstance, useNodesState } from "@xyflow/react";
+import {
+  Background,
+  BackgroundVariant,
+  Edge,
+  FinalConnectionState,
+  OnConnect,
+  ReactFlow,
+  ReactFlowInstance,
+  useNodesState,
+} from "@xyflow/react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 /**
@@ -54,6 +63,14 @@ export function ImageWorkflowFlowView({
 }) {
   const [nodes, setNodes, onNodesChange] =
     useNodesState<ImageWorkflowReactNode>(reactFlowNodes);
+  const [backgroundMode, setBackgroundMode] = useState<"dots" | "lines" | "blank">(() => {
+    try {
+      const saved = window.localStorage.getItem("studio-canvas-background");
+      return saved === "lines" || saved === "blank" ? saved : "dots";
+    } catch {
+      return "dots";
+    }
+  });
   // 节点集按成员签名判等(assist 面实弹失焦根修的同款隐患):打字只改节点
   // 内容不改集合,防每键全量 updateNodeInternals → 重测窗口节点隐藏失焦。
   const nodeIdsSignature = activeGraph.nodes.map((node) => node.id).join("\u0001");
@@ -217,8 +234,19 @@ export function ImageWorkflowFlowView({
           isVisible={Boolean(flowInstance)}
           nodeIds={measurementNodeIds}
         />
-        <Background color="hsl(var(--border))" gap={28} size={1} />
-        <CanvasViewportControls onFit={onFitView} history={canvasHistory} />
+        {backgroundMode === "blank" ? null : (
+          <Background
+            variant={backgroundMode === "dots" ? BackgroundVariant.Dots : BackgroundVariant.Lines}
+            color="hsl(var(--border))"
+            gap={28}
+            size={1}
+          />
+        )}
+        <CanvasViewportControls
+          onFit={onFitView}
+          history={canvasHistory}
+          onBackgroundModeChange={setBackgroundMode}
+        />
       </ReactFlow>
       {connectCreateAnchor ? (
         <ImageWorkflowConnectCreateMenu
