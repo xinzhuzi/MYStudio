@@ -676,8 +676,8 @@ function GeneratedNodeEditor({
       ) : (
         <span className="sr-only">纯文生图,拖参考图节点连线可挂图</span>
       )}
-      {/* 操作区:左侧状态徽章,右侧次要动作;生成/停止独立成行压底(视觉锚) */}
-      <div className="nodrag nopan flex items-center justify-between border-t border-border/60 pt-2">
+      {/* 状态行:完成/耗时/失败文案(仅文案,不与按钮混排) */}
+      <div className="nodrag nopan flex items-center border-t border-border/60 pt-2">
         <span className="flex min-w-0 items-center gap-1.5 text-[10px] font-medium text-muted-foreground">
           {node.status === "ready" ? <CheckCircle2 role="img" className="h-3.5 w-3.5 text-success" aria-label="已完成" /> : null}
           {generating
@@ -686,63 +686,59 @@ function GeneratedNodeEditor({
               ? STATUS_LABELS[node.status]
               : null}
         </span>
-        <div className="flex items-center gap-1">
-          <Button
-            size="icon"
-            variant="outline"
-            className="h-9 w-9 rounded-lg"
-            onClick={() => onUpscale(node.id)}
-            disabled={!node.resultUrl || generating || alreadyUpscaled}
-            title={alreadyUpscaled ? "已是 4K 超分结果,无需再放大" : "超分:本地 Real-ESRGAN ×4 放大"}
-            aria-label="超分"
-          >
-            <ZoomIn className="h-3.5 w-3.5" />
-          </Button>
-          <Button
-            size="icon"
-            variant="outline"
-            className="h-9 w-9 rounded-lg"
-            onClick={() => onSaveToProps(node.id)}
-            disabled={!node.resultUrl}
-            title={
-              batchImages.length > 1
-                ? `保存 ${batchImages.length} 张到道具库(每张自动编号)`
-                : "保存到道具库"
-            }
-          >
-            <Archive className="h-3.5 w-3.5" />
-          </Button>
-          {node.resultUrl ? (
-            <Button
-              size="icon"
-              variant="outline"
-              className="h-9 w-9 rounded-lg"
-              onClick={downloadAllImages}
-              title={batchImages.length > 1 ? `下载全部 ${batchImages.length} 张(自动编号)` : "下载图片"}
-            >
-              <Download className="h-3.5 w-3.5" />
-            </Button>
-          ) : null}
-        </div>
       </div>
-      {/* 生成/停止:全宽压底主行动(视觉锚,与次要动作明确分层) */}
-      <div className="nodrag nopan">
+      {/* 操作行:超分/保存/下载/生成(或停止)一行等宽排布(09-03 用户裁定:
+          四钮一行、横向等宽;主次分层靠颜色——生成保留金色,不再靠宽度) */}
+      <div className="nodrag nopan flex items-center gap-2">
+        <Button
+          variant="outline"
+          className="h-9 flex-1 rounded-lg"
+          onClick={() => onUpscale(node.id)}
+          disabled={!node.resultUrl || generating || alreadyUpscaled}
+          title={alreadyUpscaled ? "已是 4K 超分结果,无需再放大" : "超分:本地 Real-ESRGAN ×4 放大"}
+          aria-label="超分"
+        >
+          <ZoomIn className="h-3.5 w-3.5" />
+        </Button>
+        <Button
+          variant="outline"
+          className="h-9 flex-1 rounded-lg"
+          onClick={() => onSaveToProps(node.id)}
+          disabled={!node.resultUrl}
+          title={
+            batchImages.length > 1
+              ? `保存 ${batchImages.length} 张到道具库(每张自动编号)`
+              : "保存到道具库"
+          }
+          aria-label="保存到道具库"
+        >
+          <Archive className="h-3.5 w-3.5" />
+        </Button>
+        {node.resultUrl ? (
+          <Button
+            variant="outline"
+            className="h-9 flex-1 rounded-lg"
+            onClick={downloadAllImages}
+            title={batchImages.length > 1 ? `下载全部 ${batchImages.length} 张(自动编号)` : "下载图片"}
+            aria-label="下载图片"
+          >
+            <Download className="h-3.5 w-3.5" />
+          </Button>
+        ) : null}
         {generating ? (
           <Button
-            size="sm"
             variant="destructive"
-            className="h-9 w-full"
+            className="h-9 flex-1"
             onClick={() => onStop(node.id)}
             title="中断本次生成(已计费的请求可能无法退款)"
           >
             <Square className="mr-1.5 h-3.5 w-3.5" />
-            停止生成
+            停止
           </Button>
         ) : (
           <Button
-            size="sm"
             variant="paid"
-            className="h-9 w-full"
+            className="h-9 flex-1"
             onClick={() => onGenerate(node.id)}
             title="按当前提示词+参考图生成图片(云端按张计费;张数在上方下拉选)"
           >

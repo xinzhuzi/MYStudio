@@ -373,19 +373,21 @@ function GeneratedNodeEditor({
           {RESOLUTION_OPTIONS.map((resolution) => <option key={resolution} value={resolution}>{resolution}</option>)}
         </select>
       </div>
-      <div className="nodrag nopan flex items-center justify-between gap-2">
+      <div className="nodrag nopan flex items-center border-t border-border/60 pt-2">
         <span className="flex min-w-0 items-center gap-1.5 text-[11px] text-muted-foreground">
           {node.status === "ready" ? <CheckCircle2 className="h-3.5 w-3.5 text-success" /> : null}
           {node.status}
         </span>
-        <div className="flex items-center gap-2">
-          <Button size="sm" className="h-9" variant="secondary" onClick={() => onApplyToStoryboard(node.id)} disabled={!node.resultUrl}>
+      </div>
+      {/* 操作行:回写/超分/生成一行等宽(09-03 用户裁定,与图片工作室同款) */}
+      <div className="nodrag nopan flex items-center gap-2">
+          <Button size="sm" className="h-9 flex-1" variant="secondary" onClick={() => onApplyToStoryboard(node.id)} disabled={!node.resultUrl}>
             <Save className="h-3.5 w-3.5" />
             回写
           </Button>
           <Button
             size="sm"
-            className="h-9"
+            className="h-9 flex-1"
             variant="outline"
             onClick={() => {
               if (!node.resultUrl || generating || alreadyUpscaled) return;
@@ -428,11 +430,10 @@ function GeneratedNodeEditor({
               </DialogFooter>
             </DialogContent>
           </Dialog>
-          <Button size="sm" className="h-9" variant="paid" onClick={() => onGenerate(node.id)} disabled={generating}>
+          <Button size="sm" className="h-9 flex-1" variant="paid" onClick={() => onGenerate(node.id)} disabled={generating}>
             {generating ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <WandSparkles className="h-3.5 w-3.5" />}
             生成
           </Button>
-        </div>
       </div>
       {!promptNode ? (
         <div
