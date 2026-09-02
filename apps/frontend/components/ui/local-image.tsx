@@ -37,6 +37,10 @@ interface LocalImageProps extends React.ImgHTMLAttributes<HTMLImageElement> {
   previewable?: boolean;
   /** 大图地址;缺省取 src 剥 ?thumb=1(消费方普遍传缩略变体) */
   previewSrc?: string;
+  /** 批量组:弹窗内可翻页查看的全部图址(缺省=单图);纯增量可选,存量调用方零影响 */
+  previewImages?: string[];
+  /** 批量组:弹窗初始展示索引(缺省 0) */
+  previewIndex?: number;
 }
 
 export function LocalImage({
@@ -49,6 +53,8 @@ export function LocalImage({
   eager = false,
   previewable = false,
   previewSrc,
+  previewImages,
+  previewIndex,
   ...props
 }: LocalImageProps) {
   const [error, setError] = useState(false);
@@ -137,6 +143,8 @@ export function LocalImage({
             ? createPortal(
                 <ImagePreviewModal
                   imageUrl={previewSrc ?? currentSrc.replace(/\?thumb=1$/, "")}
+                  imageUrls={previewImages && previewImages.length > 0 ? previewImages : undefined}
+                  initialIndex={previewIndex}
                   isOpen
                   onClose={() => setPreviewOpen(false)}
                 />,

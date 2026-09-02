@@ -1,5 +1,6 @@
 import { useEffect, useRef } from "react";
 import { ImagePlus, LayoutGrid, Maximize, Type, WandSparkles, X } from "lucide-react";
+import { CONTEXT_MENU_ARRIVAL_CLASS, contextMenuPosition } from "./context-menu-craft";
 
 /**
  * 画布右键创建菜单(09-02,交互形态参考 infinite-canvas NodeCreateMenu,实现从零/AGPL):
@@ -66,8 +67,8 @@ export function PaneCreateMenu({
         ref={rootRef}
         role="menu"
         aria-label="创建节点"
-        className="absolute min-w-60 overflow-hidden rounded-lg border border-border bg-popover p-1 shadow-lg backdrop-blur-md"
-        style={{ left: x, top: y }}
+        className={`fixed z-50 min-w-60 overflow-hidden rounded-lg border border-border bg-popover p-1 shadow-xl backdrop-blur-md ${CONTEXT_MENU_ARRIVAL_CLASS}`}
+        style={contextMenuPosition(x, y, 260, 250)}
         onPointerDown={(event) => event.stopPropagation()}
         onKeyDown={(event) => {
           if (event.key === "Escape") {

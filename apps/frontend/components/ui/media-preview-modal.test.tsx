@@ -31,6 +31,24 @@ describe("media preview modals", () => {
     expect(document.body.style.overflow).toBe("");
   });
 
+  it("multi-image group: both prev/next navigation controls are present for page turning", () => {
+    const onClose = vi.fn();
+    render(
+      <ImagePreviewModal
+        imageUrl="https://example.test/1.png"
+        imageUrls={["https://example.test/1.png", "https://example.test/2.png"]}
+        initialIndex={1}
+        isOpen
+        onClose={onClose}
+      />,
+    );
+
+    expect(screen.getByLabelText("上一张")).toBeTruthy();
+    expect(screen.getByLabelText("下一张")).toBeTruthy();
+    fireEvent.click(screen.getByLabelText("上一张"));
+    expect(onClose).not.toHaveBeenCalled();
+  });
+
   it("renders and closes the video preview through its close control", () => {
     const onClose = vi.fn();
     const { container } = render(

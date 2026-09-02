@@ -427,6 +427,8 @@ function BatchImageArea({
             className="h-full w-full object-cover"
             eager
             previewable
+            previewImages={images.length > 1 ? images.map((url) => toPreviewSrc(url)) : undefined}
+            previewIndex={images.length > 1 ? safeIndex : undefined}
           />
           <ResolutionBadge src={toPreviewSrc(current)} />
         </span>

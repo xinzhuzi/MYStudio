@@ -11,6 +11,7 @@
  * 图片大图预览整体套用 yet-another-react-lightbox(MIT)+ 官方 Zoom 插件:
  * 滚轮缩放 / 双击放大还原 / 触控板与触屏捏合 / 拖拽平移 / 工具栏
  * 放大缩小按钮 / Esc 与背景点击关闭,均为插件自带能力,零手写手势。
+ * 批量组传入 imageUrls 时弹窗内可左右箭头/方向键翻页整组图。
  * 左上角像素角标经 render.toolbar 注入,与默认工具栏并存。
  */
 
@@ -24,12 +25,18 @@ import { ResolutionBadge } from "@/components/ui/image-resolution-badge";
 
 interface ImagePreviewModalProps {
   imageUrl: string;
+  /** 批量组:弹窗内可翻页查看的全部图址(缺省/空=单图 imageUrl) */
+  imageUrls?: string[];
+  /** 批量组:弹窗初始展示索引(缺省 0) */
+  initialIndex?: number;
   isOpen: boolean;
   onClose: () => void;
 }
 
 export function ImagePreviewModal({
   imageUrl,
+  imageUrls,
+  initialIndex,
   isOpen,
   onClose,
 }: ImagePreviewModalProps) {
@@ -50,12 +57,17 @@ export function ImagePreviewModal({
 
   if (!isOpen) return null;
 
+  const previewSlides = (imageUrls && imageUrls.length > 0 ? imageUrls : [imageUrl])
+    .map((src) => ({ src, alt: "Preview" }));
+  const startIndex = Math.min(Math.max(initialIndex ?? 0, 0), previewSlides.length - 1);
+
   return createPortal(
     <Lightbox
       open={isOpen}
       close={onClose}
       controller={{ closeOnBackdropClick: true }}
-      slides={[{ src: imageUrl, alt: "Preview" }]}
+      slides={previewSlides}
+      index={startIndex}
       plugins={[Zoom]}
       zoom={{
         // 滚轮/触控板滚动缩放默认关闭,显式开启(桌面看图核心诉求)
