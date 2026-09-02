@@ -537,7 +537,7 @@ function GeneratedNodeEditor({
   return (
     <div className="space-y-3">
       <BatchImageArea node={node} />
-      <div className="nodrag nopan grid grid-cols-[minmax(0,1fr)_76px_64px_56px] gap-2" data-image-studio-node-params>
+      <div className="nodrag nopan grid grid-cols-[minmax(0,1fr)_64px_64px_64px] gap-1.5" data-image-studio-node-params>
         <ModelSelector
           type="image"
           value={model}
@@ -646,18 +646,23 @@ function GeneratedNodeEditor({
             : `图生图:已挂 ${referenceCount}/${referenceCapacity} 张参考图`}
         </div>
       ) : referenceCount > 0 ? (
-        <div className="nodrag nopan text-[11px] text-muted-foreground">
-          图生图:已挂 {referenceCount} 张参考图
+        <div className="nodrag nopan flex items-center gap-1.5 text-[10px] text-muted-foreground">
+          <ImageIcon className="h-3 w-3 text-success/70" aria-hidden />
+          已挂 {referenceCount} 张参考图
         </div>
       ) : (
-        <div className="nodrag nopan text-[11px] text-muted-foreground">文生图:无参考图连线</div>
+        <div className="nodrag nopan flex items-center gap-1.5 text-[10px] text-muted-foreground/70">
+          <WandSparkles className="h-3 w-3" aria-hidden />
+          纯文生图——拖参考图节点连线可挂图
+        </div>
       )}
-      <div className="nodrag nopan flex items-center justify-between gap-2">
-        <span className="flex min-w-0 items-center gap-1.5 rounded-full bg-muted/40 px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
+      {/* 操作区:左侧状态徽章,右侧次要动作;生成/停止独立成行压底(视觉锚) */}
+      <div className="nodrag nopan flex items-center justify-between border-t border-border/60 pt-2">
+        <span className="flex min-w-0 items-center gap-1.5 text-[10px] font-medium text-muted-foreground">
           {node.status === "ready" ? <CheckCircle2 className="h-3.5 w-3.5 text-success" /> : null}
           {generating ? `${STATUS_LABELS[node.status]} · 已用 ${formatElapsedSeconds(elapsedSeconds)}` : STATUS_LABELS[node.status]}
         </span>
-        <div className="flex items-center gap-1.5">
+        <div className="flex items-center gap-1">
           <Button
             size="sm"
             variant="outline"
@@ -685,23 +690,33 @@ function GeneratedNodeEditor({
               </a>
             </Button>
           ) : null}
-          {generating ? (
-            <Button size="sm" variant="destructive" onClick={() => onStop(node.id)} title="中断本次生成(已计费的请求可能无法退款)">
-              <Square className="mr-1 h-3.5 w-3.5" />
-              停止
-            </Button>
-          ) : (
-            <Button
-              size="sm"
-              variant="paid"
-              onClick={() => onGenerate(node.id)}
-              title="按当前提示词+参考图生成图片(云端按张计费;张数在上方下拉选)"
-            >
-              <Sparkles className="mr-1 h-3.5 w-3.5" />
-              生成
-            </Button>
-          )}
         </div>
+      </div>
+      {/* 生成/停止:全宽压底主行动(视觉锚,与次要动作明确分层) */}
+      <div className="nodrag nopan">
+        {generating ? (
+          <Button
+            size="sm"
+            variant="destructive"
+            className="w-full"
+            onClick={() => onStop(node.id)}
+            title="中断本次生成(已计费的请求可能无法退款)"
+          >
+            <Square className="mr-1.5 h-3.5 w-3.5" />
+            停止生成
+          </Button>
+        ) : (
+          <Button
+            size="sm"
+            variant="paid"
+            className="w-full"
+            onClick={() => onGenerate(node.id)}
+            title="按当前提示词+参考图生成图片(云端按张计费;张数在上方下拉选)"
+          >
+            <Sparkles className="mr-1.5 h-3.5 w-3.5" />
+            生成
+          </Button>
+        )}
       </div>
       {!promptNode ? (
         <div className="nodrag nopan space-y-2 rounded-md border border-border bg-background/80 p-3">

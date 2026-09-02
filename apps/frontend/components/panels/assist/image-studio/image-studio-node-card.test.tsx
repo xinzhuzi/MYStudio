@@ -93,7 +93,7 @@ describe("ImageStudioNodeCard 成图卡", () => {
     });
     expect(screen.getByTestId("local-image").getAttribute("src")).toBe("local-image://ai-image/x.png");
     expect(screen.getByText("已完成")).toBeTruthy();
-    expect(screen.getByText("文生图:无参考图连线")).toBeTruthy();
+    expect(screen.getByText(/纯文生图/)).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: /生成/ }));
     expect(callbacks.onGenerate).toHaveBeenCalledWith("gen-1");
   });
