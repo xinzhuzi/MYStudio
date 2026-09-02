@@ -113,8 +113,11 @@ async function appendProjectLedger(input: {
     entries = []; // 坏文件重建
   }
   entries.push(input.entry);
+  // `_p/{pid}/…` 虚拟键与读侧(readText {projectId, relativePath})同构:
+  // 外部位置项目动态重定向+store 布局收口。旧 `projects/…` 键形式不重定向,
+  // 会把台账写进 AppSupport 旧行造成读写分家(09-03 对拍实锤)。
   await bridge.writeText(
-    `projects/${input.projectId}/${input.relativePath}`,
+    `_p/${input.projectId}/${input.relativePath}`,
     JSON.stringify(entries.slice(-2000), null, 2),
   );
 }

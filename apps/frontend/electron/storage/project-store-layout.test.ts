@@ -86,6 +86,8 @@ describe("ensureProjectStoreLayout", () => {
     expect(MOVABLE_STORE_SEGMENTS).toContain("剧本");
     expect(MOVABLE_STORE_SEGMENTS).toContain("studio-workflow");
     expect(MOVABLE_STORE_SEGMENTS).toContain("studio-workflow-store");
+    // 09-03 画布落项目存储:必须收进 store/(否则项目根平铺,克隆也带不走)
+    expect(MOVABLE_STORE_SEGMENTS).toContain("image-studio");
     expect(MOVABLE_STORE_SEGMENTS).not.toContain("novel");
     expect(MOVABLE_STORE_SEGMENTS).not.toContain("source-memory");
   });

@@ -23,6 +23,7 @@ const STORE_LAYOUT_SEGMENTS = new Set([
   "studio-workflow",
   "studio-workflow-store",
   "overview",
+  "image-studio",
   "剧本",
 ]);
 

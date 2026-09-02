@@ -34,6 +34,7 @@ export const MOVABLE_STORE_SEGMENTS: readonly string[] = [
   "studio-workflow",
   "studio-workflow-store",
   "overview",
+  "image-studio",
   "剧本",
 ];
 
