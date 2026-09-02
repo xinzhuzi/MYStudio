@@ -45,6 +45,10 @@ export function useImageStudioGeneration() {
     // 聚合进一个生成节点;部分失败保留成功张。
     const extras = useImageStudioStore.getState().nodeExtras[nodeId];
     const count = Math.max(1, Math.min(4, Number(extras?.count) || 1));
+    // count 是 UI 层批量概念,生图通道无此参数——透传前剥掉,
+    // 防止多余字段泄进云端请求体(严格供应商可能 400)
+    const engineExtras: Record<string, unknown> = { ...(extras ?? {}) };
+    delete engineExtras.count;
     try {
       const results: Awaited<ReturnType<typeof runImageStudioNodeGeneration>>[] = [];
       for (let index = 0; index < count; index += 1) {
@@ -59,7 +63,7 @@ export function useImageStudioGeneration() {
         try {
           results.push(
             await runImageStudioNodeGeneration(graph, nodeId, {
-              extraParams: extras,
+              extraParams: engineExtras,
               signal: controller.signal,
             }),
           );

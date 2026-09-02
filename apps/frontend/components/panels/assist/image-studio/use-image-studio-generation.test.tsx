@@ -11,6 +11,7 @@ const saveToMediaLibraryMock = vi.hoisted(() => vi.fn(() => "media-1"));
 const toastErrorMock = vi.hoisted(() => vi.fn());
 const toastInfoMock = vi.hoisted(() => vi.fn());
 const toastSuccessMock = vi.hoisted(() => vi.fn());
+const toastWarningMock = vi.hoisted(() => vi.fn());
 const eventBusEmitMock = vi.hoisted(() => vi.fn());
 const runGenerationMock = vi.hoisted(() => vi.fn());
 
@@ -26,7 +27,7 @@ vi.mock("@/lib/studio/image-workflow-references", () => ({
   prepareImageWorkflowReferenceImages: vi.fn(async (values: string[]) => values),
 }));
 vi.mock("sonner", () => ({
-  toast: { error: toastErrorMock, success: toastSuccessMock, info: toastInfoMock, warning: vi.fn() },
+  toast: { error: toastErrorMock, success: toastSuccessMock, info: toastInfoMock, warning: toastWarningMock },
 }));
 vi.mock("@/lib/events/event-bus", () => ({
   eventBus: { emit: eventBusEmitMock, on: vi.fn(), once: vi.fn(), off: vi.fn() },
@@ -55,6 +56,8 @@ beforeEach(() => {
   runGenerationMock.mockReset();
   toastErrorMock.mockClear();
   toastSuccessMock.mockClear();
+  toastInfoMock.mockClear();
+  toastWarningMock.mockClear();
   eventBusEmitMock.mockClear();
 });
 
@@ -111,6 +114,40 @@ describe("useImageStudioGeneration 中止语义(实弹根修回归)", () => {
     const node = workflow?.nodes.find((n) => n.id === group.generatedNodeId);
     const generated = node && node.type === "generated" ? node : null;
     expect(generated?.imageBatch?.images).toHaveLength(2);
+    expect(generated?.status).toBe("ready");
+  });
+
+  it("批量 count=3 部分失败:第 3 张失败保留前 2 张;count 不泄进引擎参数", async () => {
+    const group = useImageStudioStore.getState().addGenerationGroup({ prompt: "山门" });
+    useImageStudioStore.setState({
+      nodeExtras: { [group.generatedNodeId]: { count: 3, stylization: 250 } },
+    });
+    runGenerationMock
+      .mockResolvedValueOnce({ prompt: "山门", model: "krea2-turbo", imageUrl: "local-image://ai-image/1.png", mediaId: "m1", persisted: true })
+      .mockResolvedValueOnce({ prompt: "山门", model: "krea2-turbo", imageUrl: "local-image://ai-image/2.png", mediaId: "m2", persisted: true })
+      .mockRejectedValueOnce(new Error("供应商 524"));
+
+    const { result } = renderHook(() => useImageStudioGeneration());
+    await act(async () => {
+      await result.current.generateNode(group.generatedNodeId);
+    });
+
+    expect(runGenerationMock).toHaveBeenCalledTimes(3);
+    // count 已剥离,其余引擎参数原样透传
+    const firstCallInput = runGenerationMock.mock.calls[0][2] as { extraParams?: Record<string, unknown> };
+    expect(firstCallInput.extraParams).toEqual({ stylization: 250 });
+    // 部分失败语义:警告保留前 2 张,不进 failed
+    expect(toastWarningMock).toHaveBeenCalledWith(expect.stringContaining("已保留前 2 张"));
+    expect(toastErrorMock).not.toHaveBeenCalled();
+    const workflow = useImageStudioStore.getState().workflows.find(
+      (w) => w.id === useImageStudioStore.getState().activeWorkflowId,
+    );
+    const node = workflow?.nodes.find((n) => n.id === group.generatedNodeId);
+    const generated = node && node.type === "generated" ? node : null;
+    expect(generated?.imageBatch?.images).toEqual([
+      "local-image://ai-image/1.png",
+      "local-image://ai-image/2.png",
+    ]);
     expect(generated?.status).toBe("ready");
   });
 
