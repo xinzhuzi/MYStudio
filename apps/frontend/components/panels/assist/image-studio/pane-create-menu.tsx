@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react";
-import { ImagePlus, Type, WandSparkles, X } from "lucide-react";
+import { ImagePlus, LayoutGrid, Maximize, Type, WandSparkles, X } from "lucide-react";
 
 /**
  * 画布右键创建菜单(09-02,交互形态参考 infinite-canvas NodeCreateMenu,实现从零/AGPL):
@@ -7,6 +7,8 @@ import { ImagePlus, Type, WandSparkles, X } from "lucide-react";
  * 房子样式(bg-popover 弹层材质+design-lint 白名单内);键盘可达(↑↓/Enter/ESC)。
  */
 export type PaneCreateKind = "generation-group" | "reference" | "prompt";
+/** 画布操作项(09-02 业界对齐:ComfyUI/Figma 右键=创建+画布操作) */
+export type PaneCanvasAction = "tidy-layout" | "fit-view";
 
 export interface PaneCreateOption {
   kind: PaneCreateKind;
@@ -44,7 +46,7 @@ export function PaneCreateMenu({
 }: {
   x: number;
   y: number;
-  onSelect: (kind: PaneCreateKind) => void;
+  onSelect: (kind: PaneCreateKind | PaneCanvasAction) => void;
   onClose: () => void;
 }) {
   const firstRef = useRef<HTMLButtonElement | null>(null);
@@ -111,6 +113,28 @@ export function PaneCreateMenu({
               <span className="block text-sm font-medium text-popover-foreground">{option.label}</span>
               <span className="block text-xs text-muted-foreground">{option.description}</span>
             </span>
+          </button>
+        ))}
+        <div className="mx-2 my-1 h-px bg-border" />
+        {(
+          [
+            { action: "tidy-layout" as const, label: "整理布局", icon: <LayoutGrid className="h-4 w-4 text-muted-foreground" /> },
+            { action: "fit-view" as const, label: "适配画布", icon: <Maximize className="h-4 w-4 text-muted-foreground" /> },
+          ]
+        ).map((item) => (
+          <button
+            key={item.action}
+            type="button"
+            role="menuitem"
+            data-option
+            className="flex w-full items-center gap-2 rounded-md px-2 py-2 text-left transition-colors duration-75 hover:bg-accent hover:text-accent-foreground active:bg-accent/70"
+            onClick={() => {
+              onSelect(item.action);
+              onClose();
+            }}
+          >
+            {item.icon}
+            <span className="text-sm font-medium text-popover-foreground">{item.label}</span>
           </button>
         ))}
       </div>

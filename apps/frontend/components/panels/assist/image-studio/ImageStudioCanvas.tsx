@@ -53,7 +53,7 @@ import {
 } from "./image-studio-node-card";
 import { ImageStudioToolbar } from "./image-studio-toolbar";
 import { useImageStudioGeneration } from "./use-image-studio-generation";
-import { PaneCreateMenu, type PaneCreateKind } from "./pane-create-menu";
+import { PaneCreateMenu, type PaneCanvasAction, type PaneCreateKind } from "./pane-create-menu";
 import { NodeContextMenu } from "./node-context-menu";
 import { CanvasHints } from "./canvas-hints";
 import { useImageDrop } from "./use-image-drop";
@@ -324,7 +324,16 @@ export function ImageStudioCanvas() {
   }, [nodeMenu]);
 
   const handlePaneCreate = useCallback(
-    (kind: PaneCreateKind) => {
+    (kind: PaneCreateKind | PaneCanvasAction) => {
+      // 画布操作(09-02 业界对齐:右键菜单兼带画布级操作)
+      if (kind === "tidy-layout") {
+        useImageStudioStore.getState().applyLayout();
+        return;
+      }
+      if (kind === "fit-view") {
+        flowInstanceRef.current?.fitView(FIT_VIEW_OPTIONS);
+        return;
+      }
       const store = useImageStudioStore.getState();
       if (kind === "generation-group") {
         const group = store.addGenerationGroup({ model: defaultModel(), position: paneCreate?.world });
