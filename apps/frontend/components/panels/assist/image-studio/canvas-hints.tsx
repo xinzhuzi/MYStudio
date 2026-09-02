@@ -13,7 +13,7 @@ const HINTS: ReadonlyArray<{ icon: string; title: string; body: string }> = [
   { icon: "🖱️", title: "建节点", body: "右键画布空白处,选文生图/参考图/提示词,落在右键位置;工具栏按钮也可" },
   { icon: "🔗", title: "连线", body: "拖节点右侧圆点到另一个节点;拖到空白处松手=快速建下游节点" },
   { icon: "⌨️", title: "撤销/复制", body: "⌘Z 撤销 / ⌘⇧Z 重做 / Ctrl+C·V 复制粘贴节点 / Delete 删除选中" },
-  { icon: "🔍", title: "导航", body: "触控板双指缩放/拖移;框选空白拖出多选;右下小地图可点跳" },
+  { icon: "🔍", title: "导航", body: "触控板双指缩放/拖移;鼠标中键拖动平移;框选空白拖出多选;右下小地图可点跳" },
   { icon: "✂️", title: "取材", body: "节点右上角图标:裁剪/切图/局部重绘/反推提示词,结果自动落回画布" },
 ];
 
