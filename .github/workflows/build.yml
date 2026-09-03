@@ -124,22 +124,7 @@ jobs:
         if: failure()
         shell: bash
         working-directory: apps
-        run: |
-          set +e
-          report="output/automation/quality-gate-report.json"
-          if [ -f "$report" ]; then
-            echo "===== quality-gate-report.json ====="
-            NO_COLOR=1 CI=true node -e '
-              const fs = require("fs");
-              const r = JSON.parse(fs.readFileSync("output/automation/quality-gate-report.json", "utf8"));
-              console.log(JSON.stringify(r, null, 2));
-            ' | while IFS= read -r line; do
-              echo "::error::${line:0:500}"
-            done
-          else
-            echo "::error::report not found: $report"
-          fi
-          exit 0
+        run: node build/scripts/ci-diagnose.mjs
 
       - name: Build renderer
         working-directory: apps
