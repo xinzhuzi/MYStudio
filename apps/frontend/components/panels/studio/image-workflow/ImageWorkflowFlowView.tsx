@@ -1,5 +1,6 @@
 import { InteractionDeferHint } from "../previews/interaction-defer-hint";
 import { CanvasViewportControls } from "../CanvasViewportControls";
+import { GenerationFailedDialog } from "@/components/ui/generation-failed-dialog";
 import { nodeTypes, FIT_VIEW_OPTIONS, ImageWorkflowVisibilityMeasurementRefresh } from "./ImageWorkflowCanvas";
 import { useCanvasGestureKernel } from "../use-canvas-gesture-kernel";
 import type { CanvasHistoryController } from "../use-canvas-history";
@@ -300,6 +301,7 @@ export function ImageWorkflowFlowView({
         className="hidden"
         onChange={(event) => void onUploadReference(event.target.files?.[0])}
       />
+      <GenerationFailedDialog surface="image-workflow" />
     </div>
   );
 }

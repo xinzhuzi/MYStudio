@@ -69,7 +69,7 @@ afterEach(() => {
 });
 
 describe("useImageStudioGeneration 中止语义(实弹根修回归)", () => {
-  it("引擎超时类 AbortError(signal 未 abort)→节点 failed 并 toast,不再静默回 idle", async () => {
+  it("引擎超时类 AbortError(signal 未 abort)→节点 failed 并广播失败弹窗事件,不再静默回 idle", async () => {
     runGenerationMock.mockRejectedValue(makeAbortShapedError("轮询超时"));
     const group = useImageStudioStore.getState().addGenerationGroup({ prompt: "山门" });
 
@@ -84,7 +84,11 @@ describe("useImageStudioGeneration 中止语义(实弹根修回归)", () => {
       const node = workflow?.nodes.find((n) => n.id === group.generatedNodeId);
       expect(node).toMatchObject({ status: "failed", errorReason: "轮询超时" });
     });
-    expect(toastErrorMock).toHaveBeenCalledWith(expect.stringContaining("轮询超时"));
+    // 09-03 失败提示弹窗化:不再 toast,改广播弹窗事件(surface=图片工作室)
+    expect(eventBusEmitMock).toHaveBeenCalledWith("image:generation-failed", {
+      surface: "image-studio",
+      reason: "轮询超时",
+    });
   });
 
   it("批量 count=2:逐张扇出+进度报数+聚合图片组", async () => {

@@ -18,6 +18,7 @@ import {
 import "@xyflow/react/dist/style.css";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { GenerationFailedDialog } from "@/components/ui/generation-failed-dialog";
 import {
   Dialog,
   DialogContent,
@@ -726,6 +727,7 @@ export function ImageStudioCanvas() {
             onOpenChange={(next) => setHistoryDialogOpen(next)}
           />
         ) : null}
+        <GenerationFailedDialog surface="image-studio" />
       </div>
 
       <input

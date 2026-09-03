@@ -7,6 +7,10 @@ import { toast } from "sonner";
 import { buildImageStudioGenerationRequest } from "@/lib/assist/image-studio/request";
 import { runImageStudioNodeGeneration } from "@/lib/assist/image-studio/run-node-generation";
 import { eventBus } from "@/lib/events/event-bus";
+import {
+  IMAGE_GENERATION_FAILED_EVENT,
+  type ImageGenerationFailedPayload,
+} from "@/lib/events/image-generation-events";
 import { runUpscaleImage } from "@/lib/upscale/client";
 import { parseUpscaleMediaRef, siblingOutputRef } from "@/lib/upscale/project-file-url";
 import { saveToMediaLibrary } from "@/lib/ai/generation-media";
@@ -132,7 +136,11 @@ export function useImageStudioGeneration() {
       } else {
         const message = error instanceof Error ? error.message : "生成失败";
         useImageStudioStore.getState().setNodeStatus(nodeId, "failed", message);
-        toast.error(`生成失败: ${message}`);
+        // 失败提示弹窗化(09-03 用户裁定):不放节点卡,画布层弹窗呈现
+        eventBus.emit(IMAGE_GENERATION_FAILED_EVENT, {
+          surface: "image-studio",
+          reason: message,
+        } satisfies ImageGenerationFailedPayload);
       }
     } finally {
       abortRef.current.delete(nodeId);

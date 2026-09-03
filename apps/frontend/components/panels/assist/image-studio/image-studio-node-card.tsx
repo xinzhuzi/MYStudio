@@ -76,14 +76,6 @@ export type ImageStudioReactNode = Node<ImageStudioNodeData>;
 const ASPECT_RATIOS = IMAGE_ASPECT_RATIOS;
 const RESOLUTION_OPTIONS = IMAGE_RESOLUTIONS;
 
-// 状态文字只用于 queued/generating/failed;ready=图标,idle=不渲染(去文字化)
-const STATUS_LABELS: Record<Exclude<ImageWorkflowGeneratedNode["status"], "idle">, string> = {
-  queued: "排队中",
-  generating: "生成中",
-  ready: "已完成",
-  failed: "失败",
-};
-
 /**
  * 拖动每帧重建 node wrapper(position/dragging 变化),卡片内容只依赖
  * data(selected/字段/回调)——与分镜画布同款 memo 纪律。
@@ -408,7 +400,8 @@ function BatchImageArea({
     return (
       <div className="aspect-video overflow-hidden rounded-md border border-border bg-muted/30">
         <div className="flex h-full items-center justify-center px-4 text-center text-xs text-muted-foreground">
-          {node.status === "failed" ? node.errorReason || "生成失败" : "等待生成"}
+          {/* 失败原因不进卡(09-03 用户裁定:弹窗呈现);占位保持中性文案 */}
+          等待生成
         </div>
       </div>
     );
@@ -675,13 +668,13 @@ function GeneratedNodeEditor({
       ) : (
         <span className="sr-only">纯文生图,拖参考图节点连线可挂图</span>
       )}
-      {/* 状态行:仅生成中/失败时有文案;完成态零渲染(用户裁定:不要孤零零的对号) */}
-      {generating || node.status === "failed" ? (
+      {/* 状态行:仅生成中有文案;完成态零渲染(用户裁定:不要孤零零的对号);
+          失败态零渲染(09-03 用户裁定:失败提示弹窗化,不放节点卡——生成
+          按钮自身已承载状态) */}
+      {generating ? (
         <div className="nodrag nopan flex items-center border-t border-border/60 pt-2">
           <span className="flex min-w-0 items-center gap-1.5 text-[10px] font-medium text-muted-foreground">
-            {generating
-              ? `${STATUS_LABELS[node.status]} · 已用 ${formatElapsedSeconds(elapsedSeconds)}`
-              : STATUS_LABELS[node.status]}
+            {`${node.status === "queued" ? "排队中" : "生成中"} · 已用 ${formatElapsedSeconds(elapsedSeconds)}`}
           </span>
         </div>
       ) : null}

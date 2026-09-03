@@ -342,7 +342,8 @@ function GeneratedNodeEditor({
           </span>
         ) : (
           <div className="flex h-full items-center justify-center text-xs text-muted-foreground">
-            {node.status === "failed" ? node.errorReason || "生成失败" : "等待生成"}
+            {/* 失败原因不进卡(09-03 用户裁定:弹窗呈现);占位保持中性文案 */}
+            等待生成
           </div>
         )}
       </div>

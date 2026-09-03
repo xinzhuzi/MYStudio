@@ -4,6 +4,11 @@ import {
   buildImageWorkflowGenerationRequest,
   setGeneratedImageStatus,
 } from "@/lib/studio/image-workflow";
+import { eventBus } from "@/lib/events/event-bus";
+import {
+  IMAGE_GENERATION_FAILED_EVENT,
+  type ImageGenerationFailedPayload,
+} from "@/lib/events/image-generation-events";
 import { useStudioStore } from "@/stores/studio/studio-store";
 import type { ImageWorkflowGraph } from "@/types/studio";
 import { resolveGenerationTargetNodeId } from "./image-workflow-graph-utils";
@@ -40,13 +45,13 @@ export function useImageWorkflowGeneration({
       toast.success("图片已生成并保存到当前项目");
     } catch (error) {
       const latest = useStudioStore.getState().imageWorkflows.find((item) => item.id === graph.id) ?? graph;
-      saveGraph(setGeneratedImageStatus(
-        latest,
-        targetNodeId,
-        "failed",
-        error instanceof Error ? error.message : "生成失败",
-      ));
-      toast.error(error instanceof Error ? error.message : "生成失败");
+      const reason = error instanceof Error ? error.message : "生成失败";
+      saveGraph(setGeneratedImageStatus(latest, targetNodeId, "failed", reason));
+      // 失败提示弹窗化(09-03 用户裁定):不放节点卡,画布层弹窗呈现
+      eventBus.emit(IMAGE_GENERATION_FAILED_EVENT, {
+        surface: "image-workflow",
+        reason,
+      } satisfies ImageGenerationFailedPayload);
     }
   }, [addMaterial, saveGraph, workflowId]);
 

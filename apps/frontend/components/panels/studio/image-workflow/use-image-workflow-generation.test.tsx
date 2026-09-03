@@ -2,6 +2,7 @@
 
 import { act, renderHook } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { eventBus } from "@/lib/events/event-bus";
 import type { ImageWorkflowGraph } from "@/types/studio";
 
 let currentGraph: ImageWorkflowGraph;
@@ -69,6 +70,7 @@ function createGraph(prompt = "cinematic portrait"): ImageWorkflowGraph {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  vi.spyOn(eventBus, "emit");
   Reflect.deleteProperty(window, "projectFiles");
   currentGraph = createGraph();
   currentStoryboards = [];
@@ -191,7 +193,11 @@ describe("useImageWorkflowGeneration", () => {
       errorReason: "项目内图片保存失败",
     });
     expect(addMaterial).not.toHaveBeenCalled();
-    expect(toast.error).toHaveBeenCalledWith("项目内图片保存失败");
+    // 09-03 失败提示弹窗化:不再 toast,改广播弹窗事件(surface=分镜画布)
+    expect(eventBus.emit).toHaveBeenCalledWith("image:generation-failed", {
+      surface: "image-workflow",
+      reason: "项目内图片保存失败",
+    });
   });
 
   it("marks generation failed when no project is active", async () => {
@@ -213,6 +219,9 @@ describe("useImageWorkflowGeneration", () => {
       status: "failed",
       errorReason: "请先选择项目",
     });
-    expect(toast.error).toHaveBeenCalledWith("请先选择项目");
+    expect(eventBus.emit).toHaveBeenCalledWith("image:generation-failed", {
+      surface: "image-workflow",
+      reason: "请先选择项目",
+    });
   });
 });

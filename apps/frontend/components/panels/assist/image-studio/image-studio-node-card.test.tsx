@@ -99,14 +99,16 @@ describe("ImageStudioNodeCard 成图卡", () => {
     expect(callbacks.onGenerate).toHaveBeenCalledWith("gen-1");
   });
 
-  it("failed 状态展示错误原因", () => {
+  it("failed 状态不再上卡:错误原因走弹窗,占位保持中性文案(09-03 用户裁定)", () => {
     renderCard({
       node: generatedNode({ status: "failed", errorReason: "渠道超时" }),
       selected: false,
       referenceCount: 0,
       ...callbacks,
     });
-    expect(screen.getByText("渠道超时")).toBeTruthy();
+    expect(screen.queryByText("渠道超时")).toBeNull();
+    expect(screen.queryByText("失败")).toBeNull();
+    expect(screen.getByText("等待生成")).toBeTruthy();
   });
 
   it("参考图数超引擎能力时给告警提示", () => {
