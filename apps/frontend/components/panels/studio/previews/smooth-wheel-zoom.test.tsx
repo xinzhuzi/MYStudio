@@ -141,21 +141,16 @@ describe("useSmoothWheelZoom", () => {
     expect(clicks).toBe(1);
     expect(setViewport).not.toHaveBeenCalled();
 
-    // 拖拽:直改 transform,松手 160ms 一次性提交;click 被吞
+    // 09-03 用户裁定:拖拽平移整段退役(右/中键归 use-mouse-button-pan)。
+    // 左键拖拽:不平移、不吞 click、不提交
     act(() => { pd(100, 100); });
     act(() => { pm(140, 110); pm(180, 120); });
-    expect(vpEl.style.transform).toContain("translate(80px");
+    expect(vpEl.style.transform).toBe("");
     pane.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true }));
-    expect(clicks).toBe(1); // 被抑制
+    expect(clicks).toBe(2); // click 透传(无抑制)
     act(() => { pu(180, 120); });
     act(() => { vi.advanceTimersByTime(160); });
-    expect(setViewport).toHaveBeenCalledTimes(1);
-    expect(setViewport.mock.calls[0][0]).toMatchObject({ x: 80, y: 20, zoom: 1 });
-    // 滞留抑制器清理:拖拽后若无 click 合成(异常路径),新按下后的
-    // 纯点击必须透传(不被上一轮残留抑制器吞掉)
-    act(() => { pd(100, 100); pu(100, 100); });
-    pane.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true }));
-    expect(clicks).toBe(2);
+    expect(setViewport).not.toHaveBeenCalled();
     rafSpy.mockRestore();
     vi.useRealTimers();
   });
@@ -179,7 +174,7 @@ describe("useSmoothWheelZoom", () => {
     vi.useRealTimers();
   });
 
-  it("keeps middle-button pan (图像工作流原生辅助键位)", () => {
+  it("middle-button drag no longer pans here(09-03 退役,归 use-mouse-button-pan)", () => {
     vi.useFakeTimers();
     const setViewport = vi.fn();
     const api: SmoothWheelZoomApi = { getViewport: () => ({ x: 0, y: 0, zoom: 1 }), setViewport };
@@ -197,8 +192,7 @@ describe("useSmoothWheelZoom", () => {
       window.dispatchEvent(new PointerEvent("pointerup", { bubbles: true, cancelable: true, button: 1, buttons: 0, pointerId: 11, pointerType: "mouse", isPrimary: true, clientX: 160, clientY: 130 }));
     });
     act(() => { vi.advanceTimersByTime(160); });
-    expect(setViewport).toHaveBeenCalledTimes(1);
-    expect(setViewport.mock.calls[0][0]).toMatchObject({ x: 60, y: 30 });
+    expect(setViewport).not.toHaveBeenCalled();
     vi.useRealTimers();
   });
 
@@ -238,7 +232,7 @@ describe("useSmoothWheelZoom", () => {
     vi.useRealTimers();
   });
 
-  it("commits pending pan on mid-gesture unmount (拖拽中途切阶段不回跳)", () => {
+  it("mid-gesture unmount commits nothing(09-03 拖拽退役后无 pending 可提交)", () => {
     vi.useFakeTimers();
     const setViewport = vi.fn();
     const api: SmoothWheelZoomApi = { getViewport: () => ({ x: 0, y: 0, zoom: 1 }), setViewport };
@@ -247,16 +241,13 @@ describe("useSmoothWheelZoom", () => {
     const pane = document.createElement("div");
     pane.className = "react-flow__pane";
     host.appendChild(pane);
-    const vpEl = document.createElement("div");
-    vpEl.className = "react-flow__viewport";
-    host.appendChild(vpEl);
     act(() => {
       pane.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true, cancelable: true, button: 0, buttons: 1, pointerId: 21, pointerType: "mouse", isPrimary: true, clientX: 100, clientY: 100 }));
-      window.dispatchEvent(new PointerEvent("pointermove", { bubbles: true, cancelable: true, button: 0, buttons: 1, pointerId: 21, pointerType: "mouse", isPrimary: true, clientX: 150, clientY: 130 }));
+      window.dispatchEvent(new PointerEvent("pointermove", { bubbles: true, cancelable: true, button: 0, buttons: 1, pointerId: 21, pointerType: "mouse", isPrimary: true, clientX: 160, clientY: 120 }));
     });
-    act(() => { unmount(); });
-    expect(setViewport).toHaveBeenCalledTimes(1);
-    expect(setViewport.mock.calls[0][0]).toMatchObject({ x: 50, y: 30 });
+    unmount();
+    act(() => { vi.advanceTimersByTime(300); });
+    expect(setViewport).not.toHaveBeenCalled();
     vi.useRealTimers();
   });
 

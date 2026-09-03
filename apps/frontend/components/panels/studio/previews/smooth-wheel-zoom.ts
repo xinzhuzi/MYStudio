@@ -155,21 +155,16 @@ export function useSmoothWheelZoom(
     };
 
     const onPointerDown = (event: PointerEvent) => {
-      // Shift=RF 框选手势(selectionKeyCode),不能同时平移;中键=图像工作流
-      // 原生支持的辅助平移键位,保留(button 0/1)。
+      // 09-03 用户裁定:鼠标左键不得拖拽画布,平移唯一入口=右键/中键
+      // (use-mouse-button-pan 应用层接管)。本层拖拽平移整段退役,仅保留
+      // 滚轮平滑缩放;此分支只留 click 抑制清理职责。
       if (event.shiftKey) return;
       if ((event.button !== 0 && event.button !== 1) || !event.isPrimary) return;
-      // 不 preventDefault/stopPropagation:RF 的 pane 点击(取消选中)等
-      // 内建交互必须存活;panOnDrag={false} 已让 RF 不处理 pane 拖拽。
       if (!paneAt(event.target)) return;
       // 上一轮拖拽若未伴随 click 合成(异常路径),滞留的一次性抑制器在此
       // 清理——绝不吞下一次真实点击。
       clearStaleClickSuppression();
-      dragActive = true;
-      dragMovedPx = 0;
-      dragPointerId = event.pointerId;
-      dragLastX = event.clientX;
-      dragLastY = event.clientY;
+      // 拖拽平移退役:不激活 dragActive(右/中键平移在 use-mouse-button-pan)
     };
 
     const onPointerMove = (event: PointerEvent) => {
