@@ -177,18 +177,39 @@ const remotionUserDataDir = app.getPath('userData')
 const remotionBundlePath = app.isPackaged
   ? path.join(process.resourcesPath, 'remotion-bundle')
   : path.join(process.env.APP_ROOT ?? path.join(__dirname, '../..'), '.cache/remotion-bundle')
+// Remotion compositor 二进制按平台/架构分布(与 @remotion/renderer 的 optionalDependencies
+// 及 electron-builder.yml asarUnpack 一一对应)。此前硬编码 darwin-arm64,Windows 安装包
+// 会把 bundled ffmpeg/ffprobe 指向不存在的目录,渲染直接失败;必须按宿主动态解析。
+// 支持矩阵:macOS arm64/x64、Windows x64、Linux x64 (gnu/musl 由 Remotion 内部判定,
+// 此处按主流 gnu 处理,项目未发布 Linux 安装包)。
+function resolveRemotionCompositorPackage(): string {
+  if (process.platform === 'darwin') {
+    return process.arch === 'arm64' ? '@remotion/compositor-darwin-arm64' : '@remotion/compositor-darwin-x64'
+  }
+  if (process.platform === 'win32') {
+    return '@remotion/compositor-win32-x64-msvc'
+  }
+  if (process.platform === 'linux') {
+    return process.arch === 'arm64' ? '@remotion/compositor-linux-arm64-gnu' : '@remotion/compositor-linux-x64-gnu'
+  }
+  return '@remotion/compositor-darwin-arm64'
+}
+const remotionCompositorPackage = resolveRemotionCompositorPackage()
 const remotionBinariesDirectory = app.isPackaged
-  ? path.join(process.resourcesPath, 'app.asar.unpacked', 'node_modules/@remotion/compositor-darwin-arm64')
-  : path.join(process.env.APP_ROOT ?? path.join(__dirname, '../..'), 'node_modules/@remotion/compositor-darwin-arm64')
+  ? path.join(process.resourcesPath, 'app.asar.unpacked', 'node_modules', remotionCompositorPackage)
+  : path.join(process.env.APP_ROOT ?? path.join(__dirname, '../..'), 'node_modules', remotionCompositorPackage)
 // All adapters consume one process-wide FFmpeg/ffprobe pair. Prefer an explicit
 // operator pair, then reuse an existing Apple Silicon Homebrew installation.
 // The runtime probe blocks unsupported bundled binaries; it never downloads a
 // private toolchain or silently swaps a partial explicit override.
+// compositor 二进制在 Windows 上带 .exe 后缀。
+const bundledFfmpegName = process.platform === 'win32' ? 'ffmpeg.exe' : 'ffmpeg'
+const bundledFfprobeName = process.platform === 'win32' ? 'ffprobe.exe' : 'ffprobe'
 const sharedVideoToolchain = selectSharedVideoToolchain({
   configuredFfmpeg: process.env.MYSTUDIO_FFMPEG_PATH,
   configuredFfprobe: process.env.MYSTUDIO_FFPROBE_PATH,
-  bundledFfmpeg: path.join(remotionBinariesDirectory, 'ffmpeg'),
-  bundledFfprobe: path.join(remotionBinariesDirectory, 'ffprobe'),
+  bundledFfmpeg: path.join(remotionBinariesDirectory, bundledFfmpegName),
+  bundledFfprobe: path.join(remotionBinariesDirectory, bundledFfprobeName),
 })
 process.env.MYSTUDIO_FFMPEG_PATH = sharedVideoToolchain.ffmpegExecutable
 process.env.MYSTUDIO_FFPROBE_PATH = sharedVideoToolchain.ffprobeExecutable
@@ -379,7 +400,12 @@ void upscaleRuntimeController.refresh()
 // VLM Review sidecar — Qwen3-VL visual consistency checking(生图后自动审核)。
 // 复用 managed Python;权重显式下载,<storageBase>/model/vlm。
 const vlmReviewController = new VlmReviewRuntimeController({
-  pythonExecutable: path.join(getStorageBasePath(), "python", "bin", "python3"),
+  // managed Python 在 Windows 上落 <storage>/python/python.exe,其余平台 bin/python3。
+  pythonExecutable: path.join(
+    getStorageBasePath(),
+    'python',
+    process.platform === 'win32' ? 'python.exe' : path.join('bin', 'python3'),
+  ),
   // 复用打包感知的 backend 根:app.asar/backend 是虚拟路径,spawn 会 ENOTDIR(08-28 修)。
   backendRoot: videoWorkflowBackendRoot,
   storageBasePath: getStorageBasePath(),

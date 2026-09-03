@@ -360,6 +360,9 @@ importers:
       '@remotion/compositor-darwin-arm64':
         specifier: 4.0.499
         version: 4.0.499
+      '@remotion/compositor-win32-x64-msvc':
+        specifier: 4.0.499
+        version: 4.0.499
 
 packages:
 

@@ -104,6 +104,7 @@ asar: true
 asarUnpack:
   - "**/*.node"
   - "node_modules/@remotion/compositor-darwin-arm64/**"
+  - "node_modules/@remotion/compositor-win32-x64-msvc/**"
   - "out/main/remotion-browser-worker.cjs"
   - "out/main/remotion-render-worker.cjs"
   - "out/main/hyperframes-worker.cjs"
