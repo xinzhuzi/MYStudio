@@ -319,12 +319,16 @@ export const ImageStudioNodeCard = memo(function ImageStudioNodeCard({
         borderClass,
       )}
     >
-      {node.type === "generated" ? (
+      {node.type === "generated" || node.type === "uncloth" ? (
         <Handle
           type="target"
           position={Position.Left}
           className="!h-3 !w-3 !border-info/40 !bg-info/20"
-          title="输入口:上游参考图/提示词连到这里"
+          title={
+            node.type === "uncloth"
+              ? "输入口:参考图/成图与提示词连到这里(图生图链驱动两遍采样)"
+              : "输入口:上游参考图/提示词连到这里"
+          }
         />
       ) : null}
       <Handle
