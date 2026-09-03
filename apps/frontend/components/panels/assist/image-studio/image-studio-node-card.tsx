@@ -708,7 +708,7 @@ function GeneratedNodeEditor({
         {generating ? (
           <Button
             variant="destructive"
-            className="h-9 flex-[1.6]"
+            className="h-9 flex-1"
             onClick={() => onStop(node.id)}
             title="中断本次生成(已计费的请求可能无法退款)"
           >
@@ -718,7 +718,7 @@ function GeneratedNodeEditor({
         ) : (
           <Button
             variant="paid"
-            className="h-9 flex-[1.6]"
+            className="relative h-9 flex-1"
             onClick={() => onGenerate(node.id)}
             title={
               referenceCount > 0
@@ -727,9 +727,20 @@ function GeneratedNodeEditor({
             }
           >
             <Sparkles className="mr-1.5 h-3.5 w-3.5" />
-            {referenceCount > 0
-              ? `图生图 ${referenceCount}${referenceCapacity ? `/${referenceCapacity}` : ""}`
-              : "生成"}
+            生成
+            {/* 参考图状态角标(09-03 用户裁定:不进文案不占布局——右上角
+                外沿浮空徽章,按钮宽度恒定);超容量转警示色 */}
+            {referenceCount > 0 ? (
+              <span
+                aria-label={`已挂 ${referenceCount} 张参考图`}
+                className={cn(
+                  "absolute -right-1.5 -top-1.5 grid h-4 min-w-4 place-items-center rounded-full px-1 text-[9px] font-semibold leading-none",
+                  referenceOverCapacity ? "bg-warning text-warning-foreground" : "bg-primary-foreground/95 text-primary",
+                )}
+              >
+                {referenceCount}
+              </span>
+            ) : null}
           </Button>
         )}
       </div>

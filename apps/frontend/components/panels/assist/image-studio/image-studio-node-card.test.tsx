@@ -146,7 +146,7 @@ describe("ImageStudioNodeCard 参考图卡", () => {
     };
   }
 
-  it("参考图状态进生成按钮(09-03 用户裁定):挂图显示「图生图 1/1」且无独立计数行", () => {
+  it("参考图状态=生成按钮角标(09-03 用户裁定):文案恒「生成」,徽章浮角标不占布局", () => {
     renderCard({
       // 容量由组件按 model 推导(krea2-turbo=1),不走 props
       node: generatedNode({ model: "krea2-turbo" }),
@@ -154,7 +154,11 @@ describe("ImageStudioNodeCard 参考图卡", () => {
       referenceCount: 1,
       ...callbacks,
     });
-    expect(screen.getByRole("button", { name: /图生图 1\/1/ })).toBeTruthy();
+    // 按钮文案恒「生成」(宽度稳定),状态走右上角浮空徽章
+    const generate = screen.getByRole("button", { name: /^生成/ });
+    expect(generate).toBeTruthy();
+    const badge = generate.querySelector("span[aria-label='已挂 1 张参考图']");
+    expect(badge?.textContent).toBe("1");
     expect(screen.queryByText(/已挂 1\/1 张参考图/)).toBeNull();
   });
 
