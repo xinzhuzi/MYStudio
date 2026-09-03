@@ -1074,6 +1074,9 @@ function ImageStudioFlowView({
         elementsSelectable
         panOnDrag={false}
         selectionOnDrag
+        autoPanOnNodeDrag={false}
+        autoPanOnConnect={false}
+        autoPanOnSelection={false}
         onSelectionChange={handleSelectionChange}
         zoomOnScroll={false}
         zoomOnPinch

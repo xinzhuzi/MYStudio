@@ -268,6 +268,9 @@ export function ImageWorkflowFlowView({
         nodesConnectable
         elementsSelectable
         panOnDrag={false}
+        autoPanOnNodeDrag={false}
+        autoPanOnConnect={false}
+        autoPanOnSelection={false}
         zoomOnScroll={false}
         zoomOnPinch
         zoomOnDoubleClick={false}
