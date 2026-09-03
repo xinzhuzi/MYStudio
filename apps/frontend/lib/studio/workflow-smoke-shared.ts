@@ -1,4 +1,3 @@
-import { suppressNextInteractionDeferArrival } from "@/hooks/interaction-defer";
 import { WorkflowParityReport } from "@/lib/studio/workflow-parity-report";
 import { WorkflowStageReadiness } from "@/lib/studio/workflow-readiness";
 import { useProjectStore } from "@/stores/project/project-store";
@@ -127,9 +126,6 @@ export async function getSmokeFrameGraphPath(): Promise<string> {
 }
 
 export async function setWorkflowStage(stage: string): Promise<boolean> {
-  // 测试桥语义:程序化设阶段豁免交互门闸(smoke 断言不等 5s 静止)——
-  // 一次性标志先行,阶段变化效应消费;用户真实点击路径不受影响
-  suppressNextInteractionDeferArrival();
   useStudioStore.getState().setWorkflowConfig({ workflowStage: stage });
   return true;
 }

@@ -5,15 +5,6 @@ import { useRef } from "react";
 import { useSmoothWheelZoom, type SmoothWheelZoomApi } from "./smooth-wheel-zoom";
 
 
-vi.mock("@/hooks/interaction-defer", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("@/hooks/interaction-defer")>();
-  return {
-    ...actual,
-    interactionDeferBegin: vi.fn(),
-    interactionDeferEnd: vi.fn(),
-  };
-});
-
 function Harness({ api }: { api: SmoothWheelZoomApi }) {
   const ref = useRef<HTMLDivElement | null>(null);
   useSmoothWheelZoom(ref, api, { minZoom: 0.2, maxZoom: 2 });

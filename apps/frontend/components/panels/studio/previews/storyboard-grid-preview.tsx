@@ -9,7 +9,6 @@ import { ResolutionBadge, probeImagePixelSize } from "@/components/ui/image-reso
 import { LocalImage } from "@/components/ui/local-image";
 import { TextPreview } from "./text-preview";
 import { toPreviewSrc, withThumbVariant } from "@/lib/media/preview-src";
-import { handleDeferScroll } from "@/hooks/interaction-defer";
 
 /**
  * 4K 预判(超分按钮禁用判据,非显示用):up4x- 输出路径必然 ≥4K(同步可靠);
@@ -65,7 +64,6 @@ export function StoryboardGridPreview({
   return (
     <div
       className="nodrag nowheel max-h-[360px] overflow-y-auto overscroll-contain pr-1"
-      onScroll={handleDeferScroll}
     >
       <div className="grid grid-cols-[repeat(auto-fit,minmax(132px,1fr))] gap-2">
         {tiles.map((tile) => {

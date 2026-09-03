@@ -3,13 +3,6 @@ import { act, cleanup, renderHook } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { useWorkflowStageState } from "./useWorkflowStageState";
 
-vi.mock("@/hooks/interaction-defer", () => ({
-  interactionDeferBegin: vi.fn(),
-  interactionDeferEnd: vi.fn(),
-  suppressNextInteractionDeferArrival: vi.fn(),
-  consumeInteractionDeferArrivalSuppression: vi.fn(() => false),
-}));
-
 vi.mock("sonner", () => ({ toast: { error: vi.fn() } }));
 
 const setWorkflowConfig = vi.fn();
@@ -25,8 +18,6 @@ vi.mock("@/stores/studio/studio-store", () => ({
     }),
   },
 }));
-
-import { interactionDeferBegin, interactionDeferEnd } from "@/hooks/interaction-defer";
 
 afterEach(() => {
   cleanup();
@@ -46,56 +37,7 @@ function renderState(workflowStage = "novel") {
   );
 }
 
-describe("useWorkflowStageState 阶段进入门闸(效应驱动,含直写 store 路径)", () => {
-  it("does not gate on first arrival (冷启/初次进工作台不延迟)", () => {
-    renderState("novel");
-    expect(interactionDeferBegin).not.toHaveBeenCalled();
-    expect(interactionDeferEnd).not.toHaveBeenCalled();
-  });
-
-  it("closes the gate for 5s on non-canvas stage changes (workbench has images)", () => {
-    const { rerender } = renderState("novel");
-    act(() => {
-      rerender({ workflowStage: "workbench" });
-    });
-    expect(interactionDeferBegin).toHaveBeenCalledTimes(1);
-    expect(interactionDeferEnd).toHaveBeenCalledTimes(1);
-    // 同值重渲不重复关闸
-    act(() => {
-      rerender({ workflowStage: "workbench" });
-    });
-    expect(interactionDeferBegin).toHaveBeenCalledTimes(1);
-    // 切换到另一阶段后再回到 workbench 再关
-    act(() => {
-      rerender({ workflowStage: "assets" });
-    });
-    act(() => {
-      rerender({ workflowStage: "workbench" });
-    });
-    expect(interactionDeferBegin).toHaveBeenCalledTimes(3);
-    expect(interactionDeferEnd).toHaveBeenCalledTimes(3);
-  });
-
-  it("honors the one-shot suppression (测试桥程序化设阶段免闸)", async () => {
-    const deferModule = await import("@/hooks/interaction-defer");
-    const consume = deferModule.consumeInteractionDeferArrivalSuppression as ReturnType<typeof vi.fn>;
-    const { rerender } = renderState("novel");
-    // 桥先行标志(豁免生效):consume 返回 true → 不关闸
-    consume.mockReturnValueOnce(true);
-    act(() => {
-      rerender({ workflowStage: "workbench" });
-    });
-    expect(interactionDeferBegin).not.toHaveBeenCalled();
-    // 豁免一次性:切换到另一阶段后再回到 workbench 正常关闸
-    act(() => {
-      rerender({ workflowStage: "assets" });
-    });
-    act(() => {
-      rerender({ workflowStage: "workbench" });
-    });
-    expect(interactionDeferBegin).toHaveBeenCalledTimes(2);
-  });
-
+describe("useWorkflowStageState 阶段切换(门闸已退役 09-03:画布性能优化后图片即时加载)", () => {
   it("still switches stages via the callback (rejected switches stay put)", () => {
     const { result } = renderState();
     act(() => {

@@ -1,4 +1,3 @@
-import { InteractionDeferHint } from "../previews/interaction-defer-hint";
 import { CanvasViewportControls } from "../CanvasViewportControls";
 import { GenerationFailedDialog } from "@/components/ui/generation-failed-dialog";
 import { nodeTypes, FIT_VIEW_OPTIONS, ImageWorkflowVisibilityMeasurementRefresh } from "./ImageWorkflowCanvas";
@@ -205,7 +204,6 @@ export function ImageWorkflowFlowView({
   return (
     <div ref={interactingRef} className="image-workflow-flow-host contents">
       <div className="pointer-events-none absolute bottom-3 left-3 z-10">
-        <InteractionDeferHint />
       </div>
       {/* connectionMode=loose:允许从成图 target 手柄反向拖出建上游(提示词/
           参考图,strict 下 target 起拖被整体禁止);连线合法性由

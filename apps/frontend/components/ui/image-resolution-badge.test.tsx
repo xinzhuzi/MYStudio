@@ -1,6 +1,5 @@
 // @vitest-environment jsdom
 import { act, cleanup, render, screen, waitFor } from "@testing-library/react";
-import { interactionDeferBegin, interactionDeferEnd } from "@/hooks/interaction-defer";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   ResolutionBadge,
@@ -96,16 +95,13 @@ describe("ResolutionBadge", () => {
     const { rerender } = render(<ResolutionBadge src="local-image://m/old.png" />);
     expect(await screen.findByText("1280×720")).toBeTruthy();
 
-    // 交互门闸挂起新 src 的探测:期间不得显示旧图的尺寸
-    act(() => interactionDeferBegin());
+    // 门闸退役(09-03):新 src 未探出尺寸前同样不显示旧图尺寸
     rerender(<ResolutionBadge src="local-image://m/new-pending.png" />);
     await act(async () => {
       await Promise.resolve();
     });
     expect(screen.queryByText("1280×720")).toBeNull();
     expect(screen.queryByText(/×/)).toBeNull();
-    // settleMs=0 立即开闸,不给同文件后续测试留下 5s 防抖窗口
-    act(() => interactionDeferEnd(0));
   });
 
   it("probes each url once across mounts via the module cache", async () => {
@@ -160,32 +156,6 @@ describe("ResolutionBadge", () => {
   });
 
 
-  it("issues zero probes while an interaction is active, and probes after the 5s settle", async () => {
-    vi.useFakeTimers();
-    let imageConstructs = 0;
-    installFakeImage({}, () => {
-      imageConstructs++;
-    });
-    const probe = vi.fn(async () => ({ width: 3840, height: 2160 }));
-    vi.stubGlobal("imageProbe", { size: probe });
-    // 交互进行中挂载角标:不得有任何探测(IPC/文件头读取都不发生)
-    act(() => interactionDeferBegin());
-    render(<ResolutionBadge src="project-file://p/gated.png" />);
-    await act(async () => {
-      await vi.advanceTimersByTimeAsync(200);
-    });
-    expect(probe).not.toHaveBeenCalled();
-    expect(imageConstructs).toBe(0);
-    // 停手 + 5s 防抖走完:探测放行,角标出档
-    act(() => interactionDeferEnd());
-    await act(async () => {
-      await vi.advanceTimersByTimeAsync(5001);
-    });
-    expect(probe).toHaveBeenCalledWith("project-file://p/gated.png");
-    // 假定时器到此为止(findByText 轮询依赖真定时器)
-    vi.useRealTimers();
-    expect(await screen.findByText("3840×2160")).toBeTruthy();
-  });
 });
 
 describe("useImagePixelSize", () => {

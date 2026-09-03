@@ -6,7 +6,6 @@ import type { ToonflowWorkbenchTrack } from "@/lib/studio/workbench-view-model";
 import { Play } from "lucide-react";
 import { toPreviewSrc, withThumbVariant } from "@/lib/media/preview-src";
 import { LocalImage } from "@/components/ui/local-image";
-import { useRevealWhenSettled } from "@/hooks/interaction-defer";
 import { ResolutionBadge } from "@/components/ui/image-resolution-badge";
 
 export function WorkbenchTrackCard(props: {
@@ -17,9 +16,6 @@ export function WorkbenchTrackCard(props: {
   deleteVideoCandidate: (candidateId: string) => void;
 }) {
   const { track } = props;
-  // 交互门闸(粘性):拖拽/缩放期间连 <video> 也不挂——零预载零首帧解码,
-  // 静止后统一恢复(用户裁定:交互期一切「加载到内存」逻辑都不执行)。
-  const mediaRevealed = useRevealWhenSettled();
   return (
     <Card className="overflow-hidden rounded-lg">
       <CardHeader className="grid gap-3 border-b border-border bg-muted/35 py-3 lg:grid-cols-[180px_minmax(0,1fr)_minmax(0,auto)]">
@@ -74,15 +70,11 @@ export function WorkbenchTrackCard(props: {
                       audio
                     </div>
                   ) : media.fileType === "video" ? (
-                    mediaRevealed ? (
-                      <video
-                        className="h-full w-full object-cover"
-                        src={toPreviewSrc(media.src)}
-                        muted
-                      />
-                    ) : (
-                      <div className="h-full w-full bg-muted/30" data-video-deferred={media.id} />
-                    )
+                    <video
+                      className="h-full w-full object-cover"
+                      src={toPreviewSrc(media.src)}
+                      muted
+                    />
                   ) : (
                     <>
                       <LocalImage
@@ -149,15 +141,11 @@ export function WorkbenchTrackCard(props: {
                 </div>
               </div>
               {video.path ? (
-                mediaRevealed ? (
-                  <video
-                    className="mt-2 aspect-video w-full rounded bg-black"
-                    src={toPreviewSrc(video.path)}
-                    controls
-                  />
-                ) : (
-                  <div className="mt-2 aspect-video w-full rounded bg-muted/30" data-video-deferred={video.id} />
-                )
+                <video
+                  className="mt-2 aspect-video w-full rounded bg-black"
+                  src={toPreviewSrc(video.path)}
+                  controls
+                />
               ) : null}
               {video.errorReason ? (
                 <div className="mt-2 text-xs text-destructive">

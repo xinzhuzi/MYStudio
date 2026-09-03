@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useRef } from "react";
-import { interactionDeferBegin, interactionDeferEnd } from "@/hooks/interaction-defer";
 import { useSmoothWheelZoom, type SmoothWheelZoomApi } from "./previews/smooth-wheel-zoom";
 
 /**
@@ -66,7 +65,6 @@ export function useCanvasGestureKernel({
     setInteracting(true);
     // 程序性视口变化(event=null)不关闸,仅用户手势延迟图片加载
     if (event) {
-      interactionDeferBegin();
       userGestureStartRef.current?.();
     }
   }, [setInteracting]);
@@ -74,7 +72,6 @@ export function useCanvasGestureKernel({
   const handleMoveEnd = useCallback(() => {
     setInteracting(false);
     // 开闸必须无条件:wheel 手势的 onMoveEnd 未必带 event
-    interactionDeferEnd();
   }, [setInteracting]);
 
   const handleNodeDragStart = useCallback(() => setInteracting(true), [setInteracting]);

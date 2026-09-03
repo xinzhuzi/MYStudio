@@ -6,8 +6,6 @@ import type { ImageWorkflowOpenContext, StoryboardItem } from "@/types/studio";
 import { buildStoryboardItemOpenContext } from "./storyboard-open-context";
 import { toPreviewSrc, withThumbVariant } from "@/lib/media/preview-src";
 import { LocalImage } from "@/components/ui/local-image";
-import { handleDeferScroll } from "@/hooks/interaction-defer";
-import { InteractionDeferHint } from "./previews/interaction-defer-hint";
 import type { StoryboardBatchGenerationState } from "./image-workflow/use-storyboard-batch-generation";
 
 /**
@@ -63,7 +61,6 @@ export function StoryboardPanelTab({
           <span className="text-sm text-muted-foreground">
             {ordered.length ? `${ordered.length} 个分镜 · ${withImage} 个画面` : "尚无分镜,请先生成分镜表"}
           </span>
-          <InteractionDeferHint />
         </div>
         {batch ? (
           batch.state.running ? (
@@ -102,7 +99,6 @@ export function StoryboardPanelTab({
       {ordered.length ? (
         <div
           className="mt-4 grid min-h-0 flex-1 grid-cols-2 content-start gap-6 overflow-y-auto p-1 pr-3"
-          onScroll={handleDeferScroll}
         >
           {ordered.map((storyboard) => (
             <StoryboardPanelCard

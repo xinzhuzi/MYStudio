@@ -20,7 +20,6 @@ import { createPortal } from "react-dom";
 import { ImageOff, Maximize2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ResolutionBadge } from "@/components/ui/image-resolution-badge";
-import { useRevealWhenSettled } from "@/hooks/interaction-defer";
 import { toPreviewSrc } from "@/lib/media/preview-src";
 import { ImagePreviewModal } from "@/components/ui/media-preview-modal";
 
@@ -60,9 +59,6 @@ export function LocalImage({
   const [error, setError] = useState(false);
   const [currentSrc, setCurrentSrc] = useState(() => toPreviewSrc(src));
   const [previewOpen, setPreviewOpen] = useState(false);
-  // 交互门闸:拖拽/滑动/缩放期间不挂 <img>(零请求零解码),静止后加载;
-  // 粘性放行,已显示的图不闪烁卸载(未接闸场景默认开闸,行为不变)。
-  const revealed = useRevealWhenSettled(currentSrc);
 
   const handleError = () => {
     if (!error && fallback) {
@@ -77,17 +73,6 @@ export function LocalImage({
     setCurrentSrc(toPreviewSrc(src));
     setError(false);
   }, [src]);
-
-  if (!revealed) {
-    return (
-      <div
-        className={cn("bg-muted/30", className)}
-        data-local-image-deferred={alt ?? ""}
-        data-preview-image-deferred={alt ?? ""}
-        style={props.style}
-      />
-    );
-  }
 
   if (error && !fallback) {
     return (

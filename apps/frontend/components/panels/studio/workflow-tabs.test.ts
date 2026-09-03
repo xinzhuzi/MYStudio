@@ -552,8 +552,6 @@ describe("studio workflow tabs", () => {
       "utf8",
     );
     expect(gestureKernelSource).toContain('el.classList.add(interactingClass)');
-    expect(gestureKernelSource).toContain("interactionDeferBegin()");
-    expect(gestureKernelSource).toContain("interactionDeferEnd()");
     expect(viewportControlsSource).toContain("{zoomPercent}%");
     expect(canvasSource).not.toContain("Background,");
     expect(canvasSource).not.toContain("<Background");

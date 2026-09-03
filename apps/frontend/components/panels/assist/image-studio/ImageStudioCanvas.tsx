@@ -35,7 +35,6 @@ import { useImageStudioCommands } from "./use-image-studio-commands";
 import { copyNodesToClipboard, pasteFromClipboard, clipboardSize } from "./canvas-clipboard";
 import { CanvasAssistantDialog } from "./canvas-assistant-dialog";
 import { relatedEdges } from "@/lib/studio/image-workflow/relation-graph";
-import { InteractionDeferHint } from "@/components/panels/studio/previews/interaction-defer-hint";
 import { useCanvasGestureKernel } from "@/components/panels/studio/use-canvas-gesture-kernel";
 // 画布手势内核/门闸提示与分镜画布共用(08-30 收敛 Phase2 之后再整体上提 features/)
 import { findPromptNodeForGenerated, hasPromptSource } from "@/lib/studio/image-workflow/graph-build";
@@ -1009,7 +1008,6 @@ function ImageStudioFlowView({
   return (
     <div ref={interactingRef} className="image-workflow-flow-host relative min-w-0 flex-1">
       <div className="pointer-events-none absolute bottom-3 left-3 z-10">
-        <InteractionDeferHint />
       </div>
       <ReactFlow
         className="absolute inset-0 bg-muted/20"
