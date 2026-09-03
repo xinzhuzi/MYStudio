@@ -58,6 +58,14 @@ extraResources:
       - "!python/**"
       - "!venv/**"
       - "!**/.DS_Store"
+  # Windows 捆绑 sqlite3 CLI:资产库依赖 SQLite 命令行工具,Windows 无系统
+  # sqlite3(仅 macOS/GitHub runner 自带)。二进制由 build/packaging/fetch-sqlite3.mjs
+  # 在构建前提供(仓库仅含说明文档,不入库)。
+  - from: frontend/assets/sqlite3
+    to: sqlite3
+    filter:
+      - "**/*"
+      - "!**/*.md"
   - from: frontend/assets/studio-manuals
     to: studio-manuals
     filter:

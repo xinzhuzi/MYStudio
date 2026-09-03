@@ -16,6 +16,7 @@ import {
   resolveAssetManagedPath,
   shouldCreateAssetThumbnail,
 } from "./studio-assets-storage";
+import { resolveSqliteCli } from "./assets-sqlite";
 
 let tempAssetRoot: string | undefined;
 
@@ -358,5 +359,34 @@ describe("asset alias matching", () => {
 
     const assets = await listAssets("tool", "灵矿藤筐", 0, 10);
     expect(assets.items.filter((item) => item.name === "灵矿藤筐")).toHaveLength(1);
+  });
+});
+
+describe("SQLite CLI resolution (Windows bundled sqlite3)", () => {
+  it("prefers the bundled sqlite3.exe on packaged Windows", () => {
+    const resources = "C:\\App\\resources";
+    // path.join 在非 Windows 主机的单测环境使用 "/",故按 endsWith 断言,
+    // 生产(win32 主进程)path.join 使用 "\",两种情形均指向 resources/sqlite3/sqlite3.exe。
+    const exists = (p: string) => p.replace(/[\\/]/g, "/").endsWith("resources/sqlite3/sqlite3.exe");
+    const resolved = resolveSqliteCli({ platform: "win32", resourcesPath: resources, fileExists: exists });
+    expect(resolved).not.toBe("sqlite3");
+    expect(resolved.replace(/[\\/]/g, "/")).toContain("resources/sqlite3/sqlite3.exe");
+  });
+
+  it("falls back to PATH sqlite3 when the bundled binary is missing", () => {
+    expect(resolveSqliteCli({
+      platform: "win32",
+      resourcesPath: "C:\\App\\resources",
+      fileExists: () => false,
+    })).toBe("sqlite3");
+  });
+
+  it("keeps using the system sqlite3 on non-Windows platforms", () => {
+    expect(resolveSqliteCli({ platform: "linux", resourcesPath: "/opt/app/resources" })).toBe("sqlite3");
+    expect(resolveSqliteCli({ platform: "darwin", resourcesPath: "/opt/app/resources" })).toBe("sqlite3");
+  });
+
+  it("uses PATH sqlite3 when resourcesPath is unavailable (dev/node)", () => {
+    expect(resolveSqliteCli({ platform: "win32", resourcesPath: undefined })).toBe("sqlite3");
   });
 });
