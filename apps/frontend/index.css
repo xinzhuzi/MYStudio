@@ -3320,3 +3320,20 @@ html.film-vignette-disabled .dark #root::before {
   position: absolute;
   inset: -14px;
 }
+
+/* ── 大图预览零动画(09-03 用户裁定:展开/关闭/按钮点击全无动画) ──
+ * JS 层 animation={fade:0,swipe:0,zoom:0} 之外的 CSS 兜底:容器/工具栏
+ * 的 opacity 过渡、加载指示动画等全部关闭,任何交互立即生效。 */
+.yarl__portal,
+.yarl__container,
+.yarl__toolbar,
+.yarl__navigation,
+.yarl__carousel,
+.yarl__slide,
+.yarl__slide_image,
+.yarl__button,
+.yarl__slide_loading,
+.yarl__slide_loading line {
+  transition: none !important;
+  animation: none !important;
+}
