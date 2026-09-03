@@ -15,7 +15,6 @@ describe("useMouseButtonPan(09-03 左键不平移/右中键接管)", () => {
     const onPan = vi.fn();
     const { result } = renderHook(() => useMouseButtonPan(onPan));
     const el = document.createElement("div");
-    el.setPointerCapture = vi.fn();
     document.body.appendChild(el);
     const bind = () => {
       el.onpointerdown = (e) => result.current.onPointerDown(e as unknown as React.PointerEvent<HTMLElement>);
@@ -45,7 +44,6 @@ describe("useMouseButtonPan(09-03 左键不平移/右中键接管)", () => {
     const onPan = vi.fn();
     const { result } = renderHook(() => useMouseButtonPan(onPan));
     const el = document.createElement("div");
-    el.setPointerCapture = vi.fn();
     document.body.appendChild(el);
     el.onpointerdown = (e) => result.current.onPointerDown(e as unknown as React.PointerEvent<HTMLElement>);
     el.onpointermove = (e) => result.current.onPointerMove(e as unknown as React.PointerEvent<HTMLElement>);

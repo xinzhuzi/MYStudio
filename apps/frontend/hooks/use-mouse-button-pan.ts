@@ -43,9 +43,11 @@ export function useMouseButtonPan(onPanDelta: (dxScreen: number, dyScreen: numbe
       if (event.button !== 1 && event.button !== 2) return;
       const target = event.target as HTMLElement | null;
       if (target?.closest(INTERACTIVE_SELECTOR)) return;
-      event.preventDefault();
+      // 中键 preventDefault 防浏览器滚动穿透;右键绝不拦截——setPointerCapture
+      // 会把后续 contextmenu 重定向到捕获元素(实测吞掉画布右键菜单),
+      // preventDefault 也可能扰动菜单链。右键平移只按 pointerId 跟踪。
+      if (event.button === 1) event.preventDefault();
       drag.current = { pointerId: event.pointerId, x: event.clientX, y: event.clientY, moved: false };
-      event.currentTarget.setPointerCapture(event.pointerId);
     },
     onPointerMove: (event) => {
       const state = drag.current;
