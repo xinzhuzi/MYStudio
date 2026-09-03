@@ -55,6 +55,9 @@ export interface ImageStudioNodeData extends Record<string, unknown> {
   selected: boolean;
   /** 该成图节点已挂参考图数(参考图节点+上游成图结果) */
   referenceCount: number;
+  /** 参考图节点在其所连成图参考序列中的编号(1 起;未连线=缺省)——
+   *  与生图请求的数组顺序同源(reference-order 单源,AI 按数组序识别) */
+  referenceIndex?: number;
   /** 模型专属附加参数(MJ/Ideogram;types/studio 节点模型冻结,存于画布 store) */
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   extras?: Record<string, any>;
@@ -112,7 +115,13 @@ export const ImageStudioNodeCard = memo(function ImageStudioNodeCard({
       ? "border-success/45"
       : "border-border";
   const meta =
-    node.type === "reference" ? "参考图" : node.type === "prompt" ? "提示词" : "成图";
+    node.type === "reference"
+      ? data.referenceIndex
+        ? `参考图 ${data.referenceIndex}`
+        : "参考图"
+      : node.type === "prompt"
+        ? "提示词"
+        : "成图";
 
   return (
     <div

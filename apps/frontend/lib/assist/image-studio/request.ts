@@ -6,6 +6,7 @@ import {
   findPromptNodeForGenerated,
   getGeneratedNode,
 } from "@/lib/studio/image-workflow/graph-build";
+import { orderedReferenceSources } from "@/lib/assist/image-studio/reference-order";
 import type {
   ImageWorkflowGraph,
 } from "@/types/studio";
@@ -35,17 +36,15 @@ export function buildImageStudioGenerationRequest(
   const node = getGeneratedNode(graph, nodeId);
   const promptNode = findPromptNodeForGenerated(graph, nodeId);
   const promptSource = promptNode ?? node;
-  const nodesById = new Map(graph.nodes.map((item) => [item.id, item]));
-  const referenceImages = graph.edges
-    .filter((edge) => edge.target === nodeId)
-    .map((edge) => nodesById.get(edge.source))
-    .flatMap((source) => {
-      if (!source) return [];
-      if (source.type === "reference" && source.imageUrl) return [source.imageUrl];
-      // 链式图生图:上游成图结果作为参考图(与分镜链 previous-approved-frame 同语义)
-      if (source.type === "generated" && source.resultUrl) return [source.resultUrl];
-      return [];
-    });
+  // 参考源顺序=编号单源(reference-order:位置序)——节点显示的「参考图 N」
+  // 与发往引擎的数组下标同源;本地 Krea2 只吃第 1 张=画布最上面的参考图
+  const orderedSources = orderedReferenceSources(graph, nodeId);
+  const referenceImages = orderedSources.flatMap((source) => {
+    if (source.type === "reference" && source.imageUrl) return [source.imageUrl];
+    // 链式图生图:上游成图结果作为参考图(与分镜链 previous-approved-frame 同语义)
+    if (source.type === "generated" && source.resultUrl) return [source.resultUrl];
+    return [];
+  });
 
   return {
     prompt: promptSource.prompt.trim(),

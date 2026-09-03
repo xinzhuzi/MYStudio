@@ -58,6 +58,7 @@ import { PaneCreateMenu, type PaneCanvasAction, type PaneCreateKind } from "./pa
 import { NodeContextMenu } from "./node-context-menu";
 import { effectiveBatchImages } from "./image-studio-batch";
 import { buildNodeClearPlan } from "@/lib/assist/image-studio/clear-node";
+import { referenceIndexOf } from "@/lib/assist/image-studio/reference-order";
 import { logEvent } from "@/lib/diagnostics/logger";
 import { CanvasHints } from "./canvas-hints";
 import { useImageDrop } from "./use-image-drop";
@@ -500,6 +501,8 @@ export function ImageStudioCanvas() {
             ? findPromptNodeForGenerated(activeGraph, node.id)
             : undefined,
         selected: node.id === selectedNodeId,
+        referenceIndex:
+          node.type === "reference" ? referenceIndexOf(activeGraph, node.id) : undefined,
         referenceCount:
           node.type === "generated"
             ? activeGraph.edges.filter((edge) => {

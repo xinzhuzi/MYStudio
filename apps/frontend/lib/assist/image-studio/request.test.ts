@@ -42,7 +42,7 @@ describe("buildImageStudioGenerationRequest", () => {
     expect(request.aspectRatio).toBe("16:9");
   });
 
-  it("图生图:参考图节点按连线顺序收集", () => {
+  it("图生图:参考图节点按位置序收集(编号单源,09-03 裁定:画布序=数组序)", () => {
     let graph = buildGraph();
     graph = addReferenceImageNode(graph, {
       id: "ref-1",
@@ -54,12 +54,13 @@ describe("buildImageStudioGenerationRequest", () => {
       imageUrl: "local-image://upload/b.png",
       position: { x: 0, y: 200 },
     });
+    // 故意先连 y=200 的 ref-2:位置序不受建边顺序影响
     graph = connectImageWorkflowNodes(graph, { source: "ref-2", target: "gen-1" });
     graph = connectImageWorkflowNodes(graph, { source: "ref-1", target: "gen-1" });
     const request = buildImageStudioGenerationRequest(graph, "gen-1");
     expect(request.referenceImages).toEqual([
-      "local-image://upload/b.png",
       "local-image://upload/a.png",
+      "local-image://upload/b.png",
     ]);
   });
 
