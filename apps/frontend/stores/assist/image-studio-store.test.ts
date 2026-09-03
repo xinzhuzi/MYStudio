@@ -83,6 +83,26 @@ describe("image-studio-store 节点操作", () => {
     ).toBe(true);
   });
 
+  it("addGenerationGroup 空串参考图=空参考图位直建(图生图入口零弹窗,09-03 用户裁定)", () => {
+    useImageStudioStore.getState().ensureDefaultWorkflow();
+    const group = useImageStudioStore.getState().addGenerationGroup({
+      referenceImageUrl: "",
+    });
+
+    const graph = selectActiveImageStudioWorkflow(useImageStudioStore.getState());
+    // 三件套+双连线与带图形态一致;参考图节点为空(用户在节点内上传/拖图)
+    expect(graph?.nodes).toHaveLength(3);
+    expect(graph?.edges).toHaveLength(2);
+    const reference = graph?.nodes.find((node) => node.id === group.referenceNodeId);
+    expect(reference?.type).toBe("reference");
+    if (reference?.type === "reference") {
+      expect(reference.imageUrl).toBe("");
+    }
+    expect(
+      graph?.edges.some((e) => e.source === group.referenceNodeId && e.target === group.generatedNodeId),
+    ).toBe(true);
+  });
+
   it("removeNode 级联清边并清理 nodeExtras", () => {
     useImageStudioStore.getState().ensureDefaultWorkflow();
     const group = useImageStudioStore.getState().addGenerationGroup({ prompt: "山门" });

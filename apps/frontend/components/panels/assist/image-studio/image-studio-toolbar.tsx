@@ -108,7 +108,7 @@ export function ImageStudioToolbar({
           </DropdownMenuItem>
           <DropdownMenuItem onSelect={onAddImageToImage} data-image-studio-add-i2i>
             <ImagePlus className="mr-2 h-3.5 w-3.5" />
-            图生图(选参考图建组)
+            图生图
           </DropdownMenuItem>
           <DropdownMenuItem onSelect={onAddReference} data-image-studio-add-reference>
             <ImageIcon className="mr-2 h-3.5 w-3.5" />

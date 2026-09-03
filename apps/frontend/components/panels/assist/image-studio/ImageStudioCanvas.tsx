@@ -65,7 +65,6 @@ import { useImageDrop } from "./use-image-drop";
 const FIT_VIEW_OPTIONS = { padding: 0.18, minZoom: 0.35, maxZoom: 1.1 } as const;
 
 type UploadTarget =
-  | { mode: "new-group" }
   | { mode: "new-reference" }
   | { mode: "replace"; nodeId: string };
 
@@ -301,11 +300,6 @@ export function ImageStudioCanvas() {
       const store = useImageStudioStore.getState();
       if (target?.mode === "replace") {
         store.updateNode(target.nodeId, { imageUrl } as Partial<ImageWorkflowNode>);
-      } else if (target?.mode === "new-group") {
-        store.addGenerationGroup({
-          referenceImageUrl: imageUrl,
-          model: useFreedomStore.getState().selectedImageModel || undefined,
-        });
       } else {
         store.addReferenceNode({ imageUrl });
       }
@@ -449,6 +443,14 @@ export function ImageStudioCanvas() {
       const store = useImageStudioStore.getState();
       if (kind === "generation-group") {
         const group = store.addGenerationGroup({ model: defaultModel(), position: paneCreate?.world });
+        focusPromptNodeWhenReady(group?.promptNodeId);
+      } else if (kind === "generation-group-i2i") {
+        // 图生图=文生图同款直建组+空参考图节点已连线(09-03 用户裁定)
+        const group = store.addGenerationGroup({
+          model: defaultModel(),
+          position: paneCreate?.world,
+          referenceImageUrl: "",
+        });
         focusPromptNodeWhenReady(group?.promptNodeId);
       } else if (kind === "reference") {
         store.addReferenceNode({ imageUrl: "", position: paneCreate?.world });
@@ -634,7 +636,15 @@ export function ImageStudioCanvas() {
           const group = useImageStudioStore.getState().addGenerationGroup({ model: defaultModel() });
           focusPromptNodeWhenReady(group?.promptNodeId);
         }}
-        onAddImageToImage={() => openPicker({ mode: "new-group" })}
+        onAddImageToImage={() => {
+          // 与文生图同款直建组(09-03 用户裁定:不先弹选图器)——多一个
+          // 空参考图节点并已连线,用户在节点内上传/拖图即成图生图
+          const group = useImageStudioStore.getState().addGenerationGroup({
+            model: defaultModel(),
+            referenceImageUrl: "",
+          });
+          focusPromptNodeWhenReady(group?.promptNodeId);
+        }}
         onAddReference={() => openPicker({ mode: "new-reference" })}
         onAddPrompt={() => useImageStudioStore.getState().addPromptNode()}
         onTidy={() => useImageStudioStore.getState().applyLayout()}

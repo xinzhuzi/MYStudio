@@ -18,6 +18,7 @@ describe("PaneCreateMenu", () => {
     expect(menu.style.left).toBe("200px");
     expect(menu.style.top).toBe("150px");
     expect(screen.getByRole("menuitem", { name: /^文生图/ })).toBeTruthy();
+    expect(screen.getByRole("menuitem", { name: /^图生图/ })).toBeTruthy();
     expect(screen.getByRole("menuitem", { name: /^参考图/ })).toBeTruthy();
     expect(screen.getByRole("menuitem", { name: /^提示词/ })).toBeTruthy();
   });
@@ -29,7 +30,10 @@ describe("PaneCreateMenu", () => {
     const first = screen.getByRole("menuitem", { name: /^文生图/ });
     expect(document.activeElement).toBe(first);
     fireEvent.keyDown(first, { key: "ArrowDown" });
-    expect(document.activeElement).toBe(screen.getByRole("menuitem", { name: /^参考图/ }));
+    // 顺序:文生图→图生图→参考图→提示词(09-03 图生图入列)
+    expect(document.activeElement).toBe(screen.getByRole("menuitem", { name: /^图生图/ }));
+    fireEvent.click(screen.getByRole("menuitem", { name: /^参考图/ }));
+    expect(onSelect).toHaveBeenCalledWith("reference");
     fireEvent.keyDown(document.activeElement!, { key: "Escape" });
     expect(onClose).toHaveBeenCalledTimes(1);
     expect(onSelect).not.toHaveBeenCalled();
@@ -58,7 +62,7 @@ describe("PaneCreateMenu", () => {
   it("父组件重渲染不抢回键盘焦点(onClose 经 ref 透传)", () => {
     const onClose = vi.fn();
     const { rerender } = render(<PaneCreateMenu x={0} y={0} onSelect={vi.fn()} onClose={onClose} />);
-    const second = screen.getByRole("menuitem", { name: /^参考图/ });
+    const second = screen.getByRole("menuitem", { name: /^图生图/ });
     fireEvent.keyDown(screen.getByRole("menuitem", { name: /^文生图/ }), { key: "ArrowDown" });
     expect(document.activeElement).toBe(second);
     rerender(<PaneCreateMenu x={0} y={0} onSelect={vi.fn()} onClose={onClose} />);

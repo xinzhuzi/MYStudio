@@ -477,7 +477,9 @@ export const useImageStudioStore = create<ImageStudioStore>()(
         let current = graph;
         // 右键落点(可选):组内以落点为成图列基准,提示词在其左列
         const anchor = input?.position;
-        if (input?.referenceImageUrl) {
+        // 空串=空参考图位(「图生图」直建组用,与文生图同款零弹窗;用户
+        // 在参考图节点内点上传/拖图填充)——undefined 才是「不建参考图」
+        if (input?.referenceImageUrl !== undefined) {
           const referenceNodeId = createId("ref");
           current = addReferenceImageNode(current, {
             id: referenceNodeId,

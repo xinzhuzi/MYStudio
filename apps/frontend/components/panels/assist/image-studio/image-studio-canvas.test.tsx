@@ -76,6 +76,24 @@ describe("ImageStudioCanvas", () => {
     expect(useFreedomStore.getState().imagePrompt).toBe("");
   });
 
+  it("工具栏「图生图」直建组:零弹窗出参考图+提示词+成图三件套(09-03 用户裁定)", async () => {
+    render(<ImageStudioCanvas />);
+    await waitFor(() => {
+      expect(useImageStudioStore.getState().workflows).toHaveLength(1);
+    });
+    fireEvent.keyDown(screen.getByRole("button", { name: /添加节点/ }), { key: "Enter" });
+    fireEvent.click(await screen.findByRole("menuitem", { name: /^图生图$/ }));
+
+    const graph = selectActiveImageStudioWorkflow(useImageStudioStore.getState());
+    expect(graph?.nodes).toHaveLength(3);
+    expect(graph?.edges).toHaveLength(2);
+    const reference = graph?.nodes.find((node) => node.type === "reference");
+    expect(reference).toBeDefined();
+    if (reference?.type === "reference") {
+      expect(reference.imageUrl).toBe("");
+    }
+  });
+
   it("工具栏「文生图」一键建组:提示词+成图+连线入图", async () => {
     render(<ImageStudioCanvas />);
     await waitFor(() => {
