@@ -15,7 +15,7 @@
  * 左上角像素角标经 render.toolbar 注入,与默认工具栏并存。
  */
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import { X } from "lucide-react";
 import Lightbox from "yet-another-react-lightbox";
@@ -33,6 +33,32 @@ interface ImagePreviewModalProps {
   onClose: () => void;
 }
 
+// yarl 官方要求(README「plugins must be defined outside」):plugins 及
+// 各配置对象须保持引用稳定——内联字面量每次渲染都触发插件/配置重置,
+// zoom 状态被清(放大点了没效果,jsdom+装机实弹双双复现;09-03 根修)。
+const LIGHTBOX_PLUGINS = [Zoom];
+const CONTROLLER_CONFIG = { closeOnBackdropClick: true };
+// 滚轮/触控板滚动缩放默认关闭,显式开启(桌面看图核心诉求)
+const ZOOM_CONFIG = { scrollToZoom: true };
+const CAROUSEL_CONFIG = { finite: true };
+const LABELS = {
+  Close: "关闭预览",
+  "Zoom in": "放大",
+  "Zoom out": "缩小",
+  Previous: "上一张",
+  Next: "下一张",
+};
+const CONTAINER_STYLES = {
+  container: {
+    backgroundColor: "rgba(0, 0, 0, .82)",
+    // Radix 模态锁穿透(09-03):从 Radix Dialog(如生成记录弹窗)内
+    // 打开预览时,Radix 给 body 置 pointer-events:none 且只恢复自身
+    // 内容树;Lightbox portal 在 body 下、不在该树内——不显式恢复
+    // 则放大/缩小/关闭全部点不动(可见但僵死)。
+    pointerEvents: "auto" as const,
+  },
+};
+
 export function ImagePreviewModal({
   imageUrl,
   imageUrls,
@@ -45,6 +71,28 @@ export function ImagePreviewModal({
   useEffect(() => {
     setIndexState(initialIndex ?? 0);
   }, [isOpen, initialIndex]);
+  const callbacks = useMemo(
+    () => ({
+      view: ({ index: nextIndex }: { index: number }) => setIndexState(nextIndex),
+    }),
+    [],
+  );
+  // 工具栏含 ResolutionBadge(随图变化),useMemo 稳定引用
+  const toolbar = useMemo(
+    () => ({
+      buttons: [
+        <span
+          key="resolution-badge"
+          style={{ pointerEvents: "none", cursor: "default", alignSelf: "center" }}
+          aria-hidden
+        >
+          <ResolutionBadge src={imageUrl} />
+        </span>,
+        "close",
+      ] as React.ReactNode[],
+    }),
+    [imageUrl],
+  );
 
   const handleKeyDown = useCallback((event: KeyboardEvent) => {
     if (event.key === "Escape") onClose();
@@ -70,50 +118,16 @@ export function ImagePreviewModal({
     <Lightbox
       open={isOpen}
       close={onClose}
-      controller={{ closeOnBackdropClick: true }}
+      controller={CONTROLLER_CONFIG}
       slides={previewSlides}
       index={indexState}
-      on={{
-        // yarl 的 index 是受控 prop:不接 view 回写,内部索引每次渲染都被
-        // 拉回初始值——翻页箭头全体 disabled、Zoom 状态损坏(09-03 实弹
-        // 复现:五钮仅关闭幸存;09-02 接入时漏的受控回路,第五坑)。
-        view: ({ index: nextIndex }) => setIndexState(nextIndex),
-      }}
-      plugins={[Zoom]}
-      zoom={{
-        // 滚轮/触控板滚动缩放默认关闭,显式开启(桌面看图核心诉求)
-        scrollToZoom: true,
-      }}
-      carousel={{ finite: true }}
-      labels={{
-        Close: "关闭预览",
-        "Zoom in": "放大",
-        "Zoom out": "缩小",
-        Previous: "上一张",
-        Next: "下一张",
-      }}
-      toolbar={{
-        buttons: [
-          <span
-            key="resolution-badge"
-            style={{ pointerEvents: "none", cursor: "default", alignSelf: "center" }}
-            aria-hidden
-          >
-            <ResolutionBadge src={imageUrl} />
-          </span>,
-          "close",
-        ],
-      }}
-      styles={{
-        container: {
-          backgroundColor: "rgba(0, 0, 0, .82)",
-          // Radix 模态锁穿透(09-03):从 Radix Dialog(如生成记录弹窗)内
-          // 打开预览时,Radix 给 body 置 pointer-events:none 且只恢复自身
-          // 内容树;Lightbox portal 在 body 下、不在该树内——不显式恢复
-          // 则放大/缩小/关闭全部点不动(可见但僵死)。
-          pointerEvents: "auto",
-        },
-      }}
+      on={callbacks}
+      plugins={LIGHTBOX_PLUGINS}
+      zoom={ZOOM_CONFIG}
+      carousel={CAROUSEL_CONFIG}
+      labels={LABELS}
+      toolbar={toolbar}
+      styles={CONTAINER_STYLES}
     />,
     document.body,
   );
