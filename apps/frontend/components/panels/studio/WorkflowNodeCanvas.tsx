@@ -501,9 +501,9 @@ export function WorkflowNodeCanvas({
     claimViewportForUser();
     void flowInstance.fitView({ ...FIT_VIEW_OPTIONS, duration: 0 });
   }, [claimViewportForUser, flowInstance]);
-  // 手势层单源(08-30 收敛 Phase2):打标/门闸/平滑缩放共用 useCanvasGestureKernel;
+  // 手势层单源(08-30 收敛 Phase2):打标/平滑缩放共用 useCanvasGestureKernel;
   // 主画布策略=立即摘标(classRemovalDelayMs 0)+用户手势接管视口所有权。
-  // 语义铁律(实弹教训,详见 hook 注释):程序性视口不关闸;开闸无条件。
+  // 语义铁律(实弹教训,详见 hook 注释):程序性视口不触发手势钩子。
   const {
     handleMoveStart: handleViewportMoveStart,
     handleMoveEnd: handleViewportMoveEnd,

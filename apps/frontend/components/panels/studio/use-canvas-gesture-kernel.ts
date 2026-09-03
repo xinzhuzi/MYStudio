@@ -13,10 +13,10 @@ import { useSmoothWheelZoom, type SmoothWheelZoomApi } from "./previews/smooth-w
  * - onUserGestureStart:用户手势开始钩子(主画布:视口所有权接管 claimViewportForUser)
  *
  * 语义铁律(两画布实弹教训固化,勿改):
- * - onMoveStart 只在带 event(用户手势)时关闸——程序性视口变化(挂载 fitView/
- *   布局对齐)不拦图片,否则首屏被误拦(装机 smoke 2026-08-26 实证)
- * - onMoveEnd 无条件开闸——wheel 的 moveEnd 未必带 event(d3 对滚轮与拖拽走
- *   不同路径),按 event 门控会让闸门永久关死(「滚轮没效果」根因)
+ * - onMoveStart 只在带 event(用户手势)时触发手势钩子——程序性视口变化
+ *   (挂载 fitView/布局对齐)不触发,否则首屏误占视口所有权
+ * - onMoveEnd 无条件收尾——wheel 的 moveEnd 未必带 event(d3 对滚轮与拖拽
+ *   走不同路径),按 event 门控会让交互标永不摘除(「滚轮没效果」根因)
  */
 export function useCanvasGestureKernel({
   containerRef,

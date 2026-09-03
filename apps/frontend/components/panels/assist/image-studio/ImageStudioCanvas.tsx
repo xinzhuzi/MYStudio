@@ -36,7 +36,7 @@ import { copyNodesToClipboard, pasteFromClipboard, clipboardSize } from "./canva
 import { CanvasAssistantDialog } from "./canvas-assistant-dialog";
 import { relatedEdges } from "@/lib/studio/image-workflow/relation-graph";
 import { useCanvasGestureKernel } from "@/components/panels/studio/use-canvas-gesture-kernel";
-// 画布手势内核/门闸提示与分镜画布共用(08-30 收敛 Phase2 之后再整体上提 features/)
+// 画布手势内核与分镜画布共用(08-30 收敛 Phase2 之后再整体上提 features/)
 import { findPromptNodeForGenerated, hasPromptSource } from "@/lib/studio/image-workflow/graph-build";
 import { saveReferenceFile } from "@/lib/assist/image-studio/reference-upload";
 import { useFreedomStore } from "@/stores/assist/freedom-store";
@@ -72,8 +72,8 @@ type UploadTarget =
 /**
  * 图片工作室无限画布(辅助面板)。
  *
- * 交互模式与分镜画布(ImageWorkflowCanvas)同源:React Flow + 手势内核 +
- * 交互门闸;差异是自由域——多画布本地切换、无分镜指纹/资产桥/回写链,
+ * 交互模式与分镜画布(ImageWorkflowCanvas)同源:React Flow + 手势内核;
+ * 差异是自由域——多画布本地切换、无分镜指纹/资产桥/回写链,
  * 节点操作全部走 image-studio-store(应用级持久化,不依赖项目)。
  */
 export function ImageStudioCanvas() {

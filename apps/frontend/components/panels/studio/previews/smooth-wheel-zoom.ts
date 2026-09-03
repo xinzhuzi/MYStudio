@@ -16,13 +16,11 @@ import { useEffect, useRef, type RefObject } from "react";
  *   让 RF 正规退出 pane 拖拽(不靠 stopPropagation 吞事件——那会误杀 pane
  *   点击取消选中);拖拽产生移动后吞掉后续 click(防误触发 pane click);
  * - 滚轮与拖拽共享同一 pending 视口(交替手势不跳变);
- * - 门闸已移除(2026-08-26 用户纠正):画布零图片+面板卸载=无东西可拦,
- *   阶段进入门闸由 useWorkflowStageState 负责(面板挂载时才有关键量)。
  */
 
 /** 指数灵敏度(d3 同量级微调值)。 */
 const WHEEL_SENSITIVITY = 0.0022;
-/** 手势停止后多久提交 store 并交还门闸 end。 */
+/** 手势停止后多久提交 store(视口持久化)。 */
 const GESTURE_SETTLE_TAIL_MS = 160;
 /** 拖拽位移累计超过该阈值才算手势(点击不被误判)。 */
 const DRAG_THRESHOLD_PX = 2;
@@ -64,7 +62,7 @@ export function useSmoothWheelZoom(
     const viewportEl = () =>
       element.querySelector<HTMLElement>(".react-flow__viewport") ?? null;
 
-    /** 手势静止尾部:一次性提交 store + 交还门闸 end。 */
+    /** 手势静止尾部:一次性提交 store(视口持久化)。 */
     const scheduleCommit = () => {
       if (settleTimer !== undefined) clearTimeout(settleTimer);
       settleTimer = setTimeout(() => {
