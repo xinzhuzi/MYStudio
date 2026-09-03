@@ -1,3 +1,4 @@
+import { useMouseButtonPan } from "@/hooks/use-mouse-button-pan";
 import { CanvasViewportControls } from "../CanvasViewportControls";
 import { GenerationFailedDialog } from "@/components/ui/generation-failed-dialog";
 import { nodeTypes, FIT_VIEW_OPTIONS, ImageWorkflowVisibilityMeasurementRefresh } from "./ImageWorkflowCanvas";
@@ -85,6 +86,13 @@ export function ImageWorkflowFlowView({
 
   const [flowInstance, setFlowInstance] =
     useState<ReactFlowInstance<ImageWorkflowReactNode, Edge> | null>(null);
+  // 09-03 用户裁定:左键不得拖拽画布——本卡 panOnDrag 恒 false(无 d3 拖拽平移),
+  // 右键/中键拖拽平移由此钩子接管(与图片工作室同款)
+  const mouseButtonPan = useMouseButtonPan((dx, dy) => {
+    if (!flowInstance) return;
+    const viewport = flowInstance.getViewport();
+    flowInstance.setViewport({ x: viewport.x + dx, y: viewport.y + dy, zoom: viewport.zoom });
+  });
 
   // 连接落空创建菜单锚点(null=关);正常连上(isValid)不弹
   const [connectCreateAnchor, setConnectCreateAnchor] = useState<{
@@ -225,6 +233,16 @@ export function ImageWorkflowFlowView({
         onMoveStart={handleMoveStart}
         onMoveEnd={handleMoveEnd}
         onConnect={onConnect}
+        onPointerDown={mouseButtonPan.onPointerDown}
+        onPointerMove={mouseButtonPan.onPointerMove}
+        onPointerUp={mouseButtonPan.onPointerUp}
+        onPointerCancel={mouseButtonPan.onPointerCancel}
+        onContextMenu={(event) => {
+          if (mouseButtonPan.consumeContextMenu()) {
+            event.preventDefault();
+            return;
+          }
+        }}
         isValidConnection={(connection) =>
           connection.target !== connection.source &&
           activeGraph?.nodes.find((node) => node.id === connection.target)?.type === "generated" &&

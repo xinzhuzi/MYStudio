@@ -46,6 +46,7 @@ import {
 } from "@/stores/assist/image-studio-store";
 import type { ImageWorkflowGraph, ImageWorkflowNode } from "@/types/studio";
 import { GenerationHistoryDialog } from "./generation-history-dialog";
+import { useMouseButtonPan } from "@/hooks/use-mouse-button-pan";
 import { SaveToPropsDialog } from "../SaveToPropsDialog";
 import {
   imageStudioNodeTypes,
@@ -980,6 +981,13 @@ function ImageStudioFlowView({
 
   const [flowInstance, setFlowInstance] =
     useState<ReactFlowInstance<ImageStudioReactNode, Edge> | null>(null);
+  // 09-03 用户裁定:左键不得拖拽画布(上游 d3 过滤器左键永远放行,props 挡不住)
+  // → panOnDrag={false} 全禁 d3 拖拽平移,右键/中键由本钩子接管
+  const mouseButtonPan = useMouseButtonPan((dx, dy) => {
+    if (!flowInstance) return;
+    const viewport = flowInstance.getViewport();
+    flowInstance.setViewport({ x: viewport.x + dx, y: viewport.y + dy, zoom: viewport.zoom });
+  });
   const [backgroundMode, setBackgroundMode] = useState<"dots" | "lines" | "blank">(() => {
     try {
       const saved = window.localStorage.getItem("studio-canvas-background");
@@ -1019,6 +1027,7 @@ function ImageStudioFlowView({
         onPaneClick={onPaneClick}
         onPaneContextMenu={(event) => {
           event.preventDefault();
+          if (mouseButtonPan.consumeContextMenu()) return;
           onPaneContextMenu(event as unknown as MouseEvent);
         }}
         onDragEnter={dropHandlers.onDragEnter}
@@ -1026,6 +1035,7 @@ function ImageStudioFlowView({
         onDragLeave={dropHandlers.onDragLeave}
         onDrop={dropHandlers.onDrop}
         onNodeContextMenu={(event, node) => {
+          if (mouseButtonPan.consumeContextMenu()) return;
           onNodeContextMenu(event as unknown as MouseEvent, node.id);
         }}
         onNodeDragStart={handleNodeDragStart}
@@ -1039,6 +1049,10 @@ function ImageStudioFlowView({
           onViewportSettled(viewport);
         }}
         onConnect={onConnect}
+        onPointerDown={mouseButtonPan.onPointerDown}
+        onPointerMove={mouseButtonPan.onPointerMove}
+        onPointerUp={mouseButtonPan.onPointerUp}
+        onPointerCancel={mouseButtonPan.onPointerCancel}
         onNodesDelete={(deleted) => onNodesDelete(deleted.map((node) => node.id))}
         onEdgesDelete={(deleted) => onEdgesDelete(deleted.map((edge) => edge.id))}
         isValidConnection={(connection) =>
@@ -1058,7 +1072,7 @@ function ImageStudioFlowView({
         nodesDraggable
         nodesConnectable
         elementsSelectable
-        panOnDrag={[2]}
+        panOnDrag={false}
         selectionOnDrag
         onSelectionChange={handleSelectionChange}
         zoomOnScroll={false}
