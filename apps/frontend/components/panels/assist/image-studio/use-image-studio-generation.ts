@@ -9,6 +9,8 @@ import {
   classifyImageStudioGeneration,
 } from "@/lib/assist/image-studio/request";
 import { runImageStudioNodeGeneration } from "@/lib/assist/image-studio/run-node-generation";
+import { buildUnclothChainRequest, findUnclothUpstream } from "@/lib/assist/image-studio/uncloth-request";
+import { runUnclothChain } from "@/lib/assist/image-studio/run-uncloth";
 import { eventBus } from "@/lib/events/event-bus";
 import {
   IMAGE_GENERATION_FAILED_EVENT,
@@ -58,6 +60,38 @@ export function useImageStudioGeneration() {
       );
       return;
     }
+    // 无衣物链分流(09-04):上游有 uncloth 节点时,成图的「生成」执行的是
+    // uncloth 管线(双分割+两遍),结果直通本成图——不走普通 t2i/i2i 通道
+    const unclothRequest = buildUnclothChainRequest(graph, nodeId);
+    if (!("error" in unclothRequest)) {
+      store.setNodeStatus(nodeId, "generating");
+      try {
+        const result = await runUnclothChain(unclothRequest);
+        useImageStudioStore.getState().setNodeResult(nodeId, {
+          imageUrl: result.imageUrl,
+          mediaId: result.mediaId,
+        });
+        // uncloth 节点回显同一结果(预览)
+        useImageStudioStore.getState().updateNode(unclothRequest.unclothNodeId, {
+          resultUrl: result.imageUrl,
+        } as never);
+        toast.success("无衣物链完成,成图已更新");
+      } catch (error) {
+        const message = error instanceof Error ? error.message : "无衣物链失败";
+        useImageStudioStore.getState().setNodeStatus(nodeId, "failed", message);
+        eventBus.emit(IMAGE_GENERATION_FAILED_EVENT, {
+          surface: "image-studio",
+          reason: message,
+        } satisfies ImageGenerationFailedPayload);
+      }
+      return;
+    }
+    if (findUnclothUpstream(graph, nodeId)) {
+      // 有 uncloth 上游但输入不完整:明确指路,不静默走普通生成
+      toast.error(unclothRequest.error);
+      return;
+    }
+
     const controller = new AbortController();
     abortRef.current.set(nodeId, controller);
     store.setNodeStatus(nodeId, "generating");

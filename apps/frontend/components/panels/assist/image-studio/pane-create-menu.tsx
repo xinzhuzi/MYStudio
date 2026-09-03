@@ -12,7 +12,7 @@ import { CONTEXT_MENU_ARRIVAL_CLASS, useContextMenuClamp } from "./context-menu-
  * ui/dropdown-menu 项类名逐字对齐。右键空白弹出,选中后在落点创建;
  * 键盘 ↑↓/Enter/ESC 可达。
  */
-export type PaneCreateKind = "generation-group" | "generation-group-i2i" | "reference" | "prompt" | "sticky" | "group";
+export type PaneCreateKind = "generation-group" | "generation-group-i2i" | "reference" | "uncloth" | "prompt" | "sticky" | "group";
 export type PaneCanvasAction = "tidy-layout" | "fit-view";
 
 const ITEM_CLASS =
@@ -21,6 +21,7 @@ const ITEM_CLASS =
 const CREATE_ITEMS: { kind: PaneCreateKind; label: string; icon: React.ReactNode }[] = [
   { kind: "generation-group", label: "文生图", icon: <WandSparkles className="text-muted-foreground" /> },
   { kind: "generation-group-i2i", label: "图生图", icon: <Images className="text-muted-foreground" /> },
+  { kind: "uncloth", label: "无衣物", icon: <Images className="text-muted-foreground" /> },
   { kind: "reference", label: "参考图", icon: <ImagePlus className="text-muted-foreground" /> },
   { kind: "prompt", label: "提示词", icon: <Type className="text-muted-foreground" /> },
   { kind: "sticky", label: "便利贴", icon: <StickyNote className="text-muted-foreground" /> },

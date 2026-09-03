@@ -499,6 +499,8 @@ export function ImageStudioCanvas() {
           referenceImageUrl: "",
         });
         focusPromptNodeWhenReady(group?.promptNodeId);
+      } else if (kind === "uncloth") {
+        store.addUnclothNode({ position: paneCreate?.world });
       } else if (kind === "reference") {
         store.addReferenceNode({ imageUrl: "", position: paneCreate?.world });
       } else if (kind === "sticky") {
@@ -701,6 +703,7 @@ export function ImageStudioCanvas() {
           });
           focusPromptNodeWhenReady(group?.promptNodeId);
         }}
+        onAddUncloth={() => useImageStudioStore.getState().addUnclothNode()}
         onAddReference={() => openPicker({ mode: "new-reference" })}
         onAddPrompt={() => useImageStudioStore.getState().addPromptNode()}
         onTidy={() => useImageStudioStore.getState().applyLayout()}

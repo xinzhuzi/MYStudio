@@ -18,6 +18,7 @@ import {
   setGeneratedImageResult,
   setGeneratedImageStatus,
   updateImageWorkflowNode,
+  addUnclothImageNode,
 } from "@/lib/studio/image-workflow/graph-build";
 import {
   layoutImageStudioGraph,
@@ -80,6 +81,8 @@ export interface ImageStudioStoreActions {
   applyLayout: () => void;
   addReferenceNode: (input: { imageUrl: string; title?: string; position?: ImageWorkflowNodePosition }) => string;
   addPromptNode: (input?: { prompt?: string; negativePrompt?: string; position?: ImageWorkflowNodePosition }) => string;
+  /** 无衣物改图节点(09-04):输入图+文本边,输出连成图;参数全量可选 */
+  addUnclothNode: (input?: { prompt?: string; position?: ImageWorkflowNodePosition }) => string;
   /** 便利贴(09-03 wave3):画布标注件 */
   addStickyNote: (input?: { text?: string; color?: "yellow" | "green" | "blue" | "pink" | "gray"; position?: ImageWorkflowNodePosition }) => string;
   /** Group 框组(09-03 wave3):视觉容器 */
@@ -439,6 +442,14 @@ export const useImageStudioStore = create<ImageStudioStore>()(
               position: offset,
             });
           }
+          if (source.type === "uncloth") {
+            return addUnclothImageNode(current, {
+              id,
+              title: `${source.title} 副本`,
+              prompt: source.prompt,
+              position: offset,
+            });
+          }
           return addGeneratedImageNode(current, {
             id,
             title: `${source.title} 副本`,
@@ -541,6 +552,23 @@ export const useImageStudioStore = create<ImageStudioStore>()(
             prompt: input?.prompt ?? "",
             negativePrompt: input?.negativePrompt,
             position: input?.position ?? nextColumnPosition(current, "prompt"),
+          }),
+        );
+        return id;
+      },
+      addUnclothNode: (input?: { prompt?: string; position?: ImageWorkflowNodePosition }) => {
+        ensureActiveCanvas(get, set);
+        const graph = selectActiveImageStudioWorkflow(get());
+        if (!graph) {
+          throw new Error("画布未就绪");
+        }
+        const id = createId("uncloth");
+        get().updateActiveWorkflow(() =>
+          addUnclothImageNode(graph, {
+            id,
+            title: "无衣物",
+            prompt: input?.prompt,
+            position: input?.position,
           }),
         );
         return id;

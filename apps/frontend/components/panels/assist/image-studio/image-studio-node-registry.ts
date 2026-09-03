@@ -31,6 +31,10 @@ export const IMAGE_STUDIO_NODE_META: Record<ImageWorkflowNodeType, ImageStudioNo
     label: "成图",
     description: "持有生成参数与结果;无参考连线=文生图,挂参考=图生图",
   },
+  uncloth: {
+    label: "无衣物",
+    description: "衣物区域局部重绘(双分割+两遍采样);输入图+文本,输出连成图节点",
+  },
   sticky: {
     label: "便利贴",
     description: "画布创作标注(换色/编辑),不参与连线",

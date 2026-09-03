@@ -290,7 +290,7 @@ export interface AssetImageWorkflowContext extends ImageWorkflowOpenContext {
   target: ImageWorkflowTarget & { kind: "asset"; assetType: ImageWorkflowAssetTargetType };
 }
 
-export type ImageWorkflowNodeType = "reference" | "prompt" | "generated" | "sticky" | "group";
+export type ImageWorkflowNodeType = "reference" | "prompt" | "generated" | "uncloth" | "sticky" | "group";
 export type ImageWorkflowGenerationStatus = "idle" | "queued" | "generating" | "ready" | "failed";
 
 export interface ImageWorkflowNodePosition {
@@ -325,6 +325,54 @@ export interface ImageWorkflowDerivationSource {
    * 该结果的 generatedAt。缺省=未过期;仅提示,不阻断使用。
    */
   staleSince?: number;
+}
+
+/**
+ * 无衣物改图节点(09-04-krea2-uncloth-node):ComfyUI「Krea2-NSFW专业流-
+ * 改图-无衣物」的完整封装——双分割(segformer+fashn)取衣物蒙版并集,
+ * 两遍采样(脱衣+校色)局部重绘;内部按工作流顺序自行调用,节点只暴露
+ * 参数。由下游成图节点触发,结果直通成图(本节点回显 resultUrl)。
+ * 全字段可选+读侧回落工作流默认值(旧画布零迁移);参数默认=工作流现值。
+ */
+export interface ImageWorkflowUnclothNode extends ImageWorkflowNodeBase {
+  type: "uncloth";
+  /** 处理结果回显(最终结果落下游成图节点;本字段供卡内预览) */
+  resultUrl?: string;
+  /** 单文本驱动两遍采样(缺省回落输入提示词节点的文本) */
+  prompt?: string;
+  /** 遍1 脱衣 denoise(工作流 0.65) */
+  denoiseUndress?: number;
+  /** 遍1 seed(工作流 3) */
+  seedUndress?: number;
+  /** 遍2 校色 denoise(工作流 0.3) */
+  denoiseColor?: number;
+  /** 遍2 seed(工作流 1) */
+  seedColor?: number;
+  /** 采样步数,两遍共用(工作流 8) */
+  steps?: number;
+  /** 遍1 蒙版收缩 px(工作流 GrowMask -16,防越界) */
+  growUndress?: number;
+  /** 遍2 蒙版外扩 px(工作流 GrowMask +16,过渡带) */
+  growColor?: number;
+  /** 输入图上限(百万像素,工作流 1.0) */
+  megapixels?: number;
+  /** segformer 部位勾选(勾选的部位 id 列表:1帽 2发 4上衣 5短裙 6裤 7连衣裙 8腰带 9鞋 12手臂 13腿 16包 17围巾;工作流实勾=衣物类 4-8+四肢 12/13) */
+  segformerParts?: number[];
+  /** fashn parser 部位(逗号分隔,工作流 dress,skirt,pants,belt,arms,legs) */
+  fashnParts?: string;
+  /** SegformerUltraV3 加工参数(工作流 GuidedFilter 8/6/0.01/0.99/开/迭代2) */
+  guidedFilter?: {
+    enabled?: boolean;
+    radius?: number;
+    eps?: number;
+    blurRadius?: number;
+    degrade?: number;
+    iterations?: number;
+  };
+  /** LoRA 三槽(顺序=NSFW V4/Mystic XXX v3/pussy;工作流=关1.0/开1.0/开0.3) */
+  loras?: Array<{ enabled?: boolean; strength?: number }>;
+  /** 正向 Rebalance 12 权重(工作流=单层5.0 版) */
+  rebalanceWeights?: number[];
 }
 
 export interface ImageWorkflowReferenceNode extends ImageWorkflowNodeBase {
@@ -393,6 +441,7 @@ export type ImageWorkflowNode =
   | ImageWorkflowReferenceNode
   | ImageWorkflowPromptNode
   | ImageWorkflowGeneratedNode
+  | ImageWorkflowUnclothNode
   | ImageWorkflowStickyNode
   | ImageWorkflowGroupNode;
 

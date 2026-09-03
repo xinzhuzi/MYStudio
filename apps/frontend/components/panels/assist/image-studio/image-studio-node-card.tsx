@@ -31,6 +31,10 @@ import { Textarea } from "@/components/ui/textarea";
 import { ModelSelector } from "@/components/panels/assist/ModelSelector";
 import { IMAGE_ASPECT_RATIOS, IMAGE_RESOLUTIONS } from "@/lib/ai/image-size-presets";
 import { referenceCapacityForModel } from "./image-studio-node-registry";
+import {
+  SEGFORMER_PART_LABELS,
+  resolveUnclothParams,
+} from "@/lib/assist/image-studio/uncloth-defaults";
 import { effectiveBatchImages } from "./image-studio-batch";
 import { toPreviewSrc } from "@/lib/media/preview-src";
 import { UPSCALE_INPUT_MAX_LONG_SIDE } from "@/lib/upscale/client";
@@ -42,6 +46,7 @@ import type {
   ImageWorkflowPromptNode,
   ImageWorkflowReferenceNode,
   ImageWorkflowStickyNode,
+  ImageWorkflowUnclothNode,
 } from "@/types/studio";
 
 /**
@@ -104,6 +109,159 @@ function areNodeCardPropsEqual(
     prev.parentId === next.parentId &&
     prev.width === next.width &&
     prev.height === next.height
+  );
+}
+
+function UnclothNodeEditor({
+  node,
+  onUpdate,
+}: {
+  node: ImageWorkflowUnclothNode;
+  onUpdate: (nodeId: string, updates: Partial<ImageWorkflowNode>) => void;
+}) {
+  const params = resolveUnclothParams(node);
+  const [advancedOpen, setAdvancedOpen] = useState(false);
+  const patch = (updates: Partial<ImageWorkflowUnclothNode>) => onUpdate(node.id, updates as Partial<ImageWorkflowNode>);
+
+  const numberField = (label: string, key: keyof ImageWorkflowUnclothNode, value: number, step: number, min: number, max: number) => (
+    <label className="flex items-center justify-between gap-2 text-[11px] text-muted-foreground">
+      <span className="shrink-0">{label}</span>
+      <input
+        type="number"
+        value={value}
+        step={step}
+        min={min}
+        max={max}
+        onChange={(event) => {
+          const next = Number(event.target.value);
+          if (Number.isFinite(next)) patch({ [key]: next } as Partial<ImageWorkflowUnclothNode>);
+        }}
+        className="h-7 w-20 rounded-md border border-border bg-card/80 px-1.5 text-xs text-foreground outline-none"
+      />
+    </label>
+  );
+
+  return (
+    <div className="space-y-2">
+      <div className="nodrag nopan text-[10px] text-muted-foreground">
+        输入:连一张图(参考图/成图)+一条提示词;输出连成图节点,点成图的「生成」执行本链。
+      </div>
+      {node.resultUrl ? (
+        <div className="aspect-video overflow-hidden rounded-md border border-border bg-muted/30">
+          <LocalImage src={toPreviewSrc(node.resultUrl)} alt="无衣物处理结果" className="h-full w-full object-cover" eager />
+        </div>
+      ) : null}
+
+      <div className="nodrag nopan space-y-1.5 rounded-md border border-border bg-background/80 p-2">
+        <div className="text-[11px] font-medium text-foreground">两遍采样</div>
+        {numberField("脱衣遍 denoise", "denoiseUndress", params.denoiseUndress, 0.05, 0, 1)}
+        {numberField("脱衣遍 seed", "seedUndress", params.seedUndress, 1, 0, 999999999)}
+        {numberField("校色遍 denoise", "denoiseColor", params.denoiseColor, 0.05, 0, 1)}
+        {numberField("校色遍 seed", "seedColor", params.seedColor, 1, 0, 999999999)}
+        {numberField("步数(两遍共用)", "steps", params.steps, 1, 1, 32)}
+        {numberField("蒙版收缩 px(脱衣遍)", "growUndress", params.growUndress, 1, -64, 0)}
+        {numberField("蒙版外扩 px(校色遍)", "growColor", params.growColor, 1, 0, 64)}
+        {numberField("输入上限(百万像素)", "megapixels", params.megapixels, 0.1, 0.25, 4)}
+      </div>
+
+      <div className="nodrag nopan space-y-1.5 rounded-md border border-border bg-background/80 p-2">
+        <div className="text-[11px] font-medium text-foreground">分割部位</div>
+        <div className="grid grid-cols-3 gap-1">
+          {SEGFORMER_PART_LABELS.map((part) => (
+            <label key={part.id} className="flex items-center gap-1 text-[10px] text-muted-foreground">
+              <input
+                type="checkbox"
+                checked={params.segformerParts.includes(part.id)}
+                onChange={(event) => {
+                  const next = event.target.checked
+                    ? [...params.segformerParts, part.id]
+                    : params.segformerParts.filter((id) => id !== part.id);
+                  patch({ segformerParts: next });
+                }}
+              />
+              {part.label}
+            </label>
+          ))}
+        </div>
+        <label className="flex items-center gap-2 text-[10px] text-muted-foreground">
+          fashn 部位(逗号分隔)
+          <input
+            value={params.fashnParts}
+            onChange={(event) => patch({ fashnParts: event.target.value })}
+            className="h-7 flex-1 rounded-md border border-border bg-card/80 px-1.5 text-[10px] text-foreground outline-none"
+          />
+        </label>
+      </div>
+
+      <div className="nodrag nopan space-y-1.5 rounded-md border border-border bg-background/80 p-2">
+        <div className="text-[11px] font-medium text-foreground">重绘提示词(驱动两遍)</div>
+        <Textarea
+          value={node.prompt ?? ""}
+          onChange={(event) => patch({ prompt: event.target.value })}
+          placeholder="衣物区域重绘为洁净无瑕疵的裸露肌肤…保持原有体型与姿态;肤色、光影与色温与原图完全一致…(留空=用连线提示词节点的文本)"
+          className="min-h-[60px] [field-sizing:content] border-border bg-card/80 text-xs leading-5 text-foreground"
+        />
+      </div>
+
+      <button
+        type="button"
+        className="nodrag nopan w-full rounded-md border border-border bg-background/80 px-2 py-1 text-[10px] text-muted-foreground hover:text-foreground"
+        onClick={() => setAdvancedOpen((open) => !open)}
+      >
+        {advancedOpen ? "收起高级参数" : "展开高级参数(LoRA/GuidedFilter/Rebalance)"}
+      </button>
+      {advancedOpen ? (
+        <div className="nodrag nopan space-y-2 rounded-md border border-border bg-background/80 p-2">
+          <div className="text-[11px] font-medium text-foreground">LoRA 三槽(顺序:NSFW V4 / Mystic XXX v3 / pussy)</div>
+          {params.loras.map((slot, index) => (
+            <div key={index} className="flex items-center gap-2 text-[10px] text-muted-foreground">
+              <input
+                type="checkbox"
+                checked={slot.enabled}
+                onChange={(event) => {
+                  const next = params.loras.map((item, i) =>
+                    i === index ? { ...item, enabled: event.target.checked } : item,
+                  );
+                  patch({ loras: next });
+                }}
+              />
+              {["NSFW V4", "Mystic XXX v3", "pussy"][index]}
+              <input
+                type="number"
+                value={slot.strength}
+                step={0.05}
+                min={0}
+                max={2}
+                onChange={(event) => {
+                  const next = params.loras.map((item, i) =>
+                    i === index ? { ...item, strength: Number(event.target.value) } : item,
+                  );
+                  patch({ loras: next });
+                }}
+                className="ml-auto h-7 w-16 rounded-md border border-border bg-card/80 px-1 text-[10px] text-foreground outline-none"
+              />
+            </div>
+          ))}
+          <div className="text-[11px] font-medium text-foreground">GuidedFilter(分割蒙版加工)</div>
+          {numberField("radius", "guidedFilter", params.guidedFilter.radius, 1, 1, 32)}
+          {numberField("eps", "guidedFilter", params.guidedFilter.eps, 1, 1, 32)}
+          {numberField("迭代", "guidedFilter", params.guidedFilter.iterations, 1, 1, 8)}
+          <div className="text-[11px] font-medium text-foreground">Rebalance 12 权重(逗号分隔)</div>
+          <input
+            value={params.rebalanceWeights.join(",")}
+            onChange={(event) =>
+              patch({
+                rebalanceWeights: event.target.value
+                  .split(",")
+                  .map((item) => Number(item.trim()))
+                  .filter((item) => Number.isFinite(item)),
+              })
+            }
+            className="h-7 w-full rounded-md border border-border bg-card/80 px-1.5 text-[10px] text-foreground outline-none"
+          />
+        </div>
+      ) : null}
+    </div>
   );
 }
 
@@ -216,6 +374,8 @@ export const ImageStudioNodeCard = memo(function ImageStudioNodeCard({
         <StickyNoteEditor node={node} onUpdate={data.onUpdate} />
       ) : node.type === "group" ? (
         <GroupEditor node={node} onUpdate={data.onUpdate} />
+      ) : node.type === "uncloth" ? (
+        <UnclothNodeEditor node={node} onUpdate={data.onUpdate} />
       ) : (
         <GeneratedNodeEditor
           node={node}

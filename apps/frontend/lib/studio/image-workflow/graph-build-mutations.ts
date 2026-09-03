@@ -3,7 +3,9 @@ import { addGeneratedImageNode, addReferenceImageNode } from "./graph-build";
 import type { AddPromptImageNodeInput } from "./graph-build";
 import { nextStackedPosition } from "./layout";
 import { useAppSettingsStore } from "@/stores/app/app-settings-store";
-import type { ImageWorkflowEdge, ImageWorkflowGeneratedNode, ImageWorkflowGraph, ImageWorkflowGroupNode, ImageWorkflowNode, ImageWorkflowNodePosition, ImageWorkflowPromptNode, ImageWorkflowReferenceNode, ImageWorkflowStickyNode, StoryboardItem } from "@/types/studio";
+import type { ImageWorkflowEdge, ImageWorkflowGeneratedNode, ImageWorkflowGraph, ImageWorkflowGroupNode, ImageWorkflowNode, ImageWorkflowNodePosition, ImageWorkflowPromptNode, ImageWorkflowReferenceNode, ImageWorkflowStickyNode, StoryboardItem,
+  ImageWorkflowUnclothNode,
+} from "@/types/studio";
 
 /**
  * 图像工作流图变更族——add/update/remove/connect/set 节点边操作与生成状态。file-size-reduction P3 拆出,体逐字保留。
@@ -37,6 +39,31 @@ export function addGroupNode(
     title: input.label?.trim() || "分组",
     memberIds: input.memberIds ?? [],
     position: input.position ?? { x: 40, y: 40 },
+    createdAt: now,
+    updatedAt: now,
+  };
+  return touchGraph({ ...graph, nodes: [...graph.nodes, node] }, now);
+}
+
+export function addUnclothImageNode(
+  graph: ImageWorkflowGraph,
+  input: {
+    id?: string;
+    title?: string;
+    prompt?: string;
+    position?: ImageWorkflowNodePosition;
+    createdAt?: number;
+  },
+): ImageWorkflowGraph {
+  const now = input.createdAt ?? Date.now();
+  // 全参数缺省回落工作流现值(读侧 resolveUnclothDefaults 同源);此处只存
+  // 用户显式改动,旧画布/新节点零迁移。
+  const node: ImageWorkflowUnclothNode = {
+    id: input.id ?? createId("uncloth", now),
+    type: "uncloth",
+    title: input.title?.trim() || "无衣物",
+    prompt: input.prompt,
+    position: input.position ?? { x: 80, y: 80 },
     createdAt: now,
     updatedAt: now,
   };
@@ -128,8 +155,10 @@ export function connectImageWorkflowNodes(
 
 /**
  * 连线域规则单源谓词(两卡 isValidConnection/handleConnect 共用):
- * 目标必须成图 / 非自环 / 同向去重 / 一个成图只吃一根提示词边(09-03 用户裁定:
- * 第二根会被装配静默忽略,歧义消灭在源头)。
+ * 目标必须成图或无衣物 / 非自环 / 同向去重 / 一个成图只吃一根提示词边(09-03
+ * 用户裁定:第二根会被装配静默忽略,歧义消灭在源头)。
+ * 无衣物节点(09-04):入边=图(reference/generated/uncloth 链式)+一根文本;
+ * 出边=只能连成图(结果直通,成图是唯一执行入口)。
  */
 export function isValidImageEdge(
   graph: ImageWorkflowGraph,
@@ -139,9 +168,41 @@ export function isValidImageEdge(
   if (source === target) return false;
   const sourceNode = graph.nodes.find((node) => node.id === source);
   const targetNode = graph.nodes.find((node) => node.id === target);
-  if (!sourceNode || !targetNode || targetNode.type !== "generated") return false;
+  if (!sourceNode || !targetNode) return false;
   if (graph.edges.some((item) => item.source === source && item.target === target)) return false;
   if (sourceNode.type === "sticky" || sourceNode.type === "group") return false;
+
+  // ── 无衣物节点的入边规则 ──
+  if (targetNode.type === "uncloth") {
+    // 图输入:参考图/上游成图(有结果)/链式上游无衣物
+    if (sourceNode.type === "reference" || sourceNode.type === "uncloth") return true;
+    if (sourceNode.type === "generated") return true;
+    // 文本输入:单根提示词边
+    if (sourceNode.type === "prompt") {
+      const existingPrompt = graph.edges.some(
+        (item) =>
+          item.target === target &&
+          graph.nodes.find((node) => node.id === item.source)?.type === "prompt",
+      );
+      return !existingPrompt;
+    }
+    return false;
+  }
+
+  // ── 成图目标(既有规则) ──
+  if (targetNode.type !== "generated") return false;
+  if (sourceNode.type === "uncloth") {
+    // 一个成图只吃一根无衣物链(结果直通,双链语义未定义,歧义消灭在源头)
+    const hasUncloth = graph.edges.some(
+      (item) =>
+        item.target === target &&
+        graph.nodes.find((node) => node.id === item.source)?.type === "uncloth",
+    );
+    if (hasUncloth) return false;
+    // 无衣物链与提示词/参考可共存:提示词仍驱动(uncloth.prompt 缺省回落),
+    // 静态参考边在 uncloth 链模式下被管线输入取代
+    return true;
+  }
   if (sourceNode.type === "prompt") {
     // 一个成图只吃一根提示词(09-03):已挂「别的」提示词(边或 targetNodeId
     // 直挂)才拒——自身首根边必须放行(建组流程 prompt 先经 targetNodeId 挂靠)

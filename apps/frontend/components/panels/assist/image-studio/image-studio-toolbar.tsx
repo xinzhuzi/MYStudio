@@ -48,6 +48,7 @@ export function ImageStudioToolbar({
   onAddTextToImage,
   onAddImageToImage,
   onAddReference,
+  onAddUncloth,
   onAddPrompt,
   onTidy,
   onOpenHistory,
@@ -65,6 +66,7 @@ export function ImageStudioToolbar({
   onAddTextToImage: () => void;
   onAddImageToImage: () => void;
   onAddReference: () => void;
+  onAddUncloth: () => void;
   onAddPrompt: () => void;
   onTidy: () => void;
   onOpenHistory: () => void;
@@ -109,6 +111,10 @@ export function ImageStudioToolbar({
           <DropdownMenuItem onSelect={onAddImageToImage} data-image-studio-add-i2i>
             <ImagePlus className="mr-2 h-3.5 w-3.5" />
             图生图
+          </DropdownMenuItem>
+          <DropdownMenuItem onSelect={onAddUncloth} data-image-studio-add-uncloth>
+            <ImageIcon className="mr-2 h-3.5 w-3.5" />
+            无衣物
           </DropdownMenuItem>
           <DropdownMenuItem onSelect={onAddReference} data-image-studio-add-reference>
             <ImageIcon className="mr-2 h-3.5 w-3.5" />

@@ -4,6 +4,7 @@
 Routes:
   GET  /health                          (no auth)
   POST /v1/images/generations           (auth: fixed local token)
+  POST /v1/images/uncloth               (auth: fixed local token; 双分割+两遍 masked SDEdit)
   GET  /models/status                   (auth)
   POST /models/download                 (auth) — explicit user-triggered
   GET  /models/progress-json/{name}     (auth)
@@ -170,6 +171,9 @@ class Handler(BaseHTTPRequestHandler):
         if path == "/v1/images/generations":
             self._handle_generate(payload)
             return
+        if path == "/v1/images/uncloth":
+            self._handle_uncloth(payload)
+            return
         if path == "/v1/images/cancel":
             # 服务端真取消(09-02):置位取消事件,在途推理逐步中止,锁即释放
             from .pipeline import cancel_generation
@@ -264,6 +268,39 @@ class Handler(BaseHTTPRequestHandler):
             return
 
         self._send_json({"created": int(time.time()), "data": [{"b64_json": b64}]})
+
+    def _handle_uncloth(self, payload: dict) -> None:
+        """无衣物管线(09-04):双分割+两遍 masked SDEdit,全参数经 params 传入。"""
+        prompt = payload.get("prompt")
+        input_image = payload.get("input_image")
+        params = payload.get("params") or {}
+        if not isinstance(prompt, str) or not prompt.strip():
+            self._send_error_json(HTTPStatus.BAD_REQUEST, "prompt 必须是非空字符串", "invalid_prompt")
+            return
+        if not isinstance(input_image, str) or not input_image:
+            self._send_error_json(HTTPStatus.BAD_REQUEST, "input_image 必须是 base64/data URL", "invalid_input")
+            return
+        try:
+            from . import model_cache
+            from .engines import krea2
+            from .uncloth_pipeline import run_uncloth_pipeline
+
+            small_repo = getattr(krea2, "SMALL_REPO", getattr(krea2, "IMAGE_REPO", None))
+            b64 = run_uncloth_pipeline(
+                prompt,
+                input_image,
+                params if isinstance(params, dict) else {},
+                {
+                    "models_dir": model_cache.comfyui_models_dir(),
+                    "snapshot_dir": model_cache.hf_snapshot_dir(small_repo) if small_repo else None,
+                },
+            )
+            self._send_json({"created": int(time.time()), "data": [{"b64_json": b64}]})
+        except Exception as exc:
+            self._send_error_json(
+                HTTPStatus.INTERNAL_SERVER_ERROR,
+                f"无衣物管线失败: {exc}",
+            )
 
     def _handle_download(self, payload: dict) -> None:
         model_name = resolve_image_model_name(str(payload.get("model") or ""))

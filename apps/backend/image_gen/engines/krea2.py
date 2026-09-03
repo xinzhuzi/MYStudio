@@ -565,3 +565,130 @@ def fetch_small_pieces(cache_dir: str, hf_snapshot_download=None, modelscope_dow
             pass
         if hf_snapshot_download:
             hf_snapshot_download(repo_id=repo_id, allow_patterns=list(SMALL_PATTERNS), cache_dir=cache_dir)
+
+
+# ── 无衣物链:latent 域蒙版 SDEdit(09-04,ComfyUI SetLatentNoiseMask 等价) ──
+def generate_masked_sdedit(prompt: str, image: "Any", mask: "Any", steps: int = 8,
+                           seed: int | None = None, denoise: float = 0.65,
+                           use_lora: bool = True, **ctx) -> "Any":
+    """蒙版内 SDEdit、蒙版外 latent 锚定原图(ComfyUI SetLatentNoiseMask 语义)。
+
+    实现复用管线 __call__ 全链(调度/mu/no_grad/位置编码零重写风险),蒙版
+    锚定经 callback_on_step_end 注入——每步去噪后把蒙版外拉回「原图在当前
+    sigma 的加噪版」,最终蒙版外=原图。像素域合成近似已被实弹否决(全图
+    SDEdit 破坏局部性→蒙版区留白色块);裸循环手写版 MPS OOM 亦弃。
+    mask=PIL L 模式(255=重绘区)。
+    """
+    import time as _time
+    import torch
+    from diffusers import Krea2Pipeline
+    from PIL import Image
+
+    models_dir = ctx["models_dir"]
+    snapshot_dir = ctx["snapshot_dir"]
+
+    with _lock:
+        if use_lora:
+            comps = get_lora_components(models_dir, snapshot_dir)
+        else:
+            if "krea2" not in _pipeline_cache:
+                _pipeline_cache["krea2"] = get_components(models_dir, snapshot_dir)
+            comps = _pipeline_cache["krea2"]
+
+    pipe = Krea2Pipeline(**comps)
+    device = pipe._execution_device
+    scheduler = comps["scheduler"]
+    vae_cfg = comps["vae"].config
+    phase_start = _time.time()
+
+    width = max(16, int(image.width / 16) * 16)
+    height = max(16, int(image.height / 16) * 16)
+    image = image.convert("RGB").resize((width, height), Image.LANCZOS)
+    mask = mask.convert("L").resize((width, height), Image.BILINEAR)
+
+    import numpy as _np
+
+    # 1. VAE 编码原图 → x0(generate 的 SDEdit 分支同款归一化)
+    ref_tensor = (
+        torch.from_numpy(_np.array(image)).permute(2, 0, 1).unsqueeze(0).unsqueeze(2)
+        .float() / 127.5 - 1
+    ).to(comps["vae"].device, comps["vae"].dtype)
+    lat_mean = torch.tensor(vae_cfg["latents_mean"]).view(1, -1, 1, 1, 1).to(ref_tensor.device, ref_tensor.dtype)
+    lat_std = torch.tensor(vae_cfg["latents_std"]).view(1, -1, 1, 1, 1).to(ref_tensor.device, ref_tensor.dtype)
+    with torch.no_grad():
+        raw_lat = comps["vae"].encode(ref_tensor).latent_dist.sample()
+        x0 = (raw_lat - lat_mean) / lat_std
+        if x0.dim() == 5:
+            x0 = x0.squeeze(2)
+
+    # 2. 蒙版 → packed 序列形 (1,seq,1)
+    patch_size = getattr(pipe, "patch_size", 2)
+    vae_scale = pipe.vae_scale_factor
+    lh, lw = x0.shape[-2], x0.shape[-1]
+    m_img = torch.from_numpy(_np.array(mask, dtype="float32")).to(device=x0.device, dtype=x0.dtype) / 255.0
+    m_down = torch.nn.functional.interpolate(
+        m_img[None, None], size=(lh, lw), mode="bilinear", align_corners=False
+    )[0, 0]
+    ph, pw = lh // patch_size, lw // patch_size
+    m_patch = m_down.reshape(ph, patch_size, pw, patch_size).mean(dim=(1, 3))
+    m_seq = m_patch.reshape(1, ph * pw, 1)
+
+    # 3. x0 → packed;按 denoise 截断的起始 sigma 加噪(generate 同款)
+    def pack(lat_4d):
+        B, C, H, W = lat_4d.shape
+        p = patch_size
+        packed = lat_4d.reshape(B, C, H // p, p, W // p, p).permute(0, 2, 4, 1, 3, 5)
+        return packed.reshape(B, (H // p) * (W // p), C * p * p)
+
+    x0_seq = pack(x0)
+    generator = torch.Generator(device="cpu").manual_seed(seed) if seed is not None else None
+    effective_steps = max(1, int(steps * denoise))
+    scheduler.set_timesteps(steps, device=device, mu=_calc_krea2_mu(x0, scheduler))
+    num_skip = steps - effective_steps
+    sigma_start = scheduler.sigmas[num_skip].to(device, x0.dtype)
+    noise = torch.randn(x0_seq.shape, generator=generator, device="cpu", dtype=torch.float32).to(device, x0.dtype)
+    init_latents = (1.0 - sigma_start) * x0_seq + sigma_start * noise
+
+    # 截断 sigma 表(噪声级与初始 latent 对齐——管线缺省会按 eff_steps 从
+    # sigma=1 重算,与 sigma_start 加噪的 latent 错位,蒙版内去噪紊乱出白块)
+    sigmas_trunc = scheduler.sigmas[num_skip:].tolist()
+    sigmas_all = sigmas_trunc
+
+    def _masked_step(_pipe, step_index, _t, callback_kwargs):
+        from ..pipeline import is_generation_cancelled
+        if is_generation_cancelled():
+            raise RuntimeError("generation-cancelled")
+        lat = callback_kwargs.get("latents")
+        if lat is not None:
+            idx = min(step_index + 1, len(sigmas_all) - 1)
+            sigma_t = sigmas_all[idx]
+            anchor = (1 - sigma_t) * x0_seq + sigma_t * noise
+            lat = m_seq * lat + (1 - m_seq) * anchor
+            callback_kwargs["latents"] = lat
+        return callback_kwargs
+
+    # 4. 文本(专业流:先编码+重平衡,与 generate 同款)
+    embeds, embeds_mask = pipe.encode_prompt(prompt=prompt)
+    embeds = _rebalance_prompt_embeds(embeds, PRO_REBALANCE_WEIGHTS, PRO_REBALANCE_MULTIPLIER)
+
+    import numpy as _np2
+    result = pipe(
+        prompt_embeds=embeds,
+        prompt_embeds_mask=embeds_mask,
+        height=height,
+        width=width,
+        num_inference_steps=effective_steps,
+        guidance_scale=GUIDANCE_SCALE,
+        latents=init_latents,
+        sigmas=list(_np2.asarray(sigmas_trunc, dtype="float32")),
+        callback_on_step_end=_masked_step,
+        callback_on_step_end_tensor_inputs=["latents"],
+    )
+    out = result.images[0]
+    print(
+        f"[image-sidecar] krea2 masked-sdedit: denoise={denoise} eff_steps={effective_steps}/{steps} "
+        f"mask_cov={float(m_seq.mean()):.1%} size={width}x{height} "
+        f"inference={_time.time() - phase_start:.1f}s",
+        flush=True,
+    )
+    return out

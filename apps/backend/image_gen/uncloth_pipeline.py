@@ -1,0 +1,142 @@
+# Copyright (c) 2025 hotflow2024
+# Licensed under AGPL-3.0-or-later. See LICENSE for details.
+"""无衣物管线(sidecar 内路径,09-04-krea2-uncloth-node)。
+
+脚本版(scripts/uncloth_pipeline.py)的同源实现:双分割(segformer_b3_clothes ∥
+fashn-human-parser)取衣物蒙版并集 → 两遍 masked SDEdit(脱衣+校色,
+引擎 generate_masked_sdedit=ComfyUI SetLatentNoiseMask 等价)。分段日志。
+"""
+from __future__ import annotations
+
+import io
+import time
+from pathlib import Path
+from typing import Any
+
+_MODEL_DIRS = [
+    Path(__file__).resolve().parent.parent,  # <model_root>/image_gen 自身不存在——占位防御
+]
+
+
+def _find_model_dir(models_dir: Path, name: str) -> Path:
+    candidates = [models_dir / name, models_dir.parent / name]
+    for candidate in candidates:
+        if (candidate / "config.json").exists():
+            return candidate
+    raise RuntimeError(f"分割模型 {name} 未下载:请到 设置→本地配置 显式下载(搜索:{models_dir})")
+
+
+def _log(stage: str, **fields) -> None:
+    parts = " ".join(f"{k}={v}" for k, v in fields.items())
+    print(f"[image-sidecar][uncloth] {stage} | {parts}", flush=True)
+
+
+def run_uncloth_pipeline(
+    prompt: str,
+    input_image_b64: str,
+    params: dict,
+    engine_ctx: dict,
+) -> str:
+    """完整管线;返回 PNG base64。params=渲染层 resolveUnclothParams 的生效值。"""
+    import base64
+
+    import numpy as np
+    import torch
+    from PIL import Image
+
+    from .engines import krea2
+
+    models_dir = Path(engine_ctx["models_dir"])
+    t_all = time.time()
+
+    # 0. 输入图(等比缩 MP)
+    mp = float(params.get("megapixels", 1.0))
+    raw = input_image_b64.split(",", 1)[-1] if input_image_b64.startswith("data:") else input_image_b64
+    img = Image.open(io.BytesIO(base64.b64decode(raw))).convert("RGB")
+    target_px = int(mp * 1_000_000)
+    if img.width * img.height > target_px:
+        scale = (target_px / (img.width * img.height)) ** 0.5
+        img = img.resize((max(1, round(img.width * scale)), max(1, round(img.height * scale))), Image.LANCZOS)
+    _log("input", size=f"{img.width}x{img.height}")
+
+    # 1. 双分割并集
+    masks = []
+    parts_ids = params.get("segformerParts") or []
+    fashn_parts = [p.strip() for p in (params.get("fashnParts") or "").split(",") if p.strip()]
+
+    if parts_ids:
+        t0 = time.time()
+        from transformers import AutoModelForSemanticSegmentation, AutoProcessor
+
+        d = _find_model_dir(models_dir, "segformer_b3_clothes")
+        model = AutoModelForSemanticSegmentation.from_pretrained(str(d)).eval()
+        processor = AutoProcessor.from_pretrained(str(d))
+        inputs = processor(images=img, return_tensors="pt")
+        with torch.no_grad():
+            logits = model(**inputs).logits
+        logits = torch.nn.functional.interpolate(logits.float(), size=(img.height, img.width), mode="bilinear")[0]
+        seg = logits.argmax(0).cpu().numpy()
+        m = np.isin(seg, list(parts_ids)).astype(np.uint8)
+        masks.append(m)
+        _log("segformer", parts=list(parts_ids), coverage=f"{float(m.mean()):.1%}", secs=f"{time.time()-t0:.1f}s")
+        del model
+
+    if fashn_parts:
+        t0 = time.time()
+        from transformers import AutoModelForSemanticSegmentation, AutoProcessor
+
+        d = _find_model_dir(models_dir, "fashn-human-parser")
+        model = AutoModelForSemanticSegmentation.from_pretrained(str(d)).eval()
+        processor = AutoProcessor.from_pretrained(str(d))
+        inputs = processor(images=img, return_tensors="pt")
+        with torch.no_grad():
+            logits = model(**inputs).logits
+        logits = torch.nn.functional.interpolate(logits.float(), size=(img.height, img.width), mode="bilinear")[0]
+        seg = logits.argmax(0).cpu().numpy()
+        id2label = model.config.id2label
+        wanted = {i for i, label in id2label.items() if any(p in str(label).lower() for p in fashn_parts)}
+        m = np.isin(seg, list(wanted)).astype(np.uint8) if wanted else np.zeros_like(seg)
+        masks.append(m)
+        _log("fashn", labels=fashn_parts, coverage=f"{float(m.mean()):.1%}", secs=f"{time.time()-t0:.1f}s")
+        del model
+
+    if not masks:
+        raise RuntimeError("两套分割部位均为空,无重绘区域")
+    union = (sum(masks) > 0).astype(np.uint8)
+    union_img = Image.fromarray((union * 255).astype("uint8"), mode="L")
+    _log("mask-union", coverage=f"{float(union.mean()):.1%}")
+
+    from PIL import ImageFilter
+
+    def grow(mask_img: Any, px: int) -> Any:
+        if px > 0:
+            return mask_img.filter(ImageFilter.MaxFilter(2 * px + 1))
+        if px < 0:
+            return mask_img.filter(ImageFilter.MinFilter(2 * (-px) + 1))
+        return mask_img
+
+    mask_undress = grow(union_img, int(params.get("growUndress", -16)))
+    mask_color = grow(union_img, int(params.get("growColor", 16)))
+    steps = int(params.get("steps", 8))
+
+    # 2. 两遍 masked SDEdit
+    out1 = krea2.generate_masked_sdedit(
+        prompt, img, mask_undress,
+        steps=steps, seed=int(params.get("seedUndress", 3)),
+        denoise=float(params.get("denoiseUndress", 0.65)),
+        use_lora=True, **engine_ctx,
+    )
+    _log("pass1-undress", denoise=params.get("denoiseUndress"), seed=params.get("seedUndress"))
+
+    out2 = krea2.generate_masked_sdedit(
+        prompt, out1, mask_color,
+        steps=steps, seed=int(params.get("seedColor", 1)),
+        denoise=float(params.get("denoiseColor", 0.3)),
+        use_lora=True, **engine_ctx,
+    )
+    _log("pass2-color", denoise=params.get("denoiseColor"), seed=params.get("seedColor"))
+
+    buf = io.BytesIO()
+    out2.save(buf, format="PNG")
+    _log("done", total=f"{time.time()-t_all:.1f}s")
+    return base64.b64encode(buf.getvalue()).decode()
