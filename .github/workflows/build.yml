@@ -126,18 +126,19 @@ jobs:
         working-directory: apps
         run: |
           set +e
-          npm run test:all > /tmp/quality-gate.log 2>&1
-          code=$?
-          echo "=== quality-gate rerun exit code: $code ==="
-          # 关键失败行逐条以 ::error:: 注解输出(注解可经 GitHub API 读取,
-          # 不受 runner 日志下载 EOF 影响);每条截断到 500 字符。
-          grep -E "^\[quality-gate\]|^ FAIL |AssertionError|Error:|expected|Test Files|Tests " \
-            /tmp/quality-gate.log | tail -60 | while IFS= read -r line; do
-            msg="${line:0:500}"
-            echo "::error file=.github/workflows/build.yml,line=114,title=quality-gate::${msg}"
-          done
-          echo "=== last 40 log lines ==="
-          tail -40 /tmp/quality-gate.log
+          report="output/automation/quality-gate-report.json"
+          if [ -f "$report" ]; then
+            echo "===== quality-gate-report.json ====="
+            NO_COLOR=1 CI=true node -e '
+              const fs = require("fs");
+              const r = JSON.parse(fs.readFileSync("output/automation/quality-gate-report.json", "utf8"));
+              console.log(JSON.stringify(r, null, 2));
+            ' | while IFS= read -r line; do
+              echo "::error::${line:0:500}"
+            done
+          else
+            echo "::error::report not found: $report"
+          fi
           exit 0
 
       - name: Build renderer
