@@ -4,7 +4,10 @@
 
 import { useCallback, useRef } from "react";
 import { toast } from "sonner";
-import { buildImageStudioGenerationRequest } from "@/lib/assist/image-studio/request";
+import {
+  buildImageStudioGenerationRequest,
+  classifyImageStudioGeneration,
+} from "@/lib/assist/image-studio/request";
 import { runImageStudioNodeGeneration } from "@/lib/assist/image-studio/run-node-generation";
 import { eventBus } from "@/lib/events/event-bus";
 import {
@@ -42,6 +45,17 @@ export function useImageStudioGeneration() {
     const prompt = request.prompt;
     if (!prompt) {
       toast.error("请先填写生成提示词");
+      return;
+    }
+    // 模式无歧义预检(09-03 用户裁定):挂着空参考图/未生成的上游图时,
+    // 静默过滤会让"图生图组"实际走纯文生图通道——阻断并指路,绝不混淆
+    const mode = classifyImageStudioGeneration(graph, nodeId);
+    if (mode.emptyReferences > 0) {
+      toast.error(
+        `有 ${mode.emptyReferences} 张参考图还没准备好(空参考图或未生成的上游图):先上传/生成,或断开连线后再${
+          mode.readyReferences > 0 ? "按图生图生成" : "按纯文生图生成"
+        }`,
+      );
       return;
     }
     const controller = new AbortController();

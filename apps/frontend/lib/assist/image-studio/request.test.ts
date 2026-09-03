@@ -10,7 +10,7 @@ import {
   connectImageWorkflowNodes,
   createImageWorkflowGraph,
 } from "@/lib/studio/image-workflow/graph-build";
-import { buildImageStudioGenerationRequest } from "./request";
+import { buildImageStudioGenerationRequest, classifyImageStudioGeneration } from "./request";
 import type { ImageWorkflowGraph } from "@/types/studio";
 
 function buildGraph(): ImageWorkflowGraph {
@@ -138,5 +138,32 @@ describe("buildImageStudioGenerationRequest", () => {
       ),
     };
     expect(buildImageStudioGenerationRequest(cleared, "gen-1").prompt).toBe("");
+  });
+});
+
+describe("classifyImageStudioGeneration(t2i/i2i 无歧义判定)", () => {
+  function baseGraphWithRef(imageUrl: string) {
+    let graph = buildGraph();
+    graph = addReferenceImageNode(graph, {
+      id: "ref-1",
+      imageUrl,
+      position: { x: 0, y: 100 },
+    });
+    return connectImageWorkflowNodes(graph, { source: "ref-1", target: "gen-1" });
+  }
+
+  it("无参考边=纯文生图", () => {
+    const mode = classifyImageStudioGeneration(buildGraph(), "gen-1");
+    expect(mode).toEqual({ mode: "text-to-image", readyReferences: 0, emptyReferences: 0 });
+  });
+
+  it("非空参考=图生图", () => {
+    const mode = classifyImageStudioGeneration(baseGraphWithRef("local-image://upload/a.png"), "gen-1");
+    expect(mode).toEqual({ mode: "image-to-image", readyReferences: 1, emptyReferences: 0 });
+  });
+
+  it("空参考图(直建组图生图位)=歧义态:emptyReferences 计数,禁止静默降级为纯文生图", () => {
+    const mode = classifyImageStudioGeneration(baseGraphWithRef(""), "gen-1");
+    expect(mode).toEqual({ mode: "text-to-image", readyReferences: 0, emptyReferences: 1 });
   });
 });

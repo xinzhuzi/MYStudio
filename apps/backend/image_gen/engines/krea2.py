@@ -363,6 +363,37 @@ def _calc_krea2_mu(latents, scheduler):
     shift = base_shift + m * (max_shift - base_shift)
     return _torch.tensor(shift)
 
+def _prepare_reference_image(img: "Any", width: int, height: int) -> "Any":
+    """参考图预处理(以 ComfyUI「NSFW专业流-图生图」为准,09-03 用户裁定):
+
+    1. 等比缩放到输出总像素(≈1.0MP,lanczos)——大图防超内存
+       (工作流 ImageScaleToTotalPixels 第 2 格=1.0 同义);
+    2. 中心裁剪到输出宽高比——旧实现直接 resize((w,h)) 会把比例不符的
+       参考图拉伸变形(竖图配 1:1 输出=人物压扁);
+    3. 终 resize 到管线目标尺寸(latents 形状必须匹配 height/width)。
+    """
+    from PIL import Image  # 延迟导入与 generate 同款(引擎模块顶部零重依赖)
+
+    target_px = width * height
+    if img.width * img.height > target_px:
+        scale = (target_px / (img.width * img.height)) ** 0.5
+        img = img.resize(
+            (max(1, round(img.width * scale)), max(1, round(img.height * scale))),
+            Image.LANCZOS,
+        )
+    target_ratio = width / height
+    if abs(img.width / img.height - target_ratio) > 1e-3:
+        if img.width / img.height > target_ratio:
+            crop_w = max(1, round(img.height * target_ratio))
+            x0 = (img.width - crop_w) // 2
+            img = img.crop((x0, 0, x0 + crop_w, img.height))
+        else:
+            crop_h = max(1, round(img.width / target_ratio))
+            y0 = (img.height - crop_h) // 2
+            img = img.crop((0, y0, img.width, y0 + crop_h))
+    return img.resize((width, height), Image.LANCZOS)
+
+
 # ── 生成(双工作流:文生图+图生图 SDEdit) ──
 def _cancel_step_callback():
     """diffusers 逐步回调:检测服务端取消即中止(锁随异常释放)。
@@ -386,7 +417,7 @@ def _cancel_step_callback():
 
 
 def generate(prompt, aspect_ratio, negative_prompt, steps, seed, reference_b64,
-             use_lora=False, strength=0.65, **ctx) -> str:
+             use_lora=False, strength=0.6, **ctx) -> str:
     """Krea2 统一入口:有参考图走 SDEdit 图生图,无参考图走纯文生图。
 
     strength(图生图):0.0=完全保留原图,1.0=纯噪声(等同文生图)。
@@ -428,7 +459,9 @@ def generate(prompt, aspect_ratio, negative_prompt, steps, seed, reference_b64,
         # 策略:VAE 编码参考图→加噪→把加噪潜空间作为管线 latents 参数传入,
         # 管线内部自动处理调度器(mu/dynamic shifting)与去噪循环。
         raw = reference_b64.split(",", 1)[-1] if reference_b64.startswith("data:") else reference_b64
-        ref_img = Image.open(io.BytesIO(base64.b64decode(raw))).convert("RGB").resize((width, height))
+        ref_img = _prepare_reference_image(
+            Image.open(io.BytesIO(base64.b64decode(raw))).convert("RGB"), width, height
+        )
 
         # 1. VAE 编码参考图 → 归一化潜空间
         import numpy as _np

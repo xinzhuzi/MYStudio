@@ -29,6 +29,38 @@ export interface ImageStudioGenerationRequest {
   referenceImages: string[];
 }
 
+/** 成图节点的生成模式显式判定(09-03 用户裁定:t2i/i2i 参数不混淆,
+ * 一个节点必须能无歧义判断自己是纯文生图还是图生图)。
+ * emptyReferences>0 = 挂着空参考图/未生成上游——此态下静默过滤会让
+ * "图生图组"实际走文生图通道,是歧义源,调用方应阻断并指路。 */
+export interface ImageStudioGenerationMode {
+  mode: "text-to-image" | "image-to-image";
+  /** 已就绪参考输入数(非空参考图+有结果的上游成图) */
+  readyReferences: number;
+  /** 挂边但不可用的参考输入数(空参考图节点/未生成的上游成图) */
+  emptyReferences: number;
+}
+
+export function classifyImageStudioGeneration(
+  graph: ImageWorkflowGraph,
+  nodeId: string,
+): ImageStudioGenerationMode {
+  const sources = orderedReferenceSources(graph, nodeId);
+  let readyReferences = 0;
+  let emptyReferences = 0;
+  for (const source of sources) {
+    const url =
+      source.type === "reference" ? source.imageUrl : source.type === "generated" ? source.resultUrl : "";
+    if (url) readyReferences += 1;
+    else emptyReferences += 1;
+  }
+  return {
+    mode: readyReferences > 0 ? "image-to-image" : "text-to-image",
+    readyReferences,
+    emptyReferences,
+  };
+}
+
 export function buildImageStudioGenerationRequest(
   graph: ImageWorkflowGraph,
   nodeId: string,

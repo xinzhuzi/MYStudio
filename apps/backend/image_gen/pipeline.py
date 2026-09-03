@@ -265,7 +265,7 @@ def generate_image(
     seed: int | None = None,
     reference_image_b64: str | None = None,
     reference_images_b64: list[str] | None = None,
-    strength: float = 0.55,
+    strength: float = 0.6,
     use_lora: bool = False,
 ) -> str:
     """Generate an image and return it as base64 PNG."""

@@ -23,7 +23,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
   tidyImageWorkflowLayout,
-  updateImageWorkflowNode,
+  updateImageWorkflowNodeDerivedAware,
   updateImageWorkflowNodePosition,
 } from "@/lib/studio/image-workflow";
 import { useStudioStore } from "@/stores/studio/studio-store";
@@ -291,7 +291,8 @@ export function ImageWorkflowCanvas({
   const updateNode = useCallback(
     (nodeId: string, updates: Partial<ImageWorkflowNode>) => {
       if (!activeGraph) return;
-      saveGraph(updateImageWorkflowNode(activeGraph, nodeId, updates));
+      // 衍生过期联动(09-03):参考图 URL 直改换图时,衍生节点标 staleSince
+      saveGraph(updateImageWorkflowNodeDerivedAware(activeGraph, nodeId, updates));
     },
     [activeGraph, saveGraph],
   );

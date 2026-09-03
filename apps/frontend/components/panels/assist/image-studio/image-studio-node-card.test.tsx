@@ -146,6 +146,33 @@ describe("ImageStudioNodeCard 参考图卡", () => {
     };
   }
 
+  it("参考图状态=生成按钮角标(09-03 用户裁定):文案恒「生成」,徽章浮角标不占布局", () => {
+    renderCard({
+      // 容量由组件按 model 推导(krea2-turbo=1),不走 props
+      node: generatedNode({ model: "krea2-turbo" }),
+      selected: false,
+      referenceCount: 1,
+      ...callbacks,
+    });
+    // 按钮文案恒「生成」(宽度稳定),状态走右上角浮空徽章
+    const generate = screen.getByRole("button", { name: /^生成/ });
+    expect(generate).toBeTruthy();
+    const badge = generate.querySelector("span[aria-label='已挂 1 张参考图']");
+    expect(badge?.textContent).toBe("1");
+    expect(screen.queryByText(/已挂 1\/1 张参考图/)).toBeNull();
+  });
+
+  it("未挂参考图:按钮回落「生成」,计数行不渲染", () => {
+    renderCard({
+      node: generatedNode(),
+      selected: false,
+      referenceCount: 0,
+      referenceCapacity: 1,
+      ...callbacks,
+    });
+    expect(screen.getByRole("button", { name: /^生成/ })).toBeTruthy();
+  });
+
   it("编号标题:referenceIndex 显示「参考图 N」,缺省回落「参考图」(09-03 编号单源)", () => {
     const { unmount } = renderCard({
       node: referenceNode("local-image://upload/a.png"),
