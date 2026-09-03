@@ -10,8 +10,8 @@
 
 <p align="center">
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-AGPL--3.0-blue.svg" alt="License" /></a>
-  <a href="https://github.com/zhengbingjin/MYStudio/releases"><img src="https://img.shields.io/github/v/release/zhengbingjin/MYStudio" alt="Release" /></a>
-  <a href="https://github.com/zhengbingjin/MYStudio/stargazers"><img src="https://img.shields.io/github/stars/zhengbingjin/MYStudio" alt="Stars" /></a>
+  <a href="https://github.com/xinzhuzi/MYStudio/releases"><img src="https://img.shields.io/github/v/release/xinzhuzi/MYStudio" alt="Release" /></a>
+  <a href="https://github.com/xinzhuzi/MYStudio/stargazers"><img src="https://img.shields.io/github/stars/xinzhuzi/MYStudio" alt="Stars" /></a>
 </p>
 
 <p align="center">
@@ -46,6 +46,11 @@ The current documentation is maintained under [docs/README.en.md](docs/README.en
 - Storyboard video generation for duration, dialogue, visual assets, shot-level review, and per-shot Remotion rendering.
 - Video workbench hosting a native Remotion Studio that renders shot candidates and chapter videos via `renderMedia`; FFmpeg/ffprobe serve only as shared tooling for media preparation and read-only QC.
 
+### Assist Studios
+- The `Assist` page hosts five standalone studios: Image Studio (canvas-based free-form image generation), Video Studio, Cinema Studio (photography-parameter image generation), TTS, and Music Studio.
+- Music Studio generates full songs locally with the Music3 engine: style recipes, AI lyric drafting, reference-track style DNA analysis, and BGM/vocal-song modes.
+- Generated results are saved into the asset library or project output directories and recorded in generation history.
+
 ### Asset Library
 - Production assets include roles, scenes, props, audio, and compatible clip records.
 - The asset library uses a separate SQLite-backed store under `<storageBasePath>/assets`.
@@ -70,7 +75,8 @@ The current documentation is maintained under [docs/README.en.md](docs/README.en
 
 - **Node.js** >= 18
 - **npm** >= 9
-- macOS Apple Silicon or Windows with a CUDA-capable NVIDIA GPU for local AI features
+- Cloud AI mode (image/video/LLM via cloud APIs + local Remotion rendering) runs on any common desktop configuration.
+- Local AI models require a local GPU: Apple Silicon on macOS (MLX-based capabilities such as local full-song generation and VLM review are Apple-Silicon-only; Music3 bf16 requires 48 GB+ unified memory), or an NVIDIA CUDA GPU on Windows for local TTS.
 
 ### Install & Run
 
@@ -114,7 +120,7 @@ installation, and smoke testing](docs/engineering/PACKAGING_AND_SMOKE_TESTING.md
 
 | Layer | Technology |
 |-------|-----------|
-| Desktop Framework | Electron 30 |
+| Desktop Framework | Electron 43 |
 | Frontend | React 18 + TypeScript |
 | Build Tool | electron-vite (Vite 5) |
 | State Management | Zustand 5 |
@@ -124,14 +130,16 @@ installation, and smoke testing](docs/engineering/PACKAGING_AND_SMOKE_TESTING.md
 ### Project Structure
 
 ```
-manying-studio/
+MYStudio/
 ├── apps/
-│   ├── build/             # Modular desktop build, smoke, Daojie, and timeline tools
+│   ├── build/             # Modular desktop build, smoke, Remotion bundle, and timeline tools
 │   │   ├── packaging/     # Desktop packaging, install, and setup entrypoints
 │   │   ├── smoke/         # Packaged, installed, and workflow smoke runners
-│   │   ├── daojie/        # Daojie orchestration and image/pipeline helpers
+│   │   ├── remotion/      # Remotion fixed-bundle build and version verification
+│   │   ├── chapter_video/ # Chapter video build helpers
+│   │   ├── scripts/       # Build-time scripts, audits, and request ledgers
 │   │   ├── timeline/      # Direct timeline runner and Node-only config
-│   │   └── shared/        # Build-time reports and request ledgers
+│   │   └── shared/        # Build-time reports and shared fixtures
 │   ├── backend/           # Local backend and TTS sidecar source
 │   └── frontend/
 │       ├── electron/      # Electron main process and preload bridge
@@ -164,7 +172,7 @@ Contributions are welcome! Please read the [Contributing Guide](CONTRIBUTING.md)
 ## Contact
 
 - 📧 Email: [1487842110@qq.com](mailto:1487842110@qq.com)
-- 🐙 GitHub: [https://github.com/zhengbingjin/MYStudio](https://github.com/zhengbingjin/MYStudio)
+- 🐙 GitHub: [https://github.com/xinzhuzi/MYStudio](https://github.com/xinzhuzi/MYStudio)
 
 ---
 

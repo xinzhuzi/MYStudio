@@ -12,7 +12,7 @@
   <img src="https://img.shields.io/badge/license-AGPL--3.0-blue.svg" alt="License: AGPL-3.0" />
   <img src="https://img.shields.io/badge/platform-macOS%20%7C%20Windows-lightgrey.svg" alt="Platform" />
   <img src="https://img.shields.io/badge/Electron-React%20%2B%20TypeScript-47848F.svg" alt="Electron" />
-  <img src="https://img.shields.io/badge/AI-MLX%20%7C%20Qwen%20%7C%20SenseVoice%20%7C%20RealESRGAN-ff6f00.svg" alt="AI" />
+  <img src="https://img.shields.io/badge/AI-MLX%20%7C%20ComfyUI%20%7C%20Qwen%20%7C%20SenseVoice%20%7C%20RealESRGAN-ff6f00.svg" alt="AI" />
 </p>
 
 [文档中心](./docs/README.md) · [English](./docs/README.en.md) · [商业授权](./COMMERCIAL_LICENSE.md)
@@ -85,8 +85,10 @@
 3. `剧本生产阶段` 按章节生成故事骨架、改编策略、剧本草稿和审核报告。
 4. `剧本资产管理` 从剧本提取角色、场景和道具，与资产库匹配，并运行导演计划补齐图片资产。
 5. `分镜视频生成` 生成分镜计划，维护时长、对白、画面素材和角色音色，逐镜渲染 Remotion 分镜视频。
-6. `图像节点图` 以节点画布组织图片生成流程，作为素材生产的辅助入口。
+6. `图像节点图` 以节点画布组织图片生成流程，作为素材生产的辅助入口；从分镜节点「进入」可打开全量分镜面板（唯一入口）。
 7. `视频工作台` 托管原生 Remotion Studio，由 `ChapterVideo` 渲染输出章节成片。
+
+工作流之外，侧栏 `辅助` 页面提供五个独立工作室：图片工作室（画布式自由生图）、视频工作室、电影工作室（摄影参数生图）、TTS 和音乐工作室（本地 Music3 引擎整曲生成）。生成结果进入素材库或项目产物目录，并记录在生成历史。
 
 更多操作文档见 [文档中心](./docs/README.md)。本地 TTS 与 Python 配置见 [Python 与本地 TTS 配置](docs/settings/PYTHON_TTS_SETUP.md)，角色音色绑定见 [资产库音色分配](docs/assets/ASSET_AUDIO_ASSIGNMENT.md)，开发入口见 [开发者架构与代码入口](docs/engineering/DEVELOPER_ARCHITECTURE.md)，问题排查见 [常见故障排查](docs/engineering/TROUBLESHOOTING.md)。
 
@@ -102,29 +104,30 @@
 
 ## 最低系统要求
 
-本项目的 AI 能力（TTS 声音克隆、语音识别、图像/视频生成等）依赖本地模型推理，**必须配备独立显卡（GPU）**，集成显卡无法满足算力需求。
+按使用模式分两档：
+
+- **云端 AI 模式**：生图、生视频、LLM 走云端 API，Remotion 在本地渲染。无本地 GPU 要求，常规办公配置即可。
+- **本地 AI 模式**：零 API 费用的本地模型推理（本地生图、TTS、音乐整曲、超分、视觉审核等），依赖本机 GPU，不同能力对内存的要求差异很大，以设置页各区块的就绪胶囊判定为准。
 
 ### macOS（Apple Silicon）
 
-| 项目 | 最低要求 | 推荐配置 |
+| 项目 | 基础运行（云端 AI） | 本地 AI 推荐 |
 |------|---------|---------|
-| 芯片 | **Apple Silicon M1**（自带 GPU） | M2 Pro / M3 及以上 |
+| 芯片 | **Apple Silicon M1** | M2 Pro / M3 / M4 及以上 |
 | 系统 | macOS 13 Ventura | macOS 14 Sonoma+ |
-| 统一内存 | 16 GB | 32 GB+ |
-| 磁盘 | 20 GB 可用空间 | 50 GB+ SSD |
+| 统一内存 | 16 GB | 32 GB 起；本地音乐整曲（Music3 bf16）需 **48 GB 以上**（硬门禁 44 GB），不足时可改用轻量 MusicGen |
+| 磁盘 | 20 GB 可用空间 | 50 GB+ SSD，另按需为本地模型预留（音乐权重约 28.5 GB、ComfyUI 生图大件数十 GB 级，均显式下载） |
 
-> ⚠️ **不支持 Intel 芯片的 Mac**（无 MLX GPU 加速）。
+> ⚠️ **不支持 Intel 芯片的 Mac**（无 MLX GPU 加速）。本地音乐整曲、视觉审核（VLM）等能力基于 MLX，仅 Apple Silicon 可用。
 
 ### Windows
 
-| 项目 | 最低要求 | 推荐配置 |
+| 项目 | 基础运行（云端 AI） | 本地 AI |
 |------|---------|---------|
 | 系统 | Windows 10 64 位 | Windows 11 |
-| 显卡 | **NVIDIA 独立显卡，8 GB 显存**（支持 CUDA） | NVIDIA RTX 系列，16 GB+ 显存 |
+| 显卡 | 无要求 | 本地 TTS 需 **NVIDIA 独立显卡**（CUDA 版 PyTorch，8 GB 显存起）；基于 MLX 的能力（本地音乐整曲、VLM 等）在 Windows 不可用 |
 | 内存 | 16 GB | 32 GB+ |
 | 磁盘 | 20 GB 可用空间 | 50 GB+ SSD |
-
-> ⚠️ **必须 NVIDIA 独立显卡**。集成显卡（Intel UHD / AMD 核显）和无 CUDA 的显卡无法运行本地 AI 推理。
 
 ### 通用
 
@@ -153,7 +156,7 @@ bash apps/build/packaging/setup.sh
 ```powershell
 git clone https://github.com/xinzhuzi/MYStudio.git
 cd MYStudio
-powershell -ExecutionPolicy Bypass -File apps\build\setup-win.ps1
+powershell -ExecutionPolicy Bypass -File apps\build\packaging\setup-win.ps1
 ```
 
 脚本会自动：

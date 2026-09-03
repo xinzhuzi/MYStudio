@@ -12,7 +12,7 @@ From novel to final cut — scripts, storyboards, assets, voice-over, and editin
   <img src="https://img.shields.io/badge/license-AGPL--3.0-blue.svg" alt="License: AGPL-3.0" />
   <img src="https://img.shields.io/badge/platform-macOS%20%7C%20Windows-lightgrey.svg" alt="Platform" />
   <img src="https://img.shields.io/badge/Electron-React%20%2B%20TypeScript-47848F.svg" alt="Electron" />
-  <img src="https://img.shields.io/badge/AI-MLX%20%7C%20Qwen%20%7C%20SenseVoice-ff6f00.svg" alt="AI" />
+  <img src="https://img.shields.io/badge/AI-MLX%20%7C%20ComfyUI%20%7C%20Qwen%20%7C%20SenseVoice-ff6f00.svg" alt="AI" />
 </p>
 
 [简体中文](../README.md) · [文档中心](./README.md) · [Commercial License](../COMMERCIAL_LICENSE.md)
@@ -109,6 +109,7 @@ Most detailed guides are currently maintained in Chinese. Use these entry points
 | [Novel Import and Script Planning Operations](workflow/WORKFLOW_NOVEL_SCRIPT_OPERATIONS.md) | Chinese reference for manual selection, chapter import, event analysis, staged script generation, review, and repair |
 | [Script Asset and Generation Operations](workflow/WORKFLOW_ASSET_GENERATION_OPERATIONS.md) | Chinese reference for script asset extraction, asset matching, prompt polishing, missing asset generation, and role voice entry points |
 | [Storyboard and Editing Operations](workflow/WORKFLOW_STORYBOARD_EDITING_OPERATIONS.md) | Chinese reference for material binding, storyboard fields, AI storyboard table protocol, track grouping, local rendering, and final stitching |
+| [Assist Workbench Guide](panels/ASSIST_WORKBENCH_GUIDE.md) | Chinese guide for the five assist studios: image, video, cinema, TTS, and music (local Music3 full-song generation) |
 | [Assist Workbench Operations](panels/ASSIST_WORKBENCH_OPERATIONS.md) | Chinese guide for image/video/cinema/TTS assist workbench controls and history |
 | [Assist Workbench Parameter Reference](panels/ASSIST_WORKBENCH_PARAMETER_REFERENCE.md) | Chinese reference for image/video/Veo upload/cinema/TTS assist workbench fields |
 | [Media Outputs Operations](panels/MEDIA_OUTPUTS_OPERATIONS.md) | Chinese guide for media upload, folders, context menus, export, and director shortcuts |

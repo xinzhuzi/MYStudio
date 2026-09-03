@@ -14,6 +14,7 @@
 | [engineering/](./engineering/) | 架构、打包、故障排查、三方声明、存储、文档维护 |
 | [guides/](./guides/) | 高阶玩法指南（3D 纵深手册、本地模型降本） |
 | [research/](./research/) | 技术调查与任务研究（含已排除路线存档） |
+| [local/](./local/) | 本地引擎落地计划（本地视频等专题） |
 | [融合/](./融合/) | 规划与调查（含外部参考资料） |
 
 ## 工作流（workflow/）
@@ -69,7 +70,7 @@
 | [项目首页操作手册](./panels/PROJECT_DASHBOARD_OPERATIONS.md) | 侧栏按钮、管理选择、新建输入、更多菜单、重命名和批量删除弹窗 |
 | [技能编辑](./panels/SKILLS_EDITOR_GUIDE.md) | 查看、编辑、新增、删除和恢复项目 Markdown 技能文件 |
 | [技能编辑操作手册](./panels/SKILLS_EDITOR_OPERATIONS.md) | 技能页按钮状态、文件状态、新增路径、删除和恢复边界 |
-| [辅助工作台](./panels/ASSIST_WORKBENCH_GUIDE.md) | 图片、视频、电影级拍摄和 TTS 临时生成工作台 |
+| [辅助工作台](./panels/ASSIST_WORKBENCH_GUIDE.md) | 图片、视频、电影级拍摄、TTS 和音乐子工作台（含本地 Music3 整曲生成） |
 | [辅助工作台操作手册](./panels/ASSIST_WORKBENCH_OPERATIONS.md) | 图片/视频/电影/TTS 子工作台按钮、参数、历史和保存到道具库 |
 | [辅助工作台参数参考](./panels/ASSIST_WORKBENCH_PARAMETER_REFERENCE.md) | 图片、视频、Veo 上传、电影摄影参数、辅助 TTS 和生成历史字段说明 |
 | [产物管理](./panels/MEDIA_OUTPUTS_GUIDE.md) | 上传、整理、预览、导出图片/视频/音频产物 |
@@ -108,6 +109,7 @@
 | [第三方声明](./engineering/THIRD_PARTY_NOTICES.md) | 第三方组件和许可证声明 |
 | [存储与数据迁移](./engineering/STORAGE_AND_DATA.md) | 项目存储位置、导入导出、指向已有数据目录和 legacy 迁移 |
 | [文档覆盖审计](./engineering/DOCS_COVERAGE_AUDIT.md) | 当前界面、源码入口和用户文档的覆盖关系与维护方向 |
+| [架构耦合体检报告 08-31](./engineering/architecture-coupling-audit-0831.md) | sclass→director 共享分镜域抽取后的全仓耦合体检与瘦身记录 |
 | [B5 TrackKey 运行时解析总结](./engineering/B5-trackKey-runtime-resolution-summary.md) | trackKey 从硬编码改为 ProductionTrack→VideoCandidate 运行时解析的实现记录 |
 | [文档维护清单](./engineering/DOCS_MAINTENANCE.md) | 修改 UI、TTS、打包、存储或工作流后需要同步的文档和验证命令 |
 
@@ -123,6 +125,16 @@
 | 文档 | 用途 |
 |---|---|
 | [视频效果升级交接提示词](./research/EFFECT_UPGRADE_PROMPT_2026-08-18.md) | 08-18 效果升级任务的裁定增补与执行入口（执行以 Trellis 任务为准） |
+| [效果缺口攻坚交接 08-19](./research/EFFECT_GAPS_HANDOFF_2026-08-19.md) | 效果链遗留三缺口（转场决策层、章节统一色调、音效随字幕）的执行交接 |
+| [图层分离探索交接 08-19](./research/LAYER_SEPARATION_HANDOFF_2026-08-19.md) | AI 图片分层动画（背景/角色/特效分层）技术探索交接 |
+| [Agent 检索能力建设计划 v2 08-21](./research/UNIFIED_SEARCH_PLAN_2026-08-21.md) | AI 搜索本地全源+网络的路由方案与落地记录 |
+| [本地生图架构路线计划 08-31](./research/LOCAL_IMAGE_GEN_ARCHITECTURE_PLAN_2026-08-31.md) | 本地生图架构深读与路线选择（自研 sidecar vs ComfyUI） |
+
+## 本地引擎专题（local/）
+
+| 文档 | 用途 |
+|---|---|
+| [MiniMax H3 本地运行执行计划](./local/minimax-h3-local-setup-plan.md) | 本地视频引擎定制安装计划（零成本草图/选镜定位，不进生产管线） |
 
 已定案调查存档于 [research/archive/](./research/archive/)：[静态图→3D 动态技术全景](./research/archive/CINEMATIC_3D_TECH_LANDSCAPE.md)（3D 路线 2026-08-14 已否决转 2D）、[img2threejs 探索报告](./research/archive/IMG2THREEJS_EXPLORATION.md)（2026-08-16 用户决策排除）。
 
