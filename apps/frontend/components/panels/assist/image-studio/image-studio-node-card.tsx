@@ -17,7 +17,6 @@ import {
   ChevronRight,
   Download,
   Image as ImageIcon,
-  Loader2,
   Sparkles,
   Square,
   Type,
@@ -101,27 +100,6 @@ function areNodeCardPropsEqual(
     prev.width === next.width &&
     prev.height === next.height
   );
-}
-
-/** 生成中已用秒数:HTTP 生图接口没有进度事件,以起表时间做可感知进度。 */
-function useElapsedSeconds(active: boolean): number {
-  const [elapsed, setElapsed] = useState(0);
-  useEffect(() => {
-    if (!active) return;
-    const startedAt = Date.now();
-    setElapsed(0);
-    const timer = window.setInterval(() => {
-      setElapsed(Math.floor((Date.now() - startedAt) / 1000));
-    }, 1000);
-    return () => window.clearInterval(timer);
-  }, [active]);
-  return elapsed;
-}
-
-function formatElapsedSeconds(total: number): string {
-  const minutes = Math.floor(total / 60);
-  const seconds = total % 60;
-  return minutes > 0 ? `${minutes}分${seconds.toString().padStart(2, "0")}秒` : `${seconds}秒`;
 }
 
 export const ImageStudioNodeCard = memo(function ImageStudioNodeCard({
@@ -479,7 +457,6 @@ function GeneratedNodeEditor({
   onSaveToProps: ImageStudioNodeData["onSaveToProps"];
 }) {
   const generating = node.status === "generating" || node.status === "queued";
-  const elapsedSeconds = useElapsedSeconds(generating);
   const [imageLongSide, setImageLongSide] = useState(0);
   // 生效组整组图(保存/下载都以组为单位;超分/单张重生成后旧组回落主图)
   const batchImages = effectiveBatchImages(node);
@@ -668,16 +645,9 @@ function GeneratedNodeEditor({
       ) : (
         <span className="sr-only">纯文生图,拖参考图节点连线可挂图</span>
       )}
-      {/* 状态行:仅生成中有文案;完成态零渲染(用户裁定:不要孤零零的对号);
-          失败态零渲染(09-03 用户裁定:失败提示弹窗化,不放节点卡——生成
-          按钮自身已承载状态) */}
-      {generating ? (
-        <div className="nodrag nopan flex items-center border-t border-border/60 pt-2">
-          <span className="flex min-w-0 items-center gap-1.5 text-[10px] font-medium text-muted-foreground">
-            {`${node.status === "queued" ? "排队中" : "生成中"} · 已用 ${formatElapsedSeconds(elapsedSeconds)}`}
-          </span>
-        </div>
-      ) : null}
+      {/* 状态零上卡(09-03 用户裁定):生成中/失败提示都不放节点卡——
+          生成按钮自身承载状态(生成↔停止切换);失败走画布层弹窗。
+          状态行与计时器已撤,顺带消掉 React Flow 容器内每秒重渲。 */}
       {/* 操作行:超分/保存/下载/生成(或停止)一行等宽排布(09-03 用户裁定:
           四钮一行、横向等宽;主次分层靠颜色——生成保留金色,不再靠宽度) */}
       <div className="nodrag nopan flex items-center gap-2">
@@ -758,13 +728,6 @@ function GeneratedNodeEditor({
             placeholder="反向提示词（可选）"
             className="min-h-[40px] [field-sizing:content] border-border bg-card/80 text-xs leading-5 text-foreground"
           />
-        </div>
-      ) : null}
-      {generating && !node.resultUrl ? (
-        <div className="nodrag nopan flex items-center justify-center gap-2 text-xs text-muted-foreground">
-          <Loader2 className="h-3.5 w-3.5 animate-spin" />
-          正在生成 · 已用 {formatElapsedSeconds(elapsedSeconds)}
-          <span className="text-[10px] opacity-70">(云端通常几十秒,本地大模型可能需要数分钟)</span>
         </div>
       ) : null}
     </div>
