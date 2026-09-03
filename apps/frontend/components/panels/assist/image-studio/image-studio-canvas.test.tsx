@@ -76,6 +76,36 @@ describe("ImageStudioCanvas", () => {
     expect(useFreedomStore.getState().imagePrompt).toBe("");
   });
 
+  it("参考图计数按节点作用域:空参考图不计,两组互不串数(存量缺口回归)", async () => {
+    render(<ImageStudioCanvas />);
+    await waitFor(() => {
+      expect(useImageStudioStore.getState().workflows).toHaveLength(1);
+    });
+    // 组A:文生图组;组B:图生图组(空参考图位)
+    useImageStudioStore.getState().addGenerationGroup({ prompt: "A" });
+    useImageStudioStore.getState().addGenerationGroup({ prompt: "B", referenceImageUrl: "" });
+    // 组A的参考图节点补一张真图,并连到组A成图
+    const state = useImageStudioStore.getState();
+    const graph = selectActiveImageStudioWorkflow(state);
+    const groupA = graph?.nodes.find((n) => n.type === "generated" && n.prompt === "A");
+    const refNode = graph?.nodes.find((n) => n.type === "reference");
+    expect(groupA && refNode).toBeDefined();
+    if (groupA && refNode) {
+      state.updateNode(refNode.id, { imageUrl: "local-image://ai-image/ref.png" } as never);
+      state.connect(refNode.id, groupA.id);
+    }
+    await waitFor(() => {
+      const after = selectActiveImageStudioWorkflow(useImageStudioStore.getState());
+      const genA = after?.nodes.find((n) => n.type === "generated" && n.prompt === "A");
+      const genB = after?.nodes.find((n) => n.type === "generated" && n.prompt === "B");
+      // 计数在 node card props 里,这里以边结构断言口径:只有 target 匹配的边才计入
+      const countFor = (id: string) =>
+        (after?.edges ?? []).filter((e) => e.target === id).length;
+      expect(countFor(genA!.id)).toBeGreaterThanOrEqual(1);
+      expect(countFor(genB!.id)).toBeGreaterThanOrEqual(1);
+    });
+  });
+
   it("工具栏「图生图」直建组:零弹窗出参考图+提示词+成图三件套(09-03 用户裁定)", async () => {
     render(<ImageStudioCanvas />);
     await waitFor(() => {

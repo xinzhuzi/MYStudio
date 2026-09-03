@@ -503,6 +503,9 @@ export function ImageStudioCanvas() {
         referenceCount:
           node.type === "generated"
             ? activeGraph.edges.filter((edge) => {
+                // 只数指向本成图的边(存量缺口:此前漏了 target 限定,
+                // 多组画布上每个节点都显示全图总数)
+                if (edge.target !== node.id) return false;
                 const source = nodesById.get(edge.source);
                 return (
                   (source?.type === "reference" && Boolean(source.imageUrl)) ||
