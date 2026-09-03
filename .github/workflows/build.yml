@@ -132,7 +132,7 @@ jobs:
 
   release-prep:
     name: Prepare fixed Remotion bundle
-    if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch'
+    if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == 'refs/heads/arena/01a067fc-mystudio') # TEMP: 本分支验证 release 链;publish 仍仅 tag
     needs:
       - resolve-version
       - quality
@@ -187,7 +187,7 @@ jobs:
 
   build-mac:
     name: Build macOS ARM64
-    if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch'
+    if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == 'refs/heads/arena/01a067fc-mystudio') # TEMP: 本分支验证 release 链;publish 仍仅 tag
     needs:
       - resolve-version
       - release-prep
@@ -263,7 +263,7 @@ jobs:
 
   build-win:
     name: Build Windows x64
-    if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch'
+    if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == 'refs/heads/arena/01a067fc-mystudio') # TEMP: 本分支验证 release 链;publish 仍仅 tag
     needs:
       - resolve-version
       - release-prep
