@@ -6,7 +6,9 @@ import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
 import {
   addGeneratedImageNode,
+  addGroupNode,
   addPromptImageNode,
+  addStickyNoteNode,
   addReferenceImageNode,
   connectImageWorkflowNodes,
   createId,
@@ -75,6 +77,10 @@ export interface ImageStudioStoreActions {
   applyLayout: () => void;
   addReferenceNode: (input: { imageUrl: string; title?: string; position?: ImageWorkflowNodePosition }) => string;
   addPromptNode: (input?: { prompt?: string; negativePrompt?: string; position?: ImageWorkflowNodePosition }) => string;
+  /** 便利贴(09-03 wave3):画布标注件 */
+  addStickyNote: (input?: { text?: string; color?: "yellow" | "green" | "blue" | "pink" | "gray"; position?: ImageWorkflowNodePosition }) => string;
+  /** Group 框组(09-03 wave3):视觉容器 */
+  addGroup: (input?: { label?: string; position?: ImageWorkflowNodePosition }) => string;
   addGeneratedNode: (input?: { prompt?: string; model?: string }) => string;
   /** 一键建组:文生图=提示词+成图;带参考图地址则为图生图三件套 */
   addGenerationGroup: (input?: {
@@ -382,6 +388,23 @@ export const useImageStudioStore = create<ImageStudioStore>()(
               position: offset,
             });
           }
+          if (source.type === "sticky") {
+            return addStickyNoteNode(current, {
+              id,
+              title: `${source.title} 副本`,
+              text: source.text,
+              color: source.color,
+              position: offset,
+            });
+          }
+          if (source.type === "group") {
+            return addGroupNode(current, {
+              id,
+              label: `${source.title} 副本`,
+              memberIds: [...source.memberIds],
+              position: offset,
+            });
+          }
           return addGeneratedImageNode(current, {
             id,
             title: `${source.title} 副本`,
@@ -435,6 +458,32 @@ export const useImageStudioStore = create<ImageStudioStore>()(
             position: position ?? nextColumnPosition(current, "reference"),
           }),
         );
+        return id;
+      },
+
+      addStickyNote: (input) => {
+        ensureActiveCanvas(get, set);
+        let id = "";
+        set((state) => ({
+          workflows: state.workflows.map((workflow) => {
+            if (workflow.id !== get().activeWorkflowId) return workflow;
+            id = createId("sticky");
+            return addStickyNoteNode(workflow, { id, ...input });
+          }),
+        }));
+        return id;
+      },
+
+      addGroup: (input) => {
+        ensureActiveCanvas(get, set);
+        let id = "";
+        set((state) => ({
+          workflows: state.workflows.map((workflow) => {
+            if (workflow.id !== get().activeWorkflowId) return workflow;
+            id = createId("group");
+            return addGroupNode(workflow, { id, ...input });
+          }),
+        }));
         return id;
       },
 

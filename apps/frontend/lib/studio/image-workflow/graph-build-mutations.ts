@@ -3,11 +3,46 @@ import { addGeneratedImageNode, addReferenceImageNode } from "./graph-build";
 import type { AddPromptImageNodeInput } from "./graph-build";
 import { nextStackedPosition } from "./layout";
 import { useAppSettingsStore } from "@/stores/app/app-settings-store";
-import type { ImageWorkflowEdge, ImageWorkflowGeneratedNode, ImageWorkflowGraph, ImageWorkflowNode, ImageWorkflowNodePosition, ImageWorkflowPromptNode, ImageWorkflowReferenceNode, StoryboardItem } from "@/types/studio";
+import type { ImageWorkflowEdge, ImageWorkflowGeneratedNode, ImageWorkflowGraph, ImageWorkflowGroupNode, ImageWorkflowNode, ImageWorkflowNodePosition, ImageWorkflowPromptNode, ImageWorkflowReferenceNode, ImageWorkflowStickyNode, StoryboardItem } from "@/types/studio";
 
 /**
  * 图像工作流图变更族——add/update/remove/connect/set 节点边操作与生成状态。file-size-reduction P3 拆出,体逐字保留。
  */
+export function addStickyNoteNode(
+  graph: ImageWorkflowGraph,
+  input: { id?: string; text?: string; color?: ImageWorkflowStickyNode["color"]; title?: string; position?: ImageWorkflowNodePosition; createdAt?: number },
+): ImageWorkflowGraph {
+  const now = input.createdAt ?? Date.now();
+  const node: ImageWorkflowStickyNode = {
+    id: input.id ?? createId("sticky", now),
+    type: "sticky",
+    title: input.title?.trim() || "便利贴",
+    text: input.text ?? "",
+    color: input.color ?? "yellow",
+    position: input.position ?? { x: 80, y: 80 },
+    createdAt: now,
+    updatedAt: now,
+  };
+  return touchGraph({ ...graph, nodes: [...graph.nodes, node] }, now);
+}
+
+export function addGroupNode(
+  graph: ImageWorkflowGraph,
+  input: { id?: string; label?: string; memberIds?: string[]; position?: ImageWorkflowNodePosition; createdAt?: number },
+): ImageWorkflowGraph {
+  const now = input.createdAt ?? Date.now();
+  const node: ImageWorkflowGroupNode = {
+    id: input.id ?? createId("group", now),
+    type: "group",
+    title: input.label?.trim() || "分组",
+    memberIds: input.memberIds ?? [],
+    position: input.position ?? { x: 40, y: 40 },
+    createdAt: now,
+    updatedAt: now,
+  };
+  return touchGraph({ ...graph, nodes: [...graph.nodes, node] }, now);
+}
+
 export function addPromptImageNode(
   graph: ImageWorkflowGraph,
   input: AddPromptImageNodeInput,
@@ -106,6 +141,7 @@ export function isValidImageEdge(
   const targetNode = graph.nodes.find((node) => node.id === target);
   if (!sourceNode || !targetNode || targetNode.type !== "generated") return false;
   if (graph.edges.some((item) => item.source === source && item.target === target)) return false;
+  if (sourceNode.type === "sticky" || sourceNode.type === "group") return false;
   if (sourceNode.type === "prompt") {
     // 一个成图只吃一根提示词(09-03):已挂「别的」提示词(边或 targetNodeId
     // 直挂)才拒——自身首根边必须放行(建组流程 prompt 先经 targetNodeId 挂靠)
@@ -153,7 +189,7 @@ export function setGeneratedImageResult(
 ): ImageWorkflowGraph {
   const generatedAt = result.generatedAt ?? Date.now();
   getGeneratedNode(graph, nodeId);
-  return updateImageWorkflowNode(
+  const updated = updateImageWorkflowNode(
     graph,
     nodeId,
     {
@@ -165,6 +201,31 @@ export function setGeneratedImageResult(
     } as Partial<ImageWorkflowNode>,
     generatedAt,
   );
+  // 衍生资产时效性(09-03-derived-expiry-chain):父图落新结果,
+  // 挂其血缘的衍生节点盖 staleSince(生图/超分/回写全经此咽喉)
+  return markDerivedFromStale(updated, nodeId, generatedAt);
+}
+
+/**
+ * 把 derivedFrom.sourceNodeId 指向 sourceNodeId 的节点标记过期
+ * (staleSince=父图本次 generatedAt)。不可变;无血缘/已是更新标记的
+ * 节点原样保留(引用相等,零扰动)。
+ */
+export function markDerivedFromStale(
+  graph: ImageWorkflowGraph,
+  sourceNodeId: string,
+  staleSince: number,
+): ImageWorkflowGraph {
+  let changed = false;
+  const nodes = graph.nodes.map((node) => {
+    if (node.type !== "reference") return node;
+    const derivedFrom = node.derivedFrom;
+    if (!derivedFrom || derivedFrom.sourceNodeId !== sourceNodeId) return node;
+    if (derivedFrom.staleSince !== undefined && derivedFrom.staleSince >= staleSince) return node;
+    changed = true;
+    return { ...node, derivedFrom: { ...derivedFrom, staleSince } };
+  });
+  return changed ? { ...graph, nodes } : graph;
 }
 export function getGeneratedNode(graph: ImageWorkflowGraph, nodeId: string): ImageWorkflowGeneratedNode {
   const node = graph.nodes.find((item) => item.id === nodeId);

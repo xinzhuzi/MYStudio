@@ -67,3 +67,16 @@ describe("PaneCreateMenu", () => {
     expect(document.activeElement).toBe(second);
   });
 });
+
+describe("PaneCreateMenu wave3 新节点(09-03)", () => {
+  it("便利贴/分组框在创建项中,选中回调收到 kind", () => {
+    const onSelect = vi.fn();
+    render(<PaneCreateMenu x={8} y={8} onSelect={onSelect} onClose={() => {}} />);
+    fireEvent.click(screen.getByRole("menuitem", { name: /便利贴/ }));
+    expect(onSelect).toHaveBeenCalledWith("sticky");
+    cleanup();
+    render(<PaneCreateMenu x={8} y={8} onSelect={onSelect} onClose={() => {}} />);
+    fireEvent.click(screen.getByRole("menuitem", { name: /分组框/ }));
+    expect(onSelect).toHaveBeenCalledWith("group");
+  });
+});

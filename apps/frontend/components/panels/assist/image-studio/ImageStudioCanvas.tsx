@@ -359,6 +359,20 @@ export function ImageStudioCanvas() {
     [],
   );
 
+  // 双击空白建节点(09-03 wave3 吸收):双击=高频快捷入口,复用创建菜单
+  const handlePaneDoubleClick = useCallback(
+    (event: React.MouseEvent | MouseEvent) => {
+      const target = event.target as HTMLElement | null;
+      if (target && !target.classList.contains("react-flow__pane")) return;
+      const world = flowInstanceRef.current?.screenToFlowPosition({
+        x: event.clientX,
+        y: event.clientY,
+      });
+      setPaneCreate({ x: event.clientX, y: event.clientY, world: world ?? { x: 0, y: 0 } });
+    },
+    [],
+  );
+
   const handleNodeContextMenu = useCallback((event: MouseEvent, nodeId: string) => {
     event.preventDefault();
     void logEvent({
@@ -455,6 +469,10 @@ export function ImageStudioCanvas() {
         focusPromptNodeWhenReady(group?.promptNodeId);
       } else if (kind === "reference") {
         store.addReferenceNode({ imageUrl: "", position: paneCreate?.world });
+      } else if (kind === "sticky") {
+        store.addStickyNote({ position: paneCreate?.world });
+      } else if (kind === "group") {
+        store.addGroup({ position: paneCreate?.world });
       } else {
         store.addPromptNode({ position: paneCreate?.world });
       }
@@ -683,6 +701,7 @@ export function ImageStudioCanvas() {
           onNodeClick={setSelectedNodeId}
           onPaneClick={() => setSelectedNodeId(null)}
           onPaneContextMenu={handlePaneContextMenu}
+          onPaneDoubleClick={handlePaneDoubleClick}
           onSelection={handleSelectionIds}
           dropHandlers={dropHandlers}
           onNodeContextMenu={handleNodeContextMenu}
@@ -872,6 +891,7 @@ function ImageStudioFlowView({
   onNodeClick,
   onPaneClick,
   onPaneContextMenu,
+  onPaneDoubleClick,
   onSelection,
   dropHandlers,
   onNodeContextMenu,
@@ -889,6 +909,7 @@ function ImageStudioFlowView({
   onNodeClick: (nodeId: string) => void;
   onPaneClick: () => void;
   onPaneContextMenu: (event: MouseEvent) => void;
+  onPaneDoubleClick: (event: React.MouseEvent | MouseEvent) => void;
   onSelection: (nodeIds: string[]) => void;
   dropHandlers: {
     onDragEnter: (event: React.DragEvent) => void;
@@ -1025,6 +1046,9 @@ function ImageStudioFlowView({
         onNodesChange={onNodesChange}
         onNodeClick={(_, node) => onNodeClick(node.id)}
         onPaneClick={onPaneClick}
+        onDoubleClick={(event) => {
+          if ((event.target as HTMLElement).classList.contains("react-flow__pane")) onPaneDoubleClick(event);
+        }}
         onPaneContextMenu={(event) => {
           event.preventDefault();
           onPaneContextMenu(event as unknown as MouseEvent);

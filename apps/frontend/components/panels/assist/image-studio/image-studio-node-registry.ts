@@ -31,6 +31,14 @@ export const IMAGE_STUDIO_NODE_META: Record<ImageWorkflowNodeType, ImageStudioNo
     label: "成图",
     description: "持有生成参数与结果;无参考连线=文生图,挂参考=图生图",
   },
+  sticky: {
+    label: "便利贴",
+    description: "画布创作标注(换色/编辑),不参与连线",
+  },
+  group: {
+    label: "分组框",
+    description: "视觉容器:拖入吸附成组,移动组带动成员",
+  },
 };
 
 /**

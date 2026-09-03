@@ -137,7 +137,8 @@ describe("取材胶水层:入口→对话框→确认→落图", () => {
     await waitFor(
       () => {
         const landed = activeGraph().nodes.find(
-          (node) => node.type === "reference" && node.derivedFrom?.kind === "crop",
+          (node): node is Extract<typeof node, { type: "reference" }> =>
+            node.type === "reference" && node.derivedFrom?.kind === "crop",
         );
         expect(landed).toBeTruthy();
         expect(landed!.title).toContain("裁剪");
@@ -157,7 +158,8 @@ describe("取材胶水层:入口→对话框→确认→落图", () => {
     await waitFor(
       () => {
         const refs = activeGraph().nodes.filter(
-          (node) => node.type === "reference" && node.derivedFrom?.kind === "split",
+          (node): node is Extract<typeof node, { type: "reference" }> =>
+            node.type === "reference" && node.derivedFrom?.kind === "split",
         );
         expect(refs).toHaveLength(4);
         expect(refs[0].derivedFrom!.cell).toEqual({ row: 0, col: 0 });

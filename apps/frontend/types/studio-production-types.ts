@@ -290,7 +290,7 @@ export interface AssetImageWorkflowContext extends ImageWorkflowOpenContext {
   target: ImageWorkflowTarget & { kind: "asset"; assetType: ImageWorkflowAssetTargetType };
 }
 
-export type ImageWorkflowNodeType = "reference" | "prompt" | "generated";
+export type ImageWorkflowNodeType = "reference" | "prompt" | "generated" | "sticky" | "group";
 export type ImageWorkflowGenerationStatus = "idle" | "queued" | "generating" | "ready" | "failed";
 
 export interface ImageWorkflowNodePosition {
@@ -320,6 +320,11 @@ export interface ImageWorkflowDerivationSource {
   /** split 格位(第 row 行第 col 列,0 起) */
   cell?: { row: number; col: number };
   createdAt: number;
+  /**
+   * 父图已更新标记(09-03-derived-expiry-chain):源节点落新结果时盖上
+   * 该结果的 generatedAt。缺省=未过期;仅提示,不阻断使用。
+   */
+  staleSince?: number;
 }
 
 export interface ImageWorkflowReferenceNode extends ImageWorkflowNodeBase {
@@ -384,7 +389,27 @@ export interface ImageWorkflowPromptNode extends ImageWorkflowNodeBase {
   targetNodeId?: string;
 }
 
-export type ImageWorkflowNode = ImageWorkflowReferenceNode | ImageWorkflowPromptNode | ImageWorkflowGeneratedNode;
+export type ImageWorkflowNode =
+  | ImageWorkflowReferenceNode
+  | ImageWorkflowPromptNode
+  | ImageWorkflowGeneratedNode
+  | ImageWorkflowStickyNode
+  | ImageWorkflowGroupNode;
+
+/** 便利贴节点(09-03 wave3 吸收):画布创作标注,不参与连线域规则 */
+export interface ImageWorkflowStickyNode extends ImageWorkflowNodeBase {
+  type: "sticky";
+  text: string;
+  color: "yellow" | "green" | "blue" | "pink" | "gray";
+}
+
+/** Group 手画框组(09-03 wave3 吸收):纯视觉容器,成员按 groupId 关联 */
+export interface ImageWorkflowGroupNode extends ImageWorkflowNodeBase {
+  type: "group";
+  /** 组内成员节点 id 集合(移动组时带动;拖入吸附时登记) */
+  memberIds: string[];
+  label?: string;
+}
 
 export interface ImageWorkflowEdge {
   id: string;

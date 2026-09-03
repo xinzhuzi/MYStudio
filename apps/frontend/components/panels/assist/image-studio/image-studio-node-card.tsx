@@ -37,9 +37,11 @@ import { UPSCALE_INPUT_MAX_LONG_SIDE } from "@/lib/upscale/client";
 import { cn } from "@/lib/utils";
 import type {
   ImageWorkflowGeneratedNode,
+  ImageWorkflowGroupNode,
   ImageWorkflowNode,
   ImageWorkflowPromptNode,
   ImageWorkflowReferenceNode,
+  ImageWorkflowStickyNode,
 } from "@/types/studio";
 
 /**
@@ -121,7 +123,11 @@ export const ImageStudioNodeCard = memo(function ImageStudioNodeCard({
         : "参考图"
       : node.type === "prompt"
         ? "提示词"
-        : "成图";
+        : node.type === "sticky"
+          ? "便利贴"
+          : node.type === "group"
+            ? `分组${node.memberIds.length ? ` · ${node.memberIds.length} 节点` : ""}`
+            : "成图";
 
   return (
     <div
@@ -131,7 +137,15 @@ export const ImageStudioNodeCard = memo(function ImageStudioNodeCard({
         "image-workflow-node-card group/node rounded-xl border bg-card/96 p-3.5 text-card-foreground",
         "shadow-[0_1px_2px_rgba(0,0,0,0.18)] transition-[border-color,box-shadow] duration-200",
         "hover:border-border/90 hover:shadow-[0_4px_16px_rgba(0,0,0,0.22)]",
-        node.type === "reference" ? "w-[360px]" : node.type === "prompt" ? "w-[480px]" : "w-[560px]",
+        node.type === "reference"
+          ? "w-[360px]"
+          : node.type === "prompt"
+            ? "w-[480px]"
+            : node.type === "sticky"
+              ? "w-[240px]"
+              : node.type === "group"
+                ? "w-[480px]"
+                : "w-[560px]",
         borderClass,
       )}
     >
@@ -198,6 +212,10 @@ export const ImageStudioNodeCard = memo(function ImageStudioNodeCard({
         <ReferenceNodeEditor node={node} onPickImage={data.onPickImage} onUpdate={data.onUpdate} />
       ) : node.type === "prompt" ? (
         <PromptNodeEditor node={node} onUpdate={data.onUpdate} />
+      ) : node.type === "sticky" ? (
+        <StickyNoteEditor node={node} onUpdate={data.onUpdate} />
+      ) : node.type === "group" ? (
+        <GroupEditor node={node} onUpdate={data.onUpdate} />
       ) : (
         <GeneratedNodeEditor
           node={node}
@@ -739,6 +757,74 @@ function GeneratedNodeEditor({
           />
         </div>
       ) : null}
+    </div>
+  );
+}
+
+
+const STICKY_COLORS: Array<{ value: NonNullable<ImageWorkflowStickyNode["color"]>; label: string; chip: string; card: string }> = [
+  { value: "yellow", label: "黄", chip: "bg-yellow-300/90", card: "border-yellow-300/40 bg-yellow-200/12" },
+  { value: "green", label: "绿", chip: "bg-green-300/90", card: "border-green-300/40 bg-green-200/12" },
+  { value: "blue", label: "蓝", chip: "bg-blue-300/90", card: "border-blue-200/12" },
+  { value: "pink", label: "粉", chip: "bg-pink-300/90", card: "border-pink-200/12" },
+  { value: "gray", label: "灰", chip: "bg-gray-300/90", card: "border-gray-300/40 bg-gray-200/12" },
+];
+
+/** 便利贴编辑器(09-03 wave3):换色+文本;无连线手柄(标注件,不进生成图) */
+function StickyNoteEditor({
+  node,
+  onUpdate,
+}: {
+  node: ImageWorkflowStickyNode;
+  onUpdate: ImageStudioNodeData["onUpdate"];
+}) {
+  const palette = STICKY_COLORS.find((item) => item.value === node.color) ?? STICKY_COLORS[0];
+  return (
+    <div className="space-y-1.5">
+      <Textarea
+        value={node.text}
+        onChange={(event) => onUpdate(node.id, { text: event.target.value } as Partial<ImageWorkflowNode>)}
+        placeholder="备注/待办/导演笔记…"
+        className="nodrag nopan min-h-[72px] [field-sizing:content] border-transparent bg-transparent text-xs leading-5 text-foreground"
+      />
+      <div className="flex items-center gap-1">
+        {STICKY_COLORS.map((item) => (
+          <button
+            key={item.value}
+            type="button"
+            aria-label={`便利贴换${item.label}色`}
+            title={`换${item.label}色`}
+            className={cn(
+              "h-4 w-4 rounded-full border transition-transform duration-75 hover:scale-110",
+              item.chip,
+              node.color === item.value ? "border-foreground/70 scale-110" : "border-transparent",
+            )}
+            onClick={() => onUpdate(node.id, { color: item.value } as Partial<ImageWorkflowNode>)}
+          />
+        ))}
+      </div>
+      <span className="sr-only">{palette.label}</span>
+    </div>
+  );
+}
+
+/** Group 编辑器(09-03 wave3):改标签+成员计数;容器语义,成员拖入吸附在画布层实现 */
+function GroupEditor({
+  node,
+  onUpdate,
+}: {
+  node: ImageWorkflowGroupNode;
+  onUpdate: ImageStudioNodeData["onUpdate"];
+}) {
+  return (
+    <div className="space-y-1 text-xs text-muted-foreground">
+      <input
+        value={node.title}
+        onChange={(event) => onUpdate(node.id, { title: event.target.value } as Partial<ImageWorkflowNode>)}
+        placeholder="分组名"
+        className="nodrag nopan h-8 w-full rounded-md border border-transparent bg-transparent px-1 text-sm font-semibold text-foreground outline-none focus:border-border"
+      />
+      <p>把节点拖进组内自动入组;移动组会带动成员。</p>
     </div>
   );
 }
