@@ -128,17 +128,17 @@ jobs:
           set +e
           npm run test:all > /tmp/quality-gate.log 2>&1
           code=$?
-          echo "=== tail of quality-gate log ($code) ==="
-          tail -150 /tmp/quality-gate.log
+          echo "=== quality-gate rerun exit code: $code ==="
+          # 关键失败行逐条以 ::error:: 注解输出(注解可经 GitHub API 读取,
+          # 不受 runner 日志下载 EOF 影响);每条截断到 500 字符。
+          grep -E "^\[quality-gate\]|^ FAIL |AssertionError|Error:|expected|Test Files|Tests " \
+            /tmp/quality-gate.log | tail -60 | while IFS= read -r line; do
+            msg="${line:0:500}"
+            echo "::error file=.github/workflows/build.yml,line=114,title=quality-gate::${msg}"
+          done
+          echo "=== last 40 log lines ==="
+          tail -40 /tmp/quality-gate.log
           exit 0
-
-      - name: Upload quality-gate diagnostic log (temporary)
-        if: failure()
-        uses: actions/upload-artifact@v4
-        with:
-          name: quality-gate-diagnostic
-          path: /tmp/quality-gate.log
-          retention-days: 1
 
       - name: Build renderer
         working-directory: apps
