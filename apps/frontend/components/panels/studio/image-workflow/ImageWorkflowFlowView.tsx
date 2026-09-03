@@ -237,12 +237,7 @@ export function ImageWorkflowFlowView({
         onPointerMove={mouseButtonPan.onPointerMove}
         onPointerUp={mouseButtonPan.onPointerUp}
         onPointerCancel={mouseButtonPan.onPointerCancel}
-        onContextMenu={(event) => {
-          if (mouseButtonPan.consumeContextMenu()) {
-            event.preventDefault();
-            return;
-          }
-        }}
+        onContextMenuCapture={mouseButtonPan.onContextMenuCapture}
         isValidConnection={(connection) =>
           connection.target !== connection.source &&
           activeGraph?.nodes.find((node) => node.id === connection.target)?.type === "generated" &&

@@ -1027,7 +1027,6 @@ function ImageStudioFlowView({
         onPaneClick={onPaneClick}
         onPaneContextMenu={(event) => {
           event.preventDefault();
-          if (mouseButtonPan.consumeContextMenu()) return;
           onPaneContextMenu(event as unknown as MouseEvent);
         }}
         onDragEnter={dropHandlers.onDragEnter}
@@ -1035,7 +1034,6 @@ function ImageStudioFlowView({
         onDragLeave={dropHandlers.onDragLeave}
         onDrop={dropHandlers.onDrop}
         onNodeContextMenu={(event, node) => {
-          if (mouseButtonPan.consumeContextMenu()) return;
           onNodeContextMenu(event as unknown as MouseEvent, node.id);
         }}
         onNodeDragStart={handleNodeDragStart}
@@ -1053,6 +1051,7 @@ function ImageStudioFlowView({
         onPointerMove={mouseButtonPan.onPointerMove}
         onPointerUp={mouseButtonPan.onPointerUp}
         onPointerCancel={mouseButtonPan.onPointerCancel}
+        onContextMenuCapture={mouseButtonPan.onContextMenuCapture}
         onNodesDelete={(deleted) => onNodesDelete(deleted.map((node) => node.id))}
         onEdgesDelete={(deleted) => onEdgesDelete(deleted.map((edge) => edge.id))}
         isValidConnection={(connection) =>

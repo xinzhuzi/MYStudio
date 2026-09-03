@@ -23,8 +23,12 @@ export interface MouseButtonPanHandlers {
   onPointerMove: React.PointerEventHandler<HTMLElement>;
   onPointerUp: React.PointerEventHandler<HTMLElement>;
   onPointerCancel: React.PointerEventHandler<HTMLElement>;
-  /** 在 contextmenu 处理器首行调用:返回 true = 刚发生拖拽,应吞掉本次菜单 */
-  consumeContextMenu: () => boolean;
+  /**
+   * 捕获期 contextmenu 守卫(挂 onContextMenuCapture):右键按住期间全吞
+   * (macOS 上 contextmenu 在按下瞬间即达,早于任何移动——「拖了才吞」来不及);
+   * 干净松手(未拖动)后由钩子合成重发一颗 contextmenu,原生菜单链照常打开。
+   */
+  onContextMenuCapture: React.MouseEventHandler<HTMLElement>;
 }
 
 const INTERACTIVE_SELECTOR =
@@ -32,7 +36,8 @@ const INTERACTIVE_SELECTOR =
 
 export function useMouseButtonPan(onPanDelta: (dxScreen: number, dyScreen: number) => void): MouseButtonPanHandlers {
   const drag = useRef<{ pointerId: number; x: number; y: number; moved: boolean } | null>(null);
-  const suppressContextMenu = useRef(false);
+  /** 右键按住期(含拖拽)contextmenu 守卫:窗口从按下到松手后一个微任务 */
+  const rightHeld = useRef<{ x: number; y: number } | null>(null);
 
   const endDrag = () => {
     drag.current = null;
@@ -47,6 +52,7 @@ export function useMouseButtonPan(onPanDelta: (dxScreen: number, dyScreen: numbe
       // 会把后续 contextmenu 重定向到捕获元素(实测吞掉画布右键菜单),
       // preventDefault 也可能扰动菜单链。右键平移只按 pointerId 跟踪。
       if (event.button === 1) event.preventDefault();
+      if (event.button === 2) rightHeld.current = { x: event.clientX, y: event.clientY };
       drag.current = { pointerId: event.pointerId, x: event.clientX, y: event.clientY, moved: false };
     },
     onPointerMove: (event) => {
@@ -54,13 +60,7 @@ export function useMouseButtonPan(onPanDelta: (dxScreen: number, dyScreen: numbe
       if (!state || event.pointerId !== state.pointerId) return;
       const dx = event.clientX - state.x;
       const dy = event.clientY - state.y;
-      if (!state.moved && Math.hypot(dx, dy) > 3) {
-        state.moved = true;
-        suppressContextMenu.current = true;
-        // 兜底自清:contextmenu 在 pointerup 之后同步到达,正常会被消费;
-        // 极端序列(系统吞事件)下 250ms 后自动恢复右键菜单
-        window.setTimeout(() => { suppressContextMenu.current = false; }, 250);
-      }
+      if (!state.moved && Math.hypot(dx, dy) > 3) state.moved = true;
       if (!state.moved) return;
       state.x = event.clientX;
       state.y = event.clientY;
@@ -68,18 +68,36 @@ export function useMouseButtonPan(onPanDelta: (dxScreen: number, dyScreen: numbe
     },
     onPointerUp: (event) => {
       if (drag.current?.pointerId !== event.pointerId) return;
+      const wasRight = event.button === 2;
+      const moved = drag.current.moved;
+      const clientX = event.clientX;
+      const clientY = event.clientY;
       endDrag();
+      if (wasRight) {
+        // 守卫窗口覆盖「按下即达」的原生 contextmenu;干净松手(未拖动)时
+        // 在守卫释放前排队合成重发——原生管线(含 RF 菜单定位)原样走一遍。
+        queueMicrotask(() => {
+          rightHeld.current = null;
+          if (!moved) {
+            const synthetic = new MouseEvent("contextmenu", {
+              bubbles: true, cancelable: true, clientX, clientY,
+              button: 2,
+            });
+            (event.target as EventTarget | null)?.dispatchEvent?.(synthetic);
+          }
+        });
+      }
     },
     onPointerCancel: (event) => {
       if (drag.current?.pointerId !== event.pointerId) return;
       endDrag();
+      rightHeld.current = null;
     },
-    consumeContextMenu: () => {
-      if (suppressContextMenu.current) {
-        suppressContextMenu.current = false;
-        return true;
+    onContextMenuCapture: (event) => {
+      if (rightHeld.current) {
+        event.preventDefault();
+        event.stopPropagation();
       }
-      return false;
     },
   };
 }

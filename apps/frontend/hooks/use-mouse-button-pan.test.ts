@@ -11,8 +11,9 @@ function fire(el: HTMLElement, type: string, init: Partial<PointerEventInit> & {
 }
 
 describe("useMouseButtonPan(09-03 左键不平移/右中键接管)", () => {
-  it("右键拖拽派发屏幕增量;超阈值后吞一次 contextmenu", () => {
+  it("右键拖拽派发屏幕增量;按住期守卫+干净释放合成重发", async () => {
     const onPan = vi.fn();
+    const ctxEvents: string[] = [];
     const { result } = renderHook(() => useMouseButtonPan(onPan));
     const el = document.createElement("div");
     document.body.appendChild(el);
@@ -21,6 +22,9 @@ describe("useMouseButtonPan(09-03 左键不平移/右中键接管)", () => {
       el.onpointermove = (e) => result.current.onPointerMove(e as unknown as React.PointerEvent<HTMLElement>);
       el.onpointerup = (e) => result.current.onPointerUp(e as unknown as React.PointerEvent<HTMLElement>);
       el.onpointercancel = (e) => result.current.onPointerCancel(e as unknown as React.PointerEvent<HTMLElement>);
+      el.addEventListener("contextmenu", (e) => {
+        result.current.onContextMenuCapture(e as unknown as React.MouseEvent<HTMLElement>);
+      }, true);
     };
     bind();
 
@@ -31,13 +35,17 @@ describe("useMouseButtonPan(09-03 左键不平移/右中键接管)", () => {
     expect(onPan).toHaveBeenCalledTimes(2);
     expect(onPan).toHaveBeenNthCalledWith(1, 10, 4);
     expect(onPan).toHaveBeenNthCalledWith(2, 15, 8);
-    expect(result.current.consumeContextMenu()).toBe(true); // 刚拖过 → 吞
-    expect(result.current.consumeContextMenu()).toBe(false); // 只吞一次
-
-    // 未拖动的右键点击:不吞菜单
+    // 右键按住期间:contextmenu 被守卫吞掉(preventDefault+stopPropagation)
+    el.addEventListener("contextmenu", () => { ctxEvents.push("ctx"); });
     act(() => { fire(el, "pointerdown", { button: 2, buttons: 2, clientX: 100, clientY: 100 }); });
-    act(() => { fire(el, "pointerup", { button: 2, buttons: 0, clientX: 101, clientY: 100 }); });
-    expect(result.current.consumeContextMenu()).toBe(false);
+    act(() => {
+      el.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true, cancelable: true, button: 2, clientX: 100, clientY: 100 }));
+    });
+    expect(ctxEvents).toEqual([]); // 守卫生效,未到达
+
+    // 干净右键释放(未拖):微任务后合成重发一颗 contextmenu
+    await act(async () => { fire(el, "pointerup", { button: 2, buttons: 0, clientX: 100, clientY: 100 }); });
+    expect(ctxEvents).toEqual(["ctx"]); // 合成重发到达(守卫已释放)
   });
 
   it("左键不参与平移;中键可以", () => {
