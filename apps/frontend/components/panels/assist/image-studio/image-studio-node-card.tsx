@@ -653,24 +653,16 @@ function GeneratedNodeEditor({
           </select>
         </div>
       ) : null}
-      {referenceCount > 0 && referenceCapacity !== undefined ? (
-        <div
-          className={cn(
-            "nodrag nopan text-[11px]",
-            referenceOverCapacity ? "text-warning" : "text-muted-foreground",
-          )}
-        >
-          {referenceOverCapacity
-            ? `已挂 ${referenceCount} 张参考图,当前引擎建议不超过 ${referenceCapacity} 张,可能生成失败`
-            : `图生图:已挂 ${referenceCount}/${referenceCapacity} 张参考图`}
-        </div>
-      ) : referenceCount > 0 ? (
-        <div className="nodrag nopan flex items-center gap-1.5 text-[10px] text-muted-foreground">
-          <ImageIcon className="h-3 w-3 text-success/70" aria-hidden />
-          已挂 {referenceCount} 张参考图
+      {/* 参考图状态收进生成按钮(09-03 用户裁定:独立计数行撤,按钮放宽
+          带文案);仅超容量异常态保留行内警告(正常态零占行) */}
+      {referenceOverCapacity ? (
+        <div className="nodrag nopan text-[11px] text-warning">
+          已挂 {referenceCount} 张参考图,当前引擎建议不超过 {referenceCapacity} 张,可能生成失败
         </div>
       ) : (
-        <span className="sr-only">纯文生图,拖参考图节点连线可挂图</span>
+        <span className="sr-only">
+          {referenceCount > 0 ? `图生图:已挂 ${referenceCount} 张参考图` : "纯文生图,拖参考图节点连线可挂图"}
+        </span>
       )}
       {/* 状态零上卡(09-03 用户裁定):生成中/失败提示都不放节点卡——
           生成按钮自身承载状态(生成↔停止切换);失败走画布层弹窗。
@@ -716,7 +708,7 @@ function GeneratedNodeEditor({
         {generating ? (
           <Button
             variant="destructive"
-            className="h-9 flex-1"
+            className="h-9 flex-[1.6]"
             onClick={() => onStop(node.id)}
             title="中断本次生成(已计费的请求可能无法退款)"
           >
@@ -726,12 +718,18 @@ function GeneratedNodeEditor({
         ) : (
           <Button
             variant="paid"
-            className="h-9 flex-1"
+            className="h-9 flex-[1.6]"
             onClick={() => onGenerate(node.id)}
-            title="按当前提示词+参考图生成图片(云端按张计费;张数在上方下拉选)"
+            title={
+              referenceCount > 0
+                ? `图生图:已挂 ${referenceCount}${referenceCapacity ? `/${referenceCapacity}` : ""} 张参考图,点击生成`
+                : "按当前提示词生成图片(拖参考图节点连线可挂图)"
+            }
           >
             <Sparkles className="mr-1.5 h-3.5 w-3.5" />
-            生成
+            {referenceCount > 0
+              ? `图生图 ${referenceCount}${referenceCapacity ? `/${referenceCapacity}` : ""}`
+              : "生成"}
           </Button>
         )}
       </div>
