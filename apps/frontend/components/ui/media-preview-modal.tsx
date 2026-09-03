@@ -44,6 +44,10 @@ const CONTROLLER_CONFIG = { closeOnBackdropClick: true };
 // 看细节;步幅 2.5 一步到位看大。
 const ZOOM_CONFIG = { scrollToZoom: true, maxZoomPixelRatio: 4, zoomInMultiplier: 2.5 };
 const CAROUSEL_CONFIG = { finite: true };
+// 点击跟手(09-03 用户裁定「按钮非常不灵敏」):fade/swipe 默认 250/500ms,
+// 动画播放期间导航与缩放的点击被吞——连点无反应;zoom 动画同理。全部
+// 置 0 立即生效,连点跟手。
+const ANIMATION_CONFIG = { fade: 0, swipe: 0, zoom: 0 };
 const LABELS = {
   Close: "关闭预览",
   "Zoom in": "放大",
@@ -128,6 +132,7 @@ export function ImagePreviewModal({
       plugins={LIGHTBOX_PLUGINS}
       zoom={ZOOM_CONFIG}
       carousel={CAROUSEL_CONFIG}
+      animation={ANIMATION_CONFIG}
       labels={LABELS}
       toolbar={toolbar}
       styles={CONTAINER_STYLES}
