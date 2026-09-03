@@ -120,6 +120,26 @@ jobs:
         # auto-skips them on non-darwin runners via process.platform detection.
         run: npm run test:all
 
+      - name: Diagnose quality-gate failure (temporary)
+        if: failure()
+        shell: bash
+        working-directory: apps
+        run: |
+          set +e
+          npm run test:all > /tmp/quality-gate.log 2>&1
+          code=$?
+          echo "=== tail of quality-gate log ($code) ==="
+          tail -150 /tmp/quality-gate.log
+          exit 0
+
+      - name: Upload quality-gate diagnostic log (temporary)
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: quality-gate-diagnostic
+          path: /tmp/quality-gate.log
+          retention-days: 1
+
       - name: Build renderer
         working-directory: apps
         run: npx electron-vite build --config frontend/config/electron-vite.config.ts
