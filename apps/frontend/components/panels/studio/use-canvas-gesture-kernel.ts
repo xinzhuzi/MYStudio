@@ -4,7 +4,7 @@ import { useSmoothWheelZoom, type SmoothWheelZoomApi } from "./previews/smooth-w
 /**
  * 工作流画布手势内核(08-30 节点图架构收敛 Phase2):
  * 两画布(主生产图/图像工作流图)的视口手势层单源——
- * 滚轮平滑缩放 + 交互期容器打标(CSS 降级重活) + 图片加载门闸接线 + 卸载清理。
+ * 滚轮平滑缩放 + 交互期容器打标(CSS 降级重活) + 卸载清理。
  *
  * 策略注入(画布间真实差异,不硬统一):
  * - interactingClass:打标类名(两画布 CSS 规则各自挂名)
@@ -63,7 +63,7 @@ export function useCanvasGestureKernel({
 
   const handleMoveStart = useCallback((event: MouseEvent | TouchEvent | null) => {
     setInteracting(true);
-    // 程序性视口变化(event=null)不关闸,仅用户手势延迟图片加载
+    // 程序性视口变化(event=null)不触发用户手势钩子(视口所有权接管等)
     if (event) {
       userGestureStartRef.current?.();
     }
@@ -71,7 +71,6 @@ export function useCanvasGestureKernel({
 
   const handleMoveEnd = useCallback(() => {
     setInteracting(false);
-    // 开闸必须无条件:wheel 手势的 onMoveEnd 未必带 event
   }, [setInteracting]);
 
   const handleNodeDragStart = useCallback(() => setInteracting(true), [setInteracting]);

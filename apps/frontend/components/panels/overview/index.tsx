@@ -132,9 +132,6 @@ const { setActiveTab } = useMediaPanelStore();
 
   const handleEnterStage = useCallback((stageId: string) => {
     useStudioStore.getState().setWorkflowConfig({ workflowStage: stageId });
-    // 进入阶段 = 一次交互(用户裁定 2026-08-26):studio 面板全新挂载,阶段
-    // 变化效应的首到豁免盖不住这条显式点击路径——这里直接关闸,静止 5s 后
-    // 统一加载(与画布/面板同款倒计时提示)。
     setActiveTab("studio");
   }, [setActiveTab]);
 

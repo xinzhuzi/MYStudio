@@ -8,7 +8,6 @@
  * 淘汰双胞胎包装与双归一化)。
  *
  * - src 归一化走 toPreviewSrc(preview-src.ts,全仓唯一入口)
- * - 交互门闸:拖拽/滑动/缩放期间不挂 <img>,静止后加载;粘性放行
  * - fallback=备用图地址(失败换图);fallbackLabel=终态占位文案(默认「图片加载失败」)
  * - resolutionBadge:左上角真实像素尺寸角标(例如 1920×1080)
  * - previewable:右下角常驻「展示」角标,点击经 portal 全屏弹 ImagePreviewModal
@@ -30,7 +29,7 @@ interface LocalImageProps extends React.ImgHTMLAttributes<HTMLImageElement> {
   fallbackLabel?: string;
   /** 开启后在图片左上角叠加真实像素尺寸角标(默认关闭,关闭时渲染结构与纯 <img> 一致) */
   resolutionBadge?: boolean;
-  /** 显式 loading="eager"(门闸已管加载时机的网格须开,见 preview-image 旧注) */
+  /** 显式 loading="eager"(React Flow 等容器内原生 lazy 失效,见 6988a6f) */
   eager?: boolean;
   /** 内置「展示」大图入口(08-30 裁定:节点图链路看图一律可放大看原图) */
   previewable?: boolean;

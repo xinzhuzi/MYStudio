@@ -101,7 +101,7 @@ export function useImagePixelSize(src?: string): ImagePixelSize | null {
       setSize(cached);
       return;
     }
-    // 未探测过的 src 先清空旧值:探测是异步的(交互门闸下最长延迟数秒),
+    // 未探测过的 src 先清空旧值:探测是异步的,
     // 不清空会在新图上短暂显示上一张图的尺寸。
     setSize(null);
     let cancelled = false;
