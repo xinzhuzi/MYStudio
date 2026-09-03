@@ -1,9 +1,10 @@
 import { useCallback, useRef, useState } from "react";
 import { toast } from "sonner";
 import { createOperationId, logEvent } from "@/lib/diagnostics/logger";
+import { setGeneratedImageResult } from "@/lib/studio/image-workflow";
 import { isUpscaledMediaPath } from "@/lib/upscale/client";
 import { useStudioStore } from "@/stores/studio/studio-store";
-import type { StoryboardItem } from "@/types/studio";
+import type { ImageWorkflowGeneratedNode, StoryboardItem } from "@/types/studio";
 import {
   fetchActiveModel,
   guardUpscaleReadiness,
@@ -148,12 +149,18 @@ export function useStoryboardBatchUpscale(input: {
             if (typeof sourceWorkflowId === "string") {
               const graph = useStudioStore.getState().imageWorkflows.find((item) => item.id === sourceWorkflowId);
               const matched = graph?.nodes.find(
-                (node) => node.type === "generated" && (node as { resultUrl?: string }).resultUrl === sourcePath,
+                (node): node is ImageWorkflowGeneratedNode =>
+                  node.type === "generated" && node.resultUrl === sourcePath,
               );
               if (graph && matched) {
-                (matched as { resultUrl?: string }).resultUrl = syncPath;
-                matched.updatedAt = Date.now();
-                useStudioStore.getState().updateImageWorkflow(graph.id, graph);
+                // 走 setGeneratedImageResult 咽喉(09-03 衍生过期链):超分换图
+                // 时衍生节点同步标 staleSince;mediaId 保留原值
+                const updatedGraph = setGeneratedImageResult(graph, matched.id, {
+                  imageUrl: syncPath,
+                  mediaId: matched.resultMediaId,
+                  generatedAt: Date.now(),
+                });
+                useStudioStore.getState().updateImageWorkflow(graph.id, updatedGraph);
               }
             }
           }

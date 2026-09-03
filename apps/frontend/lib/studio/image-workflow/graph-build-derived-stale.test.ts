@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { ImageWorkflowGraph, ImageWorkflowReferenceNode } from "@/types/studio";
+import type { ImageWorkflowGraph, ImageWorkflowNode, ImageWorkflowReferenceNode } from "@/types/studio";
 import {
   addGeneratedImageNode,
   addReferenceImageNode,
@@ -8,6 +8,7 @@ import {
 import {
   markDerivedFromStale,
   setGeneratedImageResult,
+  updateImageWorkflowNodeDerivedAware,
 } from "./graph-build-mutations";
 
 /**
@@ -102,5 +103,80 @@ describe("markDerivedFromStale(纯函数)", () => {
     const once = markDerivedFromStale(graph, "gen-parent", 5000);
     const twice = markDerivedFromStale(once, "gen-parent", 5000);
     expect(twice).toBe(once);
+  });
+});
+
+/**
+ * 审查闭环补强(09-03 review CONFIRMED×2):
+ * ① 参考图父节点 URL 直改联动(发现2:node-card URL input 旁路)
+ * ② setGeneratedImageResult 保留显式回传的 resultMediaId
+ *    (发现1:分镜批量超分同步改走咽喉后的 mediaId 保留依赖)
+ */
+describe("updateImageWorkflowNodeDerivedAware(参考图 URL 直改联动)", () => {
+  function referenceParentGraph(): ImageWorkflowGraph {
+    let graph = createImageWorkflowGraph({ id: "flow-ref-parent", name: "参考图父" });
+    graph = addReferenceImageNode(graph, {
+      id: "ref-parent",
+      title: "父参考图",
+      imageUrl: "project-file://old.png",
+      position: { x: 0, y: 0 },
+    });
+    graph = addReferenceImageNode(graph, {
+      id: "ref-child",
+      title: "裁剪子图",
+      imageUrl: "project-file://crop.png",
+      position: { x: 360, y: 0 },
+    });
+    return {
+      ...graph,
+      nodes: graph.nodes.map((node) =>
+        node.id === "ref-child" && node.type === "reference"
+          ? { ...node, derivedFrom: { kind: "crop", sourceNodeId: "ref-parent", createdAt: 1000 } }
+          : node,
+      ),
+    };
+  }
+
+  it("父参考图换图时衍生子图盖 staleSince=updatedAt", () => {
+    const updated = updateImageWorkflowNodeDerivedAware(
+      referenceParentGraph(),
+      "ref-parent",
+      { imageUrl: "project-file://new.png" } as Partial<ImageWorkflowNode>,
+      5000,
+    );
+    expect(refNode(updated, "ref-parent").imageUrl).toBe("project-file://new.png");
+    expect(refNode(updated, "ref-child").derivedFrom?.staleSince).toBe(5000);
+  });
+
+  it("同值重设与非图字段更新零标记", () => {
+    const base = referenceParentGraph();
+    const same = updateImageWorkflowNodeDerivedAware(
+      base, "ref-parent",
+      { imageUrl: "project-file://old.png" } as Partial<ImageWorkflowNode>, 5000,
+    );
+    expect(refNode(same, "ref-child").derivedFrom?.staleSince).toBeUndefined();
+    const retitled = updateImageWorkflowNodeDerivedAware(base, "ref-parent", { title: "改名" }, 6000);
+    expect(refNode(retitled, "ref-child").derivedFrom?.staleSince).toBeUndefined();
+  });
+});
+
+describe("setGeneratedImageResult 媒体库保留(批量超分同步依赖)", () => {
+  it("换图保留显式回传的 resultMediaId,衍生照常标过期", () => {
+    let graph = seededGraph();
+    graph = setGeneratedImageResult(graph, "gen-parent", {
+      imageUrl: "project-file://v1.png", mediaId: "media-1", generatedAt: 2000,
+    });
+    const parent = graph.nodes.find((node) => node.id === "gen-parent");
+    if (!parent || parent.type !== "generated") throw new Error("missing gen-parent");
+    const updated = setGeneratedImageResult(graph, "gen-parent", {
+      imageUrl: "project-file://v1-up4x.png",
+      mediaId: parent.resultMediaId,
+      generatedAt: 9000,
+    });
+    const next = updated.nodes.find((node) => node.id === "gen-parent");
+    if (!next || next.type !== "generated") throw new Error("missing gen-parent");
+    expect(next.resultUrl).toBe("project-file://v1-up4x.png");
+    expect(next.resultMediaId).toBe("media-1");
+    expect(refNode(updated, "ref-1-1").derivedFrom?.staleSince).toBe(9000);
   });
 });

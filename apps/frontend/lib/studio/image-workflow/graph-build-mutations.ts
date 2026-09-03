@@ -227,6 +227,26 @@ export function markDerivedFromStale(
   });
   return changed ? { ...graph, nodes } : graph;
 }
+/**
+ * 节点字段更新 + 参考图换图衍生过期联动(09-03-derived-expiry-chain):
+ * 字段更新同 updateImageWorkflowNode;当 reference 节点 imageUrl 实变
+ * (画布 URL 直改)时,挂其血缘的衍生节点同步盖 staleSince——父图更新
+ * 感知的 reference 侧收口(generated 侧在 setGeneratedImageResult 咽喉)。
+ */
+export function updateImageWorkflowNodeDerivedAware(
+  graph: ImageWorkflowGraph,
+  nodeId: string,
+  updates: Partial<ImageWorkflowNode>,
+  updatedAt = Date.now(),
+): ImageWorkflowGraph {
+  const updated = updateImageWorkflowNode(graph, nodeId, updates, updatedAt);
+  const nextImageUrl = (updates as Partial<ImageWorkflowReferenceNode>).imageUrl;
+  if (nextImageUrl === undefined) return updated;
+  const before = graph.nodes.find((node) => node.id === nodeId);
+  if (!before || before.type !== "reference" || before.imageUrl === nextImageUrl) return updated;
+  return markDerivedFromStale(updated, nodeId, updatedAt);
+}
+
 export function getGeneratedNode(graph: ImageWorkflowGraph, nodeId: string): ImageWorkflowGeneratedNode {
   const node = graph.nodes.find((item) => item.id === nodeId);
   if (!node || node.type !== "generated") {
