@@ -360,14 +360,16 @@ export interface ImageWorkflowUnclothNode extends ImageWorkflowNodeBase {
   segformerParts?: number[];
   /** fashn parser 部位(逗号分隔,工作流 dress,skirt,pants,belt,arms,legs) */
   fashnParts?: string;
-  /** SegformerUltraV3 加工参数(工作流 GuidedFilter 8/6/0.01/0.99/开/迭代2) */
-  guidedFilter?: {
-    enabled?: boolean;
-    radius?: number;
-    eps?: number;
-    blurRadius?: number;
-    degrade?: number;
-    iterations?: number;
+  /** SegformerUltraV3 蒙版细节加工(工作流 widgets 真名,源码对照 09-04 深化):
+   * detail_erode/detail_dilate 决定软化半径((e+d)//6+1);black/white_point
+   * 为蒙版对比线性拉伸剪裁点;process_detail 开关;max_megapixels 分割上限 */
+  maskDetail?: {
+    processDetail?: boolean;
+    detailErode?: number;
+    detailDilate?: number;
+    blackPoint?: number;
+    whitePoint?: number;
+    maxMegapixels?: number;
   };
   /** LoRA 三槽(顺序=NSFW V4/Mystic XXX v3/pussy;工作流=关1.0/开1.0/开0.3) */
   loras?: Array<{ enabled?: boolean; strength?: number }>;

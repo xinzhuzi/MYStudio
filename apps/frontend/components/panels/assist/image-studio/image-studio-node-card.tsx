@@ -242,10 +242,22 @@ function UnclothNodeEditor({
               />
             </div>
           ))}
-          <div className="text-[11px] font-medium text-foreground">GuidedFilter(分割蒙版加工)</div>
-          {numberField("radius", "guidedFilter", params.guidedFilter.radius, 1, 1, 32)}
-          {numberField("eps", "guidedFilter", params.guidedFilter.eps, 1, 1, 32)}
-          {numberField("迭代", "guidedFilter", params.guidedFilter.iterations, 1, 1, 8)}
+          <div className="text-[11px] font-medium text-foreground">蒙版细节加工(SegformerUltraV3,工作流真参数)</div>
+          {numberField("腐蚀 detail_erode", "maskDetail", params.maskDetail.detailErode, 1, 0, 64)}
+          {numberField("膨胀 detail_dilate", "maskDetail", params.maskDetail.detailDilate, 1, 0, 64)}
+          {numberField("黑点 black_point", "maskDetail", params.maskDetail.blackPoint, 0.01, 0, 0.5)}
+          {numberField("白点 white_point", "maskDetail", params.maskDetail.whitePoint, 0.01, 0.5, 1)}
+          {numberField("分割上限 MP", "maskDetail", params.maskDetail.maxMegapixels, 0.5, 0.5, 8)}
+          <label className="flex items-center gap-2 text-[10px] text-muted-foreground">
+            <input
+              type="checkbox"
+              checked={params.maskDetail.processDetail}
+              onChange={(event) =>
+                patch({ maskDetail: { ...params.maskDetail, processDetail: event.target.checked } })
+              }
+            />
+            启用细节加工(process_detail)
+          </label>
           <div className="text-[11px] font-medium text-foreground">Rebalance 12 权重(逗号分隔)</div>
           <input
             value={params.rebalanceWeights.join(",")}

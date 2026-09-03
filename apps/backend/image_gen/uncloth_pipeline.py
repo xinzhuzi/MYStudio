@@ -64,6 +64,28 @@ def run_uncloth_pipeline(
     parts_ids = params.get("segformerParts") or []
     fashn_parts = [p.strip() for p in (params.get("fashnParts") or "").split(",") if p.strip()]
 
+    detail = params.get("maskDetail") or {}
+
+    def detail_process(m_uint8):
+        """SegformerUltraV3 蒙版加工(源码对照 09-04 深化):对比线性拉伸
+        (black/white_point)→软化(detail_range//6+1 半径;源码为 GuidedFilter
+        保边,此处均值滤波工程近似)→提亮 1.08(源码 Brightness 1.08)。"""
+        from PIL import ImageEnhance, ImageFilter
+
+        mask_img = Image.fromarray((m_uint8 * 255).astype("uint8"), mode="L")
+        if detail.get("processDetail", True):
+            arr = np.asarray(mask_img, dtype="float32") / 255.0
+            bp = float(detail.get("blackPoint", 0.01))
+            wp = float(detail.get("whitePoint", 0.99))
+            arr = np.clip((arr - bp) / max(1e-6, wp - bp), 0, 1)
+            mask_img = Image.fromarray((arr * 255).astype("uint8"), mode="L")
+            erode = int(detail.get("detailErode", 8))
+            dilate = int(detail.get("detailDilate", 6))
+            radius = (erode + dilate) // 6 + 1
+            mask_img = mask_img.filter(ImageFilter.BoxBlur(radius=radius))
+        mask_img = ImageEnhance.Brightness(mask_img).enhance(1.08)
+        return (np.asarray(mask_img, dtype="float32") / 255.0 > 0.5).astype(np.uint8)
+
     if parts_ids:
         t0 = time.time()
         from transformers import AutoModelForSemanticSegmentation, AutoProcessor
@@ -76,7 +98,8 @@ def run_uncloth_pipeline(
             logits = model(**inputs).logits
         logits = torch.nn.functional.interpolate(logits.float(), size=(img.height, img.width), mode="bilinear")[0]
         seg = logits.argmax(0).cpu().numpy()
-        m = np.isin(seg, list(parts_ids)).astype(np.uint8)
+        raw = np.isin(seg, list(parts_ids)).astype(np.uint8)
+        m = detail_process(raw)
         masks.append(m)
         _log("segformer", parts=list(parts_ids), coverage=f"{float(m.mean()):.1%}", secs=f"{time.time()-t0:.1f}s")
         del model

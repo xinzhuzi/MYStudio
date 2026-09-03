@@ -28,7 +28,7 @@ export const UNCLOTH_DEFAULTS = {
   segformerParts: [4, 5, 6, 7, 8, 12, 13, 14, 15],
   /** fashn parser 部位 */
   fashnParts: "dress,skirt,pants,belt,arms,legs",
-  guidedFilter: { enabled: true, radius: 8, eps: 6, blurRadius: 0.01, degrade: 0.99, iterations: 2 },
+  maskDetail: { processDetail: true, detailErode: 8, detailDilate: 6, blackPoint: 0.01, whitePoint: 0.99, maxMegapixels: 2 },
   /** LoRA 三槽:V4(关)/Mystic(开1.0)/pussy(开0.3) */
   loras: [
     { enabled: false, strength: 1.0 },
@@ -68,7 +68,7 @@ export function resolveUnclothParams(node: Partial<ImageWorkflowUnclothNode>) {
     megapixels: node.megapixels ?? UNCLOTH_DEFAULTS.megapixels,
     segformerParts: [...(node.segformerParts ?? UNCLOTH_DEFAULTS.segformerParts)],
     fashnParts: node.fashnParts ?? UNCLOTH_DEFAULTS.fashnParts,
-    guidedFilter: { ...UNCLOTH_DEFAULTS.guidedFilter, ...(node.guidedFilter ?? {}) },
+    maskDetail: { ...UNCLOTH_DEFAULTS.maskDetail, ...(node.maskDetail ?? {}) },
     loras: (node.loras ?? UNCLOTH_DEFAULTS.loras).map((slot, index) => ({
       enabled: slot.enabled ?? UNCLOTH_DEFAULTS.loras[index].enabled,
       strength: slot.strength ?? UNCLOTH_DEFAULTS.loras[index].strength,
