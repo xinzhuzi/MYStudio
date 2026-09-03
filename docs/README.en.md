@@ -155,29 +155,30 @@ For commercial licensing, closed-source use, and enterprise support, see [COMMER
 
 ## Minimum System Requirements
 
-The project's AI features (TTS voice cloning, speech recognition, image/video generation, etc.) rely on local model inference and **require a dedicated GPU**. Integrated graphics cannot meet the compute requirements.
+Two usage tiers:
+
+- **Cloud AI mode**: image/video/LLM generation via cloud APIs, with local Remotion rendering. No local GPU required; any common desktop configuration works.
+- **Local AI mode**: zero-API-cost local model inference (local image generation, TTS, full-song generation, upscaling, VLM review). Requires a local GPU; memory needs vary by capability — defer to the readiness pills of each section in `Settings -> Local Configuration`.
 
 ### macOS (Apple Silicon)
 
-| Item | Minimum | Recommended |
-|------|---------|-------------|
-| Chip | **Apple Silicon M1** (built-in GPU) | M2 Pro / M3 or higher |
+| Item | Cloud AI (baseline) | Local AI recommended |
+|------|---------|---------|
+| Chip | **Apple Silicon M1** | M2 Pro / M3 / M4 or higher |
 | OS | macOS 13 Ventura | macOS 14 Sonoma+ |
-| Unified Memory | 16 GB | 32 GB+ |
-| Disk | 20 GB free | 50 GB+ SSD |
+| Unified Memory | 16 GB | 32 GB+; local full-song generation (Music3 bf16) requires **48 GB+** (hard gate 44 GB) — otherwise use the lightweight MusicGen |
+| Disk | 20 GB free | 50 GB+ SSD, plus local models on demand (music weights ~28.5 GB, ComfyUI image-generation weights in the tens of GB; all downloaded explicitly) |
 
-> ⚠️ **Intel-based Macs are not supported** (no MLX GPU acceleration).
+> ⚠️ **Intel-based Macs are not supported** (no MLX GPU acceleration). MLX-based capabilities such as local full-song generation and VLM review are Apple-Silicon-only.
 
 ### Windows
 
-| Item | Minimum | Recommended |
-|------|---------|-------------|
+| Item | Cloud AI (baseline) | Local AI |
+|------|---------|---------|
 | OS | Windows 10 64-bit | Windows 11 |
-| GPU | **NVIDIA dedicated GPU, 8 GB VRAM** (CUDA-capable) | NVIDIA RTX series, 16 GB+ VRAM |
+| GPU | None required | Local TTS requires an **NVIDIA dedicated GPU** (CUDA PyTorch, 8 GB VRAM minimum); MLX-based capabilities (local full-song generation, VLM review) are unavailable on Windows |
 | RAM | 16 GB | 32 GB+ |
 | Disk | 20 GB free | 50 GB+ SSD |
-
-> ⚠️ **An NVIDIA dedicated GPU is required.** Integrated graphics (Intel UHD / AMD iGPU) and non-CUDA GPUs cannot run local AI inference.
 
 ### Common
 
@@ -206,7 +207,7 @@ bash apps/build/packaging/setup.sh
 ```powershell
 git clone https://github.com/xinzhuzi/MYStudio.git
 cd MYStudio
-powershell -ExecutionPolicy Bypass -File apps\build\setup-win.ps1
+powershell -ExecutionPolicy Bypass -File apps\build\packaging\setup-win.ps1
 ```
 
 The script automatically:
