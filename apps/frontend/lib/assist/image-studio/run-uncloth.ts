@@ -24,6 +24,11 @@ export interface RunUnclothResult {
 export async function runUnclothChain(
   request: UnclothChainRequest,
 ): Promise<RunUnclothResult> {
+  // sidecar 自愈(普通生成链同款):缺席/僵尸时先拉起,裸 fetch 会连接拒绝
+  const { ensureLocalImageSidecarRunning } = await import("@/lib/ai/image-generation-engine");
+  if (!(await ensureLocalImageSidecarRunning())) {
+    throw new Error("本地生图运行时未就绪,请在 设置→本地配置 点「准备运行时」后重试");
+  }
   const response = await fetch(`${LOCAL_IMAGE_BASE_URL}/v1/images/uncloth`, {
     method: "POST",
     headers: {

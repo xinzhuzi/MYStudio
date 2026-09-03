@@ -143,7 +143,8 @@ let localSidecarEnsureInFlight: Promise<boolean> | null = null;
  * 17595 是盲发,缺席即「网络请求失败」。这里生成前先探测 health,不健康
  * 就走设置页同款 prepare(控制器内部自带僵尸端口回收+spawn+30s 健康轮询)。
  */
-async function ensureLocalImageSidecarRunning(operationId?: string): Promise<boolean> {
+/** 供 uncloth 等直连 sidecar 的链路复用(09-04:裸 fetch 连接拒绝根修) */
+export async function ensureLocalImageSidecarRunning(operationId?: string): Promise<boolean> {
   try {
     const probe = await fetch(`${LOCAL_IMAGE_BASE_URL}/health`, { signal: AbortSignal.timeout(2000) });
     if (probe.ok) return true;
