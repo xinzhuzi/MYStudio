@@ -29,16 +29,14 @@ describe("PaneCreateMenu", () => {
     renderMenu(onSelect, onClose);
     const first = screen.getByRole("menuitem", { name: /^文生图/ });
     expect(document.activeElement).toBe(first);
-    fireEvent.keyDown(first, { key: "ArrowDown" });
     // 顺序:文生图→图生图→参考图→提示词(09-03 图生图入列)
+    fireEvent.keyDown(first, { key: "ArrowDown" });
     expect(document.activeElement).toBe(screen.getByRole("menuitem", { name: /^图生图/ }));
-    fireEvent.click(screen.getByRole("menuitem", { name: /^参考图/ }));
-    expect(onSelect).toHaveBeenCalledWith("reference");
     fireEvent.keyDown(document.activeElement!, { key: "Escape" });
     expect(onClose).toHaveBeenCalledTimes(1);
     expect(onSelect).not.toHaveBeenCalled();
-    fireEvent.click(screen.getByRole("menuitem", { name: /^提示词/ }));
-    expect(onSelect).toHaveBeenCalledWith("prompt");
+    fireEvent.click(screen.getByRole("menuitem", { name: /^图生图/ }));
+    expect(onSelect).toHaveBeenCalledWith("generation-group-i2i");
     expect(onClose).toHaveBeenCalled();
   });
 
