@@ -497,11 +497,13 @@
      09-02 用户裁定恢复美化光标(推翻 08-19 apple-hig child2 移除裁定);勿再移除。
      09-03 提权 !important:通配符特异性为 0,压不过 Tailwind cursor-pointer(utilities 层)
      与 React Flow 自带 .react-flow__pane{cursor:grab} 等类选择器,导致节点图/按钮仍显示系统光标;
-     author !important 胜过任何同源非 important 声明,与 layer 顺序无关。 */
+     author !important 胜过任何同源非 important 声明,与 layer 顺序无关。
+     09-03 像素层根修:utf8 明文 data URI 的 SVG 光标被光标渲染管线静默拒绝(计算样式正确
+     但屏幕一直回退系统箭头),必须用 base64 编码——同引擎 Electron 窗口+系统截图双向实证。 */
   *,
   *::before,
   *::after {
-    cursor: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M2 2L10 18L12.3 12.7L17.6 10.4L2 2Z" fill="%23ffffff" stroke="%23111111" stroke-width="1.5"/><circle cx="12.3" cy="12.7" r="2" fill="%230091ff"/>') 2 2, auto !important;
+    cursor: url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIj48cGF0aCBkPSJNMiAyTDEwIDE4TDEyLjMgMTIuN0wxNy42IDEwLjRMMiAyWiIgZmlsbD0iI2ZmZmZmZiIgc3Ryb2tlPSIjMTExMTExIiBzdHJva2Utd2lkdGg9IjEuNSIvPjxjaXJjbGUgY3g9IjEyLjMiIGN5PSIxMi43IiByPSIyIiBmaWxsPSIjMDA5MWZmIi8+PC9zdmc+') 2 2, auto !important;
   }
   body {
     @apply bg-background text-foreground;
@@ -546,12 +548,12 @@
     background-attachment: fixed;
   }
   /* 深色模式下同样把自定义光标应用到所有元素（覆盖浅色规则;主题化琥珀点变体;09-02 随用户裁定恢复）
-     09-03 同步提权 !important(理由见上方浅色段注释)。 */
+     09-03 同步提权 !important + base64 编码(理由见上方浅色段注释)。 */
   :root.dark,
   :root.dark *,
   .dark,
   .dark * {
-    cursor: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M2 2L10 18L12.3 12.7L17.6 10.4L2 2Z" fill="%230b0f14" stroke="%23ffffff" stroke-width="1.5"/><circle cx="12.3" cy="12.7" r="2" fill="%23d97706"/>') 2 2, auto !important;
+    cursor: url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIj48cGF0aCBkPSJNMiAyTDEwIDE4TDEyLjMgMTIuN0wxNy42IDEwLjRMMiAyWiIgZmlsbD0iIzBiMGYxNCIgc3Ryb2tlPSIjZmZmZmZmIiBzdHJva2Utd2lkdGg9IjEuNSIvPjxjaXJjbGUgY3g9IjEyLjMiIGN5PSIxMi43IiByPSIyIiBmaWxsPSIjZDk3NzA2Ii8+PC9zdmc+') 2 2, auto !important;
   }
   /* 操作定位类光标白名单:方向 resize/十字精确定位/移动承载真实操作信息,保留系统样式;
      其余提示性光标(手型/grab/I-beam/放大镜等)一律统一为美化箭头(09-03 用户裁定全程统一)。
