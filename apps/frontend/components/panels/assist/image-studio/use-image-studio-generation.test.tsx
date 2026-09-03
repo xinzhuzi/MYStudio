@@ -223,6 +223,23 @@ describe("useImageStudioGeneration 中止语义(实弹根修回归)", () => {
     expect(toastSuccessMock).toHaveBeenCalled();
   });
 
+  it("空参考图阻断(09-03 t2i/i2i 无歧义裁定):图生图组参考为空不发起生成并指路", async () => {
+    // 图生图直建组=空参考图位;不填图直接点生成必须拦(静默降级为文生图=参数混淆)
+    const group = useImageStudioStore.getState().addGenerationGroup({
+      prompt: "山门",
+      referenceImageUrl: "",
+    });
+    runGenerationMock.mockReset();
+
+    const { result } = renderHook(() => useImageStudioGeneration());
+    await act(async () => {
+      await result.current.generateNode(group.generatedNodeId);
+    });
+
+    expect(runGenerationMock).not.toHaveBeenCalled();
+    expect(toastErrorMock).toHaveBeenCalledWith(expect.stringContaining("参考图还没准备好"));
+  });
+
   it("超分请求路径归一化:project-file 成图→相对路径直传(09-02 治理适配回归)", async () => {
     runUpscaleImageMock.mockResolvedValue({ status: "accepted" });
     const group = useImageStudioStore.getState().addGenerationGroup({ prompt: "山门" });
