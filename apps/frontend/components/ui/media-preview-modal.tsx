@@ -93,7 +93,16 @@ export function ImagePreviewModal({
           "close",
         ],
       }}
-      styles={{ container: { backgroundColor: "rgba(0, 0, 0, .82)" } }}
+      styles={{
+        container: {
+          backgroundColor: "rgba(0, 0, 0, .82)",
+          // Radix 模态锁穿透(09-03):从 Radix Dialog(如生成记录弹窗)内
+          // 打开预览时,Radix 给 body 置 pointer-events:none 且只恢复自身
+          // 内容树;Lightbox portal 在 body 下、不在该树内——不显式恢复
+          // 则放大/缩小/关闭全部点不动(可见但僵死)。
+          pointerEvents: "auto",
+        },
+      }}
     />,
     document.body,
   );
