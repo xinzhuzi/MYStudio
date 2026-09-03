@@ -196,6 +196,19 @@ export function LocalImageSettingsSection({
         </div>
       ) : null}
 
+      {/* Krea2 无衣物分割模型(09-04):双分割并集管线的两个小模型;显式下载
+          纪律——手动放置/后续版本自动下载,状态=目录存在性 */}
+      <div className="rounded-lg border border-border bg-card/60 p-3">
+        <p className="text-xs font-medium text-foreground">Krea2 无衣物分割模型(「无衣物」节点双分割)</p>
+        <div className="mt-2 space-y-1.5 text-xs text-muted-foreground">
+          <p>segformer_b3_clothes(180MB)——衣物部位分割;fashn-human-parser(256MB)——补充手臂/腿</p>
+          <p>
+            位置:模型缓存目录下同名文件夹;下载来源与组装见
+            <span className="font-mono"> docs/krea2.md</span>(设置→关于→文档 或仓库 docs/)
+          </p>
+        </div>
+      </div>
+
       {/* Model rows —— ComfyUI 桥是服务连接而非本地模型,状态展示移至「MCP 服务」tab */}
       {(status?.models ?? []).filter((model) => model.modelName !== "comfyui-bridge").map((model) => {
         const downloading =
