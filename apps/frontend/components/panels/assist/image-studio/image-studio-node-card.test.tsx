@@ -146,6 +146,25 @@ describe("ImageStudioNodeCard 参考图卡", () => {
     };
   }
 
+  it("编号标题:referenceIndex 显示「参考图 N」,缺省回落「参考图」(09-03 编号单源)", () => {
+    const { unmount } = renderCard({
+      node: referenceNode("local-image://upload/a.png"),
+      selected: false,
+      referenceCount: 0,
+      referenceIndex: 2,
+      ...callbacks,
+    });
+    expect(screen.getByText("参考图 2")).toBeTruthy();
+    unmount();
+    renderCard({
+      node: referenceNode("local-image://upload/a.png"),
+      selected: false,
+      referenceCount: 0,
+      ...callbacks,
+    });
+    expect(screen.getByText("参考图")).toBeTruthy();
+  });
+
   it("有图:展示预览+更换按钮", () => {
     renderCard({
       node: referenceNode("local-image://upload/a.png"),
