@@ -12,7 +12,7 @@ import {
   type ImageGenerationFailedPayload,
 } from "@/lib/events/image-generation-events";
 import { runUpscaleImage } from "@/lib/upscale/client";
-import { parseUpscaleMediaRef, siblingOutputRef } from "@/lib/upscale/project-file-url";
+import { mediaRefRequestPath, parseUpscaleMediaRef, siblingOutputRef } from "@/lib/upscale/project-file-url";
 import { saveToMediaLibrary } from "@/lib/ai/generation-media";
 import { useFreedomStore } from "@/stores/assist/freedom-store";
 import {
@@ -169,14 +169,22 @@ export function useImageStudioGeneration() {
       toast.error("无法确定超分输出路径");
       return;
     }
+    const outputRef = parseUpscaleMediaRef(outputUrl);
+    if (!outputRef) {
+      toast.error("无法确定超分输出路径");
+      return;
+    }
     toast.info("超分 4K 开始,请稍候…");
     try {
       const artifact = await runUpscaleImage({
         schemaVersion: 1,
         projectId: ref.kind === "project-file" ? ref.projectId : "local-media",
         model: "realesrgan-x4plus-anime-6b",
-        inputImagePath: node.resultUrl,
-        outputImagePath: outputUrl,
+        // 请求路径必须归一化(project-file→项目内相对路径;与分镜链
+        // use-image-workflow-upscale 同款)。09-02 落盘治理改 project-file://
+        // 后 URL 直传会被超分契约校验拒收(invalid-request 实弹)
+        inputImagePath: mediaRefRequestPath(ref),
+        outputImagePath: mediaRefRequestPath(outputRef),
       });
       if (artifact.status !== "accepted") {
         toast.error(`超分失败: ${artifact.message || artifact.code}`);

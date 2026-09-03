@@ -14,6 +14,7 @@ const toastSuccessMock = vi.hoisted(() => vi.fn());
 const toastWarningMock = vi.hoisted(() => vi.fn());
 const eventBusEmitMock = vi.hoisted(() => vi.fn());
 const runGenerationMock = vi.hoisted(() => vi.fn());
+const runUpscaleImageMock = vi.hoisted(() => vi.fn());
 
 vi.mock("@/lib/ai/ai-manager", () => ({ aiManager: { generateImage: generateImageMock } }));
 vi.mock("@/lib/ai/generation-media", () => ({ saveToMediaLibrary: saveToMediaLibraryMock }));
@@ -34,6 +35,9 @@ vi.mock("@/lib/events/event-bus", () => ({
 }));
 vi.mock("@/lib/assist/image-studio/run-node-generation", () => ({
   runImageStudioNodeGeneration: runGenerationMock,
+}));
+vi.mock("@/lib/upscale/client", () => ({
+  runUpscaleImage: runUpscaleImageMock,
 }));
 
 import { useImageStudioGeneration } from "./use-image-studio-generation";
@@ -217,5 +221,25 @@ describe("useImageStudioGeneration 中止语义(实弹根修回归)", () => {
       model: "gpt-image-2",
     });
     expect(toastSuccessMock).toHaveBeenCalled();
+  });
+
+  it("超分请求路径归一化:project-file 成图→相对路径直传(09-02 治理适配回归)", async () => {
+    runUpscaleImageMock.mockResolvedValue({ status: "accepted" });
+    const group = useImageStudioStore.getState().addGenerationGroup({ prompt: "山门" });
+    useImageStudioStore.getState().setNodeResult(group.generatedNodeId, {
+      imageUrl: "project-file://proj-1/media/ai-image/2026-09/main.png",
+    });
+
+    const { result } = renderHook(() => useImageStudioGeneration());
+    await act(async () => {
+      await result.current.upscaleNode(group.generatedNodeId);
+    });
+
+    expect(runUpscaleImageMock).toHaveBeenCalledTimes(1);
+    const request = runUpscaleImageMock.mock.calls[0][0];
+    // URL 直传会被超分契约校验拒收(invalid-request 实弹)——必须归一化
+    expect(request.inputImagePath).toBe("media/ai-image/2026-09/main.png");
+    expect(request.outputImagePath).toMatch(/^media\/ai-image\/2026-09\/up4x-\d+\.png$/);
+    expect(request.projectId).toBe("proj-1");
   });
 });
