@@ -15,7 +15,7 @@
  * 左上角像素角标经 render.toolbar 注入,与默认工具栏并存。
  */
 
-import { useCallback, useEffect } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { X } from "lucide-react";
 import Lightbox from "yet-another-react-lightbox";
@@ -40,6 +40,12 @@ export function ImagePreviewModal({
   isOpen,
   onClose,
 }: ImagePreviewModalProps) {
+  // 受控翻页索引:初始=props;弹窗重开或图组变化时重置(避免上次翻页残留)
+  const [indexState, setIndexState] = useState(initialIndex ?? 0);
+  useEffect(() => {
+    setIndexState(initialIndex ?? 0);
+  }, [isOpen, initialIndex]);
+
   const handleKeyDown = useCallback((event: KeyboardEvent) => {
     if (event.key === "Escape") onClose();
   }, [onClose]);
@@ -59,7 +65,6 @@ export function ImagePreviewModal({
 
   const previewSlides = (imageUrls && imageUrls.length > 0 ? imageUrls : [imageUrl])
     .map((src) => ({ src, alt: "Preview" }));
-  const startIndex = Math.min(Math.max(initialIndex ?? 0, 0), previewSlides.length - 1);
 
   return createPortal(
     <Lightbox
@@ -67,7 +72,13 @@ export function ImagePreviewModal({
       close={onClose}
       controller={{ closeOnBackdropClick: true }}
       slides={previewSlides}
-      index={startIndex}
+      index={indexState}
+      on={{
+        // yarl 的 index 是受控 prop:不接 view 回写,内部索引每次渲染都被
+        // 拉回初始值——翻页箭头全体 disabled、Zoom 状态损坏(09-03 实弹
+        // 复现:五钮仅关闭幸存;09-02 接入时漏的受控回路,第五坑)。
+        view: ({ index: nextIndex }) => setIndexState(nextIndex),
+      }}
       plugins={[Zoom]}
       zoom={{
         // 滚轮/触控板滚动缩放默认关闭,显式开启(桌面看图核心诉求)

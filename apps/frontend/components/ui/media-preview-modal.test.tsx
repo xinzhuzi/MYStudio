@@ -49,6 +49,25 @@ describe("media preview modals", () => {
     expect(onClose).not.toHaveBeenCalled();
   });
 
+  it("受控翻页回路(09-03 根修):点下一张后索引回写,上一张按钮解除禁用", () => {
+    render(
+      <ImagePreviewModal
+        imageUrl="https://example.test/1.png"
+        imageUrls={["https://example.test/1.png", "https://example.test/2.png", "https://example.test/3.png"]}
+        initialIndex={0}
+        isOpen
+        onClose={vi.fn()}
+      />,
+    );
+    // 初始第一张:上一张禁用、下一张可用
+    expect((screen.getByLabelText("上一张") as HTMLButtonElement).disabled).toBe(true);
+    expect((screen.getByLabelText("下一张") as HTMLButtonElement).disabled).toBe(false);
+    // 翻到中间张:上一张/下一张都必须可用(受控 index 缺回路时会全体禁用)
+    fireEvent.click(screen.getByLabelText("下一张"));
+    expect((screen.getByLabelText("上一张") as HTMLButtonElement).disabled).toBe(false);
+    expect((screen.getByLabelText("下一张") as HTMLButtonElement).disabled).toBe(false);
+  });
+
   it("Radix 模态锁穿透:从 Radix Dialog 内打开时容器显式恢复 pointer-events(09-03)", () => {
     // 复现 Radix modal 行为:body 被置 pointer-events:none(只恢复自身内容树),
     // Lightbox portal 在 body 下不在该树内——容器必须显式 auto,否则
