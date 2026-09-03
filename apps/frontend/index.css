@@ -3308,3 +3308,15 @@ html.film-vignette-disabled :root.dark #root::before,
 html.film-vignette-disabled .dark #root::before {
   display: none !important;
 }
+
+/* ── 大图预览(yarl)按钮热区扩大(09-03 用户裁定:X/缩放/箭头点击命中率) ──
+ * 伪元素负向外扩 14px:视觉尺寸不变,点击命中区显著变大;命中伪元素
+ * 仍归属按钮本身,不拦 lightbox 其他手势(背景点击关闭等)。 */
+.yarl__button {
+  position: relative;
+}
+.yarl__button::after {
+  content: "";
+  position: absolute;
+  inset: -14px;
+}

@@ -38,8 +38,11 @@ interface ImagePreviewModalProps {
 // zoom 状态被清(放大点了没效果,jsdom+装机实弹双双复现;09-03 根修)。
 const LIGHTBOX_PLUGINS = [Zoom];
 const CONTROLLER_CONFIG = { closeOnBackdropClick: true };
-// 滚轮/触控板滚动缩放默认关闭,显式开启(桌面看图核心诉求)
-const ZOOM_CONFIG = { scrollToZoom: true };
+// 缩放配置:滚轮/触控板滚动缩放默认关闭,显式开启(桌面看图核心诉求)。
+// maxZoomPixelRatio 默认 1=最大只放大到原始像素 1:1——大图在不满容器的
+// 场景视觉变化极小(09-03 用户裁定「需要再放大」),放开到 4 倍原始像素
+// 看细节;步幅 2.5 一步到位看大。
+const ZOOM_CONFIG = { scrollToZoom: true, maxZoomPixelRatio: 4, zoomInMultiplier: 2.5 };
 const CAROUSEL_CONFIG = { finite: true };
 const LABELS = {
   Close: "关闭预览",
