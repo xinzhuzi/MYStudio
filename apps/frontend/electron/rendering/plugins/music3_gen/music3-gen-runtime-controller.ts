@@ -111,7 +111,10 @@ export function createMusic3GenRuntimeController(deps: ControllerDeps) {
 
   async function installMlxServWeights(): Promise<{ accepted: boolean; message: string }> {
     // 转换步骤依赖 mlx(Apple Silicon),整条流程只对该平台开放。
-    if (process.platform !== "darwin" || process.arch !== "arm64") {
+    // 平台探测可注入(单测在 Linux CI 上需模拟 darwin/arm64),默认取宿主真实值。
+    const hostPlatform = deps.platform ?? process.platform;
+    const hostArch = deps.arch ?? process.arch;
+    if (hostPlatform !== "darwin" || hostArch !== "arm64") {
       return { accepted: false, message: "权重获取仅支持 Apple Silicon(转换需 MLX)" };
     }
     // 内存门禁:bf16 推理常驻≈34.9GB,不够不让下,避免「下完 28.5GB 到生成才爆」
