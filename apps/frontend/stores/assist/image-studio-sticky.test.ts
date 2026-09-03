@@ -57,3 +57,58 @@ describe("image-studio 便利贴/分组框(09-03 wave3)", () => {
     expect(graph.edges.some((edge) => edge.source === stickyId)).toBe(false);
   });
 });
+
+describe("分组成员交互(09-03 wave3 收尾)", () => {
+  it("移动组带动成员(同位移);普通节点移动不动别人", () => {
+    useImageStudioStore.setState(initial, true);
+    useImageStudioStore.getState().ensureDefaultWorkflow();
+    const store = useImageStudioStore.getState();
+    const groupId = store.addGroup({ label: "S1 组" });
+    const group = store.addGenerationGroup({ prompt: "成员A" });
+    const member = store.addPromptNode();
+    useImageStudioStore.getState().setGroupMembership(groupId, member, true);
+    const before = selectActiveImageStudioWorkflow(useImageStudioStore.getState())!;
+    const memberBefore = before.nodes.find((n) => n.id === member)!.position;
+    const groupBefore = before.nodes.find((n) => n.id === groupId)!.position;
+    // 移动组:+120/+40
+    useImageStudioStore.getState().moveNode(groupId, { x: groupBefore.x + 120, y: groupBefore.y + 40 });
+    const after = selectActiveImageStudioWorkflow(useImageStudioStore.getState())!;
+    const memberAfter = after.nodes.find((n) => n.id === member)!.position;
+    expect(memberAfter).toEqual({ x: memberBefore.x + 120, y: memberBefore.y + 40 });
+    // 移动普通节点:不影响其他
+    const otherBefore = after.nodes.find((n) => n.id === group.promptNodeId)!.position;
+    useImageStudioStore.getState().moveNode(group.promptNodeId, { x: 999, y: 999 });
+    const final = selectActiveImageStudioWorkflow(useImageStudioStore.getState())!;
+    expect(final.nodes.find((n) => n.id === member)!.position).toEqual(memberAfter);
+    expect(final.nodes.find((n) => n.id === group.promptNodeId)!.position).toEqual({ x: 999, y: 999 });
+    expect(otherBefore).toBeTruthy();
+  });
+
+  it("setGroupMembership 幂等:重复加入/移除不变;移除后成员干净", () => {
+    useImageStudioStore.setState(initial, true);
+    useImageStudioStore.getState().ensureDefaultWorkflow();
+    const store = useImageStudioStore.getState();
+    const groupId = store.addGroup();
+    const nodeA = store.addPromptNode();
+    useImageStudioStore.getState().setGroupMembership(groupId, nodeA, true);
+    useImageStudioStore.getState().setGroupMembership(groupId, nodeA, true); // 幂等
+    let graph = selectActiveImageStudioWorkflow(useImageStudioStore.getState())!;
+    expect(graph.nodes.find((n) => n.id === groupId)).toMatchObject({ memberIds: [nodeA] });
+    useImageStudioStore.getState().setGroupMembership(groupId, nodeA, false);
+    useImageStudioStore.getState().setGroupMembership(groupId, nodeA, false); // 幂等
+    graph = selectActiveImageStudioWorkflow(useImageStudioStore.getState())!;
+    expect(graph.nodes.find((n) => n.id === groupId)).toMatchObject({ memberIds: [] });
+  });
+
+  it("删除组成员节点:memberIds 不悬挂(级联清理)", () => {
+    useImageStudioStore.setState(initial, true);
+    useImageStudioStore.getState().ensureDefaultWorkflow();
+    const store = useImageStudioStore.getState();
+    const groupId = store.addGroup();
+    const nodeA = store.addPromptNode();
+    useImageStudioStore.getState().setGroupMembership(groupId, nodeA, true);
+    useImageStudioStore.getState().removeNode(nodeA);
+    const graph = selectActiveImageStudioWorkflow(useImageStudioStore.getState())!;
+    expect(graph.nodes.find((n) => n.id === groupId)).toMatchObject({ memberIds: [] });
+  });
+});

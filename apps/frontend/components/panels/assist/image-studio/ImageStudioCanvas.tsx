@@ -359,6 +359,38 @@ export function ImageStudioCanvas() {
     [],
   );
 
+  // 分组吸附(09-03 wave3):节点拖放落点几何命中分组框→入组;曾是成员且
+  // 落点在所有组外→移出。命中用 DOM rect(hidden 元素 rect 依然有效,同右键
+  // 菜单几何改道先例),分组框自身不参与(组套组不支持)
+  const handleNodeDropMembership = useCallback(
+    (nodeId: string) => {
+      const graph = selectActiveImageStudioWorkflow(useImageStudioStore.getState());
+      if (!graph) return;
+      const node = graph.nodes.find((item) => item.id === nodeId);
+      if (!node || node.type === "group") return;
+      const groups = graph.nodes.filter((item) => item.type === "group");
+      if (groups.length === 0) return;
+      const rectOf = (id: string) =>
+        document.querySelector<HTMLElement>(`.react-flow__node[data-id="${id}"]`)?.getBoundingClientRect();
+      const nodeRect = rectOf(nodeId);
+      if (!nodeRect) return;
+      const cx = nodeRect.left + nodeRect.width / 2;
+      const cy = nodeRect.top + nodeRect.height / 2;
+      const hit =
+        groups.find((group) => {
+          const q = rectOf(group.id);
+          if (!q) return false;
+          return cx >= q.left && cx <= q.right && cy >= q.top && cy <= q.bottom;
+        }) ?? null;
+      const current = groups.find((group) => group.memberIds.includes(nodeId)) ?? null;
+      if (hit?.id === current?.id) return; // 幂等:成员关系未变
+      const store = useImageStudioStore.getState();
+      if (current) store.setGroupMembership(current.id, nodeId, false);
+      if (hit) store.setGroupMembership(hit.id, nodeId, true);
+    },
+    [],
+  );
+
   // 双击空白建节点(09-03 wave3 吸收):双击=高频快捷入口,复用创建菜单
   const handlePaneDoubleClick = useCallback(
     (event: React.MouseEvent | MouseEvent) => {
@@ -708,7 +740,10 @@ export function ImageStudioCanvas() {
           onConnect={handleConnect}
           onNodesDelete={(ids) => ids.forEach((id) => removeNode(id))}
           onEdgesDelete={(ids) => ids.forEach((id) => removeEdge(id))}
-          onNodeDragStop={(nodeId, position) => moveNode(nodeId, position)}
+          onNodeDragStop={(nodeId, position) => {
+            moveNode(nodeId, position);
+            handleNodeDropMembership(nodeId);
+          }}
           onViewportSettled={handleViewportSettled}
         />
         <input

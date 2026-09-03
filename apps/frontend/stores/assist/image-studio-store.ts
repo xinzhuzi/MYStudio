@@ -28,6 +28,7 @@ import { logEvent } from "@/lib/diagnostics/logger";
 import type { ImageWorkflowEdge,
   ImageWorkflowGeneratedNode,
   ImageWorkflowGraph,
+  ImageWorkflowGroupNode,
   ImageWorkflowNode,
   ImageWorkflowNodePosition,
   ImageWorkflowViewport,
@@ -66,6 +67,8 @@ export interface ImageStudioStoreActions {
   updateActiveWorkflow: (mutate: (graph: ImageWorkflowGraph) => ImageWorkflowGraph) => void;
   updateNode: (nodeId: string, updates: Partial<ImageWorkflowNode>) => void;
   moveNode: (nodeId: string, position: ImageWorkflowNodePosition) => void;
+  /** 分组成员登记(09-03 wave3):拖入吸附/拖出移除;幂等 */
+  setGroupMembership: (groupId: string, nodeId: string, isMember: boolean) => void;
   removeNode: (nodeId: string) => void;
   /** 右键复制:同类型新节点携同类字段(prompt/图),落原位右下偏移 */
   duplicateNode: (nodeId: string) => string | null;
@@ -286,11 +289,42 @@ export const useImageStudioStore = create<ImageStudioStore>()(
       },
 
       moveNode: (nodeId, position) => {
+        get().updateActiveWorkflow((graph) => {
+          const moved = graph.nodes.find((node): node is ImageWorkflowGroupNode => node.id === nodeId && node.type === "group");
+          // 分组框(09-03 wave3):移动组带动成员(同位移;单次 updateActiveWorkflow=
+          // 单份撤销快照)
+          const memberDelta = moved
+            ? { dx: position.x - moved.position.x, dy: position.y - moved.position.y }
+            : null;
+          const members = moved ? new Set(moved.memberIds) : null;
+          const delta = memberDelta!;
+          return {
+            ...graph,
+            nodes: graph.nodes.map((node) => {
+              if (node.id === nodeId) return { ...node, position } as ImageWorkflowNode;
+              if (members?.has(node.id)) {
+                return {
+                  ...node,
+                  position: { x: node.position.x + delta.dx, y: node.position.y + delta.dy },
+                } as ImageWorkflowNode;
+              }
+              return node;
+            }),
+            updatedAt: Date.now(),
+          };
+        });
+      },
+
+      setGroupMembership: (groupId, nodeId, isMember) => {
         get().updateActiveWorkflow((graph) => ({
           ...graph,
-          nodes: graph.nodes.map((node) =>
-            node.id === nodeId ? ({ ...node, position } as ImageWorkflowNode) : node,
-          ),
+          nodes: graph.nodes.map((node) => {
+            if (node.id !== groupId || node.type !== "group") return node;
+            const set = new Set(node.memberIds);
+            if (isMember) set.add(nodeId);
+            else set.delete(nodeId);
+            return { ...node, memberIds: [...set], updatedAt: Date.now() };
+          }),
           updatedAt: Date.now(),
         }));
       },
@@ -418,6 +452,16 @@ export const useImageStudioStore = create<ImageStudioStore>()(
       },
 
       removeNode: (nodeId) => {
+        get().updateActiveWorkflow((graph) => ({
+          ...graph,
+          nodes: graph.nodes.map((node) =>
+            node.type === "group" && node.memberIds.includes(nodeId)
+              ? { ...node, memberIds: node.memberIds.filter((id) => id !== nodeId), updatedAt: Date.now() }
+              : node,
+          ),
+          updatedAt: Date.now(),
+        }));
+
         set((state) => {
           const nodeExtras = { ...state.nodeExtras };
           delete nodeExtras[nodeId];
