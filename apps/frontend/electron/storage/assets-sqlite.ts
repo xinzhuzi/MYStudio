@@ -13,6 +13,38 @@ const execFileAsync = promisify(execFile);
 const SQLITE_BUSY_TIMEOUT_MS = 5000;
 const SQLITE_LOCK_RETRY_DELAYS_MS = [80, 160, 320, 640, 1000];
 
+export interface SqliteCliResolutionOptions {
+  platform?: NodeJS.Platform;
+  /** 打包应用的 resources 目录;未打包/node 环境下为 undefined */
+  resourcesPath?: string;
+  fileExists?: (filePath: string) => boolean;
+}
+
+/**
+ * 解析资产库 SQLite CLI 可执行文件。
+ * Windows 没有系统 sqlite3 命令(CI 的 ubuntu runner 与 macOS 自带,掩盖了该缺口),
+ * 因此 Windows 安装包内捆绑 sqlite3.exe(extraResources:<resources>/sqlite3/),
+ * 运行时优先使用;其余平台/开发模式回退 PATH 上的 sqlite3。
+ * 参数可注入以便单测。
+ */
+export function resolveSqliteCli(options: SqliteCliResolutionOptions = {}): string {
+  const platform = options.platform ?? process.platform;
+  const resourcesPath = options.resourcesPath ?? process.resourcesPath;
+  const fileExists = options.fileExists ?? fs.existsSync;
+  if (platform === "win32" && typeof resourcesPath === "string" && resourcesPath.length > 0) {
+    const bundled = path.join(resourcesPath, "sqlite3", "sqlite3.exe");
+    if (fileExists(bundled)) {
+      return bundled;
+    }
+  }
+  return "sqlite3";
+}
+
+/** 每次解析(含一次 existsSync,开销可忽略),避免模块级缓存与测试相互干扰。 */
+function sqliteCliExecutable(): string {
+  return resolveSqliteCli();
+}
+
 export interface StoredAssetImage {
   name: string;
   filePath: string;
@@ -224,7 +256,7 @@ export function runSqliteSyncProcess(args: string[], options: { input?: string; 
   let lastError: unknown;
   for (let attempt = 0; attempt <= SQLITE_LOCK_RETRY_DELAYS_MS.length; attempt++) {
     try {
-      return execFileSync("sqlite3", args, options);
+      return execFileSync(sqliteCliExecutable(), args, options);
     } catch (error) {
       lastError = error;
       if (!isSqliteLockedError(error) || attempt === SQLITE_LOCK_RETRY_DELAYS_MS.length) break;
@@ -238,7 +270,7 @@ async function runSqliteJsonProcess(dbPath: string, query: string) {
   let lastError: unknown;
   for (let attempt = 0; attempt <= SQLITE_LOCK_RETRY_DELAYS_MS.length; attempt++) {
     try {
-      return await execFileAsync("sqlite3", ["-cmd", `.timeout ${SQLITE_BUSY_TIMEOUT_MS}`, "-json", dbPath, query], {
+      return await execFileAsync(sqliteCliExecutable(), ["-cmd", `.timeout ${SQLITE_BUSY_TIMEOUT_MS}`, "-json", dbPath, query], {
         maxBuffer: 20 * 1024 * 1024,
       });
     } catch (error) {

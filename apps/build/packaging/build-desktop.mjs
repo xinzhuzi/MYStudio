@@ -4,6 +4,7 @@ import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { verifyFixedRemotionBundle } from '../remotion/bundle-preflight.mjs';
 import { verifyRemotionVersions } from '../remotion/verify-versions.mjs';
+import { prepareBundledSqlite3 } from './fetch-sqlite3.mjs';
 
 const scriptDir = dirname(fileURLToPath(import.meta.url));
 const projectRoot = resolve(scriptDir, '../..');
@@ -232,6 +233,22 @@ if (!versionResult.success) {
   process.exit(1);
 }
 verifyFixedRemotionBundle({ appRoot: projectRoot });
+
+if (buildTarget === 'win') {
+  // 资产库依赖 SQLite CLI;Windows 无系统 sqlite3,须捆绑 sqlite3.exe,
+  // 否则装机后资产库初始化抛 ENOENT(旧版 Windows 安装包缺口)。
+  try {
+    const sqliteResult = await prepareBundledSqlite3();
+    if (!sqliteResult.executable || !existsSync(sqliteResult.executable)) {
+      throw new Error('缺少捆绑 sqlite3.exe');
+    }
+    console.log(`[build-desktop] 捆绑 sqlite3 就绪: ${sqliteResult.executable}`);
+  } catch (error) {
+    console.error(`[build-desktop] ${error instanceof Error ? error.message : String(error)}`);
+    console.error('缺少 sqlite3.exe 拒绝打包(否则 Windows 资产库不可用)。');
+    process.exit(1);
+  }
+}
 run('npx', ['electron-vite', 'build', '--config', resolve(projectRoot, 'frontend', 'config', 'electron-vite.config.ts')]);
 
 for (const arch of buildArchs) {

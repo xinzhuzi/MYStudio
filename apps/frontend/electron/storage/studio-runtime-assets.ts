@@ -9,6 +9,7 @@ import type {
   StudioAssetListResponse,
   StudioAssetSummary,
 } from "../../types/studio-assets";
+import { resolveSqliteCli } from "./assets-sqlite";
 
 const execFileAsync = promisify(execFile);
 
@@ -297,7 +298,8 @@ function normalizeNumber(value: number | string | null | undefined) {
 }
 
 async function runSqliteJson<T>(dbPath: string, query: string): Promise<T> {
-  const { stdout } = await execFileAsync("sqlite3", ["-json", dbPath, query], {
+  // Windows 安装包无系统 sqlite3 CLI:使用打包的 <resources>/sqlite3/sqlite3.exe。
+  const { stdout } = await execFileAsync(resolveSqliteCli(), ["-json", dbPath, query], {
     maxBuffer: 20 * 1024 * 1024,
   });
   const trimmed = stdout.trim();
