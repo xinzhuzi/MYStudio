@@ -221,6 +221,19 @@ export function LocalImageSettingsSection({
               )}>
                 {model.downloaded ? "已就绪" : "未下载"}
               </span>
+              {!model.downloaded ? (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="h-7 shrink-0 text-[11px]"
+                  onClick={() => {
+                    void runtime.startDownload(model.modelName);
+                  }}
+                >
+                  <Download className="mr-1 h-3 w-3" />
+                  下载
+                </Button>
+              ) : null}
             </div>
           ))}
           {(status?.models ?? []).some((model) => model.layout === "segmentation" && !model.downloaded) ? (

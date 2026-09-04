@@ -51,7 +51,91 @@ def _hf_download(repo_id: str, allow_patterns: list[str], cache_dir: str):
     snapshot_download(repo_id=repo_id, allow_patterns=allow_patterns, cache_dir=cache_dir)
 
 
+SEGMENTATION_MODELS = {
+    "segformer_b3_clothes": {
+        "repo_id": "segformer_b3_clothes",
+        "hf_repo": None,  # LayerMask 生态模型,无公开 HF repo——从本机 ComfyUI 复制
+        "size_mb": 180,
+    },
+    "fashn-human-parser": {
+        "repo_id": "fashn-ai/fashn-human-parser",
+        "hf_repo": "fashn-ai/fashn-human-parser",
+        "size_mb": 256,
+    },
+}
+
+
+def _download_segmentation(model_name: str, progress_path: Path) -> int:
+    """分割模型下载(09-04 PRD 二期):fashn 从 HF snapshot 下载;
+    segformer 无公开源,尝试从本机 ComfyUI 目录复制。"""
+    import os
+    import shutil as _shutil
+    from huggingface_hub import snapshot_download
+
+    info = SEGMENTATION_MODELS.get(model_name)
+    if not info:
+        _write_progress(progress_path, {
+            "modelName": model_name, "status": "error", "current": 0, "total": 0,
+            "progress": 0, "error": f"未知分割模型: {model_name}", "updatedAt": int(time.time()*1000),
+        })
+        return 2
+
+    target_dir = comfyui_models_dir() / model_name
+    target_dir.mkdir(parents=True, exist_ok=True)
+
+    if info["hf_repo"]:
+        # HF 公开源(fashn)
+        _write_progress(progress_path, {
+            "modelName": model_name, "status": "downloading", "current": 0,
+            "total": info["size_mb"], "progress": 0, "updatedAt": int(time.time()*1000),
+        })
+        try:
+            local = snapshot_download(
+                repo_id=info["hf_repo"],
+                cache_dir=download_hf_cache_dir(),
+            )
+            # 复制到模型目录
+            for f in Path(local).iterdir():
+                if f.is_file() and f.suffix in ('.safetensors', '.json', '.txt'):
+                    _shutil.copy2(f, target_dir / f.name)
+            _write_progress(progress_path, {
+                "modelName": model_name, "status": "done", "current": info["size_mb"],
+                "total": info["size_mb"], "progress": 100, "updatedAt": int(time.time()*1000),
+            })
+            return 0
+        except Exception as exc:
+            _write_progress(progress_path, {
+                "modelName": model_name, "status": "error", "current": 0,
+                "total": info["size_mb"], "progress": 0,
+                "error": f"下载失败: {exc}", "updatedAt": int(time.time()*1000),
+            })
+            return 1
+    else:
+        # segformer:从本机 ComfyUI 复制
+        comfyui_src = Path.home() / "Project/ComfyUI/models" / model_name
+        if comfyui_src.exists():
+            for f in comfyui_src.iterdir():
+                if f.is_file():
+                    _shutil.copy2(f, target_dir / f.name)
+            _write_progress(progress_path, {
+                "modelName": model_name, "status": "done", "current": info["size_mb"],
+                "total": info["size_mb"], "progress": 100, "updatedAt": int(time.time()*1000),
+            })
+            return 0
+        _write_progress(progress_path, {
+            "modelName": model_name, "status": "error", "current": 0,
+            "total": info["size_mb"], "progress": 0,
+            "error": "无公开下载源,请从 ComfyUI models 目录手动复制",
+            "updatedAt": int(time.time()*1000),
+        })
+        return 1
+
+
 def download_model(model_name: str, progress_path: Path) -> int:
+    # 分割模型分派(不走引擎 map)
+    if model_name in SEGMENTATION_MODELS:
+        return _download_segmentation(model_name, progress_path)
+
     model_name = resolve_image_model_name(model_name)
     spec = IMAGE_MODELS.get(model_name)
     if not spec:

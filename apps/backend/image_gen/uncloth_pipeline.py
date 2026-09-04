@@ -83,6 +83,45 @@ def run_uncloth_pipeline(
     parts_ids = params.get("segformerParts") or []
     fashn_parts = [p.strip() for p in (params.get("fashnParts") or "").split(",") if p.strip()]
 
+    def _guided_filter(guide, src, radius, eps=1e-6):
+        """He et al. fast guided filter(保边平滑):与 LayerStyle 的
+        guided_filter_alpha 同算法族——蒙版边缘柔化但保留衣物/发丝边界。"""
+        import numpy as _np2
+
+        def box_filter(img, r):
+            # 积分图实现 O(1) 均值滤波
+            cum = _np2.cumsum(_np2.cumsum(img, axis=0), axis=1)
+            cum = _np2.pad(cum, ((1, 0), (1, 0)))
+            h, w = img.shape[:2]
+            y2, x2 = _np2.minimum(_np2.arange(h) + r + 1, h), _np2.minimum(_np2.arange(w) + r + 1, w)
+            y1, x1 = _np2.maximum(_np2.arange(r, 0, -1) - r - 1 + _np2.arange(r, 0, -1) * 0, 0), _np2.maximum(_np2.arange(w) - r - 1, 0)
+            # 简洁实现:用 cv2 风格的 boxFilter 语义
+            from PIL import ImageFilter as _IF
+            if img.ndim == 2:
+                return _np2.asarray(
+                    Image.fromarray((img * 255).astype("uint8"), "L").filter(_IF.BoxBlur(radius)),
+                    dtype="float32",
+                ) / 255.0
+            return img
+
+        # 转灰度 guide(蒙版已是灰度)
+        I = guide if guide.ndim == 2 else guide.mean(axis=-1)
+        P = src if src.ndim == 2 else src.mean(axis=-1)
+
+        mean_I = box_filter(I, radius)
+        mean_P = box_filter(P, radius)
+        mean_IP = box_filter(I * P, radius)
+        cov_IP = mean_IP - mean_I * mean_P
+        mean_II = box_filter(I * I, radius)
+        var_I = mean_II - mean_I * mean_I
+
+        a = cov_IP / (var_I + eps)
+        b = mean_P - a * mean_I
+        mean_a = box_filter(a, radius)
+        mean_b = box_filter(b, radius)
+
+        return mean_a * I + mean_b
+
     detail = params.get("maskDetail") or {}
 
     def detail_process(m_uint8):
@@ -101,7 +140,10 @@ def run_uncloth_pipeline(
             erode = int(detail.get("detailErode", 8))
             dilate = int(detail.get("detailDilate", 6))
             radius = (erode + dilate) // 6 + 1
-            mask_img = mask_img.filter(ImageFilter.BoxBlur(radius=radius))
+            # GuidedFilter 保边(替换均值近似,09-04 PRD 二期收口):
+            # 以自身为引导图,eps 控制保边强度(小=保边强)
+            arr_gf = _guided_filter(arr, arr, radius, eps=1e-4)
+            mask_img = Image.fromarray((arr_gf * 255).astype("uint8"), mode="L")
         mask_img = ImageEnhance.Brightness(mask_img).enhance(1.08)
         return (np.asarray(mask_img, dtype="float32") / 255.0 > 0.5).astype(np.uint8)
 
