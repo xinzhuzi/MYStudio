@@ -12,6 +12,7 @@ import {
   Pencil,
   Plus,
   Trash2,
+  Shirt as ShirtIcon,
   Type,
   Upload,
 } from "lucide-react";
@@ -113,7 +114,7 @@ export function ImageStudioToolbar({
             图生图
           </DropdownMenuItem>
           <DropdownMenuItem onSelect={onAddUncloth} data-image-studio-add-uncloth>
-            <ImageIcon className="mr-2 h-3.5 w-3.5" />
+            <ShirtIcon className="mr-2 h-3.5 w-3.5" />
             无衣物
           </DropdownMenuItem>
           <DropdownMenuItem onSelect={onAddReference} data-image-studio-add-reference>

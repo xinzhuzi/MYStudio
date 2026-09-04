@@ -21,6 +21,7 @@ import {
   Square,
   Type,
   Upload,
+  Shirt,
   WandSparkles,
   ZoomIn,
 } from "lucide-react";
@@ -144,7 +145,7 @@ function UnclothNodeEditor({
   return (
     <div className="space-y-2">
       <div className="nodrag nopan text-[10px] text-muted-foreground">
-        输入:连一张图(参考图/成图)+一条提示词;输出连成图节点,点成图的「生成」执行本链。
+        复合处理节点:图与文本提示词由连线的两个节点提供;输出连成图,点成图「生成」执行整链。
       </div>
       {node.resultUrl ? (
         <div className="aspect-video overflow-hidden rounded-md border border-border bg-muted/30">
@@ -191,16 +192,6 @@ function UnclothNodeEditor({
             className="h-7 flex-1 rounded-md border border-border bg-card/80 px-1.5 text-[10px] text-foreground outline-none"
           />
         </label>
-      </div>
-
-      <div className="nodrag nopan space-y-1.5 rounded-md border border-border bg-background/80 p-2">
-        <div className="text-[11px] font-medium text-foreground">重绘提示词(驱动两遍)</div>
-        <Textarea
-          value={node.prompt ?? ""}
-          onChange={(event) => patch({ prompt: event.target.value })}
-          placeholder="衣物区域重绘为洁净无瑕疵的裸露肌肤…保持原有体型与姿态;肤色、光影与色温与原图完全一致…(留空=用连线提示词节点的文本)"
-          className="min-h-[60px] [field-sizing:content] border-border bg-card/80 text-xs leading-5 text-foreground"
-        />
       </div>
 
       <button
@@ -353,6 +344,8 @@ export const ImageStudioNodeCard = memo(function ImageStudioNodeCard({
               <ImageIcon className="h-4 w-4" />
             ) : node.type === "prompt" ? (
               <Type className="h-4 w-4" />
+            ) : node.type === "uncloth" ? (
+              <Shirt className="h-4 w-4" />
             ) : (
               <WandSparkles className="h-4 w-4" />
             )}

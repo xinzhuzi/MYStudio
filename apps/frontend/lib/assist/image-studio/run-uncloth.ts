@@ -4,6 +4,7 @@
 import { toast } from "sonner";
 import { saveToMediaLibrary } from "@/lib/ai/generation-media";
 import { getProjectFilesBridge } from "@/lib/bridge/project-files";
+import { readImageAsBase64 } from "@/lib/media/image-storage";
 import { useProjectStore } from "@/stores/project/project-store";
 import type { UnclothChainRequest } from "./uncloth-request";
 
@@ -29,6 +30,12 @@ export async function runUnclothChain(
   if (!(await ensureLocalImageSidecarRunning())) {
     throw new Error("本地生图运行时未就绪,请在 设置→本地配置 点「准备运行时」后重试");
   }
+  // 输入图归一化为 data URL(sidecar 只收 base64;端到端实弹第四撞:
+  // local-image:// 地址被当 base64 解码→Invalid base64)
+  const inputImage = await toDataUrl(request.inputImageUrl);
+  if (!inputImage) {
+    throw new Error(`输入图无法读取(${request.inputImageUrl.slice(0, 40)}…):仅支持画布内受管图片`);
+  }
   const response = await fetch(`${LOCAL_IMAGE_BASE_URL}/v1/images/uncloth`, {
     method: "POST",
     headers: {
@@ -37,7 +44,7 @@ export async function runUnclothChain(
     },
     body: JSON.stringify({
       prompt: request.prompt,
-      input_image: request.inputImageUrl,
+      input_image: inputImage,
       params: request.params,
     }),
   });
@@ -72,6 +79,26 @@ export async function runUnclothChain(
 
   toast.success("无衣物处理完成");
   return { imageUrl, mediaId };
+}
+
+/** 受管图地址 → data URL(local-image:// 经媒体库读取;project-file:// 经
+ * 项目桥;data: 原样;远程 http 拒绝——本链只吃画布内图) */
+async function toDataUrl(url: string): Promise<string | null> {
+  if (url.startsWith("data:")) return url;
+  if (url.startsWith("local-image://")) return readImageAsBase64(url);
+  if (url.startsWith("project-file://")) {
+    const bridge = getProjectFilesBridge();
+    if (!bridge?.readAsBase64) return null;
+    try {
+      const result = await bridge.readAsBase64(url);
+      const payload = result as { success?: boolean; base64?: string } | null;
+      if (payload?.success && payload.base64) return payload.base64;
+      return null;
+    } catch {
+      return null;
+    }
+  }
+  return null;
 }
 
 function throwRuntimeError(message: string): never {

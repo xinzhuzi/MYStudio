@@ -3,7 +3,7 @@
 // Commercial licensing available. See COMMERCIAL_LICENSE.md.
 
 import { useEffect, useRef } from "react";
-import { ImagePlus, Images, LayoutGrid, Maximize, Type, WandSparkles , StickyNote, Boxes} from "lucide-react";
+import { ImagePlus, Images, LayoutGrid, Maximize, Shirt, Type, WandSparkles , StickyNote, Boxes} from "lucide-react";
 import { CONTEXT_MENU_ARRIVAL_CLASS, useContextMenuClamp } from "./context-menu-craft";
 
 /**
@@ -21,7 +21,7 @@ const ITEM_CLASS =
 const CREATE_ITEMS: { kind: PaneCreateKind; label: string; icon: React.ReactNode }[] = [
   { kind: "generation-group", label: "文生图", icon: <WandSparkles className="text-muted-foreground" /> },
   { kind: "generation-group-i2i", label: "图生图", icon: <Images className="text-muted-foreground" /> },
-  { kind: "uncloth", label: "无衣物", icon: <Images className="text-muted-foreground" /> },
+  { kind: "uncloth", label: "无衣物", icon: <Shirt className="text-muted-foreground" /> },
   { kind: "reference", label: "参考图", icon: <ImagePlus className="text-muted-foreground" /> },
   { kind: "prompt", label: "提示词", icon: <Type className="text-muted-foreground" /> },
   { kind: "sticky", label: "便利贴", icon: <StickyNote className="text-muted-foreground" /> },
