@@ -80,7 +80,12 @@ export function LocalImageSettingsSection({
             <ImageIcon className="h-4 w-4 text-muted-foreground" aria-hidden />
           )}
           <span
-            className={cn("font-medium", setupFailed && "text-destructive")}
+            className={cn(
+              "font-medium",
+              serverRunning
+                ? "text-success"
+                : setupFailed && "text-destructive",
+            )}
           >
             {serverRunning
               ? "本地生图服务运行中 (127.0.0.1:17595)"
