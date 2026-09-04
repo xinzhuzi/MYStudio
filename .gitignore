@@ -135,3 +135,6 @@ apps/output/*
 .vite/
 # tsc 增量编译缓存(内嵌本机绝对路径,禁止入库)
 *.tsbuildinfo
+# Windows 安装包捆绑的 sqlite3 CLI(构建期由 fetch-sqlite3.mjs 提供,二进制不入库;
+# 来源/版本/校验见 apps/frontend/assets/sqlite3/README.md)
+apps/frontend/assets/sqlite3/bin/

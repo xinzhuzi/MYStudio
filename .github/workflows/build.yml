@@ -285,6 +285,18 @@ jobs:
           ffmpeg -version
           ffprobe -version
 
+      - name: Provision bundled sqlite3.exe for packaging
+        shell: pwsh
+        run: |
+          choco install sqlite -y --no-progress
+          $sqlite = Get-ChildItem "$env:ProgramData\chocolatey\lib\sqlite" -Recurse -Filter sqlite3.exe |
+            Select-Object -First 1
+          if (-not $sqlite) { throw "sqlite3.exe not found after choco install sqlite" }
+          $destDir = "apps/frontend/assets/sqlite3/bin/win-x64"
+          New-Item -ItemType Directory -Force -Path $destDir | Out-Null
+          Copy-Item $sqlite.FullName -Destination (Join-Path $destDir "sqlite3.exe") -Force
+          & (Join-Path $destDir "sqlite3.exe") --version
+
       - name: Sync package version in CI workspace
         working-directory: apps
         env:
@@ -305,6 +317,19 @@ jobs:
       - name: Build Windows package
         working-directory: apps
         run: npm run build:win
+
+      - name: Verify Windows compositor unpacked
+        shell: pwsh
+        run: |
+          $unpacked = Get-ChildItem -Path "apps/release/build/win-x64" -Directory |
+            ForEach-Object { Join-Path $_.FullName "resources/app.asar.unpacked/node_modules/@remotion/compositor-win32-x64-msvc" } |
+            Where-Object { Test-Path $_ } | Select-Object -First 1
+          if (-not $unpacked) { throw "compositor-win32-x64-msvc unpacked dir not found under apps/release/build/win-x64" }
+          foreach ($name in @('remotion.exe', 'ffmpeg.exe', 'ffprobe.exe')) {
+            $bin = Join-Path $unpacked $name
+            if (-not (Test-Path $bin)) { throw "missing $name in $unpacked" }
+          }
+          Write-Host "Windows compositor unpacked OK: $unpacked"
 
       - name: Collect Windows release assets
         shell: pwsh

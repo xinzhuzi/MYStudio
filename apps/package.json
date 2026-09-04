@@ -96,6 +96,7 @@
     "uuid": "^10.0.0",
     "vaul": "^1.1.2",
     "vercel-minimax-ai-provider": "^0.0.2",
+    "ws": "8.21.0",
     "yet-another-react-lightbox": "^3.32.2",
     "zhipu-ai-provider": "^0.2.2",
     "zod": "^4.3.5",
@@ -103,7 +104,8 @@
   },
   "main": "out/main/index.cjs",
   "optionalDependencies": {
-    "@remotion/compositor-darwin-arm64": "4.0.499"
+    "@remotion/compositor-darwin-arm64": "4.0.499",
+    "@remotion/compositor-win32-x64-msvc": "4.0.499"
   },
   "packageManager": "pnpm@10.26.2+sha512.0e308ff2005fc7410366f154f625f6631ab2b16b1d2e70238444dd6ae9d630a8482d92a451144debc492416896ed16f7b114a86ec68b8404b2443869e68ffda6",
   "devDependencies": {

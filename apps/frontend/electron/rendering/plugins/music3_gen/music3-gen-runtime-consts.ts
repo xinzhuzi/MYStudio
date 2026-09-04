@@ -156,6 +156,10 @@ export interface ControllerDeps {
   healthTimeoutMs?: number;
   /** 覆盖宿主内存探测(单测);默认 os.totalmem() */
   totalMemBytes?: () => number;
+  /** 覆盖宿主平台探测(单测);默认 process.platform */
+  platform?: NodeJS.Platform;
+  /** 覆盖宿主架构探测(单测);默认 process.arch */
+  arch?: string;
 }
 
 type ExecFileLike = (

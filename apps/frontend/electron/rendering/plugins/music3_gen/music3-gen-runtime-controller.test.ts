@@ -397,6 +397,12 @@ describe("mlxserv bf16 权重获取(installMlxServWeights)", () => {
       backendRoot,
       execFileFn: async () => ({ stdout: probePayload() }),
       spawnProcess: capture.spawnProcess,
+      // 该流程仅对 Apple Silicon 开放;CI(runner 为 linux/x86_64)上必须注入
+      // darwin/arm64 才能覆盖内存门禁、busy/陈旧进度与正常发起等宿主无关逻辑。
+      // 内存默认按本机 128GB 模拟,避免测试机内存漂移导致的误判。
+      platform: "darwin",
+      arch: "arm64",
+      totalMemBytes: () => 128 * 1024 ** 3,
       ...overrides,
     });
     return { controller, capture };

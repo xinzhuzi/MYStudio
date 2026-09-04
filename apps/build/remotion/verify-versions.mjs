@@ -18,6 +18,7 @@ export const REQUIRED_REMOTION_PACKAGES = {
 
 const PLATFORM_OPTIONAL_PACKAGES = {
   "@remotion/compositor-darwin-arm64": { platform: "darwin", arch: "arm64" },
+  "@remotion/compositor-win32-x64-msvc": { platform: "win32", arch: "x64" },
 };
 
 const DEPENDENCY_SECTIONS = [

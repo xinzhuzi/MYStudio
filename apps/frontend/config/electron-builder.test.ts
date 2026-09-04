@@ -21,6 +21,20 @@ describe("electron-builder TTS packaging", () => {
     expect(source).not.toContain("Headless Shell");
   });
 
+  it("bundles sqlite3 CLI for the Windows asset library", () => {
+    const source = readFileSync(new URL("./electron-builder.yml", import.meta.url), "utf8");
+    // Windows 无系统 sqlite3 CLI,资产库必须使用打包的 Resources/sqlite3/sqlite3.exe;
+    // 二进制由 build/packaging/fetch-sqlite3.mjs 在打包前提供。
+    expect(source).toContain("from: frontend/assets/sqlite3");
+    expect(source).toContain("to: sqlite3");
+    const resourceStart = source.indexOf("  - from: frontend/assets/sqlite3");
+    expect(resourceStart).toBeGreaterThan(-1);
+    const resourceBlock = source.slice(resourceStart, source.indexOf("\nasar:", resourceStart));
+    expect(resourceBlock).toContain('"**/*"');
+    // 只排除说明文档,二进制(s3 兼容的 exe)必须随包分发。
+    expect(resourceBlock).toContain('"!**/*.md"');
+  });
+
   it("keeps backend source in extraResources without bundling Python runtime", () => {
     const source = readFileSync(new URL("./electron-builder.yml", import.meta.url), "utf8");
 
