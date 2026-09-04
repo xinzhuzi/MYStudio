@@ -866,13 +866,69 @@ async function inspectPage(pageTarget) {
     });
   };
 
+  /**
+   * 冷启动就绪探测(不走 send:send 失败会连坐取消全部 pending 请求,
+   * 探测期 loading 文档的偶发不响应不该影响主链路)。裸 promise+独立超时,
+   * 任何失败都只是「未就绪」,下轮再试。
+   */
+  const documentReadyProbe = () =>
+    new Promise((resolveProbe) => {
+      const id = ++messageId;
+      let settled = false;
+      const done = (value) => {
+        if (settled) return;
+        settled = true;
+        resolveProbe(value);
+      };
+      pending.set(id, {
+        resolve: (result) => done(Boolean(result?.result?.value)),
+        reject: () => done(false),
+      });
+      socket.send(
+        JSON.stringify({
+          id,
+          method: "Runtime.evaluate",
+          params: {
+            expression:
+              "(() => document.readyState === 'complete' && (document.getElementById('root')?.children.length ?? 0) > 0)()",
+            returnByValue: true,
+          },
+        }),
+      );
+      setTimeout(() => {
+        pending.delete(id);
+        done(false);
+      }, 2_500);
+    });
+
   try {
     await send("Runtime.enable");
     await send("Log.enable");
     await send("Network.enable");
     await send("Page.enable");
     if (foregroundSmoke) await send("Page.bringToFront");
-    await new Promise((resolveDelay) => setTimeout(resolveDelay, 4_000));
+    // 冷启动等待:就绪轮询而非固定 sleep——空 userData 首启文档加载可能超过
+    // 4s(09-04 实测 ~4.9s,loading 期间 document.body===null)。固定 sleep 会把
+    // evaluate 绑到未提交的 loading 文档,文档提交时旧上下文销毁→Promise was
+    // collected + body null 崩链。轮询 readyState+root 挂载,上限 30s 兜底。
+    await new Promise((resolveReady) => {
+      const deadline = Date.now() + 30_000;
+      const probe = documentReadyProbe();
+      const tick = async () => {
+        let ready = false;
+        try {
+          ready = Boolean(await probe());
+        } catch {
+          ready = false;
+        }
+        if (ready || Date.now() > deadline) {
+          resolveReady();
+          return;
+        }
+        setTimeout(tick, 500);
+      };
+      void tick();
+    });
 
     const evaluate = async (
       expression,
