@@ -214,14 +214,8 @@ def run_uncloth_pipeline(
             return mask_img.filter(ImageFilter.MinFilter(2 * (-px) + 1))
         return mask_img
 
-    from PIL import ImageOps
-
-    def grow_ex(mask_img, px, invert):
-        out = grow(mask_img, px)
-        return ImageOps.invert(out) if invert else out
-
-    mask_undress = grow_ex(union_img, int(params.get("growUndress", -16)), bool(params.get("growUndressInvert", True)))
-    mask_color = grow_ex(union_img, int(params.get("growColor", 16)), bool(params.get("growColorInvert", True)))
+    mask_undress = grow(union_img, int(params.get("growUndress", -16)))
+    mask_color = grow(union_img, int(params.get("growColor", 16)))
     steps = int(params.get("steps", 8))
 
     # 2. 两遍 masked SDEdit
