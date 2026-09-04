@@ -196,21 +196,38 @@ export function LocalImageSettingsSection({
         </div>
       ) : null}
 
-      {/* Krea2 无衣物分割模型(09-04):双分割并集管线的两个小模型;显式下载
-          纪律——手动放置/后续版本自动下载,状态=目录存在性 */}
-      <div className="rounded-lg border border-border bg-card/60 p-3">
-        <p className="text-xs font-medium text-foreground">Krea2 无衣物分割模型(「无衣物」节点双分割)</p>
-        <div className="mt-2 space-y-1.5 text-xs text-muted-foreground">
-          <p>segformer_b3_clothes(180MB)——衣物部位分割;fashn-human-parser(256MB)——补充手臂/腿</p>
-          <p>
-            位置:模型缓存目录下同名文件夹;下载来源与组装见
-            <span className="font-mono"> docs/krea2.md</span>(设置→关于→文档 或仓库 docs/)
-          </p>
+      {/* 分割模型组(09-04 无衣物节点):目录存在性探测,无下载按钮(小模型手动放置) */}
+      {(status?.models ?? []).filter((model) => model.layout === "segmentation").length > 0 ? (
+        <div className="space-y-1.5">
+          <p className="text-xs font-medium text-foreground">无衣物分割模型(「无衣物」节点双分割)</p>
+          {(status?.models ?? []).filter((model) => model.layout === "segmentation").map((model) => (
+            <div key={model.modelName} className="flex items-center gap-3 rounded-lg border border-border bg-card/60 px-3 py-2">
+              <span className={cn(
+                "h-2 w-2 shrink-0 rounded-full",
+                model.downloaded ? "bg-success" : "bg-muted-foreground/40",
+              )} />
+              <div className="min-w-0 flex-1">
+                <p className="text-xs font-medium text-foreground">{model.modelName}</p>
+                <p className="text-[11px] text-muted-foreground">{model.description}</p>
+              </div>
+              <span className={cn(
+                "shrink-0 rounded-full px-2 py-0.5 text-[11px]",
+                model.downloaded ? "bg-success/10 text-success" : "bg-muted text-muted-foreground",
+              )}>
+                {model.downloaded ? "已就绪" : "未下载"}
+              </span>
+            </div>
+          ))}
+          {(status?.models ?? []).some((model) => model.layout === "segmentation" && !model.downloaded) ? (
+            <p className="text-[11px] text-muted-foreground">
+              下载方式:从 ComfyUI models 目录复制同名文件夹到模型缓存目录,或从 HuggingFace 下载(fashn-ai/fashn-human-parser)。详见 docs/krea2.md
+            </p>
+          ) : null}
         </div>
-      </div>
+      ) : null}
 
       {/* Model rows —— ComfyUI 桥是服务连接而非本地模型,状态展示移至「MCP 服务」tab */}
-      {(status?.models ?? []).filter((model) => model.modelName !== "comfyui-bridge").map((model) => {
+      {(status?.models ?? []).filter((model) => model.modelName !== "comfyui-bridge" && model.layout !== "segmentation").map((model) => {
         const downloading =
           status?.downloadStatus?.[model.modelName] === "downloading";
         const failed = status?.downloadStatus?.[model.modelName] === "error";

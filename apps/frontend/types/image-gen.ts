@@ -21,6 +21,9 @@ export interface ImageGenModelRow {
   smallPiecesReady?: boolean | null;
   /** 大件实际绝对路径列表(主模型/文本编码器,两源通用),设置页展示用;缺大件为空表 */
   pointedFiles?: string[] | null;
+  /** 分割模型(09-04 无衣物):layout=segmentation 标识独立分组;description 供设置页说明 */
+  layout?: string;
+  description?: string;
 }
 
 export interface ImageGenRuntimeStatus {

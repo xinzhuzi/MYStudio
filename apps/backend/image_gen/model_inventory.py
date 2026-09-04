@@ -1,3 +1,4 @@
+from pathlib import Path
 """Model inventory — thin dispatcher(08-31 重构:每引擎独立模块)。"""
 from __future__ import annotations
 
@@ -69,6 +70,31 @@ def build_model_status() -> list[dict]:
             ),
             **({"comfyuiVersion": resolved.get("comfyui_version")} if bridge_service and resolved else {}),
         })
+    # 分割模型(09-04 无衣物节点):目录存在性探测(不做大件/小件区分)
+    import os
+    from .model_cache import MYSTUDIO_IMAGE_MODEL_DIR, comfyui_models_dir
+
+    for seg_name, seg_desc in [
+        ("segformer_b3_clothes", "衣物部位分割(无衣物节点分割①)"),
+        ("fashn-human-parser", "人体解析(无衣物节点分割②)"),
+    ]:
+        found = False
+        for root in [Path(os.environ.get("MYSTUDIO_IMAGE_MODEL_DIR", "")) if os.environ.get("MYSTUDIO_IMAGE_MODEL_DIR") else None,
+                     comfyui_models_dir(), comfyui_models_dir().parent]:
+            if root is None:
+                continue
+            if (root / seg_name / "config.json").exists():
+                found = True
+                break
+        rows.append({
+            "modelName": seg_name,
+            "downloaded": found,
+            "layout": "segmentation",
+            "pointed": False,
+            "smallPiecesReady": found,
+            "description": seg_desc,
+        })
+
     return rows
 
 
