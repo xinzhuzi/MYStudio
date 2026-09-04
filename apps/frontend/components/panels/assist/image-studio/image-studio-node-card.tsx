@@ -173,14 +173,8 @@ function UnclothNodeEditor({
   return (
     <div className="space-y-2">
       <div className="nodrag nopan text-[10px] text-muted-foreground">
-        复合处理节点:图与文本提示词由连线的两个节点提供;输出连成图,点成图「生成」执行整链。参数分组折叠,点组名展开。
+        复合处理节点:图与文本由连线节点提供,结果只落在成图节点(本卡仅参数)。点组名展开/收起。
       </div>
-      {node.resultUrl ? (
-        <div className="aspect-video overflow-hidden rounded-md border border-border bg-muted/30">
-          <LocalImage src={toPreviewSrc(node.resultUrl)} alt="无衣物处理结果" className="h-full w-full object-cover" eager />
-        </div>
-      ) : null}
-
       <UnclothParamGroup title="两遍采样(常调)" defaultOpen>
         {numberField("脱衣遍 denoise", params.denoiseUndress, (v) => patch({ denoiseUndress: v }), 0.05, 0, 1)}
         {numberField("脱衣遍 seed", params.seedUndress, (v) => patch({ seedUndress: v }), 1, 0, 999999999)}
