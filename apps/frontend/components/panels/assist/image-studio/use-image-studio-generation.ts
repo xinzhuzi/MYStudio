@@ -36,31 +36,10 @@ export function useImageStudioGeneration() {
     const store = useImageStudioStore.getState();
     const graph = selectActiveImageStudioWorkflow(store);
     if (!graph) return;
-    // 请求在生成前捕获=当时真实输入(画布生成期间可被编辑,回填记录须用开工快照)
-    let request: ReturnType<typeof buildImageStudioGenerationRequest> | null = null;
-    try {
-      // 预检:空提示词不进入 generating 态(失败态会误导用户以为参数有误)
-      request = buildImageStudioGenerationRequest(graph, nodeId);
-    } catch {
-      return;
-    }
-    const prompt = request.prompt;
-    if (!prompt) {
-      toast.error("请先填写生成提示词");
-      return;
-    }
-    // 模式无歧义预检(09-03 用户裁定):挂着空参考图/未生成的上游图时,
-    // 静默过滤会让"图生图组"实际走纯文生图通道——阻断并指路,绝不混淆
-    const mode = classifyImageStudioGeneration(graph, nodeId);
-    if (mode.emptyReferences > 0) {
-      toast.error(
-        `有 ${mode.emptyReferences} 张参考图还没准备好(空参考图或未生成的上游图):先上传/生成,或断开连线后再${
-          mode.readyReferences > 0 ? "按图生图生成" : "按纯文生图生成"
-        }`,
-      );
-      return;
-    }
-    // 无衣物链分流(09-04):上游有 uncloth 节点时,成图的「生成」执行的是
+
+    // 无衣物链分流(09-04,端到端实弹根修:必须先于空提示词预检——链的文本
+    // 来自 uncloth 上游 prompt 边,成图直连提示词缺失不是错误):上游有
+    // uncloth 节点时,成图的「生成」执行 uncloth 管线,结果直通本成图
     // uncloth 管线(双分割+两遍),结果直通本成图——不走普通 t2i/i2i 通道
     const unclothRequest = buildUnclothChainRequest(graph, nodeId);
     if (!("error" in unclothRequest)) {
@@ -92,6 +71,30 @@ export function useImageStudioGeneration() {
       return;
     }
 
+    // 请求在生成前捕获=当时真实输入(画布生成期间可被编辑,回填记录须用开工快照)
+    let request: ReturnType<typeof buildImageStudioGenerationRequest> | null = null;
+    try {
+      // 预检:空提示词不进入 generating 态(失败态会误导用户以为参数有误)
+      request = buildImageStudioGenerationRequest(graph, nodeId);
+    } catch {
+      return;
+    }
+    const prompt = request.prompt;
+    if (!prompt) {
+      toast.error("请先填写生成提示词");
+      return;
+    }
+    // 模式无歧义预检(09-03 用户裁定):挂着空参考图/未生成的上游图时,
+    // 静默过滤会让"图生图组"实际走纯文生图通道——阻断并指路,绝不混淆
+    const mode = classifyImageStudioGeneration(graph, nodeId);
+    if (mode.emptyReferences > 0) {
+      toast.error(
+        `有 ${mode.emptyReferences} 张参考图还没准备好(空参考图或未生成的上游图):先上传/生成,或断开连线后再${
+          mode.readyReferences > 0 ? "按图生图生成" : "按纯文生图生成"
+        }`,
+      );
+      return;
+    }
     const controller = new AbortController();
     abortRef.current.set(nodeId, controller);
     store.setNodeStatus(nodeId, "generating");
