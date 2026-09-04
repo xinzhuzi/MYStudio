@@ -146,6 +146,31 @@ describe("ImageStudioNodeCard 参考图卡", () => {
     };
   }
 
+  it("无衣物节点参数分组折叠(09-04 用户裁定):常调组默认展开,其余收起,点击展开", () => {
+    renderCard({
+      node: {
+        id: "unc-1",
+        type: "uncloth",
+        title: "无衣物",
+        prompt: "",
+        position: { x: 0, y: 0 },
+        createdAt: 1,
+        updatedAt: 1,
+      } as never,
+      selected: false,
+      referenceCount: 0,
+      ...callbacks,
+    });
+    // 常调组默认展开:denoise 字段可见
+    expect(screen.getByText("脱衣遍 denoise")).toBeTruthy();
+    // 其余组默认收起:内容不可见,组头可见
+    expect(screen.queryByText("fashn 部位(逗号分隔)")).toBeNull();
+    expect(screen.getByText(/分割部位/)).toBeTruthy();
+    // 点击分割部位组头 → 展开
+    fireEvent.click(screen.getByText(/分割部位/));
+    expect(screen.getByText("fashn 部位(逗号分隔)")).toBeTruthy();
+  });
+
   it("参考图状态=生成按钮角标(09-03 用户裁定):文案恒「生成」,徽章浮角标不占布局", () => {
     renderCard({
       // 容量由组件按 model 推导(krea2-turbo=1),不走 props

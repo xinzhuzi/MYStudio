@@ -21,6 +21,7 @@ import {
   Square,
   Type,
   Upload,
+  ChevronDown,
   Shirt,
   WandSparkles,
   ZoomIn,
@@ -113,6 +114,34 @@ function areNodeCardPropsEqual(
   );
 }
 
+function UnclothParamGroup({
+  title,
+  defaultOpen = false,
+  children,
+}: {
+  title: string;
+  defaultOpen?: boolean;
+  children: React.ReactNode;
+}) {
+  const [open, setOpen] = useState(defaultOpen);
+  return (
+    <div className="nodrag nopan rounded-md border border-border bg-background/80">
+      <button
+        type="button"
+        onClick={() => setOpen((value) => !value)}
+        className="flex w-full items-center justify-between rounded-md px-2 py-1.5 text-[11px] font-medium text-foreground"
+      >
+        {title}
+        <ChevronDown
+          className={cn("h-3 w-3 text-muted-foreground transition-transform", open ? "" : "-rotate-90")}
+          aria-hidden
+        />
+      </button>
+      {open ? <div className="space-y-1.5 px-2 pb-2">{children}</div> : null}
+    </div>
+  );
+}
+
 function UnclothNodeEditor({
   node,
   onUpdate,
@@ -121,10 +150,9 @@ function UnclothNodeEditor({
   onUpdate: (nodeId: string, updates: Partial<ImageWorkflowNode>) => void;
 }) {
   const params = resolveUnclothParams(node);
-  const [advancedOpen, setAdvancedOpen] = useState(false);
   const patch = (updates: Partial<ImageWorkflowUnclothNode>) => onUpdate(node.id, updates as Partial<ImageWorkflowNode>);
 
-  const numberField = (label: string, key: keyof ImageWorkflowUnclothNode, value: number, step: number, min: number, max: number) => (
+  const numberField = (label: string, value: number, apply: (next: number) => void, step: number, min: number, max: number) => (
     <label className="flex items-center justify-between gap-2 text-[11px] text-muted-foreground">
       <span className="shrink-0">{label}</span>
       <input
@@ -135,7 +163,7 @@ function UnclothNodeEditor({
         max={max}
         onChange={(event) => {
           const next = Number(event.target.value);
-          if (Number.isFinite(next)) patch({ [key]: next } as Partial<ImageWorkflowUnclothNode>);
+          if (Number.isFinite(next)) apply(next);
         }}
         className="h-7 w-20 rounded-md border border-border bg-card/80 px-1.5 text-xs text-foreground outline-none"
       />
@@ -145,7 +173,7 @@ function UnclothNodeEditor({
   return (
     <div className="space-y-2">
       <div className="nodrag nopan text-[10px] text-muted-foreground">
-        复合处理节点:图与文本提示词由连线的两个节点提供;输出连成图,点成图「生成」执行整链。
+        复合处理节点:图与文本提示词由连线的两个节点提供;输出连成图,点成图「生成」执行整链。参数分组折叠,点组名展开。
       </div>
       {node.resultUrl ? (
         <div className="aspect-video overflow-hidden rounded-md border border-border bg-muted/30">
@@ -153,20 +181,21 @@ function UnclothNodeEditor({
         </div>
       ) : null}
 
-      <div className="nodrag nopan space-y-1.5 rounded-md border border-border bg-background/80 p-2">
-        <div className="text-[11px] font-medium text-foreground">两遍采样</div>
-        {numberField("脱衣遍 denoise", "denoiseUndress", params.denoiseUndress, 0.05, 0, 1)}
-        {numberField("脱衣遍 seed", "seedUndress", params.seedUndress, 1, 0, 999999999)}
-        {numberField("校色遍 denoise", "denoiseColor", params.denoiseColor, 0.05, 0, 1)}
-        {numberField("校色遍 seed", "seedColor", params.seedColor, 1, 0, 999999999)}
-        {numberField("步数(两遍共用)", "steps", params.steps, 1, 1, 32)}
-        {numberField("蒙版收缩 px(脱衣遍)", "growUndress", params.growUndress, 1, -64, 0)}
-        {numberField("蒙版外扩 px(校色遍)", "growColor", params.growColor, 1, 0, 64)}
-        {numberField("输入上限(百万像素)", "megapixels", params.megapixels, 0.1, 0.25, 4)}
-      </div>
+      <UnclothParamGroup title="两遍采样(常调)" defaultOpen>
+        {numberField("脱衣遍 denoise", params.denoiseUndress, (v) => patch({ denoiseUndress: v }), 0.05, 0, 1)}
+        {numberField("脱衣遍 seed", params.seedUndress, (v) => patch({ seedUndress: v }), 1, 0, 999999999)}
+        {numberField("校色遍 denoise", params.denoiseColor, (v) => patch({ denoiseColor: v }), 0.05, 0, 1)}
+        {numberField("校色遍 seed", params.seedColor, (v) => patch({ seedColor: v }), 1, 0, 999999999)}
+        {numberField("步数(两遍共用)", params.steps, (v) => patch({ steps: v }), 1, 1, 32)}
+      </UnclothParamGroup>
 
-      <div className="nodrag nopan space-y-1.5 rounded-md border border-border bg-background/80 p-2">
-        <div className="text-[11px] font-medium text-foreground">分割部位</div>
+      <UnclothParamGroup title="蒙版(GrowMask / 输入规模)">
+        {numberField("蒙版收缩 px(脱衣遍)", params.growUndress, (v) => patch({ growUndress: v }), 1, -64, 0)}
+        {numberField("蒙版外扩 px(校色遍)", params.growColor, (v) => patch({ growColor: v }), 1, 0, 64)}
+        {numberField("输入上限(百万像素)", params.megapixels, (v) => patch({ megapixels: v }), 0.1, 0.25, 4)}
+      </UnclothParamGroup>
+
+      <UnclothParamGroup title="分割部位(双分割并集)">
         <div className="grid grid-cols-3 gap-1">
           {SEGFORMER_PART_LABELS.map((part) => (
             <label key={part.id} className="flex items-center gap-1 text-[10px] text-muted-foreground">
@@ -192,78 +221,72 @@ function UnclothNodeEditor({
             className="h-7 flex-1 rounded-md border border-border bg-card/80 px-1.5 text-[10px] text-foreground outline-none"
           />
         </label>
-      </div>
+      </UnclothParamGroup>
 
-      <button
-        type="button"
-        className="nodrag nopan w-full rounded-md border border-border bg-background/80 px-2 py-1 text-[10px] text-muted-foreground hover:text-foreground"
-        onClick={() => setAdvancedOpen((open) => !open)}
-      >
-        {advancedOpen ? "收起高级参数" : "展开高级参数(LoRA/GuidedFilter/Rebalance)"}
-      </button>
-      {advancedOpen ? (
-        <div className="nodrag nopan space-y-2 rounded-md border border-border bg-background/80 p-2">
-          <div className="text-[11px] font-medium text-foreground">LoRA 三槽(顺序:NSFW V4 / Mystic XXX v3 / pussy)</div>
-          {params.loras.map((slot, index) => (
-            <div key={index} className="flex items-center gap-2 text-[10px] text-muted-foreground">
-              <input
-                type="checkbox"
-                checked={slot.enabled}
-                onChange={(event) => {
-                  const next = params.loras.map((item, i) =>
-                    i === index ? { ...item, enabled: event.target.checked } : item,
-                  );
-                  patch({ loras: next });
-                }}
-              />
-              {["NSFW V4", "Mystic XXX v3", "pussy"][index]}
-              <input
-                type="number"
-                value={slot.strength}
-                step={0.05}
-                min={0}
-                max={2}
-                onChange={(event) => {
-                  const next = params.loras.map((item, i) =>
-                    i === index ? { ...item, strength: Number(event.target.value) } : item,
-                  );
-                  patch({ loras: next });
-                }}
-                className="ml-auto h-7 w-16 rounded-md border border-border bg-card/80 px-1 text-[10px] text-foreground outline-none"
-              />
-            </div>
-          ))}
-          <div className="text-[11px] font-medium text-foreground">蒙版细节加工(SegformerUltraV3,工作流真参数)</div>
-          {numberField("腐蚀 detail_erode", "maskDetail", params.maskDetail.detailErode, 1, 0, 64)}
-          {numberField("膨胀 detail_dilate", "maskDetail", params.maskDetail.detailDilate, 1, 0, 64)}
-          {numberField("黑点 black_point", "maskDetail", params.maskDetail.blackPoint, 0.01, 0, 0.5)}
-          {numberField("白点 white_point", "maskDetail", params.maskDetail.whitePoint, 0.01, 0.5, 1)}
-          {numberField("分割上限 MP", "maskDetail", params.maskDetail.maxMegapixels, 0.5, 0.5, 8)}
-          <label className="flex items-center gap-2 text-[10px] text-muted-foreground">
+      <UnclothParamGroup title="高级:LoRA 三槽(NSFW V4 / Mystic XXX v3 / pussy)">
+        {params.loras.map((slot, index) => (
+          <div key={index} className="flex items-center gap-2 text-[10px] text-muted-foreground">
             <input
               type="checkbox"
-              checked={params.maskDetail.processDetail}
-              onChange={(event) =>
-                patch({ maskDetail: { ...params.maskDetail, processDetail: event.target.checked } })
-              }
+              checked={slot.enabled}
+              onChange={(event) => {
+                const next = params.loras.map((item, i) =>
+                  i === index ? { ...item, enabled: event.target.checked } : item,
+                );
+                patch({ loras: next });
+              }}
             />
-            启用细节加工(process_detail)
-          </label>
-          <div className="text-[11px] font-medium text-foreground">Rebalance 12 权重(逗号分隔)</div>
+            {["NSFW V4", "Mystic XXX v3", "pussy"][index]}
+            <input
+              type="number"
+              value={slot.strength}
+              step={0.05}
+              min={0}
+              max={2}
+              onChange={(event) => {
+                const next = params.loras.map((item, i) =>
+                  i === index ? { ...item, strength: Number(event.target.value) } : item,
+                );
+                patch({ loras: next });
+              }}
+              className="ml-auto h-7 w-16 rounded-md border border-border bg-card/80 px-1 text-[10px] text-foreground outline-none"
+            />
+          </div>
+        ))}
+      </UnclothParamGroup>
+
+      <UnclothParamGroup title="高级:蒙版细节加工(SegformerUltraV3 真参数)">
+        <label className="flex items-center gap-2 text-[10px] text-muted-foreground">
           <input
-            value={params.rebalanceWeights.join(",")}
+            type="checkbox"
+            checked={params.maskDetail.processDetail}
             onChange={(event) =>
-              patch({
-                rebalanceWeights: event.target.value
-                  .split(",")
-                  .map((item) => Number(item.trim()))
-                  .filter((item) => Number.isFinite(item)),
-              })
+              patch({ maskDetail: { ...params.maskDetail, processDetail: event.target.checked } })
             }
-            className="h-7 w-full rounded-md border border-border bg-card/80 px-1.5 text-[10px] text-foreground outline-none"
           />
-        </div>
-      ) : null}
+          启用细节加工(process_detail)
+        </label>
+        {numberField("腐蚀 detail_erode", params.maskDetail.detailErode, (v) => patch({ maskDetail: { ...params.maskDetail, detailErode: v } }), 1, 0, 64)}
+        {numberField("膨胀 detail_dilate", params.maskDetail.detailDilate, (v) => patch({ maskDetail: { ...params.maskDetail, detailDilate: v } }), 1, 0, 64)}
+        {numberField("黑点 black_point", params.maskDetail.blackPoint, (v) => patch({ maskDetail: { ...params.maskDetail, blackPoint: v } }), 0.01, 0, 0.5)}
+        {numberField("白点 white_point", params.maskDetail.whitePoint, (v) => patch({ maskDetail: { ...params.maskDetail, whitePoint: v } }), 0.01, 0.5, 1)}
+        {numberField("分割上限 MP", params.maskDetail.maxMegapixels, (v) => patch({ maskDetail: { ...params.maskDetail, maxMegapixels: v } }), 0.5, 0.5, 8)}
+      </UnclothParamGroup>
+
+      <UnclothParamGroup title="高级:Rebalance 12 权重(正向破限)">
+        <input
+          value={params.rebalanceWeights.join(",")}
+          onChange={(event) =>
+            patch({
+              rebalanceWeights: event.target.value
+                .split(",")
+                .map((item) => Number(item.trim()))
+                .filter((item) => Number.isFinite(item)),
+            })
+          }
+          className="h-7 w-full rounded-md border border-border bg-card/80 px-1.5 text-[10px] text-foreground outline-none"
+        />
+      </UnclothParamGroup>
     </div>
   );
 }
