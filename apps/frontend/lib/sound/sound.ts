@@ -241,7 +241,7 @@ export function playSound(effect: SoundEffect) {
 }
 
 /** 快门采样音量（独立于合成的 MASTER_GAIN，因为 mp3 是成品录音，电平不同） */
-const SHUTTER_VOLUME = 0.5;
+const SHUTTER_VOLUME = 0.25;
 
 let _shutterAudio: HTMLAudioElement | null = null;
 

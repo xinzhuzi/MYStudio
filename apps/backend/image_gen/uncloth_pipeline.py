@@ -94,6 +94,16 @@ def run_uncloth_pipeline(
         mask_img = ImageEnhance.Brightness(mask_img).enhance(1.08)
         return (np.asarray(mask_img, dtype="float32") / 255.0 > 0.5).astype(np.uint8)
 
+    # 部位名(ComfyUI 位序)→ ATR/LIP 分割 label id
+    PART_TO_ID = {
+        "hat": 1, "hair": 2, "sunglass": 3,
+        "upper_clothes": 4, "skirt": 5, "pants": 6, "dress": 7, "belt": 8,
+        "left_shoe": 9, "right_shoe": 10, "face": 11,
+        "left_leg": 12, "right_leg": 13, "left_arm": 14, "right_arm": 15,
+        "bag": 16, "scarf": 17,
+    }
+    parts_ids = sorted({PART_TO_ID[name] for name in parts_ids if name in PART_TO_ID}) if parts_ids and isinstance(parts_ids[0], str) else parts_ids
+
     if parts_ids:
         t0 = time.time()
         from transformers import AutoModelForSemanticSegmentation, AutoProcessor
@@ -146,8 +156,14 @@ def run_uncloth_pipeline(
             return mask_img.filter(ImageFilter.MinFilter(2 * (-px) + 1))
         return mask_img
 
-    mask_undress = grow(union_img, int(params.get("growUndress", -16)))
-    mask_color = grow(union_img, int(params.get("growColor", 16)))
+    from PIL import ImageOps
+
+    def grow_ex(mask_img, px, invert):
+        out = grow(mask_img, px)
+        return ImageOps.invert(out) if invert else out
+
+    mask_undress = grow_ex(union_img, int(params.get("growUndress", -16)), bool(params.get("growUndressInvert", True)))
+    mask_color = grow_ex(union_img, int(params.get("growColor", 16)), bool(params.get("growColorInvert", True)))
     steps = int(params.get("steps", 8))
 
     # 2. 两遍 masked SDEdit

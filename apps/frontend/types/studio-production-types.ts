@@ -340,6 +340,15 @@ export interface ImageWorkflowUnclothNode extends ImageWorkflowNodeBase {
   resultUrl?: string;
   /** 单文本驱动两遍采样(缺省回落输入提示词节点的文本) */
   prompt?: string;
+  // ── KSampler(两遍共用,工作流逐字段对齐) ──
+  /** 采样步数(工作流 8) */
+  steps?: number;
+  /** cfg(工作流 1=无引导) */
+  cfg?: number;
+  /** sampler 名(工作流 euler) */
+  sampler?: string;
+  /** scheduler 名(工作流 simple) */
+  scheduler?: string;
   /** 遍1 脱衣 denoise(工作流 0.65) */
   denoiseUndress?: number;
   /** 遍1 seed(工作流 3) */
@@ -348,22 +357,37 @@ export interface ImageWorkflowUnclothNode extends ImageWorkflowNodeBase {
   denoiseColor?: number;
   /** 遍2 seed(工作流 1) */
   seedColor?: number;
-  /** 采样步数,两遍共用(工作流 8) */
-  steps?: number;
-  /** 遍1 蒙版收缩 px(工作流 GrowMask -16,防越界) */
+  // ── GrowMask(工作流 [expand, inverted]) ──
+  /** 遍1 蒙版收缩 px(工作流 -16) */
   growUndress?: number;
-  /** 遍2 蒙版外扩 px(工作流 GrowMask +16,过渡带) */
+  /** 遍1 GrowMask 第二参(工作流 true) */
+  growUndressInvert?: boolean;
+  /** 遍2 蒙版外扩 px(工作流 +16) */
   growColor?: number;
-  /** 输入图上限(百万像素,工作流 1.0) */
+  /** 遍2 GrowMask 第二参(工作流 true) */
+  growColorInvert?: boolean;
+  // ── ImageScaleToTotalPixels(工作流 [method, megapixels, division]) ──
+  /** 缩放插值(工作流 lanczos) */
+  upscaleMethod?: string;
+  /** 输入图上限(百万像素,工作流 1) */
   megapixels?: number;
-  /** segformer 部位勾选(勾选的部位 id 列表:1帽 2发 4上衣 5短裙 6裤 7连衣裙 8腰带 9鞋 12手臂 13腿 16包 17围巾;工作流实勾=衣物类 4-8+四肢 12/13) */
-  segformerParts?: number[];
+  /** 除数因子(工作流 1) */
+  divisionFactor?: number;
+  // ── SegformerClothesSetting 17 位(工作流位序:
+  // face/hair/hat/sunglass/left_arm/right_arm/left_leg/right_leg/
+  // left_shoe/right_shoe/upper_clothes/skirt/pants/dress/belt/bag/scarf) ──
+  /** 勾选的部位名列表(ComfyUI 位序名,工作流实勾=左右臂+左右腿+上衣+短裙+裤+连衣裙+腰带) */
+  segformerParts?: string[];
   /** fashn parser 部位(逗号分隔,工作流 dress,skirt,pants,belt,arms,legs) */
   fashnParts?: string;
-  /** SegformerUltraV3 蒙版细节加工(工作流 widgets 真名,源码对照 09-04 深化):
-   * detail_erode/detail_dilate 决定软化半径((e+d)//6+1);black/white_point
-   * 为蒙版对比线性拉伸剪裁点;process_detail 开关;max_megapixels 分割上限 */
+  /** fashn device(工作流 cpu) */
+  fashnDevice?: string;
+  /** fashn dtype(工作流 float32) */
+  fashnDtype?: string;
+  // ── SegformerUltraV3 蒙版细节加工(工作流真参数) ──
   maskDetail?: {
+    /** detail_method(工作流 GuidedFilter) */
+    detailMethod?: string;
     processDetail?: boolean;
     detailErode?: number;
     detailDilate?: number;
@@ -371,9 +395,9 @@ export interface ImageWorkflowUnclothNode extends ImageWorkflowNodeBase {
     whitePoint?: number;
     maxMegapixels?: number;
   };
-  /** LoRA 三槽(顺序=NSFW V4/Mystic XXX v3/pussy;工作流=关1.0/开1.0/开0.3) */
+  /** LoRA 五槽(工作流 Power Lora Loader 逐槽对齐:V4/Mystic/空/pussy;强度=当前工作流值) */
   loras?: Array<{ enabled?: boolean; strength?: number }>;
-  /** 正向 Rebalance 12 权重(工作流=单层5.0 版) */
+  /** 正向 Rebalance 12 权重(工作流当前值) */
   rebalanceWeights?: number[];
 }
 

@@ -164,11 +164,11 @@ describe("ImageStudioNodeCard 参考图卡", () => {
     // 常调组默认展开:denoise 字段可见
     expect(screen.getByText("脱衣遍 denoise")).toBeTruthy();
     // 其余组默认收起:内容不可见,组头可见
-    expect(screen.queryByText("fashn 部位(逗号分隔)")).toBeNull();
+    expect(screen.queryByText("fashn 部位")).toBeNull();
     expect(screen.getByText(/分割部位/)).toBeTruthy();
     // 点击分割部位组头 → 展开
     fireEvent.click(screen.getByText(/分割部位/));
-    expect(screen.getByText("fashn 部位(逗号分隔)")).toBeTruthy();
+    expect(screen.getByText("fashn 部位")).toBeTruthy();
   });
 
   it("参考图状态=生成按钮角标(09-03 用户裁定):文案恒「生成」,徽章浮角标不占布局", () => {

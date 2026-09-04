@@ -34,6 +34,7 @@ import { ModelSelector } from "@/components/panels/assist/ModelSelector";
 import { IMAGE_ASPECT_RATIOS, IMAGE_RESOLUTIONS } from "@/lib/ai/image-size-presets";
 import { referenceCapacityForModel } from "./image-studio-node-registry";
 import {
+  SEGFORMER_PARTS,
   SEGFORMER_PART_LABELS,
   resolveUnclothParams,
 } from "@/lib/assist/image-studio/uncloth-defaults";
@@ -180,44 +181,89 @@ function UnclothNodeEditor({
         {numberField("脱衣遍 seed", params.seedUndress, (v) => patch({ seedUndress: v }), 1, 0, 999999999)}
         {numberField("校色遍 denoise", params.denoiseColor, (v) => patch({ denoiseColor: v }), 0.05, 0, 1)}
         {numberField("校色遍 seed", params.seedColor, (v) => patch({ seedColor: v }), 1, 0, 999999999)}
-        {numberField("步数(两遍共用)", params.steps, (v) => patch({ steps: v }), 1, 1, 32)}
+        {numberField("步数 steps", params.steps, (v) => patch({ steps: v }), 1, 1, 32)}
+        {numberField("cfg", params.cfg, (v) => patch({ cfg: v }), 0.5, 0, 20)}
+        <label className="flex items-center justify-between gap-2 text-[11px] text-muted-foreground">
+          <span className="shrink-0">sampler</span>
+          <select value={params.sampler} onChange={(e) => patch({ sampler: e.target.value })}
+            className="h-7 w-24 rounded-md border border-border bg-card/80 px-1 text-xs text-foreground outline-none">
+            {["euler", "euler_ancestral", "heun", "dpm_2", "dpm_2_ancestral", "lms", "dpm_fast", "dpm_adaptive", "dpmpp_2s_ancestral", "dpmpp_sde", "dpmpp_2m", "dpmpp_2m_sde", "dpmpp_3m_sde", "ddim", "uni_pc", "lcm"].map((m) => <option key={m} value={m}>{m}</option>)}
+          </select>
+        </label>
+        <label className="flex items-center justify-between gap-2 text-[11px] text-muted-foreground">
+          <span className="shrink-0">scheduler</span>
+          <select value={params.scheduler} onChange={(e) => patch({ scheduler: e.target.value })}
+            className="h-7 w-24 rounded-md border border-border bg-card/80 px-1 text-xs text-foreground outline-none">
+            {["normal", "karras", "exponential", "sgm_uniform", "simple", "ddim_uniform", "beta"].map((m) => <option key={m} value={m}>{m}</option>)}
+          </select>
+        </label>
       </UnclothParamGroup>
 
       <UnclothParamGroup title="蒙版(GrowMask / 输入规模)">
-        {numberField("蒙版收缩 px(脱衣遍)", params.growUndress, (v) => patch({ growUndress: v }), 1, -64, 0)}
-        {numberField("蒙版外扩 px(校色遍)", params.growColor, (v) => patch({ growColor: v }), 1, 0, 64)}
-        {numberField("输入上限(百万像素)", params.megapixels, (v) => patch({ megapixels: v }), 0.1, 0.25, 4)}
+        {numberField("收缩 expand(脱衣遍)", params.growUndress, (v) => patch({ growUndress: v }), 1, -64, 64)}
+        <label className="flex items-center gap-2 text-[10px] text-muted-foreground">
+          <input type="checkbox" checked={params.growUndressInvert}
+            onChange={(e) => patch({ growUndressInvert: e.target.checked })} /> 脱衣遍 invert
+        </label>
+        {numberField("外扩 expand(校色遍)", params.growColor, (v) => patch({ growColor: v }), 1, -64, 64)}
+        <label className="flex items-center gap-2 text-[10px] text-muted-foreground">
+          <input type="checkbox" checked={params.growColorInvert}
+            onChange={(e) => patch({ growColorInvert: e.target.checked })} /> 校色遍 invert
+        </label>
+        <label className="flex items-center justify-between gap-2 text-[10px] text-muted-foreground">
+          <span className="shrink-0">缩放插值</span>
+          <select value={params.upscaleMethod} onChange={(e) => patch({ upscaleMethod: e.target.value })}
+            className="h-7 w-24 rounded-md border border-border bg-card/80 px-1 text-[10px] text-foreground outline-none">
+            {["lanczos", "nearest-exact", "bilinear", "area", "bicubic"].map((m) => <option key={m} value={m}>{m}</option>)}
+          </select>
+        </label>
+        {numberField("输入上限 MP", params.megapixels, (v) => patch({ megapixels: v }), 0.1, 0.25, 8)}
+        {numberField("除数 division_factor", params.divisionFactor, (v) => patch({ divisionFactor: v }), 1, 1, 64)}
       </UnclothParamGroup>
 
       <UnclothParamGroup title="分割部位(双分割并集)">
         <div className="grid grid-cols-3 gap-1">
-          {SEGFORMER_PART_LABELS.map((part) => (
-            <label key={part.id} className="flex items-center gap-1 text-[10px] text-muted-foreground">
+          {SEGFORMER_PARTS.map((part) => (
+            <label key={part} className="flex items-center gap-1 text-[10px] text-muted-foreground">
               <input
                 type="checkbox"
-                checked={params.segformerParts.includes(part.id)}
+                checked={params.segformerParts.includes(part)}
                 onChange={(event) => {
                   const next = event.target.checked
-                    ? [...params.segformerParts, part.id]
-                    : params.segformerParts.filter((id) => id !== part.id);
+                    ? [...params.segformerParts, part]
+                    : params.segformerParts.filter((item) => item !== part);
                   patch({ segformerParts: next });
                 }}
               />
-              {part.label}
+              {SEGFORMER_PART_LABELS[part]}
             </label>
           ))}
         </div>
         <label className="flex items-center gap-2 text-[10px] text-muted-foreground">
-          fashn 部位(逗号分隔)
+          fashn 部位
           <input
             value={params.fashnParts}
             onChange={(event) => patch({ fashnParts: event.target.value })}
             className="h-7 flex-1 rounded-md border border-border bg-card/80 px-1.5 text-[10px] text-foreground outline-none"
           />
         </label>
+        <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
+          <label className="flex items-center gap-1">device
+            <select value={params.fashnDevice} onChange={(e) => patch({ fashnDevice: e.target.value })}
+              className="h-6 rounded-md border border-border bg-card/80 px-1 text-[10px] text-foreground outline-none">
+              {["cpu", "mps"].map((m) => <option key={m} value={m}>{m}</option>)}
+            </select>
+          </label>
+          <label className="flex items-center gap-1">dtype
+            <select value={params.fashnDtype} onChange={(e) => patch({ fashnDtype: e.target.value })}
+              className="h-6 rounded-md border border-border bg-card/80 px-1 text-[10px] text-foreground outline-none">
+              {["float32", "float16", "bfloat16"].map((m) => <option key={m} value={m}>{m}</option>)}
+            </select>
+          </label>
+        </div>
       </UnclothParamGroup>
 
-      <UnclothParamGroup title="高级:LoRA 三槽(NSFW V4 / Mystic XXX v3 / pussy)">
+      <UnclothParamGroup title="高级:LoRA 四槽(NSFW V4 / Mystic XXX v3 / 空 / pussy)">
         {params.loras.map((slot, index) => (
           <div key={index} className="flex items-center gap-2 text-[10px] text-muted-foreground">
             <input
@@ -230,7 +276,7 @@ function UnclothNodeEditor({
                 patch({ loras: next });
               }}
             />
-            {["NSFW V4", "Mystic XXX v3", "pussy"][index]}
+            {["NSFW V4", "Mystic XXX v3", "(空槽)", "pussy"][index] ?? `槽${index + 1}`}
             <input
               type="number"
               value={slot.strength}
