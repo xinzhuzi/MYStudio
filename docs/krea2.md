@@ -22,7 +22,7 @@
 | Krea2 Turbo 主模型 | `krea2_turbo_bf16.safetensors` | ~12GB | 去噪主干 | ComfyUI `models/unet/`(应用指向现成文件,零重下) |
 | 文本编码器 | `qwen3-vl-4b-heretic.safetensors` | ~8.8GB | 破限 TE | ComfyUI `models/clip/`;官方 TE 优先、heretic 回退 |
 | VAE | `qwen_image_vae.safetensors` | ~500MB | 编解码 | ComfyUI `models/vae/` |
-| LoRA:Mystic XXX v3 | `KREA 2 Mystic XXX v3.safetensors` | — | 风格(强度 1.0) | ComfyUI `models/loras/` |
+| LoRA:Mystic XXX v3 | `KREA 2 Mystic XXX v3.safetensors` | — | 风格(当前 0.8,可调) | ComfyUI `models/loras/` |
 | LoRA:pussy | `Krea 2 pussy.safetensors` | — | 细节(强度 0.3;脏斑时降到 0.15) | 同上 |
 | LoRA:NSFW V4 | `Krea 2 NSFW V4.safetensors` | — | 可选(默认关) | 同上 |
 | **分割:衣物部位** | `segformer_b3_clothes/` | 180MB | 无衣物节点分割① | ComfyUI `models/segformer_b3_clothes/`(LayerMask 生态);复制到 `<userData>/model/imagegen/segformer_b3_clothes/` |
@@ -54,7 +54,7 @@
 核心区:脱衣遍 denoise(0.65)/seed(3)、校色遍 denoise(0.3)/seed(1)、
 步数(8)、蒙版收缩(-16)/外扩(+16)、输入上限 MP(1.0)、
 分割部位勾选(segformer)+fashn 部位、重绘提示词。
-高级区:LoRA 三槽(NSFW V4 关/Mystic 1.0/pussy 0.3)、GuidedFilter、
+高级区:LoRA 四槽(NSFW V4 关/Mystic 0.8/空槽/pussy 0.15)、蒙版细节加工五参、
 Rebalance 12 权重(单层 5.0)。
 
 ### 调参(工作流经验迁移)
@@ -63,7 +63,7 @@ Rebalance 12 权重(单层 5.0)。
 | 重绘区与原图皮肤有色差 | 校色遍 denoise 0.3→0.4;GrowMask 外扩 16→32 |
 | 残留衣物痕迹 | 脱衣遍 denoise 0.65→0.9~1.0 |
 | 皮肤与周围分界生硬 | 蒙版外扩 16→32(过渡带加宽) |
-| 脏斑/褐点 | 换 seed→pussy 0.3→0.15→Mystic 1.0→0.8→脱衣遍降(一次只改一项) |
+| 脏斑/褐点 | 换 seed→pussy 0.15→0.08→Mystic 0.8→0.6→脱衣遍降(一次只改一项) |
 
 ## 五、管线实现说明(工程师向)
 
