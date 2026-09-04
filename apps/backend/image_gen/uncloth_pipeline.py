@@ -19,11 +19,19 @@ _MODEL_DIRS = [
 
 
 def _find_model_dir(models_dir: Path, name: str) -> Path:
-    candidates = [models_dir / name, models_dir.parent / name]
+    # 应用正式位置(MYSTUDIO_IMAGE_MODEL_DIR=<userData>/model/imagegen,spawn 注入)
+    # 优先;其后回落 ComfyUI 模型根(大件同源的指向策略,开发环境可用)
+    import os
+    candidates = []
+    env_dir = os.environ.get("MYSTUDIO_IMAGE_MODEL_DIR")
+    if env_dir:
+        candidates.append(Path(env_dir).expanduser() / name)
+    candidates += [models_dir / name, models_dir.parent / name]
     for candidate in candidates:
         if (candidate / "config.json").exists():
             return candidate
-    raise RuntimeError(f"分割模型 {name} 未下载:请到 设置→本地配置 显式下载(搜索:{models_dir})")
+    searched = ", ".join(str(c.parent) for c in candidates)
+    raise RuntimeError(f"分割模型 {name} 未下载:请到 设置→本地配置 显式下载(搜索:{searched})")
 
 
 def _log(stage: str, **fields) -> None:
