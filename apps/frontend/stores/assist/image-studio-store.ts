@@ -67,6 +67,10 @@ export interface ImageStudioStoreActions {
   switchWorkflow: (workflowId: string) => void;
   updateActiveWorkflow: (mutate: (graph: ImageWorkflowGraph) => ImageWorkflowGraph) => void;
   updateNode: (nodeId: string, updates: Partial<ImageWorkflowNode>) => void;
+  /** 定向节点更新(09-04 挂账③):按「节点所在画布」定位,与 setNodeStatus/
+   *  setNodeResult 同款——异步回写(生成完成回显)在用户切走画布后仍落原画布。
+   *  交互路径用 updateNode(active 定位,语义=「在当前画布改」),勿混用。 */
+  updateNodeInOwnerWorkflow: (nodeId: string, updates: Partial<ImageWorkflowNode>) => void;
   moveNode: (nodeId: string, position: ImageWorkflowNodePosition) => void;
   /** 分组成员登记(09-03 wave3):拖入吸附/拖出移除;幂等 */
   setGroupMembership: (groupId: string, nodeId: string, isMember: boolean) => void;
@@ -289,6 +293,16 @@ export const useImageStudioStore = create<ImageStudioStore>()(
 
       updateNode: (nodeId, updates) => {
         get().updateActiveWorkflow((graph) => updateImageWorkflowNode(graph, nodeId, updates));
+      },
+
+      updateNodeInOwnerWorkflow: (nodeId, updates) => {
+        set((state) => ({
+          workflows: state.workflows.map((workflow) =>
+            workflow.nodes.some((node) => node.id === nodeId)
+              ? updateImageWorkflowNode(workflow, nodeId, updates)
+              : workflow,
+          ),
+        }));
       },
 
       moveNode: (nodeId, position) => {

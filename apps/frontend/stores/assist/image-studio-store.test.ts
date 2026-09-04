@@ -167,6 +167,24 @@ describe("image-studio-store 节点操作", () => {
     expect(other?.nodes ?? []).toHaveLength(0);
   });
 
+  it("updateNodeInOwnerWorkflow 定向落发起画布(09-04 挂账③:uncloth 回显切走不丢)", () => {
+    useImageStudioStore.getState().ensureDefaultWorkflow();
+    const firstWorkflowId = useImageStudioStore.getState().activeWorkflowId as string;
+    const prompt = useImageStudioStore.getState().addPromptNode({ prompt: "a" });
+    // 生成期间切到新画布(active=画布 2,节点全在画布 1)
+    useImageStudioStore.getState().createWorkflow();
+
+    useImageStudioStore.getState().updateNodeInOwnerWorkflow(prompt, { prompt: "改后" });
+
+    const state = useImageStudioStore.getState();
+    const owner = state.workflows.find((workflow) => workflow.id === firstWorkflowId);
+    const other = state.workflows.find((workflow) => workflow.id !== firstWorkflowId);
+    expect(owner?.nodes.find((node) => node.id === prompt)).toMatchObject({ prompt: "改后" });
+    expect(other?.nodes ?? []).toHaveLength(0);
+    // 对照:updateNode(active 定位)在同样场景下找不到节点=静默丢弃,即挂账原病灶
+    expect(activeNodes()).toHaveLength(0);
+  });
+
   it("画布删光后 add 类动作自愈默认画布", () => {
     useImageStudioStore.getState().ensureDefaultWorkflow();
     useImageStudioStore.getState().deleteWorkflow(

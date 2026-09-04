@@ -37,6 +37,15 @@ export function useImageStudioGeneration() {
     const graph = selectActiveImageStudioWorkflow(store);
     if (!graph) return;
 
+    /** 生成期间用户切走画布:回写(定向到发起画布)依然完成,但用户看的
+     *  是另一张画布——完成时指路,否则「日志说完成了却没看到」(09-04 挂账③) */
+    const noticeIfSwitchedAway = () => {
+      const activeNow = useImageStudioStore.getState().activeWorkflowId;
+      if (activeNow !== graph.id) {
+        toast.info(`生成完成:结果已写入画布「${graph.name}」(生成期间画布被切换)`);
+      }
+    };
+
     // 无衣物链分流(09-04,端到端实弹根修:必须先于空提示词预检——链的文本
     // 来自 uncloth 上游 prompt 边,成图直连提示词缺失不是错误):上游有
     // uncloth 节点时,成图的「生成」执行 uncloth 管线,结果直通本成图
@@ -50,11 +59,13 @@ export function useImageStudioGeneration() {
           imageUrl: result.imageUrl,
           mediaId: result.mediaId,
         });
-        // uncloth 节点回显同一结果(预览)
-        useImageStudioStore.getState().updateNode(unclothRequest.unclothNodeId, {
+        // uncloth 节点回显同一结果(预览)。定向到节点所在画布:普通 updateNode
+        // 按当前激活画布定位,生成期间切走会静默丢回显(09-04 挂账③)
+        useImageStudioStore.getState().updateNodeInOwnerWorkflow(unclothRequest.unclothNodeId, {
           resultUrl: result.imageUrl,
         } as never);
         toast.success("无衣物链完成,成图已更新");
+        noticeIfSwitchedAway();
       } catch (error) {
         const message = error instanceof Error ? error.message : "无衣物链失败";
         useImageStudioStore.getState().setNodeStatus(nodeId, "failed", message);
@@ -177,6 +188,7 @@ export function useImageStudioGeneration() {
       } else {
         toast.warning("生成成功,但本地落盘失败——正在媒体库后台重试保存");
       }
+      noticeIfSwitchedAway();
     } catch (error) {
       // 中止语义根修(09-01 实弹第7bug):引擎轮询超时也会抛 AbortError 形状,
       // 按 name 判「用户停止」会把真失败静默回 idle。只有本钩子发出的
