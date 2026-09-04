@@ -5,6 +5,11 @@
 import { aiManager } from "@/lib/ai/ai-manager";
 import { saveToMediaLibrary } from "@/lib/ai/generation-media";
 import { maybeAutoDenoiseUrl } from "@/lib/ai/image-auto-denoise";
+import {
+  appendProjectLedger,
+  ledgerFilenameOf,
+  ledgerMonthFolderOf,
+} from "./history-records";
 import { getProjectFilesBridge } from "@/lib/bridge/project-files";
 import { readImageAsBase64 } from "@/lib/media/image-storage";
 import { useProjectStore } from "@/stores/project/project-store";
@@ -77,61 +82,6 @@ export async function runImageStudioNodeGeneration(
   });
 
 
-/** ledger 条目(09-03 弹窗增丰):复原所需输入快照为可选键,读侧宽容旧记录 */
-type ProjectLedgerEntry = {
-  ts: number;
-  prompt: string;
-  model: string;
-  file: string;
-  negativePrompt?: string | null;
-  aspectRatio?: string;
-  resolution?: string | null;
-  references?: string[];
-  source?: string;
-};
-
-/** 项目内 ledger 追加(09-02 治理):读改写,坏 JSON 重建为空数组 */
-async function appendProjectLedger(input: {
-  projectId: string;
-  relativePath: string;
-  entry: ProjectLedgerEntry;
-}): Promise<void> {
-  const bridge = getProjectFilesBridge();
-  if (!bridge?.writeText || !bridge.readText) return;
-  let entries: ProjectLedgerEntry[] = [];
-  try {
-    const existing = await bridge.readText({
-      projectId: input.projectId,
-      relativePath: input.relativePath,
-    });
-    const text = typeof existing === "string" ? existing : existing?.text;
-    if (text) {
-      const parsed = JSON.parse(text);
-      if (Array.isArray(parsed)) entries = parsed;
-    }
-  } catch {
-    entries = []; // 坏文件重建
-  }
-  entries.push(input.entry);
-  // `_p/{pid}/…` 虚拟键与读侧(readText {projectId, relativePath})同构:
-  // 外部位置项目动态重定向+store 布局收口。旧 `projects/…` 键形式不重定向,
-  // 会把台账写进 AppSupport 旧行造成读写分家(09-03 对拍实锤)。
-  await bridge.writeText(
-    `_p/${input.projectId}/${input.relativePath}`,
-    JSON.stringify(entries.slice(-2000), null, 2),
-  );
-}
-
-function monthFolderOf(url: string): string {
-  const match = /\/(\d{4}-\d{2})\//.exec(url);
-  return match?.[1] ?? new Date().toISOString().slice(0, 7);
-}
-
-function filenameOf(url: string): string {
-  const clean = url.split("?")[0].split("#")[0];
-  return clean.slice(clean.lastIndexOf("/") + 1) || "image.png";
-}
-
   const projectId = useProjectStore.getState().activeProjectId;
   const persistToLocal = async (url: string): Promise<string | null> => {
     // 生图落库自动去噪(设置开关控制;未启用/失败原样返回)
@@ -174,10 +124,11 @@ function filenameOf(url: string): string {
   // 媒体库记录:传入受管地址时 addMediaFromUrl 跳过异步下载、条目地址即刻
   // 稳定;降级传远程 URL 时其内部会后台下载并改写条目地址(第二落盘机会)
   const mediaId = saveToMediaLibrary(finalUrl, request.prompt, "ai-image");
-  // 磁盘 ledger(09-02 治理):与图片同存项目内,永不与图脱钩;localStorage
-  // 历史不再作为唯一索引(50 条上限丢记录的根修)。失败不阻断返回。
+  // 磁盘 ledger(09-02 治理,09-04 抽出共享):与图片同存项目内,永不与图
+  // 脱钩;localStorage 历史不再作为唯一索引(50 条上限丢记录的根修)。
+  // 失败不阻断返回。
   const ledgerRelative = stableUrl
-    ? `media/ai-image/${monthFolderOf(stableUrl)}/ledger.json`
+    ? `media/ai-image/${ledgerMonthFolderOf(stableUrl)}/ledger.json`
     : null;
   if (projectId && ledgerRelative && stableUrl) {
     void appendProjectLedger({
@@ -187,7 +138,7 @@ function filenameOf(url: string): string {
         ts: Date.now(),
         prompt: request.prompt,
         model: request.model ?? "",
-        file: `${monthFolderOf(stableUrl)}/${filenameOf(stableUrl)}`,
+        file: `${ledgerMonthFolderOf(stableUrl)}/${ledgerFilenameOf(stableUrl)}`,
         negativePrompt: request.negativePrompt ?? null,
         aspectRatio: request.aspectRatio,
         resolution: request.resolution ?? null,

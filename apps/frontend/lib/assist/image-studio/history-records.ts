@@ -141,7 +141,14 @@ export function mergeGenerationRecords(
 }
 
 interface ProjectFilesBridge {
-  readText: (payload: { projectId: string; relativePath: string }) => Promise<{ text?: string } | string>;
+  readText: (payload: {
+    projectId: string;
+    relativePath: string;
+    /** raw=true 走主进程原始读取(16MB 上限,免预览通道 2MB/256KB 截断)——
+     *  台账专用:2000 条上限的长中文 prompt 序列化可超 2MB,预览通道读不到
+     *  会让追加侧误判「无台账」而清光历史(09-04 挂账根修) */
+    raw?: boolean;
+  }) => Promise<{ text?: string } | string>;
 }
 
 /** 读项目内最近两月 ledger(桥不可用/无项目=空数组,面板回落 localStorage-only) */
@@ -159,6 +166,7 @@ export async function readLedgerEntries(projectId: string | null): Promise<Gener
       const result = await bridge.readText({
         projectId,
         relativePath: `media/ai-image/${month}/ledger.json`,
+        raw: true,
       });
       const text = typeof result === "string" ? result : result?.text;
       if (!text) continue;
@@ -179,11 +187,16 @@ export async function readLedgerEntries(projectId: string | null): Promise<Gener
 export function generationSourceLabel(source: string | undefined): string {
   if (!source) return "—";
   if (source === "image-studio-canvas") return "图片工作室画布";
+  if (source === "image-studio-uncloth") return "图片工作室画布·无衣物";
   return source;
 }
 
 interface ProjectFilesWriteBridge {
-  readText: (payload: { projectId: string; relativePath: string }) => Promise<{ text?: string } | string>;
+  readText: (payload: {
+    projectId: string;
+    relativePath: string;
+    raw?: boolean;
+  }) => Promise<{ text?: string } | string>;
   writeText: (key: string, value: string) => Promise<unknown>;
   deleteFile?: (payload: { projectId: string; relativePath: string }) => Promise<{ success?: boolean } | unknown>;
 }
@@ -212,7 +225,7 @@ export async function removeLedgerEntryByFile(input: {
   const relativePath = `media/ai-image/${month}/ledger.json`;
   let entries: GenerationLedgerEntry[] = [];
   try {
-    const result = await bridge.readText({ projectId: input.projectId, relativePath });
+    const result = await bridge.readText({ projectId: input.projectId, relativePath, raw: true });
     const text = typeof result === "string" ? result : result?.text;
     const parsed = text ? JSON.parse(text) : [];
     if (Array.isArray(parsed)) entries = parsed;
@@ -234,6 +247,56 @@ export async function removeLedgerEntryByFile(input: {
     JSON.stringify(kept.slice(-2000), null, 2),
   );
   return true;
+}
+
+/** 受管 URL 里的月份段(如「2026-09」);取不到回退当前月 */
+export function ledgerMonthFolderOf(url: string): string {
+  const match = /\/(\d{4}-\d{2})\//.exec(url);
+  return match?.[1] ?? new Date().toISOString().slice(0, 7);
+}
+
+/** 受管 URL 尾段文件名(编码形态——台账 file 键的统一口径) */
+export function ledgerFilenameOf(url: string): string {
+  const clean = url.split("?")[0].split("#")[0];
+  return clean.slice(clean.lastIndexOf("/") + 1) || "image.png";
+}
+
+/**
+ * 磁盘 ledger 追加(读改写,09-04 从生成链抽出共享):新条目入列,保留末位
+ * 2000 条;读取走 raw 通道(免预览 2MB 上限)。坏 JSON **不重建不清账**——
+ * 重建空数组覆盖写等于把整本台账静默清光,宁缺一条不清历史。失败静默
+ * (下一次生成重试;面板回落 localStorage)。
+ */
+export async function appendProjectLedger(input: {
+  projectId: string;
+  relativePath: string;
+  entry: GenerationLedgerEntry;
+}): Promise<void> {
+  const bridge = (window as unknown as { projectFiles?: ProjectFilesWriteBridge }).projectFiles;
+  if (!bridge?.writeText || !bridge.readText) return;
+  let entries: GenerationLedgerEntry[] = [];
+  try {
+    const existing = await bridge.readText({
+      projectId: input.projectId,
+      relativePath: input.relativePath,
+      raw: true,
+    });
+    const text = typeof existing === "string" ? existing : existing?.text;
+    if (text) {
+      const parsed = JSON.parse(text);
+      if (Array.isArray(parsed)) entries = parsed;
+    }
+  } catch (error) {
+    console.warn("[generation-ledger] 台账读取失败,跳过本次追加(不清账):", error);
+    return;
+  }
+  entries.push(input.entry);
+  // `_p/{pid}/…` 虚拟键与读侧(readText {projectId, relativePath})同构:
+  // 外部位置项目动态重定向+store 布局收口(09-03 对拍实锤,勿回退裸键)。
+  await bridge.writeText(
+    `_p/${input.projectId}/${input.relativePath}`,
+    JSON.stringify(entries.slice(-2000), null, 2),
+  );
 }
 
 /** 删除项目内图文件(物理)。仅 project-file:// 且属当前项目的地址;

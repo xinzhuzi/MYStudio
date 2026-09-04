@@ -369,7 +369,7 @@ declare global {
         error?: string;
       }>;
       list: (payload: { projectId: string; relativePath: string }) => Promise<{ success: boolean; files?: string[]; error?: string }>;
-      readText: (payload: { projectId: string; relativePath: string }) => Promise<{
+      readText: (payload: { projectId: string; relativePath: string; raw?: boolean }) => Promise<{
         success: boolean;
         text?: string;
         size?: number;

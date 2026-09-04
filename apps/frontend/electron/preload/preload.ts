@@ -77,7 +77,7 @@ contextBridge.exposeInMainWorld('projectFiles', {
   saveImage: (payload: { projectId: string; relativePath: string; source: string }) =>
     ipcRenderer.invoke('project-file-save-image', payload),
   readAsBase64: (url: string) => ipcRenderer.invoke('project-file-read-base64', url),
-  readText: (payload: { projectId: string; relativePath: string }) =>
+  readText: (payload: { projectId: string; relativePath: string; raw?: boolean }) =>
     ipcRenderer.invoke('project-file-read-text', payload),
   list: (payload: { projectId: string; relativePath: string }) =>
     ipcRenderer.invoke('project-file-list', payload),

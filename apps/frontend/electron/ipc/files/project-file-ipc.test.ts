@@ -6,6 +6,7 @@ const mocks = vi.hoisted(() => ({
   mkdirSync: vi.fn(),
   writeFile: vi.fn(async () => undefined),
   readFile: vi.fn(async () => Buffer.from("image")),
+  stat: vi.fn(async () => ({ size: 6 })),
   unlink: vi.fn(async () => undefined),
   renameSync: vi.fn(),
   rm: vi.fn(async () => undefined),
@@ -26,6 +27,7 @@ vi.mock("node:fs", () => ({
     promises: {
       writeFile: mocks.writeFile,
       readFile: mocks.readFile,
+      stat: mocks.stat,
       unlink: mocks.unlink,
       rm: mocks.rm,
     },
@@ -90,6 +92,37 @@ describe("registerProjectFileIpcHandlers", () => {
       filePath: "/data/_p/project-a/images/frame.png",
       size: 3,
     });
+  });
+
+  it("read-text raw 通道(09-04 挂账根修):预览拒的尺寸 raw 可读,NUL 免预检,16MB 封顶", async () => {
+    const read = mocks.handlers.get("project-file-read-text")!;
+    const payload = { projectId: "project-a", relativePath: "media/ai-image/2026-09/ledger.json" };
+    const MB = 1024 * 1024;
+
+    // 小文件:两条通道同形
+    mocks.stat.mockResolvedValue({ size: 6 });
+    await expect(read({}, payload)).resolves.toMatchObject({ success: true, text: "image", truncated: false });
+
+    // 3MB:预览拒(raw 缺省)——raw 全量返回
+    mocks.stat.mockResolvedValue({ size: 3 * MB });
+    await expect(read({}, payload)).resolves.toMatchObject({
+      success: false, error: expect.stringContaining("2MB"),
+    });
+    await expect(read({}, { ...payload, raw: true })).resolves.toMatchObject({
+      success: true, text: "image", truncated: false,
+    });
+
+    // 17MB:raw 也拒(16MB 封顶)
+    mocks.stat.mockResolvedValue({ size: 17 * MB });
+    await expect(read({}, { ...payload, raw: true })).resolves.toMatchObject({
+      success: false, error: expect.stringContaining("16MB"),
+    });
+
+    // NUL 字节:预览拒「二进制」,raw 免预检原样返回(自家写入的 JSON 可信)
+    mocks.stat.mockResolvedValue({ size: 6 });
+    mocks.readFile.mockResolvedValueOnce(Buffer.from([0x61, 0x00, 0x62]));
+    await expect(read({}, payload)).resolves.toMatchObject({ success: false });
+    await expect(read({}, { ...payload, raw: true })).resolves.toMatchObject({ success: true });
   });
 
   it("moves project files within the project scope and rejects missing sources / existing targets", async () => {

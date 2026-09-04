@@ -4,8 +4,11 @@
 // @vitest-environment jsdom
 import { describe, expect, it, vi } from "vitest";
 import {
+  appendProjectLedger,
   deleteProjectImageFile,
   generationSourceLabel,
+  ledgerFilenameOf,
+  ledgerMonthFolderOf,
   mediaAiImageLedgerIdentity,
   mergeGenerationRecords,
   readGenerationParams,
@@ -107,8 +110,79 @@ describe("history-records(09-03 弹窗数据层)", () => {
 
   it("generationSourceLabel:已知来源大白话,未知原样,缺失为破折号", () => {
     expect(generationSourceLabel("image-studio-canvas")).toBe("图片工作室画布");
+    expect(generationSourceLabel("image-studio-uncloth")).toBe("图片工作室画布·无衣物");
     expect(generationSourceLabel("mystery")).toBe("mystery");
     expect(generationSourceLabel(undefined)).toBe("—");
+  });
+
+  it("appendProjectLedger(09-04 挂账根修):追加进已有/新建;读取走 raw 通道;坏 JSON 不清账", async () => {
+    const existing = JSON.stringify([
+      { ts: 1, prompt: "旧账", model: "m", file: "2026-09/old.png" },
+    ]);
+    const reads: Array<{ projectId: string; relativePath: string; raw?: boolean }> = [];
+    const writes: Array<{ key: string; value: string }> = [];
+    const windowMock = window as unknown as {
+      projectFiles?: {
+        readText: (payload: { projectId: string; relativePath: string; raw?: boolean }) => Promise<string>;
+        writeText: (key: string, value: string) => Promise<void>;
+      };
+    };
+    let mode: "ok" | "missing" | "broken" = "ok";
+    windowMock.projectFiles = {
+      readText: vi.fn(async (payload) => {
+        reads.push(payload);
+        if (mode === "ok") return existing;
+        if (mode === "missing") return "";
+        return "{ 坏 JSON";
+      }),
+      writeText: vi.fn(async (key, value) => {
+        writes.push({ key, value });
+      }),
+    };
+    try {
+      // 追加进已有台账:读取必须带 raw(2MB 预览通道读不到大台账)
+      await appendProjectLedger({
+        projectId: "p1",
+        relativePath: "media/ai-image/2026-09/ledger.json",
+        entry: { ts: 2, prompt: "新账", model: "krea2-uncloth", file: "2026-09/new.png" },
+      });
+      expect(reads[0]).toMatchObject({ projectId: "p1", raw: true });
+      expect(writes).toHaveLength(1);
+      expect(writes[0].key).toBe("_p/p1/media/ai-image/2026-09/ledger.json");
+      expect(JSON.parse(writes[0].value)).toEqual([
+        { ts: 1, prompt: "旧账", model: "m", file: "2026-09/old.png" },
+        { ts: 2, prompt: "新账", model: "krea2-uncloth", file: "2026-09/new.png" },
+      ]);
+      // 文件不存在(首条):空数组起建
+      mode = "missing";
+      await appendProjectLedger({
+        projectId: "p1",
+        relativePath: "media/ai-image/2026-09/ledger.json",
+        entry: { ts: 3, prompt: "首条", model: "m", file: "2026-09/first.png" },
+      });
+      expect(JSON.parse(writes[1].value)).toEqual([
+        { ts: 3, prompt: "首条", model: "m", file: "2026-09/first.png" },
+      ]);
+      // 坏 JSON:不重建不清账(重建空数组覆盖写=清光历史,旧行为的根雷)
+      const writesBefore = writes.length;
+      mode = "broken";
+      await appendProjectLedger({
+        projectId: "p1",
+        relativePath: "media/ai-image/2026-09/ledger.json",
+        entry: { ts: 4, prompt: "坏文件时这条进不去", model: "m", file: "2026-09/x.png" },
+      });
+      expect(writes).toHaveLength(writesBefore);
+    } finally {
+      delete windowMock.projectFiles;
+    }
+  });
+
+  it("ledgerMonthFolderOf/ledgerFilenameOf:受管 URL 尾段口径(编码形态)", () => {
+    const url =
+      "project-file://p1/media/ai-image/2026-09/" + encodeURIComponent("studio_真实摄影.png");
+    expect(ledgerMonthFolderOf(url)).toBe("2026-09");
+    expect(ledgerFilenameOf(url)).toBe(encodeURIComponent("studio_真实摄影.png"));
+    expect(ledgerFilenameOf("project-file://p1/media/ai-image/a.png?x=1")).toBe("a.png");
   });
 
   it("ledger 地址归一化(09-03 修复):有项目=project-file:// 完整 URL,同图与 local 去重不破", () => {

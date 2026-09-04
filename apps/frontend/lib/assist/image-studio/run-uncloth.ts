@@ -3,6 +3,7 @@
 
 import { toast } from "sonner";
 import { saveToMediaLibrary } from "@/lib/ai/generation-media";
+import { appendProjectLedger, ledgerFilenameOf, ledgerMonthFolderOf } from "./history-records";
 import { getProjectFilesBridge } from "@/lib/bridge/project-files";
 import { readImageAsBase64 } from "@/lib/media/image-storage";
 import { useProjectStore } from "@/stores/project/project-store";
@@ -76,6 +77,21 @@ export async function runUnclothChain(
   const imageUrl =
     saved?.success && saved.url ? saved.url : throwRuntimeError("处理结果落盘失败,请重试");
   const mediaId = saveToMediaLibrary(imageUrl, request.prompt, "ai-image");
+  // 磁盘台账(09-04 挂账根修):此前无衣物链只落图+媒体库不写台账,记录
+  // 只活在 localStorage(50 条上限会丢)。file 取受管 URL 尾段(编码口径,
+  // 与生成链同构);references 存输入图供复原。失败静默不阻断。
+  void appendProjectLedger({
+    projectId,
+    relativePath: `media/ai-image/${ledgerMonthFolderOf(imageUrl)}/ledger.json`,
+    entry: {
+      ts: Date.now(),
+      prompt: request.prompt,
+      model: "krea2-uncloth",
+      file: `${ledgerMonthFolderOf(imageUrl)}/${ledgerFilenameOf(imageUrl)}`,
+      references: [request.inputImageUrl],
+      source: "image-studio-uncloth",
+    },
+  }).catch(() => {});
 
   toast.success("无衣物处理完成");
   return { imageUrl, mediaId };

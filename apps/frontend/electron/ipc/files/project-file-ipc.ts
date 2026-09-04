@@ -42,6 +42,8 @@ type RegisterProjectFileIpcHandlersContext = {
 const PREVIEW_HARD_LIMIT = 2 * 1024 * 1024; // 2MB
 /** Soft truncation limit (in BYTES) for project-file-read-text preview. */
 const PREVIEW_SOFT_LIMIT = 256 * 1024; // 256KB
+/** raw 读取硬上限(台账专用):16MB,约 2000 条超长中文 prompt 序列化的 7 倍裕量 */
+const RAW_HARD_LIMIT = 16 * 1024 * 1024;
 
 function resolveProjectTextFilePath(dataRoot: string, key: string) {
   const normalizedKey = key.replace(/\\/g, "/").replace(/^\/+/, "");
@@ -168,9 +170,12 @@ export function registerProjectFileIpcHandlers({
   // Guards: hard size cap (2MB), soft truncation (256KB) with a truncated flag,
   // and a NUL-byte heuristic to refuse binary content. The containment check
   // inside resolveProjectScopedFilePath already prevents path escape.
+  // payload.raw=true 走台账专用通道:16MB 上限替代 2MB、免 256KB 截断与 NUL
+  // 预检(自家写入的 JSON 可信)——2000 条长中文 prompt 序列化可超 2MB,
+  // 预览通道读不到会让台账追加侧误判「无台账」而清光历史(09-04 挂账根修)。
   ipcMain.handle("project-file-read-text", async (
     _event,
-    payload: { projectId: string; relativePath: string },
+    payload: { projectId: string; relativePath: string; raw?: boolean },
   ) => {
     try {
       const filePath = resolveProjectScopedFilePath(
@@ -179,10 +184,22 @@ export function registerProjectFileIpcHandlers({
         payload.relativePath,
       );
       const stat = await fs.promises.stat(filePath);
-      if (stat.size > PREVIEW_HARD_LIMIT) {
-        return { success: false, error: "文件过大(超过 2MB),请使用外部编辑器打开" };
+      if (stat.size > (payload.raw ? RAW_HARD_LIMIT : PREVIEW_HARD_LIMIT)) {
+        return {
+          success: false,
+          error: payload.raw ? "文件过大(超过 16MB)" : "文件过大(超过 2MB),请使用外部编辑器打开",
+        };
       }
       const data = await fs.promises.readFile(filePath);
+      if (payload.raw) {
+        return {
+          success: true,
+          text: data.toString("utf-8"),
+          size: stat.size,
+          mimeType: getMimeType(filePath),
+          truncated: false,
+        };
+      }
       if (data.length > 0 && data.includes(0x00)) {
         return { success: false, error: "文件包含二进制内容,无法预览" };
       }
