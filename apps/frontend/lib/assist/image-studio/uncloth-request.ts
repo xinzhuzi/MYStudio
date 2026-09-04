@@ -70,7 +70,7 @@ export function buildUnclothChainRequest(
       graph.edges.some((edge) => edge.source === node.id && edge.target === uncloth.id),
   );
   const prompt = (uncloth.prompt?.trim() || promptTextNode?.prompt?.trim() || "").trim();
-  if (!prompt) return { error: "无衣物节点缺重绘提示词:填节点内提示词或连一条提示词边" };
+  if (!prompt) return { error: "连线的提示词节点没有文字——在提示词节点里填写重绘描述" };
 
   return {
     inputImageUrl,
