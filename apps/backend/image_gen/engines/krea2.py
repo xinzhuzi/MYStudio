@@ -29,9 +29,17 @@ COMFY_LORA_DIR = "loras/Krea2-NSFW"
 #   calculate_weight 的缩放系数 = 纯 strength(无 alpha/rank 因子),无 TE 侧权重;
 #   ConditioningKrea2Rebalance 节点51(multiplier=1, 12 带 weights 第9带×5;节点76 未连线);
 #   负条件 = ZeroOut(重平衡后正条件); KSampler euler/simple 8步 cfg=1。
+# 默认值=工作流当前值(09-04 用户二次校对);per-call 覆盖经 loras 参数
 PRO_LORA_STACK = (
-    ("KREA 2 Mystic XXX v3.safetensors", 1.0),
-    ("Krea 2 pussy.safetensors", 0.3),
+    ("KREA 2 Mystic XXX v3.safetensors", 0.8),
+    ("Krea 2 pussy.safetensors", 0.15),
+)
+# LoRA 文件名(节点四槽:V4/Mystic/空/pussy;enabled+strength 由调用方传)
+LORA_FILES = (
+    "Krea 2 NSFW V4.safetensors",
+    "KREA 2 Mystic XXX v3.safetensors",
+    None,  # 空槽
+    "Krea 2 pussy.safetensors",
 )
 # 12 权重 = Krea2Pipeline text_encoder_select_layers=(2,5,...,35) 升序 12 层
 # (与 ComfyUI 编码器 (B,12,seq,2560) 升序展平到末维同构)
@@ -299,6 +307,34 @@ def get_components(models_dir: Path, snapshot_dir: Path) -> dict[str, Any]:
     }
 
 
+def get_lora_components_for(models_dir: Path, snapshot_dir: Path,
+                            loras: "list[dict] | None" = None) -> dict[str, Any]:
+    """按调用方 LoRA 槽位(节点四槽)组装组件;None/空=回落 PRO_LORA_STACK 默认。"""
+    import copy as _copy
+    if not loras:
+        return get_lora_components(models_dir, snapshot_dir)
+    with _lock:
+        if "krea2" not in _pipeline_cache:
+            _pipeline_cache["krea2"] = get_components(models_dir, snapshot_dir)
+    base = _pipeline_cache["krea2"]
+    lora_comps = dict(base)
+    lora_comps["transformer"] = _copy.deepcopy(base["transformer"])
+    for i, slot in enumerate(loras):
+        file_name = LORA_FILES[i] if i < len(LORA_FILES) else None
+        if not file_name or not slot.get("enabled"):
+            continue
+        strength = float(slot.get("strength", 1.0))
+        lora_file = models_dir / COMFY_LORA_DIR / file_name
+        if lora_file.is_file():
+            try:
+                merge_lora(lora_comps["transformer"], str(lora_file), strength)
+            except Exception as exc:
+                print(f"[image-sidecar] krea2 lora merge 失败({file_name}): {exc}", file=sys.stderr)
+        else:
+            print(f"[image-sidecar] krea2 LoRA 缺失,跳过: {lora_file}", file=sys.stderr)
+    return lora_comps
+
+
 def get_lora_components(models_dir: Path, snapshot_dir: Path) -> dict[str, Any]:
     import copy as _copy
     if "krea2_lora" in _lora_cache:
@@ -433,7 +469,8 @@ def generate(prompt, aspect_ratio, negative_prompt, steps, seed, reference_b64,
 
     with _lock:
         if use_lora:
-            comps = get_lora_components(models_dir, snapshot_dir)
+            # 节点四槽透传(审查③根修:面板改 LoRA 强度此前根本没到引擎)
+            comps = get_lora_components_for(models_dir, snapshot_dir, loras)
         else:
             if "krea2" not in _pipeline_cache:
                 _pipeline_cache["krea2"] = get_components(models_dir, snapshot_dir)
@@ -570,7 +607,8 @@ def fetch_small_pieces(cache_dir: str, hf_snapshot_download=None, modelscope_dow
 # ── 无衣物链:latent 域蒙版 SDEdit(09-04,ComfyUI SetLatentNoiseMask 等价) ──
 def generate_masked_sdedit(prompt: str, image: "Any", mask: "Any", steps: int = 8,
                            seed: int | None = None, denoise: float = 0.65,
-                           use_lora: bool = True, **ctx) -> "Any":
+                           use_lora: bool = True,
+                           loras: "list[dict] | None" = None, **ctx) -> "Any":
     """蒙版内 SDEdit、蒙版外 latent 锚定原图(ComfyUI SetLatentNoiseMask 语义)。
 
     实现复用管线 __call__ 全链(调度/mu/no_grad/位置编码零重写风险),蒙版

@@ -61,10 +61,21 @@ def run_uncloth_pipeline(
     mp = float(params.get("megapixels", 1.0))
     raw = input_image_b64.split(",", 1)[-1] if input_image_b64.startswith("data:") else input_image_b64
     img = Image.open(io.BytesIO(base64.b64decode(raw))).convert("RGB")
+    # upscale_method(当前 lanczos;sidecar Python PIL 同名映射)+ division_factor
+    _PIL_RESIZE = {"lanczos": 1, "nearest-exact": 0, "bilinear": 2, "area": 3, "bicubic": 3}  # PIL LANCZOS=1
+    method_map = {"lanczos": __import__("PIL.Image", fromlist=["LANCZOS"]).LANCZOS,
+                  "nearest-exact": __import__("PIL.Image", fromlist=["NEAREST"]).NEAREST,
+                  "bilinear": __import__("PIL.Image", fromlist=["BILINEAR"]).BILINEAR,
+                  "area": __import__("PIL.Image", fromlist=["BILINEAR"]).BILINEAR,
+                  "bicubic": __import__("PIL.Image", fromlist=["BICUBIC"]).BICUBIC}
+    resample = method_map.get(params.get("upscaleMethod", "lanczos"),
+                              __import__("PIL.Image", fromlist=["LANCZOS"]).LANCZOS)
+    div = max(1, int(params.get("divisionFactor", 1)))
+    mp = mp / div  # division_factor 分母(ComfyUI 语义:目标像素/division)
     target_px = int(mp * 1_000_000)
     if img.width * img.height > target_px:
         scale = (target_px / (img.width * img.height)) ** 0.5
-        img = img.resize((max(1, round(img.width * scale)), max(1, round(img.height * scale))), Image.LANCZOS)
+        img = img.resize((max(1, round(img.width * scale)), max(1, round(img.height * scale))), resample)
     _log("input", size=f"{img.width}x{img.height}")
 
     # 1. 双分割并集
@@ -127,9 +138,14 @@ def run_uncloth_pipeline(
         from transformers import AutoModelForSemanticSegmentation, AutoProcessor
 
         d = _find_model_dir(models_dir, "fashn-human-parser")
-        model = AutoModelForSemanticSegmentation.from_pretrained(str(d)).eval()
+        _fdev = params.get("fashnDevice", "cpu")
+        _fdtype = {"float32": "float32", "float16": "float16", "bfloat16": "bfloat16"}.get(
+            params.get("fashnDtype", "float32"), "float32")
+        model = AutoModelForSemanticSegmentation.from_pretrained(
+            str(d), torch_dtype=getattr(torch, _fdtype, torch.float32)
+        ).to(device=_fdev).eval()
         processor = AutoProcessor.from_pretrained(str(d))
-        inputs = processor(images=img, return_tensors="pt")
+        inputs = processor(images=img, return_tensors="pt").to(device=_fdev, dtype=getattr(torch, _fdtype, torch.float32))
         with torch.no_grad():
             logits = model(**inputs).logits
         logits = torch.nn.functional.interpolate(logits.float(), size=(img.height, img.width), mode="bilinear")[0]
@@ -167,11 +183,12 @@ def run_uncloth_pipeline(
     steps = int(params.get("steps", 8))
 
     # 2. 两遍 masked SDEdit
+    loras = params.get("loras")
     out1 = krea2.generate_masked_sdedit(
         prompt, img, mask_undress,
         steps=steps, seed=int(params.get("seedUndress", 3)),
         denoise=float(params.get("denoiseUndress", 0.65)),
-        use_lora=True, **engine_ctx,
+        use_lora=True, loras=loras, **engine_ctx,
     )
     _log("pass1-undress", denoise=params.get("denoiseUndress"), seed=params.get("seedUndress"))
 
@@ -179,7 +196,7 @@ def run_uncloth_pipeline(
         prompt, out1, mask_color,
         steps=steps, seed=int(params.get("seedColor", 1)),
         denoise=float(params.get("denoiseColor", 0.3)),
-        use_lora=True, **engine_ctx,
+        use_lora=True, loras=loras, **engine_ctx,
     )
     _log("pass2-color", denoise=params.get("denoiseColor"), seed=params.get("seedColor"))
 
@@ -187,3 +204,7 @@ def run_uncloth_pipeline(
     out2.save(buf, format="PNG")
     _log("done", total=f"{time.time()-t_all:.1f}s")
     return base64.b64encode(buf.getvalue()).decode()
+
+# 审查②注记(09-04):cfg/sampler/scheduler 字段存储在节点供用户查看与未来
+# 引擎扩展,当前引擎(diffusers FlowMatchEulerDiscreteScheduler)与工作流
+# euler/simple 同构;cfg=1↔guidance=0 同语义已固化在引擎 GUIDANCE_SCALE。

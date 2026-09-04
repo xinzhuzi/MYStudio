@@ -306,6 +306,18 @@ function UnclothNodeEditor({
           />
           启用细节加工(process_detail)
         </label>
+        <label className="flex items-center justify-between gap-2 text-[10px] text-muted-foreground">
+          <span className="shrink-0">detail_method</span>
+          <select
+            value={params.maskDetail.detailMethod}
+            onChange={(e) => patch({ maskDetail: { ...params.maskDetail, detailMethod: e.target.value } })}
+            className="h-7 w-24 rounded-md border border-border bg-card/80 px-1 text-[10px] text-foreground outline-none"
+          >
+            {["GuidedFilter", "PyMatting", "VITMatte", "VITMatte(local)", "PyMatting(local)"].map((m) => (
+              <option key={m} value={m}>{m}</option>
+            ))}
+          </select>
+        </label>
         {numberField("腐蚀 detail_erode", params.maskDetail.detailErode, (v) => patch({ maskDetail: { ...params.maskDetail, detailErode: v } }), 1, 0, 64)}
         {numberField("膨胀 detail_dilate", params.maskDetail.detailDilate, (v) => patch({ maskDetail: { ...params.maskDetail, detailDilate: v } }), 1, 0, 64)}
         {numberField("黑点 black_point", params.maskDetail.blackPoint, (v) => patch({ maskDetail: { ...params.maskDetail, blackPoint: v } }), 0.01, 0, 0.5)}
