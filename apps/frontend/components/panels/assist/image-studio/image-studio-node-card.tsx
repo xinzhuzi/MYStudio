@@ -68,6 +68,8 @@ export interface ImageStudioNodeData extends Record<string, unknown> {
   /** 参考图节点在其所连成图参考序列中的编号(1 起;未连线=缺省)——
    *  与生图请求的数组顺序同源(reference-order 单源,AI 按数组序识别) */
   referenceIndex?: number;
+  /** 成图节点的无衣物链上游(09-04):提示词经链传入,不显示兜底输入框 */
+  hasUnclothUpstream?: boolean;
   /** 模型专属附加参数(MJ/Ideogram;types/studio 节点模型冻结,存于画布 store) */
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   extras?: Record<string, any>;
@@ -464,6 +466,7 @@ export const ImageStudioNodeCard = memo(function ImageStudioNodeCard({
         <GeneratedNodeEditor
           node={node}
           promptNode={data.promptNode}
+          hasUnclothUpstream={data.hasUnclothUpstream}
           referenceCount={data.referenceCount}
           extras={data.extras}
           onUpdate={data.onUpdate}
@@ -707,6 +710,7 @@ function BatchImageArea({
 function GeneratedNodeEditor({
   node,
   promptNode,
+  hasUnclothUpstream,
   referenceCount,
   extras,
   onUpdate,
@@ -718,6 +722,7 @@ function GeneratedNodeEditor({
 }: {
   node: ImageWorkflowGeneratedNode;
   promptNode?: ImageWorkflowPromptNode;
+  hasUnclothUpstream?: boolean;
   referenceCount: number;
   extras?: ImageStudioNodeData["extras"];
   onUpdate: ImageStudioNodeData["onUpdate"];
@@ -988,7 +993,12 @@ function GeneratedNodeEditor({
           </Button>
         )}
       </div>
-      {!promptNode ? (
+      {hasUnclothUpstream && !promptNode ? (
+        <div className="nodrag nopan rounded-md border border-border bg-background/80 px-3 py-2 text-[10px] text-muted-foreground">
+          提示词与输入图经「无衣物」节点链传入——点本卡「生成」执行整链(双分割+两遍采样)。
+        </div>
+      ) : null}
+      {!promptNode && !hasUnclothUpstream ? (
         <div className="nodrag nopan space-y-2 rounded-md border border-border bg-background/80 p-3">
           <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
             <WandSparkles className="h-3.5 w-3.5 text-info" />

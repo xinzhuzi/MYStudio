@@ -552,6 +552,14 @@ export function ImageStudioCanvas() {
           node.type === "generated"
             ? findPromptNodeForGenerated(activeGraph, node.id)
             : undefined,
+        // 无衣物链上游(09-04):成图有 uncloth 上游时,提示词经链传入——
+        // 卡上不显示「未连线在此填写」的兜底输入框(用户裁定:无输入则按钮不生效)
+        hasUnclothUpstream:
+          node.type === "generated" &&
+          activeGraph.edges.some((edge) => {
+            const src = nodesById.get(edge.source);
+            return edge.target === node.id && src?.type === "uncloth";
+          }),
         selected: node.id === selectedNodeId,
         referenceIndex:
           node.type === "reference" ? referenceIndexOf(activeGraph, node.id) : undefined,
