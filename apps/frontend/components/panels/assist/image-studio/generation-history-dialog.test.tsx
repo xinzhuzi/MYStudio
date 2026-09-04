@@ -37,6 +37,13 @@ afterEach(() => {
   vi.clearAllMocks();
 });
 
+/** 本月 YYYY-MM(与 readLedgerEntries 同款本地时区口径):台账用例的 mock
+ *  与断言都绑这个值——硬编码月份会在次次月(本月+上月都读不到)静默翻红 */
+const THIS_MONTH = (() => {
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+})();
+
 function seedHistory() {
   const enriched: HistoryEntry = {
     id: "rec_new",
@@ -160,11 +167,74 @@ describe("GenerationHistoryDialog(09-03 弹窗)", () => {
     }
   });
 
+  it("删除编码形态台账行(09-04 线上实锤):中文文件名行删得掉、行消失、图按解码路径删", async () => {
+    useProjectStore.setState({ activeProjectId: "p1" });
+    seedHistory();
+    // appendProjectLedger 存的 file=受管 URL 尾段(编码形态);编码/解码口径
+    // 分家曾致该行点删不消失、图文件却真的被物理删掉
+    const encodedName = encodeURIComponent("studio_真实摄影_薄汗_1788451280291.png");
+    const ledgerJson = JSON.stringify([
+      { ts: 300, prompt: "编码台账记录", model: "krea2-turbo", file: `${THIS_MONTH}/${encodedName}` },
+    ]);
+    const fileDeletes: Array<{ projectId: string; relativePath: string }> = [];
+    const writes: Array<{ key: string; value: string }> = [];
+    const windowMock = window as unknown as {
+      projectFiles?: {
+        readText: (payload: { projectId: string; relativePath: string }) => Promise<string>;
+        writeText: (key: string, value: string) => Promise<void>;
+        deleteFile: (payload: { projectId: string; relativePath: string }) => Promise<{ success: boolean }>;
+        getAbsolutePath: (url: string) => Promise<string | null>;
+      };
+    };
+    windowMock.projectFiles = {
+      readText: vi.fn(async (payload) =>
+        payload.relativePath === `media/ai-image/${THIS_MONTH}/ledger.json` ? ledgerJson : "",
+      ),
+      writeText: vi.fn(async (key, value) => {
+        writes.push({ key, value });
+      }),
+      deleteFile: vi.fn(async (payload) => {
+        fileDeletes.push(payload);
+        return { success: true };
+      }),
+      getAbsolutePath: vi.fn(async () => null),
+    };
+    const view = render(<GenerationHistoryDialog open onOpenChange={() => {}} />);
+    try {
+      expect(await screen.findByText("编码台账记录")).toBeTruthy();
+      fireEvent.click(screen.getByText("编码台账记录"));
+      expect((await screen.findAllByText("编码台账记录")).length).toBeGreaterThanOrEqual(2);
+      fireEvent.click(screen.getByRole("button", { name: /删除记录/ }));
+      await waitFor(() => {
+        // 图文件按解码后的真实路径删除(deleteProjectImageFile 经 parseProjectFileUrl
+        // 逐段解码;fs 层删的就是中文名文件)——这条链此前就是「真删图」的元凶
+        expect(fileDeletes).toEqual([
+          {
+            projectId: "p1",
+            relativePath: `media/ai-image/${THIS_MONTH}/studio_真实摄影_薄汗_1788451280291.png`,
+          },
+        ]);
+      });
+      // 台账条目真的被移除(双口径比对命中)
+      expect(writes.map((write) => write.key)).toEqual([
+        `_p/p1/media/ai-image/${THIS_MONTH}/ledger.json`,
+      ]);
+      expect(JSON.parse(writes[0].value)).toEqual([]);
+      expect(toastSuccessMock).toHaveBeenCalledWith("已清理完毕:记录+台账+图文件 1 张");
+      // 关键断言:列表里的台账行消失(此前 setLedger 单口径过滤不中,行纹丝不动)
+      await waitFor(() => expect(screen.queryByText("编码台账记录")).toBeNull());
+      expect(screen.getAllByText("水墨仙山,云雾缭绕").length).toBeGreaterThanOrEqual(1);
+    } finally {
+      delete windowMock.projectFiles;
+      view.unmount();
+    }
+  });
+
   it("删除=清理完毕(09-03):ledger 行可删,台账条目+图文件全清,本地行不受牵连", async () => {
     useProjectStore.setState({ activeProjectId: "p1" });
     seedHistory();
     const ledgerJson = JSON.stringify([
-      { ts: 300, prompt: "磁盘台账记录", model: "krea2-turbo", file: "2026-09/led.png" },
+      { ts: 300, prompt: "磁盘台账记录", model: "krea2-turbo", file: `${THIS_MONTH}/led.png` },
     ]);
     const fileDeletes: Array<{ projectId: string; relativePath: string }> = [];
     const writes: Array<{ key: string; value: string }> = [];
@@ -179,7 +249,7 @@ describe("GenerationHistoryDialog(09-03 弹窗)", () => {
     windowMock.projectFiles = {
       // 只本月有台账(readLedgerEntries 会拉本月+上月两个月,全给会渲染成两行)
       readText: vi.fn(async (payload) =>
-        payload.relativePath === "media/ai-image/2026-09/ledger.json" ? ledgerJson : "",
+        payload.relativePath === `media/ai-image/${THIS_MONTH}/ledger.json` ? ledgerJson : "",
       ),
       writeText: vi.fn(async (key, value) => {
         writes.push({ key, value });
@@ -200,10 +270,12 @@ describe("GenerationHistoryDialog(09-03 弹窗)", () => {
       fireEvent.click(screen.getByRole("button", { name: /删除记录/ }));
       await waitFor(() => {
         expect(fileDeletes).toEqual([
-          { projectId: "p1", relativePath: "media/ai-image/2026-09/led.png" },
+          { projectId: "p1", relativePath: `media/ai-image/${THIS_MONTH}/led.png` },
         ]);
       });
-      expect(writes.map((write) => write.key)).toEqual(["_p/p1/media/ai-image/2026-09/ledger.json"]);
+      expect(writes.map((write) => write.key)).toEqual([
+        `_p/p1/media/ai-image/${THIS_MONTH}/ledger.json`,
+      ]);
       expect(JSON.parse(writes[0].value)).toEqual([]);
       expect(toastSuccessMock).toHaveBeenCalledWith("已清理完毕:记录+台账+图文件 1 张");
       // 台账行消失,本地行仍在

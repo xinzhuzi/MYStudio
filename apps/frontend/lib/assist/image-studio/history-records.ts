@@ -80,6 +80,15 @@ function decodeURIComponentSafe(value: string): string {
   }
 }
 
+/**
+ * ledger file 键归一(09-04 修复):写入侧 appendProjectLedger 存的是受管 URL
+ * 尾段(URL 编码形态,中文文件名必编码),而删除/拼装侧口径是解码形态。比对
+ * 与 URL 重建统一走本函数,两套口径不再分家(分家的后果=台账条目永远删不掉)。
+ */
+export function decodeLedgerFileKey(file: string): string {
+  return decodeURIComponentSafe(file);
+}
+
 /** localStorage 历史 + 磁盘 ledger 合并:按图片身份(解码文件名)去重,新→旧排序。
  *  projectId 非空时 ledger 条目地址归一化为 project-file:// 完整 URL(裸相对
  *  路径在展示层必坏:缩略图/大图/访达揭示全链——09-03 实锤);null=无项目,
@@ -114,8 +123,10 @@ export function mergeGenerationRecords(
     id: `disk_${item.ts}_${item.file}`,
     prompt: item.prompt,
     model: item.model,
+    // item.file 是受管 URL 尾段(编码形态);先解码再交给唯一拼装点重新编码——
+    // 直接喂编码串会被 encodeURIComponent 二次编码(%→%25),缩略图/大图全链 404(09-04 实锤)
     resultUrl: projectId
-      ? buildProjectFileUrl(projectId, `media/ai-image/${item.file}`)
+      ? buildProjectFileUrl(projectId, `media/ai-image/${decodeLedgerFileKey(item.file)}`)
       : item.file,
     createdAt: item.ts,
     params: readGenerationParams(item as unknown as Record<string, unknown>),
@@ -188,7 +199,8 @@ export function mediaAiImageLedgerIdentity(url: string): string | null {
 }
 
 /** 磁盘 ledger 条目移除(读改写,与写入侧 appendProjectLedger 同键同构):
- *  只删条目不动图文件。返回是否确有移除(条目本就不在= false)。 */
+ *  只删条目不动图文件。返回是否确有移除(条目本就不在= false,幂等);
+ *  台账文件在但内容坏 JSON 时如实抛错(仍不写盘,宁留勿坏)。 */
 export async function removeLedgerEntryByFile(input: {
   projectId: string;
   file: string;
@@ -204,10 +216,18 @@ export async function removeLedgerEntryByFile(input: {
     const text = typeof result === "string" ? result : result?.text;
     const parsed = text ? JSON.parse(text) : [];
     if (Array.isArray(parsed)) entries = parsed;
-  } catch {
-    return false; // 坏文件/读失败:不动(宁留勿坏)
+  } catch (error) {
+    // 坏 JSON(文件在但内容坏)=真实故障,如实上抛让面板报「台账更新失败」;
+    // 仍不写盘(宁留勿坏)。文件不在时 readText 返回 {success:false} 不走这里,
+    // 走下面的「条目不在」幂等分支。
+    throw error instanceof Error ? error : new Error(String(error));
   }
-  const kept = entries.filter((item) => item.file !== input.file);
+  // 写入侧 item.file 存 URL 编码形态(中文文件名必编码),input.file 是解码
+  // 身份(mediaAiImageLedgerIdentity 产物)——双口径任一命中即属该条目,
+  // 单口径比对曾致台账条目永远删不掉(09-04 实锤)。
+  const kept = entries.filter(
+    (item) => item.file !== input.file && decodeLedgerFileKey(item.file) !== input.file,
+  );
   if (kept.length === entries.length) return false;
   await bridge.writeText(
     `_p/${input.projectId}/${relativePath}`,

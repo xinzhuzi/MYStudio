@@ -135,6 +135,46 @@ describe("history-records(09-03 弹窗数据层)", () => {
     );
   });
 
+  it("编码形态 ledger file(09-04 线上实锤形态):URL 不二次编码,与 local 编码地址同图去重", () => {
+    // 写入侧 appendProjectLedger 存的是受管 URL 尾段(编码形态,中文文件名必编码)
+    const encodedName = encodeURIComponent("studio_真实摄影_薄汗_1788451280291.png");
+    const records = mergeGenerationRecords(
+      [
+        entry({
+          id: "local-a",
+          prompt: "真实摄影",
+          resultUrl: `project-file://p1/media/ai-image/2026-09/${encodedName}`,
+          createdAt: 200,
+        }),
+        entry({
+          id: "local-b",
+          prompt: "另一张",
+          resultUrl: "project-file://p1/media/ai-image/2026-09/plain.png",
+          createdAt: 150,
+        }),
+      ],
+      [
+        // 与 local-a 同一张图:file 编码形态
+        { ts: 250, prompt: "真实摄影", model: "krea2-turbo", file: `2026-09/${encodedName}` },
+        // 磁盘孤本:编码形态,无 local 对应
+        { ts: 100, prompt: "磁盘孤本", model: "krea2-turbo", file: `2026-09/${encodeURIComponent("孤本图.png")}` },
+      ],
+      "p1",
+    );
+    // 同图去重生效:编码 ledger 行被 local 吸收,孤本行保留
+    expect(records.map((record) => record.id)).toEqual([
+      "local-a",
+      "local-b",
+      `disk_100_2026-09/${encodeURIComponent("孤本图.png")}`,
+    ]);
+    // 关键断言:孤本行 URL 与写入侧 createProjectFileUrl 逐字节一致——
+    // 双重编码会产出 %25E5 形态(缩略图/大图全链 404)
+    expect(records[2].resultUrl).toBe(
+      `project-file://p1/media/ai-image/2026-09/${encodeURIComponent("孤本图.png")}`,
+    );
+    expect(records[2].resultUrl).not.toContain("%25");
+  });
+
   it("mediaAiImageLedgerIdentity:project-file 媒体图→「月/文件名」;其他 scheme/越界路径→null", () => {
     expect(mediaAiImageLedgerIdentity("project-file://p1/media/ai-image/2026-09/a.png")).toBe(
       "2026-09/a.png",
@@ -148,7 +188,7 @@ describe("history-records(09-03 弹窗数据层)", () => {
     expect(mediaAiImageLedgerIdentity("data:image/png;base64,xx")).toBeNull();
   });
 
-  it("removeLedgerEntryByFile:读改写删条目;条目不在/坏文件不动,返回是否确有移除", async () => {
+  it("removeLedgerEntryByFile:读改写删条目;条目不在/非法身份不写盘,返回是否确有移除", async () => {
     const ledgerJson = JSON.stringify([
       { ts: 1, prompt: "留", model: "m", file: "2026-09/keep.png" },
       { ts: 2, prompt: "删", model: "m", file: "2026-09/gone.png" },
@@ -187,6 +227,65 @@ describe("history-records(09-03 弹窗数据层)", () => {
         removeLedgerEntryByFile({ projectId: "p1", file: "hax/../gone.png" }),
       ).resolves.toBe(false);
       expect(writes).toHaveLength(1);
+    } finally {
+      delete windowMock.projectFiles;
+    }
+  });
+
+  it("removeLedgerEntryByFile 编码口径(09-04 线上实锤):条目存编码形态,解码身份也删得掉", async () => {
+    // appendProjectLedger 写入的 file=受管 URL 尾段(中文必编码)——
+    // 单口径(编码 vs 解码)比对曾致台账条目永远删不掉、面板行点删不消失
+    const encodedName = encodeURIComponent("studio_真实摄影_薄汗_1788451280291.png");
+    const ledgerJson = JSON.stringify([
+      { ts: 1, prompt: "留", model: "m", file: "2026-09/keep.png" },
+      { ts: 2, prompt: "删", model: "m", file: `2026-09/${encodedName}` },
+    ]);
+    const writes: Array<{ key: string; value: string }> = [];
+    const windowMock = window as unknown as {
+      projectFiles?: {
+        readText: (payload: { projectId: string; relativePath: string }) => Promise<string>;
+        writeText: (key: string, value: string) => Promise<void>;
+      };
+    };
+    windowMock.projectFiles = {
+      readText: vi.fn(async () => ledgerJson),
+      writeText: vi.fn(async (key, value) => {
+        writes.push({ key, value });
+      }),
+    };
+    try {
+      // input.file=解码身份(mediaAiImageLedgerIdentity 产物)
+      await expect(
+        removeLedgerEntryByFile({ projectId: "p1", file: "2026-09/studio_真实摄影_薄汗_1788451280291.png" }),
+      ).resolves.toBe(true);
+      expect(writes).toHaveLength(1);
+      expect(JSON.parse(writes[0].value)).toEqual([
+        { ts: 1, prompt: "留", model: "m", file: "2026-09/keep.png" },
+      ]);
+    } finally {
+      delete windowMock.projectFiles;
+    }
+  });
+
+  it("removeLedgerEntryByFile 坏 JSON(09-04):如实抛错(面板报「台账更新失败」),不写盘", async () => {
+    const writes: Array<{ key: string; value: string }> = [];
+    const windowMock = window as unknown as {
+      projectFiles?: {
+        readText: (payload: { projectId: string; relativePath: string }) => Promise<string>;
+        writeText: (key: string, value: string) => Promise<void>;
+      };
+    };
+    windowMock.projectFiles = {
+      readText: vi.fn(async () => "{ 不是 JSON"),
+      writeText: vi.fn(async (key, value) => {
+        writes.push({ key, value });
+      }),
+    };
+    try {
+      await expect(
+        removeLedgerEntryByFile({ projectId: "p1", file: "2026-09/a.png" }),
+      ).rejects.toThrow();
+      expect(writes).toHaveLength(0);
     } finally {
       delete windowMock.projectFiles;
     }
