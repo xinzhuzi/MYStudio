@@ -17,6 +17,7 @@ import { LocalImage } from "@/components/ui/local-image";
 import { toPreviewSrc } from "@/lib/media/preview-src";
 import { dispatchCanvasCommand } from "@/lib/studio/canvas-commands";
 import {
+  decodeLedgerFileKey,
   deleteProjectImageFile,
   generationSourceLabel,
   mediaAiImageLedgerIdentity,
@@ -245,37 +246,63 @@ export function GenerationHistoryDialog({
     );
     const failedSteps: string[] = [];
     let filesDeleted = 0;
-    if (activeProjectId) {
-      for (const url of urls) {
-        try {
-          if (await deleteProjectImageFile(activeProjectId, url)) filesDeleted += 1;
-        } catch {
-          failedSteps.push("图文件删除失败");
+    try {
+      if (activeProjectId) {
+        for (const url of urls) {
+          try {
+            if (await deleteProjectImageFile(activeProjectId, url)) filesDeleted += 1;
+          } catch {
+            failedSteps.push("图文件删除失败");
+          }
+        }
+        for (const file of identities) {
+          try {
+            await removeLedgerEntryByFile({ projectId: activeProjectId, file });
+          } catch {
+            failedSteps.push("台账更新失败");
+          }
+        }
+        // 兜底:identity 提取失败时按 id(ledger 行=disk_{ts}_{file})直接移除
+        if (identities.size === 0 && record.origin === "ledger") {
+          try {
+            await removeLedgerEntryByFile({
+              projectId: activeProjectId,
+              file: record.id.replace(/^disk_\d+_/, ""),
+            });
+          } catch {
+            // 静默——本地状态仍会移除
+          }
         }
       }
-      for (const file of identities) {
-        try {
-          await removeLedgerEntryByFile({ projectId: activeProjectId, file });
-        } catch {
-          failedSteps.push("台账更新失败");
-        }
-      }
+    } catch {
+      // 整体外层不因个别步骤中断
     }
     let mediaKept = 0;
-    const mediaStore = useMediaStore.getState();
-    for (const url of urls) {
-      const item = mediaStore.mediaFiles.find((media) => media.url === url);
-      if (!item) continue;
-      try {
-        await mediaStore.removeMediaFile(item.projectId ?? activeProjectId ?? "", item.id);
-      } catch {
-        mediaKept += 1;
+    try {
+      const mediaStore = useMediaStore.getState();
+      for (const url of urls) {
+        const item = mediaStore.mediaFiles.find((media) => media.url === url);
+        if (!item) continue;
+        try {
+          await mediaStore.removeMediaFile(item.projectId ?? activeProjectId ?? "", item.id);
+        } catch {
+          mediaKept += 1;
+        }
       }
+    } catch {
+      // 媒体库失败不阻断
     }
     if (record.origin === "local") removeHistoryEntry(record.id);
-    if (identities.size > 0) {
-      setLedger((previous) => previous.filter((item) => !identities.has(item.file)));
-    }
+    // 本地状态:无条件按 id 移除(此前的 identity 匹配可能失败——
+    // 编码差异/路径格式差异均致 identities 空→ setLedger 不生效→列表不动)
+    setLedger((previous) =>
+      previous.filter(
+        (item) =>
+          `disk_${item.ts}_${item.file}` !== record.id &&
+          !identities.has(item.file) &&
+          !identities.has(decodeLedgerFileKey(item.file)),
+      ),
+    );
     if (selectedId === record.id) setSelectedId(null);
     const keptNote = mediaKept > 0 ? `;${mediaKept} 个媒体库条目请在媒体库中删除` : "";
     if (failedSteps.length > 0) {
