@@ -1,9 +1,9 @@
-from pathlib import Path
 """Model inventory — thin dispatcher(08-31 重构:每引擎独立模块)。"""
 from __future__ import annotations
 
 import json
 import sys
+from pathlib import Path
 
 from .model_cache import (
     IMAGE_MODELS,
@@ -72,7 +72,7 @@ def build_model_status() -> list[dict]:
         })
     # 分割模型(09-04 无衣物节点):目录存在性探测(不做大件/小件区分)
     import os
-    from .model_cache import MYSTUDIO_IMAGE_MODEL_DIR, comfyui_models_dir
+    from .model_cache import comfyui_models_dir
 
     for seg_name, seg_desc in [
         ("segformer_b3_clothes", "衣物部位分割(无衣物节点分割①)"),

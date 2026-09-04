@@ -31,8 +31,8 @@ COMFY_LORA_DIR = "loras/Krea2-NSFW"
 #   负条件 = ZeroOut(重平衡后正条件); KSampler euler/simple 8步 cfg=1。
 # 默认值=工作流当前值(09-04 用户二次校对);per-call 覆盖经 loras 参数
 PRO_LORA_STACK = (
-    ("KREA 2 Mystic XXX v3.safetensors", 0.8),
-    ("Krea 2 pussy.safetensors", 0.15),
+    ("KREA 2 Mystic XXX v3.safetensors", 1.0),
+    ("Krea 2 pussy.safetensors", 0.3),
 )
 # LoRA 文件名(节点四槽:V4/Mystic/空/pussy;enabled+strength 由调用方传)
 LORA_FILES = (
