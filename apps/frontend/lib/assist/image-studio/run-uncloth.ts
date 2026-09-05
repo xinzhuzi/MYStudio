@@ -37,6 +37,8 @@ export async function runUnclothChain(
   if (!inputImage) {
     throw new Error(`输入图无法读取(${request.inputImageUrl.slice(0, 40)}…):仅支持画布内受管图片`);
   }
+  // 09-05 仿写收口:instruct 档改走本地 Krea2Edit 引擎(sidecar uncloth 端点,
+  // 不再依赖 ComfyUI 桥常驻;桥模板 krea2_uncloth_instruct 保留为后备)
   const response = await fetch(`${LOCAL_IMAGE_BASE_URL}/v1/images/uncloth`, {
     method: "POST",
     headers: {

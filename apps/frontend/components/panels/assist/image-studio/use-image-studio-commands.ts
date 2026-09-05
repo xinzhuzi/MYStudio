@@ -59,6 +59,11 @@ export function useImageStudioCommands({
             const id = store.addReferenceNode({ imageUrl: "" });
             return { ok: true, detail: { nodeId: id } };
           }
+          if (command.nodeType === "uncloth") {
+            // 显式分支(09-04 通用化补漏):fall-through 会误建文生图组
+            const id = store.addUnclothNode();
+            return { ok: true, detail: { nodeId: id } };
+          }
           const group = store.addGenerationGroup();
           return {
             ok: true,

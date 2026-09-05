@@ -194,3 +194,23 @@ describe("image-studio 指令执行器(二期扩容)", () => {
     expect(promptNode?.negativePrompt).toBe("模糊");
   });
 });
+
+describe("image-studio 指令执行器:无衣物(09-04 通用化补漏)", () => {
+  it("add-node uncloth:建出 uncloth 节点而非误建文生图组(fall-through 根修)", () => {
+    seedGroup();
+    mountExecutor();
+
+    const before = activeGraph()!.nodes.length;
+    const result = dispatch({
+      kind: "add-node",
+      surface: "image-studio",
+      nodeType: "uncloth",
+    });
+
+    expect(result.ok).toBe(true);
+    const graph = activeGraph()!;
+    expect(graph.nodes).toHaveLength(before + 1);
+    const nodeId = (result as { detail?: { nodeId?: string } }).detail?.nodeId;
+    expect(graph.nodes.find((node) => node.id === nodeId)?.type).toBe("uncloth");
+  });
+});

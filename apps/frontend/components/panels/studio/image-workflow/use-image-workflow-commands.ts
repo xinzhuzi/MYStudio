@@ -10,6 +10,7 @@ import {
   addGeneratedImageNode,
   addPromptImageNode,
   addReferenceImageNode,
+  addUnclothImageNode,
   connectImageWorkflowNodes,
   removeImageWorkflowEdge,
   updateImageWorkflowNode,
@@ -54,23 +55,26 @@ export function useImageWorkflowCommands({
       if (!graph) return { ok: false, reason: "无活动图像工作流" };
       switch (command.kind) {
         case "add-node": {
-          if (!getCanvasNodeEntry("image-workflow", command.nodeType)) {
+          // uncloth-fast 复用 uncloth 注册表条目(快/精同类型不同档)
+          if (!command.nodeType.startsWith("uncloth") && !getCanvasNodeEntry("image-workflow", command.nodeType)) {
             return { ok: false, reason: `未注册节点类型 ${command.nodeType}` };
           }
           if (command.connectFrom) {
             const result = createConnectedImageNode(graph, {
               fromNodeId: command.connectFrom.nodeId,
               fromHandleType: command.connectFrom.handleType,
-              type: command.nodeType as "generated" | "prompt" | "reference",
+              type: command.nodeType as "generated" | "prompt" | "reference" | "uncloth",
             });
-            if (!result) return { ok: false, reason: "连线域规则拒绝(边只指向成图)" };
+            if (!result) return { ok: false, reason: "连线域规则拒绝(边只指向成图/无衣物)" };
             saveGraph(result.graph);
             setSelectedNodeId(result.nodeId);
             return { ok: true, detail: { nodeId: result.nodeId } };
           }
           const position = nextStackedPosition(
             graph.nodes.filter((node) => node.position),
-            command.nodeType as "generated" | "prompt" | "reference",
+            command.nodeType.startsWith("uncloth")
+              ? "uncloth"
+              : (command.nodeType as "generated" | "prompt" | "reference" | "uncloth"),
           );
           if (command.nodeType === "generated") {
             const next = addGeneratedImageNode(graph, { position });
@@ -81,6 +85,19 @@ export function useImageWorkflowCommands({
           }
           if (command.nodeType === "prompt") {
             const next = addPromptImageNode(graph, { position });
+            saveGraph(next);
+            const nodeId = next.nodes[next.nodes.length - 1]?.id ?? "";
+            setSelectedNodeId(nodeId);
+            return { ok: true, detail: { nodeId } };
+          }
+          if (command.nodeType === "uncloth" || command.nodeType.startsWith("uncloth-")) {
+            // 显式分支(09-04 通用化):注册表放行后 fall-through 会误建参考图
+            const next = addUnclothImageNode(graph, {
+              position,
+              variant:
+                command.nodeType === "uncloth-fast" ? "fast"
+                  : command.nodeType === "uncloth-instruct" ? "instruct" : undefined,
+            });
             saveGraph(next);
             const nodeId = next.nodes[next.nodes.length - 1]?.id ?? "";
             setSelectedNodeId(nodeId);

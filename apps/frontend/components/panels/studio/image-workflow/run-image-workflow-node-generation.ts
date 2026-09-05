@@ -1,5 +1,7 @@
 import { aiManager } from "@/lib/ai/ai-manager";
 import { maybeAutoDenoiseUrl } from "@/lib/ai/image-auto-denoise";
+import { buildUnclothChainRequest } from "@/lib/assist/image-studio/uncloth-request";
+import { runUnclothChain } from "@/lib/assist/image-studio/run-uncloth";
 import { getProjectFilesBridge } from "@/lib/bridge/project-files";
 import { getStudioAssetsBridge } from "@/lib/bridge/studio-assets";
 import { createOperationId, logEvent } from "@/lib/diagnostics/logger";
@@ -7,6 +9,7 @@ import {
   assertImageWorkflowContinuityCapability,
   buildImageWorkflowGenerationRequest,
   setGeneratedImageResult,
+  updateImageWorkflowNode,
 } from "@/lib/studio/image-workflow";
 import {
   compileActiveDaojieStoryboardFramePrompt,
@@ -50,6 +53,27 @@ export async function runImageWorkflowNodeGeneration(
     addMaterial: (material: { name: string; localPath: string; size: number }) => string;
   },
 ): Promise<{ imageUrl: string }> {
+  // 无衣物链分流(09-04 通用化,与图片工作室同源):成图有 uncloth 上游且
+  // 链输入齐备时执行 uncloth 管线(双分割+两遍采样),结果直通本成图并回显
+  // uncloth 节点——不走普通 t2i/i2i 通道。节点按钮/批量链/ops 全部经此分流,
+  // 链输入缺位(错误分支)由调用方 hook 阻断并指路。
+  const unclothRequest = buildUnclothChainRequest(graph, targetNodeId);
+  if (!("error" in unclothRequest)) {
+    const result = await runUnclothChain(unclothRequest);
+    // 回写须基于 store 最新代(与普通链同纪律;旁路操作可能已推进图)
+    const latest =
+      useStudioStore.getState().imageWorkflows.find((item) => item.id === graph.id) ?? graph;
+    let updated = setGeneratedImageResult(latest, targetNodeId, {
+      imageUrl: result.imageUrl,
+      mediaId: result.mediaId,
+    });
+    updated = updateImageWorkflowNode(updated, unclothRequest.unclothNodeId, {
+      resultUrl: result.imageUrl,
+    });
+    useStudioStore.getState().upsertImageWorkflow(updated);
+    return { imageUrl: result.imageUrl };
+  }
+
   const request = buildImageWorkflowGenerationRequest(graph, targetNodeId);
   if (!request.prompt.trim()) {
     throw new Error("请先填写生成提示词");

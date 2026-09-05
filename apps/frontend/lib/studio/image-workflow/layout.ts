@@ -4,6 +4,7 @@ import type {
   ImageWorkflowNode,
   ImageWorkflowPromptNode,
   ImageWorkflowReferenceNode,
+  ImageWorkflowUnclothNode,
 } from "@/types/studio";
 
 /**
@@ -23,9 +24,13 @@ export const IMAGE_WORKFLOW_LAYOUT = {
   reference: { width: 420, height: 410, x: 80, baseY: 100, vGap: 120 },
   prompt: { width: 560, height: 400, x: 80, baseY: 100, vGap: 120 },
   generated: { width: 560, height: 440, x: 760, baseY: 120, vGap: 120 },
+  // 无衣物(09-04 通用化):输入列第三区(参考区之下)——出边到成图列
+  // 跨泳道,与提示词/参考同构;缺槽位会让 nextStackedPosition/重叠检测
+  // 对 uncloth 节点直接崩(IMAGE_WORKFLOW_LAYOUT[type] 为 undefined)
+  uncloth: { width: 420, height: 520, x: 80, baseY: 100, vGap: 120 },
 } as const;
 
-const LEFT_COLUMN_TYPES = new Set<ImageWorkflowNode["type"]>(["reference", "prompt"]);
+const LEFT_COLUMN_TYPES = new Set<ImageWorkflowNode["type"]>(["reference", "prompt", "uncloth"]);
 
 /** 输入列提示词区第 index 槽(提示词永远在最上方,紧邻成图列顶部) */
 export function promptSlotPosition(index: number) {
@@ -40,6 +45,20 @@ export function referenceSlotPosition(index: number, promptCount: number) {
   return {
     x: spec.x,
     y: spec.baseY + promptCount * (prompt.height + prompt.vGap)
+      + index * (spec.height + spec.vGap),
+  };
+}
+
+/** 输入列无衣物区第 index 槽(提示词/参考区之下,链式处理节点按建流顺序) */
+export function unclothSlotPosition(index: number, promptCount: number, referenceCount: number) {
+  const prompt = IMAGE_WORKFLOW_LAYOUT.prompt;
+  const reference = IMAGE_WORKFLOW_LAYOUT.reference;
+  const spec = IMAGE_WORKFLOW_LAYOUT.uncloth;
+  return {
+    x: spec.x,
+    y: spec.baseY
+      + promptCount * (prompt.height + prompt.vGap)
+      + referenceCount * (reference.height + reference.vGap)
       + index * (spec.height + spec.vGap),
   };
 }
@@ -108,6 +127,9 @@ export function tidyImageWorkflowLayout(graph: ImageWorkflowGraph): ImageWorkflo
   const prompts = stableNodeOrder(
     graph.nodes.filter((node): node is ImageWorkflowPromptNode => node.type === "prompt"),
   );
+  const uncloths = stableNodeOrder(
+    graph.nodes.filter((node): node is ImageWorkflowUnclothNode => node.type === "uncloth"),
+  );
 
   references.sort((left, right) => {
     const leftOrder = left.continuityOrder ?? Number.MAX_SAFE_INTEGER;
@@ -151,6 +173,12 @@ export function tidyImageWorkflowLayout(graph: ImageWorkflowGraph): ImageWorkflo
   });
   references.forEach((node, index) => {
     positionById.set(node.id, referenceSlotPosition(index, prompts.length));
+  });
+  // 无衣物区垫在参考区之下(建流顺序;不入未知类型保位兜底分支)
+  uncloths.sort((left, right) =>
+    (left.createdAt ?? 0) - (right.createdAt ?? 0) || left.__order - right.__order);
+  uncloths.forEach((node, index) => {
+    positionById.set(node.id, unclothSlotPosition(index, prompts.length, references.length));
   });
 
   if (positionById.size !== graph.nodes.length) {

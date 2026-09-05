@@ -267,6 +267,7 @@ def generate_image(
     reference_images_b64: list[str] | None = None,
     strength: float = 0.6,
     use_lora: bool = False,
+    template: str | None = None,
 ) -> str:
     """Generate an image and return it as base64 PNG."""
     model_name = resolve_image_model_name(model_name)
@@ -310,6 +311,9 @@ def generate_image(
     }
     if reference_images_b64 is not None:
         ctx["reference_images_b64"] = references
+    if template is not None:
+        # ComfyUI 桥模板点名(09-05 无衣物·指令编辑节点)
+        ctx["template"] = template
     if layout == "qwen-pointed":
         ctx["qwen_snapshot_dirs"] = {
             "Qwen/Qwen-Image": str(hf_snapshot_dir("Qwen/Qwen-Image") or ""),

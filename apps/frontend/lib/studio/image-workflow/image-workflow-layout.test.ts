@@ -8,6 +8,7 @@ import {
   promptSlotPosition,
   referenceSlotPosition,
   tidyImageWorkflowLayout,
+  unclothSlotPosition,
 } from "@/lib/studio/image-workflow";
 import { createOpenImageWorkflowGraph } from "@/components/panels/studio/image-workflow/image-workflow-graph-utils";
 import type { ImageWorkflowGraph, ImageWorkflowNode } from "@/types/studio";
@@ -136,6 +137,58 @@ describe("tidyImageWorkflowLayout", () => {
     expect(imageWorkflowHasOverlappingCards(graph)).toBe(true);
     expect(imageWorkflowHasOverlappingCards(tidyImageWorkflowLayout(graph))).toBe(false);
     expect(imageWorkflowHasOverlappingCards(createImageWorkflowGraph())).toBe(false);
+  });
+
+  it("无衣物(09-04 通用化):tidy 把 uncloth 归位到输入列参考区之下,不重叠", () => {
+    const node = (partial: Partial<ImageWorkflowNode> & { id: string; type: ImageWorkflowNode["type"] }): ImageWorkflowNode =>
+      ({ title: partial.type, createdAt: 1, updatedAt: 1, ...partial }) as ImageWorkflowNode;
+    const graph = createImageWorkflowGraph({
+      id: "wf-uncloth-tidy",
+      target: { kind: "storyboard", id: "sb-1" },
+      nodes: [
+        node({ id: "gen-1", type: "generated", title: "成图", prompt: "p", position: { x: 760, y: 120 } }),
+        node({ id: "prompt-1", type: "prompt", title: "图片生成", prompt: "p", targetNodeId: "gen-1", position: { x: 80, y: 100 } }),
+        node({ id: "ref-a", type: "reference", title: "参考", imageUrl: "x://a.png", position: { x: 80, y: 600 } }),
+        // uncloth 胡乱摆在成图列(重叠形态),tidy 应搬回输入列
+        node({ id: "unc-1", type: "uncloth", title: "无衣物", position: { x: 780, y: 300 }, createdAt: 10 }),
+        node({ id: "unc-2", type: "uncloth", title: "无衣物 2", position: { x: 780, y: 500 }, createdAt: 20 }),
+      ],
+      edges: [{ id: "e1", source: "unc-1", target: "gen-1" }],
+    });
+    const tidied = tidyImageWorkflowLayout(graph);
+    assertNoOverlap(tidied);
+    const unc1 = tidied.nodes.find((item) => item.id === "unc-1")!;
+    const unc2 = tidied.nodes.find((item) => item.id === "unc-2")!;
+    const refA = tidied.nodes.find((item) => item.id === "ref-a")!;
+    const prompt1 = tidied.nodes.find((item) => item.id === "prompt-1")!;
+    // 输入列纵向次序:提示词 → 参考 → 无衣物(建流顺序)
+    expect(prompt1.position.y).toBeLessThan(refA.position.y);
+    expect(refA.position.y).toBeLessThan(unc1.position.y);
+    expect(unc1.position.y).toBeLessThan(unc2.position.y);
+    expect(unc1.position.x).toBe(IMAGE_WORKFLOW_LAYOUT.uncloth.x);
+    expect(unc1.position.y).toBe(
+      unclothSlotPosition(0, 1, 1).y,
+    );
+    // 泳道不变式:无衣物作为输入列成员仍在成图列左侧
+    const gen1 = tidied.nodes.find((item) => item.id === "gen-1")!;
+    expect(unc1.position.x + IMAGE_WORKFLOW_LAYOUT.uncloth.width).toBeLessThanOrEqual(gen1.position.x);
+  });
+
+  it("无衣物手动落位:同列最低卡片之下再落一张(布局单源不崩)", () => {
+    const node = (partial: Partial<ImageWorkflowNode> & { id: string; type: ImageWorkflowNode["type"] }): ImageWorkflowNode =>
+      ({ title: partial.type, createdAt: 1, updatedAt: 1, ...partial }) as ImageWorkflowNode;
+    const graph = createImageWorkflowGraph({
+      nodes: [
+        node({ id: "unc-1", type: "uncloth", title: "无衣物", position: unclothSlotPosition(2, 1, 1) }),
+      ],
+    });
+    const next = nextStackedPosition(graph.nodes, "uncloth");
+    expect(next.x).toBe(IMAGE_WORKFLOW_LAYOUT.uncloth.x);
+    expect(next.y).toBeGreaterThanOrEqual(
+      unclothSlotPosition(2, 1, 1).y + IMAGE_WORKFLOW_LAYOUT.uncloth.height,
+    );
+    // 重叠检测对 uncloth 节点可用(旧实现 IMAGE_WORKFLOW_LAYOUT[uncloth]=undefined 会崩)
+    expect(imageWorkflowHasOverlappingCards(graph)).toBe(false);
   });
 });
 

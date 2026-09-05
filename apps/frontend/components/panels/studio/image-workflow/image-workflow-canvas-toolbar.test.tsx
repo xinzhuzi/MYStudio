@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { ImageWorkflowGraph } from "@/types/studio";
 import { ImageWorkflowCanvasToolbar } from "./image-workflow-canvas-toolbar";
@@ -22,6 +22,7 @@ function renderToolbar(overrides: Partial<Parameters<typeof ImageWorkflowCanvasT
       onCreateNewFlow={vi.fn()}
       onUploadReferenceClick={vi.fn()}
       onAddGeneratedNode={vi.fn()}
+      onAddUnclothNode={vi.fn()}
       onAddStoryboardLayeredPair={vi.fn()}
       workflowWritebackTargetLabel="分镜 1"
       onApplyToStoryboard={vi.fn()}
@@ -51,6 +52,19 @@ describe("toolbar after switcher moved to sidebar (08-30)", () => {
     expect(screen.queryByRole("button", { name: "适配画布" })).toBeNull();
     // 08-30 用户裁定:运行生成从工具条移除,用户直接在节点卡上点生成
     expect(screen.queryByRole("button", { name: "运行生成" })).toBeNull();
+    unmount();
+  });
+});
+
+describe("toolbar 无衣物节点入口(09-04 通用化)", () => {
+  it("更多菜单提供无衣物节点项,点击回调 addUnclothNode", () => {
+    const onAddUnclothNode = vi.fn();
+    const { unmount } = renderToolbar({ onAddUnclothNode });
+    const more = screen.getByRole("button", { name: "更多操作" });
+    fireEvent.pointerDown(more, { button: 0, pointerType: "mouse" });
+    fireEvent.click(more);
+    fireEvent.click(screen.getByText("无衣物节点"));
+    expect(onAddUnclothNode).toHaveBeenCalledTimes(1);
     unmount();
   });
 });

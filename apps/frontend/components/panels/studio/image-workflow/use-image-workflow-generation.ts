@@ -4,6 +4,10 @@ import {
   buildImageWorkflowGenerationRequest,
   setGeneratedImageStatus,
 } from "@/lib/studio/image-workflow";
+import {
+  buildUnclothChainRequest,
+  findUnclothUpstream,
+} from "@/lib/assist/image-studio/uncloth-request";
 import { eventBus } from "@/lib/events/event-bus";
 import {
   IMAGE_GENERATION_FAILED_EVENT,
@@ -33,8 +37,20 @@ export function useImageWorkflowGeneration({
       toast.error("未找到要生成的图片节点");
       return;
     }
+    // 无衣物链分流预检(09-04 通用化,与图片工作室同源):链的文本来自
+    // uncloth 上游,成图直连提示词缺失不是错误——完整链跳过空提示词预检;
+    // 有 uncloth 上游但输入不完整时明确指路,绝不静默走普通生成
+    const unclothRequest = buildUnclothChainRequest(graph, targetNodeId);
+    const hasCompleteUnclothChain = !("error" in unclothRequest);
+    if (!hasCompleteUnclothChain && findUnclothUpstream(graph, targetNodeId)) {
+      toast.error(unclothRequest.error);
+      return;
+    }
     // 空 prompt 预检须在置 generating 前(原行为:零状态变化直接返回)
-    if (!buildImageWorkflowGenerationRequest(graph, targetNodeId).prompt.trim()) {
+    if (
+      !hasCompleteUnclothChain &&
+      !buildImageWorkflowGenerationRequest(graph, targetNodeId).prompt.trim()
+    ) {
       toast.error("请先填写生成提示词");
       return;
     }

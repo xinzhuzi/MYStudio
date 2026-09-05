@@ -51,17 +51,21 @@ export function addUnclothImageNode(
     id?: string;
     title?: string;
     prompt?: string;
+    variant?: "fast" | "fine" | "instruct";
     position?: ImageWorkflowNodePosition;
     createdAt?: number;
   },
 ): ImageWorkflowGraph {
   const now = input.createdAt ?? Date.now();
   // 全参数缺省回落工作流现值(读侧 resolveUnclothDefaults 同源);此处只存
-  // 用户显式改动,旧画布/新节点零迁移。
+  // 用户显式改动,旧画布/新节点零迁移。variant=09-05 快/精档(缺省精)。
   const node: ImageWorkflowUnclothNode = {
     id: input.id ?? createId("uncloth", now),
     type: "uncloth",
-    title: input.title?.trim() || "无衣物",
+    variant: input.variant,
+    title: input.title?.trim()
+      || (input.variant === "fast" ? "无衣物·快"
+        : input.variant === "instruct" ? "无衣物·指令" : "无衣物"),
     prompt: input.prompt,
     position: input.position ?? { x: 80, y: 80 },
     createdAt: now,

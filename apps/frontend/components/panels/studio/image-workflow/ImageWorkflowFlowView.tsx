@@ -147,7 +147,7 @@ export function ImageWorkflowFlowView({
   }, [connectCreateAnchor, activeGraph]);
 
   const handleConnectCreateSelect = useCallback(
-    (type: "generated" | "prompt" | "reference") => {
+    (type: "generated" | "prompt" | "reference" | "uncloth" | "uncloth-fast" | "uncloth-instruct") => {
       if (!connectCreateAnchor) return;
       onConnectCreate({
         fromNodeId: connectCreateAnchor.fromNodeId,

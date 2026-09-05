@@ -241,6 +241,7 @@ class Handler(BaseHTTPRequestHandler):
                 reference_image_b64=reference_b64,
                 reference_images_b64=reference_images_b64 or None,
                 use_lora=use_lora,
+                template=(payload.get("template") if isinstance(payload.get("template"), str) else None),
             )
         except PipelineError as exc:
             if exc.code == "model-not-downloaded":

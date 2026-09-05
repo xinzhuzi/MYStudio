@@ -63,6 +63,17 @@ const IMAGE_WORKFLOW_DEFINITIONS: readonly CanvasNodeEntry[] = [
     outputs: [{ kind: "generated-image", description: "生成图,可被超分/回写/入库消费" }],
     miniMapToken: "primary",
   },
+  {
+    // 通用节点(09-04 用户裁定):无衣物不再只属图片工作室私有注册表,
+    // 分镜图画布创建/渲染/生成链与 image-studio 同源接入
+    typeId: "uncloth",
+    surface: "image-workflow",
+    label: "无衣物节点",
+    description: "衣物区域局部重绘,快(fashn 单分割+单遍)/精(双分割+两遍+色彩对齐+硬合成)两档,结果直通成图",
+    actions: ["update", "delete"] as const,
+    outputs: [{ kind: "generated-image", description: "处理结果直通下游成图节点" }],
+    miniMapToken: "warning",
+  },
 ];
 
 /** panels 侧生产流定义经此注入(模块加载一次) */

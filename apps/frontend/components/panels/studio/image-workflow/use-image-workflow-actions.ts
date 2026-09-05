@@ -6,6 +6,7 @@ import {
   addStoryboardLayeredNodes as appendStoryboardLayeredNodes,
   addPromptImageNode,
   addReferenceImageNode,
+  addUnclothImageNode,
   connectImageWorkflowNodes,
   createId,
   hasPromptSource,
@@ -191,6 +192,19 @@ export function useImageWorkflowActions({
     setPreferredGeneratedNodeId(id);
   }, [activeGraph, initialAssetContext, saveGraph, setPreferredGeneratedNodeId, setSelectedNodeId, storyboards, targetStoryboardId]);
 
+  // 无衣物节点(09-04 通用化):输入列第三区堆叠落位;参数全缺省(读侧
+  // resolveUnclothParams 回落工作流现值),连线由用户按链规则手搭
+  const addUnclothNode = useCallback((variant?: "fast" | "fine" | "instruct") => {
+    if (!activeGraph) return;
+    const id = createId("uncloth");
+    saveGraph(addUnclothImageNode(activeGraph, {
+      id,
+      variant,
+      position: nextNodePosition(activeGraph, "uncloth"),
+    }));
+    setSelectedNodeId(id);
+  }, [activeGraph, saveGraph, setSelectedNodeId]);
+
   const deleteNode = useCallback((nodeId: string) => {
     if (!activeGraph) return;
     saveGraph(removeImageWorkflowNode(activeGraph, nodeId));
@@ -324,6 +338,7 @@ export function useImageWorkflowActions({
     addReferenceFromMaterial,
     addReferenceFromStoryboard,
     addGeneratedNode,
+    addUnclothNode,
     addStoryboardLayeredPair,
     deleteNode,
     deleteSelectedEdge,

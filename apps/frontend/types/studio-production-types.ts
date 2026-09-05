@@ -328,14 +328,19 @@ export interface ImageWorkflowDerivationSource {
 }
 
 /**
- * 无衣物改图节点(09-04-krea2-uncloth-node):ComfyUI「Krea2-NSFW专业流-
- * 改图-无衣物」的完整封装——双分割(segformer+fashn)取衣物蒙版并集,
- * 两遍采样(脱衣+校色)局部重绘;内部按工作流顺序自行调用,节点只暴露
- * 参数。由下游成图节点触发,结果直通成图(本节点回显 resultUrl)。
+ * 无衣物改图节点(09-04-krea2-uncloth-node):ComfyUI「Krea2 无衣物」流
+ * 的完整封装,两档(09-05 快/精分家):fine=双分割(segformer+fashn)并集+
+ * 两遍采样(脱衣+校色)+mkl 色彩对齐+非重绘区像素硬合成;fast=fashn 单
+ * 分割+单遍采样(无后处理,约 1/3 耗时)。由下游成图节点触发,结果直通
+ * 成图(本节点回显 resultUrl)。
  * 全字段可选+读侧回落工作流默认值(旧画布零迁移);参数默认=工作流现值。
  */
 export interface ImageWorkflowUnclothNode extends ImageWorkflowNodeBase {
   type: "uncloth";
+  /** 档位(09-05):缺省 fine;fast/fine=masked SDEdit 双档(已封存,见
+   * uncloth-defaults.ts UNCLOOTH_ARCHIVED);instruct=Krea2Edit 指令编辑
+   * 档(现行,走 ComfyUI 桥 krea2_uncloth_instruct 模板)。 */
+  variant?: "fast" | "fine" | "instruct";
   /** 处理结果回显(最终结果落下游成图节点;本字段供卡内预览) */
   resultUrl?: string;
   /** 单文本驱动两遍采样(缺省回落输入提示词节点的文本) */
@@ -378,7 +383,7 @@ export interface ImageWorkflowUnclothNode extends ImageWorkflowNodeBase {
   // left_shoe/right_shoe/upper_clothes/skirt/pants/dress/belt/bag/scarf) ──
   /** 勾选的部位名列表(ComfyUI 位序名,工作流实勾=左右臂+左右腿+上衣+短裙+裤+连衣裙+腰带) */
   segformerParts?: string[];
-  /** fashn parser 部位(逗号分隔,工作流 dress,skirt,pants,belt,arms,legs) */
+  /** fashn parser 部位(逗号分隔,工作流 label=top 主标签+extra 六项) */
   fashnParts?: string;
   /** fashn device(工作流 cpu) */
   fashnDevice?: string;

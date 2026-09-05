@@ -6,6 +6,7 @@
 from __future__ import annotations
 
 import io
+import math
 import sys
 import base64
 import threading
@@ -399,6 +400,30 @@ def _calc_krea2_mu(latents, scheduler):
     shift = base_shift + m * (max_shift - base_shift)
     return _torch.tensor(shift)
 
+
+# ── ComfyUI KSampler sigma 表复刻(09-04 参数深审根修) ──
+# ComfyUI set_steps 语义(comfy/samplers.py):denoise 只缩小 sigma 区间,
+# 去噪步数恒为 steps——new_steps=int(steps/denoise) 的 10000 级离散表
+# (flux_time_shift(1.15) 与 diffusers _time_shift_exponential(mu=1.15) 同式)
+# 按 simple_scheduler 从表尾取样后取尾 steps+1 个。
+_KREA2_SHIFT = 1.15  # ComfyUI Krea2 sampling_settings.shift = 管线 is_distilled mu
+
+
+def _flux_time_shift(mu: float, t: float) -> float:
+    return math.exp(mu) / (math.exp(mu) + (1.0 / t - 1.0) ** 1.0)
+
+
+def _comfy_sigma_table(steps: int, denoise: float) -> "list[float]":
+    """[σ0..σ_{steps-1}, 0.0]:前 steps 个注入管线去噪,末尾 0 供 callback 锚定。"""
+    if denoise <= 0.0:
+        raise ValueError("denoise 必须 > 0")
+    new_steps = steps if denoise >= 0.9999 else int(steps / denoise)
+    table = [_flux_time_shift(_KREA2_SHIFT, i / 10000) for i in range(1, 10001)]
+    ss = len(table) / new_steps
+    sigs = [table[-(1 + int(x * ss))] for x in range(new_steps)]
+    sigs.append(0.0)
+    return sigs[-(steps + 1):]
+
 def _prepare_reference_image(img: "Any", width: int, height: int) -> "Any":
     """参考图预处理(以 ComfyUI「NSFW专业流-图生图」为准,09-03 用户裁定):
 
@@ -453,11 +478,14 @@ def _cancel_step_callback():
 
 
 def generate(prompt, aspect_ratio, negative_prompt, steps, seed, reference_b64,
-             use_lora=False, strength=0.6, **ctx) -> str:
+             use_lora=False, strength=0.6, loras: "list[dict] | None" = None, **ctx) -> str:
     """Krea2 统一入口:有参考图走 SDEdit 图生图,无参考图走纯文生图。
 
     strength(图生图):0.0=完全保留原图,1.0=纯噪声(等同文生图)。
-    ComfyUI KSampler 的 denoise 参数同义。
+    ComfyUI KSampler 的 denoise 参数同义(09-04 根修:满跑 steps 步、
+    σ 区间按 strength 缩,与工作流对齐)。
+    loras=节点四槽透传(None=回落专业流默认栈);显式参数防直调 NameError
+    (09-04 实弹暴露:此前函数体引用 loras 而签名无此参)。
     """
     import time as _time
     import torch
@@ -517,16 +545,15 @@ def generate(prompt, aspect_ratio, negative_prompt, steps, seed, reference_b64,
             if ref_latents.dim() == 5:
                 ref_latents = ref_latents.squeeze(2)
 
-        # 2. 计算有效去噪步数(strength=0.6 → 跑 60% 的步数,跳过前 40%)
-        effective_steps = max(1, int(steps * strength))
+        # 2. ComfyUI KSampler denoise 语义 σ 表(09-04 根修,同 generate_masked_sdedit):
+        # strength=denoise 只缩小 σ 区间,满跑 steps 步;旧实现 int(steps*strength)
+        # 少步数且管线内部按 eff_steps 重新 linspace(起点 σ=1.0),与加噪起点
+        # 错位 ~0.3——加噪与去噪不同源。
+        sigma_table = _comfy_sigma_table(steps, strength)
 
         # 3. 在起始 sigma 级别加噪
         device = pipe._execution_device
-        scheduler = comps["scheduler"]
-        # 先跑一遍完整步数拿到 sigma 序列,取截断位置的 sigma
-        scheduler.set_timesteps(steps, device=device, mu=_calc_krea2_mu(ref_latents, scheduler))
-        num_skip = steps - effective_steps
-        sigma_start = scheduler.sigmas[num_skip].to(device, ref_latents.dtype)
+        sigma_start = torch.tensor(sigma_table[0], device=ref_latents.device, dtype=ref_latents.dtype)
         noise = torch.randn(ref_latents.shape, generator=generator, device="cpu", dtype=torch.float32).to(device, ref_latents.dtype)
         # Flow-matching 加噪: x_t = (1-σ)x_0 + σ·noise
         noised_4d = (1.0 - sigma_start) * ref_latents + sigma_start * noise
@@ -540,13 +567,22 @@ def generate(prompt, aspect_ratio, negative_prompt, steps, seed, reference_b64,
         packed = packed.permute(0, 2, 4, 1, 3, 5)  # B,ph,pw,C,p1,p2
         noised_latents = packed.reshape(B, ph * pw, C * patch_size * patch_size)
 
-        # 4. 交给管线去噪(管线自动处理 mu/调度/循环)
+        # 专用 scheduler 副本:关 dynamic shifting(shift=1 恒等)防注入 sigmas 被
+        # 二次 time_shift;副本不改共享实例(_pipeline_cache 并发防污染)
+        import copy as _copy
+        sched = _copy.deepcopy(comps["scheduler"])
+        sched.config.use_dynamic_shifting = False
+        sched.set_shift(1.0)
+        pipe.scheduler = sched
+
+        # 4. 交给管线去噪(注入截断 σ 表,步数=steps)
         kwargs = {
             **build_text_inputs(prompt),
             "height": height, "width": width,
-            "num_inference_steps": effective_steps,
+            "num_inference_steps": steps,
             "guidance_scale": GUIDANCE_SCALE,
             "latents": noised_latents,
+            "sigmas": [float(s) for s in sigma_table[:-1]],
         }
         if generator is not None:
             kwargs["generator"] = generator
@@ -558,7 +594,8 @@ def generate(prompt, aspect_ratio, negative_prompt, steps, seed, reference_b64,
             result = pipe(**kwargs)
         image = result.images[0]
         print(
-            f"[image-sidecar] krea2 img2img: strength={strength} eff_steps={effective_steps}/{steps} "
+            f"[image-sidecar] krea2 img2img: denoise={strength} steps={steps}/{steps} "
+            f"sigma_start={sigma_table[0]:.4f} "
             f"size={width}x{height} inference={_time.time() - phase_start:.1f}s",
             flush=True,
         )
@@ -635,7 +672,6 @@ def generate_masked_sdedit(prompt: str, image: "Any", mask: "Any", steps: int = 
 
     pipe = Krea2Pipeline(**comps)
     device = pipe._execution_device
-    scheduler = comps["scheduler"]
     vae_cfg = comps["vae"].config
     phase_start = _time.time()
 
@@ -671,7 +707,10 @@ def generate_masked_sdedit(prompt: str, image: "Any", mask: "Any", steps: int = 
     m_patch = m_down.reshape(ph, patch_size, pw, patch_size).mean(dim=(1, 3))
     m_seq = m_patch.reshape(1, ph * pw, 1)
 
-    # 3. x0 → packed;按 denoise 截断的起始 sigma 加噪(generate 同款)
+    # 3. x0 → packed;ComfyUI 式 sigma 表(set_steps 语义:步数恒 steps,σ 区间
+    # 按 denoise 缩)取首 σ 加噪。09-04 参数深审根修:旧实现三处错位——
+    # int(steps*denoise) 少步数 / sigmas 带末尾 0 多跑一步 / 已 shift 的表被
+    # use_dynamic_shifting 二次 time_shift,致加噪与去噪起点错位(遍2 尤甚)。
     def pack(lat_4d):
         B, C, H, W = lat_4d.shape
         p = patch_size
@@ -680,17 +719,19 @@ def generate_masked_sdedit(prompt: str, image: "Any", mask: "Any", steps: int = 
 
     x0_seq = pack(x0)
     generator = torch.Generator(device="cpu").manual_seed(seed) if seed is not None else None
-    effective_steps = max(1, int(steps * denoise))
-    scheduler.set_timesteps(steps, device=device, mu=_calc_krea2_mu(x0, scheduler))
-    num_skip = steps - effective_steps
-    sigma_start = scheduler.sigmas[num_skip].to(device, x0.dtype)
+    sigma_table = _comfy_sigma_table(steps, denoise)
+    sigma_start = torch.tensor(sigma_table[0], device=device, dtype=x0.dtype)
     noise = torch.randn(x0_seq.shape, generator=generator, device="cpu", dtype=torch.float32).to(device, x0.dtype)
     init_latents = (1.0 - sigma_start) * x0_seq + sigma_start * noise
 
-    # 截断 sigma 表(噪声级与初始 latent 对齐——管线缺省会按 eff_steps 从
-    # sigma=1 重算,与 sigma_start 加噪的 latent 错位,蒙版内去噪紊乱出白块)
-    sigmas_trunc = scheduler.sigmas[num_skip:].tolist()
-    sigmas_all = sigmas_trunc
+    # 专用 scheduler 副本:关 dynamic shifting(shift=1 恒等),注入 sigmas 原样
+    # 生效不二次 shift;副本而非改共享实例(_pipeline_cache 并发生成防污染)
+    import copy as _copy
+    sched = _copy.deepcopy(comps["scheduler"])
+    sched.config.use_dynamic_shifting = False
+    sched.set_shift(1.0)
+    pipe.scheduler = sched
+    sigmas_all = sigma_table  # 与管线内部 scheduler.sigmas 逐位一致
 
     def _masked_step(_pipe, step_index, _t, callback_kwargs):
         from ..pipeline import is_generation_cancelled
@@ -709,24 +750,258 @@ def generate_masked_sdedit(prompt: str, image: "Any", mask: "Any", steps: int = 
     embeds, embeds_mask = pipe.encode_prompt(prompt=prompt)
     embeds = _rebalance_prompt_embeds(embeds, PRO_REBALANCE_WEIGHTS, PRO_REBALANCE_MULTIPLIER)
 
-    import numpy as _np2
     result = pipe(
         prompt_embeds=embeds,
         prompt_embeds_mask=embeds_mask,
         height=height,
         width=width,
-        num_inference_steps=effective_steps,
+        num_inference_steps=steps,
         guidance_scale=GUIDANCE_SCALE,
         latents=init_latents,
-        sigmas=list(_np2.asarray(sigmas_trunc, dtype="float32")),
+        sigmas=[float(s) for s in sigma_table[:-1]],
         callback_on_step_end=_masked_step,
         callback_on_step_end_tensor_inputs=["latents"],
     )
     out = result.images[0]
     print(
-        f"[image-sidecar] krea2 masked-sdedit: denoise={denoise} eff_steps={effective_steps}/{steps} "
-        f"mask_cov={float(m_seq.mean()):.1%} size={width}x{height} "
-        f"inference={_time.time() - phase_start:.1f}s",
+        f"[image-sidecar] krea2 masked-sdedit: denoise={denoise} steps={steps}/{steps} "
+        f"sigma_start={sigma_table[0]:.4f} mask_cov={float(m_seq.mean()):.1%} "
+        f"size={width}x{height} inference={_time.time() - phase_start:.1f}s",
+        flush=True,
+    )
+    return out
+
+
+# ── 无衣物·指令编辑(09-05 仿写 ComfyUI Krea2_无衣物_快 / comfyui-krea2edit
+#    Apache-2.0 参考,行为同构非拷贝):identity_edit LoRA + 参考图进 Qwen3-VL
+#    (grounded encode,DeepStack 原生)+ transformer 参考注意力注入
+#    ([text|src(frame=1)|tgt(frame=0)] 序列)+ denoise=1.0 全采样。──
+EDIT_LORA_FILE = "loras/Krea2-功能/Krea2-编辑identity_edit_v1_2.safetensors"
+# ai-toolkit 训练协议的 grounded 模板(参考 comfyui-krea2edit 常量,Apache-2.0)
+_EDIT_TEMPLATE = (
+    "<|im_start|>system\nDescribe the image by detailing the color, shape, size, "
+    "texture, quantity, text, spatial relationships of the objects and background:"
+    "<|im_end|>\n<|im_start|>user\n<|vision_start|><|image_pad|><|vision_end|>"
+    "{instruction}<|im_end|>\n<|im_start|>assistant\n"
+)
+
+
+def _get_edit_components(models_dir: Path, snapshot_dir: Path) -> dict[str, Any]:
+    """identity_edit LoRA 组件(专用缓存,不与专业流 Mystic/pussy 栈混用)。"""
+    with _lock:
+        if "krea2_edit" in _lora_cache:
+            return _lora_cache["krea2_edit"]
+        if "krea2" not in _pipeline_cache:
+            _pipeline_cache["krea2"] = get_components(models_dir, snapshot_dir)
+        comps = dict(_pipeline_cache["krea2"])
+        import copy as _copy
+        comps["transformer"] = _copy.deepcopy(_pipeline_cache["krea2"]["transformer"])
+        lora_file = models_dir / EDIT_LORA_FILE
+        if lora_file.is_file():
+            merge_lora(comps["transformer"], str(lora_file), 1.0)
+        else:
+            print(f"[image-sidecar] krea2 edit LoRA 缺失: {lora_file}", file=sys.stderr)
+        _lora_cache["krea2_edit"] = comps
+        return comps
+
+
+def _grounded_encode(pipe, image, instruction: str):
+    """参考图+编辑指令 → Qwen3-VL 12 层 tap(冒烟协议 09-05:smart_resize
+    factor=32→/16 patchify×temporal2→pixel_values(N,1536);grid_thw=patch 网格;
+    image_pad 展开;mm_token_type_ids;forward 自动 3D 位置+DeepStack)。"""
+    import numpy as _np
+    import torch
+    from transformers.models.qwen3_vl.video_processing_qwen3_vl import smart_resize
+
+    tok = pipe.tokenizer
+    te = pipe.text_encoder
+    dev = next(te.parameters()).device
+    w0, h0 = image.size
+    rh, rw = smart_resize(2, h0, w0, factor=32, min_pixels=131072, max_pixels=786432)[:2]
+    arr = ((_np.asarray(image.resize((rw, rh), __import__("PIL.Image", fromlist=["BILINEAR"]).BILINEAR),
+                        dtype="float32") / 255.0) - 0.5) / 0.5
+    t = torch.from_numpy(arr).permute(2, 0, 1)
+    ph, pw = rh // 16, rw // 16
+    pixel_values = t.reshape(3, ph, 16, pw, 16).permute(1, 3, 0, 2, 4) \
+        .reshape(ph * pw, 3 * 16 * 16).repeat(2, 1)
+    grid = torch.tensor([[1, ph, pw]])
+    n_tok = ph * pw // 4
+    text = _EDIT_TEMPLATE.format(instruction=instruction).replace(
+        "<|image_pad|>", "<|image_pad|>" * n_tok)
+    enc = tok(text, return_tensors="pt")
+    pad_id = tok.convert_tokens_to_ids("<|image_pad|>")
+    mm_types = (enc.input_ids[0] == pad_id).long().unsqueeze(0)
+    with torch.no_grad():
+        out = te(
+            input_ids=enc.input_ids.to(dev),
+            attention_mask=enc.attention_mask.to(dev),
+            mm_token_type_ids=mm_types.to(dev),
+            pixel_values=pixel_values.to(dev, next(te.parameters()).dtype),
+            image_grid_thw=grid.to(dev),
+            output_hidden_states=True,
+        )
+    layers = getattr(pipe, "text_encoder_select_layers", None) or tuple(range(2, 36, 3))
+    embeds = torch.stack([out.hidden_states[i] for i in layers], dim=2)  # (B,seq,12,2560)
+    mask = enc.attention_mask.bool()
+    return embeds.to(dev), mask.to(dev)
+
+
+def _fit_source_latent(image, vae, tgt_h: int, tgt_w: int, lat_mean, lat_std):
+    """fit 像素路径(参考 comfyui-krea2edit _fit_encode_image fit 分支,Apache-2.0
+    行为同构):近 AR(CROP_TOL=0.08)全格填充;真 mismatch /16 网格+crop-to-grid
+    (零拉伸);bicubic;VAE encode→(raw-mean)/std→4D。tgt_h/w 为 latent 尺寸。"""
+    import numpy as _np
+    import torch
+    import torch.nn.functional as _F
+    from PIL import Image
+
+    px_h, px_w = tgt_h * 8, tgt_w * 8
+    ih, iw = image.height, image.width
+    sc = min(px_h / ih, px_w / iw)
+    CROP_TOL = 0.08
+    if ih * sc >= px_h * (1 - CROP_TOL) and iw * sc >= px_w * (1 - CROP_TOL):
+        s = max(px_h / ih, px_w / iw)
+        ch, cw = min(ih, int(round(px_h / s))), min(iw, int(round(px_w / s)))
+        y0, x0 = (ih - ch) // 2, (iw - cw) // 2
+        img = image.crop((x0, y0, x0 + cw, y0 + ch))
+        nh, nw = px_h, px_w
+    else:
+        nh = min(max(16, int(ih * sc) // 16 * 16), max(16, px_h // 16 * 16))
+        nw = min(max(16, int(iw * sc) // 16 * 16), max(16, px_w // 16 * 16))
+        ch, cw = min(ih, max(1, int(round(nh / sc)))), min(iw, max(1, int(round(nw / sc))))
+        y0, x0 = (ih - ch) // 2, (iw - cw) // 2
+        img = image.crop((x0, y0, x0 + cw, y0 + ch))
+    img = img.resize((nw, nh), Image.BICUBIC)
+    arr = _np.asarray(img, dtype="float32") / 255.0
+    x = (torch.from_numpy(arr).permute(2, 0, 1) * 2.0 - 1.0)  # (3,h,w)
+    x = x.unsqueeze(0).unsqueeze(2).to(vae.device, vae.dtype)  # (B,C,F=1,h,w)
+    with torch.no_grad():
+        raw = vae.encode(x).latent_dist.sample()  # (B,C,F,h,w)
+    lat = (raw - lat_mean) / lat_std
+    return lat.reshape(lat.shape[0], lat.shape[1], lat.shape[3], lat.shape[4])  # (B,C,h,w)
+
+
+def generate_edit(prompt: str, image, steps: int = 10, seed: int | None = 2,
+                  **ctx) -> "Any":
+    """Krea2Edit 指令编辑(仿写 ComfyUI「Krea2_无衣物_快」krea2edit 流):
+    identity LoRA + grounded encode + 参考注意力([text|src|tgt]) + denoise=1.0
+    纯采样(σ 全表,ComfyUI max_denoise √(1+σ²) 噪声缩放对齐)。输出 1024²。"""
+    import time as _time
+    import math as _math
+    import torch
+    import torch.nn.functional as _F
+    from diffusers import Krea2Pipeline
+    from diffusers.models.modeling_outputs import Transformer2DModelOutput
+
+    models_dir = ctx["models_dir"]
+    snapshot_dir = ctx["snapshot_dir"]
+    comps = _get_edit_components(models_dir, snapshot_dir)
+    pipe = Krea2Pipeline(**comps)
+    device = pipe._execution_device
+    transformer = comps["transformer"]
+    vae_cfg = comps["vae"].config
+    phase_start = _time.time()
+
+    # 1. 输入图 1MP 等比缩放(工作流 ImageScaleToTotalPixels lanczos/1MP)
+    from PIL import Image
+    target_px = 1_000_000
+    if image.width * image.height > target_px:
+        sc = (target_px / (image.width * image.height)) ** 0.5
+        image = image.resize((max(1, round(image.width * sc)), max(1, round(image.height * sc))), Image.LANCZOS)
+
+    # 2. grounded encode(参考图进 Qwen3-VL,12 层 tap)
+    embeds, embeds_mask = _grounded_encode(pipe, image, prompt)
+
+    # 3. 参考图 latent(fit 像素路径)+ packed;输出网格固定 1024²(工作流 EmptySD3)
+    lat_mean = torch.tensor(vae_cfg["latents_mean"]).view(1, -1, 1, 1, 1).to(device)
+    lat_std = torch.tensor(vae_cfg["latents_std"]).view(1, -1, 1, 1, 1).to(device)
+    tgt_h, tgt_w = 1024 // 8, 1024 // 8  # 128×128 latent 网格
+    src4d = _fit_source_latent(image, comps["vae"], tgt_h, tgt_w, lat_mean, lat_std).to(device)
+    patch_size = getattr(pipe, "patch_size", 2)
+    B, C, SH, SW = src4d.shape
+    gh, gw = SH // patch_size, SW // patch_size
+    # packed 顺序与引擎 pack() 同款:(B,gh,gw,C,p,p) 行主序 token,每 token (C,p,p)
+    src_seq = src4d.reshape(B, C, gh, patch_size, gw, patch_size) \
+        .permute(0, 2, 4, 1, 3, 5).reshape(B, gh * gw, C * patch_size * patch_size)
+
+    # 4. transformer.forward 接管:序列 [text | src(frame=1,居中偏移) | tgt(frame=0)]
+    off_h, off_w = max(0.0, (tgt_h // patch_size - gh) / 2), max(0.0, (tgt_w // patch_size - gw) / 2)
+    src_ids = torch.zeros(gh, gw, 3)
+    src_ids[:, :, 0] = 1.0
+    src_ids[:, :, 1] = (torch.arange(gh, dtype=torch.float32) + off_h)[:, None]
+    src_ids[:, :, 2] = (torch.arange(gw, dtype=torch.float32) + off_w)[None, :]
+    src_ids = src_ids.reshape(1, -1, 3)
+    tgt_ids = torch.zeros(1, (tgt_h // patch_size) * (tgt_w // patch_size), 3)
+    tgt_ids[..., 1] = torch.arange(tgt_h // patch_size, dtype=torch.float32)[:, None].repeat(1, tgt_w // patch_size).flatten()
+    tgt_ids[..., 2] = torch.arange(tgt_w // patch_size, dtype=torch.float32)[None, :].repeat(tgt_h // patch_size, 1).flatten()
+
+    def _edit_forward(tr, hidden_states, encoder_hidden_states, timestep, position_ids=None,
+                      encoder_attention_mask=None, attention_kwargs=None, return_dict=True, **_kw):
+        txt_len = encoder_hidden_states.shape[1]
+        src_len = src_seq.shape[1]
+        temb = tr.time_embed(timestep, dtype=hidden_states.dtype)
+        temb_mod = tr.time_mod_proj(torch.nn.functional.gelu(temb, approximate="tanh"))
+        text_mask = encoder_attention_mask[:, None, None, :] if encoder_attention_mask is not None else None
+        full_mask = None
+        if text_mask is not None:
+            ones_rest = text_mask.new_ones((text_mask.shape[0], 1, 1, src_len + hidden_states.shape[1]))
+            full_mask = torch.cat([text_mask, ones_rest], dim=-1)
+        ctx_embeds = tr.txt_in(tr.text_fusion(encoder_hidden_states, attention_mask=text_mask))
+        tgt = tr.img_in(hidden_states)
+        src = tr.img_in(src_seq.to(hidden_states.dtype))
+        combined = torch.cat([ctx_embeds, src, tgt], dim=1)
+        ids = torch.cat([
+            torch.zeros(1, txt_len, 3),
+            src_ids, tgt_ids,
+        ], dim=1).to(combined.device)
+        rope = tr.rotary_emb(ids.reshape(-1, 3))  # diffusers 期望 (L,3) 无 batch 维
+        for block in tr.transformer_blocks:
+            combined = block(combined, temb_mod, rope, full_mask)
+        out = tr.final_layer(combined[:, txt_len + src_len:], temb)
+        return Transformer2DModelOutput(sample=out) if return_dict else (out,)
+
+    import types as _types
+    _orig_forward = transformer.forward
+    transformer.forward = _types.MethodType(
+        lambda self, *a, **kw: _edit_forward(self, *a, **kw), transformer)
+
+    # 5. 采样:纯噪声(ComfyUI max_denoise √(1+σ0²))+ σ 全表 + 专用 scheduler
+    sigma_table = _comfy_sigma_table(steps, 1.0)
+    generator = torch.Generator(device="cpu").manual_seed(seed) if seed is not None else None
+    noise = torch.randn(1, (tgt_h // patch_size) * (tgt_w // patch_size), 16 * patch_size * patch_size,
+                        generator=generator, device="cpu", dtype=torch.float32).to(device)
+    noise = noise * _math.sqrt(1.0 + sigma_table[0] ** 2)
+    import copy as _copy
+    sched = _copy.deepcopy(comps["scheduler"])
+    sched.config.use_dynamic_shifting = False
+    sched.set_shift(1.0)
+    pipe.scheduler = sched
+
+    from ..pipeline import is_generation_cancelled
+
+    def _cancel(_pipe, _i, _t, cb):
+        if is_generation_cancelled():
+            raise RuntimeError("generation-cancelled")
+        return cb
+
+    try:
+        result = pipe(
+            prompt_embeds=embeds,
+            prompt_embeds_mask=embeds_mask,
+            height=1024, width=1024,
+            num_inference_steps=steps,
+            guidance_scale=0.0,
+            latents=noise,
+            sigmas=[float(v) for v in sigma_table[:-1]],
+            callback_on_step_end=_cancel,
+            callback_on_step_end_tensor_inputs=["latents"],
+        )
+    finally:
+        transformer.forward = _orig_forward
+    out = result.images[0]
+    print(
+        f"[image-sidecar] krea2 edit(instruct): steps={steps} seed={seed} "
+        f"src_grid={gh}x{gw} size=1024x1024 inference={_time.time() - phase_start:.1f}s",
         flush=True,
     )
     return out

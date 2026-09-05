@@ -30,6 +30,11 @@ describe("ImageWorkflowConnectCreateMenu", () => {
     expect(menu.style.top).toBe("80px");
     expect(screen.getByRole("menuitem", { name: /提示词节点/ })).toBeTruthy();
     expect(screen.getByRole("menuitem", { name: /参考图节点/ })).toBeTruthy();
+    // 无衣物(09-04 通用化):upstream/downstream 均提供候选
+    expect(screen.getByRole("menuitem", { name: /无衣物节点/ })).toBeTruthy();
+    cleanup();
+    renderMenu("downstream");
+    expect(screen.getByRole("menuitem", { name: /无衣物节点/ })).toBeTruthy();
   });
 
   it("点击候选回调类型并关闭", () => {

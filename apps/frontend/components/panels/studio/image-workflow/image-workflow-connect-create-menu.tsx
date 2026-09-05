@@ -1,6 +1,6 @@
 import { useEffect, useRef } from "react";
 import "./image-workflow-connect-create-menu.css";
-import { FileText, Image as ImageIcon, Images } from "lucide-react";
+import { FileText, Image as ImageIcon, Images, Shirt } from "lucide-react";
 import type { ConnectCreatableTypeOption } from "@/lib/studio/image-workflow/connect-create";
 
 /**
@@ -13,6 +13,7 @@ const TYPE_ICONS = {
   generated: ImageIcon,
   prompt: FileText,
   reference: Images,
+  uncloth: Shirt,
 } as const;
 
 export function ImageWorkflowConnectCreateMenu({

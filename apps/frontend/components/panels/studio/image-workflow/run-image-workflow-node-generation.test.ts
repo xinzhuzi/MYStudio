@@ -33,6 +33,13 @@ vi.mock("@/lib/studio/image-workflow", () => ({
     referenceImages: [],
   }),
   setGeneratedImageResult: vi.fn().mockImplementation((graph) => graph),
+  updateImageWorkflowNode: vi.fn().mockImplementation((graph) => graph),
+}));
+vi.mock("@/lib/assist/image-studio/run-uncloth", () => ({
+  runUnclothChain: vi.fn().mockResolvedValue({
+    imageUrl: "project-file://media/ai-image/2026-09/uncloth_x_1.png",
+    mediaId: "media-unc-1",
+  }),
 }));
 vi.mock("@/stores/project/project-store", () => ({
   useProjectStore: { getState: () => ({ activeProjectId: "dao-project" }) },
@@ -56,8 +63,8 @@ const DAOJIE_MANUAL = [
   "<!-- storyboard-frame-negative:end -->",
 ].join("\n");
 
-const storyboardGraph = { id: "wf-1", target: { kind: "storyboard" }, nodes: [] } as never;
-const freedomGraph = { id: "wf-2", target: { kind: "freedom" }, nodes: [] } as never;
+const storyboardGraph = { id: "wf-1", target: { kind: "storyboard" }, nodes: [], edges: [] } as never;
+const freedomGraph = { id: "wf-2", target: { kind: "freedom" }, nodes: [], edges: [] } as never;
 
 describe("runImageWorkflowNodeGeneration 道劫分镜编译边界", () => {
   beforeEach(() => {
@@ -126,5 +133,55 @@ describe("runImageWorkflowNodeGeneration 道劫分镜编译边界", () => {
       runImageWorkflowNodeGeneration(storyboardGraph, "gen-1", { addMaterial: () => "mat-1" }),
     ).rejects.toThrow("800");
     expect(aiManager.generateImage).not.toHaveBeenCalled();
+  });
+});
+
+describe("runImageWorkflowNodeGeneration 无衣物链分流(09-04 通用化)", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    resetExtendedManualContentCache();
+  });
+
+  const unclothChainGraph = {
+    id: "wf-unc",
+    target: { kind: "freedom" },
+    nodes: [
+      { id: "ref-1", type: "reference", title: "参考", imageUrl: "project-file://a.png", position: { x: 80, y: 100 } },
+      { id: "unc-1", type: "uncloth", title: "无衣物", prompt: "重绘提示词", position: { x: 80, y: 600 } },
+      { id: "gen-1", type: "generated", title: "成图", position: { x: 760, y: 120 } },
+    ],
+    edges: [
+      { id: "e1", source: "ref-1", target: "unc-1" },
+      { id: "e2", source: "unc-1", target: "gen-1" },
+    ],
+  } as never;
+
+  it("链齐备:执行 uncloth 管线(双分割+两遍),不走普通 t2i/i2i 通道", async () => {
+    const { runUnclothChain } = await import("@/lib/assist/image-studio/run-uncloth");
+    const { aiManager } = await import("@/lib/ai/ai-manager");
+
+    const result = await runImageWorkflowNodeGeneration(unclothChainGraph, "gen-1", {
+      addMaterial: () => "mat-1",
+    });
+
+    expect(result.imageUrl).toBe("project-file://media/ai-image/2026-09/uncloth_x_1.png");
+    expect(runUnclothChain).toHaveBeenCalledTimes(1);
+    // 管线收到链组装结果:输入图=参考图,文本=uncloth.prompt
+    const request = vi.mocked(runUnclothChain).mock.calls[0][0];
+    expect(request.inputImageUrl).toBe("project-file://a.png");
+    expect(request.prompt).toBe("重绘提示词");
+    expect(aiManager.generateImage).not.toHaveBeenCalled();
+    // 结果回写走 store 最新代(成图+uncloth 回显)
+    expect(studioState.upsertImageWorkflow).toHaveBeenCalledTimes(1);
+  });
+
+  it("无 uncloth 上游:照走普通生成链(不误伤既有路径)", async () => {
+    const { runUnclothChain } = await import("@/lib/assist/image-studio/run-uncloth");
+    const { aiManager } = await import("@/lib/ai/ai-manager");
+
+    await runImageWorkflowNodeGeneration(freedomGraph, "gen-1", { addMaterial: () => "mat-1" });
+
+    expect(runUnclothChain).not.toHaveBeenCalled();
+    expect(aiManager.generateImage).toHaveBeenCalledTimes(1);
   });
 });

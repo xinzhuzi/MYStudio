@@ -38,7 +38,7 @@ ASPECT_RATIOS = {
     "4:3": (1072, 808), "3:4": (808, 1072),
 }
 _WORKFLOWS_DIR = Path(__file__).resolve().parent.parent / "workflows"
-_REQUIRED_TEMPLATES = ("krea2_t2i", "krea2_edit_ref", "krea2_nsfw_pro")
+_REQUIRED_TEMPLATES = ("krea2_t2i", "krea2_edit_ref", "krea2_nsfw_pro", "krea2_uncloth_instruct")
 
 
 def _version_tuple(value: Any) -> tuple[int, ...]:
@@ -250,7 +250,11 @@ def generate(prompt: str, aspect_ratio: str, negative_prompt: str | None, steps:
     # 模板路由(design §5,优先级从上到下):有参考图→编辑流(use_lora 忽略,
     # 分镜一致性优先);无参考且 use_lora→NSFW 专业流(D5 开关,默认关);其余→文生图
     use_lora = bool(ctx.get("use_lora"))
-    if references:
+    # 指定模板(09-05 无衣物·指令编辑节点):调用方显式点名时优先于自动路由
+    forced_template = ctx.get("template") if isinstance(ctx.get("template"), str) else None
+    if forced_template:
+        template_name = forced_template
+    elif references:
         template_name = "krea2_edit_ref"
         if use_lora:
             print("[image-sidecar] comfyui-bridge: use_lora 在编辑流中被忽略(参考图优先)", flush=True)
@@ -258,6 +262,8 @@ def generate(prompt: str, aspect_ratio: str, negative_prompt: str | None, steps:
         template_name = "krea2_nsfw_pro"
     else:
         template_name = "krea2_t2i"
+    if template_name != "krea2_t2i" and not references and template_name != "krea2_nsfw_pro":
+        raise _pipeline_error("bridge-template-missing", f"模板需要参考图: {template_name}")
     template = load_template(template_name)
     _warn_if_version_below_min(stats, template)
     uploaded = []

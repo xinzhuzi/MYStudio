@@ -334,6 +334,7 @@ export function ImageWorkflowCanvas({
     addReferenceFromMaterial,
     addReferenceFromStoryboard,
     addGeneratedNode,
+    addUnclothNode,
     addStoryboardLayeredPair,
     deleteNode,
     deleteSelectedEdge,
@@ -643,6 +644,8 @@ function assertLanded(outcomes: Array<{ nodeId: string } | { error: string }>): 
           onCreateNewFlow={createNewFlow}
           onUploadReferenceClick={() => uploadInputRef.current?.click()}
           onAddGeneratedNode={addGeneratedNode}
+          onAddUnclothNode={addUnclothNode}
+          onAddUnclothFastNode={() => addUnclothNode("fast")}
           onAddStoryboardLayeredPair={addStoryboardLayeredPair}
           workflowWritebackTargetLabel={workflowWritebackTargetLabel}
           onApplyToStoryboard={(nodeId) => void applyNodeToStoryboard(nodeId)}

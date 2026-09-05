@@ -205,3 +205,41 @@ describe("image-workflow 指令通道(集成)", () => {
     expect(badType.ok).toBe(false);
   });
 });
+
+describe("image-workflow 指令通道:无衣物(09-04 通用化)", () => {
+  it("add-node uncloth(无连线):建出 uncloth 节点而非误建参考图(fall-through 根修)", async () => {
+    mountCanvas(seededGraph());
+    await act(async () => {});
+
+    const result = dispatch({
+      kind: "add-node",
+      surface: "image-workflow",
+      nodeType: "uncloth",
+    });
+
+    expect(result.ok).toBe(true);
+    const nodeId = (result as { detail?: { nodeId?: string } }).detail?.nodeId;
+    const graph = activeGraph();
+    const created = graph.nodes.find((node) => node.id === nodeId);
+    expect(created?.type).toBe("uncloth");
+    expect(graph.nodes.filter((node) => node.type === "reference")).toHaveLength(1);
+  });
+
+  it("add-node uncloth + connectFrom(参考图源):建节点并自动连边", async () => {
+    mountCanvas(seededGraph());
+    await act(async () => {});
+
+    const result = dispatch({
+      kind: "add-node",
+      surface: "image-workflow",
+      nodeType: "uncloth",
+      connectFrom: { nodeId: "ref-1", handleType: "source" },
+    });
+
+    expect(result.ok).toBe(true);
+    const nodeId = (result as { detail?: { nodeId?: string } }).detail?.nodeId;
+    const graph = activeGraph();
+    expect(graph.nodes.find((node) => node.id === nodeId)?.type).toBe("uncloth");
+    expect(graph.edges.some((edge) => edge.source === "ref-1" && edge.target === nodeId)).toBe(true);
+  });
+});

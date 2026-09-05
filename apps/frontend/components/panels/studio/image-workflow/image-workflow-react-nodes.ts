@@ -29,6 +29,7 @@ export function createImageWorkflowReactNodes({
 }: CreateImageWorkflowReactNodesOptions): ImageWorkflowReactNode[] {
   // 回调直挂稳定引用(拖动帧内画布 hook 全部 useCallback),配合节点卡片
   // memo 的 data 引用比较,拖动时整组卡片不重渲染。
+  const nodesById = new Map((graph?.nodes ?? []).map((node) => [node.id, node]));
   return (graph?.nodes ?? []).map((node) => ({
     id: node.id,
     type: "imageWorkflow",
@@ -39,6 +40,16 @@ export function createImageWorkflowReactNodes({
         node.type === "generated" && graph
           ? findLinkedPromptNodeForGenerated(graph, node.id)
           : undefined,
+      // 无衣物链上游(09-04 通用化):成图有 uncloth 上游时提示词经链传入,
+      // 卡上不显示兜底提示词输入框(与图片工作室同裁定)
+      hasUnclothUpstream:
+        node.type === "generated" &&
+        Boolean(
+          graph?.edges.some((edge) => {
+            if (edge.target !== node.id) return false;
+            return nodesById.get(edge.source)?.type === "uncloth";
+          }),
+        ),
       selected: node.id === selectedNodeId,
       storyboards,
       onUpdate,

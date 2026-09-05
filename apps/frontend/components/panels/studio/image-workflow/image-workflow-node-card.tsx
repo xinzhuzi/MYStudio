@@ -2,11 +2,12 @@ import { memo, useEffect, useState } from "react";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { UpscaleDenoiseModeField, denoiseModeToOpts, type UpscaleDenoiseMode } from "./upscale-denoise-mode";
 import { Handle, Position, type Node, type NodeProps } from "@xyflow/react";
-import { AlertTriangle, Brush, FileText, Grid2x2, Image as ImageIcon, Loader2, Save, Scissors, Trash2, Type, WandSparkles, ZoomIn } from "lucide-react";
+import { AlertTriangle, Brush, FileText, Grid2x2, Image as ImageIcon, Loader2, Save, Scissors, Shirt, Trash2, Type, WandSparkles, ZoomIn } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { LocalImage } from "@/components/ui/local-image";
 import { ResolutionBadge, probeImagePixelSize } from "@/components/ui/image-resolution-badge";
 import { Textarea } from "@/components/ui/textarea";
+import { UnclothNodeEditor } from "@/components/ui/uncloth-node-editor";
 import { ModelSelector } from "@/components/panels/assist/ModelSelector";
 import { UPSCALE_INPUT_MAX_LONG_SIDE } from "@/lib/upscale/client";
 import { IMAGE_ASPECT_RATIOS, IMAGE_RESOLUTIONS } from "@/lib/ai/image-size-presets";
@@ -23,6 +24,9 @@ import { toPreviewSrc, withThumbVariant } from "@/lib/media/preview-src";
 export interface ImageWorkflowNodeData extends Record<string, unknown> {
   node: ImageWorkflowNode;
   promptNode?: ImageWorkflowPromptNode;
+  /** 无衣物链上游(09-04 通用化):成图有 uncloth 上游时提示词经链传入,
+   * 卡上不显示「未连线在此填写」兜底输入框(与图片工作室同裁定) */
+  hasUnclothUpstream?: boolean;
   selected: boolean;
   storyboards: StoryboardItem[];
   onUpdate: (nodeId: string, updates: Partial<ImageWorkflowNode>) => void;
@@ -82,7 +86,13 @@ export const ImageWorkflowNodeCard = memo(function ImageWorkflowNodeCard({ data 
       ? "border-success/45"
       : "border-border";
   const nodeKindLabel =
-    node.type === "reference" ? "Image" : node.type === "prompt" ? "图片生成" : "生成结果";
+    node.type === "reference"
+      ? "Image"
+      : node.type === "prompt"
+        ? "图片生成"
+        : node.type === "uncloth"
+          ? "无衣物"
+          : "生成结果";
 
   return (
     <div
@@ -106,6 +116,14 @@ export const ImageWorkflowNodeCard = memo(function ImageWorkflowNodeCard({ data 
           className="!h-3 !w-3 !border-info/40 !bg-info/20"
         />
       ) : null}
+      {node.type === "uncloth" ? (
+        <Handle
+          type="target"
+          position={Position.Left}
+          className="!h-3 !w-3 !border-warning/40 !bg-warning/20"
+          title="输入口:参考图/成图与提示词连到这里(图生图链驱动两遍采样)"
+        />
+      ) : null}
       <Handle type="source" position={Position.Right} className="!h-3 !w-3 !border-info/40 !bg-info/20" />
       <div className="mb-3 flex items-start justify-between gap-2">
         <div className="flex min-w-0 items-center gap-2">
@@ -116,13 +134,17 @@ export const ImageWorkflowNodeCard = memo(function ImageWorkflowNodeCard({ data 
                 ? "border-success/30 bg-success/10 text-success"
                 : node.type === "prompt"
                   ? "border-info/30 bg-info/10 text-info"
-                  : "border-primary/30 bg-primary/10 text-primary",
+                  : node.type === "uncloth"
+                    ? "border-warning/30 bg-warning/10 text-warning"
+                    : "border-primary/30 bg-primary/10 text-primary",
             )}
           >
             {node.type === "reference" ? (
               <ImageIcon className="h-4 w-4" />
             ) : node.type === "prompt" ? (
               <Type className="h-4 w-4" />
+            ) : node.type === "uncloth" ? (
+              <Shirt className="h-4 w-4" />
             ) : (
               <WandSparkles className="h-4 w-4" />
             )}
@@ -140,7 +162,9 @@ export const ImageWorkflowNodeCard = memo(function ImageWorkflowNodeCard({ data 
                   ? "text-success/80"
                   : node.type === "prompt"
                     ? "text-info/80"
-                    : "text-primary/80",
+                    : node.type === "uncloth"
+                      ? "text-warning/80"
+                      : "text-primary/80",
               )}
             >
               {nodeKindLabel}
@@ -211,10 +235,13 @@ export const ImageWorkflowNodeCard = memo(function ImageWorkflowNodeCard({ data 
         <ReferenceNodeEditor node={node} onUpdate={data.onUpdate} />
       ) : node.type === "prompt" ? (
         <PromptNodeEditor node={node} onUpdate={data.onUpdate} />
+      ) : node.type === "uncloth" ? (
+        <UnclothNodeEditor node={node} onUpdate={data.onUpdate} />
       ) : node.type === "generated" ? (
         <GeneratedNodeEditor
           node={node}
           promptNode={data.promptNode}
+          hasUnclothUpstream={data.hasUnclothUpstream}
           onUpdate={data.onUpdate}
           onGenerate={data.onGenerate}
           onUpscale={data.onUpscale}
@@ -298,6 +325,7 @@ function PromptNodeEditor({
 function GeneratedNodeEditor({
   node,
   promptNode,
+  hasUnclothUpstream,
   onUpdate,
   onGenerate,
   onUpscale,
@@ -305,6 +333,7 @@ function GeneratedNodeEditor({
 }: {
   node: ImageWorkflowGeneratedNode;
   promptNode?: ImageWorkflowPromptNode;
+  hasUnclothUpstream?: boolean;
   onUpdate: ImageWorkflowNodeData["onUpdate"];
   onGenerate: ImageWorkflowNodeData["onGenerate"];
   onUpscale: ImageWorkflowNodeData["onUpscale"];
@@ -445,7 +474,9 @@ function GeneratedNodeEditor({
             生成
           </Button>
       </div>
-      {!promptNode ? (
+      {/* 无衣物链上游(用户裁定 09-04 c7e6268 同款):不显示兜底提示词面板,
+          也不显示链路说明文字——零文字占位,生成按钮自明 */}
+      {!promptNode && !hasUnclothUpstream ? (
         <div
           data-toonflow-generated-prompt-panel
           className="nodrag nopan space-y-3 rounded-md border border-border bg-background/80 p-3"

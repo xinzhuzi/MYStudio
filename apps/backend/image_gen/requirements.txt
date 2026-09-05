@@ -12,3 +12,8 @@ accelerate
 gguf
 safetensors
 pillow
+# opencv-contrib 含 ximgproc.guidedFilter(uncloth V3 蒙版边缘精修,LayerStyle 同构;勿装无 contrib 变体)
+opencv-contrib-python-headless
+scipy
+# mkl 色彩迁移(uncloth 遍2 后处理 ColorMatch 同构;GPL-3.0 依赖引用,AGPL 仓合规)
+color-matcher

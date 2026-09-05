@@ -6,11 +6,14 @@ import {
   Palette,
   Plus,
   Save,
+  Shirt,
   Trash2,
   Upload,
   WandSparkles,
   ZoomIn,
+  Zap,
 } from "lucide-react";
+import { UNCLOOTH_ARCHIVED } from "@/lib/assist/image-studio/uncloth-defaults";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -39,6 +42,9 @@ export function ImageWorkflowCanvasToolbar({
   onCreateNewFlow,
   onUploadReferenceClick,
   onAddGeneratedNode,
+  onAddUnclothNode,
+  onAddUnclothFastNode,
+  onAddUnclothInstructNode,
   onAddStoryboardLayeredPair,
   activeGeneratedNode,
   workflowWritebackTargetLabel,
@@ -60,6 +66,9 @@ export function ImageWorkflowCanvasToolbar({
   onCreateNewFlow: () => void;
   onUploadReferenceClick: () => void;
   onAddGeneratedNode: () => void;
+  onAddUnclothNode: () => void;
+  onAddUnclothFastNode?: () => void;
+  onAddUnclothInstructNode?: () => void;
   onAddStoryboardLayeredPair: () => void;
   activeGeneratedNode?: ImageWorkflowGeneratedNode;
   workflowWritebackTargetLabel: string;
@@ -186,6 +195,33 @@ export function ImageWorkflowCanvasToolbar({
             <ZoomIn className="h-3.5 w-3.5" />
             批量超分{upscalableCount > 0 ? `(${upscalableCount})` : ""}
           </DropdownMenuItem>
+          <DropdownMenuItem
+            onClick={onAddUnclothInstructNode}
+            title="无衣物·指令编辑(现行,Krea2Edit 一句话指令改图;需本机 ComfyUI 运行中)"
+          >
+            <WandSparkles className="h-3.5 w-3.5" />
+            无衣物·指令(现行)
+          </DropdownMenuItem>
+          {/* 09-05 masked SDEdit 双档封存(UNCLOOTH_ARCHIVED),启用见 uncloth-defaults.ts */}
+          {!UNCLOOTH_ARCHIVED && (
+          <>
+          <DropdownMenuItem
+            data-image-workflow-uncloth-action
+            onClick={onAddUnclothNode}
+            title="衣物区域局部重绘节点(双分割+两遍采样);连输入图与提示词,输出连成图"
+          >
+            <Shirt className="h-3.5 w-3.5" />
+            无衣物·精(双分割+两遍+色彩对齐)
+          </DropdownMenuItem>
+          <DropdownMenuItem
+            onClick={onAddUnclothFastNode}
+            title="衣物区域局部重绘·快(fashn 单分割+单遍采样,约 1/3 耗时,无色彩对齐)"
+          >
+            <Zap className="h-3.5 w-3.5" />
+            无衣物·快(单遍)
+          </DropdownMenuItem>
+          </>
+          )}
           {activeGraph.target.kind === "storyboard" ? (
             <DropdownMenuItem data-image-workflow-layered-action onClick={onAddStoryboardLayeredPair}>
               <Layers className="h-3.5 w-3.5" />
