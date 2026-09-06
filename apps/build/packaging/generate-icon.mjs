@@ -103,4 +103,5 @@ async function generateIcons() {
   console.log(`\n📁 图标已保存到: ${brandDir}`)
 }
 
-generateIcons().catch(console.error)
+// 失败必须以非零退出码上抛:此脚本是打包链前置门禁,吞错会让缺图标/坏图标继续打包
+await generateIcons()

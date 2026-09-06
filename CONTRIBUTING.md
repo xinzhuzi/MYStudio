@@ -14,13 +14,14 @@
 
 ```bash
 # 克隆仓库
-git clone https://github.com/zhengbingjin/MYStudio.git
+git clone https://github.com/xinzhuzi/MYStudio.git
 cd MYStudio
 
-# 安装依赖
-npm install
+# 安装依赖(锁文件为 apps/pnpm-lock.yaml,与 CI 一致)
+cd apps
+pnpm install
 
-# 启动开发模式
+# 启动开发模式(所有 npm 命令一律从 apps/ 执行,根目录没有 package.json)
 npm run dev
 ```
 
@@ -28,23 +29,19 @@ npm run dev
 
 ```
 manying-studio/
-├── src/
-│   ├── electron/      # Electron 主进程 + Preload
-│   ├── components/    # React UI 组件
-│   ├── stores/        # Zustand 状态管理
-│   ├── lib/           # 工具库和业务逻辑
-│   ├── lib/ai/        # 统一 AI Manager、AI core、provider 与 Worker 模块
-│   ├── scripts/       # 构建和工具脚本
-│   ├── config/        # 构建、打包和工具配置
-│   ├── renderer/      # Renderer HTML 入口
-│   ├── assets/brand/  # 品牌 Logo 与应用图标
-│   └── types/         # TypeScript 类型定义
+├── apps/
+│   ├── frontend/      # Electron + React 应用:electron/ 主进程与 IPC、components/、stores/、lib/、hooks/、types/
+│   ├── backend/       # Python sidecar:tts/、video_use/ 与各生成器下载器
+│   └── build/         # 构建执行器:packaging/、smoke/、timeline/、chapter_video/、remotion/、scripts/
+├── docs/              # 用户/开发者文档
+└── README.md
 ```
 
 ### 构建
 
 ```bash
-# 编译项目
+# 编译项目(从 apps/ 执行)
+cd apps
 npm run build
 
 # 仅编译（不打包安装程序）
