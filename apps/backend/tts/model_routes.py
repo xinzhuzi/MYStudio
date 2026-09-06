@@ -46,9 +46,6 @@ class ModelRoutesMixin:
         if not model:
             self.send_error_json(HTTPStatus.BAD_REQUEST, f"Unknown model: {model_name}")
             return
-        if model_name in self.state.download_threads and self.state.download_threads[model_name].is_alive():
-            self.send_json({"message": f"Model {model_name} download already running"})
-            return
         self.state.set_progress(
             model_name,
             current=0,
@@ -57,8 +54,15 @@ class ModelRoutesMixin:
             filename="Connecting to HuggingFace...",
             status="downloading",
         )
-        thread = threading.Thread(target=self.download_model, args=(model.model_name,), daemon=True)
-        self.state.download_threads[model.model_name] = thread
+        # check-then-start 与注册同锁,防并发双下载(TOCTOU)
+        with self.state.lock:
+            existing = self.state.download_threads.get(model_name)
+            if existing is not None and existing.is_alive():
+                self.send_json({"message": f"Model {model_name} download already running"})
+                return
+            self.state.download_cancel_event(model.model_name)
+            thread = threading.Thread(target=self.download_model, args=(model.model_name,), daemon=True)
+            self.state.download_threads[model.model_name] = thread
         thread.start()
         self.send_json({"message": f"Model {model.model_name} download started"})
 
@@ -66,6 +70,7 @@ class ModelRoutesMixin:
         model = get_model(model_name)
         if not model:
             return
+        cancel_event = self.state.download_cancel_event(model_name)
         try:
             if os.environ.get("MANYING_TTS_DRY_RUN_DOWNLOADS") == "1":
                 for step in range(1, 6):
@@ -97,6 +102,8 @@ class ModelRoutesMixin:
 
                 def _monitor_progress():
                     while not stop_monitor.is_set():
+                        if cancel_event.is_set():
+                            break
                         try:
                             if repo_dir.exists():
                                 downloaded = sum(f.stat().st_size for f in repo_dir.rglob("*") if f.is_file())
@@ -117,16 +124,33 @@ class ModelRoutesMixin:
                 monitor.start()
                 try:
                     try:
-                        snapshot_download(repo_id=model.hf_repo_id, cache_dir=cache_dir, endpoint="https://modelscope.cn")
+                        from modelscope_hub import download_repo_to_hf_cache
+
+                        # ModelScope 原生直链(实测 4-18MB/s);仓未镜像时抛异常回退 HF。
+                        # 勿改回 snapshot_download(endpoint="https://modelscope.cn"):
+                        # ModelScope 不说 HF 协议,该调用必败后静默回退,白多发一发请求。
+                        download_repo_to_hf_cache(model.hf_repo_id, cache_dir)
                     except Exception:
-                        snapshot_download(repo_id=model.hf_repo_id, cache_dir=cache_dir, endpoint="https://huggingface.co")
+                        snapshot_download(repo_id=model.hf_repo_id, cache_dir=cache_dir)
                     if model_name == ALIGNMENT_MODEL_NAME:
                         try:
-                            snapshot_download(repo_id=ALIGNMENT_TOKENIZER_REPO, cache_dir=cache_dir, endpoint="https://modelscope.cn")
+                            from modelscope_hub import download_repo_to_hf_cache
+
+                            download_repo_to_hf_cache(ALIGNMENT_TOKENIZER_REPO, cache_dir)
                         except Exception:
-                            snapshot_download(repo_id=ALIGNMENT_TOKENIZER_REPO, cache_dir=cache_dir, endpoint="https://huggingface.co")
+                            snapshot_download(repo_id=ALIGNMENT_TOKENIZER_REPO, cache_dir=cache_dir)
                 finally:
                     stop_monitor.set()
+            if cancel_event.is_set():
+                # 取消在下载期间到达:定格在 error,不得再写 "complete" 翻回来
+                self.state.set_progress(
+                    model_name,
+                    status="error",
+                    error="Download cancelled",
+                    current=0,
+                    total=0,
+                )
+                return
             self.state.set_progress(
                 model_name,
                 current=model.size_mb * 1024 * 1024,

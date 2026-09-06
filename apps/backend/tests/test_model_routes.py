@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import sys
 import tempfile
+import threading
 import types
 import unittest
 from pathlib import Path
@@ -17,6 +18,9 @@ class _ProgressState:
     def set_progress(self, model_name: str, **updates: object) -> None:
         self.updates.append((model_name, updates))
 
+    def download_cancel_event(self, model_name: str) -> threading.Event:
+        return threading.Event()
+
 
 class ModelRoutesTests(unittest.TestCase):
     def test_download_whisper_also_downloads_alignment_tokenizer(self):
@@ -27,12 +31,26 @@ class ModelRoutesTests(unittest.TestCase):
         def snapshot_download(**kwargs: object) -> None:
             downloads.append(kwargs)
 
+        ms_attempts: list[str] = []
+
+        def fake_modelscope_download(repo_id: str, cache_dir: str) -> None:
+            # 模拟「仓库未在 ModelScope 镜像」:先试直链,失败后回退 HF snapshot_download
+            ms_attempts.append(repo_id)
+            raise RuntimeError("not mirrored on ModelScope")
+
         with tempfile.TemporaryDirectory() as tmp, patch.dict(
             sys.modules,
-            {"huggingface_hub": types.SimpleNamespace(snapshot_download=snapshot_download)},
+            {
+                "huggingface_hub": types.SimpleNamespace(snapshot_download=snapshot_download),
+                "modelscope_hub": types.SimpleNamespace(download_repo_to_hf_cache=fake_modelscope_download),
+            },
         ), patch("tts.model_routes.download_hf_cache_dir", return_value=Path(tmp)):
             ModelRoutesMixin.download_model(handler, "whisper-large-v3-turbo")
 
+        self.assertEqual(
+            ms_attempts,
+            ["mlx-community/whisper-large-v3-turbo", "openai/whisper-large-v3-turbo"],
+        )
         self.assertEqual(
             [download["repo_id"] for download in downloads],
             ["mlx-community/whisper-large-v3-turbo", "openai/whisper-large-v3-turbo"],

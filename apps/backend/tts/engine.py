@@ -3,6 +3,7 @@ from __future__ import annotations
 import os
 import platform
 import tempfile
+import threading
 from pathlib import Path
 from typing import Any
 
@@ -40,6 +41,13 @@ _qwen_model_size: str | None = None
 _qwen_custom_voice_model: Any | None = None
 _qwen_custom_voice_model_size: str | None = None
 _qwen_custom_voice_backend: str | None = None
+
+# MLX 非线程安全:推理跑在专用单线程(runtime_state._inference_worker)。
+# 本锁只把「HTTP 线程的 unload/is_engine_loaded」与「推理线程的 load 检查赋值」
+# 串行化,消灭「刚过 None 检查就被 unload 置 None」的竞态;生成阶段用局部变量
+# 引用模型,不全程持锁——否则长推理期间 model_status 轮询会被卡住。
+# RLock:推理线程异常路径 unload_engine 重入安全。
+_engine_lock = threading.RLock()
 
 
 def synthesize_to_wav(
@@ -190,33 +198,35 @@ def _synthesize_chunks(
 
 
 def is_engine_loaded(engine: str) -> bool:
-    if engine == "qwen":
-        return _qwen_model is not None
-    if engine == "qwen_custom_voice":
-        return _qwen_custom_voice_model is not None
-    if engine == "kokoro":
-        return _kokoro_model is not None
-    return False
+    with _engine_lock:
+        if engine == "qwen":
+            return _qwen_model is not None
+        if engine == "qwen_custom_voice":
+            return _qwen_custom_voice_model is not None
+        if engine == "kokoro":
+            return _kokoro_model is not None
+        return False
 
 
 def unload_engine(engine: str) -> bool:
     global _kokoro_model, _qwen_model, _qwen_backend, _qwen_model_size
     global _qwen_custom_voice_model, _qwen_custom_voice_model_size, _qwen_custom_voice_backend
-    if engine == "qwen" and _qwen_model is not None:
-        _qwen_model = None
-        _qwen_backend = None
-        _qwen_model_size = None
-        return True
-    if engine == "qwen_custom_voice" and _qwen_custom_voice_model is not None:
-        _qwen_custom_voice_model = None
-        _qwen_custom_voice_model_size = None
-        _qwen_custom_voice_backend = None
-        return True
-    if engine == "kokoro" and _kokoro_model is not None:
-        _kokoro_model = None
-        _kokoro_pipelines.clear()
-        return True
-    return False
+    with _engine_lock:
+        if engine == "qwen" and _qwen_model is not None:
+            _qwen_model = None
+            _qwen_backend = None
+            _qwen_model_size = None
+            return True
+        if engine == "qwen_custom_voice" and _qwen_custom_voice_model is not None:
+            _qwen_custom_voice_model = None
+            _qwen_custom_voice_model_size = None
+            _qwen_custom_voice_backend = None
+            return True
+        if engine == "kokoro" and _kokoro_model is not None:
+            _kokoro_model = None
+            _kokoro_pipelines.clear()
+            return True
+        return False
 
 
 def _generate_mock(output: Path, text: str) -> SynthesisResult:
@@ -243,17 +253,19 @@ def _generate_kokoro(
             torch.cuda.manual_seed(seed)
 
     device = "cuda" if torch.cuda.is_available() else "cpu"
-    if _kokoro_model is None:
-        _kokoro_model = KModel(repo_id=KOKORO_REPO_ID).to(device).eval()
-
     language = language or profile.get("language") or "en"
     kokoro_lang = KOKORO_LANG_CODES.get(language, "a")
-    if kokoro_lang not in _kokoro_pipelines:
-        _kokoro_pipelines[kokoro_lang] = KPipeline(
-            lang_code=kokoro_lang,
-            repo_id=KOKORO_REPO_ID,
-            model=_kokoro_model,
-        )
+    with _engine_lock:
+        if _kokoro_model is None:
+            _kokoro_model = KModel(repo_id=KOKORO_REPO_ID).to(device).eval()
+        if kokoro_lang not in _kokoro_pipelines:
+            _kokoro_pipelines[kokoro_lang] = KPipeline(
+                lang_code=kokoro_lang,
+                repo_id=KOKORO_REPO_ID,
+                model=_kokoro_model,
+            )
+        model = _kokoro_model
+        pipeline = _kokoro_pipelines[kokoro_lang]
 
     voice_id = (
         profile.get("preset_voice_id")
@@ -261,7 +273,6 @@ def _generate_kokoro(
         or KOKORO_DEFAULT_VOICES.get(language)
         or "af_heart"
     )
-    pipeline = _kokoro_pipelines[kokoro_lang]
     chunks = []
     for item in pipeline(text, voice=voice_id, speed=1.0):
         audio = getattr(item, "audio", None)
@@ -333,10 +344,12 @@ def _generate_qwen_mlx(
     size = model_size or "0.6B"
     if size not in QWEN_MLX_REPOS:
         raise RuntimeError(f"Unknown Qwen model size: {size}")
-    if _qwen_model is None or _qwen_backend != "mlx" or _qwen_model_size != size:
-        _qwen_model = load(QWEN_MLX_REPOS[size])
-        _qwen_backend = "mlx"
-        _qwen_model_size = size
+    with _engine_lock:
+        if _qwen_model is None or _qwen_backend != "mlx" or _qwen_model_size != size:
+            _qwen_model = load(QWEN_MLX_REPOS[size])
+            _qwen_backend = "mlx"
+            _qwen_model_size = size
+        model = _qwen_model
 
     if seed is not None:
         import mlx.core as mx
@@ -347,7 +360,7 @@ def _generate_qwen_mlx(
     lang = LANGUAGE_CODE_TO_NAME.get(language, "auto")
     chunks = []
     sample_rate = 24000
-    for item in _qwen_model.generate(text, ref_audio=ref_audio, ref_text=ref_text, lang_code=lang):
+    for item in model.generate(text, ref_audio=ref_audio, ref_text=ref_text, lang_code=lang):
         audio = getattr(item, "audio", None)
         if audio is None:
             continue
@@ -380,29 +393,31 @@ def _generate_qwen_pytorch(
     size = model_size or "0.6B"
     if size not in QWEN_PYTORCH_REPOS:
         raise RuntimeError(f"Unknown Qwen model size: {size}")
-    if _qwen_model is None or _qwen_backend != "pytorch" or _qwen_model_size != size:
-        device = "cuda" if torch.cuda.is_available() else "cpu"
-        dtype = torch.float32 if device == "cpu" else torch.bfloat16
-        kwargs: dict[str, Any] = {"torch_dtype": dtype}
-        if device != "cpu":
-            kwargs["device_map"] = device
-        else:
-            kwargs["low_cpu_mem_usage"] = False
-        _qwen_model = Qwen3TTSModel.from_pretrained(QWEN_PYTORCH_REPOS[size], **kwargs)
-        _qwen_backend = "pytorch"
-        _qwen_model_size = size
+    with _engine_lock:
+        if _qwen_model is None or _qwen_backend != "pytorch" or _qwen_model_size != size:
+            device = "cuda" if torch.cuda.is_available() else "cpu"
+            dtype = torch.float32 if device == "cpu" else torch.bfloat16
+            kwargs: dict[str, Any] = {"torch_dtype": dtype}
+            if device != "cpu":
+                kwargs["device_map"] = device
+            else:
+                kwargs["low_cpu_mem_usage"] = False
+            _qwen_model = Qwen3TTSModel.from_pretrained(QWEN_PYTORCH_REPOS[size], **kwargs)
+            _qwen_backend = "pytorch"
+            _qwen_model_size = size
+        model = _qwen_model
 
     if seed is not None:
         torch.manual_seed(seed)
         if torch.cuda.is_available():
             torch.cuda.manual_seed(seed)
 
-    prompt = _qwen_model.create_voice_clone_prompt(
+    prompt = model.create_voice_clone_prompt(
         ref_audio=ref_audio,
         ref_text=ref_text,
         x_vector_only_mode=False,
     )
-    audio_list, sample_rate = _qwen_model.generate_voice_clone(
+    audio_list, sample_rate = model.generate_voice_clone(
         text=text,
         voice_clone_prompt=prompt,
         language=LANGUAGE_CODE_TO_NAME.get(language, "auto"),
@@ -495,15 +510,17 @@ def _generate_qwen_custom_voice_mlx(
     size = model_size or "0.6B"
     if size not in QWEN_CUSTOM_VOICE_REPOS:
         raise RuntimeError(f"Unknown Qwen CustomVoice model size: {size}")
-    if (
-        _qwen_custom_voice_model is None
-        or _qwen_custom_voice_backend != "mlx"
-        or _qwen_custom_voice_model_size != size
-    ):
-        snapshot = _resolve_qwen_custom_voice_mlx_snapshot(size)
-        _qwen_custom_voice_model = load(snapshot, lazy=True, strict=False)
-        _qwen_custom_voice_backend = "mlx"
-        _qwen_custom_voice_model_size = size
+    with _engine_lock:
+        if (
+            _qwen_custom_voice_model is None
+            or _qwen_custom_voice_backend != "mlx"
+            or _qwen_custom_voice_model_size != size
+        ):
+            snapshot = _resolve_qwen_custom_voice_mlx_snapshot(size)
+            _qwen_custom_voice_model = load(snapshot, lazy=True, strict=False)
+            _qwen_custom_voice_backend = "mlx"
+            _qwen_custom_voice_model_size = size
+        model = _qwen_custom_voice_model
 
     if seed is not None:
         import mlx.core as mx
@@ -514,7 +531,7 @@ def _generate_qwen_custom_voice_mlx(
     request = _custom_voice_request(text, profile, language, emotion, voice_style)
     return _adapt_mlx_generation_results(
         output,
-        _qwen_custom_voice_model.generate_custom_voice(**request),
+        model.generate_custom_voice(**request),
     )
 
 
@@ -538,17 +555,19 @@ def _generate_qwen_custom_voice_pytorch(
     if size not in QWEN_CUSTOM_VOICE_REPOS:
         raise RuntimeError(f"Unknown Qwen CustomVoice model size: {size}")
 
-    if _qwen_custom_voice_model is None or _qwen_custom_voice_backend != "pytorch" or _qwen_custom_voice_model_size != size:
-        device = "cuda" if torch.cuda.is_available() else "cpu"
-        dtype = torch.float32 if device == "cpu" else torch.bfloat16
-        kwargs: dict[str, Any] = {"torch_dtype": dtype}
-        if device != "cpu":
-            kwargs["device_map"] = device
-        else:
-            kwargs["low_cpu_mem_usage"] = False
-        _qwen_custom_voice_model = Qwen3TTSModel.from_pretrained(QWEN_CUSTOM_VOICE_REPOS[size], **kwargs)
-        _qwen_custom_voice_backend = "pytorch"
-        _qwen_custom_voice_model_size = size
+    with _engine_lock:
+        if _qwen_custom_voice_model is None or _qwen_custom_voice_backend != "pytorch" or _qwen_custom_voice_model_size != size:
+            device = "cuda" if torch.cuda.is_available() else "cpu"
+            dtype = torch.float32 if device == "cpu" else torch.bfloat16
+            kwargs: dict[str, Any] = {"torch_dtype": dtype}
+            if device != "cpu":
+                kwargs["device_map"] = device
+            else:
+                kwargs["low_cpu_mem_usage"] = False
+            _qwen_custom_voice_model = Qwen3TTSModel.from_pretrained(QWEN_CUSTOM_VOICE_REPOS[size], **kwargs)
+            _qwen_custom_voice_backend = "pytorch"
+            _qwen_custom_voice_model_size = size
+        model = _qwen_custom_voice_model
 
     if seed is not None:
         torch.manual_seed(seed)
@@ -557,7 +576,7 @@ def _generate_qwen_custom_voice_pytorch(
 
     kwargs = _custom_voice_request(text, profile, language, emotion, voice_style)
 
-    wavs, sample_rate = _qwen_custom_voice_model.generate_custom_voice(**kwargs)
+    wavs, sample_rate = model.generate_custom_voice(**kwargs)
     if not wavs:
         raise RuntimeError("Qwen CustomVoice generated empty audio")
 

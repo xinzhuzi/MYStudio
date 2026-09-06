@@ -191,6 +191,9 @@ class Handler(ModelRoutesMixin, GenerationRoutesMixin, BaseHTTPRequestHandler):
             if route == "/models/download/cancel":
                 model_name = payload.get("model_name") or payload.get("modelName")
                 if model_name:
+                    # 先置取消事件(有任务时 monitor/下载线程会停写),再立刻改写状态,
+                    # 防止 1s 内被 monitor 覆写回 "downloading"、完成后变 "complete"
+                    self.state.cancel_download(model_name)
                     self.state.set_progress(model_name, status="error", error="Download cancelled", current=0, total=0)
                 self.send_json({"message": f"Download task for {model_name} cancelled"})
                 return

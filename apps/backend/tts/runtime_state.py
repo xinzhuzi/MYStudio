@@ -1,10 +1,13 @@
 from __future__ import annotations
 
+import logging
 import queue
 import threading
 import time
 
 from .storage import RuntimeStore
+
+logger = logging.getLogger(__name__)
 
 
 def _inference_worker(task_queue: queue.Queue):
@@ -17,7 +20,8 @@ def _inference_worker(task_queue: queue.Queue):
         try:
             fn(*args)
         except Exception:
-            pass
+            # 任务闭包内部已负责状态落库;这里兜底只补观测,防任务无声卡死无迹可查
+            logger.exception("inference task crashed: %s", getattr(fn, "__name__", repr(fn)))
         task_queue.task_done()
 
 
@@ -27,6 +31,7 @@ class RuntimeState:
         self.lock = threading.RLock()
         self.progress: dict[str, dict] = {}
         self.download_threads: dict[str, threading.Thread] = {}
+        self.download_cancel_events: dict[str, threading.Event] = {}
         self.generations: dict[str, dict] = {}
         self.inference_queue: queue.Queue = queue.Queue()
         self._inference_thread = threading.Thread(
@@ -56,6 +61,24 @@ class RuntimeState:
                 for task in self.progress.values()
                 if task.get("status") == "downloading"
             ]
+
+    def download_cancel_event(self, model_name: str) -> threading.Event:
+        """取(或建)该模型的下载取消事件;锁内 get-or-create 防双事件。"""
+        with self.lock:
+            event = self.download_cancel_events.get(model_name)
+            if event is None:
+                event = threading.Event()
+                self.download_cancel_events[model_name] = event
+            return event
+
+    def cancel_download(self, model_name: str) -> bool:
+        """置取消事件;返回 False 表示当前没有已注册的下载任务。"""
+        with self.lock:
+            event = self.download_cancel_events.get(model_name)
+            if event is None:
+                return False
+            event.set()
+            return True
 
     def start_generation(self, generation_id: str, profile_id: str, text: str):
         with self.lock:
