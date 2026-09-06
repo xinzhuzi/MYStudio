@@ -1,5 +1,5 @@
 import type { RemotionQueueScopeState } from "./useRemotionQueueScope";
-import { persistableProjectMediaPath, resolveAssetCurrentMediaPaths } from "./workflow-asset-media-path";
+import { persistableProjectMediaPath, resolveAssetCurrentMediaPaths } from "@/lib/studio/workflow-asset-media-path";
 import { isStoryboardReadyForVideoWorkflow } from "@/lib/studio/video-workflow/chapter-run-request";
 import type { ToonflowWorkbenchAssetMedia } from "@/lib/studio/workbench-view-model";
 import { useCharacterLibraryStore } from "@/stores/library/character-library-store";

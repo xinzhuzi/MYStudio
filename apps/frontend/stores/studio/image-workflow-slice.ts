@@ -1,6 +1,6 @@
 import { createImageWorkflowGraph, buildAssetImageWorkflowPatch, buildStoryboardImageWorkflowPatch } from "@/lib/studio/image-workflow";
 import { assertImageWorkflowGraphMediaPersistable } from "./studio-store-persistence";
-import { resolvePersistableAssetCurrentMediaPaths } from "@/components/panels/studio/workflow-asset-media-path";
+import { resolvePersistableAssetCurrentMediaPaths } from "@/lib/studio/workflow-asset-media-path";
 import { useCharacterLibraryStore } from "@/stores/library/character-library-store";
 import { usePropsLibraryStore } from "@/stores/library/props-library-store";
 import { useSceneStore } from "@/stores/library/scene-store";
