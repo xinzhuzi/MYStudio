@@ -68,9 +68,24 @@ export interface ParsedLocalImageUrl {
 export function parseLocalImageUrl(url: string): ParsedLocalImageUrl | null {
   const match = url.match(/^local-image:\/\/([^/]+)\/(.+)$/);
   if (!match) return null;
-  const segments = match[2].split("/");
-  if (segments.some((part) => !part || part === "." || part === "..")) return null;
-  return { category: match[1], filename: match[2] };
+  // 与 parseProjectFileUrl/parseAssetFileUrl 同口径:线上逐段 encodeURIComponent,
+  // 解析侧必须 decode 回原值,否则 mediaRefRequestPath/siblingLocalImageUrl 会把
+  // 已编码 URL 再编码一次(%→%25),中文文件名超分入参 404。
+  let category: string;
+  try {
+    category = decodeURIComponent(match[1]);
+  } catch {
+    return null;
+  }
+  const segments = match[2].split("/").map((part) => {
+    try {
+      return decodeURIComponent(part);
+    } catch {
+      return "";
+    }
+  });
+  if (!category || segments.some((part) => !part || part === "." || part === "..")) return null;
+  return { category, filename: segments.join("/") };
 }
 
 export function buildLocalImageUrl(category: string, filename: string): string {

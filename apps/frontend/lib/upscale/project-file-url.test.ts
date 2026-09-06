@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
   buildAssetFileUrl,
+  buildLocalImageUrl,
   buildProjectFileUrl,
   parseAssetFileUrl,
+  parseLocalImageUrl,
   parseProjectFileUrl,
 } from "./project-file-url";
 
@@ -26,5 +28,14 @@ describe("project-file-url 全仓唯一拼装点", () => {
     expect(parseAssetFileUrl("asset-file://a/../../etc")).toBeNull();
     // 与 project-file 解析互不越界
     expect(parseProjectFileUrl("asset-file://role/x.png")).toBeNull();
+  });
+
+  it("parseLocalImageUrl 与 build 往返对称:中文文件名不再二次编码(09-06 回归)", () => {
+    const url = buildLocalImageUrl("media", "水墨-01.png");
+    expect(url).toBe("local-image://media/%E6%B0%B4%E5%A2%A8-01.png");
+    const parsed = parseLocalImageUrl(url);
+    expect(parsed).toEqual({ category: "media", filename: "水墨-01.png" });
+    // 解析→重建幂等:超分 sibling/mediaRefRequestPath 链的稳定性依赖此性质
+    expect(buildLocalImageUrl(parsed!.category, parsed!.filename)).toBe(url);
   });
 });
