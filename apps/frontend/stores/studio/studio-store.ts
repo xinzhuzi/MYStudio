@@ -232,6 +232,9 @@ const initialState: StudioWorkflowState = {
   },
 };
 
+// 09-06 切章竞态守卫:快切两章时,先发的慢装载后到会把新章工作区整组回写成旧章
+let studioChapterSwitchSeq = 0;
+
 export const useStudioStore = create<StudioWorkflowStore>()(
   persist(
     (set, get) => {
@@ -282,6 +285,7 @@ export const useStudioStore = create<StudioWorkflowStore>()(
         const current = get();
         if (!current.novelChapters.some((chapter) => chapter.id === chapterId)) return;
         if (current.activeChapterId === chapterId) return;
+        const switchSeq = ++studioChapterSwitchSeq;
         let loaded: Awaited<ReturnType<typeof loadStudioChapterWorkspace>> = null;
         if (pid) {
           try {
@@ -290,6 +294,8 @@ export const useStudioStore = create<StudioWorkflowStore>()(
             console.warn("[StudioStore] 章节工作区装载失败，回退索引条目:", error);
           }
         }
+        // await 期间又有切章发起:本次装载已过期,不得回写
+        if (switchSeq !== studioChapterSwitchSeq) return;
         const activeChapter = (loaded?.novelChapter as NovelChapter | undefined)
           ?? current.novelChapters.find((chapter) => chapter.id === chapterId);
         if (!activeChapter) return;

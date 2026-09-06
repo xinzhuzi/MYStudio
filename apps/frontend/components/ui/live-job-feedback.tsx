@@ -36,7 +36,9 @@ export function LiveJobFeedback({
   ...props
 }: LiveJobFeedbackProps) {
   const reduced = useReducedMotion();
-  const origin = startedAt ?? Date.now();
+  // origin 只在挂载时定格:若每渲染重算(startedAt 缺省时),effect 依赖随渲染漂移,
+  // interval 每秒被重建、计时永远停在 0:00(MusicStudio 分钟级任务实测踩坑)
+  const [origin] = useState(() => startedAt ?? Date.now());
   const [elapsed, setElapsed] = useState(() => formatElapsed(origin));
 
   useEffect(() => {

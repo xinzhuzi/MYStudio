@@ -13,9 +13,9 @@ import { useArtifactStore } from "@/stores/artifacts/artifact-store";
 import {
   createArtifactDeletionPlan,
   executeArtifactDeletionPlan,
-  loadArtifactInventory,
   updateArtifactMetadata,
 } from "@/stores/artifacts/artifact-store";
+import { useArtifactInventory } from "@/hooks/use-artifact-inventory";
 import { useProjectStore } from "@/stores/project/project-store";
 import { useMediaPanelStore } from "@/stores/navigation/media-panel-store";
 import { toast } from "sonner";
@@ -112,24 +112,22 @@ export function ArtifactCenter({
   const setActiveTab = useMediaPanelStore((state) => state.setActiveTab);
   const requestSettingsTab = useMediaPanelStore((state) => state.requestSettingsTab);
   const enterEpisode = useMediaPanelStore((state) => state.enterEpisode);
-  const startScan = useArtifactStore((state) => state.startScan);
-  const finishScan = useArtifactStore((state) => state.finishScan);
-  const setScanError = useArtifactStore((state) => state.setError);
-  const loading = useArtifactStore((state) => state.loading);
-  const refreshInventory = useCallback(async () => {
-    if (!activeProjectId || mockArtifacts) return;
-    startScan();
-    const result = await loadArtifactInventory(activeProjectId);
-    if (result.success) finishScan(result.data.artifacts);
-    else setScanError(result.error);
-  }, [activeProjectId, mockArtifacts, startScan, finishScan, setScanError]);
+  // 清点刷新生命周期统一走 use-artifact-inventory(此处原有内联复本,与 hook 双份漂移:
+  // 两处都缺 try/catch 与项目切换 currency 守卫,IPC 桥 reject 会把 loading 永卡)
+  const { refreshInventory, loading } = useArtifactInventory(activeProjectId, mockArtifacts);
 
-  useEffect(() => {
-    void refreshInventory();
-  }, [refreshInventory]);
-
-  // Use provided mock data or fall back to store
-  const storeArtifacts = useArtifactStore((state) => state.getFilteredArtifacts());
+  // Use provided mock data or fall back to store.
+  // 不经 getFilteredArtifacts():它返回新数组属不稳定 selector(zustand v5 会触发
+  // getSnapshot 缓存告警/重渲染循环),改为订阅原始字段 + useMemo 复刻同一过滤。
+  const storeArtifactsAll = useArtifactStore((state) => state.artifacts);
+  const storeSelectedChapterId = useArtifactStore((state) => state.selectedChapterId);
+  const storeArtifacts = useMemo(
+    () =>
+      storeSelectedChapterId
+        ? storeArtifactsAll.filter((artifact) => artifact.chapterId === storeSelectedChapterId)
+        : storeArtifactsAll,
+    [storeArtifactsAll, storeSelectedChapterId],
+  );
   const artifacts = mockArtifacts ?? storeArtifacts;
 
   // Filter and sort artifacts
