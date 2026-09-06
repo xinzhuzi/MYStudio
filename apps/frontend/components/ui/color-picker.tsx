@@ -257,7 +257,7 @@ const ColorPicker = React.forwardRef<HTMLDivElement, ColorPickerProps>(
           />
           <div className="flex-1 flex items-center">
             <Input
-              className="bg-transparent p-0 !ring-0 !ring-offset-0 !border-0"
+              className="bg-transparent p-0 ring-0! ring-offset-0! border-0!"
               containerClassName="w-full"
               value={inputValue}
               onChange={handleInputChange}

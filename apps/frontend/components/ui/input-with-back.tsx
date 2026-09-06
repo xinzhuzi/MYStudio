@@ -58,7 +58,7 @@ export function InputWithBack({
       >
         <Button
           variant="outline"
-          className="!size-9 rounded-full bg-panel-accent"
+          className="size-9! rounded-full bg-panel-accent"
         >
           <ArrowLeft />
         </Button>

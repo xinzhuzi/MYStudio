@@ -83,10 +83,10 @@ const Input = forwardRef<HTMLInputElement, InputProps>(
               e.preventDefault();
               onClear?.();
             }}
-            className="absolute right-0 top-0 h-full px-3 text-muted-foreground !opacity-100"
+            className="absolute right-0 top-0 h-full px-3 text-muted-foreground opacity-100!"
             aria-label="Clear input"
           >
-            <X className="!size-[0.85]" />
+            <X className="size-[0.85rem]!" />
           </Button>
         )}
         {showPasswordToggle && (

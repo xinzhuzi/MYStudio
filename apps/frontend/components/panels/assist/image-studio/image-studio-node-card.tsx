@@ -157,7 +157,7 @@ export const ImageStudioNodeCard = memo(function ImageStudioNodeCard({
         <Handle
           type="target"
           position={Position.Left}
-          className="!h-3 !w-3 !border-info/40 !bg-info/20"
+          className="h-3! w-3! border-info/40! bg-info/20!"
           title={
             node.type === "uncloth"
               ? "输入口:参考图/成图与提示词连到这里(图生图链驱动两遍采样)"
@@ -168,7 +168,7 @@ export const ImageStudioNodeCard = memo(function ImageStudioNodeCard({
       <Handle
         type="source"
         position={Position.Right}
-        className="!h-3 !w-3 !border-info/40 !bg-info/20"
+        className="h-3! w-3! border-info/40! bg-info/20!"
         title="输出口:拖出去连下游成图,或拖到空白处快速建节点"
       />
       <div className="mb-3 flex items-start justify-between gap-2">

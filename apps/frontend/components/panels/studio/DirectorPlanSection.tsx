@@ -37,7 +37,7 @@ export function DirectorPlanSection() {
           theme="dark"
           previewTheme="github"
           codeTheme="github"
-          className="md-editor-preview-transparent !bg-transparent text-foreground"
+          className="md-editor-preview-transparent bg-transparent! text-foreground"
           style={{ background: "transparent" }}
         />
       </div>

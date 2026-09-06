@@ -84,13 +84,13 @@ export function NodeDocViewer({
           {isTable ? (
             <TableRender node={node} />
           ) : (
-            <div className="[&_.md-editor-preview]:!px-0 [&_.md-editor-preview]:!text-[15px] [&_.md-editor-preview]:!leading-[1.8] [&_.md-editor-preview_h1]:!mb-6 [&_.md-editor-preview_h1]:!mt-2 [&_.md-editor-preview_h1]:!text-2xl [&_.md-editor-preview_h1]:!font-bold [&_.md-editor-preview_h2]:!mb-4 [&_.md-editor-preview_h2]:!mt-8 [&_.md-editor-preview_h2]:!text-xl [&_.md-editor-preview_h2]:!font-semibold [&_.md-editor-preview_h3]:!mb-3 [&_.md-editor-preview_h3]:!mt-6 [&_.md-editor-preview_h3]:!text-lg [&_.md-editor-preview_p]:!mb-4 [&_.md-editor-preview_ul]:!mb-4 [&_.md-editor-preview_li]:!mb-1.5 [&_.md-editor-preview_blockquote]:!my-4 [&_.md-editor-preview_blockquote]:!border-l-2 [&_.md-editor-preview_blockquote]:!border-primary/40 [&_.md-editor-preview_blockquote]:!pl-4 [&_.md-editor-preview_blockquote]:!text-muted-foreground [&_.md-editor-preview_strong]:!text-foreground [&_.md-editor-preview_hr]:!my-6">
+            <div className="[&_.md-editor-preview]:px-0! [&_.md-editor-preview]:text-[15px]! [&_.md-editor-preview]:leading-[1.8]! [&_.md-editor-preview_h1]:mb-6! [&_.md-editor-preview_h1]:mt-2! [&_.md-editor-preview_h1]:text-2xl! [&_.md-editor-preview_h1]:font-bold! [&_.md-editor-preview_h2]:mb-4! [&_.md-editor-preview_h2]:mt-8! [&_.md-editor-preview_h2]:text-xl! [&_.md-editor-preview_h2]:font-semibold! [&_.md-editor-preview_h3]:mb-3! [&_.md-editor-preview_h3]:mt-6! [&_.md-editor-preview_h3]:text-lg! [&_.md-editor-preview_p]:mb-4! [&_.md-editor-preview_ul]:mb-4! [&_.md-editor-preview_li]:mb-1.5! [&_.md-editor-preview_blockquote]:my-4! [&_.md-editor-preview_blockquote]:border-l-2! [&_.md-editor-preview_blockquote]:border-primary/40! [&_.md-editor-preview_blockquote]:pl-4! [&_.md-editor-preview_blockquote]:text-muted-foreground! [&_.md-editor-preview_strong]:text-foreground! [&_.md-editor-preview_hr]:my-6!">
               <MdPreview
                 modelValue={markdown || "暂无内容"}
                 theme="dark"
                 previewTheme="github"
                 codeTheme="github"
-                className="md-editor-preview-transparent !bg-transparent text-foreground [&_.md-editor]:!bg-transparent [&_.md-editor-preview]:!bg-transparent [&_.md-editor-preview-wrapper]:!bg-transparent"
+                className="md-editor-preview-transparent bg-transparent! text-foreground [&_.md-editor]:bg-transparent! [&_.md-editor-preview]:bg-transparent! [&_.md-editor-preview-wrapper]:bg-transparent!"
                 style={{ background: "transparent" }}
               />
             </div>

@@ -280,7 +280,7 @@ export function ScriptTab(props: {
       )}
     >
       <MdPreview
-        className="md-editor-preview-transparent !bg-transparent [&_.md-editor-preview-wrapper]:!bg-transparent [&_.md-editor-preview]:!bg-transparent [&_.md-editor]:!bg-transparent"
+        className="md-editor-preview-transparent bg-transparent! [&_.md-editor-preview-wrapper]:bg-transparent! [&_.md-editor-preview]:bg-transparent! [&_.md-editor]:bg-transparent!"
         modelValue={modelValue}
         theme={theme}
         language="zh-CN"

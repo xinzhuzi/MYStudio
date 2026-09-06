@@ -113,18 +113,18 @@ export const ImageWorkflowNodeCard = memo(function ImageWorkflowNodeCard({ data 
           // 08-31-connect-create-menu:target 手柄默认 connectableStart=false,
           // 显式开启才能从成图输入拖出建上游(提示词/参考图)——上游菜单入口
           isConnectableStart
-          className="!h-3 !w-3 !border-info/40 !bg-info/20"
+          className="h-3! w-3! border-info/40! bg-info/20!"
         />
       ) : null}
       {node.type === "uncloth" ? (
         <Handle
           type="target"
           position={Position.Left}
-          className="!h-3 !w-3 !border-warning/40 !bg-warning/20"
+          className="h-3! w-3! border-warning/40! bg-warning/20!"
           title="输入口:参考图/成图与提示词连到这里(图生图链驱动两遍采样)"
         />
       ) : null}
-      <Handle type="source" position={Position.Right} className="!h-3 !w-3 !border-info/40 !bg-info/20" />
+      <Handle type="source" position={Position.Right} className="h-3! w-3! border-info/40! bg-info/20!" />
       <div className="mb-3 flex items-start justify-between gap-2">
         <div className="flex min-w-0 items-center gap-2">
           <span

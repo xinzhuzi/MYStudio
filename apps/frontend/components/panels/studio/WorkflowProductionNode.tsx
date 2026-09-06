@@ -204,20 +204,20 @@ export const ProductionFlowNode = memo(function ProductionFlowNode({ data }: Nod
         type="target"
         id={`${data.node.id}-target`}
         position={targetPosition}
-        className="!h-2.5 !w-2.5 !border !border-primary/70 !bg-primary/20"
+        className="h-2.5! w-2.5! border! border-primary/70! bg-primary/20!"
       />
       <Handle
         type="source"
         id={`${data.node.id}-source`}
         position={sourcePosition}
-        className="!h-2.5 !w-2.5 !border !border-primary/70 !bg-primary/20"
+        className="h-2.5! w-2.5! border! border-primary/70! bg-primary/20!"
       />
       {data.node.id === "script" ? (
         <Handle
           type="source"
           id="script-assets-source"
           position={sourcePosition === Position.Bottom ? Position.Right : Position.Bottom}
-          className="!h-2.5 !w-2.5 !border !border-primary/70 !bg-primary/20"
+          className="h-2.5! w-2.5! border! border-primary/70! bg-primary/20!"
         />
       ) : null}
       <div className="workflow-node-titlebar flex cursor-grab items-start justify-between gap-3 active:cursor-grabbing">
