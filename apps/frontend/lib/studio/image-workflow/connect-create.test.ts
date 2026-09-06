@@ -38,9 +38,9 @@ describe("getCreatableImageNodeTypes", () => {
     expect(downstream.find((option) => option.type === "uncloth-instruct")?.label).toBe("无衣物·指令");
   });
 
-  it("无衣物标签取自通用注册表(09-04 通用化)", () => {
+  it("基础类型标签取自通用注册表(09-04 通用化;uncloth 系 09-05 封存后菜单直出文案)", () => {
     const downstream = getCreatableImageNodeTypes("downstream");
-    expect(downstream.find((option) => option.type === "uncloth")?.label).toBe("无衣物节点");
+    expect(downstream.find((option) => option.type === "generated")?.label).toBe("成图节点");
   });
 
   it("方向由手柄类型决定", () => {

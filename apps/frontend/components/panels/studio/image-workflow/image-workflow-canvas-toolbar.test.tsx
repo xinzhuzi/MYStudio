@@ -56,15 +56,15 @@ describe("toolbar after switcher moved to sidebar (08-30)", () => {
   });
 });
 
-describe("toolbar 无衣物节点入口(09-04 通用化)", () => {
-  it("更多菜单提供无衣物节点项,点击回调 addUnclothNode", () => {
-    const onAddUnclothNode = vi.fn();
-    const { unmount } = renderToolbar({ onAddUnclothNode });
+describe("toolbar 无衣物·指令入口(09-05 双档封存后现行档)", () => {
+  it("更多菜单提供无衣物·指令项,点击回调 onAddUnclothInstructNode", () => {
+    const onAddUnclothInstructNode = vi.fn();
+    const { unmount } = renderToolbar({ onAddUnclothInstructNode });
     const more = screen.getByRole("button", { name: "更多操作" });
     fireEvent.pointerDown(more, { button: 0, pointerType: "mouse" });
     fireEvent.click(more);
-    fireEvent.click(screen.getByText("无衣物节点"));
-    expect(onAddUnclothNode).toHaveBeenCalledTimes(1);
+    fireEvent.click(screen.getByText("无衣物·指令(现行)"));
+    expect(onAddUnclothInstructNode).toHaveBeenCalledTimes(1);
     unmount();
   });
 });
