@@ -147,6 +147,12 @@ export class VlmReviewRuntimeController {
       child.stderr?.on("data", (data: Buffer) => {
         console.error(`[vlm-review-download] ${data.toString().trim()}`);
       });
+      // spawn 失败(ENOENT 等)走 error 事件:不监听会变成主进程 uncaught exception;
+      // stdout pipe 无人消费会塞满内核缓冲区卡死子进程,显式丢弃
+      child.on("error", (error) => {
+        console.error(`[vlm-review-download] spawn failed: ${String(error)}`);
+      });
+      child.stdout?.resume();
       // 不等完成,返回 accepted(前端轮询进度文件)
       return { success: true };
     } catch (error) {

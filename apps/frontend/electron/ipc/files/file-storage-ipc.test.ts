@@ -69,7 +69,14 @@ describe("registerFileStorageIpcHandlers", () => {
     await expect(mocks.handlers.get("file-storage-set")?.({}, "projects/scene", "next value")).resolves.toBe(true);
     expect(mocks.readFileSync).toHaveBeenCalledWith("/data/projects/scene.json", "utf-8");
     expect(mocks.mkdirSync).toHaveBeenCalledWith("/data/projects", { recursive: true });
-    expect(mocks.writeFileSync).toHaveBeenCalledWith("/data/projects/scene.json", "next value", "utf-8");
+    // 原子写契约(09-06):先写 <path>.<pid>.tmp 再 rename 落终路径,防崩溃留半截 JSON
+    const sceneCall = mocks.writeFileSync.mock.calls.find(([p]) => String(p).startsWith("/data/projects/scene.json"));
+    expect(sceneCall).toBeDefined();
+    const [sceneTmpPath, scenePayload, sceneEncoding] = sceneCall!;
+    expect(sceneTmpPath).toMatch(/^\/data\/projects\/scene\.json\.\d+\.tmp$/);
+    expect(scenePayload).toBe("next value");
+    expect(sceneEncoding).toBe("utf-8");
+    expect(mocks.renameSync).toHaveBeenCalledWith(sceneTmpPath, "/data/projects/scene.json");
 
     vi.spyOn(console, "error").mockImplementation(() => undefined);
     await expect(mocks.handlers.get("file-storage-set")?.({}, "../outside", "blocked")).resolves.toBe(false);
@@ -80,16 +87,20 @@ describe("registerFileStorageIpcHandlers", () => {
     await expect(
       mocks.handlers.get("file-storage-set")?.({}, "projects/editing", '{"state":{"a":1},"version":2}'),
     ).resolves.toBe(true);
-    expect(mocks.writeFileSync).toHaveBeenCalledWith(
-      "/data/projects/editing.json",
-      '{\n  "state": {\n    "a": 1\n  },\n  "version": 2\n}\n',
-      "utf-8",
-    );
+    const editingCall = mocks.writeFileSync.mock.calls.find(([p]) => String(p).startsWith("/data/projects/editing.json"));
+    expect(editingCall).toBeDefined();
+    const [editingTmpPath, editingPayload, editingEncoding] = editingCall!;
+    expect(editingTmpPath).toMatch(/^\/data\/projects\/editing\.json\.\d+\.tmp$/);
+    expect(editingPayload).toBe('{\n  "state": {\n    "a": 1\n  },\n  "version": 2\n}\n');
+    expect(editingEncoding).toBe("utf-8");
+    expect(mocks.renameSync).toHaveBeenCalledWith(editingTmpPath, "/data/projects/editing.json");
 
     await expect(
       mocks.handlers.get("file-storage-set")?.({}, "projects/readme", "# not json"),
     ).resolves.toBe(true);
-    expect(mocks.writeFileSync).toHaveBeenCalledWith("/data/projects/readme.json", "# not json", "utf-8");
+    const readmeCall = mocks.writeFileSync.mock.calls.find(([p]) => String(p).startsWith("/data/projects/readme.json"));
+    expect(readmeCall).toBeDefined();
+    expect(readmeCall![1]).toBe("# not json");
   });
 
   it("does not rename when the source is missing or the target already exists", async () => {

@@ -234,9 +234,10 @@ export function createWindow() {
     // Allow navigating to the app itself (dev server or local renderer files only)
     if (VITE_DEV_SERVER_URL && url.startsWith(VITE_DEV_SERVER_URL)) return
     if (isRendererLocalFileUrl(url)) return
-    // Block and open externally
+    // Block and open externally(仅放行 http/https 外开:file:// 等协议不得借道
+    // 绕过 app-shell-ipc 的 BLOCKED_OPEN_EXTENSIONS 可执行扩展拦截)
     event.preventDefault()
-    shell.openExternal(url)
+    if (/^https?:\/\//i.test(url)) shell.openExternal(url)
   })
 
   win.webContents.on('will-frame-navigate', (details) => {

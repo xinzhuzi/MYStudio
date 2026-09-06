@@ -69,7 +69,11 @@ export function registerFileStorageIpcHandlers({ getDataDir }: RegisterFileStora
       const filePath = resolveDataFilePath(getDataDir(), key);
       await withFileStorageMutationLock(filePath, () => {
         fs.mkdirSync(path.dirname(filePath), { recursive: true });
-        fs.writeFileSync(filePath, normalizeStoredJson(value), "utf-8");
+        // 原子落盘 tmp+rename(与 main-hosted-studio 同口径):直写崩溃时会留半截
+        // JSON,renderer 持久化文件损坏即丢用户状态
+        const temporaryPath = `${filePath}.${process.pid}.tmp`;
+        fs.writeFileSync(temporaryPath, normalizeStoredJson(value), "utf-8");
+        fs.renameSync(temporaryPath, filePath);
       });
       return true;
     } catch (error) {
