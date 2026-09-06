@@ -58,7 +58,7 @@
 | 前端组件 | `apps/frontend/components` | 含 `panels/`(分域面板)、`ui/`(基础组件) |
 | 状态管理 | `apps/frontend/stores` | Zustand store,按域子目录(ai/app/director/editing/library/studio/tts 等) |
 | 领域逻辑/工具 | `apps/frontend/lib` | ai/scene/script/storage/studio/tts/utils 等子目录 |
-| Electron 主进程/IPC | `apps/frontend/electron`、`apps/frontend/electron/ipc` | FFmpeg 在 `apps/frontend/electron/rendering/timeline-ffmpeg-command.ts` |
+| Electron 主进程/IPC | `apps/frontend/electron`、`apps/frontend/electron/ipc` | 时间线 FFmpeg 规则在 `apps/frontend/electron/rendering/runtime/ffmpeg/timeline-audio-postprocess.ts`(`timeline-ffmpeg-command.ts` 已删除) |
 | 类型契约 | `apps/frontend/types` | 共享 TS 类型(project/script/timeline/studio/editing/tts 等) |
 | 自定义 hooks | `apps/frontend/hooks` | use-* hooks |
 | Python TTS sidecar | `apps/backend/tts` | 本地 TTS/STT 引擎(监听 127.0.0.1:17593) |
