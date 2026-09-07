@@ -1227,8 +1227,31 @@ function ImageStudioFlowView({
         onPointerUp={mouseButtonPan.onPointerUp}
         onPointerCancel={mouseButtonPan.onPointerCancel}
         onContextMenuCapture={mouseButtonPan.onContextMenuCapture}
-        onNodesDelete={(deleted) => onNodesDelete(deleted.map((node) => node.id))}
+        onNodesDelete={(deleted) => {
+          // 09-07 删除链路埋点:节点/边删除并排出现=同一 Delete 连带删铁证
+          void logEvent({
+            category: "action",
+            level: "info",
+            message: "[canvas-delete] nodes deleted",
+            context: {
+              surface: "image-studio",
+              nodeIds: deleted.map((node) => node.id),
+              kinds: deleted.map((node) => node.type ?? "unknown"),
+            },
+          });
+          onNodesDelete(deleted.map((node) => node.id));
+        }}
         onEdgesDelete={(deleted) => {
+          void logEvent({
+            category: "action",
+            level: "info",
+            message: "[canvas-delete] edges deleted",
+            context: {
+              surface: "image-studio",
+              edgeIds: deleted.map((edge) => edge.id),
+              stillSelectedNodes: document.querySelectorAll(".react-flow__node.selected").length,
+            },
+          });
           setSelectedEdgeId(null);
           onEdgesDelete(deleted.map((edge) => edge.id));
         }}

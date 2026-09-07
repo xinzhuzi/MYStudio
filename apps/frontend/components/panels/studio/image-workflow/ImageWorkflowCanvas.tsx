@@ -657,6 +657,7 @@ function assertLanded(outcomes: Array<{ nodeId: string } | { error: string }>): 
           onConnect={handleConnect}
           onEdgeClick={handleFlowEdgeClick}
           onEdgesDelete={handleFlowEdgesDelete}
+          onNodesDelete={(nodeIds) => nodeIds.forEach((id) => deleteNode(id))}
           onFitView={handleFitView}
           onInit={setFlowInstance}
           onNodeClick={handleFlowNodeClick}

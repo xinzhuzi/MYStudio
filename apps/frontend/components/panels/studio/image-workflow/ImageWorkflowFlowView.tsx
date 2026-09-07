@@ -1,4 +1,5 @@
 import { useMouseButtonPan } from "@/hooks/use-mouse-button-pan";
+import { logEvent } from "@/lib/diagnostics/logger";
 import { CanvasViewportControls } from "../CanvasViewportControls";
 import { GenerationFailedDialog } from "@/components/ui/generation-failed-dialog";
 import { nodeTypes, FIT_VIEW_OPTIONS, ImageWorkflowVisibilityMeasurementRefresh } from "./ImageWorkflowCanvas";
@@ -36,6 +37,7 @@ export function ImageWorkflowFlowView({
   canvasHistory,
   onEdgeClick,
   onEdgesDelete,
+  onNodesDelete,
   onFitView,
   onInit,
   onNodeClick,
@@ -59,6 +61,9 @@ export function ImageWorkflowFlowView({
   /** 键盘/交互删边回传(09-07:删线不起作用根修——此前无绑定,视图删了
    * 状态没更新线会复活);FlowView 只透传 id 列表,删法由上层单源 */
   onEdgesDelete?: (edgeIds: string[]) => void;
+  /** 键盘删节点回传(09-07 连带删排查补接线:此前未绑,分镜键盘删节点
+   * 视图删除但状态不落,节点复活;删法由上层单源) */
+  onNodesDelete?: (nodeIds: string[]) => void;
   onFitView: () => void;
   onInit: (instance: ReactFlowInstance<ImageWorkflowReactNode, Edge>) => void;
   onNodeClick: (nodeId: string) => void;
@@ -268,7 +273,33 @@ export function ImageWorkflowFlowView({
           clearNodeSelection();
           onEdgeClick(edge.id);
         }}
-        onEdgesDelete={(edges) => onEdgesDelete?.(edges.map((edge) => edge.id))}
+        onEdgesDelete={(edges) => {
+          // 09-07 删除链路埋点:节点/边删除并排出现=同一 Delete 连带删铁证
+          void logEvent({
+            category: "action",
+            level: "info",
+            message: "[canvas-delete] edges deleted",
+            context: {
+              surface: "image-workflow",
+              edgeIds: edges.map((edge) => edge.id),
+              stillSelectedNodes: document.querySelectorAll(".react-flow__node.selected").length,
+            },
+          });
+          onEdgesDelete?.(edges.map((edge) => edge.id));
+        }}
+        onNodesDelete={(nodes) => {
+          void logEvent({
+            category: "action",
+            level: "info",
+            message: "[canvas-delete] nodes deleted",
+            context: {
+              surface: "image-workflow",
+              nodeIds: nodes.map((node) => node.id),
+              kinds: nodes.map((node) => node.type ?? "unknown"),
+            },
+          });
+          onNodesDelete?.(nodes.map((node) => node.id));
+        }}
         onNodeDragStart={handleNodeDragStart}
         onNodeDragStop={(_, node) => {
           setInteracting(false);
