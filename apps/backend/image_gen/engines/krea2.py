@@ -555,8 +555,13 @@ def generate(prompt, aspect_ratio, negative_prompt, steps, seed, reference_b64,
         device = pipe._execution_device
         sigma_start = torch.tensor(sigma_table[0], device=ref_latents.device, dtype=ref_latents.dtype)
         noise = torch.randn(ref_latents.shape, generator=generator, device="cpu", dtype=torch.float32).to(device, ref_latents.dtype)
-        # Flow-matching 加噪: x_t = (1-σ)x_0 + σ·noise
-        noised_4d = (1.0 - sigma_start) * ref_latents + sigma_start * noise
+        # 加噪(comfy/samplers.py 同款双分支):denoise≈1 走 max_denoise——
+        # x0 不衰减,噪声放大 √(1+σ₀²)(σ₀=1 即 √2);其余走线性 (1-σ)x+σε
+        # (09-07 遮罩流对齐:工作流双采样已改 denoise=1.0,线性分支加噪不足)
+        if round(strength, 3) == 1.0:
+            noised_4d = ref_latents + noise * torch.sqrt(1.0 + sigma_start ** 2)
+        else:
+            noised_4d = (1.0 - sigma_start) * ref_latents + sigma_start * noise
 
         # Patchify 4D→3D packed(管线 latents 参数要 (B,seq,in_channels)):
         # (B,16,h,w) → patch_size=2 → (B,h/2*w/2,16*4=64)
@@ -722,7 +727,13 @@ def generate_masked_sdedit(prompt: str, image: "Any", mask: "Any", steps: int = 
     sigma_table = _comfy_sigma_table(steps, denoise)
     sigma_start = torch.tensor(sigma_table[0], device=device, dtype=x0.dtype)
     noise = torch.randn(x0_seq.shape, generator=generator, device="cpu", dtype=torch.float32).to(device, x0.dtype)
-    init_latents = (1.0 - sigma_start) * x0_seq + sigma_start * noise
+    # 加噪(comfy/samplers.py 同款双分支):denoise≈1 走 max_denoise——蒙版内
+    # x0 不衰减,噪声放大 √(1+σ₀²)(SetLatentNoiseMask+denoise=1 即 ComfyUI
+    # 采样①/② 当前形态);其余走线性 (1-σ)x+σε
+    if round(denoise, 3) == 1.0:
+        init_latents = x0_seq + noise * torch.sqrt(1.0 + sigma_start ** 2)
+    else:
+        init_latents = (1.0 - sigma_start) * x0_seq + sigma_start * noise
 
     # 专用 scheduler 副本:关 dynamic shifting(shift=1 恒等),注入 sigmas 原样
     # 生效不二次 shift;副本而非改共享实例(_pipeline_cache 并发生成防污染)

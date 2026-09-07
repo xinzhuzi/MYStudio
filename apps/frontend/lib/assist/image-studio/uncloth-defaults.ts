@@ -8,23 +8,6 @@ import type { ImageWorkflowUnclothNode } from "@/types/studio";
  *
  * 背景:ComfyUI「Krea2_无衣物」流于 09-05 大改为 Krea2Edit 指令编辑架构
  * (identity_edit LoRA + GroundedEncode 参考图进 VLM + ModelPatch 参考注意
- * 力 + denoise=1.0),旧的「分割蒙版+两遍采样」路线退役;现行档 variant=
- * "instruct" 走 ComfyUI 桥(krea2_uncloth_instruct 模板)。历史工作流版本:
- * ~/Project/ComfyUI/user/default/workflows/K2图像/改图/Krea2_无衣物_{快,精}.json。
- *
- * 封存范围:创建入口全部隐藏(toolbar 双按钮/连线创建菜单/命令面板),
- * 存量画布的 uncloth 节点仍可渲染与生成(不破坏旧画布)。
- * 启用步骤:本开关改 false;按 UNCLOOTH_ARCHIVED 条件展示的入口全部恢复
- * (toolbar 两按钮/connect-create 菜单数组/commands 白名单)。
- * 后端 uncloth_pipeline.py 的 mode=fast/fine 分流与双分割实现原样保留。
- */
-export const UNCLOOTH_ARCHIVED = true;
-
-/**
- * ⚠️ 09-05 封存(ARCHIVED):masked SDEdit 双档(快/精)节点整体封存。
- *
- * 背景:ComfyUI「Krea2_无衣物」流于 09-05 大改为 Krea2Edit 指令编辑架构
- * (identity_edit LoRA + GroundedEncode 参考图进 VLM + ModelPatch 参考注意
  * 力 + denoise=1.0),旧的「分割蒙版+两遍采样」路线退役;新档 variant=
  * "instruct" 走 ComfyUI 桥跑 Krea2Edit 流。对应工作流历史版本:
  * ~/ComfyUI .../K2图像/改图/Krea2_无衣物_{快,精}.json(09-05 上午版)。
@@ -36,7 +19,7 @@ export const UNCLOOTH_ARCHIVED = true;
  * connect-create.ts 菜单数组 / use-image-workflow-commands 白名单)。
  * 后端 uncloth_pipeline.py 的 mode=fast/fine 分流与双分割实现原样保留。
  */
-export const UNCLOTH_ARCHIVED = true;
+export const UNCLOOTH_ARCHIVED = false;  // 09-07 解封:遮罩流(精/快)回归第二节点,与稳定版(instruct)并存
 
 /**
  * 无衣物节点参数默认值单源(09-04-krea2-uncloth-node)。
@@ -68,21 +51,21 @@ export const UNCLOTH_DEFAULTS = {
   cfg: 1,
   sampler: "euler",
   scheduler: "simple",
-  denoiseUndress: 0.65,
-  seedUndress: 1,  // 09-05 工作流当前值(3→1)
-  denoiseColor: 0.3,
-  seedColor: 1,
-  growUndress: 12,  // 09-05 精流当前值(-16 内缩→+12 外扩,盖领口阴影)
+  denoiseUndress: 1.0,  // 09-07 遮罩流现值(双遍全采样;0.65 线性加噪时代已翻篇)
+  seedUndress: 1,
+  denoiseColor: 1.0,   // 采样②·校色同为全采样(SetLatentNoiseMask 锁区)
+  seedColor: 2,
+  growUndress: 12,  // 外扩12(盖领口阴影)
   growUndressInvert: true,
-  growColor: 16,
+  growColor: 24,    // 09-07 现值(#15 外扩24;旧 16)
   growColorInvert: true,
   upscaleMethod: "lanczos",
   megapixels: 1.0,
   divisionFactor: 1,
   segformerParts: ["left_arm", "right_arm", "left_leg", "right_leg",
-    "upper_clothes", "skirt", "pants", "dress", "belt"],
-  // 09-04 全节点对拍:label 主标签 top(上衣)+extra 六项(工作流 #93 widgets)
-  fashnParts: "top,dress,skirt,pants,belt,arms,legs",
+    "upper_clothes", "skirt", "pants", "dress", "belt", "bag"],  // 09-07 现值(+bag,17 开关位序对拍)
+  // 09-07 现值(#23 第 5 参 11 项:主标签 top+extra 十项)
+  fashnParts: "top,dress,skirt,pants,belt,bag,hat,scarf,glasses,arms,legs",
   fashnDevice: "cpu",
   fashnDtype: "float32",
   maskDetail: {
@@ -96,7 +79,7 @@ export const UNCLOTH_DEFAULTS = {
   },
   loras: [
     { enabled: false, strength: 1.0 },  // NSFW V4(关)
-    { enabled: true, strength: 0.8 },   // Mystic XXX v3(开 0.8 — 工作流当前值)
+    { enabled: true, strength: 2.0 },   // Mystic XXX v3(开 2.0 — 09-07 遮罩流现值,旧 0.8)
     { enabled: false, strength: 0 },    // 空槽(关)
     { enabled: true, strength: 0.15 },  // pussy(开 0.15 — 工作流当前值)
   ],

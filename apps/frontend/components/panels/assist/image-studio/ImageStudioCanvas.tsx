@@ -743,6 +743,7 @@ export function ImageStudioCanvas() {
           focusPromptNodeWhenReady(group?.promptNodeId);
         }}
         onAddUncloth={() => useImageStudioStore.getState().addUnclothNode()}
+        onAddUnclothMask={() => useImageStudioStore.getState().addUnclothNode({ variant: "fine" })}
         onAddNsfw={() => useImageStudioStore.getState().addNsfwNode()}
         onAddReference={() => openPicker({ mode: "new-reference" })}
         onAddPrompt={() => useImageStudioStore.getState().addPromptNode()}

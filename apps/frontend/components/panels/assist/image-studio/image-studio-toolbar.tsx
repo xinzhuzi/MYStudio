@@ -51,6 +51,7 @@ export function ImageStudioToolbar({
   onAddImageToImage,
   onAddReference,
   onAddUncloth,
+  onAddUnclothMask,
   onAddNsfw,
   onAddPrompt,
   onTidy,
@@ -70,6 +71,7 @@ export function ImageStudioToolbar({
   onAddImageToImage: () => void;
   onAddReference: () => void;
   onAddUncloth: () => void;
+  onAddUnclothMask: () => void;
   onAddNsfw: () => void;
   onAddPrompt: () => void;
   onTidy: () => void;
@@ -116,9 +118,21 @@ export function ImageStudioToolbar({
             <ImagePlus className="mr-2 h-3.5 w-3.5" />
             图生图
           </DropdownMenuItem>
-          <DropdownMenuItem onSelect={onAddUncloth} data-image-studio-add-uncloth>
+          <DropdownMenuItem
+            onSelect={onAddUncloth}
+            data-image-studio-add-uncloth
+            title="稳定版:Krea2Edit 指令编辑(①编辑指令/②一致性描述),不吃重绘/锚定词头"
+          >
             <ShirtIcon className="mr-2 h-3.5 w-3.5" />
-            无衣物
+            无衣物·稳定
+          </DropdownMenuItem>
+          <DropdownMenuItem
+            onSelect={onAddUnclothMask}
+            data-image-studio-add-uncloth-mask
+            title="遮罩版:双分割+两遍采样+色彩对齐(Krea2_无衣物_遮罩 同构);提示词写「重绘:…;锚定:…」全文"
+          >
+            <ShirtIcon className="mr-2 h-3.5 w-3.5" />
+            无衣物·遮罩
           </DropdownMenuItem>
           <DropdownMenuItem onSelect={onAddNsfw} data-image-studio-add-nsfw>
             <FlameIcon className="mr-2 h-3.5 w-3.5" />

@@ -268,6 +268,7 @@ def generate_image(
     strength: float = 0.6,
     use_lora: bool = False,
     template: str | None = None,
+    loras: "list[dict] | None" = None,
 ) -> str:
     """Generate an image and return it as base64 PNG."""
     model_name = resolve_image_model_name(model_name)
@@ -314,6 +315,11 @@ def generate_image(
     if template is not None:
         # ComfyUI 桥模板点名(09-05 无衣物·指令编辑节点)
         ctx["template"] = template
+    if loras is not None:
+        # LoRA 显式四槽透传(09-07 渲染层缺口收口):面板/节点改强度此前断在
+        # pipeline 层(引擎签名早有 loras 但无人传);仅 Krea2 消费,其余引擎
+        # 经 **ctx 吸收忽略
+        ctx["loras"] = loras
     if layout == "qwen-pointed":
         ctx["qwen_snapshot_dirs"] = {
             "Qwen/Qwen-Image": str(hf_snapshot_dir("Qwen/Qwen-Image") or ""),
