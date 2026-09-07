@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("@/components/ui/local-image", () => ({
@@ -174,10 +174,12 @@ describe("ImageWorkflowNodeCard 无衣物(09-04 通用化)", () => {
     const { container } = renderCard(unclothNode);
     expect(container.querySelector("[data-image-workflow-node-kind]")?.getAttribute("data-image-workflow-node-kind")).toBe("uncloth");
     expect(screen.getByText("无衣物")).toBeTruthy();
-    // 共享编辑器(ui/uncloth-node-editor)挂载:参数组标题可见
+    // 09-07 卡面默认收起(专业参数不上卡片):摘要行可见,点开总折叠后参数组挂载
+    expect(screen.getByText(/①正向 ②负向/)).toBeTruthy();
+    expect(screen.queryByText("两遍采样(常调)")).toBeNull();
+    fireEvent.click(screen.getByText(/①正向 ②负向/));
     expect(screen.getByText("两遍采样(常调)")).toBeTruthy();
     expect(screen.getByText("蒙版(GrowMask / 输入规模)")).toBeTruthy();
-    expect(screen.getByText(/复合处理节点/)).toBeTruthy();
   });
 
   it("成图有 uncloth 上游:不显示兜底提示词面板,改示链路说明(用户裁定)", () => {

@@ -161,6 +161,8 @@ describe("ImageStudioNodeCard 参考图卡", () => {
       referenceCount: 0,
       ...callbacks,
     });
+    // 09-07 卡面默认收起(用户裁定:专业参数不上卡片)——先点开总折叠
+    fireEvent.click(screen.getByText(/①正向 ②负向/));
     // 常调组默认展开:denoise 字段可见
     expect(screen.getByText("脱衣遍 denoise")).toBeTruthy();
     // 其余组默认收起:内容不可见,组头可见
