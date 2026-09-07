@@ -163,17 +163,29 @@ export function connectImageWorkflowNodes(
   edge: Omit<ImageWorkflowEdge, "id"> & { id?: string },
   updatedAt = Date.now(),
 ): ImageWorkflowGraph {
-  if (!isValidImageEdge(graph, edge.source, edge.target)) return graph;
+  // 带 handle 的边(编号口/正负双出口)走连线级单源席位规则;存量无 handle
+  // 程序化建边保持节点级 isValidImageEdge,行为零变化
+  const valid = edge.sourceHandle || edge.targetHandle
+    ? isValidImageConnection(graph, edge)
+    : isValidImageEdge(graph, edge.source, edge.target);
+  if (!valid) return graph;
 
   return touchGraph({
     ...graph,
     edges: [
       ...graph.edges,
       {
-        id: edge.id ?? `${edge.source}->${edge.target}`,
+        // id 唯一性(09-07 双出口):同对节点可有正/负(及①/②口)多边,
+        // 裸 source->target 会撞 id——选中/删除按 id 命中会两根一起动;
+        // handle 后缀去重,存量无 handle 边零迁移(id 不变)
+        id: edge.id ?? `${edge.source}->${edge.target}${edge.targetHandle ? `:${edge.targetHandle}` : ""}${edge.sourceHandle ? `:${edge.sourceHandle}` : ""}`,
         source: edge.source,
         target: edge.target,
         label: edge.label,
+        // 09-07 双出口/编号口:handle 必须落库(此前只存 label,编号口全靠
+        // 渲染层回落兜底;正负双出口后回落无法区分极性,必须显式持久化)
+        targetHandle: edge.targetHandle,
+        sourceHandle: edge.sourceHandle,
       },
     ],
   }, updatedAt);
@@ -270,6 +282,123 @@ export function isValidImageEdge(
     if (hasNsfwChain) return false;
   }
   return true;
+}
+
+/**
+ * 连线级校验单源(09-07 canvas-basic-interactions 根修):React Flow
+ * isValidConnection 的唯一后端。此前两画布各持一份手抄「粗校验」,漏掉
+ * uncloth 目标分支 → 提示词/参考图永远连不上无衣物节点(用户实弹报障)。
+ * 在 isValidImageEdge(节点级规则)之上补 handle 口别规则:
+ * - uncloth 图口:只吃 reference/generated/uncloth 源,一根封口
+ * - uncloth ①② 口:只吃 prompt 源,各口正/负席位(09-07 双出口裁定:
+ *   同口「正」边≤1+「负」边≤1,两口可共存=目标侧正负拼装)
+ * - prompt 源带 sourceHandle(positive/negative 双出口):同口分席各≤1;
+ *   存量无 sourceHandle 边=整节点语义,占「正」席(行为兼容)
+ * - 无 handle(存量边/程序化建边):回落 isValidImageEdge 原规则
+ */
+export function isValidImageConnection(
+  graph: ImageWorkflowGraph,
+  connection: { source: string | null; target: string | null; sourceHandle?: string | null; targetHandle?: string | null },
+): boolean {
+  if (!connection.source || !connection.target) return false;
+  if (connection.target === connection.source) return false;
+  const targetNode = graph.nodes.find((node) => node.id === connection.target);
+  const sourceNode = graph.nodes.find((node) => node.id === connection.source);
+  const nodeType = (id: string) => graph.nodes.find((node) => node.id === id)?.type;
+
+  // prompt 源带出口极性:按「目标口 × 极性」分席,正负各≤1
+  if (sourceNode?.type === "prompt" && connection.sourceHandle) {
+    if (connection.sourceHandle !== "positive" && connection.sourceHandle !== "negative") return false;
+    const samePort = graph.edges.filter(
+      (item) =>
+        item.target === connection.target &&
+        (item.targetHandle ?? (nodeType(item.source) === "prompt" ? "prompt-1" : undefined)) ===
+          (connection.targetHandle ?? "prompt-1"),
+    );
+    if (targetNode?.type === "nsfw" && connection.sourceHandle === "negative") return false;
+    const polarityTaken = (polarity: "positive" | "negative") =>
+      samePort.some((item) => (item.sourceHandle ?? "positive") === polarity);
+    return !polarityTaken(connection.sourceHandle);
+  }
+
+  if (targetNode?.type !== "uncloth" || !connection.targetHandle) {
+    return isValidImageEdge(graph, connection.source, connection.target);
+  }
+  if (connection.targetHandle === "image") {
+    if (sourceNode?.type !== "reference" && sourceNode?.type !== "generated" && sourceNode?.type !== "uncloth") {
+      return false;
+    }
+    return !graph.edges.some(
+      (item) =>
+        item.target === connection.target &&
+        (item.targetHandle === "image" || (!item.targetHandle && nodeType(item.source) !== "prompt")),
+    );
+  }
+  if (connection.targetHandle === "prompt-1" || connection.targetHandle === "prompt-2") {
+    if (sourceNode?.type !== "prompt") return false;
+    return !graph.edges.some(
+      (item) =>
+        item.target === connection.target &&
+        (item.targetHandle === connection.targetHandle ||
+          (!item.targetHandle && connection.targetHandle === "prompt-1" && nodeType(item.source) === "prompt")),
+    );
+  }
+  return false;
+}
+
+/**
+ * 提示词极性分流(09-07 双出口裁定):目标输入口的提示词边按 sourceHandle
+ * 分为正向/负向两组;存量无 sourceHandle 边=整节点语义,正负文本都取。
+ * 口回落(与渲染层同口径):uncloth 目标的无 handle 提示词边按画布纵向序
+ * 第 1 根归①口、第 2 根归②口(存量双提示词边语义保持);成图目标不筛口。
+ */
+export function splitPromptEdgesByPolarity(
+  graph: ImageWorkflowGraph,
+  targetNodeId: string,
+  targetHandle?: string | null,
+  options?: { legacyNegative?: boolean },
+): { positive: string[]; negative: string[] } {
+  const nodesById = new Map(graph.nodes.map((node) => [node.id, node]));
+  const target = nodesById.get(targetNodeId);
+  const promptEdges = graph.edges.filter((edge) => {
+    if (edge.target !== targetNodeId) return false;
+    return nodesById.get(edge.source)?.type === "prompt";
+  });
+  // uncloth 存量无 handle 边按纵向序归口(1→①,2→②)
+  const unhandledByOrder = target?.type === "uncloth"
+    ? promptEdges
+        .filter((edge) => !edge.targetHandle)
+        .map((edge) => ({ edge, y: nodesById.get(edge.source)?.position?.y ?? 0 }))
+        .sort((a, b) => a.y - b.y)
+        .map(({ edge }) => edge)
+    : [];
+  const effectivePort = (edge: ImageWorkflowEdge): string | null | undefined => {
+    if (edge.targetHandle) return edge.targetHandle;
+    if (target?.type !== "uncloth") return undefined;
+    const idx = unhandledByOrder.indexOf(edge);
+    return idx === 0 ? "prompt-1" : idx === 1 ? "prompt-2" : "prompt-1";
+  };
+  const positive: string[] = [];
+  const negative: string[] = [];
+  for (const edge of promptEdges) {
+    const source = nodesById.get(edge.source);
+    if (!source || source.type !== "prompt") continue;
+    if (targetHandle && effectivePort(edge) !== targetHandle) continue;
+    if (edge.sourceHandle === "negative") {
+      if (source.negativePrompt?.trim()) negative.push(source.negativePrompt.trim());
+    } else if (edge.sourceHandle === "positive") {
+      if (source.prompt?.trim()) positive.push(source.prompt.trim());
+    } else {
+      // 存量无 sourceHandle(整节点):正向必取;负向按链路旧语义——成图链
+      // 旧行为正负都传(legacyNegative 默认 true);uncloth 指令链旧行为
+      // 负向被忽略(false),负向须显式连「负」口才拼装(接口明确原则)
+      if (source.prompt?.trim()) positive.push(source.prompt.trim());
+      if (options?.legacyNegative !== false && source.negativePrompt?.trim()) {
+        negative.push(source.negativePrompt.trim());
+      }
+    }
+  }
+  return { positive, negative };
 }
 
 /** 该成图节点是否已挂提示词源(targetNodeId 直挂或入边) */

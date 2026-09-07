@@ -7,6 +7,7 @@ import { resolveMentionTokens } from "./mention-token";
 import {
   findPromptNodeForGenerated,
   getGeneratedNode,
+  splitPromptEdgesByPolarity,
   type StoryboardOrderedReferenceMetadata,
 } from "./graph-build";
 import { findNsfwUpstream, findPromptViaNsfw } from "@/lib/assist/image-studio/nsfw-request";
@@ -50,6 +51,9 @@ export function buildImageWorkflowGenerationRequest(
   const promptViaNsfw = nsfwUpstream ? findPromptViaNsfw(graph, nsfwUpstream.id) : undefined;
   const promptNode = promptViaNsfw ?? findPromptNodeForGenerated(graph, nodeId);
   const promptSource = promptNode ?? node;
+  // 双出口分流(09-07):「正」口边取正向文本、「负」口边取负向文本,同口正
+  // 负各一根可共存=分通道;无极性边(存量/nsfw 链)回落整节点旧语义
+  const polarity = splitPromptEdgesByPolarity(graph, nodeId);
   const connectedNodes = graph.edges
     .filter((edge) => edge.target === nodeId)
     .map((edge) => graph.nodes.find((candidate) => candidate.id === edge.source));
@@ -85,14 +89,25 @@ export function buildImageWorkflowGenerationRequest(
   const referenceImages = orderedReferenceManifest.map((reference) => reference.imageUrl);
   const continuityRequired = orderedReferenceManifest.some((reference) => Boolean(reference.versionId));
   const referenceContract = buildReferenceContinuityContract(orderedReferenceNodes);
-  // @引用令牌出边界解析(09-02-at-mention-refs):节点存原文,发送才译码
-  const basePrompt = resolveMentionTokens(promptSource.prompt.trim(), (nodeId) =>
-    graph.nodes.find((candidate) => candidate.id === nodeId),
+  // @引用令牌出边界解析(09-02-at-mention-refs):节点存原文,发送才译码;
+  // 双出口正负文本同走译码
+  const basePrompt = resolveMentionTokens(
+    polarity.positive.join("\n").trim() || promptSource.prompt.trim(),
+    (nodeId) => graph.nodes.find((candidate) => candidate.id === nodeId),
   ).text;
   const prompt = referenceContract && !basePrompt.includes("【资产圣经】")
     ? `${basePrompt} ${referenceContract}`.trim()
     : basePrompt;
-  const negativePrompt = mergeReferenceNegativePrompt(promptSource.negativePrompt, orderedReferenceNodes);
+  const polarityNegative = resolveMentionTokens(
+    polarity.negative.join("\n").trim(),
+    (nodeId) => graph.nodes.find((candidate) => candidate.id === nodeId),
+  ).text;
+  // 负向优先级:负向口边 > 提示词节点 negativePrompt > 成图自身;参考图
+  // avoid/styleExclusions 始终合并(连续性纪律不受双出口影响)
+  const negativePrompt = mergeReferenceNegativePrompt(
+    polarityNegative || promptSource.negativePrompt,
+    orderedReferenceNodes,
+  );
 
   // 参数权威(08-30 功能转移):成图节点持有优先;存量图未迁移时回落
   // 连线提示词节点的旧值,行为零变化。paramsEdited 见类型注释。

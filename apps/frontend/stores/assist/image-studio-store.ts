@@ -80,7 +80,7 @@ export interface ImageStudioStoreActions {
   duplicateNode: (nodeId: string) => string | null;
   /** 导入画布 JSON(09-02 R2):校验形状→新画布落节点;media 失效节点降级占位 */
   importWorkflow: (payload: unknown) => { ok: true; id: string } | { ok: false; error: string };
-  connect: (source: string, target: string, targetHandle?: string) => void;
+  connect: (source: string, target: string, targetHandle?: string, sourceHandle?: string) => void;
   removeEdge: (edgeId: string) => void;
   setViewport: (viewport: ImageWorkflowViewport) => void;
   applyLayout: () => void;
@@ -387,7 +387,9 @@ export const useImageStudioStore = create<ImageStudioStore>()(
             targetType !== "generated"
             && !(targetType === "nsfw" && nodeTypeById.get(edge.source as string) === "prompt")
           ) return false;
-          const pair = `${edge.source}->${edge.target}`;
+          // 去重键带 handle(09-07 双出口):同对节点正/负两根边合法共存,
+          // 裸 source->target 会误判重复丢边
+          const pair = `${edge.source}->${edge.target}:${typeof edge.targetHandle === "string" ? edge.targetHandle : ""}:${typeof edge.sourceHandle === "string" ? edge.sourceHandle : ""}`;
           if (seenEdgePairs.has(pair)) return false;
           seenEdgePairs.add(pair);
           return true;
@@ -413,6 +415,10 @@ export const useImageStudioStore = create<ImageStudioStore>()(
                     id: edge.id as string,
                     source: edge.source as string,
                     target: edge.target as string,
+                    // 双出口/编号口 handle 透传(09-07):此前导入即丢,极性/
+                    // 口别回落到整节点语义,导出的正负双连画布导入后丢负向边
+                    ...(typeof edge.targetHandle === "string" ? { targetHandle: edge.targetHandle } : {}),
+                    ...(typeof edge.sourceHandle === "string" ? { sourceHandle: edge.sourceHandle } : {}),
                   })) as ImageWorkflowEdge[],
                 }
               : workflow,
@@ -509,9 +515,9 @@ export const useImageStudioStore = create<ImageStudioStore>()(
         get().updateActiveWorkflow((graph) => removeImageWorkflowNode(graph, nodeId));
       },
 
-      connect: (source, target, targetHandle) => {
+      connect: (source, target, targetHandle, sourceHandle) => {
         get().updateActiveWorkflow((graph) =>
-          connectImageWorkflowNodes(graph, { source, target, targetHandle }),
+          connectImageWorkflowNodes(graph, { source, target, targetHandle, sourceHandle }),
         );
       },
 
@@ -599,7 +605,9 @@ export const useImageStudioStore = create<ImageStudioStore>()(
             variant,
             title: variant === "instruct" ? "无衣物·指令" : "无衣物",
             prompt: input?.prompt,
-            position: input?.position,
+            // 09-07 F3:此前落固定 world(80,80),视口平移/缩放后新节点在屏外
+            // (用户点了「添加」却什么都看不见);改走输入列落位与其余节点同规
+            position: input?.position ?? nextColumnPosition(graph, "reference"),
           }),
         );
         return id;
@@ -614,7 +622,7 @@ export const useImageStudioStore = create<ImageStudioStore>()(
         get().updateActiveWorkflow(() =>
           addNsfwImageNode(graph, {
             id,
-            position: input?.position,
+            position: input?.position ?? nextColumnPosition(graph, "prompt"),
           }),
         );
         return id;

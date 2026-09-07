@@ -3,6 +3,7 @@
 
 import type { ImageWorkflowGraph, ImageWorkflowUnclothNode } from "@/types/studio";
 import { resolveUnclothParams } from "@/lib/assist/image-studio/uncloth-defaults";
+import { splitPromptEdgesByPolarity } from "@/lib/studio/image-workflow/graph-build";
 
 /**
  * 无衣物链请求组装(09-04-krea2-uncloth-node):成图节点触发时,上游
@@ -63,19 +64,30 @@ export function buildUnclothChainRequest(
   const inputImageUrl = imageOf(uncloth.id);
   if (!inputImageUrl) return { error: "无衣物节点还没挂输入图:连一张参考图或有结果的成图" };
 
-  // 文本:uncloth.prompt 优先,回落其上游提示词节点
-  const promptTextNode = graph.nodes.find(
-    (node): node is Extract<ImageWorkflowGraph["nodes"][number], { type: "prompt" }> =>
-      node.type === "prompt" &&
-      graph.edges.some((edge) => edge.source === node.id && edge.target === uncloth.id),
-  );
-  const prompt = (uncloth.prompt?.trim() || promptTextNode?.prompt?.trim() || "").trim();
-  if (!prompt) return { error: "连线的提示词节点没有文字——在提示词节点里填写重绘描述" };
+  // 文本(09-07 双出口裁定:提示词节点「正/负」两个出口)——①口(prompt-1)
+  // =编辑指令,②口(prompt-2)=一致性描述(system_prompt);同口「正」边文本
+  // 为主体、「负」边文本拼装为「画面避免:」句(Krea2 指令编辑流无独立负向
+  // 通道,负向只能并进指令文本);存量无 handle 边回落纵向序(1→①,2→②);
+  // uncloth.prompt 优先于①口文本。
+  const assembleSlot = (handle: string): string => {
+    // 存量边 legacyNegative:false——负向须显式连「负」口才拼装(旧行为负向
+    // 被忽略,存量画布零变化)
+    const slot = splitPromptEdgesByPolarity(graph, uncloth.id, handle, { legacyNegative: false });
+    const positive = slot.positive.join("\n").trim();
+    const negative = slot.negative.join(";").trim();
+    if (!positive && !negative) return "";
+    return negative ? `${positive}\n画面避免:${negative}` : positive;
+  };
+  const prompt = (uncloth.prompt?.trim() || assembleSlot("prompt-1")).trim();
+  if (!prompt) return { error: "连线的提示词节点没有文字——①口连编辑指令提示词(或写在节点里)" };
+  const params = resolveUnclothParams(uncloth);
+  const consistencyText = assembleSlot("prompt-2");
+  if (consistencyText) params.systemPrompt = consistencyText;
 
   return {
     inputImageUrl,
     prompt,
     unclothNodeId: uncloth.id,
-    params: resolveUnclothParams(uncloth),
+    params,
   };
 }

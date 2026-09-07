@@ -240,13 +240,17 @@ export function useImageWorkflowActions({
     }
     const source = activeGraph.nodes.find((node) => node.id === connection.source);
     if (source?.type === "prompt" && target?.type === "generated" && hasPromptSource(activeGraph, connection.target)) {
-      toast.error("该成图已接提示词:一个成图只接一根提示词连线,请先断开原有的再连");
-      return;
+      // 双出口裁定(09-07):负向出口=拼装通道,可与既有正向边共存;其余仍拒
+      if (connection.sourceHandle !== "negative") {
+        toast.error("该成图已接提示词:一个成图只接一根正向连线,请先断开原有的再连(负向口可另接一根)");
+        return;
+      }
     }
     saveGraph(connectImageWorkflowNodes(activeGraph, {
       source: connection.source,
       target: connection.target,
       targetHandle: connection.targetHandle ?? undefined,
+      sourceHandle: connection.sourceHandle ?? undefined,
     }));
   }, [activeGraph, saveGraph]);
 

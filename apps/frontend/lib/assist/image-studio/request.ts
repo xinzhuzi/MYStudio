@@ -5,6 +5,7 @@
 import {
   findPromptNodeForGenerated,
   getGeneratedNode,
+  splitPromptEdgesByPolarity,
 } from "@/lib/studio/image-workflow/graph-build";
 import { orderedReferenceSources } from "@/lib/assist/image-studio/reference-order";
 import { findNsfwUpstream, findPromptViaNsfw } from "@/lib/assist/image-studio/nsfw-request";
@@ -79,6 +80,9 @@ export function buildImageStudioGenerationRequest(
   const promptViaNsfw = nsfwUpstream ? findPromptViaNsfw(graph, nsfwUpstream.id) : undefined;
   const promptNode = promptViaNsfw ?? findPromptNodeForGenerated(graph, nodeId);
   const promptSource = promptNode ?? node;
+  // 双出口分流(09-07):「正」口边取正向文本、「负」口边取负向文本,同口
+  // 正负各一根可共存=分通道拼装;无极性边(存量/nsfw 链)回落整节点旧语义
+  const polarity = splitPromptEdgesByPolarity(graph, nodeId);
   // 参考源顺序=编号单源(reference-order:位置序)——节点显示的「参考图 N」
   // 与发往引擎的数组下标同源;本地 Krea2 只吃第 1 张=画布最上面的参考图
   const orderedSources = orderedReferenceSources(graph, nodeId);
@@ -90,8 +94,11 @@ export function buildImageStudioGenerationRequest(
   });
 
   return {
-    prompt: promptSource.prompt.trim(),
-    negativePrompt: promptSource.negativePrompt?.trim() || undefined,
+    prompt: polarity.positive.join("\n").trim() || promptSource.prompt.trim(),
+    negativePrompt:
+      polarity.negative.join("\n").trim()
+      || promptSource.negativePrompt?.trim()
+      || undefined,
     model: node.model ?? promptSource.model,
     aspectRatio: node.aspectRatio,
     resolution: node.resolution ?? promptSource.resolution,

@@ -63,8 +63,15 @@ export function pasteFromClipboard(): string[] {
       const target = idMap.get(edge.target);
       if (!source || !target) continue;
       // 边复建必经域规则单源(connectImageWorkflowNodes:目标成图/非自环/
-      // 去重)——粘贴不私设旁路,规则闸口唯一
-      next = connectImageWorkflowNodes(next, { ...edge, id: `${source}->${target}`, source, target });
+      // 去重)——粘贴不私设旁路,规则闸口唯一;id 由单源生成(09-07 双出口:
+      // 显式拼 source->target 会与同对节点的正/负多边撞 id)
+      next = connectImageWorkflowNodes(next, {
+        source,
+        target,
+        targetHandle: edge.targetHandle,
+        sourceHandle: edge.sourceHandle,
+        label: edge.label,
+      });
     }
     return next;
   });

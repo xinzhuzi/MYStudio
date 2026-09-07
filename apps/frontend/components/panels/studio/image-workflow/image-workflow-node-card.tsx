@@ -160,7 +160,33 @@ export const ImageWorkflowNodeCard = memo(function ImageWorkflowNodeCard({ data 
           <span className="pointer-events-none absolute left-1.5 top-[76%] text-[9px] font-semibold text-success/80">②</span>
         </>
       ) : null}
-      <Handle type="source" position={Position.Right} className="h-3! w-3! border-info/40! bg-info/20!" />
+      {node.type === "prompt" ? (
+        <>
+          {/* 09-07 用户裁定:提示词节点双出口——「正」=正向,「负」=反向;两口可
+              分别连下游同一输入口,目标侧正负拼装(成图分 prompt/negativePrompt
+              通道;无衣物口内拼装) */}
+          <Handle
+            type="source"
+            id="positive"
+            position={Position.Right}
+            style={{ top: "40%" }}
+            className="h-3! w-3! border-info/40! bg-info/20!"
+            title="正向提示词出口:连到下游输入口"
+          />
+          <span className="pointer-events-none absolute right-1.5 top-[36%] text-[9px] font-semibold text-info/80">正</span>
+          <Handle
+            type="source"
+            id="negative"
+            position={Position.Right}
+            style={{ top: "75%" }}
+            className="h-3! w-3! border-destructive/50! bg-destructive/15!"
+            title="反向提示词出口:连到同一输入口即与正向拼装"
+          />
+          <span className="pointer-events-none absolute right-1.5 top-[71%] text-[9px] font-semibold text-destructive/80">负</span>
+        </>
+      ) : (
+        <Handle type="source" position={Position.Right} className="h-3! w-3! border-info/40! bg-info/20!" />
+      )}
       <div className="mb-3 flex items-start justify-between gap-2">
         <div className="flex min-w-0 items-center gap-2">
           <span
