@@ -41,7 +41,7 @@ vi.mock("@/lib/upscale/client", () => ({
 }));
 
 import { useImageStudioGeneration } from "./use-image-studio-generation";
-import { useImageStudioStore } from "@/stores/assist/image-studio-store";
+import { useImageStudioStore, selectActiveImageStudioWorkflow } from "@/stores/assist/image-studio-store";
 import { useFreedomStore } from "@/stores/assist/freedom-store";
 
 const initialStudioState = useImageStudioStore.getState();
@@ -238,6 +238,40 @@ describe("useImageStudioGeneration 中止语义(实弹根修回归)", () => {
 
     expect(runGenerationMock).not.toHaveBeenCalled();
     expect(toastErrorMock).toHaveBeenCalledWith(expect.stringContaining("参考图还没准备好"));
+  });
+
+  it("NSFW破限链引擎守卫(09-07):模型非 Krea2/ComfyUI桥 阻断并指路,不静默降级", async () => {
+    const store = useImageStudioStore.getState();
+    store.ensureDefaultWorkflow();
+    const promptId = store.addPromptNode({ prompt: "经链提示词" });
+    const nsfwId = store.addNsfwNode();
+    // 成图模型=云端 gpt-image(非专业流引擎),挂 nsfw 链
+    const group = useImageStudioStore.getState().addGenerationGroup({
+      prompt: "unused",
+      model: "gpt-image-2",
+    });
+    const graph = selectActiveImageStudioWorkflow(useImageStudioStore.getState())!;
+    const directEdge = graph.edges.find(
+      (edge) => edge.source === group.promptNodeId && edge.target === group.generatedNodeId,
+    );
+    if (directEdge) useImageStudioStore.getState().removeEdge(directEdge.id);
+    useImageStudioStore.getState().connect(promptId, nsfwId);
+    useImageStudioStore.getState().connect(nsfwId, group.generatedNodeId);
+    runGenerationMock.mockReset();
+
+    const { result } = renderHook(() => useImageStudioGeneration());
+    await act(async () => {
+      await result.current.generateNode(group.generatedNodeId);
+    });
+
+    expect(runGenerationMock).not.toHaveBeenCalled();
+    expect(toastErrorMock).toHaveBeenCalledWith(expect.stringContaining("仅支持本地 Krea2"));
+    const state = useImageStudioStore.getState();
+    const workflow = state.workflows.find((w) => w.id === state.activeWorkflowId);
+    // 预检失败不进入 generating/failed 态(与空提示词预检同纪律)
+    expect(
+      workflow?.nodes.find((n) => n.id === group.generatedNodeId),
+    ).toMatchObject({ status: "idle" });
   });
 
   it("超分请求路径归一化:project-file 成图→相对路径直传(09-02 治理适配回归)", async () => {

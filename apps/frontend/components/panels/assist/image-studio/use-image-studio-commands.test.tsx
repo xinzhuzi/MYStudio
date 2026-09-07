@@ -214,3 +214,51 @@ describe("image-studio 指令执行器:无衣物(09-04 通用化补漏)", () => 
     expect(graph.nodes.find((node) => node.id === nodeId)?.type).toBe("uncloth");
   });
 });
+
+describe("image-studio 指令执行器:NSFW破限(09-07-nsfw-pro-node)", () => {
+  it("add-node nsfw:建出 nsfw 节点而非误建文生图组(fall-through 钉)", () => {
+    seedGroup();
+    mountExecutor();
+
+    const before = activeGraph()!.nodes.length;
+    const result = dispatch({
+      kind: "add-node",
+      surface: "image-studio",
+      nodeType: "nsfw",
+    });
+
+    expect(result.ok).toBe(true);
+    const graph = activeGraph()!;
+    expect(graph.nodes).toHaveLength(before + 1);
+    const nodeId = (result as { detail?: { nodeId?: string } }).detail?.nodeId;
+    expect(graph.nodes.find((node) => node.id === nodeId)?.type).toBe("nsfw");
+  });
+
+  it("connect 指令:prompt→nsfw 合法,nsfw→prompt 非法(边域规则)", () => {
+    seedGroup();
+    // 先就位节点再 mount:dispatcher 闭包持有 workflow 快照(渲染期捕获),
+    // mount 后经 store 再加节点对旧闭包不可见
+    const nsfwId = useImageStudioStore.getState().addNsfwNode();
+    mountExecutor();
+    const promptId = activeGraph()!.nodes.find((node) => node.type === "prompt")!.id;
+
+    const legal = dispatch({
+      kind: "connect",
+      surface: "image-studio",
+      source: promptId,
+      target: nsfwId,
+    });
+    expect(legal.ok).toBe(true);
+    expect(
+      activeGraph()!.edges.some((edge) => edge.source === promptId && edge.target === nsfwId),
+    ).toBe(true);
+
+    const illegal = dispatch({
+      kind: "connect",
+      surface: "image-studio",
+      source: nsfwId,
+      target: promptId,
+    });
+    expect(illegal.ok).toBe(false);
+  });
+});

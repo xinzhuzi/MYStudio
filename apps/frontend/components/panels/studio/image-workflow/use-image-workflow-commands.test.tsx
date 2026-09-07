@@ -243,3 +243,23 @@ describe("image-workflow 指令通道:无衣物(09-04 通用化)", () => {
     expect(graph.edges.some((edge) => edge.source === "ref-1" && edge.target === nodeId)).toBe(true);
   });
 });
+
+describe("image-workflow 指令通道:NSFW破限(09-07-nsfw-pro-node)", () => {
+  it("add-node nsfw(无连线):建出 nsfw 节点而非误建参考图(fall-through 钉)", async () => {
+    mountCanvas(seededGraph());
+    await act(async () => {});
+
+    const result = dispatch({
+      kind: "add-node",
+      surface: "image-workflow",
+      nodeType: "nsfw",
+    });
+
+    expect(result.ok).toBe(true);
+    const nodeId = (result as { detail?: { nodeId?: string } }).detail?.nodeId;
+    const graph = activeGraph();
+    const created = graph.nodes.find((node) => node.id === nodeId);
+    expect(created?.type).toBe("nsfw");
+    expect(graph.nodes.filter((node) => node.type === "reference")).toHaveLength(1);
+  });
+});

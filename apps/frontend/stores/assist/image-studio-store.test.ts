@@ -8,6 +8,7 @@ import {
   selectActiveImageStudioWorkflow,
   useImageStudioStore,
 } from "./image-studio-store";
+import { buildImageStudioGenerationRequest } from "@/lib/assist/image-studio/request";
 import type { ImageWorkflowNode } from "@/types/studio";
 
 const initialState = useImageStudioStore.getState();
@@ -198,6 +199,103 @@ describe("image-studio-store 节点操作", () => {
     expect(state.workflows).toHaveLength(1);
     expect(state.workflows[0].nodes).toHaveLength(1);
     expect(state.activeWorkflowId).toBe(state.workflows[0].id);
+  });
+});
+
+describe("image-studio-store NSFW破限节点全生命周期(09-07-nsfw-pro-node)", () => {
+  function setupChain() {
+    useImageStudioStore.getState().ensureDefaultWorkflow();
+    const store = useImageStudioStore.getState();
+    const promptId = store.addPromptNode({ prompt: "经链提示词" });
+    const nsfwId = store.addNsfwNode();
+    const groupId = store.addGenerationGroup({ prompt: "组内直连" });
+    // 断开建组时的直连提示词边,换成 nsfw 链(模拟用户改线)
+    const graph = selectActiveImageStudioWorkflow(useImageStudioStore.getState());
+    const groupPromptEdge = graph?.edges.find(
+      (edge) => edge.source === groupId.promptNodeId && edge.target === groupId.generatedNodeId,
+    );
+    if (groupPromptEdge) useImageStudioStore.getState().removeEdge(groupPromptEdge.id);
+    useImageStudioStore.getState().connect(promptId, nsfwId);
+    useImageStudioStore.getState().connect(nsfwId, groupId.generatedNodeId);
+    return { promptId, nsfwId, generatedNodeId: groupId.generatedNodeId };
+  }
+
+  it("创建:addNsfwNode 入图,类型/默认标题正确;串链后请求走链", () => {
+    const ids = setupChain();
+    const graph = selectActiveImageStudioWorkflow(useImageStudioStore.getState())!;
+    expect(graph.nodes.find((node) => node.id === ids.nsfwId)).toMatchObject({
+      type: "nsfw",
+      title: "NSFW破限",
+    });
+    expect(graph.edges).toHaveLength(2);
+    const request = buildImageStudioGenerationRequest(graph, ids.generatedNodeId);
+    expect(request.prompt).toBe("经链提示词");
+    expect(request.nsfwPro).toBe(true);
+  });
+
+  it("更新:updateNode 改标题/拖动位置(通用路径,nsfw 无专字段)", () => {
+    useImageStudioStore.getState().ensureDefaultWorkflow();
+    const nsfwId = useImageStudioStore.getState().addNsfwNode();
+    useImageStudioStore.getState().updateNode(nsfwId, { title: "我的破限" } as never);
+    const node = activeNodes().find((item) => item.id === nsfwId);
+    expect(node?.title).toBe("我的破限");
+  });
+
+  it("复制:duplicateNode 生成 nsfw 副本(fall-through 误建成图的回归钉)", () => {
+    useImageStudioStore.getState().ensureDefaultWorkflow();
+    const nsfwId = useImageStudioStore.getState().addNsfwNode();
+    const copyId = useImageStudioStore.getState().duplicateNode(nsfwId);
+    expect(copyId).toBeTruthy();
+    const copy = activeNodes().find((item) => item.id === copyId);
+    expect(copy?.type).toBe("nsfw");
+    expect(copy?.title).toBe("NSFW破限 副本");
+  });
+
+  it("删除:removeNode 删破限节点,两条链边级联清空,生成回落普通流", () => {
+    const ids = setupChain();
+    useImageStudioStore.getState().removeNode(ids.nsfwId);
+    const graph = selectActiveImageStudioWorkflow(useImageStudioStore.getState())!;
+    expect(graph.edges).toHaveLength(0);
+    // 链断后请求不再置 nsfwPro(成图内联回落)
+    const request = buildImageStudioGenerationRequest(graph, ids.generatedNodeId);
+    expect(request.nsfwPro).toBeFalsy();
+  });
+
+  it("断链互斥恢复:断开 nsfw→成图 边后,直连提示词边重新合法", () => {
+    const ids = setupChain();
+    const graph = selectActiveImageStudioWorkflow(useImageStudioStore.getState())!;
+    const chainEdge = graph.edges.find(
+      (edge) => edge.source === ids.nsfwId && edge.target === ids.generatedNodeId,
+    )!;
+    useImageStudioStore.getState().removeEdge(chainEdge.id);
+
+    // 互斥是动态的:nsfw 链断开后 prompt 直连不再被拒
+    useImageStudioStore.getState().connect(ids.promptId, ids.generatedNodeId);
+    const after = selectActiveImageStudioWorkflow(useImageStudioStore.getState())!;
+    expect(
+      after.edges.some((edge) => edge.source === ids.promptId && edge.target === ids.generatedNodeId),
+    ).toBe(true);
+  });
+
+  it("导入:含 nsfw 链的画布 JSON 保真(节点与两条边不丢)", () => {
+    const ids = setupChain();
+    const graph = selectActiveImageStudioWorkflow(useImageStudioStore.getState())!;
+    // 模拟导出 payload(handleExportCanvas 全量导出)
+    const payload = {
+      schemaVersion: 1,
+      name: graph.name,
+      nodes: graph.nodes,
+      edges: graph.edges,
+    };
+    const result = useImageStudioStore.getState().importWorkflow(payload);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    const imported = useImageStudioStore.getState().workflows.find((w) => w.id === result.id)!;
+    expect(imported.nodes.find((node) => node.id === ids.nsfwId)?.type).toBe("nsfw");
+    expect(imported.edges).toHaveLength(2);
+    expect(
+      imported.edges.some((e) => e.source === ids.nsfwId && e.target === ids.generatedNodeId),
+    ).toBe(true);
   });
 });
 
