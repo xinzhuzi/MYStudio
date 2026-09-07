@@ -330,7 +330,7 @@ export function ImageWorkflowCanvas({
           markerEnd: { type: MarkerType.ArrowClosed, color: "#67e8f9" },
           // 连线层置于节点之上(见 index.css):隐形点击带收窄到 10px,
           // 连线压过卡片时不吞卡片上按钮/输入的点击
-          interactionWidth: 10,
+          interactionWidth: 18,
           // 09-07 删线根修补全:受控 edges 必须注入 selected——此前只算了
           // 高亮样式,RF 内部 selected 集合恒空,deleteKeyCode 无边可删
           // (与图片工作室 F-ROOT-2 同款病;onEdgesDelete 绑定只解决了删除

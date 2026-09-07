@@ -635,7 +635,7 @@ export function ImageStudioCanvas() {
               ? src?.type === "prompt" ? "prompt-1" : "image"
               : undefined),
           markerEnd: { type: MarkerType.ArrowClosed, color: "#67e8f9" },
-          interactionWidth: 10,
+          interactionWidth: 18,
           style: {
             stroke: related ? "#fbbf24" : "#67e8f9",
             strokeWidth: related ? 3 : 2,

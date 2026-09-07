@@ -3266,6 +3266,17 @@ a:active,
 .image-workflow-flow-host .react-flow__edge {
   pointer-events: stroke;
 }
+/* 09-07 可点性根修:线本体 2px+交互带窄,用户实弹「无法点中」——hover 即时
+   加粗高亮+手型光标,点没点中一眼可辨(交互带同时加倍 10→18,见组件层) */
+.image-workflow-flow-host .react-flow__edge:hover {
+  cursor: pointer;
+}
+.image-workflow-flow-host .react-flow__edge:hover .react-flow__edge-path {
+  stroke-width: 3;
+}
+.image-workflow-flow-host .react-flow__edge.selected .react-flow__edge-path {
+  stroke-width: 3;
+}
 
 /* 漫影工作流主画布:同款裁定——布局本身按实测宽高+200px 泳道排布,连线
    不穿卡;此规则只兜底用户手动拖乱后的形态,连线恒可见。 */
