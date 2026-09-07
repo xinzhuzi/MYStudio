@@ -146,7 +146,7 @@ export const ImageWorkflowNodeCard = memo(function ImageWorkflowNodeCard({ data 
             position={Position.Left}
             style={{ top: "55%" }}
             className="h-3! w-3! border-info/40! bg-info/20!"
-            title="① 编辑指令提示词连这里(稳定流=状态描述句,不带重绘/锚定等词头)"
+            title="① 正向提示词连这里:想怎么改(稳定流=编辑指令;遮罩流=重绘/锚定全文)"
           />
           <span className="pointer-events-none absolute left-1.5 top-[51%] text-[9px] font-semibold text-info/80">①</span>
           <Handle
@@ -154,10 +154,10 @@ export const ImageWorkflowNodeCard = memo(function ImageWorkflowNodeCard({ data 
             id="prompt-2"
             position={Position.Left}
             style={{ top: "80%" }}
-            className="h-3! w-3! border-success/40! bg-success/20!"
-            title="② 一致性描述(system_prompt)提示词连这里(她的脸/发型/姿态…与原图一致)"
+            className="h-3! w-3! border-destructive/50! bg-destructive/15!"
+            title="② 负向提示词连这里:不想要的元素(两流均拼为「画面避免:」句进指令)"
           />
-          <span className="pointer-events-none absolute left-1.5 top-[76%] text-[9px] font-semibold text-success/80">②</span>
+          <span className="pointer-events-none absolute left-1.5 top-[76%] text-[9px] font-semibold text-destructive/80">②</span>
         </>
       ) : null}
       {node.type === "prompt" ? (

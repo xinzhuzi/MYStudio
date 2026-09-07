@@ -306,6 +306,22 @@ export function isValidImageConnection(
   const sourceNode = graph.nodes.find((node) => node.id === connection.source);
   const nodeType = (id: string) => graph.nodes.find((node) => node.id === id)?.type;
 
+  // 无衣物口语义终裁(①=正向口,②=负向口,须先于通用席位分支):极性错口拒
+  if (
+    targetNode?.type === "uncloth" &&
+    (connection.targetHandle === "prompt-1" || connection.targetHandle === "prompt-2")
+  ) {
+    if (sourceNode?.type !== "prompt") return false;
+    const wantedPolarity = connection.targetHandle === "prompt-1" ? "positive" : "negative";
+    if (connection.sourceHandle && connection.sourceHandle !== wantedPolarity) return false;
+    return !graph.edges.some(
+      (item) =>
+        item.target === connection.target &&
+        (item.targetHandle === connection.targetHandle ||
+          (!item.targetHandle && connection.targetHandle === "prompt-1" && nodeType(item.source) === "prompt")),
+    );
+  }
+
   // prompt 源带出口极性:按「目标口 × 极性」分席,正负各≤1
   if (sourceNode?.type === "prompt" && connection.sourceHandle) {
     if (connection.sourceHandle !== "positive" && connection.sourceHandle !== "negative") return false;
@@ -334,8 +350,13 @@ export function isValidImageConnection(
         (item.targetHandle === "image" || (!item.targetHandle && nodeType(item.source) !== "prompt")),
     );
   }
+  // 09-07 口语义终裁(用户:无衣物①=正向输入口,②=负向输入口,与提示词
+  // 节点正/负双出口一一对应):①只吃 positive 席(存量无 handle 边占①正席),
+  // ②只吃 negative 席;同口同席第二根拒
   if (connection.targetHandle === "prompt-1" || connection.targetHandle === "prompt-2") {
     if (sourceNode?.type !== "prompt") return false;
+    const wantedPolarity = connection.targetHandle === "prompt-1" ? "positive" : "negative";
+    if (connection.sourceHandle && connection.sourceHandle !== wantedPolarity) return false;
     return !graph.edges.some(
       (item) =>
         item.target === connection.target &&

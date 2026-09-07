@@ -72,7 +72,7 @@ describe("isValidImageConnection(连线级单源)", () => {
 
 // 09-07 双出口裁定:提示词节点「正/负」两个出口,同口正负各一根可共存=拼装
 describe("isValidImageConnection(双出口席位)", () => {
-  it("同口正负各一根放行,同向第二根拒", () => {
+  it("成图目标:同口正负各一根放行,同向第二根拒", () => {
     let graph = addGeneratedImageNode(
       addPromptImageNode(
         { id: "wf", name: "wf", target: { kind: "free" }, nodes: [], edges: [], createdAt: 1, updatedAt: 1 },
@@ -90,6 +90,25 @@ describe("isValidImageConnection(双出口席位)", () => {
     // 校验层:positive 席已占再连 positive=拒;negative 席已占再连 negative=拒
     expect(isValidImageConnection(graph, { source: "p1", target: "gen1", sourceHandle: "positive" })).toBe(false);
     expect(isValidImageConnection(graph, { source: "p1", target: "gen1", sourceHandle: "negative" })).toBe(false);
+  });
+
+  it("无衣物口语义终裁(①=正向口,②=负向口):极性错口拒,对极性各一根", () => {
+    let graph = addUnclothImageNode(
+      addPromptImageNode(
+        { id: "wf", name: "wf", target: { kind: "free" }, nodes: [], edges: [], createdAt: 1, updatedAt: 1 },
+        { id: "p1", prompt: "a", negativePrompt: "b", position: { x: 0, y: 0 } },
+      ),
+      { id: "unc1" },
+    );
+    expect(isValidImageConnection(graph, { source: "p1", target: "unc1", targetHandle: "prompt-1", sourceHandle: "positive" })).toBe(true);
+    expect(isValidImageConnection(graph, { source: "p1", target: "unc1", targetHandle: "prompt-1", sourceHandle: "negative" })).toBe(false);
+    expect(isValidImageConnection(graph, { source: "p1", target: "unc1", targetHandle: "prompt-2", sourceHandle: "negative" })).toBe(true);
+    expect(isValidImageConnection(graph, { source: "p1", target: "unc1", targetHandle: "prompt-2", sourceHandle: "positive" })).toBe(false);
+    graph = connectImageWorkflowNodes(graph, { source: "p1", target: "unc1", targetHandle: "prompt-1", sourceHandle: "positive" });
+    graph = connectImageWorkflowNodes(graph, { source: "p1", target: "unc1", targetHandle: "prompt-2", sourceHandle: "negative" });
+    expect(graph.edges.length).toBe(2);
+    expect(isValidImageConnection(graph, { source: "p1", target: "unc1", targetHandle: "prompt-1", sourceHandle: "positive" })).toBe(false);
+    expect(isValidImageConnection(graph, { source: "p1", target: "unc1", targetHandle: "prompt-2", sourceHandle: "negative" })).toBe(false);
   });
 
   it("存量无 handle 边占正席,负向口仍可连(分通道拼装)", () => {
