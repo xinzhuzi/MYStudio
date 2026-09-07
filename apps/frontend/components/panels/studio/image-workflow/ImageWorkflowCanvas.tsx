@@ -525,6 +525,9 @@ export function ImageWorkflowCanvas({
     setSelectedNodeId(null);
     setSelectedEdgeId(null);
   }, []);
+  // 09-07 级联堵口(与图片工作室同款):框选节点落地即收回边选中——节点/边
+  // 选中集合独立,边选中残留时 Delete 会节点+边连带删
+  const clearEdgeSelection = useCallback(() => setSelectedEdgeId(null), []);
   const handleFlowEdgeClick = useCallback((edgeId: string) => {
     setSelectedEdgeId(edgeId);
     setSelectedNodeId(null);
@@ -663,6 +666,7 @@ function assertLanded(outcomes: Array<{ nodeId: string } | { error: string }>): 
           onNodeClick={handleFlowNodeClick}
           onNodeDragStop={handleFlowNodeDragStop}
           onPaneClick={handleFlowPaneClick}
+          onNodesSelectionLanded={clearEdgeSelection}
           onConnectCreate={handleConnectCreate}
           canvasHistory={canvasHistory}
           uploadInputRef={uploadInputRef}

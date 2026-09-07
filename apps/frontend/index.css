@@ -3267,12 +3267,14 @@ a:active,
   pointer-events: stroke;
 }
 /* 09-07 可点性根修:线本体 2px+交互带窄,用户实弹「无法点中」——hover 即时
-   加粗高亮+手型光标,点没点中一眼可辨(交互带同时加倍 10→18,见组件层) */
+   加粗高亮+手型光标,点没点中一眼可辨(交互带同时加倍 10→18,见组件层)。
+   !important 必需:边的 stroke-width 是组件内联样式,CSS 类规则优先级低于
+   内联,不加则 hover 加粗被静默压死(选中金色同理已改组件层内联注入)。 */
 .image-workflow-flow-host .react-flow__edge:hover {
   cursor: pointer;
 }
 .image-workflow-flow-host .react-flow__edge:hover .react-flow__edge-path {
-  stroke-width: 3;
+  stroke-width: 3 !important;
 }
 .image-workflow-flow-host .react-flow__edge.selected .react-flow__edge-path {
   stroke-width: 3;

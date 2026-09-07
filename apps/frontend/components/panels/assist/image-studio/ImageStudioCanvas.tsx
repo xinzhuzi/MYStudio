@@ -1009,8 +1009,20 @@ function ImageStudioFlowView({
   // 此前无人落地 → 边永远「未选中」→ deleteKeyCode 无选中可删=「删除线不起
   // 作用」。本地 selectedEdgeId 单选态 + memo 注入 selected,删后/点空即清。
   const [selectedEdgeId, setSelectedEdgeId] = useState<string | null>(null);
+  // 选中可见性(09-07 四轮装机实弹):reactFlowEdges 的 stroke/strokeWidth 是
+  // 内联样式,优先级压死官方 .selected CSS 规则(@xyflow 官方设计走 CSS 变量
+  // --xy-edge-stroke-selected,不写内联)——只注入 selected 类则选中零视觉
+  // 反馈,用户体感=「点不中线」。选中必须同注内联金色(分镜画布同款做法)。
   const flowEdges = useMemo(
-    () => reactFlowEdges.map((edge) => (edge.id === selectedEdgeId ? { ...edge, selected: true } : edge)),
+    () =>
+      reactFlowEdges.map((edge) => {
+        if (edge.id !== selectedEdgeId) return edge;
+        return {
+          ...edge,
+          selected: true,
+          style: { ...edge.style, stroke: "#fbbf24", strokeWidth: 3, strokeOpacity: 1 },
+        };
+      }),
     [reactFlowEdges, selectedEdgeId],
   );
 
@@ -1038,6 +1050,10 @@ function ImageStudioFlowView({
   // 回调身份稳定:内联箭头每次渲染换新引用,会放大 jsdom 下 selection 派发循环
   const handleSelectionChange = useCallback(
     (selected: { nodes: Array<{ id: string }> }) => {
+      // 框选节点不清边选中 → Delete 时节点+边一起死(装机日志 09-07 20:20 实证
+      // stillSelectedNodes:1 级联)。节点/边选中集合独立,任何节点选中落地
+      // 即收回边选中,保证 Delete 永远只作用于单一类别。
+      if (selected.nodes.length > 0) setSelectedEdgeId(null);
       onSelection(selected.nodes.map((node) => node.id));
     },
     [onSelection],
