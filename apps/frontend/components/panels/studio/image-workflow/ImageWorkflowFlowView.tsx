@@ -45,6 +45,7 @@ export function ImageWorkflowFlowView({
   onPaneClick,
   uploadInputRef,
   onUploadReference,
+  onNodesSelectionLanded,
 }: {
   activeGraph: ImageWorkflowGraph;
   focusedFitNodeIds: string[];
@@ -69,6 +70,9 @@ export function ImageWorkflowFlowView({
   onNodeClick: (nodeId: string) => void;
   onNodeDragStop: (nodeId: string, position: { x: number; y: number }) => void;
   onPaneClick: () => void;
+  /** 框选节点落地通知(09-07 级联堵口:节点选中非空时上层须收回边选中,
+   * 否则 Delete 连带删节点+边——图片工作室装机日志 20:20 实证同款路径) */
+  onNodesSelectionLanded?: () => void;
   uploadInputRef: React.MutableRefObject<HTMLInputElement | null>;
   onUploadReference: (file: File | undefined) => void | Promise<void>;
 }) {
@@ -265,6 +269,9 @@ export function ImageWorkflowFlowView({
         nodeTypes={nodeTypes}
         onNodesChange={onNodesChange}
         onNodeClick={(_, node) => onNodeClick(node.id)}
+        onSelectionChange={({ nodes }) => {
+          if (nodes.length > 0) onNodesSelectionLanded?.();
+        }}
         onPaneClick={() => {
           clearNodeSelection();
           onPaneClick();
