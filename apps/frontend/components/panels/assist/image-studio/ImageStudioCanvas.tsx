@@ -37,7 +37,7 @@ import { CanvasAssistantDialog } from "./canvas-assistant-dialog";
 import { relatedEdges } from "@/lib/studio/image-workflow/relation-graph";
 import { useCanvasGestureKernel } from "@/components/panels/studio/use-canvas-gesture-kernel";
 // 画布手势内核与分镜画布共用(08-30 收敛 Phase2 之后再整体上提 features/)
-import { findPromptNodeForGenerated, hasPromptSource } from "@/lib/studio/image-workflow/graph-build";
+import { findPromptNodeForGenerated, hasPromptSource, isValidImageConnection } from "@/lib/studio/image-workflow/graph-build";
 import { saveReferenceFile } from "@/lib/assist/image-studio/reference-upload";
 import { useFreedomStore } from "@/stores/assist/freedom-store";
 import {
@@ -989,6 +989,36 @@ function ImageStudioFlowView({
 }) {
   const [nodes, setNodes, onNodesChange] = useNodesState<ImageStudioReactNode>(reactFlowNodes);
 
+  // 09-07 删线根修(F-ROOT-2):edges 是受控 memo,React Flow 的 select 变更
+  // 此前无人落地 → 边永远「未选中」→ deleteKeyCode 无选中可删=「删除线不起
+  // 作用」。本地 selectedEdgeId 单选态 + memo 注入 selected,删后/点空即清。
+  const [selectedEdgeId, setSelectedEdgeId] = useState<string | null>(null);
+  const flowEdges = useMemo(
+    () => reactFlowEdges.map((edge) => (edge.id === selectedEdgeId ? { ...edge, selected: true } : edge)),
+    [reactFlowEdges, selectedEdgeId],
+  );
+
+  // 09-07 Esc 取消连线(用户报障「取消…不起作用」):@xyflow/react 12 的 Escape
+  // 只用于键盘可达性反选,不取消进行中的连线拖拽——产品缺失,此处补齐。
+  // 连线进行中按 Escape → 本次 onConnect/onConnectEnd 丢弃(落空不弹创建菜单)。
+  const connectActiveRef = useRef(false);
+  const cancelNextConnectRef = useRef(false);
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape" && connectActiveRef.current) {
+        cancelNextConnectRef.current = true;
+      }
+    };
+    document.addEventListener("keydown", onKeyDown, true);
+    return () => document.removeEventListener("keydown", onKeyDown, true);
+  }, []);
+  const consumeConnectCancel = useCallback(() => {
+    const cancelled = cancelNextConnectRef.current;
+    cancelNextConnectRef.current = false;
+    connectActiveRef.current = false;
+    return cancelled;
+  }, []);
+
   // 回调身份稳定:内联箭头每次渲染换新引用,会放大 jsdom 下 selection 派发循环
   const handleSelectionChange = useCallback(
     (selected: { nodes: Array<{ id: string }> }) => {
@@ -1004,12 +1034,20 @@ function ImageStudioFlowView({
     // BODY(用户五报「输入1字符即退出」的真因果链)。重建受控数组必须携带旧节点
     // 已测尺寸;RF 视节点为已测量则永不进入隐藏窗口。下方测量刷新组件只是该
     // 缺陷时代的创可贴(handleBounds 重置同根),保留作保底。
+    // 09-07 删除根修(三轮装机实弹铁证:点击后 2ms SEL→unsel,fiber 内
+    // selected:false):重建只 carry measured 会把 RF 经 onNodesChange 落地的
+    // selected 抹成 undefined——选中态任何重渲染即失,deleteKeyCode 永远
+    // 无选中可删(用户「完全删除不了」的根因)。selected 与 measured 同为
+    // RF 交互态,重建必须一并从 current 继承;宿主 data.selected(卡内金框)
+    // 是独立展示位,不受影响。
     setNodes((current) => {
       let carried = 0;
       const next = reactFlowNodes.map((node) => {
         const prev = current.find((n) => n.id === node.id);
         if (prev?.measured) carried += 1;
-        return prev?.measured ? { ...node, measured: prev.measured } : node;
+        return prev
+          ? { ...node, measured: prev.measured, selected: prev.selected }
+          : node;
       });
       if (reactFlowNodes.length > 0 && carried < reactFlowNodes.length) {
         void logEvent({
@@ -1104,11 +1142,21 @@ function ImageStudioFlowView({
       <ReactFlow
         className="absolute inset-0 bg-muted/20"
         nodes={nodes}
-        edges={reactFlowEdges}
+        edges={flowEdges}
         nodeTypes={imageStudioNodeTypes}
         onNodesChange={onNodesChange}
-        onNodeClick={(_, node) => onNodeClick(node.id)}
-        onPaneClick={onPaneClick}
+        onNodeClick={(_, node) => {
+          setSelectedEdgeId(null);
+          onNodeClick(node.id);
+        }}
+        onEdgeClick={(_, edge) => {
+          setSelectedEdgeId(edge.id);
+          onPaneClick();
+        }}
+        onPaneClick={() => {
+          setSelectedEdgeId(null);
+          onPaneClick();
+        }}
         onDoubleClick={(event) => {
           if ((event.target as HTMLElement).classList.contains("react-flow__pane")) onPaneDoubleClick(event);
         }}
@@ -1133,31 +1181,34 @@ function ImageStudioFlowView({
           handleMoveEnd();
           onViewportSettled(viewport);
         }}
-        onConnect={onConnect}
+        onConnectStart={() => {
+          connectActiveRef.current = true;
+          // 新拖拽开始即清残留取消标志(Esc 后 RF 内部取消时 onConnect 不会
+          // 触发,标志若不清会误吞下一次正常连接)
+          cancelNextConnectRef.current = false;
+        }}
+        onConnect={(connection) => {
+          if (consumeConnectCancel()) return;
+          onConnect(connection);
+        }}
+        onConnectEnd={() => {
+          if (consumeConnectCancel()) return;
+        }}
         onPointerDown={mouseButtonPan.onPointerDown}
         onPointerMove={mouseButtonPan.onPointerMove}
         onPointerUp={mouseButtonPan.onPointerUp}
         onPointerCancel={mouseButtonPan.onPointerCancel}
         onContextMenuCapture={mouseButtonPan.onContextMenuCapture}
         onNodesDelete={(deleted) => onNodesDelete(deleted.map((node) => node.id))}
-        onEdgesDelete={(deleted) => onEdgesDelete(deleted.map((edge) => edge.id))}
-        isValidConnection={(connection) => {
-          const targetType = graph?.nodes.find((node) => node.id === connection.target)?.type;
-          // NSFW破限(09-07):只吃提示词入边(粗校验;互斥细则由 connect 时的
-          // isValidImageEdge 单源把关);nsfw→成图 落入下方 generated 通用分支
-          if (targetType === "nsfw") {
-            return connection.target !== connection.source
-              && Boolean(connection.source)
-              && graph?.nodes.find((node) => node.id === connection.source)?.type === "prompt";
-          }
-          return connection.target !== connection.source &&
-            targetType === "generated" &&
-            !(
-              connection.source &&
-              graph?.nodes.find((node) => node.id === connection.source)?.type === "prompt" &&
-              hasPromptSource(graph, connection.target)
-            );
+        onEdgesDelete={(deleted) => {
+          setSelectedEdgeId(null);
+          onEdgesDelete(deleted.map((edge) => edge.id));
         }}
+        // 09-07 根修:归一到 isValidImageConnection 单源(此前手抄副本漏
+        // uncloth 目标 → 无衣物节点任何入边都被 React Flow 拒收,连线全废)
+        isValidConnection={(connection) =>
+          Boolean(graph && isValidImageConnection(graph, connection))
+        }
         onInit={(instance) => {
           setFlowInstance(instance);
           onInit(instance);
@@ -1206,7 +1257,7 @@ function ImageStudioFlowView({
           <div className="max-w-sm rounded-md border border-border bg-card/92 px-4 py-3 text-sm text-card-foreground">
             <div className="font-semibold">空画布</div>
             <div className="mt-1 text-xs text-muted-foreground">
-              点上方「文生图」或「图生图」开始;成图节点之间可以连线,用上一张结果继续精修。
+              点上方「添加」选「文生图」/「图生图」,或右键画布空白处开始;成图节点之间可以连线,用上一张结果继续精修。
             </div>
           </div>
         </div>
