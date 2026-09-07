@@ -306,20 +306,32 @@ export function isValidImageConnection(
   const sourceNode = graph.nodes.find((node) => node.id === connection.source);
   const nodeType = (id: string) => graph.nodes.find((node) => node.id === id)?.type;
 
-  // 无衣物口语义终裁(①=正向口,②=负向口,须先于通用席位分支):极性错口拒
-  if (
-    targetNode?.type === "uncloth" &&
-    (connection.targetHandle === "prompt-1" || connection.targetHandle === "prompt-2")
-  ) {
-    if (sourceNode?.type !== "prompt") return false;
-    const wantedPolarity = connection.targetHandle === "prompt-1" ? "positive" : "negative";
-    if (connection.sourceHandle && connection.sourceHandle !== wantedPolarity) return false;
-    return !graph.edges.some(
-      (item) =>
-        item.target === connection.target &&
-        (item.targetHandle === connection.targetHandle ||
-          (!item.targetHandle && connection.targetHandle === "prompt-1" && nodeType(item.source) === "prompt")),
-    );
+  // 无衣物口全部规则整体前置(09-07 用户实弹:提示词「正/负」出口曾连上
+  // 「图」口——通用席位分支抢先放行,image 口源类型检查永远到不了):
+  // 图口只吃 reference/generated/uncloth;①=正向席/②=负向席,极性错口拒
+  if (targetNode?.type === "uncloth" && connection.targetHandle) {
+    if (connection.targetHandle === "image") {
+      if (sourceNode?.type !== "reference" && sourceNode?.type !== "generated" && sourceNode?.type !== "uncloth") {
+        return false;
+      }
+      return !graph.edges.some(
+        (item) =>
+          item.target === connection.target &&
+          (item.targetHandle === "image" || (!item.targetHandle && nodeType(item.source) !== "prompt")),
+      );
+    }
+    if (connection.targetHandle === "prompt-1" || connection.targetHandle === "prompt-2") {
+      if (sourceNode?.type !== "prompt") return false;
+      const wantedPolarity = connection.targetHandle === "prompt-1" ? "positive" : "negative";
+      if (connection.sourceHandle && connection.sourceHandle !== wantedPolarity) return false;
+      return !graph.edges.some(
+        (item) =>
+          item.target === connection.target &&
+          (item.targetHandle === connection.targetHandle ||
+            (!item.targetHandle && connection.targetHandle === "prompt-1" && nodeType(item.source) === "prompt")),
+      );
+    }
+    return false;
   }
 
   // prompt 源带出口极性:按「目标口 × 极性」分席,正负各≤1
@@ -339,30 +351,6 @@ export function isValidImageConnection(
 
   if (targetNode?.type !== "uncloth" || !connection.targetHandle) {
     return isValidImageEdge(graph, connection.source, connection.target);
-  }
-  if (connection.targetHandle === "image") {
-    if (sourceNode?.type !== "reference" && sourceNode?.type !== "generated" && sourceNode?.type !== "uncloth") {
-      return false;
-    }
-    return !graph.edges.some(
-      (item) =>
-        item.target === connection.target &&
-        (item.targetHandle === "image" || (!item.targetHandle && nodeType(item.source) !== "prompt")),
-    );
-  }
-  // 09-07 口语义终裁(用户:无衣物①=正向输入口,②=负向输入口,与提示词
-  // 节点正/负双出口一一对应):①只吃 positive 席(存量无 handle 边占①正席),
-  // ②只吃 negative 席;同口同席第二根拒
-  if (connection.targetHandle === "prompt-1" || connection.targetHandle === "prompt-2") {
-    if (sourceNode?.type !== "prompt") return false;
-    const wantedPolarity = connection.targetHandle === "prompt-1" ? "positive" : "negative";
-    if (connection.sourceHandle && connection.sourceHandle !== wantedPolarity) return false;
-    return !graph.edges.some(
-      (item) =>
-        item.target === connection.target &&
-        (item.targetHandle === connection.targetHandle ||
-          (!item.targetHandle && connection.targetHandle === "prompt-1" && nodeType(item.source) === "prompt")),
-    );
   }
   return false;
 }

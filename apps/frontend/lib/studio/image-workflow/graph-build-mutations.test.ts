@@ -92,6 +92,22 @@ describe("isValidImageConnection(双出口席位)", () => {
     expect(isValidImageConnection(graph, { source: "p1", target: "gen1", sourceHandle: "negative" })).toBe(false);
   });
 
+  it("无衣物图口拒一切提示词(09-07 用户实弹:提示词曾连上图口=分支顺序bug)", () => {
+    const graph = addUnclothImageNode(
+      addPromptImageNode(
+        { id: "wf", name: "wf", target: { kind: "free" }, nodes: [], edges: [], createdAt: 1, updatedAt: 1 },
+        { id: "p1", prompt: "a", negativePrompt: "b", position: { x: 0, y: 0 } },
+      ),
+      { id: "unc1" },
+    );
+    expect(isValidImageConnection(graph, { source: "p1", target: "unc1", targetHandle: "image", sourceHandle: "positive" })).toBe(false);
+    expect(isValidImageConnection(graph, { source: "p1", target: "unc1", targetHandle: "image", sourceHandle: "negative" })).toBe(false);
+    expect(isValidImageConnection(graph, { source: "p1", target: "unc1", targetHandle: "image" })).toBe(false);
+    // 程序化建边同样拒(connectImageWorkflowNodes 带 handle 走单源)
+    const wired = connectImageWorkflowNodes(graph, { source: "p1", target: "unc1", targetHandle: "image", sourceHandle: "negative" });
+    expect(wired.edges.length).toBe(0);
+  });
+
   it("无衣物口语义终裁(①=正向口,②=负向口):极性错口拒,对极性各一根", () => {
     let graph = addUnclothImageNode(
       addPromptImageNode(
