@@ -318,7 +318,9 @@ export function ImageWorkflowCanvas({
           source: edge.source,
           target: edge.target,
           // 旧边(无 handle)回落:uncloth 目标按边语义找口——图边→image,
-          // 提示词边→prompt-1(编号口改造前的存量连线保持有落点)
+          // 提示词边→prompt-1(编号口改造前的存量连线保持有落点);
+          // prompt 源无 sourceHandle 回落「正」口(双出口改造前的存量边)
+          sourceHandle: edge.sourceHandle ?? (src?.type === "prompt" ? "positive" : undefined),
           targetHandle:
             edge.targetHandle ??
             (tgt?.type === "uncloth"
@@ -329,6 +331,11 @@ export function ImageWorkflowCanvas({
           // 连线层置于节点之上(见 index.css):隐形点击带收窄到 10px,
           // 连线压过卡片时不吞卡片上按钮/输入的点击
           interactionWidth: 10,
+          // 09-07 删线根修补全:受控 edges 必须注入 selected——此前只算了
+          // 高亮样式,RF 内部 selected 集合恒空,deleteKeyCode 无边可删
+          // (与图片工作室 F-ROOT-2 同款病;onEdgesDelete 绑定只解决了删除
+          // 落地,没解决删除触发)
+          selected: edgeSelected || undefined,
           style: {
             stroke: edgeSelected || related ? "#fbbf24" : "#67e8f9",
             strokeWidth: edgeSelected || related ? 3 : 2,
