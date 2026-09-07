@@ -10,6 +10,7 @@ import {
 } from "@/lib/assist/image-studio/request";
 import { runImageStudioNodeGeneration } from "@/lib/assist/image-studio/run-node-generation";
 import { buildUnclothChainRequest, findUnclothUpstream } from "@/lib/assist/image-studio/uncloth-request";
+import { isNsfwProModel } from "@/lib/assist/image-studio/nsfw-request";
 import { runUnclothChain } from "@/lib/assist/image-studio/run-uncloth";
 import { eventBus } from "@/lib/events/event-bus";
 import {
@@ -92,7 +93,18 @@ export function useImageStudioGeneration() {
     }
     const prompt = request.prompt;
     if (!prompt) {
-      toast.error("请先填写生成提示词");
+      toast.error(
+        request.nsfwPro
+          ? "NSFW破限节点还没连提示词——把提示词节点连到破限节点再生成"
+          : "请先填写生成提示词",
+      );
+      return;
+    }
+    // NSFW破限链引擎守卫(09-07-nsfw-pro-node):专业流只有本地 Krea2/
+    // ComfyUI桥消费 use_lora,其余引擎(含云端)静默忽略——阻断并指路,
+    // 不静默降级成普通流(09-04 裁定精神)
+    if (request.nsfwPro && !isNsfwProModel(request.model)) {
+      toast.error("NSFW破限链仅支持本地 Krea2(或 ComfyUI桥):把成图的模型切到 Krea2,或断开破限连线后再生成");
       return;
     }
     // 模式无歧义预检(09-03 用户裁定):挂着空参考图/未生成的上游图时,

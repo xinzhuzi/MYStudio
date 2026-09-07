@@ -1,5 +1,6 @@
 import {
   ArrowLeft,
+  Flame,
   Layers,
   LayoutGrid,
   MoreHorizontal,
@@ -45,6 +46,7 @@ export function ImageWorkflowCanvasToolbar({
   onAddUnclothNode,
   onAddUnclothFastNode,
   onAddUnclothInstructNode,
+  onAddNsfwNode,
   onAddStoryboardLayeredPair,
   activeGeneratedNode,
   workflowWritebackTargetLabel,
@@ -69,6 +71,7 @@ export function ImageWorkflowCanvasToolbar({
   onAddUnclothNode: () => void;
   onAddUnclothFastNode?: () => void;
   onAddUnclothInstructNode?: () => void;
+  onAddNsfwNode: () => void;
   onAddStoryboardLayeredPair: () => void;
   activeGeneratedNode?: ImageWorkflowGeneratedNode;
   workflowWritebackTargetLabel: string;
@@ -201,6 +204,14 @@ export function ImageWorkflowCanvasToolbar({
           >
             <WandSparkles className="h-3.5 w-3.5" />
             无衣物·指令(现行)
+          </DropdownMenuItem>
+          <DropdownMenuItem
+            data-image-workflow-nsfw-action
+            onClick={onAddNsfwNode}
+            title="NSFW破限节点:提示词→破限→成图,生成自动走 Krea2-NSFW专业流(仅本地 Krea2/ComfyUI桥)"
+          >
+            <Flame className="h-3.5 w-3.5" />
+            NSFW破限(专业流)
           </DropdownMenuItem>
           {/* 09-05 masked SDEdit 双档封存(UNCLOOTH_ARCHIVED),启用见 uncloth-defaults.ts */}
           {!UNCLOOTH_ARCHIVED && (

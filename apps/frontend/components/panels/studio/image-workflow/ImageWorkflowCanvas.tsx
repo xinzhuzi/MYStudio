@@ -8,6 +8,7 @@ import {
   type ReactFlowInstance,
   useUpdateNodeInternals,
 } from "@xyflow/react";
+import { removeImageWorkflowEdge } from "@/lib/studio/image-workflow/graph-build-mutations";
 import "@xyflow/react/dist/style.css";
 import { useCanvasHistory, useCanvasHistoryShortcuts } from "../use-canvas-history";
 import { useScopedWorkflowLifecycle } from "./use-scoped-workflow-lifecycle";
@@ -310,10 +311,19 @@ export function ImageWorkflowCanvas({
         const edgeSelected = edge.id === selectedEdgeId;
         const related = !edgeSelected && selectedNodeId && relatedEdgeIds.has(edge.id);
         const dim = !edgeSelected && selectedNodeId && relatedEdgeIds.size > 0 && !related;
+        const tgt = activeGraph?.nodes.find((node) => node.id === edge.target);
+        const src = activeGraph?.nodes.find((node) => node.id === edge.source);
         return {
           id: edge.id,
           source: edge.source,
           target: edge.target,
+          // 旧边(无 handle)回落:uncloth 目标按边语义找口——图边→image,
+          // 提示词边→prompt-1(编号口改造前的存量连线保持有落点)
+          targetHandle:
+            edge.targetHandle ??
+            (tgt?.type === "uncloth"
+              ? src?.type === "prompt" ? "prompt-1" : "image"
+              : undefined),
           label: edge.label,
           markerEnd: { type: MarkerType.ArrowClosed, color: "#67e8f9" },
           // 连线层置于节点之上(见 index.css):隐形点击带收窄到 10px,
@@ -326,7 +336,7 @@ export function ImageWorkflowCanvas({
           },
         };
       }),
-    [activeGraph?.edges, relatedEdgeIds, selectedEdgeId, selectedNodeId],
+    [activeGraph?.edges, activeGraph?.nodes, relatedEdgeIds, selectedEdgeId, selectedNodeId],
   );
 
   const {
@@ -335,6 +345,7 @@ export function ImageWorkflowCanvas({
     addReferenceFromStoryboard,
     addGeneratedNode,
     addUnclothNode,
+    addNsfwNode,
     addStoryboardLayeredPair,
     deleteNode,
     deleteSelectedEdge,
@@ -511,6 +522,20 @@ export function ImageWorkflowCanvas({
     setSelectedEdgeId(edgeId);
     setSelectedNodeId(null);
   }, []);
+  // 09-07 删线根修:键盘/交互删边落 graph(此前无 onEdgesDelete 绑定,
+  // React Flow 只删视图,状态未动→线复活=「删除线不起作用」)
+  const handleFlowEdgesDelete = useCallback(
+    (edgeIds: string[]) => {
+      if (!edgeIds.length || !activeGraph) return;
+      saveGraph(
+        edgeIds.reduce(
+          (graph, edgeId) => removeImageWorkflowEdge(graph, edgeId),
+          activeGraph,
+        ),
+      );
+    },
+    [activeGraph, saveGraph],
+  );
   const handleFlowNodeDragStop = useCallback(
     (nodeId: string, position: { x: number; y: number }) => {
       if (!activeGraph) return;
@@ -624,6 +649,7 @@ function assertLanded(outcomes: Array<{ nodeId: string } | { error: string }>): 
           reactFlowNodes={reactFlowNodes}
           onConnect={handleConnect}
           onEdgeClick={handleFlowEdgeClick}
+          onEdgesDelete={handleFlowEdgesDelete}
           onFitView={handleFitView}
           onInit={setFlowInstance}
           onNodeClick={handleFlowNodeClick}
@@ -646,6 +672,7 @@ function assertLanded(outcomes: Array<{ nodeId: string } | { error: string }>): 
           onAddGeneratedNode={addGeneratedNode}
           onAddUnclothNode={addUnclothNode}
           onAddUnclothFastNode={() => addUnclothNode("fast")}
+          onAddNsfwNode={addNsfwNode}
           onAddStoryboardLayeredPair={addStoryboardLayeredPair}
           workflowWritebackTargetLabel={workflowWritebackTargetLabel}
           onApplyToStoryboard={(nodeId) => void applyNodeToStoryboard(nodeId)}

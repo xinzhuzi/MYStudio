@@ -533,10 +533,14 @@ async function generateViaImagesEndpoint(
       });
   const body = builtRequest.body;
   const imageSettings = useAppSettingsStore.getState().imageGenerationSettings;
-  if (provider && isLocalImageProvider(provider) && imageSettings.localImageLoraEnabled) {
+  if (provider && isLocalImageProvider(provider)) {
     // 本地专业流开关(D5):仅本地 provider 注入,云端请求零影响;
-    // Krea2 挂 NSFW LoRA / ComfyUI 桥路由 NSFW 专业流,引擎侧各自消费
-    body.use_lora = true;
+    // Krea2 挂 NSFW LoRA / ComfyUI 桥路由 NSFW 专业流,引擎侧各自消费。
+    // 09-07-nsfw-pro-node:画布 NSFW破限节点链经 extraParams 显式注入
+    // use_lora(节点级优先);全局开关为或关系兜底——任一为真即专业流
+    if (body.use_lora !== true && imageSettings.localImageLoraEnabled) {
+      body.use_lora = true;
+    }
   }
   if (usesDefaultImagesEndpoint && isGptImageModel(model) && provider) {
     const sdkResult = await sdkGenerateImage({

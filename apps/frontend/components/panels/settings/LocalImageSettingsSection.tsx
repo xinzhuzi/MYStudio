@@ -290,6 +290,32 @@ export function LocalImageSettingsSection({
                     : "未下载（可完整下载自足）";
         return (
           <div key={model.modelName} className="space-y-1.5">
+            {model.loraFiles?.length ? (
+              <div className="space-y-1 rounded-md border border-border/60 bg-muted/30 px-2.5 py-1.5">
+                {(model.loraFiles as Array<{ name: string; label: string; path: string; ready: boolean; required?: boolean }>).map((lora) => (
+                  <div key={lora.name} className="flex items-start gap-1.5">
+                    <span
+                      title={lora.ready ? "已就绪" : lora.required ? "主件缺失(无衣物·指令编辑不可用)" : "缺失(将跳过,破限降级)"}
+                      className={"mt-0.5 h-2 w-2 shrink-0 rounded-full " + (lora.ready ? "bg-success" : lora.required ? "bg-destructive" : "bg-warning")}
+                    />
+                    <p className="min-w-0 flex-1 select-text break-all text-[11px] leading-4 text-muted-foreground">
+                      {lora.label}
+                      <span className="ml-1 font-mono text-[10px] opacity-70">{lora.path}</span>
+                    </p>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="h-6 w-6 shrink-0 p-0"
+                      aria-label="复制路径"
+                      title="复制路径"
+                      onClick={() => void copyPath(lora.path)}
+                    >
+                      <Copy className="h-3.5 w-3.5" aria-hidden />
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            ) : null}
             {model.pointedFiles?.length ? (
               <div className="space-y-1 rounded-md border border-border/60 bg-muted/30 px-2.5 py-1.5">
                 {model.pointedFiles.map((file) => (

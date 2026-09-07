@@ -34,6 +34,7 @@ export function ImageWorkflowFlowView({
   onConnectCreate,
   canvasHistory,
   onEdgeClick,
+  onEdgesDelete,
   onFitView,
   onInit,
   onNodeClick,
@@ -54,6 +55,9 @@ export function ImageWorkflowFlowView({
     edges: ImageWorkflowGraph["edges"];
   }>;
   onEdgeClick: (edgeId: string) => void;
+  /** 键盘/交互删边回传(09-07:删线不起作用根修——此前无绑定,视图删了
+   * 状态没更新线会复活);FlowView 只透传 id 列表,删法由上层单源 */
+  onEdgesDelete?: (edgeIds: string[]) => void;
   onFitView: () => void;
   onInit: (instance: ReactFlowInstance<ImageWorkflowReactNode, Edge>) => void;
   onNodeClick: (nodeId: string) => void;
@@ -147,7 +151,7 @@ export function ImageWorkflowFlowView({
   }, [connectCreateAnchor, activeGraph]);
 
   const handleConnectCreateSelect = useCallback(
-    (type: "generated" | "prompt" | "reference" | "uncloth" | "uncloth-fast" | "uncloth-instruct") => {
+    (type: "generated" | "prompt" | "reference" | "uncloth" | "uncloth-fast" | "uncloth-instruct" | "nsfw") => {
       if (!connectCreateAnchor) return;
       onConnectCreate({
         fromNodeId: connectCreateAnchor.fromNodeId,
@@ -218,6 +222,7 @@ export function ImageWorkflowFlowView({
           connectImageWorkflowNodes 域规则把关,不受 loose 放宽 */}
       <ReactFlow
         className="absolute inset-0 bg-muted/20"
+        deleteKeyCode={["Backspace", "Delete"]}
         nodes={nodes}
         edges={reactFlowEdges}
         nodeTypes={nodeTypes}
@@ -225,6 +230,7 @@ export function ImageWorkflowFlowView({
         onNodeClick={(_, node) => onNodeClick(node.id)}
         onPaneClick={onPaneClick}
         onEdgeClick={(_, edge) => onEdgeClick(edge.id)}
+        onEdgesDelete={(edges) => onEdgesDelete?.(edges.map((edge) => edge.id))}
         onNodeDragStart={handleNodeDragStart}
         onNodeDragStop={(_, node) => {
           setInteracting(false);
@@ -238,19 +244,27 @@ export function ImageWorkflowFlowView({
         onPointerUp={mouseButtonPan.onPointerUp}
         onPointerCancel={mouseButtonPan.onPointerCancel}
         onContextMenuCapture={mouseButtonPan.onContextMenuCapture}
-        isValidConnection={(connection) =>
-          connection.target !== connection.source &&
-          activeGraph?.nodes.find((node) => node.id === connection.target)?.type === "generated" &&
-          !(
-            connection.source &&
-            activeGraph?.nodes.find((node) => node.id === connection.source)?.type === "prompt" &&
-            activeGraph.edges.some(
-              (edge) =>
-                edge.target === connection.target &&
-                activeGraph.nodes.find((node) => node.id === edge.source)?.type === "prompt",
-            )
-          )
-        }
+        isValidConnection={(connection) => {
+          const targetType = activeGraph?.nodes.find((node) => node.id === connection.target)?.type;
+          // NSFW破限(09-07):只吃提示词入边(粗校验;互斥细则由 connect 时的
+          // isValidImageEdge 单源把关);nsfw→成图 落入下方 generated 通用分支
+          if (targetType === "nsfw") {
+            return connection.target !== connection.source
+              && Boolean(connection.source)
+              && activeGraph?.nodes.find((node) => node.id === connection.source)?.type === "prompt";
+          }
+          return connection.target !== connection.source &&
+            targetType === "generated" &&
+            !(
+              connection.source &&
+              activeGraph?.nodes.find((node) => node.id === connection.source)?.type === "prompt" &&
+              activeGraph.edges.some(
+                (edge) =>
+                  edge.target === connection.target &&
+                  activeGraph.nodes.find((node) => node.id === edge.source)?.type === "prompt",
+              )
+            );
+        }}
         onConnectEnd={handleConnectEnd}
         onInit={(instance) => {
           setFlowInstance(instance);

@@ -4,7 +4,7 @@ import type { AddPromptImageNodeInput } from "./graph-build";
 import { nextStackedPosition } from "./layout";
 import { useAppSettingsStore } from "@/stores/app/app-settings-store";
 import type { ImageWorkflowEdge, ImageWorkflowGeneratedNode, ImageWorkflowGraph, ImageWorkflowGroupNode, ImageWorkflowNode, ImageWorkflowNodePosition, ImageWorkflowPromptNode, ImageWorkflowReferenceNode, ImageWorkflowStickyNode, StoryboardItem,
-  ImageWorkflowUnclothNode,
+  ImageWorkflowNsfwNode, ImageWorkflowUnclothNode,
 } from "@/types/studio";
 
 /**
@@ -67,6 +67,28 @@ export function addUnclothImageNode(
       || (input.variant === "fast" ? "无衣物·快"
         : input.variant === "instruct" ? "无衣物·指令" : "无衣物"),
     prompt: input.prompt,
+    position: input.position ?? { x: 80, y: 80 },
+    createdAt: now,
+    updatedAt: now,
+  };
+  return touchGraph({ ...graph, nodes: [...graph.nodes, node] }, now);
+}
+
+export function addNsfwImageNode(
+  graph: ImageWorkflowGraph,
+  input: {
+    id?: string;
+    title?: string;
+    position?: ImageWorkflowNodePosition;
+    createdAt?: number;
+  },
+): ImageWorkflowGraph {
+  const now = input.createdAt ?? Date.now();
+  // 一期零参数:固定专业流默认栈(强度调节二期经 loras 四槽透传)
+  const node: ImageWorkflowNsfwNode = {
+    id: input.id ?? createId("nsfw", now),
+    type: "nsfw",
+    title: input.title?.trim() || "NSFW破限",
     position: input.position ?? { x: 80, y: 80 },
     createdAt: now,
     updatedAt: now,
@@ -159,10 +181,12 @@ export function connectImageWorkflowNodes(
 
 /**
  * 连线域规则单源谓词(两卡 isValidConnection/handleConnect 共用):
- * 目标必须成图或无衣物 / 非自环 / 同向去重 / 一个成图只吃一根提示词边(09-03
+ * 目标必须成图/无衣物/NSFW破限 / 非自环 / 同向去重 / 一个成图只吃一根提示词边(09-03
  * 用户裁定:第二根会被装配静默忽略,歧义消灭在源头)。
  * 无衣物节点(09-04):入边=图(reference/generated/uncloth 链式)+一根文本;
  * 出边=只能连成图(结果直通,成图是唯一执行入口)。
+ * NSFW破限节点(09-07):入边=单根提示词;出边=单链连成图;成图提示词
+ * 通道=直连 prompt 或 nsfw 链二选一互斥。
  */
 export function isValidImageEdge(
   graph: ImageWorkflowGraph,
@@ -181,16 +205,29 @@ export function isValidImageEdge(
     // 图输入:参考图/上游成图(有结果)/链式上游无衣物
     if (sourceNode.type === "reference" || sourceNode.type === "uncloth") return true;
     if (sourceNode.type === "generated") return true;
-    // 文本输入:单根提示词边
+    // 文本输入:两根提示词边(09-07 编号口:①=编辑指令 ②=一致性描述;
+    // 各 handle 一根,存量无 handle 边上限 2 兼容)
     if (sourceNode.type === "prompt") {
-      const existingPrompt = graph.edges.some(
+      const promptEdges = graph.edges.filter(
         (item) =>
           item.target === target &&
           graph.nodes.find((node) => node.id === item.source)?.type === "prompt",
       );
-      return !existingPrompt;
+      return promptEdges.length < 2;
     }
     return false;
+  }
+
+  // ── NSFW破限节点的入边规则(09-07-nsfw-pro-node) ──
+  if (targetNode.type === "nsfw") {
+    // 只吃单根提示词边:节点是专业流提示词通道,不收图/不收链
+    if (sourceNode.type !== "prompt") return false;
+    const hasPrompt = graph.edges.some(
+      (item) =>
+        item.target === target &&
+        graph.nodes.find((node) => node.id === item.source)?.type === "prompt",
+    );
+    return !hasPrompt;
   }
 
   // ── 成图目标(既有规则) ──
@@ -207,11 +244,30 @@ export function isValidImageEdge(
     // 静态参考边在 uncloth 链模式下被管线输入取代
     return true;
   }
+  if (sourceNode.type === "nsfw") {
+    // 一个成图只吃一根 nsfw 链;提示词通道=直连 prompt 或 nsfw 链二选一
+    // (09-07 裁定:已有直连提示词(边或 targetNodeId 直挂)则拒)
+    const hasNsfw = graph.edges.some(
+      (item) =>
+        item.target === target &&
+        graph.nodes.find((node) => node.id === item.source)?.type === "nsfw",
+    );
+    if (hasNsfw) return false;
+    if (findPromptNodeForGenerated(graph, target)) return false;
+    return true;
+  }
   if (sourceNode.type === "prompt") {
     // 一个成图只吃一根提示词(09-03):已挂「别的」提示词(边或 targetNodeId
     // 直挂)才拒——自身首根边必须放行(建组流程 prompt 先经 targetNodeId 挂靠)
     const existing = findPromptNodeForGenerated(graph, target);
     if (existing && existing.id !== source) return false;
+    // nsfw 链互斥(09-07):成图已挂 nsfw 链时直连提示词边被拒(通道二选一)
+    const hasNsfwChain = graph.edges.some(
+      (item) =>
+        item.target === target &&
+        graph.nodes.find((node) => node.id === item.source)?.type === "nsfw",
+    );
+    if (hasNsfwChain) return false;
   }
   return true;
 }

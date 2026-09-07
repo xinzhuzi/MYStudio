@@ -2,6 +2,7 @@ import { aiManager } from "@/lib/ai/ai-manager";
 import { maybeAutoDenoiseUrl } from "@/lib/ai/image-auto-denoise";
 import { buildUnclothChainRequest } from "@/lib/assist/image-studio/uncloth-request";
 import { runUnclothChain } from "@/lib/assist/image-studio/run-uncloth";
+import { isNsfwProModel } from "@/lib/assist/image-studio/nsfw-request";
 import { getProjectFilesBridge } from "@/lib/bridge/project-files";
 import { getStudioAssetsBridge } from "@/lib/bridge/studio-assets";
 import { createOperationId, logEvent } from "@/lib/diagnostics/logger";
@@ -78,6 +79,12 @@ export async function runImageWorkflowNodeGeneration(
   if (!request.prompt.trim()) {
     throw new Error("请先填写生成提示词");
   }
+  // NSFW破限链引擎守卫(09-07-nsfw-pro-node):专业流只有本地 Krea2/
+  // ComfyUI桥消费 use_lora,其余引擎(含云端)静默忽略——抛错阻断并指路,
+  // 不静默降级成普通流(与图片工作室同款文案)
+  if (request.nsfwPro && !isNsfwProModel(request.model)) {
+    throw new Error("NSFW破限链仅支持本地 Krea2(或 ComfyUI桥):把成图的模型切到 Krea2,或断开破限连线后再生成");
+  }
   assertImageWorkflowContinuityCapability(request);
 
   const projectId = useProjectStore.getState().activeProjectId;
@@ -132,6 +139,9 @@ export async function runImageWorkflowNodeGeneration(
     negativePrompt: compiledFrame ? undefined : request.negativePrompt,
     promptPolicy: (compiledFrame ? "raw" : undefined) as "raw" | undefined,
     referenceImages,
+    // NSFW破限链(09-07):use_lora 经 extraParams 进请求体,引擎层与全局
+    // 专业流开关或关系合并(ai-sdk-bridge Object.assign 透传)
+    extraParams: request.nsfwPro ? { use_lora: true } : undefined,
     transport,
     // 分镜/工作流成图自存项目真源(projectFiles.saveImage),跳过媒体库副本双写
     persistMedia: false,

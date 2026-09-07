@@ -138,6 +138,35 @@ describe("generateImage", () => {
     expect(requestBody.use_lora).toBeUndefined();
   });
 
+  it("node-level use_lora via extraParams survives when the global switch is off (09-07-nsfw-pro-node)", async () => {
+    useAPIConfigStore.setState({
+      providers: [{
+        id: "manying-local-image",
+        platform: "manying-local-image",
+        name: "本地图片生成",
+        baseUrl: "http://127.0.0.1:17595",
+        apiKey: "manying-local-image",
+        model: ["krea2-turbo"],
+        capabilities: ["image_generation"],
+      }],
+      featureBindings: { freedom_image: ["manying-local-image:krea2-turbo"] },
+      modelEndpointTypes: { "krea2-turbo": ["image-generation"] },
+    } as never);
+    // 全局专业流开关关闭——画布 NSFW破限节点链的显式注入必须存活
+    useAppSettingsStore.getState().setImageGenerationSettings({ localImageLoraEnabled: false });
+    const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({
+      data: [{ b64_json: "aGVsbG8=", output_format: "png" }],
+    }), { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await generateImage({ prompt: "节点级专业流", extraParams: { use_lora: true } });
+
+    const genCall = fetchMock.mock.calls.find(([url]) => String(url).includes("/v1/images/generations"));
+    const requestBody = JSON.parse(String(genCall?.[1]?.body));
+    expect(requestBody.model).toBe("krea2-turbo");
+    expect(requestBody.use_lora).toBe(true);
+  });
+
   it("retries gpt-image transport failures with a compact 1024 prompt before provider fallback", async () => {
     const longPrompt = [
       "男性角色四视图设定图，水墨国风，修仙古韵，工笔线描，写意晕染，宣纸质感。",

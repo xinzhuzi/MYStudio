@@ -9,6 +9,7 @@ import {
   getGeneratedNode,
   type StoryboardOrderedReferenceMetadata,
 } from "./graph-build";
+import { findNsfwUpstream, findPromptViaNsfw } from "@/lib/assist/image-studio/nsfw-request";
 
 export interface ImageWorkflowGenerationRequest {
   prompt: string;
@@ -17,6 +18,12 @@ export interface ImageWorkflowGenerationRequest {
   resolution?: string;
   negativePrompt?: string;
   referenceImages: string[];
+  /**
+   * NSFW破限链标记(09-07-nsfw-pro-node):成图上游挂 nsfw 节点时为 true,
+   * 请求注入 use_lora 走「Krea2-NSFW专业流」(仅本地 Krea2/ComfyUI桥消费;
+   * 引擎守卫在 run 层前置阻断其余引擎)。
+   */
+  nsfwPro?: boolean;
   orderedReferenceManifest: {
     order: number;
     imageUrl: string;
@@ -37,7 +44,11 @@ export function buildImageWorkflowGenerationRequest(
   nodeId: string,
 ): ImageWorkflowGenerationRequest {
   const node = getGeneratedNode(graph, nodeId);
-  const promptNode = findPromptNodeForGenerated(graph, nodeId);
+  // NSFW破限链(09-07):提示词通道=直连 prompt 或 nsfw 链二选一(连线互斥
+  // 规则保证不共存);nsfw 链时提示词取 nsfw 上游的提示词节点
+  const nsfwUpstream = findNsfwUpstream(graph, nodeId);
+  const promptViaNsfw = nsfwUpstream ? findPromptViaNsfw(graph, nsfwUpstream.id) : undefined;
+  const promptNode = promptViaNsfw ?? findPromptNodeForGenerated(graph, nodeId);
   const promptSource = promptNode ?? node;
   const connectedNodes = graph.edges
     .filter((edge) => edge.target === nodeId)
@@ -98,6 +109,7 @@ export function buildImageWorkflowGenerationRequest(
     previousApprovedFrameIncluded: orderedReferenceManifest.some(
       (reference) => reference.referenceRole === "previous-approved-frame",
     ),
+    nsfwPro: nsfwUpstream !== undefined,
   };
 }
 

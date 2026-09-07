@@ -86,8 +86,13 @@ export function layoutImageStudioGraph(graph: ImageWorkflowGraph): ImageWorkflow
     ["reference", IMAGE_STUDIO_COLUMN_X.reference],
     ["prompt", IMAGE_STUDIO_COLUMN_X.prompt],
   ] as const) {
+    // NSFW破限(09-07-nsfw-pro-node)并入提示词列堆叠:它是提示词通道
+    // 中介,与提示词同列按 createdAt 混排,链位由连线表达
+    const laneNodes: ImageWorkflowNode[] = type === "prompt"
+      ? graph.nodes.filter((node) => node.type === "prompt" || node.type === "nsfw")
+      : graph.nodes.filter((node) => node.type === type);
     for (const [id, position] of stackColumn(
-      graph.nodes.filter((node) => node.type === type),
+      laneNodes,
       x,
       type === "reference" ? ROW_STRIDE.reference : ROW_STRIDE.prompt,
     )) {

@@ -50,6 +50,15 @@ export function createImageWorkflowReactNodes({
             return nodesById.get(edge.source)?.type === "uncloth";
           }),
         ),
+      // NSFW破限链上游(09-07-nsfw-pro-node):同裁定——提示词经破限节点传入
+      hasNsfwUpstream:
+        node.type === "generated" &&
+        Boolean(
+          graph?.edges.some((edge) => {
+            if (edge.target !== node.id) return false;
+            return nodesById.get(edge.source)?.type === "nsfw";
+          }),
+        ),
       selected: node.id === selectedNodeId,
       storyboards,
       onUpdate,

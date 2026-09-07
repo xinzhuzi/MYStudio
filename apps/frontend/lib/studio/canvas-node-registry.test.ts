@@ -6,10 +6,11 @@ import {
 } from "./canvas-node-registry";
 
 describe("canvas-node-registry:image-workflow 面", () => {
-  it("四类型注册齐(含无衣物通用化),三要素(几何来源/动作/输出资源)完整", () => {
+  it("五类型注册齐(含无衣物/NSFW破限通用化),三要素(几何来源/动作/输出资源)完整", () => {
     const definitions = listCanvasNodeDefinitions("image-workflow");
     expect(definitions.map((d) => d.typeId).sort()).toEqual([
       "generated",
+      "nsfw",
       "prompt",
       "reference",
       "uncloth",
@@ -25,6 +26,7 @@ describe("canvas-node-registry:image-workflow 面", () => {
   it("getCanvasNodeEntry 查询与缺省回退", () => {
     expect(getCanvasNodeEntry("image-workflow", "prompt")?.label).toBe("提示词节点");
     expect(getCanvasNodeEntry("image-workflow", "uncloth")?.label).toBe("无衣物节点");
+    expect(getCanvasNodeEntry("image-workflow", "nsfw")?.label).toBe("NSFW破限节点");
     expect(getCanvasNodeEntry("image-workflow", "nope")).toBeUndefined();
   });
 
@@ -34,5 +36,6 @@ describe("canvas-node-registry:image-workflow 面", () => {
     expect(canvasMiniMapNodeToken("prompt")).toBe("info");
     expect(canvasMiniMapNodeToken("reference")).toBe("success");
     expect(canvasMiniMapNodeToken("uncloth")).toBe("warning");
+    expect(canvasMiniMapNodeToken("nsfw")).toBe("warning");
   });
 });

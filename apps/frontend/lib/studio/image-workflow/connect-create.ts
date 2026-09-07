@@ -5,6 +5,7 @@ import {
   addPromptImageNode,
   addReferenceImageNode,
   addUnclothImageNode,
+  addNsfwImageNode,
   connectImageWorkflowNodes,
   createId,
   hasPromptSource,
@@ -23,7 +24,7 @@ import { nextStackedPosition } from "./layout";
 
 export type ConnectCreateHandleType = "source" | "target";
 
-export type ConnectCreatableNodeType = "generated" | "prompt" | "reference" | "uncloth" | "uncloth-fast" | "uncloth-instruct";
+export type ConnectCreatableNodeType = "generated" | "prompt" | "reference" | "uncloth" | "uncloth-fast" | "uncloth-instruct" | "nsfw";
 
 export interface ConnectCreatableTypeOption {
   type: ConnectCreatableNodeType;
@@ -39,8 +40,8 @@ export function getCreatableImageNodeTypes(
   // 创建入口撤下,存量画布节点仍可用
   const types: ConnectCreatableNodeType[] =
     direction === "downstream"
-      ? ["generated", "uncloth-instruct"]
-      : ["prompt", "reference", "uncloth-instruct"];
+      ? ["generated", "uncloth-instruct", "nsfw"]
+      : ["prompt", "reference", "uncloth-instruct", "nsfw"];
   const directionalDescription =
     direction === "downstream"
       ? "创建并从当前节点连入"
@@ -52,7 +53,9 @@ export function getCreatableImageNodeTypes(
         ? "无衣物·快"
         : type === "uncloth-instruct"
           ? "无衣物·指令"
-          : getCanvasNodeEntry("image-workflow", type)?.label ?? type,
+          : type === "nsfw"
+            ? "NSFW破限"
+            : getCanvasNodeEntry("image-workflow", type)?.label ?? type,
     description: directionalDescription,
   }));
 }
@@ -86,14 +89,15 @@ export function createConnectedImageNode(
   if (!fromNode) return null;
 
   const direction = connectCreateDirection(input.fromHandleType);
-  if (direction === "downstream" && input.type !== "generated" && input.type !== "uncloth") {
+  if (direction === "downstream" && input.type !== "generated" && input.type !== "uncloth" && input.type !== "nsfw") {
     return null;
   }
   if (
     direction === "upstream" &&
     input.type !== "prompt" &&
     input.type !== "reference" &&
-    input.type !== "uncloth"
+    input.type !== "uncloth" &&
+    input.type !== "nsfw"
   ) {
     return null;
   }
@@ -107,13 +111,22 @@ export function createConnectedImageNode(
   if (direction === "upstream" && input.type === "uncloth" && hasUnclothUpstreamEdge(graph, input.fromNodeId)) {
     return null;
   }
+  // NSFW破限(09-07):downstream(提示词拖出)只对 prompt 节点有意义;
+  // upstream(成图拖出)受互斥约束——已有直连提示词或已有 nsfw 链都会被
+  // 单源拒边留悬空节点,事前挡下
+  if (input.type === "nsfw") {
+    if (direction === "downstream" && fromNode.type !== "prompt") return null;
+    if (direction === "upstream" && (hasPromptSource(graph, input.fromNodeId) || hasNsfwUpstreamEdge(graph, input.fromNodeId))) {
+      return null;
+    }
+  }
 
   // 布局单源假设节点带 position;历史无位节点(如未摆放的种子)不参与堆叠计算
   const positionedNodes = graph.nodes.filter((node) => node.position);
   // uncloth-fast 与 uncloth 共用布局槽位(布局表按 ImageWorkflowNodeType 键控)
   const position = nextStackedPosition(
     positionedNodes,
-    input.type === "generated" || input.type === "prompt" || input.type === "reference"
+    input.type === "generated" || input.type === "prompt" || input.type === "reference" || input.type === "nsfw"
       ? input.type
       : "uncloth",
   );
@@ -140,6 +153,9 @@ export function createConnectedImageNode(
         input.type === "uncloth-fast" ? "fast"
           : input.type === "uncloth-instruct" ? "instruct" : undefined,
     });
+  } else if (input.type === "nsfw") {
+    nodeId = createId("nsfw");
+    nextGraph = addNsfwImageNode(nextGraph, { id: nodeId, position });
   } else {
     nodeId = createId("ref");
     nextGraph = addReferenceImageNode(nextGraph, {
@@ -167,6 +183,15 @@ function hasUnclothUpstreamEdge(graph: ImageWorkflowGraph, generatedNodeId: stri
   });
 }
 
+/** 该成图是否已有 NSFW破限上游边(单链规则守卫,与 isValidImageEdge 同语义) */
+function hasNsfwUpstreamEdge(graph: ImageWorkflowGraph, generatedNodeId: string): boolean {
+  const nodesById = new Map(graph.nodes.map((node) => [node.id, node]));
+  return graph.edges.some((edge) => {
+    if (edge.target !== generatedNodeId) return false;
+    return nodesById.get(edge.source)?.type === "nsfw";
+  });
+}
+
 export function isConnectCreatableType(
   value: string,
 ): value is ConnectCreatableNodeType {
@@ -175,5 +200,6 @@ export function isConnectCreatableType(
     || value === "prompt"
     || value === "reference"
     || value === "uncloth"
+    || value === "nsfw"
   );
 }

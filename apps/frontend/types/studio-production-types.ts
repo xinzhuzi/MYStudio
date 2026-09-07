@@ -290,7 +290,7 @@ export interface AssetImageWorkflowContext extends ImageWorkflowOpenContext {
   target: ImageWorkflowTarget & { kind: "asset"; assetType: ImageWorkflowAssetTargetType };
 }
 
-export type ImageWorkflowNodeType = "reference" | "prompt" | "generated" | "uncloth" | "sticky" | "group";
+export type ImageWorkflowNodeType = "reference" | "prompt" | "generated" | "uncloth" | "sticky" | "group" | "nsfw";
 export type ImageWorkflowGenerationStatus = "idle" | "queued" | "generating" | "ready" | "failed";
 
 export interface ImageWorkflowNodePosition {
@@ -339,8 +339,15 @@ export interface ImageWorkflowUnclothNode extends ImageWorkflowNodeBase {
   type: "uncloth";
   /** 档位(09-05):缺省 fine;fast/fine=masked SDEdit 双档(已封存,见
    * uncloth-defaults.ts UNCLOOTH_ARCHIVED);instruct=Krea2Edit 指令编辑
-   * 档(现行,走 ComfyUI 桥 krea2_uncloth_instruct 模板)。 */
+   * 档(现行,本地引擎仿写,09-06 起三层 LoRA 栈)。 */
   variant?: "fast" | "fine" | "instruct";
+  // ── instruct 档可调参数(09-06 稳定版工作流现值) ──
+  /** 破限 LoRA Mystic XXX v3 强度(工作流 2.0) */
+  mysticStrength?: number;
+  /** 破限 LoRA pussy 强度(工作流 0.15) */
+  pussyStrength?: number;
+  /** grounded 模板 system 段(缺省=工作流锚定句) */
+  systemPrompt?: string;
   /** 处理结果回显(最终结果落下游成图节点;本字段供卡内预览) */
   resultUrl?: string;
   /** 单文本驱动两遍采样(缺省回落输入提示词节点的文本) */
@@ -356,8 +363,8 @@ export interface ImageWorkflowUnclothNode extends ImageWorkflowNodeBase {
   scheduler?: string;
   /** 遍1 脱衣 denoise(工作流 0.65) */
   denoiseUndress?: number;
-  /** 遍1 seed(工作流 3) */
-  seedUndress?: number;
+  /** 遍1 seed;instruct 档可置 null=每次随机(09-06 工作流 randomize 同义) */
+  seedUndress?: number | null;
   /** 遍2 校色 denoise(工作流 0.3) */
   denoiseColor?: number;
   /** 遍2 seed(工作流 1) */
@@ -468,13 +475,25 @@ export interface ImageWorkflowPromptNode extends ImageWorkflowNodeBase {
   targetNodeId?: string;
 }
 
+/**
+ * NSFW破限节点(09-07-nsfw-pro-node):「Krea2-NSFW专业流」的画布连线化。
+ * 提示词 → 本节点 → 成图:成图生成时检测到本节点上游即注入 use_lora,
+ * sidecar Krea2 挂专业流 LoRA 栈(Mystic XXX v3@1.0 + pussy@0.3)+ 12 带
+ * 重平衡(第9带×5)+ cfg=0(后端零改动,链路见 krea2.py PRO_* 常量)。
+ * 一期固定专业流默认栈,零额外参数;强度调节(节点四槽 loras 透传)留二期。
+ */
+export interface ImageWorkflowNsfwNode extends ImageWorkflowNodeBase {
+  type: "nsfw";
+}
+
 export type ImageWorkflowNode =
   | ImageWorkflowReferenceNode
   | ImageWorkflowPromptNode
   | ImageWorkflowGeneratedNode
   | ImageWorkflowUnclothNode
   | ImageWorkflowStickyNode
-  | ImageWorkflowGroupNode;
+  | ImageWorkflowGroupNode
+  | ImageWorkflowNsfwNode;
 
 /** 便利贴节点(09-03 wave3 吸收):画布创作标注,不参与连线域规则 */
 export interface ImageWorkflowStickyNode extends ImageWorkflowNodeBase {
@@ -496,6 +515,10 @@ export interface ImageWorkflowEdge {
   source: string;
   target: string;
   label?: string;
+  /** React Flow 多输入口连线的落点 handle id(09-07 uncloth 编号口:
+   * image/prompt-1/prompt-2);旧边无值=回落纵向序兼容 */
+  targetHandle?: string;
+  sourceHandle?: string;
 }
 
 export interface ImageWorkflowViewport {

@@ -16,6 +16,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Download,
+  Flame,
   Image as ImageIcon,
   Sparkles,
   Square,
@@ -30,6 +31,7 @@ import { LocalImage } from "@/components/ui/local-image";
 import { ResolutionBadge, probeImagePixelSize } from "@/components/ui/image-resolution-badge";
 import { Textarea } from "@/components/ui/textarea";
 import { UnclothNodeEditor } from "@/components/ui/uncloth-node-editor";
+import { NsfwNodeEditor } from "@/components/ui/nsfw-node-editor";
 import { ModelSelector } from "@/components/panels/assist/ModelSelector";
 import { IMAGE_ASPECT_RATIOS, IMAGE_RESOLUTIONS } from "@/lib/ai/image-size-presets";
 import { referenceCapacityForModel } from "./image-studio-node-registry";
@@ -64,6 +66,8 @@ export interface ImageStudioNodeData extends Record<string, unknown> {
   referenceIndex?: number;
   /** 成图节点的无衣物链上游(09-04):提示词经链传入,不显示兜底输入框 */
   hasUnclothUpstream?: boolean;
+  /** 成图节点的 NSFW破限链上游(09-07):提示词经破限节点传入,不显示兜底输入框 */
+  hasNsfwUpstream?: boolean;
   /** 模型专属附加参数(MJ/Ideogram;types/studio 节点模型冻结,存于画布 store) */
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   extras?: Record<string, any>;
@@ -131,7 +135,9 @@ export const ImageStudioNodeCard = memo(function ImageStudioNodeCard({
           ? "便利贴"
           : node.type === "group"
             ? `分组${node.memberIds.length ? ` · ${node.memberIds.length} 节点` : ""}`
-            : "成图";
+            : node.type === "nsfw"
+              ? "专业流增强"
+              : "成图";
 
   return (
     <div
@@ -149,21 +155,58 @@ export const ImageStudioNodeCard = memo(function ImageStudioNodeCard({
               ? "w-[240px]"
               : node.type === "group"
                 ? "w-[480px]"
-                : "w-[560px]",
+                : node.type === "nsfw"
+                  ? "w-[420px]"
+                  : "w-[560px]",
         borderClass,
       )}
     >
-      {node.type === "generated" || node.type === "uncloth" ? (
+      {node.type === "generated" ? (
         <Handle
           type="target"
           position={Position.Left}
           className="h-3! w-3! border-info/40! bg-info/20!"
-          title={
-            node.type === "uncloth"
-              ? "输入口:参考图/成图与提示词连到这里(图生图链驱动两遍采样)"
-              : "输入口:上游参考图/提示词连到这里"
-          }
+          title="输入口:上游参考图/提示词连到这里"
         />
+      ) : null}
+      {node.type === "nsfw" ? (
+        <Handle
+          type="target"
+          position={Position.Left}
+          className="h-3! w-3! border-info/40! bg-info/20!"
+          title="提示词输入口:提示词节点连这里(经本节点增强后供成图)"
+        />
+      ) : null}
+      {node.type === "uncloth" ? (
+        <>
+          <Handle
+            type="target"
+            id="image"
+            position={Position.Left}
+            style={{ top: "30%" }}
+            className="h-3! w-3! border-warning/40! bg-warning/20!"
+            title="图输入:参考图/成图连这里"
+          />
+          <span className="pointer-events-none absolute left-1.5 top-[26%] text-[9px] font-semibold text-warning/80">图</span>
+          <Handle
+            type="target"
+            id="prompt-1"
+            position={Position.Left}
+            style={{ top: "55%" }}
+            className="h-3! w-3! border-info/40! bg-info/20!"
+            title="① 编辑指令提示词连这里(稳定流=状态描述句,不带重绘/锚定等词头)"
+          />
+          <span className="pointer-events-none absolute left-1.5 top-[51%] text-[9px] font-semibold text-info/80">①</span>
+          <Handle
+            type="target"
+            id="prompt-2"
+            position={Position.Left}
+            style={{ top: "80%" }}
+            className="h-3! w-3! border-success/40! bg-success/20!"
+            title="② 一致性描述(system_prompt)提示词连这里(她的脸/发型/姿态…与原图一致)"
+          />
+          <span className="pointer-events-none absolute left-1.5 top-[76%] text-[9px] font-semibold text-success/80">②</span>
+        </>
       ) : null}
       <Handle
         type="source"
@@ -189,6 +232,8 @@ export const ImageStudioNodeCard = memo(function ImageStudioNodeCard({
               <Type className="h-4 w-4" />
             ) : node.type === "uncloth" ? (
               <Shirt className="h-4 w-4" />
+            ) : node.type === "nsfw" ? (
+              <Flame className="h-4 w-4" />
             ) : (
               <WandSparkles className="h-4 w-4" />
             )}
@@ -228,11 +273,14 @@ export const ImageStudioNodeCard = memo(function ImageStudioNodeCard({
         <GroupEditor node={node} onUpdate={data.onUpdate} />
       ) : node.type === "uncloth" ? (
         <UnclothNodeEditor node={node} onUpdate={data.onUpdate} />
+      ) : node.type === "nsfw" ? (
+        <NsfwNodeEditor node={node} />
       ) : (
         <GeneratedNodeEditor
           node={node}
           promptNode={data.promptNode}
           hasUnclothUpstream={data.hasUnclothUpstream}
+          hasNsfwUpstream={data.hasNsfwUpstream}
           referenceCount={data.referenceCount}
           extras={data.extras}
           onUpdate={data.onUpdate}
@@ -477,6 +525,7 @@ function GeneratedNodeEditor({
   node,
   promptNode,
   hasUnclothUpstream,
+  hasNsfwUpstream,
   referenceCount,
   extras,
   onUpdate,
@@ -489,6 +538,7 @@ function GeneratedNodeEditor({
   node: ImageWorkflowGeneratedNode;
   promptNode?: ImageWorkflowPromptNode;
   hasUnclothUpstream?: boolean;
+  hasNsfwUpstream?: boolean;
   referenceCount: number;
   extras?: ImageStudioNodeData["extras"];
   onUpdate: ImageStudioNodeData["onUpdate"];
@@ -759,7 +809,7 @@ function GeneratedNodeEditor({
           </Button>
         )}
       </div>
-      {!promptNode && !hasUnclothUpstream ? (
+      {!promptNode && !hasUnclothUpstream && !hasNsfwUpstream ? (
         <div className="nodrag nopan space-y-2 rounded-md border border-border bg-background/80 p-3">
           <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
             <WandSparkles className="h-3.5 w-3.5 text-info" />

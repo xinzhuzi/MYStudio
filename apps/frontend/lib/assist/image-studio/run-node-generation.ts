@@ -73,6 +73,10 @@ export async function runImageStudioNodeGeneration(
     negativePrompt: request.negativePrompt,
     referenceImages,
     extraParams: {
+      // NSFW破限链(09-07-nsfw-pro-node):nsfwPro 经 extraParams 进请求体
+      // (ai-sdk-bridge Object.assign 透传),引擎层与全局专业流开关注入点合并;
+      // 引擎守卫已在 UI hook 前置(非 Krea2/ComfyUI桥不发起请求)
+      ...(request.nsfwPro ? { use_lora: true } : {}),
       ...(input.extraParams ?? {}),
     },
     signal: input.signal,

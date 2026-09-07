@@ -2,12 +2,13 @@ import { memo, useEffect, useState } from "react";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { UpscaleDenoiseModeField, denoiseModeToOpts, type UpscaleDenoiseMode } from "./upscale-denoise-mode";
 import { Handle, Position, type Node, type NodeProps } from "@xyflow/react";
-import { AlertTriangle, Brush, FileText, Grid2x2, Image as ImageIcon, Loader2, Save, Scissors, Shirt, Trash2, Type, WandSparkles, ZoomIn } from "lucide-react";
+import { AlertTriangle, Brush, FileText, Flame, Grid2x2, Image as ImageIcon, Loader2, Save, Scissors, Shirt, Trash2, Type, WandSparkles, ZoomIn } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { LocalImage } from "@/components/ui/local-image";
 import { ResolutionBadge, probeImagePixelSize } from "@/components/ui/image-resolution-badge";
 import { Textarea } from "@/components/ui/textarea";
 import { UnclothNodeEditor } from "@/components/ui/uncloth-node-editor";
+import { NsfwNodeEditor } from "@/components/ui/nsfw-node-editor";
 import { ModelSelector } from "@/components/panels/assist/ModelSelector";
 import { UPSCALE_INPUT_MAX_LONG_SIDE } from "@/lib/upscale/client";
 import { IMAGE_ASPECT_RATIOS, IMAGE_RESOLUTIONS } from "@/lib/ai/image-size-presets";
@@ -27,6 +28,8 @@ export interface ImageWorkflowNodeData extends Record<string, unknown> {
   /** 无衣物链上游(09-04 通用化):成图有 uncloth 上游时提示词经链传入,
    * 卡上不显示「未连线在此填写」兜底输入框(与图片工作室同裁定) */
   hasUnclothUpstream?: boolean;
+  /** NSFW破限链上游(09-07-nsfw-pro-node):同裁定——提示词经破限节点传入 */
+  hasNsfwUpstream?: boolean;
   selected: boolean;
   storyboards: StoryboardItem[];
   onUpdate: (nodeId: string, updates: Partial<ImageWorkflowNode>) => void;
@@ -92,7 +95,9 @@ export const ImageWorkflowNodeCard = memo(function ImageWorkflowNodeCard({ data 
         ? "图片生成"
         : node.type === "uncloth"
           ? "无衣物"
-          : "生成结果";
+          : node.type === "nsfw"
+            ? "专业流增强"
+            : "生成结果";
 
   return (
     <div
@@ -116,13 +121,44 @@ export const ImageWorkflowNodeCard = memo(function ImageWorkflowNodeCard({ data 
           className="h-3! w-3! border-info/40! bg-info/20!"
         />
       ) : null}
-      {node.type === "uncloth" ? (
+      {node.type === "nsfw" ? (
         <Handle
           type="target"
           position={Position.Left}
-          className="h-3! w-3! border-warning/40! bg-warning/20!"
-          title="输入口:参考图/成图与提示词连到这里(图生图链驱动两遍采样)"
+          className="h-3! w-3! border-info/40! bg-info/20!"
+          title="提示词输入口:提示词节点连这里(经本节点增强后供成图)"
         />
+      ) : null}
+      {node.type === "uncloth" ? (
+        <>
+          <Handle
+            type="target"
+            id="image"
+            position={Position.Left}
+            style={{ top: "30%" }}
+            className="h-3! w-3! border-warning/40! bg-warning/20!"
+            title="图输入:参考图/成图连这里"
+          />
+          <span className="pointer-events-none absolute left-1.5 top-[26%] text-[9px] font-semibold text-warning/80">图</span>
+          <Handle
+            type="target"
+            id="prompt-1"
+            position={Position.Left}
+            style={{ top: "55%" }}
+            className="h-3! w-3! border-info/40! bg-info/20!"
+            title="① 编辑指令提示词连这里(稳定流=状态描述句,不带重绘/锚定等词头)"
+          />
+          <span className="pointer-events-none absolute left-1.5 top-[51%] text-[9px] font-semibold text-info/80">①</span>
+          <Handle
+            type="target"
+            id="prompt-2"
+            position={Position.Left}
+            style={{ top: "80%" }}
+            className="h-3! w-3! border-success/40! bg-success/20!"
+            title="② 一致性描述(system_prompt)提示词连这里(她的脸/发型/姿态…与原图一致)"
+          />
+          <span className="pointer-events-none absolute left-1.5 top-[76%] text-[9px] font-semibold text-success/80">②</span>
+        </>
       ) : null}
       <Handle type="source" position={Position.Right} className="h-3! w-3! border-info/40! bg-info/20!" />
       <div className="mb-3 flex items-start justify-between gap-2">
@@ -130,13 +166,13 @@ export const ImageWorkflowNodeCard = memo(function ImageWorkflowNodeCard({ data 
           <span
             className={cn(
               "flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border",
-              node.type === "reference"
-                ? "border-success/30 bg-success/10 text-success"
-                : node.type === "prompt"
-                  ? "border-info/30 bg-info/10 text-info"
-                  : node.type === "uncloth"
-                    ? "border-warning/30 bg-warning/10 text-warning"
-                    : "border-primary/30 bg-primary/10 text-primary",
+                node.type === "reference"
+                  ? "border-success/30 bg-success/10 text-success"
+                  : node.type === "prompt"
+                    ? "border-info/30 bg-info/10 text-info"
+                    : node.type === "uncloth" || node.type === "nsfw"
+                      ? "border-warning/30 bg-warning/10 text-warning"
+                      : "border-primary/30 bg-primary/10 text-primary",
             )}
           >
             {node.type === "reference" ? (
@@ -145,6 +181,8 @@ export const ImageWorkflowNodeCard = memo(function ImageWorkflowNodeCard({ data 
               <Type className="h-4 w-4" />
             ) : node.type === "uncloth" ? (
               <Shirt className="h-4 w-4" />
+            ) : node.type === "nsfw" ? (
+              <Flame className="h-4 w-4" />
             ) : (
               <WandSparkles className="h-4 w-4" />
             )}
@@ -237,11 +275,14 @@ export const ImageWorkflowNodeCard = memo(function ImageWorkflowNodeCard({ data 
         <PromptNodeEditor node={node} onUpdate={data.onUpdate} />
       ) : node.type === "uncloth" ? (
         <UnclothNodeEditor node={node} onUpdate={data.onUpdate} />
+      ) : node.type === "nsfw" ? (
+        <NsfwNodeEditor node={node} />
       ) : node.type === "generated" ? (
         <GeneratedNodeEditor
           node={node}
           promptNode={data.promptNode}
           hasUnclothUpstream={data.hasUnclothUpstream}
+          hasNsfwUpstream={data.hasNsfwUpstream}
           onUpdate={data.onUpdate}
           onGenerate={data.onGenerate}
           onUpscale={data.onUpscale}
@@ -326,6 +367,7 @@ function GeneratedNodeEditor({
   node,
   promptNode,
   hasUnclothUpstream,
+  hasNsfwUpstream,
   onUpdate,
   onGenerate,
   onUpscale,
@@ -334,6 +376,7 @@ function GeneratedNodeEditor({
   node: ImageWorkflowGeneratedNode;
   promptNode?: ImageWorkflowPromptNode;
   hasUnclothUpstream?: boolean;
+  hasNsfwUpstream?: boolean;
   onUpdate: ImageWorkflowNodeData["onUpdate"];
   onGenerate: ImageWorkflowNodeData["onGenerate"];
   onUpscale: ImageWorkflowNodeData["onUpscale"];
@@ -475,8 +518,8 @@ function GeneratedNodeEditor({
           </Button>
       </div>
       {/* 无衣物链上游(用户裁定 09-04 c7e6268 同款):不显示兜底提示词面板,
-          也不显示链路说明文字——零文字占位,生成按钮自明 */}
-      {!promptNode && !hasUnclothUpstream ? (
+          也不显示链路说明文字——零文字占位,生成按钮自明;nsfw 链同裁定(09-07) */}
+      {!promptNode && !hasUnclothUpstream && !hasNsfwUpstream ? (
         <div
           data-toonflow-generated-prompt-panel
           className="nodrag nopan space-y-3 rounded-md border border-border bg-background/80 p-3"

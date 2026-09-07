@@ -80,6 +80,8 @@ describe("image workflow graph", () => {
       ],
       continuityRequired: false,
       previousApprovedFrameIncluded: false,
+      // 无 nsfw 链=存量画布行为零变化(09-07-nsfw-pro-node)
+      nsfwPro: false,
     });
   });
 

@@ -501,6 +501,8 @@ export function ImageStudioCanvas() {
         focusPromptNodeWhenReady(group?.promptNodeId);
       } else if (kind === "uncloth") {
         store.addUnclothNode({ position: paneCreate?.world });
+      } else if (kind === "nsfw") {
+        store.addNsfwNode({ position: paneCreate?.world });
       } else if (kind === "reference") {
         store.addReferenceNode({ imageUrl: "", position: paneCreate?.world });
       } else if (kind === "sticky") {
@@ -560,6 +562,13 @@ export function ImageStudioCanvas() {
             const src = nodesById.get(edge.source);
             return edge.target === node.id && src?.type === "uncloth";
           }),
+        // NSFW破限链上游(09-07):同裁定——提示词经破限节点传入
+        hasNsfwUpstream:
+          node.type === "generated" &&
+          activeGraph.edges.some((edge) => {
+            const src = nodesById.get(edge.source);
+            return edge.target === node.id && src?.type === "nsfw";
+          }),
         selected: node.id === selectedNodeId,
         referenceIndex:
           node.type === "reference" ? referenceIndexOf(activeGraph, node.id) : undefined,
@@ -612,10 +621,17 @@ export function ImageStudioCanvas() {
       (activeGraph?.edges ?? []).map((edge) => {
         const related = selectedNodeId && relatedEdgeIds.has(edge.id);
         const dim = selectedNodeId && relatedEdgeIds.size > 0 && !related;
+        const tgt = (activeGraph?.nodes ?? []).find((node) => node.id === edge.target);
+        const src = (activeGraph?.nodes ?? []).find((node) => node.id === edge.source);
         return {
           id: edge.id,
           source: edge.source,
           target: edge.target,
+          targetHandle:
+            edge.targetHandle ??
+            (tgt?.type === "uncloth"
+              ? src?.type === "prompt" ? "prompt-1" : "image"
+              : undefined),
           markerEnd: { type: MarkerType.ArrowClosed, color: "#67e8f9" },
           interactionWidth: 10,
           style: {
@@ -625,24 +641,24 @@ export function ImageStudioCanvas() {
           },
         };
       }),
-    [activeGraph?.edges, relatedEdgeIds, selectedNodeId],
+    [activeGraph?.edges, activeGraph?.nodes, relatedEdgeIds, selectedNodeId],
   );
 
   const handleConnect = useCallback(
-    (connection: { source: string | null; target: string | null }) => {
+    (connection: { source: string | null; target: string | null; targetHandle?: string | null }) => {
       if (!connection.source || !connection.target) return;
       const graph = selectActiveImageStudioWorkflow(useImageStudioStore.getState());
       const target = graph?.nodes.find((node) => node.id === connection.target);
-      if (target?.type !== "generated") {
-        toast.error("连线目标必须是成图节点");
+      if (target?.type !== "generated" && target?.type !== "uncloth") {
+        toast.error("连线目标必须是成图或无衣物节点");
         return;
       }
       const source = graph?.nodes.find((node) => node.id === connection.source);
-      if (source?.type === "prompt" && graph && hasPromptSource(graph, connection.target)) {
+      if (source?.type === "prompt" && target?.type === "generated" && graph && hasPromptSource(graph, connection.target)) {
         toast.error("该成图已接提示词:一个成图只接一根提示词连线,请先断开原有的再连");
         return;
       }
-      connect(connection.source, connection.target);
+      connect(connection.source, connection.target, connection.targetHandle ?? undefined);
     },
     [connect],
   );
@@ -712,6 +728,7 @@ export function ImageStudioCanvas() {
           focusPromptNodeWhenReady(group?.promptNodeId);
         }}
         onAddUncloth={() => useImageStudioStore.getState().addUnclothNode()}
+        onAddNsfw={() => useImageStudioStore.getState().addNsfwNode()}
         onAddReference={() => openPicker({ mode: "new-reference" })}
         onAddPrompt={() => useImageStudioStore.getState().addPromptNode()}
         onTidy={() => useImageStudioStore.getState().applyLayout()}
@@ -1124,15 +1141,23 @@ function ImageStudioFlowView({
         onContextMenuCapture={mouseButtonPan.onContextMenuCapture}
         onNodesDelete={(deleted) => onNodesDelete(deleted.map((node) => node.id))}
         onEdgesDelete={(deleted) => onEdgesDelete(deleted.map((edge) => edge.id))}
-        isValidConnection={(connection) =>
-          connection.target !== connection.source &&
-          graph?.nodes.find((node) => node.id === connection.target)?.type === "generated" &&
-          !(
-            connection.source &&
-            graph?.nodes.find((node) => node.id === connection.source)?.type === "prompt" &&
-            hasPromptSource(graph, connection.target)
-          )
-        }
+        isValidConnection={(connection) => {
+          const targetType = graph?.nodes.find((node) => node.id === connection.target)?.type;
+          // NSFW破限(09-07):只吃提示词入边(粗校验;互斥细则由 connect 时的
+          // isValidImageEdge 单源把关);nsfw→成图 落入下方 generated 通用分支
+          if (targetType === "nsfw") {
+            return connection.target !== connection.source
+              && Boolean(connection.source)
+              && graph?.nodes.find((node) => node.id === connection.source)?.type === "prompt";
+          }
+          return connection.target !== connection.source &&
+            targetType === "generated" &&
+            !(
+              connection.source &&
+              graph?.nodes.find((node) => node.id === connection.source)?.type === "prompt" &&
+              hasPromptSource(graph, connection.target)
+            );
+        }}
         onInit={(instance) => {
           setFlowInstance(instance);
           onInit(instance);

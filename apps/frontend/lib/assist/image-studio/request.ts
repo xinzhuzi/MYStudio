@@ -7,6 +7,7 @@ import {
   getGeneratedNode,
 } from "@/lib/studio/image-workflow/graph-build";
 import { orderedReferenceSources } from "@/lib/assist/image-studio/reference-order";
+import { findNsfwUpstream, findPromptViaNsfw } from "@/lib/assist/image-studio/nsfw-request";
 import type {
   ImageWorkflowGraph,
 } from "@/types/studio";
@@ -27,6 +28,11 @@ export interface ImageStudioGenerationRequest {
   resolution?: string;
   /** 参考图地址(受管 scheme):参考图节点 imageUrl + 上游成图 resultUrl,按连线顺序 */
   referenceImages: string[];
+  /**
+   * NSFW破限链标记(09-07-nsfw-pro-node):成图上游挂 nsfw 节点时为 true,
+   * 请求注入 use_lora 走「Krea2-NSFW专业流」(仅本地 Krea2/ComfyUI桥消费)。
+   */
+  nsfwPro?: boolean;
 }
 
 /** 成图节点的生成模式显式判定(09-03 用户裁定:t2i/i2i 参数不混淆,
@@ -66,7 +72,12 @@ export function buildImageStudioGenerationRequest(
   nodeId: string,
 ): ImageStudioGenerationRequest {
   const node = getGeneratedNode(graph, nodeId);
-  const promptNode = findPromptNodeForGenerated(graph, nodeId);
+  // NSFW破限链(09-07):提示词通道=直连 prompt 或 nsfw 链二选一(连线
+  // 互斥规则保证不共存);nsfw 链时提示词取 nsfw 上游的提示词节点,
+  // 参数(model/画幅/分辨率)权威仍在成图节点
+  const nsfwUpstream = findNsfwUpstream(graph, nodeId);
+  const promptViaNsfw = nsfwUpstream ? findPromptViaNsfw(graph, nsfwUpstream.id) : undefined;
+  const promptNode = promptViaNsfw ?? findPromptNodeForGenerated(graph, nodeId);
   const promptSource = promptNode ?? node;
   // 参考源顺序=编号单源(reference-order:位置序)——节点显示的「参考图 N」
   // 与发往引擎的数组下标同源;本地 Krea2 只吃第 1 张=画布最上面的参考图
@@ -85,5 +96,6 @@ export function buildImageStudioGenerationRequest(
     aspectRatio: node.aspectRatio,
     resolution: node.resolution ?? promptSource.resolution,
     referenceImages,
+    nsfwPro: nsfwUpstream !== undefined,
   };
 }

@@ -11,6 +11,7 @@ import {
   addPromptImageNode,
   addReferenceImageNode,
   addUnclothImageNode,
+  addNsfwImageNode,
   connectImageWorkflowNodes,
   removeImageWorkflowEdge,
   updateImageWorkflowNode,
@@ -98,6 +99,14 @@ export function useImageWorkflowCommands({
                 command.nodeType === "uncloth-fast" ? "fast"
                   : command.nodeType === "uncloth-instruct" ? "instruct" : undefined,
             });
+            saveGraph(next);
+            const nodeId = next.nodes[next.nodes.length - 1]?.id ?? "";
+            setSelectedNodeId(nodeId);
+            return { ok: true, detail: { nodeId } };
+          }
+          if (command.nodeType === "nsfw") {
+            // NSFW破限(09-07-nsfw-pro-node):显式分支防 fall-through 误建参考图
+            const next = addNsfwImageNode(graph, { position });
             saveGraph(next);
             const nodeId = next.nodes[next.nodes.length - 1]?.id ?? "";
             setSelectedNodeId(nodeId);

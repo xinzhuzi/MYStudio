@@ -5,6 +5,7 @@
 import { describe, expect, it } from "vitest";
 import {
   addGeneratedImageNode,
+  addNsfwImageNode,
   addPromptImageNode,
   addReferenceImageNode,
   connectImageWorkflowNodes,
@@ -138,6 +139,44 @@ describe("buildImageStudioGenerationRequest", () => {
       ),
     };
     expect(buildImageStudioGenerationRequest(cleared, "gen-1").prompt).toBe("");
+  });
+
+  it("NSFW破限链(09-07):提示词经破限节点取,nsfwPro=true;参考图仍直连收集", () => {
+    let graph = createImageWorkflowGraph();
+    graph = addPromptImageNode(graph, {
+      id: "prompt-1",
+      prompt: " 经破限链的提示词 ",
+      negativePrompt: " 模糊 ",
+      position: { x: 0, y: 0 },
+    });
+    graph = addNsfwImageNode(graph, { id: "nsfw-1", position: { x: 100, y: 0 } });
+    graph = addGeneratedImageNode(graph, {
+      id: "gen-1",
+      prompt: "inline-ignored",
+      model: "krea2-turbo",
+      aspectRatio: "16:9",
+      position: { x: 300, y: 0 },
+    });
+    graph = addReferenceImageNode(graph, {
+      id: "ref-1",
+      imageUrl: "local-image://upload/a.png",
+      position: { x: 0, y: 100 },
+    });
+    graph = connectImageWorkflowNodes(graph, { source: "prompt-1", target: "nsfw-1" });
+    graph = connectImageWorkflowNodes(graph, { source: "nsfw-1", target: "gen-1" });
+    graph = connectImageWorkflowNodes(graph, { source: "ref-1", target: "gen-1" });
+
+    const request = buildImageStudioGenerationRequest(graph, "gen-1");
+    expect(request.prompt).toBe("经破限链的提示词");
+    expect(request.negativePrompt).toBe("模糊");
+    expect(request.nsfwPro).toBe(true);
+    expect(request.model).toBe("krea2-turbo");
+    expect(request.referenceImages).toEqual(["local-image://upload/a.png"]);
+  });
+
+  it("无 nsfw 链时 nsfwPro 不置位(存量画布行为零变化)", () => {
+    const request = buildImageStudioGenerationRequest(buildGraph(), "gen-1");
+    expect(request.nsfwPro).toBeFalsy();
   });
 });
 

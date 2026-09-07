@@ -35,6 +35,10 @@ export const IMAGE_STUDIO_NODE_META: Record<ImageWorkflowNodeType, ImageStudioNo
     label: "无衣物",
     description: "衣物区域局部重绘(双分割+两遍采样);输入图+文本,输出连成图节点",
   },
+  nsfw: {
+    label: "NSFW破限",
+    description: "Krea2-NSFW专业流增强:提示词经此节点连成图,生成本地自动挂专业流 LoRA 栈与重平衡(仅 Krea2/ComfyUI桥)",
+  },
   sticky: {
     label: "便利贴",
     description: "画布创作标注(换色/编辑),不参与连线",

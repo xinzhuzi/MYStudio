@@ -64,6 +64,11 @@ export function useImageStudioCommands({
             const id = store.addUnclothNode();
             return { ok: true, detail: { nodeId: id } };
           }
+          if (command.nodeType === "nsfw") {
+            // NSFW破限(09-07-nsfw-pro-node):显式分支防 fall-through 误建文生图组
+            const id = store.addNsfwNode();
+            return { ok: true, detail: { nodeId: id } };
+          }
           const group = store.addGenerationGroup();
           return {
             ok: true,
@@ -87,7 +92,10 @@ export function useImageStudioCommands({
           const source = graph?.nodes.find((item) => item.id === command.source);
           const target = graph?.nodes.find((item) => item.id === command.target);
           if (!source || !target) return { ok: false, reason: "连线端点不存在" };
-          if (target.type !== "generated") return { ok: false, reason: "边只指向成图节点" };
+          // 目标=成图,或 nsfw 的提示词入边(09-07);细则由 store.connect 单源把关
+          if (target.type !== "generated" && !(target.type === "nsfw" && source.type === "prompt")) {
+            return { ok: false, reason: "边只指向成图节点(或 NSFW破限节点的提示词入边)" };
+          }
           store.connect(command.source, command.target);
           return { ok: true };
         }

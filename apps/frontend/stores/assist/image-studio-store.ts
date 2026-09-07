@@ -19,6 +19,7 @@ import {
   setGeneratedImageStatus,
   updateImageWorkflowNode,
   addUnclothImageNode,
+  addNsfwImageNode,
 } from "@/lib/studio/image-workflow/graph-build";
 import {
   layoutImageStudioGraph,
@@ -79,14 +80,15 @@ export interface ImageStudioStoreActions {
   duplicateNode: (nodeId: string) => string | null;
   /** 导入画布 JSON(09-02 R2):校验形状→新画布落节点;media 失效节点降级占位 */
   importWorkflow: (payload: unknown) => { ok: true; id: string } | { ok: false; error: string };
-  connect: (source: string, target: string) => void;
+  connect: (source: string, target: string, targetHandle?: string) => void;
   removeEdge: (edgeId: string) => void;
   setViewport: (viewport: ImageWorkflowViewport) => void;
   applyLayout: () => void;
   addReferenceNode: (input: { imageUrl: string; title?: string; position?: ImageWorkflowNodePosition }) => string;
   addPromptNode: (input?: { prompt?: string; negativePrompt?: string; position?: ImageWorkflowNodePosition }) => string;
   /** 无衣物改图节点(09-04):输入图+文本边,输出连成图;参数全量可选 */
-  addUnclothNode: (input?: { prompt?: string; position?: ImageWorkflowNodePosition }) => string;
+  addUnclothNode: (input?: { prompt?: string; position?: ImageWorkflowNodePosition; variant?: "instruct" | "fine" }) => string;
+  addNsfwNode: (input?: { position?: ImageWorkflowNodePosition }) => string;
   /** 便利贴(09-03 wave3):画布标注件 */
   addStickyNote: (input?: { text?: string; color?: "yellow" | "green" | "blue" | "pink" | "gray"; position?: ImageWorkflowNodePosition }) => string;
   /** Group 框组(09-03 wave3):视觉容器 */
@@ -358,7 +360,7 @@ export const useImageStudioStore = create<ImageStudioStore>()(
         if (!Array.isArray(data.nodes) || !Array.isArray(data.edges)) {
           return { ok: false, error: "缺少 nodes/edges 数组" };
         }
-        const validTypes = new Set(["reference", "prompt", "generated"]);
+        const validTypes = new Set(["reference", "prompt", "generated", "nsfw"]);
         const nodes = (data.nodes as Array<Record<string, unknown>>).filter(
           (node) => typeof node.id === "string" && typeof node.type === "string" && validTypes.has(node.type),
         );
@@ -379,7 +381,12 @@ export const useImageStudioStore = create<ImageStudioStore>()(
             return false;
           }
           if (edge.source === edge.target) return false;
-          if (nodeTypeById.get(edge.target as string) !== "generated") return false;
+          // 目标=成图(任意上游)或 nsfw 链的提示词入边(prompt→nsfw)
+          const targetType = nodeTypeById.get(edge.target as string);
+          if (
+            targetType !== "generated"
+            && !(targetType === "nsfw" && nodeTypeById.get(edge.source as string) === "prompt")
+          ) return false;
           const pair = `${edge.source}->${edge.target}`;
           if (seenEdgePairs.has(pair)) return false;
           seenEdgePairs.add(pair);
@@ -464,6 +471,13 @@ export const useImageStudioStore = create<ImageStudioStore>()(
               position: offset,
             });
           }
+          if (source.type === "nsfw") {
+            return addNsfwImageNode(current, {
+              id,
+              title: `${source.title} 副本`,
+              position: offset,
+            });
+          }
           return addGeneratedImageNode(current, {
             id,
             title: `${source.title} 副本`,
@@ -495,9 +509,9 @@ export const useImageStudioStore = create<ImageStudioStore>()(
         get().updateActiveWorkflow((graph) => removeImageWorkflowNode(graph, nodeId));
       },
 
-      connect: (source, target) => {
+      connect: (source, target, targetHandle) => {
         get().updateActiveWorkflow((graph) =>
-          connectImageWorkflowNodes(graph, { source, target }),
+          connectImageWorkflowNodes(graph, { source, target, targetHandle }),
         );
       },
 
@@ -570,18 +584,36 @@ export const useImageStudioStore = create<ImageStudioStore>()(
         );
         return id;
       },
-      addUnclothNode: (input?: { prompt?: string; position?: ImageWorkflowNodePosition }) => {
+      addUnclothNode: (input?: { prompt?: string; position?: ImageWorkflowNodePosition; variant?: "instruct" | "fine" }) => {
         ensureActiveCanvas(get, set);
         const graph = selectActiveImageStudioWorkflow(get());
         if (!graph) {
           throw new Error("画布未就绪");
         }
         const id = createId("uncloth");
+        // 09-07 用户裁定:图片工作室新建无衣物节点=稳定版指令档(遮罩流另立节点待做)
+        const variant = input?.variant ?? "instruct";
         get().updateActiveWorkflow(() =>
           addUnclothImageNode(graph, {
             id,
-            title: "无衣物",
+            variant,
+            title: variant === "instruct" ? "无衣物·指令" : "无衣物",
             prompt: input?.prompt,
+            position: input?.position,
+          }),
+        );
+        return id;
+      },
+      addNsfwNode: (input?: { position?: ImageWorkflowNodePosition }) => {
+        ensureActiveCanvas(get, set);
+        const graph = selectActiveImageStudioWorkflow(get());
+        if (!graph) {
+          throw new Error("画布未就绪");
+        }
+        const id = createId("nsfw");
+        get().updateActiveWorkflow(() =>
+          addNsfwImageNode(graph, {
+            id,
             position: input?.position,
           }),
         );

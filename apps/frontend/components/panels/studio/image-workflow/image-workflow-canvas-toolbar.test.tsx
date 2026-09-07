@@ -23,6 +23,7 @@ function renderToolbar(overrides: Partial<Parameters<typeof ImageWorkflowCanvasT
       onUploadReferenceClick={vi.fn()}
       onAddGeneratedNode={vi.fn()}
       onAddUnclothNode={vi.fn()}
+      onAddNsfwNode={vi.fn()}
       onAddStoryboardLayeredPair={vi.fn()}
       workflowWritebackTargetLabel="分镜 1"
       onApplyToStoryboard={vi.fn()}

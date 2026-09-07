@@ -7,6 +7,7 @@ import {
   addPromptImageNode,
   addReferenceImageNode,
   addUnclothImageNode,
+  addNsfwImageNode,
   connectImageWorkflowNodes,
   createId,
   hasPromptSource,
@@ -205,6 +206,18 @@ export function useImageWorkflowActions({
     setSelectedNodeId(id);
   }, [activeGraph, saveGraph, setSelectedNodeId]);
 
+  // NSFW破限节点(09-07-nsfw-pro-node):输入列第四区堆叠落位;一期零参数,
+  // 连线 提示词→破限→成图 由用户按链规则手搭
+  const addNsfwNode = useCallback(() => {
+    if (!activeGraph) return;
+    const id = createId("nsfw");
+    saveGraph(addNsfwImageNode(activeGraph, {
+      id,
+      position: nextNodePosition(activeGraph, "nsfw"),
+    }));
+    setSelectedNodeId(id);
+  }, [activeGraph, saveGraph, setSelectedNodeId]);
+
   const deleteNode = useCallback((nodeId: string) => {
     if (!activeGraph) return;
     saveGraph(removeImageWorkflowNode(activeGraph, nodeId));
@@ -221,18 +234,19 @@ export function useImageWorkflowActions({
   const handleConnect = useCallback((connection: Connection) => {
     if (!activeGraph || !connection.source || !connection.target) return;
     const target = activeGraph.nodes.find((node) => node.id === connection.target);
-    if (target?.type !== "generated") {
-      toast.error("连线目标必须是成图节点");
+    if (target?.type !== "generated" && target?.type !== "uncloth" && target?.type !== "nsfw") {
+      toast.error("连线目标必须是成图、无衣物或 NSFW破限节点");
       return;
     }
     const source = activeGraph.nodes.find((node) => node.id === connection.source);
-    if (source?.type === "prompt" && hasPromptSource(activeGraph, connection.target)) {
+    if (source?.type === "prompt" && target?.type === "generated" && hasPromptSource(activeGraph, connection.target)) {
       toast.error("该成图已接提示词:一个成图只接一根提示词连线,请先断开原有的再连");
       return;
     }
     saveGraph(connectImageWorkflowNodes(activeGraph, {
       source: connection.source,
       target: connection.target,
+      targetHandle: connection.targetHandle ?? undefined,
     }));
   }, [activeGraph, saveGraph]);
 
@@ -339,6 +353,7 @@ export function useImageWorkflowActions({
     addReferenceFromStoryboard,
     addGeneratedNode,
     addUnclothNode,
+    addNsfwNode,
     addStoryboardLayeredPair,
     deleteNode,
     deleteSelectedEdge,

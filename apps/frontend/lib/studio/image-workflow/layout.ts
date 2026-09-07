@@ -2,6 +2,7 @@ import type {
   ImageWorkflowGeneratedNode,
   ImageWorkflowGraph,
   ImageWorkflowNode,
+  ImageWorkflowNsfwNode,
   ImageWorkflowPromptNode,
   ImageWorkflowReferenceNode,
   ImageWorkflowUnclothNode,
@@ -28,9 +29,12 @@ export const IMAGE_WORKFLOW_LAYOUT = {
   // 跨泳道,与提示词/参考同构;缺槽位会让 nextStackedPosition/重叠检测
   // 对 uncloth 节点直接崩(IMAGE_WORKFLOW_LAYOUT[type] 为 undefined)
   uncloth: { width: 420, height: 520, x: 80, baseY: 100, vGap: 120 },
+  // NSFW破限(09-07-nsfw-pro-node):输入列第四区(无衣物区之下)——
+  // 提示词通道中介,同左列拓扑;缺槽位同崩(Record 缺键)
+  nsfw: { width: 420, height: 360, x: 80, baseY: 100, vGap: 120 },
 } as const;
 
-const LEFT_COLUMN_TYPES = new Set<ImageWorkflowNode["type"]>(["reference", "prompt", "uncloth"]);
+const LEFT_COLUMN_TYPES = new Set<ImageWorkflowNode["type"]>(["reference", "prompt", "uncloth", "nsfw"]);
 
 /** 输入列提示词区第 index 槽(提示词永远在最上方,紧邻成图列顶部) */
 export function promptSlotPosition(index: number) {
@@ -59,6 +63,27 @@ export function unclothSlotPosition(index: number, promptCount: number, referenc
     y: spec.baseY
       + promptCount * (prompt.height + prompt.vGap)
       + referenceCount * (reference.height + reference.vGap)
+      + index * (spec.height + spec.vGap),
+  };
+}
+
+/** 输入列 NSFW破限区第 index 槽(无衣物区之下,按建流顺序) */
+export function nsfwSlotPosition(
+  index: number,
+  promptCount: number,
+  referenceCount: number,
+  unclothCount: number,
+) {
+  const prompt = IMAGE_WORKFLOW_LAYOUT.prompt;
+  const reference = IMAGE_WORKFLOW_LAYOUT.reference;
+  const uncloth = IMAGE_WORKFLOW_LAYOUT.uncloth;
+  const spec = IMAGE_WORKFLOW_LAYOUT.nsfw;
+  return {
+    x: spec.x,
+    y: spec.baseY
+      + promptCount * (prompt.height + prompt.vGap)
+      + referenceCount * (reference.height + reference.vGap)
+      + unclothCount * (uncloth.height + uncloth.vGap)
       + index * (spec.height + spec.vGap),
   };
 }
@@ -179,6 +204,18 @@ export function tidyImageWorkflowLayout(graph: ImageWorkflowGraph): ImageWorkflo
     (left.createdAt ?? 0) - (right.createdAt ?? 0) || left.__order - right.__order);
   uncloths.forEach((node, index) => {
     positionById.set(node.id, unclothSlotPosition(index, prompts.length, references.length));
+  });
+  // NSFW破限区垫在无衣物区之下(建流顺序)
+  const nsfws = stableNodeOrder(
+    graph.nodes.filter((node): node is ImageWorkflowNsfwNode => node.type === "nsfw"),
+  );
+  nsfws.sort((left, right) =>
+    (left.createdAt ?? 0) - (right.createdAt ?? 0) || left.__order - right.__order);
+  nsfws.forEach((node, index) => {
+    positionById.set(
+      node.id,
+      nsfwSlotPosition(index, prompts.length, references.length, uncloths.length),
+    );
   });
 
   if (positionById.size !== graph.nodes.length) {

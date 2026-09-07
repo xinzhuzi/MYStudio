@@ -4,6 +4,7 @@
 
 import {
   Download,
+  Flame as FlameIcon,
   FolderOpen,
   Image as ImageIcon,
   ImagePlus,
@@ -50,6 +51,7 @@ export function ImageStudioToolbar({
   onAddImageToImage,
   onAddReference,
   onAddUncloth,
+  onAddNsfw,
   onAddPrompt,
   onTidy,
   onOpenHistory,
@@ -68,6 +70,7 @@ export function ImageStudioToolbar({
   onAddImageToImage: () => void;
   onAddReference: () => void;
   onAddUncloth: () => void;
+  onAddNsfw: () => void;
   onAddPrompt: () => void;
   onTidy: () => void;
   onOpenHistory: () => void;
@@ -116,6 +119,10 @@ export function ImageStudioToolbar({
           <DropdownMenuItem onSelect={onAddUncloth} data-image-studio-add-uncloth>
             <ShirtIcon className="mr-2 h-3.5 w-3.5" />
             无衣物
+          </DropdownMenuItem>
+          <DropdownMenuItem onSelect={onAddNsfw} data-image-studio-add-nsfw>
+            <FlameIcon className="mr-2 h-3.5 w-3.5" />
+            NSFW破限
           </DropdownMenuItem>
           <DropdownMenuItem onSelect={onAddReference} data-image-studio-add-reference>
             <ImageIcon className="mr-2 h-3.5 w-3.5" />

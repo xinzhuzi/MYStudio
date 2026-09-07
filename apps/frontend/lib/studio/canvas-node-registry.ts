@@ -74,6 +74,17 @@ const IMAGE_WORKFLOW_DEFINITIONS: readonly CanvasNodeEntry[] = [
     outputs: [{ kind: "generated-image", description: "处理结果直通下游成图节点" }],
     miniMapToken: "warning",
   },
+  {
+    // 通用节点(09-07-nsfw-pro-node):提示词→NSFW破限→成图,成图生成
+    // 即走「Krea2-NSFW专业流」(use_lora 注入,sidecar 挂固定 LoRA 栈+重平衡)
+    typeId: "nsfw",
+    surface: "image-workflow",
+    label: "NSFW破限节点",
+    description: "Krea2-NSFW专业流增强:提示词经此节点连成图,生成自动挂专业流 LoRA 栈与重平衡(仅 Krea2/ComfyUI桥)",
+    actions: ["update", "delete"] as const,
+    outputs: [{ kind: "prompt-text", description: "专业流提示词通道,连成图节点启用增强" }],
+    miniMapToken: "warning",
+  },
 ];
 
 /** panels 侧生产流定义经此注入(模块加载一次) */
