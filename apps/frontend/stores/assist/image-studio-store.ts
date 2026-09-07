@@ -360,7 +360,8 @@ export const useImageStudioStore = create<ImageStudioStore>()(
         if (!Array.isArray(data.nodes) || !Array.isArray(data.edges)) {
           return { ok: false, error: "缺少 nodes/edges 数组" };
         }
-        const validTypes = new Set(["reference", "prompt", "generated", "nsfw"]);
+        // 09-07 承受力补:uncloth 节点纳入导入白名单(此前导出含/导入即丢)
+        const validTypes = new Set(["reference", "prompt", "generated", "nsfw", "uncloth"]);
         const nodes = (data.nodes as Array<Record<string, unknown>>).filter(
           (node) => typeof node.id === "string" && typeof node.type === "string" && validTypes.has(node.type),
         );
@@ -381,11 +382,20 @@ export const useImageStudioStore = create<ImageStudioStore>()(
             return false;
           }
           if (edge.source === edge.target) return false;
-          // 目标=成图(任意上游)或 nsfw 链的提示词入边(prompt→nsfw)
+          // 目标=成图(任意上游)/nsfw 链提示词入边(prompt→nsfw)/uncloth 入边
+          // (口别与单源同款;无 handle 存量边回落:prompt 源→①口,图源→image 口)
           const targetType = nodeTypeById.get(edge.target as string);
-          if (
+          const sourceType = nodeTypeById.get(edge.source as string);
+          if (targetType === "uncloth") {
+            const port = typeof edge.targetHandle === "string" ? edge.targetHandle
+              : sourceType === "prompt" ? "prompt-1" : "image";
+            const portOk = sourceType === "prompt"
+              ? port === "prompt-1" || port === "prompt-2"
+              : port === "image" && (sourceType === "reference" || sourceType === "generated" || sourceType === "uncloth");
+            if (!portOk) return false;
+          } else if (
             targetType !== "generated"
-            && !(targetType === "nsfw" && nodeTypeById.get(edge.source as string) === "prompt")
+            && !(targetType === "nsfw" && sourceType === "prompt")
           ) return false;
           // 去重键带 handle(09-07 双出口):同对节点正/负两根边合法共存,
           // 裸 source->target 会误判重复丢边

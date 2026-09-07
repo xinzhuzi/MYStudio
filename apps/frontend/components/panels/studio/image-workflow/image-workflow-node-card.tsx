@@ -382,7 +382,7 @@ function PromptNodeEditor({
       <Textarea
         value={node.negativePrompt ?? ""}
         onChange={(event) => onUpdate(node.id, { negativePrompt: event.target.value } as Partial<ImageWorkflowNode>)}
-        placeholder="反向提示词（可选）"
+        placeholder="反向提示词(可选)——从右侧「负」口连出去才生效,直连整节点时正负一起发"
         className="nodrag nopan min-h-[54px] [field-sizing:content] border-border bg-background/80 text-xs leading-5 text-foreground"
       />
     </div>
@@ -566,7 +566,7 @@ function GeneratedNodeEditor({
           <Textarea
             value={generationPrompt.negativePrompt ?? ""}
             onChange={(event) => updateGenerationPrompt({ negativePrompt: event.target.value })}
-            placeholder="反向提示词（可选）"
+            placeholder="反向提示词(可选;若连了「负」口连线则连线优先)"
             className="min-h-[44px] [field-sizing:content] border-border bg-card/80 text-xs leading-5 text-foreground"
           />
         </div>

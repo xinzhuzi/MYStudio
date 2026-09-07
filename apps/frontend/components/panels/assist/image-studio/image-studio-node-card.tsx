@@ -464,7 +464,7 @@ function PromptNodeEditor({
         value={negativeInput.value}
         onChange={(event) => negativeInput.onChange(event.target.value)}
         onBlur={negativeInput.onBlur}
-        placeholder="反向提示词（可选）"
+        placeholder="反向提示词(可选)——从右侧「负」口连出去才生效,直连整节点时正负一起发"
         className="nodrag nopan min-h-[48px] [field-sizing:content] border-border bg-background/80 text-xs leading-5 text-foreground"
       />
     </div>
@@ -852,7 +852,7 @@ function GeneratedNodeEditor({
             value={genNegativeInput.value}
             onChange={(event) => genNegativeInput.onChange(event.target.value)}
             onBlur={genNegativeInput.onBlur}
-            placeholder="反向提示词（可选）"
+            placeholder="反向提示词(可选;若连了「负」口连线则连线优先)"
             className="min-h-[40px] [field-sizing:content] border-border bg-card/80 text-xs leading-5 text-foreground"
           />
         </div>

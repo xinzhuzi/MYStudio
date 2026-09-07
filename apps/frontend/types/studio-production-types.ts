@@ -346,7 +346,7 @@ export interface ImageWorkflowUnclothNode extends ImageWorkflowNodeBase {
   mysticStrength?: number;
   /** 破限 LoRA pussy 强度(工作流 0.15) */
   pussyStrength?: number;
-  /** grounded 模板 system 段(缺省=工作流锚定句) */
+  /** grounded 模板 system 段(缺省=工作流一致性描述句) */
   systemPrompt?: string;
   /** 处理结果回显(最终结果落下游成图节点;本字段供卡内预览) */
   resultUrl?: string;

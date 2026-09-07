@@ -117,7 +117,7 @@ export function UnclothNodeEditor({
           {numberField("Mystic 破限强度", params.mysticStrength ?? 2.0, (v) => patch({ mysticStrength: v }), 0.05, 0, 4)}
           {numberField("pussy 破限强度", params.pussyStrength ?? 0.15, (v) => patch({ pussyStrength: v }), 0.05, 0, 2)}
           <label className="flex flex-col gap-1 text-[10px] text-muted-foreground">
-            system_prompt(保留锚定句)
+            一致性描述 system_prompt(不写则用②口连线或默认)
             <textarea
               value={node.systemPrompt ?? params.systemPrompt ?? ""}
               onChange={(event) => patch({ systemPrompt: event.target.value })}

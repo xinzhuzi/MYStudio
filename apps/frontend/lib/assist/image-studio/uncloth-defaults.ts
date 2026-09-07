@@ -103,7 +103,7 @@ export const UNCLOTH_DEFAULTS = {
   rebalanceWeights: [1, 1, 1, 1, 1, 1, 1, 1, 5, 1, 1, 1],
 } as const;
 
-/** instruct 档 grounded system 段锚定句(09-06 稳定版 #17 现值) */
+/** instruct 档 grounded system 段一致性描述句(09-06 稳定版 #17 现值) */
 export const UNCLOTH_INSTRUCT_SYSTEM_ANCHOR =
   "她的脸、首饰、发型、肤色、整体姿态、身体姿势、手臂姿势、构图、光线、场景等与原图完全一致;";
 
