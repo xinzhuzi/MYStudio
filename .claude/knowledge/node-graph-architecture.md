@@ -166,7 +166,7 @@
    - **nsfw 作目标**:只吃 prompt 源且仅 1 根;
    - **generated 作目标**:uncloth 源=单链;nsfw 源=单链且**与直连提示词互斥**;prompt 源=**一个成图只吃一根正向**(负向口例外在连线级);reference/generated 源放行(成图链式=上一代喂下一代);
    - 其他目标一律拒。
-2. **连线级 `isValidImageConnection(graph, connection)`**(:299,"React Flow isValidConnection 的唯一后端")——在节点级之上补 handle 口别:prompt 源只认 positive/negative;nsfw 目标拒 negative;同目标口同极性各≤1 席;uncloth image 口只吃 reference/generated/uncloth 一根、prompt-1/2 各口一根;无 handle 回落节点级。
+2. **连线级 `isValidImageConnection(graph, connection)`**(:299,"React Flow isValidConnection 的唯一后端")——在节点级之上补 handle 口别:prompt 源只认 positive/negative;nsfw 目标拒 negative;同目标口同极性各≤1 席(正负两席可共存=拼装);uncloth image 口只吃 reference/generated/uncloth 一根、prompt-1/2 各口正负分席各一根;无 handle 回落节点级(存量边占正席)。
 3. **三个调用点**:①两画布 ReactFlow `isValidConnection`;②`connectImageWorkflowNodes` 建边(有 handle 走连线级、无 handle 走节点级);③边 id 生成带 handle 后缀(同对节点正/负多边合法)。
 
 配套:`splitPromptEdgesByPolarity`(:355)按出口极性拆正负文本;uncloth 存量无 handle 边按画布纵向序回落 ①②。守卫副本(connect-create.ts 的 hasUncloth/NsfwUpstreamEdge、导入校验)与单源同语义,改动须同步。
