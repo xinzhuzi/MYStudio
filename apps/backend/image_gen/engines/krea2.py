@@ -855,7 +855,11 @@ def _grounded_encode(pipe, image, instruction: str, system_prompt: "str | None" 
     te = pipe.text_encoder
     dev = next(te.parameters()).device
     w0, h0 = image.size
-    rh, rw = smart_resize(2, h0, w0, factor=32, min_pixels=131072, max_pixels=786432)[:2]
+    # 09-07 对齐 ComfyUI 本体(comfy/text_encoders/qwen_vl.py process_qwen2vl_images
+    # 被 qwen3vl 以 patch=16/mean0.5 调用,沿用其默认 min=3136/max=12845056=
+    # 原尺寸直进;此前用 transformers 官方 131072/786432 会把 1MP 图悄悄缩到
+    # 0.79MP,vision token 密度偏离原版运行路径)
+    rh, rw = smart_resize(2, h0, w0, factor=32, min_pixels=3136, max_pixels=12845056)[:2]
     arr = ((_np.asarray(image.resize((rw, rh), __import__("PIL.Image", fromlist=["BILINEAR"]).BILINEAR),
                         dtype="float32") / 255.0) - 0.5) / 0.5
     t = torch.from_numpy(arr).permute(2, 0, 1)
@@ -868,6 +872,8 @@ def _grounded_encode(pipe, image, instruction: str, system_prompt: "str | None" 
         system=system_prompt.strip() if system_prompt and system_prompt.strip() else _EDIT_SYSTEM_DEFAULT,
         instruction=instruction,
     ).replace("<|image_pad|>", "<|image_pad|>" * n_tok)
+    # Qwen3 惯例(comfy tokenize_with_weights 同款):空 think 块抑制推理模式
+    text += "<think>\n\n</think>\n\n"
     enc = tok(text, return_tensors="pt")
     pad_id = tok.convert_tokens_to_ids("<|image_pad|>")
     mm_types = (enc.input_ids[0] == pad_id).long().unsqueeze(0)
