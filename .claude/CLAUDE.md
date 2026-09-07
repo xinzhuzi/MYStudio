@@ -294,6 +294,7 @@ python3 ./.trellis/scripts/open_task_board.py
 | 图片外发安全 | `.trellis/spec/guides/image-transfer-safety-guide.md` | 图片外发缩略图/字节门 |
 | 开放任务看板规范 | `.trellis/spec/guides/trellis-open-task-board-guide.md` | 「还有什么任务」输出规则 |
 | **搜索 SOP(权威版)** | `.claude/knowledge/search-sop.md` | 搜索范围/工具/排噪/热路径 + 仓库外五源 + 网络路由(先读后搜) |
+| **节点图知识(权威版)** | `.claude/knowledge/node-graph-architecture.md` | 节点图通用原理(DAG/求值模型/ComfyUI/React Flow)+ 本项目两画布架构/边规则/执行链/任务地图/裁定(画布任务先读) |
 | GitNexus 强制流程 | 根 `AGENTS.md`(gitnexus 管理块) | impact/detect_changes 必做与禁止清单(改动前必读) |
 | Python TTS sidecar | `apps/backend/README.md` | TTS API、环境变量、运行时目录 |
 | 自动化测试 skill | `.agents/skills/mystudio-automation-testing/` | typecheck / Vitest / 打包 / smoke 自验证 |
