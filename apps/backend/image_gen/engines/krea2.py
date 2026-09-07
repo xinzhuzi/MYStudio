@@ -776,36 +776,63 @@ def generate_masked_sdedit(prompt: str, image: "Any", mask: "Any", steps: int = 
 #    Apache-2.0 参考,行为同构非拷贝):identity_edit LoRA + 参考图进 Qwen3-VL
 #    (grounded encode,DeepStack 原生)+ transformer 参考注意力注入
 #    ([text|src(frame=1)|tgt(frame=0)] 序列)+ denoise=1.0 全采样。──
-EDIT_LORA_FILE = "loras/Krea2-功能/Krea2-编辑identity_edit_v1_2.safetensors"
-# ai-toolkit 训练协议的 grounded 模板(参考 comfyui-krea2edit 常量,Apache-2.0)
-_EDIT_TEMPLATE = (
-    "<|im_start|>system\nDescribe the image by detailing the color, shape, size, "
+# 三层 LoRA 栈(09-06 稳定版工作流 #19/#44/#45 现值;顺序=工作流连线顺序,
+# merge 是加法,bf16 累积对顺序敏感):identity 主件缺失阻断,其余告警跳过。
+EDIT_LORA_STACK: tuple[tuple[str, float, bool], ...] = (
+    ("loras/Krea2-功能/Krea2-编辑identity_edit_v1_2.safetensors", 1.0, True),
+    ("loras/Krea2-NSFW/KREA 2 Mystic XXX v3.safetensors", 2.0, False),
+    ("loras/Krea2-NSFW/Krea 2 pussy.safetensors", 0.15, False),
+)
+# ai-toolkit 训练协议的 grounded 模板(参考 comfyui-krea2edit 常量,Apache-2.0);
+# system 段可配(09-06 起工作流正向带保留锚定句,缺省=训练默认句)
+_EDIT_SYSTEM_DEFAULT = (
+    "Describe the image by detailing the color, shape, size, "
     "texture, quantity, text, spatial relationships of the objects and background:"
-    "<|im_end|>\n<|im_start|>user\n<|vision_start|><|image_pad|><|vision_end|>"
+)
+_EDIT_TEMPLATE = (
+    "<|im_start|>system\n{system}<|im_end|>\n<|im_start|>user\n"
+    "<|vision_start|><|image_pad|><|vision_end|>"
     "{instruction}<|im_end|>\n<|im_start|>assistant\n"
 )
 
 
-def _get_edit_components(models_dir: Path, snapshot_dir: Path) -> dict[str, Any]:
-    """identity_edit LoRA 组件(专用缓存,不与专业流 Mystic/pussy 栈混用)。"""
+def _get_edit_components(models_dir: Path, snapshot_dir: Path,
+                          mystic_strength: float = 2.0,
+                          pussy_strength: float = 0.15) -> dict[str, Any]:
+    """edit 三层 LoRA 组件(09-06 稳定版:identity+Mystic+pussy;专用缓存,
+    强度指纹进键防不同强度命中同缓存)。"""
+    cache_key = f"krea2_edit:m{mystic_strength}:p{pussy_strength}"
     with _lock:
-        if "krea2_edit" in _lora_cache:
-            return _lora_cache["krea2_edit"]
+        if cache_key in _lora_cache:
+            # LRU 触碰:重插保持最新(容量 2,淘汰最旧 edit 副本防内存膨胀)
+            comps_hit = _lora_cache.pop(cache_key)
+            _lora_cache[cache_key] = comps_hit
+            edit_keys = [k for k in _lora_cache if k.startswith("krea2_edit:")]
+            while len(edit_keys) > 2:
+                del _lora_cache[edit_keys.pop(0)]
+            return comps_hit
         if "krea2" not in _pipeline_cache:
             _pipeline_cache["krea2"] = get_components(models_dir, snapshot_dir)
         comps = dict(_pipeline_cache["krea2"])
         import copy as _copy
         comps["transformer"] = _copy.deepcopy(_pipeline_cache["krea2"]["transformer"])
-        lora_file = models_dir / EDIT_LORA_FILE
-        if lora_file.is_file():
-            merge_lora(comps["transformer"], str(lora_file), 1.0)
-        else:
-            print(f"[image-sidecar] krea2 edit LoRA 缺失: {lora_file}", file=sys.stderr)
-        _lora_cache["krea2_edit"] = comps
+        strengths = (1.0, mystic_strength, pussy_strength)
+        for (rel_path, default_strength, required), strength in zip(EDIT_LORA_STACK, strengths):
+            lora_file = models_dir / rel_path
+            if lora_file.is_file():
+                merge_lora(comps["transformer"], str(lora_file), strength)
+            elif required:
+                raise RuntimeError(f"edit 主件 LoRA 缺失(必须放置): {lora_file}")
+            else:
+                print(f"[image-sidecar] krea2 edit LoRA 缺失,跳过: {lora_file}", file=sys.stderr)
+        _lora_cache[cache_key] = comps
+        edit_keys = [k for k in _lora_cache if k.startswith("krea2_edit:")]
+        while len(edit_keys) > 2:
+            del _lora_cache[edit_keys.pop(0)]
         return comps
 
 
-def _grounded_encode(pipe, image, instruction: str):
+def _grounded_encode(pipe, image, instruction: str, system_prompt: "str | None" = None):
     """参考图+编辑指令 → Qwen3-VL 12 层 tap(冒烟协议 09-05:smart_resize
     factor=32→/16 patchify×temporal2→pixel_values(N,1536);grid_thw=patch 网格;
     image_pad 展开;mm_token_type_ids;forward 自动 3D 位置+DeepStack)。"""
@@ -826,8 +853,10 @@ def _grounded_encode(pipe, image, instruction: str):
         .reshape(ph * pw, 3 * 16 * 16).repeat(2, 1)
     grid = torch.tensor([[1, ph, pw]])
     n_tok = ph * pw // 4
-    text = _EDIT_TEMPLATE.format(instruction=instruction).replace(
-        "<|image_pad|>", "<|image_pad|>" * n_tok)
+    text = _EDIT_TEMPLATE.format(
+        system=system_prompt.strip() if system_prompt and system_prompt.strip() else _EDIT_SYSTEM_DEFAULT,
+        instruction=instruction,
+    ).replace("<|image_pad|>", "<|image_pad|>" * n_tok)
     enc = tok(text, return_tensors="pt")
     pad_id = tok.convert_tokens_to_ids("<|image_pad|>")
     mm_types = (enc.input_ids[0] == pad_id).long().unsqueeze(0)
@@ -882,6 +911,8 @@ def _fit_source_latent(image, vae, tgt_h: int, tgt_w: int, lat_mean, lat_std):
 
 
 def generate_edit(prompt: str, image, steps: int = 10, seed: int | None = 2,
+                  system_prompt: "str | None" = None,
+                  mystic_strength: float = 2.0, pussy_strength: float = 0.15,
                   **ctx) -> "Any":
     """Krea2Edit 指令编辑(仿写 ComfyUI「Krea2_无衣物_快」krea2edit 流):
     identity LoRA + grounded encode + 参考注意力([text|src|tgt]) + denoise=1.0
@@ -895,27 +926,37 @@ def generate_edit(prompt: str, image, steps: int = 10, seed: int | None = 2,
 
     models_dir = ctx["models_dir"]
     snapshot_dir = ctx["snapshot_dir"]
-    comps = _get_edit_components(models_dir, snapshot_dir)
+    if seed is None:
+        import random as _random
+        seed = _random.randint(0, 999999999)
+        print(f"[image-sidecar] krea2 edit: seed=randomize -> {seed}", flush=True)
+    comps = _get_edit_components(models_dir, snapshot_dir, mystic_strength, pussy_strength)
     pipe = Krea2Pipeline(**comps)
     device = pipe._execution_device
     transformer = comps["transformer"]
     vae_cfg = comps["vae"].config
     phase_start = _time.time()
 
-    # 1. 输入图 1MP 等比缩放(工作流 ImageScaleToTotalPixels lanczos/1MP)
+    # 1. 输入图 1MP 定标(工作流 #5:无条件重采样+8px 步进对齐,
+    # round(w*sc/8)*8 同构 comfy nodes_post_processing:254——小图也放大到 1MP)
     from PIL import Image
-    target_px = 1_000_000
-    if image.width * image.height > target_px:
-        sc = (target_px / (image.width * image.height)) ** 0.5
-        image = image.resize((max(1, round(image.width * sc)), max(1, round(image.height * sc))), Image.LANCZOS)
+    _STEP = 8
+    _sc = (1_000_000 / (image.width * image.height)) ** 0.5
+    _rw = max(_STEP, round(image.width * _sc / _STEP) * _STEP)
+    _rh = max(_STEP, round(image.height * _sc / _STEP) * _STEP)
+    if (image.width, image.height) != (_rw, _rh):
+        image = image.resize((_rw, _rh), Image.LANCZOS)
 
     # 2. grounded encode(参考图进 Qwen3-VL,12 层 tap)
-    embeds, embeds_mask = _grounded_encode(pipe, image, prompt)
+    embeds, embeds_mask = _grounded_encode(pipe, image, prompt, system_prompt)
 
     # 3. 参考图 latent(fit 像素路径)+ packed;输出网格固定 1024²(工作流 EmptySD3)
     lat_mean = torch.tensor(vae_cfg["latents_mean"]).view(1, -1, 1, 1, 1).to(device)
     lat_std = torch.tensor(vae_cfg["latents_std"]).view(1, -1, 1, 1, 1).to(device)
-    tgt_h, tgt_w = 1024 // 8, 1024 // 8  # 128×128 latent 网格
+    # 输出分辨率跟随参考图(GetImageSize+→EmptySD3 语义;选 A 偶数 latent
+    # 网格保证 patch2 整除,W₁≡8 mod16 时与 ComfyUI pad 路线差 ≤8px,已声明)
+    tgt_h = (_rh // 16) * 2
+    tgt_w = (_rw // 16) * 2
     src4d = _fit_source_latent(image, comps["vae"], tgt_h, tgt_w, lat_mean, lat_std).to(device)
     patch_size = getattr(pipe, "patch_size", 2)
     B, C, SH, SW = src4d.shape
@@ -988,7 +1029,7 @@ def generate_edit(prompt: str, image, steps: int = 10, seed: int | None = 2,
         result = pipe(
             prompt_embeds=embeds,
             prompt_embeds_mask=embeds_mask,
-            height=1024, width=1024,
+            height=tgt_h * 8, width=tgt_w * 8,
             num_inference_steps=steps,
             guidance_scale=0.0,
             latents=noise,
@@ -1001,7 +1042,9 @@ def generate_edit(prompt: str, image, steps: int = 10, seed: int | None = 2,
     out = result.images[0]
     print(
         f"[image-sidecar] krea2 edit(instruct): steps={steps} seed={seed} "
-        f"src_grid={gh}x{gw} size=1024x1024 inference={_time.time() - phase_start:.1f}s",
+        f"lora=identity1.0+mystic{mystic_strength}+pussy{pussy_strength} "
+        f"system={'custom' if system_prompt and system_prompt.strip() else 'default'} "
+        f"src_grid={gh}x{gw} size={tgt_w * 8}x{tgt_h * 8} inference={_time.time() - phase_start:.1f}s",
         flush=True,
     )
     return out

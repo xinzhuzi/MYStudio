@@ -70,6 +70,26 @@ def build_model_status() -> list[dict]:
             ),
             **({"comfyuiVersion": resolved.get("comfyui_version")} if bridge_service and resolved else {}),
         })
+        if krea2_pointed:
+            # 无衣物·指令编辑三层 LoRA(09-06 稳定版工作流;文件存在性探测,
+            # 无公网源不自动下载,缺失=展示放置路径)
+            from .engines import krea2 as _krea2
+            from .model_cache import comfyui_models_dir as _cmd
+            row = rows[-1]
+            row["loraFiles"] = [
+                {
+                    "name": _rel.split("/")[-1],
+                    "label": _label,
+                    "path": str(_cmd() / _rel),
+                    "ready": (_cmd() / _rel).is_file(),
+                    "required": _required,
+                }
+                for _rel, _strength, _required in _krea2.EDIT_LORA_STACK
+                for _label in (
+                    "无衣物编辑 LoRA·identity(主件)" if _required else
+                    ("破限 LoRA·Mystic XXX v3" if "Mystic" in _rel else "破限 LoRA·pussy(轻)"),
+                )
+            ]
     # 分割模型(09-04 无衣物节点):目录存在性探测(不做大件/小件区分)
     import os
     from .model_cache import comfyui_models_dir

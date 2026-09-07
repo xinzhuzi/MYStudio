@@ -103,6 +103,10 @@ export const UNCLOTH_DEFAULTS = {
   rebalanceWeights: [1, 1, 1, 1, 1, 1, 1, 1, 5, 1, 1, 1],
 } as const;
 
+/** instruct 档 grounded system 段锚定句(09-06 稳定版 #17 现值) */
+export const UNCLOTH_INSTRUCT_SYSTEM_ANCHOR =
+  "她的脸、首饰、发型、肤色、整体姿态、身体姿势、手臂姿势、构图、光线、场景等与原图完全一致;";
+
 /** 节点参数 → 生效值(缺省回落工作流默认)。
  * 09-05 快/精两档:fast=「Krea2_无衣物_快」流(fashn 单分割+单遍 0.65+
  * 外扩12,无校色遍无后处理);fine=「Krea2_无衣物_精」流(双分割+两遍+
@@ -113,16 +117,20 @@ export function resolveUnclothParams(node: Partial<ImageWorkflowUnclothNode>) {
   const base = fast
     ? { ...UNCLOTH_DEFAULTS, segformerParts: [] as string[] }
     : instruct
-      ? { ...UNCLOTH_DEFAULTS, steps: 10, seedUndress: 2 }
+      ? { ...UNCLOTH_DEFAULTS, steps: 10, seedUndress: 1 }
       : UNCLOTH_DEFAULTS;
   return {
     mode: instruct ? ("instruct" as const) : fast ? ("fast" as const) : ("fine" as const),
+    // instruct 档破限栈与 system 段(09-06 稳定版 #17/#44/#45 现值)
+    mysticStrength: node.mysticStrength ?? (instruct ? 2.0 : undefined),
+    pussyStrength: node.pussyStrength ?? (instruct ? 0.15 : undefined),
+    systemPrompt: node.systemPrompt ?? (instruct ? UNCLOTH_INSTRUCT_SYSTEM_ANCHOR : null),
     steps: node.steps ?? base.steps,
     cfg: node.cfg ?? base.cfg,
     sampler: node.sampler ?? base.sampler,
     scheduler: node.scheduler ?? base.scheduler,
     denoiseUndress: node.denoiseUndress ?? base.denoiseUndress,
-    seedUndress: node.seedUndress ?? base.seedUndress,
+    seedUndress: node.seedUndress === null ? null : (node.seedUndress ?? base.seedUndress),
     denoiseColor: node.denoiseColor ?? base.denoiseColor,
     seedColor: node.seedColor ?? base.seedColor,
     growUndress: node.growUndress ?? base.growUndress,

@@ -68,10 +68,14 @@ def run_uncloth_pipeline(
         from PIL import Image as _PILImage
         raw_ed = input_image_b64.split(",", 1)[-1] if input_image_b64.startswith("data:") else input_image_b64
         img_ed = _PILImage.open(io.BytesIO(base64.b64decode(raw_ed))).convert("RGB")
+        seed_ed = params.get("seedUndress")
         out_ed = krea2.generate_edit(
             prompt, img_ed,
             steps=int(params.get("steps", 10)),
-            seed=int(params.get("seedUndress", 2)),
+            seed=int(seed_ed) if seed_ed is not None and seed_ed != "" else None,
+            system_prompt=params.get("systemPrompt"),
+            mystic_strength=float(params.get("mysticStrength", 2.0)),
+            pussy_strength=float(params.get("pussyStrength", 0.15)),
             **engine_ctx,
         )
         buf = io.BytesIO()

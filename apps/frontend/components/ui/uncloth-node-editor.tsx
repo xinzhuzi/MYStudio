@@ -104,13 +104,32 @@ export function UnclothNodeEditor({
             rows={5}
             className="w-full rounded-md border border-border bg-card/80 px-1.5 py-1 text-[11px] text-foreground outline-none"
           />
-          {numberField("seed", params.seedUndress, (v) => patch({ seedUndress: v }), 1, 0, 999999999)}
+          <label className="flex items-center gap-2 text-[10px] text-muted-foreground">
+            <input
+              type="checkbox"
+              checked={node.seedUndress === null}
+              onChange={(event) => patch({ seedUndress: event.target.checked ? null : 1 })}
+            />
+            随机 seed(每次生成换种子,工作流 randomize 同义)
+          </label>
+          {node.seedUndress !== null && numberField("seed", params.seedUndress ?? 1, (v) => patch({ seedUndress: v }), 1, 0, 999999999)}
           {numberField("steps", params.steps, (v) => patch({ steps: v }), 1, 1, 32)}
+          {numberField("Mystic 破限强度", params.mysticStrength ?? 2.0, (v) => patch({ mysticStrength: v }), 0.05, 0, 4)}
+          {numberField("pussy 破限强度", params.pussyStrength ?? 0.15, (v) => patch({ pussyStrength: v }), 0.05, 0, 2)}
+          <label className="flex flex-col gap-1 text-[10px] text-muted-foreground">
+            system_prompt(保留锚定句)
+            <textarea
+              value={node.systemPrompt ?? params.systemPrompt ?? ""}
+              onChange={(event) => patch({ systemPrompt: event.target.value })}
+              rows={3}
+              className="w-full rounded-md border border-border bg-card/80 px-1.5 py-1 text-[11px] text-foreground outline-none"
+            />
+          </label>
         </div>
       ) : (
       <UnclothParamGroup title={fast ? "采样(快档单遍)" : "两遍采样(常调)"} defaultOpen>
         {numberField(fast ? "denoise" : "脱衣遍 denoise", params.denoiseUndress, (v) => patch({ denoiseUndress: v }), 0.05, 0, 1)}
-        {numberField(fast ? "seed" : "脱衣遍 seed", params.seedUndress, (v) => patch({ seedUndress: v }), 1, 0, 999999999)}
+        {numberField(fast ? "seed" : "脱衣遍 seed", params.seedUndress ?? 1, (v) => patch({ seedUndress: v }), 1, 0, 999999999)}
         {!fast && numberField("校色遍 denoise", params.denoiseColor, (v) => patch({ denoiseColor: v }), 0.05, 0, 1)}
         {!fast && numberField("校色遍 seed", params.seedColor, (v) => patch({ seedColor: v }), 1, 0, 999999999)}
         {numberField("步数 steps", params.steps, (v) => patch({ steps: v }), 1, 1, 32)}
