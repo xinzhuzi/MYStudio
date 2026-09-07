@@ -8,6 +8,7 @@ import { ImageWorkflowConnectCreateMenu } from "./image-workflow-connect-create-
 import { imageWorkflowTargetKey } from "./image-workflow-graph-utils";
 import { ImageWorkflowReactNode } from "./image-workflow-node-card";
 import { ConnectCreateInput, connectCreateDirection, getCreatableImageNodeTypes } from "@/lib/studio/image-workflow/connect-create";
+import { isValidImageConnection } from "@/lib/studio/image-workflow/graph-build";
 import type { ImageWorkflowGraph, ImageWorkflowOpenContext } from "@/types/studio";
 import {
   Background,
@@ -68,6 +69,16 @@ export function ImageWorkflowFlowView({
 }) {
   const [nodes, setNodes, onNodesChange] =
     useNodesState<ImageWorkflowReactNode>(reactFlowNodes);
+
+  // 09-07 连带删根修(与图片工作室同款):RF 节点/边选中集合独立——点边/点空白
+  // 时节点若仍挂选中态,Delete 会连带删节点;显式清受控 selected,幂等。
+  const clearNodeSelection = useCallback(() => {
+    setNodes((current) =>
+      current.some((node) => node.selected)
+        ? current.map((node) => (node.selected ? { ...node, selected: false } : node))
+        : current,
+    );
+  }, [setNodes]);
   const [backgroundMode, setBackgroundMode] = useState<"dots" | "lines" | "blank">(() => {
     try {
       const saved = window.localStorage.getItem("studio-canvas-background");
@@ -105,6 +116,27 @@ export function ImageWorkflowFlowView({
     fromNodeId: string;
     fromHandleType: "source" | "target";
   } | null>(null);
+
+  // 09-07 Esc 取消连线(用户报障「取消…不起作用」):@xyflow/react 12 的 Escape
+  // 只用于键盘可达性反选,不取消进行中的连线拖拽——产品缺失,此处补齐。
+  // 连线进行中按 Escape → 本次 onConnect/onConnectEnd 丢弃(落空不弹创建菜单)。
+  const connectActiveRef = useRef(false);
+  const cancelNextConnectRef = useRef(false);
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape" && connectActiveRef.current) {
+        cancelNextConnectRef.current = true;
+      }
+    };
+    document.addEventListener("keydown", onKeyDown, true);
+    return () => document.removeEventListener("keydown", onKeyDown, true);
+  }, []);
+  const consumeConnectCancel = useCallback(() => {
+    const cancelled = cancelNextConnectRef.current;
+    cancelNextConnectRef.current = false;
+    connectActiveRef.current = false;
+    return cancelled;
+  }, []);
 
   const handleConnectEnd = useCallback(
     (event: MouseEvent | TouchEvent, connectionState: FinalConnectionState) => {
@@ -228,8 +260,14 @@ export function ImageWorkflowFlowView({
         nodeTypes={nodeTypes}
         onNodesChange={onNodesChange}
         onNodeClick={(_, node) => onNodeClick(node.id)}
-        onPaneClick={onPaneClick}
-        onEdgeClick={(_, edge) => onEdgeClick(edge.id)}
+        onPaneClick={() => {
+          clearNodeSelection();
+          onPaneClick();
+        }}
+        onEdgeClick={(_, edge) => {
+          clearNodeSelection();
+          onEdgeClick(edge.id);
+        }}
         onEdgesDelete={(edges) => onEdgesDelete?.(edges.map((edge) => edge.id))}
         onNodeDragStart={handleNodeDragStart}
         onNodeDragStop={(_, node) => {
@@ -238,34 +276,30 @@ export function ImageWorkflowFlowView({
         }}
         onMoveStart={handleMoveStart}
         onMoveEnd={handleMoveEnd}
-        onConnect={onConnect}
+        onConnectStart={() => {
+          connectActiveRef.current = true;
+          // 新拖拽开始即清残留取消标志(Esc 后 RF 内部取消时 onConnect 不会
+          // 触发,标志若不清会误吞下一次正常连接)
+          cancelNextConnectRef.current = false;
+        }}
+        onConnect={(connection) => {
+          if (consumeConnectCancel()) return;
+          onConnect(connection);
+        }}
+        onConnectEnd={(event, connectionState) => {
+          if (consumeConnectCancel()) return;
+          handleConnectEnd(event, connectionState);
+        }}
         onPointerDown={mouseButtonPan.onPointerDown}
         onPointerMove={mouseButtonPan.onPointerMove}
         onPointerUp={mouseButtonPan.onPointerUp}
         onPointerCancel={mouseButtonPan.onPointerCancel}
         onContextMenuCapture={mouseButtonPan.onContextMenuCapture}
-        isValidConnection={(connection) => {
-          const targetType = activeGraph?.nodes.find((node) => node.id === connection.target)?.type;
-          // NSFW破限(09-07):只吃提示词入边(粗校验;互斥细则由 connect 时的
-          // isValidImageEdge 单源把关);nsfw→成图 落入下方 generated 通用分支
-          if (targetType === "nsfw") {
-            return connection.target !== connection.source
-              && Boolean(connection.source)
-              && activeGraph?.nodes.find((node) => node.id === connection.source)?.type === "prompt";
-          }
-          return connection.target !== connection.source &&
-            targetType === "generated" &&
-            !(
-              connection.source &&
-              activeGraph?.nodes.find((node) => node.id === connection.source)?.type === "prompt" &&
-              activeGraph.edges.some(
-                (edge) =>
-                  edge.target === connection.target &&
-                  activeGraph.nodes.find((node) => node.id === edge.source)?.type === "prompt",
-              )
-            );
-        }}
-        onConnectEnd={handleConnectEnd}
+        // 09-07 根修:归一到 isValidImageConnection 单源(此前手抄副本漏
+        // uncloth 目标 → 无衣物节点任何入边都被 React Flow 拒收,连线全废)
+        isValidConnection={(connection) =>
+          Boolean(activeGraph && isValidImageConnection(activeGraph, connection))
+        }
         onInit={(instance) => {
           setFlowInstance(instance);
           onInit(instance);

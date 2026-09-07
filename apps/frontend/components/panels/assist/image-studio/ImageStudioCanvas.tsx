@@ -627,6 +627,8 @@ export function ImageStudioCanvas() {
           id: edge.id,
           source: edge.source,
           target: edge.target,
+          // 09-07 双出口:prompt 源存量边无 sourceHandle 时回落「正」口锚点
+          sourceHandle: edge.sourceHandle ?? (src?.type === "prompt" ? "positive" : undefined),
           targetHandle:
             edge.targetHandle ??
             (tgt?.type === "uncloth"
@@ -645,20 +647,33 @@ export function ImageStudioCanvas() {
   );
 
   const handleConnect = useCallback(
-    (connection: { source: string | null; target: string | null; targetHandle?: string | null }) => {
+    (connection: {
+      source: string | null;
+      target: string | null;
+      targetHandle?: string | null;
+      sourceHandle?: string | null;
+    }) => {
       if (!connection.source || !connection.target) return;
       const graph = selectActiveImageStudioWorkflow(useImageStudioStore.getState());
       const target = graph?.nodes.find((node) => node.id === connection.target);
-      if (target?.type !== "generated" && target?.type !== "uncloth") {
+      if (target?.type !== "generated" && target?.type !== "uncloth" && target?.type !== "nsfw") {
         toast.error("连线目标必须是成图或无衣物节点");
         return;
       }
       const source = graph?.nodes.find((node) => node.id === connection.source);
       if (source?.type === "prompt" && target?.type === "generated" && graph && hasPromptSource(graph, connection.target)) {
-        toast.error("该成图已接提示词:一个成图只接一根提示词连线,请先断开原有的再连");
-        return;
+        // 双出口裁定(09-07):负向出口=拼装通道,可与既有正向边共存;其余仍拒
+        if (connection.sourceHandle !== "negative") {
+          toast.error("该成图已接提示词:一个成图只接一根正向连线,请先断开原有的再连(负向口可另接一根)");
+          return;
+        }
       }
-      connect(connection.source, connection.target, connection.targetHandle ?? undefined);
+      connect(
+        connection.source,
+        connection.target,
+        connection.targetHandle ?? undefined,
+        connection.sourceHandle ?? undefined,
+      );
     },
     [connect],
   );
@@ -1027,6 +1042,17 @@ function ImageStudioFlowView({
     [onSelection],
   );
 
+  // 09-07 连带删根修:RF 的节点/边选中集合相互独立——点边/点空白时节点若仍挂
+  // 选中态,Delete 会把节点与线一起删(节点 selected 稳定存活后此问题显化;
+  // 点节点场景 RF 单选语义自理,无需此清)。幂等:无选中原引用返回。
+  const clearNodeSelection = useCallback(() => {
+    setNodes((current) =>
+      current.some((node) => node.selected)
+        ? current.map((node) => (node.selected ? { ...node, selected: false } : node))
+        : current,
+    );
+  }, [setNodes]);
+
 
   useEffect(() => {
     // 09-02 日志终局根修:[isi] 实录每键 setNodes measured=0 → RF 判节点未测量
@@ -1151,10 +1177,12 @@ function ImageStudioFlowView({
         }}
         onEdgeClick={(_, edge) => {
           setSelectedEdgeId(edge.id);
+          clearNodeSelection();
           onPaneClick();
         }}
         onPaneClick={() => {
           setSelectedEdgeId(null);
+          clearNodeSelection();
           onPaneClick();
         }}
         onDoubleClick={(event) => {
