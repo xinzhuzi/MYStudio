@@ -158,6 +158,8 @@ export const ImageStudioNodeCard = memo(function ImageStudioNodeCard({
                 : node.type === "nsfw"
                   ? "w-[420px]"
                   : "w-[560px]",
+        // 09-07 收起态三输入口(30/55/80%)防挤:最小卡高保证口间距 ≥60px
+        node.type === "uncloth" ? "min-h-[220px]" : undefined,
         borderClass,
       )}
     >

@@ -108,6 +108,8 @@ export const ImageWorkflowNodeCard = memo(function ImageWorkflowNodeCard({ data 
         "shadow-[0_1px_2px_rgba(0,0,0,0.18)] transition-[border-color,box-shadow] duration-200",
         "hover:border-border/90 hover:shadow-[0_4px_16px_rgba(0,0,0,0.22)]",
         node.type === "prompt" || node.type === "generated" ? "w-[560px]" : "w-[420px]",
+        // 09-07 收起态三输入口(30/55/80%)防挤:最小卡高保证口间距 ≥60px
+        node.type === "uncloth" ? "min-h-[220px]" : undefined,
         borderClass,
       )}
     >
