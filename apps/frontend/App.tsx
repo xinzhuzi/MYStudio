@@ -11,9 +11,11 @@ import { useAppSettingsStore } from "@/stores/app/app-settings-store";
 import { startSpan } from "@/lib/diagnostics/logger";
 import { migrateToProjectStorage, recoverFromLegacy } from "@/lib/storage/storage-migration";
 import { installWorkflowSmokeBridge } from "@/lib/studio/workflow-smoke-bridge";
+import { remindComfyEngineUpdateOnce } from "@/components/panels/settings/comfy-engine/comfy-engine-update-reminder";
 import type { AvailableUpdateInfo } from "@/types/update";
 
 let hasTriggeredStartupUpdateCheck = false;
+let hasTriggeredComfyEngineUpdateReminder = false;
 
 function App() {
   const {
@@ -114,6 +116,17 @@ function App() {
       cancelled = true;
     };
   }, [startupMaintenanceDone, updateSettings.autoCheckEnabled, updateSettings.ignoredVersion]);
+
+  // ComfyUI 引擎启动更新提醒(09-08 集成,Q10 裁定):启动维护完成后静默查
+  // 一次,有新版 toast+直达设置分区;失败静默、不轮询。延后数秒避开应用
+  // 自身的更新弹窗,不打架。一次性 fire-and-forget,不随重挂载取消。
+  useEffect(() => {
+    if (!startupMaintenanceDone || hasTriggeredComfyEngineUpdateReminder) return;
+    hasTriggeredComfyEngineUpdateReminder = true;
+    window.setTimeout(() => {
+      void remindComfyEngineUpdateOnce();
+    }, 5000);
+  }, [startupMaintenanceDone]);
 
   return (
     <InteractionEffects>
