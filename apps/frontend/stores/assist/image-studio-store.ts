@@ -27,6 +27,7 @@ import {
 } from "@/lib/assist/image-studio/layout";
 import { createImageStudioProjectStorage } from "@/lib/storage/image-studio-project-storage";
 import { logEvent } from "@/lib/diagnostics/logger";
+import type { ComfyWorkflowLibraryTree } from "@/lib/assist/image-studio/comfy-workflow-library";
 import type { ImageWorkflowEdge,
   ImageWorkflowGeneratedNode,
   ImageWorkflowGraph,
@@ -52,6 +53,20 @@ export interface ImageStudioStoreState {
   /** 模型专属附加参数(MJ/Ideogram)按节点 id 存放;节点模型不含该字段(类型冻结) */
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   nodeExtras: Record<string, Record<string, any>>;
+  // —— ComfyUI 工作流浏览器态(09-08 二期,只追加 slice;瞬态不持久化,
+  //    partialize 未列名故持久化形状零变化)——
+  /** 浏览器侧栏开关 */
+  comfyBrowserOpen: boolean;
+  /** 搜索框关键词(空=不过滤) */
+  comfyBrowserSearch: string;
+  /** 选中的文件夹(null=全部);搜索时列表跨文件夹 */
+  comfyBrowserFolderId: string | null;
+  /** 选中的工作流(高亮;「导入成节点卡」接线留给集成者) */
+  comfyBrowserSelectedId: string | null;
+  /** 库树快照(数据拉取由浏览器 hook 经 typed client 编排) */
+  comfyBrowserTree: ComfyWorkflowLibraryTree | null;
+  comfyBrowserLoading: boolean;
+  comfyBrowserError: string | null;
 }
 
 export interface ImageStudioNodeGroup {
@@ -125,6 +140,15 @@ export interface ImageStudioStoreActions {
   setBatchPrimary: (nodeId: string, index: number) => void;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   setNodeExtras: (nodeId: string, extras: Record<string, any>) => void;
+  // —— ComfyUI 工作流浏览器动作(09-08 二期,只追加;纯状态动作,
+  //    数据通道由 comfy-workflow-browser hook 经 typed client 驱动)——
+  setComfyBrowserOpen: (open: boolean) => void;
+  setComfyBrowserSearch: (query: string) => void;
+  selectComfyBrowserFolder: (folderId: string | null) => void;
+  /** 选中工作流(点击=选中;导入成卡接线留 onSelect 回调给集成者) */
+  selectComfyWorkflow: (workflowId: string | null) => void;
+  setComfyBrowserLibrary: (tree: ComfyWorkflowLibraryTree | null, error?: string | null) => void;
+  setComfyBrowserLoading: (loading: boolean) => void;
 }
 
 export type ImageStudioStore = ImageStudioStoreState & ImageStudioStoreActions;
@@ -213,6 +237,14 @@ export const useImageStudioStore = create<ImageStudioStore>()(
       workflows: [],
       activeWorkflowId: null,
       nodeExtras: {},
+      // ComfyUI 工作流浏览器态(09-08 二期):瞬态,不进 partialize
+      comfyBrowserOpen: false,
+      comfyBrowserSearch: "",
+      comfyBrowserFolderId: null,
+      comfyBrowserSelectedId: null,
+      comfyBrowserTree: null,
+      comfyBrowserLoading: false,
+      comfyBrowserError: null,
 
       ensureDefaultWorkflow: () => {
         const { workflows, activeWorkflowId } = get();
@@ -838,6 +870,31 @@ export const useImageStudioStore = create<ImageStudioStore>()(
         set((state) => ({
           nodeExtras: { ...state.nodeExtras, [nodeId]: extras },
         }));
+      },
+
+      // —— ComfyUI 工作流浏览器动作(09-08 二期,只追加)——
+      setComfyBrowserOpen: (open) => {
+        set({ comfyBrowserOpen: open });
+      },
+
+      setComfyBrowserSearch: (query) => {
+        set({ comfyBrowserSearch: query });
+      },
+
+      selectComfyBrowserFolder: (folderId) => {
+        set({ comfyBrowserFolderId: folderId });
+      },
+
+      selectComfyWorkflow: (workflowId) => {
+        set({ comfyBrowserSelectedId: workflowId });
+      },
+
+      setComfyBrowserLibrary: (tree, error) => {
+        set({ comfyBrowserTree: tree, comfyBrowserError: error ?? null });
+      },
+
+      setComfyBrowserLoading: (loading) => {
+        set({ comfyBrowserLoading: loading });
       },
     }),
     {

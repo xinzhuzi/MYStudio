@@ -57,9 +57,10 @@ export function ImageStudioToolbar({
   onTidy,
   onOpenHistory,
   onOpenAssistant,
+  onOpenComfyBrowser,
   onExport,
   onImport,
-  onOpenFolder,
+  onOpenFolder
 }: {
   workflows: ImageWorkflowGraph[];
   activeWorkflowId: string | null;
@@ -77,6 +78,8 @@ export function ImageStudioToolbar({
   onTidy: () => void;
   onOpenHistory: () => void;
   onOpenAssistant: () => void;
+  /** ComfyUI 工作流浏览器(09-08 二期):可选=宿主未接时不显示 */
+  onOpenComfyBrowser?: () => void;
   onExport?: () => void;
   onImport?: () => void;
   onOpenFolder: () => void;
@@ -176,6 +179,14 @@ export function ImageStudioToolbar({
             title="选中节点后对话,回答可插为提示词节点或直接生图"
           >
             画布助手…
+          </DropdownMenuItem>
+          <DropdownMenuItem
+            onSelect={onOpenComfyBrowser}
+            disabled={!onOpenComfyBrowser}
+            data-image-studio-comfy-browser-toggle
+            title="ComfyUI 工作流库:搜索/文件夹/外部导入,完整管理自管实例的工作流"
+          >
+            工作流库…
           </DropdownMenuItem>
           <DropdownMenuSeparator />
           <DropdownMenuItem onSelect={onTidy} title="按参考图/提示词/成图三列重排全部节点">

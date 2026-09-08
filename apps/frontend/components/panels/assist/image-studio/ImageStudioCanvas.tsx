@@ -62,6 +62,11 @@ import { referenceIndexOf } from "@/lib/assist/image-studio/reference-order";
 import { logEvent } from "@/lib/diagnostics/logger";
 import { CanvasHints } from "./canvas-hints";
 import { useImageDrop } from "./use-image-drop";
+import { ComfyWorkflowBrowser } from "./comfy-workflow-browser/comfy-workflow-browser";
+import {
+  createComfyWorkflowLibraryClient,
+  resolveComfyWorkflowLibraryTransport,
+} from "@/lib/assist/image-studio/comfy-workflow-library";
 
 const FIT_VIEW_OPTIONS = { padding: 0.18, minZoom: 0.35, maxZoom: 1.1 } as const;
 
@@ -87,6 +92,15 @@ export function ImageStudioCanvas() {
   const removeEdge = useImageStudioStore((state) => state.removeEdge);
   const moveNode = useImageStudioStore((state) => state.moveNode);
   const setViewport = useImageStudioStore((state) => state.setViewport);
+
+  // ComfyUI 工作流浏览器(09-08 二期):typed client 一次建好——真实桥
+  // (preload 注入 window.comfyWorkflowLibrary)优先,缺席回落内存 mock,
+  // 集成期零改动切换
+  const comfyBrowserOpen = useImageStudioStore((state) => state.comfyBrowserOpen);
+  const comfyLibraryClient = useMemo(
+    () => createComfyWorkflowLibraryClient(resolveComfyWorkflowLibraryTransport()),
+    [],
+  );
 
   const activeGraph = useMemo(
     () => workflows.find((workflow) => workflow.id === activeWorkflowId),
@@ -750,6 +764,7 @@ export function ImageStudioCanvas() {
         onTidy={() => useImageStudioStore.getState().applyLayout()}
         onOpenHistory={() => setHistoryDialogOpen(true)}
         onOpenAssistant={() => setAssistantOpen(true)}
+        onOpenComfyBrowser={() => useImageStudioStore.getState().setComfyBrowserOpen(true)}
         onExport={handleExportCanvas}
         onImport={() => importInputRef.current?.click()}
         onOpenFolder={() => {
@@ -768,6 +783,12 @@ export function ImageStudioCanvas() {
         }}
       />
       <div className="flex min-h-0 flex-1">
+        {comfyBrowserOpen ? (
+          <ComfyWorkflowBrowser
+            client={comfyLibraryClient}
+            onClose={() => useImageStudioStore.getState().setComfyBrowserOpen(false)}
+          />
+        ) : null}
         <ImageStudioFlowView
           graph={activeGraph}
           canvasHistory={canvasHistory}
