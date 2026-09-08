@@ -42,6 +42,8 @@ vi.mock("@/lib/studio/image-workflow", () => ({
     continuityRequired: false,
     previousApprovedFrameIncluded: false,
   })),
+  // 09-09 角色门塌缩对齐:identity 穿透(无透明节点时原样返回)
+  collapseTransparentNodes: vi.fn((graph: unknown) => graph),
   setGeneratedImageResult: vi.fn(),
 }));
 vi.mock("@/lib/ai/ai-manager", () => ({

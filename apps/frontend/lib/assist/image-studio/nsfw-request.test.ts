@@ -100,3 +100,16 @@ describe("连线域规则(nsfw 链互斥,经 isValidImageEdge 单源)", () => {
     expect(graph.edges.some((edge) => edge.source === "ref-1" && edge.target === "gen-1")).toBe(true);
   });
 });
+
+describe("塌缩视图(09-09 旁路/中转穿透)", () => {
+  it("旁路 nsfw 不触发专业流:边随旁路消失,检测返回 undefined", () => {
+    const base = buildNsfwGraph();
+    const graph = {
+      ...base,
+      nodes: base.nodes.map((node) => (node.id === "nsfw-1" ? { ...node, bypassed: true } : node)),
+    } as ImageWorkflowGraph;
+    expect(findNsfwUpstream(graph, "gen-1")).toBeUndefined();
+    // 提示词穿线:prompt→[旁路nsfw]→成图 解析为 prompt→成图(仍可取词)
+    expect(findPromptViaNsfw(graph, "nsfw-1")).toBeUndefined();
+  });
+});

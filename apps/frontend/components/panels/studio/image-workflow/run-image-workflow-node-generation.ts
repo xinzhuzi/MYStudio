@@ -9,6 +9,7 @@ import { createOperationId, logEvent } from "@/lib/diagnostics/logger";
 import {
   assertImageWorkflowContinuityCapability,
   buildImageWorkflowGenerationRequest,
+  collapseTransparentNodes,
   setGeneratedImageResult,
   updateImageWorkflowNode,
 } from "@/lib/studio/image-workflow";
@@ -163,7 +164,8 @@ export async function runImageWorkflowNodeGeneration(
     }
     if (!probeOk) return;
     const byId = new Map(graph.nodes.map((n) => [n.id, n]));
-    const refNodes = graph.edges
+    // 塌缩视图(09-09):闸门按「实际发往引擎的参考」核验,与 request 同口径
+    const refNodes = collapseTransparentNodes(graph).edges
       .filter((edge) => edge.target === targetNodeId)
       .map((edge) => byId.get(edge.source))
       .filter(

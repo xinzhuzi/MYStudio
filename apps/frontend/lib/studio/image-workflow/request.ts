@@ -5,6 +5,7 @@ import type {
 } from "@/types/studio";
 import { resolveMentionTokens } from "./mention-token";
 import {
+  collapseTransparentNodes,
   findPromptNodeForGenerated,
   getGeneratedNode,
   splitPromptEdgesByPolarity,
@@ -41,9 +42,12 @@ export interface ImageWorkflowGenerationRequest {
 }
 
 export function buildImageWorkflowGenerationRequest(
-  graph: ImageWorkflowGraph,
+  rawGraph: ImageWorkflowGraph,
   nodeId: string,
 ): ImageWorkflowGenerationRequest {
+  // 塌缩视图(09-09):旁路/中转穿透后按真源收参——旁路参考不进 manifest,
+  // 旁路成图穿线吃其上游图(previous-approved-frame 跟随真源)
+  const graph = collapseTransparentNodes(rawGraph);
   const node = getGeneratedNode(graph, nodeId);
   // NSFW破限链(09-07):提示词通道=直连 prompt 或 nsfw 链二选一(连线互斥
   // 规则保证不共存);nsfw 链时提示词取 nsfw 上游的提示词节点

@@ -232,7 +232,9 @@ export function isValidImageEdge(
   source: string,
   target: string,
 ): boolean {
-  return evaluateImageEdge(collapseTransparentNodes(graph), source, target, imageEdgeRuleSet);
+  // 原图评估(09-09 修正):边的源类型判断在引擎内穿透感知——预塌缩会删掉
+  // 透明节点入边,候选边以 reroute 为源时反而无从解析真源
+  return evaluateImageEdge(graph, source, target, imageEdgeRuleSet);
 }
 
 /**
@@ -251,7 +253,8 @@ export function isValidImageConnection(
   graph: ImageWorkflowGraph,
   connection: { source: string | null; target: string | null; sourceHandle?: string | null; targetHandle?: string | null },
 ): boolean {
-  return evaluateImageConnection(collapseTransparentNodes(graph), connection, imageEdgeRuleSet);
+  // 原图评估(09-09 修正,与 isValidImageEdge 同因):穿透进引擎,不预塌缩
+  return evaluateImageConnection(graph, connection, imageEdgeRuleSet);
 }
 
 // ── Reroute 中转 + bypass 旁路(09-09 照 ComfyUI) ─────────────────────
@@ -269,8 +272,9 @@ function isTransparentNode(node: ImageWorkflowNode): boolean {
 /**
  * 塌缩视图:透明节点的出边改接其(解析后的)入边真源。
  * 环防御=访问链封顶;重复边/自环滤除;透明节点间链式逐级解析。
+ * 入参放宽到 Pick<nodes|edges>:参考序等只持局部形状的消费方也能直接塌缩。
  */
-export function collapseTransparentNodes(graph: ImageWorkflowGraph): ImageWorkflowGraph {
+export function collapseTransparentNodes<T extends Pick<ImageWorkflowGraph, "nodes" | "edges">>(graph: T): T {
   const transparentIds = new Set(
     graph.nodes.filter(isTransparentNode).map((node) => node.id),
   );
@@ -321,7 +325,7 @@ export function collapseTransparentNodes(graph: ImageWorkflowGraph): ImageWorkfl
     seen.add(key);
     edges.push(next);
   }
-  return { ...graph, edges };
+  return { ...graph, edges } as T;
 }
 
 /** 节点输出资源类型(NODE_OUTPUT_KIND 优先;comfy-workflow/generic/reroute 从

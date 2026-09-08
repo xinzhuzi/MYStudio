@@ -299,6 +299,29 @@ export function ImageWorkflowCanvas({
     [activeGraph, saveGraph],
   );
 
+  // Ctrl/Cmd+M 旁路切换(09-09 照 ComfyUI,与图片工作室同款):选中节点进出
+  // 生成链,连线保留;生成/编译链经塌缩视图穿线。仅 Ctrl——Cmd+M 是 macOS
+  // 系统最小化,不抢占
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.ctrlKey && !event.metaKey && event.key.toLowerCase() === "m") {
+        // 框选多节点时 React Flow 选中不走 selectedNodeId 状态,从 DOM 取
+        const selected = document.querySelector(
+          ".react-flow__node.selected [data-canvas-node-kind], .react-flow__node.selected [data-image-workflow-node-kind]",
+        );
+        const nodeId = selected?.closest(".react-flow__node")?.getAttribute("data-id");
+        if (!nodeId) return;
+        event.preventDefault();
+        const node = activeGraphRef.current?.nodes.find((item) => item.id === nodeId);
+        if (!node) return;
+        updateNode(nodeId, { bypassed: node.bypassed !== true });
+        toast.info(node.bypassed === true ? `「${node.title}」已恢复参与生成` : `「${node.title}」已旁路(生成链跳过,连线保留)`);
+      }
+    };
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, [updateNode]);
+
   // 上下游高亮(09-02-relation-highlight):判序=点边金色优先,否则节点关系
   // 点亮(相关边金、无关边降暗);无选中全默认。
   const relatedEdgeIds = useMemo(

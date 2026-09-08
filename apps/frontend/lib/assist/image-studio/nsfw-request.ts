@@ -3,6 +3,7 @@
 // Commercial licensing available. See COMMERCIAL_LICENSE.md.
 
 import type { ImageWorkflowGraph, ImageWorkflowNsfwNode, ImageWorkflowPromptNode } from "@/types/studio";
+import { collapseTransparentNodes } from "@/lib/studio/image-workflow/graph-build";
 
 /**
  * NSFW破限链检测(09-07-nsfw-pro-node):成图节点上游挂 nsfw 节点时,
@@ -10,6 +11,9 @@ import type { ImageWorkflowGraph, ImageWorkflowNsfwNode, ImageWorkflowPromptNode
  * LoRA 栈(Mystic XXX v3@1.0 + pussy@0.3)+ 12 带重平衡,ComfyUI 桥
  * 路由 krea2_nsfw_pro 模板。与 uncloth 不同:不换管线/不换端点,只是
  * 正常 t2i/i2i 请求的参数增强,故本模块只做检测与提示词通道解析。
+ *
+ * 塌缩视图(09-09):旁路 nsfw 不触发专业流(边随旁路消失);提示词经
+ * 中转/旁路穿透后按真源解析。
  */
 
 /** 消费 use_lora 的本地引擎(其余本地引擎 **ctx 静默吞掉,须事前阻断) */
@@ -25,7 +29,7 @@ export function findNsfwUpstream(
   generatedNodeId: string,
 ): ImageWorkflowNsfwNode | undefined {
   const nodesById = new Map(graph.nodes.map((node) => [node.id, node]));
-  for (const edge of graph.edges) {
+  for (const edge of collapseTransparentNodes(graph).edges) {
     if (edge.target !== generatedNodeId) continue;
     const source = nodesById.get(edge.source);
     if (source?.type === "nsfw") return source;
@@ -42,7 +46,7 @@ export function findPromptViaNsfw(
   nsfwNodeId: string,
 ): ImageWorkflowPromptNode | undefined {
   const nodesById = new Map(graph.nodes.map((node) => [node.id, node]));
-  for (const edge of graph.edges) {
+  for (const edge of collapseTransparentNodes(graph).edges) {
     if (edge.target !== nsfwNodeId) continue;
     const source = nodesById.get(edge.source);
     if (source?.type === "prompt") return source;

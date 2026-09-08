@@ -140,8 +140,58 @@ export function buildImageWorkflowPortRuleSet(
 
 // ────────── 查表引擎(纯函数;与旧手写分支逐分支等价,对拍测试锁死) ──────────
 
+/** 存量边源类型查询(09-09 穿透感知):源为 reroute/bypassed 时解析真源
+ * 类型——与塌缩视图同语义,但保留入边(候选边评估需要);空转/断链=undefined */
 function nodeTypeOf(graph: ImageWorkflowGraph, nodeId: string): ImageWorkflowNodeType | undefined {
-  return graph.nodes.find((node) => node.id === nodeId)?.type;
+  const node = graph.nodes.find((item) => item.id === nodeId);
+  if (!node) return undefined;
+  if (node.type !== "reroute" && node.bypassed !== true) return node.type;
+  return effectiveSourceType(graph, nodeId);
+}
+
+/**
+ * 候选边源类型(09-09 透明源穿透):源为 reroute/bypassed 时沿入边解析
+ * 真源类型参与校验——与 collapseTransparentNodes 同语义(reroute 单入直通;
+ * bypassed 业务节点按输出同类挑选入边)。空转/断链/环返回 undefined=拒。
+ * 引擎零依赖纪律:类型推导只用本文件词表;comfy 生态类型旁路作源的建边
+ * 场景解析不出(词表未收录),拒之无害——其既有出边的穿透由消费侧塌缩
+ * (带注册表兜底)负责。
+ */
+function effectiveSourceType(
+  graph: ImageWorkflowGraph,
+  nodeId: string,
+  chain: Set<string> = new Set(),
+): ImageWorkflowNodeType | undefined {
+  if (chain.has(nodeId)) return undefined;
+  chain.add(nodeId);
+  const node = graph.nodes.find((item) => item.id === nodeId);
+  if (!node) return undefined;
+  if (node.type !== "reroute" && node.bypassed !== true) return node.type;
+  if (node.type === "reroute") {
+    const head = graph.edges.find((edge) => edge.target === nodeId);
+    const resolved = head ? effectiveSourceType(graph, head.source, chain) : undefined;
+    return resolved === "reroute" ? undefined : resolved;
+  }
+  const wanted = NODE_OUTPUT_KIND[node.type] ?? null;
+  for (const edge of graph.edges) {
+    if (edge.target !== nodeId) continue;
+    const resolved = effectiveSourceType(graph, edge.source, chain);
+    if (!resolved || resolved === "reroute") continue;
+    const kind = NODE_OUTPUT_KIND[resolved];
+    if (!wanted || (kind && portKindCompatible(kind, wanted))) return resolved;
+  }
+  return undefined;
+}
+
+/** 源节点连线类型:透明源穿透到真源(引擎内单点出口,两 evaluate 共用) */
+function wiredSourceType(
+  graph: ImageWorkflowGraph,
+  sourceNode: { type: ImageWorkflowNodeType; bypassed?: boolean } | undefined,
+  sourceId: string,
+): ImageWorkflowNodeType | undefined {
+  if (!sourceNode) return undefined;
+  if (sourceNode.type !== "reroute" && sourceNode.bypassed !== true) return sourceNode.type;
+  return effectiveSourceType(graph, sourceId);
 }
 
 /** 通道是否可接该源类型:显式白名单 / 兜底 / 类型兼容表推导 */
@@ -211,7 +261,10 @@ export function evaluateImageEdge(
 
   const channels = rules.inputsByType[targetNode.type];
   if (!channels) return false;
-  const channel = channels.find((item) => channelAccepts(item, sourceNode.type));
+  // 透明源穿透(09-09):reroute/旁路源按真源类型匹配通道(空转=拒)
+  const sourceType = wiredSourceType(graph, sourceNode, source);
+  if (!sourceType) return false;
+  const channel = channels.find((item) => channelAccepts(item, sourceType));
   if (!channel) return false;
 
   // 端口容量(节点级口径)
@@ -260,8 +313,9 @@ export function evaluateImageConnection(
         }
       }
       if (seat && seatChannel) {
-        // 口别类型兼容(通道白名单/兼容表;源节点不存在拒)
-        if (!sourceNode || !channelAccepts(seatChannel, sourceNode.type)) return false;
+        // 口别类型兼容(通道白名单/兼容表;源节点不存在拒;透明源按真源匹配)
+        const sourceType = wiredSourceType(graph, sourceNode, connection.source);
+        if (!sourceNode || !sourceType || !channelAccepts(seatChannel, sourceType)) return false;
         // 口别极性(①=正向席/②=负向席,极性错口拒;存量无 sourceHandle 边不筛)
         if (seat.polarity && connection.sourceHandle && connection.sourceHandle !== seat.polarity) {
           return false;

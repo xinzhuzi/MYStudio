@@ -2,6 +2,7 @@
 // Licensed under AGPL-3.0-or-later. See LICENSE for details.
 
 import type { ImageWorkflowGraph, ImageWorkflowNode } from "@/types/studio";
+import { collapseTransparentNodes } from "@/lib/studio/image-workflow/graph-build";
 
 /**
  * 参考图编号与请求顺序的单源(09-03 用户裁定:参考图要有标号,AI 按数组
@@ -11,16 +12,20 @@ import type { ImageWorkflowGraph, ImageWorkflowNode } from "@/types/studio";
  * Krea2 只消费第 1 张,画布最上面的参考即第 1 张,语义直白。
  * 编号(「参考图 N」)只标参考图节点;链式上游成图(结果作参考)参与
  * 数组排序但不显示编号(其自身有节点卡可辨)。
+ *
+ * 塌缩视图(09-09):旁路参考不进数组也不占编号(下游编号自动补位);
+ * 参考图→中转点→成图 解析为 参考→成图(编号与直连等价)。
  */
 
 export function orderedReferenceSources<T extends ImageWorkflowNode>(
   graph: Pick<ImageWorkflowGraph, "nodes" | "edges">,
   targetNodeId: string,
 ): T[] {
+  const edges = collapseTransparentNodes(graph).edges;
   const nodesById = new Map(graph.nodes.map((node) => [node.id, node]));
   const sources: ImageWorkflowNode[] = [];
   const seen = new Set<string>();
-  for (const edge of graph.edges) {
+  for (const edge of edges) {
     if (edge.target !== targetNodeId) continue;
     const source = nodesById.get(edge.source);
     if (!source || seen.has(source.id)) continue;
@@ -41,7 +46,8 @@ export function referenceIndexOf(
   graph: Pick<ImageWorkflowGraph, "nodes" | "edges">,
   referenceNodeId: string,
 ): number | undefined {
-  const target = graph.edges.find((edge) => edge.source === referenceNodeId)?.target;
+  // 塌缩边找目标:参考→中转→成图 时按真目标(成图)计序
+  const target = collapseTransparentNodes(graph).edges.find((edge) => edge.source === referenceNodeId)?.target;
   if (!target) return undefined;
   const ordered = orderedReferenceSources(graph, target).filter((node) => node.type === "reference");
   const index = ordered.findIndex((node) => node.id === referenceNodeId);

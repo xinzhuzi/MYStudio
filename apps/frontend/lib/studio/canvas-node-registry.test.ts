@@ -6,7 +6,7 @@ import {
 } from "./canvas-node-registry";
 
 describe("canvas-node-registry:image-workflow 面", () => {
-  it("类型注册齐(五存量+comfy 两新类,09-08 流X),三要素(几何来源/动作/输出资源)完整", () => {
+  it("类型注册齐(五存量+comfy 两新类+reroute 中转,09-08 流X/09-09 中转),三要素(几何来源/动作/输出资源)完整", () => {
     const definitions = listCanvasNodeDefinitions("image-workflow");
     expect(definitions.map((d) => d.typeId).sort()).toEqual([
       "comfy-generic",
@@ -15,6 +15,7 @@ describe("canvas-node-registry:image-workflow 面", () => {
       "nsfw",
       "prompt",
       "reference",
+      "reroute",
       "uncloth",
     ]);
     for (const definition of definitions) {

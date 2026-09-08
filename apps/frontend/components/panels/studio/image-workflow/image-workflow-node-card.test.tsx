@@ -11,7 +11,13 @@ vi.mock("@/components/ui/image-resolution-badge", () => ({
 }));
 vi.mock("@xyflow/react", () => ({
   Handle: () => <span data-testid="handle" />,
-  NodeResizer: () => <span data-testid="node-resizer" />,
+  // 拉伸行为探针:点击即触发 onResizeEnd(09-09 宽度持久化链断言)
+  NodeResizer: (props: { onResizeEnd?: (event: unknown, params: { width?: number }) => void }) => (
+    <span
+      data-testid="node-resizer"
+      onClick={() => props.onResizeEnd?.({}, { width: 555 })}
+    />
+  ),
 
   Position: { Left: "left", Right: "right" },
 }));
@@ -230,5 +236,84 @@ describe("ImageWorkflowNodeCard 无衣物(09-04 通用化)", () => {
     // 09-07 用户终裁:成图不能单独生图——卡上零提示词框(无上游也無兜底面板)
     expect(container.querySelector("[data-toonflow-generated-prompt-panel]")).toBeNull();
     expect(screen.queryByText(/描述要生成的图片/)).toBeNull();
+  });
+});
+
+describe("ImageWorkflowNodeCard 手动拉伸+旁路态(09-09 照 ComfyUI)", () => {
+  it("拉伸宽度经 onUpdate 落节点 size(持久化链);bypassed 渲染旁路标记", () => {
+    const onUpdate = vi.fn();
+    const node = {
+      id: "ref-1",
+      type: "reference",
+      title: "参考图",
+      imageUrl: "project-file://p/a.png",
+      position: { x: 0, y: 0 },
+      createdAt: 1,
+      updatedAt: 1,
+    } as ImageWorkflowNode;
+    render(
+      <ImageWorkflowNodeCard
+        id={node.id}
+        data={{
+          node,
+          selected: true,
+          storyboards: [],
+          onUpdate,
+          onGenerate: vi.fn(),
+          onUpscale: vi.fn(),
+          onApplyToStoryboard: vi.fn(),
+          onDelete: vi.fn(),
+        }}
+        selected
+        type="reference"
+        dragging={false}
+        zIndex={0}
+        isConnectable
+        positionAbsoluteX={0}
+        positionAbsoluteY={0}
+        deletable
+        selectable
+        draggable
+        width={420}
+        height={320}
+      />,
+    );
+    // 壳层渲染了 NodeResizer;触发其 onResizeEnd → 宽度经 onUpdate 落 size
+    fireEvent.click(screen.getByTestId("node-resizer"));
+    expect(onUpdate).toHaveBeenCalledWith("ref-1", { size: { width: 555 } });
+
+    // 旁路态:bypassed 节点壳渲染 data-canvas-node-bypassed(半透明+徽章由壳)
+    const bypassedNode = { ...node, bypassed: true };
+    const bypassedRender = render(
+      <ImageWorkflowNodeCard
+        id={bypassedNode.id}
+        data={{
+          node: bypassedNode,
+          selected: false,
+          storyboards: [],
+          onUpdate: vi.fn(),
+          onGenerate: vi.fn(),
+          onUpscale: vi.fn(),
+          onApplyToStoryboard: vi.fn(),
+          onDelete: vi.fn(),
+        }}
+        selected={false}
+        type="reference"
+        dragging={false}
+        zIndex={0}
+        isConnectable
+        positionAbsoluteX={0}
+        positionAbsoluteY={0}
+        deletable
+        selectable
+        draggable
+        width={420}
+        height={320}
+      />,
+    );
+    expect(
+      bypassedRender.container.querySelector("[data-image-workflow-node-kind]")?.getAttribute("data-canvas-node-bypassed"),
+    ).toBe("true");
+
   });
 });

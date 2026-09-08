@@ -3,13 +3,16 @@
 
 import type { ImageWorkflowGraph, ImageWorkflowUnclothNode } from "@/types/studio";
 import { resolveUnclothParams } from "@/lib/assist/image-studio/uncloth-defaults";
-import { splitPromptEdgesByPolarity } from "@/lib/studio/image-workflow/graph-build";
+import { collapseTransparentNodes, splitPromptEdgesByPolarity } from "@/lib/studio/image-workflow/graph-build";
 
 /**
  * 无衣物链请求组装(09-04-krea2-uncloth-node):成图节点触发时,上游
  * uncloth 节点封装的完整管线(双分割+两遍采样)由 sidecar 执行,结果直通
  * 成图。链式输入(uncloth 的上游 uncloth)按序收集,提示词回落顺序=
  * uncloth.prompt → 其上游提示词节点。
+ *
+ * 塌缩视图(09-09):旁路 uncloth 的出边穿线给同类输入(回落普通生成由
+ * 调用方兜底);图输入/image-b 口/提示词口经中转与旁路穿透后按真源解析。
  */
 
 export interface UnclothChainRequest {
@@ -28,7 +31,7 @@ export function findUnclothUpstream(
   generatedNodeId: string,
 ): ImageWorkflowUnclothNode | undefined {
   const nodesById = new Map(graph.nodes.map((node) => [node.id, node]));
-  for (const edge of graph.edges) {
+  for (const edge of collapseTransparentNodes(graph).edges) {
     if (edge.target !== generatedNodeId) continue;
     const source = nodesById.get(edge.source);
     if (source?.type === "uncloth") return source;
@@ -38,9 +41,10 @@ export function findUnclothUpstream(
 
 /** 组装管线请求;输入图/文本缺位返回 null(调用方阻断并指路) */
 export function buildUnclothChainRequest(
-  graph: ImageWorkflowGraph,
+  rawGraph: ImageWorkflowGraph,
   generatedNodeId: string,
 ): UnclothChainRequest | { error: string } {
+  const graph = collapseTransparentNodes(rawGraph);
   const nodesById = new Map(graph.nodes.map((node) => [node.id, node]));
   const uncloth = findUnclothUpstream(graph, generatedNodeId);
   if (!uncloth) return { error: "未找到无衣物上游" };
@@ -69,6 +73,11 @@ export function buildUnclothChainRequest(
   const imageBEdge = graph.edges.find(
     (edge) => edge.target === uncloth.id && edge.targetHandle === "image-b",
   );
+  // 双参考×遮罩流互斥(09-09):uncloth_pipeline 的 fast/fine 分支不消费
+  // imageB_b64——连线宽容(注册表不拦),请求链在此阻断并指路,不静默丢图B
+  if (imageBEdge && uncloth.variant !== "instruct") {
+    return { error: "双参考图B仅稳定版无衣物支持:把节点档位切到「稳定」,或拔掉图B连线再生成" };
+  }
   let imageB_b64: string | undefined;
   if (imageBEdge) {
     const bSrc = nodesById.get(imageBEdge.source);

@@ -99,6 +99,8 @@ export const ImageWorkflowNodeCard = memo(function ImageWorkflowNodeCard({ data 
         node={node}
         selected={data.selected}
         dataKindAttr="data-image-workflow-node-kind"
+        // 09-09 照 ComfyUI:右下角拉伸调宽,宽度经 onUpdate 落节点 size 持久化
+        onResizeEnd={(width) => data.onUpdate(node.id, { size: { width } })}
         toolbar={
           <>
             {data.onExtract && node.type !== "prompt" && extractableImageUrl(node) ? (

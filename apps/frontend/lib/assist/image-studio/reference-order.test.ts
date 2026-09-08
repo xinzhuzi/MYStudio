@@ -83,4 +83,72 @@ describe("reference-order(参考图编号单源)", () => {
     const request = buildImageStudioGenerationRequest(graph, "gen-1");
     expect(request.referenceImages).not.toContain("");
   });
+
+  it("旁路参考不进请求也不占编号,下游编号自动补位(09-09 塌缩)", () => {
+    const base = graphWithReferences();
+    const graph = {
+      ...base,
+      nodes: base.nodes.map((node) => (node.id === "ref-c" ? { ...node, bypassed: true } : node)),
+    } as ImageWorkflowGraph;
+    expect(referenceIndexOf(graph, "ref-c")).toBeUndefined();
+    expect(referenceIndexOf(graph, "ref-a")).toBe(1);
+    expect(referenceIndexOf(graph, "ref-b")).toBe(2);
+    const request = buildImageStudioGenerationRequest(graph, "gen-1");
+    expect(request.referenceImages).toEqual([
+      "local-image://ai-image/a.png",
+      "local-image://ai-image/b.png",
+    ]);
+  });
+
+  it("参考图→中转点→成图:编号与请求等价于直连(09-09 塌缩穿透)", () => {
+    const base = graphWithReferences();
+    // ref-a 的直连边改为经中转点
+    const graph = {
+      ...base,
+      nodes: [
+        ...base.nodes,
+        { id: "rr-1", type: "reroute", title: "中转点", position: { x: 400, y: 300 } } as never,
+      ],
+      edges: [
+        edge("ref-c", "gen-1"),
+        edge("ref-a", "rr-1"),
+        edge("rr-1", "gen-1"),
+        edge("ref-b", "gen-1"),
+      ],
+    } as ImageWorkflowGraph;
+    expect(referenceIndexOf(graph, "ref-a")).toBe(2);
+    const request = buildImageStudioGenerationRequest(graph, "gen-1");
+    expect(request.referenceImages).toEqual([
+      "local-image://ai-image/c.png",
+      "local-image://ai-image/a.png",
+      "local-image://ai-image/b.png",
+    ]);
+  });
+
+  it("旁路成图穿线:下游参考吃其上游图(图进图出,09-09 塌缩)", () => {
+    const base = graphWithReferences();
+    const graph = {
+      ...base,
+      nodes: [
+        ...base.nodes,
+        { id: "gen-0", type: "generated", title: "上游成图", prompt: "", position: { x: 400, y: 0 }, resultUrl: "local-image://ai-image/up.png" } as never,
+      ],
+      edges: [...base.edges, edge("gen-0", "gen-1")],
+    } as ImageWorkflowGraph;
+    const active = {
+      ...graph,
+      nodes: graph.nodes.map((node) => (node.id === "gen-0" ? { ...node, bypassed: true } : node)),
+    } as ImageWorkflowGraph;
+    // gen-0 旁路且无输入 → 其出边消失,请求不吃 up.png
+    const withoutUpstream = buildImageStudioGenerationRequest(active, "gen-1");
+    expect(withoutUpstream.referenceImages).not.toContain("local-image://ai-image/up.png");
+    // gen-0 挂参考输入再旁路 → 穿线:ref-up 作为 gen-1 的参考
+    const wired = {
+      ...active,
+      edges: [...active.edges, edge("ref-c", "gen-0")],
+    } as ImageWorkflowGraph;
+    const request = buildImageStudioGenerationRequest(wired, "gen-1");
+    expect(request.referenceImages).toContain("local-image://ai-image/c.png");
+    expect(request.referenceImages).not.toContain("local-image://ai-image/up.png");
+  });
 });
