@@ -18,6 +18,7 @@ import {
   type ComfyPluginInstallReport,
   type ComfyPluginInfo,
   type ComfyPluginUsageReply,
+  ComfySnapshotEntry,
 } from "./comfy-engine-contract";
 
 const JOB_POLL_INTERVAL_MS = 800;
@@ -257,6 +258,54 @@ export function useComfyEngineSettings(options: UseComfyEngineSettingsOptions = 
     }
   }, [client, refreshStatus]);
 
+  // 高级设置(09-08 映射表补口):性能档/加速方式落账,重启引擎后生效
+  const setLaunchArgs = useCallback(
+    async (args: { vramPolicy?: "auto" | "gpu-only" | "reserve-vram"; reserveVramGb?: number | null; attentionMode?: "auto" | "pytorch-cross-attention" }) => {
+      if (!client) return;
+      try {
+        const reply = await client.setLaunchArgs(args);
+        if (!reply.accepted) toast.error(reply.message || "性能档设置未保存");
+        else toast.success("已保存,重启引擎后生效");
+      } catch (error) {
+        toast.error(error instanceof Error ? error.message : "性能档设置失败");
+      }
+    },
+    [client],
+  );
+
+  // 快照列表(09-08 映射表补口:快照页→搬并强化)
+  const [snapshots, setSnapshots] = useState<ComfySnapshotEntry[]>([]);
+  const refreshSnapshots = useCallback(async () => {
+    if (!client) return;
+    try {
+      setSnapshots(await client.listSnapshots());
+    } catch {
+      // 列表拉不到不阻塞(引擎未装/离线时为空)
+    }
+  }, [client]);
+
+  const rollbackTo = useCallback(
+    async (snapshotId: string) => {
+      if (!client) return;
+      setIsRollingBack(true);
+      try {
+        const reply = await client.rollbackUpdate(snapshotId);
+        if (reply.accepted) {
+          toast.success(reply.message || "已回滚到所选快照");
+          setUpdateReport(null);
+        } else {
+          toast.error(reply.message || "回滚失败");
+        }
+        await refreshStatus();
+      } catch (error) {
+        toast.error(error instanceof Error ? error.message : "回滚失败");
+      } finally {
+        setIsRollingBack(false);
+      }
+    },
+    [client, refreshStatus],
+  );
+
   const setModelsDir = useCallback(
     async (path: string) => {
       if (!client) return false;
@@ -365,6 +414,10 @@ export function useComfyEngineSettings(options: UseComfyEngineSettingsOptions = 
     updateEngine,
     resetEngine,
     rollbackUpdate,
+    rollbackTo,
+    setLaunchArgs,
+    snapshots,
+    refreshSnapshots,
     checkUpdate,
     setModelsDir,
     runDoctor,

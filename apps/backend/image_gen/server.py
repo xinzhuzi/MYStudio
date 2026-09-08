@@ -452,6 +452,9 @@ class Handler(BaseHTTPRequestHandler):
 
         try:
             # ── 引擎 ──
+            if method == "GET" and path == "/comfy/engine/snapshots":
+                self._send_json(engine_manager().list_snapshots())
+                return
             if method == "GET" and path == "/comfy/engine/status":
                 self._send_json(engine_manager().status())
                 return

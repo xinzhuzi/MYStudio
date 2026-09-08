@@ -21,6 +21,7 @@ import type {
   ComfyPluginInfo,
   ComfyPluginState,
   ComfyPluginUsageReply,
+  ComfySnapshotEntry,
 } from "./comfy-engine-contract";
 
 export interface MockComfyEngineOptions {
@@ -86,6 +87,8 @@ function notInstalledStatus(): ComfyEngineStatus {
     updateAvailable: false,
     message: null,
     installDir: null,
+    torch: null,
+    launchArgs: null,
   };
 }
 
@@ -413,7 +416,15 @@ export function createMockComfyEngineClient(
       return { workflows: [] };
     },
 
-    async doctor(): Promise<ComfyDoctorReport> {
+    async listSnapshots(): Promise<ComfySnapshotEntry[]> {
+      return [];
+    },
+
+    async setLaunchArgs(): Promise<{ accepted: boolean; message?: string }> {
+      return { accepted: true };
+    },
+
+  async doctor(): Promise<ComfyDoctorReport> {
       if (status.installed) {
         return { missing: [], drifted: ["numpy(被外部顶到 2.1.0)"], orphan: [] };
       }

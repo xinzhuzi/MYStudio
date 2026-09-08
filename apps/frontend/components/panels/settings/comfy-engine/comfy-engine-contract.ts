@@ -70,6 +70,10 @@ export interface ComfyEngineStatus {
   message: string | null;
   /** 引擎安装目录(打开按钮用)。 */
   installDir: string | null;
+  /** 引擎 venv 的 PyTorch 版本(安装时入账;高级区只读展示,照 Comfy Desktop 同款)。 */
+  torch: string | null;
+  /** 性能档(启动参数的大白话翻译;高级区编辑)。 */
+  launchArgs: { vramPolicy: string; attentionMode: string; reserveVramGb: number | null } | null;
 }
 
 // ---------------------------------------------------------------------------
@@ -229,7 +233,7 @@ export interface ComfyEngineClient {
   stopEngine(): Promise<ComfyEngineAckReply>;
   checkUpdate(): Promise<ComfyEngineUpdateCheckReply>;
   updateEngine(): Promise<ComfyEngineStartJobReply>;
-  rollbackUpdate(): Promise<ComfyEngineAckReply>;
+  rollbackUpdate(snapshotId?: string): Promise<ComfyEngineAckReply>;
   resetEngine(): Promise<ComfyEngineStartJobReply>;
   getJob(jobId: string): Promise<ComfyEngineJob>;
   /** 模型目录自定义(指向现有模型库即免重下);契约补充面,见接线点说明。 */
@@ -245,6 +249,19 @@ export interface ComfyEngineClient {
   /** 卸载前引用扫描(用户工作流 class_type 精确匹配);契约补充面。 */
   getPluginUsage(id: string): Promise<ComfyPluginUsageReply>;
   doctor(): Promise<ComfyDoctorReport>;
+  /** 快照列表(装插件/更新引擎前自动打;列表+一键回滚,design 映射表「快照页→搬并强化」)。 */
+  listSnapshots(): Promise<ComfySnapshotEntry[]>;
+  /** 修改性能档/加速方式(启动参数的大白话翻译落账,重启引擎生效)。 */
+  setLaunchArgs(args: { vramPolicy?: "auto" | "gpu-only" | "reserve-vram"; reserveVramGb?: number | null; attentionMode?: "auto" | "pytorch-cross-attention" }): Promise<ComfyEngineAckReply>;
+}
+
+/** 快照条目(引擎卡快照区展示)。 */
+export interface ComfySnapshotEntry {
+  id: string;
+  createdAt: number;
+  reason: string;
+  version: string | null;
+  full: boolean;
 }
 
 /**

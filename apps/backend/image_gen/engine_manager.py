@@ -379,6 +379,7 @@ class EngineManager:
             "pluginCount": len(cm.plugin_ledger(manifest)),
             "updateAvailable": bool(self._last_check.get("updateAvailable")),
             "launchArgs": cm.engine_launch_args(manifest),
+            "torch": engine.get("torch"),
             "nodeCount": self._last_node_count,
             "defaultModelsDir": str(cm.default_models_dir()),
             "installDir": str(cm.comfy_home()),

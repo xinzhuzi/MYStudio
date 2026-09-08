@@ -26,6 +26,7 @@ import type {
   ComfyPluginInfo,
   ComfyPluginState,
   ComfyPluginUsageReply,
+  ComfySnapshotEntry,
 } from "@/components/panels/settings/comfy-engine/comfy-engine-contract";
 import type {
   ComfyWorkflowDeleteScan,
@@ -174,6 +175,8 @@ interface SidecarEngineStatusReply {
   version?: string | null;
   latest?: string | null;
   state?: string; // not_installed | installing | updating | resetting | running | stopped
+  torch?: string | null; // 引擎 venv 的 PyTorch 版本(装时入账)
+  launchArgs?: { vramPolicy?: string; attentionMode?: string; reserveVramGb?: number | null } | null;
   running?: boolean;
   port?: number | null;
   modelsDir?: string | null;
@@ -250,6 +253,14 @@ export function mapEngineStatus(raw: SidecarEngineStatusReply): ComfyEngineStatu
     updateAvailable: raw.updateAvailable === true,
     message: raw.message ?? null,
     installDir: raw.installDir ?? null,
+    torch: raw.torch ?? null,
+    launchArgs: raw.launchArgs
+      ? {
+          vramPolicy: String(raw.launchArgs.vramPolicy ?? "auto"),
+          attentionMode: String(raw.launchArgs.attentionMode ?? "auto"),
+          reserveVramGb: raw.launchArgs.reserveVramGb ?? null,
+        }
+      : null,
   };
 }
 
@@ -474,9 +485,11 @@ export function createHttpComfyEngineClient(): ComfyEngineClient {
     async updateEngine(): Promise<ComfyEngineStartJobReply> {
       return comfySidecarRequest<ComfyEngineStartJobReply>("POST", "/comfy/engine/update");
     },
-    async rollbackUpdate(): Promise<ComfyEngineAckReply> {
+    async rollbackUpdate(snapshotId?: string): Promise<ComfyEngineAckReply> {
       try {
-        const raw = await comfySidecarRequest<{ rolledBackTo?: string }>("POST", "/comfy/engine/rollback");
+        const raw = await comfySidecarRequest<{ rolledBackTo?: string }>("POST", "/comfy/engine/rollback", {
+          ...(snapshotId ? { body: { snapshotId } } : {}),
+        });
         return { accepted: true, message: raw.rolledBackTo ? `已回滚到快照 ${raw.rolledBackTo}` : "已回滚" };
       } catch (error) {
         return { accepted: false, message: error instanceof Error ? error.message : "回滚失败" };
@@ -495,6 +508,24 @@ export function createHttpComfyEngineClient(): ComfyEngineClient {
       await comfySidecarRequest("POST", "/comfy/engine/config", { body: { modelsDir: path } });
       return { accepted: true };
     },
+    async listSnapshots(): Promise<ComfySnapshotEntry[]> {
+      const raw = await comfySidecarRequest<unknown[]>("GET", "/comfy/engine/snapshots");
+      return (Array.isArray(raw) ? raw : []).map((item) => {
+        const row = (item ?? {}) as Record<string, unknown>;
+        return {
+          id: String(row.id ?? ""),
+          createdAt: Number(row.createdAt ?? 0),
+          reason: String(row.reason ?? ""),
+          version: row.version == null ? null : String(row.version),
+          full: row.full === true,
+        };
+      });
+    },
+
+    async setLaunchArgs(args: { vramPolicy?: "auto" | "gpu-only" | "reserve-vram"; reserveVramGb?: number | null; attentionMode?: "auto" | "pytorch-cross-attention" }): Promise<ComfyEngineAckReply> {
+      return comfySidecarRequest<ComfyEngineAckReply>("POST", "/comfy/engine/config", { body: { launchArgs: args } });
+    },
+
     async listPlugins(): Promise<ComfyPluginInfo[]> {
       const raw = await comfySidecarRequest<{ plugins?: SidecarPluginRow[] }>("GET", "/comfy/plugins");
       return (raw.plugins ?? []).map(mapPluginRow);

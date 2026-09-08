@@ -28,6 +28,8 @@ function status(overrides: Partial<ComfyEngineStatus>): ComfyEngineStatus {
     updateAvailable: false,
     message: null,
     installDir: "/tmp/comfyui",
+    torch: null,
+    launchArgs: null,
     ...overrides,
   };
 }

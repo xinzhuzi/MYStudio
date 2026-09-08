@@ -16,6 +16,7 @@ const scenario = vi.hoisted(() => ({
   plugins: [] as import("./comfy-engine-contract").ComfyPluginInfo[],
   catalog: [] as import("./comfy-engine-contract").ComfyCatalogEntry[],
   pluginUsage: { workflows: [] as Array<{ id: string; name: string }> },
+  snapshots: [] as import("./comfy-engine-contract").ComfySnapshotEntry[],
 }));
 
 const actions = vi.hoisted(() => ({
@@ -23,6 +24,9 @@ const actions = vi.hoisted(() => ({
   updateEngine: vi.fn(async () => undefined),
   resetEngine: vi.fn(async () => undefined),
   rollbackUpdate: vi.fn(async () => undefined),
+  rollbackTo: vi.fn(async () => undefined),
+  setLaunchArgs: vi.fn(async () => undefined),
+  refreshSnapshots: vi.fn(async () => undefined),
   checkUpdate: vi.fn(async () => undefined),
   setModelsDir: vi.fn(async () => true),
   runDoctor: vi.fn(async () => undefined),
@@ -55,6 +59,7 @@ vi.mock("./useComfyEngineSettings", () => ({
     isRunningDoctor: false,
     isStartingService: false,
     isRollingBack: false,
+    snapshots: scenario.snapshots,
     ...actions,
   }),
 }));
@@ -75,6 +80,8 @@ function readyStatus(overrides: Partial<ComfyEngineStatus> = {}): ComfyEngineSta
     updateAvailable: false,
     message: null,
     installDir: "/tmp/comfyui",
+    torch: null,
+    launchArgs: null,
     ...overrides,
   };
 }
@@ -358,5 +365,44 @@ describe("ComfyEngineSettingsSection 插件子区块", () => {
     fireEvent.change(refInput, { target: { value: "https://example.test/comfyui-x" } });
     fireEvent.click(comfyEl("plugin-advanced-install"));
     expect(actions.installPlugin).toHaveBeenCalledWith("git", "https://example.test/comfyui-x");
+  });
+});
+
+// ── 09-08 映射表补口:高级设置区 + 快照区 ──
+describe("ComfyEngineSettingsSection 高级设置与快照(映射表补口)", () => {
+  beforeEach(() => {
+    scenario.status = readyStatus({ torch: "2.13.0", launchArgs: { vramPolicy: "auto", attentionMode: "auto", reserveVramGb: null } });
+    scenario.snapshots = [];
+  });
+
+  it("展开高级区:PyTorch 版本/显存策略/加速方式渲染", async () => {
+    render(<ComfyEngineSettingsSection />);
+    await waitFor(() => expect(screen.getByText("当前版本")).toBeTruthy());
+    fireEvent.click(comfyEl("advanced-toggle"));
+    await waitFor(() => expect(comfyEl("torch")?.textContent).toContain("2.13.0"));
+    expect(comfyEl("vram-select")).toBeTruthy();
+    expect(comfyEl("attention-select")).toBeTruthy();
+    expect(comfyEl("snapshots")).toBeTruthy();
+  });
+
+  it("保存性能档:setLaunchArgs 收到档位值", async () => {
+    render(<ComfyEngineSettingsSection />);
+    await waitFor(() => expect(screen.getByText("当前版本")).toBeTruthy());
+    fireEvent.click(comfyEl("advanced-toggle"));
+    fireEvent.change(comfyEl("vram-select"), { target: { value: "gpu-only" } });
+    fireEvent.click(comfyEl("advanced-save"));
+    await waitFor(() => expect(actions.setLaunchArgs).toHaveBeenCalledWith(expect.objectContaining({ vramPolicy: "gpu-only" })));
+  });
+
+  it("快照列表与回滚:渲染大白话原因,点击调 rollbackTo(id)", async () => {
+    scenario.snapshots = [
+      { id: "snap-9", createdAt: 1788835819800, reason: "plugin-uninstall:rgthree-comfy", version: "v0.34.6", full: false },
+    ];
+    render(<ComfyEngineSettingsSection />);
+    await waitFor(() => expect(screen.getByText("当前版本")).toBeTruthy());
+    fireEvent.click(comfyEl("advanced-toggle"));
+    await waitFor(() => expect(screen.getByText(/卸载插件 rgthree-comfy 前/)).toBeTruthy());
+    fireEvent.click(comfyEl("snapshot-rollback"));
+    await waitFor(() => expect(actions.rollbackTo).toHaveBeenCalledWith("snap-9"));
   });
 });

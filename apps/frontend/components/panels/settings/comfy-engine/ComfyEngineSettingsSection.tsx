@@ -175,16 +175,31 @@ function DoctorReportCard({
  * ComfyUI 图像引擎配置区块。版本策略=跟随最新 release(grill Q10):检查更新显式点击,
  * 更新永远显式确认;更新链=快照→拉新版→重启→重校验,失败一键回滚。
  */
+/** 快照原因 → 大白话(快照区展示,design 映射表「快照页→搬并强化」)。 */
+function snapshotReasonLabel(reason: string): string {
+  if (reason === "update") return "更新引擎前";
+  if (reason === "reset") return "复位前";
+  if (reason.startsWith("plugin-install:")) return `安装插件 ${reason.slice("plugin-install:".length)} 前`;
+  if (reason.startsWith("plugin-uninstall:")) return `卸载插件 ${reason.slice("plugin-uninstall:".length)} 前`;
+  return reason || "手动";
+}
+
 export function ComfyEngineSettingsSection({ embedded = false }: ComfyEngineSettingsSectionProps) {
   const engine = useComfyEngineSettings();
   const status = engine.status;
   const [modelsDirDraft, setModelsDirDraft] = useState("");
   const [confirmReset, setConfirmReset] = useState(false);
+  // 高级设置折叠(09-08 映射表补口:启动参数翻译档位 + PyTorch 版本 + 快照)
+  const [advancedOpen, setAdvancedOpen] = useState(false);
+  const [vramDraft, setVramDraft] = useState("");
+  const [attentionDraft, setAttentionDraft] = useState("");
 
   // 模型目录草稿跟随真实状态(未编辑过时)。
   useEffect(() => {
     setModelsDirDraft((previous) => (previous === "" ? (status?.modelsDir ?? "") : previous));
-  }, [status?.modelsDir]);
+    setVramDraft((previous) => (previous === "" ? (status?.launchArgs?.vramPolicy ?? "auto") : previous));
+    setAttentionDraft((previous) => (previous === "" ? (status?.launchArgs?.attentionMode ?? "auto") : previous));
+  }, [status?.modelsDir, status?.launchArgs?.vramPolicy, status?.launchArgs?.attentionMode]);
 
   if (!engine.hasBridge) {
     return (
@@ -483,6 +498,114 @@ export function ComfyEngineSettingsSection({ embedded = false }: ComfyEngineSett
               体检会核对依赖账本(装了什么、版本对不对、有没有残留);核弹复位会清空并按账本重建引擎运行环境,模型文件不受影响。
             </p>
             {engine.doctorReport ? <DoctorReportCard report={engine.doctorReport} /> : null}
+          </div>
+
+          {/* 高级设置(09-08 映射表补口:Comfy Desktop 启动参数/PyTorch 行的翻译落地) */}
+          <div className="rounded-lg border border-border bg-card/60 p-3" data-comfy-advanced>
+            <button
+              type="button"
+              className="flex w-full items-center justify-between rounded-md px-1 py-0.5 text-xs font-medium text-foreground"
+              onClick={() => {
+                const next = !advancedOpen;
+                setAdvancedOpen(next);
+                if (next) void engine.refreshSnapshots();
+              }}
+              data-comfy-advanced-toggle
+            >
+              <span>高级设置</span>
+              <span className="text-muted-foreground">{advancedOpen ? "收起" : "展开"}</span>
+            </button>
+            {advancedOpen ? (
+              <div className="mt-3 space-y-3">
+                <div className="flex items-center justify-between gap-3">
+                  <span className="text-xs text-muted-foreground">PyTorch 版本</span>
+                  <span className="font-mono text-xs text-foreground" data-comfy-torch>
+                    {status?.torch ?? "未记录"}(Apple 芯片 MPS)
+                  </span>
+                </div>
+                <div className="flex items-center justify-between gap-3">
+                  <span className="text-xs text-muted-foreground">显存策略</span>
+                  <select
+                    aria-label="显存策略"
+                    value={vramDraft}
+                    onChange={(event) => setVramDraft(event.target.value)}
+                    className="h-8 rounded-md border border-border bg-card px-2 text-xs text-foreground"
+                    data-comfy-vram-select
+                  >
+                    <option value="auto">自动(推荐)</option>
+                    <option value="gpu-only">全力使用显存</option>
+                    <option value="reserve-vram">预留部分显存</option>
+                  </select>
+                </div>
+                <div className="flex items-center justify-between gap-3">
+                  <span className="text-xs text-muted-foreground">加速方式</span>
+                  <select
+                    aria-label="加速方式"
+                    value={attentionDraft}
+                    onChange={(event) => setAttentionDraft(event.target.value)}
+                    className="h-8 rounded-md border border-border bg-card px-2 text-xs text-foreground"
+                    data-comfy-attention-select
+                  >
+                    <option value="auto">自动(推荐)</option>
+                    <option value="pytorch-cross-attention">PyTorch 加速</option>
+                  </select>
+                </div>
+                <div className="flex items-center justify-end">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() =>
+                      void engine.setLaunchArgs({
+                        vramPolicy: (vramDraft || "auto") as "auto" | "gpu-only" | "reserve-vram",
+                        attentionMode: (attentionDraft || "auto") as "auto" | "pytorch-cross-attention",
+                      })
+                    }
+                    data-comfy-advanced-save
+                  >
+                    保存(重启引擎后生效)
+                  </Button>
+                </div>
+                <p className="text-[11px] leading-4 text-muted-foreground">
+                  显存策略/加速方式是引擎启动参数的大白话翻译;保存后下次启动引擎生效。
+                </p>
+
+                {/* 快照与回滚(映射表:快照页→搬并强化) */}
+                <div className="border-t border-border pt-3" data-comfy-snapshots>
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-medium text-foreground">快照与回滚</span>
+                    <Button size="sm" variant="ghost" onClick={() => void engine.refreshSnapshots()} data-comfy-snapshot-refresh>
+                      刷新
+                    </Button>
+                  </div>
+                  {engine.snapshots.length === 0 ? (
+                    <p className="mt-1 text-[11px] leading-4 text-muted-foreground">
+                      暂无快照——安装插件、更新引擎前会自动创建,出问题可一键回到之前的状态。
+                    </p>
+                  ) : (
+                    <ul className="mt-2 space-y-1.5">
+                      {engine.snapshots.slice(0, 5).map((snap) => (
+                        <li key={snap.id} className="flex items-center justify-between gap-2 text-[11px]">
+                          <span className="min-w-0 truncate text-muted-foreground">
+                            {new Date(snap.createdAt).toLocaleString("zh-CN", { month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" })}
+                            ·{snapshotReasonLabel(snap.reason)}
+                            {snap.version ? `(${snap.version})` : ""}
+                          </span>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => void engine.rollbackTo(snap.id)}
+                            disabled={engine.isRollingBack}
+                            data-comfy-snapshot-rollback
+                          >
+                            回滚到此
+                          </Button>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              </div>
+            ) : null}
           </div>
 
           {/* 生态插件子区块 */}
