@@ -52,8 +52,9 @@ class TestManifest:
         }}))
         args = cm.engine_launch_args()
         assert args["vramPolicy"] == "gpu-only"       # 合法值保留
-        assert args["attentionMode"] == "auto"        # 非法值回 auto
-        assert args["reserveVramGb"] is None          # 非法预留值忽略
+        # 09-08 对齐:非法值回落到与用户 Comfy Desktop 同款的缺省(gpu-only/16/pytorch-cross-attention)
+        assert args["attentionMode"] == "pytorch-cross-attention"
+        assert args["reserveVramGb"] == 16
 
     def test_core_dep_names_for_refcount(self, tmp_path, monkeypatch):
         _use_tmp_home(tmp_path, monkeypatch)

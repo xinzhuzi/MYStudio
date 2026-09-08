@@ -196,11 +196,12 @@ def engine_launch_args(manifest: dict | None = None) -> dict:
     manifest = manifest if manifest is not None else load_manifest()
     engine = manifest.get("engine") if isinstance(manifest.get("engine"), dict) else {}
     args = engine.get("launchArgs") if isinstance(engine.get("launchArgs"), dict) else {}
-    vram = args.get("vramPolicy") if args.get("vramPolicy") in VRAM_POLICIES else "auto"
-    attention = args.get("attentionMode") if args.get("attentionMode") in ATTENTION_MODES else "auto"
+    # 09-08 对齐:缺省=用户 Comfy Desktop 实跑(--gpu-only --reserve-vram 16 --use-pytorch-cross-attention)
+    vram = args.get("vramPolicy") if args.get("vramPolicy") in VRAM_POLICIES else "gpu-only"
+    attention = args.get("attentionMode") if args.get("attentionMode") in ATTENTION_MODES else "pytorch-cross-attention"
     reserve = args.get("reserveVramGb")
     if not isinstance(reserve, (int, float)) or reserve <= 0:
-        reserve = None
+        reserve = 16
     return {"vramPolicy": vram, "attentionMode": attention, "reserveVramGb": reserve}
 
 

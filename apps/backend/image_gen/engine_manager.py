@@ -165,16 +165,18 @@ def allocate_port(occupied: set[int], start: int = PORT_RANGE_START, end: int = 
 def build_launch_args(launch_cfg: dict, port: int, script: str = "main.py") -> list[str]:
     """性能档 → 实际启动 flag(prd:不暴露命令行原文)。
 
-    显存策略:gpu-only→--gpu-only;reserve-vram→--reserve-vram <GB>;
-    加速方式:pytorch-cross-attention→--use-pytorch-cross-attention。
+    显存:gpu-only→--gpu-only;预留 N GB→--reserve-vram N(可与 gpu-only 组合);
+    加速:pytorch-cross-attention→--use-pytorch-cross-attention。
     """
     args = [script, "--listen", "127.0.0.1", "--port", str(port)]
-    vram = launch_cfg.get("vramPolicy")
-    if vram == "gpu-only":
+    # 09-08 对齐用户 Comfy Desktop 实跑参数:--gpu-only 与 --reserve-vram N 可组合
+    # (此前做成互斥三选一=翻译失真);三项独立翻译。
+    if launch_cfg.get("vramPolicy") == "gpu-only":
         args.append("--gpu-only")
-    elif vram == "reserve-vram":
-        reserve = launch_cfg.get("reserveVramGb")
-        args += ["--reserve-vram", str(reserve if isinstance(reserve, (int, float)) and reserve > 0 else 4)]
+    reserve = launch_cfg.get("reserveVramGb")
+    if launch_cfg.get("vramPolicy") == "reserve-vram" or (isinstance(reserve, (int, float)) and reserve > 0):
+        gb = reserve if isinstance(reserve, (int, float)) and reserve > 0 else 4
+        args += ["--reserve-vram", str(gb)]
     if launch_cfg.get("attentionMode") == "pytorch-cross-attention":
         args.append("--use-pytorch-cross-attention")
     return args
@@ -455,7 +457,8 @@ class EngineManager:
             manifest["engine"] = {
                 "version": tag, "pinned": True, "repo": COMFYUI_REPO,
                 "torch": torch_version, "installedAt": cm.timestamp_ms(),
-                "port": port, "launchArgs": {"vramPolicy": "auto", "attentionMode": "auto"},
+                "port": port,
+                "launchArgs": {"vramPolicy": "gpu-only", "reserveVramGb": 16, "attentionMode": "pytorch-cross-attention"},
                 "coreDeps": _freeze_to_map(freeze),
             }
 

@@ -385,7 +385,7 @@ describe("ComfyEngineSettingsSection 插件子区块", () => {
 // ── 09-08 映射表补口:高级设置区 + 快照区 ──
 describe("ComfyEngineSettingsSection 标签页布局(照 ComfyUI Desktop)", () => {
   beforeEach(() => {
-    scenario.status = readyStatus({ torch: "2.13.0", launchArgs: { vramPolicy: "auto", attentionMode: "auto", reserveVramGb: null } });
+    scenario.status = readyStatus({ torch: "2.13.0", launchArgs: { vramPolicy: "gpu-only", attentionMode: "pytorch-cross-attention", reserveVramGb: 16 } });
     scenario.snapshots = [];
   });
 
@@ -406,9 +406,16 @@ describe("ComfyEngineSettingsSection 标签页布局(照 ComfyUI Desktop)", () =
     expect(comfyEl("port-input")).toBeTruthy();
     expect(comfyEl("vram-select")).toBeTruthy();
     expect(comfyEl("attention-select")).toBeTruthy();
-    fireEvent.change(comfyEl("vram-select"), { target: { value: "gpu-only" } });
+    expect(comfyEl("reserve-input")).toBeTruthy();
+    expect((comfyEl("vram-select") as HTMLSelectElement).value).toBe("gpu-only");
+    expect((comfyEl("attention-select") as HTMLSelectElement).value).toBe("pytorch-cross-attention");
+    expect((comfyEl("reserve-input") as HTMLInputElement).value).toBe("16");
+    fireEvent.change(comfyEl("reserve-input"), { target: { value: "12" } });
     fireEvent.click(comfyEl("advanced-save"));
-    await waitFor(() => expect(actions.setLaunchArgs).toHaveBeenCalledWith(expect.objectContaining({ vramPolicy: "gpu-only" })));
+    await waitFor(() =>
+      expect(actions.setLaunchArgs).toHaveBeenCalledWith(
+        expect.objectContaining({ vramPolicy: "gpu-only", attentionMode: "pytorch-cross-attention", reserveVramGb: 12 }),
+      ));
   });
 
   it("快照页:大白话原因+回滚传 id;体检/复位同页", async () => {

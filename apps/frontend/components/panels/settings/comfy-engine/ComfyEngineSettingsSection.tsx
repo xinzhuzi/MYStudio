@@ -200,13 +200,15 @@ export function ComfyEngineSettingsSection({ embedded = false }: ComfyEngineSett
   const [activeTab, setActiveTab] = useState<"update" | "launch" | "snapshots" | "storage">("update");
   const [vramDraft, setVramDraft] = useState("");
   const [attentionDraft, setAttentionDraft] = useState("");
+  const [reserveDraft, setReserveDraft] = useState("");
 
   // 模型目录草稿跟随真实状态(未编辑过时)。
   useEffect(() => {
     setModelsDirDraft((previous) => (previous === "" ? (status?.modelsDir ?? "") : previous));
-    setVramDraft((previous) => (previous === "" ? (status?.launchArgs?.vramPolicy ?? "auto") : previous));
-    setAttentionDraft((previous) => (previous === "" ? (status?.launchArgs?.attentionMode ?? "auto") : previous));
-  }, [status?.modelsDir, status?.launchArgs?.vramPolicy, status?.launchArgs?.attentionMode]);
+    setVramDraft((previous) => (previous === "" ? (status?.launchArgs?.vramPolicy ?? "gpu-only") : previous));
+    setAttentionDraft((previous) => (previous === "" ? (status?.launchArgs?.attentionMode ?? "pytorch-cross-attention") : previous));
+    setReserveDraft((previous) => (previous === "" ? String(status?.launchArgs?.reserveVramGb ?? "16") : previous));
+  }, [status?.modelsDir, status?.launchArgs?.vramPolicy, status?.launchArgs?.attentionMode, status?.launchArgs?.reserveVramGb]);
 
   if (!engine.hasBridge) {
     return (
@@ -467,7 +469,7 @@ export function ComfyEngineSettingsSection({ embedded = false }: ComfyEngineSett
                 <span className="text-xs text-muted-foreground">显存策略</span>
                 <select
                   aria-label="显存策略"
-                  value={vramDraft}
+                  value={vramDraft === "reserve-vram" ? "gpu-only" : vramDraft || "gpu-only"}
                   onChange={(event) => setVramDraft(event.target.value)}
                   className="h-8 rounded-md border border-border bg-card px-2 text-xs text-foreground"
                   data-comfy-vram-select
@@ -481,7 +483,7 @@ export function ComfyEngineSettingsSection({ embedded = false }: ComfyEngineSett
                 <span className="text-xs text-muted-foreground">加速方式</span>
                 <select
                   aria-label="加速方式"
-                  value={attentionDraft}
+                  value={attentionDraft || "pytorch-cross-attention"}
                   onChange={(event) => setAttentionDraft(event.target.value)}
                   className="h-8 rounded-md border border-border bg-card px-2 text-xs text-foreground"
                   data-comfy-attention-select
@@ -490,14 +492,26 @@ export function ComfyEngineSettingsSection({ embedded = false }: ComfyEngineSett
                   <option value="pytorch-cross-attention">PyTorch 加速</option>
                 </select>
               </div>
+              <div className="flex items-center justify-between gap-3">
+                <span className="text-xs text-muted-foreground">预留显存(GB)</span>
+                <Input
+                  value={reserveDraft}
+                  onChange={(event) => setReserveDraft(event.target.value)}
+                  placeholder="16"
+                  containerClassName="w-28"
+                  className="h-8 min-w-0 font-mono text-xs"
+                  data-comfy-reserve-input
+                />
+              </div>
               <div className="flex items-center justify-end">
                 <Button
                   size="sm"
                   variant="outline"
                   onClick={() =>
                     void engine.setLaunchArgs({
-                      vramPolicy: (vramDraft || "auto") as "auto" | "gpu-only" | "reserve-vram",
-                      attentionMode: (attentionDraft || "auto") as "auto" | "pytorch-cross-attention",
+                      vramPolicy: (vramDraft || "gpu-only") as "auto" | "gpu-only" | "reserve-vram",
+                      attentionMode: (attentionDraft || "pytorch-cross-attention") as "auto" | "pytorch-cross-attention",
+                      reserveVramGb: Number(reserveDraft) > 0 ? Number(reserveDraft) : null,
                     })
                   }
                   data-comfy-advanced-save
