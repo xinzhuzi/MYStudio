@@ -1,27 +1,27 @@
-import { memo, useEffect, useState } from "react";
+import { memo, useState } from "react";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { UpscaleDenoiseModeField, denoiseModeToOpts, type UpscaleDenoiseMode } from "./upscale-denoise-mode";
 import { type Node, type NodeProps } from "@xyflow/react";
 import { AlertTriangle, Brush, FileText, Grid2x2, Loader2, Save, Scissors, Trash2, WandSparkles, ZoomIn } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { LocalImage } from "@/components/ui/local-image";
-import { ResolutionBadge, probeImagePixelSize } from "@/components/ui/image-resolution-badge";
-import { Textarea } from "@/components/ui/textarea";
 import { UnclothNodeEditor } from "@/components/ui/uncloth-node-editor";
-import { CANVAS_NODE_DEFINITIONS, CanvasNodeShell } from "@/features/canvas-nodes";
+import {
+  CANVAS_NODE_DEFINITIONS,
+  CanvasNodeShell,
+  GeneratedNodeEditor as GeneratedNodeEditorShell,
+  PromptNodeEditor,
+  ReferenceNodeEditor,
+} from "@/features/canvas-nodes";
 import { RerouteCard } from "@/features/canvas-nodes/reroute-card";
 import { NsfwNodeEditor } from "@/components/ui/nsfw-node-editor";
 import { ModelSelector } from "@/components/panels/assist/ModelSelector";
-import { UPSCALE_INPUT_MAX_LONG_SIDE } from "@/lib/upscale/client";
 import { IMAGE_ASPECT_RATIOS, IMAGE_RESOLUTIONS } from "@/lib/ai/image-size-presets";
 import type {
   ImageWorkflowGeneratedNode,
   ImageWorkflowNode,
   ImageWorkflowPromptNode,
-  ImageWorkflowReferenceNode,
   StoryboardItem,
 } from "@/types/studio";
-import { toPreviewSrc, withThumbVariant } from "@/lib/media/preview-src";
 
 export interface ImageWorkflowNodeData extends Record<string, unknown> {
   node: ImageWorkflowNode;
@@ -143,7 +143,7 @@ export const ImageWorkflowNodeCard = memo(function ImageWorkflowNodeCard({ data 
         }
       >
         {node.type === "reference" ? (
-          <ReferenceNodeEditor node={node} onUpdate={data.onUpdate} />
+          <ReferenceNodeEditor node={node} onUpdate={data.onUpdate} showNotes thumb />
         ) : null}
         {node.type === "prompt" ? <PromptNodeEditor node={node} onUpdate={data.onUpdate} /> : null}
         {node.type === "generated" ? (
@@ -165,74 +165,11 @@ export const ImageWorkflowNodeCard = memo(function ImageWorkflowNodeCard({ data 
 
 ImageWorkflowNodeCard.displayName = "ImageWorkflowNodeCard";
 
-function ReferenceNodeEditor({
-  node,
-  onUpdate,
-}: {
-  node: ImageWorkflowReferenceNode;
-  onUpdate: ImageWorkflowNodeData["onUpdate"];
-}) {
-  return (
-    <div className="space-y-2">
-      <div className="aspect-video overflow-hidden rounded-md border border-border bg-muted/30">
-        {node.imageUrl ? (
-          <span className="relative flex h-full w-full">
-            <LocalImage
-              src={withThumbVariant(toPreviewSrc(node.imageUrl))}
-              alt={node.title}
-              className="h-full w-full object-cover"
-              eager
-              previewable
-            />
-            <ResolutionBadge src={toPreviewSrc(node.imageUrl)} />
-          </span>
-        ) : (
-          <div className="flex h-full items-center justify-center text-xs text-muted-foreground">暂无图片</div>
-        )}
-      </div>
-      <input
-        value={node.imageUrl}
-        onChange={(event) => onUpdate(node.id, { imageUrl: event.target.value } as Partial<ImageWorkflowNode>)}
-        placeholder="project-file://、local-image:// 或 https://"
-        className="nodrag nopan h-9 w-full rounded-md border border-border bg-background/80 px-2 text-xs text-foreground outline-none"
-      />
-      <Textarea
-        value={node.notes ?? ""}
-        onChange={(event) => onUpdate(node.id, { notes: event.target.value } as Partial<ImageWorkflowNode>)}
-        placeholder="参考说明"
-        className="nodrag nopan min-h-[58px] [field-sizing:content] border-border bg-background/80 text-xs text-foreground"
-      />
-    </div>
-  );
-}
-
-function PromptNodeEditor({
-  node,
-  onUpdate,
-}: {
-  node: ImageWorkflowPromptNode;
-  onUpdate: ImageWorkflowNodeData["onUpdate"];
-}) {
-  return (
-    <div className="space-y-3">
-      <Textarea
-        value={node.prompt}
-        onChange={(event) => onUpdate(node.id, { prompt: event.target.value } as Partial<ImageWorkflowNode>)}
-        placeholder="描述要生成的图片"
-        className="nodrag nopan min-h-[120px] [field-sizing:content] border-border bg-background/80 text-sm leading-6 text-foreground"
-      />
-      {/* 08-30 功能转移裁定:输入节点只管提示词(输入源);模型/画幅/分辨率/
-          生成全部在成图节点上。 */}
-      <Textarea
-        value={node.negativePrompt ?? ""}
-        onChange={(event) => onUpdate(node.id, { negativePrompt: event.target.value } as Partial<ImageWorkflowNode>)}
-        placeholder="反向提示词(可选)——从右侧「负」口连出去才生效,直连整节点时正负一起发"
-        className="nodrag nopan min-h-[54px] [field-sizing:content] border-border bg-background/80 text-xs leading-5 text-foreground"
-      />
-    </div>
-  );
-}
-
+/**
+ * 成图编辑器(分镜画布版,09-09 编辑器上提后=共享骨架+画布差异注入):
+ * 参数行=三列带连线提示词旧值回落(paramsEdited 权威);状态行;操作行=
+ * 回写分镜/超分(带去噪档确认)/生成。共享件在 features/canvas-nodes。
+ */
 function GeneratedNodeEditor({
   node,
   promptNode,
@@ -250,101 +187,69 @@ function GeneratedNodeEditor({
 }) {
   const [upscaleConfirmOpen, setUpscaleConfirmOpen] = useState(false);
   const [upscaleDenoiseMode, setUpscaleDenoiseMode] = useState<UpscaleDenoiseMode>("off");
-  const generating = node.status === "generating" || node.status === "queued";
-  const [imageLongSide, setImageLongSide] = useState(0);
-  const alreadyUpscaled = (node.resultUrl || "").includes("up4x-")
-    || imageLongSide > UPSCALE_INPUT_MAX_LONG_SIDE;
-
-  useEffect(() => {
-    if (!node.resultUrl) {
-      setImageLongSide(0);
-      return;
-    }
-    let cancelled = false;
-    void probeImagePixelSize(toPreviewSrc(node.resultUrl)).then((size) => {
-      if (cancelled || !size) return;
-      setImageLongSide(Math.max(size.width, size.height));
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [node.resultUrl]);
 
   return (
-    <div className="space-y-3">
-      <div className="aspect-video overflow-hidden rounded-md border border-border bg-muted/30">
-        {node.resultUrl ? (
-          <span className="relative flex h-full w-full">
-            <LocalImage
-              src={withThumbVariant(toPreviewSrc(node.resultUrl))}
-              alt={node.title}
-              className="h-full w-full object-cover"
-              eager
-              previewable
-            />
-            <ResolutionBadge src={toPreviewSrc(node.resultUrl)} />
-          </span>
-        ) : (
-          <div className="flex h-full items-center justify-center text-xs text-muted-foreground">
-            {/* 失败原因不进卡(09-03 用户裁定:弹窗呈现);占位保持中性文案 */}
-            等待生成
-          </div>
-        )}
-      </div>
-      {/* 08-30 功能转移:生成参数(模型/画幅/分辨率)归属成图节点。
-          显示值回落连线提示词节点旧值(存量图零变化);改动即写本节点
-          并置 paramsEdited(参数权威转移)。 */}
-      <div className="nodrag nopan grid grid-cols-[minmax(0,1fr)_76px_64px] gap-2" data-generated-node-params>
-        <ModelSelector
-          type="image"
-          value={node.model ?? promptNode?.model ?? ""}
-          onChange={(model) => onUpdate(node.id, { model, paramsEdited: true } as Partial<ImageWorkflowNode>)}
-          className="w-full"
-        />
-        <select
-          value={(node.paramsEdited ? node.aspectRatio : (promptNode?.aspectRatio ?? node.aspectRatio))}
-          onChange={(event) => onUpdate(node.id, { aspectRatio: event.target.value, paramsEdited: true } as Partial<ImageWorkflowNode>)}
-          className="h-9 rounded-md border border-border bg-card/80 px-1.5 text-xs text-foreground outline-none"
-          aria-label="图片比例"
-        >
-          {ASPECT_RATIOS.map((ratio) => <option key={ratio} value={ratio}>{ratio}</option>)}
-        </select>
-        <select
-          value={node.resolution ?? promptNode?.resolution ?? ""}
-          onChange={(event) => onUpdate(node.id, { resolution: event.target.value, paramsEdited: true } as Partial<ImageWorkflowNode>)}
-          className="h-9 rounded-md border border-border bg-card/80 px-1.5 text-xs text-foreground outline-none"
-          aria-label="图片分辨率"
-        >
-          {RESOLUTION_OPTIONS.map((resolution) => <option key={resolution} value={resolution}>{resolution}</option>)}
-        </select>
-      </div>
-      <div className="nodrag nopan flex items-center border-t border-border/60 pt-2">
-        <span className="flex min-w-0 items-center gap-1.5 text-[11px] text-muted-foreground">
-          {node.status}
-        </span>
-      </div>
-      {/* 操作行:回写/超分/生成一行等宽(09-03 用户裁定,与图片工作室同款) */}
-      <div className="nodrag nopan flex items-center gap-2">
-          <Button size="sm" className="h-9 flex-1" variant="secondary" onClick={() => onApplyToStoryboard(node.id)} disabled={!node.resultUrl}>
-            <Save className="h-3.5 w-3.5" />
-            回写
-          </Button>
-          <Button
-            size="sm"
-            className="h-9 flex-1"
-            variant="outline"
-            onClick={() => {
-              if (!node.resultUrl || generating || alreadyUpscaled) return;
-              setUpscaleConfirmOpen(true);
-            }}
-            disabled={!node.resultUrl || generating || alreadyUpscaled}
-            title={alreadyUpscaled
-              ? "已是 4K 超分结果，无需再放大"
-              : "本地 Real-ESRGAN 原生 ×4 放大(1K→4K)"}
+    <GeneratedNodeEditorShell
+      node={node}
+      thumb
+      paramsRow={
+        /* 08-30 功能转移:生成参数(模型/画幅/分辨率)归属成图节点。
+           显示值回落连线提示词节点旧值(存量图零变化);改动即写本节点
+           并置 paramsEdited(参数权威转移)。 */
+        <div className="nodrag nopan grid grid-cols-[minmax(0,1fr)_76px_64px] gap-2" data-generated-node-params>
+          <ModelSelector
+            type="image"
+            value={node.model ?? promptNode?.model ?? ""}
+            onChange={(model) => onUpdate(node.id, { model, paramsEdited: true } as Partial<ImageWorkflowNode>)}
+            className="w-full"
+          />
+          <select
+            value={(node.paramsEdited ? node.aspectRatio : (promptNode?.aspectRatio ?? node.aspectRatio))}
+            onChange={(event) => onUpdate(node.id, { aspectRatio: event.target.value, paramsEdited: true } as Partial<ImageWorkflowNode>)}
+            className="h-9 rounded-md border border-border bg-card/80 px-1.5 text-xs text-foreground outline-none"
+            aria-label="图片比例"
           >
-            {generating ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <ZoomIn className="h-3.5 w-3.5" />}
-            超分 4K
-          </Button>
+            {ASPECT_RATIOS.map((ratio) => <option key={ratio} value={ratio}>{ratio}</option>)}
+          </select>
+          <select
+            value={node.resolution ?? promptNode?.resolution ?? ""}
+            onChange={(event) => onUpdate(node.id, { resolution: event.target.value, paramsEdited: true } as Partial<ImageWorkflowNode>)}
+            className="h-9 rounded-md border border-border bg-card/80 px-1.5 text-xs text-foreground outline-none"
+            aria-label="图片分辨率"
+          >
+            {RESOLUTION_OPTIONS.map((resolution) => <option key={resolution} value={resolution}>{resolution}</option>)}
+          </select>
+        </div>
+      }
+      actionsRow={({ generating, alreadyUpscaled }) => (
+        // 操作行:回写/超分/生成一行等宽(09-03 用户裁定,与图片工作室同款)
+        <>
+          <div className="nodrag nopan flex items-center gap-2">
+            <Button size="sm" className="h-9 flex-1" variant="secondary" onClick={() => onApplyToStoryboard(node.id)} disabled={!node.resultUrl}>
+              <Save className="h-3.5 w-3.5" />
+              回写
+            </Button>
+            <Button
+              size="sm"
+              className="h-9 flex-1"
+              variant="outline"
+              onClick={() => {
+                if (!node.resultUrl || generating || alreadyUpscaled) return;
+                setUpscaleConfirmOpen(true);
+              }}
+              disabled={!node.resultUrl || generating || alreadyUpscaled}
+              title={alreadyUpscaled
+                ? "已是 4K 超分结果，无需再放大"
+                : "本地 Real-ESRGAN 原生 ×4 放大(1K→4K)"}
+            >
+              {generating ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <ZoomIn className="h-3.5 w-3.5" />}
+              超分 4K
+            </Button>
+            <Button size="sm" className="h-9 flex-1" variant="paid" onClick={() => onGenerate(node.id)} disabled={generating}>
+              {generating ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <WandSparkles className="h-3.5 w-3.5" />}
+              生成
+            </Button>
+          </div>
           <Dialog open={upscaleConfirmOpen} onOpenChange={setUpscaleConfirmOpen}>
             <DialogContent className="max-w-[400px]">
               <DialogHeader>
@@ -374,13 +279,14 @@ function GeneratedNodeEditor({
               </DialogFooter>
             </DialogContent>
           </Dialog>
-          <Button size="sm" className="h-9 flex-1" variant="paid" onClick={() => onGenerate(node.id)} disabled={generating}>
-            {generating ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <WandSparkles className="h-3.5 w-3.5" />}
-            生成
-          </Button>
+        </>
+      )}
+    >
+      <div className="nodrag nopan flex items-center border-t border-border/60 pt-2">
+        <span className="flex min-w-0 items-center gap-1.5 text-[11px] text-muted-foreground">
+          {node.status}
+        </span>
       </div>
-      {/* 09-07 用户终裁:成图=生图链最后一步(触发+展示),不能单独生图——
-          卡上零提示词框(无上游时点生成由生成链阻断并指路,见 run-node-generation) */}
-    </div>
+    </GeneratedNodeEditorShell>
   );
 }

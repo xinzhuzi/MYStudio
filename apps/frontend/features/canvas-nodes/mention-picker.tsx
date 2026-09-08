@@ -7,6 +7,7 @@ import { filterMentionCandidates, type MentionCandidate } from "@/lib/studio/ima
 /**
  * @引用浮层(09-02-at-mention-refs):输入 @ 触发,列出连线资源;
  * 图片真缩略图;键盘 ↑↓/Enter/ESC。交互形态参考对方,实现从零(AGPL)。
+ * 09-09 上提 features/canvas-nodes(随提示词编辑器单源,候选由画布侧注入)。
  */
 export function MentionPicker({
   x,

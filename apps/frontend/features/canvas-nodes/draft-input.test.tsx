@@ -3,7 +3,7 @@ import { act, cleanup, fireEvent, render, screen } from "@testing-library/react"
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { useState } from "react";
 
-import { useCanvasDraftValue } from "./image-studio-draft-input";
+import { useCanvasDraftValue } from "./draft-input";
 
 function Harness({ committed, commit }: { committed: string; commit: (v: string) => void }) {
   const input = useCanvasDraftValue({ committed, commit });

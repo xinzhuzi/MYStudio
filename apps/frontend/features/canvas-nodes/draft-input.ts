@@ -5,7 +5,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
 /**
- * 画布节点输入框草稿态(09-02 光标跳末尾/输入法连环问题终局)。
+ * 画布节点输入框草稿态(09-02 光标跳末尾/输入法连环问题终局;
+ * 09-09 上提 features/canvas-nodes 单源,两画布编辑器共用)。
  *
  * 结构性根因:画布输入每键往返「输入框→store→整图重建→React Flow 受控
  * 节点数组→受控值写回」六跳;受控值写回会让浏览器重置光标到末尾、打断

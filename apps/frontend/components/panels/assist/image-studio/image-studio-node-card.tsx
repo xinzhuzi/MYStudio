@@ -2,45 +2,43 @@
 // Licensed under AGPL-3.0-or-later. See LICENSE for details.
 // Commercial licensing available. See COMMERCIAL_LICENSE.md.
 
-import { memo, useEffect, useRef, useState } from "react";
+import { memo } from "react";
 import { type Node, type NodeProps } from "@xyflow/react";
-import { useCanvasDraftValue } from "./image-studio-draft-input";
-import { MentionPicker } from "./mention-picker";
-import { buildMentionToken, mentionTriggerState, type MentionCandidate } from "@/lib/studio/image-workflow/mention-token";
 import {
   selectActiveImageStudioWorkflow,
   useImageStudioStore,
 } from "@/stores/assist/image-studio-store";
+import type { MentionCandidate } from "@/lib/studio/image-workflow/mention-token";
 import {
   Archive,
-  ChevronLeft,
-  ChevronRight,
   Download,
   Sparkles,
   Square,
-  Upload,
   ZoomIn,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { LocalImage } from "@/components/ui/local-image";
-import { ResolutionBadge, probeImagePixelSize } from "@/components/ui/image-resolution-badge";
 import { Textarea } from "@/components/ui/textarea";
 import { UnclothNodeEditor } from "@/components/ui/uncloth-node-editor";
-import { CANVAS_NODE_DEFINITIONS, CanvasNodeShell } from "@/features/canvas-nodes";
+import {
+  BatchImageArea,
+  CANVAS_NODE_DEFINITIONS,
+  CanvasNodeShell,
+  GeneratedNodeEditor as GeneratedNodeEditorShell,
+  PromptNodeEditor,
+  ReferenceNodeEditor,
+} from "@/features/canvas-nodes";
 import { NsfwNodeEditor } from "@/components/ui/nsfw-node-editor";
 import { ModelSelector } from "@/components/panels/assist/ModelSelector";
 import { IMAGE_ASPECT_RATIOS, IMAGE_RESOLUTIONS } from "@/lib/ai/image-size-presets";
 import { referenceCapacityForModel } from "./image-studio-node-registry";
 import { effectiveBatchImages } from "./image-studio-batch";
 import { toPreviewSrc } from "@/lib/media/preview-src";
-import { UPSCALE_INPUT_MAX_LONG_SIDE } from "@/lib/upscale/client";
 import { cn } from "@/lib/utils";
 import type {
   ImageWorkflowGeneratedNode,
   ImageWorkflowGroupNode,
   ImageWorkflowNode,
   ImageWorkflowPromptNode,
-  ImageWorkflowReferenceNode,
   ImageWorkflowStickyNode,
 } from "@/types/studio";
 
@@ -140,9 +138,19 @@ export const ImageStudioNodeCard = memo(function ImageStudioNodeCard({
             node={node}
             onPickImage={data.onPickImage}
             onUpdate={data.onUpdate}
+            urlPlaceholder="或粘贴图片地址 local-image:// / https://"
           />
         ) : null}
-        {node.type === "prompt" ? <PromptNodeEditor node={node} onUpdate={data.onUpdate} /> : null}
+        {node.type === "prompt" ? (
+          <PromptNodeEditor
+            node={node}
+            onUpdate={data.onUpdate}
+            getMentionCandidates={() => assistMentionCandidates(node.id)}
+            promptPlaceholder="描述要生成的图片(@ 引用资源)"
+            promptMinClass="min-h-[96px]"
+            negativeMinClass="min-h-[48px]"
+          />
+        ) : null}
         {node.type === "generated" ? (
           <GeneratedNodeEditor
             node={node}
@@ -169,227 +177,27 @@ ImageStudioNodeCard.displayName = "ImageStudioNodeCard";
 /** React Flow nodeTypes 注册(单一注册点,未来统一注册表从这里吸收) */
 export const imageStudioNodeTypes = { imageStudio: ImageStudioNodeCard };
 
-function ReferenceNodeEditor({
-  node,
-  onPickImage,
-  onUpdate,
-}: {
-  node: ImageWorkflowReferenceNode;
-  onPickImage: ImageStudioNodeData["onPickImage"];
-  onUpdate: ImageStudioNodeData["onUpdate"];
-}) {
-  return (
-    <div className="space-y-2">
-      {node.imageUrl ? (
-        <div className="aspect-video overflow-hidden rounded-md border border-border bg-muted/30">
-          <span className="relative flex h-full w-full">
-            <LocalImage
-              src={toPreviewSrc(node.imageUrl)}
-              alt={node.title}
-              className="h-full w-full object-cover"
-              eager
-              previewable
-            />
-            <ResolutionBadge src={toPreviewSrc(node.imageUrl)} />
-          </span>
-        </div>
-      ) : (
-        <button
-          type="button"
-          onClick={() => onPickImage(node.id)}
-          className="nodrag nopan flex aspect-video w-full flex-col items-center justify-center gap-2 rounded-md border border-dashed border-border bg-muted/20 text-muted-foreground transition-colors hover:border-info/50 hover:text-foreground"
-        >
-          <Upload className="h-5 w-5" />
-          <span className="text-xs">上传参考图(图生图)</span>
-        </button>
-      )}
-      <div className="flex items-center gap-2">
-        <input
-          value={node.imageUrl.startsWith("data:") ? "" : node.imageUrl}
-          onChange={(event) => onUpdate(node.id, { imageUrl: event.target.value } as Partial<ImageWorkflowNode>)}
-          placeholder="或粘贴图片地址 local-image:// / https://"
-          className="nodrag nopan h-9 min-w-0 flex-1 rounded-md border border-border bg-background/80 px-2 text-xs text-foreground outline-none"
-        />
-        {node.imageUrl ? (
-          <Button size="sm" variant="outline" className="h-9 shrink-0" onClick={() => onPickImage(node.id)}>
-            <Upload className="mr-1 h-3.5 w-3.5" /> 更换
-          </Button>
-        ) : null}
-      </div>
-    </div>
-  );
-}
-
-function PromptNodeEditor({
-  node,
-  onUpdate,
-}: {
-  node: ImageWorkflowPromptNode;
-  onUpdate: ImageStudioNodeData["onUpdate"];
-}) {
-  // 草稿态终局(09-02 光标跳末尾/输入法连环案):编辑期间本地持有值,store
-  // 防抖提交——受控写回消失,光标/删除/输入法天然正常(composing 仅服务
-  // @浮层的 IME 门控,不再参与 value 控制)。
-  const [composing, setComposing] = useState(false);
-  const promptInput = useCanvasDraftValue({
-    committed: node.prompt,
-    commit: (value) => onUpdate(node.id, { prompt: value } as Partial<ImageWorkflowNode>),
-  });
-  const negativeInput = useCanvasDraftValue({
-    committed: node.negativePrompt ?? "",
-    commit: (value) => onUpdate(node.id, { negativePrompt: value } as Partial<ImageWorkflowNode>),
-  });
-  // @引用浮层(09-02-at-mention-refs):候选=同图全部节点;组合期不触发(IME 兼容)
-  const textareaRef = useRef<HTMLTextAreaElement | null>(null);
-  const [mention, setMention] = useState<{ x: number; y: number; query: string } | null>(null);
-  // 候选量级=画布节点数(数十),浮层打开才渲染计算,不设 memo(避免 deps 复杂表达式)
-  const mentionCandidates: MentionCandidate[] = mention
-    ? (selectActiveImageStudioWorkflow(useImageStudioStore.getState())?.nodes ?? [])
-        .filter((candidate) => candidate.id !== node.id)
-        .map((candidate) => ({
-          id: candidate.id,
-          type: candidate.type,
-          title: candidate.title,
-          thumbUrl:
-            candidate.type === "reference" || candidate.type === "generated"
-              ? (candidate.type === "reference" ? candidate.imageUrl : candidate.resultUrl) || undefined
-              : undefined,
-          summary: candidate.type === "prompt" ? candidate.prompt.slice(0, 24) : undefined,
-        }))
-    : [];
-  const syncMention = () => {
-    const textarea = textareaRef.current;
-    if (!textarea) return;
-    const state = mentionTriggerState(textarea.value, textarea.selectionStart ?? 0);
-    if (!state.active || composing) return setMention(null);
-    const rect = textarea.getBoundingClientRect();
-    setMention({ x: 8, y: rect.height + 4, query: state.query });
-  };
-  return (
-    <div className="relative space-y-3">
-      <Textarea
-        ref={textareaRef}
-        value={promptInput.value}
-        onChange={(event) => {
-          promptInput.onChange(event.target.value);
-          syncMention();
-        }}
-        onBlur={promptInput.onBlur}
-        onKeyUp={syncMention}
-        onClick={syncMention}
-        onCompositionStart={() => setComposing(true)}
-        onCompositionEnd={() => setComposing(false)}
-        placeholder="描述要生成的图片(@ 引用资源)"
-        className="nodrag nopan min-h-[96px] [field-sizing:content] border-border bg-background/80 text-sm leading-6 text-foreground"
-      />
-      {mention ? (
-        <MentionPicker
-          x={mention.x}
-          y={mention.y}
-          query={mention.query}
-          candidates={mentionCandidates}
-          onPick={(candidate) => {
-            const textarea = textareaRef.current;
-            setMention(null);
-            if (!textarea) return;
-            const before = textarea.value.slice(0, textarea.selectionStart ?? 0);
-            const after = textarea.value.slice(textarea.selectionStart ?? 0);
-            const at = before.lastIndexOf("@");
-            if (at < 0) return;
-            const token = `${buildMentionToken(candidate)} `;
-            const next = `${before.slice(0, at)}${token}${after}`;
-            promptInput.setValue(next);
-          }}
-          onClose={() => setMention(null)}
-        />
-      ) : null}
-      <Textarea
-        value={negativeInput.value}
-        onChange={(event) => negativeInput.onChange(event.target.value)}
-        onBlur={negativeInput.onBlur}
-        placeholder="反向提示词(可选)——从右侧「负」口连出去才生效,直连整节点时正负一起发"
-        className="nodrag nopan min-h-[48px] [field-sizing:content] border-border bg-background/80 text-xs leading-5 text-foreground"
-      />
-    </div>
-  );
+/** @引用候选(图片工作室侧):当前画布全部节点(自身除外);浮层打开时才调用 */
+function assistMentionCandidates(excludeId: string): MentionCandidate[] {
+  return (selectActiveImageStudioWorkflow(useImageStudioStore.getState())?.nodes ?? [])
+    .filter((candidate) => candidate.id !== excludeId)
+    .map((candidate) => ({
+      id: candidate.id,
+      type: candidate.type,
+      title: candidate.title,
+      thumbUrl:
+        candidate.type === "reference" || candidate.type === "generated"
+          ? (candidate.type === "reference" ? candidate.imageUrl : candidate.resultUrl) || undefined
+          : undefined,
+      summary: candidate.type === "prompt" ? candidate.prompt.slice(0, 24) : undefined,
+    }));
 }
 
 /**
- * 批量图片组渲染(09-02 用户终裁):图片上左右箭头切图,右下角当前序号;
- * 不做叠卡/展开网格/张数角标。主图切换=翻页即切(setBatchPrimary 同步
- * resultUrl,组外消费零改动)。
+ * 成图编辑器(图片工作室版,09-09 编辑器上提后=共享骨架+画布差异注入):
+ * 图区=批量组;参数行=四列(含张数)+专属参数(MJ/Ideogram);操作行=
+ * 超分/保存道具/下载/生成↔停止(带参考角标)。共享件在 features/canvas-nodes。
  */
-function BatchImageArea({
-  node,
-}: {
-  node: ImageWorkflowGeneratedNode;
-}) {
-  const [viewIndex, setViewIndex] = useState(0);
-  // 生效组(不变量见 effectiveBatchImages):超分/单张重生成后旧 batch 不再显示
-  const images = effectiveBatchImages(node);
-  // 图片数变化(重新生成)时钳回有效范围
-  const safeIndex = Math.min(viewIndex, Math.max(0, images.length - 1));
-  const current = images[safeIndex] ?? node.resultUrl ?? "";
-
-  if (!node.resultUrl) {
-    return (
-      <div className="aspect-video overflow-hidden rounded-md border border-border bg-muted/30">
-        <div className="flex h-full items-center justify-center px-4 text-center text-xs text-muted-foreground">
-          {/* 失败原因不进卡(09-03 用户裁定:弹窗呈现);占位保持中性文案 */}
-          等待生成
-        </div>
-      </div>
-    );
-  }
-
-  const isGroup = images.length > 1;
-
-  return (
-    <div className="nodrag nopan relative">
-      <div className="aspect-video overflow-hidden rounded-md border border-border bg-muted/30">
-        <span className="relative flex h-full w-full">
-          <LocalImage
-            src={toPreviewSrc(current)}
-            alt={`${node.title} ${safeIndex + 1}`}
-            className="h-full w-full object-cover"
-            eager
-            previewable
-            previewImages={images.length > 1 ? images.map((url) => toPreviewSrc(url)) : undefined}
-            previewIndex={images.length > 1 ? safeIndex : undefined}
-          />
-          <ResolutionBadge src={toPreviewSrc(current)} />
-        </span>
-      </div>
-      {isGroup ? (
-        <>
-          <button
-            type="button"
-            aria-label="上一张"
-            disabled={safeIndex === 0}
-            className="absolute left-1.5 top-1/2 grid h-8 w-8 -translate-y-1/2 place-items-center rounded-full border border-border/60 bg-card/85 text-card-foreground backdrop-blur-sm transition-colors duration-75 hover:bg-accent hover:text-accent-foreground active:bg-accent/70 disabled:pointer-events-none disabled:opacity-0"
-            onClick={() => setViewIndex(safeIndex - 1)}
-          >
-            <ChevronLeft className="h-4 w-4" />
-          </button>
-          <button
-            type="button"
-            aria-label="下一张"
-            disabled={safeIndex === images.length - 1}
-            className="absolute right-1.5 top-1/2 grid h-8 w-8 -translate-y-1/2 place-items-center rounded-full border border-border/60 bg-card/85 text-card-foreground backdrop-blur-sm transition-colors duration-75 hover:bg-accent hover:text-accent-foreground active:bg-accent/70 disabled:pointer-events-none disabled:opacity-0"
-            onClick={() => setViewIndex(safeIndex + 1)}
-          >
-            <ChevronRight className="h-4 w-4" />
-          </button>
-          {/* 右下角轻序号:当前/总数,当前张即主图(resultUrl 同步) */}
-          <span className="absolute bottom-1.5 right-1.5 rounded-full bg-black/55 px-2 py-0.5 text-[10px] font-medium tabular-nums text-primary-foreground backdrop-blur-sm">
-            {safeIndex + 1} / {images.length}
-          </span>
-        </>
-      ) : null}
-    </div>
-  );
-}
-
 function GeneratedNodeEditor({
   node,
   promptNode,
@@ -404,8 +212,6 @@ function GeneratedNodeEditor({
 }: {
   node: ImageWorkflowGeneratedNode;
   promptNode?: ImageWorkflowPromptNode;
-  hasUnclothUpstream?: boolean;
-  hasNsfwUpstream?: boolean;
   referenceCount: number;
   extras?: ImageStudioNodeData["extras"];
   onUpdate: ImageStudioNodeData["onUpdate"];
@@ -415,8 +221,6 @@ function GeneratedNodeEditor({
   onUpscale: ImageStudioNodeData["onUpscale"];
   onSaveToProps: ImageStudioNodeData["onSaveToProps"];
 }) {
-  const generating = node.status === "generating" || node.status === "queued";
-  const [imageLongSide, setImageLongSide] = useState(0);
   // 生效组整组图(保存/下载都以组为单位;超分/单张重生成后旧组回落主图)
   const batchImages = effectiveBatchImages(node);
   const downloadAllImages = () => {
@@ -452,8 +256,6 @@ function GeneratedNodeEditor({
       window.setTimeout(() => anchor.click(), index * 200);
     });
   };
-  const alreadyUpscaled =
-    (node.resultUrl || "").includes("up4x-") || imageLongSide > UPSCALE_INPUT_MAX_LONG_SIDE;
   const model = node.model ?? promptNode?.model ?? "";
   const hasMidjourneyParams = /midjourney|^mj_|^niji-/i.test(model);
   const hasIdeogramParams = model.includes("ideogram");
@@ -461,58 +263,126 @@ function GeneratedNodeEditor({
   const referenceOverCapacity =
     referenceCapacity !== undefined && referenceCount > referenceCapacity;
 
-  useEffect(() => {
-    if (!node.resultUrl) {
-      setImageLongSide(0);
-      return;
-    }
-    let cancelled = false;
-    void probeImagePixelSize(toPreviewSrc(node.resultUrl)).then((size) => {
-      if (cancelled || !size) return;
-      setImageLongSide(Math.max(size.width, size.height));
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [node.resultUrl]);
-
   return (
-    <div className="space-y-3">
-      <BatchImageArea node={node} />
-      <div className="nodrag nopan grid grid-cols-[minmax(0,1fr)_64px_64px_64px] gap-1.5" data-image-studio-node-params>
-        <ModelSelector
-          type="image"
-          value={model}
-          onChange={(value) => onUpdate(node.id, { model: value, paramsEdited: true } as Partial<ImageWorkflowNode>)}
-          className="h-9 w-full"
-        />
-        <select
-          value={node.aspectRatio}
-          onChange={(event) => onUpdate(node.id, { aspectRatio: event.target.value, paramsEdited: true } as Partial<ImageWorkflowNode>)}
-          className="h-9 rounded-md border border-border bg-card/80 px-1.5 text-xs text-foreground outline-none"
-          aria-label="图片比例"
-        >
-          {ASPECT_RATIOS.map((ratio) => <option key={ratio} value={ratio}>{ratio}</option>)}
-        </select>
-        <select
-          value={node.resolution ?? ""}
-          onChange={(event) => onUpdate(node.id, { resolution: event.target.value, paramsEdited: true } as Partial<ImageWorkflowNode>)}
-          className="h-9 rounded-md border border-border bg-card/80 px-1.5 text-xs text-foreground outline-none"
-          aria-label="图片分辨率"
-        >
-          <option value="">自动</option>
-          {RESOLUTION_OPTIONS.map((resolution) => <option key={resolution} value={resolution}>{resolution}</option>)}
-        </select>
-        <select
-          value={String(extras?.count ?? 1)}
-          onChange={(event) => onUpdateExtras(node.id, { ...(extras ?? {}), count: Number(event.target.value) })}
-          className="h-9 rounded-md border border-border bg-card/80 px-1.5 text-xs text-foreground outline-none"
-          aria-label="生成张数"
-          title="一次生成多张聚为图片组"
-        >
-          {[1, 2, 3, 4].map((count) => <option key={count} value={count}>{count} 张</option>)}
-        </select>
-      </div>
+    <GeneratedNodeEditorShell
+      node={node}
+      imageArea={<BatchImageArea node={node} images={batchImages} />}
+      paramsRow={
+        <div className="nodrag nopan grid grid-cols-[minmax(0,1fr)_64px_64px_64px] gap-1.5" data-image-studio-node-params>
+          <ModelSelector
+            type="image"
+            value={model}
+            onChange={(value) => onUpdate(node.id, { model: value, paramsEdited: true } as Partial<ImageWorkflowNode>)}
+            className="h-9 w-full"
+          />
+          <select
+            value={node.aspectRatio}
+            onChange={(event) => onUpdate(node.id, { aspectRatio: event.target.value, paramsEdited: true } as Partial<ImageWorkflowNode>)}
+            className="h-9 rounded-md border border-border bg-card/80 px-1.5 text-xs text-foreground outline-none"
+            aria-label="图片比例"
+          >
+            {ASPECT_RATIOS.map((ratio) => <option key={ratio} value={ratio}>{ratio}</option>)}
+          </select>
+          <select
+            value={node.resolution ?? ""}
+            onChange={(event) => onUpdate(node.id, { resolution: event.target.value, paramsEdited: true } as Partial<ImageWorkflowNode>)}
+            className="h-9 rounded-md border border-border bg-card/80 px-1.5 text-xs text-foreground outline-none"
+            aria-label="图片分辨率"
+          >
+            <option value="">自动</option>
+            {RESOLUTION_OPTIONS.map((resolution) => <option key={resolution} value={resolution}>{resolution}</option>)}
+          </select>
+          <select
+            value={String(extras?.count ?? 1)}
+            onChange={(event) => onUpdateExtras(node.id, { ...(extras ?? {}), count: Number(event.target.value) })}
+            className="h-9 rounded-md border border-border bg-card/80 px-1.5 text-xs text-foreground outline-none"
+            aria-label="生成张数"
+            title="一次生成多张聚为图片组"
+          >
+            {[1, 2, 3, 4].map((count) => <option key={count} value={count}>{count} 张</option>)}
+          </select>
+        </div>
+      }
+      // 操作行:超分/保存/下载/生成(或停止)一行等宽排布(09-03 用户裁定:
+      // 四钮一行、横向等宽;主次分层靠颜色——生成保留金色,不再靠宽度)
+      actionsRow={({ generating, alreadyUpscaled }) => (
+        <div className="nodrag nopan flex items-center gap-2">
+          <Button
+            variant="outline"
+            className="h-9 flex-1 rounded-lg"
+            onClick={() => onUpscale(node.id)}
+            disabled={!node.resultUrl || generating || alreadyUpscaled}
+            title={alreadyUpscaled ? "已是 4K 超分结果,无需再放大" : "超分:本地 Real-ESRGAN ×4 放大"}
+            aria-label="超分"
+          >
+            <ZoomIn className="h-3.5 w-3.5" />
+          </Button>
+          <Button
+            variant="outline"
+            className="h-9 flex-1 rounded-lg"
+            onClick={() => onSaveToProps(node.id)}
+            disabled={!node.resultUrl}
+            title={
+              batchImages.length > 1
+                ? `保存 ${batchImages.length} 张到道具库(每张自动编号)`
+                : "保存到道具库"
+            }
+            aria-label="保存到道具库"
+          >
+            <Archive className="h-3.5 w-3.5" />
+          </Button>
+          {node.resultUrl ? (
+            <Button
+              variant="outline"
+              className="h-9 flex-1 rounded-lg"
+              onClick={downloadAllImages}
+              title={batchImages.length > 1 ? `下载全部 ${batchImages.length} 张(自动编号)` : "下载图片"}
+              aria-label="下载图片"
+            >
+              <Download className="h-3.5 w-3.5" />
+            </Button>
+          ) : null}
+          {generating ? (
+            <Button
+              variant="destructive"
+              className="h-9 flex-1"
+              onClick={() => onStop(node.id)}
+              title="中断本次生成(已计费的请求可能无法退款)"
+            >
+              <Square className="mr-1.5 h-3.5 w-3.5" />
+              停止
+            </Button>
+          ) : (
+            <Button
+              variant="paid"
+              className="relative h-9 flex-1"
+              onClick={() => onGenerate(node.id)}
+              title={
+                referenceCount > 0
+                  ? `图生图:已挂 ${referenceCount}${referenceCapacity ? `/${referenceCapacity}` : ""} 张参考图,点击生成`
+                  : "按当前提示词生成图片(拖参考图节点连线可挂图)"
+              }
+            >
+              <Sparkles className="mr-1.5 h-3.5 w-3.5" />
+              生成
+              {/* 参考图状态角标(09-03 用户裁定:不进文案不占布局——右上角
+                  外沿浮空徽章,按钮宽度恒定);超容量转警示色 */}
+              {referenceCount > 0 ? (
+                <span
+                  aria-label={`已挂 ${referenceCount} 张参考图`}
+                  className={cn(
+                    "absolute -right-1.5 -top-1.5 grid h-4 min-w-4 place-items-center rounded-full px-1 text-[9px] font-semibold leading-none",
+                    referenceOverCapacity ? "bg-warning text-warning-foreground" : "bg-primary-foreground/95 text-primary",
+                  )}
+                >
+                  {referenceCount}
+                </span>
+              ) : null}
+            </Button>
+          )}
+        </div>
+        )}
+    >
       {hasMidjourneyParams ? (
         <div className="nodrag nopan grid grid-cols-3 gap-2" data-image-studio-node-extra-params>
           <select
@@ -590,86 +460,7 @@ function GeneratedNodeEditor({
       {/* 状态零上卡(09-03 用户裁定):生成中/失败提示都不放节点卡——
           生成按钮自身承载状态(生成↔停止切换);失败走画布层弹窗。
           状态行与计时器已撤,顺带消掉 React Flow 容器内每秒重渲。 */}
-      {/* 操作行:超分/保存/下载/生成(或停止)一行等宽排布(09-03 用户裁定:
-          四钮一行、横向等宽;主次分层靠颜色——生成保留金色,不再靠宽度) */}
-      <div className="nodrag nopan flex items-center gap-2">
-        <Button
-          variant="outline"
-          className="h-9 flex-1 rounded-lg"
-          onClick={() => onUpscale(node.id)}
-          disabled={!node.resultUrl || generating || alreadyUpscaled}
-          title={alreadyUpscaled ? "已是 4K 超分结果,无需再放大" : "超分:本地 Real-ESRGAN ×4 放大"}
-          aria-label="超分"
-        >
-          <ZoomIn className="h-3.5 w-3.5" />
-        </Button>
-        <Button
-          variant="outline"
-          className="h-9 flex-1 rounded-lg"
-          onClick={() => onSaveToProps(node.id)}
-          disabled={!node.resultUrl}
-          title={
-            batchImages.length > 1
-              ? `保存 ${batchImages.length} 张到道具库(每张自动编号)`
-              : "保存到道具库"
-          }
-          aria-label="保存到道具库"
-        >
-          <Archive className="h-3.5 w-3.5" />
-        </Button>
-        {node.resultUrl ? (
-          <Button
-            variant="outline"
-            className="h-9 flex-1 rounded-lg"
-            onClick={downloadAllImages}
-            title={batchImages.length > 1 ? `下载全部 ${batchImages.length} 张(自动编号)` : "下载图片"}
-            aria-label="下载图片"
-          >
-            <Download className="h-3.5 w-3.5" />
-          </Button>
-        ) : null}
-        {generating ? (
-          <Button
-            variant="destructive"
-            className="h-9 flex-1"
-            onClick={() => onStop(node.id)}
-            title="中断本次生成(已计费的请求可能无法退款)"
-          >
-            <Square className="mr-1.5 h-3.5 w-3.5" />
-            停止
-          </Button>
-        ) : (
-          <Button
-            variant="paid"
-            className="relative h-9 flex-1"
-            onClick={() => onGenerate(node.id)}
-            title={
-              referenceCount > 0
-                ? `图生图:已挂 ${referenceCount}${referenceCapacity ? `/${referenceCapacity}` : ""} 张参考图,点击生成`
-                : "按当前提示词生成图片(拖参考图节点连线可挂图)"
-            }
-          >
-            <Sparkles className="mr-1.5 h-3.5 w-3.5" />
-            生成
-            {/* 参考图状态角标(09-03 用户裁定:不进文案不占布局——右上角
-                外沿浮空徽章,按钮宽度恒定);超容量转警示色 */}
-            {referenceCount > 0 ? (
-              <span
-                aria-label={`已挂 ${referenceCount} 张参考图`}
-                className={cn(
-                  "absolute -right-1.5 -top-1.5 grid h-4 min-w-4 place-items-center rounded-full px-1 text-[9px] font-semibold leading-none",
-                  referenceOverCapacity ? "bg-warning text-warning-foreground" : "bg-primary-foreground/95 text-primary",
-                )}
-              >
-                {referenceCount}
-              </span>
-            ) : null}
-          </Button>
-        )}
-      </div>
-      {/* 09-07 用户终裁:成图=生图链最后一步(触发+展示),不能单独生图——
-          卡上零提示词框(无上游时点生成由生成链阻断并指路) */}
-    </div>
+    </GeneratedNodeEditorShell>
   );
 }
 

@@ -19,6 +19,17 @@ export { groupNodeDefinition } from "./nodes/group";
 export { comfyWorkflowNodeDefinition } from "./nodes/comfy-workflow";
 export { comfyGenericNodeDefinition } from "./nodes/comfy-generic";
 export { RerouteCard, RerouteFlowNode } from "./reroute-card";
+// 09-09 编辑器单源上提:两画布卡经此消费,panels→features 单向合规
+export { ReferenceNodeEditor } from "./nodes/reference";
+export { PromptNodeEditor } from "./nodes/prompt";
+export {
+  GeneratedNodeEditor,
+  GeneratedImageFrame,
+  BatchImageArea,
+  useGeneratedNodeMeta,
+} from "./nodes/generated";
+export { useCanvasDraftValue } from "./draft-input";
+export { MentionPicker } from "./mention-picker";
 
 import { nsfwNodeDefinition } from "./nodes/nsfw";
 import { stickyNodeDefinition } from "./nodes/sticky";
