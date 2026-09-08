@@ -3,6 +3,22 @@
   "note": "策展插件清单(裁定5/ grill Q6:助手草案,用户过目定稿)。verified_license 全部经 GitHub API /repos/{repo}/license 的 license.spdx_id 实查(2026-09-08);仓库无 LICENSE 文件或 API 查不到的一律写 unknown,严禁编造。ComfyUI_poster_nodes 候选在 GitHub/Registry 均无法定位到可信仓库,以 ComfyUI_essentials 替补。",
   "plugins": [
     {
+      "id": "comfyui-krea2edit",
+      "name": "Krea2 指令编辑节点",
+      "desc_zh": "Krea2Edit 指令编辑两件套(编码+模型补丁)——漫影 Krea2 编辑流/无衣物流的引擎模板依赖,装了才能跑这两类流。",
+      "category": "Krea2 图像引擎",
+      "repo": "https://github.com/lbouaraba/comfyui-krea2edit",
+      "verified_license": "Apache-2.0"
+    },
+    {
+      "id": "ComfyUI-ConditioningKrea2Rebalance",
+      "name": "Krea2 提示重平衡",
+      "desc_zh": "Krea2 十二带提示词重平衡节点——漫影 Krea2 专业流(NSFW 破限)模板依赖,装了才能跑专业流。",
+      "category": "Krea2 图像引擎",
+      "repo": "https://github.com/nova452/Rebalance-Pack",
+      "verified_license": "Apache-2.0"
+    },
+    {
       "id": "rgthree-comfy",
       "name": "Rgthree 效率工具",
       "desc_zh": "画布效率工具箱:批量开关节点、上下文菜单、种子控件与排版辅助。",

@@ -359,6 +359,21 @@ describe("插件与目录映射", () => {
     expect(entries[1]).toMatchObject({ source: "registry", installedState: null, license: "未标明", author: "x" });
   });
 
+  it("目录去重:策展与 Registry 同 id 时策展优先,不重复渲染", () => {
+    const entries = mapCatalogReply({
+      curated: [
+        { id: "rgthree-comfy", name: "RG三节点集", desc_zh: "效率工具", category: "效率", verified_license: "MIT", installed: false },
+      ],
+      registry: [
+        { id: "rgthree-comfy", name: "Rgthree (registry 重复条目)", desc: "dup", license: null, author: "y", downloads: 9, installed: false },
+        { id: "other-node", name: "其他", desc: "不重复", license: null, author: "z", downloads: 1, installed: false },
+      ],
+    });
+    expect(entries).toHaveLength(2);
+    expect(entries[0]).toMatchObject({ id: "rgthree-comfy", source: "curated", name: "RG三节点集" });
+    expect(entries[1]).toMatchObject({ id: "other-node", source: "registry" });
+  });
+
   it("体检报告:三类问题转大白话字符串数组", () => {
     const report = mapDoctorReport({
       missing: [{ plugin: "layerstyle", message: "插件目录不见了" }],

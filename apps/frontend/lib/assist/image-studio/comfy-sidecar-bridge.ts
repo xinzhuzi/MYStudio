@@ -393,10 +393,19 @@ function mapCatalogEntry(raw: Record<string, unknown>, source: "curated" | "regi
 }
 
 export function mapCatalogReply(raw: SidecarCatalogReply): ComfyCatalogEntry[] {
-  return [
-    ...(raw.curated ?? []).map((entry) => mapCatalogEntry(entry, "curated")),
-    ...(raw.registry ?? []).map((entry) => mapCatalogEntry(entry, "registry")),
-  ];
+  // 09-09 初始加载落地:同一包在策展与 Registry 都会出现(如 rgthree),
+  // 按目录条目 id 去重,策展优先(license 已人工核验,信息更可信)。
+  const seen = new Set<string>();
+  const entries: ComfyCatalogEntry[] = [];
+  for (const entry of [
+    ...(raw.curated ?? []).map((item) => mapCatalogEntry(item, "curated")),
+    ...(raw.registry ?? []).map((item) => mapCatalogEntry(item, "registry")),
+  ]) {
+    if (seen.has(entry.id)) continue;
+    seen.add(entry.id);
+    entries.push(entry);
+  }
+  return entries;
 }
 
 export function mapDoctorReport(raw: SidecarDoctorReply): ComfyDoctorReport {

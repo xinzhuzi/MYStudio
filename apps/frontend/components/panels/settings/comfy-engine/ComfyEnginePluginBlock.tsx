@@ -7,7 +7,7 @@
 // 行展开 = 作者/下载量/依赖清单 + 安装/卸载/更新;卸载先做工作流引用扫描,
 // 「X 个工作流在用它」点名警告后确认;高级折叠 = 任意 git/本地路径安装(第三方警告)。
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   ChevronDown,
   Download,
@@ -90,6 +90,13 @@ export function ComfyEnginePluginBlock({ engine }: ComfyEnginePluginBlockProps) 
   const [pendingUninstall, setPendingUninstall] = useState<PendingUninstall | null>(null);
   const [isScanningUsage, setIsScanningUsage] = useState(false);
   const [advancedRef, setAdvancedRef] = useState("");
+
+  // 09-09 实弹根修:目录不初始加载,空开时永远「没有匹配的插件」(看起来像坏
+  // 了)。挂载即拉一次空搜索——策展清单本地秒回,Registry 离线由后端静默降级。
+  const searchCatalogFn = engine.searchCatalog;
+  useEffect(() => {
+    void searchCatalogFn("");
+  }, [searchCatalogFn]);
 
   const pluginJobActive =
     engine.activeJob?.state === "running" && engine.activeJob.kind.startsWith("plugin");
