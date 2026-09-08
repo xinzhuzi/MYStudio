@@ -3,7 +3,7 @@
 // Commercial licensing available. See COMMERCIAL_LICENSE.md.
 
 import { memo, useEffect, useRef, useState } from "react";
-import { Handle, Position, type Node, type NodeProps } from "@xyflow/react";
+import { type Node, type NodeProps } from "@xyflow/react";
 import { useCanvasDraftValue } from "./image-studio-draft-input";
 import { MentionPicker } from "./mention-picker";
 import { buildMentionToken, mentionTriggerState, type MentionCandidate } from "@/lib/studio/image-workflow/mention-token";
@@ -16,14 +16,9 @@ import {
   ChevronLeft,
   ChevronRight,
   Download,
-  Flame,
-  Image as ImageIcon,
   Sparkles,
   Square,
-  Type,
   Upload,
-  Shirt,
-  WandSparkles,
   ZoomIn,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -120,26 +115,6 @@ export const ImageStudioNodeCard = memo(function ImageStudioNodeCard({
   data,
 }: NodeProps<ImageStudioReactNode>) {
   const node = data.node;
-  const borderClass = data.selected
-    ? "border-primary/70 shadow-[0_0_0_1px_hsl(var(--primary)/0.35),0_6px_20px_rgba(0,0,0,0.28)]"
-    : node.type === "generated" && node.status === "ready"
-      ? "border-success/45"
-      : "border-border";
-  const meta =
-    node.type === "reference"
-      ? data.referenceIndex
-        ? `参考图 ${data.referenceIndex}`
-        : "参考图"
-      : node.type === "prompt"
-        ? "提示词"
-        : node.type === "sticky"
-          ? "便利贴"
-          : node.type === "group"
-            ? `分组${node.memberIds.length ? ` · ${node.memberIds.length} 节点` : ""}`
-            : node.type === "nsfw"
-              ? "专业流增强"
-              : "成图";
-
   // 09-08 框架化(P1 试点):声明式定义的节点类型整卡走通用壳——折叠+摘要
   // 为框架底层能力;未迁移类型(reference/prompt/uncloth/generated/group)暂走下方旧路径
   const shellDefinition = CANVAS_NODE_DEFINITIONS[node.type];
@@ -158,6 +133,7 @@ export const ImageStudioNodeCard = memo(function ImageStudioNodeCard({
         }
       >
         {node.type === "sticky" ? <StickyNoteEditor node={node} onUpdate={data.onUpdate} /> : null}
+        {node.type === "group" ? <GroupEditor node={node} onUpdate={data.onUpdate} /> : null}
         {node.type === "reference" ? (
           <ReferenceNodeEditor
             node={node}
@@ -166,192 +142,25 @@ export const ImageStudioNodeCard = memo(function ImageStudioNodeCard({
           />
         ) : null}
         {node.type === "prompt" ? <PromptNodeEditor node={node} onUpdate={data.onUpdate} /> : null}
+        {node.type === "generated" ? (
+          <GeneratedNodeEditor
+            node={node}
+            promptNode={data.promptNode}
+            referenceCount={data.referenceCount}
+            extras={data.extras}
+            onUpdate={data.onUpdate}
+            onUpdateExtras={data.onUpdateExtras}
+            onGenerate={data.onGenerate}
+            onStop={data.onStop}
+            onUpscale={data.onUpscale}
+            onSaveToProps={data.onSaveToProps}
+          />
+        ) : null}
       </CanvasNodeShell>
     );
   }
 
-  return (
-    <div
-      data-image-studio-node-kind={node.type}
-      className={cn(
-        "[contain:layout_style]",
-        "image-workflow-node-card group/node rounded-xl border bg-card/96 p-3.5 text-card-foreground",
-        "shadow-[0_1px_2px_rgba(0,0,0,0.18)] transition-[border-color,box-shadow] duration-200",
-        "hover:border-border/90 hover:shadow-[0_4px_16px_rgba(0,0,0,0.22)]",
-        node.type === "reference"
-          ? "w-[360px]"
-          : node.type === "prompt"
-            ? "w-[480px]"
-            : node.type === "sticky"
-              ? "w-[240px]"
-              : node.type === "group"
-                ? "w-[480px]"
-                : node.type === "nsfw"
-                  ? "w-[420px]"
-                  : "w-[560px]",
-        // 09-07 收起态三输入口(30/55/80%)防挤:最小卡高保证口间距 ≥60px
-        node.type === "uncloth" ? "min-h-[220px]" : undefined,
-        borderClass,
-      )}
-    >
-      {node.type === "generated" ? (
-        <Handle
-          type="target"
-          position={Position.Left}
-          className="h-3! w-3! border-info/40! bg-info/20!"
-          title="输入口:上游参考图/提示词连到这里"
-        />
-      ) : null}
-      {node.type === "nsfw" ? (
-        <Handle
-          type="target"
-          position={Position.Left}
-          className="h-3! w-3! border-info/40! bg-info/20!"
-          title="提示词输入口:提示词节点连这里(经本节点增强后供成图)"
-        />
-      ) : null}
-      {node.type === "uncloth" ? (
-        <>
-          <Handle
-            type="target"
-            id="image"
-            position={Position.Left}
-            style={{ top: "30%" }}
-            className="h-3! w-3! border-warning/40! bg-warning/20!"
-            title="图输入:参考图/成图连这里"
-          />
-          <span className="pointer-events-none absolute left-1.5 top-[26%] text-[9px] font-semibold text-warning/80">图</span>
-          <Handle
-            type="target"
-            id="prompt-1"
-            position={Position.Left}
-            style={{ top: "55%" }}
-            className="h-3! w-3! border-info/40! bg-info/20!"
-            title="① 正向提示词连这里:想怎么改(稳定流=编辑指令;遮罩流=重绘/锚定全文)"
-          />
-          <span className="pointer-events-none absolute left-1.5 top-[51%] text-[9px] font-semibold text-info/80">①</span>
-          <Handle
-            type="target"
-            id="prompt-2"
-            position={Position.Left}
-            style={{ top: "80%" }}
-            className="h-3! w-3! border-destructive/50! bg-destructive/15!"
-            title="② 负向提示词连这里:不想要的元素(两流均拼为「画面避免:」句进指令)"
-          />
-          <span className="pointer-events-none absolute left-1.5 top-[76%] text-[9px] font-semibold text-destructive/80">②</span>
-        </>
-      ) : null}
-      {node.type === "prompt" ? (
-        <>
-          {/* 09-07 用户裁定:提示词节点双出口——「正」=正向提示词,「负」=反向
-              提示词;两口可分别连到下游同一输入口,目标侧正负拼装(成图分
-              prompt/negativePrompt 通道;无衣物口内拼装为一条指令) */}
-          <Handle
-            type="source"
-            id="positive"
-            position={Position.Right}
-            style={{ top: "40%" }}
-            className="h-3! w-3! border-info/40! bg-info/20!"
-            title="正向提示词出口:连到下游输入口(成图/无衣物①②等)"
-          />
-          <span className="pointer-events-none absolute right-1.5 top-[36%] text-[9px] font-semibold text-info/80">正</span>
-          <Handle
-            type="source"
-            id="negative"
-            position={Position.Right}
-            style={{ top: "75%" }}
-            className="h-3! w-3! border-destructive/50! bg-destructive/15!"
-            title="反向提示词出口:连到同一输入口即与正向拼装(成图进负向通道;无衣物拼为「画面避免」句)"
-          />
-          <span className="pointer-events-none absolute right-1.5 top-[71%] text-[9px] font-semibold text-destructive/80">负</span>
-        </>
-      ) : (
-        <Handle
-          type="source"
-          position={Position.Right}
-          className="h-3! w-3! border-info/40! bg-info/20!"
-          title="输出口:拖出去连下游成图,或拖到空白处快速建节点"
-        />
-      )}
-      <div className="mb-3 flex items-start justify-between gap-2">
-        <div className="flex min-w-0 items-center gap-2">
-          <span
-            className={cn(
-              "flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border",
-              node.type === "reference"
-                ? "border-success/30 bg-success/10 text-success"
-                : node.type === "prompt"
-                  ? "border-info/30 bg-info/10 text-info"
-                  : "border-primary/30 bg-primary/10 text-primary",
-            )}
-          >
-            {node.type === "reference" ? (
-              <ImageIcon className="h-4 w-4" />
-            ) : node.type === "prompt" ? (
-              <Type className="h-4 w-4" />
-            ) : node.type === "uncloth" ? (
-              <Shirt className="h-4 w-4" />
-            ) : node.type === "nsfw" ? (
-              <Flame className="h-4 w-4" />
-            ) : (
-              <WandSparkles className="h-4 w-4" />
-            )}
-          </span>
-          <div className="min-w-0">
-            <input
-              value={node.title}
-              onChange={(event) => data.onUpdate(node.id, { title: event.target.value } as Partial<ImageWorkflowNode>)}
-              title="节点标题(双击画布空白处可新建节点)"
-              className="nodrag nopan w-full truncate bg-transparent text-sm font-semibold outline-none"
-            />
-            {/* 09-02 对比度根修:副标题原 text-muted-foreground 在深色卡上近乎不可见
-                (VLM 实拍透明度估 30-40%),升到 foreground/70 保次级层级且可读 */}
-            <div
-              className={cn(
-                "mt-0.5 text-[10px] font-medium uppercase tracking-[0.14em]",
-                node.type === "reference"
-                  ? "text-success/80"
-                  : node.type === "prompt"
-                    ? "text-info/80"
-                    : "text-primary/80",
-              )}
-            >
-              {meta}
-            </div>
-          </div>
-        </div>
-        {/* 09-02 用户终裁:删除只走右键菜单(复制/删除),节点卡不设删除按钮 */}
-      </div>
-      {node.type === "reference" ? (
-        <ReferenceNodeEditor node={node} onPickImage={data.onPickImage} onUpdate={data.onUpdate} />
-      ) : node.type === "prompt" ? (
-        <PromptNodeEditor node={node} onUpdate={data.onUpdate} />
-      ) : node.type === "sticky" ? (
-        <StickyNoteEditor node={node} onUpdate={data.onUpdate} />
-      ) : node.type === "group" ? (
-        <GroupEditor node={node} onUpdate={data.onUpdate} />
-      ) : node.type === "uncloth" ? (
-        <UnclothNodeEditor node={node} onUpdate={data.onUpdate} />
-      ) : node.type === "nsfw" ? (
-        <NsfwNodeEditor node={node} />
-      ) : (
-        <GeneratedNodeEditor
-          node={node}
-          promptNode={data.promptNode}
-          hasUnclothUpstream={data.hasUnclothUpstream}
-          hasNsfwUpstream={data.hasNsfwUpstream}
-          referenceCount={data.referenceCount}
-          extras={data.extras}
-          onUpdate={data.onUpdate}
-          onUpdateExtras={data.onUpdateExtras}
-          onGenerate={data.onGenerate}
-          onStop={data.onStop}
-          onUpscale={data.onUpscale}
-          onSaveToProps={data.onSaveToProps}
-        />
-      )}
-    </div>
-  );
+  return null; // 09-08 P3:全部节点类型已声明化,此路径不可达
 }, areNodeCardPropsEqual);
 
 ImageStudioNodeCard.displayName = "ImageStudioNodeCard";

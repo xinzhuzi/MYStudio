@@ -1,8 +1,8 @@
 import { memo, useEffect, useState } from "react";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { UpscaleDenoiseModeField, denoiseModeToOpts, type UpscaleDenoiseMode } from "./upscale-denoise-mode";
-import { Handle, Position, type Node, type NodeProps } from "@xyflow/react";
-import { AlertTriangle, Brush, FileText, Flame, Grid2x2, Image as ImageIcon, Loader2, Save, Scissors, Shirt, Trash2, Type, WandSparkles, ZoomIn } from "lucide-react";
+import { type Node, type NodeProps } from "@xyflow/react";
+import { AlertTriangle, Brush, FileText, Grid2x2, Loader2, Save, Scissors, Trash2, WandSparkles, ZoomIn } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { LocalImage } from "@/components/ui/local-image";
 import { ResolutionBadge, probeImagePixelSize } from "@/components/ui/image-resolution-badge";
@@ -13,7 +13,6 @@ import { NsfwNodeEditor } from "@/components/ui/nsfw-node-editor";
 import { ModelSelector } from "@/components/panels/assist/ModelSelector";
 import { UPSCALE_INPUT_MAX_LONG_SIDE } from "@/lib/upscale/client";
 import { IMAGE_ASPECT_RATIOS, IMAGE_RESOLUTIONS } from "@/lib/ai/image-size-presets";
-import { cn } from "@/lib/utils";
 import type {
   ImageWorkflowGeneratedNode,
   ImageWorkflowNode,
@@ -44,12 +43,6 @@ export interface ImageWorkflowNodeData extends Record<string, unknown> {
 
 export type ImageWorkflowReactNode = Node<ImageWorkflowNodeData>;
 
-/** 取材可用:参考图有 imageUrl;成图有 resultUrl */
-function extractableImageUrl(node: ImageWorkflowNode): string | null {
-  if (node.type === "reference") return node.imageUrl || null;
-  if (node.type === "generated") return node.resultUrl || null;
-  return null;
-}
 
 const ASPECT_RATIOS = IMAGE_ASPECT_RATIOS;
 const RESOLUTION_OPTIONS = IMAGE_RESOLUTIONS;
@@ -82,24 +75,16 @@ function areNodeCardPropsEqual(
   );
 }
 
+
+/** 取材可用:参考图有 imageUrl;成图有 resultUrl */
+function extractableImageUrl(node: ImageWorkflowNode): string | null {
+  if (node.type === "reference") return node.imageUrl || null;
+  if (node.type === "generated") return node.resultUrl || null;
+  return null;
+}
+
 export const ImageWorkflowNodeCard = memo(function ImageWorkflowNodeCard({ data }: NodeProps<ImageWorkflowReactNode>) {
   const node = data.node;
-  const borderClass = data.selected
-    ? "border-warning/80 shadow-[0_18px_42px_rgba(251,191,36,0.22)]"
-    : node.type === "generated" && node.status === "ready"
-      ? "border-success/45"
-      : "border-border";
-  const nodeKindLabel =
-    node.type === "reference"
-      ? "Image"
-      : node.type === "prompt"
-        ? "图片生成"
-        : node.type === "uncloth"
-          ? "无衣物"
-          : node.type === "nsfw"
-            ? "专业流增强"
-            : "生成结果";
-
   // 09-08 框架化(P1 试点):声明式节点整卡走通用壳(折叠+摘要底层能力)
   const shellDefinition = CANVAS_NODE_DEFINITIONS[node.type];
   if (shellDefinition) {
@@ -109,6 +94,29 @@ export const ImageWorkflowNodeCard = memo(function ImageWorkflowNodeCard({ data 
         node={node}
         selected={data.selected}
         dataKindAttr="data-image-workflow-node-kind"
+        toolbar={
+          <>
+            {data.onExtract && node.type !== "prompt" && extractableImageUrl(node) ? (
+              <>
+                <Button size="icon" variant="ghost" className="h-8 w-8" aria-label="裁剪取材" title="裁剪并生成衍生参考图" onClick={() => data.onExtract?.(node.id, "crop")}>
+                  <Scissors className="h-4 w-4" />
+                </Button>
+                <Button size="icon" variant="ghost" className="h-8 w-8" aria-label="切图取材" title="按行列切分为多张参考图" onClick={() => data.onExtract?.(node.id, "split")}>
+                  <Grid2x2 className="h-4 w-4" />
+                </Button>
+                <Button size="icon" variant="ghost" className="h-8 w-8" aria-label="局部重绘" title="涂抹蒙版局部重绘" onClick={() => data.onExtract?.(node.id, "mask")}>
+                  <Brush className="h-4 w-4" />
+                </Button>
+                <Button size="icon" variant="ghost" className="h-8 w-8" aria-label="反推提示词" title="从图片反推生图提示词" onClick={() => data.onExtract?.(node.id, "reverse")}>
+                  <FileText className="h-4 w-4" />
+                </Button>
+              </>
+            ) : null}
+            <Button size="icon" variant="ghost" className="h-8 w-8" aria-label="删除节点" onClick={() => data.onDelete(node.id)}>
+              <Trash2 className="h-4 w-4" />
+            </Button>
+          </>
+        }
         banner={
           node.type === "reference" && node.derivedFrom?.staleSince !== undefined ? (
             <div
@@ -131,228 +139,21 @@ export const ImageWorkflowNodeCard = memo(function ImageWorkflowNodeCard({ data 
           <ReferenceNodeEditor node={node} onUpdate={data.onUpdate} />
         ) : null}
         {node.type === "prompt" ? <PromptNodeEditor node={node} onUpdate={data.onUpdate} /> : null}
+        {node.type === "generated" ? (
+          <GeneratedNodeEditor
+            node={node}
+            promptNode={data.promptNode}
+            onUpdate={data.onUpdate}
+            onGenerate={data.onGenerate}
+            onUpscale={data.onUpscale}
+            onApplyToStoryboard={data.onApplyToStoryboard}
+          />
+        ) : null}
       </CanvasNodeShell>
     );
   }
 
-  return (
-    <div
-      data-image-workflow-node-kind={node.type}
-      className={cn(
-        "[contain:layout_style]",
-        "image-workflow-node-card group/node rounded-xl border bg-card/96 p-3.5 text-card-foreground",
-        "shadow-[0_1px_2px_rgba(0,0,0,0.18)] transition-[border-color,box-shadow] duration-200",
-        "hover:border-border/90 hover:shadow-[0_4px_16px_rgba(0,0,0,0.22)]",
-        node.type === "prompt" || node.type === "generated" ? "w-[560px]" : "w-[420px]",
-        // 09-07 收起态三输入口(30/55/80%)防挤:最小卡高保证口间距 ≥60px
-        node.type === "uncloth" ? "min-h-[220px]" : undefined,
-        borderClass,
-      )}
-    >
-      {node.type === "generated" ? (
-        <Handle
-          type="target"
-          position={Position.Left}
-          // 08-31-connect-create-menu:target 手柄默认 connectableStart=false,
-          // 显式开启才能从成图输入拖出建上游(提示词/参考图)——上游菜单入口
-          isConnectableStart
-          className="h-3! w-3! border-info/40! bg-info/20!"
-        />
-      ) : null}
-      {node.type === "nsfw" ? (
-        <Handle
-          type="target"
-          position={Position.Left}
-          className="h-3! w-3! border-info/40! bg-info/20!"
-          title="提示词输入口:提示词节点连这里(经本节点增强后供成图)"
-        />
-      ) : null}
-      {node.type === "uncloth" ? (
-        <>
-          <Handle
-            type="target"
-            id="image"
-            position={Position.Left}
-            style={{ top: "30%" }}
-            className="h-3! w-3! border-warning/40! bg-warning/20!"
-            title="图输入:参考图/成图连这里"
-          />
-          <span className="pointer-events-none absolute left-1.5 top-[26%] text-[9px] font-semibold text-warning/80">图</span>
-          <Handle
-            type="target"
-            id="prompt-1"
-            position={Position.Left}
-            style={{ top: "55%" }}
-            className="h-3! w-3! border-info/40! bg-info/20!"
-            title="① 正向提示词连这里:想怎么改(稳定流=编辑指令;遮罩流=重绘/锚定全文)"
-          />
-          <span className="pointer-events-none absolute left-1.5 top-[51%] text-[9px] font-semibold text-info/80">①</span>
-          <Handle
-            type="target"
-            id="prompt-2"
-            position={Position.Left}
-            style={{ top: "80%" }}
-            className="h-3! w-3! border-destructive/50! bg-destructive/15!"
-            title="② 负向提示词连这里:不想要的元素(两流均拼为「画面避免:」句进指令)"
-          />
-          <span className="pointer-events-none absolute left-1.5 top-[76%] text-[9px] font-semibold text-destructive/80">②</span>
-        </>
-      ) : null}
-      {node.type === "prompt" ? (
-        <>
-          {/* 09-07 用户裁定:提示词节点双出口——「正」=正向,「负」=反向;两口可
-              分别连下游同一输入口,目标侧正负拼装(成图分 prompt/negativePrompt
-              通道;无衣物口内拼装) */}
-          <Handle
-            type="source"
-            id="positive"
-            position={Position.Right}
-            style={{ top: "40%" }}
-            className="h-3! w-3! border-info/40! bg-info/20!"
-            title="正向提示词出口:连到下游输入口"
-          />
-          <span className="pointer-events-none absolute right-1.5 top-[36%] text-[9px] font-semibold text-info/80">正</span>
-          <Handle
-            type="source"
-            id="negative"
-            position={Position.Right}
-            style={{ top: "75%" }}
-            className="h-3! w-3! border-destructive/50! bg-destructive/15!"
-            title="反向提示词出口:连到同一输入口即与正向拼装"
-          />
-          <span className="pointer-events-none absolute right-1.5 top-[71%] text-[9px] font-semibold text-destructive/80">负</span>
-        </>
-      ) : (
-        <Handle type="source" position={Position.Right} className="h-3! w-3! border-info/40! bg-info/20!" />
-      )}
-      <div className="mb-3 flex items-start justify-between gap-2">
-        <div className="flex min-w-0 items-center gap-2">
-          <span
-            className={cn(
-              "flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border",
-                node.type === "reference"
-                  ? "border-success/30 bg-success/10 text-success"
-                  : node.type === "prompt"
-                    ? "border-info/30 bg-info/10 text-info"
-                    : node.type === "uncloth" || node.type === "nsfw"
-                      ? "border-warning/30 bg-warning/10 text-warning"
-                      : "border-primary/30 bg-primary/10 text-primary",
-            )}
-          >
-            {node.type === "reference" ? (
-              <ImageIcon className="h-4 w-4" />
-            ) : node.type === "prompt" ? (
-              <Type className="h-4 w-4" />
-            ) : node.type === "uncloth" ? (
-              <Shirt className="h-4 w-4" />
-            ) : node.type === "nsfw" ? (
-              <Flame className="h-4 w-4" />
-            ) : (
-              <WandSparkles className="h-4 w-4" />
-            )}
-          </span>
-          <div className="min-w-0">
-            <input
-              value={node.title}
-              onChange={(event) => data.onUpdate(node.id, { title: event.target.value } as Partial<ImageWorkflowNode>)}
-              className="nodrag nopan w-full truncate bg-transparent text-sm font-semibold outline-none"
-            />
-            <div
-              className={cn(
-                "mt-0.5 text-[10px] font-medium uppercase tracking-[0.14em]",
-                node.type === "reference"
-                  ? "text-success/80"
-                  : node.type === "prompt"
-                    ? "text-info/80"
-                    : node.type === "uncloth"
-                      ? "text-warning/80"
-                      : "text-primary/80",
-              )}
-            >
-              {nodeKindLabel}
-            </div>
-          </div>
-        </div>
-        <div className="flex shrink-0 items-center gap-0.5">
-          {data.onExtract && node.type !== "prompt" && extractableImageUrl(node) ? (
-            <>
-              <Button
-                size="icon"
-                variant="ghost"
-                className="h-8 w-8"
-                aria-label="裁剪取材"
-                title="裁剪并生成衍生参考图"
-                onClick={() => data.onExtract?.(node.id, "crop")}
-              >
-                <Scissors className="h-4 w-4" />
-              </Button>
-              <Button
-                size="icon"
-                variant="ghost"
-                className="h-8 w-8"
-                aria-label="切图取材"
-                title="按行列切分为多张参考图"
-                onClick={() => data.onExtract?.(node.id, "split")}
-              >
-                <Grid2x2 className="h-4 w-4" />
-              </Button>
-              <Button
-                size="icon"
-                variant="ghost"
-                className="h-8 w-8"
-                aria-label="局部重绘"
-                title="涂抹蒙版局部重绘"
-                onClick={() => data.onExtract?.(node.id, "mask")}
-              >
-                <Brush className="h-4 w-4" />
-              </Button>
-              <Button
-                size="icon"
-                variant="ghost"
-                className="h-8 w-8"
-                aria-label="反推提示词"
-                title="从图片反推生图提示词"
-                onClick={() => data.onExtract?.(node.id, "reverse")}
-              >
-                <FileText className="h-4 w-4" />
-              </Button>
-            </>
-          ) : null}
-          <Button size="icon" variant="ghost" className="h-8 w-8" aria-label="删除节点" onClick={() => data.onDelete(node.id)}>
-            <Trash2 className="h-4 w-4" />
-          </Button>
-        </div>
-      </div>
-      {node.type === "reference" && node.derivedFrom?.staleSince !== undefined ? (
-        <div
-          data-image-workflow-derived-stale
-          className="mb-2 flex items-center gap-1.5 rounded-md border border-warning/40 bg-warning/10 px-2 py-1 text-[11px] font-medium text-warning"
-          title="该节点由父图取材而来,父图已生成新结果;如需同步请重新取材"
-        >
-          <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
-          父图已更新,建议重新取材
-        </div>
-      ) : null}
-      {node.type === "reference" ? (
-        <ReferenceNodeEditor node={node} onUpdate={data.onUpdate} />
-      ) : node.type === "prompt" ? (
-        <PromptNodeEditor node={node} onUpdate={data.onUpdate} />
-      ) : node.type === "uncloth" ? (
-        <UnclothNodeEditor node={node} onUpdate={data.onUpdate} />
-      ) : node.type === "nsfw" ? (
-        <NsfwNodeEditor node={node} />
-      ) : node.type === "generated" ? (
-        <GeneratedNodeEditor
-          node={node}
-          promptNode={data.promptNode}
-          onUpdate={data.onUpdate}
-          onGenerate={data.onGenerate}
-          onUpscale={data.onUpscale}
-          onApplyToStoryboard={data.onApplyToStoryboard}
-        />
-      ) : null}
-    </div>
-  );
+  return null; // 09-08 P3:全部节点类型已声明化,此路径不可达
 }, areNodeCardPropsEqual);
 
 ImageWorkflowNodeCard.displayName = "ImageWorkflowNodeCard";

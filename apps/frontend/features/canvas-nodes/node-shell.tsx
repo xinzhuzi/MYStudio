@@ -51,6 +51,7 @@ export const CanvasNodeShell = memo(function CanvasNodeShell({
   titleOverride,
   banner,
   dataKindAttr,
+  toolbar,
 }: {
   definition: CanvasNodeDefinition;
   node: { id: string; type: string; title?: string };
@@ -66,6 +67,8 @@ export const CanvasNodeShell = memo(function CanvasNodeShell({
   /** 兼容各画布旧节点类型标记属性名(默认 data-canvas-node-kind;存量探测
    *  脚本/测试依赖 data-image-workflow-node-kind 等旧名) */
   dataKindAttr?: string;
+  /** 卡右上工具行(取材四件套/删除等画布侧动作;与折叠钮并排) */
+  toolbar?: React.ReactNode;
 }) {
   const [expanded, setExpanded] = useState(definition.defaultExpanded !== false);
   // 摘要=独立信息功能(常显,收起态即卡主体):内容行由 definition.summary
@@ -107,6 +110,7 @@ export const CanvasNodeShell = memo(function CanvasNodeShell({
             <div className="truncate text-sm font-medium">{titleOverride ?? node.title ?? definition.label}</div>
           </div>
         </div>
+        <div className="nodrag nopan flex shrink-0 items-center gap-0.5">{toolbar}</div>
         {footer ? (
           <button
             type="button"

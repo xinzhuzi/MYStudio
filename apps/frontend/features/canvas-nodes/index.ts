@@ -14,12 +14,16 @@ export { stickyNodeDefinition } from "./nodes/sticky";
 export { referenceNodeDefinition } from "./nodes/reference";
 export { promptNodeDefinition } from "./nodes/prompt";
 export { unclothNodeDefinition } from "./nodes/uncloth";
+export { generatedNodeDefinition } from "./nodes/generated";
+export { groupNodeDefinition } from "./nodes/group";
 
 import { nsfwNodeDefinition } from "./nodes/nsfw";
 import { stickyNodeDefinition } from "./nodes/sticky";
 import { referenceNodeDefinition } from "./nodes/reference";
 import { promptNodeDefinition } from "./nodes/prompt";
 import { unclothNodeDefinition } from "./nodes/uncloth";
+import { generatedNodeDefinition } from "./nodes/generated";
+import { groupNodeDefinition } from "./nodes/group";
 import type { CanvasNodeDefinition } from "./node-registry";
 
 export const CANVAS_NODE_DEFINITIONS: Readonly<Record<string, CanvasNodeDefinition>> = {
@@ -28,4 +32,6 @@ export const CANVAS_NODE_DEFINITIONS: Readonly<Record<string, CanvasNodeDefiniti
   [referenceNodeDefinition.typeId]: referenceNodeDefinition,
   [promptNodeDefinition.typeId]: promptNodeDefinition,
   [unclothNodeDefinition.typeId]: unclothNodeDefinition,
+  [generatedNodeDefinition.typeId]: generatedNodeDefinition,
+  [groupNodeDefinition.typeId]: groupNodeDefinition,
 };

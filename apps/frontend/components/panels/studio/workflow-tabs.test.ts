@@ -194,10 +194,14 @@ describe("studio workflow tabs", () => {
     ]
       .map((name) => readFileSync(fileURLToPath(new URL(name, import.meta.url)), "utf8"))
       .join("\n");
-    const nodeSource = readFileSync(
-      fileURLToPath(new URL("./image-workflow/image-workflow-node-card.tsx", import.meta.url)),
-      "utf8",
-    );
+    // 09-08 P3:节点卡视觉上收到框架壳(features/canvas-nodes/node-shell)——
+    // 主题类扫描范围把壳源码并入(bg-card/96 等卡面类现居于此)
+    const nodeSource = [
+      "./image-workflow/image-workflow-node-card.tsx",
+      "../../../features/canvas-nodes/node-shell.tsx",
+    ]
+      .map((name) => readFileSync(fileURLToPath(new URL(name, import.meta.url)), "utf8"))
+      .join("\n");
     const sidebarSource = readFileSync(
       fileURLToPath(new URL("./image-workflow/image-workflow-sidebar.tsx", import.meta.url)),
       "utf8",
