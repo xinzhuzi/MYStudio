@@ -161,12 +161,13 @@ export function createImageGenRuntimeController(deps: ControllerDeps) {
 
   function buildEnv(): NodeJS.ProcessEnv {
     const modelCacheDir = getModelCacheDir();
+    // ComfyUI 桥地址发现已下沉到 sidecar(comfyui_bridge.bridge_url:自管实例
+    // manifest 端口 → 17598 回落);此处不再注入 17598 默认值,否则 env 覆写
+    // 恒生效、自管实例端口永远轮不到。显式 env 覆写仍经下方 process.env 透传。
     return {
       ...process.env,
       PYTHONPATH: deps.backendRoot,
       MYSTUDIO_IMAGE_MODEL_DIR: modelCacheDir,
-      MYSTUDIO_COMFYUI_BRIDGE_URL:
-        process.env.MYSTUDIO_COMFYUI_BRIDGE_URL ?? "http://127.0.0.1:17598",
     };
   }
 

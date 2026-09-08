@@ -57,9 +57,19 @@ def _warn_if_version_below_min(stats: dict[str, Any], template: dict[str, Any]) 
 
 
 def bridge_url() -> str:
-    # 17598 is the current local ComfyUI service port; deployments may override
-    # it without changing the bundled bridge contract.
-    return os.environ.get("MYSTUDIO_COMFYUI_BRIDGE_URL", "http://127.0.0.1:17598").rstrip("/")
+    # 发现顺序(design §3 / grill Q9,一期即切自管实例):
+    # ① MYSTUDIO_COMFYUI_BRIDGE_URL 覆写(部署/测试不改桥契约)
+    # ② 自管实例实际端口(userData/comfyui/manifest.json 的 engine.port)
+    # ③ 回落 17598(存量 Krea2 链过渡;未装引擎时仍指向本机已有服务)
+    override = os.environ.get("MYSTUDIO_COMFYUI_BRIDGE_URL")
+    if override:
+        return override.rstrip("/")
+    # 延迟 import:comfy_manifest 零三方依赖,krea2 调用链行为零变化
+    from .. import comfy_manifest
+    port = comfy_manifest.recorded_port()
+    if port:
+        return f"http://127.0.0.1:{port}"
+    return "http://127.0.0.1:17598"
 
 
 def _pipeline_error(code: str, message: str) -> Exception:

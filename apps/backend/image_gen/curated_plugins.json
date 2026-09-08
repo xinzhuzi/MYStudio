@@ -1,0 +1,70 @@
+{
+  "schemaVersion": 1,
+  "note": "策展插件清单(裁定5/ grill Q6:助手草案,用户过目定稿)。verified_license 全部经 GitHub API /repos/{repo}/license 的 license.spdx_id 实查(2026-09-08);仓库无 LICENSE 文件或 API 查不到的一律写 unknown,严禁编造。ComfyUI_poster_nodes 候选在 GitHub/Registry 均无法定位到可信仓库,以 ComfyUI_essentials 替补。",
+  "plugins": [
+    {
+      "id": "rgthree-comfy",
+      "name": "Rgthree 效率工具",
+      "desc_zh": "画布效率工具箱:批量开关节点、上下文菜单、种子控件与排版辅助。",
+      "category": "效率工具",
+      "repo": "https://github.com/rgthree/rgthree-comfy",
+      "verified_license": "MIT"
+    },
+    {
+      "id": "ComfyUI-KJNodes",
+      "name": "KJ 常用节点集",
+      "desc_zh": "KJ 生活质量节点:遮罩与图像变换、预览调试、条件分支等常用补位节点。",
+      "category": "综合工具包",
+      "repo": "https://github.com/kijai/ComfyUI-KJNodes",
+      "verified_license": "GPL-3.0"
+    },
+    {
+      "id": "ComfyUI_LayerStyle",
+      "name": "图层样式与遮罩",
+      "desc_zh": "图层样式全家桶:抠图、蒙版羽化、文字排版与局部编辑相关节点。",
+      "category": "遮罩与图层",
+      "repo": "https://github.com/chflame163/ComfyUI_LayerStyle",
+      "verified_license": "MIT"
+    },
+    {
+      "id": "ComfyUI-Impact-Pack",
+      "name": "修脸与放大包",
+      "desc_zh": "Detailer 修复、放大管线与人脸检测常用节点(依赖较重,装得慢属正常)。",
+      "category": "修复放大",
+      "repo": "https://github.com/ltdrdata/ComfyUI-Impact-Pack",
+      "verified_license": "GPL-3.0"
+    },
+    {
+      "id": "ComfyUI_InfiniteYou",
+      "name": "InfiniteYou 人脸保持",
+      "desc_zh": "字节 InfiniteYou 肖像一致性生成节点,适合人物身份保持的编辑流。",
+      "category": "人脸一致性",
+      "repo": "https://github.com/bytedance/ComfyUI_InfiniteYou",
+      "verified_license": "Apache-2.0"
+    },
+    {
+      "id": "comfyui-various",
+      "name": "杂项小节点集",
+      "desc_zh": "图像处理与工作流辅助的小节点集合;仓库无 LICENSE 文件,介意版权请谨慎安装。",
+      "category": "图像处理",
+      "repo": "https://github.com/jamesWalker55/comfyui-various",
+      "verified_license": "unknown"
+    },
+    {
+      "id": "was-node-suite-comfyui",
+      "name": "WAS 节点大合集",
+      "desc_zh": "上百个节点:图像混合、噪点生成、文本处理与调试分析一应俱全。",
+      "category": "综合工具包",
+      "repo": "https://github.com/WASasquatch/was-node-suite-comfyui",
+      "verified_license": "MIT"
+    },
+    {
+      "id": "ComfyUI_essentials",
+      "name": "Essentials 基础增强",
+      "desc_zh": "常用基础增强:图像变换、遮罩工具、条件辅助与调试节点。",
+      "category": "综合工具包",
+      "repo": "https://github.com/cubiq/ComfyUI_essentials",
+      "verified_license": "MIT"
+    }
+  ]
+}

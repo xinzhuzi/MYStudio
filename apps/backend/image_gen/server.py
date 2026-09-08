@@ -8,6 +8,7 @@ Routes:
   GET  /models/status                   (auth)
   POST /models/download                 (auth) — explicit user-triggered
   GET  /models/progress-json/{name}     (auth)
+  /comfy/* 引擎托管+插件管理组           (auth;契约见 tasks/09-08-comfy-ecosystem-migration/design.md 十一节)
 
 Auth: the server binds 127.0.0.1 only and accepts either
 `Authorization: Bearer <MAN YING-LOCAL-IMAGE>` or the placeholder key the
@@ -27,7 +28,8 @@ import time
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-from urllib.parse import urlparse
+from urllib import error as urllib_error
+from urllib.parse import parse_qs, unquote, urlparse
 
 from . import __version__
 from .model_cache import (
@@ -134,7 +136,7 @@ class Handler(BaseHTTPRequestHandler):
                     "ok": True,
                     "service": "manying-local-image",
                     "version": __version__,
-                    "routes": ["/health", "/v1/images/generations", "/models/status", "/models/download", "/models/progress-json/{name}"],
+                    "routes": ["/health", "/v1/images/generations", "/models/status", "/models/download", "/models/progress-json/{name}", "/comfy/*"],
                 }
             )
             return
@@ -154,6 +156,9 @@ class Handler(BaseHTTPRequestHandler):
         if path.startswith("/models/progress-json/"):
             name = path.rsplit("/", 1)[-1]
             self._send_json({"model_name": name, **_get_progress(name)})
+            return
+        if path.startswith("/comfy/"):
+            self._comfy("GET", path, {}, parse_qs(urlparse(self.path).query))
             return
         self._send_error_json(HTTPStatus.NOT_FOUND, "Route not found")
 
@@ -183,6 +188,19 @@ class Handler(BaseHTTPRequestHandler):
             return
         if path == "/models/download":
             self._handle_download(payload)
+            return
+        if path.startswith("/comfy/"):
+            self._comfy("POST", path, payload, parse_qs(urlparse(self.path).query))
+            return
+        self._send_error_json(HTTPStatus.NOT_FOUND, "Route not found")
+
+    def do_DELETE(self):  # noqa: N802 — stdlib signature
+        path = urlparse(self.path).path
+        if not self._authorized():
+            self._send_error_json(HTTPStatus.FORBIDDEN, "无效本地令牌", "invalid_local_token")
+            return
+        if path.startswith("/comfy/"):
+            self._comfy("DELETE", path, {}, parse_qs(urlparse(self.path).query))
             return
         self._send_error_json(HTTPStatus.NOT_FOUND, "Route not found")
 
@@ -419,6 +437,145 @@ class Handler(BaseHTTPRequestHandler):
 
         threading.Thread(target=_download, daemon=True).start()
         self._send_json({"message": f"Model {model_name} download started"})
+
+    # -- /comfy/* 组(ComfyUI 引擎托管+插件管理,一期后端流 A) -----------
+    # 契约:tasks/09-08-comfy-ecosystem-migration/design.md 十一节。
+    # 重操作(install/update/reset/start/插件装卸)返回 jobId,进度轮询
+    # GET /comfy/jobs/{id}(既有 job/进度范式的 HTTP 化);轻操作同步应答。
+
+    def _comfy(self, method: str, path: str, payload: dict, query: dict) -> None:
+        from .engine_manager import EngineOpError, engine_manager, jobs
+        from . import plugin_manager as pm
+
+        def q(name: str) -> str:
+            return (query.get(name) or [""])[0]
+
+        try:
+            # ── 引擎 ──
+            if method == "GET" and path == "/comfy/engine/status":
+                self._send_json(engine_manager().status())
+                return
+            if method == "POST" and path == "/comfy/engine/install":
+                self._send_json({"jobId": engine_manager().install_job()})
+                return
+            if method == "POST" and path == "/comfy/engine/start":
+                # 冷启动含 torch 加载(最长 2 分钟),走 job 由前端轮询就绪
+                self._send_json({"jobId": engine_manager().start_job()})
+                return
+            if method == "POST" and path == "/comfy/engine/stop":
+                self._send_json(engine_manager().stop())
+                return
+            if method == "POST" and path == "/comfy/engine/update-check":
+                self._send_json(engine_manager().update_check())
+                return
+            if method == "POST" and path == "/comfy/engine/update":
+                self._send_json({"jobId": engine_manager().update_job()})
+                return
+            if method == "POST" and path == "/comfy/engine/reset":
+                self._send_json({"jobId": engine_manager().reset_job()})
+                return
+            if method == "POST" and path == "/comfy/engine/rollback":
+                # 一键回滚(更新失败报告携带 snapshotId;缺省回最近一次快照)。
+                snapshot_id = str(payload.get("snapshotId") or "")
+                if not snapshot_id:
+                    snapshots = engine_manager().list_snapshots()
+                    if not snapshots:
+                        raise EngineOpError("没有可回滚的快照")
+                    snapshot_id = str(snapshots[0].get("id") or "")
+                self._send_json(engine_manager().rollback_snapshot(snapshot_id))
+                return
+            if method == "GET" and path == "/comfy/engine/object-info":
+                # object_info 摘要(工作流库缺插件检测口径);引擎未跑给 null 不误报。
+                engine = engine_manager()
+                if not engine.is_healthy():
+                    self._send_json({"engineOnline": False, "classTypes": None})
+                    return
+                try:
+                    self._send_json({"engineOnline": True, "classTypes": sorted(engine.object_info_names())})
+                except (EngineOpError, OSError, urllib_error.URLError, json.JSONDecodeError):
+                    self._send_json({"engineOnline": False, "classTypes": None})
+                return
+            if method == "POST" and path == "/comfy/engine/config":
+                # 引擎卡设置区(模型目录/性能档;契约外的补充端点)
+                self._send_json(engine_manager().update_config(payload))
+                return
+
+            # ── 插件 ──
+            if method == "GET" and path == "/comfy/plugins":
+                self._send_json({"plugins": pm.list_plugins()})
+                return
+            if method == "GET" and path == "/comfy/plugins/doctor":
+                self._send_json(pm.doctor())
+                return
+            if method == "POST" and path == "/comfy/plugins/install":
+                result = pm.install_plugin_job(
+                    str(payload.get("source") or ""), str(payload.get("ref") or ""),
+                    dry_run=payload.get("dryRun") is True,
+                )
+                self._send_json(result)
+                return
+            if method == "POST" and path.endswith("/update") and path.startswith("/comfy/plugins/"):
+                plugin_id = unquote(path[len("/comfy/plugins/"):-len("/update")])
+                self._send_json({"jobId": pm.update_plugin_job(plugin_id)})
+                return
+            if method == "GET" and path.endswith("/references") and path.startswith("/comfy/plugins/"):
+                plugin_id = unquote(path[len("/comfy/plugins/"):-len("/references")])
+                self._send_json(pm.plugin_references(plugin_id))
+                return
+            if method == "DELETE" and path.startswith("/comfy/plugins/"):
+                plugin_id = unquote(path[len("/comfy/plugins/"):])
+                if q("confirm") != "true":
+                    # 卸载杀手锏:先给引用清单(哪些工作流在用它),确认由前端做
+                    references = pm.plugin_references(plugin_id)
+                    self._send_json({"needsConfirmation": True, **references})
+                    return
+                self._send_json({"jobId": pm.uninstall_plugin_job(plugin_id)})
+                return
+
+            # ── 目录搜索(策展 + Registry 合并;离线仅策展) ──
+            if method == "GET" and path == "/comfy/catalog/search":
+                self._send_json(pm.catalog_search(q("q")))
+                return
+
+            # ── 工作流库(纯文件操作组) ──
+            if method == "GET" and path == "/comfy/workflows":
+                self._send_json(pm.list_workflows())
+                return
+            if method == "POST" and path == "/comfy/workflows/import":
+                self._send_json(pm.import_workflows(payload.get("files"), overwrite=payload.get("overwrite") is True))
+                return
+            workflow_prefix = "/comfy/workflows/"
+            if path.startswith(workflow_prefix) and path.endswith("/content") and method == "GET":
+                self._send_json(pm.read_workflow(unquote(path[len(workflow_prefix):-len("/content")])))
+                return
+            for action in ("rename", "move", "delete"):
+                suffix = f"/{action}"
+                if path.startswith(workflow_prefix) and path.endswith(suffix) and method == "POST":
+                    workflow_id = unquote(path[len(workflow_prefix):-len(suffix)])
+                    if action == "rename":
+                        self._send_json(pm.rename_workflow(workflow_id, str(payload.get("name") or "")))
+                    elif action == "move":
+                        self._send_json(pm.move_workflow(workflow_id, str(payload.get("to") or "")))
+                    else:
+                        self._send_json(pm.delete_workflow(workflow_id, confirm=payload.get("confirm") is True or q("confirm") == "true"))
+                    return
+
+            # ── job 进度(重操作的轮询通道) ──
+            if method == "GET" and path.startswith("/comfy/jobs/"):
+                job = jobs.get(path.rsplit("/", 1)[-1])
+                if job:
+                    self._send_json(job)
+                    return
+                self._send_error_json(HTTPStatus.NOT_FOUND, "任务不存在或已过期(服务重启会丢失进行中的任务)", "job-not-found")
+                return
+
+            self._send_error_json(HTTPStatus.NOT_FOUND, "Route not found")
+        except EngineOpError as exc:
+            self._send_error_json(HTTPStatus.BAD_REQUEST, str(exc), "comfy-op-error")
+        except ValueError as exc:
+            self._send_error_json(HTTPStatus.BAD_REQUEST, str(exc), "invalid_payload")
+        except Exception as exc:  # noqa: BLE001 — 面向前端的大白话兜底
+            self._send_error_json(HTTPStatus.INTERNAL_SERVER_ERROR, f"操作失败: {exc}", "comfy-internal-error")
 
 
 def run(host: str = "127.0.0.1", port: int = 17595) -> None:
