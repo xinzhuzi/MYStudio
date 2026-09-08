@@ -218,10 +218,11 @@ function CapabilityGroup({ label, children }: CapabilityGroupProps) {
 }
 
 /**
- * 「显示 ComfyUI 高级节点」开关行(09-08 三期收官,流X):
- * 关(默认)=普通用户只见大白话节点+策展效果节点;开=画布「效果节点…」解锁
- * 全量生态节点(英文原名+分类)。真源=useComfyAdvancedNodes(localStorage
- * 持久化+跨窗口订阅),画布侧过滤同一 hook 读写。
+ * 「画布解锁全部生态节点」开关行(09-08 三期收官流X;09-09 用户对账正名:
+ * 原名「显示 ComfyUI 高级节点」与生态插件混淆——插件管"装",此开关管"露"):
+ * 关(默认)=普通用户画布只见大白话节点+策展效果节点;开=画布「效果节点…」
+ * 搜索解锁全量生态节点(英文原名+分类)。真源=useComfyAdvancedNodes
+ * (localStorage 持久化+跨窗口订阅),画布侧过滤同一 hook 读写。
  */
 function ComfyAdvancedNodesToggleRow() {
   const { showAdvancedNodes, setAdvancedNodes } = useComfyAdvancedNodes();
@@ -231,15 +232,15 @@ function ComfyAdvancedNodesToggleRow() {
       data-comfy-advanced-nodes-row
     >
       <div className="min-w-0">
-        <div className="text-sm font-medium text-foreground">显示 ComfyUI 高级节点</div>
+        <div className="text-sm font-medium text-foreground">画布解锁全部生态节点</div>
         <p className="mt-1 text-xs leading-5 text-muted-foreground">
-          开启后,图片工作室「效果节点…」可搜索并直放引擎的全部两千多个生态节点(英文原名);关闭则只显示精选的常用效果。
+          上面的「生态插件」负责安装;这个开关负责画布上露多少——开启后,图片工作室「效果节点…」能搜到引擎已装好的全部两千多个节点(英文原名)直接放进画布;关闭则只显示精选的常用效果,不被专业节点淹没。
         </p>
       </div>
       <Switch
         checked={showAdvancedNodes}
         onCheckedChange={setAdvancedNodes}
-        aria-label="显示 ComfyUI 高级节点"
+        aria-label="画布解锁全部生态节点"
         data-comfy-advanced-nodes-switch
       />
     </div>
