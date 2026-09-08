@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { comfyGenericEdgeColor } from "@/components/ui/comfy/comfy-port-colors";
 import { createImageWorkflowReactNodes } from "./image-workflow-react-nodes";
 import { useImageCanvasProcessing } from "./use-image-canvas-processing";
 import { ImageWorkflowFlowView } from "./ImageWorkflowFlowView";
@@ -313,6 +314,12 @@ export function ImageWorkflowCanvas({
         const dim = !edgeSelected && selectedNodeId && relatedEdgeIds.size > 0 && !related;
         const tgt = activeGraph?.nodes.find((node) => node.id === edge.target);
         const src = activeGraph?.nodes.find((node) => node.id === edge.source);
+        // 09-09 照 ComfyUI:comfy-generic 连线按源端口类型着色;其余回落主题青
+        const typeStroke =
+          src?.type === "comfy-generic"
+            ? comfyGenericEdgeColor(src.descriptor?.ports, edge.sourceHandle)
+            : undefined;
+        const stroke = edgeSelected || related ? "#fbbf24" : (typeStroke ?? "#67e8f9");
         return {
           id: edge.id,
           source: edge.source,
@@ -327,7 +334,7 @@ export function ImageWorkflowCanvas({
               ? src?.type === "prompt" ? "prompt-1" : "image"
               : undefined),
           label: edge.label,
-          markerEnd: { type: MarkerType.ArrowClosed, color: "#67e8f9" },
+          markerEnd: { type: MarkerType.ArrowClosed, color: stroke },
           // 连线层置于节点之上(见 index.css):隐形点击带收窄到 10px,
           // 连线压过卡片时不吞卡片上按钮/输入的点击
           interactionWidth: 18,
@@ -337,7 +344,7 @@ export function ImageWorkflowCanvas({
           // 落地,没解决删除触发)
           selected: edgeSelected || undefined,
           style: {
-            stroke: edgeSelected || related ? "#fbbf24" : "#67e8f9",
+            stroke,
             strokeWidth: edgeSelected || related ? 3 : 2,
             ...(dim ? { strokeOpacity: 0.22 } : {}),
           },

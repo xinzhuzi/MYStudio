@@ -5,6 +5,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { comfyGenericEdgeColor } from "@/components/ui/comfy/comfy-port-colors";
 import {
   BackgroundVariant,
   Background,
@@ -718,6 +719,12 @@ export function ImageStudioCanvas() {
         const dim = selectedNodeId && relatedEdgeIds.size > 0 && !related;
         const tgt = (activeGraph?.nodes ?? []).find((node) => node.id === edge.target);
         const src = (activeGraph?.nodes ?? []).find((node) => node.id === edge.source);
+        // 09-09 照 ComfyUI:comfy-generic 连线按源端口类型着色;其余回落主题青
+        const typeStroke =
+          src?.type === "comfy-generic"
+            ? comfyGenericEdgeColor(src.descriptor?.ports, edge.sourceHandle)
+            : undefined;
+        const stroke = related ? "#fbbf24" : (typeStroke ?? "#67e8f9");
         return {
           id: edge.id,
           source: edge.source,
@@ -729,10 +736,10 @@ export function ImageStudioCanvas() {
             (tgt?.type === "uncloth"
               ? src?.type === "prompt" ? "prompt-1" : "image"
               : undefined),
-          markerEnd: { type: MarkerType.ArrowClosed, color: "#67e8f9" },
+          markerEnd: { type: MarkerType.ArrowClosed, color: stroke },
           interactionWidth: 18,
           style: {
-            stroke: related ? "#fbbf24" : "#67e8f9",
+            stroke,
             strokeWidth: related ? 3 : 2,
             ...(dim ? { strokeOpacity: 0.22 } : {}),
           },

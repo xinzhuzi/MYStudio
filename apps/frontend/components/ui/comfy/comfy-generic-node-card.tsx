@@ -3,18 +3,22 @@
 // Commercial licensing available. See COMMERCIAL_LICENSE.md.
 
 /**
- * ComfyUI 通用节点卡——descriptor 驱动的**展示壳**(三期 通用节点)。
+ * ComfyUI 通用节点卡——ComfyUI 节点布局(09-09 用户裁定:照 ComfyUI 的 UI 节点做)。
  *
- * /object_info 的节点声明 → 标题区(中文名+英文原名 tooltip)+ 端口列表
- * (左右分栏=输入/输出,类型色点走 comfy-port-colors 的 CSS 变量方案)+
- * 参数区(widget 收进「高级参数」折叠,照 PRD「专业参数不上卡面」裁定)。
+ * 语义对齐,代码零拷贝(ComfyUI 前端 GPL,License 红线;以下全部为本仓自研):
+ * - 端口行:输入沿左缘/输出沿右缘逐行配对,类型色点压在卡片边上(半出半进);
+ *   handleRenderer 让集成层把 React Flow Handle 锚进端口行——连线点=视觉点,
+ *   不再是「百分比均布的空中点」(旧布局端口列表在卡中部,与边缘点脱节)。
+ * - 控件区:widget 一行一个直接在节点体内,默认可见(ComfyUI 肌肉记忆:
+ *   在节点上调参;旧版全部藏进「高级参数」折叠=失真)。
+ * - 标题条:仅 standalone(传 title)时渲染;画布集成走 CanvasNodeShell 头,
+ *   本组件 body-only(端口行+控件行),避免双头。
  *
- * 纯展示组件:连线(Handle)/选中/拖拽交互留集成期接 React Flow——本壳
- * 只负责把一份节点 descriptor 渲染成与既有节点卡同语言的卡面。
+ * 纯展示组件:Handle 由集成层经 handleRenderer 注入,本组件零画布依赖。
  */
 
+import { ChevronDown } from "lucide-react";
 import { useState } from "react";
-import { ChevronDown, Workflow } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { comfyPortCssColor, comfyPortTypeLabel } from "./comfy-port-colors";
 import {
@@ -23,7 +27,7 @@ import {
   type ComfyWidgetValue,
 } from "./comfy-widget-controls";
 
-/** 端口声明(descriptor 原样,side 决定分栏) */
+/** 端口声明(descriptor 原样,side 决定行内左右位) */
 export interface ComfyGenericPortDef {
   id: string;
   label: string;
@@ -33,80 +37,45 @@ export interface ComfyGenericPortDef {
 }
 
 export interface ComfyGenericNodeCardProps {
-  /** 中文名(大白话层标题;策展节点给中文名,全量节点回落英文原名) */
-  title: string;
+  /** 标题(传入=standalone 模式渲染标题条;画布集成不传=body-only) */
+  title?: string;
   /** 英文原名(/object_info class_type;进 tooltip 供对照) */
   titleEn?: string;
-  /** 徽章文案(license/来源,如「GPL-3.0」「自定义」) */
+  /** 徽章文案(license/来源;仅 standalone 标题条) */
   badge?: string;
   ports: ComfyGenericPortDef[];
   widgets: ComfyWidgetSchema[];
   /** 各 widget 当前值(键=widget id;缺项走 schema.default) */
   values?: Record<string, ComfyWidgetValue>;
   onWidgetChange?: (widgetId: string, value: ComfyWidgetValue) => void;
-  /** 参数区默认展开(缺省折叠) */
+  /**
+   * 端口行连线点注入(集成期专用):每个端口调用一次,返回值渲染在该端口行内
+   * 的色点位置(React Flow 按真实 DOM 位置锚边)。纯展示/测试态不传。
+   */
+  handleRenderer?: (port: ComfyGenericPortDef) => React.ReactNode;
+  /** 控件区默认展开(缺省开;standalone 标题条箭头可收) */
   defaultExpanded?: boolean;
   className?: string;
 }
 
-/** 单个端口行:类型色点+名称;title 带类型原文与中文语义 */
-function ComfyPortRow({ port }: { port: ComfyGenericPortDef }) {
-  const typeLabel = comfyPortTypeLabel(port.type);
-  const tooltip = `${port.label} · ${port.type}${typeLabel ? `(${typeLabel})` : ""}`;
+/** 边缘色点:压在卡片边上(半出半进);title=类型原文+中文语义 */
+function EdgeDot({ side, type }: { side: "input" | "output"; type: string }) {
   return (
     <span
-      title={tooltip}
+      aria-hidden
+      data-comfy-port-dot={type}
       className={cn(
-        "flex min-w-0 items-center gap-1.5 text-[11px] text-foreground/80",
-        port.side === "output" && "flex-row-reverse text-right",
+        "absolute top-1/2 z-[1] size-2.5 -translate-y-1/2 rounded-full border border-background/80",
+        side === "input" ? "-left-[5px]" : "-right-[5px]",
       )}
-    >
-      <span
-        aria-hidden
-        className="size-2 shrink-0 rounded-full border border-background/60"
-        style={{ backgroundColor: comfyPortCssColor(port.type) }}
-      />
-      <span className="truncate">{port.label}</span>
-    </span>
+      style={{ backgroundColor: comfyPortCssColor(type) }}
+    />
   );
 }
 
-/** 参数区折叠头(照 UnclothParamGroup 模式:卡面默认收起) */
-function ComfyAdvancedParamsDisclosure({
-  widgetCount,
-  defaultExpanded,
-  children,
-}: {
-  widgetCount: number;
-  defaultExpanded?: boolean;
-  children: React.ReactNode;
-}) {
-  const [expanded, setExpanded] = useState(Boolean(defaultExpanded));
-  return (
-    <div className="nodrag nopan rounded-md border border-border bg-background/80">
-      <button
-        type="button"
-        onClick={() => setExpanded((value) => !value)}
-        aria-expanded={expanded}
-        className="flex w-full items-center justify-between rounded-md px-2 py-1.5 text-[11px] font-medium text-foreground"
-      >
-        <span>高级参数{widgetCount > 0 ? `(${widgetCount})` : ""}</span>
-        <ChevronDown
-          className={cn("h-3 w-3 text-muted-foreground transition-transform", expanded ? "" : "-rotate-90")}
-          aria-hidden
-        />
-      </button>
-      {expanded ? (
-        <div className="space-y-2 px-2 pb-2">
-          {widgetCount === 0 ? (
-            <div className="text-[11px] text-muted-foreground">无参数(该节点没有可调选项)</div>
-          ) : (
-            children
-          )}
-        </div>
-      ) : null}
-    </div>
-  );
+function portTooltip(label: string, type: string): string {
+  const typeLabel = comfyPortTypeLabel(type);
+  return `${label} · ${type}${typeLabel ? `(${typeLabel})` : ""}`;
 }
 
 export function ComfyGenericNodeCard({
@@ -117,79 +86,130 @@ export function ComfyGenericNodeCard({
   widgets,
   values,
   onWidgetChange,
-  defaultExpanded,
+  handleRenderer,
+  defaultExpanded = true,
   className,
 }: ComfyGenericNodeCardProps) {
   const inputPorts = ports.filter((port) => port.side === "input");
   const outputPorts = ports.filter((port) => port.side === "output");
   const hasAnyPort = inputPorts.length > 0 || outputPorts.length > 0;
+  const [widgetsOpen, setWidgetsOpen] = useState(defaultExpanded);
+  // 端口行配对:输入/输出各按序取第 i 个同行(左右缘对齐;单侧空位让位)
+  const rowCount = Math.max(inputPorts.length, outputPorts.length);
 
   return (
     <div
       data-comfy-generic-node={titleEn ?? title}
       className={cn(
         "[contain:layout_style]",
-        "image-workflow-node-card nodrag nopan w-[420px] rounded-xl border border-border bg-card/96 p-3.5 text-card-foreground",
-        "shadow-[0_1px_2px_rgba(0,0,0,0.18)] transition-colors duration-200",
+        "nodrag nopan w-full rounded-lg border border-border bg-card/96 text-card-foreground",
+        "shadow-[0_1px_2px_rgba(0,0,0,0.18)]",
         className,
       )}
     >
-      {/* 标题区:中文名+徽章;英文原名进 tooltip(查文档/排错对照) */}
-      <div className="mb-2 flex items-start justify-between gap-2">
-        <div className="flex min-w-0 items-center gap-2">
-          <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-primary/30 bg-primary/10 text-primary">
-            <Workflow className="h-3.5 w-3.5" aria-hidden />
-          </span>
+      {/* 标题条(仅 standalone;画布集成走外层壳头,避免双头) */}
+      {title ? (
+        <div className="flex items-center justify-between gap-2 border-b border-border bg-muted/50 px-2.5 py-1.5">
           <div
-            className="min-w-0 truncate text-sm font-semibold"
-            title={titleEn ? `${titleEn}${title && title !== titleEn ? ` · ${title}` : ""}` : title}
+            className="flex min-w-0 items-center gap-2"
+            title={titleEn ? `${titleEn}${title !== titleEn ? ` · ${title}` : ""}` : title}
           >
-            {title}
+            <span aria-hidden className="h-3.5 w-1 shrink-0 rounded-full bg-primary/80" />
+            <span className="min-w-0 truncate text-xs font-semibold">{title}</span>
+          </div>
+          <div className="flex shrink-0 items-center gap-1.5">
+            {badge ? (
+              <span
+                className="rounded-full border border-border bg-background/60 px-2 py-0.5 text-[10px] text-muted-foreground"
+                title="来源/许可证"
+              >
+                {badge}
+              </span>
+            ) : null}
+            {widgets.length > 0 ? (
+              <button
+                type="button"
+                aria-label={widgetsOpen ? "收起节点参数" : "展开节点参数"}
+                onClick={() => setWidgetsOpen((value) => !value)}
+                className="flex h-5 w-5 items-center justify-center rounded text-muted-foreground transition-colors hover:bg-background/80 hover:text-foreground"
+              >
+                <ChevronDown
+                  className={cn("h-3 w-3 transition-transform", widgetsOpen ? "" : "-rotate-90")}
+                  aria-hidden
+                />
+              </button>
+            ) : null}
           </div>
         </div>
-        {badge ? (
-          <span
-            className="shrink-0 rounded-full border border-border bg-background/60 px-2 py-0.5 text-[10px] text-muted-foreground"
-            title="来源/许可证"
-          >
-            {badge}
-          </span>
-        ) : null}
-      </div>
+      ) : null}
 
-      {/* 端口区:左右分栏(输入左/输出右,镜像画布口位);色点=类型语义色 */}
+      {/* 端口行区:行=整宽(相对定位系),色点压边;输入名靠左/输出名靠右 */}
       {hasAnyPort ? (
-        <div className="mb-2 grid grid-cols-2 gap-x-3 gap-y-1">
-          <div className="space-y-1" aria-label="输入端口">
-            {inputPorts.length > 0 ? (
-              inputPorts.map((port) => <ComfyPortRow key={`${port.side}:${port.id}`} port={port} />)
-            ) : (
-              <span className="text-[11px] text-muted-foreground/60">无输入</span>
-            )}
-          </div>
-          <div className="space-y-1" aria-label="输出端口">
-            {outputPorts.length > 0 ? (
-              outputPorts.map((port) => <ComfyPortRow key={`${port.side}:${port.id}`} port={port} />)
-            ) : (
-              <span className="block text-right text-[11px] text-muted-foreground/60">无输出</span>
-            )}
-          </div>
+        <div className="space-y-0.5 py-1.5" data-comfy-port-rows>
+          {Array.from({ length: rowCount }, (_, index) => {
+            const input = inputPorts[index];
+            const output = outputPorts[index];
+            return (
+              <div key={input?.id ?? `out:${output?.id ?? index}`} className="relative flex min-h-5 items-center">
+                {input ? (
+                  <>
+                    {handleRenderer ? handleRenderer(input) : null}
+                    <EdgeDot side="input" type={input.type} />
+                    <span
+                      className="min-w-0 flex-1 truncate pl-2.5 text-[11px] leading-5 text-foreground/85"
+                      title={portTooltip(input.label, input.type)}
+                    >
+                      {input.label}
+                    </span>
+                  </>
+                ) : (
+                  <span className="flex-1" />
+                )}
+                {output ? (
+                  <>
+                    <span
+                      className="min-w-0 flex-1 truncate pr-2.5 text-right text-[11px] leading-5 text-foreground/85"
+                      title={portTooltip(output.label, output.type)}
+                    >
+                      {output.label}
+                    </span>
+                    <EdgeDot side="output" type={output.type} />
+                    {handleRenderer ? handleRenderer(output) : null}
+                  </>
+                ) : null}
+              </div>
+            );
+          })}
         </div>
       ) : (
-        <div className="mb-2 text-[11px] text-muted-foreground/70">无端口(纯参数节点)</div>
+        <div className="px-2.5 py-1.5 text-[11px] text-muted-foreground/70">无端口(纯参数节点)</div>
       )}
 
-      {/* 参数区:widget 全收进「高级参数」折叠(默认收起,大白话卡面纪律) */}
-      <ComfyAdvancedParamsDisclosure widgetCount={widgets.length} defaultExpanded={defaultExpanded}>
-        {widgets.map((schema) => (
-          <ComfyWidgetField
-            key={schema.id}
-            schema={schema}
-            value={values && schema.id in values ? values[schema.id] : undefined}
-            onChange={(value) => onWidgetChange?.(schema.id, value)}
-          />
-        ))}
-      </ComfyAdvancedParamsDisclosure>
+      {/* 控件区:一行一个直接在节点体内(照 ComfyUI;standalone 标题条箭头可收) */}
+      {widgets.length === 0 ? (
+        <div className="border-t border-border/70 px-2.5 py-1.5 text-[11px] text-muted-foreground/70">
+          无参数(该节点没有可调选项)
+        </div>
+      ) : widgetsOpen ? (
+        <div className="space-y-1.5 border-t border-border/70 px-2.5 py-2" data-comfy-widget-rows>
+          {widgets.map((schema) => (
+            <ComfyWidgetField
+              key={schema.id}
+              schema={schema}
+              value={values && schema.id in values ? values[schema.id] : undefined}
+              onChange={(value) => onWidgetChange?.(schema.id, value)}
+            />
+          ))}
+        </div>
+      ) : (
+        <button
+          type="button"
+          onClick={() => setWidgetsOpen(true)}
+          className="w-full border-t border-border/70 px-2.5 py-1 text-left text-[11px] text-muted-foreground transition-colors hover:text-foreground"
+        >
+          参数({widgets.length})已收起,点击展开
+        </button>
+      )}
     </div>
   );
 }

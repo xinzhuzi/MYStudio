@@ -10,8 +10,9 @@
 };
 
 // @vitest-environment jsdom
-// 通用节点卡展示壳测试:标题区(中文名+英文原名 tooltip)、端口分栏+类型色点、
-// 参数折叠展开、values/onWidgetChange 接线、空态兜底(B 节验收面)。
+// 通用节点卡测试(09-09 照 ComfyUI 节点布局重写):standalone 标题条(可省)、
+// 端口行沿左右缘(色点压边+类型色)、控件体内直显(默认可见,标题条箭头收起)、
+// values/onWidgetChange 接线、handleRenderer 逐口注入、空态兜底。
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { ComfyGenericNodeCard } from "./comfy-generic-node-card";
@@ -42,30 +43,29 @@ function renderCard(overrides: Partial<ComfyGenericNodeCardProps> = {}) {
   return render(<ComfyGenericNodeCard {...props} />);
 }
 
-describe("ComfyGenericNodeCard 标题区", () => {
-  it("中文名渲染;英文原名进 tooltip;徽章可见", () => {
+describe("ComfyGenericNodeCard 标题条(仅 standalone 渲染)", () => {
+  it("传 title:标题条渲染,英文原名进 tooltip,徽章可见", () => {
     renderCard();
     expect(screen.getByText("K 采样器")).toBeTruthy();
     expect(screen.getByText("K 采样器").closest("[title]")?.getAttribute("title")).toContain("KSampler");
     expect(screen.getByText("GPL-3.0")).toBeTruthy();
   });
 
-  it("无 titleEn 时 tooltip 回落中文名本身,不报错", () => {
-    renderCard({ titleEn: undefined });
-    expect(screen.getByText("K 采样器").closest("[title]")?.getAttribute("title")).toBe("K 采样器");
+  it("不传 title(画布集成):无标题条,只剩端口行+控件行(body-only)", () => {
+    renderCard({ title: undefined, titleEn: "ImageBlur" });
+    expect(screen.queryByText("K 采样器")).toBeNull();
+    expect(screen.getByText("model")).toBeTruthy(); // 端口行照常
   });
 });
 
-describe("ComfyGenericNodeCard 端口区(左右分栏+类型色点)", () => {
-  it("输入左/输出右分栏;色点走 CSS 变量方案(var(--comfy-port-*)双形式)", () => {
+describe("ComfyGenericNodeCard 端口行(输入左缘/输出右缘+类型色点)", () => {
+  it("输入/输出逐行配对渲染;色点走 CSS 变量方案(var(--comfy-port-*)双形式)", () => {
     const { container } = renderCard();
-    const inputCol = screen.getByLabelText("输入端口");
-    const outputCol = screen.getByLabelText("输出端口");
-    expect(inputCol.textContent).toContain("model");
-    expect(inputCol.textContent).toContain("image");
-    expect(outputCol.textContent).toContain("IMAGE");
+    expect(screen.getByText("model")).toBeTruthy();
+    expect(screen.getByText("image")).toBeTruthy();
+    expect(screen.getByText("IMAGE")).toBeTruthy();
     // 色点:MODEL 绿 / IMAGE 紫,经 comfyPortCssColor 的内联变量形式
-    const dots = container.querySelectorAll<HTMLElement>("[style*='--comfy-port']");
+    const dots = container.querySelectorAll<HTMLElement>("[data-comfy-port-dot]");
     const colors = Array.from(dots).map((dot) => dot.style.backgroundColor);
     expect(colors).toContain("var(--comfy-port-model, #57B87B)");
     expect(colors).toContain("var(--comfy-port-image, #7C6CF0)");
@@ -73,31 +73,49 @@ describe("ComfyGenericNodeCard 端口区(左右分栏+类型色点)", () => {
     expect(screen.getByTitle("model · MODEL(模型)")).toBeTruthy();
   });
 
-  it("空态:无端口显示「无端口」;单侧为空显示占位", () => {
+  it("handleRenderer:每个端口调用一次(集成层锚 Handle 进端口行)", () => {
+    const handleRenderer = vi.fn(
+      (port: ComfyGenericPortDef) => <span key={port.id} data-testid="row-handle">{port.id}</span>,
+    );
+    renderCard({ handleRenderer });
+    expect(handleRenderer).toHaveBeenCalledTimes(3);
+    const rendered = screen.getAllByTestId("row-handle").map((node) => node.textContent);
+    expect(rendered).toEqual(["model", "IMAGE", "image"]); // 行序:第1行 model+IMAGE,第2行 image
+  });
+
+  it("空态:无端口显示「无端口」", () => {
     renderCard({ ports: [] });
     expect(screen.getByText(/无端口/)).toBeTruthy();
-    cleanup();
-    renderCard({ ports: [{ id: "out", label: "IMAGE", type: "IMAGE", side: "output" }] });
-    expect(screen.getByText("无输入")).toBeTruthy();
   });
 });
 
-describe("ComfyGenericNodeCard 参数区(高级参数折叠)", () => {
-  it("默认折叠:控件不渲染;展开后五类控件按 schema 渲染", () => {
+describe("ComfyGenericNodeCard 控件区(照 ComfyUI:体内直显,默认可见)", () => {
+  it("默认可见:五类控件按 schema 直接渲染,不再藏「高级参数」折叠", () => {
     renderCard();
-    expect(screen.queryByLabelText("步数")).toBeNull();
-    fireEvent.click(screen.getByRole("button", { name: /高级参数\(2\)/ }));
     expect(screen.getByLabelText("步数")).toBeTruthy();
     expect(screen.getByLabelText("sampler")).toBeTruthy();
+    expect(screen.queryByText(/高级参数/)).toBeNull();
+  });
+
+  it("standalone 标题条箭头可收起/展开控件(收起保端口行)", () => {
+    renderCard();
+    fireEvent.click(screen.getByRole("button", { name: "收起节点参数" }));
+    expect(screen.queryByLabelText("步数")).toBeNull();
+    expect(screen.getByText("model")).toBeTruthy(); // 端口行保留
+    fireEvent.click(screen.getByRole("button", { name: "展开节点参数" }));
+    expect(screen.getByLabelText("步数")).toBeTruthy();
+  });
+
+  it("defaultExpanded:false 起步收起;点「参数(N)已收起」展开", () => {
+    renderCard({ defaultExpanded: false });
+    expect(screen.queryByLabelText("步数")).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: /参数\(2\)已收起/ }));
+    expect(screen.getByLabelText("步数")).toBeTruthy();
   });
 
   it("values/onWidgetChange 接线:values 驱动回显,控件改动回调 (widgetId, value)", () => {
     const onWidgetChange = vi.fn();
-    renderCard({
-      values: { steps: 12, sampler: "heun" },
-      onWidgetChange,
-      defaultExpanded: true,
-    });
+    renderCard({ values: { steps: 12, sampler: "heun" }, onWidgetChange });
     expect((screen.getByLabelText("步数") as HTMLInputElement).value).toBe("12");
     expect((screen.getByLabelText("sampler") as HTMLSelectElement).value).toBe("heun");
     fireEvent.change(screen.getByLabelText("sampler"), { target: { value: "euler" } });
@@ -105,16 +123,14 @@ describe("ComfyGenericNodeCard 参数区(高级参数折叠)", () => {
   });
 
   it("缺项 values 走 schema.default;不传 onWidgetChange 交互不炸", () => {
-    renderCard({ values: {}, defaultExpanded: true });
+    renderCard({ values: {} });
     expect((screen.getByLabelText("步数") as HTMLInputElement).value).toBe("4");
-    expect((screen.getByLabelText("sampler") as HTMLSelectElement).value).toBe("euler");
-    // 未接线回调时改动控件:内部态自持,无异常
     fireEvent.change(screen.getByLabelText("sampler"), { target: { value: "heun" } });
     expect((screen.getByLabelText("sampler") as HTMLSelectElement).value).toBe("heun");
   });
 
-  it("widgets 为空 → 折叠区展开显示「无参数」兜底", () => {
-    renderCard({ widgets: [], defaultExpanded: true });
+  it("widgets 为空 → 「无参数」兜底", () => {
+    renderCard({ widgets: [] });
     expect(screen.getByText(/无参数/)).toBeTruthy();
   });
 });

@@ -123,3 +123,20 @@ export function comfyPortTypeLabel(type: string): string {
   if (!type) return "";
   return getComfyPortColorSpec(type).label;
 }
+
+/**
+ * comfy-generic 连线类型色(09-09 照 ComfyUI:连线颜色=源端口类型色):
+ * sourceHandle=输出口槽位序号(descriptor.ports 里 side==="output" 的下标)。
+ * 非 comfy-generic 描述/序号越界/未指明 → undefined,调用方回落画布主题色。
+ */
+export function comfyGenericEdgeColor(
+  descriptorPorts: Array<{ type: string; side?: string }> | undefined,
+  sourceHandle: string | null | undefined,
+): string | undefined {
+  if (!Array.isArray(descriptorPorts) || sourceHandle == null) return undefined;
+  const index = Number(sourceHandle);
+  if (!Number.isInteger(index) || index < 0) return undefined;
+  const outputs = descriptorPorts.filter((port) => port && port.side === "output");
+  const port = outputs[index];
+  return port ? comfyPortCssColor(port.type) : undefined;
+}

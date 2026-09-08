@@ -3,6 +3,13 @@
 // Commercial licensing available. See COMMERCIAL_LICENSE.md.
 
 // @vitest-environment jsdom
+// Radix Slider(控件区数值控件,09-09 体内直显后触达)在 jsdom 需要
+// ResizeObserver(仓库惯例:各测试文件自行 stub)
+(globalThis as any).ResizeObserver ??= class {
+  observe() {}
+  unobserve() {}
+  disconnect() {}
+};
 import { cleanup, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -77,16 +84,19 @@ function renderCard(node: ImageWorkflowComfyGenericNode) {
 }
 
 describe("ComfyGenericCard(效果节点卡,09-08 三期收官)", () => {
-  it("动态口按 descriptor 渲染(输入口 id=输入 key,输出口 id=槽位);端口明细与高级参数在卡内", () => {
+  it("动态口按 descriptor 渲染且锚进端口行(输入口 id=输入 key,输出口 id=槽位);控件体内直显(照 ComfyUI)", () => {
     renderCard(genericNode());
     const handles = screen.getAllByTestId("handle");
     const inputHandles = handles.filter((h) => h.getAttribute("data-handle-type") === "target");
     const outputHandles = handles.filter((h) => h.getAttribute("data-handle-type") === "source");
     expect(inputHandles.map((h) => h.getAttribute("data-handle-id"))).toEqual(["image", "mask"]);
     expect(outputHandles.map((h) => h.getAttribute("data-handle-id"))).toEqual(["0"]);
-    // 通用卡主体:端口明细 + 高级参数折叠
-    expect(screen.getAllByText("模糊").length).toBeGreaterThanOrEqual(1); // 壳标题+通用卡标题同现
-    expect(screen.getByText(/无参数|高级参数/)).toBeTruthy();
+    // 09-09 照 ComfyUI 节点布局:控件一行一个直接在体内,不再藏「高级参数」折叠
+    expect(screen.getByLabelText("模糊半径")).toBeTruthy();
+    // 端口行:端口名可见
+    expect(screen.getByText("图片")).toBeTruthy();
+    expect(screen.getByText("蒙版")).toBeTruthy();
+    expect(screen.getByText("输出")).toBeTruthy();
   });
 
   it("摘要携带 classType/口数/状态;子图结果回显出图", () => {

@@ -38,39 +38,28 @@ function areComfyGenericCardPropsEqual(
 }
 
 /**
- * 动态口(声明层零口的运行时投影):输入口 id=输入 key(边 targetHandle),
- * 输出口 id=槽位序号(边 sourceHandle);沿卡片左右边按序均布。
+ * 动态口(09-09 照 ComfyUI 节点布局根修):Handle 不再沿边缘百分比均布
+ * (旧版连线点与端口名互不对齐),改为经 handleRenderer 锚进端口行——
+ * React Flow 按真实 DOM 位置锚边,连线点=视觉色点。输入口 id=输入 key
+ * (边 targetHandle),输出口 id=槽位序号(边 sourceHandle)。
  */
-function DynamicHandles({ node }: { node: ImageWorkflowComfyGenericNode }) {
-  const inputPorts = node.descriptor.ports.filter((port) => port.side === "input");
-  const outputPorts = node.descriptor.ports.filter((port) => port.side === "output");
-  const topOf = (index: number, total: number) =>
-    `${Math.round(((index + 1) / (total + 1)) * 100)}%`;
+function rowHandle(port: ComfyGenericPortDef) {
+  const isInput = port.side === "input";
   return (
-    <>
-      {inputPorts.map((port, index) => (
-        <Handle
-          key={`in:${port.id}`}
-          type="target"
-          id={port.id}
-          position={Position.Left}
-          style={{ top: topOf(index, inputPorts.length), backgroundColor: comfyPortCssColor(port.type) }}
-          className="h-3! w-3!"
-          title={`${port.label}(${port.type})输入口`}
-        />
-      ))}
-      {outputPorts.map((port, index) => (
-        <Handle
-          key={`out:${port.id}`}
-          type="source"
-          id={port.id}
-          position={Position.Right}
-          style={{ top: topOf(index, outputPorts.length), backgroundColor: comfyPortCssColor(port.type) }}
-          className="h-3! w-3!"
-          title={`${port.label}(${port.type})输出口`}
-        />
-      ))}
-    </>
+    <Handle
+      type={isInput ? "target" : "source"}
+      id={port.id}
+      position={isInput ? Position.Left : Position.Right}
+      style={{
+        position: "absolute",
+        top: "50%",
+        transform: "translateY(-50%)",
+        ...(isInput ? { left: "-6px" } : { right: "-6px" }),
+        backgroundColor: comfyPortCssColor(port.type),
+      }}
+      className="h-3! w-3!"
+      title={`${port.label}(${port.type})${isInput ? "输入" : "输出"}口`}
+    />
   );
 }
 
@@ -135,15 +124,15 @@ export const ComfyGenericCard = memo(function ComfyGenericCard({
     () => (
       <div className="mt-2 space-y-2">
         <ComfyGenericNodeCard
-          title={node.title}
           titleEn={node.classType}
           badge={node.classType}
           ports={ports}
           widgets={widgets}
           values={values}
           onWidgetChange={(widgetId, value) => setWidgetValue(node.id, widgetId, value)}
+          handleRenderer={rowHandle}
           // 内嵌壳内:去整框降为面板样式(壳已持外框,避免双层卡框)
-          className="w-full! rounded-lg! border-border/60! bg-background/50! shadow-none!"
+          className="rounded-lg! border-border/60! bg-background/50! shadow-none!"
         />
         <ResultArea node={node} />
       </div>
@@ -157,7 +146,6 @@ export const ComfyGenericCard = memo(function ComfyGenericCard({
       selected={data.selected || selected}
       dataKindAttr="data-image-studio-node-kind"
     >
-      <DynamicHandles node={node} />
       {body}
     </CanvasNodeShell>
   );

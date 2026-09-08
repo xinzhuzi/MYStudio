@@ -17,7 +17,7 @@ export const comfyGenericNodeDefinition: CanvasNodeDefinition = {
   label: "效果节点",
   icon: Sparkles,
   iconClassName: "border-success/30 bg-success/10 text-success",
-  width: 420,
+  width: 340,
   defaultExpanded: false,
   handles: [],
   summary: (node) => {
