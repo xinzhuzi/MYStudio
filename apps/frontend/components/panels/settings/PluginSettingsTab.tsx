@@ -13,6 +13,7 @@ import {
   Music2,
   Plug,
   ScanEye,
+  ServerCog,
   Terminal,
   ZoomIn,
 } from "lucide-react";
@@ -33,6 +34,17 @@ import { useMusic3GenRuntimeSettings } from "./useMusic3GenRuntimeSettings";
 import { useSfxGenRuntimeSettings } from "./useSfxGenRuntimeSettings";
 import { useVideoQcRuntimeSettings } from "./useVideoQcRuntimeSettings";
 import { PythonSettingsTab } from "./PythonSettingsTab";
+import { ComfyEngineSettingsSection } from "./comfy-engine/ComfyEngineSettingsSection";
+import {
+  REVEAL_SETTINGS_SECTION_EVENT,
+  consumePendingRevealSection,
+} from "./comfy-engine/comfy-engine-update-reminder";
+import {
+  deriveComfyEnginePill,
+  formatComfyEnginePillLabel,
+  type ComfyEnginePillKind,
+} from "./comfy-engine/comfy-engine-contract";
+import { useComfyEngineSettings } from "./comfy-engine/useComfyEngineSettings";
 import { DepthSettingsSection } from "./DepthSettingsSection";
 import { LocalImageSettingsSection } from "./LocalImageSettingsSection";
 import { UpscaleSettingsSection } from "./UpscaleSettingsSection";
@@ -51,6 +63,7 @@ const SECTION_STORAGE_KEY = "mystudio.settings.plugins.collapsedSections";
 
 const SECTION_IDS = [
   "python",
+  "comfy-engine",
   "depth",
   "image-gen",
   "upscale",
@@ -96,9 +109,11 @@ type CapabilityPillKind =
   | "ready"
   | "model-missing"
   | "needs-runtime"
+  | "not-installed"
   | "preparing"
   | "downloading"
   | "update"
+  | "updating"
   | "error"
   | "blocked";
 
@@ -108,9 +123,11 @@ const PILL_LABELS: Record<CapabilityPillKind, string> = {
   ready: "已就绪",
   "model-missing": "未下载",
   "needs-runtime": "需准备",
+  "not-installed": "未安装",
   preparing: "配置中",
   downloading: "下载中",
   update: "可更新",
+  updating: "更新中",
   error: "检查失败",
   blocked: "已阻塞",
 };
@@ -119,11 +136,13 @@ const PILL_STYLES: Record<CapabilityPillKind, string> = {
   checking: "border-border bg-muted/60 text-muted-foreground",
   unsupported: "border-border bg-muted/60 text-muted-foreground",
   "model-missing": "border-border bg-muted/60 text-muted-foreground",
+  "not-installed": "border-border bg-muted/60 text-muted-foreground",
   ready: "border-success/30 bg-success/10 text-success",
   "needs-runtime": "border-warning/30 bg-warning/10 text-warning",
   preparing: "border-warning/30 bg-warning/10 text-warning",
   downloading: "border-warning/30 bg-warning/10 text-warning",
   update: "border-warning/30 bg-warning/10 text-warning",
+  updating: "border-warning/30 bg-warning/10 text-warning",
   error: "border-destructive/30 bg-destructive/10 text-destructive",
   blocked: "border-destructive/30 bg-destructive/10 text-destructive",
 };
@@ -135,6 +154,8 @@ type CapabilityRowProps = {
   title: string;
   description: string;
   pill: CapabilityPillKind;
+  /** 覆盖胶囊文案(如引擎行「下载中 42%」「出错」);不传用默认文案。 */
+  pillLabel?: string;
   collapsed: boolean;
   onToggle: (sectionId: SectionId) => void;
   children: React.ReactNode;
@@ -147,6 +168,7 @@ function CapabilityRow({
   title,
   description,
   pill,
+  pillLabel,
   collapsed,
   onToggle,
   children,
@@ -161,7 +183,7 @@ function CapabilityRow({
             className={cn("shrink-0 rounded-full border px-2 py-0.5 text-xs font-medium", PILL_STYLES[pill])}
             data-capability-pill={pill}
           >
-            {PILL_LABELS[pill]}
+            {pillLabel ?? PILL_LABELS[pill]}
           </span>
           <ChevronDown
             className={cn("h-4 w-4 shrink-0 text-muted-foreground transition-transform", collapsed && "-rotate-90")}
@@ -203,6 +225,7 @@ function CapabilityGroup({ label, children }: CapabilityGroupProps) {
  */
 export function PluginSettingsTab() {
   const python = usePythonRuntimeSettings();
+  const comfyEngine = useComfyEngineSettings();
   const videoPlugins = useVideoWorkflowPlugins();
   const depth = useDepthRuntimeSettings();
   const imageGen = useImageGenRuntimeSettings();
@@ -219,6 +242,7 @@ export function PluginSettingsTab() {
   const refreshRowStatuses = () => {
     void depth.probeRuntime();
     void imageGen.probeRuntime();
+    void comfyEngine.refreshStatus();
     void upscale.probeRuntime();
     void music.refreshStatus();
     void videoQc.refresh();
@@ -232,6 +256,29 @@ export function PluginSettingsTab() {
     refreshRowStatuses();
     // 一次性挂载探测;各探测函数均为 hook 内稳定引用。
     // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // 编程式直达分区(09-08 更新提醒链「去更新」按钮):广播事件 + 挂载期
+  // pending 兜底(事件可能早于本 tab 挂载),展开对应折叠行。
+  useEffect(() => {
+    const revealSection = (sectionId: string) => {
+      setCollapsedSections((previous) => {
+        if (!previous.has(sectionId)) return previous;
+        const next = new Set(previous);
+        next.delete(sectionId);
+        return next;
+      });
+    };
+    const onReveal = (event: Event) => {
+      const sectionId = (event as CustomEvent<{ sectionId?: string }>).detail?.sectionId;
+      if (sectionId) revealSection(sectionId);
+    };
+    const pending = consumePendingRevealSection();
+    if (pending) revealSection(pending);
+    window.addEventListener(REVEAL_SETTINGS_SECTION_EVENT, onReveal);
+    return () => {
+      window.removeEventListener(REVEAL_SETTINGS_SECTION_EVENT, onReveal);
+    };
   }, []);
 
   const toggleSectionCollapsed = (sectionId: SectionId) => {
@@ -327,6 +374,26 @@ export function PluginSettingsTab() {
       : pythonReady
         ? "ready"
         : "needs-runtime";
+
+  // ComfyUI 引擎行:胶囊分级裁定 出错>可更新>需准备;下载中带 x%,就绪口径=装完即就绪。
+  const comfyPillKind: ComfyEnginePillKind = deriveComfyEnginePill({
+    hasBridge: comfyEngine.hasBridge,
+    status: comfyEngine.status,
+    activeJob: comfyEngine.activeJob,
+  });
+  const comfyPill: CapabilityPillKind =
+    comfyPillKind === "needs-setup"
+      ? "needs-runtime"
+      : comfyPillKind === "error"
+        ? "error"
+        : comfyPillKind;
+  // 仅「出错」「下载中 x%」需要覆盖默认文案,其余用共享文案。
+  const comfyPillLabel =
+    comfyPillKind === "error"
+      ? "出错"
+      : comfyPillKind === "downloading" && comfyEngine.activeJob?.progress != null
+        ? formatComfyEnginePillLabel(comfyPillKind, comfyEngine.activeJob)
+        : undefined;
 
   const depthState = depth.lifecycleStatus?.state ?? depth.status?.state;
   const depthModelDownloaded = depth.lifecycleStatus?.modelDownloaded ?? depth.status?.modelDownloaded;
@@ -470,6 +537,19 @@ export function PluginSettingsTab() {
             onToggle={toggleSectionCollapsed}
           >
             <PythonSettingsTab embedded />
+          </CapabilityRow>
+          <CapabilityRow
+            sectionId="comfy-engine"
+            headingId="plugin-comfy-engine-heading"
+            icon={ServerCog}
+            title="ComfyUI 图像引擎"
+            description="漫影工作室托管自己的 ComfyUI 引擎(自动跟随最新版本,与你自己装的 ComfyUI Desktop 互不影响)。装好后在图片工作室/分镜画布直接使用两千多个生态节点;引擎和插件只在你点击时下载。"
+            pill={comfyPill}
+            pillLabel={comfyPillLabel}
+            collapsed={collapsedSections.has("comfy-engine")}
+            onToggle={toggleSectionCollapsed}
+          >
+            <ComfyEngineSettingsSection embedded />
           </CapabilityRow>
         </CapabilityGroup>
 

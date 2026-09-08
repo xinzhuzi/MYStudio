@@ -1,0 +1,199 @@
+// comfy-engine-contract 纯函数测试:状态机→胶囊分级(出错>可更新>需准备)、
+// 阶段文案、插件胶囊、体检汇总、目录过滤。
+
+import { describe, expect, it } from "vitest";
+import {
+  COMFY_ENGINE_PILL_LABELS,
+  deriveComfyEnginePill,
+  filterComfyCatalogEntries,
+  formatComfyEnginePillLabel,
+  formatComfyPluginPillLabel,
+  summarizeDoctorReport,
+  type ComfyEngineJob,
+  type ComfyEngineStatus,
+  type ComfyPluginInfo,
+} from "./comfy-engine-contract";
+
+function status(overrides: Partial<ComfyEngineStatus>): ComfyEngineStatus {
+  return {
+    installed: true,
+    version: "0.34.0",
+    latest: null,
+    state: "ready",
+    port: 17599,
+    modelsDir: "/tmp/comfyui/models",
+    defaultModelsDir: "/tmp/comfyui/models",
+    serviceRunning: true,
+    pluginCount: 0,
+    updateAvailable: false,
+    message: null,
+    installDir: "/tmp/comfyui",
+    ...overrides,
+  };
+}
+
+function job(overrides: Partial<ComfyEngineJob>): ComfyEngineJob {
+  return {
+    jobId: "job-1",
+    kind: "install",
+    state: "running",
+    progress: 42,
+    stage: "download",
+    message: null,
+    report: null,
+    ...overrides,
+  };
+}
+
+describe("deriveComfyEnginePill 状态机", () => {
+  it("无桥 → 不支持;未探测 → 检查中", () => {
+    expect(deriveComfyEnginePill({ hasBridge: false, status: status({}), activeJob: null })).toBe("unsupported");
+    expect(deriveComfyEnginePill({ hasBridge: true, status: null, activeJob: null })).toBe("checking");
+  });
+
+  it("未安装/需准备/已就绪 基础三态", () => {
+    expect(
+      deriveComfyEnginePill({ hasBridge: true, status: status({ installed: false, state: "not-installed" }), activeJob: null }),
+    ).toBe("not-installed");
+    expect(
+      deriveComfyEnginePill({ hasBridge: true, status: status({ state: "needs-setup" }), activeJob: null }),
+    ).toBe("needs-setup");
+    expect(deriveComfyEnginePill({ hasBridge: true, status: status({}), activeJob: null })).toBe("ready");
+  });
+
+  it("胶囊分级裁定:出错 > 可更新 > 需准备", () => {
+    // 出错压过一切
+    expect(
+      deriveComfyEnginePill({
+        hasBridge: true,
+        status: status({ state: "error", updateAvailable: true }),
+        activeJob: null,
+      }),
+    ).toBe("error");
+    // 可更新压过就绪与需准备
+    expect(
+      deriveComfyEnginePill({ hasBridge: true, status: status({ updateAvailable: true }), activeJob: null }),
+    ).toBe("update");
+    expect(
+      deriveComfyEnginePill({
+        hasBridge: true,
+        status: status({ state: "needs-setup", updateAvailable: true }),
+        activeJob: null,
+      }),
+    ).toBe("update");
+  });
+
+  it("就绪口径裁定:装完即就绪,服务未跑不降级胶囊", () => {
+    expect(
+      deriveComfyEnginePill({ hasBridge: true, status: status({ serviceRunning: false }), activeJob: null }),
+    ).toBe("ready");
+  });
+
+  it("任务进行中:install→下载中,update/reset→更新中,插件任务不改引擎胶囊", () => {
+    expect(
+      deriveComfyEnginePill({ hasBridge: true, status: status({ state: "not-installed", installed: false }), activeJob: job({ kind: "install" }) }),
+    ).toBe("downloading");
+    expect(
+      deriveComfyEnginePill({ hasBridge: true, status: status({}), activeJob: job({ kind: "update" }) }),
+    ).toBe("updating");
+    expect(
+      deriveComfyEnginePill({ hasBridge: true, status: status({}), activeJob: job({ kind: "reset" }) }),
+    ).toBe("updating");
+    expect(
+      deriveComfyEnginePill({ hasBridge: true, status: status({}), activeJob: job({ kind: "plugin-install" }) }),
+    ).toBe("ready");
+  });
+
+  it("终态任务不参与分级(失败 job 由 status.state 决定)", () => {
+    expect(
+      deriveComfyEnginePill({ hasBridge: true, status: status({}), activeJob: job({ kind: "install", state: "failed" }) }),
+    ).toBe("ready");
+  });
+});
+
+describe("formatComfyEnginePillLabel 文案", () => {
+  it("下载中带 x%(钳位 0-100)", () => {
+    expect(formatComfyEnginePillLabel("downloading", job({ progress: 42 }))).toBe("下载中 42%");
+    expect(formatComfyEnginePillLabel("downloading", job({ progress: 130 }))).toBe("下载中 100%");
+    expect(formatComfyEnginePillLabel("downloading", job({ progress: null }))).toBe("下载中");
+  });
+
+  it("九种胶囊文案齐备且无英文", () => {
+    expect(Object.keys(COMFY_ENGINE_PILL_LABELS).length).toBe(9);
+    expect(COMFY_ENGINE_PILL_LABELS).toEqual({
+      unsupported: "不支持",
+      checking: "检查中",
+      "not-installed": "未安装",
+      downloading: "下载中",
+      "needs-setup": "需准备",
+      ready: "已就绪",
+      update: "可更新",
+      updating: "更新中",
+      error: "出错",
+    });
+  });
+});
+
+describe("formatComfyPluginPillLabel 插件胶囊", () => {
+  const base = {
+    id: "rgthree",
+    name: "RG三节点集",
+    description: "效率工具",
+    license: "GPL-3.0",
+    state: "installed" as const,
+    version: null,
+    deps: [],
+    author: null,
+    downloads: null,
+    category: null,
+    nodeCount: null,
+  } satisfies ComfyPluginInfo;
+
+  it("已装显示节点数,其余三态大白话", () => {
+    expect(formatComfyPluginPillLabel({ ...base, state: "installed", nodeCount: 42 })).toBe("已装 42 节点");
+    expect(formatComfyPluginPillLabel({ ...base, state: "installed", nodeCount: null })).toBe("已安装");
+    expect(formatComfyPluginPillLabel({ ...base, state: "updatable" })).toBe("可更新");
+    expect(formatComfyPluginPillLabel({ ...base, state: "install-failed" })).toBe("安装失败");
+    expect(formatComfyPluginPillLabel({ ...base, state: "installable" })).toBe("可安装");
+  });
+});
+
+describe("summarizeDoctorReport 体检汇总", () => {
+  it("全空 → 正常", () => {
+    expect(summarizeDoctorReport({ missing: [], drifted: [], orphan: [] })).toEqual({
+      healthy: true,
+      summary: "依赖体检正常:无缺失、无漂移、无孤儿。",
+    });
+  });
+
+  it("三类问题逐项计数", () => {
+    const result = summarizeDoctorReport({
+      missing: ["insightface"],
+      drifted: ["numpy"],
+      orphan: ["旧包A", "旧包B"],
+    });
+    expect(result.healthy).toBe(false);
+    expect(result.summary).toBe("依赖体检发现问题:缺失 1 项, 漂移 1 项, 孤儿 2 项。");
+  });
+});
+
+describe("filterComfyCatalogEntries 目录过滤", () => {
+  const entries = [
+    { id: "a", name: "图层样式", description: "图像处理", category: "画质" },
+    { id: "b", name: "RG三节点集", description: "效率工具合集", category: "效率" },
+    { id: "c", name: "Krea 节点", description: "生图模型配套", category: "生图" },
+  ].map((entry) => ({ ...entry, license: "GPL-3.0", author: null, downloads: null, installedState: null, ref: entry.id, source: "curated" as const }));
+
+  it("空查询返回全部;分词命中名字或描述", () => {
+    expect(filterComfyCatalogEntries(entries, "", null)).toHaveLength(3);
+    expect(filterComfyCatalogEntries(entries, "图层", null)).toHaveLength(1);
+    expect(filterComfyCatalogEntries(entries, "效率 工具", null)).toHaveLength(1);
+    expect(filterComfyCatalogEntries(entries, "不存在", null)).toHaveLength(0);
+  });
+
+  it("分类筛选与查询叠加", () => {
+    expect(filterComfyCatalogEntries(entries, "", "效率")).toHaveLength(1);
+    expect(filterComfyCatalogEntries(entries, "节点", "生图")).toHaveLength(1);
+    expect(filterComfyCatalogEntries(entries, "图层", "生图")).toHaveLength(0);
+  });
+});

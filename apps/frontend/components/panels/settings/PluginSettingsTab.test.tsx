@@ -22,6 +22,7 @@ const mocks = vi.hoisted(() => ({
   upscaleProbe: vi.fn(async () => undefined),
   musicRefresh: vi.fn(async () => undefined),
   videoQcRefresh: vi.fn(async () => undefined),
+  comfyEngineRefresh: vi.fn(async () => undefined),
 }));
 
 vi.mock("./usePythonRuntimeSettings", () => ({
@@ -144,6 +145,32 @@ vi.mock("./useVideoQcRuntimeSettings", () => ({
 vi.mock("./PythonSettingsTab", () => ({
   PythonSettingsTab: ({ embedded }: { embedded?: boolean }) => <div data-testid="python-section">{String(embedded)}</div>,
 }));
+vi.mock("./comfy-engine/useComfyEngineSettings", () => ({
+  useComfyEngineSettings: () => ({
+    hasBridge: true,
+    status: {
+      installed: true,
+      version: "0.34.0",
+      latest: null,
+      state: "ready" as const,
+      port: 17599,
+      modelsDir: "/tmp/comfyui/models",
+      defaultModelsDir: "/tmp/comfyui/models",
+      serviceRunning: true,
+      pluginCount: 0,
+      updateAvailable: false,
+      message: null,
+      installDir: "/tmp/comfyui",
+    },
+    activeJob: null,
+    refreshStatus: mocks.comfyEngineRefresh,
+  }),
+}));
+vi.mock("./comfy-engine/ComfyEngineSettingsSection", () => ({
+  ComfyEngineSettingsSection: ({ embedded }: { embedded?: boolean }) => (
+    <div data-testid="comfy-engine-section">{String(embedded)}</div>
+  ),
+}));
 vi.mock("./DepthSettingsSection", () => ({
   DepthSettingsSection: ({ embedded }: { embedded?: boolean }) => <div data-testid="depth-section">{String(embedded)}</div>,
 }));
@@ -181,10 +208,11 @@ afterEach(() => {
   scenario.videoReady = true;
 });
 
-/** 08-28 布局重做后:四个分组标签是普通文本,页内标题 = 本地配置 + 10 行区块。 */
+/** 08-28 布局重做后:四个分组标签是普通文本,页内标题 = 本地配置 + 11 行区块(09-08 增 ComfyUI 引擎)。 */
 const EXPECTED_ROW_HEADINGS = [
   "本地配置",
   "Python 运行环境",
+  "ComfyUI 图像引擎",
   "深度估计（电影级 3D）",
   "本地图片生成（免费）",
   "图片超分（1K → 4K）",
@@ -220,10 +248,11 @@ describe("PluginSettingsTab", () => {
     window.localStorage.removeItem("mystudio.settings.plugins.collapsedSections");
     const { unmount } = render(<PluginSettingsTab />);
 
-    // 默认全折叠：10 行区块标题可见，内容全部不在 DOM
+    // 默认全折叠：11 行区块标题可见，内容全部不在 DOM
     const headings = screen.getAllByRole("heading").map((heading) => heading.textContent);
     expect(headings).toEqual(EXPECTED_ROW_HEADINGS);
     expect(screen.queryByTestId("python-section")).toBeNull();
+    expect(screen.queryByTestId("comfy-engine-section")).toBeNull();
     expect(screen.queryByTestId("depth-section")).toBeNull();
     expect(screen.queryByTestId("sfx-gen-section")).toBeNull();
     expect(screen.queryByTestId("video-section")).toBeNull();
