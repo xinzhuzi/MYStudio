@@ -7,7 +7,7 @@
 // 状态机:未安装 → 下载中 x% → 需准备 → 已就绪/可更新;就绪口径=装完即就绪,
 // 服务未跑显示「准备运行时」副标。行级胶囊在 PluginSettingsTab 行头(共用 hook)。
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   Check,
   Copy,
@@ -210,6 +210,19 @@ export function ComfyEngineSettingsSection({ embedded = false }: ComfyEngineSett
     setReserveDraft((previous) => (previous === "" ? String(status?.launchArgs?.reserveVramGb ?? "16") : previous));
   }, [status?.modelsDir, status?.launchArgs?.vramPolicy, status?.launchArgs?.attentionMode, status?.launchArgs?.reserveVramGb]);
 
+  // 更新页激活即自动静默检查一次(照 Comfy Desktop:打开更新页就问一次 GitHub,
+  // 结果只进徽章/上次检查时间,不弹 toast)。ref 防重:本组件生命周期内只自动查一次,
+  // 之后靠「检查更新」按钮显式刷新。引擎没装不查(无版本可比)。
+  const autoCheckedRef = useRef(false);
+  const checkUpdateFn = engine.checkUpdate;
+  const isCheckingUpdate = engine.isCheckingUpdate;
+  useEffect(() => {
+    if (activeTab !== "update" || autoCheckedRef.current) return;
+    if (!status?.installed || isCheckingUpdate) return;
+    autoCheckedRef.current = true;
+    void checkUpdateFn({ silent: true });
+  }, [activeTab, status?.installed, isCheckingUpdate, checkUpdateFn]);
+
   if (!engine.hasBridge) {
     return (
       <div
@@ -398,45 +411,86 @@ export function ComfyEngineSettingsSection({ embedded = false }: ComfyEngineSett
             ))}
           </div>
 
-          {/* 更新页(照 ComfyUI Desktop 截图:版本块+已是最新/可更新+检查更新+PyTorch 块) */}
+          {/* 更新页(照 ComfyUI Desktop 更新页:版本+徽章+检查更新+更新通道+上次检查) */}
           {activeTab === "update" ? (
             <div className="space-y-4">
-          {/* 版本行:当前版本 + 检查更新 + 更新(显式) */}
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <p className="text-sm font-medium text-foreground" data-comfy-version-row>
-              当前版本 <span className="font-mono">{status.version ?? "未知"}</span>
-              {status.updateAvailable && status.latest ? (
-                <span className="ml-2 rounded-full border border-warning/30 bg-warning/10 px-2 py-0.5 text-xs font-medium text-warning">
-                  可更新到 {status.latest}
-                </span>
-              ) : null}
-            </p>
-            <div className="flex gap-2">
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => void engine.checkUpdate()}
-                disabled={engine.isCheckingUpdate || updating}
-              >
-                {engine.isCheckingUpdate ? (
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden />
-                ) : (
-                  <RefreshCw className="mr-2 h-4 w-4" aria-hidden />
-                )}
-                检查更新
-              </Button>
-              {status.updateAvailable ? (
-                <Button size="sm" onClick={() => void engine.updateEngine()} disabled={updating}>
-                  {updating ? (
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden />
-                  ) : (
-                    <Download className="mr-2 h-4 w-4" aria-hidden />
-                  )}
-                  更新到最新
-                </Button>
-              ) : null}
-            </div>
-          </div>
+              <div className="rounded-lg border border-border bg-card/60 p-3" data-comfy-update-block>
+                {/* 版本行:当前版本 + 实时徽章(检查中/可更新/已是最新)+ 检查/更新按钮 */}
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <p className="flex flex-wrap items-center gap-2 text-sm font-medium text-foreground" data-comfy-version-row>
+                    当前版本 <span className="font-mono">{status.version ?? "未知"}</span>
+                    {engine.isCheckingUpdate ? (
+                      <span className="rounded-full border border-border bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground" data-comfy-checking-badge>
+                        正在向 GitHub 查询…
+                      </span>
+                    ) : status.updateAvailable && status.latest ? (
+                      <span className="rounded-full border border-warning/30 bg-warning/10 px-2 py-0.5 text-xs font-medium text-warning" data-comfy-update-badge>
+                        可更新到 {status.latest}
+                      </span>
+                    ) : status.latest && status.version ? (
+                      <span className="rounded-full border border-success/30 bg-success/10 px-2 py-0.5 text-xs font-medium text-success" data-comfy-up-to-date>
+                        已是最新
+                      </span>
+                    ) : null}
+                  </p>
+                  <div className="flex gap-2">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => void engine.checkUpdate()}
+                      disabled={engine.isCheckingUpdate || updating}
+                      data-comfy-check-update
+                    >
+                      {engine.isCheckingUpdate ? (
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden />
+                      ) : (
+                        <RefreshCw className="mr-2 h-4 w-4" aria-hidden />
+                      )}
+                      检查更新
+                    </Button>
+                    {status.updateAvailable ? (
+                      <Button size="sm" onClick={() => void engine.updateEngine()} disabled={updating}>
+                        {updating ? (
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden />
+                        ) : (
+                          <Download className="mr-2 h-4 w-4" aria-hidden />
+                        )}
+                        更新到最新
+                      </Button>
+                    ) : null}
+                  </div>
+                </div>
+                {/* 上次检查时间(检查结果落账,sidecar 重启不丢) */}
+                <div className="mt-3 flex items-center justify-between gap-3">
+                  <span className="text-xs text-muted-foreground">上次检查</span>
+                  <span className="font-mono text-xs text-foreground" data-comfy-last-check>
+                    {status.lastCheckAt
+                      ? new Date(status.lastCheckAt).toLocaleString("zh-CN", {
+                          month: "2-digit",
+                          day: "2-digit",
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })
+                      : "还没检查过"}
+                  </span>
+                </div>
+                {/* 更新通道(照 Comfy Desktop 同款下拉;一期唯一通道=GitHub 最新 release) */}
+                <div className="mt-2 flex items-center justify-between gap-3">
+                  <span className="text-xs text-muted-foreground">更新通道</span>
+                  <select
+                    aria-label="更新通道"
+                    value="github-latest"
+                    onChange={() => undefined}
+                    className="h-8 rounded-md border border-border bg-card px-2 text-xs text-foreground"
+                    data-comfy-channel-select
+                  >
+                    <option value="github-latest">GitHub 最新版</option>
+                  </select>
+                </div>
+                <p className="mt-2 text-[11px] leading-4 text-muted-foreground">
+                  打开本页会自动向 GitHub 查一次最新版本;更新永远需要你点击确认。
+                </p>
+              </div>
 
               <div className="rounded-lg border border-border bg-card/60 p-3">
                 <p className="text-xs font-medium text-foreground">PyTorch</p>

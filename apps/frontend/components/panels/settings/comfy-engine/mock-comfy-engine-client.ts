@@ -85,6 +85,7 @@ function notInstalledStatus(): ComfyEngineStatus {
     serviceRunning: false,
     pluginCount: 0,
     updateAvailable: false,
+    lastCheckAt: null,
     message: null,
     installDir: null,
     torch: null,
@@ -241,8 +242,8 @@ export function createMockComfyEngineClient(
       const latest = options.latestVersion ?? DEFAULT_LATEST;
       const current = status.version;
       const updateAvailable = current !== null && current !== latest;
-      status = { ...status, latest, updateAvailable };
-      return { current, latest, updateAvailable };
+      status = { ...status, latest, updateAvailable, lastCheckAt: Date.now() };
+      return { current, latest, updateAvailable, checkedAt: Date.now() };
     },
 
     async updateEngine() {

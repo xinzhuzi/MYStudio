@@ -26,6 +26,7 @@ function status(overrides: Partial<ComfyEngineStatus>): ComfyEngineStatus {
     serviceRunning: true,
     pluginCount: 0,
     updateAvailable: false,
+    lastCheckAt: null,
     message: null,
     installDir: "/tmp/comfyui",
     torch: null,

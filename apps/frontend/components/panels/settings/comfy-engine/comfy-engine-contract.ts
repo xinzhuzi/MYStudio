@@ -66,6 +66,8 @@ export interface ComfyEngineStatus {
   serviceRunning: boolean;
   pluginCount: number;
   updateAvailable: boolean;
+  /** 最近一次 GitHub 检查的时间(ms;查过才有值,含 sidecar 重启前的账本回放)。 */
+  lastCheckAt: number | null;
   /** 大白话错误/说明(出错态必填)。 */
   message: string | null;
   /** 引擎安装目录(打开按钮用)。 */
@@ -166,6 +168,8 @@ export interface ComfyEngineUpdateCheckReply {
   current: string | null;
   latest: string | null;
   updateAvailable: boolean;
+  /** 本次检查完成时间(ms)。 */
+  checkedAt: number;
 }
 
 // ---------------------------------------------------------------------------

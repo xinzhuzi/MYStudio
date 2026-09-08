@@ -79,6 +79,7 @@ function readyStatus(overrides: Partial<ComfyEngineStatus> = {}): ComfyEngineSta
     serviceRunning: false,
     pluginCount: 2,
     updateAvailable: false,
+    lastCheckAt: null,
     message: null,
     installDir: "/tmp/comfyui",
     torch: null,
@@ -181,7 +182,7 @@ describe("ComfyEngineSettingsSection 状态机", () => {
 });
 
 describe("ComfyEngineSettingsSection 版本与更新链", () => {
-  it("版本行 + 检查更新;发现新版出「更新到最新」按钮", () => {
+  it("版本行 + 自动静默检查 + 手动检查;发现新版出「更新到最新」按钮", async () => {
     scenario.status = readyStatus({ updateAvailable: true, latest: "0.34.5" });
     render(<ComfyEngineSettingsSection embedded />);
 
@@ -189,11 +190,54 @@ describe("ComfyEngineSettingsSection 版本与更新链", () => {
     expect(screen.getByText("0.34.0")).toBeTruthy();
     expect(screen.getByText("可更新到 0.34.5")).toBeTruthy();
 
+    // 更新页默认激活:挂载即自动静默检查一次(照 Comfy Desktop)
+    await waitFor(() => expect(actions.checkUpdate).toHaveBeenCalledOnce());
+    expect(actions.checkUpdate).toHaveBeenCalledWith({ silent: true });
+
     fireEvent.click(screen.getByRole("button", { name: /检查更新/ }));
-    expect(actions.checkUpdate).toHaveBeenCalledOnce();
+    expect(actions.checkUpdate).toHaveBeenCalledTimes(2);
 
     fireEvent.click(screen.getByRole("button", { name: /更新到最新/ }));
     expect(actions.updateEngine).toHaveBeenCalledOnce();
+  });
+
+  it("更新页(照 Comfy Desktop):已是最新徽章 + 上次检查时间 + 更新通道下拉", () => {
+    scenario.status = readyStatus({
+      latest: "0.34.0",
+      updateAvailable: false,
+      lastCheckAt: new Date(2026, 8, 8, 10, 30).getTime(),
+    });
+    render(<ComfyEngineSettingsSection embedded />);
+
+    expect(screen.getByText("已是最新")).toBeTruthy();
+    expect(comfyQuery("last-check")?.textContent).toMatch(/\d{2}\/\d{2} \d{2}:\d{2}/);
+    const channel = document.querySelector("[data-comfy-channel-select]") as HTMLSelectElement | null;
+    expect(channel?.value).toBe("github-latest");
+  });
+
+  it("没查过:上次检查显示「还没检查过」,不出已是最新徽章", () => {
+    scenario.status = readyStatus({}); // latest=null:从没查过
+    render(<ComfyEngineSettingsSection embedded />);
+
+    expect(screen.getByText("还没检查过")).toBeTruthy();
+    expect(screen.queryByText("已是最新")).toBeNull();
+  });
+
+  it("切走再切回更新页不重复自动检查(ref 防重)", async () => {
+    scenario.status = readyStatus({});
+    render(<ComfyEngineSettingsSection embedded />);
+
+    await waitFor(() => expect(actions.checkUpdate).toHaveBeenCalledOnce());
+    fireEvent.click(comfyEl("tab", "launch"));
+    fireEvent.click(comfyEl("tab", "update"));
+    expect(actions.checkUpdate).toHaveBeenCalledOnce();
+  });
+
+  it("未安装:不自动检查更新", () => {
+    scenario.status = readyStatus({ installed: false, state: "not-installed", version: null, port: null, modelsDir: null });
+    render(<ComfyEngineSettingsSection embedded />);
+
+    expect(actions.checkUpdate).not.toHaveBeenCalled();
   });
 
   it("更新链成功报告:版本/节点数变化 + 不兼容插件点名 + 回滚按钮", () => {

@@ -362,6 +362,13 @@ class EngineManager:
         else:
             state = "stopped"
         engine = manifest.get("engine") if isinstance(manifest.get("engine"), dict) else {}
+        # 更新检查视图(09-08,照 Comfy Desktop 更新页):内存缓存优先(本次
+        # sidecar 生命周期内查过),否则回放账本最近一次检查结果——sidecar 重启
+        # 后「上次检查时间/已是最新/可更新」不归零。updateAvailable 一律由
+        # latest≠current 现算,和 update_check 口径单源。
+        persisted_check = engine.get("lastCheck") if isinstance(engine.get("lastCheck"), dict) else {}
+        latest_known = self._last_check.get("latest") or persisted_check.get("latest")
+        last_check_at = self._last_check.get("checkedAt") or persisted_check.get("at")
         # 渲染层状态机补充面(09-08 集成,B 契约需要):默认模型目录(恢复默认)、
         # 安装目录(打开按钮)、needsSetup(源码目录残留=装了一半可继续)、
         # message(出错态大白话通道,一期占位 None)。
@@ -373,13 +380,14 @@ class EngineManager:
         return {
             "installed": installed,
             "version": engine.get("version"),
-            "latest": self._last_check.get("latest"),
+            "latest": latest_known,
             "state": state,
             "running": running,
             "port": port,
             "modelsDir": str(cm.configured_models_dir(manifest)),
             "pluginCount": len(cm.plugin_ledger(manifest)),
-            "updateAvailable": bool(self._last_check.get("updateAvailable")),
+            "updateAvailable": bool(latest_known and engine.get("version") and latest_known != engine.get("version")),
+            "lastCheckAt": last_check_at if isinstance(last_check_at, int) else None,
             "launchArgs": cm.engine_launch_args(manifest),
             "torch": engine.get("torch"),
             "nodeCount": self._last_node_count,
@@ -653,10 +661,22 @@ class EngineManager:
         except (EngineOpError, OSError) as exc:
             self._last_check = {"current": current, "latest": None, "updateAvailable": False, "error": f"检查更新失败: {exc}"}
             return dict(self._last_check)
+        checked_at = cm.timestamp_ms()
         self._last_check = {
             "current": current, "latest": latest,
             "updateAvailable": bool(latest and current and latest != current),
+            "checkedAt": checked_at,
         }
+        # 09-08 检查结果落账(照 Comfy Desktop 更新页语义):sidecar 重启后
+        # 「已是最新/可更新」徽章与「上次检查」时间不丢,status 从账本回放。
+        if current:
+
+            def _record_check(manifest: dict) -> None:
+                engine = manifest.get("engine") if isinstance(manifest.get("engine"), dict) else {}
+                engine["lastCheck"] = {"at": checked_at, "latest": latest}
+                manifest["engine"] = engine
+
+            cm.mutate_manifest(_record_check)
         return dict(self._last_check)
 
     def update_job(self) -> str:

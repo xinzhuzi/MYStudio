@@ -227,24 +227,32 @@ export function useComfyEngineSettings(options: UseComfyEngineSettingsOptions = 
     [client],
   );
 
-  const checkUpdate = useCallback(async () => {
-    if (!client) return;
-    setIsCheckingUpdate(true);
-    try {
-      const reply = await client.checkUpdate();
-      setUpdateCheck(reply);
-      if (reply.updateAvailable) {
-        toast.info(`发现新版 ${reply.latest},建议更新`);
-      } else {
-        toast.success("已是最新版本");
+  /** silent=更新页激活时的自动静默检查(照 Comfy Desktop):结果只进徽章,不弹 toast。 */
+  const checkUpdate = useCallback(
+    async (options: { silent?: boolean } = {}) => {
+      if (!client) return;
+      setIsCheckingUpdate(true);
+      try {
+        const reply = await client.checkUpdate();
+        setUpdateCheck(reply);
+        if (!options.silent) {
+          if (reply.updateAvailable) {
+            toast.info(`发现新版 ${reply.latest},建议更新`);
+          } else {
+            toast.success("已是最新版本");
+          }
+        }
+        await refreshStatus();
+      } catch (error) {
+        if (!options.silent) {
+          toast.error(error instanceof Error ? error.message : "检查更新失败");
+        }
+      } finally {
+        setIsCheckingUpdate(false);
       }
-      await refreshStatus();
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "检查更新失败");
-    } finally {
-      setIsCheckingUpdate(false);
-    }
-  }, [client, refreshStatus]);
+    },
+    [client, refreshStatus],
+  );
 
   const rollbackUpdate = useCallback(async () => {
     if (!client) return;

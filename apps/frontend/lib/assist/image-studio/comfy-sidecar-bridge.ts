@@ -183,6 +183,7 @@ interface SidecarEngineStatusReply {
   defaultModelsDir?: string | null;
   pluginCount?: number;
   updateAvailable?: boolean;
+  lastCheckAt?: number | null;
   nodeCount?: number | null;
   needsSetup?: boolean;
   message?: string | null;
@@ -251,6 +252,7 @@ export function mapEngineStatus(raw: SidecarEngineStatusReply): ComfyEngineStatu
     serviceRunning: raw.running === true,
     pluginCount: typeof raw.pluginCount === "number" ? raw.pluginCount : 0,
     updateAvailable: raw.updateAvailable === true,
+    lastCheckAt: typeof raw.lastCheckAt === "number" ? raw.lastCheckAt : null,
     message: raw.message ?? null,
     installDir: raw.installDir ?? null,
     torch: raw.torch ?? null,
@@ -473,6 +475,7 @@ export function createHttpComfyEngineClient(): ComfyEngineClient {
         current?: string | null;
         latest?: string | null;
         updateAvailable?: boolean;
+        checkedAt?: number;
         error?: string | null;
       }>("POST", "/comfy/engine/update-check", { timeoutMs: 30_000 });
       if (raw.error) throw new Error(raw.error);
@@ -480,6 +483,7 @@ export function createHttpComfyEngineClient(): ComfyEngineClient {
         current: raw.current ?? null,
         latest: raw.latest ?? null,
         updateAvailable: raw.updateAvailable === true,
+        checkedAt: raw.checkedAt ?? Date.now(),
       };
     },
     async updateEngine(): Promise<ComfyEngineStartJobReply> {
