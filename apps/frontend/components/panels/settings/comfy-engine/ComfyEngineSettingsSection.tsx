@@ -238,16 +238,11 @@ export function ComfyEngineSettingsSection({ embedded = false }: ComfyEngineSett
 
   return (
     <div className="space-y-4 px-5 py-4">
-      <p className="text-xs leading-5 text-muted-foreground">
-        漫影工作室托管自己的 ComfyUI 引擎(独立运行环境,与你自己装的 ComfyUI Desktop 互不影响);
-        端口自动避让。引擎和插件只在你点击时下载,绝不自动下载。
-      </p>
-
       {/* 状态未知(sidecar 未起/探测未回):检查中,不误导成未安装 */}
       {statusUnknown ? (
         <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border bg-muted/30 px-4 py-3">
           <p className="text-xs leading-5 text-muted-foreground" data-comfy-status-unknown>
-            正在确认引擎状态(本地生图服务启动中,首次约需十几秒)…
+            正在确认引擎状态…
           </p>
         </div>
       ) : null}
@@ -256,7 +251,7 @@ export function ComfyEngineSettingsSection({ embedded = false }: ComfyEngineSett
       {notInstalled ? (
         <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border bg-muted/30 px-4 py-3">
           <p className="text-xs leading-5 text-muted-foreground">
-            引擎尚未安装,首次安装约需数 GB 磁盘空间(源码 + 独立依赖环境);模型文件另计。
+            引擎尚未安装(首次约需数 GB 磁盘空间)
           </p>
           <Button
             size="sm"
@@ -344,7 +339,7 @@ export function ComfyEngineSettingsSection({ embedded = false }: ComfyEngineSett
               >
                 {status.serviceRunning
                   ? `引擎服务运行中(127.0.0.1:${status.port ?? "—"})`
-                  : "已安装;服务未启动——点「启动服务」准备运行时,即可在画布使用"}
+                  : "服务未启动"}
               </span>
             </div>
             <div className="flex gap-2">
@@ -466,9 +461,6 @@ export function ComfyEngineSettingsSection({ embedded = false }: ComfyEngineSett
               className="min-w-0 font-mono text-xs"
               data-comfy-port-input
             />
-            <p className="text-[11px] leading-4 text-muted-foreground md:text-right">
-              自动避开占用端口,无需手动设置
-            </p>
           </div>
 
               <div className="flex items-center justify-between gap-3">
@@ -513,9 +505,6 @@ export function ComfyEngineSettingsSection({ embedded = false }: ComfyEngineSett
                   保存(重启引擎后生效)
                 </Button>
               </div>
-              <p className="text-[11px] leading-4 text-muted-foreground">
-                显存策略/加速方式是引擎启动参数的大白话翻译;保存后下次启动引擎生效。
-              </p>
             </div>
           ) : null}
 
@@ -530,9 +519,7 @@ export function ComfyEngineSettingsSection({ embedded = false }: ComfyEngineSett
                   </Button>
                 </div>
                 {engine.snapshots.length === 0 ? (
-                  <p className="mt-1 text-[11px] leading-4 text-muted-foreground">
-                    暂无快照——安装插件、更新引擎前会自动创建,出问题可一键回到之前的状态。
-                  </p>
+                  <p className="mt-1 text-[11px] leading-4 text-muted-foreground">暂无快照</p>
                 ) : (
                   <ul className="mt-2 space-y-1.5">
                     {engine.snapshots.slice(0, 5).map((snap) => (
@@ -594,9 +581,6 @@ export function ComfyEngineSettingsSection({ embedded = false }: ComfyEngineSett
                 </Button>
               </div>
             </div>
-            <p className="text-[11px] leading-4 text-muted-foreground">
-              体检会核对依赖账本(装了什么、版本对不对、有没有残留);核弹复位会清空并按账本重建引擎运行环境,模型文件不受影响。
-            </p>
             {engine.doctorReport ? (
               <DoctorReportCard report={engine.doctorReport} onCleanOrphans={() => void engine.cleanOrphans()} />
             ) : null}
@@ -655,9 +639,6 @@ export function ComfyEngineSettingsSection({ embedded = false }: ComfyEngineSett
               </Button>
             </div>
           </div>
-          <p className="text-[11px] leading-4 text-muted-foreground">
-            可以改成已有模型库的路径(例如你在别的软件里下载过的模型目录),引擎直接复用,不用重新下载几十 GB。
-          </p>
 
             </div>
           ) : null}

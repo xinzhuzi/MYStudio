@@ -116,7 +116,7 @@ describe("ComfyEngineSettingsSection 状态机", () => {
     scenario.status = readyStatus({ installed: false, state: "not-installed", version: null, port: null, modelsDir: null });
     render(<ComfyEngineSettingsSection embedded />);
 
-    expect(screen.getByText(/首次安装约需数 GB 磁盘空间/)).toBeTruthy();
+    expect(screen.getByText(/引擎尚未安装/)).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: /安装引擎/ }));
     expect(actions.installEngine).toHaveBeenCalledOnce();
     // 未安装时不出服务行/版本行
@@ -165,7 +165,7 @@ describe("ComfyEngineSettingsSection 状态机", () => {
     scenario.status = readyStatus({ serviceRunning: false });
     render(<ComfyEngineSettingsSection embedded />);
 
-    expect(screen.getByText(/服务未启动——点「启动服务」准备运行时/)).toBeTruthy();
+    expect(screen.getByText("服务未启动")).toBeTruthy();
     fireEvent.click(comfyEl("tab", "launch"));
     expect(screen.getByDisplayValue("17599")).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: /启动服务/ }));
