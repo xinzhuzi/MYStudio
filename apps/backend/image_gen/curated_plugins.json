@@ -8,7 +8,8 @@
       "desc_zh": "Krea2Edit 指令编辑两件套(编码+模型补丁)——漫影 Krea2 编辑流/无衣物流的引擎模板依赖,装了才能跑这两类流。",
       "category": "Krea2 图像引擎",
       "repo": "https://github.com/lbouaraba/comfyui-krea2edit",
-      "verified_license": "Apache-2.0"
+      "verified_license": "Apache-2.0",
+      "provides": ["Krea2EditGroundedEncode", "Krea2EditModelPatch"]
     },
     {
       "id": "ComfyUI-ConditioningKrea2Rebalance",
@@ -16,7 +17,8 @@
       "desc_zh": "Krea2 十二带提示词重平衡节点——漫影 Krea2 专业流(NSFW 破限)模板依赖,装了才能跑专业流。",
       "category": "Krea2 图像引擎",
       "repo": "https://github.com/nova452/Rebalance-Pack",
-      "verified_license": "Apache-2.0"
+      "verified_license": "Apache-2.0",
+      "provides": ["ConditioningKrea2Rebalance"]
     },
     {
       "id": "rgthree-comfy",
@@ -80,7 +82,8 @@
       "desc_zh": "常用基础增强:图像变换、遮罩工具、条件辅助与调试节点。",
       "category": "综合工具包",
       "repo": "https://github.com/cubiq/ComfyUI_essentials",
-      "verified_license": "MIT"
+      "verified_license": "MIT",
+      "provides": ["GetImageSize+"]
     }
   ]
 }

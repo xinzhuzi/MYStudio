@@ -46,6 +46,70 @@ def _version_tuple(value: Any) -> tuple[int, ...]:
     return tuple(int(number) for number in numbers[:3]) or (0,)
 
 
+# ── 缺插件预检(09-09,ComfyUI Manager「Install Missing Custom Nodes」语义) ──
+# 提交前对 /object_info 差分:缺的节点类映射到策展包名,大白话指路安装,
+# 不让 ComfyUI 的原始 node_errors JSON 糊用户一脸。
+_OBJECT_INFO_TTL_S = 60.0
+_object_info_cache: tuple[float, frozenset[str]] | None = None
+
+
+def graph_node_classes(graph: dict[str, Any]) -> list[str]:
+    """图里引用的全部节点类名(保序去重;坏节点条目跳过)。"""
+    classes: list[str] = []
+    for node in graph.values():
+        if isinstance(node, dict) and isinstance(node.get("class_type"), str):
+            if node["class_type"] not in classes:
+                classes.append(node["class_type"])
+    return classes
+
+
+def curated_node_class_packs(curated: list[dict[str, Any]] | None = None) -> dict[str, str]:
+    """策展包 provides 映射:节点类 → 包中文名(装哪个包能补上这个节点)。"""
+    if curated is None:
+        try:
+            from .. import plugin_manager as _pm
+
+            curated = _pm.load_curated()
+        except Exception:  # 策展清单读不到不阻塞生成主链
+            curated = []
+    mapping: dict[str, str] = {}
+    for entry in curated:
+        pack_name = str(entry.get("name") or entry.get("id") or "")
+        for node_class in entry.get("provides") or []:
+            if isinstance(node_class, str) and node_class:
+                mapping.setdefault(node_class, pack_name)
+    return mapping
+
+
+def missing_nodes_message(missing: list[str], class_packs: dict[str, str]) -> str | None:
+    """缺节点 → 大白话指路(全齐返回 None;包名取策展映射,映射不到给通用指引)。"""
+    if not missing:
+        return None
+    packs: list[str] = []
+    for node_class in missing:
+        pack = class_packs.get(node_class)
+        if pack and pack not in packs:
+            packs.append(pack)
+    head = "、".join(missing[:6])
+    if packs:
+        hint = f"装「{'」和「'.join(packs)}」就能补上"
+    else:
+        hint = "到 生态插件 里搜索对应插件,或用高级安装填它的 git 地址"
+    return f"缺自定义节点:{head}——引擎还没装对应的插件。{hint}(设置→本地配置→ComfyUI 图像引擎→生态插件),装完等它自动重启完成再试。"
+
+
+def _available_node_classes() -> frozenset[str]:
+    """引擎 /object_info 类名集(60s 缓存;拉不到=引擎不可达,交由上游报错)。"""
+    global _object_info_cache
+    now = time.monotonic()
+    if _object_info_cache and now - _object_info_cache[0] < _OBJECT_INFO_TTL_S:
+        return _object_info_cache[1]
+    info = _http_json("GET", f"{bridge_url()}/object_info", timeout=30)
+    names = frozenset(info.keys()) if isinstance(info, dict) else frozenset()
+    _object_info_cache = (now, names)
+    return names
+
+
 def _warn_if_version_below_min(stats: dict[str, Any], template: dict[str, Any]) -> None:
     minimum = template.get("comfyuiVersionMin")
     actual = stats.get("comfyui_version")
@@ -295,6 +359,14 @@ def generate(prompt: str, aspect_ratio: str, negative_prompt: str | None, steps:
         subfolder = response.get("subfolder") or ""
         uploaded.append(f"{subfolder}/{name}" if subfolder else name)
     graph = instantiate_template(template, prompt, negative_prompt, steps, seed, aspect_ratio, uploaded)
+    # 缺插件预检(09-09):差分后再提交,缺类直接大白话指路策展包。
+    # 引擎中途失联时 _http_json 自带 bridge-unreachable 报错,不另包一层。
+    message = missing_nodes_message(
+        [cls for cls in graph_node_classes(graph) if cls not in _available_node_classes()],
+        curated_node_class_packs(),
+    )
+    if message:
+        raise _pipeline_error("bridge-missing-nodes", message)
     client_id = str(uuid.uuid4())
     submitted = _http_json("POST", f"{bridge_url()}/prompt", {"prompt": graph, "client_id": client_id}, timeout=20)
     if submitted.get("node_errors"):
