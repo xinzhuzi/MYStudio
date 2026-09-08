@@ -56,7 +56,7 @@ export async function runImageStudioNodeGeneration(
 ): Promise<RunImageStudioNodeGenerationResult> {
   const request = buildImageStudioGenerationRequest(graph, targetNodeId);
   if (!request.prompt) {
-    throw new Error("请先填写生成提示词");
+    throw new Error("成图是生图的最后一步,不能单独生图——请把提示词节点(或无衣物/NSFW破限节点)连到它的输入口再生成");
   }
   // 参考图(受管 scheme)→ base64 dataURL 传输;引擎层再做 768px/1MB 缩略
   const referenceImages = await prepareImageWorkflowReferenceImages(request.referenceImages, {

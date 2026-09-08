@@ -77,7 +77,7 @@ export async function runImageWorkflowNodeGeneration(
 
   const request = buildImageWorkflowGenerationRequest(graph, targetNodeId);
   if (!request.prompt.trim()) {
-    throw new Error("请先填写生成提示词");
+    throw new Error("成图是生图的最后一步,不能单独生图——请把提示词节点(或无衣物/NSFW破限节点)连到它的输入口再生成");
   }
   // NSFW破限链引擎守卫(09-07-nsfw-pro-node):专业流只有本地 Krea2/
   // ComfyUI桥消费 use_lora,其余引擎(含云端)静默忽略——抛错阻断并指路,

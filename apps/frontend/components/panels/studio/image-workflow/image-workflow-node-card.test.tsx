@@ -197,7 +197,7 @@ describe("ImageWorkflowNodeCard 无衣物(09-04 通用化)", () => {
     expect(container.querySelector("[data-toonflow-generated-prompt-panel]")).toBeNull();
     // 用户裁定(c7e6268 同款):链路说明文字也删——零文字占位
     expect(screen.queryByText(/无衣物/)).toBeNull();
-    // 对照:无 uncloth 上游时兜底面板在
+    // 对照:无 uncloth 上游时也零提示词框(终裁)
     rerender(
       <ImageWorkflowNodeCard
         id={generatedNode.id}
@@ -225,6 +225,8 @@ describe("ImageWorkflowNodeCard 无衣物(09-04 通用化)", () => {
         height={440}
       />,
     );
-    expect(container.querySelector("[data-toonflow-generated-prompt-panel]")).toBeTruthy();
+    // 09-07 用户终裁:成图不能单独生图——卡上零提示词框(无上游也無兜底面板)
+    expect(container.querySelector("[data-toonflow-generated-prompt-panel]")).toBeNull();
+    expect(screen.queryByText(/描述要生成的图片/)).toBeNull();
   });
 });

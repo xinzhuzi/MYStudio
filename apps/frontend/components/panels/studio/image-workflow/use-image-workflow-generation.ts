@@ -51,7 +51,7 @@ export function useImageWorkflowGeneration({
       !hasCompleteUnclothChain &&
       !buildImageWorkflowGenerationRequest(graph, targetNodeId).prompt.trim()
     ) {
-      toast.error("请先填写生成提示词");
+      toast.error("成图是生图的最后一步,不能单独生图——请把提示词节点(或无衣物/NSFW破限节点)连到它的输入口再生成");
       return;
     }
     saveGraph(setGeneratedImageStatus(graph, targetNodeId, "generating"));

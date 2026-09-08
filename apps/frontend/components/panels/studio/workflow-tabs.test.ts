@@ -277,8 +277,10 @@ describe("studio workflow tabs", () => {
     expect(scopedPendingSource).toContain("data-scoped-image-workflow-summary");
     // 08-30 残留上下文根修:离开图像阶段/离开工作流主页即清资产上下文
     expect(viewModelSource).toContain('mainActiveTab !== "studio" || activeWorkflowTab !== "imageWorkflow"');
-    expect(nodeSource).toContain("data-toonflow-generated-prompt-panel");
-    expect(nodeSource).toContain("data-toonflow-generated-prompt-textarea");
+    // 09-07 用户终裁:成图卡零提示词框(不能单独生图,只配合上游节点)——
+    // 面板与 textarea 标记必须不存在
+    expect(nodeSource).not.toContain("data-toonflow-generated-prompt-panel");
+    expect(nodeSource).not.toContain("data-toonflow-generated-prompt-textarea");
     expect(graphUtilsSource).toContain("findLinkedPromptNodeForGenerated");
     expect(canvasSource).toContain("w-full flex-1 grid-cols-[minmax(0,1fr)_320px]");
     expect(canvasSource).toContain("当前图片工作流没有节点");

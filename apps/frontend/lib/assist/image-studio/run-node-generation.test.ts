@@ -132,7 +132,7 @@ describe("runImageStudioNodeGeneration", () => {
       ...graph,
       nodes: graph.nodes.map((node) => ("prompt" in node ? { ...node, prompt: "" } : node)),
     };
-    await expect(runImageStudioNodeGeneration(emptied, "gen-1")).rejects.toThrow("请先填写生成提示词");
+    await expect(runImageStudioNodeGeneration(emptied, "gen-1")).rejects.toThrow("成图是生图的最后一步,不能单独生图——请把提示词节点(或无衣物/NSFW破限节点)连到它的输入口再生成");
     expect(generateImageMock).not.toHaveBeenCalled();
   });
 

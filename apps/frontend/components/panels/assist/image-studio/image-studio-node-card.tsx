@@ -552,8 +552,6 @@ function BatchImageArea({
 function GeneratedNodeEditor({
   node,
   promptNode,
-  hasUnclothUpstream,
-  hasNsfwUpstream,
   referenceCount,
   extras,
   onUpdate,
@@ -615,15 +613,6 @@ function GeneratedNodeEditor({
   };
   const alreadyUpscaled =
     (node.resultUrl || "").includes("up4x-") || imageLongSide > UPSCALE_INPUT_MAX_LONG_SIDE;
-  const generationPrompt = promptNode ?? node;
-  const genPromptInput = useCanvasDraftValue({
-    committed: generationPrompt.prompt,
-    commit: (value) => onUpdate((promptNode ?? node).id, { prompt: value } as Partial<ImageWorkflowNode>),
-  });
-  const genNegativeInput = useCanvasDraftValue({
-    committed: generationPrompt.negativePrompt ?? "",
-    commit: (value) => onUpdate((promptNode ?? node).id, { negativePrompt: value } as Partial<ImageWorkflowNode>),
-  });
   const model = node.model ?? promptNode?.model ?? "";
   const hasMidjourneyParams = /midjourney|^mj_|^niji-/i.test(model);
   const hasIdeogramParams = model.includes("ideogram");
@@ -837,28 +826,8 @@ function GeneratedNodeEditor({
           </Button>
         )}
       </div>
-      {!promptNode && !hasUnclothUpstream && !hasNsfwUpstream ? (
-        <div className="nodrag nopan space-y-2 rounded-md border border-border bg-background/80 p-3">
-          <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
-            <WandSparkles className="h-3.5 w-3.5 text-info" />
-            提示词(未连线提示词节点,在此填写)
-          </div>
-          <Textarea
-            value={genPromptInput.value}
-            onChange={(event) => genPromptInput.onChange(event.target.value)}
-            onBlur={genPromptInput.onBlur}
-            placeholder="描述要生成的图片"
-            className="min-h-[80px] [field-sizing:content] border-border bg-card/80 text-sm leading-6 text-foreground"
-          />
-          <Textarea
-            value={genNegativeInput.value}
-            onChange={(event) => genNegativeInput.onChange(event.target.value)}
-            onBlur={genNegativeInput.onBlur}
-            placeholder="反向提示词(可选;若连了「负」口连线则连线优先)"
-            className="min-h-[40px] [field-sizing:content] border-border bg-card/80 text-xs leading-5 text-foreground"
-          />
-        </div>
-      ) : null}
+      {/* 09-07 用户终裁:成图=生图链最后一步(触发+展示),不能单独生图——
+          卡上零提示词框(无上游时点生成由生成链阻断并指路) */}
     </div>
   );
 }

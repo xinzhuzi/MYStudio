@@ -169,7 +169,7 @@ describe("useImageWorkflowGeneration", () => {
 
     expect(saveGraph).not.toHaveBeenCalled();
     expect(generateImageMock).not.toHaveBeenCalled();
-    expect(toast.error).toHaveBeenCalledWith("请先填写生成提示词");
+    expect(toast.error).toHaveBeenCalledWith("成图是生图的最后一步,不能单独生图——请把提示词节点(或无衣物/NSFW破限节点)连到它的输入口再生成");
   });
 
   it("preserves the project-save failure when the bridge is unavailable", async () => {

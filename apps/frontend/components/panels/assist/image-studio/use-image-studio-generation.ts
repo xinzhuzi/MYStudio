@@ -96,7 +96,7 @@ export function useImageStudioGeneration() {
       toast.error(
         request.nsfwPro
           ? "NSFW破限节点还没连提示词——把提示词节点连到破限节点再生成"
-          : "请先填写生成提示词",
+          : "成图是生图的最后一步,不能单独生图——请把提示词节点(或无衣物/NSFW破限节点)连到它的输入口再生成",
       );
       return;
     }

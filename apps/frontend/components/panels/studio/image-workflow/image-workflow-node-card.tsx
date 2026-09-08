@@ -309,8 +309,6 @@ export const ImageWorkflowNodeCard = memo(function ImageWorkflowNodeCard({ data 
         <GeneratedNodeEditor
           node={node}
           promptNode={data.promptNode}
-          hasUnclothUpstream={data.hasUnclothUpstream}
-          hasNsfwUpstream={data.hasNsfwUpstream}
           onUpdate={data.onUpdate}
           onGenerate={data.onGenerate}
           onUpscale={data.onUpscale}
@@ -394,8 +392,6 @@ function PromptNodeEditor({
 function GeneratedNodeEditor({
   node,
   promptNode,
-  hasUnclothUpstream,
-  hasNsfwUpstream,
   onUpdate,
   onGenerate,
   onUpscale,
@@ -403,8 +399,6 @@ function GeneratedNodeEditor({
 }: {
   node: ImageWorkflowGeneratedNode;
   promptNode?: ImageWorkflowPromptNode;
-  hasUnclothUpstream?: boolean;
-  hasNsfwUpstream?: boolean;
   onUpdate: ImageWorkflowNodeData["onUpdate"];
   onGenerate: ImageWorkflowNodeData["onGenerate"];
   onUpscale: ImageWorkflowNodeData["onUpscale"];
@@ -416,10 +410,6 @@ function GeneratedNodeEditor({
   const [imageLongSide, setImageLongSide] = useState(0);
   const alreadyUpscaled = (node.resultUrl || "").includes("up4x-")
     || imageLongSide > UPSCALE_INPUT_MAX_LONG_SIDE;
-  const generationPrompt = promptNode ?? node;
-  const updateGenerationPrompt = (updates: Partial<ImageWorkflowPromptNode | ImageWorkflowGeneratedNode>) => {
-    onUpdate((promptNode ?? node).id, updates as Partial<ImageWorkflowNode>);
-  };
 
   useEffect(() => {
     if (!node.resultUrl) {
@@ -545,34 +535,8 @@ function GeneratedNodeEditor({
             生成
           </Button>
       </div>
-      {/* 无衣物链上游(用户裁定 09-04 c7e6268 同款):不显示兜底提示词面板,
-          也不显示链路说明文字——零文字占位,生成按钮自明;nsfw 链同裁定(09-07) */}
-      {!promptNode && !hasUnclothUpstream && !hasNsfwUpstream ? (
-        <div
-          data-toonflow-generated-prompt-panel
-          className="nodrag nopan space-y-3 rounded-md border border-border bg-background/80 p-3"
-        >
-          <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
-            <WandSparkles className="h-3.5 w-3.5 text-info" />
-            图片生成
-          </div>
-          <Textarea
-            data-toonflow-generated-prompt-textarea
-            value={generationPrompt.prompt}
-            onChange={(event) => updateGenerationPrompt({ prompt: event.target.value })}
-            placeholder="描述要生成的图片"
-            className="min-h-[112px] [field-sizing:content] border-border bg-card/80 text-sm leading-6 text-foreground"
-          />
-          {/* 08-30 功能转移:参数与生成入口统一在节点 footer 参数行/按钮区;
-              此内嵌面板只承载无连线时的提示词编辑。 */}
-          <Textarea
-            value={generationPrompt.negativePrompt ?? ""}
-            onChange={(event) => updateGenerationPrompt({ negativePrompt: event.target.value })}
-            placeholder="反向提示词(可选;若连了「负」口连线则连线优先)"
-            className="min-h-[44px] [field-sizing:content] border-border bg-card/80 text-xs leading-5 text-foreground"
-          />
-        </div>
-      ) : null}
+      {/* 09-07 用户终裁:成图=生图链最后一步(触发+展示),不能单独生图——
+          卡上零提示词框(无上游时点生成由生成链阻断并指路,见 run-node-generation) */}
     </div>
   );
 }
