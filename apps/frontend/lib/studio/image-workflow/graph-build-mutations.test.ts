@@ -92,6 +92,30 @@ describe("isValidImageConnection(双出口席位)", () => {
     expect(isValidImageConnection(graph, { source: "p1", target: "gen1", sourceHandle: "negative" })).toBe(false);
   });
 
+  it("无衣物图B口(09-08 双参考):图类源放行一根,提示词拒", () => {
+    let graph = addUnclothImageNode(
+      addReferenceImageNode(
+        addGeneratedImageNode(
+          addPromptImageNode(
+            { id: "wf", name: "wf", target: { kind: "free" }, nodes: [], edges: [], createdAt: 1, updatedAt: 1 },
+            { id: "p1", prompt: "a", position: { x: 0, y: 0 } },
+          ),
+          { id: "gen1", prompt: "", position: { x: 0, y: 0 } },
+        ),
+        { id: "ref1", imageUrl: "project-file://a.png", position: { x: 0, y: 0 } },
+      ),
+      { id: "unc1" },
+    );
+    expect(isValidImageConnection(graph, { source: "ref1", target: "unc1", targetHandle: "image-b" })).toBe(true);
+    expect(isValidImageConnection(graph, { source: "gen1", target: "unc1", targetHandle: "image-b" })).toBe(true);
+    expect(isValidImageConnection(graph, { source: "p1", target: "unc1", targetHandle: "image-b" })).toBe(false);
+    graph = connectImageWorkflowNodes(graph, { source: "ref1", target: "unc1", targetHandle: "image-b" });
+    expect(graph.edges.length).toBe(1);
+    expect(isValidImageConnection(graph, { source: "gen1", target: "unc1", targetHandle: "image-b" })).toBe(false);
+    // 图A 口不受图B 占用影响
+    expect(isValidImageConnection(graph, { source: "gen1", target: "unc1", targetHandle: "image" })).toBe(true);
+  });
+
   it("无衣物图口拒一切提示词(09-07 用户实弹:提示词曾连上图口=分支顺序bug)", () => {
     const graph = addUnclothImageNode(
       addPromptImageNode(

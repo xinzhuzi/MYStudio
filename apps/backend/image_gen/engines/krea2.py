@@ -805,6 +805,13 @@ _EDIT_TEMPLATE = (
     "<|vision_start|><|image_pad|><|vision_end|>"
     "{instruction}<|im_end|>\n<|im_start|>assistant\n"
 )
+# 双参考版(原版 _template(nimg) 同构:vision 块数=图数,顺序=场景在前主体在后)
+_EDIT_TEMPLATE_2REF = (
+    "<|im_start|>system\n{system}<|im_end|>\n<|im_start|>user\n"
+    "<|vision_start|><|image_pad|><|vision_end|>"
+    "<|vision_start|><|image_pad|><|vision_end|>"
+    "{instruction}<|im_end|>\n<|im_start|>assistant\n"
+)
 
 
 def _get_edit_components(models_dir: Path, snapshot_dir: Path,
@@ -843,10 +850,13 @@ def _get_edit_components(models_dir: Path, snapshot_dir: Path,
         return comps
 
 
-def _grounded_encode(pipe, image, instruction: str, system_prompt: "str | None" = None):
+def _grounded_encode(pipe, image, instruction: str, system_prompt: "str | None" = None,
+                     image_b=None):
     """参考图+编辑指令 → Qwen3-VL 12 层 tap(冒烟协议 09-05:smart_resize
     factor=32→/16 patchify×temporal2→pixel_values(N,1536);grid_thw=patch 网格;
-    image_pad 展开;mm_token_type_ids;forward 自动 3D 位置+DeepStack)。"""
+    image_pad 展开;mm_token_type_ids;forward 自动 3D 位置+DeepStack)。
+    09-08 双参考(原版 two-input 同构):image_b=主体图时 vision 块×2,
+    顺序=场景在前主体在后,各图独立 pad 展开+grid 拼接。"""
     import numpy as _np
     import torch
     from transformers.models.qwen3_vl.video_processing_qwen3_vl import smart_resize
@@ -854,24 +864,35 @@ def _grounded_encode(pipe, image, instruction: str, system_prompt: "str | None" 
     tok = pipe.tokenizer
     te = pipe.text_encoder
     dev = next(te.parameters()).device
-    w0, h0 = image.size
-    # 09-07 对齐 ComfyUI 本体(comfy/text_encoders/qwen_vl.py process_qwen2vl_images
-    # 被 qwen3vl 以 patch=16/mean0.5 调用,沿用其默认 min=3136/max=12845056=
-    # 原尺寸直进;此前用 transformers 官方 131072/786432 会把 1MP 图悄悄缩到
-    # 0.79MP,vision token 密度偏离原版运行路径)
-    rh, rw = smart_resize(2, h0, w0, factor=32, min_pixels=3136, max_pixels=12845056)[:2]
-    arr = ((_np.asarray(image.resize((rw, rh), __import__("PIL.Image", fromlist=["BILINEAR"]).BILINEAR),
-                        dtype="float32") / 255.0) - 0.5) / 0.5
-    t = torch.from_numpy(arr).permute(2, 0, 1)
-    ph, pw = rh // 16, rw // 16
-    pixel_values = t.reshape(3, ph, 16, pw, 16).permute(1, 3, 0, 2, 4) \
-        .reshape(ph * pw, 3 * 16 * 16).repeat(2, 1)
-    grid = torch.tensor([[1, ph, pw]])
-    n_tok = ph * pw // 4
-    text = _EDIT_TEMPLATE.format(
+    images = [image] + ([image_b] if image_b is not None else [])
+
+    def prep(im):
+        w0, h0 = im.size
+        # 09-07 对齐 ComfyUI 本体(comfy/text_encoders/qwen_vl.py process_qwen2vl_images
+        # 被 qwen3vl 以 patch=16/mean0.5 调用,沿用其默认 min=3136/max=12845056=
+        # 原尺寸直进;此前用 transformers 官方 131072/786432 会把 1MP 图悄悄缩到
+        # 0.79MP,vision token 密度偏离原版运行路径)
+        rh, rw = smart_resize(2, h0, w0, factor=32, min_pixels=3136, max_pixels=12845056)[:2]
+        arr = ((_np.asarray(im.resize((rw, rh), __import__("PIL.Image", fromlist=["BILINEAR"]).BILINEAR),
+                            dtype="float32") / 255.0) - 0.5) / 0.5
+        t = torch.from_numpy(arr).permute(2, 0, 1)
+        ph, pw = rh // 16, rw // 16
+        pv = t.reshape(3, ph, 16, pw, 16).permute(1, 3, 0, 2, 4) \
+            .reshape(ph * pw, 3 * 16 * 16).repeat(2, 1)
+        return pv, ph, pw
+
+    prepped = [prep(im) for im in images]
+    pixel_values = torch.cat([pv for pv, _, _ in prepped], dim=0)
+    grid = torch.tensor([[1, ph, pw] for _, ph, pw in prepped])
+    template = _EDIT_TEMPLATE_2REF if len(prepped) == 2 else _EDIT_TEMPLATE
+    text = template.format(
         system=system_prompt.strip() if system_prompt and system_prompt.strip() else _EDIT_SYSTEM_DEFAULT,
         instruction=instruction,
-    ).replace("<|image_pad|>", "<|image_pad|>" * n_tok)
+    )
+    # 每图独立展开各自数量的 image_pad(原版 embed_count 逐块填充分布)
+    for _, ph, pw in prepped:
+        n_tok = ph * pw // 4
+        text = text.replace("<|image_pad|>", "<|image_pad|>" * n_tok, 1)
     # Qwen3 惯例(comfy tokenize_with_weights 同款):空 think 块抑制推理模式
     text += "<think>\n\n</think>\n\n"
     enc = tok(text, return_tensors="pt")
@@ -930,6 +951,7 @@ def _fit_source_latent(image, vae, tgt_h: int, tgt_w: int, lat_mean, lat_std):
 def generate_edit(prompt: str, image, steps: int = 10, seed: int | None = 2,
                   system_prompt: "str | None" = None,
                   mystic_strength: float = 2.0, pussy_strength: float = 0.15,
+                  image_b=None,
                   **ctx) -> "Any":
     """Krea2Edit 指令编辑(仿写 ComfyUI「Krea2_无衣物_快」krea2edit 流):
     identity LoRA + grounded encode + 参考注意力([text|src|tgt]) + denoise=1.0
@@ -965,7 +987,7 @@ def generate_edit(prompt: str, image, steps: int = 10, seed: int | None = 2,
         image = image.resize((_rw, _rh), Image.LANCZOS)
 
     # 2. grounded encode(参考图进 Qwen3-VL,12 层 tap)
-    embeds, embeds_mask = _grounded_encode(pipe, image, prompt, system_prompt)
+    embeds, embeds_mask = _grounded_encode(pipe, image, prompt, system_prompt, image_b=image_b)
 
     # 3. 参考图 latent(fit 像素路径)+ packed;输出网格固定 1024²(工作流 EmptySD3)
     lat_mean = torch.tensor(vae_cfg["latents_mean"]).view(1, -1, 1, 1, 1).to(device)
@@ -974,13 +996,27 @@ def generate_edit(prompt: str, image, steps: int = 10, seed: int | None = 2,
     # 网格保证 patch2 整除,W₁≡8 mod16 时与 ComfyUI pad 路线差 ≤8px,已声明)
     tgt_h = (_rh // 16) * 2
     tgt_w = (_rw // 16) * 2
-    src4d = _fit_source_latent(image, comps["vae"], tgt_h, tgt_w, lat_mean, lat_std).to(device)
     patch_size = getattr(pipe, "patch_size", 2)
-    B, C, SH, SW = src4d.shape
-    gh, gw = SH // patch_size, SW // patch_size
-    # packed 顺序与引擎 pack() 同款:(B,gh,gw,C,p,p) 行主序 token,每 token (C,p,p)
-    src_seq = src4d.reshape(B, C, gh, patch_size, gw, patch_size) \
-        .permute(0, 2, 4, 1, 3, 5).reshape(B, gh * gw, C * patch_size * patch_size)
+
+    def pack_src(im, frame_id):
+        s4 = _fit_source_latent(im, comps["vae"], tgt_h, tgt_w, lat_mean, lat_std).to(device)
+        b, c, sh, sw = s4.shape
+        gh_, gw_ = sh // patch_size, sw // patch_size
+        seq = s4.reshape(b, c, gh_, patch_size, gw_, patch_size) \
+            .permute(0, 2, 4, 1, 3, 5).reshape(b, gh_ * gw_, c * patch_size * patch_size)
+        off_h, off_w = max(0.0, (tgt_h // patch_size - gh_) / 2), max(0.0, (tgt_w // patch_size - gw_) / 2)
+        ids = torch.zeros(gh_, gw_, 3)
+        ids[:, :, 0] = frame_id
+        ids[:, :, 1] = (torch.arange(gh_, dtype=torch.float32) + off_h)[:, None]
+        ids[:, :, 2] = (torch.arange(gw_, dtype=torch.float32) + off_w)[None, :]
+        return seq, ids.reshape(1, -1, 3), gh_, gw_
+
+    # 原版 krea2_edit_forward 多参考协议:场景 frame=1,主体 frame=2(顺序敏感)
+    src_packs = [pack_src(image, 1)] + ([pack_src(image_b, 2)] if image_b is not None else [])
+    src_concat = torch.cat([seq for seq, _, _, _ in src_packs], dim=1)
+    src_ids_all = torch.cat([ids for _, ids, _, _ in src_packs], dim=1)
+    src_len_total = src_concat.shape[1]
+    gh, gw = src_packs[0][2], src_packs[0][3]
 
     # 4. transformer.forward 接管:序列 [text | src(frame=1,居中偏移) | tgt(frame=0)]
     off_h, off_w = max(0.0, (tgt_h // patch_size - gh) / 2), max(0.0, (tgt_w // patch_size - gw) / 2)
@@ -996,7 +1032,7 @@ def generate_edit(prompt: str, image, steps: int = 10, seed: int | None = 2,
     def _edit_forward(tr, hidden_states, encoder_hidden_states, timestep, position_ids=None,
                       encoder_attention_mask=None, attention_kwargs=None, return_dict=True, **_kw):
         txt_len = encoder_hidden_states.shape[1]
-        src_len = src_seq.shape[1]
+        src_len = src_len_total
         temb = tr.time_embed(timestep, dtype=hidden_states.dtype)
         temb_mod = tr.time_mod_proj(torch.nn.functional.gelu(temb, approximate="tanh"))
         text_mask = encoder_attention_mask[:, None, None, :] if encoder_attention_mask is not None else None
@@ -1006,11 +1042,11 @@ def generate_edit(prompt: str, image, steps: int = 10, seed: int | None = 2,
             full_mask = torch.cat([text_mask, ones_rest], dim=-1)
         ctx_embeds = tr.txt_in(tr.text_fusion(encoder_hidden_states, attention_mask=text_mask))
         tgt = tr.img_in(hidden_states)
-        src = tr.img_in(src_seq.to(hidden_states.dtype))
+        src = tr.img_in(src_concat.to(hidden_states.dtype))
         combined = torch.cat([ctx_embeds, src, tgt], dim=1)
         ids = torch.cat([
             torch.zeros(1, txt_len, 3),
-            src_ids, tgt_ids,
+            src_ids_all, tgt_ids,
         ], dim=1).to(combined.device)
         rope = tr.rotary_emb(ids.reshape(-1, 3))  # diffusers 期望 (L,3) 无 batch 维
         for block in tr.transformer_blocks:
@@ -1061,7 +1097,7 @@ def generate_edit(prompt: str, image, steps: int = 10, seed: int | None = 2,
         f"[image-sidecar] krea2 edit(instruct): steps={steps} seed={seed} "
         f"lora=identity1.0+mystic{mystic_strength}+pussy{pussy_strength} "
         f"system={'custom' if system_prompt and system_prompt.strip() else 'default'} "
-        f"src_grid={gh}x{gw} size={tgt_w * 8}x{tgt_h * 8} inference={_time.time() - phase_start:.1f}s",
+        f"src_grid={gh}x{gw}{'(+b)' if image_b is not None else ''} size={tgt_w * 8}x{tgt_h * 8} inference={_time.time() - phase_start:.1f}s",
         flush=True,
     )
     return out

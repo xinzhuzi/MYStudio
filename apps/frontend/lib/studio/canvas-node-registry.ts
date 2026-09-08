@@ -148,6 +148,15 @@ const IMAGE_WORKFLOW_DEFINITIONS: readonly CanvasNodeEntry[] = [
         seats: [{ handleId: "image", label: "图", capacity: 1, legacySeat: "non-prompt" }],
       },
       {
+        // 09-08 双参考(two-input,原版协议:场景在前主体在后):图B=主体图
+        // (干净单人参考图,换脸/换装/换场景);类型同图口,席位级一根
+        id: "image-b",
+        label: "图B(主体)",
+        type: "generated-image",
+        capacity: 1,
+        seats: [{ handleId: "image-b", label: "主体图", capacity: 1, legacySeat: "none" }],
+      },
+      {
         // 09-07 编号口:①=正向席(编辑指令)/②=负向席(一致性描述),
         // 极性错口拒;节点级合计两根(存量无 handle 提示词边上限 2 兼容),
         // 席位级各口一根;存量无 handle 提示词边回落占①席(渲染层同口径)

@@ -19,8 +19,8 @@ export interface UnclothChainRequest {
   prompt: string;
   /** uncloth 节点 id(结果回显) */
   unclothNodeId: string;
-  /** resolveUnclothParams 的全量生效参数 */
-  params: ReturnType<typeof resolveUnclothParams>;
+  /** resolveUnclothParams 的全量生效参数;双参考时附 imageB_b64(主体图) */
+  params: ReturnType<typeof resolveUnclothParams> & { imageB_b64?: string };
 }
 
 export function findUnclothUpstream(
@@ -64,6 +64,18 @@ export function buildUnclothChainRequest(
   const inputImageUrl = imageOf(uncloth.id);
   if (!inputImageUrl) return { error: "无衣物节点还没挂输入图:连一张参考图或有结果的成图" };
 
+  // 双参考(09-08 two-input,原版协议:图A=场景/图B=主体):图B 只认显式
+  // image-b 口的边;主体图典型=干净单人参考图(换脸/换装/换场景玩法)
+  const imageBEdge = graph.edges.find(
+    (edge) => edge.target === uncloth.id && edge.targetHandle === "image-b",
+  );
+  let imageB_b64: string | undefined;
+  if (imageBEdge) {
+    const bSrc = nodesById.get(imageBEdge.source);
+    if (bSrc?.type === "reference" && bSrc.imageUrl) imageB_b64 = bSrc.imageUrl;
+    else if (bSrc?.type === "generated" && bSrc.resultUrl) imageB_b64 = bSrc.resultUrl;
+  }
+
   // 文本(09-07 口语义终裁:①=正向输入口,②=负向输入口,与提示词节点正/负
   // 双出口一一对应)——①取正向文本(整节点边取其正向),②取负向文本(整节点
   // 边取其负向);两流均无独立负向通道(稳定流 Krea2Edit 单框+遮罩流负条件
@@ -81,6 +93,6 @@ export function buildUnclothChainRequest(
     inputImageUrl,
     prompt: fullPrompt,
     unclothNodeId: uncloth.id,
-    params,
+    params: imageB_b64 ? { ...params, imageB_b64 } : params,
   };
 }

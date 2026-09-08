@@ -62,6 +62,25 @@ describe("uncloth 口语义终裁(①=正向口,②=负向口)", () => {
     }
   });
 
+  it("双参考(09-08):image-b 口的主体图进 params.imageB_b64", () => {
+    let graph = seedGraph();
+    graph = connectImageWorkflowNodes(graph, { source: "p1", target: "unc1", targetHandle: "prompt-1", sourceHandle: "positive" });
+    graph = connectImageWorkflowNodes(graph, { source: "ref1", target: "unc1", targetHandle: "image-b" });
+    const result = buildUnclothChainRequest(graph, "gen1");
+    expect("error" in result).toBe(false);
+    if (!("error" in result)) {
+      expect(result.params.imageB_b64).toBe("project-file://a.png");
+    }
+    // 对照:不连图B 时无该字段
+    let singleGraph = seedGraph();
+    singleGraph = connectImageWorkflowNodes(singleGraph, { source: "p1", target: "unc1", targetHandle: "prompt-1", sourceHandle: "positive" });
+    const single = buildUnclothChainRequest(singleGraph, "gen1");
+    expect("error" in single).toBe(false);
+    if (!("error" in single)) {
+      expect(single.params.imageB_b64).toBeUndefined();
+    }
+  });
+
   it("存量无 handle 单边:整节点正向为指令,负向不再隐式拼装", () => {
     let graph = seedGraph();
     graph = connectImageWorkflowNodes(graph, { source: "p1", target: "unc1" });

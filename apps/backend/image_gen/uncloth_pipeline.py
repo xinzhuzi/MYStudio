@@ -68,6 +68,12 @@ def run_uncloth_pipeline(
         from PIL import Image as _PILImage
         raw_ed = input_image_b64.split(",", 1)[-1] if input_image_b64.startswith("data:") else input_image_b64
         img_ed = _PILImage.open(io.BytesIO(base64.b64decode(raw_ed))).convert("RGB")
+        # 双参考(09-08 two-input):imageB_b64=主体图(场景在前主体在后,原版协议)
+        img_b_ed = None
+        raw_b = params.get("imageB_b64")
+        if isinstance(raw_b, str) and raw_b:
+            raw_b = raw_b.split(",", 1)[-1] if raw_b.startswith("data:") else raw_b
+            img_b_ed = _PILImage.open(io.BytesIO(base64.b64decode(raw_b))).convert("RGB")
         seed_ed = params.get("seedUndress")
         out_ed = krea2.generate_edit(
             prompt, img_ed,
@@ -76,6 +82,7 @@ def run_uncloth_pipeline(
             system_prompt=params.get("systemPrompt"),
             mystic_strength=float(params.get("mysticStrength", 2.0)),
             pussy_strength=float(params.get("pussyStrength", 0.15)),
+            image_b=img_b_ed,
             **engine_ctx,
         )
         buf = io.BytesIO()
