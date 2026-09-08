@@ -29,6 +29,32 @@ describe("useComfyEngineSettings", () => {
     expect(result.current.plugins.length).toBeGreaterThan(0);
   });
 
+  it("挂载探测失败后 refreshStatus 补探可恢复(引擎卡胶囊重探数据面)", async () => {
+    // 09-08 加固④配套:sidecar 未起时挂载探测静默失败,胶囊停在「检查中」;
+    // 上层在 sidecar 就绪后调一次 refreshStatus 必须能拿到状态(不缓存失败)。
+    const base = createMockComfyEngineClient();
+    let failNextStatus = true;
+    const client = {
+      ...base,
+      getEngineStatus: async () => {
+        if (failNextStatus) {
+          failNextStatus = false;
+          throw new Error("sidecar 未起");
+        }
+        return base.getEngineStatus();
+      },
+    };
+    const { result } = renderHook(() => useComfyEngineSettings({ client, pollIntervalMs: 5 }));
+
+    await waitFor(() => expect(failNextStatus).toBe(false));
+    expect(result.current.status).toBeNull(); // 探测失败保持 null(连旧快照都没有)
+
+    await act(async () => {
+      await result.current.refreshStatus();
+    });
+    expect(result.current.status?.state).toBe("not-installed"); // 补探成功就位
+  });
+
   it("无桥时 hasBridge=false,动作点按给大白话错误不抛异常", async () => {
     const { result } = renderHook(() => useComfyEngineSettings({ client: undefined }));
     expect(result.current.hasBridge).toBe(false);

@@ -10,6 +10,7 @@
 """
 from __future__ import annotations
 
+import gzip
 import json
 import re
 import shutil
@@ -35,6 +36,10 @@ HEALTH_TIMEOUT_S = 120.0  # 首次冷启动 torch 导入慢,健康轮询窗口�
 GUARD_INTERVAL_S = 3.0
 GUARD_MAX_RESTARTS = 3
 GUARD_WINDOW_S = 900.0
+# 09-08 加固①:stop 彻底性——SIGTERM 后等满 10 秒仍活着(引擎卡在 C 扩展里
+# 收不到信号是实弹见过的)就升级 SIGKILL;stopped 回复以进程真实退出为准。
+STOP_TERM_WAIT_S = 10.0
+STOP_KILL_WAIT_S = 5.0
 
 # ComfyUI extra_model_paths.yaml 的标准目录键(modelsDir 指向现有库用)
 _MODEL_FOLDER_KEYS = (
@@ -474,7 +479,26 @@ class EngineManager:
         return job_id
 
     def _start_job(self, job_id: str) -> None:
-        self.start_sync(progress=lambda pct, msg: jobs.update(job_id, progress=pct, message=msg))
+        result = self.start_sync(progress=lambda pct, msg: jobs.update(job_id, progress=pct, message=msg))
+        # 09-08 加固①配套:启动 job 必须落终态,否则渲染层 pollJobUntilTerminal
+        # 会一直等到超时,把已经就绪的引擎报成「服务启动失败」。
+        jobs.update(job_id, result={
+            "port": result.get("port"), "adopted": bool(result.get("adopted")),
+            "message": "接管了正在运行的 ComfyUI 实例" if result.get("adopted") else "ComfyUI 引擎已就绪",
+        })
+
+    def _orphan_is_comfyui(self, port: int) -> bool:
+        """孤儿收编门槛:端口必须应答 /system_stats 且形状像 ComfyUI。
+
+        09-08 加固①:此前只看「端口有 JSON 应答」就把进程收编——撞端口的其它
+        服务、或停在半启动态的旧引擎都会被误认为就绪,后续 object_info 直接
+        读到旧进程的节点表(卸载插件后节点数不降级的假象来源)。
+        """
+        try:
+            stats = _get_json(f"{self.engine_url(port)}/system_stats", timeout=3.0)
+        except (OSError, error.URLError, json.JSONDecodeError, EngineOpError):
+            return False
+        return isinstance(stats, dict) and ("system" in stats or "devices" in stats)
 
     def start_sync(self, progress=None) -> dict:
         """同步启动(启动 job 与插件链内部复用)。已健康=收编孤儿进程直接就绪。"""
@@ -484,8 +508,13 @@ class EngineManager:
             if self._proc is not None and self._proc.poll() is None:
                 return {"running": True, "port": cm.recorded_port()}
         port = cm.recorded_port()
-        if port and self.is_healthy(port):
+        if port and self._orphan_is_comfyui(port):
             self._enable_guard()
+            # 收编后强制刷新一次节点数:孤儿进程的插件态(刚装/刚卸)与我们的
+            # _last_node_count 缓存无关,不刷新=状态行展示旧节点数假象。
+            self._last_node_count = self.node_count()
+            if progress:
+                progress(100, "接管了正在运行的 ComfyUI 实例")
             return {"running": True, "port": port, "adopted": True}
         # 账本端口被外部占用(如 Comfy Desktop 顺延撞上)→ 重探测换端口
         if port and not _port_bindable(port):
@@ -519,6 +548,11 @@ class EngineManager:
         raise EngineOpError("引擎健康检查超时(120 秒),请查看日志:" + str(cm.engine_log_path()))
 
     def stop(self) -> dict:
+        """停引擎:SIGTERM → 等满 10s 仍活 → SIGKILL 再等。
+
+        09-08 加固①:stopped 不再无条件 True,以进程真实退出为准;我们不
+        跟踪的端口占用者(外部起的实例)由 running 字段如实暴露给上层。
+        """
         with self._lock:
             self._guard_enabled = False
             self._stopping = True
@@ -526,17 +560,21 @@ class EngineManager:
         if proc is not None and proc.poll() is None:
             proc.terminate()
             try:
-                proc.wait(timeout=8.0)
+                proc.wait(timeout=STOP_TERM_WAIT_S)
             except subprocess.TimeoutExpired:
-                proc.kill()
-                proc.wait(timeout=5.0)
+                proc.kill()  # SIGTERM 装死(卡 C 扩展)→ 升级 SIGKILL
+                try:
+                    proc.wait(timeout=STOP_KILL_WAIT_S)
+                except subprocess.TimeoutExpired:
+                    pass  # 连 SIGKILL 都收不回(不可中断睡眠):stopped 如实报 False
         if self._log_file:
             try:
                 self._log_file.close()
             except OSError:
                 pass
             self._log_file = None
-        return {"running": self.is_healthy(), "stopped": True}
+        stopped = proc is None or proc.poll() is not None
+        return {"running": self.is_healthy(), "stopped": stopped}
 
     def restart(self, progress=None) -> dict:
         """重启(插件安装/更新链用;期望引擎回到健康态)。"""
@@ -677,7 +715,12 @@ class EngineManager:
 
     # -- 快照/回滚 ---------------------------------------------------------
     def create_snapshot(self, reason: str, full: bool = False) -> str:
-        """快照=manifest 拷贝(+full:源码 tar,排除 venv)+ torch 栈记录。"""
+        """快照=manifest 拷贝(+full:源码 tar,排除 venv)+ torch 栈记录。
+
+        09-08 加固②(创建端):指向绝对路径的符号链接直接拒收(跳过)并记
+        warning 进快照 manifest——毒快照事故根源:绝对软链进 tar,回滚解包
+        被 data 过滤器整体拒收,快照变砖。
+        """
         snap_id = f"snap-{time.strftime('%Y%m%d-%H%M%S')}-{uuid.uuid4().hex[:4]}"
         snap_dir = cm.snapshots_dir() / snap_id
         snap_dir.mkdir(parents=True, exist_ok=True)
@@ -689,8 +732,11 @@ class EngineManager:
         }
         if full:
             src = cm.engine_source_dir()
+            tar_warnings: list[str] = []
             with tarfile.open(snap_dir / "comfyui-src.tar.gz", "w:gz") as tar:
-                tar.add(src, arcname="ComfyUI", filter=_tar_no_pycache)
+                tar.add(src, arcname="ComfyUI", filter=_tar_snapshot_filter(tar_warnings))
+            if tar_warnings:
+                meta["warnings"] = tar_warnings
         (snap_dir / "meta.json").write_text(json.dumps(meta, ensure_ascii=False, indent=2), encoding="utf-8")
         return snap_id
 
@@ -723,15 +769,51 @@ class EngineManager:
             raise EngineOpError("快照缺少账本副本,无法回滚")
         self.stop()
         if src_tar.is_file():
-            src = cm.engine_source_dir()
-            shutil.rmtree(src, ignore_errors=True)
-            with tarfile.open(src_tar, "r:gz") as tar:
-                tar.extractall(cm.comfy_home(), filter="data")
+            # 09-08 加固②:原子换树(解包校验到临时目录→旧树挪备份位→临时
+            # 转正),失败把旧树挪回原位,不再留半还原树(此前靠 git reset 救援)。
+            self._restore_source_tree(src_tar)
         shutil.copy2(manifest_copy, cm.manifest_path())
         if src_tar.is_file():
             _pip(["install", "-r", str(cm.engine_source_dir() / "requirements.txt")])
             self.restart()
         return {"rolledBackTo": snapshot_id, "running": self.is_healthy()}
+
+    def _restore_source_tree(self, src_tar: Path) -> None:
+        """源码树原子还原:先在 <home>/.rollback-tmp 里解包校验,全过再换树。
+
+        步骤:①gzip 整流校验(截断/CRC 损坏在此爆)②解包到临时目录(data
+        过滤器拒收绝对软链等危险成员=毒快照防线)③旧树挪 ComfyUI.bak-failed-*
+        ④临时树转正 ⑤成功清掉备份与临时壳。任一步失败:旧树挪回原位、临时
+        目录保留供人工救援。
+        """
+        home = cm.comfy_home()
+        tmp = home / ".rollback-tmp"
+        src = cm.engine_source_dir()
+        bak: Path | None = None
+        shutil.rmtree(tmp, ignore_errors=True)
+        tmp.mkdir(parents=True, exist_ok=True)
+        try:
+            _verify_tarball(src_tar)
+            with tarfile.open(src_tar, "r:gz") as tar:
+                tar.extractall(tmp, filter="data")
+            restored = tmp / "ComfyUI"
+            if not (restored / "main.py").is_file():
+                raise EngineOpError("快照内容不完整(源码根缺 main.py),疑似损坏")
+            if src.exists():
+                bak = home / f"ComfyUI.bak-failed-{time.strftime('%Y%m%d-%H%M%S')}-{uuid.uuid4().hex[:4]}"
+                src.rename(bak)
+            shutil.move(str(restored), str(src))
+        except Exception as exc:
+            if bak is not None and bak.is_dir():
+                shutil.rmtree(src, ignore_errors=True)  # 清掉转正到一半的残树
+                shutil.move(str(bak), str(src))
+            raise EngineOpError(
+                f"回滚失败:快照解包或替换没完成,原目录已恢复原位;"
+                f"解包现场保留在 {tmp} 供人工检查。原因: {exc}"
+            ) from exc
+        if bak is not None:
+            shutil.rmtree(bak, ignore_errors=True)
+        shutil.rmtree(tmp, ignore_errors=True)
 
     # -- 核弹复位 ----------------------------------------------------------
     def reset_job(self) -> str:
@@ -813,6 +895,33 @@ def _tar_no_pycache(tarinfo):
     if tarinfo.name.endswith("__pycache__") or tarinfo.name.endswith(".pyc"):
         return None
     return tarinfo
+
+
+# 绝对路径判定:/开头、Windows 盘符(C:\)与 UNC(\\server)都算
+_ABS_SYMLINK_RE = re.compile(r"^(?:/|[A-Za-z]:[\\/]|\\\\)")
+
+
+def _tar_snapshot_filter(warnings: list[str]):
+    """快照打包过滤器:__pycache__/.pyc 之外,再拒收指向绝对路径的符号链接。
+
+    拒收项(返回 None=跳过打包)记进 warnings,由 create_snapshot 落进快照
+    meta.json 供审计;相对路径软链不受影响(ComfyUI 生态正常用法)。
+    """
+    def _filter(tarinfo):
+        if _tar_no_pycache(tarinfo) is None:
+            return None
+        if tarinfo.issym() and _ABS_SYMLINK_RE.match(tarinfo.linkname):
+            warnings.append(f"跳过绝对路径符号链接: {tarinfo.name} -> {tarinfo.linkname}")
+            return None
+        return tarinfo
+    return _filter
+
+
+def _verify_tarball(tar_path: Path) -> None:
+    """gzip 整流解压校验:文件截断/CRC 损坏在这里抛出,不碰正式目录。"""
+    with open(tar_path, "rb") as raw, gzip.GzipFile(fileobj=raw) as gz:
+        while gz.read(1 << 20):
+            pass
 
 
 def _freeze_to_map(freeze_lines: list[str]) -> dict[str, str]:

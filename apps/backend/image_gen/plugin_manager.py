@@ -209,12 +209,22 @@ def workflow_node_types(obj) -> set[str]:
     return types
 
 
+# API 格式顶层的非节点键(ComfyUI 导出的 _meta 等;09-08 加固③)
+_API_NON_NODE_KEYS = frozenset({"_meta"})
+
+
 def workflow_node_count(obj) -> int:
+    """节点数:UI 格式按 nodes 数组长度;API 格式按顶层键数扣掉 _meta 等非节点键。
+
+    09-08 加固③:此前只数「带 class_type 的顶层值」,节点字典形状稍有出入
+    就漏计(列表页 API 格式 nodeCount 恒 0 的粗算来源);键数口径与 ComfyUI
+    官方 API 格式导出的编号键一一对应。
+    """
     if not isinstance(obj, dict):
         return 0
     if isinstance(obj.get("nodes"), list):
         return len(obj["nodes"])
-    return sum(1 for node in obj.values() if isinstance(node, dict) and "class_type" in node)
+    return sum(1 for key in obj if key not in _API_NON_NODE_KEYS)
 
 
 # ── 策展清单 + Registry 目录 ───────────────────────────────────────
