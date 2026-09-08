@@ -17,6 +17,7 @@ import {
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import { toast } from "sonner";
+import { openSettingsSection } from "@/components/panels/settings/comfy-engine/comfy-engine-update-reminder";
 import { Button } from "@/components/ui/button";
 import { GenerationFailedDialog } from "@/components/ui/generation-failed-dialog";
 import {
@@ -175,7 +176,10 @@ export function ImageStudioCanvas() {
         return;
       }
       if (analyzed.descriptor.missing.length > 0) {
-        toast.error(formatMissingClassTypesMessage(analyzed.descriptor.missing));
+        // 画布→插件区直达(09-08 补口):拦截不再是死路,一键跳设置装齐再来
+        toast.error(formatMissingClassTypesMessage(analyzed.descriptor.missing), {
+          action: { label: "去安装插件", onClick: () => openSettingsSection("comfy-engine") },
+        });
         return;
       }
       const name = (useImageStudioStore.getState().comfyBrowserTree?.workflows ?? [])
