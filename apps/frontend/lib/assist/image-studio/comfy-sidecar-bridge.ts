@@ -67,12 +67,56 @@ interface ComfySidecarRequestOptions {
   timeoutMs?: number;
 }
 
-/** sidecar 统一 JSON 请求:Bearer 令牌 + 超时 + 错误翻译成大白话。 */
+/**
+ * sidecar 探活门禁(09-08 打包 smoke 修复):挂载期/启动提醒的 comfy 探测若在
+ * sidecar 未运行时盲发 fetch,Chromium 会在渲染层记 network 级错误日志(ERR_
+ * CONNECTION_REFUSED),装机 smoke 判红——既有设置行探测全走 preload 桥(IPC)
+ * 从不产生此问题,comfy 直连 HTTP 是异类。故先经 window.imageGenRuntime
+ * (IPC,主进程视角)确认 sidecar 在跑才发真请求;没跑直接抛大白话指引,
+ * 零网络尝试。TTL 缓存避免每次调用都打 IPC。
+ */
+type ComfySidecarLivenessProbe = () => Promise<boolean>;
+let livenessProbeOverride: ComfySidecarLivenessProbe | null = null;
+let livenessCache: { at: number; up: boolean } | null = null;
+const LIVENESS_TTL_MS = 3_000;
+
+/** 测试注入位(jsdom 无 imageGenRuntime 桥,单测直控门禁语义)。 */
+export function setComfySidecarLivenessProbeForTests(probe: ComfySidecarLivenessProbe | null): void {
+  livenessProbeOverride = probe;
+  livenessCache = null;
+}
+
+async function sidecarLikelyUp(): Promise<boolean> {
+  if (livenessProbeOverride) {
+    try {
+      return await livenessProbeOverride();
+    } catch {
+      return false;
+    }
+  }
+  if (livenessCache && Date.now() - livenessCache.at < LIVENESS_TTL_MS) return livenessCache.up;
+  let up = false;
+  try {
+    const bridge = (window as { imageGenRuntime?: { status?: () => Promise<{ running?: boolean }> } })
+      .imageGenRuntime;
+    if (bridge?.status) up = Boolean((await bridge.status())?.running);
+  } catch {
+    up = false;
+  }
+  livenessCache = { at: Date.now(), up };
+  return up;
+}
+
+/** sidecar 统一 JSON 请求:探活门禁 + Bearer 令牌 + 超时 + 错误翻译成大白话。 */
 async function comfySidecarRequest<T>(
   method: "GET" | "POST" | "DELETE",
   path: string,
   options: ComfySidecarRequestOptions = {},
 ): Promise<T> {
+  if (!(await sidecarLikelyUp())) {
+    // sidecar 未运行:不发 fetch(避免渲染层网络错误日志),直接大白话指路。
+    throw new Error("本地生图服务未运行,请先在 设置→本地配置 完成「准备运行时」");
+  }
   const url = new URL(`${COMFY_SIDECAR_BASE_URL}${path}`);
   for (const [key, value] of Object.entries(options.query ?? {})) {
     url.searchParams.set(key, value);

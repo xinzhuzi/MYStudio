@@ -9,6 +9,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   createHttpComfyEngineClient,
+  setComfySidecarLivenessProbeForTests,
   createHttpComfyWorkflowLibraryTransport,
   isElectronRenderer,
   mapDoctorReport,
@@ -98,11 +99,14 @@ const router = createFetchRouter();
 beforeEach(() => {
   router.reset();
   vi.stubGlobal("fetch", router.fetchMock);
+  // 门禁默认放行:单测聚焦字段映射;探活语义由文末 describe 单独锁定
+  setComfySidecarLivenessProbeForTests(async () => true);
 });
 
 afterEach(() => {
   vi.unstubAllGlobals();
   vi.clearAllMocks();
+  setComfySidecarLivenessProbeForTests(null);
 });
 
 // ---------------------------------------------------------------------------
@@ -639,5 +643,32 @@ describe("httpComfyWorkflowLibraryTransport", () => {
     ]);
     router.on("GET", "/comfy/engine/object-info", { engineOnline: false, classTypes: null });
     await expect(createHttpComfyWorkflowLibraryTransport().listAvailableClassTypes()).resolves.toEqual([]);
+  });
+});
+
+
+// ---------------------------------------------------------------------------
+// sidecar 探活门禁(09-08 打包 smoke 修复的行为锁定)
+// ---------------------------------------------------------------------------
+describe("comfy sidecar 探活门禁", () => {
+  it("sidecar 未运行:不发 fetch,直接大白话指路", async () => {
+    setComfySidecarLivenessProbeForTests(async () => false);
+    const calls: string[] = [];
+    vi.stubGlobal("fetch", async (...args: unknown[]) => {
+      calls.push(String(args[0]));
+      return new Response("{}", { status: 200 });
+    });
+    const client = createHttpComfyEngineClient();
+    await expect(client.getEngineStatus()).rejects.toThrow("本地生图服务未运行");
+    await expect(client.listPlugins()).rejects.toThrow("本地生图服务未运行");
+    expect(calls).toEqual([]);
+  });
+
+  it("探活桥抛错视同未运行(不炸调用方)", async () => {
+    setComfySidecarLivenessProbeForTests(async () => {
+      throw new Error("ipc down");
+    });
+    const client = createHttpComfyEngineClient();
+    await expect(client.getEngineStatus()).rejects.toThrow("本地生图服务未运行");
   });
 });
