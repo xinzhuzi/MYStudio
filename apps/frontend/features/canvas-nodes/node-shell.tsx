@@ -43,6 +43,8 @@ function ShellHandleRow({
         }}
         className={cn("h-3! w-3!", def.className)}
         title={def.title}
+        // 09-09 connecting 兼容口高亮:方向标记供 glow 工具查询
+        {...{ "data-canvas-handle-dir": def.kind }}
       />
       {def.badge ? (
         <span

@@ -41,6 +41,7 @@ import { relatedEdges } from "@/lib/studio/image-workflow/relation-graph";
 import { useCanvasGestureKernel } from "@/components/panels/studio/use-canvas-gesture-kernel";
 // 画布手势内核与分镜画布共用(08-30 收敛 Phase2 之后再整体上提 features/)
 import { findPromptNodeForGenerated, hasPromptSource, isValidImageConnection } from "@/lib/studio/image-workflow/graph-build";
+import { clearCompatibleHandles, markCompatibleHandles } from "@/features/canvas-nodes/connect-compatible-glow";
 import { saveReferenceFile } from "@/lib/assist/image-studio/reference-upload";
 import { useFreedomStore } from "@/stores/assist/freedom-store";
 import {
@@ -1464,17 +1465,25 @@ function ImageStudioFlowView({
           handleMoveEnd();
           onViewportSettled(viewport);
         }}
-        onConnectStart={() => {
+        onConnectStart={(_event, params) => {
           connectActiveRef.current = true;
           // 新拖拽开始即清残留取消标志(Esc 后 RF 内部取消时 onConnect 不会
           // 触发,标志若不清会误吞下一次正常连接)
           cancelNextConnectRef.current = false;
+          // 09-09 兼容口高亮:从输出口拖出时标记全图「松手可连」的目标口
+          if (params.handleType === "source" && graph) {
+            markCompatibleHandles(graph, {
+              nodeId: params.nodeId,
+              handleId: params.handleId,
+            });
+          }
         }}
         onConnect={(connection) => {
           if (consumeConnectCancel()) return;
           onConnect(connection);
         }}
         onConnectEnd={(event, connectionState) => {
+          clearCompatibleHandles();
           if (consumeConnectCancel()) return;
           // 09-09 照 ComfyUI:拖线落空(未 Esc 取消)→ 外层就地弹建节点菜单
           onConnectDrop?.(event, connectionState);

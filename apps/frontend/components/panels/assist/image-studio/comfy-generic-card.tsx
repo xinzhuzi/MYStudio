@@ -59,6 +59,8 @@ function rowHandle(port: ComfyGenericPortDef) {
       }}
       className="h-3! w-3!"
       title={`${port.label}(${port.type})${isInput ? "输入" : "输出"}口`}
+      // 09-09 connecting 兼容口高亮:方向标记供 glow 工具查询
+      data-canvas-handle-dir={isInput ? "target" : "source"}
     />
   );
 }

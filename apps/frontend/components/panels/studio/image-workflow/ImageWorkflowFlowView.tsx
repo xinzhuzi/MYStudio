@@ -11,6 +11,7 @@ import { ImageWorkflowReactNode } from "./image-workflow-node-card";
 import { ConnectCreateInput, connectCreateDirection, getCreatableImageNodeTypes } from "@/lib/studio/image-workflow/connect-create";
 import { isValidImageConnection } from "@/lib/studio/image-workflow/graph-build";
 import { comfyGenericPortTypesCompatible } from "@/lib/assist/image-studio/comfy-generic-connection";
+import { clearCompatibleHandles, markCompatibleHandles } from "@/features/canvas-nodes/connect-compatible-glow";
 import type { ImageWorkflowGraph, ImageWorkflowOpenContext } from "@/types/studio";
 import {
   Background,
@@ -315,17 +316,25 @@ export function ImageWorkflowFlowView({
         }}
         onMoveStart={handleMoveStart}
         onMoveEnd={handleMoveEnd}
-        onConnectStart={() => {
+        onConnectStart={(_event, params) => {
           connectActiveRef.current = true;
           // 新拖拽开始即清残留取消标志(Esc 后 RF 内部取消时 onConnect 不会
           // 触发,标志若不清会误吞下一次正常连接)
           cancelNextConnectRef.current = false;
+          // 09-09 兼容口高亮:从输出口拖出时标记全图「松手可连」的目标口
+          if (params.handleType === "source" && activeGraph) {
+            markCompatibleHandles(activeGraph, {
+              nodeId: params.nodeId,
+              handleId: params.handleId,
+            });
+          }
         }}
         onConnect={(connection) => {
           if (consumeConnectCancel()) return;
           onConnect(connection);
         }}
         onConnectEnd={(event, connectionState) => {
+          clearCompatibleHandles();
           if (consumeConnectCancel()) return;
           handleConnectEnd(event, connectionState);
         }}

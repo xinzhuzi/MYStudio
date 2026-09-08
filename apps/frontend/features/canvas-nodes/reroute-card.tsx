@@ -41,6 +41,7 @@ export const RerouteCard = memo(function RerouteCard({ node, selected }: Reroute
         style={{ ...HANDLE_STYLE, left: "-6px", backgroundColor: comfyPortCssColor("IMAGE") }}
         className="h-3! w-3!"
         title="中转入口(任意类型)"
+        data-canvas-handle-dir="target"
       />
       <span className="nodrag nopan min-w-0 flex-1 truncate text-[11px] font-medium text-foreground/85">
         {bypassed ? "中转点(旁路)" : "中转点"}
@@ -51,6 +52,7 @@ export const RerouteCard = memo(function RerouteCard({ node, selected }: Reroute
         style={{ ...HANDLE_STYLE, right: "-6px", backgroundColor: comfyPortCssColor("IMAGE") }}
         className="h-3! w-3!"
         title="中转出口(随上游类型)"
+        data-canvas-handle-dir="source"
       />
     </div>
   );

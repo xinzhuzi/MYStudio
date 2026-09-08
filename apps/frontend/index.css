@@ -3266,6 +3266,22 @@ a:active,
 .image-workflow-flow-host .react-flow__edge {
   pointer-events: stroke;
 }
+/* 09-09 connecting 兼容口高亮(照 ComfyUI,双画布通用):拖线进行中,
+   「松手可连」的目标口呼吸光晕——此前只有口型拦截没有提示。标记类由
+   connect-compatible-glow 工具在 onConnectStart 时按域规则批量注入。 */
+.react-flow__handle.connect-compatible-glow {
+  cursor: crosshair;
+  animation: connect-compatible-pulse 1.1s ease-in-out infinite;
+}
+@keyframes connect-compatible-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 2px rgb(251 191 36 / 0.45);
+  }
+  50% {
+    box-shadow: 0 0 0 6px rgb(251 191 36 / 0.22);
+  }
+}
 /* 09-07 可点性根修:线本体 2px+交互带窄,用户实弹「无法点中」——hover 即时
    加粗高亮+手型光标,点没点中一眼可辨(交互带同时加倍 10→18,见组件层)。
    !important 必需:边的 stroke-width 是组件内联样式,CSS 类规则优先级低于
