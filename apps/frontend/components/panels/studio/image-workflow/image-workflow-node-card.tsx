@@ -10,7 +10,6 @@ import { Textarea } from "@/components/ui/textarea";
 import { UnclothNodeEditor } from "@/components/ui/uncloth-node-editor";
 import { CANVAS_NODE_DEFINITIONS, CanvasNodeShell } from "@/features/canvas-nodes";
 import { NsfwNodeEditor } from "@/components/ui/nsfw-node-editor";
-import { NsfwNodeEditor } from "@/components/ui/nsfw-node-editor";
 import { ModelSelector } from "@/components/panels/assist/ModelSelector";
 import { UPSCALE_INPUT_MAX_LONG_SIDE } from "@/lib/upscale/client";
 import { IMAGE_ASPECT_RATIOS, IMAGE_RESOLUTIONS } from "@/lib/ai/image-size-presets";
@@ -109,8 +108,30 @@ export const ImageWorkflowNodeCard = memo(function ImageWorkflowNodeCard({ data 
         definition={shellDefinition}
         node={node}
         selected={data.selected}
-        footer={node.type === "nsfw" ? <NsfwNodeEditor node={node} /> : undefined}
-      />
+        dataKindAttr="data-image-workflow-node-kind"
+        banner={
+          node.type === "reference" && node.derivedFrom?.staleSince !== undefined ? (
+            <div
+              data-image-workflow-derived-stale
+              className="mb-2 flex items-center gap-1.5 rounded-md border border-warning/40 bg-warning/10 px-2 py-1 text-[11px] font-medium text-warning"
+              title="该节点由父图取材而来,父图已生成新结果;如需同步请重新取材"
+            >
+              <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
+              父图已更新,建议重新取材
+            </div>
+          ) : undefined
+        }
+        footer={
+          node.type === "nsfw" ? <NsfwNodeEditor node={node} />
+          : node.type === "uncloth" ? <UnclothNodeEditor node={node} onUpdate={data.onUpdate} />
+          : undefined
+        }
+      >
+        {node.type === "reference" ? (
+          <ReferenceNodeEditor node={node} onUpdate={data.onUpdate} />
+        ) : null}
+        {node.type === "prompt" ? <PromptNodeEditor node={node} onUpdate={data.onUpdate} /> : null}
+      </CanvasNodeShell>
     );
   }
 

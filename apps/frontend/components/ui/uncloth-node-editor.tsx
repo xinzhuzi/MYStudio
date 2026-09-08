@@ -53,7 +53,6 @@ export function UnclothNodeEditor({
   node: ImageWorkflowUnclothNode;
   onUpdate: (nodeId: string, updates: Partial<ImageWorkflowNode>) => void;
 }) {
-  const [expanded, setExpanded] = useState(false);
   const params = resolveUnclothParams(node);
   const fast = params.mode === "fast";
   const instruct = params.mode === "instruct";
@@ -77,25 +76,10 @@ export function UnclothNodeEditor({
     </label>
   );
 
-  // 档位标签(09-07 三档:稳定=Krea2Edit 指令编辑/遮罩=双分割两遍/快=遮罩单遍)
-  const modeLabel = instruct ? "稳定" : fast ? "快" : "遮罩";
-
   return (
     <div className="space-y-2">
-      {/* 卡面默认收起(09-07 用户裁定:专业参数不上卡片,参考稳定流使用说明
-          「denoise/CFG/步数是设计要求勿动」);连线口径=①正向②负向+图口 */}
-      <button
-        type="button"
-        onClick={() => setExpanded((value) => !value)}
-        className="nodrag nopan flex w-full items-center justify-between rounded-md border border-border bg-background/80 px-2 py-1.5 text-[11px] text-muted-foreground"
-      >
-        <span>无衣物·{modeLabel} — ①正向 ②负向 图口由连线提供</span>
-        <ChevronDown
-          className={cn("h-3 w-3 transition-transform", expanded ? "" : "-rotate-90")}
-          aria-hidden
-        />
-      </button>
-      {expanded ? (
+      {/* 09-08 P2:总折叠上收到框架 CanvasNodeShell(摘要行=壳职责);本编辑器
+          只承载参数组(组级折叠保留) */}
       <>
       <label className="nodrag nopan flex items-center justify-between gap-2 rounded-md border border-border bg-background/80 px-2 py-1.5 text-[11px] text-muted-foreground">
         <span className="shrink-0">档位(稳定=指令编辑/遮罩=双分割两遍/快=单遍)</span>
@@ -324,7 +308,6 @@ export function UnclothNodeEditor({
       </UnclothParamGroup>
       )}
       </>
-      ) : null}
     </div>
   );
 }

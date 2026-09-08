@@ -11,12 +11,21 @@ export { CanvasNodeShell, defineReactNode } from "./node-shell";
 export type { CanvasNodeDefinition, CanvasNodeHandleDef } from "./node-registry";
 export { nsfwNodeDefinition } from "./nodes/nsfw";
 export { stickyNodeDefinition } from "./nodes/sticky";
+export { referenceNodeDefinition } from "./nodes/reference";
+export { promptNodeDefinition } from "./nodes/prompt";
+export { unclothNodeDefinition } from "./nodes/uncloth";
 
 import { nsfwNodeDefinition } from "./nodes/nsfw";
 import { stickyNodeDefinition } from "./nodes/sticky";
+import { referenceNodeDefinition } from "./nodes/reference";
+import { promptNodeDefinition } from "./nodes/prompt";
+import { unclothNodeDefinition } from "./nodes/uncloth";
 import type { CanvasNodeDefinition } from "./node-registry";
 
 export const CANVAS_NODE_DEFINITIONS: Readonly<Record<string, CanvasNodeDefinition>> = {
   [nsfwNodeDefinition.typeId]: nsfwNodeDefinition,
   [stickyNodeDefinition.typeId]: stickyNodeDefinition,
+  [referenceNodeDefinition.typeId]: referenceNodeDefinition,
+  [promptNodeDefinition.typeId]: promptNodeDefinition,
+  [unclothNodeDefinition.typeId]: unclothNodeDefinition,
 };

@@ -148,10 +148,24 @@ export const ImageStudioNodeCard = memo(function ImageStudioNodeCard({
       <CanvasNodeShell
         definition={shellDefinition}
         node={node}
-        selected={selected}
-        footer={node.type === "nsfw" ? <NsfwNodeEditor node={node} /> : undefined}
+        selected={data.selected}
+        titleOverride={node.type === "reference" && data.referenceIndex ? `参考图 ${data.referenceIndex}` : undefined}
+        dataKindAttr="data-image-studio-node-kind"
+        footer={
+          node.type === "nsfw" ? <NsfwNodeEditor node={node} />
+          : node.type === "uncloth" ? <UnclothNodeEditor node={node} onUpdate={data.onUpdate} />
+          : undefined
+        }
       >
         {node.type === "sticky" ? <StickyNoteEditor node={node} onUpdate={data.onUpdate} /> : null}
+        {node.type === "reference" ? (
+          <ReferenceNodeEditor
+            node={node}
+            onPickImage={data.onPickImage}
+            onUpdate={data.onUpdate}
+          />
+        ) : null}
+        {node.type === "prompt" ? <PromptNodeEditor node={node} onUpdate={data.onUpdate} /> : null}
       </CanvasNodeShell>
     );
   }

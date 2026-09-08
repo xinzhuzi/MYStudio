@@ -48,6 +48,9 @@ export const CanvasNodeShell = memo(function CanvasNodeShell({
   selected,
   children,
   footer,
+  titleOverride,
+  banner,
+  dataKindAttr,
 }: {
   definition: CanvasNodeDefinition;
   node: { id: string; type: string; title?: string };
@@ -56,13 +59,20 @@ export const CanvasNodeShell = memo(function CanvasNodeShell({
   children?: React.ReactNode;
   /** 详情区(展开态追加;编辑器/参数所在) */
   footer?: React.ReactNode;
+  /** 标题覆盖(如参考图编号「参考图 2」;缺省=node.title||label) */
+  titleOverride?: string;
+  /** 卡顶提示条(衍生过期等画布侧横幅) */
+  banner?: React.ReactNode;
+  /** 兼容各画布旧节点类型标记属性名(默认 data-canvas-node-kind;存量探测
+   *  脚本/测试依赖 data-image-workflow-node-kind 等旧名) */
+  dataKindAttr?: string;
 }) {
   const [expanded, setExpanded] = useState(definition.defaultExpanded !== false);
   const summary = definition.summary(node);
   const Icon = definition.icon;
   return (
     <div
-      data-canvas-node-kind={node.type}
+      {...{ [dataKindAttr ?? "data-canvas-node-kind"]: node.type }}
       className={cn(
         "[contain:layout_style]",
         "canvas-node-shell group/node relative rounded-xl border bg-card/96 p-3.5 text-card-foreground",
@@ -76,6 +86,7 @@ export const CanvasNodeShell = memo(function CanvasNodeShell({
       {definition.handles.map((def) => (
         <ShellHandle key={`${def.kind}:${def.id ?? "single"}`} def={def} />
       ))}
+      {banner}
       <div className="mb-3 flex items-start justify-between gap-2">
         <div className="flex min-w-0 items-center gap-2">
           <span
@@ -87,7 +98,7 @@ export const CanvasNodeShell = memo(function CanvasNodeShell({
             <Icon className="h-4 w-4" />
           </span>
           <div className="min-w-0">
-            <div className="truncate text-sm font-medium">{node.title || definition.label}</div>
+            <div className="truncate text-sm font-medium">{titleOverride ?? node.title ?? definition.label}</div>
             {summary ? <div className="truncate text-[11px] text-muted-foreground">{summary}</div> : null}
           </div>
         </div>

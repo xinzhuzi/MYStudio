@@ -41,7 +41,7 @@ describe("CanvasNodeShell(框架底层能力)", () => {
 
   it("输入类(sticky)默认展开,无 handles 则零口渲染", () => {
     render(
-      <CanvasNodeShell definition={stickyNodeDefinition} node={{ id: "s1", type: "sticky", text: "注意光线" }} selected={false}>
+      <CanvasNodeShell definition={stickyNodeDefinition} node={{ id: "s1", type: "sticky", title: "注意光线" }} selected={false}>
         <div>便签内容Y</div>
       </CanvasNodeShell>,
     );
