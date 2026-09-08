@@ -27,6 +27,7 @@ const actions = vi.hoisted(() => ({
   rollbackTo: vi.fn(async () => undefined),
   setLaunchArgs: vi.fn(async () => undefined),
   refreshSnapshots: vi.fn(async () => undefined),
+  cleanOrphans: vi.fn(async () => ({ removed: [] })),
   checkUpdate: vi.fn(async () => undefined),
   setModelsDir: vi.fn(async () => true),
   runDoctor: vi.fn(async () => undefined),

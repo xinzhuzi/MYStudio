@@ -508,6 +508,11 @@ export function createHttpComfyEngineClient(): ComfyEngineClient {
       await comfySidecarRequest("POST", "/comfy/engine/config", { body: { modelsDir: path } });
       return { accepted: true };
     },
+    async cleanOrphans(): Promise<{ removed: string[]; message?: string }> {
+      const raw = await comfySidecarRequest<{ removed?: string[]; message?: string }>("POST", "/comfy/plugins/clean-orphans");
+      return { removed: Array.isArray(raw.removed) ? raw.removed : [], message: raw.message };
+    },
+
     async listSnapshots(): Promise<ComfySnapshotEntry[]> {
       const raw = await comfySidecarRequest<unknown[]>("GET", "/comfy/engine/snapshots");
       return (Array.isArray(raw) ? raw : []).map((item) => {

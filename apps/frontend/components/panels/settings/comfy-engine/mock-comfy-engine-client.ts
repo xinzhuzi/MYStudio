@@ -416,6 +416,10 @@ export function createMockComfyEngineClient(
       return { workflows: [] };
     },
 
+    async cleanOrphans(): Promise<{ removed: string[]; message?: string }> {
+      return { removed: [] };
+    },
+
     async listSnapshots(): Promise<ComfySnapshotEntry[]> {
       return [];
     },

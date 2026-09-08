@@ -324,3 +324,53 @@ class TestWorkflowNodeCountFormats:
     def test_invalid_payload_is_zero(self):
         assert workflow_node_count(None) == 0
         assert workflow_node_count("junk") == 0
+
+
+# ── 09-08 补口:按需启动 + 孤儿清理 ──
+class TestEnsureEngineReady:
+    def test_not_installed_returns_false(self, monkeypatch, tmp_path):
+        import image_gen.engine_manager as em
+        mgr = em.EngineManager.__new__(em.EngineManager)
+        monkeypatch.setattr(em.cm, "engine_installed", lambda: False)
+        assert mgr.ensure_engine_ready() is False
+
+    def test_healthy_short_circuits(self, monkeypatch):
+        import image_gen.engine_manager as em
+        mgr = em.EngineManager.__new__(em.EngineManager)
+        monkeypatch.setattr(em.cm, "engine_installed", lambda: True)
+        mgr._proc = None  # 无进程 → 不满足快捷路径
+        called = []
+        monkeypatch.setattr(mgr, "start_sync", lambda: called.append(1) or {"running": True})
+        assert mgr.ensure_engine_ready() is True
+        assert called == [1]
+
+    def test_installed_stopped_starts_sync(self, monkeypatch):
+        import image_gen.engine_manager as em
+        mgr = em.EngineManager.__new__(em.EngineManager)
+        monkeypatch.setattr(em.cm, "engine_installed", lambda: True)
+        import types
+        mgr._proc = types.SimpleNamespace(poll=lambda: 1)  # 进程已退出
+        monkeypatch.setattr(mgr, "is_healthy", lambda *a, **k: False)
+        called = []
+        monkeypatch.setattr(mgr, "start_sync", lambda: called.append(1) or {"running": True})
+        assert mgr.ensure_engine_ready() is True
+        assert called == [1]
+
+
+class TestCleanOrphanPlugins:
+    def test_removes_only_unregistered_dirs(self, monkeypatch, tmp_path):
+        import image_gen.plugin_manager as pm
+        cn = tmp_path / "custom_nodes"
+        (cn / "registered-plugin").mkdir(parents=True)
+        (cn / "_orphan_manual").mkdir(parents=True)
+        (cn / ".hidden").mkdir(parents=True)
+        (cn / "notes.txt").write_text("not a dir")
+        monkeypatch.setattr(pm.cm, "custom_nodes_dir", lambda: cn)
+        monkeypatch.setattr(pm.cm, "load_manifest", lambda: {"engine": {}, "plugins": {"registered-plugin": {"deps": {}}}})
+        fake_engine = types_simple_ns = type("E", (), {"is_healthy": staticmethod(lambda: False)})()
+        monkeypatch.setattr(pm, "engine_manager", lambda: fake_engine)
+        result = pm.clean_orphan_plugins()
+        assert result["removed"] == ["_orphan_manual"]
+        assert (cn / "registered-plugin").is_dir()
+        assert not (cn / "_orphan_manual").exists()
+        assert "没有需要清理" not in result["message"]

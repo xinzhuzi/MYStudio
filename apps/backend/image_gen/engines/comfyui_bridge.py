@@ -253,6 +253,12 @@ def _history_output(history: dict[str, Any], prompt_id: str) -> tuple[str, dict[
 
 
 def generate(prompt: str, aspect_ratio: str, negative_prompt: str | None, steps: int, seed: int | None, reference_b64: str | None = None, **ctx: Any) -> str:
+    # 按需启动(09-08 补口):自管引擎装了没跑→先拉起再生成;未装则回落 17598
+    from .. import engine_manager as _em
+    try:
+        _em.engine_manager().ensure_engine_ready()
+    except _em.EngineOpError as exc:
+        raise _pipeline_error("engine-start-failed", str(exc)) from exc
     stats = resolve_big_files()
     if not stats:
         raise _pipeline_error("bridge-unreachable", "ComfyUI 没在运行，请先打开它再试")

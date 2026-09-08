@@ -211,6 +211,9 @@ def apply_image_injections(
 def execute_job(payload: dict[str, Any]) -> str:
     """提交执行 job(进度:上传/排队/执行中/收图);返回 jobId。"""
     graph, strings, images = validate_execute_request(payload)
+    # 按需启动(09-08 补口):工作流节点/子图运行前,引擎装了没跑→先拉起
+    from . import engine_manager as _em
+    _em.engine_manager().ensure_engine_ready()
     job_id = jobs.create("comfy-execute", "准备执行 ComfyUI 工作流")
     jobs.start(job_id, lambda jid: _execute_target(jid, graph, strings, images))
     return job_id

@@ -249,6 +249,8 @@ export interface ComfyEngineClient {
   /** 卸载前引用扫描(用户工作流 class_type 精确匹配);契约补充面。 */
   getPluginUsage(id: string): Promise<ComfyPluginUsageReply>;
   doctor(): Promise<ComfyDoctorReport>;
+  /** 清理孤儿(账本外的 custom_nodes 目录);返回大白话结果。 */
+  cleanOrphans(): Promise<{ removed: string[]; message?: string }>;
   /** 快照列表(装插件/更新引擎前自动打;列表+一键回滚,design 映射表「快照页→搬并强化」)。 */
   listSnapshots(): Promise<ComfySnapshotEntry[]>;
   /** 修改性能档/加速方式(启动参数的大白话翻译落账,重启引擎生效)。 */

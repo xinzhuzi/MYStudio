@@ -577,6 +577,19 @@ class EngineManager:
         stopped = proc is None or proc.poll() is not None
         return {"running": self.is_healthy(), "stopped": stopped}
 
+    def ensure_engine_ready(self) -> bool:
+        """按需启动(一期PRD A节补口):自管引擎已装但没跑→同步拉起再放行。
+
+        返回 False=未安装(调用方回落旧 17598 链,不拦存量用户);True=已就绪。
+        生图/执行工作流等引擎流量的唯一前置口,幂等(已健康零开销)。
+        """
+        if not cm.engine_installed():
+            return False
+        if self._proc is not None and self._proc.poll() is None and self.is_healthy():
+            return True
+        self.start_sync()
+        return True
+
     def restart(self, progress=None) -> dict:
         """重启(插件安装/更新链用;期望引擎回到健康态)。"""
         self.stop()

@@ -341,6 +341,18 @@ export function useComfyEngineSettings(options: UseComfyEngineSettingsOptions = 
     }
   }, [client]);
 
+  // 清理孤儿插件(体检报告的可执行动作,09-08 补口)
+  const cleanOrphans = useCallback(async () => {
+    if (!client) return;
+    try {
+      const reply = await client.cleanOrphans();
+      toast.success(reply.message ?? "清理完成");
+      await runDoctor();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "清理未完成");
+    }
+  }, [client, runDoctor]);
+
   const startService = useCallback(async () => {
     if (!client) return;
     setIsStartingService(true);
@@ -418,6 +430,7 @@ export function useComfyEngineSettings(options: UseComfyEngineSettingsOptions = 
     setLaunchArgs,
     snapshots,
     refreshSnapshots,
+    cleanOrphans,
     checkUpdate,
     setModelsDir,
     runDoctor,

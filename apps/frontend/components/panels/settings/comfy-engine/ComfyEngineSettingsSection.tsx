@@ -142,8 +142,10 @@ function UpdateReportCard({
 /** 依赖体检报告(正常/缺失/漂移/孤儿)。 */
 function DoctorReportCard({
   report,
+  onCleanOrphans,
 }: {
   report: NonNullable<ReturnType<typeof useComfyEngineSettings>["doctorReport"]>;
+  onCleanOrphans?: () => void;
 }) {
   const summary = summarizeDoctorReport(report);
   const sections: Array<{ label: string; items: string[] }> = [
@@ -165,6 +167,11 @@ function DoctorReportCard({
       {sections.map((section) => (
         <p key={section.label} className="mt-1 text-xs leading-5 text-muted-foreground">
           {section.label}:{section.items.join("、")}
+          {section.label === "孤儿" && onCleanOrphans ? (
+            <Button size="sm" variant="outline" className="ml-2 h-6" onClick={onCleanOrphans} data-comfy-clean-orphans>
+              清理未登记插件
+            </Button>
+          ) : null}
         </p>
       ))}
     </div>
@@ -497,7 +504,9 @@ export function ComfyEngineSettingsSection({ embedded = false }: ComfyEngineSett
             <p className="text-[11px] leading-4 text-muted-foreground">
               体检会核对依赖账本(装了什么、版本对不对、有没有残留);核弹复位会清空并按账本重建引擎运行环境,模型文件不受影响。
             </p>
-            {engine.doctorReport ? <DoctorReportCard report={engine.doctorReport} /> : null}
+            {engine.doctorReport ? (
+              <DoctorReportCard report={engine.doctorReport} onCleanOrphans={() => void engine.cleanOrphans()} />
+            ) : null}
           </div>
 
           {/* 高级设置(09-08 映射表补口:Comfy Desktop 启动参数/PyTorch 行的翻译落地) */}

@@ -644,6 +644,35 @@ def doctor() -> dict:
             "healthy": not missing and not drifted and not orphan}
 
 
+def clean_orphan_plugins() -> dict:
+    """清理「孤儿」:账本外的 custom_nodes 目录(体检报告的可执行动作,09-08 补口)。
+
+    只删账本没有登记的目录(手动放入的/半装残留);已登记插件一律不动。
+    引擎若在跑,目录删除后需重启才彻底卸载——返回值里带提示。
+    """
+    import shutil
+    engine = engine_manager()
+    manifest = cm.load_manifest()
+    ledger = cm.plugin_ledger(manifest)
+    removed, kept = [], []
+    for entry in sorted(cm.custom_nodes_dir().glob("*")):
+        if not entry.is_dir() or entry.name.startswith("."):
+            continue
+        if entry.name in ledger:
+            kept.append(entry.name)
+            continue
+        shutil.rmtree(entry, ignore_errors=True)
+        removed.append(entry.name)
+    running = engine.is_healthy()
+    return {
+        "removed": removed,
+        "kept": kept,
+        "running": running,
+        "message": ("已清理 " + "、".join(removed) + ";引擎正在运行,重启引擎后完全生效" if removed and running
+                    else ("已清理 " + "、".join(removed) if removed else "没有需要清理的未登记插件")),
+    }
+
+
 def list_plugins() -> list[dict]:
     curated_by_repo = {c.get("repo"): c for c in load_curated()}
     rows = []

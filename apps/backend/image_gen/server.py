@@ -520,6 +520,9 @@ class Handler(BaseHTTPRequestHandler):
             if method == "GET" and path == "/comfy/plugins":
                 self._send_json({"plugins": pm.list_plugins()})
                 return
+            if method == "POST" and path == "/comfy/plugins/clean-orphans":
+                self._send_json(pm.clean_orphan_plugins())
+                return
             if method == "GET" and path == "/comfy/plugins/doctor":
                 self._send_json(pm.doctor())
                 return
