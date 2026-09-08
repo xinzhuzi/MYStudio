@@ -76,6 +76,13 @@ export function useComfyEngineSettings(options: UseComfyEngineSettingsOptions = 
 
   // 挂载/桥就绪:一次性探测引擎状态 + 插件清单(不轮询)。
   useEffect(() => {
+    // 09-08 修正:引擎卡自给自足——挂载即拉起本地生图服务(prepare 幂等,已
+    // 在跑则秒回),否则 sidecar 没起时状态恒为空,卡会停在「检查中」。
+    try {
+      void window.imageGenRuntime?.prepare?.();
+    } catch {
+      // 拉不起(旧构建无桥)不阻塞,探测照常走
+    }
     if (!client) return;
     let cancelled = false;
     void (async () => {

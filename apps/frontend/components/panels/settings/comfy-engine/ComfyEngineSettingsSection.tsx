@@ -226,7 +226,10 @@ export function ComfyEngineSettingsSection({ embedded = false }: ComfyEngineSett
   const resetting = engine.activeJob?.kind === "reset" && engine.activeJob?.state === "running";
   const installFailed = engine.activeJob?.kind === "install" && engine.activeJob.state === "failed";
   const updateFailed = engine.activeJob?.kind === "update" && engine.activeJob.state === "failed";
-  const notInstalled = !status || status.state === "not-installed";
+  // 09-08 实弹修正:status 未知(sidecar 未起/探测未回)≠ 未安装——此前误判
+  // 会让已装引擎的用户看到「安装引擎」按钮,以为要重新下载。未知=检查中态。
+  const statusUnknown = !status;
+  const notInstalled = status?.state === "not-installed";
   // TS 无法从布尔变量回推 activeJob 非空,这里单独收窄。
   const engineJob =
     engine.activeJob !== null && (installing || installFailed || updating || updateFailed || resetting)
@@ -240,7 +243,16 @@ export function ComfyEngineSettingsSection({ embedded = false }: ComfyEngineSett
         端口自动避让。引擎和插件只在你点击时下载,绝不自动下载。
       </p>
 
-      {/* 未安装:一键安装(体积 GB 级提示) */}
+      {/* 状态未知(sidecar 未起/探测未回):检查中,不误导成未安装 */}
+      {statusUnknown ? (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border bg-muted/30 px-4 py-3">
+          <p className="text-xs leading-5 text-muted-foreground" data-comfy-status-unknown>
+            正在确认引擎状态(本地生图服务启动中,首次约需十几秒)…
+          </p>
+        </div>
+      ) : null}
+
+      {/* 真未安装:一键安装(体积 GB 级提示) */}
       {notInstalled ? (
         <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border bg-muted/30 px-4 py-3">
           <p className="text-xs leading-5 text-muted-foreground">

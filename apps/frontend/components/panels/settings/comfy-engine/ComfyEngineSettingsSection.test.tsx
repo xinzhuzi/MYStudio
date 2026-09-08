@@ -152,6 +152,15 @@ describe("ComfyEngineSettingsSection 状态机", () => {
     expect(actions.installEngine).toHaveBeenCalledOnce();
   });
 
+  it("状态未知(sidecar未起):显示检查中,不误导成未安装/不出现安装按钮", () => {
+    scenario.status = null;
+    render(<ComfyEngineSettingsSection embedded />);
+
+    expect(screen.getByText(/正在确认引擎状态/)).toBeTruthy();
+    expect(screen.queryByText(/安装引擎/)).toBeNull();
+    expect(screen.queryByText(/首次安装约需数 GB/)).toBeNull();
+  });
+
   it("已就绪但服务未跑:副标「准备运行时」+ 启动服务按钮,端口只读展示(启动参数页)", () => {
     scenario.status = readyStatus({ serviceRunning: false });
     render(<ComfyEngineSettingsSection embedded />);
