@@ -55,6 +55,10 @@ export const IMAGE_STUDIO_NODE_META: Record<ImageWorkflowNodeType, ImageStudioNo
     label: "效果节点",
     description: "直放的 ComfyUI 生态节点:与效果节点连成子图,「运行子图」出图",
   },
+  reroute: {
+    label: "中转点",
+    description: "连线中转/拐弯整理:一根进原样一根出,不改变链语义",
+  },
 };
 
 /**

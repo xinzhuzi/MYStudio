@@ -17,6 +17,7 @@ export const promptNodeDefinition: CanvasNodeDefinition = {
     {
       kind: "source",
       id: "positive",
+      label: "正向",
       position: "Right",
       top: "40%",
       className: "border-info/40! bg-info/20!",
@@ -28,6 +29,7 @@ export const promptNodeDefinition: CanvasNodeDefinition = {
     {
       kind: "source",
       id: "negative",
+      label: "反向",
       position: "Right",
       top: "75%",
       className: "border-destructive/50! bg-destructive/15!",

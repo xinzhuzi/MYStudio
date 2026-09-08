@@ -18,6 +18,7 @@ export { generatedNodeDefinition } from "./nodes/generated";
 export { groupNodeDefinition } from "./nodes/group";
 export { comfyWorkflowNodeDefinition } from "./nodes/comfy-workflow";
 export { comfyGenericNodeDefinition } from "./nodes/comfy-generic";
+export { RerouteCard, RerouteFlowNode } from "./reroute-card";
 
 import { nsfwNodeDefinition } from "./nodes/nsfw";
 import { stickyNodeDefinition } from "./nodes/sticky";

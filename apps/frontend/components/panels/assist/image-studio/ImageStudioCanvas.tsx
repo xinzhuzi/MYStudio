@@ -6,6 +6,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { comfyGenericEdgeColor } from "@/components/ui/comfy/comfy-port-colors";
+import { comfyGenericPortTypesCompatible } from "@/lib/assist/image-studio/comfy-generic-connection";
 import {
   BackgroundVariant,
   Background,
@@ -74,8 +75,10 @@ import {
   formatMissingClassTypesMessage,
 } from "@/lib/assist/image-studio/comfy-workflow-import";
 import type { ComfyEffectNodeDescriptor } from "@/lib/assist/image-studio/comfy-effect-catalog";
+import { searchCuratedEffects } from "@/lib/assist/image-studio/comfy-effect-catalog";
 import { ComfyWorkflowCard } from "./comfy-workflow-card";
 import { ComfyGenericCard } from "./comfy-generic-card";
+import { RerouteFlowNode } from "@/features/canvas-nodes/reroute-card";
 import { ComfyEffectNodesDialog } from "./comfy-effect-nodes-dialog";
 import { useComfySubgraphRun } from "./use-comfy-subgraph-run";
 
@@ -90,6 +93,7 @@ const imageStudioComfyNodeTypes = {
   ...imageStudioNodeTypes,
   comfyWorkflow: ComfyWorkflowCard,
   comfyGeneric: ComfyGenericCard,
+  reroute: RerouteFlowNode,
 };
 
 type UploadTarget =
@@ -154,6 +158,14 @@ export function ImageStudioCanvas() {
   // —— ComfyUI 生态接线(09-08 二期/三期收官,流X)——
   // 效果节点弹窗+子图运行(三期:直放+子图编译执行)
   const [effectNodesOpen, setEffectNodesOpen] = useState(false);
+
+  // 拖线落空/双击画布的就地建节点菜单(09-09 照 ComfyUI):拖线到空白处松手
+  // → 在落点弹搜索菜单,选中即落卡并自动接回拖线源;双击画布同款(无拖线源)。
+  const [placement, setPlacement] = useState<{
+    screen: { x: number; y: number };
+    flow: { x: number; y: number };
+    pending?: { source: string; sourceHandle: string | null };
+  } | null>(null);
   const runComfySubgraph = useComfySubgraphRun();
   const canRunSubgraph = useMemo(
     () => (activeGraph?.nodes ?? []).some(
@@ -204,6 +216,95 @@ export function ImageStudioCanvas() {
   }) => {
     useImageStudioStore.getState().addComfyGenericNode(entry);
     toast.success(`「${entry.title}」已落卡:与其它节点连线后,框选子图点工具菜单「运行子图」出图`);
+  }, []);
+
+  /** 就地菜单落卡(09-09):业务节点/效果节点落位 → 按域规则自动接回拖线源 */
+  const handlePlacementPick = useCallback((kind: string, payload?: { classType?: string; title?: string; descriptor?: ComfyEffectNodeDescriptor }) => {
+    const current = placement;
+    if (!current) return;
+    const pending = current.pending;
+    const store = useImageStudioStore.getState();
+    const position = current.flow;
+    let createdId: string | null = null;
+    let targetHandle: string | undefined;
+    if (kind === "reroute") createdId = store.addRerouteNode({ position });
+    else if (kind === "prompt") createdId = store.addPromptNode({ position });
+    else if (kind === "nsfw") createdId = store.addNsfwNode({ position });
+    else if (kind === "uncloth") {
+      createdId = store.addUnclothNode({ position });
+      const source = pending
+        ? selectActiveImageStudioWorkflow(useImageStudioStore.getState())?.nodes.find((n) => n.id === pending.source)
+        : undefined;
+      targetHandle = source?.type === "prompt" ? "prompt-1" : "image";
+    } else if (kind === "comfy-generic" && payload?.descriptor) {
+      createdId = store.addComfyGenericNode({
+        classType: payload.classType ?? "",
+        title: payload.title ?? payload.classType ?? "效果节点",
+        descriptor: payload.descriptor,
+        position,
+      });
+    }
+    setPlacement(null);
+    if (!createdId || !pending) return;
+    // 自动连线:过不了单源规则就静默不连(用户可手动连,不弹错打扰)
+    const graph = selectActiveImageStudioWorkflow(useImageStudioStore.getState());
+    if (!graph) return;
+    const connection = {
+      source: pending.source,
+      target: createdId,
+      sourceHandle: pending.sourceHandle,
+      targetHandle,
+    };
+    if (
+      isValidImageConnection(graph, connection)
+      && comfyGenericPortTypesCompatible(graph, connection)
+    ) {
+      useImageStudioStore.getState().connect(
+        connection.source,
+        connection.target,
+        targetHandle,
+        connection.sourceHandle ?? undefined,
+      );
+    }
+  }, [placement]);
+
+  /** 拖线落空(09-09 照 ComfyUI):非 Esc 取消且带着源 → 落点弹建节点菜单 */
+  const handleConnectDrop = useCallback((
+    event: MouseEvent | TouchEvent,
+    state: unknown,
+  ) => {
+    const connectionState = state as { isValid?: boolean; fromNode?: { id?: string } | null; fromHandle?: { id?: string | null } | null };
+    if (connectionState.isValid) return;
+    const fromId = connectionState.fromNode?.id;
+    if (!fromId || !("clientX" in event)) return;
+    const screen = { x: event.clientX, y: event.clientY };
+    const flow = flowInstanceRef.current?.screenToFlowPosition(screen);
+    if (!flow) return;
+    setPlacement({
+      screen,
+      flow,
+      pending: { source: fromId, sourceHandle: connectionState.fromHandle?.id ?? null },
+    });
+  }, []);
+
+  // Ctrl/Cmd+M 旁路切换(09-09 照 ComfyUI):选中节点进出生成链;连线保留
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      // 仅 Ctrl(ComfyUI 官方同款):Cmd+M 是 macOS 系统最小化,不抢占
+      if (event.ctrlKey && !event.metaKey && event.key.toLowerCase() === "m") {
+        const selected = document.querySelector(".react-flow__node.selected [data-canvas-node-kind], .react-flow__node.selected [data-image-studio-node-kind]");
+        const nodeId = selected?.closest(".react-flow__node")?.getAttribute("data-id");
+        if (!nodeId) return;
+        event.preventDefault();
+        const graph = selectActiveImageStudioWorkflow(useImageStudioStore.getState());
+        const node = graph?.nodes.find((item) => item.id === nodeId);
+        if (!node) return;
+        useImageStudioStore.getState().setNodeBypassed(nodeId, node.bypassed !== true);
+        toast.info(node.bypassed === true ? `「${node.title}」已恢复参与生成` : `「${node.title}」已旁路(生成链跳过,连线保留)`);
+      }
+    };
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
   }, []);
 
   // 导出/导入画布 JSON(09-02 R2:导出保引用不打包;导入校验+失效降级)
@@ -600,6 +701,8 @@ export function ImageStudioCanvas() {
         store.addStickyNote({ position: paneCreate?.world });
       } else if (kind === "group") {
         store.addGroup({ position: paneCreate?.world });
+      } else if (kind === "reroute") {
+        store.addRerouteNode({ position: paneCreate?.world });
       } else {
         store.addPromptNode({ position: paneCreate?.world });
       }
@@ -642,7 +745,9 @@ export function ImageStudioCanvas() {
         ? "comfyWorkflow"
         : node.type === "comfy-generic"
           ? "comfyGeneric"
-          : "imageStudio",
+          : node.type === "reroute"
+            ? "reroute"
+            : "imageStudio",
       position: node.position,
       data: {
         node,
@@ -884,6 +989,14 @@ export function ImageStudioCanvas() {
             onClose={() => useImageStudioStore.getState().setComfyBrowserOpen(false)}
           />
         ) : null}
+        {placement ? (
+          <NodePlacementMenu
+            screen={placement.screen}
+            hasPendingConnection={Boolean(placement.pending)}
+            onPick={handlePlacementPick}
+            onClose={() => setPlacement(null)}
+          />
+        ) : null}
         <ComfyEffectNodesDialog
           open={effectNodesOpen}
           onOpenChange={setEffectNodesOpen}
@@ -899,6 +1012,7 @@ export function ImageStudioCanvas() {
           onPaneClick={() => setSelectedNodeId(null)}
           onPaneContextMenu={handlePaneContextMenu}
           onPaneDoubleClick={handlePaneDoubleClick}
+          onConnectDrop={handleConnectDrop}
           onSelection={handleSelectionIds}
           dropHandlers={dropHandlers}
           onNodeContextMenu={handleNodeContextMenu}
@@ -1092,6 +1206,7 @@ function ImageStudioFlowView({
   onPaneClick,
   onPaneContextMenu,
   onPaneDoubleClick,
+  onConnectDrop,
   onSelection,
   dropHandlers,
   onNodeContextMenu,
@@ -1110,6 +1225,8 @@ function ImageStudioFlowView({
   onPaneClick: () => void;
   onPaneContextMenu: (event: MouseEvent) => void;
   onPaneDoubleClick: (event: React.MouseEvent | MouseEvent) => void;
+  /** 09-09 拖线落空透传(未 Esc 取消):外层弹就地建节点菜单 */
+  onConnectDrop?: (event: MouseEvent | TouchEvent, connectionState: unknown) => void;
   onSelection: (nodeIds: string[]) => void;
   dropHandlers: {
     onDragEnter: (event: React.DragEvent) => void;
@@ -1357,8 +1474,10 @@ function ImageStudioFlowView({
           if (consumeConnectCancel()) return;
           onConnect(connection);
         }}
-        onConnectEnd={() => {
+        onConnectEnd={(event, connectionState) => {
           if (consumeConnectCancel()) return;
+          // 09-09 照 ComfyUI:拖线落空(未 Esc 取消)→ 外层就地弹建节点菜单
+          onConnectDrop?.(event, connectionState);
         }}
         onPointerDown={mouseButtonPan.onPointerDown}
         onPointerMove={mouseButtonPan.onPointerMove}
@@ -1395,8 +1514,14 @@ function ImageStudioFlowView({
         }}
         // 09-07 根修:归一到 isValidImageConnection 单源(此前手抄副本漏
         // uncloth 目标 → 无衣物节点任何入边都被 React Flow 拒收,连线全废)
+        // 09-09 照 ComfyUI:双 comfy-generic 端点再加口型匹配(IMAGE→IMAGE 等,
+        // 口型词表与端口色同源);业务节点域规则照旧单源。
         isValidConnection={(connection) =>
-          Boolean(graph && isValidImageConnection(graph, connection))
+          Boolean(
+            graph
+              && isValidImageConnection(graph, connection)
+              && comfyGenericPortTypesCompatible(graph, connection),
+          )
         }
         onInit={(instance) => {
           setFlowInstance(instance);
@@ -1451,6 +1576,106 @@ function ImageStudioFlowView({
           </div>
         </div>
       ) : null}
+    </div>
+  );
+}
+
+/**
+ * 就地建节点菜单(09-09 照 ComfyUI「拖线到空白弹搜索」):落点浮层,
+ * 业务节点(可拖线延续的)+ 中转点 + 策展效果节点;Esc/点背面关闭。
+ * 纯 UI 组件,落卡与自动连线回调在父层单源。
+ */
+function NodePlacementMenu({
+  screen,
+  hasPendingConnection,
+  onPick,
+  onClose,
+}: {
+  screen: { x: number; y: number };
+  hasPendingConnection: boolean;
+  onPick: (kind: string, payload?: { classType?: string; title?: string; descriptor?: ComfyEffectNodeDescriptor }) => void;
+  onClose: () => void;
+}) {
+  const [query, setQuery] = useState("");
+  const effects = useMemo(() => searchCuratedEffects(query).slice(0, 8), [query]);
+  const businessEntries = useMemo(
+    () => [
+      { kind: "reroute", label: "中转点", hint: "连线拐弯整理" },
+      { kind: "prompt", label: "提示词", hint: "正/反向提示词" },
+      { kind: "uncloth", label: "无衣物", hint: "局部重绘" },
+      { kind: "nsfw", label: "NSFW破限", hint: "专业流增强" },
+    ],
+    [],
+  );
+  const filteredBusiness = businessEntries.filter((entry) =>
+    query.trim() === "" || entry.label.includes(query.trim()) || entry.kind.includes(query.trim().toLowerCase()),
+  );
+  return (
+    <div
+      className="fixed inset-0 z-40"
+      onClick={onClose}
+      onContextMenu={(event) => {
+        event.preventDefault();
+        onClose();
+      }}
+      onKeyDown={(event) => {
+        if (event.key === "Escape") onClose();
+      }}
+      data-comfy-placement-backdrop
+    >
+      <div
+        className="absolute z-50 w-64 overflow-hidden rounded-lg border border-border bg-card/98 shadow-lg"
+        style={{ left: Math.min(screen.x, window.innerWidth - 270), top: Math.min(screen.y, window.innerHeight - 320) }}
+        onClick={(event) => event.stopPropagation()}
+        data-comfy-placement-menu
+      >
+        <div className="border-b border-border px-2.5 py-2 text-[11px] font-medium text-muted-foreground">
+          {hasPendingConnection ? "松手处建节点(自动接回连线)" : "双击处建节点"}
+        </div>
+        <input
+          autoFocus
+          value={query}
+          onChange={(event) => setQuery(event.target.value)}
+          placeholder="搜节点名…"
+          className="h-8 w-full border-b border-border bg-transparent px-2.5 text-xs text-foreground outline-none"
+          data-comfy-placement-search
+        />
+        <div className="max-h-64 overflow-y-auto py-1">
+          {filteredBusiness.map((entry) => (
+            <button
+              key={entry.kind}
+              type="button"
+              onClick={() => onPick(entry.kind)}
+              className="flex w-full items-center justify-between gap-2 px-2.5 py-1.5 text-left text-xs text-foreground transition-colors hover:bg-accent/60"
+              data-comfy-placement-item={entry.kind}
+            >
+              <span className="font-medium">{entry.label}</span>
+              <span className="truncate text-[10px] text-muted-foreground">{entry.hint}</span>
+            </button>
+          ))}
+          {effects.map((entry) => (
+            <button
+              key={entry.classType}
+              type="button"
+              onClick={() =>
+                onPick("comfy-generic", {
+                  classType: entry.classType,
+                  title: entry.zhName,
+                  descriptor: entry.descriptor,
+                })
+              }
+              className="flex w-full items-center justify-between gap-2 px-2.5 py-1.5 text-left text-xs text-foreground transition-colors hover:bg-accent/60"
+              data-comfy-placement-item={entry.classType}
+            >
+              <span className="min-w-0 truncate font-medium">{entry.zhName}</span>
+              <span className="shrink-0 text-[10px] text-muted-foreground">效果</span>
+            </button>
+          ))}
+          {filteredBusiness.length === 0 && effects.length === 0 ? (
+            <div className="px-2.5 py-2 text-[11px] text-muted-foreground">没有匹配的节点</div>
+          ) : null}
+        </div>
+      </div>
     </div>
   );
 }

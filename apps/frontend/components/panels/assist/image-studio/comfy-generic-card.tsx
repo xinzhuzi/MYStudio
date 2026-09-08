@@ -145,6 +145,7 @@ export const ComfyGenericCard = memo(function ComfyGenericCard({
       node={node}
       selected={data.selected || selected}
       dataKindAttr="data-image-studio-node-kind"
+      onResizeEnd={(width) => useImageStudioStore.getState().setNodeWidth(node.id, width)}
     >
       {body}
     </CanvasNodeShell>

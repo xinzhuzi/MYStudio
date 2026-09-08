@@ -71,7 +71,7 @@ describe("ComfyWidgetField INT/FLOAT(滑杆+数值步进)", () => {
     const input = screen.getByLabelText("步数") as HTMLInputElement;
     expect(input.value).toBe("8");
     // 英文原名进 tooltip(中文标签+原文对照)
-    expect(screen.getByTitle("steps(steps)").textContent).toContain("步数");
+    expect(screen.getByTitle(/steps\(steps\)/).textContent).toContain("步数");
   });
 
   it("钳制:数值框敲越界值,失焦后 onChange 只吐钳制结果", () => {

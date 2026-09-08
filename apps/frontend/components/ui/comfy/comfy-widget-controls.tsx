@@ -15,7 +15,7 @@
  * 连线/选中交互由集成期包 React Flow(本组件零画布依赖)。
  */
 
-import { useCallback, useId, useState } from "react";
+import { useCallback, useId, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 import { Slider } from "../slider";
 import { Switch } from "../switch";
@@ -237,7 +237,8 @@ export function ComfyWidgetField({
   );
 }
 
-/** INT/FLOAT:标签行(右侧数值步进框)+ 下方滑杆;输入以草稿态持有,失焦/回车才钳制提交 */
+/** INT/FLOAT:标签行(右侧数值步进框)+ 下方滑杆;输入以草稿态持有,失焦/回车才钳制提交。
+ * 09-09 照 ComfyUI:标签行支持水平拖动调值(按 step 逐格,右增左减)。 */
 function ComfyNumberControl({
   schema,
   current,
@@ -276,12 +277,37 @@ function ComfyNumberControl({
     const parsed = Number(trimmed);
     if (Number.isFinite(parsed)) commit(clamp(parsed));
   };
+  // 拖动调值(ComfyUI 肌肉记忆):按住标签行水平拖,每 step 像素一格
+  const dragStateRef = useRef<{ startX: number; startValue: number; stepped: number } | null>(null);
+  const onDragPointerDown = (event: React.PointerEvent<HTMLLabelElement>) => {
+    if (disabled || event.button !== 0) return;
+    // 点到输入框/其内部不放拖(输入自有交互)
+    if ((event.target as HTMLElement).closest("input,button")) return;
+    dragStateRef.current = { startX: event.clientX, startValue: numeric, stepped: 0 };
+    (event.currentTarget as HTMLLabelElement).setPointerCapture(event.pointerId);
+  };
+  const onDragPointerMove = (event: React.PointerEvent<HTMLLabelElement>) => {
+    const state = dragStateRef.current;
+    if (!state) return;
+    const PIXELS_PER_STEP = 6;
+    const deltaSteps = Math.trunc((event.clientX - state.startX) / PIXELS_PER_STEP);
+    if (deltaSteps === state.stepped) return;
+    state.stepped = deltaSteps;
+    commit(clamp(state.startValue + deltaSteps * step));
+  };
+  const onDragPointerEnd = () => {
+    dragStateRef.current = null;
+  };
 
   return (
     <>
       <label
-        className="flex items-center justify-between gap-2 text-[11px] text-muted-foreground"
-        title={labelTitle}
+        className="flex cursor-ew-resize select-none items-center justify-between gap-2 text-[11px] text-muted-foreground"
+        title={`${labelTitle}(按住左右拖动调值)`}
+        onPointerDown={onDragPointerDown}
+        onPointerMove={onDragPointerMove}
+        onPointerUp={onDragPointerEnd}
+        onPointerCancel={onDragPointerEnd}
       >
         <span className="shrink-0 truncate">{label}</span>
         <input
@@ -299,7 +325,7 @@ function ComfyNumberControl({
           onKeyDown={(event) => {
             if (event.key === "Enter") commitDraft();
           }}
-          className="h-7 w-20 shrink-0 rounded-md border border-border bg-card/80 px-1.5 text-xs tabular-nums text-foreground outline-none"
+          className="pointer-events-auto h-7 w-20 shrink-0 rounded-md border border-border bg-card/80 px-1.5 text-xs tabular-nums text-foreground outline-none"
         />
       </label>
       <Slider

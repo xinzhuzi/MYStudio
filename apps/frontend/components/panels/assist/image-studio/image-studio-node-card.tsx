@@ -126,6 +126,7 @@ export const ImageStudioNodeCard = memo(function ImageStudioNodeCard({
         selected={data.selected}
         titleOverride={node.type === "reference" && data.referenceIndex ? `参考图 ${data.referenceIndex}` : undefined}
         dataKindAttr="data-image-studio-node-kind"
+        onResizeEnd={(width) => useImageStudioStore.getState().setNodeWidth(node.id, width)}
         footer={
           node.type === "nsfw" ? <NsfwNodeEditor node={node} />
           : node.type === "uncloth" ? <UnclothNodeEditor node={node} onUpdate={data.onUpdate} />

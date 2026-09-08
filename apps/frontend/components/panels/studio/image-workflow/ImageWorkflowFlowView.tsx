@@ -10,6 +10,7 @@ import { imageWorkflowTargetKey } from "./image-workflow-graph-utils";
 import { ImageWorkflowReactNode } from "./image-workflow-node-card";
 import { ConnectCreateInput, connectCreateDirection, getCreatableImageNodeTypes } from "@/lib/studio/image-workflow/connect-create";
 import { isValidImageConnection } from "@/lib/studio/image-workflow/graph-build";
+import { comfyGenericPortTypesCompatible } from "@/lib/assist/image-studio/comfy-generic-connection";
 import type { ImageWorkflowGraph, ImageWorkflowOpenContext } from "@/types/studio";
 import {
   Background,
@@ -335,8 +336,13 @@ export function ImageWorkflowFlowView({
         onContextMenuCapture={mouseButtonPan.onContextMenuCapture}
         // 09-07 根修:归一到 isValidImageConnection 单源(此前手抄副本漏
         // uncloth 目标 → 无衣物节点任何入边都被 React Flow 拒收,连线全废)
+        // 09-09 照 ComfyUI:双 comfy-generic 端点再加口型匹配(业务域规则单源照旧)
         isValidConnection={(connection) =>
-          Boolean(activeGraph && isValidImageConnection(activeGraph, connection))
+          Boolean(
+            activeGraph
+              && isValidImageConnection(activeGraph, connection)
+              && comfyGenericPortTypesCompatible(activeGraph, connection),
+          )
         }
         onInit={(instance) => {
           setFlowInstance(instance);

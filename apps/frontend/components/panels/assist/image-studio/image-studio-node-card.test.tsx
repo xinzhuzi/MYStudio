@@ -15,6 +15,8 @@ vi.mock("@/components/ui/image-resolution-badge", () => ({
 }));
 vi.mock("@xyflow/react", () => ({
   Handle: () => <span data-testid="handle" />,
+  NodeResizer: () => <span data-testid="node-resizer" />,
+
   Position: { Left: "left", Right: "right" },
 }));
 vi.mock("@/components/panels/assist/ModelSelector", () => ({

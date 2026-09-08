@@ -9,6 +9,7 @@ import { ResolutionBadge, probeImagePixelSize } from "@/components/ui/image-reso
 import { Textarea } from "@/components/ui/textarea";
 import { UnclothNodeEditor } from "@/components/ui/uncloth-node-editor";
 import { CANVAS_NODE_DEFINITIONS, CanvasNodeShell } from "@/features/canvas-nodes";
+import { RerouteCard } from "@/features/canvas-nodes/reroute-card";
 import { NsfwNodeEditor } from "@/components/ui/nsfw-node-editor";
 import { ModelSelector } from "@/components/panels/assist/ModelSelector";
 import { UPSCALE_INPUT_MAX_LONG_SIDE } from "@/lib/upscale/client";
@@ -85,6 +86,10 @@ function extractableImageUrl(node: ImageWorkflowNode): string | null {
 
 export const ImageWorkflowNodeCard = memo(function ImageWorkflowNodeCard({ data }: NodeProps<ImageWorkflowReactNode>) {
   const node = data.node;
+  // Reroute 中转(09-09 照 ComfyUI):最小形态独立卡,不走壳(无摘要/折叠语义)
+  if (node.type === "reroute") {
+    return <RerouteCard node={node} selected={data.selected} />;
+  }
   // 09-08 框架化(P1 试点):声明式节点整卡走通用壳(折叠+摘要底层能力)
   const shellDefinition = CANVAS_NODE_DEFINITIONS[node.type];
   if (shellDefinition) {

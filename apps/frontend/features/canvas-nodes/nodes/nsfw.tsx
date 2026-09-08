@@ -16,12 +16,14 @@ export const nsfwNodeDefinition: CanvasNodeDefinition = {
   handles: [
     {
       kind: "target",
+      label: "提示词",
       position: "Left",
       className: "border-info/40! bg-info/20!",
       title: "正向提示词输入口:提示词节点「正」口连这里(经本节点增强后供成图)",
     },
     {
       kind: "source",
+      label: "增强",
       position: "Right",
       className: "border-info/40! bg-info/20!",
       title: "输出口:连到成图节点,生成自动走 Krea2 专业流",

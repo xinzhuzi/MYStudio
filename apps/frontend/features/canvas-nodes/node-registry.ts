@@ -15,6 +15,8 @@ export interface CanvasNodeHandleDef {
   kind: "source" | "target";
   /** 缺省=单口(与存量无 id handle 回落口径一致) */
   id?: string;
+  /** 端口行短名(09-09 端口行布局;缺省回落 badge/id) */
+  label?: string;
   position: "Left" | "Right";
   /** 百分比定位(如 "55%");缺省=垂直居中 */
   top?: string;

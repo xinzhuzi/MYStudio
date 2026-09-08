@@ -17,6 +17,7 @@ export const unclothNodeDefinition: CanvasNodeDefinition = {
     {
       kind: "target",
       id: "image",
+      label: "图",
       position: "Left",
       top: "20%",
       className: "border-warning/40! bg-warning/20!",
@@ -28,6 +29,7 @@ export const unclothNodeDefinition: CanvasNodeDefinition = {
     {
       kind: "target",
       id: "image-b",
+      label: "图B",
       position: "Left",
       top: "42%",
       className: "border-accent-foreground/30! bg-accent/15!",
@@ -39,6 +41,7 @@ export const unclothNodeDefinition: CanvasNodeDefinition = {
     {
       kind: "target",
       id: "prompt-1",
+      label: "①指令",
       position: "Left",
       top: "63%",
       className: "border-info/40! bg-info/20!",
@@ -50,6 +53,7 @@ export const unclothNodeDefinition: CanvasNodeDefinition = {
     {
       kind: "target",
       id: "prompt-2",
+      label: "②描述",
       position: "Left",
       top: "86%",
       className: "border-destructive/50! bg-destructive/15!",
@@ -60,6 +64,7 @@ export const unclothNodeDefinition: CanvasNodeDefinition = {
     },
     {
       kind: "source",
+      label: "结果",
       position: "Right",
       className: "border-info/40! bg-info/20!",
       title: "输出口:连到成图节点(本卡结果直通成图)",

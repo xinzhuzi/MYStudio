@@ -21,6 +21,7 @@ import {
   selectActiveImageStudioWorkflow,
   useImageStudioStore,
 } from "@/stores/assist/image-studio-store";
+import { collapseTransparentNodes } from "@/lib/studio/image-workflow/graph-build";
 import type { ImageWorkflowNode } from "@/types/studio";
 
 /**
@@ -51,9 +52,14 @@ export function useComfySubgraphRun() {
     const store = useImageStudioStore.getState();
     const graph = selectActiveImageStudioWorkflow(store);
     if (!graph || selectedIds.length === 0) return;
+    // 09-09 透明节点塌缩(reroute 直通/bypassed 穿线)后再投影:旁路节点与
+    // 中转点不进编译节点表,但其语义已经在塌缩边里生效(图进图出/文进文出)。
+    const collapsed = collapseTransparentNodes(graph);
     const compile = compileComfySubgraph({
-      nodes: graph.nodes.map(toCompilerNode),
-      edges: graph.edges,
+      nodes: collapsed.nodes
+        .filter((node) => node.bypassed !== true && node.type !== "reroute")
+        .map(toCompilerNode),
+      edges: collapsed.edges,
       selection: selectedIds,
     });
     if (!compile.ok) {
@@ -66,7 +72,7 @@ export function useComfySubgraphRun() {
     try {
       const images: Array<{ key: string; name: string; b64: string }> = [];
       for (const pending of compile.pendingImages) {
-        const source = graph.nodes.find((node) => node.id === pending.sourceNodeId);
+        const source = collapsed.nodes.find((node) => node.id === pending.sourceNodeId);
         const url = comfyUpstreamImageUrlOf(source);
         if (!url) throw new Error(`上游「${source?.title ?? pending.sourceNodeId}」的图不见了,重新连一下再运行`);
         images.push({ key: pending.key, name: pending.name, b64: await comfyImageUrlToB64(url) });

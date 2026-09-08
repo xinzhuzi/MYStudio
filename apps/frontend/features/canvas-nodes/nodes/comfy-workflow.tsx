@@ -30,6 +30,7 @@ export const comfyWorkflowNodeDefinition: CanvasNodeDefinition = {
     },
     {
       kind: "target",
+      label: "图",
       id: "image",
       position: "Left",
       top: "66%",

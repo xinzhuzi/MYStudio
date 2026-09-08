@@ -3,7 +3,7 @@
 // Commercial licensing available. See COMMERCIAL_LICENSE.md.
 
 import { useEffect, useRef } from "react";
-import { Flame, ImagePlus, Images, LayoutGrid, Maximize, Shirt, Type, WandSparkles , StickyNote, Boxes} from "lucide-react";
+import { Flame, ImagePlus, Images, LayoutGrid, Maximize, Milestone, Shirt, Type, WandSparkles , StickyNote, Boxes} from "lucide-react";
 import { CONTEXT_MENU_ARRIVAL_CLASS, useContextMenuClamp } from "./context-menu-craft";
 
 /**
@@ -12,7 +12,7 @@ import { CONTEXT_MENU_ARRIVAL_CLASS, useContextMenuClamp } from "./context-menu-
  * ui/dropdown-menu 项类名逐字对齐。右键空白弹出,选中后在落点创建;
  * 键盘 ↑↓/Enter/ESC 可达。
  */
-export type PaneCreateKind = "generation-group" | "generation-group-i2i" | "reference" | "uncloth" | "prompt" | "sticky" | "group" | "nsfw";
+export type PaneCreateKind = "generation-group" | "generation-group-i2i" | "reference" | "uncloth" | "prompt" | "sticky" | "group" | "nsfw" | "reroute";
 export type PaneCanvasAction = "tidy-layout" | "fit-view";
 
 const ITEM_CLASS =
@@ -25,6 +25,7 @@ const CREATE_ITEMS: { kind: PaneCreateKind; label: string; icon: React.ReactNode
   { kind: "nsfw", label: "NSFW破限", icon: <Flame className="text-muted-foreground" /> },
   { kind: "reference", label: "参考图", icon: <ImagePlus className="text-muted-foreground" /> },
   { kind: "prompt", label: "提示词", icon: <Type className="text-muted-foreground" /> },
+  { kind: "reroute", label: "中转点", icon: <Milestone className="text-muted-foreground" /> },
   { kind: "sticky", label: "便利贴", icon: <StickyNote className="text-muted-foreground" /> },
   { kind: "group", label: "分组框", icon: <Boxes className="text-muted-foreground" /> },
 ];

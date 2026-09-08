@@ -1,12 +1,12 @@
 import { BACKGROUND_PLATE_NEGATIVE_ANCHORS, SUBJECT_CUTOUT_NEGATIVE_ANCHORS, buildBackgroundPlatePrompt, buildSubjectCutoutPrompt } from "../layered-generation";
 import { addGeneratedImageNode, addReferenceImageNode } from "./graph-build";
 import type { AddPromptImageNodeInput } from "./graph-build";
-import { buildImageWorkflowPortRuleSet, evaluateImageConnection, evaluateImageEdge } from "./port-types";
-import { getImageWorkflowPortDeclarations } from "../canvas-node-registry";
+import { buildImageWorkflowPortRuleSet, evaluateImageConnection, evaluateImageEdge, NODE_OUTPUT_KIND, portKindCompatible, type PortTypeKind } from "./port-types";
+import { getImageWorkflowPortDeclarations, getCanvasNodeEntry } from "../canvas-node-registry";
 import { nextStackedPosition } from "./layout";
 import { useAppSettingsStore } from "@/stores/app/app-settings-store";
 import type { ImageWorkflowEdge, ImageWorkflowGeneratedNode, ImageWorkflowGraph, ImageWorkflowGroupNode, ImageWorkflowNode, ImageWorkflowNodePosition, ImageWorkflowPromptNode, ImageWorkflowReferenceNode, ImageWorkflowStickyNode, StoryboardItem,
-  ImageWorkflowNsfwNode, ImageWorkflowUnclothNode,
+  ImageWorkflowNsfwNode, ImageWorkflowUnclothNode, ImageWorkflowRerouteNode,
 } from "@/types/studio";
 
 /**
@@ -98,11 +98,32 @@ export function addNsfwImageNode(
   return touchGraph({ ...graph, nodes: [...graph.nodes, node] }, now);
 }
 
+/** Reroute 中转节点工厂(09-09 照 ComfyUI):零业务字段,规则/编译穿透处理 */
+export function addRerouteImageNode(
+  graph: ImageWorkflowGraph,
+  input: {
+    id?: string;
+    title?: string;
+    position?: ImageWorkflowNodePosition;
+    createdAt?: number;
+  },
+): ImageWorkflowGraph {
+  const now = input.createdAt ?? Date.now();
+  const node: ImageWorkflowRerouteNode = {
+    id: input.id ?? createId("reroute", now),
+    type: "reroute",
+    title: input.title?.trim() || "中转点",
+    position: input.position ?? { x: 80, y: 80 },
+    createdAt: now,
+    updatedAt: now,
+  };
+  return touchGraph({ ...graph, nodes: [...graph.nodes, node] }, now);
+}
+
 export function addPromptImageNode(
   graph: ImageWorkflowGraph,
   input: AddPromptImageNodeInput,
-): ImageWorkflowGraph {
-  const now = input.createdAt ?? Date.now();
+): ImageWorkflowGraph {  const now = input.createdAt ?? Date.now();
   const imageSettings = useAppSettingsStore.getState().imageGenerationSettings;
   const node: ImageWorkflowPromptNode = {
     id: input.id ?? createId("prompt", now),
@@ -211,7 +232,7 @@ export function isValidImageEdge(
   source: string,
   target: string,
 ): boolean {
-  return evaluateImageEdge(graph, source, target, imageEdgeRuleSet);
+  return evaluateImageEdge(collapseTransparentNodes(graph), source, target, imageEdgeRuleSet);
 }
 
 /**
@@ -230,7 +251,95 @@ export function isValidImageConnection(
   graph: ImageWorkflowGraph,
   connection: { source: string | null; target: string | null; sourceHandle?: string | null; targetHandle?: string | null },
 ): boolean {
-  return evaluateImageConnection(graph, connection, imageEdgeRuleSet);
+  return evaluateImageConnection(collapseTransparentNodes(graph), connection, imageEdgeRuleSet);
+}
+
+// ── Reroute 中转 + bypass 旁路(09-09 照 ComfyUI) ─────────────────────
+//
+// 透明节点(reroute/bypassed)不参与任何规则/解析/编译:所有消费方先经
+// collapseTransparentNodes 拿「塌缩视图」——reroute=唯一入边直通全部出边;
+// bypassed 业务节点=按端口类型把同类入边接到自己的出边(图进图出/文进文出,
+// ComfyUI bypass 同义),同类入边缺失时其出边随之断开。节点本身保留在图里
+// (视觉与画布操作不受影响);无透明节点时原样返回(零开销快路径)。
+
+function isTransparentNode(node: ImageWorkflowNode): boolean {
+  return node.type === "reroute" || node.bypassed === true;
+}
+
+/**
+ * 塌缩视图:透明节点的出边改接其(解析后的)入边真源。
+ * 环防御=访问链封顶;重复边/自环滤除;透明节点间链式逐级解析。
+ */
+export function collapseTransparentNodes(graph: ImageWorkflowGraph): ImageWorkflowGraph {
+  const transparentIds = new Set(
+    graph.nodes.filter(isTransparentNode).map((node) => node.id),
+  );
+  if (transparentIds.size === 0) return graph;
+  const nodesById = new Map(graph.nodes.map((node) => [node.id, node]));
+
+  const resolveSource = (
+    sourceId: string,
+    sourceHandle: string | null | undefined,
+    chain: Set<string>,
+  ): { source: string; sourceHandle?: string } | null => {
+    if (chain.has(sourceId)) return null;
+    chain.add(sourceId);
+    const node = nodesById.get(sourceId);
+    if (!node || !isTransparentNode(node)) {
+      return { source: sourceId, sourceHandle: sourceHandle ?? undefined };
+    }
+    const inEdges = graph.edges.filter((edge) => edge.target === sourceId);
+    if (inEdges.length === 0) return null;
+    // reroute 单入直通;bypassed 节点多入边按「与自身输出同类型」挑选
+    if (node.type === "reroute") {
+      const head = inEdges[0];
+      return resolveSource(head.source, head.sourceHandle, chain);
+    }
+    const wantedKind = outputKindOfNode(node);
+    for (const edge of inEdges) {
+      const resolved = resolveSource(edge.source, edge.sourceHandle, chain);
+      if (resolved && sourceKindMatches(nodesById.get(resolved.source), wantedKind)) {
+        return resolved;
+      }
+    }
+    return null;
+  };
+
+  const seen = new Set<string>();
+  const edges: ImageWorkflowEdge[] = [];
+  for (const edge of graph.edges) {
+    if (transparentIds.has(edge.target)) continue; // 透明节点自己的入边不出视图
+    let next: ImageWorkflowEdge = edge;
+    if (transparentIds.has(edge.source)) {
+      const resolved = resolveSource(edge.source, edge.sourceHandle, new Set());
+      if (!resolved) continue; // 断链(空转/无同类源):出边随之消失
+      next = { ...edge, source: resolved.source, sourceHandle: resolved.sourceHandle };
+    }
+    if (next.source === next.target) continue;
+    const key = `${next.source}:${next.sourceHandle ?? ""}->${next.target}:${next.targetHandle ?? ""}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    edges.push(next);
+  }
+  return { ...graph, edges };
+}
+
+/** 节点输出资源类型(NODE_OUTPUT_KIND 优先;comfy-workflow/generic/reroute 从
+ * 注册表 outputs 兜底——词表未收录它们,直接补词表会牵动既有连线规则) */
+function outputKindOfNode(node: ImageWorkflowNode): PortTypeKind | null {
+  const kind = NODE_OUTPUT_KIND[node.type];
+  if (kind) return kind;
+  const outputs = getCanvasNodeEntry("image-workflow", node.type)?.outputs;
+  const first = outputs?.[0]?.kind;
+  return first === "production-status" ? null : (first ?? null);
+}
+
+/** 真源输出是否与旁路节点所需同类(reference/generated 图族互通,按兼容表) */
+function sourceKindMatches(source: ImageWorkflowNode | undefined, wanted: PortTypeKind | null): boolean {
+  if (!source || !wanted) return false;
+  const kind = NODE_OUTPUT_KIND[source.type];
+  if (!kind) return false;
+  return portKindCompatible(kind, wanted);
 }
 
 /**
@@ -250,16 +359,19 @@ const imageEdgeRuleSet = buildImageWorkflowPortRuleSet(
  * 第 1 根归①口、第 2 根归②口(存量双提示词边语义保持);成图目标不筛口。
  */
 export function splitPromptEdgesByPolarity(
-  graph: ImageWorkflowGraph,
+  workflowGraph: ImageWorkflowGraph,
   targetNodeId: string,
   targetHandle?: string | null,
   options?: { legacyNegative?: boolean },
 ): { positive: string[]; negative: string[] } {
+  // 塌缩视图:reroute/bypass 穿透后按真源分流(09-09);旁路提示词源不产文
+  const graph = collapseTransparentNodes(workflowGraph);
   const nodesById = new Map(graph.nodes.map((node) => [node.id, node]));
   const target = nodesById.get(targetNodeId);
   const promptEdges = graph.edges.filter((edge) => {
     if (edge.target !== targetNodeId) return false;
-    return nodesById.get(edge.source)?.type === "prompt";
+    const source = nodesById.get(edge.source);
+    return source?.type === "prompt" && source.bypassed !== true;
   });
   // uncloth 存量无 handle 边按纵向序归口(1→①,2→②)
   const unhandledByOrder = target?.type === "uncloth"
@@ -406,12 +518,15 @@ export function findPromptNodeForGenerated(
   graph: ImageWorkflowGraph,
   generatedNodeId: string,
 ): ImageWorkflowPromptNode | undefined {
-  const inputNodeIds = graph.edges
+  // 塌缩视图:reroute/bypass 穿透后按真源找提示词(09-09)
+  const collapsed = collapseTransparentNodes(graph);
+  const inputNodeIds = collapsed.edges
     .filter((edge) => edge.target === generatedNodeId)
     .map((edge) => edge.source);
-  return graph.nodes.find(
+  return collapsed.nodes.find(
     (node): node is ImageWorkflowPromptNode =>
       node.type === "prompt" &&
+      !node.bypassed &&
       (node.targetNodeId === generatedNodeId || inputNodeIds.includes(node.id)),
   );
 }

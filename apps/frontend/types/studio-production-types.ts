@@ -290,7 +290,7 @@ export interface AssetImageWorkflowContext extends ImageWorkflowOpenContext {
   target: ImageWorkflowTarget & { kind: "asset"; assetType: ImageWorkflowAssetTargetType };
 }
 
-export type ImageWorkflowNodeType = "reference" | "prompt" | "generated" | "uncloth" | "sticky" | "group" | "nsfw" | "comfy-workflow" | "comfy-generic";
+export type ImageWorkflowNodeType = "reference" | "prompt" | "generated" | "uncloth" | "sticky" | "group" | "nsfw" | "comfy-workflow" | "comfy-generic" | "reroute";
 export type ImageWorkflowGenerationStatus = "idle" | "queued" | "generating" | "ready" | "failed";
 
 /** ComfyUI 工作流节点/通用节点的运行状态(09-08 二期/三期收官;不复用生成链
@@ -309,6 +309,14 @@ interface ImageWorkflowNodeBase {
   position: ImageWorkflowNodePosition;
   createdAt: number;
   updatedAt: number;
+  /**
+   * 旁路标记(09-09 照 ComfyUI Ctrl+M):true=节点在生成/编译链中被跳过,
+   * 连线视觉保留(穿线而过)。存量子图/链解析统一经 resolveEffectiveSource
+   * 对齐口径;纯 UI 态,不参与任何容量/席位计数。
+   */
+  bypassed?: boolean;
+  /** 手动宽度(NodeResizer 拉伸;缺省=注册表/卡片默认宽;仅宽度,高度随内容) */
+  size?: { width: number };
 }
 
 /**
@@ -599,7 +607,17 @@ export type ImageWorkflowNode =
   | ImageWorkflowGroupNode
   | ImageWorkflowNsfwNode
   | ImageWorkflowComfyWorkflowNode
-  | ImageWorkflowComfyGenericNode;
+  | ImageWorkflowComfyGenericNode
+  | ImageWorkflowRerouteNode;
+
+/**
+ * Reroute 中转节点(09-09 照 ComfyUI):纯连线整理件——任意一根进、原样
+ * 一根出,不改变任何链语义。规则/编译/请求解析统一经 resolveEffectiveSource
+ * 穿透(见 graph-build-mutations);零业务字段。
+ */
+export interface ImageWorkflowRerouteNode extends ImageWorkflowNodeBase {
+  type: "reroute";
+}
 
 /** 便利贴节点(09-03 wave3 吸收):画布创作标注,不参与连线域规则 */
 export interface ImageWorkflowStickyNode extends ImageWorkflowNodeBase {

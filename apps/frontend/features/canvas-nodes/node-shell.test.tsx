@@ -17,6 +17,8 @@ vi.mock("@xyflow/react", () => ({
       data-testid="handle"
     />
   ),
+  NodeResizer: () => <span data-testid="node-resizer" />,
+
   Position: { Left: "left", Right: "right" },
 }));
 import { nsfwNodeDefinition } from "./nodes/nsfw";

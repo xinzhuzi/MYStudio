@@ -16,6 +16,7 @@ export const referenceNodeDefinition: CanvasNodeDefinition = {
   handles: [
     {
       kind: "source",
+      label: "图",
       position: "Right",
       className: "border-success/40! bg-success/20!",
       title: "输出口:连到成图/无衣物图口作为参考",

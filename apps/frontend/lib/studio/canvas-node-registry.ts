@@ -255,6 +255,21 @@ const IMAGE_WORKFLOW_DEFINITIONS: readonly CanvasNodeEntry[] = [
     ],
     miniMapToken: "accent",
   },
+  {
+    // Reroute 中转(09-09 照 ComfyUI):纯连线整理件。规则层单进单出任意源
+    // (真源经 collapseTransparentNodes 穿透后按原类型参与下游校验/解析),
+    // 编译期被编译器塌缩成直连线。
+    typeId: "reroute",
+    surface: "image-workflow",
+    label: "中转点",
+    description: "连线中转/拐弯整理:任意一根进,原样一根出,不改变链语义",
+    actions: ["delete"] as const,
+    outputs: [{ kind: "generated-image", description: "原样转发上游(类型随上游)" }],
+    inputs: [
+      { id: "in", label: "入", type: "generated-image", accepts: "*", capacity: 1 },
+    ],
+    miniMapToken: "accent",
+  },
 ];
 
 /** 画布注释容器类型:不可作为连线源(旧规则 sticky/group 源拒) */

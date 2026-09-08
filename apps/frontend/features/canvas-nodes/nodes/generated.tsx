@@ -17,12 +17,14 @@ export const generatedNodeDefinition: CanvasNodeDefinition = {
   handles: [
     {
       kind: "target",
+      label: "图",
       position: "Left",
       className: "border-info/40! bg-info/20!",
       title: "输入口:上游提示词(正/负)/无衣物/NSFW/参考图连这里",
     },
     {
       kind: "source",
+      label: "成图",
       position: "Right",
       className: "border-info/40! bg-info/20!",
       title: "输出口:结果可连下游成图/无衣物图口继续精修",

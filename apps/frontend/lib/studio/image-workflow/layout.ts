@@ -32,6 +32,9 @@ export const IMAGE_WORKFLOW_LAYOUT = {
   // NSFW破限(09-07-nsfw-pro-node):输入列第四区(无衣物区之下)——
   // 提示词通道中介,同左列拓扑;缺槽位同崩(Record 缺键)
   nsfw: { width: 420, height: 360, x: 80, baseY: 100, vGap: 120 },
+  // Reroute 中转(09-09):纯连线件,窄卡;不进左列(LEFT_COLUMN_TYPES
+  // 不含 reroute,整理布局不动它——中转点属用户手工摆放语义)
+  reroute: { width: 240, height: 80, x: 480, baseY: 100, vGap: 120 },
 } as const;
 
 const LEFT_COLUMN_TYPES = new Set<ImageWorkflowNode["type"]>(["reference", "prompt", "uncloth", "nsfw"]);

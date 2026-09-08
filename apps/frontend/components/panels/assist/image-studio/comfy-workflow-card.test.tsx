@@ -8,6 +8,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("@xyflow/react", () => ({
   Handle: () => <span data-testid="handle" />,
+  NodeResizer: () => <span data-testid="node-resizer" />,
+
   Position: { Left: "left", Right: "right" },
 }));
 vi.mock("@/components/ui/local-image", () => ({

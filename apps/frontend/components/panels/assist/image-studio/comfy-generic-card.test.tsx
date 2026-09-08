@@ -17,6 +17,7 @@ vi.mock("@xyflow/react", () => ({
   Handle: ({ id, type }: { id?: string; type: string }) => (
     <span data-testid="handle" data-handle-id={id ?? "single"} data-handle-type={type} />
   ),
+  NodeResizer: () => <span data-testid="node-resizer" />,
   Position: { Left: "left", Right: "right" },
 }));
 vi.mock("@/components/ui/local-image", () => ({

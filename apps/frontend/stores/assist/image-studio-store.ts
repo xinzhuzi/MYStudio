@@ -20,6 +20,7 @@ import {
   updateImageWorkflowNode,
   addUnclothImageNode,
   addNsfwImageNode,
+  addRerouteImageNode,
 } from "@/lib/studio/image-workflow/graph-build";
 import {
   layoutImageStudioGraph,
@@ -106,6 +107,12 @@ export interface ImageStudioStoreActions {
   /** 无衣物改图节点(09-04):输入图+文本边,输出连成图;参数全量可选 */
   addUnclothNode: (input?: { prompt?: string; position?: ImageWorkflowNodePosition; variant?: "instruct" | "fine" }) => string;
   addNsfwNode: (input?: { position?: ImageWorkflowNodePosition }) => string;
+  /** Reroute 中转(09-09 照 ComfyUI):纯连线整理件 */
+  addRerouteNode: (input?: { position?: ImageWorkflowNodePosition }) => string;
+  /** 节点旁路开关(09-09 照 ComfyUI Ctrl+M):true=生成/编译链跳过,连线保留 */
+  setNodeBypassed: (nodeId: string, bypassed: boolean) => void;
+  /** 节点手动宽度(NodeResizer;仅宽度,高度随内容) */
+  setNodeWidth: (nodeId: string, width: number) => void;
   // —— ComfyUI 生态节点(09-08 二期/三期收官,流X;只追加)——
   /** 工作流库导入成卡(浏览器「导入成节点卡」):descriptor 快照+widgets 值+输出 mediaRef 持久化 */
   addComfyWorkflowNode: (input: {
@@ -605,6 +612,9 @@ export const useImageStudioStore = create<ImageStudioStore>()(
               position: offset,
             });
           }
+          if (source.type === "reroute") {
+            return addRerouteImageNode(current, { id, title: `${source.title} 副本`, position: offset });
+          }
           return addGeneratedImageNode(current, {
             id,
             title: `${source.title} 副本`,
@@ -747,6 +757,43 @@ export const useImageStudioStore = create<ImageStudioStore>()(
           }),
         );
         return id;
+      },
+
+      addRerouteNode: (input?: { position?: ImageWorkflowNodePosition }) => {
+        ensureActiveCanvas(get, set);
+        const graph = selectActiveImageStudioWorkflow(get());
+        if (!graph) {
+          throw new Error("画布未就绪");
+        }
+        const id = createId("reroute");
+        get().updateActiveWorkflow(() =>
+          addRerouteImageNode(graph, {
+            id,
+            position: input?.position ?? nextColumnPosition(graph, "prompt"),
+          }),
+        );
+        return id;
+      },
+
+      setNodeBypassed: (nodeId, bypassed) => {
+        get().updateActiveWorkflow((graph) => ({
+          ...graph,
+          nodes: graph.nodes.map((node) =>
+            node.id === nodeId ? { ...node, bypassed, updatedAt: Date.now() } : node,
+          ),
+        }));
+      },
+
+      setNodeWidth: (nodeId, width) => {
+        const clamped = Math.max(280, Math.min(900, Math.round(width)));
+        get().updateActiveWorkflow((graph) => ({
+          ...graph,
+          nodes: graph.nodes.map((node) =>
+            node.id === nodeId
+              ? { ...node, size: { width: clamped }, updatedAt: Date.now() }
+              : node,
+          ),
+        }));
       },
 
       // —— ComfyUI 生态节点(09-08 二期/三期收官,流X;节点模型在 types 侧,
