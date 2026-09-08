@@ -196,8 +196,8 @@ export function ComfyEngineSettingsSection({ embedded = false }: ComfyEngineSett
   const status = engine.status;
   const [modelsDirDraft, setModelsDirDraft] = useState("");
   const [confirmReset, setConfirmReset] = useState(false);
-  // 高级设置折叠(09-08 映射表补口:启动参数翻译档位 + PyTorch 版本 + 快照)
-  const [advancedOpen, setAdvancedOpen] = useState(false);
+  // 标签页(照 ComfyUI Desktop 设置布局:更新/启动参数/快照/存储)
+  const [activeTab, setActiveTab] = useState<"update" | "launch" | "snapshots" | "storage">("update");
   const [vramDraft, setVramDraft] = useState("");
   const [attentionDraft, setAttentionDraft] = useState("");
 
@@ -361,6 +361,37 @@ export function ComfyEngineSettingsSection({ embedded = false }: ComfyEngineSett
             </div>
           </div>
 
+          {/* 标签栏(照 ComfyUI Desktop 设置页布局:更新/启动参数/快照/存储) */}
+          <div className="flex flex-wrap gap-1 border-b border-border pb-2" data-comfy-tabs>
+            {([
+              ["update", "更新"],
+              ["launch", "启动参数"],
+              ["snapshots", "快照"],
+              ["storage", "存储"],
+            ] as const).map(([key, label]) => (
+              <button
+                key={key}
+                type="button"
+                onClick={() => {
+                  setActiveTab(key);
+                  if (key === "snapshots") void engine.refreshSnapshots();
+                }}
+                className={cn(
+                  "rounded-md px-3 py-1.5 text-xs font-medium",
+                  activeTab === key
+                    ? "bg-accent text-accent-foreground"
+                    : "text-muted-foreground hover:text-foreground",
+                )}
+                data-comfy-tab={key}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+
+          {/* 更新页(照 ComfyUI Desktop 截图:版本块+已是最新/可更新+检查更新+PyTorch 块) */}
+          {activeTab === "update" ? (
+            <div className="space-y-4">
           {/* 版本行:当前版本 + 检查更新 + 更新(显式) */}
           <div className="flex flex-wrap items-center justify-between gap-3">
             <p className="text-sm font-medium text-foreground" data-comfy-version-row>
@@ -398,6 +429,21 @@ export function ComfyEngineSettingsSection({ embedded = false }: ComfyEngineSett
             </div>
           </div>
 
+              <div className="rounded-lg border border-border bg-card/60 p-3">
+                <p className="text-xs font-medium text-foreground">PyTorch</p>
+                <div className="mt-2 flex items-center justify-between gap-3">
+                  <span className="text-xs text-muted-foreground">PyTorch 版本</span>
+                  <span className="font-mono text-xs text-foreground" data-comfy-torch>
+                    {status?.torch ?? "未记录"}(Apple 芯片 MPS)
+                  </span>
+                </div>
+              </div>
+            </div>
+          ) : null}
+
+          {/* 启动参数页(照截图行式布局:端口只读+显存策略/加速方式大白话下拉) */}
+          {activeTab === "launch" ? (
+            <div className="space-y-4" data-comfy-advanced>
           {/* 端口行:只读展示实际端口(17xxx 防撞顺延结果) */}
           <div className="grid gap-3 md:grid-cols-[5rem_minmax(0,1fr)_auto] md:items-center">
             <span className="text-xs text-muted-foreground">服务端口</span>
@@ -413,6 +459,143 @@ export function ComfyEngineSettingsSection({ embedded = false }: ComfyEngineSett
             </p>
           </div>
 
+              <div className="flex items-center justify-between gap-3">
+                <span className="text-xs text-muted-foreground">显存策略</span>
+                <select
+                  aria-label="显存策略"
+                  value={vramDraft}
+                  onChange={(event) => setVramDraft(event.target.value)}
+                  className="h-8 rounded-md border border-border bg-card px-2 text-xs text-foreground"
+                  data-comfy-vram-select
+                >
+                  <option value="auto">自动(推荐)</option>
+                  <option value="gpu-only">全力使用显存</option>
+                  <option value="reserve-vram">预留部分显存</option>
+                </select>
+              </div>
+              <div className="flex items-center justify-between gap-3">
+                <span className="text-xs text-muted-foreground">加速方式</span>
+                <select
+                  aria-label="加速方式"
+                  value={attentionDraft}
+                  onChange={(event) => setAttentionDraft(event.target.value)}
+                  className="h-8 rounded-md border border-border bg-card px-2 text-xs text-foreground"
+                  data-comfy-attention-select
+                >
+                  <option value="auto">自动(推荐)</option>
+                  <option value="pytorch-cross-attention">PyTorch 加速</option>
+                </select>
+              </div>
+              <div className="flex items-center justify-end">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() =>
+                    void engine.setLaunchArgs({
+                      vramPolicy: (vramDraft || "auto") as "auto" | "gpu-only" | "reserve-vram",
+                      attentionMode: (attentionDraft || "auto") as "auto" | "pytorch-cross-attention",
+                    })
+                  }
+                  data-comfy-advanced-save
+                >
+                  保存(重启引擎后生效)
+                </Button>
+              </div>
+              <p className="text-[11px] leading-4 text-muted-foreground">
+                显存策略/加速方式是引擎启动参数的大白话翻译;保存后下次启动引擎生效。
+              </p>
+            </div>
+          ) : null}
+
+          {/* 快照页(照截图:快照列表+回滚;体检/复位同住本页=引擎的保险区) */}
+          {activeTab === "snapshots" ? (
+            <div className="space-y-4">
+              <div data-comfy-snapshots>
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-medium text-foreground">快照与回滚</span>
+                  <Button size="sm" variant="ghost" onClick={() => void engine.refreshSnapshots()} data-comfy-snapshot-refresh>
+                    刷新
+                  </Button>
+                </div>
+                {engine.snapshots.length === 0 ? (
+                  <p className="mt-1 text-[11px] leading-4 text-muted-foreground">
+                    暂无快照——安装插件、更新引擎前会自动创建,出问题可一键回到之前的状态。
+                  </p>
+                ) : (
+                  <ul className="mt-2 space-y-1.5">
+                    {engine.snapshots.slice(0, 5).map((snap) => (
+                      <li key={snap.id} className="flex items-center justify-between gap-2 text-[11px]">
+                        <span className="min-w-0 truncate text-muted-foreground">
+                          {new Date(snap.createdAt).toLocaleString("zh-CN", { month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" })}
+                          ·{snapshotReasonLabel(snap.reason)}
+                          {snap.version ? `(${snap.version})` : ""}
+                        </span>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => void engine.rollbackTo(snap.id)}
+                          disabled={engine.isRollingBack}
+                          data-comfy-snapshot-rollback
+                        >
+                          回滚到此
+                        </Button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+              <div className="border-t border-border pt-3" />
+          {/* 依赖体检:报告 + 核弹复位(二次确认) */}
+          <div className="space-y-1">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <p className="flex items-center gap-2 text-sm font-medium text-foreground">
+                <Stethoscope className="h-4 w-4 text-primary" aria-hidden />
+                依赖体检
+              </p>
+              <div className="flex gap-2">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => void engine.runDoctor()}
+                  disabled={engine.isRunningDoctor}
+                >
+                  {engine.isRunningDoctor ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden />
+                  ) : (
+                    <Stethoscope className="mr-2 h-4 w-4" aria-hidden />
+                  )}
+                  开始体检
+                </Button>
+                <Button
+                  size="sm"
+                  variant="destructive"
+                  onClick={() => setConfirmReset(true)}
+                  disabled={resetting}
+                  data-comfy-reset-button
+                >
+                  {resetting ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden />
+                  ) : (
+                    <RotateCcw className="mr-2 h-4 w-4" aria-hidden />
+                  )}
+                  核弹复位
+                </Button>
+              </div>
+            </div>
+            <p className="text-[11px] leading-4 text-muted-foreground">
+              体检会核对依赖账本(装了什么、版本对不对、有没有残留);核弹复位会清空并按账本重建引擎运行环境,模型文件不受影响。
+            </p>
+            {engine.doctorReport ? (
+              <DoctorReportCard report={engine.doctorReport} onCleanOrphans={() => void engine.cleanOrphans()} />
+            ) : null}
+          </div>
+
+            </div>
+          ) : null}
+
+          {/* 存储页(照截图:模型目录) */}
+          {activeTab === "storage" ? (
+            <div className="space-y-3">
           {/* 模型目录行:默认 + 自定义路径(指向现有模型库即免重下)+ 打开 */}
           <div className="grid gap-3 md:grid-cols-[5rem_minmax(0,1fr)_auto] md:items-center">
             <span className="text-xs text-muted-foreground">模型目录</span>
@@ -464,158 +647,8 @@ export function ComfyEngineSettingsSection({ embedded = false }: ComfyEngineSett
             可以改成已有模型库的路径(例如你在别的软件里下载过的模型目录),引擎直接复用,不用重新下载几十 GB。
           </p>
 
-          {/* 依赖体检:报告 + 核弹复位(二次确认) */}
-          <div className="space-y-1">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <p className="flex items-center gap-2 text-sm font-medium text-foreground">
-                <Stethoscope className="h-4 w-4 text-primary" aria-hidden />
-                依赖体检
-              </p>
-              <div className="flex gap-2">
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => void engine.runDoctor()}
-                  disabled={engine.isRunningDoctor}
-                >
-                  {engine.isRunningDoctor ? (
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden />
-                  ) : (
-                    <Stethoscope className="mr-2 h-4 w-4" aria-hidden />
-                  )}
-                  开始体检
-                </Button>
-                <Button
-                  size="sm"
-                  variant="destructive"
-                  onClick={() => setConfirmReset(true)}
-                  disabled={resetting}
-                  data-comfy-reset-button
-                >
-                  {resetting ? (
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden />
-                  ) : (
-                    <RotateCcw className="mr-2 h-4 w-4" aria-hidden />
-                  )}
-                  核弹复位
-                </Button>
-              </div>
             </div>
-            <p className="text-[11px] leading-4 text-muted-foreground">
-              体检会核对依赖账本(装了什么、版本对不对、有没有残留);核弹复位会清空并按账本重建引擎运行环境,模型文件不受影响。
-            </p>
-            {engine.doctorReport ? (
-              <DoctorReportCard report={engine.doctorReport} onCleanOrphans={() => void engine.cleanOrphans()} />
-            ) : null}
-          </div>
-
-          {/* 高级设置(09-08 映射表补口:Comfy Desktop 启动参数/PyTorch 行的翻译落地) */}
-          <div className="rounded-lg border border-border bg-card/60 p-3" data-comfy-advanced>
-            <button
-              type="button"
-              className="flex w-full items-center justify-between rounded-md px-1 py-0.5 text-xs font-medium text-foreground"
-              onClick={() => {
-                const next = !advancedOpen;
-                setAdvancedOpen(next);
-                if (next) void engine.refreshSnapshots();
-              }}
-              data-comfy-advanced-toggle
-            >
-              <span>高级设置</span>
-              <span className="text-muted-foreground">{advancedOpen ? "收起" : "展开"}</span>
-            </button>
-            {advancedOpen ? (
-              <div className="mt-3 space-y-3">
-                <div className="flex items-center justify-between gap-3">
-                  <span className="text-xs text-muted-foreground">PyTorch 版本</span>
-                  <span className="font-mono text-xs text-foreground" data-comfy-torch>
-                    {status?.torch ?? "未记录"}(Apple 芯片 MPS)
-                  </span>
-                </div>
-                <div className="flex items-center justify-between gap-3">
-                  <span className="text-xs text-muted-foreground">显存策略</span>
-                  <select
-                    aria-label="显存策略"
-                    value={vramDraft}
-                    onChange={(event) => setVramDraft(event.target.value)}
-                    className="h-8 rounded-md border border-border bg-card px-2 text-xs text-foreground"
-                    data-comfy-vram-select
-                  >
-                    <option value="auto">自动(推荐)</option>
-                    <option value="gpu-only">全力使用显存</option>
-                    <option value="reserve-vram">预留部分显存</option>
-                  </select>
-                </div>
-                <div className="flex items-center justify-between gap-3">
-                  <span className="text-xs text-muted-foreground">加速方式</span>
-                  <select
-                    aria-label="加速方式"
-                    value={attentionDraft}
-                    onChange={(event) => setAttentionDraft(event.target.value)}
-                    className="h-8 rounded-md border border-border bg-card px-2 text-xs text-foreground"
-                    data-comfy-attention-select
-                  >
-                    <option value="auto">自动(推荐)</option>
-                    <option value="pytorch-cross-attention">PyTorch 加速</option>
-                  </select>
-                </div>
-                <div className="flex items-center justify-end">
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() =>
-                      void engine.setLaunchArgs({
-                        vramPolicy: (vramDraft || "auto") as "auto" | "gpu-only" | "reserve-vram",
-                        attentionMode: (attentionDraft || "auto") as "auto" | "pytorch-cross-attention",
-                      })
-                    }
-                    data-comfy-advanced-save
-                  >
-                    保存(重启引擎后生效)
-                  </Button>
-                </div>
-                <p className="text-[11px] leading-4 text-muted-foreground">
-                  显存策略/加速方式是引擎启动参数的大白话翻译;保存后下次启动引擎生效。
-                </p>
-
-                {/* 快照与回滚(映射表:快照页→搬并强化) */}
-                <div className="border-t border-border pt-3" data-comfy-snapshots>
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-medium text-foreground">快照与回滚</span>
-                    <Button size="sm" variant="ghost" onClick={() => void engine.refreshSnapshots()} data-comfy-snapshot-refresh>
-                      刷新
-                    </Button>
-                  </div>
-                  {engine.snapshots.length === 0 ? (
-                    <p className="mt-1 text-[11px] leading-4 text-muted-foreground">
-                      暂无快照——安装插件、更新引擎前会自动创建,出问题可一键回到之前的状态。
-                    </p>
-                  ) : (
-                    <ul className="mt-2 space-y-1.5">
-                      {engine.snapshots.slice(0, 5).map((snap) => (
-                        <li key={snap.id} className="flex items-center justify-between gap-2 text-[11px]">
-                          <span className="min-w-0 truncate text-muted-foreground">
-                            {new Date(snap.createdAt).toLocaleString("zh-CN", { month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" })}
-                            ·{snapshotReasonLabel(snap.reason)}
-                            {snap.version ? `(${snap.version})` : ""}
-                          </span>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => void engine.rollbackTo(snap.id)}
-                            disabled={engine.isRollingBack}
-                            data-comfy-snapshot-rollback
-                          >
-                            回滚到此
-                          </Button>
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                </div>
-              </div>
-            ) : null}
-          </div>
+          ) : null}
 
           {/* 生态插件子区块 */}
           <ComfyEnginePluginBlock engine={engine} />

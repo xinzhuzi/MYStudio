@@ -152,11 +152,12 @@ describe("ComfyEngineSettingsSection 状态机", () => {
     expect(actions.installEngine).toHaveBeenCalledOnce();
   });
 
-  it("已就绪但服务未跑:副标「准备运行时」+ 启动服务按钮,端口只读展示", () => {
+  it("已就绪但服务未跑:副标「准备运行时」+ 启动服务按钮,端口只读展示(启动参数页)", () => {
     scenario.status = readyStatus({ serviceRunning: false });
     render(<ComfyEngineSettingsSection embedded />);
 
     expect(screen.getByText(/服务未启动——点「启动服务」准备运行时/)).toBeTruthy();
+    fireEvent.click(comfyEl("tab", "launch"));
     expect(screen.getByDisplayValue("17599")).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: /启动服务/ }));
     expect(actions.startService).toHaveBeenCalledOnce();
@@ -232,6 +233,7 @@ describe("ComfyEngineSettingsSection 模型目录/体检/复位", () => {
   it("模型目录行:输入自定义路径保存", async () => {
     scenario.status = readyStatus();
     render(<ComfyEngineSettingsSection embedded />);
+    fireEvent.click(comfyEl("tab", "storage"));
 
     const input = comfyEl("models-dir-input") as HTMLInputElement;
     expect(input.value).toBe("/tmp/comfyui/models");
@@ -244,6 +246,7 @@ describe("ComfyEngineSettingsSection 模型目录/体检/复位", () => {
     scenario.status = readyStatus();
     scenario.doctorReport = { missing: [], drifted: ["numpy(被外部顶到 2.1.0)"], orphan: [] };
     render(<ComfyEngineSettingsSection embedded />);
+    fireEvent.click(comfyEl("tab", "snapshots"));
 
     fireEvent.click(screen.getByRole("button", { name: /开始体检/ }));
     expect(actions.runDoctor).toHaveBeenCalledOnce();
@@ -254,6 +257,7 @@ describe("ComfyEngineSettingsSection 模型目录/体检/复位", () => {
   it("核弹复位:先弹二次确认,确认后才触发复位", async () => {
     scenario.status = readyStatus();
     render(<ComfyEngineSettingsSection embedded />);
+    fireEvent.click(comfyEl("tab", "snapshots"));
 
     fireEvent.click(comfyEl("reset-button"));
     expect(actions.resetEngine).not.toHaveBeenCalled();
@@ -370,40 +374,55 @@ describe("ComfyEngineSettingsSection 插件子区块", () => {
 });
 
 // ── 09-08 映射表补口:高级设置区 + 快照区 ──
-describe("ComfyEngineSettingsSection 高级设置与快照(映射表补口)", () => {
+describe("ComfyEngineSettingsSection 标签页布局(照 ComfyUI Desktop)", () => {
   beforeEach(() => {
     scenario.status = readyStatus({ torch: "2.13.0", launchArgs: { vramPolicy: "auto", attentionMode: "auto", reserveVramGb: null } });
     scenario.snapshots = [];
   });
 
-  it("展开高级区:PyTorch 版本/显存策略/加速方式渲染", async () => {
+  it("标签栏四页(更新/启动参数/快照/存储)渲染,更新页含 PyTorch 版本块", async () => {
     render(<ComfyEngineSettingsSection />);
     await waitFor(() => expect(screen.getByText("当前版本")).toBeTruthy());
-    fireEvent.click(comfyEl("advanced-toggle"));
+    expect(comfyEl("tab", "update")).toBeTruthy();
+    expect(comfyEl("tab", "launch")).toBeTruthy();
+    expect(comfyEl("tab", "snapshots")).toBeTruthy();
+    expect(comfyEl("tab", "storage")).toBeTruthy();
     await waitFor(() => expect(comfyEl("torch")?.textContent).toContain("2.13.0"));
-    expect(comfyEl("vram-select")).toBeTruthy();
-    expect(comfyEl("attention-select")).toBeTruthy();
-    expect(comfyEl("snapshots")).toBeTruthy();
   });
 
-  it("保存性能档:setLaunchArgs 收到档位值", async () => {
+  it("启动参数页:端口+显存策略/加速方式下拉,保存传档位", async () => {
     render(<ComfyEngineSettingsSection />);
     await waitFor(() => expect(screen.getByText("当前版本")).toBeTruthy());
-    fireEvent.click(comfyEl("advanced-toggle"));
+    fireEvent.click(comfyEl("tab", "launch"));
+    expect(comfyEl("port-input")).toBeTruthy();
+    expect(comfyEl("vram-select")).toBeTruthy();
+    expect(comfyEl("attention-select")).toBeTruthy();
     fireEvent.change(comfyEl("vram-select"), { target: { value: "gpu-only" } });
     fireEvent.click(comfyEl("advanced-save"));
     await waitFor(() => expect(actions.setLaunchArgs).toHaveBeenCalledWith(expect.objectContaining({ vramPolicy: "gpu-only" })));
   });
 
-  it("快照列表与回滚:渲染大白话原因,点击调 rollbackTo(id)", async () => {
+  it("快照页:大白话原因+回滚传 id;体检/复位同页", async () => {
     scenario.snapshots = [
       { id: "snap-9", createdAt: 1788835819800, reason: "plugin-uninstall:rgthree-comfy", version: "v0.34.6", full: false },
     ];
     render(<ComfyEngineSettingsSection />);
     await waitFor(() => expect(screen.getByText("当前版本")).toBeTruthy());
-    fireEvent.click(comfyEl("advanced-toggle"));
+    fireEvent.click(comfyEl("tab", "snapshots"));
     await waitFor(() => expect(screen.getByText(/卸载插件 rgthree-comfy 前/)).toBeTruthy());
+    expect(screen.getByText("依赖体检")).toBeTruthy();
+    expect(comfyEl("reset-button")).toBeTruthy();
     fireEvent.click(comfyEl("snapshot-rollback"));
     await waitFor(() => expect(actions.rollbackTo).toHaveBeenCalledWith("snap-9"));
+  });
+
+  it("存储页:模型目录输入+保存", async () => {
+    render(<ComfyEngineSettingsSection />);
+    await waitFor(() => expect(screen.getByText("当前版本")).toBeTruthy());
+    fireEvent.click(comfyEl("tab", "storage"));
+    expect(comfyEl("models-dir-input")).toBeTruthy();
+    fireEvent.change(comfyEl("models-dir-input"), { target: { value: "/Users/x/models" } });
+    fireEvent.click(comfyEl("models-dir-save"));
+    await waitFor(() => expect(actions.setModelsDir).toHaveBeenCalledWith("/Users/x/models"));
   });
 });
