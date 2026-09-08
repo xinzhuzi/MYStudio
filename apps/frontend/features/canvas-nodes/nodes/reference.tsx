@@ -23,6 +23,8 @@ export const referenceNodeDefinition: CanvasNodeDefinition = {
   ],
   summary: (node) => {
     const url = typeof node.imageUrl === "string" ? node.imageUrl : "";
-    return url ? "已挂参考图" : "空参考图(上传或拖图)";
+    if (!url) return "空参考图(上传或拖图)";
+    const tail = url.split("/").pop() ?? url;
+    return `已挂图:${tail.slice(0, 36)}`;
   },
 };

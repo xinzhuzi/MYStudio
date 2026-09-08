@@ -57,6 +57,10 @@ export const unclothNodeDefinition: CanvasNodeDefinition = {
   summary: (node) => {
     const variant = node.variant;
     const mode = variant === "instruct" ? "稳定" : variant === "fast" ? "快" : "遮罩";
-    return `无衣物·${mode} — ①正向 ②负向 图口由连线提供`;
+    const steps = typeof node.steps === "number" ? node.steps : 8;
+    const lines = [`档位:${mode} · ${steps} 步`, "口:①正向 ②负向 图=参考图/成图"];
+    const own = typeof node.prompt === "string" ? node.prompt.trim() : "";
+    if (own) lines.push(`自带指令:${own.slice(0, 30)}`);
+    return lines.join("\n");
   },
 };

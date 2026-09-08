@@ -16,6 +16,6 @@ export const stickyNodeDefinition: CanvasNodeDefinition = {
   handles: [],
   summary: (node) => {
     const text = typeof node.text === "string" ? node.text.trim() : "";
-    return text ? text.slice(0, 18) : "画布标注";
+    return text ? text.slice(0, 60) : "画布标注";
   },
 };

@@ -68,7 +68,13 @@ export const CanvasNodeShell = memo(function CanvasNodeShell({
   dataKindAttr?: string;
 }) {
   const [expanded, setExpanded] = useState(definition.defaultExpanded !== false);
-  const summary = definition.summary(node);
+  // 摘要=独立信息功能(常显,收起态即卡主体):内容行由 definition.summary
+  // 产出;与折叠(交互功能,控 footer)正交——有无摘要都可折叠,反之亦然
+  const summaryLines = definition.summary(node)
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .slice(0, 3);
   const Icon = definition.icon;
   return (
     <div
@@ -99,7 +105,6 @@ export const CanvasNodeShell = memo(function CanvasNodeShell({
           </span>
           <div className="min-w-0">
             <div className="truncate text-sm font-medium">{titleOverride ?? node.title ?? definition.label}</div>
-            {summary ? <div className="truncate text-[11px] text-muted-foreground">{summary}</div> : null}
           </div>
         </div>
         {footer ? (
@@ -113,6 +118,16 @@ export const CanvasNodeShell = memo(function CanvasNodeShell({
           </button>
         ) : null}
       </div>
+      {summaryLines.length > 0 ? (
+        <div
+          data-canvas-node-summary
+          className="mb-3 space-y-0.5 rounded-md border border-border/70 bg-background/60 px-2 py-1.5 text-[11px] leading-4 text-foreground/85"
+        >
+          {summaryLines.map((line) => (
+            <div key={line} className="truncate">{line}</div>
+          ))}
+        </div>
+      ) : null}
       {expanded ? <div className="space-y-2">{footer}</div> : null}
       {children}
     </div>

@@ -27,5 +27,5 @@ export const nsfwNodeDefinition: CanvasNodeDefinition = {
       title: "输出口:连到成图节点,生成自动走 Krea2 专业流",
     },
   ],
-  summary: (node) => `专业流增强 · ${typeof node.title === "string" && node.title ? node.title : "Krea2-NSFW"}`,
+  summary: () => "提示词→本节点→成图=Krea2 专业流\n破限 LoRA+重平衡(固定参数,收起详情即全部)",
 };

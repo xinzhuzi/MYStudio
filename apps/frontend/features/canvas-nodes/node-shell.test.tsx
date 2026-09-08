@@ -33,7 +33,7 @@ describe("CanvasNodeShell(框架底层能力)", () => {
       </CanvasNodeShell>,
     );
     expect(screen.getByText("破限")).toBeTruthy();
-    expect(screen.getByText(/专业流增强/)).toBeTruthy();
+    expect(screen.getByText(/Krea2 专业流/)).toBeTruthy();
     expect(screen.queryByText("详情内容X")).toBeNull();
     fireEvent.click(screen.getByLabelText("展开节点详情"));
     expect(screen.getByText("详情内容X")).toBeTruthy();

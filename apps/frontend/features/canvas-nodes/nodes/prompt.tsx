@@ -39,6 +39,9 @@ export const promptNodeDefinition: CanvasNodeDefinition = {
   ],
   summary: (node) => {
     const prompt = typeof node.prompt === "string" ? node.prompt.trim() : "";
-    return prompt ? prompt.slice(0, 18) : "未填写";
+    const negative = typeof node.negativePrompt === "string" ? node.negativePrompt.trim() : "";
+    const lines = [`正向:${prompt ? prompt.slice(0, 40) : "(未填写)"}`];
+    if (negative) lines.push(`负向:${negative.slice(0, 30)}`);
+    return lines.join("\n");
   },
 };
