@@ -41,6 +41,10 @@ _MODEL_FOLDER_KEYS = (
     "checkpoints", "configs", "loras", "vae", "clip", "unet", "clip_vision",
     "style_models", "embeddings", "controlnet", "gligen", "upscale_models",
     "hypernetworks", "photomaker", "ipadapter",
+    # 09-08 实弹补修:krea/flux 系权重住 diffusion_models,文本编码器住
+    # text_encoders(现代 ComfyUI 主力目录);缺这两个键=UNETLoader/CLIPLoader
+    # 看不见现有库的自托管权重,接管模式形同虚设。
+    "diffusion_models", "text_encoders",
 )
 
 

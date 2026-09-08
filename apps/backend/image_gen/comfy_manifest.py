@@ -92,7 +92,9 @@ def venv_pip() -> list[str]:
 
 
 def custom_nodes_dir() -> Path:
-    return comfy_home() / "custom_nodes"
+    # 09-08 实弹补修:ComfyUI 只加载「源码目录内」的 custom_nodes(隔离布局里
+    # <home>/custom_nodes 是兄弟目录,引擎根本不读——插件装进去差分恒 0)。
+    return engine_source_dir() / "custom_nodes"
 
 
 def workflows_dir() -> Path:
