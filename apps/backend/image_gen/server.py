@@ -486,7 +486,20 @@ class Handler(BaseHTTPRequestHandler):
                 return
             if method == "GET" and path == "/comfy/engine/object-info":
                 # object_info 摘要(工作流库缺插件检测口径);引擎未跑给 null 不误报。
+                # ?class=X → 单类详情(09-08 三期B 通用节点直放的 schema 拉取)。
                 engine = engine_manager()
+                detail_class = q("class")
+                if detail_class:
+                    if not engine.is_healthy():
+                        self._send_json({"engineOnline": False, "detail": None})
+                        return
+                    try:
+                        from . import comfy_execute
+
+                        self._send_json({"engineOnline": True, "detail": comfy_execute.object_info_detail(detail_class)})
+                    except (EngineOpError, OSError, urllib_error.URLError, json.JSONDecodeError) as exc:
+                        self._send_json({"engineOnline": False, "error": str(exc), "detail": None})
+                    return
                 if not engine.is_healthy():
                     self._send_json({"engineOnline": False, "classTypes": None})
                     return
@@ -559,6 +572,13 @@ class Handler(BaseHTTPRequestHandler):
                     else:
                         self._send_json(pm.delete_workflow(workflow_id, confirm=payload.get("confirm") is True or q("confirm") == "true"))
                     return
+
+            # ── 任意工作流执行(09-08 二期/三期收官共用;job 化,进度轮询) ──
+            if method == "POST" and path == "/comfy/execute":
+                from . import comfy_execute
+
+                self._send_json({"jobId": comfy_execute.execute_job(payload)})
+                return
 
             # ── job 进度(重操作的轮询通道) ──
             if method == "GET" and path.startswith("/comfy/jobs/"):

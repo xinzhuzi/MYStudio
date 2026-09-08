@@ -16,6 +16,8 @@ export { promptNodeDefinition } from "./nodes/prompt";
 export { unclothNodeDefinition } from "./nodes/uncloth";
 export { generatedNodeDefinition } from "./nodes/generated";
 export { groupNodeDefinition } from "./nodes/group";
+export { comfyWorkflowNodeDefinition } from "./nodes/comfy-workflow";
+export { comfyGenericNodeDefinition } from "./nodes/comfy-generic";
 
 import { nsfwNodeDefinition } from "./nodes/nsfw";
 import { stickyNodeDefinition } from "./nodes/sticky";
@@ -24,6 +26,8 @@ import { promptNodeDefinition } from "./nodes/prompt";
 import { unclothNodeDefinition } from "./nodes/uncloth";
 import { generatedNodeDefinition } from "./nodes/generated";
 import { groupNodeDefinition } from "./nodes/group";
+import { comfyWorkflowNodeDefinition } from "./nodes/comfy-workflow";
+import { comfyGenericNodeDefinition } from "./nodes/comfy-generic";
 import type { CanvasNodeDefinition } from "./node-registry";
 
 export const CANVAS_NODE_DEFINITIONS: Readonly<Record<string, CanvasNodeDefinition>> = {
@@ -34,4 +38,6 @@ export const CANVAS_NODE_DEFINITIONS: Readonly<Record<string, CanvasNodeDefiniti
   [unclothNodeDefinition.typeId]: unclothNodeDefinition,
   [generatedNodeDefinition.typeId]: generatedNodeDefinition,
   [groupNodeDefinition.typeId]: groupNodeDefinition,
+  [comfyWorkflowNodeDefinition.typeId]: comfyWorkflowNodeDefinition,
+  [comfyGenericNodeDefinition.typeId]: comfyGenericNodeDefinition,
 };

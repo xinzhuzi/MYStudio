@@ -290,8 +290,12 @@ export interface AssetImageWorkflowContext extends ImageWorkflowOpenContext {
   target: ImageWorkflowTarget & { kind: "asset"; assetType: ImageWorkflowAssetTargetType };
 }
 
-export type ImageWorkflowNodeType = "reference" | "prompt" | "generated" | "uncloth" | "sticky" | "group" | "nsfw";
+export type ImageWorkflowNodeType = "reference" | "prompt" | "generated" | "uncloth" | "sticky" | "group" | "nsfw" | "comfy-workflow" | "comfy-generic";
 export type ImageWorkflowGenerationStatus = "idle" | "queued" | "generating" | "ready" | "failed";
+
+/** ComfyUI 工作流节点/通用节点的运行状态(09-08 二期/三期收官;不复用生成链
+ *  五态——comfy 执行无排队态拆分,running 覆盖上传/执行/收图全程) */
+export type ImageWorkflowComfyNodeStatus = "idle" | "running" | "ready" | "failed";
 
 export interface ImageWorkflowNodePosition {
   x: number;
@@ -486,6 +490,106 @@ export interface ImageWorkflowNsfwNode extends ImageWorkflowNodeBase {
   type: "nsfw";
 }
 
+// ── ComfyUI 生态节点(09-08 二期/三期收官)─────────────────────────────
+// 快照字段均为「节点自持」结构形状,与 lib/assist/image-studio/comfy-workflow-import
+// 的 ComfyWorkflowDescriptor、components/ui/comfy 的端口/widget 契约结构兼容
+// (types 层不反向依赖 components,靠结构化类型对齐)。
+
+/** 通用节点端口快照(输入/输出;type=ComfyUI 类型名 IMAGE/MODEL/…) */
+export interface ImageWorkflowComfyPortSnapshot {
+  id: string;
+  label: string;
+  type: string;
+  side: "input" | "output";
+}
+
+/** 通用节点 widget 快照(五类控件配方) */
+export interface ImageWorkflowComfyWidgetSnapshot {
+  id: string;
+  label: string;
+  zhLabel?: string;
+  type: "INT" | "FLOAT" | "COMBO" | "STRING" | "BOOLEAN";
+  default?: number | string | boolean;
+  min?: number;
+  max?: number;
+  step?: number;
+  options?: string[];
+  placeholder?: string;
+}
+
+/** 工作流节点边界口快照(descriptor.ports;prompt-text/image 口) */
+export interface ImageWorkflowComfyWorkflowPortSnapshot {
+  id: string;
+  type: "prompt-text" | "image";
+  label: string;
+  nodeId: string;
+  inputKey: string;
+  polarity?: "positive" | "negative";
+}
+
+/** 工作流节点 widget 快照(descriptor.widgets;高级参数折叠区) */
+export interface ImageWorkflowComfyWorkflowWidgetSnapshot {
+  id: string;
+  type: "INT" | "FLOAT" | "COMBO" | "STRING" | "BOOLEAN";
+  label: string;
+  default: number | string | boolean;
+  range?: { min: number; max: number; step?: number };
+  options?: string[];
+  nodeId: string;
+  inputKey: string;
+}
+
+/**
+ * ComfyUI 工作流节点(09-08 二期收官):工作流库导入的 API 格式工作流整体
+ * 成卡。左进 prompt-text/image 口(上游连线注入),右侧出图口;widget 全收
+ * 「高级参数」折叠;执行走 /comfy/execute,输出图回填 resultUrl(mediaRef 模式)。
+ * 持久化字段:type/workflowId/descriptor 快照/widgets 值/输出 mediaRef
+ * (执行时按 workflowId 回库取原文,库条目删除有引用保护扫描兜底)。
+ */
+export interface ImageWorkflowComfyWorkflowNode extends ImageWorkflowNodeBase {
+  type: "comfy-workflow";
+  workflowId: string;
+  /** 工作流库名称快照(标题可被用户改,摘要回落用) */
+  workflowName: string;
+  /** 分析快照(ports/widgets/classTypesUsed/nodeCount;导入时由分析器产出) */
+  descriptor: {
+    ports: ImageWorkflowComfyWorkflowPortSnapshot[];
+    widgets: ImageWorkflowComfyWorkflowWidgetSnapshot[];
+    classTypesUsed: string[];
+    nodeCount: number;
+  };
+  /** widget 现值(id=节点号.字段名;缺项=descriptor 默认即工作流原值) */
+  widgetValues?: Record<string, number | string | boolean>;
+  status: ImageWorkflowComfyNodeStatus;
+  statusMessage?: string;
+  resultUrl?: string;
+  resultMediaId?: string;
+  /** 输出图张数(多图时 resultUrl=第一张) */
+  resultCount?: number;
+}
+
+/**
+ * ComfyUI 通用节点(09-08 三期收官):/object_info 或策展效果包直放的生态
+ * 节点单卡。口由 classType 的 descriptor 决定(卡内动态渲染 Handle);声明层
+ * 连线规则宽松(image+prompt-text 双向容量),类型严格校验留给子图编译器
+ * 执行时(编译器把画布子图编成 API 格式提交 /comfy/execute)。
+ */
+export interface ImageWorkflowComfyGenericNode extends ImageWorkflowNodeBase {
+  type: "comfy-generic";
+  /** ComfyUI class_type(英文原名;title 持中文名) */
+  classType: string;
+  /** 节点声明快照(端口/widget;策展包内置或 object_info 拉取) */
+  descriptor: {
+    ports: ImageWorkflowComfyPortSnapshot[];
+    widgets: ImageWorkflowComfyWidgetSnapshot[];
+  };
+  widgetValues?: Record<string, number | string | boolean>;
+  status: ImageWorkflowComfyNodeStatus;
+  statusMessage?: string;
+  resultUrl?: string;
+  resultMediaId?: string;
+}
+
 export type ImageWorkflowNode =
   | ImageWorkflowReferenceNode
   | ImageWorkflowPromptNode
@@ -493,7 +597,9 @@ export type ImageWorkflowNode =
   | ImageWorkflowUnclothNode
   | ImageWorkflowStickyNode
   | ImageWorkflowGroupNode
-  | ImageWorkflowNsfwNode;
+  | ImageWorkflowNsfwNode
+  | ImageWorkflowComfyWorkflowNode
+  | ImageWorkflowComfyGenericNode;
 
 /** 便利贴节点(09-03 wave3 吸收):画布创作标注,不参与连线域规则 */
 export interface ImageWorkflowStickyNode extends ImageWorkflowNodeBase {

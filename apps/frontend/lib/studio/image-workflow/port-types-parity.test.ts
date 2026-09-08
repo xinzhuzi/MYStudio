@@ -400,9 +400,9 @@ describe("端口类型系统差分对拍(固定种子 fuzz)", () => {
 // ────────── 声明表形态自检(数据面锚点,防止声明被误删/误改) ──────────
 
 describe("端口类型系统声明表(注册表 inputs/outputSeats)", () => {
-  it("成图/无衣物/NSFW破限声明输入通道;reference/prompt 不可作目标", () => {
+  it("成图/无衣物/NSFW破限声明输入通道;reference/prompt 不可作目标;comfy 两新类声明接入(09-08 流X)", () => {
     const { inputsByType, outputSeatsByType, bannedSourceTypes } = getImageWorkflowPortDeclarations();
-    expect(Object.keys(inputsByType).sort()).toEqual(["generated", "nsfw", "uncloth"]);
+    expect(Object.keys(inputsByType).sort()).toEqual(["comfy-generic", "comfy-workflow", "generated", "nsfw", "uncloth"]);
     expect(bannedSourceTypes).toEqual(["sticky", "group"]);
     // 成图五通道+兜底;提示词/nsfw 链互斥成对
     const generated = inputsByType["generated"] ?? [];

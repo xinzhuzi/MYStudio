@@ -186,6 +186,66 @@ const IMAGE_WORKFLOW_DEFINITIONS: readonly CanvasNodeEntry[] = [
     ],
     miniMapToken: "warning",
   },
+  {
+    // ComfyUI 工作流节点(09-08 二期收官,流X):工作流库导入的整体卡。
+    // 左 prompt 口+图口(各容量 1;卡上静态三口与渲染层 handle id 同口径),
+    // 右出图口;graph-build-mutations 引擎按本声明自动放行(零改动接入)。
+    typeId: "comfy-workflow",
+    surface: "image-workflow",
+    label: "工作流节点",
+    description: "ComfyUI 工作流库导入的整体卡:左连提示词/参考图,卡上运行出图",
+    actions: ["update", "run", "delete"] as const,
+    outputs: [{ kind: "generated-image", description: "工作流输出图,可连成图/效果节点" }],
+    inputs: [
+      {
+        // 提示词口:整根 prompt 边携带正负文本(卡内按 descriptor 极性分流注入)
+        id: "prompt",
+        label: "提示词",
+        type: "prompt-text",
+        accepts: ["prompt"],
+        capacity: 1,
+      },
+      {
+        // 图口:参考图/上游成图/无衣物/通用节点结果,一根(注入首个图口)
+        id: "image",
+        label: "图",
+        type: "reference-image",
+        accepts: ["reference", "generated", "uncloth", "comfy-workflow", "comfy-generic"],
+        capacity: 1,
+      },
+    ],
+    miniMapToken: "accent",
+  },
+  {
+    // ComfyUI 通用节点(09-08 三期收官,流X):object_info/策展直放的生态节点。
+    // 声明层宽松(image+prompt-text 双向容量,动态口不进声明);类型严格校验
+    // 留给子图编译器执行时(编译期大白话报错)。
+    typeId: "comfy-generic",
+    surface: "image-workflow",
+    label: "效果节点",
+    description: "直放的 ComfyUI 生态节点:与效果节点连成子图,工具菜单「运行子图」出图",
+    actions: ["update", "delete"] as const,
+    outputs: [{ kind: "generated-image", description: "节点输出(按 classType 的输出口)" }],
+    inputs: [
+      {
+        // 图口:参考图/上游成图族/生态节点输出(动态口按边注入,容量宽松)
+        id: "image",
+        label: "图",
+        type: "reference-image",
+        accepts: ["reference", "generated", "uncloth", "comfy-workflow", "comfy-generic"],
+        capacity: Number.POSITIVE_INFINITY,
+      },
+      {
+        // 提示词口:STRING 型动态口直接注入文本
+        id: "prompt",
+        label: "提示词",
+        type: "prompt-text",
+        accepts: ["prompt"],
+        capacity: 1,
+      },
+    ],
+    miniMapToken: "accent",
+  },
 ];
 
 /** 画布注释容器类型:不可作为连线源(旧规则 sticky/group 源拒) */

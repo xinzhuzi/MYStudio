@@ -11,7 +11,9 @@ import {
   LayoutGrid,
   MoreHorizontal,
   Pencil,
+  Play,
   Plus,
+  Sparkles,
   Trash2,
   Shirt as ShirtIcon,
   Type,
@@ -58,6 +60,9 @@ export function ImageStudioToolbar({
   onOpenHistory,
   onOpenAssistant,
   onOpenComfyBrowser,
+  onOpenEffectNodes,
+  onRunSubgraph,
+  canRunSubgraph,
   onExport,
   onImport,
   onOpenFolder
@@ -80,6 +85,11 @@ export function ImageStudioToolbar({
   onOpenAssistant: () => void;
   /** ComfyUI 工作流浏览器(09-08 二期):可选=宿主未接时不显示 */
   onOpenComfyBrowser?: () => void;
+  /** 效果节点放置弹窗(09-08 三期收官):可选=宿主未接时不显示 */
+  onOpenEffectNodes?: () => void;
+  /** 运行选中子图(含效果节点时可用;09-08 三期收官) */
+  onRunSubgraph?: () => void;
+  canRunSubgraph?: boolean;
   onExport?: () => void;
   onImport?: () => void;
   onOpenFolder: () => void;
@@ -187,6 +197,24 @@ export function ImageStudioToolbar({
             title="ComfyUI 工作流库:搜索/文件夹/外部导入,完整管理自管实例的工作流"
           >
             工作流库…
+          </DropdownMenuItem>
+          <DropdownMenuItem
+            onSelect={onOpenEffectNodes}
+            disabled={!onOpenEffectNodes}
+            data-image-studio-effect-nodes-toggle
+            title="ComfyUI 生态节点直放:策展效果包(设置里可解锁全量英文节点),选中后连成子图出图"
+          >
+            <Sparkles className="mr-2 h-3.5 w-3.5" />
+            效果节点…
+          </DropdownMenuItem>
+          <DropdownMenuItem
+            onSelect={onRunSubgraph}
+            disabled={!onRunSubgraph || !canRunSubgraph}
+            data-image-studio-run-subgraph-toggle
+            title="把选中的效果节点连成的子图提交 ComfyUI 引擎执行,末端节点回图"
+          >
+            <Play className="mr-2 h-3.5 w-3.5" />
+            运行子图
           </DropdownMenuItem>
           <DropdownMenuSeparator />
           <DropdownMenuItem onSelect={onTidy} title="按参考图/提示词/成图三列重排全部节点">

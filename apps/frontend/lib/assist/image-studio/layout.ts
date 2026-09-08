@@ -79,6 +79,14 @@ function stackColumn<T extends ImageWorkflowNode>(
   return positions;
 }
 
+/** 整理布局/落位的列泳道;comfy=工作流/效果节点(与成图同列,09-08 流X) */
+export type ImageStudioColumnLane = "reference" | "prompt" | "generated" | "comfy";
+
+/** comfy 泳道成员判定(工作流节点+通用节点共用成图列) */
+function isComfyLaneNode(node: ImageWorkflowNode): boolean {
+  return node.type === "comfy-workflow" || node.type === "comfy-generic";
+}
+
 /** 「整理布局」:全图按三列泳道+成图链代重排,返回重排后的图副本 */
 export function layoutImageStudioGraph(graph: ImageWorkflowGraph): ImageWorkflowGraph {
   const positions = new Map<string, ImageWorkflowNodePosition>();
@@ -100,10 +108,12 @@ export function layoutImageStudioGraph(graph: ImageWorkflowGraph): ImageWorkflow
     }
   }
   const depths = generatedChainDepth(graph);
-  const generatedByDepth = new Map<number, Extract<ImageWorkflowNode, { type: "generated" }>[]>();
+  const generatedByDepth = new Map<number, Extract<ImageWorkflowNode, { type: "generated" }>[]
+    | ImageWorkflowNode[]>();
   for (const node of graph.nodes) {
-    if (node.type !== "generated") continue;
-    const depth = depths.get(node.id) ?? 0;
+    // 成图按链代分列;comfy 节点(工作流/效果)并进成图列 depth=0 堆叠
+    if (node.type !== "generated" && !isComfyLaneNode(node)) continue;
+    const depth = node.type === "generated" ? (depths.get(node.id) ?? 0) : 0;
     const list = generatedByDepth.get(depth) ?? [];
     list.push(node);
     generatedByDepth.set(depth, list);
@@ -126,16 +136,19 @@ export function layoutImageStudioGraph(graph: ImageWorkflowGraph): ImageWorkflow
   };
 }
 
-/** 指定列的下一个空位(该列当前最大 y + 行距;空列从起点开始) */
+/** 指定列的下一个空位(该列当前最大 y + 行距;空列从起点开始);
+ *  comfy 泳道=成图列 x,成员=工作流+通用节点(09-08 流X) */
 export function nextColumnPosition(
   graph: ImageWorkflowGraph,
-  type: "reference" | "prompt" | "generated",
+  type: ImageStudioColumnLane,
 ): ImageWorkflowNodePosition {
-  const x = type === "generated"
+  const x = type === "generated" || type === "comfy"
     ? IMAGE_STUDIO_COLUMN_X.generated
     : IMAGE_STUDIO_COLUMN_X[type];
-  const sameColumn = graph.nodes.filter((node) => node.type === type);
+  const sameColumn = type === "comfy"
+    ? graph.nodes.filter(isComfyLaneNode)
+    : graph.nodes.filter((node) => node.type === type);
   if (sameColumn.length === 0) return { x, y: START_Y };
   const maxY = Math.max(...sameColumn.map((node) => node.position.y));
-  return { x, y: maxY + ROW_STRIDE[type] };
+  return { x, y: maxY + ROW_STRIDE.generated };
 }

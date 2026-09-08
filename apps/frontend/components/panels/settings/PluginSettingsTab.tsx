@@ -20,8 +20,10 @@ import {
 import type { LucideIcon } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
+import { Switch } from "@/components/ui/switch";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { cn } from "@/lib/utils";
+import { useComfyAdvancedNodes } from "@/hooks/use-comfy-advanced-nodes";
 import { getTtsRuntimeStatus, startTtsRuntime } from "@/lib/tts/client";
 import type { VideoWorkflowPluginId } from "@rendering/contracts/video-workflow";
 import type { VlmReviewProbeResult } from "@/types/contracts/vlm-review-workflow";
@@ -216,6 +218,35 @@ function CapabilityGroup({ label, children }: CapabilityGroupProps) {
 }
 
 /**
+ * 「显示 ComfyUI 高级节点」开关行(09-08 三期收官,流X):
+ * 关(默认)=普通用户只见大白话节点+策展效果节点;开=画布「效果节点…」解锁
+ * 全量生态节点(英文原名+分类)。真源=useComfyAdvancedNodes(localStorage
+ * 持久化+跨窗口订阅),画布侧过滤同一 hook 读写。
+ */
+function ComfyAdvancedNodesToggleRow() {
+  const { showAdvancedNodes, setAdvancedNodes } = useComfyAdvancedNodes();
+  return (
+    <div
+      className="flex items-center justify-between gap-3 px-5 py-3"
+      data-comfy-advanced-nodes-row
+    >
+      <div className="min-w-0">
+        <div className="text-sm font-medium text-foreground">显示 ComfyUI 高级节点</div>
+        <p className="mt-1 text-xs leading-5 text-muted-foreground">
+          开启后,图片工作室「效果节点…」可搜索并直放引擎的全部两千多个生态节点(英文原名);关闭则只显示精选的常用效果。
+        </p>
+      </div>
+      <Switch
+        checked={showAdvancedNodes}
+        onCheckedChange={setAdvancedNodes}
+        aria-label="显示 ComfyUI 高级节点"
+        data-comfy-advanced-nodes-switch
+      />
+    </div>
+  );
+}
+
+/**
  * 统一的本地能力配置页。四个分组按依赖顺序排列:基础运行时(Python 是地基)
  * → 图像能力(视觉模型都跑在 Python 上)→ 声音 → 视频生产插件。
  *
@@ -257,6 +288,21 @@ export function PluginSettingsTab() {
     // 一次性挂载探测;各探测函数均为 hook 内稳定引用。
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // 引擎卡胶囊重探(09-08 加固④):挂载期 comfy 探测在 sidecar 未起时会静默
+  // 失败,胶囊停在「检查中」不自动重试;imageGen 生命周期翻到 ready(=sidecar
+  // 刚被拉起)且 comfy 状态仍未拿到时补探一次。幂等:探测成功后条件自然失效,
+  // 不引入轮询。
+  const comfyRefreshStatus = comfyEngine.refreshStatus;
+  const comfyHasBridge = comfyEngine.hasBridge;
+  const comfyStatusKnown = comfyEngine.status !== null;
+  const imageGenSidecarUp =
+    imageGen.lifecycleStatus?.state === "ready" ||
+    (!imageGen.hasLifecycleBridge && Boolean(imageGen.status?.running || imageGen.status?.setupStage === "ready"));
+  useEffect(() => {
+    if (!comfyHasBridge || comfyStatusKnown || !imageGenSidecarUp) return;
+    void comfyRefreshStatus();
+  }, [comfyHasBridge, comfyStatusKnown, imageGenSidecarUp, comfyRefreshStatus]);
 
   // 编程式直达分区(09-08 更新提醒链「去更新」按钮):广播事件 + 挂载期
   // pending 兜底(事件可能早于本 tab 挂载),展开对应折叠行。
@@ -550,6 +596,9 @@ export function PluginSettingsTab() {
             onToggle={toggleSectionCollapsed}
           >
             <ComfyEngineSettingsSection embedded />
+            {/* 高级节点开关(09-08 三期收官,流X):关=画布只见策展效果节点;
+                开=「效果节点…」弹窗解锁全量英文节点。真源=useComfyAdvancedNodes。 */}
+            <ComfyAdvancedNodesToggleRow />
           </CapabilityRow>
         </CapabilityGroup>
 

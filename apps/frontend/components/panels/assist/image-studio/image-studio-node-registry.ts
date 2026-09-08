@@ -47,6 +47,14 @@ export const IMAGE_STUDIO_NODE_META: Record<ImageWorkflowNodeType, ImageStudioNo
     label: "分组框",
     description: "视觉容器:拖入吸附成组,移动组带动成员",
   },
+  "comfy-workflow": {
+    label: "工作流节点",
+    description: "ComfyUI 工作流库导入的整体卡:左连提示词/参考图,卡上运行出图",
+  },
+  "comfy-generic": {
+    label: "效果节点",
+    description: "直放的 ComfyUI 生态节点:与效果节点连成子图,「运行子图」出图",
+  },
 };
 
 /**

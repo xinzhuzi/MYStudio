@@ -67,8 +67,28 @@ import {
   createComfyWorkflowLibraryClient,
   resolveComfyWorkflowLibraryTransport,
 } from "@/lib/assist/image-studio/comfy-workflow-library";
+import {
+  analyzeComfyWorkflowText,
+  formatMissingClassTypesMessage,
+} from "@/lib/assist/image-studio/comfy-workflow-import";
+import type { ComfyEffectNodeDescriptor } from "@/lib/assist/image-studio/comfy-effect-catalog";
+import { ComfyWorkflowCard } from "./comfy-workflow-card";
+import { ComfyGenericCard } from "./comfy-generic-card";
+import { ComfyEffectNodesDialog } from "./comfy-effect-nodes-dialog";
+import { useComfySubgraphRun } from "./use-comfy-subgraph-run";
 
 const FIT_VIEW_OPTIONS = { padding: 0.18, minZoom: 0.35, maxZoom: 1.1 } as const;
+
+/**
+ * React Flow nodeTypes(imageStudio 全量 + comfy 专属卡,09-08 流X):
+ * comfy 节点走独立组件(descriptor 端口/运行编排在卡内,image-studio-node-card
+ * 零改动)——nodeTypes 单源仍从 imageStudioNodeTypes 扩展。
+ */
+const imageStudioComfyNodeTypes = {
+  ...imageStudioNodeTypes,
+  comfyWorkflow: ComfyWorkflowCard,
+  comfyGeneric: ComfyGenericCard,
+};
 
 type UploadTarget =
   | { mode: "new-reference" }
@@ -128,6 +148,58 @@ export function ImageStudioCanvas() {
     );
   }, []);
   const importInputRef = useRef<HTMLInputElement | null>(null);
+
+  // —— ComfyUI 生态接线(09-08 二期/三期收官,流X)——
+  // 效果节点弹窗+子图运行(三期:直放+子图编译执行)
+  const [effectNodesOpen, setEffectNodesOpen] = useState(false);
+  const runComfySubgraph = useComfySubgraphRun();
+  const canRunSubgraph = useMemo(
+    () => (activeGraph?.nodes ?? []).some(
+      (node) => node.type === "comfy-generic" && selectedIds.includes(node.id),
+    ),
+    [activeGraph?.nodes, selectedIds],
+  );
+
+  // 浏览器「导入成节点卡」接线(二期收官):库取原文→分析→缺插件拦截
+  // →store 建卡(descriptor 快照+widgets 值+输出 mediaRef 持久化)
+  const handleComfyWorkflowImport = useCallback(async (workflowId: string) => {
+    try {
+      const content = await comfyLibraryClient.content(workflowId);
+      const available = await comfyLibraryClient.listAvailableClassTypes();
+      const analyzed = analyzeComfyWorkflowText(
+        content,
+        available.length > 0 ? { availableClassTypes: available } : undefined,
+      );
+      if (!analyzed.ok) {
+        toast.error(analyzed.error);
+        return;
+      }
+      if (analyzed.descriptor.missing.length > 0) {
+        toast.error(formatMissingClassTypesMessage(analyzed.descriptor.missing));
+        return;
+      }
+      const name = (useImageStudioStore.getState().comfyBrowserTree?.workflows ?? [])
+        .find((entry) => entry.id === workflowId)?.name ?? "工作流节点";
+      useImageStudioStore.getState().addComfyWorkflowNode({
+        workflowId,
+        workflowName: name,
+        descriptor: analyzed.descriptor,
+      });
+      toast.success(`「${name}」已导入成节点卡:连上提示词/参考图,卡上点「运行」出图`);
+    } catch (cause) {
+      toast.error(cause instanceof Error ? cause.message : "导入失败");
+    }
+  }, [comfyLibraryClient]);
+
+  // 效果节点落卡(三期收官):策展包/全量 schema → comfy-generic 节点
+  const handleEffectNodePick = useCallback((entry: {
+    classType: string;
+    title: string;
+    descriptor: ComfyEffectNodeDescriptor;
+  }) => {
+    useImageStudioStore.getState().addComfyGenericNode(entry);
+    toast.success(`「${entry.title}」已落卡:与其它节点连线后,框选子图点工具菜单「运行子图」出图`);
+  }, []);
 
   // 导出/导入画布 JSON(09-02 R2:导出保引用不打包;导入校验+失效降级)
   const handleExportCanvas = useCallback(() => {
@@ -560,7 +632,12 @@ export function ImageStudioCanvas() {
     const nodesById = new Map(activeGraph.nodes.map((node) => [node.id, node]));
     return activeGraph.nodes.map((node) => ({
       id: node.id,
-      type: "imageStudio",
+      // comfy 节点走专属卡(09-08 流X):descriptor 端口/运行编排在卡内
+      type: node.type === "comfy-workflow"
+        ? "comfyWorkflow"
+        : node.type === "comfy-generic"
+          ? "comfyGeneric"
+          : "imageStudio",
       position: node.position,
       data: {
         node,
@@ -670,7 +747,10 @@ export function ImageStudioCanvas() {
       if (!connection.source || !connection.target) return;
       const graph = selectActiveImageStudioWorkflow(useImageStudioStore.getState());
       const target = graph?.nodes.find((node) => node.id === connection.target);
-      if (target?.type !== "generated" && target?.type !== "uncloth" && target?.type !== "nsfw") {
+      if (
+        target?.type !== "generated" && target?.type !== "uncloth" && target?.type !== "nsfw"
+        && target?.type !== "comfy-workflow" && target?.type !== "comfy-generic"
+      ) {
         toast.error("连线目标必须是成图或无衣物节点");
         return;
       }
@@ -765,6 +845,9 @@ export function ImageStudioCanvas() {
         onOpenHistory={() => setHistoryDialogOpen(true)}
         onOpenAssistant={() => setAssistantOpen(true)}
         onOpenComfyBrowser={() => useImageStudioStore.getState().setComfyBrowserOpen(true)}
+        onOpenEffectNodes={() => setEffectNodesOpen(true)}
+        onRunSubgraph={() => void runComfySubgraph(selectedIds)}
+        canRunSubgraph={canRunSubgraph}
         onExport={handleExportCanvas}
         onImport={() => importInputRef.current?.click()}
         onOpenFolder={() => {
@@ -786,9 +869,15 @@ export function ImageStudioCanvas() {
         {comfyBrowserOpen ? (
           <ComfyWorkflowBrowser
             client={comfyLibraryClient}
+            onSelectWorkflow={(workflowId) => void handleComfyWorkflowImport(workflowId)}
             onClose={() => useImageStudioStore.getState().setComfyBrowserOpen(false)}
           />
         ) : null}
+        <ComfyEffectNodesDialog
+          open={effectNodesOpen}
+          onOpenChange={setEffectNodesOpen}
+          onPick={handleEffectNodePick}
+        />
         <ImageStudioFlowView
           graph={activeGraph}
           canvasHistory={canvasHistory}
@@ -1207,7 +1296,7 @@ function ImageStudioFlowView({
         className="absolute inset-0 bg-muted/20"
         nodes={nodes}
         edges={flowEdges}
-        nodeTypes={imageStudioNodeTypes}
+        nodeTypes={imageStudioComfyNodeTypes}
         onNodesChange={onNodesChange}
         onNodeClick={(_, node) => {
           setSelectedEdgeId(null);

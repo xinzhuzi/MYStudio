@@ -27,8 +27,10 @@ import {
 } from "@/lib/assist/image-studio/layout";
 import { createImageStudioProjectStorage } from "@/lib/storage/image-studio-project-storage";
 import { logEvent } from "@/lib/diagnostics/logger";
+import type { ComfyWorkflowDescriptor } from "@/lib/assist/image-studio/comfy-workflow-import";
+import type { ComfyEffectNodeDescriptor } from "@/lib/assist/image-studio/comfy-effect-catalog";
 import type { ComfyWorkflowLibraryTree } from "@/lib/assist/image-studio/comfy-workflow-library";
-import type { ImageWorkflowEdge,
+import type { ImageWorkflowComfyNodeStatus, ImageWorkflowEdge,
   ImageWorkflowGeneratedNode,
   ImageWorkflowGraph,
   ImageWorkflowGroupNode,
@@ -104,6 +106,30 @@ export interface ImageStudioStoreActions {
   /** 无衣物改图节点(09-04):输入图+文本边,输出连成图;参数全量可选 */
   addUnclothNode: (input?: { prompt?: string; position?: ImageWorkflowNodePosition; variant?: "instruct" | "fine" }) => string;
   addNsfwNode: (input?: { position?: ImageWorkflowNodePosition }) => string;
+  // —— ComfyUI 生态节点(09-08 二期/三期收官,流X;只追加)——
+  /** 工作流库导入成卡(浏览器「导入成节点卡」):descriptor 快照+widgets 值+输出 mediaRef 持久化 */
+  addComfyWorkflowNode: (input: {
+    workflowId: string;
+    workflowName: string;
+    descriptor: ComfyWorkflowDescriptor;
+    position?: ImageWorkflowNodePosition;
+  }) => string;
+  /** 效果节点直放成卡(object_info/策展包 descriptor 快照) */
+  addComfyGenericNode: (input: {
+    classType: string;
+    title: string;
+    descriptor: ComfyEffectNodeDescriptor;
+    position?: ImageWorkflowNodePosition;
+  }) => string;
+  /** comfy 节点运行状态回写(定向到节点所在画布,生成期间切画布不丢) */
+  setComfyNodeStatus: (nodeId: string, status: ImageWorkflowComfyNodeStatus, statusMessage?: string) => void;
+  /** comfy 节点输出图回填(mediaRef 模式:受管地址+mediaId) */
+  setComfyNodeResult: (
+    nodeId: string,
+    result: { resultUrl: string; resultMediaId?: string; resultCount?: number },
+  ) => void;
+  /** comfy 节点 widget 现值更新(高级参数折叠区受控写回) */
+  setComfyNodeWidgetValue: (nodeId: string, widgetId: string, value: number | string | boolean) => void;
   /** 便利贴(09-03 wave3):画布标注件 */
   addStickyNote: (input?: { text?: string; color?: "yellow" | "green" | "blue" | "pink" | "gray"; position?: ImageWorkflowNodePosition }) => string;
   /** Group 框组(09-03 wave3):视觉容器 */
@@ -189,6 +215,20 @@ export function sanitizeWorkflowsForPersist(workflows: ImageWorkflowGraph[]): Im
           errorReason: "地址未落库,请重新生成",
         } as ImageWorkflowNode;
       }
+      // comfy 节点(09-08 流X):data: 结果同样剥离(落盘失败降级预览不持久化)
+      if (
+        (node.type === "comfy-workflow" || node.type === "comfy-generic")
+        && node.resultUrl
+        && node.resultUrl.startsWith("data:")
+      ) {
+        return {
+          ...node,
+          resultUrl: undefined,
+          resultMediaId: undefined,
+          status: "failed",
+          statusMessage: "输出图未落库,请重新运行",
+        } as ImageWorkflowNode;
+      }
       return node;
     }),
   }));
@@ -200,9 +240,13 @@ function resetTransientNodeStatus(state?: Partial<ImageStudioStoreState>): void 
   state.workflows = state.workflows.map((workflow) => ({
     ...workflow,
     nodes: workflow.nodes.map((node) => {
-      if (node.type !== "generated") return node;
-      if (node.status !== "generating" && node.status !== "queued") return node;
-      return { ...node, status: "idle" } as ImageWorkflowNode;
+      if (node.type !== "generated" && node.type !== "comfy-workflow" && node.type !== "comfy-generic") return node;
+      if (node.type === "generated") {
+        return node.status !== "generating" && node.status !== "queued"
+          ? node
+          : { ...node, status: "idle" } as ImageWorkflowNode;
+      }
+      return node.status !== "running" ? node : { ...node, status: "idle" } as ImageWorkflowNode;
     }),
   }));
 }
@@ -392,8 +436,9 @@ export const useImageStudioStore = create<ImageStudioStore>()(
         if (!Array.isArray(data.nodes) || !Array.isArray(data.edges)) {
           return { ok: false, error: "缺少 nodes/edges 数组" };
         }
-        // 09-07 承受力补:uncloth 节点纳入导入白名单(此前导出含/导入即丢)
-        const validTypes = new Set(["reference", "prompt", "generated", "nsfw", "uncloth"]);
+        // 09-07 承受力补:uncloth 节点纳入导入白名单(此前导出含/导入即丢);
+        // 09-08 流X:comfy 工作流/通用节点同入(导出画布含生态节点可往返)
+        const validTypes = new Set(["reference", "prompt", "generated", "nsfw", "uncloth", "comfy-workflow", "comfy-generic"]);
         const nodes = (data.nodes as Array<Record<string, unknown>>).filter(
           (node) => typeof node.id === "string" && typeof node.type === "string" && validTypes.has(node.type),
         );
@@ -415,15 +460,24 @@ export const useImageStudioStore = create<ImageStudioStore>()(
           }
           if (edge.source === edge.target) return false;
           // 目标=成图(任意上游)/nsfw 链提示词入边(prompt→nsfw)/uncloth 入边
-          // (口别与单源同款;无 handle 存量边回落:prompt 源→①口,图源→image 口)
+          // (口别与单源同款;无 handle 存量边回落:prompt 源→①口,图源→image 口);
+          // comfy 目标(09-08 流X):提示词源→prompt 口,图源族→image 口(声明层宽松)
           const targetType = nodeTypeById.get(edge.target as string);
           const sourceType = nodeTypeById.get(edge.source as string);
+          const imageSourceTypes = new Set(["reference", "generated", "uncloth", "comfy-workflow", "comfy-generic"]);
           if (targetType === "uncloth") {
             const port = typeof edge.targetHandle === "string" ? edge.targetHandle
               : sourceType === "prompt" ? "prompt-1" : "image";
             const portOk = sourceType === "prompt"
               ? port === "prompt-1" || port === "prompt-2"
               : port === "image" && (sourceType === "reference" || sourceType === "generated" || sourceType === "uncloth");
+            if (!portOk) return false;
+          } else if (targetType === "comfy-workflow" || targetType === "comfy-generic") {
+            const port = typeof edge.targetHandle === "string" ? edge.targetHandle
+              : sourceType === "prompt" ? "prompt" : "image";
+            const portOk = sourceType === "prompt"
+              ? port === "prompt"
+              : port === "image" && imageSourceTypes.has(sourceType as string);
             if (!portOk) return false;
           } else if (
             targetType !== "generated"
@@ -475,7 +529,32 @@ export const useImageStudioStore = create<ImageStudioStore>()(
         const source = graph?.nodes.find((node) => node.id === nodeId);
         if (!graph || !source) return null;
         const offset = { x: source.position.x + 48, y: source.position.y + 48 };
-        const id = createId(source.type === "generated" ? "gen" : source.type === "reference" ? "ref" : "prompt");
+        const id = createId(
+          source.type === "generated" ? "gen"
+            : source.type === "reference" ? "ref"
+              : source.type === "comfy-workflow" ? "comfy-wf"
+                : source.type === "comfy-generic" ? "comfy-gen" : "prompt",
+        );
+        // comfy 节点副本(09-08 流X):descriptor 快照/widgets 值/参数随行,状态归零
+        if (source.type === "comfy-workflow" || source.type === "comfy-generic") {
+          get().updateActiveWorkflow((current) => ({
+            ...current,
+            nodes: [...current.nodes, {
+              ...source,
+              id,
+              title: `${source.title} 副本`,
+              position: offset,
+              status: "idle",
+              statusMessage: undefined,
+              resultUrl: undefined,
+              resultMediaId: undefined,
+              createdAt: Date.now(),
+              updatedAt: Date.now(),
+            } as ImageWorkflowNode],
+            updatedAt: Date.now(),
+          }));
+          return id;
+        }
         get().updateActiveWorkflow((current) => {
           if (source.type === "reference") {
             return addReferenceImageNode(current, {
@@ -668,6 +747,102 @@ export const useImageStudioStore = create<ImageStudioStore>()(
           }),
         );
         return id;
+      },
+
+      // —— ComfyUI 生态节点(09-08 二期/三期收官,流X;节点模型在 types 侧,
+      //    构造内联(store 独占面),graph-build-mutations 零改动)——
+      addComfyWorkflowNode: ({ workflowId, workflowName, descriptor, position }) => {
+        ensureActiveCanvas(get, set);
+        const graph = selectActiveImageStudioWorkflow(get());
+        if (!graph) {
+          throw new Error("画布未就绪");
+        }
+        const id = createId("comfy-wf");
+        const now = Date.now();
+        const node = {
+          id,
+          type: "comfy-workflow" as const,
+          title: workflowName || "工作流节点",
+          workflowId,
+          workflowName: workflowName || "工作流节点",
+          descriptor,
+          position: position ?? nextColumnPosition(graph, "comfy"),
+          createdAt: now,
+          updatedAt: now,
+          status: "idle" as ImageWorkflowComfyNodeStatus,
+        };
+        get().updateActiveWorkflow((current) => ({
+          ...current,
+          nodes: [...current.nodes, node],
+          updatedAt: now,
+        }));
+        return id;
+      },
+
+      addComfyGenericNode: ({ classType, title, descriptor, position }) => {
+        ensureActiveCanvas(get, set);
+        const graph = selectActiveImageStudioWorkflow(get());
+        if (!graph) {
+          throw new Error("画布未就绪");
+        }
+        const id = createId("comfy-gen");
+        const now = Date.now();
+        const node = {
+          id,
+          type: "comfy-generic" as const,
+          title: title || classType,
+          classType,
+          descriptor,
+          position: position ?? nextColumnPosition(graph, "comfy"),
+          createdAt: now,
+          updatedAt: now,
+          status: "idle" as ImageWorkflowComfyNodeStatus,
+        };
+        get().updateActiveWorkflow((current) => ({
+          ...current,
+          nodes: [...current.nodes, node],
+          updatedAt: now,
+        }));
+        return id;
+      },
+
+      setComfyNodeStatus: (nodeId, status, statusMessage) => {
+        set((state) => ({
+          workflows: state.workflows.map((workflow) =>
+            workflow.nodes.some((node) => node.id === nodeId)
+              ? updateImageWorkflowNode(workflow, nodeId, { status, statusMessage } as Partial<ImageWorkflowNode>)
+              : workflow,
+          ),
+        }));
+      },
+
+      setComfyNodeResult: (nodeId, result) => {
+        set((state) => ({
+          workflows: state.workflows.map((workflow) =>
+            workflow.nodes.some((node) => node.id === nodeId)
+              ? updateImageWorkflowNode(workflow, nodeId, {
+                  resultUrl: result.resultUrl,
+                  resultMediaId: result.resultMediaId,
+                  resultCount: result.resultCount,
+                  status: "ready",
+                  statusMessage: undefined,
+                } as Partial<ImageWorkflowNode>)
+              : workflow,
+          ),
+        }));
+      },
+
+      setComfyNodeWidgetValue: (nodeId, widgetId, value) => {
+        set((state) => ({
+          workflows: state.workflows.map((workflow) => {
+            const node = workflow.nodes.find((item) => item.id === nodeId);
+            if (!node || (node.type !== "comfy-workflow" && node.type !== "comfy-generic")) return workflow;
+            const widgetValues = { ...(node.widgetValues ?? {}), [widgetId]: value };
+            return updateImageWorkflowNode(workflow, nodeId, {
+              widgetValues,
+            } as Partial<ImageWorkflowNode>);
+          }),
+        }));
       },
 
       addGeneratedNode: (input) => {
