@@ -1,6 +1,8 @@
 import { BACKGROUND_PLATE_NEGATIVE_ANCHORS, SUBJECT_CUTOUT_NEGATIVE_ANCHORS, buildBackgroundPlatePrompt, buildSubjectCutoutPrompt } from "../layered-generation";
 import { addGeneratedImageNode, addReferenceImageNode } from "./graph-build";
 import type { AddPromptImageNodeInput } from "./graph-build";
+import { buildImageWorkflowPortRuleSet, evaluateImageConnection, evaluateImageEdge } from "./port-types";
+import { getImageWorkflowPortDeclarations } from "../canvas-node-registry";
 import { nextStackedPosition } from "./layout";
 import { useAppSettingsStore } from "@/stores/app/app-settings-store";
 import type { ImageWorkflowEdge, ImageWorkflowGeneratedNode, ImageWorkflowGraph, ImageWorkflowGroupNode, ImageWorkflowNode, ImageWorkflowNodePosition, ImageWorkflowPromptNode, ImageWorkflowReferenceNode, ImageWorkflowStickyNode, StoryboardItem,
@@ -192,103 +194,31 @@ export function connectImageWorkflowNodes(
 }
 
 /**
- * 连线域规则单源谓词(两卡 isValidConnection/handleConnect 共用):
- * 目标必须成图/无衣物/NSFW破限 / 非自环 / 同向去重 / 一个成图只吃一根提示词边(09-03
- * 用户裁定:第二根会被装配静默忽略,歧义消灭在源头)。
- * 无衣物节点(09-04):入边=图(reference/generated/uncloth 链式)+一根文本;
- * 出边=只能连成图(结果直通,成图是唯一执行入口)。
- * NSFW破限节点(09-07):入边=单根提示词;出边=单链连成图;成图提示词
- * 通道=直连 prompt 或 nsfw 链二选一互斥。
+ * 连线域规则单源谓词(两卡 isValidConnection/handleConnect 共用)。
+ * 09-08 三期A 声明化:原 ~130 行手写 if-else 退役为「类型兼容+端口容量+
+ * 互斥组」查表(port-types.ts 引擎 + canvas-node-registry.ts inputs 声明),
+ * 行为零变化——全部存量裁定(09-03 一图一提示词/09-04 无衣物/09-07 nsfw
+ * 互斥与编号口)原样翻译成声明,差分对拍见 port-types-parity.test.ts:
+ * - 自环拒/不存在节点拒/sticky、group 源拒/同向去重(引擎通用规则)
+ * - 目标必须成图/无衣物/NSFW破限(未声明 inputs 的类型不可作目标)
+ * - 一个成图只吃一根提示词边(09-03,含 targetNodeId 直挂语义+首根放行)
+ * - 无衣物:图输入(reference/generated/uncloth 链式)节点级不限+两根
+ *   提示词(①② 编号口,存量无 handle 边上限 2 兼容)
+ * - NSFW破限:入=单 prompt;出=单链;与成图直连 prompt 互斥
  */
 export function isValidImageEdge(
   graph: ImageWorkflowGraph,
   source: string,
   target: string,
 ): boolean {
-  if (source === target) return false;
-  const sourceNode = graph.nodes.find((node) => node.id === source);
-  const targetNode = graph.nodes.find((node) => node.id === target);
-  if (!sourceNode || !targetNode) return false;
-  if (graph.edges.some((item) => item.source === source && item.target === target)) return false;
-  if (sourceNode.type === "sticky" || sourceNode.type === "group") return false;
-
-  // ── 无衣物节点的入边规则 ──
-  if (targetNode.type === "uncloth") {
-    // 图输入:参考图/上游成图(有结果)/链式上游无衣物
-    if (sourceNode.type === "reference" || sourceNode.type === "uncloth") return true;
-    if (sourceNode.type === "generated") return true;
-    // 文本输入:两根提示词边(09-07 编号口:①=编辑指令 ②=一致性描述;
-    // 各 handle 一根,存量无 handle 边上限 2 兼容)
-    if (sourceNode.type === "prompt") {
-      const promptEdges = graph.edges.filter(
-        (item) =>
-          item.target === target &&
-          graph.nodes.find((node) => node.id === item.source)?.type === "prompt",
-      );
-      return promptEdges.length < 2;
-    }
-    return false;
-  }
-
-  // ── NSFW破限节点的入边规则(09-07-nsfw-pro-node) ──
-  if (targetNode.type === "nsfw") {
-    // 只吃单根提示词边:节点是专业流提示词通道,不收图/不收链
-    if (sourceNode.type !== "prompt") return false;
-    const hasPrompt = graph.edges.some(
-      (item) =>
-        item.target === target &&
-        graph.nodes.find((node) => node.id === item.source)?.type === "prompt",
-    );
-    return !hasPrompt;
-  }
-
-  // ── 成图目标(既有规则) ──
-  if (targetNode.type !== "generated") return false;
-  if (sourceNode.type === "uncloth") {
-    // 一个成图只吃一根无衣物链(结果直通,双链语义未定义,歧义消灭在源头)
-    const hasUncloth = graph.edges.some(
-      (item) =>
-        item.target === target &&
-        graph.nodes.find((node) => node.id === item.source)?.type === "uncloth",
-    );
-    if (hasUncloth) return false;
-    // 无衣物链与提示词/参考可共存:提示词仍驱动(uncloth.prompt 缺省回落),
-    // 静态参考边在 uncloth 链模式下被管线输入取代
-    return true;
-  }
-  if (sourceNode.type === "nsfw") {
-    // 一个成图只吃一根 nsfw 链;提示词通道=直连 prompt 或 nsfw 链二选一
-    // (09-07 裁定:已有直连提示词(边或 targetNodeId 直挂)则拒)
-    const hasNsfw = graph.edges.some(
-      (item) =>
-        item.target === target &&
-        graph.nodes.find((node) => node.id === item.source)?.type === "nsfw",
-    );
-    if (hasNsfw) return false;
-    if (findPromptNodeForGenerated(graph, target)) return false;
-    return true;
-  }
-  if (sourceNode.type === "prompt") {
-    // 一个成图只吃一根提示词(09-03):已挂「别的」提示词(边或 targetNodeId
-    // 直挂)才拒——自身首根边必须放行(建组流程 prompt 先经 targetNodeId 挂靠)
-    const existing = findPromptNodeForGenerated(graph, target);
-    if (existing && existing.id !== source) return false;
-    // nsfw 链互斥(09-07):成图已挂 nsfw 链时直连提示词边被拒(通道二选一)
-    const hasNsfwChain = graph.edges.some(
-      (item) =>
-        item.target === target &&
-        graph.nodes.find((node) => node.id === item.source)?.type === "nsfw",
-    );
-    if (hasNsfwChain) return false;
-  }
-  return true;
+  return evaluateImageEdge(graph, source, target, imageEdgeRuleSet);
 }
 
 /**
  * 连线级校验单源(09-07 canvas-basic-interactions 根修):React Flow
- * isValidConnection 的唯一后端。此前两画布各持一份手抄「粗校验」,漏掉
- * uncloth 目标分支 → 提示词/参考图永远连不上无衣物节点(用户实弹报障)。
- * 在 isValidImageEdge(节点级规则)之上补 handle 口别规则:
+ * isValidConnection 的唯一后端。09-08 三期A 声明化:在 isValidImageEdge
+ * (节点级规则)之上的 handle 口别规则同样翻译成声明查表(席位声明挂在
+ * 注册表 inputs 的 seats / outputSeats 上),行为零变化:
  * - uncloth 图口:只吃 reference/generated/uncloth 源,一根封口
  * - uncloth ①② 口:只吃 prompt 源,各口正/负席位(09-07 双出口裁定:
  *   同口「正」边≤1+「负」边≤1,两口可共存=目标侧正负拼装)
@@ -300,60 +230,18 @@ export function isValidImageConnection(
   graph: ImageWorkflowGraph,
   connection: { source: string | null; target: string | null; sourceHandle?: string | null; targetHandle?: string | null },
 ): boolean {
-  if (!connection.source || !connection.target) return false;
-  if (connection.target === connection.source) return false;
-  const targetNode = graph.nodes.find((node) => node.id === connection.target);
-  const sourceNode = graph.nodes.find((node) => node.id === connection.source);
-  const nodeType = (id: string) => graph.nodes.find((node) => node.id === id)?.type;
-
-  // 无衣物口全部规则整体前置(09-07 用户实弹:提示词「正/负」出口曾连上
-  // 「图」口——通用席位分支抢先放行,image 口源类型检查永远到不了):
-  // 图口只吃 reference/generated/uncloth;①=正向席/②=负向席,极性错口拒
-  if (targetNode?.type === "uncloth" && connection.targetHandle) {
-    if (connection.targetHandle === "image") {
-      if (sourceNode?.type !== "reference" && sourceNode?.type !== "generated" && sourceNode?.type !== "uncloth") {
-        return false;
-      }
-      return !graph.edges.some(
-        (item) =>
-          item.target === connection.target &&
-          (item.targetHandle === "image" || (!item.targetHandle && nodeType(item.source) !== "prompt")),
-      );
-    }
-    if (connection.targetHandle === "prompt-1" || connection.targetHandle === "prompt-2") {
-      if (sourceNode?.type !== "prompt") return false;
-      const wantedPolarity = connection.targetHandle === "prompt-1" ? "positive" : "negative";
-      if (connection.sourceHandle && connection.sourceHandle !== wantedPolarity) return false;
-      return !graph.edges.some(
-        (item) =>
-          item.target === connection.target &&
-          (item.targetHandle === connection.targetHandle ||
-            (!item.targetHandle && connection.targetHandle === "prompt-1" && nodeType(item.source) === "prompt")),
-      );
-    }
-    return false;
-  }
-
-  // prompt 源带出口极性:按「目标口 × 极性」分席,正负各≤1
-  if (sourceNode?.type === "prompt" && connection.sourceHandle) {
-    if (connection.sourceHandle !== "positive" && connection.sourceHandle !== "negative") return false;
-    const samePort = graph.edges.filter(
-      (item) =>
-        item.target === connection.target &&
-        (item.targetHandle ?? (nodeType(item.source) === "prompt" ? "prompt-1" : undefined)) ===
-          (connection.targetHandle ?? "prompt-1"),
-    );
-    if (targetNode?.type === "nsfw" && connection.sourceHandle === "negative") return false;
-    const polarityTaken = (polarity: "positive" | "negative") =>
-      samePort.some((item) => (item.sourceHandle ?? "positive") === polarity);
-    return !polarityTaken(connection.sourceHandle);
-  }
-
-  if (targetNode?.type !== "uncloth" || !connection.targetHandle) {
-    return isValidImageEdge(graph, connection.source, connection.target);
-  }
-  return false;
+  return evaluateImageConnection(graph, connection, imageEdgeRuleSet);
 }
+
+/**
+ * 声明式连线规则集(模块级装配一次):注册表声明(canvas-node-registry
+ * inputs/outputSeats/禁作源类型)+ 提示词挂靠解析器(findPromptNodeForGenerated
+ * 单源注入,prompt-attach 容量口径不在引擎侧重复实现)。
+ */
+const imageEdgeRuleSet = buildImageWorkflowPortRuleSet(
+  getImageWorkflowPortDeclarations(),
+  findPromptNodeForGenerated,
+);
 
 /**
  * 提示词极性分流(09-07 双出口裁定):目标输入口的提示词边按 sourceHandle

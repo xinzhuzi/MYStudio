@@ -5,7 +5,14 @@
  * 生产流面定义在 components/panels/studio/workflow-node-registry.ts 合并
  * (生产流常量在 panels 侧,lib 不反向依赖 components——分层铁律)。
  * 注册表只统一实现层契约;分镜/资产/自由生图的展示分组不在此合并。
+ *
+ * 09-08 三期A(端口类型系统):节点定义补 inputs(输入通道:类型/容量/
+ * 互斥组)与 outputSeats(源出口席位)声明——连线合法性查表的数据源,
+ * 与 outputs 一起构成端口声明的完整两半(见 image-workflow/port-types.ts)。
  */
+
+import type { ImageWorkflowNodeType } from "@/types/studio";
+import type { ImageWorkflowPortDeclarations, InputChannelSpec, SourceOutputSeatsSpec } from "./image-workflow/port-types";
 
 export type CanvasSurface = "image-workflow" | "production-flow";
 
@@ -28,6 +35,15 @@ export interface CanvasNodeEntry {
   actions: readonly string[];
   /** 作为上游连接时输出的资源 */
   outputs: readonly CanvasNodeResource[];
+  /**
+   * 输入通道声明(09-08 三期A 连线规则查表源):每通道 {id,label,type,
+   * 容量,互斥组,席位}。缺省=该类型不可作为连线目标(reference/prompt
+   * 只作源)。行为与旧 isValidImageEdge/isValidImageConnection 手写分支
+   * 逐例等价(对拍测试 port-types-parity.test.ts)。
+   */
+  inputs?: readonly InputChannelSpec[];
+  /** 源出口席位声明(09-07 双出口:prompt 正/负同口分席各≤1);缺省=单输出口无分席规则 */
+  outputSeats?: SourceOutputSeatsSpec;
   /** 小地图节点色:主题语义 token 名,渲染时按当前主题预设解析成具体色 */
   miniMapToken: CanvasMiniMapToken;
 }
@@ -52,6 +68,20 @@ const IMAGE_WORKFLOW_DEFINITIONS: readonly CanvasNodeEntry[] = [
     description: "正/反向提示词与参数",
     actions: ["update", "generate", "delete"] as const,
     outputs: [{ kind: "prompt-text", description: "作为下游成图的提示词输入" }],
+    outputSeats: {
+      // 09-07 双出口裁定:正/负两个出口同口分席各≤1,两口可共存=目标侧
+      // 正负拼装;存量无 sourceHandle 边=整节点语义占正席(行为兼容);
+      // 无 targetHandle 的席位键回落①口(仅提示词源边归席,其余不占席)
+      sourceType: "prompt",
+      defaultSeatKey: "prompt-1",
+      legacySeatSourceTypes: ["prompt"],
+      legacyPolarity: "positive",
+      seats: [
+        { handleId: "positive", label: "正向", polarity: "positive" },
+        // NSFW破限目标拒负向口(专业流只吃正向)
+        { handleId: "negative", label: "负向", polarity: "negative", bannedTargetTypes: ["nsfw"] },
+      ],
+    },
     miniMapToken: "info",
   },
   {
@@ -61,6 +91,40 @@ const IMAGE_WORKFLOW_DEFINITIONS: readonly CanvasNodeEntry[] = [
     description: "生成结果与产线操作",
     actions: ["generate", "stop", "upscale", "apply-to-storyboard", "store-in-asset-library", "update", "delete"] as const,
     outputs: [{ kind: "generated-image", description: "生成图,可被超分/回写/入库消费" }],
+    inputs: [
+      {
+        // 09-03 一图一提示词:已挂「别的」提示词(边或 targetNodeId 直挂)才拒,
+        // 自身首根放行(建组流程 prompt 先经 targetNodeId 挂靠)
+        id: "prompt",
+        label: "提示词",
+        type: "prompt-text",
+        accepts: ["prompt"],
+        capacity: 1,
+        occupancy: "prompt-attach",
+        selfReallow: true,
+        // 09-07 通道二选一:成图已挂 nsfw 链时直连提示词边拒(反向见 nsfw-chain)
+        mutexWith: ["nsfw-chain"],
+      },
+      // 静态参考边:不限量
+      { id: "reference", label: "参考图", type: "reference-image", accepts: ["reference"], capacity: Number.POSITIVE_INFINITY },
+      // 09-04 无衣物链:一图一根(结果直通,双链语义未定义,歧义消灭在源头);
+      // 与提示词/参考可共存(提示词仍驱动,静态参考边在链模式下被管线输入取代)
+      { id: "uncloth-chain", label: "无衣物链", type: "generated-image", accepts: ["uncloth"], capacity: 1 },
+      // 09-07 nsfw 链:一图一根;提示词通道=直连 prompt 或 nsfw 链二选一
+      // (含 findPromptNodeForGenerated 的 targetNodeId 直挂语义)
+      { id: "nsfw-chain", label: "NSFW破限链", type: "prompt-text", accepts: ["nsfw"], capacity: 1, mutexWith: ["prompt"] },
+      // 上游成图链式输入:不限量
+      { id: "image-chain", label: "上游成图", type: "generated-image", accepts: ["generated"], capacity: Number.POSITIVE_INFINITY },
+      {
+        // 兜底通道(旧手写规则尾态逐字保留:成图目标对未列名源类型放行;
+        // 三期B 新源类型接入时在前面的通道显式声明即可收窄本兜底)
+        id: "passthrough",
+        label: "兜底",
+        type: "generated-image",
+        accepts: "*",
+        capacity: Number.POSITIVE_INFINITY,
+      },
+    ],
     miniMapToken: "primary",
   },
   {
@@ -72,6 +136,32 @@ const IMAGE_WORKFLOW_DEFINITIONS: readonly CanvasNodeEntry[] = [
     description: "衣物区域局部重绘,快(fashn 单分割+单遍)/精(双分割+两遍+色彩对齐+硬合成)两档,结果直通成图",
     actions: ["update", "delete"] as const,
     outputs: [{ kind: "generated-image", description: "处理结果直通下游成图节点" }],
+    inputs: [
+      {
+        // 图口:reference/generated/uncloth 链式源(accepts 缺省=按类型兼容
+        // 表推导,恰好等于参考图+成图族)。节点级不限量(旧规则图源永真);
+        // 席位级一根封口(连线级 targetHandle=image 口别规则)
+        id: "image",
+        label: "图",
+        type: "generated-image",
+        capacity: Number.POSITIVE_INFINITY,
+        seats: [{ handleId: "image", label: "图", capacity: 1, legacySeat: "non-prompt" }],
+      },
+      {
+        // 09-07 编号口:①=正向席(编辑指令)/②=负向席(一致性描述),
+        // 极性错口拒;节点级合计两根(存量无 handle 提示词边上限 2 兼容),
+        // 席位级各口一根;存量无 handle 提示词边回落占①席(渲染层同口径)
+        id: "prompt",
+        label: "提示词",
+        type: "prompt-text",
+        accepts: ["prompt"],
+        capacity: 2,
+        seats: [
+          { handleId: "prompt-1", label: "①编辑指令", capacity: 1, polarity: "positive", legacySeat: "prompt-first" },
+          { handleId: "prompt-2", label: "②一致性描述", capacity: 1, polarity: "negative", legacySeat: "none" },
+        ],
+      },
+    ],
     miniMapToken: "warning",
   },
   {
@@ -83,9 +173,48 @@ const IMAGE_WORKFLOW_DEFINITIONS: readonly CanvasNodeEntry[] = [
     description: "Krea2-NSFW专业流增强:提示词经此节点连成图,生成自动挂专业流 LoRA 栈与重平衡(仅 Krea2/ComfyUI桥)",
     actions: ["update", "delete"] as const,
     outputs: [{ kind: "prompt-text", description: "专业流提示词通道,连成图节点启用增强" }],
+    inputs: [
+      {
+        // 09-07 只吃单根提示词边(专业流提示词通道,不收图/不收链);
+        // 负向出口拒见 prompt 节点 outputSeats 的 bannedTargetTypes
+        id: "prompt",
+        label: "提示词",
+        type: "prompt-text",
+        accepts: ["prompt"],
+        capacity: 1,
+      },
+    ],
     miniMapToken: "warning",
   },
 ];
+
+/** 画布注释容器类型:不可作为连线源(旧规则 sticky/group 源拒) */
+const NON_WIRABLE_SOURCE_TYPES: readonly ImageWorkflowNodeType[] = ["sticky", "group"];
+
+let cachedPortDeclarations: ImageWorkflowPortDeclarations | undefined;
+
+/**
+ * image-workflow 面连线规则声明(三期A 查表数据源):注册表 inputs/
+ * outputSeats 的键控投影 + 禁作源类型。IMAGE_WORKFLOW_DEFINITIONS 为
+ * 模块级常量,首次调用后缓存。graph-build-mutations 侧再接上提示词挂靠
+ * 解析器(findPromptNodeForGenerated)装配成完整规则集。
+ */
+export function getImageWorkflowPortDeclarations(): ImageWorkflowPortDeclarations {
+  if (!cachedPortDeclarations) {
+    const inputsByType: Record<string, readonly InputChannelSpec[]> = {};
+    const outputSeatsByType: Record<string, SourceOutputSeatsSpec> = {};
+    for (const definition of IMAGE_WORKFLOW_DEFINITIONS) {
+      if (definition.inputs) inputsByType[definition.typeId] = definition.inputs;
+      if (definition.outputSeats) outputSeatsByType[definition.typeId] = definition.outputSeats;
+    }
+    cachedPortDeclarations = {
+      inputsByType,
+      outputSeatsByType,
+      bannedSourceTypes: NON_WIRABLE_SOURCE_TYPES,
+    };
+  }
+  return cachedPortDeclarations;
+}
 
 /** panels 侧生产流定义经此注入(模块加载一次) */
 let productionFlowDefinitions: readonly CanvasNodeEntry[] = [];
