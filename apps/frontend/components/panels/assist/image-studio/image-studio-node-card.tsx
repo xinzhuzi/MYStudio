@@ -31,6 +31,7 @@ import { LocalImage } from "@/components/ui/local-image";
 import { ResolutionBadge, probeImagePixelSize } from "@/components/ui/image-resolution-badge";
 import { Textarea } from "@/components/ui/textarea";
 import { UnclothNodeEditor } from "@/components/ui/uncloth-node-editor";
+import { CANVAS_NODE_DEFINITIONS, CanvasNodeShell } from "@/features/canvas-nodes";
 import { NsfwNodeEditor } from "@/components/ui/nsfw-node-editor";
 import { ModelSelector } from "@/components/panels/assist/ModelSelector";
 import { IMAGE_ASPECT_RATIOS, IMAGE_RESOLUTIONS } from "@/lib/ai/image-size-presets";
@@ -138,6 +139,22 @@ export const ImageStudioNodeCard = memo(function ImageStudioNodeCard({
             : node.type === "nsfw"
               ? "专业流增强"
               : "成图";
+
+  // 09-08 框架化(P1 试点):声明式定义的节点类型整卡走通用壳——折叠+摘要
+  // 为框架底层能力;未迁移类型(reference/prompt/uncloth/generated/group)暂走下方旧路径
+  const shellDefinition = CANVAS_NODE_DEFINITIONS[node.type];
+  if (shellDefinition) {
+    return (
+      <CanvasNodeShell
+        definition={shellDefinition}
+        node={node}
+        selected={selected}
+        footer={node.type === "nsfw" ? <NsfwNodeEditor node={node} /> : undefined}
+      >
+        {node.type === "sticky" ? <StickyNoteEditor node={node} onUpdate={data.onUpdate} /> : null}
+      </CanvasNodeShell>
+    );
+  }
 
   return (
     <div

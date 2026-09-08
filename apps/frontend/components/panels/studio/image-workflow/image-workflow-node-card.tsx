@@ -8,6 +8,8 @@ import { LocalImage } from "@/components/ui/local-image";
 import { ResolutionBadge, probeImagePixelSize } from "@/components/ui/image-resolution-badge";
 import { Textarea } from "@/components/ui/textarea";
 import { UnclothNodeEditor } from "@/components/ui/uncloth-node-editor";
+import { CANVAS_NODE_DEFINITIONS, CanvasNodeShell } from "@/features/canvas-nodes";
+import { NsfwNodeEditor } from "@/components/ui/nsfw-node-editor";
 import { NsfwNodeEditor } from "@/components/ui/nsfw-node-editor";
 import { ModelSelector } from "@/components/panels/assist/ModelSelector";
 import { UPSCALE_INPUT_MAX_LONG_SIDE } from "@/lib/upscale/client";
@@ -98,6 +100,19 @@ export const ImageWorkflowNodeCard = memo(function ImageWorkflowNodeCard({ data 
           : node.type === "nsfw"
             ? "专业流增强"
             : "生成结果";
+
+  // 09-08 框架化(P1 试点):声明式节点整卡走通用壳(折叠+摘要底层能力)
+  const shellDefinition = CANVAS_NODE_DEFINITIONS[node.type];
+  if (shellDefinition) {
+    return (
+      <CanvasNodeShell
+        definition={shellDefinition}
+        node={node}
+        selected={data.selected}
+        footer={node.type === "nsfw" ? <NsfwNodeEditor node={node} /> : undefined}
+      />
+    );
+  }
 
   return (
     <div
