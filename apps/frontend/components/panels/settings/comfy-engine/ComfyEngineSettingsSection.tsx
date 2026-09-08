@@ -253,15 +253,6 @@ export function ComfyEngineSettingsSection({ embedded = false }: ComfyEngineSett
 
   return (
     <div className="space-y-4 px-5 py-4">
-      {/* 状态未知(sidecar 未起/探测未回):检查中,不误导成未安装 */}
-      {statusUnknown ? (
-        <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border bg-muted/30 px-4 py-3">
-          <p className="text-xs leading-5 text-muted-foreground" data-comfy-status-unknown>
-            正在确认引擎状态…
-          </p>
-        </div>
-      ) : null}
-
       {/* 真未安装:一键安装(体积 GB 级提示) */}
       {notInstalled ? (
         <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border bg-muted/30 px-4 py-3">
@@ -338,9 +329,13 @@ export function ComfyEngineSettingsSection({ embedded = false }: ComfyEngineSett
         />
       ) : null}
 
-      {status?.installed ? (
+      {/* 状态未知(sidecar 未起/探测未回):检查中,不误导成未安装。
+          09-08 实弹根修:标签栏结构也要照常出现(否则冷启动真空窗里展开卡
+          空无一物,用户以为没做逻辑)——未知时页体用占位文案,确认后自动填充。 */}
+      {(statusUnknown || status?.installed === true) && !notInstalled ? (
         <>
-          {/* 服务状态行:就绪副标(服务未跑=「准备运行时」)+ 启停 */}
+          {/* 服务状态行:就绪副标(服务未跑=「准备运行时」)+ 启停;未知=转圈占位 */}
+          {status ? (
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="flex items-center gap-2 text-sm">
               {status.serviceRunning ? (
@@ -382,6 +377,12 @@ export function ComfyEngineSettingsSection({ embedded = false }: ComfyEngineSett
               </Button>
             </div>
           </div>
+          ) : (
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+              <span data-comfy-status-unknown>正在确认引擎状态…</span>
+            </div>
+          )}
 
           {/* 标签栏(照 ComfyUI Desktop 设置页布局:更新/启动参数/快照/存储) */}
           <div className="flex flex-wrap gap-1 border-b border-border pb-2" data-comfy-tabs>
@@ -411,6 +412,9 @@ export function ComfyEngineSettingsSection({ embedded = false }: ComfyEngineSett
             ))}
           </div>
 
+          {/* 页体:状态确认后渲染四个标签页;未知=占位(结构先到,内容后到) */}
+          {status ? (
+            <>
           {/* 更新页(照 ComfyUI Desktop 更新页:版本+徽章+检查更新+更新通道+上次检查) */}
           {activeTab === "update" ? (
             <div className="space-y-4">
@@ -710,9 +714,15 @@ export function ComfyEngineSettingsSection({ embedded = false }: ComfyEngineSett
 
             </div>
           ) : null}
+            </>
+          ) : (
+            <p className="text-xs leading-5 text-muted-foreground" data-comfy-status-page>
+              正在确认引擎状态,通常几秒内完成;确认后这里会展示版本与更新信息。
+            </p>
+          )}
 
-          {/* 生态插件子区块 */}
-          <ComfyEnginePluginBlock engine={engine} />
+          {/* 生态插件子区块(状态未知时不渲染,避免空目录噪音) */}
+          {status ? <ComfyEnginePluginBlock engine={engine} /> : null}
         </>
       ) : null}
 
