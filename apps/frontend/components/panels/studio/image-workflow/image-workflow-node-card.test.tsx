@@ -174,10 +174,10 @@ describe("ImageWorkflowNodeCard 无衣物(09-04 通用化)", () => {
     const { container } = renderCard(unclothNode);
     expect(container.querySelector("[data-image-workflow-node-kind]")?.getAttribute("data-image-workflow-node-kind")).toBe("uncloth");
     expect(screen.getByText("无衣物")).toBeTruthy();
-    // 09-07 卡面默认收起(专业参数不上卡片):摘要行可见,点开总折叠后参数组挂载
+    // 09-08 P2:折叠职责归框架壳(摘要行=壳渲染;处理类默认收起)
     expect(screen.getByText(/①正向 ②负向/)).toBeTruthy();
     expect(screen.queryByText("两遍采样(常调)")).toBeNull();
-    fireEvent.click(screen.getByText(/①正向 ②负向/));
+    fireEvent.click(screen.getByLabelText("展开节点详情"));
     expect(screen.getByText("两遍采样(常调)")).toBeTruthy();
     expect(screen.getByText("蒙版(GrowMask / 输入规模)")).toBeTruthy();
   });
