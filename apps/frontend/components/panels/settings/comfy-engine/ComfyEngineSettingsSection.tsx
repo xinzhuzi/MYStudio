@@ -44,6 +44,7 @@ import {
   type ComfyEngineJob,
 } from "./comfy-engine-contract";
 import { ComfyEnginePluginBlock } from "./ComfyEnginePluginBlock";
+import { ComfyEngineStoragePaths } from "./ComfyEngineStoragePaths";
 import { useComfyEngineSettings } from "./useComfyEngineSettings";
 
 type ComfyEngineSettingsSectionProps = {
@@ -642,7 +643,7 @@ export function ComfyEngineSettingsSection({ embedded = false }: ComfyEngineSett
             </div>
           ) : null}
 
-          {/* 存储页(照截图:模型目录) */}
+          {/* 存储页:模型目录 + 存储位置四行(源码/venv/工作流;09-09 聚进本页) */}
           {activeTab === "storage" ? (
             <div className="space-y-3">
           {/* 模型目录行:默认 + 自定义路径(指向现有模型库即免重下)+ 打开 */}
@@ -692,6 +693,9 @@ export function ComfyEngineSettingsSection({ embedded = false }: ComfyEngineSett
               </Button>
             </div>
           </div>
+
+          {/* 存储位置(源码目录/引擎虚拟环境/工作流目录,可改可迁移) */}
+          <ComfyEngineStoragePaths />
 
             </div>
           ) : null}
