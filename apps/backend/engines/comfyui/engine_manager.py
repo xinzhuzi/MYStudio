@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import gzip
 import json
+import os
 import re
 import shutil
 import socket
@@ -471,8 +472,12 @@ class EngineManager:
             }
 
         cm.mutate_manifest(_record)
+        # 自研节点包随装(懒加载防循环:plugin_manager 顶层引本模块)
+        from . import plugin_manager as _pm
+        manying_sync = _pm.sync_manying_nodes()
         jobs.update(job_id, result={
             "version": tag, "port": port, "torch": torch_version,
+            "manyingNodes": manying_sync,
             "message": f"ComfyUI 引擎 {tag} 安装完成,点「准备运行时」启动服务",
         })
 
@@ -543,7 +548,12 @@ class EngineManager:
         self._log_file = open(cm.engine_log_path(), "a", encoding="utf-8", buffering=1)
         self._stopping = False
         # 显式 cwd=源码目录(相对资源解析),可执行文件与脚本全绝对路径(防漂移坑)
-        self._proc = subprocess.Popen(argv, cwd=str(src), stdout=self._log_file, stderr=subprocess.STDOUT)
+        # bridge 回写端点注入(swap 阶段1:manying_generated → sidecar 17595)
+        launch_env = {**os.environ,
+                      "MYSTUDIO_BRIDGE_URL": bridge_contract.BRIDGE_URL,
+                      "MYSTUDIO_BRIDGE_TOKEN": bridge_contract.BRIDGE_TOKEN}
+        self._proc = subprocess.Popen(argv, cwd=str(src), env=launch_env,
+                                      stdout=self._log_file, stderr=subprocess.STDOUT)
         if progress:
             progress(40, "等待引擎就绪(首次加载模型较慢)…")
         deadline = time.monotonic() + HEALTH_TIMEOUT_S
@@ -710,6 +720,9 @@ class EngineManager:
             _pip(["install", "-r", str(src / "requirements.txt")],
                  on_line=lambda line: jobs.update(job_id, tail_line=line))
 
+            jobs.update(job_id, progress=50, step="manying", message="同步自研节点包…")
+            from . import plugin_manager as _pm
+            _pm.sync_manying_nodes()
             jobs.update(job_id, progress=55, step="restart", message="重启引擎…")
             self.restart(progress=lambda pct, msg: jobs.update(job_id, progress=55 + pct * 25 // 100, message=msg))
 

@@ -47,6 +47,11 @@ from engines.image_engine.model_cache import (
 from .pipeline import PipelineError, generate_image
 
 LOCAL_TOKEN = "manying-local-image"
+# bridge 回写令牌单源核对(swap 阶段1):engines/comfyui/bridge_contract 与本文件
+# 固定令牌必须一致,漂移即启动失败(manying_generated 回写会被全拒)
+from engines.comfyui import bridge_contract as _bridge_contract  # noqa: E402
+
+assert _bridge_contract.BRIDGE_TOKEN == LOCAL_TOKEN, "bridge 令牌漂移:bridge_contract 与 server.LOCAL_TOKEN 不一致"
 
 _progress_state: dict[str, dict] = {}
 _progress_lock = threading.Lock()
@@ -446,12 +451,47 @@ class Handler(BaseHTTPRequestHandler):
     def _comfy(self, method: str, path: str, payload: dict, query: dict) -> None:
         from engines.comfyui.engine_manager import EngineOpError, engine_manager, jobs
         from engines.comfyui import plugin_manager as pm
+        from engines.comfyui import bridge_inbox
 
         def q(name: str) -> str:
             return (query.get(name) or [""])[0]
 
         try:
             # ── 引擎 ──
+            # ── manying 自研节点 + bridge 回写(swap 阶段1)──
+            if method == "POST" and path == "/comfy/manying/sync":
+                result = pm.sync_manying_nodes()
+                result["restartRequired"] = engine_manager.status().get("state") == "running"
+                self._send_json(result)
+                return
+            if method == "GET" and path == "/comfy/manying/status":
+                self._send_json(pm.manying_sync_state())
+                return
+            if method == "POST" and path == "/comfy/bridge/writeback":
+                image_b64 = payload.get("imageB64")
+                if not isinstance(image_b64, str) or not image_b64:
+                    self._send_error_json(400, "回写缺少图像数据(imageB64)", "bridge-writeback-invalid")
+                    return
+                item_id = bridge_inbox.append(
+                    {
+                        "client": payload.get("client") or "manying-nodes",
+                        "shotTarget": payload.get("shotTarget") or "",
+                        "prompt": payload.get("prompt") or "",
+                        "meta": payload.get("meta") if isinstance(payload.get("meta"), dict) else {},
+                        "ts": payload.get("ts") or int(time.time() * 1000),
+                    },
+                    image_b64,
+                )
+                self._send_json({"accepted": True, "id": item_id})
+                return
+            if method == "GET" and path == "/comfy/bridge/writebacks":
+                cursor = int(q("cursor") or 0)
+                self._send_json(bridge_inbox.list_since(cursor, include_image=q("include_image") != "0"))
+                return
+            if method == "POST" and path == "/comfy/bridge/writebacks/ack":
+                self._send_json({"deleted": bridge_inbox.ack(int(payload.get("upTo") or 0))})
+                return
+
             if method == "GET" and path == "/comfy/engine/snapshots":
                 self._send_json(engine_manager().list_snapshots())
                 return

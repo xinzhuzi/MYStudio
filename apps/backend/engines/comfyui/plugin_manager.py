@@ -816,3 +816,41 @@ def delete_workflow(workflow_id: str, confirm: bool = False) -> dict:
     path.unlink()
     return {"deleted": True, **scan,
             "message": f"已删除 {workflow_id}(已备份到快照目录,可恢复)"}
+
+
+# ── manying_nodes 自研节点包(09-09 comfyui-frontend-swap 阶段1)─────────────
+# design.md 2.1:源码位随 backend 平铺打包;运行位=引擎源码内 custom_nodes
+# (引擎只读源码内目录);硬拷不软链(快照毒教训);tests 不进引擎。
+
+MANYING_DIR = "manying-nodes"
+
+
+def manying_source_dir() -> Path:
+    return Path(__file__).resolve().parent / "manying_nodes"
+
+
+def sync_manying_nodes() -> dict:
+    """硬拷源码位 → custom_nodes/manying-nodes(tmp 原子换入;幂等)。"""
+    source = manying_source_dir()
+    if not (source / "__init__.py").is_file():
+        raise EngineOpError(f"manying_nodes 源码位缺失:{source}")
+    target = cm.custom_nodes_dir() / MANYING_DIR
+    target.parent.mkdir(parents=True, exist_ok=True)
+    tmp = target.parent / (MANYING_DIR + ".tmp")
+    if tmp.exists():
+        shutil.rmtree(tmp)
+    shutil.copytree(source, tmp, ignore=shutil.ignore_patterns("__pycache__", "*.pyc", "tests"))
+    if target.exists():
+        shutil.rmtree(target)
+    tmp.rename(target)
+    files = sum(1 for p in target.rglob("*") if p.is_file())
+    return {"copied": files, "source": str(source), "target": str(target)}
+
+
+def manying_sync_state() -> dict:
+    target = cm.custom_nodes_dir() / MANYING_DIR
+    return {
+        "synced": (target / "__init__.py").is_file(),
+        "source": str(manying_source_dir()),
+        "target": str(target),
+    }
