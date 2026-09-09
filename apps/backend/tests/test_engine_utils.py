@@ -20,8 +20,8 @@ from unittest.mock import MagicMock, patch
 
 import numpy as np
 
-import tts.engine as engine_module
-from tts.engine import (
+import engines.tts_engine.engine as engine_module
+from engines.tts_engine.engine import (
     SynthesisResult,
     _adapt_mlx_generation_results,
     _custom_voice_instruct,

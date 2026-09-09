@@ -11,14 +11,14 @@ from unittest.mock import MagicMock, patch
 
 import numpy as np
 
-from tts.catalog import TTS_MODELS, get_model
+from engines.tts_engine.catalog import TTS_MODELS, get_model
 import tts.main as main_module
-import tts.engine as engine_module
+import engines.tts_engine.engine as engine_module
 import tts.server as server_module
-from tts.engine import is_engine_loaded, resolve_emotion_capability, synthesize_to_wav, unload_engine
-from tts.model_cache import download_hf_cache_dir, find_cached_model, has_cached_repo_files, is_model_downloaded
+from engines.tts_engine.engine import is_engine_loaded, resolve_emotion_capability, synthesize_to_wav, unload_engine
+from engines.tts_engine.model_cache import download_hf_cache_dir, find_cached_model, has_cached_repo_files, is_model_downloaded
 from tts.storage import RuntimeStore
-from tts.tts import generate_mock_wav
+from engines.tts_engine.tts import generate_mock_wav
 
 
 class TtsContractTest(unittest.TestCase):
@@ -196,7 +196,7 @@ class TtsContractTest(unittest.TestCase):
             self.assertEqual(store.get_generation(generation["id"])["status"], "generating")
 
     def test_model_cache_detects_voicebox_and_hf_cli_downloads(self):
-        with tempfile.TemporaryDirectory() as tmp, patch("tts.model_cache.hf_cache_dirs", return_value=[Path(tmp)]):
+        with tempfile.TemporaryDirectory() as tmp, patch("engines.tts_engine.model_cache.hf_cache_dirs", return_value=[Path(tmp)]):
             repo_cache = Path(tmp) / "models--Qwen--Qwen3-TTS-12Hz-1.7B-Base"
             snapshot = repo_cache / "snapshots" / "main"
             snapshot.mkdir(parents=True)
@@ -213,7 +213,7 @@ class TtsContractTest(unittest.TestCase):
             self.assertEqual(cached.repo_cache_dir, repo_cache)
 
     def test_model_cache_exposes_display_paths_for_frontend(self):
-        with tempfile.TemporaryDirectory() as tmp, patch("tts.model_cache.hf_cache_dirs", return_value=[Path(tmp)]):
+        with tempfile.TemporaryDirectory() as tmp, patch("engines.tts_engine.model_cache.hf_cache_dirs", return_value=[Path(tmp)]):
             repo_cache = Path(tmp) / "models--hexgrad--Kokoro-82M"
             snapshot = repo_cache / "snapshots" / "main"
             snapshot.mkdir(parents=True)
@@ -226,7 +226,7 @@ class TtsContractTest(unittest.TestCase):
             self.assertEqual(str(cached.repo_cache_dir), str(repo_cache))
 
     def test_model_status_includes_model_paths(self):
-        with tempfile.TemporaryDirectory() as tmp, patch("tts.model_cache.hf_cache_dirs", return_value=[Path(tmp)]):
+        with tempfile.TemporaryDirectory() as tmp, patch("engines.tts_engine.model_cache.hf_cache_dirs", return_value=[Path(tmp)]):
             repo_cache = Path(tmp) / "models--hexgrad--Kokoro-82M"
             snapshot = repo_cache / "snapshots" / "main"
             snapshot.mkdir(parents=True)
@@ -260,7 +260,7 @@ class TtsContractTest(unittest.TestCase):
             self.assertEqual(download_hf_cache_dir(), Path(tmp) / "huggingface" / "hub")
 
     def test_model_cache_rejects_incomplete_hf_downloads(self):
-        with tempfile.TemporaryDirectory() as tmp, patch("tts.model_cache.hf_cache_dirs", return_value=[Path(tmp)]):
+        with tempfile.TemporaryDirectory() as tmp, patch("engines.tts_engine.model_cache.hf_cache_dirs", return_value=[Path(tmp)]):
             repo_cache = Path(tmp) / "models--hexgrad--Kokoro-82M"
             snapshot = repo_cache / "snapshots" / "main"
             blobs = repo_cache / "blobs"
@@ -551,7 +551,7 @@ class TtsContractTest(unittest.TestCase):
                     "mlx_audio": fake_mlx_package,
                     "mlx_audio.tts": fake_mlx_tts,
                 }),
-                patch("tts.model_cache.find_cached_model", return_value=cached),
+                patch("engines.tts_engine.model_cache.find_cached_model", return_value=cached),
                 patch.object(engine_module, "_qwen_custom_voice_model", None, create=True),
                 patch.object(engine_module, "_qwen_custom_voice_model_size", None, create=True),
                 patch.object(engine_module, "_qwen_custom_voice_backend", None, create=True),

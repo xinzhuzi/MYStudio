@@ -12,10 +12,10 @@ from pathlib import Path
 from urllib.parse import unquote, urlparse
 
 from . import __version__
-from .catalog import TTS_MODELS, get_model
-from .engine import unload_engine
+from engines.tts_engine.catalog import TTS_MODELS, get_model
+from engines.tts_engine.engine import unload_engine
 from .generation_routes import GenerationRoutesMixin
-from .model_cache import download_hf_cache_dir, hf_cache_dirs, primary_hf_cache_dir
+from engines.tts_engine.model_cache import download_hf_cache_dir, hf_cache_dirs, primary_hf_cache_dir
 from .model_routes import ModelRoutesMixin
 from .runtime_state import RuntimeState
 from .storage import RuntimeStore

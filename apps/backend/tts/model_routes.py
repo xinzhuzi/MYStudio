@@ -7,9 +7,9 @@ import time
 from http import HTTPStatus
 from pathlib import Path
 
-from .catalog import get_model
-from .engine import is_engine_loaded
-from .model_cache import download_hf_cache_dir, find_cached_model, repo_cache_dir
+from engines.tts_engine.catalog import get_model
+from engines.tts_engine.engine import is_engine_loaded
+from engines.tts_engine.model_cache import download_hf_cache_dir, find_cached_model, repo_cache_dir
 from .model_inventory import (
     ALIGNMENT_MODEL_NAME,
     ALIGNMENT_TOKENIZER_REPO,

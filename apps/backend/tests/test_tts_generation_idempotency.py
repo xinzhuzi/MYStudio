@@ -10,7 +10,7 @@ from queue import Queue
 from unittest.mock import patch
 
 from tts.generation_routes import GenerationRoutesMixin, _generation_failure_metadata
-from tts.engine import SynthesisResult
+from engines.tts_engine.engine import SynthesisResult
 from tts.storage import RuntimeStore
 
 

@@ -3,8 +3,8 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from .catalog import TTS_MODELS, TtsModel
-from .model_cache import download_hf_cache_dir, find_cached_model, has_cached_repo_files
+from engines.tts_engine.catalog import TTS_MODELS, TtsModel
+from engines.tts_engine.model_cache import download_hf_cache_dir, find_cached_model, has_cached_repo_files
 
 
 ALIGNMENT_MODEL_NAME = "whisper-large-v3-turbo"

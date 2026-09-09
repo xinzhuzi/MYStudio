@@ -6,9 +6,9 @@ from pathlib import Path
 import re
 from typing import Any
 
-from .catalog import get_model
-from .engine import synthesize_to_wav
-from .model_cache import find_cached_model
+from engines.tts_engine.catalog import get_model
+from engines.tts_engine.engine import synthesize_to_wav
+from engines.tts_engine.model_cache import find_cached_model
 
 
 _RETRYABLE_ERROR_CODES = {
