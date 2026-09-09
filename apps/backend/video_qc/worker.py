@@ -18,7 +18,7 @@ from pathlib import Path
 from typing import Any
 
 from . import __version__
-from .dover_scoring import DEFAULT_MODEL, VideoQcError, probe_model, score_video
+from engines.video_qc_engine.dover_scoring import DEFAULT_MODEL, VideoQcError, probe_model, score_video
 
 TOOL_VERSION = f"video-qc@{__version__}"
 

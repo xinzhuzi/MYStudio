@@ -10,7 +10,7 @@ from __future__ import annotations
 import json
 import sys
 
-from .model_cache import UPSCALE_MODELS, find_cached_upscale_model, primary_model_dir
+from engines.upscale_engine.model_cache import UPSCALE_MODELS, find_cached_upscale_model, primary_model_dir
 
 
 def build_model_status() -> list[dict]:

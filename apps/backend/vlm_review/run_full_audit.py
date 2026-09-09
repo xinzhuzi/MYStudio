@@ -4,8 +4,8 @@ import json, os, sys, time
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 os.environ.setdefault('MYSTUDIO_STORAGE_BASE', os.path.expanduser('~/Library/Application Support/漫影工作室'))
 
-from vlm_review.adapter import review_image, _load_model
-from vlm_review.model_cache import find_cached_vlm_model
+from engines.vlm_engine.adapter import review_image, _load_model
+from engines.vlm_engine.model_cache import find_cached_vlm_model
 
 # 预加载模型(冷装载一次,后续复用)
 model_dir = find_cached_vlm_model()

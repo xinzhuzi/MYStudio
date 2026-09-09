@@ -7,9 +7,10 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from video_qc import dover_scoring, model_cache, worker
-from video_qc import dover_mobile_arch as arch
-from video_qc.dover_scoring import VideoQcError
+from engines.video_qc_engine import dover_scoring, model_cache
+from video_qc import worker
+from engines.video_qc_engine import dover_mobile_arch as arch
+from engines.video_qc_engine.dover_scoring import VideoQcError
 
 
 class VideoQcModelCacheTest(unittest.TestCase):

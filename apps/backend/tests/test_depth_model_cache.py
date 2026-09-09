@@ -6,8 +6,8 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from depth_estimation import adapter
-from depth_estimation.model_cache import model_weight_sha256, resolve_snapshot_dir
+from engines.depth_engine import adapter
+from engines.depth_engine.model_cache import model_weight_sha256, resolve_snapshot_dir
 
 
 class DepthModelCacheTest(unittest.TestCase):

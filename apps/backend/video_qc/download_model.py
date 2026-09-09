@@ -20,7 +20,7 @@ import time
 import urllib.request
 from pathlib import Path
 
-from .model_cache import VIDEO_QC_MODELS, cached_model_path, primary_model_dir
+from engines.video_qc_engine.model_cache import VIDEO_QC_MODELS, cached_model_path, primary_model_dir
 
 
 def _write_progress(path: Path, payload: dict) -> None:

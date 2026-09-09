@@ -5,11 +5,11 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from upscale import model_cache
-from upscale.adapter import UpscaleError, _build_network, _tile_forward, probe_model, upscale_image
-from upscale.model_cache import file_sha256
-from upscale.rrdbnet import RRDBNet
-from upscale.srvgg import SRVGGNetCompact
+from engines.upscale_engine import model_cache
+from engines.upscale_engine.adapter import UpscaleError, _build_network, _tile_forward, probe_model, upscale_image
+from engines.upscale_engine.model_cache import file_sha256
+from engines.upscale_engine.rrdbnet import RRDBNet
+from engines.upscale_engine.srvgg import SRVGGNetCompact
 
 try:
     import torch  # noqa: F401
@@ -55,7 +55,7 @@ def _write_tiny_checkpoint(directory: Path, spec: dict) -> None:
 
 
 def _build_network_from_arch(arch: dict):
-    from upscale.rrdbnet import RRDBNet as _RRDBNet
+    from engines.upscale_engine.rrdbnet import RRDBNet as _RRDBNet
 
     parameters = dict(arch)
     parameters.pop("kind")
@@ -123,7 +123,7 @@ class UpscaleAdapterTest(unittest.TestCase):
                 # focused on PNG/alpha persistence with a deterministic visible
                 # inference result instead of coupling it to random brightness.
                 with patch(
-                    "upscale.adapter._tile_forward",
+                    "engines.upscale_engine.adapter._tile_forward",
                     return_value=torch.full((1, 3, 96, 160), 84, dtype=torch.uint8),
                 ):
                     result = upscale_image(str(source), str(destination), TINY_RRDB)
@@ -150,7 +150,7 @@ class UpscaleAdapterTest(unittest.TestCase):
                 source = Path(temp) / "in.png"
                 destination = Path(temp) / "out.png"
                 Image.new("RGB", (24, 16), (200, 10, 30)).save(source)
-                with patch("upscale.adapter._tile_forward", return_value=torch.full((1, 3, 64, 96), 84, dtype=torch.uint8)):
+                with patch("engines.upscale_engine.adapter._tile_forward", return_value=torch.full((1, 3, 64, 96), 84, dtype=torch.uint8)):
                     upscale_image(str(source), str(destination), TINY_RRDB)
                 with Image.open(destination) as output:
                     self.assertEqual(output.mode, "RGB")
@@ -171,7 +171,7 @@ class UpscaleAdapterTest(unittest.TestCase):
             destination = Path(temp) / "out.png"
             Image.new("RGB", (8, 8), (120, 90, 60)).save(source)
             spec = {"scale": 4}
-            with patch("upscale.adapter._load_model", return_value=(BlackNetwork(), "cpu", spec)):
+            with patch("engines.upscale_engine.adapter._load_model", return_value=(BlackNetwork(), "cpu", spec)):
                 with self.assertRaises(UpscaleError) as ctx:
                     upscale_image(str(source), str(destination), TINY_RRDB, tile=8, tile_pad=0)
             self.assertEqual(ctx.exception.code, "output-quality-failed")
@@ -191,7 +191,7 @@ class UpscaleAdapterTest(unittest.TestCase):
             source = Path(temp) / "dark.png"
             destination = Path(temp) / "out.png"
             Image.new("RGB", (8, 8), (0, 0, 0)).save(source)
-            with patch("upscale.adapter._load_model", return_value=(BlackNetwork(), "cpu", {"scale": 4})):
+            with patch("engines.upscale_engine.adapter._load_model", return_value=(BlackNetwork(), "cpu", {"scale": 4})):
                 result = upscale_image(str(source), str(destination), TINY_RRDB, tile=8, tile_pad=0)
             self.assertEqual(result["width"], 32)
             self.assertTrue(destination.exists())

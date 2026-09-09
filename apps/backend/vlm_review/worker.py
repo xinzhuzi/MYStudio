@@ -15,8 +15,8 @@ import time
 from pathlib import Path
 from typing import Any
 
-from .adapter import MODEL_NAME, REVIEW_TIMEOUT_SECONDS, VlmReviewError, review_image
-from .model_cache import (
+from engines.vlm_engine.adapter import MODEL_NAME, REVIEW_TIMEOUT_SECONDS, VlmReviewError, review_image
+from engines.vlm_engine.model_cache import (
     DEFAULT_VLM_MODEL,
     detect_hardware_profile,
     evaluate_availability,

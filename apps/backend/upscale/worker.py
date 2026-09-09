@@ -18,8 +18,8 @@ from pathlib import Path
 from typing import Any
 
 from . import __version__
-from .adapter import UpscaleError, probe_model, upscale_image
-from .model_cache import DEFAULT_UPSCALE_MODEL
+from engines.upscale_engine.adapter import UpscaleError, probe_model, upscale_image
+from engines.upscale_engine.model_cache import DEFAULT_UPSCALE_MODEL
 
 TOOL_VERSION = f"upscale@{__version__}"
 

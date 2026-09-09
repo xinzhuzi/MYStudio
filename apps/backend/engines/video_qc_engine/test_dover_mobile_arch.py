@@ -22,7 +22,7 @@ _TEST_VIDEO_CANDIDATES = (
 
 
 def _cached_weight() -> str | None:
-    from video_qc.model_cache import find_cached_video_qc_model
+    from engines.video_qc_engine.model_cache import find_cached_video_qc_model
 
     cached = find_cached_video_qc_model("dover-mobile")
     return cached["file_path"] if cached else None
@@ -41,7 +41,7 @@ def model():
     weight_path = _cached_weight()
     if weight_path is None:
         pytest.skip("DOVER-Mobile 权重未下载(设置页显式下载后重跑)")
-    from video_qc.dover_mobile_arch import DOVERMobileWrapper
+    from engines.video_qc_engine.dover_mobile_arch import DOVERMobileWrapper
 
     return DOVERMobileWrapper.load(weight_path)
 
@@ -84,7 +84,7 @@ class TestDoverMobileArch:
 
     def test_sample_frames_shape(self, test_video):
         """sample_frames returns (N, C, H, W) normalized to 224x224."""
-        from video_qc.dover_mobile_arch import sample_frames
+        from engines.video_qc_engine.dover_mobile_arch import sample_frames
 
         frames = sample_frames(test_video, fragments=8)
 
@@ -94,7 +94,7 @@ class TestDoverMobileArch:
 
     def test_sampling_window_clamps(self):
         """_sampling_window clamps out-of-range windows instead of crashing."""
-        from video_qc.dover_mobile_arch import _sampling_window
+        from engines.video_qc_engine.dover_mobile_arch import _sampling_window
 
         assert _sampling_window(100, None, None) == (0, 100)
         assert _sampling_window(100, 1.0, 1.0) == (24, 48)  # fps=24 default
@@ -106,7 +106,7 @@ class TestDoverMobileArch:
     def test_to_clip_batches_matches_official_regrouping(self):
         """Official reshape(C, num_clips, -1, H, W).transpose(0,1): clip k holds
         source frames [k*per_clip, (k+1)*per_clip) — temporal convs stay per-clip."""
-        from video_qc.dover_mobile_arch import _to_clip_batches
+        from engines.video_qc_engine.dover_mobile_arch import _to_clip_batches
 
         frames = torch.arange(96, dtype=torch.float32).reshape(96, 1, 1, 1)
         batched = _to_clip_batches(frames, num_clips=3)
@@ -124,7 +124,7 @@ class TestDoverMobileArch:
         import numpy as np
         from unittest.mock import patch
 
-        from video_qc.dover_mobile_arch import _spatial_fragments_view
+        from engines.video_qc_engine.dover_mobile_arch import _spatial_fragments_view
 
         # 448×448 source: 7×7 cells of 64px, one 32-frame group.
         # Cell (i,j) filled with constant value i*7+j so provenance is checkable.
@@ -146,7 +146,7 @@ class TestDoverMobileArch:
         """Sources below 224px are bilinear-upsampled so the canvas still fills."""
         import numpy as np
 
-        from video_qc.dover_mobile_arch import _spatial_fragments_view
+        from engines.video_qc_engine.dover_mobile_arch import _spatial_fragments_view
 
         frames = np.full((32, 112, 112, 3), 200, dtype=np.uint8)
         mosaic = _spatial_fragments_view(frames)
@@ -158,7 +158,7 @@ class TestDoverMobileArch:
         import numpy as np
         import pytest as _pytest
 
-        from video_qc.dover_mobile_arch import _spatial_fragments_view
+        from engines.video_qc_engine.dover_mobile_arch import _spatial_fragments_view
 
         with _pytest.raises(ValueError):
             _spatial_fragments_view(np.zeros((33, 448, 448, 3), dtype=np.uint8))
@@ -166,7 +166,7 @@ class TestDoverMobileArch:
     def test_sample_frames_preserves_order_with_repeats(self, test_video):
         """Batch extraction dedupes internally but must restore the exact
         requested order, including repeated frame numbers."""
-        from video_qc.dover_mobile_arch import _extract_frames_batch
+        from engines.video_qc_engine.dover_mobile_arch import _extract_frames_batch
 
         # window_lo=0, fps=24 — indices with duplicates and unordered
         indices = [10, 3, 10, 7, 3]
@@ -179,7 +179,7 @@ class TestDoverMobileArch:
 
     def test_grn_layer_normalization(self):
         """GRN preserves shape and stays finite."""
-        from video_qc.dover_mobile_arch import GRN
+        from engines.video_qc_engine.dover_mobile_arch import GRN
 
         grn = GRN(dim=64)
         x = torch.randn(2, 64, 16, 64, 64)  # (B, C, T, H, W)
@@ -193,7 +193,7 @@ class TestDoverMobileArch:
 
     def test_convnextv23d_output_features(self):
         """Backbone pools to (N, C) by default; spatial mode keeps 5D."""
-        from video_qc.dover_mobile_arch import ConvNeXtV23D
+        from engines.video_qc_engine.dover_mobile_arch import ConvNeXtV23D
 
         backbone = ConvNeXtV23D(depths=(2, 2, 6, 2), dims=(48, 96, 192, 384), drop_path_rate=0.4)
         x = torch.randn(1, 3, 32, 224, 224)
@@ -210,7 +210,7 @@ class TestDoverScoring:
 
     def test_probe_model_shape(self):
         """Probe is either ready (with file/sizeMb) or blocked with a machine code."""
-        from video_qc.dover_scoring import probe_model
+        from engines.video_qc_engine.dover_scoring import probe_model
 
         probe = probe_model()
 
@@ -223,7 +223,7 @@ class TestDoverScoring:
 
     def test_score_video_request_format(self, test_video):
         """score_video returns the whole-mode contract fields."""
-        from video_qc.dover_scoring import score_video
+        from engines.video_qc_engine.dover_scoring import score_video
 
         result = score_video({"videoPath": test_video, "mode": "whole"})
 
@@ -233,7 +233,7 @@ class TestDoverScoring:
 
     def test_score_video_slices_mode(self, test_video):
         """slices mode returns whole-video scores plus per-shot fused (fail-closed)."""
-        from video_qc.dover_scoring import score_video
+        from engines.video_qc_engine.dover_scoring import score_video
 
         result = score_video({
             "videoPath": test_video,
@@ -253,7 +253,7 @@ class TestDoverScoring:
 
     def test_score_video_invalid_slice_fails_closed(self, test_video):
         """Malformed slice entries raise invalid-slices instead of being skipped."""
-        from video_qc.dover_scoring import VideoQcError, score_video
+        from engines.video_qc_engine.dover_scoring import VideoQcError, score_video
 
         with pytest.raises(VideoQcError) as exc_info:
             score_video({

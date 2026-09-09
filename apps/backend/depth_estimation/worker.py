@@ -18,7 +18,7 @@ from pathlib import Path
 from typing import Any
 
 from . import __version__
-from .adapter import DepthEstimationError, estimate_depth, probe_model
+from engines.depth_engine.adapter import DepthEstimationError, estimate_depth, probe_model
 
 TOOL_VERSION = f"depth-estimation@{__version__}"
 

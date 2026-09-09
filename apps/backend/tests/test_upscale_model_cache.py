@@ -5,8 +5,8 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from upscale import model_cache
-from upscale.model_cache import (
+from engines.upscale_engine import model_cache
+from engines.upscale_engine.model_cache import (
     UPSCALE_MODELS,
     delete_cached_model,
     file_sha256,

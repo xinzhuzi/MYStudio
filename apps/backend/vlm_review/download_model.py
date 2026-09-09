@@ -19,7 +19,7 @@ import time
 from pathlib import Path
 from urllib.parse import quote
 
-from .model_cache import DEFAULT_VLM_MODEL, VLM_MODELS
+from engines.vlm_engine.model_cache import DEFAULT_VLM_MODEL, VLM_MODELS
 
 TOTAL_BYTES_FALLBACK_MB = 9900
 MODELSCOPE_BASE = "https://modelscope.cn"

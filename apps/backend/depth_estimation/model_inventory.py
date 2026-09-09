@@ -13,7 +13,7 @@ from __future__ import annotations
 import json
 import sys
 
-from .model_cache import DEPTH_MODELS, primary_hf_cache_dir, find_cached_depth_model
+from engines.depth_engine.model_cache import DEPTH_MODELS, primary_hf_cache_dir, find_cached_depth_model
 
 
 def build_model_status() -> list[dict]:

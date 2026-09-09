@@ -10,7 +10,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 from upscale import worker
-from upscale.model_cache import DEFAULT_UPSCALE_MODEL, UPSCALE_MODELS
+from engines.upscale_engine.model_cache import DEFAULT_UPSCALE_MODEL, UPSCALE_MODELS
 
 
 class UpscaleWorkerTest(unittest.TestCase):

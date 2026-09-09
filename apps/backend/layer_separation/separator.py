@@ -29,7 +29,7 @@ def separate_layers(
 
     Raises DepthEstimationError（透传自深度估计）。
     """
-    from depth_estimation.adapter import estimate_depth
+    from engines.depth_engine.adapter import estimate_depth
 
     depth_tmp = str(Path(subject_output).parent / "_depth_tmp.png")
     result = estimate_depth(input_path, depth_tmp, depth_model)

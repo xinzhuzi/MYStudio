@@ -28,7 +28,7 @@ import time
 import urllib.request
 from pathlib import Path
 
-from .model_cache import UPSCALE_MODELS, file_sha256, primary_model_dir
+from engines.upscale_engine.model_cache import UPSCALE_MODELS, file_sha256, primary_model_dir
 
 
 def _write_progress(path: Path, payload: dict) -> None:

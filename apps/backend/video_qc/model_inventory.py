@@ -6,7 +6,7 @@ from __future__ import annotations
 import json
 import sys
 
-from .model_cache import find_cached_video_qc_model, primary_model_dir, VIDEO_QC_MODELS
+from engines.video_qc_engine.model_cache import find_cached_video_qc_model, primary_model_dir, VIDEO_QC_MODELS
 
 
 def scan() -> dict:
