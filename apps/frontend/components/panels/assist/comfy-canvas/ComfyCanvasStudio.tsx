@@ -162,7 +162,7 @@ export function ComfyCanvasStudio({ embedded = false }: { embedded?: boolean }) 
       <webview
         src={src ?? "about:blank"}
         className="h-full w-full flex-1"
-        // 独立进程渲染;禁弹窗,权限按需最小化
+        // 独立进程渲染;禁弹窗(09-10 类型收紧:布尔字面量,React 会序列化为属性)
         allowpopups={false}
         data-comfy-canvas-webview
       />
