@@ -146,7 +146,7 @@ def download_model(model_name: str, progress_path: Path) -> int:
         return 2
 
     layout = spec.get("layout", "")
-    from .engines import krea2 as _krea2, flux2 as _flux2, z_image as _z_image, qwen as _qwen, comfyui_bridge as _bridge
+    from .providers import krea2 as _krea2, flux2 as _flux2, z_image as _z_image, qwen as _qwen, comfyui_bridge as _bridge
     engine_map = {
         "krea2-pointed": _krea2, "flux2-pointed": _flux2,
         "z-image-pointed": _z_image, "qwen-pointed": _qwen,

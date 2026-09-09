@@ -18,9 +18,9 @@ from pathlib import Path
 from unittest.mock import patch
 
 from image_gen import download_model, model_cache, model_inventory, pipeline
-from image_gen.engines import flux2 as flux2_engine
-from image_gen.engines import krea2 as krea2_engine
-from image_gen.engines import z_image as z_image_engine
+from image_gen.providers import flux2 as flux2_engine
+from image_gen.providers import krea2 as krea2_engine
+from image_gen.providers import z_image as z_image_engine
 
 
 class QwenKeyMappingTests(unittest.TestCase):

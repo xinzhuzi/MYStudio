@@ -20,11 +20,11 @@ from .model_cache import (
     resolve_image_model_name,
     find_cached_image_model_for_spec,
 )
-from .engines import krea2 as _krea2
-from .engines import flux2 as _flux2
-from .engines import z_image as _z_image
-from .engines import qwen as _qwen
-from .engines import comfyui_bridge as _comfyui_bridge
+from .providers import krea2 as _krea2
+from .providers import flux2 as _flux2
+from .providers import z_image as _z_image
+from .providers import qwen as _qwen
+from .providers import comfyui_bridge as _comfyui_bridge
 
 _lock = threading.Lock()
 # 生成互斥的排队上限(秒):拿不到锁时排队等待,超时按「正忙」拒绝

@@ -102,10 +102,10 @@ class ImageGenerateRouteTests(unittest.TestCase):
     def test_bridge_download_is_a_noop_when_service_and_templates_are_ready(self) -> None:
         handler = _GenerateHandler.__new__(_GenerateHandler)
         with patch("image_gen.server.comfyui_models_dir", return_value=None), patch(
-            "image_gen.engines.comfyui_bridge.resolve_big_files",
+            "image_gen.providers.comfyui_bridge.resolve_big_files",
             return_value={"source": "comfyui-service", "cache_dir": "http://127.0.0.1:17598"},
         ), patch(
-            "image_gen.engines.comfyui_bridge.small_pieces_status",
+            "image_gen.providers.comfyui_bridge.small_pieces_status",
             return_value={"ready": True, "missing": [], "snapshot_dirs": {}},
         ):
             handler._handle_download({"model": "comfyui-bridge"})

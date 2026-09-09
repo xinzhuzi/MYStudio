@@ -10,11 +10,11 @@ import os
 from pathlib import Path
 from typing import TypedDict
 
-from .engines import krea2 as _krea2
-from .engines import flux2 as _flux2
-from .engines import z_image as _z_image
-from .engines import qwen as _qwen
-from .engines import comfyui_bridge as _comfyui_bridge
+from .providers import krea2 as _krea2
+from .providers import flux2 as _flux2
+from .providers import z_image as _z_image
+from .providers import qwen as _qwen
+from .providers import comfyui_bridge as _comfyui_bridge
 
 # ── 别名 ──
 LEGACY_IMAGE_MODEL_ALIASES: dict[str, str] = {

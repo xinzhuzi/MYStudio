@@ -183,7 +183,7 @@ def main() -> None:
     # Krea2 SDEdit(与 krea2.generate 同款双遍:复用引擎函数);ctx 与
     # pipeline.generate_image 同款构建(comfyui_models_dir + hf snapshot)
     from image_gen import model_cache
-    from image_gen.engines import krea2
+    from image_gen.providers import krea2
 
     def to_data_url(image):
         buf = io.BytesIO()

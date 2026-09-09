@@ -13,7 +13,7 @@ from __future__ import annotations
 import unittest
 
 from image_gen import pipeline
-from image_gen.engines.krea2 import _cancel_step_callback
+from image_gen.providers.krea2 import _cancel_step_callback
 
 
 class CancelStepCallbackContractTest(unittest.TestCase):

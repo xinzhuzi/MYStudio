@@ -18,7 +18,7 @@ from .model_cache import (
     flux2_small_pieces_status,
     krea2_small_pieces_status,
 )
-from .engines import comfyui_bridge
+from .providers import comfyui_bridge
 
 
 def build_model_status() -> list[dict]:
@@ -73,7 +73,7 @@ def build_model_status() -> list[dict]:
         if krea2_pointed:
             # 无衣物·指令编辑三层 LoRA(09-06 稳定版工作流;文件存在性探测,
             # 无公网源不自动下载,缺失=展示放置路径)
-            from .engines import krea2 as _krea2
+            from .providers import krea2 as _krea2
             from .model_cache import comfyui_models_dir as _cmd
             row = rows[-1]
             row["loraFiles"] = [

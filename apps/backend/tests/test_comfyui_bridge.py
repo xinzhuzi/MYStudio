@@ -7,7 +7,7 @@ import os
 import unittest
 from unittest.mock import patch
 
-from image_gen.engines import comfyui_bridge as bridge
+from image_gen.providers import comfyui_bridge as bridge
 from image_gen import model_cache, model_inventory
 from image_gen.pipeline import PipelineError
 
