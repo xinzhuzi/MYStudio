@@ -1,7 +1,7 @@
 "use client";
 // ComfyUI 存储位置配置卡(09-09 comfyui-frontend-swap 0a,design.md 2.6)。
 //
-// 引擎目录/Python 运行时(venv)/工作流目录 三行可改:
+// 源码目录/Python 运行时(venv)/工作流目录 三行可改:
 // - 未安装:直接落账(manifest),安装时落到新位
 // - 已安装:改路径=迁移(引擎/工作流搬移+venv 新位重建),确认后走 job 进度
 // - 引擎运行中:禁改(先停止)
@@ -31,7 +31,7 @@ import {
 type PathKey = "engineDir" | "venvDir" | "workflowsDir";
 
 const ROWS: Array<{ key: PathKey; label: string; hint: string }> = [
-  { key: "engineDir", label: "引擎目录", hint: "ComfyUI 源码与插件(custom_nodes 随引擎整体搬移)" },
+  { key: "engineDir", label: "源码目录", hint: "ComfyUI 源码仓库与插件 custom_nodes(整体搬移)" },
   { key: "venvDir", label: "引擎虚拟环境", hint: "ComfyUI 专用依赖环境 venv(与全局「Python 运行环境」无关;迁移时在新位置重建,依赖走缓存)" },
   { key: "workflowsDir", label: "工作流目录", hint: "内置模板与你的工作流库" },
 ];
