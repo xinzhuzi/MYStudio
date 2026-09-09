@@ -102,12 +102,8 @@ function EngineJobProgress({ job }: { job: ComfyEngineJob }) {
 /** 更新链成功报告:版本/节点数变化/插件状态(不兼容点名)。 */
 function UpdateReportCard({
   report,
-  onRollback,
-  isRollingBack,
 }: {
   report: NonNullable<ReturnType<typeof useComfyEngineSettings>["updateReport"]>;
-  onRollback: () => void;
-  isRollingBack: boolean;
 }) {
   const nodeDelta = report.nodeCountAfter - report.nodeCountBefore;
   return (
@@ -128,16 +124,7 @@ function UpdateReportCard({
           以下插件与新版本不兼容,需要等作者适配:{report.incompatiblePlugins.join("、")}
         </p>
       ) : null}
-      <div className="mt-3 flex justify-end">
-        <Button size="sm" variant="outline" onClick={onRollback} disabled={isRollingBack}>
-          {isRollingBack ? (
-            <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden />
-          ) : (
-            <RotateCcw className="mr-2 h-4 w-4" aria-hidden />
-          )}
-          回滚到 {report.previousVersion}
-        </Button>
-      </div>
+      {/* 09-09 用户裁定:更新链不做快照,无「一键回滚」;失败重新点更新即从断点自愈 */}
     </div>
   );
 }
@@ -306,30 +293,18 @@ export function ComfyEngineSettingsSection({ embedded = false }: ComfyEngineSett
       {/* 安装/更新链/reset 任务进度(含失败大白话) */}
       {engineJob ? <EngineJobProgress job={engineJob} /> : null}
 
-      {/* 更新失败 → 一键回滚 */}
+      {/* 更新失败 → 重试自愈(09-09 用户裁定:更新链无快照无回滚) */}
       {updateFailed ? (
-        <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-destructive/20 bg-destructive/5 px-4 py-3">
+        <div className="rounded-lg border border-destructive/20 bg-destructive/5 px-4 py-3">
           <p className="text-xs leading-5 text-destructive">
-            更新没成功,引擎当前不可用;可一键回滚到更新前快照。
+            更新没成功;重新点「更新到最新」会从断点续装(强制拉取是幂等的)。
           </p>
-          <Button size="sm" variant="outline" onClick={() => void engine.rollbackUpdate()} disabled={engine.isRollingBack}>
-            {engine.isRollingBack ? (
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden />
-            ) : (
-              <RotateCcw className="mr-2 h-4 w-4" aria-hidden />
-            )}
-            一键回滚
-          </Button>
         </div>
       ) : null}
 
       {/* 更新链成功报告 */}
       {engine.updateReport ? (
-        <UpdateReportCard
-          report={engine.updateReport}
-          onRollback={() => void engine.rollbackUpdate()}
-          isRollingBack={engine.isRollingBack}
-        />
+        <UpdateReportCard report={engine.updateReport} />
       ) : null}
 
       {/* 状态未知(sidecar 未起/探测未回):检查中,不误导成未安装。

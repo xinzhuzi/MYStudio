@@ -265,7 +265,7 @@ describe("ComfyEngineSettingsSection 版本与更新链", () => {
     expect(actions.checkUpdate).not.toHaveBeenCalled();
   });
 
-  it("更新链成功报告:版本/节点数变化 + 不兼容插件点名 + 回滚按钮", () => {
+  it("更新链成功报告:版本/节点数变化 + 不兼容插件点名(09-09 撤回滚按钮)", () => {
     scenario.status = readyStatus({ version: "0.34.5" });
     scenario.updateReport = {
       kind: "update",
@@ -282,12 +282,9 @@ describe("ComfyEngineSettingsSection 版本与更新链", () => {
     expect(screen.getByText(/节点总数 2196 → 2210/)).toBeTruthy();
     expect(screen.getByText(/以下插件与新版本不兼容/)).toBeTruthy();
     expect(screen.getByText(/图层样式/)).toBeTruthy();
-
-    fireEvent.click(screen.getByRole("button", { name: /回滚到 0.34.0/ }));
-    expect(actions.rollbackUpdate).toHaveBeenCalledOnce();
   });
 
-  it("更新失败:大白话 + 一键回滚", () => {
+  it("更新失败:大白话 + 重试自愈指引(09-09 无快照无回滚)", () => {
     scenario.status = readyStatus({ state: "error", message: "新版校验没通过" });
     scenario.activeJob = {
       jobId: "j2",
@@ -301,9 +298,7 @@ describe("ComfyEngineSettingsSection 版本与更新链", () => {
     render(<ComfyEngineSettingsSection embedded />);
 
     expect(screen.getByText("新版校验没通过:节点清单应答异常")).toBeTruthy();
-    expect(screen.getByText(/更新没成功,引擎当前不可用/)).toBeTruthy();
-    fireEvent.click(screen.getByRole("button", { name: /一键回滚/ }));
-    expect(actions.rollbackUpdate).toHaveBeenCalledOnce();
+    expect(screen.getByText(/更新没成功;重新点「更新到最新」会从断点续装/)).toBeTruthy();
   });
 });
 

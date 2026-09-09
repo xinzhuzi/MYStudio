@@ -864,11 +864,10 @@ class EngineManager:
         old_version = (cm.load_manifest().get("engine") or {}).get("version")
         nodes_before = self._safe_node_names()
         plugin_total = len(cm.plugin_ledger())
-        jobs.update(job_id, progress=5, step="snapshot", message="更新前自动快照(失败可一键回滚)…")
-        snapshot_id = self.create_snapshot(reason=f"update:{old_version}->{target}", full=True)
-
+        # 09-09 用户裁定:不做更新前快照——直接强制拉源码覆盖;失败重新点更新即自愈
+        # (checkout --force + clean -fd 重跑天然幂等),手动快照体系(快照页)不受影响。
         try:
-            jobs.update(job_id, progress=15, step="fetch", message=f"拉取新版 {target[:7] if len(target) > 10 else target}…")
+            jobs.update(job_id, progress=5, step="fetch", message=f"强制拉取新版 {target[:7] if len(target) > 10 else target}…")
             if _is_commit_sha(target):
                 # master HEAD:拉全量深度 250 保证 describe 能对上上个 tag(版本行可读)
                 _git(["fetch", "origin", "refs/heads/master", "--depth", "250"], cwd=src, timeout=600.0)
@@ -914,16 +913,13 @@ class EngineManager:
                 "oldVersion": old_version, "newVersion": new_version,
                 "nodeCount": len(nodes_after), "nodeDelta": diff["addedCount"] - diff["removedCount"],
                 "pluginCount": plugin_total,
-                "pluginIssues": failures, "snapshotId": snapshot_id,
+                "pluginIssues": failures,
                 "message": f"已更新到 {new_version};新增 {diff['addedCount']} 个节点,移除 {diff['removedCount']} 个",
             })
         except Exception as exc:
-            jobs.update(job_id, progress=90, step="rollback", message="更新失败,正在回滚到更新前状态…")
-            try:
-                self.rollback_snapshot(snapshot_id)
-                jobs.update(job_id, error=f"更新失败已回滚: {exc}")
-            except Exception as rollback_exc:
-                jobs.update(job_id, error=f"更新失败且回滚失败(快照 {snapshot_id} 保留,可手动回滚): {exc} / 回滚错误: {rollback_exc}")
+            # 无快照无自动回滚(09-09 用户裁定):源码层 checkout --force 幂等,
+            # 重新点「更新到最新」即从断点自愈;此处只报大白话错误。
+            jobs.update(job_id, error=f"更新失败: {exc}(重新点「更新到最新」会从断点续装)")
 
     def _safe_node_names(self) -> set[str]:
         try:
