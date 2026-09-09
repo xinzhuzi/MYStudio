@@ -253,6 +253,20 @@ export function ComfyEngineSettingsSection({ embedded = false, initialActiveTab 
       ? engine.activeJob
       : null;
 
+  // 模型页节点(两个落点复用):正常态在标签页体系内;引擎真未安装时也独立露出——
+  // 「下载完整模型自足」路线不依赖引擎,入口不能随 notInstalled 消失(09-10 补口)。
+  const modelsPageNode = (
+    <div className="space-y-5" data-comfy-models-page>
+      <section aria-label="图片大模型" className="space-y-1.5">
+        <p className="text-xs font-medium text-foreground">图片大模型(本地生图,免费)</p>
+        <p className="text-xs leading-5 text-muted-foreground">
+          大件直接复用 ComfyUI 现成文件零重下,小件首次点击补齐;就绪后在 设置 → 云端AI 把「角色/场景/道具生图」绑定到「本地图片生成」提供方,即可替代云 API。
+        </p>
+        <LocalImageSettingsSection embedded />
+      </section>
+    </div>
+  );
+
   return (
     <div className="space-y-4 px-5 py-4">
       {/* 真未安装:一键安装(体积 GB 级提示) */}
@@ -276,6 +290,9 @@ export function ComfyEngineSettingsSection({ embedded = false, initialActiveTab 
           </Button>
         </div>
       ) : null}
+
+      {/* 引擎真未安装:安装引导之下仍露出模型页(下载完整模型自足路线不依赖引擎) */}
+      {notInstalled ? modelsPageNode : null}
 
       {/* 需准备(装了一半)/出错:大白话 + 继续安装/重试 */}
       {status?.state === "needs-setup" || status?.state === "error" ? (
@@ -408,17 +425,7 @@ export function ComfyEngineSettingsSection({ embedded = false, initialActiveTab 
               不复现 09-08 修过的「真空窗空卡」。本地音乐模型已随 music3 收敛
               ComfyUI 云端节点退役(09-09-music3-to-comfyui C 段),本页现管
               图片大模型;后续视频等模态在此加子区。 */}
-          {activeTab === "models" ? (
-            <div className="space-y-5" data-comfy-models-page>
-              <section aria-label="图片大模型" className="space-y-1.5">
-                <p className="text-xs font-medium text-foreground">图片大模型(本地生图,免费)</p>
-                <p className="text-xs leading-5 text-muted-foreground">
-                  大件直接复用 ComfyUI 现成文件零重下,小件首次点击补齐;就绪后在 设置 → 云端AI 把「角色/场景/道具生图」绑定到「本地图片生成」提供方,即可替代云 API。
-                </p>
-                <LocalImageSettingsSection embedded />
-              </section>
-            </div>
-          ) : null}
+          {activeTab === "models" ? modelsPageNode : null}
 
           {/* 页体:状态确认后渲染四个标签页;未知=占位(结构先到,内容后到) */}
           {status ? (

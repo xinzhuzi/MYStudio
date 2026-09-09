@@ -594,3 +594,15 @@ describe("ComfyEngineSettingsSection 模型页", () => {
     expect(comfyQuery("models-page")).toBeNull();
   });
 });
+
+  it("未安装:安装引导 + 模型页仍可见(下载完整模型自足入口不随引擎缺失消失,09-10)", () => {
+    scenario.status = readyStatus({ installed: false, state: "not-installed", version: null, port: null, modelsDir: null });
+    render(<ComfyEngineSettingsSection embedded />);
+
+    expect(screen.getByText(/引擎尚未安装/)).toBeTruthy();
+    expect(comfyEl("models-page")).toBeTruthy();
+    expect(screen.getByText("图片大模型(本地生图,免费)")).toBeTruthy();
+    expect(screen.getByTestId("image-gen-section").textContent).toBe("true");
+    // 未装引擎无版本/服务可管:标签页体系不出现
+    expect(document.querySelector("[data-comfy-tab]")).toBeNull();
+  });

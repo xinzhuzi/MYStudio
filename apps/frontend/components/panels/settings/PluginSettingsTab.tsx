@@ -632,7 +632,7 @@ export function PluginSettingsTab() {
             headingId="plugin-audio-sfx-heading"
             icon={AudioWaveform}
             title="本地音效生成"
-            description="短音效 one-shot 本地生成（≤5 秒，同提示词+同种子=同文件）；与本地音乐生成共用模型缓存，供 sfx 绑定选用。"
+            description="短音效 one-shot 本地生成（≤5 秒，同提示词+同种子=同文件）；与 MusicGen 轻量引擎共用模型缓存，供 sfx 绑定选用。"
             pill={sfxPill}
             collapsed={collapsedSections.has("audio-sfx")}
             onToggle={toggleSectionCollapsed}
