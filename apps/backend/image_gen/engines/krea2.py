@@ -669,7 +669,9 @@ def generate_masked_sdedit(prompt: str, image: "Any", mask: "Any", steps: int = 
 
     with _lock:
         if use_lora:
-            comps = get_lora_components(models_dir, snapshot_dir)
+            # 节点四槽透传(09-09 装机实弹抓出:masked 分支漏改仍走默认栈,
+            # Mystic 恒 1.0/pussy 恒 0.3,遮罩流新默认 2.0/0.15 从未生效)
+            comps = get_lora_components_for(models_dir, snapshot_dir, loras)
         else:
             if "krea2" not in _pipeline_cache:
                 _pipeline_cache["krea2"] = get_components(models_dir, snapshot_dir)
