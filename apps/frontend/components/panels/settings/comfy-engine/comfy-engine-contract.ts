@@ -447,12 +447,13 @@ export const COMFYUI_GITHUB_BASE = "https://github.com/Comfy-Org/ComfyUI";
 
 /**
  * 版本串 → 该版本在 GitHub 上的源码页(09-09 用户裁定:版本后带地址可点击跳转)。
- * 口径:纯 tag(v0.34.6)→ tree/{tag};describe(v0.34.6-87-g672ba9e)与
- * master@672ba9e 回落短 sha(提交页);无法解析返回 null(不渲染链接)。
+ * 口径:纯 tag(v0.34.6)→ tree/{tag};三横线格式(v0.34.6---87---g672ba9e,用户裁定)
+ * 与旧 describe 单横线(v0.34.6-87-g…)、master@672ba9e 一律回落短 sha(提交页);
+ * 无法解析返回 null(不渲染链接)。
  */
 export function comfyVersionGithubUrl(version: string | null): string | null {
   if (!version) return null;
-  const describe = version.match(/-g([0-9a-f]{7,40})$/i);
+  const describe = version.match(/-{1,3}g([0-9a-f]{7,40})$/i);
   if (describe) return `${COMFYUI_GITHUB_BASE}/tree/${describe[1]}`;
   const atNotation = version.match(/@([0-9a-f]{7,40})$/i);
   if (atNotation) return `${COMFYUI_GITHUB_BASE}/tree/${atNotation[1]}`;

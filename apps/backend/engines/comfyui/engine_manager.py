@@ -754,27 +754,19 @@ class EngineManager:
         return dict(self._last_check)
 
     def _master_version_label(self, src: Path, target: str) -> str:
-        """master HEAD 的版本号格式(09-09 用户裁定:版本行必须版本号开头,禁 master@sha)。
+        """master HEAD 的版本号格式(09-09 用户裁定:三横线分隔 版本号---提交数---g短sha,
+        如 v0.34.6---87---g672ba9e;版本行必须版本号开头,禁 master@sha 裸串)。
 
-        先补拉 latest release tag 令 git describe 可算(浅史 fetch 不带 tags 是
-        describe 失败的老根因);仍拿不到时按检查账 latest+aheadBy 拼同义格式
-        v0.34.6-87-g672ba9e;账也缺则裸短 sha(仅此一层,不再出现 master@)。
+        纯受控拼接(tag+ahead 取检查账)——不依赖 git describe:浅史 graft 边界下
+        describe 可能锚到错误老 tag(实弹 v0.34.6 环境锚出 v0.34.0)。ahead 账
+        缺(GitHub API 失败)时省中间段;tag 也缺才裸短 sha。
         """
         tag = self._last_check.get("latest")
-        if isinstance(tag, str) and tag:
-            try:
-                _git(["fetch", "origin", f"refs/tags/{tag}:refs/tags/{tag}", "--force", "--depth", "1"], cwd=src, timeout=120.0)
-            except EngineOpError:
-                pass
-        try:
-            described = _git(["describe", "--tags"], cwd=src, timeout=10.0).strip()
-            if described.startswith("v"):
-                return described
-        except EngineOpError:
-            pass
         ahead = self._last_check.get("aheadBy")
-        if isinstance(tag, str) and tag.startswith("v") and isinstance(ahead, int) and ahead > 0:
-            return f"{tag}-{ahead}-g{target[:7]}"
+        if isinstance(tag, str) and tag.startswith("v"):
+            if isinstance(ahead, int) and ahead > 0:
+                return f"{tag}---{ahead}---g{target[:7]}"
+            return f"{tag}---g{target[:7]}"
         return target[:7]
 
     def update_job(self) -> str:
