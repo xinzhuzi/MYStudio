@@ -6,29 +6,7 @@
 import { cleanup, fireEvent, render, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-// 高级开关真源直控(设置页同一真源;开关行接线由此覆盖)
-vi.mock("@/hooks/use-comfy-advanced-nodes", () => {
-  let enabled = false;
-  return {
-    useComfyAdvancedNodes: () => ({
-      showAdvancedNodes: enabled,
-      setAdvancedNodes: (value: boolean) => {
-        enabled = value;
-      },
-      toggleAdvancedNodes: () => {
-        enabled = !enabled;
-      },
-    }),
-    __setAdvanced: (value: boolean) => {
-      enabled = value;
-    },
-  };
-});
-
 import { ComfyEffectNodesDialog } from "./comfy-effect-nodes-dialog";
-import * as advancedNodesModule from "@/hooks/use-comfy-advanced-nodes";
-
-const setAdvancedForTest = (advancedNodesModule as unknown as { __setAdvanced: (value: boolean) => void }).__setAdvanced;
 
 const fetchEngineClassTypes = vi.fn();
 const sidecarJson = vi.fn();
@@ -43,7 +21,6 @@ afterEach(() => {
   cleanup();
   fetchEngineClassTypes.mockReset();
   sidecarJson.mockReset();
-  setAdvancedForTest(false);
 });
 
 function effectItems(): HTMLElement[] {
@@ -73,13 +50,8 @@ function renderDialog(onPick = vi.fn()) {
 }
 
 describe("ComfyEffectNodesDialog(效果节点放置弹窗,09-08 三期收官)", () => {
-  it("高级开关关:只显示策展效果包(零引擎依赖)", () => {
-    renderDialog();
-    expect(effectItems().length).toBe(10);
-    expect(fetchEngineClassTypes).not.toHaveBeenCalled();
-  });
-
   it("搜索过滤策展包;选中策展条目即落卡(带 descriptor)", () => {
+    fetchEngineClassTypes.mockResolvedValue([]); // 引擎清单空:仅策展层
     const onPick = vi.fn();
     renderDialog(onPick);
     fireEvent.change(searchBox(), { target: { value: "模糊" } });
@@ -90,12 +62,11 @@ describe("ComfyEffectNodesDialog(效果节点放置弹窗,09-08 三期收官)", 
     );
   });
 
-  it("高级开关开:拉取全量清单,选中全量条目按需取单类 schema 落卡", async () => {
+  it("全量清单常开(09-09 开关退役):拉取引擎清单,选中全量条目按需取单类 schema 落卡", async () => {
     fetchEngineClassTypes.mockResolvedValue(["ImageBlur", "LayerMask: BlendAdvanced", "VAEDecode"]);
     sidecarJson.mockResolvedValue({
       detail: { input: { image: [["IMAGE"]] }, output: ["IMAGE"], name: "VAEDecode" },
     });
-    setAdvancedForTest(true);
     const onPick = vi.fn();
     renderDialog(onPick);
     await waitFor(() => {
@@ -119,7 +90,6 @@ describe("ComfyEffectNodesDialog(效果节点放置弹窗,09-08 三期收官)", 
 
   it("高级清单拉取失败:大白话错误在弹窗内呈现(策展仍可用)", async () => {
     fetchEngineClassTypes.mockRejectedValue(new Error("本地生图服务未运行"));
-    setAdvancedForTest(true);
     renderDialog();
     await waitFor(() => {
       const error = document.querySelector<HTMLElement>("[data-comfy-effect-advanced-error]");
@@ -131,7 +101,6 @@ describe("ComfyEffectNodesDialog(效果节点放置弹窗,09-08 三期收官)", 
   it("全量条目详情缺失(插件卸载):大白话,不落卡", async () => {
     fetchEngineClassTypes.mockResolvedValue(["GoneNode"]);
     sidecarJson.mockResolvedValue({ detail: null, error: null });
-    setAdvancedForTest(true);
     const onPick = vi.fn();
     renderDialog(onPick);
     await waitFor(() => {

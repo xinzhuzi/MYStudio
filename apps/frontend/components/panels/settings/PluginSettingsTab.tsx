@@ -20,10 +20,8 @@ import {
 import type { LucideIcon } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
-import { Switch } from "@/components/ui/switch";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { cn } from "@/lib/utils";
-import { useComfyAdvancedNodes } from "@/hooks/use-comfy-advanced-nodes";
 import { getTtsRuntimeStatus, startTtsRuntime } from "@/lib/tts/client";
 import type { VideoWorkflowPluginId } from "@rendering/contracts/video-workflow";
 import type { VlmReviewProbeResult } from "@/types/contracts/vlm-review-workflow";
@@ -217,36 +215,6 @@ function CapabilityGroup({ label, children }: CapabilityGroupProps) {
         {children}
       </div>
     </section>
-  );
-}
-
-/**
- * 「画布解锁全部生态节点」开关行(09-08 三期收官流X;09-09 用户对账正名:
- * 原名「显示 ComfyUI 高级节点」与生态插件混淆——插件管"装",此开关管"露"):
- * 关(默认)=普通用户画布只见大白话节点+策展效果节点;开=画布「效果节点…」
- * 搜索解锁全量生态节点(英文原名+分类)。真源=useComfyAdvancedNodes
- * (localStorage 持久化+跨窗口订阅),画布侧过滤同一 hook 读写。
- */
-function ComfyAdvancedNodesToggleRow() {
-  const { showAdvancedNodes, setAdvancedNodes } = useComfyAdvancedNodes();
-  return (
-    <div
-      className="flex items-center justify-between gap-3 px-5 py-3"
-      data-comfy-advanced-nodes-row
-    >
-      <div className="min-w-0">
-        <div className="text-sm font-medium text-foreground">画布解锁全部生态节点</div>
-        <p className="mt-1 text-xs leading-5 text-muted-foreground">
-          上面的「生态插件」负责安装;这个开关负责画布上露多少——开启后,图片工作室「效果节点…」能搜到引擎已装好的全部两千多个节点(英文原名)直接放进画布;关闭则只显示精选的常用效果,不被专业节点淹没。
-        </p>
-      </div>
-      <Switch
-        checked={showAdvancedNodes}
-        onCheckedChange={setAdvancedNodes}
-        aria-label="画布解锁全部生态节点"
-        data-comfy-advanced-nodes-switch
-      />
-    </div>
   );
 }
 
@@ -606,9 +574,6 @@ export function PluginSettingsTab() {
           >
             <ComfyEngineSettingsSection embedded />
             <ComfyEngineStoragePaths />
-            {/* 高级节点开关(09-08 三期收官,流X):关=画布只见策展效果节点;
-                开=「效果节点…」弹窗解锁全量英文节点。真源=useComfyAdvancedNodes。 */}
-            <ComfyAdvancedNodesToggleRow />
           </CapabilityRow>
         </CapabilityGroup>
 

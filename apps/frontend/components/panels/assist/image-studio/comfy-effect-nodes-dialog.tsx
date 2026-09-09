@@ -17,15 +17,14 @@ import {
   searchCuratedEffects,
   type ComfyEffectNodeDescriptor,
 } from "@/lib/assist/image-studio/comfy-effect-catalog";
-import { useComfyAdvancedNodes } from "@/hooks/use-comfy-advanced-nodes";
 import { fetchEngineClassTypes } from "./use-comfy-subgraph-run";
 
 /**
- * 效果节点放置弹窗(09-08 三期收官,流X;工具菜单「效果节点…」入口)。
- * 分层(prd 裁定 6):高级开关关=只显示策展效果包(内置 10 个常用 classType
- * 中文映射,零引擎依赖);开=额外解锁全量英文 classType(object_info 拉取,
- * 选中时按需取单类 schema)。落卡回调 onPick 由画布接线(创建 comfy-generic
- * 节点)。
+ * 效果节点放置弹窗(工具菜单「效果节点…」入口)。
+ * 09-09 用户裁定:原「高级开关」退役,全量生态节点常开——策展效果包(内置
+ * 10 个常用 classType 中文映射)+引擎全量英文 classType(object_info 拉取,
+ * 选中时按需取单类 schema)恒同显。落卡回调 onPick 由画布接线(创建
+ * comfy-generic 节点)。
  */
 export function ComfyEffectNodesDialog({
   open,
@@ -36,15 +35,14 @@ export function ComfyEffectNodesDialog({
   onOpenChange: (open: boolean) => void;
   onPick: (entry: { classType: string; title: string; descriptor: ComfyEffectNodeDescriptor }) => void;
 }) {
-  const { showAdvancedNodes } = useComfyAdvancedNodes();
   const [query, setQuery] = useState("");
   const [allClassTypes, setAllClassTypes] = useState<string[] | null>(null);
   const [advancedError, setAdvancedError] = useState<string | null>(null);
   const [loadingDetail, setLoadingDetail] = useState<string | null>(null);
 
-  // 高级层全量清单:打开弹窗且开关开时拉取一次(不轮询)
+  // 09-09 用户裁定:开关退役,全量生态节点常开——弹窗打开即拉一次清单(不轮询)
   useEffect(() => {
-    if (!open || !showAdvancedNodes || allClassTypes !== null) return;
+    if (!open || allClassTypes !== null) return;
     let cancelled = false;
     fetchEngineClassTypes()
       .then((list) => {
@@ -59,18 +57,18 @@ export function ComfyEffectNodesDialog({
     return () => {
       cancelled = true;
     };
-  }, [open, showAdvancedNodes, allClassTypes]);
+  }, [open, allClassTypes]);
 
   const curated = useMemo(() => searchCuratedEffects(query), [query]);
   const advancedMatches = useMemo(() => {
-    if (!showAdvancedNodes || !allClassTypes) return [];
+    if (!allClassTypes) return [];
     const needle = query.trim().toLowerCase();
     const curatedSet = new Set(curated.map((entry) => entry.classType));
     const filtered = needle
       ? allClassTypes.filter((classType) => classType.toLowerCase().includes(needle))
       : allClassTypes;
     return filtered.filter((classType) => !curatedSet.has(classType)).slice(0, 200);
-  }, [showAdvancedNodes, allClassTypes, query, curated]);
+  }, [allClassTypes, query, curated]);
 
   const pickCurated = (classType: string, title: string, descriptor: ComfyEffectNodeDescriptor) => {
     onPick({ classType, title, descriptor });
@@ -110,9 +108,7 @@ export function ComfyEffectNodesDialog({
             效果节点
           </DialogTitle>
           <DialogDescription>
-            {showAdvancedNodes
-              ? "策展效果 + 全量生态节点(高级模式已开:英文原名直放)"
-              : "常用图片效果,选中落卡后与其它节点连成子图出图(设置里可解锁全量节点)"}
+            {"策展效果 + 全量生态节点(英文原名直放)"}
           </DialogDescription>
         </DialogHeader>
         <div className="relative">
@@ -120,7 +116,7 @@ export function ComfyEffectNodesDialog({
           <Input
             value={query}
             onChange={(event) => setQuery(event.target.value)}
-            placeholder={showAdvancedNodes ? "搜中文名/关键词/英文 classType…" : "搜效果名(如:模糊/缩放/合成)"}
+            placeholder="搜中文名/关键词/英文 classType…"
             className="h-8 pl-7 text-xs"
             aria-label="搜索效果节点"
             data-comfy-effect-search
@@ -148,8 +144,7 @@ export function ComfyEffectNodesDialog({
               <Badge variant="secondary" className="shrink-0 px-1.5 py-0 text-[10px]">策展</Badge>
             </button>
           ))}
-          {showAdvancedNodes ? (
-            <>
+          <>
               {advancedError ? (
                 <div className="px-2 py-1.5 text-[11px] text-destructive" data-comfy-effect-advanced-error>{advancedError}</div>
               ) : null}
@@ -179,8 +174,7 @@ export function ComfyEffectNodesDialog({
                   )}
                 </button>
               ))}
-            </>
-          ) : null}
+          </>
         </div>
         <div className="flex justify-end">
           <Button variant="ghost" size="sm" onClick={() => onOpenChange(false)}>
