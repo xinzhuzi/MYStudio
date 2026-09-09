@@ -1,0 +1,134 @@
+"use client";
+// ComfyUI 画布工作室(09-09 comfyui-frontend-swap 0b,辅助面板第六 tab)。
+//
+// webview 嵌自管引擎完整前端(ComfyUI 原生界面:节点库/工作流/插件管理)。
+// 引擎状态机复用设置页引擎卡链(useComfyEngineSettings):
+// - 未安装/需准备 → 一键安装(手动点击,绝不自动)
+// - 已就绪未跑 → 启动按钮(冷启动 job 轮询,torch 加载可达两分钟)
+// - 运行中(port 就绪) → webview 指向 http://127.0.0.1:<port>/
+// 该 tab 也是后续阶段(业务自定义节点/画布主体切换)的调试台。
+
+import { Loader2, PlayCircle, ServerCog, Settings2 } from "lucide-react";
+import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
+import { useComfyEngineSettings } from "@/components/panels/settings/comfy-engine/useComfyEngineSettings";
+
+export function ComfyCanvasStudio() {
+  const {
+    hasBridge,
+    status,
+    activeJob,
+    installEngine,
+    startService,
+    isStartingService,
+    refreshStatus,
+  } = useComfyEngineSettings({ pollIntervalMs: 1200 });
+
+  const installing = activeJob?.state === "running" && activeJob.kind === "install";
+  const port = status?.port ?? null;
+  const running = status?.serviceRunning === true && Boolean(port);
+  const src = running && port ? `http://127.0.0.1:${port}/` : null;
+
+  if (!hasBridge) {
+    return (
+      <Center>
+        <ServerCog className="mb-3 h-10 w-10 text-muted-foreground" aria-hidden />
+        <p className="text-sm text-muted-foreground">
+          当前环境不支持引擎管理(webview 桥不可达),请在桌面应用中使用。
+        </p>
+      </Center>
+    );
+  }
+
+  // 引擎未装/装了一半:手动一键安装(下载引擎源码+依赖,进度走 job)
+  if (!status || status.state === "not-installed" || status.state === "needs-setup" || installing) {
+    return (
+      <Center>
+        <ServerCog className="mb-3 h-10 w-10 text-muted-foreground" aria-hidden />
+        <h3 className="text-base font-medium text-foreground">ComfyUI 画布</h3>
+        <p className="mb-4 max-w-md text-center text-sm text-muted-foreground">
+          {installing
+            ? `正在安装引擎(${activeJob?.progress ?? 0}%)——${activeJob?.message ?? "下载中,体积较大请耐心等待"}`
+            : status?.state === "needs-setup"
+              ? "引擎装了一半(上次安装中断),点下面继续安装即可接上。"
+              : "还没安装 ComfyUI 引擎。安装只在你点击时开始(源码+依赖体积较大);装好即可使用完整画布与两千多个生态节点。"}
+        </p>
+        {installing ? (
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+            安装进行中…
+          </div>
+        ) : (
+          <Button data-comfy-canvas-install onClick={() => void installEngine()}>
+            {status?.state === "needs-setup" ? "继续安装" : "安装引擎"}
+          </Button>
+        )}
+        <p className="mt-4 text-xs text-muted-foreground">
+          安装位置/磁盘可在 设置 → 本地配置 → ComfyUI 引擎 → 存储位置 里自定义
+        </p>
+      </Center>
+    );
+  }
+
+  // 已就绪未跑:启动(冷启动含 torch 加载,走 job)
+  if (!running) {
+    return (
+      <Center>
+        <PlayCircle className="mb-3 h-10 w-10 text-muted-foreground" aria-hidden />
+        <h3 className="text-base font-medium text-foreground">引擎已就绪,未在运行</h3>
+        <p className="mb-4 max-w-md text-center text-sm text-muted-foreground">
+          启动需要加载模型运行时(最长两分钟);启动完成后这里就是完整的 ComfyUI 界面。
+        </p>
+        {isStartingService ? (
+          <div className="flex items-center gap-2 text-sm text-muted-foreground" data-comfy-canvas-starting>
+            <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+            正在启动引擎…
+          </div>
+        ) : (
+          <Button data-comfy-canvas-start onClick={() => void startService()}>
+            启动引擎
+          </Button>
+        )}
+      </Center>
+    );
+  }
+
+  // 运行中:webview 加载引擎原生前端(独立进程;刷新兜底按钮应对 webview 偶发白屏)
+  return (
+    <div className="relative flex h-full min-h-0 flex-col" data-comfy-canvas-live>
+      <div className="flex items-center justify-between gap-2 border-b border-border px-3 py-1.5">
+        <span className="text-xs text-muted-foreground">
+          ComfyUI 画布 · 本地引擎 127.0.0.1:{port}(完整界面:节点/工作流/插件都在这里管理)
+        </span>
+        <Button
+          size="sm"
+          variant="ghost"
+          className="h-7 px-2 text-xs"
+          aria-label="刷新引擎状态"
+          onClick={() => {
+            void refreshStatus();
+            toast.info("已刷新引擎状态");
+          }}
+        >
+          <Settings2 className="mr-1 h-3.5 w-3.5" aria-hidden />
+          刷新
+        </Button>
+      </div>
+      <webview
+        src={src ?? "about:blank"}
+        className="h-full w-full flex-1"
+        // 独立进程渲染;禁弹窗,权限按需最小化
+        allowpopups={false}
+        data-comfy-canvas-webview
+      />
+    </div>
+  );
+}
+
+function Center({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="flex h-full min-h-[60vh] flex-col items-center justify-center p-6" data-comfy-canvas-placeholder>
+      {children}
+    </div>
+  );
+}

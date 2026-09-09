@@ -37,6 +37,7 @@ import { useSfxGenRuntimeSettings } from "./useSfxGenRuntimeSettings";
 import { useVideoQcRuntimeSettings } from "./useVideoQcRuntimeSettings";
 import { PythonSettingsTab } from "./PythonSettingsTab";
 import { ComfyEngineSettingsSection } from "./comfy-engine/ComfyEngineSettingsSection";
+import { ComfyEngineStoragePaths } from "./comfy-engine/ComfyEngineStoragePaths";
 import {
   REVEAL_SETTINGS_SECTION_EVENT,
   consumePendingRevealSection,
@@ -585,6 +586,12 @@ export function PluginSettingsTab() {
           >
             <PythonSettingsTab embedded />
           </CapabilityRow>
+        </CapabilityGroup>
+
+        {/* 09-09 拆组(comfyui-frontend-swap 0a):ComfyUI 引擎独立分组——
+            自管实例自成体系(独立引擎+独立 venv+插件生态),不再挂在 Python
+            地基组下;存储位置配置见卡内 ComfyEngineStoragePaths */}
+        <CapabilityGroup label="ComfyUI 引擎">
           <CapabilityRow
             sectionId="comfy-engine"
             headingId="plugin-comfy-engine-heading"
@@ -597,6 +604,7 @@ export function PluginSettingsTab() {
             onToggle={toggleSectionCollapsed}
           >
             <ComfyEngineSettingsSection embedded />
+            <ComfyEngineStoragePaths />
             {/* 高级节点开关(09-08 三期收官,流X):关=画布只见策展效果节点;
                 开=「效果节点…」弹窗解锁全量英文节点。真源=useComfyAdvancedNodes。 */}
             <ComfyAdvancedNodesToggleRow />

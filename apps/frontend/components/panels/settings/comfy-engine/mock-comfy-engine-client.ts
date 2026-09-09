@@ -15,9 +15,12 @@ import type {
   ComfyEngineJob,
   ComfyEngineJobKind,
   ComfyEngineJobStage,
+  ComfyEnginePathsStatus,
   ComfyEngineStartJobReply,
   ComfyEngineStatus,
   ComfyEngineUpdateCheckReply,
+  ComfyPathsUpdate,
+  ComfyPathsValidation,
   ComfyPluginInfo,
   ComfyPluginState,
   ComfyPluginUsageReply,
@@ -162,6 +165,8 @@ export function createMockComfyEngineClient(
   let failUpdateOnce = options.failUpdate ?? false;
   const pluginStates = new Map<string, ComfyPluginState>();
   const pluginNodeCounts = new Map<string, number>(Object.entries(INSTALLED_PLUGIN_NODES));
+  /** 存储位置覆写(0a mock):engineDir/venvDir/workflowsDir。 */
+  let pathsOverride: Partial<Record<"engineDir" | "venvDir" | "workflowsDir", string>> | null = null;
 
   const stepsFor = (kind: ComfyEngineJobKind): JobStep[] => {
     switch (kind) {
@@ -359,6 +364,62 @@ export function createMockComfyEngineClient(
       if (!path.trim()) return { accepted: false, message: "路径不能为空" };
       status = { ...status, modelsDir: path.trim() };
       return { accepted: true };
+    },
+
+    // ── 存储位置(mock 面,09-09 0a):路径现状从 status 推导,直改即时生效 ──
+    async getPaths() {
+      const overridden = pathsOverride;
+      const home = "/Users/demo/Library/Application Support/漫影工作室/comfyui";
+      return {
+        installed: status.installed,
+        running: status.serviceRunning,
+        paths: {
+          engineDir: overridden?.engineDir ?? `${home}/ComfyUI`,
+          venvDir: overridden?.venvDir ?? `${home}/venv`,
+          modelsDir: status.modelsDir ?? `${home}/models`,
+          workflowsDir: overridden?.workflowsDir ?? `${home}/workflows`,
+        },
+        defaults: {
+          engineDir: `${home}/ComfyUI`,
+          venvDir: `${home}/venv`,
+          modelsDir: `${home}/models`,
+          workflowsDir: `${home}/workflows`,
+        },
+        customized: {
+          engineDir: Boolean(overridden?.engineDir),
+          venvDir: Boolean(overridden?.venvDir),
+          modelsDir: Boolean(status.modelsDir),
+          workflowsDir: Boolean(overridden?.workflowsDir),
+        },
+      } satisfies ComfyEnginePathsStatus;
+    },
+    async validatePaths(update: ComfyPathsUpdate) {
+      const errors: ComfyPathsValidation["errors"] = {};
+      for (const [key, value] of Object.entries(update)) {
+        if (typeof value === "string" && !value.trim()) errors[key as keyof ComfyPathsValidation["errors"]] = "路径不能为空";
+      }
+      return { ok: Object.keys(errors).length === 0, errors, warnings: {} };
+    },
+    async setPaths(update: ComfyPathsUpdate) {
+      if (status.installed) {
+        throw new Error("引擎已安装:更改目录请用「迁移」(移动现有文件)");
+      }
+      pathsOverride = { ...(pathsOverride ?? {}), ...update } as typeof pathsOverride;
+      return this.getPaths();
+    },
+    async migratePaths(update: ComfyPathsUpdate & { startAfter?: boolean }) {
+      const jobId = `migrate-${Date.now()}`;
+      jobs.set(jobId, {
+        jobId, kind: "migrate", state: "running", progress: 5, stage: "migrate",
+        message: "准备迁移 ComfyUI 目录", report: null,
+      });
+      const timer = setTimeout(() => {
+        pathsOverride = { ...(pathsOverride ?? {}), ...update } as typeof pathsOverride;
+        const job = jobs.get(jobId)!;
+        jobs.set(jobId, { ...job, state: "succeeded", progress: 100, stage: "finalize", message: "迁移完成" });
+      }, 300);
+      void timer;
+      return { jobId };
     },
 
     async listPlugins(): Promise<ComfyPluginInfo[]> {

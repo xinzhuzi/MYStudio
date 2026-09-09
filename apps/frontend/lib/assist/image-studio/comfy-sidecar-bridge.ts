@@ -20,9 +20,12 @@ import type {
   ComfyEngineJobReport,
   ComfyEngineJobStage,
   ComfyEngineLifecycleState,
+  ComfyEnginePathsStatus,
   ComfyEngineStartJobReply,
   ComfyEngineStatus,
   ComfyEngineUpdateCheckReply,
+  ComfyPathsUpdate,
+  ComfyPathsValidation,
   ComfyPluginInfo,
   ComfyPluginState,
   ComfyPluginUsageReply,
@@ -520,6 +523,25 @@ export function createHttpComfyEngineClient(): ComfyEngineClient {
       // 失败(非法路径/引擎未装)由 sidecar 抛 EngineOpError → 这里转异常给 hook toast。
       await comfySidecarRequest("POST", "/comfy/engine/config", { body: { modelsDir: path } });
       return { accepted: true };
+    },
+    async getPaths(): Promise<ComfyEnginePathsStatus> {
+      return comfySidecarRequest<ComfyEnginePathsStatus>("GET", "/comfy/paths");
+    },
+    async validatePaths(update: ComfyPathsUpdate): Promise<ComfyPathsValidation> {
+      const raw = await comfySidecarRequest<Record<string, unknown>>("POST", "/comfy/paths/validate", { body: update });
+      return {
+        ok: raw.ok === true,
+        errors: (raw.errors ?? {}) as ComfyPathsValidation["errors"],
+        warnings: (raw.warnings ?? {}) as ComfyPathsValidation["warnings"],
+      };
+    },
+    async setPaths(update: ComfyPathsUpdate): Promise<ComfyEnginePathsStatus> {
+      // 已安装时 sidecar 抛「请走迁移」,由组件捕获并转确认弹窗
+      return comfySidecarRequest<ComfyEnginePathsStatus>("POST", "/comfy/paths/set", { body: update });
+    },
+    async migratePaths(update: ComfyPathsUpdate & { startAfter?: boolean }): Promise<ComfyEngineStartJobReply> {
+      const raw = await comfySidecarRequest<{ jobId?: string }>("POST", "/comfy/paths/migrate", { body: update });
+      return { jobId: String(raw.jobId ?? "") };
     },
     async cleanOrphans(): Promise<{ removed: string[]; message?: string }> {
       const raw = await comfySidecarRequest<{ removed?: string[]; message?: string }>("POST", "/comfy/plugins/clean-orphans");

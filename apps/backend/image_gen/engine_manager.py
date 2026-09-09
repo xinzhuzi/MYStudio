@@ -927,6 +927,169 @@ class EngineManager:
             self.restart()  # modelsDir/性能档变更需要重启生效
         return {**self.status(), "restarted": was_running}
 
+    # ── 存储位置配置(09-09 comfyui-frontend-swap 0a)──────────────────
+    # 四目录:引擎源码/Python运行时(venv)/模型/工作流。modelsDir=纯指针
+    # (update_config 既有);其余三个=物理目录,未装可随意改、已装改走迁移。
+    # venv 不可直接搬(shebang/pyvenv.cfg 绝对路径)——迁移=新位重建+按账本
+    # coreDeps 重装(pip 缓存命中时无重下)。
+
+    _PATH_KEYS = ("engineDir", "venvDir", "workflowsDir")
+
+    def paths_status(self) -> dict:
+        manifest = cm.load_manifest()
+        installed = cm.engine_installed(manifest)
+        port = cm.recorded_port(manifest)
+        return {
+            "installed": installed,
+            "running": bool(self.is_healthy(port) if port else False),
+            "paths": {
+                "engineDir": str(cm.configured_engine_dir(manifest)),
+                "venvDir": str(cm.configured_venv_dir(manifest)),
+                "modelsDir": str(cm.configured_models_dir(manifest)),
+                "workflowsDir": str(cm.configured_workflows_dir(manifest)),
+            },
+            "defaults": {
+                "engineDir": str(cm.comfy_home() / "ComfyUI"),
+                "venvDir": str(cm.comfy_home() / "venv"),
+                "modelsDir": str(cm.comfy_home() / "models"),
+                "workflowsDir": str(cm.comfy_home() / "workflows"),
+            },
+            "customized": {
+                "engineDir": bool(manifest.get("engineDir")),
+                "venvDir": bool(manifest.get("venvDir")),
+                "modelsDir": bool(manifest.get("modelsDir")),
+                "workflowsDir": bool(manifest.get("workflowsDir")),
+            },
+        }
+
+    def validate_paths(self, payload: dict) -> dict:
+        """目标路径校验:绝对路径、父目录可建可写、磁盘余量提示。轻操作同步应答。"""
+        errors: dict[str, str] = {}
+        warnings: dict[str, str] = {}
+        for key in ("engineDir", "venvDir", "workflowsDir", "modelsDir"):
+            raw = payload.get(key)
+            if raw is None:
+                continue
+            if not isinstance(raw, str) or not raw.strip():
+                errors[key] = "路径不能为空"
+                continue
+            path = Path(raw).expanduser()
+            if not path.is_absolute():
+                errors[key] = "必须是绝对路径"
+                continue
+            if key == "modelsDir":
+                continue  # 模型目录=纯指针,校验在 update_config(mkdir)
+            try:
+                path.parent.mkdir(parents=True, exist_ok=True)
+                probe = path.parent / ".manying-write-probe"
+                probe.write_text("ok", encoding="utf-8")
+                probe.unlink(missing_ok=True)
+            except OSError as exc:
+                errors[key] = f"目录不可写({exc.strerror or exc})"
+        result: dict = {"ok": not errors, "errors": errors, "warnings": warnings}
+        try:
+            import shutil as _shutil
+
+            usage = _shutil.disk_usage(Path.home())
+            free_gb = usage.free / (1024 ** 3)
+            if free_gb < 10:
+                result["warnings"]["disk"] = f"目标盘剩余空间约 {free_gb:.0f}GB(引擎+运行时约需 10GB 以上)"
+        except OSError:
+            pass
+        return result
+
+    def set_paths(self, payload: dict) -> dict:
+        """未安装态直接落账三目录(安装时落到新位);已安装抛错指路迁移。"""
+        if cm.engine_installed():
+            raise EngineOpError("引擎已安装:更改目录请用「迁移」(移动现有文件)")
+        updates = {k: payload.get(k) for k in self._PATH_KEYS if payload.get(k) is not None}
+        if not updates:
+            return self.paths_status()
+        for key, raw in updates.items():
+            if not isinstance(raw, str) or not raw.strip():
+                raise EngineOpError("路径不能为空")
+            path = Path(raw).expanduser()
+            if not path.is_absolute():
+                raise EngineOpError(f"{key} 必须是绝对路径")
+            updates[key] = str(path)
+
+        def _apply(manifest: dict) -> None:
+            manifest.update(updates)
+
+        cm.mutate_manifest(_apply)
+        return self.paths_status()
+
+    def migrate_paths_job(self, payload: dict) -> str:
+        """已安装态目录迁移:引擎/工作流目录搬移,venv 新位重建,落账+可选自启。"""
+        if jobs.active_of("engine-migrate"):
+            raise EngineOpError("目录迁移正在进行中")
+        if jobs.active_of("engine-install") or jobs.active_of("engine-update") or jobs.active_of("engine-reset"):
+            raise EngineOpError("引擎正在安装/更新/复位,迁移请稍后")
+        manifest = cm.load_manifest()
+        if not cm.engine_installed(manifest):
+            raise EngineOpError("引擎尚未安装,无需迁移——直接修改目录即可")
+        port = cm.recorded_port(manifest)
+        if port and self.is_healthy(port):
+            raise EngineOpError("请先停止引擎再迁移目录")
+        updates = {k: payload.get(k) for k in self._PATH_KEYS if payload.get(k) is not None}
+        validated = self.validate_paths(updates)
+        if not validated["ok"]:
+            detail = ";".join(f"{k}:{v}" for k, v in validated["errors"].items())
+            raise EngineOpError(f"目标目录不可用——{detail}")
+        job_id = jobs.create("engine-migrate", "准备迁移 ComfyUI 目录")
+        jobs.start(job_id, lambda jid: self._migrate_paths(jid, updates, bool(payload.get("startAfter")))) 
+        return job_id
+
+    def _migrate_paths(self, job_id: str, updates: dict[str, str], start_after: bool) -> None:
+        import shutil
+
+        manifest = cm.load_manifest()
+        old_engine = cm.configured_engine_dir(manifest)
+        old_venv = cm.configured_venv_dir(manifest)
+        old_workflows = cm.configured_workflows_dir(manifest)
+        new_engine = Path(updates.get("engineDir") or old_engine)
+        new_venv = Path(updates.get("venvDir") or old_venv)
+        new_workflows = Path(updates.get("workflowsDir") or old_workflows)
+
+        def _move_dir(src: Path, dst: Path, label: str, progress: int) -> None:
+            if src == dst:
+                return
+            if dst.exists():
+                raise EngineOpError(f"目标{label}目录已存在,请先清空或另选:{dst}")
+            jobs.update(job_id, progress=progress, step=f"move-{label}", message=f"搬移{label}目录(跨盘较大时需数分钟)…")
+            dst.parent.mkdir(parents=True, exist_ok=True)
+            shutil.move(str(src), str(dst))
+
+        # ① 引擎源码(含 custom_nodes,整体搬)
+        _move_dir(old_engine, new_engine, "引擎", 20)
+        # ② 工作流库
+        _move_dir(old_workflows, new_workflows, "工作流", 40)
+
+        # ③ 落账(目录函数此后解析到新位)
+        cm.mutate_manifest(lambda man: man.update(updates))
+
+        # ④ venv:不可搬(bin 脚本 shebang 指旧绝对路径)——新位重建+依赖重装
+        #    (pip 本地缓存命中,无重下流量);先建新后删旧,中途失败旧料仍在
+        if old_venv != new_venv:
+            jobs.update(job_id, progress=50, step="rebuild-venv", message="在新位置重建 Python 运行时(依赖走缓存,无需重下)…")
+            _run([sys_python(), "-m", "venv", str(cm.venv_dir())], timeout=300.0)
+            jobs.update(job_id, progress=60, step="pip-torch", message="恢复 PyTorch(走本地缓存)…")
+            _pip(["install", "torch", "torchvision", "torchaudio"],
+                 on_line=lambda line: jobs.update(job_id, tail_line=line))
+            jobs.update(job_id, progress=80, step="pip-requirements", message="恢复 ComfyUI 依赖…")
+            _pip(["install", "-r", str(cm.engine_source_dir() / "requirements.txt")],
+                 on_line=lambda line: jobs.update(job_id, tail_line=line))
+            shutil.rmtree(old_venv, ignore_errors=True)
+
+        jobs.update(job_id, progress=92, step="finalize", message="更新账本…")
+        _write_extra_model_paths(cm.configured_models_dir())
+        jobs.update(job_id, progress=100, step="done", message="迁移完成")
+        if start_after:
+            try:
+                self.start_sync()
+            except EngineOpError:
+                pass  # 自启失败不判迁移失败;用户可手动启动
+
 
 def _tar_no_pycache(tarinfo):
     if tarinfo.name.endswith("__pycache__") or tarinfo.name.endswith(".pyc"):

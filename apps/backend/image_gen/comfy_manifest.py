@@ -74,12 +74,39 @@ def manifest_path() -> Path:
     return comfy_home() / "manifest.json"
 
 
-def engine_source_dir() -> Path:
+# 09-09 comfyui-frontend-swap 0a:引擎/Python运行时(venv)/工作流目录逐项可
+# 配置(与 modelsDir 同款 manifest 落账)——Python 与引擎拆分、大盘迁移的
+# 用户配置位。配置锚定 <comfyui-home>/manifest.json,不随目标目录搬走。
+def configured_engine_dir(manifest: dict | None = None) -> Path:
+    manifest = manifest if manifest is not None else load_manifest()
+    d = manifest.get("engineDir")
+    if isinstance(d, str) and d.strip():
+        return Path(d).expanduser()
     return comfy_home() / "ComfyUI"
 
 
-def venv_dir() -> Path:
+def configured_venv_dir(manifest: dict | None = None) -> Path:
+    manifest = manifest if manifest is not None else load_manifest()
+    d = manifest.get("venvDir")
+    if isinstance(d, str) and d.strip():
+        return Path(d).expanduser()
     return comfy_home() / "venv"
+
+
+def configured_workflows_dir(manifest: dict | None = None) -> Path:
+    manifest = manifest if manifest is not None else load_manifest()
+    d = manifest.get("workflowsDir")
+    if isinstance(d, str) and d.strip():
+        return Path(d).expanduser()
+    return comfy_home() / "workflows"
+
+
+def engine_source_dir() -> Path:
+    return configured_engine_dir()
+
+
+def venv_dir() -> Path:
+    return configured_venv_dir()
 
 
 def venv_python() -> Path:
@@ -98,7 +125,7 @@ def custom_nodes_dir() -> Path:
 
 
 def workflows_dir() -> Path:
-    return comfy_home() / "workflows"
+    return configured_workflows_dir()
 
 
 def default_models_dir() -> Path:
@@ -124,7 +151,15 @@ def configured_models_dir(manifest: dict | None = None) -> Path:
 
 # ── 账本读写(原子写,写后缓存失效) ────────────────────────────────
 def default_manifest() -> dict:
-    return {"schemaVersion": MANIFEST_SCHEMA_VERSION, "engine": None, "plugins": {}, "modelsDir": None}
+    return {
+        "schemaVersion": MANIFEST_SCHEMA_VERSION,
+        "engine": None,
+        "plugins": {},
+        "modelsDir": None,
+        "engineDir": None,
+        "venvDir": None,
+        "workflowsDir": None,
+    }
 
 
 def load_manifest() -> dict:

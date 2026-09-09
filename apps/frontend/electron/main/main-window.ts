@@ -148,6 +148,9 @@ export function createWindow() {
       contextIsolation: true,
       nodeIntegration: false,
       backgroundThrottling: !isBackgroundSmoke,
+      // 09-09 ComfyUI 画布 tab(comfyui-frontend-swap 0b):<webview> 嵌自管
+      // 引擎完整前端(独立进程渲染,加载 127.0.0.1 引擎服务)
+      webviewTag: true,
     },
   })
 

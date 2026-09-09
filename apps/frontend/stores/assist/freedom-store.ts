@@ -8,7 +8,8 @@ import { persist } from 'zustand/middleware';
 // ==================== Types ====================
 
 // 'music' 为 08-31 迁入的第五工作室;音乐生成态留在 MusicTab 组件内,不进本 store。
-export type StudioMode = 'image' | 'video' | 'cinema' | 'tts' | 'music';
+// 'comfy' 为 09-09 第六工作室(ComfyUI 画布:webview 嵌自管引擎完整前端)。
+export type StudioMode = 'image' | 'video' | 'cinema' | 'tts' | 'music' | 'comfy';
 
 export interface HistoryEntry {
   id: string;

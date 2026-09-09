@@ -7,8 +7,9 @@ import { VideoStudio } from './VideoStudio';
 import { CinemaStudio } from './CinemaStudio';
 import { TtsStudio } from './TtsStudio';
 import { MusicStudio } from './MusicStudio';
+import { ComfyCanvasStudio } from './comfy-canvas/ComfyCanvasStudio';
 
-export const FREEDOM_STUDIO_MODES = ['image', 'video', 'cinema', 'tts', 'music'] as const;
+export const FREEDOM_STUDIO_MODES = ['image', 'video', 'cinema', 'tts', 'music', 'comfy'] as const;
 
 export function isFreedomStudioMode(value: string): value is StudioMode {
   return FREEDOM_STUDIO_MODES.includes(value as StudioMode);
@@ -43,6 +44,9 @@ export function FreedomView() {
             <TabsTrigger value="music" className="text-sm px-4">
               🎵 音乐工作室
             </TabsTrigger>
+            <TabsTrigger value="comfy" className="text-sm px-4" data-assist-tab-comfy>
+              🧩 ComfyUI
+            </TabsTrigger>
           </TabsList>
         </div>
         <TabsContent value="image" className="flex-1 m-0 overflow-hidden">
@@ -59,6 +63,9 @@ export function FreedomView() {
         </TabsContent>
         <TabsContent value="music" className="flex-1 m-0 overflow-hidden">
           <MusicStudio />
+        </TabsContent>
+        <TabsContent value="comfy" className="flex-1 m-0 overflow-hidden">
+          <ComfyCanvasStudio />
         </TabsContent>
       </Tabs>
     </div>

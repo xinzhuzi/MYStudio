@@ -88,7 +88,8 @@ export type ComfyEngineJobKind =
   | "reset"
   | "plugin-install"
   | "plugin-update"
-  | "plugin-remove";
+  | "plugin-remove"
+  | "migrate"; // 存储位置迁移(09-09 0a:引擎/工作流搬移+venv 重建)
 
 /** 任务阶段 key → 大白话文案(禁英文术语裸奔)。 */
 export type ComfyEngineJobStage =
@@ -102,7 +103,8 @@ export type ComfyEngineJobStage =
   | "clone" // plugin-install:克隆插件
   | "recheck" // plugin:重启差分验证
   | "clean" // reset:清空运行环境
-  | "rebuild"; // reset:按账本重建
+  | "rebuild" // reset:按账本重建
+  | "migrate"; // migrate:目录迁移全程(搬移/venv 重建共用)
 
 export const COMFY_ENGINE_STAGE_LABELS: Record<ComfyEngineJobStage, string> = {
   download: "下载引擎源码",
@@ -116,6 +118,7 @@ export const COMFY_ENGINE_STAGE_LABELS: Record<ComfyEngineJobStage, string> = {
   recheck: "重启并校验新增节点",
   clean: "清空运行环境",
   rebuild: "按账本重建",
+  migrate: "迁移存储位置",
 };
 
 /** 更新链成功报告(design.md 四节:版本/节点数变化/插件状态,不兼容点名)。 */
@@ -230,6 +233,25 @@ export interface ComfyDoctorReport {
 // typed client(集成者在 preload 暴露 window.comfyEngine 实现此接口)
 // ---------------------------------------------------------------------------
 
+/** 存储位置四目录现状(09-09 comfyui-frontend-swap 0a)。 */
+export interface ComfyEnginePathsStatus {
+  installed: boolean;
+  running: boolean;
+  paths: { engineDir: string; venvDir: string; modelsDir: string; workflowsDir: string };
+  defaults: { engineDir: string; venvDir: string; modelsDir: string; workflowsDir: string };
+  customized: { engineDir: boolean; venvDir: boolean; modelsDir: boolean; workflowsDir: boolean };
+}
+
+/** 路径校验结果(errors 按目录键;warnings 如磁盘余量提示)。 */
+export interface ComfyPathsValidation {
+  ok: boolean;
+  errors: Partial<Record<"engineDir" | "venvDir" | "workflowsDir" | "modelsDir", string>>;
+  warnings: { disk?: string };
+}
+
+/** 可改目录(未传的键不动;modelsDir 走 setModelsDir 既有面,不在此列)。 */
+export type ComfyPathsUpdate = Partial<{ engineDir: string; venvDir: string; workflowsDir: string }>;
+
 export interface ComfyEngineClient {
   getEngineStatus(): Promise<ComfyEngineStatus>;
   installEngine(): Promise<ComfyEngineStartJobReply>;
@@ -242,6 +264,11 @@ export interface ComfyEngineClient {
   getJob(jobId: string): Promise<ComfyEngineJob>;
   /** 模型目录自定义(指向现有模型库即免重下);契约补充面,见接线点说明。 */
   setModelsDir(path: string): Promise<ComfyEngineAckReply>;
+  /** 存储位置(09-09 0a):现状/校验/未装直改/已装迁移 job。 */
+  getPaths(): Promise<ComfyEnginePathsStatus>;
+  validatePaths(update: ComfyPathsUpdate): Promise<ComfyPathsValidation>;
+  setPaths(update: ComfyPathsUpdate): Promise<ComfyEnginePathsStatus>;
+  migratePaths(update: ComfyPathsUpdate & { startAfter?: boolean }): Promise<ComfyEngineStartJobReply>;
   listPlugins(): Promise<ComfyPluginInfo[]>;
   searchCatalog(query: string): Promise<ComfyCatalogEntry[]>;
   installPlugin(

@@ -516,6 +516,21 @@ class Handler(BaseHTTPRequestHandler):
                 self._send_json(engine_manager().update_config(payload))
                 return
 
+            # ── 存储位置(09-09 comfyui-frontend-swap 0a:四目录配置/校验/迁移) ──
+            if method == "GET" and path == "/comfy/paths":
+                self._send_json(engine_manager().paths_status())
+                return
+            if method == "POST" and path == "/comfy/paths/validate":
+                self._send_json(engine_manager().validate_paths(payload))
+                return
+            if method == "POST" and path == "/comfy/paths/set":
+                # 未安装态直接改;已安装抛错指路 migrate
+                self._send_json(engine_manager().set_paths(payload))
+                return
+            if method == "POST" and path == "/comfy/paths/migrate":
+                self._send_json({"jobId": engine_manager().migrate_paths_job(payload)})
+                return
+
             # ── 插件 ──
             if method == "GET" and path == "/comfy/plugins":
                 self._send_json({"plugins": pm.list_plugins()})

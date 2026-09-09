@@ -19,8 +19,8 @@ afterEach(() => {
 });
 
 describe("FreedomView studio mode guard", () => {
-  it("accepts exactly the five supported studio modes", () => {
-    expect(FREEDOM_STUDIO_MODES).toEqual(["image", "video", "cinema", "tts", "music"]);
+  it("accepts exactly the six supported studio modes (09-09 comfy 第六画布)", () => {
+    expect(FREEDOM_STUDIO_MODES).toEqual(["image", "video", "cinema", "tts", "music", "comfy"]);
     for (const mode of FREEDOM_STUDIO_MODES) expect(isFreedomStudioMode(mode)).toBe(true);
   });
 
