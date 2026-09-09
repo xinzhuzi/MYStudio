@@ -1,6 +1,6 @@
 "use client";
 
-// ComfyUI 引擎卡——生态插件子区块(设置 → 本地配置 → ComfyUI 图像引擎)。
+// ComfyUI 引擎卡——生态插件子区块(设置 → 本地配置 → ComfyUI 引擎)。
 //
 // 数据源三层:策展清单 + Registry 搜索合并(catalog)+ 已装清单(plugins);
 // 行 = 中文名 + 一句话 + license 徽章 + 胶囊(已装 N 节点/可装/装失败/可更新);

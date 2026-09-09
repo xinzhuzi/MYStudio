@@ -212,7 +212,7 @@ afterEach(() => {
 const EXPECTED_ROW_HEADINGS = [
   "本地配置",
   "Python 运行环境",
-  "ComfyUI 图像引擎",
+  "ComfyUI 引擎",
   "深度估计（电影级 3D）",
   "本地图片生成（免费）",
   "图片超分（1K → 4K）",

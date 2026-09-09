@@ -598,7 +598,7 @@ export function PluginSettingsTab() {
             sectionId="comfy-engine"
             headingId="plugin-comfy-engine-heading"
             icon={ServerCog}
-            title="ComfyUI 图像引擎"
+            title="ComfyUI 引擎"
             pill={comfyPill}
             pillLabel={comfyPillLabel}
             collapsed={collapsedSections.has("comfy-engine")}

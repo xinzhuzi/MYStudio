@@ -1,6 +1,6 @@
 "use client";
 
-// ComfyUI 图像引擎卡(设置 → 本地配置 → 基础运行时)。
+// ComfyUI 引擎卡(设置 → 本地配置 → 基础运行时)。
 //
 // 自管实例(grill Q1/Q2):漫影工作室托管自己的 ComfyUI,全新下载取最新 release,
 // 与用户手装的 ComfyUI Desktop 无关(不接管不修改不绑定)。点击才下载,绝不自动下载。
@@ -181,7 +181,7 @@ function DoctorReportCard({
 }
 
 /**
- * ComfyUI 图像引擎配置区块。版本策略=跟随最新 release(grill Q10):检查更新显式点击,
+ * ComfyUI 引擎配置区块。版本策略=跟随最新 release(grill Q10):检查更新显式点击,
  * 更新永远显式确认;更新链=快照→拉新版→重启→重校验,失败一键回滚。
  */
 /** 快照原因 → 大白话(快照区展示,design 映射表「快照页→搬并强化」)。 */
