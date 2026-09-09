@@ -28,6 +28,64 @@ from urllib import error, request
 from engines.comfyui import manifest as cm
 from . import bridge_contract
 
+# ── 引擎实例锁(09-09 风暴根修:双 sidecar 各持 EngineManager 共享同一引擎家,
+# 互相 start/stop/重启=进程风暴。锁=家目录 engine.lock,活进程持有=拒绝管理。)──
+
+
+def _pid_alive(pid: int) -> bool:
+    try:
+        os.kill(pid, 0)
+        return True
+    except OSError:
+        return False
+
+
+def engine_lock_path() -> Path:
+    return cm.comfy_home() / "engine.lock"
+
+
+def acquire_engine_lock(note: str = "") -> bool:
+    """取引擎管理权:锁文件记录持有 pid;活的他进程持有=False,死锁/自持=接管重写。"""
+    path = engine_lock_path()
+    try:
+        if path.exists():
+            data = json.loads(path.read_text(encoding="utf-8"))
+            pid = data.get("pid")
+            if isinstance(pid, int) and pid != os.getpid() and _pid_alive(pid):
+                return False
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(json.dumps({"pid": os.getpid(), "note": note, "at": cm.timestamp_ms()}), encoding="utf-8")
+        return True
+    except Exception:
+        # 锁机制自身故障不阻断引擎功能(降级旧单守卫行为),但留痕
+        print("[image-sidecar] comfy-engine: 引擎锁读写异常,降级为无锁模式", flush=True)
+        return True
+
+
+def engine_lock_holder() -> dict | None:
+    try:
+        path = engine_lock_path()
+        if not path.exists():
+            return None
+        data = json.loads(path.read_text(encoding="utf-8"))
+        pid = data.get("pid")
+        if isinstance(pid, int) and pid != os.getpid() and _pid_alive(pid):
+            return data
+        return None
+    except Exception:
+        return None
+
+
+def release_engine_lock() -> None:
+    try:
+        path = engine_lock_path()
+        if path.exists():
+            data = json.loads(path.read_text(encoding="utf-8"))
+            if data.get("pid") == os.getpid():
+                path.unlink(missing_ok=True)
+    except Exception:
+        pass
+
 COMFYUI_REPO = "https://github.com/comfyanonymous/ComfyUI"
 GITHUB_REPO_SLUG = "comfyanonymous/ComfyUI"
 INSTALL_REQUIRED_GB = 10.0  # 引擎源码+venv+torch MPS 栈的保守余量门
@@ -544,11 +602,19 @@ class EngineManager:
         """同步启动(启动 job 与插件链内部复用)。已健康=收编孤儿进程直接就绪。"""
         if not cm.engine_installed():
             raise EngineOpError("ComfyUI 引擎尚未安装,请先安装")
+        holder = engine_lock_holder()
+        if holder is not None:
+            raise EngineOpError(
+                f"引擎正被另一个漫影进程管理(pid {holder.get('pid')},{holder.get('note') or '未知来源'}),"
+                "已拒绝启动以防互踩;确认没有其他会话后,删除 engine.lock 可解除"
+            )
         with self._lock:
             if self._proc is not None and self._proc.poll() is None:
+                acquire_engine_lock("engine-manager")
                 return {"running": True, "port": cm.recorded_port()}
         port = cm.recorded_port()
         if port and self._orphan_is_comfyui(port):
+            acquire_engine_lock("engine-manager")
             self._enable_guard()
             # 收编后强制刷新一次节点数:孤儿进程的插件态(刚装/刚卸)与我们的
             # _last_node_count 缓存无关,不刷新=状态行展示旧节点数假象。
@@ -584,6 +650,7 @@ class EngineManager:
             if self._proc.poll() is not None:
                 raise EngineOpError("引擎进程启动后立刻退出了,请查看日志:" + str(cm.engine_log_path()))
             if self.is_healthy(port, timeout=2.0):
+                acquire_engine_lock("engine-manager")
                 self._enable_guard()
                 self._last_node_count = self.node_count()
                 if progress:
@@ -658,6 +725,8 @@ class EngineManager:
                 continue
             if self.is_healthy():
                 continue  # 孤儿/收编态,无需重启
+            if engine_lock_holder() is not None:
+                continue  # 管理权已被他进程接管:本守卫静默让位(不再拉起)
             now = time.monotonic()
             self._restart_times = [t for t in self._restart_times if now - t < GUARD_WINDOW_S]
             if len(self._restart_times) >= GUARD_MAX_RESTARTS:
