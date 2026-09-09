@@ -26,7 +26,7 @@ function getImageGenBridge(): ImageGenBridge | undefined {
 
 const POLL_INTERVAL_MS = 800;
 
-/** Settings hook for the local image generation sidecar (设置 → 本地配置 → 本地图片生成). */
+/** Settings hook for the local image generation sidecar (设置 → 本地配置 → ComfyUI 引擎卡「模型」页,09-09 迁入). */
 export function useImageGenRuntimeSettings() {
   const [status, setStatus] = useState<ImageGenRuntimeStatus | null>(null);
   const [lifecycleStatus, setLifecycleStatus] = useState<ImageGenRuntimeStatusV1 | null>(null);

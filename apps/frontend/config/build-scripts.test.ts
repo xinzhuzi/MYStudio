@@ -632,7 +632,7 @@ describe("desktop build scripts", () => {
     expect(smokeScript).not.toContain("label: '剧本资产提取'");
     expect(smokeScript).not.toContain("label: '剧本资产生成'");
     expect(smokeScript).toContain("分镜视频生成");
-    expect(smokeScript).toContain("自动排版");
+    expect(smokeScript).toContain("分镜制作 · ComfyUI"); // 09-09 批8/9:主画布=ComfyUI 引导态文案
     expect(smokeScript).toContain("资产提取");
     expect(smokeScript).toContain("还没有剧本");
     expect(smokeScript).toContain("视频工作台");
@@ -706,9 +706,8 @@ describe("desktop build scripts", () => {
     expect(smokeScript).toContain(
       "workflow node canvas rendered above the workflow stage content",
     );
-    expect(smokeScript).toContain(
-      "storyboard workflow node layout missing nodes",
-    );
+    // 09-09 批9:canvas-walk 断言随主画布退役裁撤,「storyboard workflow node layout
+    // missing nodes」失败清单镜像同步移除
     expect(smokeScript).toContain(
       "storyboard workflow node rendered default white React Flow controls",
     );
@@ -2241,7 +2240,7 @@ describe("desktop build scripts", () => {
     expect(assetsStage).not.toContain("requiredText: ['剧本资产提取'");
     expect(assetsStage).not.toContain("requiredText: ['剧本资产生成'");
     expect(assetsStage).toContain("'还没有剧本'");
-    expect(storyboardStage).toContain("自动排版");
+    expect(storyboardStage).toContain("分镜制作 · ComfyUI"); // 09-09 批8/9:主画布=ComfyUI 引导态文案
     expect(storyboardStage).not.toContain("requiredText: ['分镜视频生成'");
     expect(assetsStage).toContain("forbiddenText");
     expect(assetsStage).toContain("运行导演计划");
