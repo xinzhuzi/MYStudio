@@ -180,18 +180,40 @@ export function ComfyEnginePluginBlock({ engine }: ComfyEnginePluginBlockProps) 
     await engine.uninstallPlugin(pluginId);
   };
 
+  // 区块折叠(09-09 用户裁定):默认收起,显式展开过的记住(localStorage)
+  const [open, setOpen] = useState(() => {
+    try {
+      return window.localStorage.getItem("comfy-plugin-block-open") === "1";
+    } catch {
+      return false;
+    }
+  });
+  const toggleOpen = (next: boolean) => {
+    setOpen(next);
+    try {
+      window.localStorage.setItem("comfy-plugin-block-open", next ? "1" : "0");
+    } catch {
+      /* 隐私模式等场景静默 */
+    }
+  };
+
   return (
     <section aria-label="生态插件" className="space-y-3">
-      <div className="flex items-center gap-2">
-        <PackagePlus className="h-4 w-4 text-primary" aria-hidden />
-        <h5 className="text-sm font-semibold text-foreground">生态插件</h5>
-        <span className="text-xs text-muted-foreground">
-          已装 {engine.plugins.filter((plugin) => plugin.state !== "installable").length} 个
-        </span>
-      </div>
-
-      {/* 搜索框 + 分类筛选 */}
-      <div className="flex flex-wrap items-center gap-2">
+      <Collapsible open={open} onOpenChange={toggleOpen}>
+        <CollapsibleTrigger className="flex w-full items-center gap-2 rounded-md px-1 py-1 text-left hover:bg-muted/40" data-comfy-plugin-toggle>
+          <ChevronDown
+            className={cn("h-3.5 w-3.5 shrink-0 text-muted-foreground transition-transform", !open && "-rotate-90")}
+            aria-hidden
+          />
+          <PackagePlus className="h-4 w-4 text-primary" aria-hidden />
+          <h5 className="text-sm font-semibold text-foreground">生态插件</h5>
+          <span className="text-xs text-muted-foreground">
+            已装 {engine.plugins.filter((plugin) => plugin.state !== "installable").length} 个
+          </span>
+        </CollapsibleTrigger>
+        <CollapsibleContent className="space-y-3 pt-1">
+          {/* 搜索框 + 分类筛选 */}
+          <div className="flex flex-wrap items-center gap-2">
         <div className="relative min-w-[12rem] flex-1">
           <Search
             className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground"
@@ -380,8 +402,10 @@ export function ComfyEnginePluginBlock({ engine }: ComfyEnginePluginBlockProps) 
           </div>
         </div>
       </details>
+      </CollapsibleContent>
+      </Collapsible>
 
-      {/* 卸载引用警告对话框(「X 个工作流在用它」点名) */}
+      {/* 卸载引用警告对话框(「X 个工作流在用它」点名;置顶弹窗,不随区块折叠隐藏) */}
       <AlertDialog
         open={pendingUninstall !== null}
         onOpenChange={(open) => {

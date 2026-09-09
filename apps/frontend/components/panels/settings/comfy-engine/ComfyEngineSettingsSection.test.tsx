@@ -337,6 +337,8 @@ describe("ComfyEngineSettingsSection 模型目录/体检/复位", () => {
 describe("ComfyEngineSettingsSection 插件子区块", () => {
   beforeEach(() => {
     scenario.status = readyStatus();
+    // 区块折叠状态记 localStorage,清掉防跨用例污染(默认收起口径)
+    window.localStorage.removeItem("comfy-plugin-block-open");
     scenario.plugins = [
       {
         id: "rgthree",
@@ -368,8 +370,12 @@ describe("ComfyEngineSettingsSection 插件子区块", () => {
     ];
   });
 
+  // 09-09 区块默认收起:用例先展开(卸载弹窗类置顶不受影响)
+  const openPluginBlock = () => fireEvent.click(comfyEl("plugin-toggle"));
+
   it("已装行胶囊「已装 42 节点」;可装行「可安装」;license 徽章", () => {
     render(<ComfyEngineSettingsSection embedded />);
+    openPluginBlock();
 
     expect(screen.getByText("已装 42 节点")).toBeTruthy();
     expect(screen.getByText("可安装")).toBeTruthy();
@@ -378,6 +384,7 @@ describe("ComfyEngineSettingsSection 插件子区块", () => {
 
   it("行展开显示作者/下载量/依赖清单;可装行有安装按钮", () => {
     render(<ComfyEngineSettingsSection embedded />);
+    openPluginBlock();
 
     fireEvent.click(screen.getByText("图层样式"));
     expect(screen.getByText("chflame163")).toBeTruthy();
@@ -390,6 +397,7 @@ describe("ComfyEngineSettingsSection 插件子区块", () => {
 
   it("搜索触发目录检索并本地过滤", () => {
     render(<ComfyEngineSettingsSection embedded />);
+    openPluginBlock();
 
     const search = comfyEl("plugin-search");
     fireEvent.change(search, { target: { value: "图层" } });
@@ -401,6 +409,7 @@ describe("ComfyEngineSettingsSection 插件子区块", () => {
   it("卸载:引用扫描 → 「1 个工作流在用它」点名警告 → 确认才卸载", async () => {
     scenario.pluginUsage = { workflows: [{ id: "wf-1", name: "Krea2-NSFW专业流" }] };
     render(<ComfyEngineSettingsSection embedded />);
+    openPluginBlock();
 
     fireEvent.click(screen.getByText("RG三节点集"));
     fireEvent.click(comfyEl("plugin-uninstall", "rgthree"));
@@ -417,6 +426,7 @@ describe("ComfyEngineSettingsSection 插件子区块", () => {
 
   it("卸载取消:不触发卸载", async () => {
     render(<ComfyEngineSettingsSection embedded />);
+    openPluginBlock();
 
     fireEvent.click(screen.getByText("RG三节点集"));
     fireEvent.click(comfyEl("plugin-uninstall", "rgthree"));
@@ -429,12 +439,27 @@ describe("ComfyEngineSettingsSection 插件子区块", () => {
 
   it("高级折叠:git 地址安装(第三方警告文案在)", () => {
     render(<ComfyEngineSettingsSection embedded />);
+    openPluginBlock();
 
     expect(screen.getByText(/第三方代码警告/)).toBeTruthy();
     const refInput = comfyEl("plugin-advanced-ref");
     fireEvent.change(refInput, { target: { value: "https://example.test/comfyui-x" } });
     fireEvent.click(comfyEl("plugin-advanced-install"));
     expect(actions.installPlugin).toHaveBeenCalledWith("git", "https://example.test/comfyui-x");
+  });
+
+  it("区块默认收起:点标题行展开,再点收起", () => {
+    render(<ComfyEngineSettingsSection embedded />);
+
+    // 收起态:标题与已装计数在,搜索框/列表不在
+    expect(screen.getByText("生态插件")).toBeTruthy();
+    expect(comfyQuery("plugin-search")).toBeNull();
+
+    openPluginBlock();
+    expect(comfyEl("plugin-search")).toBeTruthy();
+
+    fireEvent.click(comfyEl("plugin-toggle"));
+    expect(comfyQuery("plugin-search")).toBeNull();
   });
 });
 
