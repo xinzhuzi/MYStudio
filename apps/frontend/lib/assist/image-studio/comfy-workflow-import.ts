@@ -72,6 +72,10 @@ export interface ComfyWorkflowDescriptor {
   nodeCount: number;
   /** 缺失 class_type(仅 analyzeComfyWorkflow 传 availableClassTypes 时计算) */
   missing: string[];
+  /** 载荷格式(09-09 阶段2:迁移器产 UI 格式入库;api=传统 API 图)。
+   * UI 格式=降级描述符:classTypes/nodeCount 齐备(缺插件检测/列表计数用),
+   * ports/widgets 留空——「导入成节点卡」面后续按需补 UI 提取。 */
+  format?: "api" | "ui";
 }
 
 /** object_info 摘要(可选注入):按 class_type 提供输入 schema,升级 widget 类型 */
@@ -226,6 +230,23 @@ export function analyzeComfyWorkflow(
     objectInfoByClassType?: Record<string, ComfyObjectInfoHint>;
   },
 ): ComfyWorkflowAnalyzeResult {
+  // UI 格式(画布格式)分支(09-09 阶段2):迁移器/原生前端导出的 nodes/links
+  // 载荷——降级描述符(classTypes+nodeCount),端口/挂件提取留后续。
+  if (workflow && typeof workflow === "object" && !Array.isArray(workflow)) {
+    const record = workflow as Record<string, unknown>;
+    if (Array.isArray(record.nodes) && record.nodes.length > 0
+      && record.nodes.every((node) => node && typeof node === "object" && typeof (node as { type?: unknown }).type === "string")) {
+      const nodes = record.nodes as Array<{ type: string }>;
+      const classTypes = [...new Set(nodes.map((node) => node.type))].sort();
+      const available = options?.availableClassTypes ? new Set(options.availableClassTypes) : null;
+      const missing = available ? classTypes.filter((cls) => !available.has(cls)) : [];
+      return {
+        ok: true,
+        descriptor: { ports: [], widgets: [], classTypesUsed: classTypes, nodeCount: nodes.length, missing, format: "ui" },
+      };
+    }
+  }
+
   const unwrapped = unwrapComfyApiGraph(workflow);
   if (!unwrapped.ok) return { ok: false, error: unwrapped.error };
   const graph = unwrapped.graph;

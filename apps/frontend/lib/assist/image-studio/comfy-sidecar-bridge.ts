@@ -588,6 +588,17 @@ export function createHttpComfyEngineClient(): ComfyEngineClient {
         return null; // ack 失败不致命:下次轮询重消费(落账幂等由 checkpointRef 保证)
       }
     },
+    async uploadBridgeReference(name: string, imageB64: string): Promise<{ accepted: boolean; name?: string } | null> {
+      try {
+        const raw = await comfySidecarRequest<{ accepted?: boolean; name?: string }>("POST", "/comfy/bridge/reference", {
+          body: { name, imageB64 },
+          timeoutMs: 60_000,
+        });
+        return { accepted: raw.accepted === true, name: raw.name };
+      } catch {
+        return null;
+      }
+    },
     async syncManyingNodes(): Promise<ComfyManyingSyncReply | null> {
       try {
         return await comfySidecarRequest<ComfyManyingSyncReply>("POST", "/comfy/manying/sync");

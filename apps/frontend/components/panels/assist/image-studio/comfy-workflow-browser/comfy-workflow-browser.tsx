@@ -43,6 +43,8 @@ import type {
   ComfyWorkflowLibraryEntry,
 } from "@/lib/assist/image-studio/comfy-workflow-library";
 import { useImageStudioStore } from "@/stores/assist/image-studio-store";
+import { useStudioStore } from "@/stores/studio/studio-store";
+import { migrateWorkflowsToLibraryWithToast } from "@/lib/assist/image-studio/workflow-migrate-batch";
 import { ComfyWorkflowDeleteDialog } from "./comfy-workflow-delete-dialog";
 import { ComfyWorkflowImportDialog } from "./comfy-workflow-import-dialog";
 import { useComfyWorkflowBrowser } from "./use-comfy-workflow-browser";
@@ -73,6 +75,19 @@ export function ComfyWorkflowBrowser({
   const selectWorkflow = useImageStudioStore((state) => state.selectComfyWorkflow);
 
   const [importOpen, setImportOpen] = useState(false);
+  const [migrating, setMigrating] = useState(false);
+  const legacyCount = useStudioStore((state) => state.imageWorkflows.length);
+  const onMigrateLegacy = async () => {
+    setMigrating(true);
+    try {
+      await migrateWorkflowsToLibraryWithToast({
+        transport: { importFiles: (files, mode) => browser.importFiles(files, mode) },
+      });
+      await browser.refresh();
+    } finally {
+      setMigrating(false);
+    }
+  };
   const [availableClassTypes, setAvailableClassTypes] = useState<string[]>([]);
   const [renameTarget, setRenameTarget] = useState<{ kind: "workflow" | "folder"; id: string; name: string } | null>(null);
   const [renameValue, setRenameValue] = useState("");
@@ -190,6 +205,16 @@ export function ComfyWorkflowBrowser({
         >
           <ImportIcon className="mr-1 h-3.5 w-3.5" />
           从外部导入…
+        </Button>
+        <Button
+          variant="outline"
+          size="sm"
+          className="h-7 w-full text-xs"
+          onClick={() => void onMigrateLegacy()}
+          disabled={migrating || legacyCount === 0}
+          data-comfy-browser-migrate
+        >
+          {migrating ? "迁移中…" : `导入存量画布(${legacyCount})`}
         </Button>
       </div>
 

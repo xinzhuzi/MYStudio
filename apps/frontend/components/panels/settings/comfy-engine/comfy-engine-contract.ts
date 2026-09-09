@@ -294,6 +294,8 @@ export interface ComfyEngineClient {
   ackBridgeWritebacks(upTo: number): Promise<number | null>;
   /** 自研节点包手动同步(装/更新链自动;引擎运行中返回 restartRequired)。 */
   syncManyingNodes(): Promise<ComfyManyingSyncReply | null>;
+  /** 参考图上传闭环(阶段2 批2):同名覆写进引擎 input 目录(迁移占位名可跑)。 */
+  uploadBridgeReference(name: string, imageB64: string): Promise<{ accepted: boolean; name?: string } | null>;
 }
 
 /** bridge 回写收件项(引擎 manying_generated → sidecar;渲染层消费)。 */

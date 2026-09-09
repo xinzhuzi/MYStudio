@@ -488,6 +488,20 @@ class Handler(BaseHTTPRequestHandler):
                 cursor = int(q("cursor") or 0)
                 self._send_json(bridge_inbox.list_since(cursor, include_image=q("include_image") != "0"))
                 return
+            if method == "POST" and path == "/comfy/bridge/reference":
+                # 参考图上传闭环(swap 阶段2 批2):占位名同名覆写进引擎 input 目录
+                image_b64 = payload.get("imageB64")
+                name = payload.get("name")
+                if not isinstance(image_b64, str) or not image_b64 or not isinstance(name, str) or not name:
+                    self._send_error_json(400, "参考图上传缺少 name/imageB64", "bridge-reference-invalid")
+                    return
+                if "/" in name or "\\" in name or ".." in name:
+                    self._send_error_json(400, "参考图文件名不合法(禁止路径段)", "bridge-reference-invalid")
+                    return
+                from engines.comfyui import uploads
+                result = uploads.upload_reference(image_b64, name)
+                self._send_json({"accepted": True, "name": result.get("name"), "subfolder": result.get("subfolder", "")})
+                return
             if method == "POST" and path == "/comfy/bridge/writebacks/ack":
                 self._send_json({"deleted": bridge_inbox.ack(int(payload.get("upTo") or 0))})
                 return

@@ -8,6 +8,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { ComfyWorkflowBrowser } from "./comfy-workflow-browser";
 import { createComfyWorkflowLibraryClient, createInMemoryComfyWorkflowLibraryTransport } from "@/lib/assist/image-studio/comfy-workflow-library";
 import { useImageStudioStore } from "@/stores/assist/image-studio-store";
+import { useStudioStore } from "@/stores/studio/studio-store";
 
 /**
  * 浏览器组件(09-08 二期):搜索/文件夹树(数量徽章)/列表(节点数+
@@ -139,5 +140,42 @@ describe("ComfyWorkflowBrowser 未接线独立运行", () => {
     expect(screen.queryByText("导入成节点卡")).toBeNull();
     expect(screen.getByText("从外部导入…")).toBeTruthy();
     expect(screen.getByText("新建文件夹")).toBeTruthy();
+  });
+});
+
+describe("ComfyWorkflowBrowser 存量画布批量迁移入口(阶段2 批2)", () => {
+  it("按钮显示存量计数;点击→迁移入库→刷新后「迁移 ·」条目可见", async () => {
+    useStudioStore.setState({
+      imageWorkflows: [
+        {
+          id: "wf-x", name: "道劫41", target: { kind: "storyboard", id: "sb-1" },
+          nodes: [
+            { id: "p1", type: "prompt", prompt: "山", aspectRatio: "1:1", position: { x: 0, y: 0 } } as never,
+            { id: "g1", type: "generated", prompt: "", aspectRatio: "1:1", status: "idle", position: { x: 1, y: 1 } } as never,
+          ],
+          edges: [{ id: "e1", source: "p1", target: "g1" }] as never,
+          createdAt: 0, updatedAt: 0,
+        } as never,
+      ],
+    });
+    try {
+      renderBrowser();
+      const button = await waitFor(() => screen.getByText("导入存量画布(1)"));
+      fireEvent.click(button);
+      await waitFor(() => {
+        expect(screen.getByText(/迁移 · 道劫41/)).toBeTruthy();
+      });
+    } finally {
+      useStudioStore.setState({ imageWorkflows: [] });
+    }
+  });
+
+  it("零存量:按钮禁用", async () => {
+    useStudioStore.setState({ imageWorkflows: [] });
+    renderBrowser();
+    await waitFor(() => {
+      const button = screen.getByText("导入存量画布(0)").closest("button");
+      expect(button?.hasAttribute("disabled")).toBe(true);
+    });
   });
 });

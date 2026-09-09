@@ -504,6 +504,9 @@ export function createMockComfyEngineClient(
     async ackBridgeWritebacks(): Promise<number | null> {
       return 0;
     },
+    async uploadBridgeReference(name: string): Promise<{ accepted: boolean; name?: string } | null> {
+      return { accepted: true, name };
+    },
     async syncManyingNodes(): Promise<ComfyManyingSyncReply | null> {
       return { copied: 0, restartRequired: false };
     },
