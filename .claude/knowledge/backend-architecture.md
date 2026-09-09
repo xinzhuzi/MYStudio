@@ -2,7 +2,7 @@
 
 日期:2026-09-09。裁定:用户——「engines 不止这个 image 概念,应该单独抽出来;文本/生图/音乐/声音/视频都是与 engines 概念有区别的另一类」。方法论:照 GitHub 高星项目的现成分层,不自创(铁律3 高星参考)。
 
-**落地状态(09-09)**:P1 引擎域搬家=`3fadf6f`+`357cfac`(纯 git mv+import 绝对化);P2 `image_gen/engines`→`providers` 改名=`ba94435`;全量后端 387/0 前后一致,TS spawn 面零变化。P3(common/ 归拢+九包 model_cache 合并)另立任务未动。spec 同步:`.trellis/spec/backend/directory-structure.md` 已按三域改写。
+**落地状态(09-09)**:P1 引擎域搬家=`3fadf6f`+`357cfac`;P2 `image_gen/engines`→`providers` 改名=`ba94435`;**用户二次裁定后扩展**:engines=底层模型引擎层(不止托管实例形态),tts_engine 首例抽取=`b893b29`。全量后端 387/0 前后一致,TS spawn 面零变化。其余模态引擎化=后续批次(见「四、分阶段」),spec 同步:`.trellis/spec/backend/directory-structure.md`。
 
 **何时读**:动 `apps/backend` 目录结构、新增后端包、新增/接入引擎、给 ComfyUI 写自定义节点之前必读。
 
@@ -12,11 +12,11 @@
 
 | 域 | 概念定义 | 现有成员 | 边界纪律 |
 |---|---|---|---|
-| **engines/**(托管引擎域) | 重型运行时**实例**的下载/安装/更新链/启动/守卫/端口/插件策展 | ComfyUI 自管实例(唯一) | 只管引擎生命周期,零业务生成逻辑;模态代码永不 import 引擎代码(既有裁定2:引擎=独立进程+独立 venv,交互面只有 subprocess git/pip + HTTP) |
-| **模态服务包**(一个模态一个包) | 进程边界:`server/main`=常驻 HTTP sidecar,`worker`=一次性进程 | 13 包见五族表 | 每包自治(spec/下载/缓存/执行);调引擎走 HTTP,不反客为主 |
-| **common/**(共享基建,渐进归拢) | 零业务语义的复用件:模型缓存/下载器/job 进度/端口段 | model_cache_core.py、modelscope_hub.py(现散顶层) | 只放被 ≥2 域共用的;宁缺勿滥 |
+| **engines/**(底层引擎域) | 模型引擎底层,**两种形态**:①**进程内推理引擎**——模型目录+权重发现/下载+加载+推理;②**托管实例引擎**——外部进程实例的安装/更新链/launch/守卫/端口/插件策展 | ①tts_engine(Kokoro/Qwen3-TTS/whisper)②comfyui(ComfyUI 自管实例) | 引擎包=纯模型域:零 HTTP、零 sqlite、零路由、零业务编排(照 Piper `src/python_run/piper/` 纯引擎包先例);服务包向下调用,反向依赖禁止;托管实例形态另有红线:引擎进程永不 import 进 sidecar(裁定2,交互面=subprocess git/pip+HTTP) |
+| **模态服务包**(一个模态一个包) | 进程边界:`server/main`=常驻 HTTP sidecar,`worker`=一次性进程 | 13 包见五族表 | 每包只留服务面(HTTP/存储/编排/状态视图),模型底层调 engines/;调托管引擎走 HTTP |
+| **common/**(共享基建,渐进归拢) | 零业务语义的复用件:模型缓存骨架/下载器/job 进度/端口段 | model_cache_core.py、modelscope_hub.py(现散顶层) | 只放被 ≥2 域共用的;宁缺勿滥 |
 
-**同一引擎可以服务多模态**(ComfyUI 原生跑图/视频/音频图)——这就是「engines 不止 image」的根据;反过来,**模态包也未必用引擎**(tts/music3/video 走自家管线,PRD 已裁定不进 ComfyUI)。两个概念正交,谁也不该是谁的子目录。
+**「engines 不止 image」的两层含义**(09-09 两次裁定,第二次修正了第一次的狭义解读):①同一引擎可服务多模态(ComfyUI 原生跑图/视频/音频图);②**每个模态自己的模型加载/推理底层也是引擎**,统一住 engines/(tts_engine 首例,09-09 `b893b29`)。模态服务包(tts/、image_gen/…)=HTTP/存储/编排的上层,不是引擎本身。
 
 ### 模态五族归属表(用户口径:文本/生图/音乐/声音/视频)
 
@@ -42,29 +42,29 @@
 
 ```
 apps/backend/
-  engines/                        # 域1:托管引擎(独立抽离裁定)
+  engines/                        # 域1:底层引擎层(两种形态)
     __init__.py
-    comfyui/                      # ComfyUI 引擎适配器(现唯一;第二引擎平级入驻,照 jan extensions/)
-      __init__.py
-      manifest.py                 # ← image_gen/comfy_manifest.py(实例目录单源,覆写感知)
-      engine_manager.py           # ← image_gen/engine_manager.py(安装/更新链/launch/守卫/端口)
-      plugin_manager.py           # ← image_gen/plugin_manager.py(插件安装/差分/策展)
-      execute.py                  # ← image_gen/comfy_execute.py(子图执行,经引擎 HTTP)
-      curated_plugins.json        # ← image_gen/curated_plugins.json(策展清单,照 LocalAI gallery 独立成件)
-      manying_nodes/              # 自研自定义节点包源码位(见 09-09 任务 design.md 2.1)
-        __init__.py  nodes/  bridge/  tests/
-      tests/                      # ← image_gen/tests/test_comfy_*.py(随组件同目录铁律)
-  # ── 域2:模态服务包(平级不动;五族归属见上表)──
-  image_gen/                      # 生图 sidecar
-    providers/                    # ← engines/ 改名消歧(见命名裁定)
-      krea2.py  flux2.py  z_image.py  qwen.py  comfyui_bridge.py
-    server.py  main.py  pipeline.py  uncloth_pipeline.py
-    download_model.py  model_cache.py  model_inventory.py
-    workflows/  tests/
-  tts/  audio_gen/  sfx_gen/  music3_gen/
-  video_use/  video_qc/  upscale/  layer_separation/  depth_estimation/  vlm_review/
+    tts_engine/                   # 进程内推理引擎首例(09-09 b893b29)
+      engine.py                   # 加载+推理调度(模型全局态)
+      engine_config.py            # 模型仓库ID/采样率/语言表(常量)
+      engine_utils.py             # SynthesisResult/wav 合成适配
+      tts.py                      # 合成底层(含 mock)
+      catalog.py                  # 内置模型目录
+      model_cache.py              # HF/ModelScope 权重发现/下载(env 契约不变)
+    comfyui/                      # 托管实例引擎(P1 落地)
+      manifest.py                 # ← 原 comfy_manifest.py(实例目录单源,覆写感知)
+      engine_manager.py           # 安装/更新链/launch/守卫/端口
+      plugin_manager.py           # 插件安装/差分/策展
+      execute.py                  # ← 原 comfy_execute.py(子图执行,经引擎 HTTP)
+      curated_plugins.json
+      manying_nodes/              # 自研自定义节点包源码位(09-09 任务 design.md 2.1)
+      tests/
+  # ── 域2:模态服务包(服务面;模型底层渐进入 engines/)──
+  tts/                            # TTS 服务面:server/main/routes/storage/runtime_state/model_inventory
+  image_gen/                      # 生图服务(providers/ 每模型管线;后续批次并入 engines/,见四)
+  # …其余模态包平级…
   # ── 域3:共享基建(渐进)──
-  common/                         # model_cache_core.py + modelscope_hub.py 归拢位(P3)
+  common/                         # model_cache_core.py + modelscope_hub.py 归拢位(后续)
   tests/  requirements.txt  README.md
 ```
 
@@ -80,14 +80,17 @@ apps/backend/
 
 | 阶段 | 动作 | 影响面(已实盘盘点) |
 |---|---|---|
-| **P1 engines 抽离** | git mv 五件套(comfy_manifest→manifest、engine_manager、plugin_manager、comfy_execute→execute、curated_plugins)+ image_gen/tests/test_comfy_*.py → engines/comfyui/(+tests/) | 仅 Python 内部 import:comfy_execute/plugin_manager/comfyui_bridge 互引 + server.py 懒加载 + ~8 个测试文件;**TS spawn 面零变化**(spawn 只引 image_gen.main/model_inventory/download_model);/comfy/* 路由留在 image_gen server.py,handler 改 import |
-| **P2 providers 改名** | image_gen/engines/ → image_gen/providers/ | 内部 import(model_cache/model_inventory/pipeline/server/download_model/uncloth_pipeline/scripts)+ 测试;TS 零变化 |
-| **P3(另立任务,不抢跑)** | common/ 归拢 model_cache_core+modelscope_hub;九包 model_cache/model_inventory/download_model 重复渐进合并(memory 既有「待合并窗口」);engine_manager 1150 行是否照 Comfy Desktop 分法拆 installer/launcher | 届时单独盘点 |
+| **P1 engines 抽离(已落地 3fadf6f+357cfac)** | git mv 五件套+test_comfy_* → engines/comfyui/;import 绝对化 | 仅 Python 内部;TS spawn 面零变化 |
+| **P2 providers 改名(已落地 ba94435)** | image_gen/engines → image_gen/providers | 内部 import+测试;TS 零变化 |
+| **P-tts tts_engine 抽取(已落地 b893b29)** | tts 六件(engine/engine_config/engine_utils/tts/catalog/model_cache)→ engines/tts_engine/;service 四件+三测试绝对导入 | 全量 387/0;spawn 面(tts.main/tts.model_inventory)零变化;env 变量名契约不变 |
+| **P4+(后续批次,逐模态过堂)** | 其余模型加载底层依次入域:upscale/vlm_review/audio_gen/sfx_gen/depth_estimation/layer_separation(worker 内加载段,worker 型包「服务即引擎」拆分收益过堂再定);music3(MLX 权重+mlx-serve 交互)单独过堂;image_gen/providers 是否并入 engines/ 届时随批裁定 | 逐批盘点,不抢跑 |
+| **P3(另立任务)** | common/ 归拢 model_cache_core+modelscope_hub;九包 model_cache 重复渐进合并(memory 既有「待合并窗口」) | 届时单独盘点 |
 
 ## 五、坑表
 
 - **PYTHONPATH 与打包都不用动**:`PYTHONPATH=apps/backend`(打包后 Resources/backend)指向根,engines/ 顶层包天然可见;build-mac.sh 平铺拷贝是路径无关的。
 - **P0a 未提交期间禁止搬家**(审读地狱+rename 检测失效);搬家用 git mv,同批不带逻辑变更。
-- **comfyui_bridge 归属**:它是 providers 的一员(生图经引擎执行),不是引擎域成员——引擎域只管生命周期,不含任何生成路径。
+- **comfyui_bridge 归属**:暂留 image_gen/providers/(生图经引擎执行的路由 provider);二次裁定后引擎域已含推理形态(tts_engine),providers 是否整体并入 engines/ 留 P4 批次裁定,勿单方面动。
+- **测试 mock.patch 的字符串路径随模块走**:搬模块后必 grep 引号内旧路径(本次 5 处 `patch("tts.model_cache.…")` 漏改即红,AttributeError 是信号)。
 - **引擎专属 sidecar 留门不裁**:现在引擎生命周期经 17595 image sidecar 暴露;若未来非生图模态也要驱动引擎,可另立 engines sidecar——门留着,本期不开。
 - **README 目录段已按三域重写**(apps/backend/README.md);新增后端包时同步该表与本文五族归属表。

@@ -8,12 +8,14 @@
 
 ```text
 apps/backend/
-  # 域1:托管引擎(实例生命周期:安装/更新/launch/守卫/插件策展)
-  engines/comfyui/  # manifest/engine_manager/plugin_manager/execute/curated_plugins+tests
-                    # (09-09 抽离落地:3fadf6f+357cfac 搬家,ba94435 配套改名)
+  # 域1:底层引擎层(两种形态:进程内推理引擎 + 托管实例引擎)
+  engines/tts_engine/  # TTS 推理引擎:engine/engine_config/engine_utils/tts/catalog/model_cache
+                       # (09-09 b893b29 抽取;照 Piper 纯引擎包,零 HTTP/sqlite)
+  engines/comfyui/     # ComfyUI 托管实例:manifest/engine_manager/plugin_manager/execute
+                       # +curated_plugins+tests(3fadf6f+357cfac 搬家,ba94435 配套改名)
   # 域2:模态服务包(一个模态一个包;server/main=常驻 sidecar,worker=一次性进程)
-  image_gen/        # 生图(providers/ 每模型管线:本地模型栈+comfyui_bridge 引擎路由)
-  tts/              # 声音:语音+克隆+STT(入口 tts.main,端口 17593)
+  tts/                 # TTS 服务面:server/main/routes/storage/runtime_state(引擎调 engines/tts_engine)
+  image_gen/           # 生图服务面(providers/ 每模型管线:本地模型栈+comfyui_bridge 引擎路由)
     main.py          # ThreadingHTTPServer 服务入口
     engine.py        # TTS/STT 引擎调度
     storage.py       # tts.sqlite 运行时存储
