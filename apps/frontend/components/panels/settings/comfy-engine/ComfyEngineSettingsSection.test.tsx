@@ -187,7 +187,7 @@ describe("ComfyEngineSettingsSection 状态机", () => {
 });
 
 describe("ComfyEngineSettingsSection 版本与更新链", () => {
-  it("版本行 + 自动静默检查 + 手动检查;发现新版出「更新到最新」按钮", async () => {
+  it("版本行 + 自动静默检查(无手动按钮);发现新版出「更新到最新」按钮", async () => {
     scenario.status = readyStatus({ updateAvailable: true, latest: "0.34.5" });
     render(<ComfyEngineSettingsSection embedded />);
 
@@ -199,14 +199,14 @@ describe("ComfyEngineSettingsSection 版本与更新链", () => {
     await waitFor(() => expect(actions.checkUpdate).toHaveBeenCalledOnce());
     expect(actions.checkUpdate).toHaveBeenCalledWith({ silent: true });
 
-    fireEvent.click(screen.getByRole("button", { name: /检查更新/ }));
-    expect(actions.checkUpdate).toHaveBeenCalledTimes(2);
+    // 09-09 用户裁定:检查更新/更新通道等运维控件全撤,只剩自动检查+一键更新
+    expect(screen.queryByRole("button", { name: /检查更新/ })).toBeNull();
 
     fireEvent.click(screen.getByRole("button", { name: /更新到最新/ }));
     expect(actions.updateEngine).toHaveBeenCalledOnce();
   });
 
-  it("更新页(照 Comfy Desktop):已是最新徽章 + 上次检查时间 + 更新通道下拉", () => {
+  it("已是最新徽章;上次检查时间与更新通道下拉已撤", () => {
     scenario.status = readyStatus({
       latest: "0.34.0",
       updateAvailable: false,
@@ -215,16 +215,14 @@ describe("ComfyEngineSettingsSection 版本与更新链", () => {
     render(<ComfyEngineSettingsSection embedded />);
 
     expect(screen.getByText("已是最新")).toBeTruthy();
-    expect(comfyQuery("last-check")?.textContent).toMatch(/\d{2}\/\d{2} \d{2}:\d{2}/);
-    const channel = document.querySelector("[data-comfy-channel-select]") as HTMLSelectElement | null;
-    expect(channel?.value).toBe("github-latest");
+    expect(comfyQuery("last-check")).toBeNull();
+    expect(document.querySelector("[data-comfy-channel-select]")).toBeNull();
   });
 
-  it("没查过:上次检查显示「还没检查过」,不出已是最新徽章", () => {
+  it("没查过:不出已是最新徽章", () => {
     scenario.status = readyStatus({}); // latest=null:从没查过
     render(<ComfyEngineSettingsSection embedded />);
 
-    expect(screen.getByText("还没检查过")).toBeTruthy();
     expect(screen.queryByText("已是最新")).toBeNull();
   });
 

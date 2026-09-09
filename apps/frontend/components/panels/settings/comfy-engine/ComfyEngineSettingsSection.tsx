@@ -415,11 +415,12 @@ export function ComfyEngineSettingsSection({ embedded = false }: ComfyEngineSett
           {/* 页体:状态确认后渲染四个标签页;未知=占位(结构先到,内容后到) */}
           {status ? (
             <>
-          {/* 更新页(照 ComfyUI Desktop 更新页:版本+徽章+检查更新+更新通道+上次检查) */}
+          {/* 更新页(09-09 用户裁定:检查/更新通道/上次检查等运维展示全撤,只留
+              「可更新→一键更新」;打开页面仍自动静默查一次 GitHub) */}
           {activeTab === "update" ? (
             <div className="space-y-4">
               <div className="rounded-lg border border-border bg-card/60 p-3" data-comfy-update-block>
-                {/* 版本行:当前版本 + 实时徽章(检查中/可更新/已是最新)+ 检查/更新按钮 */}
+                {/* 版本行:当前版本 + 徽章(检查中/可更新/已是最新)+ 可更新时的更新按钮 */}
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   <p className="flex flex-wrap items-center gap-2 text-sm font-medium text-foreground" data-comfy-version-row>
                     当前版本 <span className="font-mono">{status.version ?? "未知"}</span>
@@ -437,63 +438,17 @@ export function ComfyEngineSettingsSection({ embedded = false }: ComfyEngineSett
                       </span>
                     ) : null}
                   </p>
-                  <div className="flex gap-2">
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => void engine.checkUpdate()}
-                      disabled={engine.isCheckingUpdate || updating}
-                      data-comfy-check-update
-                    >
-                      {engine.isCheckingUpdate ? (
+                  {status.updateAvailable ? (
+                    <Button size="sm" onClick={() => void engine.updateEngine()} disabled={updating}>
+                      {updating ? (
                         <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden />
                       ) : (
-                        <RefreshCw className="mr-2 h-4 w-4" aria-hidden />
+                        <Download className="mr-2 h-4 w-4" aria-hidden />
                       )}
-                      检查更新
+                      更新到最新
                     </Button>
-                    {status.updateAvailable ? (
-                      <Button size="sm" onClick={() => void engine.updateEngine()} disabled={updating}>
-                        {updating ? (
-                          <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden />
-                        ) : (
-                          <Download className="mr-2 h-4 w-4" aria-hidden />
-                        )}
-                        更新到最新
-                      </Button>
-                    ) : null}
-                  </div>
+                  ) : null}
                 </div>
-                {/* 上次检查时间(检查结果落账,sidecar 重启不丢) */}
-                <div className="mt-3 flex items-center justify-between gap-3">
-                  <span className="text-xs text-muted-foreground">上次检查</span>
-                  <span className="font-mono text-xs text-foreground" data-comfy-last-check>
-                    {status.lastCheckAt
-                      ? new Date(status.lastCheckAt).toLocaleString("zh-CN", {
-                          month: "2-digit",
-                          day: "2-digit",
-                          hour: "2-digit",
-                          minute: "2-digit",
-                        })
-                      : "还没检查过"}
-                  </span>
-                </div>
-                {/* 更新通道(照 Comfy Desktop 同款下拉;一期唯一通道=GitHub 最新 release) */}
-                <div className="mt-2 flex items-center justify-between gap-3">
-                  <span className="text-xs text-muted-foreground">更新通道</span>
-                  <select
-                    aria-label="更新通道"
-                    value="github-latest"
-                    onChange={() => undefined}
-                    className="h-8 rounded-md border border-border bg-card px-2 text-xs text-foreground"
-                    data-comfy-channel-select
-                  >
-                    <option value="github-latest">GitHub 最新版</option>
-                  </select>
-                </div>
-                <p className="mt-2 text-[11px] leading-4 text-muted-foreground">
-                  打开本页会自动向 GitHub 查一次最新版本;更新永远需要你点击确认。
-                </p>
               </div>
 
               <div className="rounded-lg border border-border bg-card/60 p-3">
