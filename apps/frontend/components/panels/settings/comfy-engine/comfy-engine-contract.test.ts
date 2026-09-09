@@ -4,6 +4,7 @@
 import { describe, expect, it } from "vitest";
 import {
   COMFY_ENGINE_PILL_LABELS,
+  comfyVersionGithubUrl,
   deriveComfyEnginePill,
   filterComfyCatalogEntries,
   formatComfyEnginePillLabel,
@@ -199,5 +200,15 @@ describe("filterComfyCatalogEntries 目录过滤", () => {
     expect(filterComfyCatalogEntries(entries, "", "效率")).toHaveLength(1);
     expect(filterComfyCatalogEntries(entries, "节点", "生图")).toHaveLength(1);
     expect(filterComfyCatalogEntries(entries, "图层", "生图")).toHaveLength(0);
+  });
+});
+
+describe("comfyVersionGithubUrl(09-09 版本地址跳转)", () => {
+  it("纯 tag → tree/{tag};describe/master@ 回落短 sha;无法解析 null", () => {
+    expect(comfyVersionGithubUrl("v0.34.6")).toBe("https://github.com/comfyanonymous/ComfyUI/tree/v0.34.6");
+    expect(comfyVersionGithubUrl("v0.34.6-87-g672ba9e")).toBe("https://github.com/comfyanonymous/ComfyUI/tree/672ba9e");
+    expect(comfyVersionGithubUrl("master@672ba9e")).toBe("https://github.com/comfyanonymous/ComfyUI/tree/672ba9e");
+    expect(comfyVersionGithubUrl(null)).toBeNull();
+    expect(comfyVersionGithubUrl("未知版本")).toBeNull();
   });
 });

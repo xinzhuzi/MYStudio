@@ -12,6 +12,7 @@ import {
   Check,
   Copy,
   Download,
+  ExternalLink,
   FolderOpen,
   Loader2,
   Play,
@@ -38,6 +39,7 @@ import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import {
   COMFY_ENGINE_STAGE_LABELS,
+  comfyVersionGithubUrl,
   summarizeDoctorReport,
   type ComfyEngineJob,
 } from "./comfy-engine-contract";
@@ -424,6 +426,25 @@ export function ComfyEngineSettingsSection({ embedded = false }: ComfyEngineSett
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   <p className="flex flex-wrap items-center gap-2 text-sm font-medium text-foreground" data-comfy-version-row>
                     当前版本 <span className="font-mono">{status.version ?? "未知"}</span>
+                    {(() => {
+                      const url = comfyVersionGithubUrl(status.version);
+                      if (!url) return null;
+                      return (
+                        <button
+                          type="button"
+                          className="inline-flex items-center gap-1 rounded-md px-1 py-0.5 text-xs text-primary/90 hover:bg-primary/10 hover:text-primary"
+                          title={url}
+                          aria-label="在 GitHub 查看此版本"
+                          data-comfy-version-link
+                          onClick={() => {
+                            void window.appUpdater?.openExternalLink(url);
+                          }}
+                        >
+                          <ExternalLink className="h-3.5 w-3.5" aria-hidden />
+                          GitHub
+                        </button>
+                      );
+                    })()}
                     {engine.isCheckingUpdate ? (
                       <span className="rounded-full border border-border bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground" data-comfy-checking-badge>
                         正在向 GitHub 查询…

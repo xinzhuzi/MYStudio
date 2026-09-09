@@ -215,6 +215,19 @@ describe("ComfyEngineSettingsSection 版本与更新链", () => {
     expect(screen.getByRole("button", { name: /更新到最新/ })).toBeTruthy();
   });
 
+  it("版本号后带 GitHub 链接:点击走 openExternalLink(09-09)", () => {
+    const openExternalLink = vi.fn(async () => ({ success: true }));
+    window.appUpdater = { openExternalLink } as unknown as typeof window.appUpdater;
+    scenario.status = readyStatus({ version: "v0.34.6" });
+    render(<ComfyEngineSettingsSection embedded />);
+
+    const link = comfyEl("version-link");
+    expect(link.getAttribute("title")).toBe("https://github.com/comfyanonymous/ComfyUI/tree/v0.34.6");
+    fireEvent.click(link);
+    expect(openExternalLink).toHaveBeenCalledWith("https://github.com/comfyanonymous/ComfyUI/tree/v0.34.6");
+    delete window.appUpdater;
+  });
+
   it("已是最新徽章;上次检查时间与更新通道下拉已撤", () => {
     scenario.status = readyStatus({
       latest: "0.34.0",
