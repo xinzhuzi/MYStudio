@@ -115,9 +115,8 @@ class TestUpdateCheckLedger:
         monkeypatch.setattr(manager, "is_healthy", lambda port=None, timeout=2.0: False)
 
         def fake_git(argv, *a, **k):
-            if "refs/heads/master" in argv:
-                return f"{head_sha}\trefs/heads/master\n"
-            return f"aaa\trefs/tags/v0.34.6\n"  # 最新 release 与本地相同
+            # 09-09 单次往返:master+tags 混合应答
+            return f"{head_sha}\trefs/heads/master\naaa\trefs/tags/v0.34.6\n"
 
         monkeypatch.setattr(em, "_git", fake_git)
         monkeypatch.setattr(manager, "_commits_ahead", lambda sha: 87)
@@ -147,9 +146,7 @@ class TestUpdateCheckLedger:
         monkeypatch.setattr(manager, "is_healthy", lambda port=None, timeout=2.0: False)
 
         def fake_git(argv, *a, **k):
-            if "refs/heads/master" in argv:
-                return f"{local_sha}\trefs/heads/master\n"
-            return f"aaa\trefs/tags/v0.34.6\n"
+            return f"{local_sha}\trefs/heads/master\naaa\trefs/tags/v0.34.6\n"
 
         monkeypatch.setattr(em, "_git", fake_git)
         reply = manager.update_check()

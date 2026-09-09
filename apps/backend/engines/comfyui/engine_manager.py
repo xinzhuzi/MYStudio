@@ -785,10 +785,12 @@ class EngineManager:
         engine = manifest.get("engine") if isinstance(manifest.get("engine"), dict) else {}
         current = engine.get("version")
         try:
-            remote = _git(["ls-remote", "--tags", COMFYUI_REPO], timeout=20.0)
-            latest = pick_latest_release(remote.splitlines())
-            head_line = _git(["ls-remote", COMFYUI_REPO, "refs/heads/master"], timeout=20.0).split()
-            head_sha = head_line[0] if head_line else None
+            # 单次往返同时取 master HEAD 与全部 release tags(09-09 优化:
+            # 原两次 ls-remote 到 github.com 各一趟往返,国内网络下是查询慢的大头)
+            remote = _git(["ls-remote", COMFYUI_REPO, "refs/heads/master", "refs/tags/*"], timeout=20.0)
+            lines = remote.splitlines()
+            head_sha = next((line.split()[0] for line in lines if line.endswith("\trefs/heads/master")), None)
+            latest = pick_latest_release(lines)
         except (EngineOpError, OSError) as exc:
             self._last_check = {"current": current, "latest": None, "updateAvailable": False, "error": f"检查更新失败: {exc}"}
             return dict(self._last_check)
