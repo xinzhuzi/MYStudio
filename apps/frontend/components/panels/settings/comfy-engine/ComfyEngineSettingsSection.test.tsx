@@ -222,9 +222,9 @@ describe("ComfyEngineSettingsSection 版本与更新链", () => {
     render(<ComfyEngineSettingsSection embedded />);
 
     const link = comfyEl("version-link");
-    expect(link.getAttribute("title")).toBe("https://github.com/comfyanonymous/ComfyUI/tree/v0.34.6");
+    expect(link.getAttribute("title")).toBe("https://github.com/Comfy-Org/ComfyUI/tree/v0.34.6");
     fireEvent.click(link);
-    expect(openExternalLink).toHaveBeenCalledWith("https://github.com/comfyanonymous/ComfyUI/tree/v0.34.6");
+    expect(openExternalLink).toHaveBeenCalledWith("https://github.com/Comfy-Org/ComfyUI/tree/v0.34.6");
     delete window.appUpdater;
   });
 

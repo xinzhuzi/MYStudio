@@ -205,9 +205,9 @@ describe("filterComfyCatalogEntries 目录过滤", () => {
 
 describe("comfyVersionGithubUrl(09-09 版本地址跳转)", () => {
   it("纯 tag → tree/{tag};describe/master@ 回落短 sha;无法解析 null", () => {
-    expect(comfyVersionGithubUrl("v0.34.6")).toBe("https://github.com/comfyanonymous/ComfyUI/tree/v0.34.6");
-    expect(comfyVersionGithubUrl("v0.34.6-87-g672ba9e")).toBe("https://github.com/comfyanonymous/ComfyUI/tree/672ba9e");
-    expect(comfyVersionGithubUrl("master@672ba9e")).toBe("https://github.com/comfyanonymous/ComfyUI/tree/672ba9e");
+    expect(comfyVersionGithubUrl("v0.34.6")).toBe("https://github.com/Comfy-Org/ComfyUI/tree/v0.34.6");
+    expect(comfyVersionGithubUrl("v0.34.6-87-g672ba9e")).toBe("https://github.com/Comfy-Org/ComfyUI/tree/672ba9e");
+    expect(comfyVersionGithubUrl("master@672ba9e")).toBe("https://github.com/Comfy-Org/ComfyUI/tree/672ba9e");
     expect(comfyVersionGithubUrl(null)).toBeNull();
     expect(comfyVersionGithubUrl("未知版本")).toBeNull();
   });

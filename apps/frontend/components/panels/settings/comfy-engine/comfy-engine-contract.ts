@@ -439,7 +439,9 @@ export function filterComfyCatalogEntries(
   });
 }
 
-export const COMFYUI_GITHUB_BASE = "https://github.com/comfyanonymous/ComfyUI";
+// 09-09 用户裁定:对外展示/跳转用官方组织地址 Comfy-Org(comfyanonymous 已 301 归并);
+// 后端 clone 源仍走 comfyanonymous(重定向等价,不影响 fetch/更新链)
+export const COMFYUI_GITHUB_BASE = "https://github.com/Comfy-Org/ComfyUI";
 
 /**
  * 版本串 → 该版本在 GitHub 上的源码页(09-09 用户裁定:版本后带地址可点击跳转)。
