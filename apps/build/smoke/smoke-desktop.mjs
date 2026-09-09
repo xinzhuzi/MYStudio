@@ -1265,7 +1265,6 @@ async function verifyPluginSettings(evaluate) {
           '视觉审核（VLM 一致性检查）',
           '视频评分模型',
           'TTS 运行时与模型',
-          '本地音乐生成',
           '本地音效生成',
           '视频工作流插件',
         ];
