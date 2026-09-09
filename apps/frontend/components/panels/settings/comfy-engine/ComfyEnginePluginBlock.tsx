@@ -246,8 +246,11 @@ export function ComfyEnginePluginBlock({ engine }: ComfyEnginePluginBlockProps) 
         </select>
       </div>
 
-      {/* 插件列表行 */}
-      <div className="divide-y divide-border overflow-hidden rounded-lg border border-border">
+      {/* 插件列表行:限高滚动窗口(09-09 用户裁定:全量展开拉长页面致卡,窗口内滑) */}
+      <div
+        className="max-h-72 divide-y divide-border overflow-y-auto overscroll-contain rounded-lg border border-border"
+        data-comfy-plugin-list
+      >
         {rows.length === 0 ? (
           <p className="px-4 py-6 text-center text-xs text-muted-foreground">没有匹配的插件</p>
         ) : null}
