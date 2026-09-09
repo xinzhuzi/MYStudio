@@ -34,7 +34,9 @@ class ManyingGenerated:
         from ..bridge import writeback as _writeback
 
         body = _writeback.deliver(images, shot_target, prompt, meta)
+        # result 必须=与 RETURN_TYPES 对齐的元组(此处空);自定义信息走 ui
+        # (实弹教训:塞 dict 会让 merge_result_data 按 o[0] 取值抛 KeyError: 0)
         return {
             "ui": {"manying": {"shotTarget": shot_target, "acceptedId": body.get("id")}},
-            "result": {"delivered": True},
+            "result": (),
         }

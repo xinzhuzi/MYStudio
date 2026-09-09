@@ -31,8 +31,11 @@ def deliver(images, shot_target: str, prompt: str, meta: str) -> dict:
     from PIL import Image
 
     frame = images[0]
-    for op in ("detach", "clamp", "cpu"):
-        frame = getattr(frame, op)() if callable(getattr(frame, op, None)) else frame
+    for op in ("detach", "cpu"):
+        if callable(getattr(frame, op, None)):
+            frame = getattr(frame, op)()
+    if callable(getattr(frame, "clamp", None)):
+        frame = frame.clamp(0, 1)  # 显式区间:裸 clamp() torch 直接抛错(实弹教训)
     array = (frame.numpy() * 255.0).round().astype("uint8")
     buffer = io.BytesIO()
     Image.fromarray(array).save(buffer, format="PNG")

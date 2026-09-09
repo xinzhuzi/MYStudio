@@ -461,7 +461,7 @@ class Handler(BaseHTTPRequestHandler):
             # ── manying 自研节点 + bridge 回写(swap 阶段1)──
             if method == "POST" and path == "/comfy/manying/sync":
                 result = pm.sync_manying_nodes()
-                result["restartRequired"] = engine_manager.status().get("state") == "running"
+                result["restartRequired"] = engine_manager().status().get("state") == "running"
                 self._send_json(result)
                 return
             if method == "GET" and path == "/comfy/manying/status":

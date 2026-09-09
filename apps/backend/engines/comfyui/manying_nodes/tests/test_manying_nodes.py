@@ -83,7 +83,7 @@ def test_generated_is_output_node_and_delegates(tmp_path):
     with patch.object(bridge.writeback, "deliver", return_value={"accepted": True, "id": 7}) as deliver:
         result = node.run(fake, "S01-02", prompt="p", meta='{"seed": 1}')
     deliver.assert_called_once_with(fake, "S01-02", "p", '{"seed": 1}')
-    assert result["result"]["delivered"] is True
+    assert result["result"] == ()
     assert result["ui"]["manying"]["shotTarget"] == "S01-02"
 
 
