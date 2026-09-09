@@ -1,4 +1,43 @@
 {
+ "audio:audio-dir": {
+  "cache_dirs": [
+   "<TMP>/a_cache",
+   "<TMP>/home/.cache/huggingface",
+   "<TMP>/home/.cache/huggingface/hub",
+   "<TMP>/home/Library/Caches/huggingface",
+   "<TMP>/home/Library/Caches/huggingface/hub"
+  ],
+  "find_complete": null,
+  "primary": "<TMP>/a_cache",
+  "repo_dir_default": "<TMP>/a_cache/models--test--model",
+  "repo_name": "models--test--model"
+ },
+ "audio:hf-home": {
+  "cache_dirs": [
+   "<TMP>/hf_home",
+   "<TMP>/hf_home/hub",
+   "<TMP>/home/.cache/huggingface",
+   "<TMP>/home/.cache/huggingface/hub",
+   "<TMP>/home/Library/Caches/huggingface",
+   "<TMP>/home/Library/Caches/huggingface/hub"
+  ],
+  "find_complete": null,
+  "primary": "<TMP>/hf_home/hub",
+  "repo_dir_default": "<TMP>/hf_home/hub/models--test--model",
+  "repo_name": "models--test--model"
+ },
+ "audio:no-env": {
+  "cache_dirs": [
+   "<TMP>/home/.cache/huggingface",
+   "<TMP>/home/.cache/huggingface/hub",
+   "<TMP>/home/Library/Caches/huggingface",
+   "<TMP>/home/Library/Caches/huggingface/hub"
+  ],
+  "find_complete": null,
+  "primary": "<TMP>/home/.cache/huggingface/hub",
+  "repo_dir_default": "<TMP>/home/.cache/huggingface/hub/models--test--model",
+  "repo_name": "models--test--model"
+ },
  "depth_estimation:depth-dir": {
   "cache_dirs": [
    "<TMP>/d_cache",
@@ -59,6 +98,31 @@
   "find_miss": null,
   "primary": "<TMP>/home/.cache/huggingface/hub",
   "repo_dir": "<TMP>/hf1/models--test--model"
+ },
+ "sfx:no-env": {
+  "cache_dirs": [
+   "<TMP>/home/.cache/huggingface",
+   "<TMP>/home/.cache/huggingface/hub",
+   "<TMP>/home/Library/Caches/huggingface",
+   "<TMP>/home/Library/Caches/huggingface/hub"
+  ],
+  "find_complete": null,
+  "primary": "<TMP>/home/.cache/huggingface/hub",
+  "repo_dir_default": "<TMP>/home/.cache/huggingface/hub/models--test--model",
+  "repo_name": "models--test--model"
+ },
+ "sfx:sfx-dir": {
+  "cache_dirs": [
+   "<TMP>/s_cache",
+   "<TMP>/home/.cache/huggingface",
+   "<TMP>/home/.cache/huggingface/hub",
+   "<TMP>/home/Library/Caches/huggingface",
+   "<TMP>/home/Library/Caches/huggingface/hub"
+  ],
+  "find_complete": null,
+  "primary": "<TMP>/s_cache",
+  "repo_dir_default": "<TMP>/s_cache/models--test--model",
+  "repo_name": "models--test--model"
  },
  "tts:hf-home": {
   "cache_dirs": [

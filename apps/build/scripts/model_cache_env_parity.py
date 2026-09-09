@@ -36,7 +36,7 @@ pkg = sys.argv[2]
 scenario = sys.argv[3]
 
 import importlib
-MOD_PATHS = {"tts": "engines.tts_engine", "depth_estimation": "engines.depth_engine", "upscale": "engines.upscale_engine", "video_qc": "engines.video_qc_engine"}
+MOD_PATHS = {"tts": "engines.tts_engine", "depth_estimation": "engines.depth_engine", "upscale": "engines.upscale_engine", "video_qc": "engines.video_qc_engine", "audio": "engines.audio_engine", "sfx": "engines.sfx_engine"}
 m = importlib.import_module(f"{MOD_PATHS.get(pkg, pkg)}.model_cache")
 
 def p(v):
@@ -67,6 +67,13 @@ elif pkg == "depth_estimation":
     out["repo_dir"] = p(m.repo_cache_dir("test/model", hf1))
     out["find_hit"] = p(m.find_cached_depth_model(("test/model",)))
     out["find_miss"] = p(m.find_cached_depth_model(("test/none",)))
+elif pkg in ("audio", "sfx"):
+    find = m.find_cached_audio_model if pkg == "audio" else m.find_cached_sfx_model
+    out["primary"] = p(m.primary_hf_cache_dir())
+    out["cache_dirs"] = p(m.hf_cache_dirs())
+    out["repo_name"] = p(m.repo_cache_name("test/model"))
+    out["repo_dir_default"] = p(m.repo_cache_dir("test/model"))
+    out["find_complete"] = p(find(("test/model",)))
 elif pkg == "upscale":
     out["primary"] = p(m.primary_model_dir())
     out["candidates"] = p(m.model_candidate_dirs())
@@ -134,6 +141,11 @@ def collect() -> dict:
             ("depth_estimation", "hf-hub-hit", {"HF_HUB_CACHE": str(tmp / "hf1")}),
             ("upscale", "no-env", {}),
             ("upscale", "upscale-dir", {"MYSTUDIO_UPSCALE_MODEL_DIR": str(fx["pin1"])}),
+            ("audio", "no-env", {}),
+            ("audio", "audio-dir", {"MYSTUDIO_AUDIO_MODEL_DIR": str(tmp / "a_cache")}),
+            ("audio", "hf-home", {"HF_HOME": str(tmp / "hf_home")}),
+            ("sfx", "no-env", {}),
+            ("sfx", "sfx-dir", {"MYSTUDIO_SFX_MODEL_DIR": str(tmp / "s_cache")}),
             ("video_qc", "no-env", {}),
             ("video_qc", "qc-dir", {"MYSTUDIO_VIDEO_QC_MODEL_DIR": str(fx["pin1"])}),
         ]

@@ -11,6 +11,8 @@ from __future__ import annotations
 import os
 import sys
 from pathlib import Path
+
+from common import model_cache_core as _core
 from typing import TypedDict
 
 MODEL_WEIGHT_EXTENSIONS = (".safetensors", ".bin", ".npz", ".mlx")
@@ -134,59 +136,26 @@ class CachedMusic3Model(TypedDict):
     layout: str
 
 
-def primary_hf_cache_dir() -> Path:
-    env_cache = (
-        os.environ.get("MYSTUDIO_MUSIC3_MODEL_DIR")
-        or os.environ.get("HF_HUB_CACHE")
-    )
-    if env_cache:
-        return Path(env_cache).expanduser()
-    hf_home = os.environ.get("HF_HOME")
-    if hf_home:
-        return Path(hf_home).expanduser() / "hub"
-    try:
-        from huggingface_hub import constants as hf_constants
+# 家族 env 表=Electron spawn 契约(禁归一);委托 common 骨架,
+# 双关旋钮(不探 hf_constants/不扩 hub 子目录)与历史手写版逐字等价
+# (parity 场景锁证)
+_ENV_NAMES = ("MYSTUDIO_MUSIC3_MODEL_DIR", "HF_HUB_CACHE")
 
-        return Path(hf_constants.HF_HUB_CACHE).expanduser()
-    except Exception:
-        return Path.home() / ".cache" / "huggingface" / "hub"
+
+def primary_hf_cache_dir() -> Path:
+    return _core.primary_hf_cache_dir(_ENV_NAMES)
 
 
 def hf_cache_dirs() -> list[Path]:
-    candidates: list[Path] = []
-    for env_name in ("MYSTUDIO_MUSIC3_MODEL_DIR", "HF_HUB_CACHE"):
-        value = os.environ.get(env_name)
-        if value:
-            candidates.append(Path(value))
-    hf_home = os.environ.get("HF_HOME")
-    if hf_home:
-        candidates.append(Path(hf_home))
-        candidates.append(Path(hf_home) / "hub")
-    candidates.extend(
-        [
-            Path.home() / ".cache" / "huggingface",
-            Path.home() / ".cache" / "huggingface" / "hub",
-            Path.home() / "Library" / "Caches" / "huggingface",
-            Path.home() / "Library" / "Caches" / "huggingface" / "hub",
-        ]
-    )
-    seen: set[str] = set()
-    unique: list[Path] = []
-    for path in candidates:
-        expanded = path.expanduser()
-        if str(expanded) in seen:
-            continue
-        seen.add(str(expanded))
-        unique.append(expanded)
-    return unique
+    return _core.hf_cache_dirs(_ENV_NAMES, probe_hf_constants=False, expand_hub_subdir=False)
 
 
 def repo_cache_name(repo_id: str) -> str:
-    return "models--" + repo_id.replace("/", "--")
+    return _core.repo_cache_name(repo_id)
 
 
 def repo_cache_dir(repo_id: str, cache_dir: Path | None = None) -> Path:
-    return (cache_dir or primary_hf_cache_dir()) / repo_cache_name(repo_id)
+    return _core.repo_cache_dir(repo_id, cache_dir or primary_hf_cache_dir())
 
 
 def _snapshot_dir(repo: Path) -> Path | None:
@@ -246,15 +215,6 @@ def _flat_music3_dirs(cache_dir: Path) -> list[Path]:
     ]
 
 
-def _cache_size_mb(repo: Path) -> float:
-    size = sum(
-        file.stat().st_size
-        for file in repo.rglob("*")
-        if file.is_file() and not file.name.endswith(".incomplete")
-    )
-    return round(size / 1024 / 1024, 2)
-
-
 def find_cached_music3_model(repo_ids: tuple[str, ...]) -> CachedMusic3Model | None:
     for cache_dir in hf_cache_dirs():
         for flat_dir in _flat_music3_dirs(cache_dir):
@@ -263,7 +223,7 @@ def find_cached_music3_model(repo_ids: tuple[str, ...]) -> CachedMusic3Model | N
                     "repo_id": repo_ids[0] if repo_ids else "",
                     "cache_dir": str(cache_dir),
                     "repo_cache_dir": str(flat_dir),
-                    "size_mb": _cache_size_mb(flat_dir),
+                    "size_mb": _core.cache_size_mb(flat_dir),
                     "layout": "mlxserv",
                 }
         for repo_id in repo_ids:
@@ -273,7 +233,7 @@ def find_cached_music3_model(repo_ids: tuple[str, ...]) -> CachedMusic3Model | N
                     "repo_id": repo_id,
                     "cache_dir": str(cache_dir),
                     "repo_cache_dir": str(_snapshot_dir(repo)),
-                    "size_mb": _cache_size_mb(repo),
+                    "size_mb": _core.cache_size_mb(repo),
                     "layout": "pocket",
                 }
     return None

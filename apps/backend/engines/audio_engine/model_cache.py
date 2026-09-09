@@ -4,9 +4,10 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
+
+from common import model_cache_core as _core
 from typing import TypedDict
 
-MODEL_WEIGHT_EXTENSIONS = (".safetensors", ".bin", ".pt", ".pth", ".npz", ".onnx")
 # MusicGen's processor/model loader needs the model configuration and a real
 # model weight. Auxiliary files such as `compression_state_dict.bin` alone do
 # not make a HuggingFace snapshot runnable.
@@ -44,59 +45,26 @@ class CachedAudioModel(TypedDict):
     size_mb: float
 
 
-def primary_hf_cache_dir() -> Path:
-    env_cache = (
-        os.environ.get("MYSTUDIO_AUDIO_MODEL_DIR")
-        or os.environ.get("HF_HUB_CACHE")
-    )
-    if env_cache:
-        return Path(env_cache).expanduser()
-    hf_home = os.environ.get("HF_HOME")
-    if hf_home:
-        return Path(hf_home).expanduser() / "hub"
-    try:
-        from huggingface_hub import constants as hf_constants
+# 家族 env 表=Electron spawn 契约(禁归一);委托 common 骨架,
+# 双关旋钮(不探 hf_constants/不扩 hub 子目录)与历史手写版逐字等价
+# (parity 场景 audio_engine:* 锁证)
+_ENV_NAMES = ("MYSTUDIO_AUDIO_MODEL_DIR", "HF_HUB_CACHE")
 
-        return Path(hf_constants.HF_HUB_CACHE).expanduser()
-    except Exception:
-        return Path.home() / ".cache" / "huggingface" / "hub"
+
+def primary_hf_cache_dir() -> Path:
+    return _core.primary_hf_cache_dir(_ENV_NAMES)
 
 
 def hf_cache_dirs() -> list[Path]:
-    candidates: list[Path] = []
-    for env_name in ("MYSTUDIO_AUDIO_MODEL_DIR", "HF_HUB_CACHE"):
-        value = os.environ.get(env_name)
-        if value:
-            candidates.append(Path(value))
-    hf_home = os.environ.get("HF_HOME")
-    if hf_home:
-        candidates.append(Path(hf_home))
-        candidates.append(Path(hf_home) / "hub")
-    candidates.extend(
-        [
-            Path.home() / ".cache" / "huggingface",
-            Path.home() / ".cache" / "huggingface" / "hub",
-            Path.home() / "Library" / "Caches" / "huggingface",
-            Path.home() / "Library" / "Caches" / "huggingface" / "hub",
-        ]
-    )
-    seen: set[str] = set()
-    unique: list[Path] = []
-    for path in candidates:
-        expanded = path.expanduser()
-        if str(expanded) in seen:
-            continue
-        seen.add(str(expanded))
-        unique.append(expanded)
-    return unique
+    return _core.hf_cache_dirs(_ENV_NAMES, probe_hf_constants=False, expand_hub_subdir=False)
 
 
 def repo_cache_name(repo_id: str) -> str:
-    return "models--" + repo_id.replace("/", "--")
+    return _core.repo_cache_name(repo_id)
 
 
 def repo_cache_dir(repo_id: str, cache_dir: Path | None = None) -> Path:
-    return (cache_dir or primary_hf_cache_dir()) / repo_cache_name(repo_id)
+    return _core.repo_cache_dir(repo_id, cache_dir or primary_hf_cache_dir())
 
 
 def _has_complete_model_files(cache: Path) -> bool:
@@ -114,21 +82,12 @@ def _has_complete_model_files(cache: Path) -> bool:
             continue
         if any(
             file.is_file()
-            and file.suffix in MODEL_WEIGHT_EXTENSIONS
+            and file.suffix in _core.DEFAULT_WEIGHT_EXTENSIONS
             and file.name.startswith(MODEL_WEIGHT_PREFIXES)
             for file in snapshot.rglob("*")
         ):
             return True
     return False
-
-
-def _cache_size_mb(cache: Path) -> float:
-    size = sum(
-        file.stat().st_size
-        for file in cache.rglob("*")
-        if file.is_file() and not file.name.endswith(".incomplete")
-    )
-    return round(size / 1024 / 1024, 2)
 
 
 def find_cached_audio_model(repo_ids: tuple[str, ...]) -> CachedAudioModel | None:
@@ -140,6 +99,6 @@ def find_cached_audio_model(repo_ids: tuple[str, ...]) -> CachedAudioModel | Non
                     "repo_id": repo_id,
                     "cache_dir": str(cache_dir),
                     "repo_cache_dir": str(cache),
-                    "size_mb": _cache_size_mb(cache),
+                    "size_mb": _core.cache_size_mb(cache),
                 }
     return None
