@@ -634,7 +634,8 @@ describe("workflow node component boundaries", () => {
     expect(canvasSource).toContain("onOpenAssetImageWorkflow");
     expect(viewModelSource).toContain("openAssetImageWorkflow");
     expect(viewModelSource).toContain('handleStageChange("imageWorkflow")');
-    expect(indexSource).toContain("initialAssetContext={viewModel.assetImageWorkflowContext}");
+    // 09-09 换代:画布槽位=ComfyCanvasSwap(资产上下文由阶段侧栏承接,旧透传退役)
+    expect(indexSource).toContain("分镜画布 · ComfyUI");
   });
 
   it("passes the derived asset image workflow context when the card button is clicked", () => {

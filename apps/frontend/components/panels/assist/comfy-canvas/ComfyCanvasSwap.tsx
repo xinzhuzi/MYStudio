@@ -4,16 +4,12 @@
 // Commercial licensing available. See COMMERCIAL_LICENSE.md.
 
 /**
- * 画布换壳(09-09 comfyui-frontend-swap 阶段2 批4:换代)。
- *
- * 默认=ComfyUI 画布(引擎 webview 嵌入,复用 ComfyCanvasStudio 全套
- * 引擎状态机+回写消费+分镜侧栏);旧 React Flow 画布保留为**只读存档**
- * 视图(pointer-events 封印=可看不可操作,双轨期 PRD 口径)。阶段3
- * 旧画布随 React Flow 一并退役,此壳届时只剩 ComfyUI 分支。
+ * 画布槽位(09-09 换代批6 终态):ComfyUI 画布 + 旧画布退役占位。
+ * 旧 React Flow 画布已退役删除;存量数据冻结在 store(深链照常读写),
+ * 画布化操作全走 ComfyUI(工作流库「导入存量画布」)。
  */
 
-import { useState, type ReactNode } from "react";
-import { Archive, Boxes } from "lucide-react";
+import type { ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import { ComfyCanvasStudio } from "./ComfyCanvasStudio";
 
@@ -21,19 +17,15 @@ export function ComfyCanvasSwap({
   title,
   onBack,
   legacy,
-  legacyLabel = "旧画布(只读存档)",
-  defaultView = "comfy",
 }: {
   title: string;
   onBack?: () => void;
-  /** 旧 React Flow 画布(仅在切到只读视图时挂载) */
-  legacy: ReactNode;
-  legacyLabel?: string;
-  defaultView?: "comfy" | "legacy";
+  /** 兼容旧签名的残留入参(不再渲染;调用方清理后移除) */
+  legacy?: ReactNode;
 }) {
-  const [view, setView] = useState<"comfy" | "legacy">(defaultView);
+  void legacy;
   return (
-    <div className="flex h-full min-h-0 flex-col" data-comfy-swap={view}>
+    <div className="flex h-full min-h-0 flex-col" data-comfy-swap="comfy">
       <div className="flex shrink-0 items-center justify-between gap-2 border-b border-border px-3 py-1.5">
         <div className="flex items-center gap-2">
           {onBack ? (
@@ -43,48 +35,11 @@ export function ComfyCanvasSwap({
           ) : null}
           <span className="text-xs font-medium text-foreground">{title}</span>
         </div>
-        <div className="flex items-center gap-1" role="tablist" aria-label="画布视图切换">
-          <Button
-            size="sm"
-            variant={view === "comfy" ? "secondary" : "ghost"}
-            className="h-7 px-2 text-xs"
-            onClick={() => setView("comfy")}
-            role="tab"
-            aria-selected={view === "comfy"}
-            data-comfy-swap-tab="comfy"
-          >
-            <Boxes className="mr-1 h-3.5 w-3.5" aria-hidden />
-            ComfyUI 画布
-          </Button>
-          <Button
-            size="sm"
-            variant={view === "legacy" ? "secondary" : "ghost"}
-            className="h-7 px-2 text-xs"
-            onClick={() => setView("legacy")}
-            role="tab"
-            aria-selected={view === "legacy"}
-            data-comfy-swap-tab="legacy"
-          >
-            <Archive className="mr-1 h-3.5 w-3.5" aria-hidden />
-            {legacyLabel}
-          </Button>
-        </div>
+        <span className="text-[11px] text-muted-foreground">
+          旧画布已退役——存量数据与生成链保留;画布操作全在 ComfyUI(工作流库可一键导入存量)
+        </span>
       </div>
-      {view === "comfy" ? (
-        <ComfyCanvasStudio embedded />
-      ) : (
-        <div className="relative min-h-0 flex-1">
-          {/* 只读封印:旧画布可查看不可操作;交互一律去 ComfyUI 画布 */}
-          <div className="pointer-events-none h-full overflow-hidden" data-comfy-swap-legacy>
-            {legacy}
-          </div>
-          <div className="pointer-events-none absolute inset-x-0 top-0 z-50 flex justify-center pt-2">
-            <span className="rounded-full border border-border bg-background/95 px-3 py-1 text-[11px] text-muted-foreground">
-              旧画布只读存档——查看历史用;新建连线与生成请切回 ComfyUI 画布
-            </span>
-          </div>
-        </div>
-      )}
+      <ComfyCanvasStudio embedded />
     </div>
   );
 }

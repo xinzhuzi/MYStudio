@@ -5,9 +5,9 @@ import { NovelTab } from "./NovelTab";
 import { ScriptTab } from "./ScriptTab";
 import { StoryboardPanelTab } from "./StoryboardPanelTab";
 import { WorkbenchTab } from "./WorkbenchTab";
-import { ImageWorkflowCanvas } from "./image-workflow/ImageWorkflowCanvas";
 import { ScriptAssetManagementTab } from "./ScriptAssetManagementTab";
 import { WorkflowNodeCanvas } from "./WorkflowNodeCanvas";
+import { ComfyCanvasSwap } from "../assist/comfy-canvas/ComfyCanvasSwap";
 import { WorkflowNodeEditDialog } from "./WorkflowNodeEditDialog";
 import { WorkflowStageStatusBar } from "./WorkflowStageStatusBar";
 import { useStudioViewModel } from "./useStudioViewModel";
@@ -137,11 +137,9 @@ export function StudioView() {
               value="imageWorkflow"
               className="m-0 min-h-0 flex-1 data-[state=active]:flex data-[state=inactive]:hidden"
             >
-              <ImageWorkflowCanvas
-                projectName={viewModel.projectName}
-                initialAssetContext={viewModel.assetImageWorkflowContext}
+              <ComfyCanvasSwap
+                title="分镜画布 · ComfyUI"
                 onBack={viewModel.closeAssetImageWorkflow}
-                onOpenStoryboardWorkflow={viewModel.openAssetImageWorkflow}
               />
             </TabsContent>
 
