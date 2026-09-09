@@ -1090,13 +1090,13 @@ async function verifyRoute(evaluate, route) {
         forbiddenTextFound: [],
         activeNavText: '',
         availableNavText: navButtons.map((node) => (node.textContent || '').replace(/\\s+/g, ' ').trim()),
-        bodyTextSample: document.body.innerText.slice(0, 800),
+        bodyTextSample: (document.body?.innerText || '').slice(0, 800),
       };
     }
 
     routeButton.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, view: window }));
     return new Promise((resolve) => setTimeout(() => {
-      const bodyText = document.body.innerText;
+      const bodyText = (document.body?.innerText || '');
       const missingRequiredText = requiredText.filter((text) => !bodyText.includes(text));
       const forbiddenTextFound = forbiddenText.filter((text) => bodyText.includes(text));
       resolve({
@@ -1126,7 +1126,7 @@ async function verifyOverviewWorkflow(evaluate) {
     });
     overviewButton?.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, view: window }));
     return new Promise((resolve) => setTimeout(() => {
-      const bodyText = document.body.innerText;
+      const bodyText = (document.body?.innerText || '');
       resolve({
         clickedOverview: Boolean(overviewButton),
         hasProjectEntry: bodyText.includes('开始制作'),
@@ -1185,7 +1185,7 @@ async function verifyWorkflowStages(evaluate) {
     for (const stage of stages) {
       const clicked = await window.mystudioWorkflowSmoke?.setWorkflowStage?.(stage.id);
 	      await wait(450);
-	      const bodyText = document.body.innerText;
+	      const bodyText = (document.body?.innerText || '');
 	      const missingRequiredText = stage.requiredText.filter((text) => !bodyText.includes(text));
 	      const presentForbiddenText = (stage.forbiddenText || []).filter((text) => bodyText.includes(text));
 	      const stageRoot = document.querySelector('[data-state="active"]');
@@ -1253,7 +1253,7 @@ async function verifyPluginSettings(evaluate) {
       activate(pluginTab);
 
       setTimeout(() => {
-        const bodyText = document.body.innerText;
+        const bodyText = (document.body?.innerText || '');
         // 本地配置默认全折叠(08-18 起);08-28 布局重做后折叠行只显示标题+状态胶囊,
         // 描述移入展开内容、分组标签为普通文本——只断言行标题与头部句。
         const requiredText = [
@@ -1364,17 +1364,17 @@ async function prepareRemotionBrowserDownload(evaluate) {
       const pluginTab = Array.from(document.querySelectorAll('.settings-tabs-bar button'))
         .find((node) => normalize(node) === '本地配置');
       result.settings.clickedPluginTab = activate(pluginTab);
-      await waitFor(() => document.body.innerText.includes('Remotion Headless Shell'), 10_000, 'Remotion settings panel');
+      await waitFor(() => (document.body?.innerText || '').includes('Remotion Headless Shell'), 10_000, 'Remotion settings panel');
 
       const remotionOption = Array.from(document.querySelectorAll('[role="radio"]'))
         .find((node) => normalize(node).startsWith('Remotion'));
       result.settings.clickedRemotion = activate(remotionOption);
       await waitFor(() => remotionOption?.getAttribute('aria-checked') === 'true', 5_000, 'Remotion renderer selection');
       result.settings.rendererSelected = remotionOption?.getAttribute('aria-checked') === 'true';
-      result.settings.hasRuntimeStatus = document.body.innerText.includes('当前状态');
+      result.settings.hasRuntimeStatus = (document.body?.innerText || '').includes('当前状态');
       await waitFor(
         () => ['已就绪', '需要手动更新', '尚未安装', '检查失败']
-          .some((label) => document.body.innerText.includes(label)),
+          .some((label) => (document.body?.innerText || '').includes(label)),
         30_000,
         'initial Remotion browser status',
       );
@@ -1568,18 +1568,18 @@ async function verifyRemotionExport(evaluate) {
         const pluginTab = Array.from(document.querySelectorAll('.settings-tabs-bar button'))
           .find((node) => normalize(node) === '本地配置');
         result.settings.clickedPluginTab = activate(pluginTab);
-        await waitFor(() => document.body.innerText.includes('Remotion Headless Shell'), 10_000, 'Remotion settings panel');
+        await waitFor(() => (document.body?.innerText || '').includes('Remotion Headless Shell'), 10_000, 'Remotion settings panel');
 
         const remotionOption = Array.from(document.querySelectorAll('[role="radio"]'))
           .find((node) => normalize(node).startsWith('Remotion'));
         result.settings.clickedRemotion = activate(remotionOption);
         await waitFor(() => remotionOption?.getAttribute('aria-checked') === 'true', 5_000, 'Remotion renderer selection');
         result.settings.rendererSelected = remotionOption?.getAttribute('aria-checked') === 'true';
-        result.settings.hasRuntimeStatus = document.body.innerText.includes('当前状态');
+        result.settings.hasRuntimeStatus = (document.body?.innerText || '').includes('当前状态');
 
         await waitFor(
           () => ['已就绪', '需要手动更新', '尚未安装', '检查失败']
-            .some((label) => document.body.innerText.includes(label)),
+            .some((label) => (document.body?.innerText || '').includes(label)),
           30_000,
           'initial Remotion browser status',
         );
@@ -1819,7 +1819,7 @@ async function verifyWorkflowEndToEnd(evaluate) {
     const seedResult = seed ? await seed() : null;
     await wait(500);
     const clickedWorkflow = clickButtonByText('工作流');
-    await waitFor(() => document.body.innerText.includes('100%') || document.body.innerText.includes('已导出最终成片'), 8000);
+    await waitFor(() => (document.body?.innerText || '').includes('100%') || (document.body?.innerText || '').includes('已导出最终成片'), 8000);
     await window.mystudioWorkflowSmoke?.setWorkflowStage?.('storyboard');
     await wait(800);
     const flowCanvas = document.querySelector('.workflow-node-canvas');
@@ -1830,8 +1830,9 @@ async function verifyWorkflowEndToEnd(evaluate) {
     if (nodeCardTexts.length === 0) {
       // 09-09 批8:主画布退役=节点漫步不可能;种子/巡检底账照常返回
       const inspectEarly = await window.mystudioWorkflowSmoke?.inspectWorkflow?.();
-      const earlyBodyText = document.body.innerText;
-      const editingEarly = inspectEarly?.checks ?? {};
+      const earlyBodyText = (document.body?.innerText || '');
+      const checksEarly = inspectEarly?.checks ?? {};
+      const evidenceEarly = seedResult?.editingEvidence ?? inspectEarly?.editingEvidence ?? {};
       return {
         mainCanvasRetired: true,
         bridgeAvailable: Boolean(window.mystudioWorkflowSmoke?.seedCompleteWorkflow),
@@ -1839,16 +1840,16 @@ async function verifyWorkflowEndToEnd(evaluate) {
         seedResult,
         inspectResult: inspectEarly,
         hasReadyProgress: inspectEarly?.progress === 100,
-        hasCompletedExport: Boolean(editingEarly.hasFinalExport),
-        hasEditingProject: Boolean(seedResult?.editingProjectId || seedResult?.projectId),
-        hasTimelineRenderRecord: Boolean(editingEarly.seededUiSmoke),
-        hasCompleteTimelineEvidence: Boolean(editingEarly.seededUiSmoke),
-        seededEditingEvidence: Boolean(editingEarly.seededEditingEvidence),
-        realMediaGeneration: editingEarly.realMediaGeneration === true,
-        doesNotClaimRealMediaGeneration: editingEarly.realMediaGeneration !== true,
-        hasSelectedCandidate: earlyBodyText.includes('已选候选片段') || Boolean(editingEarly.hasSelectedCandidate),
-        hasVoiceFlow: earlyBodyText.includes('已分配角色音色') || Boolean(editingEarly.hasVoiceBinding),
-        hasVoiceAudio: earlyBodyText.includes('分镜配音已生成') || Boolean(editingEarly.hasVoiceAudio),
+        hasCompletedExport: Boolean(checksEarly.hasFinalExport),
+        hasEditingProject: Boolean(evidenceEarly.editingProjectId),
+        hasTimelineRenderRecord: Boolean(evidenceEarly.timelineRenderJobId),
+        hasCompleteTimelineEvidence: Boolean(evidenceEarly.hasCompleteTimelineEvidence),
+        seededEditingEvidence: Boolean(checksEarly.seededEditingEvidence && seedResult?.evidenceBoundary?.seededUiSmoke),
+        realMediaGeneration: seedResult?.evidenceBoundary?.realMediaGeneration === true,
+        doesNotClaimRealMediaGeneration: seedResult?.evidenceBoundary?.realMediaGeneration !== true,
+        hasSelectedCandidate: earlyBodyText.includes('已选候选片段') || Boolean(checksEarly.hasSelectedCandidate),
+        hasVoiceFlow: earlyBodyText.includes('已分配角色音色') || Boolean(checksEarly.hasVoiceBinding),
+        hasVoiceAudio: earlyBodyText.includes('分镜配音已生成') || Boolean(checksEarly.hasVoiceAudio),
         hasNodeFlowDataPreview: true,
         hasDirectorPlanPreview: true,
         hasToonflowDerivativeLinks: true,
@@ -1876,7 +1877,7 @@ async function verifyWorkflowEndToEnd(evaluate) {
       const clicked = activate(workflowButton);
       if (!clicked) return { workflowId, ready: false, clicked: false, missingChecks: ['clicked'] };
       const captureDetail = () => {
-        const text = document.body.innerText;
+        const text = (document.body?.innerText || '');
         const visibleRect = (node) => {
           if (!node) return null;
           const rect = node.getBoundingClientRect();
@@ -2016,7 +2017,7 @@ async function verifyWorkflowEndToEnd(evaluate) {
     const missingNodePreviewText = requiredNodePreviewText
       .filter((texts) => !nodeCardTexts.some((node) => texts.every((text) => node.text.includes(text))))
       .map((texts) => texts.join(' / '));
-    const bodyText = document.body.innerText;
+    const bodyText = (document.body?.innerText || '');
     const inspectResult = await window.mystudioWorkflowSmoke?.inspectWorkflow?.();
     const editingEvidence = inspectResult?.workflowParityReport?.video || null;
     const evidenceBoundary = inspectResult?.workflowParityReport?.evidenceBoundary || null;
@@ -2188,7 +2189,7 @@ async function verifyWorkflowStepByStepExecution(evaluate) {
       checks: finalInspection?.checks || {},
       editingEvidence: finalInspection?.workflowParityReport?.video || null,
       evidenceBoundary: finalInspection?.workflowParityReport?.evidenceBoundary || null,
-      bodyTextSample: document.body.innerText.slice(0, 1200),
+      bodyTextSample: (document.body?.innerText || '').slice(0, 1200),
     };
   })()`,
     "workflow step-by-step execution check",
@@ -2343,13 +2344,13 @@ async function verifyAssetVoiceFlow(evaluate) {
     };
 
     const clickedAssets = clickButtonByText('资产');
-    await waitFor(() => document.body.innerText.includes('个人资产库'));
+    await waitFor(() => (document.body?.innerText || '').includes('个人资产库'));
     const clickedRole = clickButtonByText('角色', true);
-    await waitFor(() => document.body.innerText.includes('角色库'));
+    await waitFor(() => (document.body?.innerText || '').includes('角色库'));
     await searchAssetLibrary('Smoke测试剑修');
-    await waitFor(() => document.body.innerText.includes('Smoke测试剑修'));
+    await waitFor(() => (document.body?.innerText || '').includes('Smoke测试剑修'));
 
-    const bodyAfterRole = document.body.innerText;
+    const bodyAfterRole = (document.body?.innerText || '');
     const roleCards = Array.from(document.querySelectorAll('.studio-asset-library button[title]'))
       .filter((node) => {
         const title = node.getAttribute('title') || '';
@@ -2358,9 +2359,9 @@ async function verifyAssetVoiceFlow(evaluate) {
       });
     const smokeRoleCard = roleCards.find((node) => (node.getAttribute('title') || '').includes('Smoke测试剑修') || normalize(node).includes('Smoke测试剑修'));
     const clickedRoleCard = activate(smokeRoleCard || roleCards[0]);
-    await waitFor(() => document.body.innerText.includes('尚未分配音色') || document.body.innerText.includes('音色信息'));
+    await waitFor(() => (document.body?.innerText || '').includes('尚未分配音色') || (document.body?.innerText || '').includes('音色信息'));
 
-    const detailText = document.body.innerText;
+    const detailText = (document.body?.innerText || '');
     const audioPanelButton = Array.from(document.querySelectorAll('.studio-asset-detail-dialog button'))
       .find((node) => normalize(node).includes('音色'));
     await waitFor(async () => {
@@ -2368,27 +2369,27 @@ async function verifyAssetVoiceFlow(evaluate) {
       return result?.items?.length ? result : null;
     }, 5000);
     const clickedVoicePanel = activate(audioPanelButton);
-    await waitFor(() => document.body.innerText.includes('资产库音频'));
+    await waitFor(() => (document.body?.innerText || '').includes('资产库音频'));
     const searchedVoiceDialog = await searchVoiceAssignDialog('Smoke青年男声');
     const voiceCandidate = await waitFor(() => Array.from(document.querySelectorAll('[role="dialog"] button[title], .studio-asset-detail-dialog button[title], button[title]'))
       .find((node) => (node.getAttribute('title') || '').includes('Smoke青年男声') || normalize(node).includes('Smoke青年男声')), 8000);
-    const dialogText = document.body.innerText;
+    const dialogText = (document.body?.innerText || '');
     const clickedVoiceCandidate = activate(voiceCandidate);
     await wait(250);
     const confirmAssign = clickButtonByText('确认分配');
-    await waitFor(() => document.body.innerText.includes('已绑定音色音频') || !document.body.innerText.includes('资产库音频'));
-    const afterAssignText = document.body.innerText;
-    await waitFor(() => document.body.innerText.includes('克隆音色') || document.body.innerText.includes('音色信息'));
-    const afterBindingText = document.body.innerText;
+    await waitFor(() => (document.body?.innerText || '').includes('已绑定音色音频') || !(document.body?.innerText || '').includes('资产库音频'));
+    const afterAssignText = (document.body?.innerText || '');
+    await waitFor(() => (document.body?.innerText || '').includes('克隆音色') || (document.body?.innerText || '').includes('音色信息'));
+    const afterBindingText = (document.body?.innerText || '');
     const closedVoiceDialog = await closeTopDialog();
     const closedRoleDetailDialog = await closeTopDialog();
     const dialogsClosedBeforeAudio = await waitFor(() => document.querySelectorAll('[role="dialog"]').length === 0, 3000);
     const openDialogCountBeforeAudio = document.querySelectorAll('[role="dialog"]').length;
     const clickedAudio = clickButtonByText('配音', true);
-    await waitFor(() => document.body.innerText.includes('配音库'));
+    await waitFor(() => (document.body?.innerText || '').includes('配音库'));
     await searchAssetLibrary('Smoke青年男声');
-    await waitFor(() => document.body.innerText.includes('Smoke青年男声'));
-    const audioLibraryText = document.body.innerText;
+    await waitFor(() => (document.body?.innerText || '').includes('Smoke青年男声'));
+    const audioLibraryText = (document.body?.innerText || '');
     const audioCards = Array.from(document.querySelectorAll('.studio-asset-library button[title]'));
     const smokeAudioCard = audioCards.find((node) => (node.getAttribute('title') || '').includes('Smoke青年男声') || normalize(node).includes('Smoke青年男声'));
     const clickedAudioCard = activate(smokeAudioCard || audioCards[0]);
@@ -2518,17 +2519,17 @@ async function verifyScriptAssetGenerationVoiceFlow(evaluate) {
     await waitFor(() => window.mystudioWorkflowSmoke?.seedCompleteWorkflow, 10_000);
     const seedResult = await window.mystudioWorkflowSmoke?.seedCompleteWorkflow?.();
     const clickedWorkflow = clickButtonByText('工作流', true);
-    await waitFor(() => document.body.innerText.includes('当前工作区：漫影工作流'), 5000);
+    await waitFor(() => (document.body?.innerText || '').includes('当前工作区：漫影工作流'), 5000);
     await window.mystudioWorkflowSmoke?.setWorkflowStage?.('assets');
     await wait(900);
-    const bodyBefore = document.body.innerText;
+    const bodyBefore = (document.body?.innerText || '');
     const clickedAutoAssign = clickButtonByText('自动分配音频');
     await waitFor(async () => {
       const inspected = await window.mystudioWorkflowSmoke?.inspectWorkflow?.();
       return inspected?.checks?.hasVoiceBinding ? inspected : null;
     }, 5000);
     const inspectResult = await window.mystudioWorkflowSmoke?.inspectWorkflow?.();
-    const bodyAfter = document.body.innerText;
+    const bodyAfter = (document.body?.innerText || '');
     return {
       seedResult,
       clickedWorkflow: clickedWorkflow.clicked,
@@ -2647,7 +2648,7 @@ async function captureDomVisualStats(evaluate) {
       sampled: points.length,
       whiteRatio: points.length > 0 ? white / points.length : 1,
       transparentRatio: points.length > 0 ? transparent / points.length : 1,
-      bodyTextLength: document.body.innerText.trim().length,
+      bodyTextLength: (document.body?.innerText || '').trim().length,
     };
   })()`,
     "DOM visual stats fallback",
