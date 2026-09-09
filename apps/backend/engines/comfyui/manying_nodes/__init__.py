@@ -12,11 +12,13 @@ sidecar pytest 里验契约。业务语义层见 lib/studio/image-workflow。
 from .nodes.manying_prompt import ManyingPrompt
 from .nodes.manying_reference import ManyingReference
 from .nodes.manying_generated import ManyingGenerated
+from .nodes.manying_shot import ManyingShot
 
 NODE_CLASS_MAPPINGS = {
     "ManyingPrompt": ManyingPrompt,
     "ManyingReference": ManyingReference,
     "ManyingGenerated": ManyingGenerated,
+    "ManyingShot": ManyingShot,
 }
 
 # ComfyUI 前端扩展目录声明(无此=web/ 下 JS 不进 /extensions,不可见)
@@ -26,4 +28,5 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "ManyingPrompt": "漫影 提示词",
     "ManyingReference": "漫影 参考图",
     "ManyingGenerated": "漫影 成图回写",
+    "ManyingShot": "漫影 分镜",
 }

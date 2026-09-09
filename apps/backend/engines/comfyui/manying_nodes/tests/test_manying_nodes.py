@@ -24,7 +24,7 @@ from engines.comfyui.manying_nodes import NODE_CLASS_MAPPINGS, bridge
 
 # ── 注册面 ────────────────────────────────────────────────
 def test_registry_exposes_first_batch_nodes():
-    assert set(NODE_CLASS_MAPPINGS) == {"ManyingPrompt", "ManyingReference", "ManyingGenerated"}
+    assert set(NODE_CLASS_MAPPINGS) == {"ManyingPrompt", "ManyingReference", "ManyingGenerated", "ManyingShot"}
     for node in NODE_CLASS_MAPPINGS.values():
         assert node.CATEGORY == "manying"
 
