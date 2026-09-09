@@ -155,7 +155,7 @@ type CapabilityRowProps = {
   headingId: string;
   icon: LucideIcon;
   title: string;
-  description: string;
+  description?: string;
   pill: CapabilityPillKind;
   /** 覆盖胶囊文案(如引擎行「下载中 42%」「出错」);不传用默认文案。 */
   pillLabel?: string;
@@ -195,7 +195,9 @@ function CapabilityRow({
         </div>
       </CollapsibleTrigger>
       <CollapsibleContent className="border-t border-border">
-        <p className="px-5 pt-4 text-xs leading-5 text-muted-foreground">{description}</p>
+        {description ? (
+          <p className="px-5 pt-4 text-xs leading-5 text-muted-foreground">{description}</p>
+        ) : null}
         {children}
       </CollapsibleContent>
     </Collapsible>
@@ -597,7 +599,6 @@ export function PluginSettingsTab() {
             headingId="plugin-comfy-engine-heading"
             icon={ServerCog}
             title="ComfyUI 图像引擎"
-            description="漫影工作室托管自己的 ComfyUI 引擎(自动跟随最新版本,与你自己装的 ComfyUI Desktop 互不影响)。装好后在图片工作室/分镜画布直接使用两千多个生态节点;引擎和插件只在你点击时下载。"
             pill={comfyPill}
             pillLabel={comfyPillLabel}
             collapsed={collapsedSections.has("comfy-engine")}
