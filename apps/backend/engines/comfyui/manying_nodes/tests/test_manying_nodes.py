@@ -24,9 +24,7 @@ from engines.comfyui.manying_nodes import NODE_CLASS_MAPPINGS, bridge
 
 # ── 注册面 ────────────────────────────────────────────────
 def test_registry_exposes_first_batch_nodes():
-    assert set(NODE_CLASS_MAPPINGS) == {
-        "ManyingPrompt", "ManyingReference", "ManyingGenerated", "ManyingShot", "ManyingMusic3",
-    }
+    assert set(NODE_CLASS_MAPPINGS) == {"ManyingPrompt", "ManyingReference", "ManyingGenerated", "ManyingShot"}
     for node in NODE_CLASS_MAPPINGS.values():
         assert node.CATEGORY == "manying"
 
@@ -160,74 +158,3 @@ def test_settings_env_overrides():
                 os.environ.pop(key, None)
             else:
                 os.environ[key] = value
-
-
-# ── ManyingMusic3:本地作曲(09-09 MiniMax M3 转入 ComfyUI)────────
-def test_music3_serve_url_resolution(monkeypatch, tmp_path):
-    from engines.comfyui.manying_nodes.nodes.manying_music3 import resolve_serve_url
-
-    monkeypatch.delenv("MYSTUDIO_MUSIC3_SERVE_URL", raising=False)
-    monkeypatch.delenv("MYSTUDIO_USER_DATA", raising=False)
-    monkeypatch.setattr(Path, "home", lambda: tmp_path)
-    assert resolve_serve_url() == "http://127.0.0.1:11273"  # 无配置回落默认
-
-    (tmp_path / "Library" / "Application Support" / "漫影工作室").mkdir(parents=True)
-    monkeypatch.setenv("MYSTUDIO_USER_DATA", str(tmp_path / "Library" / "Application Support" / "漫影工作室"))
-    assert resolve_serve_url() == "http://127.0.0.1:11273"  # 配置在但无 port 键
-
-    monkeypatch.setenv("MYSTUDIO_MUSIC3_SERVE_URL", "http://127.0.0.1:19999/")
-    assert resolve_serve_url() == "http://127.0.0.1:19999"  # env 优先,尾斜杠剥
-
-
-def test_music3_contract_and_offline_error(monkeypatch):
-    from engines.comfyui.manying_nodes.nodes import manying_music3 as mod
-
-    node = mod.ManyingMusic3()
-    inputs = node.INPUT_TYPES()["required"]
-    assert set(inputs) == {"prompt", "lyrics", "duration_seconds", "steps", "seed"}
-    assert node.RETURN_TYPES == ("AUDIO",)
-
-    def boom(url, payload, timeout):
-        raise OSError("conn refused")
-
-    monkeypatch.setattr(mod, "_http_json", boom)
-    monkeypatch.setattr(mod, "resolve_serve_url", lambda: "http://127.0.0.1:11273")
-    try:
-        node.run("中国风", "", 60, 30, 7)
-        raised = False
-    except RuntimeError as exc:
-        raised = "辅助→音乐" in str(exc)
-    assert raised, "serve 未起须大白话指路"
-
-
-def test_music3_wav_to_audio():
-    import io as _io
-
-    import numpy as np
-    import soundfile as sf
-
-    from engines.comfyui.manying_nodes.nodes import manying_music3 as mod
-
-    sr, data = sf.read(_io.BytesIO(b"") if False else None, dtype="float32") if False else (44100, np.zeros((2, 4410), dtype="float32"))
-    buf = _io.BytesIO()
-    sf.write(buf, data.T, sr, format="WAV")
-    wav_bytes = buf.getvalue()
-
-    captured = {}
-
-    def fake_http(url, payload, timeout):
-        captured["url"] = url
-        captured["payload"] = payload
-        return wav_bytes
-
-    mod._http_json = fake_http
-    mod.resolve_serve_url = lambda: "http://127.0.0.1:11273"
-    node = mod.ManyingMusic3()
-    audio = node.run("史诗战斗曲", "  ", 60, 30, 7)[0]
-    import torch
-
-    assert captured["url"].endswith("/v1/audio/music-generations")
-    assert captured["payload"]["lyrics"] == "[Instrumental]"  # 空歌词回落纯音乐
-    assert audio["sample_rate"] == sr
-    assert tuple(audio["waveform"].shape) == (1, 2, 4410)  # (batch, channels, samples)
-    assert audio["waveform"].dtype == torch.float32
