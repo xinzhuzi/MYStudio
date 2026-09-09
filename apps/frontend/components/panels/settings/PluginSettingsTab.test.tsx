@@ -180,9 +180,6 @@ vi.mock("./LocalImageSettingsSection", () => ({
 vi.mock("./UpscaleSettingsSection", () => ({
   UpscaleSettingsSection: ({ embedded }: { embedded?: boolean }) => <div data-testid="upscale-section">{String(embedded)}</div>,
 }));
-vi.mock("./LocalAudioSettingsSection", () => ({
-  LocalAudioSettingsSection: ({ embedded }: { embedded?: boolean }) => <div data-testid="audio-gen-section">{String(embedded)}</div>,
-}));
 vi.mock("./SfxGenSettingsSection", () => ({
   SfxGenSettingsSection: ({ embedded }: { embedded?: boolean }) => <div data-testid="sfx-gen-section">{String(embedded)}</div>,
 }));
@@ -219,7 +216,6 @@ const EXPECTED_ROW_HEADINGS = [
   "视觉审核（VLM 一致性检查）",
   "视频评分模型",
   "TTS 运行时与模型",
-  "本地音乐生成",
   "本地音效生成",
   "视频工作流插件",
 ];
@@ -238,7 +234,6 @@ describe("PluginSettingsTab", () => {
     expect(screen.getByTestId("python-section").textContent).toBe("true");
     expect(screen.getByTestId("image-gen-section").textContent).toBe("true");
     expect(screen.getByTestId("upscale-section").textContent).toBe("true");
-    expect(screen.getByTestId("audio-gen-section").textContent).toBe("true");
     expect(screen.getByTestId("sfx-gen-section").textContent).toBe("true");
     expect(await screen.findByTestId("tts-section")).toBeTruthy();
     expect(screen.getByTestId("video-section").textContent).toBe("true");
@@ -285,7 +280,6 @@ describe("PluginSettingsTab", () => {
     // 三行声音区块继承旧「声音」整卡的折叠态(内容不在 DOM),行本身仍可见。
     expect(screen.getByRole("button", { name: /^TTS 运行时与模型/ })).toBeTruthy();
     expect(screen.queryByTestId("tts-section")).toBeNull();
-    expect(screen.queryByTestId("audio-gen-section")).toBeNull();
     expect(screen.queryByTestId("sfx-gen-section")).toBeNull();
   });
 

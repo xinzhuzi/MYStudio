@@ -7,9 +7,9 @@ import { persist } from 'zustand/middleware';
 
 // ==================== Types ====================
 
-// 'music' 为 08-31 迁入的第五工作室;音乐生成态留在 MusicTab 组件内,不进本 store。
+// 09-09 music3-to-comfyui:music 工作室撤(本地音乐收敛 ComfyUI 原生,辅助→ComfyUI 模板库→音频)。
 // 'comfy' 为 09-09 第六工作室(ComfyUI 画布:webview 嵌自管引擎完整前端)。
-export type StudioMode = 'image' | 'video' | 'cinema' | 'tts' | 'music' | 'comfy';
+export type StudioMode = 'image' | 'video' | 'cinema' | 'tts' | 'comfy';
 
 export interface HistoryEntry {
   id: string;

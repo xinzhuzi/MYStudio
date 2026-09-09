@@ -10,7 +10,6 @@ import {
   Gauge,
   Image as ImageIcon,
   Layers,
-  Music2,
   Plug,
   ScanEye,
   ServerCog,
@@ -30,7 +29,6 @@ import { useVideoWorkflowPlugins } from "./useVideoWorkflowPlugins";
 import { useDepthRuntimeSettings } from "./useDepthRuntimeSettings";
 import { useImageGenRuntimeSettings } from "./useImageGenRuntimeSettings";
 import { useUpscaleRuntimeSettings } from "./useUpscaleRuntimeSettings";
-import { useMusic3GenRuntimeSettings } from "./useMusic3GenRuntimeSettings";
 import { useSfxGenRuntimeSettings } from "./useSfxGenRuntimeSettings";
 import { useVideoQcRuntimeSettings } from "./useVideoQcRuntimeSettings";
 import { PythonSettingsTab } from "./PythonSettingsTab";
@@ -50,7 +48,6 @@ import { LocalImageSettingsSection } from "./LocalImageSettingsSection";
 import { UpscaleSettingsSection } from "./UpscaleSettingsSection";
 import { VlmReviewSettingsSection } from "./VlmReviewSettingsSection";
 import { VideoQcSettingsSection } from "./VideoQcSettingsSection";
-import { LocalAudioSettingsSection } from "./LocalAudioSettingsSection";
 import { SfxGenSettingsSection } from "./SfxGenSettingsSection";
 import { RenderingSettingsTab } from "./RenderingSettingsTab";
 
@@ -70,7 +67,6 @@ const SECTION_IDS = [
   "vlm-review",
   "video-qc",
   "audio-tts",
-  "audio-music",
   "audio-sfx",
   "video",
 ] as const;
@@ -79,7 +75,7 @@ type SectionId = (typeof SECTION_IDS)[number];
 
 /** 旧「声音」整卡折叠记忆 → 拆平后的三行继承(08-28 布局重做)。 */
 const LEGACY_COLLAPSED_MIGRATIONS: Record<string, readonly SectionId[]> = {
-  audio: ["audio-tts", "audio-music", "audio-sfx"],
+  audio: ["audio-tts", "audio-sfx"],
 };
 
 function readCollapsedSections(): Set<string> {
@@ -236,7 +232,6 @@ export function PluginSettingsTab() {
   const depth = useDepthRuntimeSettings();
   const imageGen = useImageGenRuntimeSettings();
   const upscale = useUpscaleRuntimeSettings();
-  const music = useMusic3GenRuntimeSettings();
   const sfx = useSfxGenRuntimeSettings();
   const videoQc = useVideoQcRuntimeSettings();
   const [vlmProbe, setVlmProbe] = useState<VlmReviewProbeResult | null>(null);
@@ -250,7 +245,6 @@ export function PluginSettingsTab() {
     void imageGen.probeRuntime();
     void comfyEngine.refreshStatus();
     void upscale.probeRuntime();
-    void music.refreshStatus();
     void videoQc.refresh();
     if (typeof window !== "undefined" && window.vlmReview?.probe) {
       window.vlmReview.probe().then(setVlmProbe).catch(() => undefined);
@@ -482,18 +476,6 @@ export function PluginSettingsTab() {
             ? "blocked"
             : "checking";
 
-  const musicPill: CapabilityPillKind = !music.hasRuntime
-    ? "unsupported"
-    : music.isSettingUp
-      ? "preparing"
-      : music.status?.setupStage === "ready"
-        ? "ready"
-        : music.status?.setupStage === "failed"
-          ? "blocked"
-          : music.status
-            ? "needs-runtime"
-            : "checking";
-
   const sfxPill: CapabilityPillKind = !sfx.hasRuntime
     ? "unsupported"
     : sfx.isSettingUp
@@ -656,18 +638,6 @@ export function PluginSettingsTab() {
             <Suspense fallback={<div className="flex h-40 items-center justify-center text-sm text-muted-foreground">加载 TTS 配置中...</div>}>
               <LocalTtsPanelLazy embedded />
             </Suspense>
-          </CapabilityRow>
-          <CapabilityRow
-            sectionId="audio-music"
-            headingId="plugin-audio-music-heading"
-            icon={Music2}
-            title="本地音乐生成"
-            description="MiniMax-Music3 整曲生成（默认，bf16 约 28.5 GB）+ MusicGen 轻量备选；生成的音频可在工作台「章节共享音频」导入为 BGM 轨道。"
-            pill={musicPill}
-            collapsed={collapsedSections.has("audio-music")}
-            onToggle={toggleSectionCollapsed}
-          >
-            <LocalAudioSettingsSection embedded />
           </CapabilityRow>
           <CapabilityRow
             sectionId="audio-sfx"
