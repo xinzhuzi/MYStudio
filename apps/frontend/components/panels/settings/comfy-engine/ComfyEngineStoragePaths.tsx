@@ -7,11 +7,21 @@
 // - 引擎运行中:禁改(先停止)
 // 模型目录走既有引擎设置区(modelsDir 纯指针,不在此重复做编辑面)。
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { FolderOpen, Loader2, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import {
   getComfyEngineClient,
   type ComfyEnginePathsStatus,
@@ -33,7 +43,7 @@ export function ComfyEngineStoragePaths() {
   const [status, setStatus] = useState<ComfyEnginePathsStatus | null>(null);
   const [loading, setLoading] = useState(false);
   const [migrateJob, setMigrateJob] = useState<ComfyEngineJob | null>(null);
-  const pendingRef = useRef<Partial<Record<PathKey, string>>>({});
+  const [pendingMigrate, setPendingMigrate] = useState<{ key: PathKey; path: string } | null>(null);
 
   const refresh = useCallback(async () => {
     if (!client) return;
@@ -93,27 +103,25 @@ export function ComfyEngineStoragePaths() {
         }
         return;
       }
-      // 已安装:确认迁移
-      pendingRef.current = { [key]: chosen };
-      const confirmed = window.confirm(
-        `将把「${ROWS.find((row) => row.key === key)?.label}」迁移到:\n${chosen}\n\n`
-        + "现有文件会搬移过去(跨盘较大时需数分钟;Python 运行时会在新位置重建,依赖走本地缓存)。\n"
-        + "迁移期间请不要操作引擎。继续?",
-      );
-      if (!confirmed) {
-        pendingRef.current = {};
-        return;
-      }
-      try {
-        const reply = await client.migratePaths({ [key]: chosen });
-        const job = await client.getJob(reply.jobId);
-        setMigrateJob(job);
-      } catch (error) {
-        toast.error(error instanceof Error ? error.message : "启动迁移失败");
-      }
+      // 已安装:弹确认对话框(09-09 修复——window.confirm 在 Electron 下不可控,
+      // 换项目标准 AlertDialog;确认按钮用中性色,不用金色实心)
+      setPendingMigrate({ key, path: chosen });
     },
     [client, status, refresh],
   );
+
+  const confirmMigrate = useCallback(async () => {
+    const pending = pendingMigrate;
+    setPendingMigrate(null);
+    if (!pending || !client) return;
+    try {
+      const reply = await client.migratePaths({ [pending.key]: pending.path });
+      const job = await client.getJob(reply.jobId);
+      setMigrateJob(job);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "启动迁移失败");
+    }
+  }, [client, pendingMigrate]);
 
   if (!client) return null; // 桥不可达(非 Electron/未注入):零渲染
 
@@ -215,6 +223,39 @@ export function ComfyEngineStoragePaths() {
           {migrateJob.state === "running" ? `(${migrateJob.progress}%)` : ""}
         </p>
       ) : null}
+
+      {/* 迁移确认(09-09 修复:window.confirm 在 Electron 下不可控,换标准弹窗;
+          确认按钮中性色——不用金色实心) */}
+      <AlertDialog open={pendingMigrate !== null} onOpenChange={(open) => { if (!open) setPendingMigrate(null); }}>
+        <AlertDialogContent data-comfy-migrate-dialog>
+          <AlertDialogHeader>
+            <AlertDialogTitle>迁移存储位置</AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-2">
+                <p>
+                  将把「{pendingMigrate ? ROWS.find((row) => row.key === pendingMigrate.key)?.label : ""}」迁移到:
+                </p>
+                <p className="break-all rounded-md border border-border bg-muted/40 px-2 py-1 font-mono text-xs text-foreground">
+                  {pendingMigrate?.path}
+                </p>
+                <p>
+                  现有文件会搬移过去(跨盘较大时需数分钟;Python 运行时会在新位置重建,依赖走本地缓存)。
+                  迁移期间请不要操作引擎。
+                </p>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>取消</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-secondary/60 text-secondary-foreground border border-foreground/[0.06] hover:bg-secondary/80"
+              onClick={() => void confirmMigrate()}
+            >
+              开始迁移
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </section>
   );
 }

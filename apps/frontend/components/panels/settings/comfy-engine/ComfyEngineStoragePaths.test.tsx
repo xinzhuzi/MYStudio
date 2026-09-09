@@ -3,20 +3,36 @@
 // 运行中禁改、已装走迁移 confirm+job。
 
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import type { ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 import { createMockComfyEngineClient } from "./mock-comfy-engine-client";
 import { ComfyEngineStoragePaths } from "./ComfyEngineStoragePaths";
 import type { ComfyEngineClient, ComfyEngineStatus } from "./comfy-engine-contract";
 
 const toasts = vi.hoisted(() => ({ success: vi.fn(), error: vi.fn(), info: vi.fn(), warning: vi.fn() }));
 vi.mock("sonner", () => ({ toast: toasts }));
+// 项目惯例(jsdom 下 Radix 弹窗点击链不可靠):mock alert-dialog 为裸按钮
+vi.mock("@/components/ui/alert-dialog", () => ({
+  AlertDialog: ({ children }: { children: ReactNode }) => <div>{children}</div>,
+  AlertDialogAction: ({ children, onClick }: { children: ReactNode; onClick?: () => void }) => (
+    <button type="button" onClick={onClick}>{children}</button>
+  ),
+  AlertDialogCancel: ({ children }: { children: ReactNode }) => <button type="button">{children}</button>,
+  AlertDialogContent: ({ children }: { children: ReactNode }) => <div>{children}</div>,
+  AlertDialogDescription: ({ children }: { children: ReactNode }) => <div>{children}</div>,
+  AlertDialogFooter: ({ children }: { children: ReactNode }) => <div>{children}</div>,
+  AlertDialogHeader: ({ children }: { children: ReactNode }) => <div>{children}</div>,
+  AlertDialogTitle: ({ children }: { children: ReactNode }) => <div>{children}</div>,
+  AlertDialogTrigger: ({ children }: { children: ReactNode }) => <>{children}</>,
+}));
 
 /** 更改按钮查询(组件用 data-comfy-path-change 属性非 testid)。 */
 const changeButton = () =>
   document.querySelector<HTMLButtonElement>('[data-comfy-path-change="engineDir"]');
 
 const selectDirectory = vi.hoisted(() => vi.fn());
-const confirmSpy = vi.hoisted(() => vi.fn());
 
 function installClient(client: ComfyEngineClient) {
   (window as { comfyEngine?: ComfyEngineClient }).comfyEngine = client;
@@ -25,7 +41,6 @@ function installClient(client: ComfyEngineClient) {
 beforeEach(() => {
   (window as unknown as { storageManager?: unknown }).storageManager = { selectDirectory };
   (window as unknown as { electronAPI?: unknown }).electronAPI = { openPath: vi.fn() };
-  vi.stubGlobal("confirm", confirmSpy);
 });
 
 afterEach(() => {
@@ -33,7 +48,6 @@ afterEach(() => {
   delete (window as { comfyEngine?: ComfyEngineClient }).comfyEngine;
   delete (window as unknown as { storageManager?: unknown }).storageManager;
   delete (window as unknown as { electronAPI?: unknown }).electronAPI;
-  vi.unstubAllGlobals();
   vi.clearAllMocks();
 });
 
@@ -99,11 +113,13 @@ describe("ComfyEngineStoragePaths(存储位置配置卡)", () => {
     const migratePaths = vi.fn(base.migratePaths.bind(base));
     installClient({ ...base, migratePaths });
     selectDirectory.mockResolvedValue("/Volumes/BigDisk/comfyui-src");
-    confirmSpy.mockReturnValue(true);
     render(<ComfyEngineStoragePaths />);
     await waitFor(() => expect(screen.getByLabelText("引擎目录路径")).toBeTruthy());
     fireEvent.click(changeButton()!);
-    await waitFor(() => expect(migratePaths).toHaveBeenCalledWith({ engineDir: "/Volumes/BigDisk/comfyui-src" }));
+    // mock 弹窗恒渲染:等目标路径文本出现=state 已提交,再取按钮(避免点到旧闭包)
+    await screen.findByText("/Volumes/BigDisk/comfyui-src");
+    fireEvent.click(screen.getByRole("button", { name: "开始迁移" }));
+    await waitFor(() => expect(migratePaths).toHaveBeenCalledWith({ engineDir: "/Volumes/BigDisk/comfyui-src" }), { timeout: 3000 });
     // job 轮询推进(mock getJob 逐步到 succeeded)后路径更新+成功 toast
     await waitFor(
       () => expect((screen.getByLabelText("引擎目录路径") as HTMLInputElement).value).toBe("/Volumes/BigDisk/comfyui-src"),
@@ -117,11 +133,13 @@ describe("ComfyEngineStoragePaths(存储位置配置卡)", () => {
     const migratePaths = vi.fn(base.migratePaths.bind(base));
     installClient({ ...base, migratePaths });
     selectDirectory.mockResolvedValue("/Volumes/BigDisk/comfyui-src");
-    confirmSpy.mockReturnValue(false);
     render(<ComfyEngineStoragePaths />);
     await waitFor(() => expect(screen.getByLabelText("引擎目录路径")).toBeTruthy());
     fireEvent.click(changeButton()!);
-    await waitFor(() => expect(confirmSpy).toHaveBeenCalled());
+    const startBtn = await screen.findByRole("button", { name: "开始迁移" });
+    fireEvent.click(screen.getByRole("button", { name: "取消" }));
+    await sleep(100);
     expect(migratePaths).not.toHaveBeenCalled();
+    expect(startBtn).toBeTruthy();
   });
 });
