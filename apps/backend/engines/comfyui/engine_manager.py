@@ -26,8 +26,10 @@ from pathlib import Path
 from urllib import error, request
 
 from engines.comfyui import manifest as cm
+from . import bridge_contract
 
 COMFYUI_REPO = "https://github.com/comfyanonymous/ComfyUI"
+GITHUB_REPO_SLUG = "comfyanonymous/ComfyUI"
 INSTALL_REQUIRED_GB = 10.0  # 引擎源码+venv+torch MPS 栈的保守余量门
 PORT_RANGE_START = 17000
 PORT_RANGE_END = 17999
@@ -152,6 +154,13 @@ def parse_release_tags(ls_remote_lines: list[str]) -> list[tuple[tuple[int, ...]
 def pick_latest_release(ls_remote_lines: list[str]) -> str | None:
     tags = parse_release_tags(ls_remote_lines)
     return tags[-1][1] if tags else None
+
+
+_SHA_RE = re.compile(r"^[0-9a-f]{40}$")
+
+
+def _is_commit_sha(ref: str) -> bool:
+    return bool(_SHA_RE.match(ref))
 
 
 def allocate_port(occupied: set[int], start: int = PORT_RANGE_START, end: int = PORT_RANGE_END) -> int | None:
@@ -370,6 +379,11 @@ class EngineManager:
         persisted_check = engine.get("lastCheck") if isinstance(engine.get("lastCheck"), dict) else {}
         latest_known = self._last_check.get("latest") or persisted_check.get("latest")
         last_check_at = self._last_check.get("checkedAt") or persisted_check.get("at")
+        head_known = self._last_check.get("headSha") or persisted_check.get("headSha")
+        ahead_known = self._last_check.get("aheadBy")
+        if ahead_known is None:
+            ahead_known = persisted_check.get("aheadBy")
+        local_sha = engine.get("sha")
         # 渲染层状态机补充面(09-08 集成,B 契约需要):默认模型目录(恢复默认)、
         # 安装目录(打开按钮)、needsSetup(源码目录残留=装了一半可继续)、
         # message(出错态大白话通道,一期占位 None)。
@@ -387,7 +401,12 @@ class EngineManager:
             "port": port,
             "modelsDir": str(cm.configured_models_dir(manifest)),
             "pluginCount": len(cm.plugin_ledger(manifest)),
-            "updateAvailable": bool(latest_known and engine.get("version") and latest_known != engine.get("version")),
+            "updateAvailable": (
+                (head_known != local_sha)
+                if (head_known and local_sha)
+                else bool(latest_known and engine.get("version") and latest_known != engine.get("version"))
+            ),
+            "aheadBy": ahead_known if isinstance(ahead_known, int) else None,
             "lastCheckAt": last_check_at if isinstance(last_check_at, int) else None,
             "launchArgs": cm.engine_launch_args(manifest),
             "torch": engine.get("torch"),
@@ -461,10 +480,14 @@ class EngineManager:
         _write_extra_model_paths(cm.default_models_dir())
         freeze = self.venv_freeze()
         torch_version = next((line.split("==")[1] for line in freeze if line.startswith("torch==")), None)
+        try:
+            installed_sha = _git(["rev-parse", "HEAD"], cwd=cm.engine_source_dir(), timeout=10.0).strip()
+        except EngineOpError:
+            installed_sha = None
 
         def _record(manifest: dict) -> None:
             manifest["engine"] = {
-                "version": tag, "pinned": True, "repo": COMFYUI_REPO,
+                "version": tag, "sha": installed_sha, "pinned": True, "repo": COMFYUI_REPO,
                 "torch": torch_version, "installedAt": cm.timestamp_ms(),
                 "port": port,
                 "launchArgs": {"vramPolicy": "gpu-only", "reserveVramGb": 16, "attentionMode": "pytorch-cross-attention"},
@@ -662,29 +685,71 @@ class EngineManager:
         except (OSError, error.URLError, json.JSONDecodeError, EngineOpError):
             return self._last_node_count
 
-    # -- 版本更新链(grill Q10) -------------------------------------------
+    # -- 版本更新链(grill Q10;09-09 用户裁定:跟随 GitHub 最新提交) ------------
+    def _local_engine_sha(self, engine: dict) -> str | None:
+        """本地引擎 HEAD sha:账本优先;旧安装无账时现场 rev-parse 并补账。"""
+        sha = engine.get("sha")
+        if sha:
+            return sha
+        if not cm.engine_source_dir().exists():
+            return None
+        try:
+            sha = _git(["rev-parse", "HEAD"], cwd=cm.engine_source_dir(), timeout=10.0).strip()
+        except EngineOpError:
+            return None
+        cm.mutate_manifest(lambda m: m.setdefault("engine", {}).__setitem__("sha", sha))
+        return sha
+
+    def _commits_ahead(self, local_sha: str) -> int | None:
+        """GitHub API compare 查 master 领先提交数(限流/断网静默 None)。"""
+        try:
+            data = _get_json(
+                f"https://api.github.com/repos/{GITHUB_REPO_SLUG}/compare/{local_sha}...master",
+                timeout=15.0,
+            )
+            ahead = data.get("ahead_by")
+            return ahead if isinstance(ahead, int) and ahead >= 0 else None
+        except (OSError, error.URLError, json.JSONDecodeError, ValueError):
+            return None
+
     def update_check(self) -> dict:
-        current = (cm.load_manifest().get("engine") or {}).get("version")
+        manifest = cm.load_manifest()
+        engine = manifest.get("engine") if isinstance(manifest.get("engine"), dict) else {}
+        current = engine.get("version")
         try:
             remote = _git(["ls-remote", "--tags", COMFYUI_REPO], timeout=20.0)
             latest = pick_latest_release(remote.splitlines())
+            head_line = _git(["ls-remote", COMFYUI_REPO, "refs/heads/master"], timeout=20.0).split()
+            head_sha = head_line[0] if head_line else None
         except (EngineOpError, OSError) as exc:
             self._last_check = {"current": current, "latest": None, "updateAvailable": False, "error": f"检查更新失败: {exc}"}
             return dict(self._last_check)
+        local_sha = self._local_engine_sha(engine)
+        # 可更新判定(09-09 提交口径优先):有本地 sha 时只看 master HEAD 差
+        # (tag 也打在 master 上,master 同步=release 必同步;且避免 describe
+        # 版本串被 release 口径误报)。无 sha(旧账/异常)回落 release tag 口径。
+        ahead_by = None
+        if head_sha and local_sha:
+            update_available = head_sha != local_sha
+            if update_available:
+                ahead_by = self._commits_ahead(local_sha)
+        else:
+            update_available = bool(latest and current and latest != current)
         checked_at = cm.timestamp_ms()
         self._last_check = {
             "current": current, "latest": latest,
-            "updateAvailable": bool(latest and current and latest != current),
+            "headSha": head_sha, "aheadBy": ahead_by,
+            "updateAvailable": update_available,
             "checkedAt": checked_at,
         }
         # 09-08 检查结果落账(照 Comfy Desktop 更新页语义):sidecar 重启后
         # 「已是最新/可更新」徽章与「上次检查」时间不丢,status 从账本回放。
         if current:
 
-            def _record_check(manifest: dict) -> None:
-                engine = manifest.get("engine") if isinstance(manifest.get("engine"), dict) else {}
-                engine["lastCheck"] = {"at": checked_at, "latest": latest}
-                manifest["engine"] = engine
+            def _record_check(m: dict) -> None:
+                eng = m.get("engine") if isinstance(m.get("engine"), dict) else {}
+                eng["lastCheck"] = {"at": checked_at, "latest": latest, "headSha": head_sha, "aheadBy": ahead_by}
+                m["engine"] = eng
 
             cm.mutate_manifest(_record_check)
         return dict(self._last_check)
@@ -694,25 +759,37 @@ class EngineManager:
             raise EngineOpError("引擎正在更新中")
         if not cm.engine_installed():
             raise EngineOpError("引擎尚未安装,无版本可更新")
-        latest = self._last_check.get("latest") or self.update_check().get("latest")
-        if not latest or latest == (cm.load_manifest().get("engine") or {}).get("version"):
+        engine = cm.load_manifest().get("engine") or {}
+        if not self._last_check:
+            self.update_check()
+        head_sha = self._last_check.get("headSha")
+        latest = self._last_check.get("latest")
+        local_sha = engine.get("sha") or self._local_engine_sha(engine)
+        # 更新目标优先 master HEAD(提交口径);master 无差时回落最新 release tag
+        target, label = (head_sha, f"master({str(head_sha)[:7]})") if (head_sha and local_sha and head_sha != local_sha) else (latest, latest)
+        if not target or (target == local_sha or (target == latest and latest == engine.get("version"))):
             raise EngineOpError("当前已是最新版本,无需更新")
-        job_id = jobs.create("engine-update", f"准备更新到 {latest}")
-        jobs.start(job_id, lambda jid: self._update_job(jid, latest))
+        job_id = jobs.create("engine-update", f"准备更新到 {label}")
+        jobs.start(job_id, lambda jid: self._update_job(jid, target))
         return job_id
 
-    def _update_job(self, job_id: str, target_tag: str) -> None:
+    def _update_job(self, job_id: str, target: str) -> None:
         src = cm.engine_source_dir()
         old_version = (cm.load_manifest().get("engine") or {}).get("version")
         nodes_before = self._safe_node_names()
         plugin_total = len(cm.plugin_ledger())
         jobs.update(job_id, progress=5, step="snapshot", message="更新前自动快照(失败可一键回滚)…")
-        snapshot_id = self.create_snapshot(reason=f"update:{old_version}->{target_tag}", full=True)
+        snapshot_id = self.create_snapshot(reason=f"update:{old_version}->{target}", full=True)
 
         try:
-            jobs.update(job_id, progress=15, step="fetch", message=f"拉取新版 {target_tag}…")
-            _git(["fetch", "origin", f"refs/tags/{target_tag}:refs/tags/{target_tag}", "--depth", "1"], cwd=src, timeout=600.0)
-            _git(["checkout", "--force", target_tag], cwd=src)
+            jobs.update(job_id, progress=15, step="fetch", message=f"拉取新版 {target[:7] if len(target) > 10 else target}…")
+            if _is_commit_sha(target):
+                # master HEAD:拉全量深度 250 保证 describe 能对上上个 tag(版本行可读)
+                _git(["fetch", "origin", "refs/heads/master", "--depth", "250"], cwd=src, timeout=600.0)
+                _git(["checkout", "--force", "FETCH_HEAD"], cwd=src)
+            else:
+                _git(["fetch", "origin", f"refs/tags/{target}:refs/tags/{target}", "--depth", "1"], cwd=src, timeout=600.0)
+                _git(["checkout", "--force", target], cwd=src)
             _git(["clean", "-fd"], cwd=src)
 
             jobs.update(job_id, progress=35, step="pip", message="依赖按需升级…")
@@ -733,15 +810,28 @@ class EngineManager:
 
             freeze = self.venv_freeze()
             torch_version = next((line.split("==")[1] for line in freeze if line.startswith("torch==")), None)
+            # 版本可读化:tag 目标直接记 tag;master 目标记 describe(如 v0.34.6-87-g672ba9e,
+            # 浅史拿不到 tag 时回落 master@短sha),并落 HEAD sha 供下次比对
+            try:
+                new_sha = _git(["rev-parse", "HEAD"], cwd=src, timeout=10.0).strip()
+            except EngineOpError:
+                new_sha = target if _is_commit_sha(target) else None
+            if _is_commit_sha(target):
+                try:
+                    new_version = _git(["describe", "--tags"], cwd=src, timeout=10.0).strip()
+                except EngineOpError:
+                    new_version = f"master@{target[:7]}"
+            else:
+                new_version = target
             cm.mutate_manifest(lambda m: m["engine"].update({
-                "version": target_tag, "torch": torch_version, "coreDeps": _freeze_to_map(freeze),
+                "version": new_version, "sha": new_sha, "torch": torch_version, "coreDeps": _freeze_to_map(freeze),
             }))
             jobs.update(job_id, result={
-                "oldVersion": old_version, "newVersion": target_tag,
+                "oldVersion": old_version, "newVersion": new_version,
                 "nodeCount": len(nodes_after), "nodeDelta": diff["addedCount"] - diff["removedCount"],
                 "pluginCount": plugin_total,
                 "pluginIssues": failures, "snapshotId": snapshot_id,
-                "message": f"已更新到 {target_tag};新增 {diff['addedCount']} 个节点,移除 {diff['removedCount']} 个",
+                "message": f"已更新到 {new_version};新增 {diff['addedCount']} 个节点,移除 {diff['removedCount']} 个",
             })
         except Exception as exc:
             jobs.update(job_id, progress=90, step="rollback", message="更新失败,正在回滚到更新前状态…")

@@ -101,6 +101,61 @@ class TestUpdateCheckLedger:
         assert status["updateAvailable"] is False
         assert status["lastCheckAt"] == checked_at
 
+    def test_master_commits_ahead_marks_update_available(self, tmp_path, monkeypatch):
+        """09-09 用户裁定(跟随 GitHub 最新提交):release 相同但 master 领先 →
+        可更新 + aheadBy 提交数落账回放。"""
+        from engines.comfyui import engine_manager as em
+
+        _use_tmp_home(tmp_path, monkeypatch)
+        local_sha, head_sha = "s" * 40, "e" * 40
+        cm.mutate_manifest(lambda m: m.update({
+            "engine": {"version": "v0.34.6", "sha": local_sha, "port": 17600},
+        }))
+        manager = EngineManager()
+        monkeypatch.setattr(manager, "is_healthy", lambda port=None, timeout=2.0: False)
+
+        def fake_git(argv, *a, **k):
+            if "refs/heads/master" in argv:
+                return f"{head_sha}\trefs/heads/master\n"
+            return f"aaa\trefs/tags/v0.34.6\n"  # 最新 release 与本地相同
+
+        monkeypatch.setattr(em, "_git", fake_git)
+        monkeypatch.setattr(manager, "_commits_ahead", lambda sha: 87)
+
+        reply = manager.update_check()
+        assert reply["latest"] == "v0.34.6"
+        assert reply["headSha"] == head_sha
+        assert reply["aheadBy"] == 87
+        assert reply["updateAvailable"] is True
+
+        reborn = EngineManager()
+        monkeypatch.setattr(reborn, "is_healthy", lambda port=None, timeout=2.0: False)
+        status = reborn.status()
+        assert status["updateAvailable"] is True
+        assert status["aheadBy"] == 87
+
+    def test_master_same_sha_no_update(self, tmp_path, monkeypatch):
+        """master HEAD 与本地一致 → 已是最新(哪怕版本串不同)。"""
+        from engines.comfyui import engine_manager as em
+
+        _use_tmp_home(tmp_path, monkeypatch)
+        local_sha = "s" * 40
+        cm.mutate_manifest(lambda m: m.update({
+            "engine": {"version": "v0.34.6-5-gabcdef1", "sha": local_sha, "port": 17600},
+        }))
+        manager = EngineManager()
+        monkeypatch.setattr(manager, "is_healthy", lambda port=None, timeout=2.0: False)
+
+        def fake_git(argv, *a, **k):
+            if "refs/heads/master" in argv:
+                return f"{local_sha}\trefs/heads/master\n"
+            return f"aaa\trefs/tags/v0.34.6\n"
+
+        monkeypatch.setattr(em, "_git", fake_git)
+        reply = manager.update_check()
+        assert reply["updateAvailable"] is False
+        assert reply["aheadBy"] is None
+
 
 class TestMoveWorkflowToRoot:
     def test_empty_to_dir_moves_to_root(self, tmp_path, monkeypatch):

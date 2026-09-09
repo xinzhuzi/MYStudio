@@ -73,7 +73,6 @@ describe("createMockComfyEngineClient 引擎链路", () => {
     const check = await client.checkUpdate();
     expect(check.updateAvailable).toBe(true);
     expect(check.latest).toBe("0.34.5");
-
     const { jobId } = await client.updateEngine();
     const job = await drainJob(client, jobId);
     expect(job.state).toBe("succeeded");
@@ -178,5 +177,28 @@ describe("createMockComfyEngineClient 插件链路", () => {
 
     const report = await client.doctor();
     expect(report.drifted.length).toBe(1);
+  });
+});
+
+describe("mock comfy engine 提交口径更新(09-09)", () => {
+  it("同 release 但 master 领先 → 可更新+aheadBy;masterAheadBy=null 禁用", async () => {
+    const client = createMockComfyEngineClient({
+      initialStatus: { installed: true, state: "ready", version: "0.34.0", port: 17599 },
+      latestVersion: "0.34.0",
+    });
+    let check = await client.checkUpdate();
+    expect(check.updateAvailable).toBe(true);
+    let status = await client.getEngineStatus();
+    expect(status.aheadBy).toBe(87);
+
+    const quiet = createMockComfyEngineClient({
+      initialStatus: { installed: true, state: "ready", version: "0.34.0", port: 17599 },
+      latestVersion: "0.34.0",
+      masterAheadBy: null,
+    });
+    check = await quiet.checkUpdate();
+    expect(check.updateAvailable).toBe(false);
+    status = await quiet.getEngineStatus();
+    expect(status.aheadBy).toBeNull();
   });
 });

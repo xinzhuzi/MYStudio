@@ -66,6 +66,8 @@ export interface ComfyEngineStatus {
   serviceRunning: boolean;
   pluginCount: number;
   updateAvailable: boolean;
+  /** master 领先本地的提交数(09-09 提交口径;GitHub API 拿不到时 null)。 */
+  aheadBy: number | null;
   /** 最近一次 GitHub 检查的时间(ms;查过才有值,含 sidecar 重启前的账本回放)。 */
   lastCheckAt: number | null;
   /** 大白话错误/说明(出错态必填)。 */

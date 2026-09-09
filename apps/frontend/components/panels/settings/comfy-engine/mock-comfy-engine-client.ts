@@ -37,6 +37,8 @@ export interface MockComfyEngineOptions {
   failUpdate?: boolean;
   /** 更新检查时宣称的最新版。 */
   latestVersion?: string;
+  /** 同 release 时 mock 的 master 领先提交数(null=禁用提交口径,只看 release)。 */
+  masterAheadBy?: number | null;
   /** 卸载引用扫描返回的工作流(点名「X 个工作流在用它」)。 */
   pluginUsage?: Array<{ id: string; name: string }>;
 }
@@ -89,6 +91,7 @@ function notInstalledStatus(): ComfyEngineStatus {
     serviceRunning: false,
     pluginCount: 0,
     updateAvailable: false,
+    aheadBy: null,
     lastCheckAt: null,
     message: null,
     installDir: null,
@@ -247,8 +250,13 @@ export function createMockComfyEngineClient(
     async checkUpdate(): Promise<ComfyEngineUpdateCheckReply> {
       const latest = options.latestVersion ?? DEFAULT_LATEST;
       const current = status.version;
-      const updateAvailable = current !== null && current !== latest;
-      status = { ...status, latest, updateAvailable, lastCheckAt: Date.now() };
+      const releaseAhead = current !== null && current !== latest;
+      // 09-09 提交口径:同 release 时按 master 领先数模拟可更新(mock 固定 87;null=禁用)
+      const aheadBy = releaseAhead || current === null || options.masterAheadBy === null
+        ? null
+        : options.masterAheadBy ?? 87;
+      const updateAvailable = releaseAhead || aheadBy != null;
+      status = { ...status, latest, updateAvailable, aheadBy, lastCheckAt: Date.now() };
       return { current, latest, updateAvailable, checkedAt: Date.now() };
     },
 
@@ -260,7 +268,7 @@ export function createMockComfyEngineClient(
     },
 
     async rollbackUpdate() {
-      status = { ...status, state: "ready", updateAvailable: false, message: null };
+      status = { ...status, state: "ready", updateAvailable: false, aheadBy: null, message: null };
       return { accepted: true, message: "已回滚到更新前快照" };
     },
 
@@ -304,7 +312,7 @@ export function createMockComfyEngineClient(
           case "update": {
             const previousVersion = status.version ?? INITIAL_VERSION;
             const newVersion = options.latestVersion ?? DEFAULT_LATEST;
-            status = { ...status, version: newVersion, updateAvailable: false, state: "ready", message: null };
+            status = { ...status, version: newVersion, updateAvailable: false, aheadBy: null, state: "ready", message: null };
             const report = {
               kind: "update" as const,
               previousVersion,

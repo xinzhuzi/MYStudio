@@ -79,6 +79,7 @@ function readyStatus(overrides: Partial<ComfyEngineStatus> = {}): ComfyEngineSta
     serviceRunning: false,
     pluginCount: 2,
     updateAvailable: false,
+    aheadBy: null,
     lastCheckAt: null,
     message: null,
     installDir: "/tmp/comfyui",
@@ -204,6 +205,14 @@ describe("ComfyEngineSettingsSection 版本与更新链", () => {
 
     fireEvent.click(screen.getByRole("button", { name: /更新到最新/ }));
     expect(actions.updateEngine).toHaveBeenCalledOnce();
+  });
+
+  it("同 release 但 master 领先:徽章「可更新(+N 个新提交)」+ 更新按钮(09-09 提交口径)", () => {
+    scenario.status = readyStatus({ updateAvailable: true, latest: "0.34.0", aheadBy: 87 });
+    render(<ComfyEngineSettingsSection embedded />);
+
+    expect(screen.getByText("可更新(+87 个新提交)")).toBeTruthy();
+    expect(screen.getByRole("button", { name: /更新到最新/ })).toBeTruthy();
   });
 
   it("已是最新徽章;上次检查时间与更新通道下拉已撤", () => {

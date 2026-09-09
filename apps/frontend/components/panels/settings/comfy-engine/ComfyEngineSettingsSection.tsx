@@ -428,9 +428,13 @@ export function ComfyEngineSettingsSection({ embedded = false }: ComfyEngineSett
                       <span className="rounded-full border border-border bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground" data-comfy-checking-badge>
                         正在向 GitHub 查询…
                       </span>
-                    ) : status.updateAvailable && status.latest ? (
+                    ) : status.updateAvailable ? (
                       <span className="rounded-full border border-warning/30 bg-warning/10 px-2 py-0.5 text-xs font-medium text-warning" data-comfy-update-badge>
-                        可更新到 {status.latest}
+                        {status.aheadBy != null
+                          ? `可更新(+${status.aheadBy} 个新提交)`
+                          : status.latest
+                            ? `可更新到 ${status.latest}`
+                            : "可更新"}
                       </span>
                     ) : status.latest && status.version ? (
                       <span className="rounded-full border border-success/30 bg-success/10 px-2 py-0.5 text-xs font-medium text-success" data-comfy-up-to-date>

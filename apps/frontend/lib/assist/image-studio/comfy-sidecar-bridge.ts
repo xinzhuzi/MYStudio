@@ -188,6 +188,7 @@ interface SidecarEngineStatusReply {
   defaultModelsDir?: string | null;
   pluginCount?: number;
   updateAvailable?: boolean;
+  aheadBy?: number | null;
   lastCheckAt?: number | null;
   nodeCount?: number | null;
   needsSetup?: boolean;
@@ -257,6 +258,7 @@ export function mapEngineStatus(raw: SidecarEngineStatusReply): ComfyEngineStatu
     serviceRunning: raw.running === true,
     pluginCount: typeof raw.pluginCount === "number" ? raw.pluginCount : 0,
     updateAvailable: raw.updateAvailable === true,
+    aheadBy: typeof raw.aheadBy === "number" ? raw.aheadBy : null,
     lastCheckAt: typeof raw.lastCheckAt === "number" ? raw.lastCheckAt : null,
     message: raw.message ?? null,
     installDir: raw.installDir ?? null,
