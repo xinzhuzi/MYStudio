@@ -678,12 +678,18 @@ def list_plugins() -> list[dict]:
     rows = []
     for plugin_dir, entry in cm.plugin_ledger().items():
         curated = curated_by_repo.get(entry.get("repo")) or {}
+        node_count = len(entry.get("nodes") or [])
         rows.append({
             "id": plugin_dir, "name": curated.get("name") or plugin_dir,
-            "desc": curated.get("desc_zh"), "license": curated.get("verified_license"),
+            # 收编件(本地拷贝)无策展描述/差分节点数:给兜底描述,nodeCount 置
+            # None(前端胶囊降级「已安装」,不显示「已装 0 节点」)
+            "desc": curated.get("desc_zh") or (
+                "本地收编(自旧 ComfyUI 目录拷贝,引擎已加载)" if entry.get("source") == "local" else None
+            ),
+            "license": curated.get("verified_license"),
             "state": "installed", "version": entry.get("version"),
             "deps": entry.get("deps") or {}, "source": entry.get("source"),
-            "nodeCount": len(entry.get("nodes") or []),
+            "nodeCount": node_count if node_count > 0 else None,
             "dirExists": (cm.custom_nodes_dir() / plugin_dir).is_dir(),
         })
     return rows
