@@ -4,28 +4,27 @@
 
 ## 目录结构
 
-后端按**三域分层**(2026-09-09 裁定:engines 独立抽离成域,不止 image 概念;文本/生图/音乐/声音/视频是模态服务,与引擎概念互不嵌套)。分层参照 GitHub 高星项目(Comfy Desktop/Jan/LocalAI/Open WebUI),权威文档:**`.claude/knowledge/backend-architecture.md`**(改后端目录前必读)。
+后端按**三域分层**(2026-09-09 用户两次裁定:engines=**底层模型引擎层**,两种形态——进程内推理引擎与托管实例引擎,各模态模型加载/推理底层统一入 `engines/`;模态包只留服务面;共享基建渐进归拢)。分层参照 GitHub 高星项目(Piper/Comfy Desktop/Jan/LocalAI/Open WebUI),权威文档:**`.claude/knowledge/backend-architecture.md`**(改后端目录前必读)。
 
 ```text
 apps/backend/
-  # 域1:底层引擎层(两种形态:进程内推理引擎 + 托管实例引擎)
-  engines/tts_engine/  # TTS 推理引擎:engine/engine_config/engine_utils/tts/catalog/model_cache
-                       # (09-09 b893b29 抽取;照 Piper 纯引擎包,零 HTTP/sqlite)
-  engines/comfyui/     # ComfyUI 托管实例:manifest/engine_manager/plugin_manager/execute
-                       # +curated_plugins+tests(3fadf6f+357cfac 搬家,ba94435 配套改名)
-  # 域2:模态服务包(一个模态一个包;server/main=常驻 sidecar,worker=一次性进程)
-  tts/                 # TTS 服务面:server/main/routes/storage/runtime_state(引擎调 engines/tts_engine)
-  image_gen/           # 生图服务面(providers/ 每模型管线:本地模型栈+comfyui_bridge 引擎路由)
-    main.py          # ThreadingHTTPServer 服务入口
-    engine.py        # TTS/STT 引擎调度
-    storage.py       # tts.sqlite 运行时存储
-    catalog.py       # 内置模型目录
-    model_cache.py   # HuggingFace/ModelScope 缓存探测与下载
-  audio_gen/ sfx_gen/           # 声音:音频/音效 worker
-  music3_gen/                    # 音乐(MLX,恒走 mlx-serve)
-  video_use/ video_qc/          # 视频:剪辑链 / DOVER 质检
-  upscale/ layer_separation/ depth_estimation/  # 生图后处理三件
-  vlm_review/                    # 文本族:本地 VLM 审计(云端 LLM 在 TS 侧,无 sidecar)
+  # 域1:底层引擎层(09-09 统一;两形态:进程内推理引擎 + 托管实例引擎)
+  engines/tts_engine/       # TTS 推理(Kokoro/Qwen3-TTS:engine 族+catalog+model_cache)
+  engines/image_engine/     # 生图五模型栈(krea2/flux2/z_image/qwen/comfyui_bridge)
+                            #   +model_cache+workflows/(K2 四模板)
+  engines/audio_engine/  engines/sfx_engine/    # generate.py(自 worker 原样切片)+model_cache
+  engines/upscale_engine/  engines/vlm_engine/  engines/depth_engine/
+  engines/video_qc_engine/  # DOVER 架构+打分+license
+  engines/music3_engine/    # 权重件(推理经 mlx-serve 留服务包)
+  engines/comfyui/          # ComfyUI 托管实例:manifest/engine_manager/plugin_manager/execute
+  # 域2:模态服务包(纯服务面:HTTP/CLI spawn 面/编排/存储;模型底层全在 engines/)
+  tts/                      # TTS 服务面:server/main/routes/storage/runtime_state
+                            #   (入口 tts.main,端口 17593;引擎调 engines/tts_engine)
+  image_gen/                # 生图服务面:server/pipeline/uncloth_pipeline/model_inventory/download_model
+  audio_gen/ sfx_gen/ music3_gen/ upscale/ video_qc/ vlm_review/ depth_estimation/
+                            # worker(CLI spawn 面)+download_model+model_inventory
+  video_use/                # 剪辑链(无模型加载,无引擎件)
+  layer_separation/         # 算法层(骑 engines/depth_engine)
   # 域3:共享基建(渐进归拢 common/):model_cache_core.py、modelscope_hub.py
   model_cache_core.py  modelscope_hub.py  requirements.txt
   tests/                         # 跨模块契约测试

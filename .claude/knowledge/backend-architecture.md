@@ -2,7 +2,7 @@
 
 日期:2026-09-09。裁定:用户——「engines 不止这个 image 概念,应该单独抽出来;文本/生图/音乐/声音/视频都是与 engines 概念有区别的另一类」。方法论:照 GitHub 高星项目的现成分层,不自创(铁律3 高星参考)。
 
-**落地状态(09-09)**:P1 引擎域搬家=`3fadf6f`+`357cfac`;P2 `image_gen/engines`→`providers` 改名=`ba94435`;**用户二次裁定后扩展**:engines=底层模型引擎层(不止托管实例形态),tts_engine 首例抽取=`b893b29`。全量后端 387/0 前后一致,TS spawn 面零变化。其余模态引擎化=后续批次(见「四、分阶段」),spec 同步:`.trellis/spec/backend/directory-structure.md`。
+**落地状态(09-09 终态)**:引擎层统一全部完成——P1/P2 comfyui 搬家+providers 改名=`3fadf6f`+`357cfac`+`ba94435`;P-tts tts_engine=`b893b29`;P4 批A worker 型四引擎(upscale/video_qc/vlm/depth)、批B image_engine、批C/D audio/sfx 拆分+music3 权重件=`(批A..批D 提交,见 git log engines 关键词)`。全量后端 387/0 全程一致;spawn 面逐条不变;env 契约不变。spec:`.trellis/spec/backend/directory-structure.md`。
 
 **何时读**:动 `apps/backend` 目录结构、新增后端包、新增/接入引擎、给 ComfyUI 写自定义节点之前必读。
 
@@ -42,29 +42,26 @@
 
 ```
 apps/backend/
-  engines/                        # 域1:底层引擎层(两种形态)
-    __init__.py
-    tts_engine/                   # 进程内推理引擎首例(09-09 b893b29)
-      engine.py                   # 加载+推理调度(模型全局态)
-      engine_config.py            # 模型仓库ID/采样率/语言表(常量)
-      engine_utils.py             # SynthesisResult/wav 合成适配
-      tts.py                      # 合成底层(含 mock)
-      catalog.py                  # 内置模型目录
-      model_cache.py              # HF/ModelScope 权重发现/下载(env 契约不变)
-    comfyui/                      # 托管实例引擎(P1 落地)
-      manifest.py                 # ← 原 comfy_manifest.py(实例目录单源,覆写感知)
-      engine_manager.py           # 安装/更新链/launch/守卫/端口
-      plugin_manager.py           # 插件安装/差分/策展
-      execute.py                  # ← 原 comfy_execute.py(子图执行,经引擎 HTTP)
-      curated_plugins.json
-      manying_nodes/              # 自研自定义节点包源码位(09-09 任务 design.md 2.1)
-      tests/
-  # ── 域2:模态服务包(服务面;模型底层渐进入 engines/)──
-  tts/                            # TTS 服务面:server/main/routes/storage/runtime_state/model_inventory
-  image_gen/                      # 生图服务(providers/ 每模型管线;后续批次并入 engines/,见四)
-  # …其余模态包平级…
+  engines/                        # 域1:底层引擎层(10 包,两形态)
+    tts_engine/                   # 进程内推理:engine/engine_config/engine_utils/tts/catalog/model_cache
+    image_engine/                 # 进程内推理:krea2/flux2/z_image/qwen/comfyui_bridge
+                                  #   +model_cache+workflows/(K2 四模板)
+    audio_engine/  sfx_engine/    # 进程内推理:generate.py(自 worker 原样切片)+model_cache
+    upscale_engine/               # adapter+rrdbnet+srvgg+model_cache
+    vlm_engine/  depth_engine/    # adapter+model_cache
+    video_qc_engine/              # dover_scoring+dover_mobile_arch+model_cache+DOVER_LICENSE
+    music3_engine/                # 权重件(model_cache+install_mlxserv_weights;推理经 mlx-serve 留服务包)
+    comfyui/                      # 托管实例:manifest/engine_manager/plugin_manager/execute
+                                  #   +curated_plugins+manying_nodes(规划位)+tests/
+  # ── 域2:模态服务包(纯服务面:HTTP/CLI/编排/存储)──
+  tts/                            # server/main/routes/storage/runtime_state/model_inventory
+  image_gen/                      # server/pipeline/uncloth_pipeline/model_inventory/download_model/scripts
+  audio_gen/ sfx_gen/ music3_gen/ # worker(=CLI spawn 面)/download_model/model_inventory
+  upscale/ video_qc/ vlm_review/ depth_estimation/  # 同上式样
+  video_use/                      # 剪辑链(无模型加载,无引擎件)
+  layer_separation/               # 算法层(骑 engines/depth_engine,无自有模型)
   # ── 域3:共享基建(渐进)──
-  common/                         # model_cache_core.py + modelscope_hub.py 归拢位(后续)
+  model_cache_core.py  modelscope_hub.py            # common/ 归拢位(后续)
   tests/  requirements.txt  README.md
 ```
 
@@ -80,17 +77,20 @@ apps/backend/
 
 | 阶段 | 动作 | 影响面(已实盘盘点) |
 |---|---|---|
-| **P1 engines 抽离(已落地 3fadf6f+357cfac)** | git mv 五件套+test_comfy_* → engines/comfyui/;import 绝对化 | 仅 Python 内部;TS spawn 面零变化 |
-| **P2 providers 改名(已落地 ba94435)** | image_gen/engines → image_gen/providers | 内部 import+测试;TS 零变化 |
-| **P-tts tts_engine 抽取(已落地 b893b29)** | tts 六件(engine/engine_config/engine_utils/tts/catalog/model_cache)→ engines/tts_engine/;service 四件+三测试绝对导入 | 全量 387/0;spawn 面(tts.main/tts.model_inventory)零变化;env 变量名契约不变 |
-| **P4+(后续批次,逐模态过堂)** | 其余模型加载底层依次入域:upscale/vlm_review/audio_gen/sfx_gen/depth_estimation/layer_separation(worker 内加载段,worker 型包「服务即引擎」拆分收益过堂再定);music3(MLX 权重+mlx-serve 交互)单独过堂;image_gen/providers 是否并入 engines/ 届时随批裁定 | 逐批盘点,不抢跑 |
+| **P1/P2/P-tts(已落地)** | comfyui 搬家=`3fadf6f`+`357cfac`;providers 改名=`ba94435`;tts_engine=`b893b29` | 全量 387/0 一致;spawn 面零变化 |
+| **P4 批A(已落地)** | worker 型四引擎纯搬家:upscale_engine/video_qc_engine/vlm_engine/depth_engine(adapter/dover_scoring+架构件+model_cache) | 同上;layer_separation 改指 depth_engine |
+| **P4 批B(已落地)** | image_engine:五模型栈+model_cache+workflows/ 整体入域;前端两测试改模板 JSON 新位 | 同上;**分层债**:krea2×3+comfyui_bridge×1 懒读 image_gen.pipeline(取消标志/PipelineError)=暴露的历史反向依赖,懒加载绝对导入保行为,后续裁定是否把取消态下沉引擎侧 |
+| **P4 批C/D(已落地)** | audio_engine/sfx_engine=generate.py 自 worker **原样切片**(函数边界:Error/_require/_sha256/generate_*);music3_engine=权重件平移 | 同上;generate.py 无测试覆盖处用导入冒烟补位 |
+| **过堂结论(不再抽)** | layer_separation=算法层(骑 depth_engine,无自有模型);cinematic_grades=FFmpeg 预设非模型(留 depth_estimation,仓内零引用属遗留);video_use=剪辑链无模型加载;music3 推理经 mlx-serve 留服务包 | — |
 | **P3(另立任务)** | common/ 归拢 model_cache_core+modelscope_hub;九包 model_cache 重复渐进合并(memory 既有「待合并窗口」) | 届时单独盘点 |
 
 ## 五、坑表
 
 - **PYTHONPATH 与打包都不用动**:`PYTHONPATH=apps/backend`(打包后 Resources/backend)指向根,engines/ 顶层包天然可见;build-mac.sh 平铺拷贝是路径无关的。
 - **P0a 未提交期间禁止搬家**(审读地狱+rename 检测失效);搬家用 git mv,同批不带逻辑变更。
-- **comfyui_bridge 归属**:暂留 image_gen/providers/(生图经引擎执行的路由 provider);二次裁定后引擎域已含推理形态(tts_engine),providers 是否整体并入 engines/ 留 P4 批次裁定,勿单方面动。
-- **测试 mock.patch 的字符串路径随模块走**:搬模块后必 grep 引号内旧路径(本次 5 处 `patch("tts.model_cache.…")` 漏改即红,AttributeError 是信号)。
+- **comfyui_bridge 归属**:已随 image_engine 入域(生图经引擎执行的路由 provider=引擎件)。
+- **测试 mock.patch 的字符串路径随模块走**:搬模块后必 grep 引号内旧路径(tts.model_cache 5 处漏改即红,AttributeError 是信号)。
+- **导入形态三件套都要核**:`from 包.模块 import` 点式 / `from 包 import 模块` from 式 / **多名字导入**(`from x import a, b` 前缀替换会把留守件误拖进新包——pipeline/model_inventory/worker 屡次中招);懒导入缩进逐处修,勿整批字符串替换。
+- **拆分引擎用「原样切片」**:audio/sfx 的 generate.py 直接从 worker.py 按函数边界切文本,不重打字;切片件无测试覆盖时必须导入冒烟补位。
 - **引擎专属 sidecar 留门不裁**:现在引擎生命周期经 17595 image sidecar 暴露;若未来非生图模态也要驱动引擎,可另立 engines sidecar——门留着,本期不开。
 - **README 目录段已按三域重写**(apps/backend/README.md);新增后端包时同步该表与本文五族归属表。
