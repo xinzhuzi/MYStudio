@@ -3266,6 +3266,19 @@ a:active,
 .image-workflow-flow-host .react-flow__edge {
   pointer-events: stroke;
 }
+/* 09-09 节点压线挡口根修:hover 抬卡。连线层 z4(08-29 置顶裁定)×18px 交互带
+   (09-07 可点性根修)叠加后,连线压过卡片时口(handle)落在交互带内被吃——
+   指针进卡即把整卡抬到 z5(高于边层),离卡回落:静止态「连线在上」原样,
+   hover 态卡面口与控件全可用。选中/拖动态不匹配(:not(.selected)),RF 内联
+   z1000 跟手抬升不受压制;分组容器大面积豁免(:has 穿到卡壳 data 属性),
+   避免 hover 整片遮线。 */
+.image-workflow-flow-host
+  .react-flow__node:not(.selected):not(:has([data-image-workflow-node-kind="group"], [data-image-studio-node-kind="group"])):hover {
+  z-index: 5 !important;
+}
+.workflow-node-canvas .production-flow-reactflow .react-flow__node:not(.selected):hover {
+  z-index: 5 !important;
+}
 /* 09-09 connecting 兼容口高亮(照 ComfyUI,双画布通用):拖线进行中,
    「松手可连」的目标口呼吸光晕——此前只有口型拦截没有提示。标记类由
    connect-compatible-glow 工具在 onConnectStart 时按域规则批量注入。 */
