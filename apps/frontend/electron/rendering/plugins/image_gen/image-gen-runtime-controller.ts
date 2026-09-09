@@ -28,14 +28,15 @@ const execFileAsync = promisify(execFile);
 async function listImageGenPortHolders(): Promise<string[]> {
   let stdout = "";
   try {
-    ({ stdout } = await execFileAsync("lsof", ["-ti", `:${LOCAL_IMAGE_PORT}`, "-sTCP:LISTEN"]));
+    // 5s 超时:风暴级负载下 lsof 可能极慢,不设限会无限堆积 execFile(09-09)
+    ({ stdout } = await execFileAsync("lsof", ["-ti", `:${LOCAL_IMAGE_PORT}`, "-sTCP:LISTEN"], { timeout: 5_000 }));
   } catch {
     return []; // lsof 退出码 1 = 端口无人占用
   }
   const pids: string[] = [];
   for (const pid of stdout.trim().split(/\s+/).filter(Boolean)) {
     try {
-      const { stdout: cmd } = await execFileAsync("ps", ["-p", pid, "-o", "command="]);
+      const { stdout: cmd } = await execFileAsync("ps", ["-p", pid, "-o", "command="], { timeout: 5_000 });
       if (cmd.includes("image_gen.main")) pids.push(pid);
     } catch {
       // lsof 与 ps 之间进程自行退出——无需处理
@@ -120,6 +121,23 @@ export function createImageGenRuntimeController(deps: ControllerDeps) {
   const now = deps.now ?? Date.now;
 
   let child: ChildProcess | null = null;
+  // 09-09 进程风暴根修:外部进程占死 17595 时,上游(批量生成/画布执行)每秒级
+  // 重试 prepare 而主进程无任何节流——每次全量 spawn(python 解释器+模型
+  // inventory 各一遍),实弹 10 分钟堆出 840 个 python、系统 load 657 烫机。
+  // 三层止血:setup 单飞 / 失败指数退避 / stop 连复用中的外部服务一并回收。
+  let setupInFlight: Promise<ImageGenRuntimeStatus> | null = null;
+  let inventoryInFlight: Promise<ImageGenModelRow[]> | null = null;
+  let consecutiveSetupFailures = 0;
+  let nextSetupAllowedAt = 0;
+  // stop() 递增使在途 setup 的健康轮询/回收后重生立即作废(防停用后被复活)
+  let setupEpoch = 0;
+
+  function registerSetupFailure(): void {
+    consecutiveSetupFailures += 1;
+    const backoffMs = Math.min(5_000 * 2 ** (consecutiveSetupFailures - 1), 30_000);
+    nextSetupAllowedAt = now() + backoffMs;
+  }
+
   const configPath = () => path.join(getPaths().pythonRuntimeDir, "profiles", "image-gen", "config.json");
 
   function readActiveModel(): ImageGenModelId {
@@ -184,23 +202,31 @@ export function createImageGenRuntimeController(deps: ControllerDeps) {
   }
 
   async function scanModelInventory(): Promise<ImageGenModelRow[]> {
-    if (deps.inventoryScanner) {
-      state.models = await deps.inventoryScanner();
-      return state.models;
-    }
-    try {
-      const { stdout } = await execFileAsync(
-        getPaths().pythonExecutable,
-        ["-m", "image_gen.model_inventory"],
-        { cwd: deps.backendRoot, env: buildEnv(), timeout: 30_000, maxBuffer: 8 * 1024 * 1024 },
-      );
-      const parsed = JSON.parse(stdout) as { models?: ImageGenModelRow[] };
-      state.models = Array.isArray(parsed.models) ? parsed.models : [];
-      return state.models;
-    } catch {
-      state.models = [];
-      return state.models;
-    }
+    // 单飞:探测/prepare 并发到达时只跑一份 inventory(每次都是真 python 进程)
+    if (inventoryInFlight) return inventoryInFlight;
+    const scan = (async (): Promise<ImageGenModelRow[]> => {
+      if (deps.inventoryScanner) {
+        state.models = await deps.inventoryScanner();
+        return state.models;
+      }
+      try {
+        const { stdout } = await execFileAsync(
+          getPaths().pythonExecutable,
+          ["-m", "image_gen.model_inventory"],
+          { cwd: deps.backendRoot, env: buildEnv(), timeout: 30_000, maxBuffer: 8 * 1024 * 1024 },
+        );
+        const parsed = JSON.parse(stdout) as { models?: ImageGenModelRow[] };
+        state.models = Array.isArray(parsed.models) ? parsed.models : [];
+        return state.models;
+      } catch {
+        state.models = [];
+        return state.models;
+      }
+    })();
+    inventoryInFlight = scan.finally(() => {
+      inventoryInFlight = null;
+    });
+    return inventoryInFlight;
   }
 
   function readDownloadProgressFile(): Record<string, { status: string; progress: number; error?: string }> {
@@ -249,6 +275,7 @@ export function createImageGenRuntimeController(deps: ControllerDeps) {
   }
 
   async function startServer(): Promise<boolean> {
+    const epoch = setupEpoch;
     if (await fetchHealth()) {
       state.running = true;
       return true;
@@ -286,12 +313,21 @@ export function createImageGenRuntimeController(deps: ControllerDeps) {
     // Health poll up to 30s.
     for (let attempt = 0; attempt < 60; attempt += 1) {
       await new Promise((resolve) => setTimeout(resolve, 500));
+      if (epoch !== setupEpoch) {
+        state.setupMessage = "本地图片服务启动已中止";
+        return false;
+      }
       if (await fetchHealth()) {
         state.running = true;
         return true;
       }
       // 子进程已秒退(典型=固定端口被孤儿占住 bind 失败)——剩余轮询注定空转,直接进回收
       if (!child || child.exitCode !== null) break;
+    }
+    // stop() 已介入:不再回收重生,直接失败
+    if (epoch !== setupEpoch) {
+      state.setupMessage = "本地图片服务启动已中止";
+      return false;
     }
     // 超时的最常见根因=孤儿 sidecar 占死端口：回收后整体重试一次
     if (await reclaimOrphanSidecarPort()) {
@@ -313,6 +349,10 @@ export function createImageGenRuntimeController(deps: ControllerDeps) {
         let retryDiedEarly = false;
         for (let attempt = 0; attempt < 60; attempt += 1) {
           await new Promise((resolve) => setTimeout(resolve, 500));
+          if (epoch !== setupEpoch) {
+            state.setupMessage = "本地图片服务启动已中止";
+            return false;
+          }
           if (await fetchHealth()) {
             state.running = true;
             return true;
@@ -336,29 +376,54 @@ export function createImageGenRuntimeController(deps: ControllerDeps) {
   }
 
   async function setup(): Promise<ImageGenRuntimeStatus> {
-    state.setupStage = "checking";
-    state.setupMessage = "正在检查本地图片生成服务…";
-    if (await fetchHealth()) {
+    // 单飞:并发 prepare/setup(批量生成/画布执行/设置页)只跑一份,其余共享结果
+    if (setupInFlight) return setupInFlight;
+    const atGate = now();
+    if (atGate < nextSetupAllowedAt) {
+      // 退避窗口内:直接复用失败结论,零 spawn 零 lsof 零 inventory——上游
+      // 哪怕每秒重试也只是拿到同一份失败状态,进程堆积从根上不可能发生
+      state.setupStage = "failed";
+      const waitSeconds = Math.max(1, Math.ceil((nextSetupAllowedAt - atGate) / 1000));
+      state.setupMessage = `本地图片服务启动失败,${waitSeconds} 秒后自动重试(连续失败 ${consecutiveSetupFailures} 次,已限流)`;
+      return status();
+    }
+    setupInFlight = (async (): Promise<ImageGenRuntimeStatus> => {
+      state.setupStage = "checking";
+      state.setupMessage = "正在检查本地图片生成服务…";
+      if (await fetchHealth()) {
+        state.setupStage = "ready";
+        state.setupMessage = "本地图片服务已就绪";
+        state.running = true;
+        consecutiveSetupFailures = 0;
+        nextSetupAllowedAt = 0;
+        await scanModelInventory();
+        return status();
+      }
+      state.setupStage = "starting-server";
+      state.setupMessage = "正在启动本地图片生成服务…";
+      const started = await startServer();
+      if (!started) {
+        state.setupStage = "failed";
+        registerSetupFailure();
+        return status();
+      }
       state.setupStage = "ready";
-      state.setupMessage = "本地图片生成服务已就绪";
-      state.running = true;
+      state.setupMessage = "本地图片服务已就绪";
+      consecutiveSetupFailures = 0;
+      nextSetupAllowedAt = 0;
       await scanModelInventory();
       return status();
-    }
-    state.setupStage = "starting-server";
-    state.setupMessage = "正在启动本地图片生成服务…";
-    const started = await startServer();
-    if (!started) {
-      state.setupStage = "failed";
-      return status();
-    }
-    state.setupStage = "ready";
-    state.setupMessage = "本地图片生成服务已就绪";
-    await scanModelInventory();
-    return status();
+    })();
+    const releaseSetup = () => {
+      setupInFlight = null;
+    };
+    setupInFlight.then(releaseSetup, releaseSetup);
+    return setupInFlight;
   }
 
   async function stop(): Promise<void> {
+    // 作废在途 setup 的健康轮询与回收后重生
+    setupEpoch += 1;
     if (child) {
       child.kill();
       child = null;
@@ -366,6 +431,11 @@ export function createImageGenRuntimeController(deps: ControllerDeps) {
     state.running = false;
     state.setupStage = "idle";
     state.setupMessage = undefined;
+    // 本会话若只是复用了外部 image_gen 服务(fetchHealth 直通路径,常见=前会话
+    // 遗留/手工终端启动),这里一并回收——否则它孤儿化占死 17595,下一会话
+    // setup 必然 EADDRINUSE(09-09 风暴的种子)。reclaim 只杀命令行含
+    // image_gen.main 的监听者,不会误伤无关进程。
+    await reclaimOrphanSidecarPort();
   }
 
   async function downloadModel(modelName: string): Promise<{ accepted: boolean; message: string }> {
@@ -487,7 +557,11 @@ export function createImageGenRuntimeController(deps: ControllerDeps) {
 
   async function prepareLifecycle(): Promise<ImageGenRuntimeStatusV1> {
     await setup();
-    await scanModelInventory();
+    // 失败退避期不再每次 prepare 都拉真 python 扫 inventory(风暴第二来源:
+    // 1Hz prepare × 30s inventory = 数百并发生图进程);仅在服务就绪或首扫时刷新
+    if (state.setupStage === "ready" || state.models.length === 0) {
+      await scanModelInventory();
+    }
     return lifecycleStatus();
   }
 

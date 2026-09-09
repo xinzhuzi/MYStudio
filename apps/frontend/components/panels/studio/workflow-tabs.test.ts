@@ -81,8 +81,9 @@ describe("studio workflow tabs", () => {
       fileURLToPath(new URL("./useChapterAutoVideoActions.ts", import.meta.url)),
       "utf8",
     );
+    // 09-09 批8:主画布退役,章视频/超分接线迁入 StoryboardPanelTab(index.tsx 注入)
     const canvasSource = readFileSync(
-      fileURLToPath(new URL("./WorkflowNodeCanvas.tsx", import.meta.url)),
+      fileURLToPath(new URL("./StoryboardPanelTab.tsx", import.meta.url)),
       "utf8",
     );
 
@@ -91,17 +92,14 @@ describe("studio workflow tabs", () => {
     expect(viewModelSource).toContain("handleRunChapterAutoVideo");
     expect(viewModelSource).toContain("enqueue-remotion-shots");
     expect(viewModelSource).toContain("handleOpenFinalVideo");
-    expect(indexSource).toContain("chapterAutoVideoStatus={viewModel.chapterAutoVideoStatus}");
-    expect(indexSource).toContain("onRunChapterAutoVideo={viewModel.handleRunChapterAutoVideo}");
-    expect(indexSource).toContain("onOpenFinalVideo={viewModel.handleOpenFinalVideo}");
-    expect(canvasSource).toContain("一键第一章成片");
-    expect(canvasSource).toContain("第一章成片中");
-    expect(canvasSource).toContain("失败：${chapterAutoVideoStatus.error}");
-    expect(canvasSource).toContain("chapterAutoVideoStatus?.finalPath");
-    expect(canvasSource).toMatch(
-      /<span[^>]*break-all[^>]*>\s*\{chapterAutoVideoStatus\.finalPath\}\s*<\/span>/,
-    );
-    expect(canvasSource).toContain("void onOpenFinalVideo?.()");
+    // 09-09 批8:章视频状态经 index.tsx 注入 StoryboardPanelTab.chapterAutoVideo;
+    // 成片按钮文案迁面板(一键章视频/章视频合成中/打开章视频)
+    expect(indexSource).toContain("status: viewModel.chapterAutoVideoStatus");
+    expect(indexSource).toContain("run: () => void viewModel.handleRunChapterAutoVideo()");
+    expect(indexSource).toContain("openFinal: viewModel.handleOpenFinalVideo");
+    expect(canvasSource).toContain("一键章视频");
+    expect(canvasSource).toContain("章视频合成中");
+    expect(canvasSource).toContain("打开章视频");
     expect(hookSource).toContain("runChapterAutoVideo");
     expect(hookSource).toContain("runStoryboardTtsGeneration");
     expect(hookSource).toContain("buildRemotionShotPlans");

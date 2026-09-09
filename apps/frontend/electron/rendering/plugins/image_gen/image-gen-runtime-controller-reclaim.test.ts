@@ -28,7 +28,9 @@ let holding: boolean;
 beforeEach(() => {
   scenario = { holders: [], psCommand: "python -m image_gen.main --port 17595", releaseOn: {} };
   holding = false;
-  execFileMock.mockImplementation(((cmd: string, _args: string[], cb: (err: Error | null, res?: { stdout: string }) => void) => {
+  execFileMock.mockImplementation(((cmd: string, ...rest: unknown[]) => {
+    // 09-09 起 lsof/ps 调用带 {timeout} 第三参,回调恒为最后一个参数
+    const cb = rest[rest.length - 1] as (err: Error | null, res?: { stdout: string }) => void;
     if (cmd === "lsof") {
       const pids = holding ? scenario.holders : [];
       cb(null, { stdout: pids.join("\n") });

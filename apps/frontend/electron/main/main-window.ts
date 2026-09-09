@@ -22,6 +22,12 @@ import { isPathInsideRoot } from '../storage/storage-paths'
 import { writeDiagnosticsLog } from './main-diagnostics'
 import { hostedStudio } from './main-hosted-studio'
 import { isBackgroundSmoke, RENDERER_DIST, RENDERER_INDEX_HTML, VITE_DEV_SERVER_URL } from './main-env'
+import {
+  DEFAULT_WINDOW_HEIGHT,
+  DEFAULT_WINDOW_WIDTH,
+  loadRestoredWindowState,
+  trackWindowState,
+} from './main-window-state'
 import type { createTtsRuntimeController } from '../tts/tts-runtime'
 import type { registerSelfMediaIpcHandlers } from '../ipc/self-media/self-media-ipc'
 
@@ -132,10 +138,13 @@ export async function resolveAvailableUpdate(currentVersion: string): Promise<Av
 
 
 export function createWindow() {
+  // 恢复上次会话的窗口几何(含最大化/缩放态);无历史或历史已落屏外则回退
+  // 默认尺寸(不传 x/y,Electron 自动居中)。09-09 前恒 1400×900 小窗根因。
+  const restoredWindowState = loadRestoredWindowState()
+  const initialBounds = restoredWindowState.bounds ?? { width: DEFAULT_WINDOW_WIDTH, height: DEFAULT_WINDOW_HEIGHT }
   win = new BrowserWindow({
     title: '漫影工作室',
-    width: 1400,
-    height: 900,
+    ...initialBounds,
     minWidth: 1200,
     minHeight: 700,
     show: false,
@@ -160,6 +169,12 @@ export function createWindow() {
     hasShownWindow = true
     win.show()
   }
+
+  // 上次是最大化态:show 之前先 maximize,避免先露小窗再跳全屏
+  if (restoredWindowState.isMaximized) {
+    win.maximize()
+  }
+  trackWindowState(win)
 
   win.once('ready-to-show', showWindow)
 

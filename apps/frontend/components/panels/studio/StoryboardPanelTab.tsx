@@ -19,6 +19,8 @@ export function StoryboardPanelTab({
   onOpenImageWorkflow,
   onBackToCanvas,
   batch,
+  upscale,
+  chapterAutoVideo,
 }: {
   storyboards: StoryboardItem[];
   onOpenImageWorkflow: (context: ImageWorkflowOpenContext) => void;
@@ -28,6 +30,21 @@ export function StoryboardPanelTab({
     state: StoryboardBatchGenerationState;
     start: () => void;
     stop: () => void;
+  };
+  /** 批量超分(09-09 批8:主画布退役,入口迁入面板) */
+  upscale?: {
+    state: { running: boolean; current?: string };
+    start: () => void;
+    stop: () => void;
+    upscaledCount: number;
+    shotCount: number;
+  };
+  /** 章自动视频(同上迁入) */
+  chapterAutoVideo?: {
+    status: unknown;
+    running: boolean;
+    run: () => void;
+    openFinal?: () => void;
   };
 }) {
   const ordered = storyboards.slice().sort((a, b) => a.index - b.index);
@@ -58,6 +75,32 @@ export function StoryboardPanelTab({
             </Button>
           ) : null}
           <h3 className="text-base font-semibold text-foreground">分镜面板</h3>
+          {upscale && upscale.shotCount > 0 ? (
+            <Button
+              size="sm"
+              variant="outline"
+              data-storyboard-panel-upscale
+              disabled={upscale.state.running || upscale.upscaledCount >= upscale.shotCount}
+              onClick={() => (upscale.state.running ? upscale.stop() : upscale.start())}
+            >
+              {upscale.state.running ? "超分中…(点击停止)" : `批量超分(${upscale.upscaledCount}/${upscale.shotCount})`}
+            </Button>
+          ) : null}
+          {chapterAutoVideo ? (
+            chapterAutoVideo.running ? (
+              <Button size="sm" variant="outline" disabled data-storyboard-panel-auto-video>
+                章视频合成中…
+              </Button>
+            ) : chapterAutoVideo.openFinal ? (
+              <Button size="sm" variant="outline" data-storyboard-panel-auto-video-open onClick={chapterAutoVideo.openFinal}>
+                打开章视频
+              </Button>
+            ) : (
+              <Button size="sm" variant="outline" data-storyboard-panel-auto-video-run onClick={chapterAutoVideo.run}>
+                一键章视频
+              </Button>
+            )
+          ) : null}
           <span className="text-sm text-muted-foreground">
             {ordered.length ? `${ordered.length} 个分镜 · ${withImage} 个画面` : "尚无分镜,请先生成分镜表"}
           </span>

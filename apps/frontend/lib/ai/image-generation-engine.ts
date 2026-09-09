@@ -136,6 +136,10 @@ function getLocalImageRuntimeBridge(): LocalImageRuntimeBridge | undefined {
 }
 
 let localSidecarEnsureInFlight: Promise<boolean> | null = null;
+// 09-09 限流:主进程对失败的本地服务拉起已加指数退避,但批量生成/画布执行
+// 仍会每秒级重试 ensure——失败提示(toast/日志)同样按 30s 静默期合并,禁止轰炸
+let lastSidecarFailSignalAt = 0;
+const SIDECAR_FAIL_SIGNAL_COOLDOWN_MS = 30_000;
 
 /**
  * 本地生成前自愈:sidecar 只在「准备运行时」时拉起,装机重启/崩溃后会缺席
@@ -155,18 +159,25 @@ export async function ensureLocalImageSidecarRunning(operationId?: string): Prom
   if (!bridge) return false;
   if (localSidecarEnsureInFlight) return localSidecarEnsureInFlight;
   localSidecarEnsureInFlight = (async () => {
-    void logEvent({
-      level: 'info',
-      category: 'ai',
-      operationId,
-      message: 'Local image sidecar absent before generation, auto-starting',
-    });
-    toast.info('本地图片服务未就绪，正在自动启动（首次约半分钟）…');
+    const withinCooldown = Date.now() - lastSidecarFailSignalAt < SIDECAR_FAIL_SIGNAL_COOLDOWN_MS;
+    if (!withinCooldown) {
+      void logEvent({
+        level: 'info',
+        category: 'ai',
+        operationId,
+        message: 'Local image sidecar absent before generation, auto-starting',
+      });
+      toast.info('本地图片服务未就绪，正在自动启动（首次约半分钟）…');
+    }
+    const markFailed = (message: string) => {
+      lastSidecarFailSignalAt = Date.now();
+      if (!withinCooldown) toast.error(message);
+    };
     try {
       if (bridge.prepare) {
         const reply = await bridge.prepare();
         if (!reply.success) {
-          toast.error(reply.message || '本地图片服务启动失败，请到「设置-本地配置」检查');
+          markFailed(reply.message || '本地图片服务启动失败，请到「设置-本地配置」检查');
           return false;
         }
         return true;
@@ -174,12 +185,12 @@ export async function ensureLocalImageSidecarRunning(operationId?: string): Prom
       if (bridge.setup) {
         const status = await bridge.setup();
         const ready = status.setupStage === 'ready';
-        if (!ready) toast.error(status.setupMessage || '本地图片服务启动失败，请到「设置-本地配置」检查');
+        if (!ready) markFailed(status.setupMessage || '本地图片服务启动失败，请到「设置-本地配置」检查');
         return ready;
       }
       return false;
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : '本地图片服务启动失败');
+      markFailed(error instanceof Error ? error.message : '本地图片服务启动失败');
       return false;
     } finally {
       localSidecarEnsureInFlight = null;

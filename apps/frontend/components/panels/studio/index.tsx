@@ -6,9 +6,7 @@ import { ScriptTab } from "./ScriptTab";
 import { StoryboardPanelTab } from "./StoryboardPanelTab";
 import { WorkbenchTab } from "./WorkbenchTab";
 import { ScriptAssetManagementTab } from "./ScriptAssetManagementTab";
-import { WorkflowNodeCanvas } from "./WorkflowNodeCanvas";
 import { ComfyCanvasSwap } from "../assist/comfy-canvas/ComfyCanvasSwap";
-import { WorkflowNodeEditDialog } from "./WorkflowNodeEditDialog";
 import { WorkflowStageStatusBar } from "./WorkflowStageStatusBar";
 import { useStudioViewModel } from "./useStudioViewModel";
 import { useStoryboardBatchGeneration } from "./image-workflow/use-storyboard-batch-generation";
@@ -103,22 +101,7 @@ export function StudioView() {
               value="storyboard"
               className="m-0 min-h-0 flex-1 data-[state=active]:flex data-[state=inactive]:hidden"
             >
-              <WorkflowNodeCanvas
-                isVisible={viewModel.activeWorkflowTab === "storyboard"}
-                projectName={viewModel.projectName}
-                nodes={viewModel.productionFlowNodes}
-                onStageChange={viewModel.handleStageChange}
-                onNodeEdit={viewModel.openNodeEditor}
-                onNodeJson={viewModel.openNodeJson}
-                onNodeAction={viewModel.handleProductionNodeAction}
-                onOpenAssetImageWorkflow={viewModel.openAssetImageWorkflow}
-                storyboardBatch={storyboardBatch}
-                storyboardUpscale={storyboardUpscale}
-                chapterAutoVideoStatus={viewModel.chapterAutoVideoStatus}
-                chapterAutoVideoRunning={viewModel.chapterAutoVideoRunning}
-                onRunChapterAutoVideo={viewModel.handleRunChapterAutoVideo}
-                onOpenFinalVideo={viewModel.handleOpenFinalVideo}
-              />
+              <ComfyCanvasSwap title="分镜制作 · ComfyUI" />
             </TabsContent>
 
             <TabsContent
@@ -130,6 +113,13 @@ export function StudioView() {
                 onOpenImageWorkflow={viewModel.openAssetImageWorkflow}
                 onBackToCanvas={() => viewModel.handleStageChange("storyboard")}
                 batch={storyboardBatch}
+                upscale={storyboardUpscale}
+                chapterAutoVideo={{
+                  status: viewModel.chapterAutoVideoStatus,
+                  running: viewModel.chapterAutoVideoRunning,
+                  run: () => void viewModel.handleRunChapterAutoVideo(),
+                  openFinal: viewModel.handleOpenFinalVideo,
+                }}
               />
             </TabsContent>
 
@@ -159,25 +149,6 @@ export function StudioView() {
           </div>
         </ScrollArea>
       </Tabs>
-      <WorkflowNodeEditDialog
-        open={Boolean(viewModel.editingWorkflowNodeId)}
-        title={viewModel.workflowNodeEditTitle}
-        value={viewModel.workflowNodeDraft}
-        writable={viewModel.workflowNodeEditWritable}
-        jsonMode={viewModel.workflowNodeEditJson}
-        readOnlyJson={viewModel.workflowNodeEditReadOnlyJson}
-        onValueChange={viewModel.setWorkflowNodeDraft}
-        onClose={viewModel.closeNodeEditor}
-        onSave={viewModel.saveWorkflowNodeEdit}
-        onEnterStage={viewModel.handleEnterWorkflowNodeStage}
-        skills={
-          viewModel.editingWorkflowNodeId
-            ? viewModel.productionFlowNodes.find(
-                (n) => n.id === viewModel.editingWorkflowNodeId,
-              )?.skills
-            : undefined
-        }
-      />
     </div>
   );
 }

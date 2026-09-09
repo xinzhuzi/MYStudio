@@ -16,6 +16,7 @@ import { Button } from "@/components/ui/button";
 import { useComfyEngineSettings } from "@/components/panels/settings/comfy-engine/useComfyEngineSettings";
 import { getComfyEngineClient } from "@/components/panels/settings/comfy-engine/comfy-engine-contract";
 import { consumeComfyBridgeWritebacks } from "@/lib/assist/image-studio/comfy-bridge-writeback-consumer";
+import { syncStoryboardOverviewToLibrary } from "@/lib/assist/image-studio/storyboard-overview-sync";
 import { useStudioStore } from "@/stores/studio/studio-store";
 
 export function ComfyCanvasStudio({ embedded = false }: { embedded?: boolean }) {
@@ -51,6 +52,8 @@ export function ComfyCanvasStudio({ embedded = false }: { embedded?: boolean }) 
             episodeId: item.episodeId,
           })),
         ).catch(() => undefined);
+        // 主视图 ComfyUI 化(批8):总览图库内保鲜(指纹守卫,分镜未动不导入)
+        void syncStoryboardOverviewToLibrary().catch(() => undefined);
         await consumeComfyBridgeWritebacks({ client });
       } catch {
         // 消费器内部已吞错并通知;此处兜底静默(轮询面不弹窗轰炸)

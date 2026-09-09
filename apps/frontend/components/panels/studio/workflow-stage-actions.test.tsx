@@ -2729,7 +2729,7 @@ describe("workflow stage action surfaces", () => {
 
     expect(storyboardStart).toBeGreaterThan(-1);
     expect(storyboardEnd).toBeGreaterThan(storyboardStart);
-    expect(storyboardTabSource).toContain("<WorkflowNodeCanvas");
+    expect(storyboardTabSource).toContain("<ComfyCanvasSwap");
     expect(storyboardTabSource).not.toContain("<StoryboardTab");
     expect(storyboardTabSource).not.toContain("运行 AI 分镜计划");
     expect(storyboardTabSource).not.toContain("生成配音");

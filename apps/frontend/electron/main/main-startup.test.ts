@@ -135,6 +135,18 @@ describe("main process startup", () => {
     expect(windowBlock).toContain("showWindow()");
   });
 
+  it("restores the previous session's window geometry including the maximized state", () => {
+    const windowBlock = mainSource.slice(
+      mainSource.indexOf("win = new BrowserWindow"),
+      mainSource.indexOf("// Open external links in system browser"),
+    );
+
+    expect(mainSource).toContain("loadRestoredWindowState()");
+    expect(windowBlock).toContain("...initialBounds");
+    expect(windowBlock).toContain("win.maximize()");
+    expect(windowBlock).toContain("trackWindowState(win)");
+  });
+
   it("keeps background smoke hidden, unfocused, and unthrottled", () => {
     const windowBlock = mainSource.slice(
       mainSource.indexOf("win = new BrowserWindow"),
