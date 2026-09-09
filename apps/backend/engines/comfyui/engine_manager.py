@@ -687,18 +687,17 @@ class EngineManager:
 
     # -- 版本更新链(grill Q10;09-09 用户裁定:跟随 GitHub 最新提交) ------------
     def _local_engine_sha(self, engine: dict) -> str | None:
-        """本地引擎 HEAD sha:账本优先;旧安装无账时现场 rev-parse 并补账。"""
-        sha = engine.get("sha")
-        if sha:
-            return sha
-        if not cm.engine_source_dir().exists():
-            return None
-        try:
-            sha = _git(["rev-parse", "HEAD"], cwd=cm.engine_source_dir(), timeout=10.0).strip()
-        except EngineOpError:
-            return None
-        cm.mutate_manifest(lambda m: m.setdefault("engine", {}).__setitem__("sha", sha))
-        return sha
+        """本地引擎 HEAD sha:rev-parse 现查优先(更新中断/checkout 已前移时自愈,
+        账本旧值不再遮蔽真值);源码目录不可用回落账本。"""
+        if cm.engine_source_dir().exists():
+            try:
+                sha = _git(["rev-parse", "HEAD"], cwd=cm.engine_source_dir(), timeout=10.0).strip()
+                if sha and sha != engine.get("sha"):
+                    cm.mutate_manifest(lambda m: m.setdefault("engine", {}).__setitem__("sha", sha))
+                return sha
+            except EngineOpError:
+                pass
+        return engine.get("sha")
 
     def _commits_ahead(self, local_sha: str) -> int | None:
         """GitHub API compare 查 master 领先提交数(限流/断网静默 None)。"""
