@@ -331,7 +331,7 @@ export function createVideoQcRuntimeController(deps: ControllerDeps) {
     if (modelName !== "dover-mobile") return { success: false, error: "未知观感评分模型" };
     try {
       const { stdout } = await runPython(
-        ["-c", "from video_qc.model_cache import delete_cached_model; import json; print(json.dumps({'removed': delete_cached_model('dover-mobile')}))"],
+        ["-c", "from engines.video_qc_engine.model_cache import delete_cached_model; import json; print(json.dumps({'removed': delete_cached_model('dover-mobile')}))"],
         30_000,
       );
       const parsed = JSON.parse(stdout) as { removed?: boolean };

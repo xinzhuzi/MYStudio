@@ -43,7 +43,7 @@ CINEMATIC_GRADES: dict[str, str] = {
         # Black-and-white film noir with high contrast
         "hue=s=0,"
         "eq=contrast=1.45:saturation=0:brightness=-0.05:gamma=0.9,"
-        "curves=preset=increase_contrast,"
+        "curves=preset=increase_contrast",
 
     "cinematic-warm-golden":
         # Warm golden hour glow

@@ -4500,7 +4500,7 @@ def create_direct_tts_audio(path, text, voice_profile, seed):
     os.environ.setdefault("MANYING_TTS_MODELS_DIR", str(TTS_MODELS_DIR))
     os.environ.setdefault("VOICEBOX_MODELS_DIR", str(TTS_MODELS_DIR))
     os.environ.setdefault("HF_HUB_CACHE", str(TTS_MODELS_DIR))
-    from tts.engine import synthesize_to_wav
+    from engines.tts_engine.engine import synthesize_to_wav
 
     profile = {
         "id": voice_profile["profileId"],
