@@ -12,6 +12,15 @@ from image_gen import model_cache, model_inventory
 from image_gen.pipeline import PipelineError
 
 
+def _all_template_classes_available() -> frozenset[str]:
+    """桩:K2 模板用到的全部节点类引擎侧都可用——缺插件预检门放行,
+    让传输契约测试(upload/poll/view/超时/错误码)不掺预检因素。"""
+    classes: set[str] = set()
+    for name in ("krea2_t2i", "krea2_edit_ref"):
+        classes.update(bridge.graph_node_classes(bridge.load_template(name)["graph"]))
+    return frozenset(classes)
+
+
 class BridgeContractTests(unittest.TestCase):
     def test_bridge_url_defaults_to_comfyui_desktop_port(self):
         with patch.dict(os.environ, {}, clear=True):
@@ -71,7 +80,8 @@ class BridgeContractTests(unittest.TestCase):
         self.assertNotIn("source_image_b", graph["35"]["inputs"])
 
     def test_upload_names_use_bridge_prefix(self):
-        with patch.object(bridge, "_http_json", side_effect=[{"system": {"comfyui_version": "0.33.0"}}, {"prompt_id": "pid", "node_errors": []}, {"pid": {"status": {"status_str": "success"}, "outputs": {"9": {"images": [{"filename": "out.png"}]}}}}]), patch.object(
+        with patch.object(bridge, "_available_node_classes", return_value=_all_template_classes_available()), patch.object(
+            bridge, "_http_json", side_effect=[{"system": {"comfyui_version": "0.33.0"}}, {"prompt_id": "pid", "node_errors": []}, {"pid": {"status": {"status_str": "success"}, "outputs": {"9": {"images": [{"filename": "out.png"}]}}}}]), patch.object(
             bridge, "_upload_image", return_value={"name": "ref.png"}
         ) as upload, patch.object(bridge, "_fetch_bytes", return_value=b"png"), patch.object(bridge.time, "sleep"):
             bridge.generate("hello", "1:1", None, 8, 1, reference_b64="aGVsbG8=")
@@ -93,23 +103,35 @@ class BridgeContractTests(unittest.TestCase):
         png = b"fake-png"
         history = {"pid": {"status": {"status_str": "success"}, "outputs": {"9": {"images": [{"filename": "out.png", "subfolder": "", "type": "output"}]}}}}
         responses = [{"system": {"comfyui_version": "0.33.0"}}, {"prompt_id": "pid", "node_errors": []}, history]
-        with patch.object(bridge, "_http_json", side_effect=responses), patch.object(bridge, "_upload_image", return_value={"name": "ref.png"}), patch.object(bridge, "_fetch_bytes", return_value=png), patch.object(bridge.time, "sleep"):
+        with patch.object(bridge, "_available_node_classes", return_value=_all_template_classes_available()), patch.object(bridge, "_http_json", side_effect=responses), patch.object(bridge, "_upload_image", return_value={"name": "ref.png"}), patch.object(bridge, "_fetch_bytes", return_value=png), patch.object(bridge.time, "sleep"):
             result = bridge.generate("hello", "1:1", None, 8, 1, reference_b64="aGVsbG8=")
         self.assertEqual(base64.b64decode(result), png)
 
+    def test_missing_node_classes_fail_closed_before_submit(self):
+        # 缺插件预检门(c05502e):引擎侧类集为空→差分非空→生成前拦断,
+        # 绝不带病提交 /prompt(策展指路文案见 missing_nodes_message 纯函数测)。
+        responses = [{"system": {"comfyui_version": "0.33.0"}}]
+        with patch.object(bridge, "_available_node_classes", return_value=frozenset()), patch.object(
+            bridge, "_http_json", side_effect=responses
+        ) as http_json, patch.object(bridge, "_upload_image", return_value={"name": "ref.png"}):
+            with self.assertRaises(PipelineError) as ctx:
+                bridge.generate("x", "1:1", None, 8, None)
+        self.assertEqual(ctx.exception.code, "bridge-missing-nodes")
+        self.assertFalse(any("/prompt" in str(call.args[1]) for call in http_json.call_args_list))
+
     def test_error_codes_timeout_no_output_and_execution(self):
-        with patch.object(bridge, "_http_json", side_effect=OSError("offline")):
+        with patch.object(bridge, "_available_node_classes", return_value=_all_template_classes_available()), patch.object(bridge, "_http_json", side_effect=OSError("offline")):
             with self.assertRaises(PipelineError) as ctx:
                 bridge.generate("x", "1:1", None, 8, None)
         self.assertEqual(ctx.exception.code, "bridge-unreachable")
-        with patch.object(bridge, "_http_json", side_effect=[{"system": {}}, {"prompt_id": "p", "node_errors": [{"x": "bad"}]}]):
+        with patch.object(bridge, "_available_node_classes", return_value=_all_template_classes_available()), patch.object(bridge, "_http_json", side_effect=[{"system": {}}, {"prompt_id": "p", "node_errors": [{"x": "bad"}]}]):
             with self.assertRaises(PipelineError) as ctx:
                 bridge.generate("x", "1:1", None, 8, None)
         self.assertEqual(ctx.exception.code, "bridge-execution-failed")
 
     def test_timeout_interrupts_active_prompt_best_effort(self):
         responses = [{"system": {"comfyui_version": "0.33.0"}}, {"prompt_id": "p", "node_errors": []}, {}]
-        with patch.object(bridge, "_http_json", side_effect=responses) as http_json, patch.object(
+        with patch.object(bridge, "_available_node_classes", return_value=_all_template_classes_available()), patch.object(bridge, "_http_json", side_effect=responses) as http_json, patch.object(
             bridge.time, "monotonic", side_effect=[0.0, 1.0, 2.0]
         ), patch.dict(os.environ, {"MYSTUDIO_COMFYUI_BRIDGE_TIMEOUT_S": "1"}, clear=True), patch.object(
             bridge.time, "sleep"
