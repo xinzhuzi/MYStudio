@@ -6,6 +6,7 @@ import {
   createProjectFileUrl,
   redirectProjectScopedKey,
   resolveProjectFileUrl,
+  resolveProjectOrAssetFileUrl,
   resolveProjectScopedFilePath,
 } from "../../storage/storage-paths";
 
@@ -34,6 +35,7 @@ type ProjectFileDeletePayload = {
 
 type RegisterProjectFileIpcHandlersContext = {
   getDataDir: () => string;
+  getAssetsRoot: () => string;
   readImageSource: (source: string) => Promise<{ buffer: Buffer; mimeType: string }>;
   getMimeType: (filePath: string) => string;
 };
@@ -69,6 +71,7 @@ function toProjectFileBuffer(bytes: ArrayBuffer | Uint8Array) {
 
 export function registerProjectFileIpcHandlers({
   getDataDir,
+  getAssetsRoot,
   readImageSource,
   getMimeType,
 }: RegisterProjectFileIpcHandlersContext) {
@@ -153,7 +156,8 @@ export function registerProjectFileIpcHandlers({
 
   ipcMain.handle("project-file-read-base64", async (_event, projectFileUrl: string) => {
     try {
-      const filePath = resolveProjectFileUrl(getDataDir(), projectFileUrl);
+      // 双 scheme(09-09 阶段2 批3):project-file:// 项目树 + asset-file:// 资产树
+      const filePath = resolveProjectOrAssetFileUrl(getDataDir(), getAssetsRoot(), projectFileUrl);
       const data = await fs.promises.readFile(filePath);
       return {
         success: true,

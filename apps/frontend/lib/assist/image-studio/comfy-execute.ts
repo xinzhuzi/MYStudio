@@ -309,7 +309,8 @@ export function planComfyWorkflowExecution(
 
 /** 应用侧图片地址(local-image:// / project-file:// / data: / http)→ 纯 b64 */
 export async function comfyImageUrlToB64(url: string): Promise<string> {
-  if (url.startsWith("project-file://")) {
+  // project-file/asset-file 同一读 IPC(09-09 阶段2 批3 双 scheme 扩展)
+  if (url.startsWith("project-file://") || url.startsWith("asset-file://")) {
     const result = await getProjectFilesBridge()?.readAsBase64(url);
     if (!result?.success || !result.base64) {
       throw new Error(`项目内图片读取失败:${result?.error || url}`);

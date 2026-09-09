@@ -502,6 +502,20 @@ class Handler(BaseHTTPRequestHandler):
                 result = uploads.upload_reference(image_b64, name)
                 self._send_json({"accepted": True, "name": result.get("name"), "subfolder": result.get("subfolder", "")})
                 return
+            if method == "POST" and path == "/comfy/bridge/storyboards":
+                # 业务侧栏数据面(阶段2 批3):渲染层推分镜快照
+                from engines.comfyui import bridge_sidepanel
+                try:
+                    result = bridge_sidepanel.update(payload.get("shots") or [])
+                except ValueError as exc:
+                    self._send_error_json(400, str(exc), "bridge-storyboards-invalid")
+                    return
+                self._send_json(result)
+                return
+            if method == "GET" and path == "/comfy/bridge/storyboards":
+                from engines.comfyui import bridge_sidepanel
+                self._send_json(bridge_sidepanel.snapshot())
+                return
             if method == "POST" and path == "/comfy/bridge/writebacks/ack":
                 self._send_json({"deleted": bridge_inbox.ack(int(payload.get("upTo") or 0))})
                 return

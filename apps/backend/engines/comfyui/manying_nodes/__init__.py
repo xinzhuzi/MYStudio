@@ -19,6 +19,9 @@ NODE_CLASS_MAPPINGS = {
     "ManyingGenerated": ManyingGenerated,
 }
 
+# ComfyUI 前端扩展目录声明(无此=web/ 下 JS 不进 /extensions,不可见)
+WEB_DIRECTORY = "./web"
+
 NODE_DISPLAY_NAME_MAPPINGS = {
     "ManyingPrompt": "漫影 提示词",
     "ManyingReference": "漫影 参考图",

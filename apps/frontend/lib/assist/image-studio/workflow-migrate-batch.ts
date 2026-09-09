@@ -54,7 +54,7 @@ async function uploadBlockReferences(
       const b64 = await deps.readImageB64(reference.imageUrl).catch(() => null);
       if (!b64) {
         counters.skipped += 1;
-        notes.push(`${graph.name}:参考图读取失败暂跳过(${reference.imageUrl.slice(0, 48)};asset-file 资产源读取桥=待续)`);
+        notes.push(`${graph.name}:参考图读取失败暂跳过(${reference.imageUrl.slice(0, 48)})`);
         continue;
       }
       const pure = b64.startsWith("data:") ? b64.slice(b64.indexOf(",") + 1) : b64;

@@ -588,6 +588,16 @@ export function createHttpComfyEngineClient(): ComfyEngineClient {
         return null; // ack 失败不致命:下次轮询重消费(落账幂等由 checkpointRef 保证)
       }
     },
+    async pushBridgeStoryboards(shots: Array<{ id: string; label: string; episodeId?: string }>): Promise<boolean> {
+      try {
+        await comfySidecarRequest<{ updatedAt?: number }>("POST", "/comfy/bridge/storyboards", {
+          body: { shots },
+        });
+        return true;
+      } catch {
+        return false; // 推送面:失败静默(下一 tick 重推)
+      }
+    },
     async uploadBridgeReference(name: string, imageB64: string): Promise<{ accepted: boolean; name?: string } | null> {
       try {
         const raw = await comfySidecarRequest<{ accepted?: boolean; name?: string }>("POST", "/comfy/bridge/reference", {

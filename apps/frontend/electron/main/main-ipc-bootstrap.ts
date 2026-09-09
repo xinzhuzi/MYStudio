@@ -31,6 +31,7 @@ import { makeStudioSkillFileUrl } from './main-utils'
 
 registerSourceMemoryIpcHandlers({ getDataDir })
 registerProjectFileIpcHandlers({
+  getAssetsRoot,
   getDataDir,
   readImageSource,
   getMimeType,

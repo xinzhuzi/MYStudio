@@ -46,6 +46,7 @@ describe("registerProjectFileIpcHandlers", () => {
     mocks.readFile.mockResolvedValue(Buffer.from("image"));
     registerProjectFileIpcHandlers({
       getDataDir: () => "/data",
+      getAssetsRoot: () => "/assets",
       readImageSource: async () => ({ buffer: Buffer.from("source"), mimeType: "image/png" }),
       getMimeType: () => "image/png",
     });
@@ -201,5 +202,36 @@ describe("project-file-write-text 的 _p 虚拟键重定向", () => {
     await expect(
       mocks.handlers.get("project-file-write-text")?.({}, "_p/project-a/novel/source-bible.md", "# 原著圣经"),
     ).resolves.toEqual({ success: true, filePath: "/data/_p/project-a/novel/source-bible.md" });
+  });
+});
+
+describe("project-file-read-base64 双 scheme(09-09 阶段2 批3)", () => {
+  beforeEach(() => {
+    mocks.handlers.clear();
+    vi.clearAllMocks();
+    registerProjectFileIpcHandlers({
+      getDataDir: () => "/data",
+      getAssetsRoot: () => "/assets",
+      readImageSource: async () => ({ buffer: Buffer.from("source"), mimeType: "image/png" }),
+      getMimeType: () => "image/png",
+    });
+  });
+
+  it("asset-file:// 解析到资产树并返回 b64", async () => {
+    const read = mocks.handlers.get("project-file-read-base64")!;
+    const result = await read({}, "asset-file://scene/main.png");
+    expect(result).toMatchObject({ success: true, base64: "data:image/png;base64,aW1hZ2U=" });
+  });
+
+  it("asset-file:// 路径穿越被 containment 拒绝", async () => {
+    const read = mocks.handlers.get("project-file-read-base64")!;
+    const result = await read({}, "asset-file://../../etc/passwd");
+    expect(result).toMatchObject({ success: false });
+  });
+
+  it("project-file:// 行为不变", async () => {
+    const read = mocks.handlers.get("project-file-read-base64")!;
+    const result = await read({}, "project-file://project-a/media/a.png");
+    expect(result).toMatchObject({ success: true });
   });
 });

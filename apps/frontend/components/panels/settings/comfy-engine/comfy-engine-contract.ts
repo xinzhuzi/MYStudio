@@ -296,6 +296,8 @@ export interface ComfyEngineClient {
   syncManyingNodes(): Promise<ComfyManyingSyncReply | null>;
   /** 参考图上传闭环(阶段2 批2):同名覆写进引擎 input 目录(迁移占位名可跑)。 */
   uploadBridgeReference(name: string, imageB64: string): Promise<{ accepted: boolean; name?: string } | null>;
+  /** 业务侧栏数据面(阶段2 批3):推分镜快照供引擎前端 sidebar 扩展拉取。 */
+  pushBridgeStoryboards(shots: Array<{ id: string; label: string; episodeId?: string }>): Promise<boolean>;
 }
 
 /** bridge 回写收件项(引擎 manying_generated → sidecar;渲染层消费)。 */

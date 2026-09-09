@@ -273,3 +273,15 @@ export function resolveProjectFileUrl(dataRoot: string, projectFileUrl: string) 
   if (!parsed) throw new Error("Invalid project file URL");
   return resolveProjectScopedFilePath(dataRoot, parsed.projectId, parsed.relativePath);
 }
+
+/**
+ * 读文件 IPC 的统一解析(09-09 阶段2 批3):project-file:// 与
+ * asset-file:// 双 scheme——渲染层参考图上传桥经同一 IPC 读 b64,
+ * asset 源(资产树)不再 best-effort 跳过。各自带 containment 校验。
+ */
+export function resolveProjectOrAssetFileUrl(dataRoot: string, assetsRoot: string, url: string) {
+  if (url.startsWith("asset-file://")) {
+    return resolveAssetFilePath(assetsRoot, url);
+  }
+  return resolveProjectFileUrl(dataRoot, url);
+}

@@ -15,6 +15,7 @@ import { Button } from "@/components/ui/button";
 import { useComfyEngineSettings } from "@/components/panels/settings/comfy-engine/useComfyEngineSettings";
 import { getComfyEngineClient } from "@/components/panels/settings/comfy-engine/comfy-engine-contract";
 import { consumeComfyBridgeWritebacks } from "@/lib/assist/image-studio/comfy-bridge-writeback-consumer";
+import { useStudioStore } from "@/stores/studio/studio-store";
 
 export function ComfyCanvasStudio() {
   // client 引用必须稳定(传入 hook):否则 hook 内 getComfyEngineClient() 每次
@@ -40,6 +41,15 @@ export function ComfyCanvasStudio() {
       if (inFlight || stopped) return;
       inFlight = true;
       try {
+        // 业务侧栏数据面(阶段2 批3):快照与收件箱同 tick 推/拉
+        const storyboards = useStudioStore.getState().storyboards;
+        void client?.pushBridgeStoryboards(
+          storyboards.map((item) => ({
+            id: item.id,
+            label: `S${String(item.index).padStart(2, "0")}${item.videoDesc ? ` · ${item.videoDesc.slice(0, 12)}` : ""}`,
+            episodeId: item.episodeId,
+          })),
+        ).catch(() => undefined);
         await consumeComfyBridgeWritebacks({ client });
       } catch {
         // 消费器内部已吞错并通知;此处兜底静默(轮询面不弹窗轰炸)
