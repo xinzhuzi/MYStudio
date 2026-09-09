@@ -444,8 +444,8 @@ class Handler(BaseHTTPRequestHandler):
     # GET /comfy/jobs/{id}(既有 job/进度范式的 HTTP 化);轻操作同步应答。
 
     def _comfy(self, method: str, path: str, payload: dict, query: dict) -> None:
-        from .engine_manager import EngineOpError, engine_manager, jobs
-        from . import plugin_manager as pm
+        from engines.comfyui.engine_manager import EngineOpError, engine_manager, jobs
+        from engines.comfyui import plugin_manager as pm
 
         def q(name: str) -> str:
             return (query.get(name) or [""])[0]
@@ -497,7 +497,7 @@ class Handler(BaseHTTPRequestHandler):
                         self._send_json({"engineOnline": False, "detail": None})
                         return
                     try:
-                        from . import comfy_execute
+                        from engines.comfyui import execute as comfy_execute
 
                         self._send_json({"engineOnline": True, "detail": comfy_execute.object_info_detail(detail_class)})
                     except (EngineOpError, OSError, urllib_error.URLError, json.JSONDecodeError) as exc:
@@ -596,7 +596,7 @@ class Handler(BaseHTTPRequestHandler):
 
             # ── 任意工作流执行(09-08 二期/三期收官共用;job 化,进度轮询) ──
             if method == "POST" and path == "/comfy/execute":
-                from . import comfy_execute
+                from engines.comfyui import execute as comfy_execute
 
                 self._send_json({"jobId": comfy_execute.execute_job(payload)})
                 return

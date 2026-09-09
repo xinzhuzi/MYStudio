@@ -67,7 +67,7 @@ def curated_node_class_packs(curated: list[dict[str, Any]] | None = None) -> dic
     """策展包 provides 映射:节点类 → 包中文名(装哪个包能补上这个节点)。"""
     if curated is None:
         try:
-            from .. import plugin_manager as _pm
+            from engines.comfyui import plugin_manager as _pm
 
             curated = _pm.load_curated()
         except Exception:  # 策展清单读不到不阻塞生成主链
@@ -129,7 +129,7 @@ def bridge_url() -> str:
     if override:
         return override.rstrip("/")
     # 延迟 import:comfy_manifest 零三方依赖,krea2 调用链行为零变化
-    from .. import comfy_manifest
+    from engines.comfyui import manifest as comfy_manifest
     port = comfy_manifest.recorded_port()
     if port:
         return f"http://127.0.0.1:{port}"
@@ -318,7 +318,7 @@ def _history_output(history: dict[str, Any], prompt_id: str) -> tuple[str, dict[
 
 def generate(prompt: str, aspect_ratio: str, negative_prompt: str | None, steps: int, seed: int | None, reference_b64: str | None = None, **ctx: Any) -> str:
     # 按需启动(09-08 补口):自管引擎装了没跑→先拉起再生成;未装则回落 17598
-    from .. import engine_manager as _em
+    from engines.comfyui import engine_manager as _em
     try:
         _em.engine_manager().ensure_engine_ready()
     except _em.EngineOpError as exc:
