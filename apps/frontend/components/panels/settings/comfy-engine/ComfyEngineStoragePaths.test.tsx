@@ -41,7 +41,10 @@ function installClient(client: ComfyEngineClient) {
 beforeEach(() => {
   (window as unknown as { storageManager?: unknown }).storageManager = {
     selectDirectory,
-    getPaths: async () => ({ pythonRuntimeDir: "/Users/demo/Library/Application Support/漫影工作室/python" }),
+    getPaths: async () => ({
+      basePath: "/Users/demo/Library/Application Support/漫影工作室",
+      pythonRuntimeDir: "/Users/demo/Library/Application Support/漫影工作室/python",
+    }),
   };
   (window as unknown as { electronAPI?: unknown }).electronAPI = { openPath: vi.fn() };
 });
@@ -90,9 +93,11 @@ describe("ComfyEngineStoragePaths(存储位置配置卡)", () => {
       },
     });
     render(<ComfyEngineStoragePaths />);
-    // 回落默认路径直显(fallback 从托管 python 布局推导)
+    // 回落默认路径直显(09-09 裁定:家与 python 平级,<userData>/comfyui)
     await waitFor(() =>
-      expect((screen.getByLabelText("引擎目录路径") as HTMLInputElement).value).toContain("/python/comfyui/ComfyUI"),
+      expect((screen.getByLabelText("引擎目录路径") as HTMLInputElement).value).toContain(
+        "漫影工作室/comfyui/ComfyUI",
+      ),
     );
     expect(toasts.error).not.toHaveBeenCalled();
     expect((screen.getByLabelText("模型目录路径") as HTMLInputElement).value).toContain("/models");

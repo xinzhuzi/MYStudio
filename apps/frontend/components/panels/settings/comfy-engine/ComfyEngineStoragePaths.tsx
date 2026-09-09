@@ -39,11 +39,11 @@ const ROWS: Array<{ key: PathKey; label: string; hint: string }> = [
 const MODELS_ROW = { label: "模型目录", hint: "指向现有模型库即免重下(在上方引擎设置里修改)" };
 
 /** 探测期回落显示的默认路径:与后端 comfy_manifest.storage_root 同口径
- * (<userData>/python 托管布局 + comfyui 家);仅作显示,真值以服务返回为准。 */
+ * (09-09 用户裁定:comfyui 家与 python 运行时平级,<userData>/comfyui);仅作显示,真值以服务返回为准。 */
 async function fallbackDefaultPaths(): Promise<ComfyEnginePathsStatus | null> {
   try {
     const paths = await window.storageManager?.getPaths?.();
-    const root = paths?.pythonRuntimeDir;
+    const root = paths?.basePath ?? paths?.pythonRuntimeDir?.replace(/\/python$/, "");
     if (!root) return null;
     const home = `${root.replace(/\/$/, "")}/comfyui`;
     const paths2 = {

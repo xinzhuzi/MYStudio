@@ -62,11 +62,54 @@ def storage_root() -> Path:
     return Path.home() / ".manying-dev"
 
 
+def user_data_root() -> Path:
+    """应用存储根 <userData>(09-09 用户裁定:comfyui 家放这里,与 python 运行时平级)。
+
+    storage_root 在托管 python 布局下指 <userData>/python(运行时目录本身),
+    其余分支(model-dir 注入/开发兜底)本就是 <userData>——统一上提到平级根。
+    """
+    root = storage_root()
+    if root.name == "python":
+        return root.parent
+    return root
+
+
 def comfy_home() -> Path:
     override = os.environ.get("MYSTUDIO_COMFYUI_HOME", "")
     if override:
         return Path(override).expanduser()
-    return storage_root() / COMFY_DIR_NAME
+    return user_data_root() / COMFY_DIR_NAME
+
+
+_home_migrated = False
+
+
+def ensure_home_migrated() -> None:
+    """旧家 <userData>/python/comfyui 一次性收编到 <userData>/comfyui(幂等)。
+
+    只在 sidecar 冷启动序列显式调用(此刻引擎进程必未起,move 安全);
+    同卷 rename 秒级;venv 无需重建(pip 一律 -m 方式,不依赖 script shebang)。
+    """
+    global _home_migrated
+    if _home_migrated:
+        return
+    _home_migrated = True
+    home = comfy_home()
+    if os.environ.get("MYSTUDIO_COMFYUI_HOME"):
+        return  # 显式覆写=测试/定制布局,不碰
+    legacy = storage_root() / COMFY_DIR_NAME
+    if home == legacy or not (legacy / "manifest.json").exists() or (home / "manifest.json").exists():
+        return
+    home.parent.mkdir(parents=True, exist_ok=True)
+    if home.exists():
+        # 目标家已有残件(如空目录):逐项并入,manifest 已守卫不会覆盖
+        import shutil as _shutil
+        for item in legacy.iterdir():
+            _shutil.move(str(item), str(home / item.name))
+        legacy.rmdir()
+    else:
+        import shutil as _shutil
+        _shutil.move(str(legacy), str(home))
 
 
 # ── 目录辅助(绝对路径,spawn 防漂移) ──────────────────────────────

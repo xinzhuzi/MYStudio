@@ -684,6 +684,14 @@ def main() -> None:
     parser.add_argument("--host", default="127.0.0.1")
     parser.add_argument("--port", type=int, default=int(os.environ.get("MANYING_LOCAL_IMAGE_PORT", "17595")))
     args = parser.parse_args()
+    # 冷启动序列第一步:旧家 <userData>/python/comfyui 一次性收编到
+    # <userData>/comfyui(09-09 用户裁定;此刻引擎进程必未起,move 安全)
+    try:
+        from engines.comfyui.manifest import ensure_home_migrated
+
+        ensure_home_migrated()
+    except Exception as exc:  # noqa: BLE001 — 迁移失败不拦 sidecar 起服
+        print(f"[image-sidecar] home migration skipped: {exc}", flush=True)
     run(args.host, args.port)
 
 

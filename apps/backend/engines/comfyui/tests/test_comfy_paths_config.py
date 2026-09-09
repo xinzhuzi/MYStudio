@@ -94,3 +94,36 @@ def test_validate_paths_accepts_writable_target(home):
     target = home.parent / "ok-target" / "ComfyUI"
     result = manager.validate_paths({"engineDir": str(target)})
     assert result["ok"] is True, result
+
+
+class TestHomeMigration:
+    """09-09 用户裁定:comfyui 家从 <userData>/python/comfyui 上提到 <userData>/comfyui。"""
+
+    def test_legacy_home_adopted_on_cold_start(self, tmp_path, monkeypatch):
+        monkeypatch.delenv("MYSTUDIO_COMFYUI_HOME", raising=False)
+        monkeypatch.setattr(cm, "storage_root", lambda: tmp_path / "python")
+        monkeypatch.setattr(cm, "_home_migrated", False)
+        legacy = tmp_path / "python" / "comfyui"
+        legacy.mkdir(parents=True)
+        (legacy / "manifest.json").write_text(json.dumps({"engine": {"version": "v0.34.6"}}), encoding="utf-8")
+        (legacy / "venv").mkdir()
+
+        cm.ensure_home_migrated()
+
+        home = tmp_path / "comfyui"
+        assert (home / "manifest.json").exists()
+        assert (home / "venv").is_dir()
+        assert not legacy.exists()
+        assert cm.comfy_home() == home
+
+    def test_idempotent_and_skip_when_home_overridden(self, tmp_path, monkeypatch):
+        monkeypatch.setenv("MYSTUDIO_COMFYUI_HOME", str(tmp_path / "custom"))
+        monkeypatch.setattr(cm, "storage_root", lambda: tmp_path / "python")
+        monkeypatch.setattr(cm, "_home_migrated", False)
+        legacy = tmp_path / "python" / "comfyui"
+        legacy.mkdir(parents=True)
+        (legacy / "manifest.json").write_text("{}", encoding="utf-8")
+
+        cm.ensure_home_migrated()  # HOME 覆写=不迁
+        assert legacy.exists()
+        assert not (tmp_path / "comfyui").exists()
