@@ -8,12 +8,13 @@
 // - 运行中(port 就绪) → webview 指向 http://127.0.0.1:<port>/
 // 该 tab 也是后续阶段(业务自定义节点/画布主体切换)的调试台。
 
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
 import { Loader2, PlayCircle, ServerCog, Settings2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { useComfyEngineSettings } from "@/components/panels/settings/comfy-engine/useComfyEngineSettings";
 import { getComfyEngineClient } from "@/components/panels/settings/comfy-engine/comfy-engine-contract";
+import { consumeComfyBridgeWritebacks } from "@/lib/assist/image-studio/comfy-bridge-writeback-consumer";
 
 export function ComfyCanvasStudio() {
   // client 引用必须稳定(传入 hook):否则 hook 内 getComfyEngineClient() 每次
@@ -28,6 +29,31 @@ export function ComfyCanvasStudio() {
     isStartingService,
     refreshStatus,
   } = useComfyEngineSettings({ client, pollIntervalMs: 1200 });
+
+  // bridge 回写消费(阶段1):tab 在场即轮询收件箱——收件箱在 sidecar,
+  // 引擎停着也可能有积压(上轮画布出图未消费);重叠轮询用 inFlight 压。
+  useEffect(() => {
+    if (!hasBridge) return;
+    let inFlight = false;
+    let stopped = false;
+    const tick = async () => {
+      if (inFlight || stopped) return;
+      inFlight = true;
+      try {
+        await consumeComfyBridgeWritebacks({ client });
+      } catch {
+        // 消费器内部已吞错并通知;此处兜底静默(轮询面不弹窗轰炸)
+      } finally {
+        inFlight = false;
+      }
+    };
+    void tick();
+    const timer = window.setInterval(() => void tick(), 5000);
+    return () => {
+      stopped = true;
+      window.clearInterval(timer);
+    };
+  }, [client, hasBridge]);
 
   const installing = activeJob?.state === "running" && activeJob.kind === "install";
   const port = status?.port ?? null;

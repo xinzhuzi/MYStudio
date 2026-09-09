@@ -329,6 +329,7 @@ export async function comfyImageUrlToB64(url: string): Promise<string> {
 export async function persistComfyImage(
   b64: string,
   title: string,
+  options: { source?: string; prompt?: string; negativePrompt?: string | null } = {},
 ): Promise<{ url: string | null; mediaId?: string; persisted: boolean }> {
   const projectId = useProjectStore.getState().activeProjectId;
   const now = new Date();
@@ -357,14 +358,14 @@ export async function persistComfyImage(
       relativePath: `media/ai-image/${ledgerMonthFolderOf(stableUrl)}/ledger.json`,
       entry: {
         ts: Date.now(),
-        prompt: title,
+        prompt: options.prompt ?? title,
         model: "comfy",
         file: `${ledgerMonthFolderOf(stableUrl)}/${ledgerFilenameOf(stableUrl)}`,
-        negativePrompt: null,
+        negativePrompt: options.negativePrompt ?? null,
         aspectRatio: "",
         resolution: null,
         references: [],
-        source: "comfy-node",
+        source: options.source ?? "comfy-node",
       },
     }).catch(() => undefined);
   }

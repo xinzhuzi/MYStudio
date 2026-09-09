@@ -286,6 +286,37 @@ export interface ComfyEngineClient {
   listSnapshots(): Promise<ComfySnapshotEntry[]>;
   /** 修改性能档/加速方式(启动参数的大白话翻译落账,重启引擎生效)。 */
   setLaunchArgs(args: { vramPolicy?: "auto" | "gpu-only" | "reserve-vram"; reserveVramGb?: number | null; attentionMode?: "auto" | "pytorch-cross-attention" }): Promise<ComfyEngineAckReply>;
+  /** bridge 回写收件箱(09-09 swap 阶段1):manying_generated 落 sidecar 的成图项。 */
+  getBridgeWritebacks(cursor: number): Promise<ComfyBridgeWritebacksReply | null>;
+  /** 消费确认:删除 ≤upTo 的收件项(落账成功后调用)。 */
+  ackBridgeWritebacks(upTo: number): Promise<number | null>;
+  /** 自研节点包手动同步(装/更新链自动;引擎运行中返回 restartRequired)。 */
+  syncManyingNodes(): Promise<ComfyManyingSyncReply | null>;
+}
+
+/** bridge 回写收件项(引擎 manying_generated → sidecar;渲染层消费)。 */
+export interface ComfyBridgeWritebackItem {
+  id: number;
+  client?: string;
+  shotTarget?: string;
+  prompt?: string;
+  meta?: Record<string, unknown>;
+  ts?: number;
+  /** 轮询 include_image=1 时携带(PNG base64);瘦轮询省略。 */
+  imageB64?: string;
+}
+
+export interface ComfyBridgeWritebacksReply {
+  cursor: number;
+  items: ComfyBridgeWritebackItem[];
+}
+
+export interface ComfyManyingSyncReply {
+  copied: number;
+  source?: string;
+  target?: string;
+  /** 引擎运行中同步=文件已拷但需重启才加载新节点。 */
+  restartRequired?: boolean;
 }
 
 /** 快照条目(引擎卡快照区展示)。 */

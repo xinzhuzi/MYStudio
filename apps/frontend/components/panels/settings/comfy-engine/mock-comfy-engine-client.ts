@@ -1,3 +1,4 @@
+import type { ComfyBridgeWritebacksReply, ComfyManyingSyncReply } from "./comfy-engine-contract";
 // ComfyUI 引擎 mock client——后端(流A)落地前的 UI 开发/测试数据源。
 //
 // 实现与真实 client 同一 ComfyEngineClient 接口(契约十一节),可整体注入
@@ -488,6 +489,15 @@ export function createMockComfyEngineClient(
 
     async setLaunchArgs(): Promise<{ accepted: boolean; message?: string }> {
       return { accepted: true };
+    },
+    async getBridgeWritebacks(): Promise<ComfyBridgeWritebacksReply | null> {
+      return { cursor: 0, items: [] };
+    },
+    async ackBridgeWritebacks(): Promise<number | null> {
+      return 0;
+    },
+    async syncManyingNodes(): Promise<ComfyManyingSyncReply | null> {
+      return { copied: 0, restartRequired: false };
     },
 
   async doctor(): Promise<ComfyDoctorReport> {

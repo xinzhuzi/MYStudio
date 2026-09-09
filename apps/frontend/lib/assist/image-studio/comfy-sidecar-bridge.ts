@@ -30,6 +30,8 @@ import type {
   ComfyPluginState,
   ComfyPluginUsageReply,
   ComfySnapshotEntry,
+  ComfyBridgeWritebacksReply,
+  ComfyManyingSyncReply,
 } from "@/components/panels/settings/comfy-engine/comfy-engine-contract";
 import type {
   ComfyWorkflowDeleteScan,
@@ -564,6 +566,32 @@ export function createHttpComfyEngineClient(): ComfyEngineClient {
 
     async setLaunchArgs(args: { vramPolicy?: "auto" | "gpu-only" | "reserve-vram"; reserveVramGb?: number | null; attentionMode?: "auto" | "pytorch-cross-attention" }): Promise<ComfyEngineAckReply> {
       return comfySidecarRequest<ComfyEngineAckReply>("POST", "/comfy/engine/config", { body: { launchArgs: args } });
+    },
+    async getBridgeWritebacks(cursor: number): Promise<ComfyBridgeWritebacksReply | null> {
+      try {
+        return await comfySidecarRequest<ComfyBridgeWritebacksReply>("GET", "/comfy/bridge/writebacks", {
+          query: { cursor: String(cursor), include_image: "1" },
+        });
+      } catch {
+        return null; // 轮询面:失败静默(sidecar 未起=无回写,不算错误)
+      }
+    },
+    async ackBridgeWritebacks(upTo: number): Promise<number | null> {
+      try {
+        const raw = await comfySidecarRequest<{ deleted?: number }>("POST", "/comfy/bridge/writebacks/ack", {
+          body: { upTo },
+        });
+        return raw.deleted ?? 0;
+      } catch {
+        return null; // ack 失败不致命:下次轮询重消费(落账幂等由 checkpointRef 保证)
+      }
+    },
+    async syncManyingNodes(): Promise<ComfyManyingSyncReply | null> {
+      try {
+        return await comfySidecarRequest<ComfyManyingSyncReply>("POST", "/comfy/manying/sync");
+      } catch (error) {
+        return { copied: 0, restartRequired: false, ...(error instanceof Error ? {} : {}) };
+      }
     },
 
     async listPlugins(): Promise<ComfyPluginInfo[]> {
