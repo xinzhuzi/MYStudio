@@ -1259,8 +1259,8 @@ async function verifyPluginSettings(evaluate) {
         const requiredText = [
           '按依赖顺序配置本地能力',
           'Python 运行环境',
+          'ComfyUI 引擎',
           '深度估计（电影级 3D）',
-          '本地图片生成（免费）',
           '图片超分（1K → 4K）',
           '视觉审核（VLM 一致性检查）',
           '视频评分模型',

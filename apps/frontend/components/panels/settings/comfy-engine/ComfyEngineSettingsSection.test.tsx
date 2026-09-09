@@ -43,6 +43,12 @@ const actions = vi.hoisted(() => ({
 vi.mock("sonner", () => ({
   toast: { success: vi.fn(), error: vi.fn(), info: vi.fn() },
 }));
+// 模型页迁入的生图区块:黑盒桩,防其真实 hook 在 jsdom 里的探测副作用。
+vi.mock("../LocalImageSettingsSection", () => ({
+  LocalImageSettingsSection: ({ embedded }: { embedded?: boolean }) => (
+    <div data-testid="image-gen-section">{String(embedded)}</div>
+  ),
+}));
 vi.mock("./useComfyEngineSettings", () => ({
   useComfyEngineSettings: () => ({
     hasBridge: true,
@@ -161,9 +167,10 @@ describe("ComfyEngineSettingsSection 状态机", () => {
     expect(screen.getAllByText(/正在确认引擎状态/).length).toBeGreaterThan(0);
     expect(screen.queryByText(/安装引擎/)).toBeNull();
     expect(screen.queryByText(/首次安装约需数 GB/)).toBeNull();
-    // 09-08 实弹根修:冷启动真空窗里展开卡不能空无一物——四个标签页先挂载,
+    // 09-08 实弹根修:冷启动真空窗里展开卡不能空无一物——标签页先挂载,
     // 页体用占位文案,状态确认后自动填充(否则用户以为没做逻辑)。
-    expect(document.querySelectorAll("[data-comfy-tab]")).toHaveLength(4);
+    // 09-09 增「模型」页置首 → 五页。
+    expect(document.querySelectorAll("[data-comfy-tab]")).toHaveLength(5);
     expect(screen.getByText(/确认后这里会展示版本与更新信息/)).toBeTruthy();
     expect(screen.queryByText(/当前版本/)).toBeNull();
   });
@@ -188,15 +195,20 @@ describe("ComfyEngineSettingsSection 状态机", () => {
 });
 
 describe("ComfyEngineSettingsSection 版本与更新链", () => {
-  it("版本行 + 自动静默检查(无手动按钮);发现新版出「更新到最新」按钮", async () => {
+  it("默认落「模型」页不自动检查;切「更新」页才静默检查,发现新版出「更新到最新」按钮", async () => {
     scenario.status = readyStatus({ updateAvailable: true, latest: "0.34.5" });
     render(<ComfyEngineSettingsSection embedded />);
 
+    // 09-09 模型页置默认:挂载不触发 GitHub 检查,更新页未激活时版本行不在。
+    expect(actions.checkUpdate).not.toHaveBeenCalled();
+    expect(screen.queryByText(/当前版本/)).toBeNull();
+
+    fireEvent.click(comfyEl("tab", "update"));
     expect(screen.getByText(/当前版本/)).toBeTruthy();
     expect(screen.getByText("0.34.0")).toBeTruthy();
     expect(screen.getByText("可更新到 0.34.5")).toBeTruthy();
 
-    // 更新页默认激活:挂载即自动静默检查一次(照 Comfy Desktop)
+    // 进更新页即自动静默检查一次(照 Comfy Desktop)
     await waitFor(() => expect(actions.checkUpdate).toHaveBeenCalledOnce());
     expect(actions.checkUpdate).toHaveBeenCalledWith({ silent: true });
 
@@ -210,6 +222,7 @@ describe("ComfyEngineSettingsSection 版本与更新链", () => {
   it("同 release 但 master 领先:徽章「可更新(+N 个新提交)」+ 更新按钮(09-09 提交口径)", () => {
     scenario.status = readyStatus({ updateAvailable: true, latest: "0.34.0", aheadBy: 87 });
     render(<ComfyEngineSettingsSection embedded />);
+    fireEvent.click(comfyEl("tab", "update"));
 
     expect(screen.getByText("可更新(+87 个新提交)")).toBeTruthy();
     expect(screen.getByRole("button", { name: /更新到最新/ })).toBeTruthy();
@@ -220,6 +233,7 @@ describe("ComfyEngineSettingsSection 版本与更新链", () => {
     window.appUpdater = { openExternalLink } as unknown as typeof window.appUpdater;
     scenario.status = readyStatus({ version: "v0.34.6" });
     render(<ComfyEngineSettingsSection embedded />);
+    fireEvent.click(comfyEl("tab", "update"));
 
     const link = comfyEl("version-link");
     expect(link.getAttribute("title")).toBe("https://github.com/Comfy-Org/ComfyUI/tree/v0.34.6");
@@ -235,6 +249,7 @@ describe("ComfyEngineSettingsSection 版本与更新链", () => {
       lastCheckAt: new Date(2026, 8, 8, 10, 30).getTime(),
     });
     render(<ComfyEngineSettingsSection embedded />);
+    fireEvent.click(comfyEl("tab", "update"));
 
     expect(screen.getByText("已是最新")).toBeTruthy();
     expect(comfyQuery("last-check")).toBeNull();
@@ -244,6 +259,7 @@ describe("ComfyEngineSettingsSection 版本与更新链", () => {
   it("没查过:不出已是最新徽章", () => {
     scenario.status = readyStatus({}); // latest=null:从没查过
     render(<ComfyEngineSettingsSection embedded />);
+    fireEvent.click(comfyEl("tab", "update"));
 
     expect(screen.queryByText("已是最新")).toBeNull();
   });
@@ -251,6 +267,7 @@ describe("ComfyEngineSettingsSection 版本与更新链", () => {
   it("切走再切回更新页不重复自动检查(ref 防重)", async () => {
     scenario.status = readyStatus({});
     render(<ComfyEngineSettingsSection embedded />);
+    fireEvent.click(comfyEl("tab", "update"));
 
     await waitFor(() => expect(actions.checkUpdate).toHaveBeenCalledOnce());
     fireEvent.click(comfyEl("tab", "launch"));
@@ -478,9 +495,11 @@ describe("ComfyEngineSettingsSection 标签页布局(照 ComfyUI Desktop)", () =
     scenario.snapshots = [];
   });
 
-  it("标签栏四页(更新/启动参数/快照/存储)渲染,更新页含 PyTorch 版本块", async () => {
+  it("标签栏五页(模型/更新/启动参数/快照/存储)渲染,更新页含 PyTorch 版本块", async () => {
     render(<ComfyEngineSettingsSection />);
+    fireEvent.click(comfyEl("tab", "update"));
     await waitFor(() => expect(screen.getByText("当前版本")).toBeTruthy());
+    expect(comfyEl("tab", "models")).toBeTruthy();
     expect(comfyEl("tab", "update")).toBeTruthy();
     expect(comfyEl("tab", "launch")).toBeTruthy();
     expect(comfyEl("tab", "snapshots")).toBeTruthy();
@@ -490,6 +509,7 @@ describe("ComfyEngineSettingsSection 标签页布局(照 ComfyUI Desktop)", () =
 
   it("启动参数页:端口+显存策略/加速方式下拉,保存传档位", async () => {
     render(<ComfyEngineSettingsSection />);
+    fireEvent.click(comfyEl("tab", "update"));
     await waitFor(() => expect(screen.getByText("当前版本")).toBeTruthy());
     fireEvent.click(comfyEl("tab", "launch"));
     expect(comfyEl("port-input")).toBeTruthy();
@@ -512,6 +532,7 @@ describe("ComfyEngineSettingsSection 标签页布局(照 ComfyUI Desktop)", () =
       { id: "snap-9", createdAt: 1788835819800, reason: "plugin-uninstall:rgthree-comfy", version: "v0.34.6", full: false },
     ];
     render(<ComfyEngineSettingsSection />);
+    fireEvent.click(comfyEl("tab", "update"));
     await waitFor(() => expect(screen.getByText("当前版本")).toBeTruthy());
     fireEvent.click(comfyEl("tab", "snapshots"));
     await waitFor(() => expect(screen.getByText(/卸载插件 rgthree-comfy 前/)).toBeTruthy());
@@ -523,11 +544,53 @@ describe("ComfyEngineSettingsSection 标签页布局(照 ComfyUI Desktop)", () =
 
   it("存储页:模型目录输入+保存", async () => {
     render(<ComfyEngineSettingsSection />);
+    fireEvent.click(comfyEl("tab", "update"));
     await waitFor(() => expect(screen.getByText("当前版本")).toBeTruthy());
     fireEvent.click(comfyEl("tab", "storage"));
     expect(comfyEl("models-dir-input")).toBeTruthy();
     fireEvent.change(comfyEl("models-dir-input"), { target: { value: "/Users/x/models" } });
     fireEvent.click(comfyEl("models-dir-save"));
     await waitFor(() => expect(actions.setModelsDir).toHaveBeenCalledWith("/Users/x/models"));
+  });
+});
+
+// ── 09-09-comfy-model-tab:模型页(本地大模型展示并入引擎卡) ──
+describe("ComfyEngineSettingsSection 模型页", () => {
+  it("默认落「模型」页:图片大模型子区在,不触发 GitHub 检查,版本行不在", () => {
+    scenario.status = readyStatus();
+    render(<ComfyEngineSettingsSection embedded />);
+
+    expect(comfyEl("models-page")).toBeTruthy();
+    expect(screen.getByText("图片大模型(本地生图,免费)")).toBeTruthy();
+    expect(screen.getByTestId("image-gen-section").textContent).toBe("true");
+    expect(actions.checkUpdate).not.toHaveBeenCalled();
+    expect(screen.queryByText(/当前版本/)).toBeNull();
+  });
+
+  it("引擎状态未知:模型页照常渲染(不复现 09-08 真空窗空卡)", () => {
+    scenario.status = null;
+    render(<ComfyEngineSettingsSection embedded />);
+
+    expect(comfyEl("models-page")).toBeTruthy();
+    expect(screen.getByTestId("image-gen-section").textContent).toBe("true");
+  });
+
+  it("initialActiveTab=\"update\":挂载直落更新页并自动静默检查(去更新深链)", async () => {
+    scenario.status = readyStatus({});
+    render(<ComfyEngineSettingsSection embedded initialActiveTab="update" />);
+
+    expect(screen.getByText(/当前版本/)).toBeTruthy();
+    expect(comfyQuery("models-page")).toBeNull();
+    await waitFor(() => expect(actions.checkUpdate).toHaveBeenCalledOnce());
+  });
+
+  it("已挂载时 initialActiveTab 变化切页(深链补发场景)", () => {
+    scenario.status = readyStatus({});
+    const { rerender } = render(<ComfyEngineSettingsSection embedded />);
+    expect(comfyEl("models-page")).toBeTruthy();
+
+    rerender(<ComfyEngineSettingsSection embedded initialActiveTab="update" />);
+    expect(screen.getByText(/当前版本/)).toBeTruthy();
+    expect(comfyQuery("models-page")).toBeNull();
   });
 });

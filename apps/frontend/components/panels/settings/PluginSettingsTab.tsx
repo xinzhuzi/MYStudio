@@ -8,7 +8,6 @@ import {
   ChevronDown,
   Clapperboard,
   Gauge,
-  Image as ImageIcon,
   Layers,
   Plug,
   ScanEye,
@@ -32,7 +31,7 @@ import { useUpscaleRuntimeSettings } from "./useUpscaleRuntimeSettings";
 import { useSfxGenRuntimeSettings } from "./useSfxGenRuntimeSettings";
 import { useVideoQcRuntimeSettings } from "./useVideoQcRuntimeSettings";
 import { PythonSettingsTab } from "./PythonSettingsTab";
-import { ComfyEngineSettingsSection } from "./comfy-engine/ComfyEngineSettingsSection";
+import { ComfyEngineSettingsSection, type ComfyEngineTab } from "./comfy-engine/ComfyEngineSettingsSection";
 import {
   REVEAL_SETTINGS_SECTION_EVENT,
   consumePendingRevealSection,
@@ -44,7 +43,6 @@ import {
 } from "./comfy-engine/comfy-engine-contract";
 import { useComfyEngineSettings } from "./comfy-engine/useComfyEngineSettings";
 import { DepthSettingsSection } from "./DepthSettingsSection";
-import { LocalImageSettingsSection } from "./LocalImageSettingsSection";
 import { UpscaleSettingsSection } from "./UpscaleSettingsSection";
 import { VlmReviewSettingsSection } from "./VlmReviewSettingsSection";
 import { VideoQcSettingsSection } from "./VideoQcSettingsSection";
@@ -62,7 +60,6 @@ const SECTION_IDS = [
   "python",
   "comfy-engine",
   "depth",
-  "image-gen",
   "upscale",
   "vlm-review",
   "video-qc",
@@ -218,8 +215,9 @@ function CapabilityGroup({ label, children }: CapabilityGroupProps) {
 }
 
 /**
- * 统一的本地能力配置页。四个分组按依赖顺序排列:基础运行时(Python 是地基)
- * → 图像能力(视觉模型都跑在 Python 上)→ 声音 → 视频生产插件。
+ * 统一的本地能力配置页。分组按依赖顺序排列:基础运行时(Python 是地基)
+ * → ComfyUI 引擎(引擎/插件/本地大模型)→ 图像能力(Python 侧视觉工具)
+ * → 声音 → 视频生产插件。
  *
  * 行级状态胶囊只做挂载期一次性探测,并在折叠行/一键准备后重探,不做常驻
  * 轮询——下载进度等实时状态仍由各区块展开内容自行展示。模型下载政策不变:
@@ -239,6 +237,9 @@ export function PluginSettingsTab() {
   const [isPreparing, setIsPreparing] = useState(false);
   // 区块行折叠:默认全折叠(08-18 用户拍板),手动展开/折叠后 localStorage 记忆。
   const [collapsedSections, setCollapsedSections] = useState<Set<string>>(() => readCollapsedSections());
+  // 深链目标页(「去更新」→ "update"):只在 reveal 时生效;用户手动折叠/展开
+  // 引擎卡后清空,避免旧深链让下次手动展开误落到过期页面。
+  const [revealTab, setRevealTab] = useState<ComfyEngineTab | null>(null);
 
   const refreshRowStatuses = () => {
     void depth.probeRuntime();
@@ -274,22 +275,24 @@ export function PluginSettingsTab() {
   }, [comfyHasBridge, comfyStatusKnown, imageGenSidecarUp, comfyRefreshStatus]);
 
   // 编程式直达分区(09-08 更新提醒链「去更新」按钮):广播事件 + 挂载期
-  // pending 兜底(事件可能早于本 tab 挂载),展开对应折叠行。
+  // pending 兜底(事件可能早于本 tab 挂载),展开对应折叠行;detail.tab 可带
+  // 引擎卡目标页(09-09 模型页并入后深链需直落「更新」页)。
   useEffect(() => {
-    const revealSection = (sectionId: string) => {
+    const revealSection = (sectionId: string, tab?: string) => {
       setCollapsedSections((previous) => {
         if (!previous.has(sectionId)) return previous;
         const next = new Set(previous);
         next.delete(sectionId);
         return next;
       });
+      if (sectionId === "comfy-engine") setRevealTab((tab as ComfyEngineTab | undefined) ?? null);
     };
     const onReveal = (event: Event) => {
-      const sectionId = (event as CustomEvent<{ sectionId?: string }>).detail?.sectionId;
-      if (sectionId) revealSection(sectionId);
+      const detail = (event as CustomEvent<{ sectionId?: string; tab?: string }>).detail;
+      if (detail?.sectionId) revealSection(detail.sectionId, detail.tab);
     };
     const pending = consumePendingRevealSection();
-    if (pending) revealSection(pending);
+    if (pending) revealSection(pending.sectionId, pending.tab);
     window.addEventListener(REVEAL_SETTINGS_SECTION_EVENT, onReveal);
     return () => {
       window.removeEventListener(REVEAL_SETTINGS_SECTION_EVENT, onReveal);
@@ -308,6 +311,8 @@ export function PluginSettingsTab() {
       }
       return next;
     });
+    // 手动切页视为深链过期:清 reveal 目标页,下次展开回默认「模型」页。
+    if (sectionId === "comfy-engine") setRevealTab(null);
     // 展开或收起都重探行级状态,吸收用户在别处(配音室/生成链)刚发生的启停。
     refreshRowStatuses();
   };
@@ -424,16 +429,8 @@ export function PluginSettingsTab() {
             ? "blocked"
             : "checking";
 
-  const imageGenState = imageGen.lifecycleStatus?.state;
-  const imageGenPill: CapabilityPillKind = !imageGen.hasRuntime
-    ? "unsupported"
-    : imageGenState === "ready" || (!imageGen.hasLifecycleBridge && (imageGen.status?.setupStage === "ready" || imageGen.status?.running))
-      ? "ready"
-      : imageGenState === "needs-runtime"
-        ? "needs-runtime"
-        : imageGenState === "blocked" || imageGenState === "error"
-          ? "blocked"
-          : "checking";
+  // imageGen 行已撤(09-09 模型页并入引擎卡),但 tab 级 hook 保留:挂载探测
+  // + 引擎卡胶囊补探 effect 依赖它的 sidecar ready 信号(见上方 effect)。
 
   const upscaleState = upscale.lifecycleStatus?.state ?? upscale.status?.state;
   const upscaleModelDownloaded = upscale.lifecycleStatus?.modelDownloaded
@@ -520,7 +517,7 @@ export function PluginSettingsTab() {
               本地配置
             </h3>
             <p className="mt-1.5 text-sm leading-6 text-muted-foreground">
-              按依赖顺序配置本地能力：Python 运行环境 → 各能力模型 → 声音 → 视频插件。模型仅在点击下载时获取，绝不自动下载。
+              按依赖顺序配置本地能力：Python 运行环境 → ComfyUI 引擎与模型 → 视觉工具 → 声音 → 视频插件。模型仅在点击下载时获取，绝不自动下载。
             </p>
           </div>
           <Button onClick={() => void prepareByPriority()} disabled={isPreparing || !python.hasRuntime}>
@@ -544,8 +541,9 @@ export function PluginSettingsTab() {
         </CapabilityGroup>
 
         {/* 09-09 拆组(comfyui-frontend-swap 0a):ComfyUI 引擎独立分组——
-            自管实例自成体系(独立引擎+独立 venv+插件生态),不再挂在 Python
-            地基组下;存储位置配置在引擎卡「存储」标签页 */}
+            自管实例自成体系(独立引擎+独立venv+插件生态+本地大模型),不再挂在
+            Python 地基组下;存储位置配置在引擎卡「存储」标签页,本地大模型展示
+            在引擎卡「模型」标签页(09-09-comfy-model-tab) */}
         <CapabilityGroup label="ComfyUI 引擎">
           <CapabilityRow
             sectionId="comfy-engine"
@@ -557,7 +555,7 @@ export function PluginSettingsTab() {
             collapsed={collapsedSections.has("comfy-engine")}
             onToggle={toggleSectionCollapsed}
           >
-            <ComfyEngineSettingsSection embedded />
+            <ComfyEngineSettingsSection embedded initialActiveTab={revealTab ?? undefined} />
           </CapabilityRow>
         </CapabilityGroup>
 
@@ -574,18 +572,8 @@ export function PluginSettingsTab() {
           >
             <DepthSettingsSection embedded />
           </CapabilityRow>
-          <CapabilityRow
-            sectionId="image-gen"
-            headingId="plugin-image-gen-heading"
-            icon={ImageIcon}
-            title="本地图片生成（免费）"
-            description="本地生图零 API 费用，多引擎可选：Krea2 Turbo（主力,当前唯一就绪引擎;场景优秀,人物面部有色彩偏差建议配合云端或后续修复）/ Z-Image-Turbo / Qwen-Image-Edit 2511（编辑级）。大件直接复用 ComfyUI 现成文件零重下，小件仅首次点击补齐（数百 MB）。准备运行时后，在 设置 → 云端AI 中将「角色生图 / 场景生图 / 道具生图」绑定到「本地图片生成」提供方，即可替代云 API。"
-            pill={imageGenPill}
-            collapsed={collapsedSections.has("image-gen")}
-            onToggle={toggleSectionCollapsed}
-          >
-            <LocalImageSettingsSection embedded />
-          </CapabilityRow>
+          {/* 本地图片生成行已撤(09-09-comfy-model-tab):模型展示整块迁入
+              ComfyUI 引擎卡「模型」标签页,与引擎/插件同卡管理 */}
           <CapabilityRow
             sectionId="upscale"
             headingId="plugin-upscale-heading"

@@ -529,7 +529,7 @@ export function createMusic3GenRuntimeController(deps: ControllerDeps) {
       return {
         status: "blocked",
         code: "lyrics-requires-mlxserv",
-        message: "带人声歌词的生成必须走 mlx-serve(bf16)路线;请在设置 → 本地音乐生成 将首选引擎切到「指向版」(或获取权重)",
+        message: "带人声歌词的生成必须走 mlx-serve(bf16)路线;本地音乐已收敛 ComfyUI,请在画布使用 MiniMax Music 3 节点生成(设置入口已随本地音乐引擎退役)",
       };
     }
     if (requested === "mlxserv") {

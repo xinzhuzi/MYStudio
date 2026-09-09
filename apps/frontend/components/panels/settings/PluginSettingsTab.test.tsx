@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 // A mutable scenario flag so each test can declare whether all layers are
@@ -167,15 +167,12 @@ vi.mock("./comfy-engine/useComfyEngineSettings", () => ({
   }),
 }));
 vi.mock("./comfy-engine/ComfyEngineSettingsSection", () => ({
-  ComfyEngineSettingsSection: ({ embedded }: { embedded?: boolean }) => (
-    <div data-testid="comfy-engine-section">{String(embedded)}</div>
+  ComfyEngineSettingsSection: ({ embedded, initialActiveTab }: { embedded?: boolean; initialActiveTab?: string }) => (
+    <div data-testid="comfy-engine-section">{String(embedded)}{initialActiveTab ? `:${initialActiveTab}` : ""}</div>
   ),
 }));
 vi.mock("./DepthSettingsSection", () => ({
   DepthSettingsSection: ({ embedded }: { embedded?: boolean }) => <div data-testid="depth-section">{String(embedded)}</div>,
-}));
-vi.mock("./LocalImageSettingsSection", () => ({
-  LocalImageSettingsSection: ({ embedded }: { embedded?: boolean }) => <div data-testid="image-gen-section">{String(embedded)}</div>,
 }));
 vi.mock("./UpscaleSettingsSection", () => ({
   UpscaleSettingsSection: ({ embedded }: { embedded?: boolean }) => <div data-testid="upscale-section">{String(embedded)}</div>,
@@ -194,6 +191,7 @@ vi.mock("./RenderingSettingsTab", () => ({
 }));
 
 import { PluginSettingsTab } from "./PluginSettingsTab";
+import { REVEAL_SETTINGS_SECTION_EVENT } from "./comfy-engine/comfy-engine-update-reminder";
 
 afterEach(() => {
   cleanup();
@@ -205,13 +203,13 @@ afterEach(() => {
   scenario.videoReady = true;
 });
 
-/** 08-28 布局重做后:四个分组标签是普通文本,页内标题 = 本地配置 + 11 行区块(09-08 增 ComfyUI 引擎)。 */
+/** 08-28 布局重做后:分组标签是普通文本。09-09 起:音乐行随 music3 收敛 ComfyUI 撤
+ * (09-09-music3-to-comfyui),生图行随模型页并入引擎卡撤(09-09-comfy-model-tab)。 */
 const EXPECTED_ROW_HEADINGS = [
   "本地配置",
   "Python 运行环境",
   "ComfyUI 引擎",
   "深度估计（电影级 3D）",
-  "本地图片生成（免费）",
   "图片超分（1K → 4K）",
   "视觉审核（VLM 一致性检查）",
   "视频评分模型",
@@ -232,7 +230,6 @@ describe("PluginSettingsTab", () => {
     expect(screen.getAllByText("已就绪").length).toBeGreaterThan(0);
     expect(screen.getByText("不支持")).toBeTruthy();
     expect(screen.getByTestId("python-section").textContent).toBe("true");
-    expect(screen.getByTestId("image-gen-section").textContent).toBe("true");
     expect(screen.getByTestId("upscale-section").textContent).toBe("true");
     expect(screen.getByTestId("sfx-gen-section").textContent).toBe("true");
     expect(await screen.findByTestId("tts-section")).toBeTruthy();
@@ -315,6 +312,25 @@ describe("PluginSettingsTab", () => {
     expect(mocks.setupRuntime).not.toHaveBeenCalled();
     expect(mocks.prepareCurrentWorkflow).not.toHaveBeenCalled();
     expect(mocks.startTtsRuntime).not.toHaveBeenCalled();
+  });
+
+  it("「去更新」深链:引擎行展开且携带 update 目标页;手动折叠再展开回默认页(09-09)", () => {
+    window.localStorage.setItem("mystudio.settings.plugins.collapsedSections", JSON.stringify(["comfy-engine"]));
+    render(<PluginSettingsTab />);
+    expect(screen.queryByTestId("comfy-engine-section")).toBeNull();
+
+    act(() => {
+      window.dispatchEvent(
+        new CustomEvent(REVEAL_SETTINGS_SECTION_EVENT, { detail: { sectionId: "comfy-engine", tab: "update" } }),
+      );
+    });
+    expect(screen.getByTestId("comfy-engine-section").textContent).toBe("true:update");
+
+    // 手动折叠 → 深链目标页过期;再展开回默认(无 :update 后缀)
+    fireEvent.click(screen.getByRole("button", { name: /^ComfyUI 引擎/ }));
+    expect(screen.queryByTestId("comfy-engine-section")).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: /^ComfyUI 引擎/ }));
+    expect(screen.getByTestId("comfy-engine-section").textContent).toBe("true");
   });
 
   it("only prepares the not-ready video layer when Python and TTS are already ready", async () => {

@@ -10,22 +10,23 @@ import { getComfyEngineClient } from "./comfy-engine-contract";
 /** 设置页分区展开广播(PluginSettingsTab 监听;挂载晚于广播时读 pending 兜底)。 */
 export const REVEAL_SETTINGS_SECTION_EVENT = "mystudio:reveal-settings-section";
 
-let pendingRevealSection: string | null = null;
+let pendingRevealSection: { sectionId: string; tab?: string } | null = null;
 
 /** 消费挂起待展开的分区 id(PluginSettingsTab 挂载时调用,防事件早于挂载丢失)。 */
-export function consumePendingRevealSection(): string | null {
+export function consumePendingRevealSection(): { sectionId: string; tab?: string } | null {
   const value = pendingRevealSection;
   pendingRevealSection = null;
   return value;
 }
 
-/** 编程式直达 设置→本地配置→指定分区:切 tab + 请 plugins 页 + 展开分区行。 */
-export function openSettingsSection(sectionId: string): void {
+/** 编程式直达 设置→本地配置→指定分区:切 tab + 请 plugins 页 + 展开分区行。
+ *  tab 为可选的引擎卡目标标签页(如更新提醒传 "update",展开后直落该页)。 */
+export function openSettingsSection(sectionId: string, tab?: string): void {
   const navigation = useMediaPanelStore.getState();
   navigation.setActiveTab("settings");
   navigation.requestSettingsTab("plugins");
-  pendingRevealSection = sectionId;
-  window.dispatchEvent(new CustomEvent(REVEAL_SETTINGS_SECTION_EVENT, { detail: { sectionId } }));
+  pendingRevealSection = { sectionId, tab };
+  window.dispatchEvent(new CustomEvent(REVEAL_SETTINGS_SECTION_EVENT, { detail: { sectionId, tab } }));
 }
 
 /**
@@ -45,7 +46,7 @@ export async function remindComfyEngineUpdateOnce(): Promise<void> {
     if (!check.updateAvailable) return;
     toast.info("ComfyUI 引擎有新版本", {
       description: check.latest ? `可更新到 ${check.latest}(当前 ${check.current ?? "未知"})` : undefined,
-      action: { label: "去更新", onClick: () => openSettingsSection("comfy-engine") },
+      action: { label: "去更新", onClick: () => openSettingsSection("comfy-engine", "update") },
     });
   } catch {
     // 静默失败(网络错/服务缺席不打扰);仅启动一次,不重试不轮询。

@@ -4,6 +4,7 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
+  REVEAL_SETTINGS_SECTION_EVENT,
   consumePendingRevealSection,
   openSettingsSection,
   remindComfyEngineUpdateOnce,
@@ -104,7 +105,22 @@ describe("openSettingsSection(直达设置分区)", () => {
     const state = useMediaPanelStore.getState();
     expect(state.activeTab).toBe("settings");
     expect(state.settingsTabRequest).toBe("plugins");
-    expect(consumePendingRevealSection()).toBe("comfy-engine");
+    expect(consumePendingRevealSection()).toEqual({ sectionId: "comfy-engine" });
     expect(consumePendingRevealSection()).toBeNull(); // 消费一次即清
+  });
+
+  it("带 tab 深链(09-09 去更新直落更新页):事件 detail 与挂起值都携带目标页", () => {
+    let eventDetail: { sectionId?: string; tab?: string } | null = null;
+    const onReveal = (event: Event) => {
+      eventDetail = (event as CustomEvent<{ sectionId?: string; tab?: string }>).detail;
+    };
+    window.addEventListener(REVEAL_SETTINGS_SECTION_EVENT, onReveal);
+    try {
+      openSettingsSection("comfy-engine", "update");
+    } finally {
+      window.removeEventListener(REVEAL_SETTINGS_SECTION_EVENT, onReveal);
+    }
+    expect(eventDetail).toEqual({ sectionId: "comfy-engine", tab: "update" });
+    expect(consumePendingRevealSection()).toEqual({ sectionId: "comfy-engine", tab: "update" });
   });
 });

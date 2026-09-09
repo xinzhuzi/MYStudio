@@ -1,6 +1,6 @@
 "use client";
 
-// ComfyUI 引擎卡(设置 → 本地配置 → 基础运行时)。
+// ComfyUI 引擎卡(设置 → 本地配置 → ComfyUI 引擎分组)。
 //
 // 自管实例(grill Q1/Q2):漫影工作室托管自己的 ComfyUI,全新下载取最新 release,
 // 与用户手装的 ComfyUI Desktop 无关(不接管不修改不绑定)。点击才下载,绝不自动下载。
@@ -46,9 +46,16 @@ import {
 import { ComfyEnginePluginBlock } from "./ComfyEnginePluginBlock";
 import { ComfyEngineStoragePaths } from "./ComfyEngineStoragePaths";
 import { useComfyEngineSettings } from "./useComfyEngineSettings";
+import { LocalImageSettingsSection } from "../LocalImageSettingsSection";
+
+/** 引擎卡标签页。「模型」为默认页(09-09 用户裁定:本地大模型展示并入引擎卡;
+ *  默认落模型页 → 展开卡不再自动触发 GitHub 检查,点「更新」页才查)。 */
+export type ComfyEngineTab = "models" | "update" | "launch" | "snapshots" | "storage";
 
 type ComfyEngineSettingsSectionProps = {
   embedded?: boolean;
+  /** 深链目标页(「去更新」传 "update");组件已挂载时值变化也会切页。 */
+  initialActiveTab?: ComfyEngineTab;
 };
 
 const copyPath = async (path: string) => {
@@ -181,16 +188,21 @@ function snapshotReasonLabel(reason: string): string {
   return reason || "手动";
 }
 
-export function ComfyEngineSettingsSection({ embedded = false }: ComfyEngineSettingsSectionProps) {
+export function ComfyEngineSettingsSection({ embedded = false, initialActiveTab }: ComfyEngineSettingsSectionProps) {
   const engine = useComfyEngineSettings();
   const status = engine.status;
   const [modelsDirDraft, setModelsDirDraft] = useState("");
   const [confirmReset, setConfirmReset] = useState(false);
-  // 标签页(照 ComfyUI Desktop 设置布局:更新/启动参数/快照/存储)
-  const [activeTab, setActiveTab] = useState<"update" | "launch" | "snapshots" | "storage">("update");
+  // 标签页(照 ComfyUI Desktop 设置布局,09-09 增「模型」页并置首:本地大模型展示)
+  const [activeTab, setActiveTab] = useState<ComfyEngineTab>(initialActiveTab ?? "models");
   const [vramDraft, setVramDraft] = useState("");
   const [attentionDraft, setAttentionDraft] = useState("");
   const [reserveDraft, setReserveDraft] = useState("");
+
+  // 深链切页:卡已展开时收到 reveal(如再次点「去更新」)也要切到目标页。
+  useEffect(() => {
+    if (initialActiveTab) setActiveTab(initialActiveTab);
+  }, [initialActiveTab]);
 
   // 模型目录草稿跟随真实状态(未编辑过时)。
   useEffect(() => {
@@ -362,9 +374,10 @@ export function ComfyEngineSettingsSection({ embedded = false }: ComfyEngineSett
             </div>
           )}
 
-          {/* 标签栏(照 ComfyUI Desktop 设置页布局:更新/启动参数/快照/存储) */}
+          {/* 标签栏(照 ComfyUI Desktop 设置页布局;09-09 增「模型」页并置首) */}
           <div className="flex flex-wrap gap-1 border-b border-border pb-2" data-comfy-tabs>
             {([
+              ["models", "模型"],
               ["update", "更新"],
               ["launch", "启动参数"],
               ["snapshots", "快照"],
@@ -389,6 +402,23 @@ export function ComfyEngineSettingsSection({ embedded = false }: ComfyEngineSett
               </button>
             ))}
           </div>
+
+          {/* 模型页:本地大模型展示与管理(09-09 用户裁定并入引擎卡)。放在
+              status 条件块外——引擎状态未知(sidecar 未起)时模型行照常可看,
+              不复现 09-08 修过的「真空窗空卡」。本地音乐模型已随 music3 收敛
+              ComfyUI 云端节点退役(09-09-music3-to-comfyui C 段),本页现管
+              图片大模型;后续视频等模态在此加子区。 */}
+          {activeTab === "models" ? (
+            <div className="space-y-5" data-comfy-models-page>
+              <section aria-label="图片大模型" className="space-y-1.5">
+                <p className="text-xs font-medium text-foreground">图片大模型(本地生图,免费)</p>
+                <p className="text-xs leading-5 text-muted-foreground">
+                  大件直接复用 ComfyUI 现成文件零重下,小件首次点击补齐;就绪后在 设置 → 云端AI 把「角色/场景/道具生图」绑定到「本地图片生成」提供方,即可替代云 API。
+                </p>
+                <LocalImageSettingsSection embedded />
+              </section>
+            </div>
+          ) : null}
 
           {/* 页体:状态确认后渲染四个标签页;未知=占位(结构先到,内容后到) */}
           {status ? (
