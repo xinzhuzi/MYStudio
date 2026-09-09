@@ -424,7 +424,7 @@ export function ComfyEngineSettingsSection({ embedded = false }: ComfyEngineSett
               <div className="rounded-lg border border-border bg-card/60 p-3" data-comfy-update-block>
                 {/* 版本行:当前版本 + 徽章(检查中/可更新/已是最新)+ 可更新时的更新按钮 */}
                 <div className="flex flex-wrap items-center justify-between gap-3">
-                  <p className="flex flex-wrap items-center gap-2 text-sm font-medium text-foreground" data-comfy-version-row>
+                  <p className="flex min-w-0 flex-1 flex-wrap items-center gap-2 text-sm font-medium text-foreground" data-comfy-version-row>
                     当前版本 <span className="font-mono">{status.version ?? "未知"}</span>
                     {(() => {
                       const url = comfyVersionGithubUrl(status.version);
@@ -463,8 +463,9 @@ export function ComfyEngineSettingsSection({ embedded = false }: ComfyEngineSett
                       </span>
                     ) : null}
                   </p>
+                  {/* shrink-0:不被长版本行文本层盖住点击区(09-09 实弹:elementFromPoint 命中文本 DIV 致按钮点不到) */}
                   {status.updateAvailable ? (
-                    <Button size="sm" onClick={() => void engine.updateEngine()} disabled={updating}>
+                    <Button size="sm" className="shrink-0" onClick={() => void engine.updateEngine()} disabled={updating}>
                       {updating ? (
                         <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden />
                       ) : (
