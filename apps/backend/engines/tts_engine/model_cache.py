@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 
-import model_cache_core as _core
+from common import model_cache_core as _core
 from .catalog import TtsModel
 
 

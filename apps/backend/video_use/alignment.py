@@ -252,7 +252,7 @@ def _snapshot_for_repo(repo_id: str) -> Path:
         cache_dirs.append(configured_cache / "hub")
     elif configured_cache.name != "hub":
         cache_dirs.append(configured_cache / "hub")
-    from model_cache_core import find_weight_repo, has_repo_files, repo_cache_dir
+    from common.model_cache_core import find_weight_repo, has_repo_files, repo_cache_dir
 
     if repo_id == ALIGNMENT_TOKENIZER_REPO:
         if not has_repo_files(repo_id, ("tokenizer.json",), cache_dirs):

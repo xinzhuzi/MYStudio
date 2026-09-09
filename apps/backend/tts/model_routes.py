@@ -124,7 +124,7 @@ class ModelRoutesMixin:
                 monitor.start()
                 try:
                     try:
-                        from modelscope_hub import download_repo_to_hf_cache
+                        from common.modelscope_hub import download_repo_to_hf_cache
 
                         # ModelScope 原生直链(实测 4-18MB/s);仓未镜像时抛异常回退 HF。
                         # 勿改回 snapshot_download(endpoint="https://modelscope.cn"):
@@ -134,7 +134,7 @@ class ModelRoutesMixin:
                         snapshot_download(repo_id=model.hf_repo_id, cache_dir=cache_dir)
                     if model_name == ALIGNMENT_MODEL_NAME:
                         try:
-                            from modelscope_hub import download_repo_to_hf_cache
+                            from common.modelscope_hub import download_repo_to_hf_cache
 
                             download_repo_to_hf_cache(ALIGNMENT_TOKENIZER_REPO, cache_dir)
                         except Exception:

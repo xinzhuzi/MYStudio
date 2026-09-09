@@ -75,7 +75,7 @@ def download_model(model_name: str, progress_path: Path) -> int:
         try:
             try:
                 # ModelScope 直链优先(实测 ~4-18MB/s;endpoint 参数路线协议不兼容从未生效)。
-                from modelscope_hub import download_repo_to_hf_cache
+                from common.modelscope_hub import download_repo_to_hf_cache
 
                 download_repo_to_hf_cache(spec["repo_id"], cache_dir)
             except Exception as exc:

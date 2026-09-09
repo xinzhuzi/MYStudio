@@ -555,7 +555,7 @@ class DownloadModeTests(unittest.TestCase):
 
         return {
             "huggingface_hub": types.SimpleNamespace(snapshot_download=fake_snapshot_download),
-            "modelscope_hub": types.SimpleNamespace(download_repo_to_hf_cache=fake_ms),
+            "common.modelscope_hub": types.SimpleNamespace(download_repo_to_hf_cache=fake_ms),
         }
 
     def _env(self, comfy: str) -> dict[str, str]:
@@ -639,7 +639,7 @@ class DownloadModeTests(unittest.TestCase):
 
         modules = {
             "huggingface_hub": types.SimpleNamespace(snapshot_download=fake_snapshot_download),
-            "modelscope_hub": types.SimpleNamespace(download_repo_to_hf_cache=exploding_ms),
+            "common.modelscope_hub": types.SimpleNamespace(download_repo_to_hf_cache=exploding_ms),
         }
         with patch.dict(sys.modules, modules), patch.dict(os.environ, self._env(str(self._root / "no-comfy"))):
             rc = download_model.download_model(model_cache.QWEN_IMAGE_EDIT_MODEL, self._progress)
@@ -771,7 +771,7 @@ class InventorySourceTests(unittest.TestCase):
 
 class ModelScopeAllowPathsTests(unittest.TestCase):
     def test_allow_paths_downloads_only_listed_files(self) -> None:
-        import modelscope_hub
+        from common import modelscope_hub
 
         captured: dict[str, object] = {}
 

@@ -7,6 +7,8 @@
 
 原理:每个场景在隔离子进程(HOME→临时目录、清 HF*/MYSTUDIO*/MANYING* env)中
 import 包模块、对伪造缓存夹具调用公共函数,输出 JSON 快照;两份快照必须逐字节一致。
+09-09 引擎层统一:model_cache 已迁 engines/<x>_engine/(MOD_PATHS 映射探针落位);
+基线 JSON 不随搬迁重打——对拍通过=搬迁逐字节保行为。
 """
 from __future__ import annotations
 
@@ -34,7 +36,8 @@ pkg = sys.argv[2]
 scenario = sys.argv[3]
 
 import importlib
-m = importlib.import_module(f"{pkg}.model_cache")
+MOD_PATHS = {"tts": "engines.tts_engine", "depth_estimation": "engines.depth_engine", "upscale": "engines.upscale_engine", "video_qc": "engines.video_qc_engine"}
+m = importlib.import_module(f"{MOD_PATHS.get(pkg, pkg)}.model_cache")
 
 def p(v):
     if isinstance(v, Path): return str(v)

@@ -42,7 +42,7 @@ def _nearest_existing_dir(path: Path) -> Path:
 
 
 def _ms_download(repo_id: str, cache_dir: str, allow_paths: list[str]):
-    from modelscope_hub import download_repo_to_hf_cache
+    from common.modelscope_hub import download_repo_to_hf_cache
     download_repo_to_hf_cache(repo_id, cache_dir, allow_paths=allow_paths)
 
 

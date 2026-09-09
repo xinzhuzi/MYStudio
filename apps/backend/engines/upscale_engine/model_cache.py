@@ -14,7 +14,7 @@ import os
 from pathlib import Path
 from typing import TypedDict
 
-import model_cache_core as _core
+from common import model_cache_core as _core
 
 
 class UpscaleModelSpec(TypedDict):

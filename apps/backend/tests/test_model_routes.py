@@ -42,7 +42,7 @@ class ModelRoutesTests(unittest.TestCase):
             sys.modules,
             {
                 "huggingface_hub": types.SimpleNamespace(snapshot_download=snapshot_download),
-                "modelscope_hub": types.SimpleNamespace(download_repo_to_hf_cache=fake_modelscope_download),
+                "common.modelscope_hub": types.SimpleNamespace(download_repo_to_hf_cache=fake_modelscope_download),
             },
         ), patch("tts.model_routes.download_hf_cache_dir", return_value=Path(tmp)):
             ModelRoutesMixin.download_model(handler, "whisper-large-v3-turbo")
