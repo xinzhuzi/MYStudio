@@ -39,7 +39,10 @@ function installClient(client: ComfyEngineClient) {
 }
 
 beforeEach(() => {
-  (window as unknown as { storageManager?: unknown }).storageManager = { selectDirectory };
+  (window as unknown as { storageManager?: unknown }).storageManager = {
+    selectDirectory,
+    getPaths: async () => ({ pythonRuntimeDir: "/Users/demo/Library/Application Support/漫影工作室/python" }),
+  };
   (window as unknown as { electronAPI?: unknown }).electronAPI = { openPath: vi.fn() };
 });
 
@@ -63,32 +66,36 @@ function readyStatus(overrides: Partial<ComfyEngineStatus> = {}): Partial<ComfyE
 }
 
 describe("ComfyEngineStoragePaths(存储位置配置卡)", () => {
-  it("渲染四行目录(引擎/Python运行时/模型/工作流)与默认路径", async () => {
+  it("渲染四行目录(引擎/引擎虚拟环境/模型/工作流)与默认路径", async () => {
     installClient(createMockComfyEngineClient());
     render(<ComfyEngineStoragePaths />);
     await waitFor(() => expect((screen.getByLabelText("引擎目录路径") as HTMLInputElement).value).toContain("/ComfyUI"));
-    expect((screen.getByLabelText("Python 运行时路径") as HTMLInputElement).value).toContain("/venv");
+    expect((screen.getByLabelText("引擎虚拟环境路径") as HTMLInputElement).value).toContain("/venv");
     expect((screen.getByLabelText("工作流目录路径") as HTMLInputElement).value).toContain("/workflows");
     expect((screen.getByLabelText("模型目录路径") as HTMLInputElement).value).toContain("/models");
   });
 
-  it("探测失败(sidecar 未起)静默降级:不弹错误 toast,行内给指路文案", async () => {
-    // 09-09 实弹报障回归锁:探测期「正在确认引擎状态」时不该被错误轰炸
+  it("探测失败(sidecar 未起)静默回落:不弹 toast,默认路径直接写上", async () => {
+    // 09-09 用户裁定回归锁:探测期没必要提示——默认路径直显,等真值
     const base = createMockComfyEngineClient();
+    let failFirst = true;
     installClient({
       ...base,
       getPaths: async () => {
-        throw new Error("本地生图服务未运行,请先在 设置→本地配置 完成「准备运行时」");
+        if (failFirst) {
+          failFirst = false;
+          throw new Error("本地生图服务未运行,请先在 设置→本地配置 完成「准备运行时」");
+        }
+        return base.getPaths();
       },
     });
     render(<ComfyEngineStoragePaths />);
+    // 回落默认路径直显(fallback 从托管 python 布局推导)
     await waitFor(() =>
-      expect(document.querySelector("[data-comfy-paths-load-failed]")).toBeTruthy(),
+      expect((screen.getByLabelText("引擎目录路径") as HTMLInputElement).value).toContain("/python/comfyui/ComfyUI"),
     );
     expect(toasts.error).not.toHaveBeenCalled();
-    expect(
-      (document.querySelector("[data-comfy-paths-load-failed]") as HTMLElement).textContent,
-    ).toContain("本地生图服务");
+    expect((screen.getByLabelText("模型目录路径") as HTMLInputElement).value).toContain("/models");
   });
 
   it("未安装态:选目录→校验→直改落账,界面更新并标「自定义」", async () => {

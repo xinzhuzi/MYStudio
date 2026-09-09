@@ -7,7 +7,7 @@
 // - 引擎运行中:禁改(先停止)
 // 模型目录走既有引擎设置区(modelsDir 纯指针,不在此重复做编辑面)。
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { FolderOpen, Loader2, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -32,11 +32,37 @@ type PathKey = "engineDir" | "venvDir" | "workflowsDir";
 
 const ROWS: Array<{ key: PathKey; label: string; hint: string }> = [
   { key: "engineDir", label: "引擎目录", hint: "ComfyUI 源码与插件(custom_nodes 随引擎整体搬移)" },
-  { key: "venvDir", label: "Python 运行时", hint: "引擎专用虚拟环境(与引擎分开存放;迁移时在新位置重建)" },
+  { key: "venvDir", label: "引擎虚拟环境", hint: "ComfyUI 专用依赖环境 venv(与全局「Python 运行环境」无关;迁移时在新位置重建,依赖走缓存)" },
   { key: "workflowsDir", label: "工作流目录", hint: "内置模板与你的工作流库" },
 ];
 
 const MODELS_ROW = { label: "模型目录", hint: "指向现有模型库即免重下(在上方引擎设置里修改)" };
+
+/** 探测期回落显示的默认路径:与后端 comfy_manifest.storage_root 同口径
+ * (<userData>/python 托管布局 + comfyui 家);仅作显示,真值以服务返回为准。 */
+async function fallbackDefaultPaths(): Promise<ComfyEnginePathsStatus | null> {
+  try {
+    const paths = await window.storageManager?.getPaths?.();
+    const root = paths?.pythonRuntimeDir;
+    if (!root) return null;
+    const home = `${root.replace(/\/$/, "")}/comfyui`;
+    const paths2 = {
+      engineDir: `${home}/ComfyUI`,
+      venvDir: `${home}/venv`,
+      modelsDir: `${home}/models`,
+      workflowsDir: `${home}/workflows`,
+    };
+    return {
+      installed: false,
+      running: false,
+      paths: paths2,
+      defaults: paths2,
+      customized: { engineDir: false, venvDir: false, modelsDir: false, workflowsDir: false },
+    };
+  } catch {
+    return null;
+  }
+}
 
 export function ComfyEngineStoragePaths() {
   // client 引用必须稳定:getComfyEngineClient() 每次渲染返回新 HTTP client,
@@ -44,20 +70,27 @@ export function ComfyEngineStoragePaths() {
   const client = useMemo(() => getComfyEngineClient(), []);
   const [status, setStatus] = useState<ComfyEnginePathsStatus | null>(null);
   const [loading, setLoading] = useState(false);
-  const [loadFailed, setLoadFailed] = useState<string | null>(null);
   const [migrateJob, setMigrateJob] = useState<ComfyEngineJob | null>(null);
   const [pendingMigrate, setPendingMigrate] = useState<{ key: PathKey; path: string } | null>(null);
+  // 探测失败回落默认路径后,延时重试一次拉真值(引擎卡挂载会拉起本地服务,
+  // 通常 2-3 秒内就绪);只重试一次,不形成轮询
+  const retryRef = useRef(false);
 
   const refresh = useCallback(async () => {
     if (!client) return;
     setLoading(true);
     try {
       setStatus(await client.getPaths());
-      setLoadFailed(null);
-    } catch (error) {
-      // 静默降级到行内错误态:探测期(sidecar 未起/启动中)弹 toast 是时机
-      // 错误——用户在等「确认引擎状态」,不该被错误轰炸(09-09 实弹报障)
-      setLoadFailed(error instanceof Error ? error.message : "读取存储位置失败");
+    } catch {
+      // 探测期失败(本地生图服务未起)静默回落:默认路径直显,不弹提示行
+      // (09-09 用户裁定「没必要提示,默认把路径写上去」);服务起来后由
+      // 引擎卡状态变化触发手动刷新替换为实际值
+      const fallback = await fallbackDefaultPaths();
+      if (fallback) setStatus(fallback);
+      if (!retryRef.current) {
+        retryRef.current = true;
+        window.setTimeout(() => void refresh(), 2500);
+      }
     } finally {
       setLoading(false);
     }
@@ -143,7 +176,7 @@ export function ComfyEngineStoragePaths() {
         <div>
           <h4 className="text-sm font-medium text-foreground">存储位置</h4>
           <p className="text-xs text-muted-foreground">
-            引擎装在哪个盘、Python 运行时放哪,都可自定义(引擎运行中不可修改)
+            引擎装在哪个盘、虚拟环境放哪,都可自定义(引擎运行中不可修改)
           </p>
         </div>
         <Button size="sm" variant="ghost" onClick={() => void refresh()} disabled={loading} aria-label="刷新存储位置">
@@ -222,12 +255,6 @@ export function ComfyEngineStoragePaths() {
           </div>
         </div>
       </div>
-
-      {loadFailed && !status ? (
-        <p className="text-xs text-muted-foreground" data-comfy-paths-load-failed>
-          {loadFailed}(本地生图服务可能还没启动;可先展开上方「ComfyUI 图像引擎」完成准备运行时,或稍后点右上刷新)
-        </p>
-      ) : null}
 
       {migrateJob ? (
         <p className="text-xs text-muted-foreground" data-comfy-migrate-status>
