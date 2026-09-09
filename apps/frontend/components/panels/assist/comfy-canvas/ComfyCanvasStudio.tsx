@@ -9,6 +9,7 @@
 // 该 tab 也是后续阶段(业务自定义节点/画布主体切换)的调试台。
 
 import { useEffect, useMemo } from "react";
+import { cn } from "@/lib/utils";
 import { Loader2, PlayCircle, ServerCog, Settings2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -17,7 +18,7 @@ import { getComfyEngineClient } from "@/components/panels/settings/comfy-engine/
 import { consumeComfyBridgeWritebacks } from "@/lib/assist/image-studio/comfy-bridge-writeback-consumer";
 import { useStudioStore } from "@/stores/studio/studio-store";
 
-export function ComfyCanvasStudio() {
+export function ComfyCanvasStudio({ embedded = false }: { embedded?: boolean }) {
   // client 引用必须稳定(传入 hook):否则 hook 内 getComfyEngineClient() 每次
   // 渲染返回新 HTTP client→挂载探测 effect 循环重跑(09-09 实弹报障同根因)
   const client = useMemo(() => getComfyEngineClient(), []);
@@ -137,7 +138,7 @@ export function ComfyCanvasStudio() {
   // 运行中:webview 加载引擎原生前端(独立进程;刷新兜底按钮应对 webview 偶发白屏)
   return (
     <div className="relative flex h-full min-h-0 flex-col" data-comfy-canvas-live>
-      <div className="flex items-center justify-between gap-2 border-b border-border px-3 py-1.5">
+      <div className={cn("flex items-center justify-between gap-2 border-b border-border px-3 py-1.5", embedded && "hidden")}>
         <span className="text-xs text-muted-foreground">
           ComfyUI 画布 · 本地引擎 127.0.0.1:{port}(完整界面:节点/工作流/插件都在这里管理)
         </span>
