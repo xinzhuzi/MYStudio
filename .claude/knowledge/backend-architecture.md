@@ -60,8 +60,8 @@ apps/backend/
   upscale/ video_qc/ vlm_review/ depth_estimation/  # 同上式样
   video_use/                      # 剪辑链(无模型加载,无引擎件)
   layer_separation/               # 算法层(骑 engines/depth_engine,无自有模型)
-  # ── 域3:共享基建(渐进)──
-  model_cache_core.py  modelscope_hub.py            # common/ 归拢位(后续)
+  # ── 域3:共享基建(common/ 已落)──
+  common/                         # model_cache_core(缓存骨架,env_names 参数化)+modelscope_hub
   tests/  requirements.txt  README.md
 ```
 
@@ -82,7 +82,8 @@ apps/backend/
 | **P4 批B(已落地)** | image_engine:五模型栈+model_cache+workflows/ 整体入域;前端两测试改模板 JSON 新位 | 同上;**分层债**:krea2×3+comfyui_bridge×1 懒读 image_gen.pipeline(取消标志/PipelineError)=暴露的历史反向依赖,懒加载绝对导入保行为,后续裁定是否把取消态下沉引擎侧 |
 | **P4 批C/D(已落地)** | audio_engine/sfx_engine=generate.py 自 worker **原样切片**(函数边界:Error/_require/_sha256/generate_*);music3_engine=权重件平移 | 同上;generate.py 无测试覆盖处用导入冒烟补位 |
 | **过堂结论(不再抽)** | layer_separation=算法层(骑 depth_engine,无自有模型);cinematic_grades=FFmpeg 预设非模型(留 depth_estimation,仓内零引用属遗留);video_use=剪辑链无模型加载;music3 推理经 mlx-serve 留服务包 | — |
-| **P3(另立任务)** | common/ 归拢 model_cache_core+modelscope_hub;九包 model_cache 重复渐进合并(memory 既有「待合并窗口」) | 届时单独盘点 |
+| **P3 模型机制集中(已落地两步)** | 第一步:common/ 域落地,model_cache_core+modelscope_hub 归拢(git mv+11 文件改向);第二步:audio/sfx/music3 手写助手拷贝收缩为 core 委托(-119 行),家族侧只留目录表+env 表+完备性谓词。**门禁**:parity 场景 13→18(audio/sfx 各三景先锁基线再重构),18/18 全绿=08-31 基线以来全部搬迁逐字节保行为 | ⚠️ P4 各批当时漏跑 parity(违规补验);sys.modules 假模块拦截键必须随导入路径改(漏改=真实下载→测试网络假死) |
+| **剩余(可选)** | image_engine/model_cache 含 provider 注册表粘合(IMAGE_MODELS/_ENGINE_BY_LAYOUT),独特设计不强行归一;download_model/model_inventory 九份 CLI=spawn 服务面,按分层留守模态包 | — |
 
 ## 五、坑表
 
