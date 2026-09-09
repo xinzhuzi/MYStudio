@@ -92,6 +92,7 @@ apps/backend/
 - **comfyui_bridge 归属**:已随 image_engine 入域(生图经引擎执行的路由 provider=引擎件)。
 - **测试 mock.patch 的字符串路径随模块走**:搬模块后必 grep 引号内旧路径(tts.model_cache 5 处漏改即红,AttributeError 是信号)。
 - **导入形态三件套都要核**:`from 包.模块 import` 点式 / `from 包 import 模块` from 式 / **多名字导入**(`from x import a, b` 前缀替换会把留守件误拖进新包——pipeline/model_inventory/worker 屡次中招);懒导入缩进逐处修,勿整批字符串替换。
+- **spawn 面盘点必须含 `-c` 内联形态**:Electron 侧除 `["-m", "pkg.mod"]` 外还有 `["-c", "from pkg.mod import …"]` 内联代码(dover 删模型按钮曾因此断链);搬模块后 grep 两形态:`"-m", "` 与 `"-c", "from `。
 - **拆分引擎用「原样切片」**:audio/sfx 的 generate.py 直接从 worker.py 按函数边界切文本,不重打字;切片件无测试覆盖时必须导入冒烟补位。
 - **引擎专属 sidecar 留门不裁**:现在引擎生命周期经 17595 image sidecar 暴露;若未来非生图模态也要驱动引擎,可另立 engines sidecar——门留着,本期不开。
 - **README 目录段已按三域重写**(apps/backend/README.md);新增后端包时同步该表与本文五族归属表。
