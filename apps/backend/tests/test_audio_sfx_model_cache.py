@@ -5,8 +5,8 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from audio_gen.model_cache import find_cached_audio_model
-from sfx_gen.model_cache import find_cached_sfx_model
+from engines.audio_engine.model_cache import find_cached_audio_model
+from engines.sfx_engine.model_cache import find_cached_sfx_model
 
 
 def make_snapshot(root: Path, *, complete: bool, auxiliary_only: bool = False) -> None:

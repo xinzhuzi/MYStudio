@@ -22,7 +22,7 @@ import time
 from pathlib import Path
 from typing import Any
 
-from .model_cache import (
+from engines.music3_engine.model_cache import (
     MAX_MUSIC3_DURATION_S,
     MIN_MUSIC3_DURATION_S,
     MUSIC3_MODELS,

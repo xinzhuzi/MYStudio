@@ -10,7 +10,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from music3_gen.model_cache import find_cached_music3_model
+from engines.music3_engine.model_cache import find_cached_music3_model
 from music3_gen.worker import Music3GenError, _require_downloaded, main
 
 

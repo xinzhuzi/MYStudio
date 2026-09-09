@@ -13,7 +13,7 @@ import threading
 import time
 from pathlib import Path
 
-from .model_cache import AUDIO_MODELS, primary_hf_cache_dir, repo_cache_dir
+from engines.audio_engine.model_cache import AUDIO_MODELS, primary_hf_cache_dir, repo_cache_dir
 
 
 def _write_progress(path: Path, payload: dict) -> None:

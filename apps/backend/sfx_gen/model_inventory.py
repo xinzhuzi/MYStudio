@@ -6,7 +6,7 @@ from __future__ import annotations
 import json
 import sys
 
-from .model_cache import SFX_MODELS, find_cached_sfx_model
+from engines.sfx_engine.model_cache import SFX_MODELS, find_cached_sfx_model
 
 
 def scan_model_inventory() -> dict:

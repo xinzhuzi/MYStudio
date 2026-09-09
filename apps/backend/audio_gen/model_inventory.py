@@ -6,7 +6,7 @@ from __future__ import annotations
 import json
 import sys
 
-from .model_cache import AUDIO_MODELS, find_cached_audio_model
+from engines.audio_engine.model_cache import AUDIO_MODELS, find_cached_audio_model
 
 
 def scan_model_inventory() -> dict:
