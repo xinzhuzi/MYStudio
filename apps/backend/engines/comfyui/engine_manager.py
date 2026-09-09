@@ -877,10 +877,20 @@ class EngineManager:
                 _git(["checkout", "--force", target], cwd=src)
             _git(["clean", "-fd"], cwd=src)
 
-            jobs.update(job_id, progress=35, step="pip", message="依赖按需升级…")
-            _pip(["install", "torch", "torchvision", "torchaudio"])
-            _pip(["install", "-r", str(src / "requirements.txt")],
-                 on_line=lambda line: jobs.update(job_id, tail_line=line))
+            # 依赖指纹跳过(09-09 用户裁定更新太慢):master 小步更新 requirements
+            # 通常没变——hash 与账本一致就整段跳过 pip(网络大头),变了才升级并落新指纹
+            import hashlib
+            req_hash = hashlib.md5((src / "requirements.txt").read_bytes()).hexdigest() if (src / "requirements.txt").exists() else None
+            last_req_hash = (cm.load_manifest().get("engine") or {}).get("requirementsHash")
+            if req_hash is not None and req_hash == last_req_hash:
+                jobs.update(job_id, progress=50, step="pip", message="依赖无变化,跳过升级(直接进入重启)…")
+            else:
+                jobs.update(job_id, progress=35, step="pip", message="依赖按需升级…")
+                _pip(["install", "torch", "torchvision", "torchaudio"])
+                _pip(["install", "-r", str(src / "requirements.txt")],
+                     on_line=lambda line: jobs.update(job_id, tail_line=line))
+                if req_hash is not None:
+                    cm.mutate_manifest(lambda m: m.setdefault("engine", {}).__setitem__("requirementsHash", req_hash))
 
             jobs.update(job_id, progress=50, step="manying", message="同步自研节点包…")
             from . import plugin_manager as _pm
