@@ -72,6 +72,25 @@ describe("ComfyEngineStoragePaths(存储位置配置卡)", () => {
     expect((screen.getByLabelText("模型目录路径") as HTMLInputElement).value).toContain("/models");
   });
 
+  it("探测失败(sidecar 未起)静默降级:不弹错误 toast,行内给指路文案", async () => {
+    // 09-09 实弹报障回归锁:探测期「正在确认引擎状态」时不该被错误轰炸
+    const base = createMockComfyEngineClient();
+    installClient({
+      ...base,
+      getPaths: async () => {
+        throw new Error("本地生图服务未运行,请先在 设置→本地配置 完成「准备运行时」");
+      },
+    });
+    render(<ComfyEngineStoragePaths />);
+    await waitFor(() =>
+      expect(document.querySelector("[data-comfy-paths-load-failed]")).toBeTruthy(),
+    );
+    expect(toasts.error).not.toHaveBeenCalled();
+    expect(
+      (document.querySelector("[data-comfy-paths-load-failed]") as HTMLElement).textContent,
+    ).toContain("本地生图服务");
+  });
+
   it("未安装态:选目录→校验→直改落账,界面更新并标「自定义」", async () => {
     const base = createMockComfyEngineClient();
     const setPaths = vi.fn(base.setPaths.bind(base));

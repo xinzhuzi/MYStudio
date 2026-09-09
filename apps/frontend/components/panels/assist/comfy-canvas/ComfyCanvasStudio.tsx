@@ -8,12 +8,17 @@
 // - 运行中(port 就绪) → webview 指向 http://127.0.0.1:<port>/
 // 该 tab 也是后续阶段(业务自定义节点/画布主体切换)的调试台。
 
+import { useMemo } from "react";
 import { Loader2, PlayCircle, ServerCog, Settings2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { useComfyEngineSettings } from "@/components/panels/settings/comfy-engine/useComfyEngineSettings";
+import { getComfyEngineClient } from "@/components/panels/settings/comfy-engine/comfy-engine-contract";
 
 export function ComfyCanvasStudio() {
+  // client 引用必须稳定(传入 hook):否则 hook 内 getComfyEngineClient() 每次
+  // 渲染返回新 HTTP client→挂载探测 effect 循环重跑(09-09 实弹报障同根因)
+  const client = useMemo(() => getComfyEngineClient(), []);
   const {
     hasBridge,
     status,
@@ -22,7 +27,7 @@ export function ComfyCanvasStudio() {
     startService,
     isStartingService,
     refreshStatus,
-  } = useComfyEngineSettings({ pollIntervalMs: 1200 });
+  } = useComfyEngineSettings({ client, pollIntervalMs: 1200 });
 
   const installing = activeJob?.state === "running" && activeJob.kind === "install";
   const port = status?.port ?? null;

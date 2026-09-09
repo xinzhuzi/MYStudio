@@ -7,7 +7,7 @@
 // - 引擎运行中:禁改(先停止)
 // 模型目录走既有引擎设置区(modelsDir 纯指针,不在此重复做编辑面)。
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { FolderOpen, Loader2, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -39,9 +39,12 @@ const ROWS: Array<{ key: PathKey; label: string; hint: string }> = [
 const MODELS_ROW = { label: "模型目录", hint: "指向现有模型库即免重下(在上方引擎设置里修改)" };
 
 export function ComfyEngineStoragePaths() {
-  const client = getComfyEngineClient();
+  // client 引用必须稳定:getComfyEngineClient() 每次渲染返回新 HTTP client,
+  // 会重建 refresh→effect 循环重跑(sidecar 未起时连环 toast,09-09 实弹报障)
+  const client = useMemo(() => getComfyEngineClient(), []);
   const [status, setStatus] = useState<ComfyEnginePathsStatus | null>(null);
   const [loading, setLoading] = useState(false);
+  const [loadFailed, setLoadFailed] = useState<string | null>(null);
   const [migrateJob, setMigrateJob] = useState<ComfyEngineJob | null>(null);
   const [pendingMigrate, setPendingMigrate] = useState<{ key: PathKey; path: string } | null>(null);
 
@@ -50,8 +53,11 @@ export function ComfyEngineStoragePaths() {
     setLoading(true);
     try {
       setStatus(await client.getPaths());
+      setLoadFailed(null);
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "读取存储位置失败");
+      // 静默降级到行内错误态:探测期(sidecar 未起/启动中)弹 toast 是时机
+      // 错误——用户在等「确认引擎状态」,不该被错误轰炸(09-09 实弹报障)
+      setLoadFailed(error instanceof Error ? error.message : "读取存储位置失败");
     } finally {
       setLoading(false);
     }
@@ -216,6 +222,12 @@ export function ComfyEngineStoragePaths() {
           </div>
         </div>
       </div>
+
+      {loadFailed && !status ? (
+        <p className="text-xs text-muted-foreground" data-comfy-paths-load-failed>
+          {loadFailed}(本地生图服务可能还没启动;可先展开上方「ComfyUI 图像引擎」完成准备运行时,或稍后点右上刷新)
+        </p>
+      ) : null}
 
       {migrateJob ? (
         <p className="text-xs text-muted-foreground" data-comfy-migrate-status>
