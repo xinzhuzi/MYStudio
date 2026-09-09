@@ -4,16 +4,29 @@
 
 ## 目录结构
 
+后端按**三域分层**(2026-09-09 裁定:engines 独立抽离成域,不止 image 概念;文本/生图/音乐/声音/视频是模态服务,与引擎概念互不嵌套)。分层参照 GitHub 高星项目(Comfy Desktop/Jan/LocalAI/Open WebUI),权威文档:**`.claude/knowledge/backend-architecture.md`**(改后端目录前必读)。
+
 ```text
 apps/backend/
-  tts/
+  # 域1:托管引擎(实例生命周期:安装/更新/launch/守卫/插件策展)
+  engines/comfyui/  # manifest/engine_manager/plugin_manager/execute/curated_plugins+tests
+                    # (09-09 抽离落地:3fadf6f+357cfac 搬家,ba94435 配套改名)
+  # 域2:模态服务包(一个模态一个包;server/main=常驻 sidecar,worker=一次性进程)
+  image_gen/        # 生图(providers/ 每模型管线:本地模型栈+comfyui_bridge 引擎路由)
+  tts/              # 声音:语音+克隆+STT(入口 tts.main,端口 17593)
     main.py          # ThreadingHTTPServer 服务入口
     engine.py        # TTS/STT 引擎调度
     storage.py       # tts.sqlite 运行时存储
     catalog.py       # 内置模型目录
     model_cache.py   # HuggingFace/ModelScope 缓存探测与下载
-  requirements.txt   # Python 依赖清单
-  tests/             # 后端契约测试
+  audio_gen/ sfx_gen/           # 声音:音频/音效 worker
+  music3_gen/                    # 音乐(MLX,恒走 mlx-serve)
+  video_use/ video_qc/          # 视频:剪辑链 / DOVER 质检
+  upscale/ layer_separation/ depth_estimation/  # 生图后处理三件
+  vlm_review/                    # 文本族:本地 VLM 审计(云端 LLM 在 TS 侧,无 sidecar)
+  # 域3:共享基建(渐进归拢 common/):model_cache_core.py、modelscope_hub.py
+  model_cache_core.py  modelscope_hub.py  requirements.txt
+  tests/                         # 跨模块契约测试
 ```
 
 ## 启动方式
