@@ -96,6 +96,10 @@ function readCollapsedSections(): Set<string> {
       if (expansion) expansion.forEach((expanded) => migrated.add(expanded));
       else migrated.add(id);
     }
+    // 09-09 用户裁定:ComfyUI 引擎卡每次进本地设置默认收起——点开才挂载才触发
+    // GitHub 更新检查,不因上次的展开记忆一进页就查。本会话内点开自由;外部
+    // 深链 reveal(缺插件指路等)不受影响。
+    migrated.add("comfy-engine");
     return migrated;
   } catch {
     return new Set<string>(SECTION_IDS);

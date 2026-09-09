@@ -268,6 +268,16 @@ describe("PluginSettingsTab", () => {
     expect(screen.queryByTestId("video-section")).toBeNull();
   });
 
+  it("ComfyUI 引擎卡每次进设置默认收起(点开才挂载才查更新),上次的展开记忆不生效(09-09)", () => {
+    // 记忆=全部展开(引擎卡上会话点开过)
+    window.localStorage.setItem("mystudio.settings.plugins.collapsedSections", JSON.stringify([]));
+    render(<PluginSettingsTab />);
+
+    // 引擎卡收起起步;其余分组照记忆展开
+    expect(screen.queryByTestId("comfy-engine-section")).toBeNull();
+    expect(screen.getByTestId("python-section").textContent).toBe("true");
+  });
+
   it("migrates the legacy 声音 collapsed card to the three audio rows", () => {
     window.localStorage.setItem("mystudio.settings.plugins.collapsedSections", JSON.stringify(["audio"]));
     render(<PluginSettingsTab />);
