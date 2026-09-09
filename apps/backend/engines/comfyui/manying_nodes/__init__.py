@@ -13,12 +13,14 @@ from .nodes.manying_prompt import ManyingPrompt
 from .nodes.manying_reference import ManyingReference
 from .nodes.manying_generated import ManyingGenerated
 from .nodes.manying_shot import ManyingShot
+from .nodes.manying_music3 import ManyingMusic3
 
 NODE_CLASS_MAPPINGS = {
     "ManyingPrompt": ManyingPrompt,
     "ManyingReference": ManyingReference,
     "ManyingGenerated": ManyingGenerated,
     "ManyingShot": ManyingShot,
+    "ManyingMusic3": ManyingMusic3,
 }
 
 # ComfyUI 前端扩展目录声明(无此=web/ 下 JS 不进 /extensions,不可见)
@@ -29,4 +31,5 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "ManyingReference": "漫影 参考图",
     "ManyingGenerated": "漫影 成图回写",
     "ManyingShot": "漫影 分镜",
+    "ManyingMusic3": "漫影 Music3 本地作曲",
 }
