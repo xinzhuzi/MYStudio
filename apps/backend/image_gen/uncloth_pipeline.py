@@ -57,7 +57,7 @@ def run_uncloth_pipeline(
     import torch
     from PIL import Image
 
-    from .providers import krea2
+    from engines.image_engine import krea2
 
     models_dir = Path(engine_ctx["models_dir"])
     t_all = time.time()

@@ -467,7 +467,9 @@ def _cancel_step_callback():
     会在第一步去噪后 NoneType.pop 必崩(0dc6724 装机首跑实锤)——正常
     路径必须把 callback_kwargs 原样透传(不改写张量输入)。
     """
-    from ..pipeline import is_generation_cancelled
+    # 分层债(09-09 记):取消标志是 image_gen 服务层状态,引擎侧懒读;
+    # 后续批次裁定是否把取消态下沉引擎侧。
+    from image_gen.pipeline import is_generation_cancelled
 
     def _on_step_end(_pipe, _step_index, _t, callback_kwargs):
         if is_generation_cancelled():
@@ -747,7 +749,9 @@ def generate_masked_sdedit(prompt: str, image: "Any", mask: "Any", steps: int = 
     sigmas_all = sigma_table  # 与管线内部 scheduler.sigmas 逐位一致
 
     def _masked_step(_pipe, step_index, _t, callback_kwargs):
-        from ..pipeline import is_generation_cancelled
+        # 分层债(09-09 记):取消标志是 image_gen 服务层状态,引擎侧懒读;
+        # 后续批次裁定是否把取消态下沉引擎侧。
+        from image_gen.pipeline import is_generation_cancelled
         if is_generation_cancelled():
             raise RuntimeError("generation-cancelled")
         lat = callback_kwargs.get("latents")
@@ -1073,7 +1077,9 @@ def generate_edit(prompt: str, image, steps: int = 10, seed: int | None = 2,
     sched.set_shift(1.0)
     pipe.scheduler = sched
 
-    from ..pipeline import is_generation_cancelled
+    # 分层债(09-09 记):取消标志是 image_gen 服务层状态,引擎侧懒读;
+    # 后续批次裁定是否把取消态下沉引擎侧。
+    from image_gen.pipeline import is_generation_cancelled
 
     def _cancel(_pipe, _i, _t, cb):
         if is_generation_cancelled():

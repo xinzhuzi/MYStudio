@@ -37,7 +37,7 @@ ASPECT_RATIOS = {
     "1:1": (1024, 1024), "16:9": (1152, 640), "9:16": (640, 1152),
     "4:3": (1072, 808), "3:4": (808, 1072),
 }
-_WORKFLOWS_DIR = Path(__file__).resolve().parent.parent / "workflows"
+_WORKFLOWS_DIR = Path(__file__).resolve().parent / "workflows"
 _REQUIRED_TEMPLATES = ("krea2_t2i", "krea2_edit_ref", "krea2_nsfw_pro", "krea2_uncloth_instruct")
 
 
@@ -138,7 +138,7 @@ def bridge_url() -> str:
 
 def _pipeline_error(code: str, message: str) -> Exception:
     # Deferred import prevents an engines -> pipeline import cycle at startup.
-    from ..pipeline import PipelineError
+    from image_gen.pipeline import PipelineError
     return PipelineError(code, message)
 
 

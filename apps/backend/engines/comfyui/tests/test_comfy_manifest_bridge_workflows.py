@@ -8,7 +8,7 @@ from __future__ import annotations
 import json
 
 from engines.comfyui import manifest as cm
-from image_gen.providers import comfyui_bridge as bridge
+from engines.image_engine import comfyui_bridge as bridge
 from engines.comfyui import plugin_manager as pm
 
 

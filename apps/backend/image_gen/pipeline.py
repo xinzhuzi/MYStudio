@@ -11,8 +11,8 @@ import threading
 from pathlib import Path
 from typing import Any
 
-from . import model_cache as _model_cache
-from .model_cache import (
+from engines.image_engine import model_cache as _model_cache
+from engines.image_engine.model_cache import (
     IMAGE_MODELS,
     comfyui_models_dir,
     z_image_comfyui_models_dir,
@@ -20,11 +20,11 @@ from .model_cache import (
     resolve_image_model_name,
     find_cached_image_model_for_spec,
 )
-from .providers import krea2 as _krea2
-from .providers import flux2 as _flux2
-from .providers import z_image as _z_image
-from .providers import qwen as _qwen
-from .providers import comfyui_bridge as _comfyui_bridge
+from engines.image_engine import krea2 as _krea2
+from engines.image_engine import flux2 as _flux2
+from engines.image_engine import z_image as _z_image
+from engines.image_engine import qwen as _qwen
+from engines.image_engine import comfyui_bridge as _comfyui_bridge
 
 _lock = threading.Lock()
 # 生成互斥的排队上限(秒):拿不到锁时排队等待,超时按「正忙」拒绝

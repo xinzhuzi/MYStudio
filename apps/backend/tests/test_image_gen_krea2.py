@@ -10,8 +10,9 @@ from __future__ import annotations
 import unittest
 from unittest import mock
 
-from image_gen import model_cache, pipeline
-from image_gen.providers import krea2 as krea2_engine
+from engines.image_engine import model_cache
+from image_gen import pipeline
+from engines.image_engine import krea2 as krea2_engine
 from image_gen.pipeline import PipelineError
 
 

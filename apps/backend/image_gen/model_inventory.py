@@ -5,7 +5,7 @@ import json
 import sys
 from pathlib import Path
 
-from .model_cache import (
+from engines.image_engine.model_cache import (
     IMAGE_MODELS,
     comfyui_models_dir,
     find_cached_image_model_for_spec,
@@ -18,7 +18,7 @@ from .model_cache import (
     flux2_small_pieces_status,
     krea2_small_pieces_status,
 )
-from .providers import comfyui_bridge
+from engines.image_engine import comfyui_bridge
 
 
 def build_model_status() -> list[dict]:
@@ -73,8 +73,8 @@ def build_model_status() -> list[dict]:
         if krea2_pointed:
             # 无衣物·指令编辑三层 LoRA(09-06 稳定版工作流;文件存在性探测,
             # 无公网源不自动下载,缺失=展示放置路径)
-            from .providers import krea2 as _krea2
-            from .model_cache import comfyui_models_dir as _cmd
+            from engines.image_engine import krea2 as _krea2
+            from engines.image_engine.model_cache import comfyui_models_dir as _cmd
             row = rows[-1]
             row["loraFiles"] = [
                 {
@@ -92,7 +92,7 @@ def build_model_status() -> list[dict]:
             ]
     # 分割模型(09-04 无衣物节点):目录存在性探测(不做大件/小件区分)
     import os
-    from .model_cache import comfyui_models_dir
+    from engines.image_engine.model_cache import comfyui_models_dir
 
     for seg_name, seg_desc in [
         ("segformer_b3_clothes", "衣物部位分割(无衣物节点分割①)"),

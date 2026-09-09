@@ -247,7 +247,7 @@ class TestWorkflowParsing:
 
 class TestMissingNodesPrecheck:
     def test_graph_node_classes_dedup_keeps_order(self):
-        from image_gen.providers.comfyui_bridge import graph_node_classes
+        from engines.image_engine.comfyui_bridge import graph_node_classes
 
         graph = {
             "1": {"class_type": "KSampler", "inputs": {}},
@@ -259,7 +259,7 @@ class TestMissingNodesPrecheck:
         assert graph_node_classes(graph) == ["KSampler", "SaveImage"]
 
     def test_message_maps_missing_class_to_curated_pack(self):
-        from image_gen.providers.comfyui_bridge import missing_nodes_message
+        from engines.image_engine.comfyui_bridge import missing_nodes_message
 
         packs = {"ConditioningKrea2Rebalance": "Krea2 提示重平衡"}
         message = missing_nodes_message(["ConditioningKrea2Rebalance"], packs)
@@ -267,7 +267,7 @@ class TestMissingNodesPrecheck:
         assert "生态插件" in message
 
     def test_message_unknown_class_falls_back_to_generic_hint(self):
-        from image_gen.providers.comfyui_bridge import missing_nodes_message
+        from engines.image_engine.comfyui_bridge import missing_nodes_message
 
         message = missing_nodes_message(["SomePrivateNode"], {})
         assert "SomePrivateNode" in message
@@ -275,13 +275,13 @@ class TestMissingNodesPrecheck:
         assert "「" not in message  # 无包可指时不出现包名括号
 
     def test_message_none_when_nothing_missing(self):
-        from image_gen.providers.comfyui_bridge import missing_nodes_message
+        from engines.image_engine.comfyui_bridge import missing_nodes_message
 
         assert missing_nodes_message([], {"X": "Y"}) is None
 
     def test_curated_provides_mapping_reads_real_curated_file(self):
         """真实策展文件里 Krea2 三包的 provides 必须能映射(装机链路的活数据)。"""
-        from image_gen.providers.comfyui_bridge import curated_node_class_packs
+        from engines.image_engine.comfyui_bridge import curated_node_class_packs
 
         mapping = curated_node_class_packs()
         assert mapping.get("Krea2EditGroundedEncode") == "Krea2 指令编辑节点"

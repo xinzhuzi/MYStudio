@@ -14,7 +14,7 @@ class ReferencePrepTest(unittest.TestCase):
         return Image.new("RGB", (w, h), (128, 64, 32))
 
     def test_tall_image_center_cropped_no_distortion(self):
-        from image_gen.providers.krea2 import _prepare_reference_image
+        from engines.image_engine.krea2 import _prepare_reference_image
         # 竖图 800×1600 → 1:1 输出:应裁宽居中,不拉伸
         out = _prepare_reference_image(self._make(800, 1600), 1024, 1024)
         self.assertEqual(out.size, (1024, 1024))
@@ -22,13 +22,13 @@ class ReferencePrepTest(unittest.TestCase):
         self.assertEqual(out.size[0], out.size[1])
 
     def test_large_image_downscaled_to_target_megapixels(self):
-        from image_gen.providers.krea2 import _prepare_reference_image
+        from engines.image_engine.krea2 import _prepare_reference_image
         # 4096×4096(16MP)→ 1024×1024 目标(1MP):先等比降到 ≤1MP 再裁剪缩放
         out = _prepare_reference_image(self._make(4096, 4096), 1024, 1024)
         self.assertEqual(out.size, (1024, 1024))
 
     def test_small_image_upscaled_and_ratio_kept(self):
-        from image_gen.providers.krea2 import _prepare_reference_image
+        from engines.image_engine.krea2 import _prepare_reference_image
         # 小图 16:9 → 16:9 输出:等比路径零裁剪,直接放大
         out = _prepare_reference_image(self._make(320, 180), 1360, 768)
         self.assertEqual(out.size, (1360, 768))

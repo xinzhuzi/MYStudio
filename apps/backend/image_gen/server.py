@@ -32,7 +32,7 @@ from urllib import error as urllib_error
 from urllib.parse import parse_qs, unquote, urlparse
 
 from . import __version__
-from .model_cache import (
+from engines.image_engine.model_cache import (
     DEFAULT_IMAGE_MODEL,
     IMAGE_MODELS,
     QWEN_SMALL_PIECES_SIZE_MB,
@@ -307,7 +307,7 @@ class Handler(BaseHTTPRequestHandler):
             return
         try:
             from . import model_cache
-            from .providers import krea2
+            from engines.image_engine import krea2
             from .uncloth_pipeline import run_uncloth_pipeline
 
             small_repo = getattr(krea2, "SMALL_REPO", getattr(krea2, "IMAGE_REPO", None))
@@ -336,7 +336,7 @@ class Handler(BaseHTTPRequestHandler):
 
         layout = spec.get("layout", "")
         if layout == "comfyui-bridge":
-            from .providers import comfyui_bridge
+            from engines.image_engine import comfyui_bridge
 
             if not comfyui_bridge.resolve_big_files():
                 self._send_error_json(
@@ -358,7 +358,7 @@ class Handler(BaseHTTPRequestHandler):
             return
         if "pointed" in layout:
             # 缺什么下什么:大件在 → 只补小件;大件缺 → 完整(引擎分派)
-            from .providers import ALL_ENGINES as _ENGINES
+            from engines.image_engine import ALL_ENGINES as _ENGINES
             engine = next((e for e in _ENGINES if e.LAYOUT == layout), None)
             if engine is None:
                 self._send_error_json(HTTPStatus.BAD_REQUEST, f"未知布局: {layout}", "unknown_layout")

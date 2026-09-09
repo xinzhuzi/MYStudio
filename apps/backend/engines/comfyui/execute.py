@@ -34,7 +34,7 @@ OBJECT_INFO_MAX_OPTIONS = 500
 
 def _engine_url() -> str:
     # 引擎地址发现单源:comfyui_bridge.bridge_url(env 覆写 → manifest 端口 → 17598)
-    from image_gen.providers.comfyui_bridge import bridge_url
+    from engines.image_engine.comfyui_bridge import bridge_url
 
     return bridge_url().rstrip("/")
 

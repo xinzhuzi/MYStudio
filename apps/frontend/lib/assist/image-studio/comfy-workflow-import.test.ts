@@ -11,10 +11,10 @@ import {
   unwrapComfyApiGraph,
 } from "./comfy-workflow-import";
 // 夹具=桥模板(API 格式,{schemaVersion, graph} 包装),与生产分析输入同源
-import krea2T2i from "../../../../backend/image_gen/workflows/krea2_t2i.json";
-import krea2NsfwPro from "../../../../backend/image_gen/workflows/krea2_nsfw_pro.json";
-import krea2UnclothInstruct from "../../../../backend/image_gen/workflows/krea2_uncloth_instruct.json";
-import krea2EditRef from "../../../../backend/image_gen/workflows/krea2_edit_ref.json";
+import krea2T2i from "../../../../backend/engines/image_engine/workflows/krea2_t2i.json";
+import krea2NsfwPro from "../../../../backend/engines/image_engine/workflows/krea2_nsfw_pro.json";
+import krea2UnclothInstruct from "../../../../backend/engines/image_engine/workflows/krea2_uncloth_instruct.json";
+import krea2EditRef from "../../../../backend/engines/image_engine/workflows/krea2_edit_ref.json";
 
 describe("analyzeComfyWorkflow 夹具快照(09-08 二期)", () => {
   it("krea2_t2i:文生图——≥1 提示词口(正/负极性各一),无图口", () => {
