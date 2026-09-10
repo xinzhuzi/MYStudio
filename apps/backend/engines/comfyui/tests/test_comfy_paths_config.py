@@ -68,13 +68,18 @@ def test_set_paths_rejects_installed(home):
         manager.set_paths({"engineDir": "/Volumes/Data/ComfyUI"})
 
 
-def test_migrate_paths_requires_stopped_engine(home):
+def test_migrate_paths_requires_stopped_engine(home, monkeypatch):
     write_manifest(home, {
         **cm.default_manifest(),
         "engine": {"version": "v0.34.6", "port": 17001},
     })
     manager = EngineManager()
-    # 端口 17001 无服务=未跑,应放行到 job 创建;占用场景由 is_healthy 覆盖
+    # 17001 是本机常驻口:不 mock 就真连引擎,本机引擎在跑=假失败(09-10 P1 缺陷)
+    monkeypatch.setattr(manager, "is_healthy", lambda port=None, timeout=2.0: True)
+    with pytest.raises(EngineOpError, match="请先停止引擎"):
+        manager.migrate_paths_job({"workflowsDir": str(home.parent / "wf-new")})
+    # 端口无服务=未跑,应放行到 job 创建
+    monkeypatch.setattr(manager, "is_healthy", lambda port=None, timeout=2.0: False)
     job_id = manager.migrate_paths_job({"workflowsDir": str(home.parent / "wf-new")})
     assert job_id
 

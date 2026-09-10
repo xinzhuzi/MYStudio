@@ -15,6 +15,7 @@ import json
 import os
 import re
 import shutil
+import signal
 import socket
 import subprocess
 import sys
@@ -101,6 +102,37 @@ GUARD_WINDOW_S = 900.0
 # 收不到信号是实弹见过的)就升级 SIGKILL;stopped 回复以进程真实退出为准。
 STOP_TERM_WAIT_S = 10.0
 STOP_KILL_WAIT_S = 5.0
+
+# ── 孤儿引擎根修(09-10 P1)─────────────────────────────────────────
+# 病灶:引擎曾是 sidecar 的裸子进程——sidecar 崩溃/被 SIGKILL/验证脚本退出时,
+# 引擎无人回收,占着 17xxx 口存活(多次复发:下次启动被迫换口漂移+测试假失败)。
+# macOS 无 PDEATHSIG,看门狗孙进程轮询 getppid:养父变更=sidecar 已死,
+# killpg 引擎会话组(含其子孙)整体回收。
+ENGINE_WATCHDOG_INTERVAL_S = 2.0
+
+_ENGINE_WATCHDOG_CODE = rf'''
+import os, signal, sys, time
+engine_pid, parent_pid = int(sys.argv[1]), int(sys.argv[2])
+log_path = sys.argv[3] if len(sys.argv) > 3 else ""
+while True:
+    time.sleep({ENGINE_WATCHDOG_INTERVAL_S})
+    try:
+        os.kill(engine_pid, 0)
+    except OSError:
+        sys.exit(0)  # 引擎已退(正常 stop/自亡),看门狗静默离场
+    if os.getppid() != parent_pid:
+        try:
+            os.killpg(os.getpgid(engine_pid), signal.SIGKILL)
+        except OSError:
+            pass
+        if log_path:
+            try:
+                with open(log_path, "a", encoding="utf-8") as log:
+                    log.write(f"[watchdog] 父进程(pid {{parent_pid}})已退出,回收引擎进程组 {{engine_pid}}\n")
+            except OSError:
+                pass
+        sys.exit(0)
+'''
 
 # ComfyUI extra_model_paths.yaml 的标准目录键(modelsDir 指向现有库用)
 _MODEL_FOLDER_KEYS = (
@@ -382,6 +414,63 @@ def _write_extra_model_paths(models_dir: Path) -> None:
     target.write_text("\n".join(lines) + "\n", encoding="utf-8")
 
 
+def _spawn_engine_watchdog(proc: subprocess.Popen, log_path: Path) -> None:
+    """看门狗孙进程:sidecar 死亡(含 SIGKILL,退出钩子无从兜底)后整组回收引擎。
+
+    自身在独立会话,不受引擎组击杀波及;引擎先退则自离场。拉起失败不阻断
+    引擎启动(最坏退回旧行为=可能留孤儿,不影响功能)。
+    """
+    try:
+        subprocess.Popen(
+            [sys.executable, "-c", _ENGINE_WATCHDOG_CODE,
+             str(proc.pid), str(os.getpid()), str(log_path)],
+            start_new_session=True,
+            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+        )
+    except OSError as exc:
+        print(f"[image-sidecar] comfy-engine: 看门狗拉起失败({exc}),引擎启动不受影响", flush=True)
+
+
+def _stop_engine_proc(proc) -> None:
+    """停引擎进程:优先整组信号(引擎 spawn 在独立会话=组长),回退单进程。
+
+    SIGTERM 装死(卡 C 扩展收不到信号)→ 升级 SIGKILL;连 SIGKILL 都收不回
+    (不可中断睡眠)由调用方以 poll() 如实上报。无 pid 的测试替身自然走单
+    进程路径,行为与旧实现一致。
+    """
+    def _signal(sig: int) -> None:
+        pid = getattr(proc, "pid", None)
+        if isinstance(pid, int) and pid > 0:
+            try:
+                pgid = os.getpgid(pid)
+            except OSError:
+                pgid = None
+            # 只有组长(我们 spawn 的会话首进程)才整组打;非组长(理论上
+            # 不该出现,旧版 spawn 的存量进程)整组打会波及同组无关进程。
+            if pgid == pid:
+                try:
+                    os.killpg(pgid, sig)
+                    return
+                except OSError:
+                    pass
+        if sig == signal.SIGKILL:
+            proc.kill()
+        else:
+            proc.terminate()
+
+    _signal(signal.SIGTERM)
+    try:
+        proc.wait(timeout=STOP_TERM_WAIT_S)
+        return
+    except subprocess.TimeoutExpired:
+        pass
+    _signal(signal.SIGKILL)
+    try:
+        proc.wait(timeout=STOP_KILL_WAIT_S)
+    except subprocess.TimeoutExpired:
+        pass  # 连 SIGKILL 都收不回(不可中断睡眠):stopped 如实报 False
+
+
 # ── 引擎管理器(单例) ─────────────────────────────────────────────
 class EngineManager:
     def __init__(self) -> None:
@@ -642,7 +731,9 @@ class EngineManager:
                       "MYSTUDIO_BRIDGE_URL": bridge_contract.BRIDGE_URL,
                       "MYSTUDIO_BRIDGE_TOKEN": bridge_contract.BRIDGE_TOKEN}
         self._proc = subprocess.Popen(argv, cwd=str(src), env=launch_env,
-                                      stdout=self._log_file, stderr=subprocess.STDOUT)
+                                      stdout=self._log_file, stderr=subprocess.STDOUT,
+                                      start_new_session=True)  # 独立会话=组长,看门狗可整组回收(孤儿根修)
+        _spawn_engine_watchdog(self._proc, cm.engine_log_path())
         if progress:
             progress(40, "等待引擎就绪(首次加载模型较慢)…")
         deadline = time.monotonic() + HEALTH_TIMEOUT_S
@@ -670,15 +761,7 @@ class EngineManager:
             self._stopping = True
             proc, self._proc = self._proc, None
         if proc is not None and proc.poll() is None:
-            proc.terminate()
-            try:
-                proc.wait(timeout=STOP_TERM_WAIT_S)
-            except subprocess.TimeoutExpired:
-                proc.kill()  # SIGTERM 装死(卡 C 扩展)→ 升级 SIGKILL
-                try:
-                    proc.wait(timeout=STOP_KILL_WAIT_S)
-                except subprocess.TimeoutExpired:
-                    pass  # 连 SIGKILL 都收不回(不可中断睡眠):stopped 如实报 False
+            _stop_engine_proc(proc)  # 整组 SIGTERM→SIGKILL(09-10 孤儿根修配套)
         if self._log_file:
             try:
                 self._log_file.close()
