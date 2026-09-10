@@ -181,7 +181,9 @@ interface SidecarEngineStatusReply {
   latest?: string | null;
   state?: string; // not_installed | installing | updating | resetting | running | stopped
   torch?: string | null; // 引擎 venv 的 PyTorch 版本(装时入账)
-  launchArgs?: { vramPolicy?: string; attentionMode?: string; reserveVramGb?: number | null } | null;
+  launchArgs?: string | null; // 09-10 Desktop 化:命令行整串(后端旧 dict 已读侧迁移)
+  envVars?: Record<string, string> | null;
+  portConflictPolicy?: "auto-shift" | "fail" | null;
   running?: boolean;
   port?: number | null;
   modelsDir?: string | null;
@@ -263,13 +265,14 @@ export function mapEngineStatus(raw: SidecarEngineStatusReply): ComfyEngineStatu
     message: raw.message ?? null,
     installDir: raw.installDir ?? null,
     torch: raw.torch ?? null,
-    launchArgs: raw.launchArgs
-      ? {
-          vramPolicy: String(raw.launchArgs.vramPolicy ?? "auto"),
-          attentionMode: String(raw.launchArgs.attentionMode ?? "auto"),
-          reserveVramGb: raw.launchArgs.reserveVramGb ?? null,
-        }
-      : null,
+    launchArgs: typeof raw.launchArgs === "string" ? raw.launchArgs : null,
+    envVars:
+      raw.envVars && typeof raw.envVars === "object" && !Array.isArray(raw.envVars)
+        ? (Object.fromEntries(
+            Object.entries(raw.envVars as Record<string, unknown>).map(([key, value]) => [key, String(value)]),
+          ) as Record<string, string>)
+        : null,
+    portConflictPolicy: raw.portConflictPolicy === "fail" ? "fail" : raw.portConflictPolicy === "auto-shift" ? "auto-shift" : null,
   };
 }
 
@@ -574,8 +577,8 @@ export function createHttpComfyEngineClient(): ComfyEngineClient {
       }
     },
 
-    async setLaunchArgs(args: { vramPolicy?: "auto" | "gpu-only" | "reserve-vram"; reserveVramGb?: number | null; attentionMode?: "auto" | "pytorch-cross-attention" }): Promise<ComfyEngineAckReply> {
-      return comfySidecarRequest<ComfyEngineAckReply>("POST", "/comfy/engine/config", { body: { launchArgs: args } });
+    async setLaunchConfig(config: { argsString?: string; envVars?: Record<string, string>; portConflictPolicy?: "auto-shift" | "fail" }): Promise<ComfyEngineAckReply> {
+      return comfySidecarRequest<ComfyEngineAckReply>("POST", "/comfy/engine/config", { body: config });
     },
     async getBridgeWritebacks(cursor: number): Promise<ComfyBridgeWritebacksReply | null> {
       try {

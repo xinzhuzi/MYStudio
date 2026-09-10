@@ -97,6 +97,8 @@ function notInstalledStatus(): ComfyEngineStatus {
     installDir: null,
     torch: null,
     launchArgs: null,
+    envVars: null,
+    portConflictPolicy: null,
   };
 }
 
@@ -515,7 +517,10 @@ export function createMockComfyEngineClient(
       return [];
     },
 
-    async setLaunchArgs(): Promise<{ accepted: boolean; message?: string }> {
+    async setLaunchConfig(config: { argsString?: string; envVars?: Record<string, string>; portConflictPolicy?: "auto-shift" | "fail" }): Promise<{ accepted: boolean; message?: string }> {
+      if (config.argsString != null) status = { ...status, launchArgs: config.argsString };
+      if (config.envVars != null) status = { ...status, envVars: config.envVars };
+      if (config.portConflictPolicy != null) status = { ...status, portConflictPolicy: config.portConflictPolicy };
       return { accepted: true };
     },
     async getBridgeWritebacks(): Promise<ComfyBridgeWritebacksReply | null> {

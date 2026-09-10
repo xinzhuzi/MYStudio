@@ -33,6 +33,8 @@ function status(overrides: Partial<ComfyEngineStatus>): ComfyEngineStatus {
     installDir: "/tmp/comfyui",
     torch: null,
     launchArgs: null,
+    envVars: null,
+    portConflictPolicy: null,
     ...overrides,
   };
 }
@@ -211,5 +213,51 @@ describe("comfyVersionGithubUrl(09-09 版本地址跳转)", () => {
     expect(comfyVersionGithubUrl("master@672ba9e")).toBe("https://github.com/Comfy-Org/ComfyUI/tree/672ba9e");
     expect(comfyVersionGithubUrl(null)).toBeNull();
     expect(comfyVersionGithubUrl("未知版本")).toBeNull();
+  });
+});
+
+// ── 启动参数串纯函数(09-10 Desktop 化)────────────────────────────
+import {
+  applyAttentionMode,
+  applyVramPolicy,
+  deriveLaunchDropdowns,
+  launchArgsWarnings,
+  tokenizeArgsString,
+} from "./comfy-engine-contract";
+
+describe("launch args string helpers", () => {
+  it("tokenize:引号段成词;不成对报错", () => {
+    expect(tokenizeArgsString('--a "b c" d').tokens).toEqual(["--a", "b c", "d"]);
+    const bad = tokenizeArgsString('"--unbalanced');
+    expect(bad.ok).toBe(false);
+    expect(bad.error).toContain("引号");
+  });
+
+  it("warnings:大众端口黄字;0.0.0.0 红字;正常串零警告", () => {
+    const w = launchArgsWarnings("--port 8188 --listen 0.0.0.0");
+    expect(w).toHaveLength(2);
+    expect(w[0]!.level).toBe("warn");
+    expect(w[1]!.level).toBe("danger");
+    expect(launchArgsWarnings("--gpu-only")).toEqual([]);
+  });
+
+  it("dropdown 反解与快填回写往返一致", () => {
+    const base = "--gpu-only --reserve-vram 16 --use-pytorch-cross-attention";
+    expect(deriveLaunchDropdowns(base)).toEqual({ vram: "gpu-only", reserveGb: 16, attention: "pytorch-cross-attention" });  // 组合串显示「全力」(旧语义)
+    expect(deriveLaunchDropdowns("--reserve-vram 8").vram).toBe("reserve-vram");  // 纯预留才显示「预留」
+    // 摘加速 → 反解 auto;再加回 → 与原串一致
+    const noAttn = applyAttentionMode(base, "auto");
+    expect(deriveLaunchDropdowns(noAttn).attention).toBe("auto");
+    expect(applyAttentionMode(noAttn, "pytorch-cross-attention")).toBe(base);
+  });
+
+  it("快填不动串中无关 flag 及其取值(含 --port 的值)", () => {
+    const base = "--port 17500 --fast --reserve-vram 8";
+    const out = applyVramPolicy(base, "gpu-only", 16);
+    expect(out).toContain("--port 17500");
+    expect(out).toContain("--fast");
+    expect(out).toContain("--gpu-only");
+    expect(out).not.toContain("--reserve-vram");
+    expect(applyVramPolicy(base, "auto", 16)).toBe("--port 17500 --fast");
   });
 });

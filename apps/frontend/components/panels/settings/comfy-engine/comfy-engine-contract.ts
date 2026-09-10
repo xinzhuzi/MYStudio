@@ -76,8 +76,12 @@ export interface ComfyEngineStatus {
   installDir: string | null;
   /** 引擎 venv 的 PyTorch 版本(安装时入账;高级区只读展示,照 Comfy Desktop 同款)。 */
   torch: string | null;
-  /** 性能档(启动参数的大白话翻译;高级区编辑)。 */
-  launchArgs: { vramPolicy: string; attentionMode: string; reserveVramGb: number | null } | null;
+  /** 启动参数命令行串(Desktop 式唯一真源;旧三档对象由后端读侧迁移成串)。 */
+  launchArgs: string | null;
+  /** 环境变量表(spawn 注入;本机明文存储,UI 侧遮蔽展示)。 */
+  envVars: Record<string, string> | null;
+  /** 端口冲突策略:串写死的端口被占时顺延(fail)或报错;非命令行参数。 */
+  portConflictPolicy: "auto-shift" | "fail" | null;
 }
 
 // ---------------------------------------------------------------------------
@@ -286,8 +290,12 @@ export interface ComfyEngineClient {
   cleanOrphans(): Promise<{ removed: string[]; message?: string }>;
   /** 快照列表(装插件/更新引擎前自动打;列表+一键回滚,design 映射表「快照页→搬并强化」)。 */
   listSnapshots(): Promise<ComfySnapshotEntry[]>;
-  /** 修改性能档/加速方式(启动参数的大白话翻译落账,重启引擎生效)。 */
-  setLaunchArgs(args: { vramPolicy?: "auto" | "gpu-only" | "reserve-vram"; reserveVramGb?: number | null; attentionMode?: "auto" | "pytorch-cross-attention" }): Promise<ComfyEngineAckReply>;
+  /** 修改启动配置(命令行串/环境变量表/端口冲突策略;语法错由后端拒存,重启引擎生效)。 */
+  setLaunchConfig(config: {
+    argsString?: string;
+    envVars?: Record<string, string>;
+    portConflictPolicy?: "auto-shift" | "fail";
+  }): Promise<ComfyEngineAckReply>;
   /** bridge 回写收件箱(09-09 swap 阶段1):manying_generated 落 sidecar 的成图项。 */
   getBridgeWritebacks(cursor: number): Promise<ComfyBridgeWritebacksReply | null>;
   /** 消费确认:删除 ≤upTo 的收件项(落账成功后调用)。 */
@@ -481,4 +489,145 @@ export function comfyVersionGithubUrl(version: string | null): string | null {
   if (atNotation) return `${COMFYUI_GITHUB_BASE}/tree/${atNotation[1]}`;
   if (/^v\d+\.\d+\.\d+$/.test(version)) return `${COMFYUI_GITHUB_BASE}/tree/${version}`;
   return null;
+}
+
+// ---------------------------------------------------------------------------
+// 启动参数串纯函数(09-10 Desktop 化:串=唯一真源;下拉=快填器)
+// ---------------------------------------------------------------------------
+
+/** 大众端口(易撞;冷门端口铁律默认仍由托管分配兜底)。 */
+const COMMON_PORTS = new Set([3000, 5000, 5173, 8000, 8080, 8188, 8888, 9000]);
+
+export interface LaunchArgsTokenize {
+  ok: boolean;
+  error?: string;
+  tokens: string[];
+}
+
+/** 前端镜像校验:引号成对+空白分词(值含空格可加引号);语法错给行内红错。 */
+export function tokenizeArgsString(input: string): LaunchArgsTokenize {
+  const text = input ?? "";
+  const tokens: string[] = [];
+  let current = "";
+  let quote: '"' | "'" | null = null;
+  for (let index = 0; index < text.length; index += 1) {
+    const char = text[index]!;
+    if (quote) {
+      if (char === quote) quote = null;
+      else current += char;
+      continue;
+    }
+    if (char === '"' || char === "'") {
+      quote = char;
+      continue;
+    }
+    if (/\s/.test(char)) {
+      if (current) tokens.push(current);
+      current = "";
+      continue;
+    }
+    current += char;
+  }
+  if (quote) return { ok: false, error: "引号不成对,请补齐后保存", tokens: [] };
+  if (current) tokens.push(current);
+  return { ok: true, tokens };
+}
+
+export interface LaunchArgsWarning {
+  level: "warn" | "danger";
+  text: string;
+}
+
+/** 行内警告:大众端口/特权端口黄字;--listen 0.0.0.0 红字(放行,仅提醒)。 */
+export function launchArgsWarnings(input: string): LaunchArgsWarning[] {
+  const { ok, tokens } = tokenizeArgsString(input);
+  if (!ok) return [];
+  const warnings: LaunchArgsWarning[] = [];
+  tokens.forEach((token, index) => {
+    const value = token.startsWith("--port=") ? token.slice("--port=".length) : null;
+    if (token === "--port" || value) {
+      const portText = value ?? tokens[index + 1] ?? "";
+      const port = Number(portText);
+      if (Number.isInteger(port) && port > 0) {
+        if (port < 1024) {
+          warnings.push({ level: "warn", text: `端口 ${port} 是特权端口(<1024),引擎大概率起不来` });
+        } else if (COMMON_PORTS.has(port)) {
+          warnings.push({ level: "warn", text: `端口 ${port} 是大众端口,容易被其他应用抢占` });
+        }
+      }
+    }
+    if (token === "--listen") {
+      const listen = tokens[index + 1];
+      if (listen === "0.0.0.0" || listen === "::") {
+        warnings.push({ level: "danger", text: "监听 0.0.0.0 会把引擎暴露给局域网所有设备,注意安全" });
+      }
+    }
+    if (token.startsWith("--listen=")) {
+      const listen = token.slice("--listen=".length);
+      if (listen === "0.0.0.0" || listen === "::") {
+        warnings.push({ level: "danger", text: "监听 0.0.0.0 会把引擎暴露给局域网所有设备,注意安全" });
+      }
+    }
+  });
+  return warnings;
+}
+
+export interface LaunchDropdownState {
+  vram: "auto" | "gpu-only" | "reserve-vram";
+  reserveGb: number;
+  attention: "auto" | "pytorch-cross-attention";
+}
+
+/** 从串反解下拉状态(与后端旧翻译语义对齐:两 flag 可组合,下拉取并集展示)。 */
+export function deriveLaunchDropdowns(input: string): LaunchDropdownState {
+  const { tokens } = tokenizeArgsString(input);
+  const has = (flag: string) => tokens.includes(flag);
+  const reserveIndex = tokens.indexOf("--reserve-vram");
+  const reserveGb = Number(tokens[reserveIndex + 1]);
+  const hasReserve = has("--reserve-vram") && Number.isFinite(reserveGb) && reserveGb > 0;
+  return {
+    // 显示优先级:全力+预留组合(旧默认串)显示「全力」;仅纯预留显示「预留」——旧三档 UI 同语义
+    vram: has("--gpu-only") ? "gpu-only" : hasReserve ? "reserve-vram" : "auto",
+    reserveGb: hasReserve ? reserveGb : 16,
+    attention: has("--use-pytorch-cross-attention") ? "pytorch-cross-attention" : "auto",
+  };
+}
+
+function removeFlagWithValue(tokens: string[], flag: string): string[] {
+  const out: string[] = [];
+  for (let index = 0; index < tokens.length; index += 1) {
+    const token = tokens[index]!;
+    if (token === flag) {
+      index += 1; // 连带吞掉它的取值(等价形一并清)
+      continue;
+    }
+    if (token.startsWith(`${flag}=`)) continue;
+    out.push(token);
+  }
+  return out;
+}
+
+function removeBareFlag(tokens: string[], flag: string): string[] {
+  return tokens.filter((token) => token !== flag && !token.startsWith(`${flag}=`));
+}
+
+function tokensOf(input: string): string[] {
+  return tokenizeArgsString(input).tokens;
+}
+
+/** 显存策略下拉 → 写串(定点替换 --gpu-only/--reserve-vram 及其值;auto=全清)。 */
+export function applyVramPolicy(input: string, vram: LaunchDropdownState["vram"], reserveGb: number): string {
+  let tokens = removeFlagWithValue(tokensOf(input), "--reserve-vram");
+  tokens = removeBareFlag(tokens, "--gpu-only");
+  if (vram === "auto") return tokens.join(" ").trim();
+  if (vram === "gpu-only") return [...tokens, "--gpu-only"].join(" ").trim();
+  const gb = Number.isFinite(reserveGb) && reserveGb > 0 ? reserveGb : 16;
+  return [...tokens, "--gpu-only", "--reserve-vram", String(gb)].join(" ").trim();
+}
+
+/** 加速方式下拉 → 写串(定点增删 --use-pytorch-cross-attention)。 */
+export function applyAttentionMode(input: string, mode: LaunchDropdownState["attention"]): string {
+  const tokens = removeBareFlag(tokensOf(input), "--use-pytorch-cross-attention");
+  if (mode === "pytorch-cross-attention") return [...tokens, "--use-pytorch-cross-attention"].join(" ").trim();
+  return tokens.join(" ").trim();
 }

@@ -25,7 +25,7 @@ const actions = vi.hoisted(() => ({
   resetEngine: vi.fn(async () => undefined),
   rollbackUpdate: vi.fn(async () => undefined),
   rollbackTo: vi.fn(async () => undefined),
-  setLaunchArgs: vi.fn(async () => undefined),
+  setLaunchConfig: vi.fn(async () => undefined),
   refreshSnapshots: vi.fn(async () => undefined),
   cleanOrphans: vi.fn(async () => ({ removed: [] })),
   checkUpdate: vi.fn(async () => undefined),
@@ -90,6 +90,8 @@ function readyStatus(overrides: Partial<ComfyEngineStatus> = {}): ComfyEngineSta
     installDir: "/tmp/comfyui",
     torch: null,
     launchArgs: null,
+    envVars: null,
+    portConflictPolicy: null,
     ...overrides,
   };
 }
@@ -509,7 +511,7 @@ describe("ComfyEngineSettingsSection 插件子区块", () => {
 // ── 09-08 映射表补口:高级设置区 + 快照区 ──
 describe("ComfyEngineSettingsSection 标签页布局(照 ComfyUI Desktop)", () => {
   beforeEach(() => {
-    scenario.status = readyStatus({ torch: "2.13.0", launchArgs: { vramPolicy: "gpu-only", attentionMode: "pytorch-cross-attention", reserveVramGb: 16 } });
+    scenario.status = readyStatus({ torch: "2.13.0", launchArgs: "--gpu-only --reserve-vram 16 --use-pytorch-cross-attention" });
     scenario.snapshots = [];
   });
 
@@ -525,24 +527,63 @@ describe("ComfyEngineSettingsSection 标签页布局(照 ComfyUI Desktop)", () =
     await waitFor(() => expect(comfyEl("torch")?.textContent).toContain("2.13.0"));
   });
 
-  it("启动参数页:端口+显存策略/加速方式下拉,保存传档位", async () => {
+  it("启动参数页(Desktop 式):串输入+快填下拉+环境变量表;下拉改串防抖即存", async () => {
     render(<ComfyEngineSettingsSection />);
     fireEvent.click(comfyEl("tab", "update"));
     await waitFor(() => expect(screen.getByText("当前版本")).toBeTruthy());
     fireEvent.click(comfyEl("tab", "launch"));
     expect(comfyEl("port-input")).toBeTruthy();
-    expect(comfyEl("vram-select")).toBeTruthy();
-    expect(comfyEl("attention-select")).toBeTruthy();
-    expect(comfyEl("reserve-input")).toBeTruthy();
+    const argsInput = comfyEl("args-input") as HTMLInputElement;
+    expect(argsInput.value).toBe("--gpu-only --reserve-vram 16 --use-pytorch-cross-attention");
     expect((comfyEl("vram-select") as HTMLSelectElement).value).toBe("gpu-only");
     expect((comfyEl("attention-select") as HTMLSelectElement).value).toBe("pytorch-cross-attention");
-    expect((comfyEl("reserve-input") as HTMLInputElement).value).toBe("16");
-    fireEvent.change(comfyEl("reserve-input"), { target: { value: "12" } });
-    fireEvent.click(comfyEl("advanced-save"));
-    await waitFor(() =>
-      expect(actions.setLaunchArgs).toHaveBeenCalledWith(
-        expect.objectContaining({ vramPolicy: "gpu-only", attentionMode: "pytorch-cross-attention", reserveVramGb: 12 }),
-      ));
+    // 快填下拉:加速方式切「自动」→ 串中摘除 --use-pytorch-cross-attention → 防抖保存
+    fireEvent.change(comfyEl("attention-select"), { target: { value: "auto" } });
+    expect(argsInput.value).toBe("--gpu-only --reserve-vram 16");
+    await waitFor(
+      () => expect(actions.setLaunchConfig).toHaveBeenCalledWith({ argsString: "--gpu-only --reserve-vram 16" }),
+      { timeout: 2000 },
+    );
+  });
+
+  it("启动参数页:语法错红字拒存;大众端口黄字/0.0.0.0 红字放行警告", async () => {
+    render(<ComfyEngineSettingsSection />);
+    fireEvent.click(comfyEl("tab", "update"));
+    await waitFor(() => expect(screen.getByText("当前版本")).toBeTruthy());
+    fireEvent.click(comfyEl("tab", "launch"));
+    // 语法错:引号不成对 → 红字+不落账
+    fireEvent.change(comfyEl("args-input"), { target: { value: '"--unbalanced' } });
+    await waitFor(() => expect(comfyEl("args-error")?.textContent).toContain("引号"));
+    // 警告:大众端口黄字 + 0.0.0.0 红字(放行,仅提醒)
+    fireEvent.change(comfyEl("args-input"), { target: { value: "--port 8188 --listen 0.0.0.0" } });
+    await waitFor(() => {
+      const warnings = document.querySelectorAll("[data-comfy-args-warning]");
+      expect(warnings.length).toBe(2);
+      expect(warnings[0]!.getAttribute("data-comfy-args-warning")).toBe("warn");
+      expect(warnings[1]!.getAttribute("data-comfy-args-warning")).toBe("danger");
+    });
+    await waitFor(
+      () => expect(actions.setLaunchConfig).toHaveBeenCalledWith({ argsString: "--port 8188 --listen 0.0.0.0" }),
+      { timeout: 2000 },
+    );
+  });
+
+  it("启动参数页:环境变量表添加行防抖落账,值默认遮蔽", async () => {
+    render(<ComfyEngineSettingsSection />);
+    fireEvent.click(comfyEl("tab", "update"));
+    await waitFor(() => expect(screen.getByText("当前版本")).toBeTruthy());
+    fireEvent.click(comfyEl("tab", "launch"));
+    fireEvent.click(comfyEl("env-add"));
+    const keyInput = document.querySelector("[data-comfy-env-key]") as HTMLInputElement;
+    fireEvent.change(keyInput, { target: { value: "HF_TOKEN" } });
+    // 键变更触发行重挂载,值输入须重查(旧节点已脱离 DOM)
+    const valueInput = document.querySelector("[data-comfy-env-value]") as HTMLInputElement;
+    fireEvent.change(valueInput, { target: { value: "tok-1" } });
+    expect(valueInput.type).toBe("password");
+    await waitFor(
+      () => expect(actions.setLaunchConfig).toHaveBeenCalledWith({ envVars: { HF_TOKEN: "tok-1" } }),
+      { timeout: 2000 },
+    );
   });
 
   it("快照页:大白话原因+回滚传 id;体检/复位同页", async () => {
@@ -587,12 +628,15 @@ describe("ComfyEngineSettingsSection 模型页", () => {
 
     expect(comfyEl("models-page")).toBeTruthy();
     expect(modelActions.loadModels).toHaveBeenCalled();
+    // 分类组默认收起(09-10 用户裁定可折叠):类别注释/合计常驻,文件行与件级注释点开才见
     expect(screen.getByText("diffusion_models")).toBeTruthy();
+    expect(screen.getByText(/去噪网络/)).toBeTruthy();
+    expect(screen.getByText(/合计 2 件/)).toBeTruthy();
+    expect(screen.queryByText(/krea2_turbo_bf16\.safetensors/)).toBeNull();
+    fireEvent.click(comfyEl("model-group-toggle", "diffusion_models"));
     expect(screen.getByText(/krea2_turbo_bf16\.safetensors/)).toBeTruthy();
     expect(screen.getByText(/Krea2 生图主力——文生图\/图生图\/无衣物\/NSFW 专业流/)).toBeTruthy();
-    expect(screen.getByText(/去噪网络/)).toBeTruthy();
     expect(screen.getByText("24.5 GB")).toBeTruthy();
-    expect(screen.getByText(/合计 2 件/)).toBeTruthy();
     expect(actions.checkUpdate).not.toHaveBeenCalled();
     expect(screen.queryByText(/当前版本/)).toBeNull();
   });

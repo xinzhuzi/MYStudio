@@ -31,7 +31,11 @@ export interface UseComfyEngineSettingsOptions {
 }
 
 export function useComfyEngineSettings(options: UseComfyEngineSettingsOptions = {}) {
-  const client = options.client ?? getComfyEngineClient();
+  // client 引用必须跨渲染稳定(照 ComfyCanvasStudio/ComfyEngineStoragePaths 同款修法):
+  // HTTP 回落客户端每次调用都新建实例,若每 render 取新 client,全部 [client] 回调与
+  // 挂载效应会退化成每 render 重跑 → 状态/插件/模型清单自刷新循环(09-10 实弹:
+  // 本地配置模型页 195 件清单来回切页狂刷不止)。
+  const client = useMemo(() => options.client ?? getComfyEngineClient(), [options.client]);
   const pollIntervalMs = options.pollIntervalMs ?? JOB_POLL_INTERVAL_MS;
   const hasBridge = Boolean(client);
 
@@ -288,16 +292,16 @@ export function useComfyEngineSettings(options: UseComfyEngineSettingsOptions = 
     }
   }, [client, refreshStatus]);
 
-  // 高级设置(09-08 映射表补口):性能档/加速方式落账,重启引擎后生效
-  const setLaunchArgs = useCallback(
-    async (args: { vramPolicy?: "auto" | "gpu-only" | "reserve-vram"; reserveVramGb?: number | null; attentionMode?: "auto" | "pytorch-cross-attention" }) => {
+  // 启动配置(09-10 Desktop 化):命令行串/环境变量/端口策略落账,重启引擎后生效
+  const setLaunchConfig = useCallback(
+    async (config: { argsString?: string; envVars?: Record<string, string>; portConflictPolicy?: "auto-shift" | "fail" }) => {
       if (!client) return;
       try {
-        const reply = await client.setLaunchArgs(args);
-        if (!reply.accepted) toast.error(reply.message || "性能档设置未保存");
+        const reply = await client.setLaunchConfig(config);
+        if (!reply.accepted) toast.error(reply.message || "启动参数未保存");
         else toast.success("已保存,重启引擎后生效");
       } catch (error) {
-        toast.error(error instanceof Error ? error.message : "性能档设置失败");
+        toast.error(error instanceof Error ? error.message : "启动参数保存失败");
       }
     },
     [client],
@@ -471,7 +475,7 @@ export function useComfyEngineSettings(options: UseComfyEngineSettingsOptions = 
     resetEngine,
     rollbackUpdate,
     rollbackTo,
-    setLaunchArgs,
+    setLaunchConfig,
     snapshots,
     refreshSnapshots,
     models,

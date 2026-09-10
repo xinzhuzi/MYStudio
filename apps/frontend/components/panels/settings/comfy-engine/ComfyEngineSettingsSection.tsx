@@ -10,6 +10,7 @@
 import { useEffect, useRef, useState } from "react";
 import {
   Check,
+  ChevronDown,
   Copy,
   Download,
   ExternalLink,
@@ -34,13 +35,19 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import {
   COMFY_ENGINE_STAGE_LABELS,
+  applyAttentionMode,
+  applyVramPolicy,
   comfyVersionGithubUrl,
+  deriveLaunchDropdowns,
+  launchArgsWarnings,
   summarizeDoctorReport,
+  tokenizeArgsString,
   type ComfyEngineJob,
 } from "./comfy-engine-contract";
 import { ComfyEnginePluginBlock } from "./ComfyEnginePluginBlock";
@@ -255,31 +262,94 @@ export function ComfyEngineSettingsSection({ embedded = false, initialActiveTab 
   const status = engine.status;
   const [modelsDirDraft, setModelsDirDraft] = useState("");
   const [confirmReset, setConfirmReset] = useState(false);
+  // 启动参数 Desktop 化(09-10):串=唯一真源;草稿 null=跟随真实状态,编辑后本地持有
+  const [argsDraft, setArgsDraft] = useState<string | null>(null);
+  const [envDraft, setEnvDraft] = useState<Record<string, string> | null>(null);
+  const [envReveal, setEnvReveal] = useState<Record<string, boolean>>({});
   // 标签页(照 ComfyUI Desktop 设置布局,09-09 增「模型」页并置首:本地大模型展示)
   const [activeTab, setActiveTab] = useState<ComfyEngineTab>(initialActiveTab ?? "models");
-  const [vramDraft, setVramDraft] = useState("");
-  const [attentionDraft, setAttentionDraft] = useState("");
-  const [reserveDraft, setReserveDraft] = useState("");
+  // 模型分类组折叠(照生态插件块 09-09 裁定):默认收起,显式展开过的记住(localStorage)
+  const [openModelGroups, setOpenModelGroups] = useState<Record<string, boolean>>(() => {
+    try {
+      return JSON.parse(window.localStorage.getItem("comfy-model-groups-open") ?? "{}") as Record<string, boolean>;
+    } catch {
+      return {};
+    }
+  });
+  const toggleModelGroup = (category: string, next: boolean) => {
+    setOpenModelGroups((previous) => {
+      const nextGroups = { ...previous, [category]: next };
+      try {
+        window.localStorage.setItem("comfy-model-groups-open", JSON.stringify(nextGroups));
+      } catch {
+        /* 隐私模式等场景静默 */
+      }
+      return nextGroups;
+    });
+  };
 
   // 深链切页:卡已展开时收到 reveal(如再次点「去更新」)也要切到目标页。
   useEffect(() => {
     if (initialActiveTab) setActiveTab(initialActiveTab);
   }, [initialActiveTab]);
 
-  // 模型页激活即拉 comfyui/models 清单(09-10 用户裁定:模型页展示引擎模型库
-  // 真实内容);loadModels 为 hook 内稳定引用,幂等防抖(进行中不重入)。
+  // 模型页首次激活拉一次清单(09-10 用户裁定:模型页展示引擎模型库真实内容;
+  // 同日补裁定:来回切页不要频繁刷新——重进标签页不重拉,显式「刷新」按钮兜底,
+  // 拉取失败不记次数、下次进入重试)。loadModels 为 hook 内稳定引用,幂等防抖。
   const loadModelsFn = engine.loadModels;
+  const modelsAutoLoadedRef = useRef(false);
   useEffect(() => {
-    if (activeTab === "models") void loadModelsFn();
+    if (activeTab !== "models" || modelsAutoLoadedRef.current) return;
+    void loadModelsFn().then(
+      () => {
+        modelsAutoLoadedRef.current = true;
+      },
+      () => undefined,
+    );
   }, [activeTab, loadModelsFn]);
 
   // 模型目录草稿跟随真实状态(未编辑过时)。
   useEffect(() => {
     setModelsDirDraft((previous) => (previous === "" ? (status?.modelsDir ?? "") : previous));
-    setVramDraft((previous) => (previous === "" ? (status?.launchArgs?.vramPolicy ?? "gpu-only") : previous));
-    setAttentionDraft((previous) => (previous === "" ? (status?.launchArgs?.attentionMode ?? "pytorch-cross-attention") : previous));
-    setReserveDraft((previous) => (previous === "" ? String(status?.launchArgs?.reserveVramGb ?? "16") : previous));
-  }, [status?.modelsDir, status?.launchArgs?.vramPolicy, status?.launchArgs?.attentionMode, status?.launchArgs?.reserveVramGb]);
+  }, [status?.modelsDir]);
+
+  // 启动参数 Desktop 化(09-10):串=唯一真源;草稿 null=跟随真实状态
+  const effectiveArgs = argsDraft ?? status?.launchArgs ?? "";
+  const effectiveEnv = envDraft ?? status?.envVars ?? {};
+  const dropdowns = deriveLaunchDropdowns(effectiveArgs);
+  const argsTokenize = tokenizeArgsString(effectiveArgs);
+  const argWarnings = launchArgsWarnings(effectiveArgs);
+
+  // 防抖即存(Desktop 式;语法错不存;与落账值相同不存)
+  const saveConfigRef = useRef(engine.setLaunchConfig);
+  saveConfigRef.current = engine.setLaunchConfig;
+  const lastSavedArgsRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!argsTokenize.ok) return;
+    if (effectiveArgs === (status?.launchArgs ?? "")) return;
+    if (lastSavedArgsRef.current === effectiveArgs) return;
+    const timer = setTimeout(() => {
+      lastSavedArgsRef.current = effectiveArgs;
+      void saveConfigRef.current({ argsString: effectiveArgs });
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [effectiveArgs, argsTokenize.ok, status?.launchArgs]);
+
+  const lastSavedEnvRef = useRef<Record<string, string> | null>(null);
+  useEffect(() => {
+    if (envDraft == null) return; // 只保存用户编辑过的表
+    const clean = Object.fromEntries(
+      Object.entries(envDraft).filter(([key, value]) => key.trim() && value !== ""),
+    );
+    const cleanJson = JSON.stringify(clean);
+    if (cleanJson === JSON.stringify(status?.envVars ?? {})) return;
+    if (lastSavedEnvRef.current != null && cleanJson === JSON.stringify(lastSavedEnvRef.current)) return;
+    const timer = setTimeout(() => {
+      lastSavedEnvRef.current = clean;
+      void saveConfigRef.current({ envVars: clean });
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [envDraft, status?.envVars]);
 
   // 更新页激活即自动静默检查一次(照 Comfy Desktop:打开更新页就问一次 GitHub,
   // 结果只进徽章/上次检查时间,不弹 toast)。ref 防重:本组件生命周期内只自动查一次,
@@ -362,30 +432,53 @@ export function ComfyEngineSettingsSection({ embedded = false, initialActiveTab 
           </p>
         ) : (
           <div className="space-y-1.5" data-comfy-models-list>
-            {engine.models.groups.map((group) => (
-              <div key={group.category} className="rounded-md border border-border/60 bg-muted/30 px-2.5 py-1.5">
-                <p className="flex items-baseline justify-between gap-2 text-[11px] font-medium text-foreground">
-                  <span>{group.category}</span>
-                  <span className="font-normal text-muted-foreground">
-                    {group.files.length} 件 · {formatModelSize(group.files.reduce((sum, f) => sum + f.sizeBytes, 0))}
-                  </span>
-                </p>
-                <p className="mt-0.5 text-[11px] leading-4 text-muted-foreground/80">{modelCategoryInfo(group.category)}</p>
-                <ul className="mt-1 space-y-0.5">
-                  {group.files.map((file) => (
-                    <li key={file.name} className="flex items-baseline justify-between gap-2 text-[11px] leading-4">
-                      <span className="min-w-0 flex-1 select-text break-all">
-                        <span className="font-mono text-muted-foreground">{file.name}</span>
-                        {modelFileNote(file.name) ? (
-                          <span className="ml-1.5 text-muted-foreground/70">· {modelFileNote(file.name)}</span>
-                        ) : null}
+            {engine.models.groups.map((group) => {
+              const groupOpen = openModelGroups[group.category] ?? false;
+              return (
+                <div key={group.category} className="rounded-md border border-border/60 bg-muted/30 px-2.5 py-1.5">
+                  <Collapsible open={groupOpen} onOpenChange={(next) => toggleModelGroup(group.category, next)}>
+                    <CollapsibleTrigger
+                      className="flex w-full items-center gap-1.5 rounded-sm text-left"
+                      data-comfy-model-group-toggle={group.category}
+                    >
+                      <ChevronDown
+                        className={cn(
+                          "h-3.5 w-3.5 shrink-0 text-muted-foreground transition-transform",
+                          !groupOpen && "-rotate-90",
+                        )}
+                        aria-hidden
+                      />
+                      <span className="flex min-w-0 flex-1 items-baseline justify-between gap-2 text-[11px] font-medium text-foreground">
+                        <span>{group.category}</span>
+                        <span className="font-normal text-muted-foreground">
+                          {group.files.length} 件 · {formatModelSize(group.files.reduce((sum, f) => sum + f.sizeBytes, 0))}
+                        </span>
                       </span>
-                      <span className="shrink-0 text-muted-foreground/80">{formatModelSize(file.sizeBytes)}</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            ))}
+                    </CollapsibleTrigger>
+                    <p className="mt-0.5 pl-5 text-[11px] leading-4 text-muted-foreground/80">{modelCategoryInfo(group.category)}</p>
+                    {/* 全量平铺把页面拉爆(09-10 用户裁定要可折叠):展开态也走限高滚动窗口,照插件列表 09-09 裁定 */}
+                    <CollapsibleContent>
+                      <ul
+                        className="mt-1 max-h-72 space-y-0.5 overflow-y-auto overscroll-contain pl-5"
+                        data-comfy-model-group-files={group.category}
+                      >
+                        {group.files.map((file) => (
+                          <li key={file.name} className="flex items-baseline justify-between gap-2 text-[11px] leading-4">
+                            <span className="min-w-0 flex-1 select-text break-all">
+                              <span className="font-mono text-muted-foreground">{file.name}</span>
+                              {modelFileNote(file.name) ? (
+                                <span className="ml-1.5 text-muted-foreground/70">· {modelFileNote(file.name)}</span>
+                              ) : null}
+                            </span>
+                            <span className="shrink-0 text-muted-foreground/80">{formatModelSize(file.sizeBytes)}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </CollapsibleContent>
+                  </Collapsible>
+                </div>
+              );
+            })}
             <p className="px-1 text-[11px] text-muted-foreground">
               合计 {engine.models.groups.reduce((n, g) => n + g.files.length, 0)} 件 · {formatModelSize(engine.models.totalBytes)}
             </p>
@@ -634,74 +727,178 @@ export function ComfyEngineSettingsSection({ embedded = false, initialActiveTab 
             </div>
           ) : null}
 
-          {/* 启动参数页(照截图行式布局:端口只读+显存策略/加速方式大白话下拉) */}
+          {/* 启动参数页(09-10 全盘照 ComfyUI Desktop:命令行串唯一真源+下拉快填+环境变量表) */}
           {activeTab === "launch" ? (
             <div className="space-y-4" data-comfy-advanced>
-          {/* 端口行:只读展示实际端口(17xxx 防撞顺延结果) */}
-          <div className="grid gap-3 md:grid-cols-[5rem_minmax(0,1fr)_auto] md:items-center">
-            <span className="text-xs text-muted-foreground">服务端口</span>
-            <Input
-              readOnly
-              value={status.port != null ? String(status.port) : "启动后自动分配"}
-              containerClassName="w-full min-w-0"
-              className="min-w-0 font-mono text-xs"
-              data-comfy-port-input
-            />
-          </div>
+              {/* 端口行:只读展示实际端口(未写 --port 时 17xxx 防撞顺延结果) */}
+              <div className="grid gap-3 md:grid-cols-[5rem_minmax(0,1fr)_auto] md:items-center">
+                <span className="text-xs text-muted-foreground">服务端口</span>
+                <Input
+                  readOnly
+                  value={status.port != null ? String(status.port) : "启动后自动分配"}
+                  containerClassName="w-full min-w-0"
+                  className="min-w-0 font-mono text-xs"
+                  data-comfy-port-input
+                />
+              </div>
 
+              {/* 命令行整串(Desktop 式;语法错红字拒存,大众端口黄字/0.0.0.0 红字放行警告) */}
+              <div className="space-y-1.5">
+                <span className="text-xs text-muted-foreground">启动参数</span>
+                <Input
+                  value={effectiveArgs}
+                  onChange={(event) => setArgsDraft(event.target.value)}
+                  placeholder="--gpu-only --reserve-vram 16 --use-pytorch-cross-attention"
+                  containerClassName="w-full"
+                  className={cn("min-w-0 font-mono text-xs", !argsTokenize.ok && "border-destructive")}
+                  data-comfy-args-input
+                />
+                {!argsTokenize.ok ? (
+                  <p className="text-xs text-destructive" data-comfy-args-error>{argsTokenize.error}</p>
+                ) : null}
+                {argWarnings.map((warning) => (
+                  <p
+                    key={warning.text}
+                    className={cn("text-xs", warning.level === "danger" ? "text-destructive" : "text-warning")}
+                    data-comfy-args-warning={warning.level}
+                  >
+                    {warning.text}
+                  </p>
+                ))}
+                <p className="text-[11px] text-muted-foreground">
+                  整串原样透传给引擎;未写 --port 时自动分配冷门端口。改动自动保存,重启引擎后生效。
+                </p>
+              </div>
+
+              {/* 快填下拉:写串(与上方输入框双向同步);端口冲突策略=托管旋钮不写串 */}
               <div className="flex items-center justify-between gap-3">
-                <span className="text-xs text-muted-foreground">显存策略</span>
+                <span className="text-xs text-muted-foreground">显存策略(快填)</span>
                 <select
                   aria-label="显存策略"
-                  value={vramDraft === "reserve-vram" ? "gpu-only" : vramDraft || "gpu-only"}
-                  onChange={(event) => setVramDraft(event.target.value)}
+                  value={dropdowns.vram}
+                  onChange={(event) =>
+                    setArgsDraft(applyVramPolicy(effectiveArgs, event.target.value as "auto" | "gpu-only" | "reserve-vram", dropdowns.reserveGb))
+                  }
                   className="h-8 rounded-md border border-border bg-card px-2 text-xs text-foreground"
                   data-comfy-vram-select
                 >
-                  <option value="auto">自动(推荐)</option>
+                  <option value="auto">自动(不加参数)</option>
                   <option value="gpu-only">全力使用显存</option>
                   <option value="reserve-vram">预留部分显存</option>
                 </select>
               </div>
+              {dropdowns.vram === "reserve-vram" ? (
+                <div className="flex items-center justify-between gap-3">
+                  <span className="text-xs text-muted-foreground">预留显存(GB)</span>
+                  <Input
+                    value={String(dropdowns.reserveGb)}
+                    onChange={(event) => {
+                      const gb = Number(event.target.value);
+                      setArgsDraft(applyVramPolicy(effectiveArgs, "reserve-vram", Number.isFinite(gb) && gb > 0 ? gb : 16));
+                    }}
+                    containerClassName="w-28"
+                    className="h-8 min-w-0 font-mono text-xs"
+                    data-comfy-reserve-input
+                  />
+                </div>
+              ) : null}
               <div className="flex items-center justify-between gap-3">
-                <span className="text-xs text-muted-foreground">加速方式</span>
+                <span className="text-xs text-muted-foreground">加速方式(快填)</span>
                 <select
                   aria-label="加速方式"
-                  value={attentionDraft || "pytorch-cross-attention"}
-                  onChange={(event) => setAttentionDraft(event.target.value)}
+                  value={dropdowns.attention}
+                  onChange={(event) =>
+                    setArgsDraft(applyAttentionMode(effectiveArgs, event.target.value as "auto" | "pytorch-cross-attention"))
+                  }
                   className="h-8 rounded-md border border-border bg-card px-2 text-xs text-foreground"
                   data-comfy-attention-select
                 >
-                  <option value="auto">自动(推荐)</option>
+                  <option value="auto">自动(不加参数)</option>
                   <option value="pytorch-cross-attention">PyTorch 加速</option>
                 </select>
               </div>
               <div className="flex items-center justify-between gap-3">
-                <span className="text-xs text-muted-foreground">预留显存(GB)</span>
-                <Input
-                  value={reserveDraft}
-                  onChange={(event) => setReserveDraft(event.target.value)}
-                  placeholder="16"
-                  containerClassName="w-28"
-                  className="h-8 min-w-0 font-mono text-xs"
-                  data-comfy-reserve-input
-                />
-              </div>
-              <div className="flex items-center justify-end">
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() =>
-                    void engine.setLaunchArgs({
-                      vramPolicy: (vramDraft || "gpu-only") as "auto" | "gpu-only" | "reserve-vram",
-                      attentionMode: (attentionDraft || "pytorch-cross-attention") as "auto" | "pytorch-cross-attention",
-                      reserveVramGb: Number(reserveDraft) > 0 ? Number(reserveDraft) : null,
-                    })
+                <span className="text-xs text-muted-foreground">端口被占时</span>
+                <select
+                  aria-label="端口冲突策略"
+                  value={status.portConflictPolicy ?? "auto-shift"}
+                  onChange={(event) =>
+                    void engine.setLaunchConfig({ portConflictPolicy: event.target.value as "auto-shift" | "fail" })
                   }
-                  data-comfy-advanced-save
+                  className="h-8 rounded-md border border-border bg-card px-2 text-xs text-foreground"
+                  data-comfy-port-policy-select
                 >
-                  保存(重启引擎后生效)
-                </Button>
+                  <option value="auto-shift">自动换冷门端口</option>
+                  <option value="fail">直接报错提醒我</option>
+                </select>
+              </div>
+
+              {/* 环境变量表(spawn 注入;值默认遮蔽,点击临时显示) */}
+              <div className="space-y-2" data-comfy-env-vars>
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-medium text-foreground">环境变量</span>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-7 px-2 text-xs"
+                    onClick={() => setEnvDraft({ ...effectiveEnv, "": "" })}
+                    data-comfy-env-add
+                  >
+                    添加变量
+                  </Button>
+                </div>
+                {Object.keys(effectiveEnv).length === 0 && envDraft == null ? (
+                  <p className="text-[11px] text-muted-foreground">暂无变量;常用于 HF_TOKEN、代理地址等(注入引擎进程)。</p>
+                ) : null}
+                {Object.entries(effectiveEnv).map(([key, value]) => (
+                  <div key={key || "new"} className="grid grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)_auto_auto] items-center gap-2">
+                    <Input
+                      value={key}
+                      onChange={(event) => {
+                        const next = { ...effectiveEnv };
+                        delete next[key];
+                        next[event.target.value] = value;
+                        setEnvDraft(next);
+                      }}
+                      placeholder="变量名"
+                      containerClassName="min-w-0"
+                      className="h-8 min-w-0 font-mono text-xs"
+                      data-comfy-env-key
+                    />
+                    <Input
+                      type={envReveal[key] ? "text" : "password"}
+                      value={value}
+                      onChange={(event) => setEnvDraft({ ...effectiveEnv, [key]: event.target.value })}
+                      placeholder="值"
+                      containerClassName="min-w-0"
+                      className="h-8 min-w-0 font-mono text-xs"
+                      data-comfy-env-value
+                    />
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="h-7 px-2 text-xs"
+                      onClick={() => setEnvReveal((prev) => ({ ...prev, [key]: !prev[key] }))}
+                      aria-label={envReveal[key] ? "隐藏值" : "显示值"}
+                    >
+                      {envReveal[key] ? "隐藏" : "显示"}
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="h-7 px-2 text-xs"
+                      onClick={() => {
+                        const next = { ...effectiveEnv };
+                        delete next[key];
+                        setEnvDraft(next);
+                      }}
+                      aria-label="删除变量"
+                      data-comfy-env-remove
+                    >
+                      删除
+                    </Button>
+                  </div>
+                ))}
               </div>
             </div>
           ) : null}
