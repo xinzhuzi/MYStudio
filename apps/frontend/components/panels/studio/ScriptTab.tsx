@@ -278,7 +278,7 @@ export function ScriptTab(props: {
           ))}
         </select>
       </div>
-    </div>,
+    </div>
           <div className="script-stage-control-tabs flex flex-wrap gap-2 border-b border-border pb-2">
             {[
               ["event", "事件"],

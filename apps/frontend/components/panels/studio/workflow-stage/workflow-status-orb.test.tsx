@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { WorkflowStatusOrb } from "./WorkflowStatusOrb";
+import { WorkflowStatusOrb, snapToNearestEdge } from "./WorkflowStatusOrb";
 import type { WorkflowReadiness } from "@/lib/studio/workflow-readiness";
 
 afterEach(() => {
@@ -70,7 +70,7 @@ describe("WorkflowStatusOrb", () => {
     expect(orb.getAttribute("data-workflow-active-stage")).toBe("novel");
   });
 
-  it("六段进度弧按状态着色,中心显示待推进阶段序号", () => {
+  it("进度弧按状态逐段着色(六段制;fixture 3 段),中心显示待推进阶段序号", () => {
     const { container } = render(<WorkflowStatusOrb readiness={readiness} activeStage="novel" onStageChange={vi.fn()} />);
     const segments = container.querySelectorAll("[data-orb-segment]");
     expect(segments).toHaveLength(3);
@@ -130,6 +130,40 @@ describe("WorkflowStatusOrb", () => {
     expect(screen.queryByRole("group", { name: "切换阶段" })).toBeNull();
   });
 
+  it("W1 回归:球内拖拽释放(pointerup+click 双到)不开面板", () => {
+    renderOrb();
+    const orb = getOrb();
+    fireEvent.pointerDown(orb, { clientX: 20, clientY: 20 });
+    fireEvent.pointerUp(orb, { clientX: 60, clientY: 70 });
+    fireEvent.click(orb, { clientX: 60, clientY: 70 });
+    expect(screen.queryByText(/待推进：/)).toBeNull();
+  });
+
+  it("W2 回归:面板开着时点球=收起(toggle),不再关-开闪跳", async () => {
+    renderOrb();
+    const orb = getOrb();
+    fireEvent.pointerDown(orb, { clientX: 20, clientY: 20 });
+    fireEvent.pointerUp(orb, { clientX: 21, clientY: 20 });
+    expect(await screen.findByText(/待推进：剧本生产阶段/)).toBeTruthy();
+    fireEvent.pointerDown(orb, { clientX: 25, clientY: 20 });
+    fireEvent.pointerUp(orb, { clientX: 26, clientY: 20 });
+    await waitFor(() =>
+      expect(screen.queryByText(/待推进：/)).toBeNull(),
+    );
+  });
+
+  it("胶囊随球位左右翻:初始位置在右半屏时胶囊挂左", () => {
+    window.localStorage.setItem(
+      "mystudio.workflow-orb.position",
+      JSON.stringify({ x: window.innerWidth - 60, y: 300 }),
+    );
+    const { container } = render(
+      <WorkflowStatusOrb readiness={readiness} activeStage="novel" onStageChange={vi.fn()} />,
+    );
+    const capsule = container.querySelector("[data-orb-capsule]");
+    expect(capsule?.classList.contains("right-full")).toBe(true);
+  });
+
   it("层序契约:球 z-40(高于 webview,低于 dropdown z-50/Dialog z-250)", () => {
     renderOrb();
     expect(getOrb().style.zIndex).toBe("40");
@@ -176,5 +210,22 @@ describe("WorkflowStatusOrb", () => {
     await waitFor(() =>
       expect(screen.queryByText(/待推进：/)).toBeNull(),
     );
+  });
+});
+
+describe("snapToNearestEdge", () => {
+  const VW = 1440, VH = 900;
+  it("贴左:靠近左缘吸附 x=6 且 y 保留(界内)", () => {
+    const r = snapToNearestEdge(30, 400, VW, VH);
+    expect(r.x).toBe(6);
+    expect(r.y).toBe(400);
+  });
+  it("贴右:靠近右缘吸附 x=vw-48-6", () => {
+    const r = snapToNearestEdge(1380, 400, VW, VH);
+    expect(r.x).toBe(VW - 48 - 6);
+  });
+  it("贴底:靠近底缘吸附 y=vh-48-6", () => {
+    const r = snapToNearestEdge(700, 860, VW, VH);
+    expect(r.y).toBe(VH - 48 - 6);
   });
 });

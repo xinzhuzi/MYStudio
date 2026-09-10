@@ -1,5 +1,10 @@
 import { useEffect, useRef, useState } from "react";
-import { animate, motion, useMotionValue } from "motion/react";
+import {
+  animate,
+  motion,
+  useMotionValue,
+  useMotionValueEvent,
+} from "motion/react";
 import { Popover, PopoverAnchor, PopoverContent } from "@/components/ui/popover";
 import type { WorkflowReadiness } from "@/lib/studio/workflow-readiness";
 import { cn } from "@/lib/utils";
@@ -31,7 +36,7 @@ function useViewportSize() {
 }
 
 /** 松手吸附:到最近边(留 6px 边距,整球完整可见)。 */
-function snapToNearestEdge(
+export function snapToNearestEdge(
   x: number,
   y: number,
   viewportWidth: number,
@@ -82,6 +87,23 @@ export function WorkflowStatusOrb({
   const y = useMotionValue(position.y);
   const [panelOpen, setPanelOpen] = useState(false);
   const pressStartRef = useRef<{ x: number; y: number } | null>(null);
+  // 按下时面板是否开着(toggle 语义:Radix 已因外点关掉,别再重开)
+  const panelOpenAtPressRef = useRef(false);
+  // 多指防串:up/cancel 只处理与 down 同源的指针(不用 isPrimary——jsdom 构造默认 false 会全拒)
+  const activePointerIdRef = useRef<number | null>(null);
+  // 球内拖拽释放后浏览器仍派发 click,吞一次防误开
+  const suppressNextClickRef = useRef(false);
+  const orbRef = useRef<HTMLDivElement | null>(null);
+  // 球靠右半屏时胶囊翻到左侧,避免吸右缘后伸出视口
+  const [capsuleOnLeft, setCapsuleOnLeft] = useState(() =>
+    typeof window === "undefined"
+      ? false
+      : position.x > window.innerWidth / 2,
+  );
+  useMotionValueEvent(x, "change", (latest) => {
+    if (typeof window === "undefined") return;
+    setCapsuleOnLeft(latest > window.innerWidth / 2);
+  });
 
   // 窗口变化时把球钳回视口内
   useEffect(() => {
@@ -99,6 +121,8 @@ export function WorkflowStatusOrb({
   }, [viewport, x, y, setPosition]);
 
   const handlePointerUp = (event: React.PointerEvent) => {
+    if (event.pointerId !== activePointerIdRef.current) return;
+    activePointerIdRef.current = null;
     const start = pressStartRef.current;
     pressStartRef.current = null;
     if (!start) return;
@@ -106,13 +130,35 @@ export function WorkflowStatusOrb({
       event.clientX - start.x,
       event.clientY - start.y,
     );
-    if (distance < CLICK_THRESHOLD_PX) setPanelOpen(true);
+    if (distance < CLICK_THRESHOLD_PX) {
+      // 按下时面板本就开着:toggle 收起。真机 Radix 已在 pointerdown 关过(幂等),
+      // 尾随 click 须吞;jsdom 无 Radix 外点关闭,由此主动关。
+      if (panelOpenAtPressRef.current) {
+        panelOpenAtPressRef.current = false;
+        suppressNextClickRef.current = true;
+        setPanelOpen(false);
+        return;
+      }
+      setPanelOpen(true);
+    } else {
+      suppressNextClickRef.current = true;
+    }
   };
 
   // 真实点击兜底:motion drag 会话可能吞掉 pointerup,click 自带释放点坐标,
   // 可独立复判位移<阈值=点击(布尔 setState 幂等,双开无害);
   // 合成 click(无 pointer 前置,smoke 脚本路径)无起点,直接开面板。
   const handleClick = (event: React.MouseEvent) => {
+    if (suppressNextClickRef.current) {
+      suppressNextClickRef.current = false;
+      return;
+    }
+    if (panelOpenAtPressRef.current) {
+      // pointerup 被吞的 toggle 路径:click 直接承担收起
+      panelOpenAtPressRef.current = false;
+      setPanelOpen(false);
+      return;
+    }
     const start = pressStartRef.current;
     pressStartRef.current = null;
     if (!start) {
@@ -174,13 +220,20 @@ export function WorkflowStatusOrb({
             zIndex: 40,
           }}
           className="group flex h-12 w-12 cursor-grab items-center justify-center rounded-full border border-border/70 bg-card/90 shadow-[0_6px_20px_rgba(0,0,0,0.35)] backdrop-blur-md outline-none focus-visible:ring-2 focus-visible:ring-ring active:cursor-grabbing"
+          ref={orbRef}
           onPointerDown={(event) => {
+            activePointerIdRef.current = event.pointerId;
+            panelOpenAtPressRef.current = panelOpen;
             pressStartRef.current = { x: event.clientX, y: event.clientY };
           }}
           onPointerUp={handlePointerUp}
-          onPointerCancel={() => {
-            // 手势取消(系统中断/滚轮接管)时清起点:下一次合成 click 视为无前置,正常开面板
+          onPointerCancel={(event) => {
+            if (event.pointerId !== activePointerIdRef.current) return;
+            // 手势取消(系统中断/滚轮接管):三态全清,下一次交互从头判
+            activePointerIdRef.current = null;
             pressStartRef.current = null;
+            panelOpenAtPressRef.current = false;
+            suppressNextClickRef.current = false;
           }}
           onClick={handleClick}
           onKeyDown={(event) => {
@@ -209,7 +262,8 @@ export function WorkflowStatusOrb({
             data-orb-capsule
             aria-hidden
             className={cn(
-              "pointer-events-none absolute left-full ml-3 whitespace-nowrap rounded-full border border-border/70 bg-card/95 px-3 py-1.5 text-xs text-foreground shadow-[0_6px_20px_rgba(0,0,0,0.3)] opacity-0 backdrop-blur-md transition-opacity duration-150 group-hover:opacity-100",
+              "pointer-events-none absolute whitespace-nowrap rounded-full border border-border/70 bg-card/95 px-3 py-1.5 text-xs text-foreground shadow-[0_6px_20px_rgba(0,0,0,0.3)] opacity-0 backdrop-blur-md transition-opacity duration-150 group-hover:opacity-100",
+              capsuleOnLeft ? "right-full mr-3" : "left-full ml-3",
               panelOpen && "hidden",
             )}
           >
@@ -218,7 +272,17 @@ export function WorkflowStatusOrb({
           </span>
         </motion.div>
       </PopoverAnchor>
-      <PopoverContent align="start" side="top" collisionPadding={12} className="w-80 p-2">
+      <PopoverContent
+        align="start"
+        side="top"
+        collisionPadding={12}
+        className="w-80 p-2"
+        onCloseAutoFocus={(event) => {
+          // Anchor(非 Trigger)模式下 Radix 不自动回焦,手动回球保键盘路径
+          event.preventDefault();
+          orbRef.current?.focus();
+        }}
+      >
         <StageReadinessPanel
           readiness={readiness}
           activeStage={activeStage}
