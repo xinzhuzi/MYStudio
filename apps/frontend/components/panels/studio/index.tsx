@@ -7,7 +7,7 @@ import { StoryboardPanelTab } from "./StoryboardPanelTab";
 import { WorkbenchTab } from "./WorkbenchTab";
 import { ScriptAssetManagementTab } from "./ScriptAssetManagementTab";
 import { ComfyCanvasSwap } from "../assist/comfy-canvas/ComfyCanvasSwap";
-import { WorkflowStageStatusBar } from "./WorkflowStageStatusBar";
+import { WorkflowStatusOrb } from "./workflow-stage";
 import { useStudioViewModel } from "./useStudioViewModel";
 import { useStoryboardBatchGeneration } from "./image-workflow/use-storyboard-batch-generation";
 import { useStoryboardBatchUpscale } from "./image-workflow/use-storyboard-batch-upscale";
@@ -29,20 +29,20 @@ export function StudioView() {
         onValueChange={viewModel.handleStageChange}
         className="flex h-full flex-col"
       >
-        <ScrollArea className="h-full min-h-0 flex-1 scrollbar-hidden">
+      {/* 悬浮球置于 ScrollArea 之外(fixed 定位,滚动不移位);
+          阶段状态与切换入口全由此承载(2026-09-10 横幅退役裁定) */}
+      <WorkflowStatusOrb
+        readiness={viewModel.workflowReadiness}
+        activeStage={viewModel.activeWorkflowTab}
+        onStageChange={viewModel.handleStageChange}
+      />
+      <ScrollArea className="h-full min-h-0 flex-1 scrollbar-hidden">
           {/* 画布阶段(分镜制作/分镜画布)去内边距贴边全屏;内容阶段保留 p-5 */}
           <div
             className={`flex h-full min-h-0 flex-col bg-background ${
               viewModel.activeWorkflowTab === "storyboard" || viewModel.activeWorkflowTab === "imageWorkflow" ? "p-0" : "p-5"
             }`}
           >
-            <WorkflowStageStatusBar
-              readiness={viewModel.workflowReadiness}
-              activeStage={viewModel.activeWorkflowTab}
-              onStageChange={viewModel.handleStageChange}
-              stageActions={viewModel.scriptHeaderActions}
-            />
-
             <TabsContent value="novel" className="m-0">
               <NovelTab
                 novelDraft={viewModel.novelDraft}
