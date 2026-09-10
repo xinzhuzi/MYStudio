@@ -1,7 +1,7 @@
 // ComfyUI 引擎设置 hook——照 useImageGenRuntimeSettings/usePythonRuntimeSettings 模式:
-// 挂载期一次性探测(严禁常驻轮询),只有任务(install/update/reset/插件装卸)进行中
-// 才按间隔拉 job 进度,任务终结即停。client 可注入(测试/后端未就绪时用 mock),
-// 默认走 window.comfyEngine 桥(集成接线点)。
+// 挂载期一次性探测(严禁常驻轮询;初次失败时有界重试至 sidecar 就绪),只有任务
+// (install/update/reset/插件装卸)进行中才按间隔拉 job 进度,任务终结即停。
+// client 可注入(测试/后端未就绪时用 mock),默认走 window.comfyEngine 桥(集成接线点)。
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
@@ -22,12 +22,18 @@ import {
 } from "./comfy-engine-contract";
 
 const JOB_POLL_INTERVAL_MS = 800;
+// 初次探测赶在 sidecar 就绪前失败时的有界重试:3s × 20 次 = 至多 1 分钟窗口,
+// 覆盖 prepare 拉起 python 侧车的冷启动;超窗仍无状态则交回既有自愈(prepare)语义。
+const STATUS_RETRY_INTERVAL_MS = 3_000;
+const STATUS_RETRY_MAX_ATTEMPTS = 20;
 
 export interface UseComfyEngineSettingsOptions {
   /** 覆盖数据通道(注入 mock client);不传用 window.comfyEngine。 */
   client?: ComfyEngineClient;
   /** 任务轮询间隔(测试调小);默认 800ms。 */
   pollIntervalMs?: number;
+  /** 状态有界重试间隔(测试调小);默认 3000ms。 */
+  statusRetryIntervalMs?: number;
 }
 
 export function useComfyEngineSettings(options: UseComfyEngineSettingsOptions = {}) {
@@ -37,6 +43,7 @@ export function useComfyEngineSettings(options: UseComfyEngineSettingsOptions = 
   // 本地配置模型页 195 件清单来回切页狂刷不止)。
   const client = useMemo(() => options.client ?? getComfyEngineClient(), [options.client]);
   const pollIntervalMs = options.pollIntervalMs ?? JOB_POLL_INTERVAL_MS;
+  const statusRetryIntervalMs = options.statusRetryIntervalMs ?? STATUS_RETRY_INTERVAL_MS;
   const hasBridge = Boolean(client);
 
   const [status, setStatus] = useState<ComfyEngineStatus | null>(null);
@@ -114,6 +121,24 @@ export function useComfyEngineSettings(options: UseComfyEngineSettingsOptions = 
       stopPolling();
     };
   }, [client, refreshStatus, refreshPlugins, stopPolling]);
+
+  // 挂载探测失败的有界自愈:初次探测常赶在 prepare 拉起 sidecar 之前发出而失败,
+  // 原实现无任何重试,引擎卡永转「正在确认引擎状态…」(09-10 两次实弹:上午「引擎
+  // 已装却恒显检查中」+ 下午用户分钟级卡等)。status 仍为空时按间隔补探,成功/
+  // 卸载/超窗即停——不是常驻轮询,拿到首个状态后本效应不再介入。
+  useEffect(() => {
+    if (!client || status) return;
+    let attempts = 0;
+    const retry = window.setInterval(() => {
+      attempts += 1;
+      if (attempts > STATUS_RETRY_MAX_ATTEMPTS) {
+        window.clearInterval(retry);
+        return;
+      }
+      void refreshStatus();
+    }, statusRetryIntervalMs);
+    return () => window.clearInterval(retry);
+  }, [client, status, refreshStatus, statusRetryIntervalMs]);
 
   /** 任务收尾:按类型刷新 + 报告/错误分流 + 诊断日志(保留终态 job 供 UI 展示错误)。 */
   const settleJob = useCallback(

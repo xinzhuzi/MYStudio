@@ -52,7 +52,31 @@ describe("useComfyEngineSettings", () => {
     await act(async () => {
       await result.current.refreshStatus();
     });
-    expect(result.current.status?.state).toBe("not-installed"); // 补探成功就位
+    expect(result.current.status?.state).toBe("not-installed"); // 补探成功就就位
+  });
+
+  it("挂载探测失败后有界重试自动恢复(不再永转「正在确认引擎状态」)", async () => {
+    // 09-10 下午实弹根修:初次探测赶在 prepare 拉起 sidecar 前失败时,
+    // 原实现无重试,引擎卡永转;现在 status 为空期间按间隔自动补探,拿到即停。
+    const base = createMockComfyEngineClient();
+    let failures = 2; // 前 2 次探测失败,第 3 次成功(模拟 sidecar 冷启动就绪)
+    const client = {
+      ...base,
+      getEngineStatus: async () => {
+        if (failures > 0) {
+          failures -= 1;
+          throw new Error("sidecar 未起");
+        }
+        return base.getEngineStatus();
+      },
+    };
+    const { result } = renderHook(() =>
+      useComfyEngineSettings({ client, pollIntervalMs: 5, statusRetryIntervalMs: 5 }),
+    );
+
+    // 不调任何手动刷新:挂载探测失败 → 有界重试 → 状态自动就位
+    await waitFor(() => expect(result.current.status?.state).toBe("not-installed"), { timeout: 3000 });
+    expect(failures).toBe(0); // 确实经过了失败后的自动补探
   });
 
   it("无桥时 hasBridge=false,动作点按给大白话错误不抛异常", async () => {
