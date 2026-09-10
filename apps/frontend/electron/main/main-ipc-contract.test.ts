@@ -48,21 +48,6 @@ chapter-qc-get-report
 chapter-qc-run
 chapter-qc-submit-semantic
 chapter-qc-submit-vision-preflight
-depth-runtime-delete-model
-depth-runtime-download-model
-depth-runtime-download-progress
-depth-runtime-get-config
-depth-runtime-prepare
-depth-runtime-probe
-depth-runtime-refresh
-depth-runtime-rollback
-depth-runtime-scan-model
-depth-runtime-set-cinematic-mode
-depth-runtime-set-cinematic-preset
-depth-runtime-set-model-cache-dir
-depth-runtime-set-preset-map
-depth-runtime-setup
-depth-runtime-status
 diagnostics-log-clear
 diagnostics-log-export-bundle
 diagnostics-log-get-info
@@ -238,9 +223,6 @@ vlm-review-runtime-setup
 `.trim().split("\n");
 
 const NAMED_IPC_CHANNELS = {
-  DEPTH_PREPARE_CHANNEL: "depth-runtime-prepare",
-  DEPTH_PROBE_CHANNEL: "depth-runtime-probe",
-  DEPTH_ROLLBACK_CHANNEL: "depth-runtime-rollback",
   IMAGE_GEN_PREPARE_CHANNEL: "image-gen-runtime-prepare",
   IMAGE_GEN_PROBE_CHANNEL: "image-gen-runtime-probe",
   IMAGE_GEN_ROLLBACK_CHANNEL: "image-gen-runtime-rollback",

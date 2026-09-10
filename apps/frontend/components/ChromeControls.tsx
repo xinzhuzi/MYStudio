@@ -56,7 +56,7 @@ export function ChromeControls({
         aria-label="返回"
         title="返回"
       >
-        <ArrowLeft className="h-5 w-5" />
+        <ArrowLeft className="h-4 w-4" />
       </button>
       <button
         type="button"
@@ -66,7 +66,7 @@ export function ChromeControls({
         aria-label="前进"
         title="前进"
       >
-        <ArrowRight className="h-5 w-5" />
+        <ArrowRight className="h-4 w-4" />
       </button>
     </div>
   );

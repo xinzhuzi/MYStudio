@@ -560,7 +560,7 @@ describe("desktop build scripts", () => {
     expect(smokeScript).toContain("requiredText");
     expect(smokeScript).toContain("forbiddenText");
     expect(smokeScript).toContain("verifyPluginSettings");
-    expect(smokeScript).toContain('requiredText: ["系统设置", "外观", "本地配置"]');
+    expect(smokeScript).toContain('requiredText: ["外观", "本地配置"]');
     expect(smokeScript).toContain("normalize(node) === '本地配置'");
     expect(smokeScript).not.toContain("normalize(node) === 'Python 配置'");
     expect(smokeScript).not.toContain("normalize(node).includes('Python 配置')");
@@ -596,7 +596,7 @@ describe("desktop build scripts", () => {
       generationVoiceFlowEnd,
     );
     expect(generationVoiceFlow).toContain("clickButtonByText('工作流', true)");
-    expect(generationVoiceFlow).toContain("当前工作区：漫影工作流");
+    expect(generationVoiceFlow).toContain("待推进：");
     expect(smokeScript).toContain("ASSET_VOICE_FLOW_TIMEOUT_MS");
     expect(smokeScript).toContain('"Runtime.evaluate"');
     expect(smokeScript).toContain("withTimeout(");
@@ -726,7 +726,8 @@ describe("desktop build scripts", () => {
     expect(smokeScript).not.toContain("所有本地 TTS、video-use Python worker 和 MLX 对齐都复用应用管理的 Python");
     // 本地配置区块默认全折叠后,区块内按钮不再出现在冒烟必现文案里
     expect(smokeScript).not.toContain("'开始配置'");
-    expect(smokeScript).toContain("深度估计（电影级 3D）");
+    // 深度估计行已撤(09-10 用户裁定:depth 域随 MiniMax 路线退役)——不得再进必现文案
+    expect(smokeScript).not.toContain("深度估计（电影级 3D）");
     expect(smokeScript).toContain("视频评分模型");
     expect(smokeScript).toContain("TTS 运行时与模型");
     expect(smokeScript).not.toContain("'安装明细'");
@@ -1248,14 +1249,13 @@ describe("desktop build scripts", () => {
     expect(runnerScript).toContain("safeWorkflowTimeoutMs");
     expect(runnerScript.match(/let stageMenuItem = await waitFor/g)).toHaveLength(2);
     expect(runnerScript).toContain(
-      "document.querySelectorAll('[role=\"menuitem\"]')",
+      "document.querySelectorAll('[data-orb-stage-item]')",
     );
-    expect(runnerScript.match(/new KeyboardEvent\('keydown',/g)).toHaveLength(2);
-    expect(runnerScript.match(/key: 'ArrowDown'/g)).toHaveLength(2);
+    expect(runnerScript).toContain("document.querySelector('[data-workflow-orb]')");
     expect(runnerScript).toContain(
       "getAttribute('data-workflow-active-stage') === stage.id",
     );
-    expect(runnerScript).toContain("工作流阶段菜单未出现");
+    expect(runnerScript).toContain("悬浮球阶段面板未出现");
     expect(runnerScript).toContain("工作流阶段切换未生效");
     expect(
       runnerScript.match(

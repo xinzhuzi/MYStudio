@@ -242,7 +242,7 @@ export function Dashboard({
   return (
     <div className="dashboard-shell flex flex-col h-full bg-background overflow-hidden">
       {/* Header */}
-      <div className="dashboard-topbar h-10 border-b border-border bg-panel pr-8 pl-20 flex items-center justify-between shrink-0">
+      <div className="dashboard-topbar h-10 pr-8 pl-20 flex items-center justify-between shrink-0">
         <div className="flex items-center gap-2.5">
           {onToggleSidebar && (
             <SidebarToggleButton

@@ -17,7 +17,6 @@ const mocks = vi.hoisted(() => ({
   refreshPlugins: vi.fn(async () => undefined),
   prepareCurrentWorkflow: vi.fn(async () => ({ success: true })),
   startTtsRuntime: vi.fn(async () => ({ success: true })),
-  depthProbe: vi.fn(async () => undefined),
   imageGenProbe: vi.fn(async () => undefined),
   upscaleProbe: vi.fn(async () => undefined),
   videoQcRefresh: vi.fn(async () => undefined),
@@ -78,20 +77,6 @@ vi.mock("@/lib/tts/client", () => ({
   startTtsRuntime: mocks.startTtsRuntime,
 }));
 // ---- 行级状态胶囊所需的六个运行时 hook mock(挂载期一次性探测) ----
-vi.mock("./useDepthRuntimeSettings", () => ({
-  DEPTH_CINEMATIC_PRESET_OPTIONS: [],
-  useDepthRuntimeSettings: () => ({
-    hasRuntime: true,
-    hasLifecycleBridge: true,
-    lifecycleStatus: { state: "ready" as const, modelDownloaded: true },
-    status: null,
-    isProbing: false,
-    isSettingUp: false,
-    isRollingBack: false,
-    isDownloading: false,
-    probeRuntime: mocks.depthProbe,
-  }),
-}));
 vi.mock("./useImageGenRuntimeSettings", () => ({
   useImageGenRuntimeSettings: () => ({
     hasRuntime: true,
@@ -162,9 +147,6 @@ vi.mock("./comfy-engine/ComfyEngineSettingsSection", () => ({
     <div data-testid="comfy-engine-section">{String(embedded)}{initialActiveTab ? `:${initialActiveTab}` : ""}</div>
   ),
 }));
-vi.mock("./DepthSettingsSection", () => ({
-  DepthSettingsSection: ({ embedded }: { embedded?: boolean }) => <div data-testid="depth-section">{String(embedded)}</div>,
-}));
 vi.mock("./UpscaleSettingsSection", () => ({
   UpscaleSettingsSection: ({ embedded }: { embedded?: boolean }) => <div data-testid="upscale-section">{String(embedded)}</div>,
 }));
@@ -200,7 +182,6 @@ const EXPECTED_ROW_HEADINGS = [
   "本地配置",
   "Python 运行环境",
   "ComfyUI 引擎",
-  "深度估计（电影级 3D）",
   "图片超分（1K → 4K）",
   "视觉审核（VLM 一致性检查）",
   "视频评分模型",
@@ -236,7 +217,6 @@ describe("PluginSettingsTab", () => {
     expect(headings).toEqual(EXPECTED_ROW_HEADINGS);
     expect(screen.queryByTestId("python-section")).toBeNull();
     expect(screen.queryByTestId("comfy-engine-section")).toBeNull();
-    expect(screen.queryByTestId("depth-section")).toBeNull();
     expect(screen.queryByTestId("sfx-gen-section")).toBeNull();
     expect(screen.queryByTestId("video-section")).toBeNull();
 

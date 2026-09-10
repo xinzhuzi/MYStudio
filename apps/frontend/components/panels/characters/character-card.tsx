@@ -111,8 +111,8 @@ export function CharacterCard({
         <div
           className={cn(
             "p-3 rounded-lg border transition-all cursor-pointer",
-            "hover:border-foreground/20",
-            isSelected && "border-primary bg-primary/5",
+            "hover:border-primary/40 hover:bg-muted/30",
+            isSelected ? "border-primary bg-primary/8 ring-1 ring-primary/30" : "border-border/60 bg-card/60",
           )}
           onClick={onSelect}
           draggable
@@ -125,7 +125,7 @@ export function CharacterCard({
         </div>
 
         {/* Thumbnail */}
-        <div className="w-12 h-12 rounded-md bg-muted flex items-center justify-center overflow-hidden flex-shrink-0">
+        <div className="w-12 h-12 rounded-lg bg-muted flex items-center justify-center overflow-hidden flex-shrink-0 border border-border/50 ring-1 ring-border/30">
           {character.thumbnailUrl ? (
             <LocalImage 
               src={character.thumbnailUrl} 
@@ -244,8 +244,8 @@ export function CharacterCard({
                   className="w-full h-full object-cover"
                 />
                 <ResolutionBadge src={view.imageUrl} />
-                <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                  <span className="text-[10px] text-foreground capitalize">
+                <div className="absolute inset-0 bg-background/80 backdrop-blur-xs opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                  <span className="text-[10px] text-foreground font-medium capitalize">
                     {view.viewType === 'front' ? '正面' : 
                      view.viewType === 'side' ? '侧面' : 
                      view.viewType === 'back' ? '背面' : '四分之三'}
@@ -281,8 +281,8 @@ export function CharacterCard({
                     <Shirt className="h-4 w-4 text-muted-foreground" />
                   </div>
                 )}
-                <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                  <span className="text-[10px] text-foreground text-center px-1">
+                <div className="absolute inset-0 bg-background/80 backdrop-blur-xs opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                  <span className="text-[10px] text-foreground font-medium text-center px-1">
                     {variation.name}
                   </span>
                 </div>

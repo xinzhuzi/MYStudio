@@ -2,7 +2,7 @@
 //
 // 数据通道照父任务 design.md 十一节 sidecar API 面(GET /comfy/engine/status、
 // POST /comfy/engine/install|update|reset 等);传输层优先 preload 暴露
-// `window.comfyEngine`(照 depthRuntime/imageGenRuntime 先例),preload 未注入
+// `window.comfyEngine`(照 imageGenRuntime 先例),preload 未注入
 // 时 Electron 渲染层回落 HTTP 直连 sidecar(comfy-sidecar-bridge,09-08 集成);
 // jsdom/网页模式仍返回 undefined,用 mock-comfy-engine-client.ts 注入同一接口
 // 开发/测试 UI。

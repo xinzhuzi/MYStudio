@@ -195,7 +195,6 @@ const COMFY_MODEL_CATEGORY_INFO: Record<string, string> = {
   loras: "主模型的能力补丁(风格/破限/编辑)——生图画布按流挂载",
   TTS: "旁白配音引擎(声线权重+音色库)——配音室/分镜配音",
   vlm: "视觉审核模型——分镜图与资产参考一致性检查",
-  depth: "深度估计——静态图 3D 纵深",
   upscale: "应用超分家族(Real-ESRGAN 1K→4K)——分镜批量超分",
   upscale_models: "ComfyUI 超分模型目录——画布超分节点用",
   videoqc: "DOVER 视频评分——出片自评与基线告警",

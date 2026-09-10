@@ -168,11 +168,14 @@ export function SplitSceneCard({
   };
 
   return (
-    <div className="group relative border rounded-lg overflow-hidden bg-card hover:border-primary/50 transition-colors">
+    <div className="group relative border rounded-xl overflow-hidden bg-card/85 hover:border-primary/40 transition-all border-border/70">
       {/* 分镜编号和控制栏 */}
-      <div className="flex items-center justify-between px-3 py-1.5 bg-muted/30 border-b">
-        <div className="flex items-center gap-2">
-          <span className="text-sm font-bold text-muted-foreground">分镜 #{scene.id + 1}</span>
+      <div className="flex items-center justify-between px-3.5 py-2 bg-muted/40 border-b border-border/60">
+        <div className="flex items-center gap-2.5">
+          <span className="text-sm font-bold text-foreground font-mono flex items-center gap-1.5">
+            <span className="h-2 w-2 rounded-full bg-primary/70" />
+            分镜 #{scene.id + 1}
+          </span>
           {(scene.sceneName || scene.sceneLocation) && (
             <TooltipProvider>
               <Tooltip>
@@ -334,7 +337,7 @@ export function SplitSceneCard({
                   <Play className="h-4 w-4 text-foreground" />
                 </div>
                 {canDragVideo && (
-                  <span className="absolute bottom-0.5 right-0.5 text-[8px] bg-success text-white px-1 rounded">拖到时间线</span>
+                  <span className="absolute bottom-0.5 right-0.5 text-[8px] bg-success text-primary-foreground font-medium px-1.5 py-0.5 rounded">拖到时间线</span>
                 )}
               </div>
               {/* 提取尾帧按钮 */}

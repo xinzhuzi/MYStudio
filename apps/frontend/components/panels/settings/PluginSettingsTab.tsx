@@ -8,7 +8,6 @@ import {
   ChevronDown,
   Clapperboard,
   Gauge,
-  Layers,
   Plug,
   ScanEye,
   ServerCog,
@@ -25,7 +24,6 @@ import type { VideoWorkflowPluginId } from "@rendering/contracts/video-workflow"
 import type { VlmReviewProbeResult } from "@/types/contracts/vlm-review-workflow";
 import { usePythonRuntimeSettings } from "./usePythonRuntimeSettings";
 import { useVideoWorkflowPlugins } from "./useVideoWorkflowPlugins";
-import { useDepthRuntimeSettings } from "./useDepthRuntimeSettings";
 import { useImageGenRuntimeSettings } from "./useImageGenRuntimeSettings";
 import { useUpscaleRuntimeSettings } from "./useUpscaleRuntimeSettings";
 import { useSfxGenRuntimeSettings } from "./useSfxGenRuntimeSettings";
@@ -42,7 +40,6 @@ import {
   type ComfyEnginePillKind,
 } from "./comfy-engine/comfy-engine-contract";
 import { useComfyEngineSettings } from "./comfy-engine/useComfyEngineSettings";
-import { DepthSettingsSection } from "./DepthSettingsSection";
 import { UpscaleSettingsSection } from "./UpscaleSettingsSection";
 import { VlmReviewSettingsSection } from "./VlmReviewSettingsSection";
 import { VideoQcSettingsSection } from "./VideoQcSettingsSection";
@@ -59,7 +56,6 @@ const SECTION_STORAGE_KEY = "mystudio.settings.plugins.collapsedSections";
 const SECTION_IDS = [
   "python",
   "comfy-engine",
-  "depth",
   "upscale",
   "vlm-review",
   "video-qc",
@@ -227,7 +223,6 @@ export function PluginSettingsTab() {
   const python = usePythonRuntimeSettings();
   const comfyEngine = useComfyEngineSettings();
   const videoPlugins = useVideoWorkflowPlugins();
-  const depth = useDepthRuntimeSettings();
   const imageGen = useImageGenRuntimeSettings();
   const upscale = useUpscaleRuntimeSettings();
   const sfx = useSfxGenRuntimeSettings();
@@ -242,7 +237,6 @@ export function PluginSettingsTab() {
   const [revealTab, setRevealTab] = useState<ComfyEngineTab | null>(null);
 
   const refreshRowStatuses = () => {
-    void depth.probeRuntime();
     void imageGen.probeRuntime();
     void comfyEngine.refreshStatus();
     void upscale.probeRuntime();
@@ -415,19 +409,7 @@ export function PluginSettingsTab() {
         ? formatComfyEnginePillLabel(comfyPillKind, comfyEngine.activeJob)
         : undefined;
 
-  const depthState = depth.lifecycleStatus?.state ?? depth.status?.state;
-  const depthModelDownloaded = depth.lifecycleStatus?.modelDownloaded ?? depth.status?.modelDownloaded;
-  const depthPill: CapabilityPillKind = !depth.hasRuntime
-    ? "unsupported"
-    : depth.isDownloading || depth.status?.downloadStatus === "downloading"
-      ? "downloading"
-      : depthState === "ready"
-        ? (depthModelDownloaded === false ? "model-missing" : "ready")
-        : depthState === "needs-runtime"
-          ? "needs-runtime"
-          : depthState === "blocked" || depthState === "error"
-            ? "blocked"
-            : "checking";
+
 
   // imageGen 行已撤(09-09 模型页并入引擎卡),但 tab 级 hook 保留:挂载探测
   // + 引擎卡胶囊补探 effect 依赖它的 sidecar ready 信号(见上方 effect)。
@@ -560,18 +542,7 @@ export function PluginSettingsTab() {
         </CapabilityGroup>
 
         <CapabilityGroup label="图像能力">
-          <CapabilityRow
-            sectionId="depth"
-            headingId="plugin-depth-heading"
-            icon={Layers}
-            title="深度估计（电影级 3D）"
-            description="静态图 → 3D 电影级纵深的深度模型（依赖 Python 运行环境）。模型仅在点击下载时获取，渲染时绝不自动下载。"
-            pill={depthPill}
-            collapsed={collapsedSections.has("depth")}
-            onToggle={toggleSectionCollapsed}
-          >
-            <DepthSettingsSection embedded />
-          </CapabilityRow>
+          {/* 深度估计行已撤(09-10 用户裁定:depth 域随 MiniMax 视频/音频路线退役) */}
           {/* 本地图片生成行已撤(09-09-comfy-model-tab):模型展示整块迁入
               ComfyUI 引擎卡「模型」标签页,与引擎/插件同卡管理 */}
           <CapabilityRow

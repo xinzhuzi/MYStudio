@@ -172,18 +172,22 @@ export function ExportView() {
   return (
     <div className="studio-workspace studio-workspace-export flex flex-col h-full bg-background overflow-hidden">
       {/* Header */}
-      <div className="h-16 border-b border-border bg-panel px-6 flex items-center justify-between shrink-0">
+      <div className="h-16 border-b border-border/70 bg-card/70 backdrop-blur-md px-6 flex items-center justify-between shrink-0">
         <div className="flex items-center gap-4">
           <h2 className="text-lg font-bold text-foreground flex items-center gap-3">
             <Film className="w-5 h-5 text-primary" />
             成片与导出
-            <span className="text-xs text-muted-foreground font-mono font-normal uppercase tracking-wider bg-muted px-2 py-1 rounded">
+            <span className="text-xs text-muted-foreground font-mono font-normal uppercase tracking-wider bg-muted/60 border border-border/50 px-2 py-0.5 rounded">
               渲染与导出
             </span>
           </h2>
         </div>
         <div className="flex items-center gap-2">
-          <span className="text-[10px] text-muted-foreground font-mono uppercase bg-muted border border-border px-2 py-1 rounded">
+          <span className="flex items-center gap-1.5 text-[11px] font-mono tracking-wider text-muted-foreground bg-muted/60 border border-border/70 px-2.5 py-1 rounded-full">
+            <span className={cn(
+              "h-2 w-2 rounded-full",
+              progress === 100 ? "bg-success ring-2 ring-success/30" : "bg-primary animate-pulse",
+            )} />
             状态: {progress === 100 ? "就绪" : "进行中"}
           </span>
         </div>

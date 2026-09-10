@@ -85,8 +85,8 @@ export function SettingsPanel({
     <div className="settings-workspace flex flex-col h-full bg-background overflow-hidden">
       <ApiSettingsMigration />
       {showHomeChrome ? (
-        <div className="dashboard-topbar h-14 border-b border-border bg-panel pr-8 pl-20 flex items-center justify-between shrink-0">
-          <div className="flex items-center gap-4">
+        <div className="dashboard-topbar h-10 pr-8 pl-20 flex items-center justify-between shrink-0">
+          <div className="flex items-center gap-2.5">
             {onToggleSidebar && (
               <SidebarToggleButton
                 sidebarCollapsed={sidebarCollapsed}

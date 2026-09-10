@@ -812,12 +812,8 @@
 .studio-main {
   position: relative;
   min-width: 0;
-  background:
-    linear-gradient(180deg, hsl(var(--foreground) / 0.025), transparent 96px),
-    linear-gradient(90deg, hsl(var(--background) / 0.08), transparent 18%);
-  box-shadow:
-    inset 1px 0 0 hsl(var(--foreground) / 0.055),
-    inset 0 1px 0 hsl(var(--foreground) / 0.035);
+  background: linear-gradient(90deg, hsl(var(--background) / 0.08), transparent 18%);
+  box-shadow: inset 1px 0 0 hsl(var(--foreground) / 0.055);
 }
 
 .studio-sidebar {
@@ -1129,8 +1125,7 @@
 .dashboard-topbar {
   position: relative;
   z-index: 2;
-  border-color: hsla(0, 0%, 0%, 0.4);
-  background: hsl(var(--panel));
+  background: transparent;
   -webkit-app-region: drag;
   transition: background 200ms ease;
 }
@@ -1212,8 +1207,7 @@
   z-index: 2;
   isolation: isolate;
   overflow: hidden;
-  background: hsl(var(--panel));
-  border-bottom: 1px solid hsla(0, 0%, 0%, 0.4);
+  background: transparent;
   -webkit-app-region: drag;
 }
 

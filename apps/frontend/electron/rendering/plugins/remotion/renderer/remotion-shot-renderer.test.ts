@@ -12,7 +12,6 @@ import {
 import {
   RemotionShotRenderer,
   selectRemotionShotVideoDuration,
-  type DepthAdapterLike,
 } from "./remotion-shot-renderer";
 
 class FakeUtilityProcess {
@@ -199,105 +198,71 @@ describe("RemotionShotRenderer", () => {
     }
   });
 
-  it("does not estimate depth for a plain image shot", async () => {
-    const calls: Parameters<DepthAdapterLike["estimateDepth"]>[0][] = [];
-    const adapter: DepthAdapterLike = {
-      estimateDepth: async (request) => {
-        calls.push(request);
-        return { state: "blocked", code: "unexpected", message: "plain images must not request depth" };
-      },
-    };
-    const fixture = await makeRejectFixture("plain-image-depth", false, adapter);
-    try {
-      const renderPromise = fixture.renderer.render(fixture.plan);
-      await waitFor(() => fixture.child.posted.length === 1);
-      expect(calls).toHaveLength(0);
-      replyWithSuccessfulRender(fixture.child);
-      await expect(renderPromise).resolves.toMatchObject({ success: true });
-    } finally {
-      await fixture.renderer.dispose();
-      fs.rmSync(fixture.root, { recursive: true, force: true });
-    }
-  });
-
-  it("injects a localhost depth capability URL for a ready cinematic image shot", async () => {
-    const calls: Parameters<DepthAdapterLike["estimateDepth"]>[0][] = [];
-    const adapter: DepthAdapterLike = {
-      estimateDepth: async (request) => {
-        calls.push(request);
-        await fs.promises.mkdir(path.dirname(request.outputDepthPath), { recursive: true });
-        const depthBytes = Buffer.from("depth-png", "utf8");
-        await fs.promises.writeFile(request.outputDepthPath, depthBytes);
-        return {
-          state: "ready",
-          artifact: {
-            schemaVersion: 1,
-            projectId: request.projectId,
-            shotId: request.shotId,
-            status: "accepted",
-            model: request.model,
-            inputSha256: crypto.createHash("sha256").update("image").digest("hex"),
-            outputPath: request.outputDepthPath,
-            outputSha256: crypto.createHash("sha256").update(depthBytes).digest("hex"),
-            width: 1080,
-            height: 1920,
-            depthRange: { min: 0, max: 1 },
-            toolVersion: "0.1.0",
-            generatedAt: 1,
-          },
-        };
-      },
-    };
-    const fixture = await makeRejectFixture("cinematic-ready-depth", false, adapter);
+  it("存量 cinematic 计划降级为普通 2D 渲染(09-10 depth 域退役)", async () => {
+    const fixture = await makeRejectFixture("cinematic-degrade");
     const plan = await makeCinematicPlan(fixture.plan);
     try {
       const renderPromise = fixture.renderer.render(plan);
       await waitFor(() => fixture.child.posted.length === 1);
-      expect(calls).toHaveLength(1);
-      const command = fixture.child.posted[0] as {
-        input: { compositionProps: { visualClips: Array<{ cinematic?: { depthMapSrc?: string } }> } };
-      };
-      expect(command.input.compositionProps.visualClips[0]?.cinematic?.depthMapSrc)
-        .toMatch(/^http:\/\/127\.0\.0\.1:\d+\/[0-9a-f]{64}\/[0-9a-f]{64}$/);
       replyWithSuccessfulRender(fixture.child);
       const result = await renderPromise;
       expect(result).toMatchObject({ success: true });
       if (!result.success) return;
-      expect(result.slot.evidence.cinematic).toMatchObject({
-        schemaVersion: 1,
-        preset: "cinematic-dolly-in",
-        model: "depth-anything-v2-small",
-        inputSha256: fixture.plan.shot.visualSource.contentSha256,
-        width: 1080,
-        height: 1920,
-      });
-      const depthEvidence = result.slot.evidence.cinematic!;
-      const publishedDepthPath = path.join(fixture.root, "workspace", depthEvidence.depthMapPath);
-      expect(fs.existsSync(publishedDepthPath)).toBe(true);
-      expect(crypto.createHash("sha256").update(fs.readFileSync(publishedDepthPath)).digest("hex"))
-        .toBe(depthEvidence.outputSha256);
+      // 无 depthAdapter:cinematic 配置不注入,证据无 cinematic 段,渲染照常成功
+      const command = fixture.child.posted[0] as {
+        input: { compositionProps: { visualClips: Array<{ cinematic?: unknown }> } };
+      };
+      expect(command.input.compositionProps.visualClips[0]?.cinematic).toBeUndefined();
+      expect(result.slot.evidence.cinematic).toBeUndefined();
     } finally {
       await fixture.renderer.dispose();
       fs.rmSync(fixture.root, { recursive: true, force: true });
     }
   });
 
-  it("fails closed when cinematic depth estimation is blocked", async () => {
-    const adapter: DepthAdapterLike = {
-      estimateDepth: async () => ({ state: "blocked", code: "model_not_ready", message: "depth model is unavailable" }),
-    };
-    const fixture = await makeRejectFixture("cinematic-blocked-depth", false, adapter);
-    const plan = await makeCinematicPlan(fixture.plan);
+  it("rejects a symlinked audio parent before invoking the render worker", async () => {
+    const fixture = await makeRejectFixture("parent-symlink", true);
     try {
-      const result = await fixture.renderer.render(plan);
+      const result = await fixture.renderer.render(fixture.plan);
       expect(result).toMatchObject({ success: false, canceled: false });
-      if (!result.success) expect(result.error).toContain("model_not_ready");
+      if (!result.success) expect(result.error).toContain("path_escape");
       expect(fixture.child.posted).toHaveLength(0);
     } finally {
       await fixture.renderer.dispose();
       fs.rmSync(fixture.root, { recursive: true, force: true });
     }
   });
+
+  it("rejects visual byte drift before invoking the render worker", async () => {
+    const fixture = await makeRejectFixture("visual-byte-drift");
+    fs.writeFileSync(fixture.imagePath, "changed-image", "utf8");
+    try {
+      const result = await fixture.renderer.render(fixture.plan);
+      expect(result).toMatchObject({ success: false, canceled: false });
+      if (!result.success) expect(result.error).toContain("visual_source_sha256_mismatch");
+      expect(fixture.child.posted).toHaveLength(0);
+    } finally {
+      await fixture.renderer.dispose();
+      fs.rmSync(fixture.root, { recursive: true, force: true });
+    }
+  });
+
+  it("rejects a visual source outside the project root before invoking the render worker", async () => {
+    const fixture = await makeRejectFixture("visual-path-escape");
+    const outsidePath = path.join(fixture.root, "outside.png");
+    fs.writeFileSync(outsidePath, "outside-image", "utf8");
+    fixture.setResolveSourcePath(outsidePath);
+    try {
+      const result = await fixture.renderer.render(fixture.plan);
+      expect(result).toMatchObject({ success: false, canceled: false });
+      if (!result.success) expect(result.error).toContain("path_escape");
+      expect(fixture.child.posted).toHaveLength(0);
+    } finally {
+      await fixture.renderer.dispose();
+      fs.rmSync(fixture.root, { recursive: true, force: true });
+    }
+  });
+
 });
 
 async function makePlan(chapter: Awaited<ReturnType<typeof makeChapterManifestV2>>): Promise<RemotionShotPlanV1> {
@@ -363,7 +328,7 @@ function replyWithSuccessfulRender(child: FakeUtilityProcess): void {
   });
 }
 
-async function makeRejectFixture(label: string, symlinkParent = false, depthAdapter?: DepthAdapterLike) {
+async function makeRejectFixture(label: string, symlinkParent = false) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), `mystudio-shot-${label}-`));
   const projectRoot = path.join(root, "project");
   const bundlePath = path.join(root, "bundle");
@@ -431,7 +396,6 @@ async function makeRejectFixture(label: string, symlinkParent = false, depthAdap
         { kind: "audio", codec: "aac", channels: 2, sampleRate: 48_000 },
       ],
     }),
-    depthAdapter,
   });
   return {
     root,

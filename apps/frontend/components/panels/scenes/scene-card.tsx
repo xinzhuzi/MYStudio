@@ -58,10 +58,10 @@ export function SceneCard({
       <div
         style={indentStyle}
         className={cn(
-          "rounded-md border cursor-pointer transition-all p-2",
-          "hover:border-foreground/30",
-          isSelected && "border-primary ring-1 ring-primary",
-          depth > 0 && "border-dashed border-muted-foreground/50"
+          "rounded-lg border cursor-pointer transition-all p-2.5 bg-card/60",
+          "hover:border-primary/40 hover:bg-muted/30",
+          isSelected ? "border-primary ring-1 ring-primary/40 bg-primary/5" : "border-border/60",
+          depth > 0 && "border-dashed border-muted-foreground/40",
         )}
         onClick={onClick}
         onDoubleClick={(e) => {
@@ -73,8 +73,8 @@ export function SceneCard({
       >
         <div
           className={cn(
-            "aspect-video rounded-lg bg-muted flex items-center justify-center overflow-hidden mb-2 relative",
-            hasChildren ? "cursor-pointer" : "cursor-zoom-in"
+            "aspect-video rounded-md bg-muted flex items-center justify-center overflow-hidden mb-2 relative border border-border/40",
+            hasChildren ? "cursor-pointer" : "cursor-zoom-in",
           )}
           title={hasChildren ? (isExpanded ? "双击收起子场景" : "双击展开子场景") : "双击查看大图"}
           onDoubleClick={(e) => {
@@ -120,7 +120,7 @@ export function SceneCard({
           )}
           {/* 子场景标识 */}
           {depth > 0 && (
-            <div className="absolute top-1 left-1 bg-primary text-white text-[8px] px-1 py-0.5 rounded">
+            <div className="absolute top-1 left-1 bg-primary text-primary-foreground text-[8px] px-1 py-0.5 rounded font-mono font-medium">
               {scene.viewpointName || '视角'}
             </div>
           )}
@@ -128,7 +128,7 @@ export function SceneCard({
           {hasChildren && (
             <div
               className={cn(
-                "absolute top-1 right-1 px-1.5 py-0.5 rounded text-white text-[8px] flex items-center gap-0.5 cursor-pointer",
+                "absolute top-1 right-1 px-1.5 py-0.5 rounded text-primary-foreground text-[8px] flex items-center gap-0.5 cursor-pointer font-medium",
                 isExpanded ? "bg-primary" : "bg-success"
               )}
               onClick={(e) => {
@@ -148,7 +148,7 @@ export function SceneCard({
           {/* 父场景预览按钮（有子场景时双击展开，预览通过此按钮） */}
           {hasChildren && resolvedImage && (
             <div
-              className="absolute bottom-1 right-1 bg-black/60 hover:bg-black/80 text-white rounded p-0.5 cursor-pointer transition-colors"
+              className="absolute bottom-1 right-1 bg-background/80 hover:bg-background text-foreground border border-border/40 backdrop-blur-xs rounded p-1 cursor-pointer transition-colors"
               title="预览大图"
               onClick={(e) => {
                 e.stopPropagation();
@@ -231,7 +231,7 @@ export function SceneCard({
           </div>
         )}
         {depth > 0 && (
-          <div className="absolute top-0 left-0 bg-primary text-white text-[6px] px-0.5 rounded-br">
+          <div className="absolute top-0 left-0 bg-primary text-primary-foreground text-[6px] px-0.5 rounded-br font-mono font-medium">
             视角
           </div>
         )}

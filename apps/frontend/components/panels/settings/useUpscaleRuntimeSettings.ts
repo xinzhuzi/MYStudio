@@ -18,7 +18,7 @@ const POLL_INTERVAL_MS = 500;
 
 /**
  * Settings hook for the image super-resolution runtime — mirrors the polling
- * lifecycle of useDepthRuntimeSettings, extended with a multi-model
+ * lifecycle of the runtime-settings hook pattern, extended with a multi-model
  * inventory (5 Real-ESRGAN variants, one active).
  */
 export function useUpscaleRuntimeSettings() {

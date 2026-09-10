@@ -76,19 +76,6 @@ import {
 } from '@rendering/plugins/remotion/renderer/remotion-shot-ipc'
 import type { RemotionShotRenderResult } from '@rendering/plugins/remotion/renderer/remotion-shot-renderer'
 import {
-  DEPTH_PREPARE_CHANNEL,
-  DEPTH_PROBE_CHANNEL,
-  DEPTH_ROLLBACK_CHANNEL,
-  DEPTH_SCHEMA_VERSION,
-  validateDepthRuntimeActionReply,
-  validateDepthRuntimeStatus,
-} from '@rendering/contracts/depth-workflow'
-import type {
-  DepthRuntimeActionReplyV1,
-  DepthRuntimeLifecycleRequestV1,
-  DepthRuntimeStatusV1,
-} from '@rendering/contracts/depth-workflow'
-import {
   UPSCALE_PREPARE_CHANNEL,
   UPSCALE_PROBE_CHANNEL,
   UPSCALE_ROLLBACK_CHANNEL,
@@ -401,18 +388,6 @@ contextBridge.exposeInMainWorld('ttsRuntime', {
     ipcRenderer.invoke('tts-reference-audio-resolve', audioPath),
 })
 
-function parseDepthRuntimeStatus(value: unknown): DepthRuntimeStatusV1 {
-  const result = validateDepthRuntimeStatus(value)
-  if (!result.success) throw new Error(result.issues.map((issue) => `${issue.path}: ${issue.message}`).join('; '))
-  return result.value
-}
-
-function parseDepthRuntimeAction(value: unknown): DepthRuntimeActionReplyV1 {
-  const result = validateDepthRuntimeActionReply(value)
-  if (!result.success) throw new Error(result.issues.map((issue) => `${issue.path}: ${issue.message}`).join('; '))
-  return result.value
-}
-
 function parseUpscaleRuntimeStatus(value: unknown): UpscaleRuntimeStatusV1 {
   const result = validateUpscaleRuntimeStatus(value)
   if (!result.success) throw new Error(result.issues.map((issue) => `${issue.path}: ${issue.message}`).join('; '))
@@ -437,34 +412,6 @@ function parseUpscaleRuntimeAction(value: unknown): UpscaleRuntimeActionReplyV1 
   return result.value
 }
 
-// Depth estimation runtime API — settings lifecycle for the cinematic 3D model.
-// Downloads are explicit and user-triggered; inference never auto-downloads.
-contextBridge.exposeInMainWorld('depthRuntime', {
-  probe: (request: DepthRuntimeLifecycleRequestV1 = { schemaVersion: DEPTH_SCHEMA_VERSION }): Promise<DepthRuntimeStatusV1> =>
-    ipcRenderer.invoke(DEPTH_PROBE_CHANNEL, request).then(parseDepthRuntimeStatus),
-  prepare: (request: DepthRuntimeLifecycleRequestV1 = { schemaVersion: DEPTH_SCHEMA_VERSION }): Promise<DepthRuntimeActionReplyV1> =>
-    ipcRenderer.invoke(DEPTH_PREPARE_CHANNEL, request).then(parseDepthRuntimeAction),
-  rollback: (request: DepthRuntimeLifecycleRequestV1 = { schemaVersion: DEPTH_SCHEMA_VERSION }): Promise<DepthRuntimeActionReplyV1> =>
-    ipcRenderer.invoke(DEPTH_ROLLBACK_CHANNEL, request).then(parseDepthRuntimeAction),
-  status: (): Promise<unknown> => ipcRenderer.invoke('depth-runtime-status'),
-  setup: (): Promise<unknown> => ipcRenderer.invoke('depth-runtime-setup'),
-  refresh: (): Promise<unknown> => ipcRenderer.invoke('depth-runtime-refresh'),
-  scanModel: (): Promise<{ models: unknown[] }> => ipcRenderer.invoke('depth-runtime-scan-model'),
-  downloadModel: (): Promise<{ accepted: boolean; message: string }> =>
-    ipcRenderer.invoke('depth-runtime-download-model'),
-  downloadProgress: (): Promise<unknown> => ipcRenderer.invoke('depth-runtime-download-progress'),
-  setCinematicPreset: (preset: string): Promise<{ accepted: boolean; message: string }> =>
-    ipcRenderer.invoke('depth-runtime-set-cinematic-preset', preset),
-  setCinematicMode: (mode: 'auto' | 'manual'): Promise<{ accepted: boolean; message: string }> =>
-    ipcRenderer.invoke('depth-runtime-set-cinematic-mode', mode),
-  setPresetMap: (map: Record<string, string>): Promise<{ accepted: boolean; count: number; message: string }> =>
-    ipcRenderer.invoke('depth-runtime-set-preset-map', map),
-  getConfig: (): Promise<{ modelCacheDir: string }> => ipcRenderer.invoke('depth-runtime-get-config'),
-  setModelCacheDir: (dirPath: string): Promise<{ success: boolean; error?: string }> =>
-    ipcRenderer.invoke('depth-runtime-set-model-cache-dir', dirPath),
-  deleteModel: (): Promise<{ success: boolean; error?: string }> =>
-    ipcRenderer.invoke('depth-runtime-delete-model'),
-})
 
 // Video pipeline log bundle export — 三段链路日志统一打包导出.
 contextBridge.exposeInMainWorld('videoPipelineLogBundle', {

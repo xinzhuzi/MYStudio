@@ -1070,7 +1070,7 @@ async function verifyRoute(evaluate, route) {
   const forbiddenText = JSON.stringify(route.forbiddenText || []);
   const waitMs = Number(route.waitMs || 1_500);
   return evaluate(
-    `(() => {
+    `(async () => {
     const routeLabel = ${label};
     const requiredText = ${requiredText};
     const forbiddenText = ${forbiddenText};
@@ -1095,6 +1095,26 @@ async function verifyRoute(evaluate, route) {
     }
 
     routeButton.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, view: window }));
+    // 工作流路由的待推进/切换阶段文案在悬浮球面板内;球随工作流视图懒加载挂载,须等球出现再点开面板(合成 click 无 pointer 事件,组件有兜底)
+    if (routeLabel === '工作流') {
+      const openOrbPanel = () => {
+        const orb = document.querySelector('[data-workflow-orb]');
+        if (!orb) return false;
+        orb.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, view: window }));
+        return true;
+      };
+      if (!openOrbPanel()) {
+        await new Promise((resolve) => {
+          const deadline = Date.now() + 5000;
+          const timer = setInterval(() => {
+            if (openOrbPanel() || Date.now() > deadline) {
+              clearInterval(timer);
+              resolve();
+            }
+          }, 120);
+        });
+      }
+    }
     return new Promise((resolve) => setTimeout(() => {
       const bodyText = (document.body?.innerText || '');
       const missingRequiredText = requiredText.filter((text) => !bodyText.includes(text));
@@ -1260,7 +1280,6 @@ async function verifyPluginSettings(evaluate) {
           '按依赖顺序配置本地能力',
           'Python 运行环境',
           'ComfyUI 引擎',
-          '深度估计（电影级 3D）',
           '图片超分（1K → 4K）',
           '视觉审核（VLM 一致性检查）',
           '视频评分模型',
@@ -2120,7 +2139,9 @@ async function verifyWorkflowStepByStepExecution(evaluate) {
       return { clicked: activate(button), text: button ? normalize(button) : '' };
     };
     const clickStageById = async (stageId) => {
-      clickButtonByText('切换阶段');
+      // 悬浮球时代:点球开面板(面板项=带阶段文案的按钮,后续 label 点击不变)
+      const orb = document.querySelector('[data-workflow-orb]');
+      if (orb) orb.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, view: window }));
       await wait(150);
       const result =
         stageId === 'manuals' ? clickButtonByText('风格与导演') :
@@ -2518,6 +2539,8 @@ async function verifyScriptAssetGenerationVoiceFlow(evaluate) {
     await waitFor(() => window.mystudioWorkflowSmoke?.seedCompleteWorkflow, 10_000);
     const seedResult = await window.mystudioWorkflowSmoke?.seedCompleteWorkflow?.();
     const clickedWorkflow = clickButtonByText('工作流', true);
+    await waitFor(() => Boolean(document.querySelector('[data-workflow-orb]')), 5000);
+    document.querySelector('[data-workflow-orb]')?.click();
     await waitFor(() => (document.body?.innerText || '').includes('待推进：'), 5000);
     await window.mystudioWorkflowSmoke?.setWorkflowStage?.('assets');
     await wait(900);

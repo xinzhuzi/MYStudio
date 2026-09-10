@@ -69,9 +69,17 @@ function StudioAssetCardComponent({
     >
       {/* 多选勾选框 */}
       {selectMode && (
-        <div className={`absolute left-1.5 top-1.5 z-10 flex h-5 w-5 items-center justify-center rounded border ${selected ? "border-primary bg-primary text-white" : "border-white/70 bg-black/40"}`}>
+        <div className={`absolute left-1.5 top-1.5 z-10 flex h-5 w-5 items-center justify-center rounded border ${selected ? "border-primary bg-primary text-primary-foreground" : "border-foreground/30 bg-background/60 backdrop-blur-xs"}`}>
           {selected && <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>}
         </div>
+      )}
+
+      {/* 资产类型标签 */}
+      {!selectMode && (
+        <span className="absolute left-1.5 top-1.5 z-10 flex items-center gap-1 rounded bg-background/70 px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground backdrop-blur-xs border border-border/40 opacity-85 group-hover:opacity-100 transition-opacity">
+          <Icon className="h-2.5 w-2.5 text-primary/80" />
+          <span>{asset.type === "role" ? "角色" : asset.type === "scene" ? "场景" : asset.type === "tool" ? "道具" : asset.type === "clip" ? "镜头" : "音频"}</span>
+        </span>
       )}
 
       {/* 提示词润色状态标签 */}
@@ -124,8 +132,8 @@ function StudioAssetCardComponent({
       ) : null}
 
       {/* 底部名字叠加 */}
-      <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 to-transparent px-2 pb-1.5 pt-5">
-        <div className="truncate text-xs font-medium text-foreground">{displayName}</div>
+      <div className="absolute inset-x-0 bottom-0 bg-background/85 backdrop-blur-xs border-t border-border/30 px-2 py-1.5">
+        <div className="truncate text-xs font-medium text-foreground group-hover:text-primary transition-colors">{displayName}</div>
       </div>
     </button>
   );
