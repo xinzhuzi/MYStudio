@@ -164,4 +164,33 @@ describe("SelfMediaTaskRuntime", () => {
     await expect(executing).resolves.toEqual(canceled);
     expect(tasks.get(scheduled.id)?.status).toBe("canceled");
   });
+
+  it("does not fire a far-future schedule immediately via setTimeout overflow", async () => {
+    // 09-10 P0-2 回归:>24.8 天的定时曾被 setTimeout 溢出截断成 1ms 立即发布。
+    vi.useFakeTimers();
+    try {
+      const nowMs = Date.parse("2026-01-01T00:00:00.000Z");
+      const thirtyDaysMs = 30 * 24 * 60 * 60 * 1_000; // 2_592_000_000 > 2^31-1
+      const scheduled = { ...task("scheduled"), scheduledAt: new Date(nowMs + thirtyDaysMs).toISOString() };
+      const tasks = new Map([[scheduled.id, scheduled]]);
+      const executeScheduled = vi.fn(async () => ({ status: "success" as const, progress: 100 }));
+      const runtime = new SelfMediaTaskRuntime(
+        tasks,
+        { get: () => undefined },
+        async () => undefined,
+        undefined,
+        { now: () => nowMs, executeScheduled },
+      );
+      runtime.schedule(scheduled);
+      await vi.advanceTimersByTimeAsync(1_000);
+      expect(executeScheduled).not.toHaveBeenCalled();
+      await vi.advanceTimersByTimeAsync(thirtyDaysMs - 1_000 - 1);
+      expect(executeScheduled).not.toHaveBeenCalled();
+      await vi.advanceTimersByTimeAsync(1);
+      expect(executeScheduled).toHaveBeenCalledOnce();
+      expect(tasks.get(scheduled.id)?.status).toBe("success");
+    } finally {
+      vi.useRealTimers();
+    }
+  });
 });

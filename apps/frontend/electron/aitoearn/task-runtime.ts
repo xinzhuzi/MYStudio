@@ -19,6 +19,9 @@ const isTerminal = (status: SelfMediaTaskStatus) => TERMINAL.includes(status);
 
 /** Main-process journal runtime. It deliberately owns no IPC channels or secrets. */
 export class SelfMediaTaskRuntime {
+  /** Node 对超过 2^31-1ms 的 setTimeout delay 截断为 1ms 立即触发,远期定时必须分段续期。 */
+  private static readonly MAX_TIMER_DELAY_MS = 2_147_483_647;
+
   private readonly jobs = new Map<string, ReturnType<typeof setTimeout>>();
   private readonly inFlight = new Set<Promise<unknown>>();
   private readonly now: TaskRuntimeClock;
@@ -61,11 +64,20 @@ export class SelfMediaTaskRuntime {
       this.track(this.fail(task, "invalid-scheduled-time", "定时任务的发布时间无效"));
       return;
     }
-    const delay = Math.max(0, timestamp - this.now());
-    this.jobs.set(task.id, setTimeout(() => {
-      this.jobs.delete(task.id);
-      this.track(this.execute(task));
-    }, delay));
+    // 09-10 P0-2:超长定时分段续期——每段最多 24.8 天,段末按已等时长扣减续排,
+    // 防 setTimeout 溢出把远期定时变成创建瞬间立即发布。纯算术不读时钟,
+    // 不受注入恒定时钟影响;进程重启由 recover() 按真实时钟重排。
+    const arm = (remaining: number) => {
+      this.jobs.set(task.id, setTimeout(() => {
+        if (remaining > SelfMediaTaskRuntime.MAX_TIMER_DELAY_MS) {
+          arm(remaining - SelfMediaTaskRuntime.MAX_TIMER_DELAY_MS);
+        } else {
+          this.jobs.delete(task.id);
+          this.track(this.execute(task));
+        }
+      }, Math.min(remaining, SelfMediaTaskRuntime.MAX_TIMER_DELAY_MS)));
+    };
+    arm(Math.max(0, timestamp - this.now()));
   }
 
   async execute(task: SelfMediaTask): Promise<SelfMediaTask> {
