@@ -39,9 +39,11 @@ export function registerSfxGenIpcHandlers(options: RegisterSfxGenIpcOptions): Sf
     // The renderer may pass the sentinel "__APP_EXPORTS__"; the main process
     // resolves it to its own export dir so no absolute paths cross the bridge.
     const requestedDir = typeof input.outputDir === "string" ? input.outputDir : "";
-    const outputDir = requestedDir === "__APP_EXPORTS__" || !requestedDir.startsWith("/")
-      ? options.getExportDir()
-      : requestedDir;
+    // 09-10 P1:绝对路径一律拒绝——此前绝对路径原样过桥,renderer 可写任意目录
+    if (requestedDir.startsWith("/") || /^[a-zA-Z]:[\\/]/.test(requestedDir)) {
+      return { status: "blocked" as const, code: "invalid-request", message: "不支持自定义绝对路径,请使用应用导出目录" };
+    }
+    const outputDir = options.getExportDir();
     return controller.generateSfx({
       prompt: input.prompt,
       ...(typeof input.seed === "number" ? { seed: input.seed } : {}),
