@@ -1,26 +1,11 @@
 import { useState } from "react";
-import type {
-  WorkflowReadiness,
-  WorkflowStageReadiness,
-} from "@/lib/studio/workflow-readiness";
-import { Check, Image as ImageIcon } from "lucide-react";
-import {
-  AlertCircle,
-  CheckCircle2,
-  Clock,
-} from "lucide-react";
-import { cn } from "@/lib/utils";
-import { OrbSection } from "@/components/orbs";
+import type { WorkflowReadiness } from "@/lib/studio/workflow-readiness";
+import { OrbGotoSection, OrbStagesSection } from "@/components/features/orb-nav";
 
-/** 纯视图 tab(不在 readiness 流水线):面板「工作流视图」组入口。
- * 分镜面板刻意不在此列——唯一入口是节点图「分镜面板」节点的「进入」按钮
- * (2026-08-23 用户裁定:其他位置不得出现进入分镜面板的途径)。 */
-const WORKFLOW_VIEW_ITEMS = [{ id: "imageWorkflow", label: "图像节点图" }] as const;
-
-/** 悬浮球面板:待推进头(恒显)+「切换阶段」折叠分区(默认收起,09-10 裁定:
- * 需要折叠,点击后再展开;面板重开回默认收起)。
- * 6 阶段完整就绪清单 + 阶段切换入口 + 图像节点图入口(横幅下拉的升级接班)。
- * 视图导航不在本面板(09-10 拆双球:沉浸视图导航归 LocalModelOrb)。 */
+/** 悬浮球面板:待推进头(恒显)+「切换阶段」「前往」两个折叠分区
+ * (09-10 终裁:两球功能一致、都展示全面——分区抽成 features/orb-nav 共享)。
+ * 待推进头=工作流球专属摘要(进度环与阶段号的本体);分区默认收起,面板重开回默认。
+ * 分镜面板入口刻意不在此列(2026-08-23 唯一入口裁定)。 */
 export function StageReadinessPanel({
   readiness,
   activeStage,
@@ -33,6 +18,7 @@ export function StageReadinessPanel({
   onClose: () => void;
 }) {
   const [stagesOpen, setStagesOpen] = useState(false);
+  const [gotoOpen, setGotoOpen] = useState(false);
   const currentStage =
     readiness.stages.find((stage) => stage.id === readiness.nextStageId) ??
     readiness.stages[0];
@@ -48,94 +34,20 @@ export function StageReadinessPanel({
         </p>
       </div>
       <div className="flex-1 overflow-y-auto">
-        <OrbSection
-          section="stages"
-          title="切换阶段"
+        <OrbStagesSection
+          readiness={readiness}
+          activeStage={activeStage}
+          onStageChange={onStageChange}
+          onClose={onClose}
           open={stagesOpen}
           onToggle={() => setStagesOpen((open) => !open)}
-        >
-          {readiness.stages.map((stage) => (
-            <StageItem
-              key={stage.id}
-              stage={stage}
-              active={stage.id === activeStage}
-              onSelect={() => {
-                onStageChange(stage.id);
-                onClose();
-              }}
-            />
-          ))}
-          <div className="my-1.5 border-t border-border/60" />
-          {WORKFLOW_VIEW_ITEMS.map((view) => (
-            <button
-              key={view.id}
-              type="button"
-              data-orb-stage-item={view.id}
-              className={cn(
-                "flex w-full items-center justify-between gap-3 rounded-md px-2 py-2 text-left transition-colors hover:bg-accent",
-                view.id === activeStage && "bg-accent/60",
-              )}
-              onClick={() => {
-                onStageChange(view.id);
-                onClose();
-              }}
-            >
-              <span className="flex items-center gap-2 text-sm text-foreground">
-                <ImageIcon className="h-4 w-4 text-info" />
-                {view.label}
-              </span>
-              {view.id === activeStage ? (
-                <Check className="h-4 w-4 text-success" />
-              ) : null}
-            </button>
-          ))}
-        </OrbSection>
+        />
+        <div className="mt-1" />
+        <OrbGotoSection
+          open={gotoOpen}
+          onToggle={() => setGotoOpen((open) => !open)}
+        />
       </div>
     </div>
-  );
-}
-
-function StageItem({
-  stage,
-  active,
-  onSelect,
-}: {
-  stage: WorkflowStageReadiness;
-  active: boolean;
-  onSelect: () => void;
-}) {
-  const Icon =
-    stage.status === "ready" ? CheckCircle2 : stage.status === "active" ? Clock : AlertCircle;
-  const tone =
-    stage.status === "ready"
-      ? "text-success"
-      : stage.status === "active"
-        ? "text-warning"
-        : "text-muted-foreground";
-  return (
-    <button
-      type="button"
-      data-orb-stage-item={stage.id}
-      className={cn(
-        "flex w-full items-start gap-3 rounded-md px-2 py-2 text-left transition-colors hover:bg-accent",
-        stage.status === "ready" && "bg-success/8",
-        stage.status === "active" && "bg-warning/12",
-        active && "bg-accent/60",
-      )}
-      onClick={onSelect}
-    >
-      <Icon className={cn("mt-0.5 h-4 w-4", tone)} />
-      <span className="min-w-0 flex-1">
-        <span className="block text-sm font-medium text-foreground">
-          {stage.label}
-        </span>
-        <span className="block text-xs text-muted-foreground">
-          {stage.status === "ready"
-            ? (stage.completed[0] ?? "已完成")
-            : (stage.missing[0] ?? stage.actionLabel)}
-        </span>
-      </span>
-      {active ? <Check className="mt-0.5 h-4 w-4 text-primary" /> : null}
-    </button>
   );
 }

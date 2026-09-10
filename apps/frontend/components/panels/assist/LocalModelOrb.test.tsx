@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
-// LocalModelOrb(09-10 拆双球)测试:本地模型球=沉浸视图专属导航枢纽。
-// 覆盖:data 钩子/胶囊模式名/两分区默认收起与开合/模式切换落 freedom-store/
-// 视图跳转落 media-panel-store/位置独立键(不写工作流球键)/无分镜面板入口。
+// LocalModelOrb(09-10 拆双球+两球功能一致终裁)测试:本地模型球=沉浸视图专属导航枢纽。
+// 覆盖:data 钩子/胶囊模式名/三分区(本视图+切换阶段+前往)默认收起与开合/
+// 模式切换回调/阶段直达回调/视图跳转落 media-panel-store/位置独立键。
 
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -11,6 +11,7 @@ import {
   LOCAL_MODEL_ORB_POSITION_KEY,
   WORKFLOW_ORB_POSITION_KEY,
 } from "@/components/orbs";
+import type { WorkflowReadiness } from "@/lib/studio/workflow-readiness";
 import { useFreedomStore } from "@/stores/assist/freedom-store";
 import { useMediaPanelStore } from "@/stores/navigation/media-panel-store";
 
@@ -21,10 +22,49 @@ afterEach(() => {
   useMediaPanelStore.setState({ activeTab: "freedom" });
 });
 
+const readiness: WorkflowReadiness = {
+  progress: 17,
+  nextStageId: "manuals",
+  nextActionLabel: "选择视觉与导演手册",
+  nextAction: {
+    kind: "open-stage",
+    stageId: "manuals",
+    label: "进入风格与导演",
+    enabled: true,
+  },
+  stages: [
+    {
+      id: "manuals",
+      label: "风格与导演",
+      status: "active",
+      completed: [],
+      missing: ["还没有选手册"],
+      actionLabel: "选择视觉与导演手册",
+    },
+    {
+      id: "script",
+      label: "剧本生产阶段",
+      status: "blocked",
+      completed: [],
+      missing: ["还没有剧本"],
+      actionLabel: "生成剧本",
+    },
+  ],
+};
+
 const onModeChange = vi.fn();
+const onStageChange = vi.fn();
 
 function renderOrb(mode: "comfy" | "tts" = "comfy") {
-  return render(<LocalModelOrb mode={mode} onModeChange={onModeChange} />);
+  return render(
+    <LocalModelOrb
+      mode={mode}
+      onModeChange={onModeChange}
+      readiness={readiness}
+      activeStage="manuals"
+      onStageChange={onStageChange}
+    />,
+  );
 }
 
 function getOrb() {
@@ -60,15 +100,18 @@ describe("LocalModelOrb(本地模型球)", () => {
     ).toContain("配音室");
   });
 
-  it("面板:两分区默认收起(09-10 裁定),标题行在场", async () => {
+  it("面板:三分区默认收起(09-10 裁定),标题行在场", async () => {
     renderOrb();
     openPanel();
     expect(await screen.findByRole("button", { name: /^本视图$/ })).toBeTruthy();
+    expect(screen.getByRole("button", { name: /^切换阶段$/ })).toBeTruthy();
     expect(screen.getByRole("button", { name: /^前往$/ })).toBeTruthy();
     expect(screen.queryByRole("group", { name: "本视图" })).toBeNull();
+    expect(screen.queryByRole("group", { name: "切换阶段" })).toBeNull();
     expect(screen.queryByRole("group", { name: "前往" })).toBeNull();
     expect(screen.queryByRole("button", { name: /配音室/ })).toBeNull();
     expect(screen.queryByRole("button", { name: /^设置$/ })).toBeNull();
+    expect(screen.queryByRole("button", { name: /风格与导演/ })).toBeNull();
   });
 
   it("展开「本视图」:模式切换回调触发(freedom-store 由宿主接线)", async () => {
@@ -78,6 +121,16 @@ describe("LocalModelOrb(本地模型球)", () => {
     const ttsButton = await screen.findByRole("button", { name: /配音室/ });
     fireEvent.click(ttsButton);
     expect(onModeChange).toHaveBeenCalledWith("tts");
+  });
+
+  it("展开「切换阶段」:阶段直达回调触发(终裁:恢复直达)", async () => {
+    renderOrb();
+    openPanel();
+    expandSection("切换阶段");
+    const item = await screen.findByRole("button", { name: /剧本生产阶段/ });
+    expect(item.getAttribute("data-orb-stage-item")).toBe("script");
+    fireEvent.click(item);
+    expect(onStageChange).toHaveBeenCalledWith("script");
   });
 
   it("展开「前往」:视图跳转落 media-panel(概览)", async () => {
@@ -115,13 +168,12 @@ describe("LocalModelOrb(本地模型球)", () => {
     expect(await screen.findByRole("button", { name: /^本视图$/ })).toBeTruthy();
   });
 
-  it("位置持久化独立键:拖拽吸附写本地模型球键,不碰工作流球键", () => {
+  it("位置持久化独立键:不读不写工作流球键", () => {
     window.localStorage.setItem(
       WORKFLOW_ORB_POSITION_KEY,
       JSON.stringify({ x: 111, y: 222 }),
     );
     renderOrb();
-    // jsdom 无 motion 布局,直接驱动键盘开合+断言键隔离:本地模型球默认不读工作流历史
     expect(
       window.localStorage.getItem(LOCAL_MODEL_ORB_POSITION_KEY),
     ).toBeNull();

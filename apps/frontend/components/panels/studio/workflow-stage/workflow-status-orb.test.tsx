@@ -101,14 +101,18 @@ describe("WorkflowStatusOrb", () => {
     expect(screen.queryByText("剧本资产管理")).toBeNull();
   });
 
-  it("AC1:工作流球面板零视图导航——无 data-orb-nav-view/模式切换入口(09-10 拆双球)", async () => {
+  it("终裁(两球一致):工作流球面板带「前往」分区——默认收起,展开后 9 视口可跳", async () => {
     renderOrb();
     const orb = getOrb();
     fireEvent.pointerDown(orb, { clientX: 20, clientY: 20 });
     fireEvent.pointerUp(orb, { clientX: 22, clientY: 21 });
     expect(await screen.findByText(/待推进：剧本生产阶段/)).toBeTruthy();
+    // 默认收起:分区标题行在,条目不在;工作流球无「本视图」分区
+    expect(screen.getByRole("button", { name: /^前往$/ })).toBeTruthy();
     expect(document.querySelectorAll("[data-orb-nav-view]").length).toBe(0);
-    expect(document.querySelectorAll("[data-orb-nav-mode]").length).toBe(0);
+    expect(screen.queryByRole("button", { name: /^本视图$/ })).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: /^前往$/ }));
+    expect(document.querySelectorAll("[data-orb-nav-view]").length).toBe(9);
   });
 
   it("点「切换阶段」标题行展开:清单挂出(折叠→展开,09-10 裁定)", async () => {
