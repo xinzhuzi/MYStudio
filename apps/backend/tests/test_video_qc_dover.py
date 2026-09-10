@@ -77,6 +77,13 @@ class DoverProbeAndScoringTest(unittest.TestCase):
             video.write_bytes(b"video-placeholder")
             with (
                 patch.object(dover_scoring, "probe_model", return_value=ready),
+                # 同文件其余测试的惯例:缓存查找必须打桩,否则真连本机模型盘,
+                # 模型未下/搬家的机器上假红(09-10 随 model 迁 comfyui/models 实发)
+                patch.object(
+                    dover_scoring,
+                    "find_cached_video_qc_model",
+                    return_value={"file_path": "/tmp/dover.pth", "size_mb": 40.81, "sha256": "a" * 64},
+                ),
                 patch.object(arch, "load_model", return_value=fake_model),
                 patch.object(
                     arch,
