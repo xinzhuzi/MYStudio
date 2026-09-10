@@ -124,11 +124,11 @@ export function OrbShell({
     clampNow();
   }, [viewportTick, clampNow]);
 
-  // 一次性延迟自愈:挂载瞬间的视口可能仍是过渡值且此后零 resize 事件
-  // (09-10 实弹:球被算进 943 高视口而真实 900,半截埋出窗口底边)
+  // 衰减式延迟自愈:挂载瞬间的视口是过渡值(实测 940/943→900 落定可能晚于
+  // 任何单一时点,且全程零 resize 事件),多枪重试覆盖任意落定节奏
   useEffect(() => {
-    const timer = setTimeout(clampNow, 800);
-    return () => clearTimeout(timer);
+    const timers = [600, 1400, 2600].map((ms) => setTimeout(clampNow, ms));
+    return () => timers.forEach((t) => clearTimeout(t));
   }, [clampNow]);
 
   const handlePointerUp = (event: React.PointerEvent) => {
@@ -137,6 +137,8 @@ export function OrbShell({
     const start = pressStartRef.current;
     pressStartRef.current = null;
     if (!start) return;
+    // 交互后自愈(幂等,不吃事件语义):视口过渡期写入的越界位置在首次触摸即被钳回
+    clampNow();
     const distance = Math.hypot(
       event.clientX - start.x,
       event.clientY - start.y,
