@@ -1099,6 +1099,9 @@ async function verifyRoute(evaluate, route) {
     routeButton.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, view: window }));
     // 工作流路由的待推进/切换阶段文案在悬浮球面板内;球随工作流视图懒加载挂载,须等球出现再点开面板(合成 click 无 pointer 事件,组件有兜底)
     if (routeLabel === '工作流') {
+      // 09-11 resetKey:视图切换会异步收面板——导航后先等效应落定再点球,
+      // 否则机器速度下点球开面板会被随后的收面板效应关掉(真人时序不可能命中)
+      await new Promise((resolve) => setTimeout(resolve, 300));
       const openOrbPanel = () => {
         const orb = document.querySelector('[data-workflow-orb]');
         if (!orb) return false;
