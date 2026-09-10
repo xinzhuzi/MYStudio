@@ -130,10 +130,41 @@ describe("WorkflowStatusOrb", () => {
     expect(screen.queryByRole("group", { name: "切换阶段" })).toBeNull();
   });
 
+  it("层序契约:球 z-40(高于 webview,低于 dropdown z-50/Dialog z-250)", () => {
+    renderOrb();
+    expect(getOrb().style.zIndex).toBe("40");
+  });
+
+  it("pointercancel 后标志位复位,下一次合成 click 不被误吞", async () => {
+    renderOrb();
+    const orb = getOrb();
+    fireEvent.pointerDown(orb, { clientX: 20, clientY: 20 });
+    fireEvent.pointerCancel(orb);
+    fireEvent.click(orb);
+    expect(await screen.findByText(/待推进：剧本生产阶段/)).toBeTruthy();
+  });
+
   it("合成 click(无 pointer 事件)可开面板——smoke 脚本路径", async () => {
     renderOrb();
     fireEvent.click(getOrb());
     expect(await screen.findByText(/待推进：剧本生产阶段/)).toBeTruthy();
+  });
+
+  it("真实点击兜底:pointerup 被 drag 会话吞掉时,带坐标的 click 仍开面板(装机实弹报障)", async () => {
+    renderOrb();
+    const orb = getOrb();
+    // pointerdown 有,pointerup 缺席(真机上 motion drag 干扰的故障路径),click 携带释放点坐标
+    fireEvent.pointerDown(orb, { clientX: 20, clientY: 20 });
+    fireEvent.click(orb, { clientX: 22, clientY: 21 });
+    expect(await screen.findByText(/待推进：剧本生产阶段/)).toBeTruthy();
+  });
+
+  it("拖拽后落在球内的 click(位移超阈值)不开面板", () => {
+    renderOrb();
+    const orb = getOrb();
+    fireEvent.pointerDown(orb, { clientX: 20, clientY: 20 });
+    fireEvent.click(orb, { clientX: 60, clientY: 70 });
+    expect(screen.queryByText(/待推进：/)).toBeNull();
   });
 
   it("键盘 Enter 可开合面板", async () => {

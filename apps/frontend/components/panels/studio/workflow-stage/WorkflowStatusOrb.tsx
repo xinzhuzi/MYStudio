@@ -82,9 +82,6 @@ export function WorkflowStatusOrb({
   const y = useMotionValue(position.y);
   const [panelOpen, setPanelOpen] = useState(false);
   const pressStartRef = useRef<{ x: number; y: number } | null>(null);
-  // 合成 click(smoke 脚本 el.click())不携带 pointer 事件,由此兜底开面板;
-  // 真实点击的 click 紧跟 pointerup 之后,hadPointer 期间忽略避免双开。
-  const hadPointerRef = useRef(false);
 
   // 窗口变化时把球钳回视口内
   useEffect(() => {
@@ -112,12 +109,21 @@ export function WorkflowStatusOrb({
     if (distance < CLICK_THRESHOLD_PX) setPanelOpen(true);
   };
 
-  const handleClick = () => {
-    if (hadPointerRef.current) {
-      hadPointerRef.current = false;
+  // 真实点击兜底:motion drag 会话可能吞掉 pointerup,click 自带释放点坐标,
+  // 可独立复判位移<阈值=点击(布尔 setState 幂等,双开无害);
+  // 合成 click(无 pointer 前置,smoke 脚本路径)无起点,直接开面板。
+  const handleClick = (event: React.MouseEvent) => {
+    const start = pressStartRef.current;
+    pressStartRef.current = null;
+    if (!start) {
+      setPanelOpen(true);
       return;
     }
-    setPanelOpen(true);
+    const distance = Math.hypot(
+      event.clientX - start.x,
+      event.clientY - start.y,
+    );
+    if (distance < CLICK_THRESHOLD_PX) setPanelOpen(true);
   };
 
   const currentStage =
@@ -163,14 +169,19 @@ export function WorkflowStatusOrb({
             height: ORB_SIZE,
             x,
             y,
-            zIndex: 280,
+            // 层序契约:高于画布 webview 与常规 chrome(z-10/20),低于 dropdown(z-50)、
+            // Dialog(z-[250])与面板本体(z-[300])——弹窗打开时球沉到遮罩之下,不可点。
+            zIndex: 40,
           }}
           className="group flex h-12 w-12 cursor-grab items-center justify-center rounded-full border border-border/70 bg-card/90 shadow-[0_6px_20px_rgba(0,0,0,0.35)] backdrop-blur-md outline-none focus-visible:ring-2 focus-visible:ring-ring active:cursor-grabbing"
           onPointerDown={(event) => {
-            hadPointerRef.current = true;
             pressStartRef.current = { x: event.clientX, y: event.clientY };
           }}
           onPointerUp={handlePointerUp}
+          onPointerCancel={() => {
+            // 手势取消(系统中断/滚轮接管)时清起点:下一次合成 click 视为无前置,正常开面板
+            pressStartRef.current = null;
+          }}
           onClick={handleClick}
           onKeyDown={(event) => {
             if (event.key === "Enter" || event.key === " ") {
