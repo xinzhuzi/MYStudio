@@ -504,24 +504,33 @@ export interface LaunchArgsTokenize {
   tokens: string[];
 }
 
-/** 前端镜像校验:引号成对+空白分词(值含空格可加引号);语法错给行内红错。 */
+/** 前端镜像校验(与后端 shlex 前置规则一致的三类硬拒:反斜杠/引号不成对/空引号段;
+ * 分词仅按 ASCII 空白——全角空格等会整词透传并在后端被拒,故在此不拆不报)。
+ */
 export function tokenizeArgsString(input: string): LaunchArgsTokenize {
   const text = input ?? "";
+  if (text.includes("\\")) {
+    return { ok: false, error: "暂不支持反斜杠转义;请用引号包裹含特殊字符的值", tokens: [] };
+  }
   const tokens: string[] = [];
   let current = "";
   let quote: '"' | "'" | null = null;
-  for (let index = 0; index < text.length; index += 1) {
-    const char = text[index]!;
+  let quotedEmpty = false;
+  for (const char of text) {
     if (quote) {
-      if (char === quote) quote = null;
-      else current += char;
+      if (char === quote) {
+        if (current === "") quotedEmpty = true;
+        quote = null;
+        continue;
+      }
+      current += char;
       continue;
     }
     if (char === '"' || char === "'") {
       quote = char;
       continue;
     }
-    if (/\s/.test(char)) {
+    if (char === " " || char === "\t" || char === "\r" || char === "\n") {
       if (current) tokens.push(current);
       current = "";
       continue;
@@ -529,6 +538,7 @@ export function tokenizeArgsString(input: string): LaunchArgsTokenize {
     current += char;
   }
   if (quote) return { ok: false, error: "引号不成对,请补齐后保存", tokens: [] };
+  if (quotedEmpty) return { ok: false, error: "存在空的引号段;请去掉成对的空引号", tokens: [] };
   if (current) tokens.push(current);
   return { ok: true, tokens };
 }
@@ -578,18 +588,27 @@ export interface LaunchDropdownState {
   attention: "auto" | "pytorch-cross-attention";
 }
 
-/** 从串反解下拉状态(与后端旧翻译语义对齐:两 flag 可组合,下拉取并集展示)。 */
+function tokensHave(tokens: string[], flag: string): boolean {
+  return tokens.includes(flag) || tokens.some((token) => token.startsWith(`${flag}=`));
+}
+
+function flagValue(tokens: string[], flag: string): string | null {
+  const exact = tokens.indexOf(flag);
+  if (exact >= 0) return tokens[exact + 1] ?? null;
+  const prefixed = tokens.find((token) => token.startsWith(`${flag}=`));
+  return prefixed ? prefixed.slice(flag.length + 1) : null;
+}
+
+/** 从串反解下拉状态(等价形 `--flag=N` 同认;组合串显示「全力」——旧三档 UI 同语义)。 */
 export function deriveLaunchDropdowns(input: string): LaunchDropdownState {
   const { tokens } = tokenizeArgsString(input);
-  const has = (flag: string) => tokens.includes(flag);
-  const reserveIndex = tokens.indexOf("--reserve-vram");
-  const reserveGb = Number(tokens[reserveIndex + 1]);
-  const hasReserve = has("--reserve-vram") && Number.isFinite(reserveGb) && reserveGb > 0;
+  const reserveText = flagValue(tokens, "--reserve-vram");
+  const reserveGb = Number(reserveText);
+  const hasReserve = reserveText != null && reserveText !== "" && Number.isFinite(reserveGb) && reserveGb > 0;
   return {
-    // 显示优先级:全力+预留组合(旧默认串)显示「全力」;仅纯预留显示「预留」——旧三档 UI 同语义
-    vram: has("--gpu-only") ? "gpu-only" : hasReserve ? "reserve-vram" : "auto",
+    vram: tokensHave(tokens, "--gpu-only") ? "gpu-only" : hasReserve ? "reserve-vram" : "auto",
     reserveGb: hasReserve ? reserveGb : 16,
-    attention: has("--use-pytorch-cross-attention") ? "pytorch-cross-attention" : "auto",
+    attention: tokensHave(tokens, "--use-pytorch-cross-attention") ? "pytorch-cross-attention" : "auto",
   };
 }
 
@@ -615,14 +634,15 @@ function tokensOf(input: string): string[] {
   return tokenizeArgsString(input).tokens;
 }
 
-/** 显存策略下拉 → 写串(定点替换 --gpu-only/--reserve-vram 及其值;auto=全清)。 */
+/** 显存策略下拉 → 写串(定点替换;auto=全清;gpu-only=纯全力;reserve=仅预留 N GB,legacy 语义)。 */
 export function applyVramPolicy(input: string, vram: LaunchDropdownState["vram"], reserveGb: number): string {
   let tokens = removeFlagWithValue(tokensOf(input), "--reserve-vram");
   tokens = removeBareFlag(tokens, "--gpu-only");
   if (vram === "auto") return tokens.join(" ").trim();
   if (vram === "gpu-only") return [...tokens, "--gpu-only"].join(" ").trim();
+  // 深审 C3:预留档=legacy 语义(仅 --reserve-vram N,不加 --gpu-only——允许内存卸载)
   const gb = Number.isFinite(reserveGb) && reserveGb > 0 ? reserveGb : 16;
-  return [...tokens, "--gpu-only", "--reserve-vram", String(gb)].join(" ").trim();
+  return [...tokens, "--reserve-vram", String(gb)].join(" ").trim();
 }
 
 /** 加速方式下拉 → 写串(定点增删 --use-pytorch-cross-attention)。 */

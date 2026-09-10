@@ -264,8 +264,9 @@ export function ComfyEngineSettingsSection({ embedded = false, initialActiveTab 
   const [confirmReset, setConfirmReset] = useState(false);
   // 启动参数 Desktop 化(09-10):串=唯一真源;草稿 null=跟随真实状态,编辑后本地持有
   const [argsDraft, setArgsDraft] = useState<string | null>(null);
-  const [envDraft, setEnvDraft] = useState<Record<string, string> | null>(null);
-  const [envReveal, setEnvReveal] = useState<Record<string, boolean>>({});
+  // 深审 C2:环境表行=稳定 id 数组(对象键当 React key 会逐字符失焦+行跳动)
+  const [envDraft, setEnvDraft] = useState<Array<{ id: number; key: string; value: string }> | null>(null);
+  const [envReveal, setEnvReveal] = useState<Record<number, boolean>>({});
   // 标签页(照 ComfyUI Desktop 设置布局,09-09 增「模型」页并置首:本地大模型展示)
   const [activeTab, setActiveTab] = useState<ComfyEngineTab>(initialActiveTab ?? "models");
   // 模型分类组折叠(照生态插件块 09-09 裁定):默认收起,显式展开过的记住(localStorage)
@@ -315,7 +316,13 @@ export function ComfyEngineSettingsSection({ embedded = false, initialActiveTab 
 
   // 启动参数 Desktop 化(09-10):串=唯一真源;草稿 null=跟随真实状态
   const effectiveArgs = argsDraft ?? status?.launchArgs ?? "";
-  const effectiveEnv = envDraft ?? status?.envVars ?? {};
+  const envRows: Array<{ id: number; key: string; value: string }> =
+    envDraft ??
+    Object.entries(status?.envVars ?? {}).map(([key, value], index) => ({
+      id: index,
+      key,
+      value,
+    }));
   const dropdowns = deriveLaunchDropdowns(effectiveArgs);
   const argsTokenize = tokenizeArgsString(effectiveArgs);
   const argWarnings = launchArgsWarnings(effectiveArgs);
@@ -329,8 +336,10 @@ export function ComfyEngineSettingsSection({ embedded = false, initialActiveTab 
     if (effectiveArgs === (status?.launchArgs ?? "")) return;
     if (lastSavedArgsRef.current === effectiveArgs) return;
     const timer = setTimeout(() => {
-      lastSavedArgsRef.current = effectiveArgs;
-      void saveConfigRef.current({ argsString: effectiveArgs });
+      // 深审 W3:accepted 才标记已存;被拒/失败保持未存态,后续编辑或状态刷新会重试
+      void saveConfigRef.current({ argsString: effectiveArgs }).then((reply) => {
+        if (reply?.accepted) lastSavedArgsRef.current = effectiveArgs;
+      });
     }, 500);
     return () => clearTimeout(timer);
   }, [effectiveArgs, argsTokenize.ok, status?.launchArgs]);
@@ -338,15 +347,18 @@ export function ComfyEngineSettingsSection({ embedded = false, initialActiveTab 
   const lastSavedEnvRef = useRef<Record<string, string> | null>(null);
   useEffect(() => {
     if (envDraft == null) return; // 只保存用户编辑过的表
-    const clean = Object.fromEntries(
-      Object.entries(envDraft).filter(([key, value]) => key.trim() && value !== ""),
-    );
+    // 行→对象:空行过滤;重名键后行覆盖前行(改键撞名即覆盖,深审 W5 取舍)
+    const clean: Record<string, string> = {};
+    for (const row of envDraft) {
+      if (row.key.trim() && row.value !== "") clean[row.key.trim()] = row.value;
+    }
     const cleanJson = JSON.stringify(clean);
     if (cleanJson === JSON.stringify(status?.envVars ?? {})) return;
     if (lastSavedEnvRef.current != null && cleanJson === JSON.stringify(lastSavedEnvRef.current)) return;
     const timer = setTimeout(() => {
-      lastSavedEnvRef.current = clean;
-      void saveConfigRef.current({ envVars: clean });
+      void saveConfigRef.current({ envVars: clean }).then((reply) => {
+        if (reply?.accepted) lastSavedEnvRef.current = clean;
+      });
     }, 500);
     return () => clearTimeout(timer);
   }, [envDraft, status?.envVars]);
@@ -766,7 +778,7 @@ export function ComfyEngineSettingsSection({ embedded = false, initialActiveTab 
                   </p>
                 ))}
                 <p className="text-[11px] text-muted-foreground">
-                  整串原样透传给引擎;未写 --port 时自动分配冷门端口。改动自动保存,重启引擎后生效。
+                  整串原样透传给引擎;未写 --port 时自动分配冷门端口。改动自动保存,引擎运行中会自动重启生效。
                 </p>
               </div>
 
@@ -776,6 +788,7 @@ export function ComfyEngineSettingsSection({ embedded = false, initialActiveTab 
                 <select
                   aria-label="显存策略"
                   value={dropdowns.vram}
+                  disabled={!argsTokenize.ok}
                   onChange={(event) =>
                     setArgsDraft(applyVramPolicy(effectiveArgs, event.target.value as "auto" | "gpu-only" | "reserve-vram", dropdowns.reserveGb))
                   }
@@ -807,6 +820,7 @@ export function ComfyEngineSettingsSection({ embedded = false, initialActiveTab 
                 <select
                   aria-label="加速方式"
                   value={dropdowns.attention}
+                  disabled={!argsTokenize.ok}
                   onChange={(event) =>
                     setArgsDraft(applyAttentionMode(effectiveArgs, event.target.value as "auto" | "pytorch-cross-attention"))
                   }
@@ -833,7 +847,7 @@ export function ComfyEngineSettingsSection({ embedded = false, initialActiveTab 
                 </select>
               </div>
 
-              {/* 环境变量表(spawn 注入;值默认遮蔽,点击临时显示) */}
+              {/* 环境变量表(spawn 注入;值默认遮蔽,点击临时显示;行=稳定 id 数组) */}
               <div className="space-y-2" data-comfy-env-vars>
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-medium text-foreground">环境变量</span>
@@ -841,34 +855,33 @@ export function ComfyEngineSettingsSection({ embedded = false, initialActiveTab 
                     size="sm"
                     variant="outline"
                     className="h-7 px-2 text-xs"
-                    onClick={() => setEnvDraft({ ...effectiveEnv, "": "" })}
+                    onClick={() => setEnvDraft([...envRows, { id: Date.now(), key: "", value: "" }])}
                     data-comfy-env-add
                   >
                     添加变量
                   </Button>
                 </div>
-                {Object.keys(effectiveEnv).length === 0 && envDraft == null ? (
+                {envRows.length === 0 && envDraft == null ? (
                   <p className="text-[11px] text-muted-foreground">暂无变量;常用于 HF_TOKEN、代理地址等(注入引擎进程)。</p>
                 ) : null}
-                {Object.entries(effectiveEnv).map(([key, value]) => (
-                  <div key={key || "new"} className="grid grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)_auto_auto] items-center gap-2">
+                {envRows.map((row) => (
+                  <div key={row.id} className="grid grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)_auto_auto] items-center gap-2">
                     <Input
-                      value={key}
-                      onChange={(event) => {
-                        const next = { ...effectiveEnv };
-                        delete next[key];
-                        next[event.target.value] = value;
-                        setEnvDraft(next);
-                      }}
+                      value={row.key}
+                      onChange={(event) =>
+                        setEnvDraft(envRows.map((item) => (item.id === row.id ? { ...item, key: event.target.value } : item)))
+                      }
                       placeholder="变量名"
                       containerClassName="min-w-0"
                       className="h-8 min-w-0 font-mono text-xs"
                       data-comfy-env-key
                     />
                     <Input
-                      type={envReveal[key] ? "text" : "password"}
-                      value={value}
-                      onChange={(event) => setEnvDraft({ ...effectiveEnv, [key]: event.target.value })}
+                      type={envReveal[row.id] ? "text" : "password"}
+                      value={row.value}
+                      onChange={(event) =>
+                        setEnvDraft(envRows.map((item) => (item.id === row.id ? { ...item, value: event.target.value } : item)))
+                      }
                       placeholder="值"
                       containerClassName="min-w-0"
                       className="h-8 min-w-0 font-mono text-xs"
@@ -878,20 +891,16 @@ export function ComfyEngineSettingsSection({ embedded = false, initialActiveTab 
                       size="sm"
                       variant="ghost"
                       className="h-7 px-2 text-xs"
-                      onClick={() => setEnvReveal((prev) => ({ ...prev, [key]: !prev[key] }))}
-                      aria-label={envReveal[key] ? "隐藏值" : "显示值"}
+                      onClick={() => setEnvReveal((prev) => ({ ...prev, [row.id]: !prev[row.id] }))}
+                      aria-label={envReveal[row.id] ? "隐藏值" : "显示值"}
                     >
-                      {envReveal[key] ? "隐藏" : "显示"}
+                      {envReveal[row.id] ? "隐藏" : "显示"}
                     </Button>
                     <Button
                       size="sm"
                       variant="ghost"
                       className="h-7 px-2 text-xs"
-                      onClick={() => {
-                        const next = { ...effectiveEnv };
-                        delete next[key];
-                        setEnvDraft(next);
-                      }}
+                      onClick={() => setEnvDraft(envRows.filter((item) => item.id !== row.id))}
                       aria-label="删除变量"
                       data-comfy-env-remove
                     >

@@ -578,7 +578,11 @@ export function createHttpComfyEngineClient(): ComfyEngineClient {
     },
 
     async setLaunchConfig(config: { argsString?: string; envVars?: Record<string, string>; portConflictPolicy?: "auto-shift" | "fail" }): Promise<ComfyEngineAckReply> {
-      return comfySidecarRequest<ComfyEngineAckReply>("POST", "/comfy/engine/config", { body: config });
+      // 引擎运行中此保存会触发同步重启(stop 15s+健康等待 120s),超时须盖过重启窗口(深审 W1)
+      return comfySidecarRequest<ComfyEngineAckReply>("POST", "/comfy/engine/config", {
+        body: config,
+        timeoutMs: 180_000,
+      });
     },
     async getBridgeWritebacks(cursor: number): Promise<ComfyBridgeWritebacksReply | null> {
       try {

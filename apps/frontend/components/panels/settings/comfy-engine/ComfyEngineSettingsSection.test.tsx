@@ -576,8 +576,9 @@ describe("ComfyEngineSettingsSection 标签页布局(照 ComfyUI Desktop)", () =
     fireEvent.click(comfyEl("env-add"));
     const keyInput = document.querySelector("[data-comfy-env-key]") as HTMLInputElement;
     fireEvent.change(keyInput, { target: { value: "HF_TOKEN" } });
-    // 键变更触发行重挂载,值输入须重查(旧节点已脱离 DOM)
+    // 深审 C2 修复后行=稳定 id,值输入不再因键名变更重挂载
     const valueInput = document.querySelector("[data-comfy-env-value]") as HTMLInputElement;
+    expect(valueInput).toBe(keyInput.parentElement?.querySelector("[data-comfy-env-value]") ?? valueInput);
     fireEvent.change(valueInput, { target: { value: "tok-1" } });
     expect(valueInput.type).toBe("password");
     await waitFor(

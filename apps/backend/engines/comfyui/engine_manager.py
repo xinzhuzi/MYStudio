@@ -14,6 +14,8 @@ import gzip
 import json
 import os
 import re
+import shlex
+import unicodedata
 import shutil
 import signal
 import socket
@@ -270,19 +272,23 @@ def parse_launch_args_string(args_string: str) -> dict:
     提取并消费 --port/--listen(含 `--flag=value` 等价形)到规范位;其余 flag 原样透传
     (09-10 全盘照 Desktop:串=唯一真源,语义错误不在此拦,引擎自会报错走 error 态)。
     """
-    import shlex
-
+    if "\\" in args_string:
+        raise EngineOpError("启动参数暂不支持反斜杠转义;请用引号包裹含特殊字符的值")
     try:
         tokens = shlex.split(args_string or "")
     except ValueError as exc:
         raise EngineOpError(f"启动参数无法解析:{exc};请检查引号是否成对") from exc
+    for token in tokens:
+        if any(ch.isspace() or unicodedata.category(ch).startswith("C") for ch in token):
+            raise EngineOpError(
+                "启动参数包含全角空格等非常规空白或控制字符;请换成普通空格分隔")
 
     port: int | None = None
     listen: str | None = None
     flags: list[str] = []
 
     def _port_value(value: str) -> int:
-        if not value.isdigit() or not (1 <= int(value) <= 65535):
+        if not re.fullmatch(r"[0-9]+", value) or not (1 <= int(value) <= 65535):
             raise EngineOpError(f"--port 取值无效:{value}(须为 1-65535 端口号)")
         return int(value)
 
@@ -307,6 +313,23 @@ def parse_launch_args_string(args_string: str) -> dict:
             flags.append(token)
         index += 1
     return {"flags": flags, "port": port, "listen": listen}
+
+
+def resolve_launch_port(args_string: str, recorded: int | None, policy: str) -> int:
+    """启动端口决议(深审 C1 抽出可测):用户串 --port 优先(被占按 fail/顺延策略);
+    否则账本口(被占顺延);都没有则分配。调用方负责把结果回写账本。"""
+    parsed = parse_launch_args_string(args_string)
+    if parsed["port"]:
+        user_port = parsed["port"]
+        if _port_bindable(user_port):
+            return user_port
+        if policy == "fail":
+            raise EngineOpError(
+                f"启动参数指定的端口 {user_port} 已被占用;可改用其他端口,或把端口冲突策略设为「自动顺延」")
+        return find_free_port()
+    if recorded and not _port_bindable(recorded):
+        return find_free_port()
+    return recorded or find_free_port()
 
 
 def build_launch_args(args_string: str, port: int, script: str = "main.py") -> list[str]:
@@ -754,20 +777,12 @@ class EngineManager:
             if progress:
                 progress(100, "接管了正在运行的 ComfyUI 实例")
             return {"running": True, "port": port, "adopted": True}
-        # 09-10 Desktop 式:用户串写死 --port → 优先于账本端口;被占按冲突策略处置
-        parsed_args = parse_launch_args_string(cm.engine_launch_args())
-        if parsed_args["port"]:
-            port = parsed_args["port"]
-            if not _port_bindable(port):
-                if cm.engine_port_conflict_policy() == "fail":
-                    raise EngineOpError(
-                        f"启动参数指定的端口 {port} 已被占用;可改用其他端口,或把端口冲突策略设为「自动顺延」")
-                shifted = find_free_port()
-                cm.mutate_manifest(lambda m: m["engine"].update({"port": shifted}))
-                port = shifted
-        # 账本端口被外部占用(如 Comfy Desktop 顺延撞上)→ 重探测换端口
-        elif port and not _port_bindable(port):
-            port = find_free_port()
+        # 09-10 Desktop 式:端口决议(用户串 --port 优先,被占按策略;否则账本口顺延)
+        port = resolve_launch_port(
+            cm.engine_launch_args(), port, cm.engine_port_conflict_policy())
+        # 决议结果回写账本:status/bridge/收件箱全按账本口寻址,不回写=引擎跑在
+        # 新口而全 app 打旧口(深审 C1;用户口空闲路径此前零写入)
+        if port != cm.recorded_port():
             cm.mutate_manifest(lambda m: m["engine"].update({"port": port}))
         if progress:
             progress(20, "启动引擎进程…")
@@ -781,10 +796,11 @@ class EngineManager:
         self._stopping = False
         # 显式 cwd=源码目录(相对资源解析),可执行文件与脚本全绝对路径(防漂移坑)
         # bridge 回写端点注入(swap 阶段1:manying_generated → sidecar 17595)
+        # 09-10 Desktop 式环境变量表(spawn 注入);桥契约变量后置=用户表不可遮蔽回写链
         launch_env = {**os.environ,
+                      **cm.engine_env_vars(),
                       "MYSTUDIO_BRIDGE_URL": bridge_contract.BRIDGE_URL,
-                      "MYSTUDIO_BRIDGE_TOKEN": bridge_contract.BRIDGE_TOKEN,
-                      **cm.engine_env_vars()}  # 09-10 Desktop 式环境变量表(spawn 注入)
+                      "MYSTUDIO_BRIDGE_TOKEN": bridge_contract.BRIDGE_TOKEN}
         self._proc = subprocess.Popen(argv, cwd=str(src), env=launch_env,
                                       stdout=self._log_file, stderr=subprocess.STDOUT,
                                       start_new_session=True)  # 独立会话=组长,看门狗可整组回收(孤儿根修)
@@ -1296,11 +1312,28 @@ class EngineManager:
             if policy is not None:
                 manifest["engine"]["portConflictPolicy"] = policy
 
-        cm.mutate_manifest(_apply)
+        # 深审 W1:仅运行态相关配置(modelsDir/串/环境表)变化才重启;policy 只在
+        # 下次启动生效,单独改它不重启(此前无谓重启+前端 15s 超时假错)。
+        def _changed(manifest: dict) -> bool:
+            engine = manifest.get("engine") if isinstance(manifest.get("engine"), dict) else {}
+            return (
+                (models_dir is not None)
+                or (args_string is not None and engine.get("launchArgs") != args_string)
+                or (env_vars is not None and engine.get("envVars") != env_vars)
+            )
+
+        restart_needed = False
+
+        def _apply_and_flag(manifest: dict) -> None:
+            nonlocal restart_needed
+            restart_needed = _changed(manifest)
+            _apply(manifest)
+
+        cm.mutate_manifest(_apply_and_flag)
         _write_extra_model_paths(cm.configured_models_dir())
-        was_running = self.is_healthy()
+        was_running = restart_needed and self.is_healthy()
         if was_running:
-            self.restart()  # modelsDir/性能档变更需要重启生效
+            self.restart()
         return {**self.status(), "restarted": was_running}
 
     # ── 存储位置配置(09-09 comfyui-frontend-swap 0a)──────────────────

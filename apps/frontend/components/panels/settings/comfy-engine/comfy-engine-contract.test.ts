@@ -226,11 +226,22 @@ import {
 } from "./comfy-engine-contract";
 
 describe("launch args string helpers", () => {
-  it("tokenize:引号段成词;不成对报错", () => {
+  it("tokenize:引号段成词;不成对/反斜杠/空引号段报错(与后端三类硬拒镜像)", () => {
     expect(tokenizeArgsString('--a "b c" d').tokens).toEqual(["--a", "b c", "d"]);
     const bad = tokenizeArgsString('"--unbalanced');
     expect(bad.ok).toBe(false);
     expect(bad.error).toContain("引号");
+    expect(tokenizeArgsString("--foo a\\b").ok).toBe(false);
+    expect(tokenizeArgsString('--listen ""').ok).toBe(false);
+  });
+
+  it("derive 认 = 等价形;reserve 档 apply→derive 回环一致(深审 C3/INFO2)", () => {
+    expect(deriveLaunchDropdowns("--reserve-vram=8 --use-pytorch-cross-attention"))
+      .toEqual({ vram: "reserve-vram", reserveGb: 8, attention: "pytorch-cross-attention" });
+    const applied = applyVramPolicy("--gpu-only --reserve-vram 16 --use-pytorch-cross-attention", "reserve-vram", 8);
+    expect(applied).toBe("--use-pytorch-cross-attention --reserve-vram 8");  // legacy 语义:预留档不加 --gpu-only
+    expect(deriveLaunchDropdowns(applied).vram).toBe("reserve-vram");        // 回环:选完不再弹回
+    expect(deriveLaunchDropdowns(applyVramPolicy(applied, "gpu-only", 8)).vram).toBe("gpu-only");
   });
 
   it("warnings:大众端口黄字;0.0.0.0 红字;正常串零警告", () => {

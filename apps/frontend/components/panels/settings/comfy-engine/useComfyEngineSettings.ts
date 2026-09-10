@@ -300,8 +300,10 @@ export function useComfyEngineSettings(options: UseComfyEngineSettingsOptions = 
         const reply = await client.setLaunchConfig(config);
         if (!reply.accepted) toast.error(reply.message || "启动参数未保存");
         else toast.success("已保存,重启引擎后生效");
+        return reply; // 调用方(防抖 effect)依 accepted 决定是否标记已存(深审 W3)
       } catch (error) {
         toast.error(error instanceof Error ? error.message : "启动参数保存失败");
+        return undefined;
       }
     },
     [client],

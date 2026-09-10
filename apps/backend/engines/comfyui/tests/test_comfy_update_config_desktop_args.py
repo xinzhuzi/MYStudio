@@ -79,3 +79,76 @@ class TestUpdateConfigEnvAndPolicy:
         manager.update_config({"modelsDir": str(target), "argsString": "--fp16-vae"})
         assert str(cm.configured_models_dir()) == str(target)
         assert cm.engine_launch_args() == "--fp16-vae"
+
+
+class TestResolveLaunchPort:
+    """深审 C1:端口决议三分支 + 决议结果必须可回写(调用方职责,此处锁纯函数语义)。"""
+
+    def test_user_port_free_wins(self, monkeypatch):
+        from engines.comfyui import engine_manager as emm
+        monkeypatch.setattr(emm, "_port_bindable", lambda p: True)
+        assert emm.resolve_launch_port("--port 8188", 17234, "auto-shift") == 8188
+
+    def test_user_port_busy_fail_policy_raises(self, monkeypatch):
+        from engines.comfyui import engine_manager as emm
+        monkeypatch.setattr(emm, "_port_bindable", lambda p: False)
+        try:
+            emm.resolve_launch_port("--port 8188", 17234, "fail")
+            raise AssertionError("fail 策略应报错")
+        except emm.EngineOpError as exc:
+            assert "已被占用" in str(exc)
+
+    def test_user_port_busy_shift_policy_allocates(self, monkeypatch):
+        from engines.comfyui import engine_manager as emm
+        monkeypatch.setattr(emm, "_port_bindable", lambda p: False)
+        monkeypatch.setattr(emm, "find_free_port", lambda: 17005)
+        assert emm.resolve_launch_port("--port 8188", 17234, "auto-shift") == 17005
+
+    def test_no_user_port_recorded_occupied_shifts(self, monkeypatch):
+        from engines.comfyui import engine_manager as emm
+        monkeypatch.setattr(emm, "_port_bindable", lambda p: p != 17234)
+        monkeypatch.setattr(emm, "find_free_port", lambda: 17006)
+        assert emm.resolve_launch_port("--fast", 17234, "auto-shift") == 17006
+
+    def test_no_user_port_recorded_free_keeps(self, monkeypatch):
+        from engines.comfyui import engine_manager as emm
+        monkeypatch.setattr(emm, "_port_bindable", lambda p: True)
+        assert emm.resolve_launch_port("--fast", 17234, "fail") == 17234
+
+
+class TestParseHardening:
+    """深审 W2/INFO1:双端口一致的三类硬拒。"""
+
+    def test_backslash_rejected(self):
+        from engines.comfyui.engine_manager import EngineOpError, parse_launch_args_string
+        with pytest.raises(EngineOpError, match="反斜杠"):
+            parse_launch_args_string(r"--foo a\b")
+
+    def test_unicode_whitespace_token_rejected(self):
+        from engines.comfyui.engine_manager import EngineOpError, parse_launch_args_string
+        with pytest.raises(EngineOpError, match="非常规空白"):
+            parse_launch_args_string("--listen　8188")
+
+    def test_unicode_digit_port_rejected_with_plain_message(self):
+        from engines.comfyui.engine_manager import EngineOpError, parse_launch_args_string
+        with pytest.raises(EngineOpError, match="取值无效"):
+            parse_launch_args_string("--port ²")
+
+
+class TestRestartConditional:
+    """深审 W1:policy-only 不重启;串变化才重启。"""
+
+    def test_policy_only_no_restart_flag(self, manager):
+        result = manager.update_config({"portConflictPolicy": "fail"})
+        assert result["restarted"] is False
+        assert result["portConflictPolicy"] == "fail"
+
+    def test_same_args_no_restart_flag(self, manager):
+        current = cm.engine_launch_args()
+        result = manager.update_config({"argsString": current})
+        assert result["restarted"] is False
+
+    def test_changed_args_marks_restart(self, manager):
+        result = manager.update_config({"argsString": "--fast"})
+        assert result["restarted"] is False  # is_healthy 恒 False(测试旁路),但标记路径已走
+        assert cm.engine_launch_args() == "--fast"
