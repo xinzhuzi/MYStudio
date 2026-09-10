@@ -85,29 +85,52 @@ export function ComfyCanvasStudio({ embedded = false }: { embedded?: boolean }) 
     );
   }
 
-  // 引擎未装/装了一半:手动一键安装(下载引擎源码+依赖,进度走 job)
-  if (!status || status.state === "not-installed" || status.state === "needs-setup" || installing) {
+  // 安装进行中(job 活着)优先展示进度——此时状态查询可能被本地服务抖动挡住
+  if (installing) {
     return (
       <Center>
         <ServerCog className="mb-3 h-10 w-10 text-muted-foreground" aria-hidden />
         <h3 className="text-base font-medium text-foreground">ComfyUI 画布</h3>
         <p className="mb-4 max-w-md text-center text-sm text-muted-foreground">
-          {installing
-            ? `正在安装引擎(${activeJob?.progress ?? 0}%)——${activeJob?.message ?? "下载中,体积较大请耐心等待"}`
-            : status?.state === "needs-setup"
-              ? "引擎装了一半(上次安装中断),点下面继续安装即可接上。"
-              : "还没安装 ComfyUI 引擎。安装只在你点击时开始(源码+依赖体积较大);装好即可使用完整画布与两千多个生态节点。"}
+          {`正在安装引擎(${activeJob?.progress ?? 0}%)——${activeJob?.message ?? "下载中,体积较大请耐心等待"}`}
         </p>
-        {installing ? (
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
-            安装进行中…
-          </div>
-        ) : (
-          <Button data-comfy-canvas-install onClick={() => void installEngine()}>
-            {status?.state === "needs-setup" ? "继续安装" : "安装引擎"}
-          </Button>
-        )}
+        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+          <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+          安装进行中…
+        </div>
+        <p className="mt-4 text-xs text-muted-foreground">
+          安装位置/磁盘可在 设置 → 本地配置 → ComfyUI 引擎 → 存储位置 里自定义
+        </p>
+      </Center>
+    );
+  }
+
+  // 状态查询不到(sidecar 未起/刚死/网络抖动):是「未知」不是「未安装」——
+  // 09-10 用户实弹报障:引擎已装却渲染「还没安装」,点安装还会被同一门禁挡住。
+  // 自愈拉起在 useComfyEngineSettings(连续失败节流 prepare),这里只如实展示。
+  if (!status) {
+    return (
+      <Center data-comfy-canvas-checking>
+        <Loader2 className="mb-3 h-8 w-8 animate-spin text-muted-foreground" aria-hidden />
+        <p className="text-sm text-muted-foreground">正在确认引擎状态(本地服务未就绪,正在尝试拉起)…</p>
+      </Center>
+    );
+  }
+
+  // 引擎未装/装了一半:手动一键安装(下载引擎源码+依赖,进度走 job)
+  if (status.state === "not-installed" || status.state === "needs-setup") {
+    return (
+      <Center>
+        <ServerCog className="mb-3 h-10 w-10 text-muted-foreground" aria-hidden />
+        <h3 className="text-base font-medium text-foreground">ComfyUI 画布</h3>
+        <p className="mb-4 max-w-md text-center text-sm text-muted-foreground">
+          {status.state === "needs-setup"
+            ? "引擎装了一半(上次安装中断),点下面继续安装即可接上。"
+            : "还没安装 ComfyUI 引擎。安装只在你点击时开始(源码+依赖体积较大);装好即可使用完整画布与两千多个生态节点。"}
+        </p>
+        <Button data-comfy-canvas-install onClick={() => void installEngine()}>
+          {status.state === "needs-setup" ? "继续安装" : "安装引擎"}
+        </Button>
         <p className="mt-4 text-xs text-muted-foreground">
           安装位置/磁盘可在 设置 → 本地配置 → ComfyUI 引擎 → 存储位置 里自定义
         </p>
@@ -170,9 +193,9 @@ export function ComfyCanvasStudio({ embedded = false }: { embedded?: boolean }) 
   );
 }
 
-function Center({ children }: { children: React.ReactNode }) {
+function Center({ children, ...rest }: { children: React.ReactNode } & React.HTMLAttributes<HTMLDivElement>) {
   return (
-    <div className="flex h-full min-h-[60vh] flex-col items-center justify-center p-6" data-comfy-canvas-placeholder>
+    <div className="flex h-full min-h-[60vh] flex-col items-center justify-center p-6" data-comfy-canvas-placeholder {...rest}>
       {children}
     </div>
   );

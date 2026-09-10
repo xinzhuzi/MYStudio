@@ -22,6 +22,20 @@ function stubClient(status: Partial<ComfyEngineStatus>): ComfyEngineClient {
 }
 
 describe("ComfyCanvasStudio(辅助面板第六 tab)", () => {
+  it("状态查询不到=「确认中」,绝不误报未安装/渲染安装按钮(09-10 实弹根修)", async () => {
+    const client = stubClient({ installed: true, state: "ready", serviceRunning: false, port: 17001 });
+    (window as { comfyEngine?: ComfyEngineClient }).comfyEngine = {
+      ...client,
+      getEngineStatus: vi.fn(async () => {
+        throw new Error("本地生图服务未运行");
+      }),
+    };
+    render(<ComfyCanvasStudio />);
+    expect(await screen.findByText(/正在确认引擎状态/)).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "安装引擎" })).toBeNull();
+    expect(screen.queryByText(/还没安装 ComfyUI 引擎/)).toBeNull();
+  });
+
   it("引擎未安装:占位引导+手动安装按钮(绝不自动)", async () => {
     (window as { comfyEngine?: ComfyEngineClient }).comfyEngine = stubClient({ installed: false, state: "not-installed" });
     render(<ComfyCanvasStudio />);

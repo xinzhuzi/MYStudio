@@ -49,6 +49,8 @@ export function useComfyEngineSettings(options: UseComfyEngineSettingsOptions = 
   const [isStartingService, setIsStartingService] = useState(false);
   const [isRollingBack, setIsRollingBack] = useState(false);
   const pollRef = useRef<number | null>(null);
+  const statusFailuresRef = useRef(0);
+  const lastHealRef = useRef(0);
 
   const stopPolling = useCallback(() => {
     if (pollRef.current === null) return;
@@ -60,8 +62,21 @@ export function useComfyEngineSettings(options: UseComfyEngineSettingsOptions = 
     if (!client) return;
     try {
       setStatus(await client.getEngineStatus());
+      statusFailuresRef.current = 0;
     } catch {
-      // 探测失败保持旧快照;行胶囊停留在「检查中」由上层判定
+      // 探测失败保持旧快照;行胶囊停留在「检查中」由上层判定。
+      // sidecar 被采纳后又死掉(rollback 回收/外部进程退出)时控制器状态不
+      // 会自动复活——连续失败节流触发一次 prepare 自愈拉起(09-10 实弹根修:
+      // 引擎已装却恒显「检查中」,画布旧版还会误报「还没安装」)。
+      statusFailuresRef.current += 1;
+      if (statusFailuresRef.current >= 3 && Date.now() - lastHealRef.current > 30_000) {
+        lastHealRef.current = Date.now();
+        try {
+          void window.imageGenRuntime?.prepare?.();
+        } catch {
+          // 拉不起(旧构建无桥)不阻塞,下轮探测照常
+        }
+      }
     }
   }, [client]);
 
