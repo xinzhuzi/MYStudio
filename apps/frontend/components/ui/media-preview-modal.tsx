@@ -171,7 +171,7 @@ export function VideoPreviewModal({
             event.stopPropagation();
             onClose();
           }}
-          className="absolute top-2 right-2 p-2 rounded-full bg-black/50 text-white hover:bg-black/70"
+          className="absolute top-2 right-2 p-2 rounded-full bg-background/80 hover:bg-background text-foreground border border-border/40 backdrop-blur-xs transition-all"
         >
           <X className="h-5 w-5" />
         </button>

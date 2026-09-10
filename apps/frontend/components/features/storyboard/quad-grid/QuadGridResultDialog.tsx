@@ -147,11 +147,11 @@ export function QuadGridResultDialog({
                       className="w-full h-full object-cover"
                     />
                     <ResolutionBadge src={img} className="right-1 left-auto top-1" />
-                    <span className="absolute bottom-1 left-1 text-[9px] bg-black/60 text-white px-1 py-0.5 rounded">
+                    <span className="absolute bottom-1 left-1 text-[9px] bg-background/85 backdrop-blur-xs text-foreground font-mono px-1.5 py-0.5 rounded-md border border-border/40">
                       {index + 1}. {result.variationLabels[index]}
                     </span>
                     {selectedIndex === index && (
-                      <span className="absolute top-1 right-1 text-[9px] bg-viz-selection text-black px-1 py-0.5 rounded">
+                      <span className="absolute top-1 right-1 text-[9px] bg-viz-selection text-primary-foreground font-medium px-1.5 py-0.5 rounded-md border border-viz-selection/40 backdrop-blur-xs">
                         已选中
                       </span>
                     )}

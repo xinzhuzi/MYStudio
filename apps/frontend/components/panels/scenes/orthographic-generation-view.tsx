@@ -160,7 +160,7 @@ export function OrthographicGenerationView({
                     <div className="relative rounded overflow-hidden border bg-muted aspect-video">
                       <img src={reference.src} alt={reference.label} className="w-full h-full object-cover" />
                       <ResolutionBadge src={reference.src} />
-                      <div className="absolute bottom-0 left-0 right-0 bg-black/60 text-white text-[10px] px-1.5 py-0.5 text-center">
+                      <div className="absolute bottom-0 left-0 right-0 bg-background/85 backdrop-blur-xs text-foreground text-[10px] font-mono px-1.5 py-0.5 text-center border-t border-border/30">
                         {reference.label}
                       </div>
                     </div>

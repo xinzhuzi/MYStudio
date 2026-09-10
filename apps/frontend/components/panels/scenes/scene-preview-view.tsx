@@ -33,7 +33,7 @@ export function ScenePreviewView({
               />
               <ResolutionBadge src={previewUrl} className="right-1 left-auto top-1" />
             </>
-            <div className="absolute top-2 left-2 bg-warning text-white text-xs px-2 py-1 rounded">
+            <div className="absolute top-2 left-2 bg-warning text-warning-foreground font-medium text-xs px-2 py-0.5 rounded-md border border-warning/30 backdrop-blur-xs">
               预览
             </div>
           </div>

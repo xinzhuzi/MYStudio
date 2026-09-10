@@ -91,7 +91,7 @@ function FrameActionButtons({
           onAngleSwitch?.(sceneId, kind);
         }}
         disabled={isAngleSwitching}
-        className="p-0.5 rounded-md bg-black/50 text-white hover:bg-warning disabled:opacity-50"
+        className="p-0.5 rounded-md bg-background/80 hover:bg-background text-foreground border border-border/40 backdrop-blur-xs hover:border-warning/50 hover:text-warning disabled:opacity-50 transition-all"
         title="切换视角"
       >
         <RotateCw className="h-3 w-3" />
@@ -128,7 +128,7 @@ function FrameActionButtons({
           event.preventDefault();
           onRemove();
         }}
-        className="p-0.5 rounded-md bg-black/50 text-white hover:bg-destructive"
+        className="p-0.5 rounded-md bg-background/80 hover:bg-background text-foreground border border-border/40 backdrop-blur-xs hover:border-destructive/50 hover:text-destructive transition-all"
         title={`删除${label}`}
       >
         <X className="h-3 w-3" />
@@ -380,7 +380,7 @@ export function StoryboardSceneFrameSection({
                 isQuadGridGenerating={isQuadGridGenerating}
               />
               {((isStart && scene.imageSource === "ai-generated") || (!isStart && scene.endFrameSource === "ai-generated")) && (
-                <span className={cn("absolute bottom-0.5 left-0.5 text-[8px] text-white px-1 rounded", isStart ? "bg-primary" : "bg-warning")}>AI</span>
+                <span className={cn("absolute bottom-0.5 left-0.5 text-[8px] font-medium px-1 rounded border backdrop-blur-xs", isStart ? "bg-primary text-primary-foreground border-primary/30" : "bg-warning text-warning-foreground border-warning/30")}>AI</span>
               )}
             </>
           ) : isGeneratingEnd && !isStart ? (

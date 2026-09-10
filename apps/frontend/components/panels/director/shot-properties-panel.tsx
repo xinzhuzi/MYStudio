@@ -447,7 +447,7 @@ export function ShotPropertiesPanel({
                     <Eye className="w-2.5 h-2.5" />
                     <span>视觉描述</span>
                   </div>
-                  <p className="text-xs leading-relaxed bg-gradient-to-r from-viz-status-c/15 to-viz-status-c/15 dark:from-viz-status-c/30 dark:to-viz-status-c/30 border border-viz-status-c/40 dark:border-viz-status-c/40 rounded p-2 text-viz-status-c dark:text-viz-status-c/80">
+                  <p className="text-xs leading-relaxed bg-viz-status-c/10 dark:bg-viz-status-c/20 border border-viz-status-c/30 border-l-2 border-l-viz-status-c/70 backdrop-blur-xs rounded-md p-2.5 text-viz-status-c dark:text-viz-status-c/90">
                     {selectedShot.visualDescription}
                   </p>
                 </div>

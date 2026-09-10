@@ -300,7 +300,7 @@ export function StyleEditor({ styleId, onClose }: StyleEditorProps) {
                       />
                       <ResolutionBadge src={img} className="bottom-1 left-1 right-auto top-auto" />
                       <button
-                        className="absolute top-1 right-1 p-0.5 rounded-md bg-black/60 text-white opacity-0 group-hover:opacity-100 transition-opacity"
+                        className="absolute top-1 right-1 p-0.5 rounded-md bg-background/80 hover:bg-background text-foreground border border-border/40 backdrop-blur-xs opacity-0 group-hover:opacity-100 transition-all"
                         onClick={() => removeImage(i)}
                       >
                         <X className="w-3 h-3" />

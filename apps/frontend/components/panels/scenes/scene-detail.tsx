@@ -235,7 +235,7 @@ export function SceneDetail({ scene }: SceneDetailProps) {
               
               {/* Drag hint */}
               {scene.referenceImage && (
-                <div className="absolute top-2 right-2 bg-black/50 text-white rounded p-1">
+                <div className="absolute top-2 right-2 bg-background/80 text-foreground border border-border/40 backdrop-blur-xs rounded-md p-1">
                   <GripVertical className="h-4 w-4" />
                 </div>
               )}

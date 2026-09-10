@@ -194,11 +194,11 @@ export function ShotFrameGenerationSection({
               <>
                 <img src={startImageUrl} className="w-full h-full object-cover" />
                 <div className="absolute inset-0 flex items-center justify-center bg-black/30">
-                  <div className="w-8 h-8 rounded-full bg-white/90 flex items-center justify-center">
+                  <div className="w-8 h-8 rounded-full bg-background/85 backdrop-blur-xs border border-border/40 flex items-center justify-center">
                     <Play className="w-4 h-4 text-foreground ml-0.5" />
                   </div>
                 </div>
-                <div className="absolute bottom-1 right-1 px-1 py-0.5 bg-success rounded text-[9px] text-white font-mono">
+                <div className="absolute bottom-1 right-1 px-1.5 py-0.5 bg-success text-primary-foreground font-mono text-[9px] font-medium rounded-md border border-success/30 backdrop-blur-xs">
                   已生成
                 </div>
               </>

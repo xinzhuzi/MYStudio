@@ -326,7 +326,7 @@ export function WardrobeModal({
                 className="w-full h-auto"
               />
               <ResolutionBadge src={previewData.imageUrl} className="right-1 left-auto top-1" />
-              <div className="absolute top-2 left-2 bg-warning text-white text-xs px-2 py-1 rounded">
+              <div className="absolute top-2 left-2 bg-warning text-warning-foreground font-medium text-xs px-2 py-0.5 rounded-md border border-warning/30 backdrop-blur-xs">
                 预览
               </div>
             </div>
@@ -578,11 +578,11 @@ export function WardrobeModal({
                       <ResolutionBadge src={img} className="left-1 right-auto top-1" />
                       <button
                         onClick={() => handleRemoveClothingRef(idx)}
-                        className="absolute top-0.5 right-0.5 p-0.5 rounded-full bg-black/60 text-white opacity-0 group-hover:opacity-100 transition-opacity"
+                        className="absolute top-0.5 right-0.5 p-0.5 rounded-full bg-background/80 hover:bg-background text-foreground border border-border/40 backdrop-blur-xs opacity-0 group-hover:opacity-100 transition-all"
                       >
                         <X className="h-3 w-3" />
                       </button>
-                      <div className="absolute bottom-0 left-0 right-0 bg-black/50 text-[9px] text-white text-center py-0.5">
+                      <div className="absolute bottom-0 left-0 right-0 bg-background/85 backdrop-blur-xs text-[9px] text-foreground font-mono text-center py-0.5 border-t border-border/30">
                         参考 {idx + 1}
                       </div>
                     </div>

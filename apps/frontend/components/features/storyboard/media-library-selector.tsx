@@ -176,7 +176,7 @@ export function MediaLibrarySelector({
                         </div>
                         {/* AI 标记 */}
                         {img.source === 'ai-image' && (
-                          <span className="absolute top-1 left-1 text-[8px] bg-primary text-white px-1 rounded">
+                          <span className="absolute top-1 left-1 text-[8px] bg-primary text-primary-foreground font-medium px-1 rounded-md border border-primary/30 backdrop-blur-xs">
                             AI
                           </span>
                         )}

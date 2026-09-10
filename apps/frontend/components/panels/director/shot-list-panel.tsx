@@ -265,7 +265,7 @@ export function ShotListPanel({ onGenerateImage }: ShotListPanelProps) {
 
                       {/* Badges */}
                       <div className="absolute top-1 left-1 flex gap-1">
-                        <span className="px-1 py-0.5 bg-black/70 text-[9px] text-white font-mono rounded">
+                        <span className="px-1.5 py-0.5 bg-background/85 backdrop-blur-xs text-[9px] text-foreground font-mono font-medium rounded-md border border-border/40">
                           {String(idx + 1).padStart(2, "0")}
                         </span>
                       </div>

@@ -293,7 +293,7 @@ export function VisualManualEditorDialog({
                         <ResolutionBadge src={image.url} className="bottom-1 left-1 right-auto top-auto" />
                         <button
                           type="button"
-                          className="absolute right-1 top-1 rounded-md bg-black/60 p-1 text-white opacity-0 transition-opacity group-hover:opacity-100"
+                          className="absolute right-1 top-1 rounded-md bg-background/80 hover:bg-background text-foreground border border-border/40 backdrop-blur-xs p-1 opacity-0 transition-all group-hover:opacity-100"
                           onClick={(event) => {
                             event.stopPropagation();
                             removeImage(image.relativePath);
@@ -302,7 +302,7 @@ export function VisualManualEditorDialog({
                         >
                           <Trash2 className="h-3.5 w-3.5" />
                         </button>
-                        <div className="absolute inset-x-0 bottom-0 truncate bg-black/55 px-2 py-1 text-[10px] text-white opacity-0 transition-opacity group-hover:opacity-100">
+                        <div className="absolute inset-x-0 bottom-0 truncate bg-background/85 backdrop-blur-xs px-2 py-1 text-[10px] text-foreground font-mono opacity-0 transition-opacity group-hover:opacity-100 border-t border-border/30">
                           {image.name}
                         </div>
                       </div>

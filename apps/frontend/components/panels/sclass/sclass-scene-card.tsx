@@ -315,7 +315,7 @@ export function SClassSceneCard({
                   <Play className="h-4 w-4 text-foreground" />
                 </div>
                 {canDragVideo && (
-                  <span className="absolute bottom-0.5 right-0.5 text-[8px] bg-success text-white px-1 rounded">拖到时间线</span>
+                  <span className="absolute bottom-0.5 right-0.5 text-[8px] bg-success text-primary-foreground font-medium px-1 rounded">拖到时间线</span>
                 )}
               </div>
               {/* 提取尾帧按钮 */}

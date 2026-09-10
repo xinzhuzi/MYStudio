@@ -187,7 +187,7 @@ export function AppearanceSettingsTab() {
                   >
                     <div className="absolute inset-0 bg-black/20 backdrop-blur-[2px]" />
                     <div className="absolute top-3 left-4 right-4 flex items-center justify-between">
-                      <span className="px-2 py-0.5 rounded-md text-[10px] font-black uppercase tracking-wider bg-black/50 text-white border border-white/20 backdrop-blur-md">
+                      <span className="px-2 py-0.5 rounded-md text-[10px] font-black uppercase tracking-wider bg-background/70 text-foreground border border-border/40 backdrop-blur-md">
                         {preset.mode === "dark" ? "Dark Cinema" : "Light Mode"}
                       </span>
                       {isActive && (

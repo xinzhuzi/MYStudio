@@ -113,7 +113,7 @@ export function QuadGridDialog({
                   />
                   <ResolutionBadge src={previewUrl} />
                 </>
-                <span className="absolute bottom-1 left-1 text-[10px] bg-viz-selection/80 text-white px-1.5 py-0.5 rounded">
+                <span className="absolute bottom-1 left-1 text-[10px] bg-viz-selection text-primary-foreground font-medium px-1.5 py-0.5 rounded-md border border-viz-selection/40 backdrop-blur-xs">
                   锚点图
                 </span>
               </div>

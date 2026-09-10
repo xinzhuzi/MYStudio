@@ -225,7 +225,7 @@ export function CharacterGenerator({ character }: CharacterGeneratorProps) {
             />
             <ResolutionBadge src={previewUrl} className="right-1 left-auto top-1" />
           </>
-          <div className="absolute top-2 left-2 bg-warning text-white text-xs px-2 py-1 rounded">
+          <div className="absolute top-2 left-2 bg-warning text-warning-foreground font-medium text-xs px-2 py-0.5 rounded-md border border-warning/30 backdrop-blur-xs">
             预览
           </div>
         </div>
@@ -295,9 +295,9 @@ export function CharacterGenerator({ character }: CharacterGeneratorProps) {
             <ResolutionBadge src={existingSheet.imageUrl} className="bottom-1 right-1 left-auto top-auto" />
           </>
           <div className="absolute top-2 right-2">
-            <Check className="h-5 w-5 text-success bg-white rounded-full p-0.5" />
+            <Check className="h-5 w-5 text-success bg-background/90 border border-border/40 backdrop-blur-xs rounded-full p-0.5" />
           </div>
-          <div className="absolute top-2 left-2 bg-success text-white text-xs px-2 py-1 rounded">
+          <div className="absolute top-2 left-2 bg-success text-primary-foreground font-medium text-xs px-2 py-0.5 rounded-md border border-success/30 backdrop-blur-xs">
             已保存
           </div>
         </div>

@@ -71,7 +71,7 @@ export function ShotGridCard({
         )}
 
         {hasVideo && (
-          <div className="absolute top-1.5 right-1.5 p-1 bg-success text-white rounded">
+          <div className="absolute top-1.5 right-1.5 p-1 bg-success text-primary-foreground rounded-md border border-success/30 backdrop-blur-xs">
             <Video className="w-2.5 h-2.5" />
           </div>
         )}
