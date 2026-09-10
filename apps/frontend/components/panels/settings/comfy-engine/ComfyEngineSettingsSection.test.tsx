@@ -43,8 +43,13 @@ const actions = vi.hoisted(() => ({
 vi.mock("sonner", () => ({
   toast: { success: vi.fn(), error: vi.fn(), info: vi.fn() },
 }));
+const scenarioModels = vi.hoisted(() => ({ reply: null as import("./comfy-engine-contract").ComfyModelsReply | null }));
+const modelActions = vi.hoisted(() => ({ loadModels: vi.fn(async () => undefined) }));
+
 vi.mock("./useComfyEngineSettings", () => ({
   useComfyEngineSettings: () => ({
+    models: scenarioModels.reply,
+    loadModels: modelActions.loadModels,
     hasBridge: true,
     status: scenario.status,
     activeJob: scenario.activeJob,
@@ -109,6 +114,8 @@ afterEach(() => {
   scenario.doctorReport = null;
   scenario.plugins = [];
   scenario.catalog = [];
+  scenarioModels.reply = null;
+  modelActions.loadModels.mockClear();
   scenario.pluginUsage = { workflows: [] };
   vi.clearAllMocks();
 });
@@ -567,23 +574,34 @@ describe("ComfyEngineSettingsSection 标签页布局(照 ComfyUI Desktop)", () =
 
 // ── 09-09-comfy-model-tab:模型页(本地大模型展示并入引擎卡) ──
 describe("ComfyEngineSettingsSection 模型页", () => {
-  it("默认落「模型」页:图片大模型子区在,不触发 GitHub 检查,版本行不在", () => {
+  it("默认落「模型」页:ComfyUI 模型库清单在,不触发 GitHub 检查,版本行不在", () => {
     scenario.status = readyStatus();
+    scenarioModels.reply = {
+      modelsDir: "/tmp/comfyui/models",
+      groups: [
+        { category: "diffusion_models", files: [{ name: "krea2_turbo_bf16.safetensors", sizeBytes: 26283332608 }] },
+        { category: "loras", files: [{ name: "Krea2-NSFW/Krea 2 pussy.safetensors", sizeBytes: 268435456 }] }],
+      totalBytes: 26283332608 + 268435456,
+    };
     render(<ComfyEngineSettingsSection embedded />);
 
     expect(comfyEl("models-page")).toBeTruthy();
-    expect(screen.getByText("图片大模型(本地生图,免费)")).toBeTruthy();
-    expect(screen.getByText(/独立生图模型缓存已退役清除/)).toBeTruthy();
+    expect(modelActions.loadModels).toHaveBeenCalled();
+    expect(screen.getByText("diffusion_models")).toBeTruthy();
+    expect(screen.getByText(/krea2_turbo_bf16\.safetensors/)).toBeTruthy();
+    expect(screen.getByText("24.5 GB")).toBeTruthy();
+    expect(screen.getByText(/合计 2 件/)).toBeTruthy();
     expect(actions.checkUpdate).not.toHaveBeenCalled();
     expect(screen.queryByText(/当前版本/)).toBeNull();
   });
 
   it("引擎状态未知:模型页照常渲染(不复现 09-08 真空窗空卡)", () => {
     scenario.status = null;
+    scenarioModels.reply = { modelsDir: "/tmp/comfyui/models", groups: [], totalBytes: 0 };
     render(<ComfyEngineSettingsSection embedded />);
 
     expect(comfyEl("models-page")).toBeTruthy();
-    expect(screen.getByText("图片大模型(本地生图,免费)")).toBeTruthy();
+    expect(screen.getByText(/模型目录还是空的/)).toBeTruthy();
   });
 
   it("initialActiveTab=\"update\":挂载直落更新页并自动静默检查(去更新深链)", async () => {
@@ -612,7 +630,7 @@ describe("ComfyEngineSettingsSection 模型页", () => {
 
     expect(screen.getByText(/引擎尚未安装/)).toBeTruthy();
     expect(comfyEl("models-page")).toBeTruthy();
-    expect(screen.getByText("图片大模型(本地生图,免费)")).toBeTruthy();
+    expect(screen.getByText(/本地生图等大模型全部由 ComfyUI 引擎装载/)).toBeTruthy();
     // 未装引擎无版本/服务可管:标签页体系不出现
     expect(document.querySelector("[data-comfy-tab]")).toBeNull();
   });
