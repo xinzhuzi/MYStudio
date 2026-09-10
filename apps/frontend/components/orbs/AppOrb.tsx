@@ -147,6 +147,7 @@ export function AppOrb() {
       ariaLabel={ariaLabel}
       capsuleText={capsuleText}
       ballContent={ballContent}
+      resetKey={activeTab}
       panelContent={({ close }) => (
         <div className="flex max-h-[60vh] flex-col">
           {inStudio ? (

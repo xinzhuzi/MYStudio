@@ -65,6 +65,9 @@ export interface OrbShellProps {
   panelContent: (api: { close: () => void }) => ReactNode;
   /** 面板宽度 class,默认 w-80。 */
   panelClassName?: string;
+  /** 上下文重置键(09-11:键变即收面板)——视图切换后球面板不跨视图滞留
+   * (导航已发生,收起=确认;smoke 胶囊锚也因 panelOpen-hidden 而依赖此行为)。 */
+  resetKey?: string | number;
 }
 
 /** 通用悬浮球壳(09-10 拆双球裁定:基础设施独立模块,零业务依赖)。
@@ -83,12 +86,17 @@ export function OrbShell({
   ballContent,
   panelContent,
   panelClassName,
+  resetKey,
 }: OrbShellProps) {
   const { position, setPosition } = useOrbPosition(storageKey, defaultAnchor);
   const viewportTick = useViewportTick();
   const x = useMotionValue(position.x);
   const y = useMotionValue(position.y);
   const [panelOpen, setPanelOpen] = useState(false);
+  // 视图切换即收面板(09-11):面板不跨视图滞留
+  useEffect(() => {
+    setPanelOpen(false);
+  }, [resetKey]);
   const pressStartRef = useRef<{ x: number; y: number } | null>(null);
   // 按下时面板是否开着(toggle 语义:Radix 已因外点关掉,别再重开)
   const panelOpenAtPressRef = useRef(false);

@@ -227,6 +227,17 @@ describe("AppOrb(分域矩阵·09-11:阶段仅工作流)", () => {
     expect(container.querySelectorAll("[data-orb-segment]").length).toBe(0);
   });
 
+  it("视图切换即收面板(09-11:面板不跨视图滞留;smoke 胶囊锚依赖)", async () => {
+    useMediaPanelStore.setState({ activeTab: "studio" });
+    render(<AppOrb />);
+    openPanel();
+    expect(await screen.findByText(/待推进：/)).toBeTruthy();
+    useMediaPanelStore.setState({ activeTab: "assets" });
+    await waitFor(() =>
+      expect(screen.queryByText(/待推进：/)).toBeNull(),
+    );
+  });
+
   it("「前往」10 视口含本地模型,可跳转落 media-panel", async () => {
     useMediaPanelStore.setState({ activeTab: "assets" });
     render(<AppOrb />);
