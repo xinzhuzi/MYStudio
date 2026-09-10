@@ -13,7 +13,7 @@ import "./main-ipc-bootstrap";
 // Copyright (c) 2025 hotflow2024
 // Licensed under AGPL-3.0-or-later. See LICENSE for details.
 // Commercial licensing available. See COMMERCIAL_LICENSE.md.
-import {app, protocol, utilityProcess} from 'electron'
+import {app, dialog, protocol, session, utilityProcess} from 'electron'
 import path from 'node:path'
 import {configureSidecarLogCapture} from '../diagnostics/sidecar-log-capture'
 import {createTtsRuntimeController} from '../tts/tts-runtime'
@@ -42,7 +42,6 @@ import {registerRemotionShotIpcHandlers} from '../ipc/studio/remotion-shot-ipc'
 import {registerRemotionQueueIpcHandlers} from '../ipc/studio/remotion-queue-ipc'
 import {registerRemotionChapterManifestIpcHandlers} from '../ipc/studio/remotion-chapter-manifest-ipc'
 import {RemotionShotRenderer} from '@rendering/plugins/remotion/renderer/remotion-shot-renderer'
-import type {CinematicCameraPreset} from '@rendering/plugins/remotion/composition/composition-props'
 import {RemotionChapterRenderer} from '@rendering/plugins/remotion/renderer/remotion-chapter-renderer'
 import {
   createRemotionQueueFilePersistence,
@@ -56,9 +55,7 @@ import {createVideoWorkflowChapterService} from '@rendering/plugins/video-workfl
 import {acceptVideoUseArtifact} from '@rendering/plugins/video-workflow/video-workflow-artifact-store'
 import {createVideoUseAdapter} from '@rendering/plugins/video-use/video-use-adapter'
 import {createHyperFramesAdapter} from '@rendering/plugins/hyperframes/hyperframes-adapter'
-import {createDepthAdapter} from '@rendering/plugins/depth/depth-adapter'
-import {createDepthRuntimeController} from '@rendering/plugins/depth/depth-runtime-controller'
-import {registerDepthIpcHandlers} from '../ipc/studio/depth-ipc'
+import {registerVideoPipelineLogIpcHandlers} from '../ipc/studio/video-pipeline-log-ipc'
 import {createImageGenRuntimeController} from '@rendering/plugins/image_gen/image-gen-runtime-controller'
 import {registerImageGenIpcHandlers} from '../ipc/studio/image-gen-ipc'
 import {createUpscaleRuntimeController} from '@rendering/plugins/upscale/upscale-runtime-controller'
@@ -324,29 +321,6 @@ const videoWorkflowIpc = registerVideoWorkflowIpcHandlers({
 })
 const remotionRuntimeDir = resolveRemotionRuntimeDir(remotionUserDataDir)
 
-// Depth runtime controller — settings-facing lifecycle (设置 → 本地配置 → 深度估计模型).
-// Model downloads are explicit and user-triggered; inference never downloads.
-// The model cache dir is self-managed at <storageBase>/comfyui/models/depth (config.json),
-// mirroring the TTS model-dir feature set — no TTS cache fallback.
-const depthRuntimeController = createDepthRuntimeController({
-  storageBasePath: getStorageBasePath,
-  backendRoot: videoWorkflowBackendRoot,
-})
-
-// Depth estimation adapter — enables cinematic 3D mode in shot rendering.
-// Reuse the controller's persisted model cache resolver so settings probes and
-// render workers always inspect the same explicitly downloaded model bytes.
-const depthAdapter = createDepthAdapter({
-  storageBasePath: getStorageBasePath,
-  modelCacheDir: depthRuntimeController.getModelCacheDir,
-  backendRoot: videoWorkflowBackendRoot,
-})
-const depthIpc = registerDepthIpcHandlers({
-  controller: depthRuntimeController,
-  getDataRoot: getDataDir,
-  getDiagnosticsDir: () => path.join(app.getPath('userData'), 'logs', 'diagnostics'),
-  getLogBundleDir: () => path.join(app.getPath('userData'), 'logs', 'pipeline-bundles'),
-})
 
 // Local image generation sidecar — OpenAI-compatible HTTP server (127.0.0.1:17595)
 // registered as the `manying-local-image` provider so cloud APIs can be replaced
@@ -387,7 +361,12 @@ registerStorageMediaIpcHandlers({
   readImageSource,
 })
 
-bindRuntimeControllerRoots(() => [ttsRuntimeController.getModelCacheDir(), depthRuntimeController.getModelCacheDir(), upscaleRuntimeController.getModelCacheDir()])
+const videoPipelineLogIpc = registerVideoPipelineLogIpcHandlers({
+  getDataRoot: getDataDir,
+  getDiagnosticsDir: () => path.join(app.getPath('userData'), 'logs', 'diagnostics'),
+  getLogBundleDir: () => path.join(app.getPath('userData'), 'logs', 'pipeline-bundles'),
+})
+bindRuntimeControllerRoots(() => [ttsRuntimeController.getModelCacheDir(), upscaleRuntimeController.getModelCacheDir()])
 const upscaleIpc = registerUpscaleIpcHandlers({ controller: upscaleRuntimeController })
 const seedvr2Ipc = registerSeedVr2IpcHandlers()
 const mcpIpc = registerMcpIpcHandlers()
@@ -488,8 +467,6 @@ const remotionShotRenderer = new RemotionShotRenderer({
   fork: (modulePath, args, options) => utilityProcess.fork(modulePath, [...args], options),
   remotionVersion,
   emitProgress: () => undefined,
-  depthAdapter,
-  cinematicPreset: (shotId: string) => depthRuntimeController.getCinematicPresetForShot(shotId) as CinematicCameraPreset,
 })
 const remotionChapterRenderer = new RemotionChapterRenderer({
   workspaceRoot: getDataDir(),
@@ -589,7 +566,7 @@ setDisposeRemotionRuntime(async () => {
   await remotionShotIpc.dispose()
   await remotionChapterRenderer.dispose()
   videoWorkflowIpc.dispose()
-  depthIpc.dispose()
+  videoPipelineLogIpc.dispose()
   imageGenIpc.dispose()
   upscaleIpc.dispose()
   seedvr2Ipc.dispose()
@@ -643,6 +620,26 @@ app.whenReady().then(async () => {
     getImageThumbDir: () => path.join(app.getPath('userData'), 'image-thumbs'),
   })
   
+  // webview/渲染层触发的下载(ComfyUI 画布「导出工作流 JSON / 下载图片」等):
+  // Electron 默认无处理=静默丢弃;统一走保存对话框,取消即取消下载。
+  // webview 未设 partition → 默认会话,此处一并覆盖(09-10 ComfyUI 完整功能补齐)。
+  session.defaultSession.on('will-download', async (_event, item) => {
+    const win = getWin()
+    if (!win) {
+      item.cancel()
+      return
+    }
+    const { canceled, filePath } = await dialog.showSaveDialog(win, {
+      defaultPath: path.join(app.getPath('downloads'), item.getFilename() || '下载文件'),
+      message: '保存下载文件',
+    })
+    if (canceled || !filePath) {
+      item.cancel()
+      return
+    }
+    item.setSavePath(filePath)
+  })
+
   createWindow()
 })
 

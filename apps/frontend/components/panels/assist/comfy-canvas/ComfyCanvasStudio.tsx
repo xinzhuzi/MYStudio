@@ -18,6 +18,7 @@ import { getComfyEngineClient } from "@/components/panels/settings/comfy-engine/
 import { consumeComfyBridgeWritebacks } from "@/lib/assist/image-studio/comfy-bridge-writeback-consumer";
 import { syncStoryboardOverviewToLibrary } from "@/lib/assist/image-studio/storyboard-overview-sync";
 import { useStudioStore } from "@/stores/studio/studio-store";
+import { ComfyLegacyImportButton } from "./ComfyLegacyImportButton";
 
 export function ComfyCanvasStudio({ embedded = false }: { embedded?: boolean }) {
   // client 引用必须稳定(传入 hook):否则 hook 内 getComfyEngineClient() 每次
@@ -168,19 +169,23 @@ export function ComfyCanvasStudio({ embedded = false }: { embedded?: boolean }) 
         <span className="text-xs text-muted-foreground">
           ComfyUI 画布 · 本地引擎 127.0.0.1:{port}(完整界面:节点/工作流/插件都在这里管理)
         </span>
-        <Button
-          size="sm"
-          variant="ghost"
-          className="h-7 px-2 text-xs"
-          aria-label="刷新引擎状态"
-          onClick={() => {
-            void refreshStatus();
-            toast.info("已刷新引擎状态");
-          }}
-        >
-          <Settings2 className="mr-1 h-3.5 w-3.5" aria-hidden />
-          刷新
-        </Button>
+        <div className="flex items-center gap-2">
+          {/* 完整功能补齐(09-10):第六 tab 与画布头部条同款存量迁移入口 */}
+          <ComfyLegacyImportButton />
+          <Button
+            size="sm"
+            variant="ghost"
+            className="h-7 px-2 text-xs"
+            aria-label="刷新引擎状态"
+            onClick={() => {
+              void refreshStatus();
+              toast.info("已刷新引擎状态");
+            }}
+          >
+            <Settings2 className="mr-1 h-3.5 w-3.5" aria-hidden />
+            刷新
+          </Button>
+        </div>
       </div>
       <webview
         src={src ?? "about:blank"}

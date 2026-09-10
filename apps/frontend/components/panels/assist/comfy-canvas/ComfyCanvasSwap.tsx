@@ -11,13 +11,10 @@
  * 09-09 存量迁移链打通,原 comfy-workflow-browser 已随之退役)。
  */
 
-import { useState } from "react";
 import type { ReactNode } from "react";
-import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ComfyCanvasStudio } from "./ComfyCanvasStudio";
-import { migrateWorkflowsToLibraryWithToast } from "@/lib/assist/image-studio/workflow-migrate-batch";
-import { useStudioStore } from "@/stores/studio/studio-store";
+import { ComfyLegacyImportButton } from "./ComfyLegacyImportButton";
 
 export function ComfyCanvasSwap({
   title,
@@ -30,18 +27,6 @@ export function ComfyCanvasSwap({
   legacy?: ReactNode;
 }) {
   void legacy;
-  const legacyCount = useStudioStore((state) => state.imageWorkflows.length);
-  const [migrating, setMigrating] = useState(false);
-
-  const runMigration = async () => {
-    if (migrating) return; // 单飞:连点只跑一次
-    setMigrating(true);
-    try {
-      await migrateWorkflowsToLibraryWithToast();
-    } finally {
-      setMigrating(false);
-    }
-  };
 
   return (
     <div className="flex h-full w-full min-h-0 min-w-0 flex-col" data-comfy-swap="comfy">
@@ -55,19 +40,7 @@ export function ComfyCanvasSwap({
           <span className="text-xs font-medium text-foreground">{title}</span>
         </div>
         <div className="flex items-center gap-2">
-          {legacyCount > 0 ? (
-            <Button
-              size="sm"
-              variant="secondary"
-              className="h-7 px-2 text-xs"
-              disabled={migrating}
-              data-comfy-swap-migrate
-              onClick={() => void runMigration()}
-            >
-              {migrating ? <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" aria-hidden /> : null}
-              {migrating ? "迁移中…" : `导入存量画布(${legacyCount})`}
-            </Button>
-          ) : null}
+          <ComfyLegacyImportButton />
           <span className="text-[11px] text-muted-foreground">旧画布已退役,画布操作全在 ComfyUI</span>
         </div>
       </div>
