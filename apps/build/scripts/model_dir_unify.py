@@ -4,6 +4,8 @@
 动作:
 - MOVE 家族(TTS/depth/upscale/videoqc/vlm/audio/sfx):同卷 mv 到 comfyui/models/<family>/
   (audio/sfx 老目录不存在则跳过——从未下载);目标已存在且非空=碰撞,跳过并报告。
+- HEAL TTS config(--apply):TTS/runtime/config.json 里固化的 modelCacheDir 若指向老
+  model/TTS,改写到新家——否则覆盖值压住新默认家变成死指针(09-10 实弹踩坑)。
 - RETIRE(mdx:mlx-serve-managed):music3 时代的托管 mlx-serve 运行时,VLM 走应用托管
   Python、全仓零活引用(仅 README 提及)——按「不能适配的不留」删除,台账留证。
 - 收尾:老 model/ 根目录空则移除。
@@ -100,6 +102,18 @@ def main() -> int:
             shutil.rmtree(SRC / e["family"])
             print(f"retired × {e['family']} ({e['size_mb']} MB)")
 
+    # HEAL:config 里固化的老默认覆盖改到新家,否则压住新默认家成死指针
+    tts_config = USER_DATA / "TTS" / "runtime" / "config.json"
+    if tts_config.is_file():
+        try:
+            tts_config_data = json.loads(tts_config.read_text(encoding="utf-8"))
+        except (ValueError, OSError):
+            tts_config_data = None
+        if isinstance(tts_config_data, dict) and tts_config_data.get("modelCacheDir") == str(SRC / "TTS"):
+            tts_config_data["modelCacheDir"] = str(DST / "TTS")
+            tts_config.write_text(json.dumps(tts_config_data, ensure_ascii=False, indent=2), encoding="utf-8")
+            print(f"healed TTS config modelCacheDir → {DST / 'TTS'}")
+
     # 收尾:清理 .DS_Store 与空目录,老根目录清空则移除
     for junk in SRC.rglob(".DS_Store"):
         junk.unlink(missing_ok=True)
@@ -110,7 +124,8 @@ def main() -> int:
         SRC.rmdir()
         print(f"老 model/ 根目录已清空移除: {SRC}")
     else:
-        print(f"老 model/ 仍有内容,保留: {[p.name for p in remaining]}")
+        remaining = [p.name for p in SRC.iterdir()] if SRC.exists() else []
+        print(f"老 model/ 仍有内容,保留: {remaining}")
     return 0
 
 

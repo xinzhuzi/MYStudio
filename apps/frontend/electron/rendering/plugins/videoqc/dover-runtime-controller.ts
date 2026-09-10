@@ -127,7 +127,23 @@ export function createVideoQcRuntimeController(deps: ControllerDeps) {
   }
 
   function getModelCacheDir(): string {
-    return readConfig().modelCacheDir ?? videoQcModelRoot();
+    const override = readConfig().modelCacheDir;
+    if (!override) return videoQcModelRoot();
+    // 09-10 统一家:覆盖值恰为退役默认家(model/videoqc 规范家 / VideoQcModel 老根)
+    // 且目录已不存在 = 固化的旧默认而非用户自定义,作废回落新家(config 只存覆盖键,
+    // 删文件即作废);目录仍在(未统一机器)或真自定义路径一律原样保留——语义同 TTS 根修。
+    const base = getPaths().storageBasePath;
+    const retiredDefaults = [path.join(base, "model", "videoqc"), path.join(base, "VideoQcModel")].map((dir) => path.resolve(dir));
+    const configured = path.resolve(override);
+    if (retiredDefaults.includes(configured) && !fs.existsSync(configured)) {
+      try {
+        fs.rmSync(configPath(), { force: true });
+        return videoQcModelRoot();
+      } catch {
+        // 作废失败:沿用覆盖值,不阻断功能
+      }
+    }
+    return override;
   }
 
   async function setModelCacheDir(dirPath: string): Promise<{ success: boolean; error?: string }> {

@@ -92,6 +92,36 @@ describe("createVideoQcRuntimeController", () => {
     expect(controller.getModelCacheDir()).toBe(home);
   });
 
+  it("统一家死指针自愈:覆盖指向已删除的 model/videoqc 时作废回落新家", async () => {
+    const home = join(storageDir, "comfyui", "models", "videoqc");
+    const retiredDir = join(storageDir, "model", "videoqc");
+    mkdirSync(home, { recursive: true }); // 统一脚本把 config.json 随家族搬进了新家
+    writeFileSync(join(home, "config.json"), JSON.stringify({ modelCacheDir: retiredDir }), "utf-8");
+    const controller = makeController(async () => ({ stdout: "" }));
+    expect(controller.getModelCacheDir()).toBe(home);
+    expect(existsSync(join(home, "config.json"))).toBe(false); // 覆盖作废 = config 文件删除
+  });
+
+  it("覆盖指向退役目录但目录仍在(未统一机器)→原样保留", async () => {
+    const home = join(storageDir, "comfyui", "models", "videoqc");
+    const retiredDir = join(storageDir, "model", "videoqc");
+    mkdirSync(join(retiredDir, "weights"), { recursive: true });
+    mkdirSync(home, { recursive: true });
+    writeFileSync(join(home, "config.json"), JSON.stringify({ modelCacheDir: retiredDir }), "utf-8");
+    const controller = makeController(async () => ({ stdout: "" }));
+    expect(controller.getModelCacheDir()).toBe(retiredDir);
+    expect(JSON.parse(readFileSync(join(home, "config.json"), "utf-8")).modelCacheDir).toBe(retiredDir);
+  });
+
+  it("真自定义路径即使缺目录也保留(用户覆盖语义不变)", async () => {
+    const home = join(storageDir, "comfyui", "models", "videoqc");
+    const custom = join(storageDir, "external-videoqc");
+    mkdirSync(home, { recursive: true });
+    writeFileSync(join(home, "config.json"), JSON.stringify({ modelCacheDir: custom }), "utf-8");
+    const controller = makeController(async () => ({ stdout: "" }));
+    expect(controller.getModelCacheDir()).toBe(custom);
+  });
+
   it("readDownloadProgress 读进度 JSON", async () => {
     const controller = makeController(async () => ({ stdout: "" }));
     const profileDir = join(storageDir, "python", "profiles", "video-qc");

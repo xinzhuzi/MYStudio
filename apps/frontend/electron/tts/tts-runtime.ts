@@ -57,7 +57,7 @@ export function createTtsRuntimeController(deps: TtsRuntimeControllerDeps): TtsR
     typeof process.resourcesPath === "string" ? path.join(process.resourcesPath, "backend") : "",
   ]);
 
-  const pathsApi = createTtsRuntimePaths(deps, { readTextFile, writeTextFile, ensureDir });
+  const pathsApi = createTtsRuntimePaths(deps, { readTextFile, writeTextFile, ensureDir, fileExists });
   const {
     runtimeDataDir,
     runtimePythonDir,

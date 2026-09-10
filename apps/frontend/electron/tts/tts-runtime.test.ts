@@ -233,6 +233,100 @@ describe("TTS runtime controller", () => {
     }
   });
 
+  it("heals a persisted override pointing at the retired model/TTS default once the directory is gone", () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), "mystudio-tts-stale-override-"));
+    const userDataPath = path.join(root, "user-data");
+    const storageBasePath = path.join(root, "storage");
+    const runtimeConfigPath = path.join(storageBasePath, "TTS", "runtime", "config.json");
+    try {
+      fs.mkdirSync(path.dirname(runtimeConfigPath), { recursive: true });
+      // 统一脚本把 <base>/model/TTS 搬进 comfyui/models/TTS 后删除了老目录,
+      // 但 config 里固化的旧默认覆盖仍压着新家 → 读取时应作废回落,且写回 config。
+      fs.writeFileSync(runtimeConfigPath, JSON.stringify({
+        modelCacheDir: path.join(storageBasePath, "model", "TTS"),
+        controlToken: "existing-token",
+      }));
+
+      const controller = createTtsRuntimeController({
+        appRoot: "/repo",
+        userDataPath,
+        storageBasePath,
+        huggingFaceHubDir: path.join(root, "huggingface", "hub"),
+        fetchJson: vi.fn().mockRejectedValue(new Error("offline")),
+        spawnProcess: vi.fn(),
+      });
+
+      expect(controller.getModelCacheDir()).toBe(path.join(storageBasePath, "comfyui", "models", "TTS"));
+      const healedConfig = JSON.parse(fs.readFileSync(runtimeConfigPath, "utf8"));
+      expect(healedConfig).not.toHaveProperty("modelCacheDir");
+      expect(healedConfig).toMatchObject({ controlToken: "existing-token" });
+      expect(controller.getModelCacheDir()).toBe(path.join(storageBasePath, "comfyui", "models", "TTS"));
+    } finally {
+      fs.rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it("keeps the retired model/TTS override while the directory still exists", () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), "mystudio-tts-pre-unify-"));
+    const userDataPath = path.join(root, "user-data");
+    const storageBasePath = path.join(root, "storage");
+    const retiredDir = path.join(storageBasePath, "model", "TTS");
+    const runtimeConfigPath = path.join(storageBasePath, "TTS", "runtime", "config.json");
+    try {
+      fs.mkdirSync(path.join(retiredDir, "models--example--voice"), { recursive: true });
+      fs.mkdirSync(path.dirname(runtimeConfigPath), { recursive: true });
+      fs.writeFileSync(runtimeConfigPath, JSON.stringify({
+        modelCacheDir: retiredDir,
+        controlToken: "existing-token",
+      }));
+
+      const controller = createTtsRuntimeController({
+        appRoot: "/repo",
+        userDataPath,
+        storageBasePath,
+        huggingFaceHubDir: path.join(root, "huggingface", "hub"),
+        fetchJson: vi.fn().mockRejectedValue(new Error("offline")),
+        spawnProcess: vi.fn(),
+      });
+
+      // 未跑统一脚本的机器:老目录还有模型,覆盖原样生效,不许自愈改址。
+      expect(controller.getModelCacheDir()).toBe(retiredDir);
+      expect(JSON.parse(fs.readFileSync(runtimeConfigPath, "utf8"))).toMatchObject({ modelCacheDir: retiredDir });
+    } finally {
+      fs.rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it("keeps a genuinely custom model dir override even when it is missing", () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), "mystudio-tts-custom-override-"));
+    const userDataPath = path.join(root, "user-data");
+    const storageBasePath = path.join(root, "storage");
+    const customDir = path.join(root, "external-tts-models");
+    const runtimeConfigPath = path.join(storageBasePath, "TTS", "runtime", "config.json");
+    try {
+      fs.mkdirSync(path.dirname(runtimeConfigPath), { recursive: true });
+      fs.writeFileSync(runtimeConfigPath, JSON.stringify({
+        modelCacheDir: customDir,
+        controlToken: "existing-token",
+      }));
+
+      const controller = createTtsRuntimeController({
+        appRoot: "/repo",
+        userDataPath,
+        storageBasePath,
+        huggingFaceHubDir: path.join(root, "huggingface", "hub"),
+        fetchJson: vi.fn().mockRejectedValue(new Error("offline")),
+        spawnProcess: vi.fn(),
+      });
+
+      // 真用户自定义路径(非历代默认家)即使暂时缺目录也原样保留——用户覆盖语义不变。
+      expect(controller.getModelCacheDir()).toBe(customDir);
+      expect(JSON.parse(fs.readFileSync(runtimeConfigPath, "utf8"))).toMatchObject({ modelCacheDir: customDir });
+    } finally {
+      fs.rmSync(root, { recursive: true, force: true });
+    }
+  });
+
   it("moves the global Hugging Face model cache and removes an identical legacy copy", async () => {
     const root = fs.mkdtempSync(path.join(os.tmpdir(), "mystudio-tts-hf-migration-"));
     const userDataPath = path.join(root, "user-data");
