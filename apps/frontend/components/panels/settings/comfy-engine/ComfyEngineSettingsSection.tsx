@@ -187,6 +187,12 @@ function snapshotReasonLabel(reason: string): string {
   return reason || "手动";
 }
 
+/** 模型文件大小展示:≥1GB 用 GB 一位小数,否则 MB。 */
+function formatModelSize(sizeBytes: number): string {
+  if (sizeBytes >= 1024 ** 3) return `${(sizeBytes / 1024 ** 3).toFixed(1)} GB`;
+  return `${Math.max(1, Math.round(sizeBytes / 1024 ** 2))} MB`;
+}
+
 export function ComfyEngineSettingsSection({ embedded = false, initialActiveTab }: ComfyEngineSettingsSectionProps) {
   const engine = useComfyEngineSettings();
   const status = engine.status;
@@ -202,6 +208,13 @@ export function ComfyEngineSettingsSection({ embedded = false, initialActiveTab 
   useEffect(() => {
     if (initialActiveTab) setActiveTab(initialActiveTab);
   }, [initialActiveTab]);
+
+  // 模型页激活即拉 comfyui/models 清单(09-10 用户裁定:模型页展示引擎模型库
+  // 真实内容);loadModels 为 hook 内稳定引用,幂等防抖(进行中不重入)。
+  const loadModelsFn = engine.loadModels;
+  useEffect(() => {
+    if (activeTab === "models") void loadModelsFn();
+  }, [activeTab, loadModelsFn]);
 
   // 模型目录草稿跟随真实状态(未编辑过时)。
   useEffect(() => {
@@ -252,25 +265,72 @@ export function ComfyEngineSettingsSection({ embedded = false, initialActiveTab 
       ? engine.activeJob
       : null;
 
-  // 模型页节点(两个落点复用):正常态在标签页体系内;引擎真未安装时也独立露出——
-  // 「下载完整模型自足」路线不依赖引擎,入口不能随 notInstalled 消失(09-10 补口)。
-  // 09-10 用户裁定:老生图模式(model/imagegen 缓存+应用侧 diffusers 管线)退役,
-  // 生图模型由 ComfyUI 引擎统一装载——此卡为终态说明面,下载/探测/运行时控件全撤。
+  // 模型页节点(两个落点复用):ComfyUI 模型库活清单——引擎未装/状态未知也
+  // 可看(读 FS 与引擎运行无关);后续各域模型迁入 comfyui/models 后自动出现。
   const modelsPageNode = (
-    <div className="space-y-5" data-comfy-models-page>
-      <section aria-label="图片大模型" className="space-y-1.5">
-        <p className="text-xs font-medium text-foreground">图片大模型(本地生图,免费)</p>
-        <p className="text-xs leading-5 text-muted-foreground">
-          生图模型全部由 ComfyUI 引擎装载,生成在 ComfyUI 画布进行;应用自管的独立生图模型缓存已退役清除(09-10)。
-        </p>
-        <div className="space-y-1 rounded-md border border-border/60 bg-muted/30 px-2.5 py-1.5 text-[11px] leading-4 text-muted-foreground">
-          <p>
-            <span className="text-success">●</span> Krea2 Turbo(主力)— 三件已就绪:diffusion_models/krea2_turbo_bf16 · text_encoders/qwen3-vl-4b-heretic · vae/qwen_image_vae;NSFW/编辑 LoRA 栈在 loras/ 下。
-          </p>
-          <p>
-            <span className="text-muted-foreground/60">○</span> Z-Image-Turbo / FLUX.2 Klein / Qwen-Image-Edit — 大件未装;需要时经 ComfyUI 生态获取放入「存储」页模型目录即可。
-          </p>
+    <div className="space-y-3" data-comfy-models-page>
+      <section aria-label="ComfyUI 模型库" className="space-y-1.5">
+        <div className="flex items-center justify-between gap-3">
+          <p className="text-xs font-medium text-foreground">ComfyUI 模型库(本地大模型统一装载)</p>
+          <div className="flex gap-1.5">
+            <Button
+              size="sm"
+              variant="ghost"
+              className="h-7 px-2 text-xs"
+              onClick={() => void engine.loadModels()}
+            >
+              <RefreshCw className="mr-1 h-3.5 w-3.5" aria-hidden />
+              刷新
+            </Button>
+            <Button
+              size="sm"
+              variant="ghost"
+              className="h-7 px-2 text-xs"
+              onClick={() => {
+                void window.electronAPI?.openPath(engine.models?.modelsDir ?? status?.modelsDir ?? "");
+              }}
+            >
+              <FolderOpen className="mr-1 h-3.5 w-3.5" aria-hidden />
+              打开
+            </Button>
+          </div>
         </div>
+        <p className="text-xs leading-5 text-muted-foreground">
+          本地生图等大模型全部由 ComfyUI 引擎装载(应用侧独立缓存已退役);后续各域模型也将迁入本目录。
+        </p>
+        {engine.models === null ? (
+          <p className="rounded-md border border-border/60 bg-muted/30 px-2.5 py-1.5 text-[11px] text-muted-foreground">
+            清单尚未取到——进入本页会自动读取;若持续空白,通常几秒内重试即可。
+          </p>
+        ) : engine.models.groups.length === 0 ? (
+          <p className="rounded-md border border-border/60 bg-muted/30 px-2.5 py-1.5 text-[11px] text-muted-foreground">
+            模型目录还是空的;放入模型或经 ComfyUI 生态获取后,这里会自动列出。
+          </p>
+        ) : (
+          <div className="space-y-1.5" data-comfy-models-list>
+            {engine.models.groups.map((group) => (
+              <div key={group.category} className="rounded-md border border-border/60 bg-muted/30 px-2.5 py-1.5">
+                <p className="flex items-baseline justify-between gap-2 text-[11px] font-medium text-foreground">
+                  <span>{group.category}</span>
+                  <span className="font-normal text-muted-foreground">
+                    {group.files.length} 件 · {formatModelSize(group.files.reduce((sum, f) => sum + f.sizeBytes, 0))}
+                  </span>
+                </p>
+                <ul className="mt-1 space-y-0.5">
+                  {group.files.map((file) => (
+                    <li key={file.name} className="flex items-baseline justify-between gap-2 text-[11px] leading-4">
+                      <span className="min-w-0 flex-1 select-text break-all font-mono text-muted-foreground">{file.name}</span>
+                      <span className="shrink-0 text-muted-foreground/80">{formatModelSize(file.sizeBytes)}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ))}
+            <p className="px-1 text-[11px] text-muted-foreground">
+              合计 {engine.models.groups.reduce((n, g) => n + g.files.length, 0)} 件 · {formatModelSize(engine.models.totalBytes)}
+            </p>
+          </div>
+        )}
       </section>
     </div>
   );

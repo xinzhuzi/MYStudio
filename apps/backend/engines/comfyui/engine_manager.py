@@ -970,6 +970,31 @@ class EngineManager:
         (snap_dir / "meta.json").write_text(json.dumps(meta, ensure_ascii=False, indent=2), encoding="utf-8")
         return snap_id
 
+    def list_models(self) -> dict:
+        """模型库清单(09-10 用户裁定:模型页展示 comfyui/models 真实内容)。
+
+        一级子目录=类别;类别内递归列文件(相对路径+字节),空类别与隐藏件跳过。
+        只读 FS,与引擎是否安装/运行无关(未装引擎时目录通常为空,自然呈现空态)。
+        """
+        manifest = cm.load_manifest()
+        models_dir = cm.configured_models_dir(manifest)
+        groups: list[dict] = []
+        total = 0
+        if models_dir.is_dir():
+            for sub in sorted(models_dir.iterdir()):
+                if not sub.is_dir() or sub.name.startswith("."):
+                    continue
+                files = []
+                for file in sorted(sub.rglob("*")):
+                    if not file.is_file() or file.name.startswith("."):
+                        continue
+                    size = file.stat().st_size
+                    total += size
+                    files.append({"name": str(file.relative_to(sub)), "sizeBytes": size})
+                if files:
+                    groups.append({"category": sub.name, "files": files})
+        return {"modelsDir": str(models_dir), "groups": groups, "totalBytes": total}
+
     def list_snapshots(self) -> list[dict]:
         snaps: list[dict] = []
         if not cm.snapshots_dir().is_dir():

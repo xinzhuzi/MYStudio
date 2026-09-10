@@ -526,6 +526,10 @@ class Handler(BaseHTTPRequestHandler):
             if method == "GET" and path == "/comfy/engine/status":
                 self._send_json(engine_manager().status())
                 return
+            if method == "GET" and path == "/comfy/engine/models":
+                # 模型库清单(09-10 用户裁定:模型页展示 comfyui/models 真实内容)
+                self._send_json(engine_manager().list_models())
+                return
             if method == "POST" and path == "/comfy/engine/install":
                 self._send_json({"jobId": engine_manager().install_job()})
                 return

@@ -294,6 +294,9 @@ export interface ComfyEngineClient {
   ackBridgeWritebacks(upTo: number): Promise<number | null>;
   /** 自研节点包手动同步(装/更新链自动;引擎运行中返回 restartRequired)。 */
   syncManyingNodes(): Promise<ComfyManyingSyncReply | null>;
+  /** 模型库清单(GET /comfy/engine/models;侧车缺席返回 null)。 */
+  listModels(): Promise<ComfyModelsReply | null>;
+
   /** 参考图上传闭环(阶段2 批2):同名覆写进引擎 input 目录(迁移占位名可跑)。 */
   uploadBridgeReference(name: string, imageB64: string): Promise<{ accepted: boolean; name?: string } | null>;
   /** 业务侧栏数据面(阶段2 批3):推分镜快照供引擎前端 sidebar 扩展拉取。 */
@@ -323,6 +326,25 @@ export interface ComfyManyingSyncReply {
   target?: string;
   /** 引擎运行中同步=文件已拷但需重启才加载新节点。 */
   restartRequired?: boolean;
+}
+
+/** 模型库清单(09-10 用户裁定:模型页展示 comfyui/models 真实内容)。 */
+export interface ComfyModelsEntry {
+  /** 类别内相对路径(含子目录,如 Krea2-NSFW/Krea 2 pussy.safetensors)。 */
+  name: string;
+  sizeBytes: number;
+}
+
+export interface ComfyModelsGroup {
+  /** 一级子目录名(diffusion_models/text_encoders/vae/loras/…)。 */
+  category: string;
+  files: ComfyModelsEntry[];
+}
+
+export interface ComfyModelsReply {
+  modelsDir: string;
+  groups: ComfyModelsGroup[];
+  totalBytes: number;
 }
 
 /** 快照条目(引擎卡快照区展示)。 */

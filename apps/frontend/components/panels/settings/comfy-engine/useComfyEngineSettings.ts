@@ -18,7 +18,7 @@ import {
   type ComfyPluginInstallReport,
   type ComfyPluginInfo,
   type ComfyPluginUsageReply,
-  ComfySnapshotEntry,
+  ComfyModelsReply, ComfySnapshotEntry,
 } from "./comfy-engine-contract";
 
 const JOB_POLL_INTERVAL_MS = 800;
@@ -288,6 +288,20 @@ export function useComfyEngineSettings(options: UseComfyEngineSettingsOptions = 
     [client],
   );
 
+  // 模型库清单(09-10 用户裁定:模型页展示 comfyui/models 真实内容);
+  // 拉不到不阻塞(侧车缺席=空态占位),激活「模型」页时由组件显式调用。
+  const [models, setModels] = useState<ComfyModelsReply | null>(null);
+  const isLoadingModels = useRef(false);
+  const loadModels = useCallback(async () => {
+    if (!client || isLoadingModels.current) return;
+    isLoadingModels.current = true;
+    try {
+      setModels(await client.listModels());
+    } finally {
+      isLoadingModels.current = false;
+    }
+  }, [client]);
+
   // 快照列表(09-08 映射表补口:快照页→搬并强化)
   const [snapshots, setSnapshots] = useState<ComfySnapshotEntry[]>([]);
   const refreshSnapshots = useCallback(async () => {
@@ -445,6 +459,8 @@ export function useComfyEngineSettings(options: UseComfyEngineSettingsOptions = 
     setLaunchArgs,
     snapshots,
     refreshSnapshots,
+    models,
+    loadModels,
     cleanOrphans,
     checkUpdate,
     setModelsDir,

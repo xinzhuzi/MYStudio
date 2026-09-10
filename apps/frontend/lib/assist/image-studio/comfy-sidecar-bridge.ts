@@ -566,6 +566,14 @@ export function createHttpComfyEngineClient(): ComfyEngineClient {
       });
     },
 
+    async listModels(): Promise<{ modelsDir: string; groups: Array<{ category: string; files: Array<{ name: string; sizeBytes: number }> }>; totalBytes: number } | null> {
+      try {
+        return await comfySidecarRequest("GET", "/comfy/engine/models");
+      } catch {
+        return null; // 侧车缺席/失败不阻塞模型页(空态占位)
+      }
+    },
+
     async setLaunchArgs(args: { vramPolicy?: "auto" | "gpu-only" | "reserve-vram"; reserveVramGb?: number | null; attentionMode?: "auto" | "pytorch-cross-attention" }): Promise<ComfyEngineAckReply> {
       return comfySidecarRequest<ComfyEngineAckReply>("POST", "/comfy/engine/config", { body: { launchArgs: args } });
     },

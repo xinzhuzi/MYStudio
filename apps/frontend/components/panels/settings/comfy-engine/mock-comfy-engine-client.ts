@@ -222,6 +222,26 @@ export function createMockComfyEngineClient(
   };
 
   const client: ComfyEngineClient = {
+    async listModels() {
+      return {
+        modelsDir: "/tmp/comfyui/models",
+        groups: [
+          {
+            category: "diffusion_models",
+            files: [
+              { name: "krea2_turbo_bf16.safetensors", sizeBytes: 26283332608 },
+              { name: "z_image_turbo_bf16.safetensors", sizeBytes: 1048576000 },
+            ],
+          },
+          {
+            category: "text_encoders",
+            files: [{ name: "qwen3-vl-4b-heretic.safetensors", sizeBytes: 8875713408 }],
+          },
+        ],
+        totalBytes: 26283332608 + 1048576000 + 8875713408,
+      };
+    },
+
     async getEngineStatus() {
       return { ...status };
     },
