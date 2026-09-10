@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 // ComfyWorkspace(09-10 终裁:球是 1 个,上提 Layout 应用层)测试:只剩模式路由。
-// 球本体/面板/导航行为见 components/AppOrb.test.tsx。
+// 球本体/面板/导航行为见 components/orbs/AppOrb.test.tsx。
 
 import { cleanup, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";

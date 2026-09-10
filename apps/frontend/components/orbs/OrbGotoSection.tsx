@@ -20,7 +20,8 @@ import {
   Share2,
   Settings,
 } from "lucide-react";
-import { OrbSection, type OrbSectionProps } from "@/components/orbs";
+import { OrbSection } from "./OrbSection";
+import type { OrbSectionProps } from "./OrbSection";
 import { useMediaPanelStore, type Tab } from "@/stores/navigation/media-panel-store";
 import { cn } from "@/lib/utils";
 

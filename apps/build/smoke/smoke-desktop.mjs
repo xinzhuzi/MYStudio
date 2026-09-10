@@ -125,10 +125,10 @@ const CORE_ROUTE_CHECKS = [
     requiredText: ["个人资产库", "默认风格"],
   },
   {
-    // 09-10 终裁(球是 1 个):沉浸视图零应用 chrome,唯一球=Layout 应用层 AppOrb,
-    // 断言锚=球胶囊的阶段摘要(胶囊恒在 DOM,opacity 藏但 innerText 可读)。
+    // 09-11 分域裁定:沉浸视图零应用 chrome,唯一球=Layout 应用层 AppOrb;
+    // 非工作流视图球胶囊=当前模块名(阶段仅工作流展示),断言锚=「本地模型」。
     label: "本地模型",
-    requiredText: ["风格与导演"],
+    requiredText: ["本地模型"],
     waitMs: 2_500,
   },
   {

@@ -25,7 +25,7 @@ import {
 } from "@/components/ui/resizable";
 // 终裁(09-10):全应用唯一悬浮球——项目内所有视图(含沉浸态)唯一常驻导航枢纽
 const AppOrb = lazy(() =>
-  import("@/components/AppOrb").then((m) => ({ default: m.AppOrb })),
+  import("@/components/orbs").then((m) => ({ default: m.AppOrb })),
 );
 
 // Panel imports — code-split so the first screen (Dashboard) doesn't pay for

@@ -2,10 +2,13 @@
 // Licensed under AGPL-3.0-or-later. See LICENSE for details.
 // Commercial licensing available. See COMMERCIAL_LICENSE.md.
 
-// 悬浮球基础设施(09-10 用户裁定:所有进出口都将用球,独立成模块长期维护)。
-// 边界铁律:本模块零业务依赖——禁止 import panels/features/stores 业务代码;
-// 业务球(工作流球/本地模型球/未来新球)在各自功能模块目录组装,只消费这里的原语。
+// 悬浮球独立模块(09-11 终局结构裁定:从单一模块归一为全局模块)。
+// 本目录=球功能全部家当:壳与分区原语(OrbShell/OrbSection/use-orb-position,
+// 零业务依赖)、共享分区(OrbGotoSection/OrbStagesSection)、全局面孔 AppOrb。
+// 对外唯一门面=AppOrb(Layout 应用层消费);其余导出仅供模块内与测试使用。
+// 阶段内容(进度环/切换阶段/待推进)仅工作流视图渲染(09-11 裁定)。
 
+export { AppOrb } from "./AppOrb";
 export { OrbShell } from "./OrbShell";
 export type { OrbShellProps } from "./OrbShell";
 export { OrbSection } from "./OrbSection";

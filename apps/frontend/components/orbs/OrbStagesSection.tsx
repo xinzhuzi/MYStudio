@@ -10,7 +10,8 @@
 // 本组件只管清单渲染,保证两球条目一致。分镜面板入口不进(08-23 唯一入口裁定)。
 
 import { Check, Image as ImageIcon, AlertCircle, CheckCircle2, Clock } from "lucide-react";
-import { OrbSection, type OrbSectionProps } from "@/components/orbs";
+import { OrbSection } from "./OrbSection";
+import type { OrbSectionProps } from "./OrbSection";
 import type {
   WorkflowReadiness,
   WorkflowStageReadiness,

@@ -3169,7 +3169,7 @@ describe("workflow view entries in stage switcher", () => {
     const { readFileSync } = await import("node:fs");
     // 09-10 终裁(两球一致):阶段清单抽成共享分区,契约锚随之迁移
     const source = readFileSync(
-      "frontend/components/features/orb-nav/OrbStagesSection.tsx",
+      "frontend/components/orbs/OrbStagesSection.tsx",
       "utf8",
     );
     expect(source).toContain("const WORKFLOW_VIEW_ITEMS = [");
@@ -3182,7 +3182,7 @@ describe("workflow view entries in stage switcher", () => {
     expect(source).toContain('title="切换阶段"');
     // 09-10 终裁(球是 1 个):唯一 AppOrb 消费共享分区(前往+切换阶段)
     const panelSource = readFileSync(
-      "frontend/components/AppOrb.tsx",
+      "frontend/components/orbs/AppOrb.tsx",
       "utf8",
     );
     expect(panelSource).toContain("OrbStagesSection");
