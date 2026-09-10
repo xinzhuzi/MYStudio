@@ -101,6 +101,16 @@ describe("WorkflowStatusOrb", () => {
     expect(screen.queryByText("剧本资产管理")).toBeNull();
   });
 
+  it("AC1:工作流球面板零视图导航——无 data-orb-nav-view/模式切换入口(09-10 拆双球)", async () => {
+    renderOrb();
+    const orb = getOrb();
+    fireEvent.pointerDown(orb, { clientX: 20, clientY: 20 });
+    fireEvent.pointerUp(orb, { clientX: 22, clientY: 21 });
+    expect(await screen.findByText(/待推进：剧本生产阶段/)).toBeTruthy();
+    expect(document.querySelectorAll("[data-orb-nav-view]").length).toBe(0);
+    expect(document.querySelectorAll("[data-orb-nav-mode]").length).toBe(0);
+  });
+
   it("点「切换阶段」标题行展开:清单挂出(折叠→展开,09-10 裁定)", async () => {
     renderOrb();
     const orb = getOrb();

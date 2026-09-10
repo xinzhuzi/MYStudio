@@ -56,7 +56,7 @@ describe("ComfyWorkspace(全屏 ComfyUI 合一·拆双球)", () => {
     expect(screen.queryByText(/切换阶段/)).toBeNull();
   });
 
-  it("球面板:展开「本视图」切配音室即整屏换 TTS(分区默认收起)", async () => {
+  it("球面板:展开「本视图」切配音室即整屏换 TTS,切回即画布(分区默认收起)", async () => {
     render(<ComfyWorkspace />);
     expect(openOrbPanel()).toBe(true);
     // 默认收起:配音室按钮不在 DOM
@@ -66,6 +66,11 @@ describe("ComfyWorkspace(全屏 ComfyUI 合一·拆双球)", () => {
     fireEvent.click(ttsButton);
     expect(document.querySelector("[data-tts-mock]")).toBeTruthy();
     expect(document.querySelector("[data-comfy-canvas-mock]")).toBeNull();
+    // 反向分支:切回画布
+    const comfyButton = screen.getByRole("button", { name: /ComfyUI 画布/ });
+    fireEvent.click(comfyButton);
+    expect(document.querySelector("[data-comfy-canvas-mock]")).toBeTruthy();
+    expect(document.querySelector("[data-tts-mock]")).toBeNull();
   });
 
   it("球面板:展开「前往」跳设置,落 media-panel activeTab", async () => {

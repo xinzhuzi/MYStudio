@@ -51,7 +51,6 @@ describe("LocalModelOrb(本地模型球)", () => {
     expect(
       container.querySelector("[data-orb-capsule]")?.textContent,
     ).toContain("ComfyUI 画布");
-    renderOrb("tts");
   });
 
   it("胶囊跟随模式:tts 态显示「配音室」", () => {
