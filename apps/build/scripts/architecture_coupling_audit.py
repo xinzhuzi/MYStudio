@@ -151,7 +151,7 @@ def backend_audit() -> dict:
             mod = m.group(1)
             top = mod.split(".")[0]
             if top in {"audio_gen", "image_gen", "music3_gen", "sfx_gen", "tts", "upscale",
-                       "video_qc", "video_use", "vlm_review", "depth_estimation", "layer_separation",
+                       "video_qc", "video_use", "vlm_review",
                        "modelscope_hub"}:
                 tgt_pkg = top if top == "modelscope_hub" else mod.split(".")[0]
                 if tgt_pkg != own_pkg:

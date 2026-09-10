@@ -13,7 +13,7 @@ apps/backend/
   engines/image_engine/     # 生图五模型栈(krea2/flux2/z_image/qwen/comfyui_bridge)
                             #   +model_cache+workflows/(K2 四模板)
   engines/audio_engine/  engines/sfx_engine/    # generate.py(自 worker 原样切片)+model_cache
-  engines/upscale_engine/  engines/vlm_engine/  engines/depth_engine/
+  engines/upscale_engine/  engines/vlm_engine/
   engines/video_qc_engine/  # DOVER 架构+打分+license
   engines/music3_engine/    # 权重件(推理经 mlx-serve 留服务包)
   engines/comfyui/          # ComfyUI 托管实例:manifest/engine_manager/plugin_manager/execute
@@ -21,10 +21,9 @@ apps/backend/
   tts/                      # TTS 服务面:server/main/routes/storage/runtime_state
                             #   (入口 tts.main,端口 17593;引擎调 engines/tts_engine)
   image_gen/                # 生图服务面:server/pipeline/uncloth_pipeline/model_inventory/download_model
-  audio_gen/ sfx_gen/ music3_gen/ upscale/ video_qc/ vlm_review/ depth_estimation/
+  audio_gen/ sfx_gen/ music3_gen/ upscale/ video_qc/ vlm_review/
                             # worker(CLI spawn 面)+download_model+model_inventory
   video_use/                # 剪辑链(无模型加载,无引擎件)
-  layer_separation/         # 算法层(骑 engines/depth_engine)
   # 域3:共享基建(渐进归拢 common/):model_cache_core.py、modelscope_hub.py
   model_cache_core.py  modelscope_hub.py  requirements.txt
   tests/                         # 跨模块契约测试
