@@ -173,7 +173,8 @@ async function materializeAsset(url: string, tempFiles: string[], allowedAssetRo
   if (!parsedUrl || !allowedRemoteAssetHosts.includes(parsedUrl.hostname.toLowerCase())) {
     throw new Error("远程资产域名未获准，平台只接受受控的本地资产或白名单 HTTPS URL");
   }
-  const response = await fetch(parsedUrl.toString());
+  // 09-10 P1:10 分钟超时——无界 fetch 曾可无限挂起发布链
+  const response = await fetch(parsedUrl.toString(), { signal: AbortSignal.timeout(10 * 60_000) });
   if (!response.ok) throw new Error(`资产下载失败 (${response.status})`);
   const contentLength = Number(response.headers.get("content-length") ?? 0);
   if (contentLength > 512 * 1024 * 1024) throw new Error("资产超过 512MB 限制");
@@ -425,14 +426,18 @@ export function createAitoearnLocalPlatformBridge(bridgeOptions: {
   }
 
   async function checkOnline(platform: LocalPlatform, cookies: Cookie[]) {
-    if (platform === "xhs") {
-      await xiaohongshuService.getUserInfo(cookies);
-      return true;
-    }
-    if (platform === "douyin") return douyinService.checkLoginStatus(JSON.stringify(cookies));
-    if (platform === "wxSph") return shipinhaoService.checkLoginStatus(JSON.stringify(cookies));
-    const result = await kwaiPub.getAccountInfo(cookies);
-    return result.status === 200 && Boolean(result.data?.data?.userInfo);
+    // 09-10 P1:携明文 cookies 的 vendor 调用必须裹进脱敏守卫——
+    // 此前在 withCredentialRedaction 之外执行,vendor 内任何 console 输出即明文落日志。
+    return withCredentialRedaction(async () => {
+      if (platform === "xhs") {
+        await xiaohongshuService.getUserInfo(cookies);
+        return true;
+      }
+      if (platform === "douyin") return douyinService.checkLoginStatus(JSON.stringify(cookies));
+      if (platform === "wxSph") return shipinhaoService.checkLoginStatus(JSON.stringify(cookies));
+      const result = await kwaiPub.getAccountInfo(cookies);
+      return result.status === 200 && Boolean(result.data?.data?.userInfo);
+    });
   }
 
   return {

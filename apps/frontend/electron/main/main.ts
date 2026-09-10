@@ -146,6 +146,13 @@ const selfMediaIpc = registerSelfMediaIpcHandlers({
   localBridge: createAitoearnLocalPlatformBridge({
     userDataPath: app.getPath('userData'),
     allowedAssetRoots: () => [getDataDir(), getMediaRoot()],
+    // 09-10 P1:远程资产域名白名单接线——此前该参数从未传入(恒空),
+    // 任何 https 资产发布必失败。默认仍空(仅受控本地资产);需要远程资产时
+    // 设 MYSTUDIO_SELF_MEDIA_ASSET_HOSTS=host1,host2 逗号分隔。
+    allowedRemoteAssetHosts: () => (process.env.MYSTUDIO_SELF_MEDIA_ASSET_HOSTS ?? '')
+      .split(',')
+      .map((host) => host.trim().toLowerCase())
+      .filter(Boolean),
     platformTransports: officialPlatformTransports.transports,
   }),
   taskStorePath: path.join(app.getPath('userData'), 'self-media', 'tasks.json'),

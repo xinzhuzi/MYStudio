@@ -38,7 +38,8 @@ describe("WeChat Official transport", () => {
     expect(account).toMatchObject({ platform: "wxGzh", providerAccountId: "app-1", displayName: "微信公众号 · app-1", credential: { kind: "oauth", accessToken: "official-auth-token", expiresAt: "2026-07-27T02:00:00.000Z" } });
     await expect(transport.listAccounts()).resolves.toEqual([{ accountId: account?.id, displayName: "微信公众号 · app-1", status: "online" }]);
     expect(String(fetchMock.mock.calls[0]?.[0])).toBe("https://api.weixin.qq.com/cgi-bin/token?grant_type=client_credential&appid=app-1&secret=secret-1");
-    expect(fetchMock.mock.calls[0]?.[1]).toBeUndefined();
+    // 09-10 超时注入后 init 非空(带 AbortSignal);本断言的真实契约=不带凭据头
+    expect(fetchMock.mock.calls[0]?.[1]?.headers).toBeUndefined();
   });
 
   it("uploads the thumb, creates a draft, submits it, and polls the publish ID", async () => {

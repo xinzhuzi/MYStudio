@@ -61,17 +61,20 @@ function isAvailable() {
 
 let tmpSequence = 0;
 
+// 09-10 P0-3 附修:upsert/remove 全程串行——并发「读-改-写」同库会整文件互覆丢账号
+// (实测两个并发登录曾互抢同一 tmp 文件名直接 ENOENT)。链按 filePath 分道并挂在
+// 模块级:同一 accounts.json 的多个 vault 实例(本地桥+官方传输各建一个)也串行。
+const operationChains = new Map<string, Promise<unknown>>();
+
 export function createLocalAccountVault(userDataPath: string) {
   const filePath = path.join(userDataPath, "self-media", "accounts.json");
-  // 09-10 P0-3 附修:upsert/remove 全程串行——并发「读-改-写」同库会整文件互覆丢账号
-  // (实测两个并发登录曾互抢同一 tmp 文件名直接 ENOENT)。
-  let operationChain: Promise<unknown> = Promise.resolve();
   const enqueue = <T>(operation: () => Promise<T>): Promise<T> => {
-    const run = operationChain.then(operation, operation);
-    operationChain = run.then(
+    const previous = operationChains.get(filePath) ?? Promise.resolve();
+    const run = previous.then(operation, operation);
+    operationChains.set(filePath, run.then(
       () => undefined,
       () => undefined,
-    );
+    ));
     return run;
   };
 

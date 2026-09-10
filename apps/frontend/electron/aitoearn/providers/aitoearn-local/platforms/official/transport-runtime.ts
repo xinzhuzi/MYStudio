@@ -122,8 +122,15 @@ export async function listOfficialAccounts(runtime: OfficialTransportRuntime): P
     }));
 }
 
+
+/** 09-10 P1:外部调用缺省超时——慢滴流主机曾让发布 promise 永挂,级联 dispose() 退出死锁。 */
+function withDefaultTimeout(init: RequestInit | undefined, timeoutMs: number): RequestInit {
+  if (init?.signal) return init;
+  return { ...init, signal: AbortSignal.timeout(timeoutMs) };
+}
+
 export async function requestJson<T>(runtime: OfficialTransportRuntime, url: string, init?: RequestInit): Promise<T> {
-  const response = await runtime.fetch(url, init);
+  const response = await runtime.fetch(url, withDefaultTimeout(init, 30_000));
   const body = await response.text();
   let parsed: unknown = null;
   if (body) {
@@ -190,7 +197,7 @@ export async function readOfficialAsset(runtime: OfficialTransportRuntime, url: 
   }
   const parsed = new URL(url);
   if (parsed.protocol !== "https:") throw new Error("官方平台资产只允许受控本地文件或 HTTPS URL");
-  const response = await runtime.fetch(parsed);
+  const response = await runtime.fetch(parsed, { signal: AbortSignal.timeout(10 * 60_000) });
   if (!response.ok) throw new Error(`${runtime.config.platformId} 资产读取失败 (${response.status})`);
   const contentLength = Number(response.headers.get("content-length") ?? 0);
   if (contentLength > MAX_ASSET_BYTES) throw new Error("平台资产超过 512MB 限制");

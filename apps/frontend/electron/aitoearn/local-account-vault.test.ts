@@ -91,4 +91,15 @@ describe("local account vault security boundaries", () => {
     await vault.upsert(record);
     expect(await vault.list()).toHaveLength(1);
   });
+
+  it("serializes upserts across separate vault instances on the same file", async () => {
+    // 09-10 P1:本地桥与官方传输各建 vault 实例——实例内串行不够,跨实例并发
+    // 读-改-写仍会整文件互覆丢账号;串行链必须挂模块级按路径分道。
+    const vaultA = createLocalAccountVault(root);
+    const vaultB = createLocalAccountVault(root);
+    await vaultA.upsert(record);
+    const second = { ...record, id: "account-2", displayName: "第二账号" };
+    await Promise.all([vaultA.upsert(second), vaultB.upsert(second)]);
+    expect(await vaultA.list()).toHaveLength(2);
+  });
 });
