@@ -172,15 +172,17 @@ export function Layout() {
     return (
       <>
         <TabBar sidebarCollapsed={sidebarCollapsed} onToggleSidebar={toggleSidebar} />
-        <div className="studio-shell h-full flex flex-col bg-background">
+        {/* titlebar-lift-views:背景上提作用域(09-10 标题栏融为一体裁定);
+            studio-main/cinematic-route 不得加 overflow-hidden,否则上提表面被裁回 y=40 */}
+        <div className="studio-shell h-full flex flex-col bg-background titlebar-lift-views">
           <ProjectHeader
             sidebarCollapsed={sidebarCollapsed}
             onToggleSidebar={toggleSidebar}
           />
           <div className="flex flex-1 min-h-0">
-            <div className="studio-main flex-1 min-w-0 flex flex-col overflow-hidden">
+            <div className="studio-main flex-1 min-w-0 flex flex-col">
               <Suspense fallback={<PanelFallback />}>
-              <div key={activeTab} className="cinematic-route flex-1 h-full min-h-0 overflow-hidden">
+                <div key={activeTab} className="cinematic-route flex-1 h-full min-h-0">
               {activeTab === "export" && <ExportView />}
               {activeTab === "settings" && (
                 <SettingsPanel
@@ -243,7 +245,8 @@ export function Layout() {
   return (
     <>
     <TabBar sidebarCollapsed={sidebarCollapsed} onToggleSidebar={toggleSidebar} />
-    <div className="studio-shell h-full flex flex-col bg-background">
+    {/* titlebar-lift-frames:三栏分支背景上提作用域(09-10 标题栏融为一体裁定) */}
+    <div className="studio-shell h-full flex flex-col bg-background titlebar-lift-frames">
         <ProjectHeader
           sidebarCollapsed={sidebarCollapsed}
           onToggleSidebar={toggleSidebar}

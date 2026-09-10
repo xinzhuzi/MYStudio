@@ -796,8 +796,8 @@
   inset: 0;
   z-index: 0;
   pointer-events: none;
+  /* 09-10 零分隔裁定:顶部 1px 青金发丝线已删,勿再加任何顶部分隔线 */
   background:
-    linear-gradient(90deg, transparent, hsl(var(--primary) / 0.58), hsl(var(--warning) / 0.34), transparent) top / 100% 1px no-repeat,
     radial-gradient(circle at 50% 0%, transparent 0%, transparent 44%, hsl(0 0% 0% / 0.32) 100%),
     linear-gradient(180deg, transparent 58%, hsl(0 0% 0% / 0.18) 100%);
   opacity: 0.76;
@@ -885,7 +885,6 @@
 
 :root:not(.dark) .studio-shell::after {
   background:
-    linear-gradient(90deg, transparent, hsl(var(--primary) / 0.42), hsl(var(--warning) / 0.28), transparent) top / 100% 1px no-repeat,
     radial-gradient(circle at 50% 0%, transparent 0%, transparent 48%, hsl(154 18% 18% / 0.08) 100%),
     linear-gradient(180deg, transparent 62%, hsl(154 18% 18% / 0.06) 100%);
 }
@@ -1208,6 +1207,20 @@
   overflow: hidden;
   background: transparent;
   -webkit-app-region: drag;
+}
+
+/* 09-10 背景上提(标题栏融为一体裁定,zcode/chatgpt 式):视图表面元素
+   自 y=0 铺起,透明顶栏条(.project-chrome)坐在同一表面上,y=40 不再有
+   背景接缝。由 Layout 分支作用域类启用:
+   - titlebar-lift-views:全屏页签分支,表面=cinematic-route 的视图根;
+   - titlebar-lift-frames:三栏分支,cinematic-route 类即三列 frame 本身。
+   内容被 padding 推回 y=40 起,内容盒不变 → 内部布局逐像素不变。
+   height/padding 须 !important 压过 h-full/pt-* utilities。 */
+.titlebar-lift-views .cinematic-route > *,
+.titlebar-lift-frames .cinematic-route {
+  margin-top: -2.5rem;
+  height: calc(100% + 2.5rem) !important;
+  padding-top: 2.5rem !important;
 }
 
 /* 09-10 全屏 ComfyUI 沉浸视图:面包屑(.project-chrome)退役后的唯一窗口
