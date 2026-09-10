@@ -94,6 +94,8 @@ PORT_RANGE_START = 17000
 PORT_RANGE_END = 17999
 # 17595=本 sidecar 固定端口;17598=桥回落专用段位(Comfy Desktop 约定),永不出让
 RESERVED_PORTS = frozenset({17595, 17598})
+# 环境变量键:POSIX 合法名(字母/下划线开头,后接字母数字下划线)
+_ENV_KEY_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
 HEALTH_TIMEOUT_S = 120.0  # 首次冷启动 torch 导入慢,健康轮询窗口放宽
 GUARD_INTERVAL_S = 3.0
 GUARD_MAX_RESTARTS = 3
@@ -595,6 +597,8 @@ class EngineManager:
             "aheadBy": ahead_known if isinstance(ahead_known, int) else None,
             "lastCheckAt": last_check_at if isinstance(last_check_at, int) else None,
             "launchArgs": cm.engine_launch_args(manifest),
+            "envVars": cm.engine_env_vars(manifest),
+            "portConflictPolicy": cm.engine_port_conflict_policy(manifest),
             "torch": engine.get("torch"),
             "nodeCount": self._last_node_count,
             "defaultModelsDir": str(cm.default_models_dir()),
@@ -676,7 +680,7 @@ class EngineManager:
                 "version": tag, "sha": installed_sha, "pinned": True, "repo": COMFYUI_REPO,
                 "torch": torch_version, "installedAt": cm.timestamp_ms(),
                 "port": port,
-                "launchArgs": {"vramPolicy": "gpu-only", "reserveVramGb": 16, "attentionMode": "pytorch-cross-attention"},
+                "launchArgs": cm.DEFAULT_LAUNCH_ARGS_STRING,
                 "coreDeps": _freeze_to_map(freeze),
             }
 
@@ -750,8 +754,19 @@ class EngineManager:
             if progress:
                 progress(100, "接管了正在运行的 ComfyUI 实例")
             return {"running": True, "port": port, "adopted": True}
+        # 09-10 Desktop 式:用户串写死 --port → 优先于账本端口;被占按冲突策略处置
+        parsed_args = parse_launch_args_string(cm.engine_launch_args())
+        if parsed_args["port"]:
+            port = parsed_args["port"]
+            if not _port_bindable(port):
+                if cm.engine_port_conflict_policy() == "fail":
+                    raise EngineOpError(
+                        f"启动参数指定的端口 {port} 已被占用;可改用其他端口,或把端口冲突策略设为「自动顺延」")
+                shifted = find_free_port()
+                cm.mutate_manifest(lambda m: m["engine"].update({"port": shifted}))
+                port = shifted
         # 账本端口被外部占用(如 Comfy Desktop 顺延撞上)→ 重探测换端口
-        if port and not _port_bindable(port):
+        elif port and not _port_bindable(port):
             port = find_free_port()
             cm.mutate_manifest(lambda m: m["engine"].update({"port": port}))
         if progress:
@@ -768,7 +783,8 @@ class EngineManager:
         # bridge 回写端点注入(swap 阶段1:manying_generated → sidecar 17595)
         launch_env = {**os.environ,
                       "MYSTUDIO_BRIDGE_URL": bridge_contract.BRIDGE_URL,
-                      "MYSTUDIO_BRIDGE_TOKEN": bridge_contract.BRIDGE_TOKEN}
+                      "MYSTUDIO_BRIDGE_TOKEN": bridge_contract.BRIDGE_TOKEN,
+                      **cm.engine_env_vars()}  # 09-10 Desktop 式环境变量表(spawn 注入)
         self._proc = subprocess.Popen(argv, cwd=str(src), env=launch_env,
                                       stdout=self._log_file, stderr=subprocess.STDOUT,
                                       start_new_session=True)  # 独立会话=组长,看门狗可整组回收(孤儿根修)
@@ -1240,7 +1256,26 @@ class EngineManager:
     # -- 配置(modelsDir/性能档;引擎卡设置区) ----------------------------
     def update_config(self, payload: dict) -> dict:
         models_dir = payload.get("modelsDir")
-        launch = payload.get("launchArgs") or {}
+        # 09-10 Desktop 式:argsString=命令行串唯一真源;旧 launchArgs dict 容错翻译;
+        # envVars/portConflictPolicy 同批落账。语法错拒存(语义错误交给引擎自报)。
+        args_string = payload.get("argsString")
+        legacy_launch = payload.get("launchArgs") if isinstance(payload.get("launchArgs"), dict) else None
+        env_vars = payload.get("envVars")
+        policy = payload.get("portConflictPolicy")
+        if args_string is not None:
+            if not isinstance(args_string, str):
+                raise EngineOpError("启动参数必须是文本")
+            parse_launch_args_string(args_string)  # 语法校验,坏串抛大白话错
+        if legacy_launch is not None and args_string is None:
+            args_string = cm.legacy_launch_flags(legacy_launch)
+        if env_vars is not None:
+            if not isinstance(env_vars, dict) or not all(
+                isinstance(k, str) and isinstance(v, str) and k and _ENV_KEY_RE.match(k)
+                for k, v in env_vars.items()
+            ):
+                raise EngineOpError("环境变量表格式无效(键须为合法环境变量名,值为文本)")
+        if policy is not None and policy not in ("auto-shift", "fail"):
+            raise EngineOpError("端口冲突策略取值无效")
         if models_dir is not None:
             if not isinstance(models_dir, str) or not models_dir.strip():
                 raise EngineOpError("模型目录必须是有效的绝对路径")
@@ -1254,14 +1289,12 @@ class EngineManager:
                 manifest["modelsDir"] = str(models_path)
             if not isinstance(manifest.get("engine"), dict):
                 raise EngineOpError("引擎尚未安装,无法保存设置")
-            args = manifest["engine"].setdefault("launchArgs", {})
-            if launch.get("vramPolicy") in cm.VRAM_POLICIES:
-                args["vramPolicy"] = launch["vramPolicy"]
-            if launch.get("attentionMode") in cm.ATTENTION_MODES:
-                args["attentionMode"] = launch["attentionMode"]
-            reserve = launch.get("reserveVramGb")
-            if isinstance(reserve, (int, float)) and reserve > 0:
-                args["reserveVramGb"] = reserve
+            if args_string is not None:
+                manifest["engine"]["launchArgs"] = args_string
+            if env_vars is not None:
+                manifest["engine"]["envVars"] = env_vars
+            if policy is not None:
+                manifest["engine"]["portConflictPolicy"] = policy
 
         cm.mutate_manifest(_apply)
         _write_extra_model_paths(cm.configured_models_dir())
