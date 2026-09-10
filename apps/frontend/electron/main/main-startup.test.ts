@@ -134,6 +134,17 @@ describe("main process startup", () => {
     expect(windowBlock).toContain("showWindow()");
   });
 
+  it("keeps the title bar fully hidden so no native toolbar strip paints over the dark chrome", () => {
+    const windowBlock = mainSource.slice(
+      mainSource.indexOf("win = new BrowserWindow"),
+      mainSource.indexOf("// Open external links in system browser"),
+    );
+    // hiddenInset 在 macOS 会建一条原生 NSToolbar:自画窗口标题且不跟随深色模式,
+    // 深色主题下窗口顶部恒压一条白带(09-10 实弹);'hidden' 只留交通灯,顶栏交给网页侧
+    expect(windowBlock).toContain("titleBarStyle: 'hidden'");
+    expect(windowBlock).not.toContain("titleBarStyle: 'hiddenInset'");
+  });
+
   it("restores the previous session's window geometry including the maximized state", () => {
     const windowBlock = mainSource.slice(
       mainSource.indexOf("win = new BrowserWindow"),

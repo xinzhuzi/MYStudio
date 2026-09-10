@@ -149,7 +149,9 @@ export function createWindow() {
     minHeight: 700,
     show: false,
     backgroundColor: '#17191c',
-    titleBarStyle: 'hiddenInset',
+    // 禁用 hiddenInset:它在 macOS 会建一条原生 NSToolbar,画窗口标题且不跟随深色模式,
+    // 深色主题下顶上恒压一条白带(09-10 实弹);'hidden' 只留交通灯,顶栏由网页侧透明顶条承载
+    titleBarStyle: 'hidden',
     trafficLightPosition: { x: 16, y: 14 },
     webPreferences: {
       preload: path.join(__dirname, '../preload/index.cjs'),
