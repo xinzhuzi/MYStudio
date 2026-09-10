@@ -22,6 +22,9 @@ def _make_tree(root: Path) -> None:
     (root / "empty_group").mkdir()
     (root / ".hidden").mkdir()
     (root / ".hidden" / "secret.safetensors").write_bytes(b"z" * 10)
+    # 嵌套隐藏子目录(loras/.cache/...):文件名不带点,须按路径段过滤(09-10 实弹)
+    (root / "loras" / ".cache" / "huggingface").mkdir(parents=True)
+    (root / "loras" / ".cache" / "huggingface" / "CACHEDIR.TAG").write_bytes(b"w" * 32)
 
 
 def test_list_models_groups_files_and_skips(tmp_path, monkeypatch):

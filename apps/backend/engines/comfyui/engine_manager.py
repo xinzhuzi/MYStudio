@@ -986,7 +986,10 @@ class EngineManager:
                     continue
                 files = []
                 for file in sorted(sub.rglob("*")):
-                    if not file.is_file() or file.name.startswith("."):
+                    # 隐藏件过滤到路径级:.cache/huggingface 等隐藏子目录整枝跳过
+                    # (只看文件名会漏掉 .cache/CACHEDIR.TAG 这类嵌套垃圾行,09-10 实弹)
+                    rel = file.relative_to(sub)
+                    if not file.is_file() or any(part.startswith(".") for part in rel.parts):
                         continue
                     size = file.stat().st_size
                     total += size
