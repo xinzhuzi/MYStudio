@@ -95,16 +95,6 @@ image-probe-size
 mcp-server-disconnect
 mcp-server-test
 move-image
-music3-gen-install-mlxserve
-music3-gen-install-weights
-music3-gen-music-dir
-music3-gen-read-audio-file
-music3-gen-runtime-configure
-music3-gen-runtime-download-model
-music3-gen-runtime-generate
-music3-gen-runtime-scan-model
-music3-gen-runtime-setup
-music3-gen-runtime-status
 open-media-category
 project-file-delete
 project-file-get-absolute-path

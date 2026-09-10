@@ -4,7 +4,7 @@
 九包 model_cache.py 曾各自复制粘贴;本模块收敛两族缓存形态的公共骨架,
 各包保留薄封装与对外签名,行为(env 表/候选目录顺序/完备性谓词)逐包不变。
 
-族一:HF blob/snapshot 缓存(tts/depth_estimation/audio_gen/music3_gen/sfx_gen)
+族一:HF blob/snapshot 缓存(tts/depth_estimation/audio_gen/sfx_gen)
   主目录 env 链 → HF_HOME/hub → huggingface_hub 常量 → ~/.cache/huggingface/hub;
   repo 目录名 models--<org>--<name>;快照完备性=无 .incomplete+有权重扩展名。
 

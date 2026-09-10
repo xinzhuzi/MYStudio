@@ -31,7 +31,6 @@ describe("main process startup", () => {
   it("routes generation runtimes to their model families instead of TTS cache", () => {
     expect(mainSource).toContain("modelCacheDir: () => audioModelCacheDir(getStorageBasePath())");
     expect(mainSource).toContain("modelCacheDir: () => sfxModelCacheDir(getStorageBasePath())");
-    expect(mainSource).toContain("modelCacheDir: () => music3ModelCacheDir(getStorageBasePath())");
     expect(mainSource).not.toContain("modelCacheDir: () => ttsRuntimeController.getModelCacheDir()");
   });
 

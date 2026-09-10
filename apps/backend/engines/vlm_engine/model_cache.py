@@ -1,6 +1,6 @@
 """VLM model cache — discovery, hardware profiling, availability gating.
 
-Mirrors music3_gen/model_cache.py conventions (08-19 model dir ruling:
+模型目录布局约定(08-19 model dir ruling;原 music3_gen 已退役):
 <storageBase>/model/<family>/). VLM family lives at <storageBase>/model/vlm/.
 """
 from __future__ import annotations

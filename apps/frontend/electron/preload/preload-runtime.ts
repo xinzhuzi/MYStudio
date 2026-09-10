@@ -628,27 +628,6 @@ contextBridge.exposeInMainWorld('sfxGenRuntime', {
     ipcRenderer.invoke('sfx-gen-runtime-generate', payload),
 })
 
-// MiniMax-Music3 runtime API (08-19-minimax-music3-engine) — whole-song BGM,
-// native seed determinism, explicit ~28.5 GB bf16 download only; HTTP port 11273.
-contextBridge.exposeInMainWorld('music3GenRuntime', {
-  status: (): Promise<unknown> => ipcRenderer.invoke('music3-gen-runtime-status'),
-  setup: (): Promise<unknown> => ipcRenderer.invoke('music3-gen-runtime-setup'),
-  scanModel: (): Promise<{ models: unknown[] }> => ipcRenderer.invoke('music3-gen-runtime-scan-model'),
-  downloadModel: (model: string): Promise<{ accepted: boolean; message: string }> =>
-    ipcRenderer.invoke('music3-gen-runtime-download-model', { model }),
-  configure: (payload: { weightsDir?: string; binaryPath?: string; port?: number; preferredEngine?: 'pocket' | 'mlxserv' }): Promise<unknown> =>
-    ipcRenderer.invoke('music3-gen-runtime-configure', payload),
-  installMlxServeBinary: (): Promise<{ installed: boolean; path?: string; error?: string }> =>
-    ipcRenderer.invoke('music3-gen-install-mlxserve'),
-  installWeights: (): Promise<{ accepted: boolean; message: string }> =>
-    ipcRenderer.invoke('music3-gen-install-weights'),
-  musicDir: (projectId: string, songName?: string): Promise<{ dir?: string; error?: string }> =>
-    ipcRenderer.invoke('music3-gen-music-dir', { projectId, ...(typeof songName === "string" && songName.trim() ? { songName } : {}) }),
-  generate: (payload: { prompt: string; lyrics?: string; seed?: number; seconds?: number; steps?: number; engine?: 'pocket' | 'mlxserv'; outputDir: string; projectId?: string; songName?: string }): Promise<unknown> =>
-    ipcRenderer.invoke('music3-gen-runtime-generate', payload),
-  readAudioFile: (filePath: string): Promise<{ bytes?: Uint8Array; size?: number; error?: string }> =>
-    ipcRenderer.invoke('music3-gen-read-audio-file', { path: filePath }),
-})
 
 // Artifact Inventory API - read-only project/chapter scan
 contextBridge.exposeInMainWorld('artifactInventory', {

@@ -19,7 +19,3 @@ export function sfxModelCacheDir(storageBasePath: string): string {
   return path.join(storageBasePath, "model", "sfx");
 }
 
-/** MiniMax-Music3 weights/configuration use the minimax family root. */
-export function music3ModelCacheDir(storageBasePath: string): string {
-  return path.join(storageBasePath, "model", "minimax");
-}

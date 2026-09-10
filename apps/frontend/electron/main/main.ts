@@ -75,9 +75,7 @@ import {createAudioGenRuntimeController} from '@rendering/plugins/audio_gen/audi
 import {registerAudioGenIpcHandlers} from '../ipc/studio/audio-gen-ipc'
 import {createSfxGenRuntimeController} from '@rendering/plugins/sfx_gen/sfx-gen-runtime-controller'
 import {registerSfxGenIpcHandlers} from '../ipc/studio/sfx-gen-ipc'
-import {createMusic3GenRuntimeController} from '@rendering/plugins/music3_gen/music3-gen-runtime-controller'
-import {registerMusic3GenIpcHandlers} from '../ipc/studio/music3-gen-ipc'
-import {audioModelCacheDir, music3ModelCacheDir, sfxModelCacheDir, ttsModelCacheDir} from '../storage/model-dirs'
+import {audioModelCacheDir, sfxModelCacheDir, ttsModelCacheDir} from '../storage/model-dirs'
 import {createVideoWorkflowRuntimeManager} from '@rendering/plugins/video-workflow/video-workflow-runtime-manager'
 import {selectSharedVideoToolchain} from '@rendering/plugins/video-workflow/video-workflow-runtime'
 import {readStudioWorkflowStore} from '../storage/studio-workflow-store-io'
@@ -244,7 +242,7 @@ const videoWorkflowBackendRoot = app.isPackaged
 const videoUseAdapter = createVideoUseAdapter({
   storageBasePath: getStorageBasePath,
   // video-use 权重住 TTS 家族缓存,但须经 model-dirs 单一拼装源(启动契约:生成类
-  // 运行时不得挂 ttsRuntimeController 实例;08-28 补完 audio/sfx/music3 同款收口)
+  // 运行时不得挂 ttsRuntimeController 实例;08-28 补完 audio/sfx 同款收口;music3 已随 09-09-music3-to-comfyui 退役)
   modelCacheDir: () => ttsModelCacheDir(getStorageBasePath()),
   backendRoot: videoWorkflowBackendRoot,
   workspaceRootForProject: videoWorkflowWorkspaceRootForProject,
@@ -476,21 +474,6 @@ const sfxGenIpc = registerSfxGenIpcHandlers({
   getExportDir: () => path.join(app.getPath('userData'), 'exports'),
 })
 
-// MiniMax-Music3 (MLX) whole-song BGM engine (08-19-minimax-music3-engine) —
-// self-contained bf16 weight pack, native --seed; explicit download (~28.5 GB).
-const music3GenRuntimeController = createMusic3GenRuntimeController({
-  storageBasePath: getStorageBasePath,
-  backendRoot: videoWorkflowBackendRoot,
-  modelCacheDir: () => music3ModelCacheDir(getStorageBasePath()),
-})
-const music3GenIpc = registerMusic3GenIpcHandlers({
-  controller: music3GenRuntimeController,
-  getExportDir: () => path.join(app.getPath('userData'), 'exports'),
-  // 项目音乐目录 = <项目根>/music/;项目根经位置注册表动态解析(08-19 工作台音乐生成)
-  getProjectMusicDir: (projectId: string) => path.join(projectRootFor(projectId), 'music'),
-  // AI 参照曲解析读音频:受管根/对话框祝福路径守卫(managed-paths H-2/H-3)
-  isSourcePathAllowed: isStudioSourcePathAllowed,
-})
 
 const remotionShotRenderer = new RemotionShotRenderer({
   workspaceRoot: getDataDir(),
@@ -615,7 +598,6 @@ setDisposeRemotionRuntime(async () => {
   chapterQcIpc.dispose()
   audioGenIpc.dispose()
   sfxGenIpc.dispose()
-  music3GenIpc.dispose()
   remotionRuntime.dispose()
 })
 
