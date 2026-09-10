@@ -463,7 +463,13 @@ export function ComfyEngineSettingsSection({ embedded = false, initialActiveTab 
                         </span>
                       </span>
                     </CollapsibleTrigger>
-                    <p className="mt-0.5 pl-5 text-[11px] leading-4 text-muted-foreground/80">{modelCategoryInfo(group.category)}</p>
+                    {/* 09-10 用户裁定:类别注释单行展示,超宽截断省略,悬停 title 见全文 */}
+                    <p
+                      className="mt-0.5 pl-5 text-[11px] leading-4 text-muted-foreground/80 truncate"
+                      title={modelCategoryInfo(group.category)}
+                    >
+                      {modelCategoryInfo(group.category)}
+                    </p>
                     {/* 全量平铺把页面拉爆(09-10 用户裁定要可折叠):展开态也走限高滚动窗口,照插件列表 09-09 裁定 */}
                     <CollapsibleContent>
                       <ul
