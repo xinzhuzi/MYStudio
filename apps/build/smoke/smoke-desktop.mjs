@@ -125,9 +125,10 @@ const CORE_ROUTE_CHECKS = [
     requiredText: ["个人资产库", "默认风格"],
   },
   {
-    // 09-10 全屏 ComfyUI 合一:沉浸视图零应用 chrome,画布/悬浮球在即过
+    // 09-10 全屏 ComfyUI 合一:沉浸视图零应用 chrome。断言锚=悬浮球胶囊的阶段
+    // 摘要(任何画布态都在场:确认中/未装/运行中球都先于画布就绪)。
     label: "ComfyUI",
-    requiredText: ["ComfyUI"],
+    requiredText: ["风格与导演"],
     waitMs: 2_500,
   },
   {
@@ -1116,7 +1117,11 @@ async function verifyRoute(evaluate, route) {
         });
       }
     }
-    return new Promise((resolve) => setTimeout(() => {
+    // 09-10 全屏 ComfyUI 合一:沉浸视图无侧栏。先在沉浸态完成文本断言,
+    // 记下结果后再借悬浮球导航区逃逸回概览——否则后续路由/流程全困死在
+    // 沉浸态(无侧栏可点),实弹 19:16 打包两连挂根因。
+    // 两段式:球只点一次(再点=面板合上抖动),循环只等导航项挂出再点。
+    const routeResult = await new Promise((resolve) => setTimeout(() => {
       const bodyText = (document.body?.innerText || '');
       const missingRequiredText = requiredText.filter((text) => !bodyText.includes(text));
       const forbiddenTextFound = forbiddenText.filter((text) => bodyText.includes(text));
@@ -1131,6 +1136,20 @@ async function verifyRoute(evaluate, route) {
         bodyTextSample: bodyText.slice(0, 800),
       });
     }, ${waitMs}));
+    if (routeLabel === 'ComfyUI') {
+      const orb = document.querySelector('[data-workflow-orb]');
+      orb?.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, view: window }));
+      const entryDeadline = Date.now() + 8000;
+      while (Date.now() < entryDeadline) {
+        const entry = document.querySelector('[data-orb-nav-view="overview"]');
+        if (entry) {
+          entry.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, view: window }));
+          break;
+        }
+        await new Promise((resolve) => setTimeout(resolve, 150));
+      }
+    }
+    return routeResult;
   })()`,
     `route check: ${route.label}`,
   );
