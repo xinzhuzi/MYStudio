@@ -41,10 +41,7 @@ import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import {
   COMFY_ENGINE_STAGE_LABELS,
-  applyAttentionMode,
-  applyVramPolicy,
   comfyVersionGithubUrl,
-  deriveLaunchDropdowns,
   launchArgsWarnings,
   summarizeDoctorReport,
   tokenizeArgsString,
@@ -323,7 +320,6 @@ export function ComfyEngineSettingsSection({ embedded = false, initialActiveTab 
       key,
       value,
     }));
-  const dropdowns = deriveLaunchDropdowns(effectiveArgs);
   const argsTokenize = tokenizeArgsString(effectiveArgs);
   const argWarnings = launchArgsWarnings(effectiveArgs);
 
@@ -739,21 +735,11 @@ export function ComfyEngineSettingsSection({ embedded = false, initialActiveTab 
             </div>
           ) : null}
 
-          {/* 启动参数页(09-10 全盘照 ComfyUI Desktop:命令行串唯一真源+下拉快填+环境变量表) */}
+          {/* 启动参数页(09-10 全盘照 ComfyUI Desktop:命令行串唯一真源+环境变量表;
+              09-10 晚用户裁定:端口行与快填下拉系串内容的重复展示,全撤——
+              端口看页顶引擎状态行(运行中 127.0.0.1:port),参数态看串本身) */}
           {activeTab === "launch" ? (
             <div className="space-y-4" data-comfy-advanced>
-              {/* 端口行:只读展示实际端口(未写 --port 时 17xxx 防撞顺延结果) */}
-              <div className="grid gap-3 md:grid-cols-[5rem_minmax(0,1fr)_auto] md:items-center">
-                <span className="text-xs text-muted-foreground">服务端口</span>
-                <Input
-                  readOnly
-                  value={status.port != null ? String(status.port) : "启动后自动分配"}
-                  containerClassName="w-full min-w-0"
-                  className="min-w-0 font-mono text-xs"
-                  data-comfy-port-input
-                />
-              </div>
-
               {/* 命令行整串(Desktop 式;语法错红字拒存,大众端口黄字/0.0.0.0 红字放行警告) */}
               <div className="space-y-1.5">
                 <span className="text-xs text-muted-foreground">启动参数</span>
@@ -782,55 +768,7 @@ export function ComfyEngineSettingsSection({ embedded = false, initialActiveTab 
                 </p>
               </div>
 
-              {/* 快填下拉:写串(与上方输入框双向同步);端口冲突策略=托管旋钮不写串 */}
-              <div className="flex items-center justify-between gap-3">
-                <span className="text-xs text-muted-foreground">显存策略(快填)</span>
-                <select
-                  aria-label="显存策略"
-                  value={dropdowns.vram}
-                  disabled={!argsTokenize.ok}
-                  onChange={(event) =>
-                    setArgsDraft(applyVramPolicy(effectiveArgs, event.target.value as "auto" | "gpu-only" | "reserve-vram", dropdowns.reserveGb))
-                  }
-                  className="h-8 rounded-md border border-border bg-card px-2 text-xs text-foreground"
-                  data-comfy-vram-select
-                >
-                  <option value="auto">自动(不加参数)</option>
-                  <option value="gpu-only">全力使用显存</option>
-                  <option value="reserve-vram">预留部分显存</option>
-                </select>
-              </div>
-              {dropdowns.vram === "reserve-vram" ? (
-                <div className="flex items-center justify-between gap-3">
-                  <span className="text-xs text-muted-foreground">预留显存(GB)</span>
-                  <Input
-                    value={String(dropdowns.reserveGb)}
-                    onChange={(event) => {
-                      const gb = Number(event.target.value);
-                      setArgsDraft(applyVramPolicy(effectiveArgs, "reserve-vram", Number.isFinite(gb) && gb > 0 ? gb : 16));
-                    }}
-                    containerClassName="w-28"
-                    className="h-8 min-w-0 font-mono text-xs"
-                    data-comfy-reserve-input
-                  />
-                </div>
-              ) : null}
-              <div className="flex items-center justify-between gap-3">
-                <span className="text-xs text-muted-foreground">加速方式(快填)</span>
-                <select
-                  aria-label="加速方式"
-                  value={dropdowns.attention}
-                  disabled={!argsTokenize.ok}
-                  onChange={(event) =>
-                    setArgsDraft(applyAttentionMode(effectiveArgs, event.target.value as "auto" | "pytorch-cross-attention"))
-                  }
-                  className="h-8 rounded-md border border-border bg-card px-2 text-xs text-foreground"
-                  data-comfy-attention-select
-                >
-                  <option value="auto">自动(不加参数)</option>
-                  <option value="pytorch-cross-attention">PyTorch 加速</option>
-                </select>
-              </div>
+              {/* 端口冲突策略=托管旋钮,不在串中,零重复故保留 */}
               <div className="flex items-center justify-between gap-3">
                 <span className="text-xs text-muted-foreground">端口被占时</span>
                 <select

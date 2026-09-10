@@ -178,13 +178,13 @@ describe("ComfyEngineSettingsSection 状态机", () => {
     expect(screen.queryByText(/当前版本/)).toBeNull();
   });
 
-  it("已就绪但服务未跑:副标「准备运行时」+ 启动服务按钮,端口只读展示(启动参数页)", () => {
+  it("已就绪但服务未跑:副标「准备运行时」+ 启动服务按钮(端口镜像行已退役,看页顶状态行)", () => {
     scenario.status = readyStatus({ serviceRunning: false });
     render(<ComfyEngineSettingsSection embedded />);
 
     expect(screen.getByText("服务未启动")).toBeTruthy();
     fireEvent.click(comfyEl("tab", "launch"));
-    expect(screen.getByDisplayValue("17599")).toBeTruthy();
+    expect(document.querySelector("[data-comfy-port-input]")).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: /启动服务/ }));
     expect(actions.startService).toHaveBeenCalledOnce();
   });
@@ -527,23 +527,20 @@ describe("ComfyEngineSettingsSection 标签页布局(照 ComfyUI Desktop)", () =
     await waitFor(() => expect(comfyEl("torch")?.textContent).toContain("2.13.0"));
   });
 
-  it("启动参数页(Desktop 式):串输入+快填下拉+环境变量表;下拉改串防抖即存", async () => {
+  it("启动参数页(Desktop 式):串唯一真源;端口行与快填镜像行已退役(09-10 不要重复展示)", async () => {
     render(<ComfyEngineSettingsSection />);
     fireEvent.click(comfyEl("tab", "update"));
     await waitFor(() => expect(screen.getByText("当前版本")).toBeTruthy());
     fireEvent.click(comfyEl("tab", "launch"));
-    expect(comfyEl("port-input")).toBeTruthy();
     const argsInput = comfyEl("args-input") as HTMLInputElement;
     expect(argsInput.value).toBe("--gpu-only --reserve-vram 16 --use-pytorch-cross-attention");
-    expect((comfyEl("vram-select") as HTMLSelectElement).value).toBe("gpu-only");
-    expect((comfyEl("attention-select") as HTMLSelectElement).value).toBe("pytorch-cross-attention");
-    // 快填下拉:加速方式切「自动」→ 串中摘除 --use-pytorch-cross-attention → 防抖保存
-    fireEvent.change(comfyEl("attention-select"), { target: { value: "auto" } });
-    expect(argsInput.value).toBe("--gpu-only --reserve-vram 16");
-    await waitFor(
-      () => expect(actions.setLaunchConfig).toHaveBeenCalledWith({ argsString: "--gpu-only --reserve-vram 16" }),
-      { timeout: 2000 },
-    );
+    // 端口与参数态的镜像展示全撤:端口看页顶引擎状态行,参数态看串本身
+    expect(document.querySelector("[data-comfy-port-input]")).toBeNull();
+    expect(document.querySelector("[data-comfy-vram-select]")).toBeNull();
+    expect(document.querySelector("[data-comfy-attention-select]")).toBeNull();
+    expect(document.querySelector("[data-comfy-reserve-input]")).toBeNull();
+    // 托管旋钮不在串中,零重复故保留
+    expect(comfyEl("port-policy-select")).toBeTruthy();
   });
 
   it("启动参数页:语法错红字拒存;大众端口黄字/0.0.0.0 红字放行警告", async () => {

@@ -216,14 +216,8 @@ describe("comfyVersionGithubUrl(09-09 版本地址跳转)", () => {
   });
 });
 
-// ── 启动参数串纯函数(09-10 Desktop 化)────────────────────────────
-import {
-  applyAttentionMode,
-  applyVramPolicy,
-  deriveLaunchDropdowns,
-  launchArgsWarnings,
-  tokenizeArgsString,
-} from "./comfy-engine-contract";
+// ── 启动参数串纯函数(09-10 Desktop 化;同日晚快填下拉随重复展示一并退役)──
+import { launchArgsWarnings, tokenizeArgsString } from "./comfy-engine-contract";
 
 describe("launch args string helpers", () => {
   it("tokenize:引号段成词;不成对/反斜杠/空引号段报错(与后端三类硬拒镜像)", () => {
@@ -235,15 +229,6 @@ describe("launch args string helpers", () => {
     expect(tokenizeArgsString('--listen ""').ok).toBe(false);
   });
 
-  it("derive 认 = 等价形;reserve 档 apply→derive 回环一致(深审 C3/INFO2)", () => {
-    expect(deriveLaunchDropdowns("--reserve-vram=8 --use-pytorch-cross-attention"))
-      .toEqual({ vram: "reserve-vram", reserveGb: 8, attention: "pytorch-cross-attention" });
-    const applied = applyVramPolicy("--gpu-only --reserve-vram 16 --use-pytorch-cross-attention", "reserve-vram", 8);
-    expect(applied).toBe("--use-pytorch-cross-attention --reserve-vram 8");  // legacy 语义:预留档不加 --gpu-only
-    expect(deriveLaunchDropdowns(applied).vram).toBe("reserve-vram");        // 回环:选完不再弹回
-    expect(deriveLaunchDropdowns(applyVramPolicy(applied, "gpu-only", 8)).vram).toBe("gpu-only");
-  });
-
   it("warnings:大众端口黄字;0.0.0.0 红字;正常串零警告", () => {
     const w = launchArgsWarnings("--port 8188 --listen 0.0.0.0");
     expect(w).toHaveLength(2);
@@ -252,35 +237,9 @@ describe("launch args string helpers", () => {
     expect(launchArgsWarnings("--gpu-only")).toEqual([]);
   });
 
-  it("dropdown 反解与快填回写往返一致", () => {
-    const base = "--gpu-only --reserve-vram 16 --use-pytorch-cross-attention";
-    expect(deriveLaunchDropdowns(base)).toEqual({ vram: "gpu-only", reserveGb: 16, attention: "pytorch-cross-attention" });  // 组合串显示「全力」(旧语义)
-    expect(deriveLaunchDropdowns("--reserve-vram 8").vram).toBe("reserve-vram");  // 纯预留才显示「预留」
-    // 摘加速 → 反解 auto;再加回 → 与原串一致
-    const noAttn = applyAttentionMode(base, "auto");
-    expect(deriveLaunchDropdowns(noAttn).attention).toBe("auto");
-    expect(applyAttentionMode(noAttn, "pytorch-cross-attention")).toBe(base);
-  });
-
-  it("09-10 用户指定全参数默认串:基线 flag 透传+零警告+快填回环不丢", () => {
+  it("09-10 用户指定全参数默认串:基线 flag 透传+零警告", () => {
     const full = "--port 17598 --enable-manager --use-pytorch-cross-attention --gpu-only --reserve-vram 16";
     expect(tokenizeArgsString(full).ok).toBe(true);
     expect(launchArgsWarnings(full)).toEqual([]);  // 17598=保留口段,不触大众端口黄字
-    expect(deriveLaunchDropdowns(full)).toEqual({ vram: "gpu-only", reserveGb: 16, attention: "pytorch-cross-attention" });
-    const roundTrip = applyAttentionMode(applyVramPolicy(full, "reserve-vram", 12), "pytorch-cross-attention");
-    expect(roundTrip).toContain("--port 17598");      // 口与管理器是串主人的基线,快填不许动
-    expect(roundTrip).toContain("--enable-manager");
-    expect(roundTrip).toContain("--reserve-vram 12"); // 快填改的只有自己那档(C3:预留档不带 --gpu-only)
-    expect(roundTrip).not.toContain("--gpu-only");
-  });
-
-  it("快填不动串中无关 flag 及其取值(含 --port 的值)", () => {
-    const base = "--port 17500 --fast --reserve-vram 8";
-    const out = applyVramPolicy(base, "gpu-only", 16);
-    expect(out).toContain("--port 17500");
-    expect(out).toContain("--fast");
-    expect(out).toContain("--gpu-only");
-    expect(out).not.toContain("--reserve-vram");
-    expect(applyVramPolicy(base, "auto", 16)).toBe("--port 17500 --fast");
   });
 });
