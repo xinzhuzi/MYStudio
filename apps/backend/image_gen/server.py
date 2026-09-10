@@ -311,10 +311,14 @@ class Handler(BaseHTTPRequestHandler):
             self._send_error_json(HTTPStatus.BAD_REQUEST, "input_image 必须是 base64/data URL", "invalid_input")
             return
         try:
-            from . import model_cache
+            from .pipeline import _CANCEL_EVENT
+            from engines.image_engine import model_cache
             from engines.image_engine import krea2
             from .uncloth_pipeline import run_uncloth_pipeline
 
+            # 取消位是一次性的(服务端真取消 09-02):每个新请求入口复位,
+            # 防止上一次在途生成的取消毒化本请求(引擎步进回调懒读即抛)。
+            _CANCEL_EVENT.clear()
             small_repo = getattr(krea2, "SMALL_REPO", getattr(krea2, "IMAGE_REPO", None))
             b64 = run_uncloth_pipeline(
                 prompt,
@@ -327,6 +331,11 @@ class Handler(BaseHTTPRequestHandler):
             )
             self._send_json({"created": int(time.time()), "data": [{"b64_json": b64}]})
         except Exception as exc:
+            from .pipeline import is_generation_cancelled
+
+            if is_generation_cancelled():
+                self._send_error_json(HTTPStatus.OK, "已停止", "generation-cancelled")
+                return
             self._send_error_json(
                 HTTPStatus.INTERNAL_SERVER_ERROR,
                 f"无衣物管线失败: {exc}",
