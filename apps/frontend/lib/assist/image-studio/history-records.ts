@@ -1,7 +1,6 @@
 // Copyright (c) 2025 hotflow2024
 // Licensed under AGPL-3.0-or-later. See LICENSE for details.
 
-import type { HistoryEntry } from "@/stores/assist/freedom-store";
 import { buildProjectFileUrl, parseProjectFileUrl } from "@/lib/upscale/project-file-url";
 
 /**
@@ -9,6 +8,20 @@ import { buildProjectFileUrl, parseProjectFileUrl } from "@/lib/upscale/project-
  * 合并、宽容解析。写入侧为现行生成链(run-node-generation / run-uncloth /
  * comfy-execute);旧记录缺键=降级复原(仅提示词+成图)。
  */
+
+/** localStorage 生成史条目。09-10 起旧图片工作室退役,freedom-store 的
+ * HistoryEntry 随之消亡;字段口径原样迁到本消费方自持(读取兼容旧数据)。 */
+export interface HistoryEntry {
+  id: string;
+  prompt: string;
+  model: string;
+  resultUrl: string;
+  thumbnailUrl?: string;
+  params: Record<string, unknown>;
+  createdAt: number;
+  mediaId?: string;
+  type: 'image' | 'video';
+}
 
 /** 复原所需输入快照;全部可选=旧记录零键可用 */
 export interface GenerationRecordParams {

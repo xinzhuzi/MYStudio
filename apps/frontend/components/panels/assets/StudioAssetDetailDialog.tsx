@@ -99,8 +99,6 @@ export function StudioAssetDetailDialog({
 }) {
   const setActiveTab = useMediaPanelStore((state) => state.setActiveTab);
   const setActiveStudio = useFreedomStore((state) => state.setActiveStudio);
-  const setImagePrompt = useFreedomStore((state) => state.setImagePrompt);
-  const setImageResult = useFreedomStore((state) => state.setImageResult);
 
   const [draftName, setDraftName] = useState("");
   const [draftDescription, setDraftDescription] = useState("");
@@ -213,8 +211,6 @@ export function StudioAssetDetailDialog({
     setGeneratePhase,
     setGenerateMessage,
     setRecognizedText,
-    setImagePrompt,
-    setImageResult,
     setActiveStudio,
     setActiveTab,
     resolveAssetGenerationReferenceImage,

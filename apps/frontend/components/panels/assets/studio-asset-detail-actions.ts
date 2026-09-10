@@ -37,8 +37,6 @@ export function useStudioAssetDialogActions(ctx: {
   setGeneratePhase: any;
   setGenerateMessage: any;
   setRecognizedText: any;
-  setImagePrompt: any;
-  setImageResult: any;
   setActiveStudio: any;
   setActiveTab: any;
   resolveAssetGenerationReferenceImage: any;
@@ -66,8 +64,6 @@ export function useStudioAssetDialogActions(ctx: {
     setGeneratePhase,
     setGenerateMessage,
     setRecognizedText,
-    setImagePrompt,
-    setImageResult,
     setActiveStudio,
     setActiveTab,
     resolveAssetGenerationReferenceImage,
@@ -301,26 +297,12 @@ export function useStudioAssetDialogActions(ctx: {
       return;
     }
 
-    // 监听图片生成完成事件，自动保存回素材
-    eventBus.once("image:generated", async (data: { url: string }) => {
-      if (!data.url) return;
-      try {
-        const saved = await saveGeneratedAssetImageToLibrary(asset.id, data.url);
-        if (saved) {
-          eventBus.emit("asset:updated", { id: asset.id, type: asset.type });
-          toast.success("已自动保存回素材");
-        }
-      } catch (e) {
-        console.warn("[Asset] Auto-save after regeneration failed:", e);
-      }
-    });
-
-    setActiveStudio("image");
-    setImagePrompt(currentPrompt);
-    setImageResult(null);
+    // 09-10 全屏 ComfyUI 合一:旧「带入图片工作室」(预填提示词+image:generated
+    // 回存)随图片工作室退役——现跳 ComfyUI 画布,出图与回存走画布/资产库各自链路。
+    setActiveStudio("comfy");
     setActiveTab("freedom");
     onOpenChange(false);
-    toast.success("已带入图片工作室，生成完成后将自动保存回素材");
+    toast.success("已打开 ComfyUI 画布，可用当前描述出图");
   };
 
   const handleOpenSource = async () => {

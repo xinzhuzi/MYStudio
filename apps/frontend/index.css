@@ -529,7 +529,6 @@
   .timecode-mono,
   .shot-id-mono,
   .metadata-mono,
-  .save-status-pill span,
   .dashboard-stage-chip span:nth-child(3),
   .dashboard-lane span,
   .project-chrome-episode {
@@ -1211,6 +1210,16 @@
   -webkit-app-region: drag;
 }
 
+/* 09-10 全屏 ComfyUI 沉浸视图:面包屑(.project-chrome)退役后的唯一窗口
+   拖拽区——顶部 8px 透明细条,高过 webview 但薄到不吞 ComfyUI 工具栏点击。 */
+.freedom-drag-strip {
+  position: fixed;
+  inset: 0 0 auto 0;
+  height: 8px;
+  z-index: 60;
+  -webkit-app-region: drag;
+}
+
 .project-chrome button,
 .project-chrome a,
 .project-chrome input,
@@ -1263,12 +1272,6 @@
   color: hsl(var(--foreground));
   background: hsl(var(--foreground) / 0.09);
   border-color: hsl(var(--foreground) / 0.16);
-}
-
-.save-status-pill {
-  padding: 0;
-  border: 0;
-  background: transparent;
 }
 
 .asset-sidebar-console {

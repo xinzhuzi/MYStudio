@@ -1,1 +1,1 @@
-export { FreedomView } from './FreedomView';
+export { ComfyWorkspace } from './ComfyWorkspace';

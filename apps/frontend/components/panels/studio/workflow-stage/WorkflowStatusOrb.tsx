@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import {
   animate,
   motion,
@@ -71,15 +71,18 @@ export function snapToNearestEdge(
 }
 
 /** 工作流状态悬浮球:收起(进度弧)/hover(胶囊)/点击(就绪面板)三态,
- * 可拖拽+贴边吸附,位置持久化。接替退役的 WorkflowStageStatusBar。 */
+ * 可拖拽+贴边吸附,位置持久化。接替退役的 WorkflowStageStatusBar。
+ * navigation:面板底部追加区(沉浸视图的导航枢纽;studio 视图不传=不变)。 */
 export function WorkflowStatusOrb({
   readiness,
   activeStage,
   onStageChange,
+  navigation,
 }: {
   readiness: WorkflowReadiness;
   activeStage: string;
   onStageChange: (stageId: string) => void;
+  navigation?: ReactNode;
 }) {
   const { position, setPosition } = useOrbPosition();
   const viewport = useViewportSize();
@@ -288,6 +291,7 @@ export function WorkflowStatusOrb({
           activeStage={activeStage}
           onStageChange={onStageChange}
           onClose={() => setPanelOpen(false)}
+          navigation={navigation}
         />
       </PopoverContent>
     </Popover>

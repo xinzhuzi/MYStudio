@@ -14,7 +14,7 @@ import {
   readGenerationParams,
   removeLedgerEntryByFile,
 } from "./history-records";
-import type { HistoryEntry } from "@/stores/assist/freedom-store";
+import type { HistoryEntry } from "./history-records";
 
 function entry(overrides: Partial<HistoryEntry> & { id: string }): HistoryEntry {
   return {

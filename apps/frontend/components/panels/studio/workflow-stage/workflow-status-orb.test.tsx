@@ -130,6 +130,23 @@ describe("WorkflowStatusOrb", () => {
     expect(screen.queryByRole("group", { name: "切换阶段" })).toBeNull();
   });
 
+  it("navigation 追加区:传入才渲染在面板底部视图导航组(09-10 沉浸枢纽)", async () => {
+    // studio 视图不传=不渲染组(上方用例已覆盖默认态);沉浸视图传入导航条目
+    render(
+      <WorkflowStatusOrb
+        readiness={readiness}
+        activeStage="novel"
+        onStageChange={vi.fn()}
+        navigation={<button type="button">返回工作流</button>}
+      />,
+    );
+    const orb = getOrb();
+    fireEvent.pointerDown(orb, { clientX: 20, clientY: 20 });
+    fireEvent.pointerUp(orb, { clientX: 20, clientY: 20 });
+    expect(await screen.findByRole("group", { name: "视图导航" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "返回工作流" })).toBeTruthy();
+  });
+
   it("W1 回归:球内拖拽释放(pointerup+click 双到)不开面板", () => {
     renderOrb();
     const orb = getOrb();

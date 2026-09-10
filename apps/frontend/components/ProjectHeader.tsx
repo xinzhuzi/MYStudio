@@ -4,25 +4,12 @@
 "use client";
 
 /**
- * ProjectHeader - Top bar showing project name and save status
- * Based on CineGen-AI App.tsx auto-save pattern
+ * ProjectHeader - Top bar showing project name and workspace breadcrumb
  */
 
-import { useEffect, useRef, useState } from "react";
 import { useProjectStore } from "@/stores/project/project-store";
-import { useScriptStore } from "@/stores/script/script-store";
 import { useMediaPanelStore, stages, type Stage, type Tab } from "@/stores/navigation/media-panel-store";
-import { Loader2 } from "lucide-react";
-import { cn } from "@/lib/utils";
 import { ChromeControls, SidebarToggleButton } from "@/components/ChromeControls";
-
-export type SaveStatus = "saved" | "saving" | "unsaved";
-
-export const SAVE_STATUS_COPY: Record<SaveStatus, string> = {
-  saved: "已保存",
-  saving: "保存中...",
-  unsaved: "未保存",
-};
 
 const WORKSPACE_LABELS: Partial<Record<Tab, string>> = {
   dashboard: "项目仪表盘",
@@ -31,7 +18,7 @@ const WORKSPACE_LABELS: Partial<Record<Tab, string>> = {
   script: "策划编剧",
   characters: "角色库",
   scenes: "场景库",
-  freedom: "辅助界面",
+  freedom: "ComfyUI 工作台",
   director: "导演工作台",
   sclass: "S级镜头",
   assets: "资产库",
@@ -71,49 +58,6 @@ export function ProjectHeader({
     goBack,
     goForward,
   } = useMediaPanelStore();
-  const scriptStore = useScriptStore();
-  
-  const [saveStatus, setSaveStatus] = useState<SaveStatus>("saved");
-  const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const lastUpdateRef = useRef<number>(0);
-
-  // Get current project data for change detection
-  const projectId = activeProject?.id;
-  const scriptProject = projectId ? scriptStore.projects[projectId] : null;
-  const currentUpdatedAt = scriptProject?.updatedAt || 0;
-
-  // Auto-save effect with 1s debounce
-  useEffect(() => {
-    if (!projectId || currentUpdatedAt === 0) return;
-    
-    // Skip if this is the first mount or no actual change
-    if (lastUpdateRef.current === currentUpdatedAt) return;
-    
-    // Mark as unsaved
-    setSaveStatus("unsaved");
-    
-    // Clear existing timeout
-    if (saveTimeoutRef.current) {
-      clearTimeout(saveTimeoutRef.current);
-    }
-    
-    // Set new timeout for saving
-    saveTimeoutRef.current = setTimeout(() => {
-      setSaveStatus("saving");
-      
-      // Simulate save (Zustand persist handles actual storage)
-      setTimeout(() => {
-        setSaveStatus("saved");
-        lastUpdateRef.current = currentUpdatedAt;
-      }, 300);
-    }, 1000); // 1s debounce
-
-    return () => {
-      if (saveTimeoutRef.current) {
-        clearTimeout(saveTimeoutRef.current);
-      }
-    };
-  }, [projectId, currentUpdatedAt]);
 
   return (
     <div className="project-chrome h-10 pr-4 pl-20 flex items-center justify-between shrink-0">
@@ -150,41 +94,6 @@ export function ProjectHeader({
           {getProjectWorkspaceLabel(activeTab, activeStage)}
         </span>
       </div>
-
-      {/* Right: Save Status */}
-      <div className="flex items-center gap-2.5">
-        <SaveStatusIndicator status={saveStatus} />
-      </div>
-    </div>
-  );
-}
-
-function SaveStatusIndicator({ status }: { status: SaveStatus }) {
-  return (
-    <div
-      className={cn(
-        "save-status-pill flex items-center gap-1.5 text-[11px] text-muted-foreground transition-colors",
-        status === "saving" && "text-warning",
-      )}
-    >
-      {status === "saved" && (
-        <>
-          <span className="h-1.5 w-1.5 rounded-full bg-success/80" />
-          <span>{SAVE_STATUS_COPY.saved}</span>
-        </>
-      )}
-      {status === "saving" && (
-        <>
-          <Loader2 className="h-3 w-3 animate-spin text-warning" />
-          <span>{SAVE_STATUS_COPY.saving}</span>
-        </>
-      )}
-      {status === "unsaved" && (
-        <>
-          <span className="h-1.5 w-1.5 rounded-full bg-muted-foreground/50" />
-          <span>{SAVE_STATUS_COPY.unsaved}</span>
-        </>
-      )}
     </div>
   );
 }

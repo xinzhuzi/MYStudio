@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import type {
   WorkflowReadiness,
   WorkflowStageReadiness,
@@ -15,17 +16,20 @@ import { cn } from "@/lib/utils";
  * (2026-08-23 用户裁定:其他位置不得出现进入分镜面板的途径)。 */
 const WORKFLOW_VIEW_ITEMS = [{ id: "imageWorkflow", label: "图像节点图" }] as const;
 
-/** 悬浮球面板:6 阶段完整就绪清单 + 阶段切换入口(横幅下拉的升级接班)。 */
+/** 悬浮球面板:6 阶段完整就绪清单 + 阶段切换入口(横幅下拉的升级接班)。
+ * navigation:面板底部追加区(沉浸视图把球当导航枢纽时传;studio 不传=不变)。 */
 export function StageReadinessPanel({
   readiness,
   activeStage,
   onStageChange,
   onClose,
+  navigation,
 }: {
   readiness: WorkflowReadiness;
   activeStage: string;
   onStageChange: (stageId: string) => void;
   onClose: () => void;
+  navigation?: ReactNode;
 }) {
   const currentStage =
     readiness.stages.find((stage) => stage.id === readiness.nextStageId) ??
@@ -85,6 +89,15 @@ export function StageReadinessPanel({
           </button>
         ))}
       </div>
+      {navigation ? (
+        <div
+          className="mt-1.5 shrink-0 border-t border-border/60 pt-1.5"
+          role="group"
+          aria-label="视图导航"
+        >
+          {navigation}
+        </div>
+      ) : null}
     </div>
   );
 }

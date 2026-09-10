@@ -42,7 +42,7 @@ export const mainNavItems: NavItem[] = [
   { id: "studio", label: "工作流", icon: WorkflowIcon },
   { id: "skills", label: "技能", icon: BookOpenTextIcon },
   { id: "assets", label: "资产", icon: FolderOpenIcon },
-  { id: "freedom", label: "辅助", icon: PaletteIcon },
+  { id: "freedom", label: "ComfyUI", icon: PaletteIcon },
   { id: "export", label: "导出", icon: FilmIcon },
   { id: "media", label: "产物", icon: BoxesIcon },
   { id: "self-media", label: "自媒体", icon: Share2Icon },

@@ -41,8 +41,8 @@ const CharactersView = lazy(() =>
 const ScenesView = lazy(() =>
   import("@/components/panels/scenes").then((m) => ({ default: m.ScenesView })),
 );
-const FreedomView = lazy(() =>
-  import("@/components/panels/assist").then((m) => ({ default: m.FreedomView })),
+const ComfyWorkspace = lazy(() =>
+  import("@/components/panels/assist").then((m) => ({ default: m.ComfyWorkspace })),
 );
 const MediaView = lazy(() =>
   import("@/components/panels/media").then((m) => ({ default: m.MediaView })),
@@ -146,7 +146,28 @@ export function Layout() {
 
   // Full-screen views (no resizable panels)
   // 这些板块有自己的多栏布局，不需要全局的预览和属性面板
-  const fullScreenTabs = ["export", "settings", "overview", "studio", "script", "characters", "scenes", "freedom", "assets", "skills", "self-media", "media"];
+  const fullScreenTabs = ["export", "settings", "overview", "studio", "script", "characters", "scenes", "assets", "skills", "self-media", "media"];
+
+  // 09-10 全屏 ComfyUI 合一(用户裁定):沉浸视图零应用 chrome——侧栏/面包屑
+  // 都不渲染,悬浮球=唯一导航枢纽;顶部留 8px 透明拖拽条(.project-chrome 退役
+  // 后窗口拖动区由它承接,细条不吞 ComfyUI 工具栏点击)。
+  if (activeTab === "freedom") {
+    return (
+      <>
+        <div className="freedom-drag-strip" data-freedom-drag-strip aria-hidden />
+        <div className="studio-shell h-full bg-background">
+          <div className="studio-main h-full">
+            <Suspense fallback={<PanelFallback />}>
+              <div className="cinematic-route h-full min-h-0">
+                <ComfyWorkspace />
+              </div>
+            </Suspense>
+          </div>
+        </div>
+      </>
+    );
+  }
+
   if (fullScreenTabs.includes(activeTab)) {
     return (
       <>
@@ -174,7 +195,6 @@ export function Layout() {
               {activeTab === "script" && <ScriptView />}
               {activeTab === "characters" && <CharactersView />}
               {activeTab === "scenes" && <ScenesView />}
-              {activeTab === "freedom" && <FreedomView />}
               {activeTab === "self-media" && <SelfMediaPanel />}
               {activeTab === "media" && <ArtifactCenter />}
               {/* 重型面板：懒挂载 + hidden 保活 */}

@@ -125,8 +125,9 @@ const CORE_ROUTE_CHECKS = [
     requiredText: ["个人资产库", "默认风格"],
   },
   {
-    label: "辅助",
-    requiredText: ["图片工作室", "ComfyUI"],
+    // 09-10 全屏 ComfyUI 合一:沉浸视图零应用 chrome,画布/悬浮球在即过
+    label: "ComfyUI",
+    requiredText: ["ComfyUI"],
     waitMs: 2_500,
   },
   {
