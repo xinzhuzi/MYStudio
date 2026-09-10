@@ -931,61 +931,62 @@ export function ComfyEngineSettingsSection({ embedded = false, initialActiveTab 
             </div>
           ) : null}
 
-          {/* 存储页:模型目录 + 存储位置四行(源码/venv/工作流;09-09 聚进本页) */}
+          {/* 存储页(09-10 用户裁定:单一「存储位置」卡,模型目录并入卡内首行,
+              卡内零嵌套盒子) */}
           {activeTab === "storage" ? (
-            <div className="space-y-3">
-          {/* 模型目录行:默认 + 自定义路径(指向现有模型库即免重下)+ 打开 */}
-          <div className="grid gap-3 md:grid-cols-[5rem_minmax(0,1fr)_auto] md:items-center">
-            <span className="text-xs text-muted-foreground">模型目录</span>
-            <Input
-              value={modelsDirDraft}
-              onChange={(event) => setModelsDirDraft(event.target.value)}
-              placeholder={status.defaultModelsDir ?? "默认:应用数据目录/comfyui/models"}
-              containerClassName="w-full min-w-0"
-              className="min-w-0 font-mono text-xs"
-              data-comfy-models-dir-input
+            <ComfyEngineStoragePaths
+              modelsDirRow={
+                <div className="grid items-center gap-2 md:grid-cols-[5rem_minmax(0,1fr)_auto]" data-comfy-path-row="modelsDir">
+                  <span className="text-xs text-muted-foreground" title="指向现有模型库即免重下">
+                    模型目录
+                  </span>
+                  {/* 平文本式可编辑输入(无边框无底色,与相邻只读路径同形态) */}
+                  <Input
+                    value={modelsDirDraft}
+                    onChange={(event) => setModelsDirDraft(event.target.value)}
+                    placeholder={status.defaultModelsDir ?? "默认:应用数据目录/comfyui/models"}
+                    containerClassName="w-full min-w-0"
+                    className="h-7 min-w-0 rounded-none border-0 bg-transparent px-0 font-mono text-xs shadow-none focus-visible:ring-0"
+                    data-comfy-models-dir-input
+                  />
+                  <div className="flex flex-nowrap gap-2 md:justify-end">
+                    <Button
+                      size="sm"
+                      onClick={() => void engine.setModelsDir(modelsDirDraft)}
+                      disabled={engine.isSavingModelsDir}
+                      data-comfy-models-dir-save
+                    >
+                      {engine.isSavingModelsDir ? (
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden />
+                      ) : (
+                        <Check className="mr-2 h-4 w-4" aria-hidden />
+                      )}
+                      保存
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => {
+                        if (status.modelsDir) void copyPath(status.modelsDir);
+                      }}
+                    >
+                      <Copy className="mr-1 h-4 w-4" aria-hidden />
+                      复制
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => {
+                        void window.electronAPI?.openPath(status.modelsDir ?? "");
+                      }}
+                    >
+                      <FolderOpen className="mr-1 h-4 w-4" aria-hidden />
+                      打开
+                    </Button>
+                  </div>
+                </div>
+              }
             />
-            <div className="flex flex-nowrap gap-2 md:justify-end">
-              <Button
-                size="sm"
-                onClick={() => void engine.setModelsDir(modelsDirDraft)}
-                disabled={engine.isSavingModelsDir}
-                data-comfy-models-dir-save
-              >
-                {engine.isSavingModelsDir ? (
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden />
-                ) : (
-                  <Check className="mr-2 h-4 w-4" aria-hidden />
-                )}
-                保存
-              </Button>
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => {
-                  if (status.modelsDir) void copyPath(status.modelsDir);
-                }}
-              >
-                <Copy className="mr-1 h-4 w-4" aria-hidden />
-                复制
-              </Button>
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => {
-                  void window.electronAPI?.openPath(status.modelsDir ?? "");
-                }}
-              >
-                <FolderOpen className="mr-1 h-4 w-4" aria-hidden />
-                打开
-              </Button>
-            </div>
-          </div>
-
-          {/* 存储位置(源码目录/引擎虚拟环境/工作流目录,可改可迁移) */}
-          <ComfyEngineStoragePaths />
-
-            </div>
           ) : null}
             </>
           ) : (

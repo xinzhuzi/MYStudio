@@ -5,13 +5,13 @@
 // - 未安装:直接落账(manifest),安装时落到新位
 // - 已安装:改路径=迁移(引擎/工作流搬移+venv 新位重建),确认后走 job 进度
 // - 引擎运行中:禁改(先停止)
-// 模型目录走既有引擎设置区(modelsDir 纯指针,不在此重复做编辑面)。
+// 模型目录(纯指针,可编辑)由引擎设置区注入为首行——09-10 用户裁定:同卡展示
+// 不区分、卡内不嵌盒子,路径一律平文本(整页只有一个盒子)。
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { FolderOpen, Loader2, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -35,8 +35,6 @@ const ROWS: Array<{ key: PathKey; label: string; hint: string }> = [
   { key: "venvDir", label: "引擎虚拟环境", hint: "ComfyUI 专用依赖环境 venv(与全局「Python 运行环境」无关;迁移时在新位置重建,依赖走缓存)" },
   { key: "workflowsDir", label: "工作流目录", hint: "内置模板与你的工作流库" },
 ];
-
-const MODELS_ROW = { label: "模型目录", hint: "指向现有模型库即免重下(在上方引擎设置里修改)" };
 
 /** 探测期回落显示的默认路径:与后端 comfy_manifest.storage_root 同口径
  * (09-09 用户裁定:comfyui 家与 python 运行时平级,<userData>/comfyui);仅作显示,真值以服务返回为准。 */
@@ -64,7 +62,7 @@ async function fallbackDefaultPaths(): Promise<ComfyEnginePathsStatus | null> {
   }
 }
 
-export function ComfyEngineStoragePaths() {
+export function ComfyEngineStoragePaths({ modelsDirRow }: { modelsDirRow?: ReactNode }) {
   // client 引用必须稳定:getComfyEngineClient() 每次渲染返回新 HTTP client,
   // 会重建 refresh→effect 循环重跑(sidecar 未起时连环 toast,09-09 实弹报障)
   const client = useMemo(() => getComfyEngineClient(), []);
@@ -170,7 +168,7 @@ export function ComfyEngineStoragePaths() {
   return (
     <section
       data-comfy-engine-storage-paths
-      className="mt-4 space-y-3 rounded-lg border border-border bg-background/40 p-3"
+      className="space-y-3 rounded-lg border border-border bg-background/40 p-3"
     >
       <header className="flex items-center justify-between gap-2">
         <div>
@@ -185,6 +183,8 @@ export function ComfyEngineStoragePaths() {
       </header>
 
       <div className="space-y-2" data-comfy-engine-storage-rows>
+        {/* 模型目录行(可编辑)由引擎设置区注入:状态归 useComfyEngineSettings,卡内首行同展 */}
+        {modelsDirRow ?? null}
         {ROWS.map((row) => {
           const value = status?.paths[row.key] ?? "";
           const customized = status?.customized[row.key] === true;
@@ -194,13 +194,14 @@ export function ComfyEngineStoragePaths() {
                 {row.label}
                 {customized ? <span className="ml-1 text-[10px] text-primary/80">(自定义)</span> : null}
               </span>
-              <Input
-                readOnly
-                value={value}
-                containerClassName="w-full min-w-0"
-                className="min-w-0 font-mono text-xs"
+              {/* 平文本路径(09-10 用户裁定:卡内不嵌盒子);超长截断,悬停看全 */}
+              <span
+                className="min-w-0 truncate font-mono text-xs text-foreground"
+                title={value}
                 aria-label={`${row.label}路径`}
-              />
+              >
+                {value}
+              </span>
               <div className="flex flex-nowrap gap-2 md:justify-end">
                 <Button
                   size="sm"
@@ -227,33 +228,6 @@ export function ComfyEngineStoragePaths() {
             </div>
           );
         })}
-
-        {/* 模型目录:纯指针,编辑面在引擎设置区,此处只读展示 */}
-        <div className="grid items-center gap-2 md:grid-cols-[5rem_minmax(0,1fr)_auto]" data-comfy-path-row="modelsDir">
-          <span className="text-xs text-muted-foreground" title={MODELS_ROW.hint}>
-            {MODELS_ROW.label}
-          </span>
-          <Input
-            readOnly
-            value={status?.paths.modelsDir ?? ""}
-            containerClassName="w-full min-w-0"
-            className="min-w-0 font-mono text-xs"
-            aria-label="模型目录路径"
-          />
-          <div className="flex flex-nowrap gap-2 md:justify-end">
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => {
-                const value = status?.paths.modelsDir;
-                if (value) void window.electronAPI?.openPath(value);
-              }}
-              aria-label="打开模型目录"
-            >
-              <FolderOpen className="h-4 w-4" aria-hidden />
-            </Button>
-          </div>
-        </div>
       </div>
 
       {migrateJob ? (

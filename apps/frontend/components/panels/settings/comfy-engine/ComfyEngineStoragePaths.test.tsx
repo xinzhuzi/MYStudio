@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
-// 存储位置配置卡测试(09-09 comfyui-frontend-swap 0a):四行渲染、未装直改、
-// 运行中禁改、已装走迁移 confirm+job。
+// 存储位置配置卡测试(09-09 comfyui-frontend-swap 0a;09-10 卡内去嵌套盒子改平文本):
+// 三行渲染(模型目录行由设置区注入,不在本组件)、未装直改、运行中禁改、已装走迁移 confirm+job。
 
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import type { ReactNode } from "react";
@@ -69,13 +69,14 @@ function readyStatus(overrides: Partial<ComfyEngineStatus> = {}): Partial<ComfyE
 }
 
 describe("ComfyEngineStoragePaths(存储位置配置卡)", () => {
-  it("渲染四行目录(引擎/引擎虚拟环境/模型/工作流)与默认路径", async () => {
+  it("渲染三行目录(引擎/引擎虚拟环境/工作流)平文本无内嵌输入框", async () => {
     installClient(createMockComfyEngineClient());
     render(<ComfyEngineStoragePaths />);
-    await waitFor(() => expect((screen.getByLabelText("源码目录路径") as HTMLInputElement).value).toContain("/ComfyUI"));
-    expect((screen.getByLabelText("引擎虚拟环境路径") as HTMLInputElement).value).toContain("/venv");
-    expect((screen.getByLabelText("工作流目录路径") as HTMLInputElement).value).toContain("/workflows");
-    expect((screen.getByLabelText("模型目录路径") as HTMLInputElement).value).toContain("/models");
+    await waitFor(() => expect(screen.getByLabelText("源码目录路径").textContent).toContain("/ComfyUI"));
+    expect(screen.getByLabelText("引擎虚拟环境路径").textContent).toContain("/venv");
+    expect(screen.getByLabelText("工作流目录路径").textContent).toContain("/workflows");
+    // 09-10 用户裁定回归锁:卡内不嵌盒子——路径是纯文本,不再是 readOnly Input
+    expect(screen.getByLabelText("源码目录路径").tagName).toBe("SPAN");
   });
 
   it("探测失败(sidecar 未起)静默回落:不弹 toast,默认路径直接写上", async () => {
@@ -95,12 +96,11 @@ describe("ComfyEngineStoragePaths(存储位置配置卡)", () => {
     render(<ComfyEngineStoragePaths />);
     // 回落默认路径直显(09-09 裁定:家与 python 平级,<userData>/comfyui)
     await waitFor(() =>
-      expect((screen.getByLabelText("源码目录路径") as HTMLInputElement).value).toContain(
+      expect(screen.getByLabelText("源码目录路径").textContent).toContain(
         "漫影工作室/comfyui/ComfyUI",
       ),
     );
     expect(toasts.error).not.toHaveBeenCalled();
-    expect((screen.getByLabelText("模型目录路径") as HTMLInputElement).value).toContain("/models");
   });
 
   it("未安装态:选目录→校验→直改落账,界面更新并标「自定义」", async () => {
@@ -109,11 +109,11 @@ describe("ComfyEngineStoragePaths(存储位置配置卡)", () => {
     installClient({ ...base, setPaths });
     selectDirectory.mockResolvedValue("/Volumes/Data/ComfyUI");
     render(<ComfyEngineStoragePaths />);
-    await waitFor(() => expect((screen.getByLabelText("源码目录路径") as HTMLInputElement).value).toContain("/ComfyUI"));
+    await waitFor(() => expect(screen.getByLabelText("源码目录路径").textContent).toContain("/ComfyUI"));
     fireEvent.click(changeButton()!);
     await waitFor(() => expect(setPaths).toHaveBeenCalledWith({ engineDir: "/Volumes/Data/ComfyUI" }));
     await waitFor(() =>
-      expect((screen.getByLabelText("源码目录路径") as HTMLInputElement).value).toBe("/Volumes/Data/ComfyUI"));
+      expect(screen.getByLabelText("源码目录路径").textContent).toBe("/Volumes/Data/ComfyUI"));
     expect(screen.getByText("(自定义)")).toBeTruthy();
     expect(toasts.success).toHaveBeenCalled();
   });
@@ -153,7 +153,7 @@ describe("ComfyEngineStoragePaths(存储位置配置卡)", () => {
     await waitFor(() => expect(migratePaths).toHaveBeenCalledWith({ engineDir: "/Volumes/BigDisk/comfyui-src" }), { timeout: 3000 });
     // job 轮询推进(mock getJob 逐步到 succeeded)后路径更新+成功 toast
     await waitFor(
-      () => expect((screen.getByLabelText("源码目录路径") as HTMLInputElement).value).toBe("/Volumes/BigDisk/comfyui-src"),
+      () => expect(screen.getByLabelText("源码目录路径").textContent).toBe("/Volumes/BigDisk/comfyui-src"),
       { timeout: 4000 },
     );
     expect(toasts.success).toHaveBeenCalled();

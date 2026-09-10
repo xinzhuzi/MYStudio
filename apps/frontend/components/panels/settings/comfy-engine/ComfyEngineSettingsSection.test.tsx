@@ -7,6 +7,13 @@
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { ComfyEngineStatus } from "./comfy-engine-contract";
+import { createMockComfyEngineClient } from "./mock-comfy-engine-client";
+
+// 存储位置卡(ComfyEngineStoragePaths)独立解析 window.comfyEngine,
+// hook 被整体 mock 不覆盖它——装上 mock client 让卡随页渲染
+beforeEach(() => {
+  (window as { comfyEngine?: unknown }).comfyEngine = createMockComfyEngineClient();
+});
 
 const scenario = vi.hoisted(() => ({
   status: null as ComfyEngineStatus | null,
@@ -110,6 +117,7 @@ function comfyQuery(name: string): HTMLElement | null {
 
 afterEach(() => {
   cleanup();
+  delete (window as { comfyEngine?: unknown }).comfyEngine;
   scenario.status = null;
   scenario.activeJob = null;
   scenario.updateReport = null;
@@ -605,6 +613,9 @@ describe("ComfyEngineSettingsSection 标签页布局(照 ComfyUI Desktop)", () =
     await waitFor(() => expect(screen.getByText("当前版本")).toBeTruthy());
     fireEvent.click(comfyEl("tab", "storage"));
     expect(comfyEl("models-dir-input")).toBeTruthy();
+    // 09-10 用户裁定回归锁:模型目录行并入「存储位置」卡内首行,页面不再有卡外独立行
+    const rows = document.querySelector("[data-comfy-engine-storage-rows]");
+    expect(rows?.querySelector('[data-comfy-path-row="modelsDir"]')).toBeTruthy();
     fireEvent.change(comfyEl("models-dir-input"), { target: { value: "/Users/x/models" } });
     fireEvent.click(comfyEl("models-dir-save"));
     await waitFor(() => expect(actions.setModelsDir).toHaveBeenCalledWith("/Users/x/models"));
