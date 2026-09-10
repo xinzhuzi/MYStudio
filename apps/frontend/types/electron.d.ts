@@ -62,11 +62,6 @@ import type {
 import type { RemotionQueueNotification } from "@rendering/plugins/remotion/queue/remotion-render-queue";
 import type { RemotionChapterManifestBridge } from "@rendering/plugins/remotion/manifest/remotion-chapter-manifest-ipc";
 import type {
-  DepthRuntimeActionReplyV1,
-  DepthRuntimeLifecycleRequestV1,
-  DepthRuntimeStatusV1,
-} from "@rendering/contracts/depth-workflow";
-import type {
   UpscaleRuntimeActionReplyV1,
   UpscaleRuntimeLifecycleRequestV1,
   UpscaleRuntimeStatusV1,
@@ -632,23 +627,6 @@ declare global {
       scanModelInventory: () => Promise<import("@/types/tts").BackendModelStatus[]>;
       delete: () => Promise<TtsRuntimeCommandResult>;
       resolveReferenceAudioPath: (audioPath: string) => Promise<string | null>;
-    };
-    depthRuntime?: {
-      probe: (request?: DepthRuntimeLifecycleRequestV1) => Promise<DepthRuntimeStatusV1>;
-      prepare: (request?: DepthRuntimeLifecycleRequestV1) => Promise<DepthRuntimeActionReplyV1>;
-      rollback: (request?: DepthRuntimeLifecycleRequestV1) => Promise<DepthRuntimeActionReplyV1>;
-      status: () => Promise<import("@/types/depth").DepthRuntimeStatus>;
-      setup: () => Promise<import("@/types/depth").DepthRuntimeStatus>;
-      refresh: () => Promise<import("@/types/depth").DepthRuntimeStatus>;
-      scanModel: () => Promise<{ models: import("@/types/depth").DepthModelStatusRow[] }>;
-      downloadModel: () => Promise<{ accepted: boolean; message: string }>;
-      downloadProgress: () => Promise<import("@/types/depth").DepthDownloadProgress>;
-      setCinematicPreset: (preset: string) => Promise<{ accepted: boolean; message: string }>;
-      setCinematicMode: (mode: "auto" | "manual") => Promise<{ accepted: boolean; message: string }>;
-      setPresetMap: (map: Record<string, string>) => Promise<{ accepted: boolean; count: number; message: string }>;
-      getConfig: () => Promise<{ modelCacheDir: string }>;
-      setModelCacheDir: (dirPath: string) => Promise<{ success: boolean; error?: string }>;
-      deleteModel: () => Promise<{ success: boolean; error?: string }>;
     };
     videoPipelineLogBundle?: {
       export: (payload: { projectId: string; chapterId: string; revision?: number }) => Promise<{

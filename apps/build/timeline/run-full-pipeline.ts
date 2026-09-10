@@ -35,7 +35,6 @@ import { RemotionChapterManifestService } from "@rendering/plugins/remotion/mani
 import { createVideoUseAdapter } from "@rendering/plugins/video-use/video-use-adapter";
 import { ttsModelCacheDir } from "@/electron/storage/model-dirs";
 import { createHyperFramesAdapter } from "@rendering/plugins/hyperframes/hyperframes-adapter";
-import { createDepthAdapter } from "@rendering/plugins/depth/depth-adapter";
 import { createVideoWorkflowChapterService } from "@rendering/plugins/video-workflow/video-workflow-chapter-service";
 import {
   resolveVideoWorkflowRuntimePaths,
@@ -52,9 +51,7 @@ import type {
   VideoUseBoundaryIntentV1,
 } from "@rendering/contracts/video-workflow";
 import { assembleBoundaryIntents } from "@/lib/studio/video-workflow/boundary-intent-assembly";
-import type { CinematicConfig, CinematicCameraPreset } from "@rendering/plugins/remotion/composition/composition-props";
 import type { SubtitleAuthority, EditingProjectV1, TimelineRenderPlan } from "@/types/editing";
-import { heuristicCinematicPresets } from "@/lib/studio/cinematic-preset-ai";
 import { mergeShotFxEditingEffects } from "@/lib/studio/remotion/shot-fx-decisions";
 import type { RemotionCurrentSlotV1 } from "@/types/remotion-workspace";
 import {
@@ -79,14 +76,6 @@ import {
   hashFileSha256,
   probeRenderedMedia,
 } from "../remotion/render-smoke-evidence";
-import { extractFirstFrame } from "../remotion/extract-frame";
-import {
-  buildFullPipelineCinematicDepthReport,
-  buildFullPipelineDepthEvidence,
-  resolveFullPipelineDepthModelDir,
-  runFullPipelineDepthPreflight,
-  type FullPipelineCinematicDepthEvidenceRecord,
-} from "./full-pipeline-depth-evidence";
 import { buildFullPipelineRunEvidence } from "./full-pipeline-run-evidence";
 
 const remotionVersion = "4.0.499";
@@ -548,29 +537,9 @@ export async function runFullPipeline(): Promise<Record<string, unknown>> {
   }
   console.log("[full-pipeline] adapters instantiated and probed (video-use + HyperFrames + chapter service)");
 
-  // ── 6b. Depth estimation adapter (cinematic 3D mode) ──
-  // When MYSTUDIO_CINEMATIC=1, the full pipeline generates depth maps
-  // for each shot's visual source and injects CinematicConfig onto the
-  // chapter-level visual clips before the final Remotion render.
-  const cinematicEnabled = process.env.MYSTUDIO_CINEMATIC === "1";
-  const cinematicPreset: CinematicCameraPreset =
-    (process.env.MYSTUDIO_CINEMATIC_PRESET as CinematicCameraPreset | undefined) ?? "cinematic-dolly-in";
-  if (cinematicEnabled) {
-    process.env.MYSTUDIO_DEPTH_MODEL_DIR = resolveFullPipelineDepthModelDir({
-      storageBasePath,
-      explicitModelDir: process.env.MYSTUDIO_DEPTH_MODEL_DIR,
-    });
-  }
-  const depthAdapter = cinematicEnabled
-    ? createDepthAdapter({
-        storageBasePath,
-        backendRoot,
-        modelCacheDir: () => process.env.MYSTUDIO_DEPTH_MODEL_DIR ?? "",
-      })
-    : null;
-  if (cinematicEnabled) {
-    console.log(`[full-pipeline] cinematic 3D ENABLED (preset: ${cinematicPreset})`);
-  }
+  // ── 6b. Cinematic 3D 已退役(09-10 用户裁定:depth 域随 MiniMax 视频/音频路线淘汰) ──
+  // MYSTUDIO_CINEMATIC 不再生效;cinematicEnabled 恒 false 以最小化下游改动。
+  const cinematicEnabled = false as const;
 
   // ── 7. Load shot slots + build shot inputs ──
   // Historical automation reports are evidence only. Re-read the production
@@ -606,29 +575,6 @@ export async function runFullPipeline(): Promise<Record<string, unknown>> {
   const shotInputs = await buildShotInputs(projectDir, projectId, chapterId, shotSlots, r2RunPath);
   console.log("[full-pipeline] shot inputs built:", shotInputs.length, "shots");
 
-  // Real inference must succeed before video-use, review, EditingProject, or
-  // HyperFrames can create a project-scoped revision. The timestamped run root
-  // retains the frame, depth PNG, worker artifact, and byte-bound receipt.
-  const firstShotInput = shotInputs[0];
-  const depthPreflight = cinematicEnabled && depthAdapter && firstShotInput
-    ? await runFullPipelineDepthPreflight({
-        projectId,
-        shotId: firstShotInput.shotId,
-        shotVideoPath: firstShotInput.videoPath,
-        preset: cinematicPreset,
-        preflightRoot: path.join(outputDir, "depth-preflight"),
-        extractFrame: async (inputVideoPath, outputImagePath) =>
-          extractFirstFrame(toolchain.ffmpegExecutable, inputVideoPath, outputImagePath),
-        estimateDepth: depthAdapter.estimateDepth,
-        hashFile: hashFileSha256,
-      })
-    : null;
-  if (cinematicEnabled && !depthPreflight) {
-    throw new Error("depth-preflight-input-missing: first current shot slot unavailable");
-  }
-  if (depthPreflight) {
-    console.log("[full-pipeline] Depth preflight ACCEPTED:", depthPreflight.reportPath);
-  }
 
   // ── 8. Determine next revision dynamically ──
   // Check what's already on disk: editing.json + video-use workspace
@@ -1127,106 +1073,6 @@ export async function runFullPipeline(): Promise<Record<string, unknown>> {
         });
       }
 
-      // ── 18a. Cinematic depth estimation for chapter-level visual clips ──
-      // When cinematic is enabled, estimate depth for each shot's visual source,
-      // register the depth PNG on the media bridge, and build CinematicConfig
-      // to inject onto the visual clips. This is the chapter-render path; the
-      // per-shot render path (RemotionShotRenderer) handles depth independently.
-      let cinematicByClipId: Map<string, CinematicConfig> | undefined;
-      // cinematic 分支的 TextureLoader 只能解码静帧图——视觉源必须从镜头 MP4 换成
-      // 深度估计用的首帧 PNG（视频音轨由 CinematicVisualClip 内的 OffthreadVideo 补挂）。
-      const cinematicFrameUrlByClipId = new Map<string, string>();
-      const cinematicEvidence: FullPipelineCinematicDepthEvidenceRecord[] = [];
-      if (cinematicEnabled && depthAdapter) {
-        cinematicByClipId = new Map();
-        // 逐镜运镜选择：确定性关键词启发式（cinematic-preset-ai 的兜底路径，
-        // CLI 无渲染端 aiManager；规则按 prompt 画面 + line 台词匹配镜头语言）
-        const storeForPresets = readStudioWorkflowStoreState(projectDir);
-        const presetInputs = ((storeForPresets?.state.storyboards ?? []) as Array<{ id: string; episodeId: string; prompt?: string; line?: string }>)
-          .filter((storyboard) => storyboard.episodeId === chapterId)
-          .map((storyboard) => ({
-            shotId: storyboard.id,
-            description: String(storyboard.prompt ?? ""),
-            dialogue: String(storyboard.line ?? ""),
-          }));
-        const { presets: heuristicPresets } = heuristicCinematicPresets(presetInputs);
-        // 关键词未命中（兜底 ken-burns-3d）的分镜改走叙事感知轮换：首镜 crane-up 定场、
-        // 尾镜 rise-and-pull 收束、中段 8 预设轮换——避免全章同运镜的单调。
-        const orderedShotIds = presetInputs.map((input) => input.shotId);
-        const fallbackRotation = [
-          "cinematic-dolly-in", "cinematic-drift", "cinematic-slow-push", "cinematic-parallax-lr",
-          "cinematic-crane-up", "cinematic-dolly-out", "cinematic-ken-burns-3d", "cinematic-pedestal-up",
-        ] as const;
-        orderedShotIds.forEach((shotId, idx) => {
-          if (heuristicPresets[shotId] !== "cinematic-ken-burns-3d") return;
-          if (idx === 0) heuristicPresets[shotId] = "cinematic-crane-up";
-          else if (idx === orderedShotIds.length - 1) heuristicPresets[shotId] = "cinematic-rise-and-pull";
-          else heuristicPresets[shotId] = fallbackRotation[idx % fallbackRotation.length];
-        });
-        const presetByShotId = new Map(Object.entries(heuristicPresets));
-        const distribution = new Map<string, number>();
-        for (const value of Object.values(heuristicPresets)) distribution.set(value, (distribution.get(value) ?? 0) + 1);
-        console.log(`[full-pipeline] cinematic presets (heuristic, ${distribution.size} kinds):`,
-          [...distribution.entries()].sort((a, b) => b[1] - a[1]).map(([k, n]) => `${k}×${n}`).join(" "));
-        const visualClipEntries = plan.clips.filter((c) => c.trackKind === "video" || c.trackKind === "image");
-        console.log("[full-pipeline] estimating depth maps for", visualClipEntries.length, "visual clips...");
-        for (const clip of visualClipEntries) {
-          const storyboardId = clip.source.evidence?.storyboardId;
-          const slot = storyboardId ? slotByShotId.get(storyboardId) : undefined;
-          if (!slot || slot.target.kind !== "shot") continue;
-          const shotOutputPath = resolveRemotionCurrentSlotOutputPath(
-            path.join(projectDir, "remotion"), slot,
-          );
-          // Extract the first frame from the shot MP4 as depth estimation input.
-          const framePath = path.join(remotionOutputDir, `depth-frame-${clip.id}.png`);
-          const ffmpegPath = process.env.MYSTUDIO_FFMPEG_PATH ?? "ffmpeg";
-          await extractFirstFrame(ffmpegPath, shotOutputPath, framePath);
-          const depthDir = path.join(remotionOutputDir, "depth", slot.target.shotId);
-          const depthPath = path.join(depthDir, "depth.png");
-          const depthResult = await depthAdapter.estimateDepth({
-            schemaVersion: 1,
-            projectId,
-            shotId: slot.target.shotId,
-            inputImagePath: framePath,
-            outputDepthPath: depthPath,
-            model: "depth-anything-v2-small",
-          });
-          const preset = (presetByShotId.get(slot.target.shotId) ?? cinematicPreset) as CinematicConfig["preset"];
-          const evidence = await buildFullPipelineDepthEvidence({
-            result: depthResult,
-            projectId,
-            shotId: slot.target.shotId,
-            preset,
-            inputImagePath: framePath,
-            expectedDepthPath: depthPath,
-            evidenceRoot: remotionOutputDir,
-            hashFile: hashFileSha256,
-          });
-          const depthAssetId = crypto.randomBytes(32).toString("hex");
-          session.register(depthAssetId, depthPath);
-          const [depthUrlEntry] = mediaBridge.buildUrls(session, [depthAssetId]);
-          const frameAssetId = crypto.randomBytes(32).toString("hex");
-          session.register(frameAssetId, framePath);
-          const [frameUrlEntry] = mediaBridge.buildUrls(session, [frameAssetId]);
-          cinematicFrameUrlByClipId.set(clip.id, frameUrlEntry.url);
-          cinematicByClipId.set(clip.id, {
-            preset,
-            depthMapSrc: depthUrlEntry.url,
-            cameraDistance: 5,
-            cameraHeight: 0,
-            dofFocusDistance: 4,
-            dofAperture: 0.02,
-            motionBlurSamples: 0,
-            parallaxStrength: 1,
-            bloomIntensity: 0,
-            vignetteDarkness: 0.2,
-            chromaticAberration: 0,
-          });
-          cinematicEvidence.push({ shotId: slot.target.shotId, clipId: clip.id, evidence });
-          console.log(`[full-pipeline] depth map ready for clip ${clip.id}`);
-        }
-      }
-
       // 章节级效果资产（08-19 章节色调/字幕音效）：LUT+sfx 注册进会话——
       // grade 效果 fail-closed 需要 lutUrlById；sfx 供字幕驱动派生。
       const effectAssetsDir = path.join(appsRoot, "frontend/assets");
@@ -1309,23 +1155,7 @@ export async function runFullPipeline(): Promise<Record<string, unknown>> {
       if (!projected.success) throw new Error(`composition props 失败: ${projected.issues.map((i) => `${i.path}: ${i.message}`).join("；")}`);
       const props = projected.value;
 
-      // Inject cinematic config onto visual clips when depth maps are available.
-      // This is the chapter-render wiring point for the 3D cinematic path.
-      if (cinematicByClipId && cinematicByClipId.size > 0) {
-        for (const clip of props.visualClips) {
-          const config = cinematicByClipId.get(clip.clipId);
-          if (config) {
-            (clip as { cinematic?: CinematicConfig }).cinematic = config;
-            const frameUrl = cinematicFrameUrlByClipId.get(clip.clipId);
-            if (frameUrl) {
-              // 3D 贴图用静帧；src 保留视频 URL 供 OffthreadVideo 音轨取声
-              (clip as { cinematicImageSrc?: string }).cinematicImageSrc = frameUrl;
-            }
-          }
-        }
-        console.log(`[full-pipeline] cinematic config injected on ${cinematicByClipId.size} visual clips`);
-      }
-
+      // Cinematic 注入已随 depth 退役移除(09-10)。
       // 2D 镜头语言/特效已前置到 15b：plan.effects 正门（build-composition-props
       // 消费），不再渲染时直注合成 props。
 
@@ -1437,11 +1267,6 @@ export async function runFullPipeline(): Promise<Record<string, unknown>> {
         hyperFrames: { artifactPath: applyResult.hyperFramesArtifactPath, status: applyResult.hyperFramesArtifact.status, windowCount: applyResult.hyperFramesArtifact.windows.length },
         gate: { accepted: true, videoUseArtifactSha256: gateResult.videoUseArtifactSha256, hyperFramesOutputPath: gateResult.hyperFramesOutputPath ?? "(noop)" },
         authority: { mode: subtitleAuthority.mode, passed: true, suppressedCueIds: authorityValidation.success ? authorityValidation.suppressedCueIds.size : 0 },
-        cinematicDepth: buildFullPipelineCinematicDepthReport({
-          enabled: cinematicEnabled,
-          evidence: cinematicEvidence,
-        }),
-        depthPreflight: depthPreflight?.report ?? null,
         composition: { visualClips: props.visualClips.length, subtitles: props.subtitles.length, audioClips: props.audioClips.length, overlayClips: props.overlayClips?.length ?? 0 },
         output: { path: outputPath, sizeBytes: outputStat.size, sha256, duration: probe.duration, width: probe.width, height: probe.height, streams: probe.streams },
         evidence: {
