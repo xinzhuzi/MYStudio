@@ -1,8 +1,8 @@
 // @vitest-environment jsdom
-// ComfyWorkspace(09-10 全屏 ComfyUI 合一)测试:模式路由(画布/配音室)+ 悬浮球在位。
-// 重数据面(mock 画布/TTS/就绪弧)之外全部真实:freedom-store、media-panel-store、球本体与面板。
-// 09-10 拆双球过渡态:navigation 融合通道已撤(本视图/前往导航随批次 2 归 LocalModelOrb),
-// 本文件暂只覆盖路由与球在位;导航面板用例随 LocalModelOrb 测试回归。
+// ComfyWorkspace(09-10 全屏 ComfyUI 合一 + 拆双球)测试:模式路由(画布/配音室)+
+// 本地模型球在位+沉浸视图零工作流内容(AC2)。重数据面(mock 画布/TTS)之外全部
+// 真实:freedom-store、media-panel-store、球本体与面板。
+// 导航面板行为详见 LocalModelOrb.test.tsx(本视图/前往两折叠分区)。
 
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -13,33 +13,6 @@ vi.mock("./comfy-canvas/ComfyCanvasStudio", () => ({
 vi.mock("./TtsStudio", () => ({
   TtsStudio: () => <div data-tts-mock>配音室</div>,
 }));
-vi.mock("../studio/workflow-stage/useWorkflowReadiness", () => ({
-  useWorkflowReadiness: () => ({
-    progress: 50,
-    nextStageId: "manuals",
-    nextActionLabel: "选视觉手册",
-    nextAction: { kind: "open-stage", stageId: "manuals", label: "选手册", enabled: true },
-    stages: [
-      {
-        id: "manuals",
-        label: "风格与导演",
-        status: "active",
-        completed: [],
-        missing: ["还没有选手册"],
-        actionLabel: "选择视觉与导演手册",
-      },
-      {
-        id: "script",
-        label: "剧本生产阶段",
-        status: "blocked",
-        completed: [],
-        missing: ["还没有剧本"],
-        actionLabel: "生成剧本",
-      },
-    ],
-  }),
-}));
-vi.mock("sonner", () => ({ toast: vi.fn() }));
 
 import { ComfyWorkspace } from "./ComfyWorkspace";
 import { useFreedomStore } from "@/stores/assist/freedom-store";
@@ -47,40 +20,70 @@ import { useMediaPanelStore } from "@/stores/navigation/media-panel-store";
 
 afterEach(() => {
   cleanup();
+  window.localStorage.clear();
   useFreedomStore.getState().setActiveStudio("comfy");
   useMediaPanelStore.setState({ activeTab: "freedom" });
 });
 
 function openOrbPanel() {
-  const orb = document.querySelector("[data-workflow-orb]") as HTMLElement | null;
+  const orb = document.querySelector("[data-local-model-orb]") as HTMLElement | null;
   if (!orb) return false;
   fireEvent.pointerDown(orb, { clientX: 20, clientY: 20 });
   fireEvent.pointerUp(orb, { clientX: 20, clientY: 20 });
   return true;
 }
 
-describe("ComfyWorkspace(全屏 ComfyUI 合一)", () => {
-  it("缺省=整屏 ComfyUI 画布+悬浮球在位", async () => {
+function expandSection(title: string) {
+  const header = screen.getByRole("button", { name: new RegExp(`^${title}$`) });
+  fireEvent.click(header);
+}
+
+describe("ComfyWorkspace(全屏 ComfyUI 合一·拆双球)", () => {
+  it("缺省=整屏 ComfyUI 画布+本地模型球在位", async () => {
     render(<ComfyWorkspace />);
     expect(document.querySelector("[data-comfy-workspace]")).toBeTruthy();
     expect(document.querySelector("[data-comfy-canvas-mock]")).toBeTruthy();
-    expect(document.querySelector("[data-workflow-orb]")).toBeTruthy();
+    expect(document.querySelector("[data-local-model-orb]")).toBeTruthy();
   });
 
-  it("模式路由:store 切配音室即整屏换 TTS,切回即画布", async () => {
-    render(<ComfyWorkspace />);
-    useFreedomStore.getState().setActiveStudio("tts");
-    expect(await screen.findByText("配音室")).toBeTruthy();
-    expect(document.querySelector("[data-tts-mock]")).toBeTruthy();
-    expect(document.querySelector("[data-comfy-canvas-mock]")).toBeNull();
-    useFreedomStore.getState().setActiveStudio("comfy");
-    expect(await screen.findByText("ComfyUI 画布")).toBeTruthy();
-  });
-
-  it("面板可开(待推进可见),面板内无视图导航内容(拆双球过渡态)", async () => {
+  it("AC2:沉浸视图零工作流内容——无工作流球/进度弧/待推进文案", async () => {
     render(<ComfyWorkspace />);
     expect(openOrbPanel()).toBe(true);
-    expect(await screen.findByText(/待推进：/)).toBeTruthy();
-    expect(screen.queryByRole("group", { name: "视图导航" })).toBeNull();
+    expect(await screen.findByRole("button", { name: /^本视图$/ })).toBeTruthy();
+    expect(document.querySelector("[data-workflow-orb]")).toBeNull();
+    expect(document.querySelector("[data-orb-segment]")).toBeNull();
+    expect(screen.queryByText(/待推进：/)).toBeNull();
+    expect(screen.queryByText(/切换阶段/)).toBeNull();
+  });
+
+  it("球面板:展开「本视图」切配音室即整屏换 TTS(分区默认收起)", async () => {
+    render(<ComfyWorkspace />);
+    expect(openOrbPanel()).toBe(true);
+    // 默认收起:配音室按钮不在 DOM
+    expect(screen.queryByRole("button", { name: /配音室/ })).toBeNull();
+    expandSection("本视图");
+    const ttsButton = await screen.findByRole("button", { name: /配音室/ });
+    fireEvent.click(ttsButton);
+    expect(document.querySelector("[data-tts-mock]")).toBeTruthy();
+    expect(document.querySelector("[data-comfy-canvas-mock]")).toBeNull();
+  });
+
+  it("球面板:展开「前往」跳设置,落 media-panel activeTab", async () => {
+    render(<ComfyWorkspace />);
+    expect(openOrbPanel()).toBe(true);
+    expect(screen.queryByRole("button", { name: /^设置$/ })).toBeNull();
+    expandSection("前往");
+    const settingsButton = await screen.findByRole("button", { name: /^设置$/ });
+    fireEvent.click(settingsButton);
+    expect(useMediaPanelStore.getState().activeTab).toBe("settings");
+  });
+
+  it("面板不含分镜面板入口(唯一入口=节点图「进入」,08-23 裁定)", async () => {
+    render(<ComfyWorkspace />);
+    expect(openOrbPanel()).toBe(true);
+    expandSection("本视图");
+    expandSection("前往");
+    await screen.findByRole("group", { name: "前往" });
+    expect(document.body.textContent ?? "").not.toContain("分镜面板");
   });
 });

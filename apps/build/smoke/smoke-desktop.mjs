@@ -125,10 +125,10 @@ const CORE_ROUTE_CHECKS = [
     requiredText: ["个人资产库", "默认风格"],
   },
   {
-    // 09-10 全屏 ComfyUI 合一:沉浸视图零应用 chrome。断言锚=悬浮球胶囊的阶段
-    // 摘要(任何画布态都在场:确认中/未装/运行中球都先于画布就绪)。
+    // 09-10 拆双球:沉浸视图零应用 chrome,断言锚=本地模型球胶囊的当前模式名
+    // (胶囊恒在 DOM,opacity 藏但 innerText 可读;任何画布态都在场)。
     label: "ComfyUI",
-    requiredText: ["风格与导演"],
+    requiredText: ["ComfyUI 画布"],
     waitMs: 2_500,
   },
   {
@@ -1138,11 +1138,17 @@ async function verifyRoute(evaluate, route) {
     }, ${waitMs}));
     let escapedFromImmersive = true;
     if (routeLabel === 'ComfyUI') {
-      const orb = document.querySelector('[data-workflow-orb]');
+      // 09-10 拆双球:沉浸视图=本地模型球,逃逸三步=点球→展开「前往」分区→点概览。
+      // 分区默认收起(条件渲染),「前往」条目不展开不可见;两段式防抖等待保留。
+      const orb = document.querySelector('[data-local-model-orb]');
       orb?.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, view: window }));
       escapedFromImmersive = false;
       const entryDeadline = Date.now() + 8000;
       while (Date.now() < entryDeadline) {
+        const gotoSection = document.querySelector('[data-orb-section="goto"]');
+        if (gotoSection && gotoSection.getAttribute('data-state') === 'closed') {
+          gotoSection.querySelector('button')?.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, view: window }));
+        }
         const entry = document.querySelector('[data-orb-nav-view="overview"]');
         if (entry) {
           entry.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, view: window }));
