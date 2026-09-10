@@ -389,8 +389,12 @@ describe("ComfyEngineSettingsSection 插件子区块", () => {
     ];
   });
 
-  // 09-09 区块默认收起:用例先展开(卸载弹窗类置顶不受影响)
-  const openPluginBlock = () => fireEvent.click(comfyEl("plugin-toggle"));
+  // 09-09 区块默认收起:用例先展开(卸载弹窗类置顶不受影响);
+  // 09-10 裁定:插件块收进「更新」页——先切页再展开
+  const openPluginBlock = () => {
+    fireEvent.click(comfyEl("tab", "update"));
+    fireEvent.click(comfyEl("plugin-toggle"));
+  };
 
   it("已装行胶囊「已装 42 节点」;可装行「可安装」;license 徽章", () => {
     render(<ComfyEngineSettingsSection embedded />);
@@ -467,8 +471,21 @@ describe("ComfyEngineSettingsSection 插件子区块", () => {
     expect(actions.installPlugin).toHaveBeenCalledWith("git", "https://example.test/comfyui-x");
   });
 
+  it("生态插件只在「更新」页展示,其他页签不渲染(09-10 裁定)", () => {
+    render(<ComfyEngineSettingsSection embedded />);
+
+    // 默认「模型」页 + 启动参数/快照/存储页:插件块不在
+    for (const tab of ["models", "launch", "snapshots", "storage"] as const) {
+      fireEvent.click(comfyEl("tab", tab));
+      expect(screen.queryByText("生态插件")).toBeNull();
+    }
+    fireEvent.click(comfyEl("tab", "update"));
+    expect(screen.getByText("生态插件")).toBeTruthy();
+  });
+
   it("区块默认收起:点标题行展开,再点收起", () => {
     render(<ComfyEngineSettingsSection embedded />);
+    fireEvent.click(comfyEl("tab", "update"));
 
     // 收起态:标题与已装计数在,搜索框/列表不在
     expect(screen.getByText("生态插件")).toBeTruthy();

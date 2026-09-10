@@ -507,6 +507,10 @@ export function ComfyEngineSettingsSection({ embedded = false, initialActiveTab 
                   </span>
                 </div>
               </div>
+
+              {/* 生态插件子区块(09-10 用户裁定:收进「更新」页=引擎版本+插件生态
+                  同页管理;其余标签页不再展示;状态未知时不渲染,避免空目录噪音) */}
+              <ComfyEnginePluginBlock engine={engine} />
             </div>
           ) : null}
 
@@ -725,9 +729,6 @@ export function ComfyEngineSettingsSection({ embedded = false, initialActiveTab 
               正在确认引擎状态,通常几秒内完成;确认后这里会展示版本与更新信息。
             </p>
           )}
-
-          {/* 生态插件子区块(状态未知时不渲染,避免空目录噪音) */}
-          {status ? <ComfyEnginePluginBlock engine={engine} /> : null}
         </>
       ) : null}
 
