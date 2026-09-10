@@ -1,11 +1,8 @@
-import { useEffect, useState } from "react";
-import { ImageIcon, ImageOff, Loader2, PackageOpen, RefreshCw, ZoomIn } from "lucide-react";
+import { ImageIcon, ImageOff, PackageOpen, RefreshCw } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useDirectImageUpscale } from "../use-direct-image-upscale";
-import { UPSCALE_INPUT_MAX_LONG_SIDE } from "@/lib/upscale/client";
 import type { AssetImageWorkflowContext, ImageWorkflowTarget } from "@/types/studio";
 import type { ProductionFlowAssetCard } from "../workflow-node-model";
-import { ResolutionBadge, probeImagePixelSize } from "@/components/ui/image-resolution-badge";
+import { ResolutionBadge } from "@/components/ui/image-resolution-badge";
 import { toPreviewSrc, withThumbVariant } from "@/lib/media/preview-src";
 import { LocalImage } from "@/components/ui/local-image";
 
@@ -22,32 +19,6 @@ export function AssetFlowCard({
   sourceStageLabel?: string;
 }) {
   const status = card.generationState ?? (card.mediaPath ? "已完成" : "未生成");
-  const directUpscale = useDirectImageUpscale();
-  const assetUpscaleTarget = isAssetWorkflowTarget(card.imageWorkflowTarget) && card.imageWorkflowTarget.id
-    ? {
-        assetType: card.imageWorkflowTarget.assetType as "character" | "scene" | "prop",
-        id: card.imageWorkflowTarget.id,
-        parentId: card.imageWorkflowTarget.parentId,
-      }
-    : null;
-  const assetUpscaling = assetUpscaleTarget != null
-    && directUpscale.busyKey === `asset:${assetUpscaleTarget.id}`;
-  const [assetImageLongSide, setAssetImageLongSide] = useState(0);
-  // 已-4K 预判用原图真实尺寸(IPC 文件头探测,带缓存):展示 <img> 是缩略图,
-  // onLoad naturalWidth 只能量到 512,不能再用。
-  useEffect(() => {
-    if (!card.mediaPath) return;
-    let cancelled = false;
-    void probeImagePixelSize(toPreviewSrc(card.mediaPath)).then((size) => {
-      if (cancelled || !size) return;
-      setAssetImageLongSide(Math.max(size.width, size.height));
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [card.mediaPath]);
-  const assetAlreadyUpscaled = (card.mediaPath || "").includes("up4x-")
-    || assetImageLongSide > UPSCALE_INPUT_MAX_LONG_SIDE;
   const canOpenImageWorkflow =
     card.isDerived &&
     Boolean(card.sourceImagePath || card.imageWorkflowId || card.mediaPath) &&
@@ -194,22 +165,6 @@ export function AssetFlowCard({
         >
           <ImageIcon className="h-3.5 w-3.5" />
           进入图片工作流
-        </button>
-      ) : null}
-      {assetUpscaleTarget && card.mediaPath ? (
-        <button
-          type="button"
-          data-asset-upscale-id={assetUpscaleTarget.id}
-          disabled={assetUpscaling || assetAlreadyUpscaled}
-          title={assetAlreadyUpscaled ? `已达 4K(${assetImageLongSide}px 长边)，无需再超分` : "本地 Real-ESRGAN 原生 ×4 放大(1K→4K)"}
-          className="nodrag nopan nowheel mt-1.5 inline-flex h-7 w-full items-center justify-center gap-1.5 rounded-md border border-border bg-muted/30 px-2 text-[10px] font-medium text-foreground hover:border-viz-glow/45 disabled:opacity-60"
-          onClick={(event) => {
-            event.stopPropagation();
-            void directUpscale.upscaleAssetImage(assetUpscaleTarget, card.mediaPath as string);
-          }}
-        >
-          {assetUpscaling ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <ZoomIn className="h-3.5 w-3.5" />}
-          超分 4K
         </button>
       ) : null}
     </div>

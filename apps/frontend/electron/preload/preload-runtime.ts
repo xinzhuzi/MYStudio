@@ -76,19 +76,6 @@ import {
 } from '@rendering/plugins/remotion/renderer/remotion-shot-ipc'
 import type { RemotionShotRenderResult } from '@rendering/plugins/remotion/renderer/remotion-shot-renderer'
 import {
-  UPSCALE_PREPARE_CHANNEL,
-  UPSCALE_PROBE_CHANNEL,
-  UPSCALE_ROLLBACK_CHANNEL,
-  UPSCALE_SCHEMA_VERSION,
-  validateUpscaleRuntimeActionReply,
-  validateUpscaleRuntimeStatus,
-} from '@rendering/contracts/upscale-workflow'
-import type {
-  UpscaleRuntimeActionReplyV1,
-  UpscaleRuntimeLifecycleRequestV1,
-  UpscaleRuntimeStatusV1,
-} from '@rendering/contracts/upscale-workflow'
-import {
   IMAGE_GEN_PREPARE_CHANNEL,
   IMAGE_GEN_PROBE_CHANNEL,
   IMAGE_GEN_ROLLBACK_CHANNEL,
@@ -388,12 +375,6 @@ contextBridge.exposeInMainWorld('ttsRuntime', {
     ipcRenderer.invoke('tts-reference-audio-resolve', audioPath),
 })
 
-function parseUpscaleRuntimeStatus(value: unknown): UpscaleRuntimeStatusV1 {
-  const result = validateUpscaleRuntimeStatus(value)
-  if (!result.success) throw new Error(result.issues.map((issue) => `${issue.path}: ${issue.message}`).join('; '))
-  return result.value
-}
-
 function parseImageGenRuntimeStatus(value: unknown): ImageGenRuntimeStatusV1 {
   const result = validateImageGenRuntimeStatus(value)
   if (!result.success) throw new Error(result.issues.map((issue) => `${issue.path}: ${issue.message}`).join('; '))
@@ -402,12 +383,6 @@ function parseImageGenRuntimeStatus(value: unknown): ImageGenRuntimeStatusV1 {
 
 function parseImageGenRuntimeAction(value: unknown): ImageGenRuntimeActionReplyV1 {
   const result = validateImageGenRuntimeActionReply(value)
-  if (!result.success) throw new Error(result.issues.map((issue) => `${issue.path}: ${issue.message}`).join('; '))
-  return result.value
-}
-
-function parseUpscaleRuntimeAction(value: unknown): UpscaleRuntimeActionReplyV1 {
-  const result = validateUpscaleRuntimeActionReply(value)
   if (!result.success) throw new Error(result.issues.map((issue) => `${issue.path}: ${issue.message}`).join('; '))
   return result.value
 }
@@ -446,40 +421,6 @@ contextBridge.exposeInMainWorld('mcpRuntime', {
   > => ipcRenderer.invoke('mcp-server-test', config),
   disconnect: (serverId: string): Promise<{ ok: boolean }> =>
     ipcRenderer.invoke('mcp-server-disconnect', serverId),
-})
-
-// Local image super-resolution runtime API — pure-torch Real-ESRGAN lifecycle
-// + one-shot run channel. Downloads are explicit and user-triggered; inference
-// never auto-downloads.
-contextBridge.exposeInMainWorld('upscaleRuntime', {
-  probe: (request: UpscaleRuntimeLifecycleRequestV1 = { schemaVersion: UPSCALE_SCHEMA_VERSION }): Promise<UpscaleRuntimeStatusV1> =>
-    ipcRenderer.invoke(UPSCALE_PROBE_CHANNEL, request).then(parseUpscaleRuntimeStatus),
-  prepare: (request: UpscaleRuntimeLifecycleRequestV1 = { schemaVersion: UPSCALE_SCHEMA_VERSION }): Promise<UpscaleRuntimeActionReplyV1> =>
-    ipcRenderer.invoke(UPSCALE_PREPARE_CHANNEL, request).then(parseUpscaleRuntimeAction),
-  rollback: (request: UpscaleRuntimeLifecycleRequestV1 = { schemaVersion: UPSCALE_SCHEMA_VERSION }): Promise<UpscaleRuntimeActionReplyV1> =>
-    ipcRenderer.invoke(UPSCALE_ROLLBACK_CHANNEL, request).then(parseUpscaleRuntimeAction),
-  status: (): Promise<unknown> => ipcRenderer.invoke('upscale-runtime-status'),
-  setup: (): Promise<unknown> => ipcRenderer.invoke('upscale-runtime-setup'),
-  refresh: (): Promise<unknown> => ipcRenderer.invoke('upscale-runtime-refresh'),
-  scanModel: (): Promise<{ models: unknown[] }> => ipcRenderer.invoke('upscale-runtime-scan-model'),
-  downloadModel: (model: string): Promise<{ accepted: boolean; message: string }> =>
-    ipcRenderer.invoke('upscale-runtime-download-model', model),
-  downloadProgress: (): Promise<unknown> => ipcRenderer.invoke('upscale-runtime-download-progress'),
-  setActiveModel: (model: string): Promise<{ success: boolean; error?: string }> =>
-    ipcRenderer.invoke('upscale-runtime-set-active-model', model),
-  run: (payload: {
-    schemaVersion: number
-    projectId: string
-    shotId?: string
-    model: string
-    inputImagePath: string
-    outputImagePath: string
-  }): Promise<unknown> => ipcRenderer.invoke('upscale-run', payload),
-  getConfig: (): Promise<{ modelCacheDir: string }> => ipcRenderer.invoke('upscale-runtime-get-config'),
-  setModelCacheDir: (dirPath: string): Promise<{ success: boolean; error?: string }> =>
-    ipcRenderer.invoke('upscale-runtime-set-model-cache-dir', dirPath),
-  deleteModel: (model: string): Promise<{ success: boolean; error?: string }> =>
-    ipcRenderer.invoke('upscale-runtime-delete-model', model),
 })
 
 // VLM Review runtime API — local visual consistency checking via Qwen3-VL.

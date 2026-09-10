@@ -18,7 +18,6 @@ const mocks = vi.hoisted(() => ({
   prepareCurrentWorkflow: vi.fn(async () => ({ success: true })),
   startTtsRuntime: vi.fn(async () => ({ success: true })),
   imageGenProbe: vi.fn(async () => undefined),
-  upscaleProbe: vi.fn(async () => undefined),
   videoQcRefresh: vi.fn(async () => undefined),
   comfyEngineRefresh: vi.fn(async () => undefined),
 }));
@@ -88,20 +87,6 @@ vi.mock("./useImageGenRuntimeSettings", () => ({
     probeRuntime: mocks.imageGenProbe,
   }),
 }));
-vi.mock("./useUpscaleRuntimeSettings", () => ({
-  useUpscaleRuntimeSettings: () => ({
-    hasRuntime: true,
-    hasLifecycleBridge: true,
-    lifecycleStatus: { state: "ready" as const, modelDownloaded: true },
-    status: null,
-    models: [],
-    isProbing: false,
-    isSettingUp: false,
-    isRollingBack: false,
-    isDownloading: false,
-    probeRuntime: mocks.upscaleProbe,
-  }),
-}));
 vi.mock("./useSfxGenRuntimeSettings", () => ({
   useSfxGenRuntimeSettings: () => ({
     hasRuntime: true,
@@ -147,9 +132,6 @@ vi.mock("./comfy-engine/ComfyEngineSettingsSection", () => ({
     <div data-testid="comfy-engine-section">{String(embedded)}{initialActiveTab ? `:${initialActiveTab}` : ""}</div>
   ),
 }));
-vi.mock("./UpscaleSettingsSection", () => ({
-  UpscaleSettingsSection: ({ embedded }: { embedded?: boolean }) => <div data-testid="upscale-section">{String(embedded)}</div>,
-}));
 vi.mock("./SfxGenSettingsSection", () => ({
   SfxGenSettingsSection: ({ embedded }: { embedded?: boolean }) => <div data-testid="sfx-gen-section">{String(embedded)}</div>,
 }));
@@ -182,7 +164,6 @@ const EXPECTED_ROW_HEADINGS = [
   "本地配置",
   "Python 运行环境",
   "ComfyUI 引擎",
-  "图片超分（1K → 4K）",
   "视觉审核（VLM 一致性检查）",
   "视频评分模型",
   "TTS 运行时与模型",
@@ -202,7 +183,6 @@ describe("PluginSettingsTab", () => {
     expect(screen.getAllByText("已就绪").length).toBeGreaterThan(0);
     expect(screen.getByText("不支持")).toBeTruthy();
     expect(screen.getByTestId("python-section").textContent).toBe("true");
-    expect(screen.getByTestId("upscale-section").textContent).toBe("true");
     expect(screen.getByTestId("sfx-gen-section").textContent).toBe("true");
     expect(await screen.findByTestId("tts-section")).toBeTruthy();
     expect(screen.getByTestId("video-section").textContent).toBe("true");

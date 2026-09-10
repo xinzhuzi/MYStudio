@@ -12,7 +12,6 @@ import {
   ScanEye,
   ServerCog,
   Terminal,
-  ZoomIn,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -25,7 +24,6 @@ import type { VlmReviewProbeResult } from "@/types/contracts/vlm-review-workflow
 import { usePythonRuntimeSettings } from "./usePythonRuntimeSettings";
 import { useVideoWorkflowPlugins } from "./useVideoWorkflowPlugins";
 import { useImageGenRuntimeSettings } from "./useImageGenRuntimeSettings";
-import { useUpscaleRuntimeSettings } from "./useUpscaleRuntimeSettings";
 import { useSfxGenRuntimeSettings } from "./useSfxGenRuntimeSettings";
 import { useVideoQcRuntimeSettings } from "./useVideoQcRuntimeSettings";
 import { PythonSettingsTab } from "./PythonSettingsTab";
@@ -40,7 +38,6 @@ import {
   type ComfyEnginePillKind,
 } from "./comfy-engine/comfy-engine-contract";
 import { useComfyEngineSettings } from "./comfy-engine/useComfyEngineSettings";
-import { UpscaleSettingsSection } from "./UpscaleSettingsSection";
 import { VlmReviewSettingsSection } from "./VlmReviewSettingsSection";
 import { VideoQcSettingsSection } from "./VideoQcSettingsSection";
 import { SfxGenSettingsSection } from "./SfxGenSettingsSection";
@@ -56,7 +53,6 @@ const SECTION_STORAGE_KEY = "mystudio.settings.plugins.collapsedSections";
 const SECTION_IDS = [
   "python",
   "comfy-engine",
-  "upscale",
   "vlm-review",
   "video-qc",
   "audio-tts",
@@ -224,7 +220,6 @@ export function PluginSettingsTab() {
   const comfyEngine = useComfyEngineSettings();
   const videoPlugins = useVideoWorkflowPlugins();
   const imageGen = useImageGenRuntimeSettings();
-  const upscale = useUpscaleRuntimeSettings();
   const sfx = useSfxGenRuntimeSettings();
   const videoQc = useVideoQcRuntimeSettings();
   const [vlmProbe, setVlmProbe] = useState<VlmReviewProbeResult | null>(null);
@@ -239,7 +234,6 @@ export function PluginSettingsTab() {
   const refreshRowStatuses = () => {
     void imageGen.probeRuntime();
     void comfyEngine.refreshStatus();
-    void upscale.probeRuntime();
     void videoQc.refresh();
     if (typeof window !== "undefined" && window.vlmReview?.probe) {
       window.vlmReview.probe().then(setVlmProbe).catch(() => undefined);
@@ -414,20 +408,7 @@ export function PluginSettingsTab() {
   // imageGen 行已撤(09-09 模型页并入引擎卡),但 tab 级 hook 保留:挂载探测
   // + 引擎卡胶囊补探 effect 依赖它的 sidecar ready 信号(见上方 effect)。
 
-  const upscaleState = upscale.lifecycleStatus?.state ?? upscale.status?.state;
-  const upscaleModelDownloaded = upscale.lifecycleStatus?.modelDownloaded
-    ?? (upscale.models.length > 0 ? upscale.models.some((model) => model.downloaded) : undefined);
-  const upscalePill: CapabilityPillKind = !upscale.hasRuntime
-    ? "unsupported"
-    : upscale.isDownloading || upscale.status?.downloadStatus === "downloading"
-      ? "downloading"
-      : upscaleState === "ready"
-        ? (upscaleModelDownloaded === false ? "model-missing" : "ready")
-        : upscaleState === "needs-runtime"
-          ? "needs-runtime"
-          : upscaleState === "blocked" || upscaleState === "error"
-            ? "blocked"
-            : "checking";
+
 
   const vlmBridge = typeof window !== "undefined" ? window.vlmReview : undefined;
   const vlmPill: CapabilityPillKind = !vlmBridge
@@ -545,18 +526,7 @@ export function PluginSettingsTab() {
           {/* 深度估计行已撤(09-10 用户裁定:depth 域随 MiniMax 视频/音频路线退役) */}
           {/* 本地图片生成行已撤(09-09-comfy-model-tab):模型展示整块迁入
               ComfyUI 引擎卡「模型」标签页,与引擎/插件同卡管理 */}
-          <CapabilityRow
-            sectionId="upscale"
-            headingId="plugin-upscale-heading"
-            icon={ZoomIn}
-            title="图片超分（1K → 4K）"
-            description="本地 Real-ESRGAN 超分模型（依赖 Python 运行环境），把云端/本地生成的 1K 图原生放大 4 倍。模型仅在点击下载时获取。"
-            pill={upscalePill}
-            collapsed={collapsedSections.has("upscale")}
-            onToggle={toggleSectionCollapsed}
-          >
-            <UpscaleSettingsSection embedded />
-          </CapabilityRow>
+          {/* 图片超分行已撤(09-10 用户裁定:超分全量走 ComfyUI,应用侧 Real-ESRGAN 链退役) */}
           <CapabilityRow
             sectionId="vlm-review"
             headingId="plugin-vlm-review-heading"

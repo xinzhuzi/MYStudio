@@ -188,20 +188,6 @@ tts-runtime-setup
 tts-runtime-start
 tts-runtime-status
 tts-runtime-stop
-upscale-run
-upscale-runtime-delete-model
-upscale-runtime-download-model
-upscale-runtime-download-progress
-upscale-runtime-get-config
-upscale-runtime-prepare
-upscale-runtime-probe
-upscale-runtime-refresh
-upscale-runtime-rollback
-upscale-runtime-scan-model
-upscale-runtime-set-active-model
-upscale-runtime-set-model-cache-dir
-upscale-runtime-setup
-upscale-runtime-status
 video-pipeline-export-log-bundle
 video-qc-runtime-delete-model
 video-qc-runtime-download-model
@@ -237,9 +223,6 @@ const NAMED_IPC_CHANNELS = {
   REMOTION_RUNTIME_STATUS_CHANNEL: "remotion-runtime-status",
   REMOTION_STUDIO_ENSURE_SESSION_CHANNEL: "remotion-studio-ensure-session",
   REMOTION_SHOT_AUDIO_WRITE_GENERATED_CHANNEL: "remotion-shot-audio-write-generated",
-  UPSCALE_PREPARE_CHANNEL: "upscale-runtime-prepare",
-  UPSCALE_PROBE_CHANNEL: "upscale-runtime-probe",
-  UPSCALE_ROLLBACK_CHANNEL: "upscale-runtime-rollback",
   "SELF_MEDIA_IPC.cancelTask": "self-media:cancel-task",
   "SELF_MEDIA_IPC.configureProvider": "self-media:configure-provider",
   "SELF_MEDIA_IPC.createTask": "self-media:create-task",

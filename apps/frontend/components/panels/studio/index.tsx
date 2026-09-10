@@ -10,16 +10,12 @@ import { ComfyCanvasSwap } from "../assist/comfy-canvas/ComfyCanvasSwap";
 import { WorkflowStatusOrb } from "./workflow-stage";
 import { useStudioViewModel } from "./useStudioViewModel";
 import { useStoryboardBatchGeneration } from "./image-workflow/use-storyboard-batch-generation";
-import { useStoryboardBatchUpscale } from "./image-workflow/use-storyboard-batch-upscale";
 
 export function StudioView() {
   const viewModel = useStudioViewModel();
   const storyboardBatch = useStoryboardBatchGeneration({
     storyboards: viewModel.chapterStoryboards,
     projectName: viewModel.projectName,
-  });
-  const storyboardUpscale = useStoryboardBatchUpscale({
-    storyboards: viewModel.chapterStoryboards,
   });
 
   return (
@@ -115,7 +111,6 @@ export function StudioView() {
                 onOpenImageWorkflow={viewModel.openAssetImageWorkflow}
                 onBackToCanvas={() => viewModel.handleStageChange("storyboard")}
                 batch={storyboardBatch}
-                upscale={storyboardUpscale}
                 chapterAutoVideo={{
                   status: viewModel.chapterAutoVideoStatus,
                   running: viewModel.chapterAutoVideoRunning,

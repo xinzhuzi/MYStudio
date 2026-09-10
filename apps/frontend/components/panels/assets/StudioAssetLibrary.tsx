@@ -6,14 +6,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { usePropsLibraryStore } from "@/stores/library/props-library-store";
 import { useStudioStore } from "@/stores/studio/studio-store";
-import { useDirectImageUpscale } from "@/components/panels/studio/use-direct-image-upscale";
-import { isUpscaledMediaPath, UPSCALE_INPUT_MAX_LONG_SIDE } from "@/lib/upscale/client";
-import { probeImagePixelSize } from "@/components/ui/image-resolution-badge";
-import { toPreviewSrc } from "@/lib/media/preview-src";
 import { useProjectStore } from "@/stores/project/project-store";
 import { useTtsStore } from "@/stores/tts/tts-store";
 import type { StudioAssetKind, StudioAssetSummary } from "@/types/studio-assets";
-import { Box, CheckSquare, Film, Loader2, Map, Mic2, Music2, Plus, RefreshCw, Search, Square, Trash2, UserCircle, ZoomIn } from "lucide-react";
+import { Box, CheckSquare, Film, Loader2, Map, Mic2, Music2, Plus, RefreshCw, Search, Square, Trash2, UserCircle } from "lucide-react";
 import { toast } from "sonner";
 import { StudioAssetDetailDialog } from "./StudioAssetDetailDialog";
 import { AddAssetDialog } from "./AddAssetDialog";
@@ -280,54 +276,7 @@ export function StudioAssetLibrary({ type }: { type: StudioAssetKind }) {
 
   const handleAdd = () => setIsAddOpen(true);
 
-  // 素材库批量超分 — 对勾选的本地图片素材逐张本地 ×4 放大,新文件回填素材库。
-  const [isBatchUpscaling, setIsBatchUpscaling] = useState(false);
-  const directUpscale = useDirectImageUpscale();
-  const selectedImageMaterials = useMemo(() => {
-    if (type !== "clip") return [];
-    return [...selectedIds]
-      .filter((id) => id.startsWith("manying-material:"))
-      .map((id) => materials.find((item) => `manying-material:${item.id}` === id))
-      .filter((item): item is NonNullable<typeof item> =>
-        Boolean(item && item.kind === "image" && item.localPath));
-  }, [materials, selectedIds, type]);
-
-  const handleBatchUpscale = async () => {
-    if (!selectedImageMaterials.length) return;
-    // 已-4K 预检(up4x- 产物或文件头探测长边>4096):与后端适配器同款上限,
-    // 4K 图不再进确认框/逐张报错,直接跳过并汇总提示。
-    const eligible: typeof selectedImageMaterials = [];
-    let skipped4k = 0;
-    for (const material of selectedImageMaterials) {
-      const size = await probeImagePixelSize(toPreviewSrc(material.localPath));
-      const already4k =
-        isUpscaledMediaPath(material.localPath)
-        || (size ? Math.max(size.width, size.height) > UPSCALE_INPUT_MAX_LONG_SIDE : false);
-      if (already4k) skipped4k += 1;
-      else eligible.push(material);
-    }
-    if (!eligible.length) {
-      toast.info(`选中的 ${skipped4k} 张图片均已是 4K，无需再超分`);
-      return;
-    }
-    if (
-      !confirm(
-        `确定对选中的 ${eligible.length} 张图片执行本地超分(原生 ×4)?大图每张约需十几秒。${
-          skipped4k ? `（已自动跳过 ${skipped4k} 张 4K 图）` : ""
-        }`,
-      )
-    ) {
-      return;
-    }
-    setIsBatchUpscaling(true);
-    for (const material of eligible) {
-      await directUpscale.upscaleMaterialImage(material);
-    }
-    setIsBatchUpscaling(false);
-    if (skipped4k) toast.info(`已跳过 ${skipped4k} 张已是 4K 的图片`);
-    setSelectedIds(new Set());
-    setSelectMode(false);
-  };
+  // 批量超分已撤(09-10 用户裁定:超分全量走 ComfyUI,应用侧 Real-ESRGAN 链退役)。
 
   const handleAutoAssignAudio = async () => {
     if (type !== "role") return;
@@ -432,23 +381,7 @@ export function StudioAssetLibrary({ type }: { type: StudioAssetKind }) {
                   <Trash2 className="mr-1.5 h-3.5 w-3.5" />
                   删除({selectedIds.size})
                 </Button>
-                {type === "clip" ? (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => void handleBatchUpscale()}
-                    disabled={!selectedImageMaterials.length || isBatchUpscaling}
-                    data-material-batch-upscale
-                  >
-                    {isBatchUpscaling ? (
-                      <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
-                    ) : (
-                      <ZoomIn className="mr-1.5 h-3.5 w-3.5" />
-                    )}
-                    超分({selectedImageMaterials.length})
-                  </Button>
-                ) : null}
-                <Button variant="outline" size="sm" onClick={deselectAll}>取消</Button>
+                                <Button variant="outline" size="sm" onClick={deselectAll}>取消</Button>
               </>
             ) : (
               <>

@@ -27,10 +27,7 @@ import {createCredentialVault} from '../aitoearn/credential-vault'
 import {createAitoearnLocalPlatformBridge} from '../aitoearn/providers/aitoearn-local/platform-bridge'
 import {createOfficialPlatformTransports} from '../aitoearn/providers/aitoearn-local/platforms/official/transports'
 import {registerStorageMediaIpcHandlers} from '../ipc/media/storage-media-ipc'
-import {
-  resolveLocalMediaPath,
-  resolveProjectScopedFilePath,
-} from '../storage/storage-paths'
+import {resolveProjectScopedFilePath} from '../storage/storage-paths'
 import {registerAssetLibraryIpcHandlers} from '../ipc/assets/asset-library-ipc'
 import {probeStudioMediaEvidence, registerStudioRenderIpcHandlers} from '../ipc/studio/studio-render-ipc'
 import {registerRemotionRuntimeIpcHandlers} from '../ipc/studio/remotion-runtime-ipc'
@@ -58,8 +55,6 @@ import {createHyperFramesAdapter} from '@rendering/plugins/hyperframes/hyperfram
 import {registerVideoPipelineLogIpcHandlers} from '../ipc/studio/video-pipeline-log-ipc'
 import {createImageGenRuntimeController} from '@rendering/plugins/image_gen/image-gen-runtime-controller'
 import {registerImageGenIpcHandlers} from '../ipc/studio/image-gen-ipc'
-import {createUpscaleRuntimeController} from '@rendering/plugins/upscale/upscale-runtime-controller'
-import {registerUpscaleIpcHandlers} from '../ipc/studio/upscale-ipc'
 import {registerSeedVr2IpcHandlers} from '../ipc/studio/seedvr2-ipc'
 import {registerMcpIpcHandlers} from '../ipc/studio/mcp-ipc'
 import {registerVlmReviewIpc} from '../ipc/studio/vlm-review-ipc'
@@ -332,27 +327,7 @@ const imageGenRuntimeController = createImageGenRuntimeController({
 const imageGenIpc = registerImageGenIpcHandlers({ controller: imageGenRuntimeController })
 setStopImageGenSidecar(() => imageGenRuntimeController.stop())
 
-// Local image super-resolution sidecar — pure-torch Real-ESRGAN CLI worker for
-// 1K→4K upscaling of cloud/local generated images. Same explicit-download
-// policy; the model cache dir is self-managed at <storageBase>/UpscaleModel.
-const upscaleRuntimeController = createUpscaleRuntimeController({
-  storageBasePath: getStorageBasePath,
-  backendRoot: videoWorkflowBackendRoot,
-  resolveProjectFilePath: (projectId, relativePath) => {
-    try {
-      return resolveProjectScopedFilePath(getDataDir(), projectId, relativePath)
-    } catch {
-      return null
-    }
-  },
-  resolveLocalMediaPath: (url) => {
-    try {
-      return resolveLocalMediaPath(getMediaRoot(), url)
-    } catch {
-      return null
-    }
-  },
-})
+// 图片超分侧车已退役(09-10 用户裁定:超分全量走 ComfyUI)。
 registerStorageMediaIpcHandlers({
   getDataDir,
   getMediaRoot,
@@ -366,13 +341,9 @@ const videoPipelineLogIpc = registerVideoPipelineLogIpcHandlers({
   getDiagnosticsDir: () => path.join(app.getPath('userData'), 'logs', 'diagnostics'),
   getLogBundleDir: () => path.join(app.getPath('userData'), 'logs', 'pipeline-bundles'),
 })
-bindRuntimeControllerRoots(() => [ttsRuntimeController.getModelCacheDir(), upscaleRuntimeController.getModelCacheDir()])
-const upscaleIpc = registerUpscaleIpcHandlers({ controller: upscaleRuntimeController })
+bindRuntimeControllerRoots(() => [ttsRuntimeController.getModelCacheDir()])
 const seedvr2Ipc = registerSeedVr2IpcHandlers()
 const mcpIpc = registerMcpIpcHandlers()
-// 非阻塞启动期刷新:冷启动后 status() 即反映真实运行时/模型状态,超分动作的
-// precheck(节点按钮/分镜 tile)无需用户先访问设置页。
-void upscaleRuntimeController.refresh()
 
 // VLM Review sidecar — Qwen3-VL visual consistency checking(生图后自动审核)。
 // 复用 managed Python;权重显式下载,<storageBase>/comfyui/models/vlm。
@@ -568,7 +539,6 @@ setDisposeRemotionRuntime(async () => {
   videoWorkflowIpc.dispose()
   videoPipelineLogIpc.dispose()
   imageGenIpc.dispose()
-  upscaleIpc.dispose()
   seedvr2Ipc.dispose()
   mcpIpc.dispose()
   videoQcIpc.dispose()

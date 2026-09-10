@@ -61,11 +61,6 @@ import type {
 } from "@rendering/plugins/remotion/queue/remotion-queue-ipc";
 import type { RemotionQueueNotification } from "@rendering/plugins/remotion/queue/remotion-render-queue";
 import type { RemotionChapterManifestBridge } from "@rendering/plugins/remotion/manifest/remotion-chapter-manifest-ipc";
-import type {
-  UpscaleRuntimeActionReplyV1,
-  UpscaleRuntimeLifecycleRequestV1,
-  UpscaleRuntimeStatusV1,
-} from "@rendering/contracts/upscale-workflow";
 import type { ProjectFolderBridge } from "@/electron/ipc/projects/project-folder-ipc";
 import type {
   RemotionStudioEnsureSessionReply,
@@ -658,22 +653,6 @@ declare global {
         | { ok: false; error: string }
       >;
       disconnect: (serverId: string) => Promise<{ ok: boolean }>;
-    };
-    upscaleRuntime?: {
-      probe: (request?: UpscaleRuntimeLifecycleRequestV1) => Promise<UpscaleRuntimeStatusV1>;
-      prepare: (request?: UpscaleRuntimeLifecycleRequestV1) => Promise<UpscaleRuntimeActionReplyV1>;
-      rollback: (request?: UpscaleRuntimeLifecycleRequestV1) => Promise<UpscaleRuntimeActionReplyV1>;
-      status: () => Promise<import("@/types/upscale").UpscaleRuntimeStatus>;
-      setup: () => Promise<import("@/types/upscale").UpscaleRuntimeStatus>;
-      refresh: () => Promise<import("@/types/upscale").UpscaleRuntimeStatus>;
-      scanModel: () => Promise<{ models: import("@/types/upscale").UpscaleModelRow[] }>;
-      downloadModel: (model: string) => Promise<{ accepted: boolean; message: string }>;
-      downloadProgress: () => Promise<{ status: string; progress: number; current: number; total: number; error?: string }>;
-      setActiveModel: (model: string) => Promise<{ success: boolean; error?: string }>;
-      run: (payload: import("@/types/upscale").UpscaleRunPayload) => Promise<import("@/types/upscale").UpscaleRunResult>;
-      getConfig: () => Promise<{ modelCacheDir: string }>;
-      setModelCacheDir: (dirPath: string) => Promise<{ success: boolean; error?: string }>;
-      deleteModel: (model: string) => Promise<{ success: boolean; error?: string }>;
     };
     seedvr2Restore?: {
       probe: () => Promise<import("@rendering/contracts/seedvr2-restore").SeedVr2ProbeResultV1>;

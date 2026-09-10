@@ -1280,7 +1280,6 @@ async function verifyPluginSettings(evaluate) {
           '按依赖顺序配置本地能力',
           'Python 运行环境',
           'ComfyUI 引擎',
-          '图片超分（1K → 4K）',
           '视觉审核（VLM 一致性检查）',
           '视频评分模型',
           'TTS 运行时与模型',
