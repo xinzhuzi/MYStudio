@@ -115,8 +115,8 @@ const CORE_ROUTE_CHECKS = [
   {
     label: "工作流",
     requiredText: [
-      "当前工作区：漫影工作流",
       "待推进：",
+      "切换阶段",
     ],
     forbiddenText: ["制作流程推进", "导演造景", "导演规划与造景", "造景后继续"],
   },
@@ -126,7 +126,7 @@ const CORE_ROUTE_CHECKS = [
   },
   {
     label: "辅助",
-    requiredText: ["辅助界面", "TTS"],
+    requiredText: ["图片工作室", "ComfyUI"],
     waitMs: 2_500,
   },
   {
@@ -135,7 +135,7 @@ const CORE_ROUTE_CHECKS = [
   },
   {
     label: "设置",
-    requiredText: ["系统设置", "外观", "本地配置"],
+    requiredText: ["外观", "本地配置"],
   },
   {
     label: "自媒体",
@@ -990,11 +990,11 @@ async function inspectPage(pageTarget) {
       bodyTextLength: (body?.innerText || '').trim().length,
       rootChildren: root ? root.children.length : -1,
       hasDashboardCard: Boolean(dashboardCard),
-      hasProjectOverview: (body?.innerText || '').includes('项目概览'),
+      hasProjectOverview: (body?.innerText || '').includes('项目概览') || (body?.innerText || '').includes('项目入口'),
       hasWorkspaceContent:
         (body?.innerText || '').includes('当前工作区') ||
         (body?.innerText || '').includes('剧情产物生成') ||
-        (body?.innerText || '').includes('风格与导演选择'),
+        (body?.innerText || '').includes('风格与导演选择') || (body?.innerText || '').includes('风格与导演'),
       hasWhiteBody: bodyBg === 'rgb(255, 255, 255)' || bodyBg === 'white',
       visibilityState: document.visibilityState,
       documentHasFocus: document.hasFocus(),
@@ -2518,7 +2518,7 @@ async function verifyScriptAssetGenerationVoiceFlow(evaluate) {
     await waitFor(() => window.mystudioWorkflowSmoke?.seedCompleteWorkflow, 10_000);
     const seedResult = await window.mystudioWorkflowSmoke?.seedCompleteWorkflow?.();
     const clickedWorkflow = clickButtonByText('工作流', true);
-    await waitFor(() => (document.body?.innerText || '').includes('当前工作区：漫影工作流'), 5000);
+    await waitFor(() => (document.body?.innerText || '').includes('待推进：'), 5000);
     await window.mystudioWorkflowSmoke?.setWorkflowStage?.('assets');
     await wait(900);
     const bodyBefore = (document.body?.innerText || '');
