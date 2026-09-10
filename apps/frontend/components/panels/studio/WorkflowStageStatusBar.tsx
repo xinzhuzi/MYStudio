@@ -15,6 +15,7 @@ import type {
 import {
   AlertCircle,
   ChevronDown,
+  ChevronRight,
   Check,
   CheckCircle2,
   Clock,
@@ -102,6 +103,75 @@ export function WorkflowStageStatusBar({
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
+      </div>
+
+      {/* 阶段导轨流水线 (Cinematic Pipeline Ribbon) */}
+      <div className="mt-3 flex items-center gap-1.5 overflow-x-auto border-t border-border/40 pt-2.5 pb-0.5 text-xs text-muted-foreground no-scrollbar">
+        {readiness.stages.map((stage, index) => {
+          const isActive = stage.id === activeStage;
+          const isReady = stage.status === "ready";
+          const stepNum = String(index + 1).padStart(2, "0");
+          return (
+            <div key={stage.id} className="flex items-center gap-1.5 shrink-0">
+              <button
+                type="button"
+                onClick={() => onStageChange(stage.id)}
+                title={`${stage.label} - ${isReady ? "已完成" : stage.actionLabel || "点击切换"}`}
+                className={cn(
+                  "group flex items-center gap-1.5 rounded-md border px-2.5 py-1 text-xs transition-all",
+                  isActive
+                    ? "border-primary/50 bg-primary/10 text-primary font-medium ring-1 ring-primary/20"
+                    : isReady
+                      ? "border-border/60 bg-muted/20 text-foreground/90 hover:border-border hover:bg-muted/40"
+                      : "border-border/30 bg-transparent text-muted-foreground hover:border-border hover:text-foreground hover:bg-muted/20",
+                )}
+              >
+                <span
+                  className={cn(
+                    "flex h-4 w-4 items-center justify-center rounded-full text-[10px] font-mono",
+                    isActive
+                      ? "bg-primary text-primary-foreground font-semibold"
+                      : isReady
+                        ? "bg-success/20 text-success font-semibold"
+                        : "bg-muted text-muted-foreground",
+                  )}
+                >
+                  {isReady && !isActive ? "✓" : stepNum}
+                </span>
+                <span className="truncate max-w-[130px]">
+                  {stepNum} · {stage.label}
+                </span>
+              </button>
+              {index < readiness.stages.length - 1 && (
+                <ChevronRight className="h-3.5 w-3.5 text-muted-foreground/30 shrink-0" />
+              )}
+            </div>
+          );
+        })}
+        {WORKFLOW_VIEW_ITEMS.length > 0 && (
+          <>
+            <div className="mx-1 h-3.5 w-px bg-border/50 shrink-0" />
+            {WORKFLOW_VIEW_ITEMS.map((view) => {
+              const isActive = view.id === activeStage;
+              return (
+                <button
+                  key={view.id}
+                  type="button"
+                  onClick={() => onStageChange(view.id)}
+                  className={cn(
+                    "flex items-center gap-1.5 rounded-md border px-2.5 py-1 text-xs transition-all shrink-0",
+                    isActive
+                      ? "border-primary/50 bg-primary/10 text-primary font-medium ring-1 ring-primary/20"
+                      : "border-border/30 bg-transparent text-muted-foreground hover:border-border hover:text-foreground hover:bg-muted/20",
+                  )}
+                >
+                  <view.Icon className="h-3.5 w-3.5 text-info shrink-0" />
+                  <span>{view.label}</span>
+                </button>
+              );
+            })}
+          </>
+        )}
       </div>
     </div>
   );

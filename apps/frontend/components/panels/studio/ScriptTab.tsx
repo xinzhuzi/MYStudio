@@ -95,15 +95,19 @@ export function ScriptTab(props: {
       setHeaderActions(null);
       return;
     }
-    setHeaderActions(
-      <div className="flex flex-wrap items-center gap-3">
-        <div className="flex items-center gap-1 border-b border-border/70">
+      setHeaderActions(
+      <div className="flex flex-wrap items-center gap-2">
+        <div className="flex items-center gap-1.5">
           {SCRIPT_STAGES.map((stage, idx) => (
             <button
               key={stage}
               type="button"
               onClick={() => setActiveStage(stage)}
-              className={`px-4 py-2 text-sm ${activeStage === stage ? "border-b-2 border-primary font-medium text-primary" : "text-muted-foreground"}`}
+              className={`inline-flex h-8 items-center gap-1.5 rounded-md border px-3 text-sm transition-colors ${
+                activeStage === stage
+                  ? "border-primary/50 bg-primary/10 font-medium text-primary"
+                  : "border-foreground/[0.12] bg-transparent text-foreground/85 hover:bg-foreground/[0.06] hover:text-foreground"
+              }`}
             >
               {idx + 1}. {SCRIPT_STAGE_LABEL[stage]}
               {stageData(stage) ? " ✓" : ""}
@@ -113,7 +117,7 @@ export function ScriptTab(props: {
         <div className="flex flex-wrap items-center gap-2">
           <Label className="text-sm">章节（1 章 = 1 集）</Label>
           <select
-            className="h-9 min-w-[260px] rounded-md border border-input bg-background px-3 text-sm"
+            className="h-8 min-w-[260px] rounded-md border border-foreground/[0.12] bg-transparent px-3 text-sm text-foreground/85"
             value={chapterId || props.novelChapters[0]?.id || ""}
             onChange={(event) => setChapterId(event.target.value)}
           >
