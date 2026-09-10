@@ -3,7 +3,7 @@
 // Commercial licensing available. See COMMERCIAL_LICENSE.md.
 
 import type { LucideIcon } from "lucide-react";
-import { WORKFLOW_TABS } from "@/components/panels/studio/workflow-tabs";
+import { WORKFLOW_TABS } from "@/components/panels/studio/workflow-stage/workflow-tabs";
 
 /**
  * Per-stage explanatory copy shown on the project overview so users understand

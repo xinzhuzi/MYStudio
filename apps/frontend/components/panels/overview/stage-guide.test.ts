@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { OVERVIEW_STAGE_GUIDE } from "./stage-guide";
-import { WORKFLOW_TABS } from "@/components/panels/studio/workflow-tabs";
+import { WORKFLOW_TABS } from "@/components/panels/studio/workflow-stage/workflow-tabs";
 
 describe("overview stage guide", () => {
   it("mirrors the canonical workflow stage list except the enter-only storyboard panel view", () => {

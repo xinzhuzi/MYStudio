@@ -23,8 +23,8 @@ import { useProductionPlanningActions } from "./useProductionPlanningActions";
 import { useScriptStageActions } from "./useScriptStageActions";
 import { useStudioManualCatalog } from "./useStudioManualCatalog";
 import { useWorkflowNodeEditor } from "./useWorkflowNodeEditor";
-import { useWorkflowReadiness } from "./useWorkflowReadiness";
-import { useWorkflowStageState } from "./useWorkflowStageState";
+import { useWorkflowReadiness } from "./workflow-stage/useWorkflowReadiness";
+import { useWorkflowStageState } from "./workflow-stage/useWorkflowStageState";
 import { useChapterAutoVideoActions } from "./useChapterAutoVideoActions";
 import type { ProductionFlowNodeAction } from "./workflow-node-model";
 

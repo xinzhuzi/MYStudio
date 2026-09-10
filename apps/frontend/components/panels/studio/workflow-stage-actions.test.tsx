@@ -2906,7 +2906,7 @@ describe("workflow stage action surfaces", () => {
     const hookSource = readFileSync(
       join(
         process.cwd(),
-        "frontend/components/panels/studio/useWorkflowReadiness.ts",
+        "frontend/components/panels/studio/workflow-stage/useWorkflowReadiness.ts",
       ),
       "utf8",
     );
