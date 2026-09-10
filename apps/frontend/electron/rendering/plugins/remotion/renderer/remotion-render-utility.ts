@@ -192,8 +192,8 @@ export class RemotionRenderUtilitySupervisor {
         child,
         resolve,
         reject,
-        onMessage: (message) => this.handleMessage(active, message),
-        onExit: (code) => this.handleExit(active, code),
+        onMessage: (message: unknown) => this.handleMessage(active, message),
+        onExit: (code: number) => this.handleExit(active, code),
         cancelRequested: false,
       });
       this.activeByJobId.set(active.jobId, active);

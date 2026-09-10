@@ -1786,7 +1786,8 @@ describe("TTS runtime stale-marker offline self-healing", () => {
       expect(url).toBe("http://127.0.0.1:17593/profiles/profile-1/samples");
       expect(options.method).toBe("POST");
       expect(options.headers).toMatchObject({ "X-Manying-TTS-Token": "token-1" });
-      expect(options.headers?.["Content-Type"] ?? "").toMatch(/^multipart\/form-data; boundary=/);
+      // HeadersInit 三态联合不可直接索引,经 Headers 归一化取头
+      expect(new Headers(options.headers).get("Content-Type") ?? "").toMatch(/^multipart\/form-data; boundary=/);
       const multipartBody = Buffer.from(options.body as Uint8Array).toString("utf8");
       expect(multipartBody).toContain('name="file"');
       expect(multipartBody).toContain("wav-bytes");

@@ -61,15 +61,23 @@ import { registerLocalMediaIpcHandlers } from "./local-media-ipc";
 type FakeResponse = {
   statusCode: number;
   headers: Record<string, string | string[] | undefined>;
-  on: ReturnType<typeof vi.fn>;
-  resume: ReturnType<typeof vi.fn>;
-  destroy: ReturnType<typeof vi.fn>;
+  on: (event: string, callback: (...args: unknown[]) => void) => FakeResponse;
+  resume: (...args: unknown[]) => unknown;
+  destroy: (error?: Error) => FakeResponse;
   emitBody: () => void;
 };
 
-function createFakeWriteStream() {
+type FakeWriteStream = {
+  on: (event: string, callback: (...args: unknown[]) => void) => FakeWriteStream;
+  write: (...args: unknown[]) => unknown;
+  end: (...args: unknown[]) => unknown;
+  close: (...args: unknown[]) => unknown;
+  destroy: (...args: unknown[]) => unknown;
+};
+
+function createFakeWriteStream(): FakeWriteStream {
   const listeners = new Map<string, Array<(...args: unknown[]) => void>>();
-  const stream = {
+  const stream: FakeWriteStream = {
     on: vi.fn((event: string, callback: (...args: unknown[]) => void) => {
       listeners.set(event, [...(listeners.get(event) ?? []), callback]);
       return stream;
@@ -90,7 +98,7 @@ function createFakeResponse(options: {
   chunks?: Array<Buffer | string>;
 } = {}): FakeResponse {
   const listeners = new Map<string, Array<(...args: unknown[]) => void>>();
-  const response = {
+  const response: FakeResponse = {
     statusCode: options.statusCode ?? 200,
     headers: options.headers ?? {},
     on: vi.fn((event: string, callback: (...args: unknown[]) => void) => {
@@ -114,8 +122,8 @@ function createFakeResponse(options: {
   return response;
 }
 
-function createFakeRequest() {
-  const request = {
+function createFakeRequest(): { on: (...args: unknown[]) => unknown } {
+  const request: { on: (...args: unknown[]) => unknown } = {
     on: vi.fn(() => request),
   };
   return request;

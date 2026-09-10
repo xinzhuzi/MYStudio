@@ -193,7 +193,7 @@ describe("RemotionRenderQueue", () => {
     const running: string[] = [];
     let maxRunning = 0;
     const gate = { resolve: () => {} };
-    const queue = new RemotionRenderQueue({
+    const queue: RemotionRenderQueue = new RemotionRenderQueue({
       persistence,
       concurrency: 3,
       executor: {
@@ -221,7 +221,7 @@ describe("RemotionRenderQueue", () => {
     const inputs = await Promise.all([makeInput(0), makeInput(1)]);
     const running: string[] = [];
     let maxRunning = 0;
-    const queue = new RemotionRenderQueue({
+    const queue: RemotionRenderQueue = new RemotionRenderQueue({
       persistence,
       now: () => 200,
       executor: {
@@ -249,7 +249,7 @@ describe("RemotionRenderQueue", () => {
     const persistence = new MemoryPersistence();
     const input = await makeInput();
     let renderCount = 0;
-    const queue = new RemotionRenderQueue({
+    const queue: RemotionRenderQueue = new RemotionRenderQueue({
       persistence,
       executor: {
         async render() {
@@ -293,7 +293,7 @@ describe("RemotionRenderQueue", () => {
 
     const persistence = new MemoryPersistence();
     const rendered: string[] = [];
-    const queue = new RemotionRenderQueue({
+    const queue: RemotionRenderQueue = new RemotionRenderQueue({
       persistence,
       executor: {
         async render(plan) {
@@ -321,7 +321,7 @@ describe("RemotionRenderQueue", () => {
     const persistence = new MemoryPersistence();
     const first = await makeInput(0);
     const second = await makeInput(1);
-    const queue = new RemotionRenderQueue({
+    const queue: RemotionRenderQueue = new RemotionRenderQueue({
       persistence,
       executor: {
         async render(plan) {
@@ -364,7 +364,7 @@ describe("RemotionRenderQueue", () => {
     const first = await makeInput(0);
     const second = await makeInput(1);
     let chapterRenders = 0;
-    const queue = new RemotionRenderQueue({
+    const queue: RemotionRenderQueue = new RemotionRenderQueue({
       persistence,
       now: () => 200,
       executor: {
@@ -425,7 +425,7 @@ describe("RemotionRenderQueue", () => {
     const second = await makeInput(1);
     let sceneRenders = 0;
     let chapterQcCalls = 0;
-    const queue = new RemotionRenderQueue({
+    const queue: RemotionRenderQueue = new RemotionRenderQueue({
       persistence,
       now: () => 200,
       executor: {
@@ -568,7 +568,7 @@ describe("RemotionRenderQueue", () => {
       updatedAt: 110,
     };
     let drained = 0;
-    const queue = new RemotionRenderQueue({
+    const queue: RemotionRenderQueue = new RemotionRenderQueue({
       persistence,
       executor: {
         render: async () => { throw new Error("shot must not re-render"); },
@@ -595,7 +595,7 @@ describe("RemotionRenderQueue", () => {
     const input = await makeInput();
     const running = { ...input, job: { ...input.job, status: "running" as const, attempt: 1, startedAt: 110 } };
     persistence.snapshot = { schemaVersion: 1, lastSeq: 1, activeProjectId: "project-a", activeChapterId: "chapter-001", jobs: [running], updatedAt: 110 };
-    const queue = new RemotionRenderQueue({
+    const queue: RemotionRenderQueue = new RemotionRenderQueue({
       persistence,
       executor: { render: async () => { throw new Error("must not auto-render recovery"); }, cancel: (jobId) => ({ success: true, jobId, canceled: true }) },
     });
@@ -609,7 +609,7 @@ describe("RemotionRenderQueue", () => {
   it("does not allow a second project to claim the active scheduler", async () => {
     const persistence = new MemoryPersistence();
     const input = await makeInput();
-    const queue = new RemotionRenderQueue({
+    const queue: RemotionRenderQueue = new RemotionRenderQueue({
       persistence,
       executor: { render: async () => ({ success: false, jobId: input.job.jobId, canceled: false, error: "stop" }), cancel: (jobId) => ({ success: true, jobId, canceled: true }) },
     });
@@ -622,7 +622,7 @@ describe("RemotionRenderQueue", () => {
   it("rejects chapter dependencies that are missing instead of treating them as failed shots", async () => {
     const persistence = new MemoryPersistence();
     const input = await makeInput();
-    const queue = new RemotionRenderQueue({
+    const queue: RemotionRenderQueue = new RemotionRenderQueue({
       persistence,
       executor: {
         render: async () => ({ success: false, jobId: input.job.jobId, canceled: false, error: "fixture stop" }),
