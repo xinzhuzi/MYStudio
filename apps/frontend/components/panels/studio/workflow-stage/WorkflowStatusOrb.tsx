@@ -82,6 +82,9 @@ export function WorkflowStatusOrb({
   const y = useMotionValue(position.y);
   const [panelOpen, setPanelOpen] = useState(false);
   const pressStartRef = useRef<{ x: number; y: number } | null>(null);
+  // 合成 click(smoke 脚本 el.click())不携带 pointer 事件,由此兜底开面板;
+  // 真实点击的 click 紧跟 pointerup 之后,hadPointer 期间忽略避免双开。
+  const hadPointerRef = useRef(false);
 
   // 窗口变化时把球钳回视口内
   useEffect(() => {
@@ -107,6 +110,14 @@ export function WorkflowStatusOrb({
       event.clientY - start.y,
     );
     if (distance < CLICK_THRESHOLD_PX) setPanelOpen(true);
+  };
+
+  const handleClick = () => {
+    if (hadPointerRef.current) {
+      hadPointerRef.current = false;
+      return;
+    }
+    setPanelOpen(true);
   };
 
   const currentStage =
@@ -156,9 +167,11 @@ export function WorkflowStatusOrb({
           }}
           className="group flex h-12 w-12 cursor-grab items-center justify-center rounded-full border border-border/70 bg-card/90 shadow-[0_6px_20px_rgba(0,0,0,0.35)] backdrop-blur-md outline-none focus-visible:ring-2 focus-visible:ring-ring active:cursor-grabbing"
           onPointerDown={(event) => {
+            hadPointerRef.current = true;
             pressStartRef.current = { x: event.clientX, y: event.clientY };
           }}
           onPointerUp={handlePointerUp}
+          onClick={handleClick}
           onKeyDown={(event) => {
             if (event.key === "Enter" || event.key === " ") {
               event.preventDefault();

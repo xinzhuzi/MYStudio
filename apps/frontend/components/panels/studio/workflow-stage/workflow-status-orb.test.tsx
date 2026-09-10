@@ -130,6 +130,12 @@ describe("WorkflowStatusOrb", () => {
     expect(screen.queryByRole("group", { name: "切换阶段" })).toBeNull();
   });
 
+  it("合成 click(无 pointer 事件)可开面板——smoke 脚本路径", async () => {
+    renderOrb();
+    fireEvent.click(getOrb());
+    expect(await screen.findByText(/待推进：剧本生产阶段/)).toBeTruthy();
+  });
+
   it("键盘 Enter 可开合面板", async () => {
     renderOrb();
     const orb = getOrb();

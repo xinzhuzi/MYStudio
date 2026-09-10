@@ -505,9 +505,9 @@ export function buildApplyAcceptedExpression({ projectId, projectName, chapterId
     const projectOpened = activate(projectCard);
     const workflowButton = await waitFor(() => Array.from(document.querySelectorAll('button, [role="button"]')).find((node) => normalize(node) === '工作流'), '工作流入口');
     const workflowOpened = activate(workflowButton);
-    await waitFor(() => Array.from(document.querySelectorAll('button, [role="button"]')).find((node) => normalize(node).includes('切换阶段')), '阶段切换器');
-    if (!clickText('切换阶段')) throw new Error('无法打开阶段切换器');
-    const workbenchStage = await waitFor(() => Array.from(document.querySelectorAll('[role="menuitem"], [cmdk-item]')).find((node) => normalize(node).includes('视频工作台')), '视频工作台阶段');
+    const orbSwitcher = await waitFor(() => document.querySelector('[data-workflow-orb]'), '阶段切换悬浮球');
+    if (!activate(orbSwitcher)) throw new Error('无法打开阶段切换面板');
+    const workbenchStage = await waitFor(() => Array.from(document.querySelectorAll('[data-orb-stage-item]')).find((node) => normalize(node).includes('视频工作台')), '视频工作台阶段');
     const workbenchOpened = activate(workbenchStage);
     const modeSelect = await waitFor(() => document.querySelector('[data-video-use-mode-select]'), 'video-use 模式选择');
     if (modeSelect.value !== mode) {

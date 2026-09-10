@@ -1061,8 +1061,7 @@ function visibleWorkflowExpression(delayMs, focusWindow) {
       }
       console.info('[visible-run] stage ' + stage.id + ' opening switcher');
       ${focusWindowStatement}
-      const switcherButton = Array.from(document.querySelectorAll('button, [role="button"]'))
-        .find((node) => normalize(node) === '切换阶段');
+      const switcherButton = document.querySelector('[data-workflow-orb]');
       const switcherClick = {
         clicked: activate(switcherButton),
         text: switcherButton ? normalize(switcherButton) : '',
@@ -1071,24 +1070,19 @@ function visibleWorkflowExpression(delayMs, focusWindow) {
       if (!switcherClick.clicked) throw new Error('工作流阶段切换按钮未出现: ' + stage.id);
       await visibleDelay();
       let stageMenuItem = await waitFor(() =>
-        Array.from(document.querySelectorAll('[role="menuitem"]'))
+        Array.from(document.querySelectorAll('[data-orb-stage-item]'))
           .find((node) => normalize(node).includes(stage.label)),
       500);
       if (!stageMenuItem) {
-        switcherButton.dispatchEvent(new KeyboardEvent('keydown', {
-          key: 'ArrowDown',
-          bubbles: true,
-          cancelable: true,
-        }));
         stageMenuItem = await waitFor(() =>
-          Array.from(document.querySelectorAll('[role="menuitem"]'))
+          Array.from(document.querySelectorAll('[data-orb-stage-item]'))
             .find((node) => normalize(node).includes(stage.label)),
         2_000);
       }
       if (!stageMenuItem) {
-        const menuItems = Array.from(document.querySelectorAll('[role="menuitem"]'))
+        const menuItems = Array.from(document.querySelectorAll('[data-orb-stage-item]'))
           .map((node) => normalize(node)).filter(Boolean).join(' | ');
-        throw new Error('工作流阶段菜单未出现: ' + stage.label + '; menuItems=' + menuItems);
+        throw new Error('悬浮球阶段面板未出现: ' + stage.label + '; items=' + menuItems);
       }
       const clicked = { clicked: activate(stageMenuItem), text: normalize(stageMenuItem) };
       await visibleDelay();
@@ -1114,7 +1108,7 @@ function visibleWorkflowExpression(delayMs, focusWindow) {
     await waitFor(() => Array.from(document.querySelectorAll('button, [role="button"]')).some((node) => normalize(node) === '工作流'), 15_000);
     const workflowClick = clickText('工作流', true);
     await visibleDelay();
-    await waitFor(() => Array.from(document.querySelectorAll('button, [role="button"]')).some((node) => normalize(node).includes('切换阶段')), 15_000);
+    await waitFor(() => Boolean(document.querySelector('[data-workflow-orb]')), 15_000);
     await waitFor(() => window.mystudioWorkflowSmoke?.resetForStepwiseExecution, 15_000);
     const reset = await window.mystudioWorkflowSmoke?.resetForStepwiseExecution?.();
     await visibleDelay();
@@ -1242,7 +1236,7 @@ function realProjectWorkflowExpression(
         hasLastStoryboardWorkflowEntry: storyboardWorkflowEntryIds.length >= expectedStoryboards ||
           Boolean(document.querySelector('[aria-label="打开分镜 ' + expectedStoryboards + ' 图片工作流"]')),
         hasStoryboardNodePointer,
-        hasStageSwitcher: buttonTexts.some((text) => text.includes('切换阶段')),
+        hasStageSwitcher: Boolean(document.querySelector('[data-workflow-orb]')),
         hasWorkflowTab: buttonTexts.some((text) => text === '工作流' || text.includes('工作流')),
         hasProjectCard: Boolean(document.querySelector('.dashboard-project-card')),
         title: document.title,
@@ -1536,8 +1530,7 @@ function realProjectWorkflowExpression(
       }
       console.info('[visible-run] stage ' + stage.id + ' opening switcher');
       ${focusWindowStatement}
-      const switcherButton = Array.from(document.querySelectorAll('button, [role="button"]'))
-        .find((node) => normalize(node) === '切换阶段');
+      const switcherButton = document.querySelector('[data-workflow-orb]');
       const switcherClick = {
         clicked: activate(switcherButton),
         text: switcherButton ? normalize(switcherButton) : '',
@@ -1546,24 +1539,19 @@ function realProjectWorkflowExpression(
       if (!switcherClick.clicked) throw new Error('工作流阶段切换按钮未出现: ' + stage.id);
       await visibleDelay();
       let stageMenuItem = await waitFor(() =>
-        Array.from(document.querySelectorAll('[role="menuitem"]'))
+        Array.from(document.querySelectorAll('[data-orb-stage-item]'))
           .find((node) => normalize(node).includes(stage.label)),
       500);
       if (!stageMenuItem) {
-        switcherButton.dispatchEvent(new KeyboardEvent('keydown', {
-          key: 'ArrowDown',
-          bubbles: true,
-          cancelable: true,
-        }));
         stageMenuItem = await waitFor(() =>
-          Array.from(document.querySelectorAll('[role="menuitem"]'))
+          Array.from(document.querySelectorAll('[data-orb-stage-item]'))
             .find((node) => normalize(node).includes(stage.label)),
         2_000);
       }
       if (!stageMenuItem) {
-        const menuItems = Array.from(document.querySelectorAll('[role="menuitem"]'))
+        const menuItems = Array.from(document.querySelectorAll('[data-orb-stage-item]'))
           .map((node) => normalize(node)).filter(Boolean).join(' | ');
-        throw new Error('工作流阶段菜单未出现: ' + stage.label + '; menuItems=' + menuItems);
+        throw new Error('悬浮球阶段面板未出现: ' + stage.label + '; items=' + menuItems);
       }
       const clicked = { clicked: activate(stageMenuItem), text: normalize(stageMenuItem) };
       await visibleDelay();
