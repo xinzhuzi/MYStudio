@@ -57,4 +57,38 @@ describe("local account vault security boundaries", () => {
       credential: { kind: "oauth", accessToken: "access-secret", refreshToken: "refresh-secret" },
     });
   });
+
+  it("refuses to touch a corrupt vault instead of silently resetting it", async () => {
+    // 09-10 P0-3 回归:半写截断的库文件曾被静默当空库,下一次登录即整文件重写=全账号丢失
+    const vault = createLocalAccountVault(root);
+    const file = path.join(root, "self-media", "accounts.json");
+    await fs.mkdir(path.dirname(file), { recursive: true });
+    const truncated = '{"schemaVersion":1,"accounts":[{"id":"account-1","encryptedCredential":"x';
+    await fs.writeFile(file, truncated, "utf8");
+    await expect(vault.upsert(record)).rejects.toThrow("账号库文件已损坏");
+    await expect(vault.list()).rejects.toThrow("账号库文件已损坏");
+    await expect(fs.readFile(file, "utf8")).resolves.toBe(truncated);
+  });
+
+  it("rejects an unexpected schema version instead of treating it as empty", async () => {
+    const vault = createLocalAccountVault(root);
+    const file = path.join(root, "self-media", "accounts.json");
+    await fs.mkdir(path.dirname(file), { recursive: true });
+    await fs.writeFile(file, '{"schemaVersion":2,"accounts":[]}', "utf8");
+    await expect(vault.upsert(record)).rejects.toThrow("格式异常");
+  });
+
+  it("writes atomically and leaves no tmp residue", async () => {
+    const vault = createLocalAccountVault(root);
+    await vault.upsert(record);
+    const entries = await fs.readdir(path.join(root, "self-media"));
+    expect(entries).toEqual(["accounts.json"]);
+  });
+
+  it("treats a missing vault file as a legitimate empty state", async () => {
+    const vault = createLocalAccountVault(root);
+    await expect(vault.list()).resolves.toEqual([]);
+    await vault.upsert(record);
+    expect(await vault.list()).toHaveLength(1);
+  });
 });
