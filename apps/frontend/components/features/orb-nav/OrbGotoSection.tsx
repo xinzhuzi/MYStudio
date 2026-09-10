@@ -13,6 +13,7 @@ import {
   NotebookTabs,
   Workflow as WorkflowIcon,
   FolderOpen,
+  Palette,
   BookOpenText,
   Film,
   Boxes,
@@ -27,6 +28,8 @@ const VIEW_ENTRIES: ReadonlyArray<{ id: Tab; label: string; icon: typeof LayoutD
   { id: "overview", label: "概览", icon: NotebookTabs },
   { id: "studio", label: "工作流", icon: WorkflowIcon },
   { id: "assets", label: "资产", icon: FolderOpen },
+  // 09-10 补:球全局化后「前往」须含本地模型(旧两球时代球住沉浸视图故自指无意义)
+  { id: "freedom", label: "本地模型", icon: Palette },
   { id: "skills", label: "技能", icon: BookOpenText },
   { id: "export", label: "导出", icon: Film },
   { id: "media", label: "产物", icon: Boxes },

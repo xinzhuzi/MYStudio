@@ -181,13 +181,16 @@ describe("AppOrb(唯一悬浮球·全面面板)", () => {
     expect(screen.queryByRole("button", { name: /配音室/ })).toBeNull();
   });
 
-  it("展开「前往」:9 视口可跳,落 media-panel", async () => {
+  it("展开「前往」:10 视口可跳(含本地模型),落 media-panel", async () => {
     render(<AppOrb />);
     openPanel();
     expandSection("前往");
     const entries = await waitFor(() => {
       const list = document.querySelectorAll("[data-orb-nav-view]");
-      expect(list.length).toBe(9);
+      expect(list.length).toBe(10);
+      expect(
+        document.querySelector('[data-orb-nav-view="freedom"]')?.textContent,
+      ).toContain("本地模型");
       return list;
     });
     fireEvent.click(screen.getByRole("button", { name: /^概览$/ }));
