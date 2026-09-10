@@ -46,6 +46,9 @@ export function StageReadinessPanel({
         role="group"
         aria-label="切换阶段"
       >
+        <p className="px-2 pb-1 pt-0.5 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+          切换阶段
+        </p>
         {readiness.stages.map((stage) => (
           <StageItem
             key={stage.id}
