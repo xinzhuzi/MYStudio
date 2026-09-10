@@ -57,6 +57,7 @@ docs/*/**
 !docs/assets/art-styles.md
 !docs/assets/art-styles.en.md
 !docs/krea2.md
+!docs/comfyui-kb/**
 
 # Next.js cache (not used)
 .next/

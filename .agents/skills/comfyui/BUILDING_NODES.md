@@ -1,0 +1,237 @@
+# Building a custom node pack - the hard-won field guide
+
+The distilled lessons from building **ComfyUI-OCIO** (our nine-node OpenColorIO pack, 2026-06/07). This is the
+"how it actually goes" layer on top of the `comfyui-node-*` node-building skills (Layer 4): the gotchas that cost
+real time, so the next node pack does not re-pay them. When you write or modify a custom node, read this first.
+
+Everything here is confirmed - it is what we hit and fixed shipping ComfyUI-OCIO.
+
+## The node shape (Python)
+
+A node is a class in a module ComfyUI imports from `custom_nodes/<pack>/__init__.py`:
+
+- `INPUT_TYPES(cls)` (a `@classmethod`) returns `{"required": {...}, "optional": {...}}`. Each entry is a
+  `(type, opts)` tuple: `("IMAGE",)`, `("INT", {"default":0,"min":0})`, `("STRING", {"default":""})`,
+  `(["a","b"], {"default":"a"})` for a combo, `("BOOLEAN", {"default":False})`, `("MASK",)`, `("FLOAT", {...})`.
+- `RETURN_TYPES` / `RETURN_NAMES` (tuples), `FUNCTION` (the method name), `CATEGORY`, optional
+  `OUTPUT_NODE = True` (a save/preview node with no downstream).
+- `NODE_CLASS_MAPPINGS` / `NODE_DISPLAY_NAME_MAPPINGS` dicts; `WEB_DIRECTORY = "./web"` if you ship JS.
+- Combos populate at DEFINITION time. If a combo lists names from an external config (colorspaces, LUT files),
+  build the list inside `INPUT_TYPES` each call - it re-runs when `/object_info` is queried, so it picks up new
+  files without a code reload.
+
+**Widget order == `widgets_values` order.** ComfyUI serialises a saved workflow's widget values positionally, in
+the order the widget entries appear in `INPUT_TYPES` (required then optional), skipping connection inputs
+(IMAGE / MASK / LATENT ...). If you reorder or insert a widget, old saved workflows shift by one and load with
+wrong values. When you change the widget set, rebuild your example workflow. (Trailing extra values from an older
+schema are harmless - ComfyUI ignores them.)
+
+**The function receives inputs as kwargs by name**, so the signature order does not matter, but the NAMES must
+match `INPUT_TYPES` keys exactly (so a widget key must be a valid Python identifier - no `/`, no spaces).
+
+## The combo-validation trap (this one bit hard)
+
+`/prompt` VALIDATES a combo input against its option list. **Pass a value not in the list and the whole prompt is
+rejected with HTTP 400**, not a soft fallback. So:
+
+- A combo is right when the choices are a closed, known set (colorspaces from the config, formats, codecs).
+- A combo is WRONG when the user needs an arbitrary value - **a file path**. We first made OCIO Read's `source` a
+  combo of input-folder files; a real image sequence lives at an absolute disk path (`D:\shots\...`), which is
+  not in that list, so it could not be selected at all. **Fix: make it a `STRING`.** A STRING accepts anything
+  and is not validated, so any path works. Reach for STRING + a browse button whenever the value is open-ended.
+
+## The JS front end (`web/*.js`)
+
+Ship UI behaviour as an `app.registerExtension` with `beforeRegisterNodeDef(nodeType, nodeData)`; hook
+`nodeType.prototype.onNodeCreated` to add buttons and wrap widget callbacks. Patterns we rely on:
+
+- **Buttons:** `node.addWidget("button", label, null, callback, { serialize: false })` (serialize:false so it is
+  not stored in the workflow).
+- **Set a widget value:** find it with `node.widgets.find(w => w.name === name)`, set `w.value`, push into
+  `w.options.values` if it is a combo, call `w.callback(v)` if you want reactions, then `node.setDirtyCanvas`.
+- **`setWSilent` (value without firing the callback).** Critical when auto-filling widgets: if your "manual edit
+  turns auto OFF" logic lives in a widget's wrapped callback, then auto-setting that widget with a normal setter
+  fires the callback and turns itself off. Use a silent setter (just `w.value = v`) for programmatic fills; the
+  user's real drag still fires the callback. This is how OCIO Write tells an auto-sync from a manual edit.
+- **React to a widget change:** wrap its `callback` - store the original, set `w.callback = (v) => { orig?.(v);
+  yourHandler(v); }`.
+- **Conditional visibility (show a widget only when relevant, e.g. codec only for a video container).** There is
+  no native hide. The working trick: swap the widget's `type` to an unknown string (litegraph's draw switch
+  skips it) and set `computeSize = () => [0, -4]` (zero height; the `-4` cancels the row spacing), plus
+  `w.hidden = true` for newer ComfyUI; restore both to show. Then `node.setSize([w, node.computeSize()[1]])`.
+- **On-node labels:** `onDrawForeground(ctx)` draws in node-local coords - the title bar is at negative y, the
+  body starts at 0. We draw the colorspace label in the title bar (`ctx.textAlign="right"; fillText(..., size[0]-8, -6)`)
+  and the missing-frame list / "wrote N frames" near the bottom.
+- **Post-run info:** `onExecuted(message)` receives the node's `ui` dict from the run - return
+  `{"ui": {"images": [...], "count": [str(n)]}, "result": (...)}` from Python and read `message.count` in JS to
+  show "wrote N frames". (For a live thumbnail on any node, return `ui.images` like SaveImage does.)
+- **Cross-node auto (pull a value along the wire).** Walk `node.inputs[i].link` -> `app.graph.links[id]` ->
+  `app.graph.getNodeById(origin_id)` recursively until you find the upstream node type you want, then read its
+  widgets. OCIO Write traces back to OCIO Read (through any number of nodes) to auto-fill frame range + fps. To
+  re-sync when the upstream changes, iterate `app.graph._nodes` from the upstream node's change handler; also
+  re-sync on `onConnectionsChange` and `onConfigure` (loaded workflow) with a `setTimeout(..., 0)`.
+
+## Server routes (upload, browse, detect)
+
+For a node that needs the server's filesystem (browse a folder, upload a file, probe a sequence), register aiohttp
+routes in `__init__.py`, guarded so a standalone import does not crash:
+
+```python
+try:
+    import server; from aiohttp import web; import folder_paths
+    @server.PromptServer.instance.routes.post("/yourpack/route")
+    async def _handler(request): ...
+except Exception:
+    pass
+```
+
+We use three: `/ocio/upload` (multipart -> input folder, optional subfolder for a sequence), `/ocio/list_dirs`
+(list server folders + media files for the browse dialog), `/ocio/seq_range` (detect a sequence's range + fps for
+the JS auto-fill). The browse dialog is a DOM overlay the JS builds; the browser cannot pick a real server path
+itself, so the server route does the listing.
+
+## ComfyUI facts that shape the design
+
+- **No color management.** ComfyUI holds images as plain gamma-encoded sRGB in `0..1` (LoadImage = `x/255`, no
+  linearise; SaveImage = `x*255`). It is colorspace-unaware. Diffusion models were trained on that, so it is
+  deliberate, not a bug. This is exactly why an OCIO pack is needed, and why its working space is `sRGB - Display`.
+- **No timeline, no fps.** `IMAGE` is a batch `[B, H, W, C]`, float32, RGB, `0..1`-ish. There is no time - a
+  sequence is just a batch of frames. fps is metadata only; it does not change the frame count. A real retime
+  (dup/drop frames) is an explicit operation. Frame numbers are a labeling convention that only matters at read
+  (which files) and write (output filenames).
+- **Alpha is a separate `MASK`**, not a 4th channel of IMAGE. Output an alpha as a MASK (like LoadImage does),
+  take one as an optional MASK input, and combine into RGBA yourself at write time.
+- **`IS_CHANGED` footgun:** a node that should re-run but does not - return `float("NaN")` from `IS_CHANGED` to
+  force it (or bust a real input). A seed change that does nothing = stale cache.
+
+## IO libraries
+
+- **cv2 (OpenCV):** EXR / DPX read + write, RGBA supported, EXR half vs float via `IMWRITE_EXR_TYPE`. **EXR needs
+  `OPENCV_IO_ENABLE_OPENEXR=1` in the environment BEFORE cv2 is imported** - set it in the ComfyUI launch command,
+  not in your module (cv2 is usually already imported by the time your node loads).
+- **tifffile:** TIFF 8/16/32-float + a `description=` metadata tag. **Pillow:** PNG (text chunk metadata) / JPEG
+  (comment) - PIL 16-bit RGB is limited, use cv2 for 16-bit PNG.
+- **ffmpeg (external binary):** video decode/encode - ProRes / DNxHR / h264 / hevc all come from it. Find it with
+  `shutil.which("ffmpeg")`, fall back to bare `"ffmpeg"` (PATH), and fail with a CLEAR message if missing rather
+  than a raw `FileNotFoundError`. `ffprobe` (metadata) ships with a full ffmpeg; derive its path from ffmpeg's
+  basename, NOT by string-replacing "ffmpeg" in the whole path (that corrupts a directory like `ffmpeg-2024-.../`).
+
+## Verify like you mean it (Fable 5)
+
+- **Compile is not "works".** `py_compile` catches syntax, nothing else. To know a node works, **enqueue it
+  through `/prompt`** on a running ComfyUI and read the result (`/history/<id>` status + outputs). A node import
+  error shows in the boot log and the node is simply absent from `/object_info`.
+- **Run the REAL entry path, on REAL files.** We tested every node on toy files in ComfyUI's input folder and
+  called it done - and missed that a user's sequences live at absolute paths on another drive, which the
+  input-only combo could not even select. Test the way the user actually loads: a real sequence at a real disk
+  path, opened the way they open it. A green test on the dev setup you happen to have is not proof of the path
+  the work ships into.
+- **Deploy = the source of truth.** Our repo is the source; ComfyUI loads a `cp`-copy in `custom_nodes`. After
+  every edit, `cp` to `custom_nodes` and restart the server (kill the port, relaunch with the env vars) - editing
+  the source without re-copying means the running server has stale code and "my fix did not take".
+- **Interop is a claim to verify.** "It uses standard IMAGE" - prove it: run your node into a stock node and a
+  stock node into yours, both through `/prompt`. We confirmed OCIO Read -> core `ImageScaleBy` -> `SaveImage` and
+  `LoadImage` -> OCIO Write.
+
+## When you build the demo workflow
+
+Lay it out with `shared/comfyui/workflow_layout.py` (`auto_layout` + `inspect` + `fit_group`) - never eyeball a
+graph from a screenshot (see SKILL.md "Lay the graph out cleanly"). Bundle any asset the workflow needs (image,
+LUT) in the repo and make the paths portable (relative to the input folder), with a one-line "copy these into
+input" note. Then **run the whole workflow once** (convert the UI graph to the `/prompt` API format and enqueue)
+to confirm it opens and executes - that is what the user does.
+
+## Lessons from radiance (reverse-engineered, 2026-07-01)
+
+Patterns worth adopting, learned by reading `fxtdstudios/radiance` (full breakdown in `NODE_LIBRARY/radiance.md`).
+Learn the technique; it is GPL-3.0, so do not copy code verbatim into an MIT pack.
+
+- **A real 32-bit viewer beats a baked thumbnail.** Mount a `<div>` with `node.addDOMWidget("viewer", ...,
+  {serialize:false})` in `onNodeCreated`, instantiate a per-node JS class, and feed frames through the standard
+  `onExecuted(message)`. Render on a **WebGL2 `RGBA32F` / `gl.FLOAT`** texture (gate on `EXT_color_buffer_float`,
+  fall back f32->f16->u8) so exposure / a view transform run in-shader on true float data. Ship HDR pixels to the
+  browser as a small binary sidecar (header + zlib float32), not an 8-bit PNG.
+- **`PromptServer` aiohttp routes for config introspection.** `@PromptServer.instance.routes.get("/mypack/config")`
+  lets the JS populate dropdowns (displays / views / colorspaces) from the ACTUAL loaded config, not a static
+  list. Cheap, high-polish. If a route runs code (`exec`), gate it behind an explicit env var - never open by default.
+- **Cache the expensive object.** An OCIO `getProcessor()` (or a model load) costs 200-500 ms; a thread-safe
+  **bounded-LRU** (OrderedDict + RLock, keyed by every parameter that changes the result) is the single biggest
+  speedup for sequence / video nodes that would otherwise rebuild it per frame.
+- **Float32 hygiene:** keep float32 end-to-end, default any `clamp_output` to **False** (scene-linear has valid
+  negatives and > 1.0 highlights), use a **sign-preserving** power for gamma so HDR survives, and clamp NaN/Inf to
+  **65504** (max half) before an EXR-HALF write. Never let an 8-bit `*255` cast into the processing path.
+- **The log-curve correctness rule:** a piecewise log curve's decode threshold must be `encode(cut)`, computed
+  exactly - NOT a guessed constant. radiance shipped and later fixed 5 curve bugs (operator precedence, wrong
+  `cut_encoded`) that all trace to skipping this. Our OCIO `logc3` does it right (`cut_log = E*CUT+F`); keep that
+  discipline for any new curve (LogC4).
+- **Declarative registration + feature flags:** a catalog list (group -> module, with an env feature-flag for
+  dev-only nodes) + a loader that isolates a failing group and detects duplicate keys beats a hardcoded import
+  list - and does not crash the whole pack when one node's dep is missing.
+- **Security defaults worth copying:** store a secret as an **env-var NAME**, not the value (workflow JSON never
+  leaks it); traversal-safe `safe_join` with base-escape rejection; `weights_only=True` on every checkpoint load;
+  confine any file output to the ComfyUI output dir.
+- **A model-arch SSOT** (one table: arch -> latent_channels / scale / shift / log_curve / VAE factors) + a
+  **safetensors-header auto-detect** (read only the header keys, ordered heuristics) removes hardcoded per-model
+  constants from loaders and nodes. Relevant if we ever add a smart loader.
+- **Do NOT copy their mistakes:** an approximate LogC4, "ACES" tonemappers that are not the RRT, two divergent
+  DaVinci Intermediate implementations, and a declared-but-unused `colour-science` dep. Reverse-engineering means
+  taking the good patterns and naming the flaws, not cloning the repo.
+
+## Lessons from the ComfyUI-OCIO v1.2.0 video pipeline (2026-07-05)
+
+Hard-won and UNIVERSAL (any pack), from putting a color pack onto ComfyUI's native VIDEO wire. Confirmed in code
+and verified live in a browser.
+
+- **Dual mutually-exclusive IMAGE-or-VIDEO socket** - one node that slots into both an image-sequence graph AND a
+  native video graph. Two OPTIONAL inputs (`image`, `video`), `RETURN_TYPES=("IMAGE","VIDEO")`, only the matching
+  output carries data. Backend: unwrap a VIDEO to `(frames, fps, audio)` via `video.get_components()`, apply your
+  op to `frames`, re-wrap with `comfy_api.latest` `InputImpl.VideoFromComponents(Types.VideoComponents(images=...,
+  frame_rate=Fraction(fps).limit_denominator(600000), audio=...))` - the SAME type Load Video emits, so it
+  interops for free with Load / Save Video, Video Combine, Get Video Components, VHS. Frontend enforces
+  exclusivity in `onConnectionsChange`: when one input connects and the other is already connected,
+  `disconnectInput` the other (guard it, next point).
+- **RELOAD SAFETY (the most dangerous gotcha).** ComfyUI restores every saved link on load by firing
+  `onConnectionsChange(..., connected=true)` for each one. If your handler calls `disconnectInput` /
+  `disconnectOutput` during that restore, it mutates the link map while ComfyUI is still rebuilding it and wipes
+  links across the WHOLE graph, not just your node. Two guards, both required: (1) `if (app.configuringGraph)
+  return;` (ComfyUI sets it true during load); (2) only disconnect on a genuine conflict (the OTHER input already
+  connected) - a valid saved graph never has both, so a normal load never reaches the disconnect branch. ANY pack
+  that mutates links from `onConnectionsChange` needs this.
+- **You cannot safely hide/show an OUTPUT slot.** `removeOutput(idx)` re-indexes later outputs, but ComfyUI
+  serializes a link by `origin_slot` INDEX - hide output 0, output 1 reindexes to 0, its saved link now points at
+  the wrong slot on reload. Only the LAST output can be removed without a reindex. Fallback: keep both outputs
+  always visible, auto-disconnect only the inactive one's LINK; for a visual cue change `color_on` / `color_off`,
+  never the slot count.
+- **Vue-nodes (ComfyUI >=1.45) does not reliably apply a post-creation label mutation to an OUTPUT.** Setting
+  `output.label` after node creation is reliable for INPUTS, flaky for outputs. Put the display name directly in
+  **`RETURN_NAMES`** (display-only; connections resolve by slot index + type, so changing it is not a saved-graph
+  break).
+- **A video node's PREVIEW needs a servable TEMP file, not the real output.** ComfyUI's `/view` serves only
+  `output` / `temp` / `input`; a user-chosen absolute output path gives "Invalid URL", and a still `ui.images`
+  entry fails inside a `<video>`. Render a small throwaway preview into the TEMP dir (downscaled, frame-capped)
+  and return core's animated-preview shape: `{"ui": {"images": [{"filename": name, "subfolder": "", "type":
+  "temp"}], "animated": (True,)}, "result": (real_path,)}` (matches core `SaveVideo`'s `ui.PreviewVideo`). The
+  real result is untouched; only the UI preview is a separate artifact.
+- **Renaming a COMBO's VALUES (not just labels) breaks saved graphs unless you add `VALIDATE_INPUTS`.** Changing
+  dropdown strings (`lin_to_log` -> `Linear to Log`) makes ComfyUI reject any saved workflow holding the OLD value
+  at validation time, BEFORE your function runs (`value_not_in_list`) - a `dict.get(old, old)` fallback inside the
+  function is too late. Add `@classmethod def VALIDATE_INPUTS(cls, curve=None): ...` that checks `curve` against a
+  set of BOTH old AND new strings and returns `True`; listing an input there makes ComfyUI skip its own
+  combo-membership check. Also fix any frontend JS (a swap button) that toggles the combo by its OLD string value.
+- **Windows perf: `subprocess.run(capture_output=True)` on multi-GB stdout is pathologically slow.** ffmpeg piped
+  through `capture_output` measured ~61 s for 3.9 GB; the same decode to `/dev/null` was 1.6 s - reading a big
+  pipe on Windows is the bottleneck, not the decode. Fix: **decode to a TEMP FILE, then `np.fromfile()`** (4.8 s
+  16-bit / 2.4 s 8-bit, 12-25x faster). `os.makedirs` the temp dir first (it may not exist on a fresh install).
+  Pick the pixel format by the source's real bit depth (`ffprobe` `pix_fmt`; hi-bit planar carries an `le`/`be`
+  tag, 8-bit does not) so an 8-bit source is not decoded at 16-bit for nothing.
+- **On-node float/HDR WebGL viewport (the "Player" pattern).** Cache the batch as HALF-float RGBA server-side,
+  upload to a WebGL2 `RGBA16F` texture, do exposure + the display transform in the FRAGMENT SHADER on real values
+  (`c = texture(uImg, uv).rgb * exp2(uExposure)`), then sample a 3D LUT (`texImage3D`, baked server-side from
+  `getProcessor(in, out)` over a uniform grid). A `[0,1]` LUT domain CLIPS a scene-linear float source flat above
+  1.0 - bake the LUT's sampling axis in LOG space (ACEScct) and log-encode the pixel in-shader before the lookup.
+  Detect scene-linear via OCIO's own `getColorSpace(name).getEncoding()` ("scene-linear" / "sdr-video" / "log"),
+  not a substring guess on the colorspace name.
+- **A live-ComfyUI node-UI screenshot cannot be reliably scripted via browser tooling.** `canvas.toDataURL()`
+  captures only LiteGraph's 2D bitmap (Vue node panels are separate DOM overlays); a CDP `Page.captureScreenshot`
+  composites correctly but the automation tools cannot persist the bytes; the GIF recorder captures click/drag,
+  not raw screenshots. Conclusion: for a node-UI documentation screenshot, get a human to take it.
