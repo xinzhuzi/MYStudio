@@ -127,11 +127,13 @@ const PILL_STYLES: Record<CapabilityPillKind, string> = {
   "model-missing": "border-border bg-muted/60 text-muted-foreground",
   "not-installed": "border-border bg-muted/60 text-muted-foreground",
   ready: "border-success/30 bg-success/10 text-success",
-  "needs-runtime": "border-warning/30 bg-warning/10 text-warning",
-  preparing: "border-warning/30 bg-warning/10 text-warning",
-  downloading: "border-warning/30 bg-warning/10 text-warning",
-  update: "border-warning/30 bg-warning/10 text-warning",
-  updating: "border-warning/30 bg-warning/10 text-warning",
+  // 09-10 用户裁定:本地配置行胶囊不再用琥珀黄——需准备/准备中/下载中/可更新/
+  // 更新中五态统一主题蓝(主题三色=绿就绪/蓝动作/红出错;黄系全退)。
+  "needs-runtime": "border-primary/30 bg-primary/10 text-primary",
+  preparing: "border-primary/30 bg-primary/10 text-primary",
+  downloading: "border-primary/30 bg-primary/10 text-primary",
+  update: "border-primary/30 bg-primary/10 text-primary",
+  updating: "border-primary/30 bg-primary/10 text-primary",
   error: "border-destructive/30 bg-destructive/10 text-destructive",
   blocked: "border-destructive/30 bg-destructive/10 text-destructive",
 };

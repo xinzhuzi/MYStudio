@@ -698,7 +698,7 @@ export function ComfyEngineSettingsSection({ embedded = false, initialActiveTab 
                         正在向 GitHub 查询…
                       </span>
                     ) : status.updateAvailable ? (
-                      <span className="rounded-full border border-warning/30 bg-warning/10 px-2 py-0.5 text-xs font-medium text-warning" data-comfy-update-badge>
+                      <span className="rounded-full border border-primary/30 bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary" data-comfy-update-badge>
                         {status.aheadBy != null
                           ? `可更新(+${status.aheadBy} 个新提交)`
                           : status.latest

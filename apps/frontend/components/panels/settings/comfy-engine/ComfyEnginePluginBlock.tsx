@@ -50,7 +50,7 @@ type ComfyEnginePluginBlockProps = {
 /** 插件状态胶囊样式(照 PluginSettingsTab PILL_STYLES 语义 token)。 */
 const PLUGIN_PILL_STYLES: Record<ComfyPluginState, string> = {
   installed: "border-success/30 bg-success/10 text-success",
-  updatable: "border-warning/30 bg-warning/10 text-warning",
+  updatable: "border-primary/30 bg-primary/10 text-primary",
   "install-failed": "border-destructive/30 bg-destructive/10 text-destructive",
   installable: "border-border bg-muted/60 text-muted-foreground",
 };
@@ -106,6 +106,14 @@ export function ComfyEnginePluginBlock({ engine }: ComfyEnginePluginBlockProps) 
     [engine.catalog, searchDraft, category],
   );
 
+  // 09-10 根修:已装行同口径过滤(此前搜索/分类只作用于目录条目,已装恒全量,
+  // 搜索框对已装插件表现成「不起作用」)。去重仍按全量已装集,已装插件的
+  // 目录孪生不因已装行被过滤掉而以「可安装」回流。
+  const visiblePlugins = useMemo(
+    () => filterComfyCatalogEntries(engine.plugins, searchDraft, category || null),
+    [engine.plugins, searchDraft, category],
+  );
+
   /** 已装插件优先展示,再接目录里的可装条目(去重:已装的以 plugins 清单为准)。 */
   const rows = useMemo<PluginRow[]>(() => {
     const installedIds = new Set(
@@ -128,7 +136,7 @@ export function ComfyEnginePluginBlock({ engine }: ComfyEnginePluginBlockProps) 
         source: entry.source,
         installed: false,
       }));
-    const installedRows: PluginRow[] = engine.plugins
+    const installedRows: PluginRow[] = visiblePlugins
       .filter((plugin) => plugin.state !== "installable")
       .map((plugin) => ({
         id: plugin.id,
@@ -146,7 +154,7 @@ export function ComfyEnginePluginBlock({ engine }: ComfyEnginePluginBlockProps) 
         installed: true,
       }));
     return [...installedRows, ...catalogRows];
-  }, [engine.plugins, visibleEntries]);
+  }, [engine.plugins, visibleEntries, visiblePlugins]);
 
   const requestUninstall = async (row: PluginRow) => {
     setIsScanningUsage(true);
