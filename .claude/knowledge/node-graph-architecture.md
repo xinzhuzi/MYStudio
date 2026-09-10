@@ -1,258 +1,275 @@
 # 节点图知识文档(通用原理 + 本项目架构)
 
-> **本文件为节点图领域权威知识文档**(2026-09-07 建立):第一部分是节点图的行业通用知识(dataflow/DAG/求值模型/ComfyUI/React Flow),第二部分是本项目两块画布的完整架构(以代码为准、带行号锚点),第三部分是"改 X 去哪"任务地图,第四部分是已生效的用户裁定(不可协商约束)。
+> **本文件为节点图领域权威知识文档**(2026-09-07 建立,2026-09-10 换代重写):第一部分是节点图行业通用知识(范式/图论/求值模型/布局算法/ComfyUI/React Flow 内核/undo/持久化/错误语义),第二部分是本项目 **ComfyUI 换代终态**架构,第三部分是"改 X 去哪"任务地图,第四部分是已生效裁定,第五部分是已知坑与存疑。**任何涉及画布、节点、工作流库、存量迁移、生成的任务,动手前先读本文件**;锚点以符号名为准,行号过期以代码实况为准。
 >
-> **任何涉及 image-workflow / image-studio 画布、节点、连线、生成的任务,动手前先读本文件**;行号以 2026-09-07 工作区为准,过期时以代码实况为准(锚点符号名比行号更稳)。
->
-> 路径约定:下文 `FE/` = `apps/frontend/`,`BE/` = `apps/backend/`。
+> 路径约定:`FE/` = `apps/frontend/`,`BE/` = `apps/backend/`。
 
 ---
 
-# 第一部分:节点图通用知识(行业共识)
+# 第一部分:通用知识(行业共识)
 
-> 本部分回答"节点图是什么、算法是什么、为什么这么设计"。所有来源均经 2026-09 实际抓取核验,文末附 URL。
+> 所有来源 2026-09 实际抓取核验(官方文档/源码/论文/RFC),文末附 URL;网络误传勘误表见 §12。
 
 ## 1. 节点图范式 = dataflow programming 的图形化
 
-**一句话内核**:程序被建模为"数据在操作之间流动的有向图"——节点是黑盒操作,边显式声明数据依赖;执行顺序不再由语句顺序决定,而由图拓扑决定。
+**一句话内核**:程序被建模为"数据在操作之间流动的有向图"——节点是黑盒操作,边显式声明数据依赖;执行顺序由图拓扑而非语句顺序决定。
 
-- 点火规则(firing rule):"An operation runs as soon as all of its inputs become valid"——节点只依赖输入可用性,天然无隐藏状态、天然可并行。
-- 与命令式的关系:节点图 ≈ 命令式调用的"依赖图显式化"——每个节点对应一次函数调用,每条边对应一次实参传递。**理解任何节点图的捷径:把它看成"自动排好了调用顺序的函数调用网"。**
-- 优点:依赖显式可审计、易并行、子图可复用可替换。缺点:大图可读性差、版本管理难——业界用 group/subgraph/minimap/折叠缓解。
+- 点火规则:"An operation runs as soon as all of its inputs become valid"——天然无隐藏状态、天然可并行。
+- 理解捷径:**把节点图看成"自动排好调用顺序的函数调用网"**——节点=函数调用,边=实参传递。
+- 优点:依赖显式可审计、易并行、子图可复用;缺点:大图可读性差——业界用 group/subgraph/minimap/折叠缓解。
 - 同一思想的非图形化身:spreadsheet 单元重算、makefile 依赖、TensorFlow/Flink/Spark 计算图。
 
 ## 2. 图论基础:DAG / 拓扑排序 / 环检测
 
-**一句话内核**:可执行节点图几乎总是 DAG(有向无环图);拓扑排序给出合法求值顺序,排序失败即有环——这是"禁止回连"约束的数学根据。
+**一句话内核**:可执行节点图几乎总是 DAG;拓扑排序给出合法求值顺序,排序失败即有环——"禁止回连"的数学根据。
 
-- **拓扑序**:线性序使每条边 (u,v) 满足 u 在 v 前。非唯一(并列分支可互换)→ 对应"并行分支执行顺序不唯一"。
-- **Kahn 算法** O(V+E):入度 0 的顶点入队 → 出队删出边 → 新入度 0 者入队;结束时仍有剩余 = 有环。
-- **DFS 算法** O(V+E):临时标记进入/永久标记完成,输出 reverse post-order;遇临时标记点 = back edge = 环。
-- 工程共识:环检测应在**连线瞬间**(图编辑时)完成,而不是执行时才炸;反馈/循环语义要用显式特殊节点建模(UE 的 Timeline、ComfyUI 的子图展开)。
+- **拓扑序**:每条边 (u,v) 满足 u 在 v 前;非唯一(并列分支可互换)。
+- **Kahn 算法** O(V+E):入度 0 入队 → 出队删出边 → 新入度 0 入队;有剩余 = 有环。
+- **DFS 算法** O(V+E):临时标记进入/永久标记完成,输出 reverse post-order;遇临时标记 = back edge = 环。
+- 工程共识:环检测在**连线瞬间**完成,不是执行时才炸;反馈语义用显式特殊节点建模(UE Timeline、ComfyUI 子图展开)。
 
-## 3. 求值模型:pull vs push、脏传播、输出缓存
+## 3. 求值模型:pull / push / 脏传播 / 输出缓存 / 增量计算
 
-**一句话内核**:pull(lazy)从输出端按需回拉上游(Houdini cook、ComfyUI),push(eager)从变更点向前点火(流处理、响应式);实际系统几乎都是混合——"脏标记(push 式打标)+ 按需拉取(pull 式求值)"。
+**一句话内核**:pull(lazy)从输出端按需回拉上游(Houdini cook、ComfyUI),push(eager)从变更点向前点火;实际系统=混合("脏标记 push 式打标 + 按需 pull 式求值")。
 
-- **脏传播**(dirty propagation):参数变更 → 该节点脏;上游结果变 → 所有下游脏;求值时"只重做变了的部分"。
-- **输出缓存/记忆化**(ComfyUI 范本):缓存 key = 节点输入签名(含全部上游 ancestry + IS_CHANGED 返回值 + 字面量输入);相同输入签名的子图即使位置不同也命中缓存。`NaN` 表示永远重算(NaN≠NaN)。
-- 与本项目的对照:**本项目是"用户手触发 + 单点 pull"**——点成图节点的「生成」按钮才从该节点回拉上游(见 §12),没有自动脏传播;衍生过期(staleSince)是一种轻量脏标记。
+- 脏传播:参数变更→该节点脏;上游结果变→下游全脏;求值"只重做变了的"。
+- **增量计算理论谱系**(理解缓存的深层模型):
+  - **Adapton**(PLDI 2014):demand-driven + thunk memo + 依赖图,输入变更只把受影响 thunk 标 dirty 局部重算;
+  - **Salsa / red-green**(出自 rustc 增量编译):查询=依赖图节点;green=结果仍有效,red=须重算;重算后 hash 不变则 **early cutoff** 截断级联——"验证比重算便宜"是全部收益来源;
+  - **Build Systems à la Carte**(ICFP 2018;不是 "Carter"):rebuilding 精确性 × 依赖静态性两轴,Make/Shake/Bazel 都是坐标系中的点;
+  - **ComfyUI 输入签名缓存** = 无版本计器的 Salsa:签名(全祖先内容哈希)扮演 revision,memo 命中即 green;`NaN`=永远重算;`IS_CHANGED`=自定义验证钩子。
+- 与本项目对照:本项目是"用户手触发 + 单点 pull"——点「生成/执行」才回拉上游,无自动脏传播;衍生过期 staleSince 是轻量脏标记。
 
 ## 4. 端口类型系统(Socket/Handle Types)
 
-**一句话内核**:端口类型 = 视觉编码(颜色/形状)+ 连线时的类型检查与自动转换;Blender 的 color-coded socket 是最完整范本。
+**一句话内核**:端口类型 = 视觉编码(颜色/形状)+ 连线时类型检查与自动转换;Blender color-coded socket 是最完整范本。
 
-- Blender:Geometry=绿、Float=蓝、Int=柠檬绿、Boolean=紫红……;未连接=空心、连接后=实心;multi-input socket 可接多根线。
-- 类型检查的位置:ComfyUI 在**验证阶段**做 received_type vs input_type 字符串比对;React Flow **不内置类型系统**,连线合法性完全交给应用层的 `isValidConnection` 回调——**这正是本项目 isValidImageConnection 的设计出处**。
-- 自动转换:Blender/UE 会在兼容类型间自动转换(不可直连时 UE 自动插 autocast 节点);不兼容直接拒连。
+- Blender:Geometry=绿、Float=蓝、Int=柠檬绿、Boolean=紫红;未连接=空心、连接后=实心;multi-input socket 可接多线。
+- 类型检查位置:ComfyUI 在验证阶段做 received_type vs input_type。
+- 自动转换:Blender/UE 在兼容类型间自动转换(UE 自动插 autocast 节点);不兼容拒连。
 
-## 5. ComfyUI 执行引擎(本仓后端的直接参照系)
+## 5. DAG 自动布局算法
 
-**一句话内核**:节点=注册进 NODE_CLASS_MAPPINGS 的 Python 类(INPUT_TYPES/RETURN_TYPES/FUNCTION 协议);执行分"验证→执行"两阶段;靠输入签名+IS_CHANGED 的输出缓存跳过未变子图。
+**一句话内核**:主流"自动排版"= Sugiyama framework 五步流水线(去环→分层→虚拟节点→消叉→坐标),核心子问题全是 NP-hard 所以全用启发式;**手工泳道是把"分层"语义化后交给人类,其余阶段简化掉**。
 
-- 验证阶段:递归 validate_inputs——检查必填缺失、连线类型匹配、字面量范围;自定义 VALIDATE_INPUTS 在执行前跑。
-- 执行阶段:从 OUTPUT_NODE(输出节点)拉取,按 ExecutionList 迭代调度(当前 master 已从早期 recursive_execute 递归改为迭代);先广播 execution_cached 让前端置灰被缓存的节点。
-- 本仓对照:`BE/image_gen/server.py` 的 `/v1/images/generations` + `pipeline.py` 引擎分发,是同一思想的极简化——无缓存(每次全量算)、无验证阶段(校验全在前端)、单请求单图。`engines/comfyui_bridge.py` 则直接把 4 个 ComfyUI 工作流模板当远程引擎调。
+- 五步:① cycle removal(最小 feedback arc set,NP-complete,贪心);② layer assignment;③ 跨层边拆 dummy vertices;④ crossing reduction(barycenter/median heuristic);⑤ coordinate assignment(Brandes–Köpf 线性,每边最多 2 拐点)。
+- **longest-path layering**:按"出发最长路径长度"定层,Mirsky 定理保证最少层数;一遍拓扑序完成;缺点=层宽不受控。
+- **Coffman–Graham layering**:每层 ≤W,层数 ≤ 最优的 2−2/W 倍;适用"列宽受控"。
+- **dagre**(MIT):骨架=Gansner et al.(Graphviz dot 论文);速度优先于最优。**elkjs**(⚠️ EPL-2.0):GWT 转译非原生 JS,耗时建议 Web Worker。
+- 泳道 vs 自动布局取舍:泳道列=语义阶段、结果可预测;全自动"好看但不可预测"且每次重排破坏用户心智地图。工程折中=只自动化语义最强的分层阶段+列内受控排序。
 
-## 6. React Flow / xyflow 要点(本仓画布内核)
+## 6. ComfyUI 执行引擎(本仓画布的现行内核)
 
-**一句话内核**:React Flow 是**受控组件库**——nodes/edges 全是你传入的 props,交互只产生 onNodesChange/onConnect 等事件由你落地状态;渲染/交互复杂度由库承担。
+**一句话内核**:节点=注册进 NODE_CLASS_MAPPINGS 的 Python 类(INPUT_TYPES/RETURN_TYPES/FUNCTION 协议);执行分"验证→执行"两阶段;靠输入签名+IS_CHANGED 输出缓存跳过未变子图。
 
-- 受控模型:`setNodes(nds => applyNodeChanges(changes, nds))` + `addEdge`;handler 必须 useCallback,否则可能无限重渲染。
-- Custom node:`nodeTypes` 按 node.type 分派组件;Handle 分 source/target 两个方向,多 Handle 必须有唯一 `id`——**本项目 prompt 双出口(positive/negative)和 uncloth 三入口(image/prompt-1/prompt-2)正是用 Handle id 实现的**。
-- `isValidConnection`(ReactFlow 级或 Handle 级):官方建议放 ReactFlow 级(性能)——本仓两画布都这么做。
-- 分组:`parentId` + `extent:'parent'`(v11.11 前叫 parentNode);group = "无 handle 的容器节点";**nodes 数组中父节点必须排在子节点前**。
-- 性能三板斧:custom node 用 React.memo、回调 useCallback、`onlyRenderVisibleElements` 虚拟化(注意它自身有开销,适合大图)。
-- 版本现状(2026-09):最新大版本 v12 线(新包名 `@xyflow/react`),无 v13;11→12 迁移要点=包名/`node.measured`/parentId 改名/onEdgeUpdate→onReconnect 等。
+- 验证阶段:递归 validate_inputs(必填/类型匹配/字面量范围/自定义 VALIDATE_INPUTS)。
+- 执行阶段:从 OUTPUT_NODE 拉取,ExecutionList 迭代调度;先广播 execution_cached 让前端置灰缓存节点。
+- 错误语义:节点异常组装 `error_details{node_id, exception_type, traceback, current_inputs}` 回传,**错误标注到具体节点**;上游已完成输出保留在缓存,下游不再执行。
+- 用户目录:引擎未传 `--user-directory` 时默认 `<引擎源码>/user`,前端工作流库读写 `<user>/default/workflows`——**本项目工作流库统一的根据**(§16)。
 
-## 7. 业界参照系速览
+## 7. React Flow / xyflow(已退役内核,知识备查)
 
-| 系统 | 代表思想 | 一句话 |
+**一句话内核**:React Flow 是"内部 zustand store + d3-zoom/d3-drag 视口 + ResizeObserver 测量"的三层机器;受控模式=你的 state 经 props 与内部 store 双向同步。
+
+- 09-09 换代批6/批8 后本项目画布不再使用 React Flow(§13);此节保留作史案与迁移器维护参考。
+- v12 起:测量值一律在 `node.measured`;`onlyRenderVisibleElements` "可能提速也可能加开销";布局从不内置。
+- 官方 performance 四条:自定义 node/edge memo 化;组件里避免直接读 nodes/edges;折叠大子树(hidden);最后才简化 CSS。
+- 版本现状(2026-09):v12 线(`@xyflow/react`),无 v13。
+
+## 8. Undo/Redo:command / snapshot / patch / event sourcing
+
+**一句话内核**:命令栈赢在粒度与内存、输在"每个操作都要写 undo";快照栈赢在实现与正确性、输在内存(structural sharing 救)——**业界节点编辑器实际全走快照或反向 delta 路线**。
+
+- 举证:UE Editor=FTransaction 快照;Blender=快照式 Undo History;ComfyUI 前端=ChangeTracker 整图 JSON 快照栈;Excalidraw=HistoryDelta 反向增量。
+- 中间路线 patch 栈:Immer `produceWithPatches` → `applyPatches(inversePatches)`。
+
+## 9. 图数据的持久化与变更检测
+
+**一句话内核**:版本化靠 schemaVersion+迁移函数链;"图变没变"靠规范化序列化后的内容哈希;协同靠 CRDT(Yjs/Loro)但"图语义"要自己建模。
+
+- 内容指纹:**RFC 8785 JCS**(键按 UTF-16 码元排序、无空白)→ SHA-256——本项目 storyboardSourceFingerprint(stableHash JSON 键排序)同思想。
+- ComfyUI 前端已立 ADR-CRDT-LAYOUT-0003(布局意图与本地测量分离)。
+
+## 10. 错误传播与重试语义
+
+**一句话内核**:数据流图失败语义共识=**节点级归因 + 默认 fail-fast 短路(下游 skip、上游结果保留)+ 可选错误降级为数据 + 重试是节点粒度配置**。
+
+- n8n:节点级 On Error 三选 + Retry On Fail + 工作流级 error workflow。
+- 本仓对照:失败=节点 status:"failed"+errorReason(节点级归因)+弹窗;批量链失败跳过继续=Continue 语义;VLM 闸门 rejected 重生 1 次=节点粒度重试;fail-open 不阻断主链。
+
+## 11. 业界参照系 + JS 库生态
+
+| 系统/库 | 代表思想 | License |
 |---|---|---|
-| Blender Nodes | 类型即视觉语言 | color-coded socket + multi-input + 自动插转换节点 |
-| Houdini SOP | 脏传播+可锁缓存的过程化 DAG | cook 按需求值,只重做变了的;可 lock 节点固化结果 |
-| Unreal Blueprint | 控制流与数据流两类边共存 | 白色 exec wire(执行序)+ 彩色 data wire(数据);pure 节点=按需拉取 |
-| n8n | 入口节点(trigger)驱动的线性工作流 | webhook/schedule 触发,节点顺序执行 |
-| LiteGraph.js | 引擎与编辑器分离 | Canvas2D 蓝图库,图可在无编辑器环境执行(ComfyUI 早期前端) |
+| Blender Nodes | 类型即视觉语言(color-coded socket + multi-input) | — |
+| Houdini SOP | 脏传播+可 lock 缓存的过程化 DAG;cook 按需求值 | — |
+| Unreal Blueprint | exec wire+data wire 两类边共存;pure 节点=按需拉取 | — |
+| n8n | 入口节点(trigger)驱动线性工作流 | — |
+| **ComfyUI** | 本仓现行画布内核+执行引擎 | GPL-3.0(漫影经双许可合规使用) |
+| React Flow(`@xyflow/react`) | 已退役;React 节点 UI 标杆 | MIT+attribution 政策 |
+| dagre / elkjs | 布局库 | MIT / **EPL-2.0** |
 
-## 8. UI/UX 与性能共识
+## 12. 网络误传勘误表(2026-09 核验)
 
-- 交互已高度趋同:端口拖拽连线、右键菜单(节点发现主入口)、框选、minimap、undo/redo。
-- **undo/redo 标准答案 = command pattern**(execute()/undo() 命令对象栈);React Flow 不内建 undo,状态在应用侧正好便于实现——**注意:本仓实际用的是"快照栈"而非 command pattern**(nodes+edges 整图快照,见 §15),对本仓图规模这是合理简化。
-- Handle 对齐减少连线交叉(Blender 手册明文建议)——本仓两列/三列泳道布局就是这个共识的落地。
-- 性能:渲染侧虚拟化/裁剪,求值侧只算脏子图,数据侧惰性求值;React 侧 memo/useCallback/避免子组件订阅整个 nodes 数组。
+1. "React Flow 内部不维护状态" — 错;内部始终有 zustand store。
+2. "`node.width/height` 是库量出的尺寸" — v12 起测量值在 `node.measured`。
+3. "`onlyRenderVisibleElements` 一定更快" — 官方原话"may improve ... but also adds an overhead"。
+4. "ComfyUI 执行器是递归的" — 现行 master 已改 ExecutionList 迭代调度(验证阶段仍递归)。
+5. "快照式 undo 必然内存爆炸" — 配 structural sharing/截断完全可用。
+6. "ComfyUI 用户目录可随意指" — 前端工作流库绑定 `<user>/default/workflows`,sidecar 库要同路径必须显式指向(§16)。
 
 ---
 
-# 第二部分:本项目节点图架构(以代码为准)
+# 第二部分:本项目节点图架构(ComfyUI 换代终态,2026-09-10)
 
-## 9. 全景:两块画布,一套图模型
+## 13. 全景:三槽位 webview + 一第六 tab,画布全 ComfyUI
 
-| 维度 | 分镜画布(studio) | 图片工作室画布(assist) |
+**换代史**:09-09 comfyui-frontend-swap 四阶段落地,批6(c79cdc5)图片画布 React Flow 退役,批8(076df54)主分镜视图切换+React Flow 终局退役;09-09/10 音乐收敛 ComfyUI(f60c50c 音乐 tab 撤)、大模型展示入引擎卡模型页(82f2cfc)。
+
+| 挂载面 | 位置 | 说明 |
 |---|---|---|
-| 容器组件 | `FE/components/panels/studio/image-workflow/ImageWorkflowCanvas.tsx:87` + `ImageWorkflowFlowView.tsx:28` | `FE/components/panels/assist/image-studio/ImageStudioCanvas.tsx:79`(内嵌 FlowView :963) |
-| 数据源 | `useStudioStore().imageWorkflows` | `useImageStudioStore`(独立 zustand) |
-| 图模型 | **共用同一 `ImageWorkflowGraph` 类型**;assist store 注释明说"节点/边 CRUD 全部经 lib/studio/image-workflow/graph-build(单一实现源)"(`FE/stores/assist/image-studio-store.ts:46-47`) | 同左 |
-| 定位 | 生产域:分镜指纹/资产圣经连续性/风格锁/VLM 闸门/回写分镜与资产/批量超分/取材四工具/多帧 keyframes | 自由域:多画布、右键创建、复制粘贴、批量 1-4 张、生成历史、JSON 导入导出、拖图入布 |
-| 持久化 | studio-workflow 分片 store(§16) | 项目侧一画布一文件(§16) |
+| 辅助·图片工作室 tab | `FE/components/panels/assist/ImageStudio.tsx`(壳)→ `comfy-canvas/ComfyCanvasSwap` | FreedomView 五 tab(image/video/cinema/tts/comfy)之一 |
+| 主视图·分镜制作 | `FE/components/panels/studio/index.tsx` storyboard tab → ComfyCanvasSwap | 批8 主视图化 |
+| 主视图·分镜画布 | 同上 imageWorkflow tab → ComfyCanvasSwap(带 onBack) | 资产/分镜深链入口 |
+| 辅助·第六 ComfyUI tab | `comfy-canvas/ComfyCanvasStudio` 直挂 | 完整版(多引擎信息栏) |
 
-两画布共享:图变更族(graph-build-mutations)、边校验(isValidImageConnection)、手势内核(useCanvasGestureKernel)、undo/redo hook、UnclothNodeEditor/NsfwNodeEditor、CanvasViewportControls。
+- **ComfyCanvasSwap**(`comfy-canvas/ComfyCanvasSwap.tsx`):头部=标题+返回(可选)+**「导入存量画布(N)」按钮**(§17)+退役提示;主体=ComfyCanvasStudio(embedded)。`legacy` 入参为兼容残留不再渲染。
+- **ComfyCanvasStudio**(`comfy-canvas/ComfyCanvasStudio.tsx`):引擎状态机三态占位(未装→一键安装/就绪未跑→启动/运行中→webview `http://127.0.0.1:<port>/`);**client 引用必须 useMemo 固化**否则探测 effect 循环重跑;webview `allowpopups` 须传字符串。它同时是**桥轮询宿主**:tab 在场每 5s——推分镜快照(pushBridgeStoryboards)+总览图库保鲜(syncStoryboardOverviewToLibrary,指纹守卫)+消费收件箱(consumeComfyBridgeWritebacks);inFlight 压重叠,轮询面静默不弹窗。
+- 同一时刻只有一个实例在挂载(两处 Tabs 均无 forceMount,非活动 tab 卸载)→单路轮询。
 
-⚠️ 命名澄清(易混):`workflow-node-model.ts` / `workflow-node-registry.ts` 是**生产流画布**(剧本→分镜→成片)的东西,与图像画布**无关**(已核实无 import 关系)。
+## 14. manying_nodes:自有节点插件(仓库真源)
 
-## 10. 数据模型(FE/types/studio-production-types.ts)
+真源 `BE/engines/comfyui/manying_nodes/`(sync 至引擎 custom_nodes 不依赖打包;连字符目录不能直 import,验证走引擎 object_info):
 
-- 节点类型枚举 `ImageWorkflowNodeType`(:293):`"reference" | "prompt" | "generated" | "uncloth" | "sticky" | "group" | "nsfw"`;状态机 `idle|queued|generating|ready|failed`(:294)。
-- 七种节点 data 是判别联合 `ImageWorkflowNode`(:489-496),公共基座 `{id, type, title, position, createdAt, updatedAt}`(:301)。
-- 边 `ImageWorkflowEdge {id, source, target, label?, targetHandle?, sourceHandle?}`(:513)——**handle 值就是边上的字段**,不是 React Flow 私有物。
-- 图 `ImageWorkflowGraph {id, name, target, targetSourceFingerprint?, assemblyTrace?, nodes, edges, viewport?, …}`(:530);`target.kind = free|material|storyboard|asset`(:248)决定流的归属域。
+- 节点(NODE_CLASS_MAPPINGS):`ManyingPrompt` / `ManyingReference` / `ManyingGenerated`(shot_target 经侧栏回填)/ `ManyingShot`(镜节点,批7 主视图化第一块)。
+- `web/manying.js`:ComfyUI 原生前端 sidebar 扩展(自定义 DOM 渲染),拉 sidecar 分镜快照,点选回填 ManyingGenerated.shot_target;旧版前端无 sidebar API=静默跳过。
+- 测试:`manying_nodes/tests/`;bridge 三件套见 §15。
 
-**Handle 口约定**(渲染层两画布一致):
-- prompt 节点双**出口**:`positive`(上)/`negative`(下)(`image-workflow-node-card.tsx:168-185`);
-- uncloth 节点三**入口**:`image`(图)/`prompt-1`①=编辑指令/`prompt-2`②=一致性描述 system_prompt(:134-160);
-- generated/nsfw 单一无名左入口;其余节点单一无名右出口。
-- **存量边回落**:无 targetHandle 的旧边,uncloth 目标按源类型回落 prompt→prompt-1、其他→image;prompt 源无 sourceHandle 回落 positive(`ImageWorkflowCanvas.tsx:320-328`、`ImageStudioCanvas.tsx:630-636`)。
+## 15. 桥(sidecar↔webview↔渲染层)
 
-## 11. 节点类型清单
-
-注册表:`FE/lib/studio/canvas-node-registry.ts:38`(IMAGE_WORKFLOW_DEFINITIONS,5 种可连线类型)+ assist 元数据 `image-studio-node-registry.ts:21`(7 种含 sticky/group)。卡片 UI:studio 全部在 `image-workflow-node-card.tsx`,assist 在 `image-studio-node-card.tsx`。
-
-| kind | 职责 | 输入口 | 输出口 | 要点 |
-|---|---|---|---|---|
-| `reference` | 参考图 | 无 | 右×1 | derivedFrom 取材血缘;直改 imageUrl 触发衍生过期;卡片有取材四按钮 |
-| `prompt` | 提示词 | 无 | `positive`+`negative` | 模型/画幅字段已按 08-30 裁定移出,归成图节点 |
-| `generated` | 成图(执行节点) | 左×1(可反向拖出建上游) | 右×1 | paramsEdited=参数权威标记;无连线时有内嵌 prompt 面板;按钮=回写/超分/生成 |
-| `uncloth` | 无衣物处理 | `image`+`prompt-1`+`prompt-2` | 右×1 | variant fast/fine 已封存,instruct 为现行;参数经 UnclothNodeEditor |
-| `nsfw` | NSFW 破限 | 左×1(只吃提示词) | 右×1 | 零参数一期,只读展示专业流参数 |
-| `sticky` | 便利贴 | 无 | 无 | 仅 assist 有创建入口 |
-| `group` | 分组框 | 无 | 无 | 成员经拖放吸附 setGroupMembership |
-
-辅助单源:`referenceCapacityForModel`(`image-studio-node-registry.ts:57`)——krea2-turbo/flux2-klein-9b/z-image-turbo=1 张,qwen-image-edit-2511/comfyui-bridge/gpt-image*=4 张。
-
-## 12. 执行链(生成怎么走)——最核心
-
-### 12.1 分镜链(studio)
-
-成图卡「生成」→ `useImageWorkflowGeneration.generateNode` → `runImageWorkflowNodeGeneration`(`run-image-workflow-node-generation.ts:50`,UI 无关核心):
-
-1. **uncloth 分流预检**:`buildUnclothChainRequest` 有 uncloth 上游且链完整→走 uncloth 管线;不完整→toast 指路拒发。
-2. **请求组装** `buildImageWorkflowGenerationRequest`(`FE/lib/studio/image-workflow/request.ts:43`):
-   - 提示词:nsfw 链时 `findPromptViaNsfw`;否则 `findPromptNodeForGenerated`(入边+targetNodeId 直挂);正负文本经 `splitPromptEdgesByPolarity` 按出口极性分流;
-   - 参考图:遍历指向本节点的边,reference 按 `continuityOrder` 排序;上游 generated 的 resultUrl 作 `previous-approved-frame`;
-   - 资产圣经连续性契约拼接、`@图N` 令牌解码、负向合并参考 avoid;参数权威 `paramsEdited ? node : promptNode`;
-3. **守卫**:NSFW 模型白名单(krea2-turbo/comfyui-bridge 之外大白话阻断);连续性能力门禁(多参考仅 comfyui-bridge/gpt-image 系放行,order 必须 1..k 连续);
-4. 受管地址(project-file://等)经 IPC 转 base64 → 分镜流加视觉手册风格锁 → `aiManager.generateImage` → 自动去噪 → 项目内落盘 → VLM 人物一致性闸门(fail-open)→ `setGeneratedImageResult` 回写(触发下游衍生 staleSince)。
-
-### 12.2 图片工作室链(assist)
-
-`useImageStudioGeneration.generateNode`:uncloth 分流 → NSFW 守卫 → **t2i/i2i 无歧义预检**(空参考阻断不静默降级)→ 批量 count 1-4 顺序生成 → `runImageStudioNodeGeneration`(落盘 `media/ai-image/YYYY-MM/` + ledger 台账 + eventBus 广播)。
-
-与分镜链的关键差异:assist **不注入**资产圣经/风格锁,提示词原样透传;**参考图顺序=编号单源** `orderedReferenceSources`(画布 y 主 x 辅排序,`reference-order.ts:16`)——节点上显示"参考图 N"与发往引擎的数组下标同源;本地 Krea2 只吃第 1 张(=画布最上面那张)。
-
-### 12.3 引擎分流(两链共用)
-
-- `FE/lib/ai/image-generation-engine.ts` 的 `generateImage`:模型归属路由 `findModelOwnerConfig` + 本地模型无绑定走内置本地 provider + 本地 sidecar 自愈(health 探测拉起)+ 云端兜底链(freedom_image→character/scene_generation≤2 家 + mikoto 异步)。
-- **NSFW 破限链不换管线**:普通请求 `extraParams.use_lora=true`,sidecar 侧 `server.py:232` 消费,由 `engines/krea2.py:30-53` 的 PRO_LORA_STACK 常量接管(Mystic XXX v3@1.0 + pussy@0.3 + 第 9 带 rebalance×5 + cfg=0 纯正向)。
-- **uncloth 无衣物流不走 aiManager**:直连 sidecar `POST 127.0.0.1:17595/v1/images/uncloth`(`run-uncloth.ts:18`);后端 `uncloth_pipeline.py`:instruct=本地 Krea2Edit(grounded encode+参考注意力+denoise=1.0),fast/fine=双分割蒙版并集+两遍 masked SDEdit(实现保留已封存)。
-- **参考图 768px/1MB 缩略在引擎层统一做**(`FE/lib/ai/image-transfer.ts:96` 阶梯缩边×JPEG 质量双循环)——run 层先转 base64,引擎发送前再缩略;手动调 API 也必须先缩略(用户铁律)。
-
-## 13. 边域规则(连线校验)——单源三路复用
-
-全部在 `FE/lib/studio/image-workflow/graph-build-mutations.ts`,两级结构:
-
-1. **节点级 `isValidImageEdge(graph, source, target)`**(:203)——不看 handle,只看节点对:
-   - 通用:自环拒/端点不存在拒/同向重复边拒/sticky+group 作源拒;
-   - **uncloth 作目标**:reference/uncloth/generated 源放行(prompt 源限 2 根=编号口前的存量上限);
-   - **nsfw 作目标**:只吃 prompt 源且仅 1 根;
-   - **generated 作目标**:uncloth 源=单链;nsfw 源=单链且**与直连提示词互斥**;prompt 源=**一个成图只吃一根正向**(负向口例外在连线级);reference/generated 源放行(成图链式=上一代喂下一代);
-   - 其他目标一律拒。
-2. **连线级 `isValidImageConnection(graph, connection)`**(:299,"React Flow isValidConnection 的唯一后端")——在节点级之上补 handle 口别:prompt 源只认 positive/negative;nsfw 目标拒 negative;同目标口同极性各≤1 席(正负两席可共存=拼装);uncloth image 口只吃 reference/generated/uncloth 一根、prompt-1/2 各口正负分席各一根;无 handle 回落节点级(存量边占正席)。
-3. **三个调用点**:①两画布 ReactFlow `isValidConnection`;②`connectImageWorkflowNodes` 建边(有 handle 走连线级、无 handle 走节点级);③边 id 生成带 handle 后缀(同对节点正/负多边合法)。
-
-配套:`splitPromptEdgesByPolarity`(:355)按出口极性拆正负文本;uncloth 存量无 handle 边按画布纵向序回落 ①②。守卫副本(connect-create.ts 的 hasUncloth/NsfwUpstreamEdge、导入校验)与单源同语义,改动须同步。
-
-## 14. 布局算法(两个单源,互不依赖)
-
-- **分镜画布** `FE/lib/studio/image-workflow/layout.ts:24`:两列——左列 x=80(reference/prompt/uncloth/nsfw 共用一条堆叠带),右列 x=760(成图,按 createdAt);`tidyImageWorkflowLayout`(:145)一键整理:prompt 按目标成图帧序排、reference 按 continuityOrder 排其后、uncloth/nsfw 垫底,只改 position 幂等。
-- **图片工作室** `FE/lib/assist/image-studio/layout.ts:18`:三列泳道 reference x=80 / prompt x=480 / generated x=1010;**成图链代右移**——沿"成图→成图"连线求最长路径深度 `generatedChainDepth`(:36),每代右移 620px;`layoutImageStudioGraph`(:83)整体整理。
-- 手动加节点:studio 用 `nextStackedPosition`(同列最低卡底边之下,永不重叠),assist 用 `nextColumnPosition`(列内 maxY+行距)。
-
-## 15. 图操作层(ops 指令 / 右键 / 删除 / undo)
-
-- **指令总线** `FE/lib/studio/canvas-commands.ts:20,113`:`CanvasCommand` 8 种 kind(add-node/update-node/remove-node/connect/disconnect/select/set-viewport/trigger-node-action + assist 专属 restore-generation),`dispatchCanvasCommand(surface, cmd)` 入队;**没有叫 applyOps 的函数**。两个面执行器:studio `use-image-workflow-commands.ts`、assist `use-image-studio-commands.ts`。自动化测试与画布助手(AI 对话驱动)共用这条总线。
-- **右键体系**(assist 独有):空白右键=创建菜单 8 种+整理/适配;节点右键=复制/清空内容/删除。studio 右键=平移,无菜单。
-- **删除语义**:assist "删除只走右键菜单,节点卡不设删除按钮"(用户终裁注释 `image-studio-node-card.tsx:290`),键盘 Delete 经 onNodesDelete 也落地;studio 走卡片右上 Trash 按钮。⚠️ studio FlowView 只绑定了 onEdgesDelete 未绑 onNodesDelete——键盘删节点不落 store 是**代码事实**(未见注释声明为有意设计,改动前先问)。
-- **undo/redo = 快照栈**(非 command pattern):studio `useCanvasHistory`(nodes+edges 快照,防抖 200ms,容量 50,切流 reset);assist `useAssistCanvasHistory`(订阅引用变化自动 commit,防抖 300ms)。
-
-## 16. 状态与持久化
-
-- 分镜画布:`useStudioStore` 的 imageWorkflows slice;zustand persist `studio-workflow-store` → 分片引擎 `createStudioWorkflowShardedStorage` → 磁盘 `_p/{projectId}/studio-workflow/` manifest+章优先分片,单片≤512KB;水合守卫:data:/blob: 瞬态媒体禁入、无指纹旧流丢弃、空流清理。
-- 图片工作室:`useImageStudioStore`(workflows+activeWorkflowId+nodeExtras);项目侧 `<项目根>/store/image-studio/manifest.json + <canvasId>.json` 一画布一文件;水合复位 generating→idle。
-- 媒体产物:assist 落 `<项目>/media/ai-image/YYYY-MM/`+ledger;studio 落项目 workflow-images 目录。
-
-## 17. 后端接口(BE/image_gen/,本地生图 sidecar)
-
-- `server.py`:OpenAI images 兼容,127.0.0.1 固定令牌;`POST /v1/images/generations`(t2i/i2i 主通道,参考图 data-URI 列表 4 张软上限,use_lora 透传)、`POST /v1/images/uncloth`、`POST /v1/images/cancel`、`/models/status|download|progress-json`。
-- `pipeline.py:68`:引擎分发器——layout 映射 krea2-pointed→engines/krea2.py、flux2-pointed→flux2.py、z-image-pointed→z_image.py、qwen-pointed→qwen.py、comfyui-bridge→comfyui_bridge.py(每模型一脚本,krea2 头注释裁定)。
-- `engines/krea2.py`:Krea2 Turbo 主力(SDEdit 单参考图生图)+ 内嵌 NSFW 专业流常量;`engines/comfyui_bridge.py`:4 个 ComfyUI 工作流模板(krea2_t2i/edit_ref/nsfw_pro/uncloth_instruct)按参考数/开关路由。
-- `uncloth_pipeline.py`:instruct=本地 Krea2Edit;`model_inventory.py` 聚合各引擎状态供 /models/status。
-
-## 18. 关键单源清单(锚点表)
-
-| 单源 | 位置 |
+| 模块 | 职责 |
 |---|---|
-| 节点/边 CRUD + 边域规则 | `FE/lib/studio/image-workflow/graph-build-mutations.ts:161-402` |
-| 分镜画布布局 | `FE/lib/studio/image-workflow/layout.ts:24` |
-| assist 画布布局 | `FE/lib/assist/image-studio/layout.ts:18` |
-| 参考图编号=数组序 | `FE/lib/assist/image-studio/reference-order.ts:16` |
-| 参考图 768px/1MB 缩略 | `FE/lib/ai/image-transfer.ts:96` |
-| 无衣物参数默认 | `FE/lib/assist/image-studio/uncloth-defaults.ts` |
-| NSFW 专业流参数 | `BE/image_gen/engines/krea2.py:30`(前端展示同步 `FE/components/ui/nsfw-node-editor.tsx`) |
-| 节点注册契约 | `FE/lib/studio/canvas-node-registry.ts:38` + assist `image-studio-node-registry.ts:21` |
-| ops 指令总线 | `FE/lib/studio/canvas-commands.ts:20,113` |
-| 引擎路由/兜底链 | `FE/lib/ai/image-generation-engine.ts` |
+| `BE/engines/comfyui/bridge_sidepanel.py` | 分镜快照数据面:渲染层周期 POST,webview 内扩展 GET 同址(CORS 回显+令牌);15 分钟 stale 标注 |
+| `BE/engines/comfyui/bridge_inbox.py` | 生成结果收件箱(出图回写业务的落点) |
+| `BE/engines/comfyui/bridge_contract.py` | 令牌单源;`image_gen/server.py` 启动时断言与 LOCAL_TOKEN 一致,漂移即拒绝启动 |
+| `FE/lib/assist/image-studio/comfy-bridge-writeback-consumer.ts` | 渲染层消费收件箱(ComfyCanvasStudio 轮询驱动) |
+| `FE/lib/assist/image-studio/storyboard-overview-sync.ts` | 总览图库保鲜(指纹守卫:分镜未动不导入) |
+
+## 16. 工作流库(09-10 打通:sidecar 库=ComfyUI 原生目录)
+
+**单一真源**:`<comfy_home>/ComfyUI/user/default/workflows`——webview 工作流菜单、sidecar API、迁移入库三者同目录。webview 左侧「工作流」即管理界面(浏览/打开/改名/删除/文件夹)。
+
+- **目录解析**(`BE/engines/comfyui/manifest.py`):`configured_workflows_dir`——manifest `workflowsDir` 覆写优先,否则 `engine_source_dir()/user/default/workflows`;`legacy_workflows_dir()`=旧默认 `<comfy_home>/workflows`。
+- **旧库并入**(`plugin_manager.merge_legacy_workflows_dir`):`_iter_workflow_files`(库读取咽喉)与 `import_workflows` 前调用;幂等、同名不覆盖(旧库胜)、旧文件永不动、非破坏 copy2。
+- **HTTP 面**(`BE/image_gen/server.py`,Bearer `manying-local-image`):
+  `GET /comfy/workflows`(树:rglob 递归+nodeCount+缺失插件标记,引擎未跑 missingNodes=null)/ `POST /comfy/workflows/import`(≤50 文件,同名 skip 除非 overwrite,JSON 校验拒坏)/ `GET …/content` / `POST …/rename|move|delete`(delete 须 confirm,先回引用扫描,备份进 snapshots/workflow-backups)。
+- **路径安全**:`_safe_workflow_id` 拒绝对路径/`..` 穿越;**resolve 纪律**:该函数返回已 resolve 路径,import/rename/move 的 `relative_to` 根必须 `workflows_dir().resolve()` 同源——符号链接前缀(macOS `/var`→`/private/var`)下不同源=嵌套导入 400 且文件已落盘(§30 裁定 29)。
+- **存储设置**:设置→本地配置→ComfyUI 引擎→存储 tab 可改 workflowsDir(engine_manager.set_paths/migrate_paths_job 搬移);paths_status.defaults 用 `configured_workflows_dir(default_manifest())` 保持真默认口径。
+
+## 17. 存量迁移(09-10 打通:画布头部一键入口)
+
+- **入口**:ComfyCanvasSwap 头部「导入存量画布(N)」——N=studio store imageWorkflows 数(N>0 才显示);单飞防连点;三挂载面全生效。
+- **链路**:`migrateWorkflowsToLibraryWithToast`(`FE/lib/assist/image-studio/workflow-migrate-batch.ts`)→ flows=useStudioStore.imageWorkflows → `exportImageWorkflowToComfy` 双格式(UI 格式+API 格式随身 `ui.extra.apiFormat`+`manyingMigration` 报告,库内取用即得)→ 参考图占位上传(best-effort,引擎须在跑;`comfyImageUrlToB64` 读取)→ `transport.importFiles(files, "skip")`。
+- **幂等口径**:无值守入口默认 **skip**(重复点击只补新增流,绝不灌「名 2」副本);keep-both 仅留给显式导入场景。
+- **toast**:成功「N 入库 / M 失败;参考图 K 张…——在 ComfyUI 画布左侧『工作流』里可打开」;总 0 流=info 提示。长任务禁模态(后台跑+toast 铁律)。
+- **实弹验收器**:`workflow-migrate-batch.live.test.ts`(env 门控 `MANYING_MIGRATE_LIVE=1`+sidecar17595+引擎在跑):读真实流文件→全量导出→object_info 校验缺类→抽检≥10 真提交引擎执行→收件箱回写命中。
+
+## 18. 存量数据层与分镜生成链(旧链健在部分)
+
+- **studio store imageWorkflows 冻结**:旧画布已删但数据不丢(深链照常读写);节点/边 CRUD 单源仍在 `FE/lib/studio/image-workflow/graph-build-mutations.ts`(store 操作与 comfy 注册表桥共用)。
+- **分镜面板批量生图链(生产主力,勿动)**:`use-storyboard-batch-generation.ts` → `run-image-workflow-node-generation.ts`(uncloth 分流预检/NSFW 白名单/连续性门禁/资产圣经拼接/@图N 令牌)→ `request.ts` 组装 → aiManager → 自动去噪(>512² Worker)→ VLM 人物闸门(fail-open;先落盘后闸门)→ 回写(先连续性三件套→patch→updateStoryboard)。构图自愈 healStoryboardPromptForCast 唯一触发点=批量复用存量流重生前。
+- **assist 侧现行生成**:`run-node-generation`/`run-uncloth`(直连 sidecar /v1/images/uncloth)/`comfy-execute`(工作流无头执行,job 化);台账 `history-records.ts`(宁留勿坏/删除双口径;写入侧=上三者)。
+- **取材/超分/回写链**不变:use-image-workflow-upscale(up4x- 幂等单源 lib/upscale/client.ts)、setGeneratedImageResult=衍生过期咽喉。
+
+## 19. 引擎管理(设置页)
+
+- `FE/components/panels/settings/comfy-engine/`:useComfyEngineSettings(状态机:install/start job 轮询)、引擎卡默认收起(点开才挂载才查更新)、「模型」tab(本地大模型展示)、插件台账(已装 30/策展+Registry 合并搜索)、「存储」tab(四目录+迁移)。
+- `BE/engines/comfyui/engine_manager.py`:实例锁(engine.lock,双 sidecar 风暴根修)、build_launch_args(gpu-only/--reserve-vram 可组合/--use-pytorch-cross-attention;**无 --user-directory**=原生用户目录生效的前提)、更新链(强制拉源码覆盖+失败重试+requirements 指纹跳过 pip)、collect_import_failures(插件兼容点名)。
+- `plugin_manager.py`:策展清单 curated_plugins.json、差分 node sets、卸载/备份。
+
+## 20. 待清遗留(studio 侧孤儿,未清)
+
+`FE/components/panels/studio/image-workflow/` 目录内存留一批画布退役后疑似孤儿(canvas-commands.ts 总线仅剩 use-image-workflow-commands 挂钩、后者仅剩注释引用)——09-10 清理只覆盖了 assist 目录(28 文件);**studio 侧需另做一轮全量可达性分析后再动**,勿直接照名单删(分镜生成链文件与真孤儿混居同目录)。
 
 ---
 
 # 第三部分:常见任务地图(改 X 去哪)
 
-| 任务 | 改哪里(按顺序) |
+| 任务 | 改哪里 |
 |---|---|
-| 改连线规则 | ① `graph-build-mutations.ts` 两级校验函数;② 检查三个调用点是否吃新规则;③ 同步守卫副本(connect-create.ts/导入校验);④ 补 `graph-build-mutations.test.ts` |
-| 加新节点类型 | ① `types/studio-production-types.ts` 加 data 类型进判别联合;② `canvas-node-registry.ts`(assist 再加 `image-studio-node-registry.ts`);③ 两画布卡片 UI 分支+Handle;④ 布局槽位(两处 layout.ts);⑤ connect-create 可创建清单;⑥ 导入校验白名单;⑦ 若有新管线:执行链分流 |
-| 改请求组装/提示词注入 | studio 链 `lib/studio/image-workflow/request.ts`;assist 链 `lib/assist/image-studio/request.ts`——两链独立改 |
-| 改参考图顺序逻辑 | `lib/assist/image-studio/reference-order.ts`(编号=数组序单源,勿在别处重排) |
-| 改 uncloth 参数默认值 | `lib/assist/image-studio/uncloth-defaults.ts`(resolveUnclothParams) |
-| 调"连线连不上/删不掉" | 先分清层级:React Flow 事件层(FlowView 的 onConnect/isValidConnection)→ 两级校验函数 → store action;受控 edges 的 selected 注入曾在 a4fa34a 修过键盘删边 |
-| 改自动布局/整理 | 对应画布的 layout.ts;两画布互不依赖,别只改一处 |
-| 调生成失败 | 看走哪条链:uncloth(直连 sidecar)/NSFW(use_lora 透传)/普通(aiManager 路由);参考图过大先查 image-transfer 缩略 |
-| 写画布自动化测试 | 走 `dispatchCanvasCommand` 总线(mystudio-automation-testing skill),勿直接戳 store |
+| 改工作流库行为(导入/列表/删除) | `BE/engines/comfyui/plugin_manager.py` + `manifest.py`(目录解析/旧库并入);HTTP 面在 `image_gen/server.py` /comfy/workflows* |
+| 改库目录/存储 | manifest `workflowsDir` 覆写或改 `configured_workflows_dir` 默认;迁移 job 走 engine_manager.set_paths/migrate_paths_job |
+| 改存量迁移 | `FE/lib/assist/image-studio/workflow-migrate-batch.ts`(批)+ `workflow-export-comfy.ts`(导出器);入口按钮在 ComfyCanvasSwap |
+| 改画布槽位/头部 | `comfy-canvas/ComfyCanvasSwap.tsx`;引擎占位/webview/轮询在 `ComfyCanvasStudio.tsx` |
+| 改自有节点 | `BE/engines/comfyui/manying_nodes/`(节点+web 扩展+tests);object_info 验证,勿依赖直 import |
+| 改桥/回写 | 后端 bridge_*.py;渲染层 comfy-bridge-writeback-consumer / storyboard-overview-sync |
+| 改分镜批量生图 | use-storyboard-batch-generation → run-image-workflow-node-generation → request.ts(§18 链,全链健在) |
+| 改无头执行工作流 | `FE/lib/assist/image-studio/comfy-execute.ts`(job 化)+ BE execute.py |
+| 调引擎启动/更新/插件 | engine_manager.py(launch args/更新链/实例锁)+ plugin_manager.py |
+| 改 uncloth 默认参数 | `FE/lib/assist/image-studio/uncloth-defaults.ts` |
+| 调生成失败 | 分镜链看 diagnostics logEvent;assist 链 run-node-generation;uncloth 直连 sidecar;参考图过大先查 image-transfer 缩略 |
 
 ---
 
 # 第四部分:已生效裁定(不可协商约束)
 
-1. **一个成图只接一根正向提示词边**;nsfw 链与直连提示词互斥;uncloth 编号口 prompt-1/2 各一根。
-2. **删除只走右键菜单**(assist 终裁,节点卡不设删除按钮);studio 走卡内 Trash。
-3. **参考图手动调 API 也必须先缩略 768px<1MB**(发大图=供应商 500/524 直接原因)。
-4. **参考图编号=画布位置序=AI 数组序单源**;本地 Krea2 只吃第 1 张(画布最上)。
-5. **t2i/i2i 无歧义**:空参考阻断,不静默降级。
-6. **NSFW 破限仅 krea2-turbo/comfyui-bridge 白名单**,其他引擎大白话阻断。
-7. **uncloth fast/fine 已封存,instruct 为现行**;稳定流提示词不吃「重绘:/锚定:」词头(那是遮罩流协议)。
-8. **展示≠数据**;卡片上正/反向提示词完整展示不遮盖;节点卡不加跨节点指引旁注。
-9. 提示词节点的模型/画幅字段已移除(08-30 裁定),参数权威在成图节点(paramsEdited)。
-10. 本仓画布内核=React Flow,曾对比 infinite-canvas(AGPL)裁定**不换内核**;借鉴插件注册表/指令集思路可以,抄 AGPL 代码零容忍。
+**连线与执行(存量链,仍约束 §18):**
+1. 一个成图只接一根正向提示词边;nsfw 链与直连提示词互斥;负向出口=拼装通道可与正向共存(09-07)。
+2. t2i/i2i 无歧义:空参考阻断不静默降级(09-03)。
+3. NSFW 破限仅 krea2-turbo/comfyui-bridge 白名单。
+4. uncloth instruct 为现行;稳定流提示词不吃「重绘:/锚定:」词头。
+5. 参考图编号=画布位置序=AI 数组序单源;本地 Krea2 只吃第 1 张。
+
+**数据与生成:**
+6. 参考图手动调 API 也必须先缩略 768px<1MB(发大图=供应商 500/524)。
+7. 参数权威=paramsEdited;新建/绑定分镜流恒带 targetSourceFingerprint(否则水合清理丢弃)。
+8. 无活动项目禁落盘,绝不回退应用级旧路径;瞬态 data:/blob: 禁入 store。
+9. 台账宁留勿坏;删除双口径比对(09-04)。
+10. persistMedia:false(分镜成图自存项目真源)。
+
+**换代与库(09-09/10 新增):**
+11. **画布终态=ComfyUI**,React Flow 双画布已退役删除;存量数据冻结在 store 深链读写(批6/8)。
+12. **工作流库=ComfyUI 原生用户目录** `<引擎>/user/default/workflows`(manifest 覆写除外);旧默认 `<home>/workflows` 非破坏并入(同名旧库胜,旧文件不动)。
+13. **存量迁移入口=画布头部按钮**;冲突模式无值守默认 **skip 幂等**;keep-both 只留给显式导入。
+14. comfy-workflow-browser 整套退役:库管理=webview 原生界面,不自建重复 UI。
+15. **路径三口同源 resolve**(import/rename/move 的 relative_to 根必须 resolve;符号链接前缀下不同源=400 半完成态)。
+16. 图片/视频/音乐本地大模型全归 ComfyUI(音乐 tab 已撤 f60c50c;大模型展示入引擎卡模型页 82f2cfc)。
+
+**架构:**
+17. lib 不反向依赖 components;代码文件按功能模块落位。
+18. 冷门端口铁律:自家 17xxx 顺延,禁 8000/8188/3000;改外部软件先找权威配置位。
+19. 长任务禁模态(确认即关+后台+toast);轮询面静默不弹窗轰炸。
+20. 打包链禁测生图(90s+/张);装机验收生弹留给用户。
+
+> 旧 React Flow 时代裁定(左键不拖画布/删除只走右键/fitView 时机等)随画布退役转史案,记录在 git 历史;对存量数据操作仍部分适用(CRUD 语义)。
+
+---
+
+# 第五部分:已知坑与存疑(史案+待查)
+
+**已根修的史案(复发警惕):**
+- 符号链接前缀 400 半完成态:pytest tmp_path 天然 resolve,单测永远抓不到;实弹必须真起服务(mktemp 的 /var→/private/var 即天然复现器)。
+- 「测试全绿但 UI 不可达」:comfy-workflow-browser 7 测全绿但组件零挂载——孤儿判定必须做**入口可达性分析**,零引用扫描+互引岛都要查,绿灯不是活着的证据。
+- 受控 edges 不注入 selected→键盘删边失效(a4fa34a);重建 effect 抹 selected(e4ea0c4);点边不清节点选中(b67c5df)。
+- 1024² 主线程双边滤波冻结 UI(去噪进 Worker,09-03);批次快照旧 keyframes 直接映射丢写入(以 store 现势为基)。
+- 引擎实例锁前的双 sidecar 风暴(09-09 负载事故);孤儿进程占 17595→无限重启风暴。
+- 并行会话共享 index/pre-commit:他人飞行中半态(删源未删测试)会瞬时挡你提交——重试即可,勿顺手"修"别人的文件。
+- client 引用不 memo 固化→探测 effect 循环重跑;webview 布尔属性传字符串。
+
+**存疑/待办:**
+- ⚠️ §20 studio 侧孤儿待全量可达性分析后清理(canvas-commands/use-image-workflow-commands 疑死,与活链混居)。
+- 09-09 对齐轮装机验收 6/8:NodeResizer 段未跑完,复跑器=`apps/build/scripts/canvas-comfy-align-acceptance.mjs`(已入册 42c8010)。
+- SeedVR2 超分档 `{restore:true}` 前端链路疑似无消费点(未实弹复核)。
 
 ---
 
 ## 参考来源(第一部分,2026-09 核验)
 
-- Dataflow programming / DAG / 拓扑排序:https://en.wikipedia.org/wiki/Dataflow_programming 、/Directed_acyclic_graph 、/Topological_sorting
-- Houdini cook/脏传播:https://www.sidefx.com/docs/houdini/tops/cooking.html
-- Blender socket 类型系统:https://docs.blender.org/manual/en/latest/interface/controls/nodes/parts.html
-- ComfyUI 执行引擎/缓存:https://docs.comfy.org/custom-nodes/backend/server_overview 、https://github.com/comfyanonymous/ComfyUI/blob/master/execution.py 、/comfy_execution/caching.py
-- React Flow:https://reactflow.dev/api-reference/react-flow 、/components/handle 、/learn/advanced-use/performance 、/learn/troubleshooting/migrate-to-v12
-- Unreal Blueprint 节点/pin:https://dev.epicgames.com/documentation/en-us/unreal-engine/nodes-in-unreal-engine
-- n8n trigger:https://docs.n8n.io/key-concept-glossary.md
-- LiteGraph.js:https://github.com/jagenjo/litegraph.js
-- Command pattern(undo/redo 共识):https://en.wikipedia.org/wiki/Command_pattern
+- 范式/图论:en.wikipedia.org — Dataflow_programming / Directed_acyclic_graph / Topological_sorting / Layered_graph_drawing / Coffman–Graham_algorithm
+- Houdini cook:sidefx.com/docs/houdini/tops/cooking.html;Blender socket:docs.blender.org …/nodes/parts.html
+- ComfyUI:docs.comfy.org/custom-nodes/backend/server_overview;github.com/comfyanonymous/ComfyUI — execution.py / comfy_execution/caching.py;前端 changeTracker.ts 与 docs/adr/CRDT-*(Comfy-Org/ComfyUI_frontend)
+- React Flow(史案):reactflow.dev — api-reference / performance / migrate-to-v12;源码 xyflow/xyflow
+- 布局库:github.com/dagrejs/dagre/wiki;github.com/kieler/elkjs(EPL-2.0)
+- 增量计算:Adapton(PLDI 2014);salsa-rs.github.io;rustc-dev-guide;github.com/snowleopard/build
+- 持久化:RFC 8785(JCS);jsondiffpatch;yjs/loro
+- 错误语义:reactivex.io/documentation/contract.html;docs.n8n.io handle-errors
