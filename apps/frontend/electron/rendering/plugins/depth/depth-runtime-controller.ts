@@ -172,7 +172,7 @@ export function createDepthRuntimeController(deps: ControllerDeps) {
   // 在场且新家不存在时一次性整目录迁移(同卷 rename 保 config+权重同迁;失败回退旧根)。
   function deepModelRoot(): string {
     const base = getPaths().storageBasePath;
-    const home = path.join(base, "model", "depth");
+    const home = path.join(base, "comfyui", "models", "depth"); // 09-10 模型统一家
     const legacy = path.join(base, "DeepModel");
     try {
       if (fs.existsSync(legacy) && !fs.existsSync(home)) {

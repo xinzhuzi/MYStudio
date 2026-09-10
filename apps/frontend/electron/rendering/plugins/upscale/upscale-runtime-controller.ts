@@ -157,7 +157,7 @@ export function createUpscaleRuntimeController(deps: ControllerDeps) {
   // 在场且新家不存在时一次性整目录迁移(同卷 rename;失败回退旧根)。
   function upscaleModelRoot(): string {
     const base = getPaths().storageBasePath;
-    const home = path.join(base, "model", "upscale");
+    const home = path.join(base, "comfyui", "models", "upscale"); // 09-10 模型统一家
     const legacy = path.join(base, "UpscaleModel");
     try {
       if (fs.existsSync(legacy) && !fs.existsSync(home)) {

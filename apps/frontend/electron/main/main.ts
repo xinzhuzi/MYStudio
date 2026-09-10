@@ -326,7 +326,7 @@ const remotionRuntimeDir = resolveRemotionRuntimeDir(remotionUserDataDir)
 
 // Depth runtime controller — settings-facing lifecycle (设置 → 本地配置 → 深度估计模型).
 // Model downloads are explicit and user-triggered; inference never downloads.
-// The model cache dir is self-managed at <storageBase>/model/depth (config.json),
+// The model cache dir is self-managed at <storageBase>/comfyui/models/depth (config.json),
 // mirroring the TTS model-dir feature set — no TTS cache fallback.
 const depthRuntimeController = createDepthRuntimeController({
   storageBasePath: getStorageBasePath,
@@ -396,7 +396,7 @@ const mcpIpc = registerMcpIpcHandlers()
 void upscaleRuntimeController.refresh()
 
 // VLM Review sidecar — Qwen3-VL visual consistency checking(生图后自动审核)。
-// 复用 managed Python;权重显式下载,<storageBase>/model/vlm。
+// 复用 managed Python;权重显式下载,<storageBase>/comfyui/models/vlm。
 const vlmReviewController = new VlmReviewRuntimeController({
   // managed Python 在 Windows 上落 <storage>/python/python.exe,其余平台 bin/python3。
   pythonExecutable: path.join(
@@ -428,7 +428,7 @@ const vlmReviewController = new VlmReviewRuntimeController({
 registerVlmReviewIpc(vlmReviewController)
 
 // Chapter video QC sidecar — DOVER-Mobile 观感层(出片后 QC 链 L3)。
-// 复用 managed Python(probe 路径零重依赖);权重显式下载,<storageBase>/model/videoqc。
+// 复用 managed Python(probe 路径零重依赖);权重显式下载,<storageBase>/comfyui/models/videoqc。
 const videoQcRuntimeController = createVideoQcRuntimeController({
   storageBasePath: getStorageBasePath,
   backendRoot: videoWorkflowBackendRoot,

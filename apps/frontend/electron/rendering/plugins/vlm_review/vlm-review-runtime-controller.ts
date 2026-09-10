@@ -161,7 +161,7 @@ export class VlmReviewRuntimeController {
   }
 
   async deleteModel(): Promise<{ success: boolean; error?: string }> {
-    const modelDir = path.join(this.config.storageBasePath, "model", "vlm");
+    const modelDir = path.join(this.config.storageBasePath, "comfyui", "models", "vlm"); // 09-10 模型统一家
     try {
       await fs.rm(modelDir, { recursive: true, force: true });
       return { success: true };

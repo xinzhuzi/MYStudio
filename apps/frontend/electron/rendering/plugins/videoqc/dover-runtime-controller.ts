@@ -86,7 +86,7 @@ export function createVideoQcRuntimeController(deps: ControllerDeps) {
   // 在场且新家不存在时一次性整目录迁移(同卷 rename 保 config+权重+基线同迁;失败回退旧根)。
   function videoQcModelRoot(): string {
     const base = getPaths().storageBasePath;
-    const home = path.join(base, "model", "videoqc");
+    const home = path.join(base, "comfyui", "models", "videoqc"); // 09-10 模型统一家
     const legacy = path.join(base, "VideoQcModel");
     try {
       if (fs.existsSync(legacy) && !fs.existsSync(home)) {

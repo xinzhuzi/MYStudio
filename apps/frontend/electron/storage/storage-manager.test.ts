@@ -68,7 +68,7 @@ describe("createStorageManager", () => {
       assetsPath: "/user-data/assets",
       skillsPath: "/user-data/skills",
       pythonRuntimeDir: "/user-data/python",
-      modelCacheDir: "/user-data/model/TTS",
+      modelCacheDir: "/user-data/comfyui/models/TTS",
       cachePath: "/user-data/Cache",
     });
     expect(handlers.size).toBe(19);

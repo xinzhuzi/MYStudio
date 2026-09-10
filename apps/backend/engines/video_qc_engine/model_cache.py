@@ -67,13 +67,15 @@ def _electron_userdata_model_dir() -> Path | None:
     # macOS Electron userData convention, HOME-based so it resolves for any
     # user on this machine. Only offered as a standalone-CLI convenience when
     # the runtime env var is absent — the TS controller always sets the env.
-    candidate = Path.home() / "Library" / "Application Support" / "漫影工作室" / "model" / "videoqc"
+    # 09-10 模型统一家:comfyui/models/videoqc 优先,老 model/videoqc 兜底
+    app_support = Path.home() / "Library" / "Application Support" / "漫影工作室"
+    candidate = app_support / "comfyui" / "models" / "videoqc"
     return candidate if candidate.is_dir() else None
 
 
 def model_candidate_dirs() -> list[Path]:
     # Order: env-driven primary dir (set by the TS runtime controller to
-    # <storageBase>/model/videoqc) → HOME-derived Electron userData dir →
+    # <storageBase>/comfyui/models/videoqc,09-10 模型统一家) → HOME-derived Electron userData dir →
     # standalone-CLI home fallback. No absolute user paths anywhere.
     candidates: list[Path] = [primary_model_dir()]
     userdata_dir = _electron_userdata_model_dir()

@@ -29,10 +29,10 @@ describe("TTS runtime controller", () => {
       port: 17593,
       baseUrl: "http://127.0.0.1:17593",
       cacheDir: "/user-data/TTS/runtime",
-      modelCacheDir: "/user-data/model/TTS",
-      defaultModelCacheDir: "/user-data/model/TTS",
+      modelCacheDir: "/user-data/comfyui/models/TTS",
+      defaultModelCacheDir: "/user-data/comfyui/models/TTS",
     });
-    expect(controller.getModelCacheDir()).toBe("/user-data/model/TTS");
+    expect(controller.getModelCacheDir()).toBe("/user-data/comfyui/models/TTS");
   });
 
   it("starts the Python sidecar with isolated runtime data", async () => {
@@ -74,9 +74,9 @@ describe("TTS runtime controller", () => {
         cwd: "/backend",
         env: expect.objectContaining({
           MANYING_TTS_DATA_DIR: "/project-storage/TTS/runtime",
-          MANYING_TTS_MODELS_DIR: "/project-storage/model/TTS",
-          VOICEBOX_MODELS_DIR: "/project-storage/model/TTS",
-          HF_HUB_CACHE: "/project-storage/model/TTS",
+          MANYING_TTS_MODELS_DIR: "/project-storage/comfyui/models/TTS",
+          VOICEBOX_MODELS_DIR: "/project-storage/comfyui/models/TTS",
+          HF_HUB_CACHE: "/project-storage/comfyui/models/TTS",
           MANYING_TTS_CONTROL_TOKEN: expect.any(String),
         }),
       }),
@@ -171,7 +171,7 @@ describe("TTS runtime controller", () => {
       expect(controller.getStorageLayout()).toMatchObject({
         rootDir: path.join(storageBasePath, "TTS"),
         runtimeDir: path.join(storageBasePath, "TTS", "runtime"),
-        modelsDir: path.join(storageBasePath, "model", "TTS"),
+        modelsDir: path.join(storageBasePath, "comfyui", "models", "TTS"),
         migrationState: "ready",
       });
 
@@ -179,16 +179,16 @@ describe("TTS runtime controller", () => {
       expect(fs.existsSync(legacyRuntimeDir)).toBe(false);
       expect(fs.existsSync(legacyModelRepoDir)).toBe(false);
       expect(fs.readFileSync(path.join(storageBasePath, "TTS", "runtime", "tts.sqlite"), "utf8")).toBe("sqlite-data");
-      expect(fs.readFileSync(path.join(storageBasePath, "model", "TTS", "models--example--voice", "model.bin"), "utf8")).toBe("model-data");
+      expect(fs.readFileSync(path.join(storageBasePath, "comfyui", "models", "TTS", "models--example--voice", "model.bin"), "utf8")).toBe("model-data");
       expect(JSON.parse(fs.readFileSync(path.join(storageBasePath, "TTS", "runtime", "config.json"), "utf8")))
-        .toMatchObject({ modelCacheDir: path.join(storageBasePath, "model", "TTS"), controlToken: "existing-token" });
+        .toMatchObject({ modelCacheDir: path.join(storageBasePath, "comfyui", "models", "TTS"), controlToken: "existing-token" });
       expect(controller.getStorageLayout().migrationState).toBe("up-to-date");
     } finally {
       fs.rmSync(root, { recursive: true, force: true });
     }
   });
 
-  it("migrates the legacy TTS/model default cache into model/TTS and rewrites the persisted config", async () => {
+  it("migrates the legacy TTS/model default cache into comfyui/models/TTS and rewrites the persisted config", async () => {
     const root = fs.mkdtempSync(path.join(os.tmpdir(), "mystudio-tts-legacy-cache-"));
     const userDataPath = path.join(root, "user-data");
     const storageBasePath = path.join(root, "storage");
@@ -214,7 +214,7 @@ describe("TTS runtime controller", () => {
       });
 
       expect(controller.getStorageLayout()).toMatchObject({
-        modelsDir: path.join(storageBasePath, "model", "TTS"),
+        modelsDir: path.join(storageBasePath, "comfyui", "models", "TTS"),
         legacyCacheModelsDir: legacyCacheDir,
         legacyCacheModelsExists: true,
         migrationState: "ready",
@@ -223,10 +223,10 @@ describe("TTS runtime controller", () => {
 
       await expect(controller.migrateStorage()).resolves.toMatchObject({ success: true });
       expect(fs.existsSync(path.join(legacyCacheDir, modelName))).toBe(false);
-      expect(fs.readFileSync(path.join(storageBasePath, "model", "TTS", modelName, "model.bin"), "utf8")).toBe("model-data");
+      expect(fs.readFileSync(path.join(storageBasePath, "comfyui", "models", "TTS", modelName, "model.bin"), "utf8")).toBe("model-data");
       expect(JSON.parse(fs.readFileSync(runtimeConfigPath, "utf8")))
-        .toMatchObject({ modelCacheDir: path.join(storageBasePath, "model", "TTS"), controlToken: "existing-token" });
-      expect(controller.getModelCacheDir()).toBe(path.join(storageBasePath, "model", "TTS"));
+        .toMatchObject({ modelCacheDir: path.join(storageBasePath, "comfyui", "models", "TTS"), controlToken: "existing-token" });
+      expect(controller.getModelCacheDir()).toBe(path.join(storageBasePath, "comfyui", "models", "TTS"));
       expect(controller.getStorageLayout().migrationState).toBe("up-to-date");
     } finally {
       fs.rmSync(root, { recursive: true, force: true });
@@ -241,7 +241,7 @@ describe("TTS runtime controller", () => {
     const modelName = "models--hexgrad--Kokoro-82M";
     const globalModelDir = path.join(huggingFaceHubDir, modelName);
     const legacyModelDir = path.join(storageBasePath, "tts-models", modelName);
-    const targetModelDir = path.join(storageBasePath, "model", "TTS", modelName);
+    const targetModelDir = path.join(storageBasePath, "comfyui", "models", "TTS", modelName);
     try {
       fs.mkdirSync(globalModelDir, { recursive: true });
       fs.mkdirSync(legacyModelDir, { recursive: true });
@@ -302,7 +302,7 @@ describe("TTS runtime controller", () => {
     const modelName = "models--hexgrad--Kokoro-82M";
     const globalModelDir = path.join(huggingFaceHubDir, modelName);
     const legacyModelDir = path.join(storageBasePath, "tts-models", modelName);
-    const targetModelDir = path.join(storageBasePath, "model", "TTS", modelName);
+    const targetModelDir = path.join(storageBasePath, "comfyui", "models", "TTS", modelName);
     try {
       fs.mkdirSync(globalModelDir, { recursive: true });
       fs.mkdirSync(legacyModelDir, { recursive: true });
@@ -1499,8 +1499,8 @@ describe("TTS runtime stale-marker offline self-healing", () => {
       expect.any(Array),
       expect.objectContaining({
         env: expect.objectContaining({
-          MANYING_TTS_MODELS_DIR: "/project-storage/model/TTS",
-          VOICEBOX_MODELS_DIR: "/project-storage/model/TTS",
+          MANYING_TTS_MODELS_DIR: "/project-storage/comfyui/models/TTS",
+          VOICEBOX_MODELS_DIR: "/project-storage/comfyui/models/TTS",
         }),
       }),
     );

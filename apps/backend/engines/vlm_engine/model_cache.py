@@ -1,6 +1,6 @@
 """VLM model cache — discovery, hardware profiling, availability gating.
 
-模型目录布局约定(08-19 model dir ruling;原 music3_gen 已退役):
+模型目录布局约定(09-10 模型统一家;08-19 老 model/ 规范退役):
 <storageBase>/model/<family>/). VLM family lives at <storageBase>/model/vlm/.
 """
 from __future__ import annotations
@@ -51,10 +51,12 @@ def evaluate_availability(profile: dict[str, Any]) -> dict[str, Any]:
 
 def _candidate_model_dirs() -> list[Path]:
     """Model directory candidates in priority order."""
-    # Primary: <storageBase>/model/vlm/ (the canonical location)
+    # Primary: <storageBase>/comfyui/models/vlm/ (09-10 模型统一家);
+    # 老 <storageBase>/model/vlm/ 留兜底(env 缺席的 dev 场景/未迁移机器)。
     storage_base = os.environ.get("MYSTUDIO_STORAGE_BASE", "")
     dirs: list[Path] = []
     if storage_base:
+        dirs.append(Path(storage_base) / "comfyui" / "models" / "vlm")
         dirs.append(Path(storage_base) / "model" / "vlm")
     # Fallback: MYSTUDIO_VLM_MODEL_DIR env
     env_dir = os.environ.get("MYSTUDIO_VLM_MODEL_DIR", "")
