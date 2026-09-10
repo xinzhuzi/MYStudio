@@ -23,6 +23,10 @@ import {
   ResizablePanel,
   ResizableHandle,
 } from "@/components/ui/resizable";
+// 终裁(09-10):全应用唯一悬浮球——项目内所有视图(含沉浸态)唯一常驻导航枢纽
+const AppOrb = lazy(() =>
+  import("@/components/AppOrb").then((m) => ({ default: m.AppOrb })),
+);
 
 // Panel imports — code-split so the first screen (Dashboard) doesn't pay for
 // every panel. Each panel becomes its own chunk, loaded on first activation.
@@ -164,6 +168,9 @@ export function Layout() {
             </Suspense>
           </div>
         </div>
+        <Suspense fallback={null}>
+          <AppOrb />
+        </Suspense>
       </>
     );
   }
@@ -206,6 +213,9 @@ export function Layout() {
               </Suspense>
           </div>
         </div>
+        <Suspense fallback={null}>
+          <AppOrb />
+        </Suspense>
       </div>
       </>
     );
@@ -304,6 +314,9 @@ export function Layout() {
       </div>
       </Suspense>
     </div>
+    <Suspense fallback={null}>
+      <AppOrb />
+    </Suspense>
     </>
   );
 }

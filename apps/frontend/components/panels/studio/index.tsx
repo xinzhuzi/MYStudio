@@ -7,7 +7,6 @@ import { StoryboardPanelTab } from "./StoryboardPanelTab";
 import { WorkbenchTab } from "./WorkbenchTab";
 import { ScriptAssetManagementTab } from "./ScriptAssetManagementTab";
 import { ComfyCanvasSwap } from "../assist/comfy-canvas/ComfyCanvasSwap";
-import { WorkflowStatusOrb } from "./workflow-stage";
 import { useStudioViewModel } from "./useStudioViewModel";
 import { useStoryboardBatchGeneration } from "./image-workflow/use-storyboard-batch-generation";
 
@@ -25,13 +24,8 @@ export function StudioView() {
         onValueChange={viewModel.handleStageChange}
         className="flex h-full flex-col"
       >
-      {/* 悬浮球置于 ScrollArea 之外(fixed 定位,滚动不移位);
-          阶段状态与切换入口全由此承载(2026-09-10 横幅退役裁定) */}
-      <WorkflowStatusOrb
-        readiness={viewModel.workflowReadiness}
-        activeStage={viewModel.activeWorkflowTab}
-        onStageChange={viewModel.handleStageChange}
-      />
+      {/* 09-10 终裁:唯一悬浮球上提至 Layout 应用层(全视图在场),
+          本视图不再单独挂球 */}
       <ScrollArea className="h-full min-h-0 flex-1 scrollbar-hidden">
           {/* 画布阶段(分镜制作/分镜画布)去内边距贴边全屏;内容阶段保留 p-5 */}
           <div

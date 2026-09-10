@@ -125,10 +125,10 @@ const CORE_ROUTE_CHECKS = [
     requiredText: ["个人资产库", "默认风格"],
   },
   {
-    // 09-10 拆双球:沉浸视图零应用 chrome,断言锚=本地模型球胶囊的当前模式名
-    // (胶囊恒在 DOM,opacity 藏但 innerText 可读;任何画布态都在场)。
+    // 09-10 终裁(球是 1 个):沉浸视图零应用 chrome,唯一球=Layout 应用层 AppOrb,
+    // 断言锚=球胶囊的阶段摘要(胶囊恒在 DOM,opacity 藏但 innerText 可读)。
     label: "本地模型",
-    requiredText: ["ComfyUI 画布"],
+    requiredText: ["风格与导演"],
     waitMs: 2_500,
   },
   {
@@ -1138,9 +1138,9 @@ async function verifyRoute(evaluate, route) {
     }, ${waitMs}));
     let escapedFromImmersive = true;
     if (routeLabel === '本地模型') {
-      // 09-10 拆双球:沉浸视图=本地模型球,逃逸三步=点球→展开「前往」分区→点概览。
+      // 09-10 终裁(球是 1 个):唯一球 data-workflow-orb,逃逸三步=点球→展开「前往」分区→点概览。
       // 分区默认收起(条件渲染),「前往」条目不展开不可见;两段式防抖等待保留。
-      const orb = document.querySelector('[data-local-model-orb]');
+      const orb = document.querySelector('[data-workflow-orb]');
       orb?.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, view: window }));
       escapedFromImmersive = false;
       const entryDeadline = Date.now() + 8000;

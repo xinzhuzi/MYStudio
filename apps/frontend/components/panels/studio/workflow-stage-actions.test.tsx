@@ -3180,9 +3180,9 @@ describe("workflow view entries in stage switcher", () => {
     expect(source).toContain('<OrbSection');
     expect(source).toContain('section="stages"');
     expect(source).toContain('title="切换阶段"');
-    // 09-10 终裁:工作流球面板消费共享分区(前往+切换阶段)
+    // 09-10 终裁(球是 1 个):唯一 AppOrb 消费共享分区(前往+切换阶段)
     const panelSource = readFileSync(
-      "frontend/components/panels/studio/workflow-stage/StageReadinessPanel.tsx",
+      "frontend/components/AppOrb.tsx",
       "utf8",
     );
     expect(panelSource).toContain("OrbStagesSection");
