@@ -71,7 +71,9 @@ function createFetchRouter() {
   const on = (
     method: string,
     match: string | RegExp | ((call: FetchCall) => boolean),
-    respond: RouteReply["body"] | RouteReply | ((call: FetchCall, callIndex: number) => RouteReply),
+    // 注意:此处不能写 RouteReply["body"](=unknown,吸收整个联合→respond
+    // lambda 失去上下文类型,参数退隐式 any);裸 body 值以 Json 收口。
+    respond: Json | RouteReply | ((call: FetchCall, callIndex: number) => RouteReply),
   ) => {
     routes.push({
       match: (call) =>
@@ -612,7 +614,9 @@ describe("httpComfyWorkflowLibraryTransport", () => {
     router.on("POST", "/comfy/workflows/import", { imported: ["归档/.keep.json"], skipped: [] });
     const folder = await createHttpComfyWorkflowLibraryTransport().createFolder("归档", null);
     expect(folder).toEqual({ id: "归档", name: "归档", parentId: null });
-    expect(router.calls[0]?.body?.files?.[0]).toEqual({ name: "归档/.keep.json", content: "{}" });
+    // body.files 是 Json 联合,先 Array.isArray 窄化再取下标
+    const importFiles = router.calls[0]?.body?.files;
+    expect(Array.isArray(importFiles) ? importFiles[0] : undefined).toEqual({ name: "归档/.keep.json", content: "{}" });
   });
 
   it("renameFolder:把文件夹下全部条目(含占位)逐个 move 到新目录", async () => {

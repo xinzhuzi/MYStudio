@@ -301,8 +301,8 @@ describe("runComfyWorkflowNode(卡上运行编排)", () => {
     expect(result.imageUrl).toBe("project-file://p1/media/ai-image/2026-09/comfy_x.png");
     expect(result.imageCount).toBe(2);
     expect(result.persisted).toBe(true);
-    // 提交体:字符串按极性注入+图转 b64 上传
-    const submitBody = JSON.parse(String((fn as unknown as { mock: { calls: Array<{ init?: RequestInit }> } }).mock.calls[0][1]?.body));
+    // 提交体:字符串按极性注入+图转 b64 上传(fetch mock 的调用参量为 [input, init] 元组)
+    const submitBody = JSON.parse(String((fn as unknown as { mock: { calls: Array<[unknown, RequestInit | undefined]> } }).mock.calls[0]?.[1]?.body));
     expect(submitBody.inputs.strings).toEqual({ "6.text": "一只猫", "7.text": "低质量" });
     expect(submitBody.inputs.images[0].key).toBe("10.image");
     expect(submitBody.inputs.images[0].b64).toBe("TE9DQUw=");

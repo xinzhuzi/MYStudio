@@ -70,6 +70,11 @@ function isSha256(value: unknown): value is string {
   return typeof value === "string" && /^[a-f0-9]{64}$/.test(value);
 }
 
+/** roles 表五角色齐全且均为 hex 色(属性收窄不跨回调边界,故独立成函数) */
+function hasPaletteRoles(roles: unknown): boolean {
+  return isRecord(roles) && ROLE_ORDER.every((role) => typeof roles[role] === "string");
+}
+
 /** 校验色卡正典;缺字段/数量不符 fail-closed,不回退硬编码。 */
 export function validateDaojiePaletteCanon(value: unknown): DaojiePaletteCanon {
   if (!isRecord(value) || value.canonVersion !== "ma-gongbi-palette-v1") {
@@ -88,9 +93,9 @@ export function validateDaojiePaletteCanon(value: unknown): DaojiePaletteCanon {
   }
   if (!Array.isArray(value.schemes) || value.schemes.length !== 24
     || !value.schemes.every((s) => isRecord(s)
-      && typeof s.schemeId === "string"
+      && typeof s.track === "string"
       && ["person", "scene", "prop"].includes(String(s.track))
-      && ROLE_ORDER.every((role) => typeof s.roles?.[role] === "string"))) {
+      && hasPaletteRoles(s.roles))) {
     throw new Error("daojie palette canon: schemes(24)");
   }
   if (!isRecord(value.factions) || Object.keys(value.factions).length !== 12

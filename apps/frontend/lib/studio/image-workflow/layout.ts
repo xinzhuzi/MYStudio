@@ -2,6 +2,7 @@ import type {
   ImageWorkflowGeneratedNode,
   ImageWorkflowGraph,
   ImageWorkflowNode,
+  ImageWorkflowNodeType,
   ImageWorkflowNsfwNode,
   ImageWorkflowPromptNode,
   ImageWorkflowReferenceNode,
@@ -35,7 +36,19 @@ export const IMAGE_WORKFLOW_LAYOUT = {
   // Reroute 中转(09-09):纯连线件,窄卡;不进左列(LEFT_COLUMN_TYPES
   // 不含 reroute,整理布局不动它——中转点属用户手工摆放语义)
   reroute: { width: 240, height: 80, x: 480, baseY: 100, vGap: 120 },
-} as const;
+  // 以下四键(09-10 noImplicitAny 收紧补全):ImageWorkflowNodeType 全集
+  // 完备性槽位——缺键会让 nextStackedPosition/重叠检测对相应节点类型
+  // 直接崩(IMAGE_WORKFLOW_LAYOUT[type] 为 undefined,见上方 uncloth/nsfw
+  // 先例)。当前无生产调用方以这四类落位/查重叠,值为保守估值,非 CSS
+  // 实测卡高;首个真实调用方落地时须实测回填。
+  sticky: { width: 240, height: 200, x: 80, baseY: 100, vGap: 120 },
+  group: { width: 720, height: 400, x: 80, baseY: 100, vGap: 120 },
+  "comfy-workflow": { width: 560, height: 480, x: 80, baseY: 100, vGap: 120 },
+  "comfy-generic": { width: 480, height: 440, x: 80, baseY: 100, vGap: 120 },
+} as const satisfies Record<
+  ImageWorkflowNodeType,
+  { readonly width: number; readonly height: number; readonly x: number; readonly baseY: number; readonly vGap: number }
+>;
 
 const LEFT_COLUMN_TYPES = new Set<ImageWorkflowNode["type"]>(["reference", "prompt", "uncloth", "nsfw"]);
 
