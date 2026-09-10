@@ -3,15 +3,41 @@
  * Dashboard 三期拆出,体逐字保留;组件 state 经 ctx 注入。
  */
 import { useCallback, useEffect } from "react";
+import type { MutableRefObject, Dispatch, SetStateAction } from "react";
 import type { Project } from "@/stores/project/project-store";
 import { useProjectStore } from "@/stores/project/project-store";
+import type { Tab } from "@/stores/navigation/media-panel-store";
+import type { ProjectFolderBridge } from "@/lib/bridge/project-folder";
 import { SELECT_HOLD_MS, SELECT_HOLD_CANCEL_DISTANCE_PX } from "./Dashboard";
 import type { PointerEvent as ReactPointerEvent } from "react";
 import { toast } from "sonner";
 import { switchProject } from "@/lib/project/project-switcher";
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export function useDashboardProjectActions(ctx: any) {
+/** 注入的组件 state/桥接件契约(Dashboard.tsx 构造;原 ctx: any 是 09-06 P0 的温床) */
+export interface DashboardProjectActionsCtx {
+  projects: Project[];
+  selectionMode: boolean;
+  setSelectionMode: Dispatch<SetStateAction<boolean>>;
+  selectedIds: Set<string>;
+  setSelectedIds: Dispatch<SetStateAction<Set<string>>>;
+  setBatchDeleteConfirm: Dispatch<SetStateAction<boolean>>;
+  setRenameDialogOpen: Dispatch<SetStateAction<boolean>>;
+  renameTarget: { id: string; name: string } | null;
+  setRenameTarget: Dispatch<SetStateAction<{ id: string; name: string } | null>>;
+  renameValue: string;
+  setRenameValue: Dispatch<SetStateAction<string>>;
+  getProjectFolderBridge: () => ProjectFolderBridge | undefined;
+  initializeRemotionWorkspace: (projectId: string) => Promise<void>;
+  setActiveTab: (tab: Tab) => void;
+  holdSelectTimerRef: MutableRefObject<number | null>;
+  holdSelectStartRef: MutableRefObject<{ x: number; y: number } | null>;
+  holdSelectFiredRef: MutableRefObject<boolean>;
+  setHoldSelectProjectId: Dispatch<SetStateAction<string | null>>;
+  deleteProject: (id: string) => void;
+  renameProject: (id: string, name: string) => void;
+}
+
+export function useDashboardProjectActions(ctx: DashboardProjectActionsCtx) {
   const { projects, selectionMode, setSelectionMode, selectedIds, setSelectedIds, setBatchDeleteConfirm, setRenameDialogOpen, renameTarget, setRenameTarget, renameValue, setRenameValue, getProjectFolderBridge, initializeRemotionWorkspace, setActiveTab, holdSelectTimerRef, holdSelectStartRef, setHoldSelectProjectId, holdSelectFiredRef, deleteProject, renameProject } = ctx;
 
   const handleOpenProject = async (projectId: string) => {

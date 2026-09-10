@@ -135,7 +135,7 @@ function countAssetGroupsByType(groups: ProductionFlowNodeModel["assetGroups"]) 
       counts[group.source.runtimeType] += 1;
       return counts;
     },
-    { role: 0, scene: 0, tool: 0 },
+    { role: 0, scene: 0, tool: 0, clip: 0 },
   );
 }
 

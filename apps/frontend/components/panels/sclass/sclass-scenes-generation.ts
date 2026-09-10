@@ -16,6 +16,7 @@ import { runStoryboardMergedPages } from "@/components/features/storyboard/story
 import { createStoryboardSingleImageGenerator } from "@/components/features/storyboard/storyboard-single-image-generation";
 import { createSClassMergedPageGenerator } from "./sclass-merged-page-generation";
 import { createSClassEndFrameGenerator } from "./sclass-end-frame-generation";
+import type { SplitScene } from "@/stores/director/director-store-types";
 import {
   buildMergedFrameTasks,
   isStoryboardSceneCompleted,
@@ -24,7 +25,7 @@ import {
 } from "@/components/features/storyboard/storyboard-merged-grid-utils";
 
 export function useSClassScenesGeneration(ctx: {
-  splitScenes: any;
+  splitScenes: SplitScene[];
   storyboardConfig: any;
   storyboardImage: any;
   defaultAspectRatio: any;

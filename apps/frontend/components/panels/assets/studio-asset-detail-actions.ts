@@ -5,6 +5,7 @@
  * (通读人工核验,非正则法);any 为迁移期务实妥协。
  */
 import { toast } from "sonner";
+import type { Dispatch, SetStateAction } from "react";
 import { getTtsRuntimeBridge } from "@/lib/bridge/tts-runtime";
 import type { AssetImage, StudioAssetSummary } from "@/types/studio-assets";
 import { eventBus } from "@/lib/event-bus";
@@ -20,7 +21,7 @@ export function useStudioAssetDialogActions(ctx: {
   onOpenChange: any;
   visualManualId: any;
   detail: any;
-  images: any;
+  images: AssetImage[];
   currentIndex: any;
   draftName: any;
   draftDescription: any;
@@ -31,8 +32,8 @@ export function useStudioAssetDialogActions(ctx: {
   setDraftDescription: any;
   setDraftPrompt: any;
   setDraftSetting: any;
-  setFullAsset: any;
-  setImages: any;
+  setFullAsset: Dispatch<SetStateAction<StudioAssetSummary | null>>;
+  setImages: Dispatch<SetStateAction<AssetImage[]>>;
   setCurrentIndex: any;
   setGeneratePhase: any;
   setGenerateMessage: any;

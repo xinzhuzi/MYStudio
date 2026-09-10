@@ -4,7 +4,10 @@
  * Dashboard 五期拆出,体逐字保留;组件 state 经 ctx 注入。
  */
 import { useCallback } from "react";
+import type { Dispatch, SetStateAction } from "react";
 import type { Project } from "@/stores/project/project-store";
+import type { Tab } from "@/stores/navigation/media-panel-store";
+import type { ProjectLocationDefaults } from "@/stores/app/app-settings-store";
 import { copyProjectScopedStoreFiles, waitForProjectStoreFile } from "@/lib/project/project-duplication";
 import { useProjectStore } from "@/stores/project/project-store";
 import { getFileStorageBridge } from "@/lib/bridge/file-storage";
@@ -15,8 +18,29 @@ import { getProjectFolderBridge } from "@/lib/bridge/project-folder";
 import { getStorageManagerBridge } from "@/lib/bridge/storage-manager";
 import { IMPORT_ERROR_HINTS, initializeRemotionWorkspace } from "./Dashboard";
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export function useDashboardProjectLifecycle(ctx: any) {
+/** 注入的组件 state/store 成员契约(Dashboard.tsx 构造;原 ctx: any 是隐式 any 源头) */
+export interface DashboardProjectLifecycleCtx {
+  projects: Project[];
+  showNewProject: boolean;
+  setShowNewProject: Dispatch<SetStateAction<boolean>>;
+  newProjectName: string;
+  setNewProjectName: Dispatch<SetStateAction<string>>;
+  newProjectParentDir: string;
+  setNewProjectParentDir: Dispatch<SetStateAction<string>>;
+  newProjectError: string | null;
+  setNewProjectError: Dispatch<SetStateAction<string | null>>;
+  setHighlightProjectId: Dispatch<SetStateAction<string | null>>;
+  createProject: (name?: string, location?: string, id?: string) => Project;
+  importProject: (input: { id: string; name: string; location: string; createdAt?: number }) => Project;
+  duplicatingId: string | null;
+  setDuplicatingId: Dispatch<SetStateAction<string | null>>;
+  projectLocationDefaults: ProjectLocationDefaults;
+  setProjectLocationDefaults: (defaults: Partial<ProjectLocationDefaults>) => void;
+  setActiveTab: (tab: Tab) => void;
+  highlightProjectCard: (projectId: string) => void;
+}
+
+export function useDashboardProjectLifecycle(ctx: DashboardProjectLifecycleCtx) {
   const { projects, setShowNewProject, newProjectName, setNewProjectName, newProjectParentDir, setNewProjectParentDir, setNewProjectError, createProject, importProject, setDuplicatingId, projectLocationDefaults, setProjectLocationDefaults, setActiveTab, highlightProjectCard } = ctx;
 
   const handleChooseParentDir = useCallback(async () => {

@@ -41,7 +41,7 @@ describe("useRemotionQueueScope", () => {
     }));
     window.remotionQueue = {
       get,
-      onJob: (listener) => {
+      onJob: (listener: (notification: RemotionQueueNotification) => void) => {
         listeners.push(listener);
         return () => undefined;
       },

@@ -21,9 +21,10 @@ import {
   type MergedFrameTask as GridTask,
 } from "@/components/features/storyboard/storyboard-merged-grid-utils";
 import { optimizeReferenceImagesForModel } from "@/components/features/storyboard/storyboard-reference-utils";
+import type { SplitScene } from "@/stores/director/director-store-types";
 
 export function useSplitScenesGeneration(ctx: {
-  splitScenes: any;
+  splitScenes: SplitScene[];
   storyboardConfig: any;
   storyboardImage: any;
   defaultStoryboardAspectRatio: any;

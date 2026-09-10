@@ -10,6 +10,8 @@ import { vi } from 'vitest';
 export class MockElectronAPI extends EventEmitter {
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
   ipcRenderer: any;
+  /** 动态注册的 on_${channel} 回调槽(ipcRenderer.on 写入,测试直接调) */
+  [key: `on_${string}`]: unknown;
 
   constructor() {
     super();

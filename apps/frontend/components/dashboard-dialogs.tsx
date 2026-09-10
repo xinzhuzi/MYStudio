@@ -6,9 +6,34 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { FolderInput } from "lucide-react";
+import type { Dispatch, SetStateAction } from "react";
+import { Progress as ProgressBar } from "@/components/ui/progress";
+import type { Project } from "@/stores/project/project-store";
+import type { ProjectFolderMoveProgressEvent } from "@/types/electron";
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export function DashboardDialogs(props: any) {
+/** 注入的 state+回调契约(Dashboard.tsx 构造;原 props: any 是隐式 any 源头) */
+export interface DashboardDialogsProps {
+  renameDialogOpen: boolean;
+  setRenameDialogOpen: Dispatch<SetStateAction<boolean>>;
+  renameValue: string;
+  setRenameValue: Dispatch<SetStateAction<string>>;
+  handleRename: () => Promise<void>;
+  movePhase: "confirm" | "moving";
+  moveProgress: ProjectFolderMoveProgressEvent | null;
+  moveTarget: Project | null;
+  handleCancelMove: () => Promise<void>;
+  closeMoveDialog: () => void;
+  handleMoveStart: () => Promise<void>;
+  MOVE_PHASE_LABELS: Record<ProjectFolderMoveProgressEvent["phase"], string>;
+  Progress: typeof ProgressBar;
+  selectedIds: Set<string>;
+  projects: Project[];
+  batchDeleteConfirm: boolean;
+  setBatchDeleteConfirm: Dispatch<SetStateAction<boolean>>;
+  handleBatchDelete: () => Promise<void>;
+}
+
+export function DashboardDialogs(props: DashboardDialogsProps) {
   const { renameDialogOpen, setRenameDialogOpen, renameValue, setRenameValue, handleRename,
     movePhase, moveProgress, moveTarget, handleCancelMove, closeMoveDialog, handleMoveStart, MOVE_PHASE_LABELS, Progress, selectedIds, projects, 
     batchDeleteConfirm, setBatchDeleteConfirm, handleBatchDelete } = props;
