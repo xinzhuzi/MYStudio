@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { useState } from "react";
 import type {
   WorkflowReadiness,
   WorkflowStageReadiness,
@@ -10,27 +10,29 @@ import {
   Clock,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { OrbSection } from "@/components/orbs";
 
 /** 纯视图 tab(不在 readiness 流水线):面板「工作流视图」组入口。
  * 分镜面板刻意不在此列——唯一入口是节点图「分镜面板」节点的「进入」按钮
  * (2026-08-23 用户裁定:其他位置不得出现进入分镜面板的途径)。 */
 const WORKFLOW_VIEW_ITEMS = [{ id: "imageWorkflow", label: "图像节点图" }] as const;
 
-/** 悬浮球面板:6 阶段完整就绪清单 + 阶段切换入口(横幅下拉的升级接班)。
- * navigation:面板底部追加区(沉浸视图把球当导航枢纽时传;studio 不传=不变)。 */
+/** 悬浮球面板:待推进头(恒显)+「切换阶段」折叠分区(默认收起,09-10 裁定:
+ * 需要折叠,点击后再展开;面板重开回默认收起)。
+ * 6 阶段完整就绪清单 + 阶段切换入口 + 图像节点图入口(横幅下拉的升级接班)。
+ * 视图导航不在本面板(09-10 拆双球:沉浸视图导航归 LocalModelOrb)。 */
 export function StageReadinessPanel({
   readiness,
   activeStage,
   onStageChange,
   onClose,
-  navigation,
 }: {
   readiness: WorkflowReadiness;
   activeStage: string;
   onStageChange: (stageId: string) => void;
   onClose: () => void;
-  navigation?: ReactNode;
 }) {
+  const [stagesOpen, setStagesOpen] = useState(false);
   const currentStage =
     readiness.stages.find((stage) => stage.id === readiness.nextStageId) ??
     readiness.stages[0];
@@ -45,59 +47,50 @@ export function StageReadinessPanel({
           {readiness.nextActionLabel}
         </p>
       </div>
-      <div
-        className="flex-1 overflow-y-auto"
-        role="group"
-        aria-label="切换阶段"
-      >
-        <p className="px-2 pb-1 pt-0.5 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
-          切换阶段
-        </p>
-        {readiness.stages.map((stage) => (
-          <StageItem
-            key={stage.id}
-            stage={stage}
-            active={stage.id === activeStage}
-            onSelect={() => {
-              onStageChange(stage.id);
-              onClose();
-            }}
-          />
-        ))}
-        <div className="my-1.5 border-t border-border/60" />
-        {WORKFLOW_VIEW_ITEMS.map((view) => (
-          <button
-            key={view.id}
-            type="button"
-            data-orb-stage-item={view.id}
-            className={cn(
-              "flex w-full items-center justify-between gap-3 rounded-md px-2 py-2 text-left transition-colors hover:bg-accent",
-              view.id === activeStage && "bg-accent/60",
-            )}
-            onClick={() => {
-              onStageChange(view.id);
-              onClose();
-            }}
-          >
-            <span className="flex items-center gap-2 text-sm text-foreground">
-              <ImageIcon className="h-4 w-4 text-info" />
-              {view.label}
-            </span>
-            {view.id === activeStage ? (
-              <Check className="h-4 w-4 text-success" />
-            ) : null}
-          </button>
-        ))}
-      </div>
-      {navigation ? (
-        <div
-          className="mt-1.5 shrink-0 border-t border-border/60 pt-1.5"
-          role="group"
-          aria-label="视图导航"
+      <div className="flex-1 overflow-y-auto">
+        <OrbSection
+          section="stages"
+          title="切换阶段"
+          open={stagesOpen}
+          onToggle={() => setStagesOpen((open) => !open)}
         >
-          {navigation}
-        </div>
-      ) : null}
+          {readiness.stages.map((stage) => (
+            <StageItem
+              key={stage.id}
+              stage={stage}
+              active={stage.id === activeStage}
+              onSelect={() => {
+                onStageChange(stage.id);
+                onClose();
+              }}
+            />
+          ))}
+          <div className="my-1.5 border-t border-border/60" />
+          {WORKFLOW_VIEW_ITEMS.map((view) => (
+            <button
+              key={view.id}
+              type="button"
+              data-orb-stage-item={view.id}
+              className={cn(
+                "flex w-full items-center justify-between gap-3 rounded-md px-2 py-2 text-left transition-colors hover:bg-accent",
+                view.id === activeStage && "bg-accent/60",
+              )}
+              onClick={() => {
+                onStageChange(view.id);
+                onClose();
+              }}
+            >
+              <span className="flex items-center gap-2 text-sm text-foreground">
+                <ImageIcon className="h-4 w-4 text-info" />
+                {view.label}
+              </span>
+              {view.id === activeStage ? (
+                <Check className="h-4 w-4 text-success" />
+              ) : null}
+            </button>
+          ))}
+        </OrbSection>
+      </div>
     </div>
   );
 }

@@ -3175,6 +3175,9 @@ describe("workflow view entries in stage switcher", () => {
     expect(source).not.toContain('id: "storyboardPanel"');
     expect(source).toContain('{ id: "imageWorkflow", label: "图像节点图" }');
     expect(source).toContain('data-orb-stage-item={view.id}');
-    expect(source).toContain('aria-label="切换阶段"');
+    // 09-10 折叠化:分组语义由 OrbSection 原语承载(条件渲染,默认收起)
+    expect(source).toContain('<OrbSection');
+    expect(source).toContain('section="stages"');
+    expect(source).toContain('title="切换阶段"');
   });
 });

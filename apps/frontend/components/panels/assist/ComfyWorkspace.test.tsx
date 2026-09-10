@@ -1,9 +1,10 @@
 // @vitest-environment jsdom
-// ComfyWorkspace(09-10 全屏 ComfyUI 合一)测试:模式路由(画布/配音室)+
-// 悬浮球导航区接线(本视图切换+视图跳转)。重数据面(mock 画布/TTS/就绪弧)
-// 之外全部真实:freedom-store、media-panel-store、球本体与面板。
+// ComfyWorkspace(09-10 全屏 ComfyUI 合一)测试:模式路由(画布/配音室)+ 悬浮球在位。
+// 重数据面(mock 画布/TTS/就绪弧)之外全部真实:freedom-store、media-panel-store、球本体与面板。
+// 09-10 拆双球过渡态:navigation 融合通道已撤(本视图/前往导航随批次 2 归 LocalModelOrb),
+// 本文件暂只覆盖路由与球在位;导航面板用例随 LocalModelOrb 测试回归。
 
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("./comfy-canvas/ComfyCanvasStudio", () => ({
@@ -59,36 +60,27 @@ function openOrbPanel() {
 }
 
 describe("ComfyWorkspace(全屏 ComfyUI 合一)", () => {
-  it("缺省=整屏 ComfyUI 画布+悬浮球在位(沉浸视图球=导航枢纽)", async () => {
+  it("缺省=整屏 ComfyUI 画布+悬浮球在位", async () => {
     render(<ComfyWorkspace />);
     expect(document.querySelector("[data-comfy-workspace]")).toBeTruthy();
     expect(document.querySelector("[data-comfy-canvas-mock]")).toBeTruthy();
     expect(document.querySelector("[data-workflow-orb]")).toBeTruthy();
   });
 
-  it("球面板导航区:本视图切换到配音室即整屏换 TTS", async () => {
+  it("模式路由:store 切配音室即整屏换 TTS,切回即画布", async () => {
     render(<ComfyWorkspace />);
-    expect(openOrbPanel()).toBe(true);
-    const ttsButton = await screen.findByRole("button", { name: /配音室/ });
-    fireEvent.click(ttsButton);
-    await waitFor(() =>
-      expect(document.querySelector("[data-tts-mock]")).toBeTruthy(),
-    );
+    useFreedomStore.getState().setActiveStudio("tts");
+    expect(await screen.findByText("配音室")).toBeTruthy();
+    expect(document.querySelector("[data-tts-mock]")).toBeTruthy();
     expect(document.querySelector("[data-comfy-canvas-mock]")).toBeNull();
+    useFreedomStore.getState().setActiveStudio("comfy");
+    expect(await screen.findByText("ComfyUI 画布")).toBeTruthy();
   });
 
-  it("球面板导航区:视图跳转落 media-panel activeTab(设置)", async () => {
+  it("面板可开(待推进可见),面板内无视图导航内容(拆双球过渡态)", async () => {
     render(<ComfyWorkspace />);
     expect(openOrbPanel()).toBe(true);
-    const settingsButton = await screen.findByRole("button", { name: "设置" });
-    fireEvent.click(settingsButton);
-    expect(useMediaPanelStore.getState().activeTab).toBe("settings");
-  });
-
-  it("导航区不含分镜面板入口(唯一入口=节点图「进入」,08-23 裁定)", async () => {
-    render(<ComfyWorkspace />);
-    expect(openOrbPanel()).toBe(true);
-    await screen.findByRole("group", { name: "视图导航" });
-    expect(document.body.textContent ?? "").not.toContain("分镜面板");
+    expect(await screen.findByText(/待推进：/)).toBeTruthy();
+    expect(screen.queryByRole("group", { name: "视图导航" })).toBeNull();
   });
 });

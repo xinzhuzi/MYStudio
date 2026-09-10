@@ -11,7 +11,6 @@
 import { toast } from "sonner";
 import { ComfyCanvasStudio } from "./comfy-canvas/ComfyCanvasStudio";
 import { TtsStudio } from "./TtsStudio";
-import { FreedomOrbNav } from "./FreedomOrbNav";
 import { useFreedomStore } from "@/stores/assist/freedom-store";
 import { useStudioStore } from "@/stores/studio/studio-store";
 import { useMediaPanelStore } from "@/stores/navigation/media-panel-store";
@@ -20,7 +19,6 @@ import { resolveProductionEpisodeId } from "../studio/workflow-helpers";
 
 export function ComfyWorkspace() {
   const activeStudio = useFreedomStore((state) => state.activeStudio);
-  const setActiveStudio = useFreedomStore((state) => state.setActiveStudio);
   const setActiveTab = useMediaPanelStore((state) => state.setActiveTab);
 
   // 球数据面与工作流视图同源(阶段就绪弧+待推进面板);输入全部来自中央 store
@@ -72,7 +70,6 @@ export function ComfyWorkspace() {
         readiness={readiness}
         activeStage={resolveVisibleWorkflowStage(workflowConfig.workflowStage)}
         onStageChange={handleStageChange}
-        navigation={<FreedomOrbNav mode={activeStudio} onModeChange={setActiveStudio} />}
       />
     </div>
   );

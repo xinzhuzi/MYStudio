@@ -1,7 +1,8 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { WorkflowStatusOrb, snapToNearestEdge } from "./WorkflowStatusOrb";
+import { snapToNearestEdge } from "@/components/orbs";
+import { WorkflowStatusOrb } from "./WorkflowStatusOrb";
 import type { WorkflowReadiness } from "@/lib/studio/workflow-readiness";
 
 afterEach(() => {
@@ -87,23 +88,58 @@ describe("WorkflowStatusOrb", () => {
     expect(capsule?.textContent).toContain("剧本生产阶段 · 1/3 · 缺：还没有剧本");
   });
 
-  it("点击(位移小于阈值)打开面板:待推进文案+切换阶段+清单可见", async () => {
+  it("点击(位移小于阈值)打开面板:待推进恒显;「切换阶段」分区默认收起(09-10 裁定)", async () => {
     renderOrb();
     const orb = getOrb();
     fireEvent.pointerDown(orb, { clientX: 20, clientY: 20 });
     fireEvent.pointerUp(orb, { clientX: 22, clientY: 21 });
     expect(await screen.findByText(/待推进：剧本生产阶段/)).toBeTruthy();
+    // 标题行在(收起态恒显),清单不在(条件渲染);「剧本资产管理」=分区条目专属文案
+    const header = screen.getByRole("button", { name: /^切换阶段$/ });
+    expect(header.getAttribute("aria-expanded")).toBe("false");
+    expect(screen.queryByRole("group", { name: "切换阶段" })).toBeNull();
+    expect(screen.queryByText("剧本资产管理")).toBeNull();
+  });
+
+  it("点「切换阶段」标题行展开:清单挂出(折叠→展开,09-10 裁定)", async () => {
+    renderOrb();
+    const orb = getOrb();
+    fireEvent.pointerDown(orb, { clientX: 20, clientY: 20 });
+    fireEvent.pointerUp(orb, { clientX: 22, clientY: 21 });
+    const header = await screen.findByRole("button", { name: /^切换阶段$/ });
+    fireEvent.click(header);
+    expect(header.getAttribute("aria-expanded")).toBe("true");
     expect(screen.getByRole("group", { name: "切换阶段" })).toBeTruthy();
     expect(
       screen.getByText("生成故事骨架、改编策略和结构化剧本"),
     ).toBeTruthy();
   });
 
-  it("面板中点击阶段项触发切换并关闭面板", async () => {
+  it("面板重开回默认收起(开合态不持久化)", async () => {
+    renderOrb();
+    const orb = getOrb();
+    // 开→展开→收面板→再开
+    fireEvent.pointerDown(orb, { clientX: 20, clientY: 20 });
+    fireEvent.pointerUp(orb, { clientX: 22, clientY: 21 });
+    fireEvent.click(await screen.findByRole("button", { name: /^切换阶段$/ }));
+    expect(screen.getByRole("group", { name: "切换阶段" })).toBeTruthy();
+    fireEvent.pointerDown(orb, { clientX: 25, clientY: 20 });
+    fireEvent.pointerUp(orb, { clientX: 26, clientY: 20 });
+    await waitFor(() =>
+      expect(screen.queryByText(/待推进：/)).toBeNull(),
+    );
+    fireEvent.pointerDown(orb, { clientX: 25, clientY: 20 });
+    fireEvent.pointerUp(orb, { clientX: 26, clientY: 20 });
+    expect(await screen.findByText(/待推进：剧本生产阶段/)).toBeTruthy();
+    expect(screen.queryByRole("group", { name: "切换阶段" })).toBeNull();
+  });
+
+  it("面板中点击阶段项触发切换并关闭面板(先展开分区)", async () => {
     const onStageChange = renderOrb();
     const orb = getOrb();
     fireEvent.pointerDown(orb, { clientX: 20, clientY: 20 });
     fireEvent.pointerUp(orb, { clientX: 21, clientY: 20 });
+    fireEvent.click(await screen.findByRole("button", { name: /^切换阶段$/ }));
     const item = await screen.findByRole("button", { name: /剧本资产管理/ });
     fireEvent.click(item);
     expect(onStageChange).toHaveBeenCalledWith("assets");
@@ -112,11 +148,12 @@ describe("WorkflowStatusOrb", () => {
     );
   });
 
-  it("图像节点图视图入口在面板中可用", async () => {
+  it("图像节点图视图入口在面板中可用(先展开分区)", async () => {
     const onStageChange = renderOrb();
     const orb = getOrb();
     fireEvent.pointerDown(orb, { clientX: 20, clientY: 20 });
     fireEvent.pointerUp(orb, { clientX: 20, clientY: 20 });
+    fireEvent.click(await screen.findByRole("button", { name: /^切换阶段$/ }));
     fireEvent.click(await screen.findByRole("button", { name: /图像节点图/ }));
     expect(onStageChange).toHaveBeenCalledWith("imageWorkflow");
   });
@@ -128,23 +165,6 @@ describe("WorkflowStatusOrb", () => {
     fireEvent.pointerUp(orb, { clientX: 80, clientY: 90 });
     expect(screen.queryByText(/待推进：/)).toBeNull();
     expect(screen.queryByRole("group", { name: "切换阶段" })).toBeNull();
-  });
-
-  it("navigation 追加区:传入才渲染在面板底部视图导航组(09-10 沉浸枢纽)", async () => {
-    // studio 视图不传=不渲染组(上方用例已覆盖默认态);沉浸视图传入导航条目
-    render(
-      <WorkflowStatusOrb
-        readiness={readiness}
-        activeStage="novel"
-        onStageChange={vi.fn()}
-        navigation={<button type="button">返回工作流</button>}
-      />,
-    );
-    const orb = getOrb();
-    fireEvent.pointerDown(orb, { clientX: 20, clientY: 20 });
-    fireEvent.pointerUp(orb, { clientX: 20, clientY: 20 });
-    expect(await screen.findByRole("group", { name: "视图导航" })).toBeTruthy();
-    expect(screen.getByRole("button", { name: "返回工作流" })).toBeTruthy();
   });
 
   it("W1 回归:球内拖拽释放(pointerup+click 双到)不开面板", () => {

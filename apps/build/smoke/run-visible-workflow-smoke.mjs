@@ -1069,6 +1069,12 @@ function visibleWorkflowExpression(delayMs, focusWindow) {
       console.info('[visible-run] stage ' + stage.id + ' switcher=' + Boolean(switcherClick.clicked));
       if (!switcherClick.clicked) throw new Error('工作流阶段切换按钮未出现: ' + stage.id);
       await visibleDelay();
+      // 09-10 折叠分区:阶段清单默认收起(条件渲染),先展开「切换阶段」再找条目(幂等:只点收起态)
+      const stagesSection = document.querySelector('[data-orb-section="stages"]');
+      if (stagesSection && stagesSection.getAttribute('data-state') === 'closed') {
+        activate(stagesSection.querySelector('button'));
+      }
+      await visibleDelay();
       let stageMenuItem = await waitFor(() =>
         Array.from(document.querySelectorAll('[data-orb-stage-item]'))
           .find((node) => normalize(node).includes(stage.label)),
@@ -1537,6 +1543,12 @@ function realProjectWorkflowExpression(
       };
       console.info('[visible-run] stage ' + stage.id + ' switcher=' + Boolean(switcherClick.clicked));
       if (!switcherClick.clicked) throw new Error('工作流阶段切换按钮未出现: ' + stage.id);
+      await visibleDelay();
+      // 09-10 折叠分区:阶段清单默认收起(条件渲染),先展开「切换阶段」再找条目(幂等:只点收起态)
+      const stagesSection = document.querySelector('[data-orb-section="stages"]');
+      if (stagesSection && stagesSection.getAttribute('data-state') === 'closed') {
+        activate(stagesSection.querySelector('button'));
+      }
       await visibleDelay();
       let stageMenuItem = await waitFor(() =>
         Array.from(document.querySelectorAll('[data-orb-stage-item]'))

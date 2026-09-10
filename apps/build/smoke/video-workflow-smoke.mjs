@@ -507,6 +507,11 @@ export function buildApplyAcceptedExpression({ projectId, projectName, chapterId
     const workflowOpened = activate(workflowButton);
     const orbSwitcher = await waitFor(() => document.querySelector('[data-workflow-orb]'), '阶段切换悬浮球');
     if (!activate(orbSwitcher)) throw new Error('无法打开阶段切换面板');
+    // 09-10 折叠分区:阶段清单默认收起(条件渲染),先展开「切换阶段」再找条目(幂等:只点收起态)
+    const stagesSection = document.querySelector('[data-orb-section="stages"]');
+    if (stagesSection && stagesSection.getAttribute('data-state') === 'closed') {
+      activate(stagesSection.querySelector('button'));
+    }
     const workbenchStage = await waitFor(() => Array.from(document.querySelectorAll('[data-orb-stage-item]')).find((node) => normalize(node).includes('视频工作台')), '视频工作台阶段');
     const workbenchOpened = activate(workbenchStage);
     const modeSelect = await waitFor(() => document.querySelector('[data-video-use-mode-select]'), 'video-use 模式选择');
