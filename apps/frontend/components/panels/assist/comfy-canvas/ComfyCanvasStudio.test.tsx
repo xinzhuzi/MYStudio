@@ -94,7 +94,7 @@ describe("ComfyCanvasStudio(辅助面板第六 tab)", () => {
       injected.push(css);
       return Promise.resolve("id");
     };
-    expect(injected).toHaveLength(1); // 挂载即试一次(竞态兜底)
+    expect(injected).toHaveLength(0); // 挂载即试发生在渲染期,先于记录器装上
     webview.dispatchEvent(new Event("dom-ready"));
     expect(injected.length).toBeGreaterThanOrEqual(2); // 事件再来一发,同规则无害
     webview.dispatchEvent(new Event("did-finish-load"));
