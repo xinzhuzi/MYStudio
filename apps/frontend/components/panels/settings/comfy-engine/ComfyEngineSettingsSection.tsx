@@ -187,6 +187,65 @@ function snapshotReasonLabel(reason: string): string {
   return reason || "手动";
 }
 
+/** 模型类别一句话注释:干什么用、属于哪条工作流(09-10 用户裁定:简明概要)。 */
+const COMFY_MODEL_CATEGORY_INFO: Record<string, string> = {
+  diffusion_models: "生图/作曲/视频的主模型(去噪网络)——画布各类生成流的核心",
+  text_encoders: "提示词理解(文本编码器)——生成流的输入侧",
+  vae: "潜空间↔成品解码器(图像像素/音频波形)",
+  loras: "主模型的能力补丁(风格/破限/编辑)——生图画布按流挂载",
+  TTS: "旁白配音引擎(声线权重+音色库)——配音室/分镜配音",
+  vlm: "视觉审核模型——分镜图与资产参考一致性检查",
+  depth: "深度估计——静态图 3D 纵深",
+  upscale: "应用超分家族(Real-ESRGAN 1K→4K)——分镜批量超分",
+  upscale_models: "ComfyUI 超分模型目录——画布超分节点用",
+  videoqc: "DOVER 视频评分——出片自评与基线告警",
+  SEEDVR2: "图像修复+超分(强档)——生图修复链",
+  segformer_b3_clothes: "服装/人体分割——ComfyUI 图层类节点",
+  frame_interpolation: "补帧(RIFE)——视频流畅度",
+  latent_upscale_models: "潜空间放大——H3 视频链",
+  clip: "图文对齐编码——参考图/构图控制类节点",
+  clip_vision: "视觉编码——图像参考类节点",
+  controlnet: "构图/姿态控制——画布控制类节点",
+  audio_encoders: "音频编码——视频配音轨",
+  embeddings: "文本风格嵌入——提示词增强",
+  vae_approx: "潜空间快速预览解码——画布出图预览",
+  checkpoints: "ComfyUI 整包模型(单文件全合一)",
+  diffusers: "diffusers 布局模型目录",
+  configs: "模型配套配置文件",
+};
+
+/** 关键模型件级注释(子串匹配相对路径,先中先用;未命中走类别注释)。 */
+const COMFY_MODEL_FILE_NOTES: Array<[string, string]> = [
+  ["krea2_turbo_bf16", "Krea2 生图主力——文生图/图生图/无衣物/NSFW 专业流"],
+  ["qwen3-vl-4b-heretic", "生图提示词编码(破限版)——Krea2 流"],
+  ["qwen_image_vae", "生图解码器——Krea2/Qwen 系"],
+  ["minimax_music3_dit", "本地作曲主模型——画布 Music3 作曲节点"],
+  ["minimax_music3_text_encoder", "作曲提示词/歌词理解"],
+  ["minimax_music3_dav", "作曲音频解码"],
+  ["minimax_h3_fl2va", "H3 视频生成主模型"],
+  ["minimax_h3_video_vae", "H3 视频解码"],
+  ["minimax_h3_audio_vae", "H3 配音轨编码"],
+  ["minimax_h3_latent_upscaler", "H3 视频潜空间放大"],
+  ["seedvr2_7b_sharp", "图像修复超分(强档)"],
+  ["ema_vae_fp16", "SEEDVR2 配套 VAE"],
+  ["KREA 2 Mystic XXX v3", "NSFW 专业流破限补丁(主力)"],
+  ["Krea 2 pussy", "NSFW 专业流补丁"],
+  ["Krea 2 NSFW V4", "NSFW 备选补丁(默认关)"],
+  ["identity_edit", "无衣物·指令编辑主件"],
+  ["rife_v4.26", "视频补帧"],
+];
+
+function modelFileNote(relPath: string): string | null {
+  for (const [needle, note] of COMFY_MODEL_FILE_NOTES) {
+    if (relPath.includes(needle)) return note;
+  }
+  return null;
+}
+
+function modelCategoryInfo(category: string): string {
+  return COMFY_MODEL_CATEGORY_INFO[category] ?? "ComfyUI 生态模型——经画布节点使用";
+}
+
 /** 模型文件大小展示:≥1GB 用 GB 一位小数,否则 MB。 */
 function formatModelSize(sizeBytes: number): string {
   if (sizeBytes >= 1024 ** 3) return `${(sizeBytes / 1024 ** 3).toFixed(1)} GB`;
@@ -295,9 +354,6 @@ export function ComfyEngineSettingsSection({ embedded = false, initialActiveTab 
             </Button>
           </div>
         </div>
-        <p className="text-xs leading-5 text-muted-foreground">
-          本地生图等大模型全部由 ComfyUI 引擎装载(应用侧独立缓存已退役);后续各域模型也将迁入本目录。
-        </p>
         {engine.models === null ? (
           <p className="rounded-md border border-border/60 bg-muted/30 px-2.5 py-1.5 text-[11px] text-muted-foreground">
             清单尚未取到——进入本页会自动读取;若持续空白,通常几秒内重试即可。
@@ -316,10 +372,16 @@ export function ComfyEngineSettingsSection({ embedded = false, initialActiveTab 
                     {group.files.length} 件 · {formatModelSize(group.files.reduce((sum, f) => sum + f.sizeBytes, 0))}
                   </span>
                 </p>
+                <p className="mt-0.5 text-[11px] leading-4 text-muted-foreground/80">{modelCategoryInfo(group.category)}</p>
                 <ul className="mt-1 space-y-0.5">
                   {group.files.map((file) => (
                     <li key={file.name} className="flex items-baseline justify-between gap-2 text-[11px] leading-4">
-                      <span className="min-w-0 flex-1 select-text break-all font-mono text-muted-foreground">{file.name}</span>
+                      <span className="min-w-0 flex-1 select-text break-all">
+                        <span className="font-mono text-muted-foreground">{file.name}</span>
+                        {modelFileNote(file.name) ? (
+                          <span className="ml-1.5 text-muted-foreground/70">· {modelFileNote(file.name)}</span>
+                        ) : null}
+                      </span>
                       <span className="shrink-0 text-muted-foreground/80">{formatModelSize(file.sizeBytes)}</span>
                     </li>
                   ))}

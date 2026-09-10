@@ -2,7 +2,7 @@
 
 // ComfyEngineSettingsSection 组件测试:未安装/下载中/需准备/就绪/可更新状态机、
 // 端口与模型目录行、更新链报告/失败回滚、插件子区块(搜索/展开/卸载引用警告)、
-// 核弹复位二次确认、依赖体检报告。hook 整体 mock(照 LocalImageSettingsSection 模式)。
+// 核弹复位二次确认、依赖体检报告。hook 整体 mock(历史模式沿用)。
 
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -589,6 +589,8 @@ describe("ComfyEngineSettingsSection 模型页", () => {
     expect(modelActions.loadModels).toHaveBeenCalled();
     expect(screen.getByText("diffusion_models")).toBeTruthy();
     expect(screen.getByText(/krea2_turbo_bf16\.safetensors/)).toBeTruthy();
+    expect(screen.getByText(/Krea2 生图主力——文生图\/图生图\/无衣物\/NSFW 专业流/)).toBeTruthy();
+    expect(screen.getByText(/去噪网络/)).toBeTruthy();
     expect(screen.getByText("24.5 GB")).toBeTruthy();
     expect(screen.getByText(/合计 2 件/)).toBeTruthy();
     expect(actions.checkUpdate).not.toHaveBeenCalled();
@@ -630,7 +632,6 @@ describe("ComfyEngineSettingsSection 模型页", () => {
 
     expect(screen.getByText(/引擎尚未安装/)).toBeTruthy();
     expect(comfyEl("models-page")).toBeTruthy();
-    expect(screen.getByText(/本地生图等大模型全部由 ComfyUI 引擎装载/)).toBeTruthy();
     // 未装引擎无版本/服务可管:标签页体系不出现
     expect(document.querySelector("[data-comfy-tab]")).toBeNull();
   });
