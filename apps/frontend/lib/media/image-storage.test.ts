@@ -22,7 +22,7 @@ import {
   resolveImagePath as canonicalResolveImagePath,
   saveImageToLocal as canonicalSaveImageToLocal,
   saveVideoToLocal as canonicalSaveVideoToLocal,
-} from "./media/image-storage";
+} from "./image-storage";
 
 describe("image-storage root facade", () => {
   it("re-exports the same helpers as the media domain module", () => {

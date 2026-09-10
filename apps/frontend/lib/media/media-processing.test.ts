@@ -4,7 +4,7 @@ import type { ProcessedMediaItem as FacadeItem } from "./media-processing";
 import {
   processMediaFiles as canonicalProcess,
   type ProcessedMediaItem as CanonicalItem,
-} from "./media/media-processing";
+} from "./media-processing";
 
 describe("media-processing root facade", () => {
   it("re-exports the canonical processMediaFiles implementation", () => {

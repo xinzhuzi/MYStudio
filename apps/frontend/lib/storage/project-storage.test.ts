@@ -1,11 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { StateStorage } from "zustand/middleware";
-import { fileStorage } from "./storage/indexed-db-storage";
+import { fileStorage } from "./indexed-db-storage";
 import {
   createProjectScopedStorage as facadeCreateProjectScopedStorage,
   createSplitStorage as facadeCreateSplitStorage,
 } from "./project-storage";
-import { createProjectScopedStorage, createSplitStorage } from "./storage/project-storage";
+import { createProjectScopedStorage, createSplitStorage } from "./project-storage";
 
 type MockProjectState = {
   activeProjectId: string | null;
@@ -42,7 +42,7 @@ const storageMocks = vi.hoisted(() => {
   };
 });
 
-vi.mock("./storage/indexed-db-storage", () => ({
+vi.mock("./indexed-db-storage", () => ({
   fileStorage: {
     getItem: vi.fn(async (key: string) => storageMocks.values.get(key) ?? null),
     setItem: vi.fn(async (key: string, value: string) => {

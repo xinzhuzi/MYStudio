@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { corsFetch as canonicalCorsFetch } from "./network/cors-fetch";
+import { corsFetch as canonicalCorsFetch } from "./cors-fetch";
 import { corsFetch as facadeCorsFetch } from "./cors-fetch";
 
 describe("corsFetch compatibility facade", () => {

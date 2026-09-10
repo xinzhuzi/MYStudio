@@ -8,7 +8,7 @@ import {
   buildProjectStoreKeys,
   copyProjectScopedStoreFiles,
   rewriteProjectScopedPayload,
-} from "./project/project-duplication";
+} from "./project-duplication";
 
 describe("project duplication storage boundary", () => {
   it("keeps the root facade identical to canonical exports", () => {

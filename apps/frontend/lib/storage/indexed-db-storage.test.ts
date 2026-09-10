@@ -1,12 +1,12 @@
 /* @vitest-environment jsdom */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { fileStorage as facadeFileStorage } from "./indexed-db-storage";
-import { fileStorage } from "./storage/indexed-db-storage";
+import { fileStorage } from "./indexed-db-storage";
 import {
   migrateToProjectStorage as facadeMigrateToProjectStorage,
   recoverFromLegacy as facadeRecoverFromLegacy,
 } from "./storage-migration";
-import { migrateToProjectStorage, recoverFromLegacy } from "./storage/storage-migration";
+import { migrateToProjectStorage, recoverFromLegacy } from "./storage-migration";
 
 describe("fileStorage legacy MYStudio key migration", () => {
   it("keeps root storage facades identical to canonical exports", () => {

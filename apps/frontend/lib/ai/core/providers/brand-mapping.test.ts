@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import * as canonical from "./ai/core/providers/brand-mapping";
+import * as canonical from "./brand-mapping";
 import * as facade from "./brand-mapping";
 
 const { BRAND_REGISTRY, extractBrandFromModel, getBrandInfo } = canonical;

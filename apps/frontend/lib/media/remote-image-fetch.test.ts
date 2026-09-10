@@ -13,7 +13,7 @@ import {
   fetchRemoteImageBlob as canonicalFetchRemoteImageBlob,
   fetchRemoteImageDataUrl as canonicalFetchRemoteImageDataUrl,
   readBlobAsDataUrl as canonicalReadBlobAsDataUrl,
-} from "./media/remote-image-fetch";
+} from "./remote-image-fetch";
 
 describe("remote-image-fetch root facade", () => {
   it("re-exports the same helpers as the media domain module", () => {

@@ -76,7 +76,7 @@ vi.mock("@/stores/editing/editing-store", () => ({
 }));
 
 import { switchProject as facadeSwitchProject } from "./project-switcher";
-import { switchProject } from "./project/project-switcher";
+import { switchProject } from "./project-switcher";
 
 describe("switchProject", () => {
   it("keeps the root facade identical to the canonical export", () => {

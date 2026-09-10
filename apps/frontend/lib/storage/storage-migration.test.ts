@@ -6,7 +6,7 @@ import {
 import {
   migrateToProjectStorage as canonicalMigrate,
   recoverFromLegacy as canonicalRecover,
-} from "./storage/storage-migration";
+} from "./storage-migration";
 
 describe("storage-migration root facade", () => {
   it("re-exports the same migration helpers as the storage domain module", () => {

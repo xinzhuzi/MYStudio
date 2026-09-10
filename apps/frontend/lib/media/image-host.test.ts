@@ -10,7 +10,7 @@ import {
 import {
   isImageHostConfigured as canonicalIsImageHostConfigured,
   uploadToImageHost as canonicalUploadToImageHost,
-} from "./media/image-host";
+} from "./image-host";
 import { useAPIConfigStore, type ImageHostProvider } from "@/stores/ai/api-config-store";
 
 describe("image-host root facade", () => {
