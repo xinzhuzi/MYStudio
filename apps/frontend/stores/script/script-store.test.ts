@@ -75,13 +75,13 @@ describe("script store defaults", () => {
   });
 
   it("merges modern project data without dropping other projects", () => {
-    const current = {
+    const current: ScriptStorePersistenceState = {
       activeProjectId: "project-current",
       projects: {
         "project-current": createDefaultScriptProjectData(),
       },
       setScriptData: vi.fn(),
-    } satisfies ScriptStorePersistenceState;
+    };
 
     const merged = mergeScriptStoreState(
       {

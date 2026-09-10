@@ -29,14 +29,10 @@ export function assertImageWorkflowGraphMediaPersistable(
   graph: ImageWorkflowGraph,
 ): void {
   for (const node of graph.nodes) {
-    const field = node.type === "reference"
-      ? "imageUrl"
-      : node.type === "generated"
-        ? "resultUrl"
-        : null;
-    if (!field) continue;
-
-    const mediaUrl = node[field];
+    if (node.type !== "reference" && node.type !== "generated") continue;
+    // 判别式直取替代 node[field] 关联索引(联合类型下 TS7053)
+    const field = node.type === "reference" ? "imageUrl" : "resultUrl";
+    const mediaUrl = node.type === "reference" ? node.imageUrl : node.resultUrl;
     const transientScheme = typeof mediaUrl === "string"
       ? /^(data|blob):/i.exec(mediaUrl)?.[1]?.toLowerCase()
       : undefined;

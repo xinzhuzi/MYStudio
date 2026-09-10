@@ -316,7 +316,7 @@ interface MediaPanelStore {
   goToSceneWithData: (data: PendingSceneData) => void;
 }
 
-export const useMediaPanelStore = create<MediaPanelStore>((set) => ({
+export const useMediaPanelStore = create<MediaPanelStore>((set, get) => ({
   activeTab: "dashboard",
   settingsTabRequest: null,
   activeStage: "script",
@@ -353,8 +353,8 @@ export const useMediaPanelStore = create<MediaPanelStore>((set) => ({
       }),
     );
   },
-  canGoBack: () => useMediaPanelStore.getState().navigationBackStack.length > 0,
-  canGoForward: () => useMediaPanelStore.getState().navigationForwardStack.length > 0,
+  canGoBack: () => get().navigationBackStack.length > 0,
+  canGoForward: () => get().navigationForwardStack.length > 0,
   goBack: () => {
     set((state) => {
       const previous = state.navigationBackStack.at(-1);

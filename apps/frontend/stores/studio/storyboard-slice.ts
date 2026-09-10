@@ -287,7 +287,7 @@ export function createStoryboardSliceActions(set: SetFn, get: GetFn) {
     setStoryboardKeyframes: (
       id: string,
       frames: StoryboardKeyframe[],
-      reason,
+      reason: "backfill" | "generate" | "upscale" | "plan" | "edit",
     ): void => {
       const current = get().storyboards.find((item) => item.id === id);
       if (!current) return;
