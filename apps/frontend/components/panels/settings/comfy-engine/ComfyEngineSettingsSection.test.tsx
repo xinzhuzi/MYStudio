@@ -2,7 +2,7 @@
 
 // ComfyEngineSettingsSection 组件测试:未安装/下载中/需准备/就绪/可更新状态机、
 // 端口与模型目录行、更新链报告/失败回滚、插件子区块(搜索/展开/卸载引用警告)、
-// 核弹复位二次确认、依赖体检报告。hook 整体 mock(历史模式沿用)。
+// 彻底重装二次确认、引擎检查报告。hook 整体 mock(历史模式沿用)。
 
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -330,7 +330,7 @@ describe("ComfyEngineSettingsSection 版本与更新链", () => {
   });
 });
 
-describe("ComfyEngineSettingsSection 模型目录/体检/复位", () => {
+describe("ComfyEngineSettingsSection 模型目录/引擎修复", () => {
   it("模型目录行:输入自定义路径保存", async () => {
     scenario.status = readyStatus();
     render(<ComfyEngineSettingsSection embedded />);
@@ -343,19 +343,19 @@ describe("ComfyEngineSettingsSection 模型目录/体检/复位", () => {
     await waitFor(() => expect(actions.setModelsDir).toHaveBeenCalledWith("/现有模型库/sd-models"));
   });
 
-  it("依赖体检:点击出报告(漂移大白话)", async () => {
+  it("引擎检查:点击出报告(版本不对大白话)", async () => {
     scenario.status = readyStatus();
     scenario.doctorReport = { missing: [], drifted: ["numpy(被外部顶到 2.1.0)"], orphan: [] };
     render(<ComfyEngineSettingsSection embedded />);
     fireEvent.click(comfyEl("tab", "snapshots"));
 
-    fireEvent.click(screen.getByRole("button", { name: /开始体检/ }));
+    fireEvent.click(screen.getByRole("button", { name: /检查哪里坏了/ }));
     expect(actions.runDoctor).toHaveBeenCalledOnce();
-    expect(screen.getByText(/漂移 1 项/)).toBeTruthy();
+    expect(screen.getByText(/1 项版本不对/)).toBeTruthy();
     expect(screen.getByText(/numpy/)).toBeTruthy();
   });
 
-  it("核弹复位:先弹二次确认,确认后才触发复位", async () => {
+  it("彻底重装:先弹二次确认,确认后才触发", async () => {
     scenario.status = readyStatus();
     render(<ComfyEngineSettingsSection embedded />);
     fireEvent.click(comfyEl("tab", "snapshots"));
@@ -363,9 +363,9 @@ describe("ComfyEngineSettingsSection 模型目录/体检/复位", () => {
     fireEvent.click(comfyEl("reset-button"));
     expect(actions.resetEngine).not.toHaveBeenCalled();
     expect(comfyEl("reset-dialog")).toBeTruthy();
-    expect(screen.getByText("核弹复位引擎运行环境?")).toBeTruthy();
+    expect(screen.getByText("彻底重装引擎运行环境?")).toBeTruthy();
 
-    fireEvent.click(screen.getByRole("button", { name: "确认复位" }));
+    fireEvent.click(screen.getByRole("button", { name: "确认重装" }));
     await waitFor(() => expect(actions.resetEngine).toHaveBeenCalledOnce());
   });
 });
@@ -592,7 +592,7 @@ describe("ComfyEngineSettingsSection 标签页布局(照 ComfyUI Desktop)", () =
     );
   });
 
-  it("快照页:大白话原因+回滚传 id;体检/复位同页", async () => {
+  it("快照页:大白话原因+回滚传 id;引擎修复同页", async () => {
     scenario.snapshots = [
       { id: "snap-9", createdAt: 1788835819800, reason: "plugin-uninstall:rgthree-comfy", version: "v0.34.6", full: false },
     ];
@@ -601,7 +601,7 @@ describe("ComfyEngineSettingsSection 标签页布局(照 ComfyUI Desktop)", () =
     await waitFor(() => expect(screen.getByText("当前版本")).toBeTruthy());
     fireEvent.click(comfyEl("tab", "snapshots"));
     await waitFor(() => expect(screen.getByText(/卸载插件 rgthree-comfy 前/)).toBeTruthy());
-    expect(screen.getByText("依赖体检")).toBeTruthy();
+    expect(screen.getByText("引擎修复")).toBeTruthy();
     expect(comfyEl("reset-button")).toBeTruthy();
     fireEvent.click(comfyEl("snapshot-rollback"));
     await waitFor(() => expect(actions.rollbackTo).toHaveBeenCalledWith("snap-9"));

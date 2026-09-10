@@ -139,7 +139,7 @@ function UpdateReportCard({
   );
 }
 
-/** 依赖体检报告(正常/缺失/漂移/孤儿)。 */
+/** 引擎检查报告(正常/缺了/版本不对/多余没登记)。 */
 function DoctorReportCard({
   report,
   onCleanOrphans,
@@ -149,9 +149,9 @@ function DoctorReportCard({
 }) {
   const summary = summarizeDoctorReport(report);
   const sections: Array<{ label: string; items: string[] }> = [
-    { label: "缺失", items: report.missing },
-    { label: "漂移", items: report.drifted },
-    { label: "孤儿", items: report.orphan },
+    { label: "缺了没装上", items: report.missing },
+    { label: "版本不对", items: report.drifted },
+    { label: "多余没登记", items: report.orphan },
   ].filter((section) => section.items.length > 0);
   return (
     <div
@@ -167,9 +167,9 @@ function DoctorReportCard({
       {sections.map((section) => (
         <p key={section.label} className="mt-1 text-xs leading-5 text-muted-foreground">
           {section.label}:{section.items.join("、")}
-          {section.label === "孤儿" && onCleanOrphans ? (
+          {section.label === "多余没登记" && onCleanOrphans ? (
             <Button size="sm" variant="outline" className="ml-2 h-6" onClick={onCleanOrphans} data-comfy-clean-orphans>
-              清理未登记插件
+              清理多余项
             </Button>
           ) : null}
         </p>
@@ -185,7 +185,7 @@ function DoctorReportCard({
 /** 快照原因 → 大白话(快照区展示,design 映射表「快照页→搬并强化」)。 */
 function snapshotReasonLabel(reason: string): string {
   if (reason === "update") return "更新引擎前";
-  if (reason === "reset") return "复位前";
+  if (reason === "reset") return "彻底重装前";
   if (reason.startsWith("plugin-install:")) return `安装插件 ${reason.slice("plugin-install:".length)} 前`;
   if (reason.startsWith("plugin-uninstall:")) return `卸载插件 ${reason.slice("plugin-uninstall:".length)} 前`;
   return reason || "手动";
@@ -892,13 +892,19 @@ export function ComfyEngineSettingsSection({ embedded = false, initialActiveTab 
                 )}
               </div>
               <div className="border-t border-border pt-3" />
-          {/* 依赖体检:报告 + 核弹复位(二次确认) */}
+          {/* 引擎修复:检查哪里坏了 + 彻底重装(二次确认)——09-10 大白话化,
+              原「依赖体检/核弹复位」黑话用户看不懂 */}
           <div className="space-y-1">
             <div className="flex flex-wrap items-center justify-between gap-3">
-              <p className="flex items-center gap-2 text-sm font-medium text-foreground">
-                <Stethoscope className="h-4 w-4 text-primary" aria-hidden />
-                依赖体检
-              </p>
+              <div className="min-w-0">
+                <p className="flex items-center gap-2 text-sm font-medium text-foreground">
+                  <Stethoscope className="h-4 w-4 text-primary" aria-hidden />
+                  引擎修复
+                </p>
+                <p className="mt-0.5 text-[11px] leading-4 text-muted-foreground/80 truncate" title="引擎报错、插件装不上时用">
+                  引擎报错、插件装不上时:先「检查哪里坏了」;反复修不好,才「彻底重装」
+                </p>
+              </div>
               <div className="flex gap-2">
                 <Button
                   size="sm"
@@ -911,7 +917,7 @@ export function ComfyEngineSettingsSection({ embedded = false, initialActiveTab 
                   ) : (
                     <Stethoscope className="mr-2 h-4 w-4" aria-hidden />
                   )}
-                  开始体检
+                  检查哪里坏了
                 </Button>
                 <Button
                   size="sm"
@@ -925,7 +931,7 @@ export function ComfyEngineSettingsSection({ embedded = false, initialActiveTab 
                   ) : (
                     <RotateCcw className="mr-2 h-4 w-4" aria-hidden />
                   )}
-                  核弹复位
+                  彻底重装
                 </Button>
               </div>
             </div>
@@ -1003,13 +1009,13 @@ export function ComfyEngineSettingsSection({ embedded = false, initialActiveTab 
         </>
       ) : null}
 
-      {/* 核弹复位二次确认 */}
+      {/* 彻底重装二次确认 */}
       <AlertDialog open={confirmReset} onOpenChange={setConfirmReset}>
         <AlertDialogContent data-comfy-reset-dialog>
           <AlertDialogHeader>
-            <AlertDialogTitle>核弹复位引擎运行环境?</AlertDialogTitle>
+            <AlertDialogTitle>彻底重装引擎运行环境?</AlertDialogTitle>
             <AlertDialogDescription>
-              会清空引擎的依赖环境并按账本重建(引擎 + 全部已装插件),期间生图不可用;模型文件和你的工作流不受影响。通常只在体检报告异常、反复装不上时使用。
+              会把引擎的运行环境整个删掉重装(引擎 + 你装过的全部插件),期间生图不可用;你的模型文件和工作流不受影响。只在反复修不好的时候用。
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -1021,7 +1027,7 @@ export function ComfyEngineSettingsSection({ embedded = false, initialActiveTab 
                 void engine.resetEngine();
               }}
             >
-              确认复位
+              确认重装
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

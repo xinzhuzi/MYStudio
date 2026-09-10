@@ -447,13 +447,13 @@ export function summarizeDoctorReport(report: ComfyDoctorReport): {
   summary: string;
 } {
   const parts: string[] = [];
-  if (report.missing.length > 0) parts.push(`缺失 ${report.missing.length} 项`);
-  if (report.drifted.length > 0) parts.push(`漂移 ${report.drifted.length} 项`);
-  if (report.orphan.length > 0) parts.push(`孤儿 ${report.orphan.length} 项`);
+  if (report.missing.length > 0) parts.push(`${report.missing.length} 项缺了没装上`);
+  if (report.drifted.length > 0) parts.push(`${report.drifted.length} 项版本不对`);
+  if (report.orphan.length > 0) parts.push(`${report.orphan.length} 项多余没登记`);
   if (parts.length === 0) {
-    return { healthy: true, summary: "依赖体检正常:无缺失、无漂移、无孤儿。" };
+    return { healthy: true, summary: "引擎环境正常:该装的都在,版本都对,没有多余的东西。" };
   }
-  return { healthy: false, summary: `依赖体检发现问题:${parts.join(", ")}。` };
+  return { healthy: false, summary: `检查发现问题:${parts.join("、")}。` };
 }
 
 /** 目录/插件搜索过滤(空格分词,大小写不敏感,命中名字或描述)。 */

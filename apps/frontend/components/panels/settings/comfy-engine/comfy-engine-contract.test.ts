@@ -165,11 +165,11 @@ describe("formatComfyPluginPillLabel 插件胶囊", () => {
   });
 });
 
-describe("summarizeDoctorReport 体检汇总", () => {
+describe("summarizeDoctorReport 引擎检查汇总", () => {
   it("全空 → 正常", () => {
     expect(summarizeDoctorReport({ missing: [], drifted: [], orphan: [] })).toEqual({
       healthy: true,
-      summary: "依赖体检正常:无缺失、无漂移、无孤儿。",
+      summary: "引擎环境正常:该装的都在,版本都对,没有多余的东西。",
     });
   });
 
@@ -180,7 +180,7 @@ describe("summarizeDoctorReport 体检汇总", () => {
       orphan: ["旧包A", "旧包B"],
     });
     expect(result.healthy).toBe(false);
-    expect(result.summary).toBe("依赖体检发现问题:缺失 1 项, 漂移 1 项, 孤儿 2 项。");
+    expect(result.summary).toBe("检查发现问题:1 项缺了没装上、1 项版本不对、2 项多余没登记。");
   });
 });
 
