@@ -349,7 +349,7 @@ describe("ComfyEngineSettingsSection 模型目录/引擎修复", () => {
     render(<ComfyEngineSettingsSection embedded />);
     fireEvent.click(comfyEl("tab", "snapshots"));
 
-    fireEvent.click(screen.getByRole("button", { name: /检查哪里坏了/ }));
+    fireEvent.click(screen.getByRole("button", { name: /开始检查/ }));
     expect(actions.runDoctor).toHaveBeenCalledOnce();
     expect(screen.getByText(/1 项版本不对/)).toBeTruthy();
     expect(screen.getByText(/numpy/)).toBeTruthy();

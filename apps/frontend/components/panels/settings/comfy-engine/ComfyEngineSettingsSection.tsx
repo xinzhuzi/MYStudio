@@ -169,7 +169,7 @@ function DoctorReportCard({
           {section.label}:{section.items.join("、")}
           {section.label === "多余没登记" && onCleanOrphans ? (
             <Button size="sm" variant="outline" className="ml-2 h-6" onClick={onCleanOrphans} data-comfy-clean-orphans>
-              清理多余项
+              清理多余
             </Button>
           ) : null}
         </p>
@@ -902,7 +902,7 @@ export function ComfyEngineSettingsSection({ embedded = false, initialActiveTab 
                   引擎修复
                 </p>
                 <p className="mt-0.5 text-[11px] leading-4 text-muted-foreground/80 truncate" title="引擎报错、插件装不上时用">
-                  引擎报错、插件装不上时:先「检查哪里坏了」;反复修不好,才「彻底重装」
+                  引擎报错、插件装不上时:先「开始检查」;反复修不好,才「彻底重装」
                 </p>
               </div>
               <div className="flex gap-2">
@@ -917,7 +917,7 @@ export function ComfyEngineSettingsSection({ embedded = false, initialActiveTab 
                   ) : (
                     <Stethoscope className="mr-2 h-4 w-4" aria-hidden />
                   )}
-                  检查哪里坏了
+                  开始检查
                 </Button>
                 <Button
                   size="sm"
