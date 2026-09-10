@@ -72,9 +72,8 @@ describe("createStoryboardEndFrameGenerator", () => {
       model: "image-model",
       promptToUse: expect.stringContaining("走到门口"),
     }));
-    expect(result.prepareRequest).toHaveBeenCalledWith(expect.objectContaining({
-      promptToUse: expect.stringContaining("foreground framing elements"),
-    }));
+    // depth 友好词表断言随 depth 域退役(d4433b4)撤除:手册已删,
+    // 加载器 fail-empty 不再注入 depth 纵深后缀
     expect(mocks.imageGrid).toHaveBeenCalledWith(expect.objectContaining({
       prompt: "走到门口. identity lock",
       referenceImages: ["scene-ref", "character-ref"],

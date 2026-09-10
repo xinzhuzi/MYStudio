@@ -99,9 +99,8 @@ describe("createSClassEndFrameGenerator", () => {
     expect(mocks.imageGrid).toHaveBeenCalledWith(expect.objectContaining({
       prompt: expect.stringContaining("Style: ink style"),
     }));
-    expect(mocks.imageGrid).toHaveBeenCalledWith(expect.objectContaining({
-      prompt: expect.stringContaining("foreground framing elements"),
-    }));
+    // depth 友好词表断言随 depth 域退役(d4433b4)撤除:手册已删,
+    // 加载器 fail-empty 不再注入 depth 纵深后缀
     expect(result.updateEndFrame).toHaveBeenCalledWith(2, "local-image", "ai-generated", "http-image");
     expect(result.addMedia).toHaveBeenCalledWith(expect.objectContaining({
       url: "local-image",
