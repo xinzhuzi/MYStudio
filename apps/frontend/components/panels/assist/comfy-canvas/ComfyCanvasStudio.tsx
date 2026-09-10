@@ -9,18 +9,15 @@
 // 该 tab 也是后续阶段(业务自定义节点/画布主体切换)的调试台。
 
 import { useEffect, useMemo } from "react";
-import { cn } from "@/lib/utils";
-import { Loader2, PlayCircle, ServerCog, Settings2 } from "lucide-react";
-import { toast } from "sonner";
+import { Loader2, PlayCircle, ServerCog } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useComfyEngineSettings } from "@/components/panels/settings/comfy-engine/useComfyEngineSettings";
 import { getComfyEngineClient } from "@/components/panels/settings/comfy-engine/comfy-engine-contract";
 import { consumeComfyBridgeWritebacks } from "@/lib/assist/image-studio/comfy-bridge-writeback-consumer";
 import { syncStoryboardOverviewToLibrary } from "@/lib/assist/image-studio/storyboard-overview-sync";
 import { useStudioStore } from "@/stores/studio/studio-store";
-import { ComfyLegacyImportButton } from "./ComfyLegacyImportButton";
 
-export function ComfyCanvasStudio({ embedded = false }: { embedded?: boolean }) {
+export function ComfyCanvasStudio() {
   // client 引用必须稳定(传入 hook):否则 hook 内 getComfyEngineClient() 每次
   // 渲染返回新 HTTP client→挂载探测 effect 循环重跑(09-09 实弹报障同根因)
   const client = useMemo(() => getComfyEngineClient(), []);
@@ -31,7 +28,6 @@ export function ComfyCanvasStudio({ embedded = false }: { embedded?: boolean }) 
     installEngine,
     startService,
     isStartingService,
-    refreshStatus,
   } = useComfyEngineSettings({ client, pollIntervalMs: 1200 });
 
   // bridge 回写消费(阶段1):tab 在场即轮询收件箱——收件箱在 sidecar,
@@ -162,31 +158,11 @@ export function ComfyCanvasStudio({ embedded = false }: { embedded?: boolean }) 
     );
   }
 
-  // 运行中:webview 加载引擎原生前端(独立进程;刷新兜底按钮应对 webview 偶发白屏)
+  // 运行中:webview 加载引擎原生前端(独立进程)。
+  // 09-10 用户裁定:状态条与功能按钮(存量迁移/刷新)整块退役——画布即全部,
+  // 端口/说明不进布局;存量迁移入口仍在 ComfyCanvasSwap 头部条,刷新=重进页即重探。
   return (
     <div className="relative flex h-full w-full min-h-0 min-w-0 flex-col" data-comfy-canvas-live>
-      <div className={cn("flex items-center justify-between gap-2 border-b border-border px-3 py-1.5", embedded && "hidden")}>
-        <span className="text-xs text-muted-foreground">
-          ComfyUI 画布 · 本地引擎 127.0.0.1:{port}(完整界面:节点/工作流/插件都在这里管理)
-        </span>
-        <div className="flex items-center gap-2">
-          {/* 完整功能补齐(09-10):第六 tab 与画布头部条同款存量迁移入口 */}
-          <ComfyLegacyImportButton />
-          <Button
-            size="sm"
-            variant="ghost"
-            className="h-7 px-2 text-xs"
-            aria-label="刷新引擎状态"
-            onClick={() => {
-              void refreshStatus();
-              toast.info("已刷新引擎状态");
-            }}
-          >
-            <Settings2 className="mr-1 h-3.5 w-3.5" aria-hidden />
-            刷新
-          </Button>
-        </div>
-      </div>
       <webview
         src={src ?? "about:blank"}
         className="h-full w-full flex-1"

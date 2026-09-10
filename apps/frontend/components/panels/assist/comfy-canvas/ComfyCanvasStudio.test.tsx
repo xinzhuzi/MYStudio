@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 // ComfyUI 画布工作室 tab 测试(09-09 0b):三态渲染(未装/就绪未跑/运行中 webview)。
 
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { ComfyCanvasStudio } from "./ComfyCanvasStudio";
 import { createMockComfyEngineClient } from "@/components/panels/settings/comfy-engine/mock-comfy-engine-client";
@@ -68,19 +68,10 @@ describe("ComfyCanvasStudio(辅助面板第六 tab)", () => {
     );
     const webview = document.querySelector("[data-comfy-canvas-webview]")!;
     expect(webview.getAttribute("src")).toBe("http://127.0.0.1:17001/");
-    expect(document.querySelector("[data-comfy-canvas-live]")?.textContent).toContain("127.0.0.1:17001");
-  });
-
-  it("刷新按钮触发状态重探(toast 反馈)", async () => {
-    (window as { comfyEngine?: ComfyEngineClient }).comfyEngine = stubClient({
-      installed: true,
-      state: "ready",
-      serviceRunning: true,
-      port: 17002,
-    });
-    render(<ComfyCanvasStudio />);
-    const refresh = await screen.findByRole("button", { name: "刷新引擎状态" });
-    fireEvent.click(refresh);
-    await waitFor(() => expect(toasts.info).toHaveBeenCalled());
+    // 09-10 用户裁定(二轮):状态条连同按钮整块退役——live 区零按钮零文案,画布即全部
+    const live = document.querySelector("[data-comfy-canvas-live]")!;
+    expect(live.textContent).toBe("");
+    expect(live.querySelector("button")).toBeNull();
+    expect(document.querySelector("[data-comfy-canvas-overlay]")).toBeNull();
   });
 });

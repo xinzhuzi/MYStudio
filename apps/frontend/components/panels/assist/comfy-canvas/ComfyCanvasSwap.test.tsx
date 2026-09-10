@@ -18,9 +18,7 @@ vi.mock("./useComfyEngineSettings", () => ({
   }),
 }));
 vi.mock("./ComfyCanvasStudio", () => ({
-  ComfyCanvasStudio: ({ embedded }: { embedded?: boolean }) => (
-    <div data-comfy-studio-mock data-embedded={embedded ? "1" : "0"} />
-  ),
+  ComfyCanvasStudio: () => <div data-comfy-studio-mock />,
 }));
 
 const migrateMock = vi.fn(() => Promise.resolve({ total: 2, imported: 2, failed: 0 }));
@@ -44,11 +42,11 @@ describe("ComfyCanvasSwap(换代终态,批6)", () => {
   });
   afterEach(cleanup);
 
-  it("槽位=ComfyUI 画布(embedded);退役横幅;旧画布不再挂载", () => {
+  it("槽位=ComfyUI 画布;退役横幅;旧画布不再挂载", () => {
     render(<ComfyCanvasSwap title="分镜画布 · ComfyUI" legacy={<div data-legacy-canvas />} onBack={() => {}} />);
     expect(screen.getByText("分镜画布 · ComfyUI")).toBeTruthy();
     expect(screen.getByText(/旧画布已退役/)).toBeTruthy();
-    expect(document.querySelector("[data-comfy-studio-mock]")?.getAttribute("data-embedded")).toBe("1");
+    expect(document.querySelector("[data-comfy-studio-mock]")).toBeTruthy();
     expect(document.querySelector("[data-legacy-canvas]")).toBeNull();
   });
 

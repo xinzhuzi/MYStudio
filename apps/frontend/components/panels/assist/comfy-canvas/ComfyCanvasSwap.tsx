@@ -44,7 +44,7 @@ export function ComfyCanvasSwap({
           <span className="text-[11px] text-muted-foreground">旧画布已退役,画布操作全在 ComfyUI</span>
         </div>
       </div>
-      <ComfyCanvasStudio embedded />
+      <ComfyCanvasStudio />
     </div>
   );
 }
