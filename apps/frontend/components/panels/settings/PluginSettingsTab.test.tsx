@@ -20,7 +20,6 @@ const mocks = vi.hoisted(() => ({
   depthProbe: vi.fn(async () => undefined),
   imageGenProbe: vi.fn(async () => undefined),
   upscaleProbe: vi.fn(async () => undefined),
-  musicRefresh: vi.fn(async () => undefined),
   videoQcRefresh: vi.fn(async () => undefined),
   comfyEngineRefresh: vi.fn(async () => undefined),
 }));
@@ -116,14 +115,6 @@ vi.mock("./useUpscaleRuntimeSettings", () => ({
     isRollingBack: false,
     isDownloading: false,
     probeRuntime: mocks.upscaleProbe,
-  }),
-}));
-vi.mock("./useMusic3GenRuntimeSettings", () => ({
-  useMusic3GenRuntimeSettings: () => ({
-    hasRuntime: true,
-    status: { setupStage: "ready" as const },
-    isSettingUp: false,
-    refreshStatus: mocks.musicRefresh,
   }),
 }));
 vi.mock("./useSfxGenRuntimeSettings", () => ({
