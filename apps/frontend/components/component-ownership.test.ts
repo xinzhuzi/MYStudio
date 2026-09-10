@@ -34,58 +34,6 @@ import {
   buildVoiceReferenceAssets as legacyBuildVoiceReferenceAssets,
   type VoiceReferenceAsset as LegacyVoiceReferenceAsset,
 } from "./panels/studio/voice-reference-assets";
-import * as CanonicalAngleSwitch from "./features/storyboard/angle-switch";
-import * as LegacyAngleSwitch from "./angle-switch";
-import CanonicalAngleControllerDefault, {
-  AngleController as CanonicalAngleController,
-  type AngleControllerProps as CanonicalAngleControllerProps,
-} from "./features/storyboard/angle-switch/AngleController";
-import LegacyAngleControllerDefault, {
-  AngleController as LegacyAngleController,
-  type AngleControllerProps as LegacyAngleControllerProps,
-} from "./angle-switch/AngleController";
-import {
-  AngleSwitchDialog as CanonicalAngleSwitchDialog,
-  type AngleSwitchDialogProps as CanonicalAngleSwitchDialogProps,
-} from "./features/storyboard/angle-switch/AngleSwitchDialog";
-import {
-  AngleSwitchDialog as LegacyAngleSwitchDialog,
-  type AngleSwitchDialogProps as LegacyAngleSwitchDialogProps,
-} from "./angle-switch/AngleSwitchDialog";
-import {
-  AngleSwitchResultDialog as CanonicalAngleSwitchResultDialog,
-  type AngleSwitchHistoryItem as CanonicalAngleSwitchHistoryItem,
-  type AngleSwitchResult as CanonicalAngleSwitchResult,
-  type AngleSwitchResultDialogProps as CanonicalAngleSwitchResultDialogProps,
-} from "./features/storyboard/angle-switch/AngleSwitchResultDialog";
-import {
-  AngleSwitchResultDialog as LegacyAngleSwitchResultDialog,
-  type AngleSwitchHistoryItem as LegacyAngleSwitchHistoryItem,
-  type AngleSwitchResult as LegacyAngleSwitchResult,
-  type AngleSwitchResultDialogProps as LegacyAngleSwitchResultDialogProps,
-} from "./angle-switch/AngleSwitchResultDialog";
-import * as CanonicalQuadGrid from "./features/storyboard/quad-grid";
-import * as LegacyQuadGrid from "./quad-grid";
-import {
-  QuadGridDialog as CanonicalQuadGridDialog,
-  type QuadGridDialogProps as CanonicalQuadGridDialogProps,
-  type QuadVariationType as CanonicalQuadVariationType,
-} from "./features/storyboard/quad-grid/QuadGridDialog";
-import {
-  QuadGridDialog as LegacyQuadGridDialog,
-  type QuadGridDialogProps as LegacyQuadGridDialogProps,
-  type QuadVariationType as LegacyQuadVariationType,
-} from "./quad-grid/QuadGridDialog";
-import {
-  QuadGridResultDialog as CanonicalQuadGridResultDialog,
-  type QuadGridResult as CanonicalQuadGridResult,
-  type QuadGridResultDialogProps as CanonicalQuadGridResultDialogProps,
-} from "./features/storyboard/quad-grid/QuadGridResultDialog";
-import {
-  QuadGridResultDialog as LegacyQuadGridResultDialog,
-  type QuadGridResult as LegacyQuadGridResult,
-  type QuadGridResultDialogProps as LegacyQuadGridResultDialogProps,
-} from "./quad-grid/QuadGridResultDialog";
 import {
   WardrobeModal as CanonicalWardrobeModal,
   type WardrobeModalProps as CanonicalWardrobeModalProps,
@@ -106,8 +54,6 @@ import type { StoryboardConfigToolbarProps as CanonicalStoryboardConfigToolbarPr
 const componentsRoot = dirname(fileURLToPath(import.meta.url));
 const uiRoot = join(componentsRoot, "ui");
 const apiManagerRoot = join(componentsRoot, "api-manager");
-const angleSwitchRoot = join(componentsRoot, "angle-switch");
-const quadGridRoot = join(componentsRoot, "quad-grid");
 const storeImportPattern = /from\s+["'][^"']*stores\//;
 
 // 08-30 分层收官:ui/ 的 video-player/draggable-item/editable-timecode 转发垫片已撤,
@@ -127,37 +73,6 @@ const apiManagerCompatibilityFacades = new Map([
   ["brand-icons/icons-small.tsx", "@/components/panels/settings/api/brand-icons/icons-small"],
 ]);
 
-const angleSwitchCompatibilityFacades = new Map([
-  ["index.ts", { target: "@/components/features/storyboard/angle-switch" }],
-  [
-    "AngleController.tsx",
-    {
-      target: "@/components/features/storyboard/angle-switch/AngleController",
-      forwardsDefault: true,
-    },
-  ],
-  [
-    "AngleSwitchDialog.tsx",
-    { target: "@/components/features/storyboard/angle-switch/AngleSwitchDialog" },
-  ],
-  [
-    "AngleSwitchResultDialog.tsx",
-    { target: "@/components/features/storyboard/angle-switch/AngleSwitchResultDialog" },
-  ],
-]);
-
-const quadGridCompatibilityFacades = new Map([
-  ["index.ts", { target: "@/components/features/storyboard/quad-grid" }],
-  [
-    "QuadGridDialog.tsx",
-    { target: "@/components/features/storyboard/quad-grid/QuadGridDialog" },
-  ],
-  [
-    "QuadGridResultDialog.tsx",
-    { target: "@/components/features/storyboard/quad-grid/QuadGridResultDialog" },
-  ],
-]);
-
 function readTypeScriptSources(root: string): Array<[string, string]> {
   return readdirSync(root, { withFileTypes: true }).flatMap((entry) => {
     const entryPath = join(root, entry.name);
@@ -171,18 +86,6 @@ function readTypeScriptSources(root: string): Array<[string, string]> {
     }
 
     return [[relative(uiRoot, entryPath), readFileSync(entryPath, "utf8")]];
-  });
-}
-
-function listTypeScriptFiles(root: string, baseRoot = root): string[] {
-  return readdirSync(root, { withFileTypes: true }).flatMap((entry) => {
-    const entryPath = join(root, entry.name);
-
-    if (entry.isDirectory()) {
-      return listTypeScriptFiles(entryPath, baseRoot);
-    }
-
-    return /\.tsx?$/.test(entry.name) ? [relative(baseRoot, entryPath)] : [];
   });
 }
 
@@ -307,49 +210,5 @@ describe("component ownership", () => {
     expect(legacyModelSupportsCapability).toBe(canonicalModelSupportsCapability);
     expect(legacyGetBrandIcon).toBe(canonicalGetBrandIcon);
     expectTypeOf<LegacyBrandIconFn>().toEqualTypeOf<CanonicalBrandIconFn>();
-  });
-
-  it("keeps the old storyboard leaf packages as an exact thin-facade inventory", () => {
-    const assertFacades = (
-      root: string,
-      facades: Map<string, { target: string; forwardsDefault?: boolean }>,
-    ) => {
-      expect(listTypeScriptFiles(root).sort()).toEqual([...facades.keys()].sort());
-
-      for (const [fileName, { target, forwardsDefault }] of facades) {
-        const expectedLines = [`export * from "${target}";`];
-        if (forwardsDefault) {
-          expectedLines.push(`export { default } from "${target}";`);
-        }
-
-        expect(readFileSync(join(root, fileName), "utf8").trim().split(/\r?\n/)).toEqual(expectedLines);
-      }
-    };
-
-    assertFacades(angleSwitchRoot, angleSwitchCompatibilityFacades);
-    assertFacades(quadGridRoot, quadGridCompatibilityFacades);
-  });
-
-  it("preserves storyboard leaf barrel, direct value, default, and type export identities", () => {
-    expect(LegacyAngleSwitch).toEqual(CanonicalAngleSwitch);
-    expect(LegacyAngleController).toBe(CanonicalAngleController);
-    expect(LegacyAngleControllerDefault).toBe(CanonicalAngleControllerDefault);
-    expect(LegacyAngleSwitchDialog).toBe(CanonicalAngleSwitchDialog);
-    expect(LegacyAngleSwitchResultDialog).toBe(CanonicalAngleSwitchResultDialog);
-
-    expectTypeOf<LegacyAngleControllerProps>().toEqualTypeOf<CanonicalAngleControllerProps>();
-    expectTypeOf<LegacyAngleSwitchDialogProps>().toEqualTypeOf<CanonicalAngleSwitchDialogProps>();
-    expectTypeOf<LegacyAngleSwitchHistoryItem>().toEqualTypeOf<CanonicalAngleSwitchHistoryItem>();
-    expectTypeOf<LegacyAngleSwitchResult>().toEqualTypeOf<CanonicalAngleSwitchResult>();
-    expectTypeOf<LegacyAngleSwitchResultDialogProps>().toEqualTypeOf<CanonicalAngleSwitchResultDialogProps>();
-
-    expect(LegacyQuadGrid).toEqual(CanonicalQuadGrid);
-    expect(LegacyQuadGridDialog).toBe(CanonicalQuadGridDialog);
-    expect(LegacyQuadGridResultDialog).toBe(CanonicalQuadGridResultDialog);
-
-    expectTypeOf<LegacyQuadGridDialogProps>().toEqualTypeOf<CanonicalQuadGridDialogProps>();
-    expectTypeOf<LegacyQuadVariationType>().toEqualTypeOf<CanonicalQuadVariationType>();
-    expectTypeOf<LegacyQuadGridResult>().toEqualTypeOf<CanonicalQuadGridResult>();
-    expectTypeOf<LegacyQuadGridResultDialogProps>().toEqualTypeOf<CanonicalQuadGridResultDialogProps>();
   });
 });
