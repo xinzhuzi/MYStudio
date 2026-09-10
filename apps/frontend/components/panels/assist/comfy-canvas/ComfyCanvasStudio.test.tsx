@@ -94,7 +94,7 @@ describe("ComfyCanvasStudio(辅助面板第六 tab)", () => {
       injected.push(css);
       return Promise.resolve("id");
     };
-    expect(injected).toHaveLength(0); // 挂载即试发生在渲染期,先于记录器装上
+    expect(injected).toHaveLength(0); // 无挂载即调(P1:Electron 同步 throw 白屏)
     webview.dispatchEvent(new Event("dom-ready"));
     expect(injected).toHaveLength(1); // 记录器视角:首笔来自事件
     webview.dispatchEvent(new Event("did-finish-load"));

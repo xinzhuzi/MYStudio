@@ -33,18 +33,22 @@ type WebviewElement = HTMLElement & {
 export function ComfyCanvasStudio() {
   const webviewRef = useRef<WebviewElement | null>(null);
   // dom-ready 不在 React 合成事件类型表里 → ref 回调挂原生监听(幂等防重)。
-  // 本机引擎加载极快,dom-ready 可能在监听挂上前已发(21:24 实弹竞态)——
-  // 双事件兜底(did-finish-load 每次加载必发)+ 挂载即试一次,重复注入同规则无害。
+  // ⚠不可挂载即调:attach 前调 insertCSS 是同步 throw(Electron 实弹 21:31 白屏:
+  // "must be attached...before this method"),事件期调用则安全;双事件兜底
+  // (did-finish-load 每次加载必发,防 dom-ready 竞态错过),重复注入同规则无害。
   const attachWebview = (node: WebviewElement | null) => {
     webviewRef.current = node;
     if (node && !node.__selectionHooked) {
       node.__selectionHooked = true;
       const inject = () => {
-        node.insertCSS?.(WEBVIEW_SELECTION_CSS)?.catch(() => undefined);
+        try {
+          node.insertCSS?.(WEBVIEW_SELECTION_CSS)?.catch(() => undefined);
+        } catch {
+          // 未就绪窗口的同步抛错:吞掉,等下一事件兜底
+        }
       };
       node.addEventListener("dom-ready", inject);
       node.addEventListener("did-finish-load", inject);
-      inject();
     }
   };
   // client 引用必须稳定(传入 hook):否则 hook 内 getComfyEngineClient() 每次
