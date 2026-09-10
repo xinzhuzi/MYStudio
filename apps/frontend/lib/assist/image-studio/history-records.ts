@@ -6,8 +6,8 @@ import { buildProjectFileUrl, parseProjectFileUrl } from "@/lib/upscale/project-
 
 /**
  * 生成记录数据层(09-03 弹窗):localStorage 历史与项目内磁盘 ledger 的
- * 合并、宽容解析。写入侧(use-image-studio-generation / run-node-generation)
- * 自 09-03 起带复原所需输入快照;旧记录缺键=降级复原(仅提示词+成图)。
+ * 合并、宽容解析。写入侧为现行生成链(run-node-generation / run-uncloth /
+ * comfy-execute);旧记录缺键=降级复原(仅提示词+成图)。
  */
 
 /** 复原所需输入快照;全部可选=旧记录零键可用 */

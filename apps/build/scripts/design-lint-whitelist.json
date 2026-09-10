@@ -21,12 +21,7 @@
     "components/features/storyboard/angle-switch/AngleController.tsx",
     "components/panels/tts/LocalTtsModelDetailsDialog.tsx",
     "components/ui/chart.tsx",
-    "components/panels/studio/image-workflow/image-workflow-connect-create-menu.tsx",
-    "components/panels/assist/image-studio/pane-create-menu.tsx",
-    "components/panels/assist/image-studio/node-context-menu.tsx",
-    "features/canvas-nodes/mention-picker.tsx",
-    "components/panels/assist/image-studio/canvas-hints.tsx",
-    "components/panels/assist/image-studio/ImageStudioCanvas.tsx"
+    "features/canvas-nodes/mention-picker.tsx"
   ],
   "severityOverrides": [
     {
