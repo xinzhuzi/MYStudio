@@ -242,8 +242,8 @@ export function Dashboard({
   return (
     <div className="dashboard-shell flex flex-col h-full bg-background overflow-hidden">
       {/* Header */}
-      <div className="dashboard-topbar h-14 border-b border-border bg-panel pr-8 pl-20 flex items-center justify-between shrink-0">
-        <div className="flex items-center gap-4">
+      <div className="dashboard-topbar h-10 border-b border-border bg-panel pr-8 pl-20 flex items-center justify-between shrink-0">
+        <div className="flex items-center gap-2.5">
           {onToggleSidebar && (
             <SidebarToggleButton
               sidebarCollapsed={sidebarCollapsed}
@@ -456,14 +456,14 @@ export function Dashboard({
                   // 选择模式下点按无动作(选中只认长按),不出声。
                   data-interaction-sound={selectionMode ? "off" : "primary"}
                   className={cn(
-                    "dashboard-project-card group relative bg-card border rounded-xl overflow-hidden transition-all duration-200",
+                    "dashboard-project-card group relative bg-card border rounded-xl overflow-hidden transition-all duration-300",
                     highlightProjectId === project.id && "ring-2 ring-primary",
                     selectionMode && "select-none",
                     selectionMode
                       ? isSelected
                         ? "border-primary ring-1 ring-primary/30 cursor-pointer"
                         : "border-border cursor-pointer hover:border-muted-foreground/30"
-                      : "border-border hover:border-primary/50 cursor-pointer",
+                      : "border-border hover:border-primary/50 hover:shadow-[0_12px_32px_-8px_hsl(var(--primary)/0.22)] cursor-pointer",
                   )}
                   onClick={() => {
                     if (selectionMode) {
@@ -500,18 +500,42 @@ export function Dashboard({
                     </div>
                   )}
 
-                  {/* Project Thumbnail */}
-                  <div className="dashboard-project-thumb aspect-video bg-muted flex items-center justify-center">
-                    <div className="dashboard-project-thumb-mark">
-                      <Film className="w-9 h-9" />
+                  {/* Project Thumbnail - 电影海报银幕画布 */}
+                  <div className="dashboard-project-thumb cinematic-poster-canvas aspect-video flex items-center justify-center relative group-hover:scale-[1.01] transition-transform duration-300">
+                    {/* 胶片齿孔与顶沿 */}
+                    <div className="cinematic-film-sprockets" aria-hidden="true">
+                      <div className="cinematic-film-sprocket-hole" />
+                      <div className="cinematic-film-sprocket-hole" />
+                      <div className="cinematic-film-sprocket-hole" />
+                      <div className="cinematic-film-sprocket-hole" />
+                      <div className="cinematic-film-sprocket-hole" />
                     </div>
+
+                    {/* 取景框十字光标 */}
+                    <div className="absolute inset-2.5 pointer-events-none opacity-40 group-hover:opacity-80 transition-opacity" aria-hidden="true">
+                      <div className="absolute top-0 left-0 w-2 h-2 border-t border-l border-primary/40" />
+                      <div className="absolute top-0 right-0 w-2 h-2 border-t border-r border-primary/40" />
+                      <div className="absolute bottom-0 left-0 w-2 h-2 border-b border-l border-primary/40" />
+                      <div className="absolute bottom-0 right-0 w-2 h-2 border-b border-r border-primary/40" />
+                    </div>
+
+                    <div className="dashboard-project-thumb-mark relative z-10 p-3.5 rounded-2xl cinematic-lens-tile group-hover:border-primary/40 transition-colors">
+                      <Film className="w-8 h-8 text-primary" />
+                    </div>
+
+                    {/* 底部银幕规格与时间线印记 */}
+                    <div className="absolute bottom-2 left-3 right-3 flex items-center justify-between z-10 text-[9px] font-mono text-muted-foreground/60">
+                      <span>2.35:1 ANAMORPHIC</span>
+                      <span>MASTER REEL</span>
+                    </div>
+
                     <div className="dashboard-project-thumb-timeline" aria-hidden="true">
                       <span />
                       <span />
                       <span />
                     </div>
                     {isDuplicating && (
-                      <div className="absolute inset-0 bg-background/60 flex items-center justify-center">
+                      <div className="absolute inset-0 bg-background/60 flex items-center justify-center z-20">
                         <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary" />
                       </div>
                     )}

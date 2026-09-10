@@ -45,12 +45,13 @@ export function TabBar({ sidebarCollapsed}: TabBarProps) {
                 <button
                   onClick={() => { setActiveTab("dashboard"); }}
                   className={cn(
-                    "studio-nav-button w-full flex flex-col items-center py-2.5 transition-colors rounded-md",
+                    "studio-nav-button relative w-full flex flex-col items-center py-2.5 transition-colors rounded-md",
                     activeTab === "dashboard"
                       ? "is-active text-primary bg-primary/10"
                       : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
                   )}
                 >
+                  {activeTab === "dashboard" && <span className="cinematic-light-guide" aria-hidden="true" />}
                   <LayoutDashboard className="h-5 w-5 mb-0.5" />
                   <span className="text-[9px]">项目</span>
                 </button>
@@ -133,12 +134,13 @@ export function TabBar({ sidebarCollapsed}: TabBarProps) {
                   <button
                     onClick={() => { setActiveTab(item.id); }}
                     className={cn(
-                      "studio-nav-button w-full flex flex-col items-center py-2.5 transition-colors rounded-md",
+                      "studio-nav-button relative w-full flex flex-col items-center py-2.5 transition-colors rounded-md",
                       isActive
                         ? "is-active text-primary bg-primary/10"
                         : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
                     )}
                   >
+                    {isActive && <span className="cinematic-light-guide" aria-hidden="true" />}
                     <Icon className="h-5 w-5 mb-0.5" />
                     <span className="text-[9px]">{item.label}</span>
                   </button>
@@ -178,10 +180,11 @@ export function TabBar({ sidebarCollapsed}: TabBarProps) {
                   <button
                     onClick={() => { setActiveTab(item.id); }}
                     className={cn(
-                      "studio-nav-button w-full flex flex-col items-center py-2 transition-colors rounded-md",
+                      "studio-nav-button relative w-full flex flex-col items-center py-2 transition-colors rounded-md",
                       isActive ? "is-active text-primary" : "text-muted-foreground hover:text-foreground"
                     )}
                   >
+                    {isActive && <span className="cinematic-light-guide" aria-hidden="true" />}
                     <Icon className="h-4 w-4" />
                     <span className="text-[8px]">{item.label}</span>
                   </button>

@@ -83,19 +83,26 @@ function StageGuideGrid(props: { onEnterStage: (stageId: string) => void }) {
         制作阶段
         <span className="text-xs font-normal text-muted-foreground">· 各阶段功能说明</span>
       </div>
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
-      {OVERVIEW_STAGE_GUIDE.map((stage) => {
+      <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
+      {OVERVIEW_STAGE_GUIDE.map((stage, idx) => {
         const StageIcon = stage.Icon;
+        const stepNumber = (idx + 1).toString().padStart(2, "0");
         return (
           <div
             key={stage.id}
-            className="group relative flex flex-col justify-between rounded-xl border border-border bg-card/60 p-3.5 backdrop-blur-xl transition-all duration-200 hover:border-primary/50 hover:bg-card/80"
+            className="cinematic-stage-capsule group relative flex flex-col justify-between rounded-2xl border border-border/80 bg-card/70 p-4 backdrop-blur-xl transition-all duration-300 hover:border-primary/50 hover:bg-card/90"
           >
             <div>
-              <div className="mb-2 flex items-center justify-between gap-2">
-                <div className="flex items-center gap-2 min-w-0">
-                  <StageIcon className="h-4 w-4 text-primary shrink-0" />
-                  <span className="text-sm font-medium truncate">{stage.label}</span>
+              <div className="mb-1 flex items-center justify-between text-[10px] font-mono text-muted-foreground/70">
+                <span className="tracking-wider text-primary/80">STAGE // {stepNumber}</span>
+                <span className="h-1.5 w-1.5 rounded-full bg-primary/40 group-hover:bg-primary group-hover:animate-pulse transition-colors" />
+              </div>
+              <div className="mb-2.5 flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <div className="cinematic-lens-tile p-2 rounded-xl shrink-0 flex items-center justify-center">
+                    <StageIcon className="h-4 w-4 text-primary" />
+                  </div>
+                  <span className="text-sm font-semibold tracking-tight text-foreground truncate">{stage.label}</span>
                 </div>
                 <Button
                   variant="outline"
@@ -104,10 +111,10 @@ function StageGuideGrid(props: { onEnterStage: (stageId: string) => void }) {
                   onClick={() => props.onEnterStage(stage.id)}
                 >
                   <span>进入阶段</span>
-                  <ArrowRight className="h-3 w-3" />
+                  <ArrowRight className="h-3 w-3 group-hover:translate-x-0.5 transition-transform" />
                 </Button>
               </div>
-              <p className="text-xs leading-5 text-muted-foreground">
+              <p className="text-xs leading-5 text-muted-foreground/90">
                 {stage.description}
               </p>
             </div>

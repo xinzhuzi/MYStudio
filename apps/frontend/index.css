@@ -532,7 +532,6 @@
   .save-status-pill span,
   .dashboard-stage-chip span:nth-child(3),
   .dashboard-lane span,
-  .project-chrome-workspace,
   .project-chrome-episode {
     font-family: var(--font-mono);
     letter-spacing: 0.04em;
@@ -1130,10 +1129,8 @@
 .dashboard-topbar {
   position: relative;
   z-index: 2;
-  border-color: hsla(0, 0%, 100%, 0.08);
-  background: hsl(var(--panel) / 0.8);
-  backdrop-filter: blur(16px) saturate(1.2);
-  -webkit-backdrop-filter: blur(16px) saturate(1.2);
+  border-color: hsla(0, 0%, 0%, 0.4);
+  background: hsl(var(--panel));
   -webkit-app-region: drag;
   transition: background 200ms ease;
 }
@@ -1215,10 +1212,8 @@
   z-index: 2;
   isolation: isolate;
   overflow: hidden;
-  background: hsl(var(--panel) / 0.8);
-  backdrop-filter: blur(16px) saturate(1.2);
-  -webkit-backdrop-filter: blur(16px) saturate(1.2);
-  border-bottom: 1px solid hsla(0, 0%, 100%, 0.08);
+  background: hsl(var(--panel));
+  border-bottom: 1px solid hsla(0, 0%, 0%, 0.4);
   -webkit-app-region: drag;
 }
 
@@ -1254,21 +1249,32 @@
   letter-spacing: 0;
 }
 
-.project-chrome-workspace {
-  color: hsl(var(--muted-foreground));
-}
-
-.project-chrome-divider,
-.project-chrome-separator {
-  color: hsl(var(--muted-foreground));
-}
-
 .project-chrome-episode {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  padding: 2px 8px;
+  border: 1px solid hsl(var(--foreground) / 0.1);
+  background: hsl(var(--foreground) / 0.05);
+  color: hsl(var(--muted-foreground));
+  font-size: 12px;
+  line-height: 1.4;
+  transition:
+    color 140ms ease,
+    background-color 140ms ease,
+    border-color 140ms ease;
+}
+
+.project-chrome-episode:hover {
+  color: hsl(var(--foreground));
+  background: hsl(var(--foreground) / 0.09);
+  border-color: hsl(var(--foreground) / 0.16);
 }
 
 .save-status-pill {
-  border: 1px solid hsl(var(--border));
-  background: hsl(var(--muted));
+  padding: 0;
+  border: 0;
+  background: transparent;
 }
 
 .asset-sidebar-console {
@@ -1556,7 +1562,7 @@
 .chrome-controls {
   display: inline-flex;
   align-items: center;
-  gap: 16px;
+  gap: 4px;
   color: hsl(var(--muted-foreground));
 }
 
@@ -3381,3 +3387,75 @@ html.film-vignette-disabled .dark #root::before {
   transition: none !important;
   animation: none !important;
 }
+
+/* ===== Cinematic Creative Suite Aesthetic Enhancements ===== */
+
+/* 电影海报银幕画布 */
+.cinematic-poster-canvas {
+  position: relative;
+  overflow: hidden;
+  background: radial-gradient(circle at 50% 30%, hsl(var(--panel-elevated) / 0.9), hsl(var(--background) / 0.95));
+  border-bottom: 1px solid hsl(var(--border) / 0.5);
+}
+
+.cinematic-poster-canvas::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, rgba(0, 0, 0, 0.4) 0%, transparent 22%, transparent 78%, rgba(0, 0, 0, 0.5) 100%);
+  pointer-events: none;
+  z-index: 1;
+}
+
+/* 电影胶片齿孔装饰 */
+.cinematic-film-sprockets {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 4px;
+  display: flex;
+  justify-content: space-between;
+  padding: 0 10px;
+  opacity: 0.35;
+  pointer-events: none;
+  z-index: 2;
+}
+
+.cinematic-film-sprocket-hole {
+  width: 4px;
+  height: 3px;
+  border-radius: 1px;
+  background-color: hsl(var(--muted-foreground));
+}
+
+/* 导航栏高精度垂直霓虹导光条 */
+.cinematic-light-guide {
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 3px;
+  height: 20px;
+  border-radius: 0 3px 3px 0;
+  background-color: hsl(var(--primary));
+  box-shadow: 0 0 10px hsl(var(--primary) / 0.75), 0 0 2px hsl(var(--primary));
+}
+
+/* 透镜式立体发光底座 */
+.cinematic-lens-tile {
+  background: radial-gradient(circle at 35% 30%, hsl(var(--primary) / 0.2), hsl(var(--primary) / 0.06));
+  border: 1px solid hsl(var(--primary) / 0.28);
+  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.12), 0 2px 8px -2px hsl(var(--primary) / 0.2);
+}
+
+/* 制作阶段高奢胶囊卡片 */
+.cinematic-stage-capsule {
+  transition: transform 0.22s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.2s ease, box-shadow 0.22s ease;
+}
+
+.cinematic-stage-capsule:hover {
+  transform: translateY(-2px);
+  border-color: hsl(var(--primary) / 0.45);
+  box-shadow: 0 10px 28px -8px hsl(var(--primary) / 0.18), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+

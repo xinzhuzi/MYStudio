@@ -12,7 +12,7 @@ import { useEffect, useRef, useState } from "react";
 import { useProjectStore } from "@/stores/project/project-store";
 import { useScriptStore } from "@/stores/script/script-store";
 import { useMediaPanelStore, stages, type Stage, type Tab } from "@/stores/navigation/media-panel-store";
-import { CloudOff, Loader2, Check, ChevronRight } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ChromeControls, SidebarToggleButton } from "@/components/ChromeControls";
 
@@ -115,12 +115,10 @@ export function ProjectHeader({
     };
   }, [projectId, currentUpdatedAt]);
 
-  const workspaceLabel = getProjectWorkspaceLabel(activeTab, activeStage);
-
   return (
-    <div className="project-chrome h-14 border-b pr-4 pl-20 flex items-center justify-between shrink-0">
-      {/* Left: Project Name + Stage + Episode Breadcrumb */}
-      <div className="flex min-w-0 items-center gap-4">
+    <div className="project-chrome h-10 pr-4 pl-20 flex items-center justify-between shrink-0">
+      {/* Left: Project Name + Episode pill */}
+      <div className="flex min-w-0 items-center gap-2.5">
         {onToggleSidebar && (
           <SidebarToggleButton
             sidebarCollapsed={sidebarCollapsed}
@@ -134,30 +132,27 @@ export function ProjectHeader({
           canGoForward={canGoForward()}
         />
         <div className="project-breadcrumb min-w-0">
-          <span className="project-chrome-title text-sm font-medium text-foreground truncate max-w-[220px]">
+          <span className="project-chrome-title text-sm font-semibold text-foreground truncate max-w-[220px]">
             {activeProject?.name || "未命名项目"}
           </span>
         </div>
         {activeEpisodeIndex != null && (
-          <>
-            <ChevronRight className="project-chrome-separator h-3 w-3" />
-            <button
-              className="project-chrome-episode text-xs text-primary hover:text-primary/80 font-medium transition-colors rounded-md"
-              onClick={backToSeries}
-              title="返回全剧视图"
-            >
-              第{activeEpisodeIndex}集
-            </button>
-          </>
+          <button
+            className="project-chrome-episode rounded-md"
+            onClick={backToSeries}
+            title="返回全剧视图"
+          >
+            第{activeEpisodeIndex}集
+          </button>
         )}
-        <span className="project-chrome-divider">/</span>
-        <span className="project-chrome-workspace text-xs">
-          {workspaceLabel}
+        <span className="project-chrome-divider text-muted-foreground/40">/</span>
+        <span className="project-chrome-workspace text-xs text-muted-foreground">
+          {getProjectWorkspaceLabel(activeTab, activeStage)}
         </span>
       </div>
 
       {/* Right: Save Status */}
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-2.5">
         <SaveStatusIndicator status={saveStatus} />
       </div>
     </div>
@@ -168,27 +163,25 @@ function SaveStatusIndicator({ status }: { status: SaveStatus }) {
   return (
     <div
       className={cn(
-        "save-status-pill flex items-center gap-1.5 px-2 py-1 rounded text-[10px] transition-colors",
-        status === "saved" && "text-success/80 bg-success/10",
-        status === "saving" && "text-warning/80 bg-warning/10",
-        status === "unsaved" && "text-muted-foreground bg-foreground/[0.05]"
+        "save-status-pill flex items-center gap-1.5 text-[11px] text-muted-foreground transition-colors",
+        status === "saving" && "text-warning",
       )}
     >
       {status === "saved" && (
         <>
-          <Check className="w-3 h-3" />
+          <span className="h-1.5 w-1.5 rounded-full bg-success/80" />
           <span>{SAVE_STATUS_COPY.saved}</span>
         </>
       )}
       {status === "saving" && (
         <>
-          <Loader2 className="w-3 h-3 animate-spin" />
+          <Loader2 className="h-3 w-3 animate-spin text-warning" />
           <span>{SAVE_STATUS_COPY.saving}</span>
         </>
       )}
       {status === "unsaved" && (
         <>
-          <CloudOff className="w-3 h-3" />
+          <span className="h-1.5 w-1.5 rounded-full bg-muted-foreground/50" />
           <span>{SAVE_STATUS_COPY.unsaved}</span>
         </>
       )}
