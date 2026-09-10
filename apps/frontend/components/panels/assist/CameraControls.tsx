@@ -126,9 +126,15 @@ function ScrollColumn({ items, value, onChange, label }: ScrollColumnProps) {
       </span>
       <div className="relative w-full h-[300px]">
         {/* Top gradient mask */}
-        <div className="absolute top-0 left-0 right-0 h-20 bg-gradient-to-b from-background to-transparent z-10 pointer-events-none" />
+        <div
+          className="absolute top-0 left-0 right-0 h-20 z-10 pointer-events-none"
+          style={{ background: "linear-gradient(to bottom, hsl(var(--background)), transparent)" }}
+        />
         {/* Bottom gradient mask */}
-        <div className="absolute bottom-0 left-0 right-0 h-20 bg-gradient-to-t from-background to-transparent z-10 pointer-events-none" />
+        <div
+          className="absolute bottom-0 left-0 right-0 h-20 z-10 pointer-events-none"
+          style={{ background: "linear-gradient(to top, hsl(var(--background)), transparent)" }}
+        />
 
         <div
           ref={listRef}

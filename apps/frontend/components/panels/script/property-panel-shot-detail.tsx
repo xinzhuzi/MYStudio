@@ -118,7 +118,7 @@ export function PropertyPanelShotDetail({
               {shot.specialTechnique && shot.specialTechnique !== "none" && <span className="px-2 py-0.5 bg-viz-status-c/10 text-viz-status-c rounded text-xs">{SPECIAL_TECHNIQUE_PRESETS.find((preset) => preset.id === shot.specialTechnique)?.label || shot.specialTechnique}</span>}
               {shot.duration && <span className="flex items-center gap-1 px-2 py-0.5 bg-muted rounded text-xs"><Timer className="h-3 w-3" />{shot.duration}s</span>}
             </div>
-            {shot.visualDescription && <div className="bg-gradient-to-r from-primary/5 to-transparent p-3 rounded-lg border-l-2 border-primary/30"><div className="text-xs text-muted-foreground mb-1 flex items-center gap-1"><Sparkles className="h-3 w-3" />视觉</div><div className="text-sm leading-relaxed">{shot.visualDescription}</div></div>}
+            {shot.visualDescription && <div className="bg-primary/5 p-3 rounded-lg border border-primary/20 border-l-2 border-l-primary/60 backdrop-blur-xs"><div className="text-xs text-muted-foreground mb-1 flex items-center gap-1"><Sparkles className="h-3 w-3" />视觉</div><div className="text-sm leading-relaxed">{shot.visualDescription}</div></div>}
             <div><div className="text-xs text-muted-foreground mb-1">动作描述</div><div className="text-sm">{shot.actionSummary}</div></div>
             {(shot.ambientSound || shot.soundEffect || shot.dialogue) && (
               <div className="bg-muted/30 p-3 rounded-lg space-y-2">

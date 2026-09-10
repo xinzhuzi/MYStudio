@@ -47,7 +47,7 @@ export function MediaItemPreview({ item }: MediaItemPreviewProps) {
             <Video className="h-6 w-6 text-foreground" />
           </div>
           {item.duration && (
-            <div className="absolute bottom-1 right-1 bg-black/70 text-white text-xs px-1 rounded">
+            <div className="absolute bottom-1 right-1 bg-background/85 backdrop-blur-xs text-foreground text-[10px] font-mono px-1.5 py-0.5 rounded border border-border/40">
               {formatMediaDuration(item.duration)}
             </div>
           )}

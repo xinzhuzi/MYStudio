@@ -546,7 +546,7 @@ export function VideoStudio() {
                               <ResolutionBadge src={asset.dataUrl} className="bottom-0.5 left-0.5 right-auto top-auto" />
                               <button
                                 type="button"
-                                className="absolute top-1 right-1 p-1 rounded-md bg-black/60 text-white"
+                                className="absolute top-1 right-1 p-1 rounded-md bg-background/80 hover:bg-background text-foreground border border-border/40 backdrop-blur-xs transition-colors"
                                 onClick={() => removeReference(asset.id)}
                               >
                                 <X className="h-3 w-3" />

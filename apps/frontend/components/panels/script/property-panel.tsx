@@ -233,7 +233,7 @@ export function PropertyPanel({
 
           {/* 大纲 */}
           {episode.synopsis ? (
-            <div className="bg-gradient-to-r from-primary/5 to-transparent p-3 rounded-lg border-l-2 border-primary/30">
+            <div className="bg-primary/5 p-3 rounded-lg border border-primary/20 border-l-2 border-l-primary/60 backdrop-blur-xs">
               <div className="text-xs text-muted-foreground mb-2 flex items-center gap-1">
                 <BookOpen className="h-3 w-3" />
                 本集大纲

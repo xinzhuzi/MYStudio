@@ -258,7 +258,7 @@ export function TtsStudio() {
                     key={asset.id}
                     type="button"
                     onClick={() => { setSelectedAssetId(asset.id); setSelectedSource("voice"); }}
-                    className={`w-full text-left px-4 py-1.5 text-sm hover:bg-muted/40 ${selectedAssetId === asset.id && selectedSource === "voice" ? "bg-primary/10 text-primary" : ""}`}
+                    className={`w-full text-left px-4 py-1.5 text-sm rounded-md transition-colors hover:bg-muted/40 ${selectedAssetId === asset.id && selectedSource === "voice" ? "bg-primary/10 text-primary font-medium" : ""}`}
                   >
                     {asset.name}
                   </button>
@@ -284,7 +284,7 @@ export function TtsStudio() {
                     key={item.id}
                     type="button"
                     onClick={() => { setSelectedAssetId(item.id); setSelectedSource("local"); }}
-                    className={`w-full text-left px-4 py-1.5 text-sm hover:bg-muted/40 ${selectedAssetId === item.id && selectedSource === "local" ? "bg-primary/10 text-primary" : ""}`}
+                    className={`w-full text-left px-4 py-1.5 text-sm rounded-md transition-colors hover:bg-muted/40 ${selectedAssetId === item.id && selectedSource === "local" ? "bg-primary/10 text-primary font-medium" : ""}`}
                   >
                     {item.name}
                   </button>
