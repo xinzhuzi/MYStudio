@@ -98,4 +98,18 @@ describe("useOrbPosition", () => {
       ),
     ).toEqual({ x: 111, y: 222 });
   });
+
+  it("anchor 参数化:bottom-right 默认锚在右下(工作流球避侧栏轨道,09-10 实弹修复)", () => {
+    const { result } = renderHook(() =>
+      useOrbPosition(WORKFLOW_ORB_POSITION_KEY, "bottom-right"),
+    );
+    expect(result.current.position.x).toBe(window.innerWidth - ORB_SIZE - 24);
+    expect(result.current.position.y).toBe(window.innerHeight - ORB_SIZE - 24);
+  });
+
+  it("clampOrbPosition 脏数据回退随锚位:bottom-right 回右下", () => {
+    const fb = clampOrbPosition(null, 1440, 900, "bottom-right");
+    expect(fb.x).toBe(1440 - ORB_SIZE - 24);
+    expect(fb.y).toBe(900 - ORB_SIZE - 24);
+  });
 });

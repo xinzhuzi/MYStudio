@@ -54,6 +54,9 @@ export function WorkflowStatusOrb({
   return (
     <OrbShell
       storageKey={WORKFLOW_ORB_POSITION_KEY}
+      // 默认锚右下:左下会压在侧栏轨道上盖住「帮助/设置」按钮
+      // (09-10 实弹修复:球盖导航=工作流视图「切不了模块」)
+      defaultAnchor="bottom-right"
       dataOrb="workflow-orb"
       dataAttrs={{ "data-workflow-active-stage": activeStage }}
       ariaLabel={ariaLabel}

@@ -19,4 +19,4 @@ export {
   WORKFLOW_ORB_POSITION_KEY,
   LOCAL_MODEL_ORB_POSITION_KEY,
 } from "./use-orb-position";
-export type { OrbPosition } from "./use-orb-position";
+export type { OrbPosition, OrbAnchor } from "./use-orb-position";

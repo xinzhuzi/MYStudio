@@ -211,6 +211,38 @@ describe("WorkflowStatusOrb", () => {
     expect(capsule?.classList.contains("right-full")).toBe(true);
   });
 
+  it("默认锚右下避侧栏(09-10 实弹修复:左下默认锚压在侧栏轨道上盖住设置/帮助)", () => {
+    const { container } = render(
+      <WorkflowStatusOrb readiness={readiness} activeStage="novel" onStageChange={vi.fn()} />,
+    );
+    const capsule = container.querySelector("[data-orb-capsule]");
+    // 右半屏默认位 → 胶囊翻左(right-full);若退回左下锚此断言即翻红
+    expect(capsule?.classList.contains("right-full")).toBe(true);
+  });
+
+  it("挂载后延迟自愈过渡期视口(装机实弹:943 过渡高算出默认锚,落定 900 后零 resize 事件)", async () => {
+    const realH = window.innerHeight;
+    Object.defineProperty(window, "innerHeight", { value: 943, configurable: true });
+    try {
+      render(
+        <WorkflowStatusOrb readiness={readiness} activeStage="novel" onStageChange={vi.fn()} />,
+      );
+      // 视口落定为 900,但实弹观测:全程零 resize 事件——只能靠延迟自愈钳回
+      Object.defineProperty(window, "innerHeight", { value: 900, configurable: true });
+      await waitFor(
+        () => {
+          const stored = JSON.parse(
+            window.localStorage.getItem("mystudio.workflow-orb.position") ?? "null",
+          );
+          expect(stored?.y).toBeLessThanOrEqual(900 - 48 - 6);
+        },
+        { timeout: 3000 },
+      );
+    } finally {
+      Object.defineProperty(window, "innerHeight", { value: realH, configurable: true });
+    }
+  });
+
   it("层序契约:球 z-40(高于 webview,低于 dropdown z-50/Dialog z-250)", () => {
     renderOrb();
     expect(getOrb().style.zIndex).toBe("40");

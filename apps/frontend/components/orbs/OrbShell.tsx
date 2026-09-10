@@ -4,7 +4,7 @@
 // Licensed under AGPL-3.0-or-later. See LICENSE for details.
 // Commercial licensing available. See COMMERCIAL_LICENSE.md.
 
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import {
   animate,
   motion,
@@ -19,30 +19,37 @@ import {
   clampOrbPosition,
   snapToNearestEdge,
   useOrbPosition,
+  type OrbAnchor,
 } from "./use-orb-position";
 
 /** 位移小于该阈值判定为点击(开面板),否则视为拖拽。 */
 const CLICK_THRESHOLD_PX = 6;
 const VIEWPORT_FALLBACK = { width: 1440, height: 900 };
 
-function useViewportSize() {
-  const [size, setSize] = useState(() =>
-    typeof window === "undefined"
-      ? VIEWPORT_FALLBACK
-      : { width: window.innerWidth, height: window.innerHeight },
-  );
+/** 实时视口(09-10 实弹修复):挂载瞬间可能拿到过渡期视口(如标题栏样式
+ * 应用前的高度),且此后零 resize 事件——所有钳制/吸附必须读实时值,
+ * 不吃挂载期快照。 */
+function windowDims() {
+  if (typeof window === "undefined") return VIEWPORT_FALLBACK;
+  return { width: window.innerWidth, height: window.innerHeight };
+}
+
+/** resize 监听仅作重渲染触发(约束/吸附数值一律实时读)。 */
+function useViewportTick() {
+  const [tick, setTick] = useState(0);
   useEffect(() => {
-    const onResize = () =>
-      setSize({ width: window.innerWidth, height: window.innerHeight });
+    const onResize = () => setTick((n) => n + 1);
     window.addEventListener("resize", onResize);
     return () => window.removeEventListener("resize", onResize);
   }, []);
-  return size;
+  return tick;
 }
 
 export interface OrbShellProps {
   /** 位置持久化键(工作流球=旧键零迁移;本地模型球=独立键)。 */
   storageKey: string;
+  /** 默认锚位角(工作流球右下避侧栏轨道;沉浸球左下)。 */
+  defaultAnchor?: OrbAnchor;
   /** 球根 data 属性名,如 "workflow-orb" → data-workflow-orb。 */
   dataOrb: string;
   /** 球体附加 data(如 data-workflow-active-stage)。 */
@@ -68,6 +75,7 @@ export interface OrbShellProps {
  * z-50、Dialog z-[250] 与面板本体 z-[300]);面板关闭焦点回球。 */
 export function OrbShell({
   storageKey,
+  defaultAnchor = "bottom-left",
   dataOrb,
   dataAttrs,
   ariaLabel,
@@ -76,8 +84,8 @@ export function OrbShell({
   panelContent,
   panelClassName,
 }: OrbShellProps) {
-  const { position, setPosition } = useOrbPosition(storageKey);
-  const viewport = useViewportSize();
+  const { position, setPosition } = useOrbPosition(storageKey, defaultAnchor);
+  const viewportTick = useViewportTick();
   const x = useMotionValue(position.x);
   const y = useMotionValue(position.y);
   const [panelOpen, setPanelOpen] = useState(false);
@@ -100,20 +108,28 @@ export function OrbShell({
     setCapsuleOnLeft(latest > window.innerWidth / 2);
   });
 
-  // 窗口变化时把球钳回视口内
-  useEffect(() => {
+  // 窗口变化时把球钳回视口内(数值一律实时读——挂载快照可能是过渡期视口)
+  const clampNow = useCallback(() => {
+    const dims = windowDims();
     const current = { x: x.get(), y: y.get() };
-    const clamped = clampOrbPosition(
-      current,
-      viewport.width,
-      viewport.height,
-    );
+    const clamped = clampOrbPosition(current, dims.width, dims.height, defaultAnchor);
     if (clamped.x !== current.x || clamped.y !== current.y) {
       animate(x, clamped.x, { type: "spring", stiffness: 400, damping: 32 });
       animate(y, clamped.y, { type: "spring", stiffness: 400, damping: 32 });
       setPosition(clamped);
     }
-  }, [viewport, x, y, setPosition]);
+  }, [x, y, setPosition, defaultAnchor]);
+
+  useEffect(() => {
+    clampNow();
+  }, [viewportTick, clampNow]);
+
+  // 一次性延迟自愈:挂载瞬间的视口可能仍是过渡值且此后零 resize 事件
+  // (09-10 实弹:球被算进 943 高视口而真实 900,半截埋出窗口底边)
+  useEffect(() => {
+    const timer = setTimeout(clampNow, 800);
+    return () => clearTimeout(timer);
+  }, [clampNow]);
 
   const handlePointerUp = (event: React.PointerEvent) => {
     if (event.pointerId !== activePointerIdRef.current) return;
@@ -167,6 +183,9 @@ export function OrbShell({
     if (distance < CLICK_THRESHOLD_PX) setPanelOpen(true);
   };
 
+  // 约束随渲染实时读视口(resize 触发重渲染刷新)
+  const dims = windowDims();
+
   return (
     <Popover open={panelOpen} onOpenChange={setPanelOpen}>
       <PopoverAnchor asChild>
@@ -183,10 +202,10 @@ export function OrbShell({
           dragConstraints={{
             left: ORB_MARGIN,
             top: ORB_MARGIN,
-            right: Math.max(ORB_MARGIN, viewport.width - ORB_SIZE - ORB_MARGIN),
+            right: Math.max(ORB_MARGIN, dims.width - ORB_SIZE - ORB_MARGIN),
             bottom: Math.max(
               ORB_MARGIN,
-              viewport.height - ORB_SIZE - ORB_MARGIN,
+              dims.height - ORB_SIZE - ORB_MARGIN,
             ),
           }}
           style={{
@@ -225,11 +244,12 @@ export function OrbShell({
             }
           }}
           onDragEnd={() => {
+            const d = windowDims();
             const snapped = snapToNearestEdge(
               x.get(),
               y.get(),
-              viewport.width,
-              viewport.height,
+              d.width,
+              d.height,
             );
             animate(x, snapped.x, { type: "spring", stiffness: 380, damping: 30 });
             animate(y, snapped.y, { type: "spring", stiffness: 380, damping: 30 });
