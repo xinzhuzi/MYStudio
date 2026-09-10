@@ -174,29 +174,66 @@ class TestReleaseTags:
 # ── 性能档翻译(不暴露命令行原文) ─────────────────────────────────
 
 class TestBuildLaunchArgs:
-    def test_auto_tier_adds_no_perf_flags(self):
-        args = build_launch_args({"vramPolicy": "auto", "attentionMode": "auto"}, 17600)
-        assert args == ["main.py", "--listen", "127.0.0.1", "--port", "17600"]
+    """09-10 全盘照 Desktop:串=唯一真源。旧三档语义经 legacy_launch_flags 翻译后等价保留。"""
 
-    def test_gpu_only(self):
-        args = build_launch_args({"vramPolicy": "gpu-only", "attentionMode": "auto"}, 17600)
-        assert "--gpu-only" in args
+    def test_empty_string_gives_managed_defaults(self):
+        assert build_launch_args("", 17600) == ["main.py", "--listen", "127.0.0.1", "--port", "17600"]
 
-    def test_reserve_vram_uses_configured_gb(self):
-        args = build_launch_args({"vramPolicy": "reserve-vram", "reserveVramGb": 2.5}, 17600)
-        assert args[args.index("--reserve-vram") + 1] == "2.5"
+    def test_flags_passthrough_in_order(self):
+        args = build_launch_args("--gpu-only --reserve-vram 2.5 --use-pytorch-cross-attention", 17600)
+        assert args == ["main.py", "--listen", "127.0.0.1", "--port", "17600",
+                        "--gpu-only", "--reserve-vram", "2.5", "--use-pytorch-cross-attention"]
 
-    def test_reserve_vram_defaults_to_4gb(self):
-        args = build_launch_args({"vramPolicy": "reserve-vram"}, 17600)
-        assert args[args.index("--reserve-vram") + 1] == "4"
+    def test_user_port_and_listen_override_managed_position(self):
+        args = build_launch_args("--listen 0.0.0.0 --port 8188 --fast", 17600)
+        assert args == ["main.py", "--listen", "0.0.0.0", "--port", "8188", "--fast"]
 
-    def test_pytorch_cross_attention(self):
-        args = build_launch_args({"vramPolicy": "auto", "attentionMode": "pytorch-cross-attention"}, 17600)
-        assert "--use-pytorch-cross-attention" in args
+    def test_port_equals_form(self):
+        args = build_launch_args("--port=17500", 17600)
+        assert args[3:5] == ["--port", "17500"]
 
-    def test_invalid_tier_falls_back_to_silent(self):
-        args = build_launch_args({"vramPolicy": "--evil-flag"}, 17600)
-        assert "--evil-flag" not in args
+    def test_legacy_dict_translation_equivalence(self):
+        from engines.comfyui.manifest import legacy_launch_flags
+        legacy = legacy_launch_flags({"vramPolicy": "gpu-only", "reserveVramGb": 16,
+                                      "attentionMode": "pytorch-cross-attention"})
+        assert legacy == "--gpu-only --reserve-vram 16 --use-pytorch-cross-attention"
+        # 旧默认(缺档落 gpu-only/16/pytorch)与现默认串一致=迁移零感知
+        # 旧读侧:reserve 缺失默认 16 → 迁移后有效行为零变化(含 auto 档也带 reserve)
+        assert legacy_launch_flags({}) == legacy
+        assert legacy_launch_flags({"vramPolicy": "reserve-vram"}) == "--reserve-vram 16 --use-pytorch-cross-attention"
+        assert legacy_launch_flags({"vramPolicy": "auto", "reserveVramGb": 2.5, "attentionMode": "auto"}) == "--reserve-vram 2.5"
+
+
+class TestParseLaunchArgsString:
+    def test_syntax_error_rejected(self):
+        from engines.comfyui.engine_manager import EngineOpError, parse_launch_args_string
+        try:
+            parse_launch_args_string('"--unbalanced')
+            raise AssertionError("应抛语法错")
+        except EngineOpError as exc:
+            assert "引号" in str(exc)
+
+    def test_invalid_port_value_rejected(self):
+        from engines.comfyui.engine_manager import EngineOpError, parse_launch_args_string
+        for bad in ("--port 0", "--port 99999", "--port abc"):
+            try:
+                parse_launch_args_string(bad)
+                raise AssertionError(f"{bad} 应被拒")
+            except EngineOpError:
+                pass
+
+    def test_port_missing_value_rejected(self):
+        from engines.comfyui.engine_manager import EngineOpError, parse_launch_args_string
+        try:
+            parse_launch_args_string("--port")
+            raise AssertionError("缺取值应被拒")
+        except EngineOpError:
+            pass
+
+    def test_quoted_flag_value(self):
+        from engines.comfyui.engine_manager import parse_launch_args_string
+        parsed = parse_launch_args_string('--listen "127.0.0.1" --fp16-vae')
+        assert parsed == {"flags": ["--fp16-vae"], "port": None, "listen": "127.0.0.1"}
 
 
 # ── object_info 节点差分 ───────────────────────────────────────────

@@ -262,23 +262,62 @@ def allocate_port(occupied: set[int], start: int = PORT_RANGE_START, end: int = 
     return None
 
 
-def build_launch_args(launch_cfg: dict, port: int, script: str = "main.py") -> list[str]:
-    """性能档 → 实际启动 flag(prd:不暴露命令行原文)。
+def parse_launch_args_string(args_string: str) -> dict:
+    """解析启动参数串(shlex;引号不平衡=语法错抛 EngineOpError)。
 
-    显存:gpu-only→--gpu-only;预留 N GB→--reserve-vram N(可与 gpu-only 组合);
-    加速:pytorch-cross-attention→--use-pytorch-cross-attention。
+    提取并消费 --port/--listen(含 `--flag=value` 等价形)到规范位;其余 flag 原样透传
+    (09-10 全盘照 Desktop:串=唯一真源,语义错误不在此拦,引擎自会报错走 error 态)。
     """
-    args = [script, "--listen", "127.0.0.1", "--port", str(port)]
-    # 09-08 对齐用户 Comfy Desktop 实跑参数:--gpu-only 与 --reserve-vram N 可组合
-    # (此前做成互斥三选一=翻译失真);三项独立翻译。
-    if launch_cfg.get("vramPolicy") == "gpu-only":
-        args.append("--gpu-only")
-    reserve = launch_cfg.get("reserveVramGb")
-    if launch_cfg.get("vramPolicy") == "reserve-vram" or (isinstance(reserve, (int, float)) and reserve > 0):
-        gb = reserve if isinstance(reserve, (int, float)) and reserve > 0 else 4
-        args += ["--reserve-vram", str(gb)]
-    if launch_cfg.get("attentionMode") == "pytorch-cross-attention":
-        args.append("--use-pytorch-cross-attention")
+    import shlex
+
+    try:
+        tokens = shlex.split(args_string or "")
+    except ValueError as exc:
+        raise EngineOpError(f"启动参数无法解析:{exc};请检查引号是否成对") from exc
+
+    port: int | None = None
+    listen: str | None = None
+    flags: list[str] = []
+
+    def _port_value(value: str) -> int:
+        if not value.isdigit() or not (1 <= int(value) <= 65535):
+            raise EngineOpError(f"--port 取值无效:{value}(须为 1-65535 端口号)")
+        return int(value)
+
+    index = 0
+    while index < len(tokens):
+        token = tokens[index]
+        if token == "--port":
+            index += 1
+            if index >= len(tokens):
+                raise EngineOpError("--port 缺少取值")
+            port = _port_value(tokens[index])
+        elif token.startswith("--port="):
+            port = _port_value(token[len("--port="):])
+        elif token == "--listen":
+            index += 1
+            if index >= len(tokens):
+                raise EngineOpError("--listen 缺少取值")
+            listen = tokens[index]
+        elif token.startswith("--listen="):
+            listen = token[len("--listen="):]
+        else:
+            flags.append(token)
+        index += 1
+    return {"flags": flags, "port": port, "listen": listen}
+
+
+def build_launch_args(args_string: str, port: int, script: str = "main.py") -> list[str]:
+    """启动参数串 → 实际 argv(Desktop 式:串=唯一真源)。
+
+    --listen/--port 未写则补托管默认(127.0.0.1 / 调用方定妥的最终端口);
+    用户串中的 --port/--listen 已被 parse 消费到规范位;其余 flag 原样追加。
+    """
+    parsed = parse_launch_args_string(args_string)
+    args = [script]
+    args += ["--listen", parsed["listen"] or "127.0.0.1"]
+    args += ["--port", str(parsed["port"] or port)]
+    args += parsed["flags"]
     return args
 
 

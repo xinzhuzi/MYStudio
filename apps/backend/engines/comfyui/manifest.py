@@ -277,18 +277,56 @@ def recorded_port(manifest: dict | None = None) -> int | None:
     return None
 
 
-def engine_launch_args(manifest: dict | None = None) -> dict:
-    """性能档(manifest 存档位,启动时翻译成 flag;不暴露命令行原文)。"""
-    manifest = manifest if manifest is not None else load_manifest()
-    engine = manifest.get("engine") if isinstance(manifest.get("engine"), dict) else {}
-    args = engine.get("launchArgs") if isinstance(engine.get("launchArgs"), dict) else {}
-    # 09-08 对齐:缺省=用户 Comfy Desktop 实跑(--gpu-only --reserve-vram 16 --use-pytorch-cross-attention)
+# 09-10 用户裁定「全盘照 ComfyUI Desktop」:launchArgs 改为命令行整串(唯一真源),
+# 结构化下拉只是往串里写的快填器;推翻旧「不暴露命令行原文」口径。
+# 缺省串=09-08 对齐用户 Desktop 实跑的三参数。
+DEFAULT_LAUNCH_ARGS_STRING = "--gpu-only --reserve-vram 16 --use-pytorch-cross-attention"
+
+
+def legacy_launch_flags(args: dict) -> str:
+    """旧三档对象 → 等效命令行串(读侧自动迁移;翻译规则=旧 build_launch_args 逐条)。"""
+    flags: list[str] = []
     vram = args.get("vramPolicy") if args.get("vramPolicy") in VRAM_POLICIES else "gpu-only"
-    attention = args.get("attentionMode") if args.get("attentionMode") in ATTENTION_MODES else "pytorch-cross-attention"
+    # 旧读侧语义:缺失/非法的 reserveVramGb 一律默认 16 → 旧有效行为恒含 --reserve-vram N
     reserve = args.get("reserveVramGb")
     if not isinstance(reserve, (int, float)) or reserve <= 0:
         reserve = 16
-    return {"vramPolicy": vram, "attentionMode": attention, "reserveVramGb": reserve}
+    if vram == "gpu-only":
+        flags.append("--gpu-only")
+    gb_text = str(int(reserve)) if isinstance(reserve, float) and reserve.is_integer() else str(reserve)
+    flags += ["--reserve-vram", gb_text]
+    attention = args.get("attentionMode") if args.get("attentionMode") in ATTENTION_MODES else "pytorch-cross-attention"
+    if attention == "pytorch-cross-attention":
+        flags.append("--use-pytorch-cross-attention")
+    return " ".join(flags)
+
+
+def engine_launch_args(manifest: dict | None = None) -> str:
+    """启动参数串(Desktop 式唯一真源);旧 dict 读侧翻译,空串=纯默认端口/监听。"""
+    manifest = manifest if manifest is not None else load_manifest()
+    engine = manifest.get("engine") if isinstance(manifest.get("engine"), dict) else {}
+    raw = engine.get("launchArgs")
+    if isinstance(raw, str):
+        return raw.strip()
+    if isinstance(raw, dict):
+        return legacy_launch_flags(raw)
+    return DEFAULT_LAUNCH_ARGS_STRING
+
+
+def engine_env_vars(manifest: dict | None = None) -> dict:
+    """环境变量表(spawn 时注入引擎进程;值本机明文,UI 侧遮蔽展示)。"""
+    manifest = manifest if manifest is not None else load_manifest()
+    engine = manifest.get("engine") if isinstance(manifest.get("engine"), dict) else {}
+    env = engine.get("envVars") if isinstance(engine.get("envVars"), dict) else {}
+    return {str(key): str(value) for key, value in env.items()}
+
+
+def engine_port_conflict_policy(manifest: dict | None = None) -> str:
+    """端口冲突策略:用户串写死的端口被占时,auto-shift=顺延冷门空口(默认,现状);fail=报错。"""
+    manifest = manifest if manifest is not None else load_manifest()
+    engine = manifest.get("engine") if isinstance(manifest.get("engine"), dict) else {}
+    policy = engine.get("portConflictPolicy")
+    return policy if policy in ("auto-shift", "fail") else "auto-shift"
 
 
 def core_dep_names(manifest: dict | None = None) -> set[str]:

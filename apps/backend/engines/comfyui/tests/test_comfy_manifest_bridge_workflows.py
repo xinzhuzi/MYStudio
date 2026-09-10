@@ -44,17 +44,32 @@ class TestManifest:
         cm.manifest_path().write_text("{broken json", encoding="utf-8")
         assert cm.load_manifest()["engine"] is None
 
-    def test_launch_args_defaults_and_validation(self, tmp_path, monkeypatch):
+    def test_launch_args_string_and_legacy_migration(self, tmp_path, monkeypatch):
         _use_tmp_home(tmp_path, monkeypatch)
+        # 旧 dict(含非法值)读侧自动翻译:非法档回落旧缺省,reserve 非法回落 16
         cm.mutate_manifest(lambda m: m.update({"engine": {
             "version": "v0.9.2", "port": 17600,
             "launchArgs": {"vramPolicy": "gpu-only", "attentionMode": "nope", "reserveVramGb": -1},
         }}))
-        args = cm.engine_launch_args()
-        assert args["vramPolicy"] == "gpu-only"       # 合法值保留
-        # 09-08 对齐:非法值回落到与用户 Comfy Desktop 同款的缺省(gpu-only/16/pytorch-cross-attention)
-        assert args["attentionMode"] == "pytorch-cross-attention"
-        assert args["reserveVramGb"] == 16
+        assert cm.engine_launch_args() == "--gpu-only --reserve-vram 16 --use-pytorch-cross-attention"
+        # 串原样保留(Desktop 式唯一真源);空 manifest → 默认串
+        cm.mutate_manifest(lambda m: m["engine"].update({"launchArgs": "--fast --bf16-unet"}))
+        assert cm.engine_launch_args() == "--fast --bf16-unet"
+        cm.mutate_manifest(lambda m: m["engine"].pop("launchArgs"))
+        assert cm.engine_launch_args() == cm.DEFAULT_LAUNCH_ARGS_STRING
+
+    def test_env_vars_and_port_policy_accessors(self, tmp_path, monkeypatch):
+        _use_tmp_home(tmp_path, monkeypatch)
+        cm.mutate_manifest(lambda m: m.update({"engine": {
+            "version": "v0.9.2", "port": 17600,
+            "envVars": {"HF_TOKEN": "x", "HTTPS_PROXY": "http://127.0.0.1:7890"},
+            "portConflictPolicy": "fail",
+        }}))
+        assert cm.engine_env_vars() == {"HF_TOKEN": "x", "HTTPS_PROXY": "http://127.0.0.1:7890"}
+        assert cm.engine_port_conflict_policy() == "fail"
+        cm.mutate_manifest(lambda m: (m["engine"].pop("envVars", None), m["engine"].pop("portConflictPolicy", None)))
+        assert cm.engine_env_vars() == {}
+        assert cm.engine_port_conflict_policy() == "auto-shift"
 
     def test_core_dep_names_for_refcount(self, tmp_path, monkeypatch):
         _use_tmp_home(tmp_path, monkeypatch)
