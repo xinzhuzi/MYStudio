@@ -62,7 +62,7 @@ describe("ScriptTab", () => {
     expect(screen.getByText("已生成")).toBeTruthy();
   });
 
-  it("provides script sub-stage tabs through header actions instead of inline content", () => {
+  it("provides script sub-stage tabs inline in the tab body (header actions retired)", () => {
     const source = readFileSync(
       "frontend/components/panels/studio/ScriptTab.tsx",
       "utf8",
