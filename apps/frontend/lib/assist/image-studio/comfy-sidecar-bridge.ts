@@ -771,16 +771,20 @@ async function importWithMode(
   const overwrite = mode === "overwrite";
   /** keep-both 的逐文件改名计数(每个冲突文件独立地从「名 2」试起)。 */
   const retryCounters = new Map<string, number>();
+  // A 端单请求只处理前 50 个文件(超出静默截断):分批发送——09-10 实弹
+  // 78 流迁移只入库 50、余 27 被误标失败,即此坑
+  const IMPORT_BATCH_MAX = 50;
   while (pending.length > 0) {
+    const batch = pending.splice(0, IMPORT_BATCH_MAX);
     const reply = await comfySidecarRequest<{ imported?: string[]; skipped?: string[] }>(
       "POST",
       "/comfy/workflows/import",
-      { body: { files: pending.map((item) => ({ name: item.sentName, content: item.content })), overwrite } },
+      { body: { files: batch.map((item) => ({ name: item.sentName, content: item.content })), overwrite } },
     );
     const importedSet = new Set(reply.imported ?? []);
     const skippedSet = new Set(reply.skipped ?? []);
     const next: typeof pending = [];
-    for (const item of pending) {
+    for (const item of batch) {
       if (importedSet.has(item.sentName)) {
         const name = sentToOriginal.get(item.sentName) ?? item.original;
         if (item.renamedTo) {
@@ -812,7 +816,7 @@ async function importWithMode(
       // 既没 imported 也没 skipped:应答异常,按失败兜底。
       results.push({ name: item.original, status: "failed", error: "导入应答异常" });
     }
-    pending.splice(0, pending.length, ...next);
+    pending.unshift(...next); // keep-both 改名重试回队首
   }
   return results;
 }

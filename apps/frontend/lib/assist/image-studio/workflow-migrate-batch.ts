@@ -131,7 +131,14 @@ export async function migrateWorkflowsToLibrary(
 
 /** 面板入口用的薄包装:后台跑+toast 汇总(长任务禁模态铁律)。 */
 export async function migrateWorkflowsToLibraryWithToast(deps: Partial<MigrateBatchDeps> = {}): Promise<MigrateBatchSummary> {
-  const summary = await migrateWorkflowsToLibrary(deps);
+  let summary: MigrateBatchSummary;
+  try {
+    summary = await migrateWorkflowsToLibrary(deps);
+  } catch (error) {
+    // 09-10 实弹:sidecar 未跑时此处曾裸抛=无提示静默失败;失败也必须大白话可见
+    toast.error(`存量画布迁移没能完成:${error instanceof Error ? error.message : String(error)}`);
+    return { total: 0, imported: 0, failed: 0, skippedNoBlocks: 0, referencesUploaded: 0, referencesSkipped: 0, notes: [] };
+  }
   if (summary.total === 0) {
     toast.info("当前没有存量画布可迁移");
     return summary;

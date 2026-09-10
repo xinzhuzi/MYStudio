@@ -2,10 +2,14 @@
 // Licensed under AGPL-3.0-or-later. See LICENSE for details.
 // Commercial licensing available. See COMMERCIAL_LICENSE.md.
 
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+
+const toastMock = vi.hoisted(() => ({ info: vi.fn(), success: vi.fn(), warning: vi.fn(), error: vi.fn() }));
+vi.mock("sonner", () => ({ toast: toastMock }));
 
 import {
   migrateWorkflowsToLibrary,
+  migrateWorkflowsToLibraryWithToast,
   type MigrateBatchDeps,
 } from "@/lib/assist/image-studio/workflow-migrate-batch";
 import type { ComfyWorkflowImportFile, ComfyWorkflowImportFileResult } from "@/lib/assist/image-studio/comfy-workflow-library";
@@ -107,5 +111,21 @@ describe("migrateWorkflowsToLibrary", () => {
     const { deps } = makeDeps({ flows: [] });
     const summary = await migrateWorkflowsToLibrary(deps);
     expect(summary).toMatchObject({ total: 0, imported: 0, failed: 0 });
+  });
+
+  it("迁移链抛错:大白话 toast 报失败,不再静默(09-10 实弹根修)", async () => {
+    toastMock.error.mockClear();
+    const { deps } = makeDeps({
+      transport: {
+        importFiles: async () => {
+          throw new Error("本地生图服务未运行,请先在 设置→本地配置 完成「准备运行时」");
+        },
+      },
+    });
+    const summary = await migrateWorkflowsToLibraryWithToast(deps);
+    expect(summary).toMatchObject({ total: 0, imported: 0, failed: 0 });
+    expect(toastMock.error).toHaveBeenCalledTimes(1);
+    expect(toastMock.error.mock.calls[0][0]).toContain("存量画布迁移没能完成");
+    expect(toastMock.error.mock.calls[0][0]).toContain("本地生图服务未运行");
   });
 });
