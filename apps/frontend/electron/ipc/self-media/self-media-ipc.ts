@@ -37,7 +37,6 @@ import type {
   SelfMediaTaskError,
   SelfMediaTaskStatus,
 } from "../../../types/self-media";
-import type { CredentialVault } from "../../aitoearn/credential-vault";
 import {
   createAitoearnLocalAdapter,
   createSelfMediaProviderRegistry,
@@ -50,7 +49,6 @@ import {
 import { applySelfMediaTaskResult, SelfMediaTaskRuntime } from "../../aitoearn/task-runtime";
 
 type SelfMediaIpcContext = {
-  credentialVault: CredentialVault;
   registry?: SelfMediaProviderRegistry;
   localBridge?: AitoearnLocalPlatformBridge;
   resolveAsset?: (projectId: string, asset: SelfMediaAssetRef) => Promise<SelfMediaResolvedAsset>;

@@ -23,7 +23,6 @@ import {
 import {installUncaughtExceptionGuard} from '../runtime/uncaught-exception-guard'
 import {registerTtsIpcHandlers} from '../ipc/tts/tts-ipc'
 import {registerSelfMediaIpcHandlers} from '../ipc/self-media/self-media-ipc'
-import {createCredentialVault} from '../aitoearn/credential-vault'
 import {createAitoearnLocalPlatformBridge} from '../aitoearn/providers/aitoearn-local/platform-bridge'
 import {createOfficialPlatformTransports} from '../aitoearn/providers/aitoearn-local/platforms/official/transports'
 import {registerStorageMediaIpcHandlers} from '../ipc/media/storage-media-ipc'
@@ -139,13 +138,11 @@ const ttsRuntimeController = createTtsRuntimeController({
   fetchJson: diagnosticsFetchJson,
   fetchBytes: diagnosticsFetchBytes,
 })
-const selfMediaCredentialVault = createCredentialVault(app.getPath('userData'))
 const officialPlatformTransports = createOfficialPlatformTransports({
   userDataPath: app.getPath('userData'),
   allowedAssetRoots: () => [getDataDir(), getMediaRoot()],
 })
 const selfMediaIpc = registerSelfMediaIpcHandlers({
-  credentialVault: selfMediaCredentialVault,
   localBridge: createAitoearnLocalPlatformBridge({
     userDataPath: app.getPath('userData'),
     allowedAssetRoots: () => [getDataDir(), getMediaRoot()],

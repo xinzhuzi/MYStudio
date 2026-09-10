@@ -29,19 +29,13 @@ const SELF_MEDIA_PLATFORMS = SELF_MEDIA_LOCAL_TRANSPORT_PLATFORMS;
 
 describe("registerSelfMediaIpcHandlers", () => {
   const taskStorePath = path.join(os.tmpdir(), `mystudio-self-media-${process.pid}.json`);
-  const credentialVault = {
-    set: vi.fn(async () => undefined),
-    has: vi.fn(async () => false),
-    get: vi.fn(async () => null),
-    remove: vi.fn(async () => undefined),
-  };
 
   beforeEach(async () => {
     await fs.rm(taskStorePath, { force: true });
     handlers.clear();
     sent.mockClear();
     vi.clearAllMocks();
-    registerSelfMediaIpcHandlers({ credentialVault });
+    registerSelfMediaIpcHandlers({});
   });
 
   afterAll(async () => {
@@ -80,7 +74,7 @@ describe("registerSelfMediaIpcHandlers", () => {
   });
 
   it("returns invalid-provider for poll and cancel of a task with an unknown provider", async () => {
-    const registration = registerSelfMediaIpcHandlers({ credentialVault });
+    const registration = registerSelfMediaIpcHandlers({});
     const malformedTask = {
       id: "task-unknown-provider",
       attemptId: "attempt-unknown-provider",
@@ -108,7 +102,7 @@ describe("registerSelfMediaIpcHandlers", () => {
   });
 
   it("does not return a malformed task from the successful list reply", async () => {
-    const registration = registerSelfMediaIpcHandlers({ credentialVault });
+    const registration = registerSelfMediaIpcHandlers({});
     registration.tasks.set("task-malformed", {
       id: "task-malformed",
       attemptId: "attempt-malformed",
@@ -134,7 +128,7 @@ describe("registerSelfMediaIpcHandlers", () => {
         publish: async () => ({ status: "success" }), poll: async () => ({ status: "success" }), cancel: async () => ({ status: "canceled" }),
       }),
     });
-    registerSelfMediaIpcHandlers({ credentialVault, registry });
+    registerSelfMediaIpcHandlers({ registry });
     await expect(handlers.get(SELF_MEDIA_IPC.startLogin)?.({}, { projectId: "project-1", providerId: "aitoearn-local", platform: "xhs" }))
       .resolves.toEqual({ success: false, error: { code: "login-failed", message: "平台拒绝登录" } });
   });
@@ -150,7 +144,7 @@ describe("registerSelfMediaIpcHandlers", () => {
         cancel: async () => ({ status: "canceled" }),
       }),
     });
-    registerSelfMediaIpcHandlers({ credentialVault, registry });
+    registerSelfMediaIpcHandlers({ registry });
 
     for (const platform of SELF_MEDIA_PLATFORMS) {
       await expect(handlers.get(SELF_MEDIA_IPC.startLogin)?.({}, {
@@ -173,7 +167,7 @@ describe("registerSelfMediaIpcHandlers", () => {
         cancel: async () => ({ status: "canceled" }),
       }),
     });
-    const registration = registerSelfMediaIpcHandlers({ credentialVault, registry });
+    const registration = registerSelfMediaIpcHandlers({ registry });
     const reply = await handlers.get(SELF_MEDIA_IPC.createTask)?.({}, {
       projectId: "project-1",
       providerId: "aitoearn-local",
@@ -204,7 +198,7 @@ describe("registerSelfMediaIpcHandlers", () => {
         startLogin: async () => ({ started: true }), publish: async () => ({ status: "success" }), poll: async () => ({ status: "success" }), cancel: async () => ({ status: "canceled" }),
       }),
     });
-    registerSelfMediaIpcHandlers({ credentialVault, registry });
+    registerSelfMediaIpcHandlers({ registry });
     const reply = await handlers.get(SELF_MEDIA_IPC.listAccounts)?.({}, { projectId: "project-1", providerId: "aitoearn-local" });
     expect(reply).toEqual({ success: true, value: [expect.not.objectContaining({ credential: expect.anything() })] });
   });
@@ -215,7 +209,6 @@ describe("registerSelfMediaIpcHandlers", () => {
       apiKey: "secret-value",
     });
     expect(reply).toEqual({ success: true, value: { providerId: "aitoearn-local", configured: true } });
-    expect(credentialVault.set).not.toHaveBeenCalled();
   });
 
   it("rejects a retry that does not reference a failed task in the same project", async () => {
@@ -228,7 +221,7 @@ describe("registerSelfMediaIpcHandlers", () => {
         cancel: async () => ({ status: "canceled" }),
       }),
     });
-    const registration = registerSelfMediaIpcHandlers({ credentialVault, registry });
+    const registration = registerSelfMediaIpcHandlers({ registry });
     const reply = await handlers.get(SELF_MEDIA_IPC.createTask)?.({}, {
       projectId: "project-1",
       providerId: "aitoearn-local",
@@ -261,7 +254,7 @@ describe("registerSelfMediaIpcHandlers", () => {
         cancel: async () => { throw new SelfMediaProviderError("aitoearn-local", "cancel-not-supported", "不支持取消", false); },
       }),
     });
-    const registration = registerSelfMediaIpcHandlers({ credentialVault, registry });
+    const registration = registerSelfMediaIpcHandlers({ registry });
     registration.tasks.set("task-running", {
       id: "task-running",
       attemptId: "attempt-running",
@@ -290,7 +283,7 @@ describe("registerSelfMediaIpcHandlers", () => {
         cancel: async () => ({ status: "canceled" }),
       }),
     });
-    const registration = registerSelfMediaIpcHandlers({ credentialVault, registry, localBridge: {} as never });
+    const registration = registerSelfMediaIpcHandlers({ registry, localBridge: {} as never });
     const reply = await handlers.get(SELF_MEDIA_IPC.createTask)?.({}, {
       projectId: "project-1",
       providerId: "aitoearn-local",
@@ -313,7 +306,7 @@ describe("registerSelfMediaIpcHandlers", () => {
   });
 
   it("fans out normalized progress events to renderer windows", () => {
-    const registration = registerSelfMediaIpcHandlers({ credentialVault });
+    const registration = registerSelfMediaIpcHandlers({});
     registration.emitProgress({
       projectId: "project-1",
       taskId: "task-1",
@@ -346,7 +339,7 @@ describe("registerSelfMediaIpcHandlers", () => {
         cancel: async () => ({ status: "canceled" }),
       }),
     });
-    registerSelfMediaIpcHandlers({ credentialVault, registry });
+    registerSelfMediaIpcHandlers({ registry });
     const reply = (await handlers.get(SELF_MEDIA_IPC.createTask)?.({}, {
       projectId: "project-1",
       providerId: "aitoearn-local",
@@ -386,7 +379,7 @@ describe("registerSelfMediaIpcHandlers", () => {
           cancel: async () => ({ status: "canceled" }),
         }),
       });
-      const first = registerSelfMediaIpcHandlers({ credentialVault, registry, taskStorePath });
+      const first = registerSelfMediaIpcHandlers({ registry, taskStorePath });
       const created = await handlers.get(SELF_MEDIA_IPC.createTask)?.({}, {
         projectId: "project-1",
         providerId: "aitoearn-local",
@@ -409,7 +402,7 @@ describe("registerSelfMediaIpcHandlers", () => {
       expect(publish).not.toHaveBeenCalled();
       await first.dispose();
 
-      const second = registerSelfMediaIpcHandlers({ credentialVault, registry, taskStorePath });
+      const second = registerSelfMediaIpcHandlers({ registry, taskStorePath });
       await handlers.get(SELF_MEDIA_IPC.listTasks)?.({}, { projectId: "project-1" });
       await second.runtimeReady;
       expect(second.tasks.size).toBe(1);
@@ -438,7 +431,7 @@ describe("registerSelfMediaIpcHandlers", () => {
         cancel: async () => ({ status: "canceled" }),
       }),
     });
-    const first = registerSelfMediaIpcHandlers({ credentialVault, registry, taskStorePath });
+    const first = registerSelfMediaIpcHandlers({ registry, taskStorePath });
     await handlers.get(SELF_MEDIA_IPC.createTask)?.({}, {
       projectId: "project-1",
       providerId: "aitoearn-local",
@@ -457,7 +450,7 @@ describe("registerSelfMediaIpcHandlers", () => {
       },
     });
     await first.dispose();
-    const second = registerSelfMediaIpcHandlers({ credentialVault, registry, taskStorePath });
+    const second = registerSelfMediaIpcHandlers({ registry, taskStorePath });
     await handlers.get(SELF_MEDIA_IPC.listAccounts)?.({}, { projectId: "project-1", providerId: "aitoearn-local" });
     expect(second.tasks.size).toBe(1);
     expect(await fs.readFile(taskStorePath, "utf8")).not.toContain("secret-value");
@@ -482,7 +475,7 @@ describe("registerSelfMediaIpcHandlers", () => {
       tasks: [validTask, { ...validTask, id: "task-secret", apiKey: "must-not-load" }],
       scheduledContexts: [],
     }));
-    const registration = registerSelfMediaIpcHandlers({ credentialVault, taskStorePath });
+    const registration = registerSelfMediaIpcHandlers({ taskStorePath });
     await registration.runtimeReady;
     expect([...registration.tasks.keys()]).toEqual(["task-valid"]);
     await registration.dispose();
@@ -507,7 +500,7 @@ describe("registerSelfMediaIpcHandlers", () => {
         }),
       }),
     });
-    const registration = registerSelfMediaIpcHandlers({ credentialVault, registry });
+    const registration = registerSelfMediaIpcHandlers({ registry });
     const running: SelfMediaTask = {
       id: "task-running",
       attemptId: "attempt-running",
@@ -542,7 +535,7 @@ describe("registerSelfMediaIpcHandlers", () => {
         cancel: async () => ({ status: "canceled" }),
       }),
     });
-    const registration = registerSelfMediaIpcHandlers({ credentialVault, registry });
+    const registration = registerSelfMediaIpcHandlers({ registry });
     const reply = await handlers.get(SELF_MEDIA_IPC.createTask)?.({}, {
       projectId: "project-1",
       providerId: "aitoearn-local",
@@ -596,7 +589,7 @@ describe("registerSelfMediaIpcHandlers", () => {
           cancel: async () => ({ status: "canceled" }),
         }),
       });
-      const registration = registerSelfMediaIpcHandlers({ credentialVault, registry, taskStorePath });
+      const registration = registerSelfMediaIpcHandlers({ registry, taskStorePath });
       await registration.runtimeReady;
       await registration.runtime.waitForIdle();
       expect(vi.getTimerCount()).toBe(0);
@@ -618,7 +611,7 @@ describe("registerSelfMediaIpcHandlers", () => {
         cancel: async () => ({ status: "canceled" }),
       }),
     });
-    const registration = registerSelfMediaIpcHandlers({ credentialVault, registry, taskStorePath });
+    const registration = registerSelfMediaIpcHandlers({ registry, taskStorePath });
     const reply = await handlers.get(SELF_MEDIA_IPC.createTask)?.({}, {
       projectId: "project-1",
       providerId: "aitoearn-local",
@@ -653,7 +646,7 @@ describe("registerSelfMediaIpcHandlers", () => {
         cancel: async () => ({ status: "canceled" }),
       }),
     });
-    const registration = registerSelfMediaIpcHandlers({ credentialVault, registry, taskStorePath });
+    const registration = registerSelfMediaIpcHandlers({ registry, taskStorePath });
     const create = (id: string) => handlers.get(SELF_MEDIA_IPC.createTask)?.({}, {
       projectId: "project-1",
       providerId: "aitoearn-local",
