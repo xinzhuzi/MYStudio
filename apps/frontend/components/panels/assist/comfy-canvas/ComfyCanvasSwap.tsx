@@ -44,7 +44,7 @@ export function ComfyCanvasSwap({
   };
 
   return (
-    <div className="flex h-full min-h-0 flex-col" data-comfy-swap="comfy">
+    <div className="flex h-full w-full min-h-0 min-w-0 flex-col" data-comfy-swap="comfy">
       <div className="flex shrink-0 items-center justify-between gap-2 border-b border-border px-3 py-1.5">
         <div className="flex items-center gap-2">
           {onBack ? (

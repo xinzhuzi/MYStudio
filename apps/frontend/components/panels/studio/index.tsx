@@ -30,7 +30,12 @@ export function StudioView() {
         className="flex h-full flex-col"
       >
         <ScrollArea className="h-full min-h-0 flex-1 scrollbar-hidden">
-          <div className="flex h-full min-h-0 flex-col bg-background p-5">
+          {/* 画布阶段(分镜制作/分镜画布)去内边距贴边全屏;内容阶段保留 p-5 */}
+          <div
+            className={`flex h-full min-h-0 flex-col bg-background ${
+              viewModel.activeWorkflowTab === "storyboard" || viewModel.activeWorkflowTab === "imageWorkflow" ? "p-0" : "p-5"
+            }`}
+          >
             <WorkflowStageStatusBar
               readiness={viewModel.workflowReadiness}
               activeStage={viewModel.activeWorkflowTab}
@@ -99,7 +104,7 @@ export function StudioView() {
 
             <TabsContent
               value="storyboard"
-              className="m-0 min-h-0 flex-1 data-[state=active]:flex data-[state=inactive]:hidden"
+              className="m-0 min-h-0 flex-1"
             >
               <ComfyCanvasSwap title="分镜制作 · ComfyUI" />
             </TabsContent>
@@ -125,7 +130,7 @@ export function StudioView() {
 
             <TabsContent
               value="imageWorkflow"
-              className="m-0 min-h-0 flex-1 data-[state=active]:flex data-[state=inactive]:hidden"
+              className="m-0 min-h-0 flex-1"
             >
               <ComfyCanvasSwap
                 title="分镜画布 · ComfyUI"

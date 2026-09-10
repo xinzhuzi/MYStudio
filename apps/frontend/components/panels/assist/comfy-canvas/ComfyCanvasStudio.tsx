@@ -140,7 +140,7 @@ export function ComfyCanvasStudio({ embedded = false }: { embedded?: boolean }) 
 
   // 运行中:webview 加载引擎原生前端(独立进程;刷新兜底按钮应对 webview 偶发白屏)
   return (
-    <div className="relative flex h-full min-h-0 flex-col" data-comfy-canvas-live>
+    <div className="relative flex h-full w-full min-h-0 min-w-0 flex-col" data-comfy-canvas-live>
       <div className={cn("flex items-center justify-between gap-2 border-b border-border px-3 py-1.5", embedded && "hidden")}>
         <span className="text-xs text-muted-foreground">
           ComfyUI 画布 · 本地引擎 127.0.0.1:{port}(完整界面:节点/工作流/插件都在这里管理)
