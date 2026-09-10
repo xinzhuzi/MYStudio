@@ -111,9 +111,13 @@ def _download_segmentation(model_name: str, progress_path: Path) -> int:
             })
             return 1
     else:
-        # segformer:从本机 ComfyUI 复制
-        comfyui_src = Path.home() / "Project/ComfyUI/models" / model_name
-        if comfyui_src.exists():
+        # segformer 分割模型无公开镜像源,按序尝试两个本机 ComfyUI 模型目录:
+        # ①统一引擎家(用户经 ComfyUI 模型管理装入即命中,首选)
+        # ②退役旧库开发者路径(历史兼容,最终将随旧库清理移除)
+        candidates = [comfyui_models_dir() / model_name, Path.home() / "Project/ComfyUI/models" / model_name]
+        for comfyui_src in candidates:
+            if not comfyui_src.exists():
+                continue
             for f in comfyui_src.iterdir():
                 if f.is_file():
                     _shutil.copy2(f, target_dir / f.name)
@@ -125,7 +129,7 @@ def _download_segmentation(model_name: str, progress_path: Path) -> int:
         _write_progress(progress_path, {
             "modelName": model_name, "status": "error", "current": 0,
             "total": info["size_mb"], "progress": 0,
-            "error": "无公开下载源,请从 ComfyUI models 目录手动复制",
+            "error": "分割模型无公开下载源:请在 ComfyUI 模型管理安装 segformer_b3_clothes 后重试,或手动复制到 " + str(candidates[0]),
             "updatedAt": int(time.time()*1000),
         })
         return 1
