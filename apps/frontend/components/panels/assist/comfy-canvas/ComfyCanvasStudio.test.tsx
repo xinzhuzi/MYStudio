@@ -74,4 +74,30 @@ describe("ComfyCanvasStudio(辅助面板第六 tab)", () => {
     expect(live.querySelector("button")).toBeNull();
     expect(document.querySelector("[data-comfy-canvas-overlay]")).toBeNull();
   });
+
+  it("dom-ready 注入主题选中色(压过 xterm vendor 泄漏的默认黄;09-10 实弹)", async () => {
+    (window as { comfyEngine?: ComfyEngineClient }).comfyEngine = stubClient({
+      installed: true,
+      state: "ready",
+      serviceRunning: true,
+      port: 17003,
+    });
+    render(<ComfyCanvasStudio />);
+    const webview = (await waitFor(() => {
+      const el = document.querySelector("[data-comfy-canvas-webview]") as
+        (HTMLElement & { insertCSS?: (css: string) => Promise<string> }) | null;
+      if (!el) throw new Error("webview 未挂");
+      return el;
+    }, { timeout: 3000 }))!;
+    const injected: string[] = [];
+    webview.insertCSS = (css: string) => {
+      injected.push(css);
+      return Promise.resolve("id");
+    };
+    expect(injected).toHaveLength(0);
+    webview.dispatchEvent(new Event("dom-ready"));
+    expect(injected[0]).toContain("::selection");
+    expect(injected[0]).toContain("hsl(212 100% 48% / 0.28)");
+    expect(injected[0]).toContain("color:inherit");
+  });
 });

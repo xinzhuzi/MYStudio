@@ -8,7 +8,7 @@
 // - 运行中(port 就绪) → webview 指向 http://127.0.0.1:<port>/
 // 该 tab 也是后续阶段(业务自定义节点/画布主体切换)的调试台。
 
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { Loader2, PlayCircle, ServerCog } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useComfyEngineSettings } from "@/components/panels/settings/comfy-engine/useComfyEngineSettings";
@@ -17,7 +17,31 @@ import { consumeComfyBridgeWritebacks } from "@/lib/assist/image-studio/comfy-br
 import { syncStoryboardOverviewToLibrary } from "@/lib/assist/image-studio/storyboard-overview-sync";
 import { useStudioStore } from "@/stores/studio/studio-store";
 
+/** 画布内文本选中样式:ComfyUI 前端唯一选中规则是 xterm vendor css 泄漏的
+ * 全局 ::selection{color:transparent} 且无背景定义 → Chromium 默认黄底裸奔
+ * (09-10 实弹:工作流树选中=黄条+隐形字,与两边主题都不符)。宿主注入
+ * 主题一致选中色(照应用 ::selection 配方 --primary/28%,文字恢复可见)。 */
+export const WEBVIEW_SELECTION_CSS =
+  "::selection{background:hsl(212 100% 48% / 0.28)!important;color:inherit!important}";
+
+/** Electron webview 的宿主注入面(React 类型表不覆盖 webview tag 专有 API)。 */
+type WebviewElement = HTMLElement & {
+  insertCSS?: (css: string) => Promise<string>;
+  __selectionHooked?: boolean;
+};
+
 export function ComfyCanvasStudio() {
+  const webviewRef = useRef<WebviewElement | null>(null);
+  // dom-ready 不在 React 合成事件类型表里 → ref 回调挂原生监听(幂等防重)
+  const attachWebview = (node: WebviewElement | null) => {
+    webviewRef.current = node;
+    if (node && !node.__selectionHooked) {
+      node.__selectionHooked = true;
+      node.addEventListener("dom-ready", () => {
+        void node.insertCSS?.(WEBVIEW_SELECTION_CSS);
+      });
+    }
+  };
   // client 引用必须稳定(传入 hook):否则 hook 内 getComfyEngineClient() 每次
   // 渲染返回新 HTTP client→挂载探测 effect 循环重跑(09-09 实弹报障同根因)
   const client = useMemo(() => getComfyEngineClient(), []);
@@ -164,6 +188,7 @@ export function ComfyCanvasStudio() {
   return (
     <div className="relative flex h-full w-full min-h-0 min-w-0 flex-col" data-comfy-canvas-live>
       <webview
+        ref={attachWebview}
         src={src ?? "about:blank"}
         className="h-full w-full flex-1"
         // 独立进程渲染;禁弹窗(09-10 类型收紧:布尔字面量,React 会序列化为属性)
