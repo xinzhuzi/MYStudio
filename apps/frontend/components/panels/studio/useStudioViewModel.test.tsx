@@ -10,7 +10,6 @@ vi.mock("./useScriptStageActions", () => ({
     runStage: vi.fn(),
     runReview: vi.fn(),
     previewStageUserMessage: vi.fn(),
-    setHeaderActions: vi.fn(),
     scriptStreaming: false,
   }),
 }));

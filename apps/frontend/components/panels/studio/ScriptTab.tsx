@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import {
@@ -43,7 +43,6 @@ export function ScriptTab(props: {
   manualContext: string;
   directorContext: string;
   styleSummary: string;
-  setHeaderActions: (actions: ReactNode) => void;
   scriptStreaming: { key: AgentWorkKey; scopeId: string; text: string } | null;
 }) {
   const SCRIPT_STAGES: ScriptStageKey[] = [
@@ -89,56 +88,6 @@ export function ScriptTab(props: {
   const prereq = PREREQ[activeStage];
   const hasPrereq = !prereq || Boolean(stageData(prereq));
 
-  const setHeaderActions = props.setHeaderActions;
-  useEffect(() => {
-    if (!props.novelChapters.length) {
-      setHeaderActions(null);
-      return;
-    }
-      setHeaderActions(
-      <div className="flex flex-wrap items-center gap-2">
-        <div className="flex items-center gap-1.5">
-          {SCRIPT_STAGES.map((stage, idx) => (
-            <button
-              key={stage}
-              type="button"
-              onClick={() => setActiveStage(stage)}
-              className={`inline-flex h-8 items-center gap-1.5 rounded-md border px-3 text-sm transition-colors ${
-                activeStage === stage
-                  ? "border-primary/50 bg-primary/10 font-medium text-primary"
-                  : "border-foreground/[0.12] bg-transparent text-foreground/85 hover:bg-foreground/[0.06] hover:text-foreground"
-              }`}
-            >
-              {idx + 1}. {SCRIPT_STAGE_LABEL[stage]}
-              {stageData(stage) ? " ✓" : ""}
-            </button>
-          ))}
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <Label className="text-sm">章节（1 章 = 1 集）</Label>
-          <select
-            className="h-8 min-w-[260px] rounded-md border border-foreground/[0.12] bg-transparent px-3 text-sm text-foreground/85"
-            value={chapterId || props.novelChapters[0]?.id || ""}
-            onChange={(event) => setChapterId(event.target.value)}
-          >
-            {props.novelChapters.map((item) => (
-              <option key={item.id} value={item.id}>
-                {item.index}. {item.title}
-              </option>
-            ))}
-          </select>
-        </div>
-      </div>,
-    );
-    return () => setHeaderActions(null);
-// eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [
-    setHeaderActions,
-    props.novelChapters,
-    props.agentWorkData,
-    chapterId,
-    activeStage,
-  ]);
 
   const streamingText =
     props.scriptStreaming &&
@@ -296,6 +245,40 @@ export function ScriptTab(props: {
     <div className="flex min-h-[640px] w-full flex-1 flex-col pb-5">
       <div className="flex min-h-0 w-full flex-1 flex-col">
         <div className="flex min-h-0 w-full flex-1 flex-col gap-3">
+        {/* 页内导航:子阶段 tabs+章节选择(2026-09-10 随横幅退役自状态条迁入,原胶囊样式保留) */}
+    <div className="flex flex-wrap items-center gap-2">
+      <div className="flex items-center gap-1.5">
+        {SCRIPT_STAGES.map((stage, idx) => (
+          <button
+            key={stage}
+            type="button"
+            onClick={() => setActiveStage(stage)}
+            className={`inline-flex h-8 items-center gap-1.5 rounded-md border px-3 text-sm transition-colors ${
+              activeStage === stage
+                ? "border-primary/70 bg-transparent font-medium text-primary"
+                : "border-foreground/[0.12] bg-transparent text-foreground/85 hover:bg-foreground/[0.06] hover:text-foreground"
+            }`}
+          >
+            {idx + 1}. {SCRIPT_STAGE_LABEL[stage]}
+            {stageData(stage) ? " ✓" : ""}
+          </button>
+        ))}
+      </div>
+      <div className="flex flex-wrap items-center gap-2">
+        <Label className="text-sm">章节（1 章 = 1 集）</Label>
+        <select
+          className="h-8 min-w-[260px] rounded-md border border-foreground/[0.12] bg-transparent px-3 text-sm text-foreground/85"
+          value={chapterId || props.novelChapters[0]?.id || ""}
+          onChange={(event) => setChapterId(event.target.value)}
+        >
+          {props.novelChapters.map((item) => (
+            <option key={item.id} value={item.id}>
+              {item.index}. {item.title}
+            </option>
+          ))}
+        </select>
+      </div>
+    </div>,
           <div className="script-stage-control-tabs flex flex-wrap gap-2 border-b border-border pb-2">
             {[
               ["event", "事件"],

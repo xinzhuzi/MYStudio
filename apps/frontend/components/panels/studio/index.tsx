@@ -56,7 +56,6 @@ export function StudioView() {
                 sourceBible={viewModel.sourceBible}
                 saveSourceBible={viewModel.saveSourceBible}
                 generateBibleDraft={viewModel.generateSourceBibleDraft}
-                setHeaderActions={viewModel.setNovelHeaderActions}
               />
             </TabsContent>
 
@@ -79,7 +78,6 @@ export function StudioView() {
                 manualContext={viewModel.scriptStyleSummary}
                 directorContext={viewModel.scriptDirectorContext}
                 styleSummary={viewModel.scriptStyleSummary}
-                setHeaderActions={viewModel.setScriptHeaderActions}
                 scriptStreaming={viewModel.scriptStreaming}
               />
             </TabsContent>
@@ -91,7 +89,6 @@ export function StudioView() {
                 entityExtractions={viewModel.entityExtractions}
                 extractAssets={viewModel.handleEntityExtraction}
                 updateExtraction={viewModel.saveEntityExtraction}
-                setHeaderActions={viewModel.setAssetsHeaderActions}
                 productionEpisodeId={viewModel.productionEpisodeId}
                 scriptPlanCount={viewModel.scriptPlanCount}
                 hasSeriesBible={viewModel.hasSeriesBible}

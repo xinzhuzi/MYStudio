@@ -1,13 +1,11 @@
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { useCharacterLibraryStore } from "@/stores/library/character-library-store";
 import { useProjectStore } from "@/stores/project/project-store";
 import { useSceneStore } from "@/stores/library/scene-store";
 import { usePropsLibraryStore } from "@/stores/library/props-library-store";
 import { useStudioStore } from "@/stores/studio/studio-store";
 import { eventBus } from "@/lib/events/event-bus";
-import { Boxes } from "lucide-react";
 import { toast } from "sonner";
 import { AssetsBatchCard, type AssetType } from "./AssetsBatchCard";
 import { assetRecordMatches, nameMatches } from "./asset-matching";
@@ -25,7 +23,6 @@ export function AssetsTab(props: {
       typeof useStudioStore.getState
     >["entityExtractions"][number],
   ) => void;
-  setHeaderActions: (actions: ReactNode) => void;
 }) {
   type Batch = ReturnType<
     typeof useStudioStore.getState
@@ -212,39 +209,6 @@ export function AssetsTab(props: {
     }
   };
 
-  const setHeaderActions = props.setHeaderActions;
-  const extractAssets = props.extractAssets;
-  useEffect(() => {
-    setHeaderActions(
-      <div className="flex items-center gap-3">
-        <span className="text-xs text-muted-foreground">
-          {mode === "manage"
-            ? "管理本章剧本资产（角色 / 场景 / 道具）与资产库制作状态；"
-            : "从剧本提取资产（角色 / 场景 / 道具），与资产库匹配；"}
-          <span className="text-destructive">红色=未制作</span>
-          {mode === "manage" ? "。" : "，然后在本阶段下方手动生成。"}
-        </span>
-        <Button
-          size="sm"
-          disabled={extractingId !== null || scriptChapters.length === 0}
-          onClick={async () => {
-            for (const ch of scriptChapters) {
-              setExtractingId(ch.id);
-              try {
-                await extractAssets(ch.id);
-              } finally {
-                setExtractingId(null);
-              }
-            }
-          }}
-        >
-          <Boxes className="h-4 w-4" />
-          {extractingId !== null ? "提取中…" : "批量提取全部"}
-        </Button>
-      </div>,
-    );
-    return () => setHeaderActions(null);
-  }, [setHeaderActions, extractAssets, scriptChapters, extractingId, mode]);
 
   const genId = (p: string) =>
     `${p}-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;

@@ -1217,7 +1217,6 @@ describe("workflow stage action surfaces", () => {
         ]}
         extractAssets={vi.fn()}
         updateExtraction={vi.fn()}
-        setHeaderActions={vi.fn()}
         productionEpisodeId="chapter-001"
         scriptPlanCount={0}
         hasSeriesBible={false}
@@ -1296,7 +1295,6 @@ describe("workflow stage action surfaces", () => {
         entityExtractions={useStudioStore.getState().entityExtractions}
         extractAssets={vi.fn()}
         updateExtraction={vi.fn()}
-        setHeaderActions={vi.fn()}
         productionEpisodeId="chapter-001"
         scriptPlanCount={0}
         hasSeriesBible={false}
@@ -1362,7 +1360,6 @@ describe("workflow stage action surfaces", () => {
         ]}
         extractAssets={vi.fn()}
         updateExtraction={vi.fn()}
-        setHeaderActions={vi.fn()}
       />,
     );
 
@@ -1394,7 +1391,6 @@ describe("workflow stage action surfaces", () => {
         ]}
         extractAssets={vi.fn()}
         updateExtraction={vi.fn()}
-        setHeaderActions={vi.fn()}
       />,
     );
 
@@ -1414,7 +1410,6 @@ describe("workflow stage action surfaces", () => {
         entityExtractions={[]}
         extractAssets={vi.fn()}
         updateExtraction={vi.fn()}
-        setHeaderActions={vi.fn()}
       />,
     );
 

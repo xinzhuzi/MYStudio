@@ -47,7 +47,6 @@ function renderNovelTab() {
       sourceBible=""
       saveSourceBible={vi.fn()}
       generateBibleDraft={vi.fn(async () => SOURCE_BIBLE_TEMPLATE)}
-      setHeaderActions={vi.fn()}
     />,
   );
 }

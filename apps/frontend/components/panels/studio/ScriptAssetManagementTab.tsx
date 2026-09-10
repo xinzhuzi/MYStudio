@@ -1,4 +1,3 @@
-import type { ReactNode } from "react";
 import { AssetsTab } from "./AssetsTab";
 import { ScriptAssetGenerationTab } from "./ScriptAssetGenerationTab";
 import { useStudioStore } from "@/stores/studio/studio-store";
@@ -10,7 +9,6 @@ export function ScriptAssetManagementTab({
   entityExtractions,
   extractAssets,
   updateExtraction,
-  setHeaderActions,
   productionEpisodeId,
   scriptPlanCount,
   hasSeriesBible,
@@ -28,7 +26,6 @@ export function ScriptAssetManagementTab({
       typeof useStudioStore.getState
     >["entityExtractions"][number],
   ) => void;
-  setHeaderActions: (actions: ReactNode) => void;
   productionEpisodeId: string;
   scriptPlanCount: number;
   hasSeriesBible: boolean;
@@ -52,7 +49,6 @@ export function ScriptAssetManagementTab({
           entityExtractions={entityExtractions}
           extractAssets={extractAssets}
           updateExtraction={updateExtraction}
-          setHeaderActions={setHeaderActions}
         />
       </section>
 

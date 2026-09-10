@@ -2,8 +2,7 @@ import {
   useCallback,
   useMemo,
   useState,
-  type ReactNode,
-} from "react";
+  } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import aiEventAnalysisIconUrl from "@/assets/brand/ai-event-analysis-icon.svg";
@@ -63,7 +62,6 @@ export function NovelTab(props: {
   sourceBible: string;
   saveSourceBible: (text: string) => void;
   generateBibleDraft: () => Promise<string>;
-  setHeaderActions: (actions: ReactNode) => void;
 }) {
   const [importOpen, setImportOpen] = useState(false);
   const [importMode, setImportMode] = useState<"append" | "replace">("append");

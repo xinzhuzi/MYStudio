@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useProjectStore } from "@/stores/project/project-store";
 import { useStudioStore } from "@/stores/studio/studio-store";
 import { useMediaPanelStore } from "@/stores/navigation/media-panel-store";
@@ -58,10 +58,6 @@ export function useStudioViewModel() {
     workflowStage: workflowConfig.workflowStage,
     setWorkflowConfig,
   });
-  const [, setNovelHeaderActions] = useState<ReactNode>(null);
-  const [scriptHeaderActions, setScriptHeaderActions] =
-    useState<ReactNode>(null);
-  const [, setAssetsHeaderActions] = useState<ReactNode>(null);
   const [assetImageWorkflowContext, setAssetImageWorkflowContext] =
     useState<ImageWorkflowOpenContext>();
   // 08-30 残留上下文根修:离开图像阶段或离开工作流主页,资产上下文即失效——
@@ -318,7 +314,6 @@ export function useStudioViewModel() {
     sourceBible,
     saveSourceBible,
     generateSourceBibleDraft,
-    setNovelHeaderActions,
     workflowConfig,
     setWorkflowConfig,
     manualCatalog,
@@ -330,12 +325,9 @@ export function useStudioViewModel() {
     previewStageUserMessage,
     handleScriptStage,
     handleStageReview,
-    scriptHeaderActions,
-    setScriptHeaderActions,
     entityExtractions,
     handleEntityExtraction,
     saveEntityExtraction,
-    setAssetsHeaderActions,
     productionEpisodeId,
     scriptPlanCount: scriptPlans.length,
     hasSeriesBible: Boolean(seriesBible),

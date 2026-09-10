@@ -31,7 +31,6 @@ describe("ScriptTab", () => {
         manualContext=""
         directorContext=""
         styleSummary=""
-        setHeaderActions={vi.fn()}
         scriptStreaming={null}
       />,
     );
@@ -69,7 +68,7 @@ describe("ScriptTab", () => {
       "utf8",
     );
 
-    expect(source).toContain("setHeaderActions");
+    expect(source).not.toContain("setHeaderActions");
     expect(source).toContain("SCRIPT_STAGES.map");
     expect(source).not.toContain('<div className="flex gap-1 border-b border-border">');
   });
