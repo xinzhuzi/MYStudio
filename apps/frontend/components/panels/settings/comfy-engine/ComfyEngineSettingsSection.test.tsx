@@ -43,12 +43,6 @@ const actions = vi.hoisted(() => ({
 vi.mock("sonner", () => ({
   toast: { success: vi.fn(), error: vi.fn(), info: vi.fn() },
 }));
-// 模型页迁入的生图区块:黑盒桩,防其真实 hook 在 jsdom 里的探测副作用。
-vi.mock("../LocalImageSettingsSection", () => ({
-  LocalImageSettingsSection: ({ embedded }: { embedded?: boolean }) => (
-    <div data-testid="image-gen-section">{String(embedded)}</div>
-  ),
-}));
 vi.mock("./useComfyEngineSettings", () => ({
   useComfyEngineSettings: () => ({
     hasBridge: true,
@@ -562,7 +556,7 @@ describe("ComfyEngineSettingsSection 模型页", () => {
 
     expect(comfyEl("models-page")).toBeTruthy();
     expect(screen.getByText("图片大模型(本地生图,免费)")).toBeTruthy();
-    expect(screen.getByTestId("image-gen-section").textContent).toBe("true");
+    expect(screen.getByText(/独立生图模型缓存已退役清除/)).toBeTruthy();
     expect(actions.checkUpdate).not.toHaveBeenCalled();
     expect(screen.queryByText(/当前版本/)).toBeNull();
   });
@@ -572,7 +566,7 @@ describe("ComfyEngineSettingsSection 模型页", () => {
     render(<ComfyEngineSettingsSection embedded />);
 
     expect(comfyEl("models-page")).toBeTruthy();
-    expect(screen.getByTestId("image-gen-section").textContent).toBe("true");
+    expect(screen.getByText("图片大模型(本地生图,免费)")).toBeTruthy();
   });
 
   it("initialActiveTab=\"update\":挂载直落更新页并自动静默检查(去更新深链)", async () => {
@@ -602,7 +596,6 @@ describe("ComfyEngineSettingsSection 模型页", () => {
     expect(screen.getByText(/引擎尚未安装/)).toBeTruthy();
     expect(comfyEl("models-page")).toBeTruthy();
     expect(screen.getByText("图片大模型(本地生图,免费)")).toBeTruthy();
-    expect(screen.getByTestId("image-gen-section").textContent).toBe("true");
     // 未装引擎无版本/服务可管:标签页体系不出现
     expect(document.querySelector("[data-comfy-tab]")).toBeNull();
   });

@@ -46,7 +46,6 @@ import {
 import { ComfyEnginePluginBlock } from "./ComfyEnginePluginBlock";
 import { ComfyEngineStoragePaths } from "./ComfyEngineStoragePaths";
 import { useComfyEngineSettings } from "./useComfyEngineSettings";
-import { LocalImageSettingsSection } from "../LocalImageSettingsSection";
 
 /** 引擎卡标签页。「模型」为默认页(09-09 用户裁定:本地大模型展示并入引擎卡;
  *  默认落模型页 → 展开卡不再自动触发 GitHub 检查,点「更新」页才查)。 */
@@ -255,14 +254,23 @@ export function ComfyEngineSettingsSection({ embedded = false, initialActiveTab 
 
   // 模型页节点(两个落点复用):正常态在标签页体系内;引擎真未安装时也独立露出——
   // 「下载完整模型自足」路线不依赖引擎,入口不能随 notInstalled 消失(09-10 补口)。
+  // 09-10 用户裁定:老生图模式(model/imagegen 缓存+应用侧 diffusers 管线)退役,
+  // 生图模型由 ComfyUI 引擎统一装载——此卡为终态说明面,下载/探测/运行时控件全撤。
   const modelsPageNode = (
     <div className="space-y-5" data-comfy-models-page>
       <section aria-label="图片大模型" className="space-y-1.5">
         <p className="text-xs font-medium text-foreground">图片大模型(本地生图,免费)</p>
         <p className="text-xs leading-5 text-muted-foreground">
-          大件直接复用 ComfyUI 现成文件零重下,小件首次点击补齐;就绪后在 设置 → 云端AI 把「角色/场景/道具生图」绑定到「本地图片生成」提供方,即可替代云 API。
+          生图模型全部由 ComfyUI 引擎装载,生成在 ComfyUI 画布进行;应用自管的独立生图模型缓存已退役清除(09-10)。
         </p>
-        <LocalImageSettingsSection embedded />
+        <div className="space-y-1 rounded-md border border-border/60 bg-muted/30 px-2.5 py-1.5 text-[11px] leading-4 text-muted-foreground">
+          <p>
+            <span className="text-success">●</span> Krea2 Turbo(主力)— 三件已就绪:diffusion_models/krea2_turbo_bf16 · text_encoders/qwen3-vl-4b-heretic · vae/qwen_image_vae;NSFW/编辑 LoRA 栈在 loras/ 下。
+          </p>
+          <p>
+            <span className="text-muted-foreground/60">○</span> Z-Image-Turbo / FLUX.2 Klein / Qwen-Image-Edit — 大件未装;需要时经 ComfyUI 生态获取放入「存储」页模型目录即可。
+          </p>
+        </div>
       </section>
     </div>
   );
