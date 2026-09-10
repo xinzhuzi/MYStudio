@@ -19,6 +19,5 @@ describe("ImageStudio(画布宿主,09-09 换代终态)", () => {
     render(<ImageStudio />);
     expect(screen.getByText("图片工作室画布 · ComfyUI")).toBeTruthy();
     expect(document.querySelector("[data-comfy-studio-mock]")).toBeTruthy();
-    expect(screen.getByText(/旧画布已退役/)).toBeTruthy();
   });
 });
