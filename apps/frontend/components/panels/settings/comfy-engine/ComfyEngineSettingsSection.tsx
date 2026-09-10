@@ -723,9 +723,9 @@ export function ComfyEngineSettingsSection({ embedded = false, initialActiveTab 
                 </div>
               </div>
 
-              <div className="rounded-lg border border-border bg-card/60 p-3">
-                <p className="text-xs font-medium text-foreground">PyTorch</p>
-                <div className="mt-2 flex items-center justify-between gap-3">
+              {/* 09-10 用户裁定:单行横排、压低高度,去重复的「PyTorch」标题层 */}
+              <div className="rounded-lg border border-border bg-card/60 px-3 py-2">
+                <div className="flex items-center justify-between gap-3">
                   <span className="text-xs text-muted-foreground">PyTorch 版本</span>
                   <span className="font-mono text-xs text-foreground" data-comfy-torch>
                     {status?.torch ?? "未记录"}(Apple 芯片 MPS)
