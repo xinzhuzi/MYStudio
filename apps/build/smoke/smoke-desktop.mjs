@@ -1136,20 +1136,23 @@ async function verifyRoute(evaluate, route) {
         bodyTextSample: bodyText.slice(0, 800),
       });
     }, ${waitMs}));
+    let escapedFromImmersive = true;
     if (routeLabel === 'ComfyUI') {
       const orb = document.querySelector('[data-workflow-orb]');
       orb?.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, view: window }));
+      escapedFromImmersive = false;
       const entryDeadline = Date.now() + 8000;
       while (Date.now() < entryDeadline) {
         const entry = document.querySelector('[data-orb-nav-view="overview"]');
         if (entry) {
           entry.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, view: window }));
+          escapedFromImmersive = true;
           break;
         }
         await new Promise((resolve) => setTimeout(resolve, 150));
       }
     }
-    return routeResult;
+    return { ...routeResult, escapedFromImmersive };
   })()`,
     `route check: ${route.label}`,
   );

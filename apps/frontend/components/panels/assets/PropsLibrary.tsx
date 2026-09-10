@@ -481,8 +481,8 @@ export function PropsLibrary() {
               <div className="text-center">
                 <p className="text-base font-medium">道具库为空</p>
                 <p className="text-sm mt-1">
-                  在「自由」板块的图片工作室生成图片后，<br />
-                  点击「保存到道具库」即可添加道具
+                  在 ComfyUI 画布生成图片后导入项目素材，<br />
+                  或手动添加道具素材即可
                 </p>
               </div>
             </div>

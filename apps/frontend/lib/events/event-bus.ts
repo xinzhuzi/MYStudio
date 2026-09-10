@@ -2,10 +2,10 @@
  * 全局事件总线 - 跨面板通信
  * 
  * 使用方式：
- *   发送：eventBus.emit('image:generated', { url, prompt, assetId })
- *   监听：eventBus.on('image:generated', handler)
- *   取消：eventBus.off('image:generated', handler)
- *   一次性：eventBus.once('image:generated', handler)
+ *   发送：eventBus.emit('asset:updated', { id, type })
+ *   监听：eventBus.on('asset:updated', handler)
+ *   取消：eventBus.off('asset:updated', handler)
+ *   一次性：eventBus.once('asset:updated', handler)
  */
 
 // `never[]` keeps handlers contravariant for event-specific payloads while the
@@ -76,7 +76,6 @@ export const eventBus = new EventBus();
 /**
  * 已定义的事件类型（供参考，不强制）：
  * 
- * 'image:generated'     - 图片工作室生成完成 { url: string, prompt: string, sourceAssetId?: string }
  * 'image:saved'         - 图片已保存到素材 { assetId: string, filePath: string }
  * 'asset:updated'       - 素材数据更新 { id: string, type: string }
  * 'asset:deleted'       - 素材被删除 { id: string, type: string }

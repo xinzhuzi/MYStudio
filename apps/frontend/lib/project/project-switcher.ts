@@ -154,12 +154,6 @@ export async function switchProject(
     console.warn('[ProjectSwitcher] Failed to rehydrate studio workflow store:', e);
   }
 
-  try {
-    // 图片工作室画布(09-03 项目侧持久化):换项目=换画布集
-  } catch (e) {
-    console.warn('[ProjectSwitcher] Failed to rehydrate image studio store:', e);
-  }
-
   // 4. NOW sync internal activeProjectId in stores that track it.
   //    By this point, per-project data is already loaded into memory via rehydrate(),
   //    so the persist write triggered here will save the correct data (not empty defaults).

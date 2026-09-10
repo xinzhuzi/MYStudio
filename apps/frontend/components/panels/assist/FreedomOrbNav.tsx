@@ -4,7 +4,7 @@
 // Licensed under AGPL-3.0-or-later. See LICENSE for details.
 // Commercial licensing available. See COMMERCIAL_LICENSE.md.
 
-import { Mic, LayoutDashboard, NotebookTabs, Workflow as WorkflowIcon, FolderOpen, BookOpenText, Film, Boxes, Share2, Settings } from "lucide-react";
+import { Mic, Palette, LayoutDashboard, NotebookTabs, Workflow as WorkflowIcon, FolderOpen, BookOpenText, Film, Boxes, Share2, Settings } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useMediaPanelStore, type Tab } from "@/stores/navigation/media-panel-store";
 import type { StudioMode } from "@/stores/assist/freedom-store";
@@ -59,7 +59,7 @@ export function FreedomOrbNav({
             {item.id === "tts" ? (
               <Mic className="h-3.5 w-3.5 shrink-0 text-info" aria-hidden />
             ) : (
-              <WorkflowIcon className="h-3.5 w-3.5 shrink-0 text-info" aria-hidden />
+              <Palette className="h-3.5 w-3.5 shrink-0 text-info" aria-hidden />
             )}
             <span className="truncate">{item.label}</span>
           </button>

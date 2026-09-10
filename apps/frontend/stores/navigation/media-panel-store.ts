@@ -75,7 +75,7 @@ export const tabs: { [key in Tab]: { icon: LucideIcon; label: string; stage?: St
   script: { icon: FileTextIcon, label: "剧本", stage: "script" },
   characters: { icon: UsersIcon, label: "角色", stage: "assets" },
   scenes: { icon: MapPinIcon, label: "场景", stage: "assets" },
-  freedom: { icon: PaletteIcon, label: "辅助" },
+  freedom: { icon: PaletteIcon, label: "ComfyUI" },
   director: { icon: ClapperboardIcon, label: "导演", stage: "director" },
   sclass: { icon: SparklesIcon, label: "S级", stage: "director" },
   assets: { icon: FolderOpenIcon, label: "资产" },

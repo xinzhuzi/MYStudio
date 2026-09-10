@@ -287,22 +287,23 @@ export function useStudioAssetDialogActions(ctx: {
   };
 
   const handleRegenerate = async () => {
-    const currentPrompt = draftPrompt.trim()
-      || draftDescription.trim()
-      || detail.prompt?.trim()
-      || detail.description?.trim()
-      || "";
-    if (!currentPrompt) {
+    // 空描述守卫沿用(无描述无出图意义);prompt 本身不预填——画布与资产库
+    // 各走各的链路(09-10 全屏 ComfyUI 合一,旧预填+image:generated 回存已退役)。
+    const hasPrompt = Boolean(
+      draftPrompt.trim() ||
+        draftDescription.trim() ||
+        detail.prompt?.trim() ||
+        detail.description?.trim(),
+    );
+    if (!hasPrompt) {
       toast.error("没有可用于出图的描述或提示词");
       return;
     }
 
-    // 09-10 全屏 ComfyUI 合一:旧「带入图片工作室」(预填提示词+image:generated
-    // 回存)随图片工作室退役——现跳 ComfyUI 画布,出图与回存走画布/资产库各自链路。
     setActiveStudio("comfy");
     setActiveTab("freedom");
     onOpenChange(false);
-    toast.success("已打开 ComfyUI 画布，可用当前描述出图");
+    toast.success("已打开 ComfyUI 画布");
   };
 
   const handleOpenSource = async () => {

@@ -158,7 +158,7 @@ export function Layout() {
         <div className="studio-shell h-full bg-background">
           <div className="studio-main h-full">
             <Suspense fallback={<PanelFallback />}>
-              <div className="cinematic-route h-full min-h-0">
+              <div key={activeTab} className="cinematic-route h-full min-h-0">
                 <ComfyWorkspace />
               </div>
             </Suspense>
