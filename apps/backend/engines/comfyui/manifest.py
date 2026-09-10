@@ -279,13 +279,17 @@ def recorded_port(manifest: dict | None = None) -> int | None:
 
 # 09-10 用户裁定「全盘照 ComfyUI Desktop」:launchArgs 改为命令行整串(唯一真源),
 # 结构化下拉只是往串里写的快填器;推翻旧「不暴露命令行原文」口径。
-# 缺省串=09-08 对齐用户 Desktop 实跑的三参数。
-DEFAULT_LAUNCH_ARGS_STRING = "--gpu-only --reserve-vram 16 --use-pytorch-cross-attention"
+# 缺省串=09-10 用户指定全参数:口钉 17598(保留口段)+ 内建管理器 + 09-08 三参数。
+DEFAULT_LAUNCH_ARGS_STRING = "--port 17598 --enable-manager --use-pytorch-cross-attention --gpu-only --reserve-vram 16"
+# 旧档迁移也补齐新基线:口与管理器是旧 dict 表达不了的新能力,统一钉上
+# (口被占时 resolve_launch_port 按冲突策略自移,不硬死)。
+LEGACY_MIGRATION_BASELINE_FLAGS = ["--port", "17598", "--enable-manager"]
 
 
 def legacy_launch_flags(args: dict) -> str:
-    """旧三档对象 → 等效命令行串(读侧自动迁移;翻译规则=旧 build_launch_args 逐条)。"""
-    flags: list[str] = []
+    """旧三档对象 → 等效命令行串(读侧自动迁移;翻译规则=旧 build_launch_args 逐条,
+    外加新基线 --port 17598 --enable-manager)。"""
+    flags: list[str] = list(LEGACY_MIGRATION_BASELINE_FLAGS)
     vram = args.get("vramPolicy") if args.get("vramPolicy") in VRAM_POLICIES else "gpu-only"
     # 旧读侧语义:缺失/非法的 reserveVramGb 一律默认 16 → 旧有效行为恒含 --reserve-vram N
     reserve = args.get("reserveVramGb")

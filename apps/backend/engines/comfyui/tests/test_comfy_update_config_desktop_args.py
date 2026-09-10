@@ -54,7 +54,8 @@ class TestUpdateConfigLaunchString:
     def test_legacy_dict_payload_translated(self, manager):
         result = manager.update_config({"launchArgs": {"vramPolicy": "auto", "reserveVramGb": 8,
                                                         "attentionMode": "auto"}})
-        assert result["launchArgs"] == "--reserve-vram 8"
+        # 旧 dict 写入也走 legacy 翻译:翻译规则不动 + 新基线(--port 17598 --enable-manager)
+        assert result["launchArgs"] == "--port 17598 --enable-manager --reserve-vram 8"
 
 
 class TestUpdateConfigEnvAndPolicy:

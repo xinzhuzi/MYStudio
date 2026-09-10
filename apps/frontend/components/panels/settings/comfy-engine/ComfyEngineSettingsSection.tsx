@@ -760,7 +760,7 @@ export function ComfyEngineSettingsSection({ embedded = false, initialActiveTab 
                 <Input
                   value={effectiveArgs}
                   onChange={(event) => setArgsDraft(event.target.value)}
-                  placeholder="--gpu-only --reserve-vram 16 --use-pytorch-cross-attention"
+                  placeholder="--port 17598 --enable-manager --use-pytorch-cross-attention --gpu-only --reserve-vram 16"
                   containerClassName="w-full"
                   className={cn("min-w-0 font-mono text-xs", !argsTokenize.ok && "border-destructive")}
                   data-comfy-args-input

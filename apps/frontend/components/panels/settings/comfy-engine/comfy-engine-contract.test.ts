@@ -262,6 +262,18 @@ describe("launch args string helpers", () => {
     expect(applyAttentionMode(noAttn, "pytorch-cross-attention")).toBe(base);
   });
 
+  it("09-10 用户指定全参数默认串:基线 flag 透传+零警告+快填回环不丢", () => {
+    const full = "--port 17598 --enable-manager --use-pytorch-cross-attention --gpu-only --reserve-vram 16";
+    expect(tokenizeArgsString(full).ok).toBe(true);
+    expect(launchArgsWarnings(full)).toEqual([]);  // 17598=保留口段,不触大众端口黄字
+    expect(deriveLaunchDropdowns(full)).toEqual({ vram: "gpu-only", reserveGb: 16, attention: "pytorch-cross-attention" });
+    const roundTrip = applyAttentionMode(applyVramPolicy(full, "reserve-vram", 12), "pytorch-cross-attention");
+    expect(roundTrip).toContain("--port 17598");      // 口与管理器是串主人的基线,快填不许动
+    expect(roundTrip).toContain("--enable-manager");
+    expect(roundTrip).toContain("--reserve-vram 12"); // 快填改的只有自己那档(C3:预留档不带 --gpu-only)
+    expect(roundTrip).not.toContain("--gpu-only");
+  });
+
   it("快填不动串中无关 flag 及其取值(含 --port 的值)", () => {
     const base = "--port 17500 --fast --reserve-vram 8";
     const out = applyVramPolicy(base, "gpu-only", 16);

@@ -196,12 +196,12 @@ class TestBuildLaunchArgs:
         from engines.comfyui.manifest import legacy_launch_flags
         legacy = legacy_launch_flags({"vramPolicy": "gpu-only", "reserveVramGb": 16,
                                       "attentionMode": "pytorch-cross-attention"})
-        assert legacy == "--gpu-only --reserve-vram 16 --use-pytorch-cross-attention"
-        # 旧默认(缺档落 gpu-only/16/pytorch)与现默认串一致=迁移零感知
+        assert legacy == "--port 17598 --enable-manager --gpu-only --reserve-vram 16 --use-pytorch-cross-attention"
+        # 旧默认(缺档落 gpu-only/16/pytorch)翻译规则不变,只叠新基线(口+管理器)
         # 旧读侧:reserve 缺失默认 16 → 迁移后有效行为零变化(含 auto 档也带 reserve)
         assert legacy_launch_flags({}) == legacy
-        assert legacy_launch_flags({"vramPolicy": "reserve-vram"}) == "--reserve-vram 16 --use-pytorch-cross-attention"
-        assert legacy_launch_flags({"vramPolicy": "auto", "reserveVramGb": 2.5, "attentionMode": "auto"}) == "--reserve-vram 2.5"
+        assert legacy_launch_flags({"vramPolicy": "reserve-vram"}) == "--port 17598 --enable-manager --reserve-vram 16 --use-pytorch-cross-attention"
+        assert legacy_launch_flags({"vramPolicy": "auto", "reserveVramGb": 2.5, "attentionMode": "auto"}) == "--port 17598 --enable-manager --reserve-vram 2.5"
 
 
 class TestParseLaunchArgsString:
