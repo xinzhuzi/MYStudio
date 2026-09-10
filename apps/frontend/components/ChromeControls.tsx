@@ -27,7 +27,7 @@ export const SidebarToggleButton = React.forwardRef<HTMLButtonElement, SidebarTo
       <button
         ref={ref}
         type="button"
-        className={cn("chrome-control-button", className)}
+        className={cn("chrome-control-button rounded-md", className)}
         onClick={onToggleSidebar}
         aria-label={sidebarCollapsed ? "显示侧栏" : "隐藏侧栏"}
         title={sidebarCollapsed ? "显示侧栏" : "隐藏侧栏"}
@@ -50,7 +50,7 @@ export function ChromeControls({
     <div className={cn("chrome-controls", className)}>
       <button
         type="button"
-        className="chrome-control-button"
+        className="chrome-control-button rounded-md"
         onClick={onBack}
         disabled={!canGoBack}
         aria-label="返回"
@@ -60,7 +60,7 @@ export function ChromeControls({
       </button>
       <button
         type="button"
-        className="chrome-control-button"
+        className="chrome-control-button rounded-md"
         onClick={onForward}
         disabled={!canGoForward}
         aria-label="前进"

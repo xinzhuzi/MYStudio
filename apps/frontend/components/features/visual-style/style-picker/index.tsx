@@ -209,7 +209,7 @@ export function StylePicker({
               <div className="text-xs opacity-70">{previewStyle.category.toUpperCase()} · {previewStyle.mediaType}</div>
             </div>
           )}
-          <div className="absolute inset-x-0 bottom-0 bg-black/45 p-3 text-white">
+          <div className="absolute inset-x-0 bottom-0 bg-background/85 backdrop-blur-xs p-3 text-foreground border-t border-border/30">
             <div className="text-sm font-medium">{previewStyle?.name ?? "未选择"}</div>
             <div className="text-[11px] opacity-80">
               {previewStyle ? `${previewStyle.category.toUpperCase()} · ${previewStyle.mediaType}` : "不自动套用风格提示词"}
