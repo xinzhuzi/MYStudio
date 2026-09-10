@@ -37,9 +37,11 @@ function openPanel() {
 }
 
 function expandSection(title: string) {
-  fireEvent.click(
-    screen.getByRole("button", { name: new RegExp(`^${title}$`) }),
-  );
+  // 幂等:仅当收起时点开(上下文默认可能已展开)
+  const header = screen.getByRole("button", { name: new RegExp(`^${title}$`) });
+  if (header.getAttribute("aria-expanded") === "false") {
+    fireEvent.click(header);
+  }
 }
 
 describe("AppOrb(唯一悬浮球·交互回归,接棒原工作流球)", () => {
@@ -61,13 +63,17 @@ describe("AppOrb(唯一悬浮球·交互回归,接棒原工作流球)", () => {
     expect(capsule?.textContent).toContain("/");
   });
 
-  it("点击(位移小于阈值)打开面板:待推进恒显;分区默认收起", async () => {
+  it("点击(位移小于阈值)打开面板:待推进恒显;上下文默认展开(09-11 裁定)", async () => {
+    useMediaPanelStore.setState({ activeTab: "studio" });
     render(<AppOrb />);
     openPanel();
     expect(await screen.findByText(/待推进：/)).toBeTruthy();
-    const header = screen.getByRole("button", { name: /^切换阶段$/ });
-    expect(header.getAttribute("aria-expanded")).toBe("false");
-    expect(screen.getByRole("button", { name: /^前往$/ })).toBeTruthy();
+    // 工作流上下文:切换阶段默认展开(清单直接可见),前往默认收起
+    expect(screen.getByRole("group", { name: "切换阶段" })).toBeTruthy();
+    expect(
+      document.querySelectorAll("[data-orb-stage-item]").length,
+    ).toBeGreaterThan(0);
+    expect(screen.getByRole("button", { name: /^前往$/ }).getAttribute("aria-expanded")).toBe("false");
   });
 
   it("W1 回归:球内拖拽释放(pointerup+click 双到)不开面板", () => {
@@ -162,23 +168,44 @@ describe("AppOrb(唯一悬浮球·交互回归,接棒原工作流球)", () => {
 });
 
 describe("AppOrb(唯一悬浮球·全面面板)", () => {
-  it("普通视图:切换阶段+前往都在,「本视图」不在", async () => {
+  it("普通视图(资产):前往默认展开(导航首要),切换阶段收起,「本视图」不在", async () => {
+    useMediaPanelStore.setState({ activeTab: "assets" });
     render(<AppOrb />);
     openPanel();
-    expect(await screen.findByRole("button", { name: /^切换阶段$/ })).toBeTruthy();
-    expect(screen.getByRole("button", { name: /^前往$/ })).toBeTruthy();
+    expect(await screen.findByRole("group", { name: "前往" })).toBeTruthy();
+    expect(
+      document.querySelectorAll("[data-orb-nav-view]").length,
+    ).toBe(10);
+    expect(
+      screen.getByRole("button", { name: /^切换阶段$/ }).getAttribute("aria-expanded"),
+    ).toBe("false");
     expect(screen.queryByRole("button", { name: /^本视图$/ })).toBeNull();
   });
 
-  it("沉浸视图(freedom):三分区全(本视图+切换阶段+前往)", async () => {
+  it("沉浸视图(freedom):「本视图」默认展开(模块内容直接可见),其余收起", async () => {
     useMediaPanelStore.setState({ activeTab: "freedom" });
     render(<AppOrb />);
     openPanel();
-    expect(await screen.findByRole("button", { name: /^本视图$/ })).toBeTruthy();
-    expect(screen.getByRole("button", { name: /^切换阶段$/ })).toBeTruthy();
-    expect(screen.getByRole("button", { name: /^前往$/ })).toBeTruthy();
-    // 本视图条目默认收起
-    expect(screen.queryByRole("button", { name: /配音室/ })).toBeNull();
+    expect(await screen.findByRole("group", { name: "本视图" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: /配音室/ })).toBeTruthy();
+    expect(screen.getByRole("button", { name: /ComfyUI 画布/ })).toBeTruthy();
+    expect(
+      screen.getByRole("button", { name: /^前往$/ }).getAttribute("aria-expanded"),
+    ).toBe("false");
+    expect(
+      screen.getByRole("button", { name: /^切换阶段$/ }).getAttribute("aria-expanded"),
+    ).toBe("false");
+  });
+
+  it("「前往」高亮当前模块(09-11:不同模块不同效果)", async () => {
+    useMediaPanelStore.setState({ activeTab: "assets" });
+    render(<AppOrb />);
+    openPanel();
+    await screen.findByRole("group", { name: "前往" });
+    const active = document.querySelector('[data-orb-nav-view="assets"]');
+    expect(active?.classList.contains("bg-accent/60")).toBe(true);
+    const inactive = document.querySelector('[data-orb-nav-view="overview"]');
+    expect(inactive?.classList.contains("bg-accent/60")).toBe(false);
   });
 
   it("展开「前往」:10 视口可跳(含本地模型),落 media-panel", async () => {

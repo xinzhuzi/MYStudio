@@ -22,6 +22,7 @@ import {
 } from "lucide-react";
 import { OrbSection, type OrbSectionProps } from "@/components/orbs";
 import { useMediaPanelStore, type Tab } from "@/stores/navigation/media-panel-store";
+import { cn } from "@/lib/utils";
 
 const VIEW_ENTRIES: ReadonlyArray<{ id: Tab; label: string; icon: typeof LayoutDashboard }> = [
   { id: "dashboard", label: "主页", icon: LayoutDashboard },
@@ -37,12 +38,15 @@ const VIEW_ENTRIES: ReadonlyArray<{ id: Tab; label: string; icon: typeof LayoutD
   { id: "settings", label: "设置", icon: Settings },
 ];
 
-/** 「前往」分区:应用模块导航(9 视口),两球共有。
- * 开合态由调用方持有(默认收起,面板重开回默认)。 */
+/** 「前往」分区:应用模块导航(10 视口)。开合态由调用方持有;
+ * activeTab 传入时高亮当前模块(09-11 裁定:不同模块不同效果)。 */
 export function OrbGotoSection({
+  activeTab,
   open,
   onToggle,
-}: Pick<OrbSectionProps, "open" | "onToggle">) {
+}: Pick<OrbSectionProps, "open" | "onToggle"> & {
+  activeTab?: Tab;
+}) {
   const setActiveTab = useMediaPanelStore((state) => state.setActiveTab);
   return (
     <OrbSection section="goto" title="前往" open={open} onToggle={onToggle}>
@@ -52,7 +56,12 @@ export function OrbGotoSection({
             key={item.id}
             type="button"
             data-orb-nav-view={item.id}
-            className="flex items-center gap-1.5 rounded-md px-2 py-1.5 text-left text-xs text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+            className={cn(
+              "flex items-center gap-1.5 rounded-md px-2 py-1.5 text-left text-xs transition-colors hover:bg-accent hover:text-foreground",
+              item.id === activeTab
+                ? "bg-accent/60 text-foreground"
+                : "text-muted-foreground",
+            )}
             onClick={() => setActiveTab(item.id)}
           >
             <item.icon className="h-3.5 w-3.5 shrink-0" aria-hidden />

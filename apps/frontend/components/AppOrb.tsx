@@ -11,7 +11,7 @@
 // 交互壳=@/components/orbs(零业务依赖);分区=features/orb-nav 共享组件。
 // 分镜面板入口刻意不进(2026-08-23 唯一入口=节点图「分镜面板」的「进入」)。
 
-import { useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { toast } from "sonner";
 import { Mic, Palette } from "lucide-react";
 import {
@@ -20,7 +20,7 @@ import {
   WORKFLOW_ORB_POSITION_KEY,
 } from "@/components/orbs";
 import { OrbGotoSection, OrbStagesSection } from "@/components/features/orb-nav";
-import { useMediaPanelStore } from "@/stores/navigation/media-panel-store";
+import { useMediaPanelStore, type Tab } from "@/stores/navigation/media-panel-store";
 import { useFreedomStore, type StudioMode } from "@/stores/assist/freedom-store";
 import { useStudioStore } from "@/stores/studio/studio-store";
 import { useWorkflowReadiness, resolveVisibleWorkflowStage } from "@/components/panels/studio/workflow-stage";
@@ -32,6 +32,17 @@ const MODE_ENTRIES: ReadonlyArray<{ id: StudioMode; label: string; icon: typeof 
   { id: "comfy", label: "ComfyUI 画布", icon: Palette },
   { id: "tts", label: "配音室", icon: Mic },
 ];
+
+/** 上下文默认(09-11 裁定:进不同模块默认展开该模块自己的分区):
+ * 工作流→切换阶段;本地模型→本视图;其他视图→前往(导航是首要诉求)。
+ * 其余分区默认收起;面板重开/切换视图都回当前视图默认。 */
+function sectionDefaults(tab: Tab) {
+  return {
+    views: tab === "freedom",
+    stages: tab === "studio",
+    goto: tab !== "freedom" && tab !== "studio",
+  };
+}
 
 /** 全应用唯一悬浮球。任何阶段点击=手册门禁后落工作流阶段档并跳工作流视图
  * (工作流视图内即就地切换,setActiveTab 为幂等空操作)。 */
@@ -66,9 +77,15 @@ export function AppOrb() {
     episodeId: resolveProductionEpisodeId(useStudioStore.getState()),
   });
 
-  const [stagesOpen, setStagesOpen] = useState(false);
-  const [viewsOpen, setViewsOpen] = useState(false);
-  const [gotoOpen, setGotoOpen] = useState(false);
+  // 分区开合=上下文默认起步;视图切换即重置到新视图的默认(09-11 裁定)
+  const [sections, setSections] = useState(() => sectionDefaults(activeTab));
+  const lastTabRef = useRef(activeTab);
+  useEffect(() => {
+    if (lastTabRef.current !== activeTab) {
+      lastTabRef.current = activeTab;
+      setSections(sectionDefaults(activeTab));
+    }
+  }, [activeTab]);
 
   const activeStage = resolveVisibleWorkflowStage(workflowConfig.workflowStage);
   // 「本视图」分区仅沉浸态有意义(画布/配音室切换)
@@ -137,8 +154,10 @@ export function AppOrb() {
               <OrbSection
                 section="views"
                 title="本视图"
-                open={viewsOpen}
-                onToggle={() => setViewsOpen((open) => !open)}
+                open={sections.views}
+                onToggle={() =>
+                  setSections((s) => ({ ...s, views: !s.views }))
+                }
               >
                 <div className="grid grid-cols-2 gap-1">
                   {MODE_ENTRIES.map((item) => (
@@ -166,12 +185,15 @@ export function AppOrb() {
               activeStage={activeStage}
               onStageChange={handleStageChange}
               onClose={close}
-              open={stagesOpen}
-              onToggle={() => setStagesOpen((open) => !open)}
+              open={sections.stages}
+              onToggle={() =>
+                setSections((s) => ({ ...s, stages: !s.stages }))
+              }
             />
             <OrbGotoSection
-              open={gotoOpen}
-              onToggle={() => setGotoOpen((open) => !open)}
+              activeTab={activeTab}
+              open={sections.goto}
+              onToggle={() => setSections((s) => ({ ...s, goto: !s.goto }))}
             />
           </div>
         </div>
