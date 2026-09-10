@@ -127,7 +127,7 @@ const CORE_ROUTE_CHECKS = [
   {
     // 09-10 拆双球:沉浸视图零应用 chrome,断言锚=本地模型球胶囊的当前模式名
     // (胶囊恒在 DOM,opacity 藏但 innerText 可读;任何画布态都在场)。
-    label: "ComfyUI",
+    label: "本地模型",
     requiredText: ["ComfyUI 画布"],
     waitMs: 2_500,
   },
@@ -1137,7 +1137,7 @@ async function verifyRoute(evaluate, route) {
       });
     }, ${waitMs}));
     let escapedFromImmersive = true;
-    if (routeLabel === 'ComfyUI') {
+    if (routeLabel === '本地模型') {
       // 09-10 拆双球:沉浸视图=本地模型球,逃逸三步=点球→展开「前往」分区→点概览。
       // 分区默认收起(条件渲染),「前往」条目不展开不可见;两段式防抖等待保留。
       const orb = document.querySelector('[data-local-model-orb]');

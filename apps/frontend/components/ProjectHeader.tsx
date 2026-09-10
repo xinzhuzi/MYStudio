@@ -18,7 +18,7 @@ const WORKSPACE_LABELS: Partial<Record<Tab, string>> = {
   script: "策划编剧",
   characters: "角色库",
   scenes: "场景库",
-  freedom: "ComfyUI 工作台",
+  freedom: "本地模型工作台",
   director: "导演工作台",
   sclass: "S级镜头",
   assets: "资产库",
