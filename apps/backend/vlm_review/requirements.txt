@@ -3,3 +3,4 @@ mlx-vlm>=0.1.0
 torch>=2.5.1
 transformers>=4.44.0
 huggingface_hub>=0.23.0
+requests>=2.31.0  # download_model.py ModelScope 直链探测

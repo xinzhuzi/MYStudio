@@ -20,7 +20,12 @@ import time
 import urllib.request
 from pathlib import Path
 
-from engines.video_qc_engine.model_cache import VIDEO_QC_MODELS, cached_model_path, primary_model_dir
+from engines.video_qc_engine.model_cache import (
+    VIDEO_QC_MODELS,
+    cached_model_path,
+    primary_model_dir,
+    verify_model_sha256,
+)
 
 
 def _write_progress(path: Path, payload: dict) -> None:
@@ -75,20 +80,33 @@ def download_model(model_name: str, progress_path: Path) -> int:
         if spec["sources"]:
             from huggingface_hub import snapshot_download
 
-            def _snapshot(endpoint: str) -> None:
-                snapshot_download(
-                    repo_id=spec["sources"][0][0],
-                    filename=spec["sources"][0][1],
-                    cache_dir=str(cache_dir),
-                    endpoint=endpoint,
-                )
-
+            repo_id, file_name = spec["sources"][0]
             try:
-                _snapshot("https://modelscope.cn")
-            except Exception:
-                _snapshot("https://huggingface.co")
+                # ModelScope 直链优先(实测 ~4-18MB/s;endpoint 参数路线协议不兼容从未生效,
+                # 见 common/modelscope_hub.py 模块头)。失败落痕后回退 HF。
+                from common.modelscope_hub import download_repo_to_hf_cache
+
+                download_repo_to_hf_cache(repo_id, str(cache_dir), allow_paths=[file_name])
+            except Exception as exc:
+                print(f"[download] ModelScope 直链失败,回退 HF: {exc}", file=sys.stderr, flush=True)
+                snapshot_download(repo_id=repo_id, filename=file_name, cache_dir=str(cache_dir))
         if spec["url"] and not dest.is_file():
             _download_direct(spec["url"], dest, spec["size_mb"], report)
+        # 09-10 P1:完成前校验指纹——此前坏文件(截断/损坏)也报 complete,
+        # 缓存层强校验永卡 blocked 且永不再下;此处验败自动清坏文件,下次下载可自愈。
+        verified, evidence = verify_model_sha256(model_name)
+        if not verified:
+            cleaned = False
+            if evidence not in ("unknown-model", "model-not-downloaded") and Path(evidence).is_file():
+                Path(evidence).unlink(missing_ok=True)
+                cleaned = True
+            report(
+                "error",
+                0,
+                0,
+                error="模型文件校验失败,已自动清理坏文件,请重试下载" if cleaned else f"下载后未找到可用模型文件: {evidence}",
+            )
+            return 2
         report("complete", spec["size_mb"] * 1024 * 1024, 100)
         return 0
     except Exception as exc:

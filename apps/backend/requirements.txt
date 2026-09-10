@@ -2,6 +2,7 @@
 fastapi
 uvicorn
 huggingface_hub>=0.23.0
+requests>=2.31.0  # common/modelscope_hub.py 直链下载(ModelScope REST + Range 断点续传)
 numpy>=1.24.0
 miniaudio>=1.59
 transformers>=4.44.0

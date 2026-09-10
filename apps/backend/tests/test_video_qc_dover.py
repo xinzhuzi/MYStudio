@@ -237,3 +237,40 @@ class VideoQcWorkerContractTest(unittest.TestCase):
             with patch.object(worker, "score_video", side_effect=VideoQcError("score-failed", "boom")):
                 blocked = worker._run(str(request), str(Path(temp) / "artifact.json"))
             self.assertEqual((blocked["code"], blocked["message"]), ("score-failed", "boom"))
+
+
+class DownloadModelVerifyTest(unittest.TestCase):
+    """09-10 P1 回归:下载完成必须过指纹校验;验败自动清坏文件可自愈。
+
+    病灶:complete 无条件上报——坏文件(截断/损坏)永不重下,缓存层强校验
+    probe 永卡 blocked,用户需手删文件。修复:verify_model_sha256 验败即
+    unlink 坏文件并报 error。
+    """
+
+    def _download(self, verify_result) -> tuple[int, dict]:
+        from video_qc import download_model as downloader
+
+        work = Path(tempfile.mkdtemp())
+        with (
+            patch("common.modelscope_hub.download_repo_to_hf_cache"),
+            patch.object(downloader, "_download_direct"),
+            patch.object(downloader, "primary_model_dir", return_value=work),
+            patch.object(downloader, "verify_model_sha256", return_value=verify_result),
+        ):
+            rc = downloader.download_model("dover-mobile", work / "progress.json")
+        payload = json.loads((work / "progress.json").read_text(encoding="utf-8"))
+        return rc, payload
+
+    def test_mismatch_auto_cleans_bad_file(self):
+        evidence_file = Path(tempfile.mkdtemp()) / "dover_mobile.pth"
+        evidence_file.write_bytes(b"corrupt-weight")
+        rc, payload = self._download((False, str(evidence_file)))
+        self.assertEqual(rc, 2)
+        self.assertEqual(payload["status"], "error")
+        self.assertIn("校验失败", payload["error"])
+        self.assertFalse(evidence_file.exists(), "坏文件应被自动清理以便下次重下")
+
+    def test_verified_download_reports_complete(self):
+        rc, payload = self._download((True, "/dev/null"))
+        self.assertEqual(rc, 0)
+        self.assertEqual(payload["status"], "complete")
