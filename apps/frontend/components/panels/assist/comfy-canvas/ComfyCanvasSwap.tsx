@@ -6,12 +6,18 @@
 /**
  * 画布槽位(09-09 换代批6 终态):ComfyUI 画布 + 旧画布退役占位。
  * 旧 React Flow 画布已退役删除;存量数据冻结在 store(深链照常读写),
- * 画布化操作全走 ComfyUI(工作流库「导入存量画布」)。
+ * 画布化操作全走 ComfyUI。存量迁移入口=头部「导入存量画布」一键批量
+ * 入库(库=ComfyUI 原生用户工作流目录,webview 工作流菜单立即可见;
+ * 09-09 存量迁移链打通,原 comfy-workflow-browser 已随之退役)。
  */
 
+import { useState } from "react";
 import type { ReactNode } from "react";
+import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ComfyCanvasStudio } from "./ComfyCanvasStudio";
+import { migrateWorkflowsToLibraryWithToast } from "@/lib/assist/image-studio/workflow-migrate-batch";
+import { useStudioStore } from "@/stores/studio/studio-store";
 
 export function ComfyCanvasSwap({
   title,
@@ -24,6 +30,19 @@ export function ComfyCanvasSwap({
   legacy?: ReactNode;
 }) {
   void legacy;
+  const legacyCount = useStudioStore((state) => state.imageWorkflows.length);
+  const [migrating, setMigrating] = useState(false);
+
+  const runMigration = async () => {
+    if (migrating) return; // 单飞:连点只跑一次
+    setMigrating(true);
+    try {
+      await migrateWorkflowsToLibraryWithToast();
+    } finally {
+      setMigrating(false);
+    }
+  };
+
   return (
     <div className="flex h-full min-h-0 flex-col" data-comfy-swap="comfy">
       <div className="flex shrink-0 items-center justify-between gap-2 border-b border-border px-3 py-1.5">
@@ -35,9 +54,22 @@ export function ComfyCanvasSwap({
           ) : null}
           <span className="text-xs font-medium text-foreground">{title}</span>
         </div>
-        <span className="text-[11px] text-muted-foreground">
-          旧画布已退役——存量数据与生成链保留;画布操作全在 ComfyUI(工作流库可一键导入存量)
-        </span>
+        <div className="flex items-center gap-2">
+          {legacyCount > 0 ? (
+            <Button
+              size="sm"
+              variant="secondary"
+              className="h-7 px-2 text-xs"
+              disabled={migrating}
+              data-comfy-swap-migrate
+              onClick={() => void runMigration()}
+            >
+              {migrating ? <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" aria-hidden /> : null}
+              {migrating ? "迁移中…" : `导入存量画布(${legacyCount})`}
+            </Button>
+          ) : null}
+          <span className="text-[11px] text-muted-foreground">旧画布已退役,画布操作全在 ComfyUI</span>
+        </div>
       </div>
       <ComfyCanvasStudio embedded />
     </div>

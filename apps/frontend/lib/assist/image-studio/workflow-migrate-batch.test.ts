@@ -39,7 +39,7 @@ function makeDeps(overrides: Partial<MigrateBatchDeps> = {}) {
     flows: [flow("道劫41", true), flow("自由流", false), emptyFlow("空图")],
     transport: {
       importFiles: async (files, mode) => {
-        expect(mode).toBe("keep-both");
+        expect(mode).toBe("skip"); // 无值守入口默认幂等 skip(09-09 迁移链打通)
         importedFiles.push(...files);
         return files.map(
           (file): ComfyWorkflowImportFileResult => ({ name: file.name, status: "imported", id: `id-${file.name}` }),

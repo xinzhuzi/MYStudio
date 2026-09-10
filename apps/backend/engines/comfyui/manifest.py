@@ -141,6 +141,14 @@ def configured_workflows_dir(manifest: dict | None = None) -> Path:
     d = manifest.get("workflowsDir")
     if isinstance(d, str) and d.strip():
         return Path(d).expanduser()
+    # 工作流库=ComfyUI 原生用户工作流目录:引擎 webview 的工作流菜单直接可见,
+    # 导入即达(09-09 存量迁移链打通);旧默认 <home>/workflows 由
+    # plugin_manager.merge_legacy_workflows_dir 非破坏并入。
+    return engine_source_dir() / "user" / "default" / "workflows"
+
+
+def legacy_workflows_dir() -> Path:
+    """旧默认工作流库(存量装机兼容);首次库操作时非破坏并入新库。"""
     return comfy_home() / "workflows"
 
 

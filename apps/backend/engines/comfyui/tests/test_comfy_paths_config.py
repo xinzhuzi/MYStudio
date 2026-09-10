@@ -32,7 +32,10 @@ def test_paths_default_layout(home):
     manifest = cm.default_manifest()
     assert cm.configured_engine_dir(manifest) == home / "ComfyUI"
     assert cm.configured_venv_dir(manifest) == home / "venv"
-    assert cm.configured_workflows_dir(manifest) == home / "workflows"
+    # 工作流库默认=ComfyUI 原生用户目录(引擎 webview 工作流菜单直接可见,
+    # 09-09 存量迁移链打通);旧默认目录经 merge_legacy_workflows_dir 并入
+    assert cm.configured_workflows_dir(manifest) == home / "ComfyUI" / "user" / "default" / "workflows"
+    assert cm.legacy_workflows_dir() == home / "workflows"
     assert cm.configured_models_dir(manifest) == home / "models"
 
 

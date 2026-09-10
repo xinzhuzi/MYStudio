@@ -1145,7 +1145,7 @@ class EngineManager:
                 "engineDir": str(cm.comfy_home() / "ComfyUI"),
                 "venvDir": str(cm.comfy_home() / "venv"),
                 "modelsDir": str(cm.comfy_home() / "models"),
-                "workflowsDir": str(cm.comfy_home() / "workflows"),
+                "workflowsDir": str(cm.configured_workflows_dir(cm.default_manifest())),
             },
             "customized": {
                 "engineDir": bool(manifest.get("engineDir")),

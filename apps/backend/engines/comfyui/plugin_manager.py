@@ -511,7 +511,32 @@ def scan_workflow_references(node_types: set[str]) -> list[dict]:
     return references
 
 
+def merge_legacy_workflows_dir() -> list[str]:
+    """旧默认库(<home>/workflows)非破坏并入当前库(同名不覆盖,旧文件不动)。
+
+    09-09 存量迁移链打通:库目录统一为 ComfyUI 原生用户工作流目录后,
+    老装机旧库里可能还有种子模板/早期导入——首次库操作时并入一次(幂等)。
+    """
+    old = cm.legacy_workflows_dir()
+    new = cm.workflows_dir()
+    if old == new or not old.is_dir():
+        return []
+    copied: list[str] = []
+    for src in sorted(old.rglob("*.json")):
+        if not src.is_file():
+            continue
+        rel = src.relative_to(old)
+        dest = new / rel
+        if dest.exists():
+            continue
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(src, dest)
+        copied.append(rel.as_posix())
+    return copied
+
+
 def _iter_workflow_files():
+    merge_legacy_workflows_dir()  # 库读取咽喉:顺手并入旧库(幂等,stat 级开销)
     root = cm.workflows_dir()
     if not root.is_dir():
         return []
@@ -747,6 +772,7 @@ def read_workflow(workflow_id: str) -> dict:
 
 def import_workflows(files: list[dict], overwrite: bool = False) -> dict:
     """外部工作流显式复制入库(同名冲突由前端弹窗先问,overwrite 才覆盖)。"""
+    merge_legacy_workflows_dir()  # 导入前并入旧库(可能不经过列表直达导入)
     if not isinstance(files, list) or not files:
         raise EngineOpError("files 不能为空")
     imported, skipped = [], []
@@ -763,7 +789,9 @@ def import_workflows(files: list[dict], overwrite: bool = False) -> dict:
             raise EngineOpError(f"{name} 不是有效的 JSON,已取消导入")
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_text(content, encoding="utf-8")
-        imported.append(target.relative_to(cm.workflows_dir()).as_posix())
+        # 根须 resolve 对齐 _safe_workflow_id(库根带符号链接前缀时,
+        # 未 resolve 的 relative_to 会 400 而文件已落盘——09-09 实弹抓出)
+        imported.append(target.relative_to(cm.workflows_dir().resolve()).as_posix())
     return {"imported": imported, "skipped": skipped}
 
 
@@ -778,7 +806,7 @@ def rename_workflow(workflow_id: str, new_name: str) -> dict:
         raise EngineOpError(f"已有同名工作流: {new_path.stem}")
     new_path.write_text(path.read_text(encoding="utf-8", errors="replace"), encoding="utf-8")
     path.unlink()
-    return {"id": new_path.relative_to(cm.workflows_dir()).as_posix()}
+    return {"id": new_path.relative_to(cm.workflows_dir().resolve()).as_posix()}
 
 
 def move_workflow(workflow_id: str, to_dir: str) -> dict:
@@ -793,12 +821,13 @@ def move_workflow(workflow_id: str, to_dir: str) -> dict:
             raise EngineOpError("目标位置是文件不是目录")
         target_dir.mkdir(parents=True, exist_ok=True)
     else:
-        target_dir = cm.workflows_dir()
+        # 与 _safe_workflow_id 同源 resolve:防符号链接前缀错位
+        target_dir = cm.workflows_dir().resolve()
     target = target_dir / path.name
     if target.exists():
         raise EngineOpError(f"目标目录已有同名工作流: {path.name}")
     shutil.move(str(path), str(target))
-    return {"id": target.relative_to(cm.workflows_dir()).as_posix()}
+    return {"id": target.relative_to(cm.workflows_dir().resolve()).as_posix()}
 
 
 def delete_workflow(workflow_id: str, confirm: bool = False) -> dict:

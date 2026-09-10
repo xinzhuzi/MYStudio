@@ -157,3 +157,63 @@ class TestWorkflowFileOps:
         refs = pm.scan_workflow_references({"rgthree.abc", "NotFound"})
         assert [r["workflow"] for r in refs] == ["sub/编辑流.json"]
         assert refs[0]["usedTypes"] == ["rgthree.abc"]
+
+    # ── 库目录统一(09-09 存量迁移链打通) ──────────────────────────
+
+    def test_import_lands_in_native_user_workflows_dir(self, tmp_path, monkeypatch):
+        home = self._import_two(tmp_path, monkeypatch)
+        native = home / "ComfyUI" / "user" / "default" / "workflows"
+        assert (native / "K2 流.json").is_file()
+        assert (native / "sub" / "编辑流.json").is_file()
+
+    def test_legacy_default_dir_merged_non_destructively(self, tmp_path, monkeypatch):
+        home = self._import_two(tmp_path, monkeypatch)
+        native = cm.workflows_dir()
+        # 旧库种子 + 与新库同名冲突文件并存
+        old = home / "workflows"
+        (old / "组").mkdir(parents=True)
+        (old / "组" / "旧种子.json").write_text(json.dumps({"1": {"class_type": "Legacy"}}), encoding="utf-8")
+        (old / "K2 流.json").write_text(json.dumps({"1": {"class_type": "ShouldNotOverwrite"}}), encoding="utf-8")
+
+        listing = pm.list_workflows()
+        by_id = {w["id"]: w for w in listing["workflows"]}
+        assert "组/旧种子.json" in by_id  # 旧库并入后列表可见
+        # 同名不覆盖:新库内容保持 import 原值,旧文件原样保留
+        assert json.loads((native / "K2 流.json").read_text(encoding="utf-8"))["1"]["class_type"] == "KSampler"
+        assert json.loads((old / "K2 流.json").read_text(encoding="utf-8"))["1"]["class_type"] == "ShouldNotOverwrite"
+
+        again = pm.list_workflows()  # 幂等:二次触达不重复不报错
+        assert len(again["workflows"]) == len(listing["workflows"])
+
+    def test_explicit_workflows_dir_equal_legacy_is_noop(self, tmp_path, monkeypatch):
+        home = _use_tmp_home(tmp_path, monkeypatch)
+        legacy = home / "workflows"
+        legacy.mkdir(parents=True)
+        (legacy / "a.json").write_text(json.dumps({"1": {"class_type": "X"}}), encoding="utf-8")
+        cm.mutate_manifest(lambda m: m.update({"workflowsDir": str(legacy)}))
+        assert cm.workflows_dir() == legacy
+        assert pm.merge_legacy_workflows_dir() == []  # old==new 直接短路
+        listing = pm.list_workflows()
+        assert [w["id"] for w in listing["workflows"]] == ["a.json"]
+
+    def test_symlinked_home_prefix_survives_import_and_move(self, tmp_path, monkeypatch):
+        """实弹回归:库根带符号链接前缀(macOS /var→/private/var)时,
+        _safe_workflow_id 已 resolve 而 relative_to 根未 resolve → 嵌套导入
+        400 且文件已落盘的半完成态。import/rename/move 三口必须同源 resolve。"""
+        real = tmp_path / "real-home"
+        real.mkdir()
+        alias = tmp_path / "alias-home"
+        alias.symlink_to(real)
+        monkeypatch.setenv("MYSTUDIO_COMFYUI_HOME", str(alias / "comfyui"))
+
+        result = pm.import_workflows([
+            {"name": "导入/新流.json", "content": json.dumps({"1": {"class_type": "Fresh"}})},
+        ])
+        assert result["imported"] == ["导入/新流.json"]
+
+        renamed = pm.rename_workflow("导入/新流.json", "改名流")
+        assert renamed["id"] == "导入/改名流.json"  # rename 在原文件夹内改名
+        moved = pm.move_workflow("导入/改名流.json", "归档")
+        assert moved["id"] == "归档/改名流.json"
+        listing = pm.list_workflows()
+        assert [w["id"] for w in listing["workflows"]] == ["归档/改名流.json"]

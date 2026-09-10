@@ -105,7 +105,9 @@ export async function migrateWorkflowsToLibrary(
   if (files.length > 0) {
     const results: ComfyWorkflowImportFileResult[] = await resolved.transport.importFiles(
       files,
-      options.conflictMode ?? "keep-both",
+      // 无值守入口(画布头部按钮)默认 skip:重复点击幂等,只补新增流,
+      // 绝不改名灌「名 2」副本(keep-both 留给显式导入弹窗)
+      options.conflictMode ?? "skip",
     );
     for (const item of results) {
       if (item.status === "failed") {
@@ -135,7 +137,7 @@ export async function migrateWorkflowsToLibraryWithToast(deps: Partial<MigrateBa
     return summary;
   }
   const refSuffix = summary.referencesSkipped > 0 ? `;参考图 ${summary.referencesUploaded} 张已传、${summary.referencesSkipped} 张跳过(见日志注记)` : `;参考图 ${summary.referencesUploaded} 张已上传`;
-  toast.success(`存量画布迁移入库:${summary.imported} 入库 / ${summary.failed} 失败${refSuffix}`);
+  toast.success(`存量画布迁移入库:${summary.imported} 入库 / ${summary.failed} 失败${refSuffix}——在 ComfyUI 画布左侧「工作流」里可打开`);
   for (const note of summary.notes.slice(0, 3)) {
     toast.warning(note);
   }
