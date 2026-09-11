@@ -130,12 +130,15 @@ export function AppOrb() {
   const ballContent: ReactNode = inStudio ? (
     <>
       <ProgressRing readiness={readiness} />
-      <span className="absolute inset-0 flex items-center justify-center text-sm font-semibold text-foreground">
+      <span className="absolute inset-0 flex items-center justify-center text-sm font-semibold tabular-nums text-foreground drop-shadow-[0_1px_2px_rgba(0,0,0,0.45)]">
         {stageNumber || total}
       </span>
     </>
   ) : (
-    <Compass className="h-5 w-5 text-foreground" aria-hidden />
+    <Compass
+      className="h-5 w-5 text-foreground drop-shadow-[0_1px_2px_rgba(0,0,0,0.35)]"
+      aria-hidden
+    />
   );
 
   return (
@@ -215,7 +218,8 @@ export function AppOrb() {
   );
 }
 
-/** 六段进度弧:ready=success / active=warning / blocked=muted(仅工作流球面渲染)。 */
+/** 六段进度弧:ready=success / active=warning(加重+柔光=状态指示)/ blocked=muted
+ * (仅工作流球面渲染;09-11 质感:激活段 strokeWidth 3.5 + 低强度 drop-shadow)。 */
 function ProgressRing({ readiness }: { readiness: WorkflowReadiness }) {
   const radius = 20;
   const circumference = 2 * Math.PI * radius;
@@ -243,13 +247,13 @@ function ProgressRing({ readiness }: { readiness: WorkflowReadiness }) {
           cy="24"
           r={radius}
           fill="none"
-          strokeWidth="3"
+          strokeWidth={stage.status === "active" ? 3.5 : 3}
           strokeLinecap="round"
           strokeDasharray={`${Math.max(segmentLength, 0)} ${circumference - Math.max(segmentLength, 0)}`}
           strokeDashoffset={-(index * circumference) / readiness.stages.length}
           className={cn(
             stage.status === "ready" && "stroke-success",
-            stage.status === "active" && "stroke-warning",
+            stage.status === "active" && "stroke-warning drop-shadow-[0_0_3px_currentColor]",
             stage.status === "blocked" && "stroke-muted-foreground/40",
           )}
         />

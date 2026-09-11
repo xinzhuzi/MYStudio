@@ -230,7 +230,7 @@ export function OrbShell({
             // Dialog(z-[250])与面板本体(z-[300])——弹窗打开时球沉到遮罩之下,不可点。
             zIndex: 40,
           }}
-          className="group flex h-12 w-12 cursor-grab items-center justify-center rounded-full border border-border/70 bg-card/90 shadow-[0_6px_20px_rgba(0,0,0,0.35)] backdrop-blur-md outline-none focus-visible:ring-2 focus-visible:ring-ring active:cursor-grabbing"
+          className="group flex h-12 w-12 cursor-grab items-center justify-center rounded-full outline-none active:cursor-grabbing"
           ref={orbRef}
           onPointerDown={(event) => {
             activePointerIdRef.current = event.pointerId;
@@ -266,13 +266,23 @@ export function OrbShell({
             setPosition(snapped);
           }}
         >
-          {ballContent}
+          {/* 球体皮肤层(09-11 质感升级,apple-design §12 材质与分层):
+              玻璃面(半透明底+blur+saturate)+顶部内高光(光落在材料上)+分层投影
+              (近距环境影+远距主影);缩放反馈独立于 motion 的拖拽 transform。
+              悬停=1.06 提起(150ms ease-out),按压=0.92 即时(Apple §1 按下即反馈);
+              Electron 桌面鼠标环境,悬停免 pointer 门控;motion-reduce 全静。 */}
+          <div className="pointer-events-none absolute -inset-1.5 rounded-full bg-primary/15 opacity-0 blur-md transition-opacity duration-200 group-hover:opacity-100 motion-reduce:transition-none" />
+          <div className="relative flex h-12 w-12 items-center justify-center rounded-full border border-white/12 bg-card/85 shadow-[inset_0_1px_0_rgba(255,255,255,0.16),inset_0_-1px_0_rgba(0,0,0,0.22),0_2px_6px_rgba(0,0,0,0.25),0_10px_28px_rgba(0,0,0,0.4)] backdrop-blur-md backdrop-saturate-150 transition-transform duration-150 ease-out group-hover:scale-[1.06] group-active:scale-[0.92] motion-reduce:transition-none motion-reduce:transform-none">
+            {ballContent}
+          </div>
           <span
             data-orb-capsule
             aria-hidden
             className={cn(
-              "pointer-events-none absolute whitespace-nowrap rounded-full border border-border/70 bg-card/95 px-3 py-1.5 text-xs text-foreground shadow-[0_6px_20px_rgba(0,0,0,0.3)] opacity-0 backdrop-blur-md transition-opacity duration-150 group-hover:opacity-100",
-              capsuleOnLeft ? "right-full mr-3" : "left-full ml-3",
+              "pointer-events-none absolute whitespace-nowrap rounded-full border border-white/12 bg-card/90 px-3 py-1.5 text-xs text-foreground shadow-[inset_0_1px_0_rgba(255,255,255,0.12),0_6px_20px_rgba(0,0,0,0.35)] opacity-0 backdrop-blur-md transition-[opacity,transform] duration-200 ease-out group-hover:opacity-100 motion-reduce:transition-none",
+              capsuleOnLeft
+                ? "right-full mr-3 translate-x-1 group-hover:translate-x-0"
+                : "left-full ml-3 -translate-x-1 group-hover:translate-x-0",
               panelOpen && "hidden",
             )}
           >
@@ -284,7 +294,11 @@ export function OrbShell({
         align="start"
         side="top"
         collisionPadding={12}
-        className={cn("w-80 p-2", panelClassName)}
+        className={cn(
+          // 09-11 质感:面板=更厚实的玻璃面(更大 surface=更强 blur+更深影,apple-design §12)
+          "w-80 border-white/12 bg-popover/95 p-2 shadow-[0_12px_40px_rgba(0,0,0,0.45)] backdrop-blur-xl backdrop-saturate-150",
+          panelClassName,
+        )}
         onCloseAutoFocus={(event) => {
           // Anchor(非 Trigger)模式下 Radix 不自动回焦,手动回球保键盘路径
           event.preventDefault();
