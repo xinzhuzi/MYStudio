@@ -26,8 +26,11 @@ import {
 /** 位移小于该阈值判定为点击(开面板),否则视为拖拽。 */
 const CLICK_THRESHOLD_PX = 6;
 const VIEWPORT_FALLBACK = { width: 1440, height: 900 };
-/** 滚动星球(09-11):每像素位移折算的球面滚动量(经纬纹理平移 px)。 */
-const ROLL_PX_PER_DRAG_PX = 0.7;
+/** 滚动星球(09-11 真 3D 轮):每像素位移折算的球体旋转角(deg)。 */
+const ROLL_DEG_PER_DRAG_PX = 0.55;
+/** 真 3D 经纬球几何:经线每 30° 一圈;纬线 ±45°(半径=cosφ·R,高度=sinφ·R)。 */
+const MERIDIANS = [0, 30, 60, 90, 120, 150];
+const PARALLEL_DEGS = [45, -45];
 
 /** 实时视口(09-10 实弹修复):挂载瞬间可能拿到过渡期视口(如标题栏样式
  * 应用前的高度),且此后零 resize 事件——所有钳制/吸附必须读实时值,
@@ -95,11 +98,11 @@ export function OrbShell({
   const viewportTick = useViewportTick();
   const x = useMotionValue(position.x);
   const y = useMotionValue(position.y);
-  // 滚动星球(09-11):球面经纬纹理随位移滚动——横拖=绕纵轴转,纵拖=翻滚;
-  // 数值=纹理平移量(motion template 直驱 background-position,零重渲染)
+  // 滚动星球(09-11 真 3D 轮):经纬球体随位移真实旋转——横拖=绕纵轴,纵拖=翻滚;
+  // roll 值=旋转角(deg),motion template 直驱容器 transform,零重渲染
   const rollX = useMotionValue(0);
   const rollY = useMotionValue(0);
-  const surfacePosition = useMotionTemplate`${rollY}px ${rollX}px`;
+  const globeTransform = useMotionTemplate`rotateY(${rollY}deg) rotateX(${rollX}deg)`;
   const [panelOpen, setPanelOpen] = useState(false);
   // 视图切换即收面板(09-11):面板不跨视图滞留
   useEffect(() => {
@@ -127,8 +130,8 @@ export function OrbShell({
   // 滚动到目标位(位移+旋转同弹簧):吸附/钳制时球一路滚过去
   const rollWith = useCallback(
     (tx: number, ty: number, spring: { type: "spring"; stiffness: number; damping: number }) => {
-      animate(rollX, rollX.get() + (ty - y.get()) * ROLL_PX_PER_DRAG_PX, spring);
-      animate(rollY, rollY.get() + (tx - x.get()) * ROLL_PX_PER_DRAG_PX, spring);
+      animate(rollX, rollX.get() - (ty - y.get()) * ROLL_DEG_PER_DRAG_PX, spring);
+      animate(rollY, rollY.get() + (tx - x.get()) * ROLL_DEG_PER_DRAG_PX, spring);
       animate(x, tx, spring);
       animate(y, ty, spring);
     },
@@ -272,9 +275,9 @@ export function OrbShell({
             }
           }}
           onDrag={(_, info) => {
-            // 滚动星球:拖拽位移 1:1 折算球面滚动(不重渲染,motion 直驱纹理)
-            rollY.set(rollY.get() + info.delta.x * ROLL_PX_PER_DRAG_PX);
-            rollX.set(rollX.get() + info.delta.y * ROLL_PX_PER_DRAG_PX);
+            // 滚动星球:拖拽位移 1:1 折算球体旋转(不重渲染,motion 直驱 transform)
+            rollY.set(rollY.get() + info.delta.x * ROLL_DEG_PER_DRAG_PX);
+            rollX.set(rollX.get() - info.delta.y * ROLL_DEG_PER_DRAG_PX);
           }}
           onDragEnd={() => {
             const d = windowDims();
@@ -295,17 +298,40 @@ export function OrbShell({
               Electron 桌面鼠标环境,悬停免 pointer 门控;motion-reduce 全静。 */}
           <div className="pointer-events-none absolute -inset-1.5 rounded-full bg-primary/15 opacity-0 blur-md transition-opacity duration-200 group-hover:opacity-100 motion-reduce:transition-none" />
           <div className="relative flex h-12 w-12 items-center justify-center overflow-hidden rounded-full border border-white/12 bg-card/85 shadow-[inset_0_1px_0_rgba(255,255,255,0.16),inset_0_-1px_0_rgba(0,0,0,0.22),0_2px_6px_rgba(0,0,0,0.25),0_10px_28px_rgba(0,0,0,0.4)] backdrop-blur-md backdrop-saturate-150 transition-transform duration-150 ease-out group-hover:scale-[1.06] group-active:scale-[0.92] motion-reduce:transition-none motion-reduce:transform-none">
-            {/* 滚动星球(09-11):经纬网格纹理随拖拽滚动(球体 illusion 的"表面层") */}
-            <motion.div
-              aria-hidden
-              className="pointer-events-none absolute inset-0"
-              style={{
-                backgroundImage:
-                  "repeating-linear-gradient(90deg, rgba(255,255,255,0.055) 0 1px, transparent 1px 9px), repeating-linear-gradient(0deg, rgba(255,255,255,0.04) 0 1px, transparent 1px 9px)",
-                backgroundPosition: surfacePosition,
-              }}
-            />
-            {/* 球体明暗(illusion 的"光照层"):左上高光+右下暗缘,把平面网格读成立体球 */}
+            {/* 真 3D 经纬球(09-11,技法参考 GitHub 纯 CSS 球体:多圈 div 叠构 + preserve-3d
+                整体旋转;正交投影免 perspective→旋转环恒在球缘内,皮肤层裁剪不破坏 3D) */}
+            <div aria-hidden className="pointer-events-none absolute inset-0 [transform-style:preserve-3d]">
+              <motion.div
+                className="absolute inset-0 [transform-style:preserve-3d]"
+                style={{ transform: globeTransform }}
+              >
+                {MERIDIANS.map((deg) => (
+                  <div
+                    key={`m${deg}`}
+                    className="absolute inset-0 rounded-full border border-white/12"
+                    style={{ transform: `rotateY(${deg}deg)` }}
+                  />
+                ))}
+                {PARALLEL_DEGS.map((phi) => {
+                  const size = ORB_SIZE * Math.cos((phi * Math.PI) / 180);
+                  const height = (ORB_SIZE / 2) * Math.sin((phi * Math.PI) / 180);
+                  return (
+                    <div
+                      key={`p${phi}`}
+                      className="absolute rounded-full border border-white/10"
+                      style={{
+                        width: size,
+                        height: size,
+                        left: (ORB_SIZE - size) / 2,
+                        top: (ORB_SIZE - size) / 2,
+                        transform: `rotateX(90deg) translateZ(${-height}px)`,
+                      }}
+                    />
+                  );
+                })}
+              </motion.div>
+            </div>
+            {/* 球体明暗(光照层):左上高光+右下暗缘,让经纬线读出立体球面 */}
             <div
               aria-hidden
               className="pointer-events-none absolute inset-0 rounded-full"
