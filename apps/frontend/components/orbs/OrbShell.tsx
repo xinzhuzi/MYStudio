@@ -28,9 +28,12 @@ const CLICK_THRESHOLD_PX = 6;
 const VIEWPORT_FALLBACK = { width: 1440, height: 900 };
 /** 滚动星球(09-11 真 3D 轮):每像素位移折算的球体旋转角(deg)。 */
 const ROLL_DEG_PER_DRAG_PX = 0.55;
-/** 真 3D 经纬球几何:经线每 30° 一圈;纬线 ±45°(半径=cosφ·R,高度=sinφ·R)。 */
+/** 真 3D 经纬球几何 v2(真透视版):环系直径缩一档(42px),透视(200px)鼓出后
+ * 仍收在 48px 球缘内;经线每 30° 一圈;纬线赤道±30°±60°。 */
+const GLOBE_INSET = 3;
+const GLOBE_SIZE = ORB_SIZE - GLOBE_INSET * 2;
 const MERIDIANS = [0, 30, 60, 90, 120, 150];
-const PARALLEL_DEGS = [45, -45];
+const PARALLEL_DEGS = [60, 30, 0, -30, -60];
 
 /** 实时视口(09-10 实弹修复):挂载瞬间可能拿到过渡期视口(如标题栏样式
  * 应用前的高度),且此后零 resize 事件——所有钳制/吸附必须读实时值,
@@ -298,9 +301,14 @@ export function OrbShell({
               Electron 桌面鼠标环境,悬停免 pointer 门控;motion-reduce 全静。 */}
           <div className="pointer-events-none absolute -inset-1.5 rounded-full bg-primary/15 opacity-0 blur-md transition-opacity duration-200 group-hover:opacity-100 motion-reduce:transition-none" />
           <div className="relative flex h-12 w-12 items-center justify-center overflow-hidden rounded-full border border-white/12 bg-card/85 shadow-[inset_0_1px_0_rgba(255,255,255,0.16),inset_0_-1px_0_rgba(0,0,0,0.22),0_2px_6px_rgba(0,0,0,0.25),0_10px_28px_rgba(0,0,0,0.4)] backdrop-blur-md backdrop-saturate-150 transition-transform duration-150 ease-out group-hover:scale-[1.06] group-active:scale-[0.92] motion-reduce:transition-none motion-reduce:transform-none">
-            {/* 真 3D 经纬球(09-11,技法参考 GitHub 纯 CSS 球体:多圈 div 叠构 + preserve-3d
-                整体旋转;正交投影免 perspective→旋转环恒在球缘内,皮肤层裁剪不破坏 3D) */}
-            <div aria-hidden className="pointer-events-none absolute inset-0 [transform-style:preserve-3d]">
+            {/* 真 3D 经纬球 v2(09-11 不圆润反馈):真透视(perspective 200px)给出
+                近大远小——环椭圆不对称=圆润感的核心线索;环系整体缩一档(42px),
+                透视鼓出后仍收在球缘内(1.12×47<48),皮肤裁剪兜底不越界。
+                纬线加密到赤道±30°±60°,线色提亮,赤道最亮=球仪经纬层次。 */}
+            <div
+              aria-hidden
+              className="pointer-events-none absolute inset-0 [perspective:200px] [transform-style:preserve-3d]"
+            >
               <motion.div
                 className="absolute inset-0 [transform-style:preserve-3d]"
                 style={{ transform: globeTransform }}
@@ -308,22 +316,33 @@ export function OrbShell({
                 {MERIDIANS.map((deg) => (
                   <div
                     key={`m${deg}`}
-                    className="absolute inset-0 rounded-full border border-white/12"
-                    style={{ transform: `rotateY(${deg}deg)` }}
+                    className="absolute rounded-full border border-white/18"
+                    style={{
+                      left: GLOBE_INSET,
+                      top: GLOBE_INSET,
+                      width: GLOBE_SIZE,
+                      height: GLOBE_SIZE,
+                      transform: `rotateY(${deg}deg)`,
+                    }}
                   />
                 ))}
                 {PARALLEL_DEGS.map((phi) => {
-                  const size = ORB_SIZE * Math.cos((phi * Math.PI) / 180);
-                  const height = (ORB_SIZE / 2) * Math.sin((phi * Math.PI) / 180);
+                  const rad = (phi * Math.PI) / 180;
+                  const size = GLOBE_SIZE * Math.cos(rad);
+                  const height = (GLOBE_SIZE / 2) * Math.sin(rad);
                   return (
                     <div
                       key={`p${phi}`}
-                      className="absolute rounded-full border border-white/10"
+                      className="absolute rounded-full border"
                       style={{
                         width: size,
                         height: size,
                         left: (ORB_SIZE - size) / 2,
                         top: (ORB_SIZE - size) / 2,
+                        borderColor:
+                          phi === 0
+                            ? "rgba(255,255,255,0.24)"
+                            : "rgba(255,255,255,0.14)",
                         transform: `rotateX(90deg) translateZ(${-height}px)`,
                       }}
                     />
@@ -331,13 +350,14 @@ export function OrbShell({
                 })}
               </motion.div>
             </div>
-            {/* 球体明暗(光照层):左上高光+右下暗缘,让经纬线读出立体球面 */}
+            {/* 球体明暗 v2(圆润感主承担):左上主高光+右上小镜面光点+右下暗部
+                +边缘暗角(rim vignette,让平面圆读出球体转折)。 */}
             <div
               aria-hidden
               className="pointer-events-none absolute inset-0 rounded-full"
               style={{
                 background:
-                  "radial-gradient(circle at 32% 28%, rgba(255,255,255,0.16), rgba(255,255,255,0.02) 42%, transparent 58%), radial-gradient(circle at 72% 78%, rgba(0,0,0,0.3), transparent 55%)",
+                  "radial-gradient(circle at 34% 28%, rgba(255,255,255,0.24), rgba(255,255,255,0.04) 34%, transparent 56%), radial-gradient(circle at 66% 22%, rgba(255,255,255,0.14), transparent 22%), radial-gradient(circle at 72% 78%, rgba(0,0,0,0.36), transparent 58%), radial-gradient(circle at 50% 50%, transparent 52%, rgba(0,0,0,0.42) 96%)",
               }}
             />
             {ballContent}
