@@ -4,19 +4,18 @@
 // Licensed under AGPL-3.0-or-later. See LICENSE for details.
 // Commercial licensing available. See COMMERCIAL_LICENSE.md.
 
-// 悬浮球独立模块(components/orbs/)的全局面孔(09-11 终局结构裁定):
-// - 球是全局模块,Layout 应用层挂载,项目内所有视图唯一常驻导航枢纽;
-// - 阶段=工作流专属(09-11 裁定:「12345 之类的阶段只有工作流有」):
-//   工作流视图=进度环+阶段序号+待推进+切换阶段(默认展开)+前往;
-//   其他视图=中性导航面孔(Compass 图标+胶囊显当前模块名),面板无任何阶段内容;
-//   本地模型沉浸态追加「本视图」(画布/配音室,默认展开);其他视图「前往」默认展开。
-// 内部边界:OrbShell/OrbSection/use-orb-position 保持零业务依赖(不 import
-// panels/stores);业务接线只出现在本文件与两个分区组件——模块对外的唯一门面是 AppOrb。
-// 分镜面板入口刻意不进(2026-08-23 唯一入口=节点图「分镜面板」的「进入」)。
+// 悬浮球独立模块(components/orbs/)的全局面孔:
+// - 09-11 中转枢纽裁定:球=各模块中转站——「最近」记录模块跳转(MRU 一键回跳),
+//   各模块内部状态在球内成区展示:工作流=六阶段就绪(任何视图可点阶段直达),
+//   本地模型=不同模型表现效果(ComfyUI 画布/配音室 TTS,任何视图点=跳模块+切模式);
+// - 球面标识仍分域:进度环+阶段序号仅工作流(12345 只有工作流有),其他=Compass 中性面;
+// - 上下文默认:工作流→工作流区开;本地模型→本地模型区开;其他→前往开+当前模块高亮;
+// - 内部边界:OrbShell/OrbSection/use-orb-position 零业务依赖;门面=AppOrb;
+//   分镜面板入口刻意不进(2026-08-23 唯一入口=节点图「分镜面板」的「进入」)。
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { toast } from "sonner";
-import { Mic, Palette, Compass } from "lucide-react";
+import { Compass } from "lucide-react";
 import { useMediaPanelStore, tabs as TAB_LABELS, type Tab } from "@/stores/navigation/media-panel-store";
 import { useFreedomStore, type StudioMode } from "@/stores/assist/freedom-store";
 import { useStudioStore } from "@/stores/studio/studio-store";
@@ -24,34 +23,33 @@ import { useWorkflowReadiness, resolveVisibleWorkflowStage } from "@/components/
 import { resolveProductionEpisodeId } from "@/components/panels/studio/workflow-helpers";
 import type { WorkflowReadiness } from "@/lib/studio/workflow-readiness";
 import { cn } from "@/lib/utils";
-import { OrbSection } from "./OrbSection";
 import { OrbShell } from "./OrbShell";
 import { WORKFLOW_ORB_POSITION_KEY } from "./use-orb-position";
 import { OrbGotoSection } from "./OrbGotoSection";
 import { OrbStagesSection } from "./OrbStagesSection";
+import { OrbLocalModelsSection } from "./OrbLocalModelsSection";
+import { OrbRecentSection } from "./OrbRecentSection";
+import { useRecentTabs } from "./use-recent-tabs";
 
-const MODE_ENTRIES: ReadonlyArray<{ id: StudioMode; label: string; icon: typeof Palette }> = [
-  { id: "comfy", label: "ComfyUI 画布", icon: Palette },
-  { id: "tts", label: "配音室", icon: Mic },
-];
-
-/** 上下文默认(09-11 裁定:进不同模块默认展开该模块自己的分区):
- * 工作流→切换阶段;本地模型→本视图;其他视图→前往(导航是首要诉求)。
- * 视图切换即重置到新视图默认;同视图内面板重开保留用户开合。 */
+/** 上下文默认(进不同模块默认展开该模块自己的分区):
+ * 工作流→工作流(切换阶段);本地模型→本地模型(画布/配音室);其他→前往。
+ * 「最近」恒收起;视图切换即重置;同视图内面板重开保留用户开合。 */
 function sectionDefaults(tab: Tab) {
   return {
-    views: tab === "freedom",
+    recent: false,
     stages: tab === "studio",
+    local: tab === "freedom",
     goto: tab !== "freedom" && tab !== "studio",
   };
 }
 
-/** 全应用唯一悬浮球。工作流视图内点阶段=手册门禁后就地落档切换;
- * 阶段入口不出现于其他视图(09-11 裁定:阶段只有工作流有)。 */
+/** 全应用唯一悬浮球=各模块中转枢纽。 */
 export function AppOrb() {
   const activeTab = useMediaPanelStore((state) => state.activeTab);
+  const setActiveTab = useMediaPanelStore((state) => state.setActiveTab);
   const activeStudio = useFreedomStore((state) => state.activeStudio);
   const setActiveStudio = useFreedomStore((state) => state.setActiveStudio);
+  const recentTabs = useRecentTabs();
 
   const {
     workflowConfig,
@@ -78,7 +76,7 @@ export function AppOrb() {
     episodeId: resolveProductionEpisodeId(useStudioStore.getState()),
   });
 
-  // 分区开合=上下文默认起步;视图切换即重置到新视图的默认(09-11 裁定)
+  // 分区开合=上下文默认起步;视图切换即重置到新视图的默认
   const [sections, setSections] = useState(() => sectionDefaults(activeTab));
   const lastTabRef = useRef(activeTab);
   useEffect(() => {
@@ -89,10 +87,10 @@ export function AppOrb() {
   }, [activeTab]);
 
   const inStudio = activeTab === "studio";
-  const inFreedom = activeTab === "freedom";
   const activeStage = resolveVisibleWorkflowStage(workflowConfig.workflowStage);
   const moduleLabel = TAB_LABELS[activeTab]?.label ?? "导航";
 
+  // 阶段直达(任何视图):手册门禁→落档→跳工作流该阶段(工作流内=就地切换)
   const handleStageChange = (stageId: string) => {
     const visibleStage = resolveVisibleWorkflowStage(stageId);
     const cfg = useStudioStore.getState().workflowConfig;
@@ -104,6 +102,13 @@ export function AppOrb() {
       return;
     }
     setWorkflowConfig({ workflowStage: visibleStage });
+    setActiveTab("studio");
+  };
+
+  // 模式直达(任何视图):跳本地模型并直切该模式(模块内=纯切换)
+  const handleModeSelect = (mode: StudioMode) => {
+    setActiveStudio(mode);
+    setActiveTab("freedom");
   };
 
   const currentStage =
@@ -118,7 +123,7 @@ export function AppOrb() {
     : 0;
   const firstMissing = currentStage?.missing[0] ?? currentStage?.actionLabel ?? "";
 
-  // 球面分域(09-11 裁定):工作流=进度环+阶段序号;其他=中性导航面孔,零阶段内容
+  // 球面分域:工作流=进度环+阶段序号;其他=中性导航面孔
   const ariaLabel = inStudio
     ? `工作流进度：${currentStage?.label ?? "工作流"}，${readyCount}/${total} 已就绪，点按打开阶段面板`
     : `导航：当前${moduleLabel}，点按打开导航面板`;
@@ -164,48 +169,27 @@ export function AppOrb() {
             </div>
           ) : null}
           <div className="flex-1 overflow-y-auto space-y-1">
-            {inFreedom ? (
-              <OrbSection
-                section="views"
-                title="本视图"
-                open={sections.views}
-                onToggle={() =>
-                  setSections((s) => ({ ...s, views: !s.views }))
-                }
-              >
-                <div className="grid grid-cols-2 gap-1">
-                  {MODE_ENTRIES.map((item) => (
-                    <button
-                      key={item.id}
-                      type="button"
-                      data-orb-nav-mode={item.id}
-                      className={cn(
-                        "flex items-center gap-1.5 rounded-md px-2 py-1.5 text-left text-xs transition-colors hover:bg-accent",
-                        item.id === activeStudio
-                          ? "bg-accent/60 text-foreground"
-                          : "text-muted-foreground",
-                      )}
-                      onClick={() => setActiveStudio(item.id)}
-                    >
-                      <item.icon className="h-3.5 w-3.5 shrink-0 text-info" aria-hidden />
-                      <span className="truncate">{item.label}</span>
-                    </button>
-                  ))}
-                </div>
-              </OrbSection>
-            ) : null}
-            {inStudio ? (
-              <OrbStagesSection
-                readiness={readiness}
-                activeStage={activeStage}
-                onStageChange={handleStageChange}
-                onClose={close}
-                open={sections.stages}
-                onToggle={() =>
-                  setSections((s) => ({ ...s, stages: !s.stages }))
-                }
-              />
-            ) : null}
+            <OrbRecentSection
+              recent={recentTabs}
+              open={sections.recent}
+              onToggle={() => setSections((s) => ({ ...s, recent: !s.recent }))}
+            />
+            <OrbStagesSection
+              readiness={readiness}
+              activeStage={activeStage}
+              onStageChange={handleStageChange}
+              onClose={close}
+              open={sections.stages}
+              onToggle={() =>
+                setSections((s) => ({ ...s, stages: !s.stages }))
+              }
+            />
+            <OrbLocalModelsSection
+              activeMode={activeStudio}
+              onModeSelect={handleModeSelect}
+              open={sections.local}
+              onToggle={() => setSections((s) => ({ ...s, local: !s.local }))}
+            />
             <OrbGotoSection
               activeTab={activeTab}
               open={sections.goto}

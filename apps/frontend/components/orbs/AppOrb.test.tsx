@@ -9,6 +9,7 @@ import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/re
 import { AppOrb } from "./AppOrb";
 import { snapToNearestEdge } from "./use-orb-position";
 import { useMediaPanelStore } from "@/stores/navigation/media-panel-store";
+import { useFreedomStore } from "@/stores/assist/freedom-store";
 import { useStudioStore } from "@/stores/studio/studio-store";
 
 vi.mock("sonner", () => ({ toast: Object.assign(vi.fn(), { error: vi.fn() }) }));
@@ -17,6 +18,7 @@ afterEach(() => {
   cleanup();
   window.localStorage.clear();
   useMediaPanelStore.setState({ activeTab: "studio" });
+  useFreedomStore.getState().setActiveStudio("comfy");
   useStudioStore.setState({
     workflowConfig: {
       ...useStudioStore.getState().workflowConfig,
@@ -193,13 +195,16 @@ describe("AppOrb(分域矩阵·09-11:阶段仅工作流)", () => {
     expect(toast.error).toHaveBeenCalled();
   });
 
-  it("沉浸(本地模型):「本视图」默认展开,零阶段内容(无切换阶段/待推进/进度弧)", async () => {
+  it("沉浸(本地模型):「本地模型」区默认展开(画布/配音室),阶段区在场但收起", async () => {
     useMediaPanelStore.setState({ activeTab: "freedom" });
     const { container } = render(<AppOrb />);
     openPanel();
-    expect(await screen.findByRole("group", { name: "本视图" })).toBeTruthy();
+    expect(await screen.findByRole("group", { name: "本地模型" })).toBeTruthy();
     expect(screen.getByRole("button", { name: /配音室/ })).toBeTruthy();
-    expect(screen.queryByRole("button", { name: /^切换阶段$/ })).toBeNull();
+    // 中转枢纽:阶段分区在场(可展开直达),但球面零进度弧、无待推进头
+    expect(
+      screen.getByRole("button", { name: /^切换阶段$/ }).getAttribute("aria-expanded"),
+    ).toBe("false");
     expect(screen.queryByText(/待推进：/)).toBeNull();
     expect(container.querySelectorAll("[data-orb-segment]").length).toBe(0);
     expect(container.querySelector("[data-orb-capsule]")?.textContent).toContain("本地模型");
@@ -208,7 +213,7 @@ describe("AppOrb(分域矩阵·09-11:阶段仅工作流)", () => {
     ).toBe("false");
   });
 
-  it("其他视图(资产):「前往」默认展开+当前模块高亮,零阶段内容", async () => {
+  it("其他视图(资产):「前往」默认展开+当前模块高亮;阶段/本地模型区在场但收起", async () => {
     useMediaPanelStore.setState({ activeTab: "assets" });
     const { container } = render(<AppOrb />);
     openPanel();
@@ -221,10 +226,70 @@ describe("AppOrb(分域矩阵·09-11:阶段仅工作流)", () => {
         .querySelector('[data-orb-nav-view="assets"]')
         ?.classList.contains("bg-accent/60"),
     ).toBe(true);
-    expect(screen.queryByRole("button", { name: /^切换阶段$/ })).toBeNull();
-    expect(screen.queryByRole("button", { name: /^本视图$/ })).toBeNull();
+    expect(
+      screen.getByRole("button", { name: /^切换阶段$/ }).getAttribute("aria-expanded"),
+    ).toBe("false");
+    expect(
+      document
+        .querySelector('[data-orb-section="local-models"] > button')
+        ?.getAttribute("aria-expanded"),
+    ).toBe("false");
     expect(screen.queryByText(/待推进：/)).toBeNull();
     expect(container.querySelectorAll("[data-orb-segment]").length).toBe(0);
+  });
+
+  it("中转直达(阶段):资产视图展开「切换阶段」点手册阶段→跳工作流并落档", async () => {
+    useMediaPanelStore.setState({ activeTab: "assets" });
+    render(<AppOrb />);
+    openPanel();
+    fireEvent.click(screen.getByRole("button", { name: /^切换阶段$/ }));
+    const item = await waitFor(() => {
+      const el = document.querySelector('[data-orb-stage-item="manuals"]') as HTMLElement | null;
+      expect(el).toBeTruthy();
+      return el!;
+    });
+    fireEvent.click(item);
+    expect(useMediaPanelStore.getState().activeTab).toBe("studio");
+    expect(useStudioStore.getState().workflowConfig.workflowStage).toBe("manuals");
+  });
+
+  it("中转直达(模式):资产视图展开「本地模型」点配音室→跳本地模型并切 TTS", async () => {
+    useMediaPanelStore.setState({ activeTab: "assets" });
+    render(<AppOrb />);
+    openPanel();
+    await screen.findByRole("group", { name: "前往" });
+    const localHeader = document.querySelector(
+      '[data-orb-section="local-models"] > button',
+    ) as HTMLElement;
+    fireEvent.click(localHeader);
+    const tts = await screen.findByRole("button", { name: /配音室/ });
+    fireEvent.click(tts);
+    expect(useMediaPanelStore.getState().activeTab).toBe("freedom");
+    expect(useFreedomStore.getState().activeStudio).toBe("tts");
+  });
+
+  it("中转记录:「最近」记录跳转,一键回跳(studio→overview 后面板见工作流)", async () => {
+    useMediaPanelStore.setState({ activeTab: "studio" });
+    render(<AppOrb />);
+    // 挂载后切走 → 离栈的 studio 入列
+    useMediaPanelStore.setState({ activeTab: "overview" });
+    // 等视图切换(含收面板效应)落定再开面板,规避机器速度竞态
+    await waitFor(() =>
+      expect(
+        document.querySelector("[data-orb-capsule]")?.textContent,
+      ).toContain("概览"),
+    );
+    openPanel();
+    const recentHeader = await screen.findByRole("button", { name: /^最近$/ });
+    fireEvent.click(recentHeader);
+    const chip = await waitFor(() => {
+      const el = document.querySelector('[data-orb-recent="studio"]') as HTMLElement | null;
+      expect(el).toBeTruthy();
+      return el!;
+    });
+    expect(chip.textContent).toContain("工作流");
+    fireEvent.click(chip);
+    expect(useMediaPanelStore.getState().activeTab).toBe("studio");
   });
 
   it("视图切换即收面板(09-11:面板不跨视图滞留;smoke 胶囊锚依赖)", async () => {
