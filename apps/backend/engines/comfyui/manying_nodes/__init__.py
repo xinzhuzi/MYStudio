@@ -13,12 +13,19 @@ from .nodes.manying_prompt import ManyingPrompt
 from .nodes.manying_reference import ManyingReference
 from .nodes.manying_generated import ManyingGenerated
 from .nodes.manying_shot import ManyingShot
+from .nodes.manying_cloud_image import ManyingCloudImage
+from . import cloud_takeover
+
+# 云端收编二轮(09-10 纠偏):云端节点全保留,凭据经补丁改道漫影网关
+# (URL 侧由 engine_manager 叠官方 --comfy-api-base;上游漂移时静默回落)。
+cloud_takeover.apply_cloud_takeover()
 
 NODE_CLASS_MAPPINGS = {
     "ManyingPrompt": ManyingPrompt,
     "ManyingReference": ManyingReference,
     "ManyingGenerated": ManyingGenerated,
     "ManyingShot": ManyingShot,
+    "ManyingCloudImage": ManyingCloudImage,
 }
 
 # ComfyUI 前端扩展目录声明(无此=web/ 下 JS 不进 /extensions,不可见)
@@ -28,5 +35,6 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "ManyingPrompt": "漫影 提示词",
     "ManyingReference": "漫影 参考图",
     "ManyingGenerated": "漫影 成图回写",
-    "ManyingShot": "漫影 分镜",
+    "ManyingShot": "漫影",
+    "ManyingCloudImage": "漫影 云端生图",
 }

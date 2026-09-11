@@ -24,6 +24,8 @@ def test_sync_copies_source_into_custom_nodes(home):
     target = home / "ComfyUI" / "custom_nodes" / pm.MANYING_DIR
     assert (target / "__init__.py").is_file()
     assert (target / "nodes" / "manying_prompt.py").is_file()
+    # 登录遮蔽扩展(09-10 云端收编):缺席=引擎侧封登录入口失效
+    assert (target / "web" / "manying_login_cloak.js").is_file()
     assert result["copied"] >= 4
     assert not (target / "tests").exists()  # 测试不进引擎
     assert not list(target.rglob("__pycache__"))  # 缓存不进引擎

@@ -332,17 +332,35 @@ def resolve_launch_port(args_string: str, recorded: int | None, policy: str) -> 
     return recorded or find_free_port()
 
 
+COMFY_API_BASE_FLAG = "--comfy-api-base"
+# 云端收编二轮(09-10 用户纠偏):不 disable 云端节点——OpenAI/Anthropic/LTX
+# 全量生态保留;官方 --comfy-api-base 把 comfy.org 代理整体改指漫影网关。
+# env 由 electron main 注入(产品常量),未配置=零干预,行为与上游一致。
+MANAGED_COMFY_API_BASE_ENV = "MYSTUDIO_COMFY_API_BASE"
+
+
+def managed_comfy_api_base() -> str | None:
+    return (os.environ.get(MANAGED_COMFY_API_BASE_ENV) or "").strip() or None
+
+
 def build_launch_args(args_string: str, port: int, script: str = "main.py") -> list[str]:
     """启动参数串 → 实际 argv(Desktop 式:串=唯一真源)。
 
     --listen/--port 未写则补托管默认(127.0.0.1 / 调用方定妥的最终端口);
     用户串中的 --port/--listen 已被 parse 消费到规范位;其余 flag 原样追加。
+    MYSTUDIO_COMFY_API_BASE 配置时叠加官方 --comfy-api-base(用户串已写
+    则尊重用户,两种写法都识别不重复)。
     """
     parsed = parse_launch_args_string(args_string)
     args = [script]
     args += ["--listen", parsed["listen"] or "127.0.0.1"]
     args += ["--port", str(parsed["port"] or port)]
     args += parsed["flags"]
+    if not any(token == COMFY_API_BASE_FLAG or token.startswith(COMFY_API_BASE_FLAG + "=")
+               for token in args):
+        base = managed_comfy_api_base()
+        if base:
+            args += [COMFY_API_BASE_FLAG, base]
     return args
 
 
@@ -541,6 +559,11 @@ class EngineManager:
         self._proc: subprocess.Popen | None = None
         self._log_file = None
         self._lock = threading.Lock()
+        # 启动串行锁(09-11 深审 P2):start_sync 全程持有——判活→孤儿探测→端口
+        # 决议→Popen 赋值原为秒级裸奔窗口,job 线程与生图 ensure_engine_ready
+        # 并发穿窗会双拉引擎(双进程/端口决议两次/账本口被后写覆盖)。与 _lock
+        # 分开:_lock 管共享态细粒度互斥,_start_lock 保证同一时刻至多一次启动。
+        self._start_lock = threading.Lock()
         self._stopping = False
         self._guard_enabled = False
         self._guard_thread: threading.Thread | None = None
@@ -754,7 +777,14 @@ class EngineManager:
         return isinstance(stats, dict) and ("system" in stats or "devices" in stats)
 
     def start_sync(self, progress=None) -> dict:
-        """同步启动(启动 job 与插件链内部复用)。已健康=收编孤儿进程直接就绪。"""
+        """同步启动(启动 job 与插件链内部复用)。已健康=收编孤儿进程直接就绪。
+
+        09-11 深审 P2 根修:启动全程持 _start_lock 串行——原实现「判活→Popen」
+        之间裸奔秒级窗口(含孤儿探测 HTTP),job 线程与生图 ensure_engine_ready
+        并发穿窗=双拉引擎(双进程/端口决议两次/账本口被后写覆盖,双实例风暴
+        同型病灶)。快路径同步补健康校验:proc 活着≠就绪,预热的后到者等到真
+        健康才放行,不再假阳性顶着「running」把生成流量放进连接拒绝。
+        """
         if not cm.engine_installed():
             raise EngineOpError("ComfyUI 引擎尚未安装,请先安装")
         holder = engine_lock_holder()
@@ -763,61 +793,70 @@ class EngineManager:
                 f"引擎正被另一个漫影进程管理(pid {holder.get('pid')},{holder.get('note') or '未知来源'}),"
                 "已拒绝启动以防互踩;确认没有其他会话后,删除 engine.lock 可解除"
             )
-        with self._lock:
-            if self._proc is not None and self._proc.poll() is None:
+        with self._start_lock:
+            with self._lock:
+                already_running = self._proc is not None and self._proc.poll() is None
+            if already_running:
                 acquire_engine_lock("engine-manager")
-                return {"running": True, "port": cm.recorded_port()}
-        port = cm.recorded_port()
-        if port and self._orphan_is_comfyui(port):
+                port = cm.recorded_port()
+                self._await_startup_health(port)
+                return {"running": True, "port": port}
+            port = cm.recorded_port()
+            if port and self._orphan_is_comfyui(port):
+                acquire_engine_lock("engine-manager")
+                self._enable_guard()
+                # 收编后强制刷新一次节点数:孤儿进程的插件态(刚装/刚卸)与我们的
+                # _last_node_count 缓存无关,不刷新=状态行展示旧节点数假象。
+                self._last_node_count = self.node_count()
+                if progress:
+                    progress(100, "接管了正在运行的 ComfyUI 实例")
+                return {"running": True, "port": port, "adopted": True}
+            # 09-10 Desktop 式:端口决议(用户串 --port 优先,被占按策略;否则账本口顺延)
+            port = resolve_launch_port(
+                cm.engine_launch_args(), port, cm.engine_port_conflict_policy())
+            # 决议结果回写账本:status/bridge/收件箱全按账本口寻址,不回写=引擎跑在
+            # 新口而全 app 打旧口(深审 C1;用户口空闲路径此前零写入)
+            if port != cm.recorded_port():
+                cm.mutate_manifest(lambda m: m["engine"].update({"port": port}))
+            if progress:
+                progress(20, "启动引擎进程…")
+            src = cm.engine_source_dir()
+            if not (src / "main.py").is_file():
+                raise EngineOpError("ComfyUI 源码目录不完整,请执行「复位」修复")
+            argv = [str(cm.venv_python()), *build_launch_args(cm.engine_launch_args(), port, script=str(src / "main.py"))]
+            _write_extra_model_paths(cm.configured_models_dir())
+            cm.engine_log_path().parent.mkdir(parents=True, exist_ok=True)
+            self._log_file = open(cm.engine_log_path(), "a", encoding="utf-8", buffering=1)
+            self._stopping = False
+            # 显式 cwd=源码目录(相对资源解析),可执行文件与脚本全绝对路径(防漂移坑)
+            # bridge 回写端点注入(swap 阶段1:manying_generated → sidecar 17595)
+            # 09-10 Desktop 式环境变量表(spawn 注入);桥契约变量后置=用户表不可遮蔽回写链
+            launch_env = {**os.environ,
+                          **cm.engine_env_vars(),
+                          "MYSTUDIO_BRIDGE_URL": bridge_contract.BRIDGE_URL,
+                          "MYSTUDIO_BRIDGE_TOKEN": bridge_contract.BRIDGE_TOKEN}
+            self._proc = subprocess.Popen(argv, cwd=str(src), env=launch_env,
+                                          stdout=self._log_file, stderr=subprocess.STDOUT,
+                                          start_new_session=True)  # 独立会话=组长,看门狗可整组回收(孤儿根修)
+            _spawn_engine_watchdog(self._proc, cm.engine_log_path())
+            self._await_startup_health(port, progress=progress)
             acquire_engine_lock("engine-manager")
             self._enable_guard()
-            # 收编后强制刷新一次节点数:孤儿进程的插件态(刚装/刚卸)与我们的
-            # _last_node_count 缓存无关,不刷新=状态行展示旧节点数假象。
             self._last_node_count = self.node_count()
             if progress:
-                progress(100, "接管了正在运行的 ComfyUI 实例")
-            return {"running": True, "port": port, "adopted": True}
-        # 09-10 Desktop 式:端口决议(用户串 --port 优先,被占按策略;否则账本口顺延)
-        port = resolve_launch_port(
-            cm.engine_launch_args(), port, cm.engine_port_conflict_policy())
-        # 决议结果回写账本:status/bridge/收件箱全按账本口寻址,不回写=引擎跑在
-        # 新口而全 app 打旧口(深审 C1;用户口空闲路径此前零写入)
-        if port != cm.recorded_port():
-            cm.mutate_manifest(lambda m: m["engine"].update({"port": port}))
-        if progress:
-            progress(20, "启动引擎进程…")
-        src = cm.engine_source_dir()
-        if not (src / "main.py").is_file():
-            raise EngineOpError("ComfyUI 源码目录不完整,请执行「复位」修复")
-        argv = [str(cm.venv_python()), *build_launch_args(cm.engine_launch_args(), port, script=str(src / "main.py"))]
-        _write_extra_model_paths(cm.configured_models_dir())
-        cm.engine_log_path().parent.mkdir(parents=True, exist_ok=True)
-        self._log_file = open(cm.engine_log_path(), "a", encoding="utf-8", buffering=1)
-        self._stopping = False
-        # 显式 cwd=源码目录(相对资源解析),可执行文件与脚本全绝对路径(防漂移坑)
-        # bridge 回写端点注入(swap 阶段1:manying_generated → sidecar 17595)
-        # 09-10 Desktop 式环境变量表(spawn 注入);桥契约变量后置=用户表不可遮蔽回写链
-        launch_env = {**os.environ,
-                      **cm.engine_env_vars(),
-                      "MYSTUDIO_BRIDGE_URL": bridge_contract.BRIDGE_URL,
-                      "MYSTUDIO_BRIDGE_TOKEN": bridge_contract.BRIDGE_TOKEN}
-        self._proc = subprocess.Popen(argv, cwd=str(src), env=launch_env,
-                                      stdout=self._log_file, stderr=subprocess.STDOUT,
-                                      start_new_session=True)  # 独立会话=组长,看门狗可整组回收(孤儿根修)
-        _spawn_engine_watchdog(self._proc, cm.engine_log_path())
+                progress(100, "ComfyUI 引擎已就绪")
+            return {"running": True, "port": port}
+
+    def _await_startup_health(self, port: int, progress=None) -> None:
+        """等健康到 HEALTH_TIMEOUT_S;进程中途退出/超时抛错(启动与快路径共用)。"""
         if progress:
             progress(40, "等待引擎就绪(首次加载模型较慢)…")
         deadline = time.monotonic() + HEALTH_TIMEOUT_S
         while time.monotonic() < deadline:
-            if self._proc.poll() is not None:
+            if self._proc is not None and self._proc.poll() is not None:
                 raise EngineOpError("引擎进程启动后立刻退出了,请查看日志:" + str(cm.engine_log_path()))
             if self.is_healthy(port, timeout=2.0):
-                acquire_engine_lock("engine-manager")
-                self._enable_guard()
-                self._last_node_count = self.node_count()
-                if progress:
-                    progress(100, "ComfyUI 引擎已就绪")
-                return {"running": True, "port": port}
+                return
             time.sleep(1.5)
         raise EngineOpError("引擎健康检查超时(120 秒),请查看日志:" + str(cm.engine_log_path()))
 

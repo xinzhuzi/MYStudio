@@ -188,6 +188,21 @@ class TestBuildLaunchArgs:
         args = build_launch_args("--listen 0.0.0.0 --port 8188 --fast", 17600)
         assert args == ["main.py", "--listen", "0.0.0.0", "--port", "8188", "--fast"]
 
+    def test_managed_comfy_api_base_env_appends_official_flag(self, monkeypatch):
+        # 云端收编二轮:节点全保留,官方 --comfy-api-base 改指漫影网关(env 驱动)
+        monkeypatch.setenv("MYSTUDIO_COMFY_API_BASE", "https://gw.manying.example")
+        args = build_launch_args("--fast", 17600)
+        assert args[-2:] == ["--comfy-api-base", "https://gw.manying.example"]
+        # 用户串两种写法都识别,不重复注入
+        assert build_launch_args("--comfy-api-base https://self.example --fast", 17600).count("--comfy-api-base") == 1
+        eq_form = build_launch_args("--comfy-api-base=https://self.example", 17600)
+        assert sum(1 for token in eq_form if token.startswith("--comfy-api-base")) == 1
+
+    def test_managed_comfy_api_base_absent_env_is_zero_touch(self, monkeypatch):
+        monkeypatch.delenv("MYSTUDIO_COMFY_API_BASE", raising=False)
+        assert build_launch_args("--fast", 17600) == [
+            "main.py", "--listen", "127.0.0.1", "--port", "17600", "--fast"]
+
     def test_port_equals_form(self):
         args = build_launch_args("--port=17500", 17600)
         assert args[3:5] == ["--port", "17500"]
