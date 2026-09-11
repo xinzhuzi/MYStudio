@@ -8,6 +8,7 @@ import { useCallback, useEffect, useRef, useState, type ReactNode } from "react"
 import {
   animate,
   motion,
+  useMotionTemplate,
   useMotionValue,
   useMotionValueEvent,
 } from "motion/react";
@@ -25,6 +26,8 @@ import {
 /** 位移小于该阈值判定为点击(开面板),否则视为拖拽。 */
 const CLICK_THRESHOLD_PX = 6;
 const VIEWPORT_FALLBACK = { width: 1440, height: 900 };
+/** 滚动星球(09-11):每像素位移折算的球面滚动量(经纬纹理平移 px)。 */
+const ROLL_PX_PER_DRAG_PX = 0.7;
 
 /** 实时视口(09-10 实弹修复):挂载瞬间可能拿到过渡期视口(如标题栏样式
  * 应用前的高度),且此后零 resize 事件——所有钳制/吸附必须读实时值,
@@ -92,6 +95,11 @@ export function OrbShell({
   const viewportTick = useViewportTick();
   const x = useMotionValue(position.x);
   const y = useMotionValue(position.y);
+  // 滚动星球(09-11):球面经纬纹理随位移滚动——横拖=绕纵轴转,纵拖=翻滚;
+  // 数值=纹理平移量(motion template 直驱 background-position,零重渲染)
+  const rollX = useMotionValue(0);
+  const rollY = useMotionValue(0);
+  const surfacePosition = useMotionTemplate`${rollY}px ${rollX}px`;
   const [panelOpen, setPanelOpen] = useState(false);
   // 视图切换即收面板(09-11):面板不跨视图滞留
   useEffect(() => {
@@ -116,17 +124,27 @@ export function OrbShell({
     setCapsuleOnLeft(latest > window.innerWidth / 2);
   });
 
+  // 滚动到目标位(位移+旋转同弹簧):吸附/钳制时球一路滚过去
+  const rollWith = useCallback(
+    (tx: number, ty: number, spring: { type: "spring"; stiffness: number; damping: number }) => {
+      animate(rollX, rollX.get() + (ty - y.get()) * ROLL_PX_PER_DRAG_PX, spring);
+      animate(rollY, rollY.get() + (tx - x.get()) * ROLL_PX_PER_DRAG_PX, spring);
+      animate(x, tx, spring);
+      animate(y, ty, spring);
+    },
+    [x, y, rollX, rollY],
+  );
+
   // 窗口变化时把球钳回视口内(数值一律实时读——挂载快照可能是过渡期视口)
   const clampNow = useCallback(() => {
     const dims = windowDims();
     const current = { x: x.get(), y: y.get() };
     const clamped = clampOrbPosition(current, dims.width, dims.height, defaultAnchor);
     if (clamped.x !== current.x || clamped.y !== current.y) {
-      animate(x, clamped.x, { type: "spring", stiffness: 400, damping: 32 });
-      animate(y, clamped.y, { type: "spring", stiffness: 400, damping: 32 });
+      rollWith(clamped.x, clamped.y, { type: "spring", stiffness: 400, damping: 32 });
       setPosition(clamped);
     }
-  }, [x, y, setPosition, defaultAnchor]);
+  }, [x, y, rollWith, setPosition, defaultAnchor]);
 
   useEffect(() => {
     clampNow();
@@ -253,6 +271,11 @@ export function OrbShell({
               setPanelOpen((open) => !open);
             }
           }}
+          onDrag={(_, info) => {
+            // 滚动星球:拖拽位移 1:1 折算球面滚动(不重渲染,motion 直驱纹理)
+            rollY.set(rollY.get() + info.delta.x * ROLL_PX_PER_DRAG_PX);
+            rollX.set(rollX.get() + info.delta.y * ROLL_PX_PER_DRAG_PX);
+          }}
           onDragEnd={() => {
             const d = windowDims();
             const snapped = snapToNearestEdge(
@@ -261,8 +284,7 @@ export function OrbShell({
               d.width,
               d.height,
             );
-            animate(x, snapped.x, { type: "spring", stiffness: 380, damping: 30 });
-            animate(y, snapped.y, { type: "spring", stiffness: 380, damping: 30 });
+            rollWith(snapped.x, snapped.y, { type: "spring", stiffness: 380, damping: 30 });
             setPosition(snapped);
           }}
         >
@@ -272,7 +294,26 @@ export function OrbShell({
               悬停=1.06 提起(150ms ease-out),按压=0.92 即时(Apple §1 按下即反馈);
               Electron 桌面鼠标环境,悬停免 pointer 门控;motion-reduce 全静。 */}
           <div className="pointer-events-none absolute -inset-1.5 rounded-full bg-primary/15 opacity-0 blur-md transition-opacity duration-200 group-hover:opacity-100 motion-reduce:transition-none" />
-          <div className="relative flex h-12 w-12 items-center justify-center rounded-full border border-white/12 bg-card/85 shadow-[inset_0_1px_0_rgba(255,255,255,0.16),inset_0_-1px_0_rgba(0,0,0,0.22),0_2px_6px_rgba(0,0,0,0.25),0_10px_28px_rgba(0,0,0,0.4)] backdrop-blur-md backdrop-saturate-150 transition-transform duration-150 ease-out group-hover:scale-[1.06] group-active:scale-[0.92] motion-reduce:transition-none motion-reduce:transform-none">
+          <div className="relative flex h-12 w-12 items-center justify-center overflow-hidden rounded-full border border-white/12 bg-card/85 shadow-[inset_0_1px_0_rgba(255,255,255,0.16),inset_0_-1px_0_rgba(0,0,0,0.22),0_2px_6px_rgba(0,0,0,0.25),0_10px_28px_rgba(0,0,0,0.4)] backdrop-blur-md backdrop-saturate-150 transition-transform duration-150 ease-out group-hover:scale-[1.06] group-active:scale-[0.92] motion-reduce:transition-none motion-reduce:transform-none">
+            {/* 滚动星球(09-11):经纬网格纹理随拖拽滚动(球体 illusion 的"表面层") */}
+            <motion.div
+              aria-hidden
+              className="pointer-events-none absolute inset-0"
+              style={{
+                backgroundImage:
+                  "repeating-linear-gradient(90deg, rgba(255,255,255,0.055) 0 1px, transparent 1px 9px), repeating-linear-gradient(0deg, rgba(255,255,255,0.04) 0 1px, transparent 1px 9px)",
+                backgroundPosition: surfacePosition,
+              }}
+            />
+            {/* 球体明暗(illusion 的"光照层"):左上高光+右下暗缘,把平面网格读成立体球 */}
+            <div
+              aria-hidden
+              className="pointer-events-none absolute inset-0 rounded-full"
+              style={{
+                background:
+                  "radial-gradient(circle at 32% 28%, rgba(255,255,255,0.16), rgba(255,255,255,0.02) 42%, transparent 58%), radial-gradient(circle at 72% 78%, rgba(0,0,0,0.3), transparent 55%)",
+              }}
+            />
             {ballContent}
           </div>
           <span
