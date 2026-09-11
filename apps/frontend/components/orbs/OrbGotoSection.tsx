@@ -4,8 +4,8 @@
 // Licensed under AGPL-3.0-or-later. See LICENSE for details.
 // Commercial licensing available. See COMMERCIAL_LICENSE.md.
 
-// 09-10 终裁(用户:悬浮球功能应一致、都展示全面):「导航」分区(原「前往」,09-11 用户裁定更名),
-// 抽成 features 层共享组件,任何球消费即保证条目/行为一致。
+// 「导航」分区(原「前往」,09-11 用户裁定更名):全局模块导航区,10 视口全覆盖
+// (09-10 补:球全局化后须含本地模型入口——旧两球时代球住沉浸视图故自指无意义)。
 // 本分区不持开合态(调用方持,默认收起);分镜面板入口不进(08-23 唯一入口裁定)。
 
 import {

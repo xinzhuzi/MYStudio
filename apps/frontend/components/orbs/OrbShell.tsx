@@ -61,7 +61,7 @@ function useViewportTick() {
 }
 
 export interface OrbShellProps {
-  /** 位置持久化键(工作流球=旧键零迁移;本地模型球=独立键)。 */
+  /** 位置持久化键(按业务球指定;现役唯一球=WORKFLOW_ORB_POSITION_KEY)。 */
   storageKey: string;
   /** 默认锚位角(工作流球右下避侧栏轨道;沉浸球左下)。 */
   defaultAnchor?: OrbAnchor;
@@ -85,7 +85,8 @@ export interface OrbShellProps {
   resetKey?: string | number;
 }
 
-/** 通用悬浮球壳(09-10 拆双球裁定:基础设施独立模块,零业务依赖)。
+/** 通用悬浮球壳(基础设施独立模块,零业务依赖;09-11 归一后全应用唯一球,
+ * 面孔/内容由 AppOrb 注入)。
  * 承载:拖拽+贴边吸附+位置持久化+点击/拖拽判定(6px 阈值,pointerup 主路+
  * click 兜底+toggle 吞 click+多指防串)+视口钳制+胶囊左右翻+键盘开合。
  * 球体与面板内容、胶囊文案、data 契约全部由业务球注入。

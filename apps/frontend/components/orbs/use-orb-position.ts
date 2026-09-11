@@ -4,12 +4,12 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 
-/** 悬浮球默认锚位:左下 bottom-6 left-6(避 ComfyUI webview 右下控件与 sonner toast)。 */
+/** 悬浮球几何常量:48px 球+6px 贴边距。 */
 export const ORB_SIZE = 48;
 export const ORB_MARGIN = 6;
 /** 工作流球位置键(历史单键,保持字面量=存量用户零迁移)。 */
 export const WORKFLOW_ORB_POSITION_KEY = "mystudio.workflow-orb.position";
-/** 本地模型球位置键(09-10 拆双球:各记各的贴边位,互不顶替)。 */
+/** 旧双球时代键(09-11 归一单球后已无消费方;保留字面量=记录存量 localStorage 键名便于考古)。 */
 export const LOCAL_MODEL_ORB_POSITION_KEY = "mystudio.local-model-orb.position";
 
 export interface OrbPosition {
@@ -118,8 +118,8 @@ function loadPosition(storageKey: string, anchor: OrbAnchor): OrbPosition {
 }
 
 /** 悬浮球位置:localStorage 按键持久化,载入即校验,窗口 resize 重钳。
- * storageKey 由业务球指定(工作流球=旧键零迁移;本地模型球=独立键);
- * anchor=默认锚位角(工作流球右下避侧栏,沉浸球左下)。 */
+ * storageKey 由业务球指定(现役唯一球=WORKFLOW_ORB_POSITION_KEY);
+ * anchor=无存档时的默认锚位角(现役=右下,避左侧栏轨道盖住帮助/设置——09-10 实弹修复)。 */
 export function useOrbPosition(
   storageKey: string = WORKFLOW_ORB_POSITION_KEY,
   anchor: OrbAnchor = "bottom-left",
