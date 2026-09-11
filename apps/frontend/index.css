@@ -1229,7 +1229,9 @@
   position: fixed;
   inset: 0 0 auto 0;
   height: 8px;
-  z-index: 60;
+  /* 09-11 顶部件穿透根修:z 须高于 ComfyUI webview(z-10/20)但低于悬浮球(z-40)——
+     原 z-60 盖过球,球贴顶时顶缘点击落入拖拽区=穿透(点击变窗口拖动) */
+  z-index: 30;
   -webkit-app-region: drag;
 }
 
