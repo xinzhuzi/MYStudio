@@ -8,9 +8,11 @@ import { useCallback, useEffect, useRef, useState, type ReactNode } from "react"
 import {
   animate,
   motion,
+  useAnimationFrame,
   useMotionTemplate,
   useMotionValue,
   useMotionValueEvent,
+  useReducedMotion,
 } from "motion/react";
 import { Popover, PopoverAnchor, PopoverContent } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
@@ -28,6 +30,10 @@ const CLICK_THRESHOLD_PX = 6;
 const VIEWPORT_FALLBACK = { width: 1440, height: 900 };
 /** 滚动星球(09-11 真 3D 轮):每像素位移折算的球体旋转角(deg)。 */
 const ROLL_DEG_PER_DRAG_PX = 0.55;
+/** 自旋(09-11 用户裁定:地球仪要自旋转;参考 GitHub 球体 gist 的 animateSphere
+ * 30s 线性关键帧,折算 ~24deg/s,取 16deg/s 更克制)。拖拽/吸附动画期间让路。 */
+const AUTO_SPIN_DEG_PER_SEC = 16;
+const AUTO_SPIN_PAUSE_MS = 900;
 /** 真 3D 经纬球几何 v2(真透视版):环系直径缩一档(42px),透视(200px)鼓出后
  * 仍收在 48px 球缘内;经线每 30° 一圈;纬线赤道±30°±60°。 */
 const GLOBE_INSET = 3;
@@ -106,6 +112,15 @@ export function OrbShell({
   const rollX = useMotionValue(0);
   const rollY = useMotionValue(0);
   const globeTransform = useMotionTemplate`rotateY(${rollY}deg) rotateX(${rollX}deg)`;
+  // 自旋(09-11):闲置时绕纵轴缓转;拖拽中/吸附弹簧飞行中让路,reduced-motion 关闭
+  const reduceMotion = useReducedMotion();
+  const draggingRef = useRef(false);
+  const autoSpinPausedUntilRef = useRef(0);
+  useAnimationFrame((_, delta) => {
+    if (reduceMotion || draggingRef.current) return;
+    if (Date.now() < autoSpinPausedUntilRef.current) return;
+    rollY.set(rollY.get() + (AUTO_SPIN_DEG_PER_SEC * delta) / 1000);
+  });
   const [panelOpen, setPanelOpen] = useState(false);
   // 视图切换即收面板(09-11):面板不跨视图滞留
   useEffect(() => {
@@ -130,9 +145,10 @@ export function OrbShell({
     setCapsuleOnLeft(latest > window.innerWidth / 2);
   });
 
-  // 滚动到目标位(位移+旋转同弹簧):吸附/钳制时球一路滚过去
+  // 滚动到目标位(位移+旋转同弹簧):吸附/钳制时球一路滚过去;期间自旋让路
   const rollWith = useCallback(
     (tx: number, ty: number, spring: { type: "spring"; stiffness: number; damping: number }) => {
+      autoSpinPausedUntilRef.current = Date.now() + AUTO_SPIN_PAUSE_MS;
       animate(rollX, rollX.get() - (ty - y.get()) * ROLL_DEG_PER_DRAG_PX, spring);
       animate(rollY, rollY.get() + (tx - x.get()) * ROLL_DEG_PER_DRAG_PX, spring);
       animate(x, tx, spring);
@@ -277,12 +293,17 @@ export function OrbShell({
               setPanelOpen((open) => !open);
             }
           }}
+          onDragStart={() => {
+            // 自旋让路:拖拽期间停转
+            draggingRef.current = true;
+          }}
           onDrag={(_, info) => {
             // 滚动星球:拖拽位移 1:1 折算球体旋转(不重渲染,motion 直驱 transform)
             rollY.set(rollY.get() + info.delta.x * ROLL_DEG_PER_DRAG_PX);
             rollX.set(rollX.get() - info.delta.y * ROLL_DEG_PER_DRAG_PX);
           }}
           onDragEnd={() => {
+            draggingRef.current = false;
             const d = windowDims();
             const snapped = snapToNearestEdge(
               x.get(),
