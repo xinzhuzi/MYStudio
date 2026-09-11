@@ -15,6 +15,7 @@ import { useComfyEngineSettings } from "@/components/panels/settings/comfy-engin
 import { getComfyEngineClient } from "@/components/panels/settings/comfy-engine/comfy-engine-contract";
 import { consumeComfyBridgeWritebacks } from "@/lib/assist/image-studio/comfy-bridge-writeback-consumer";
 import { syncStoryboardOverviewToLibrary } from "@/lib/assist/image-studio/storyboard-overview-sync";
+import { buildStoryboardOverviewWorkflow } from "@/lib/assist/image-studio/storyboard-overview-comfy";
 import { useStudioStore } from "@/stores/studio/studio-store";
 
 /** 画布内文本选中样式:ComfyUI 前端唯一选中规则是 xterm vendor css 泄漏的
@@ -24,14 +25,112 @@ import { useStudioStore } from "@/stores/studio/studio-store";
 export const WEBVIEW_SELECTION_CSS =
   "::selection{background:hsl(212 100% 48% / 0.28)!important;color:inherit!important}";
 
+/** 漫影登录遮蔽脚本(09-10 云端收编):真源=引擎侧扩展
+ * manying_nodes/web/manying_login_cloak.js(随 custom_nodes 分发,ComfyUI
+ * 自动加载 extensions 目录全部 js)——装机旧版 app 重启引擎即生效,不依赖
+ * app 打包;外部浏览器直访引擎同样覆盖。遮蔽「登录 / 注册」入口+点击拦截
+ * +登录弹窗自动关,中文包含匹配(精确匹配抓不到「登录 / 注册」合成串,
+ * 实弹教训)。
+ *
+ * 本层是 app 侧第二道(引擎扩展缺席/被删时兜底),与引擎层同码零漂移
+ * (?raw 导入整文件)。上游 i18n 改词漏遮时,凭据补丁(cloud_takeover)
+ * 仍是功能层兜底:杂散 comfy.org token 永不被采用。换漫影登录的口子=
+ * 宿主设 window.MANYING_ACCOUNT_URL(见该文件头注)。 */
+import MANYING_LOGIN_CLOAK_SOURCE from "../../../../../backend/engines/comfyui/manying_nodes/web/manying_login_cloak.js?raw";
+
+export function buildSignInCloakScript(): string {
+  if (!MANYING_LOGIN_CLOAK_SOURCE.includes("manyingLoginCloak")) {
+    throw new Error("manying_login_cloak.js 缺少 manyingLoginCloak 段(登录遮蔽真源被改坏)");
+  }
+  return MANYING_LOGIN_CLOAK_SOURCE;
+}
+
+/**
+ * 工作流阶段自动打开分镜总览(09-10 用户裁定:进入工作流阶段,ComfyUI 展示
+ * 本章分镜内容;1_图片/2_视频/3_声音 域树归本地模型模块浏览)。
+ * 轮询等 window.app(新前端 GraphView 异步赋值),每次页面加载只开一次
+ * (守卫变量),app 永不出现则静默放弃(画布回退默认视图)。
+ * 就绪谓词含 isGraphReady:window.app 早于 graph 初始化出现,只查方法存在
+ * 会在未初始化 graph 上调 loadGraphData——上游 ComfyApp 因此打
+ * "graph accessed before initialization" 且加载流程半途断掉
+ * (09-11 实弹:画布右侧露黑带的竞态入口之一)。
+ */
+export function buildOverviewOpenScript(graph: Record<string, unknown>): string {
+  const literal = JSON.stringify(graph);
+  return `(function () {
+  function tryLoad(attempt) {
+    var app = window.app;
+    if (app && app.isGraphReady === true && typeof app.loadGraphData === "function") {
+      window.__manyingOverviewAutoOpened = true;
+      try { app.loadGraphData(${literal}); } catch (e) { /* 载入失败留默认视图 */ }
+      return;
+    }
+    if (attempt < 50) setTimeout(function () { tryLoad(attempt + 1); }, 300);
+  }
+  if (!window.__manyingOverviewAutoOpened) tryLoad(0);
+})();`;
+}
+
+/**
+ * 画布满幅矫正器(09-11 用户报障:分镜工作流画布未占满全屏,右侧露纯黑竖带)。
+ * 实弹定位:宿主 webview 恒满幅(1920×981 实测),黑带在 ComfyUI 前端内部——
+ * 会话恢复/工作流自动载入的竞态窗口里,canvas 位图(resizeCanvas 设定的
+ * width/height)停在中间尺寸后未随最终布局矫正,位图右侧即未绘制黑区。
+ * 兜底:位图与 CSS 尺寸×dpr 错配时,照上游 resizeCanvas 语义重设
+ * (设位图→ctx.scale→app.canvas.draw 主动重绘),错配才动、幂等。
+ */
+export function buildCanvasFitScript(): string {
+  return `(function () {
+  if (window.__manyingCanvasFit) return;
+  window.__manyingCanvasFit = true;
+  function fit() {
+    var c = document.querySelector("#graph-canvas");
+    if (!c) return;
+    var rect = c.getBoundingClientRect();
+    if (rect.width < 2 || rect.height < 2) return;
+    var scale = Math.max(window.devicePixelRatio || 1, 1);
+    var wantW = Math.round(rect.width * scale);
+    var wantH = Math.round(rect.height * scale);
+    if (c.width === wantW && c.height === wantH) return;
+    c.width = wantW;
+    c.height = wantH;
+    var ctx = c.getContext("2d");
+    if (ctx) ctx.scale(scale, scale);
+    try {
+      var app = window.app;
+      if (app && app.canvas && typeof app.canvas.draw === "function") app.canvas.draw(true, true);
+    } catch (e) { /* draw 不可用:下一轮兜底再试 */ }
+  }
+  window.addEventListener("load", fit);
+  document.addEventListener("DOMContentLoaded", fit);
+  var n = 0;
+  var iv = setInterval(function () {
+    fit();
+    if (++n >= 45) clearInterval(iv);
+  }, 2000);
+})();`;
+}
+
 /** Electron webview 的宿主注入面(React 类型表不覆盖 webview tag 专有 API)。 */
 type WebviewElement = HTMLElement & {
   insertCSS?: (css: string) => Promise<string>;
+  executeJavaScript?: (code: string) => Promise<unknown>;
   __selectionHooked?: boolean;
 };
 
-export function ComfyCanvasStudio() {
+export interface ComfyCanvasStudioProps {
+  /**
+   * 工作流阶段专用(09-10 用户裁定):webview 就绪即自动打开本章分镜总览。
+   * 仅「分镜制作」挂载点启用;本地模型模块的沉浸视图保持完整域树浏览。
+   */
+  autoOpenOverview?: boolean;
+}
+
+export function ComfyCanvasStudio({ autoOpenOverview = false }: ComfyCanvasStudioProps = {}) {
   const webviewRef = useRef<WebviewElement | null>(null);
+  // attach 闭包在首次挂载时固化(防重监听),prop 走 ref 保持读取新鲜值
+  const autoOpenRef = useRef(autoOpenOverview);
+  autoOpenRef.current = autoOpenOverview;
   // dom-ready 不在 React 合成事件类型表里 → ref 回调挂原生监听(幂等防重)。
   // ⚠不可挂载即调:attach 前调 insertCSS 是同步 throw(Electron 实弹 21:31 白屏:
   // "must be attached...before this method"),事件期调用则安全;双事件兜底
@@ -43,6 +142,13 @@ export function ComfyCanvasStudio() {
       const inject = () => {
         try {
           node.insertCSS?.(WEBVIEW_SELECTION_CSS)?.catch(() => undefined);
+          node.executeJavaScript?.(buildSignInCloakScript())?.catch(() => undefined);
+          node.executeJavaScript?.(buildCanvasFitScript())?.catch(() => undefined);
+          // 工作流阶段:进入即展示本章分镜总览(空分镜跳过;脚本内自带一次性守卫)
+          if (autoOpenRef.current && useStudioStore.getState().storyboards.length > 0) {
+            const overview = buildStoryboardOverviewWorkflow(useStudioStore.getState().storyboards);
+            node.executeJavaScript?.(buildOverviewOpenScript(overview.ui as Record<string, unknown>))?.catch(() => undefined);
+          }
         } catch {
           // 未就绪窗口的同步抛错:吞掉,等下一事件兜底
         }
@@ -173,7 +279,7 @@ export function ComfyCanvasStudio() {
     return (
       <Center>
         <PlayCircle className="mb-3 h-10 w-10 text-muted-foreground" aria-hidden />
-        <h3 className="text-base font-medium text-foreground">引擎已就绪,未在运行</h3>
+        <h3 className="text-base font-medium text-foreground">ComfyUI 已就绪</h3>
         <p className="mb-4 max-w-md text-center text-sm text-muted-foreground">
           启动需要加载模型运行时(最长两分钟);启动完成后这里就是完整的 ComfyUI 界面。
         </p>
@@ -184,7 +290,7 @@ export function ComfyCanvasStudio() {
           </div>
         ) : (
           <Button data-comfy-canvas-start onClick={() => void startService()}>
-            启动引擎
+            启动 ComfyUI
           </Button>
         )}
       </Center>
