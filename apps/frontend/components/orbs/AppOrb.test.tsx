@@ -201,10 +201,8 @@ describe("AppOrb(分域矩阵·09-11:阶段仅工作流)", () => {
     openPanel();
     expect(await screen.findByRole("group", { name: "本地模型" })).toBeTruthy();
     expect(screen.getByRole("button", { name: /配音室/ })).toBeTruthy();
-    // 中转枢纽:阶段分区在场(可展开直达),但球面零进度弧、无待推进头
-    expect(
-      screen.getByRole("button", { name: /^切换阶段$/ }).getAttribute("aria-expanded"),
-    ).toBe("false");
+    // 模块隔离(09-11 裁定):工作流阶段区不出现在本地模型视图
+    expect(screen.queryByRole("button", { name: /^切换阶段$/ })).toBeNull();
     expect(screen.queryByText(/待推进：/)).toBeNull();
     expect(container.querySelectorAll("[data-orb-segment]").length).toBe(0);
     expect(container.querySelector("[data-orb-capsule]")?.textContent).toContain("本地模型");
@@ -226,46 +224,13 @@ describe("AppOrb(分域矩阵·09-11:阶段仅工作流)", () => {
         .querySelector('[data-orb-nav-view="assets"]')
         ?.classList.contains("bg-accent/60"),
     ).toBe(true);
+    // 模块隔离(09-11):其他模块的状态区不在此视图出现
+    expect(screen.queryByRole("button", { name: /^切换阶段$/ })).toBeNull();
     expect(
-      screen.getByRole("button", { name: /^切换阶段$/ }).getAttribute("aria-expanded"),
-    ).toBe("false");
-    expect(
-      document
-        .querySelector('[data-orb-section="local-models"] > button')
-        ?.getAttribute("aria-expanded"),
-    ).toBe("false");
+      document.querySelector('[data-orb-section="local-models"]'),
+    ).toBeNull();
     expect(screen.queryByText(/待推进：/)).toBeNull();
     expect(container.querySelectorAll("[data-orb-segment]").length).toBe(0);
-  });
-
-  it("中转直达(阶段):资产视图展开「切换阶段」点手册阶段→跳工作流并落档", async () => {
-    useMediaPanelStore.setState({ activeTab: "assets" });
-    render(<AppOrb />);
-    openPanel();
-    fireEvent.click(screen.getByRole("button", { name: /^切换阶段$/ }));
-    const item = await waitFor(() => {
-      const el = document.querySelector('[data-orb-stage-item="manuals"]') as HTMLElement | null;
-      expect(el).toBeTruthy();
-      return el!;
-    });
-    fireEvent.click(item);
-    expect(useMediaPanelStore.getState().activeTab).toBe("studio");
-    expect(useStudioStore.getState().workflowConfig.workflowStage).toBe("manuals");
-  });
-
-  it("中转直达(模式):资产视图展开「本地模型」点配音室→跳本地模型并切 TTS", async () => {
-    useMediaPanelStore.setState({ activeTab: "assets" });
-    render(<AppOrb />);
-    openPanel();
-    await screen.findByRole("group", { name: "导航" });
-    const localHeader = document.querySelector(
-      '[data-orb-section="local-models"] > button',
-    ) as HTMLElement;
-    fireEvent.click(localHeader);
-    const tts = await screen.findByRole("button", { name: /配音室/ });
-    fireEvent.click(tts);
-    expect(useMediaPanelStore.getState().activeTab).toBe("freedom");
-    expect(useFreedomStore.getState().activeStudio).toBe("tts");
   });
 
   it("中转记录:「最近」记录跳转,一键回跳(studio→overview 后面板见工作流)", async () => {

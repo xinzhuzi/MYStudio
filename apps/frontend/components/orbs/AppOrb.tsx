@@ -5,9 +5,9 @@
 // Commercial licensing available. See COMMERCIAL_LICENSE.md.
 
 // 悬浮球独立模块(components/orbs/)的全局面孔:
-// - 09-11 中转枢纽裁定:球=各模块中转站——「最近」记录模块跳转(MRU 一键回跳),
-//   各模块内部状态在球内成区展示:工作流=六阶段就绪(任何视图可点阶段直达),
-//   本地模型=不同模型表现效果(ComfyUI 画布/配音室 TTS,任何视图点=跳模块+切模式);
+// - 09-11 中转枢纽+模块隔离裁定:球=各模块中转站——「最近」记录模块跳转(MRU 一键回跳);
+//   模块状态区只在本模块视图渲染(工作流阶段不出现在本地模型,反之亦然——
+//   多模块内容不得在球 UI 上并行展示):工作流=六阶段就绪,本地模型=画布/配音室;
 // - 球面标识仍分域:进度环+阶段序号仅工作流(12345 只有工作流有),其他=Compass 中性面;
 // - 上下文默认:工作流→工作流区开;本地模型→本地模型区开;其他→前往开+当前模块高亮;
 // - 内部边界:OrbShell/OrbSection/use-orb-position 零业务依赖;门面=AppOrb;
@@ -87,6 +87,7 @@ export function AppOrb() {
   }, [activeTab]);
 
   const inStudio = activeTab === "studio";
+  const inFreedom = activeTab === "freedom";
   const activeStage = resolveVisibleWorkflowStage(workflowConfig.workflowStage);
   const moduleLabel = TAB_LABELS[activeTab]?.label ?? "导航";
 
@@ -174,22 +175,26 @@ export function AppOrb() {
               open={sections.recent}
               onToggle={() => setSections((s) => ({ ...s, recent: !s.recent }))}
             />
-            <OrbStagesSection
-              readiness={readiness}
-              activeStage={activeStage}
-              onStageChange={handleStageChange}
-              onClose={close}
-              open={sections.stages}
-              onToggle={() =>
-                setSections((s) => ({ ...s, stages: !s.stages }))
-              }
-            />
-            <OrbLocalModelsSection
-              activeMode={activeStudio}
-              onModeSelect={handleModeSelect}
-              open={sections.local}
-              onToggle={() => setSections((s) => ({ ...s, local: !s.local }))}
-            />
+            {inStudio ? (
+              <OrbStagesSection
+                readiness={readiness}
+                activeStage={activeStage}
+                onStageChange={handleStageChange}
+                onClose={close}
+                open={sections.stages}
+                onToggle={() =>
+                  setSections((s) => ({ ...s, stages: !s.stages }))
+                }
+              />
+            ) : null}
+            {inFreedom ? (
+              <OrbLocalModelsSection
+                activeMode={activeStudio}
+                onModeSelect={handleModeSelect}
+                open={sections.local}
+                onToggle={() => setSections((s) => ({ ...s, local: !s.local }))}
+              />
+            ) : null}
             <OrbGotoSection
               activeTab={activeTab}
               open={sections.goto}
