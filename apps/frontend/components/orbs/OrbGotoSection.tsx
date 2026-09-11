@@ -4,7 +4,7 @@
 // Licensed under AGPL-3.0-or-later. See LICENSE for details.
 // Commercial licensing available. See COMMERCIAL_LICENSE.md.
 
-// 09-10 终裁(用户:悬浮球功能应一致、都展示全面):「前往」为两球共有分区,
+// 09-10 终裁(用户:悬浮球功能应一致、都展示全面):「导航」分区(原「前往」,09-11 用户裁定更名),
 // 抽成 features 层共享组件,任何球消费即保证条目/行为一致。
 // 本分区不持开合态(调用方持,默认收起);分镜面板入口不进(08-23 唯一入口裁定)。
 
@@ -39,7 +39,7 @@ const VIEW_ENTRIES: ReadonlyArray<{ id: Tab; label: string; icon: typeof LayoutD
   { id: "settings", label: "设置", icon: Settings },
 ];
 
-/** 「前往」分区:应用模块导航(10 视口)。开合态由调用方持有;
+/** 「导航」分区:应用模块导航(10 视口)。开合态由调用方持有;
  * activeTab 传入时高亮当前模块(09-11 裁定:不同模块不同效果)。 */
 export function OrbGotoSection({
   activeTab,
@@ -50,7 +50,7 @@ export function OrbGotoSection({
 }) {
   const setActiveTab = useMediaPanelStore((state) => state.setActiveTab);
   return (
-    <OrbSection section="goto" title="前往" open={open} onToggle={onToggle}>
+    <OrbSection section="goto" title="导航" open={open} onToggle={onToggle}>
       <div className="grid grid-cols-3 gap-1">
         {VIEW_ENTRIES.map((item) => (
           <button

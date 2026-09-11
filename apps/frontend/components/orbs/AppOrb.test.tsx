@@ -2,7 +2,7 @@
 // AppOrb(09-11 终局:球=全局模块 components/orbs,阶段仅工作流)测试:
 // ①交互回归(经 AppOrb DOM 走 OrbShell 真实路径);
 // ②分域矩阵:工作流=进度环+待推进+切换阶段(默认开);其他=Compass 中性面+无阶段内容;
-// ③上下文默认展开与「前往」高亮;④阶段就地切换与手册门禁。
+// ③上下文默认展开与「导航」高亮;④阶段就地切换与手册门禁。
 
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
@@ -163,7 +163,7 @@ describe("AppOrb(交互回归,接棒原工作流球)", () => {
 });
 
 describe("AppOrb(分域矩阵·09-11:阶段仅工作流)", () => {
-  it("工作流:待推进恒显+切换阶段默认展开+前往收起;阶段就地切换", async () => {
+  it("工作流:待推进恒显+切换阶段默认展开+导航收起;阶段就地切换", async () => {
     useMediaPanelStore.setState({ activeTab: "studio" });
     render(<AppOrb />);
     openPanel();
@@ -173,7 +173,7 @@ describe("AppOrb(分域矩阵·09-11:阶段仅工作流)", () => {
       document.querySelectorAll("[data-orb-stage-item]").length,
     ).toBeGreaterThan(0);
     expect(
-      screen.getByRole("button", { name: /^前往$/ }).getAttribute("aria-expanded"),
+      screen.getByRole("button", { name: /^导航$/ }).getAttribute("aria-expanded"),
     ).toBe("false");
     const item = document.querySelector('[data-orb-stage-item="manuals"]') as HTMLElement;
     fireEvent.click(item);
@@ -209,15 +209,15 @@ describe("AppOrb(分域矩阵·09-11:阶段仅工作流)", () => {
     expect(container.querySelectorAll("[data-orb-segment]").length).toBe(0);
     expect(container.querySelector("[data-orb-capsule]")?.textContent).toContain("本地模型");
     expect(
-      screen.getByRole("button", { name: /^前往$/ }).getAttribute("aria-expanded"),
+      screen.getByRole("button", { name: /^导航$/ }).getAttribute("aria-expanded"),
     ).toBe("false");
   });
 
-  it("其他视图(资产):「前往」默认展开+当前模块高亮;阶段/本地模型区在场但收起", async () => {
+  it("其他视图(资产):「导航」默认展开+当前模块高亮;阶段/本地模型区在场但收起", async () => {
     useMediaPanelStore.setState({ activeTab: "assets" });
     const { container } = render(<AppOrb />);
     openPanel();
-    expect(await screen.findByRole("group", { name: "前往" })).toBeTruthy();
+    expect(await screen.findByRole("group", { name: "导航" })).toBeTruthy();
     expect(
       document.querySelectorAll("[data-orb-nav-view]").length,
     ).toBe(10);
@@ -257,7 +257,7 @@ describe("AppOrb(分域矩阵·09-11:阶段仅工作流)", () => {
     useMediaPanelStore.setState({ activeTab: "assets" });
     render(<AppOrb />);
     openPanel();
-    await screen.findByRole("group", { name: "前往" });
+    await screen.findByRole("group", { name: "导航" });
     const localHeader = document.querySelector(
       '[data-orb-section="local-models"] > button',
     ) as HTMLElement;
@@ -303,11 +303,11 @@ describe("AppOrb(分域矩阵·09-11:阶段仅工作流)", () => {
     );
   });
 
-  it("「前往」10 视口含本地模型,可跳转落 media-panel", async () => {
+  it("「导航」10 视口含本地模型,可跳转落 media-panel", async () => {
     useMediaPanelStore.setState({ activeTab: "assets" });
     render(<AppOrb />);
     openPanel();
-    await screen.findByRole("group", { name: "前往" });
+    await screen.findByRole("group", { name: "导航" });
     expect(
       document.querySelector('[data-orb-nav-view="freedom"]')?.textContent,
     ).toContain("本地模型");
@@ -315,11 +315,11 @@ describe("AppOrb(分域矩阵·09-11:阶段仅工作流)", () => {
     expect(useMediaPanelStore.getState().activeTab).toBe("overview");
   });
 
-  it("「前往」不含分镜面板入口(08-23 唯一入口裁定)", async () => {
+  it("「导航」不含分镜面板入口(08-23 唯一入口裁定)", async () => {
     useMediaPanelStore.setState({ activeTab: "assets" });
     render(<AppOrb />);
     openPanel();
-    await screen.findByRole("group", { name: "前往" });
+    await screen.findByRole("group", { name: "导航" });
     const gotoText = Array.from(document.querySelectorAll("[data-orb-nav-view]"))
       .map((node) => node.textContent ?? "")
       .join(" ");

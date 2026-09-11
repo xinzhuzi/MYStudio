@@ -11,7 +11,7 @@ import { cn } from "@/lib/utils";
 export interface OrbSectionProps {
   /** 分区名,进 data-orb-section(如 "stages" | "views" | "goto")。 */
   section: string;
-  /** 标题行文案(如「切换阶段」「本视图」「前往」)。 */
+  /** 标题行文案(如「切换阶段」「本地模型」「导航」)。 */
   title: string;
   /** 受控开合;开合态由调用方持有——不持久化,面板重开回默认(收起)。 */
   open: boolean;

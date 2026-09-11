@@ -1141,8 +1141,8 @@ async function verifyRoute(evaluate, route) {
     }, ${waitMs}));
     let escapedFromImmersive = true;
     if (routeLabel === '本地模型') {
-      // 09-10 终裁(球是 1 个):唯一球 data-workflow-orb,逃逸三步=点球→展开「前往」分区→点概览。
-      // 分区默认收起(条件渲染),「前往」条目不展开不可见;两段式防抖等待保留。
+      // 09-10 终裁(球是 1 个):唯一球 data-workflow-orb,逃逸三步=点球→展开「导航」分区(goto)→点概览。
+      // 分区默认收起(条件渲染),「导航」(goto)条目不展开不可见;两段式防抖等待保留。
       const orb = document.querySelector('[data-workflow-orb]');
       orb?.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, view: window }));
       escapedFromImmersive = false;
