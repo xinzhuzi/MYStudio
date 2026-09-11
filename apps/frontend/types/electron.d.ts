@@ -641,6 +641,23 @@ declare global {
       downloadModel: (model: string) => Promise<{ accepted: boolean; message: string }>;
       setActiveModel: (model: string) => Promise<{ accepted: boolean; message: string }>;
     };
+    /** 漫影云中继执行面(09-10 云端收编):main 中继把引擎「漫影 云端生图」
+     * 请求转进渲染层,由 lib/ai 云链单源执行后应答。 */
+    comfyCloudRelay?: {
+      onGenerateRequest: (
+        listener: (request: {
+          id: string;
+          payload: { prompt: string; negativePrompt?: string; aspectRatio?: string; referenceB64s?: string[] };
+        }) => void,
+      ) => () => void;
+      respond: (response: {
+        id: string;
+        ok: boolean;
+        imageB64?: string;
+        mediaId?: string;
+        error?: string;
+      }) => Promise<boolean>;
+    };
     mcpRuntime?: {
       testServer: (config: {
         transport: "stdio" | "http";

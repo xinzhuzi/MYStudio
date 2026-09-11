@@ -85,6 +85,12 @@ export function setStopImageGenSidecar(fn: (() => void | Promise<void>) | null):
   stopImageGenSidecar = fn
 }
 
+let stopComfyCloudRelay: (() => void | Promise<void>) | null = null
+
+export function setStopComfyCloudRelay(fn: (() => void | Promise<void>) | null): void {
+  stopComfyCloudRelay = fn
+}
+
 export function stopLocalSidecars() {
   if (!stopLocalSidecarsPromise) {
     const { ttsRuntimeController } = requireWindowRuntime()
@@ -98,6 +104,9 @@ export function stopLocalSidecars() {
       } catch (error) {
         console.warn('Failed to stop local image sidecar:', error)
       }
+      // 云中继不在此停:本函数在 macOS 窗口全关(应用存活)也被调,中继一旦
+      // 停了没有重启路径(whenReady 只 start 一次)→云端节点全断到重启应用。
+      // 它是应用级常驻服务,只在 before-quit(stopAllLocalServices)收摊。
     })().finally(() => {
       stopLocalSidecarsPromise = null
     })
@@ -111,6 +120,11 @@ export async function stopAllLocalServices() {
   await disposeRemotionRuntime?.()
   disposeRemotionRuntime = null
   await stopLocalSidecars()
+  try {
+    await stopComfyCloudRelay?.()
+  } catch (error) {
+    console.warn('Failed to stop comfy cloud relay:', error)
+  }
 }
 
 // 更新清单抓取统一走 main-update.ts(含 GitHub Releases API 适配),

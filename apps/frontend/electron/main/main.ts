@@ -5,7 +5,9 @@ import {bindChapterProjectionRuntime, enqueueChapterSceneSegments, evaluateVideo
 import {createDiagnosticsOperationId, diagnosticsFetchBytes, diagnosticsFetchJson, runTtsRuntimeDiagnostics, writeDiagnosticsLog} from "./main-diagnostics";
 import {bindHostedStudioRuntime, disposeHostedStudio, hostedStudioIpc, persistStudioEditingRevision} from "./main-hosted-studio";
 import {isBackgroundSmoke, MAIN_DIST, RENDERER_DIST} from "./main-env";
-import {bindWindowRuntime, createWindow, getWin, setDisposeRemotionRuntime, setStopImageGenSidecar, stopLocalSidecars, typedPackageMetadata} from "./main-window";
+import {bindWindowRuntime, createWindow, getWin, setDisposeRemotionRuntime, setStopComfyCloudRelay, setStopImageGenSidecar, stopLocalSidecars, typedPackageMetadata} from "./main-window";
+import { COMFY_CLOUD_RELAY_ENV, createComfyCloudRelay } from "../ipc/ai/comfy-cloud-relay";
+import { comfyApiTakeoverEnv } from "../ipc/ai/comfy-api-takeover";
 import {bindNativeBridgeRuntime, buildManagedVideoUseChapterRun, nativeStudioQueueBridge} from "./main-native-bridge";
 // IPC 注册群(存储/媒体/资产/更新/诊断/导出)整体外迁,副作用 import 即注册
 import "./main-ipc-bootstrap";
@@ -331,6 +333,22 @@ const imageGenRuntimeController = createImageGenRuntimeController({
 const imageGenIpc = registerImageGenIpcHandlers({ controller: imageGenRuntimeController })
 setStopImageGenSidecar(() => imageGenRuntimeController.stop())
 
+// 漫影云中继(09-10 云端收编):引擎「漫影 云端生图」节点 → 127.0.0.1:17596
+// → 渲染层既有云链单源(generateImage)。ComfyUI 自带云端 API 节点/登录随
+// --disable-api-nodes 退役,云端账号/计费全部归漫影应用。
+const comfyCloudRelay = createComfyCloudRelay({ getWindow: getWin })
+setStopComfyCloudRelay(() => void comfyCloudRelay.stop())
+// 侧车 spawn env 经 {...process.env} 透传 → 引擎随 os.environ 继承;
+// 单源=中继契约常量(与 MYSTUDIO_FFMPEG_PATH 同款注入位)。
+for (const [key, value] of Object.entries(COMFY_CLOUD_RELAY_ENV)) {
+  process.env[key] = value
+}
+// 云端收编二轮:漫影网关产品配置位(base/token 填真源后,云端节点整体
+// 改指漫影;留空=零干预)。env 注入链同上。
+for (const [key, value] of Object.entries(comfyApiTakeoverEnv())) {
+  process.env[key] = value
+}
+
 // 图片超分侧车已退役(09-10 用户裁定:超分全量走 ComfyUI)。
 registerStorageMediaIpcHandlers({
   getDataDir,
@@ -584,6 +602,11 @@ app.whenReady().then(async () => {
   }
   scheduleAutoClean()
   await stopLocalSidecars()
+  // 云中继先于一切引擎拉起(节点侧常驻寻址;绑口失败不拦启动,云端节点会
+  // 以「通道未接通」大白话显式报错)。
+  void comfyCloudRelay.start().catch((error) => {
+    console.warn('Comfy cloud relay failed to start:', error)
+  })
   await ensureStudioSkillsAvailableAtStartup()
   registerProtocolHandlers({
     protocol,

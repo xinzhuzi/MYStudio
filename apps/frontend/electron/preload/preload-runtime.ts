@@ -412,6 +412,28 @@ contextBridge.exposeInMainWorld('imageGenRuntime', {
     ipcRenderer.invoke('image-gen-runtime-set-active-model', model),
 })
 
+// 漫影云中继执行面(09-10 云端收编):main 中继(ipc/ai/comfy-cloud-relay)把
+// 引擎「漫影 云端生图」节点请求转进本渲染层;通道名与中继常量配对
+// (comfy-cloud-relay.test 断言防漂移),此处硬编码保持 preload 轻打包
+// (不引 node:http/electron 主进程件)。
+contextBridge.exposeInMainWorld('comfyCloudRelay', {
+  onGenerateRequest: (listener: (request: {
+    id: string;
+    payload: { prompt: string; negativePrompt?: string; aspectRatio?: string; referenceB64s?: string[] };
+  }) => void): (() => void) => {
+    const handler = (_event: unknown, request: Parameters<typeof listener>[0]) => listener(request)
+    ipcRenderer.on('comfy-cloud-relay-request', handler)
+    return () => ipcRenderer.removeListener('comfy-cloud-relay-request', handler)
+  },
+  respond: (response: {
+    id: string;
+    ok: boolean;
+    imageB64?: string;
+    mediaId?: string;
+    error?: string;
+  }): Promise<boolean> => ipcRenderer.invoke('comfy-cloud-relay-response', response),
+})
+
 // MCP servers config API (09-01-mcp-settings-section) — short-lived probe only;
 // tool consumption lands in a follow-up task.
 contextBridge.exposeInMainWorld('mcpRuntime', {

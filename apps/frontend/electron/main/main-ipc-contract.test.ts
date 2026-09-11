@@ -48,6 +48,7 @@ chapter-qc-get-report
 chapter-qc-run
 chapter-qc-submit-semantic
 chapter-qc-submit-vision-preflight
+comfy-cloud-relay-response
 diagnostics-log-clear
 diagnostics-log-export-bundle
 diagnostics-log-get-info
@@ -209,6 +210,7 @@ vlm-review-runtime-setup
 `.trim().split("\n");
 
 const NAMED_IPC_CHANNELS = {
+  COMFY_CLOUD_RELAY_RESPONSE_CHANNEL: "comfy-cloud-relay-response",
   IMAGE_GEN_PREPARE_CHANNEL: "image-gen-runtime-prepare",
   IMAGE_GEN_PROBE_CHANNEL: "image-gen-runtime-probe",
   IMAGE_GEN_ROLLBACK_CHANNEL: "image-gen-runtime-rollback",
