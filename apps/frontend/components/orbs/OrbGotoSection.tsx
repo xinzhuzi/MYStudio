@@ -59,14 +59,25 @@ export function OrbGotoSection({
             type="button"
             data-orb-nav-view={item.id}
             className={cn(
-              "flex items-center gap-1.5 rounded-md px-2 py-1.5 text-left text-xs transition-colors hover:bg-accent hover:text-foreground",
+              // 09-12 面板美化:磁贴条目——图标坐进小底座,悬停底座提亮
+              // (house spec 禁 active:scale 按压缩放,按压反馈=底色变化)
+              "group flex items-center gap-2 rounded-md px-1.5 py-1.5 text-left text-xs transition-colors hover:bg-accent hover:text-foreground motion-reduce:transition-none",
               item.id === activeTab
                 ? "bg-accent/60 text-foreground"
                 : "text-muted-foreground",
             )}
             onClick={() => setActiveTab(item.id)}
           >
-            <item.icon className="h-3.5 w-3.5 shrink-0" aria-hidden />
+            <span
+              className={cn(
+                "flex h-5 w-5 shrink-0 items-center justify-center rounded-md transition-colors motion-reduce:transition-none",
+                item.id === activeTab
+                  ? "bg-primary/15 text-primary"
+                  : "bg-accent/40 text-foreground/70 group-hover:bg-accent/70 group-hover:text-foreground",
+              )}
+            >
+              <item.icon className="h-3.5 w-3.5" aria-hidden />
+            </span>
             <span className="truncate">{item.label}</span>
           </button>
         ))}

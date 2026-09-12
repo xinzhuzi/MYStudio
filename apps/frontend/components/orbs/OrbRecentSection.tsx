@@ -53,16 +53,18 @@ export function OrbRecentSection({
         {entries.map((tab) => {
           const Icon = ENTRY_ICONS[tab];
           return (
-            <button
-              key={tab}
-              type="button"
-              data-orb-recent={tab}
-              className="flex items-center gap-1.5 rounded-md px-2 py-1.5 text-left text-xs text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-              onClick={() => setActiveTab(tab)}
-            >
-              {Icon ? <Icon className="h-3.5 w-3.5 shrink-0" aria-hidden /> : null}
-              <span className="truncate">{TAB_LABELS[tab]?.label ?? tab}</span>
-            </button>
+              <button
+                key={tab}
+                type="button"
+                data-orb-recent={tab}
+                className="group flex items-center gap-2 rounded-md px-1.5 py-1.5 text-left text-xs text-muted-foreground transition-colors hover:bg-accent hover:text-foreground motion-reduce:transition-none"
+                onClick={() => setActiveTab(tab)}
+              >
+                <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-md bg-accent/40 text-foreground/70 transition-colors group-hover:bg-accent/70 group-hover:text-foreground motion-reduce:transition-none">
+                  {Icon ? <Icon className="h-3.5 w-3.5" aria-hidden /> : null}
+                </span>
+                <span className="truncate">{TAB_LABELS[tab]?.label ?? tab}</span>
+              </button>
           );
         })}
       </div>

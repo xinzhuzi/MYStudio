@@ -190,7 +190,9 @@ export function AppOrb() {
               </p>
             </div>
           ) : null}
-          <div className="flex-1 overflow-y-auto space-y-1">
+          {/* 09-12 面板美化:分区入场级联——逐区淡入+上浮 40ms 步进,
+              transform/opacity only,motion-reduce 全静 */}
+          <div className="flex-1 overflow-y-auto space-y-1 [&>*]:animate-in [&>*]:fade-in-0 [&>*]:slide-in-from-bottom-1 [&>*]:duration-200 [&>*:nth-child(2)]:delay-[40ms] [&>*:nth-child(3)]:delay-[80ms] [&>*:nth-child(4)]:delay-[120ms] [&>*:nth-child(5)]:delay-[160ms] motion-reduce:[&>*]:animate-none">
             <OrbRecentSection
               recent={recentTabs}
               open={sections.recent}

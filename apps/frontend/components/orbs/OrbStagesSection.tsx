@@ -56,7 +56,7 @@ export function OrbStagesSection({
           type="button"
           data-orb-stage-item={view.id}
           className={cn(
-            "flex w-full items-center justify-between gap-3 rounded-md px-2 py-2 text-left transition-colors hover:bg-accent",
+            "flex w-full items-center justify-between gap-3 rounded-md px-2 py-2 text-left transition-colors hover:bg-accent motion-reduce:transition-none",
             view.id === activeStage && "bg-accent/60",
           )}
           onClick={() => {
@@ -99,7 +99,7 @@ function StageItem({
       type="button"
       data-orb-stage-item={stage.id}
       className={cn(
-        "flex w-full items-start gap-3 rounded-md px-2 py-2 text-left transition-colors hover:bg-accent",
+        "flex w-full items-start gap-3 rounded-md px-2 py-2 text-left transition-colors hover:bg-accent motion-reduce:transition-none",
         stage.status === "ready" && "bg-success/8",
         stage.status === "active" && "bg-warning/12",
         active && "bg-accent/60",

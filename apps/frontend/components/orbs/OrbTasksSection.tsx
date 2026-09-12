@@ -60,7 +60,7 @@ function TaskRow({ task, onJump }: { task: OrbTaskView; onJump?: (tab: string) =
       <button
         type="button"
         data-orb-task-jump={task.id}
-        className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left transition-colors hover:bg-accent"
+        className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left transition-colors hover:bg-accent motion-reduce:transition-none"
         onClick={() => onJump(task.targetTab!)}
       >
         {body}
