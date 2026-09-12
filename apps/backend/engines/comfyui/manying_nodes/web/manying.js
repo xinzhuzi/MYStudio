@@ -10,6 +10,13 @@
  * 数据面:GET {BRIDGE}/comfy/bridge/storyboards(渲染层周期 POST 推)。
  */
 import { app } from "/scripts/app.js";
+// 模块内容策略(manying_module_policy.js,并行会话 09-12:模块分离裁定)——
+// 漫影侧栏库过滤 / userdata 工作流树 fetch 过滤的唯一真源
+import {
+  filterUserDataWorkflowEntries,
+  filterWorkflowsForScope,
+  isUserDataWorkflowListUrl,
+} from "./manying_module_policy.js";
 
 const BRIDGE_URL = (window.MANYING_BRIDGE_URL || "http://127.0.0.1:17595").replace(/\/$/, "");
 const BRIDGE_TOKEN = window.MANYING_BRIDGE_TOKEN || "manying-local-image";
@@ -603,9 +610,11 @@ async function renderWorkflowsPane(pane) {
   try {
     // light=1:跳过逐文件 JSON 解析(海量库性能,09-12 桥新增参数)
     const data = await fetchJson(`${BRIDGE_URL}/comfy/workflows?light=1`);
-    // .keep.json=空夹占位(建夹机制),不作为工作流行展示
-    const items = (data.workflows || []).filter((item) =>
-      item.id && item.id.startsWith("漫影/") && !item.id.endsWith("/.keep.json"));
+    // .keep.json=空夹占位(建夹机制),不作为工作流行展示;
+    // models 域再剔分镜产线内容(漫影/1_图片/分镜/**=工作流模块内容),
+    // 策略单源在 manying_module_policy.js
+    const items = filterWorkflowsForScope((data.workflows || []).filter((item) =>
+      item.id && item.id.startsWith("漫影/") && !item.id.endsWith("/.keep.json")), manyingScope());
     if (items.length === 0) {
       status.textContent = "漫影分组下还没有工作流";
       return;
@@ -1462,15 +1471,42 @@ app.registerExtension({
 (function installTemplateScopeFilter() {
   if (window.__manyingTplScope) return;
   window.__manyingTplScope = true;
-  if (manyingScope() !== "workflow") return;
+  const scope = manyingScope();
+  if (scope !== "workflow" && scope !== "models") return;
   const originalFetch = window.fetch.bind(window);
   window.fetch = function patchedFetch(input, init) {
     const url = typeof input === "string" ? input : (input && input.url) || "";
-    if (/^\/templates\/index(\.[A-Za-z-]+)?\.json(\?|$)/.test(url)) {
-      return Promise.resolve(new Response("[]", { headers: { "Content-Type": "application/json" } }));
+    if (scope === "workflow") {
+      // 工作流模块=漫影库单源:官方核心/自定义模板清单置空(原行为)
+      if (/^\/templates\/index(\.[A-Za-z-]+)?\.json(\?|$)/.test(url)) {
+        return Promise.resolve(new Response("[]", { headers: { "Content-Type": "application/json" } }));
+      }
+      if (/^\/api\/workflow_templates(\?|$)/.test(url)) {
+        return Promise.resolve(new Response("{}", { headers: { "Content-Type": "application/json" } }));
+      }
     }
-    if (/^\/api\/workflow_templates(\?|$)/.test(url)) {
-      return Promise.resolve(new Response("{}", { headers: { "Content-Type": "application/json" } }));
+    if (scope === "models" && isUserDataWorkflowListUrl(url)) {
+      // 本地模型模块:userdata 工作流树剔除分镜产线条目(策略单源,
+      // 判定/路径归一都在 manying_module_policy.js;v1 数组/v2 items 两形态)
+      return originalFetch(input, init).then(async (response) => {
+        try {
+          const body = await response.clone().json();
+          const pass = (entries) => filterUserDataWorkflowEntries(entries);
+          let patched = null;
+          if (Array.isArray(body)) {
+            patched = pass(body);
+          } else if (body && Array.isArray(body.items)) {
+            patched = { ...body, items: pass(body.items) };
+          }
+          if (patched === null) return response;
+          return new Response(JSON.stringify(patched), {
+            status: response.status,
+            headers: { "Content-Type": "application/json" },
+          });
+        } catch (error) {
+          return response; // 解析失败=原样直通(过滤面永不制造故障)
+        }
+      });
     }
     return originalFetch(input, init);
   };
