@@ -29,16 +29,20 @@ import { OrbGotoSection } from "./OrbGotoSection";
 import { OrbStagesSection } from "./OrbStagesSection";
 import { OrbLocalModelsSection } from "./OrbLocalModelsSection";
 import { OrbRecentSection } from "./OrbRecentSection";
+import { OrbTaskBadge, OrbTasksSection } from "./OrbTasksSection";
+import { useTaskCenter } from "./use-task-center";
 import { useRecentTabs } from "./use-recent-tabs";
 
 /** 上下文默认(进不同模块默认展开该模块自己的分区):
  * 工作流→工作流(切换阶段);本地模型→本地模型(画布/配音室);其他→前往。
- * 「最近」恒收起;视图切换即重置;同视图内面板重开保留用户开合。 */
+ * 「最近」恒收起;「任务」恒收起(可见性由球面徽章承担);视图切换即重置;
+ * 同视图内面板重开保留用户开合。 */
 function sectionDefaults(tab: Tab) {
   return {
     recent: false,
     stages: tab === "studio",
     local: tab === "freedom",
+    tasks: false,
     goto: tab !== "freedom" && tab !== "studio",
   };
 }
@@ -50,6 +54,11 @@ export function AppOrb() {
   const activeStudio = useFreedomStore((state) => state.activeStudio);
   const setActiveStudio = useFreedomStore((state) => state.setActiveStudio);
   const recentTabs = useRecentTabs();
+  // 任务中心(09-12):后台任务态上球——徽章+面板分区+完成提醒(零 toast)
+  const { tasks: activeTasks, recent: recentTasks, bumpTick } = useTaskCenter();
+  const taskBadge = (
+    <OrbTaskBadge count={activeTasks.length} bumpTick={bumpTick} />
+  );
 
   const {
     workflowConfig,
@@ -124,10 +133,12 @@ export function AppOrb() {
     : 0;
   const firstMissing = currentStage?.missing[0] ?? currentStage?.actionLabel ?? "";
 
-  // 球面分域:工作流=进度环+阶段序号;其他=中性导航面孔
+  // 球面分域:工作流=进度环+阶段序号;其他=中性导航面孔。任务徽章全域在场。
+  const taskSuffix =
+    activeTasks.length > 0 ? `，${activeTasks.length} 个任务进行中` : "";
   const ariaLabel = inStudio
-    ? `工作流进度：${currentStage?.label ?? "工作流"}，${readyCount}/${total} 已就绪，点按打开阶段面板`
-    : `导航：当前${moduleLabel}，点按打开导航面板`;
+    ? `工作流进度：${currentStage?.label ?? "工作流"}，${readyCount}/${total} 已就绪${taskSuffix}，点按打开阶段面板`
+    : `导航：当前${moduleLabel}${taskSuffix}，点按打开导航面板`;
   const capsuleText = inStudio
     ? `${currentStage?.label ?? "工作流"} · ${readyCount}/${total}${
         firstMissing ? ` · 缺：${firstMissing}` : ""
@@ -139,12 +150,16 @@ export function AppOrb() {
       <span className="absolute inset-0 flex items-center justify-center text-sm font-semibold tabular-nums text-foreground drop-shadow-[0_1px_2px_rgba(0,0,0,0.45)]">
         {stageNumber || total}
       </span>
+      {taskBadge}
     </>
   ) : (
-    <Compass
-      className="h-5 w-5 text-foreground drop-shadow-[0_1px_2px_rgba(0,0,0,0.35)]"
-      aria-hidden
-    />
+    <>
+      <Compass
+        className="h-5 w-5 text-foreground drop-shadow-[0_1px_2px_rgba(0,0,0,0.35)]"
+        aria-hidden
+      />
+      {taskBadge}
+    </>
   );
 
   return (
@@ -193,6 +208,18 @@ export function AppOrb() {
                 onModeSelect={handleModeSelect}
                 open={sections.local}
                 onToggle={() => setSections((s) => ({ ...s, local: !s.local }))}
+              />
+            ) : null}
+            {activeTasks.length > 0 || recentTasks.length > 0 ? (
+              <OrbTasksSection
+                active={activeTasks}
+                recent={recentTasks}
+                open={sections.tasks}
+                onToggle={() => setSections((s) => ({ ...s, tasks: !s.tasks }))}
+                onJump={(tab) => {
+                  setActiveTab(tab as Tab);
+                  close();
+                }}
               />
             ) : null}
             <OrbGotoSection

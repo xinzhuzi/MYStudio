@@ -5,7 +5,7 @@
 // ③上下文默认展开与「导航」高亮;④阶段就地切换与手册门禁。
 
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { AppOrb } from "./AppOrb";
 import { snapToNearestEdge } from "./use-orb-position";
 import { useMediaPanelStore } from "@/stores/navigation/media-panel-store";
@@ -17,9 +17,12 @@ vi.mock("sonner", () => ({ toast: Object.assign(vi.fn(), { error: vi.fn() }) }))
 afterEach(() => {
   cleanup();
   window.localStorage.clear();
+  delete (window as { remotionQueue?: unknown }).remotionQueue;
   useMediaPanelStore.setState({ activeTab: "studio" });
   useFreedomStore.getState().setActiveStudio("comfy");
   useStudioStore.setState({
+    mediaTasks: [],
+    agentRuns: [],
     workflowConfig: {
       ...useStudioStore.getState().workflowConfig,
       workflowStage: "manuals",
@@ -28,6 +31,17 @@ afterEach(() => {
     },
   });
 });
+
+function seedOrbMediaTask(status = "running") {
+  return {
+    id: "task-orb-test",
+    kind: "storyboardImage",
+    status,
+    targetId: "target-orb-test",
+    createdAt: Date.now(),
+    updatedAt: Date.now(),
+  };
+}
 
 function getOrb() {
   return screen.getByRole("button", { name: /工作流进度|导航：/ });
@@ -307,6 +321,55 @@ describe("AppOrb(分域矩阵·09-11:阶段仅工作流)", () => {
       .map((node) => node.textContent ?? "")
       .join(" ");
     expect(gotoText).not.toContain("分镜面板");
+  });
+
+  it("任务徽章(09-12 R1):有活跃任务时球面计数全域在场;无任务时零痕迹", async () => {
+    useMediaPanelStore.setState({ activeTab: "assets" });
+    const { container } = render(<AppOrb />);
+    expect(container.querySelector("[data-orb-task-badge]")).toBeNull();
+    act(() => {
+      useStudioStore.setState({ mediaTasks: [seedOrbMediaTask()] } as never);
+    });
+    expect(container.querySelector("[data-orb-task-badge]")?.textContent).toBe("1");
+    // 终态迁移→徽章闪动 key 重放(bumpTick),活跃清零→徽章消失
+    act(() => {
+      useStudioStore.setState({
+        mediaTasks: [seedOrbMediaTask("success")],
+      } as never);
+    });
+    expect(container.querySelector("[data-orb-task-badge]")).toBeNull();
+    // recent 在面板分区内(开面板+展开才进 DOM)
+    openPanel();
+    fireEvent.click(await screen.findByRole("button", { name: /^任务$/ }));
+    expect(document.querySelector("[data-orb-task-recent]")).toBeTruthy();
+    expect(document.querySelector("[data-orb-task-recent]")?.textContent).toContain(
+      "分镜图生成",
+    );
+  });
+
+  it("任务分区(09-12 R2/R6):活跃条目可展开,点击跳转落工作流并收面板", async () => {
+    useMediaPanelStore.setState({ activeTab: "assets" });
+    useStudioStore.setState({ mediaTasks: [seedOrbMediaTask()] } as never);
+    render(<AppOrb />);
+    openPanel();
+    fireEvent.click(await screen.findByRole("button", { name: /^任务$/ }));
+    const jump = await waitFor(() => {
+      const el = document.querySelector(
+        '[data-orb-task-jump="media:task-orb-test"]',
+      ) as HTMLElement | null;
+      expect(el).toBeTruthy();
+      return el!;
+    });
+    fireEvent.click(jump);
+    expect(useMediaPanelStore.getState().activeTab).toBe("studio");
+  });
+
+  it("任务分区空态不进 DOM(条件渲染契约;R1 零回归面)", async () => {
+    useMediaPanelStore.setState({ activeTab: "assets" });
+    render(<AppOrb />);
+    openPanel();
+    await screen.findByRole("group", { name: "导航" });
+    expect(screen.queryByRole("button", { name: /^任务$/ })).toBeNull();
   });
 });
 
