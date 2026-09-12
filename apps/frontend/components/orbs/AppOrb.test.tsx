@@ -257,6 +257,24 @@ describe("AppOrb(分域矩阵·09-11:阶段仅工作流)", () => {
     expect(useMediaPanelStore.getState().activeTab).toBe("studio");
   });
 
+  it("「最近」加载过滤:localStorage 未知 tab 键不入列(退役模块/脏数据兜底)", async () => {
+    window.localStorage.setItem(
+      "mystudio.orb.recent-tabs",
+      JSON.stringify(["settings", "music", "bogus-tab", "assets"]),
+    );
+    useMediaPanelStore.setState({ activeTab: "studio" });
+    render(<AppOrb />);
+    openPanel();
+    const recentHeader = await screen.findByRole("button", { name: /^最近$/ });
+    fireEvent.click(recentHeader);
+    await waitFor(() => {
+      expect(document.querySelector('[data-orb-recent="settings"]')).toBeTruthy();
+    });
+    expect(document.querySelector('[data-orb-recent="music"]')).toBeNull();
+    expect(document.querySelector('[data-orb-recent="bogus-tab"]')).toBeNull();
+    expect(document.querySelector('[data-orb-recent="assets"]')).toBeTruthy();
+  });
+
   it("视图切换即收面板(09-11:面板不跨视图滞留;smoke 胶囊锚依赖)", async () => {
     useMediaPanelStore.setState({ activeTab: "studio" });
     render(<AppOrb />);

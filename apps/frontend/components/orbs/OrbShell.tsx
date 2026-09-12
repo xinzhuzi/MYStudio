@@ -271,7 +271,7 @@ export function OrbShell({
             // Dialog(z-[250])与面板本体(z-[300])——弹窗打开时球沉到遮罩之下,不可点。
             zIndex: 40,
           }}
-          className="group flex h-12 w-12 cursor-grab items-center justify-center rounded-full outline-none active:cursor-grabbing"
+          className="group flex h-12 w-12 cursor-grab items-center justify-center rounded-full outline-none focus-visible:ring-2 focus-visible:ring-ring/70 active:cursor-grabbing"
           ref={orbRef}
           onPointerDown={(event) => {
             activePointerIdRef.current = event.pointerId;
