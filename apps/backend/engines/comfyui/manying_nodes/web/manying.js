@@ -275,6 +275,16 @@ async function openWorkflowSingleInstance({ name, graph }) {
   }
   const matcher = mainlineTabMatcher(libraryPath);
   const active = svc.activeWorkflow;
+  // 陈旧修改标志自愈(09-12 同页切内容实测):上游装载序列在 loadGraphData 后
+  // reset() 不重评 isModified,程序化装载恒带假 true → Q1a「保用户修改」会把
+  // 主线刷新(切章/保鲜链重写后再点)全部误吞。图态确等时重评翻回 false;
+  // 真用户修改(态不等)重评后仍 true,保用户态语义不受影响。自愈失败按原样走。
+  try {
+    const tracker = active && active.changeTracker;
+    if (active && active.isModified && tracker && typeof tracker.updateModified === "function") {
+      tracker.updateModified();
+    }
+  } catch (error) { /* 宁保勿丢 */ }
   // Q1a 刷新策略(用户裁定):我们的主线签已开且有未保存修改→保留用户状态,
   // 只确保激活,不重载(主线条目与同名临时签都算"我们的主线")
   if (active && (active.path === libraryPath || matcher(active)) && active.isModified) {
@@ -288,7 +298,11 @@ async function openWorkflowSingleInstance({ name, graph }) {
   await closeStaleWorkflows(svc, matcher);
   if (entry) {
     try {
-      if (!entry.isLoaded) await entry.load();
+      // 已载且未修改:load() 缓存命中不读盘(上游语义 Directly returns if already
+      // loaded)——保鲜链同页重写库文件后(切章/后台生成落地),不 force 重读
+      // activeState 永远停在旧内容,主线卡刷新拿不到新章。有未保存修改(草稿)
+      // 不 force,保留用户态(Q1a 同理)。
+      await entry.load(entry.isLoaded && !entry.isModified ? { force: true } : undefined);
     } catch (error) {
       entry = null; // 文件读失败(刚被删等)→按兜底图走
     }
@@ -296,6 +310,7 @@ async function openWorkflowSingleInstance({ name, graph }) {
       const content = entry.activeState || graph;
       await svc.openWorkflow(entry); // 未开→注册+激活;已开→激活;活跃→早退(路径注册=单实例)
       await app2.loadGraphData(cloneGraph(content), true, true, entry); // 实例分支:零临时签
+      try { entry.changeTracker?.updateModified(); } catch (error) { /* 装载后重评:消程序化装载的假「未保存」点 */ }
       await cleanupLegacyUnsavedTabs(); // 主线接管活跃位后,再清一轮旧 Unsaved
       return { ok: true, mode: "library-bound" };
     }
@@ -322,7 +337,10 @@ async function cleanupLegacyUnsavedTabs() {
       /^分镜工作流( · .+| \(\d+ 章\))\.json$/.test(file);
     if (!legacy) continue;
     const nodes = wf.activeState?.nodes;
-    if (!Array.isArray(nodes) || !nodes.some((n) => n && n.type === "ManyingStage")) continue;
+    // 关闭判据两形态:①装过我们的图(含 ManyingStage)→孤儿主线签;
+    // ②纯空白(零节点,引擎冷启自带的初始签)→关之无损,用户真在空白签
+    // 上搭过的图(有节点但无 ManyingStage)不动。
+    if (!Array.isArray(nodes) || !(nodes.length === 0 || nodes.some((n) => n && n.type === "ManyingStage"))) continue;
     if (typeof svc.isActive === "function" && svc.isActive(wf)) continue;
     try { await svc.closeWorkflow(wf); } catch (error) { /* 下一轮兜底 */ }
   }
