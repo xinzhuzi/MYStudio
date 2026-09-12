@@ -198,6 +198,11 @@ function bodyHTML(payload) {
   return `<div class="ms-lines">${rows}</div>`;
 }
 
+// ── 设计系统(照 apple-design/frontend-design 技能:层级/字阶/克制)──────
+const STATUS_COLOR = {
+  ready: "#4ec9a8", pending: "#d9a25a", empty: "#7d8ba1", warning: "#e06c75",
+};
+
 function stageHTML(payload) {
   const color = STATUS_COLOR[payload.status] || STATUS_COLOR.empty;
   const metrics = (payload.metrics || []).map((m) => `<span class="ms-chip">${esc(m)}</span>`).join("");
@@ -450,7 +455,8 @@ app.registerExtension({
     try { installQueuePoller(); } catch (error) { /* 无碍 */ }
     try { installCanvasHints(); } catch (error) { /* 无碍 */ }
   },
-  async beforeRegisterNodeDef(nodeType) {
+  async beforeRegisterNodeDef(nodeType, nodeData) {
+    if (nodeData?.name !== "ManyingStage") return;
     const onNodeCreated = nodeType.prototype.onNodeCreated;
     nodeType.prototype.onNodeCreated = function () {
       const result = onNodeCreated?.apply(this, arguments);

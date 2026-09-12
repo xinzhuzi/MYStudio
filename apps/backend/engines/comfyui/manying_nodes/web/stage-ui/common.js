@@ -42,6 +42,7 @@ export function inputImg(filename, extra = "") {
  * 加载失败=回落纯文本行(优雅退化)。breaks=false:生成器 50 字软换行
  * 渲染后自动回流成段。 */
 let mdRenderer = null;
+let mdLoading = null;
 const mdWaiters = new Set();
 
 /** 渲染器就位回调(首帧纯文本回落,就位后调用方重渲染成型) */
