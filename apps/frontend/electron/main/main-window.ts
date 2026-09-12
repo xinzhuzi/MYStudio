@@ -21,6 +21,7 @@ import packageMetadata from '../../../package.json'
 import { isPathInsideRoot } from '../storage/storage-paths'
 import { writeDiagnosticsLog } from './main-diagnostics'
 import { hostedStudio } from './main-hosted-studio'
+import { installWebviewKeyboardPassthrough } from './main-menu'
 import { isBackgroundSmoke, RENDERER_DIST, RENDERER_INDEX_HTML, VITE_DEV_SERVER_URL } from './main-env'
 import {
   DEFAULT_WINDOW_HEIGHT,
@@ -191,6 +192,10 @@ export function createWindow() {
     win.maximize()
   }
   trackWindowState(win)
+
+  // 09-12 ComfyUI 键盘直通:guest 获焦清空应用菜单(默认菜单 accelerator
+  // 截胡 ComfyUI 快捷键的根修),失焦/销毁恢复
+  installWebviewKeyboardPassthrough(win.webContents)
 
   win.once('ready-to-show', showWindow)
 

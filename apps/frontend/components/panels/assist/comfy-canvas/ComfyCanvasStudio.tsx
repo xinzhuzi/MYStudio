@@ -152,6 +152,13 @@ export function ComfyCanvasStudio({ autoOpenOverview = false }: ComfyCanvasStudi
         } catch {
           // 未就绪窗口的同步抛错:吞掉,等下一事件兜底
         }
+        // 09-12 键盘直通配套:进入画布视图即聚焦 guest——否则键盘停在宿主,
+        // 用户须先点一下画布才能用 ComfyUI 快捷键(球面板关闭路径见 OrbShell)
+        try {
+          node.focus();
+        } catch {
+          // attach 前的窗口:下一事件兜底
+        }
       };
       node.addEventListener("dom-ready", inject);
       node.addEventListener("did-finish-load", inject);

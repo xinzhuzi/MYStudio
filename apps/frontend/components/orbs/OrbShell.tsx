@@ -91,7 +91,9 @@ export interface OrbShellProps {
  * click 兜底+toggle 吞 click+多指防串)+视口钳制+胶囊左右翻+键盘开合。
  * 球体与面板内容、胶囊文案、data 契约全部由业务球注入。
  * 契约不变量:球 zIndex 40(高于画布 webview 与常规 chrome,低于 dropdown
- * z-50、Dialog z-[250] 与面板本体 z-[300]);面板关闭焦点回球。 */
+ * z-50、Dialog z-[250] 与面板本体 z-[300]);面板关闭焦点去向(09-12):
+ * 外点进 webview 不抢焦点;在场有 webview(ComfyUI 画布)交还 webview;
+ * 常规视图回球保键盘路径。 */
 export function OrbShell({
   storageKey,
   defaultAnchor = "bottom-left",
@@ -134,6 +136,9 @@ export function OrbShell({
   const activePointerIdRef = useRef<number | null>(null);
   // 球内拖拽释放后浏览器仍派发 click,吞一次防误开
   const suppressNextClickRef = useRef(false);
+  // 外点是否落在 webview(ComfyUI 画布)上——是则关闭面板后宿主不得回抢焦点
+  // (点击本身已把焦点送进 guest;09-12 键盘/手势归 ComfyUI 裁定)
+  const pressedIntoWebviewRef = useRef(false);
   const orbRef = useRef<HTMLDivElement | null>(null);
   // 球靠右半屏时胶囊翻到左侧,避免吸右缘后伸出视口
   const [capsuleOnLeft, setCapsuleOnLeft] = useState(() =>
@@ -411,9 +416,28 @@ export function OrbShell({
           "w-80 border-white/12 bg-popover/95 p-2 shadow-[0_12px_40px_rgba(0,0,0,0.45)] backdrop-blur-xl backdrop-saturate-150",
           panelClassName,
         )}
+        onPointerDownOutside={(event) => {
+          const path = (event.detail?.originalEvent as Event | undefined)?.composedPath?.() ?? [];
+          pressedIntoWebviewRef.current = path.some(
+            (node): node is HTMLElement =>
+              node instanceof HTMLElement && node.tagName === "WEBVIEW",
+          );
+        }}
         onCloseAutoFocus={(event) => {
-          // Anchor(非 Trigger)模式下 Radix 不自动回焦,手动回球保键盘路径
+          // Anchor(非 Trigger)模式下 Radix 不自动回焦,手动定向:外点进
+          // webview=焦点已随点击入 guest,不抢;在场有 webview(ComfyUI 画布
+          // 视图)=球是跳转入口,用完把焦点交还主界面;常规视图维持回球保
+          // 键盘路径(09-12 裁定配套)。
           event.preventDefault();
+          if (pressedIntoWebviewRef.current) {
+            pressedIntoWebviewRef.current = false;
+            return;
+          }
+          const webview = document.querySelector("webview");
+          if (webview) {
+            (webview as HTMLElement).focus();
+            return;
+          }
           orbRef.current?.focus();
         }}
       >
