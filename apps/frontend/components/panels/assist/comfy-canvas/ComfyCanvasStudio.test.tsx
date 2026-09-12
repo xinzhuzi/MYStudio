@@ -94,6 +94,25 @@ describe("ComfyCanvasStudio(辅助面板第六 tab)", () => {
       .toBe("http://127.0.0.1:17001/?manyingScope=workflow");
   });
 
+  it("模块分离会话隔离(09-12):models 域 webview 独立 partition,workflow 域不设", async () => {
+    (window as { comfyEngine?: ComfyEngineClient }).comfyEngine = stubClient({
+      installed: true,
+      state: "ready",
+      serviceRunning: true,
+      port: 17001,
+    });
+    const { rerender } = render(<ComfyCanvasStudio manyingScope="models" />);
+    await waitFor(
+      () => expect(document.querySelector("[data-comfy-canvas-webview]")).toBeTruthy(),
+      { timeout: 3000 },
+    );
+    const webview = document.querySelector("[data-comfy-canvas-webview]")!;
+    // 独立持久会话:ComfyUI 的 localStorage(activePath+草稿)顶签恢复不再串工作流模块
+    expect(webview.getAttribute("partition")).toBe("persist:manying-comfy-models");
+    rerender(<ComfyCanvasStudio manyingScope="workflow" />);
+    expect(document.querySelector("[data-comfy-canvas-webview]")!.getAttribute("partition")).toBeNull();
+  });
+
   it("引擎运行中:webview 指向 127.0.0.1 引擎端口", async () => {
     (window as { comfyEngine?: ComfyEngineClient }).comfyEngine = stubClient({
       installed: true,

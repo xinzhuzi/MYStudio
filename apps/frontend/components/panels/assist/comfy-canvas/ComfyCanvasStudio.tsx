@@ -188,6 +188,9 @@ export interface ComfyCanvasStudioProps {
    * "workflow"=工作流模块:漫影分镜侧栏在场(分镜生产工具);
    * "models"=本地模型模块:纯浏览场景,漫影分镜侧栏不注册。
    * 经 webview URL 参数 manyingScope 传给引擎前端扩展。
+   * 09-12 模块分离(用户裁定):models 域三链齐隔离——引擎侧栏库过滤分镜
+   * 产线、userdata 工作流树数据层过滤(manying_module_policy.js 单源)、
+   * 本组件 webview 独立 partition(会话/顶签不再串工作流模块)。
    */
   manyingScope?: "workflow" | "models";
   /**
@@ -467,6 +470,11 @@ export function ComfyCanvasStudio({ autoOpenOverview = false, manyingScope, side
       <webview
         ref={attachWebview}
         src={src ?? "about:blank"}
+        // 09-12 模块分离(用户裁定):本地模型模块用独立持久会话——ComfyUI
+        // 前端从 localStorage(activePath+草稿)恢复上一次画布,默认会话会把
+        // 工作流模块的分镜顶签/画布串进本地模型模块。独立 partition 后各模块
+        // 各记各的会话;workflow 域(studio 两挂载点)不设=默认会话,存量零迁移。
+        partition={manyingScope === "models" ? "persist:manying-comfy-models" : undefined}
         className="h-full w-full flex-1"
         // 独立进程渲染;禁弹窗(09-10 类型收紧:布尔字面量,React 会序列化为属性)
         allowpopups={false}
