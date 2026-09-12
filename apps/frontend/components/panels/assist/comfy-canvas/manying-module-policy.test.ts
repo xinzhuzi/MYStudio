@@ -88,18 +88,26 @@ describe("filterUserDataWorkflowEntries(userdata 工作流树条目过滤)", () 
 });
 
 describe("isUserDataWorkflowListUrl(树「列表」端点判定;单文件/写操作直通)", () => {
-  it("命中:v1 dir=workflows 与 v2 根/workflows/子树,相对与带 origin 均可", async () => {
+  it("命中:v1 dir=workflows 与 v2 根/workflows/子树;真实流量形状=带 /api 前缀(09-13 实弹网络日志锚定),根路径形状同收", async () => {
     const { isUserDataWorkflowListUrl } = await loadPolicy();
+    // 实弹锚:树浏览器实发(引擎 17000 网络日志逐字)
+    expect(isUserDataWorkflowListUrl("/api/userdata?dir=workflows&recurse=true&split=false&full_info=true")).toBe(true);
+    expect(isUserDataWorkflowListUrl("http://127.0.0.1:17000/api/userdata?dir=workflows&recurse=true&split=false&full_info=true")).toBe(true);
+    // 根路径形状(服务器路由双挂,防御性同收)
     expect(isUserDataWorkflowListUrl("/userdata?dir=workflows&recurse=true&split=false&full_info=true")).toBe(true);
     expect(isUserDataWorkflowListUrl("http://127.0.0.1:17001/userdata?dir=workflows&recurse=true")).toBe(true);
     expect(isUserDataWorkflowListUrl("/v2/userdata")).toBe(true);
+    expect(isUserDataWorkflowListUrl("/api/v2/userdata?path=workflows")).toBe(true);
     expect(isUserDataWorkflowListUrl("/v2/userdata?path=workflows")).toBe(true);
     expect(isUserDataWorkflowListUrl("/v2/userdata?path=workflows/%E6%BC%AB%E5%BD%B1")).toBe(true);
   });
 
-  it("放行:单文件读取/其他 dir/其他路径/空值——顶签恢复与写操作不受影响", async () => {
+  it("放行:单文件读取/其他 dir/其他路径/空值——顶签恢复与写操作不受影响(实弹锚:书签索引单文件 404 直通)", async () => {
     const { isUserDataWorkflowListUrl } = await loadPolicy();
+    expect(isUserDataWorkflowListUrl("/api/userdata/workflows%2F.index.json")).toBe(false);
+    expect(isUserDataWorkflowListUrl("/api/userdata/user.css")).toBe(false);
     expect(isUserDataWorkflowListUrl("/userdata/workflows/%E6%BC%AB%E5%BD%B1/x.json")).toBe(false);
+    expect(isUserDataWorkflowListUrl("/api/userdata?dir=subgraphs&recurse=true&split=false&full_info=true")).toBe(false);
     expect(isUserDataWorkflowListUrl("/userdata?dir=keybindings&recurse=true")).toBe(false);
     expect(isUserDataWorkflowListUrl("/v2/userdata?path=keybindings")).toBe(false);
     expect(isUserDataWorkflowListUrl("/api/workflow_templates")).toBe(false);
@@ -120,5 +128,7 @@ describe("manying.js 接线(消费策略单源,scope 判断不散落)", () => {
     expect(manyingSource).toContain('scope === "models" && isUserDataWorkflowListUrl(url)');
     // v2 树的 {items:[…]} 包裹形态也被处理(不是只有裸数组)
     expect(manyingSource).toContain("Array.isArray(body.items)");
+    // 启动竞态补刀:models 域补丁就位后经官方服务重取树索引一次(首开即净)
+    expect(manyingSource).toContain("reindexWorkflowsOnce");
   });
 });

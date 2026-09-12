@@ -593,7 +593,9 @@ function syncOpenBadges(openBadges) {
 async function renderWorkflowsPane(pane) {
   pane.textContent = "";
   pane.style.cssText = "padding:10px 12px;display:flex;flex-direction:column;gap:2px;";
-  pane.append(sectionLabel("漫影工作流库", ICONS.folderOpen));
+  // 09-12 模块分离语境化:本页签=本地模型模块专属,标题随模块说话
+  // (用户裁定「为什么还展示漫影工作流模块里面的东西」——文案也分域)。
+  pane.append(sectionLabel("本地模型工作流库", ICONS.folderOpen));
   // 搜索框:万条级库的实用入口(150ms 防抖,名字/路径子串,不分大小写)
   const search = document.createElement("input");
   search.type = "search";
@@ -603,7 +605,7 @@ async function renderWorkflowsPane(pane) {
     `border:1px solid ${THEME.line}`, "border-radius:8px",
     "background:rgba(255,255,255,0.04)", "color:inherit", "outline:none",
   ].join(";");
-  const status = paneStatus("加载漫影工作流…");
+  const status = paneStatus("加载工作流…");
   const host = document.createElement("div");
   host.style.cssText = "display:flex;flex-direction:column;";
   pane.append(search, status, host);
@@ -616,12 +618,10 @@ async function renderWorkflowsPane(pane) {
     const items = filterWorkflowsForScope((data.workflows || []).filter((item) =>
       item.id && item.id.startsWith("漫影/") && !item.id.endsWith("/.keep.json")), manyingScope());
     if (items.length === 0) {
-      status.textContent = "漫影分组下还没有工作流";
+      status.textContent = "还没有可用工作流(K2 图像 / H3 视频 / 音乐)";
       return;
     }
-    // 当前章(分镜组置顶判据;取不到=不置顶,不阻塞渲染)
-    let currentEpisodeId = "";
-    // 两级分组:域(图片/视频/…)→功能夹(分镜/K2图像/…)
+    // 两级分组:域(图片/视频/…)→功能夹(K2图像/H3视频/…)
     const domains = new Map();
     for (const item of items) {
       const segments = item.id.split("/");
@@ -637,28 +637,18 @@ async function renderWorkflowsPane(pane) {
       const ia = order.indexOf(a), ib = order.indexOf(b);
       return (ia < 0 ? 99 : ia) - (ib < 0 ? 99 : ib);
     });
-    // 功能夹排序:分镜置顶(阶段主工作流),其余按中文名
-    const sortGroups = (groups) => [...groups.keys()].sort((a, b) =>
-      (a === "分镜" ? 0 : 1) - (b === "分镜" ? 0 : 1) || a.localeCompare(b, "zh"));
+    // 功能夹排序:按中文名(分镜产线不在本页签——models 域专属)
+    const sortGroups = (groups) => [...groups.keys()].sort((a, b) => a.localeCompare(b, "zh"));
 
     // 组内 30 条帽+「显示全部」解帽(海量组首屏 DOM 有界)
     const GROUP_CAP = 30;
     const showAll = new Set(); // 已解帽功能夹键(域::夹)
-    const appendCapped = (container, entries, groupKey, pinnedCount = 0) => {
+    const appendCapped = (container, entries, groupKey) => {
       const cap = showAll.has(groupKey) ? entries.length : Math.min(GROUP_CAP, entries.length);
-      let pinnedLeft = pinnedCount;
       for (const item of entries.slice(0, cap)) {
         const row = manyingWorkflowRow(item, status);
         row.style.margin = "2px 0 2px 12px";
         container.append(row);
-        if (pinnedLeft > 0) {
-          pinnedLeft -= 1;
-          if (pinnedLeft === 0) {
-            const sep = document.createElement("div");
-            sep.style.cssText = `height:1px;margin:5px 12px;background:${THEME.line};`;
-            container.append(sep);
-          }
-        }
       }
       if (entries.length > cap) {
         const more = document.createElement("button");
@@ -675,13 +665,16 @@ async function renderWorkflowsPane(pane) {
           while (container.lastChild && container.lastChild !== container.firstElementChild) {
             container.lastChild.remove();
           }
-          appendCapped(container, entries, groupKey, pinnedCount);
+          appendCapped(container, entries, groupKey);
         };
         container.append(more);
       }
     };
 
     let renderScheduled = false;
+    // 首屏默认展开首个域(图片):进面板即见 K2 工作流,其余域保持折叠懒渲染;
+    // 仅首次渲染生效,搜索/清空后回归各自的折叠态
+    let firstPaint = true;
     const renderGroups = () => {
       renderScheduled = false;
       const query = search.value.trim().toLowerCase();
@@ -690,12 +683,14 @@ async function renderWorkflowsPane(pane) {
         || String(item.id).toLowerCase().includes(query);
       host.textContent = "";
       let hitsTotal = 0;
-      for (const domain of orderedDomains()) {
+      const ordered = orderedDomains();
+      for (const domain of ordered) {
         const groups = domains.get(domain);
         const domainEntries = [...groups.values()].flat().filter(match);
         if (query && domainEntries.length === 0) continue;
         hitsTotal += domainEntries.length;
-        const details = collapseGroup(domain, domainEntries.length, { open: Boolean(query) });
+        const openNow = Boolean(query) || (firstPaint && domain === ordered[0]);
+        const details = collapseGroup(domain, domainEntries.length, { open: openNow });
         // 懒渲染:折叠态零行 DOM,首次展开才建(海量库首屏不冻的关键)
         const renderChildren = () => {
           if (details.dataset.manyingRendered) return;
@@ -711,24 +706,20 @@ async function renderWorkflowsPane(pane) {
             }
             const sub = collapseGroup(groupName, entries.length, {
               indent: 1,
-              open: groupName === "分镜" || Boolean(query),
+              open: Boolean(query),
             });
-            // 分镜组当前章置顶(一眼可见当前章主线;其余按名)
-            const pinned = groupName === "分镜" && currentEpisodeId
-              ? entries.filter((e) => String(e.id).includes(currentEpisodeId)) : [];
-            const pinnedIds = new Set(pinned);
-            const rest = entries.filter((e) => !pinnedIds.has(e));
-            appendCapped(sub, [...pinned, ...rest], `${domain}::${groupName}`, pinned.length);
+            appendCapped(sub, entries, `${domain}::${groupName}`);
             details.append(sub);
           }
         };
         details.addEventListener("toggle", renderChildren);
-        if (query) renderChildren(); // 搜索态:命中组自动展开
+        if (openNow) renderChildren(); // 搜索态/首屏默认域:建组即渲染
         host.append(details);
       }
+      firstPaint = false;
       status.textContent = query
         ? (hitsTotal > 0 ? `${hitsTotal} 个匹配 · 点击在画布打开` : `没有匹配「${search.value.trim()}」的工作流`)
-        : `${items.length} 个漫影工作流(点击在画布打开)`;
+        : `${items.length} 个工作流(点击在画布打开)`;
     };
     search.oninput = () => {
       if (renderScheduled) return;
@@ -736,16 +727,6 @@ async function renderWorkflowsPane(pane) {
       setTimeout(renderGroups, 150);
     };
     renderGroups();
-    // 章节信息晚到:分镜组还没展开就到即可(懒渲染时现取);已展开则补一次重排
-    void fetchJson(`${BRIDGE_URL}/comfy/bridge/storyboards`)
-      .then((shot) => {
-        const episode = shot.currentEpisodeId || "";
-        if (episode && episode !== currentEpisodeId) {
-          currentEpisodeId = episode;
-          if (host.querySelector("details details")) renderGroups();
-        }
-      })
-      .catch(() => undefined);
   } catch (error) {
     status.textContent = `取不到工作流(${error.message || error});请确认漫影软件在运行`;
   }
@@ -1510,4 +1491,20 @@ app.registerExtension({
     }
     return originalFetch(input, init);
   };
+  if (scope === "models") void reindexWorkflowsOnce(0);
 })();
+
+// 启动竞态补刀(09-13 实弹根修):工作流树的**首次预取**发生在扩展装载之前
+// (fetch 补丁未及就位),预取缓存带着分镜条目——原生浏览器首开仍见分镜
+// (persistedWorkflows=143,实弹复现)。补丁就位后经官方 workflow store 的
+// syncWorkflows() 重取一次(实弹验证:143→62、分镜归零),首开即过滤后的
+// 世界。纯数据面刷新零 DOM 干预;window.app 异步赋值→轮询等服,拿不到=
+// 静默放弃(与主线路同款)。loadWorkflows() 不触网(只重排本地索引),勿换。
+async function reindexWorkflowsOnce(attempt) {
+  const svc = window.app?.extensionManager?.workflow;
+  if (!svc || typeof svc.syncWorkflows !== "function") {
+    if (attempt < 40) setTimeout(() => void reindexWorkflowsOnce(attempt + 1), 500);
+    return;
+  }
+  try { await svc.syncWorkflows(); } catch (error) { /* 重取失败:保持预取态,刷新钮兜底 */ }
+}

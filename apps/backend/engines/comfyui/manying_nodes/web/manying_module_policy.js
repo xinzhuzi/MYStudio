@@ -49,16 +49,18 @@ export function filterUserDataWorkflowEntries(entries) {
   });
 }
 
-/** fetch 过滤端点判定:仅工作流树的「列表」GET——v1 `/userdata?dir=workflows…`
- *  与 v2 `/v2/userdata?path=…`(根/workflows/子树)。单文件读取
- *  (`/userdata/workflows/xxx.json`,顶签恢复 loadPersistedWorkflow 用)与
- *  写操作不命中,直通。相对与带 origin 的绝对 URL 均可。 */
+/** fetch 过滤端点判定:仅工作流树的「列表」GET——v1 `[/api]/userdata?dir=workflows…`
+ *  与 v2 `[/api]/v2/userdata?path=…`(根/workflows/子树)。ComfyUI 服务器路由同时
+ *  挂根路径与 /api 前缀,前端实发带 /api(09-13 实弹网络日志核验),两种都收。
+ *  单文件读取(`[/api]/userdata/workflows/xxx.json`,顶签恢复 loadPersistedWorkflow
+ *  用)与写操作不命中,直通。相对与带 origin 的绝对 URL 均可。 */
 export function isUserDataWorkflowListUrl(url) {
   if (typeof url !== "string" || !url) return false;
   const clean = url.replace(/^https?:\/\/[^/]+/i, "");
   const queryIndex = clean.indexOf("?");
-  const path = queryIndex >= 0 ? clean.slice(0, queryIndex) : clean;
+  let path = queryIndex >= 0 ? clean.slice(0, queryIndex) : clean;
   const query = queryIndex >= 0 ? clean.slice(queryIndex + 1) : "";
+  path = path.replace(/^\/api(?=\/|$)/, "");
   let params;
   try {
     params = new URLSearchParams(query);
