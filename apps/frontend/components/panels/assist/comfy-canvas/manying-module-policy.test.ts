@@ -1,20 +1,20 @@
 // 漫影模块内容策略测试(09-12 模块分离):直取引擎侧真源
 // manying_module_policy.js——纯函数零 ComfyUI 依赖,以 data URL 动态 import
-// 实跑「随引擎分发的同一份代码」(非 app 侧复制品)。另附 manying.js 接线
-// 源断言:侧栏过滤/树过滤必须消费策略单源,禁止自带副本。
+// 实跑「随引擎分发的同一份代码」(非 app 侧复制品)。另附接线源断言:
+// 侧栏过滤/树过滤必须消费策略单源,禁止自带副本。
+// 09-13 模块拆分后 monolith manying.js 退役——接线断言改读拆分双模块
+// (sidebar.js=侧栏库过滤;compat-guard.js=模板/userdata 树过滤)拼接。
 
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 
-const policySource = readFileSync(
-  path.resolve(process.cwd(), "backend/engines/comfyui/manying_nodes/web/manying_module_policy.js"),
-  "utf8",
-);
-const manyingSource = readFileSync(
-  path.resolve(process.cwd(), "backend/engines/comfyui/manying_nodes/web/manying.js"),
-  "utf8",
-);
+const webDir = path.resolve(process.cwd(), "backend/engines/comfyui/manying_nodes/web");
+const policySource = readFileSync(path.join(webDir, "manying_module_policy.js"), "utf8");
+const wiringSource = [
+  readFileSync(path.join(webDir, "sidebar.js"), "utf8"),
+  readFileSync(path.join(webDir, "compat-guard.js"), "utf8"),
+].join("\n");
 
 /** 策略模块为 ESM(引擎以 ES module 加载),data URL 动态 import 原字节直跑 */
 async function loadPolicy() {
@@ -116,19 +116,19 @@ describe("isUserDataWorkflowListUrl(树「列表」端点判定;单文件/写操
   });
 });
 
-describe("manying.js 接线(消费策略单源,scope 判断不散落)", () => {
+describe("接线(消费策略单源,scope 判断不散落;09-13 拆分后=sidebar+compat-guard 双模块)", () => {
   it("导入策略模块;侧栏库与 userdata 树过滤均走单源;树过滤装 models 门+幂等守卫", () => {
-    expect(manyingSource).toContain('from "./manying_module_policy.js"');
-    expect(manyingSource).toContain("filterWorkflowsForScope(");
-    expect(manyingSource).toContain("filterUserDataWorkflowEntries(");
-    expect(manyingSource).toContain("isUserDataWorkflowListUrl(");
+    expect(wiringSource).toContain('from "./manying_module_policy.js"');
+    expect(wiringSource).toContain("filterWorkflowsForScope(");
+    expect(wiringSource).toContain("filterUserDataWorkflowEntries(");
+    expect(wiringSource).toContain("isUserDataWorkflowListUrl(");
     // 统一 scope 过滤器:幂等守卫在案;models 门命中才走树过滤
-    expect(manyingSource).toContain("installTemplateScopeFilter");
-    expect(manyingSource).toContain("__manyingTplScope");
-    expect(manyingSource).toContain('scope === "models" && isUserDataWorkflowListUrl(url)');
+    expect(wiringSource).toContain("installTemplateScopeFilter");
+    expect(wiringSource).toContain("__manyingTplScope");
+    expect(wiringSource).toContain('scope === "models" && isUserDataWorkflowListUrl(url)');
     // v2 树的 {items:[…]} 包裹形态也被处理(不是只有裸数组)
-    expect(manyingSource).toContain("Array.isArray(body.items)");
+    expect(wiringSource).toContain("Array.isArray(body.items)");
     // 启动竞态补刀:models 域补丁就位后经官方服务重取树索引一次(首开即净)
-    expect(manyingSource).toContain("reindexWorkflowsOnce");
+    expect(wiringSource).toContain("reindexWorkflowsOnce");
   });
 });

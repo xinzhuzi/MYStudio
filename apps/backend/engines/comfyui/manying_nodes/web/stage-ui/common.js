@@ -31,8 +31,8 @@ export function liveBadgesHTML(status, progress) {
 }
 
 /** 引擎 input 缩略图 <img>(晚到限次重试契约=window.__manyingImgRetry,宿主注入) */
-export function inputImg(filename, extra = "") {
-  return `<img src="/view?filename=${encodeURIComponent(filename)}&subfolder=&type=input" alt="" ${extra}
+export function inputImg(filename) {
+  return `<img src="/view?filename=${encodeURIComponent(filename)}&subfolder=&type=input" alt=""
      onerror="window.__manyingImgRetry && window.__manyingImgRetry(this)">`;
 }
 
@@ -62,10 +62,23 @@ function ensureMarkdown() {
           for (const fn of waiters) { try { fn(); } catch (error) { /* 各自兜底 */ } }
           return mdRenderer;
         })
-        .catch(() => null);
+        .catch(() => {
+          console.warn("[manying] markdown-it 装载失败,正文回落纯文本");
+          return null;
+        });
     }
     return;
   }
+}
+
+/** 剥源文档的 XML 式分节标记行(如 <scriptPlan>/<storyboardTable>)——
+ * md 对它们只会转义成可见杂文;previewLines 载荷原样携带,渲染前统一剥。 */
+const WRAPPER_TAG = /^<\/?[a-zA-Z][\w-]*>$/;
+function stripWrapperTags(source) {
+  return source
+    .split("\n")
+    .filter((line) => !WRAPPER_TAG.test(line.trim()))
+    .join("\n");
 }
 
 /** markdown → HTML(markdown-it 14.2.0 MIT vendor 内嵌):用户裁定文字展示
@@ -76,11 +89,6 @@ export function renderMarkdown(text) {
   const source = String(text || "");
   if (!source) return "";
   ensureMarkdown();
-  if (mdRenderer) return mdRenderer.render(source);
+  if (mdRenderer) return mdRenderer.render(stripWrapperTags(source));
   return `<div class="ms-lines">${source.split("\n").map((line) => `<div>${esc(line)}</div>`).join("")}</div>`;
-}
-/** 正文行容器:生成器已按节点宽换行(≤60 行),单行省略+斑马 */
-export function linesHTML(previewLines) {
-  const rows = (previewLines || []).map((line) => `<div>${esc(line)}</div>`).join("");
-  return `<div class="ms-lines">${rows}</div>`;
 }

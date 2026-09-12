@@ -20,7 +20,7 @@ import { app } from "/scripts/app.js";
 // 每型节点 UI 独立模块(09-13 用户裁定:不同代码分模块,适应 ComfyUI):
 // stage-ui/ 下七型各一文件+common 公共件+vendor(markdown-it MIT);
 // 本文件只做壳(头区/动作/组稿器/速查卡/轮询/高度)与按 payload.key 分发。
-import { esc, badge, liveBadgesHTML, onMarkdownReady } from "./stage-ui/common.js";
+import { esc, liveBadgesHTML, onMarkdownReady } from "./stage-ui/common.js";
 import scriptUI from "./stage-ui/script.js";
 import directorPlanUI from "./stage-ui/director-plan.js";
 import assetsUI from "./stage-ui/assets.js";
@@ -333,8 +333,7 @@ function closeComposer(el) {
 
 /** 由元素反查宿主节点补一轮高度同步(组稿器开合会变内容高) */
 function syncSizeFor(el) {
-  const host = el.closest && document.body.contains(el) ? el : null;
-  if (!host) return;
+  if (!document.body.contains(el)) return;
   for (const node of (window.app?.canvas?.graph?._nodes || [])) {
     if (node.__manyingDomBody && node.__manyingDomBody.el === el) {
       node.__manyingDomBody.naturalH = Math.max(80, measureNatural(node, el));
