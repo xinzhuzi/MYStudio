@@ -277,6 +277,9 @@ export function OrbShell({
             activePointerIdRef.current = event.pointerId;
             panelOpenAtPressRef.current = panelOpen;
             pressStartRef.current = { x: event.clientX, y: event.clientY };
+            // 每手势全新判定:上一手势若未产生尾随 click(如拖拽释放在窗外),
+            // 吞点击标志不得滞留污染本次手势
+            suppressNextClickRef.current = false;
           }}
           onPointerUp={handlePointerUp}
           onPointerCancel={(event) => {
