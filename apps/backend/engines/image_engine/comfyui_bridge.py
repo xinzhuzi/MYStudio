@@ -236,13 +236,17 @@ def _set_input(graph: dict[str, Any], binding: dict[str, str], value: Any) -> No
     graph[str(binding["node"])]["inputs"][binding["field"]] = value
 
 
-def instantiate_template(template: dict[str, Any], prompt: str, negative_prompt: str | None, steps: int, seed: int | None, aspect_ratio: str, reference_names: list[str]) -> dict[str, Any]:
+def instantiate_template(template: dict[str, Any], prompt: str, negative_prompt: str | None, steps: int, seed: int | None, aspect_ratio: str, reference_names: list[str], model_file: str | None = None) -> dict[str, Any]:
     graph = copy.deepcopy(template["graph"])
     bindings = template["inputs"]
     width, height = ASPECT_RATIOS.get(aspect_ratio, ASPECT_RATIOS["1:1"])
     values = {"prompt": prompt, "negative_prompt": negative_prompt or "", "steps": steps, "width": width, "height": height}
     if seed is not None:
         values["seed"] = seed
+    if model_file:
+        # 09-11 漫影专属生图:模型下拉选中的主模型文件注入 UNETLoader
+        # (仅 manying_t2i 模板声明了该绑定;其余模板无此键=零影响)
+        values["model_file"] = model_file
     for name, value in values.items():
         if name in bindings:
             _set_input(graph, bindings[name], value)
@@ -342,7 +346,9 @@ def generate(prompt: str, aspect_ratio: str, negative_prompt: str | None, steps:
         template_name = "krea2_nsfw_pro"
     else:
         template_name = "krea2_t2i"
-    if template_name != "krea2_t2i" and not references and template_name != "krea2_nsfw_pro":
+    # 无参考图可跑的纯文生图模板白名单(manying_t2i 09-11 漫影专属生图;
+    # manying_t2i_fast 09-12 Krea2 加速档;其余点名模板编辑流需要参考图)
+    if template_name not in ("krea2_t2i", "krea2_nsfw_pro", "manying_t2i", "manying_t2i_fast") and not references:
         raise _pipeline_error("bridge-template-missing", f"模板需要参考图: {template_name}")
     template = load_template(template_name)
     _warn_if_version_below_min(stats, template)
@@ -358,7 +364,10 @@ def generate(prompt: str, aspect_ratio: str, negative_prompt: str | None, steps:
             raise _pipeline_error("bridge-execution-failed", "ComfyUI 未返回参考图文件名")
         subfolder = response.get("subfolder") or ""
         uploaded.append(f"{subfolder}/{name}" if subfolder else name)
-    graph = instantiate_template(template, prompt, negative_prompt, steps, seed, aspect_ratio, uploaded)
+    checkpoint = ctx.get("checkpoint")
+    graph = instantiate_template(
+        template, prompt, negative_prompt, steps, seed, aspect_ratio, uploaded,
+        model_file=checkpoint if isinstance(checkpoint, str) else None)
     # 缺插件预检(09-09):差分后再提交,缺类直接大白话指路策展包。
     # 引擎中途失联时 _http_json 自带 bridge-unreachable 报错,不另包一层。
     message = missing_nodes_message(

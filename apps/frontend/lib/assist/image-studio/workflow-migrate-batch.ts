@@ -98,7 +98,9 @@ export async function migrateWorkflowsToLibrary(
     await uploadBlockReferences(flow, resolved, notes, counters);
     // API 格式随身携带(ui.extra.apiFormat):库内取用即得,无头复跑免重导
     const ui = { ...result.ui, extra: { ...(result.ui as { extra?: Record<string, unknown> }).extra, apiFormat: result.api, manyingMigration: result.report } };
-    files.push({ name: `迁移 · ${flow.name}.json`, content: JSON.stringify(ui, null, 1) });
+    // 落位铁律(09-10 用户裁定×2):漫影的工作流挂「漫影/」分组且按域分类
+    // (图片/视频/声音),单镜图流住「漫影/1_图片/分镜/2_单镜图/」
+    files.push({ name: `漫影/1_图片/分镜/2_单镜图/迁移 · ${flow.name}.json`, content: JSON.stringify(ui, null, 1) });
   }
   let imported = 0;
   let failed = 0;

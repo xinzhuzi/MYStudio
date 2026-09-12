@@ -1,4 +1,7 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, beforeEach, afterEach } from "vitest";
+import { useAppSettingsStore } from "@/stores/app/app-settings-store";
+import { useAPIConfigStore } from "@/stores/ai/api-config-store";
+import { addPromptImageNode } from "./image-workflow/graph-build-mutations";
 import {
   ensureStoryboardImageResult,
   addGeneratedImageNode,
@@ -569,6 +572,24 @@ describe("image workflow graph", () => {
 
 describe("addStoryboardLayeredNodes(08-19 multilayer Child3)", () => {
   const storyboard = { id: "shot-001", index: 3, prompt: "山崖边,白衣少女持剑而立,云海翻涌", continuityState: undefined };
+  // 09-12 生图路由设置:分层节点模型缺省回落「设置-生图引擎」默认模型
+  // (原硬编码 gpt-image-2 退役);图内既有 prompt 模型仍最优先。
+  beforeEach(() => {
+    useAppSettingsStore.setState({
+      imageGenerationSettings: {
+        ...useAppSettingsStore.getState().imageGenerationSettings,
+        defaultImageModel: "gpt-image-2",
+      },
+    });
+  });
+  afterEach(() => {
+    useAppSettingsStore.setState({
+      imageGenerationSettings: {
+        ...useAppSettingsStore.getState().imageGenerationSettings,
+        defaultImageModel: "",
+      },
+    });
+  });
 
   function baseGraphWithRefs() {
     return createStoryboardImageWorkflowGraph({
@@ -641,5 +662,86 @@ describe("ensureStoryboardImageResult(分镜挂图→成图节点联动愈合)",
     expect(again).toBe(healed);
     // 无图/无空节点不动
     expect(ensureStoryboardImageResult(graph, undefined)).toBe(graph);
+  });
+});
+
+describe("默认生图模型兜底(09-12 生图路由设置)", () => {
+  function bareGraph(model?: string) {
+    let graph = createImageWorkflowGraph({ id: "flow-default-model", name: "默认模型链" });
+    graph = addGeneratedImageNode(graph, { id: "gen-1", title: "成图", prompt: "山门远眺", position: { x: 420, y: 80 } });
+    graph = addPromptImageNode(graph, { id: "p-1", title: "图片生成", prompt: "山门远眺", model, targetNodeId: "gen-1", position: { x: 80, y: 80 } });
+    return graph;
+  }
+  beforeEach(() => {
+    useAppSettingsStore.setState({
+      imageGenerationSettings: {
+        ...useAppSettingsStore.getState().imageGenerationSettings,
+        defaultImageModel: "gpt-image-2",
+      },
+    });
+    // 默认渠道已认领 gpt-image-2(带 key):兜底测试可畅通;Q3a 用例自行覆盖为未配
+    useAPIConfigStore.setState({ providers: [{ id: "p-ok", name: "已配渠道", model: ["gpt-image-2"], apiKey: "sk-test" } as never] });
+  });
+  afterEach(() => {
+    useAppSettingsStore.setState({
+      imageGenerationSettings: {
+        ...useAppSettingsStore.getState().imageGenerationSettings,
+        defaultImageModel: "",
+      },
+    });
+  });
+
+  it("Q2a:节点未指定模型→请求跟随设置默认模型(存量空 model 流自动跟随)", () => {
+    expect(buildImageWorkflowGenerationRequest(bareGraph(), "gen-1").model).toBe("gpt-image-2");
+  });
+
+  it("节点显式模型最优先,不被设置默认覆盖", () => {
+    expect(buildImageWorkflowGenerationRequest(bareGraph("krea2-turbo"), "gen-1").model).toBe("krea2-turbo");
+  });
+
+  it("设置空串=跟随渠道链(请求 model 为 undefined,现状行为)", () => {
+    useAppSettingsStore.setState({
+      imageGenerationSettings: {
+        ...useAppSettingsStore.getState().imageGenerationSettings,
+        defaultImageModel: "",
+      },
+    });
+    expect(buildImageWorkflowGenerationRequest(bareGraph(), "gen-1").model).toBeUndefined();
+  });
+
+  it("Q3a:默认选了云端模型但无渠道认领→报错指路接口配置,不静默落链", () => {
+    useAPIConfigStore.setState({ providers: [] });
+    expect(() => buildImageWorkflowGenerationRequest(bareGraph(), "gen-1")).toThrow(/接口配置/);
+    // 渠道认领但 key 为空:同样算未配置
+    useAPIConfigStore.setState({ providers: [{ id: "p1", name: "空 key 渠道", model: ["gpt-image-2"], apiKey: "" } as never] });
+    expect(() => buildImageWorkflowGenerationRequest(bareGraph(), "gen-1")).toThrow(/接口配置/);
+    // 已认领+已填 key:畅通
+    useAPIConfigStore.setState({ providers: [{ id: "p2", name: "已配渠道", model: ["gpt-image-2"], apiKey: "sk-test" } as never] });
+    expect(buildImageWorkflowGenerationRequest(bareGraph(), "gen-1").model).toBe("gpt-image-2");
+  });
+
+  it("分层节点默认模型:设置空=保留老默认 gpt-image-2(09-12 深审回归锁,门禁认可)", () => {
+    useAppSettingsStore.setState({
+      imageGenerationSettings: {
+        ...useAppSettingsStore.getState().imageGenerationSettings,
+        defaultImageModel: "",
+      },
+    });
+    const storyboard = { id: "s1", index: 1, prompt: "雨夜山门", continuityState: undefined };
+    const graph = createStoryboardImageWorkflowGraph({ storyboard: storyboard as never, prompt: "雨夜山门", resultImagePath: "/x/1.png", projectName: "P" });
+    const layered = addStoryboardLayeredNodes(graph, { storyboard: storyboard as never });
+    const bg = layered.nodes.find((n) => n.title === "分镜 1 背景板");
+    const bgPrompt = layered.nodes.find((n) => n.type === "prompt" && n.targetNodeId === bg!.id) as unknown as { model?: string };
+    expect(bgPrompt?.model).toBe("gpt-image-2");
+  });
+
+  it("Q3a 豁免:本地模型无需渠道配置(krea2 常驻 sidecar)", () => {
+    useAppSettingsStore.setState({
+      imageGenerationSettings: {
+        ...useAppSettingsStore.getState().imageGenerationSettings,
+        defaultImageModel: "krea2-turbo",
+      },
+    });
+    expect(buildImageWorkflowGenerationRequest(bareGraph(), "gen-1").model).toBe("krea2-turbo");
   });
 });

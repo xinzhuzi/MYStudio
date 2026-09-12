@@ -9,6 +9,7 @@ import {
 } from "@/lib/studio/image-workflow/graph-build";
 import { orderedReferenceSources } from "@/lib/assist/image-studio/reference-order";
 import { findNsfwUpstream, findPromptViaNsfw } from "@/lib/assist/image-studio/nsfw-request";
+import { assertDefaultImageModelConfigured, resolveDefaultImageModel } from "@/lib/ai/default-image-model";
 import type {
   ImageWorkflowGraph,
 } from "@/types/studio";
@@ -93,13 +94,18 @@ export function buildImageStudioGenerationRequest(
     return [];
   });
 
+  // 默认生图模型兜底(09-12 生图路由设置,Q2a:空=吃默认):节点/提示词都未
+  // 指定模型时跟随设置;云端未配渠道在此报错指路(Q3a,与 studio 线同口径)。
+  const nodeModel = node.model ?? promptSource.model;
+  const defaultModel = nodeModel ? undefined : resolveDefaultImageModel();
+  if (defaultModel) assertDefaultImageModelConfigured(defaultModel);
   return {
     prompt: polarity.positive.join("\n").trim() || promptSource.prompt.trim(),
     negativePrompt:
       polarity.negative.join("\n").trim()
       || promptSource.negativePrompt?.trim()
       || undefined,
-    model: node.model ?? promptSource.model,
+    model: nodeModel ?? defaultModel,
     aspectRatio: node.aspectRatio,
     resolution: node.resolution ?? promptSource.resolution,
     referenceImages,

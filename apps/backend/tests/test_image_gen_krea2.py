@@ -84,6 +84,73 @@ class DefaultEngineTest(unittest.TestCase):
         self.assertEqual(model_cache.DEFAULT_IMAGE_MODEL, "krea2-turbo")
 
 
+class DistillLoraInventoryTest(unittest.TestCase):
+    """09-12 加速档蒸馏 LoRA 的下载配置登记:loraFiles 行含公网源三件套,两态探测。"""
+
+    def _krea2_row(self, temp: str) -> dict:
+        import os
+        from image_gen import model_inventory
+
+        env = {"MYSTUDIO_QWEN_COMFYUI_MODELS_DIR": temp}
+        with mock.patch.dict(os.environ, env):
+            rows = model_inventory.build_model_status()
+        return next(r for r in rows if r["modelName"] == model_cache.KREA2_MODEL)
+
+    def test_distill_lora_registered_with_download_source(self) -> None:
+        import tempfile
+        from pathlib import Path
+
+        with tempfile.TemporaryDirectory() as temp:
+            lora = Path(temp) / "loras" / "Krea2-功能" / "Krea2-Turbo-4步蒸馏.safetensors"
+            lora.parent.mkdir(parents=True)
+            lora.write_bytes(b"x")
+            row = self._krea2_row(temp)
+        entry = next(f for f in row["loraFiles"] if "4步蒸馏" in f["name"])
+        self.assertTrue(entry["ready"])
+        self.assertFalse(entry["required"])  # 加速档可选件,不拖累主模型就绪口径
+        self.assertEqual(entry["repoId"], krea2_engine.DISTILL_LORA_REPO)
+        self.assertEqual(entry["remoteFile"], krea2_engine.DISTILL_LORA_REMOTE_FILE)
+        self.assertEqual(entry["sizeMb"], krea2_engine.DISTILL_LORA_SIZE_MB)
+        self.assertTrue(entry["path"].endswith(krea2_engine.DISTILL_LORA_REL))
+
+    def test_distill_lora_missing_reports_not_ready_with_placement(self) -> None:
+        import tempfile
+
+        with tempfile.TemporaryDirectory() as temp:
+            row = self._krea2_row(temp)
+        entry = next(f for f in row["loraFiles"] if "4步蒸馏" in f["name"])
+        self.assertFalse(entry["ready"])
+        # 缺失仍带放置路径与下载源(设置页指路,不自动下载)
+        self.assertTrue(entry["path"])
+        self.assertEqual(entry["repoId"], krea2_engine.DISTILL_LORA_REPO)
+
+    def test_distill_lora_probe_prefers_engine_home_root(self) -> None:
+        # 09-12 修:多根寻址——引擎家(comfy_home)命中优先于退役默认根;
+        # 装机 sidecar 两个 models-dir env 都不带,旧单根逻辑打到
+        # ~/Project/ComfyUI 假报缺(用户实弹截图踩中)
+        import os
+        import tempfile
+        from pathlib import Path
+
+        from image_gen import model_inventory
+
+        with tempfile.TemporaryDirectory() as temp:
+            home_models = Path(temp) / "models"
+            lora = home_models / "loras" / "Krea2-功能" / "Krea2-Turbo-4步蒸馏.safetensors"
+            lora.parent.mkdir(parents=True)
+            lora.write_bytes(b"x")
+            env = {
+                "MYSTUDIO_COMFYUI_HOME": temp,
+                "MYSTUDIO_QWEN_COMFYUI_MODELS_DIR": str(Path(temp) / "退役旧根不存在"),
+            }
+            with mock.patch.dict(os.environ, env):
+                rows = model_inventory.build_model_status()
+        row = next(r for r in rows if r["modelName"] == model_cache.KREA2_MODEL)
+        entry = next(f for f in row["loraFiles"] if "4步蒸馏" in f["name"])
+        self.assertTrue(entry["ready"])
+        self.assertTrue(entry["path"].startswith(str(home_models)))  # 指引擎家根,不是退役根
+
+
 if __name__ == "__main__":
     unittest.main()
 
@@ -194,3 +261,34 @@ class ProWorkflowParityTest(unittest.TestCase):
             embeds.clone(), krea2_engine.PRO_REBALANCE_MULTIPLIER, list(krea2_engine.PRO_REBALANCE_WEIGHTS)
         )
         self.assertTrue(_torch.equal(ours, ref))
+
+
+class BridgeEngineAutostartGateTest(unittest.TestCase):
+    """09-12 实弹回归:桥布局探不到大件时先拉引擎再复探,不许秒拒。
+
+    实弹症状:引擎停着时漫影生图 1.7ms 即报「ComfyUI 没在运行」——
+    门在 bridge.generate 里的 ensure_engine_ready 补口之前就把请求拦了。
+    """
+
+    def test_gate_ensures_engine_then_reprobes(self) -> None:
+        # 首探 None→ensure 拉起→复探有值→放行(桥布局命中后直接 return,不再查小件)
+        probes = iter([None, {"engine": "up"}])
+        with mock.patch.object(
+            pipeline, "find_cached_image_model_for_spec", side_effect=lambda spec: next(probes)
+        ), mock.patch("engines.comfyui.engine_manager.engine_manager") as manager_factory:
+            pipeline._require_downloaded("comfyui-bridge")
+        manager_factory.return_value.ensure_engine_ready.assert_called_once()
+
+    def test_gate_swallows_start_failure_and_reports_bridge_copy(self) -> None:
+        # 拉起失败(EngineOpError 吞掉)→复探仍空→桥专属话术,别误导用户去设置页找下载
+        from engines.comfyui.engine_manager import EngineOpError
+
+        probes = iter([None, None])
+        with mock.patch.object(
+            pipeline, "find_cached_image_model_for_spec", side_effect=lambda spec: next(probes)
+        ), mock.patch("engines.comfyui.engine_manager.engine_manager") as manager_factory:
+            manager_factory.return_value.ensure_engine_ready.side_effect = EngineOpError("boom")
+            with self.assertRaises(PipelineError) as ctx:
+                pipeline._require_downloaded("comfyui-bridge")
+        self.assertEqual(ctx.exception.code, "bridge-unreachable")
+        self.assertIn("ComfyUI 没在运行", ctx.exception.message)

@@ -275,8 +275,8 @@ export function Dashboard({
             导入项目
           </Button>
           <Button
+            variant="outline"
             onClick={() => setShowNewProject(true)}
-            className="bg-primary text-primary-foreground hover:bg-primary/90 font-medium"
           >
             <Plus className="w-4 h-4 mr-2" />
             新建项目
@@ -620,7 +620,7 @@ export function Dashboard({
                     <FolderUp className="w-4 h-4 mr-2" />
                     导入项目
                   </Button>
-                  <Button onClick={() => setShowNewProject(true)}>
+                  <Button variant="outline" onClick={() => setShowNewProject(true)}>
                     <Plus className="w-4 h-4 mr-2" />
                     新建项目
                   </Button>

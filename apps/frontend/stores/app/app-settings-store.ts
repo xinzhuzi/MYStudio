@@ -41,6 +41,14 @@ export interface DevelopmentSettings {
 export interface ImageGenerationSettings {
   defaultAspectRatio: ImageAspectRatio;
   defaultResolution: ImageResolution;
+  /**
+   * 默认生图模型(09-12 生图路由设置,用户裁定 Q1a):空串=跟随渠道链(现状,
+   * 链首本地 Krea2);填模型 id(本地 krea2-turbo/flux2-klein-9b/z-image-turbo/
+   * qwen-image-edit-2511 或云端 gpt-image 系等)=工作流未显式指定模型时按此
+   * 路由(本地模型只走本地 sidecar,云端模型走归属渠道)。请求层兜底
+   * (image-workflow/request.ts),存量空 model 工作流自动跟随(Q2a)。
+   */
+  defaultImageModel: string;
   /** 生图落库前自动轻度去噪(噪点治理 08-29);缺省关,保线稿双边滤波。 */
   autoDenoiseEnabled: boolean;
   /** 本地生图专业流(LoRA)开关:开→本地 provider 请求带 use_lora(Krea2 挂 NSFW LoRA/桥走 NSFW 专业流)。缺省关——深审 A/B 实证对非该类画面有模糊/偏色副作用(D5 裁定)。 */
@@ -100,7 +108,8 @@ const defaultState: AppSettingsState = {
     showDevToolsControls: false,
   },
   imageGenerationSettings: {
-      autoDenoiseEnabled: false,
+    defaultImageModel: "",
+    autoDenoiseEnabled: false,
     localImageLoraEnabled: false,
     defaultAspectRatio: DEFAULT_IMAGE_ASPECT_RATIO,
     defaultResolution: DEFAULT_IMAGE_RESOLUTION,
@@ -188,9 +197,19 @@ export function mergeAppSettingsState(
   // the single normal production renderer instead of silently reopening the old chain.
   const normalizedRenderer = persistedRenderer === "ffmpeg" ? "remotion" : persistedRenderer;
   const persistedLastParentDir = persistedState.projectLocationDefaults?.lastParentDir;
+  const persistedImageGen = persistedState.imageGenerationSettings;
   return {
     ...current,
     ...persistedState,
+    // 浅合会把旧装机缺失的新字段洗成 undefined——defaultImageModel 逐字段
+    // 回填(09-12 生图路由设置):非字符串(含缺省)回落现装默认(空=跟随渠道链)
+    imageGenerationSettings: {
+      ...current.imageGenerationSettings,
+      ...persistedImageGen,
+      defaultImageModel: typeof persistedImageGen?.defaultImageModel === "string"
+        ? persistedImageGen.defaultImageModel
+        : current.imageGenerationSettings.defaultImageModel,
+    },
     renderingSettings: {
       renderer: isTimelineRendererId(normalizedRenderer)
         ? normalizedRenderer

@@ -5,7 +5,7 @@ description: Use when writing a Krea2Edit one-sentence Chinese edit instruction 
 
 # krea2edit 编辑指令生成器(看图 → 一句话指令)
 
-给一张人物照片,分析衣物形态,输出可直接贴进 `K2图像/改图/Krea2_无衣物_快.json` 节点17 的一句话中文指令。
+给一张人物照片,分析衣物形态,输出可直接贴进 `漫影/1_图片/K2图像/3_改图/Krea2_无衣物_稳定.json` 节点17 的一句话中文指令。
 
 ## 0. 前置(每次都过,不可跳)
 
@@ -140,7 +140,7 @@ description: Use when writing a Krea2Edit one-sentence Chinese edit instruction 
 
 ## 13. 关联
 
-- 工作流:`K2图像/改图/Krea2_无衣物_快.json`(其使用说明节点有同款内容,两处同步改)
+- 工作流:`漫影/1_图片/K2图像/3_改图/Krea2_无衣物_稳定.json`(09-10 起随库功能分类改名换位;旧「快」档已被稳定流终裁取代,其使用说明节点有同款内容,两处同步改)
 - 参数速查:项目根 `参数速查.md` 的 K2 段
 - 分工:`krea` skill 管**接线**(节点/生态),本 skill 管**写指令**
 - 删除类编辑(让物体消失)需 Raw+CFG3,与本 skill 的"布料保留"路线不同,勿混

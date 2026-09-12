@@ -173,6 +173,8 @@ export function createMockComfyEngineClient(
   const pluginNodeCounts = new Map<string, number>(Object.entries(INSTALLED_PLUGIN_NODES));
   /** 存储位置覆写(0a mock):engineDir/venvDir/workflowsDir。 */
   let pathsOverride: Partial<Record<"engineDir" | "venvDir" | "workflowsDir", string>> | null = null;
+  /** 输入/输出目录覆写(09-11 mock):setIODirs 直改即时生效。 */
+  let ioOverride: { inputDir?: string; outputDir?: string } | null = null;
 
   const stepsFor = (kind: ComfyEngineJobKind): JobStep[] => {
     switch (kind) {
@@ -400,6 +402,7 @@ export function createMockComfyEngineClient(
     // ── 存储位置(mock 面,09-09 0a):路径现状从 status 推导,直改即时生效 ──
     async getPaths() {
       const overridden = pathsOverride;
+      const io = ioOverride;
       const home = "/Users/demo/Library/Application Support/漫影工作室/comfyui";
       return {
         installed: status.installed,
@@ -408,19 +411,25 @@ export function createMockComfyEngineClient(
           engineDir: overridden?.engineDir ?? `${home}/ComfyUI`,
           venvDir: overridden?.venvDir ?? `${home}/venv`,
           modelsDir: status.modelsDir ?? `${home}/models`,
-          workflowsDir: overridden?.workflowsDir ?? `${home}/workflows`,
+          workflowsDir: overridden?.workflowsDir ?? `${home}/ComfyUI/user/default/workflows`,
+          inputDir: io?.inputDir ?? `${home}/ComfyUI/input`,
+          outputDir: io?.outputDir ?? `${home}/ComfyUI/output`,
         },
         defaults: {
           engineDir: `${home}/ComfyUI`,
           venvDir: `${home}/venv`,
           modelsDir: `${home}/models`,
-          workflowsDir: `${home}/workflows`,
+          workflowsDir: `${home}/ComfyUI/user/default/workflows`,
+          inputDir: `${home}/ComfyUI/input`,
+          outputDir: `${home}/ComfyUI/output`,
         },
         customized: {
           engineDir: Boolean(overridden?.engineDir),
           venvDir: Boolean(overridden?.venvDir),
           modelsDir: Boolean(status.modelsDir),
           workflowsDir: Boolean(overridden?.workflowsDir),
+          inputDir: Boolean(io?.inputDir),
+          outputDir: Boolean(io?.outputDir),
         },
       } satisfies ComfyEnginePathsStatus;
     },
@@ -436,6 +445,14 @@ export function createMockComfyEngineClient(
         throw new Error("引擎已安装:更改目录请用「迁移」(移动现有文件)");
       }
       pathsOverride = { ...(pathsOverride ?? {}), ...update } as typeof pathsOverride;
+      return this.getPaths();
+    },
+    async setIODirs(update: { inputDir?: string; outputDir?: string }) {
+      // mock 面:引擎运行中拒改与后端同口径;否则直改即时生效
+      if (status.serviceRunning) {
+        throw new Error("引擎运行中:请先停止引擎再更改输入/输出目录");
+      }
+      ioOverride = { ...(ioOverride ?? {}), ...update };
       return this.getPaths();
     },
     async migratePaths(update: ComfyPathsUpdate & { startAfter?: boolean }) {

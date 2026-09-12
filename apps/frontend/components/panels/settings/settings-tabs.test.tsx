@@ -32,6 +32,7 @@ describe("settings leaf tabs", () => {
     render(
       <ImageSizeSettingsTab
         settings={{
+          defaultImageModel: "",
           defaultAspectRatio: "16:9",
           defaultResolution: "2K",
           autoDenoiseEnabled: false,

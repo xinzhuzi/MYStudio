@@ -68,7 +68,7 @@ describe("migrateWorkflowsToLibrary", () => {
     expect(summary.total).toBe(3);
     expect(summary.imported).toBe(2);
     expect(summary.skippedNoBlocks).toBe(1);
-    expect(importedFiles.map((file) => file.name)).toEqual(["迁移 · 道劫41.json", "迁移 · 自由流.json"]);
+    expect(importedFiles.map((file) => file.name)).toEqual(["漫影/1_图片/分镜/2_单镜图/迁移 · 道劫41.json", "漫影/1_图片/分镜/2_单镜图/迁移 · 自由流.json"]);
     // UI 载荷可解析且带 manying 终端与 API 格式随身
     const payload = JSON.parse(importedFiles[0].content) as { nodes: Array<{ type: string }>; extra: { apiFormat?: unknown } };
     expect(payload.nodes.some((node) => node.type === "ManyingGenerated")).toBe(true);

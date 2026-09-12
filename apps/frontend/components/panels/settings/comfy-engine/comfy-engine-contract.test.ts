@@ -203,6 +203,29 @@ describe("filterComfyCatalogEntries 目录过滤", () => {
     expect(filterComfyCatalogEntries(entries, "节点", "生图")).toHaveLength(1);
     expect(filterComfyCatalogEntries(entries, "图层", "生图")).toHaveLength(0);
   });
+
+  it("已装清单(ComfyPluginInfo 形状)同口径过滤(09-10 根修:搜索对已装插件生效)", () => {
+    const plugins: ComfyPluginInfo[] = [
+      {
+        id: "comfyui-manager",
+        name: "插件管理器",
+        description: "装/更/卸插件",
+        license: "GPL-3.0",
+        state: "installed",
+        version: null,
+        deps: [],
+        author: null,
+        downloads: null,
+        category: "管理",
+        nodeCount: 3,
+      },
+    ];
+    expect(filterComfyCatalogEntries(plugins, "manager", null)).toHaveLength(1);
+    expect(filterComfyCatalogEntries(plugins, "插件 管理", null)).toHaveLength(1);
+    expect(filterComfyCatalogEntries(plugins, "管理", "管理")).toHaveLength(1);
+    expect(filterComfyCatalogEntries(plugins, "管理", "画质")).toHaveLength(0);
+    expect(filterComfyCatalogEntries(plugins, "不存在", null)).toHaveLength(0);
+  });
 });
 
 describe("comfyVersionGithubUrl(09-09 版本地址跳转)", () => {

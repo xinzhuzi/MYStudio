@@ -73,16 +73,38 @@ def build_model_status() -> list[dict]:
         if krea2_pointed:
             # 无衣物·指令编辑三层 LoRA(09-06 稳定版工作流;文件存在性探测,
             # 无公网源不自动下载,缺失=展示放置路径)
+            # 09-12 修:LoRA 探测多根寻址——引擎家(comfy_home(),与桥/引擎链
+            # 同源四级回落:env→托管 python 自识别→image-model-dir→dev 兜底)
+            # 优先,回落 comfyui_models_dir()(env 覆写/退役默认)。装机 sidecar
+            # 两个 env 都不带,旧单根探测打到退役目录 ~/Project/ComfyUI,四件
+            # 全假报缺(09-12 用户实弹截图踩中)。
+            from engines.comfyui.manifest import comfy_home as _comfy_home
+            from pathlib import Path as _Path
             from engines.image_engine import krea2 as _krea2
             from engines.image_engine.model_cache import comfyui_models_dir as _cmd
+
+            def _lora_roots() -> list[_Path]:
+                roots = [_comfy_home() / "models"]
+                fallback = _cmd()
+                if fallback not in roots:
+                    roots.append(fallback)
+                return roots
+
+            def _lora_probe(rel: str) -> dict:
+                roots = _lora_roots()
+                hit = next((root for root in roots if (root / rel).is_file()), None)
+                return {
+                    "path": str((hit or roots[0]) / rel),
+                    "ready": hit is not None,
+                }
+
             row = rows[-1]
             row["loraFiles"] = [
                 {
                     "name": _rel.split("/")[-1],
                     "label": _label,
-                    "path": str(_cmd() / _rel),
-                    "ready": (_cmd() / _rel).is_file(),
                     "required": _required,
+                    **_lora_probe(_rel),
                 }
                 for _rel, _strength, _required in _krea2.EDIT_LORA_STACK
                 for _label in (
@@ -90,6 +112,17 @@ def build_model_status() -> list[dict]:
                     ("破限 LoRA·Mystic XXX v3" if "Mystic" in _rel else "破限 LoRA·pussy(轻)"),
                 )
             ]
+            # 09-12 漫影生图加速档(manying_t2i_fast):有公网源的下载配置登记——
+            # 缺失时按 repo/远端路径/大小三件套指路,就位后 ready 点亮
+            row["loraFiles"].append({
+                "name": _krea2.DISTILL_LORA_REL.split("/")[-1],
+                "label": "Krea2 加速·4 步蒸馏 LoRA(漫影生图加速档)",
+                "required": False,
+                **_lora_probe(_krea2.DISTILL_LORA_REL),
+                "repoId": _krea2.DISTILL_LORA_REPO,
+                "remoteFile": _krea2.DISTILL_LORA_REMOTE_FILE,
+                "sizeMb": _krea2.DISTILL_LORA_SIZE_MB,
+            })
     # 分割模型(09-04 无衣物节点):目录存在性探测(不做大件/小件区分)
     import os
     from engines.image_engine.model_cache import comfyui_models_dir

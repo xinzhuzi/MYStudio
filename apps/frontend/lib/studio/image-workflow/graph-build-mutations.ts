@@ -647,10 +647,13 @@ export function addStoryboardLayeredNodes(
 
   // 模型继承:生成请求的 model 解析自相连 prompt 节点(findPromptNodeForGenerated),
   // 空 model=「未配置」会被连续性能力门禁拒(08-20 实测)。优先复用图内既有
-  // prompt 节点的模型(同图同源),缺省回落 gpt-image-2(门禁认可的连续性系)。
+  // prompt 节点的模型(同图同源);缺省回落「设置-生图引擎」默认模型;
+  // 设置也空=保留老默认 gpt-image-2(连续性门禁认可系——09-12 深审修复:
+  // 直接空会让分层链被门禁拒,属生图路由改动的回归)。
+  const settingsDefaultModel = useAppSettingsStore.getState().imageGenerationSettings.defaultImageModel.trim() || undefined;
   const inheritedModel = graph.nodes.find(
     (node): node is ImageWorkflowPromptNode => node.type === "prompt" && Boolean(node.model),
-  )?.model ?? "gpt-image-2";
+  )?.model ?? settingsDefaultModel ?? "gpt-image-2";
   const addLayeredNode = (
     base: ImageWorkflowGraph,
     title: string,

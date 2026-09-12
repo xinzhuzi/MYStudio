@@ -230,6 +230,22 @@ describe("ComfyEngineSettingsSection 版本与更新链", () => {
     expect(actions.updateEngine).toHaveBeenCalledOnce();
   });
 
+  it("已在最新 tag 上仅 master 领先:徽章说「master 有新提交」,不出「可更新到 ==当前版本」怪相(09-11)", () => {
+    // 实弹:v0.35.1 已装、远端 master 领先但领先数算不出(aheadBy null)、
+    // latest tag == 当前版本 → 旧文案「可更新到 v0.35.1」自相矛盾
+    scenario.status = readyStatus({
+      version: "v0.35.1",
+      updateAvailable: true,
+      latest: "v0.35.1",
+      aheadBy: null,
+    });
+    render(<ComfyEngineSettingsSection embedded />);
+    fireEvent.click(comfyEl("tab", "update"));
+
+    expect(screen.getByText("master 有新提交")).toBeTruthy();
+    expect(screen.queryByText("可更新到 v0.35.1")).toBeNull();
+  });
+
   it("同 release 但 master 领先:徽章「可更新(+N 个新提交)」+ 更新按钮(09-09 提交口径)", () => {
     scenario.status = readyStatus({ updateAvailable: true, latest: "0.34.0", aheadBy: 87 });
     render(<ComfyEngineSettingsSection embedded />);
@@ -435,15 +451,181 @@ describe("ComfyEngineSettingsSection 插件子区块", () => {
     expect(actions.installPlugin).toHaveBeenCalledWith("curated", "layerstyle");
   });
 
-  it("搜索触发目录检索并本地过滤", () => {
+  it("搜索触发目录检索并本地过滤(已装行同口径,09-10 根修)", () => {
     render(<ComfyEngineSettingsSection embedded />);
     openPluginBlock();
 
     const search = comfyEl("plugin-search");
     fireEvent.change(search, { target: { value: "图层" } });
     expect(actions.searchCatalog).toHaveBeenCalledWith("图层");
-    // 本地过滤:匹配词保留,不匹配的已装行还在(已装清单不因搜索消失,目录行被过滤)
+    // 已装行同样吃过滤:命中的目录行保留,不匹配的已装行(RG三节点集)消失
     expect(screen.getByText("图层样式")).toBeTruthy();
+    expect(screen.queryByText("RG三节点集")).toBeNull();
+  });
+
+  it("搜索命中已装插件(id 也参与匹配):保留该行,其余隐藏;无命中出空状态", () => {
+    render(<ComfyEngineSettingsSection embedded />);
+    openPluginBlock();
+
+    fireEvent.change(comfyEl("plugin-search"), { target: { value: "rgthree" } });
+    expect(screen.getByText("RG三节点集")).toBeTruthy();
+    expect(screen.queryByText("图层样式")).toBeNull();
+
+    fireEvent.change(comfyEl("plugin-search"), { target: { value: "不存在的东西" } });
+    expect(screen.getByText("没有匹配的插件")).toBeTruthy();
+  });
+
+  it("分类下拉同步过滤已装行", () => {
+    render(<ComfyEngineSettingsSection embedded />);
+    openPluginBlock();
+
+    fireEvent.change(comfyEl("plugin-category"), { target: { value: "画质" } });
+    expect(screen.getByText("图层样式")).toBeTruthy();
+    expect(screen.queryByText("RG三节点集")).toBeNull();
+  });
+
+  it("Registry 小写 id 与已装目录名大小写不一:归一化去重,不再重复出「可安装」行(09-10 根修)", () => {
+    scenario.plugins = [
+      {
+        id: "ComfyUI-Manager", // 台账键=目录名
+        name: "插件管理器",
+        description: "装/更/卸插件",
+        license: "GPL-3.0",
+        state: "installed",
+        version: "3.41",
+        deps: [],
+        author: null,
+        downloads: null,
+        category: null,
+        nodeCount: 12,
+      },
+    ];
+    scenario.catalog = [
+      {
+        id: "comfyui-manager", // Registry 渠道小写 id
+        name: "ComfyUI-Manager",
+        description: "插件管理器(Registry)",
+        license: "未标明",
+        author: "ltdrdata",
+        downloads: 1000000,
+        category: null,
+        installedState: null,
+        ref: "comfyui-manager",
+        source: "registry",
+      },
+    ];
+    render(<ComfyEngineSettingsSection embedded />);
+    openPluginBlock();
+
+    // 只剩已装真身行;Registry 孪生按归一化 id 去重,不出现第二行「可安装」
+    expect(screen.getByText("已装 12 节点")).toBeTruthy();
+    expect(screen.queryByText("可安装")).toBeNull();
+    expect(screen.queryByText("插件管理器(Registry)")).toBeNull();
+  });
+
+  it("已装清单暂空 + 目录行后端已标已装:显示「已安装」且不给安装钮(过渡形态)", () => {
+    scenario.plugins = [];
+    scenario.catalog = [
+      {
+        id: "comfyui-manager",
+        name: "ComfyUI-Manager",
+        description: "插件管理器",
+        license: "未标明",
+        author: "ltdrdata",
+        downloads: 1000000,
+        category: null,
+        installedState: "installed", // 后端归一化比对后标已装
+        ref: "comfyui-manager",
+        source: "registry",
+      },
+    ];
+    render(<ComfyEngineSettingsSection embedded />);
+    openPluginBlock();
+
+    expect(screen.getByText("已安装")).toBeTruthy();
+    expect(document.querySelector('[data-comfy-plugin-install="comfyui-manager"]')).toBeNull();
+  });
+
+  it("详情展开:已装行显 GitHub 星标;星标/作者缺数据整行不显示(09-10 裁定)", () => {
+    scenario.plugins = [
+      {
+        id: "ComfyUI-GGUF",
+        name: "GGUF 量化支持",
+        description: "本地大模型量化加载",
+        license: "Apache-2.0",
+        state: "installed",
+        version: "2.0.0",
+        deps: ["gguf"],
+        author: "City",
+        downloads: null,
+        category: null,
+        nodeCount: 8,
+        stars: 25123,
+      },
+      {
+        id: "bare-plugin",
+        name: "无星插件",
+        description: "没有 git 元数据的插件",
+        license: "MIT",
+        state: "installed",
+        version: "1.0",
+        deps: [],
+        author: null,
+        downloads: null,
+        category: null,
+        nodeCount: 2,
+      },
+    ];
+    scenario.catalog = [];
+    render(<ComfyEngineSettingsSection embedded />);
+    openPluginBlock();
+
+    // GGUF 行:作者 + GitHub 星标(2.5 万)都在
+    fireEvent.click(screen.getByText("GGUF 量化支持"));
+    expect(screen.getByText("City")).toBeTruthy();
+    expect(screen.getByText("GitHub 星标")).toBeTruthy();
+    expect(screen.getByText("2.5 万")).toBeTruthy();
+    // 下载量已退役:已装行不出现该字段
+    expect(screen.queryByText("下载量")).toBeNull();
+
+    // 无数据行:作者/GitHub 星标/下载量三行全隐藏,只剩依赖清单
+    fireEvent.click(screen.getByText("无星插件"));
+    expect(screen.queryByText("未知")).toBeNull();
+    expect(screen.queryByText("GitHub 星标")).toBeNull();
+    expect(screen.getByText("无额外依赖")).toBeTruthy();
+  });
+
+  it("版本三件套(09-10 晚):当前/最新版本展示;落后出「可更新」胶囊+更新按钮可点", () => {
+    scenario.plugins = [
+      {
+        id: "ComfyUI-GGUF",
+        name: "GGUF 量化支持",
+        description: "本地大模型量化加载",
+        license: "Apache-2.0",
+        state: "updatable",
+        version: "1.9.0",
+        deps: [],
+        author: null,
+        downloads: null,
+        category: null,
+        nodeCount: 8,
+        stars: 3991,
+        latestVersion: "2.0.0",
+      },
+    ];
+    scenario.catalog = [];
+    render(<ComfyEngineSettingsSection embedded />);
+    openPluginBlock();
+
+    expect(screen.getByText("可更新")).toBeTruthy();
+    fireEvent.click(screen.getByText("GGUF 量化支持"));
+    // 更新页里引擎自己的版本行也叫「当前版本」,断言取插件块内唯一值
+    expect(screen.getByText("1.9.0")).toBeTruthy();
+    expect(screen.getByText("最新版本")).toBeTruthy();
+    expect(screen.getByText("2.0.0")).toBeTruthy();
+
+    fireEvent.click(comfyEl("plugin-update", "ComfyUI-GGUF"));
+    expect(actions.updatePlugin).toHaveBeenCalledWith("ComfyUI-GGUF");
   });
 
   it("卸载:引用扫描 → 「1 个工作流在用它」点名警告 → 确认才卸载", async () => {
@@ -637,12 +819,13 @@ describe("ComfyEngineSettingsSection 模型页", () => {
 
     expect(comfyEl("models-page")).toBeTruthy();
     expect(modelActions.loadModels).toHaveBeenCalled();
-    // 分类组默认收起(09-10 用户裁定可折叠):类别注释/合计常驻,文件行与件级注释点开才见
-    expect(screen.getByText("diffusion_models")).toBeTruthy();
-    expect(screen.getByText(/去噪网络/)).toBeTruthy();
+    // 域分组默认收起(09-10 分域裁定):域头/域注释/合计常驻;类别组与文件行逐层点开才见
+    expect(screen.getByText("图片")).toBeTruthy();
+    expect(screen.getByText(/生图画布相关/)).toBeTruthy();
     expect(screen.getByText(/合计 2 件/)).toBeTruthy();
     expect(screen.queryByText(/krea2_turbo_bf16\.safetensors/)).toBeNull();
-    fireEvent.click(comfyEl("model-group-toggle", "diffusion_models"));
+    fireEvent.click(comfyEl("model-domain-toggle", "image"));
+    fireEvent.click(comfyEl("model-group-toggle", "image:diffusion_models"));
     expect(screen.getByText(/krea2_turbo_bf16\.safetensors/)).toBeTruthy();
     expect(screen.getByText(/Krea2 生图主力——文生图\/图生图\/无衣物\/NSFW 专业流/)).toBeTruthy();
     expect(screen.getByText("24.5 GB")).toBeTruthy();

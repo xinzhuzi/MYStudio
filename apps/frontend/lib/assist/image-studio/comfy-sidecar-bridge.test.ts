@@ -333,6 +333,47 @@ describe("插件与目录映射", () => {
     expect(mapPluginRow({ id: "broken", dirExists: false }).state).toBe("install-failed");
   });
 
+  it("插件行富化(09-10):requirements 数组形态 deps + 作者/GitHub 星标透传", () => {
+    expect(
+      mapPluginRow({
+        id: "ComfyUI-Manager",
+        name: "插件管理器",
+        desc: "装/更/卸插件",
+        license: "GPL-3.0",
+        deps: ["GitPython", "PyGithub", "uv"],
+        author: "Dr.Lt.Data",
+        stars: 25000,
+        nodeCount: 3,
+        dirExists: true,
+      }),
+    ).toMatchObject({
+      id: "ComfyUI-Manager",
+      license: "GPL-3.0",
+      deps: ["GitPython", "PyGithub", "uv"],
+      author: "Dr.Lt.Data",
+      stars: 25000,
+      state: "installed",
+    });
+  });
+
+  it("插件行版本三件套(09-10 晚):最新版本透传 + updatable 状态映射", () => {
+    expect(
+      mapPluginRow({
+        id: "ComfyUI-GGUF",
+        version: "1.9.0",
+        latestVersion: "2.0.0",
+        state: "updatable",
+        dirExists: true,
+      }),
+    ).toMatchObject({
+      version: "1.9.0",
+      latestVersion: "2.0.0",
+      state: "updatable",
+    });
+    // 目录缺失仍压过 updatable(install-failed 优先)
+    expect(mapPluginRow({ id: "x", state: "updatable", dirExists: false }).state).toBe("install-failed");
+  });
+
   it("目录搜索:策展+Registry 合并,installed → installedState", () => {
     const entries = mapCatalogReply({
       curated: [

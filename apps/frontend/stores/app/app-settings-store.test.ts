@@ -66,6 +66,32 @@ describe("useAppSettingsStore development settings", () => {
     }, current).renderingSettings.renderer).toBe("remotion");
   });
 
+  it("backfills defaultImageModel for pre-09-12 persisted state and restores exact picks (09-12 生图路由设置)", () => {
+    const current = useAppSettingsStore.getState();
+    // 旧装机:imageGenerationSettings 整块持久化但没有 defaultImageModel 键
+    // (浅合并会把它洗成 undefined)——merge 须逐字段回填为空串(跟随渠道链)。
+    const legacy = mergeAppSettingsState({
+      imageGenerationSettings: {
+        defaultAspectRatio: "16:9",
+        defaultResolution: "2K",
+        autoDenoiseEnabled: true,
+        compatibilityRetryEnabled: true,
+        compatibilityRetryAspectRatio: "1:1",
+        compatibilityRetryResolution: "1K",
+      },
+    }, current);
+    expect(legacy.imageGenerationSettings.defaultImageModel).toBe("");
+    expect(legacy.imageGenerationSettings.autoDenoiseEnabled).toBe(true);
+    // 用户显式选过的模型原样恢复
+    const picked = mergeAppSettingsState({
+      imageGenerationSettings: {
+        ...legacy.imageGenerationSettings,
+        defaultImageModel: "gpt-image-2",
+      },
+    }, current);
+    expect(picked.imageGenerationSettings.defaultImageModel).toBe("gpt-image-2");
+  });
+
   it("stores and normalizes the last project parent directory", () => {
     const current = useAppSettingsStore.getState();
     expect(current.projectLocationDefaults.lastParentDir).toBe("");

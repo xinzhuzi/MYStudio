@@ -17,11 +17,31 @@
  * 回报)——生成器尺寸仅为首帧估计,双端常量漂移类裁切从机制上消灭。
  */
 import { app } from "/scripts/app.js";
+// 每型节点 UI 独立模块(09-13 用户裁定:不同代码分模块,适应 ComfyUI):
+// stage-ui/ 下七型各一文件+common 公共件+vendor(markdown-it MIT);
+// 本文件只做壳(头区/动作/组稿器/速查卡/轮询/高度)与按 payload.key 分发。
+import { esc, badge, liveBadgesHTML, onMarkdownReady } from "./stage-ui/common.js";
+import scriptUI from "./stage-ui/script.js";
+import directorPlanUI from "./stage-ui/director-plan.js";
+import assetsUI from "./stage-ui/assets.js";
+import storyboardTableUI from "./stage-ui/storyboard-table.js";
+import storyboardPanelUI from "./stage-ui/storyboard-panel.js";
+import shotProductionUI from "./stage-ui/shot-production.js";
+import workbenchUI from "./stage-ui/workbench.js";
+
+const STAGE_UI_REGISTRY = new Map([
+  [scriptUI.key, scriptUI],
+  [directorPlanUI.key, directorPlanUI],
+  [assetsUI.key, assetsUI],
+  [storyboardTableUI.key, storyboardTableUI],
+  [storyboardPanelUI.key, storyboardPanelUI],
+  [shotProductionUI.key, shotProductionUI],
+  [workbenchUI.key, workbenchUI],
+]);
 
 const BRIDGE_URL = (window.MANYING_BRIDGE_URL || "http://127.0.0.1:17595").replace(/\/$/, "");
 const BRIDGE_TOKEN = window.MANYING_BRIDGE_TOKEN || "manying-local-image";
 
-/** HTML 转义:载荷字符串全走此门(生成器产物,防意外标记注入) */
 /** 缩略/封面晚到兜底:保鲜链补传一轮后文件才在(冷启动竞态)——404 后 2.5s
  * 换缓存戳重试至多 3 次,仍败=隐藏(占位文字在 img 之下自然透出)。 */
 window.__manyingImgRetry = (img) => {
@@ -33,14 +53,6 @@ window.__manyingImgRetry = (img) => {
   }, 2500);
 };
 
-const esc = (value) => String(value ?? "").replace(/[&<>"']/g, (ch) => ({
-  "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;",
-}[ch]));
-
-// ── 设计系统(照 apple-design/frontend-design 技能:层级/字阶/克制)──────
-const STATUS_COLOR = {
-  ready: "#4ec9a8", pending: "#d9a25a", empty: "#7d8ba1", warning: "#e06c75",
-};
 const STYLES = `
 .manying-stage-body{pointer-events:none;box-sizing:border-box;width:100%;
   padding:10px 12px 12px;font:400 12px/1.6 -apple-system,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
@@ -64,6 +76,25 @@ const STYLES = `
   color:rgba(178,188,204,.9);background:rgba(255,255,255,.06);border-radius:999px;padding:2px 9px;}
 .ms-lines{display:flex;flex-direction:column;font-size:11.5px;line-height:1.78;
   color:rgba(226,232,242,.82);}
+.ms-md{font-size:11.5px;line-height:1.72;color:rgba(226,232,242,.85);}
+.ms-md h1{font-size:14px;font-weight:700;color:#9fc3f7;margin:8px 0 5px;}
+.ms-md h2{font-size:12.5px;font-weight:700;color:#bcd3f5;margin:8px 0 4px;}
+.ms-md h3{font-size:11.5px;font-weight:600;color:rgba(205,218,236,.92);margin:6px 0 3px;}
+.ms-md h1:first-child,.ms-md h2:first-child{margin-top:1px;}
+.ms-md p{margin:0 0 5px;}
+.ms-md p:last-child{margin-bottom:0;}
+.ms-md hr{border:none;border-top:1px solid rgba(255,255,255,.12);margin:7px 0;}
+.ms-md blockquote{margin:4px 0;padding:2px 10px;border-left:2px solid rgba(110,168,254,.5);
+  color:rgba(178,188,204,.9);background:rgba(110,168,254,.06);border-radius:0 5px 5px 0;}
+.ms-md strong{color:rgba(240,244,250,.96);font-weight:600;}
+.ms-md em{color:rgba(200,210,226,.88);}
+.ms-md code{font-family:ui-monospace,Menlo,monospace;font-size:10.5px;
+  background:rgba(255,255,255,.07);border-radius:4px;padding:0 4px;}
+.ms-md ul,.ms-md ol{margin:2px 0 5px;padding-left:18px;}
+.ms-md li{margin:1.5px 0;}
+.ms-md table{border-collapse:collapse;margin:4px 0;font-size:10.5px;}
+.ms-md th,.ms-md td{border:1px solid rgba(255,255,255,.12);padding:2px 7px;}
+.ms-md th{background:rgba(255,255,255,.05);font-weight:600;}
 .ms-lines>div{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding:0 2px;}
 .ms-lines>div:nth-child(even){background:rgba(255,255,255,.045);}
 .ms-tiles{display:grid;grid-template-columns:repeat(6,1fr);gap:5px;}
@@ -153,89 +184,18 @@ function ensureStyles() {
 }
 
 // ── 载荷 → HTML(六分支:tiles/表行/队列/资产卡/轨道/正文行)────────────────
-function badge(kind, text) {
-  return `<span class="ms-badge ms-badge--${kind}">${esc(text)}</span>`;
-}
-
-/** 队列活态徽章/进度条(静态渲染与 B2 轮询共用一源):running=徽章+进度条,
- * failed/blocked=红,canceled/ready/pending=灰;succeeded=空(就绪徽章接管)。 */
-function liveBadgesHTML(status, progress) {
-  if (status === "running") {
-    const pct = Math.round(Math.min(1, Math.max(0, Number(progress) || 0)) * 100);
-    return badge("run", "渲染中") + `<span class="ms-prog"><i style="width:${pct}%"></i></span>`;
+/** 正文分发:按载荷 key 选型模块(每型独立文件);未知型/模块异常回落纯文本行。 */
+function bodyHTML(payload) {
+  const mod = STAGE_UI_REGISTRY.get(payload.key);
+  if (mod) {
+    try {
+      return mod.render(payload);
+    } catch (error) {
+      // 型模块异常=回落纯文本(单型故障不拖全画布)
+    }
   }
-  if (status === "failed") return badge("fail", "失败");
-  if (status === "blocked") return badge("fail", "阻塞");
-  if (status === "canceled") return badge("wait", "已取消");
-  if (status === "pending" || status === "ready" || status === "queued") return badge("wait", "排队");
-  return "";
-}
-
-function bodyBranchHTML(payload) {
-  if (Array.isArray(payload.tiles) && payload.tiles.length > 0) {
-    const tiles = payload.tiles.map((tile) => {
-      const state = tile.hasVideo ? "#6ea8fe" : tile.hasImage ? "#4ec9a8" : "#7d8ba1";
-      const media = tile.preview
-        ? `<img src="/view?filename=${encodeURIComponent(tile.preview)}&subfolder=&type=input" alt=""
-             onerror="window.__manyingImgRetry && window.__manyingImgRetry(this)">`
-        : "";
-      return `<div class="ms-tile" title="${esc(tile.title)}${tile.lines ? "\n" + esc(tile.lines) : ""}">
-        ${media}<span class="ph">${esc(tile.title)}</span>
-        <i class="sd" style="background:${state}"></i>
-        <span class="tt">${esc(tile.title)}</span>
-      </div>`;
-    }).join("");
-    return `<div class="ms-tiles">${tiles}</div>`;
-  }
-  if (Array.isArray(payload.tableRows) && payload.tableRows.length > 0) {
-    const rows = payload.tableRows.map((row) => `
-      <div class="ms-row">
-        <span class="idx">#${String(row.index).padStart(2, "0")}</span>
-        <span class="main"><span class="scene">${esc(row.scene)}</span>${esc(row.title)}
-          <span class="sub">「${esc(row.lines || "—")}」${row.action ? " · " + esc(row.action) : ""}${row.sound ? " · ♪" + esc(row.sound) : ""}${row.assets ? " · 【" + esc(row.assets) + "】" : ""}</span>
-        </span>
-        <span class="meta">${esc(row.shotSize)}${row.cameraMove ? "·" + esc(row.cameraMove) : ""} ${row.duration}s</span>
-      </div>`).join("");
-    return `<div class="ms-rows">${rows}</div>`;
-  }
-  if (Array.isArray(payload.shots) && payload.shots.length > 0) {
-    const rows = payload.shots.map((shot) => {
-      const bits = [
-        shot.videoReady ? badge("ok", "视频✓") : badge("wait", "待出"),
-        shot.ttsReady ? badge("ok", "配音✓") : "",
-        shot.sfxReady ? badge("ok", "音效✓") : "",
-        shot.revision > 1 ? badge("rev", "v" + shot.revision) : "",
-      ].filter(Boolean).join("");
-      // 活态徽章/进度条独立容器(.ms-live):B2 轮询到队列快照后原位重填,
-      // 不动静态就绪徽章;初始渲染吃载荷快照(保鲜链上轮写入)
-      const live = liveBadgesHTML(shot.status, shot.progress);
-      return `<div class="ms-row" data-shot-idx="${Number(shot.index) || 0}"><span class="idx">#${String(shot.index).padStart(2, "0")}</span>
-        <span class="main">${esc(shot.label)}</span><span class="ms-live">${live}</span><span class="ms-badges">${bits}</span></div>`;
-    }).join("");
-    return `<div class="ms-rows" data-live="queue">${rows}</div>`;
-  }
-  if (Array.isArray(payload.assets) && payload.assets.length > 0) {
-    const cards = payload.assets.map((asset) => {
-      const cover = asset.cover
-        ? `<img src="/view?filename=${encodeURIComponent(asset.cover)}&subfolder=&type=input" alt=""
-             onerror="window.__manyingImgRetry && window.__manyingImgRetry(this)">`
-        : `<span class="cv">🖼</span>`;
-      return `<div class="ms-card" title="${esc(asset.name)}">${cover}
-        <span class="nm">${esc(asset.name)}<small>${esc(asset.typeLabel)}${asset.views ? " · " + esc(asset.views) + " 视图" : ""}${asset.state ? " · " + esc(asset.state) : ""}</small></span>
-      </div>`;
-    }).join("");
-    return `<div class="ms-cards">${cards}</div>`;
-  }
-  if (Array.isArray(payload.tracks) && payload.tracks.length > 0) {
-    const rows = payload.tracks.map((track) => `
-      <div class="ms-row"><span class="main">${esc(track.name)}</span>
-        <span class="meta">${track.count > 0 ? esc(track.count) + " 镜 · " : ""}${track.mediaCount > 0 ? esc(track.mediaCount) + " 素材 · " : ""}${track.duration > 0 ? Math.floor(track.duration / 60) + ":" + String(track.duration % 60).padStart(2, "0") : ""}</span>
-        ${track.state ? `<span class="ms-badges">${badge(track.state === "ready" ? "ok" : "wait", esc(track.state))}</span>` : ""}
-      </div>`).join("");
-    return `<div class="ms-rows">${rows}</div>`;
-  }
-  const lines = (payload.previewLines || []).map((line) => `<div>${esc(line)}</div>`).join("");
-  return `<div class="ms-lines">${lines}</div>`;
+  const rows = (payload.previewLines || []).map((line) => `<div>${esc(line)}</div>`).join("");
+  return `<div class="ms-lines">${rows}</div>`;
 }
 
 function stageHTML(payload) {
@@ -257,7 +217,7 @@ function stageHTML(payload) {
     </div>
     <div class="ms-body">
       ${payload.previewTitle ? `<span class="ms-pill">${esc(payload.previewTitle)}</span>` : ""}
-      ${bodyBranchHTML(payload)}
+      ${bodyHTML(payload)}
     </div>
     ${actions ? `<div class="ms-actions">${actions}</div>` : ""}`;
 }
@@ -478,6 +438,14 @@ function syncSize(node) {
 app.registerExtension({
   name: "manying.stage.dom",
   async setup() {
+    // markdown-it 就位→重渲染全部环节正文(首帧纯文本回落→成型替换)
+    onMarkdownReady(() => {
+      for (const node of (window.app?.canvas?.graph?._nodes || [])) {
+        if (node.__manyingDomBody) {
+          try { renderDomBody(node); } catch (error) { /* 各自兜底 */ }
+        }
+      }
+    });
     // B2 队列轮询 + B3 速查卡:页面级单例,扩展 setup 一次即装
     try { installQueuePoller(); } catch (error) { /* 无碍 */ }
     try { installCanvasHints(); } catch (error) { /* 无碍 */ }

@@ -55,7 +55,7 @@ const PLUGIN_PILL_STYLES: Record<ComfyPluginState, string> = {
   installable: "border-border bg-muted/60 text-muted-foreground",
 };
 
-/** 列表行的展示模型(已装清单与目录条目归一)。 */
+/** 插件行展示模型(已装清单与目录条目归一)。 */
 type PluginRow = {
   id: string;
   name: string;
@@ -64,18 +64,23 @@ type PluginRow = {
   state: ComfyPluginState;
   nodeCount: number | null;
   author: string | null;
+  /** GitHub 星标(已装行,后台缓存;null 整行不显示)。目录行 null 走下载量。 */
+  stars: number | null;
   downloads: number | null;
+  /** 当前版本(pyproject 语义版,无则 git 短 sha)/最新版本(GitHub tag 或短 sha)。 */
+  version: string | null;
+  latestVersion: string | null;
   category: string | null;
   deps: string[];
   ref: string;
-  source: "curated" | "registry" | "git" | "local";
+  source: "curated" | "registry" | "git" | "local" | "pip";
   installed: boolean;
 };
 
-function formatDownloads(downloads: number | null): string {
-  if (downloads == null) return "未知";
-  if (downloads >= 10_000) return `${(downloads / 10_000).toFixed(1)} 万`;
-  return String(downloads);
+function formatCount(count: number | null): string {
+  if (count == null) return "未知";
+  if (count >= 10_000) return `${(count / 10_000).toFixed(1)} 万`;
+  return String(count);
 }
 
 type PendingUninstall = {
@@ -116,11 +121,16 @@ export function ComfyEnginePluginBlock({ engine }: ComfyEnginePluginBlockProps) 
 
   /** 已装插件优先展示,再接目录里的可装条目(去重:已装的以 plugins 清单为准)。 */
   const rows = useMemo<PluginRow[]>(() => {
+    // 去重按归一化 id(小写):Registry id(comfyui-manager)与台账目录名
+    // (ComfyUI-Manager)大小写不一,精确比对会让已装插件以「可安装」重复出
+    // 现两行(09-10 实弹)。
     const installedIds = new Set(
-      engine.plugins.filter((plugin) => plugin.state !== "installable").map((plugin) => plugin.id),
+      engine.plugins
+        .filter((plugin) => plugin.state !== "installable")
+        .map((plugin) => plugin.id.toLowerCase()),
     );
     const catalogRows: PluginRow[] = visibleEntries
-      .filter((entry) => !installedIds.has(entry.id))
+      .filter((entry) => !installedIds.has(entry.id.toLowerCase()))
       .map((entry) => ({
         id: entry.id,
         name: entry.name,
@@ -129,7 +139,10 @@ export function ComfyEnginePluginBlock({ engine }: ComfyEnginePluginBlockProps) 
         state: entry.installedState ?? "installable",
         nodeCount: null,
         author: entry.author,
+        stars: null,
         downloads: entry.downloads,
+        version: null,
+        latestVersion: null,
         category: entry.category,
         deps: [],
         ref: entry.ref,
@@ -146,11 +159,14 @@ export function ComfyEnginePluginBlock({ engine }: ComfyEnginePluginBlockProps) 
         state: plugin.state,
         nodeCount: plugin.nodeCount,
         author: plugin.author,
-        downloads: plugin.downloads,
+        stars: plugin.stars ?? null,
+        downloads: null,
+        version: plugin.version ?? null,
+        latestVersion: plugin.latestVersion ?? null,
         category: plugin.category,
         deps: plugin.deps,
         ref: plugin.id,
-        source: "curated",
+        source: plugin.source ?? "curated",
         installed: true,
       }));
     return [...installedRows, ...catalogRows];
@@ -311,29 +327,71 @@ export function ComfyEnginePluginBlock({ engine }: ComfyEnginePluginBlockProps) 
                 <CollapsibleContent>
                   <div className="space-y-2 border-t border-border/60 bg-muted/20 px-4 py-3">
                     <dl className="grid grid-cols-[max-content_minmax(0,1fr)] items-start gap-x-3 gap-y-1 text-[11px]">
-                      <dt className="text-muted-foreground">作者</dt>
-                      <dd className="font-medium text-foreground">{row.author ?? "未知"}</dd>
-                      <dt className="text-muted-foreground">下载量</dt>
-                      <dd className="font-medium text-foreground">{formatDownloads(row.downloads)}</dd>
+                      {/* 09-10 裁定:没有的数据整行不显示(不出「未知」);
+                          已装行显 GitHub 星标,目录行显下载量 */}
+                      {row.author ? (
+                        <>
+                          <dt className="text-muted-foreground">作者</dt>
+                          <dd className="font-medium text-foreground">{row.author}</dd>
+                        </>
+                      ) : null}
+                      {row.stars != null ? (
+                        <>
+                          <dt className="text-muted-foreground">GitHub 星标</dt>
+                          <dd className="font-medium text-foreground">{formatCount(row.stars)}</dd>
+                        </>
+                      ) : null}
+                      {row.downloads != null ? (
+                        <>
+                          <dt className="text-muted-foreground">下载量</dt>
+                          <dd className="font-medium text-foreground">{formatCount(row.downloads)}</dd>
+                        </>
+                      ) : null}
+                      {row.version ? (
+                        <>
+                          <dt className="text-muted-foreground">当前版本</dt>
+                          <dd className="font-mono text-foreground">{row.version}</dd>
+                        </>
+                      ) : null}
+                      {row.latestVersion ? (
+                        <>
+                          <dt className="text-muted-foreground">最新版本</dt>
+                          <dd
+                            className={cn(
+                              "font-mono",
+                              row.state === "updatable" ? "text-warning" : "text-foreground",
+                            )}
+                          >
+                            {row.latestVersion}
+                          </dd>
+                        </>
+                      ) : null}
                       <dt className="text-muted-foreground">依赖清单</dt>
                       <dd className="break-all font-mono text-foreground">
                         {row.deps.length > 0 ? row.deps.join(", ") : "无额外依赖"}
                       </dd>
                     </dl>
                     <div className="flex flex-wrap gap-2">
-                      {!row.installed ? (
+                      {/* 后端已标已装的目录行不给安装钮:真身行由已装清单提供
+                          (带更新/卸载);此形态只在已装清单暂未拉到时过渡出现;
+                          pip 来源=venv 直装,无目录引用不可再装 */}
+                      {!row.installed && row.state !== "installed" && row.source !== "pip" ? (
                         <Button
                           size="sm"
                           className="h-7 px-2.5 text-[11px]"
                           disabled={pluginJobActive}
-                          onClick={() => void engine.installPlugin(row.source, row.ref)}
+                          onClick={() => {
+                            const src = row.source;
+                            if (src === "pip") return; // 类型窄化回调内保真(venv 直装无目录引用)
+                            void engine.installPlugin(src, row.ref);
+                          }}
                           data-comfy-plugin-install={row.id}
                         >
                           <Download className="mr-1 h-3 w-3" aria-hidden />
                           安装
                         </Button>
                       ) : null}
-                      {row.installed && row.state === "updatable" ? (
+                      {row.installed && (row.state === "updatable" || row.source === "pip") ? (
                         <Button
                           size="sm"
                           variant="outline"

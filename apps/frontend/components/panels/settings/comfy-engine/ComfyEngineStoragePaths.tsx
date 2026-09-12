@@ -36,8 +36,18 @@ const ROWS: Array<{ key: PathKey; label: string; hint: string }> = [
   { key: "workflowsDir", label: "工作流目录", hint: "内置模板与你的工作流库" },
 ];
 
-/** 探测期回落显示的默认路径:与后端 comfy_manifest.storage_root 同口径
- * (09-09 用户裁定:comfyui 家与 python 运行时平级,<userData>/comfyui);仅作显示,真值以服务返回为准。 */
+/** 输入/输出目录(09-11 用户需求:可迁出源码目录保持源码区整洁;
+ * spawn 注入官方 --input-directory/--output-directory,改完重启引擎生效) */
+type IOKey = "inputDir" | "outputDir";
+
+const IO_ROWS: Array<{ key: IOKey; label: string; hint: string }> = [
+  { key: "inputDir", label: "输入目录", hint: "参考图与上传图片的存放处(可迁出源码目录;现有文件自动搬移,重启引擎后生效)" },
+  { key: "outputDir", label: "输出目录", hint: "生成结果的落盘处(可迁出源码目录;现有文件自动搬移,重启引擎后生效)" },
+];
+
+/** 探测期回落显示的默认路径:与后端 comfy_manifest 同口径
+ * (09-09 用户裁定:comfyui 家与 python 运行时平级,<userData>/comfyui);仅作显示,真值以服务返回为准。
+ * 工作流默认位=引擎源码内 user/default/workflows(09-10 库收编后的真默认,旧 <home>/workflows 已封存)。 */
 async function fallbackDefaultPaths(): Promise<ComfyEnginePathsStatus | null> {
   try {
     const paths = await window.storageManager?.getPaths?.();
@@ -48,14 +58,16 @@ async function fallbackDefaultPaths(): Promise<ComfyEnginePathsStatus | null> {
       engineDir: `${home}/ComfyUI`,
       venvDir: `${home}/venv`,
       modelsDir: `${home}/models`,
-      workflowsDir: `${home}/workflows`,
+      workflowsDir: `${home}/ComfyUI/user/default/workflows`,
+      inputDir: `${home}/ComfyUI/input`,
+      outputDir: `${home}/ComfyUI/output`,
     };
     return {
       installed: false,
       running: false,
       paths: paths2,
       defaults: paths2,
-      customized: { engineDir: false, venvDir: false, modelsDir: false, workflowsDir: false },
+      customized: { engineDir: false, venvDir: false, modelsDir: false, workflowsDir: false, inputDir: false, outputDir: false },
     };
   } catch {
     return null;
@@ -160,6 +172,50 @@ export function ComfyEngineStoragePaths({ modelsDirRow }: { modelsDirRow?: React
     }
   }, [client, pendingMigrate]);
 
+  // 输入/输出目录更改(09-11):轻操作走同步面 setIODirs(引擎须停)——
+  // 已装=确认后搬移现有内容+落账(重启引擎后生效);未装=直接落账
+  const [pendingIO, setPendingIO] = useState<{ key: IOKey; path: string } | null>(null);
+
+  const pickAndApplyIO = useCallback(
+    async (key: IOKey) => {
+      if (!client || !status) return;
+      const chosen = await window.storageManager?.selectDirectory(status.paths[key]);
+      if (!chosen) return;
+      const validation = await client.validatePaths({ [key]: chosen });
+      if (!validation.ok) {
+        const firstError = Object.values(validation.errors)[0] ?? "路径不可用";
+        toast.error(firstError);
+        return;
+      }
+      if (validation.warnings.disk) toast.warning(validation.warnings.disk);
+      if (!status.installed) {
+        try {
+          await client.setIODirs({ [key]: chosen });
+          toast.success("已更新(引擎尚未安装,安装后首启生效)");
+          await refresh();
+        } catch (error) {
+          toast.error(error instanceof Error ? error.message : "保存失败");
+        }
+        return;
+      }
+      setPendingIO({ key, path: chosen });
+    },
+    [client, status, refresh],
+  );
+
+  const confirmIODirs = useCallback(async () => {
+    const pending = pendingIO;
+    setPendingIO(null);
+    if (!pending || !client) return;
+    try {
+      await client.setIODirs({ [pending.key]: pending.path });
+      toast.success("已更新:现有文件已搬移,重启引擎后生效");
+      await refresh();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "更改失败");
+    }
+  }, [client, pendingIO, refresh]);
+
   if (!client) return null; // 桥不可达(非 Electron/未注入):零渲染
 
   const disabled = migrateJob?.state === "running";
@@ -187,12 +243,11 @@ export function ComfyEngineStoragePaths({ modelsDirRow }: { modelsDirRow?: React
         {modelsDirRow ?? null}
         {ROWS.map((row) => {
           const value = status?.paths[row.key] ?? "";
-          const customized = status?.customized[row.key] === true;
           return (
             <div key={row.key} className="grid items-center gap-2 md:grid-cols-[5rem_minmax(0,1fr)_auto]" data-comfy-path-row={row.key}>
-              <span className="text-xs text-muted-foreground" title={row.hint}>
+              {/* 09-12 用户裁定:不标「(自定义)」——默认都是自定义;标签不换行 */}
+              <span className="whitespace-nowrap text-xs text-muted-foreground" title={row.hint}>
                 {row.label}
-                {customized ? <span className="ml-1 text-[10px] text-primary/80">(自定义)</span> : null}
               </span>
               {/* 平文本路径(09-10 用户裁定:卡内不嵌盒子);超长截断,悬停看全 */}
               <span
@@ -219,6 +274,48 @@ export function ComfyEngineStoragePaths({ modelsDirRow }: { modelsDirRow?: React
                   disabled={disabled || engineRunning}
                   title={engineRunning ? "请先停止引擎再修改目录" : undefined}
                   onClick={() => void pickAndApply(row.key)}
+                  aria-label={`更改${row.label}`}
+                  data-comfy-path-change={row.key}
+                >
+                  更改
+                </Button>
+              </div>
+            </div>
+          );
+        })}
+        {IO_ROWS.map((row) => {
+          const value = status?.paths[row.key] ?? "";
+          return (
+            <div key={row.key} className="grid items-center gap-2 md:grid-cols-[5rem_minmax(0,1fr)_auto]" data-comfy-path-row={row.key}>
+              {/* 09-12 用户裁定:不标「(自定义)」——默认都是自定义;标签不换行 */}
+              <span className="whitespace-nowrap text-xs text-muted-foreground" title={row.hint}>
+                {row.label}
+              </span>
+              {/* 平文本路径(09-10 用户裁定:卡内不嵌盒子);超长截断,悬停看全 */}
+              <span
+                className="min-w-0 truncate font-mono text-xs text-foreground"
+                title={value}
+                aria-label={`${row.label}路径`}
+              >
+                {value}
+              </span>
+              <div className="flex flex-nowrap gap-2 md:justify-end">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => {
+                    if (value) void window.electronAPI?.openPath(value);
+                  }}
+                  aria-label={`打开${row.label}`}
+                >
+                  <FolderOpen className="h-4 w-4" aria-hidden />
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  disabled={disabled || engineRunning}
+                  title={engineRunning ? "请先停止引擎再修改目录" : undefined}
+                  onClick={() => void pickAndApplyIO(row.key)}
                   aria-label={`更改${row.label}`}
                   data-comfy-path-change={row.key}
                 >
@@ -265,6 +362,35 @@ export function ComfyEngineStoragePaths({ modelsDirRow }: { modelsDirRow?: React
               onClick={() => void confirmMigrate()}
             >
               开始迁移
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+      {/* 输入/输出目录更改确认(09-11):现有文件搬移+重启生效;按钮中性色 */}
+      <AlertDialog open={pendingIO !== null} onOpenChange={(open) => { if (!open) setPendingIO(null); }}>
+        <AlertDialogContent data-comfy-io-dialog>
+          <AlertDialogHeader>
+            <AlertDialogTitle>更改{pendingIO ? IO_ROWS.find((row) => row.key === pendingIO.key)?.label : ""}</AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-2">
+                <p>将把目录更改为:</p>
+                <p className="break-all rounded-md border border-border bg-muted/40 px-2 py-1 font-mono text-xs text-foreground">
+                  {pendingIO?.path}
+                </p>
+                <p>
+                  目录里现有的文件会自动搬移过去(参考图占位、生成结果都会带走)。
+                  更改需要重启引擎后生效。
+                </p>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>取消</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-secondary/60 text-secondary-foreground border border-foreground/[0.06] hover:bg-secondary/80"
+              onClick={() => void confirmIODirs()}
+            >
+              确认更改
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

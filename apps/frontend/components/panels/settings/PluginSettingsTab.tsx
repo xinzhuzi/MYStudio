@@ -7,7 +7,6 @@ import {
   AudioWaveform,
   ChevronDown,
   Clapperboard,
-  Gauge,
   Plug,
   ScanEye,
   ServerCog,
@@ -25,7 +24,6 @@ import { usePythonRuntimeSettings } from "./usePythonRuntimeSettings";
 import { useVideoWorkflowPlugins } from "./useVideoWorkflowPlugins";
 import { useImageGenRuntimeSettings } from "./useImageGenRuntimeSettings";
 import { useSfxGenRuntimeSettings } from "./useSfxGenRuntimeSettings";
-import { useVideoQcRuntimeSettings } from "./useVideoQcRuntimeSettings";
 import { PythonSettingsTab } from "./PythonSettingsTab";
 import { ComfyEngineSettingsSection, type ComfyEngineTab } from "./comfy-engine/ComfyEngineSettingsSection";
 import {
@@ -39,7 +37,6 @@ import {
 } from "./comfy-engine/comfy-engine-contract";
 import { useComfyEngineSettings } from "./comfy-engine/useComfyEngineSettings";
 import { VlmReviewSettingsSection } from "./VlmReviewSettingsSection";
-import { VideoQcSettingsSection } from "./VideoQcSettingsSection";
 import { SfxGenSettingsSection } from "./SfxGenSettingsSection";
 import { RenderingSettingsTab } from "./RenderingSettingsTab";
 
@@ -54,7 +51,6 @@ const SECTION_IDS = [
   "python",
   "comfy-engine",
   "vlm-review",
-  "video-qc",
   "audio-tts",
   "audio-sfx",
   "video",
@@ -223,7 +219,6 @@ export function PluginSettingsTab() {
   const videoPlugins = useVideoWorkflowPlugins();
   const imageGen = useImageGenRuntimeSettings();
   const sfx = useSfxGenRuntimeSettings();
-  const videoQc = useVideoQcRuntimeSettings();
   const [vlmProbe, setVlmProbe] = useState<VlmReviewProbeResult | null>(null);
   const [ttsRunning, setTtsRunning] = useState<{ running: boolean; setupStage?: string } | null>(null);
   const [isPreparing, setIsPreparing] = useState(false);
@@ -236,7 +231,6 @@ export function PluginSettingsTab() {
   const refreshRowStatuses = () => {
     void imageGen.probeRuntime();
     void comfyEngine.refreshStatus();
-    void videoQc.refresh();
     if (typeof window !== "undefined" && window.vlmReview?.probe) {
       window.vlmReview.probe().then(setVlmProbe).catch(() => undefined);
     }
@@ -425,19 +419,6 @@ export function PluginSettingsTab() {
             ? "unsupported"
             : "blocked";
 
-  const videoQcStatus = videoQc.status;
-  const videoQcPill: CapabilityPillKind = !videoQc.hasBridge
-    ? "unsupported"
-    : videoQc.isDownloading || videoQcStatus?.downloadStatus === "downloading"
-      ? "downloading"
-      : videoQcStatus?.state === "ready"
-        ? (videoQcStatus.modelReady ? "ready" : "model-missing")
-        : videoQcStatus?.state === "needs-runtime"
-          ? "needs-runtime"
-          : videoQcStatus?.state === "blocked" || videoQcStatus?.state === "error"
-            ? "blocked"
-            : "checking";
-
   const sfxPill: CapabilityPillKind = !sfx.hasRuntime
     ? "unsupported"
     : sfx.isSettingUp
@@ -541,18 +522,9 @@ export function PluginSettingsTab() {
           >
             <VlmReviewSettingsSection embedded />
           </CapabilityRow>
-          <CapabilityRow
-            sectionId="video-qc"
-            headingId="plugin-video-qc-heading"
-            icon={Gauge}
-            title="视频评分模型"
-            description="DOVER-Mobile 本地评分模型（依赖 Python 运行环境），出片后按系列基线相对告警；未下载时自动跳过，不影响出片。"
-            pill={videoQcPill}
-            collapsed={collapsedSections.has("video-qc")}
-            onToggle={toggleSectionCollapsed}
-          >
-            <VideoQcSettingsSection embedded />
-          </CapabilityRow>
+          {/* 视频评分模型行已撤(09-11 用户裁定:不需要此模型——从未下载,
+              评分链未下载时自动跳过,配置面无消费方;模型在画布节点时代的
+              定位下此行不应存在) */}
         </CapabilityGroup>
 
         <CapabilityGroup label="声音">

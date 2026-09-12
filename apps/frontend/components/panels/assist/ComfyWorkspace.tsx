@@ -10,6 +10,7 @@
 
 import { ComfyCanvasStudio } from "./comfy-canvas/ComfyCanvasStudio";
 import { TtsStudio } from "./TtsStudio";
+import { LocalModelStudio } from "./local-models/LocalModelStudio";
 import { useFreedomStore } from "@/stores/assist/freedom-store";
 
 export function ComfyWorkspace() {
@@ -17,7 +18,16 @@ export function ComfyWorkspace() {
 
   return (
     <div className="relative h-full w-full min-h-0 min-w-0 bg-background" data-comfy-workspace>
-      {activeStudio === "tts" ? <TtsStudio /> : <ComfyCanvasStudio />}
+      {/* 09-11 模块分野裁定:漫影侧栏所有模块都在,内容按模块分工——
+          本地模型模块默认落「工作流」页签;09-12 模块分离裁定:该页签
+          及原生树/会话三层均不再出现分镜产线内容(工作流模块的东西) */}
+      {activeStudio === "tts" ? (
+        <TtsStudio />
+      ) : activeStudio === "generate" ? (
+        <LocalModelStudio />
+      ) : (
+        <ComfyCanvasStudio manyingScope="models" />
+      )}
     </div>
   );
 }

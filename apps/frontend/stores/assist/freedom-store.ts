@@ -9,7 +9,8 @@ import { persist } from 'zustand/middleware';
 
 // 09-10 辅助面板全屏 ComfyUI 合一(用户裁定):图片/视频/电影工作室退役,
 // freedom 视图=整屏 ComfyUI;TTS 配音室=悬浮球面板可达的子态。
-export type StudioMode = 'comfy' | 'tts';
+// 09-11 漫影专属生图:选模型+提示词直出的简单表单子态(走 manying_t2i 模板)。
+export type StudioMode = 'comfy' | 'tts' | 'generate';
 
 interface FreedomState {
   activeStudio: StudioMode;
@@ -43,7 +44,9 @@ export const useFreedomStore = create<FreedomStore>()(
       migrate: (persisted) => {
         const legacy = persisted as { activeStudio?: unknown };
         const activeStudio: StudioMode =
-          legacy.activeStudio === 'tts' ? 'tts' : 'comfy';
+          legacy.activeStudio === 'tts' || legacy.activeStudio === 'generate'
+            ? legacy.activeStudio
+            : 'comfy';
         return { activeStudio };
       },
     }

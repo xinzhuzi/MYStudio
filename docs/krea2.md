@@ -6,14 +6,14 @@
 
 ## 一、应用功能 ↔ ComfyUI 工作流映射
 
-| 应用功能 | ComfyUI 工作流(本机 `ComfyUI/user/default/workflows/K2图像/`) | 关键参数 |
+| 应用功能 | ComfyUI 工作流(本机 `ComfyUI/user/default/workflows/漫影/1_图片/K2图像/`,按功能分六夹) | 关键参数 |
 |---|---|---|
-| 文生图(专业流) | `Krea2-NSFW专业流.json` | 8 步 · cfg=1 · euler/simple · denoise=1 |
-| 图生图 | `Krea2-NSFW专业流-图生图.json` | 8 步 · cfg=1 · **denoise=0.6** · SDEdit(LoadImage→VAEEncode→KSampler) |
-| 无衣物改图 | `Krea2-NSFW专业流-改图-无衣物.json` | 双分割并集 + 两遍采样(脱衣 0.65 + 校色 0.3) |
-| 改图系列(衣物重绘/局部) | `Krea2-NSFW专业流-改图*.json` | 与无衣物同构(蒙版来源不同) |
-| 超分 4K | `K2-SeedVR2降噪后4K.json` / 应用超分链 | realesrgan-x4plus-anime-6b |
-| 提示词工程参考 | `参考_提示词工程/` `K2-图生图提示词模板.md` | — |
+| 文生图(专业流) | `1_文生图/Krea2-NSFW专业流.json` | 8 步 · cfg=1 · euler/simple · denoise=1 |
+| 图生图 | `2_图生图/Krea2-NSFW专业流-图生图.json`(全家桶亦在此夹) | 8 步 · cfg=1 · **denoise=0.6** · SDEdit(LoadImage→VAEEncode→KSampler) |
+| 无衣物改图 | `3_改图/Krea2_无衣物_稳定.json` / `Krea2_无衣物_遮罩.json` | 双分割并集 + 两遍采样(脱衣 0.65 + 校色 0.3);krea2edit 整合流同夹 |
+| 改图系列(衣物重绘/局部) | `3_改图/` 内按稳定/遮罩两档 | 与无衣物同构(蒙版来源不同) |
+| 超分 4K | `6_修复超分/K2-SeedVR2降噪后4K.json` / 应用超分链 | realesrgan-x4plus-anime-6b |
+| 提示词工程参考 | `漫影/4_参考_提示词工程/`(K2 提示词模板同款一份在 `K2图像/` 夹根) | — |
 
 ## 二、模型清单
 

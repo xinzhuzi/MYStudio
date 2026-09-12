@@ -10,6 +10,7 @@ import {
   getComfyEngineClient,
   type ComfyCatalogEntry,
   type ComfyDoctorReport,
+  type ComfyEngineAckReply,
   type ComfyEngineClient,
   type ComfyEngineJob,
   type ComfyEngineStatus,
@@ -26,6 +27,14 @@ const JOB_POLL_INTERVAL_MS = 800;
 // 覆盖 prepare 拉起 python 侧车的冷启动;超窗仍无状态则交回既有自愈(prepare)语义。
 const STATUS_RETRY_INTERVAL_MS = 3_000;
 const STATUS_RETRY_MAX_ATTEMPTS = 20;
+// 手动启停撞上「sidecar 恰好死着」窗口时,prepare 自愈后补试一次前的等待
+// (给 python 侧车冷启动留时间;测试经 options 调小)。
+const SIDECAR_HEAL_WAIT_MS = 3_000;
+
+/** 桥接层「服务不在」大白话判据(探活门禁的固定文案):仅这类失败值得补试。 */
+function isSidecarDownError(error: unknown): boolean {
+  return error instanceof Error && error.message.startsWith("本地生图服务未运行");
+}
 
 export interface UseComfyEngineSettingsOptions {
   /** 覆盖数据通道(注入 mock client);不传用 window.comfyEngine。 */
@@ -34,6 +43,8 @@ export interface UseComfyEngineSettingsOptions {
   pollIntervalMs?: number;
   /** 状态有界重试间隔(测试调小);默认 3000ms。 */
   statusRetryIntervalMs?: number;
+  /** sidecar 自愈补试前的等待(测试调小);默认 3000ms。 */
+  sidecarHealWaitMs?: number;
 }
 
 export function useComfyEngineSettings(options: UseComfyEngineSettingsOptions = {}) {
@@ -44,6 +55,7 @@ export function useComfyEngineSettings(options: UseComfyEngineSettingsOptions = 
   const client = useMemo(() => options.client ?? getComfyEngineClient(), [options.client]);
   const pollIntervalMs = options.pollIntervalMs ?? JOB_POLL_INTERVAL_MS;
   const statusRetryIntervalMs = options.statusRetryIntervalMs ?? STATUS_RETRY_INTERVAL_MS;
+  const sidecarHealWaitMs = options.sidecarHealWaitMs ?? SIDECAR_HEAL_WAIT_MS;
   const hasBridge = Boolean(client);
 
   const [status, setStatus] = useState<ComfyEngineStatus | null>(null);
@@ -52,6 +64,9 @@ export function useComfyEngineSettings(options: UseComfyEngineSettingsOptions = 
   const [updateReport, setUpdateReport] = useState<ComfyEngineUpdateReport | null>(null);
   const [pluginInstallReport, setPluginInstallReport] = useState<ComfyPluginInstallReport | null>(null);
   const [plugins, setPlugins] = useState<ComfyPluginInfo[]>([]);
+  // 插件清单是否成功拉到过(挂载失败后的有界重试用;不用 plugins.length 判,
+  // 空/非空是合法数据,只有「一次都没成功」才需要补拉)
+  const [pluginsLoaded, setPluginsLoaded] = useState(false);
   const [catalog, setCatalog] = useState<ComfyCatalogEntry[]>([]);
   const [doctorReport, setDoctorReport] = useState<ComfyDoctorReport | null>(null);
   const [isCheckingUpdate, setIsCheckingUpdate] = useState(false);
@@ -60,8 +75,21 @@ export function useComfyEngineSettings(options: UseComfyEngineSettingsOptions = 
   const [isStartingService, setIsStartingService] = useState(false);
   const [isRollingBack, setIsRollingBack] = useState(false);
   const pollRef = useRef<number | null>(null);
+  // runJob 从发起到首个轮询建立之间还有异步空档,仅靠 pollRef 判「有任务在途」
+  // 会漏——启动中标志补上这道缝(09-11 P3:并发任务顶掉轮询槽的另一半根因)。
+  const jobStartingRef = useRef(false);
   const statusFailuresRef = useRef(0);
   const lastHealRef = useRef(0);
+
+  /** sidecar 不在时的统一自愈:prepare 拉起 + 等冷启动,只做一次由调用方控。 */
+  const healSidecar = useCallback(async () => {
+    try {
+      void window.imageGenRuntime?.prepare?.();
+    } catch {
+      // 旧构建无桥不阻塞
+    }
+    await new Promise((resolve) => window.setTimeout(resolve, sidecarHealWaitMs));
+  }, [sidecarHealWaitMs]);
 
   const stopPolling = useCallback(() => {
     if (pollRef.current === null) return;
@@ -95,8 +123,10 @@ export function useComfyEngineSettings(options: UseComfyEngineSettingsOptions = 
     if (!client) return;
     try {
       setPlugins(await client.listPlugins());
+      setPluginsLoaded(true);
     } catch {
-      // 插件清单拉不到不阻塞引擎状态展示
+      // 插件清单拉不到不阻塞引擎状态展示;挂载赶在 sidecar 就绪前失败时
+      // 由有界重试补拉(09-10 实弹:装机版新启首进设置页恒「已装 0 个」)
     }
   }, [client]);
 
@@ -124,10 +154,11 @@ export function useComfyEngineSettings(options: UseComfyEngineSettingsOptions = 
 
   // 挂载探测失败的有界自愈:初次探测常赶在 prepare 拉起 sidecar 之前发出而失败,
   // 原实现无任何重试,引擎卡永转「正在确认引擎状态…」(09-10 两次实弹:上午「引擎
-  // 已装却恒显检查中」+ 下午用户分钟级卡等)。status 仍为空时按间隔补探,成功/
-  // 卸载/超窗即停——不是常驻轮询,拿到首个状态后本效应不再介入。
+  // 已装却恒显检查中」+ 下午用户分钟级卡等)。status 仍为空或插件清单一次都没
+  // 拉到时按间隔补探,双双就位/超窗即停——不是常驻轮询,本效应不再介入。
+  // (09-10 晚实弹:插件清单原先不参与重试,装机版新启首进设置页恒「已装 0 个」。)
   useEffect(() => {
-    if (!client || status) return;
+    if (!client || (status && pluginsLoaded)) return;
     let attempts = 0;
     const retry = window.setInterval(() => {
       attempts += 1;
@@ -135,10 +166,11 @@ export function useComfyEngineSettings(options: UseComfyEngineSettingsOptions = 
         window.clearInterval(retry);
         return;
       }
-      void refreshStatus();
+      if (!status) void refreshStatus();
+      if (!pluginsLoaded) void refreshPlugins();
     }, statusRetryIntervalMs);
     return () => window.clearInterval(retry);
-  }, [client, status, refreshStatus, statusRetryIntervalMs]);
+  }, [client, status, pluginsLoaded, refreshStatus, refreshPlugins, statusRetryIntervalMs]);
 
   /** 任务收尾:按类型刷新 + 报告/错误分流 + 诊断日志(保留终态 job 供 UI 展示错误)。 */
   const settleJob = useCallback(
@@ -182,7 +214,14 @@ export function useComfyEngineSettings(options: UseComfyEngineSettingsOptions = 
         toast.error("ComfyUI 引擎配置仅在桌面应用中可用");
         return;
       }
-      stopPolling();
+      // 09-11 P3 根修:原实现单轮询槽,并发第二个任务会顶掉第一个的轮询,前者
+      // 永不收尾(无 toast、activeJob 悬挂)。后端本就是单任务闸,前端对齐成
+      // 明拒;启动空档(start→轮询建立)由 jobStartingRef 一并盖住。
+      if (jobStartingRef.current || pollRef.current !== null) {
+        toast.error("已有任务在进行中,请等它完成再操作");
+        return;
+      }
+      jobStartingRef.current = true;
       try {
         const { jobId } = await start(client);
         const first = await client.getJob(jobId);
@@ -206,6 +245,8 @@ export function useComfyEngineSettings(options: UseComfyEngineSettingsOptions = 
       } catch (error) {
         toast.error(error instanceof Error ? error.message : "任务启动失败");
         void refreshStatus();
+      } finally {
+        jobStartingRef.current = false;
       }
     },
     [client, pollIntervalMs, refreshStatus, settleJob, stopPolling],
@@ -432,7 +473,16 @@ export function useComfyEngineSettings(options: UseComfyEngineSettingsOptions = 
     if (!client) return;
     setIsStartingService(true);
     try {
-      const reply = await client.startEngine();
+      let reply: ComfyEngineAckReply;
+      try {
+        reply = await client.startEngine();
+      } catch (error) {
+        // 09-11 P3 补缝:点击瞬间 sidecar 恰好死着(探测通道的自愈要几秒)——
+        // 仅对「服务不在」类失败当场 prepare 拉起补试一次,连续两败如实报错
+        if (!isSidecarDownError(error)) throw error;
+        await healSidecar();
+        reply = await client.startEngine();
+      }
       if (reply.accepted) {
         toast.success("ComfyUI 引擎服务已启动");
       } else {
@@ -444,12 +494,20 @@ export function useComfyEngineSettings(options: UseComfyEngineSettingsOptions = 
     } finally {
       setIsStartingService(false);
     }
-  }, [client, refreshStatus]);
+  }, [client, healSidecar, refreshStatus]);
 
   const stopService = useCallback(async () => {
     if (!client) return;
     try {
-      const reply = await client.stopEngine();
+      let reply: ComfyEngineAckReply;
+      try {
+        reply = await client.stopEngine();
+      } catch (error) {
+        // 同 startService:停引擎撞上 sidecar 死窗,自愈补试一次
+        if (!isSidecarDownError(error)) throw error;
+        await healSidecar();
+        reply = await client.stopEngine();
+      }
       if (reply.accepted) {
         toast.success("ComfyUI 引擎服务已停止");
       } else {
@@ -459,7 +517,7 @@ export function useComfyEngineSettings(options: UseComfyEngineSettingsOptions = 
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "服务停止失败");
     }
-  }, [client, refreshStatus]);
+  }, [client, healSidecar, refreshStatus]);
 
   const searchCatalog = useCallback(
     async (query: string) => {

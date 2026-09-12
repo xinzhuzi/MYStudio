@@ -79,6 +79,107 @@ describe("useComfyEngineSettings", () => {
     expect(failures).toBe(0); // 确实经过了失败后的自动补探
   });
 
+  it("插件清单挂载失败后随有界重试自动补拉(不再恒「已装 0 个」)", async () => {
+    // 09-10 晚实弹:装机版新启首进设置页,listPlugins 赶在 sidecar 就绪前失败,
+    // 原实现清单零重试,整场会话恒「已装 0 个」;现在与状态共用重试通道。
+    const base = createMockComfyEngineClient();
+    let failures = 2; // 清单前 2 次失败,第 3 次成功(状态首探即成功,不牵扯)
+    const client = {
+      ...base,
+      listPlugins: async () => {
+        if (failures > 0) {
+          failures -= 1;
+          throw new Error("sidecar 未起");
+        }
+        return base.listPlugins();
+      },
+    };
+    const { result } = renderHook(() =>
+      useComfyEngineSettings({ client, pollIntervalMs: 5, statusRetryIntervalMs: 5 }),
+    );
+
+    // 不调任何手动刷新:挂载探测失败 → 有界重试只为清单继续跑 → 自动就位
+    await waitFor(() => expect(result.current.plugins.length).toBeGreaterThan(0), { timeout: 3000 });
+    expect(failures).toBe(0);
+  });
+
+  it("启动撞上「sidecar 恰好死着」:prepare 自愈后补试一次成功(09-11 P3)", async () => {
+    const base = createMockComfyEngineClient({
+      initialStatus: { installed: true, state: "ready", version: "0.34.0", port: 17599 },
+    });
+    let down = true;
+    const client = {
+      ...base,
+      startEngine: async () => {
+        if (down) {
+          down = false;
+          throw new Error("本地生图服务未运行,请先在 设置→本地配置 完成「准备运行时」");
+        }
+        return base.startEngine();
+      },
+    };
+    const prepare = vi.fn();
+    (window as { imageGenRuntime?: unknown }).imageGenRuntime = { prepare };
+    const { result } = renderHook(() =>
+      useComfyEngineSettings({ client, pollIntervalMs: 5, sidecarHealWaitMs: 1 }),
+    );
+
+    await act(async () => {
+      await result.current.startService();
+    });
+    expect(prepare).toHaveBeenCalled();
+    expect(toasts.success).toHaveBeenCalledWith("ComfyUI 引擎服务已启动");
+    await waitFor(() => expect(result.current.status?.serviceRunning).toBe(true));
+    delete (window as { imageGenRuntime?: unknown }).imageGenRuntime;
+  });
+
+  it("启动失败非「服务不在」类:不补试,如实报原错误", async () => {
+    const base = createMockComfyEngineClient({
+      initialStatus: { installed: true, state: "ready", version: "0.34.0", port: 17599 },
+    });
+    let calls = 0;
+    const client = {
+      ...base,
+      startEngine: async () => {
+        calls += 1;
+        throw new Error("引擎正被另一个漫影进程管理");
+      },
+    };
+    const prepare = vi.fn();
+    (window as { imageGenRuntime?: unknown }).imageGenRuntime = { prepare };
+    const { result } = renderHook(() =>
+      useComfyEngineSettings({ client, pollIntervalMs: 5, sidecarHealWaitMs: 1 }),
+    );
+
+    await act(async () => {
+      await result.current.startService();
+    });
+    expect(calls).toBe(1); // 没有第二次尝试(挂载效应的 prepare 与补试无关,不作为判据)
+    expect(toasts.error).toHaveBeenCalledWith("引擎正被另一个漫影进程管理");
+    delete (window as { imageGenRuntime?: unknown }).imageGenRuntime;
+  });
+
+  it("任务轮询在途时并发第二个任务被明拒(轮询槽不再被顶掉;09-11 P3)", async () => {
+    const client = createMockComfyEngineClient({
+      initialStatus: { installed: true, state: "ready", version: "0.34.0", port: 17599, updateAvailable: true },
+    });
+    // 轮询间隔放大:保证第二个任务发起时第一个仍在轮询(确定性)
+    const { result } = renderHook(() => useComfyEngineSettings({ client, pollIntervalMs: 300 }));
+
+    await act(async () => {
+      await result.current.updateEngine();
+    });
+    expect(result.current.activeJob?.state).toBe("running");
+
+    await act(async () => {
+      await result.current.updateEngine(); // 轮询在途的并发任务
+    });
+    expect(toasts.error).toHaveBeenCalledWith("已有任务在进行中,请等它完成再操作");
+
+    // 原任务的轮询没有被顶掉,照常推进到终结
+    await waitFor(() => expect(result.current.activeJob?.state).toBe("succeeded"), { timeout: 4000 });
+  });
+
   it("无桥时 hasBridge=false,动作点按给大白话错误不抛异常", async () => {
     const { result } = renderHook(() => useComfyEngineSettings({ client: undefined }));
     expect(result.current.hasBridge).toBe(false);

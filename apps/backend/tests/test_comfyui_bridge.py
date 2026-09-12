@@ -171,3 +171,87 @@ class BridgeContractTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class ManyingT2ITemplateTests(unittest.TestCase):
+    """09-11 漫影专属生图:manying_t2i 模板 + checkpoint(model_file)注入通道。"""
+
+    def test_manying_t2i_validates_and_binds_model_file(self):
+        template = bridge.load_template("manying_t2i")
+        self.assertEqual(template["schemaVersion"], 1)
+        binding = template["inputs"].get("model_file")
+        self.assertIsNotNone(binding)
+        self.assertEqual(binding["node"], "3")
+        self.assertEqual(binding["field"], "unet_name")
+        # 图内默认权重仍是 K2 主力(manying 模板=krea2_t2i 同构图+模型可选)
+        self.assertEqual(template["graph"]["3"]["inputs"]["unet_name"], "krea2_turbo_bf16.safetensors")
+
+    def test_instantiate_injects_model_file_when_present(self):
+        template = bridge.load_template("manying_t2i")
+        graph = bridge.instantiate_template(
+            template, "水墨少年", None, 8, None, "1:1", [], model_file="other_model.safetensors")
+        self.assertEqual(graph["3"]["inputs"]["unet_name"], "other_model.safetensors")
+        self.assertEqual(graph["6"]["inputs"]["text"], "水墨少年")
+
+    def test_instantiate_without_model_file_keeps_template_default(self):
+        # 既有调用面(分镜链等)不传 model_file:默认权重原样,行为零变化
+        template = bridge.load_template("manying_t2i")
+        graph = bridge.instantiate_template(template, "p", None, 8, None, "1:1", [])
+        self.assertEqual(graph["3"]["inputs"]["unet_name"], "krea2_turbo_bf16.safetensors")
+
+    def test_generate_with_manying_template_routes_without_references(self):
+        # 路由护栏回归(09-12 实弹踩中):漫影纯文生图模板点名跑、无参考图必须放行
+        # (修复前被「模板需要参考图: manying_t2i」秒拒);checkpoint 注入要落到提交图
+        png = b"fake-png"
+        history = {"pid": {"status": {"status_str": "success"}, "outputs": {"12": {"images": [{"filename": "out.png", "subfolder": "", "type": "output"}]}}}}
+        responses = [{"system": {"comfyui_version": "0.33.0"}}, {"prompt_id": "pid", "node_errors": []}, history]
+        with patch.object(bridge, "_available_node_classes", return_value=_all_template_classes_available()), patch.object(
+            bridge, "_http_json", side_effect=responses
+        ) as http_json, patch.object(bridge, "_fetch_bytes", return_value=png), patch.object(bridge.time, "sleep"):
+            result = bridge.generate("水墨少年", "1:1", None, 8, 42, template="manying_t2i", checkpoint="other_model.safetensors")
+        self.assertEqual(base64.b64decode(result), png)
+        submitted = http_json.call_args_list[1].args[2]["prompt"]
+        self.assertEqual(submitted["3"]["inputs"]["unet_name"], "other_model.safetensors")
+
+
+class ManyingT2IFastTemplateTests(unittest.TestCase):
+    """09-12 Krea2 加速工作流:4 步蒸馏 LoRA 挂 LoraLoaderModelOnly,模型钉死。"""
+
+    def test_fast_template_validates_with_lora_chain(self):
+        template = bridge.load_template("manying_t2i_fast")
+        self.assertEqual(template["schemaVersion"], 1)
+        lora = template["graph"]["14"]
+        self.assertEqual(lora["class_type"], "LoraLoaderModelOnly")
+        self.assertEqual(lora["inputs"]["model"], ["3", 0])
+        self.assertEqual(lora["inputs"]["strength_model"], 1.0)
+        # KSampler 的 model 必须吃 LoRA 输出(而不是直连 UNETLoader)
+        self.assertEqual(template["graph"]["9"]["inputs"]["model"], ["14", 0])
+        self.assertEqual(template["graph"]["9"]["inputs"]["steps"], 4)
+        self.assertEqual(template["graph"]["9"]["inputs"]["cfg"], 1.0)
+
+    def test_fast_template_pins_model_even_if_checkpoint_passed(self):
+        # 加速档蒸馏 LoRA 只对 Krea2 Turbo 有效:模板不声明 model_file 绑定,
+        # 调用方即使传了 checkpoint 也被 bindings 检查天然忽略(防呆)
+        template = bridge.load_template("manying_t2i_fast")
+        self.assertNotIn("model_file", template["inputs"])
+        graph = bridge.instantiate_template(
+            template, "雪夜孤城", None, 4, None, "1:1", [], model_file="other_model.safetensors")
+        self.assertEqual(graph["3"]["inputs"]["unet_name"], "krea2_turbo_bf16.safetensors")
+        self.assertEqual(graph["9"]["inputs"]["steps"], 4)
+        self.assertEqual(graph["6"]["inputs"]["text"], "雪夜孤城")
+
+    def test_generate_with_fast_template_routes_without_references(self):
+        # 路由护栏回归(09-12 实弹踩中):加速档点名模板无参考图也必须放行,
+        # 且提交给 /prompt 的 graph 挂着 LoraLoaderModelOnly、步数=4
+        png = b"fake-png"
+        history = {"pid": {"status": {"status_str": "success"}, "outputs": {"11": {"images": [{"filename": "out.png", "subfolder": "", "type": "output"}]}}}}
+        responses = [{"system": {"comfyui_version": "0.33.0"}}, {"prompt_id": "pid", "node_errors": []}, history]
+        with patch.object(bridge, "_available_node_classes", return_value=_all_template_classes_available()), patch.object(
+            bridge, "_http_json", side_effect=responses
+        ) as http_json, patch.object(bridge, "_fetch_bytes", return_value=png), patch.object(bridge.time, "sleep"):
+            result = bridge.generate("雪夜孤城", "1:1", None, 4, 42, template="manying_t2i_fast")
+        self.assertEqual(base64.b64decode(result), png)
+        submitted = http_json.call_args_list[1].args[2]["prompt"]
+        self.assertEqual(submitted["14"]["class_type"], "LoraLoaderModelOnly")
+        self.assertEqual(submitted["9"]["inputs"]["model"], ["14", 0])
+        self.assertEqual(submitted["9"]["inputs"]["steps"], 4)

@@ -205,9 +205,18 @@ interface SidecarPluginRow {
   license?: string | null;
   state?: string;
   version?: string | null;
-  deps?: Record<string, string>;
+  /** 台账 pip 依赖名或 requirements 实单(09-10 富化:后端两种形态都给) */
+  deps?: Record<string, string> | string[];
   nodeCount?: number | null;
   dirExists?: boolean;
+  /** 09-10 富化:作者=本地 git;GitHub 星标(后台缓存补,拉不到 null 前端整行不显示);
+      downloads 已退役(09-10 晚裁定),留可选键兼容旧 sidecar 回包;
+      latestVersion=GitHub 最新 tag/短 sha,state 可 updatable(版本落后) */
+  author?: string | null;
+  stars?: number | null;
+  downloads?: number | null;
+  latestVersion?: string | null;
+  repo?: string | null;
 }
 
 interface SidecarCatalogReply {
@@ -369,8 +378,18 @@ function toNumber(value: unknown): number | null {
 // ---------------------------------------------------------------------------
 
 export function mapPluginRow(raw: SidecarPluginRow): ComfyPluginInfo {
-  const deps = raw.deps && typeof raw.deps === "object" ? Object.keys(raw.deps) : [];
-  const state: ComfyPluginState = raw.dirExists === false ? "install-failed" : "installed";
+  // deps 两种形态:台账 pip 依赖(对象,取键)或 requirements 实单(数组)
+  const deps = Array.isArray(raw.deps)
+    ? [...raw.deps]
+    : raw.deps && typeof raw.deps === "object"
+      ? Object.keys(raw.deps)
+      : [];
+  const state: ComfyPluginState =
+    raw.dirExists === false
+      ? "install-failed"
+      : raw.state === "updatable"
+        ? "updatable"
+        : "installed";
   return {
     id: String(raw.id ?? ""),
     name: raw.name || String(raw.id ?? ""),
@@ -378,9 +397,11 @@ export function mapPluginRow(raw: SidecarPluginRow): ComfyPluginInfo {
     license: raw.license || "未标明",
     state,
     version: raw.version ?? null,
-    deps: [...deps].sort(),
-    author: null,
-    downloads: null,
+    latestVersion: raw.latestVersion ?? null,
+    deps: deps.sort(),
+    author: raw.author ?? null,
+    downloads: raw.downloads ?? null,
+    stars: raw.stars ?? null,
     category: null,
     nodeCount: raw.nodeCount ?? null,
   };
@@ -549,6 +570,10 @@ export function createHttpComfyEngineClient(): ComfyEngineClient {
     async migratePaths(update: ComfyPathsUpdate & { startAfter?: boolean }): Promise<ComfyEngineStartJobReply> {
       const raw = await comfySidecarRequest<{ jobId?: string }>("POST", "/comfy/paths/migrate", { body: update });
       return { jobId: String(raw.jobId ?? "") };
+    },
+    async setIODirs(update: { inputDir?: string; outputDir?: string }): Promise<ComfyEnginePathsStatus> {
+      // 引擎运行中 sidecar 抛「请先停止引擎」,由组件按钮禁用+错误捕获兜底
+      return comfySidecarRequest<ComfyEnginePathsStatus>("POST", "/comfy/paths/io", { body: update });
     },
     async cleanOrphans(): Promise<{ removed: string[]; message?: string }> {
       const raw = await comfySidecarRequest<{ removed?: string[]; message?: string }>("POST", "/comfy/plugins/clean-orphans");

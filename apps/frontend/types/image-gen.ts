@@ -21,8 +21,18 @@ export interface ImageGenModelRow {
   smallPiecesReady?: boolean | null;
   /** 大件实际绝对路径列表(主模型/文本编码器,两源通用),设置页展示用;缺大件为空表 */
   pointedFiles?: string[] | null;
-  /** 无衣物·指令编辑三层 LoRA 探测(09-06;krea2 分组行级展示) */
-  loraFiles?: Array<{ name: string; label: string; path: string; ready: boolean; required?: boolean }> | null;
+  /** 无衣物·指令编辑三层 LoRA 探测(09-06;krea2 分组行级展示);09-12 起含加速档蒸馏 LoRA(带公网下载源三件套) */
+  loraFiles?: Array<{
+    name: string;
+    label: string;
+    path: string;
+    ready: boolean;
+    required?: boolean;
+    /** 有公网源的件才有(09-12 蒸馏 LoRA):缺失时按此三件套指路下载 */
+    repoId?: string;
+    remoteFile?: string;
+    sizeMb?: number;
+  }> | null;
   /** 分割模型(09-04 无衣物):layout=segmentation 标识独立分组;description 供设置页说明 */
   layout?: string;
   description?: string;

@@ -17,6 +17,7 @@ import json
 import re
 import shutil
 import tempfile
+import threading
 import time
 import urllib.parse
 import uuid
@@ -272,6 +273,9 @@ def _registry_entry(node: dict) -> dict | None:
 def catalog_search(query: str, limit: int = 40) -> dict:
     """策展 + Registry 合并;离线时仅返回策展(大白话注明)。"""
     ledger = cm.plugin_ledger()
+    # 已装比对归一化小写:Registry id(comfyui-manager)与台账键(目录名
+    # ComfyUI-Manager)大小写不一,精确比对会让已装插件恒判「可安装」(09-10 实弹)
+    ledger_keys_lower = {key.lower() for key in ledger}
     q = (query or "").strip().lower()
     curated = []
     for entry in load_curated():
@@ -279,7 +283,8 @@ def catalog_search(query: str, limit: int = 40) -> dict:
         if q and q not in haystack:
             continue
         curated.append({**entry, "source": "curated", "verified": True,
-                        "installed": entry.get("id") in ledger or entry.get("dir") in ledger})
+                        "installed": str(entry.get("id") or "").lower() in ledger_keys_lower
+                        or entry.get("dir") in ledger})
     registry: list[dict] = []
     registry_error: str | None = None
     try:
@@ -287,7 +292,7 @@ def catalog_search(query: str, limit: int = 40) -> dict:
         for node in payload.get("nodes", [])[:limit]:
             entry = _registry_entry(node)
             if entry:
-                entry["installed"] = entry["id"] in ledger
+                entry["installed"] = str(entry.get("id") or "").lower() in ledger_keys_lower
                 registry.append(entry)
     except EngineOpError as exc:
         registry_error = str(exc)
@@ -592,13 +597,82 @@ def _uninstall_job(job_id: str, plugin_id: str) -> None:
     })
 
 
+# ── ComfyUI-Manager 运行时组件(pip 线,09-11 适配 4.x)──────────────────
+# Manager 已转 pip 分发(引擎 venv 内 comfyui-manager 包),不走插件台账/git;
+# 在插件列表以合成行露面,更新钮走 venv pip 升级链(用户手动操作,09-11 裁定)。
+PIP_MANAGER_ID = "comfyui-manager"
+PIP_MANAGER_PACKAGE = "comfyui-manager"
+
+
+def _venv_metadata_version(package: str) -> str | None:
+    import subprocess
+
+    exe = cm.comfy_home() / "venv" / "bin" / "python"
+    try:
+        result = subprocess.run(
+            [str(exe), "-c",
+             f"import importlib.metadata; print(importlib.metadata.version('{package}'))"],
+            capture_output=True, text=True, timeout=15,
+        )
+        version = result.stdout.strip()
+        return version or None
+    except Exception:
+        return None
+
+
+def _pip_manager_row() -> dict | None:
+    """Manager 合成行:已 pip 安装才露面(版本本地可查;最新版交给更新链报告)。"""
+    version = _venv_metadata_version(PIP_MANAGER_PACKAGE)
+    if not version:
+        return None
+    return {
+        "id": PIP_MANAGER_ID,
+        "name": "ComfyUI-Manager",
+        "desc": "插件与模型管理器(引擎运行时组件,pip 分发线)——更新走 pip 升级",
+        "license": None,
+        "state": "installed",
+        "version": version,
+        "latestVersion": None,
+        "deps": [],
+        "author": None,
+        "stars": None,
+        "source": "pip",
+        "repo": "https://github.com/Comfy-Org/ComfyUI-Manager",
+        "nodeCount": None,
+        "dirExists": True,
+    }
+
+
+def _update_pip_manager_job(job_id: str) -> None:
+    engine = engine_manager()
+    jobs.update(job_id, progress=20, step="pip", message="pip 升级 comfyui-manager…")
+    _pip(["install", "--upgrade", PIP_MANAGER_PACKAGE])
+    version = _venv_metadata_version(PIP_MANAGER_PACKAGE) or "?"
+    jobs.update(job_id, progress=70, step="restart", message="重启引擎并校验…")
+    engine.restart(progress=lambda pct, msg: jobs.update(job_id, progress=70 + pct * 20 // 100, message=msg))
+    jobs.update(job_id, result={
+        "plugin": PIP_MANAGER_ID, "version": version,
+        "message": f"ComfyUI-Manager 已升级/确认最新:{version}",
+    })
+
+
 def update_plugin_job(plugin_id: str) -> str:
     plugin_id = _safe_plugin_id(plugin_id)
+    # Manager 运行时组件(pip 线):不走台账/git,直接 pip 升级链
+    if plugin_id == PIP_MANAGER_ID:
+        if not _venv_metadata_version(PIP_MANAGER_PACKAGE):
+            raise EngineOpError("comfyui-manager 未安装在引擎环境(可能已回退 git 版)")
+        job_id = jobs.create("plugin-update", "更新 ComfyUI-Manager")
+        jobs.start(job_id, lambda jid: _update_pip_manager_job(jid))
+        return job_id
     entry = cm.plugin_ledger().get(plugin_id)
     if not entry:
         raise EngineOpError(f"账本里没有这个插件: {plugin_id}")
-    if entry.get("source") in ("registry", "local"):
-        raise EngineOpError("Registry zip / 本地目录安装的插件请重新安装新版本(无 git 历史可拉取)")
+    # 拉取资格按「目录里有无 git 历史」判,不看台账 source 标记(09-11 用户裁定:
+    # 不是最新的插件要有可点的「更新」按钮——自旧库收编的 local 源带着完整
+    # .git(如 ComfyUI-Manager),一刀切拒收会让可更新行的按钮点了就报错)
+    if not (cm.custom_nodes_dir() / plugin_id / ".git").exists():
+        raise EngineOpError("该插件没有 git 历史可拉取(Registry zip/裸目录安装),请卸载后重装新版")
     job_id = jobs.create("plugin-update", f"更新插件 {plugin_id}")
     jobs.start(job_id, lambda jid: _update_plugin_job(jid, plugin_id))
     return job_id
@@ -698,25 +772,324 @@ def clean_orphan_plugins() -> dict:
     }
 
 
+# ── 已装插件详情富化:本地四件套 + GitHub 星标缓存 ──────────────────────
+# 09-10 实弹:装机行展开全是「作者/下载量 未知、license 未标明、依赖无额外依赖」
+# ——台账只记版本坐标不含元数据,策展清单仅 10 件盖不住收编生态。填法:
+# 离线四件套(git 作者、pyproject 简介与 license、requirements 依赖、LICENSE
+# 文件头嗅探)同步秒回;星标数走 GitHub API(api.github.com/repos,免鉴权 60 次/时)
+# 按仓库地址后台线程补缓存(TTL 24h,404 负缓存),list_plugins 本体零联网等待。
+# 09-10 晚裁定:下载量退役,显示 GitHub 星标;拉不到的条目前端整行不显示。
+
+_META_CACHE_TTL_S = 24 * 3600
+_META_EMPTY_RETRY_S = 6 * 3600
+_META_FETCH_TIMEOUT_S = 3.0
+_META_FETCH_PER_RUN = 15
+_META_FETCH_BUDGET_S = 20.0
+
+_meta_file_lock = threading.Lock()
+_registry_refresh_lock = threading.Lock()
+
+_LICENSE_SNIFF_RULES: list[tuple[str, tuple[str, ...]]] = [
+    ("AGPL-3.0", ("GNU AFFERO GENERAL PUBLIC LICENSE",)),
+    ("GPL-3.0", ("GNU GENERAL PUBLIC LICENSE", "Version 3")),
+    ("GPL-2.0", ("GNU GENERAL PUBLIC LICENSE", "Version 2")),
+    ("Apache-2.0", ("Apache License", "Version 2.0")),
+    ("MIT", ("MIT License",)),
+    ("BSD-3-Clause", ("Redistribution and use in source and binary forms",)),
+    ("Unlicense", ("free and unencumbered software released into the public domain",)),
+]
+
+
+def sniff_license_spdx(text: str) -> str | None:
+    """LICENSE 文件头嗅探 SPDX(常见六种;命中多标记须全中)。"""
+    head = (text or "")[:4096].lower()
+    for spdx, markers in _LICENSE_SNIFF_RULES:
+        if all(marker.lower() in head for marker in markers):
+            return spdx
+    return None
+
+
+def parse_requirements_names(text: str) -> list[str]:
+    """requirements.txt → 依赖名列表(剥版本规格/注释/选项行)。"""
+    names: list[str] = []
+    for raw in (text or "").splitlines():
+        line = raw.strip()
+        if not line or line.startswith("#") or line.startswith("-"):
+            continue
+        name = re.split(r"[=<>~;\[\s]", line, maxsplit=1)[0].strip()
+        if name:
+            names.append(name)
+    return names
+
+
+def _read_pyproject_meta(path: Path) -> tuple[str | None, str | None, str | None]:
+    """pyproject [project] → (description, license_spdx, version);license 为 file
+    表形态时返回 None(由 LICENSE 嗅探兜底)。老运行时无 tomllib 走正则降级。"""
+    try:
+        import tomllib  # Python 3.11+;sidecar venv 3.12
+
+        with path.open("rb") as fh:
+            project = tomllib.load(fh).get("project") or {}
+        license_field = project.get("license")
+        spdx = license_field.strip() if isinstance(license_field, str) else None
+        return (project.get("description") or None), (spdx or None), (project.get("version") or None)
+    except Exception:
+        try:
+            text = path.read_text(encoding="utf-8", errors="ignore")
+            m = re.search(r'^description\s*=\s*"([^"\n]+)"', text, re.M)
+            v = re.search(r'^version\s*=\s*"([^"\n]+)"', text, re.M)
+            return (m.group(1) if m else None), None, (v.group(1) if v else None)
+        except OSError:
+            return None, None, None
+
+
+def _plugin_local_meta(plugin_dir: Path) -> dict:
+    """插件目录离线元数据:git 作者+仓库地址、pyproject、requirements、LICENSE。"""
+    meta: dict = {"author": None, "repo": None, "desc": None, "license": None,
+                  "version": None, "deps": []}
+    try:
+        author = _git(["log", "-1", "--format=%an"], cwd=plugin_dir, timeout=5.0).strip()
+        meta["author"] = author or None
+    except Exception:
+        pass
+    try:
+        url = _git(["remote", "get-url", "origin"], cwd=plugin_dir, timeout=5.0).strip()
+        meta["repo"] = url or None
+    except Exception:
+        pass
+    pyproject = plugin_dir / "pyproject.toml"
+    if pyproject.is_file():
+        desc, spdx, version = _read_pyproject_meta(pyproject)
+        meta["desc"], meta["license"], meta["version"] = desc, spdx, version
+    if not meta["license"]:
+        for cand in sorted(plugin_dir.glob("[Ll][Ii][Cc][Ee][Nn][Ss][Ee]*")):
+            if cand.is_file():
+                spdx = sniff_license_spdx(cand.read_text(encoding="utf-8", errors="ignore"))
+                if spdx:
+                    meta["license"] = spdx
+                    break
+    requirements = plugin_dir / "requirements.txt"
+    if requirements.is_file():
+        try:
+            meta["deps"] = parse_requirements_names(
+                requirements.read_text(encoding="utf-8", errors="ignore")
+            )
+        except OSError:
+            pass
+    return meta
+
+
+def _normalize_repo(url: str) -> str:
+    """仓库地址归一(小写、去 .git 尾与尾斜杠)——Registry 配对与大小写根修同口径。"""
+    return (url or "").strip().lower().removesuffix(".git").rstrip("/")
+
+
+def _plugin_meta_cache_path() -> Path:
+    return cm.comfy_home() / "plugin_meta_cache.json"
+
+
+def _load_plugin_meta_cache() -> dict:
+    try:
+        data = json.loads(_plugin_meta_cache_path().read_text(encoding="utf-8"))
+        return data if isinstance(data, dict) else {}
+    except (OSError, json.JSONDecodeError):
+        return {}
+
+
+def _save_plugin_meta_cache(cache: dict) -> None:
+    try:
+        tmp = _plugin_meta_cache_path().with_name("plugin_meta_cache.json.tmp")
+        tmp.write_text(json.dumps(cache, ensure_ascii=False), encoding="utf-8")
+        tmp.replace(_plugin_meta_cache_path())
+    except OSError:
+        pass
+
+
+def _repo_owner_name(repo_key: str) -> str | None:
+    """仓库地址 → GitHub owner/name(剥 scheme/.git/尾斜杠;host/owner/name 不足
+    三段视为无主,返回 None)。"""
+    body = (repo_key or "").split("://", 1)[-1]
+    body = body.removesuffix(".git").strip("/")
+    parts = [p for p in body.split("/") if p]
+    if len(parts) < 3:
+        return None
+    return "/".join(parts[-2:])
+
+
+def _norm_version(value: str) -> str:
+    """版本串归一(剥 v 前缀/前导点/空白,小写)——tag 与本地版本比对口径。"""
+    return (value or "").strip().lstrip("vV.").strip().lower()
+
+
+def _github_json(owner_name: str, tail: str, timeout: float) -> dict | None:
+    req = request.Request(
+        f"https://api.github.com/repos/{owner_name}" + (f"/{tail}" if tail else ""),
+        headers={"User-Agent": "MYStudio-comfy-host/1.0", "Accept": "application/vnd.github+json"},
+    )
+    with request.urlopen(req, timeout=timeout) as response:
+        data = json.loads(response.read().decode("utf-8"))
+    return data if isinstance(data, dict) else None
+
+
+def _github_repo_meta(owner_name: str, timeout: float) -> dict:
+    """单仓库一趟:星标 + 最新版本(Releases tag 优先,无 release 回落默认分支
+    HEAD 提交 sha——提交漂移即「可更新」)。逐段尽力:任一段失败不拖累其余。"""
+    meta = {"stars": None, "latestTag": None, "latestSha": None}
+    try:
+        data = _github_json(owner_name, "", timeout)
+        if data is not None:
+            stars = data.get("stargazers_count")
+            meta["stars"] = stars if isinstance(stars, int) else None
+    except Exception:
+        pass
+    try:
+        release = _github_json(owner_name, "releases/latest", timeout)
+        tag = release.get("tag_name") if release else None
+        if tag:
+            meta["latestTag"] = str(tag)
+    except Exception:
+        pass
+    if not meta["latestTag"]:
+        try:
+            req = request.Request(
+                f"https://api.github.com/repos/{owner_name}/commits",
+                headers={"User-Agent": "MYStudio-comfy-host/1.0", "Accept": "application/vnd.github+json"},
+            )
+            with request.urlopen(req, timeout=timeout) as response:
+                commits = json.loads(response.read().decode("utf-8"))
+            if isinstance(commits, list) and commits and isinstance(commits[0], dict):
+                sha = commits[0].get("sha")
+                if sha:
+                    meta["latestSha"] = str(sha)
+        except Exception:
+            pass
+    return meta
+
+
+def _kick_github_stars_refresh(pending: list[str]) -> None:
+    """后台线程补 GitHub 星标+最新版本;单飞不重入,预算 20s/轮(免鉴权 60 次/时,
+    每轮 15 仓库×至多 3 请求=45 次,贴上限内)。全空结果不落缓存——真没了的
+    仓库每轮白试几次,但限流等临时失败不会被负缓存钉死 24h。"""
+    if not pending:
+        return
+    repos = sorted({(_normalize_repo(url), _repo_owner_name(_normalize_repo(url))) for url in pending if url})
+    repos = [(key, owner) for key, owner in repos if owner]
+    if not repos or not _registry_refresh_lock.acquire(blocking=False):
+        return
+
+    def _worker() -> None:
+        try:
+            updates: dict[str, dict] = {}
+            deadline = time.monotonic() + _META_FETCH_BUDGET_S
+            for repo_key, owner_name in repos[:_META_FETCH_PER_RUN]:
+                if time.monotonic() > deadline:
+                    break
+                meta = _github_repo_meta(owner_name, timeout=_META_FETCH_TIMEOUT_S)
+                if any(meta.values()):
+                    updates[repo_key] = {"fetchedAt": int(time.time()), **meta}
+                else:
+                    # 空结果按 6h 短 TTL 落缓存(写入时刻回拨):防真没了的仓库
+                    # 每轮重打挤占名额,也防限流类临时失败被 24h 钉死
+                    updates[repo_key] = {
+                        "fetchedAt": int(time.time()) - (_META_CACHE_TTL_S - _META_EMPTY_RETRY_S),
+                        **meta,
+                    }
+            if updates:
+                with _meta_file_lock:
+                    cache = _load_plugin_meta_cache()
+                    cache.setdefault("byRepo", {}).update(updates)
+                    _save_plugin_meta_cache(cache)
+        finally:
+            _registry_refresh_lock.release()
+
+    threading.Thread(target=_worker, daemon=True, name="comfy-plugin-meta-refresh").start()
+
+
 def list_plugins() -> list[dict]:
     curated_by_repo = {c.get("repo"): c for c in load_curated()}
+    ledger = cm.plugin_ledger()
+    nodes_root = cm.custom_nodes_dir()
+    now = int(time.time())
+    with _meta_file_lock:
+        cache = _load_plugin_meta_cache()
+    local_cache: dict = cache.setdefault("local", {})
+    by_repo: dict = cache.setdefault("byRepo", {})
+    registry_pending: list[str] = []
+    local_dirty = False
     rows = []
-    for plugin_dir, entry in cm.plugin_ledger().items():
+    for plugin_dir, entry in ledger.items():
         curated = curated_by_repo.get(entry.get("repo")) or {}
+        dir_path = nodes_root / plugin_dir
+        # 本地四件套按台账签名缓存(commit/版本/装机时刻),变更才重算——避免
+        # 每次进设置页都跑 2×N 个 git 子进程。
+        sig = f'{entry.get("commit")}|{entry.get("version")}|{entry.get("installedAt")}'
+        cached_local = local_cache.get(plugin_dir)
+        if cached_local and cached_local.get("sig") == sig:
+            local = cached_local["meta"]
+        else:
+            local = _plugin_local_meta(dir_path)
+            local_cache[plugin_dir] = {"sig": sig, "meta": local}
+            local_dirty = True
+        repo = entry.get("repo") or local.get("repo")
+        reg: dict = {}
+        if repo:
+            reg = by_repo.get(_normalize_repo(str(repo))) or {}
+            # 旧缓存(缺 stars 或缺最新版本键)与过期条目都排队重拉
+            needs_refresh = (
+                "stars" not in reg
+                or ("latestTag" not in reg and "latestSha" not in reg)
+                or now - int(reg.get("fetchedAt") or 0) > _META_CACHE_TTL_S
+            )
+            if needs_refresh:
+                registry_pending.append(str(repo))
+        # 当前版本:pyproject 语义版优先,无则台账坐标(git 短 sha)
+        current_version = local.get("version") or entry.get("version")
+        # 可更新:release tag 与本地版本归一化不等;无 release 仓库按默认分支
+        # HEAD 提交漂移判定。latestSha 供展示(短 sha)。
+        latest_tag = reg.get("latestTag")
+        latest_sha = reg.get("latestSha")
+        updatable = False
+        # tag 语义比对只对语义形态的本地版本生效(git 短 sha 不与 tag 硬比,防误报)
+        semantic_local = bool(current_version and re.match(r"^\d+(\.\d+)+", str(current_version)))
+        if (
+            latest_tag and semantic_local
+            and _norm_version(str(latest_tag)) != _norm_version(str(current_version))
+        ):
+            updatable = True
+        elif latest_sha and entry.get("commit") and str(entry["commit"]).lower() != str(latest_sha).lower():
+            updatable = True
+        latest_display = latest_tag or (str(latest_sha)[:7] if latest_sha else None)
         node_count = len(entry.get("nodes") or [])
+        deps_map = entry.get("deps") or {}
         rows.append({
             "id": plugin_dir, "name": curated.get("name") or plugin_dir,
-            # 收编件(本地拷贝)无策展描述/差分节点数:给兜底描述,nodeCount 置
-            # None(前端胶囊降级「已安装」,不显示「已装 0 节点」)
-            "desc": curated.get("desc_zh") or (
+            # 描述与 license:策展中文/实查优先 → 本地 pyproject/LICENSE
+            "desc": curated.get("desc_zh") or local.get("desc") or (
                 "本地收编(自旧 ComfyUI 目录拷贝,引擎已加载)" if entry.get("source") == "local" else None
             ),
-            "license": curated.get("verified_license"),
-            "state": "installed", "version": entry.get("version"),
-            "deps": entry.get("deps") or {}, "source": entry.get("source"),
+            "license": curated.get("verified_license") or local.get("license"),
+            "state": "updatable" if updatable else "installed",
+            "version": current_version,
+            "latestVersion": latest_display,
+            # 依赖:台账(漫影装过的 pip 依赖)优先,空则吐 requirements 实单
+            "deps": list(deps_map.keys()) if deps_map else local.get("deps") or [],
+            "author": local.get("author"),
+            "stars": reg.get("stars"),
+            "source": entry.get("source"), "repo": repo,
             "nodeCount": node_count if node_count > 0 else None,
-            "dirExists": (cm.custom_nodes_dir() / plugin_dir).is_dir(),
+            "dirExists": dir_path.is_dir(),
         })
+    if local_dirty:
+        # 09-11 P3:save 前锁内重读合并——旧实现用进入函数时的旧快照整写,
+        # 后台星标线程恰在 load 与 save 之间落盘的 byRepo 更新会被整份覆盖。
+        with _meta_file_lock:
+            fresh = _load_plugin_meta_cache()
+            fresh.setdefault("local", {}).update(local_cache)
+            _save_plugin_meta_cache(fresh)
+    _kick_github_stars_refresh(registry_pending)
+    pip_row = _pip_manager_row()
+    if pip_row:
+        rows.append(pip_row)
     return rows
 
 

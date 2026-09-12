@@ -9,6 +9,7 @@ import {
   animate,
   motion,
   useAnimationFrame,
+  useDragControls,
   useMotionTemplate,
   useMotionValue,
   useMotionValueEvent,
@@ -34,6 +35,9 @@ import {
 
 /** 位移小于该阈值判定为点击(开面板),否则视为拖拽。 */
 const CLICK_THRESHOLD_PX = 6;
+/** 长按解锁拖拽(09-12 防粘连用户裁定):按住满该时长球才可跟手移动;蓄力期
+ * 位移超点击阈值=划走,取消解锁。 */
+const LONG_PRESS_MS = 1000;
 const VIEWPORT_FALLBACK = { width: 1440, height: 900 };
 /** 滚动星球(09-11 真 3D 轮):每像素位移折算的球体旋转角(deg)。 */
 const ROLL_DEG_PER_DRAG_PX = 0.55;
@@ -101,8 +105,9 @@ export interface OrbShellProps {
 
 /** 通用悬浮球壳(基础设施独立模块,零业务依赖;09-11 归一后全应用唯一球,
  * 面孔/内容由 AppOrb 注入)。
- * 承载:拖拽+贴边吸附+位置持久化+点击/拖拽判定(6px 阈值,pointerup 主路+
- * click 兜底+toggle 吞 click+多指防串)+视口钳制+胶囊左右翻+键盘开合。
+ * 承载:拖拽(长按 1s 解锁,09-12 防粘连:受控 dragControls,按下不即跟手)
+ * +贴边吸附+位置持久化+点击/拖拽判定(6px 阈值,pointerup 主路+click 兜底
+ * +toggle 吞 click+多指防串)+视口钳制+胶囊左右翻+键盘开合。
  * 球体与面板内容、胶囊文案、data 契约全部由业务球注入。
  * 契约不变量:球 zIndex 40(高于画布 webview 与常规 chrome,低于 dropdown
  * z-50、Dialog z-[250] 与面板本体 z-[300]);面板关闭焦点去向(09-12):
@@ -155,6 +160,22 @@ export function OrbShell({
   // (点击本身已把焦点送进 guest;09-12 键盘/手势归 ComfyUI 裁定)
   const pressedIntoWebviewRef = useRef(false);
   const orbRef = useRef<HTMLDivElement | null>(null);
+  // 长按解锁拖拽(09-12 防粘连):按下即蓄力(charging),满 1s 且未划走才解锁
+  // (armed)并经 dragControls 启动拖拽会话——快速点击语义与 6px 判定完全不变
+  const dragControls = useDragControls();
+  const [holdState, setHoldState] = useState<"idle" | "charging" | "armed">(
+    "idle",
+  );
+  const holdTimerRef = useRef<number | null>(null);
+  const armedRef = useRef(false);
+  // 蓄力期位移监听挂 window(按住划出球体也收得到;不用 setPointerCapture
+  // ——jsdom 无此 API,window 直达事件可测)
+  const holdMoveHandlerRef = useRef<((event: PointerEvent) => void) | null>(
+    null,
+  );
+  // 解锁时交给 dragControls.start 的按下事件(motion 官方受控拖拽入口,接受
+  // 合成事件;React 18 不池化事件,可安全滞存)
+  const holdPressEventRef = useRef<React.PointerEvent | null>(null);
   // 球靠右半屏时胶囊翻到左侧,避免吸右缘后伸出视口
   const [capsuleOnLeft, setCapsuleOnLeft] = useState(() =>
     typeof window === "undefined"
@@ -247,14 +268,88 @@ export function OrbShell({
     setPosition(fallback);
   }, [defaultAnchor, rollWith, setPosition]);
 
+  // 结束/中止长按手势:清计时器与监听,armed 复位(拖拽收尾由 onDragEnd 承担)
+  const clearHoldGesture = useCallback(() => {
+    if (holdTimerRef.current !== null) {
+      window.clearTimeout(holdTimerRef.current);
+      holdTimerRef.current = null;
+    }
+    const moveHandler = holdMoveHandlerRef.current;
+    if (moveHandler) {
+      window.removeEventListener("pointermove", moveHandler);
+      holdMoveHandlerRef.current = null;
+    }
+    holdPressEventRef.current = null;
+    armedRef.current = false;
+    setHoldState((state) => (state === "idle" ? state : "idle"));
+  }, []);
+
+  // 卸载防泄漏:迟发解锁不得在卸载后触发
+  useEffect(() => clearHoldGesture, [clearHoldGesture]);
+
+  // 蓄力开始:1s 计时 + 位移监听(>6px=划走取消,长按须按住不动)
+  const beginHold = useCallback(
+    (event: React.PointerEvent) => {
+      armedRef.current = false;
+      setHoldState("charging");
+      holdPressEventRef.current = event;
+      holdTimerRef.current = window.setTimeout(() => {
+        holdTimerRef.current = null;
+        const moveHandler = holdMoveHandlerRef.current;
+        if (moveHandler) {
+          window.removeEventListener("pointermove", moveHandler);
+          holdMoveHandlerRef.current = null;
+        }
+        // 手势已结束(up/cancel 已清指针)则不解锁
+        if (activePointerIdRef.current === null || !holdPressEventRef.current)
+          return;
+        armedRef.current = true;
+        // 解锁即吞 click:armed 原地松手=取消(不开面板),真机拖拽释放的
+        // 尾随 click(pointerup 可能被 motion 会话吞掉)也一并拦下
+        suppressNextClickRef.current = true;
+        setHoldState("armed");
+        dragControls.start(holdPressEventRef.current);
+        holdPressEventRef.current = null;
+      }, LONG_PRESS_MS);
+      const onHoldMove = (move: PointerEvent) => {
+        if (move.pointerId !== activePointerIdRef.current) return;
+        const start = pressStartRef.current;
+        if (!start || holdTimerRef.current === null) return;
+        const distance = Math.hypot(
+          move.clientX - start.x,
+          move.clientY - start.y,
+        );
+        if (distance < CLICK_THRESHOLD_PX) return;
+        // 划走:取消蓄力,手势按普通路径收尾(位移超阈值=不开面板)
+        window.clearTimeout(holdTimerRef.current);
+        holdTimerRef.current = null;
+        window.removeEventListener("pointermove", onHoldMove);
+        holdMoveHandlerRef.current = null;
+        setHoldState("idle");
+      };
+      holdMoveHandlerRef.current = onHoldMove;
+      window.addEventListener("pointermove", onHoldMove);
+    },
+    [dragControls],
+  );
+
   const handlePointerUp = (event: React.PointerEvent) => {
     if (event.pointerId !== activePointerIdRef.current) return;
     activePointerIdRef.current = null;
     const start = pressStartRef.current;
     pressStartRef.current = null;
+    // 长按手势收尾:清蓄力(未满 1s=取消)
+    const wasArmed = armedRef.current;
+    clearHoldGesture();
     if (!start) return;
     // 交互后自愈(幂等,不吃事件语义):视口过渡期写入的越界位置在首次触摸即被钳回
     clampNow();
+    if (wasArmed) {
+      // 长按解锁后的原地释放=取消:不开面板不 toggle(拖拽收尾已由 onDragEnd
+      // 承担);吞尾随 click(解锁时刻已置,此处幂等覆盖 up 先于 click 的窗口)
+      suppressNextClickRef.current = true;
+      return;
+    }
     const distance = Math.hypot(
       event.clientX - start.x,
       event.clientY - start.y,
@@ -320,6 +415,8 @@ export function OrbShell({
           aria-label={ariaLabel}
           aria-expanded={panelOpen}
           drag
+          dragListener={false}
+          dragControls={dragControls}
           dragMomentum={false}
           dragElastic={0}
           dragConstraints={{
@@ -355,6 +452,8 @@ export function OrbShell({
             // 每手势全新判定:上一手势若未产生尾随 click(如拖拽释放在窗外),
             // 吞点击标志不得滞留污染本次手势
             suppressNextClickRef.current = false;
+            // 长按蓄力开始:1s 内按住不动即解锁拖拽
+            beginHold(event);
           }}
           onPointerUp={handlePointerUp}
           onPointerCancel={(event) => {
@@ -364,6 +463,7 @@ export function OrbShell({
             pressStartRef.current = null;
             panelOpenAtPressRef.current = false;
             suppressNextClickRef.current = false;
+            clearHoldGesture();
           }}
           onClick={handleClick}
           onKeyDown={(event) => {
@@ -383,6 +483,8 @@ export function OrbShell({
           }}
           onDragEnd={() => {
             draggingRef.current = false;
+            // 受控拖拽收尾:清 armed 态(蓄力环熄灭)
+            clearHoldGesture();
             const d = windowDims();
             const snapped = snapToNearestEdge(
               x.get(),
@@ -400,6 +502,44 @@ export function OrbShell({
               悬停=1.06 提起(150ms ease-out),按压=0.92 即时(Apple §1 按下即反馈);
               Electron 桌面鼠标环境,悬停免 pointer 门控;motion-reduce 全静。 */}
           <div className="pointer-events-none absolute -inset-1.5 rounded-full bg-primary/15 opacity-0 blur-md transition-opacity duration-200 group-hover:opacity-100 motion-reduce:transition-none" />
+          {/* 长按蓄力环(09-12 防粘连配套):按住期间球缘进度弧 0→满,满 1s 即
+              解锁拖拽(armed 满格提亮);松手/划走即消。reduce-motion 不做充能
+              动画,仅 armed 满格提示。 */}
+          {holdState !== "idle" && (
+            <svg
+              data-orb-hold-ring
+              data-hold-state={holdState}
+              aria-hidden
+              viewBox="0 0 54 54"
+              className="pointer-events-none absolute -inset-[3px] -rotate-90"
+            >
+              <motion.circle
+                cx={27}
+                cy={27}
+                r={26}
+                fill="none"
+                strokeWidth={1.5}
+                strokeLinecap="round"
+                className={cn(
+                  "transition-[stroke] duration-150",
+                  holdState === "armed" ? "stroke-primary" : "stroke-primary/70",
+                )}
+                initial={{ pathLength: 0 }}
+                animate={{
+                  pathLength: reduceMotion
+                    ? holdState === "armed"
+                      ? 1
+                      : 0
+                    : 1,
+                }}
+                transition={
+                  reduceMotion
+                    ? { duration: 0 }
+                    : { duration: LONG_PRESS_MS / 1000, ease: "linear" }
+                }
+              />
+            </svg>
+          )}
           <div className="relative flex h-12 w-12 items-center justify-center overflow-hidden rounded-full border border-white/12 bg-card/85 shadow-[inset_0_1px_0_rgba(255,255,255,0.16),inset_0_-1px_0_rgba(0,0,0,0.22),0_2px_6px_rgba(0,0,0,0.25),0_10px_28px_rgba(0,0,0,0.4)] backdrop-blur-md backdrop-saturate-150 transition-transform duration-150 ease-out group-hover:scale-[1.06] group-active:scale-[0.92] motion-reduce:transition-none motion-reduce:transform-none">
             {/* 真 3D 经纬球 v2(09-11 不圆润反馈):真透视(perspective 200px)给出
                 近大远小——环椭圆不对称=圆润感的核心线索;环系整体缩一档(42px),

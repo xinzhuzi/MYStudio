@@ -27,9 +27,11 @@ values marked `<todo>` were not verifiable at install time — confirm them on t
   - **Video line = MiniMax H3**: BF16 FL2VA DiT + Heretic 32B Q4_K_M GGUF TE + mmproj (same files as the
     retired install) + turbo LoRAs (4step v1.1 + 8step v1.0). Fixed routes: 480P direct (daily),
     960P direct (final), SeedVR2 for 2K upscale (slow — use selectively). Music3 line also present.
-- **GUI workflows folder**: `<home>/ComfyUI/user/default/workflows/`
-  (contains `H3视频/` with 5 numbered subfolders, `K2图像/`, `参考_提示词工程/`, plus MYStudio-native
-  `迁移 · 道劫 · 分镜 *.json` and `分镜总览/` — synced from the retired install 2026-09-10, diff-verified).
+- **GUI workflows folder**: `<home>/ComfyUI/user/default/workflows/漫影/` — everything lives under the
+  `漫影/` group with domain-first nesting (2026-09-10 reorg): `1_图片/` (K2图像 with 1_文生图…6_修复超分,
+  分镜 with 1_总览 chapter overviews + 2_单镜图 per-shot migrated flows), `2_视频/` (H3视频: 1_漫影自研
+  empty home for in-house workflows, 2_固定线 … 6_社区模板), `3_声音/` (音乐), `4_参考_提示词工程/`.
+  New app-generated workflows always land under `漫影/` in the matching domain.
 - **Launch command**: managed by MYStudio — start/restart via the app (engine_manager spawns
   `<home>/venv/bin/python <home>/ComfyUI/main.py --listen 127.0.0.1 --port 17001 ...`). A verified
   headless manual relaunch recipe does NOT exist for this engine yet — do not reuse the retired

@@ -343,24 +343,40 @@ def managed_comfy_api_base() -> str | None:
     return (os.environ.get(MANAGED_COMFY_API_BASE_ENV) or "").strip() or None
 
 
-def build_launch_args(args_string: str, port: int, script: str = "main.py") -> list[str]:
+def build_launch_args(
+    args_string: str,
+    port: int,
+    script: str = "main.py",
+    input_dir: str | None = None,
+    output_dir: str | None = None,
+) -> list[str]:
     """启动参数串 → 实际 argv(Desktop 式:串=唯一真源)。
 
-    --listen/--port 未写则补托管默认(127.0.0.1 / 调用方定妥的最终端口);
-    用户串中的 --port/--listen 已被 parse 消费到规范位;其余 flag 原样追加。
+    --listen 未写补托管默认 127.0.0.1;--port 一律用调用方传入的决议口
+    (resolve_launch_port 已消费串口:空闲即串口,被占按策略顺延)。此处若再
+    让串口压决议口,引擎实际口与账本/健康检查口分叉——09-11 实弹红条根因
+    (账本记顺延口 17000、引擎实际绑串口 17598,健康检查两头不挨)。
+    用户串中未消费完的其余 flag 原样追加。
     MYSTUDIO_COMFY_API_BASE 配置时叠加官方 --comfy-api-base(用户串已写
     则尊重用户,两种写法都识别不重复)。
+    输入/输出目录(manifest 键托管)追加官方 --input-directory/--output-directory;
+    追加在用户串之后 = argparse 后写胜出 = 托管位权威(存储卡是这两项的
+    结构化编辑器;用户串手写同款 flag 也以存储卡配置为准)。
     """
     parsed = parse_launch_args_string(args_string)
     args = [script]
     args += ["--listen", parsed["listen"] or "127.0.0.1"]
-    args += ["--port", str(parsed["port"] or port)]
+    args += ["--port", str(port)]
     args += parsed["flags"]
     if not any(token == COMFY_API_BASE_FLAG or token.startswith(COMFY_API_BASE_FLAG + "=")
                for token in args):
         base = managed_comfy_api_base()
         if base:
             args += [COMFY_API_BASE_FLAG, base]
+    if input_dir:
+        args += ["--input-directory", input_dir]
+    if output_dir:
+        args += ["--output-directory", output_dir]
     return args
 
 
@@ -559,6 +575,10 @@ class EngineManager:
         self._proc: subprocess.Popen | None = None
         self._log_file = None
         self._lock = threading.Lock()
+        # 引擎实际运行口(spawn/收编落值,stop 清零)。09-11 实弹根修:启动串可钉
+        # --port(Desktop 化基线 17598)与账本口分叉,快路径/状态探测读账本口=探
+        # 死口——「健康等待 120 秒超时」假失败与「引擎活着却显示未运行」同根。
+        self._running_port: int | None = None
         # 启动串行锁(09-11 深审 P2):start_sync 全程持有——判活→孤儿探测→端口
         # 决议→Popen 赋值原为秒级裸奔窗口,job 线程与生图 ensure_engine_ready
         # 并发穿窗会双拉引擎(双进程/端口决议两次/账本口被后写覆盖)。与 _lock
@@ -573,14 +593,14 @@ class EngineManager:
 
     # -- 状态 ------------------------------------------------------------
     def engine_url(self, port: int | None = None) -> str:
-        port = port if port is not None else cm.recorded_port()
+        port = port if port is not None else (getattr(self, "_running_port", None) or cm.recorded_port())
         if port is None:
             raise EngineOpError("ComfyUI 引擎尚未安装")
         return f"http://127.0.0.1:{port}"
 
     def is_healthy(self, port: int | None = None, timeout: float = 2.0) -> bool:
         try:
-            port = port if port is not None else cm.recorded_port()
+            port = port if port is not None else (getattr(self, "_running_port", None) or cm.recorded_port())
             if port is None:
                 return False
             stats = _get_json(f"{self.engine_url(port)}/system_stats", timeout=timeout)
@@ -591,7 +611,8 @@ class EngineManager:
     def status(self) -> dict:
         manifest = cm.load_manifest()
         installed = cm.engine_installed(manifest)
-        port = cm.recorded_port(manifest)
+        # 探测口=运行口优先(启动串钉口与账本口分叉时不再探死口),回落账本口
+        port = getattr(self, "_running_port", None) or cm.recorded_port(manifest)
         running = self.is_healthy(port) if port else False
         if not installed:
             state = "installing" if jobs.active_of("engine-install") else "not_installed"
@@ -798,12 +819,15 @@ class EngineManager:
                 already_running = self._proc is not None and self._proc.poll() is None
             if already_running:
                 acquire_engine_lock("engine-manager")
-                port = cm.recorded_port()
+                # 快路径探运行口优先:启动串钉口(--port)与账本口分叉时,账本口
+                # 是死口——原实现干等 120 秒后假报「健康检查超时」(09-11 实弹)
+                port = getattr(self, "_running_port", None) or cm.recorded_port()
                 self._await_startup_health(port)
                 return {"running": True, "port": port}
             port = cm.recorded_port()
             if port and self._orphan_is_comfyui(port):
                 acquire_engine_lock("engine-manager")
+                self._running_port = port
                 self._enable_guard()
                 # 收编后强制刷新一次节点数:孤儿进程的插件态(刚装/刚卸)与我们的
                 # _last_node_count 缓存无关,不刷新=状态行展示旧节点数假象。
@@ -823,7 +847,11 @@ class EngineManager:
             src = cm.engine_source_dir()
             if not (src / "main.py").is_file():
                 raise EngineOpError("ComfyUI 源码目录不完整,请执行「复位」修复")
-            argv = [str(cm.venv_python()), *build_launch_args(cm.engine_launch_args(), port, script=str(src / "main.py"))]
+            argv = [str(cm.venv_python()), *build_launch_args(
+                cm.engine_launch_args(), port, script=str(src / "main.py"),
+                input_dir=str(cm.configured_input_dir()) if cm.load_manifest().get("inputDir") else None,
+                output_dir=str(cm.configured_output_dir()) if cm.load_manifest().get("outputDir") else None,
+            )]
             _write_extra_model_paths(cm.configured_models_dir())
             cm.engine_log_path().parent.mkdir(parents=True, exist_ok=True)
             self._log_file = open(cm.engine_log_path(), "a", encoding="utf-8", buffering=1)
@@ -838,6 +866,7 @@ class EngineManager:
             self._proc = subprocess.Popen(argv, cwd=str(src), env=launch_env,
                                           stdout=self._log_file, stderr=subprocess.STDOUT,
                                           start_new_session=True)  # 独立会话=组长,看门狗可整组回收(孤儿根修)
+            self._running_port = port  # 运行口随 spawn 落值(快路径/状态探测的真源)
             _spawn_engine_watchdog(self._proc, cm.engine_log_path())
             self._await_startup_health(port, progress=progress)
             acquire_engine_lock("engine-manager")
@@ -870,6 +899,7 @@ class EngineManager:
             self._guard_enabled = False
             self._stopping = True
             proc, self._proc = self._proc, None
+            setattr(self, "_running_port", None)
         if proc is not None and proc.poll() is None:
             _stop_engine_proc(proc)  # 整组 SIGTERM→SIGKILL(09-10 孤儿根修配套)
         if self._log_file:
@@ -1043,7 +1073,9 @@ class EngineManager:
             self.update_check()
         head_sha = self._last_check.get("headSha")
         latest = self._last_check.get("latest")
-        local_sha = engine.get("sha") or self._local_engine_sha(engine)
+        # 本地 sha 实时优先(源码 HEAD 现查,账本滞后自愈):更新中断后账本旧值
+        # 不再遮蔽真值造成目标误判(09-11 实弹:tag/master 目标摇摆的放大器)
+        local_sha = self._local_engine_sha(engine) or engine.get("sha")
         # 更新目标优先 master HEAD(提交口径);master 无差时回落最新 release tag
         target, label = (head_sha, f"master({str(head_sha)[:7]})") if (head_sha and local_sha and head_sha != local_sha) else (latest, latest)
         if not target or (target == local_sha or (target == latest and latest == engine.get("version"))):
@@ -1387,6 +1419,8 @@ class EngineManager:
         manifest = cm.load_manifest()
         installed = cm.engine_installed(manifest)
         port = cm.recorded_port(manifest)
+        # input/output:manifest 键可迁出源码目录(spawn 注入官方
+        # --input-directory/--output-directory);未配置=源码目录内默认位
         return {
             "installed": installed,
             "running": bool(self.is_healthy(port) if port else False),
@@ -1395,18 +1429,24 @@ class EngineManager:
                 "venvDir": str(cm.configured_venv_dir(manifest)),
                 "modelsDir": str(cm.configured_models_dir(manifest)),
                 "workflowsDir": str(cm.configured_workflows_dir(manifest)),
+                "inputDir": str(cm.configured_input_dir(manifest)),
+                "outputDir": str(cm.configured_output_dir(manifest)),
             },
             "defaults": {
                 "engineDir": str(cm.comfy_home() / "ComfyUI"),
                 "venvDir": str(cm.comfy_home() / "venv"),
                 "modelsDir": str(cm.comfy_home() / "models"),
                 "workflowsDir": str(cm.configured_workflows_dir(cm.default_manifest())),
+                "inputDir": str(cm.comfy_home() / "ComfyUI" / "input"),
+                "outputDir": str(cm.comfy_home() / "ComfyUI" / "output"),
             },
             "customized": {
                 "engineDir": bool(manifest.get("engineDir")),
                 "venvDir": bool(manifest.get("venvDir")),
                 "modelsDir": bool(manifest.get("modelsDir")),
                 "workflowsDir": bool(manifest.get("workflowsDir")),
+                "inputDir": bool(manifest.get("inputDir")),
+                "outputDir": bool(manifest.get("outputDir")),
             },
         }
 
@@ -1414,7 +1454,7 @@ class EngineManager:
         """目标路径校验:绝对路径、父目录可建可写、磁盘余量提示。轻操作同步应答。"""
         errors: dict[str, str] = {}
         warnings: dict[str, str] = {}
-        for key in ("engineDir", "venvDir", "workflowsDir", "modelsDir"):
+        for key in ("engineDir", "venvDir", "workflowsDir", "modelsDir", "inputDir", "outputDir"):
             raw = payload.get(key)
             if raw is None:
                 continue
@@ -1463,6 +1503,57 @@ class EngineManager:
 
         def _apply(manifest: dict) -> None:
             manifest.update(updates)
+
+        cm.mutate_manifest(_apply)
+        return self.paths_status()
+
+    def set_io_dirs(self, payload: dict) -> dict:
+        """输入/输出目录更改(09-11 用户需求:可迁出源码目录保持源码区整洁)。
+
+        引擎运行中禁改(搬移文件须静止;改完须重启引擎才注入新参数)。
+        已装引擎:现有目录内容逐项搬移到新位(参考图占位/生成结果全带走),
+        旧目录搬空后顺手移除(源码区内不留空壳);未装引擎:仅落账,
+        安装后首启即生效。走 manifest 键,spawn 注入官方
+        --input-directory/--output-directory(追加在用户参数串之后=权威)。
+        """
+        port = cm.recorded_port()
+        if port and self.is_healthy(port):
+            raise EngineOpError("引擎运行中:请先停止引擎再更改输入/输出目录")
+        manifest = cm.load_manifest()
+        updates: dict[str, str] = {}
+        for key, current in (
+            ("inputDir", cm.configured_input_dir(manifest)),
+            ("outputDir", cm.configured_output_dir(manifest)),
+        ):
+            raw = payload.get(key)
+            if raw is None:
+                continue
+            if not isinstance(raw, str) or not raw.strip():
+                raise EngineOpError("路径不能为空")
+            path = Path(raw).expanduser()
+            if not path.is_absolute():
+                raise EngineOpError(f"{key} 必须是绝对路径")
+            if path != current:
+                updates[key] = str(path)
+        if not updates:
+            return self.paths_status()
+        import shutil as _shutil
+
+        for key in updates:
+            old = (cm.configured_input_dir(manifest) if key == "inputDir"
+                   else cm.configured_output_dir(manifest))
+            new = Path(updates[key])
+            if old.exists() and old.resolve() != new.resolve():
+                new.mkdir(parents=True, exist_ok=True)
+                for item in old.iterdir():
+                    _shutil.move(str(item), str(new / item.name))
+                try:
+                    old.rmdir()  # 搬空即除壳(源码区内不留空目录)
+                except OSError:
+                    pass  # 非空(并发写入)或权限问题:留着无害
+
+        def _apply(m: dict) -> None:
+            m.update(updates)
 
         cm.mutate_manifest(_apply)
         return self.paths_status()

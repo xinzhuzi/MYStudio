@@ -61,6 +61,64 @@ def test_set_paths_uninstalled_persists(home):
     assert status["customized"]["venvDir"] is False
 
 
+def test_paths_status_reports_input_output_dirs(home):
+    # 09-11 用户需求:input(参考图上传处)/output(生成结果)可迁出源码目录;
+    # 未配置=源码目录内默认位,配置=manifest 键真值 + customized 点亮
+    write_manifest(home, {**cm.default_manifest(), "engine": {"version": "v0.34.6", "port": 17001}})
+    status = EngineManager().paths_status()
+    assert status["paths"]["inputDir"] == str(home / "ComfyUI" / "input")
+    assert status["paths"]["outputDir"] == str(home / "ComfyUI" / "output")
+    assert status["defaults"]["inputDir"] == str(home / "ComfyUI" / "input")
+    assert status["customized"]["inputDir"] is False
+    assert status["customized"]["outputDir"] is False
+
+    write_manifest(home, {
+        **cm.default_manifest(),
+        "engine": {"version": "v0.34.6", "port": 17001},
+        "engineDir": "/Volumes/Data/ComfyUI",
+        "inputDir": str(home / "input"),
+        "outputDir": str(home / "output"),
+    })
+    status = EngineManager().paths_status()
+    assert status["paths"]["inputDir"] == str(home / "input")
+    assert status["paths"]["outputDir"] == str(home / "output")
+    assert status["customized"]["inputDir"] is True
+
+
+def test_set_io_dirs_moves_files_and_records(home):
+    # 已装引擎+引擎未跑:现有 input/output 内容逐项搬移,旧目录搬空除壳,键落账
+    write_manifest(home, {**cm.default_manifest(), "engine": {"version": "v0.34.6", "port": 17001}})
+    old_input = home / "ComfyUI" / "input"
+    old_output = home / "ComfyUI" / "output"
+    old_input.mkdir(parents=True)
+    old_output.mkdir(parents=True)
+    (old_input / "manying-ref-1-abc.png").write_bytes(b"png")
+    (old_output / "ComfyUI_00001_.png").write_bytes(b"png")
+
+    manager = EngineManager()
+    status = manager.set_io_dirs({"inputDir": str(home / "input"), "outputDir": str(home / "output")})
+
+    assert (home / "input" / "manying-ref-1-abc.png").read_bytes() == b"png"
+    assert (home / "output" / "ComfyUI_00001_.png").read_bytes() == b"png"
+    assert not old_input.exists() and not old_output.exists()  # 搬空除壳=源码区整洁
+    assert status["paths"]["inputDir"] == str(home / "input")
+    assert status["customized"]["outputDir"] is True
+
+
+def test_set_io_dirs_rejects_running_engine(home, monkeypatch):
+    write_manifest(home, {**cm.default_manifest(), "engine": {"version": "v0.34.6", "port": 17001}})
+    manager = EngineManager()
+    monkeypatch.setattr(manager, "is_healthy", lambda port: True)
+    with pytest.raises(EngineOpError, match="停止引擎"):
+        manager.set_io_dirs({"inputDir": str(home / "input")})
+
+
+def test_set_io_dirs_rejects_relative_path(home):
+    write_manifest(home, {**cm.default_manifest(), "engine": {"version": "v0.34.6", "port": 17001}})
+    with pytest.raises(EngineOpError, match="绝对路径"):
+        EngineManager().set_io_dirs({"inputDir": "relative/input"})
+
+
 def test_set_paths_rejects_installed(home):
     write_manifest(home, {**cm.default_manifest(), "engine": {"version": "v0.34.6", "port": 17001}})
     manager = EngineManager()

@@ -16,6 +16,23 @@ type ImageSizeSettingsTabProps = {
   onChange: (settings: Partial<ImageGenerationSettings>) => void;
 };
 
+/**
+ * 生图引擎候选(09-12 生图路由设置,Q1a 裁定=默认模型下拉):
+ * 空串=跟随渠道链(现状,链首本地 Krea2);本地模型免费走内置 sidecar,
+ * 云端模型走「接口配置」里认领它的渠道(未配会在生成时报错指路,Q3a)。
+ */
+const IMAGE_ENGINE_OPTIONS: { value: string; label: string; hint: string }[] = [
+  { value: "", label: "自动", hint: "跟随渠道链(现状)" },
+  { value: "krea2-turbo", label: "Krea2 Turbo", hint: "本地 · 免费" },
+  { value: "flux2-klein-9b", label: "FLUX.2 Klein 9B", hint: "本地 · 免费" },
+  { value: "z-image-turbo", label: "Z-Image Turbo", hint: "本地 · 免费" },
+  { value: "qwen-image-edit-2511", label: "Qwen 图像编辑", hint: "本地 · 免费" },
+  { value: "gpt-image-2", label: "GPT Image 2", hint: "云端 · 付费" },
+  { value: "gpt-image-1.5", label: "GPT Image 1.5", hint: "云端 · 付费" },
+  { value: "gemini-3-pro-image-preview", label: "Nano Banana Pro", hint: "云端 · 付费" },
+  { value: "gemini-2.5-flash-image", label: "Nano Banana", hint: "云端 · 付费" },
+];
+
 export function ImageSizeSettingsTab({
   settings,
   onChange,
@@ -44,6 +61,33 @@ export function ImageSizeSettingsTab({
             <div className="text-xs text-muted-foreground">
               {settings.defaultAspectRatio} · {settings.defaultResolution}
             </div>
+          </div>
+        </div>
+
+        <div className="rounded-xl border border-border bg-card p-5 space-y-3">
+          <div>
+            <div className="text-sm font-semibold text-foreground">生图引擎</div>
+            <p className="mt-1 text-xs text-muted-foreground">
+              统一控制分镜批量生图、剧本资产与自由生图的默认引擎;工作流里显式指定过模型的除外。
+              本地模型免费走内置引擎;云端模型走「接口配置」中认领它的渠道,未配置时生成会提示先去配置。
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {IMAGE_ENGINE_OPTIONS.map((option) => (
+              <Button
+                key={option.value || "auto"}
+                type="button"
+                variant={settings.defaultImageModel === option.value ? "default" : "outline"}
+                size="sm"
+                className="h-8 px-3 text-xs"
+                data-image-engine-option={option.value || "auto"}
+                title={option.hint}
+                onClick={() => onChange({ defaultImageModel: option.value })}
+              >
+                {option.label}
+                <span className="ml-1.5 text-[10px] text-muted-foreground">{option.hint}</span>
+              </Button>
+            ))}
           </div>
         </div>
 

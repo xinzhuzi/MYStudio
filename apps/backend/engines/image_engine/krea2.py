@@ -80,6 +80,14 @@ REQUIRED_FILES = (
     "tokenizer/tokenizer_config.json",
 )
 
+# 09-12 漫影生图加速档:4 步蒸馏 LoRA(manying_t2i_fast 桥模板钉死引用,两边同步改)。
+# 源仓 README 写的根目录 _comfyui.safetensors 实际不存在,真身在 _archive/checkpoints/,
+# 取最收敛 78000 步检查点的 ComfyUI 构建;缺文件=设置页 loraFiles 展示放置路径与下载源。
+DISTILL_LORA_REL = "loras/Krea2-功能/Krea2-Turbo-4步蒸馏.safetensors"
+DISTILL_LORA_REPO = "lvladikov/Krea2-Turbo-Distill-4step-LoRA"
+DISTILL_LORA_REMOTE_FILE = "_archive/checkpoints/krea2_turbo_4step_rank_64_lora_chk00078000_comfyui.safetensors"
+DISTILL_LORA_SIZE_MB = 418
+
 SPEC = {
     "label": "Krea2 Turbo",
     "repo_id": SMALL_REPO,

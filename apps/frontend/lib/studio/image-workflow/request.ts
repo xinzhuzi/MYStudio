@@ -12,6 +12,7 @@ import {
   type StoryboardOrderedReferenceMetadata,
 } from "./graph-build";
 import { findNsfwUpstream, findPromptViaNsfw } from "@/lib/assist/image-studio/nsfw-request";
+import { assertDefaultImageModelConfigured, resolveDefaultImageModel } from "@/lib/ai/default-image-model";
 
 export interface ImageWorkflowGenerationRequest {
   prompt: string;
@@ -116,9 +117,15 @@ export function buildImageWorkflowGenerationRequest(
   // 参数权威(08-30 功能转移):成图节点持有优先;存量图未迁移时回落
   // 连线提示词节点的旧值,行为零变化。paramsEdited 见类型注释。
   const paramAuthority = node.paramsEdited ? node : (promptNode ?? node);
+  // 默认生图模型兜底(09-12 生图路由设置,Q2a:空=吃默认):节点/提示词都未
+  // 指定模型时跟随设置(本地模型只走本地,云端走归属渠道);云端未配渠道
+  // 在此报错指路(Q3a:不静默落链悄悄换引擎)。
+  const nodeModel = node.model ?? promptSource.model;
+  const defaultModel = nodeModel ? undefined : resolveDefaultImageModel();
+  if (defaultModel) assertDefaultImageModelConfigured(defaultModel);
   return {
     prompt,
-    model: node.model ?? promptSource.model,
+    model: nodeModel ?? defaultModel,
     aspectRatio: paramAuthority.aspectRatio,
     resolution: node.resolution ?? promptSource.resolution,
     negativePrompt,

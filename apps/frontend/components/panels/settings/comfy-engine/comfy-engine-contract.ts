@@ -204,6 +204,12 @@ export interface ComfyPluginInfo {
   category: string | null;
   /** 已装时 object_info 里的节点数(胶囊「已装 N 节点」)。 */
   nodeCount: number | null;
+  /** GitHub 星标(09-10 裁定:替代下载量;后台缓存补,null 前端整行不显示)。 */
+  stars?: number | null;
+  /** 最新版本(GitHub release tag/短 sha);与当前版本不等 → state=updatable。 */
+  latestVersion?: string | null;
+  /** 台账安装来源(pip=venv 直装,不可经目录再装;其余为目录四源)。 */
+  source?: "curated" | "registry" | "git" | "local" | "pip";
 }
 
 export interface ComfyCatalogEntry {
@@ -239,24 +245,57 @@ export interface ComfyDoctorReport {
 // typed client(集成者在 preload 暴露 window.comfyEngine 实现此接口)
 // ---------------------------------------------------------------------------
 
-/** 存储位置四目录现状(09-09 comfyui-frontend-swap 0a)。 */
+/** 存储位置现状(engine/venv/workflows 可改;input/output 走 setIODirs,可迁出源码目录)。 */
 export interface ComfyEnginePathsStatus {
   installed: boolean;
   running: boolean;
-  paths: { engineDir: string; venvDir: string; modelsDir: string; workflowsDir: string };
-  defaults: { engineDir: string; venvDir: string; modelsDir: string; workflowsDir: string };
-  customized: { engineDir: boolean; venvDir: boolean; modelsDir: boolean; workflowsDir: boolean };
+  paths: {
+    engineDir: string;
+    venvDir: string;
+    modelsDir: string;
+    workflowsDir: string;
+    /** 引擎输入目录(参考图上传处);manifest 键可迁出源码目录。 */
+    inputDir: string;
+    /** 引擎输出目录(生成结果落盘处);manifest 键可迁出源码目录。 */
+    outputDir: string;
+  };
+  defaults: {
+    engineDir: string;
+    venvDir: string;
+    modelsDir: string;
+    workflowsDir: string;
+    inputDir: string;
+    outputDir: string;
+  };
+  customized: {
+    engineDir: boolean;
+    venvDir: boolean;
+    modelsDir: boolean;
+    workflowsDir: boolean;
+    inputDir: boolean;
+    outputDir: boolean;
+  };
 }
 
 /** 路径校验结果(errors 按目录键;warnings 如磁盘余量提示)。 */
 export interface ComfyPathsValidation {
   ok: boolean;
-  errors: Partial<Record<"engineDir" | "venvDir" | "workflowsDir" | "modelsDir", string>>;
+  errors: Partial<Record<
+    "engineDir" | "venvDir" | "workflowsDir" | "modelsDir" | "inputDir" | "outputDir",
+    string
+  >>;
   warnings: { disk?: string };
 }
 
-/** 可改目录(未传的键不动;modelsDir 走 setModelsDir 既有面,不在此列)。 */
-export type ComfyPathsUpdate = Partial<{ engineDir: string; venvDir: string; workflowsDir: string }>;
+/** 可改目录(未传的键不动;modelsDir 走 setModelsDir 既有面,不在此列;
+ * inputDir/outputDir 走 setIODirs,仅校验面共用此类型)。 */
+export type ComfyPathsUpdate = Partial<{
+  engineDir: string;
+  venvDir: string;
+  workflowsDir: string;
+  inputDir: string;
+  outputDir: string;
+}>;
 
 export interface ComfyEngineClient {
   getEngineStatus(): Promise<ComfyEngineStatus>;
@@ -275,6 +314,8 @@ export interface ComfyEngineClient {
   validatePaths(update: ComfyPathsUpdate): Promise<ComfyPathsValidation>;
   setPaths(update: ComfyPathsUpdate): Promise<ComfyEnginePathsStatus>;
   migratePaths(update: ComfyPathsUpdate & { startAfter?: boolean }): Promise<ComfyEngineStartJobReply>;
+  /** 输入/输出目录更改(09-11):引擎须停;已装=搬移现有内容+落账,重启引擎后生效。 */
+  setIODirs(update: { inputDir?: string; outputDir?: string }): Promise<ComfyEnginePathsStatus>;
   listPlugins(): Promise<ComfyPluginInfo[]>;
   searchCatalog(query: string): Promise<ComfyCatalogEntry[]>;
   installPlugin(
@@ -467,12 +508,12 @@ export function summarizeDoctorReport(report: ComfyDoctorReport): {
   return { healthy: false, summary: `检查发现问题:${parts.join("、")}。` };
 }
 
-/** 目录/插件搜索过滤(空格分词,大小写不敏感,命中名字或描述)。 */
-export function filterComfyCatalogEntries(
-  entries: ComfyCatalogEntry[],
-  query: string,
-  category: string | null,
-): ComfyCatalogEntry[] {
+/** 目录/插件搜索过滤(空格分词,大小写不敏感,命中名字或描述)。
+ * 已装清单(ComfyPluginInfo)与目录条目共用同一口径(09-10 根修:
+ * 此前已装行不过滤,搜索框对已装插件恒无效)。 */
+export function filterComfyCatalogEntries<
+  T extends Pick<ComfyCatalogEntry, "id" | "name" | "description" | "category">,
+>(entries: T[], query: string, category: string | null): T[] {
   const terms = query.trim().toLowerCase().split(/\s+/).filter(Boolean);
   return entries.filter((entry) => {
     if (category && entry.category !== category) return false;

@@ -150,7 +150,9 @@ export function useTaskCenter(): OrbTaskCenter {
         else if (line.status === "failed") failed += 1;
       }
     }
-    return { active, failed };
+    // progress 显式 undefined:与 director/sclass 计数域对齐联合形状,
+    // 否则下方 domain.progress 在 tts 分支上报 TS2339(tts 域无进度概念)
+    return { active, failed, progress: undefined };
   }, [ttsProjects]);
 
   const directorCounts = useMemo(() => {

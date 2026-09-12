@@ -200,6 +200,27 @@ def configured_models_dir(manifest: dict | None = None) -> Path:
     return default_models_dir()
 
 
+# 输入/输出目录(09-11 用户需求:可迁出源码目录保持引擎源码区整洁)。
+# ComfyUI 本体支持 --input-directory/--output-directory 启动参数;配置走
+# manifest 键(engine_manager spawn 时注入参数),未配置=源码目录内默认位。
+def configured_input_dir(manifest: dict | None = None) -> Path:
+    """输入目录(参考图上传处):manifest.inputDir,否则 <engine>/input。"""
+    manifest = manifest if manifest is not None else load_manifest()
+    d = manifest.get("inputDir")
+    if isinstance(d, str) and d.strip():
+        return Path(d).expanduser()
+    return configured_engine_dir(manifest) / "input"
+
+
+def configured_output_dir(manifest: dict | None = None) -> Path:
+    """输出目录(生成结果落盘处):manifest.outputDir,否则 <engine>/output。"""
+    manifest = manifest if manifest is not None else load_manifest()
+    d = manifest.get("outputDir")
+    if isinstance(d, str) and d.strip():
+        return Path(d).expanduser()
+    return configured_engine_dir(manifest) / "output"
+
+
 # ── 账本读写(原子写,写后缓存失效) ────────────────────────────────
 def default_manifest() -> dict:
     return {
@@ -210,6 +231,8 @@ def default_manifest() -> dict:
         "engineDir": None,
         "venvDir": None,
         "workflowsDir": None,
+        "inputDir": None,
+        "outputDir": None,
     }
 
 
@@ -292,7 +315,7 @@ LEGACY_MIGRATION_BASELINE_FLAGS = ["--enable-manager"]
 
 def legacy_launch_flags(args: dict) -> str:
     """旧三档对象 → 等效命令行串(读侧自动迁移;翻译规则=旧 build_launch_args 逐条,
-    外加新基线 --port 17598 --enable-manager)。"""
+    外加新基线 --enable-manager;口不迁移,归账本)。"""
     flags: list[str] = list(LEGACY_MIGRATION_BASELINE_FLAGS)
     vram = args.get("vramPolicy") if args.get("vramPolicy") in VRAM_POLICIES else "gpu-only"
     # 旧读侧语义:缺失/非法的 reserveVramGb 一律默认 16 → 旧有效行为恒含 --reserve-vram N

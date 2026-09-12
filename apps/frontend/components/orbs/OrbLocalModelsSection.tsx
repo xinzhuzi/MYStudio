@@ -8,17 +8,18 @@
 // (ComfyUI 画布 / 配音室 TTS)在球内成区展示;任何视图点条目=跳本地模型并直切该模式
 // (在本地模型视图内=纯模式切换)。当前模式高亮=模块状态一览。
 
-import { Mic, Palette } from "lucide-react";
+import { ImagePlus, Mic, Palette } from "lucide-react";
 import { OrbSection, type OrbSectionProps } from "./OrbSection";
 import type { StudioMode } from "@/stores/assist/freedom-store";
 import { cn } from "@/lib/utils";
 
 const MODE_ENTRIES: ReadonlyArray<{ id: StudioMode; label: string; icon: typeof Palette }> = [
+  { id: "generate", label: "生图", icon: ImagePlus },
   { id: "comfy", label: "ComfyUI 画布", icon: Palette },
   { id: "tts", label: "配音室", icon: Mic },
 ];
 
-/** 「本地模型」模块分区:画布/配音室(模型表现效果),点击=跳模块+切模式。 */
+/** 「本地模型」模块分区:生图/画布/配音室(模型表现效果),点击=跳模块+切模式。 */
 export function OrbLocalModelsSection({
   activeMode,
   onModeSelect,
@@ -30,7 +31,7 @@ export function OrbLocalModelsSection({
 }) {
   return (
     <OrbSection section="local-models" title="本地模型" open={open} onToggle={onToggle}>
-      <div className="grid grid-cols-2 gap-1">
+      <div className="grid grid-cols-3 gap-1">
         {MODE_ENTRIES.map((item) => (
           <button
             key={item.id}

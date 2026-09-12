@@ -224,6 +224,16 @@ def _require_downloaded(model_name: str) -> None:
     if not spec:
         raise PipelineError("unknown-model", f"未知图像模型: {model_name}")
     cached = find_cached_image_model_for_spec(spec)
+    if not cached and spec.get("layout") == "comfyui-bridge":
+        # 桥的"大件"是引擎服务本身:探不到先试着拉起(自管引擎装了没跑→起),
+        # 起来后复探——不能在这里秒拒,否则桥 generate 里的 ensure 补口永远
+        # 轮不到(09-11 实弹:漫影生图引擎停着时 1ms 假报"没在运行")
+        from engines.comfyui import engine_manager as _em
+        try:
+            _em.engine_manager().ensure_engine_ready()
+        except _em.EngineOpError:
+            pass
+        cached = find_cached_image_model_for_spec(spec)
     if not cached:
         # 桥的"大件"就是服务本身:不可达时给桥专属话术(server 映射 503),
         # 别让用户按通用文案去设置页找不存在的下载按钮
@@ -268,6 +278,7 @@ def generate_image(
     strength: float = 0.6,
     use_lora: bool = False,
     template: str | None = None,
+    checkpoint: str | None = None,
     loras: "list[dict] | None" = None,
 ) -> str:
     """Generate an image and return it as base64 PNG."""
@@ -315,6 +326,9 @@ def generate_image(
     if template is not None:
         # ComfyUI 桥模板点名(09-05 无衣物·指令编辑节点)
         ctx["template"] = template
+    if checkpoint is not None:
+        # 09-11 漫影专属生图:主模型文件名注入(manying_t2i 的 model_file 绑定)
+        ctx["checkpoint"] = checkpoint
     if loras is not None:
         # LoRA 显式四槽透传(09-07 渲染层缺口收口):面板/节点改强度此前断在
         # pipeline 层(引擎签名早有 loras 但无人传);仅 Krea2 消费,其余引擎

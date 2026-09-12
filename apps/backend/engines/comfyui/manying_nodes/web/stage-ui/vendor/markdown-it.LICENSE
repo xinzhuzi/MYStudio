@@ -1,0 +1,4 @@
+markdown-it 14.2.0 — Copyright (c) 2014 Vitaly Puzrin, Alex Kocharin
+MIT License(https://opensource.org/licenses/MIT)
+来源:apps/node_modules/markdown-it(应用侧 react-markdown 同族 CommonMark 渲染);
+按「MIT 才拷+留版权」铁律原样内嵌,升级随应用依赖同步。

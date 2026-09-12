@@ -79,6 +79,51 @@ describe("ComfyEngineStoragePaths(存储位置配置卡)", () => {
     expect(screen.getByLabelText("源码目录路径").tagName).toBe("SPAN");
   });
 
+  it("输入/输出目录可更改(09-11):行渲染+已装确认框走 setIODirs", async () => {
+    // 需求升级:从只读行 → 可编辑(manifest 键迁出源码目录,spawn 注入官方参数)
+    const base = createMockComfyEngineClient({ initialStatus: readyStatus() });
+    const setIODirs = vi.fn(base.setIODirs.bind(base));
+    installClient({ ...base, setIODirs });
+    render(<ComfyEngineStoragePaths />);
+    await waitFor(() => expect(screen.getByLabelText("输入目录路径").textContent).toContain("/ComfyUI/input"));
+    expect(screen.getByLabelText("输出目录路径").textContent).toContain("/ComfyUI/output");
+    // 更改按钮在(运行中禁用逻辑与可改三行同款)
+    expect(document.querySelector('[data-comfy-path-change="inputDir"]')).toBeTruthy();
+    expect(document.querySelector('[data-comfy-path-change="outputDir"]')).toBeTruthy();
+    // 已装:选目录 → 确认框 → setIODirs + 搬移说明 + 重启生效 toast
+    selectDirectory.mockResolvedValue("/Volumes/Data/comfyui-input");
+    fireEvent.click(document.querySelector<HTMLButtonElement>('[data-comfy-path-change="inputDir"]')!);
+    await screen.findByText("/Volumes/Data/comfyui-input");
+    fireEvent.click(screen.getByRole("button", { name: "确认更改" }));
+    await waitFor(() => expect(setIODirs).toHaveBeenCalledWith({ inputDir: "/Volumes/Data/comfyui-input" }));
+    await waitFor(() => expect(screen.getByLabelText("输入目录路径").textContent).toBe("/Volumes/Data/comfyui-input"));
+    expect(toasts.success).toHaveBeenCalled();
+    // 09-12 用户裁定回归锁:不标「(自定义)」(默认都是自定义)
+    expect(screen.queryByText("(自定义)")).toBeNull();
+  });
+
+  it("未安装态改输入目录:直改落账不走确认框", async () => {
+    const base = createMockComfyEngineClient();
+    const setIODirs = vi.fn(base.setIODirs.bind(base));
+    installClient({ ...base, setIODirs });
+    selectDirectory.mockResolvedValue("/Volumes/Data/comfyui-input");
+    render(<ComfyEngineStoragePaths />);
+    await waitFor(() => expect(screen.getByLabelText("输入目录路径")).toBeTruthy());
+    fireEvent.click(document.querySelector<HTMLButtonElement>('[data-comfy-path-change="inputDir"]')!);
+    await waitFor(() => expect(setIODirs).toHaveBeenCalledWith({ inputDir: "/Volumes/Data/comfyui-input" }));
+    expect(toasts.success).toHaveBeenCalledWith("已更新(引擎尚未安装,安装后首启生效)");
+  });
+
+  it("引擎运行中:输入/输出更改按钮禁用(须先停止)", async () => {
+    installClient(createMockComfyEngineClient({ initialStatus: readyStatus({ serviceRunning: true }) }));
+    render(<ComfyEngineStoragePaths />);
+    await waitFor(() => {
+      const btn = document.querySelector<HTMLButtonElement>('[data-comfy-path-change="inputDir"]');
+      expect(btn).toBeTruthy();
+      expect(btn!.disabled).toBe(true);
+    });
+  });
+
   it("探测失败(sidecar 未起)静默回落:不弹 toast,默认路径直接写上", async () => {
     // 09-09 用户裁定回归锁:探测期没必要提示——默认路径直显,等真值
     const base = createMockComfyEngineClient();
@@ -103,7 +148,7 @@ describe("ComfyEngineStoragePaths(存储位置配置卡)", () => {
     expect(toasts.error).not.toHaveBeenCalled();
   });
 
-  it("未安装态:选目录→校验→直改落账,界面更新并标「自定义」", async () => {
+  it("未安装态:选目录→校验→直改落账,界面更新", async () => {
     const base = createMockComfyEngineClient();
     const setPaths = vi.fn(base.setPaths.bind(base));
     installClient({ ...base, setPaths });
@@ -114,7 +159,7 @@ describe("ComfyEngineStoragePaths(存储位置配置卡)", () => {
     await waitFor(() => expect(setPaths).toHaveBeenCalledWith({ engineDir: "/Volumes/Data/ComfyUI" }));
     await waitFor(() =>
       expect(screen.getByLabelText("源码目录路径").textContent).toBe("/Volumes/Data/ComfyUI"));
-    expect(screen.getByText("(自定义)")).toBeTruthy();
+    expect(screen.queryByText("(自定义)")).toBeNull();
     expect(toasts.success).toHaveBeenCalled();
   });
 
@@ -168,7 +213,8 @@ describe("ComfyEngineStoragePaths(存储位置配置卡)", () => {
     await waitFor(() => expect(screen.getByLabelText("源码目录路径")).toBeTruthy());
     fireEvent.click(changeButton()!);
     const startBtn = await screen.findByRole("button", { name: "开始迁移" });
-    fireEvent.click(screen.getByRole("button", { name: "取消" }));
+    // mock 下两弹窗恒渲染:取消钮取迁移弹窗那颗(DOM 前位;IO 弹窗取消在后)
+    fireEvent.click(screen.getAllByRole("button", { name: "取消" })[0]);
     await sleep(100);
     expect(migratePaths).not.toHaveBeenCalled();
     expect(startBtn).toBeTruthy();

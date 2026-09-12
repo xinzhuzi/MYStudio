@@ -10,7 +10,6 @@
 import { useEffect, useRef, useState } from "react";
 import {
   Check,
-  ChevronDown,
   Copy,
   Download,
   ExternalLink,
@@ -35,8 +34,8 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Button } from "@/components/ui/button";
+import { ComfyModelsLibrary } from "@/components/panels/settings/comfy-engine/comfy-models/ComfyModelsLibrary";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import {
@@ -191,68 +190,7 @@ function snapshotReasonLabel(reason: string): string {
   return reason || "手动";
 }
 
-/** 模型类别一句话注释:干什么用、属于哪条工作流(09-10 用户裁定:简明概要)。 */
-const COMFY_MODEL_CATEGORY_INFO: Record<string, string> = {
-  diffusion_models: "生图/作曲/视频的主模型(去噪网络)——画布各类生成流的核心",
-  text_encoders: "提示词理解(文本编码器)——生成流的输入侧",
-  vae: "潜空间↔成品解码器(图像像素/音频波形)",
-  loras: "主模型的能力补丁(风格/破限/编辑)——生图画布按流挂载",
-  TTS: "旁白配音引擎(声线权重+音色库)——配音室/分镜配音",
-  vlm: "视觉审核模型——分镜图与资产参考一致性检查",
-  upscale_models: "ComfyUI 超分模型目录——画布超分节点用",
-  videoqc: "DOVER 视频评分——出片自评与基线告警",
-  SEEDVR2: "图像修复+超分(强档)——生图修复链",
-  segformer_b3_clothes: "服装/人体分割——ComfyUI 图层类节点",
-  frame_interpolation: "补帧(RIFE)——视频流畅度",
-  latent_upscale_models: "潜空间放大——H3 视频链",
-  clip: "图文对齐编码——参考图/构图控制类节点",
-  clip_vision: "视觉编码——图像参考类节点",
-  controlnet: "构图/姿态控制——画布控制类节点",
-  audio_encoders: "音频编码——视频配音轨",
-  embeddings: "文本风格嵌入——提示词增强",
-  vae_approx: "潜空间快速预览解码——画布出图预览",
-  checkpoints: "ComfyUI 整包模型(单文件全合一)",
-  diffusers: "diffusers 布局模型目录",
-  configs: "模型配套配置文件",
-};
-
-/** 关键模型件级注释(子串匹配相对路径,先中先用;未命中走类别注释)。 */
-const COMFY_MODEL_FILE_NOTES: Array<[string, string]> = [
-  ["krea2_turbo_bf16", "Krea2 生图主力——文生图/图生图/无衣物/NSFW 专业流"],
-  ["qwen3-vl-4b-heretic", "生图提示词编码(破限版)——Krea2 流"],
-  ["qwen_image_vae", "生图解码器——Krea2/Qwen 系"],
-  ["minimax_music3_dit", "本地作曲主模型——画布 Music3 作曲节点"],
-  ["minimax_music3_text_encoder", "作曲提示词/歌词理解"],
-  ["minimax_music3_dav", "作曲音频解码"],
-  ["minimax_h3_fl2va", "H3 视频生成主模型"],
-  ["minimax_h3_video_vae", "H3 视频解码"],
-  ["minimax_h3_audio_vae", "H3 配音轨编码"],
-  ["minimax_h3_latent_upscaler", "H3 视频潜空间放大"],
-  ["seedvr2_7b_sharp", "图像修复超分(强档)"],
-  ["ema_vae_fp16", "SEEDVR2 配套 VAE"],
-  ["KREA 2 Mystic XXX v3", "NSFW 专业流破限补丁(主力)"],
-  ["Krea 2 pussy", "NSFW 专业流补丁"],
-  ["Krea 2 NSFW V4", "NSFW 备选补丁(默认关)"],
-  ["identity_edit", "无衣物·指令编辑主件"],
-  ["rife_v4.26", "视频补帧"],
-];
-
-function modelFileNote(relPath: string): string | null {
-  for (const [needle, note] of COMFY_MODEL_FILE_NOTES) {
-    if (relPath.includes(needle)) return note;
-  }
-  return null;
-}
-
-function modelCategoryInfo(category: string): string {
-  return COMFY_MODEL_CATEGORY_INFO[category] ?? "ComfyUI 生态模型——经画布节点使用";
-}
-
-/** 模型文件大小展示:≥1GB 用 GB 一位小数,否则 MB。 */
-function formatModelSize(sizeBytes: number): string {
-  if (sizeBytes >= 1024 ** 3) return `${(sizeBytes / 1024 ** 3).toFixed(1)} GB`;
-  return `${Math.max(1, Math.round(sizeBytes / 1024 ** 2))} MB`;
-}
+/** 模型类别/件级注释与域分类法已迁至 comfy-models/comfy-models-taxonomy(09-10 分域裁定)。 */
 
 export function ComfyEngineSettingsSection({ embedded = false, initialActiveTab }: ComfyEngineSettingsSectionProps) {
   const engine = useComfyEngineSettings();
@@ -266,25 +204,7 @@ export function ComfyEngineSettingsSection({ embedded = false, initialActiveTab 
   const [envReveal, setEnvReveal] = useState<Record<number, boolean>>({});
   // 标签页(照 ComfyUI Desktop 设置布局,09-09 增「模型」页并置首:本地大模型展示)
   const [activeTab, setActiveTab] = useState<ComfyEngineTab>(initialActiveTab ?? "models");
-  // 模型分类组折叠(照生态插件块 09-09 裁定):默认收起,显式展开过的记住(localStorage)
-  const [openModelGroups, setOpenModelGroups] = useState<Record<string, boolean>>(() => {
-    try {
-      return JSON.parse(window.localStorage.getItem("comfy-model-groups-open") ?? "{}") as Record<string, boolean>;
-    } catch {
-      return {};
-    }
-  });
-  const toggleModelGroup = (category: string, next: boolean) => {
-    setOpenModelGroups((previous) => {
-      const nextGroups = { ...previous, [category]: next };
-      try {
-        window.localStorage.setItem("comfy-model-groups-open", JSON.stringify(nextGroups));
-      } catch {
-        /* 隐私模式等场景静默 */
-      }
-      return nextGroups;
-    });
-  };
+  // 模型分域折叠状态已随组件迁入 comfy-models/ComfyModelsLibrary(09-10)
 
   // 深链切页:卡已展开时收到 reveal(如再次点「去更新」)也要切到目标页。
   useEffect(() => {
@@ -400,106 +320,16 @@ export function ComfyEngineSettingsSection({ embedded = false, initialActiveTab 
       ? engine.activeJob
       : null;
 
-  // 模型页节点(两个落点复用):ComfyUI 模型库活清单——引擎未装/状态未知也
-  // 可看(读 FS 与引擎运行无关);后续各域模型迁入 comfyui/models 后自动出现。
+  // 模型页节点(两个落点复用):分域分组展示已抽出独立子模块 comfy-models/
+  // (09-10 用户裁定:图片/视频/声音域分组+多重归属;分类法单源在同目录 taxonomy)
+  // 09-12 深夜裁定:不再单设「漫影功能组件」状态区(为一行 LoRA 不值),
+  // 下载配置记录留在后端 loraFiles,件级说明走模型库行内注释(taxonomy)
   const modelsPageNode = (
-    <div className="space-y-3" data-comfy-models-page>
-      <section aria-label="ComfyUI 模型库" className="space-y-1.5">
-        <div className="flex items-center justify-between gap-3">
-          <p className="text-xs font-medium text-foreground">ComfyUI 模型库(本地大模型统一装载)</p>
-          <div className="flex gap-1.5">
-            <Button
-              size="sm"
-              variant="ghost"
-              className="h-7 px-2 text-xs"
-              onClick={() => void engine.loadModels()}
-            >
-              <RefreshCw className="mr-1 h-3.5 w-3.5" aria-hidden />
-              刷新
-            </Button>
-            <Button
-              size="sm"
-              variant="ghost"
-              className="h-7 px-2 text-xs"
-              onClick={() => {
-                void window.electronAPI?.openPath(engine.models?.modelsDir ?? status?.modelsDir ?? "");
-              }}
-            >
-              <FolderOpen className="mr-1 h-3.5 w-3.5" aria-hidden />
-              打开
-            </Button>
-          </div>
-        </div>
-        {engine.models === null ? (
-          <p className="rounded-md border border-border/60 bg-muted/30 px-2.5 py-1.5 text-[11px] text-muted-foreground">
-            清单尚未取到——进入本页会自动读取;若持续空白,通常几秒内重试即可。
-          </p>
-        ) : engine.models.groups.length === 0 ? (
-          <p className="rounded-md border border-border/60 bg-muted/30 px-2.5 py-1.5 text-[11px] text-muted-foreground">
-            模型目录还是空的;放入模型或经 ComfyUI 生态获取后,这里会自动列出。
-          </p>
-        ) : (
-          <div className="space-y-1.5" data-comfy-models-list>
-            {engine.models.groups.map((group) => {
-              const groupOpen = openModelGroups[group.category] ?? false;
-              return (
-                <div key={group.category} className="rounded-md border border-border/60 bg-muted/30 px-2.5 py-1.5">
-                  <Collapsible open={groupOpen} onOpenChange={(next) => toggleModelGroup(group.category, next)}>
-                    <CollapsibleTrigger
-                      className="flex w-full items-center gap-1.5 rounded-sm text-left"
-                      data-comfy-model-group-toggle={group.category}
-                    >
-                      <ChevronDown
-                        className={cn(
-                          "h-3.5 w-3.5 shrink-0 text-muted-foreground transition-transform",
-                          !groupOpen && "-rotate-90",
-                        )}
-                        aria-hidden
-                      />
-                      <span className="flex min-w-0 flex-1 items-baseline justify-between gap-2 text-[11px] font-medium text-foreground">
-                        <span>{group.category}</span>
-                        <span className="font-normal text-muted-foreground">
-                          {group.files.length} 件 · {formatModelSize(group.files.reduce((sum, f) => sum + f.sizeBytes, 0))}
-                        </span>
-                      </span>
-                    </CollapsibleTrigger>
-                    {/* 09-10 用户裁定:类别注释单行展示,超宽截断省略,悬停 title 见全文 */}
-                    <p
-                      className="mt-0.5 pl-5 text-[11px] leading-4 text-muted-foreground/80 truncate"
-                      title={modelCategoryInfo(group.category)}
-                    >
-                      {modelCategoryInfo(group.category)}
-                    </p>
-                    {/* 全量平铺把页面拉爆(09-10 用户裁定要可折叠):展开态也走限高滚动窗口,照插件列表 09-09 裁定 */}
-                    <CollapsibleContent>
-                      <ul
-                        className="mt-1 max-h-72 space-y-0.5 overflow-y-auto overscroll-contain pl-5"
-                        data-comfy-model-group-files={group.category}
-                      >
-                        {group.files.map((file) => (
-                          <li key={file.name} className="flex items-baseline justify-between gap-2 text-[11px] leading-4">
-                            <span className="min-w-0 flex-1 select-text break-all">
-                              <span className="font-mono text-muted-foreground">{file.name}</span>
-                              {modelFileNote(file.name) ? (
-                                <span className="ml-1.5 text-muted-foreground/70">· {modelFileNote(file.name)}</span>
-                              ) : null}
-                            </span>
-                            <span className="shrink-0 text-muted-foreground/80">{formatModelSize(file.sizeBytes)}</span>
-                          </li>
-                        ))}
-                      </ul>
-                    </CollapsibleContent>
-                  </Collapsible>
-                </div>
-              );
-            })}
-            <p className="px-1 text-[11px] text-muted-foreground">
-              合计 {engine.models.groups.reduce((n, g) => n + g.files.length, 0)} 件 · {formatModelSize(engine.models.totalBytes)}
-            </p>
-          </div>
-        )}
-      </section>
-    </div>
+    <ComfyModelsLibrary
+      reply={engine.models}
+      modelsDir={status?.modelsDir ?? ""}
+      onRefresh={() => void engine.loadModels()}
+    />
   );
 
   return (
@@ -699,11 +529,13 @@ export function ComfyEngineSettingsSection({ embedded = false, initialActiveTab 
                       </span>
                     ) : status.updateAvailable ? (
                       <span className="rounded-full border border-primary/30 bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary" data-comfy-update-badge>
+                        {/* 09-11 裁定:已在最新 tag 上时禁「可更新到 X」(X==当前
+                            版本的怪相);master 领先数算不出就明说 master 有新提交 */}
                         {status.aheadBy != null
                           ? `可更新(+${status.aheadBy} 个新提交)`
-                          : status.latest
+                          : status.latest && status.latest !== status.version
                             ? `可更新到 ${status.latest}`
-                            : "可更新"}
+                            : "master 有新提交"}
                       </span>
                     ) : status.latest && status.version ? (
                       <span className="rounded-full border border-success/30 bg-success/10 px-2 py-0.5 text-xs font-medium text-success" data-comfy-up-to-date>

@@ -184,9 +184,11 @@ class TestBuildLaunchArgs:
         assert args == ["main.py", "--listen", "127.0.0.1", "--port", "17600",
                         "--gpu-only", "--reserve-vram", "2.5", "--use-pytorch-cross-attention"]
 
-    def test_user_port_and_listen_override_managed_position(self):
+    def test_listen_from_string_port_from_caller_resolution(self):
+        # 09-11 根修:--port 一律用调用方决议口(resolve 已消费串口:空闲即串口,
+        # 被占顺延)——串口再压决议口会让引擎实际口与账本/健康检查口分叉
         args = build_launch_args("--listen 0.0.0.0 --port 8188 --fast", 17600)
-        assert args == ["main.py", "--listen", "0.0.0.0", "--port", "8188", "--fast"]
+        assert args == ["main.py", "--listen", "0.0.0.0", "--port", "17600", "--fast"]
 
     def test_managed_comfy_api_base_env_appends_official_flag(self, monkeypatch):
         # 云端收编二轮:节点全保留,官方 --comfy-api-base 改指漫影网关(env 驱动)
@@ -203,9 +205,27 @@ class TestBuildLaunchArgs:
         assert build_launch_args("--fast", 17600) == [
             "main.py", "--listen", "127.0.0.1", "--port", "17600", "--fast"]
 
+    def test_io_dirs_appended_after_user_flags(self):
+        # 09-11 输入/输出目录迁出源码目录:manifest 键 → 官方参数,追加在
+        # 用户串之后(argparse 后写胜出=托管位权威,用户串手写同款也被覆盖)
+        args = build_launch_args("--fast", 17600,
+                                 input_dir="/data/comfyui/input", output_dir="/data/comfyui/output")
+        assert args == ["main.py", "--listen", "127.0.0.1", "--port", "17600", "--fast",
+                        "--input-directory", "/data/comfyui/input",
+                        "--output-directory", "/data/comfyui/output"]
+        overridden = build_launch_args("--input-directory /old/input --fast", 17600,
+                                       input_dir="/new/input")
+        assert overridden.count("--input-directory") == 2
+        assert overridden[-2:] == ["--input-directory", "/new/input"]
+
+    def test_io_dirs_none_keeps_legacy_argv(self):
+        assert build_launch_args("--fast", 17600, input_dir=None, output_dir=None) == [
+            "main.py", "--listen", "127.0.0.1", "--port", "17600", "--fast"]
+
     def test_port_equals_form(self):
+        # 09-11 根修:等值写法的串口同样由决议口取代(调用方传啥用啥)
         args = build_launch_args("--port=17500", 17600)
-        assert args[3:5] == ["--port", "17500"]
+        assert args[3:5] == ["--port", "17600"]
 
     def test_legacy_dict_translation_equivalence(self):
         from engines.comfyui.manifest import legacy_launch_flags

@@ -265,6 +265,7 @@ class Handler(BaseHTTPRequestHandler):
                 reference_images_b64=reference_images_b64 or None,
                 use_lora=use_lora,
                 template=(payload.get("template") if isinstance(payload.get("template"), str) else None),
+                checkpoint=(payload.get("checkpoint") if isinstance(payload.get("checkpoint"), str) else None),
                 loras=(
                     payload.get("loras")
                     if isinstance(payload.get("loras"), list)
@@ -628,6 +629,10 @@ class Handler(BaseHTTPRequestHandler):
             if method == "POST" and path == "/comfy/paths/set":
                 # 未安装态直接改;已安装抛错指路 migrate
                 self._send_json(engine_manager().set_paths(payload))
+                return
+            if method == "POST" and path == "/comfy/paths/io":
+                # 输入/输出目录更改(09-11:可迁出源码目录;引擎须停,改完重启生效)
+                self._send_json(engine_manager().set_io_dirs(payload))
                 return
             if method == "POST" and path == "/comfy/paths/migrate":
                 self._send_json({"jobId": engine_manager().migrate_paths_job(payload)})
