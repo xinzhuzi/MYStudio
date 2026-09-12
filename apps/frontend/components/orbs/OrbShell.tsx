@@ -15,6 +15,13 @@ import {
   useReducedMotion,
 } from "motion/react";
 import { Popover, PopoverAnchor, PopoverContent } from "@/components/ui/popover";
+import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuTrigger,
+} from "@/components/ui/context-menu";
+import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import {
   ORB_MARGIN,
@@ -34,6 +41,10 @@ const ROLL_DEG_PER_DRAG_PX = 0.55;
  * 30s 线性关键帧,折算 ~24deg/s,取 16deg/s 更克制)。拖拽/吸附动画期间让路。 */
 const AUTO_SPIN_DEG_PER_SEC = 16;
 const AUTO_SPIN_PAUSE_MS = 900;
+/** 隐藏态持久化键(09-12 orb-manage:隐藏后重启保持,唤回即清)。 */
+const ORB_HIDDEN_KEY = "mystudio.orb.hidden";
+/** 唤回键提示文案(Ctrl+B=侧栏/Ctrl+M=分镜/Ctrl+Z=画布历史,Shift+B 错开)。 */
+const ORB_RECALL_HINT = "悬浮球已隐藏，按 Ctrl+Shift+B（⌘⇧B）唤回";
 /** 真 3D 经纬球几何 v2(真透视版):环系直径缩一档(42px),透视(200px)鼓出后
  * 仍收在 48px 球缘内;经线每 30° 一圈;纬线赤道±30°±60°。 */
 const GLOBE_INSET = 3;
@@ -83,6 +94,9 @@ export interface OrbShellProps {
   /** 上下文重置键(09-11:键变即收面板)——视图切换后球面板不跨视图滞留
    * (导航已发生,收起=确认;smoke 胶囊锚也因 panelOpen-hidden 而依赖此行为)。 */
   resetKey?: string | number;
+  /** 右键菜单业务附加项(09-12 orb-manage:如「打开设置」);壳自带
+   * 回到默认位置/隐藏悬浮球两项,业务项拼接其后,壳保持零业务依赖。 */
+  contextMenuExtra?: ReactNode;
 }
 
 /** 通用悬浮球壳(基础设施独立模块,零业务依赖;09-11 归一后全应用唯一球,
@@ -105,6 +119,7 @@ export function OrbShell({
   panelContent,
   panelClassName,
   resetKey,
+  contextMenuExtra,
 }: OrbShellProps) {
   const { position, setPosition } = useOrbPosition(storageKey, defaultAnchor);
   const viewportTick = useViewportTick();
@@ -185,6 +200,53 @@ export function OrbShell({
     return () => timers.forEach((t) => clearTimeout(t));
   }, [clampNow]);
 
+  // 隐藏/唤回(09-12 orb-manage):持久化 localStorage;唤回键恒注册(隐藏时也在听),
+  // 只唤回不 toggle-hide(防误藏;隐藏唯一入口=右键菜单,且 toast 报键位)
+  const [hidden, setHidden] = useState(
+    () =>
+      typeof window !== "undefined" &&
+      window.localStorage.getItem(ORB_HIDDEN_KEY) === "1",
+  );
+  const hideOrb = useCallback(() => {
+    setHidden(true);
+    try {
+      window.localStorage.setItem(ORB_HIDDEN_KEY, "1");
+    } catch {
+      // 存储不可用时仅内存隐藏
+    }
+    toast.info(ORB_RECALL_HINT, { duration: 6000 });
+  }, []);
+  const showOrb = useCallback(() => {
+    setHidden(false);
+    try {
+      window.localStorage.removeItem(ORB_HIDDEN_KEY);
+    } catch {
+      // 同上
+    }
+  }, []);
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (!(event.metaKey || event.ctrlKey) || !event.shiftKey) return;
+      if (event.key.toLowerCase() !== "b") return;
+      event.preventDefault();
+      showOrb();
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [showOrb]);
+
+  // 右键「回到默认位置」:取锚位角默认坐标,滚动星球一路滚回(复用吸附动画)
+  const resetToDefaultAnchor = useCallback(() => {
+    const d = windowDims();
+    const fallback = clampOrbPosition(null, d.width, d.height, defaultAnchor);
+    rollWith(fallback.x, fallback.y, {
+      type: "spring",
+      stiffness: 380,
+      damping: 30,
+    });
+    setPosition(fallback);
+  }, [defaultAnchor, rollWith, setPosition]);
+
   const handlePointerUp = (event: React.PointerEvent) => {
     if (event.pointerId !== activePointerIdRef.current) return;
     activePointerIdRef.current = null;
@@ -242,10 +304,15 @@ export function OrbShell({
   // 约束随渲染实时读视口(resize 触发重渲染刷新)
   const dims = windowDims();
 
+  // 隐藏态:整球离场(hooks 已全部落位,早退不违钩子序;唤回键 effect 恒在听)
+  if (hidden) return null;
+
   return (
     <Popover open={panelOpen} onOpenChange={setPanelOpen}>
-      <PopoverAnchor asChild>
-        <motion.div
+      <ContextMenu>
+        <ContextMenuTrigger asChild>
+          <PopoverAnchor asChild>
+            <motion.div
           {...{ [`data-${dataOrb}`]: true }}
           {...dataAttrs}
           role="button"
@@ -279,6 +346,9 @@ export function OrbShell({
           className="group flex h-12 w-12 cursor-grab items-center justify-center rounded-full outline-none focus-visible:ring-2 focus-visible:ring-ring/70 active:cursor-grabbing"
           ref={orbRef}
           onPointerDown={(event) => {
+            // 指针链路只认主键(09-12 orb-manage R3):右键走上下文菜单,
+            // 不得记手势起点开面板/污染拖拽判定
+            if (event.button !== 0) return;
             activePointerIdRef.current = event.pointerId;
             panelOpenAtPressRef.current = panelOpen;
             pressStartRef.current = { x: event.clientX, y: event.clientY };
@@ -406,7 +476,16 @@ export function OrbShell({
             {capsuleText}
           </span>
         </motion.div>
-      </PopoverAnchor>
+          </PopoverAnchor>
+        </ContextMenuTrigger>
+        <ContextMenuContent>
+          <ContextMenuItem onSelect={resetToDefaultAnchor}>
+            回到默认位置
+          </ContextMenuItem>
+          <ContextMenuItem onSelect={hideOrb}>隐藏悬浮球</ContextMenuItem>
+          {contextMenuExtra}
+        </ContextMenuContent>
+      </ContextMenu>
       <PopoverContent
         align="start"
         side="top"

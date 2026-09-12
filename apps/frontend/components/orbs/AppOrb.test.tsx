@@ -11,8 +11,11 @@ import { snapToNearestEdge } from "./use-orb-position";
 import { useMediaPanelStore } from "@/stores/navigation/media-panel-store";
 import { useFreedomStore } from "@/stores/assist/freedom-store";
 import { useStudioStore } from "@/stores/studio/studio-store";
+import { toast } from "sonner";
 
-vi.mock("sonner", () => ({ toast: Object.assign(vi.fn(), { error: vi.fn() }) }));
+vi.mock("sonner", () => ({
+  toast: Object.assign(vi.fn(), { error: vi.fn(), info: vi.fn() }),
+}));
 
 afterEach(() => {
   cleanup();
@@ -370,6 +373,57 @@ describe("AppOrb(分域矩阵·09-11:阶段仅工作流)", () => {
     openPanel();
     await screen.findByRole("group", { name: "导航" });
     expect(screen.queryByRole("button", { name: /^任务$/ })).toBeNull();
+  });
+
+  it("右键菜单(09-12 R1):壳两项+业务「打开设置」,点设置落设置视图", async () => {
+    useMediaPanelStore.setState({ activeTab: "assets" });
+    render(<AppOrb />);
+    fireEvent.contextMenu(getOrb());
+    await screen.findByRole("menu");
+    expect(screen.getByRole("menuitem", { name: "回到默认位置" })).toBeTruthy();
+    expect(screen.getByRole("menuitem", { name: "隐藏悬浮球" })).toBeTruthy();
+    fireEvent.click(screen.getByRole("menuitem", { name: "打开设置" }));
+    expect(useMediaPanelStore.getState().activeTab).toBe("settings");
+  });
+
+  it("右键指针链不开面板(R3):button 2 的 down/up 不得开面板", () => {
+    useMediaPanelStore.setState({ activeTab: "studio" });
+    render(<AppOrb />);
+    const orb = getOrb();
+    fireEvent.pointerDown(orb, { button: 2, clientX: 20, clientY: 20 });
+    fireEvent.pointerUp(orb, { button: 2, clientX: 20, clientY: 20 });
+    fireEvent.contextMenu(orb);
+    expect(screen.queryByText(/待推进：/)).toBeNull();
+  });
+
+  it("隐藏+唤回(09-12 R2/R4):右键隐藏→离场+持久化+toast 报键位;Ctrl+Shift+B 唤回", async () => {
+    useMediaPanelStore.setState({ activeTab: "assets" });
+    const { container } = render(<AppOrb />);
+    fireEvent.contextMenu(getOrb());
+    fireEvent.click(await screen.findByRole("menuitem", { name: "隐藏悬浮球" }));
+    await waitFor(() =>
+      expect(container.querySelector("[data-workflow-orb]")).toBeNull(),
+    );
+    expect(window.localStorage.getItem("mystudio.orb.hidden")).toBe("1");
+    expect(vi.mocked(toast.info)).toHaveBeenCalled();
+    act(() => {
+      window.dispatchEvent(
+        new KeyboardEvent("keydown", {
+          key: "b",
+          ctrlKey: true,
+          shiftKey: true,
+          bubbles: true,
+        }),
+      );
+    });
+    expect(container.querySelector("[data-workflow-orb]")).toBeTruthy();
+    expect(window.localStorage.getItem("mystudio.orb.hidden")).toBeNull();
+  });
+
+  it("重启保持隐藏(R4):预种 hidden=1 时不渲染球", () => {
+    window.localStorage.setItem("mystudio.orb.hidden", "1");
+    const { container } = render(<AppOrb />);
+    expect(container.querySelector("[data-workflow-orb]")).toBeNull();
   });
 });
 

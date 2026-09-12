@@ -16,6 +16,7 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { toast } from "sonner";
 import { Compass } from "lucide-react";
+import { ContextMenuItem } from "@/components/ui/context-menu";
 import { useMediaPanelStore, tabs as TAB_LABELS, type Tab } from "@/stores/navigation/media-panel-store";
 import { useFreedomStore, type StudioMode } from "@/stores/assist/freedom-store";
 import { useStudioStore } from "@/stores/studio/studio-store";
@@ -172,6 +173,11 @@ export function AppOrb() {
       capsuleText={capsuleText}
       ballContent={ballContent}
       resetKey={activeTab}
+      contextMenuExtra={
+        <ContextMenuItem onSelect={() => setActiveTab("settings")}>
+          打开设置
+        </ContextMenuItem>
+      }
       panelContent={({ close }) => (
         <div className="flex max-h-[60vh] flex-col">
           {inStudio ? (
