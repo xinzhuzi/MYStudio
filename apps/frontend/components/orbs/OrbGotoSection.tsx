@@ -28,7 +28,8 @@ import { cn } from "@/lib/utils";
 const VIEW_ENTRIES: ReadonlyArray<{ id: Tab; label: string; icon: typeof LayoutDashboard }> = [
   { id: "dashboard", label: "主页", icon: LayoutDashboard },
   { id: "overview", label: "概览", icon: NotebookTabs },
-  { id: "studio", label: "工作流", icon: WorkflowIcon },
+  // label 随侧栏命名(09-12 装机轮:并行会话「MY 工作流」已随包装机+smoke 断言,对齐)
+  { id: "studio", label: "MY 工作流", icon: WorkflowIcon },
   { id: "assets", label: "资产", icon: FolderOpen },
   // 09-10 补:球全局化后「前往」须含本地模型(旧两球时代球住沉浸视图故自指无意义)
   { id: "freedom", label: "本地模型", icon: Palette },
