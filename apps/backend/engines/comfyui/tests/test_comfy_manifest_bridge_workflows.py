@@ -51,7 +51,7 @@ class TestManifest:
             "version": "v0.9.2", "port": 17600,
             "launchArgs": {"vramPolicy": "gpu-only", "attentionMode": "nope", "reserveVramGb": -1},
         }}))
-        assert cm.engine_launch_args() == "--port 17598 --enable-manager --gpu-only --reserve-vram 16 --use-pytorch-cross-attention"
+        assert cm.engine_launch_args() == "--enable-manager --gpu-only --reserve-vram 16 --use-pytorch-cross-attention"
         # 串原样保留(Desktop 式唯一真源);空 manifest → 默认串
         cm.mutate_manifest(lambda m: m["engine"].update({"launchArgs": "--fast --bf16-unet"}))
         assert cm.engine_launch_args() == "--fast --bf16-unet"

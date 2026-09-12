@@ -279,11 +279,15 @@ def recorded_port(manifest: dict | None = None) -> int | None:
 
 # 09-10 用户裁定「全盘照 ComfyUI Desktop」:launchArgs 改为命令行整串(唯一真源),
 # 结构化下拉只是往串里写的快填器;推翻旧「不暴露命令行原文」口径。
-# 缺省串=09-10 用户指定全参数:口钉 17598(保留口段)+ 内建管理器 + 09-08 三参数。
-DEFAULT_LAUNCH_ARGS_STRING = "--port 17598 --enable-manager --use-pytorch-cross-attention --gpu-only --reserve-vram 16"
-# 旧档迁移也补齐新基线:口与管理器是旧 dict 表达不了的新能力,统一钉上
-# (口被占时 resolve_launch_port 按冲突策略自移,不硬死)。
-LEGACY_MIGRATION_BASELINE_FLAGS = ["--port", "17598", "--enable-manager"]
+# 09-12 端口矛盾根修(用户裁定:基线放权给账本口):缺省串不再钉 --port——
+# 17598 是桥回落保留段位(引擎缺席时存量 Krea2 链用,RESERVED_PORTS 永不出让),
+# 引擎钉它会两头不挨:串口被占的瞬间启动即按冲突策略顺延→账本口漂移→健康
+# 检查探错口(09-11 晚与 09-12 12:53 两次实弹同根)。端口真源=账本
+# manifest.port(resolve_launch_port:串无口即账本口,再无则 17xxx 段分配)。
+DEFAULT_LAUNCH_ARGS_STRING = "--enable-manager --use-pytorch-cross-attention --gpu-only --reserve-vram 16"
+# 旧档迁移也补新基线:内建管理器是旧 dict 表达不了的新能力,统一钉上
+# (--port 不钉,理由同上;口由账本承载)。
+LEGACY_MIGRATION_BASELINE_FLAGS = ["--enable-manager"]
 
 
 def legacy_launch_flags(args: dict) -> str:
