@@ -22,6 +22,17 @@ const BRIDGE_URL = (window.MANYING_BRIDGE_URL || "http://127.0.0.1:17595").repla
 const BRIDGE_TOKEN = window.MANYING_BRIDGE_TOKEN || "manying-local-image";
 
 /** HTML 转义:载荷字符串全走此门(生成器产物,防意外标记注入) */
+/** 缩略/封面晚到兜底:保鲜链补传一轮后文件才在(冷启动竞态)——404 后 2.5s
+ * 换缓存戳重试至多 3 次,仍败=隐藏(占位文字在 img 之下自然透出)。 */
+window.__manyingImgRetry = (img) => {
+  const tries = (Number(img.dataset.tries) || 0) + 1;
+  img.dataset.tries = String(tries);
+  if (tries > 3) { img.style.display = "none"; return; }
+  setTimeout(() => {
+    img.src = img.src.split("&_=")[0] + "&_=" + Date.now();
+  }, 2500);
+};
+
 const esc = (value) => String(value ?? "").replace(/[&<>"']/g, (ch) => ({
   "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;",
 }[ch]));
@@ -126,7 +137,7 @@ function bodyBranchHTML(payload) {
       const state = tile.hasVideo ? "#6ea8fe" : tile.hasImage ? "#4ec9a8" : "#7d8ba1";
       const media = tile.preview
         ? `<img src="/view?filename=${encodeURIComponent(tile.preview)}&subfolder=&type=input" alt=""
-             onerror="this.style.display='none'">`
+             onerror="window.__manyingImgRetry && window.__manyingImgRetry(this)">`
         : "";
       return `<div class="ms-tile" title="${esc(tile.title)}${tile.lines ? "\n" + esc(tile.lines) : ""}">
         ${media}<span class="ph">${esc(tile.title)}</span>
@@ -170,7 +181,7 @@ function bodyBranchHTML(payload) {
     const cards = payload.assets.map((asset) => {
       const cover = asset.cover
         ? `<img src="/view?filename=${encodeURIComponent(asset.cover)}&subfolder=&type=input" alt=""
-             onerror="this.outerHTML='<span class=&quot;cv&quot;>🖼</span>'">`
+             onerror="window.__manyingImgRetry && window.__manyingImgRetry(this)">`
         : `<span class="cv">🖼</span>`;
       return `<div class="ms-card" title="${esc(asset.name)}">${cover}
         <span class="nm">${esc(asset.name)}<small>${esc(asset.typeLabel)}${asset.views ? " · " + esc(asset.views) + " 视图" : ""}${asset.state ? " · " + esc(asset.state) : ""}</small></span>
