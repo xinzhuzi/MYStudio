@@ -21,6 +21,7 @@ import { buildStageNodePayloadFromState, buildStageSummaries, buildStoryboardPip
 import { mapProductionFlowNodesToStagePayloads } from "./stage-payload-map";
 import type { ProductionFlowNodeModel } from "../../studio/workflow-node-model-schema";
 import { useStudioStore } from "@/stores/studio/studio-store";
+import { useProjectStore } from "@/stores/project/project-store";
 
 /** 画布内文本选中样式:ComfyUI 前端唯一选中规则是 xterm vendor css 泄漏的
  * 全局 ::selection{color:transparent} 且无背景定义 → Chromium 默认黄底裸奔
@@ -148,6 +149,34 @@ type WebviewElement = HTMLElement & {
   __autoOpenInFlight?: boolean;
 };
 
+/** 渲染队列实时快照投影(09-12 B2):window.remotionQueue(渲染层真源,lib
+ * 同步链够不着)→ [{index,status,progress}]。shotId→镜号经当前分镜表映射;
+ * 队列缺席/非 Electron/读失败=空数组(推送面静默,下一 tick 重试)。 */
+async function readRenderQueueSnapshot(
+  chapterId: string,
+  storyboards: Array<{ id: string; index: number }>,
+): Promise<Array<{ index: number; status: string; progress: number }>> {
+  const bridge = window.remotionQueue;
+  if (typeof bridge?.get !== "function") return [];
+  try {
+    const projectId = useProjectStore.getState().activeProjectId;
+    if (!projectId) return [];
+    const scope = await bridge.get({ projectId, chapterId });
+    const indexByShotId = new Map(storyboards.map((item) => [item.id, item.index]));
+    const queue: Array<{ index: number; status: string; progress: number }> = [];
+    for (const job of scope.jobs || []) {
+      const target = job?.target;
+      if (!target || target.kind !== "shot") continue;
+      const index = indexByShotId.get(target.shotId);
+      if (index === undefined) continue;
+      queue.push({ index, status: String(job.status || ""), progress: Number(job.progress) || 0 });
+    }
+    return queue;
+  } catch {
+    return [];
+  }
+}
+
 /** autoOpen 载荷组装+注入(09-12 v4 真跑根修:封面先经 ensureStageAsset-
  * CoversUploaded 上传改写为引擎 input 文件名再进画布——此前直带 app-scheme
  * cover,画布 /view 必 404,资产卡恒字牌)。async 独立函数:读值全走
@@ -200,9 +229,9 @@ export interface ComfyCanvasStudioProps {
   sidebarActions?: {
     onGenerateImages: () => void;
     onGenerateVideos: () => void;
-    /** 09-12 功能完备:老画布环节动作回流(导演规划/分镜表=付费,重建轨道) */
-    onGenerateDirectorPlan?: () => void;
-    onGenerateStoryboardTable?: () => void;
+    /** note=付费生成的补充要求(09-12 B1:老画布 userInstruction 语义经桥透传) */
+    onGenerateDirectorPlan?: (note?: string) => void;
+    onGenerateStoryboardTable?: (note?: string) => void;
     onRebuildWorkbenchTracks?: () => void;
   };
   /** 老画布节点模型(viewModel.productionFlowNodes;v4 内容全量喂入) */
@@ -282,11 +311,11 @@ export function ComfyCanvasStudio({ autoOpenOverview = false, manyingScope, side
         toast.info("侧栏指令:开始生成所有分镜视频");
         sidebarActionsRef.current.onGenerateVideos();
       } else if (item.kind === "generate-director-plan") {
-        toast.info("环节指令:生成导演规划(付费云端)");
-        sidebarActionsRef.current.onGenerateDirectorPlan?.();
+        toast.info(item.note ? "环节指令:生成导演规划(付费·带补充要求)" : "环节指令:生成导演规划(付费云端)");
+        sidebarActionsRef.current.onGenerateDirectorPlan?.(item.note || "");
       } else if (item.kind === "generate-storyboard-table") {
-        toast.info("环节指令:生成分镜表(付费云端)");
-        sidebarActionsRef.current.onGenerateStoryboardTable?.();
+        toast.info(item.note ? "环节指令:生成分镜表(付费·带补充要求)" : "环节指令:生成分镜表(付费云端)");
+        sidebarActionsRef.current.onGenerateStoryboardTable?.(item.note || "");
       } else if (item.kind === "rebuild-workbench-tracks") {
         toast.info("环节指令:重建视频轨道");
         sidebarActionsRef.current.onRebuildWorkbenchTracks?.();
@@ -312,16 +341,23 @@ export function ComfyCanvasStudio({ autoOpenOverview = false, manyingScope, side
         // (分镜页签的视频分类展示)。
         const studioState = useStudioStore.getState();
         const storyboards = studioState.storyboards;
-        void client?.pushBridgeStoryboards(
-          storyboards.map((item) => ({
-            id: item.id,
-            label: `S${String(item.index).padStart(2, "0")}${item.videoDesc ? ` · ${item.videoDesc.slice(0, 12)}` : ""}`,
-            episodeId: item.episodeId,
-            videoReady: item.mediaRef?.kind === "video" && Boolean(item.mediaRef.path),
-            imageReady: item.mediaRef?.kind === "image" && Boolean(item.mediaRef.path),
-          })),
-          resolveProductionEpisodeId(studioState),
-        ).catch(() => undefined);
+        // 09-12 B2:同跳附带渲染队列实时快照(window.remotionQueue 投影→
+        // 桥→画布 stage-node 轮询同端点活更徽章;不经保鲜链重写库文件)。
+        const episodeId = resolveProductionEpisodeId(studioState);
+        void (async () => {
+          const queue = await readRenderQueueSnapshot(episodeId, storyboards);
+          await client?.pushBridgeStoryboards(
+            storyboards.map((item) => ({
+              id: item.id,
+              label: `S${String(item.index).padStart(2, "0")}${item.videoDesc ? ` · ${item.videoDesc.slice(0, 12)}` : ""}`,
+              episodeId: item.episodeId,
+              videoReady: item.mediaRef?.kind === "video" && Boolean(item.mediaRef.path),
+              imageReady: item.mediaRef?.kind === "image" && Boolean(item.mediaRef.path),
+            })),
+            episodeId,
+            queue,
+          );
+        })().catch(() => undefined);
         // 主视图 ComfyUI 化(批8):总览图库内保鲜(指纹守卫,分镜未动不导入)
         void syncStoryboardOverviewToLibrary({
           buildPayloads: () => {

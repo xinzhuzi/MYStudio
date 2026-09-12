@@ -44,4 +44,30 @@ def test_update_filters_bad_entries_and_caps():
 
 def test_snapshot_defaults_empty():
     snap = bridge_sidepanel.snapshot()
-    assert snap == {"updatedAt": 0, "staleAfterMs": 900_000, "shots": [], "currentEpisodeId": ""}
+    assert snap == {"updatedAt": 0, "staleAfterMs": 900_000, "shots": [], "currentEpisodeId": "", "queue": []}
+
+
+def test_queue_snapshot_roundtrip_and_clean():
+    """09-12 B2 队列实时快照:合法条目清洗入库回读;非法状态/越界进度剔除。"""
+    bridge_sidepanel.reset_for_tests()
+    bridge_sidepanel.update(
+        [{"id": "s1", "label": "S01", "episodeId": "chapter-001"}],
+        {
+            "currentEpisodeId": "chapter-001",
+            "queue": [
+                {"index": 3, "status": "running", "progress": 0.45},
+                {"index": 4, "status": "failed", "progress": 9},      # 进度钳 1.0
+                {"index": 5, "status": "bogus", "progress": 0.5},     # 状态非法剔除
+                "junk",                                                # 非法条目剔除
+            ],
+        },
+    )
+    snap = bridge_sidepanel.snapshot()
+    assert snap["queue"] == [
+        {"index": 3, "status": "running", "progress": 0.45},
+        {"index": 4, "status": "failed", "progress": 1.0},
+    ]
+    # 缺省=空队列
+    bridge_sidepanel.update([{"id": "s1", "label": "S01"}], {"currentEpisodeId": "chapter-001"})
+    assert bridge_sidepanel.snapshot()["queue"] == []
+    bridge_sidepanel.reset_for_tests()

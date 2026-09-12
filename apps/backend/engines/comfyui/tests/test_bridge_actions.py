@@ -60,3 +60,28 @@ def test_stage_node_action_kinds_allowed():
         "generate-storyboard-table",
         "rebuild-workbench-tracks",
     }
+
+
+def test_note_roundtrip_and_dedup_update():
+    """09-12 B1 补充要求:note 随动作入队/回读;同类在途重提=note 更新胜出。"""
+    bridge_actions.reset_for_tests()
+    reply = bridge_actions.submit("generate-director-plan", "  多加两个反派伏笔  ")
+    assert reply["duplicate"] is False
+    listed = bridge_actions.list_since(0)["items"]
+    assert listed[0]["note"] == "多加两个反派伏笔"
+    # 同类在途 + 新 note → duplicate 但 note 更新
+    bridge_actions.submit("generate-director-plan", "改成三个伏笔")
+    listed = bridge_actions.list_since(0)["items"]
+    assert len(listed) == 1
+    assert listed[0]["note"] == "改成三个伏笔"
+    # 无 note 提交不带 note 键(消费侧 userInstruction 回落空串)
+    bridge_actions.ack(99)
+    bridge_actions.submit("generate-storyboard-table")
+    listed = bridge_actions.list_since(0)["items"]
+    assert "note" not in listed[0]
+    # 超长截断
+    bridge_actions.ack(99)
+    bridge_actions.submit("generate-storyboard-table", "长" * 5000)
+    listed = bridge_actions.list_since(0)["items"]
+    assert len(listed[0]["note"]) == 2000
+    bridge_actions.reset_for_tests()

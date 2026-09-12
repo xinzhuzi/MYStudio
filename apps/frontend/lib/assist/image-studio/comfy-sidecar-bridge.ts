@@ -606,19 +606,20 @@ export function createHttpComfyEngineClient(): ComfyEngineClient {
     async pushBridgeStoryboards(
       shots: Array<{ id: string; label: string; episodeId?: string; videoReady?: boolean; imageReady?: boolean }>,
       currentEpisodeId?: string,
+      queue?: Array<{ index: number; status: string; progress: number }>,
     ): Promise<boolean> {
       try {
         await comfySidecarRequest<{ updatedAt?: number }>("POST", "/comfy/bridge/storyboards", {
-          body: { shots, ...(currentEpisodeId ? { currentEpisodeId } : {}) },
+          body: { shots, ...(currentEpisodeId ? { currentEpisodeId } : {}), ...(queue && queue.length > 0 ? { queue } : {}) },
         });
         return true;
       } catch {
         return false; // 推送面:失败静默(下一 tick 重推)
       }
     },
-    async getBridgeActions(cursor: number): Promise<{ cursor: number; items: Array<{ id: number; kind: string }> } | null> {
+    async getBridgeActions(cursor: number): Promise<{ cursor: number; items: Array<{ id: number; kind: string; note?: string }> } | null> {
       try {
-        return await comfySidecarRequest<{ cursor: number; items: Array<{ id: number; kind: string }> }>(
+        return await comfySidecarRequest<{ cursor: number; items: Array<{ id: number; kind: string; note?: string }> }>(
           "GET", `/comfy/bridge/actions?cursor=${cursor}`,
         );
       } catch {

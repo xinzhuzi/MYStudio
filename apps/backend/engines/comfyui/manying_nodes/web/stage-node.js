@@ -115,6 +115,32 @@ const STYLES = `
 .ms-btn--paid:hover{background:rgba(230,176,84,.2);}
 .ms-btn:disabled{opacity:.32;cursor:default;pointer-events:none;}
 .ms-btn--flash{animation:ms-flash 1.2s ease;}
+.ms-composer{display:flex;flex-direction:column;gap:6px;padding:8px 10px;border-radius:8px;
+  background:rgba(230,176,84,.07);border:1px dashed rgba(230,176,84,.35);}
+.ms-composer-title{font-size:10px;font-weight:600;color:rgba(230,176,84,.92);letter-spacing:.03em;}
+.ms-composer textarea{pointer-events:auto;width:100%;box-sizing:border-box;resize:none;font:400 11.5px/1.5 inherit;
+  color:rgba(235,240,248,.9);background:rgba(0,0,0,.3);border:1px solid rgba(230,176,84,.3);
+  border-radius:6px;padding:6px 8px;outline:none;}
+.ms-composer textarea:focus{border-color:rgba(230,176,84,.55);}
+.ms-composer-row{display:flex;gap:6px;}
+.ms-live{display:flex;gap:4px;flex:none;align-items:center;}
+#manying-canvas-hints{position:fixed;right:52px;bottom:18px;z-index:60;width:270px;pointer-events:auto;
+  background:rgba(16,20,28,.96);border:1px solid rgba(110,168,254,.35);border-radius:12px;
+  padding:10px 12px;box-shadow:0 8px 28px rgba(0,0,0,.5);
+  font:400 11px/1.55 -apple-system,"PingFang SC","Hiragino Sans GB",sans-serif;color:rgba(226,232,242,.9);}
+#manying-canvas-hints .ms-hints-head{display:flex;align-items:center;justify-content:space-between;
+  font-size:12px;font-weight:700;color:#9fc3f7;margin-bottom:6px;}
+#manying-canvas-hints .ms-hints-x{pointer-events:auto;cursor:pointer;background:transparent;border:none;
+  color:rgba(178,188,204,.8);font-size:15px;line-height:1;padding:2px 4px;border-radius:5px;}
+#manying-canvas-hints .ms-hints-x:hover{color:#fff;background:rgba(255,255,255,.1);}
+#manying-canvas-hints .ms-hints-item{display:flex;gap:7px;padding:3.5px 0;}
+#manying-canvas-hints .ms-hints-item b{flex:none;color:#6ea8fe;min-width:48px;font-weight:600;}
+#manying-canvas-hints .ms-hints-item span{color:rgba(200,208,222,.85);}
+#manying-canvas-hints-fab{position:fixed;right:14px;bottom:18px;z-index:60;width:30px;height:30px;
+  pointer-events:auto;cursor:pointer;border-radius:50%;border:1px solid rgba(110,168,254,.45);
+  background:rgba(16,20,28,.92);color:#9fc3f7;font:600 14px/1 inherit;
+  box-shadow:0 4px 14px rgba(0,0,0,.4);}
+#manying-canvas-hints-fab:hover{background:rgba(110,168,254,.18);}
 @keyframes ms-flash{0%{box-shadow:0 0 0 0 rgba(110,168,254,.65);}100%{box-shadow:0 0 0 9px rgba(110,168,254,0);}}
 `;
 
@@ -129,6 +155,20 @@ function ensureStyles() {
 // ── 载荷 → HTML(六分支:tiles/表行/队列/资产卡/轨道/正文行)────────────────
 function badge(kind, text) {
   return `<span class="ms-badge ms-badge--${kind}">${esc(text)}</span>`;
+}
+
+/** 队列活态徽章/进度条(静态渲染与 B2 轮询共用一源):running=徽章+进度条,
+ * failed/blocked=红,canceled/ready/pending=灰;succeeded=空(就绪徽章接管)。 */
+function liveBadgesHTML(status, progress) {
+  if (status === "running") {
+    const pct = Math.round(Math.min(1, Math.max(0, Number(progress) || 0)) * 100);
+    return badge("run", "渲染中") + `<span class="ms-prog"><i style="width:${pct}%"></i></span>`;
+  }
+  if (status === "failed") return badge("fail", "失败");
+  if (status === "blocked") return badge("fail", "阻塞");
+  if (status === "canceled") return badge("wait", "已取消");
+  if (status === "pending" || status === "ready" || status === "queued") return badge("wait", "排队");
+  return "";
 }
 
 function bodyBranchHTML(payload) {
@@ -165,17 +205,14 @@ function bodyBranchHTML(payload) {
         shot.ttsReady ? badge("ok", "配音✓") : "",
         shot.sfxReady ? badge("ok", "音效✓") : "",
         shot.revision > 1 ? badge("rev", "v" + shot.revision) : "",
-        shot.status === "running" ? badge("run", "渲染中") : "",
-        shot.status === "failed" ? badge("fail", "失败") : "",
-        shot.status === "blocked" ? badge("fail", "阻塞") : "",
-        shot.status === "queued" ? badge("wait", "排队") : "",
       ].filter(Boolean).join("");
-      const prog = shot.status === "running" && typeof shot.progress === "number"
-        ? `<span class="ms-prog"><i style="width:${Math.round(Math.min(1, Math.max(0, shot.progress)) * 100)}%"></i></span>` : "";
-      return `<div class="ms-row"><span class="idx">#${String(shot.index).padStart(2, "0")}</span>
-        <span class="main">${esc(shot.label)}</span>${prog}<span class="ms-badges">${bits}</span></div>`;
+      // 活态徽章/进度条独立容器(.ms-live):B2 轮询到队列快照后原位重填,
+      // 不动静态就绪徽章;初始渲染吃载荷快照(保鲜链上轮写入)
+      const live = liveBadgesHTML(shot.status, shot.progress);
+      return `<div class="ms-row" data-shot-idx="${Number(shot.index) || 0}"><span class="idx">#${String(shot.index).padStart(2, "0")}</span>
+        <span class="main">${esc(shot.label)}</span><span class="ms-live">${live}</span><span class="ms-badges">${bits}</span></div>`;
     }).join("");
-    return `<div class="ms-rows">${rows}</div>`;
+    return `<div class="ms-rows" data-live="queue">${rows}</div>`;
   }
   if (Array.isArray(payload.assets) && payload.assets.length > 0) {
     const cards = payload.assets.map((asset) => {
@@ -264,15 +301,145 @@ function wireActions(node, el) {
     const button = event.target.closest(".ms-btn");
     if (!button || button.disabled) return;
     const kind = button.dataset.kind || "";
+    // B1 补充要求(09-12 功能差异补齐):付费动作先出组稿器(补充要求可空),
+    // 执行才过桥——note 随动作入队,宿主经 userInstruction 语义喂付费生成。
+    // 非付费动作照旧直发。
+    if (button.classList.contains("ms-btn--paid") && !button.classList.contains("ms-btn--go")) {
+      openComposer(el, kind, button.textContent.replace(" ⭐", "").trim());
+      return;
+    }
+    if (button.classList.contains("ms-btn--cancel")) {
+      closeComposer(el);
+      return;
+    }
+    const note = button.classList.contains("ms-btn--go")
+      ? (el.querySelector(".ms-composer textarea")?.value || "")
+      : "";
+    if (button.classList.contains("ms-btn--go")) closeComposer(el);
+    postAction(kind, note, button);
+  });
+}
+
+function postAction(kind, note, button) {
+  if (button) {
     button.classList.remove("ms-btn--flash");
     void button.offsetWidth; // 重启动画
     button.classList.add("ms-btn--flash");
-    fetch(`${BRIDGE_URL}/comfy/bridge/actions`, {
-      method: "POST",
-      headers: { "X-Manying-Image-Token": BRIDGE_TOKEN, "Content-Type": "application/json" },
-      body: JSON.stringify({ kind }),
-    }).catch(() => undefined);
+  }
+  fetch(`${BRIDGE_URL}/comfy/bridge/actions`, {
+    method: "POST",
+    headers: { "X-Manying-Image-Token": BRIDGE_TOKEN, "Content-Type": "application/json" },
+    body: JSON.stringify(note ? { kind, note } : { kind }),
+  }).catch(() => undefined);
+}
+
+function openComposer(el, kind, label) {
+  closeComposer(el);
+  const composer = document.createElement("div");
+  composer.className = "ms-composer";
+  composer.innerHTML = `
+    <div class="ms-composer-title">「${esc(label)}」补充要求(可空,Enter 执行)</div>
+    <textarea rows="2" placeholder="如:节奏更快、多加一个反派伏笔、台词更口语化…"></textarea>
+    <div class="ms-composer-row">
+      <button class="ms-btn ms-btn--paid ms-btn--go" data-kind="${esc(kind)}">⭐ 执行(付费云端)</button>
+      <button class="ms-btn ms-btn--cancel">取消</button>
+    </div>`;
+  const actions = el.querySelector(".ms-actions");
+  (actions || el).append(composer);
+  const textarea = composer.querySelector("textarea");
+  textarea.addEventListener("keydown", (event) => {
+    if (event.key === "Enter" && !event.shiftKey) {
+      event.preventDefault();
+      composer.querySelector(".ms-btn--go").click();
+    }
+    if (event.key === "Escape") closeComposer(el);
   });
+  syncSizeFor(el);
+  textarea.focus();
+}
+
+function closeComposer(el) {
+  const composer = el.querySelector(".ms-composer");
+  if (composer) {
+    composer.remove();
+    syncSizeFor(el);
+  }
+}
+
+/** 由元素反查宿主节点补一轮高度同步(组稿器开合会变内容高) */
+function syncSizeFor(el) {
+  const host = el.closest && document.body.contains(el) ? el : null;
+  if (!host) return;
+  for (const node of (window.app?.canvas?.graph?._nodes || [])) {
+    if (node.__manyingDomBody && node.__manyingDomBody.el === el) {
+      node.__manyingDomBody.naturalH = Math.max(80, measureNatural(node, el));
+      syncSize(node);
+      return;
+    }
+  }
+}
+
+// ── B2 队列实时轮询(单例):桥 /comfy/bridge/storyboards 的 queue 快照 →
+// 逐镜 [data-shot-idx] 行原位重填 .ms-live 徽章;画布不在场=空转(仅查询)。──
+function installQueuePoller() {
+  if (window.__manyingQueuePoller) return;
+  window.__manyingQueuePoller = true;
+  setInterval(() => {
+    if (!document.querySelector('.manying-stage-body [data-live="queue"]')) return;
+    fetch(`${BRIDGE_URL}/comfy/bridge/storyboards`, { headers: { "X-Manying-Image-Token": BRIDGE_TOKEN } })
+      .then((response) => (response.ok ? response.json() : null))
+      .then((data) => {
+        if (!data || !Array.isArray(data.queue)) return;
+        for (const item of data.queue) {
+          const row = document.querySelector(`.manying-stage-body [data-shot-idx="${Number(item.index) || 0}"]`);
+          if (!row) continue;
+          const live = row.querySelector(".ms-live");
+          if (live) live.innerHTML = liveBadgesHTML(item.status, item.progress);
+        }
+      })
+      .catch(() => undefined);
+  }, 2000);
+}
+
+// ── B3 画布速查卡(老画布 CanvasHints 等价迁移):首开自动浮出五条核心用法,
+// 可关闭+localStorage 记忆,右下角「?」随时唤回。外挂 DOM,零改 ComfyUI 本体。──
+const HINTS_ITEMS = [
+  ["导航", "拖拽画布空白处平移,滚轮缩放;双击空白可添加节点"],
+  ["制作动作", "环节节点底部按钮:主色=本地/免费,金色⭐=付费云端(可填补充要求)"],
+  ["分镜总览", "「分镜面板」磁贴网格=本章全部分镜,缩略图缺失会自动重试"],
+  ["队列进度", "「单镜视频生产」每镜徽章每 2 秒实进(渲染中带进度条)"],
+  ["完整内容", "节点只展示概览;全文与操作进「阶段面板」(悬浮球切换阶段)"],
+];
+
+function installCanvasHints() {
+  if (document.getElementById("manying-canvas-hints-fab")) return;
+  const KEY = "manying.canvasHints.dismissed";
+  const build = () => {
+    const card = document.createElement("div");
+    card.id = "manying-canvas-hints";
+    card.innerHTML = `
+      <div class="ms-hints-head"><span>分镜画布速查</span><button class="ms-hints-x" title="关闭(右下角 ? 可唤回)">×</button></div>
+      ${HINTS_ITEMS.map(([title, text]) => `
+        <div class="ms-hints-item"><b>${title}</b><span>${text}</span></div>`).join("")}`;
+    document.body.append(card);
+    card.querySelector(".ms-hints-x").onclick = () => {
+      card.remove();
+      try { localStorage.setItem(KEY, "1"); } catch (error) { /* 无碍 */ }
+    };
+  };
+  const fab = document.createElement("button");
+  fab.id = "manying-canvas-hints-fab";
+  fab.title = "画布速查卡";
+  fab.textContent = "?";
+  fab.onclick = () => {
+    const existing = document.getElementById("manying-canvas-hints");
+    if (existing) existing.remove();
+    else build();
+  };
+  document.body.append(fab);
+  let dismissed = false;
+  try { dismissed = localStorage.getItem(KEY) === "1"; } catch (error) { /* 无碍 */ }
+  if (!dismissed) build();
 }
 
 function renderDomBody(node) {
@@ -310,6 +477,11 @@ function syncSize(node) {
 
 app.registerExtension({
   name: "manying.stage.dom",
+  async setup() {
+    // B2 队列轮询 + B3 速查卡:页面级单例,扩展 setup 一次即装
+    try { installQueuePoller(); } catch (error) { /* 无碍 */ }
+    try { installCanvasHints(); } catch (error) { /* 无碍 */ }
+  },
   async beforeRegisterNodeDef(nodeType) {
     const onNodeCreated = nodeType.prototype.onNodeCreated;
     nodeType.prototype.onNodeCreated = function () {

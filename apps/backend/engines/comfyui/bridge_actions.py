@@ -29,19 +29,28 @@ ALLOWED_KINDS = (
 CAP = 20
 
 
-def submit(kind: str) -> dict:
+NOTE_CAP = 2000  # 补充要求字符上限(付费生成的附加指令,09-12 功能差异补齐)
+
+
+def submit(kind: str, note: str = "") -> dict:
     kind = str(kind or "")
     if kind not in ALLOWED_KINDS:
         raise ValueError(f"未知动作类型:{kind}(允许:{'/'.join(ALLOWED_KINDS)})")
+    note = str(note or "").strip()[:NOTE_CAP]
     now = int(time.time() * 1000)
     with _LOCK:
-        # 同类未消费动作去重:侧栏按钮可能连点,宿主执行一次即可
+        # 同类未消费动作去重:侧栏按钮可能连点,宿主执行一次即可;
+        # 带新补充要求重提=更新在途 note(最新意图胜出,老画布同语义)
         if any(item["kind"] == kind for item in _STATE["actions"]):
             existing = next(item for item in _STATE["actions"] if item["kind"] == kind)
+            if note:
+                existing["note"] = note
             return {"id": existing["id"], "kind": kind, "duplicate": True}
         item_id = _STATE["nextId"]
         _STATE["nextId"] += 1
         item = {"id": item_id, "kind": kind, "submittedAt": now}
+        if note:
+            item["note"] = note
         _STATE["actions"].append(item)
         if len(_STATE["actions"]) > CAP:
             raise ValueError(f"动作队列超过 {CAP} 条上限(宿主未消费)")

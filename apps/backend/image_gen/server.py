@@ -526,13 +526,17 @@ class Handler(BaseHTTPRequestHandler):
                 self._send_json(bridge_sidepanel.snapshot())
                 return
             if method == "POST" and path == "/comfy/bridge/actions":
-                # 制作动作通道(09-11):引擎漫影侧栏提交,宿主渲染层消费执行
+                # 制作动作通道(09-11):引擎漫影侧栏提交,宿主渲染层消费执行;
+                # note=付费生成的补充要求(09-12 功能差异补齐 B1)
                 from engines.comfyui import bridge_actions
                 try:
-                    self._send_json(bridge_actions.submit(str(payload.get("kind") or "")))
+                    self._send_json(bridge_actions.submit(
+                        str(payload.get("kind") or ""),
+                        str(payload.get("note") or ""),
+                    ))
                 except ValueError as exc:
                     self._send_error_json(400, str(exc), "bridge-actions-invalid")
-                    return
+                return
                 return
             if method == "GET" and path == "/comfy/bridge/actions":
                 from engines.comfyui import bridge_actions

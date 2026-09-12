@@ -247,6 +247,40 @@ describe("ComfyCanvasStudio(辅助面板第六 tab)", () => {
     expect(onGenerateVideos).toHaveBeenCalledTimes(1);
   });
 
+  it("补充要求透传(09-12 B1):动作带 note → 付费回调收到 userInstruction 语义参数", async () => {
+    const calls: string[] = [];
+    (window as { comfyEngine?: ComfyEngineClient }).comfyEngine = {
+      ...stubClient({ installed: true, state: "ready", serviceRunning: true, port: 17007 }),
+      getBridgeActions: vi.fn(async (cursor: number) =>
+        cursor === 0
+          ? { cursor: 0, items: [
+              { id: 1, kind: "generate-director-plan", note: "多加两个反派伏笔" },
+              { id: 2, kind: "generate-storyboard-table" },
+            ] }
+          : { cursor, items: [] }),
+      ackBridgeActions: vi.fn(async () => 2),
+    } as ComfyEngineClient;
+    const onGenerateDirectorPlan = vi.fn((note?: string) => calls.push(`plan:${note ?? ""}`));
+    const onGenerateStoryboardTable = vi.fn((note?: string) => calls.push(`table:${note ?? ""}`));
+    render(<ComfyCanvasStudio sidebarActions={{
+      onGenerateImages: () => calls.push("images"),
+      onGenerateVideos: () => calls.push("videos"),
+      onGenerateDirectorPlan,
+      onGenerateStoryboardTable,
+    }} />);
+    const webview = (await waitFor(() => {
+      const el = document.querySelector("[data-comfy-canvas-webview]") as
+        (HTMLElement & { executeJavaScript?: (code: string) => Promise<unknown> }) | null;
+      if (!el) throw new Error("webview 未挂");
+      return el;
+    }, { timeout: 3000 }))!;
+    webview.dispatchEvent(new Event("dom-ready"));
+    await waitFor(() => expect(calls).toEqual([
+      "plan:多加两个反派伏笔",
+      "table:",
+    ]));
+  });
+
   it("autoOpen+有分镜:注入分镜流程链工作流载荷(旧画布迁移 09-11)", async () => {
     storeState.storyboards = [
       { id: "sb-1", index: 1, episodeId: "chapter-001", videoDesc: "第1镜", mediaRef: { kind: "image", path: "/a.png" } },

@@ -25,19 +25,22 @@ export function StudioView() {
       if (!viewModel.chapterAutoVideoRunning) void viewModel.handleRunChapterAutoVideo();
     },
     // 09-12 功能完备(用户终裁:节点功能要像之前):老画布环节动作回流,
-    // 走老画布同款派发器 handleProductionNodeAction(付费生成/重建轨道)
-    onGenerateDirectorPlan: () => {
+    // 走老画布同款派发器 handleProductionNodeAction(付费生成/重建轨道);
+    // note=补充要求(09-12 B1:userInstruction 语义,老画布输入框等价)
+    onGenerateDirectorPlan: (note?: string) => {
       void viewModel.handleProductionNodeAction({
         id: "generate-director-plan",
         label: "生成导演规划",
         targetStage: "storyboard",
+        userInstruction: note ?? "",
       });
     },
-    onGenerateStoryboardTable: () => {
+    onGenerateStoryboardTable: (note?: string) => {
       void viewModel.handleProductionNodeAction({
         id: "generate-storyboard-table",
         label: "生成分镜表",
         targetStage: "storyboard",
+        userInstruction: note ?? "",
       });
     },
     onRebuildWorkbenchTracks: () => {

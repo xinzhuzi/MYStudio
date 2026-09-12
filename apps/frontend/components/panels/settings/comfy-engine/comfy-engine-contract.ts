@@ -308,13 +308,17 @@ export interface ComfyEngineClient {
   /** 参考图上传闭环(阶段2 批2):同名覆写进引擎 input 目录(迁移占位名可跑)。 */
   uploadBridgeReference(name: string, imageB64: string): Promise<{ accepted: boolean; name?: string } | null>;
   /** 业务侧栏数据面(阶段2 批3):推分镜快照供引擎前端 sidebar 扩展拉取。
-   *  09-11 续:每镜带视频/画面就绪标记,另推当前章节 id(侧栏按章过滤)。 */
+   *  09-11 续:每镜带视频/画面就绪标记,另推当前章节 id(侧栏按章过滤)。
+   *  09-12 B2 续:queue=渲染队列实时快照(宿主从 window.remotionQueue 投影,
+   *  画布 stage-node 轮询同端点活更队列徽章,不经保鲜链重写库文件)。 */
   pushBridgeStoryboards(
     shots: Array<{ id: string; label: string; episodeId?: string; videoReady?: boolean; imageReady?: boolean }>,
     currentEpisodeId?: string,
+    queue?: Array<{ index: number; status: string; progress: number }>,
   ): Promise<boolean>;
-  /** 制作动作通道(09-11):宿主轮询引擎侧栏提交的批量动作,执行后 ack。 */
-  getBridgeActions(cursor: number): Promise<{ cursor: number; items: Array<{ id: number; kind: string }> } | null>;
+  /** 制作动作通道(09-11):宿主轮询引擎侧栏提交的批量动作,执行后 ack。
+   *  09-12 B1 续:note=付费生成的补充要求(老画布 userInstruction 语义)。 */
+  getBridgeActions(cursor: number): Promise<{ cursor: number; items: Array<{ id: number; kind: string; note?: string }> } | null>;
   ackBridgeActions(upTo: number): Promise<number | null>;
 }
 
