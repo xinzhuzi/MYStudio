@@ -13,15 +13,22 @@ def setup_function(_):
 
 
 def test_update_and_snapshot_roundtrip():
-    result = bridge_sidepanel.update([
-        {"id": "sb-1", "label": "S01 · 开篇", "episodeId": "ep-1"},
-        {"id": "sb-2", "label": "", "episodeId": "ep-1"},  # 空标签回落 id
-    ])
+    result = bridge_sidepanel.update(
+        [
+            {"id": "sb-1", "label": "S01 · 开篇", "episodeId": "ep-1", "videoReady": True, "imageReady": False},
+            {"id": "sb-2", "label": "", "episodeId": "ep-1"},  # 空标签回落 id
+        ],
+        {"currentEpisodeId": "ep-1"},
+    )
     assert result["updatedAt"] > 0
-    shots = bridge_sidepanel.snapshot()["shots"]
+    snap = bridge_sidepanel.snapshot()
+    assert snap["currentEpisodeId"] == "ep-1"
+    shots = snap["shots"]
     assert [shot["id"] for shot in shots] == ["sb-1", "sb-2"]
     assert shots[0]["label"] == "S01 · 开篇"
     assert shots[1]["label"] == "sb-2"
+    assert shots[0]["videoReady"] is True and shots[0]["imageReady"] is False
+    assert shots[1]["videoReady"] is False
 
 
 def test_update_filters_bad_entries_and_caps():
@@ -37,4 +44,4 @@ def test_update_filters_bad_entries_and_caps():
 
 def test_snapshot_defaults_empty():
     snap = bridge_sidepanel.snapshot()
-    assert snap == {"updatedAt": 0, "staleAfterMs": 900_000, "shots": []}
+    assert snap == {"updatedAt": 0, "staleAfterMs": 900_000, "shots": [], "currentEpisodeId": ""}

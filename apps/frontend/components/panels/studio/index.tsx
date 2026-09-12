@@ -16,6 +16,38 @@ export function StudioView() {
     storyboards: viewModel.chapterStoryboards,
     projectName: viewModel.projectName,
   });
+  // 漫影侧栏制作动作宿主侧(09-11 旧画布功能迁移收口):运行中防重入
+  const sidebarActions = {
+    onGenerateImages: () => {
+      if (!storyboardBatch.state.running) storyboardBatch.start();
+    },
+    onGenerateVideos: () => {
+      if (!viewModel.chapterAutoVideoRunning) void viewModel.handleRunChapterAutoVideo();
+    },
+    // 09-12 功能完备(用户终裁:节点功能要像之前):老画布环节动作回流,
+    // 走老画布同款派发器 handleProductionNodeAction(付费生成/重建轨道)
+    onGenerateDirectorPlan: () => {
+      void viewModel.handleProductionNodeAction({
+        id: "generate-director-plan",
+        label: "生成导演规划",
+        targetStage: "storyboard",
+      });
+    },
+    onGenerateStoryboardTable: () => {
+      void viewModel.handleProductionNodeAction({
+        id: "generate-storyboard-table",
+        label: "生成分镜表",
+        targetStage: "storyboard",
+      });
+    },
+    onRebuildWorkbenchTracks: () => {
+      void viewModel.handleProductionNodeAction({
+        id: "rebuild-workbench-tracks",
+        label: "重建视频轨道",
+        targetStage: "workbench",
+      });
+    },
+  };
 
   return (
     <div className="studio-workspace studio-workspace-workflow h-full bg-panel">
@@ -93,7 +125,9 @@ export function StudioView() {
               value="storyboard"
               className="m-0 min-h-0 flex-1"
             >
-              <ComfyCanvasSwap title="分镜制作 · ComfyUI" />
+              {/* 09-10 用户裁定:进入工作流阶段即展示本章分镜总览(分镜内容优先);
+                  09-11 补裁定:漫影侧栏按模块分内容,工作流模块默认「分镜」页签 */}
+              <ComfyCanvasSwap autoOpenOverview manyingScope="workflow" sidebarActions={sidebarActions} stageFlowNodes={viewModel.productionFlowNodes} />
             </TabsContent>
 
             <TabsContent
@@ -118,10 +152,8 @@ export function StudioView() {
               value="imageWorkflow"
               className="m-0 min-h-0 flex-1"
             >
-              <ComfyCanvasSwap
-                title="分镜画布 · ComfyUI"
-                onBack={viewModel.closeAssetImageWorkflow}
-              />
+              {/* 分镜画布(资产/单镜图编辑)=分镜生产语境,漫影侧栏默认「分镜」页签 */}
+              <ComfyCanvasSwap manyingScope="workflow" sidebarActions={sidebarActions} stageFlowNodes={viewModel.productionFlowNodes} />
             </TabsContent>
 
             <TabsContent value="workbench" className="m-0">

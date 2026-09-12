@@ -382,7 +382,7 @@ function openStoryboardStageExpression() {
         await wait(500);
       }
       const workflowButton = await waitFor(
-        () => interactive().find((node) => normalize(node) === '工作流' || normalize(node).includes('工作流')),
+        () => interactive().find((node) => normalize(node) === 'MY 工作流' || normalize(node).includes('MY 工作流')),
         20_000,
       );
       const workflowClick = { clicked: activate(workflowButton), text: workflowButton ? normalize(workflowButton) : '' };

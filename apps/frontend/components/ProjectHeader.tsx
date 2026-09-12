@@ -14,7 +14,7 @@ import { ChromeControls, SidebarToggleButton } from "@/components/ChromeControls
 const WORKSPACE_LABELS: Partial<Record<Tab, string>> = {
   dashboard: "项目仪表盘",
   overview: "项目概览",
-  studio: "漫影工作流",
+  studio: "MY 工作流", // 09-11 用户裁定:项目适应命名(漫影工作流→MY 工作流)
   script: "策划编剧",
   characters: "角色库",
   scenes: "场景库",

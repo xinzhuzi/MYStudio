@@ -1111,8 +1111,8 @@ function visibleWorkflowExpression(delayMs, focusWindow) {
       activate(projectCard);
       await visibleDelay();
     }
-    await waitFor(() => Array.from(document.querySelectorAll('button, [role="button"]')).some((node) => normalize(node) === '工作流'), 15_000);
-    const workflowClick = clickText('工作流', true);
+    await waitFor(() => Array.from(document.querySelectorAll('button, [role="button"]')).some((node) => normalize(node) === 'MY 工作流'), 15_000);
+    const workflowClick = clickText('MY 工作流', true);
     await visibleDelay();
     await waitFor(() => Boolean(document.querySelector('[data-workflow-orb]')), 15_000);
     await waitFor(() => window.mystudioWorkflowSmoke?.resetForStepwiseExecution, 15_000);
@@ -1243,7 +1243,7 @@ function realProjectWorkflowExpression(
           Boolean(document.querySelector('[aria-label="打开分镜 ' + expectedStoryboards + ' 图片工作流"]')),
         hasStoryboardNodePointer,
         hasStageSwitcher: Boolean(document.querySelector('[data-workflow-orb]')),
-        hasWorkflowTab: buttonTexts.some((text) => text === '工作流' || text.includes('工作流')),
+        hasWorkflowTab: buttonTexts.some((text) => text === 'MY 工作流' || text.includes('MY 工作流')),
         hasProjectCard: Boolean(document.querySelector('.dashboard-project-card')),
         title: document.title,
         url: location.href,
@@ -2201,10 +2201,10 @@ function realProjectWorkflowExpression(
     const projectClick = clickText(projectName);
     await visibleDelay();
     await waitFor(() => captureVisibleWorkflowDomEvidence().hasWorkflowTab, 20_000);
-    const workflowClick = clickText('工作流', true);
+    const workflowClick = clickText('MY 工作流', true);
     const workflowFallbackClick = workflowClick.clicked
       ? { clicked: false, text: '' }
-      : clickText('工作流');
+      : clickText('MY 工作流');
     await visibleDelay();
     const switcherEvidence = await waitFor(() => {
       const evidence = captureVisibleWorkflowDomEvidence();
@@ -2219,7 +2219,7 @@ function realProjectWorkflowExpression(
       const domEvidence = captureVisibleWorkflowDomEvidence();
       return {
         source: realProject.source,
-        clickedWorkflow: Boolean(workflowClick.clicked || workflowFallbackClick.clicked || normalize(document.body).includes('工作流')),
+        clickedWorkflow: Boolean(workflowClick.clicked || workflowFallbackClick.clicked || normalize(document.body).includes('MY 工作流')),
         clickedProject: Boolean(projectClick.clicked),
         completed: false,
         progress: 0,
@@ -2284,7 +2284,7 @@ function realProjectWorkflowExpression(
     const realProject = await inspectProjectData();
     return {
       source: realProject.source,
-      clickedWorkflow: Boolean(workflowClick.clicked || workflowFallbackClick.clicked || normalize(document.body).includes('工作流')),
+      clickedWorkflow: Boolean(workflowClick.clicked || workflowFallbackClick.clicked || normalize(document.body).includes('MY 工作流')),
       clickedProject: Boolean(projectClick.clicked),
       completed: results.every((item) => item.clicked && item.ready),
       progress: results.filter((item) => item.ready).length / results.length * 100,

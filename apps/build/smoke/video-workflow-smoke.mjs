@@ -503,7 +503,7 @@ export function buildApplyAcceptedExpression({ projectId, projectName, chapterId
     };
     const projectCard = await waitFor(() => Array.from(document.querySelectorAll('.dashboard-project-card')).find((node) => normalize(node).includes(projectName)), '隔离项目卡片');
     const projectOpened = activate(projectCard);
-    const workflowButton = await waitFor(() => Array.from(document.querySelectorAll('button, [role="button"]')).find((node) => normalize(node) === '工作流'), '工作流入口');
+    const workflowButton = await waitFor(() => Array.from(document.querySelectorAll('button, [role="button"]')).find((node) => normalize(node) === 'MY 工作流'), 'MY 工作流入口');
     const workflowOpened = activate(workflowButton);
     const orbSwitcher = await waitFor(() => document.querySelector('[data-workflow-orb]'), '阶段切换悬浮球');
     if (!activate(orbSwitcher)) throw new Error('无法打开阶段切换面板');

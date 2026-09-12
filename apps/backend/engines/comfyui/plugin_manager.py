@@ -732,19 +732,34 @@ def _safe_workflow_id(workflow_id: str) -> Path:
     return path
 
 
-def list_workflows() -> dict:
-    """库内工作流树(节点数统计+缺失插件标记);引擎未跑时 missingNodes=null。"""
+def list_workflows(prefix: str | None = None, light: bool = False) -> dict:
+    """库内工作流树(节点数统计+缺失插件标记);引擎未跑时 missingNodes=null。
+
+    09-12 workflow-single-open 海量参数(默认行为不变,旧调用方零影响):
+    - prefix:按库内相对路径前缀过滤,早跳不读文件(主线卡只拉 0_工作流主线/);
+    - light:跳过逐文件 JSON 解析与缺失插件计算(只 id/name/sizeBytes)——
+      4125 章≈4千~1万条时逐文件解析是数量级雷,侧栏浏览用轻量。
+    """
     engine = engine_manager()
     node_map = _plugin_nodes_map()
     engine_online = engine.is_healthy()
     object_names: set[str] = set()
-    if engine_online:
+    if engine_online and not light:
         try:
             object_names = engine.object_info_names()
         except (EngineOpError, OSError, error.URLError):
             engine_online = False
     entries = []
     for wf in _iter_workflow_files():
+        rel = wf.relative_to(cm.workflows_dir()).as_posix()
+        if prefix and not rel.startswith(prefix):
+            continue
+        if light:
+            entries.append({
+                "id": rel,
+                "name": wf.stem, "sizeBytes": wf.stat().st_size,
+            })
+            continue
         obj = parse_workflow_json(wf.read_text(encoding="utf-8", errors="replace"))
         types = workflow_node_types(obj)
         missing_nodes: list[str] | None = None
@@ -754,7 +769,7 @@ def list_workflows() -> dict:
             missing_nodes = missing
             missing_plugins = sorted({node_map[t] for t in missing if t in node_map})
         entries.append({
-            "id": wf.relative_to(cm.workflows_dir()).as_posix(),
+            "id": rel,
             "name": wf.stem, "sizeBytes": wf.stat().st_size,
             "nodeCount": workflow_node_count(obj),
             "missingNodes": missing_nodes, "missingPlugins": missing_plugins,

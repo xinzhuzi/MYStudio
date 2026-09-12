@@ -603,14 +603,36 @@ export function createHttpComfyEngineClient(): ComfyEngineClient {
         return null; // ack 失败不致命:下次轮询重消费(落账幂等由 checkpointRef 保证)
       }
     },
-    async pushBridgeStoryboards(shots: Array<{ id: string; label: string; episodeId?: string }>): Promise<boolean> {
+    async pushBridgeStoryboards(
+      shots: Array<{ id: string; label: string; episodeId?: string; videoReady?: boolean; imageReady?: boolean }>,
+      currentEpisodeId?: string,
+    ): Promise<boolean> {
       try {
         await comfySidecarRequest<{ updatedAt?: number }>("POST", "/comfy/bridge/storyboards", {
-          body: { shots },
+          body: { shots, ...(currentEpisodeId ? { currentEpisodeId } : {}) },
         });
         return true;
       } catch {
         return false; // 推送面:失败静默(下一 tick 重推)
+      }
+    },
+    async getBridgeActions(cursor: number): Promise<{ cursor: number; items: Array<{ id: number; kind: string }> } | null> {
+      try {
+        return await comfySidecarRequest<{ cursor: number; items: Array<{ id: number; kind: string }> }>(
+          "GET", `/comfy/bridge/actions?cursor=${cursor}`,
+        );
+      } catch {
+        return null; // 通道缺席(旧 sidecar)=静默,动作按钮不可用
+      }
+    },
+    async ackBridgeActions(upTo: number): Promise<number | null> {
+      try {
+        const raw = await comfySidecarRequest<{ deleted?: number }>("POST", "/comfy/bridge/actions/ack", {
+          body: { upTo },
+        });
+        return raw.deleted ?? 0;
+      } catch {
+        return null;
       }
     },
     async uploadBridgeReference(name: string, imageB64: string): Promise<{ accepted: boolean; name?: string } | null> {

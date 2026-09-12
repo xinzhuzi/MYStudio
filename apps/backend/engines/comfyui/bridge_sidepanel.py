@@ -14,12 +14,12 @@ import threading
 import time
 
 _LOCK = threading.Lock()
-_STATE: dict = {"updatedAt": 0, "shots": []}
+_STATE: dict = {"updatedAt": 0, "shots": [], "currentEpisodeId": ""}
 
 STALE_S = 900.0  # 渲染层停推 15 分钟后侧栏仍可显示旧快照(标注时间)
 
 
-def update(shots: list) -> dict:
+def update(shots: list, payload: dict | None = None) -> dict:
     if not isinstance(shots, list):
         raise ValueError("shots 必须是数组")
     clean = []
@@ -29,6 +29,9 @@ def update(shots: list) -> dict:
                 "id": item["id"],
                 "label": str(item.get("label") or item["id"])[:64],
                 "episodeId": str(item.get("episodeId") or "")[:64],
+                # 09-11 续:视频/画面就绪标记(分镜页签的视频分类展示)
+                "videoReady": bool(item.get("videoReady")),
+                "imageReady": bool(item.get("imageReady")),
             })
     if len(clean) > 500:
         raise ValueError("shots 超过 500 条上限")
@@ -37,10 +40,12 @@ def update(shots: list) -> dict:
         # 锁内直接组装返回值:snapshot() 也取 _LOCK,非重入 Lock 嵌套=自死锁
         _STATE["shots"] = clean
         _STATE["updatedAt"] = now
+        _STATE["currentEpisodeId"] = str((payload or {}).get("currentEpisodeId") or "")[:64]
         return {
             "updatedAt": now,
             "staleAfterMs": int(STALE_S * 1000),
             "shots": list(clean),
+            "currentEpisodeId": _STATE["currentEpisodeId"],
         }
 
 
@@ -50,6 +55,7 @@ def snapshot() -> dict:
             "updatedAt": _STATE["updatedAt"],
             "staleAfterMs": int(STALE_S * 1000),
             "shots": list(_STATE["shots"]),
+            "currentEpisodeId": _STATE.get("currentEpisodeId", ""),
         }
 
 
@@ -57,3 +63,4 @@ def reset_for_tests() -> None:
     with _LOCK:
         _STATE["shots"] = []
         _STATE["updatedAt"] = 0
+        _STATE["currentEpisodeId"] = ""

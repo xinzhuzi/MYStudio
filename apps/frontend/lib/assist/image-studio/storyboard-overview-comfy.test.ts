@@ -6,8 +6,10 @@ import { describe, expect, it } from "vitest";
 
 import {
   buildStoryboardOverviewWorkflow,
+  shotDescription,
   shotLabel,
   shotMediaStatus,
+  shotPreviewName,
 } from "@/lib/assist/image-studio/storyboard-overview-comfy";
 import type { StoryboardItem } from "@/types/studio";
 
@@ -26,7 +28,7 @@ describe("章节分镜总览图生成器(批7)", () => {
   it("12 镜:网格布局(10/列=两列)、id/label/状态齐、报告可读", () => {
     const storyboards = Array.from({ length: 12 }, (_, i) => shot(`sb-${i + 1}`, i + 1));
     const result = buildStoryboardOverviewWorkflow(storyboards);
-    const ui = result.ui as { nodes: Array<{ id: number; pos: [number, number]; widgets_values: unknown[] }>; groups: unknown[] };
+    const ui = result.ui as { nodes: Array<{ id: number; title?: string; pos: [number, number]; widgets_values: unknown[] }>; groups: unknown[] };
 
     expect(result.report).toEqual({ shots: 12, chapters: ["chapter-001"], name: "分镜总览 · chapter-001" });
     expect(ui.nodes).toHaveLength(12);
@@ -34,12 +36,30 @@ describe("章节分镜总览图生成器(批7)", () => {
     expect(ui.nodes[10].pos[0]).toBeGreaterThan(ui.nodes[0].pos[0]);
     // widget 序=shot_id/label/desc/status
     expect(ui.nodes[0].widgets_values).toEqual(["sb-1", "S01 · 第1镜", "第1镜", "图— 视频—"]);
+    // 09-12 标题栏=镜号(固定节点不回落类型名)
+    expect(ui.nodes[0].title).toBe("S01 · 第1镜");
     expect(ui.groups).toHaveLength(1);
   });
 
   it("媒体状态:图✓/视频✓ 按 mediaRef 判定;label 截断 14 字", () => {
     expect(shotMediaStatus(shot("a", 1, "e", { mediaRef: { kind: "image", path: "p.png" } as never }))).toBe("图✓ 视频—");
     expect(shotLabel(shot("a", 1, "e", { videoDesc: "一二三四五六七八九十一二三十四五六" }))).toBe("S01 · 一二三四五六七八九十一二三十");
+  });
+
+  it("图片带:带图镜写 manyingPreview(名按 shot id 净化),无图镜不写键;描述截断 80 字", () => {
+    const withImage = shot("scene:S 01/02", 1, "chapter-001", { mediaRef: { kind: "image", path: "p.png" } as never });
+    expect(shotPreviewName(withImage)).toBe("manying-shot-scene_S_01_02.jpg");
+    expect(shotPreviewName(shot("a", 1, "e", { mediaRef: { kind: "video", path: "v.mp4" } as never }))).toBe("");
+    expect(shotPreviewName(shot("a", 1))).toBe("");
+
+    const nodes = (buildStoryboardOverviewWorkflow([withImage, shot("b", 2)]).ui as {
+      nodes: Array<{ properties: Record<string, unknown> }>;
+    }).nodes;
+    expect(nodes[0].properties.manyingPreview).toBe("manying-shot-scene_S_01_02.jpg");
+    expect("manyingPreview" in nodes[1].properties).toBe(false);
+
+    const long = "字".repeat(120);
+    expect(shotDescription(shot("a", 1, "e", { videoDesc: long }))).toBe(`${"字".repeat(80)}…`);
   });
 
   it("多章:章序分组排序稳定;空表零节点不炸", () => {

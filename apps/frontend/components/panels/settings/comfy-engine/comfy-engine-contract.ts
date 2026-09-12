@@ -307,8 +307,15 @@ export interface ComfyEngineClient {
 
   /** 参考图上传闭环(阶段2 批2):同名覆写进引擎 input 目录(迁移占位名可跑)。 */
   uploadBridgeReference(name: string, imageB64: string): Promise<{ accepted: boolean; name?: string } | null>;
-  /** 业务侧栏数据面(阶段2 批3):推分镜快照供引擎前端 sidebar 扩展拉取。 */
-  pushBridgeStoryboards(shots: Array<{ id: string; label: string; episodeId?: string }>): Promise<boolean>;
+  /** 业务侧栏数据面(阶段2 批3):推分镜快照供引擎前端 sidebar 扩展拉取。
+   *  09-11 续:每镜带视频/画面就绪标记,另推当前章节 id(侧栏按章过滤)。 */
+  pushBridgeStoryboards(
+    shots: Array<{ id: string; label: string; episodeId?: string; videoReady?: boolean; imageReady?: boolean }>,
+    currentEpisodeId?: string,
+  ): Promise<boolean>;
+  /** 制作动作通道(09-11):宿主轮询引擎侧栏提交的批量动作,执行后 ack。 */
+  getBridgeActions(cursor: number): Promise<{ cursor: number; items: Array<{ id: number; kind: string }> } | null>;
+  ackBridgeActions(upTo: number): Promise<number | null>;
 }
 
 /** bridge 回写收件项(引擎 manying_generated → sidecar;渲染层消费)。 */

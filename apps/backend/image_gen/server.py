@@ -515,7 +515,7 @@ class Handler(BaseHTTPRequestHandler):
                 # 业务侧栏数据面(阶段2 批3):渲染层推分镜快照
                 from engines.comfyui import bridge_sidepanel
                 try:
-                    result = bridge_sidepanel.update(payload.get("shots") or [])
+                    result = bridge_sidepanel.update(payload.get("shots") or [], payload)
                 except ValueError as exc:
                     self._send_error_json(400, str(exc), "bridge-storyboards-invalid")
                     return
@@ -524,6 +524,23 @@ class Handler(BaseHTTPRequestHandler):
             if method == "GET" and path == "/comfy/bridge/storyboards":
                 from engines.comfyui import bridge_sidepanel
                 self._send_json(bridge_sidepanel.snapshot())
+                return
+            if method == "POST" and path == "/comfy/bridge/actions":
+                # 制作动作通道(09-11):引擎漫影侧栏提交,宿主渲染层消费执行
+                from engines.comfyui import bridge_actions
+                try:
+                    self._send_json(bridge_actions.submit(str(payload.get("kind") or "")))
+                except ValueError as exc:
+                    self._send_error_json(400, str(exc), "bridge-actions-invalid")
+                    return
+                return
+            if method == "GET" and path == "/comfy/bridge/actions":
+                from engines.comfyui import bridge_actions
+                self._send_json(bridge_actions.list_since(int(q("cursor") or 0)))
+                return
+            if method == "POST" and path == "/comfy/bridge/actions/ack":
+                from engines.comfyui import bridge_actions
+                self._send_json({"deleted": bridge_actions.ack(int(payload.get("upTo") or 0))})
                 return
             if method == "POST" and path == "/comfy/bridge/writebacks/ack":
                 self._send_json({"deleted": bridge_inbox.ack(int(payload.get("upTo") or 0))})
@@ -654,7 +671,12 @@ class Handler(BaseHTTPRequestHandler):
 
             # ── 工作流库(纯文件操作组) ──
             if method == "GET" and path == "/comfy/workflows":
-                self._send_json(pm.list_workflows())
+                # 09-12 workflow-single-open:prefix=路径前缀过滤/light=轻量清单
+                # (跳过逐文件解析;海量库性能)。缺省两者皆无=旧行为不变。
+                self._send_json(pm.list_workflows(
+                    prefix=(q("prefix") or None),
+                    light=q("light") in ("1", "true", "yes"),
+                ))
                 return
             if method == "POST" and path == "/comfy/workflows/import":
                 self._send_json(pm.import_workflows(payload.get("files"), overwrite=payload.get("overwrite") is True))

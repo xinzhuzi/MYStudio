@@ -113,7 +113,7 @@ const stepDelayMs = Number.isFinite(parsedStepDelayMs)
   : 0;
 const CORE_ROUTE_CHECKS = [
   {
-    label: "工作流",
+    label: "MY 工作流",  // 09-11 项目适应命名(与侧栏按钮文本一致)
     requiredText: [
       "待推进：",
       "切换阶段",
@@ -1098,7 +1098,7 @@ async function verifyRoute(evaluate, route) {
 
     routeButton.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, view: window }));
     // 工作流路由的待推进/切换阶段文案在悬浮球面板内;球随工作流视图懒加载挂载,须等球出现再点开面板(合成 click 无 pointer 事件,组件有兜底)
-    if (routeLabel === '工作流') {
+    if (routeLabel === 'MY 工作流') {
       // 09-11 resetKey:视图切换会异步收面板——导航后先等效应落定再点球,
       // 否则机器速度下点球开面板会被随后的收面板效应关掉(真人时序不可能命中)
       await new Promise((resolve) => setTimeout(resolve, 300));
@@ -1222,7 +1222,9 @@ async function verifyWorkflowStages(evaluate) {
       {
         id: 'storyboard',
         label: '分镜视频生成',
-        requiredText: ['分镜制作 · ComfyUI'], // 09-09 批8:主画布=ComfyUI(引导态文案)
+        // 09-11 沉浸化:画布头部条退役(状态与切换入口归悬浮球,Layout 沉浸分支)
+        // ——文本锚随之撤除,画布在场由 hasNodeCanvas(data-comfy-swap DOM 锚)硬断言
+        requiredText: [],
         forbiddenText: ['分镜表与分镜视频生成', '运行 AI 分镜计划', '添加分镜', '生成配音', '试听配音', '进入待处理阶段'],
       },
       {
@@ -1313,7 +1315,6 @@ async function verifyPluginSettings(evaluate) {
           'Python 运行环境',
           'ComfyUI 引擎',
           '视觉审核（VLM 一致性检查）',
-          '视频评分模型',
           'TTS 运行时与模型',
           '本地音效生成',
           '视频工作流插件',
@@ -1867,7 +1868,7 @@ async function verifyWorkflowEndToEnd(evaluate) {
     const seed = await waitFor(() => window.mystudioWorkflowSmoke?.seedCompleteWorkflow, 10_000);
     const seedResult = seed ? await seed() : null;
     await wait(500);
-    const clickedWorkflow = clickButtonByText('工作流');
+    const clickedWorkflow = clickButtonByText('MY 工作流');
     await waitFor(() => (document.body?.innerText || '').includes('100%') || (document.body?.innerText || '').includes('已导出最终成片'), 8000);
     await window.mystudioWorkflowSmoke?.setWorkflowStage?.('storyboard');
     await wait(800);
@@ -1878,6 +1879,9 @@ async function verifyWorkflowEndToEnd(evaluate) {
     // 整体跳过,canvas 相关断言已在失败清单侧移除;直接返回底账标志。
     if (nodeCardTexts.length === 0) {
       // 09-09 批8:主画布退役=节点漫步不可能;种子/巡检底账照常返回
+      // 09-11 沉浸化:storyboard=画布沉浸态(侧栏卸载)——收尾切回内容阶段,
+      // 否则下一段(asset voice flow)点不到侧栏「资产」按钮死等超时
+      await window.mystudioWorkflowSmoke?.setWorkflowStage?.('workbench');
       const inspectEarly = await window.mystudioWorkflowSmoke?.inspectWorkflow?.();
       const earlyBodyText = (document.body?.innerText || '');
       const checksEarly = inspectEarly?.checks ?? {};
@@ -1919,7 +1923,7 @@ async function verifyWorkflowEndToEnd(evaluate) {
     const assetsText = assetsNode ? normalize(assetsNode) : '';
     const storyboardText = storyboardNode ? normalize(storyboardNode) : '';
     const openDerivativeImageWorkflowDetail = async (workflowId, generatedTitle, writebackTarget) => {
-      clickButtonByText('工作流');
+      clickButtonByText('MY 工作流');
       await window.mystudioWorkflowSmoke?.setWorkflowStage?.('storyboard');
       const workflowButton = await waitFor(() => document
         .querySelector('[data-flow-node-id="assets"] [data-asset-workflow-id="' + workflowId + '"]'), 8000);
@@ -2192,7 +2196,7 @@ async function verifyWorkflowStepByStepExecution(evaluate) {
       return stage?.status === 'ready' ? inspected : null;
     }, 5000);
 
-    const clickedWorkflow = clickButtonByText('工作流', true);
+    const clickedWorkflow = clickButtonByText('MY 工作流', true);
     await visibleStepDelay();
     await waitFor(() => window.mystudioWorkflowSmoke?.resetForStepwiseExecution, 10_000);
     const reset = await window.mystudioWorkflowSmoke?.resetForStepwiseExecution?.();
@@ -2569,7 +2573,7 @@ async function verifyScriptAssetGenerationVoiceFlow(evaluate) {
 
     await waitFor(() => window.mystudioWorkflowSmoke?.seedCompleteWorkflow, 10_000);
     const seedResult = await window.mystudioWorkflowSmoke?.seedCompleteWorkflow?.();
-    const clickedWorkflow = clickButtonByText('工作流', true);
+    const clickedWorkflow = clickButtonByText('MY 工作流', true);
     await waitFor(() => Boolean(document.querySelector('[data-workflow-orb]')), 5000);
     document.querySelector('[data-workflow-orb]')?.click();
     await waitFor(() => (document.body?.innerText || '').includes('待推进：'), 5000);

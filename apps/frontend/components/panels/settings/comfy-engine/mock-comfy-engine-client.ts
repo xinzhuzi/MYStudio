@@ -529,6 +529,12 @@ export function createMockComfyEngineClient(
     async ackBridgeWritebacks(): Promise<number | null> {
       return 0;
     },
+    async getBridgeActions(cursor: number) {
+      return { cursor, items: [] as Array<{ id: number; kind: string }> };
+    },
+    async ackBridgeActions() {
+      return 0;
+    },
     async pushBridgeStoryboards(): Promise<boolean> {
       return true;
     },

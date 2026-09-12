@@ -18,6 +18,8 @@ const SimpleTimeline = lazy(() =>
   import("./SimpleTimeline").then((m) => ({ default: m.SimpleTimeline })),
 );
 import { useMediaPanelStore } from "@/stores/navigation/media-panel-store";
+import { useStudioStore } from "@/stores/studio/studio-store";
+import { resolveVisibleWorkflowStage } from "@/components/panels/studio/workflow-stage/workflow-tabs";
 import {
   ResizablePanelGroup,
   ResizablePanel,
@@ -93,6 +95,11 @@ export function Layout() {
     settingsTabRequest,
     clearSettingsTabRequest,
   } = useMediaPanelStore();
+  // 工作流阶段真源(studio-store 持久):画布阶段沉浸判定用(hooks 须在
+  // 任何 early return 之前,值在沉浸分支处消费)
+  const workflowStageRaw = useStudioStore(
+    (state) => state.workflowConfig.workflowStage,
+  );
   const [sidebarCollapsed, setSidebarCollapsed] = useState(true);
   const previousInProjectRef = useRef(inProject);
   const toggleSidebar = () => setSidebarCollapsed((collapsed) => !collapsed);
@@ -155,7 +162,14 @@ export function Layout() {
   // 09-10 全屏 ComfyUI 合一(用户裁定):沉浸视图零应用 chrome——侧栏/面包屑
   // 都不渲染,悬浮球=唯一导航枢纽;顶部留 8px 透明拖拽条(.project-chrome 退役
   // 后窗口拖动区由它承接,细条不吞 ComfyUI 工具栏点击)。
-  if (activeTab === "freedom") {
+  // 09-11 裁定延伸:工作流画布阶段(分镜制作/分镜画布)同享沉浸——阶段状态与
+  // 切换入口已全部归悬浮球,画布之上不再压标题栏;切回内容阶段(小说/剧本等)
+  // 自动恢复常规 chrome。
+  const workflowStage = resolveVisibleWorkflowStage(workflowStageRaw);
+  const studioCanvasStage =
+    activeTab === "studio" &&
+    (workflowStage === "storyboard" || workflowStage === "imageWorkflow");
+  if (activeTab === "freedom" || studioCanvasStage) {
     return (
       <>
         <div className="freedom-drag-strip" data-freedom-drag-strip aria-hidden />
@@ -163,7 +177,7 @@ export function Layout() {
           <div className="studio-main h-full">
             <Suspense fallback={<PanelFallback />}>
               <div key={activeTab} className="cinematic-route h-full min-h-0">
-                <ComfyWorkspace />
+                {activeTab === "freedom" ? <ComfyWorkspace /> : <StudioView />}
               </div>
             </Suspense>
           </div>
@@ -190,33 +204,33 @@ export function Layout() {
             <div className="studio-main flex-1 min-w-0 flex flex-col">
               <Suspense fallback={<PanelFallback />}>
                 <div key={activeTab} className="cinematic-route flex-1 h-full min-h-0">
-              {activeTab === "export" && <ExportView />}
-              {activeTab === "settings" && (
-                <SettingsPanel
-                  sidebarCollapsed={sidebarCollapsed}
-                  onToggleSidebar={toggleSidebar}
-                  initialTab={settingsTabRequest ?? undefined}
-                  onInitialTabConsumed={clearSettingsTabRequest}
-                />
-              )}
-              {activeTab === "overview" && <OverviewPanel />}
-              {activeTab === "studio" && <StudioView />}
-              {activeTab === "script" && <ScriptView />}
-              {activeTab === "characters" && <CharactersView />}
-              {activeTab === "scenes" && <ScenesView />}
-              {activeTab === "self-media" && <SelfMediaPanel />}
-              {activeTab === "media" && <ArtifactCenter />}
-              {/* 重型面板：懒挂载 + hidden 保活 */}
+                  {activeTab === "export" && <ExportView />}
+                  {activeTab === "settings" && (
+                    <SettingsPanel
+                      sidebarCollapsed={sidebarCollapsed}
+                      onToggleSidebar={toggleSidebar}
+                      initialTab={settingsTabRequest ?? undefined}
+                      onInitialTabConsumed={clearSettingsTabRequest}
+                    />
+                  )}
+                  {activeTab === "overview" && <OverviewPanel />}
+                  {activeTab === "studio" && <StudioView />}
+                  {activeTab === "script" && <ScriptView />}
+                  {activeTab === "characters" && <CharactersView />}
+                  {activeTab === "scenes" && <ScenesView />}
+                  {activeTab === "self-media" && <SelfMediaPanel />}
+                  {activeTab === "media" && <ArtifactCenter />}
+                  {/* 重型面板：懒挂载 + hidden 保活 */}
               {mountedTabs.has("assets") && <div className={activeTab === "assets" ? "h-full" : "hidden"}><AssetsView /></div>}
               {mountedTabs.has("skills") && <div className={activeTab === "skills" ? "h-full" : "hidden"}><SkillsView sidebarCollapsed={sidebarCollapsed} onToggleSidebar={toggleSidebar} /></div>}
-            </div>
+                </div>
               </Suspense>
           </div>
+        </div>
         </div>
         <Suspense fallback={null}>
           <AppOrb />
         </Suspense>
-      </div>
       </>
     );
   }

@@ -8,14 +8,18 @@
 // - 运行中(port 就绪) → webview 指向 http://127.0.0.1:<port>/
 // 该 tab 也是后续阶段(业务自定义节点/画布主体切换)的调试台。
 
-import { useEffect, useMemo, useRef } from "react";
+import { useCallback, useEffect, useMemo, useRef } from "react";
 import { Loader2, PlayCircle, ServerCog } from "lucide-react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { useComfyEngineSettings } from "@/components/panels/settings/comfy-engine/useComfyEngineSettings";
 import { getComfyEngineClient } from "@/components/panels/settings/comfy-engine/comfy-engine-contract";
+import { resolveProductionEpisodeId } from "@/components/panels/studio/workflow-helpers";
 import { consumeComfyBridgeWritebacks } from "@/lib/assist/image-studio/comfy-bridge-writeback-consumer";
-import { syncStoryboardOverviewToLibrary } from "@/lib/assist/image-studio/storyboard-overview-sync";
-import { buildStoryboardOverviewWorkflow } from "@/lib/assist/image-studio/storyboard-overview-comfy";
+import { ensureStageAssetCoversUploaded, invalidateOverviewSyncForEngineStart, syncStoryboardOverviewToLibrary } from "@/lib/assist/image-studio/storyboard-overview-sync";
+import { buildStageNodePayloadFromState, buildStageSummaries, buildStoryboardPipelineWorkflow } from "@/lib/assist/image-studio/storyboard-pipeline-comfy";
+import { mapProductionFlowNodesToStagePayloads } from "./stage-payload-map";
+import type { ProductionFlowNodeModel } from "../../studio/workflow-node-model-schema";
 import { useStudioStore } from "@/stores/studio/studio-store";
 
 /** 画布内文本选中样式:ComfyUI 前端唯一选中规则是 xterm vendor css 泄漏的
@@ -55,14 +59,29 @@ export function buildSignInCloakScript(): string {
  * "graph accessed before initialization" 且加载流程半途断掉
  * (09-11 实弹:画布右侧露黑带的竞态入口之一)。
  */
-export function buildOverviewOpenScript(graph: Record<string, unknown>): string {
+export function buildOverviewOpenScript(graph: Record<string, unknown>, workflowId: string): string {
   const literal = JSON.stringify(graph);
+  const idLiteral = JSON.stringify(workflowId);
   return `(function () {
   function tryLoad(attempt) {
     var app = window.app;
     if (app && app.isGraphReady === true && typeof app.loadGraphData === "function") {
       window.__manyingOverviewAutoOpened = true;
-      try { app.loadGraphData(${literal}); } catch (e) { /* 载入失败留默认视图 */ }
+      // 09-12 单实例协议:优先走侧栏扩展提供的 __manyingOpenWorkflow(绑定库
+      // 文件+复用既有签,永不重复/永不 Unsaved);扩展缺席(旧引擎)先等几拍,
+      // 仍无则带名直载兜底(name=库内相对全路径,loadGraphData 第4参语义,
+      // 裸文件名会落到 workflows 根层命中不了库条目)。
+      var payload = { name: ${idLiteral}, graph: ${literal} };
+      try {
+        if (typeof window.__manyingOpenWorkflow === "function") {
+          void window.__manyingOpenWorkflow(payload);
+          return;
+        }
+        if (attempt < 20) { setTimeout(function () { tryLoad(attempt + 1); }, 300); return; }
+        app.loadGraphData(payload.graph, true, true, payload.name);
+      } catch (e) {
+        try { app.loadGraphData(payload.graph, true, true, payload.name); } catch (e2) { /* 留默认视图 */ }
+      }
       return;
     }
     if (attempt < 50) setTimeout(function () { tryLoad(attempt + 1); }, 300);
@@ -111,12 +130,52 @@ export function buildCanvasFitScript(): string {
 })();`;
 }
 
+/**
+ * ComfyUI 定制铁律(09-11 用户裁定×2):原生零干预——除登录屏蔽外,不改动
+ * /隐藏任何 ComfyUI 原生 UI 与逻辑,其他插件模块一概不碰;漫影的定制只影响
+ * 漫影自己的东西(manying_nodes 自研节点/漫影侧栏/工作流库数据)。一切以
+ * 外挂形式承载(宿主 webview 注入/custom_nodes/工作流库数据),永不改
+ * ComfyUI 本体源码。(曾被误做的「工作流模块隐藏工作流库 dock 项」已整体撤除。)
+ */
+
 /** Electron webview 的宿主注入面(React 类型表不覆盖 webview tag 专有 API)。 */
 type WebviewElement = HTMLElement & {
   insertCSS?: (css: string) => Promise<string>;
   executeJavaScript?: (code: string) => Promise<unknown>;
   __selectionHooked?: boolean;
+  /** autoOpen 在途锁:封面转换是 async,dom-ready/did-finish-load 双事件
+   * 防并发重复组装注入(完成后复开无害,页内单实例协议自会聚焦既有)。 */
+  __autoOpenInFlight?: boolean;
 };
+
+/** autoOpen 载荷组装+注入(09-12 v4 真跑根修:封面先经 ensureStageAsset-
+ * CoversUploaded 上传改写为引擎 input 文件名再进画布——此前直带 app-scheme
+ * cover,画布 /view 必 404,资产卡恒字牌)。async 独立函数:读值全走
+ * getState/ref,无闭包陈旧;dom-ready 监听同步侧 void 调用。 */
+async function openStageWorkflowIntoCanvas(
+  node: WebviewElement,
+  stageFlowNodesRef: { current: ProductionFlowNodeModel[] | undefined },
+): Promise<void> {
+  const state = useStudioStore.getState();
+  if (state.storyboards.length === 0) return;
+  // v4 内容全量:优先老画布节点模型映射(技能/资产卡/队列进度/渲染器链);
+  // 无模型(测试/异常)回落 store 快照构建
+  const flowNodes = stageFlowNodesRef.current;
+  const payloads = flowNodes && flowNodes.length > 0
+    ? mapProductionFlowNodesToStagePayloads(flowNodes)
+    : buildStageNodePayloadFromState(state);
+  await ensureStageAssetCoversUploaded(payloads);
+  const pipeline = buildStoryboardPipelineWorkflow({
+    summaries: buildStageSummaries(state),
+    storyboards: state.storyboards,
+    payloads,
+  });
+  // name=库内相对全路径(保鲜链同名同位,单实例协议靠它命中库条目)
+  const workflowId = `漫影/1_图片/分镜/0_工作流主线/${pipeline.report.name}.json`;
+  await node.executeJavaScript?.(
+    buildOverviewOpenScript(pipeline.ui as Record<string, unknown>, workflowId),
+  )?.catch(() => undefined);
+}
 
 export interface ComfyCanvasStudioProps {
   /**
@@ -124,13 +183,36 @@ export interface ComfyCanvasStudioProps {
    * 仅「分镜制作」挂载点启用;本地模型模块的沉浸视图保持完整域树浏览。
    */
   autoOpenOverview?: boolean;
+  /**
+   * 模块分野(09-11 用户裁定:按模块对待漫影插件的展示与功能)。
+   * "workflow"=工作流模块:漫影分镜侧栏在场(分镜生产工具);
+   * "models"=本地模型模块:纯浏览场景,漫影分镜侧栏不注册。
+   * 经 webview URL 参数 manyingScope 传给引擎前端扩展。
+   */
+  manyingScope?: "workflow" | "models";
+  /**
+   * 制作动作通道宿主侧(09-11 旧画布功能迁移收口):漫影侧栏「制作动作」
+   * 按钮经 bridge 提交,这里轮询消费并分发到宿主既有批量钩子执行。
+   */
+  sidebarActions?: {
+    onGenerateImages: () => void;
+    onGenerateVideos: () => void;
+    /** 09-12 功能完备:老画布环节动作回流(导演规划/分镜表=付费,重建轨道) */
+    onGenerateDirectorPlan?: () => void;
+    onGenerateStoryboardTable?: () => void;
+    onRebuildWorkbenchTracks?: () => void;
+  };
+  /** 老画布节点模型(viewModel.productionFlowNodes;v4 内容全量喂入) */
+  stageFlowNodes?: ProductionFlowNodeModel[];
 }
 
-export function ComfyCanvasStudio({ autoOpenOverview = false }: ComfyCanvasStudioProps = {}) {
+export function ComfyCanvasStudio({ autoOpenOverview = false, manyingScope, sidebarActions, stageFlowNodes }: ComfyCanvasStudioProps = {}) {
   const webviewRef = useRef<WebviewElement | null>(null);
   // attach 闭包在首次挂载时固化(防重监听),prop 走 ref 保持读取新鲜值
   const autoOpenRef = useRef(autoOpenOverview);
   autoOpenRef.current = autoOpenOverview;
+  const stageFlowNodesRef = useRef(stageFlowNodes);
+  stageFlowNodesRef.current = stageFlowNodes;
   // dom-ready 不在 React 合成事件类型表里 → ref 回调挂原生监听(幂等防重)。
   // ⚠不可挂载即调:attach 前调 insertCSS 是同步 throw(Electron 实弹 21:31 白屏:
   // "must be attached...before this method"),事件期调用则安全;双事件兜底
@@ -144,11 +226,15 @@ export function ComfyCanvasStudio({ autoOpenOverview = false }: ComfyCanvasStudi
           node.insertCSS?.(WEBVIEW_SELECTION_CSS)?.catch(() => undefined);
           node.executeJavaScript?.(buildSignInCloakScript())?.catch(() => undefined);
           node.executeJavaScript?.(buildCanvasFitScript())?.catch(() => undefined);
-          // 工作流阶段:进入即展示本章分镜总览(空分镜跳过;脚本内自带一次性守卫)
-          if (autoOpenRef.current && useStudioStore.getState().storyboards.length > 0) {
-            const overview = buildStoryboardOverviewWorkflow(useStudioStore.getState().storyboards);
-            node.executeJavaScript?.(buildOverviewOpenScript(overview.ui as Record<string, unknown>))?.catch(() => undefined);
-          }
+            // 工作流阶段:进入即展示分镜流程链工作流(旧画布迁移 09-11)——
+            // 七环节链+分镜网格一张图;空分镜跳过;脚本内自带一次性守卫。
+            // 09-12:封面转换改 async(上传引擎 input 后改写),在途锁防双事件并发
+            if (autoOpenRef.current && useStudioStore.getState().storyboards.length > 0 && !node.__autoOpenInFlight) {
+              node.__autoOpenInFlight = true;
+              void openStageWorkflowIntoCanvas(node, stageFlowNodesRef).finally(() => {
+                node.__autoOpenInFlight = false;
+              });
+            }
         } catch {
           // 未就绪窗口的同步抛错:吞掉,等下一事件兜底
         }
@@ -174,7 +260,39 @@ export function ComfyCanvasStudio({ autoOpenOverview = false }: ComfyCanvasStudi
     installEngine,
     startService,
     isStartingService,
-  } = useComfyEngineSettings({ client, pollIntervalMs: 1200 });
+    } = useComfyEngineSettings({ client, pollIntervalMs: 1200 });
+
+  // 制作动作消费游标(会话内即可;宿主重启=动作重投递一次,幂等由去重+用户意图兜底)
+  const actionCursorRef = useRef(0);
+  const sidebarActionsRef = useRef(sidebarActions);
+  sidebarActionsRef.current = sidebarActions;
+  const consumeSidebarActions = useCallback(async () => {
+    if (!sidebarActionsRef.current) return;
+    const listed = await client?.getBridgeActions(actionCursorRef.current);
+    if (!listed) return;
+    actionCursorRef.current = listed.cursor;
+    for (const item of listed.items) {
+      if (item.kind === "generate-images") {
+        toast.info("侧栏指令:开始批量生图(当前章未生成分镜)");
+        sidebarActionsRef.current.onGenerateImages();
+      } else if (item.kind === "generate-videos") {
+        toast.info("侧栏指令:开始生成所有分镜视频");
+        sidebarActionsRef.current.onGenerateVideos();
+      } else if (item.kind === "generate-director-plan") {
+        toast.info("环节指令:生成导演规划(付费云端)");
+        sidebarActionsRef.current.onGenerateDirectorPlan?.();
+      } else if (item.kind === "generate-storyboard-table") {
+        toast.info("环节指令:生成分镜表(付费云端)");
+        sidebarActionsRef.current.onGenerateStoryboardTable?.();
+      } else if (item.kind === "rebuild-workbench-tracks") {
+        toast.info("环节指令:重建视频轨道");
+        sidebarActionsRef.current.onRebuildWorkbenchTracks?.();
+      }
+    }
+    if (listed.items.length > 0) {
+      void client?.ackBridgeActions(listed.items[listed.items.length - 1].id).catch(() => undefined);
+    }
+  }, [client]);
 
   // bridge 回写消费(阶段1):tab 在场即轮询收件箱——收件箱在 sidecar,
   // 引擎停着也可能有积压(上轮画布出图未消费);重叠轮询用 inFlight 压。
@@ -186,18 +304,33 @@ export function ComfyCanvasStudio({ autoOpenOverview = false }: ComfyCanvasStudi
       if (inFlight || stopped) return;
       inFlight = true;
       try {
-        // 业务侧栏数据面(阶段2 批3):快照与收件箱同 tick 推/拉
-        const storyboards = useStudioStore.getState().storyboards;
+        // 业务侧栏数据面(阶段2 批3):快照与收件箱同 tick 掻/拉。
+        // 09-11 续:载荷带当前章节(侧栏按章过滤)+每镜视频/画面就绪标记
+        // (分镜页签的视频分类展示)。
+        const studioState = useStudioStore.getState();
+        const storyboards = studioState.storyboards;
         void client?.pushBridgeStoryboards(
           storyboards.map((item) => ({
             id: item.id,
             label: `S${String(item.index).padStart(2, "0")}${item.videoDesc ? ` · ${item.videoDesc.slice(0, 12)}` : ""}`,
             episodeId: item.episodeId,
+            videoReady: item.mediaRef?.kind === "video" && Boolean(item.mediaRef.path),
+            imageReady: item.mediaRef?.kind === "image" && Boolean(item.mediaRef.path),
           })),
+          resolveProductionEpisodeId(studioState),
         ).catch(() => undefined);
         // 主视图 ComfyUI 化(批8):总览图库内保鲜(指纹守卫,分镜未动不导入)
-        void syncStoryboardOverviewToLibrary().catch(() => undefined);
+        void syncStoryboardOverviewToLibrary({
+          buildPayloads: () => {
+            const flowNodes = stageFlowNodesRef.current;
+            return flowNodes && flowNodes.length > 0
+              ? mapProductionFlowNodesToStagePayloads(flowNodes)
+              : buildStageNodePayloadFromState(useStudioStore.getState());
+          },
+        }).catch(() => undefined);
         await consumeComfyBridgeWritebacks({ client });
+        // 制作动作通道(09-11 旧画布功能迁移收口):消费侧栏提交的批量动作
+        await consumeSidebarActions();
       } catch {
         // 消费器内部已吞错并通知;此处兜底静默(轮询面不弹窗轰炸)
       } finally {
@@ -210,12 +343,34 @@ export function ComfyCanvasStudio({ autoOpenOverview = false }: ComfyCanvasStudi
       stopped = true;
       window.clearInterval(timer);
     };
-  }, [client, hasBridge]);
+  }, [client, hasBridge, consumeSidebarActions]);
 
   const installing = activeJob?.state === "running" && activeJob.kind === "install";
   const port = status?.port ?? null;
   const running = status?.serviceRunning === true && Boolean(port);
-  const src = running && port ? `http://127.0.0.1:${port}/` : null;
+  const src = running && port
+    ? `http://127.0.0.1:${port}/${manyingScope ? `?manyingScope=${manyingScope}` : ""}`
+    : null;
+
+  // 09-12 真跑根修:引擎就绪瞬(假→真)失效保鲜指纹并立即补跑一轮——冷启动
+  // 窗口(视图先挂载、引擎后启动)跑过的保鲜把上传失败随指纹一起缓存,
+  // 镜缩略/资产封面从此被短路跳过(资产卡恒字牌)。失效后 5s tick 也会
+  // 兜底重传;这里主动补跑是抢在 autoOpen 打开画布前把文件备齐。
+  const prevRunningRef = useRef(false);
+  useEffect(() => {
+    if (running && !prevRunningRef.current) {
+      invalidateOverviewSyncForEngineStart();
+      void syncStoryboardOverviewToLibrary({
+        buildPayloads: () => {
+          const flowNodes = stageFlowNodesRef.current;
+          return flowNodes && flowNodes.length > 0
+            ? mapProductionFlowNodesToStagePayloads(flowNodes)
+            : buildStageNodePayloadFromState(useStudioStore.getState());
+        },
+      }).catch(() => undefined);
+    }
+    prevRunningRef.current = running;
+  }, [running]);
 
   if (!hasBridge) {
     return (

@@ -25,9 +25,22 @@ from engines.comfyui.manying_nodes import NODE_CLASS_MAPPINGS, bridge
 # ── 注册面 ────────────────────────────────────────────────
 def test_registry_exposes_first_batch_nodes():
     assert set(NODE_CLASS_MAPPINGS) == {
-        "ManyingPrompt", "ManyingReference", "ManyingGenerated", "ManyingShot", "ManyingCloudImage"}
+        "ManyingPrompt", "ManyingReference", "ManyingGenerated", "ManyingShot", "ManyingCloudImage",
+        "ManyingStage"}
     for node in NODE_CLASS_MAPPINGS.values():
         assert node.CATEGORY == "manying"
+
+
+# ── ManyingStage:流程环节锚点(旧画布链迁移 09-11)─────────
+def test_stage_flow_anchor_returns_ui_and_flow():
+    node = NODE_CLASS_MAPPINGS["ManyingStage"]()
+    inputs = node.INPUT_TYPES()
+    assert set(inputs["required"]) == {"stage_key", "title", "summary"}
+    assert inputs["optional"]["upstream"] == ("MANYING_FLOW",)
+    assert node.RETURN_TYPES == ("MANYING_FLOW",)
+    result = node.run("script", "剧本", "已导入 3 章", status="已完成")
+    assert result["result"] == ("flow",)
+    assert result["ui"]["manying_stage"]["stageKey"] == "script"
 
 
 # ── ManyingPrompt:STRING 双出(核实点③落定)──────────────

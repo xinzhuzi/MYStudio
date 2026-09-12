@@ -149,6 +149,22 @@ class TestWorkflowFileOps:
         assert by_id["sub/编辑流.json"]["nodeCount"] == 2
         assert by_id["K2 流.json"]["missingNodes"] is None
 
+    def test_list_prefix_and_light_modes(self, tmp_path, monkeypatch):
+        """09-12 workflow-single-open:prefix 前缀过滤(海量库早跳)+light 轻量清单
+        (跳过逐文件 JSON 解析,只 id/name/sizeBytes);缺省行为不变(全量字段)。"""
+        self._import_two(tmp_path, monkeypatch)
+        # prefix:只回该前缀下的条目
+        listing = pm.list_workflows(prefix="sub/")
+        assert [w["id"] for w in listing["workflows"]] == ["sub/编辑流.json"]
+        # light:轻量字段面(无 nodeCount/missingNodes/invalidJson)
+        light = pm.list_workflows(light=True)
+        assert {w["id"] for w in light["workflows"]} == {"K2 流.json", "sub/编辑流.json"}
+        for entry in light["workflows"]:
+            assert set(entry) == {"id", "name", "sizeBytes"}
+        # 缺省=旧行为:全量字段齐
+        full = pm.list_workflows()
+        assert all("nodeCount" in w for w in full["workflows"])
+
     def test_read_rename_move(self, tmp_path, monkeypatch):
         self._import_two(tmp_path, monkeypatch)
         content = pm.read_workflow("K2 流.json")

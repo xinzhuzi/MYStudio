@@ -595,7 +595,7 @@ describe("desktop build scripts", () => {
       generationVoiceFlowStart,
       generationVoiceFlowEnd,
     );
-    expect(generationVoiceFlow).toContain("clickButtonByText('工作流', true)");
+    expect(generationVoiceFlow).toContain("clickButtonByText('MY 工作流', true)");
     expect(generationVoiceFlow).toContain("待推进：");
     expect(smokeScript).toContain("ASSET_VOICE_FLOW_TIMEOUT_MS");
     expect(smokeScript).toContain('"Runtime.evaluate"');
@@ -632,7 +632,9 @@ describe("desktop build scripts", () => {
     expect(smokeScript).not.toContain("label: '剧本资产提取'");
     expect(smokeScript).not.toContain("label: '剧本资产生成'");
     expect(smokeScript).toContain("分镜视频生成");
-    expect(smokeScript).toContain("分镜制作 · ComfyUI"); // 09-09 批8/9:主画布=ComfyUI 引导态文案
+    expect(smokeScript).toContain("分镜视频生成");
+    // 09-11 沉浸化:画布头部条退役,文本锚撤除(画布在场由 hasNodeCanvas DOM 锚硬断言)
+    expect(smokeScript).toContain("requiredText: []");
     expect(smokeScript).toContain("资产提取");
     expect(smokeScript).toContain("还没有剧本");
     expect(smokeScript).toContain("视频工作台");
@@ -728,7 +730,8 @@ describe("desktop build scripts", () => {
     expect(smokeScript).not.toContain("'开始配置'");
     // 深度估计行已撤(09-10 用户裁定:depth 域随 MiniMax 路线退役)——不得再进必现文案
     expect(smokeScript).not.toContain("深度估计（电影级 3D）");
-    expect(smokeScript).toContain("视频评分模型");
+    // 视频评分模型行已撤(09-12 用户裁定:从未下载且名不副实)——不得再进必现文案
+    expect(smokeScript).not.toContain("视频评分模型");
     expect(smokeScript).toContain("TTS 运行时与模型");
     expect(smokeScript).not.toContain("'安装明细'");
     expect(smokeScript).toContain("Python 运行环境");
@@ -1007,7 +1010,7 @@ describe("desktop build scripts", () => {
     expect(stepwise).toContain("resetForStepwiseExecution");
     expect(stepwise).toContain("runStepwiseWorkflowStage");
     expect(stepwise).toContain("inspectWorkflowStages");
-    expect(stepwise).toContain("clickButtonByText('工作流', true)");
+    expect(stepwise).toContain("clickButtonByText('MY 工作流', true)");
     expect(stepwise).toContain("clickButtonByText('风格与导演')");
     expect(stepwise).toContain("clickButtonByText('小说导入')");
     expect(stepwise).toContain("clickButtonByText('剧本生产阶段')");
@@ -2240,7 +2243,8 @@ describe("desktop build scripts", () => {
     expect(assetsStage).not.toContain("requiredText: ['剧本资产提取'");
     expect(assetsStage).not.toContain("requiredText: ['剧本资产生成'");
     expect(assetsStage).toContain("'还没有剧本'");
-    expect(storyboardStage).toContain("分镜制作 · ComfyUI"); // 09-09 批8/9:主画布=ComfyUI 引导态文案
+    // 09-11 沉浸化:画布头部条退役,文本锚撤除(改 hasNodeCanvas DOM 锚)
+    expect(storyboardStage).toContain("requiredText: []");
     expect(storyboardStage).not.toContain("requiredText: ['分镜视频生成'");
     expect(assetsStage).toContain("forbiddenText");
     expect(assetsStage).toContain("运行导演计划");

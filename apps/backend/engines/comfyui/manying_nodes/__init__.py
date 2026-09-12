@@ -14,6 +14,7 @@ from .nodes.manying_reference import ManyingReference
 from .nodes.manying_generated import ManyingGenerated
 from .nodes.manying_shot import ManyingShot
 from .nodes.manying_cloud_image import ManyingCloudImage
+from .nodes.manying_stage import ManyingStage
 from . import cloud_takeover
 
 # 云端收编二轮(09-10 纠偏):云端节点全保留,凭据经补丁改道漫影网关
@@ -26,6 +27,7 @@ NODE_CLASS_MAPPINGS = {
     "ManyingGenerated": ManyingGenerated,
     "ManyingShot": ManyingShot,
     "ManyingCloudImage": ManyingCloudImage,
+    "ManyingStage": ManyingStage,
 }
 
 # ComfyUI 前端扩展目录声明(无此=web/ 下 JS 不进 /extensions,不可见)
@@ -37,4 +39,5 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "ManyingGenerated": "漫影 成图回写",
     "ManyingShot": "漫影",
     "ManyingCloudImage": "漫影 云端生图",
+    "ManyingStage": "漫影 环节",
 }

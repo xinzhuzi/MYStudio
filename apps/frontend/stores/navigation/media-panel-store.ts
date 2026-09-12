@@ -39,7 +39,7 @@ export interface NavItem {
 // Main navigation items (top section)
 export const mainNavItems: NavItem[] = [
   { id: "overview", label: "概览", icon: LayoutDashboardIcon },
-  { id: "studio", label: "工作流", icon: WorkflowIcon },
+  { id: "studio", label: "MY 工作流", icon: WorkflowIcon }, // 09-11 项目适应命名
   { id: "skills", label: "技能", icon: BookOpenTextIcon },
   { id: "assets", label: "资产", icon: FolderOpenIcon },
   { id: "freedom", label: "本地模型", icon: PaletteIcon },
@@ -71,7 +71,7 @@ export const stages: StageConfig[] = [
 export const tabs: { [key in Tab]: { icon: LucideIcon; label: string; stage?: Stage } } = {
   dashboard: { icon: FileTextIcon, label: "项目" },
   overview: { icon: LayoutDashboardIcon, label: "概览" },
-  studio: { icon: WorkflowIcon, label: "工作流" },
+  studio: { icon: WorkflowIcon, label: "MY 工作流" },
   script: { icon: FileTextIcon, label: "剧本", stage: "script" },
   characters: { icon: UsersIcon, label: "角色", stage: "assets" },
   scenes: { icon: MapPinIcon, label: "场景", stage: "assets" },
