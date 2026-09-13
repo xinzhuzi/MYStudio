@@ -286,7 +286,6 @@ export function useTaskCenter(): OrbTaskCenter {
       }
     }
     prevCountRef.current = nextCounts;
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- pushRecent 为稳定 setState 封装
   }, [perEntryViews, countDomains]);
 
   // ── 活跃视图汇总(顺序:渲染/媒体台账/AI/计数域) ─────────────────────
