@@ -36,6 +36,9 @@ export function ComfyCanvasSwap({
     onGenerateDirectorPlan?: () => void;
     onGenerateStoryboardTable?: () => void;
     onRebuildWorkbenchTracks?: () => void;
+    /** 09-13:节点「全文/编辑」回流(note=环节 key) */
+    onViewNodeDoc?: (stageKey: string) => void;
+    onEditNodeDoc?: (stageKey: string) => void;
   };
 } = {}) {
   return (

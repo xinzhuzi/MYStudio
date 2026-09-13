@@ -13,8 +13,6 @@ import type { ProductionFlowNodeModel } from "../../studio/workflow-node-model-s
 import { shotPreviewName } from "@/lib/assist/image-studio/storyboard-overview-comfy";
 import type { StageNodePayload, PipelineStageKey } from "@/lib/assist/image-studio/storyboard-pipeline-comfy";
 
-const PREVIEW_LINE_CHARS = 50;
-const PREVIEW_MAX_LINES = 60;
 const STATUS_TEXT: Record<StageNodePayload["status"], string> = {
   ready: "已完成",
   pending: "进行中",
@@ -22,17 +20,18 @@ const STATUS_TEXT: Record<StageNodePayload["status"], string> = {
   warning: "有失败",
 };
 
+/** 正文→md 段落结构(09-13 用户裁定:展示完全,禁截断):源行=独立段落,
+ * 空行分隔,markdown-it 引擎侧按节点宽自然回流——不再 50 字硬切+60 行截断
+ * (全文档走节点「全文/编辑」弹窗,预览即全量)。 */
 function wrapLines(lines: string[]): string[] {
-  const wrapped: string[] = [];
+  const out: string[] = [];
   for (const line of lines) {
-    const text = String(line ?? "");
-    if (!text.trim()) continue;
-    for (let i = 0; i < text.length && wrapped.length < PREVIEW_MAX_LINES - 1; i += PREVIEW_LINE_CHARS) {
-      wrapped.push(text.slice(i, i + PREVIEW_LINE_CHARS));
-    }
+    const text = String(line ?? "").trim();
+    if (!text) continue;
+    if (out.length > 0) out.push("");
+    out.push(text);
   }
-  if (wrapped.length >= PREVIEW_MAX_LINES - 1) wrapped.push("…正文较长已截断 · 进阶段面板看全文");
-  return wrapped.length > 0 ? wrapped : ["暂无内容"];
+  return out.length > 0 ? out : ["暂无内容"];
 }
 
 function safePreviewName(id: string): string {

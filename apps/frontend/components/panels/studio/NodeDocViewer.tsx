@@ -38,7 +38,12 @@ export function NodeDocViewer({
     videoCandidates: state.videoCandidates ?? [],
   });
   const isTable = node.previewKind === "table";
-  const rawMarkdown = isTable ? flowData.storyboardTable : flowData.scriptPlan;
+  // 09-13 用户裁定:剧本节点也走全文弹窗(此前只接 scriptPlan/table)
+  const rawMarkdown = isTable
+    ? flowData.storyboardTable
+    : node.id === "script"
+      ? flowData.script
+      : flowData.scriptPlan;
   // 剥掉 <scriptPlan>/<storyboardTable> 等数据包装标签(原始 TextPreview
   // 的 unwrapTaggedMarkdown 同款逻辑,否则标签会渲染为可见文本)
   const markdown = rawMarkdown?.replace(/<\/?(?:scriptPlan|storyboardTable)>\s*/g, "");

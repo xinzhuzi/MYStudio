@@ -96,7 +96,7 @@ const STYLES = `
 .ms-md hr{border:none;border-top:1px solid rgba(255,255,255,.12);margin:7px 0;}
 .ms-md blockquote{margin:5px 0 9px;padding:4px 12px;border-left:2.5px solid rgba(110,168,254,.5);
   color:rgba(178,188,204,.9);background:rgba(110,168,254,.06);border-radius:0 5px 5px 0;}
-.ms-md strong{color:rgba(240,244,250,.96);font-weight:600;}
+.ms-md strong{color:#f5cd6d;font-weight:700;}
 .ms-md em{color:rgba(200,210,226,.88);}
 .ms-md code{font-family:ui-monospace,Menlo,monospace;font-size:10.5px;
   background:rgba(255,255,255,.07);border-radius:4px;padding:0 4px;}
@@ -221,13 +221,24 @@ const STATUS_COLOR = Object.fromEntries(
   Object.entries(CINEMA_TOKENS.status).map(([key, tone]) => [key, tone.accent]),
 );
 
+// 文档型环节(09-13 用户裁定:点击查看完整 md 文档+可编辑):注入「全文/编辑」
+// 按钮,经桥动作回宿主开 NodeDocViewer/编辑弹窗;note=环节 key(宿主寻节点)
+const DOC_STAGE_KEYS = new Set(["script", "scriptPlan", "storyboardTable"]);
+const DOC_BUTTONS = (key) => DOC_STAGE_KEYS.has(key)
+  ? [
+      { kind: "view-doc", label: "全文", noteKey: key },
+      { kind: "edit-doc", label: "编辑", noteKey: key },
+    ]
+  : [];
+
 function stageHTML(payload) {
   const statusKey = payload.status || "empty";
   const color = STATUS_COLOR[statusKey] || STATUS_COLOR.empty;
   const metrics = (payload.metrics || []).map((m) => `<span class="ms-chip">${esc(m)}</span>`).join("");
   const skills = (payload.skills || []).map((s) => `<span class="ms-skill">${esc(s)}</span>`).join("");
-  const actions = (payload.actions || []).map((action) => `
+  const actions = [...DOC_BUTTONS(payload.key), ...(payload.actions || [])].map((action) => `
     <button class="ms-btn${action.paid ? " ms-btn--paid" : ""}" data-kind="${esc(action.kind)}"
+      ${action.noteKey ? `data-note="${esc(action.noteKey)}"` : ""}
       ${action.disabled ? "disabled" : ""} title="${esc(action.label)}">${esc(action.label)}${action.paid ? " ⭐" : ""}</button>`).join("");
   return `
     <div class="ms-stage-topbar ms-stage-topbar--${esc(statusKey)}"></div>
@@ -241,7 +252,6 @@ function stageHTML(payload) {
       ${skills ? `<div class="ms-skills">${skills}</div>` : ""}
     </div>
     <div class="ms-body">
-      ${payload.previewTitle ? `<span class="ms-pill">${esc(payload.previewTitle)}</span>` : ""}
       ${bodyHTML(payload)}
     </div>
     ${actions ? `<div class="ms-actions">${actions}</div>` : ""}`;
@@ -323,9 +333,10 @@ function wireActions(node, el) {
       closeComposer(el);
       return;
     }
-    const note = button.classList.contains("ms-btn--go")
-      ? (el.querySelector(".ms-composer textarea")?.value || "")
-      : "";
+    const note = button.dataset.note
+      || (button.classList.contains("ms-btn--go")
+        ? (el.querySelector(".ms-composer textarea")?.value || "")
+        : "");
     if (button.classList.contains("ms-btn--go")) closeComposer(el);
     postAction(kind, note, button);
   });
@@ -531,6 +542,22 @@ app.registerExtension({
     const onConfigure = nodeType.prototype.onConfigure;
     nodeType.prototype.onConfigure = function () {
       const result = onConfigure?.apply(this, arguments);
+      try {
+        // 槽位代名词(09-13 用户裁定:upstream/MANYING_FLOW 裸英文退役):
+        // 入槽=「上游环节」,出槽=「下游环节」;剧本是链头,入槽整个摘除
+        // (生成器本就 inputs:[],前端会照节点定义补建,这里在其后移除;
+        // 链头永无入线,零断链风险)
+        const isHead = this.properties?.manyingStage?.key === "script";
+        this.inputs = (this.inputs || []).filter((input) => {
+          if (input.name !== "upstream") return true;
+          if (isHead) return false;
+          input.label = "上游环节";
+          return true;
+        });
+        for (const output of this.outputs || []) {
+          if (output.name === "flow") output.label = "下游环节";
+        }
+      } catch (error) { /* 兜底=原生标签 */ }
       try { renderDomBody(this); } catch (error) { /* 同上 */ }
       return result;
     };

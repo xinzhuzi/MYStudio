@@ -103,11 +103,6 @@ export interface StageNodePayload {
   concurrency?: number;
 }
 
-/** 画布节点物理上限:正文行数帽(老画布 600 行靠滚动,画布节点无滚动,
- * 60 行≈两屏已是可读极限;超出尾行指路阶段面板看全文)。 */
-const PREVIEW_MAX_LINES = 60;
-/** 节点宽 560px 下 11px 字号的换行宽(全角计) */
-const PREVIEW_LINE_CHARS = 50;
 const TABLE_ROWS_CAP = 20;
 
 /** 绘制区纵向标尺(生成器与 manying.js 同源;design §3) */
@@ -133,22 +128,18 @@ function clipLine(text: string, maxChars: number): string {
   return text.length > maxChars ? `${text.slice(0, maxChars - 1)}…` : text;
 }
 
-/** 全量正文换行:长段按 PREVIEW_LINE_CHARS 折行,总行数 ≤60,超限尾行指路。 */
+/** 全文→md 段落结构(09-13 用户裁定:正文展示完全,禁再截断):
+ * 源行=独立段落(空行分隔),markdown-it 按节点宽自然回流——不再 50 字
+ * 硬切(那会把一行拆成碎行、把不同行黏成墙),不再 60 行截断(滚动区
+ * 就是为此而生)。输出仍是行数组契约,空串=段间空行。 */
 function wrapFullText(text: string): string[] {
-  const raw = text.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
-  if (raw.length === 0) return ["暂无内容"];
-  const total = raw.reduce((n, line) => n + Math.max(1, Math.ceil(line.length / PREVIEW_LINE_CHARS)), 0);
-  const wrapped: string[] = [];
-  outer: for (const line of raw) {
-    for (let i = 0; i < line.length; i += PREVIEW_LINE_CHARS) {
-      if (wrapped.length >= PREVIEW_MAX_LINES - 1) break outer;
-      wrapped.push(line.slice(i, i + PREVIEW_LINE_CHARS));
-    }
-  }
-  if (total > PREVIEW_MAX_LINES - 1) {
-    wrapped.push("…正文较长已截断 · 进阶段面板看全文");
-  }
-  return wrapped;
+  const paragraphs = text.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
+  const out: string[] = [];
+  paragraphs.forEach((line, i) => {
+    if (i > 0) out.push("");
+    out.push(line);
+  });
+  return out.length > 0 ? out : ["暂无内容"];
 }
 
 /**
@@ -452,7 +443,7 @@ export function buildStoryboardPipelineWorkflow(input: {
     flags: Record<string, unknown>;
     order: number;
     mode: number;
-    inputs: Array<{ name: string; type: string; link: number | null }>;
+    inputs: Array<{ name: string; type: string; link: number | null; label?: string }>;
     outputs: Array<{ name: string; type: string; links: number[] }>;
     properties: Record<string, unknown>;
     widgets_values: unknown[];
@@ -492,10 +483,12 @@ export function buildStoryboardPipelineWorkflow(input: {
       title: item.title,
       // 非链头有 upstream 入槽;全节点一个 flow 出槽(末端无人消费也无妨)
       // slot_index 必带:缺它 ComfyUI 前端配线时槽位落空→连线不建(09-11 实弹)
+      // 槽位代名词(09-13 用户裁定:upstream/MANYING_FLOW 裸英文退役);
+      // 剧本是链头无入槽,引擎侧还会在其被前端补建后摘除
       inputs: item.key === "script" ? [] : [
-        { name: "upstream", type: "MANYING_FLOW", link: null, slot_index: 0 },
+        { name: "upstream", type: "MANYING_FLOW", link: null, slot_index: 0, label: "上游环节" },
       ],
-      outputs: [{ name: "flow", type: "MANYING_FLOW", links: [], slot_index: 0 }],
+      outputs: [{ name: "flow", type: "MANYING_FLOW", links: [], slot_index: 0, label: "下游环节" }],
       // 富内容载荷(照 ManyingShot manyingPreview 先例进 properties,
       // 不进 widgets_values=序列化契约稳定;引擎侧自绘消费)
       properties: {

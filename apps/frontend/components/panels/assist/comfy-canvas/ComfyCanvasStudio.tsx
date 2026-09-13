@@ -233,6 +233,9 @@ export interface ComfyCanvasStudioProps {
     onGenerateDirectorPlan?: (note?: string) => void;
     onGenerateStoryboardTable?: (note?: string) => void;
     onRebuildWorkbenchTracks?: () => void;
+    /** 09-13 用户裁定:节点「全文/编辑」按钮回流——note=环节 key */
+    onViewNodeDoc?: (stageKey: string) => void;
+    onEditNodeDoc?: (stageKey: string) => void;
   };
   /** 老画布节点模型(viewModel.productionFlowNodes;v4 内容全量喂入) */
   stageFlowNodes?: ProductionFlowNodeModel[];
@@ -319,6 +322,10 @@ export function ComfyCanvasStudio({ autoOpenOverview = false, manyingScope, side
       } else if (item.kind === "rebuild-workbench-tracks") {
         toast.info("环节指令:重建视频轨道");
         sidebarActionsRef.current.onRebuildWorkbenchTracks?.();
+      } else if (item.kind === "view-doc") {
+        sidebarActionsRef.current.onViewNodeDoc?.(item.note || "");
+      } else if (item.kind === "edit-doc") {
+        sidebarActionsRef.current.onEditNodeDoc?.(item.note || "");
       }
     }
     if (listed.items.length > 0) {

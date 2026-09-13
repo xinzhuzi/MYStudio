@@ -8,10 +8,15 @@ import { WorkbenchTab } from "./WorkbenchTab";
 import { ScriptAssetManagementTab } from "./ScriptAssetManagementTab";
 import { ComfyCanvasSwap } from "../assist/comfy-canvas/ComfyCanvasSwap";
 import { useStudioViewModel } from "./useStudioViewModel";
+import { useState } from "react";
+import { NodeDocViewer } from "./NodeDocViewer";
+import { ScriptEditorDialog } from "./ScriptEditorDialog";
 import { useStoryboardBatchGeneration } from "./image-workflow/use-storyboard-batch-generation";
 
 export function StudioView() {
   const viewModel = useStudioViewModel();
+  // 文档弹窗(09-13:环节节点「全文」按钮 → NodeDocViewer 老控件重新接线)
+  const [docNodeId, setDocNodeId] = useState<string | null>(null);
   const storyboardBatch = useStoryboardBatchGeneration({
     storyboards: viewModel.chapterStoryboards,
     projectName: viewModel.projectName,
@@ -49,6 +54,14 @@ export function StudioView() {
         label: "重建视频轨道",
         targetStage: "workbench",
       });
+    },
+    // 09-13 用户裁定:节点「全文/编辑」回流——老画布文档弹窗(NodeDocViewer
+    // +编辑器状态机)重新接线;note=环节 key
+    onViewNodeDoc: (stageKey: string) => {
+      setDocNodeId(stageKey);
+    },
+    onEditNodeDoc: (stageKey: string) => {
+      viewModel.openNodeEditor(stageKey as Parameters<typeof viewModel.openNodeEditor>[0]);
     },
   };
 
@@ -175,6 +188,27 @@ export function StudioView() {
           </div>
         </ScrollArea>
       </Tabs>
+      {docNodeId ? (
+        <NodeDocViewer
+          node={viewModel.productionFlowNodes.find((n) => n.id === docNodeId) ?? viewModel.productionFlowNodes[0]}
+          onClose={() => setDocNodeId(null)}
+          onEdit={(id) => {
+            setDocNodeId(null);
+            viewModel.openNodeEditor(id);
+          }}
+        />
+      ) : null}
+      {viewModel.editingWorkflowNodeId && viewModel.workflowNodeEditWritable ? (
+        <ScriptEditorDialog
+          open
+          title={viewModel.workflowNodeEditTitle}
+          value={viewModel.workflowNodeDraft}
+          onOpenChange={(open) => { if (!open) viewModel.closeNodeEditor(); }}
+          onChange={viewModel.setWorkflowNodeDraft}
+          onCancel={viewModel.closeNodeEditor}
+          onSave={viewModel.saveWorkflowNodeEdit}
+        />
+      ) : null}
     </div>
   );
 }

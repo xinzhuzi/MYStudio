@@ -140,10 +140,10 @@ describe("buildStageNodePayload(v2 全量内容,照老 flow 画布)", () => {
     expect(storyboard.metrics).toEqual(["3 个分镜", "1 个画面", "1 个视频"]);
   });
 
-  it("正文全量换行:超 60 行物理上限尾行指路;短文本零截断", () => {
+  it("正文段落化全量展示(09-13 用户裁定:禁截断):源行=独立段落,空行分隔", () => {
     const lines = payloads.find((p) => p.key === "script")!.previewLines!;
-    expect(lines.length).toBeLessThanOrEqual(60);
-    expect(lines[lines.length - 1]).toContain("阶段面板");
+    expect(lines).not.toContain("…正文较长已截断 · 进阶段面板看全文");
+    expect(lines.some((l, i) => i > 0 && l === "" && lines[i - 1] !== "")).toBe(true);
     const plan = payloads.find((p) => p.key === "scriptPlan")!.previewLines!;
     expect(plan).toEqual(["节奏压迫,保留对白"]);
   });
@@ -177,12 +177,11 @@ describe("buildStageNodePayload(v2 全量内容,照老 flow 画布)", () => {
     expect(byKey("script").actions).toBeUndefined();
   });
 
-  it("computeStageNodeSize:载荷内容驱动高度;无载荷=旧尺寸(宽 560)", () => {
+  it("computeStageNodeSize:旧画布口径保留(高度随 previewLines 行数计)", () => {
     const script = payloads.find((p) => p.key === "script")!;
     const [w, h] = computeStageNodeSize(script);
     expect(w).toBe(560);
     expect(h).toBeGreaterThanOrEqual(300);
-    expect(h).toBe(218 + 26 + 60 * 15 + 20);
     expect(computeStageNodeSize(undefined)).toEqual([560, 170]);
   });
 
