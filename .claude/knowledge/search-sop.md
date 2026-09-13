@@ -63,9 +63,9 @@
 | 自定义 hooks | `apps/frontend/hooks` | use-* hooks |
 | Python TTS sidecar | `apps/backend/tts` | 本地 TTS/STT 引擎(监听 127.0.0.1:17593) |
 | Python 业务逻辑 | `apps/backend/video_use` | 视频处理逻辑 |
-| 构建工具 | `apps/build` | daojie/、timeline/、smoke/、packaging/ |
+| 构建工具 | `apps/build` | chapter_video/、timeline/、smoke/、packaging/、remotion/、scripts/ |
 | 大文本/辅助脚本 | `apps/build/scripts` | 见 `.claude/CLAUDE.md`「大量内容处理铁律」 |
-| 文档 | `docs` | 7 个分区;工程文档在 `docs/engineering` |
+| 文档 | `docs` | 分区:workflow/assets/director/panels/settings/engineering/guides/research/local/融合/comfyui-kb;工程文档在 `docs/engineering`,ComfyUI 产线知识在 `docs/comfyui-kb` |
 
 **没有根 `package.json`**;所有 npm 命令从 `apps/` 执行。`apps/out/`、`apps/release/`、`apps/output/` 是构建产物(被 `.gitignore` 忽略、每次 build 重写),**不得作为源码搜索路径**。`rg` 自动跳过二进制;静态资源文件名仍可由 `fd` 搜索。
 
@@ -101,7 +101,7 @@ rg -t py 'def ' apps/backend/tts
 rg -t py '词' apps/backend/video_use
 
 # ── 构建脚本 ──
-rg '词' apps/build/daojie
+rg '词' apps/build/chapter_video
 
 # ── 文件名 ──
 fd -e ts 'storage' apps/frontend

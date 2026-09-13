@@ -1,6 +1,8 @@
 # 漫影工作室文档中心
 
-这里整理 MYStudio 当前可用的用户手册、配置说明、开发资料和融合规划。文档按功能域分目录组织，新用户建议先读"工作流"，正在调试本地 TTS、音色分配或打包流程时，直接进入对应专题。
+这里整理 MYStudio 当前可用的用户手册、配置说明、开发资料和融合规划。文档按功能域分目录组织，新用户建议先读"MY 工作流"，正在调试本地 TTS、音色分配、ComfyUI 引擎或打包流程时，直接进入对应专题。
+
+> 2026-09-13 口径说明：本地生成产线（K2 图像 / H3 视频 / 音乐）已全面切换 ComfyUI 架构（原「辅助」五子工作台退役、原「工作流」画布换 ComfyUI 节点图）。标注【已过时】的文档仅作历史参考，不要按其操作。
 
 ## 目录结构
 
@@ -9,9 +11,10 @@
 | [workflow/](./workflow/) | 工作流核心链路：小说导入、剧本、分镜、概览 |
 | [assets/](./assets/) | 资产库、角色、场景、道具、视觉风格、音色 |
 | [director/](./director/) | 导演工作台、S级镜头、视角切换、四宫格、旧剧本 |
-| [panels/](./panels/) | 应用外壳、导航、项目、技能、辅助、产物、导出、TTS 面板 |
+| [panels/](./panels/) | 应用外壳、导航、项目、技能、本地模型（原辅助）、产物、导出、TTS 面板 |
 | [settings/](./settings/) | 设置页、API、统一本地配置、图床、更新、许可证 |
 | [engineering/](./engineering/) | 架构、打包、故障排查、三方声明、存储、文档维护 |
+| [comfyui-kb/](./comfyui-kb/) | ComfyUI 产线知识库：参数速查、定制代码地图、排障 runbook（开发/运维向） |
 | [guides/](./guides/) | 高阶玩法指南（3D 纵深手册、本地模型降本） |
 | [research/](./research/) | 技术调查与任务研究（含已排除路线存档） |
 | [local/](./local/) | 本地引擎落地计划（本地视频等专题） |
@@ -26,7 +29,7 @@
 | [工作流阶段操作手册](./workflow/WORKFLOW_STAGE_OPERATIONS.md) | 七阶段按钮、状态、弹窗和数据关系 |
 | [小说导入与策划编剧操作参考](./workflow/WORKFLOW_NOVEL_SCRIPT_OPERATIONS.md) | 风格/导演手册、小说章节导入、事件分析、三阶段剧本生成和审核修复 |
 | [剧本资产与 ProductionAgent 操作参考](./workflow/WORKFLOW_ASSET_GENERATION_OPERATIONS.md) | 资产提取、资产库匹配、提示词润色、缺失资产生成和角色音色入口 |
-| [分镜面板与视频工作台操作参考](./workflow/WORKFLOW_STORYBOARD_EDITING_OPERATIONS.md) | 素材导入、媒体引用、AI 分镜表协议、每镜 Remotion shot、原生 Studio 和章节成片 |
+| [分镜面板与视频工作台操作参考](./workflow/WORKFLOW_STORYBOARD_EDITING_OPERATIONS.md) | 【已过时 2026-09-13】分镜编辑已迁 ComfyUI 画布 + 分镜面板卡片网格；仅「视频工作台」章节仍大体有效 |
 | [剧本导入格式示例](./workflow/SCRIPT_FORMAT_EXAMPLE.md) | 标准剧本格式、场景头、人物、对白和舞台指示示例 |
 | [项目概览](./workflow/OVERVIEW_PANEL_GUIDE.md) | 编辑故事核心、世界观、制作设定和查看分集目录 |
 | [项目概览操作手册](./workflow/OVERVIEW_PANEL_OPERATIONS.md) | 项目入口、内联编辑、分集目录、新建集和右侧资料摘要 |
@@ -70,14 +73,14 @@
 | [项目首页操作手册](./panels/PROJECT_DASHBOARD_OPERATIONS.md) | 侧栏按钮、管理选择、新建输入、更多菜单、重命名和批量删除弹窗 |
 | [技能编辑](./panels/SKILLS_EDITOR_GUIDE.md) | 查看、编辑、新增、删除和恢复项目 Markdown 技能文件 |
 | [技能编辑操作手册](./panels/SKILLS_EDITOR_OPERATIONS.md) | 技能页按钮状态、文件状态、新增路径、删除和恢复边界 |
-| [辅助工作台](./panels/ASSIST_WORKBENCH_GUIDE.md) | 图片、视频、电影级拍摄、TTS 和音乐子工作台（含本地 Music3 整曲生成） |
-| [辅助工作台操作手册](./panels/ASSIST_WORKBENCH_OPERATIONS.md) | 图片/视频/电影/TTS 子工作台按钮、参数、历史和保存到道具库 |
-| [辅助工作台参数参考](./panels/ASSIST_WORKBENCH_PARAMETER_REFERENCE.md) | 图片、视频、Veo 上传、电影摄影参数、辅助 TTS 和生成历史字段说明 |
+| [辅助工作台](./panels/ASSIST_WORKBENCH_GUIDE.md) | 【已过时 2026-09-13】五子工作台已于 09-10 全屏 ComfyUI 合一退役；现入口=主导航「本地模型」（ComfyUI 画布 + TTS 配音室 + 漫影生图） |
+| [辅助工作台操作手册](./panels/ASSIST_WORKBENCH_OPERATIONS.md) | 【已过时】随五子工作台退役，仅作历史参考 |
+| [辅助工作台参数参考](./panels/ASSIST_WORKBENCH_PARAMETER_REFERENCE.md) | 【已过时】参数口径已被 [ComfyUI 参数速查](./comfyui-kb/参数速查.md) 取代 |
 | [产物管理](./panels/MEDIA_OUTPUTS_GUIDE.md) | 上传、整理、预览、导出图片/视频/音频产物 |
 | [产物页操作手册](./panels/MEDIA_OUTPUTS_OPERATIONS.md) | 上传、文件夹、视图、排序、右键菜单、导出和导演入口 |
 | [成片与导出](./panels/EXPORT_GUIDE.md) | 查看渲染状态、选择文件夹导出和逐个下载素材 |
 | [成片与导出操作手册](./panels/EXPORT_OPERATIONS.md) | 导出来源、序列图、导出进度、按钮禁用和二级卡片边界 |
-| [TTS 面板操作手册](./panels/TTS_PANEL_OPERATIONS.md) | 本地 TTS 状态、模型目录、下载任务、模型详情弹窗和声线库 |
+| [TTS 面板操作手册](./panels/TTS_PANEL_OPERATIONS.md) | 本地 TTS 状态、模型目录、下载任务、模型详情弹窗和声线库（一级 TTS 页已撤：面板内嵌于 设置→本地配置，配音室在「本地模型」页） |
 | [Voicebox 声音克隆流程](./panels/voicebox-voice-cloning-flow.md) | TTS 后端 API、profile、模型状态和声音克隆链路参考 |
 | [外观皮肤与护眼模式](./panels/APPEARANCE_THEMES.md) | 护眼浅色模板、暗色影视模板和使用建议 |
 
@@ -113,6 +116,21 @@
 | [B5 TrackKey 运行时解析总结](./engineering/B5-trackKey-runtime-resolution-summary.md) | trackKey 从硬编码改为 ProductionTrack→VideoCandidate 运行时解析的实现记录 |
 | [文档维护清单](./engineering/DOCS_MAINTENANCE.md) | 修改 UI、TTS、打包、存储或工作流后需要同步的文档和验证命令 |
 
+## ComfyUI 产线知识库（comfyui-kb/）
+
+2026-09 起本地生成产线（K2 图像 / H3 视频 / 音乐）全面切换 ComfyUI，参数口径与定制代码边界收拢在此：
+
+| 文档 | 用途 |
+|---|---|
+| [参数速查](./comfyui-kb/参数速查.md) | K2/H3 等产线采样参数实测口径（改采样参数前先查） |
+| [定制代码地图](./comfyui-kb/定制代码地图.md) | 四层定制代码位置、生效路径（要不要打包）与坑清单（改 ComfyUI 相关功能前先读） |
+| [Windows 部署指南](./comfyui-kb/README-Windows部署指南.md) | Windows 侧 ComfyUI 引擎部署 |
+| [K2 画稿上色产线四件套](./comfyui-kb/K2上色/prd_画稿上色工作流.md) | PRD / 设计 / 实现 / 错误应对 runbook |
+| [VL 指令验证计划](./comfyui-kb/VL指令验证计划.md) | 视觉语言模型指令链验证计划 |
+| [排查：快流未使用节点](./comfyui-kb/排查_快流未使用节点.md) | 快流工作流排障记录 |
+
+> 缺口（2026-09-13 记）：设置→本地配置 中 ComfyUI 引擎卡（引擎状态、「模型」页签、插件台账、存储四目录）尚无专门用户文档；引擎操作技能见仓库 `.agents/skills/comfyui/machine.md`。
+
 ## 高阶指南（guides/）
 
 | 文档 | 用途 |
@@ -139,6 +157,8 @@
 已定案调查存档于 [research/archive/](./research/archive/)：[静态图→3D 动态技术全景](./research/archive/CINEMATIC_3D_TECH_LANDSCAPE.md)（3D 路线 2026-08-14 已否决转 2D）、[img2threejs 探索报告](./research/archive/IMG2THREEJS_EXPLORATION.md)（2026-08-16 用户决策排除）。
 
 ## 融合规划（融合/）
+
+> 注：本目录为 2026-05 前后的历史规划/调查存档，其中涉及生成链路现状的描述已被 ComfyUI 架构取代（见 `engineering/` 与 `comfyui-kb/`）；仅作来龙去脉参考。
 
 | 文档 | 用途 |
 |---|---|

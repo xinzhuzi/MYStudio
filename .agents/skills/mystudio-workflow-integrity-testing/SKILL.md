@@ -5,6 +5,8 @@ description: Use when verifying MYStudio workflow completeness, step-by-step app
 
 # MYStudio Workflow Integrity Testing
 
+> ⚠️ **状态说明（2026-09-13）**：本技能主体描述的 React Flow 七节点画布（WorkflowNodeCanvas/WorkflowNodePreviews 等）已于 2026-09-01 退役删除，Toonflow parity 与预览契约断言不再对应现行 UI（画布已换 ComfyUI，宿主 `comfy-canvas/ComfyCanvasSwap.tsx`）。使用前先核实现状：仍有效的部分=workflow-node-model 数据层、`workflow-smoke-bridge.ts`、`smoke:workflow:*` npm 脚本与打包 smoke 链；已失效部分=任何以 `.react-flow` DOM / Toonflow parity / 预览组件为断言的契约（`smoke-desktop.mjs` 中相应断言待重写）。ComfyUI 画布知识见 `.claude/knowledge/node-graph-architecture.md` §13-15。
+
 Use this skill to prove the workflow is complete with fresh evidence, not impressions. Scope includes the Studio workflow graph, workflow data, preview rendering, asset links, storage boundaries, and packaged app smoke tests.
 
 ## Path dictionary

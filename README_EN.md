@@ -30,9 +30,9 @@
 
 ## Overview
 
-**MYStudio** is a local-first desktop production tool for AI animated dramas, short films, and novel-to-film adaptation. It keeps scripts, storyboards, assets, voice-over, video candidates, and local Remotion rendering in one traceable workflow.
+**MYStudio** is a local-first desktop production tool for AI animated dramas, short films, and novel-to-film adaptation. It keeps scripts, storyboards, assets, voice-over, video candidates, and local Remotion rendering in one traceable workflow. Local generation pipelines (Krea2 image, MiniMax H3 video, music) run on a managed ComfyUI engine inside the app, side by side with cloud AI providers.
 
-> **Style & Director → Novel Import → Script Stage → Script Assets → Storyboard Video Generation → Video Workbench**
+> **Style & Director → Novel Import → Script Stage → Script Assets → Storyboard Video Generation (ComfyUI canvas) → Storyboard Panel → Video Workbench**
 
 The current documentation is maintained under [docs/README.en.md](docs/README.en.md). This root English README is kept as a compatibility entry.
 
@@ -43,13 +43,21 @@ The current documentation is maintained under [docs/README.en.md](docs/README.en
 - Script planning for story skeletons, adaptation strategy, script drafts, and review output.
 - Script asset management for extracting characters, scenes, and props from scripts.
 - Production generation for director planning and missing character, scene, and prop images.
-- Storyboard video generation for duration, dialogue, visual assets, shot-level review, and per-shot Remotion rendering.
+- Storyboard video generation on a ComfyUI node canvas (chapter stage chain + storyboard grid); per-shot images run on local pipelines (K2 image / H3 video) or cloud AI.
+- Storyboard panel: a card grid over all shots for review, media binding, voice assignment, and one-click chapter video.
 - Video workbench hosting a native Remotion Studio that renders shot candidates and chapter videos via `renderMedia`; FFmpeg/ffprobe serve only as shared tooling for media preparation and read-only QC.
 
-### Assist Studios
-- The `Assist` page hosts five standalone studios: Image Studio (canvas-based free-form image generation), Video Studio, Cinema Studio (photography-parameter image generation), TTS, and Music Studio.
-- Music Studio generates full songs locally with the Music3 engine: style recipes, AI lyric drafting, reference-track style DNA analysis, and BGM/vocal-song modes.
-- Generated results are saved into the asset library or project output directories and recorded in generation history.
+### App Shell & Navigation
+- Main navigation: Overview, MY Workflow, Skills, Assets, Local Models, Export, Outputs, Self-Media, plus Settings at the bottom.
+- The Local Models page and the workflow canvas tabs switch to an immersive fullscreen layout with a floating orb as the single navigation hub.
+- The Outputs page is an artifact center with two tabs: workflow artifacts (chapter tree) and the media library.
+
+### Local Models Workspace (ComfyUI)
+- The `Local Models` page (formerly `Assist`) is a fullscreen ComfyUI workspace hosting the managed engine's full frontend: a ComfyUI canvas for local production pipelines (K2 image, H3 video, music), a TTS voice booth, and a quick image-generation form (pick a checkpoint + prompt).
+- Local models are managed centrally from `Settings -> Local Configuration -> ComfyUI Engine` (the Models tab is a live view of `comfyui/models`).
+- The engine home (ComfyUI source, venv, models, workflow library) lives under the user-data directory and is installed/updated on demand — never bundled with the installer.
+- The app ships a self-developed `manying_nodes` custom node package (prompt / reference / generated / shot / stage / cloud-image nodes), synced into the engine at runtime; ComfyUI itself is never patched — all customization goes through official extension points.
+- Generated results flow into the media asset panel (imported = input, generated = output) and the media library.
 
 ### Asset Library
 - Production assets include roles, scenes, props, audio, and compatible clip records.
@@ -76,7 +84,7 @@ The current documentation is maintained under [docs/README.en.md](docs/README.en
 - **Node.js** >= 18
 - **npm** >= 9
 - Cloud AI mode (image/video/LLM via cloud APIs + local Remotion rendering) runs on any common desktop configuration.
-- Local AI models require a local GPU: Apple Silicon on macOS (MLX-based capabilities such as local full-song generation and VLM review are Apple-Silicon-only; Music3 bf16 requires 48 GB+ unified memory), or an NVIDIA CUDA GPU on Windows for local TTS.
+- Local AI mode requires a local GPU: Apple Silicon on macOS (MLX-based capabilities such as local full-song generation and VLM review are Apple-Silicon-only; Music3 bf16 requires 48 GB+ unified memory), or an NVIDIA CUDA GPU on Windows for local TTS. The managed ComfyUI engine and local models are downloaded on demand — image-generation weights can reach tens of GB.
 
 ### Install & Run
 
@@ -97,7 +105,7 @@ npm run dev
 
 After launching, go to **Settings → Cloud AI（云端AI）** and configure model services, model mappings, and Agent bindings. See the current documentation entry at [docs/README.en.md](docs/README.en.md).
 
-Python 3.12 and local TTS dependencies are configured on demand from **Settings → Local Configuration（本地配置）**. The app does not download Python or start the local TTS backend during startup.
+Python 3.12 and local TTS dependencies are configured on demand from **Settings → Local Configuration（本地配置）**. The app does not download Python or start the local TTS backend during startup. The managed ComfyUI engine is likewise installed on demand from **Settings → Local Configuration → ComfyUI Engine**; pipeline parameters and customization boundaries live in the [ComfyUI knowledge base](docs/comfyui-kb/参数速查.md).
 
 ### Build
 
@@ -126,6 +134,7 @@ installation, and smoke testing](docs/engineering/PACKAGING_AND_SMOKE_TESTING.md
 | State Management | Zustand 5 |
 | UI Components | Radix UI + Tailwind CSS 4 |
 | AI Core | `apps/frontend/lib/ai/core/` (prompt compilation, character bible, task polling) |
+| Local Generation | Managed ComfyUI engine + self-developed `manying_nodes` custom nodes (`apps/backend/engines/comfyui`) |
 
 ### Project Structure
 
@@ -140,7 +149,7 @@ MYStudio/
 │   │   ├── scripts/       # Build-time scripts, audits, and request ledgers
 │   │   ├── timeline/      # Direct timeline runner and Node-only config
 │   │   └── shared/        # Build-time reports and shared fixtures
-│   ├── backend/           # Local backend and TTS sidecar source
+│   ├── backend/           # Local backend: TTS sidecar + engines/ model-engine layer (managed ComfyUI engine et al.)
 │   └── frontend/
 │       ├── electron/      # Electron main process and preload bridge
 │       ├── components/    # React UI components and panels
@@ -149,7 +158,7 @@ MYStudio/
 │       ├── config/        # Vite, Electron Builder, TypeScript, ESLint config
 │       ├── assets/        # Brand, manuals, style references, images
 │       └── types/         # Shared TypeScript types
-├── docs/                  # User docs, setup guides, and fusion plans
+├── docs/                  # User docs, engineering guides, and the ComfyUI knowledge base (comfyui-kb)
 └── README.md
 ```
 

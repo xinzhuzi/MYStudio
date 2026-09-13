@@ -108,10 +108,11 @@ Most detailed guides are currently maintained in Chinese. Use these entry points
 | [Workflow Stage Operations](workflow/WORKFLOW_STAGE_OPERATIONS.md) | Detailed Chinese reference for workflow stage buttons, status, dialogs, and data flow |
 | [Novel Import and Script Planning Operations](workflow/WORKFLOW_NOVEL_SCRIPT_OPERATIONS.md) | Chinese reference for manual selection, chapter import, event analysis, staged script generation, review, and repair |
 | [Script Asset and Generation Operations](workflow/WORKFLOW_ASSET_GENERATION_OPERATIONS.md) | Chinese reference for script asset extraction, asset matching, prompt polishing, missing asset generation, and role voice entry points |
-| [Storyboard and Editing Operations](workflow/WORKFLOW_STORYBOARD_EDITING_OPERATIONS.md) | Chinese reference for material binding, storyboard fields, AI storyboard table protocol, track grouping, local rendering, and final stitching |
-| [Assist Workbench Guide](panels/ASSIST_WORKBENCH_GUIDE.md) | Chinese guide for the five assist studios: image, video, cinema, TTS, and music (local Music3 full-song generation) |
-| [Assist Workbench Operations](panels/ASSIST_WORKBENCH_OPERATIONS.md) | Chinese guide for image/video/cinema/TTS assist workbench controls and history |
-| [Assist Workbench Parameter Reference](panels/ASSIST_WORKBENCH_PARAMETER_REFERENCE.md) | Chinese reference for image/video/Veo upload/cinema/TTS assist workbench fields |
+| [Storyboard and Editing Operations](workflow/WORKFLOW_STORYBOARD_EDITING_OPERATIONS.md) | ⚠️ Outdated (2026-09): storyboard editing moved to the ComfyUI canvas + card-grid panel; only the Remotion workbench chapter still applies |
+| [Assist Workbench Guide](panels/ASSIST_WORKBENCH_GUIDE.md) | ⚠️ Outdated (2026-09): the five assist studios were retired in the 2026-09-10 fullscreen-ComfyUI merge; the entry is now "Local Models" (ComfyUI canvas + TTS booth + quick image generation) |
+| [Assist Workbench Operations](panels/ASSIST_WORKBENCH_OPERATIONS.md) | ⚠️ Outdated — retired with the five assist studios |
+| [Assist Workbench Parameter Reference](panels/ASSIST_WORKBENCH_PARAMETER_REFERENCE.md) | ⚠️ Outdated — superseded by the ComfyUI parameter cheat sheet |
+| [ComfyUI Knowledge Base](comfyui-kb/参数速查.md) | Current source of truth for local generation pipelines (K2 image / H3 video): sampling parameters, customization code map, runbooks (Chinese) |
 | [Media Outputs Operations](panels/MEDIA_OUTPUTS_OPERATIONS.md) | Chinese guide for media upload, folders, context menus, export, and director shortcuts |
 | [Export Operations](panels/EXPORT_OPERATIONS.md) | Chinese guide for export source selection, sequence strip, progress display, disabled states, and secondary cards |
 | [Visual Style Management](assets/VISUAL_STYLE_MANAGEMENT.md) | Default styles, custom styles, visual manual editing, and AI style-token extraction |

@@ -67,6 +67,8 @@ Rebalance 12 权重(单层 5.0)。
 
 ## 五、管线实现说明(工程师向)
 
+> 语境说明（2026-09-13）：本节描述的是**存量漫影生图 sidecar 直连线**（`image_gen` 域，端口 17595；辅助时代「无衣物直连」按钮仍在用此端点）。画布主线已迁 ComfyUI 工作流（见 §四与 [参数速查](./comfyui-kb/参数速查.md)）；改图流参数以参数速查的「稳定流终裁」口径为准（取代旧四档说法）。
+
 - 图生图=经典 SDEdit(VAE 编码→按 strength 加噪→部分步去噪);
   masked 版(无衣物)=引擎 `generate_masked_sdedit`:复用 diffusers
   管线 `__call__`,`callback_on_step_end` 每步把蒙版外锚定回「原图在当前

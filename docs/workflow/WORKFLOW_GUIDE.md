@@ -1,6 +1,8 @@
 # 漫影工作室基本工作流教程
 
-本文说明当前 `工作流` 页面从小说原文到 Remotion 章节成片的基础流程。更细的按钮、状态、弹窗和数据关系见 [工作流阶段操作手册](./WORKFLOW_STAGE_OPERATIONS.md)。小说导入、事件分析和策划编剧细节见 [小说导入与策划编剧操作参考](./WORKFLOW_NOVEL_SCRIPT_OPERATIONS.md)，剧本资产提取和剧本资产管理细节见 [剧本资产管理操作参考](./WORKFLOW_ASSET_GENERATION_OPERATIONS.md)，分镜面板与视频工作台细节见 [分镜面板与视频工作台操作参考](./WORKFLOW_STORYBOARD_EDITING_OPERATIONS.md)。安装、配置和排错入口见 [文档中心](../README.md)。
+本文说明当前 `MY 工作流` 页面从小说原文到 Remotion 章节成片的基础流程。更细的按钮、状态、弹窗和数据关系见 [工作流阶段操作手册](./WORKFLOW_STAGE_OPERATIONS.md)。小说导入、事件分析和策划编剧细节见 [小说导入与策划编剧操作参考](./WORKFLOW_NOVEL_SCRIPT_OPERATIONS.md)，剧本资产提取和剧本资产管理细节见 [剧本资产管理操作参考](./WORKFLOW_ASSET_GENERATION_OPERATIONS.md)，分镜面板与视频工作台细节见 [分镜面板与视频工作台操作参考](./WORKFLOW_STORYBOARD_EDITING_OPERATIONS.md)。安装、配置和排错入口见 [文档中心](../README.md)。
+
+> **页签结构更新（2026-09-13 口径）**：`工作流` 页现名 `MY 工作流`，共 8 个页签：`风格与导演 / 小说导入 / 剧本生产阶段 / 剧本资产管理 / 分镜视频生成 / 分镜面板 / 图像节点图 / 视频工作台`。与本文旧七阶段叙事的对应：旧「策划编剧」并入「剧本生产阶段」；旧「剧本资产提取」并入「剧本资产管理」页签内的提取动作；新增的「分镜视频生成」「图像节点图」是 ComfyUI 节点画布页签（旧 React Flow 画布 2026-09-01 退役），分镜图为 ComfyUI 工作流产线（K2 图像 / H3 视频）。文中个别按钮文案如与当前界面有出入，以界面为准。
 
 如果需要从“第一步”一直看到最终 MP4 的数据交接、节点职责、JSON 边界和 Remotion 原生渲染细节，请先读 [从分镜到最终视频的完整链路](./WORKFLOW_FULL_VIDEO_PIPELINE.md)。
 
@@ -11,10 +13,10 @@
 ```text
 风格与导演
   -> 小说导入
-  -> 策划编剧
-  -> 剧本资产提取
-  -> 剧本资产管理
-  -> 分镜面板（每镜 Remotion 配置与 shot definitions）
+  -> 剧本生产阶段（故事骨架/改编策略/剧本草稿）
+  -> 剧本资产管理（提取 + 管理 + 导演规划）
+  -> 分镜视频生成 / 图像节点图（ComfyUI 节点画布：章节环节链 + 分镜网格，K2/H3 本地产线）
+  -> 分镜面板（每镜 Remotion 配置与 shot definitions，卡片网格）
   -> Remotion 视频生产（StoryboardShot 队列、current MP4/evidence）
   -> 本地 MLX 对齐与 video-use（EDL、字幕时间、普通字幕、调色、preview、自评）
   -> 用户确认并写入 EditingProject（默认 editable-edl，可切换 clean flat-shot-mp4）
@@ -105,23 +107,22 @@ Python 和 TTS 依赖不会在应用启动时自动配置。详细说明见 [Pyt
 
 ## 6. 分镜面板
 
-进入 `工作流 -> 分镜面板`。
+进入 `MY 工作流 -> 分镜面板`（卡片网格总览全部分镜）。
 
-1. 点击 `运行 AI 分镜计划`，基于章节剧本、导演计划和资产库生成分镜表。
+1. 分镜表由导演计划 + 资产库生成（生成入口在「分镜视频生成」画布的漫影侧栏动作/宿主批量钩子）。
 2. 检查每条分镜的场景、角色、动作、对白、时长和画面素材。
-3. 必要时点击 `添加分镜` 手动补充。
-4. 为分镜绑定图片或视频素材，生成或补齐分镜图。
-5. 按角色音色生成或试听分镜配音。
+3. 为分镜绑定图片或视频素材，生成或补齐分镜图（分镜图走 ComfyUI 画布产线）。
+4. 按角色音色生成或试听分镜配音。
 
 工作流状态会检查是否已经落地分镜，以及分镜是否绑定画面素材。
 
-素材导入、媒体引用、AI 分镜表 14 列协议和时长计算见 [分镜表与剪辑工作台操作参考](./WORKFLOW_STORYBOARD_EDITING_OPERATIONS.md)。
+素材导入、媒体引用、AI 分镜表协议（现为 16 列）和时长计算见 [分镜表与剪辑工作台操作参考](./WORKFLOW_STORYBOARD_EDITING_OPERATIONS.md)（已过时，仅视频工作台章节仍有效；分镜编辑现状以 ComfyUI 画布为准）。
 
 角色音色分配可在这里的角色列表或 `资产 -> 角色库` 角色详情中完成；本地 TTS 配置仍在设置页。
 
 ## 7. Remotion 视频生产
 
-分镜面板审核通过后，在生产流程画布的 `Remotion 视频生产` 节点点击 `生成当前章分镜视频`。系统只提交当前章节的 `StoryboardShot` jobs，不生成章节级 `ChapterVideo`，也不回退到旧迁移草稿片段或 FFmpeg。
+分镜面板审核通过后，在 `分镜面板` 页签使用 `一键章视频` 提交当前章的逐镜 Remotion jobs（旧生产流程画布的 `Remotion 视频生产` 节点按钮已随 React Flow 画布退役）。系统只提交当前章节的 `StoryboardShot` jobs，不生成章节级 `ChapterVideo`，也不回退到旧迁移草稿片段或 FFmpeg。
 
 1. 节点按当前章节动态 M 个分镜构建逐镜 plan，并检查图片/音频绑定、人工视觉审核、连续性和当前 revision。
 2. 队列显示 queued/running/succeeded/failed/blocked；每个成功镜头必须同时有 current MP4 和 evidence，输出保持项目级 `remotion/outputs/shots/<chapterId>/<shotId>/current.mp4`。

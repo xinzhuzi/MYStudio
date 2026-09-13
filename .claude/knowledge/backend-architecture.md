@@ -4,6 +4,8 @@
 
 **落地状态(09-09 终态)**:引擎层统一全部完成——P1/P2 comfyui 搬家+providers 改名=`3fadf6f`+`357cfac`+`ba94435`;P-tts tts_engine=`b893b29`;P4 批A worker 型四引擎(upscale/video_qc/vlm/depth)、批B image_engine、批C/D audio/sfx 拆分+music3 权重件=`(批A..批D 提交,见 git log engines 关键词)`。全量后端 387/0 全程一致;spawn 面逐条不变;env 契约不变。spec:`.trellis/spec/backend/directory-structure.md`。
 
+> **09-13 现状校准**(下文目标目录树/五族表按此增量阅读):①`engines/` 现为 **9 包**(audio/comfyui/depth/image/sfx/tts/upscale/video_qc/vlm;`music3_engine` 未落地——音乐推理走 `audio_gen` 侧车 + Music3 权重件);②backend 顶层服务包现为 `audio_gen / common / engines / image_gen / sfx_gen / tts / video_qc / video_use / vlm_review`,下文树中 `music3_gen/`、`upscale/`、`depth_estimation/`、`layer_separation/` 顶层包**已不存在**(后处理由 engines 域 worker 引擎承载);③五族表「生图后处理」「音乐」两行的目录形态以此为准。comfyui 引擎家/模型统一家/端口口径见 `docs/engineering/DEVELOPER_ARCHITECTURE.md` 的「ComfyUI 引擎层」节。
+
 **何时读**:动 `apps/backend` 目录结构、新增后端包、新增/接入引擎、给 ComfyUI 写自定义节点之前必读。
 
 ## 一、三域分层(概念裁定)

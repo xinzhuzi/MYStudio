@@ -126,6 +126,8 @@
 
 **换代史**:09-09 comfyui-frontend-swap 四阶段落地,批6(c79cdc5)图片画布 React Flow 退役,批8(076df54)主分镜视图切换+React Flow 终局退役;09-09/10 音乐收敛 ComfyUI(f60c50c 音乐 tab 撤)、大模型展示入引擎卡模型页(82f2cfc)。
 
+> **09-13 校准**(下表为 09-10 快照,按此增量阅读):①「辅助」入口 09-11 更名**「本地模型」**,FreedomView 五 tab 与 `ImageStudio.tsx` 已退役——assist 面板现= `ComfyWorkspace.tsx` 三态(`freedom-store.activeStudio`: comfy=ComfyCanvasStudio / tts=TtsStudio 配音室 / generate=LocalModelStudio 漫影生图);②分镜工作流画布 09-11/12 **全链迁 ComfyUI 收官**(991ad48):章节七环节链+分镜网格进 `漫影/0_工作流主线`,业务载荷经 `comfy-canvas/stage-payload-map.ts` 映射写入环节节点,studio 侧新增 NodeDocViewer 与 workflow-node-model-* 接线;③沉浸视图(本地模型/画布页签)零 chrome,唯一导航=全局悬浮球 AppOrb(含任务中心);④本地模型模块画布三层分离(09-12):侧栏/原生树过滤分镜+会话 partition。
+
 | 挂载面 | 位置 | 说明 |
 |---|---|---|
 | 辅助·图片工作室 tab | `FE/components/panels/assist/ImageStudio.tsx`(壳)→ `comfy-canvas/ComfyCanvasSwap` | FreedomView 五 tab(image/video/cinema/tts/comfy)之一 |
@@ -141,8 +143,8 @@
 
 真源 `BE/engines/comfyui/manying_nodes/`(sync 至引擎 custom_nodes 不依赖打包;连字符目录不能直 import,验证走引擎 object_info):
 
-- 节点(NODE_CLASS_MAPPINGS):`ManyingPrompt` / `ManyingReference` / `ManyingGenerated`(shot_target 经侧栏回填)/ `ManyingShot`(镜节点,批7 主视图化第一块)。
-- `web/manying.js`:ComfyUI 原生前端 sidebar 扩展(自定义 DOM 渲染),拉 sidecar 分镜快照,点选回填 ManyingGenerated.shot_target;旧版前端无 sidebar API=静默跳过。
+- 节点(NODE_CLASS_MAPPINGS,现六类):`ManyingPrompt` / `ManyingReference` / `ManyingGenerated`(shot_target 经侧栏回填)/ `ManyingShot`(镜节点)/ `ManyingStage`(环节节点)/ `ManyingCloudImage`(云端图)。
+- 前端扩展:`web/` 原 manying.js 单文件已拆为多模块(6697af8 起;`stage-node.js`+`stage-ui/`+`assets.js` 等,环节节点 UI 在此);拉 sidecar 分镜快照,点选回填 ManyingGenerated.shot_target;旧版前端无 sidebar API=静默跳过。**改 web/ 后须重打包才进安装版**(引擎 spawn 用 Resources 覆写引擎家)。
 - 测试:`manying_nodes/tests/`;bridge 三件套见 §15。
 
 ## 15. 桥(sidecar↔webview↔渲染层)
@@ -186,6 +188,7 @@
 - `FE/components/panels/settings/comfy-engine/`:useComfyEngineSettings(状态机:install/start job 轮询)、引擎卡默认收起(点开才挂载才查更新)、「模型」tab(本地大模型展示)、插件台账(已装 30/策展+Registry 合并搜索)、「存储」tab(四目录+迁移)。
 - `BE/engines/comfyui/engine_manager.py`:实例锁(engine.lock,双 sidecar 风暴根修)、build_launch_args(gpu-only/--reserve-vram 可组合/--use-pytorch-cross-attention;**无 --user-directory**=原生用户目录生效的前提)、更新链(强制拉源码覆盖+失败重试+requirements 指纹跳过 pip)、collect_import_failures(插件兼容点名)。
 - `plugin_manager.py`:策展清单 curated_plugins.json、差分 node sets、卸载/备份。
+- **端口口径(09-12 根修 00b671e)**:引擎默认启动串不再钉 `--port`;端口真源归账本/引擎状态(`status.port`=全 app 寻址真源),17598 仅作桥回落位。启动链:start_lock 全程串行+快路径等健康防假就绪;报「本地生图服务未运行」类死窗有 sidecar 自愈补试。
 
 ## 20. 待清遗留(studio 侧孤儿,未清)
 
