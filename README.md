@@ -154,7 +154,7 @@
 
 ### 前置要求
 
-- Node.js >= 18
+- Node.js >= 18（CI 与打包链使用 Node 22）
 - macOS (Apple Silicon) / Windows 10+ (NVIDIA GPU) / Linux x86_64
 
 ### 一键配置
@@ -175,10 +175,7 @@ cd MYStudio
 powershell -ExecutionPolicy Bypass -File apps\build\packaging\setup-win.ps1
 ```
 
-脚本会自动：
-1. 安装 Node.js 依赖
-2. 保持 Python runtime 延迟安装，不写入后端源码目录
-3. 首次使用本地 TTS 前，在应用设置 > Python 配置中点击“开始配置”
+脚本只安装 Node.js 依赖（已装则跳过）；Python runtime 延迟安装、不写入后端源码目录——首次使用本地 TTS / ComfyUI 引擎前，在 `设置 → 本地配置 → Python 运行环境` 点击「开始配置」。
 
 ### 启动
 
@@ -186,17 +183,42 @@ powershell -ExecutionPolicy Bypass -File apps\build\packaging\setup-win.ps1
 cd apps && npm run dev
 ```
 
+**开发态 ComfyUI 引擎**：引擎家解析顺序为 `MYSTUDIO_COMFYUI_HOME` 环境变量 → 应用用户数据目录（`…/漫影工作室/comfyui`）→ 纯开发兜底 `~/.manying-dev`。`manying_nodes` 自研节点包在每次引擎启动时自动从仓库 `apps/backend/engines/comfyui/manying_nodes/` 同步进引擎家——改完重启引擎即生效；安装版则须重新打包（引擎 spawn 用 Resources 覆写引擎家）。
+
+### 质量门禁与测试
+
+所有命令从 `apps/` 执行：
+
+```bash
+npm run typecheck   # tsc --noEmit
+npm run lint        # eslint（0 警告门禁）
+npm run test        # Vitest 全量
+npm run test:all    # 统一质量门禁：typecheck+lint+Vitest+smoke，macOS 再跑 build:mac 全链
+```
+
+后端测试（系统 `python3`，从 `apps/` 执行）：
+
+```bash
+PYTHONPATH=backend python3 -m unittest discover -s backend/tests          # TTS/生图等 sidecar 域
+PYTHONPATH=backend python3 -m pytest backend/engines/comfyui/tests       # ComfyUI 引擎层（bridge/manifest/execute 等）
+```
+
 ### 打包
 
 ```bash
-# macOS
+# macOS（标准入口：构建 → 覆盖安装 → installed smoke → 关闭应用，一条链跑完）
 cd apps && npm run build:mac
 # Windows
 cd apps && npm run build:win
+# Linux
+cd apps && npm run build:linux
 ```
 
 桌面打包必须从 `apps/` 执行。`npm run build:mac` 会经由 `build-mac.sh` 完成固定 bundle
-校验、构建、覆盖安装、installed smoke 和关闭应用；正常打包不会每次重新 bundle。Remotion
+校验、构建、覆盖安装、installed smoke 和关闭应用（并发打包链互斥等待，install-and-smoke
+失败会自动整链重试一次）；正常打包不会每次重新 bundle。Remotion
 版本或 composition 变化后，先执行 `cd apps && npm run remotion:bundle` 和
 `cd apps && npm run remotion:versions`，再运行目标打包命令。完整流程见
 [打包、安装与 Smoke 测试](docs/engineering/PACKAGING_AND_SMOKE_TESTING.md)。
+
+**CI 自动化**（`.github/workflows/build.yml`）：push / PR 自动跑 `npm ci` + typecheck + lint + Vitest + `electron-vite build`；推 `vX.Y.Z` 标签触发 macOS ARM64 与 Windows x64 全链打包并挂 GitHub Release（dmg / zip / setup.exe）。

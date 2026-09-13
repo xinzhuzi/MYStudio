@@ -81,7 +81,7 @@ The current documentation is maintained under [docs/README.en.md](docs/README.en
 
 ### Requirements
 
-- **Node.js** >= 18
+- **Node.js** >= 18 (CI and packaging use Node 22)
 - **npm** >= 9
 - Cloud AI mode (image/video/LLM via cloud APIs + local Remotion rendering) runs on any common desktop configuration.
 - Local AI mode requires a local GPU: Apple Silicon on macOS (MLX-based capabilities such as local full-song generation and VLM review are Apple-Silicon-only; Music3 bf16 requires 48 GB+ unified memory), or an NVIDIA CUDA GPU on Windows for local TTS. The managed ComfyUI engine and local models are downloaded on demand — image-generation weights can reach tens of GB.
@@ -101,20 +101,41 @@ cd apps
 npm run dev
 ```
 
+**ComfyUI engine in development**: the engine home resolves as `MYSTUDIO_COMFYUI_HOME` env override → app user-data directory (`…/漫影工作室/comfyui`) → dev-only fallback `~/.manying-dev`. The self-developed `manying_nodes` package is synced from `apps/backend/engines/comfyui/manying_nodes/` into the engine home on every engine start — restart the engine to pick up changes; installed apps require repackaging (engine spawn overwrites the home from `Resources`).
+
 ### Configure API Key
 
 After launching, go to **Settings → Cloud AI（云端AI）** and configure model services, model mappings, and Agent bindings. See the current documentation entry at [docs/README.en.md](docs/README.en.md).
 
 Python 3.12 and local TTS dependencies are configured on demand from **Settings → Local Configuration（本地配置）**. The app does not download Python or start the local TTS backend during startup. The managed ComfyUI engine is likewise installed on demand from **Settings → Local Configuration → ComfyUI Engine**; pipeline parameters and customization boundaries live in the [ComfyUI knowledge base](docs/comfyui-kb/参数速查.md).
 
+### Quality Gate & Tests
+
+All commands run from `apps/`:
+
+```bash
+npm run typecheck   # tsc --noEmit
+npm run lint        # eslint (zero-warning gate)
+npm run test        # full Vitest suite
+npm run test:all    # unified quality gate: typecheck + lint + Vitest + smoke; macOS also runs the full build:mac chain
+```
+
+Backend tests (system `python3`, from `apps/`):
+
+```bash
+PYTHONPATH=backend python3 -m unittest discover -s backend/tests       # TTS / image-gen sidecar domains
+PYTHONPATH=backend python3 -m pytest backend/engines/comfyui/tests    # ComfyUI engine layer (bridge / manifest / execute)
+```
+
 ### Build
 
 ```bash
-# macOS
+# macOS (standard entry: build → overwrite install → installed smoke → quit, one chain)
 cd apps && npm run build:mac
-
 # Windows
 cd apps && npm run build:win
+# Linux
+cd apps && npm run build:linux
 ```
 
 Run packaging commands from `apps/`. `npm run build:mac` goes through `build-mac.sh` and performs
@@ -123,6 +144,8 @@ It reuses the verified fixed Remotion bundle instead of rebuilding it on every p
 changing the Remotion version or composition, run `cd apps && npm run remotion:bundle` and
 `cd apps && npm run remotion:versions` before the target packaging command. See [packaging,
 installation, and smoke testing](docs/engineering/PACKAGING_AND_SMOKE_TESTING.md).
+
+**CI automation** (`.github/workflows/build.yml`): pushes and PRs automatically run `npm ci`, typecheck, lint, Vitest, and `electron-vite build`; pushing a `vX.Y.Z` tag triggers full macOS ARM64 + Windows x64 packaging and attaches the artifacts (dmg / zip / setup.exe) to a GitHub Release.
 
 ## Architecture
 
