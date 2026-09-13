@@ -100,7 +100,7 @@ export function buildProductionFlowModel(
           : []),
       ]
     : ["待提取资产"];
-  const assetPreviewLines = assetDerivation.groups.slice(0, 18).flatMap((group) => [
+  const assetPreviewLines = assetDerivation.groups.flatMap((group) => [
     `${group.source.typeLabel} · ${group.source.name}${group.source.note ? ` · ${group.source.note}` : ""}`,
     ...group.derived.map((item) => `衍生 · ${item.name}${item.reason ? ` · ${item.reason}` : ""}`),
   ]);

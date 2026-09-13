@@ -34,6 +34,31 @@ function wrapLines(lines: string[]): string[] {
   return out.length > 0 ? out : ["暂无内容"];
 }
 
+/** 进度对(09-13 用户裁定:要做多少/已做多少;total 缺省=纯计数)——
+ * 全部从节点既有数据推导,零新数据源 */
+function buildProgress(
+  key: PipelineStageKey,
+  node: ProductionFlowNodeModel,
+): { label: string; done: number; total?: number }[] {
+  if (key === "storyboard" && node.storyboardTiles?.length) {
+    return [{ label: "已出图", done: node.storyboardTiles.filter((t) => t.mediaPath).length, total: node.storyboardTiles.length }];
+  }
+  if (key === "remotionProduction" && node.remotionShots?.length) {
+    const total = node.remotionShots.length;
+    return [
+      { label: "视频", done: node.remotionShots.filter((s) => s.status === "succeeded" && s.outputPath).length, total },
+      { label: "配音", done: node.remotionShots.filter((s) => s.ttsStatus === "ready").length, total },
+    ];
+  }
+  if (key === "storyboardTable" && node.tableRows?.length) {
+    return [{ label: "分镜", done: node.tableRows.length }];
+  }
+  if (key === "workbench" && node.workbenchTracks?.length) {
+    return [{ label: "轨道完成", done: node.workbenchTracks.filter((t) => t.state === "ready").length, total: node.workbenchTracks.length }];
+  }
+  return [];
+}
+
 function safePreviewName(id: string): string {
   return `manying-shot-${id.replace(/[^A-Za-z0-9._-]+/g, "_")}.jpg`;
 }
@@ -56,22 +81,51 @@ export function mapProductionFlowNodesToStagePayloads(nodes: ProductionFlowNodeM
       metrics: node.metrics.map(String),
       ...(node.previewTitle ? { previewTitle: node.previewTitle } : {}),
       ...(node.previewLines?.length ? { previewLines: wrapLines(node.previewLines) } : {}),
-      ...(node.skills?.length ? { skills: node.skills.map((skill) => skill.name) } : {}),
+      ...(key === "storyboardTable" && node.tableRows?.length ? {
+        // 结构化两行制表行直喂引擎(零 md 回流解析;全量行,禁截断)
+        tableRows: node.tableRows.map((row) => ({
+          index: row.index,
+          scene: row.scene,
+          title: row.title,
+          description: row.description,
+          shotSize: row.shotSize,
+          cameraMove: row.cameraMove,
+          duration: row.duration,
+          lines: row.lines,
+          action: row.action,
+          sound: row.sound,
+          assets: row.associateAssetsNames.join("、"),
+        })),
+      } : {}),
+      ...(node.skills?.length ? {
+        skills: node.skills.map((skill) => skill.name),
+        // 技能详情(09-13 用户裁定:胶囊可点开;名称/来源/内容摘要)
+        skillDetails: node.skills.map((skill) => ({
+          name: skill.name,
+          source: skill.source,
+          summary: skill.summaryLines?.slice(0, 6),
+        })),
+      } : {}),
+      ...(() => {
+        const progress = buildProgress(key, node);
+        return progress.length ? { progress } : {};
+      })(),
       ...(key === "storyboard" && node.storyboardTiles ? {
+        // 全量不截断(09-13 用户裁定):磁贴文字溢出交给 CSS ellipsis
         tiles: node.storyboardTiles.map((tile) => ({
           index: tile.index,
-          title: (tile.title || `分镜 ${tile.index}`).slice(0, 12),
+          title: tile.title || `分镜 ${tile.index}`,
           preview: tile.id ? safePreviewName(tile.id) : undefined,
           hasImage: Boolean(tile.mediaPath),
           hasVideo: false,
-          ...(tile.lines ? { lines: String(tile.lines).slice(0, 12) } : {}),
+          ...(tile.lines ? { lines: String(tile.lines) } : {}),
           ...(tile.state ? { state: String(tile.state) } : {}),
         })),
       } : {}),
       ...(key === "remotionProduction" && node.remotionShots ? {
         shots: node.remotionShots.map((shot) => ({
           index: shot.index,
-          label: (shot.title || `分镜 ${shot.index}`).slice(0, 20),
+          label: shot.title || `分镜 ${shot.index}`,
           videoReady: shot.status === "succeeded" && Boolean(shot.outputPath),
           imageReady: Boolean(shot.mediaPath),
           ttsReady: shot.ttsStatus === "ready",
@@ -80,6 +134,16 @@ export function mapProductionFlowNodesToStagePayloads(nodes: ProductionFlowNodeM
           ...(shot.status !== "pending" ? { status: shot.status } : {}),
           ...(typeof shot.progress === "number" ? { progress: shot.progress } : {}),
         })),
+      } : {}),
+      ...(key === "assets" ? {
+        actions: [
+          { kind: "extract-assets", label: node.assetGroups?.length ? "重新抽取资产" : "抽取资产" },
+          ...(node.actions || []).map((action) => ({
+            kind: action.id, label: action.label,
+            ...(action.paid ? { paid: true } : {}),
+            ...(action.disabled ? { disabled: true } : {}),
+          })),
+        ],
       } : {}),
       ...(key === "assets" && node.assetGroups ? {
         assets: node.assetGroups.flatMap((group) =>
@@ -94,7 +158,7 @@ export function mapProductionFlowNodesToStagePayloads(nodes: ProductionFlowNodeM
       } : {}),
       ...(key === "workbench" && node.workbenchTracks ? {
         tracks: node.workbenchTracks.map((track) => ({
-          name: (track.prompt || track.id).slice(0, 24),
+          name: track.prompt || track.id,
           state: String(track.state),
           count: track.storyboardCount,
           mediaCount: track.mediaCount,
@@ -111,7 +175,9 @@ export function mapProductionFlowNodesToStagePayloads(nodes: ProductionFlowNodeM
         } : {}),
         ...(node.remotionQueueConcurrency ? { concurrency: node.remotionQueueConcurrency } : {}),
       } : {}),
-      ...(node.actions?.length ? {
+      // assets 的 actions 由上方注入块终态产出(抽取+透传合并),通用展开
+      // 让位——后展开会整体覆盖注入块,assets 节点一旦有 actions 抽取键就丢
+      ...(key !== "assets" && node.actions?.length ? {
         actions: node.actions.map((action) => ({
           kind: action.id,
           label: action.label,

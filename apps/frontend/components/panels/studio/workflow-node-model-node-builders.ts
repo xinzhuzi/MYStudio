@@ -4,7 +4,6 @@ import type {
   RemotionStageStatus,
 } from "@/types/remotion-workspace";
 import {
-  DIRECTOR_PLAN_PREVIEW_MAX_LINES,
   type ProductionFlowBuildContext,
   type ProductionFlowNodeModel,
   type ProductionFlowRemotionShot,
@@ -26,7 +25,7 @@ export function buildScriptNode(ctx: ProductionFlowBuildContext): ProductionFlow
     status: ctx.scriptDrafts.length > 0 ? "ready" : "empty",
     metrics: ctx.scriptDrafts.length ? [`${ctx.scriptChars} 字`] : [],
     previewTitle: "剧本内容",
-    previewLines: previewTextLines(ctx.flowData.script, "暂无剧本内容", 220),
+    previewLines: previewTextLines(ctx.flowData.script, "暂无剧本内容", Number.POSITIVE_INFINITY),
     targetStage: "script",
   };
 }
@@ -44,7 +43,7 @@ export function buildScriptPlanNode(ctx: ProductionFlowBuildContext): Production
     previewLines: previewTextLines(
       ctx.flowData.scriptPlan,
       "暂无导演规划",
-      DIRECTOR_PLAN_PREVIEW_MAX_LINES,
+      Number.POSITIVE_INFINITY,
     ),
     skill: ctx.directorPlanSkill,
     skills: ctx.directorPlanSkills,
@@ -91,7 +90,7 @@ export function buildStoryboardTableNode(ctx: ProductionFlowBuildContext): Produ
       ? [`${ctx.storyboardTableCount} 份分镜表`]
       : ["待生成分镜表"],
     previewTitle: "分镜表",
-    previewLines: previewTextLines(ctx.flowData.storyboardTable, "暂无分镜表"),
+    previewLines: previewTextLines(ctx.flowData.storyboardTable, "暂无分镜表", Number.POSITIVE_INFINITY),
     previewKind: "table",
     tableRows: ctx.storyboardTableRows,
     skills: ctx.storyboardTableSkills,

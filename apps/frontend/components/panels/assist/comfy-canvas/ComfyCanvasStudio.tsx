@@ -236,6 +236,8 @@ export interface ComfyCanvasStudioProps {
     /** 09-13 用户裁定:节点「全文/编辑」按钮回流——note=环节 key */
     onViewNodeDoc?: (stageKey: string) => void;
     onEditNodeDoc?: (stageKey: string) => void;
+    /** 09-13 用户裁定:衍生资产节点「抽取资产」回流(老剧本资产页同款钩子) */
+    onExtractAssets?: () => void;
   };
   /** 老画布节点模型(viewModel.productionFlowNodes;v4 内容全量喂入) */
   stageFlowNodes?: ProductionFlowNodeModel[];
@@ -326,6 +328,9 @@ export function ComfyCanvasStudio({ autoOpenOverview = false, manyingScope, side
         sidebarActionsRef.current.onViewNodeDoc?.(item.note || "");
       } else if (item.kind === "edit-doc") {
         sidebarActionsRef.current.onEditNodeDoc?.(item.note || "");
+      } else if (item.kind === "extract-assets") {
+        toast.info("环节指令:从当前剧本抽取资产");
+        sidebarActionsRef.current.onExtractAssets?.();
       }
     }
     if (listed.items.length > 0) {

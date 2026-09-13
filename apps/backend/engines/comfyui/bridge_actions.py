@@ -19,14 +19,21 @@ _STATE: dict = {"actions": [], "nextId": 1}
 # 09-12 功能完备(用户终裁:节点功能要像之前):环节节点动作全量收编——
 # 老画布 ProductionFlowNodeAction 的四个批量动作(导演规划/分镜表=付费 LLM,
 # 一键生图/一键视频=既有) + 工作台重建轨道。
+# 09-13 用户裁定:节点「全文/编辑」回流(每型节点查看完全+可编辑)。
 ALLOWED_KINDS = (
     "generate-images",
     "generate-videos",
     "generate-director-plan",
     "generate-storyboard-table",
     "rebuild-workbench-tracks",
+    "view-doc",
+    "edit-doc",
+    "extract-assets",
 )
 CAP = 20
+
+# 幂等 UI 开合类:每次点击都必须送达(同 kind 不同节点是常态),豁免去重
+DEDUPE_EXEMPT_KINDS = frozenset({"view-doc", "edit-doc"})
 
 
 NOTE_CAP = 2000  # 补充要求字符上限(付费生成的附加指令,09-12 功能差异补齐)
@@ -39,9 +46,9 @@ def submit(kind: str, note: str = "") -> dict:
     note = str(note or "").strip()[:NOTE_CAP]
     now = int(time.time() * 1000)
     with _LOCK:
-        # 同类未消费动作去重:侧栏按钮可能连点,宿主执行一次即可;
-        # 带新补充要求重提=更新在途 note(最新意图胜出,老画布同语义)
-        if any(item["kind"] == kind for item in _STATE["actions"]):
+        # 同类未消费动作去重(付费生成类防连点双花钱;带新补充要求重提=
+        # 更新在途 note,最新意图胜出,老画布同语义);文档开合类豁免
+        if kind not in DEDUPE_EXEMPT_KINDS and any(item["kind"] == kind for item in _STATE["actions"]):
             existing = next(item for item in _STATE["actions"] if item["kind"] == kind)
             if note:
                 existing["note"] = note

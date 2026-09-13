@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/button";
 import { useStudioStore } from "@/stores/studio/studio-store";
 import { buildStudioFlowData } from "@/lib/studio/studio-flow-data";
 import type { ProductionFlowNodeModel, ProductionFlowNodeId } from "./workflow-node-model";
+import { buildNodeDocMarkdown } from "./node-doc-content";
 
 /**
  * NodeDocViewer——文档型节点的格式化阅读视图。
@@ -23,10 +24,13 @@ export function NodeDocViewer({
   node,
   onClose,
   onEdit,
+  onEnterStage,
 }: {
   node: ProductionFlowNodeModel;
   onClose: () => void;
   onEdit?: (nodeId: ProductionFlowNodeId) => void;
+  /** 老画布 targetStage 对齐(09-13 功能一致性):直达该环节阶段页 */
+  onEnterStage?: (nodeId: ProductionFlowNodeId) => void;
 }) {
   const state = useStudioStore();
   const flowData = buildStudioFlowData({
@@ -38,15 +42,9 @@ export function NodeDocViewer({
     videoCandidates: state.videoCandidates ?? [],
   });
   const isTable = node.previewKind === "table";
-  // 09-13 用户裁定:剧本节点也走全文弹窗(此前只接 scriptPlan/table)
-  const rawMarkdown = isTable
-    ? flowData.storyboardTable
-    : node.id === "script"
-      ? flowData.script
-      : flowData.scriptPlan;
-  // 剥掉 <scriptPlan>/<storyboardTable> 等数据包装标签(原始 TextPreview
-  // 的 unwrapTaggedMarkdown 同款逻辑,否则标签会渲染为可见文本)
-  const markdown = rawMarkdown?.replace(/<\/?(?:scriptPlan|storyboardTable)>\s*/g, "");
+  // 全文内容单源=node-doc-content 纯函数(09-13 用户裁定:七型全覆盖零截断;
+  // storyboardTable 走下方 TableRender 平铺表,md 为其兜底)
+  const markdown = isTable ? "" : buildNodeDocMarkdown(node, flowData);
   const skills = node.skills ?? [];
 
   return (
@@ -71,17 +69,29 @@ export function NodeDocViewer({
               </div>
             ) : null}
           </div>
-          {onEdit ? (
-            <Button
-              size="sm"
-              variant="outline"
-              className="mt-1 shrink-0 gap-1.5"
-              onClick={() => { onClose(); onEdit(node.id); }}
-            >
-              <Edit3 className="h-3.5 w-3.5" />
-              编辑
-            </Button>
-          ) : null}
+          <div className="mt-1 flex shrink-0 gap-2">
+            {onEnterStage ? (
+              <Button
+                size="sm"
+                variant="outline"
+                className="gap-1.5"
+                onClick={() => { onClose(); onEnterStage(node.id); }}
+              >
+                进入阶段
+              </Button>
+            ) : null}
+            {onEdit ? (
+              <Button
+                size="sm"
+                variant="outline"
+                className="gap-1.5"
+                onClick={() => { onClose(); onEdit(node.id); }}
+              >
+                <Edit3 className="h-3.5 w-3.5" />
+                编辑
+              </Button>
+            ) : null}
+          </div>
         </div>
 
         {/* 内容区 */}

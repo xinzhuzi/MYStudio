@@ -69,10 +69,24 @@ const STYLES = `
   border:1px solid rgba(110,168,254,.45);border-radius:999px;padding:1px 8px;}
 .ms-desc{font-size:11px;color:rgba(178,188,204,.85);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .ms-metrics,.ms-skills{display:flex;flex-wrap:wrap;gap:5px;}
-.ms-chip{font-size:10.5px;color:rgba(235,240,248,.82);background:rgba(255,255,255,.07);
-  border-radius:999px;padding:2.5px 9px;white-space:nowrap;}
-.ms-skill{font-size:10.5px;color:#9fc3f7;background:rgba(110,168,254,.12);
-  border:1px solid rgba(110,168,254,.28);border-radius:999px;padding:2px 9px;white-space:nowrap;}
+.ms-chip{font-size:10px;color:rgba(178,188,204,.68);background:rgba(255,255,255,.045);
+  border-radius:999px;padding:1.5px 8px;white-space:nowrap;}
+.ms-progress{display:flex;flex-direction:column;gap:3.5px;}
+.ms-prog-row{display:flex;align-items:center;gap:8px;font-size:10.5px;}
+.ms-prog-label{color:rgba(178,188,204,.85);flex:none;}
+.ms-prog-nums{color:rgba(240,244,250,.96);font-weight:700;flex:none;
+  font-family:ui-monospace,"SF Mono",Menlo,monospace;}
+.ms-prog-mini{flex:1;height:3.5px;min-width:48px;border-radius:2px;background:rgba(255,255,255,.08);overflow:hidden;}
+.ms-prog-mini>i{display:block;height:100%;border-radius:2px;background:linear-gradient(90deg,#4f8fe0,#34d399);}
+.ms-skill{pointer-events:auto;cursor:pointer;font-size:10.5px;color:#9fc3f7;background:rgba(110,168,254,.12);
+  border:1px solid rgba(110,168,254,.28);border-radius:999px;padding:2px 9px;white-space:nowrap;
+  transition:background 120ms ease;}
+.ms-skill:hover{background:rgba(110,168,254,.24);}
+.ms-skill.is-open{background:rgba(110,168,254,.32);}
+.ms-skill-detail{margin-top:2px;padding:6px 9px;border-radius:6px;background:rgba(110,168,254,.08);
+  border:1px solid rgba(110,168,254,.2);font-size:10px;line-height:1.65;color:rgba(200,210,226,.88);
+  max-height:96px;overflow-y:auto;}
+.ms-skill-detail-head{font-weight:600;color:#9fc3f7;margin-bottom:2px;}
 .ms-body{pointer-events:none;display:flex;flex-direction:column;gap:8px;min-height:0;
   max-height:${SIZE.maxBodyH}px;overflow-y:auto;overflow-x:hidden;padding-right:4px;}
 .ms-body.ms-scroll{pointer-events:auto;
@@ -136,6 +150,11 @@ const STYLES = `
 .ms-badge--fail{color:#e06c75;background:rgba(224,108,117,.13);}
 .ms-prog{flex:none;width:64px;height:4px;border-radius:2px;background:rgba(255,255,255,.09);overflow:hidden;align-self:center;}
 .ms-prog>i{display:block;height:100%;border-radius:2px;background:linear-gradient(90deg,#4f8fe0,#6ea8fe);}
+.ms-asset-sections{display:flex;flex-direction:column;gap:5px;}
+.ms-asset-group b{display:block;font-size:10px;font-weight:700;color:#9fc3f7;margin-bottom:2px;}
+.ms-asset-names{display:flex;flex-wrap:wrap;gap:4px;}
+.ms-asset-name{font-size:10px;color:rgba(226,232,242,.85);background:rgba(255,255,255,.055);
+  border-radius:5px;padding:1.5px 7px;white-space:nowrap;}
 .ms-cards{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;}
 .ms-card{display:flex;gap:7px;align-items:center;padding:5px 6px;border-radius:8px;
   background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);box-shadow:0 1px 3px rgba(0,0,0,.25);}
@@ -146,10 +165,11 @@ const STYLES = `
 .ms-card .nm{font-size:10.5px;line-height:1.35;color:rgba(226,232,242,.88);
   display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;}
 .ms-card .nm small{display:block;font-size:9px;color:rgba(160,172,190,.7);font-weight:400;}
-.ms-actions{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;margin-top:2px;
+.ms-actions{display:flex;flex-wrap:wrap;gap:6px;margin-top:2px;
   border-top:1px solid rgba(255,255,255,.06);padding-top:8px;}
-.ms-btn{pointer-events:auto;cursor:pointer;font:600 11px/1 inherit;width:100%;min-height:30px;
-  display:inline-flex;align-items:center;justify-content:center;padding:0 12px;border-radius:8px;
+.ms-btn{pointer-events:auto;cursor:pointer;font:600 11px/1 inherit;flex:0 0 auto;
+  display:inline-flex;align-items:center;justify-content:center;
+  padding:0 12px;height:26px;border-radius:7px;
   color:#9fc3f7;background:rgba(110,168,254,.13);border:1px solid rgba(110,168,254,.4);
   transition:transform 80ms ease,background 120ms ease;}
 .ms-btn:hover{background:rgba(110,168,254,.22);}
@@ -166,7 +186,7 @@ const STYLES = `
   color:rgba(235,240,248,.9);background:rgba(0,0,0,.3);border:1px solid rgba(230,176,84,.3);
   border-radius:6px;padding:6px 8px;outline:none;}
 .ms-composer textarea:focus{border-color:rgba(230,176,84,.55);}
-.ms-composer-row{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+.ms-composer-row{display:flex;gap:6px;}
 .ms-live{display:flex;gap:4px;flex:none;align-items:center;}
 #manying-canvas-hints{position:fixed;right:52px;bottom:18px;z-index:60;width:275px;pointer-events:auto;
   background:linear-gradient(180deg,rgba(18,24,38,.92) 0%,rgba(10,14,24,.96) 100%);
@@ -221,22 +241,50 @@ const STATUS_COLOR = Object.fromEntries(
   Object.entries(CINEMA_TOKENS.status).map(([key, tone]) => [key, tone.accent]),
 );
 
-// 文档型环节(09-13 用户裁定:点击查看完整 md 文档+可编辑):注入「全文/编辑」
-// 按钮,经桥动作回宿主开 NodeDocViewer/编辑弹窗;note=环节 key(宿主寻节点)
-const DOC_STAGE_KEYS = new Set(["script", "scriptPlan", "storyboardTable"]);
-const DOC_BUTTONS = (key) => DOC_STAGE_KEYS.has(key)
-  ? [
-      { kind: "view-doc", label: "全文", noteKey: key },
-      { kind: "edit-doc", label: "编辑", noteKey: key },
-    ]
-  : [];
+// 文档型环节(09-13 用户裁定:每一型都要「查看完全」):七型注入查看按钮;
+// 可编辑三型(script/scriptPlan/storyboardTable=编辑器状态机可写集合)加「编辑」。
+// 阶段直达型(09-13 用户裁定):衍生资产/分镜面板/单镜生产/工作台=「详情」
+// 直达宿主对应阶段页(assets→剧本资产;storyboard→分镜详情 storyboardPanel;
+// remotionProduction/workbench→视频工作台,老画布 targetStage 同源),不开弹窗。
+// 真文档型(script/scriptPlan/storyboardTable)才保留「全文」弹窗。
+// 按钮经桥动作回宿主,note=环节 key(宿主寻节点/路由)。
+const DOC_VIEWER_KEYS = new Set([
+  "script", "scriptPlan", "assets", "storyboardTable",
+  "storyboard", "remotionProduction", "workbench",
+]);
+const DOC_EDITOR_KEYS = new Set(["script", "scriptPlan", "storyboardTable"]);
+const DOC_VIEW_LABELS = {
+  assets: "详情", storyboard: "详情",
+  remotionProduction: "详情", workbench: "详情",
+};
+const docButtons = (key) => {
+  const buttons = [];
+  if (DOC_VIEWER_KEYS.has(key)) {
+    buttons.push({ kind: "view-doc", label: DOC_VIEW_LABELS[key] || "全文", noteKey: key });
+  }
+  if (DOC_EDITOR_KEYS.has(key)) buttons.push({ kind: "edit-doc", label: "编辑", noteKey: key });
+  return buttons;
+};
 
 function stageHTML(payload) {
   const statusKey = payload.status || "empty";
   const color = STATUS_COLOR[statusKey] || STATUS_COLOR.empty;
   const metrics = (payload.metrics || []).map((m) => `<span class="ms-chip">${esc(m)}</span>`).join("");
-  const skills = (payload.skills || []).map((s) => `<span class="ms-skill">${esc(s)}</span>`).join("");
-  const actions = [...DOC_BUTTONS(payload.key), ...(payload.actions || [])].map((action) => `
+  const progressRows = (payload.progress || []).map((item) => {
+    const total = typeof item.total === "number" && item.total > 0 ? item.total : null;
+    const pct = total ? Math.round(Math.min(1, (item.done || 0) / total) * 100) : 0;
+    return `<div class="ms-prog-row"><span class="ms-prog-label">${esc(item.label)}</span>
+      <span class="ms-prog-nums">${Number(item.done) || 0}${total ? "/" + total : ""}</span>
+      ${total != null ? `<span class="ms-prog-mini"><i style="width:${pct}%"></i></span>` : ""}</div>`;
+  }).join("");
+  const skillPills = (payload.skills || []).map((name, i) =>
+    `<button class="ms-skill" data-skill="${i}" title="点击查看技能详情">${esc(name)}</button>`).join("");
+  const skillDetails = (payload.skillDetails || []).map((detail, i) => `
+    <div class="ms-skill-detail" data-skill="${i}" hidden>
+      <div class="ms-skill-detail-head">${esc(detail.name)}${detail.source ? " · " + esc(detail.source) : ""}</div>
+      ${(detail.summary || []).map((line) => `<div>${esc(line)}</div>`).join("")}
+    </div>`).join("");
+  const actions = [...docButtons(payload.key), ...(payload.actions || [])].map((action) => `
     <button class="ms-btn${action.paid ? " ms-btn--paid" : ""}" data-kind="${esc(action.kind)}"
       ${action.noteKey ? `data-note="${esc(action.noteKey)}"` : ""}
       ${action.disabled ? "disabled" : ""} title="${esc(action.label)}">${esc(action.label)}${action.paid ? " ⭐" : ""}</button>`).join("");
@@ -248,8 +296,9 @@ function stageHTML(payload) {
         ${payload.finalExport ? '<span class="ms-export">已导出成片</span>' : ""}
       </div>
       ${payload.description ? `<div class="ms-desc" title="${esc(payload.description)}">${esc(payload.description)}</div>` : ""}
+      ${progressRows ? `<div class="ms-progress">${progressRows}</div>` : ""}
       ${metrics ? `<div class="ms-metrics">${metrics}</div>` : ""}
-      ${skills ? `<div class="ms-skills">${skills}</div>` : ""}
+      ${skillPills ? `<div class="ms-skills">${skillPills}</div>${skillDetails ? `<div class="ms-skill-details">${skillDetails}</div>` : ""}` : ""}
     </div>
     <div class="ms-body">
       ${bodyHTML(payload)}
@@ -315,10 +364,27 @@ function mountDomBody(node) {
   // 实例级静音 monolith canvas 自绘(原型 manying.stage.render 保留为兜底)
   node.onDrawBackground = function () {};
   wireActions(node, el);
+  // 滚轮救回(09-13 用户裁定:正文可滚动):前端 GraphView 容器 onwheel 恒
+  // preventDefault+缩放画布,正文滚轮冒泡到它=默认滚动被取消。滚动正文上
+  // 拦断冒泡(不 preventDefault),默认滚动即恢复;非滚动区照常冒泡缩放画布
+  el.addEventListener("wheel", (event) => {
+    if (event.target.closest(".ms-body.ms-scroll")) event.stopPropagation();
+  }, { passive: true });
 }
 
 function wireActions(node, el) {
   el.addEventListener("click", (event) => {
+    // 技能胶囊:点开/收起详情(09-13 用户裁定),高度变化走 syncSizeFor
+    const skill = event.target.closest(".ms-skill");
+    if (skill) {
+      const detail = el.querySelector(`.ms-skill-detail[data-skill="${skill.dataset.skill}"]`);
+      if (detail) {
+        detail.hidden = !detail.hidden;
+        skill.classList.toggle("is-open", !detail.hidden);
+        syncSizeFor(el);
+      }
+      return;
+    }
     const button = event.target.closest(".ms-btn");
     if (!button || button.disabled) return;
     const kind = button.dataset.kind || "";
@@ -490,15 +556,16 @@ function syncSize(node) {
       // wrapper 高 = 节点高-chrome,naturalH+chrome 即内容恰好的节点高
       const wrapperH = state.el.parentElement?.offsetHeight || 0;
       const chrome = wrapperH > 0 && wrapperH < node.size[1] ? node.size[1] - wrapperH : STAGE_NODE_CHROME_FALLBACK;
-      let h = Math.max(sz[1], state.naturalH ? state.naturalH + chrome : SIZE.defaultSize);
+      let h = Math.max(sz[1], state.naturalH ? state.naturalH + chrome : 240);
 
-      // 正方形约束:高度较高时同步拓宽，使节点趋向近正方形
+      // 正方形=宽基准+高帽(09-13 用户裁定:禁按钮下留白):宽恒 [540,760]
+      // 方卡观感;高随内容收缩贴底(下限 180 仅防塌),高内容时拓宽趋方并
+      // 封顶 ≤宽×1.15 与 hardMax——短内容不再被拉高填空白
       if (h > w && w < SIZE.maxSize) {
         w = Math.min(SIZE.maxSize, Math.max(w, h));
       }
-      // 常理最大天花板限制:宽高绝对不超过 hardMax，正方形比例锁定在 1:1~1:1.15
       const targetW = Math.min(SIZE.hardMax, Math.max(SIZE.minSize, w));
-      const targetH = Math.min(SIZE.hardMax, Math.max(SIZE.minSize, Math.min(h, targetW * 1.15)));
+      const targetH = Math.max(180, Math.min(SIZE.hardMax, Math.min(h, targetW * 1.15)));
 
       if (Math.abs(targetW - node.size[0]) > 1 || Math.abs(targetH - node.size[1]) > 1) {
         node.size[0] = targetW;

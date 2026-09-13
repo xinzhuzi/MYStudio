@@ -66,7 +66,6 @@ export const PRODUCTION_FLOW_NODE_IDS = [
   "workbench",
 ] as const;
 
-export const DIRECTOR_PLAN_PREVIEW_MAX_LINES = 600;
 
 export type ProductionFlowNodeId =
   | 'script'

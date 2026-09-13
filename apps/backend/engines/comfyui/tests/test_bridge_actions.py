@@ -32,6 +32,23 @@ def test_submit_dedupes_same_kind():
     assert len(bridge_actions.list_since(0)["items"]) == 1
 
 
+def test_doc_kinds_exempt_from_dedupe():
+    """09-13 用户裁定:全文/编辑=幂等 UI 开合,逐击送达(同 kind 不同节点常态)。"""
+    bridge_actions.reset_for_tests()
+    first = bridge_actions.submit("view-doc", "script")
+    second = bridge_actions.submit("view-doc", "storyboardTable")
+    third = bridge_actions.submit("edit-doc", "script")
+    assert first["duplicate"] is False
+    assert second["duplicate"] is False and second["id"] != first["id"]
+    assert third["duplicate"] is False and third["id"] not in (first["id"], second["id"])
+    items = bridge_actions.list_since(0)["items"]
+    assert [(i["kind"], i.get("note")) for i in items] == [
+        ("view-doc", "script"),
+        ("view-doc", "storyboardTable"),
+        ("edit-doc", "script"),
+    ]
+
+
 def test_submit_rejects_unknown_kind():
     try:
         bridge_actions.submit("format-disk")

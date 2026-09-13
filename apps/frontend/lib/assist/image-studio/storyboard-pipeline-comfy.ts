@@ -96,6 +96,10 @@ export interface StageNodePayload {
   actions?: { kind: string; label: string; paid?: boolean; disabled?: boolean }[];
   /** 参与技能名(老画布 skills 徽标,09-12 v4 全量补全;组件层映射器喂入) */
   skills?: string[];
+  /** 技能详情(09-13 用户裁定:技能胶囊可点开详情;与 skills 下标对齐) */
+  skillDetails?: { name: string; source?: string; summary?: string[] }[];
+  /** 进度对(09-13 用户裁定:要做多少/已做多少;total 缺省=纯计数) */
+  progress?: { label: string; done: number; total?: number }[];
   /** 资产卡(老画布 assetGroups 卡片平铺;cover=本地路径,保鲜链上传后换引擎 input 文件名) */
   assets?: { name: string; typeLabel: string; views: number; cover?: string; state?: string }[];
   /** 渲染器降级链标签(如 "remotion → ffmpeg")与硬件并发槽 */
@@ -103,7 +107,6 @@ export interface StageNodePayload {
   concurrency?: number;
 }
 
-const TABLE_ROWS_CAP = 20;
 
 /** 绘制区纵向标尺(生成器与 manying.js 同源;design §3) */
 export const STAGE_METRICS = {
@@ -123,10 +126,6 @@ const STATUS_TEXT: Record<StageNodePayload["status"], string> = {
   empty: "未开始",
   warning: "有失败",
 };
-
-function clipLine(text: string, maxChars: number): string {
-  return text.length > maxChars ? `${text.slice(0, maxChars - 1)}…` : text;
-}
 
 /** 全文→md 段落结构(09-13 用户裁定:正文展示完全,禁再截断):
  * 源行=独立段落(空行分隔),markdown-it 按节点宽自然回流——不再 50 字
@@ -160,7 +159,7 @@ export function buildStageNodePayload(input: {
   const hasScript = input.novelChapters.length > 0 || scriptChars > 0;
   const planText = input.flowData.scriptPlan.trim();
   const tableText = input.flowData.storyboardTable.trim();
-  const tableRows = tableText ? parseStoryboardTable(tableText, "preview").rows.slice(0, TABLE_ROWS_CAP) : [];
+  const tableRows = tableText ? parseStoryboardTable(tableText, "preview").rows : [];
   const allImages = shots.length > 0 && images >= shots.length;
   const someImages = images > 0;
   const allVideos = shots.length > 0 && videos >= shots.length;
@@ -205,24 +204,30 @@ export function buildStageNodePayload(input: {
       {
         previewTitle: "剧本资产",
         assetGroups: { characters: assetNames("character"), scenes: assetNames("scene"), props: assetNames("prop") },
+        actions: [{
+          kind: "extract-assets",
+          label: assetNames("character").length ? "重新抽取资产" : "抽取资产",
+          disabled: !input.flowData.script,
+        }],
       }),
     payload("storyboardTable", "分镜表", "按导演规划拆出镜头表。",
       shots.length || tableRows.length ? "ready" : "empty",
       tableRows.length ? [`${tableRows.length} 行分镜表`] : shots.length ? [`${shots.length} 个分镜`] : ["待生成分镜表"],
       {
         previewTitle: "分镜表",
+        progress: [{ label: "分镜", done: tableRows.length }],
         tableRows: tableRows.length
           ? tableRows.map((row) => ({
               index: row.index,
-              scene: clipLine(row.scene || "—", 8),
-              title: clipLine(row.description || `分镜 ${row.index}`, 22),
+              scene: row.scene || "—",
+              title: row.description || `分镜 ${row.index}`,
               duration: row.duration,
               shotSize: row.shotSize || "",
-              cameraMove: clipLine(row.cameraMove || "", 10),
-              action: clipLine(row.action || "", 18),
-              lines: clipLine(row.lines || "", 34),
-              sound: clipLine(row.sound || "", 12),
-              assets: clipLine(row.associateAssetsNames.join("·"), 12),
+              cameraMove: row.cameraMove || "",
+              action: row.action || "",
+              lines: row.lines || "",
+              sound: row.sound || "",
+              assets: row.associateAssetsNames.join("·"),
             }))
           : undefined,
         previewLines: tableRows.length ? undefined : wrapFullText(tableText || "暂无分镜表"),
@@ -238,14 +243,20 @@ export function buildStageNodePayload(input: {
       shots.length ? [`${shots.length} 个分镜`, `${images} 个画面`, `${videos} 个视频`] : ["待生成分镜"],
       {
         previewTitle: "分镜概览",
+        progress: shots.length
+          ? [
+              { label: "已出图", done: images, total: shots.length },
+              { label: "已出片", done: videos, total: shots.length },
+            ]
+          : undefined,
         actions: [{ kind: "generate-images", label: "一键生图", disabled: shots.length === 0 }],
         tiles: shots.map((item) => ({
           index: item.index,
-          title: clipLine(item.videoDesc || item.prompt || `分镜 ${item.index}`, 10),
+          title: item.videoDesc || item.prompt || `分镜 ${item.index}`,
           preview: shotPreviewName(item),
           hasImage: item.mediaRef?.kind === "image" && Boolean(item.mediaRef.path),
           hasVideo: item.mediaRef?.kind === "video" && Boolean(item.mediaRef.path),
-          lines: clipLine(item.lines || "", 12),
+          lines: item.lines || "",
         })),
       }),
     payload("remotionProduction", "单镜视频生产",
@@ -256,6 +267,12 @@ export function buildStageNodePayload(input: {
         : ["等待分镜面板提供分镜"],
       {
         previewTitle: "逐镜队列",
+        progress: shots.length
+          ? [
+              { label: "视频", done: videos, total: shots.length },
+              { label: "配音", done: shots.filter((item) => item.ttsJob?.status === "completed").length, total: shots.length },
+            ]
+          : undefined,
         actions: [{
           kind: "generate-videos",
           label: allVideos ? "分镜视频已完成" : "一键生成所有视频",
@@ -263,7 +280,7 @@ export function buildStageNodePayload(input: {
         }],
         shots: shots.map((item) => ({
           index: item.index,
-          label: clipLine(item.videoDesc || item.prompt || `分镜 ${item.index}`, 20),
+          label: item.videoDesc || item.prompt || `分镜 ${item.index}`,
           videoReady: item.mediaRef?.kind === "video" && Boolean(item.mediaRef.path),
           imageReady: item.mediaRef?.kind === "image" && Boolean(item.mediaRef.path),
           ttsReady: item.ttsJob?.status === "completed",
@@ -280,10 +297,13 @@ export function buildStageNodePayload(input: {
       ],
       {
         previewTitle: "制作轨",
+        progress: input.flowData.workbench.tracks.length
+          ? [{ label: "轨道完成", done: input.flowData.workbench.tracks.filter((track) => track.state === "ready").length, total: input.flowData.workbench.tracks.length }]
+          : undefined,
         finalExport: Boolean(input.flowData.workbench.finalExportPath),
         actions: [{ kind: "rebuild-workbench-tracks", label: "重建视频轨道" }],
         tracks: input.flowData.workbench.tracks.map((track) => ({
-          name: clipLine(track.prompt || track.id, 24),
+          name: track.prompt || track.id,
           state: String(track.state),
           count: track.storyboardIds.length,
           duration: Math.round(track.duration || 0),

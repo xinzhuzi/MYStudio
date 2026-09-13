@@ -17,6 +17,9 @@ export function StudioView() {
   const viewModel = useStudioViewModel();
   // 文档弹窗(09-13:环节节点「全文」按钮 → NodeDocViewer 老控件重新接线)
   const [docNodeId, setDocNodeId] = useState<string | null>(null);
+  const docNode = docNodeId
+    ? viewModel.productionFlowNodes.find((n) => n.id === docNodeId)
+    : undefined;
   const storyboardBatch = useStoryboardBatchGeneration({
     storyboards: viewModel.chapterStoryboards,
     projectName: viewModel.projectName,
@@ -56,12 +59,33 @@ export function StudioView() {
       });
     },
     // 09-13 用户裁定:节点「全文/编辑」回流——老画布文档弹窗(NodeDocViewer
-    // +编辑器状态机)重新接线;note=环节 key
+    // +编辑器状态机)重新接线;note=环节 key。
+    // 阶段直达型=「详情」跳宿主既有界面(09-13 用户裁定):衍生资产→剧本
+    // 资产阶段;分镜面板→分镜详情页(storyboardPanel,老画布 targetStage 同源);
+    // 其余型开 NodeDocViewer 全文弹窗
     onViewNodeDoc: (stageKey: string) => {
+      if (stageKey === "assets") {
+        viewModel.handleStageChange("assets");
+        return;
+      }
+      if (stageKey === "storyboard") {
+        viewModel.handleStageChange("storyboardPanel");
+        return;
+      }
+      // 单镜生产/工作台→视频工作台页(老画布 targetStage 同源)
+      if (stageKey === "remotionProduction" || stageKey === "workbench") {
+        viewModel.handleStageChange("workbench");
+        return;
+      }
       setDocNodeId(stageKey);
     },
     onEditNodeDoc: (stageKey: string) => {
       viewModel.openNodeEditor(stageKey as Parameters<typeof viewModel.openNodeEditor>[0]);
+    },
+    // 09-13 用户裁定:衍生资产节点「抽取资产」——老剧本资产页 AssetsTab
+    // 同款钩子(handleEntityExtraction,当前生产章)
+    onExtractAssets: () => {
+      void viewModel.handleEntityExtraction(viewModel.productionEpisodeId);
     },
   };
 
@@ -139,7 +163,8 @@ export function StudioView() {
 
             <TabsContent
               value="storyboard"
-              className="m-0 min-h-0 flex-1"
+              forceMount
+              className="m-0 min-h-0 flex-1 data-[state=active]:flex data-[state=inactive]:hidden"
             >
               {/* 09-10 用户裁定:进入工作流阶段即展示本章分镜总览(分镜内容优先);
                   09-11 补裁定:漫影侧栏按模块分内容,工作流模块默认「分镜」页签 */}
@@ -188,13 +213,17 @@ export function StudioView() {
           </div>
         </ScrollArea>
       </Tabs>
-      {docNodeId ? (
+      {docNode ? (
         <NodeDocViewer
-          node={viewModel.productionFlowNodes.find((n) => n.id === docNodeId) ?? viewModel.productionFlowNodes[0]}
+          node={docNode}
           onClose={() => setDocNodeId(null)}
           onEdit={(id) => {
             setDocNodeId(null);
             viewModel.openNodeEditor(id);
+          }}
+          onEnterStage={(id) => {
+            const target = viewModel.productionFlowNodes.find((n) => n.id === id)?.targetStage;
+            if (target) viewModel.handleStageChange(target);
           }}
         />
       ) : null}
