@@ -19,16 +19,21 @@ import type { StoryboardItem } from "@/types/studio";
 import type { useStudioStore } from "@/stores/studio/studio-store";
 
 /** 链布局(09-12 用户裁定:节点图横向摆放)——主线左→右横排,顶部对齐;
- * 衍生资产分支与分镜内容子图挂主线下方第二排,连线自然下探。 */
+ * 衍生资产分支与分镜内容子图挂主线下方第二排,连线自然下探。
+ * 正方形常理布局(09-13 用户裁定:正方形展示是故意的设计):引擎 syncSize
+ * 恒强制环节节点 [540,760] 近正方形,布局一律按 hardMax 顶格步进——
+ * 节点落位后内容再长高长宽都不可能与邻节点重叠。 */
 const MAINLINE_Y = 60;
-const STAGE_GAP_X = 80; // 节点宽 560 + 间距
+const STAGE_SQUARE = 600; // 标准正方形基准(引擎 CINEMA 代币 defaultSize 同源)
+const STAGE_SQUARE_MAX = 760; // 引擎硬天花板(hardMax 同源)
+const STAGE_GAP_X = 80;
 const LOWER_ROW_GAP = 120; // 下排(资产分支/分镜子图)与主线的垂直间距
 // 组框(主节点区):每环节一个组,子节点归入对应主节点组(09-12 用户裁定:
 // 主节点+子节点层级,照旧画布的组织方式;ComfyUI 原生 groups,数据层零干预)
 const GROUP_PAD = 20;
 const SHOTS_PER_COLUMN = 10;
 const SHOT_NODE_WIDTH = 360;
-const SHOT_NODE_HEIGHT = 330;
+const SHOT_NODE_HEIGHT = 232; // 输入框退役(官方 hidden 位)=标题栏+缩略图带
 const SHOT_COLUMN_GAP = 90;
 const SHOT_ROW_GAP = 40;
 
@@ -453,19 +458,19 @@ export function buildStoryboardPipelineWorkflow(input: {
     widgets_values: unknown[];
     size: [number, number];
   }
-  // 尺寸按载荷内容计算;主线纵向累计布局(等高步进→实际高度顺排,v2 全量内容)
+  // 环节尺寸=标准正方形(引擎侧按内容在 [540,760] 内自适应,布局按顶格算)
   const payloadByKey = new Map((input.payloads ?? []).map((entry) => [entry.key, entry]));
   const sizeByKey = new Map<PipelineStageKey, [number, number]>(
-    input.summaries.map((item) => [item.key, computeStageNodeSize(payloadByKey.get(item.key))]),
+    input.summaries.map((item) => [item.key, [STAGE_SQUARE, STAGE_SQUARE] as [number, number]]),
   );
   const xCursor = new Map<PipelineStageKey, number>();
   let xCursorValue = 40;
   for (const key of MAINLINE) {
     xCursor.set(key, xCursorValue);
-    xCursorValue += sizeByKey.get(key)![0] + STAGE_GAP_X;
+    xCursorValue += STAGE_SQUARE_MAX + STAGE_GAP_X;
   }
-  // 下排锚点:主线最高节点底 + 间距(资产分支/分镜子图共用)
-  const mainlineBottom = MAINLINE_Y + Math.max(...MAINLINE.map((key) => sizeByKey.get(key)![1]));
+  // 下排锚点:主线最坏高度(hardMax)底 + 间距(资产分支/分镜子图共用)
+  const mainlineBottom = MAINLINE_Y + STAGE_SQUARE_MAX;
   const lowerRowY = mainlineBottom + LOWER_ROW_GAP;
   const stageNodes: StageNode[] = input.summaries.map((item) => {
     const id = nodeId.get(item.key)!;
@@ -547,7 +552,8 @@ export function buildStoryboardPipelineWorkflow(input: {
     type: subgraphId,
     // 标题栏与子图定义同名(不设则回落 uuid 型名,不可读)
     title: `分镜内容 · ${chapterKey}`,
-    pos: [storyboardStage.pos[0], storyboardStage.pos[1] + storyboardStage.size[1] + 40] as [number, number],
+    // 横向布局=挂分镜面板节点正下方(最坏高度锚定,组框纵向扩容包住)
+    pos: [storyboardStage.pos[0], storyboardStage.pos[1] + STAGE_SQUARE_MAX + 40] as [number, number],
     size: [480, 300],
     flags: {},
     order: stageNodes.length + 1,

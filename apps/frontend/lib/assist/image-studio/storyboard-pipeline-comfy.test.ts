@@ -201,7 +201,7 @@ describe("buildStageNodePayload(v2 全量内容,照老 flow 画布)", () => {
     const stages = ui.nodes.filter((n) => n.type === "ManyingStage");
     const script = stages.find((n) => n.widgets_values[0] === "script")!;
     expect((script.properties.manyingStage as { previewTitle: string }).previewTitle).toBe("剧本内容");
-    expect(script.size[0]).toBe(560);
+    expect(script.size[0]).toBe(600); // 正方形常理尺寸(引擎 syncSize 同口径)
     // 09-12 用户裁定:节点后不加 group 组框
     expect(ui.groups).toHaveLength(0);
     // widgets 四件套形状不变(契约稳定)
@@ -216,6 +216,6 @@ describe("buildStageNodePayload(v2 全量内容,照老 flow 画布)", () => {
     const stages = (result.ui as { nodes: Array<{ type: string; properties: Record<string, unknown>; size: number[] }> })
       .nodes.filter((n) => n.type === "ManyingStage");
     expect(stages.every((n) => !("manyingStage" in n.properties))).toBe(true);
-    expect(stages.every((n) => n.size[1] === 170)).toBe(true);
+    expect(stages.every((n) => n.size[1] === 600)).toBe(true); // 正方形常理尺寸
   });
 });

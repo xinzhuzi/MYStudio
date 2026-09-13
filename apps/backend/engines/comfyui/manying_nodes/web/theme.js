@@ -76,6 +76,33 @@ const THEME = {
   text2: "rgba(255,255,255,0.55)",
 };
 
+/** 东方影视设计代币系统(Cinema Tokens):环节节点磨砂质感与正方形常理尺寸规范 */
+export const STAGE_SIZE_CONSTRAINTS = {
+  minSize: 540,      // 紧凑正方形下限 (px)
+  defaultSize: 600,  // 标准正方形基准 (px)
+  largeSize: 680,    // 充实正方形档位 (px)
+  maxSize: 720,      // 正常最大上限 (px)
+  hardMax: 760,      // 绝对硬天花板 (px)
+  targetRatio: 1.0,  // 目标宽高比 (1:1 正方形)
+  maxBodyH: 480,     // 正文内滚动区最大高度 (px)
+};
+
+export const CINEMA_TOKENS = {
+  glassBg: "linear-gradient(180deg, rgba(18, 24, 38, 0.78) 0%, rgba(10, 14, 24, 0.84) 100%)",
+  glassBorder: "rgba(255, 255, 255, 0.09)",
+  glassHighlight: "inset 0 1px 0 rgba(255, 255, 255, 0.08)",
+  glassShadow: "0 12px 32px -6px rgba(0, 0, 0, 0.65), 0 4px 12px rgba(0, 0, 0, 0.4)",
+  glassRadius: "12px",
+  status: {
+    ready: { accent: "#34d399", dim: "rgba(52, 211, 153, 0.14)", border: "rgba(52, 211, 153, 0.35)", glow: "0 0 10px rgba(52, 211, 153, 0.55)" },
+    running: { accent: "#fbbf24", dim: "rgba(251, 191, 36, 0.14)", border: "rgba(251, 191, 36, 0.35)", glow: "0 0 10px rgba(251, 191, 36, 0.55)" },
+    warning: { accent: "#f87171", dim: "rgba(248, 113, 113, 0.14)", border: "rgba(248, 113, 113, 0.35)", glow: "0 0 10px rgba(248, 113, 113, 0.55)" },
+    empty: { accent: "#94a3b8", dim: "rgba(148, 163, 184, 0.10)", border: "rgba(148, 163, 184, 0.22)", glow: "none" },
+  },
+  fontSans: '-apple-system, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif',
+  fontMono: 'ui-monospace, "SF Mono", Menlo, "Cascadia Code", monospace',
+};
+
 /** lucide 风格 stroke 图标(自绘路径,零依赖;14px 视口) */
 function icon(pathD, size = 14) {
   const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
@@ -126,15 +153,15 @@ function statusBadge(kind) {
   return el;
 }
 
-/** 视频进度条:绿色填充+计数文本 */
+/** 视频进度条:翠绿流光渐变填充+计数文本 */
 function progressBar(done, total) {
   const wrap = document.createElement("div");
   wrap.style.cssText = "margin:4px 0 2px;";
   const bar = document.createElement("div");
-  bar.style.cssText = `height:4px;border-radius:2px;background:${THEME.line};overflow:hidden;`;
+  bar.style.cssText = `height:5px;border-radius:3px;background:rgba(255,255,255,0.08);overflow:hidden;box-shadow:inset 0 1px 2px rgba(0,0,0,0.5);`;
   const fill = document.createElement("div");
   const pct = total > 0 ? Math.round((done / total) * 100) : 0;
-  fill.style.cssText = `height:100%;width:${pct}%;border-radius:2px;background:linear-gradient(90deg,${THEME.accent},${THEME.ok});transition:width 400ms ease;`;
+  fill.style.cssText = `height:100%;width:${pct}%;border-radius:3px;background:linear-gradient(90deg,#3b82f6,#34d399);box-shadow:0 0 6px rgba(52,211,153,0.6);transition:width 400ms ease;`;
   bar.append(fill);
   const label = document.createElement("div");
   label.style.cssText = `display:flex;justify-content:space-between;font-size:10px;color:${THEME.text2};margin-top:3px;`;
@@ -151,13 +178,18 @@ function progressBar(done, total) {
 function collapseGroup(title, count, { tone, indent = 0, open = false } = {}) {
   const color = tone === "ok" ? THEME.ok : tone === "pending" ? THEME.pending : THEME.accent;
   const bg = tone === "ok" ? "rgba(74,222,128,0.15)"
-    : tone === "pending" ? "rgba(251,191,36,0.15)" : THEME.accentDim;
+    : tone === "pending" ? "rgba(251,191,36,0.15)"
+    : THEME.accentDim;
   const details = document.createElement("details");
   if (open) details.open = true;
+  if (indent > 0) details.style.paddingLeft = `${indent * 12}px`;
   const summary = document.createElement("summary");
-  summary.style.cssText = `display:flex;align-items:center;gap:6px;font-size:11px;font-weight:600;cursor:pointer;list-style:none;color:rgba(255,255,255,0.85);${indent ? `margin-left:${indent * 12}px;` : ""}`;
-  const chev = icon(ICONS.chevron, 12);
-  chev.style.cssText = "flex:none;transition:transform 150ms ease;";
+  summary.style.cssText = `display:flex;align-items:center;gap:6px;padding:5px 6px;cursor:pointer;list-style:none;font-size:11px;font-weight:500;color:rgba(255,255,255,0.85);border-radius:6px;transition:background 100ms ease;`;
+  summary.onmouseenter = () => { summary.style.background = "rgba(255,255,255,0.05)"; };
+  summary.onmouseleave = () => { summary.style.background = ""; };
+  const chev = icon(ICONS.chevron, 11);
+  chev.style.transition = "transform 150ms ease";
+  if (open) chev.style.transform = "rotate(90deg)";
   const text = document.createElement("span");
   text.textContent = title;
   const badge = document.createElement("span");
@@ -171,27 +203,31 @@ function collapseGroup(title, count, { tone, indent = 0, open = false } = {}) {
   return details;
 }
 
-/** 主按钮(强调填充)/次按钮(描边):按压即时缩放反馈 */
+/** 主按钮(深蓝微光漫射)/次按钮(金属冷金微边):按压弹性反馈与立体质感 */
 function actionButton({ label, iconPath, primary }) {
   const btn = document.createElement("button");
   btn.style.cssText = [
     "flex:1", "display:flex", "align-items:center", "justify-content:center", "gap:6px",
-    "padding:8px 6px", "cursor:pointer", "border-radius:8px", "font-size:12px", "font-weight:500",
+    "padding:8px 8px", "cursor:pointer", "border-radius:8px", "font-size:12px", "font-weight:600",
     primary
-      ? `border:1px solid ${THEME.accent};background:${THEME.accentDim};color:${THEME.accent};`
-      : `border:1px solid ${THEME.line};background:transparent;color:rgba(255,255,255,0.8);`,
-    "transition:transform 80ms ease,filter 120ms ease",
+      ? "border:1px solid #3b82f6;background:linear-gradient(135deg,#3b82f6 0%,#2563eb 100%);color:#fff;box-shadow:0 3px 12px rgba(59,130,246,0.35);"
+      : "border:1px solid rgba(251,191,36,0.45);background:rgba(251,191,36,0.08);color:#fbbf24;box-shadow:0 2px 8px rgba(0,0,0,0.3);",
+    "transition:transform 80ms cubic-bezier(0.16,1,0.3,1),box-shadow 150ms ease,filter 120ms ease",
   ].join(";");
   btn.append(icon(iconPath, 13));
   const span = document.createElement("span");
   span.textContent = label;
   btn.append(span);
-  btn.onpointerdown = () => { btn.style.transform = "scale(0.97)"; };
+  btn.onpointerdown = () => { btn.style.transform = "scale(0.96)"; };
   btn.onpointerup = btn.onpointerleave = () => { btn.style.transform = ""; };
-  if (primary) {
-    btn.onmouseenter = () => { btn.style.filter = "brightness(1.25)"; };
-    btn.onmouseleave = () => { btn.style.filter = ""; };
-  }
+  btn.onmouseenter = () => {
+    btn.style.filter = "brightness(1.15)";
+    if (primary) btn.style.boxShadow = "0 4px 16px rgba(59,130,246,0.55)";
+  };
+  btn.onmouseleave = () => {
+    btn.style.filter = "";
+    if (primary) btn.style.boxShadow = "0 3px 12px rgba(59,130,246,0.35)";
+  };
   return btn;
 }
 
