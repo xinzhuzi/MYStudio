@@ -58,6 +58,11 @@ docs/*/**
 !docs/assets/art-styles.en.md
 !docs/krea2.md
 !docs/comfyui-kb/**
+# 09-13 用户裁定：工程文档目录整体纳入版本控制（此前未跟踪导致修正静默漂移）
+!docs/engineering/**
+# ComfyUI 用户文档（本地模型页 + 引擎卡）随工程文档同级纳入
+!docs/panels/LOCAL_MODELS_GUIDE.md
+!docs/settings/COMFYUI_ENGINE_GUIDE.md
 
 # Next.js cache (not used)
 .next/

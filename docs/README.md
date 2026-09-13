@@ -73,6 +73,7 @@
 | [项目首页操作手册](./panels/PROJECT_DASHBOARD_OPERATIONS.md) | 侧栏按钮、管理选择、新建输入、更多菜单、重命名和批量删除弹窗 |
 | [技能编辑](./panels/SKILLS_EDITOR_GUIDE.md) | 查看、编辑、新增、删除和恢复项目 Markdown 技能文件 |
 | [技能编辑操作手册](./panels/SKILLS_EDITOR_OPERATIONS.md) | 技能页按钮状态、文件状态、新增路径、删除和恢复边界 |
+| [本地模型页（ComfyUI 工作区）](./panels/LOCAL_MODELS_GUIDE.md) | 全屏 ComfyUI 画布、TTS 配音室与漫影生图（悬浮球导航、媒体资产回流） |
 | [辅助工作台](./panels/ASSIST_WORKBENCH_GUIDE.md) | 【已过时 2026-09-13】五子工作台已于 09-10 全屏 ComfyUI 合一退役；现入口=主导航「本地模型」（ComfyUI 画布 + TTS 配音室 + 漫影生图） |
 | [辅助工作台操作手册](./panels/ASSIST_WORKBENCH_OPERATIONS.md) | 【已过时】随五子工作台退役，仅作历史参考 |
 | [辅助工作台参数参考](./panels/ASSIST_WORKBENCH_PARAMETER_REFERENCE.md) | 【已过时】参数口径已被 [ComfyUI 参数速查](./comfyui-kb/参数速查.md) 取代 |
@@ -89,6 +90,7 @@
 | 文档 | 用途 |
 |---|---|
 | [设置页操作手册](./settings/SETTINGS_PANEL_OPERATIONS.md) | 设置标签页、外观、API、统一本地配置、存储、更新、开发和支持入口的按钮状态 |
+| [ComfyUI 引擎指南](./settings/COMFYUI_ENGINE_GUIDE.md) | 引擎安装/更新、「模型」页签活清单、启动参数与存储目录迁移 |
 | [设置与云端AI配置](./settings/API_SETTINGS_GUIDE.md) | 模型服务、模型映射、Agent 配置、统一本地配置、渲染器选择、Headless Shell、图床和本地 TTS 服务说明 |
 | [云端AI操作手册](./settings/API_MANAGER_OPERATIONS.md) | 添加供应商、同步模型、测试模型、思考模式、模型映射和 Agent 绑定 |
 | [API 供应商字段与模型测试参考](./settings/API_PROVIDER_MODEL_TEST_REFERENCE.md) | 添加/编辑供应商字段、同步模型规则、模型测试范围、协议和错误说明 |

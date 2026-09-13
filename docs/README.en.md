@@ -96,8 +96,10 @@ Most detailed guides are currently maintained in Chinese. Use these entry points
 | Guide | Scope |
 |---|---|
 | [Documentation Center](./README.md) | Full Chinese docs index |
-| [App Shell Operations](panels/APP_SHELL_OPERATIONS.md) | Chinese guide for sidebar collapse, project header, back button, episode breadcrumb, and save status |
+| [App Shell Operations](panels/APP_SHELL_OPERATIONS.md) | Chinese guide for sidebar collapse, project header, back/forward navigation, and episode breadcrumb |
 | [Navigation](panels/NAVIGATION_GUIDE.md) | Main navigation, settings tabs, workflow tabs, and internal compatibility workspaces |
+| [Local Models Page (ComfyUI Workspace)](panels/LOCAL_MODELS_GUIDE.md) | Chinese guide for the fullscreen ComfyUI workspace: canvas, TTS voice booth, and quick image generation |
+| [ComfyUI Engine Guide](settings/COMFYUI_ENGINE_GUIDE.md) | Chinese guide for engine install/update, the Models tab, launch arguments, and storage migration |
 | [Skills Editor Operations](panels/SKILLS_EDITOR_OPERATIONS.md) | Chinese guide for skill editor buttons, file states, create/delete/restore behavior |
 | [Project Dashboard](panels/PROJECT_DASHBOARD_GUIDE.md) | Create, open, duplicate, rename, and delete projects |
 | [Project Dashboard Operations](panels/PROJECT_DASHBOARD_OPERATIONS.md) | Chinese guide for sidebar toggle, selection mode, inline create, card menu, dialogs, and batch delete |
@@ -137,7 +139,7 @@ Most detailed guides are currently maintained in Chinese. Use these entry points
 | [API Manager Operations](settings/API_MANAGER_OPERATIONS.md) | Chinese guide for providers, model sync/test, thinking mode, feature mapping, and Agent bindings |
 | [API Provider and Model Test Reference](settings/API_PROVIDER_MODEL_TEST_REFERENCE.md) | Chinese reference for provider add/edit fields, model sync behavior, model test protocols, and errors |
 | [TTS Configuration](settings/TTS_CONFIG_GUIDE.md) | Local TTS backend status, model cache, model downloads, and voice profiles |
-| [TTS Panel Operations](panels/TTS_PANEL_OPERATIONS.md) | Chinese guide for local TTS status, model folders, download tasks, model detail dialog, and voice profiles |
+| [TTS Panel Operations](panels/TTS_PANEL_OPERATIONS.md) | Chinese guide for local TTS status, model folders, download tasks, model detail dialog, and voice profiles (panel embedded in Settings → Local Configuration; voice booth lives on Local Models) |
 | [Storage and Migration](engineering/STORAGE_AND_DATA.md) | Storage base path, import/export, recovery, and legacy migration |
 | [App Updates](settings/APP_UPDATE_GUIDE.md) | Manual update checks, startup checks, ignored versions, and manifest fields |
 | [Packaging and Smoke Testing](engineering/PACKAGING_AND_SMOKE_TESTING.md) | macOS build, no-backup install, app hash check, and desktop smoke |
