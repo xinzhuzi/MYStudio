@@ -9,7 +9,10 @@
       "category": "Krea2 图像引擎",
       "repo": "https://github.com/lbouaraba/comfyui-krea2edit",
       "verified_license": "Apache-2.0",
-      "provides": ["Krea2EditGroundedEncode", "Krea2EditModelPatch"]
+      "provides": [
+        "Krea2EditGroundedEncode",
+        "Krea2EditModelPatch"
+      ]
     },
     {
       "id": "ComfyUI-ConditioningKrea2Rebalance",
@@ -18,7 +21,9 @@
       "category": "Krea2 图像引擎",
       "repo": "https://github.com/nova452/Rebalance-Pack",
       "verified_license": "Apache-2.0",
-      "provides": ["ConditioningKrea2Rebalance"]
+      "provides": [
+        "ConditioningKrea2Rebalance"
+      ]
     },
     {
       "id": "rgthree-comfy",
@@ -83,16 +88,28 @@
       "category": "综合工具包",
       "repo": "https://github.com/cubiq/ComfyUI_essentials",
       "verified_license": "MIT",
-      "provides": ["GetImageSize+"]
+      "provides": [
+        "GetImageSize+"
+      ]
+    },
+    {
+      "id": "ComfyUI_MiniMaxH3_Director",
+      "name": "H3 导演台(多段连续)",
+      "desc_zh": "社区事实标准(1659★):六模式(t2v/i2v/fl2v/r2v/v2v/rv2v)+可视化多段时间轴+素材组(<Picture N>/@ 引用,公共参数+每组叠加)+段间引导(上段末尾运动与音频钉入下段,上下文帧 5/22/39/56=17k+5 网格族)+Refine 二采外挂+导演包导入导出。底层全走官方节点链,MPS 兼容性最佳。",
+      "category": "MiniMax H3 视频",
+      "repo": "https://github.com/AIMixer/ComfyUI_MiniMaxH3_Director",
+      "verified_license": "Apache-2.0"
     },
     {
       "id": "ComfyUI-JZL-MiniMax-H3",
-      "name": "H3 短剧导演台",
-      "desc_zh": "一个节点跑完剧本分段→@素材参考调度→编码采样解码→逐段落盘自动合并;内置 llama-server 本地 LLM 当导演,[SHOT_START] 穿透模式。漫影自研单镜链之外的重型批量化互补件。",
+      "name": "H3 短剧导演台 Pro(一节点全链)",
+      "desc_zh": "一节点跑完 LLM 剧本分段→@素材参考调度→逐段落盘自动合并;内置 llama-server 本地导演与 [SHOT_START] 穿透模式。与 AIMixer 多段导演台互补:强在自动编排,弱在无段间衔接/二采。",
       "category": "MiniMax H3 视频",
       "repo": "https://github.com/wjluoxiao/ComfyUI-JZL-MiniMax-H3",
       "verified_license": "MIT",
-      "provides": ["JZL_MiniMaxH3ReferenceToVideo"]
+      "provides": [
+        "JZL_MiniMaxH3ReferenceToVideo"
+      ]
     },
     {
       "id": "ComfyUI-MiniMaxH3-Easy",
@@ -101,7 +118,9 @@
       "category": "MiniMax H3 视频",
       "repo": "https://github.com/nkxx188/ComfyUI-MiniMaxH3-Easy",
       "verified_license": "MIT",
-      "provides": ["MiniMaxH3PromptOptimizer"]
+      "provides": [
+        "MiniMaxH3PromptOptimizer"
+      ]
     },
     {
       "id": "comfyui-minimax-h3-blockcache-T8",
@@ -110,7 +129,9 @@
       "category": "MiniMax H3 视频",
       "repo": "https://github.com/T8mars/comfyui-minimax-h3-blockcache-T8",
       "verified_license": "Apache-2.0",
-      "provides": ["MiniMaxH3BlockCacheT8"]
+      "provides": [
+        "MiniMaxH3BlockCacheT8"
+      ]
     },
     {
       "id": "ComfyUI-Spectrum-MiniMax-H3",
@@ -127,7 +148,9 @@
       "category": "MiniMax H3 视频",
       "repo": "https://github.com/LBH-123-AI/Comfyui_Minimax_h3_latent_Upscaler",
       "verified_license": "unknown",
-      "provides": ["MinimaxH3LatentUpscaler3D"]
+      "provides": [
+        "MinimaxH3LatentUpscaler3D"
+      ]
     }
   ]
 }
