@@ -10,11 +10,38 @@ import { app } from "/scripts/app.js";
  */
 
 // 双读注入变量:新名 MY_* 优先,旧名 MANYING_* 兼容(装机旧 asar 注入期防漂)
+// 设置旗标桥(09-15):承接 Comfy.Appearance.DisableAnimations 与 Comfy.EnableTooltips;
+// app.ui 就绪后同步(侧栏 setup 里调用),失败保底全开。
+export let myAnimationsEnabled = true;
+export let myTooltipsEnabled = true;
+export async function syncMySettingsFlags() {
+  try {
+    const settings = window.app?.ui?.settings;
+    if (settings?.getSettingValueAsync) {
+      myAnimationsEnabled = (await settings.getSettingValueAsync("Comfy.Appearance.DisableAnimations")) !== true;
+      myTooltipsEnabled = (await settings.getSettingValueAsync("Comfy.EnableTooltips")) !== false;
+    }
+    document.documentElement.dataset.myNoAnim = myAnimationsEnabled ? "" : "1";
+  } catch (error) { /* 保底全开 */ }
+}
+
 // 字体承接桥(09-15):一次性注入派生变量表(幂等)
 if (typeof document !== "undefined" && !document.getElementById("my-font-bridge")) {
   const style = document.createElement("style");
   style.id = "my-font-bridge";
   style.textContent = `:root {
+  /* 09-15 设置桥批次:调色板派生(基=ComfyUI 调色板变量,回落=现深色值零漂移)——
+     切浅色主题时文字/线/悬停自动换相;树密度=TreeExplorer.ItemPadding 官方变量 */
+  --my-text: var(--fg-color, rgba(255,255,255,0.92));
+  --my-text-2: color-mix(in srgb, var(--fg-color, #ffffff) 55%, transparent);
+  --my-text-dim: color-mix(in srgb, var(--fg-color, #ffffff) 35%, transparent);
+  --my-text-soft: color-mix(in srgb, var(--fg-color, #ffffff) 78%, transparent);
+  --my-line: color-mix(in srgb, var(--fg-color, #ffffff) 10%, transparent);
+  --my-hover: color-mix(in srgb, var(--fg-color, #ffffff) 5%, transparent);
+  --my-hover-2: color-mix(in srgb, var(--fg-color, #ffffff) 8%, transparent);
+  --my-accent-soft: color-mix(in srgb, var(--fg-color, #ffffff) 85%, #6ea8fe 15%);
+  --my-tree-pad: var(--comfy-tree-explorer-item-padding, 4px);
+  --my-border: var(--border-color, var(--my-line));
   /* 09-15 字体承接桥:基=ComfyUI 设置 Comfy.TextareaWidget.FontSize
      (watcher 写入根变量 --comfy-textarea-font-size,默认10px)。派生档位
      calc 自动重算——用户改设置,漫影全部DOM字体即时跟随,零JS订阅。 */
@@ -31,6 +58,8 @@ if (typeof document !== "undefined" && !document.getElementById("my-font-bridge"
   --my-fs-13: calc(var(--comfy-textarea-font-size, 10px) * 1.3);
   --my-fs-15: calc(var(--comfy-textarea-font-size, 10px) * 1.5);
   }`;
+  // 禁动画桥(09-15):html[data-my-no-anim] 域内 !important 盖过内联 transition/animation
+  style.textContent += '\n[data-my-no-anim="1"] [data-my-ui], [data-my-no-anim="1"] [data-my-ui] *{transition:none !important;animation:none !important;}';
   document.head.append(style);
 }
 
@@ -94,13 +123,14 @@ async function postJson(url, body) {
 // 强调色系统(主色=漫影蓝,状态色=绿/琥珀/灰)、图标代替文字堆叠、
 // 按压即时反馈(:active 缩放)、克制(无弹跳动画)。
 const THEME = {
-  accent: "#6ea8fe",       // 漫影蓝(主动作/主线项)
+  accent: "#6ea8fe",       // 漫影蓝(品牌 accent,深浅主题恒色)
   accentDim: "rgba(110,168,254,0.14)",
-  ok: "#4ade80",            // 已出视频
+  ok: "#4ade80",            // 已出视频(语义色,双主题可读)
   pending: "#fbbf24",       // 待出/进行中
-  idle: "rgba(255,255,255,0.35)",
-  line: "rgba(255,255,255,0.10)",
-  text2: "rgba(255,255,255,0.55)",
+  // 09-15 设置桥:以下三槽=调色板派生(随 ComfyUI.ColorPalette 换相,回落=原深色值)
+  idle: "var(--my-text-dim, var(--my-text-dim))",
+  line: "var(--my-line, var(--my-line))",
+  text2: "var(--my-text-2, var(--my-text-2))",
 };
 
 /** 东方影视设计代币系统(Cinema Tokens):环节节点磨砂质感与正方形常理尺寸规范 */
@@ -236,7 +266,7 @@ function collapseGroup(title, count, { tone, indent = 0, open = false } = {}) {
   if (open) details.open = true;
   if (indent > 0) details.style.paddingLeft = `${indent * 12}px`;
   const summary = document.createElement("summary");
-  summary.style.cssText = `display:flex;align-items:center;gap:6px;padding:5px 6px;cursor:pointer;list-style:none;font-size:var(--my-fs-14);font-weight:600;color:rgba(255,255,255,0.85);border-radius:6px;transition:background 100ms ease;`;
+  summary.style.cssText = `display:flex;align-items:center;gap:6px;padding:calc(var(--my-tree-pad, 4px) + 1px) 6px;cursor:pointer;list-style:none;font-size:var(--my-fs-14);font-weight:600;color:var(--my-text-soft);border-radius:6px;transition:background 100ms ease;`;
   summary.onmouseenter = () => { summary.style.background = "rgba(255,255,255,0.05)"; };
   summary.onmouseleave = () => { summary.style.background = ""; };
   const chev = icon(ICONS.chevron, 11);

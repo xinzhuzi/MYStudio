@@ -5,6 +5,7 @@
  * .ms-live——B2 轮询按 data-shot-idx 原位重填,渲染中带进度条)。 */
 import { emptyHTML, esc, badge, liveBadgesHTML } from "./common.js";
 import { postAction } from "../bridge-action.js";
+import { myTooltipsEnabled } from "../theme.js";
 
 // 09-14 通用化:MyShot 实体退役后,H3 单镜直达并入载荷行(桥动作通道复用)
 if (typeof window !== "undefined" && !window.__myH3RowDelegated) {
@@ -28,7 +29,7 @@ export default {
       const ready = Boolean(shot.imageReady);
       const h3 = shot.id
         ? '<button type="button" data-h3-shot="' + esc(String(shot.id)) + '" title="'
-          + (ready ? "打开该镜的漫影 H3 视频制作工作流" : "先生成画面") + '"'
+          + (myTooltipsEnabled ? (ready ? "打开该镜的漫影 H3 视频制作工作流" : "先生成画面") : "") + '"'
           + (ready ? "" : " disabled")
           + ' style="margin-left:6px;cursor:' + (ready ? "pointer" : "not-allowed")
           + ";opacity:" + (ready ? "1" : ".48")

@@ -12,6 +12,7 @@ import {
   BRIDGE_URL, BRIDGE_TOKEN, fetchShots, applyShotToSelection, myScope,
   fetchJson, postJson, THEME, icon, ICONS, sectionLabel, statusBadge,
   progressBar, collapseGroup, actionButton, paneStatus,
+  myTooltipsEnabled, syncMySettingsFlags,
 } from "./theme.js";
 import { MY_STORE_BASE, cloneGraph, openWorkflowSingleInstance, cleanupLegacyUnsavedTabs } from "./open-workflow.js";
 
@@ -193,7 +194,7 @@ function isMainlineWorkflow(id) {
 /** 库工作流行(分镜/工作流两页签共用):标题+悬停+点击在画布打开;badgeEl=可选「已打开」徽章位 */
 function myWorkflowRow(item, status, badgeEl) {
   const row = document.createElement("button");
-  row.title = `点击在画布打开:${item.id}`;
+  row.title = myTooltipsEnabled ? `点击在画布打开:${item.id}` : "";
   row.style.cssText = [
     "display:flex", "align-items:center", "gap:8px", "width:100%", "text-align:left", "padding:8px 10px",
     "cursor:pointer", "border-radius:8px",
@@ -306,6 +307,8 @@ async function renderWorkflowsPane(pane) {
 
 /** 页签三·模型:引擎模型按域分组(件数+体积,多重归属各计) */
 function renderSidebar(container) {
+  container.setAttribute("data-my-ui", "1"); // 禁动画桥作用域根
+  void syncMySettingsFlags(); // 渲染期刷新旗标(设置中途改动兜底)
   container.style.padding = "8px";
   // 页签按当前模块展示,任何情况都只显一签(09-12 用户裁定×2:不能一次性
   // 都展示出来)——工作流模块=分镜;本地模型模块=本地模型(09-14 用户裁定:
