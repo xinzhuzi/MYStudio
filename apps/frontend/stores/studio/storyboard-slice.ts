@@ -302,10 +302,12 @@ export function createStoryboardSliceActions(set: SetFn, get: GetFn) {
       if (issues.length) {
         throw new Error(`关键帧序列非法(${reason}):${issues.join(";")}`);
       }
-      // I1 首帧镜像:mediaRef 与 keyframes[0] 同源双写(空槽规划不覆盖现有 mediaRef)
+      // I1 首帧镜像:mediaRef 与 keyframes[0] 同源双写(空槽规划不覆盖现有 mediaRef)。
+      // H3 视频时代修正(09-14 深审):mediaRef=video 时是「当前视觉资产=成片」,
+      // 关键帧操作不得把它打回首帧图(视频只存 videoCandidates,打回=镜状态倒退)
       const firstImage = normalized.find((frame) => frame.mediaRef?.path);
       const updates: Partial<StoryboardItem> = { keyframes: normalized };
-      if (firstImage && reason !== "plan") {
+      if (firstImage && reason !== "plan" && current.mediaRef?.kind !== "video") {
         updates.mediaRef = firstImage.mediaRef;
         // 媒体落地即 ready(与生图回写 buildStoryboardImageWorkflowPatch 同语义;
         // 回接首跑实证缺口:帧全图而 state=idle 把整镜挡在编译门外)

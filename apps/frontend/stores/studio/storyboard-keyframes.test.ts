@@ -113,6 +113,23 @@ describe("setStoryboardKeyframes(唯一写入口)", () => {
     expect(updated?.keyframes).toBeUndefined();
   });
 
+  it("mediaRef=video 时关键帧写入不打回成片(09-14 H3 深审:镜状态不倒退)", () => {
+    useStudioStore.getState().replaceStoryboardsForEpisode("chapter-001", [
+      shot({ mediaRef: { kind: "video" as const, path: "project-file://p/remotion/outputs/shots/c1/sb-1/h3/ambient_v1_1.mp4" } }),
+    ]);
+    useStudioStore.getState().setStoryboardKeyframes(
+      "sb-1",
+      [frame(1, 0, "project-file://p/a.png"), frame(2, 6000, "project-file://p/b.png")],
+      "edit",
+    );
+    const updated = useStudioStore.getState().storyboards.find((item) => item.id === "sb-1");
+    expect(updated?.keyframes).toHaveLength(2);
+    // keyframes[0] 照常镜像首帧图;mediaRef 保持 video=当前视觉资产
+    expect(updated?.keyframes?.[0].mediaRef?.path).toBe("project-file://p/a.png");
+    expect(updated?.mediaRef?.kind).toBe("video");
+    expect(updated?.mediaRef?.path).toContain("h3/ambient_v1");
+  });
+
   it("plan 来源允许空槽且不覆盖既有 mediaRef", () => {
     useStudioStore.getState().replaceStoryboardsForEpisode("chapter-001", [
       shot({ mediaRef: { kind: "image" as const, path: "project-file://p/existing.png" } }),
