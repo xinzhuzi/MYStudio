@@ -39,7 +39,7 @@ const post = (url: string, body: unknown, headers: Record<string, string> = {}) 
 describe("comfy-cloud-relay 契约常量", () => {
   it("配对引擎侧 settings.py(env 名/默认 URL/端口)防双家漂移", () => {
     const pythonSource = readFileSync(
-      new URL("../../../../backend/engines/comfyui/manying_nodes/bridge/settings.py", import.meta.url),
+      new URL("../../../../backend/engines/comfyui/my_nodes/bridge/settings.py", import.meta.url),
       "utf8",
     );
     expect(COMFY_CLOUD_RELAY_URL).toBe("http://127.0.0.1:17596");

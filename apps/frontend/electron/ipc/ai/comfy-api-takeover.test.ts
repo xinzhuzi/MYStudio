@@ -14,7 +14,7 @@ describe("comfy-api-takeover 配置位与 python 侧契约", () => {
       "utf8",
     );
     const cloudTakeover = readFileSync(
-      new URL("../../../../backend/engines/comfyui/manying_nodes/cloud_takeover.py", import.meta.url),
+      new URL("../../../../backend/engines/comfyui/my_nodes/cloud_takeover.py", import.meta.url),
       "utf8",
     );
     expect(COMFY_API_TAKEOVER_ENV_BASE).toBe("MYSTUDIO_COMFY_API_BASE");

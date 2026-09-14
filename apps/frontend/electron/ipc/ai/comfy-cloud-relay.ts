@@ -10,7 +10,7 @@ import { ipcMain } from "electron";
  * 账号/供应商/兜底链/计费全部留在漫影应用内,画布用户零登录零配置——
  * ComfyUI 自带云端 API 节点/登录随 --disable-api-nodes 退役后,云端
  * 产线的唯一入口即本中继。令牌/端口/env 名与引擎侧
- * engines/comfyui/manying_nodes/bridge/settings.py 配对(双侧测试断言)。
+ * engines/comfyui/my_nodes/bridge/settings.py 配对(双侧测试断言)。
  */
 
 export const COMFY_CLOUD_RELAY_PORT = 17596;
