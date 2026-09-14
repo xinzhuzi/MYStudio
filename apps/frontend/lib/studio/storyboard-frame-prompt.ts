@@ -353,6 +353,14 @@ export function buildStoryboardFramePrompt(input: {
   const dialogueHint = inFrameDialogue
     ? `\n【台词语境】${inFrameDialogue.slice(0, 80)}`
     : "";
+  // H3 视频线对口型:具名角色台词(说话人在画面内)才钉近景正面;旁白/OS/V.S.
+  // 是画外音,不触发(09-14 上游产线 H3 对齐)。
+  const lipSyncFraming = inFrameDialogue.split("\n").some((segment) => {
+    const speaker = /^([^：:]{1,16})[：:]/.exec(segment.trim())?.[1]?.trim() ?? "";
+    return speaker !== "" && !/^(?:OS|画外音|旁白)/.test(speaker) && !/（V\.S\.）|V\.S\.?$/.test(speaker);
+  })
+    ? ";有台词:近景或中近景,说话人物正面朝向镜头,留出口型空间"
+    : "";
   const colorPart = input.colorSection?.trim() ? `\n${input.colorSection.trim()}` : "";
   const motionAdapted = adaptTemplateBriefToShotMotion(
     input.template.brief.replace(/\n+/g, " "),
@@ -360,7 +368,7 @@ export function buildStoryboardFramePrompt(input: {
   );
   return [
     `【画面】${description}`,
-    `【构图】${adaptTemplateBriefToCastCount(motionAdapted, input.castNames)}`,
+    `【构图】${adaptTemplateBriefToCastCount(motionAdapted, input.castNames)}${lipSyncFraming}`,
     colorPart.trim(),
     dialogueHint.trim(),
   ].filter(Boolean).join("\n");

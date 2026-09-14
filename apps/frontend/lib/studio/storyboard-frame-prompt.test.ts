@@ -84,6 +84,23 @@ describe("storyboard frame prompt assembly", () => {
       template: null,
     })).toBe("矿场远景。");
   });
+
+  it("pins lip-sync framing for in-frame dialogue only (09-14 H3 alignment)", () => {
+    const template = selectStoryboardFrameTemplate("船桩压住前景，铁链横穿石板", templates);
+    const withDialogue = buildStoryboardFramePrompt({
+      description: "掌柜抬眼，独孤剑尘立在门口。",
+      lines: "掌柜：客官，外头雨大。",
+      template,
+    });
+    expect(withDialogue).toContain("正面朝向镜头");
+    expect(withDialogue).toContain("口型");
+    const voiceoverOnly = buildStoryboardFramePrompt({
+      description: "船桩压住前景，铁链横穿石板。",
+      lines: "旁白：铁链一节接一节。",
+      template,
+    });
+    expect(voiceoverOnly).not.toContain("口型");
+  });
 });
 
 describe("storyboard faction color section", () => {

@@ -86,6 +86,7 @@ export function buildStoryboardTableMessages(input: BuildStoryboardTableInput): 
     "分镜配音硬约束：每条分镜必须填写台词/旁白字段，作为后续配音、TTS 和角色音色绑定的输入。",
     "角色台词保留 `角色名：台词内容`，无角色台词时必须写 `旁白：解说内容`，不要留空或写无台词。",
     "分镜序号铁律：全表分镜序号从 1 起全局连续递增（1..N），不得按场/按片段重置编号（2026-08-22 实证：逐场重编号会被解析整表拒绝）。",
+    "时长预算（H3 视频线）：每镜目标 5–8 秒——H3 成片按 17k+5 帧网格量化，最短一镜约 5.2 秒；台词与动作必须写足该时长的内容量，禁 2–3 秒空镜过场（09-14 上游产线 H3 对齐）。",
   ].join("\n");
   return {
     system: [skill, input.bibleContext, input.manualContext, voiceoverGuard, input.scriptPlanContext].filter(Boolean).join("\n\n---\n\n"),
@@ -283,7 +284,12 @@ export function toStoryboardItems(
       voiceStyle: voiceover.voiceStyle,
       requiresFixedVoice: voiceover.requiresFixedVoice,
       sound: row.sound,
-      shotSemantics: row.shotSemantics,
+      // 景别/运镜来自分镜表列(非出镜语义 JSON),并入 shotSemantics 贯通到
+      // H3 单镜组装器与生图【构图】段(09-14 上游产线 H3 对齐;此前在此断流)。
+      // 仅在出镜语义已存在时并入——7 列旧协议无语义 JSON,保持 undefined 零回归。
+      shotSemantics: row.shotSemantics
+        ? { ...row.shotSemantics, shotSize: row.shotSize || row.shotSemantics.shotSize, cameraMove: row.cameraMove || row.shotSemantics.cameraMove }
+        : row.shotSemantics,
     };
   });
 }
@@ -320,8 +326,8 @@ export function serializeStoryboardTable(items: readonly StoryboardItem[]): stri
     item.trackKey || "—",
     formatTableList(item.associateAssetsNames),
     formatTableValue(item.duration),
-    "—",
-    "—",
+    item.shotSemantics?.shotSize || "—",
+    item.shotSemantics?.cameraMove || "—",
     item.videoDesc,
     item.orientation,
     item.spatialRelation,

@@ -52,6 +52,12 @@ export interface StoryboardShotSemantics {
     styleWord: string;
     moodWord?: string;
   };
+  /** 景别(如 远景/全景/中景/近景/特写)。来源=分镜表「景别」列,非出镜语义 JSON;
+   * H3 单镜视频组装器与生图【构图】段共同消费(09-14 上游产线 H3 对齐)。 */
+  shotSize?: string;
+  /** 运镜(中文原词,如 推/拉/摇/跟/环绕)。来源=分镜表「运镜」列;
+   * H3 组装器经 mapH3CameraMove 映射到官方运镜词表。 */
+  cameraMove?: string;
 }
 
 export interface ShotContinuityState {

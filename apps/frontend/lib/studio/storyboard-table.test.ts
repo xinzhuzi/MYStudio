@@ -66,8 +66,19 @@ describe("studio storyboard table messages", () => {
       scriptText: "第一场：夜，矿场。",
     });
 
+
     expect(messages.system).toContain("分镜配音硬约束");
     expect(messages.system).not.toContain("视觉手册 · 分镜表风格约束");
+  });
+
+  it("includes the H3 duration budget guard (09-14 upstream alignment)", () => {
+    const messages = buildStoryboardTableMessages({
+      episodeId: "chapter-001",
+      scriptText: "第一场：夜，矿场。",
+    });
+    expect(messages.system).toContain("时长预算（H3 视频线）");
+    expect(messages.system).toContain("5–8 秒");
+    expect(messages.system).toContain("17k+5");
   });
 
   it("injects the source bible before the manual context in system when provided", () => {
@@ -106,6 +117,8 @@ describe("studio storyboard table parsing", () => {
       "episode-1",
     );
     const item = toStoryboardItems(parsedSource.rows, "episode-1", [])[0]!;
+    // 09-14 上游产线 H3 对齐:分镜表列的景别/运镜必须并入 shotSemantics(此前在此断流)。
+    expect(item.shotSemantics).toMatchObject({ shotSize: "近景", cameraMove: "静止" });
     const canonical = {
       ...item,
       mediaRef: { kind: "image" as const, path: "/project/media/shot.png" },
@@ -121,6 +134,8 @@ describe("studio storyboard table parsing", () => {
       description: "雨夜码头",
       duration: 2,
       lines: "旁白：雨声压低",
+      shotSize: "近景",
+      cameraMove: "静止",
     });
   });
 
