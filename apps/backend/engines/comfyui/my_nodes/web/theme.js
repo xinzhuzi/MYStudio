@@ -42,6 +42,9 @@ if (typeof document !== "undefined" && !document.getElementById("my-font-bridge"
   --my-accent-soft: color-mix(in srgb, var(--fg-color, #ffffff) 85%, #6ea8fe 15%);
   --my-tree-pad: var(--comfy-tree-explorer-item-padding, 4px);
   --my-border: var(--border-color, var(--my-line));
+  --my-card-bg: var(--comfy-menu-secondary-bg, color-mix(in srgb, var(--bg-color, #12161f) 92%, #ffffff));
+  --my-pop-bg: var(--comfy-menu-bg, color-mix(in srgb, var(--bg-color, #0a0e18) 96%, #ffffff));
+  --my-pop-bg-deep: color-mix(in srgb, var(--bg-color, #080b12) 100%, transparent);
   /* 09-15 字体承接桥:基=ComfyUI 设置 Comfy.TextareaWidget.FontSize
      (watcher 写入根变量 --comfy-textarea-font-size,默认10px)。派生档位
      calc 自动重算——用户改设置,漫影全部DOM字体即时跟随,零JS订阅。 */

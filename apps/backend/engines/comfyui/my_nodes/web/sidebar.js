@@ -196,7 +196,7 @@ function myWorkflowRow(item, status, badgeEl) {
   const row = document.createElement("button");
   row.title = myTooltipsEnabled ? `点击在画布打开:${item.id}` : "";
   row.style.cssText = [
-    "display:flex", "align-items:center", "gap:8px", "width:100%", "text-align:left", "padding:8px 10px",
+    "display:flex", "align-items:center", "gap:8px", "width:100%", "text-align:left", "padding:calc(var(--my-tree-pad, 4px) + 4px) 10px",
     "cursor:pointer", "border-radius:8px",
     `border:1px solid ${THEME.accent}44`, `background:${THEME.accentDim}`,
     `color:${THEME.accent}`, "font-size:var(--my-fs-14)", "font-weight:400",

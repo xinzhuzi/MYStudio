@@ -46,7 +46,7 @@ window.__myImgRetry = (img) => {
 const STYLES = `
 .my-stage-body{pointer-events:none;box-sizing:border-box;width:100%;
   padding:12px 14px 14px;font:400 12px/1.65 -apple-system,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
-  color:rgba(235,240,248,.92);background:${CINEMA_TOKENS.glassBg};
+  color:var(--my-text);background:${CINEMA_TOKENS.glassBg};
   backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
   border:1px solid ${CINEMA_TOKENS.glassBorder};border-radius:${CINEMA_TOKENS.glassRadius};
   box-shadow:${CINEMA_TOKENS.glassShadow},${CINEMA_TOKENS.glassHighlight};
@@ -82,7 +82,7 @@ const STYLES = `
 .ms-skill:hover{background:rgba(110,168,254,.24);}
 .ms-skill.is-open{background:rgba(110,168,254,.32);}
 .ms-skill-detail{margin-top:2px;padding:6px 9px;border-radius:6px;background:rgba(110,168,254,.08);
-  border:1px solid rgba(110,168,254,.2);font-size:var(--my-fs-10);line-height:1.65;color:rgba(200,210,226,.88);
+  border:1px solid rgba(110,168,254,.2);font-size:var(--my-fs-10);line-height:1.65;color:var(--my-text-2);
   max-height:96px;overflow-y:auto;}
 .ms-skill-detail-head{font-weight:600;color:var(--my-accent-soft);margin-bottom:2px;}
 .ms-body{pointer-events:none;display:flex;flex-direction:column;gap:8px;min-height:0;
@@ -110,7 +110,7 @@ const STYLES = `
 .ms-md blockquote{margin:5px 0 9px;padding:4px 12px;border-left:2.5px solid rgba(110,168,254,.5);
   color:rgba(178,188,204,.9);background:rgba(110,168,254,.06);border-radius:0 5px 5px 0;}
 .ms-md strong{color:#f5cd6d;font-weight:700;}
-.ms-md em{color:rgba(200,210,226,.88);}
+.ms-md em{color:var(--my-text-2);}
 .ms-md code{font-family:var(--font-mono,ui-monospace,Menlo,monospace);font-size:var(--my-fs-10-5);
   background:rgba(255,255,255,.07);border-radius:4px;padding:0 4px;}
 .ms-md ul,.ms-md ol{margin:2px 0 5px;padding-left:18px;}
@@ -129,7 +129,7 @@ const STYLES = `
 .ms-tile .sd{position:absolute;right:3px;top:3px;width:6px;height:6px;border-radius:50%;
   box-shadow:0 0 4px rgba(0,0,0,.6);}
 .ms-tile .tt{position:absolute;left:0;right:0;bottom:0;padding:2px 4px;font-size:var(--my-fs-8-5);
-  color:rgba(235,240,248,.92);background:linear-gradient(transparent,rgba(0,0,0,.72));
+  color:var(--my-text);background:linear-gradient(transparent,rgba(0,0,0,.72));
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .ms-rows{display:flex;flex-direction:column;font-size:var(--my-fs-11);}
 .ms-row{display:flex;align-items:baseline;gap:8px;padding:3px 6px;border-radius:5px;}
@@ -189,7 +189,7 @@ const STYLES = `
 .ms-live{display:flex;gap:4px;flex:none;align-items:center;}
 /* 09-14 挪右上:右下压原生底部工作流标签栏;右上顶栏下方原生件最少 */
 #my-canvas-hints{position:fixed;right:14px;top:64px;z-index:60;width:275px;pointer-events:auto;
-  background:linear-gradient(180deg,rgba(18,24,38,.92) 0%,rgba(10,14,24,.96) 100%);
+  background:linear-gradient(180deg,var(--my-card-bg) 0%,var(--my-pop-bg) 100%);
   backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
   border:1px solid rgba(110,168,254,.35);border-radius:12px;
   padding:12px 14px;box-shadow:0 12px 32px -4px rgba(0,0,0,.65),0 4px 12px rgba(0,0,0,.4);
@@ -205,7 +205,7 @@ const STYLES = `
 #my-canvas-hints .ms-hints-item span{color:var(--my-text-2);}
 #my-canvas-hints-fab{position:fixed;right:14px;top:18px;z-index:60;width:32px;height:32px;
   pointer-events:auto;cursor:pointer;border-radius:50%;border:1px solid rgba(110,168,254,.45);
-  background:linear-gradient(135deg,rgba(18,24,38,.92) 0%,rgba(10,14,24,.96) 100%);
+  background:linear-gradient(135deg,var(--my-card-bg) 0%,var(--my-pop-bg) 100%);
   backdrop-filter:blur(10px);color:var(--my-accent-soft);font:600 14px/1 inherit;
   box-shadow:0 4px 14px rgba(0,0,0,.5);transition:transform 80ms ease,box-shadow 150ms ease;}
 #my-canvas-hints-fab:hover{transform:scale(1.08);box-shadow:0 0 12px rgba(110,168,254,.5);}
