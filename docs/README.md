@@ -125,6 +125,8 @@
 | 文档 | 用途 |
 |---|---|
 | [参数速查](./comfyui-kb/参数速查.md) | K2/H3 等产线采样参数实测口径（改采样参数前先查） |
+| [漫影工作流清单](./comfyui-kb/漫影工作流清单.md) | 引擎家 `漫影/` 工作流库全量盘点（118 个：K2 六类/分镜写入位/H3 六线/音乐），含快查表；「ComfyUI 里有哪些漫影工作流」先读它 |
+| [分镜图生成与超分指引](./comfyui-kb/分镜图生成与超分指引.md) | 分镜×H3 配套：分镜图写法要点、一镜张数策略（默认首帧1张/尾帧条件档/九宫格抽卡）、超分结论（输入侧不做、权重替代分辨率）与质量杠杆四件事 |
 | [定制代码地图](./comfyui-kb/定制代码地图.md) | 四层定制代码位置、生效路径（要不要打包）与坑清单（改 ComfyUI 相关功能前先读） |
 | [Windows 部署指南](./comfyui-kb/README-Windows部署指南.md) | Windows 侧 ComfyUI 引擎部署 |
 | [K2 画稿上色产线四件套](./comfyui-kb/K2上色/prd_画稿上色工作流.md) | PRD / 设计 / 实现 / 错误应对 runbook |
@@ -149,6 +151,8 @@
 | [图层分离探索交接 08-19](./research/LAYER_SEPARATION_HANDOFF_2026-08-19.md) | AI 图片分层动画（背景/角色/特效分层）技术探索交接 |
 | [Agent 检索能力建设计划 v2 08-21](./research/UNIFIED_SEARCH_PLAN_2026-08-21.md) | AI 搜索本地全源+网络的路由方案与落地记录 |
 | [本地生图架构路线计划 08-31](./research/LOCAL_IMAGE_GEN_ARCHITECTURE_PLAN_2026-08-31.md) | 本地生图架构深读与路线选择（自研 sidecar vs ComfyUI） |
+| [H3 漫剧产线生态调查 09-14](./research/H3_COMIC_DRAMA_ECOSYSTEM_RESEARCH_2026-09-14.md) | AI 视频方式全景、H3 技能/提示词生态、GitHub 高星漫剧管线、B 站四学派产线落实分析与漫影落点（含 License 红线表） |
+| [H3 生态吸收分析 09-14](./research/H3_ABSORPTION_ANALYSIS_2026-09-14.md) | 生态调查对照漫影代码实况后的吸收裁定建议：P0 四件（提示词接线/素材调度/组装器/桥视频选型）对齐分镜×H3 三件待开工，P1/P2 分级与不吸收清单 |
 
 ## 本地引擎专题（local/）
 
