@@ -10,6 +10,30 @@ import { app } from "/scripts/app.js";
  */
 
 // 双读注入变量:新名 MY_* 优先,旧名 MANYING_* 兼容(装机旧 asar 注入期防漂)
+// 字体承接桥(09-15):一次性注入派生变量表(幂等)
+if (typeof document !== "undefined" && !document.getElementById("my-font-bridge")) {
+  const style = document.createElement("style");
+  style.id = "my-font-bridge";
+  style.textContent = `:root {
+  /* 09-15 字体承接桥:基=ComfyUI 设置 Comfy.TextareaWidget.FontSize
+     (watcher 写入根变量 --comfy-textarea-font-size,默认10px)。派生档位
+     calc 自动重算——用户改设置,漫影全部DOM字体即时跟随,零JS订阅。 */
+    --my-fs-8-5: calc(var(--comfy-textarea-font-size, 10px) * 0.85);
+  --my-fs-9: calc(var(--comfy-textarea-font-size, 10px) * 0.9);
+  --my-fs-9-5: calc(var(--comfy-textarea-font-size, 10px) * 0.95);
+  --my-fs-10: calc(var(--comfy-textarea-font-size, 10px) * 1);
+  --my-fs-10-5: calc(var(--comfy-textarea-font-size, 10px) * 1.05);
+  --my-fs-11: calc(var(--comfy-textarea-font-size, 10px) * 1.1);
+  --my-fs-11-5: calc(var(--comfy-textarea-font-size, 10px) * 1.15);
+  --my-fs-12: calc(var(--comfy-textarea-font-size, 10px) * 1.2);
+  --my-fs-13: calc(var(--comfy-textarea-font-size, 10px) * 1.3);
+  --my-fs-14: calc(var(--comfy-textarea-font-size, 10px) * 1.4);
+  --my-fs-13: calc(var(--comfy-textarea-font-size, 10px) * 1.3);
+  --my-fs-15: calc(var(--comfy-textarea-font-size, 10px) * 1.5);
+  }`;
+  document.head.append(style);
+}
+
 const BRIDGE_URL = (window.MY_BRIDGE_URL || window.MANYING_BRIDGE_URL || "http://127.0.0.1:17595").replace(/\/$/, "");
 const BRIDGE_TOKEN = window.MY_BRIDGE_TOKEN || window.MANYING_BRIDGE_TOKEN || "manying-local-image";
 
@@ -136,7 +160,7 @@ const ICONS = {
 /** 分区标签:小字号+字间距+弱色(不与内容抢层级) */
 function sectionLabel(text, iconPath) {
   const el = document.createElement("div");
-  el.style.cssText = `display:flex;align-items:center;gap:6px;font-size:10px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:${THEME.text2};margin:12px 0 6px;`;
+  el.style.cssText = `display:flex;align-items:center;gap:6px;font-size:var(--my-fs-10);font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:${THEME.text2};margin:12px 0 6px;`;
   if (iconPath) el.append(icon(iconPath, 12));
   const span = document.createElement("span");
   span.textContent = text;
@@ -149,7 +173,7 @@ function statusBadge(kind) {
   const map = { done: [THEME.ok, "视频✓"], pending: [THEME.pending, "待出"], idle: [THEME.idle, "未绑定"] };
   const [color, label] = map[kind] || map.idle;
   const el = document.createElement("span");
-  el.style.cssText = `display:inline-flex;align-items:center;gap:4px;font-size:10px;color:${color};flex:none;`;
+  el.style.cssText = `display:inline-flex;align-items:center;gap:4px;font-size:var(--my-fs-10);color:${color};flex:none;`;
   const dot = document.createElement("span");
   dot.style.cssText = `width:6px;height:6px;border-radius:50%;background:${color};`;
   el.append(dot, document.createTextNode(label));
@@ -167,7 +191,7 @@ function progressBar(done, total) {
   fill.style.cssText = `height:100%;width:${pct}%;border-radius:3px;background:linear-gradient(90deg,#3b82f6,#34d399);box-shadow:0 0 6px rgba(52,211,153,0.6);transition:width 400ms ease;`;
   bar.append(fill);
   const label = document.createElement("div");
-  label.style.cssText = `display:flex;justify-content:space-between;font-size:10px;color:${THEME.text2};margin-top:3px;`;
+  label.style.cssText = `display:flex;justify-content:space-between;font-size:var(--my-fs-10);color:${THEME.text2};margin-top:3px;`;
   const left = document.createElement("span");
   left.textContent = `已出视频 ${done}/${total}`;
   const right = document.createElement("span");
@@ -187,7 +211,7 @@ function collapseGroup(title, count, { tone, indent = 0, open = false } = {}) {
   if (open) details.open = true;
   if (indent > 0) details.style.paddingLeft = `${indent * 12}px`;
   const summary = document.createElement("summary");
-  summary.style.cssText = `display:flex;align-items:center;gap:6px;padding:5px 6px;cursor:pointer;list-style:none;font-size:11px;font-weight:500;color:rgba(255,255,255,0.85);border-radius:6px;transition:background 100ms ease;`;
+  summary.style.cssText = `display:flex;align-items:center;gap:6px;padding:5px 6px;cursor:pointer;list-style:none;font-size:var(--my-fs-14);font-weight:600;color:rgba(255,255,255,0.85);border-radius:6px;transition:background 100ms ease;`;
   summary.onmouseenter = () => { summary.style.background = "rgba(255,255,255,0.05)"; };
   summary.onmouseleave = () => { summary.style.background = ""; };
   const chev = icon(ICONS.chevron, 11);
@@ -196,7 +220,7 @@ function collapseGroup(title, count, { tone, indent = 0, open = false } = {}) {
   const text = document.createElement("span");
   text.textContent = title;
   const badge = document.createElement("span");
-  badge.style.cssText = `margin-left:auto;font-size:10px;font-weight:500;padding:1px 7px;border-radius:999px;background:${bg};color:${color};flex:none;`;
+  badge.style.cssText = `margin-left:auto;font-size:var(--my-fs-10);font-weight:500;padding:1px 7px;border-radius:999px;background:${bg};color:${color};flex:none;`;
   badge.textContent = String(count);
   summary.append(chev, text, badge);
   details.append(summary);
@@ -211,7 +235,7 @@ function actionButton({ label, iconPath, primary }) {
   const btn = document.createElement("button");
   btn.style.cssText = [
     "flex:1", "display:flex", "align-items:center", "justify-content:center", "gap:6px",
-    "padding:8px 8px", "cursor:pointer", "border-radius:8px", "font-size:12px", "font-weight:600",
+    "padding:8px 8px", "cursor:pointer", "border-radius:8px", "font-size:var(--my-fs-12)", "font-weight:600",
     primary
       ? "border:1px solid #3b82f6;background:linear-gradient(135deg,#3b82f6 0%,#2563eb 100%);color:#fff;box-shadow:0 3px 12px rgba(59,130,246,0.35);"
       : "border:1px solid rgba(251,191,36,0.45);background:rgba(251,191,36,0.08);color:#fbbf24;box-shadow:0 2px 8px rgba(0,0,0,0.3);",
@@ -236,7 +260,7 @@ function actionButton({ label, iconPath, primary }) {
 
 function paneStatus(text) {
   const p = document.createElement("p");
-  p.style.cssText = `font-size:11px;color:${THEME.text2};margin:4px 0 6px;`;
+  p.style.cssText = `font-size:var(--my-fs-11);color:${THEME.text2};margin:4px 0 6px;`;
   p.textContent = text;
   return p;
 }

@@ -14,14 +14,13 @@ import {
   progressBar, collapseGroup, actionButton, paneStatus,
 } from "./theme.js";
 import { MY_STORE_BASE, cloneGraph, openWorkflowSingleInstance, cleanupLegacyUnsavedTabs } from "./open-workflow.js";
-import { filterWorkflowsForScope } from "./my_module_policy.js";
 
 /** 页签一·分镜:分镜工作流主线(点击即开)+原镜列表逻辑整迁(刷新+状态+点选回填) */
 function renderShotsPane(pane) {
   pane.style.cssText = "padding:10px 12px;display:flex;flex-direction:column;gap:2px;";
   // ── 章节徽章(顶部,主色描边胶囊) ──
   const chapterPill = document.createElement("div");
-  chapterPill.style.cssText = `display:inline-flex;align-items:center;gap:6px;align-self:flex-start;padding:3px 10px;border-radius:999px;border:1px solid ${THEME.accent}55;background:${THEME.accentDim};color:${THEME.accent};font-size:11px;font-weight:600;letter-spacing:0.02em;`;
+  chapterPill.style.cssText = `display:inline-flex;align-items:center;gap:6px;align-self:flex-start;padding:3px 10px;border-radius:999px;border:1px solid ${THEME.accent}55;background:${THEME.accentDim};color:${THEME.accent};font-size:var(--my-fs-11);font-weight:600;letter-spacing:0.02em;`;
   const chapterDot = document.createElement("span");
   chapterDot.style.cssText = `width:7px;height:7px;border-radius:50%;background:${THEME.accent};box-shadow:0 0 6px ${THEME.accent}88;`;
   const chapterText = document.createElement("span");
@@ -65,7 +64,7 @@ function renderShotsPane(pane) {
   const list = document.createElement("div");
   list.style.cssText = "display:flex;flex-direction:column;gap:6px;margin-top:2px;";
   const refresh = document.createElement("button");
-  refresh.style.cssText = `display:flex;align-items:center;justify-content:center;gap:5px;width:100%;padding:6px;cursor:pointer;border-radius:8px;border:1px solid ${THEME.line};background:transparent;color:${THEME.text2};font-size:11px;transition:transform 80ms ease;`;
+  refresh.style.cssText = `display:flex;align-items:center;justify-content:center;gap:5px;width:100%;padding:6px;cursor:pointer;border-radius:8px;border:1px solid ${THEME.line};background:transparent;color:${THEME.text2};font-size:var(--my-fs-11);transition:transform 80ms ease;`;
   refresh.append(icon(ICONS.refresh, 12));
   const refreshText = document.createElement("span");
   refreshText.textContent = "刷新分镜列表";
@@ -129,7 +128,7 @@ function renderShotsPane(pane) {
               "display:flex", "align-items:center", "gap:6px", "width:100%", "text-align:left", "margin:2px 0",
               "padding:6px 8px", "cursor:pointer", "border-radius:6px",
               `border:1px solid ${THEME.line}`, "background:transparent",
-              "color:inherit", "font-size:12px", "overflow:hidden", "text-overflow:ellipsis", "white-space:nowrap",
+              "color:inherit", "font-size:var(--my-fs-12)", "overflow:hidden", "text-overflow:ellipsis", "white-space:nowrap",
               "transition:background 120ms ease,transform 80ms ease",
             ].join(";");
             const label = document.createElement("span");
@@ -172,8 +171,9 @@ async function openMyWorkflow(id, status) {
       } else {
         await openWorkflowSingleInstance({ name: id, graph });
       }
-      status.textContent = `已打开:${label}`;
-      status.style.color = "";
+      // 09-15 用户裁定:成功反馈文案不展示(「已打开:xxx」退役)——
+      // 仅保留加载中/错误态提示
+      status.textContent = "";
     } else {
       status.textContent = "画布还没就绪,稍候再点";
       status.style.color = "#e06c75";
@@ -198,10 +198,10 @@ function myWorkflowRow(item, status, badgeEl) {
     "display:flex", "align-items:center", "gap:8px", "width:100%", "text-align:left", "padding:8px 10px",
     "cursor:pointer", "border-radius:8px",
     `border:1px solid ${THEME.accent}44`, `background:${THEME.accentDim}`,
-    `color:${THEME.accent}`, "font-size:12px", "font-weight:500",
+    `color:${THEME.accent}`, "font-size:var(--my-fs-14)", "font-weight:400",
     "overflow:hidden", "transition:filter 120ms ease,transform 80ms ease",
   ].join(";");
-  row.append(icon(ICONS.clap, 14));
+  row.append(icon(ICONS.clap, 16));
   const label = document.createElement("span");
   // 09-14 用户裁定:MY- 前缀是磁盘文件名标识;侧栏展示剥前缀(整树皆漫影
   // 内容,前缀在列表里冗余)。悬停 title 仍给全量真名。
@@ -223,7 +223,7 @@ function myWorkflowRow(item, status, badgeEl) {
 /** 「已打开」徽章(09-12 AC5):openWorkflows 命中库路径即亮绿点 */
 function makeOpenBadge() {
   const badge = document.createElement("span");
-  badge.style.cssText = `display:none;align-items:center;gap:4px;flex:none;font-size:10px;color:${THEME.ok};`;
+  badge.style.cssText = `display:none;align-items:center;gap:4px;flex:none;font-size:var(--my-fs-10);color:${THEME.ok};`;
   const dot = document.createElement("span");
   dot.style.cssText = `width:6px;height:6px;border-radius:50%;background:${THEME.ok};box-shadow:0 0 6px ${THEME.ok}88;`;
   badge.append(dot, document.createTextNode("已打开"));
@@ -242,78 +242,67 @@ function syncOpenBadges(openBadges) {
 async function renderWorkflowsPane(pane) {
   pane.textContent = "";
   pane.style.cssText = "padding:10px 12px;display:flex;flex-direction:column;gap:2px;";
-  // 09-14 用户裁定:本地模型模块不做全库浏览(36 个工作流树对生图无意义,
-  // 「本地模型工作流库」标题与计数行一并退役);只列漫影 K2 生图直达——
-  // K2图像 文生图/图生图 夹内的 MY-K2 自研流(行点击=画布打开,协议复用)
-  pane.append(sectionLabel("漫影 K2 生图", ICONS.folderOpen));
+  // 09-15 用户裁定:仓库 workflows 目录结构=完整展示逻辑——侧栏一棵树原样
+  // 镜像(域→功能夹→文件,编号前缀从 0 向后即顺序,不剥不改),不再拆
+  // 「K2 直达区+库区」两块;区标题「漫影工作流库」不展示(树即全部)。
+  // 数据=仓库 repo 真源(桥列表);行点击=画布打开。
   const status = paneStatus("加载工作流…");
   const host = document.createElement("div");
   host.style.cssText = "display:flex;flex-direction:column;";
   pane.append(status, host);
   try {
-    // light=1:跳过逐文件 JSON 解析(海量库性能,09-12 桥新增参数)
     const data = await fetchJson(`${BRIDGE_URL}/comfy/workflows?light=1`);
-    // 09-14 工作流存放架构(晚二次裁定):静态自研 MY- 真源=仓库(repo:
-    // 前缀,只读);引擎家 workflows 恒无漫影,分镜产线动态流住「分镜/」。
-    const items = filterWorkflowsForScope((data.workflows || []).filter((item) =>
-      item.id && /^repo:1_图片\/K2图像\/(1_文生图|2_图生图)\/MY-K2-[^/]+\.json$/.test(item.id)), myScope());
+    const items = (data.workflows || []).filter((item) =>
+      item.id && String(item.id).startsWith("repo:"));
     if (items.length === 0) {
-      status.textContent = "还没有漫影 K2 生图工作流";
+      status.textContent = "还没有漫影工作流(仓库真源为空)";
       return;
     }
     items.sort((a, b) => String(a.id).localeCompare(String(b.id), "zh"));
-    for (const item of items) {
-      const row = myWorkflowRow(item, status);
-      row.style.margin = "2px 0 2px 12px";
-      host.append(row);
-    }
-    // 09-14 补全:漫影工作流库全量浏览(仓库 repo 真源,只在漫影侧栏显示,
-    // 不碰 ComfyUI 原生界面)——域→功能夹两级折叠,行点击临时流打开
-    const all = filterWorkflowsForScope((data.workflows || []).filter((item) =>
-      item.id && String(item.id).startsWith("repo:")), myScope());
-    if (all.length > 0) {
-      pane.append(sectionLabel("漫影工作流库", ICONS.folderOpen));
-      const libHost = document.createElement("div");
-      libHost.style.cssText = "display:flex;flex-direction:column;";
-      pane.append(libHost);
-      const domains = new Map();
-      for (const item of all) {
-        const seg = String(item.id).slice("repo:".length).split("/");
-        const domain = seg.length > 1 ? seg[0].replace(/^\d+_/, "") : "其他";
-        const group = seg.length > 2 ? seg[1].replace(/^\d+_/, "") : "";
-        if (!domains.has(domain)) domains.set(domain, new Map());
-        if (!domains.get(domain).has(group)) domains.get(domain).set(group, []);
-        domains.get(domain).get(group).push(item);
-      }
-      const order = ["图片", "视频", "声音", "其他"];
-      const domNames = [...domains.keys()].sort((a, b) => {
-        const ia = order.indexOf(a), ib = order.indexOf(b);
-        return (ia < 0 ? 99 : ia) - (ib < 0 ? 99 : ib);
-      });
-      domNames.forEach((domain, di) => {
-        const groups = domains.get(domain);
-        const total = [...groups.values()].flat().length;
-        const details = collapseGroup(domain, total, { open: di === 0 });
-        for (const groupName of [...groups.keys()].sort((a, b) => a.localeCompare(b, "zh"))) {
-          const entries = groups.get(groupName).sort((a, b) => String(a.id).localeCompare(String(b.id), "zh"));
-          if (!groupName) {
-            for (const item of entries) { const r = myWorkflowRow(item, status); r.style.margin = "2px 0 2px 12px"; details.append(r); }
-            continue;
-          }
-          const sub = collapseGroup(groupName, entries.length, { indent: 1 });
-          for (const item of entries) { const r = myWorkflowRow(item, status); r.style.margin = "2px 0 2px 12px"; sub.append(r); }
-          details.append(sub);
+    // 按路径段建树(段名原样保留编号;目录序=编号序)
+    const buildTree = (list) => {
+      const tree = new Map();
+      for (const item of list) {
+        const segs = String(item.id).slice("repo:".length).split("/");
+        let level = tree;
+        for (let i = 0; i < segs.length - 1; i++) {
+          if (!level.has(segs[i])) level.set(segs[i], new Map());
+          level = level.get(segs[i]);
         }
-        libHost.append(details);
-      });
-      status.textContent = `漫影库 ${all.length} 个 · 点击在画布打开`;
-    } else {
-      status.textContent = "点击在画布打开";
-    }
+        const fname = segs[segs.length - 1];
+        if (!level.has("__files__")) level.set("__files__", []);
+        level.get("__files__").push(item);
+      }
+      return tree;
+    };
+    const tree = buildTree(items);
+    const renderLevel = (level, depth) => {
+      const container = document.createDocumentFragment();
+      for (const name of [...level.keys()].sort((a, b) => a.localeCompare(b, "zh"))) {
+        if (name === "__files__") continue;
+        const sub = level.get(name);
+        const files = sub.get("__files__") || [];
+        let count = files.length;
+        const countDir = (m) => { for (const k of m.keys()) { if (k === "__files__") count += m.get(k).length; else countDir(m.get(k)); } };
+        countDir(sub);
+        const details = collapseGroup(name, count, { indent: Math.max(0, depth - 1), open: depth <= 1 });
+        for (const item of files) {
+          const row = myWorkflowRow(item, status);
+          row.style.margin = "2px 0 2px 12px";
+          details.append(row);
+        }
+        details.append(renderLevel(sub, depth + 1));
+        container.append(details);
+      }
+      return container;
+    };
+    host.append(renderLevel(tree, 0));
+    status.textContent = `共 ${items.length} 条 · 点击在画布打开`;
   } catch (error) {
     status.textContent = `取不到工作流(${error.message || error});请确认漫影软件在运行`;
   }
 }
+
 
 /** 页签三·模型:引擎模型按域分组(件数+体积,多重归属各计) */
 function renderSidebar(container) {
@@ -348,7 +337,7 @@ function renderSidebar(container) {
     button.textContent = tab.label;
     button.dataset.myTab = tab.id;
     button.style.cssText = [
-      "flex:1", "padding:4px 6px", "cursor:pointer", "font-size:11px",
+      "flex:1", "padding:4px 6px", "cursor:pointer", "font-size:var(--my-fs-11)",
       "border:none", "border-bottom:2px solid transparent", "background:transparent", "color:inherit",
     ].join(";");
     button.onclick = () => switchTab(tab.id);

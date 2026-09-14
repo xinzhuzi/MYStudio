@@ -32,7 +32,7 @@ export default {
           + (ready ? "" : " disabled")
           + ' style="margin-left:6px;cursor:' + (ready ? "pointer" : "not-allowed")
           + ";opacity:" + (ready ? "1" : ".48")
-          + ';border:1px solid #6ea8fe66;background:#6ea8fe22;color:#9ec5fe;border-radius:6px;font-size:11px;padding:1px 8px;">H3</button>'
+          + ';border:1px solid #6ea8fe66;background:#6ea8fe22;color:#9ec5fe;border-radius:6px;font-size:var(--my-fs-11);padding:1px 8px;">H3</button>'
         : "";
       return `<div class="ms-row" data-shot-idx="${Number(shot.index) || 0}"><span class="idx">#${String(shot.index).padStart(2, "0")}</span>
         <span class="main">${esc(shot.label)}</span><span class="ms-live">${liveBadgesHTML(shot.status, shot.progress)}</span><span class="ms-badges">${bits}</span>${h3}</div>`;
