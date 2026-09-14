@@ -92,7 +92,7 @@ function renderShotsPane(pane) {
     .catch(() => undefined);
 
   const openBadges = [];
-  void fetchJson(`${BRIDGE_URL}/comfy/workflows?prefix=${encodeURIComponent("漫影/1_图片/分镜/0_工作流主线/")}`)
+  void fetchJson(`${BRIDGE_URL}/comfy/workflows?prefix=${encodeURIComponent("分镜/0_工作流主线/")}`)
     .then((data) => {
       const items = (data.workflows || []).filter((item) => item.id && isMainlineWorkflow(item.id));
       const chapterItems = items.filter((item) => isCurrentChapter(item.id));
@@ -201,9 +201,10 @@ async function openMyWorkflow(id, status) {
   }
 }
 
-/** 分镜工作流主线判据(生成器落位「漫影/1_图片/分镜/0_工作流主线/」) */
+/** 分镜工作流主线判据(生成器落位「分镜/0_工作流主线/」;旧根双收防回流) */
 function isMainlineWorkflow(id) {
-  return id.startsWith("漫影/1_图片/分镜/0_工作流主线/") && !id.endsWith("/.keep.json");
+  return (id.startsWith("分镜/0_工作流主线/") || id.startsWith("漫影/1_图片/分镜/0_工作流主线/"))
+    && !id.endsWith("/.keep.json");
 }
 
 /** 库工作流行(分镜/工作流两页签共用):标题+悬停+点击在画布打开;badgeEl=可选「已打开」徽章位 */
@@ -269,10 +270,10 @@ async function renderWorkflowsPane(pane) {
   try {
     // light=1:跳过逐文件 JSON 解析(海量库性能,09-12 桥新增参数)
     const data = await fetchJson(`${BRIDGE_URL}/comfy/workflows?light=1`);
-    // 09-14 工作流存放架构:静态自研 MY- 真源=仓库(repo: 前缀,只读);
-    // 引擎家=用户区(漫影/ 前缀,分镜产线 D3 过渡仍在)。两形态并收。
+    // 09-14 工作流存放架构(晚二次裁定):静态自研 MY- 真源=仓库(repo:
+    // 前缀,只读);引擎家 workflows 恒无漫影,分镜产线动态流住「分镜/」。
     const items = filterWorkflowsForScope((data.workflows || []).filter((item) =>
-      item.id && /^(repo:|漫影\/)1_图片\/K2图像\/(1_文生图|2_图生图)\/MY-K2-[^/]+\.json$/.test(item.id)), myScope());
+      item.id && /^repo:1_图片\/K2图像\/(1_文生图|2_图生图)\/MY-K2-[^/]+\.json$/.test(item.id)), myScope());
     if (items.length === 0) {
       status.textContent = "还没有漫影 K2 生图工作流";
       return;

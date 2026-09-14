@@ -63,7 +63,7 @@ describe("syncStoryboardOverviewToLibrary(09-10 批9:图片带)", () => {
     storeState.storyboards = [];
   });
 
-  it("带图镜先传缩略(my-shot-*.jpg)再导入 漫影/分镜/0_工作流主线/;无图镜零上传", async () => {
+  it("带图镜先传缩略(my-shot-*.jpg)再导入 分镜/0_工作流主线/;无图镜零上传", async () => {
     storeState.storyboards = [
       shot("S01-01", 1, { kind: "image", path: "project-file://a.png" }),
       shot("S01-02", 2),
@@ -92,7 +92,7 @@ describe("syncStoryboardOverviewToLibrary(09-10 批9:图片带)", () => {
       "my-shot-S01-01-k2.jpg",
     ]);
     // 09-11 旧画布迁移:保鲜产物=分镜流程链工作流,落位 0_工作流主线
-    expect(imported[0].name).toBe("漫影/1_图片/分镜/0_工作流主线/MY-分镜工作流.json");
+    expect(imported[0].name).toBe("分镜/0_工作流主线/MY-分镜工作流.json");
     expect(imported[0].mode).toBe("overwrite");
   });
 

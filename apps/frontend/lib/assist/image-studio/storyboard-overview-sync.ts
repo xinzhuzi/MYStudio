@@ -164,8 +164,8 @@ export async function syncStoryboardOverviewToLibrary(deps: OverviewSyncDeps = {
   const imported = await (deps.transport ?? createHttpComfyWorkflowLibraryTransport())
     .importFiles(
       // 落位铁律(09-10 用户裁定×2):漫影的工作流挂「漫影/」分组且按域分类
-      // (图片/视频/声音),分镜链住「漫影/1_图片/分镜/0_工作流主线/」
-      [{ name: `漫影/1_图片/分镜/0_工作流主线/${result.report.name}.json`, content: JSON.stringify(result.ui, null, 1) }],
+      // (图片/视频/声音),分镜链住「分镜/0_工作流主线/」
+      [{ name: `分镜/0_工作流主线/${result.report.name}.json`, content: JSON.stringify(result.ui, null, 1) }],
       "overwrite",
     )
     .catch(() => null);
@@ -176,11 +176,11 @@ export async function syncStoryboardOverviewToLibrary(deps: OverviewSyncDeps = {
     const chapterIds = [...new Set(storyboards.map((item) => item.episodeId))];
     const legacyIds = [
       // 09-14 `MY-` 前缀裁定前的无后缀/_my 两种旧现名都按旧名清(best-effort,幂等)
-      `漫影/1_图片/分镜/0_工作流主线/分镜工作流.json`,
-      `漫影/1_图片/分镜/0_工作流主线/分镜工作流_my.json`,
-      ...chapterIds.map((ch) => `漫影/1_图片/分镜/0_工作流主线/分镜工作流 · ${ch}.json`),
+      `分镜/0_工作流主线/分镜工作流.json`,
+      `分镜/0_工作流主线/分镜工作流_my.json`,
+      ...chapterIds.map((ch) => `分镜/0_工作流主线/分镜工作流 · ${ch}.json`),
       ...(chapterIds.length > 1
-        ? [`漫影/1_图片/分镜/0_工作流主线/分镜工作流(${chapterIds.length} 章).json`]
+        ? [`分镜/0_工作流主线/分镜工作流(${chapterIds.length} 章).json`]
         : []),
     ];
     await Promise.all(

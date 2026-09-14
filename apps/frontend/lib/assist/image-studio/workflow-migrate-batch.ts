@@ -99,9 +99,9 @@ export async function migrateWorkflowsToLibrary(
     // API 格式随身携带(ui.extra.apiFormat):库内取用即得,无头复跑免重导
     const ui = { ...result.ui, extra: { ...(result.ui as { extra?: Record<string, unknown> }).extra, apiFormat: result.api, manyingMigration: result.report } };
     // 落位铁律(09-10 用户裁定×2):漫影的工作流挂「漫影/」分组且按域分类
-    // (图片/视频/声音),单镜图流住「漫影/1_图片/分镜/2_单镜图/」;
+    // (图片/视频/声音),单镜图流住「分镜/2_单镜图/」;
     // 09-14 用户裁定(二次修订):漫影工作流文件名一律 `MY-` 前缀。
-    files.push({ name: `漫影/1_图片/分镜/2_单镜图/MY-迁移 · ${flow.name}.json`, content: JSON.stringify(ui, null, 1) });
+    files.push({ name: `分镜/2_单镜图/MY-迁移 · ${flow.name}.json`, content: JSON.stringify(ui, null, 1) });
   }
   let imported = 0;
   let failed = 0;

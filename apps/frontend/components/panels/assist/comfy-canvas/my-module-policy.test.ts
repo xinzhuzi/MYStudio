@@ -23,21 +23,26 @@ async function loadPolicy() {
     STORYBOARD_WORKFLOW_PREFIX: string;
     filterWorkflowsForScope: (items: unknown, scope: string | null | undefined) => unknown;
     filterUserDataWorkflowEntries: (entries: unknown) => unknown;
+    filterUserDataWorkflowEntriesDropMy: (entries: unknown) => unknown;
     isUserDataWorkflowListUrl: (url: string) => boolean;
   }>;
 }
 
-const storyboardMainline = { id: "漫影/1_图片/分镜/0_工作流主线/分镜工作流 · 第一章.json", name: "分镜工作流 · 第一章" };
-const storyboardOverview = { id: "漫影/1_图片/分镜/1_总览/分镜总览.json", name: "分镜总览" };
-const storyboardShot = { id: "漫影/1_图片/分镜/2_单镜图/S01.json", name: "S01" };
-const k2Workflow = { id: "漫影/1_图片/K2图像/1_文生图/t2i.json", name: "t2i" };
-const h3Workflow = { id: "漫影/2_视频/H3视频/1_漫影自研/clip.json", name: "clip" };
-const musicWorkflow = { id: "漫影/3_声音/音乐/cur.json", name: "cur" };
-const referenceWorkflow = { id: "漫影/4_参考_提示词工程/prompts.json", name: "prompts" };
-const library = [storyboardMainline, storyboardOverview, storyboardShot, k2Workflow, h3Workflow, musicWorkflow, referenceWorkflow];
+// 09-14 晚二次裁定后世界:引擎家动态流=「分镜/」根;静态自研=repo: 仓库真源;
+// 「漫影/」旧根条目=装机旧代码回写期防回流兜底(与新根同判)。
+const storyboardMainline = { id: "分镜/0_工作流主线/MY-分镜工作流 · 第一章.json", name: "分镜工作流 · 第一章" };
+const storyboardOverview = { id: "分镜/1_总览/MY-分镜总览.json", name: "分镜总览" };
+const storyboardShot = { id: "分镜/2_单镜图/MY-S01.json", name: "S01" };
+const storyboardVideo = { id: "分镜/3_单镜视频/MY-单镜视频 · chapter-001 · S01.json", name: "单镜视频" };
+const legacyMainline = { id: "漫影/1_图片/分镜/0_工作流主线/分镜工作流.json", name: "旧根主线" };
+const k2Workflow = { id: "repo:1_图片/K2图像/1_文生图/MY-K2-文生图.json", name: "K2-文生图" };
+const h3Workflow = { id: "repo:2_视频/H3视频/2_固定线/MY-x.json", name: "x" };
+const musicWorkflow = { id: "repo:3_声音/音乐/MY-music3-完整档-即用版.json", name: "music3" };
+const referenceWorkflow = { id: "漫影/4_参考_提示词工程/prompts.json", name: "prompts(旧根防回流)" };
+const library = [storyboardMainline, storyboardOverview, storyboardShot, storyboardVideo, legacyMainline, k2Workflow, h3Workflow, musicWorkflow, referenceWorkflow];
 
 describe("filterWorkflowsForScope(漫影侧栏库按模块过滤)", () => {
-  it("models 域:分镜产线三类写入位全剔除;参考资料域(09-14)一并剔除;K2/H3/音乐保留", async () => {
+  it("models 域:分镜产线四类写入位(含单镜视频)全剔除;旧根防回流同剔;repo: 静态自研保留", async () => {
     const { filterWorkflowsForScope } = await loadPolicy();
     const visible = filterWorkflowsForScope(library, "models") as typeof library;
     expect(visible).toEqual([k2Workflow, h3Workflow, musicWorkflow]);
@@ -53,24 +58,25 @@ describe("filterWorkflowsForScope(漫影侧栏库按模块过滤)", () => {
   it("条目取值宽容:id 缺失回落 path;非数组直通", async () => {
     const { filterWorkflowsForScope } = await loadPolicy();
     expect(
-      filterWorkflowsForScope([{ path: "漫影/1_图片/分镜/0_工作流主线/x.json" }, { path: "漫影/2_视频/y.json" }], "models"),
-    ).toEqual([{ path: "漫影/2_视频/y.json" }]);
+      filterWorkflowsForScope([{ path: "分镜/0_工作流主线/x.json" }, { path: "repo:2_视频/y.json" }], "models"),
+    ).toEqual([{ path: "repo:2_视频/y.json" }]);
     expect(filterWorkflowsForScope(null, "models")).toBe(null);
   });
 });
 
 describe("filterUserDataWorkflowEntries(userdata 工作流树条目过滤)", () => {
-  it("v2 形态(带 workflows/ 前缀,含目录条目):分镜文件+分镜内子目录+分镜文件夹本体全剔除", async () => {
+  it("v2 形态(带 workflows/ 前缀,含目录条目):新根「分镜/」与旧根防回流同剔除", async () => {
     const { filterUserDataWorkflowEntries } = await loadPolicy();
     const entries = [
-      { path: "workflows/漫影/1_图片/分镜", type: "directory" },
-      { path: "workflows/漫影/1_图片/分镜/0_工作流主线", type: "directory" },
-      { path: "workflows/漫影/1_图片/分镜/0_工作流主线/分镜工作流 · 第一章.json", type: "file", size: 1 },
-      { path: "workflows/漫影/1_图片/K2图像/1_文生图/t2i.json", type: "file", size: 2 },
+      { path: "workflows/分镜", type: "directory" },
+      { path: "workflows/分镜/0_工作流主线", type: "directory" },
+      { path: "workflows/分镜/0_工作流主线/MY-分镜工作流.json", type: "file", size: 1 },
+      { path: "workflows/漫影/1_图片/分镜/0_工作流主线/legacy.json", type: "file", size: 4 },
+      { path: "workflows/用户自存/x.json", type: "file", size: 2 },
       { path: "comfy.settings.json", type: "file", size: 3 },
     ];
     expect(filterUserDataWorkflowEntries(entries)).toEqual([
-      { path: "workflows/漫影/1_图片/K2图像/1_文生图/t2i.json", type: "file", size: 2 },
+      { path: "workflows/用户自存/x.json", type: "file", size: 2 },
       { path: "comfy.settings.json", type: "file", size: 3 },
     ]);
   });
@@ -78,12 +84,28 @@ describe("filterUserDataWorkflowEntries(userdata 工作流树条目过滤)", () 
   it("v1 形态(相对 workflows 无前缀,含纯字符串条目)与非数组直通", async () => {
     const { filterUserDataWorkflowEntries } = await loadPolicy();
     expect(
-      filterUserDataWorkflowEntries(["漫影/1_图片/分镜/1_总览/x.json", "漫影/2_视频/y.json"]),
-    ).toEqual(["漫影/2_视频/y.json"]);
-    expect(filterUserDataWorkflowEntries([{ path: "漫影/1_图片/K2图像/z.json" }])).toEqual([
-      { path: "漫影/1_图片/K2图像/z.json" },
+      filterUserDataWorkflowEntries(["分镜/1_总览/x.json", "用户自存/y.json"]),
+    ).toEqual(["用户自存/y.json"]);
+    expect(filterUserDataWorkflowEntries([{ path: "repo:1_图片/K2图像/z.json" }])).toEqual([
+      { path: "repo:1_图片/K2图像/z.json" },
     ]);
     expect(filterUserDataWorkflowEntries(undefined)).toBe(undefined);
+  });
+});
+
+describe("filterUserDataWorkflowEntriesDropMy(原生浏览器树过滤:应用产线双根全剔)", () => {
+  it("新根「分镜/」与旧根「漫影/」条目全剔;用户自存/repo 形态不受影响", async () => {
+    const { filterUserDataWorkflowEntriesDropMy } = await loadPolicy();
+    const entries = [
+      { path: "workflows/分镜/0_工作流主线/a.json", type: "file" },
+      { path: "workflows/漫影/2_视频/H3视频/b.json", type: "file" },
+      "漫影/1_图片/分镜/c.json",
+      { path: "workflows/用户自存/d.json", type: "file" },
+    ];
+    expect(filterUserDataWorkflowEntriesDropMy(entries)).toEqual([
+      { path: "workflows/用户自存/d.json", type: "file" },
+    ]);
+    expect(filterUserDataWorkflowEntriesDropMy("not-array")).toBe("not-array");
   });
 });
 

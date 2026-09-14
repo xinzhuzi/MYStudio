@@ -210,7 +210,7 @@ async function openStageWorkflowIntoCanvas(
     payloads,
   });
   // name=库内相对全路径(保鲜链同名同位,单实例协议靠它命中库条目)
-  const workflowId = `漫影/1_图片/分镜/0_工作流主线/${pipeline.report.name}.json`;
+  const workflowId = `分镜/0_工作流主线/${pipeline.report.name}.json`;
   await node.executeJavaScript?.(
     buildOverviewOpenScript(pipeline.ui as Record<string, unknown>, workflowId),
   )?.catch(() => undefined);
@@ -240,7 +240,7 @@ async function openShotVideoWorkflowIntoCanvas(
   const uploaded = await client.uploadBridgeReference(imageName, imageB64);
   if (!uploaded?.accepted) throw new Error("关键帧上传失败");
   const workflow = buildShotH3Workflow({ shot, chapterId: shot.episodeId, chapterLabel, policy: "ambient", imageName });
-  const workflowId = `漫影/2_视频/H3视频/1_漫影自研/0_单镜视频/${workflow.name}.json`;
+  const workflowId = `分镜/3_单镜视频/${workflow.name}.json`;
   const imported = await createHttpComfyWorkflowLibraryTransport().importFiles(
     [{ name: workflowId, content: JSON.stringify(workflow.ui, null, 1) }],
     "overwrite",

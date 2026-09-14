@@ -344,7 +344,7 @@ describe("ComfyCanvasStudio(辅助面板第六 tab)", () => {
     expect(uploaded).toEqual(["my-shot-h3-sb-9.jpg"]);
     // 库写入位=视频域自研家应用写入位;打开脚本带锚卡与秒数节点载荷
     expect(importFilesMock).toHaveBeenCalledWith(
-      [expect.objectContaining({ name: "漫影/2_视频/H3视频/1_漫影自研/0_单镜视频/MY-单镜视频 · 第一章 雨夜 · S01.json" })],
+      [expect.objectContaining({ name: "分镜/3_单镜视频/MY-单镜视频 · 第一章 雨夜 · S01.json" })],
       "overwrite",
     );
     expect(payload).toContain("MyShot");
@@ -397,7 +397,7 @@ describe("ComfyCanvasStudio(辅助面板第六 tab)", () => {
 describe("buildOverviewOpenScript(工作流阶段自动打开分镜总览 09-10;09-12 单实例协议通道)", () => {
   it("一次性守卫+轮询等 window.app+协议通道优先+带名兜底;分镜图嵌在载荷里", () => {
     const graph = { nodes: [{ id: 1, type: "MyShot" }], links: [] };
-    const workflowId = "漫影/1_图片/分镜/0_工作流主线/MY-分镜工作流.json";
+    const workflowId = "分镜/0_工作流主线/MY-分镜工作流.json";
     const script = buildOverviewOpenScript(graph, workflowId);
 
     // 一次性守卫:已开过不再覆盖用户手动切换的工作流

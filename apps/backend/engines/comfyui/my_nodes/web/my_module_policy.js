@@ -8,21 +8,27 @@
 // manying.js 两处消费(漫影侧栏库过滤 / userdata 工作流树 fetch 过滤);
 // 消费方禁止自带副本,scope 判断不得散落各处。
 //
-// 内容边界(09-10 库域分类终态树):漫影/1_图片/分镜/**(0_工作流主线/
-// 1_总览/2_单镜图)= 分镜产线写入位 = 工作流模块内容;其余(K2图像/
-// H3视频/音乐/参考)= 本地模型域内容。单向分离:仅 models 域隐藏分镜,
-// workflow 域维持现状(K2 工作流在图片工作流阶段仍有消费)。
+// 内容边界(09-14 晚二次裁定:引擎家 workflows 恒无漫影——静态自研流
+// 已迁仓库真源(repo: id 只读合并),分镜产线动态流住引擎家用户区
+// 「分镜/」根):分镜/**(0_工作流主线/1_总览/2_单镜图/3_单镜视频)=
+// 分镜产线写入位 = 工作流模块内容;静态自研(K2图像/H3视频/音乐,
+// repo: id)= 本地模型域直达。单向分离:仅 models 域隐藏分镜。
+// 旧根「漫影/1_图片/分镜/」保留双前缀判据=防回流兜底(装机旧代码
+// 窗口期再落旧位时,models 域与新根同剔;迁移脚本重跑即清)。
 // 09-14 补充裁定:models 域侧栏再剔「参考_提示词工程」——那是提示词
 // 工程资料位(manifest 假条目点不开),既非模型也非工作流;原生树不过滤。
 
-/** 分镜产线写入位前缀(漫影库相对路径;库 id 与 userdata 树条目共用判据) */
-export const STORYBOARD_WORKFLOW_PREFIX = "漫影/1_图片/分镜/";
+/** 分镜产线写入位前缀(引擎家用户区相对路径;库 id 与 userdata 树条目共用判据) */
+export const STORYBOARD_WORKFLOW_PREFIX = "分镜/";
+
+/** 旧写入位前缀(09-14 改根前;双前缀判据=旧装机代码回写期防回流兜底) */
+export const LEGACY_STORYBOARD_WORKFLOW_PREFIX = "漫影/1_图片/分镜/";
 
 /** 参考资料域前缀(09-14:models 域侧栏剔除——资料位非工作流,manifest 条目不可开) */
 export const REFERENCE_WORKFLOW_PREFIX = "漫影/4_参考_提示词工程/";
 
 /** userdata v2 树中分镜文件夹本体(目录条目 path = 前缀去尾斜杠) */
-export const STORYBOARD_WORKFLOW_DIR = "漫影/1_图片/分镜";
+export const STORYBOARD_WORKFLOW_DIR = "分镜";
 
 /** userdata 工作流树在用户数据根下的目录名(v2 条目带此前缀,须先剥) */
 const USERDATA_WORKFLOWS_DIR = "workflows";
@@ -34,9 +40,10 @@ function toLibraryPath(raw) {
   return raw.startsWith(USERDATA_WORKFLOWS_PREFIX) ? raw.slice(USERDATA_WORKFLOWS_PREFIX.length) : raw;
 }
 
-/** 单条工作流路径是否分镜产线内容(漫影库相对路径或 userdata 全路径均可) */
+/** 单条工作流路径是否分镜产线内容(用户区相对路径或 userdata 全路径均可;含旧根防回流) */
 export function isStoryboardWorkflowPath(path) {
-  return toLibraryPath(path).startsWith(STORYBOARD_WORKFLOW_PREFIX);
+  const rel = toLibraryPath(path);
+  return rel.startsWith(STORYBOARD_WORKFLOW_PREFIX) || rel.startsWith(LEGACY_STORYBOARD_WORKFLOW_PREFIX);
 }
 
 /** 漫影侧栏库条目按模块过滤:models 域剔除分镜条目与参考资料域;其他域原样直通(同引用,零改动) */
@@ -48,8 +55,11 @@ export function filterWorkflowsForScope(items, scope) {
   });
 }
 
-/** 漫影库根前缀(全域:分镜/K2/H3/音乐/参考) */
+/** 旧漫影库根前缀(09-14 改根前;现仅作原生树/侧栏防回流过滤判据) */
 export const MY_WORKFLOW_PREFIX = "漫影/";
+
+/** 引擎家用户区动态流根前缀(分镜产线 0_主线/1_总览/2_单镜图/3_单镜视频) */
+export const APP_USER_WORKFLOW_PREFIX = "分镜/";
 
 /** ComfyUI 原生工作流浏览器树过滤(09-14 用户裁定:原生浏览器是 ComfyUI 本身的
  *  功能,文件夹设计不应包含漫影——漫影库只在漫影侧栏消费,侧栏走桥接口
@@ -59,16 +69,21 @@ export function filterUserDataWorkflowEntriesDropMy(entries) {
   if (!Array.isArray(entries)) return entries;
   return entries.filter((entry) => {
     const rel = toLibraryPath(typeof entry === "string" ? entry : String(entry?.path ?? ""));
-    return !rel.startsWith(MY_WORKFLOW_PREFIX);
+    // 双根同剔:旧「漫影/」(改根前遗留)+ 新「分镜/」(动态流)——原生
+    // 浏览器树永不出现应用产线内容
+    return !rel.startsWith(MY_WORKFLOW_PREFIX) && !rel.startsWith(APP_USER_WORKFLOW_PREFIX);
   });
 }
 
-/** userdata 工作流树条目过滤(v1 文件条目 / v2 含目录条目 / 纯字符串形态均可) */
+/** userdata 工作流树条目过滤(v1 文件条目 / v2 含目录条目 / 纯字符串形态均可;
+ * 判据单源=isStoryboardWorkflowPath(新根+旧根双前缀),另剔两代文件夹本体目录条目) */
 export function filterUserDataWorkflowEntries(entries) {
   if (!Array.isArray(entries)) return entries;
   return entries.filter((entry) => {
     const rel = toLibraryPath(typeof entry === "string" ? entry : String(entry?.path ?? ""));
-    return rel !== STORYBOARD_WORKFLOW_DIR && !rel.startsWith(STORYBOARD_WORKFLOW_PREFIX);
+    return rel !== STORYBOARD_WORKFLOW_DIR
+      && rel !== `${LEGACY_STORYBOARD_WORKFLOW_PREFIX.slice(0, -1)}`
+      && !isStoryboardWorkflowPath(rel);
   });
 }
 
