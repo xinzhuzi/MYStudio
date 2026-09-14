@@ -381,11 +381,11 @@ describe("ComfyCanvasStudio(辅助面板第六 tab)", () => {
       if (scripts.length < 3) throw new Error("链工作流载荷未注入");
       return scripts[2];
     }, { timeout: 3000 });
-    // 载荷=链工作流:七环节 MyStage+MANYING_FLOW 连线+分镜网格+摘要
+    // 载荷=链工作流:七环节 MyStage+MY_FLOW 连线+分镜网格+摘要
     expect(payload).toContain('"type":"MyStage"');
     expect(payload).toContain("MyShot");
     expect((payload.match(/MyStage/g) || []).length).toBeGreaterThanOrEqual(7);
-    expect(payload).toContain("MANYING_FLOW");
+    expect(payload).toContain("MY_FLOW");
     expect(payload).toContain("已导入 1 章原文");
     expect(payload).toContain("第1镜");
     // 09-12 stage-node-content-parity:富内容载荷随链工作流注入(自绘消费)

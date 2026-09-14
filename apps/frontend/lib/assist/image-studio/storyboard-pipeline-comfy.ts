@@ -6,7 +6,7 @@
  * 分镜流程链工作流生成器(旧分镜画布迁移,09-11):
  * 旧 React Flow 画布的七环节链(剧本→导演规划→[衍生资产]→分镜表→
  * 分镜面板→单镜视频生产→视频工作台)转成 ComfyUI 原生工作流(UI 格式):
- * 每环节一个 MyStage 锚点(标题+实时摘要+状态),MANYING_FLOW 连线
+ * 每环节一个 MyStage 锚点(标题+实时摘要+状态),MY_FLOW 连线
  * 串链;分镜网格(MyShot 总览)平移到链右侧——进分镜阶段打开即
  * 一张图看整条工作流+本章分镜。环节语义真源=workflow-node-model 族
  * (node-builders 的 label/status/metrics 降档映射,见任务 research)。
@@ -504,12 +504,12 @@ export function buildStoryboardPipelineWorkflow(input: {
       title: item.title,
       // 非链头有 upstream 入槽;全节点一个 flow 出槽(末端无人消费也无妨)
       // slot_index 必带:缺它 ComfyUI 前端配线时槽位落空→连线不建(09-11 实弹)
-      // 槽位代名词(09-13 用户裁定:upstream/MANYING_FLOW 裸英文退役);
+      // 槽位代名词(09-13 用户裁定:upstream/MY_FLOW 裸英文退役);
       // 剧本是链头无入槽,引擎侧还会在其被前端补建后摘除
       inputs: item.key === "script" ? [] : [
-        { name: "upstream", type: "MANYING_FLOW", link: null, slot_index: 0, label: "上游环节" },
+        { name: "upstream", type: "MY_FLOW", link: null, slot_index: 0, label: "上游环节" },
       ],
-      outputs: [{ name: "flow", type: "MANYING_FLOW", links: [], slot_index: 0, label: "下游环节" }],
+      outputs: [{ name: "flow", type: "MY_FLOW", links: [], slot_index: 0, label: "下游环节" }],
       // 富内容载荷(照 MyShot myPreview 先例进 properties,
       // 不进 widgets_values=序列化契约稳定;引擎侧自绘消费)
       properties: {
@@ -527,7 +527,7 @@ export function buildStoryboardPipelineWorkflow(input: {
   let linkId = 0;
   const links = PIPELINE_EDGES.map(([from, to]) => {
     linkId += 1;
-    const link = [linkId, nodeId.get(from), 0, nodeId.get(to), 0, "MANYING_FLOW"];
+    const link = [linkId, nodeId.get(from), 0, nodeId.get(to), 0, "MY_FLOW"];
     const fromNode = stageNodes.find((node) => node.id === nodeId.get(from))!;
     const toNode = stageNodes.find((node) => node.id === nodeId.get(to))!;
     fromNode.outputs[0].links.push(linkId);
