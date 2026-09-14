@@ -84,6 +84,50 @@
       "repo": "https://github.com/cubiq/ComfyUI_essentials",
       "verified_license": "MIT",
       "provides": ["GetImageSize+"]
+    },
+    {
+      "id": "ComfyUI-JZL-MiniMax-H3",
+      "name": "H3 短剧导演台",
+      "desc_zh": "一个节点跑完剧本分段→@素材参考调度→编码采样解码→逐段落盘自动合并;内置 llama-server 本地 LLM 当导演,[SHOT_START] 穿透模式。漫影自研单镜链之外的重型批量化互补件。",
+      "category": "MiniMax H3 视频",
+      "repo": "https://github.com/wjluoxiao/ComfyUI-JZL-MiniMax-H3",
+      "verified_license": "MIT",
+      "provides": ["JZL_MiniMaxH3ReferenceToVideo"]
+    },
+    {
+      "id": "ComfyUI-MiniMaxH3-Easy",
+      "name": "H3 Easy 多合一工作台",
+      "desc_zh": "智能提示词优化+一键多模式(长视频一次成/两段精修),新手友好的 H3 全家桶工作台。",
+      "category": "MiniMax H3 视频",
+      "repo": "https://github.com/nkxx188/ComfyUI-MiniMaxH3-Easy",
+      "verified_license": "MIT",
+      "provides": ["MiniMaxH3PromptOptimizer"]
+    },
+    {
+      "id": "comfyui-minimax-h3-blockcache-T8",
+      "name": "H3 T8 文本编码缓存",
+      "desc_zh": "文本编码器块缓存,重复提示词段免重算提速。注:MPS 上曾现进程崩溃(09-14 实测,参数速查在案),稳定性敏感场合先旁路。",
+      "category": "MiniMax H3 视频",
+      "repo": "https://github.com/T8mars/comfyui-minimax-h3-blockcache-T8",
+      "verified_license": "Apache-2.0",
+      "provides": ["MiniMaxH3BlockCacheT8"]
+    },
+    {
+      "id": "ComfyUI-Spectrum-MiniMax-H3",
+      "name": "H3 Spectrum 频谱加速",
+      "desc_zh": "频谱特征预测近似加速(输出与原生非逐位一致)。引擎家已装此件;其 git remote 指向 fork 基座属打包方式所致,目录列表里可能显示裸目录名。",
+      "category": "MiniMax H3 视频",
+      "repo": "https://github.com/xmarre/ComfyUI-Spectrum-MiniMax-H3",
+      "verified_license": "GPL-3.0"
+    },
+    {
+      "id": "Comfyui_Minimax_h3_latent_Upscaler",
+      "name": "H3 浅空间放大器",
+      "desc_zh": "A/V 分离式 latent 放大+二次精修节点。09-14 裁定产线不做自动超分,留作手动后处理可选件(权重另需下载)。",
+      "category": "MiniMax H3 视频",
+      "repo": "https://github.com/LBH-123-AI/Comfyui_Minimax_h3_latent_Upscaler",
+      "verified_license": "unknown",
+      "provides": ["MinimaxH3LatentUpscaler3D"]
     }
   ]
 }
