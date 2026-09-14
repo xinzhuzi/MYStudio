@@ -19,7 +19,10 @@ import { consumeComfyBridgeWritebacks, parseShotTarget } from "@/lib/assist/imag
 import { createHttpComfyWorkflowLibraryTransport } from "@/lib/assist/image-studio/comfy-sidecar-bridge";
 import { buildShotH3Workflow } from "@/lib/assist/image-studio/h3-shot-video-workflow";
 import { ensureStageAssetCoversUploaded, invalidateOverviewSyncForEngineStart, readStoryboardImageB64, syncStoryboardOverviewToLibrary } from "@/lib/assist/image-studio/storyboard-overview-sync";
-import { buildStageNodePayloadFromState, buildStageSummaries, buildStoryboardPipelineWorkflow } from "@/lib/assist/image-studio/storyboard-pipeline-comfy";
+import {
+  applyStageInjections, buildStageInjections, buildStageNodePayloadFromState, buildStageSummaries,
+  MAINLINE_TAB_NAME, STAGE_TEMPLATE_REPO_ID,
+} from "@/lib/assist/image-studio/storyboard-pipeline-comfy";
 import { mapProductionFlowNodesToStagePayloads } from "./stage-payload-map";
 import type { ProductionFlowNodeModel } from "../../studio/workflow-node-model-schema";
 import { useStudioStore } from "@/stores/studio/studio-store";
@@ -194,6 +197,7 @@ async function readRenderQueueSnapshot(
 async function openStageWorkflowIntoCanvas(
   node: WebviewElement,
   stageFlowNodesRef: { current: ProductionFlowNodeModel[] | undefined },
+  force = false,
 ): Promise<void> {
   const state = useStudioStore.getState();
   if (state.storyboards.length === 0) return;
@@ -204,15 +208,16 @@ async function openStageWorkflowIntoCanvas(
     ? mapProductionFlowNodesToStagePayloads(flowNodes)
     : buildStageNodePayloadFromState(state);
   await ensureStageAssetCoversUploaded(payloads);
-  const pipeline = buildStoryboardPipelineWorkflow({
-    summaries: buildStageSummaries(state),
-    storyboards: state.storyboards,
-    payloads,
-  });
-  // name=库内相对全路径(保鲜链同名同位,单实例协议靠它命中库条目)
-  const workflowId = `分镜/0_工作流主线/${pipeline.report.name}.json`;
+  // 09-14 通用化(零文件):仓库通用模板(repo: 只读)+当前章载荷注入;
+  // 画布签=MAINLINE_TAB_NAME(单实例锚),引擎 userdata 不落任何文件。
+  const injections = buildStageInjections({ summaries: buildStageSummaries(state), payloads });
+  const template = await createHttpComfyWorkflowLibraryTransport()
+    .content(STAGE_TEMPLATE_REPO_ID)
+    .catch(() => null);
+  if (template === null) return;
+  const graph = applyStageInjections(template, injections);
   await node.executeJavaScript?.(
-    buildOverviewOpenScript(pipeline.ui as Record<string, unknown>, workflowId),
+    buildOverviewOpenScript(graph, MAINLINE_TAB_NAME, force ? { force: true } : undefined),
   )?.catch(() => undefined);
 }
 
@@ -240,13 +245,8 @@ async function openShotVideoWorkflowIntoCanvas(
   const uploaded = await client.uploadBridgeReference(imageName, imageB64);
   if (!uploaded?.accepted) throw new Error("关键帧上传失败");
   const workflow = buildShotH3Workflow({ shot, chapterId: shot.episodeId, chapterLabel, policy: "ambient", imageName });
-  const workflowId = `分镜/3_单镜视频/${workflow.name}.json`;
-  const imported = await createHttpComfyWorkflowLibraryTransport().importFiles(
-    [{ name: workflowId, content: JSON.stringify(workflow.ui, null, 1) }],
-    "overwrite",
-  );
-  if (!imported.some((item) => item.status !== "failed")) throw new Error("工作流保存失败");
-  await node.executeJavaScript?.(buildOverviewOpenScript(workflow.ui, workflowId, { force: true }));
+  // 09-14 通用化(零文件):单镜视频=组装器现装直开,不再写 分镜/3_单镜视频
+  await node.executeJavaScript?.(buildOverviewOpenScript(workflow.ui, `${workflow.name}.json`, { force: true }));
   toast.success(`已打开 ${String(workflow.name.match(/S\d+$/)?.[0] || `S${String(shot.index).padStart(2, "0")}`)} 单镜视频工作流`);
 }
 
@@ -434,7 +434,14 @@ export function ComfyCanvasStudio({ autoOpenOverview = false, myScope, sidebarAc
               ? mapProductionFlowNodesToStagePayloads(flowNodes)
               : buildStageNodePayloadFromState(useStudioStore.getState());
           },
-        }).catch(() => undefined);
+        })
+          .then((synced) => {
+            // 09-14 通用化:保鲜成功=数据有变→主线模板重注入(force 过一次性守卫)
+            if (!synced || !autoOpenRef.current) return;
+            const canvas = webviewRef.current;
+            if (canvas) void openStageWorkflowIntoCanvas(canvas, stageFlowNodesRef, true);
+          })
+          .catch(() => undefined);
         await consumeComfyBridgeWritebacks({ client });
         // 制作动作通道(09-11 旧画布功能迁移收口):消费侧栏提交的批量动作
         await consumeSidebarActions();

@@ -199,7 +199,7 @@ app.registerExtension({
           if (shotId && !button.disabled) postAction("open-shot-video", shotId, button);
         });
         action.append(button);
-        const widget = this.addDOMWidget("manying-shot-actions", "manying-shot-actions", action, {
+        const widget = this.addDOMWidget("my-shot-actions", "my-shot-actions", action, {
           hideOnZoom: false,
           getHeight: () => 44,
           getMinHeight: () => 44,

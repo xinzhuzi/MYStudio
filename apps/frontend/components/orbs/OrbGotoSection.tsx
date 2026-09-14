@@ -13,13 +13,13 @@ import {
   NotebookTabs,
   Workflow as WorkflowIcon,
   FolderOpen,
-  Palette,
   BookOpenText,
   Film,
   Boxes,
   Share2,
   Settings,
 } from "lucide-react";
+import { LocalModelsIcon } from "@/components/ui/local-models-icon";
 import { OrbSection } from "./OrbSection";
 import type { OrbSectionProps } from "./OrbSection";
 import { useMediaPanelStore, type Tab } from "@/stores/navigation/media-panel-store";
@@ -32,7 +32,8 @@ const VIEW_ENTRIES: ReadonlyArray<{ id: Tab; label: string; icon: typeof LayoutD
   { id: "studio", label: "MY 工作流", icon: WorkflowIcon },
   { id: "assets", label: "资产", icon: FolderOpen },
   // 09-10 补:球全局化后「前往」须含本地模型(旧两球时代球住沉浸视图故自指无意义)
-  { id: "freedom", label: "本地模型", icon: Palette },
+  // 09-14 图标换血:弃辅助时代 Palette,与侧栏同源用 ComfyUI 模型库 ai-model 图标
+  { id: "freedom", label: "本地模型", icon: LocalModelsIcon },
   { id: "skills", label: "技能", icon: BookOpenText },
   { id: "export", label: "导出", icon: Film },
   { id: "media", label: "产物", icon: Boxes },

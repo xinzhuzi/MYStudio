@@ -13,7 +13,7 @@ import {
   fetchJson, postJson, THEME, icon, ICONS, sectionLabel, statusBadge,
   progressBar, collapseGroup, actionButton, paneStatus,
 } from "./theme.js";
-import { MY_STORE_BASE, openWorkflowSingleInstance, cleanupLegacyUnsavedTabs } from "./open-workflow.js";
+import { MY_STORE_BASE, cloneGraph, openWorkflowSingleInstance, cleanupLegacyUnsavedTabs } from "./open-workflow.js";
 import { filterWorkflowsForScope } from "./my_module_policy.js";
 
 /** 页签一·分镜:分镜工作流主线(点击即开)+原镜列表逻辑整迁(刷新+状态+点选回填) */
@@ -91,32 +91,9 @@ function renderShotsPane(pane) {
     })
     .catch(() => undefined);
 
-  const openBadges = [];
-  void fetchJson(`${BRIDGE_URL}/comfy/workflows?prefix=${encodeURIComponent("分镜/0_工作流主线/")}`)
-    .then((data) => {
-      const items = (data.workflows || []).filter((item) => item.id && isMainlineWorkflow(item.id));
-      const chapterItems = items.filter((item) => isCurrentChapter(item.id));
-      flowStatus.textContent = chapterItems.length > 0
-        ? `${chapterItems.length} 条主线 · 点击在画布打开`
-        : currentEpisodeId
-          ? "当前章节还没有主线"
-          : "还没有主线(进入工作流阶段自动生成)";
-      for (const item of chapterItems) {
-        const badge = makeOpenBadge();
-        openBadges.push([`${MY_STORE_BASE}${item.id}`, badge]);
-        flowList.append(myWorkflowRow(item, flowStatus, badge));
-      }
-      syncOpenBadges(openBadges);
-    })
-    .catch((error) => {
-      flowStatus.textContent = `取不到工作流(${error.message || error});请确认漫影软件在运行`;
-    });
-  // 「已打开」徽章随标签开关实时亮灭(store 订阅;每页签渲染只挂一次)
-  const svcStore = window.app?.extensionManager?.workflow;
-  if (svcStore?.$subscribe && !pane.dataset.myOpenSub) {
-    pane.dataset.myOpenSub = "1";
-    svcStore.$subscribe(() => syncOpenBadges(openBadges));
-  }
+  // 09-14 通用化(零文件):主线不再落库文件,主线卡退役——主线随
+  // 「分镜制作」阶段进入自动打开(通用模板+当前章载荷注入),此处仅提示。
+  flowStatus.textContent = "主线随「分镜制作」阶段自动打开";
 
   const load = async () => {
     status.textContent = "加载分镜…";
@@ -187,8 +164,14 @@ async function openMyWorkflow(id, status) {
     const data = await fetchJson(`${BRIDGE_URL}/comfy/workflows/${encodeURIComponent(id)}/content`);
     const graph = JSON.parse(data.content);
     if (window.app && typeof window.app.loadGraphData === "function") {
-      // 09-12 单实例协议通道(id 即库内相对路径,直接作 name)
-      await openWorkflowSingleInstance({ name: id, graph });
+      // 09-14 存放架构:repo 真源流不在引擎家(单实例绑 workflows/ 库路径,
+      // 引擎家无此文件→装载挂起,装机实弹 30s 不切画布)——走带名临时流
+      // 直载;引擎家条目(分镜产线)保留 09-12 单实例协议(绑库复用签)
+      if (id.startsWith("repo:")) {
+        await window.app.loadGraphData(cloneGraph(graph), true, true, id.slice("repo:".length));
+      } else {
+        await openWorkflowSingleInstance({ name: id, graph });
+      }
       status.textContent = `已打开:${label}`;
       status.style.color = "";
     } else {
@@ -284,7 +267,49 @@ async function renderWorkflowsPane(pane) {
       row.style.margin = "2px 0 2px 12px";
       host.append(row);
     }
-    status.textContent = "点击在画布打开";
+    // 09-14 补全:漫影工作流库全量浏览(仓库 repo 真源,只在漫影侧栏显示,
+    // 不碰 ComfyUI 原生界面)——域→功能夹两级折叠,行点击临时流打开
+    const all = filterWorkflowsForScope((data.workflows || []).filter((item) =>
+      item.id && String(item.id).startsWith("repo:")), myScope());
+    if (all.length > 0) {
+      pane.append(sectionLabel("漫影工作流库", ICONS.folderOpen));
+      const libHost = document.createElement("div");
+      libHost.style.cssText = "display:flex;flex-direction:column;";
+      pane.append(libHost);
+      const domains = new Map();
+      for (const item of all) {
+        const seg = String(item.id).slice("repo:".length).split("/");
+        const domain = seg.length > 1 ? seg[0].replace(/^\d+_/, "") : "其他";
+        const group = seg.length > 2 ? seg[1].replace(/^\d+_/, "") : "";
+        if (!domains.has(domain)) domains.set(domain, new Map());
+        if (!domains.get(domain).has(group)) domains.get(domain).set(group, []);
+        domains.get(domain).get(group).push(item);
+      }
+      const order = ["图片", "视频", "声音", "其他"];
+      const domNames = [...domains.keys()].sort((a, b) => {
+        const ia = order.indexOf(a), ib = order.indexOf(b);
+        return (ia < 0 ? 99 : ia) - (ib < 0 ? 99 : ib);
+      });
+      domNames.forEach((domain, di) => {
+        const groups = domains.get(domain);
+        const total = [...groups.values()].flat().length;
+        const details = collapseGroup(domain, total, { open: di === 0 });
+        for (const groupName of [...groups.keys()].sort((a, b) => a.localeCompare(b, "zh"))) {
+          const entries = groups.get(groupName).sort((a, b) => String(a.id).localeCompare(String(b.id), "zh"));
+          if (!groupName) {
+            for (const item of entries) { const r = myWorkflowRow(item, status); r.style.margin = "2px 0 2px 12px"; details.append(r); }
+            continue;
+          }
+          const sub = collapseGroup(groupName, entries.length, { indent: 1 });
+          for (const item of entries) { const r = myWorkflowRow(item, status); r.style.margin = "2px 0 2px 12px"; sub.append(r); }
+          details.append(sub);
+        }
+        libHost.append(details);
+      });
+      status.textContent = `漫影库 ${all.length} 个 · 点击在画布打开`;
+    } else {
+      status.textContent = "点击在画布打开";
+    }
   } catch (error) {
     status.textContent = `取不到工作流(${error.message || error});请确认漫影软件在运行`;
   }

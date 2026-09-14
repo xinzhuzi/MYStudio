@@ -13,11 +13,9 @@
  * 覆写幂等),节点 properties.myPreview 携名,画布扩展按名渲染。
  */
 
-import type { ComfyWorkflowLibraryTransport } from "@/lib/assist/image-studio/comfy-workflow-library";
 import { comfyImageUrlToB64 } from "@/lib/assist/image-studio/comfy-execute";
-import { createHttpComfyWorkflowLibraryTransport } from "@/lib/assist/image-studio/comfy-sidecar-bridge";
 import { shotPreview2Name, shotPreview2Source, shotPreviewName } from "@/lib/assist/image-studio/storyboard-overview-comfy";
-import { buildStageNodePayloadFromState, buildStageSummaries, buildStoryboardPipelineWorkflow } from "@/lib/assist/image-studio/storyboard-pipeline-comfy";
+import { buildStageNodePayloadFromState } from "@/lib/assist/image-studio/storyboard-pipeline-comfy";
 import { prepareReferenceImageForTransfer } from "@/lib/ai/image-transfer";
 import { shardContentStamp } from "@/lib/storage/studio-workflow-shards";
 import { getComfyEngineClient } from "@/components/panels/settings/comfy-engine/comfy-engine-contract";
@@ -46,8 +44,6 @@ const WORKFLOW_SCHEMA_STAMP = "v4.3-flat-title";
 const assetCoverNameCache = new Map<string, string>();
 
 export interface OverviewSyncDeps {
-  transport?: Pick<ComfyWorkflowLibraryTransport, "importFiles"> &
-    Partial<Pick<ComfyWorkflowLibraryTransport, "deleteWorkflow">>;
   /** v4 内容全量:组件层喂老画布模型映射出的载荷(技能/资产卡/队列进度) */
   buildPayloads?: () => import("./storyboard-pipeline-comfy").StageNodePayload[];
   /** 读图→b64(不带 data: 前缀);默认走应用内 IPC 双 scheme */
@@ -155,43 +151,12 @@ export async function syncStoryboardOverviewToLibrary(deps: OverviewSyncDeps = {
   // 09-12 stage-node-content-parity:富内容载荷(节点内容对齐老画布)随保鲜同生成
   // v4:组件层载荷优先(老画布模型全量映射);资产封面本地上传为引擎 input 缩略
   const rawPayloads = deps.buildPayloads?.() ?? buildStageNodePayloadFromState(state);
-  const payloadCovers = await ensureStageAssetCoversUploaded(rawPayloads, deps);
-  const result = buildStoryboardPipelineWorkflow({
-    summaries: buildStageSummaries(state),
-    storyboards,
-    payloads: payloadCovers,
-  });
-  const imported = await (deps.transport ?? createHttpComfyWorkflowLibraryTransport())
-    .importFiles(
-      // 落位铁律(09-10 用户裁定×2):漫影的工作流挂「漫影/」分组且按域分类
-      // (图片/视频/声音),分镜链住「分镜/0_工作流主线/」
-      [{ name: `分镜/0_工作流主线/${result.report.name}.json`, content: JSON.stringify(result.ui, null, 1) }],
-      "overwrite",
-    )
-    .catch(() => null);
-  if (imported && imported.some((item) => item.status !== "failed")) {
-    // 09-12 标题改「分镜工作流」:清掉旧命名形态的库文件(best-effort,幂等;
-    // 删失败只留旧文件不影响新链路)
-    const transport = deps.transport ?? createHttpComfyWorkflowLibraryTransport();
-    const chapterIds = [...new Set(storyboards.map((item) => item.episodeId))];
-    const legacyIds = [
-      // 09-14 `MY-` 前缀裁定前的无后缀/_my 两种旧现名都按旧名清(best-effort,幂等)
-      `分镜/0_工作流主线/分镜工作流.json`,
-      `分镜/0_工作流主线/分镜工作流_my.json`,
-      ...chapterIds.map((ch) => `分镜/0_工作流主线/分镜工作流 · ${ch}.json`),
-      ...(chapterIds.length > 1
-        ? [`分镜/0_工作流主线/分镜工作流(${chapterIds.length} 章).json`]
-        : []),
-    ];
-    await Promise.all(
-      legacyIds.map((id) =>
-        transport.deleteWorkflow?.(id).catch(() => undefined),
-      ),
-    );
-    lastSyncedFingerprint = fingerprint;
-    return true;
-  }
-  return false;
+  await ensureStageAssetCoversUploaded(rawPayloads, deps);
+  // 09-14 通用化改造(零文件形态):不再向引擎 userdata 导入主线 JSON——
+  // 保鲜职责收敛为「缩略/封面上传 + 指纹」;环节载荷由画布侧打开时经
+  // buildStageInjections 对仓库通用模板(repo: 只读)现注入,4125 章零落盘。
+  lastSyncedFingerprint = fingerprint;
+  return true;
 }
 
 export function resetOverviewSyncForTests(): void {

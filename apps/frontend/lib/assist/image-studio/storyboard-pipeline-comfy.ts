@@ -281,6 +281,7 @@ export function buildStageNodePayload(input: {
         }],
         shots: shots.map((item) => ({
           index: item.index,
+          id: item.id,
           label: item.videoDesc || item.prompt || `分镜 ${item.index}`,
           videoReady: item.mediaRef?.kind === "video" && Boolean(item.mediaRef.path),
           imageReady: item.mediaRef?.kind === "image" && Boolean(item.mediaRef.path),
@@ -622,4 +623,62 @@ export function buildStoryboardPipelineWorkflow(input: {
     },
     report: { stages: stageNodes.length, edges: links.length, shots: overview.report.shots, name },
   };
+}
+
+// ── 09-14 通用化:零文件形态的模板注入契约(引擎 userdata 恒零漫影)────────
+// 通用模板真源=仓库 workflows/0_分镜/MY-分镜工作流.json(repo: id 只读);
+// 打开=克隆模板+按当前章数据注入环节节点(widgets+myStage 载荷),
+// 镜内容全载荷渲染,不生成任何按镜实体节点/文件。
+export const STAGE_TEMPLATE_REPO_ID = "repo:0_分镜/MY-分镜工作流.json";
+
+/** 画布主线签名(单实例协议锚;与库文件无关的临时签名) */
+export const MAINLINE_TAB_NAME = "MY-分镜工作流.json";
+
+export interface StageInjection {
+  id: number;
+  title: string;
+  widgets_values: unknown[];
+  properties: Record<string, unknown>;
+}
+
+/** 按通用模板槽位契约(环节 id 与模板一致)产注入块 */
+export function buildStageInjections(input: {
+  summaries: Array<{ key: string; title: string; summary?: string; status?: string }>;
+  payloads?: Array<{ key: string }>;
+}): StageInjection[] {
+  const nodeId = new Map<string, number>();
+  MAINLINE.forEach((key, index) => nodeId.set(key, index + 1));
+  nodeId.set("assets", MAINLINE.length + 1);
+  const payloadByKey = new Map((input.payloads ?? []).map((entry) => [entry.key, entry]));
+  return input.summaries.map((item) => {
+    const payload = payloadByKey.get(item.key) as Record<string, unknown> | undefined;
+    return {
+      id: nodeId.get(item.key) ?? 0,
+      title: item.title,
+      widgets_values: [item.key, item.title, item.summary ?? "", item.status ?? ""],
+      properties: {
+        "Node name for S&R": "MyStage",
+        ...(payload ? { myStage: payload } : {}),
+      },
+    };
+  });
+}
+
+/** 克隆通用模板并应用注入(模板本体永不被改;章数据只存在于注入副本) */
+export function applyStageInjections(
+  template: unknown,
+  injections: StageInjection[],
+): Record<string, unknown> {
+  const graph = typeof template === "string" ? JSON.parse(template) : structuredClone(template);
+  const byId = new Map(injections.map((entry) => [entry.id, entry]));
+  for (const node of (graph as { nodes: Array<Record<string, unknown>> }).nodes ?? []) {
+    const injection = byId.get(Number(node.id));
+    if (!injection) continue;
+    node.title = injection.title;
+    node.widgets_values = injection.widgets_values;
+    node.properties = { ...(node.properties as object), ...injection.properties };
+    node.color = "#3f789e";
+    node.bgcolor = "#20262f";
+  }
+  return graph as Record<string, unknown>;
 }

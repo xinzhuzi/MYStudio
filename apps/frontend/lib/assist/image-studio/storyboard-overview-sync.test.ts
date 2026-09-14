@@ -63,17 +63,17 @@ describe("syncStoryboardOverviewToLibrary(09-10 批9:图片带)", () => {
     storeState.storyboards = [];
   });
 
-  it("带图镜先传缩略(my-shot-*.jpg)再导入 分镜/0_工作流主线/;无图镜零上传", async () => {
+  it("带图镜先传缩略(my-shot-*.jpg);零文件形态不导入(09-14 通用化);无图镜零上传", async () => {
     storeState.storyboards = [
       shot("S01-01", 1, { kind: "image", path: "project-file://a.png" }),
       shot("S01-02", 2),
     ];
-    const { deps, transport, imported, uploads } = makeDeps();
+    const { deps, imported, uploads } = makeDeps();
 
-    await expect(syncStoryboardOverviewToLibrary({ ...deps, transport })).resolves.toBe(true);
+    await expect(syncStoryboardOverviewToLibrary(deps)).resolves.toBe(true);
 
     expect(uploads).toEqual([{ name: "my-shot-S01-01.jpg", b64: "cmF3" }]);
-    expect(imported).toHaveLength(1);
+    expect(imported).toHaveLength(0); // 零文件形态
     // 双帧(09-14):帧2 存在时加传 my-shot-<id>-k2.jpg
     storeState.storyboards = [
       {
@@ -86,32 +86,31 @@ describe("syncStoryboardOverviewToLibrary(09-10 批9:图片带)", () => {
     ];
     resetOverviewSyncForTests();
     const dualDeps = makeDeps();
-    await expect(syncStoryboardOverviewToLibrary({ ...dualDeps.deps, transport: dualDeps.transport })).resolves.toBe(true);
+    await expect(syncStoryboardOverviewToLibrary(dualDeps.deps)).resolves.toBe(true);
     expect(dualDeps.uploads.map((u) => u.name)).toEqual([
       "my-shot-S01-01.jpg",
       "my-shot-S01-01-k2.jpg",
     ]);
     // 09-11 旧画布迁移:保鲜产物=分镜流程链工作流,落位 0_工作流主线
-    expect(imported[0].name).toBe("分镜/0_工作流主线/MY-分镜工作流.json");
-    expect(imported[0].mode).toBe("overwrite");
+    expect(imported).toHaveLength(0); // 09-14 通用化:主线零落盘,画布侧模板注入
   });
 
   it("读图失败不阻断导入(该镜退化为文字卡);指纹守卫=同指纹第二次零动作", async () => {
     storeState.storyboards = [shot("S01-01", 1, { kind: "image", path: "project-file://a.png" })];
     const first = makeDeps();
     first.deps.readImageB64 = async () => null; // 读图失败
-    await expect(syncStoryboardOverviewToLibrary({ ...first.deps, transport: first.transport })).resolves.toBe(true);
+    await expect(syncStoryboardOverviewToLibrary(first.deps)).resolves.toBe(true);
     expect(first.uploads).toHaveLength(0);
-    expect(first.imported).toHaveLength(1);
+    expect(first.imported).toHaveLength(0); // 零文件形态
 
     const second = makeDeps();
-    await expect(syncStoryboardOverviewToLibrary({ ...second.deps, transport: second.transport })).resolves.toBe(true);
+    await expect(syncStoryboardOverviewToLibrary(second.deps)).resolves.toBe(true);
     expect(second.imported).toHaveLength(0); // 指纹未变,不再导入
   });
 
   it("空分镜表直接短路", async () => {
-    const { transport, imported } = makeDeps();
-    await expect(syncStoryboardOverviewToLibrary({ transport })).resolves.toBe(false);
+    const { imported } = makeDeps();
+    await expect(syncStoryboardOverviewToLibrary({})).resolves.toBe(false);
     expect(imported).toHaveLength(0);
   });
 
@@ -121,21 +120,21 @@ describe("syncStoryboardOverviewToLibrary(09-10 批9:图片带)", () => {
     // 第一轮=引擎冷(上传全败),库导入成功→指纹仍缓存(旧缺陷:从此跳过)
     const cold = makeDeps();
     cold.deps.uploadPreview = async () => false;
-    await expect(syncStoryboardOverviewToLibrary({ ...cold.deps, transport: cold.transport })).resolves.toBe(true);
-    expect(cold.imported).toHaveLength(1);
+    await expect(syncStoryboardOverviewToLibrary(cold.deps)).resolves.toBe(true);
+    expect(cold.imported).toHaveLength(0); // 零文件形态
 
     // 同指纹第二次:零动作(指纹守卫仍成立)
     const skipped = makeDeps();
     skipped.deps.uploadPreview = async () => false;
-    await syncStoryboardOverviewToLibrary({ ...skipped.deps, transport: skipped.transport });
+    await syncStoryboardOverviewToLibrary(skipped.deps);
     expect(skipped.imported).toHaveLength(0);
 
     // 引擎就绪瞬失效→下一轮整轮重传成功
     invalidateOverviewSyncForEngineStart();
     const warm = makeDeps();
-    await expect(syncStoryboardOverviewToLibrary({ ...warm.deps, transport: warm.transport })).resolves.toBe(true);
+    await expect(syncStoryboardOverviewToLibrary(warm.deps)).resolves.toBe(true);
     expect(warm.uploads).toEqual([{ name: "my-shot-S01-01.jpg", b64: "cmF3" }]);
-    expect(warm.imported).toHaveLength(1);
+    expect(warm.imported).toHaveLength(0); // 零文件形态
   });
 });
 

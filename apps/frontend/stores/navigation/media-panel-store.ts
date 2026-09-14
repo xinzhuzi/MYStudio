@@ -10,7 +10,6 @@ import {
   FileTextIcon,
   FilmIcon,
   SparklesIcon,
-  PaletteIcon,
   LayoutDashboardIcon,
   FolderOpenIcon,
   WorkflowIcon,
@@ -18,6 +17,7 @@ import {
   Share2Icon,
   LucideIcon,
 } from "lucide-react";
+import { LocalModelsIcon } from "@/components/ui/local-models-icon";
 import { create } from "zustand";
 import type {
   CharacterConsistencyElements,
@@ -42,7 +42,8 @@ export const mainNavItems: NavItem[] = [
   { id: "studio", label: "MY 工作流", icon: WorkflowIcon }, // 09-11 项目适应命名
   { id: "skills", label: "技能", icon: BookOpenTextIcon },
   { id: "assets", label: "资产", icon: FolderOpenIcon },
-  { id: "freedom", label: "本地模型", icon: PaletteIcon },
+  // 09-14 图标换血:本地模型弃辅助时代 Palette,改用 ComfyUI 模型库同款 ai-model 图标
+  { id: "freedom", label: "本地模型", icon: LocalModelsIcon },
   { id: "export", label: "导出", icon: FilmIcon },
   { id: "media", label: "产物", icon: BoxesIcon },
   { id: "self-media", label: "自媒体", icon: Share2Icon },
@@ -75,7 +76,7 @@ export const tabs: { [key in Tab]: { icon: LucideIcon; label: string; stage?: St
   script: { icon: FileTextIcon, label: "剧本", stage: "script" },
   characters: { icon: UsersIcon, label: "角色", stage: "assets" },
   scenes: { icon: MapPinIcon, label: "场景", stage: "assets" },
-  freedom: { icon: PaletteIcon, label: "本地模型" },
+  freedom: { icon: LocalModelsIcon, label: "本地模型" },
   director: { icon: ClapperboardIcon, label: "导演", stage: "director" },
   sclass: { icon: SparklesIcon, label: "S级", stage: "director" },
   assets: { icon: FolderOpenIcon, label: "资产" },

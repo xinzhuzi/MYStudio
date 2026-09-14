@@ -218,3 +218,32 @@ describe("buildStageNodePayload(v2 全量内容,照老 flow 画布)", () => {
     expect(stages.every((n) => n.size[1] === 600)).toBe(true); // 正方形常理尺寸
   });
 });
+
+// ── 09-14 通用化:零文件模板注入契约 ──────────────────────────────
+describe("buildStageInjections/applyStageInjections(通用模板注入)", () => {
+  it("注入块按模板槽位 id 对齐;载荷进 properties.myStage,模板本体零改动", async () => {
+    const { buildStageInjections, applyStageInjections, MAINLINE_TAB_NAME, STAGE_TEMPLATE_REPO_ID } =
+      await import("./storyboard-pipeline-comfy");
+    expect(MAINLINE_TAB_NAME).toBe("MY-分镜工作流.json");
+    expect(STAGE_TEMPLATE_REPO_ID).toContain("repo:0_分镜/");
+    const injections = buildStageInjections({
+      summaries: [
+        { key: "script", title: "剧本", summary: "已导入 1 章", status: "已完成" },
+        { key: "storyboardTable", title: "分镜表", summary: "38 个分镜", status: "已完成" },
+      ],
+      payloads: [{ key: "script", lines: ["第一行"] } as never],
+    });
+    expect(injections).toHaveLength(2);
+    expect(injections[0].id).toBe(1); // 模板槽位契约:script=1
+    expect(injections[1].id).toBe(3); // storyboardTable=3
+    const template = { nodes: [
+      { id: 1, type: "MyStage", properties: {}, widgets_values: ["script", "剧本", "", ""] },
+      { id: 3, type: "MyStage", properties: {}, widgets_values: ["storyboardTable", "分镜表", "", ""] },
+    ], links: [] };
+    const graph = applyStageInjections(template, injections) as { nodes: Array<{ properties: Record<string, unknown>; widgets_values: unknown[] }> };
+    expect((graph.nodes[0].properties.myStage as { lines: string[] }).lines).toEqual(["第一行"]);
+    expect(graph.nodes[1].widgets_values[2]).toBe("38 个分镜");
+    // 模板本体不被改写(克隆注入)
+    expect(template.nodes[0].properties).toEqual({});
+  });
+});

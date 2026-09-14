@@ -18,9 +18,24 @@ vi.mock("@/lib/assist/image-studio/storyboard-overview-sync", async (importOrigi
 });
 const importFilesMock = vi.hoisted(() => vi.fn(async (files: Array<{ name: string }>) =>
   files.map((file) => ({ name: file.name, status: "imported" }))));
+// 09-14 通用化:主线/H3 打开走仓库模板只读拉取(content),不再写库
+const templateContentMock = vi.hoisted(() => vi.fn(async (id: string) => {
+  if (String(id).includes("MY-分镜工作流")) {
+    return JSON.stringify({ last_node_id: 7, last_link_id: 6, nodes: [
+      { id: 1, type: "MyStage", pos: [0, 60], properties: { "Node name for S&R": "MyStage" }, widgets_values: ["script", "剧本", "", ""], inputs: [], outputs: [{ name: "flow", type: "MY_FLOW", links: [], slot_index: 0 }] },
+      { id: 2, type: "MyStage", pos: [840, 60], properties: { "Node name for S&R": "MyStage" }, widgets_values: ["scriptPlan", "导演规划", "", ""], inputs: [], outputs: [{ name: "flow", type: "MY_FLOW", links: [], slot_index: 0 }] },
+      { id: 3, type: "MyStage", pos: [1680, 60], properties: { "Node name for S&R": "MyStage" }, widgets_values: ["storyboardTable", "分镜表", "", ""], inputs: [], outputs: [{ name: "flow", type: "MY_FLOW", links: [], slot_index: 0 }] },
+      { id: 4, type: "MyStage", pos: [2520, 60], properties: { "Node name for S&R": "MyStage" }, widgets_values: ["storyboard", "分镜面板", "", ""], inputs: [], outputs: [{ name: "flow", type: "MY_FLOW", links: [], slot_index: 0 }] },
+      { id: 5, type: "MyStage", pos: [3360, 60], properties: { "Node name for S&R": "MyStage" }, widgets_values: ["remotionProduction", "单镜视频生产", "", ""], inputs: [], outputs: [{ name: "flow", type: "MY_FLOW", links: [], slot_index: 0 }] },
+      { id: 6, type: "MyStage", pos: [4200, 60], properties: { "Node name for S&R": "MyStage" }, widgets_values: ["workbench", "视频工作台", "", ""], inputs: [], outputs: [{ name: "flow", type: "MY_FLOW", links: [], slot_index: 0 }] },
+      { id: 7, type: "MyStage", pos: [5040, 60], properties: { "Node name for S&R": "MyStage" }, widgets_values: ["assets", "衍生资产", "", ""], inputs: [], outputs: [{ name: "flow", type: "MY_FLOW", links: [], slot_index: 0 }] },
+    ], links: [], groups: [], config: {}, extra: {}, version: 0.4 });
+  }
+  throw new Error("not found");
+}));
 vi.mock("@/lib/assist/image-studio/comfy-sidecar-bridge", async (importOriginal) => {
   const actual = await importOriginal<Record<string, unknown>>();
-  return { ...actual, createHttpComfyWorkflowLibraryTransport: () => ({ importFiles: importFilesMock }) };
+  return { ...actual, createHttpComfyWorkflowLibraryTransport: () => ({ importFiles: importFilesMock, content: templateContentMock }) };
 });
 
 // studio-store mock:autoOpen 注入路径需要 storyboards>0(链工作流载荷);
@@ -294,7 +309,7 @@ describe("ComfyCanvasStudio(辅助面板第六 tab)", () => {
     ]));
   });
 
-  it("单镜视频入口(09-14):open-shot-video 动作→上传关键帧→写库→注入打开脚本", async () => {
+  it("单镜视频入口(09-14):open-shot-video 动作→上传关键帧→直开注入(零写库)", async () => {
     storeState.storyboards = [
       {
         id: "sb-9", index: 1, episodeId: "chapter-001", videoDesc: "雨夜石桥",
@@ -343,11 +358,9 @@ describe("ComfyCanvasStudio(辅助面板第六 tab)", () => {
     // 全尺寸关键帧以专用名上传(禁用 768px 缩略图当 H3 首帧)
     expect(uploaded).toEqual(["my-shot-h3-sb-9.jpg"]);
     // 库写入位=视频域自研家应用写入位;打开脚本带锚卡与秒数节点载荷
-    expect(importFilesMock).toHaveBeenCalledWith(
-      [expect.objectContaining({ name: "分镜/3_单镜视频/MY-单镜视频 · 第一章 雨夜 · S01.json" })],
-      "overwrite",
-    );
-    expect(payload).toContain("MyShot");
+    expect(importFilesMock).not.toHaveBeenCalled(); // 零文件形态:单镜视频不落库
+    expect(payload).toContain("MY-单镜视频"); // 注入签名=组装器现装(临时签)
+    expect(payload).toContain("MyShot"); // 组装器模板含 MyShot 锚点(首帧/回写)
     await waitFor(() => expect(toasts.success).toHaveBeenCalled());
   });
 
@@ -383,7 +396,8 @@ describe("ComfyCanvasStudio(辅助面板第六 tab)", () => {
     }, { timeout: 3000 });
     // 载荷=链工作流:七环节 MyStage+MY_FLOW 连线+分镜网格+摘要
     expect(payload).toContain('"type":"MyStage"');
-    expect(payload).toContain("MyShot");
+    expect(payload).toContain("MyStage"); // 09-14 通用化:模板=7 环节锚点,零 MyShot 实体
+    expect(payload).toContain("MY-分镜工作流.json"); // 画布签=通用主线名
     expect((payload.match(/MyStage/g) || []).length).toBeGreaterThanOrEqual(7);
     expect(payload).toContain("MY_FLOW");
     expect(payload).toContain("已导入 1 章原文");

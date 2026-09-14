@@ -17,6 +17,9 @@ from ..bridge import writeback
 
 
 class MyShot:
+    # 09-14 通用化裁定:分镜网格改载荷渲染,产线不再生成 MyShot 实体——
+    # DEPRECATED(菜单/搜索默认隐藏);存量档照常加载(别名与本文均保留)。
+    DEPRECATED = True
     CATEGORY = "my"
 
     @classmethod

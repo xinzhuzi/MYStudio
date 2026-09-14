@@ -1,0 +1,372 @@
+{
+ "last_node_id": 7,
+ "last_link_id": 6,
+ "nodes": [
+  {
+   "id": 1,
+   "type": "MyStage",
+   "pos": [
+    40,
+    60
+   ],
+   "size": [
+    800,
+    720
+   ],
+   "flags": {},
+   "order": 1,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "upstream",
+     "type": "MY_FLOW",
+     "link": null,
+     "slot_index": 0,
+     "label": "上游环节"
+    }
+   ],
+   "outputs": [
+    {
+     "name": "flow",
+     "type": "MY_FLOW",
+     "links": [
+      1
+     ],
+     "slot_index": 0,
+     "label": "下游环节"
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "MyStage"
+   },
+   "widgets_values": [
+    "script",
+    "剧本",
+    "",
+    ""
+   ]
+  },
+  {
+   "id": 2,
+   "type": "MyStage",
+   "pos": [
+    880,
+    60
+   ],
+   "size": [
+    800,
+    720
+   ],
+   "flags": {},
+   "order": 2,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "upstream",
+     "type": "MY_FLOW",
+     "link": 1,
+     "slot_index": 0,
+     "label": "上游环节"
+    }
+   ],
+   "outputs": [
+    {
+     "name": "flow",
+     "type": "MY_FLOW",
+     "links": [
+      2
+     ],
+     "slot_index": 0,
+     "label": "下游环节"
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "MyStage"
+   },
+   "widgets_values": [
+    "scriptPlan",
+    "导演规划",
+    "",
+    ""
+   ]
+  },
+  {
+   "id": 7,
+   "type": "MyStage",
+   "pos": [
+    880,
+    940
+   ],
+   "size": [
+    800,
+    720
+   ],
+   "flags": {},
+   "order": 3,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "upstream",
+     "type": "MY_FLOW",
+     "link": 2,
+     "slot_index": 0,
+     "label": "上游环节"
+    }
+   ],
+   "outputs": [
+    {
+     "name": "flow",
+     "type": "MY_FLOW",
+     "links": [
+      3
+     ],
+     "slot_index": 0,
+     "label": "下游环节"
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "MyStage"
+   },
+   "widgets_values": [
+    "assets",
+    "衍生资产",
+    "",
+    ""
+   ]
+  },
+  {
+   "id": 3,
+   "type": "MyStage",
+   "pos": [
+    1720,
+    60
+   ],
+   "size": [
+    800,
+    720
+   ],
+   "flags": {},
+   "order": 4,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "upstream",
+     "type": "MY_FLOW",
+     "link": 3,
+     "slot_index": 0,
+     "label": "上游环节"
+    }
+   ],
+   "outputs": [
+    {
+     "name": "flow",
+     "type": "MY_FLOW",
+     "links": [
+      4
+     ],
+     "slot_index": 0,
+     "label": "下游环节"
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "MyStage"
+   },
+   "widgets_values": [
+    "storyboardTable",
+    "分镜表",
+    "",
+    ""
+   ]
+  },
+  {
+   "id": 4,
+   "type": "MyStage",
+   "pos": [
+    2560,
+    60
+   ],
+   "size": [
+    800,
+    720
+   ],
+   "flags": {},
+   "order": 5,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "upstream",
+     "type": "MY_FLOW",
+     "link": 4,
+     "slot_index": 0,
+     "label": "上游环节"
+    }
+   ],
+   "outputs": [
+    {
+     "name": "flow",
+     "type": "MY_FLOW",
+     "links": [
+      5
+     ],
+     "slot_index": 0,
+     "label": "下游环节"
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "MyStage"
+   },
+   "widgets_values": [
+    "storyboard",
+    "分镜面板",
+    "",
+    ""
+   ]
+  },
+  {
+   "id": 5,
+   "type": "MyStage",
+   "pos": [
+    3400,
+    60
+   ],
+   "size": [
+    800,
+    720
+   ],
+   "flags": {},
+   "order": 6,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "upstream",
+     "type": "MY_FLOW",
+     "link": 5,
+     "slot_index": 0,
+     "label": "上游环节"
+    }
+   ],
+   "outputs": [
+    {
+     "name": "flow",
+     "type": "MY_FLOW",
+     "links": [
+      6
+     ],
+     "slot_index": 0,
+     "label": "下游环节"
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "MyStage"
+   },
+   "widgets_values": [
+    "remotionProduction",
+    "单镜视频生产",
+    "",
+    ""
+   ]
+  },
+  {
+   "id": 6,
+   "type": "MyStage",
+   "pos": [
+    4240,
+    60
+   ],
+   "size": [
+    800,
+    720
+   ],
+   "flags": {},
+   "order": 7,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "upstream",
+     "type": "MY_FLOW",
+     "link": 6,
+     "slot_index": 0,
+     "label": "上游环节"
+    }
+   ],
+   "outputs": [
+    {
+     "name": "flow",
+     "type": "MY_FLOW",
+     "links": [],
+     "slot_index": 0,
+     "label": "下游环节"
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "MyStage"
+   },
+   "widgets_values": [
+    "workbench",
+    "视频工作台",
+    "",
+    ""
+   ]
+  }
+ ],
+ "links": [
+  [
+   1,
+   1,
+   0,
+   2,
+   0,
+   "MY_FLOW"
+  ],
+  [
+   2,
+   2,
+   0,
+   7,
+   0,
+   "MY_FLOW"
+  ],
+  [
+   3,
+   7,
+   0,
+   3,
+   0,
+   "MY_FLOW"
+  ],
+  [
+   4,
+   3,
+   0,
+   4,
+   0,
+   "MY_FLOW"
+  ],
+  [
+   5,
+   4,
+   0,
+   5,
+   0,
+   "MY_FLOW"
+  ],
+  [
+   6,
+   5,
+   0,
+   6,
+   0,
+   "MY_FLOW"
+  ]
+ ],
+ "groups": [],
+ "config": {},
+ "extra": {
+  "myPipeline": true
+ },
+ "version": 0.4,
+ "templates": {
+  "name": "分镜工作流",
+  "note": "通用模板(09-14):恒 7 环节锚点;章数据经 properties.myStage 运行时注入;镜内容全载荷渲染,零按镜实体节点"
+ }
+}

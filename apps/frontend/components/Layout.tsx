@@ -25,7 +25,10 @@ import {
   ResizablePanel,
   ResizableHandle,
 } from "@/components/ui/resizable";
-// 终裁(09-10):全应用唯一悬浮球——项目内所有视图(含沉浸态)唯一常驻导航枢纽
+// 终裁(09-10):全应用唯一悬浮球——所有视图(含沉浸态)唯一常驻导航枢纽;
+// 09-14 用户裁定「全程可见」:Dashboard 首屏(未进项目)同挂——球的模块导航
+// 在首屏=隐式回上次项目的该模块(activeProjectId 持久化兜底),主界面仍是
+// 唯一的项目选择器,与球互补不替代。
 const AppOrb = lazy(() =>
   import("@/components/orbs").then((m) => ({ default: m.AppOrb })),
 );
@@ -151,6 +154,10 @@ export function Layout() {
             </Suspense>
           </div>
         </div>
+        {/* 09-14 全程可见裁定:首屏同挂球(与项目内三分支同款) */}
+        <Suspense fallback={null}>
+          <AppOrb />
+        </Suspense>
       </>
     );
   }
