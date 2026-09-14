@@ -76,7 +76,7 @@ const LOGO_PNG_DATA_URL =
 // 细节(须/鳞/爪)经 alpha 全保留。
 const MY_LOGO_ICON =
   '<span aria-hidden="true" '
-  + 'style="display:inline-block;width:1.8em;height:1.8em;background-color:currentColor;'
+  + 'style="display:inline-block;width:2.6em;height:2.6em;background-color:currentColor;'
   + '-webkit-mask-image:url(\'' + LOGO_PNG_DATA_URL + '\');'
   + 'mask-image:url(\'' + LOGO_PNG_DATA_URL + '\');'
   + '-webkit-mask-size:contain;mask-size:contain;'
@@ -87,6 +87,18 @@ function decorateSidebarTab() {
   // 金锚点:SideToolbar 每个标签按钮带 data-testid="<tabId>-tab-button"(bundle 实证)
   const root = document.querySelector('[data-testid="my.shots-tab-button"]');
   if (!root) return;
+  // 09-15 用户裁定:龙徽 tab=icon-only——隐藏原生标签位(side-bar-button-label,
+  // bundle 实证类名)放大龙徽;title/tooltip 保留(hover 仍有「漫影」提示,
+  // aria 不损),CSS 域内按 testid 圈定,Vue 重渲染天然免疫(类名恒在)。
+  if (!document.getElementById("my-tab-icon-only")) {
+    const style = document.createElement("style");
+    style.id = "my-tab-icon-only";
+    style.textContent = [
+      '[data-testid="my.shots-tab-button"] .side-bar-button-label{display:none;}',
+      '[data-testid="my.shots-tab-button"] .side-bar-button-content{gap:0;justify-content:center;}',
+    ].join("\n");
+    document.head.append(style);
+  }
   // 置顶:插到本容器第一个标签钮之前(顶部品牌徽标之后)=在队列/资产等所有标签之上
   const container = root.parentElement;
   if (container) {
