@@ -130,4 +130,20 @@ describe("buildShotH3RefWorkflow (09-14-h3-ref2va-line)", () => {
     expect(String(byId(4)?.widgets_values?.[0])).toBe("video/漫影/chapter-001/sb-chapter-001-001/ref-ambient");
     expect(result.name).toBe("MY-单镜视频Ref2VA · 第一章 雨夜 · S01");
   });
+
+  it("keeps the conditioning/latent/clip wiring intact (09-14 实弹发现的连线断流回归锁)", () => {
+    const result = buildShotH3RefWorkflow({ shot: makeShot(), chapterId: "chapter-001", chapterLabel: "第一章 雨夜", refs: [] });
+    const nodes = result.ui.nodes as Array<{
+      id: number;
+      type: string;
+      inputs?: Array<{ name: string; link: number | null }>;
+    }>;
+    const inputLink = (id: number, name: string) =>
+      nodes.find((node) => node.id === id)?.inputs?.find((input) => input.name === name)?.link;
+    expect(inputLink(33, "conditioning")).not.toBeNull();
+    expect(inputLink(26, "latent_image")).not.toBeNull();
+    for (const name of ["clip", "vae", "prompt", "width", "height", "length", "ref_images.ref_image_0"]) {
+      expect(inputLink(16, name)).not.toBeNull();
+    }
+  });
 });
