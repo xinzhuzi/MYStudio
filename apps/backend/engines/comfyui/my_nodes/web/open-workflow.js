@@ -112,6 +112,41 @@ async function openWorkflowSingleInstance({ name, graph }) {
   await app2.loadGraphData(cloneGraph(graph), true, true, name);
   return { ok: true, mode: "named-temp" };
 }
+// ── 启动清扫器(09-15 协调档案:引擎 userdata 回写残留根治)─────────────
+// ComfyUI workflow store 的持久化索引(localStorage)残留旧主线索引时,标签
+// 恢复+自动保存会把图写回 分镜/** 或 漫影/** 旧路径。装载期扫一遍:旧路径
+// 条目优先 deleteWorkflow(连文件带索引一并清),不可删则关签断引用。
+function sweepStaleStoryboardEntries() {
+  const svc = window.app?.extensionManager?.workflow;
+  if (!svc || !Array.isArray(svc.openWorkflows)) return false;
+  let swept = 0;
+  for (const wf of [...svc.openWorkflows]) {
+    const path = String(wf.path || "");
+    if (!/^(workflows\/)?(分镜|漫影)\//.test(path)) continue;
+    try {
+      if (typeof svc.deleteWorkflow === "function" && !wf.isTemporary) {
+        void svc.deleteWorkflow(wf); swept += 1; continue;
+      }
+      if (typeof svc.closeWorkflow === "function" && !(typeof svc.isActive === "function" && svc.isActive(wf))) {
+        void svc.closeWorkflow(wf); swept += 1;
+      }
+    } catch (error) { /* 下一轮兜底 */ }
+  }
+  if (swept > 0) console.warn("[my] 清扫旧路径工作流索引", swept, "条");
+  return true;
+}
+if (!window.__myStaleSweepScheduled) {
+  window.__myStaleSweepScheduled = true;
+  // window.app 异步赋值→轮询等服,拿到即扫(一次性;open 协议内还会再扫)
+  let attempts = 0;
+  const poll = () => {
+    if (sweepStaleStoryboardEntries() || attempts > 40) return;
+    attempts += 1;
+    setTimeout(poll, 500);
+  };
+  poll();
+}
+
 window.__myOpenWorkflow = openWorkflowSingleInstance;
 // 旧锚别名:装机旧 asar/旧探针脚本仍探测 __manyingOpenWorkflow(改名过渡期双导出)
 window.__manyingOpenWorkflow = window.__myOpenWorkflow;
