@@ -102,8 +102,8 @@ describe("buildStoryboardPipelineWorkflow(链工作流)", () => {
     expect(ids.size).toBe(ui.nodes.length);
   });
 
-  it("标题恒「分镜工作流」不带章;extra 标记链工作流", () => {
-    expect(result.report.name).toBe("分镜工作流");
+  it("标题恒「MY-分镜工作流」不带章(MY- 前缀裁定);extra 标记链工作流", () => {
+    expect(result.report.name).toBe("MY-分镜工作流");
     expect((result.ui as { extra: Record<string, unknown> }).extra.manyingPipeline).toBe(true);
   });
 });

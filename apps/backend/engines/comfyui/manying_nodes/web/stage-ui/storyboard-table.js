@@ -5,7 +5,7 @@
  * + 15 列 | 表格),但生成器按 50 字软换行把宽表行拆碎了;先做表格行回接
  * (非块标记行接回上一行)再喂 markdown-it,成型为真表格+标题层级。
  * 载荷已解析出 tableRows(结构化)时优先两行制表行(零解析依赖)。 */
-import { esc, renderMarkdown } from "./common.js";
+import { emptyHTML, esc, renderMarkdown } from "./common.js";
 
 const BLOCK_START = /^(#|<|\||```|\s*$)/;
 
@@ -43,6 +43,7 @@ export default {
       return `<div class="ms-rows">${rows}</div>`;
     }
     const text = reflowTableLines(payload.previewLines || []);
+    if (!text.trim()) return emptyHTML("暂无分镜表 · 详情进分镜面板");
     return `<div class="ms-md ms-md--table">${renderMarkdown(text)}</div>`;
   },
 };

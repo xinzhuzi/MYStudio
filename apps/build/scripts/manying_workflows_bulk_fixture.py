@@ -53,7 +53,7 @@ def main() -> None:
     created = skipped = 0
     payload = json.dumps(build_graph(), ensure_ascii=False)
     for i in range(1, count + 1):
-        path = root / f"分镜工作流 · chapter-{i:04d}.json"
+        path = root / f"MY-分镜工作流 · chapter-{i:04d}.json"
         if path.exists():
             skipped += 1
             continue

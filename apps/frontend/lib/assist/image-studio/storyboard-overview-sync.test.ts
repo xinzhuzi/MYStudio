@@ -74,8 +74,25 @@ describe("syncStoryboardOverviewToLibrary(09-10 批9:图片带)", () => {
 
     expect(uploads).toEqual([{ name: "manying-shot-S01-01.jpg", b64: "cmF3" }]);
     expect(imported).toHaveLength(1);
+    // 双帧(09-14):帧2 存在时加传 manying-shot-<id>-k2.jpg
+    storeState.storyboards = [
+      {
+        ...shot("S01-01", 1, { kind: "image", path: "project-file://a.png" }),
+        keyframes: [
+          { mediaRef: { kind: "image", path: "project-file://a.png" } },
+          { mediaRef: { kind: "image", path: "project-file://b.png" } },
+        ],
+      } as unknown as StoryboardItem,
+    ];
+    resetOverviewSyncForTests();
+    const dualDeps = makeDeps();
+    await expect(syncStoryboardOverviewToLibrary({ ...dualDeps.deps, transport: dualDeps.transport })).resolves.toBe(true);
+    expect(dualDeps.uploads.map((u) => u.name)).toEqual([
+      "manying-shot-S01-01.jpg",
+      "manying-shot-S01-01-k2.jpg",
+    ]);
     // 09-11 旧画布迁移:保鲜产物=分镜流程链工作流,落位 0_工作流主线
-    expect(imported[0].name).toBe("漫影/1_图片/分镜/0_工作流主线/分镜工作流.json");
+    expect(imported[0].name).toBe("漫影/1_图片/分镜/0_工作流主线/MY-分镜工作流.json");
     expect(imported[0].mode).toBe("overwrite");
   });
 

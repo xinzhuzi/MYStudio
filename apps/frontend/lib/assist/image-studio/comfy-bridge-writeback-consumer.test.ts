@@ -44,7 +44,7 @@ describe("parseShotTarget", () => {
   });
 });
 
-function makeClient(items: Array<{ id: number; imageB64?: string; shotTarget?: string }>) {
+function makeClient(items: Array<{ id: number; imageB64?: string; videoB64?: string; shotTarget?: string; meta?: Record<string, unknown>; ts?: number }>) {
   const calls: { cursor: number; acks: number[] } = { cursor: -1, acks: [] };
   const client: ComfyBridgeWritebackConsumerClient = {
     async getBridgeWritebacks(cursor) {
@@ -63,16 +63,21 @@ function makeClient(items: Array<{ id: number; imageB64?: string; shotTarget?: s
 function makeDeps(overrides: Partial<ConsumeComfyBridgeWritebacksDeps> = {}): {
   deps: ConsumeComfyBridgeWritebacksDeps;
   applied: Array<{ storyboardId: string; url: string; itemId: number }>;
+  appliedVideos: Array<{ storyboardId: string; url: string; itemId: number; policy: string }>;
   persisted: Array<{ b64: string; title: string; source: string; prompt: string }>;
   notified: Array<{ kind: string; detail: string }>;
 } {
   const applied: Array<{ storyboardId: string; url: string; itemId: number }> = [];
+  const appliedVideos: Array<{ storyboardId: string; url: string; itemId: number; policy: string }> = [];
   const persisted: Array<{ b64: string; title: string; source: string; prompt: string }> = [];
   const notified: Array<{ kind: string; detail: string }> = [];
   const deps: ConsumeComfyBridgeWritebacksDeps = {
     client: { getBridgeWritebacks: async () => null, ackBridgeWritebacks: async () => 0 },
     storyboards: () => STORYBOARDS,
     applyToStoryboard: (storyboardId, url, item) => applied.push({ storyboardId, url, itemId: item.id }),
+    applyVideoToStoryboard: (storyboardId, url, item, policy) => appliedVideos.push({ storyboardId, url, itemId: item.id, policy }),
+    projectId: () => "project-1",
+    writeProjectBinary: async () => ({ success: true, url: "project-file://project-1/remotion/video.mp4" }),
     persist: async (b64, title, options) => {
       persisted.push({ b64, title, ...options });
       return { url: `project-file://media/ai-image/x-${persisted.length}.png` };
@@ -80,7 +85,7 @@ function makeDeps(overrides: Partial<ConsumeComfyBridgeWritebacksDeps> = {}): {
     notify: (kind, detail) => notified.push({ kind, detail }),
     ...overrides,
   };
-  return { deps, applied, persisted, notified };
+  return { deps, applied, appliedVideos, persisted, notified };
 }
 
 beforeEach(() => {
@@ -143,6 +148,80 @@ describe("consumeComfyBridgeWritebacks", () => {
     expect(notified[0]).toMatchObject({ kind: "error", detail: "磁盘满" });
     expect(calls.acks).toHaveLength(0);
   });
+
+  it("视频:按章镜策略落项目并回写分镜,随后 ack", async () => {
+    const { client, calls } = makeClient([{
+      id: 6,
+      videoB64: "aGk=",
+      shotTarget: "S01",
+      meta: { kind: "video", subfolder: "video/漫影/ep-1/sb-a", policy: "ambient" },
+      ts: 123,
+    }]);
+    const written: Array<{ projectId: string; relativePath: string; bytes: ArrayBuffer }> = [];
+    const { deps, appliedVideos, notified } = makeDeps({
+      client,
+      writeProjectBinary: async (projectId, relativePath, bytes) => {
+        written.push({ projectId, relativePath, bytes });
+        return { success: true, url: "project-file://project-1/remotion/outputs/shots/ep-1/sb-a/h3/ambient_v1_123.mp4" };
+      },
+    });
+
+    const result = await consumeComfyBridgeWritebacks(deps);
+
+    expect(result).toEqual({ processed: 1, landed: 1 });
+    expect(written[0]).toMatchObject({
+      projectId: "project-1",
+      relativePath: "remotion/outputs/shots/ep-1/sb-a/h3/ambient_v1_123.mp4",
+    });
+    expect(new Uint8Array(written[0].bytes)).toEqual(new Uint8Array([104, 105]));
+    expect(appliedVideos[0]).toMatchObject({ storyboardId: "sb-a", policy: "ambient", itemId: 6 });
+    expect(notified[0]?.kind).toBe("storyboard");
+    expect(calls.acks).toEqual([6]);
+  });
+
+  it("视频落盘失败:不回写分镜且不 ack", async () => {
+    const { client, calls } = makeClient([{
+      id: 7,
+      videoB64: "aGk=",
+      shotTarget: "S01",
+      meta: { kind: "video", subfolder: "video/漫影/ep-1/sb-a", policy: "ambient" },
+    }]);
+    const { deps, appliedVideos, notified } = makeDeps({
+      client,
+      writeProjectBinary: async () => ({ success: false, error: "磁盘满" }),
+    });
+
+    const result = await consumeComfyBridgeWritebacks(deps);
+
+    expect(result.landed).toBe(0);
+    expect(appliedVideos).toHaveLength(0);
+    expect(notified[0]).toMatchObject({ kind: "error", detail: "磁盘满" });
+    expect(calls.acks).toHaveLength(0);
+  });
+
+  it.each(["video/漫影_S01", "video/ComfyUI/chapter-001/sb-a"]) (
+    "视频旧前缀或用户目录:拒收且不落盘不 ack (%s)",
+    async (subfolder) => {
+      const { client, calls } = makeClient([
+        { id: 8, videoB64: "aGk=", shotTarget: "S01", meta: { kind: "video", subfolder, policy: "ambient" } },
+      ]);
+      const written: string[] = [];
+      const { deps, appliedVideos, notified } = makeDeps({
+        client,
+        writeProjectBinary: async (_projectId, relativePath) => {
+          written.push(relativePath);
+          return { success: true, url: "project-file://unexpected" };
+        },
+      });
+
+      await consumeComfyBridgeWritebacks(deps);
+
+      expect(written).toHaveLength(0);
+      expect(appliedVideos).toHaveLength(0);
+      expect(notified[0]).toMatchObject({ kind: "error", detail: "视频回写产物路径不在白名单" });
+      expect(calls.acks).toHaveLength(0);
+    },
+  );
 
   it("client 失联:静默零处理(轮询面)", async () => {
     const { deps } = makeDeps({

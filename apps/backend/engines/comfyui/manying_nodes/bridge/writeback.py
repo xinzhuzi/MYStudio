@@ -1,7 +1,7 @@
 # Copyright (c) 2025 hotflow2024
 # Licensed under AGPL-3.0-or-later. See LICENSE for details.
 # Commercial licensing available. See COMMERCIAL_LICENSE.md.
-"""成图回写传输:tensor batch → PNG b64 → POST sidecar /comfy/bridge/writeback。"""
+"""Manying 节点回写传输。"""
 
 from __future__ import annotations
 
@@ -22,6 +22,26 @@ def _safe_meta(meta_text: str) -> dict:
     except Exception:
         return {"raw": meta_text}
     return parsed if isinstance(parsed, dict) else {"raw": meta_text}
+
+
+def _post(payload: dict, label: str) -> dict:
+    request = urllib.request.Request(
+        settings.bridge_url() + "/comfy/bridge/writeback",
+        data=json.dumps(payload).encode("utf-8"),
+        headers={
+            "Content-Type": "application/json",
+            "X-Manying-Image-Token": settings.bridge_token(),
+        },
+        method="POST",
+    )
+    try:
+        with urllib.request.urlopen(request, timeout=30) as response:
+            body = json.loads(response.read().decode("utf-8"))
+    except Exception as exc:
+        raise RuntimeError(f"{label}回写失败(联系不上漫影软件):{exc};请确认漫影在运行后重试") from exc
+    if not body.get("accepted"):
+        raise RuntimeError(f"{label}回写被拒:{body}")
+    return body
 
 
 def deliver(images, shot_target: str, prompt: str, meta: str) -> dict:
@@ -48,20 +68,24 @@ def deliver(images, shot_target: str, prompt: str, meta: str) -> dict:
         "imageB64": base64.b64encode(buffer.getvalue()).decode("ascii"),
         "ts": int(time.time() * 1000),
     }
-    request = urllib.request.Request(
-        settings.bridge_url() + "/comfy/bridge/writeback",
-        data=json.dumps(payload).encode("utf-8"),
-        headers={
-            "Content-Type": "application/json",
-            "X-Manying-Image-Token": settings.bridge_token(),
-        },
-        method="POST",
-    )
+    return _post(payload, "成图")
+
+
+def deliver_video(shot_target: str, video_b64: str, subfolder: str, policy: str) -> dict:
+    if not video_b64:
+        raise RuntimeError("视频回写收到空视频,请检查上游连线")
     try:
-        with urllib.request.urlopen(request, timeout=30) as response:
-            body = json.loads(response.read().decode("utf-8"))
+        decoded_size = len(base64.b64decode(video_b64, validate=True))
     except Exception as exc:
-        raise RuntimeError(f"成图回写失败(联系不上漫影软件):{exc};请确认漫影在运行后重试") from exc
-    if not body.get("accepted"):
-        raise RuntimeError(f"成图回写被拒:{body}")
-    return body
+        raise RuntimeError("视频回写收到无效视频数据") from exc
+    if decoded_size > 64 * 1024 * 1024:
+        raise RuntimeError("视频回写超过64MB限制")
+    payload = {
+        "client": "manying-nodes",
+        "shotTarget": shot_target or "",
+        "prompt": "",
+        "meta": {"kind": "video", "subfolder": subfolder, "policy": policy},
+        "videoB64": video_b64,
+        "ts": int(time.time() * 1000),
+    }
+    return _post(payload, "视频")

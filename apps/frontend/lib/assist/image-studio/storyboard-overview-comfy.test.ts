@@ -5,6 +5,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  shotPreview2Name,
   buildStoryboardOverviewWorkflow,
   shotDescription,
   shotLabel,
@@ -35,15 +36,16 @@ describe("章节分镜总览图生成器(批7)", () => {
     // 第 11 镜跨列(x 增量=NODE_WIDTH+COLUMN_GAP=450)
     expect(ui.nodes[10].pos[0]).toBeGreaterThan(ui.nodes[0].pos[0]);
     // widget 序=shot_id/label/desc/status
-    expect(ui.nodes[0].widgets_values).toEqual(["sb-1", "S01 · 第1镜", "第1镜", "图— 视频—"]);
+    // 09-14 裁定:镜节点只留标号(label=纯标号,描述只住隐藏 widgets)
+    expect(ui.nodes[0].widgets_values).toEqual(["sb-1", "S01", "第1镜", "图— 视频—"]);
     // 09-12 标题栏=镜号(固定节点不回落类型名)
-    expect(ui.nodes[0].title).toBe("S01 · 第1镜");
+    expect(ui.nodes[0].title).toBe("S01");
     expect(ui.groups).toHaveLength(1);
   });
 
   it("媒体状态:图✓/视频✓ 按 mediaRef 判定;label 截断 14 字", () => {
     expect(shotMediaStatus(shot("a", 1, "e", { mediaRef: { kind: "image", path: "p.png" } as never }))).toBe("图✓ 视频—");
-    expect(shotLabel(shot("a", 1, "e", { videoDesc: "一二三四五六七八九十一二三十四五六" }))).toBe("S01 · 一二三四五六七八九十一二三十");
+    expect(shotLabel(shot("a", 1, "e", { videoDesc: "一二三四五六七八九十一二三十四五六" }))).toBe("S01");
   });
 
   it("图片带:带图镜写 manyingPreview(名按 shot id 净化),无图镜不写键;描述截断 80 字", () => {
@@ -57,6 +59,12 @@ describe("章节分镜总览图生成器(批7)", () => {
     }).nodes;
     expect(nodes[0].properties.manyingPreview).toBe("manying-shot-scene_S_01_02.jpg");
     expect("manyingPreview" in nodes[1].properties).toBe(false);
+    // 双帧(09-14 用户裁定:每镜多张图都上屏):帧2 名 -k2.jpg;无帧2=空串
+    expect(shotPreview2Name({ ...withImage, keyframes: [
+      { mediaRef: withImage.mediaRef },
+      { mediaRef: { kind: "image", path: "project-file://b.png" } },
+    ] } as never)).toBe("manying-shot-scene_S_01_02-k2.jpg");
+    expect(shotPreview2Name(withImage as never)).toBe("");
 
     const long = "字".repeat(120);
     expect(shotDescription(shot("a", 1, "e", { videoDesc: long }))).toBe(`${"字".repeat(80)}…`);

@@ -1,4 +1,5 @@
 import { aiManager } from "@/lib/ai/ai-manager";
+import { DEFAULT_LOCAL_IMAGE_MODEL } from "@/stores/ai/api-config-provider-helpers";
 import { maybeAutoDenoiseUrl } from "@/lib/ai/image-auto-denoise";
 import { buildUnclothChainRequest } from "@/lib/assist/image-studio/uncloth-request";
 import { runUnclothChain } from "@/lib/assist/image-studio/run-uncloth";
@@ -132,9 +133,16 @@ export async function runImageWorkflowNodeGeneration(
     graph.target,
     useStudioStore.getState().storyboards,
   );
+  // 09-14 用户裁定:分镜生图走 ComfyUI 桥(K2 本地):
+  // 有参考图→krea2_edit_ref(参考一致性装配);无参考→krea2_daojie_t2i
+  // (道劫水墨定档文生图)。桥不可用(引擎未跑/缺插件)回落 krea2-turbo
+  // sidecar,批量链不断。自由/资产工作流保留节点自选模型。
+  const isStoryboard = graph.target.kind === "storyboard";
+  const storyboardTemplate = referenceImages.length ? "krea2_edit_ref" : "krea2_daojie_t2i";
+  let storyboardBridgeDown = false;
   const buildRequest = (transport?: "chat") => ({
     prompt: compiledFrame?.providerPrompt ?? styledPrompt,
-    model: request.model,
+    model: isStoryboard && !storyboardBridgeDown ? "comfyui-bridge" : (isStoryboard ? DEFAULT_LOCAL_IMAGE_MODEL : request.model),
     aspectRatio: request.aspectRatio,
     resolution: request.resolution,
     negativePrompt: compiledFrame ? undefined : request.negativePrompt,
@@ -142,7 +150,9 @@ export async function runImageWorkflowNodeGeneration(
     referenceImages,
     // NSFW破限链(09-07):use_lora 经 extraParams 进请求体,引擎层与全局
     // 专业流开关或关系合并(ai-sdk-bridge Object.assign 透传)
-    extraParams: request.nsfwPro ? { use_lora: true } : undefined,
+    extraParams: isStoryboard
+      ? { template: storyboardBridgeDown ? undefined : storyboardTemplate, ...(request.nsfwPro ? { use_lora: true } : {}) }
+      : (request.nsfwPro ? { use_lora: true } : undefined),
     transport,
     // 分镜/工作流成图自存项目真源(projectFiles.saveImage),跳过媒体库副本双写
     persistMedia: false,
@@ -229,7 +239,19 @@ export async function runImageWorkflowNodeGeneration(
     }
     return outcome;
   };
-  let { generated: result, saved } = await generateAndGate();
+  let { generated: result, saved } = await (async () => {
+    try {
+      return await generateAndGate();
+    } catch (error) {
+      // 桥回落:分镜桥路失败(引擎未跑/模板缺件/执行失败)→krea2-turbo
+      // sidecar 直生重试一次;非桥错误(一致性闸门/保存)原样上抛
+      if (!isStoryboard || storyboardBridgeDown) throw error;
+      const message = error instanceof Error ? error.message : String(error);
+      if (!/comfyui|bridge|工作流|引擎/i.test(message)) throw error;
+      storyboardBridgeDown = true;
+      return await generateAndGate();
+    }
+  })();
   if ((!saved?.success || !saved.url) && /^https?:/i.test(result.url)) {
     // 08-24 结构修复:images 端点已成功(生成已计费)但远程 URL 下载失败
     // (晚高峰 CDN 504/网关过载)——旧路径直接抛错丢图。此处回退 chat 形态

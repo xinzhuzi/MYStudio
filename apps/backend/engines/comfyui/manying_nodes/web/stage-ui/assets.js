@@ -4,7 +4,7 @@
 /** 衍生资产(assets 型):基础三组(角色/场景/道具,assetGroups)+衍生链资产卡
  * (assets:封面/名称/类型·状态)——老剧本资产界面两组信息都进节点(09-13
  * 用户裁定:功能/界面迁移节点图);assetGroups 缺席=只渲染卡,两者都缺=占位。 */
-import { esc, inputImg } from "./common.js";
+import { emptyHTML, esc, inputImg } from "./common.js";
 
 export default {
   key: "assets",
@@ -39,7 +39,7 @@ export default {
       return `<div class="ms-asset-group"><b>${cat ? cat : "其他"}衍生 ${list.length}</b><div class="ms-cards">${renderCards(list)}</div></div>`;
     }).filter(Boolean).join("");
     if (cardSections) parts.push(`<div class="ms-asset-sections">${cardSections}</div>`);
-    if (!parts.length) return `<div class="ms-lines"><div>暂无资产 · 点「抽取资产」从剧本提取</div></div>`;
+    if (!parts.length) return emptyHTML("暂无资产 · 点「抽取资产」从剧本提取");
     return parts.join("");
   },
 };

@@ -23,6 +23,7 @@ import base64
 import json
 import os
 import shutil
+import signal
 import threading
 import time
 from http import HTTPStatus
@@ -479,18 +480,40 @@ class Handler(BaseHTTPRequestHandler):
                 return
             if method == "POST" and path == "/comfy/bridge/writeback":
                 image_b64 = payload.get("imageB64")
-                if not isinstance(image_b64, str) or not image_b64:
-                    self._send_error_json(400, "回写缺少图像数据(imageB64)", "bridge-writeback-invalid")
+                video_b64 = payload.get("videoB64")
+                has_image = isinstance(image_b64, str) and bool(image_b64)
+                has_video = isinstance(video_b64, str) and bool(video_b64)
+                if has_image == has_video:
+                    self._send_error_json(400, "回写必须二选一提供imageB64或videoB64", "bridge-writeback-invalid")
                     return
+                meta = payload.get("meta") if isinstance(payload.get("meta"), dict) else {}
+                if has_video:
+                    subfolder = meta.get("subfolder")
+                    policy = meta.get("policy")
+                    segments = subfolder.split("/") if isinstance(subfolder, str) else []
+                    if (
+                        meta.get("kind") != "video"
+                        or len(segments) != 4
+                        or segments[:2] != ["video", "漫影"]
+                        or any(not segment or segment in {".", ".."} for segment in segments[2:])
+                        or not isinstance(policy, str)
+                        or not policy
+                        or "/" in policy
+                        or "\\" in policy
+                    ):
+                        self._send_error_json(400, "视频回写缺少meta.kind/subfolder/policy", "bridge-writeback-invalid")
+                        return
                 item_id = bridge_inbox.append(
                     {
+                        "kind": "video" if has_video else "image",
                         "client": payload.get("client") or "manying-nodes",
                         "shotTarget": payload.get("shotTarget") or "",
                         "prompt": payload.get("prompt") or "",
-                        "meta": payload.get("meta") if isinstance(payload.get("meta"), dict) else {},
+                        "meta": meta,
                         "ts": payload.get("ts") or int(time.time() * 1000),
                     },
-                    image_b64,
+                    video_b64 if has_video else image_b64,
+                    "videoB64" if has_video else "imageB64",
                 )
                 self._send_json({"accepted": True, "id": item_id})
                 return
@@ -731,10 +754,65 @@ class Handler(BaseHTTPRequestHandler):
             self._send_error_json(HTTPStatus.INTERNAL_SERVER_ERROR, f"操作失败: {exc}", "comfy-internal-error")
 
 
+def _shutdown_signals() -> list:
+    """优雅退出信号集(Windows 无 SIGHUP 常量,守卫注册)。"""
+    sigs = [signal.SIGTERM, signal.SIGINT]
+    if hasattr(signal, "SIGHUP"):
+        sigs.append(signal.SIGHUP)
+    return sigs
+
+
+def _shutdown_sequence(server, log=print) -> list[str]:
+    """退出收摊(09-14 生命周期审计 P3),顺序即契约:
+
+    ① 先 shutdown+server_close 释放 17595 端口——Electron 侧 kill 后 ~300ms
+    复验端口,先放口=不会被升级 SIGKILL,侧车得以从容收尾;
+    ② 优雅停 ComfyUI 引擎(SIGTERM 组→SIGKILL 兜底,替代看门狗的纯硬杀);
+    ③ 释放 engine.lock(此前生产路径从不释放,退出后恒留死锁文件)。
+    引擎未启动时 stop() 为幂等空操作;任何一步失败不阻断后续步与进程退出。
+    """
+    events: list[str] = []
+    try:
+        server.shutdown()
+        server.server_close()
+        events.append("port-released")
+    except Exception as exc:  # noqa: BLE001 — 收摊路径不因单步失败弃守其余步
+        log(f"[image-sidecar] 释放监听端口失败: {exc}")
+    try:
+        from engines.comfyui.engine_manager import engine_manager
+
+        engine_manager().stop()
+        events.append("engine-stopped")
+    except Exception as exc:  # noqa: BLE001
+        log(f"[image-sidecar] 退出时停引擎失败(看门狗会兜底回收): {exc}")
+    try:
+        from engines.comfyui.engine_manager import release_engine_lock
+
+        release_engine_lock()
+    except Exception as exc:  # noqa: BLE001
+        log(f"[image-sidecar] 退出时释放引擎锁失败: {exc}")
+    return events
+
+
 def run(host: str = "127.0.0.1", port: int = 17595) -> None:
     server = ThreadingHTTPServer((host, port), Handler)
     print(f"[image-sidecar] listening on http://{host}:{port}", flush=True)
-    server.serve_forever()
+    # serve_forever 挪进工作线程、主线程等信号:信号处理器在主线程执行,
+    # 若在 serve_forever 所属线程里调 server.shutdown() 会自死锁。
+    stop_requested = threading.Event()
+    for sig in _shutdown_signals():
+        signal.signal(sig, lambda *_: stop_requested.set())
+    # poll_interval 收紧到 0.1s:收到信号后 shutdown() 最长等一轮轮询才放端口,
+    # 默认 0.5s 会撞上 Electron 侧回收器 TERM 后 ~300ms 的端口复验窗,被误升级
+    # SIGKILL、废掉整条优雅收摊路径。
+    server_thread = threading.Thread(
+        target=lambda: server.serve_forever(poll_interval=0.1),
+        name="image-sidecar-http", daemon=True)
+    server_thread.start()
+    stop_requested.wait()
+    print("[image-sidecar] 收到退出信号,收摊:放端口 → 停引擎 → 释放锁", flush=True)
+    _shutdown_sequence(server)
+    print("[image-sidecar] shutdown complete", flush=True)
 
 
 def main() -> None:

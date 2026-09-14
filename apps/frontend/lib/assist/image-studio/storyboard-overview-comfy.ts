@@ -30,7 +30,8 @@ export function shotMediaStatus(storyboard: StoryboardItem): string {
 }
 
 export function shotLabel(storyboard: StoryboardItem): string {
-  return `S${String(storyboard.index).padStart(2, "0")}${storyboard.videoDesc ? ` · ${storyboard.videoDesc.slice(0, 14)}` : ""}`;
+  // 09-14 用户裁定:镜节点只留标号——描述文字不进节点(标号+缩略图即卡片语义)
+  return `S${String(storyboard.index).padStart(2, "0")}`;
 }
 
 /** 该镜成图在引擎 input 目录的缩略图名(保鲜同步上传,扩展按名渲染;无图=空) */
@@ -38,6 +39,22 @@ export function shotPreviewName(storyboard: StoryboardItem): string {
   if (storyboard.mediaRef?.kind !== "image" || !storyboard.mediaRef.path) return "";
   const safeId = storyboard.id.replace(/[^A-Za-z0-9._-]+/g, "_");
   return `manying-shot-${safeId}.jpg`;
+}
+
+/** 第二关键帧缩略图名(09-14 用户裁定:每镜多张图都上屏——回接后每镜常 2 帧,
+ * 引擎镜节点双图并排);帧2 缺图=空串(节点回落单图) */
+export function shotPreview2Name(storyboard: StoryboardItem): string {
+  const frames = (storyboard.keyframes ?? []).filter((frame) => frame.mediaRef?.path);
+  const second = frames[1];
+  if (!second?.mediaRef?.path) return "";
+  const safeId = storyboard.id.replace(/[^A-Za-z0-9._-]+/g, "_");
+  return `manying-shot-${safeId}-k2.jpg`;
+}
+
+/** 帧2 的原始媒体路径(上传源;无=空) */
+export function shotPreview2Source(storyboard: StoryboardItem): string {
+  const frames = (storyboard.keyframes ?? []).filter((frame) => frame.mediaRef?.path);
+  return frames[1]?.mediaRef?.path ?? "";
 }
 
 /** 描述 widget 文案(截断,完整描述走业务侧栏) */
@@ -81,6 +98,7 @@ export function buildStoryboardOverviewWorkflow(
     const column = Math.floor(index / ROWS_PER_COLUMN);
     const row = index % ROWS_PER_COLUMN;
     const preview = shotPreviewName(storyboard);
+    const preview2 = shotPreview2Name(storyboard);
     return {
       id: index + 1,
       type: "ManyingShot",
@@ -94,9 +112,11 @@ export function buildStoryboardOverviewWorkflow(
       inputs: [],
       outputs: [],
       // manyingPreview=引擎 input 目录缩略图名;空图镜不写键(扩展见缺键=纯文字卡)
-      properties: preview
-        ? { "Node name for S&R": "ManyingShot", manyingPreview: preview }
-        : { "Node name for S&R": "ManyingShot" },
+      properties: {
+        "Node name for S&R": "ManyingShot",
+        ...(preview ? { manyingPreview: preview } : {}),
+        ...(preview2 ? { manyingPreview2: preview2 } : {}),
+      },
       widgets_values: [
         storyboard.id,
         shotLabel(storyboard),

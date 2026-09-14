@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
-import { ArrowLeft, ChevronLeft, ChevronRight, Image as ImageIcon, Loader2, Square } from "lucide-react";
+import { ArrowLeft, ChevronLeft, ChevronRight, Image as ImageIcon, Loader2, Play, Square } from "lucide-react";
+import { VideoPreviewModal } from "@/components/ui/media-preview-modal";
 import { Button } from "@/components/ui/button";
 import { ResolutionBadge } from "@/components/ui/image-resolution-badge";
 import type { ImageWorkflowOpenContext, StoryboardItem } from "@/types/studio";
@@ -50,6 +51,8 @@ export function StoryboardPanelTab({
   const ordered = storyboards.slice().sort((a, b) => a.index - b.index);
   const withImage = ordered.filter((item) => item.mediaRef?.kind === "image").length;
   const remaining = ordered.length - withImage;
+  // 09-14 用户裁定:详情页可看单镜头视频播放——有视频的卡中央▶,弹窗播整镜
+  const [videoUrl, setVideoUrl] = useState<string | null>(null);
 
   const openShot = (storyboard: StoryboardItem) => {
     onOpenImageWorkflow({
@@ -60,7 +63,8 @@ export function StoryboardPanelTab({
   };
 
   return (
-    <div className="flex h-full min-h-0 w-full min-w-0 flex-1 flex-col" data-storyboard-panel-tab>
+    <>
+      <div className="flex h-full min-h-0 w-full min-w-0 flex-1 flex-col" data-storyboard-panel-tab>
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border/70 pb-3">
         <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1">
           {onBackToCanvas ? (
@@ -148,11 +152,20 @@ export function StoryboardPanelTab({
               key={storyboard.id}
               storyboard={storyboard}
               onOpen={() => openShot(storyboard)}
+              onPlayVideo={
+                storyboard.mediaRef?.kind === "video" && storyboard.mediaRef.path
+                  ? () => setVideoUrl(toPreviewSrc(storyboard.mediaRef!.path!))
+                  : undefined
+              }
             />
           ))}
         </div>
       ) : null}
     </div>
+      {videoUrl ? (
+        <VideoPreviewModal videoUrl={videoUrl} isOpen onClose={() => setVideoUrl(null)} />
+      ) : null}
+    </>
   );
 }
 
@@ -164,9 +177,12 @@ export function StoryboardPanelTab({
 function StoryboardPanelCard({
   storyboard,
   onOpen,
+  onPlayVideo,
 }: {
   storyboard: StoryboardItem;
   onOpen: () => void;
+  /** 有单镜视频时的播放回调(09-14 用户裁定:详情可看单镜头播放) */
+  onPlayVideo?: () => void;
 }) {
   // 仅有图帧参与轮播;无帧/无图退回 mediaRef 单图
   const frames = useMemo(() => {
@@ -218,6 +234,21 @@ function StoryboardPanelCard({
           S{String(storyboard.index).padStart(2, "0")}
         </span>
         {currentPath ? <ResolutionBadge src={toPreviewSrc(currentPath)} className="right-1 left-auto top-1" /> : null}
+        {/* 单镜视频播放(09-14 用户裁定):中央▶,点击不冒泡进卡 */}
+        {onPlayVideo ? (
+          <button
+            type="button"
+            aria-label={`播放 S${String(storyboard.index).padStart(2, "0")} 单镜视频`}
+            data-storyboard-panel-play
+            className="absolute inset-0 m-auto flex h-11 w-11 items-center justify-center rounded-full border border-border/60 bg-background/75 text-foreground/90 backdrop-blur-sm transition-colors hover:bg-background/95 hover:text-foreground"
+            onClick={(event) => {
+              event.stopPropagation();
+              onPlayVideo();
+            }}
+          >
+            <Play className="h-5 w-5 translate-x-0.5" />
+          </button>
+        ) : null}
         {/* 多帧左右切换(用户裁定):圆形半透明箭头,点击不冒泡进卡 */}
         {frames.length > 1 ? (
           <>

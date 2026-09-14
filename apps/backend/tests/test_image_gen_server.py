@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import signal
 import unittest
 from http import HTTPStatus
 from unittest.mock import patch
@@ -26,6 +27,11 @@ class _GenerateHandler(server.Handler):
 
     def _send_error_json(self, status: int, message: str, code: str = "error") -> None:
         self.response = ({"error": {"message": message, "code": code}}, status)
+
+
+class _ComfyHandler(_GenerateHandler):
+    def _authorized(self) -> bool:
+        return True
 
 
 class ImageStatusRouteTests(unittest.TestCase):
@@ -61,6 +67,60 @@ class ImageStatusRouteTests(unittest.TestCase):
 
 
 class ImageGenerateRouteTests(unittest.TestCase):
+    def test_bridge_accepts_video_writeback_shape(self) -> None:
+        handler = _ComfyHandler.__new__(_ComfyHandler)
+        payload = {
+            "shotTarget": "sb-chapter-001-001",
+            "videoB64": "bXA0",
+            "meta": {
+                "kind": "video",
+                "subfolder": "video/漫影/chapter-001/sb-chapter-001-001",
+                "policy": "ambient",
+            },
+        }
+        with patch("engines.comfyui.bridge_inbox.append", return_value=9) as append:
+            handler._comfy("POST", "/comfy/bridge/writeback", payload, {})
+
+        append.assert_called_once()
+        self.assertEqual(append.call_args.args[2], "videoB64")
+        self.assertEqual(handler.response, ({"accepted": True, "id": 9}, HTTPStatus.OK))
+
+    def test_bridge_rejects_mixed_or_unscoped_video_payload(self) -> None:
+        handler = _ComfyHandler.__new__(_ComfyHandler)
+        with patch("engines.comfyui.bridge_inbox.append") as append:
+            handler._comfy(
+                "POST",
+                "/comfy/bridge/writeback",
+                {"imageB64": "png", "videoB64": "mp4"},
+                {},
+            )
+        self.assertEqual(handler.response[1], HTTPStatus.BAD_REQUEST)
+        append.assert_not_called()
+
+        for subfolder in ("video/漫影_S01", "video/ComfyUI/chapter-001/sb-1"):
+            with self.subTest(subfolder=subfolder), patch("engines.comfyui.bridge_inbox.append") as append:
+                handler._comfy(
+                    "POST",
+                    "/comfy/bridge/writeback",
+                    {
+                        "videoB64": "mp4",
+                        "meta": {"kind": "video", "subfolder": subfolder, "policy": "ambient"},
+                    },
+                    {},
+                )
+            self.assertEqual(handler.response[1], HTTPStatus.BAD_REQUEST)
+            append.assert_not_called()
+
+        with patch("engines.comfyui.bridge_inbox.append") as append:
+            handler._comfy(
+                "POST",
+                "/comfy/bridge/writeback",
+                {"videoB64": "mp4", "meta": {"kind": "video", "policy": "ambient"}},
+                {},
+            )
+        self.assertEqual(handler.response[1], HTTPStatus.BAD_REQUEST)
+        append.assert_not_called()
+
     def test_use_lora_payload_is_forwarded_to_pipeline(self) -> None:
         handler = _GenerateHandler.__new__(_GenerateHandler)
         with patch("image_gen.server.generate_image", return_value="ZmFrZQ==") as generate:
@@ -114,8 +174,67 @@ class ImageGenerateRouteTests(unittest.TestCase):
         self.assertIn("无需下载", handler.response[0]["message"])
 
 
-if __name__ == "__main__":
-    unittest.main()
+class ShutdownSequenceTests(unittest.TestCase):
+    """退出收摊顺序契约(09-14 生命周期审计 P3):放端口 → 停引擎 → 释放锁。"""
+
+    class _FakeServer:
+        def __init__(self, calls: list) -> None:
+            self._calls = calls
+
+        def shutdown(self) -> None:
+            self._calls.append("shutdown")
+
+        def server_close(self) -> None:
+            self._calls.append("server_close")
+
+    class _FakeManager:
+        def __init__(self, calls: list, fail: bool = False) -> None:
+            self._calls = calls
+            self._fail = fail
+
+        def stop(self) -> dict:
+            self._calls.append("engine_stop")
+            if self._fail:
+                raise RuntimeError("boom")
+            return {"running": False, "stopped": True}
+
+    def test_shutdown_releases_port_then_stops_engine_then_releases_lock(self) -> None:
+        calls: list = []
+        manager = self._FakeManager(calls)
+
+        def fake_release() -> None:
+            calls.append("release_lock")
+
+        with patch("engines.comfyui.engine_manager.engine_manager", return_value=manager), \
+                patch("engines.comfyui.engine_manager.release_engine_lock", fake_release):
+            events = server._shutdown_sequence(self._FakeServer(calls), log=lambda *_: None)
+
+        self.assertEqual(events, ["port-released", "engine-stopped"])
+        self.assertEqual(calls, ["shutdown", "server_close", "engine_stop", "release_lock"])
+
+    def test_shutdown_survives_engine_stop_failure(self) -> None:
+        """停引擎抛错:不弃守后续步(锁释放),进程仍能干净退出。"""
+        calls: list = []
+        logged: list = []
+        manager = self._FakeManager(calls, fail=True)
+
+        def fake_release() -> None:
+            calls.append("release_lock")
+
+        with patch("engines.comfyui.engine_manager.engine_manager", return_value=manager), \
+                patch("engines.comfyui.engine_manager.release_engine_lock", fake_release):
+            events = server._shutdown_sequence(self._FakeServer(calls), log=logged.append)
+
+        self.assertEqual(events, ["port-released"])
+        self.assertEqual(calls, ["shutdown", "server_close", "engine_stop", "release_lock"])
+        self.assertTrue(any("停引擎失败" in line for line in logged))
+
+    def test_shutdown_signals_cover_term_int_and_hup(self) -> None:
+        sigs = server._shutdown_signals()
+        self.assertIn(signal.SIGTERM, sigs)
+        self.assertIn(signal.SIGINT, sigs)
+        if hasattr(signal, "SIGHUP"):
+            self.assertIn(signal.SIGHUP, sigs)
 
 
 class CancelRouteTests(unittest.TestCase):
@@ -144,3 +263,7 @@ class CancelRouteTests(unittest.TestCase):
             )
         finally:
             pipeline._CANCEL_EVENT.clear()
+
+
+if __name__ == "__main__":
+    unittest.main()

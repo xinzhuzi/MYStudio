@@ -10,6 +10,19 @@ import type { ComfyEngineClient, ComfyEngineStatus } from "@/components/panels/s
 const toasts = vi.hoisted(() => ({ success: vi.fn(), error: vi.fn(), info: vi.fn(), warning: vi.fn() }));
 vi.mock("sonner", () => ({ toast: toasts }));
 
+// open-shot-video 全链(09-14 单镜视频):两个 IO 面在 jsdom 里不可达,桩化——
+// 全尺寸关键帧读取(b64)与工作流库导入(importFiles)
+vi.mock("@/lib/assist/image-studio/storyboard-overview-sync", async (importOriginal) => {
+  const actual = await importOriginal<Record<string, unknown>>();
+  return { ...actual, readStoryboardImageB64: vi.fn(async () => "ZnJhbWU=") };
+});
+const importFilesMock = vi.hoisted(() => vi.fn(async (files: Array<{ name: string }>) =>
+  files.map((file) => ({ name: file.name, status: "imported" }))));
+vi.mock("@/lib/assist/image-studio/comfy-sidecar-bridge", async (importOriginal) => {
+  const actual = await importOriginal<Record<string, unknown>>();
+  return { ...actual, createHttpComfyWorkflowLibraryTransport: () => ({ importFiles: importFilesMock }) };
+});
+
 // studio-store mock:autoOpen 注入路径需要 storyboards>0(链工作流载荷);
 // 其余用例保持空分镜(注入跳过)语义
 const storeState = vi.hoisted(() => ({
@@ -281,6 +294,63 @@ describe("ComfyCanvasStudio(辅助面板第六 tab)", () => {
     ]));
   });
 
+  it("单镜视频入口(09-14):open-shot-video 动作→上传关键帧→写库→注入打开脚本", async () => {
+    storeState.storyboards = [
+      {
+        id: "sb-9", index: 1, episodeId: "chapter-001", videoDesc: "雨夜石桥",
+        prompt: "备用", duration: 5, durationTarget: 5, lines: "", sound: "雨声",
+        shotSemantics: { actionIn: "雨幕落下", actionOut: "水面涟漪" },
+        mediaRef: { kind: "image", path: "project-file://frame.png" },
+      },
+    ] as unknown[];
+    storeState.novelChapters = [{ id: "chapter-001", title: "第一章 雨夜" }];
+    const uploaded: string[] = [];
+    // 门闩:挂载首轮 tick 的微任务链会先于 spy 挂载跑完打开脚本——把动作
+    // 释放挪到 executeJavaScript spy 就位之后,消除竞态
+    let releaseActions: (() => void) | undefined;
+    const actionsGate = new Promise<void>((resolve) => { releaseActions = resolve; });
+    (window as { comfyEngine?: ComfyEngineClient }).comfyEngine = {
+      ...stubClient({ installed: true, state: "ready", serviceRunning: true, port: 17008 }),
+      getBridgeActions: vi.fn(async (cursor: number) => {
+        if (cursor !== 0) return { cursor, items: [] };
+        await actionsGate;
+        return { cursor: 1, items: [{ id: 1, kind: "open-shot-video", note: "sb-9" }] };
+      }),
+      ackBridgeActions: vi.fn(async () => 1),
+      uploadBridgeReference: vi.fn(async (name: string) => {
+        uploaded.push(name);
+        return { accepted: true, name };
+      }),
+    } as ComfyEngineClient;
+    render(<ComfyCanvasStudio />);
+    const webview = (await waitFor(() => {
+      const el = document.querySelector("[data-comfy-canvas-webview]") as
+        (HTMLElement & { executeJavaScript?: (code: string) => Promise<unknown> }) | null;
+      if (!el) throw new Error("webview 未挂");
+      return el;
+    }, { timeout: 3000 }))!;
+    const scripts: string[] = [];
+    webview.executeJavaScript = (code: string) => {
+      scripts.push(code);
+      return Promise.resolve(undefined);
+    };
+    releaseActions?.();
+    const payload = await waitFor(() => {
+      const hit = scripts.find((code) => code.includes("单镜视频"));
+      if (!hit) throw new Error("单镜视频打开脚本未注入");
+      return hit;
+    }, { timeout: 3000 });
+    // 全尺寸关键帧以专用名上传(禁用 768px 缩略图当 H3 首帧)
+    expect(uploaded).toEqual(["manying-shot-h3-sb-9.jpg"]);
+    // 库写入位=视频域自研家应用写入位;打开脚本带锚卡与秒数节点载荷
+    expect(importFilesMock).toHaveBeenCalledWith(
+      [expect.objectContaining({ name: "漫影/2_视频/H3视频/1_漫影自研/0_单镜视频/MY-单镜视频 · 第一章 雨夜 · S01.json" })],
+      "overwrite",
+    );
+    expect(payload).toContain("ManyingShot");
+    await waitFor(() => expect(toasts.success).toHaveBeenCalled());
+  });
+
   it("autoOpen+有分镜:注入分镜流程链工作流载荷(旧画布迁移 09-11)", async () => {
     storeState.storyboards = [
       { id: "sb-1", index: 1, episodeId: "chapter-001", videoDesc: "第1镜", mediaRef: { kind: "image", path: "/a.png" } },
@@ -327,7 +397,7 @@ describe("ComfyCanvasStudio(辅助面板第六 tab)", () => {
 describe("buildOverviewOpenScript(工作流阶段自动打开分镜总览 09-10;09-12 单实例协议通道)", () => {
   it("一次性守卫+轮询等 window.app+协议通道优先+带名兜底;分镜图嵌在载荷里", () => {
     const graph = { nodes: [{ id: 1, type: "ManyingShot" }], links: [] };
-    const workflowId = "漫影/1_图片/分镜/0_工作流主线/分镜工作流.json";
+    const workflowId = "漫影/1_图片/分镜/0_工作流主线/MY-分镜工作流.json";
     const script = buildOverviewOpenScript(graph, workflowId);
 
     // 一次性守卫:已开过不再覆盖用户手动切换的工作流

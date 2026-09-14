@@ -43,18 +43,47 @@ def _pid_alive(pid: int) -> bool:
         return False
 
 
+def _pid_command(pid: int) -> str:
+    """读进程命令行(pid 复用鉴别的依据;平台无 ps/查询失败=空串)。"""
+    try:
+        proc = subprocess.run(["ps", "-p", str(pid), "-o", "command="],
+                              capture_output=True, text=True, timeout=5.0)
+    except (OSError, subprocess.SubprocessError):
+        return ""
+    return (proc.stdout or "").strip()
+
+
+def _pid_is_manager_process(pid: int) -> bool:
+    """锁持有者身份:命令行须含 image_gen.main(引擎管理唯一宿主=本 sidecar)。
+
+    命令行查不到(Windows 无 ps 等)退回"活即持有"——宁可误拒(有明确解除
+    话术)不冒双管理互踩的风险;查得到但不匹配=pid 已被系统复用,死锁文件
+    按可接管处理(此前只看 pid 存活,侧车退出后 pid 复用会假报「正被另一个
+    漫影进程管理」卡死启动)。
+    """
+    command = _pid_command(pid)
+    if not command:
+        return True
+    return "image_gen.main" in command
+
+
 def engine_lock_path() -> Path:
     return cm.comfy_home() / "engine.lock"
 
 
 def acquire_engine_lock(note: str = "") -> bool:
-    """取引擎管理权:锁文件记录持有 pid;活的他进程持有=False,死锁/自持=接管重写。"""
+    """取引擎管理权:锁文件记录持有 pid;活的他进程持有=False,死锁/自持=接管重写。
+
+    pid 复用判定与 engine_lock_holder 同源(09-14 P2):活但非漫影管理进程
+    (命令行无 image_gen.main)=死锁文件,可接管。
+    """
     path = engine_lock_path()
     try:
         if path.exists():
             data = json.loads(path.read_text(encoding="utf-8"))
             pid = data.get("pid")
-            if isinstance(pid, int) and pid != os.getpid() and _pid_alive(pid):
+            if (isinstance(pid, int) and pid != os.getpid()
+                    and _pid_alive(pid) and _pid_is_manager_process(pid)):
                 return False
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(json.dumps({"pid": os.getpid(), "note": note, "at": cm.timestamp_ms()}), encoding="utf-8")
@@ -73,7 +102,8 @@ def engine_lock_holder() -> dict | None:
         data = json.loads(path.read_text(encoding="utf-8"))
         pid = data.get("pid")
         if isinstance(pid, int) and pid != os.getpid() and _pid_alive(pid):
-            return data
+            if _pid_is_manager_process(pid):
+                return data
         return None
     except Exception:
         return None
@@ -585,6 +615,11 @@ class EngineManager:
         # 分开:_lock 管共享态细粒度互斥,_start_lock 保证同一时刻至多一次启动。
         self._start_lock = threading.Lock()
         self._stopping = False
+        # 停止代数(09-14 生命周期审计 P1):stop() 每次自增;start_sync 捕获后
+        # 在 spawn 提交与健康等待两处核对,变了=停止请求插队,中止并回收刚拉的
+        # 引擎。修复:崩溃守卫正在拉起(冷启动健康等待最长 120s)时用户点停止,
+        # stop() 只摘旧引用,守卫的 start_sync 照常跑完=停止后引擎复活。
+        self._stop_generation = 0
         self._guard_enabled = False
         self._guard_thread: threading.Thread | None = None
         self._restart_times: list[float] = []
@@ -797,7 +832,7 @@ class EngineManager:
             return False
         return isinstance(stats, dict) and ("system" in stats or "devices" in stats)
 
-    def start_sync(self, progress=None) -> dict:
+    def start_sync(self, progress=None, from_guard: bool = False) -> dict:
         """同步启动(启动 job 与插件链内部复用)。已健康=收编孤儿进程直接就绪。
 
         09-11 深审 P2 根修:启动全程持 _start_lock 串行——原实现「判活→Popen」
@@ -805,6 +840,9 @@ class EngineManager:
         并发穿窗=双拉引擎(双进程/端口决议两次/账本口被后写覆盖,双实例风暴
         同型病灶)。快路径同步补健康校验:proc 活着≠就绪,预热的后到者等到真
         健康才放行,不再假阳性顶着「running」把生成流量放进连接拒绝。
+        09-14 P1:from_guard=崩溃守卫拉起;spawn 提交进 _lock 并核对守卫仍在
+        岗,杜绝「守卫过检后用户 stop、守卫照拉」的停止后复活;健康等待期以
+        停止代数核对插队的 stop 请求(见 _await_startup_health)。
         """
         if not cm.engine_installed():
             raise EngineOpError("ComfyUI 引擎尚未安装,请先安装")
@@ -815,6 +853,7 @@ class EngineManager:
                 "已拒绝启动以防互踩;确认没有其他会话后,删除 engine.lock 可解除"
             )
         with self._start_lock:
+            start_gen = self._stop_generation
             with self._lock:
                 already_running = self._proc is not None and self._proc.poll() is None
             if already_running:
@@ -822,12 +861,15 @@ class EngineManager:
                 # 快路径探运行口优先:启动串钉口(--port)与账本口分叉时,账本口
                 # 是死口——原实现干等 120 秒后假报「健康检查超时」(09-11 实弹)
                 port = getattr(self, "_running_port", None) or cm.recorded_port()
-                self._await_startup_health(port)
+                self._await_startup_health(port, stop_generation=start_gen)
                 return {"running": True, "port": port}
             port = cm.recorded_port()
             if port and self._orphan_is_comfyui(port):
                 acquire_engine_lock("engine-manager")
                 self._running_port = port
+                # 收编=引擎重新处于受管运行态,清停止标志——否则守卫循环被
+                # 上一次 stop 留下的 _stopping 永久跳过,收编引擎崩溃无人拉起
+                self._stopping = False
                 self._enable_guard()
                 # 收编后强制刷新一次节点数:孤儿进程的插件态(刚装/刚卸)与我们的
                 # _last_node_count 缓存无关,不刷新=状态行展示旧节点数假象。
@@ -855,7 +897,6 @@ class EngineManager:
             _write_extra_model_paths(cm.configured_models_dir())
             cm.engine_log_path().parent.mkdir(parents=True, exist_ok=True)
             self._log_file = open(cm.engine_log_path(), "a", encoding="utf-8", buffering=1)
-            self._stopping = False
             # 显式 cwd=源码目录(相对资源解析),可执行文件与脚本全绝对路径(防漂移坑)
             # bridge 回写端点注入(swap 阶段1:manying_generated → sidecar 17595)
             # 09-10 Desktop 式环境变量表(spawn 注入);桥契约变量后置=用户表不可遮蔽回写链
@@ -863,12 +904,19 @@ class EngineManager:
                           **cm.engine_env_vars(),
                           "MYSTUDIO_BRIDGE_URL": bridge_contract.BRIDGE_URL,
                           "MYSTUDIO_BRIDGE_TOKEN": bridge_contract.BRIDGE_TOKEN}
-            self._proc = subprocess.Popen(argv, cwd=str(src), env=launch_env,
-                                          stdout=self._log_file, stderr=subprocess.STDOUT,
-                                          start_new_session=True)  # 独立会话=组长,看门狗可整组回收(孤儿根修)
-            self._running_port = port  # 运行口随 spawn 落值(快路径/状态探测的真源)
+            # spawn 提交进 _lock(09-14 P1):守卫拉起须核对守卫仍在岗(过检后
+            # 用户 stop 的窗口),stop() 也持 _lock 摘引用——两序必居其一:先
+            # 提交则 stop 摸到新引用照杀,后提交则此处直接拒拉。
+            with self._lock:
+                if from_guard and not self._guard_enabled:
+                    raise EngineOpError("引擎已被手动停止,取消本次自动拉起")
+                self._stopping = False
+                self._proc = subprocess.Popen(argv, cwd=str(src), env=launch_env,
+                                              stdout=self._log_file, stderr=subprocess.STDOUT,
+                                              start_new_session=True)  # 独立会话=组长,看门狗可整组回收(孤儿根修)
+                self._running_port = port  # 运行口随 spawn 落值(快路径/状态探测的真源)
             _spawn_engine_watchdog(self._proc, cm.engine_log_path())
-            self._await_startup_health(port, progress=progress)
+            self._await_startup_health(port, progress=progress, stop_generation=start_gen)
             acquire_engine_lock("engine-manager")
             self._enable_guard()
             self._last_node_count = self.node_count()
@@ -876,14 +924,23 @@ class EngineManager:
                 progress(100, "ComfyUI 引擎已就绪")
             return {"running": True, "port": port}
 
-    def _await_startup_health(self, port: int, progress=None) -> None:
-        """等健康到 HEALTH_TIMEOUT_S;进程中途退出/超时抛错(启动与快路径共用)。"""
+    def _await_startup_health(self, port: int, progress=None, stop_generation: int | None = None) -> None:
+        """等健康到 HEALTH_TIMEOUT_S;进程中途退出/超时/停止插队抛错(启动与快路径共用)。"""
         if progress:
             progress(40, "等待引擎就绪(首次加载模型较慢)…")
         deadline = time.monotonic() + HEALTH_TIMEOUT_S
         while time.monotonic() < deadline:
             if self._proc is not None and self._proc.poll() is not None:
                 raise EngineOpError("引擎进程启动后立刻退出了,请查看日志:" + str(cm.engine_log_path()))
+            if stop_generation is not None and self._stop_generation != stop_generation:
+                # 停止请求插队(09-14 P1):回收刚 spawn 的引擎并如实报「被取消」,
+                # 不再等满 120 秒超时把已停止报成启动失败。
+                with self._lock:
+                    proc, self._proc = self._proc, None
+                    self._running_port = None
+                if proc is not None and proc.poll() is None:
+                    _stop_engine_proc(proc)
+                raise EngineOpError("引擎启动被停止请求取消")
             if self.is_healthy(port, timeout=2.0):
                 return
             time.sleep(1.5)
@@ -894,10 +951,14 @@ class EngineManager:
 
         09-08 加固①:stopped 不再无条件 True,以进程真实退出为准;我们不
         跟踪的端口占用者(外部起的实例)由 running 字段如实暴露给上层。
+        09-14 P1:停止代数自增——并发进行中的启动(健康等待期)会在
+        _await_startup_health 核对到代数变化后中止并回收;P2:收尾释放
+        engine.lock(此前生产路径从不释放,退出后恒留死锁文件)。
         """
         with self._lock:
             self._guard_enabled = False
             self._stopping = True
+            self._stop_generation += 1
             proc, self._proc = self._proc, None
             setattr(self, "_running_port", None)
         if proc is not None and proc.poll() is None:
@@ -909,6 +970,7 @@ class EngineManager:
                 pass
             self._log_file = None
         stopped = proc is None or proc.poll() is not None
+        release_engine_lock()  # 仅本 pid 持有时才真删,幂等
         return {"running": self.is_healthy(), "stopped": stopped}
 
     def ensure_engine_ready(self) -> bool:
@@ -959,7 +1021,7 @@ class EngineManager:
             self._restart_times.append(now)
             print("[image-sidecar] comfy-engine: 检测到引擎退出,自动拉起", flush=True)
             try:
-                self.start_sync()
+                self.start_sync(from_guard=True)
             except EngineOpError as exc:
                 print(f"[image-sidecar] comfy-engine: 守卫拉起失败: {exc}", flush=True)
 

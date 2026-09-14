@@ -125,10 +125,11 @@ async function cleanupLegacyUnsavedTabs() {
   for (const wf of [...svc.openWorkflows]) {
     const file = String(wf.path || "").split("/").pop() || "";
     // 09-12 标题改「分镜工作流」:旧命名形态(· 章 / (N 章))的标签一并清——
-    // 库文件已由保鲜链删除,残留标签=孤儿临时签
+    // 库文件已由保鲜链删除,残留标签=孤儿临时签;09-14 `_my` 后缀裁定:
+    // 无后缀与 _my 两种旧现名同样按旧名清,`MY-` 新名不命中(^锚定)
     const legacy =
       /^Unsaved Workflow( \(\d+\))?\.json$/.test(file) ||
-      /^分镜工作流( · .+| \(\d+ 章\))\.json$/.test(file);
+      /^分镜工作流(_my)?( · .+| \(\d+ 章\))?\.json$/.test(file);
     if (!legacy) continue;
     const nodes = wf.activeState?.nodes;
     // 关闭判据两形态:①装过我们的图(含 ManyingStage)→孤儿主线签;

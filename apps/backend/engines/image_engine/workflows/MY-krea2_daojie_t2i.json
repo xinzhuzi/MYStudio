@@ -1,0 +1,164 @@
+{
+ "schemaVersion": 1,
+ "name": "krea2_daojie_t2i",
+ "comfyuiVersionMin": "0.33",
+ "inputs": {
+  "prompt": {
+   "node": "50",
+   "field": "value",
+   "class_type": "PrimitiveStringMultiline"
+  },
+  "seed": {
+   "node": "35",
+   "field": "seed",
+   "class_type": "Seed (rgthree)"
+  },
+  "steps": {
+   "node": "28",
+   "field": "steps",
+   "class_type": "KSampler"
+  },
+  "width": {
+   "node": "29",
+   "field": "width",
+   "class_type": "EmptyLatentImage"
+  },
+  "height": {
+   "node": "29",
+   "field": "height",
+   "class_type": "EmptyLatentImage"
+  },
+  "model_file": {
+   "node": "37",
+   "field": "unet_name",
+   "class_type": "UNETLoader"
+  }
+ },
+ "graph": {
+  "53": {
+   "class_type": "CLIPTextEncode",
+   "inputs": {
+    "clip": [
+     "36",
+     0
+    ],
+    "text": [
+     "52",
+     0
+    ]
+   }
+  },
+  "31": {
+   "class_type": "ConditioningZeroOut",
+   "inputs": {
+    "conditioning": [
+     "53",
+     0
+    ]
+   }
+  },
+  "30": {
+   "class_type": "VAEDecode",
+   "inputs": {
+    "samples": [
+     "28",
+     0
+    ],
+    "vae": [
+     "34",
+     0
+    ]
+   }
+  },
+  "29": {
+   "class_type": "EmptyLatentImage",
+   "inputs": {
+    "width": 768,
+    "height": 1280,
+    "batch_size": 1
+   }
+  },
+  "27": {
+   "class_type": "SaveImage",
+   "inputs": {
+    "images": [
+     "30",
+     0
+    ],
+    "filename_prefix": "Krea2-道劫水墨-文生图"
+   }
+  },
+  "35": {
+   "class_type": "Seed (rgthree)",
+   "inputs": {
+    "seed": 685212704886219
+   }
+  },
+  "28": {
+   "class_type": "KSampler",
+   "inputs": {
+    "model": [
+     "37",
+     0
+    ],
+    "positive": [
+     "53",
+     0
+    ],
+    "negative": [
+     "31",
+     0
+    ],
+    "latent_image": [
+     "29",
+     0
+    ],
+    "seed": [
+     "35",
+     0
+    ],
+    "steps": 8,
+    "cfg": 1.0,
+    "sampler_name": "euler",
+    "scheduler": "simple",
+    "denoise": 1.0
+   }
+  },
+  "36": {
+   "class_type": "CLIPLoader",
+   "inputs": {
+    "clip_name": "qwen3-vl-4b-heretic.safetensors",
+    "type": "krea2"
+   }
+  },
+  "34": {
+   "class_type": "VAELoader",
+   "inputs": {
+    "vae_name": "qwen_image_vae.safetensors"
+   }
+  },
+  "37": {
+   "class_type": "UNETLoader",
+   "inputs": {
+    "unet_name": "krea2_turbo_bf16.safetensors",
+    "weight_dtype": "default"
+   }
+  },
+  "50": {
+   "class_type": "PrimitiveStringMultiline",
+   "inputs": {
+    "value": "少年剑修晏燎立于道口镇雨后的青石长街,背负铁剑,广袖青衫被风掀起;人族朱红色灵气自掌心晕染而出,与晨雾的青灰交融;远景山门只以淡墨一抹带过,大面积留白。\nfine gongbi linework on face and garment folds, ink-first with restrained mineral color accents (cinnabar red, stone green, indigo), transparent layered washes, Song-dynasty aesthetic restraint, generous negative space, xuan rice-paper texture, colored ink shan-shui, not greyscale monochrome"
+   }
+  },
+  "52": {
+   "class_type": "easy stylesSelector",
+   "inputs": {
+    "positive": [
+     "50",
+     0
+    ],
+    "styles": "krea2_397styles-drawing_素描"
+   }
+  }
+ }
+}

@@ -1,7 +1,7 @@
 // 09-14 晚间用户裁定(research/0914-late-rulings.md):超分不进工作流——
 // 单段直出模板(_my,31 节点,无 LatentUpscaler/LTXV,仅节点 9 首帧槽)
-import templateJson from "./h3-shot-template_my.json";
-import templateRefJson from "./h3-shot-template_ref2va_my.json";
+import templateJson from "./MY-h3-shot-template.json";
+import templateRefJson from "./MY-h3-shot-template_ref2va.json";
 import type { StoryboardItem } from "@/types/studio";
 import { buildShotH3Prompt, buildShotH3RefPrompt, type H3AudioPolicy } from "./h3-shot-prompt";
 
@@ -9,6 +9,8 @@ interface WorkflowNode {
   id: number;
   type: string;
   mode?: number;
+  inputs?: Array<Record<string, unknown>>;
+  outputs?: Array<Record<string, unknown>>;
   widgets_values?: unknown[];
   widgets_values_named?: Record<string, unknown>;
   properties?: Record<string, unknown>;
@@ -16,6 +18,8 @@ interface WorkflowNode {
 
 interface H3WorkflowTemplate {
   nodes: WorkflowNode[];
+  links?: unknown[][];
+  last_link_id?: number;
   [key: string]: unknown;
 }
 
@@ -30,6 +34,7 @@ export interface ShotH3WorkflowInput {
     StoryboardItem,
     "id" | "index" | "videoDesc" | "prompt" | "duration" | "durationTarget" | "lines" | "sound" | "shotSemantics" | "mediaRef"
   >;
+  chapterId: string;
   chapterLabel: string;
   policy?: H3AudioPolicy;
   imageName?: string;
@@ -85,9 +90,25 @@ function setNamedWidget(node: WorkflowNode, key: string, value: unknown): void {
   if (node.widgets_values_named) node.widgets_values_named[key] = value;
 }
 
+function connectVideoWriteback(template: H3WorkflowTemplate): void {
+  const saveVideo = getNode(template, 4, "SaveVideo");
+  const anchor = getNode(template, 100, "ManyingShot");
+  const output = saveVideo.outputs?.[0];
+  if (!output) throw new Error("h3-shot-template drift: SaveVideo video output missing");
+  const existing = anchor.inputs?.find((input) => input.name === "video");
+  if (existing) return;
+  const nextLinkId = Math.max(template.last_link_id ?? 0, ...(template.links ?? []).map((link) => Number(link[0]) || 0)) + 1;
+  const link = [nextLinkId, 4, 0, 100, 0, "VIDEO"];
+  output.links = [...((output.links as number[] | undefined) ?? []), nextLinkId];
+  anchor.inputs = [{ name: "video", type: "VIDEO", link: nextLinkId }, ...(anchor.inputs ?? [])];
+  template.links = [...(template.links ?? []), link];
+  template.last_link_id = nextLinkId;
+}
+
 export function buildShotH3Workflow(input: ShotH3WorkflowInput): ShotH3WorkflowResult {
   const template = cloneTemplate();
   assertH3TemplateIntegrity(template);
+  connectVideoWriteback(template);
   const policy = input.policy ?? "ambient";
   const shot = input.shot;
   const semantics = shot.shotSemantics as ShotSemanticsForH3;
@@ -109,8 +130,9 @@ export function buildShotH3Workflow(input: ShotH3WorkflowInput): ShotH3WorkflowR
   const firstFrame = getNode(template, 9, "LoadImage");
   const promptNode = getNode(template, 14, "PrimitiveStringMultiline");
   const secondsNode = getNode(template, 20, "PrimitiveFloat");
-  setFirstWidget(saveVideo, `video/漫影_${label}`);
-  setNamedWidget(saveVideo, "filename_prefix", `video/漫影_${label}`);
+  const prefix = `video/漫影/${input.chapterId}/${shot.id}/${policy}`;
+  setFirstWidget(saveVideo, prefix);
+  setNamedWidget(saveVideo, "filename_prefix", prefix);
   // 裁定二:I2V 单图语义——模板内节点 9 旁路(mode=4)占位,注入图名时激活
   setFirstWidget(firstFrame, imageName);
   setNamedWidget(firstFrame, "image", imageName);
@@ -125,7 +147,7 @@ export function buildShotH3Workflow(input: ShotH3WorkflowInput): ShotH3WorkflowR
   anchor.properties = { ...(anchor.properties ?? {}), manyingPreview: imageName };
 
   // 09-14 用户裁定:漫影工作流文件名一律 `_my.json` 后缀。
-  const name = `单镜视频 · ${input.chapterLabel} · ${label}_my`;
+  const name = `MY-单镜视频 · ${input.chapterLabel} · ${label}`;
   return {
     ui: template as unknown as Record<string, unknown>,
     name,
@@ -151,6 +173,7 @@ const REF_IMAGE_NODE_IDS = [110, 111, 112, 113] as const;
 export function buildShotH3RefWorkflow(input: ShotH3RefWorkflowInput): ShotH3WorkflowResult {
   const template = JSON.parse(JSON.stringify(templateRefJson)) as H3WorkflowTemplate;
   assertH3TemplateIntegrity(template);
+  connectVideoWriteback(template);
   getNode(template, 16, "MiniMaxH3ReferenceToVideo");
   const policy = input.policy ?? "ambient";
   const shot = input.shot;
@@ -184,8 +207,9 @@ export function buildShotH3RefWorkflow(input: ShotH3RefWorkflowInput): ShotH3Wor
   const firstFrame = getNode(template, 9, "LoadImage");
   const promptNode = getNode(template, 14, "PrimitiveStringMultiline");
   const secondsNode = getNode(template, 20, "PrimitiveFloat");
-  setFirstWidget(saveVideo, `video/漫影_${label}_ref`);
-  setNamedWidget(saveVideo, "filename_prefix", `video/漫影_${label}_ref`);
+  const prefix = `video/漫影/${input.chapterId}/${shot.id}/ref-${policy}`;
+  setFirstWidget(saveVideo, prefix);
+  setNamedWidget(saveVideo, "filename_prefix", prefix);
   setFirstWidget(firstFrame, imageName);
   setNamedWidget(firstFrame, "image", imageName);
   firstFrame.mode = 0;
@@ -206,7 +230,7 @@ export function buildShotH3RefWorkflow(input: ShotH3RefWorkflowInput): ShotH3Wor
   anchor.widgets_values = [shot.id, label, description, "图✓"];
   anchor.properties = { ...(anchor.properties ?? {}), manyingPreview: imageName };
 
-  const name = `单镜视频Ref2VA · ${input.chapterLabel} · ${label}_my`;
+  const name = `MY-单镜视频Ref2VA · ${input.chapterLabel} · ${label}`;
   return {
     ui: template as unknown as Record<string, unknown>,
     name,

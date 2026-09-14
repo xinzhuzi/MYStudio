@@ -3,7 +3,7 @@
 // Commercial licensing available. See COMMERCIAL_LICENSE.md.
 /** 单镜视频生产(remotionProduction 型):逐镜队列行(静态就绪徽章+活态位
  * .ms-live——B2 轮询按 data-shot-idx 原位重填,渲染中带进度条)。 */
-import { esc, badge, liveBadgesHTML } from "./common.js";
+import { emptyHTML, esc, badge, liveBadgesHTML } from "./common.js";
 
 export default {
   key: "remotionProduction",
@@ -18,6 +18,6 @@ export default {
       return `<div class="ms-row" data-shot-idx="${Number(shot.index) || 0}"><span class="idx">#${String(shot.index).padStart(2, "0")}</span>
         <span class="main">${esc(shot.label)}</span><span class="ms-live">${liveBadgesHTML(shot.status, shot.progress)}</span><span class="ms-badges">${bits}</span></div>`;
     }).join("");
-    return `<div class="ms-rows" data-live="queue">${rows}</div>`;
+    return rows ? `<div class="ms-rows" data-live="queue">${rows}</div>` : emptyHTML("等待分镜面板提供分镜");
   },
 };

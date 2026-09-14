@@ -29,11 +29,12 @@ ALLOWED_KINDS = (
     "view-doc",
     "edit-doc",
     "extract-assets",
+    "open-shot-video",
 )
 CAP = 20
 
 # 幂等 UI 开合类:每次点击都必须送达(同 kind 不同节点是常态),豁免去重
-DEDUPE_EXEMPT_KINDS = frozenset({"view-doc", "edit-doc"})
+DEDUPE_EXEMPT_KINDS = frozenset({"view-doc", "edit-doc", "open-shot-video"})
 
 
 NOTE_CAP = 2000  # 补充要求字符上限(付费生成的附加指令,09-12 功能差异补齐)

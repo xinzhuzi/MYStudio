@@ -4,7 +4,7 @@ import { assertH3TemplateIntegrity, buildShotH3RefWorkflow, buildShotH3Workflow 
 
 function makeShot(overrides: Record<string, unknown> = {}) {
   return {
-    id: "chapter-001/shot:01",
+    id: "sb-chapter-001-001",
     episodeId: "chapter-001",
     index: 1,
     trackKey: "main",
@@ -36,24 +36,27 @@ function nodeWidgets(ui: Record<string, unknown>, id: number): unknown[] {
 
 describe("buildShotH3Workflow", () => {
   it("injects prompt, snapped seconds, image names, prefix, and anchor data", () => {
-    const result = buildShotH3Workflow({ shot: makeShot(), chapterLabel: "第一章 雨夜" });
+    const result = buildShotH3Workflow({ shot: makeShot(), chapterId: "chapter-001", chapterLabel: "第一章 雨夜" });
     const nodes = result.ui.nodes as Array<Record<string, unknown>>;
     const byId = new Map(nodes.map((node) => [node.id, node]));
 
-    expect(result.name).toBe("单镜视频 · 第一章 雨夜 · S01_my");
+    expect(result.name).toBe("MY-单镜视频 · 第一章 雨夜 · S01");
     expect(result.report).toMatchObject({ shot: 1, frames: 124, policy: "ambient" });
     expect(nodeWidgets(result.ui, 14)[0]).toContain("integrated_multimodal_description:");
     expect(nodeWidgets(result.ui, 20)[0]).toBe(124 / 24);
-    expect(nodeWidgets(result.ui, 9)[0]).toBe("manying-shot-h3-chapter-001_shot_01.jpg");
-    expect(nodeWidgets(result.ui, 4)[0]).toBe("video/漫影_S01");
-    expect(nodeWidgets(result.ui, 100)).toEqual(["chapter-001/shot:01", "S01", "雨夜中的石桥", "图✓"]);
-    expect(byId.get(100)?.properties).toMatchObject({ manyingPreview: "manying-shot-h3-chapter-001_shot_01.jpg" });
+    expect(nodeWidgets(result.ui, 9)[0]).toBe("manying-shot-h3-sb-chapter-001-001.jpg");
+    expect(nodeWidgets(result.ui, 4)[0]).toBe("video/漫影/chapter-001/sb-chapter-001-001/ambient");
+    expect(String(nodeWidgets(result.ui, 4)[0])).not.toContain("video/漫影_S");
+    expect(nodeWidgets(result.ui, 100)).toEqual(["sb-chapter-001-001", "S01", "雨夜中的石桥", "图✓"]);
+    expect(byId.get(100)?.properties).toMatchObject({ manyingPreview: "manying-shot-h3-sb-chapter-001-001.jpg" });
+    expect((byId.get(4)?.outputs as Array<{ links?: number[] }>)[0]?.links).toContain(70);
+    expect((byId.get(100)?.inputs as Array<{ name?: string }>)[0]?.name).toBe("video");
   });
 
   it("uses prompt as the description fallback and remains deterministic", () => {
     const shot = makeShot({ videoDesc: "", prompt: "一盏灯在风中摇晃", duration: 8, durationTarget: undefined });
-    const first = buildShotH3Workflow({ shot, chapterLabel: "第二章" });
-    const second = buildShotH3Workflow({ shot, chapterLabel: "第二章" });
+    const first = buildShotH3Workflow({ shot, chapterId: "chapter-002", chapterLabel: "第二章" });
+    const second = buildShotH3Workflow({ shot, chapterId: "chapter-002", chapterLabel: "第二章" });
     expect(first).toEqual(second);
     expect(first.report.frames).toBe(192);
     expect(nodeWidgets(first.ui, 14)[0]).toContain("一盏灯在风中摇晃");
@@ -64,7 +67,7 @@ describe("buildShotH3Workflow", () => {
   });
 
   it("locks the single-stage direct-output graph per 09-14 late rulings (no upscale, no tail frame)", () => {
-    const result = buildShotH3Workflow({ shot: makeShot(), chapterLabel: "第一章 雨夜" });
+    const result = buildShotH3Workflow({ shot: makeShot(), chapterId: "chapter-001", chapterLabel: "第一章 雨夜" });
     const nodes = result.ui.nodes as Array<{ id: number; type: string; mode?: number; widgets_values?: unknown[] }>;
     const types = nodes.map((node) => node.type);
     // 裁定一:超分不进工作流——单段直出,无放大/AV 拼拆链
@@ -90,7 +93,7 @@ describe("buildShotH3Workflow", () => {
     const shot = makeShot({
       shotSemantics: { ...base.shotSemantics, cameraMove: "缓推", shotSize: "近景" },
     });
-    const result = buildShotH3Workflow({ shot, chapterLabel: "第一章 雨夜" });
+    const result = buildShotH3Workflow({ shot, chapterId: "chapter-001", chapterLabel: "第一章 雨夜" });
     const prompt = String(nodeWidgets(result.ui, 14)[0]);
     expect(prompt).toContain("Push In");
     expect(prompt).toContain("近景");
@@ -101,6 +104,7 @@ describe("buildShotH3RefWorkflow (09-14-h3-ref2va-line)", () => {
   it("activates ref slots per assets and injects the six-section prompt", () => {
     const result = buildShotH3RefWorkflow({
       shot: makeShot(),
+      chapterId: "chapter-001",
       chapterLabel: "第一章 雨夜",
       refs: [
         { name: "独孤剑尘", kind: "character", imageName: "manying-shot-h3-ref-role-001.jpg" },
@@ -123,7 +127,7 @@ describe("buildShotH3RefWorkflow (09-14-h3-ref2va-line)", () => {
     expect(byId(110)?.widgets_values?.[0]).toBe("manying-shot-h3-ref-role-001.jpg");
     expect(byId(112)?.mode).toBe(4);
     expect(byId(113)?.mode).toBe(4);
-    expect(String(byId(4)?.widgets_values?.[0])).toBe("video/漫影_S01_ref");
-    expect(result.name).toBe("单镜视频Ref2VA · 第一章 雨夜 · S01_my");
+    expect(String(byId(4)?.widgets_values?.[0])).toBe("video/漫影/chapter-001/sb-chapter-001-001/ref-ambient");
+    expect(result.name).toBe("MY-单镜视频Ref2VA · 第一章 雨夜 · S01");
   });
 });

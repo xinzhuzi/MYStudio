@@ -136,6 +136,23 @@ class TestOrphanAdoption:
         assert refresh_calls == [1]  # 收养后强制刷新一次 object_info
         assert manager._last_node_count == 934
 
+    def test_adoption_clears_stale_stopping_flag(self, tmp_path, monkeypatch):
+        """stop 之后再收编孤儿引擎:守卫须复活(否则收编引擎崩溃无人自动拉起)。"""
+        _plant_installed_engine(tmp_path, monkeypatch)
+        manager = EngineManager()
+        manager._proc = None
+        monkeypatch.setattr(manager, "_orphan_is_comfyui", lambda port: True)
+        monkeypatch.setattr(manager, "_enable_guard", lambda: None)
+        monkeypatch.setattr(manager, "node_count", lambda: 0)
+        monkeypatch.setattr(manager, "is_healthy", lambda port=None, timeout=2.0: False)
+
+        manager.stop()  # 留下 _stopping=True(守卫休眠标志)
+        assert manager._stopping is True
+
+        result = manager.start_sync()
+        assert result["adopted"] is True
+        assert manager._stopping is False  # 收编=受管运行态,守卫恢复执勤
+
     def test_adoption_gate_rejects_unverified_port(self, tmp_path, monkeypatch):
         _plant_installed_engine(tmp_path, monkeypatch)
         manager = EngineManager()

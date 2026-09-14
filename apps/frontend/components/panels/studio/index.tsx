@@ -68,13 +68,18 @@ export function StudioView() {
         viewModel.handleStageChange("assets");
         return;
       }
-      if (stageKey === "storyboard") {
+      if (stageKey === "storyboard" || stageKey === "storyboardTable") {
         viewModel.handleStageChange("storyboardPanel");
         return;
       }
-      // 单镜生产/工作台→视频工作台页(老画布 targetStage 同源)
-      if (stageKey === "remotionProduction" || stageKey === "workbench") {
+      // 工作台→视频工作台页;单镜生产→分镜详情页(09-14 用户裁定:
+      // 详情看单镜头播放视频——分镜详情卡上有▶播放)
+      if (stageKey === "workbench") {
         viewModel.handleStageChange("workbench");
+        return;
+      }
+      if (stageKey === "remotionProduction") {
+        viewModel.handleStageChange("storyboardPanel");
         return;
       }
       setDocNodeId(stageKey);

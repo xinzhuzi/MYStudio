@@ -10,7 +10,7 @@ import {
   createInMemoryComfyWorkflowLibraryTransport,
   getComfyWorkflowLibraryTransport,
 } from "./comfy-workflow-library";
-import krea2T2i from "../../../../backend/engines/image_engine/workflows/krea2_t2i.json";
+import krea2T2i from "../../../../backend/engines/image_engine/workflows/MY-krea2_t2i.json";
 
 const T2I_JSON = JSON.stringify(krea2T2i);
 

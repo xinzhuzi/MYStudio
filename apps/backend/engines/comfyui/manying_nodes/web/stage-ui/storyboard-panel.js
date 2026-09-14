@@ -3,7 +3,7 @@
 // Commercial licensing available. See COMMERCIAL_LICENSE.md.
 /** 分镜面板(storyboard 型):磁贴网格(六列 aspect-ratio;缩略图三色态点;
  * 台词次行 tile 高度契约)。 */
-import { esc, inputImg } from "./common.js";
+import { emptyHTML, esc, inputImg } from "./common.js";
 
 export default {
   key: "storyboard",
@@ -17,6 +17,6 @@ export default {
         <span class="tt">${esc(tile.title)}</span>
       </div>`;
     }).join("");
-    return `<div class="ms-tiles">${tiles}</div>`;
+    return tiles ? `<div class="ms-tiles">${tiles}</div>` : emptyHTML("待生成分镜 · 底部「一键生图」");
   },
 };

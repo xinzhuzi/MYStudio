@@ -2,6 +2,7 @@
 // Licensed under AGPL-3.0-or-later. See LICENSE for details.
 // Commercial licensing available. See COMMERCIAL_LICENSE.md.
 import { app } from "/scripts/app.js";
+import { postAction } from "./bridge-action.js";
 
 /**
  * 镜节点图片带(shot-node 模块,09-13 模块拆分):manyingPreview 缩略图
@@ -18,6 +19,7 @@ app.registerExtension({
   async beforeRegisterNodeDef(nodeType, nodeData) {
     if (nodeData?.name !== "ManyingShot") return;
     const PREVIEW_H = 170;
+    const ACTION_H = 44;
     const PAD = 10;
     const images = new Map(); // filename -> HTMLImageElement(全图共用缓存)
     const ensureImage = (name) => {
@@ -83,22 +85,13 @@ app.registerExtension({
       ctx.restore();
     };
 
-    const drawPreview = (node, ctx) => {
-      const name = node.properties?.manyingPreview;
-      if (!name || node.flags?.collapsed) return;
-      const w = node.size[0] - PAD * 2;
-      const h = PREVIEW_H;
-      const x = PAD;
-      const y = node.size[1] - h - PAD;
-      const img = ensureImage(name);
+    // 单格绘制(双帧共用):就绪=电影底色 letterbox;未就绪=流光骨架/静置
+    const drawCell = (node, ctx, x, y, w, h, img) => {
       const isReady = Boolean(img && img.complete && img.naturalWidth);
-
       ctx.save();
-      roundedPath(ctx, x, y, w, h, 8);
+      roundedPath(ctx, x, y, w, h, 6);
       ctx.clip();
-
       if (isReady) {
-        pendingNodes.delete(node.id);
         ctx.fillStyle = "rgba(8,11,18,0.7)"; // 电影质感底色
         ctx.fillRect(x, y, w, h);
         const scale = Math.min(w / img.naturalWidth, h / img.naturalHeight);
@@ -126,6 +119,31 @@ app.registerExtension({
         }
       }
       ctx.restore();
+    };
+
+    const drawPreview = (node, ctx) => {
+      const name = node.properties?.manyingPreview;
+      if (!name || node.flags?.collapsed) return;
+      const w = node.size[0] - PAD * 2;
+      const h = PREVIEW_H;
+      const x = PAD;
+      const y = node.size[1] - h - PAD - ACTION_H;
+      const img = ensureImage(name);
+      // 双帧并排(09-14 用户裁定:每镜多张图都上屏——回接后每镜常 2 帧;
+      // 帧2 缺席=整幅单图,帧2 图未到=右半骨架)
+      const name2 = node.properties?.manyingPreview2;
+      const img2 = name2 ? ensureImage(name2) : null;
+      if (name2) {
+        const gap = 4;
+        const half = (w - gap) / 2;
+        drawCell(node, ctx, x, y, half, h, img);
+        drawCell(node, ctx, x + half + gap, y, half, h, img2);
+        if (img && img.complete && img.naturalWidth && img2 && img2.complete && img2.naturalWidth) {
+          pendingNodes.delete(node.id);
+        }
+      } else {
+        drawCell(node, ctx, x, y, w, h, img);
+      }
 
       // 电影监视器四角十字标尺
       drawCrosshairs(ctx, x, y, w, h);
@@ -145,6 +163,14 @@ app.registerExtension({
       ctx.lineWidth = 1;
       ctx.stroke();
     };
+    // 隐藏兜底双保险:onConfigure 时再压一遍——部分加载时序里 widgets 在
+    // onNodeCreated 之后才建(首压空转),configure 后必在
+    const onConfigure = nodeType.prototype.onConfigure;
+    nodeType.prototype.onConfigure = function () {
+      const result = onConfigure?.apply(this, arguments);
+      try { for (const widget of this.widgets || []) widget.hidden = true; } catch (error) { /* 无碍 */ }
+      return result;
+    };
     const onDrawBackground = nodeType.prototype.onDrawBackground;
     nodeType.prototype.onDrawBackground = function (ctx) {
       onDrawBackground?.apply(this, arguments);
@@ -159,7 +185,48 @@ app.registerExtension({
         for (const widget of this.widgets || []) widget.hidden = true;
         // 高度钉底:隐藏 widget 后 computeSize 缩水,保缩略图带完整
         this.size[0] = Math.max(this.size[0] || 0, 300);
-        this.size[1] = Math.max(this.size[1] || 0, 232);
+        this.size[1] = Math.max(this.size[1] || 0, 276);
+        const action = document.createElement("div");
+        action.style.cssText = "height:44px;display:flex;align-items:center;padding:6px 10px 0;box-sizing:border-box;";
+        const button = document.createElement("button");
+        button.type = "button";
+        button.textContent = "视频制作";
+        button.title = "先生成画面";
+        button.style.cssText = "width:100%;height:32px;border:1px solid rgba(110,168,254,.4);border-radius:7px;background:rgba(110,168,254,.16);color:#cfe2ff;font:600 12px -apple-system,BlinkMacSystemFont,sans-serif;cursor:pointer;";
+        const update = () => {
+          const mediaStatus = String(this.widgets?.[3]?.value || "");
+          const ready = mediaStatus.includes("图✓");
+          button.disabled = !ready;
+          button.title = ready ? "打开该镜的漫影 H3 视频制作工作流" : "先生成画面";
+          button.style.opacity = ready ? "1" : ".48";
+          button.style.cursor = ready ? "pointer" : "not-allowed";
+        };
+        button.addEventListener("click", () => {
+          const shotId = String(this.widgets?.[0]?.value || "").trim();
+          if (shotId && !button.disabled) postAction("open-shot-video", shotId, button);
+        });
+        action.append(button);
+        const widget = this.addDOMWidget("manying-shot-actions", "manying-shot-actions", action, {
+          hideOnZoom: false,
+          getHeight: () => 44,
+          getMinHeight: () => 44,
+        });
+        this.__manyingShotActions = { action, button, widget };
+        update();
+      } catch (error) { /* 兜底=原生外观 */ }
+      return result;
+    };
+    const onConfigureWithActions = nodeType.prototype.onConfigure;
+    nodeType.prototype.onConfigure = function () {
+      const result = onConfigureWithActions?.apply(this, arguments);
+      try {
+        for (const widget of this.widgets || []) widget.hidden = true;
+        this.__manyingShotActions?.button && (() => {
+          const ready = String(this.widgets?.[3]?.value || "").includes("图✓");
+          this.__manyingShotActions.button.disabled = !ready;
+          this.__manyingShotActions.button.title = ready ? "打开该镜的漫影 H3 视频制作工作流" : "先生成画面";
+          this.__manyingShotActions.button.style.opacity = ready ? "1" : ".48";
+        })();
       } catch (error) { /* 兜底=原生外观 */ }
       return result;
     };

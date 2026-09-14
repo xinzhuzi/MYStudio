@@ -33,7 +33,7 @@ const LOWER_ROW_GAP = 120; // 下排(资产分支/分镜子图)与主线的垂�
 const GROUP_PAD = 20;
 const SHOTS_PER_COLUMN = 10;
 const SHOT_NODE_WIDTH = 360;
-const SHOT_NODE_HEIGHT = 232; // 输入框退役(官方 hidden 位)=标题栏+缩略图带
+const SHOT_NODE_HEIGHT = 276; // 输入框退役(官方 hidden 位)=标题栏+缩略图带
 const SHOT_COLUMN_GAP = 90;
 const SHOT_ROW_GAP = 40;
 
@@ -252,7 +252,8 @@ export function buildStageNodePayload(input: {
         actions: [{ kind: "generate-images", label: "一键生图", disabled: shots.length === 0 }],
         tiles: shots.map((item) => ({
           index: item.index,
-          title: item.videoDesc || item.prompt || `分镜 ${item.index}`,
+          // 09-14 用户裁定:磁贴只放标号——描述不铺字(悬停 tooltip 走 lines)
+          title: `S${String(item.index).padStart(2, "0")}`,
           preview: shotPreviewName(item),
           hasImage: item.mediaRef?.kind === "image" && Boolean(item.mediaRef.path),
           hasVideo: item.mediaRef?.kind === "video" && Boolean(item.mediaRef.path),
@@ -535,9 +536,8 @@ export function buildStoryboardPipelineWorkflow(input: {
   });
 
   // 分镜内容子图(09-12 用户裁定:镜子节点住子图,主图只留整条流程):
-  // 复用总览产物作为子图内部节点;主图在分镜面板组内放一个子图引用节点。
+  // 复用总览产物作为子图内部节点;引用节点泊远场(09-14 裁定,见下)。
   const overview = buildStoryboardOverviewWorkflow(input.storyboards);
-  const storyboardStage = stageNodes.find((node) => node.id === nodeId.get("storyboard"))!;
   const chapters = (overview.report.chapters ?? []) as string[];
   const chapterKey = chapters[0] ?? "all";
   // 确定性子图 id(同章同名,uuid 形态;每文档独立命名空间,无碰撞面)
@@ -558,17 +558,18 @@ export function buildStoryboardPipelineWorkflow(input: {
   const gridRows = Math.min(subNodes.length, SHOTS_PER_COLUMN);
   const gridHeight = Math.max(1, gridRows) * (SHOT_NODE_HEIGHT + SHOT_ROW_GAP);
 
-  // 主图:分镜面板组内放子图引用节点(type=子图 uuid,照官方模板样例);
-  // 横向布局=挂分镜面板节点正下方(组框纵向扩容包住)
+  // 主图:子图引用节点泊远场+折叠(09-14 用户裁定:主图不再展示独立
+  // 「分镜内容」节点,入口=分镜面板节点「分镜内容」按钮经 canvas.openSubgraph
+  // 原生进入)——节点本体必须保留:它是子图定义的引用锚,删了定义随保存丢失;
+  // 泊到主线最右端外+折叠,工作区不可见,引擎按钮按标题寻址进入。
   const subgraphNode = {
     id: stageNodes.length + 1,
     type: subgraphId,
-    // 标题栏与子图定义同名(不设则回落 uuid 型名,不可读)
+    // 标题栏与子图定义同名(不设则回落 uuid 型名,不可读;引擎按钮寻址依赖)
     title: `分镜内容 · ${chapterKey}`,
-    // 横向布局=挂分镜面板节点正下方(最坏高度锚定,组框纵向扩容包住)
-    pos: [storyboardStage.pos[0], storyboardStage.pos[1] + STAGE_SQUARE_MAX + 40] as [number, number],
+    pos: [8000, MAINLINE_Y] as [number, number],
     size: [480, 300],
-    flags: {},
+    flags: { collapsed: true },
     order: stageNodes.length + 1,
     mode: 0,
     inputs: [] as unknown[],
@@ -585,7 +586,8 @@ export function buildStoryboardPipelineWorkflow(input: {
   // 09-12 用户裁定:标题就是「分镜工作流」不加其他内容——分镜阶段章内
   // 聚焦,当前章的画布恒此名(库文件单条,随章保鲜覆写;切章=已开未修改
   // 则关旧开新拿保鲜链最新,单实例协议照常)。
-  const name = input.name ?? "分镜工作流";
+  // 09-14 用户裁定(二次修订):漫影工作流文件名一律 `MY-` 前缀(弃 _my 后缀)。
+  const name = input.name ?? "MY-分镜工作流";
 
   return {
     ui: {

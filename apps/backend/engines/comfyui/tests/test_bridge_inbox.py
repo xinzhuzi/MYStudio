@@ -32,6 +32,11 @@ def test_append_list_ack_roundtrip(home):
     slim = bridge_inbox.list_since(1, include_image=False)
     assert "imageB64" not in slim["items"][0]
 
+    bridge_inbox.append({"shotTarget": "S01-03", "meta": {"kind": "video"}}, "bXA0", "videoB64")
+    video = bridge_inbox.list_since(1)["items"][1]
+    assert video["videoB64"] == "bXA0"
+    assert "videoB64" not in bridge_inbox.list_since(1, include_image=False)["items"][1]
+
     assert bridge_inbox.ack(1) == 1
     assert bridge_inbox.list_since(0)["items"][0]["shotTarget"] == "S01-02"
 

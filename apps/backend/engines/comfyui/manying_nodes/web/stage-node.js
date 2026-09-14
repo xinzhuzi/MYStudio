@@ -7,6 +7,7 @@
  * 保留实例级 onDrawBackground 覆写静音 canvas 自绘;删除本文件即回退 canvas 渲染。
  */
 import { app } from "/scripts/app.js";
+import { BRIDGE_TOKEN, BRIDGE_URL, postAction } from "./bridge-action.js";
 // 每型节点 UI 独立模块(09-13 用户裁定:不同代码分模块,适应 ComfyUI):
 // stage-ui/ 下七型各一文件+common 公共件+vendor(markdown-it MIT);
 // 本文件只做壳(头区/动作/组稿器/速查卡/轮询/高度)与按 payload.key 分发。
@@ -30,9 +31,6 @@ const STAGE_UI_REGISTRY = new Map([
   [shotProductionUI.key, shotProductionUI],
   [workbenchUI.key, workbenchUI],
 ]);
-
-const BRIDGE_URL = (window.MANYING_BRIDGE_URL || "http://127.0.0.1:17595").replace(/\/$/, "");
-const BRIDGE_TOKEN = window.MANYING_BRIDGE_TOKEN || "manying-local-image";
 
 /** 缩略/封面晚到兜底:保鲜链补传一轮后文件才在(冷启动竞态)——404 后 2.5s
  * 换缓存戳重试至多 3 次,仍败=隐藏(占位文字在 img 之下自然透出)。 */
@@ -96,8 +94,9 @@ const STYLES = `
 .ms-body.ms-scroll::-webkit-scrollbar-track{background:transparent;}
 .ms-body.ms-scroll::-webkit-scrollbar-thumb{background:rgba(255,255,255,.14);border-radius:999px;}
 .ms-body.ms-scroll::-webkit-scrollbar-thumb:hover{background:rgba(110,168,254,.45);}
-.ms-pill{align-self:flex-start;font-size:10px;font-weight:600;letter-spacing:.04em;
-  color:rgba(178,188,204,.9);background:rgba(255,255,255,.06);border-radius:999px;padding:2px 9px;}
+.ms-empty{display:flex;align-items:center;justify-content:center;min-height:56px;
+  font-size:10.5px;color:rgba(160,172,190,.62);background:rgba(255,255,255,.03);
+  border:1px dashed rgba(255,255,255,.08);border-radius:8px;padding:8px;text-align:center;}
 .ms-lines{display:flex;flex-direction:column;font-size:11.5px;line-height:1.78;
   color:rgba(226,232,242,.82);}
 .ms-md{font-size:11.5px;line-height:1.78;letter-spacing:.01em;color:rgba(224,230,240,.86);}
@@ -243,10 +242,11 @@ const STATUS_COLOR = Object.fromEntries(
 
 // 文档型环节(09-13 用户裁定:每一型都要「查看完全」):七型注入查看按钮;
 // 可编辑三型(script/scriptPlan/storyboardTable=编辑器状态机可写集合)加「编辑」。
-// 阶段直达型(09-13 用户裁定):衍生资产/分镜面板/单镜生产/工作台=「详情」
-// 直达宿主对应阶段页(assets→剧本资产;storyboard→分镜详情 storyboardPanel;
-// remotionProduction/workbench→视频工作台,老画布 targetStage 同源),不开弹窗。
-// 真文档型(script/scriptPlan/storyboardTable)才保留「全文」弹窗。
+// 阶段直达型(09-13/14 用户裁定):衍生资产/分镜表/分镜面板/单镜生产/工作台
+// =「详情」直达宿主对应阶段页(assets→剧本资产;storyboardTable/storyboard→
+// 分镜面板 storyboardPanel;remotionProduction/workbench→视频工作台,老画布
+// targetStage 同源),不开弹窗——分镜表弹窗重且慢,分镜内容本就归分镜面板。
+// 真文档型(script/scriptPlan)才保留「全文」弹窗。
 // 按钮经桥动作回宿主,note=环节 key(宿主寻节点/路由)。
 const DOC_VIEWER_KEYS = new Set([
   "script", "scriptPlan", "assets", "storyboardTable",
@@ -254,11 +254,14 @@ const DOC_VIEWER_KEYS = new Set([
 ]);
 const DOC_EDITOR_KEYS = new Set(["script", "scriptPlan", "storyboardTable"]);
 const DOC_VIEW_LABELS = {
-  assets: "详情", storyboard: "详情",
+  assets: "详情", storyboard: "详情", storyboardTable: "详情",
   remotionProduction: "详情", workbench: "详情",
 };
 const docButtons = (key) => {
   const buttons = [];
+  // 分镜面板专属(09-14 用户裁定:按之前设计,分镜内容入口=节点按钮,主图
+  // 不再摆独立子图节点)——本地动作,canvas.openSubgraph 原生进入
+  if (key === "storyboard") buttons.push({ kind: "open-shot-grid", label: "分镜内容" });
   if (DOC_VIEWER_KEYS.has(key)) {
     buttons.push({ kind: "view-doc", label: DOC_VIEW_LABELS[key] || "全文", noteKey: key });
   }
@@ -387,6 +390,15 @@ function wireActions(node, el) {
     }
     const button = event.target.closest(".ms-btn");
     if (!button || button.disabled) return;
+    // 分镜内容(09-14):本地进入子图,不经桥——官方 canvas.openSubgraph
+    const kind0 = button.dataset.kind || "";
+    if (kind0 === "open-shot-grid") {
+      const nodes = window.app?.canvas?.graph?._nodes || [];
+      const ref = nodes.find((n) => n.type !== "ManyingStage" && String(n.title || "").includes("分镜内容"))
+        || nodes.find((n) => n.subgraph && String(n.title || "").includes("分镜内容"));
+      if (ref && window.app.canvas?.openSubgraph) window.app.canvas.openSubgraph(ref.subgraph, ref);
+      return;
+    }
     const kind = button.dataset.kind || "";
     // B1 补充要求(09-12 功能差异补齐):付费动作先出组稿器(补充要求可空),
     // 执行才过桥——note 随动作入队,宿主经 userInstruction 语义喂付费生成。
@@ -406,19 +418,6 @@ function wireActions(node, el) {
     if (button.classList.contains("ms-btn--go")) closeComposer(el);
     postAction(kind, note, button);
   });
-}
-
-function postAction(kind, note, button) {
-  if (button) {
-    button.classList.remove("ms-btn--flash");
-    void button.offsetWidth; // 重启动画
-    button.classList.add("ms-btn--flash");
-  }
-  fetch(`${BRIDGE_URL}/comfy/bridge/actions`, {
-    method: "POST",
-    headers: { "X-Manying-Image-Token": BRIDGE_TOKEN, "Content-Type": "application/json" },
-    body: JSON.stringify(note ? { kind, note } : { kind }),
-  }).catch(() => undefined);
 }
 
 function openComposer(el, kind, label) {
@@ -491,11 +490,11 @@ function installQueuePoller() {
 // ── B3 画布速查卡(老画布 CanvasHints 等价迁移):首开自动浮出五条核心用法,
 // 可关闭+localStorage 记忆,右下角「?」随时唤回。外挂 DOM,零改 ComfyUI 本体。──
 const HINTS_ITEMS = [
-  ["导航", "拖拽画布空白处平移,滚轮缩放;双击空白可添加节点"],
-  ["制作动作", "环节节点底部按钮:主色=本地/免费,金色⭐=付费云端(可填补充要求)"],
-  ["分镜总览", "「分镜面板」磁贴网格=本章全部分镜,缩略图缺失会自动重试"],
-  ["队列进度", "「单镜视频生产」每镜徽章每 2 秒实进(渲染中带进度条)"],
-  ["完整内容", "节点只展示概览;全文与操作进「阶段面板」(悬浮球切换阶段)"],
+  ["导航", "拖拽画布空白处平移,空白处滚轮缩放;双击空白可添加节点"],
+  ["节点按钮", "全文=文档弹窗(剧本/导演规划);详情=直达对应阶段页;分镜内容=进入每镜子图;金色⭐=付费云端(可填补充要求)"],
+  ["分镜内容", "分镜面板节点「分镜内容」进入子图;每镜双关键帧并排,标号即卡片"],
+  ["正文滚动", "内容超出帽高的节点,正文区可直接滚轮滚动(不会缩放画布)"],
+  ["进度与技能", "头区进度对=已做/要做;技能胶囊点开看来源与摘要;队列徽章 2 秒实进"],
 ];
 
 function installCanvasHints() {

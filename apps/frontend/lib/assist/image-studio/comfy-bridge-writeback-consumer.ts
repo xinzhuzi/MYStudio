@@ -13,6 +13,8 @@ import { toast } from "sonner";
 
 import type { ComfyBridgeWritebackItem } from "@/components/panels/settings/comfy-engine/comfy-engine-contract";
 import { persistComfyImage } from "@/lib/assist/image-studio/comfy-execute";
+import { getProjectFilesBridge } from "@/lib/bridge/project-files";
+import { useProjectStore } from "@/stores/project/project-store";
 import { useStudioStore } from "@/stores/studio/studio-store";
 import { storyboardSourceFingerprint } from "@/stores/studio/studio-store-continuity-helpers";
 import type { StoryboardItem } from "@/types/studio";
@@ -27,6 +29,13 @@ export interface ConsumeComfyBridgeWritebacksDeps {
   storyboards: () => StoryboardItem[];
   /** 分镜落账(默认实现=updateStoryboard+mediaTask 台账,镜像 image-workflow-slice)。 */
   applyToStoryboard: (storyboardId: string, url: string, item: ComfyBridgeWritebackItem) => void;
+  applyVideoToStoryboard: (storyboardId: string, url: string, item: ComfyBridgeWritebackItem, policy: string) => void;
+  projectId: () => string | null;
+  writeProjectBinary: (projectId: string, relativePath: string, bytes: ArrayBuffer) => Promise<{
+    success: boolean;
+    url?: string;
+    error?: string;
+  }>;
   persist: (b64: string, title: string, options: { source: string; prompt: string }) => Promise<{ url: string | null }>;
   notify: (kind: "storyboard" | "media" | "memory" | "error", detail: string) => void;
 }
@@ -71,6 +80,58 @@ function defaultApplyToStoryboard(storyboardId: string, url: string, item: Comfy
   });
 }
 
+function defaultApplyVideoToStoryboard(
+  storyboardId: string,
+  url: string,
+  _item: ComfyBridgeWritebackItem,
+  policy: string,
+): void {
+  const store = useStudioStore.getState();
+  const storyboard = store.storyboards.find((entry) => entry.id === storyboardId);
+  if (!storyboard) return;
+  const candidateNumber = store.videoCandidates.filter(
+    (candidate) => candidate.provider === "h3-comfyui" && candidate.trackId === storyboard.trackId,
+  ).length + 1;
+  store.updateStoryboard(storyboardId, {
+    mediaRef: { kind: "video", path: url },
+    outputVersion: (storyboard.outputVersion ?? 0) + 1,
+  });
+  store.addVideoCandidate({
+    id: `h3-${storyboard.id}-${candidateNumber}`,
+    trackId: storyboard.trackId,
+    provider: "h3-comfyui",
+    filePath: url,
+    meta: { policy },
+    state: "ready",
+    createdAt: Date.now(),
+  });
+}
+
+function decodeBase64(value: string): ArrayBuffer {
+  const binary = atob(value);
+  const bytes = new Uint8Array(binary.length);
+  for (let index = 0; index < binary.length; index += 1) bytes[index] = binary.charCodeAt(index);
+  return bytes.buffer;
+}
+
+function safePathSegment(value: string): string {
+  if (!/^[A-Za-z0-9][A-Za-z0-9._-]*$/.test(value)) throw new Error("视频回写目标路径不合法");
+  return value;
+}
+
+function videoPolicy(item: ComfyBridgeWritebackItem): string {
+  if (item.kind && item.kind !== "video") throw new Error("视频回写类型不合法");
+  const policy = item.meta?.policy;
+  if (typeof policy !== "string" || !policy.trim()) return "ambient";
+  if (!/^[A-Za-z0-9._-]+$/.test(policy)) throw new Error("视频回写策略名不合法");
+  return policy;
+}
+
+function assertVideoSubfolder(item: ComfyBridgeWritebackItem, storyboard: StoryboardItem): void {
+  const expected = `video/漫影/${storyboard.episodeId}/${storyboard.id}`;
+  if (item.meta?.subfolder !== expected) throw new Error("视频回写产物路径不在白名单");
+}
+
 let cursor = 0;
 
 export function resetComfyBridgeCursorForTests(): void {
@@ -84,6 +145,15 @@ export async function consumeComfyBridgeWritebacks(
     client: deps.client ?? { getBridgeWritebacks: async () => null, ackBridgeWritebacks: async () => 0 },
     storyboards: deps.storyboards ?? (() => useStudioStore.getState().storyboards),
     applyToStoryboard: deps.applyToStoryboard ?? defaultApplyToStoryboard,
+    applyVideoToStoryboard: deps.applyVideoToStoryboard ?? defaultApplyVideoToStoryboard,
+    projectId: deps.projectId ?? (() => useProjectStore.getState().activeProjectId),
+    writeProjectBinary:
+      deps.writeProjectBinary ??
+      (async (projectId, relativePath, bytes) => {
+        const bridge = getProjectFilesBridge();
+        if (!bridge) return { success: false, error: "项目文件桥不可用" };
+        return bridge.writeBinary({ projectId, relativePath, bytes });
+      }),
     persist: deps.persist ?? ((b64, title, options) => persistComfyImage(b64, title, options)),
     notify:
       deps.notify ??
@@ -101,7 +171,34 @@ export async function consumeComfyBridgeWritebacks(
   for (const item of reply.items) {
     if (item.id <= cursor) continue; // 防御:服务端应已滤,双保险防重复落账
     try {
-      if (item.imageB64) {
+      if (item.videoB64) {
+        const storyboardId = parseShotTarget(item.shotTarget, resolved.storyboards());
+        if (!storyboardId) throw new Error(`找不到视频回写目标:${item.shotTarget ?? ""}`);
+        const storyboard = resolved.storyboards().find((entry) => entry.id === storyboardId);
+        if (!storyboard) throw new Error(`分镜不存在:${storyboardId}`);
+        const projectId = resolved.projectId();
+        if (!projectId) throw new Error("当前没有活动项目,无法落盘视频");
+        assertVideoSubfolder(item, storyboard);
+        const policy = videoPolicy(item);
+        const version = useStudioStore.getState().videoCandidates.filter(
+          (candidate) => candidate.provider === "h3-comfyui" && candidate.trackId === storyboard.trackId,
+        ).length + 1;
+        const timestamp = item.ts ?? Date.now();
+        const relativePath = [
+          "remotion",
+          "outputs",
+          "shots",
+          safePathSegment(storyboard.episodeId),
+          safePathSegment(storyboard.id),
+          "h3",
+          `${policy}_v${version}_${timestamp}.mp4`,
+        ].join("/");
+        const written = await resolved.writeProjectBinary(projectId, relativePath, decodeBase64(item.videoB64));
+        if (!written.success || !written.url) throw new Error(written.error ?? "项目视频落盘失败");
+        resolved.applyVideoToStoryboard(storyboardId, written.url, item, policy);
+        resolved.notify("storyboard", `${item.shotTarget ?? storyboardId} 单镜视频已回收入项目(${policy} 档)`);
+        landed += 1;
+      } else if (item.imageB64) {
         const title = item.shotTarget ? `comfy-${item.shotTarget}` : "comfy-canvas";
         const persisted = await resolved.persist(item.imageB64, title, {
           source: "comfy-bridge",

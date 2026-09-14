@@ -13,10 +13,12 @@ import { Loader2, PlayCircle, ServerCog } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { useComfyEngineSettings } from "@/components/panels/settings/comfy-engine/useComfyEngineSettings";
-import { getComfyEngineClient } from "@/components/panels/settings/comfy-engine/comfy-engine-contract";
+import { getComfyEngineClient, type ComfyEngineClient } from "@/components/panels/settings/comfy-engine/comfy-engine-contract";
 import { resolveProductionEpisodeId } from "@/components/panels/studio/workflow-helpers";
-import { consumeComfyBridgeWritebacks } from "@/lib/assist/image-studio/comfy-bridge-writeback-consumer";
-import { ensureStageAssetCoversUploaded, invalidateOverviewSyncForEngineStart, syncStoryboardOverviewToLibrary } from "@/lib/assist/image-studio/storyboard-overview-sync";
+import { consumeComfyBridgeWritebacks, parseShotTarget } from "@/lib/assist/image-studio/comfy-bridge-writeback-consumer";
+import { createHttpComfyWorkflowLibraryTransport } from "@/lib/assist/image-studio/comfy-sidecar-bridge";
+import { buildShotH3Workflow } from "@/lib/assist/image-studio/h3-shot-video-workflow";
+import { ensureStageAssetCoversUploaded, invalidateOverviewSyncForEngineStart, readStoryboardImageB64, syncStoryboardOverviewToLibrary } from "@/lib/assist/image-studio/storyboard-overview-sync";
 import { buildStageNodePayloadFromState, buildStageSummaries, buildStoryboardPipelineWorkflow } from "@/lib/assist/image-studio/storyboard-pipeline-comfy";
 import { mapProductionFlowNodesToStagePayloads } from "./stage-payload-map";
 import type { ProductionFlowNodeModel } from "../../studio/workflow-node-model-schema";
@@ -60,9 +62,14 @@ export function buildSignInCloakScript(): string {
  * "graph accessed before initialization" 且加载流程半途断掉
  * (09-11 实弹:画布右侧露黑带的竞态入口之一)。
  */
-export function buildOverviewOpenScript(graph: Record<string, unknown>, workflowId: string): string {
+export function buildOverviewOpenScript(
+  graph: Record<string, unknown>,
+  workflowId: string,
+  options: { force?: boolean } = {},
+): string {
   const literal = JSON.stringify(graph);
   const idLiteral = JSON.stringify(workflowId);
+  const guard = options.force ? "false" : "window.__manyingOverviewAutoOpened";
   return `(function () {
   function tryLoad(attempt) {
     var app = window.app;
@@ -87,7 +94,7 @@ export function buildOverviewOpenScript(graph: Record<string, unknown>, workflow
     }
     if (attempt < 50) setTimeout(function () { tryLoad(attempt + 1); }, 300);
   }
-  if (!window.__manyingOverviewAutoOpened) tryLoad(0);
+  if (!${guard}) tryLoad(0);
 })();`;
 }
 
@@ -206,6 +213,40 @@ async function openStageWorkflowIntoCanvas(
   )?.catch(() => undefined);
 }
 
+async function openShotVideoWorkflowIntoCanvas(
+  node: WebviewElement,
+  client: ComfyEngineClient,
+  note: string | undefined,
+): Promise<void> {
+  const state = useStudioStore.getState();
+  const storyboardId = parseShotTarget(note, state.storyboards);
+  const shot = storyboardId ? state.storyboards.find((item) => item.id === storyboardId) : undefined;
+  if (!shot) {
+    toast.error("找不到这面镜头");
+    return;
+  }
+  if (shot.mediaRef?.kind !== "image" || !shot.mediaRef.path) {
+    toast.error("该镜还没有关键帧");
+    return;
+  }
+  const chapter = state.novelChapters.find((item) => item.id === shot.episodeId);
+  const chapterLabel = chapter?.title || shot.episodeId;
+  const safeId = shot.id.replace(/[^A-Za-z0-9._-]+/g, "_");
+  const imageName = `manying-shot-h3-${safeId}.jpg`;
+  const imageB64 = await readStoryboardImageB64(shot.mediaRef.path);
+  const uploaded = await client.uploadBridgeReference(imageName, imageB64);
+  if (!uploaded?.accepted) throw new Error("关键帧上传失败");
+  const workflow = buildShotH3Workflow({ shot, chapterId: shot.episodeId, chapterLabel, policy: "ambient", imageName });
+  const workflowId = `漫影/2_视频/H3视频/1_漫影自研/0_单镜视频/${workflow.name}.json`;
+  const imported = await createHttpComfyWorkflowLibraryTransport().importFiles(
+    [{ name: workflowId, content: JSON.stringify(workflow.ui, null, 1) }],
+    "overwrite",
+  );
+  if (!imported.some((item) => item.status !== "failed")) throw new Error("工作流保存失败");
+  await node.executeJavaScript?.(buildOverviewOpenScript(workflow.ui, workflowId, { force: true }));
+  toast.success(`已打开 ${String(workflow.name.match(/S\d+$/)?.[0] || `S${String(shot.index).padStart(2, "0")}`)} 单镜视频工作流`);
+}
+
 export interface ComfyCanvasStudioProps {
   /**
    * 工作流阶段专用(09-10 用户裁定):webview 就绪即自动打开本章分镜总览。
@@ -245,6 +286,7 @@ export interface ComfyCanvasStudioProps {
 
 export function ComfyCanvasStudio({ autoOpenOverview = false, manyingScope, sidebarActions, stageFlowNodes }: ComfyCanvasStudioProps = {}) {
   const webviewRef = useRef<WebviewElement | null>(null);
+  const openShotVideoInFlightRef = useRef(new Set<string>());
   // attach 闭包在首次挂载时固化(防重监听),prop 走 ref 保持读取新鲜值
   const autoOpenRef = useRef(autoOpenOverview);
   autoOpenRef.current = autoOpenOverview;
@@ -304,33 +346,44 @@ export function ComfyCanvasStudio({ autoOpenOverview = false, manyingScope, side
   const sidebarActionsRef = useRef(sidebarActions);
   sidebarActionsRef.current = sidebarActions;
   const consumeSidebarActions = useCallback(async () => {
-    if (!sidebarActionsRef.current) return;
     const listed = await client?.getBridgeActions(actionCursorRef.current);
     if (!listed) return;
     actionCursorRef.current = listed.cursor;
     for (const item of listed.items) {
       if (item.kind === "generate-images") {
         toast.info("侧栏指令:开始批量生图(当前章未生成分镜)");
-        sidebarActionsRef.current.onGenerateImages();
+        sidebarActionsRef.current?.onGenerateImages();
       } else if (item.kind === "generate-videos") {
         toast.info("侧栏指令:开始生成所有分镜视频");
-        sidebarActionsRef.current.onGenerateVideos();
+        sidebarActionsRef.current?.onGenerateVideos();
       } else if (item.kind === "generate-director-plan") {
         toast.info(item.note ? "环节指令:生成导演规划(付费·带补充要求)" : "环节指令:生成导演规划(付费云端)");
-        sidebarActionsRef.current.onGenerateDirectorPlan?.(item.note || "");
+        sidebarActionsRef.current?.onGenerateDirectorPlan?.(item.note || "");
       } else if (item.kind === "generate-storyboard-table") {
         toast.info(item.note ? "环节指令:生成分镜表(付费·带补充要求)" : "环节指令:生成分镜表(付费云端)");
-        sidebarActionsRef.current.onGenerateStoryboardTable?.(item.note || "");
+        sidebarActionsRef.current?.onGenerateStoryboardTable?.(item.note || "");
       } else if (item.kind === "rebuild-workbench-tracks") {
         toast.info("环节指令:重建视频轨道");
-        sidebarActionsRef.current.onRebuildWorkbenchTracks?.();
+        sidebarActionsRef.current?.onRebuildWorkbenchTracks?.();
       } else if (item.kind === "view-doc") {
-        sidebarActionsRef.current.onViewNodeDoc?.(item.note || "");
+        sidebarActionsRef.current?.onViewNodeDoc?.(item.note || "");
       } else if (item.kind === "edit-doc") {
-        sidebarActionsRef.current.onEditNodeDoc?.(item.note || "");
+        sidebarActionsRef.current?.onEditNodeDoc?.(item.note || "");
       } else if (item.kind === "extract-assets") {
         toast.info("环节指令:从当前剧本抽取资产");
-        sidebarActionsRef.current.onExtractAssets?.();
+        sidebarActionsRef.current?.onExtractAssets?.();
+      } else if (item.kind === "open-shot-video") {
+        const target = item.note || "";
+        if (openShotVideoInFlightRef.current.has(target)) continue;
+        const node = webviewRef.current;
+        if (!node || !client) {
+          toast.error("画布还没准备好，请稍后再试");
+          continue;
+        }
+        openShotVideoInFlightRef.current.add(target);
+        void openShotVideoWorkflowIntoCanvas(node, client, target).catch((error) => {
+          toast.error(error instanceof Error ? error.message : "打开单镜视频工作流失败");
+        }).finally(() => openShotVideoInFlightRef.current.delete(target));
       }
     }
     if (listed.items.length > 0) {

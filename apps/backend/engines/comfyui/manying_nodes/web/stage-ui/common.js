@@ -92,3 +92,8 @@ export function renderMarkdown(text) {
   if (mdRenderer) return mdRenderer.render(stripWrapperTags(source));
   return `<div class="ms-lines">${source.split("\n").map((line) => `<div>${esc(line)}</div>`).join("")}</div>`;
 }
+
+/** 空态占位(09-14 UI 收尾:七型统一,数据缺席也给可读反馈) */
+export function emptyHTML(text) {
+  return `<div class="ms-empty">${esc(text)}</div>`;
+}

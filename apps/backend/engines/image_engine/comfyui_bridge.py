@@ -201,7 +201,8 @@ def _fetch_bytes(url: str, timeout: float = 30) -> bytes:
 
 
 def _template_path(name: str) -> Path:
-    return _WORKFLOWS_DIR / f"{name}.json"
+    # 09-14 用户裁定(二次修订):漫影工作流文件名一律 `MY-` 前缀(模板名=API 面 id 不变)
+    return _WORKFLOWS_DIR / f"MY-{name}.json"
 
 
 def load_template(name: str) -> dict[str, Any]:
@@ -348,7 +349,7 @@ def generate(prompt: str, aspect_ratio: str, negative_prompt: str | None, steps:
         template_name = "krea2_t2i"
     # 无参考图可跑的纯文生图模板白名单(manying_t2i 09-11 漫影专属生图;
     # manying_t2i_fast 09-12 Krea2 加速档;其余点名模板编辑流需要参考图)
-    if template_name not in ("krea2_t2i", "krea2_nsfw_pro", "manying_t2i", "manying_t2i_fast") and not references:
+    if template_name not in ("krea2_t2i", "krea2_nsfw_pro", "manying_t2i", "manying_t2i_fast", "krea2_daojie_t2i") and not references:
         raise _pipeline_error("bridge-template-missing", f"模板需要参考图: {template_name}")
     template = load_template(template_name)
     _warn_if_version_below_min(stats, template)

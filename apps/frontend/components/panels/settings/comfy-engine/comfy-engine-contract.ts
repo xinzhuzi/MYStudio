@@ -366,6 +366,7 @@ export interface ComfyEngineClient {
 /** bridge 回写收件项(引擎 manying_generated → sidecar;渲染层消费)。 */
 export interface ComfyBridgeWritebackItem {
   id: number;
+  kind?: "image" | "video";
   client?: string;
   shotTarget?: string;
   prompt?: string;
@@ -373,6 +374,8 @@ export interface ComfyBridgeWritebackItem {
   ts?: number;
   /** 轮询 include_image=1 时携带(PNG base64);瘦轮询省略。 */
   imageB64?: string;
+  /** 视频回写轮询时携带(MP4 base64);瘦轮询省略。 */
+  videoB64?: string;
 }
 
 export interface ComfyBridgeWritebacksReply {
@@ -633,4 +636,3 @@ export function launchArgsWarnings(input: string): LaunchArgsWarning[] {
   });
   return warnings;
 }
-

@@ -16,7 +16,7 @@
 import type { ComfyWorkflowLibraryTransport } from "@/lib/assist/image-studio/comfy-workflow-library";
 import { comfyImageUrlToB64 } from "@/lib/assist/image-studio/comfy-execute";
 import { createHttpComfyWorkflowLibraryTransport } from "@/lib/assist/image-studio/comfy-sidecar-bridge";
-import { shotPreviewName } from "@/lib/assist/image-studio/storyboard-overview-comfy";
+import { shotPreview2Name, shotPreview2Source, shotPreviewName } from "@/lib/assist/image-studio/storyboard-overview-comfy";
 import { buildStageNodePayloadFromState, buildStageSummaries, buildStoryboardPipelineWorkflow } from "@/lib/assist/image-studio/storyboard-pipeline-comfy";
 import { prepareReferenceImageForTransfer } from "@/lib/ai/image-transfer";
 import { shardContentStamp } from "@/lib/storage/studio-workflow-shards";
@@ -56,25 +56,38 @@ export interface OverviewSyncDeps {
   uploadPreview?: (name: string, imageB64: string) => Promise<boolean>;
 }
 
+export function readStoryboardImageB64(url: string): Promise<string> {
+  return comfyImageUrlToB64(url);
+}
+
 /** 缩略上传 best-effort:失败只计数不阻断导入(节点退化为纯文字卡) */
 async function uploadShotPreviews(storyboards: StoryboardItem[], deps: OverviewSyncDeps): Promise<number> {
-  const readImageB64 = deps.readImageB64 ?? ((url) => comfyImageUrlToB64(url).catch(() => null));
+  const readImageB64 = deps.readImageB64 ?? ((url) => readStoryboardImageB64(url).catch(() => null));
   const uploadPreview =
     deps.uploadPreview ??
     (async (name, imageB64) => (await getComfyEngineClient()?.uploadBridgeReference(name, imageB64))?.accepted === true);
   let uploaded = 0;
   for (const storyboard of storyboards) {
-    const name = shotPreviewName(storyboard);
-    if (!name) continue;
-    const raw = await readImageB64(storyboard.mediaRef?.path ?? "");
-    if (!raw) continue;
-    try {
-      const dataUrl = raw.startsWith("data:") ? raw : `data:image/jpeg;base64,${raw}`;
-      const prepared = await prepareReferenceImageForTransfer(dataUrl);
-      const pure = prepared.slice(prepared.indexOf(",") + 1);
-      if (await uploadPreview(name, pure)) uploaded += 1;
-    } catch {
-      // 单镜缩略失败不阻断:该镜节点暂无图,下次指纹变化重试
+    // 双帧上传(09-14 用户裁定:每镜多张图都上屏):帧1=manying-shot-<id>.jpg,
+    // 帧2=manying-shot-<id>-k2.jpg(回接后每镜常 2 帧);best-effort 同款
+    const jobs: Array<[string, string]> = [];
+    const name1 = shotPreviewName(storyboard);
+    if (name1) jobs.push([name1, storyboard.mediaRef?.path ?? ""]);
+    const name2 = shotPreview2Name(storyboard);
+    const source2 = shotPreview2Source(storyboard);
+    if (name2 && source2) jobs.push([name2, source2]);
+    for (const [name, sourcePath] of jobs) {
+      if (!sourcePath) continue;
+      const raw = await readImageB64(sourcePath);
+      if (!raw) continue;
+      try {
+        const dataUrl = raw.startsWith("data:") ? raw : `data:image/jpeg;base64,${raw}`;
+        const prepared = await prepareReferenceImageForTransfer(dataUrl);
+        const pure = prepared.slice(prepared.indexOf(",") + 1);
+        if (await uploadPreview(name, pure)) uploaded += 1;
+      } catch {
+        // 单镜缩略失败不阻断:该镜节点暂无图,下次指纹变化重试
+      }
     }
   }
   return uploaded;
@@ -89,7 +102,7 @@ export async function ensureStageAssetCoversUploaded(
   payloads: import("./storyboard-pipeline-comfy").StageNodePayload[],
   deps: OverviewSyncDeps = {},
 ) {
-  const readImageB64 = deps.readImageB64 ?? ((url) => comfyImageUrlToB64(url).catch(() => null));
+  const readImageB64 = deps.readImageB64 ?? ((url) => readStoryboardImageB64(url).catch(() => null));
   const uploadPreview =
     deps.uploadPreview ??
     (async (name, imageB64) => (await getComfyEngineClient()?.uploadBridgeReference(name, imageB64))?.accepted === true);
@@ -162,6 +175,9 @@ export async function syncStoryboardOverviewToLibrary(deps: OverviewSyncDeps = {
     const transport = deps.transport ?? createHttpComfyWorkflowLibraryTransport();
     const chapterIds = [...new Set(storyboards.map((item) => item.episodeId))];
     const legacyIds = [
+      // 09-14 `MY-` 前缀裁定前的无后缀/_my 两种旧现名都按旧名清(best-effort,幂等)
+      `漫影/1_图片/分镜/0_工作流主线/分镜工作流.json`,
+      `漫影/1_图片/分镜/0_工作流主线/分镜工作流_my.json`,
       ...chapterIds.map((ch) => `漫影/1_图片/分镜/0_工作流主线/分镜工作流 · ${ch}.json`),
       ...(chapterIds.length > 1
         ? [`漫影/1_图片/分镜/0_工作流主线/分镜工作流(${chapterIds.length} 章).json`]

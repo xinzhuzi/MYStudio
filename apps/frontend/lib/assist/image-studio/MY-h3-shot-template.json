@@ -199,13 +199,13 @@
     "ver": "0.33.2"
    },
    "widgets_values": [
-    "video/漫影_S00",
+    "video/漫影/chapter-001/sb-chapter-001-001/ambient",
     "auto",
     "auto",
     "auto"
    ],
    "widgets_values_named": {
-    "filename_prefix": "video/H3_960P",
+    "filename_prefix": "video/漫影/chapter-001/sb-chapter-001-001/ambient",
     "format": "auto",
     "format.codec": "auto",
     "codec": "auto"
@@ -2187,7 +2187,7 @@
     }
    },
    "widgets_values": [
-    "## 漫影自研单镜 H3\n\n- 首帧使用全尺寸关键帧，提示词节点由组装器注入。\n- ambient 默认保留环境声与画内声；full 写入中文台词；bare 仅保留最小声场。\n- 点击 Queue 即可出片。\n- 视频产物位于 output/video/漫影_S{NN}。"
+    "## 漫影自研单镜 H3\n\n- 首帧使用全尺寸关键帧，提示词节点由组装器注入。\n- ambient 默认保留环境声与画内声；full 写入中文台词；bare 仅保留最小声场。\n- 点击 Queue 即可出片。\n- 视频产物位于 output/video/漫影/{chapterId}/{shotId}/{policy}。"
    ]
   }
  ],

@@ -49,6 +49,14 @@ def test_doc_kinds_exempt_from_dedupe():
     ]
 
 
+def test_shot_video_kinds_are_exempt_from_dedupe():
+    first = bridge_actions.submit("open-shot-video", "shot-a")
+    second = bridge_actions.submit("open-shot-video", "shot-b")
+    assert first["duplicate"] is False
+    assert second["duplicate"] is False
+    assert [item.get("note") for item in bridge_actions.list_since(0)["items"]] == ["shot-a", "shot-b"]
+
+
 def test_submit_rejects_unknown_kind():
     try:
         bridge_actions.submit("format-disk")
@@ -66,6 +74,7 @@ def test_stage_node_action_kinds_allowed():
         "generate-director-plan",
         "generate-storyboard-table",
         "rebuild-workbench-tracks",
+        "open-shot-video",
     ):
         result = bridge_actions.submit(kind)
         assert result["duplicate"] is False
@@ -76,6 +85,7 @@ def test_stage_node_action_kinds_allowed():
         "generate-director-plan",
         "generate-storyboard-table",
         "rebuild-workbench-tracks",
+        "open-shot-video",
     }
 
 

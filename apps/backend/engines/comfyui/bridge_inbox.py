@@ -28,10 +28,12 @@ def _ids() -> list[int]:
     return [int(p.stem) for p in _inbox_dir().glob("*.json") if p.stem.isdigit()]
 
 
-def append(meta: dict, image_b64: str) -> int:
+def append(meta: dict, blob_b64: str, field: str = "imageB64") -> int:
+    if field not in {"imageB64", "videoB64"}:
+        raise ValueError("回写载荷字段不支持")
     with _LOCK:
         item_id = (max(_ids()) + 1) if _ids() else 1
-        payload = {"id": item_id, **meta, "imageB64": image_b64}
+        payload = {"id": item_id, **meta, field: blob_b64}
         (_inbox_dir() / f"{item_id:08d}.json").write_text(
             json.dumps(payload, ensure_ascii=False), encoding="utf-8")
         return item_id
@@ -48,6 +50,7 @@ def list_since(cursor: int, *, include_image: bool = True) -> dict:
             continue
         if not include_image:
             data.pop("imageB64", None)
+            data.pop("videoB64", None)
         items.append(data)
     return {"cursor": max(_ids(), default=cursor), "items": items}
 

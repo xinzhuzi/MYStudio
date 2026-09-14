@@ -101,6 +101,39 @@ def test_generated_is_output_node_and_delegates(tmp_path):
     assert result["ui"]["manying"]["shotTarget"] == "S01-02"
 
 
+def test_shot_video_slot_is_optional_and_writes_latest_video(tmp_path, monkeypatch):
+    node = NODE_CLASS_MAPPINGS["ManyingShot"]()
+    assert node.INPUT_TYPES()["optional"]["video"] == ("VIDEO",)
+    old_result = node.run("sb-1", "S01", "desc")
+    assert old_result["ui"]["manying_shot"]["shotId"] == "sb-1"
+
+    output_dir = tmp_path / "output"
+    video_dir = output_dir / "video" / "漫影" / "chapter-001" / "sb-1"
+    video_dir.mkdir(parents=True)
+    video_path = video_dir / "ambient_00001_.mp4"
+    video_path.write_bytes(b"mp4")
+    folder_paths = types.ModuleType("folder_paths")
+    folder_paths.get_output_directory = lambda: str(output_dir)
+    monkeypatch.setitem(sys.modules, "folder_paths", folder_paths)
+
+    with patch.object(bridge.writeback, "deliver_video", return_value={"accepted": True, "id": 9}) as deliver:
+        result = node.run("sb-1", "S01", "desc", video=object())
+
+    deliver.assert_called_once()
+    assert deliver.call_args.args[0] == "sb-1"
+    assert deliver.call_args.args[2] == "video/漫影/chapter-001/sb-1"
+    assert deliver.call_args.args[3] == "ambient"
+    assert result["ui"]["manying_shot"]["videoWriteback"] == 9
+
+
+@pytest.mark.parametrize("shot_id", ["", "sb-chapter-001/escape", "../escape"])
+def test_shot_video_writeback_rejects_empty_or_path_like_shot_id(shot_id):
+    node = NODE_CLASS_MAPPINGS["ManyingShot"]()
+
+    with pytest.raises(RuntimeError, match="合法shot_id"):
+        node.run(shot_id, "S01", "desc", video=object())
+
+
 # ── bridge 传输:令牌头+载荷形状+失败大白话 ───────────────
 class _FakeResponse:
     def __init__(self, body: dict, status: int = 200):
@@ -143,6 +176,34 @@ def test_writeback_posts_png_with_token(monkeypatch):
     assert payload["meta"] == {"raw": "not-json"}
     assert base64.b64decode(payload["imageB64"])[:4] == b"\x89PNG"
     assert body["accepted"] is True
+
+
+def test_video_writeback_posts_video_payload_with_metadata(monkeypatch):
+    monkeypatch.setenv("MYSTUDIO_BRIDGE_URL", "http://127.0.0.1:9123/")
+    monkeypatch.setenv("MYSTUDIO_BRIDGE_TOKEN", "tok-video")
+    captured = {}
+
+    def _fake_urlopen(request, timeout=0):
+        captured["payload"] = json.loads(request.data.decode())
+        captured["token"] = request.headers.get("X-manying-image-token")
+        return _FakeResponse({"accepted": True, "id": 8})
+
+    with patch("urllib.request.urlopen", side_effect=_fake_urlopen):
+        body = bridge.writeback.deliver_video(
+            "sb-1",
+            base64.b64encode(b"mp4").decode(),
+            "video/漫影/chapter-001/sb-1",
+            "ambient",
+        )
+
+    assert body["accepted"] is True
+    assert captured["token"] == "tok-video"
+    assert captured["payload"]["videoB64"] == base64.b64encode(b"mp4").decode()
+    assert captured["payload"]["meta"] == {
+        "kind": "video",
+        "subfolder": "video/漫影/chapter-001/sb-1",
+        "policy": "ambient",
+    }
 
 
 def test_writeback_unreachable_raises_plain_language(monkeypatch):

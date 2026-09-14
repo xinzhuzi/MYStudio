@@ -58,6 +58,23 @@ class BridgeContractTests(unittest.TestCase):
                 bridge.load_template("bad-class")
         self.assertEqual(ctx.exception.code, "bridge-template-missing")
 
+    def test_daojie_templates_load_and_instantiate(self):
+        """09-14 分镜图接入:道劫水墨 t2i(无参考白名单)+i2i(单基准图编辑)。"""
+        t2i = bridge.load_template("krea2_daojie_t2i")
+        self.assertEqual(t2i["schemaVersion"], 1)
+        graph = bridge.instantiate_template(t2i, "少年立于雨后长街", None, 8, 42, "3:4", [])
+        self.assertEqual(graph["50"]["inputs"]["value"], "少年立于雨后长街")
+        self.assertEqual(graph["28"]["inputs"]["steps"], 8)
+        w, h = bridge.ASPECT_RATIOS["3:4"]
+        self.assertEqual(graph["29"]["inputs"]["width"], w)
+        self.assertEqual(graph["29"]["inputs"]["height"], h)
+        self.assertEqual(graph["37"]["inputs"]["unet_name"], "krea2_turbo_bf16.safetensors")
+        i2i = bridge.load_template("krea2_daojie_i2i")
+        graph2 = bridge.instantiate_template(i2i, "重绘为水墨", None, 10, None, "1:1", ["base.png"])
+        self.assertEqual(graph2["18"]["inputs"]["value"], "重绘为水墨")
+        self.assertEqual(graph2["7"]["inputs"]["image"], "base.png")
+        self.assertEqual(graph2["17"]["inputs"]["grounding_px"], 0)
+
     def test_multi_reference_slots_are_injected_and_truncated(self):
         template = bridge.load_template("krea2_edit_ref")
         graph = bridge.instantiate_template(template, "p", "n", 4, 9, "16:9", ["a", "b", "c", "d", "e"])

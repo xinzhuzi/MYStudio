@@ -17,13 +17,14 @@ export interface ProductionTrack extends StudioStaleEvidence {
   reason?: string;
 }
 
-export type VideoProvider = "ffmpeg-local" | "model-placeholder";
+export type VideoProvider = "ffmpeg-local" | "model-placeholder" | "h3-comfyui";
 
 export interface VideoCandidate extends StudioStaleEvidence {
   id: string;
   trackId: string;
   provider: VideoProvider;
   filePath?: string;
+  meta?: Record<string, unknown>;
   state: StoryboardState;
   errorReason?: string;
   createdAt: number;
