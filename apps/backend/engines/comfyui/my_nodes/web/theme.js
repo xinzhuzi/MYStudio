@@ -202,6 +202,31 @@ function progressBar(done, total) {
 }
 
 /** 折叠组(两页签共用):chevron 旋转+标题+计数徽章(tone 定色) */
+/** ComfyUI 图标体系桥(09-15):复用其 iconify 类(tailwind 构建期 CSS,
+ * 坑1 先例=侧栏 tab 同款机制);尺寸/颜色随行内联,mask 单色随 currentColor。
+ * 探测类 CSS 缺席(裸环境)则回落自绘 svg,永不空框。 */
+function comfyIconify(cls, fallbackPathD, size = 14) {
+  const span = document.createElement("span");
+  span.className = cls;
+  span.style.cssText = `display:inline-block;width:${size}px;height:${size}px;flex:none;background-color:currentColor;`;
+  const fallback = icon(fallbackPathD, size);
+  fallback.style.display = "none";
+  const host = document.createElement("span");
+  host.style.cssText = `display:inline-flex;flex:none;`;
+  host.append(span, fallback);
+  requestAnimationFrame(() => {
+    try {
+      const probe = span.cloneNode(true);
+      probe.style.cssText += "position:absolute;visibility:hidden;";
+      document.body.append(probe);
+      const styled = getComputedStyle(probe).maskImage !== "none" || getComputedStyle(probe).backgroundImage !== "none";
+      probe.remove();
+      if (!styled) { span.style.display = "none"; fallback.style.display = ""; }
+    } catch (error) { /* 保底显示类图标位 */ }
+  });
+  return host;
+}
+
 function collapseGroup(title, count, { tone, indent = 0, open = false } = {}) {
   const color = tone === "ok" ? THEME.ok : tone === "pending" ? THEME.pending : THEME.accent;
   const bg = tone === "ok" ? "rgba(74,222,128,0.15)"
@@ -222,7 +247,8 @@ function collapseGroup(title, count, { tone, indent = 0, open = false } = {}) {
   const badge = document.createElement("span");
   badge.style.cssText = `margin-left:auto;font-size:var(--my-fs-10);font-weight:500;padding:1px 7px;border-radius:999px;background:${bg};color:${color};flex:none;`;
   badge.textContent = String(count);
-  summary.append(chev, text, badge);
+  const folderIcon = comfyIconify("icon-[lucide--folder]", ICONS.folderOpen, 14);
+  summary.append(chev, folderIcon, text, badge);
   details.append(summary);
   details.addEventListener("toggle", () => {
     chev.style.transform = details.open ? "rotate(90deg)" : "";
