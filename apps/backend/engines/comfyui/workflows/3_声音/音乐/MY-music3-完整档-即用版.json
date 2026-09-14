@@ -1,0 +1,13 @@
+{
+  "prompt": {
+    "clip": {"class_type": "CLIPLoader", "inputs": {"clip_name": "minimax_music3_text_encoder_pruned_bf16.safetensors", "type": "minimax", "device": "default"}},
+    "model": {"class_type": "UNETLoader", "inputs": {"unet_name": "minimax_music3_dit_fp16.safetensors", "weight_dtype": "default"}},
+    "vae": {"class_type": "VAELoader", "inputs": {"vae_name": "minimax_music3_dav.safetensors"}},
+    "cond": {"class_type": "MiniMaxMusic3TextEncode", "inputs": {"clip": ["clip", 0], "caption": "在这里写风格描述(如: 中国风史诗战斗曲, 激昂弦乐, 120 BPM)", "lyrics": "[Instrumental]", "seed": 7, "max_duration": 60.0, "cfg_scale": 1.7, "top_k": 50}},
+    "neg": {"class_type": "ConditioningZeroOut", "inputs": {"conditioning": ["cond", 0]}},
+    "latent": {"class_type": "EmptyMiniMaxMusic3LatentAudio", "inputs": {"seconds": 60.0, "batch_size": 1}},
+    "ks": {"class_type": "KSampler", "inputs": {"model": ["model", 0], "seed": 7, "steps": 30, "cfg": 1.7, "sampler_name": "euler", "scheduler": "simple", "denoise": 1.0, "positive": ["cond", 0], "negative": ["neg", 0], "latent_image": ["latent", 0]}},
+    "dec": {"class_type": "VAEDecodeAudio", "inputs": {"samples": ["ks", 0], "vae": ["vae", 0]}},
+    "save": {"class_type": "SaveAudioAdvanced", "inputs": {"audio": ["dec", 0], "filename_prefix": "music3_song", "format": "flac"}}
+  }
+}

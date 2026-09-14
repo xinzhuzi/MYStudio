@@ -179,6 +179,16 @@ def workflows_dir() -> Path:
     return configured_workflows_dir()
 
 
+def repo_workflows_dir() -> Path:
+    """漫影自研静态工作流真源(09-14 用户裁定:MY- 静态流随项目版本管理)。
+
+    dev 与装机同构:backend 代码树内相对定位——dev=仓库源码路径,装机=
+    Resources/backend/…(打包链已整目录分发,零额外配置)。引擎家 workflows
+    回归 ComfyUI/用户语义;分镜产线动态流(D3 过渡)仍走引擎家写入位。
+    """
+    return Path(__file__).resolve().parent / "workflows"
+
+
 def default_models_dir() -> Path:
     return comfy_home() / "models"
 
