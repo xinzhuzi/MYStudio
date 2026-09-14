@@ -71,7 +71,19 @@ app.registerExtension({
     };
     nodeType.prototype.onDrawBackground = function (ctx) {
       // 旧键 manyingStage=存量工作流兼容双读
-      const payload = this.properties?.myStage ?? this.properties?.manyingStage;
+      // 字体族承接(09-15):canvas 无法用 CSS 变量——读 body 计算字体缓存一次,
+// 族随 ComfyUI(Inter 等),字号保持像素锚定(与布局 metrics 成对)。
+let __myCtxFamily = "";
+function myCtxFont(weight, size) {
+  if (!__myCtxFamily) {
+    try {
+      const raw = getComputedStyle(document.body).fontFamily || "sans-serif";
+      __myCtxFamily = raw.split(",").map((s) => s.trim()).filter(Boolean).slice(0, 3).join(", ");
+    } catch (error) { __myCtxFamily = "sans-serif"; }
+  }
+  return `${weight} ${size}px ${__myCtxFamily}`;
+}
+const payload = this.properties?.myStage ?? this.properties?.manyingStage;
       if (!payload || this.flags?.collapsed) return;
       const w = this.size[0] - 10;
       const bottom = this.size[1] - 6;
@@ -88,10 +100,10 @@ app.registerExtension({
         roundBox(ctx, 6, HEADER_TOP - 8, 3.5, bottom - HEADER_TOP + 6, 2);
         ctx.fill();
         let y = HEADER_TOP;
-        ctx.font = "600 13px sans-serif";
+        ctx.font = myCtxFont("600", 13);
         ctx.fillStyle = "rgba(255,255,255,0.94)";
         ctx.fillText(String(payload.title || ""), 14, y + 10);
-        ctx.font = "10px sans-serif";
+        ctx.font = myCtxFont("", 10);
         const statusText = String(payload.statusText || "");
         const stWidth = ctx.measureText(statusText).width;
         ctx.fillStyle = statusColor;
@@ -104,7 +116,7 @@ app.registerExtension({
           ctx.fillText("已导出成片", w - stWidth - 74, y + 10);
         }
         y += 22;
-        ctx.font = "10px sans-serif";
+        ctx.font = myCtxFont("", 10);
         ctx.fillStyle = THEME.text2;
         ctx.fillText(String(payload.description || "").slice(0, 40), 14, y + 8);
         y += 20;
@@ -136,7 +148,7 @@ app.registerExtension({
         const innerW = w - 6 - 16;
         let iy = boxTop + 15;
         if (payload.previewTitle) {
-          ctx.font = "600 9px sans-serif";
+          ctx.font = myCtxFont("600", 9);
           const pillW = ctx.measureText(payload.previewTitle).width + 12;
           ctx.fillStyle = "rgba(255,255,255,0.06)";
           roundBox(ctx, innerX - 4, iy - 10, pillW, 14, 7);
@@ -148,7 +160,7 @@ app.registerExtension({
         // 参与技能芯片(v4 老画布 skills 徽标;超出右缘截断)
         if (Array.isArray(payload.skills) && payload.skills.length > 0) {
           let sx = innerX;
-          ctx.font = "9px sans-serif";
+          ctx.font = myCtxFont("", 9);
           for (const skillName of payload.skills) {
             const label = String(skillName);
             const chipW = ctx.measureText(label).width + 14;
@@ -188,7 +200,7 @@ app.registerExtension({
               const dh = img.naturalHeight * scale;
               ctx.drawImage(img, cx + (imgW - dw) / 2, cy + (84 - dh) / 2, dw, dh);
             } else {
-              ctx.font = "600 12px sans-serif";
+              ctx.font = myCtxFont("600", 12);
               ctx.fillStyle = THEME.text2;
               const idx = `#${tile.index}`;
               ctx.fillText(idx, cx + (imgW - ctx.measureText(idx).width) / 2, cy + 46);
@@ -199,24 +211,24 @@ app.registerExtension({
             ctx.arc(cx + imgW - 8, cy + 8, 3.5, 0, Math.PI * 2);
             ctx.fill();
             if (tile.state) {
-              ctx.font = "8px sans-serif";
+              ctx.font = myCtxFont("", 8);
               ctx.fillStyle = THEME.text2;
               const st = String(tile.state).slice(0, 6);
               const stw = ctx.measureText(st).width;
               ctx.fillText(st, cx + imgW - stw - 4, cy + 79);
             }
-            ctx.font = "9px sans-serif";
+            ctx.font = myCtxFont("", 9);
             ctx.fillStyle = "rgba(255,255,255,0.72)";
             ctx.fillText(`#${tile.index} ${tile.title}`, cx + 3, cy + 97, imgW - 6);
             if (tile.lines) {
-              ctx.font = "8px sans-serif";
+              ctx.font = myCtxFont("", 8);
               ctx.fillStyle = THEME.text2;
               ctx.fillText(tile.lines, cx + 3, cy + 108, imgW - 6);
             }
           }
         } else if (Array.isArray(payload.tableRows) && payload.tableRows.length > 0) {
           // 分镜表行:#N 场景 · 描述 · 景别 · 时长
-          ctx.font = "11px sans-serif";
+          ctx.font = myCtxFont("", 11);
           for (let ri = 0; ri < payload.tableRows.length; ri += 1) {
             const row = payload.tableRows[ri];
             const twoLine = Boolean(row.lines || row.sound || row.assets);
@@ -240,7 +252,7 @@ app.registerExtension({
             iy += LINE_H;
             // 次行:台词(斜灰)/表演/声音/关联资产
             if (twoLine) {
-              ctx.font = "10px sans-serif";
+              ctx.font = myCtxFont("", 10);
               ctx.fillStyle = "rgba(255,255,255,0.6)";
               const sub = [
                 row.lines ? `“${row.lines}”` : "",
@@ -250,12 +262,12 @@ app.registerExtension({
               ].filter(Boolean).join("  ");
               ctx.fillText(sub, innerX + 34, iy, innerW - 40);
               iy += LINE_H + 2;
-              ctx.font = "11px sans-serif";
+              ctx.font = myCtxFont("", 11);
             }
           }
         } else if (Array.isArray(payload.shots) && payload.shots.length > 0) {
           // 逐镜队列:#N 标签 + 配音/视频双状态徽章(照老画布 remotionShots)
-          ctx.font = "11px sans-serif";
+          ctx.font = myCtxFont("", 11);
           for (let ri = 0; ri < payload.shots.length; ri += 1) {
             const shotItem = payload.shots[ri];
             if (ri % 2 === 1) {
@@ -330,14 +342,14 @@ app.registerExtension({
               ctx.fillStyle = "rgba(255,255,255,0.06)";
             roundBox(ctx, ax + 6, ay + 6, 52, 52, 6);
             ctx.fill();
-              ctx.font = "600 14px sans-serif";
+              ctx.font = myCtxFont("600", 14);
               ctx.fillStyle = THEME.text2;
               ctx.fillText(String(card.name || "?").slice(0, 1), ax + 26, ay + 36);
             }
-            ctx.font = "600 10px sans-serif";
+            ctx.font = myCtxFont("600", 10);
             ctx.fillStyle = "rgba(255,255,255,0.88)";
             ctx.fillText(String(card.name || "").slice(0, 8), ax + 64, ay + 20, cardW - 78);
-            ctx.font = "8px sans-serif";
+            ctx.font = myCtxFont("", 8);
             ctx.fillStyle = THEME.text2;
             ctx.fillText(String(card.typeLabel || ""), ax + 64, ay + 32, cardW - 78);
             if (card.state) {
@@ -356,11 +368,11 @@ app.registerExtension({
             ["道具", payload.assetGroups.props],
           ];
           for (const [label, names] of groups) {
-            ctx.font = "600 9px sans-serif";
+            ctx.font = myCtxFont("600", 9);
             ctx.fillStyle = THEME.text2;
             ctx.fillText(`${label} ${names.length}`, innerX, iy);
             iy += 14;
-            ctx.font = "11px sans-serif";
+            ctx.font = myCtxFont("", 11);
             if (names.length === 0) {
               ctx.fillStyle = THEME.idle;
               ctx.fillText("—", innerX, iy);
@@ -374,7 +386,7 @@ app.registerExtension({
             iy += 4;
           }
         } else if (Array.isArray(payload.tracks) && payload.tracks.length > 0) {
-          ctx.font = "11px sans-serif";
+          ctx.font = myCtxFont("", 11);
           for (let ri = 0; ri < payload.tracks.length; ri += 1) {
             const track = payload.tracks[ri];
             if (ri % 2 === 1) {
@@ -398,7 +410,7 @@ app.registerExtension({
           }
         } else {
           // 正文全量行(生成器已换行,≤60 行)
-          ctx.font = "11px sans-serif";
+          ctx.font = myCtxFont("", 11);
           for (const line of (payload.previewLines || [])) {
             ctx.fillStyle = "rgba(255,255,255,0.78)";
             ctx.fillText(String(line), innerX, iy);
@@ -413,7 +425,7 @@ app.registerExtension({
           const rowY = bottom - ACTION_ROW_H + 8;
           let bx = 14;
           for (const action of actions) {
-            ctx.font = "600 11px sans-serif";
+            ctx.font = myCtxFont("600", 11);
             const label = String(action.label || action.kind);
             const bw = Math.min(ctx.measureText(label).width + 26, w - 20);
             const disabled = Boolean(action.disabled);
