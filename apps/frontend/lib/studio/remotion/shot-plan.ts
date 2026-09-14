@@ -53,6 +53,10 @@ export interface RemotionShotPlanV1 {
   sourceSnapshotHash: string;
   renderSettings: EditingRenderSettings;
   visualKind: "image" | "video";
+  /** 仅 video 镜有意义；缺省为 tts-stack。 */
+  audioMix?: "h3-baked" | "tts-stack" | "mixed";
+  /** H3 ffprobe 实测时长，单位微秒。 */
+  h3DurationUs?: number;
   shot: RemotionShotDefinitionV2;
   /** Persisted cinematic inputs; depthMapSrc is a render-session capability only. */
   cinematic?: RemotionShotCinematicV1;
@@ -92,6 +96,9 @@ export type ShotPlanResult<T> =
   | { success: false; issues: ShotPlanIssue[] };
 
 export type ShotCapabilityResolver = (reference: ProjectMediaReference) => string;
+
+/** mixed 档 H3 环境声电平，0.35 起步待实测调。 */
+export const H3_MIX_VOLUME = 0.35;
 
 export interface RemotionShotHumanApprovalExpectation {
   projectId: string;
@@ -249,6 +256,14 @@ export async function compileRemotionShotPlan(
   if (issues.length > 0 || visualKind === undefined || visualKind === "audio") {
     return { success: false, issues };
   }
+  const storyboardH3DurationUs = input.storyboard.h3DurationUs;
+  const h3DurationUs = visualKind === "video"
+    && typeof storyboardH3DurationUs === "number"
+    && Number.isInteger(storyboardH3DurationUs)
+    && storyboardH3DurationUs > 0
+    ? storyboardH3DurationUs
+    : undefined;
+  const audioMix = visualKind === "video" ? input.storyboard.audioMix ?? "tts-stack" : undefined;
 
   const planWithoutHash = {
     schemaVersion: 1 as const,
@@ -259,6 +274,8 @@ export async function compileRemotionShotPlan(
     sourceSnapshotHash: input.sourceSnapshotHash,
     renderSettings: input.renderSettings,
     visualKind,
+    ...(audioMix ? { audioMix } : {}),
+    ...(h3DurationUs !== undefined ? { h3DurationUs } : {}),
     shot: input.shot,
     ...(cinematic ? { cinematic } : {}),
   };
@@ -269,6 +286,8 @@ export async function compileRemotionShotPlan(
     chapterId: input.chapterId,
     renderSettings: input.renderSettings,
     visualKind,
+    ...(audioMix ? { audioMix } : {}),
+    ...(h3DurationUs !== undefined ? { h3DurationUs } : {}),
     shot: input.shot,
     ...(cinematic ? { cinematic } : {}),
   };
@@ -289,12 +308,16 @@ export function projectStoryboardShotCompositionProps(
 ): ShotPlanResult<StoryboardShotCompositionProps> {
   const issues: ShotPlanIssue[] = [];
   const fps = plan.renderSettings.fps;
-  const durationInFrames = clipDurationInFrames(plan.shot.durationUs, fps);
+  const durationInFrames = plan.visualKind === "video" && plan.h3DurationUs !== undefined
+    ? Math.max(1, Math.ceil((plan.h3DurationUs / 1_000_000) * fps))
+    : clipDurationInFrames(plan.shot.durationUs, fps);
+  const audioMix = plan.visualKind === "video" ? plan.audioMix ?? "tts-stack" : "tts-stack";
   const visualUrl = resolveUrl(plan.shot.visualSource, resolveCapabilityUrl, "$.shot.visualSource", issues);
   const cinematic = plan.cinematic && depthMapSrc
     ? buildCinematicCompositionConfig(plan.cinematic, depthMapSrc, issues)
     : undefined;
   const audioClips: Array<CompositionAudioClipProps & { renderScope: "shot" }> = plan.shot.audioBindings
+    .filter(() => !(plan.visualKind === "video" && audioMix === "h3-baked"))
     .map((binding, index) => ({
       clipId: binding.bindingId,
       kind: binding.role,
@@ -324,7 +347,7 @@ export function projectStoryboardShotCompositionProps(
     height: plan.renderSettings.height,
     fps,
     durationInFrames,
-    visualClips: plan.shot.keyframes?.length
+    visualClips: plan.visualKind !== "video" && plan.shot.keyframes?.length
       ? (() => {
           const timeline = projectKeyframeTimeline(
             fps,
@@ -352,9 +375,14 @@ export function projectStoryboardShotCompositionProps(
           from: 0,
           durationInFrames,
           transform: plan.shot.transform as CompositionTransform,
-          panZoom: motionToPanZoom(plan.shot.motion),
+          ...(plan.visualKind === "image" ? { panZoom: motionToPanZoom(plan.shot.motion) } : {}),
           ...(cinematic ? { cinematic } : {}),
-          muted: true,
+          ...(plan.visualKind === "video"
+            ? {
+                muted: audioMix === "tts-stack",
+                volume: audioMix === "mixed" ? H3_MIX_VOLUME : 1,
+              }
+            : { muted: true }),
         }],
     transitions: keyframeTransitions,
     audioClips,
@@ -384,6 +412,12 @@ export async function validateRemotionShotPlan(
   if (!isPositiveInteger(value.chapterRevision)) issue(issues, "$.chapterRevision", "章节 revision 必须为正整数");
   if (!isSha256(value.sourceSnapshotHash)) issue(issues, "$.sourceSnapshotHash", "sourceSnapshotHash 必须是 SHA-256");
   if (value.visualKind !== "image" && value.visualKind !== "video") issue(issues, "$.visualKind", "visualKind 无效");
+  if (value.audioMix !== undefined && value.audioMix !== "h3-baked" && value.audioMix !== "tts-stack" && value.audioMix !== "mixed") {
+    issue(issues, "$.audioMix", "audioMix 无效");
+  }
+  if (value.h3DurationUs !== undefined && (typeof value.h3DurationUs !== "number" || !Number.isInteger(value.h3DurationUs) || value.h3DurationUs <= 0)) {
+    issue(issues, "$.h3DurationUs", "h3DurationUs 必须是正整数微秒数");
+  }
   if (Object.prototype.hasOwnProperty.call(value, "sharedAudioTracks")) {
     issue(issues, "$.sharedAudioTracks", "StoryboardShot plan 禁止携带 chapter shared audio");
   }
@@ -434,6 +468,8 @@ export async function validateRemotionShotPlan(
     chapterId: plan.chapterId,
     renderSettings: plan.renderSettings,
     visualKind: plan.visualKind,
+    ...(plan.audioMix ? { audioMix: plan.audioMix } : {}),
+    ...(plan.h3DurationUs !== undefined ? { h3DurationUs: plan.h3DurationUs } : {}),
     shot: plan.shot,
     ...(plan.cinematic ? { cinematic: plan.cinematic } : {}),
   });

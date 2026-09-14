@@ -8,6 +8,7 @@ import { buildStoryboardItemOpenContext } from "./storyboard-open-context";
 import { toPreviewSrc, withThumbVariant } from "@/lib/media/preview-src";
 import { LocalImage } from "@/components/ui/local-image";
 import type { StoryboardBatchGenerationState } from "./image-workflow/use-storyboard-batch-generation";
+import { useStudioStore } from "@/stores/studio/studio-store";
 
 /**
  * 分镜面板 — 当前章节全部分镜的全量视图(与单镜图片工作流严格区分)。
@@ -184,6 +185,7 @@ function StoryboardPanelCard({
   /** 有单镜视频时的播放回调(09-14 用户裁定:详情可看单镜头播放) */
   onPlayVideo?: () => void;
 }) {
+  const updateStoryboard = useStudioStore((state) => state.updateStoryboard);
   // 仅有图帧参与轮播;无帧/无图退回 mediaRef 单图
   const frames = useMemo(() => {
     const withPath = (storyboard.keyframes ?? []).filter((frame) => frame.mediaRef?.path);
@@ -308,6 +310,32 @@ function StoryboardPanelCard({
           <p className="whitespace-pre-line text-[11px] leading-5 text-muted-foreground">
             {storyboard.lines.replace(/<br\s*\/?>/gi, "\n")}
           </p>
+        ) : null}
+        {storyboard.mediaRef?.kind === "video" ? (
+          <label
+            className="mt-2 flex items-center justify-between gap-2 text-[10px] text-muted-foreground"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <span>混音</span>
+            <select
+              aria-label={`S${String(storyboard.index).padStart(2, "0")} 混音`}
+              data-testid="storyboard-audio-mix"
+              className="rounded border border-border/70 bg-background px-1.5 py-1 text-[10px] text-foreground"
+              value={storyboard.audioMix ?? "tts-stack"}
+              onClick={(event) => event.stopPropagation()}
+              onChange={(event) => {
+                event.stopPropagation();
+                updateStoryboard(storyboard.id, {
+                  audioMix: event.target.value as StoryboardItem["audioMix"],
+                });
+              }}
+              onKeyDown={(event) => event.stopPropagation()}
+            >
+              <option value="h3-baked">用片内声</option>
+              <option value="tts-stack">配音主导</option>
+              <option value="mixed">双层混音</option>
+            </select>
+          </label>
         ) : null}
         <span className="mt-auto inline-flex items-center gap-1 text-[11px] text-primary/75 group-hover:text-primary">
           <ImageIcon className="h-3.5 w-3.5" />

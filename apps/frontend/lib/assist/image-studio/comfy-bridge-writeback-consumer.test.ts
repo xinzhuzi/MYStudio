@@ -68,14 +68,15 @@ function makeDeps(overrides: Partial<ConsumeComfyBridgeWritebacksDeps> = {}): {
   notified: Array<{ kind: string; detail: string }>;
 } {
   const applied: Array<{ storyboardId: string; url: string; itemId: number }> = [];
-  const appliedVideos: Array<{ storyboardId: string; url: string; itemId: number; policy: string }> = [];
+  const appliedVideos: Array<{ storyboardId: string; url: string; itemId: number; policy: string; h3DurationUs?: number }> = [];
   const persisted: Array<{ b64: string; title: string; source: string; prompt: string }> = [];
   const notified: Array<{ kind: string; detail: string }> = [];
   const deps: ConsumeComfyBridgeWritebacksDeps = {
     client: { getBridgeWritebacks: async () => null, ackBridgeWritebacks: async () => 0 },
     storyboards: () => STORYBOARDS,
     applyToStoryboard: (storyboardId, url, item) => applied.push({ storyboardId, url, itemId: item.id }),
-    applyVideoToStoryboard: (storyboardId, url, item, policy) => appliedVideos.push({ storyboardId, url, itemId: item.id, policy }),
+    applyVideoToStoryboard: (storyboardId, url, item, policy, h3DurationUs) => appliedVideos.push({ storyboardId, url, itemId: item.id, policy, h3DurationUs }),
+    probeVideoDuration: async () => null,
     projectId: () => "project-1",
     writeProjectBinary: async () => ({ success: true, url: "project-file://project-1/remotion/video.mp4" }),
     persist: async (b64, title, options) => {
@@ -177,6 +178,26 @@ describe("consumeComfyBridgeWritebacks", () => {
     expect(appliedVideos[0]).toMatchObject({ storyboardId: "sb-a", policy: "ambient", itemId: 6 });
     expect(notified[0]?.kind).toBe("storyboard");
     expect(calls.acks).toEqual([6]);
+  });
+
+  it("视频落盘成功后用主进程 probe 时长并写入分镜", async () => {
+    const { client } = makeClient([{
+      id: 61,
+      videoB64: "aGk=",
+      shotTarget: "S01",
+      meta: { kind: "video", subfolder: "video/漫影/ep-1/sb-a", policy: "ambient" },
+    }]);
+    const { deps, appliedVideos } = makeDeps({
+      client,
+      probeVideoDuration: async (url) => {
+        expect(url).toContain("project-file://project-1/");
+        return 5_166_666;
+      },
+    });
+
+    await consumeComfyBridgeWritebacks(deps);
+
+    expect(appliedVideos[0]).toMatchObject({ h3DurationUs: 5_166_666 });
   });
 
   it("视频落盘失败:不回写分镜且不 ack", async () => {

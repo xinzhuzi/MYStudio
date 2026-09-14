@@ -36,6 +36,39 @@ describe("Remotion shot plan compiler", () => {
     expect(video.value.visualKind).toBe("video");
   });
 
+  it.each([
+    ["h3-baked", false, 1, 0],
+    ["tts-stack", true, 1, 1],
+    ["mixed", false, 0.35, 1],
+  ] as const)("projects video audio mix %s without the keyframe timeline", async (audioMix, muted, volume, audioClipCount) => {
+    const planInput = await input();
+    planInput.storyboard.mediaRef = { kind: "video", path: "videos/shot-001.mp4", contentSha256: TEST_SHA_A };
+    planInput.storyboard.audioMix = audioMix;
+    planInput.storyboard.h3DurationUs = 5_166_666;
+    planInput.shot.keyframes = [{
+      frameId: "frame-001",
+      inUs: 0,
+      source: { ...planInput.shot.visualSource, relativePath: "images/keyframe-001.png" },
+    }];
+
+    const compiled = await compileRemotionShotPlan(planInput);
+    expect(compiled.success).toBe(true);
+    if (!compiled.success) return;
+    const projected = projectStoryboardShotCompositionProps(compiled.value, () => MEDIA_URL);
+    expect(projected.success).toBe(true);
+    if (!projected.success) return;
+    expect(projected.value.visualClips).toHaveLength(1);
+    expect(projected.value.visualClips[0]).toMatchObject({
+      src: MEDIA_URL,
+      from: 0,
+      durationInFrames: 155,
+      muted,
+      volume,
+    });
+    expect(projected.value.visualClips[0]?.panZoom).toBeUndefined();
+    expect(projected.value.audioClips).toHaveLength(audioClipCount);
+  });
+
   it("keeps persisted cinematic inputs and projects them only with a depth capability", async () => {
     const planInput = await input();
     (planInput.storyboard as StoryboardItem & { cinematic?: unknown }).cinematic = {

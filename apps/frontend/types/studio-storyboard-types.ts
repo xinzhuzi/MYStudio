@@ -145,6 +145,10 @@ export interface StoryboardItem extends StudioStaleEvidence, StudioSourceIdentit
   videoDesc: string;
   assetIds: string[];
   mediaRef?: StoryboardMediaRef;
+  /** 仅 video 镜有意义；缺省为 tts-stack（配音主导）。 */
+  audioMix?: "h3-baked" | "tts-stack" | "mixed";
+  /** H3 落片经 ffprobe 实测的时长，单位微秒。 */
+  h3DurationUs?: number;
   /** 关键帧序列(一镜多图)。undefined=单图时代数据,等价 [mediaRef] 单帧;
    *  写入唯一走 setStoryboardKeyframes(首帧镜像 I1 由其保证) */
   keyframes?: StoryboardKeyframe[];
@@ -208,4 +212,3 @@ export interface StoryboardItem extends StudioStaleEvidence, StudioSourceIdentit
     source: "ai" | "heuristic";
   };
 }
-

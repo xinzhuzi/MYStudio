@@ -29,7 +29,15 @@ export interface ConsumeComfyBridgeWritebacksDeps {
   storyboards: () => StoryboardItem[];
   /** 分镜落账(默认实现=updateStoryboard+mediaTask 台账,镜像 image-workflow-slice)。 */
   applyToStoryboard: (storyboardId: string, url: string, item: ComfyBridgeWritebackItem) => void;
-  applyVideoToStoryboard: (storyboardId: string, url: string, item: ComfyBridgeWritebackItem, policy: string) => void;
+  applyVideoToStoryboard: (
+    storyboardId: string,
+    url: string,
+    item: ComfyBridgeWritebackItem,
+    policy: string,
+    h3DurationUs?: number,
+  ) => void;
+  /** 主进程 ffprobe；桥不可用或探测失败时返回 null，保留 v1 降级。 */
+  probeVideoDuration: (url: string) => Promise<number | null>;
   projectId: () => string | null;
   writeProjectBinary: (projectId: string, relativePath: string, bytes: ArrayBuffer) => Promise<{
     success: boolean;
@@ -85,6 +93,7 @@ function defaultApplyVideoToStoryboard(
   url: string,
   _item: ComfyBridgeWritebackItem,
   policy: string,
+  h3DurationUs?: number,
 ): void {
   const store = useStudioStore.getState();
   const storyboard = store.storyboards.find((entry) => entry.id === storyboardId);
@@ -95,6 +104,7 @@ function defaultApplyVideoToStoryboard(
   store.updateStoryboard(storyboardId, {
     mediaRef: { kind: "video", path: url },
     outputVersion: (storyboard.outputVersion ?? 0) + 1,
+    ...(typeof h3DurationUs === "number" && Number.isInteger(h3DurationUs) && h3DurationUs > 0 ? { h3DurationUs } : {}),
   });
   store.addVideoCandidate({
     id: `h3-${storyboard.id}-${candidateNumber}`,
@@ -146,6 +156,20 @@ export async function consumeComfyBridgeWritebacks(
     storyboards: deps.storyboards ?? (() => useStudioStore.getState().storyboards),
     applyToStoryboard: deps.applyToStoryboard ?? defaultApplyToStoryboard,
     applyVideoToStoryboard: deps.applyVideoToStoryboard ?? defaultApplyVideoToStoryboard,
+    probeVideoDuration:
+      deps.probeVideoDuration ??
+      (async (url) => {
+        const probeMedia = typeof window !== "undefined" ? window.studioRenderer?.probeMedia : undefined;
+        if (!probeMedia) return null;
+        try {
+          const evidence = await probeMedia(url);
+          return Number.isFinite(evidence.duration) && evidence.duration > 0
+            ? Math.round(evidence.duration * 1_000_000)
+            : null;
+        } catch {
+          return null;
+        }
+      }),
     projectId: deps.projectId ?? (() => useProjectStore.getState().activeProjectId),
     writeProjectBinary:
       deps.writeProjectBinary ??
@@ -195,7 +219,8 @@ export async function consumeComfyBridgeWritebacks(
         ].join("/");
         const written = await resolved.writeProjectBinary(projectId, relativePath, decodeBase64(item.videoB64));
         if (!written.success || !written.url) throw new Error(written.error ?? "项目视频落盘失败");
-        resolved.applyVideoToStoryboard(storyboardId, written.url, item, policy);
+        const h3DurationUs = await resolved.probeVideoDuration(written.url).catch(() => null);
+        resolved.applyVideoToStoryboard(storyboardId, written.url, item, policy, h3DurationUs ?? undefined);
         resolved.notify("storyboard", `${item.shotTarget ?? storyboardId} 单镜视频已回收入项目(${policy} 档)`);
         landed += 1;
       } else if (item.imageB64) {

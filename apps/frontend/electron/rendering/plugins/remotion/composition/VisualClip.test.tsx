@@ -24,20 +24,23 @@ vi.mock("remotion", () => ({
   Img: ({ src, style }: { src: string; style?: unknown }) => (
     <img data-testid="img" data-style={JSON.stringify(style)} src={src} alt="" />
   ),
-  OffthreadVideo: (props: { src: string; trimBefore?: number; playbackRate?: number; muted?: boolean; style?: unknown }) =>
+  OffthreadVideo: (props: { src: string; trimBefore?: number; playbackRate?: number; muted?: boolean; volume?: number; style?: unknown }) =>
     <div
       data-testid="offthread-video"
       data-src={props.src}
       data-trim={String(props.trimBefore)}
       data-rate={String(props.playbackRate)}
       data-muted={String(props.muted)}
+      data-volume={String(props.volume)}
       data-style={JSON.stringify(props.style)}
     />,
 }));
 
 const { VisualClip } = await import("./VisualClip");
 
-function imageClip(overrides: Partial<CompositionVisualClipProps> = {}): CompositionVisualClipProps {
+type TestVisualClipProps = CompositionVisualClipProps & { volume?: number };
+
+function imageClip(overrides: Partial<TestVisualClipProps> = {}): TestVisualClipProps {
   return {
     clipId: "a",
     kind: "image",
@@ -75,6 +78,7 @@ describe("VisualClip", () => {
           trimStartFrames: 12,
           playbackRate: 2,
           muted: false,
+          volume: 0.35,
         })}
       />,
     );
@@ -83,6 +87,7 @@ describe("VisualClip", () => {
     expect(video.getAttribute("data-trim")).toBe("12");
     expect(video.getAttribute("data-rate")).toBe("2");
     expect(video.getAttribute("data-muted")).toBe("false");
+    expect(video.getAttribute("data-volume")).toBe("0.35");
   });
 
   it("samples panZoom at the current frame into the fill style", () => {

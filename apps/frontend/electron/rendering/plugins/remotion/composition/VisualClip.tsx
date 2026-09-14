@@ -20,7 +20,9 @@ import {
   fxSpeedSilhouetteStyle,
 } from "./visual-fx";
 
-export function VisualClip(props: CompositionVisualClipProps): React.ReactElement {
+type VisualClipProps = CompositionVisualClipProps & { volume?: number };
+
+export function VisualClip(props: VisualClipProps): React.ReactElement {
   const rawFrame = useCurrentFrame();
   const { isRendering } = useRemotionEnvironment();
   const { fps } = useVideoConfig();
@@ -86,6 +88,7 @@ export function VisualClip(props: CompositionVisualClipProps): React.ReactElemen
               trimBefore={props.trimStartFrames}
               playbackRate={props.playbackRate ?? 1}
               muted={props.muted ?? true}
+              volume={props.volume ?? 1}
               style={HIDDEN_AUDIO_STYLE}
             />
           ) : null}
@@ -98,6 +101,7 @@ export function VisualClip(props: CompositionVisualClipProps): React.ReactElemen
           trimBefore={props.trimStartFrames}
           playbackRate={props.playbackRate ?? 1}
           muted={props.muted ?? true}
+          volume={props.volume ?? 1}
           style={mediaStyle}
         />
       )}

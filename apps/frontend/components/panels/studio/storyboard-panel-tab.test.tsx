@@ -3,6 +3,7 @@ import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { StoryboardPanelTab } from "./StoryboardPanelTab";
 import type { StoryboardItem } from "@/types/studio";
+import { useStudioStore } from "@/stores/studio/studio-store";
 
 afterEach(cleanup);
 
@@ -49,6 +50,31 @@ describe("StoryboardPanelTab(全量分镜面板)", () => {
         sourceStageLabel: "分镜面板",
       }),
     );
+  });
+
+  it("shows the three audio mix choices only for video shots and saves changes", () => {
+    const updateStoryboard = vi.fn();
+    const updateSpy = vi.spyOn(useStudioStore.getState(), "updateStoryboard").mockImplementation(updateStoryboard);
+    render(
+      <StoryboardPanelTab
+        storyboards={[
+          shot({ id: "image-shot", index: 1, mediaRef: { kind: "image", path: "project-file://image" } }),
+          shot({ id: "video-shot", index: 2, mediaRef: { kind: "video", path: "project-file://video" }, audioMix: "mixed" }),
+        ]}
+        onOpenImageWorkflow={vi.fn()}
+      />,
+    );
+
+    expect(screen.queryAllByTestId("storyboard-audio-mix")).toHaveLength(1);
+    const select = screen.getByRole("combobox", { name: "S02 混音" });
+    expect((select as HTMLSelectElement).value).toBe("mixed");
+    expect(screen.getByRole("option", { name: "用片内声" })).toBeTruthy();
+    expect(screen.getByRole("option", { name: "配音主导" })).toBeTruthy();
+    expect(screen.getByRole("option", { name: "双层混音" })).toBeTruthy();
+
+    fireEvent.change(select, { target: { value: "h3-baked" } });
+    expect(updateStoryboard).toHaveBeenCalledWith("video-shot", { audioMix: "h3-baked" });
+    updateSpy.mockRestore();
   });
 
   it("starts serial batch generation from the one-click button (原单镜跳转语义已移除)", () => {
