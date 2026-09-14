@@ -1,5 +1,5 @@
 // 09-14 晚间用户裁定(research/0914-late-rulings.md):超分不进工作流——
-// 单段直出模板(_my,31 节点,无 LatentUpscaler/LTXV,仅节点 9 首帧槽)
+// 单段直出模板(MY-h3-shot-template,31 节点,无 LatentUpscaler/LTXV,仅节点 9 首帧槽)
 import templateJson from "./MY-h3-shot-template.json";
 import templateRefJson from "./MY-h3-shot-template_ref2va.json";
 import type { StoryboardItem } from "@/types/studio";
@@ -51,7 +51,7 @@ const REQUIRED_NODES: Array<[number, string]> = [
   [9, "LoadImage"],
   [14, "PrimitiveStringMultiline"],
   [20, "PrimitiveFloat"],
-  [100, "ManyingShot"],
+  [100, "MyShot"],
   [101, "MarkdownNote"],
 ];
 
@@ -92,7 +92,7 @@ function setNamedWidget(node: WorkflowNode, key: string, value: unknown): void {
 
 function connectVideoWriteback(template: H3WorkflowTemplate): void {
   const saveVideo = getNode(template, 4, "SaveVideo");
-  const anchor = getNode(template, 100, "ManyingShot");
+  const anchor = getNode(template, 100, "MyShot");
   const output = saveVideo.outputs?.[0];
   if (!output) throw new Error("h3-shot-template drift: SaveVideo video output missing");
   const existing = anchor.inputs?.find((input) => input.name === "video");
@@ -124,7 +124,7 @@ export function buildShotH3Workflow(input: ShotH3WorkflowInput): ShotH3WorkflowR
     durationSec,
   }, policy);
   const label = shotLabel(shot.index);
-  const imageName = input.imageName ?? `manying-shot-h3-${safeImageId(shot.id)}.jpg`;
+  const imageName = input.imageName ?? `my-shot-h3-${safeImageId(shot.id)}.jpg`;
 
   const saveVideo = getNode(template, 4, "SaveVideo");
   const firstFrame = getNode(template, 9, "LoadImage");
@@ -142,11 +142,11 @@ export function buildShotH3Workflow(input: ShotH3WorkflowInput): ShotH3WorkflowR
   setFirstWidget(secondsNode, prompt.seconds);
   setNamedWidget(secondsNode, "value", prompt.seconds);
 
-  const anchor = getNode(template, 100, "ManyingShot");
+  const anchor = getNode(template, 100, "MyShot");
   anchor.widgets_values = [shot.id, label, description, "图✓"];
-  anchor.properties = { ...(anchor.properties ?? {}), manyingPreview: imageName };
+  anchor.properties = { ...(anchor.properties ?? {}), myPreview: imageName };
 
-  // 09-14 用户裁定:漫影工作流文件名一律 `_my.json` 后缀。
+  // 09-14 用户裁定(二次修订):漫影工作流文件名一律 `MY-` 前缀。
   const name = `MY-单镜视频 · ${input.chapterLabel} · ${label}`;
   return {
     ui: template as unknown as Record<string, unknown>,
@@ -201,7 +201,7 @@ export function buildShotH3RefWorkflow(input: ShotH3RefWorkflowInput): ShotH3Wor
     scene,
   }, policy);
   const label = shotLabel(shot.index);
-  const imageName = input.imageName ?? `manying-shot-h3-${safeImageId(shot.id)}.jpg`;
+  const imageName = input.imageName ?? `my-shot-h3-${safeImageId(shot.id)}.jpg`;
 
   const saveVideo = getNode(template, 4, "SaveVideo");
   const firstFrame = getNode(template, 9, "LoadImage");
@@ -226,9 +226,9 @@ export function buildShotH3RefWorkflow(input: ShotH3RefWorkflowInput): ShotH3Wor
     node.mode = 0;
   });
 
-  const anchor = getNode(template, 100, "ManyingShot");
+  const anchor = getNode(template, 100, "MyShot");
   anchor.widgets_values = [shot.id, label, description, "图✓"];
-  anchor.properties = { ...(anchor.properties ?? {}), manyingPreview: imageName };
+  anchor.properties = { ...(anchor.properties ?? {}), myPreview: imageName };
 
   const name = `MY-单镜视频Ref2VA · ${input.chapterLabel} · ${label}`;
   return {

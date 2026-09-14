@@ -293,7 +293,8 @@
           "name": "VAE",
           "type": "VAE",
           "links": [
-            8
+            8,
+            79
           ]
         }
       ],
@@ -560,7 +561,9 @@
           "localized_name": "字符串",
           "name": "STRING",
           "type": "STRING",
-          "links": []
+          "links": [
+            80
+          ]
         }
       ],
       "title": "提示词",
@@ -601,13 +604,13 @@
         {
           "name": "clip",
           "type": "CLIP",
-          "link": null,
+          "link": 78,
           "slot_index": 0
         },
         {
           "name": "vae",
           "type": "VAE",
-          "link": null,
+          "link": 79,
           "slot_index": 1
         },
         {
@@ -667,28 +670,28 @@
         {
           "name": "prompt",
           "type": "STRING",
-          "link": null,
+          "link": 80,
           "widget": "widget",
           "slot_index": 11
         },
         {
           "name": "width",
           "type": "INT",
-          "link": null,
+          "link": 81,
           "widget": "widget",
           "slot_index": 12
         },
         {
           "name": "height",
           "type": "INT",
-          "link": null,
+          "link": 82,
           "widget": "widget",
           "slot_index": 13
         },
         {
           "name": "length",
           "type": "INT",
-          "link": null,
+          "link": 83,
           "widget": "widget",
           "slot_index": 14
         }
@@ -697,13 +700,17 @@
         {
           "name": "positive",
           "type": "CONDITIONING",
-          "links": [],
+          "links": [
+            76
+          ],
           "slot_index": 0
         },
         {
           "name": "latent",
           "type": "LATENT",
-          "links": [],
+          "links": [
+            77
+          ],
           "slot_index": 1
         }
       ],
@@ -951,7 +958,9 @@
           "localized_name": "CLIP",
           "name": "CLIP",
           "type": "CLIP",
-          "links": []
+          "links": [
+            78
+          ]
         }
       ],
       "properties": {
@@ -1030,13 +1039,17 @@
           "localized_name": "宽度",
           "name": "width",
           "type": "INT",
-          "links": []
+          "links": [
+            81
+          ]
         },
         {
           "localized_name": "高度",
           "name": "height",
           "type": "INT",
-          "links": []
+          "links": [
+            82
+          ]
         }
       ],
       "title": "Resolution Selector (Size)",
@@ -1116,7 +1129,8 @@
           "name": "INT",
           "type": "INT",
           "links": [
-            24
+            24,
+            83
           ]
         },
         {
@@ -1186,7 +1200,7 @@
           "localized_name": "Latent图像",
           "name": "latent_image",
           "type": "LATENT",
-          "link": null
+          "link": 77
         }
       ],
       "outputs": [
@@ -1364,7 +1378,7 @@
           "localized_name": "条件",
           "name": "conditioning",
           "type": "CONDITIONING",
-          "link": null
+          "link": 76
         }
       ],
       "outputs": [
@@ -2088,7 +2102,7 @@
     },
     {
       "id": 100,
-      "type": "ManyingShot",
+      "type": "MyShot",
       "pos": [
         2700,
         5200
@@ -2104,8 +2118,8 @@
       "outputs": [],
       "title": "漫影单镜锚卡",
       "properties": {
-        "Node name for S&R": "ManyingShot",
-        "manyingPreview": "manying-shot-h3-placeholder.jpg"
+        "Node name for S&R": "MyShot",
+        "myPreview": "manying-shot-h3-placeholder.jpg"
       },
       "widgets_values": [
         "S00",
@@ -2635,6 +2649,70 @@
       16,
       3,
       "IMAGE"
+    ],
+    [
+      76,
+      16,
+      0,
+      33,
+      1,
+      "CONDITIONING"
+    ],
+    [
+      77,
+      16,
+      1,
+      26,
+      4,
+      "LATENT"
+    ],
+    [
+      78,
+      21,
+      0,
+      16,
+      0,
+      "CLIP"
+    ],
+    [
+      79,
+      7,
+      0,
+      16,
+      1,
+      "VAE"
+    ],
+    [
+      80,
+      14,
+      0,
+      16,
+      11,
+      "STRING"
+    ],
+    [
+      81,
+      22,
+      0,
+      16,
+      12,
+      "INT"
+    ],
+    [
+      82,
+      22,
+      1,
+      16,
+      13,
+      "INT"
+    ],
+    [
+      83,
+      23,
+      1,
+      16,
+      14,
+      "INT"
     ]
   ],
   "groups": [

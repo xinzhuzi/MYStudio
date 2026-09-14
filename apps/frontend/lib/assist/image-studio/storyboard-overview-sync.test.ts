@@ -63,7 +63,7 @@ describe("syncStoryboardOverviewToLibrary(09-10 批9:图片带)", () => {
     storeState.storyboards = [];
   });
 
-  it("带图镜先传缩略(manying-shot-*.jpg)再导入 漫影/分镜/0_工作流主线/;无图镜零上传", async () => {
+  it("带图镜先传缩略(my-shot-*.jpg)再导入 漫影/分镜/0_工作流主线/;无图镜零上传", async () => {
     storeState.storyboards = [
       shot("S01-01", 1, { kind: "image", path: "project-file://a.png" }),
       shot("S01-02", 2),
@@ -72,9 +72,9 @@ describe("syncStoryboardOverviewToLibrary(09-10 批9:图片带)", () => {
 
     await expect(syncStoryboardOverviewToLibrary({ ...deps, transport })).resolves.toBe(true);
 
-    expect(uploads).toEqual([{ name: "manying-shot-S01-01.jpg", b64: "cmF3" }]);
+    expect(uploads).toEqual([{ name: "my-shot-S01-01.jpg", b64: "cmF3" }]);
     expect(imported).toHaveLength(1);
-    // 双帧(09-14):帧2 存在时加传 manying-shot-<id>-k2.jpg
+    // 双帧(09-14):帧2 存在时加传 my-shot-<id>-k2.jpg
     storeState.storyboards = [
       {
         ...shot("S01-01", 1, { kind: "image", path: "project-file://a.png" }),
@@ -88,8 +88,8 @@ describe("syncStoryboardOverviewToLibrary(09-10 批9:图片带)", () => {
     const dualDeps = makeDeps();
     await expect(syncStoryboardOverviewToLibrary({ ...dualDeps.deps, transport: dualDeps.transport })).resolves.toBe(true);
     expect(dualDeps.uploads.map((u) => u.name)).toEqual([
-      "manying-shot-S01-01.jpg",
-      "manying-shot-S01-01-k2.jpg",
+      "my-shot-S01-01.jpg",
+      "my-shot-S01-01-k2.jpg",
     ]);
     // 09-11 旧画布迁移:保鲜产物=分镜流程链工作流,落位 0_工作流主线
     expect(imported[0].name).toBe("漫影/1_图片/分镜/0_工作流主线/MY-分镜工作流.json");
@@ -134,7 +134,7 @@ describe("syncStoryboardOverviewToLibrary(09-10 批9:图片带)", () => {
     invalidateOverviewSyncForEngineStart();
     const warm = makeDeps();
     await expect(syncStoryboardOverviewToLibrary({ ...warm.deps, transport: warm.transport })).resolves.toBe(true);
-    expect(warm.uploads).toEqual([{ name: "manying-shot-S01-01.jpg", b64: "cmF3" }]);
+    expect(warm.uploads).toEqual([{ name: "my-shot-S01-01.jpg", b64: "cmF3" }]);
     expect(warm.imported).toHaveLength(1);
   });
 });
@@ -148,13 +148,13 @@ describe("ensureStageAssetCoversUploaded(09-12 v4:autoOpen/保鲜共享封面转
     return [{ key: "assets", assets: [{ name: "独孤剑尘", cover }] } as unknown as StageNodePayload];
   }
 
-  it("app-scheme cover 上传为 manying-asset-<URL戳>.jpg 并改写;URL 定名多章节不串图", async () => {
+  it("app-scheme cover 上传为 my-asset-<URL戳>.jpg 并改写;URL 定名多章节不串图", async () => {
     const { deps, uploads } = makeDeps();
     const payloads = assetPayload("asset-file://role/dugu.png?thumb=1");
     await ensureStageAssetCoversUploaded(payloads, deps);
     expect(uploads).toHaveLength(1);
-    expect(uploads[0].name).toMatch(/^manying-asset-[0-9a-f]{8}\.jpg$/);
-    expect(uploads[0].name).not.toBe("manying-asset-1.jpg"); // 位置序号=多章覆盖串图,禁回归
+    expect(uploads[0].name).toMatch(/^my-asset-[0-9a-f]{8}\.jpg$/);
+    expect(uploads[0].name).not.toBe("my-asset-1.jpg"); // 位置序号=多章覆盖串图,禁回归
     expect(payloads[0].assets?.[0].cover).toBe(uploads[0].name);
 
     // 同 cover 第二次(另一章/重开):会话缓存命中,零重传且直接改写
@@ -167,9 +167,9 @@ describe("ensureStageAssetCoversUploaded(09-12 v4:autoOpen/保鲜共享封面转
 
   it("已是引擎文件名/无 cover/上传失败:保留原值不阻断(字牌降级契约)", async () => {
     const { deps, uploads } = makeDeps();
-    const named = assetPayload("manying-asset-0123abcd.jpg");
+    const named = assetPayload("my-asset-0123abcd.jpg");
     await ensureStageAssetCoversUploaded(named, deps);
-    expect(named[0].assets?.[0].cover).toBe("manying-asset-0123abcd.jpg");
+    expect(named[0].assets?.[0].cover).toBe("my-asset-0123abcd.jpg");
 
     const none = assetPayload(undefined);
     await ensureStageAssetCoversUploaded(none, deps);

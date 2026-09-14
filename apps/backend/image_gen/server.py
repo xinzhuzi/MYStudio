@@ -49,7 +49,7 @@ from .pipeline import PipelineError, generate_image
 
 LOCAL_TOKEN = "manying-local-image"
 # bridge 回写令牌单源核对(swap 阶段1):engines/comfyui/bridge_contract 与本文件
-# 固定令牌必须一致,漂移即启动失败(manying_generated 回写会被全拒)
+# 固定令牌必须一致,漂移即启动失败(my_generated 回写会被全拒)
 from engines.comfyui import bridge_contract as _bridge_contract  # noqa: E402
 
 assert _bridge_contract.BRIDGE_TOKEN == LOCAL_TOKEN, "bridge 令牌漂移:bridge_contract 与 server.LOCAL_TOKEN 不一致"
@@ -469,14 +469,14 @@ class Handler(BaseHTTPRequestHandler):
 
         try:
             # ── 引擎 ──
-            # ── manying 自研节点 + bridge 回写(swap 阶段1)──
-            if method == "POST" and path == "/comfy/manying/sync":
-                result = pm.sync_manying_nodes()
+            # ── my 自研节点 + bridge 回写(swap 阶段1)──
+            if method == "POST" and path == "/comfy/my/sync":
+                result = pm.sync_my_nodes()
                 result["restartRequired"] = engine_manager().status().get("state") == "running"
                 self._send_json(result)
                 return
-            if method == "GET" and path == "/comfy/manying/status":
-                self._send_json(pm.manying_sync_state())
+            if method == "GET" and path == "/comfy/my/status":
+                self._send_json(pm.my_sync_state())
                 return
             if method == "POST" and path == "/comfy/bridge/writeback":
                 image_b64 = payload.get("imageB64")
@@ -506,7 +506,7 @@ class Handler(BaseHTTPRequestHandler):
                 item_id = bridge_inbox.append(
                     {
                         "kind": "video" if has_video else "image",
-                        "client": payload.get("client") or "manying-nodes",
+                        "client": payload.get("client") or "my-nodes",
                         "shotTarget": payload.get("shotTarget") or "",
                         "prompt": payload.get("prompt") or "",
                         "meta": meta,

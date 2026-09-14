@@ -1105,6 +1105,31 @@ def _safe_workflow_id(workflow_id: str) -> Path:
     return path
 
 
+REPO_ID_PREFIX = "repo:"
+
+
+def _safe_repo_workflow_id(workflow_id: str) -> Path:
+    """repo 源条目 id=repo:<仓库相对路径>;同款防穿越。"""
+    rel = workflow_id[len(REPO_ID_PREFIX):].strip().strip("/")
+    if not rel or ".." in rel.split("/") or "\\" in rel:
+        raise EngineOpError("无效的工作流路径")
+    base = cm.repo_workflows_dir().resolve()
+    path = (base / rel).resolve()
+    if not str(path).startswith(str(base)):
+        raise EngineOpError("无效的工作流路径")
+    return path
+
+
+def _iter_repo_workflow_files():
+    base = cm.repo_workflows_dir()
+    if not base.is_dir():
+        return
+    for wf in sorted(base.rglob("*.json")):
+        if wf.name == ".keep.json":
+            continue
+        yield wf
+
+
 def list_workflows(prefix: str | None = None, light: bool = False) -> dict:
     """库内工作流树(节点数统计+缺失插件标记);引擎未跑时 missingNodes=null。
 
@@ -1148,10 +1173,40 @@ def list_workflows(prefix: str | None = None, light: bool = False) -> dict:
             "missingNodes": missing_nodes, "missingPlugins": missing_plugins,
             "invalidJson": obj is None,
         })
+    # 漫影自研静态流真源合并(09-14 裁定:仓库 repo 源;id=repo:<相对路径>,
+    # 只读——写操作走引擎家用户区,repo 前缀在 _safe_workflow_id 天然不存在)
+    base = cm.repo_workflows_dir()
+    for wf in _iter_repo_workflow_files():
+        rel = wf.relative_to(base).as_posix()
+        rid = REPO_ID_PREFIX + rel
+        if prefix and not rel.startswith(prefix) and not rid.startswith(prefix):
+            continue
+        if light:
+            entries.append({"id": rid, "name": wf.stem,
+                            "sizeBytes": wf.stat().st_size, "source": "repo"})
+            continue
+        obj = parse_workflow_json(wf.read_text(encoding="utf-8", errors="replace"))
+        types = workflow_node_types(obj)
+        missing_nodes: list[str] | None = None
+        missing_plugins: list[str] | None = None
+        if engine_online:
+            missing_nodes = sorted(types - object_names)
+            missing_plugins = sorted({node_map[t] for t in missing if t in node_map})
+        entries.append({
+            "id": rid, "name": wf.stem, "sizeBytes": wf.stat().st_size,
+            "nodeCount": workflow_node_count(obj),
+            "missingNodes": missing_nodes, "missingPlugins": missing_plugins,
+            "invalidJson": obj is None, "source": "repo",
+        })
     return {"engineOnline": engine_online, "workflows": entries}
 
 
 def read_workflow(workflow_id: str) -> dict:
+    if workflow_id.startswith(REPO_ID_PREFIX):
+        path = _safe_repo_workflow_id(workflow_id)
+        if not path.is_file():
+            raise EngineOpError(f"工作流不存在: {workflow_id}")
+        return {"id": workflow_id, "content": path.read_text(encoding="utf-8", errors="replace")}
     path = _safe_workflow_id(workflow_id)
     if not path.is_file():
         raise EngineOpError(f"工作流不存在: {workflow_id}")
@@ -1241,39 +1296,50 @@ def delete_workflow(workflow_id: str, confirm: bool = False) -> dict:
             "message": f"已删除 {workflow_id}(已备份到快照目录,可恢复)"}
 
 
-# ── manying_nodes 自研节点包(09-09 comfyui-frontend-swap 阶段1)─────────────
+# ── my_nodes 自研节点包(09-09 comfyui-frontend-swap 阶段1)─────────────
 # design.md 2.1:源码位随 backend 平铺打包;运行位=引擎源码内 custom_nodes
 # (引擎只读源码内目录);硬拷不软链(快照毒教训);tests 不进引擎。
 
-MANYING_DIR = "manying-nodes"
+MY_DIR = "my-nodes"
+# 09-14 manying→my 改名前的旧运行目录:同步后须摘除,否则双份节点注册
+LEGACY_MY_DIR = "manying-nodes"
 
 
-def manying_source_dir() -> Path:
-    return Path(__file__).resolve().parent / "manying_nodes"
+def my_source_dir() -> Path:
+    return Path(__file__).resolve().parent / "my_nodes"
 
 
-def sync_manying_nodes() -> dict:
-    """硬拷源码位 → custom_nodes/manying-nodes(tmp 原子换入;幂等)。"""
-    source = manying_source_dir()
+def sync_my_nodes() -> dict:
+    """硬拷源码位 → custom_nodes/my-nodes(tmp 原子换入;幂等)。
+
+    同时摘除改名前旧目录 manying-nodes(双份注册防线;custom_nodes 本就是
+    官方扩展位,不违引擎家 git 零改动铁律)。
+    """
+    source = my_source_dir()
     if not (source / "__init__.py").is_file():
-        raise EngineOpError(f"manying_nodes 源码位缺失:{source}")
-    target = cm.custom_nodes_dir() / MANYING_DIR
+        raise EngineOpError(f"my_nodes 源码位缺失:{source}")
+    target = cm.custom_nodes_dir() / MY_DIR
     target.parent.mkdir(parents=True, exist_ok=True)
-    tmp = target.parent / (MANYING_DIR + ".tmp")
+    tmp = target.parent / (MY_DIR + ".tmp")
     if tmp.exists():
         shutil.rmtree(tmp)
     shutil.copytree(source, tmp, ignore=shutil.ignore_patterns("__pycache__", "*.pyc", "tests"))
     if target.exists():
         shutil.rmtree(target)
     tmp.rename(target)
+    removed_legacy = False
+    legacy = target.parent / LEGACY_MY_DIR
+    if legacy.exists():
+        shutil.rmtree(legacy)
+        removed_legacy = True
     files = sum(1 for p in target.rglob("*") if p.is_file())
-    return {"copied": files, "source": str(source), "target": str(target)}
+    return {"copied": files, "source": str(source), "target": str(target), "removedLegacy": removed_legacy}
 
 
-def manying_sync_state() -> dict:
-    target = cm.custom_nodes_dir() / MANYING_DIR
+def my_sync_state() -> dict:
+    target = cm.custom_nodes_dir() / MY_DIR
     return {
         "synced": (target / "__init__.py").is_file(),
-        "source": str(manying_source_dir()),
+        "source": str(my_source_dir()),
         "target": str(target),
     }

@@ -3,9 +3,9 @@
 # Commercial licensing available. See COMMERCIAL_LICENSE.md.
 """业务侧栏数据面(09-09 swap 阶段2 批3):渲染层推、引擎前端拉。
 
-渲染层周期 POST 分镜快照({shots:[{id,label}]});manying sidebar 扩展
+渲染层周期 POST 分镜快照({shots:[{id,label}]});my sidebar 扩展
 (webview 内)GET 同一地址(CORS 回显+令牌头)——分镜列表由此注入
-ComfyUI 原生画布侧栏,点选即回填 ManyingGenerated.shot_target。
+ComfyUI 原生画布侧栏,点选即回填 MyGenerated.shot_target。
 09-12 功能差异补齐 B2:载荷再带队列实时快照(queue:[{index,status,progress}])
 ——宿主 tick 从 window.remotionQueue 投影,画布 stage-node 轮询活更徽章。
 """

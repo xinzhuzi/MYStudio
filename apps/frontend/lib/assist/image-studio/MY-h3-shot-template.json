@@ -2136,7 +2136,7 @@
   },
   {
    "id": 100,
-   "type": "ManyingShot",
+   "type": "MyShot",
    "pos": [
     2700,
     5200
@@ -2152,8 +2152,8 @@
    "outputs": [],
    "title": "漫影单镜锚卡",
    "properties": {
-    "Node name for S&R": "ManyingShot",
-    "manyingPreview": "manying-shot-h3-placeholder.jpg"
+    "Node name for S&R": "MyShot",
+    "myPreview": "manying-shot-h3-placeholder.jpg"
    },
    "widgets_values": [
     "S00",

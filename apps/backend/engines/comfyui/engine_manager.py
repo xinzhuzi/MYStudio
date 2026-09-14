@@ -789,10 +789,10 @@ class EngineManager:
         cm.mutate_manifest(_record)
         # 自研节点包随装(懒加载防循环:plugin_manager 顶层引本模块)
         from . import plugin_manager as _pm
-        manying_sync = _pm.sync_manying_nodes()
+        my_sync = _pm.sync_my_nodes()
         jobs.update(job_id, result={
             "version": tag, "port": port, "torch": torch_version,
-            "manyingNodes": manying_sync,
+            "myNodes": my_sync,
             "message": f"ComfyUI 引擎 {tag} 安装完成,点「准备运行时」启动服务",
         })
 
@@ -898,7 +898,7 @@ class EngineManager:
             cm.engine_log_path().parent.mkdir(parents=True, exist_ok=True)
             self._log_file = open(cm.engine_log_path(), "a", encoding="utf-8", buffering=1)
             # 显式 cwd=源码目录(相对资源解析),可执行文件与脚本全绝对路径(防漂移坑)
-            # bridge 回写端点注入(swap 阶段1:manying_generated → sidecar 17595)
+            # bridge 回写端点注入(swap 阶段1:my_generated → sidecar 17595)
             # 09-10 Desktop 式环境变量表(spawn 注入);桥契约变量后置=用户表不可遮蔽回写链
             launch_env = {**os.environ,
                           **cm.engine_env_vars(),
@@ -1179,9 +1179,9 @@ class EngineManager:
                 if req_hash is not None:
                     cm.mutate_manifest(lambda m: m.setdefault("engine", {}).__setitem__("requirementsHash", req_hash))
 
-            jobs.update(job_id, progress=50, step="manying", message="同步自研节点包…")
+            jobs.update(job_id, progress=50, step="my", message="同步自研节点包…")
             from . import plugin_manager as _pm
-            _pm.sync_manying_nodes()
+            _pm.sync_my_nodes()
             jobs.update(job_id, progress=55, step="restart", message="重启引擎…")
             self.restart(progress=lambda pct, msg: jobs.update(job_id, progress=55 + pct * 25 // 100, message=msg))
 
@@ -1531,7 +1531,7 @@ class EngineManager:
                 continue  # 模型目录=纯指针,校验在 update_config(mkdir)
             try:
                 path.parent.mkdir(parents=True, exist_ok=True)
-                probe = path.parent / ".manying-write-probe"
+                probe = path.parent / ".my-write-probe"
                 probe.write_text("ok", encoding="utf-8")
                 probe.unlink(missing_ok=True)
             except OSError as exc:

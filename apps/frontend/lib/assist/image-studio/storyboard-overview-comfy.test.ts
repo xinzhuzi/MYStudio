@@ -48,22 +48,22 @@ describe("章节分镜总览图生成器(批7)", () => {
     expect(shotLabel(shot("a", 1, "e", { videoDesc: "一二三四五六七八九十一二三十四五六" }))).toBe("S01");
   });
 
-  it("图片带:带图镜写 manyingPreview(名按 shot id 净化),无图镜不写键;描述截断 80 字", () => {
+  it("图片带:带图镜写 myPreview(名按 shot id 净化),无图镜不写键;描述截断 80 字", () => {
     const withImage = shot("scene:S 01/02", 1, "chapter-001", { mediaRef: { kind: "image", path: "p.png" } as never });
-    expect(shotPreviewName(withImage)).toBe("manying-shot-scene_S_01_02.jpg");
+    expect(shotPreviewName(withImage)).toBe("my-shot-scene_S_01_02.jpg");
     expect(shotPreviewName(shot("a", 1, "e", { mediaRef: { kind: "video", path: "v.mp4" } as never }))).toBe("");
     expect(shotPreviewName(shot("a", 1))).toBe("");
 
     const nodes = (buildStoryboardOverviewWorkflow([withImage, shot("b", 2)]).ui as {
       nodes: Array<{ properties: Record<string, unknown> }>;
     }).nodes;
-    expect(nodes[0].properties.manyingPreview).toBe("manying-shot-scene_S_01_02.jpg");
-    expect("manyingPreview" in nodes[1].properties).toBe(false);
+    expect(nodes[0].properties.myPreview).toBe("my-shot-scene_S_01_02.jpg");
+    expect("myPreview" in nodes[1].properties).toBe(false);
     // 双帧(09-14 用户裁定:每镜多张图都上屏):帧2 名 -k2.jpg;无帧2=空串
     expect(shotPreview2Name({ ...withImage, keyframes: [
       { mediaRef: withImage.mediaRef },
       { mediaRef: { kind: "image", path: "project-file://b.png" } },
-    ] } as never)).toBe("manying-shot-scene_S_01_02-k2.jpg");
+    ] } as never)).toBe("my-shot-scene_S_01_02-k2.jpg");
     expect(shotPreview2Name(withImage as never)).toBe("");
 
     const long = "字".repeat(120);

@@ -4,13 +4,13 @@
 
 /**
  * 章节分镜总览图库内自动保鲜(09-09 主视图 ComfyUI 化·批8):
- * ComfyUI 画布在场时周期把最新分镜总览(ManyingShot 网格)以固定名
+ * ComfyUI 画布在场时周期把最新分镜总览(MyShot 网格)以固定名
  * overwrite 进工作流库——主视图画布里随时一键打开「分镜总览」,
  * 无需手动生成。变更指纹守卫:分镜未动不重复导入。
  *
  * 09-10 批9:漫影节点图片展示——带图镜的缩略图(发送级缩略管线,
- * 768px<1MB 铁律)先行上传引擎 input 目录(manying-shot-*.jpg 同名
- * 覆写幂等),节点 properties.manyingPreview 携名,画布扩展按名渲染。
+ * 768px<1MB 铁律)先行上传引擎 input 目录(my-shot-*.jpg 同名
+ * 覆写幂等),节点 properties.myPreview 携名,画布扩展按名渲染。
  */
 
 import type { ComfyWorkflowLibraryTransport } from "@/lib/assist/image-studio/comfy-workflow-library";
@@ -68,8 +68,8 @@ async function uploadShotPreviews(storyboards: StoryboardItem[], deps: OverviewS
     (async (name, imageB64) => (await getComfyEngineClient()?.uploadBridgeReference(name, imageB64))?.accepted === true);
   let uploaded = 0;
   for (const storyboard of storyboards) {
-    // 双帧上传(09-14 用户裁定:每镜多张图都上屏):帧1=manying-shot-<id>.jpg,
-    // 帧2=manying-shot-<id>-k2.jpg(回接后每镜常 2 帧);best-effort 同款
+    // 双帧上传(09-14 用户裁定:每镜多张图都上屏):帧1=my-shot-<id>.jpg,
+    // 帧2=my-shot-<id>-k2.jpg(回接后每镜常 2 帧);best-effort 同款
     const jobs: Array<[string, string]> = [];
     const name1 = shotPreviewName(storyboard);
     if (name1) jobs.push([name1, storyboard.mediaRef?.path ?? ""]);
@@ -94,7 +94,7 @@ async function uploadShotPreviews(storyboards: StoryboardItem[], deps: OverviewS
 }
 
 /** 资产卡封面上传(autoOpen 打开前与保鲜链共享):cover=本地/项目路径 →
- * 引擎 input(manying-asset-<url戳>.jpg),载荷改写为文件名供画布自绘;
+ * 引擎 input(my-asset-<url戳>.jpg),载荷改写为文件名供画布自绘;
  * best-effort,失败保留原值(节点退化字牌)。
  * 文件名按 cover URL 内容戳定名(09-12 真跑根修):位置序号在多章节/增删
  * 资产时互相覆盖会串图;URL 定名同图恒同名,重传幂等零串扰。 */
@@ -110,7 +110,7 @@ export async function ensureStageAssetCoversUploaded(
     if (!payload.assets?.length) continue;
     for (const asset of payload.assets) {
       const url = asset.cover;
-      if (!url || url.startsWith("manying-asset-")) continue;
+      if (!url || url.startsWith("my-asset-")) continue;
       const cached = assetCoverNameCache.get(url);
       if (cached) {
         asset.cover = cached;
@@ -122,7 +122,7 @@ export async function ensureStageAssetCoversUploaded(
         const dataUrl = raw.startsWith("data:") ? raw : `data:image/jpeg;base64,${raw}`;
         const prepared = await prepareReferenceImageForTransfer(dataUrl);
         const pure = prepared.slice(prepared.indexOf(",") + 1);
-        const name = `manying-asset-${shardContentStamp(url)}.jpg`;
+        const name = `my-asset-${shardContentStamp(url)}.jpg`;
         if (await uploadPreview(name, pure)) {
           assetCoverNameCache.set(url, name);
           asset.cover = name;

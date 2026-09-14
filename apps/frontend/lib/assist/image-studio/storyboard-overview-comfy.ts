@@ -4,7 +4,7 @@
 
 /**
  * 章节分镜总览图生成器(09-09 主视图 ComfyUI 化·批7):
- * storyboards → ComfyUI workflow JSON(UI 格式)——每镜一个 ManyingShot
+ * storyboards → ComfyUI workflow JSON(UI 格式)——每镜一个 MyShot
  * 节点,网格布局(每列 ROWS_PER_COLUMN 镜);媒体生产状态随 widget 展示。
  * 产物入工作流库后在 ComfyUI 画布打开=章节总览;镜级生产动作走
  * 「漫影」侧栏(批8 接动作区)。
@@ -38,7 +38,7 @@ export function shotLabel(storyboard: StoryboardItem): string {
 export function shotPreviewName(storyboard: StoryboardItem): string {
   if (storyboard.mediaRef?.kind !== "image" || !storyboard.mediaRef.path) return "";
   const safeId = storyboard.id.replace(/[^A-Za-z0-9._-]+/g, "_");
-  return `manying-shot-${safeId}.jpg`;
+  return `my-shot-${safeId}.jpg`;
 }
 
 /** 第二关键帧缩略图名(09-14 用户裁定:每镜多张图都上屏——回接后每镜常 2 帧,
@@ -48,7 +48,7 @@ export function shotPreview2Name(storyboard: StoryboardItem): string {
   const second = frames[1];
   if (!second?.mediaRef?.path) return "";
   const safeId = storyboard.id.replace(/[^A-Za-z0-9._-]+/g, "_");
-  return `manying-shot-${safeId}-k2.jpg`;
+  return `my-shot-${safeId}-k2.jpg`;
 }
 
 /** 帧2 的原始媒体路径(上传源;无=空) */
@@ -101,7 +101,7 @@ export function buildStoryboardOverviewWorkflow(
     const preview2 = shotPreview2Name(storyboard);
     return {
       id: index + 1,
-      type: "ManyingShot",
+      type: "MyShot",
       // 09-12 用户裁定:镜子节点也是固定的,标题栏显示镜号(S01 · 描述)
       // ——不设 title 时 litegraph 回落类型名,38 个节点全同名
       title: shotLabel(storyboard),
@@ -111,11 +111,11 @@ export function buildStoryboardOverviewWorkflow(
       mode: 0,
       inputs: [],
       outputs: [],
-      // manyingPreview=引擎 input 目录缩略图名;空图镜不写键(扩展见缺键=纯文字卡)
+      // myPreview=引擎 input 目录缩略图名;空图镜不写键(扩展见缺键=纯文字卡)
       properties: {
-        "Node name for S&R": "ManyingShot",
-        ...(preview ? { manyingPreview: preview } : {}),
-        ...(preview2 ? { manyingPreview2: preview2 } : {}),
+        "Node name for S&R": "MyShot",
+        ...(preview ? { myPreview: preview } : {}),
+        ...(preview2 ? { myPreview2: preview2 } : {}),
       },
       widgets_values: [
         storyboard.id,
@@ -147,7 +147,7 @@ export function buildStoryboardOverviewWorkflow(
         order: index + 1,
       })),
       config: {},
-      extra: { manyingOverview: true },
+      extra: { myOverview: true },
       version: 0.4,
     },
     report: { shots: sorted.length, chapters, name },

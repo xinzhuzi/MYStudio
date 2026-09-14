@@ -71,11 +71,11 @@ describe("migrateWorkflowsToLibrary", () => {
     expect(importedFiles.map((file) => file.name)).toEqual(["漫影/1_图片/分镜/2_单镜图/MY-迁移 · 道劫41.json", "漫影/1_图片/分镜/2_单镜图/MY-迁移 · 自由流.json"]);
     // UI 载荷可解析且带 manying 终端与 API 格式随身
     const payload = JSON.parse(importedFiles[0].content) as { nodes: Array<{ type: string }>; extra: { apiFormat?: unknown } };
-    expect(payload.nodes.some((node) => node.type === "ManyingGenerated")).toBe(true);
+    expect(payload.nodes.some((node) => node.type === "MyGenerated")).toBe(true);
     expect(payload.extra.apiFormat).toBeTruthy();
     // 参考图:project-file 可读→上传(data: 前缀被剥)
     expect(uploads).toHaveLength(1);
-    expect(uploads[0]).toMatch(/^manying-ref-1-[0-9a-f]{8}\.png$/);
+    expect(uploads[0]).toMatch(/^my-ref-1-[0-9a-f]{8}\.png$/);
     expect(summary.referencesUploaded).toBe(1);
   });
 

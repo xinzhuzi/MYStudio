@@ -18,14 +18,14 @@ import { ComfyCanvasStudio } from "./ComfyCanvasStudio";
 
 export function ComfyCanvasSwap({
   autoOpenOverview = false,
-  manyingScope,
+  myScope,
   sidebarActions,
   stageFlowNodes,
 }: {
   /** 工作流阶段(分镜制作)专用:进入即自动打开本章分镜总览 */
   autoOpenOverview?: boolean;
   /** 模块分野(09-11 裁定):workflow=漫影侧栏默认「分镜」页签;models=默认「工作流」页签 */
-  manyingScope?: "workflow" | "models";
+  myScope?: "workflow" | "models";
   /** 老画布节点模型(09-12 v4 内容全量:技能/资产卡/队列进度经此喂入节点载荷) */
   stageFlowNodes?: import("../../studio/workflow-node-model-schema").ProductionFlowNodeModel[];
   /** 制作动作宿主侧(09-11):侧栏按钮→宿主批量钩子 */
@@ -45,7 +45,7 @@ export function ComfyCanvasSwap({
 } = {}) {
   return (
     <div className="flex h-full w-full min-h-0 min-w-0 flex-col" data-comfy-swap="comfy">
-      <ComfyCanvasStudio autoOpenOverview={autoOpenOverview} manyingScope={manyingScope} sidebarActions={sidebarActions} stageFlowNodes={stageFlowNodes} />
+      <ComfyCanvasStudio autoOpenOverview={autoOpenOverview} myScope={myScope} sidebarActions={sidebarActions} stageFlowNodes={stageFlowNodes} />
     </div>
   );
 }

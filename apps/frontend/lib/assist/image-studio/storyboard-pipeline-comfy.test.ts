@@ -55,7 +55,7 @@ describe("buildStoryboardPipelineWorkflow(链工作流)", () => {
     expect(result.report.stages).toBe(7);
     expect(result.report.edges).toBe(6);
     const ui = result.ui as { nodes: Array<{ id: number; type: string; widgets_values: unknown[] }>; links: number[][] };
-    const stages = ui.nodes.filter((n) => n.type === "ManyingStage");
+    const stages = ui.nodes.filter((n) => n.type === "MyStage");
     expect(stages).toHaveLength(7);
     // 边端点(节点 id:script=1..workbench=6,assets=7)
     expect(ui.links.map((l) => `${l[1]}→${l[3]}`)).toEqual(["1→2", "1→7", "2→3", "3→4", "4→5", "5→6"]);
@@ -66,32 +66,32 @@ describe("buildStoryboardPipelineWorkflow(链工作流)", () => {
 
   it("09-12 节点标题栏=环节名(固定节点不再全显类型名「漫影 环节」)", () => {
     const ui = result.ui as { nodes: Array<{ type: string; title?: string; widgets_values?: unknown[] }> };
-    const stages = ui.nodes.filter((n) => n.type === "ManyingStage");
+    const stages = ui.nodes.filter((n) => n.type === "MyStage");
     const byTitle = Object.fromEntries(stages.map((n) => [n.widgets_values?.[0], n.title]));
     expect(byTitle).toEqual({
       script: "剧本", scriptPlan: "导演规划", assets: "衍生资产", storyboardTable: "分镜表",
       storyboard: "分镜面板", remotionProduction: "单镜视频生产", workbench: "视频工作台",
     });
     // 子图引用节点标题=子图名(不回落 uuid 型名)
-    const refNode = ui.nodes.find((n) => n.type !== "ManyingStage");
+    const refNode = ui.nodes.find((n) => n.type !== "MyStage");
     expect(refNode?.title).toContain("分镜内容");
   });
 
-  it("镜子节点住子图:主图零 ManyingShot,definitions 装镜节点;09-12 裁定零组框", () => {
+  it("镜子节点住子图:主图零 MyShot,definitions 装镜节点;09-12 裁定零组框", () => {
     const ui = result.ui as {
       nodes: Array<{ id: number; type: string; pos: number[]; widgets_values?: unknown[] }>;
       groups: unknown[];
       definitions: { subgraphs: Array<{ id: string; name: string; nodes: Array<{ type: string }>; inputNode: { id: number }; outputNode: { id: number } }> };
     };
-    // 主图只留整条流程:七环节+一个子图引用节点,零 ManyingShot
-    const mainShots = ui.nodes.filter((n) => n.type === "ManyingShot");
+    // 主图只留整条流程:七环节+一个子图引用节点,零 MyShot
+    const mainShots = ui.nodes.filter((n) => n.type === "MyShot");
     expect(mainShots).toHaveLength(0);
     expect(ui.nodes).toHaveLength(8); // 7 环节 + 1 子图引用
-    // 子图定义:镜节点全在子图里(类型照旧 ManyingShot)
+    // 子图定义:镜节点全在子图里(类型照旧 MyShot)
     const subs = ui.definitions.subgraphs;
     expect(subs).toHaveLength(1);
     const sub = subs[0];
-    expect(sub.nodes.filter((n) => n.type === "ManyingShot")).toHaveLength(2);
+    expect(sub.nodes.filter((n) => n.type === "MyShot")).toHaveLength(2);
     expect(sub.inputNode.id).toBe(-10);
     expect(sub.outputNode.id).toBe(-20);
     expect(sub.name).toContain("chapter-001");
@@ -104,7 +104,7 @@ describe("buildStoryboardPipelineWorkflow(链工作流)", () => {
 
   it("标题恒「MY-分镜工作流」不带章(MY- 前缀裁定);extra 标记链工作流", () => {
     expect(result.report.name).toBe("MY-分镜工作流");
-    expect((result.ui as { extra: Record<string, unknown> }).extra.manyingPipeline).toBe(true);
+    expect((result.ui as { extra: Record<string, unknown> }).extra.myPipeline).toBe(true);
   });
 });
 
@@ -151,7 +151,7 @@ describe("buildStageNodePayload(v2 全量内容,照老 flow 画布)", () => {
   it("tiles 全量带缩略图名;shots 视频/配音双状态;资产分组;轨道全列", () => {
     const storyboard = payloads.find((p) => p.key === "storyboard")!;
     expect(storyboard.tiles).toHaveLength(3);
-    expect(storyboard.tiles![0].preview).toContain("manying-shot-");
+    expect(storyboard.tiles![0].preview).toContain("my-shot-");
     expect(storyboard.tiles![1]).toMatchObject({ index: 2, hasVideo: true });
     const remotion = payloads.find((p) => p.key === "remotionProduction")!;
     expect(remotion.shots).toHaveLength(3);
@@ -185,7 +185,7 @@ describe("buildStageNodePayload(v2 全量内容,照老 flow 画布)", () => {
     expect(computeStageNodeSize(undefined)).toEqual([560, 170]);
   });
 
-  it("buildStoryboardPipelineWorkflow 接载荷:properties.manyingStage+尺寸+零组框+widgets 契约不变", () => {
+  it("buildStoryboardPipelineWorkflow 接载荷:properties.myStage+尺寸+零组框+widgets 契约不变", () => {
     const summaries = buildStageSummaries({
       novelChapters: [{ id: "c1" }], scriptPlans: [], entityExtractions: [],
       storyboards: [shot(1, "image")], productionTracks: [],
@@ -197,9 +197,9 @@ describe("buildStageNodePayload(v2 全量内容,照老 flow 画布)", () => {
       nodes: Array<{ id: number; type: string; pos: number[]; size: number[]; properties: Record<string, unknown>; widgets_values: unknown[] }>;
       groups: unknown[];
     };
-    const stages = ui.nodes.filter((n) => n.type === "ManyingStage");
+    const stages = ui.nodes.filter((n) => n.type === "MyStage");
     const script = stages.find((n) => n.widgets_values[0] === "script")!;
-    expect((script.properties.manyingStage as { previewTitle: string }).previewTitle).toBe("剧本内容");
+    expect((script.properties.myStage as { previewTitle: string }).previewTitle).toBe("剧本内容");
     expect(script.size[0]).toBe(600); // 正方形常理尺寸(引擎 syncSize 同口径)
     // 09-12 用户裁定:节点后不加 group 组框
     expect(ui.groups).toHaveLength(0);
@@ -213,8 +213,8 @@ describe("buildStageNodePayload(v2 全量内容,照老 flow 画布)", () => {
     });
     const result = buildStoryboardPipelineWorkflow({ summaries, storyboards: [] });
     const stages = (result.ui as { nodes: Array<{ type: string; properties: Record<string, unknown>; size: number[] }> })
-      .nodes.filter((n) => n.type === "ManyingStage");
-    expect(stages.every((n) => !("manyingStage" in n.properties))).toBe(true);
+      .nodes.filter((n) => n.type === "MyStage");
+    expect(stages.every((n) => !("myStage" in n.properties))).toBe(true);
     expect(stages.every((n) => n.size[1] === 600)).toBe(true); // 正方形常理尺寸
   });
 });

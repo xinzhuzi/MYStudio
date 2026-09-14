@@ -6,8 +6,8 @@
  * 分镜流程链工作流生成器(旧分镜画布迁移,09-11):
  * 旧 React Flow 画布的七环节链(剧本→导演规划→[衍生资产]→分镜表→
  * 分镜面板→单镜视频生产→视频工作台)转成 ComfyUI 原生工作流(UI 格式):
- * 每环节一个 ManyingStage 锚点(标题+实时摘要+状态),MANYING_FLOW 连线
- * 串链;分镜网格(ManyingShot 总览)平移到链右侧——进分镜阶段打开即
+ * 每环节一个 MyStage 锚点(标题+实时摘要+状态),MANYING_FLOW 连线
+ * 串链;分镜网格(MyShot 总览)平移到链右侧——进分镜阶段打开即
  * 一张图看整条工作流+本章分镜。环节语义真源=workflow-node-model 族
  * (node-builders 的 label/status/metrics 降档映射,见任务 research)。
  */
@@ -58,8 +58,8 @@ export interface PipelineStageSummary {
  * 环节节点富内容载荷 v2(09-12 stage-node-content-parity 用户终裁:内容一定
  * 要做好,像之前的 flow 画布一样——**全量内容**,非概览卡):正文完整换行展示
  * (仅 60 行画布物理上限+尾行指路)、分镜 tiles 带缩略图名、分镜表成表行、
- * 逐镜带视频/配音双状态、资产分组、轨道全列。写进 properties.manyingStage,
- * 引擎侧 manying.js 的 manying.stage.render 自绘消费(照 ManyingShot 先例,
+ * 逐镜带视频/配音双状态、资产分组、轨道全列。写进 properties.myStage,
+ * 引擎侧 manying.js 的 my.stage.render 自绘消费(照 MyShot 先例,
  * 不进 widgets_values=序列化契约稳定)。
  */
 export interface StageNodePayload {
@@ -72,7 +72,7 @@ export interface StageNodePayload {
   previewTitle?: string;
   /** 正文行(生成器已按节点宽换行;≤60 行,超限尾行指路阶段面板) */
   previewLines?: string[];
-  /** 分镜 tiles(全量;preview=引擎 input 缩略图名 manying-shot-*.jpg) */
+  /** 分镜 tiles(全量;preview=引擎 input 缩略图名 my-shot-*.jpg) */
   tiles?: { index: number; title: string; preview?: string; hasImage: boolean; hasVideo: boolean; lines?: string; state?: string }[];
   /** 分镜表行(照老画布表格预览全字段;解析自 storyboardTable 正文) */
   tableRows?: {
@@ -494,7 +494,7 @@ export function buildStoryboardPipelineWorkflow(input: {
     const payload = payloadByKey.get(item.key);
     return {
       id,
-      type: "ManyingStage",
+      type: "MyStage",
       pos,
       flags: {},
       order: id,
@@ -510,11 +510,11 @@ export function buildStoryboardPipelineWorkflow(input: {
         { name: "upstream", type: "MANYING_FLOW", link: null, slot_index: 0, label: "上游环节" },
       ],
       outputs: [{ name: "flow", type: "MANYING_FLOW", links: [], slot_index: 0, label: "下游环节" }],
-      // 富内容载荷(照 ManyingShot manyingPreview 先例进 properties,
+      // 富内容载荷(照 MyShot myPreview 先例进 properties,
       // 不进 widgets_values=序列化契约稳定;引擎侧自绘消费)
       properties: {
-        "Node name for S&R": "ManyingStage",
-        ...(payload ? { manyingStage: payload } : {}),
+        "Node name for S&R": "MyStage",
+        ...(payload ? { myStage: payload } : {}),
       },
       widgets_values: [item.key, item.title, item.summary, item.status],
       size: sizeByKey.get(item.key)!,
@@ -617,7 +617,7 @@ export function buildStoryboardPipelineWorkflow(input: {
         }],
       },
       config: {},
-      extra: { manyingPipeline: true },
+      extra: { myPipeline: true },
       version: 0.4,
     },
     report: { stages: stageNodes.length, edges: links.length, shots: overview.report.shots, name },

@@ -53,17 +53,17 @@ describe("exportImageWorkflowToComfy(合成:单参考 edit_ref)", () => {
   const result = exportImageWorkflowToComfy(syntheticGraph());
   const api = apiNodes(result);
 
-  it("API 格式:ManyingPrompt/Generated 就位,Encode 改接字符串链", () => {
-    const promptNode = api["b1_manying_prompt"];
-    expect(promptNode?.class_type).toBe("ManyingPrompt");
+  it("API 格式:MyPrompt/Generated 就位,Encode 改接字符串链", () => {
+    const promptNode = api["b1_my_prompt"];
+    expect(promptNode?.class_type).toBe("MyPrompt");
     expect(promptNode?.inputs.positive).toBe("一张水墨山");
     expect(promptNode?.inputs.negative).toBe("模糊");
-    const generated = api["b1_manying_generated"];
-    expect(generated?.class_type).toBe("ManyingGenerated");
+    const generated = api["b1_my_generated"];
+    expect(generated?.class_type).toBe("MyGenerated");
     expect(generated?.inputs.shot_target).toBe("sb-41");
-    // 正/负绑定口都改接 [manying_prompt, 0/1]
+    // 正/负绑定口都改接 [my_prompt, 0/1]
     const wired = Object.values(api).filter((node) =>
-      JSON.stringify(node.inputs).includes('manying_prompt'));
+      JSON.stringify(node.inputs).includes('my_prompt'));
     expect(wired.length).toBeGreaterThanOrEqual(2);
     // SaveImage 已被移除
     expect(Object.values(api).some((node) => node.class_type === "SaveImage")).toBe(false);
@@ -82,11 +82,11 @@ describe("exportImageWorkflowToComfy(合成:单参考 edit_ref)", () => {
     expect(api["b1_30"]?.inputs.steps).toBe(10);
   });
 
-  it("UI 格式:链接完整性(端点均存在)+ ManyingPrompt 双 STRING 链 + 无 SaveImage", () => {
+  it("UI 格式:链接完整性(端点均存在)+ MyPrompt 双 STRING 链 + 无 SaveImage", () => {
     const ui = result.ui as { nodes: Array<{ id: number; type: string; outputs: Array<{ links: number[] | null }> }>; links: Array<[number, number, number, number, number, string]> };
     const ids = new Set(ui.nodes.map((node) => node.id));
-    expect(ui.nodes.some((node) => node.type === "ManyingPrompt")).toBe(true);
-    expect(ui.nodes.some((node) => node.type === "ManyingGenerated")).toBe(true);
+    expect(ui.nodes.some((node) => node.type === "MyPrompt")).toBe(true);
+    expect(ui.nodes.some((node) => node.type === "MyGenerated")).toBe(true);
     expect(ui.nodes.some((node) => node.type === "SaveImage")).toBe(false);
     for (const link of ui.links) {
       expect(ids.has(link[1])).toBe(true);
@@ -94,13 +94,13 @@ describe("exportImageWorkflowToComfy(合成:单参考 edit_ref)", () => {
     }
     const stringLinks = ui.links.filter((link) => link[5] === "STRING");
     expect(stringLinks).toHaveLength(2);
-    const promptUi = ui.nodes.find((node) => node.type === "ManyingPrompt");
+    const promptUi = ui.nodes.find((node) => node.type === "MyPrompt");
     expect(promptUi?.outputs).toHaveLength(2);
   });
 
   it("报告:edit_ref 插件提示与占位名注记在案", () => {
     expect(result.report.notes.some((note) => note.includes("生态插件"))).toBe(true);
-    expect(result.report.notes.some((note) => note.includes("manying-ref-1-"))).toBe(true);
+    expect(result.report.notes.some((note) => note.includes("my-ref-1-"))).toBe(true);
     expect(result.report.mapped).toEqual({ prompt: 1, reference: 1, generated: 1 });
   });
 });
@@ -125,7 +125,7 @@ describe("边界路径", () => {
   it("无连线提示词:回落成图节点内嵌 prompt", () => {
     const graph = syntheticGraph({ edges: [{ id: "e2", source: "r1", target: "g1" }] });
     const api = apiNodes(exportImageWorkflowToComfy(graph));
-    expect(api["b1_manying_prompt"]?.inputs.positive).toBe("内嵌兜底");
+    expect(api["b1_my_prompt"]?.inputs.positive).toBe("内嵌兜底");
   });
 
   it("未映射类型(uncloth 等):进 skipped 报告不进图", () => {

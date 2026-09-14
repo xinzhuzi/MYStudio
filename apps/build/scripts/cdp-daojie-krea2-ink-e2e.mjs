@@ -2,7 +2,7 @@
 /**
  * 道劫专属 Krea2 工作流装机应用 E2E(09-14):
  * 启动装机版 → 侧栏「本地模型」进 ComfyUI 沉浸模块 → webview(域树断言 1_图片)
- * → 以侧栏同款机制(__manyingOpenWorkflow/loadGraphData)打开库内工作流
+ * → 以侧栏同款机制(__myOpenWorkflow/loadGraphData)打开库内工作流
  *   「Krea2-道劫水墨-文生图_my」与「Krea2-道劫水墨-图生图_my」→ queuePrompt 实弹
  * → 断言引擎 output 各新增一张 PNG。
  *
@@ -30,10 +30,10 @@ const APP_BUNDLE_ID = "com.manju2026.manying-studio";
 const CH = join(homedir(), "Library/Application Support/漫影工作室/comfyui");
 const ENGINE_OUTPUT = join(CH, "output");
 const ENGINE_INPUT = join(CH, "input");
-// 09-14 用户裁定:漫影工作流文件名一律 _my.json 后缀(应用已全库改名)
-const WF_T2I_REL = "漫影/1_图片/K2图像/1_文生图/MY-漫影-K2-文生图.json";
-const WF_I2I_REL = "漫影/1_图片/K2图像/2_图生图/MY-漫影-K2-图生图.json";
-const WF_DIR = join(CH, "ComfyUI/user/default/workflows");
+// 09-14 工作流存放架构裁定:静态自研 MY- 真源=仓库 apps/backend/engines/comfyui/workflows
+const WF_T2I_REL = "1_图片/K2图像/1_文生图/MY-K2-文生图.json";
+const WF_I2I_REL = "1_图片/K2图像/2_图生图/MY-K2-图生图.json";
+const WF_DIR = "/Users/zhengbingjin/Project/Github/MYStudio/apps/backend/engines/comfyui/workflows";
 const REF_IMAGE = "daojie_e2e_ref.png";
 const GEN_TIMEOUT_MS = Number(process.env.GEN_TIMEOUT_MS || 420_000);
 
@@ -172,7 +172,8 @@ async function openWorkflowInCanvas(main, name, graphJson) {
     if (!app || app.isGraphReady !== true || typeof app.loadGraphData !== 'function') return 'app-not-ready';
     const payload = { name: ${JSON.stringify(name)}, graph: ${JSON.stringify(graphJson)} };
     try {
-      if (typeof window.__manyingOpenWorkflow === 'function') { void window.__manyingOpenWorkflow(payload); return 'opened-via-sidebar-api'; }
+      const opener = window.__myOpenWorkflow || window.__manyingOpenWorkflow;
+      if (typeof opener === 'function') { void opener(payload); return 'opened-via-sidebar-api'; }
     } catch (e) { /* fallthrough */ }
     app.loadGraphData(payload.graph, true, true, payload.name);
     return 'opened-via-loadGraphData';
@@ -281,10 +282,11 @@ async function main() {
   check("ComfyUI 画布就绪(webview.app.isGraphReady)", true);
   await mainPage.screenshot("3-comfy-ready");
 
-  log("⑤ 打开漫影侧栏并断言本地模型模块域树");
-  // 漫影侧栏=ComfyUI sidebar tab(id=manying.shots/title=漫影),dock 按钮在
-  // side-tool-bar;域名渲染去数字前缀(1_图片→图片)且分组默认折叠,
-  // 断言用恒可见区标题「本地模型工作流库」
+  log("⑤ 打开漫影侧栏并断言 K2 生图直达区");
+  // 漫影侧栏=ComfyUI sidebar tab(id=my.shots/title=漫影),dock 按钮在
+  // side-tool-bar;09-14 裁定:本地模型模块只列「漫影 K2 生图」直达
+  // (全库浏览与「N 个工作流」计数行退役);webview 持久会话可能缓存旧 JS,
+  // 未见新区时忽略缓存重载一次再判
   await waitFor(() => wv(mainPage, `(() => {
     const btn = [...document.querySelectorAll('.side-tool-bar-container button, [class*="side-tool-bar"] button')]
       .find(b => ((b.title || '') + (b.getAttribute('aria-label') || '')).includes('漫影'));
@@ -292,10 +294,23 @@ async function main() {
     btn.click();
     return 'clicked';
   })()`), { timeout: 30_000, interval: 1500, label: "漫影侧栏按钮" });
-  const hasDomain = await waitFor(() => wv(mainPage, `document.body.innerText.includes('本地模型工作流库') ? 'yes' : null`),
-    { timeout: 30_000, label: "侧栏工作流库区" });
-  check("侧栏含本地模型工作流库(域树浏览)", Boolean(hasDomain));
-  await mainPage.screenshot("4-sidebar-domains");
+  let hasK2 = await wv(mainPage, `document.body.innerText.includes('漫影 K2 生图') ? 'yes' : null`);
+  if (!hasK2) {
+    await mainPage.ev(`(() => { document.querySelector('webview')?.reloadIgnoringCache?.(); return true; })()`);
+    await waitFor(() => wv(mainPage, `window.app && window.app.isGraphReady === true ? 'y' : null`),
+      { timeout: 120_000, interval: 2000, label: "webview 忽略缓存重载" });
+    await waitFor(() => wv(mainPage, `(() => {
+      const btn = [...document.querySelectorAll('.side-tool-bar-container button, [class*="side-tool-bar"] button')]
+        .find(b => ((b.title || '') + (b.getAttribute('aria-label') || '')).includes('漫影'));
+      if (!btn) return null; btn.click(); return 'clicked';
+    })()`), { timeout: 30_000, interval: 1500, label: "漫影侧栏按钮(重载后)" });
+    hasK2 = await waitFor(() => wv(mainPage, `document.body.innerText.includes('漫影 K2 生图') ? 'yes' : null`),
+      { timeout: 30_000, label: "K2 生图直达区" });
+  }
+  check("侧栏含「漫影 K2 生图」直达区", hasK2 === "yes");
+  const noJunk = await wv(mainPage, `(() => ({ lib: document.body.innerText.includes('本地模型工作流库'), n36: document.body.innerText.includes('个工作流') }))()`);
+  check("旧工作流库浏览区已退役(无「本地模型工作流库」/「N 个工作流」)", Boolean(noJunk) && !noJunk.lib && !noJunk.n36);
+  await mainPage.screenshot("4-sidebar-k2");
 
   log("⑥ 打开道劫文生图工作流并实弹");
   const t2iGraph = JSON.parse(readFileSync(wfT2I, "utf8"));
@@ -305,7 +320,7 @@ async function main() {
   const nodes1 = await wv(mainPage, `window.app.graph ? window.app.graph._nodes.length : 0`);
   check("文生图画布节点数=17", nodes1 === 17, `实际 ${nodes1}`);
   await mainPage.screenshot("5-t2i-loaded");
-  const okT2I = await queueAndAssert(mainPage, { tag: "文生图", prefix: "Krea2-道劫水墨-文生图" });
+  const okT2I = await queueAndAssert(mainPage, { tag: "文生图", prefix: "MY-K2-文生图" });
   await mainPage.screenshot("6-t2i-result");
 
   log("⑦ 打开道劫图生图工作流并实弹(参考图注入 LoadImage)");
@@ -313,7 +328,7 @@ async function main() {
   const opened2 = await openWorkflowInCanvas(mainPage, WF_I2I_REL, i2iGraph);
   check("图生图工作流载入", opened2 && opened2 !== "app-not-ready", String(opened2));
   await sleep(2500);
-  // __manyingOpenWorkflow 绑定库文件重读原始 JSON(传参 graph 被忽略),基底的
+  // __myOpenWorkflow 绑定库文件重读原始 JSON(传参 graph 被忽略),基底的
   // LoadImage 默认图「测试图 (27).png」不在本机 input=validation 拒队列。按真实
   // 用户路径补一步:在画布上把 LoadImage 选为参考图(改 widget 值+触发 callback)。
   const refSet = await wv(mainPage, `(() => {
@@ -330,7 +345,7 @@ async function main() {
   const nodes2 = await wv(mainPage, `window.app.graph ? window.app.graph._nodes.length : 0`);
   check("图生图画布节点数=21", nodes2 === 21, `实际 ${nodes2}`);
   await mainPage.screenshot("7-i2i-loaded");
-  const okI2I = await queueAndAssert(mainPage, { tag: "图生图", prefix: "Krea2-道劫水墨-图生图" });
+  const okI2I = await queueAndAssert(mainPage, { tag: "图生图", prefix: "MY-K2-图生图" });
   await mainPage.screenshot("8-i2i-result");
 
   mainPage.close();

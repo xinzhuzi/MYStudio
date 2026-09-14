@@ -3,7 +3,7 @@
 # Commercial licensing available. See COMMERCIAL_LICENSE.md.
 """参考图上传转发(渲染层→引擎 input 目录;同名覆写=迁移占位名闭环)。
 
-迁移器产出的 LoadImage 占位名(manying-ref-N-hash.png)在此闭环:渲染层
+迁移器产出的 LoadImage 占位名(my-ref-N-hash.png)在此闭环:渲染层
 读项目/资产图→b64→sidecar→本模块转发引擎 /upload/image?overwrite=true
 ——真图以同名落进 input 目录,占位名工作流即开即跑。
 """
@@ -29,7 +29,7 @@ def upload_reference(image_b64: str, name: str, timeout: float = 30.0) -> dict:
         raise EngineOpError(f"参考图数据不是有效 base64:{exc}") from exc
     if not raw:
         raise EngineOpError("参考图数据为空")
-    boundary = f"----manying-ref-{uuid.uuid4().hex}"
+    boundary = f"----my-ref-{uuid.uuid4().hex}"
     body = b"".join((
         f"--{boundary}\r\n".encode(),
         f'Content-Disposition: form-data; name="image"; filename="{name}"\r\n'.encode(),

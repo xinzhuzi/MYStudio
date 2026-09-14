@@ -1,7 +1,7 @@
 # Copyright (c) 2025 hotflow2024
 # Licensed under AGPL-3.0-or-later. See LICENSE for details.
 # Commercial licensing available. See COMMERCIAL_LICENSE.md.
-"""bridge 回写收件箱(manying_generated → sidecar;swap 阶段1)。
+"""bridge 回写收件箱(my_generated → sidecar;swap 阶段1)。
 
 引擎侧自定义节点执行完成后 POST 图像(b64)+meta 到本 sidecar;逐条落盘
 <comfyui-home>/bridge-inbox/(sidecar 重启不丢);渲染层 cursor 轮询消费、

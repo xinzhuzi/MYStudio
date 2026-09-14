@@ -50,16 +50,16 @@ def test_upload_posts_multipart_with_overwrite(home):
         captured["url"] = request.full_url
         captured["boundary"] = request.headers["Content-type"].split("boundary=")[1]
         captured["body"] = request.data
-        return _FakeResponse({"name": "manying-ref-1-abc.png", "subfolder": "", "type": "input"})
+        return _FakeResponse({"name": "my-ref-1-abc.png", "subfolder": "", "type": "input"})
 
     with patch("urllib.request.urlopen", side_effect=fake_urlopen):
-        result = uploads.upload_reference(base64.b64encode(b"png-bytes").decode(), "manying-ref-1-abc.png")
+        result = uploads.upload_reference(base64.b64encode(b"png-bytes").decode(), "my-ref-1-abc.png")
 
     assert "overwrite=true" in captured["url"]
     assert "17001" in captured["url"]
-    assert b'filename="manying-ref-1-abc.png"' in captured["body"]
+    assert b'filename="my-ref-1-abc.png"' in captured["body"]
     assert b"png-bytes" in captured["body"]
-    assert result["name"] == "manying-ref-1-abc.png"
+    assert result["name"] == "my-ref-1-abc.png"
 
 
 def test_upload_rejects_bad_base64_and_empty(home):

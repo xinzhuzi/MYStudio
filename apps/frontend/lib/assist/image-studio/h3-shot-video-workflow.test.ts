@@ -44,11 +44,11 @@ describe("buildShotH3Workflow", () => {
     expect(result.report).toMatchObject({ shot: 1, frames: 124, policy: "ambient" });
     expect(nodeWidgets(result.ui, 14)[0]).toContain("integrated_multimodal_description:");
     expect(nodeWidgets(result.ui, 20)[0]).toBe(124 / 24);
-    expect(nodeWidgets(result.ui, 9)[0]).toBe("manying-shot-h3-sb-chapter-001-001.jpg");
+    expect(nodeWidgets(result.ui, 9)[0]).toBe("my-shot-h3-sb-chapter-001-001.jpg");
     expect(nodeWidgets(result.ui, 4)[0]).toBe("video/漫影/chapter-001/sb-chapter-001-001/ambient");
     expect(String(nodeWidgets(result.ui, 4)[0])).not.toContain("video/漫影_S");
     expect(nodeWidgets(result.ui, 100)).toEqual(["sb-chapter-001-001", "S01", "雨夜中的石桥", "图✓"]);
-    expect(byId.get(100)?.properties).toMatchObject({ manyingPreview: "manying-shot-h3-sb-chapter-001-001.jpg" });
+    expect(byId.get(100)?.properties).toMatchObject({ myPreview: "my-shot-h3-sb-chapter-001-001.jpg" });
     expect((byId.get(4)?.outputs as Array<{ links?: number[] }>)[0]?.links).toContain(70);
     expect((byId.get(100)?.inputs as Array<{ name?: string }>)[0]?.name).toBe("video");
   });
@@ -107,8 +107,8 @@ describe("buildShotH3RefWorkflow (09-14-h3-ref2va-line)", () => {
       chapterId: "chapter-001",
       chapterLabel: "第一章 雨夜",
       refs: [
-        { name: "独孤剑尘", kind: "character", imageName: "manying-shot-h3-ref-role-001.jpg" },
-        { name: "金水河码头", kind: "scene", imageName: "manying-shot-h3-ref-scene-001.jpg" },
+        { name: "独孤剑尘", kind: "character", imageName: "my-shot-h3-ref-role-001.jpg" },
+        { name: "金水河码头", kind: "scene", imageName: "my-shot-h3-ref-scene-001.jpg" },
       ],
     });
     const nodes = result.ui.nodes as Array<{ id: number; type: string; mode?: number; widgets_values?: unknown[] }>;
@@ -124,7 +124,7 @@ describe("buildShotH3RefWorkflow (09-14-h3-ref2va-line)", () => {
     expect(byId(9)?.mode).toBe(0);
     expect(byId(110)?.mode).toBe(0);
     expect(byId(111)?.mode).toBe(0);
-    expect(byId(110)?.widgets_values?.[0]).toBe("manying-shot-h3-ref-role-001.jpg");
+    expect(byId(110)?.widgets_values?.[0]).toBe("my-shot-h3-ref-role-001.jpg");
     expect(byId(112)?.mode).toBe(4);
     expect(byId(113)?.mode).toBe(4);
     expect(String(byId(4)?.widgets_values?.[0])).toBe("video/漫影/chapter-001/sb-chapter-001-001/ref-ambient");

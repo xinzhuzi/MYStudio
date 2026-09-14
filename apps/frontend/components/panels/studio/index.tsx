@@ -173,7 +173,7 @@ export function StudioView() {
             >
               {/* 09-10 用户裁定:进入工作流阶段即展示本章分镜总览(分镜内容优先);
                   09-11 补裁定:漫影侧栏按模块分内容,工作流模块默认「分镜」页签 */}
-              <ComfyCanvasSwap autoOpenOverview manyingScope="workflow" sidebarActions={sidebarActions} stageFlowNodes={viewModel.productionFlowNodes} />
+              <ComfyCanvasSwap autoOpenOverview myScope="workflow" sidebarActions={sidebarActions} stageFlowNodes={viewModel.productionFlowNodes} />
             </TabsContent>
 
             <TabsContent
@@ -199,7 +199,7 @@ export function StudioView() {
               className="m-0 min-h-0 flex-1"
             >
               {/* 分镜画布(资产/单镜图编辑)=分镜生产语境,漫影侧栏默认「分镜」页签 */}
-              <ComfyCanvasSwap manyingScope="workflow" sidebarActions={sidebarActions} stageFlowNodes={viewModel.productionFlowNodes} />
+              <ComfyCanvasSwap myScope="workflow" sidebarActions={sidebarActions} stageFlowNodes={viewModel.productionFlowNodes} />
             </TabsContent>
 
             <TabsContent value="workbench" className="m-0">

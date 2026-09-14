@@ -87,24 +87,24 @@ describe("ComfyCanvasStudio(辅助面板第六 tab)", () => {
     expect(await screen.findByRole("button", { name: "启动 ComfyUI" })).toBeTruthy();
   });
 
-  it("manyingScope=模块分野标记进 webview URL(09-11:侧栏按模块分工)", async () => {
+  it("myScope=模块分野标记进 webview URL(09-11:侧栏按模块分工)", async () => {
     (window as { comfyEngine?: ComfyEngineClient }).comfyEngine = stubClient({
       installed: true,
       state: "ready",
       serviceRunning: true,
       port: 17001,
     });
-    const { rerender } = render(<ComfyCanvasStudio manyingScope="models" />);
+    const { rerender } = render(<ComfyCanvasStudio myScope="models" />);
     await waitFor(
       () => expect(document.querySelector("[data-comfy-canvas-webview]")).toBeTruthy(),
       { timeout: 3000 },
     );
     expect(document.querySelector("[data-comfy-canvas-webview]")!.getAttribute("src"))
-      .toBe("http://127.0.0.1:17001/?manyingScope=models");
+      .toBe("http://127.0.0.1:17001/?myScope=models");
     // 换回工作流模块标记:src 同步换值
-    rerender(<ComfyCanvasStudio manyingScope="workflow" />);
+    rerender(<ComfyCanvasStudio myScope="workflow" />);
     expect(document.querySelector("[data-comfy-canvas-webview]")!.getAttribute("src"))
-      .toBe("http://127.0.0.1:17001/?manyingScope=workflow");
+      .toBe("http://127.0.0.1:17001/?myScope=workflow");
   });
 
   it("模块分离会话隔离(09-12):models 域 webview 独立 partition,workflow 域不设", async () => {
@@ -114,15 +114,15 @@ describe("ComfyCanvasStudio(辅助面板第六 tab)", () => {
       serviceRunning: true,
       port: 17001,
     });
-    const { rerender } = render(<ComfyCanvasStudio manyingScope="models" />);
+    const { rerender } = render(<ComfyCanvasStudio myScope="models" />);
     await waitFor(
       () => expect(document.querySelector("[data-comfy-canvas-webview]")).toBeTruthy(),
       { timeout: 3000 },
     );
     const webview = document.querySelector("[data-comfy-canvas-webview]")!;
     // 独立持久会话:ComfyUI 的 localStorage(activePath+草稿)顶签恢复不再串工作流模块
-    expect(webview.getAttribute("partition")).toBe("persist:manying-comfy-models");
-    rerender(<ComfyCanvasStudio manyingScope="workflow" />);
+    expect(webview.getAttribute("partition")).toBe("persist:my-comfy-models");
+    rerender(<ComfyCanvasStudio myScope="workflow" />);
     expect(document.querySelector("[data-comfy-canvas-webview]")!.getAttribute("partition")).toBeNull();
   });
 
@@ -202,15 +202,15 @@ describe("ComfyCanvasStudio(辅助面板第六 tab)", () => {
     // 本用例默认 local 模块:只注 2 段
     expect(scripts).toHaveLength(2);
     const script = scripts[0];
-    // 真源=manying_login_cloak.js(二轮精确化:按钮整文案精确命中+卡片锚
+    // 真源=my_login_cloak.js(二轮精确化:按钮整文案精确命中+卡片锚
     // 向上找;不扫容器/不碰 title/aria/弹窗——Comfy 设置页零接触)
-    expect(script).toContain("manyingLoginCloak");
+    expect(script).toContain("myLoginCloak");
     expect(script).toContain('"登录 / 注册"');
     expect(script).toContain('"登录您的账户"');
     expect(script).toContain('button, a, [role="button"]');
     expect(script).toContain("MutationObserver");
     expect(script).toContain('display", "none", "important');
-    expect(script).toContain("__manyingSignInCloak");
+    expect(script).toContain("__mySignInCloak");
     expect(script).not.toContain("p, span, div"); // 宽扫描面=事故源,禁回归
     webview.dispatchEvent(new Event("did-finish-load"));
     expect(scripts).toHaveLength(4); // 双事件兜底同款节律(每发 2 脚本:遮蔽+满幅矫正)
@@ -341,13 +341,13 @@ describe("ComfyCanvasStudio(辅助面板第六 tab)", () => {
       return hit;
     }, { timeout: 3000 });
     // 全尺寸关键帧以专用名上传(禁用 768px 缩略图当 H3 首帧)
-    expect(uploaded).toEqual(["manying-shot-h3-sb-9.jpg"]);
+    expect(uploaded).toEqual(["my-shot-h3-sb-9.jpg"]);
     // 库写入位=视频域自研家应用写入位;打开脚本带锚卡与秒数节点载荷
     expect(importFilesMock).toHaveBeenCalledWith(
       [expect.objectContaining({ name: "漫影/2_视频/H3视频/1_漫影自研/0_单镜视频/MY-单镜视频 · 第一章 雨夜 · S01.json" })],
       "overwrite",
     );
-    expect(payload).toContain("ManyingShot");
+    expect(payload).toContain("MyShot");
     await waitFor(() => expect(toasts.success).toHaveBeenCalled());
   });
 
@@ -381,27 +381,27 @@ describe("ComfyCanvasStudio(辅助面板第六 tab)", () => {
       if (scripts.length < 3) throw new Error("链工作流载荷未注入");
       return scripts[2];
     }, { timeout: 3000 });
-    // 载荷=链工作流:七环节 ManyingStage+MANYING_FLOW 连线+分镜网格+摘要
-    expect(payload).toContain('"type":"ManyingStage"');
-    expect(payload).toContain("ManyingShot");
-    expect((payload.match(/ManyingStage/g) || []).length).toBeGreaterThanOrEqual(7);
+    // 载荷=链工作流:七环节 MyStage+MANYING_FLOW 连线+分镜网格+摘要
+    expect(payload).toContain('"type":"MyStage"');
+    expect(payload).toContain("MyShot");
+    expect((payload.match(/MyStage/g) || []).length).toBeGreaterThanOrEqual(7);
     expect(payload).toContain("MANYING_FLOW");
     expect(payload).toContain("已导入 1 章原文");
     expect(payload).toContain("第1镜");
     // 09-12 stage-node-content-parity:富内容载荷随链工作流注入(自绘消费)
-    expect(payload).toContain("manyingStage");
+    expect(payload).toContain("myStage");
     expect(payload).toContain("剧本内容");
   });
 });
 
 describe("buildOverviewOpenScript(工作流阶段自动打开分镜总览 09-10;09-12 单实例协议通道)", () => {
   it("一次性守卫+轮询等 window.app+协议通道优先+带名兜底;分镜图嵌在载荷里", () => {
-    const graph = { nodes: [{ id: 1, type: "ManyingShot" }], links: [] };
+    const graph = { nodes: [{ id: 1, type: "MyShot" }], links: [] };
     const workflowId = "漫影/1_图片/分镜/0_工作流主线/MY-分镜工作流.json";
     const script = buildOverviewOpenScript(graph, workflowId);
 
     // 一次性守卫:已开过不再覆盖用户手动切换的工作流
-    expect(script).toContain("if (!window.__manyingOverviewAutoOpened) tryLoad(0)");
+    expect(script).toContain("if (!window.__myOverviewAutoOpened) tryLoad(0)");
     // 轮询等待(新前端 GraphView 异步赋 window.app)+graph 初始化完成
     // (09-11 竞态根修:window.app 早于 graph 就绪,只查方法会在未初始化
     // graph 上 loadGraphData——上游打 "graph accessed before initialization"
@@ -410,16 +410,17 @@ describe("buildOverviewOpenScript(工作流阶段自动打开分镜总览 09-10;
     expect(script).toContain('typeof app.loadGraphData === "function"');
     expect(script).toContain("setTimeout");
     // 09-12 单实例协议:扩展提供的全局助手优先(绑定库文件+复用既有签)
-    expect(script).toContain('typeof window.__manyingOpenWorkflow === "function"');
-    expect(script).toContain("window.__manyingOpenWorkflow(payload)");
+    // 09-14 manying→my:双锚(新 __myOpenWorkflow 优先,旧 __manyingOpenWorkflow 兜底)
+    expect(script).toContain("window.__myOpenWorkflow || window.__manyingOpenWorkflow");
+    expect(script).toContain("void opener(payload)");
     // 助手缺席(旧引擎)先等几拍再带名直载兜底:name=库内相对全路径
     // (loadGraphData 第4参语义;裸文件名落 workflows 根层命中不了库条目)
     expect(script).toContain('app.loadGraphData(payload.graph, true, true, payload.name)');
     expect(script).toContain(JSON.stringify(workflowId));
     // 载荷以对象字面量内嵌,分镜节点在
-    expect(script).toContain('"type":"ManyingShot"');
+    expect(script).toContain('"type":"MyShot"');
     // 守卫在实际载入时才置位(app 未出现时后续注入仍可重试)
-    expect(script.indexOf("__manyingOverviewAutoOpened = true")).toBeGreaterThan(
+    expect(script.indexOf("__myOverviewAutoOpened = true")).toBeGreaterThan(
       script.indexOf('typeof app.loadGraphData === "function"'),
     );
   });
@@ -429,8 +430,8 @@ describe("buildCanvasFitScript(画布满幅矫正 09-11:分镜工作流画布未
   it("一次性守卫+位图错配才动+照上游 resizeCanvas 语义(CSS×dpr→设位图→scale→draw)", () => {
     const script = buildCanvasFitScript();
     // 幂等键(双事件兜底重复注入无害)
-    expect(script).toContain("if (window.__manyingCanvasFit) return");
-    expect(script).toContain("window.__manyingCanvasFit = true");
+    expect(script).toContain("if (window.__myCanvasFit) return");
+    expect(script).toContain("window.__myCanvasFit = true");
     // 目标画布=ComfyUI 主画布
     expect(script).toContain('document.querySelector("#graph-canvas")');
     // 错配才动:位图宽高与 CSS×dpr 逐项比对

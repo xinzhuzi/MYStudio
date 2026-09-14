@@ -92,13 +92,13 @@ def test_set_io_dirs_moves_files_and_records(home):
     old_output = home / "ComfyUI" / "output"
     old_input.mkdir(parents=True)
     old_output.mkdir(parents=True)
-    (old_input / "manying-ref-1-abc.png").write_bytes(b"png")
+    (old_input / "my-ref-1-abc.png").write_bytes(b"png")
     (old_output / "ComfyUI_00001_.png").write_bytes(b"png")
 
     manager = EngineManager()
     status = manager.set_io_dirs({"inputDir": str(home / "input"), "outputDir": str(home / "output")})
 
-    assert (home / "input" / "manying-ref-1-abc.png").read_bytes() == b"png"
+    assert (home / "input" / "my-ref-1-abc.png").read_bytes() == b"png"
     assert (home / "output" / "ComfyUI_00001_.png").read_bytes() == b"png"
     assert not old_input.exists() and not old_output.exists()  # 搬空除壳=源码区整洁
     assert status["paths"]["inputDir"] == str(home / "input")

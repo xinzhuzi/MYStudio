@@ -192,9 +192,9 @@ class TestBuildLaunchArgs:
 
     def test_managed_comfy_api_base_env_appends_official_flag(self, monkeypatch):
         # 云端收编二轮:节点全保留,官方 --comfy-api-base 改指漫影网关(env 驱动)
-        monkeypatch.setenv("MYSTUDIO_COMFY_API_BASE", "https://gw.manying.example")
+        monkeypatch.setenv("MYSTUDIO_COMFY_API_BASE", "https://gw.my.example")
         args = build_launch_args("--fast", 17600)
-        assert args[-2:] == ["--comfy-api-base", "https://gw.manying.example"]
+        assert args[-2:] == ["--comfy-api-base", "https://gw.my.example"]
         # 用户串两种写法都识别,不重复注入
         assert build_launch_args("--comfy-api-base https://self.example --fast", 17600).count("--comfy-api-base") == 1
         eq_form = build_launch_args("--comfy-api-base=https://self.example", 17600)

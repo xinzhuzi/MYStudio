@@ -1,7 +1,7 @@
 # Copyright (c) 2025 hotflow2024
 # Licensed under AGPL-3.0-or-later. See LICENSE for details.
 # Commercial licensing available. See COMMERCIAL_LICENSE.md.
-"""bridge 回写契约单源(swap 阶段1):manying_generated → sidecar 17595。
+"""bridge 回写契约单源(swap 阶段1):my_generated → sidecar 17595。
 
 BRIDGE_TOKEN 与 image_gen/server.py LOCAL_TOKEN 同源——server 启动时
 assert 防漂移(两侧各改各的=回写全拒);URL 端口与 image_gen.LOCAL_IMAGE_PORT

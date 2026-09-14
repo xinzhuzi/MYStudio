@@ -33,7 +33,7 @@ export const WEBVIEW_SELECTION_CSS =
   "::selection{background:hsl(212 100% 48% / 0.28)!important;color:inherit!important}";
 
 /** 漫影登录遮蔽脚本(09-10 云端收编):真源=引擎侧扩展
- * manying_nodes/web/manying_login_cloak.js(随 custom_nodes 分发,ComfyUI
+ * my_nodes/web/my_login_cloak.js(随 custom_nodes 分发,ComfyUI
  * 自动加载 extensions 目录全部 js)——装机旧版 app 重启引擎即生效,不依赖
  * app 打包;外部浏览器直访引擎同样覆盖。遮蔽「登录 / 注册」入口+点击拦截
  * +登录弹窗自动关,中文包含匹配(精确匹配抓不到「登录 / 注册」合成串,
@@ -42,14 +42,14 @@ export const WEBVIEW_SELECTION_CSS =
  * 本层是 app 侧第二道(引擎扩展缺席/被删时兜底),与引擎层同码零漂移
  * (?raw 导入整文件)。上游 i18n 改词漏遮时,凭据补丁(cloud_takeover)
  * 仍是功能层兜底:杂散 comfy.org token 永不被采用。换漫影登录的口子=
- * 宿主设 window.MANYING_ACCOUNT_URL(见该文件头注)。 */
-import MANYING_LOGIN_CLOAK_SOURCE from "../../../../../backend/engines/comfyui/manying_nodes/web/manying_login_cloak.js?raw";
+ * 宿主设 window.MY_ACCOUNT_URL(旧名 MANYING_ACCOUNT_URL 仍兼容;见该文件头注)。 */
+import MY_LOGIN_CLOAK_SOURCE from "../../../../../backend/engines/comfyui/my_nodes/web/my_login_cloak.js?raw";
 
 export function buildSignInCloakScript(): string {
-  if (!MANYING_LOGIN_CLOAK_SOURCE.includes("manyingLoginCloak")) {
-    throw new Error("manying_login_cloak.js 缺少 manyingLoginCloak 段(登录遮蔽真源被改坏)");
+  if (!MY_LOGIN_CLOAK_SOURCE.includes("myLoginCloak")) {
+    throw new Error("my_login_cloak.js 缺少 myLoginCloak 段(登录遮蔽真源被改坏)");
   }
-  return MANYING_LOGIN_CLOAK_SOURCE;
+  return MY_LOGIN_CLOAK_SOURCE;
 }
 
 /**
@@ -69,20 +69,23 @@ export function buildOverviewOpenScript(
 ): string {
   const literal = JSON.stringify(graph);
   const idLiteral = JSON.stringify(workflowId);
-  const guard = options.force ? "false" : "window.__manyingOverviewAutoOpened";
+  const guard = options.force ? "false" : "window.__myOverviewAutoOpened";
   return `(function () {
   function tryLoad(attempt) {
     var app = window.app;
     if (app && app.isGraphReady === true && typeof app.loadGraphData === "function") {
-      window.__manyingOverviewAutoOpened = true;
-      // 09-12 单实例协议:优先走侧栏扩展提供的 __manyingOpenWorkflow(绑定库
+      window.__myOverviewAutoOpened = true;
+      // 09-12 单实例协议:优先走侧栏扩展提供的 __myOpenWorkflow(绑定库
       // 文件+复用既有签,永不重复/永不 Unsaved);扩展缺席(旧引擎)先等几拍,
       // 仍无则带名直载兜底(name=库内相对全路径,loadGraphData 第4参语义,
       // 裸文件名会落到 workflows 根层命中不了库条目)。
       var payload = { name: ${idLiteral}, graph: ${literal} };
       try {
-        if (typeof window.__manyingOpenWorkflow === "function") {
-          void window.__manyingOpenWorkflow(payload);
+        // 双锚:新 __myOpenWorkflow 优先;旧 __manyingOpenWorkflow 过渡期兜底
+        // (装机新 asar × 引擎家尚未重同步旧 JS 的窗口)。
+        const opener = window.__myOpenWorkflow || window.__manyingOpenWorkflow;
+        if (typeof opener === "function") {
+          void opener(payload);
           return;
         }
         if (attempt < 20) { setTimeout(function () { tryLoad(attempt + 1); }, 300); return; }
@@ -108,8 +111,8 @@ export function buildOverviewOpenScript(
  */
 export function buildCanvasFitScript(): string {
   return `(function () {
-  if (window.__manyingCanvasFit) return;
-  window.__manyingCanvasFit = true;
+  if (window.__myCanvasFit) return;
+  window.__myCanvasFit = true;
   function fit() {
     var c = document.querySelector("#graph-canvas");
     if (!c) return;
@@ -141,7 +144,7 @@ export function buildCanvasFitScript(): string {
 /**
  * ComfyUI 定制铁律(09-11 用户裁定×2):原生零干预——除登录屏蔽外,不改动
  * /隐藏任何 ComfyUI 原生 UI 与逻辑,其他插件模块一概不碰;漫影的定制只影响
- * 漫影自己的东西(manying_nodes 自研节点/漫影侧栏/工作流库数据)。一切以
+ * 漫影自己的东西(my_nodes 自研节点/漫影侧栏/工作流库数据)。一切以
  * 外挂形式承载(宿主 webview 注入/custom_nodes/工作流库数据),永不改
  * ComfyUI 本体源码。(曾被误做的「工作流模块隐藏工作流库 dock 项」已整体撤除。)
  */
@@ -232,7 +235,7 @@ async function openShotVideoWorkflowIntoCanvas(
   const chapter = state.novelChapters.find((item) => item.id === shot.episodeId);
   const chapterLabel = chapter?.title || shot.episodeId;
   const safeId = shot.id.replace(/[^A-Za-z0-9._-]+/g, "_");
-  const imageName = `manying-shot-h3-${safeId}.jpg`;
+  const imageName = `my-shot-h3-${safeId}.jpg`;
   const imageB64 = await readStoryboardImageB64(shot.mediaRef.path);
   const uploaded = await client.uploadBridgeReference(imageName, imageB64);
   if (!uploaded?.accepted) throw new Error("关键帧上传失败");
@@ -257,12 +260,12 @@ export interface ComfyCanvasStudioProps {
    * 模块分野(09-11 用户裁定:按模块对待漫影插件的展示与功能)。
    * "workflow"=工作流模块:漫影分镜侧栏在场(分镜生产工具);
    * "models"=本地模型模块:纯浏览场景,漫影分镜侧栏不注册。
-   * 经 webview URL 参数 manyingScope 传给引擎前端扩展。
+   * 经 webview URL 参数 myScope 传给引擎前端扩展。
    * 09-12 模块分离(用户裁定):models 域三链齐隔离——引擎侧栏库过滤分镜
-   * 产线、userdata 工作流树数据层过滤(manying_module_policy.js 单源)、
+   * 产线、userdata 工作流树数据层过滤(my_module_policy.js 单源)、
    * 本组件 webview 独立 partition(会话/顶签不再串工作流模块)。
    */
-  manyingScope?: "workflow" | "models";
+  myScope?: "workflow" | "models";
   /**
    * 制作动作通道宿主侧(09-11 旧画布功能迁移收口):漫影侧栏「制作动作」
    * 按钮经 bridge 提交,这里轮询消费并分发到宿主既有批量钩子执行。
@@ -284,7 +287,7 @@ export interface ComfyCanvasStudioProps {
   stageFlowNodes?: ProductionFlowNodeModel[];
 }
 
-export function ComfyCanvasStudio({ autoOpenOverview = false, manyingScope, sidebarActions, stageFlowNodes }: ComfyCanvasStudioProps = {}) {
+export function ComfyCanvasStudio({ autoOpenOverview = false, myScope, sidebarActions, stageFlowNodes }: ComfyCanvasStudioProps = {}) {
   const webviewRef = useRef<WebviewElement | null>(null);
   const openShotVideoInFlightRef = useRef(new Set<string>());
   // attach 闭包在首次挂载时固化(防重监听),prop 走 ref 保持读取新鲜值
@@ -453,7 +456,7 @@ export function ComfyCanvasStudio({ autoOpenOverview = false, manyingScope, side
   const port = status?.port ?? null;
   const running = status?.serviceRunning === true && Boolean(port);
   const src = running && port
-    ? `http://127.0.0.1:${port}/${manyingScope ? `?manyingScope=${manyingScope}` : ""}`
+    ? `http://127.0.0.1:${port}/${myScope ? `?myScope=${myScope}` : ""}`
     : null;
 
   // 09-12 真跑根修:引擎就绪瞬(假→真)失效保鲜指纹并立即补跑一轮——冷启动
@@ -575,7 +578,7 @@ export function ComfyCanvasStudio({ autoOpenOverview = false, manyingScope, side
         // 前端从 localStorage(activePath+草稿)恢复上一次画布,默认会话会把
         // 工作流模块的分镜顶签/画布串进本地模型模块。独立 partition 后各模块
         // 各记各的会话;workflow 域(studio 两挂载点)不设=默认会话,存量零迁移。
-        partition={manyingScope === "models" ? "persist:manying-comfy-models" : undefined}
+        partition={myScope === "models" ? "persist:my-comfy-models" : undefined}
         className="h-full w-full flex-1"
         // 独立进程渲染;禁弹窗(09-10 类型收紧:布尔字面量,React 会序列化为属性)
         allowpopups={false}

@@ -337,12 +337,12 @@ export interface ComfyEngineClient {
     envVars?: Record<string, string>;
     portConflictPolicy?: "auto-shift" | "fail";
   }): Promise<ComfyEngineAckReply>;
-  /** bridge 回写收件箱(09-09 swap 阶段1):manying_generated 落 sidecar 的成图项。 */
+  /** bridge 回写收件箱(09-09 swap 阶段1):my_generated 落 sidecar 的成图项。 */
   getBridgeWritebacks(cursor: number): Promise<ComfyBridgeWritebacksReply | null>;
   /** 消费确认:删除 ≤upTo 的收件项(落账成功后调用)。 */
   ackBridgeWritebacks(upTo: number): Promise<number | null>;
   /** 自研节点包手动同步(装/更新链自动;引擎运行中返回 restartRequired)。 */
-  syncManyingNodes(): Promise<ComfyManyingSyncReply | null>;
+  syncMyNodes(): Promise<ComfyMySyncReply | null>;
   /** 模型库清单(GET /comfy/engine/models;侧车缺席返回 null)。 */
   listModels(): Promise<ComfyModelsReply | null>;
 
@@ -363,7 +363,7 @@ export interface ComfyEngineClient {
   ackBridgeActions(upTo: number): Promise<number | null>;
 }
 
-/** bridge 回写收件项(引擎 manying_generated → sidecar;渲染层消费)。 */
+/** bridge 回写收件项(引擎 my_generated → sidecar;渲染层消费)。 */
 export interface ComfyBridgeWritebackItem {
   id: number;
   kind?: "image" | "video";
@@ -383,7 +383,7 @@ export interface ComfyBridgeWritebacksReply {
   items: ComfyBridgeWritebackItem[];
 }
 
-export interface ComfyManyingSyncReply {
+export interface ComfyMySyncReply {
   copied: number;
   source?: string;
   target?: string;

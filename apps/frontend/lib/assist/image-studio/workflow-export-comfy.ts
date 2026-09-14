@@ -7,10 +7,10 @@
  * 自家 nodes/edges 图 → ComfyUI workflow 双格式(design.md 2.4 铁律:
  * UI 格式=原生前端打开可编辑;API 格式=无头复跑直提交 /prompt)。
  *
- * 拓扑(design 2.4 映射表):ManyingPrompt(正/负 STRING)→模板 Encode;
+ * 拓扑(design 2.4 映射表):MyPrompt(正/负 STRING)→模板 Encode;
  * 参考图→原生 LoadImage(占位文件名,真图由 bridge 上传后同名替换);
  * 成图→K2 模板簇(平铺非子图,核实点② MVP 落法);SaveImage→
- * ManyingGenerated(回写终端)。同拓扑双格式表达。
+ * MyGenerated(回写终端)。同拓扑双格式表达。
  */
 
 import type {
@@ -43,8 +43,8 @@ interface NodeSpec {
 }
 
 const NODE_SPEC: Record<string, NodeSpec> = {
-  ManyingPrompt: { widgets: ["positive", "negative"], linkInputs: [], outputs: [["positive", "STRING"], ["negative", "STRING"]] },
-  ManyingGenerated: { widgets: ["shot_target", "prompt", "meta"], linkInputs: ["images"], outputs: [] },
+  MyPrompt: { widgets: ["positive", "negative"], linkInputs: [], outputs: [["positive", "STRING"], ["negative", "STRING"]] },
+  MyGenerated: { widgets: ["shot_target", "prompt", "meta"], linkInputs: ["images"], outputs: [] },
   UNETLoader: { widgets: ["unet_name", "weight_dtype"], linkInputs: [], outputs: [["MODEL", "MODEL"]] },
   LoraLoaderModelOnly: { widgets: ["lora_name", "strength_model"], linkInputs: ["model"], outputs: [["lora", "MODEL"]] },
   CLIPLoader: { widgets: ["clip_name", "type", "device"], linkInputs: [], outputs: [["CLIP", "CLIP"]] },
@@ -99,7 +99,7 @@ export function referencePlaceholder(index: number, sourceUrl: string): string {
   for (let i = 0; i < sourceUrl.length; i += 1) {
     hash = ((hash << 5) + hash + sourceUrl.charCodeAt(i)) >>> 0;
   }
-  return `manying-ref-${index + 1}-${hash.toString(16).padStart(8, "0")}.png`;
+  return `my-ref-${index + 1}-${hash.toString(16).padStart(8, "0")}.png`;
 }
 
 /** ── 迁移计划:老图 → 成图块(每块=prompt+refs+模板簇+回写终端) ─────── */
@@ -205,7 +205,7 @@ function pruneSingleReference(graph: Record<string, { class_type: string; inputs
 
 type ApiGraph = Record<string, { class_type: string; inputs: Record<string, unknown> }>;
 
-/** ── API 格式:模板克隆+注入+ManyingPrompt/ManyingGenerated 改接 ── */
+/** ── API 格式:模板克隆+注入+MyPrompt/MyGenerated 改接 ── */
 function buildApiBlock(values: BlockValues): { api: ApiGraph; linkTargets: { positive: [string, string]; negative: [string, string] }; decodeNode: string } {
   const template = TEMPLATES[values.templateKey];
   const graph: ApiGraph = JSON.parse(JSON.stringify(template.graph));
@@ -221,7 +221,7 @@ function buildApiBlock(values: BlockValues): { api: ApiGraph; linkTargets: { pos
     const name = values.referenceNames[index];
     if (name && graph[binding.node]) graph[binding.node].inputs[binding.field] = name;
   }
-  // SaveImage → ManyingGenerated(吃 VAEDecode 输出)
+  // SaveImage → MyGenerated(吃 VAEDecode 输出)
   let decodeNode = "";
   let decodeSlot = 0;
   for (const [nodeId, node] of Object.entries(graph)) {
@@ -234,8 +234,8 @@ function buildApiBlock(values: BlockValues): { api: ApiGraph; linkTargets: { pos
       delete graph[nodeId];
     }
   }
-  graph["manying_generated"] = {
-    class_type: "ManyingGenerated",
+  graph["my_generated"] = {
+    class_type: "MyGenerated",
     inputs: {
       images: [decodeNode || "29", decodeSlot],
       shot_target: values.shotTarget,
@@ -243,12 +243,12 @@ function buildApiBlock(values: BlockValues): { api: ApiGraph; linkTargets: { pos
       meta: JSON.stringify({ migratedFrom: "image-workflow", aspect: `${values.width}x${values.height}`, references: values.referenceNames }),
     },
   };
-  // ManyingPrompt:绑定口改接字符串链(正/负)
+  // MyPrompt:绑定口改接字符串链(正/负)
   const promptBinding = bindingOf(template, "prompt");
   const negativeBinding = bindingOf(template, "negative_prompt");
-  graph["manying_prompt"] = { class_type: "ManyingPrompt", inputs: { positive: values.positive, negative: values.negative } };
-  if (promptBinding && graph[promptBinding.node]) graph[promptBinding.node].inputs[promptBinding.field] = ["manying_prompt", 0];
-  if (negativeBinding && graph[negativeBinding.node]) graph[negativeBinding.node].inputs[negativeBinding.field] = ["manying_prompt", 1];
+  graph["my_prompt"] = { class_type: "MyPrompt", inputs: { positive: values.positive, negative: values.negative } };
+  if (promptBinding && graph[promptBinding.node]) graph[promptBinding.node].inputs[promptBinding.field] = ["my_prompt", 0];
+  if (negativeBinding && graph[negativeBinding.node]) graph[negativeBinding.node].inputs[negativeBinding.field] = ["my_prompt", 1];
   return {
     api: graph,
     linkTargets: {
@@ -311,7 +311,7 @@ function buildUiBlock(values: BlockValues, offsetX: number): { nodes: UiNode[]; 
   // 模板簇节点(宽 320 逐个纵排)
   clusterOrder.forEach((templateId, index) => {
     const source = apiGraph[templateId];
-    // SaveImage 不发射:其输入链由 ManyingGenerated 的链取代(否则孤儿链)
+    // SaveImage 不发射:其输入链由 MyGenerated 的链取代(否则孤儿链)
     if (!source || source.class_type === "SaveImage") return;
     const spec = NODE_SPEC[source.class_type];
     if (!spec) throw new Error(`迁移器缺节点规格:${source.class_type}(先更新 NODE_SPEC)`);
@@ -348,7 +348,7 @@ function buildUiBlock(values: BlockValues, offsetX: number): { nodes: UiNode[]; 
     });
   });
 
-  // ManyingPrompt → 正/负绑定口
+  // MyPrompt → 正/负绑定口
   // 绑定口可能是 widget(t2i 的 Encode.text/edit 的 GroundedEncode.prompt):
   // 接 STRING 链=converted widget 语义(槽追加进 inputs[],widget 值从
   // widgets_values 删除)——ComfyUI 拖线到文本 widget 的原生等价物。
@@ -369,15 +369,15 @@ function buildUiBlock(values: BlockValues, offsetX: number): { nodes: UiNode[]; 
     links.push([linkId, promptId, promptSlot, targetNode, slotIndex, "STRING"]);
   };
   nodes.push({
-    id: promptId, type: "ManyingPrompt", pos: [offsetX + 360, 40], flags: {}, order: promptId, mode: 0,
-    inputs: [], outputs: NODE_SPEC.ManyingPrompt.outputs.map(([name, type], slot) => ({ name, type, links: [], slot_index: slot })),
-    properties: { "Node name for S&R": "ManyingPrompt" },
+    id: promptId, type: "MyPrompt", pos: [offsetX + 360, 40], flags: {}, order: promptId, mode: 0,
+    inputs: [], outputs: NODE_SPEC.MyPrompt.outputs.map(([name, type], slot) => ({ name, type, links: [], slot_index: slot })),
+    properties: { "Node name for S&R": "MyPrompt" },
     widgets_values: [values.positive, values.negative],
   });
   if (promptBinding && idOf.get(promptBinding.node)) wireString(idOf.get(promptBinding.node)!, promptBinding.field, 0);
   if (negativeBinding && idOf.get(negativeBinding.node)) wireString(idOf.get(negativeBinding.node)!, negativeBinding.field, 1);
 
-  // ManyingGenerated ← VAEDecode(模板 SaveImage 的上游)
+  // MyGenerated ← VAEDecode(模板 SaveImage 的上游)
   const saveTemplateId = clusterOrder.find((id) => template.graph[id].class_type === "SaveImage");
   const saveInputs = saveTemplateId ? (template.graph[saveTemplateId].inputs as Record<string, unknown>) : {};
   const decodeSource = Array.isArray(saveInputs.images) ? saveInputs.images : [];
@@ -385,10 +385,10 @@ function buildUiBlock(values: BlockValues, offsetX: number): { nodes: UiNode[]; 
   const generatedLink = nextLinkId++;
   links.push([generatedLink, decodeId ?? 0, 0, generatedId, 0, "IMAGE"]);
   nodes.push({
-    id: generatedId, type: "ManyingGenerated", pos: [offsetX + 1360, 40], flags: {}, order: generatedId, mode: 0,
+    id: generatedId, type: "MyGenerated", pos: [offsetX + 1360, 40], flags: {}, order: generatedId, mode: 0,
     inputs: [{ name: "images", type: "IMAGE", link: generatedLink }],
     outputs: [],
-    properties: { "Node name for S&R": "ManyingGenerated" },
+    properties: { "Node name for S&R": "MyGenerated" },
     widgets_values: [values.shotTarget, values.positive, JSON.stringify({ migratedFrom: "image-workflow" })],
   });
   return { nodes, links };

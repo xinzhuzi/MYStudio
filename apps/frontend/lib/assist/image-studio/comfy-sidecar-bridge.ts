@@ -31,7 +31,7 @@ import type {
   ComfyPluginUsageReply,
   ComfySnapshotEntry,
   ComfyBridgeWritebacksReply,
-  ComfyManyingSyncReply,
+  ComfyMySyncReply,
 } from "@/components/panels/settings/comfy-engine/comfy-engine-contract";
 import type {
   ComfyWorkflowDeleteScan,
@@ -672,9 +672,9 @@ export function createHttpComfyEngineClient(): ComfyEngineClient {
         return null;
       }
     },
-    async syncManyingNodes(): Promise<ComfyManyingSyncReply | null> {
+    async syncMyNodes(): Promise<ComfyMySyncReply | null> {
       try {
-        return await comfySidecarRequest<ComfyManyingSyncReply>("POST", "/comfy/manying/sync");
+        return await comfySidecarRequest<ComfyMySyncReply>("POST", "/comfy/my/sync");
       } catch (error) {
         return { copied: 0, restartRequired: false, ...(error instanceof Error ? {} : {}) };
       }
