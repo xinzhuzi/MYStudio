@@ -61,18 +61,38 @@ export const MY_WORKFLOW_PREFIX = "漫影/";
 /** 引擎家用户区动态流根前缀(分镜产线 0_主线/1_总览/2_单镜图/3_单镜视频) */
 export const APP_USER_WORKFLOW_PREFIX = "分镜/";
 
-/** ComfyUI 原生工作流浏览器树过滤(09-14 用户裁定:原生浏览器是 ComfyUI 本身的
- *  功能,文件夹设计不应包含漫影——漫影库只在漫影侧栏消费,侧栏走桥接口
- *  天然不受本过滤影响)。剔「漫影/」根下全部条目;v1 文件条目 / v2 含目录
- *  条目 / 纯字符串形态均可。 */
-export function filterUserDataWorkflowEntriesDropMy(entries) {
+/** ComfyUI 原生工作流浏览器树过滤(09-15 用户终裁:只不展示「漫影」这个
+ *  字样本身——漫影根文件夹名折叠,其子内容(1_图片/2_视频/分镜…)原样
+ *  展示;其他一切条目照常。此前整根剔除=过度执行,「浏览」区被清空属翻车)。
+ *  v1 纯字符串 / v2 对象条目(path 带 workflows/ 前缀)均改写为剥去漫影层。 */
+export function filterUserDataWorkflowEntriesFlattenMy(entries) {
   if (!Array.isArray(entries)) return entries;
-  return entries.filter((entry) => {
-    const rel = toLibraryPath(typeof entry === "string" ? entry : String(entry?.path ?? ""));
-    // 双根同剔:旧「漫影/」(改根前遗留)+ 新「分镜/」(动态流)——原生
-    // 浏览器树永不出现应用产线内容
-    return !rel.startsWith(MY_WORKFLOW_PREFIX) && !rel.startsWith(APP_USER_WORKFLOW_PREFIX);
-  });
+  const strip = (raw) => {
+    const hadPrefix = raw.startsWith(USERDATA_WORKFLOWS_PREFIX);
+    const rel = toLibraryPath(raw);
+    const from = rel.startsWith(MY_WORKFLOW_PREFIX) ? MY_WORKFLOW_PREFIX
+      : rel.startsWith(APP_USER_WORKFLOW_PREFIX) ? APP_USER_WORKFLOW_PREFIX : null;
+    if (from === null) return null;
+    const flattened = rel.slice(from.length);
+    return hadPrefix ? USERDATA_WORKFLOWS_PREFIX + flattened : flattened;
+  };
+  const out = [];
+  for (const entry of entries) {
+    if (typeof entry === "string") {
+      const s = strip(entry);
+      out.push(s !== null ? s : entry);
+      continue;
+    }
+    if (entry && typeof entry === "object" && typeof entry.path === "string") {
+      if (entry.path === "漫影" || entry.path === USERDATA_WORKFLOWS_PREFIX + "漫影"
+        || entry.path === "分镜" || entry.path === USERDATA_WORKFLOWS_PREFIX + "分镜") continue; // 根目录名不展示
+      const s = strip(entry.path);
+      out.push(s !== null ? { ...entry, path: s } : entry);
+      continue;
+    }
+    out.push(entry);
+  }
+  return out;
 }
 
 /** userdata 工作流树条目过滤(v1 文件条目 / v2 含目录条目 / 纯字符串形态均可;

@@ -10,7 +10,7 @@ import { app } from "/scripts/app.js";
  */
 
 import { myScope } from "./theme.js";
-import { filterUserDataWorkflowEntriesDropMy, isUserDataWorkflowListUrl } from "./my_module_policy.js";
+import { filterUserDataWorkflowEntriesFlattenMy, isUserDataWorkflowListUrl } from "./my_module_policy.js";
 
 // 渲染兼容守卫(09-12 真跑根修):ComfyUI 前端的 Vue 节点渲染模式
 // (Comfy.VueNodes.Enabled,测试期特性)会让 litegraph 的 drawNode 提前返回,
@@ -71,7 +71,7 @@ app.registerExtension({
       return originalFetch(input, init).then(async (response) => {
         try {
           const body = await response.clone().json();
-          const pass = (entries) => filterUserDataWorkflowEntriesDropMy(entries);
+          const pass = (entries) => filterUserDataWorkflowEntriesFlattenMy(entries);
           let patched = null;
           if (Array.isArray(body)) {
             patched = pass(body);

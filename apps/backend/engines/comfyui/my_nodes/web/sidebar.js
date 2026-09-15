@@ -202,11 +202,13 @@ function myWorkflowRow(item, status, badgeEl) {
     `color:${THEME.accent}`, "font-size:var(--my-fs-14)", "font-weight:400",
     "overflow:hidden", "transition:filter 120ms ease,transform 80ms ease",
   ].join(";");
-  row.append(icon(ICONS.clap, 16));
+  // 09-15 用户裁定:行图标弃场记板,换闪电=漫影自研工作流(生图/执行语义)
+  row.append(icon(ICONS.zap, 15));
   const label = document.createElement("span");
   // 09-14 用户裁定:MY- 前缀是磁盘文件名标识;侧栏展示剥前缀(整树皆漫影
   // 内容,前缀在列表里冗余)。悬停 title 仍给全量真名。
-  label.textContent = String(item.name || item.id.split("/").pop().replace(/\.json$/, "")).replace(/^MY-/, "");
+  // 09-15 用户裁定(修订 09-14 剥前缀):侧栏展示保留 MY- 前缀(文件名即展示名)
+  label.textContent = String(item.name || item.id.split("/").pop().replace(/\.json$/, ""));
   label.style.cssText = "flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;";
   const chev = icon(ICONS.chevron, 12);
   chev.style.flex = "none";
@@ -277,28 +279,80 @@ async function renderWorkflowsPane(pane) {
       return tree;
     };
     const tree = buildTree(items);
-    const renderLevel = (level, depth) => {
-      const container = document.createDocumentFragment();
-      for (const name of [...level.keys()].sort((a, b) => a.localeCompare(b, "zh"))) {
-        if (name === "__files__") continue;
+    // 09-15 用户裁定(参考相同产品):树展示直接采用 ComfyUI 原生文件树的
+    // DOM/class 结构(PrimeVue p-tree 体系,样式表页面已全局加载——原生同款
+    // 观感:间距/hover/焦点/chevron 全部继承,零自研样式;仅数据与点击
+    // 交互由漫影扩展接管,这是 ComfyUI sidebar 扩展的标准做法)
+    const chevSvg = icon(ICONS.chevron, 14);
+    const makeNode = ({ label, depth, open = false, hasChildren = false, onLabel, fileItem }) => {
+      const li = document.createElement("li");
+      li.className = "p-tree-node";
+      li.setAttribute("role", "treeitem");
+      if (hasChildren) li.setAttribute("aria-expanded", String(open));
+      const content = document.createElement("div");
+      content.className = "p-tree-node-content";
+      content.tabIndex = 0;
+      content.style.paddingLeft = `${8 + depth * 16}px`;
+      const labelEl = document.createElement("span");
+      labelEl.className = "p-tree-node-label tree-explorer-node-label";
+      labelEl.textContent = label;
+      labelEl.style.cursor = "pointer";
+      content.append(labelEl);
+      if (fileItem) {
+        const openIt = () => void openMyWorkflow(fileItem.id, status);
+        content.addEventListener("click", openIt);
+        content.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); openIt(); } });
+      }
+      li.append(content);
+      return li;
+    };
+    const renderLevel = (level, depth, openNow) => {
+      const ul = document.createElement("ul");
+      ul.className = "p-tree-node-children";
+      ul.setAttribute("role", "group");
+      for (const name of [...level.keys()].filter((k) => k !== "__files__").sort((a, b) => a.localeCompare(b, "zh"))) {
         const sub = level.get(name);
         const files = sub.get("__files__") || [];
         let count = files.length;
         const countDir = (m) => { for (const k of m.keys()) { if (k === "__files__") count += m.get(k).length; else countDir(m.get(k)); } };
         countDir(sub);
-        const details = collapseGroup(name, count, { indent: Math.max(0, depth - 1), open: depth <= 1 });
-        for (const item of files) {
-          const row = myWorkflowRow(item, status);
-          row.style.margin = "2px 0 2px 12px";
-          details.append(row);
-        }
-        details.append(renderLevel(sub, depth + 1));
-        container.append(details);
+        const open = depth === 0 ? openNow : false;
+        const nodeLi = makeNode({ label: `${name} (${count})`, depth, open, hasChildren: true });
+        // 原生同款左侧 chevron 切换器(p-tree-node-toggler)
+        const content = nodeLi.querySelector(".p-tree-node-content");
+        const toggler = document.createElement("button");
+        toggler.className = "p-tree-node-toggler";
+        toggler.type = "button";
+        toggler.setAttribute("aria-label", "切换折叠");
+        toggler.style.cssText = "border:none;background:transparent;color:inherit;cursor:pointer;padding:2px;display:inline-flex;align-items:center;";
+        const chev = icon(ICONS.chevron, 12);
+        chev.style.transition = "transform 120ms ease";
+        chev.style.transform = open ? "rotate(90deg)" : "";
+        toggler.append(chev);
+        const childrenUl = renderLevel(sub, depth + 1, open);
+        childrenUl.style.display = open ? "" : "none";
+        toggler.addEventListener("click", (e) => {
+          e.stopPropagation();
+          const willOpen = childrenUl.style.display === "none";
+          childrenUl.style.display = willOpen ? "" : "none";
+          chev.style.transform = willOpen ? "rotate(90deg)" : "";
+          nodeLi.setAttribute("aria-expanded", String(willOpen));
+        });
+        content.prepend(toggler);
+        nodeLi.append(childrenUl);
+        ul.append(nodeLi);
       }
-      return container;
+      for (const item of level.get("__files__") || []) {
+        const label = String(item.name || item.id.split("/").pop()).replace(/\.json$/, "").replace(/^MY-/, "");
+        ul.append(makeNode({ label, depth: depth + 1, fileItem: item }));
+      }
+      return ul;
     };
-    host.append(renderLevel(tree, 0));
-    status.textContent = `共 ${items.length} 条 · 点击在画布打开`;
+    const treeRoot = document.createElement("div");
+    treeRoot.className = "p-tree p-component";
+    treeRoot.setAttribute("role", "tree");
+    treeRoot.append(renderLevel(tree, 0, true));
+    host.append(treeRoot);
   } catch (error) {
     status.textContent = `取不到工作流(${error.message || error});请确认漫影软件在运行`;
   }

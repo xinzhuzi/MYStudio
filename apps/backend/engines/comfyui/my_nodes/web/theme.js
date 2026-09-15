@@ -97,9 +97,20 @@ function applyShotToSelection(shotId, label) {
 // (漫影库按域→功能夹两级分组点击即开,本地模型模块默认)。模块标记由宿主
 // webview URL 参数 myScope 传入(workflow/models;外部直访=分镜)。
 function myScope() {
+  // 09-15 深排根修(用户报障:本地模型模块侧栏跳「分镜阶段」):ComfyUI 是
+  // SPA,打开工作流会改写 URL(丢 myScope 参数);webview persist partition
+  // 会话恢复的是改写后的无参 URL → scope 判空 → 侧栏回落「外部直访=分镜」。
+  // 修=首次带参加载把 scope 落 localStorage(partition 持久);URL 无参时
+  // 以其兜底。workflow(默认会话)与 models(persist:my-comfy-models)是
+  // 不同 storage 域,各记各的,互不污染。
   try {
     const params = new URLSearchParams(window.location.search);
-    return params.get("myScope") || params.get("manyingScope");
+    const fromUrl = params.get("myScope") || params.get("manyingScope");
+    if (fromUrl) {
+      try { localStorage.setItem("my-scope", fromUrl); } catch (error) { /* 私隐模式等 */ }
+      return fromUrl;
+    }
+    return localStorage.getItem("my-scope") || null;
   } catch (error) {
     return null;
   }
@@ -272,20 +283,15 @@ function collapseGroup(title, count, { tone, indent = 0, open = false } = {}) {
   summary.style.cssText = `display:flex;align-items:center;gap:6px;padding:calc(var(--my-tree-pad, 4px) + 1px) 6px;cursor:pointer;list-style:none;font-size:var(--my-fs-14);font-weight:600;color:var(--my-text-soft);border-radius:6px;transition:background 100ms ease;`;
   summary.onmouseenter = () => { summary.style.background = "rgba(255,255,255,0.05)"; };
   summary.onmouseleave = () => { summary.style.background = ""; };
-  const chev = icon(ICONS.chevron, 11);
-  chev.style.transition = "transform 150ms ease";
-  if (open) chev.style.transform = "rotate(90deg)";
+  // 09-15 用户裁定:折叠箭头「>」不展示(文件夹图标+计数徽章已足够示意)
   const text = document.createElement("span");
   text.textContent = title;
   const badge = document.createElement("span");
   badge.style.cssText = `margin-left:auto;font-size:var(--my-fs-10);font-weight:500;padding:1px 7px;border-radius:999px;background:${bg};color:${color};flex:none;`;
   badge.textContent = String(count);
   const folderIcon = comfyIconify("icon-[lucide--folder]", ICONS.folderOpen, 14);
-  summary.append(chev, folderIcon, text, badge);
+  summary.append(folderIcon, text, badge);
   details.append(summary);
-  details.addEventListener("toggle", () => {
-    chev.style.transform = details.open ? "rotate(90deg)" : "";
-  });
   return details;
 }
 
