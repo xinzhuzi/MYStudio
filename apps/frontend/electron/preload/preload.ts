@@ -229,3 +229,11 @@ contextBridge.exposeInMainWorld('studioRenderer', {
   probeMedia: (filePath: string) => ipcRenderer.invoke('studio-probe-media-evidence', filePath),
 })
 
+// 单镜截帧(09-15 teman-absorption P1a):抽帧入项目数据区 + A/B 对比器元数据探测。
+contextBridge.exposeInMainWorld('shotKeyframes', {
+  extract: (payload: import('../../electron/ipc/studio/shot-keyframe-ipc').ShotKeyframeExtractRequestV1) =>
+    ipcRenderer.invoke('shot-keyframe-extract', payload),
+  probeVideo: (payload: import('../../electron/ipc/studio/shot-keyframe-ipc').ShotVideoProbeRequestV1) =>
+    ipcRenderer.invoke('shot-video-probe', payload),
+})
+

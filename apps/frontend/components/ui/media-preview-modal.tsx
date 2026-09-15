@@ -15,7 +15,7 @@
  * 左上角像素角标经 render.toolbar 注入,与默认工具栏并存。
  */
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { X } from "lucide-react";
 import Lightbox from "yet-another-react-lightbox";
@@ -145,13 +145,38 @@ interface VideoPreviewModalProps {
   videoUrl: string;
   isOpen: boolean;
   onClose: () => void;
+  /** 截帧回灌动作(09-15 P1a):提供时视频下方渲染操作条;纯展示基件,
+   *  抽帧/落库由上层(分镜面板)注入回调,本组件只上报当前播放时刻。 */
+  keyframeActions?: {
+    /** 「存为关键帧」:当前播放帧(秒) */
+    onSaveCurrentFrame?: (currentTimeS: number) => void;
+    /** 「自动抽帧」:3/5/9 帧均匀采样 */
+    onAutoSample?: (count: 3 | 5 | 9) => void;
+    /** 抽帧进行中(按钮禁用+进度文案,不锁模态) */
+    busy?: boolean;
+    /** 禁用原因(tooltip 大白话;非空=两动作禁用,如「视频不在项目内」) */
+    disabledReason?: string;
+  };
 }
 
 export function VideoPreviewModal({
   videoUrl,
   isOpen,
   onClose,
+  keyframeActions,
 }: VideoPreviewModalProps) {
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const disabled = Boolean(keyframeActions?.disabledReason);
+  const actionsDisabled = disabled || Boolean(keyframeActions?.busy);
+  const tooltip = keyframeActions?.disabledReason ?? (keyframeActions?.busy ? "正在抽帧…" : undefined);
+
+  const reportCurrentTime = () => {
+    const currentTimeS = videoRef.current?.currentTime;
+    if (typeof currentTimeS === "number" && Number.isFinite(currentTimeS)) {
+      keyframeActions?.onSaveCurrentFrame?.(currentTimeS);
+    }
+  };
+
   if (!isOpen) return null;
 
   return (
@@ -159,19 +184,53 @@ export function VideoPreviewModal({
       className="fixed inset-0 z-[999] bg-black/80 flex items-center justify-center"
       onClick={onClose}
     >
-      <div className="relative max-w-[90vw] max-h-[90vh]">
+      <div className="relative max-w-[90vw] max-h-[90vh]" onClick={(event) => event.stopPropagation()}>
         <video
+          ref={videoRef}
           src={videoUrl}
           controls
           autoPlay
-          className="max-w-full max-h-[90vh] object-contain"
+          className="max-w-full max-h-[86vh] object-contain"
+          data-video-preview-player
         />
+        {keyframeActions ? (
+          <div
+            className="mt-2 flex flex-wrap items-center justify-center gap-2 rounded-lg border border-border/40 bg-background/90 px-3 py-2 backdrop-blur-xs"
+            data-video-keyframe-actions
+          >
+            <button
+              type="button"
+              disabled={actionsDisabled || !keyframeActions.onSaveCurrentFrame}
+              title={tooltip ?? "把当前播放的这一帧存为本镜关键帧"}
+              className="rounded-md border border-border/60 bg-background px-3 py-1.5 text-sm text-foreground transition-colors hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50"
+              data-video-keyframe-save
+              onClick={reportCurrentTime}
+            >
+              {keyframeActions.busy ? "抽帧中…" : "存为关键帧"}
+            </button>
+            <span className="text-xs text-muted-foreground" data-video-keyframe-sample-label>自动抽帧</span>
+            {([3, 5, 9] as const).map((count) => (
+              <button
+                key={count}
+                type="button"
+                disabled={actionsDisabled || !keyframeActions.onAutoSample}
+                title={tooltip ?? `均匀抽 ${count} 帧,更新本镜关键帧(最多留 4 帧)`}
+                className="rounded-md border border-border/60 bg-background px-2.5 py-1.5 font-mono text-xs text-foreground transition-colors hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50"
+                data-video-keyframe-sample={count}
+                onClick={() => keyframeActions.onAutoSample?.(count)}
+              >
+                {count} 帧
+              </button>
+            ))}
+          </div>
+        ) : null}
         <button
           onClick={(event) => {
             event.stopPropagation();
             onClose();
           }}
           className="absolute top-2 right-2 p-2 rounded-full bg-background/80 hover:bg-background text-foreground border border-border/40 backdrop-blur-xs transition-all"
+          aria-label="关闭预览"
         >
           <X className="h-5 w-5" />
         </button>

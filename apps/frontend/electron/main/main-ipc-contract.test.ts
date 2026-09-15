@@ -130,6 +130,8 @@ sfx-gen-runtime-generate
 sfx-gen-runtime-scan-model
 sfx-gen-runtime-setup
 sfx-gen-runtime-status
+shot-keyframe-extract
+shot-video-probe
 source-memory-build
 source-memory-commit-build
 source-memory-rebuild-index
@@ -233,6 +235,8 @@ const NAMED_IPC_CHANNELS = {
   "SELF_MEDIA_IPC.listProviders": "self-media:list-providers",
   "SELF_MEDIA_IPC.pollTask": "self-media:poll-task",
   "SELF_MEDIA_IPC.startLogin": "self-media:start-login",
+  SHOT_KEYFRAME_EXTRACT_CHANNEL: "shot-keyframe-extract",
+  SHOT_VIDEO_PROBE_CHANNEL: "shot-video-probe",
 } as const;
 
 function listTypeScriptFiles(root: string): string[] {

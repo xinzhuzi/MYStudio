@@ -341,4 +341,13 @@ describe("preload IPC surface", () => {
     expect(electronTypesSource).toContain("onMoveProgress: (");
     expect(electronTypesSource).toContain("listener: (progress: ProjectFolderMoveProgressEvent) => void");
   });
+
+  it("exposes the shot keyframe extraction facade through typed payload channels (09-15 P1a)", () => {
+    expect(preloadSource).toContain("exposeInMainWorld('shotKeyframes'");
+    expect(preloadSource).toContain("ipcRenderer.invoke('shot-keyframe-extract', payload)");
+    expect(preloadSource).toContain("ipcRenderer.invoke('shot-video-probe', payload)");
+    expect(electronTypesSource).toContain("shotKeyframes?:");
+    expect(electronTypesSource).toContain('extract: (payload: import("@/electron/ipc/studio/shot-keyframe-ipc").ShotKeyframeExtractRequestV1)');
+    expect(electronTypesSource).toContain('probeVideo: (payload: import("@/electron/ipc/studio/shot-keyframe-ipc").ShotVideoProbeRequestV1)');
+  });
 });

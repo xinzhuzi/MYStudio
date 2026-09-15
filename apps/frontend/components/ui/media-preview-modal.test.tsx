@@ -105,4 +105,66 @@ describe("media preview modals", () => {
     fireEvent.click(container.querySelector("button")!);
     expect(onClose).toHaveBeenCalledOnce();
   });
+
+  it("不带截帧动作时不渲染操作条(既有消费方零变化)", () => {
+    const { container } = render(
+      <VideoPreviewModal videoUrl="https://example.test/preview.mp4" isOpen onClose={vi.fn()} />,
+    );
+    expect(container.querySelector("[data-video-keyframe-actions]")).toBeNull();
+  });
+});
+
+describe("VideoPreviewModal 截帧动作(09-15 P1a)", () => {
+  it("存为关键帧上报当前播放时刻;自动抽帧上报 3/5/9 档", () => {
+    const onSaveCurrentFrame = vi.fn();
+    const onAutoSample = vi.fn();
+    const { container } = render(
+      <VideoPreviewModal
+        videoUrl="https://example.test/preview.mp4"
+        isOpen
+        onClose={vi.fn()}
+        keyframeActions={{ onSaveCurrentFrame, onAutoSample }}
+      />,
+    );
+    const video = container.querySelector("[data-video-preview-player]") as HTMLVideoElement;
+    video.currentTime = 3.25;
+    fireEvent.click(screen.getByText("存为关键帧"));
+    expect(onSaveCurrentFrame).toHaveBeenCalledWith(3.25);
+
+    fireEvent.click(screen.getByText("3 帧"));
+    expect(onAutoSample).toHaveBeenCalledWith(3);
+    fireEvent.click(screen.getByText("9 帧"));
+    expect(onAutoSample).toHaveBeenCalledWith(9);
+  });
+
+  it("禁用原因→两动作禁用+tooltip;busy→禁用+抽帧中文案", () => {
+    const { rerender } = render(
+      <VideoPreviewModal
+        videoUrl="https://example.test/preview.mp4"
+        isOpen
+        onClose={vi.fn()}
+        keyframeActions={{
+          onSaveCurrentFrame: vi.fn(),
+          onAutoSample: vi.fn(),
+          disabledReason: "当前视频不在项目内,无法抽帧",
+        }}
+      />,
+    );
+    const saveButton = screen.getByText("存为关键帧") as HTMLButtonElement;
+    expect(saveButton.disabled).toBe(true);
+    expect(saveButton.title).toContain("不在项目内");
+    expect((screen.getByText("5 帧") as HTMLButtonElement).disabled).toBe(true);
+
+    rerender(
+      <VideoPreviewModal
+        videoUrl="https://example.test/preview.mp4"
+        isOpen
+        onClose={vi.fn()}
+        keyframeActions={{ onSaveCurrentFrame: vi.fn(), onAutoSample: vi.fn(), busy: true }}
+      />,
+    );
+    const busyButton = screen.getByText("抽帧中…") as HTMLButtonElement;
+    expect(busyButton.disabled).toBe(true);
+    expect((screen.getByText("5 帧") as HTMLButtonElement).disabled).toBe(true);
+  });
 });

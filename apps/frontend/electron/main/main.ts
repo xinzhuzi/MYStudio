@@ -68,6 +68,7 @@ import {createAudioGenRuntimeController} from '@rendering/plugins/audio_gen/audi
 import {registerAudioGenIpcHandlers} from '../ipc/studio/audio-gen-ipc'
 import {createSfxGenRuntimeController} from '@rendering/plugins/sfx_gen/sfx-gen-runtime-controller'
 import {registerSfxGenIpcHandlers} from '../ipc/studio/sfx-gen-ipc'
+import {registerShotKeyframeIpcHandlers} from '../ipc/studio/shot-keyframe-ipc'
 import {audioModelCacheDir, sfxModelCacheDir, ttsModelCacheDir} from '../storage/model-dirs'
 import {createVideoWorkflowRuntimeManager} from '@rendering/plugins/video-workflow/video-workflow-runtime-manager'
 import {selectSharedVideoToolchain} from '@rendering/plugins/video-workflow/video-workflow-runtime'
@@ -366,6 +367,9 @@ const videoPipelineLogIpc = registerVideoPipelineLogIpcHandlers({
 bindRuntimeControllerRoots(() => [ttsRuntimeController.getModelCacheDir()])
 const seedvr2Ipc = registerSeedVr2IpcHandlers()
 const mcpIpc = registerMcpIpcHandlers()
+// 单镜截帧(09-15 teman-absorption P1a):主进程 ffmpeg 抽帧入项目数据区
+// (media/storyboard-keyframes),复用共享工具链 env;A/B 对比器帧对齐探测同通道。
+const shotKeyframeIpc = registerShotKeyframeIpcHandlers({ getDataDir })
 
 // VLM Review sidecar — Qwen3-VL visual consistency checking(生图后自动审核)。
 // 复用 managed Python;权重显式下载,<storageBase>/comfyui/models/vlm。
@@ -567,6 +571,7 @@ setDisposeRemotionRuntime(async () => {
   chapterQcIpc.dispose()
   audioGenIpc.dispose()
   sfxGenIpc.dispose()
+  shotKeyframeIpc.dispose()
   remotionRuntime.dispose()
 })
 

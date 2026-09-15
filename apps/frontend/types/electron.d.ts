@@ -530,6 +530,14 @@ declare global {
         streams: string[];
       }>;
     };
+    /** 单镜截帧与视频元数据探测(09-15 teman-absorption P1a/P1b):
+     *  抽帧走主进程 ffmpeg,帧图入项目数据区;probeVideo 供 A/B 对比器判帧对齐。 */
+    shotKeyframes?: {
+      extract: (payload: import("@/electron/ipc/studio/shot-keyframe-ipc").ShotKeyframeExtractRequestV1) =>
+        Promise<import("@/electron/ipc/studio/shot-keyframe-ipc").ShotKeyframeExtractReplyV1>;
+      probeVideo: (payload: import("@/electron/ipc/studio/shot-keyframe-ipc").ShotVideoProbeRequestV1) =>
+        Promise<import("@/electron/ipc/studio/shot-keyframe-ipc").ShotVideoProbeReplyV1>;
+    };
     remotionRuntime?: {
       status: () => Promise<RemotionBrowserStatus>;
       download: () => Promise<RemotionBrowserStatus>;
