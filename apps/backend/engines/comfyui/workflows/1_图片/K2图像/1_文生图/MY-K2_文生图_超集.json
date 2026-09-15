@@ -604,7 +604,7 @@
      ]
     }
    ],
-   "title": "[44] 破限LoRA·Mystic XXX v3(DiT层)",
+   "title": "[44] 尺度LoRA·Mystic XXX v3(DiT层)",
    "properties": {
     "Node name for S&R": "LoraLoaderModelOnly",
     "ue_properties": {
@@ -679,7 +679,7 @@
      ]
     }
    ],
-   "title": "[45] 破限LoRA·pussy(DiT层,轻)",
+   "title": "[45] 尺度LoRA·pussy(DiT层,轻)",
    "properties": {
     "Node name for S&R": "LoraLoaderModelOnly",
     "ue_properties": {
