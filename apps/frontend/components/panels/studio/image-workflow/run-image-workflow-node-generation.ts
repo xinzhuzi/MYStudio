@@ -54,6 +54,11 @@ export async function runImageWorkflowNodeGeneration(
   targetNodeId: string,
   input: {
     addMaterial: (material: { name: string; localPath: string; size: number }) => string;
+    /**
+     * 失败回退阶梯第三段(09-15 P3):降载降分辨率——覆盖图内分辨率档
+     * (最低档 1K,降显存降时长)。缺省=不降,行为零变化。
+     */
+    degradedResolution?: string;
   },
 ): Promise<{ imageUrl: string }> {
   // 无衣物链分流(09-04 通用化,与图片工作室同源):成图有 uncloth 上游且
@@ -144,7 +149,8 @@ export async function runImageWorkflowNodeGeneration(
     prompt: compiledFrame?.providerPrompt ?? styledPrompt,
     model: isStoryboard && !storyboardBridgeDown ? "comfyui-bridge" : (isStoryboard ? DEFAULT_LOCAL_IMAGE_MODEL : request.model),
     aspectRatio: request.aspectRatio,
-    resolution: request.resolution,
+    // 降载重试(09-15 P3 阶梯第三段):显式降档覆盖;缺省保持图内档位
+    resolution: input.degradedResolution ?? request.resolution,
     negativePrompt: compiledFrame ? undefined : request.negativePrompt,
     promptPolicy: (compiledFrame ? "raw" : undefined) as "raw" | undefined,
     referenceImages,

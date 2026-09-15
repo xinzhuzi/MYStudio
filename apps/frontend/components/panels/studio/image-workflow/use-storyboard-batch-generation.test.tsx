@@ -35,6 +35,7 @@ vi.mock("./storyboard-asset-references", () => ({
 import { useStoryboardBatchGeneration } from "./use-storyboard-batch-generation";
 import { useStudioStore } from "@/stores/studio/studio-store";
 import { useProjectStore } from "@/stores/project/project-store";
+import { useStoryboardBatchSessionStore } from "@/stores/studio/storyboard-batch-session-store";
 
 const initialStudioState = useStudioStore.getState();
 const initialProjectState = useProjectStore.getState();
@@ -65,6 +66,8 @@ function resetStore(storyboards: StoryboardItem[]) {
 beforeEach(() => {
   vi.clearAllMocks();
   useProjectStore.setState({ ...initialProjectState, activeProjectId: "proj" });
+  // 断点续跑会话隔离:逐用例清空持久化会话
+  useStoryboardBatchSessionStore.setState({ session: null });
   saveImage.mockImplementation(async (_payload: unknown) => ({
     success: true,
     url: "project-file://proj/workflow/gen-out.png",
@@ -75,6 +78,7 @@ beforeEach(() => {
 afterEach(() => {
   useStudioStore.setState(initialStudioState, true);
   useProjectStore.setState(initialProjectState, true);
+  useStoryboardBatchSessionStore.setState({ session: null });
 });
 
 
@@ -143,12 +147,13 @@ describe("useStoryboardBatchGeneration(一键生图串行批量)", () => {
     generateImageMock.mockImplementation(async () => ({ url: "data:image/png;base64,QQ==" }));
 
     const { result } = renderHook(() =>
-      useStoryboardBatchGeneration({ storyboards: useStudioStore.getState().storyboards, projectName: "道劫" }),
+      useStoryboardBatchGeneration({ storyboards: useStudioStore.getState().storyboards, projectName: "道劫", submitIntervalMs: 0 }),
     );
     act(() => result.current.start());
     await waitFor(() => expect(result.current.state.running).toBe(false), { timeout: 4000 });
 
-    expect(generateImageMock).toHaveBeenCalledTimes(1);
+    // 失败回退阶梯(09-15 P3):保存失败也走三段(原样→原样→降载),共 3 次生成
+    expect(generateImageMock).toHaveBeenCalledTimes(3);
     expect(result.current.state).toMatchObject({ total: 1, done: 1, failed: 1 });
     warnSpy.mockRestore();
   });
@@ -168,11 +173,12 @@ describe("useStoryboardBatchGeneration(一键生图串行批量)", () => {
     });
 
     const { result } = renderHook(() =>
-      useStoryboardBatchGeneration({ storyboards: useStudioStore.getState().storyboards, projectName: "道劫" }),
+      useStoryboardBatchGeneration({ storyboards: useStudioStore.getState().storyboards, projectName: "道劫", submitIntervalMs: 0 }),
     );
     act(() => result.current.start());
     await waitFor(() => expect(result.current.state.running).toBe(false), { timeout: 4000 });
-    expect(callOrder).toEqual([2, 3]);
+    // 阶梯(09-15 P3):sb-3 三败(原样→原样→降载),调用序列 [2, 3, 3, 3]
+    expect(callOrder).toEqual([2, 3, 3, 3]);
     const store = useStudioStore.getState();
     const sb2 = store.storyboards.find((item) => item.id === "sb-2")!;
     expect(sb2.mediaRef).toMatchObject({ kind: "image", path: "project-file://proj/workflow/gen-out.png" });
@@ -585,7 +591,8 @@ describe("useStoryboardBatchGeneration(VLM 视觉一致性四象限)", () => {
     act(() => result.current.start());
     await waitFor(() => expect(result.current.state.running).toBe(false), { timeout: 8000 });
 
-    expect(generateImageMock).toHaveBeenCalledTimes(2);
+    // 阶梯(09-15 P3):每次尝试内部 VLM 重生 1 次共 2 生成,三段尝试共 6 次
+    expect(generateImageMock).toHaveBeenCalledTimes(6);
     const sb1 = useStudioStore.getState().storyboards.find((item) => item.id === "sb-1")!;
     expect(sb1.mediaRef?.kind).not.toBe("image");
     expect(sb1.visualReview).toBeUndefined();
@@ -609,6 +616,195 @@ describe("useStoryboardBatchGeneration(VLM 视觉一致性四象限)", () => {
     expect(sb1.mediaRef).toMatchObject({ kind: "image" });
     expect(sb1.visualReview).toBeUndefined();
     expect(result.current.state).toMatchObject({ total: 1, done: 1, failed: 0 });
+  });
+});
+
+/** 批量队列四协议(09-15 P3 / Trellis 09-15-teman-absorption AC5):
+ * 断点续跑(游标+指纹跳过)/间隔节流(可中断零残留)/精确停队(只删本会话)/
+ * 失败回退阶梯(三段各一次+三败汇总一条)。 */
+describe("useStoryboardBatchGeneration(批量四协议)", () => {
+  beforeEach(() => {
+    resolvedReferences.value = [];
+  });
+
+  it("断点续跑:重入从持久化游标镜继续,游标前失败镜不重试,已完成镜指纹跳过(必测)", async () => {
+    resetStore([
+      // 游标前缺图(上轮三败放弃的镜)→ 续跑不得重试
+      shot({ id: "sb-1", index: 1 }),
+      // 游标后已有图(上轮已完成)→ 既有 mediaRef 幂等口径跳过(指纹命中)
+      shot({ id: "sb-2", index: 2, mediaRef: { kind: "image", path: "project-file://done.png" } as StoryboardItem["mediaRef"] }),
+      shot({ id: "sb-3", index: 3 }),
+      shot({ id: "sb-4", index: 4 }),
+    ]);
+    useStoryboardBatchSessionStore.setState({
+      session: {
+        sessionId: "sess-1", projectId: "proj", episodeId: "chapter-001",
+        cursorShotIndex: 3, totalFrames: 4, doneFrames: 1, failedFrames: 1,
+        status: "interrupted", updatedAt: 1,
+      },
+    });
+    generateImageMock.mockResolvedValue({ url: "https://provider.test/ok.png" });
+
+    const { result } = renderHook(() =>
+      useStoryboardBatchGeneration({ storyboards: useStudioStore.getState().storyboards, projectName: "道劫", submitIntervalMs: 0 }),
+    );
+    // 重入前 UI 可见「继续」候选:游标镜+剩余帧数
+    expect(result.current.resumable).toEqual({ shotIndex: 3, remainingFrames: 2 });
+
+    act(() => result.current.start());
+    await waitFor(() => expect(result.current.state.running).toBe(false), { timeout: 8000 });
+
+    // 只提交游标起的缺图镜(S3/S4):sb-1 游标前不重试,sb-2 指纹命中跳过
+    expect(generateImageMock).toHaveBeenCalledTimes(2);
+    // 进度接续上轮计数(priorDone=1 起步)
+    expect(result.current.state).toMatchObject({ total: 3, done: 3, failed: 0 });
+    // 自然完成:持久化会话清空,继续候选消失
+    expect(useStoryboardBatchSessionStore.getState().session).toBeNull();
+    expect(result.current.resumable).toBeNull();
+  });
+
+  it("断点续跑:停止后游标与 interrupted 状态落盘,续跑候选指向下一镜", async () => {
+    resetStore([shot({ id: "sb-1", index: 1 }), shot({ id: "sb-2", index: 2 })]);
+    const resolvers: Array<() => void> = [];
+    generateImageMock.mockImplementation(() => new Promise<{ url: string }>((resolve) => {
+      resolvers.push(() => resolve({ url: "https://provider.test/ok.png" }));
+    }));
+
+    const { result } = renderHook(() =>
+      useStoryboardBatchGeneration({ storyboards: useStudioStore.getState().storyboards, projectName: "道劫" }),
+    );
+    act(() => result.current.start());
+    await waitFor(() => expect(resolvers.length).toBe(1));
+    act(() => result.current.stop());
+    await act(async () => { resolvers[0]!(); });
+    await waitFor(() => expect(result.current.state.running).toBe(false), { timeout: 4000 });
+
+    // 游标推进到下一队列镜,状态落 interrupted,续跑候选可用
+    expect(useStoryboardBatchSessionStore.getState().session).toMatchObject({
+      status: "interrupted",
+      cursorShotIndex: 2,
+      doneFrames: 1,
+      failedFrames: 0,
+    });
+    expect(result.current.resumable).toEqual({ shotIndex: 2, remainingFrames: 1 });
+  });
+
+  it("间隔节流:镜间等待可配;停止立即中断且零残留定时器(必测)", async () => {
+    vi.useFakeTimers();
+    // 微任务泵:推进微任务链直至稳定(mock 全即时resolve,链上无真等待)
+    const flushMicrotasks = async (ticks = 40) => {
+      for (let i = 0; i < ticks; i += 1) await Promise.resolve();
+    };
+    try {
+      resetStore([shot({ id: "sb-1", index: 1 }), shot({ id: "sb-2", index: 2 })]);
+      const resolvers: Array<() => void> = [];
+      generateImageMock.mockImplementation(() => new Promise<{ url: string }>((resolve) => {
+        resolvers.push(() => resolve({ url: "https://provider.test/ok.png" }));
+      }));
+
+      const { result } = renderHook(() =>
+        useStoryboardBatchGeneration({ storyboards: useStudioStore.getState().storyboards, projectName: "道劫", submitIntervalMs: 60_000 }),
+      );
+      act(() => result.current.start());
+      await act(async () => { await flushMicrotasks(); });
+
+      // 首镜直发;完成一镜后,下一镜进间隔等待(不提交)
+      expect(resolvers.length).toBe(1);
+      act(() => { resolvers[0]!(); });
+      await act(async () => { await flushMicrotasks(); });
+      expect(generateImageMock).toHaveBeenCalledTimes(1);
+      expect(vi.getTimerCount()).toBeGreaterThanOrEqual(1);
+
+      // 停止:间隔立即中断,批量收尾,第二镜未提交,定时器池清空(零残留)
+      act(() => result.current.stop());
+      await act(async () => { await flushMicrotasks(); });
+      expect(result.current.state.running).toBe(false);
+      expect(generateImageMock).toHaveBeenCalledTimes(1);
+      expect(vi.getTimerCount()).toBe(0);
+      expect(useStoryboardBatchSessionStore.getState().session?.status).toBe("interrupted");
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("失败回退阶梯:原样→原样重试→降载 1K 三段各走一次,三败只出一条汇总 toast(必测)", async () => {
+    resetStore([shot({ id: "sb-1", index: 1 })]);
+    generateImageMock.mockRejectedValue(new Error("engine exploded"));
+
+    const { result } = renderHook(() =>
+      useStoryboardBatchGeneration({ storyboards: useStudioStore.getState().storyboards, projectName: "道劫", submitIntervalMs: 0 }),
+    );
+    act(() => result.current.start());
+    await waitFor(() => expect(result.current.state.running).toBe(false), { timeout: 8000 });
+
+    expect(generateImageMock).toHaveBeenCalledTimes(3);
+    // 前两段原样(保持图内默认档 2K),第三段降载 1K
+    expect(generateImageMock.mock.calls[0]?.[0]?.resolution).toBe("2K");
+    expect(generateImageMock.mock.calls[1]?.[0]?.resolution).toBe("2K");
+    expect(generateImageMock.mock.calls[2]?.[0]?.resolution).toBe("1K");
+    // 三败才报告:单镜只出一条失败 toast(汇总),重试过程不出声
+    expect(toast.error).toHaveBeenCalledTimes(1);
+    expect(toast.error).toHaveBeenCalledWith(expect.stringContaining("分镜 1"), expect.anything());
+    // done=进度口径(成功+失败,与既有批量语义一致)
+    expect(result.current.state).toMatchObject({ total: 1, done: 1, failed: 1 });
+    expect(toast.success).toHaveBeenCalledWith(expect.stringContaining("失败 1"));
+  });
+
+  it("失败回退阶梯:原样重试救活则不降载不记失败", async () => {
+    resetStore([shot({ id: "sb-1", index: 1 })]);
+    let calls = 0;
+    generateImageMock.mockImplementation(async () => {
+      calls += 1;
+      if (calls === 1) throw new Error("transient");
+      return { url: "https://provider.test/ok.png" };
+    });
+
+    const { result } = renderHook(() =>
+      useStoryboardBatchGeneration({ storyboards: useStudioStore.getState().storyboards, projectName: "道劫", submitIntervalMs: 0 }),
+    );
+    act(() => result.current.start());
+    await waitFor(() => expect(result.current.state.running).toBe(false), { timeout: 8000 });
+
+    expect(generateImageMock).toHaveBeenCalledTimes(2);
+    expect(generateImageMock.mock.calls[1]?.[0]?.resolution).toBe("2K");
+    expect(toast.error).not.toHaveBeenCalled();
+    expect(result.current.state).toMatchObject({ total: 1, done: 1, failed: 0 });
+  });
+
+  it("精确停队:收尾只撤回本会话归因的排队项,他人任务零触碰(注入通道,必测)", async () => {
+    resetStore([shot({ id: "sb-1", index: 1 })]);
+    // 状态化队列 mock:首次快照(提交前)只有他人任务;本会话超时遗留任务
+    // mine-1 之后出现在 pending——差分归因把它记入本会话集合
+    const deleteCalls: string[][] = [];
+    let getQueueCalls = 0;
+    const queueChannel = {
+      async getQueue() {
+        getQueueCalls += 1;
+        return {
+          runningPromptIds: ["foreign-running"],
+          pendingPromptIds: getQueueCalls <= 1 ? ["foreign-pending"] : ["foreign-pending", "mine-1"],
+        };
+      },
+      async deleteQueueItems(ids: string[]) {
+        deleteCalls.push([...ids]);
+      },
+    };
+    generateImageMock.mockRejectedValue(new Error("bridge-timeout"));
+
+    const { result } = renderHook(() =>
+      useStoryboardBatchGeneration({
+        storyboards: useStudioStore.getState().storyboards,
+        projectName: "道劫",
+        submitIntervalMs: 0,
+        queueChannel,
+      }),
+    );
+    act(() => result.current.start());
+    await waitFor(() => expect(result.current.state.running).toBe(false), { timeout: 8000 });
+
+    // 三败收尾触发精确停队:只删 mine-1,他人任务(foreign-*)不在载荷里
+    expect(deleteCalls).toEqual([["mine-1"]]);
+    expect(result.current.state).toMatchObject({ total: 1, done: 1, failed: 1 });
   });
 });
 

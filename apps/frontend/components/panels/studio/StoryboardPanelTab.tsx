@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import { ArrowLeft, ChevronLeft, ChevronRight, Image as ImageIcon, Loader2, Play, Square } from "lucide-react";
+import { toast } from "sonner";
 import { VideoPreviewModal } from "@/components/ui/media-preview-modal";
 import { Button } from "@/components/ui/button";
 import { ResolutionBadge } from "@/components/ui/image-resolution-badge";
@@ -7,8 +8,23 @@ import type { ImageWorkflowOpenContext, StoryboardItem } from "@/types/studio";
 import { buildStoryboardItemOpenContext } from "./storyboard-open-context";
 import { toPreviewSrc, withThumbVariant } from "@/lib/media/preview-src";
 import { LocalImage } from "@/components/ui/local-image";
-import type { StoryboardBatchGenerationState } from "./image-workflow/use-storyboard-batch-generation";
+import {
+  buildShotKeyframeExtractRequest,
+  getShotKeyframesBridge,
+  saveVideoFramesAsKeyframes,
+  type ShotKeyframeExtractMode,
+} from "@/lib/assist/image-studio/shot-keyframe-extraction";
+import { useProjectStore } from "@/stores/project/project-store";
+import type {
+  StoryboardBatchGenerationState,
+  StoryboardBatchResumeInfo,
+} from "./image-workflow/use-storyboard-batch-generation";
 import { useStudioStore } from "@/stores/studio/studio-store";
+import {
+  ShotImageCompareDialog,
+  ShotVideoCompareDialog,
+  shotCompareAvailability,
+} from "./shot-compare-dialogs";
 
 /**
  * 分镜面板 — 当前章节全部分镜的全量视图(与单镜图片工作流严格区分)。
@@ -32,6 +48,8 @@ export function StoryboardPanelTab({
     state: StoryboardBatchGenerationState;
     start: () => void;
     stop: () => void;
+    /** 断点续跑(09-15 P3):上次中断的批量,从游标镜继续 */
+    resumable?: StoryboardBatchResumeInfo | null;
   };
   /** 批量超分(09-09 批8:主画布退役,入口迁入面板) */
   upscale?: {
@@ -52,8 +70,69 @@ export function StoryboardPanelTab({
   const ordered = storyboards.slice().sort((a, b) => a.index - b.index);
   const withImage = ordered.filter((item) => item.mediaRef?.kind === "image").length;
   const remaining = ordered.length - withImage;
+  // 版本对入口(09-15 P1b):图=关键帧两帧对比;视频=当前版 vs 上一版候选
+  const videoCandidates = useStudioStore((state) => state.videoCandidates);
+  const [framesCompareShotId, setFramesCompareShotId] = useState<string | null>(null);
+  const [videoCompareShotId, setVideoCompareShotId] = useState<string | null>(null);
+  const framesCompareShot = framesCompareShotId ? ordered.find((item) => item.id === framesCompareShotId) : undefined;
+  const videoCompareShot = videoCompareShotId ? ordered.find((item) => item.id === videoCompareShotId) : undefined;
   // 09-14 用户裁定:详情页可看单镜头视频播放——有视频的卡中央▶,弹窗播整镜
   const [videoUrl, setVideoUrl] = useState<string | null>(null);
+  // 截帧回灌(09-15 P1a):弹窗关联镜+busy 态;两动作落在视频查看操作条
+  const [videoShotId, setVideoShotId] = useState<string | null>(null);
+  const [keyframeBusy, setKeyframeBusy] = useState(false);
+  const activeProjectId = useProjectStore((state) => state.activeProjectId);
+  const videoShot = videoShotId ? ordered.find((item) => item.id === videoShotId) : undefined;
+
+  const runKeyframeExtraction = async (mode: ShotKeyframeExtractMode) => {
+    if (!videoShot || keyframeBusy) return;
+    setKeyframeBusy(true);
+    try {
+      const result = await saveVideoFramesAsKeyframes({ projectId: activeProjectId, storyboard: videoShot, mode });
+      if (result.ok) {
+        toast.success(mode.kind === "single" ? "已存为关键帧" : "已抽帧,本镜关键帧已更新");
+      } else {
+        toast.warning(result.message ?? "抽帧失败");
+      }
+    } finally {
+      setKeyframeBusy(false);
+    }
+  };
+
+  /** 截帧回灌动作(09-15 P1a):视频不在项目内/桥缺失=禁用态+tooltip,不报错弹窗 */
+  const keyframeActions = useMemo(() => {
+    if (!videoShot) return undefined;
+    const extractable = buildShotKeyframeExtractRequest({
+      projectId: activeProjectId,
+      storyboard: videoShot,
+      mode: { kind: "single", timestampS: 0 },
+    }) !== null;
+    const bridgeAvailable = getShotKeyframesBridge() !== null;
+    return {
+      busy: keyframeBusy,
+      disabledReason: !extractable
+        ? "当前视频不在项目内,无法抽帧"
+        : !bridgeAvailable
+          ? "抽帧通道不可用(仅桌面应用支持)"
+          : undefined,
+      onSaveCurrentFrame: (currentTimeS: number) => {
+        void runKeyframeExtraction({ kind: "single", timestampS: currentTimeS });
+      },
+      onAutoSample: (count: 3 | 5 | 9) => {
+        void runKeyframeExtraction({ kind: "uniform", count });
+      },
+    };
+  }, [videoShot, activeProjectId, keyframeBusy]);
+
+  const openShotVideo = (storyboard: StoryboardItem) => {
+    setVideoShotId(storyboard.id);
+    setVideoUrl(toPreviewSrc(storyboard.mediaRef!.path!));
+  };
+
+  const closeShotVideo = () => {
+    setVideoUrl(null);
+    setVideoShotId(null);
+  };
 
   const openShot = (storyboard: StoryboardItem) => {
     onOpenImageWorkflow({
@@ -129,6 +208,18 @@ export function StoryboardPanelTab({
                 停止
               </Button>
             </div>
+          ) : batch.resumable ? (
+            /* 断点续跑(09-15 P3):上次没跑完的批量,从上次停下的镜继续 */
+            <Button
+              size="sm"
+              variant="outline"
+              data-storyboard-panel-generate
+              title={`从第 ${batch.resumable.shotIndex} 镜继续,还差 ${batch.resumable.remainingFrames} 帧画面`}
+              onClick={batch.start}
+            >
+              <ImageIcon className="h-3.5 w-3.5" />
+              继续生图
+            </Button>
           ) : remaining > 0 ? (
             <Button
               size="sm"
@@ -148,23 +239,49 @@ export function StoryboardPanelTab({
         <div
           className="mt-4 grid min-h-0 flex-1 grid-cols-2 content-start gap-6 overflow-y-auto p-1 pr-3"
         >
-          {ordered.map((storyboard) => (
-            <StoryboardPanelCard
-              key={storyboard.id}
-              storyboard={storyboard}
-              onOpen={() => openShot(storyboard)}
-              onPlayVideo={
-                storyboard.mediaRef?.kind === "video" && storyboard.mediaRef.path
-                  ? () => setVideoUrl(toPreviewSrc(storyboard.mediaRef!.path!))
-                  : undefined
-              }
-            />
-          ))}
+          {ordered.map((storyboard) => {
+            const compare = shotCompareAvailability(storyboard, videoCandidates);
+            return (
+              <StoryboardPanelCard
+                key={storyboard.id}
+                storyboard={storyboard}
+                onOpen={() => openShot(storyboard)}
+                onPlayVideo={
+                  storyboard.mediaRef?.kind === "video" && storyboard.mediaRef.path
+                    ? () => openShotVideo(storyboard)
+                    : undefined
+                }
+                onCompareFrames={compare.frames ? () => setFramesCompareShotId(storyboard.id) : undefined}
+                onCompareVideo={compare.video ? () => setVideoCompareShotId(storyboard.id) : undefined}
+              />
+            );
+          })}
         </div>
       ) : null}
     </div>
       {videoUrl ? (
-        <VideoPreviewModal videoUrl={videoUrl} isOpen onClose={() => setVideoUrl(null)} />
+        <VideoPreviewModal
+          videoUrl={videoUrl}
+          isOpen
+          onClose={closeShotVideo}
+          keyframeActions={keyframeActions}
+        />
+      ) : null}
+      {framesCompareShot ? (
+        <ShotImageCompareDialog
+          storyboard={framesCompareShot}
+          open
+          onClose={() => setFramesCompareShotId(null)}
+        />
+      ) : null}
+      {videoCompareShot ? (
+        <ShotVideoCompareDialog
+          projectId={activeProjectId ?? undefined}
+          storyboard={videoCompareShot}
+          candidates={videoCandidates}
+          open
+          onClose={() => setVideoCompareShotId(null)}
+        />
       ) : null}
     </>
   );
@@ -179,11 +296,17 @@ function StoryboardPanelCard({
   storyboard,
   onOpen,
   onPlayVideo,
+  onCompareFrames,
+  onCompareVideo,
 }: {
   storyboard: StoryboardItem;
   onOpen: () => void;
   /** 有单镜视频时的播放回调(09-14 用户裁定:详情可看单镜头播放) */
   onPlayVideo?: () => void;
+  /** 关键帧两帧对比入口(09-15 P1b;帧≥2 才传入) */
+  onCompareFrames?: () => void;
+  /** 单镜视频版本对入口(09-15 P1b;有上一版才传入) */
+  onCompareVideo?: () => void;
 }) {
   const updateStoryboard = useStudioStore((state) => state.updateStoryboard);
   // 仅有图帧参与轮播;无帧/无图退回 mediaRef 单图
@@ -310,6 +433,32 @@ function StoryboardPanelCard({
           <p className="whitespace-pre-line text-[11px] leading-5 text-muted-foreground">
             {storyboard.lines.replace(/<br\s*\/?>/gi, "\n")}
           </p>
+        ) : null}
+        {(onCompareFrames || onCompareVideo) ? (
+          <div className="mt-1 flex flex-wrap gap-1.5" onClick={(event) => event.stopPropagation()}>
+            {onCompareFrames ? (
+              <button
+                type="button"
+                data-storyboard-compare-frames
+                title="左右滑动对比本镜第 1、2 帧关键帧"
+                className="rounded-md border border-border/60 bg-background/60 px-2 py-1 text-[10px] text-muted-foreground transition-colors hover:text-foreground"
+                onClick={onCompareFrames}
+              >
+                对比两帧
+              </button>
+            ) : null}
+            {onCompareVideo ? (
+              <button
+                type="button"
+                data-storyboard-compare-video
+                title="当前版单镜视频与上一版并排同步对比"
+                className="rounded-md border border-border/60 bg-background/60 px-2 py-1 text-[10px] text-muted-foreground transition-colors hover:text-foreground"
+                onClick={onCompareVideo}
+              >
+                对比上一版
+              </button>
+            ) : null}
+          </div>
         ) : null}
         {storyboard.mediaRef?.kind === "video" ? (
           <label
