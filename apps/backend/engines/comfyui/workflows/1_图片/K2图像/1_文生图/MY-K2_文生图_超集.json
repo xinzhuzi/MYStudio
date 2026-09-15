@@ -1,13 +1,13 @@
 {
  "last_node_id": 53,
- "last_link_id": 16,
+ "last_link_id": 18,
  "nodes": [
   {
    "id": 10,
    "type": "VAELoader",
    "pos": [
-    -580.0999326785349,
-    374.69808696068776
+    40,
+    760
    ],
    "size": [
     400.90625,
@@ -72,8 +72,8 @@
    "id": 12,
    "type": "KSampler",
    "pos": [
-    1583.5014341628826,
-    61.17486731770691
+    2780,
+    380
    ],
    "size": [
     339.390625,
@@ -215,8 +215,8 @@
    "id": 15,
    "type": "CLIPLoader",
    "pos": [
-    -584.7785484776299,
-    75.09072482712747
+    40,
+    580
    ],
    "size": [
     401.984375,
@@ -307,8 +307,8 @@
    "id": 21,
    "type": "UNETLoader",
    "pos": [
-    -585.7414443291367,
-    -528.5440240071332
+    40,
+    420
    ],
    "size": [
     400.8125,
@@ -346,7 +346,7 @@
      "name": "MODEL",
      "type": "MODEL",
      "links": [
-      1
+      17
      ]
     }
    ],
@@ -386,8 +386,8 @@
    "id": 20,
    "type": "Seed (rgthree)",
    "pos": [
-    1139.5408519288858,
-    638.130364632688
+    2760,
+    120
    ],
    "size": [
     225,
@@ -441,8 +441,8 @@
    "id": 11,
    "type": "VAEDecode",
    "pos": [
-    2016.5959301826733,
-    303.8718738583131
+    3240,
+    380
    ],
    "size": [
     225,
@@ -495,8 +495,8 @@
    "id": 4,
    "type": "SaveImage",
    "pos": [
-    2443.2120424804134,
-    336.5744506796194
+    3580,
+    360
    ],
    "size": [
     429.515625,
@@ -556,8 +556,8 @@
    "id": 44,
    "type": "LoraLoaderModelOnly",
    "pos": [
-    373.2336377674575,
-    -525.52862882474
+    1080,
+    420
    ],
    "size": [
     437.75,
@@ -573,7 +573,7 @@
      "localized_name": "模型",
      "name": "model",
      "type": "MODEL",
-     "link": 1
+     "link": 18
     },
     {
      "localized_name": "LoRA名称",
@@ -604,7 +604,7 @@
      ]
     }
    ],
-   "title": "[44] 尺度LoRA·Mystic XXX v3(DiT层)",
+   "title": "[44] 尺度LoRA·Mystic XXX v3 ×2.0",
    "properties": {
     "Node name for S&R": "LoraLoaderModelOnly",
     "ue_properties": {
@@ -631,8 +631,8 @@
    "id": 45,
    "type": "LoraLoaderModelOnly",
    "pos": [
-    847.0122159629084,
-    -524.1444637862057
+    1640,
+    420
    ],
    "size": [
     377.109375,
@@ -679,7 +679,7 @@
      ]
     }
    ],
-   "title": "[45] 尺度LoRA·pussy(DiT层,轻)",
+   "title": "[45] 尺度LoRA·pussy ×0.15",
    "properties": {
     "Node name for S&R": "LoraLoaderModelOnly",
     "ue_properties": {
@@ -706,8 +706,8 @@
    "id": 22,
    "type": "Label (rgthree)",
    "pos": [
-    -3.0585238061258906,
-    -698.7931114232349
+    3300,
+    40
    ],
    "size": [
     1821.66015625,
@@ -744,12 +744,12 @@
    "id": 42,
    "type": "MarkdownNote",
    "pos": [
-    -1797.7773520085568,
-    -197.49461648943804
+    40,
+    40
    ],
    "size": [
-    1102.390625,
-    875.90625
+    660,
+    320
    ],
    "flags": {
     "collapsed": false
@@ -779,8 +779,8 @@
    "id": 50,
    "type": "PrimitiveStringMultiline",
    "pos": [
-    -980,
-    160
+    520,
+    700
    ],
    "size": [
     360,
@@ -811,8 +811,8 @@
    "id": 51,
    "type": "CLIPTextEncode",
    "pos": [
-    -560,
-    100
+    1080,
+    700
    ],
    "size": [
     340,
@@ -855,8 +855,8 @@
    "id": 52,
    "type": "ConditioningZeroOut",
    "pos": [
-    -560,
-    380
+    1640,
+    700
    ],
    "size": [
     340,
@@ -891,8 +891,8 @@
    "id": 53,
    "type": "EmptySD3LatentImage",
    "pos": [
-    -140,
-    460
+    2200,
+    700
    ],
    "size": [
     340,
@@ -926,8 +926,8 @@
    "id": 14,
    "type": "Krea2EditModelPatch",
    "pos": [
-    760,
-    640
+    2200,
+    420
    ],
    "size": [
     430,
@@ -986,17 +986,59 @@
     1,
     "fit"
    ]
+  },
+  {
+   "id": 19,
+   "type": "LoraLoaderModelOnly",
+   "pos": [
+    520,
+    380
+   ],
+   "size": [
+    428,
+    130
+   ],
+   "flags": {},
+   "order": 19,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "model",
+     "type": "MODEL",
+     "link": 17
+    },
+    {
+     "name": "lora_name",
+     "type": "COMBO",
+     "link": null
+    },
+    {
+     "name": "strength_model",
+     "type": "FLOAT",
+     "link": null
+    }
+   ],
+   "outputs": [
+    {
+     "name": "MODEL",
+     "type": "MODEL",
+     "links": [
+      18
+     ],
+     "slot_index": 0
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "LoraLoaderModelOnly"
+   },
+   "widgets_values": [
+    "Krea2-功能/Krea2-编辑identity_edit_v1_2.safetensors",
+    1
+   ],
+   "title": "[19] identity LoRA(编辑链随附,T2I 中性)"
   }
  ],
  "links": [
-  [
-   1,
-   21,
-   0,
-   44,
-   0,
-   "MODEL"
-  ],
   [
    2,
    44,
@@ -1108,6 +1150,22 @@
    14,
    1,
    "LATENT"
+  ],
+  [
+   17,
+   21,
+   0,
+   19,
+   0,
+   "MODEL"
+  ],
+  [
+   18,
+   19,
+   0,
+   44,
+   0,
+   "MODEL"
   ]
  ],
  "groups": [],
