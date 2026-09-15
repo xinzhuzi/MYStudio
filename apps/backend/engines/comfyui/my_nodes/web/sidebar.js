@@ -168,7 +168,19 @@ async function openMyWorkflow(id, status) {
       // 引擎家无此文件→装载挂起,装机实弹 30s 不切画布)——走带名临时流
       // 直载;引擎家条目(分镜产线)保留 09-12 单实例协议(绑库复用签)
       if (id.startsWith("repo:")) {
-        await window.app.loadGraphData(cloneGraph(graph), true, true, id.slice("repo:".length));
+        // 09-15 用户裁定:已开标签页复用——点击前查 workflow 服务已开清单,
+        // 命中同名路径直接 svc.openWorkflow 切换到该签,不再开新签;
+        // 未命中才走带名临时流直载(签的 name=库相对路径,与临时流命名一致)
+        const svc = window.app.extensionManager?.workflow;
+        const want = id.slice("repo:".length);
+        if (svc && typeof svc.openWorkflow === "function" && Array.isArray(svc.openWorkflows)) {
+          const hit = svc.openWorkflows.find((wf) => wf && (wf.path === want || wf.path === id
+            || String(wf.path || "").replace(/^workflows\//, "") === want));
+          if (hit) {
+            try { await svc.openWorkflow(hit); return; } catch (error) { /* 回退直载 */ }
+          }
+        }
+        await window.app.loadGraphData(cloneGraph(graph), true, true, want);
       } else {
         await openWorkflowSingleInstance({ name: id, graph });
       }

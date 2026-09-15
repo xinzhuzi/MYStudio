@@ -597,6 +597,34 @@ app.registerExtension({
   async beforeRegisterNodeDef(nodeType, nodeData) {
     // 旧名 ManyingStage=存量工作流兼容
     if (nodeData?.name !== "MyStage" && nodeData?.name !== "ManyingStage") return;
+    // 09-15 右键继承:环节动作族挂进 litegraph 原生节点菜单(与 DOM 面板
+    // 按钮同一 postAction 通道,宿主消费端零改动);原生项(Pin/Collapse/
+    // Bypass/Colors…)原样保留——只追加,不替换。
+    const getExtraMenuOptions = nodeType.prototype.getExtraMenuOptions;
+    nodeType.prototype.getExtraMenuOptions = function (canvas, options) {
+      const stageProps = this.properties || {};
+      const payload = stageProps.myStage ?? stageProps.manyingStage;
+      if (payload && typeof payload.key === "string") {
+        const act = (content, kind, note) => options.push({
+          content: `漫影 · ${content}`,
+          callback: () => { postAction(kind, note || payload.key, null); },
+        });
+        // 与 DOM 面板按钮同源(docButtons 单源):桥类动作走 postAction;
+        // 本地动作(open-shot-grid=进分镜子图)在菜单内本地执行同款
+        for (const action of docButtons(payload.key)) {
+          if (action.kind === "open-shot-grid") {
+            options.push({
+              content: `漫影 · ${action.label}`,
+              callback: () => { try { window.app?.canvas?.openSubgraph?.(this); } catch (error) { /* 子图缺席静默 */ } },
+            });
+            continue;
+          }
+          act(action.label, action.kind, action.noteKey);
+        }
+      }
+      return getExtraMenuOptions?.apply(this, arguments);
+    };
+
     const onNodeCreated = nodeType.prototype.onNodeCreated;
     nodeType.prototype.onNodeCreated = function () {
       const result = onNodeCreated?.apply(this, arguments);

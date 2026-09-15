@@ -225,3 +225,37 @@ app.registerExtension({
     };
   },
 });
+
+// ── 自研节点东方影视外观装饰器(09-15 用户裁定:美化自己创建的节点,固定的不动) ──
+const CUSTOM_NODE_THEMES = {
+  MyStage: { color: "#1a365d", bgcolor: "#0b192c" },
+  ManyingStage: { color: "#1a365d", bgcolor: "#0b192c" },
+  MyShot: { color: "#1e293b", bgcolor: "#0f172a" },
+  ManyingShot: { color: "#1e293b", bgcolor: "#0f172a" },
+  MyGenerated: { color: "#064e3b", bgcolor: "#022c22" },
+  ManyingGenerated: { color: "#064e3b", bgcolor: "#022c22" },
+  MyPrompt: { color: "#451a03", bgcolor: "#1c1917" },
+  ManyingPrompt: { color: "#451a03", bgcolor: "#1c1917" },
+  MyReference: { color: "#1e1b4b", bgcolor: "#0f172a" },
+  ManyingReference: { color: "#1e1b4b", bgcolor: "#0f172a" },
+  MyCloudImage: { color: "#2e1065", bgcolor: "#0f172a" },
+  ManyingCloudImage: { color: "#2e1065", bgcolor: "#0f172a" },
+};
+
+app.registerExtension({
+  name: "my.custom_nodes.theme",
+  nodeCreated(node) {
+    const cls = node.comfyClass || node.type;
+    const theme = CUSTOM_NODE_THEMES[cls];
+    if (!theme) return; // 固定的原生标准节点绝对不干预
+    if (!node.color) node.color = theme.color;
+    if (!node.bgcolor) node.bgcolor = theme.bgcolor;
+    const origConfigure = node.onConfigure;
+    node.onConfigure = function (data) {
+      const res = origConfigure?.apply(this, arguments);
+      if (!this.color) this.color = theme.color;
+      if (!this.bgcolor) this.bgcolor = theme.bgcolor;
+      return res;
+    };
+  },
+});
