@@ -804,7 +804,7 @@
     "Node name for S&R": "PrimitiveStringMultiline"
    },
    "widgets_values": [
-    "(写画面提示词:人物/姿态/场景/光线;破限由 LoRA 栈承担,可直写人体描述)"
+    "(写画面提示词:人物/姿态/场景/光线;尺度放开由 LoRA 栈承担,可直写人体描述)"
    ]
   },
   {
