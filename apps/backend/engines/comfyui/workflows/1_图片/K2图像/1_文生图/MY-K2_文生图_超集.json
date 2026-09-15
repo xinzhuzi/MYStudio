@@ -1,6 +1,6 @@
 {
- "last_node_id": 53,
- "last_link_id": 18,
+ "last_node_id": 63,
+ "last_link_id": 26,
  "nodes": [
   {
    "id": 10,
@@ -95,7 +95,7 @@
      "localized_name": "正面条件",
      "name": "positive",
      "type": "CONDITIONING",
-     "link": 7
+     "link": 23
     },
     {
      "localized_name": "负面条件",
@@ -767,7 +767,7 @@
     }
    },
    "widgets_values": [
-    "# K2 文生图 · 超集档\n\n**写提示词 → Queue**\n\n- 结构照「无衣物_稳定」全链:官方三件套(krea2_turbo_bf16 + qwen3-vl-4b-heretic + qwen_image_vae)+ LoRA 栈(**Mystic XXX v3 ×2.0 + pussy ×0.15,默认激活**)\n- 正向只写画面内容(人物/姿态/场景/光线);尺度放开由 LoRA 栈承担,可直写人体描述\n- 负向=ConditioningZeroOut 零化(K2 官方口径),无需负词\n- 10 步 / cfg 1 / euler+simple(Turbo 官方档);1024² 起步,要更大走 `6_修复超分`\n- 收着点:pussy 降 0.1 或 Mystic 降 1.0;更冲:Mystic 2.5(噪点风险↑)\n- 与「无衣物」流区别:那是**指令改图**(参考图保脸),这是**纯文生图超集档**\n- **Krea2EditModelPatch 已入链**(超集口径;T2I 无参考图=中性接法:source 接同一空潜+ref_boost 1.0=off;需要真参考图语义时走 3_改图/4_上色 域)"
+    "# K2 文生图 · 超集档\n\n**写提示词 → Queue**\n\n- 结构照「无衣物_稳定」全链:官方三件套(krea2_turbo_bf16 + qwen3-vl-4b-heretic + qwen_image_vae)+ LoRA 栈(**Mystic XXX v3 ×2.0 + pussy ×0.15,默认激活**)\n- 正向只写画面内容(人物/姿态/场景/光线);尺度放开由 LoRA 栈承担,可直写人体描述\n- 负向=ConditioningZeroOut 零化(K2 官方口径),无需负词\n- 10 步 / cfg 1 / euler+simple(Turbo 官方档);1024² 起步,要更大走 `6_修复超分`\n- 收着点:pussy 降 0.1 或 Mystic 降 1.0;更冲:Mystic 2.5(噪点风险↑)\n- 与「无衣物」流区别:那是**指令改图**(参考图保脸),这是**纯文生图超集档**\n- **Krea2EditModelPatch 已入链**(超集口径;T2I 无参考图=中性接法:source 接同一空潜+ref_boost 1.0=off;需要真参考图语义时走 3_改图/4_上色 域)\n- **漫影三件套**:风格库(48 风格,`manying_漫影风格`)选择经正词注入/分辨率选择直驱空潜宽高/风格预览\n- **12带重平衡**:默认全 1.0=中性;要专业流口味按 NSFW 旧版第9带 5.0 起手"
    ],
    "widgets_values_named": {
     "text": "# Krea2_无衣物_快(krea2edit指令编辑·约4分钟·整图改形态保脸·不用涂)\n① 载入参考图 ② 改\"编辑指令\"节点里的一句话指令 ③ 跑(约4分钟)\ndenoise=1.0/CFG1/10步是设计要求勿动;grounding_px=0(两个GroundedEncode都是)。\n\n## 为什么指令要这么写(原理)\n- \"看图\"由Krea2EditGroundedEncode完成:指令+原图一起过Qwen3-VL视觉TE,指令不用描述衣服细节。\n- 指令只负责三样:锚点(哪件衣服)+动作(布料去哪)+新状态(露出什么)。\n- 大件衣服盖住的身材模型看不见,必须凭空重造→\"布料消失\"=重造面积最大=空洞/丢肢体;\n  布料滑落留在画面=只补边缘=最稳。这就是\"滑落敞开+布料保留\"的由来。\n\n## 指令公式\n大件动词+布料去向 + 小件褪去 + 新状态(露肤只写一次) + 袖保留(如有袖) + 配件去向 + 身份锁\n\n| 衣物 | 动词 | 布料去向 |\n|---|---|---|\n| 大件(连衣裙/上衣+裤/外套) | 滑落敞开(同义:滑至/垂落/敞开) | 必须写:堆叠在腰间与腿侧/垂坠在身侧 |\n| 小件(内衣/袜/鞋) | 褪去/脱下 | 写正向去向,如\"脱落在脚边\" |\n| 配件(包/围巾/帽) | 取下 | \"取下放在身旁\" |\n\n## 衣物点名\n- 大件逐件点名+颜色:\"她的白色短袖上衣与浅蓝牛仔短裙滑落敞开…\"\n- 颜色必加:同类多件、或衣服与背景同色系(防背景被一起改)\n- 小件归并一词:\"贴身衣物\"\"鞋袜\"\n\n## 禁忌(五条,全部会翻车)\n1. 否定句:\"无衣物遮挡\"\"无背包\"——TE无视否定词 ❌\n2. 大件布料消失:\"全部脱下\"不写去向=最难模式 ❌\n3. 露肤状态写多遍——全文只写一次 ❌\n4. 有袖不写袖保留——丢臂病,丢了换seed ❌\n5. 元指令:\"请把衣服P掉\"——要写描述式目标状态 ❌\n\n## 基准句式(直接抄改)\n- 连衣裙/整体版(实测通过):\n她身上的衣衫整体滑落敞开,胸前、腰腹与双腿露出洁净无瑕疵的裸露肌肤;双臂的衣袖保留在手臂上,双臂完整清晰;她的脸、发型、姿态与背景保持与原图完全一致。\n- 上下装版:\n她的【颜色】上衣与【颜色】下装滑落敞开,布料完整地堆叠在腰间与腿侧;贴身衣物随之一并褪去,【部位】露出洁净无瑕疵的裸露肌肤,身体轮廓完整清晰;双臂的衣袖保留在手臂上;鞋袜自然脱落在脚边;她的脸、发型、姿态与背景保持与原图完全一致。\n- 换装例:将她身上的衣物换为正红色的织金锦缎长裙;她的脸、发型、姿态与背景保持与原图完全一致。\n\n## 标注\n已实测:滑落+袖保留+布料保留句式 / 参数三件套 / 负向留空\n待对拍:分件点名+颜色消歧 / 小件归并 / 配件正向去向(方法论,无本机数据)\n\n## 其他\n- 自动指令版见同目录「Krea2_无衣物_测试」(图→FASHN解析→组装器自动出指令)\n- 想复现→Seed节点设固定值;自己角色可开identity LoRA(Krea2-功能/)加强保脸\n- \"像素数量\"=工作分辨率(1≈100万像素),日常1~1.2不用动\n- 全图轻调(denoise 0.3~0.45)用图生图流"
@@ -795,7 +795,7 @@
      "name": "STRING",
      "type": "STRING",
      "links": [
-      5
+      19
      ],
      "slot_index": 0
     }
@@ -811,7 +811,7 @@
    "id": 51,
    "type": "CLIPTextEncode",
    "pos": [
-    1080,
+    1120,
     700
    ],
    "size": [
@@ -830,7 +830,7 @@
     {
      "name": "text",
      "type": "STRING",
-     "link": 5
+     "link": 20
     }
    ],
    "outputs": [
@@ -838,8 +838,7 @@
      "name": "CONDITIONING",
      "type": "CONDITIONING",
      "links": [
-      6,
-      7
+      22
      ],
      "slot_index": 0
     }
@@ -855,7 +854,7 @@
    "id": 52,
    "type": "ConditioningZeroOut",
    "pos": [
-    1640,
+    1700,
     700
    ],
    "size": [
@@ -869,7 +868,7 @@
     {
      "name": "conditioning",
      "type": "CONDITIONING",
-     "link": 6
+     "link": 24
     }
    ],
    "outputs": [
@@ -891,7 +890,7 @@
    "id": 53,
    "type": "EmptySD3LatentImage",
    "pos": [
-    2200,
+    2620,
     700
    ],
    "size": [
@@ -901,7 +900,26 @@
    "flags": {},
    "order": 53,
    "mode": 0,
-   "inputs": [],
+   "inputs": [
+    {
+     "localized_name": "宽度",
+     "name": "width",
+     "type": "INT",
+     "widget": {
+      "name": "width"
+     },
+     "link": 25
+    },
+    {
+     "localized_name": "高度",
+     "name": "height",
+     "type": "INT",
+     "widget": {
+      "name": "height"
+     },
+     "link": 26
+    }
+   ],
    "outputs": [
     {
      "name": "LATENT",
@@ -1036,6 +1054,292 @@
     1
    ],
    "title": "[19] identity LoRA(编辑链随附,T2I 中性)"
+  },
+  {
+   "id": 60,
+   "type": "easy stylesSelector",
+   "pos": [
+    560,
+    700
+   ],
+   "size": [
+    465.75426979794247,
+    526.6133544847954
+   ],
+   "flags": {},
+   "order": 60,
+   "mode": 0,
+   "inputs": [
+    {
+     "label": "正面提示词（可选）",
+     "localized_name": "正面提示词（可选）",
+     "name": "positive",
+     "shape": 7,
+     "type": "STRING",
+     "link": 19
+    },
+    {
+     "label": "负面提示词（可选）",
+     "localized_name": "负面提示词（可选）",
+     "name": "negative",
+     "shape": 7,
+     "type": "STRING",
+     "link": null
+    },
+    {
+     "label": "风格类型",
+     "localized_name": "风格类型",
+     "name": "styles",
+     "type": "COMBO",
+     "widget": {
+      "name": "styles"
+     },
+     "link": null
+    },
+    {
+     "localized_name": "select_styles",
+     "name": "select_styles",
+     "shape": 7,
+     "type": "EASY_PROMPT_STYLES",
+     "widget": {
+      "name": "select_styles"
+     },
+     "link": null
+    }
+   ],
+   "outputs": [
+    {
+     "label": "正面提示词",
+     "localized_name": "正面提示词",
+     "name": "positive",
+     "type": "STRING",
+     "links": [
+      20,
+      21
+     ]
+    },
+    {
+     "label": "负面提示词",
+     "localized_name": "负面提示词",
+     "name": "negative",
+     "type": "STRING",
+     "links": []
+    }
+   ],
+   "properties": {
+    "aux_id": "yolain/ComfyUI-Easy-Use",
+    "ver": "4de1ab3b66e48da916b6f263bacd001df53a2720",
+    "Node name for S&R": "easy stylesSelector"
+   },
+   "widgets_values": [
+    "manying_漫影风格",
+    "2D工笔风"
+   ],
+   "widgets_values_named": {
+    "styles": "krea2_397styles-3d_render_3D渲染",
+    "select_styles": "Backlit Portraiture"
+   },
+   "title": "[60] 漫影风格库(48风格)"
+  },
+  {
+   "id": 61,
+   "type": "ResolutionSelector",
+   "pos": [
+    40,
+    980
+   ],
+   "size": [
+    234.63441767302356,
+    126
+   ],
+   "flags": {},
+   "order": 61,
+   "mode": 0,
+   "showAdvanced": false,
+   "inputs": [
+    {
+     "localized_name": "宽高比",
+     "name": "aspect_ratio",
+     "type": "COMBO",
+     "widget": {
+      "name": "aspect_ratio"
+     },
+     "link": null
+    },
+    {
+     "localized_name": "百万像素",
+     "name": "megapixels",
+     "type": "FLOAT",
+     "widget": {
+      "name": "megapixels"
+     },
+     "link": null
+    },
+    {
+     "localized_name": "倍数",
+     "name": "multiple",
+     "type": "INT",
+     "widget": {
+      "name": "multiple"
+     },
+     "link": null
+    }
+   ],
+   "outputs": [
+    {
+     "localized_name": "宽度",
+     "name": "width",
+     "type": "INT",
+     "links": [
+      25
+     ]
+    },
+    {
+     "localized_name": "高度",
+     "name": "height",
+     "type": "INT",
+     "links": [
+      26
+     ]
+    }
+   ],
+   "properties": {
+    "cnr_id": "comfy-core",
+    "ver": "0.31.0",
+    "Node name for S&R": "ResolutionSelector"
+   },
+   "widgets_values": [
+    "1:1 (Square)",
+    1.0,
+    32
+   ],
+   "widgets_values_named": {
+    "aspect_ratio": "9:16 (Portrait Widescreen)",
+    "megapixels": 1.2,
+    "multiple": 32
+   },
+   "color": "#233",
+   "bgcolor": "#355",
+   "title": "[61] 分辨率"
+  },
+  {
+   "id": 62,
+   "type": "easy showAnything",
+   "pos": [
+    560,
+    1300
+   ],
+   "size": [
+    471.548794768898,
+    218.43300458704073
+   ],
+   "flags": {},
+   "order": 62,
+   "mode": 0,
+   "inputs": [
+    {
+     "label": "输入任何",
+     "localized_name": "输入任何",
+     "name": "anything",
+     "shape": 7,
+     "type": "*",
+     "link": 21
+    }
+   ],
+   "outputs": [
+    {
+     "localized_name": "输出",
+     "name": "output",
+     "type": "*",
+     "links": []
+    }
+   ],
+   "properties": {
+    "aux_id": "yolain/ComfyUI-Easy-Use",
+    "ver": "4de1ab3b66e48da916b6f263bacd001df53a2720",
+    "Node name for S&R": "easy showAnything"
+   },
+   "widgets_values": [
+    "Style: luminous photographic aesthetics defined by strong backlighting, radiant edge illumination, subtle translucency effects, atmospheric depth, graceful tonal transitions, and a heightened sense of visual separation, creating elegant and emotionally evocative imagery through carefully controlled exposure, naturalistic light diffusion, and refined portrait craftsmanship, reminiscent of Peter Lindbergh and Paolo Roversi, inspired by Vogue editorials and In the Mood for Love.. Subject:一位黑色长发的年轻亚洲女子站在阳光斑驳的森林中，头发自然披散在肩头并编成一条松散的长辫，用紫色发圈固定。她的皮肤白皙，嘴唇微张，笑容甜美，表情温柔。她身穿一袭白色露肩上衣，领口和袖口饰有精致蕾丝花边，胸前系着蝴蝶结，下摆微微收紧露出紫色腰带；脖子上戴着一条金色细链，坠着一枚椭圆形紫色宝石吊坠。她的右手轻轻捏住一朵紫色风铃草，花瓣舒展，花茎细长带有绿色叶片。柔和的金色阳光从左侧树叶间洒落，整体画面呈现温暖。"
+   ],
+   "widgets_values_named": {
+    "text": "Style: luminous photographic aesthetics defined by strong backlighting, radiant edge illumination, subtle translucency effects, atmospheric depth, graceful tonal transitions, and a heightened sense of visual separation, creating elegant and emotionally evocative imagery through carefully controlled exposure, naturalistic light diffusion, and refined portrait craftsmanship, reminiscent of Peter Lindbergh and Paolo Roversi, inspired by Vogue editorials and In the Mood for Love.. Subject:一位黑色长发的年轻亚洲女子站在阳光斑驳的森林中，头发自然披散在肩头并编成一条松散的长辫，用紫色发圈固定。她的皮肤白皙，嘴唇微张，笑容甜美，表情温柔。她身穿一袭白色露肩上衣，领口和袖口饰有精致蕾丝花边，胸前系着蝴蝶结，下摆微微收紧露出紫色腰带；脖子上戴着一条金色细链，坠着一枚椭圆形紫色宝石吊坠。她的右手轻轻捏住一朵紫色风铃草，花瓣舒展，花茎细长带有绿色叶片。柔和的金色阳光从左侧树叶间洒落，整体画面呈现温暖。"
+   },
+   "title": "[62] 风格预览"
+  },
+  {
+   "id": 63,
+   "type": "ConditioningKrea2Rebalance",
+   "pos": [
+    2140,
+    700
+   ],
+   "size": [
+    562.34375,
+    122
+   ],
+   "flags": {},
+   "order": 63,
+   "mode": 0,
+   "inputs": [
+    {
+     "localized_name": "conditioning",
+     "name": "conditioning",
+     "type": "CONDITIONING",
+     "link": 22
+    },
+    {
+     "localized_name": "multiplier",
+     "name": "multiplier",
+     "type": "FLOAT",
+     "widget": {
+      "name": "multiplier"
+     },
+     "link": null
+    },
+    {
+     "localized_name": "per_layer_weights",
+     "name": "per_layer_weights",
+     "type": "STRING",
+     "widget": {
+      "name": "per_layer_weights"
+     },
+     "link": null
+    }
+   ],
+   "outputs": [
+    {
+     "localized_name": "conditioning",
+     "name": "conditioning",
+     "type": "CONDITIONING",
+     "links": [
+      23,
+      24
+     ]
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "ConditioningKrea2Rebalance",
+    "cnr_id": "comfyui-conditioning-rebalance",
+    "ver": "1.3.1",
+    "ue_properties": {
+     "widget_ue_connectable": {
+      "multiplier": true,
+      "per_layer_weights": true
+     },
+     "version": "7.8",
+     "input_ue_unconnectable": {}
+    }
+   },
+   "widgets_values": [
+    1,
+    "1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0"
+   ],
+   "widgets_values_named": {
+    "multiplier": 1,
+    "per_layer_weights": "1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,5.0,1.0,1.0,1.0"
+   },
+   "title": "[63] 12带重平衡(全1.0=中性)"
   }
  ],
  "links": [
@@ -1054,30 +1358,6 @@
    51,
    0,
    "CLIP"
-  ],
-  [
-   5,
-   50,
-   0,
-   51,
-   1,
-   "STRING"
-  ],
-  [
-   6,
-   51,
-   0,
-   52,
-   0,
-   "CONDITIONING"
-  ],
-  [
-   7,
-   51,
-   0,
-   12,
-   1,
-   "CONDITIONING"
   ],
   [
    8,
@@ -1166,6 +1446,70 @@
    44,
    0,
    "MODEL"
+  ],
+  [
+   19,
+   50,
+   0,
+   60,
+   0,
+   "STRING"
+  ],
+  [
+   20,
+   60,
+   0,
+   51,
+   1,
+   "STRING"
+  ],
+  [
+   21,
+   60,
+   0,
+   62,
+   0,
+   "*"
+  ],
+  [
+   22,
+   51,
+   0,
+   63,
+   0,
+   "CONDITIONING"
+  ],
+  [
+   23,
+   63,
+   0,
+   12,
+   1,
+   "CONDITIONING"
+  ],
+  [
+   24,
+   63,
+   0,
+   52,
+   0,
+   "CONDITIONING"
+  ],
+  [
+   25,
+   61,
+   0,
+   53,
+   0,
+   "INT"
+  ],
+  [
+   26,
+   61,
+   1,
+   53,
+   1,
+   "INT"
   ]
  ],
  "groups": [],
