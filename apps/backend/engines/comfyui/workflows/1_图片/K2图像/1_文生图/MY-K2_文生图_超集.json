@@ -780,7 +780,7 @@
    "type": "PrimitiveStringMultiline",
    "pos": [
     40,
-    700
+    960
    ],
    "size": [
     360,
@@ -812,7 +812,7 @@
    "type": "CLIPTextEncode",
    "pos": [
     1120,
-    700
+    960
    ],
    "size": [
     340,
@@ -855,7 +855,7 @@
    "type": "ConditioningZeroOut",
    "pos": [
     1700,
-    700
+    960
    ],
    "size": [
     340,
@@ -890,7 +890,7 @@
    "id": 53,
    "type": "EmptySD3LatentImage",
    "pos": [
-    2620,
+    2842,
     960
    ],
    "size": [
@@ -1060,7 +1060,7 @@
    "type": "easy stylesSelector",
    "pos": [
     560,
-    700
+    960
    ],
    "size": [
     465.75426979794247,
@@ -1146,7 +1146,7 @@
    "type": "ResolutionSelector",
    "pos": [
     40,
-    980
+    1240
    ],
    "size": [
     234.63441767302356,
@@ -1227,7 +1227,7 @@
    "type": "easy showAnything",
    "pos": [
     560,
-    1300
+    1560
    ],
    "size": [
     471.548794768898,
@@ -1272,7 +1272,7 @@
    "type": "ConditioningKrea2Rebalance",
    "pos": [
     2140,
-    700
+    960
    ],
    "size": [
     562.34375,
