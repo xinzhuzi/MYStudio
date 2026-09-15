@@ -1,11 +1,12 @@
 // Copyright (c) 2025 hotflow2024
 // Licensed under AGPL-3.0-or-later. See LICENSE for details.
 // Commercial licensing available. See COMMERCIAL_LICENSE.md.
-// 分镜流程链工作流生成器测试(旧画布迁移 09-11)。
+// 分镜流程链载荷与模板注入契约测试(09-11 旧画布迁移;09-15 零实体裁定后
+// 只测存留件:摘要/载荷/注入契约——旧整图构建器已退役删除)。
 
 import { describe, expect, it } from "vitest";
 import type { StoryboardItem } from "@/types/studio";
-import { buildStageNodePayload, buildStageSummaries, buildStoryboardPipelineWorkflow, computeStageNodeSize } from "./storyboard-pipeline-comfy";
+import { buildStageNodePayload, buildStageSummaries } from "./storyboard-pipeline-comfy";
 
 function shot(index: number, media: "image" | "video" | "none" = "none"): StoryboardItem {
   return {
@@ -41,70 +42,6 @@ describe("buildStageSummaries(环节摘要,语义照旧画布 node-builders 降�
     expect(filled.find((s) => s.key === "workbench")?.summary).toBe("1 条制作轨");
     expect(filled.find((s) => s.key === "script")?.status).toBe("已完成");
     expect(filled.find((s) => s.key === "storyboard")?.status).toBe("进行中");
-  });
-});
-
-describe("buildStoryboardPipelineWorkflow(链工作流)", () => {
-  const summaries = buildStageSummaries({
-    novelChapters: [{ id: "c1" }], scriptPlans: [], entityExtractions: [],
-    storyboards: [shot(1, "image"), shot(2)], productionTracks: [],
-  });
-  const result = buildStoryboardPipelineWorkflow({ summaries, storyboards: [shot(1, "image"), shot(2)] });
-
-  it("七环节节点+六条链边(照旧画布 PRODUCTION_FLOW_EDGES;assets 挂剧本)", () => {
-    expect(result.report.stages).toBe(7);
-    expect(result.report.edges).toBe(6);
-    const ui = result.ui as { nodes: Array<{ id: number; type: string; widgets_values: unknown[] }>; links: number[][] };
-    const stages = ui.nodes.filter((n) => n.type === "MyStage");
-    expect(stages).toHaveLength(7);
-    // 边端点(节点 id:script=1..workbench=6,assets=7)
-    expect(ui.links.map((l) => `${l[1]}→${l[3]}`)).toEqual(["1→2", "1→7", "2→3", "3→4", "4→5", "5→6"]);
-    // widgets 顺序=INPUT_TYPES:stage_key/title/summary/status
-    const script = stages.find((n) => n.widgets_values[0] === "script")!;
-    expect(script.widgets_values[1]).toBe("剧本");
-  });
-
-  it("09-12 节点标题栏=环节名(固定节点不再全显类型名「漫影 环节」)", () => {
-    const ui = result.ui as { nodes: Array<{ type: string; title?: string; widgets_values?: unknown[] }> };
-    const stages = ui.nodes.filter((n) => n.type === "MyStage");
-    const byTitle = Object.fromEntries(stages.map((n) => [n.widgets_values?.[0], n.title]));
-    expect(byTitle).toEqual({
-      script: "剧本", scriptPlan: "导演规划", assets: "衍生资产", storyboardTable: "分镜表",
-      storyboard: "分镜面板", remotionProduction: "单镜视频生产", workbench: "视频工作台",
-    });
-    // 子图引用节点标题=子图名(不回落 uuid 型名)
-    const refNode = ui.nodes.find((n) => n.type !== "MyStage");
-    expect(refNode?.title).toContain("分镜内容");
-  });
-
-  it("镜子节点住子图:主图零 MyShot,definitions 装镜节点;09-12 裁定零组框", () => {
-    const ui = result.ui as {
-      nodes: Array<{ id: number; type: string; pos: number[]; widgets_values?: unknown[] }>;
-      groups: unknown[];
-      definitions: { subgraphs: Array<{ id: string; name: string; nodes: Array<{ type: string }>; inputNode: { id: number }; outputNode: { id: number } }> };
-    };
-    // 主图只留整条流程:七环节+一个子图引用节点,零 MyShot
-    const mainShots = ui.nodes.filter((n) => n.type === "MyShot");
-    expect(mainShots).toHaveLength(0);
-    expect(ui.nodes).toHaveLength(8); // 7 环节 + 1 子图引用
-    // 子图定义:镜节点全在子图里(类型照旧 MyShot)
-    const subs = ui.definitions.subgraphs;
-    expect(subs).toHaveLength(1);
-    const sub = subs[0];
-    expect(sub.nodes.filter((n) => n.type === "MyShot")).toHaveLength(2);
-    expect(sub.inputNode.id).toBe(-10);
-    expect(sub.outputNode.id).toBe(-20);
-    expect(sub.name).toContain("chapter-001");
-    // 09-12 用户裁定:节点后不加 group 组框
-    expect(ui.groups).toHaveLength(0);
-    // 主图 id 唯一
-    const ids = new Set(ui.nodes.map((n) => n.id));
-    expect(ids.size).toBe(ui.nodes.length);
-  });
-
-  it("标题恒「MY-分镜工作流」不带章(MY- 前缀裁定);extra 标记链工作流", () => {
-    expect(result.report.name).toBe("MY-分镜工作流");
-    expect((result.ui as { extra: Record<string, unknown> }).extra.myPipeline).toBe(true);
   });
 });
 
@@ -175,47 +112,6 @@ describe("buildStageNodePayload(v2 全量内容,照老 flow 画布)", () => {
     expect(byKey("remotionProduction").actions![0].kind).toBe("generate-videos");
     expect(byKey("workbench").actions![0]).toMatchObject({ kind: "rebuild-workbench-tracks" });
     expect(byKey("script").actions).toBeUndefined();
-  });
-
-  it("computeStageNodeSize:旧画布口径保留(高度随 previewLines 行数计)", () => {
-    const script = payloads.find((p) => p.key === "script")!;
-    const [w, h] = computeStageNodeSize(script);
-    expect(w).toBe(560);
-    expect(h).toBeGreaterThanOrEqual(300);
-    expect(computeStageNodeSize(undefined)).toEqual([560, 170]);
-  });
-
-  it("buildStoryboardPipelineWorkflow 接载荷:properties.myStage+尺寸+零组框+widgets 契约不变", () => {
-    const summaries = buildStageSummaries({
-      novelChapters: [{ id: "c1" }], scriptPlans: [], entityExtractions: [],
-      storyboards: [shot(1, "image")], productionTracks: [],
-    });
-    const result = buildStoryboardPipelineWorkflow({
-      summaries, storyboards: [shot(1, "image")], payloads,
-    });
-    const ui = result.ui as {
-      nodes: Array<{ id: number; type: string; pos: number[]; size: number[]; properties: Record<string, unknown>; widgets_values: unknown[] }>;
-      groups: unknown[];
-    };
-    const stages = ui.nodes.filter((n) => n.type === "MyStage");
-    const script = stages.find((n) => n.widgets_values[0] === "script")!;
-    expect((script.properties.myStage as { previewTitle: string }).previewTitle).toBe("剧本内容");
-    expect(script.size[0]).toBe(600); // 正方形常理尺寸(引擎 syncSize 同口径)
-    // 09-12 用户裁定:节点后不加 group 组框
-    expect(ui.groups).toHaveLength(0);
-    // widgets 四件套形状不变(契约稳定)
-    expect(script.widgets_values).toHaveLength(4);
-  });
-
-  it("不传 payloads=零载荷零内容尺寸(旧调用兼容)", () => {
-    const summaries = buildStageSummaries({
-      novelChapters: [], scriptPlans: [], entityExtractions: [], storyboards: [], productionTracks: [],
-    });
-    const result = buildStoryboardPipelineWorkflow({ summaries, storyboards: [] });
-    const stages = (result.ui as { nodes: Array<{ type: string; properties: Record<string, unknown>; size: number[] }> })
-      .nodes.filter((n) => n.type === "MyStage");
-    expect(stages.every((n) => !("myStage" in n.properties))).toBe(true);
-    expect(stages.every((n) => n.size[1] === 600)).toBe(true); // 正方形常理尺寸
   });
 });
 

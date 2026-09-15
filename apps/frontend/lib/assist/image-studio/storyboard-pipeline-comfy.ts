@@ -3,39 +3,21 @@
 // Commercial licensing available. See COMMERCIAL_LICENSE.md.
 
 /**
- * 分镜流程链工作流生成器(旧分镜画布迁移,09-11):
- * 旧 React Flow 画布的七环节链(剧本→导演规划→[衍生资产]→分镜表→
- * 分镜面板→单镜视频生产→视频工作台)转成 ComfyUI 原生工作流(UI 格式):
- * 每环节一个 MyStage 锚点(标题+实时摘要+状态),MY_FLOW 连线
- * 串链;分镜网格(MyShot 总览)平移到链右侧——进分镜阶段打开即
- * 一张图看整条工作流+本章分镜。环节语义真源=workflow-node-model 族
- * (node-builders 的 label/status/metrics 降档映射,见任务 research)。
+ * 分镜流程链载荷与模板注入契约(09-11 旧画布迁移 → 09-14 零文件通用化 →
+ * 09-15 零实体裁定):七环节链(剧本→导演规划→[衍生资产]→分镜表→分镜面板→
+ * 单镜视频生产→视频工作台)的真源=仓库通用模板 0_分镜/MY-分镜工作流.json
+ * (恒 7 环节锚点,repo: 只读)。本文件只产「环节摘要+富内容载荷+注入块」,
+ * 画布侧打开时对模板克隆注入,引擎 userdata 恒零分镜文件——旧「整图构建器
+ * 落库」形态(buildStoryboardPipelineWorkflow/总览图生成器)已随零实体裁定
+ * 退役删除。环节语义真源=workflow-node-model 族(node-builders 的
+ * label/status/metrics 降档映射,见任务 research)。
  */
 
-import { buildStoryboardOverviewWorkflow, shotPreviewName } from "./storyboard-overview-comfy";
+import { shotPreviewName } from "./storyboard-overview-comfy";
 import { parseStoryboardTable } from "@/lib/studio/storyboard-table";
 import { buildStudioFlowData, type StudioFlowData } from "@/lib/studio/studio-flow-data";
 import type { StoryboardItem } from "@/types/studio";
 import type { useStudioStore } from "@/stores/studio/studio-store";
-
-/** 链布局(09-12 用户裁定:节点图横向摆放)——主线左→右横排,顶部对齐;
- * 衍生资产分支与分镜内容子图挂主线下方第二排,连线自然下探。
- * 正方形常理布局(09-13 用户裁定:正方形展示是故意的设计):引擎 syncSize
- * 恒强制环节节点 [540,760] 近正方形,布局一律按 hardMax 顶格步进——
- * 节点落位后内容再长高长宽都不可能与邻节点重叠。 */
-const MAINLINE_Y = 60;
-const STAGE_SQUARE = 600; // 标准正方形基准(引擎 CINEMA 代币 defaultSize 同源)
-const STAGE_SQUARE_MAX = 760; // 引擎硬天花板(hardMax 同源)
-const STAGE_GAP_X = 80;
-const LOWER_ROW_GAP = 120; // 下排(资产分支/分镜子图)与主线的垂直间距
-// 组框(主节点区):每环节一个组,子节点归入对应主节点组(09-12 用户裁定:
-// 主节点+子节点层级,照旧画布的组织方式;ComfyUI 原生 groups,数据层零干预)
-const GROUP_PAD = 20;
-const SHOTS_PER_COLUMN = 10;
-const SHOT_NODE_WIDTH = 360;
-const SHOT_NODE_HEIGHT = 276; // 输入框退役(官方 hidden 位)=标题栏+缩略图带
-const SHOT_COLUMN_GAP = 90;
-const SHOT_ROW_GAP = 40;
 
 /** 环节 key 与旧画布 ProductionFlowNodeId 一一对应(真源 schema) */
 export type PipelineStageKey =
@@ -107,18 +89,6 @@ export interface StageNodePayload {
   concurrency?: number;
 }
 
-
-/** 绘制区纵向标尺(生成器与 manying.js 同源;design §3) */
-export const STAGE_METRICS = {
-  width: 560,
-  headerTop: 150,     // 原生标题+四 widget 区让位
-  contentTop: 218,    // 状态行+描述+指标芯片之后的内容框顶
-  lineH: 15,          // 正文/队列/表行行高
-  tileH: 112,         // tiles 单行高(84 图 + 标题 + 台词行,09-12 内容全量补齐)
-  tilesPerRow: 6,
-  pad: 26,            // 内容框内上下留白合计
-  actionRowH: 44,     // 底部动作按钮行高(含上下留白)
-} as const;
 
 const STATUS_TEXT: Record<StageNodePayload["status"], string> = {
   ready: "已完成",
@@ -315,43 +285,9 @@ export function buildStageNodePayload(input: {
   ];
 }
 
-/** 按载荷内容计算节点尺寸(生成器与自绘两端同源;design §3)。 */
-export function computeStageNodeSize(payload: StageNodePayload | undefined): [number, number] {
-  if (!payload) return [STAGE_METRICS.width, 170];
-  const { contentTop, lineH, tileH, tilesPerRow, pad, width } = STAGE_METRICS;
-  let contentH = 0;
-  if (payload.tiles && payload.tiles.length > 0) {
-    const rows = Math.ceil(payload.tiles.length / tilesPerRow);
-    contentH = rows * tileH;
-  } else if (payload.tableRows && payload.tableRows.length > 0) {
-    // 表行两行制:首行=镜号/场景/描述/景别/运镜/时长;次行=台词/声音/关联资产(有则)
-    contentH = payload.tableRows.reduce(
-      (h, row) => h + (row.lines || row.sound || row.assets ? lineH * 2 + 2 : lineH),
-      0,
-    );
-  } else if (payload.shots && payload.shots.length > 0) {
-    contentH = payload.shots.length * lineH;
-  } else if (payload.tracks && payload.tracks.length > 0) {
-    contentH = payload.tracks.length * lineH;
-  } else if (payload.assets && payload.assets.length > 0) {
-    // 资产卡网格(v4):3 列 × 76/卡,与 manying.js ASSET_CARD_H 同源
-    contentH = Math.ceil(payload.assets.length / 3) * 76;
-  } else if (payload.assetGroups) {
-    // 与 manying.js 绘制端同式:标签 14 + 名字行 + 组间 4(深审修正:漏 4 会尾行被裁剪兜底吃掉)
-    for (const names of [payload.assetGroups.characters, payload.assetGroups.scenes, payload.assetGroups.props]) {
-      contentH += 14 + Math.max(1, Math.ceil(names.length / 2)) * lineH + 4;
-    }
-  } else {
-    contentH = (payload.previewLines?.length ?? 1) * lineH;
-  }
-  const actionH = payload.actions?.length ? STAGE_METRICS.actionRowH : 0;
-  const skillH = payload.skills?.length ? 20 : 0;
-  return [width, Math.max(300, contentTop + pad + skillH + contentH + 20 + actionH)];
-}
-
 type StudioSnapshot = ReturnType<typeof useStudioStore.getState>;
 
-/** 从 store 快照一步组装七环节富载荷(autoOpen 注入与保鲜链落库共用入口)。 */
+/** 从 store 快照一步组装七环节富载荷(autoOpen 注入与保鲜链上传共用入口)。 */
 export function buildStageNodePayloadFromState(state: StudioSnapshot): StageNodePayload[] {
   // 防御缺省:测试 store mock/局部快照可能缺字段(09-12 实弹教训:缺字段在
   // 调用方 try/catch 里被静默吞→autoOpen 少注入;?? [] 让降级可见可控)
@@ -428,201 +364,6 @@ export function buildStageSummaries(input: {
       ? `${input.productionTracks.length} 条制作轨`
       : "等待单镜视频就绪", videos >= shots.length && shots.length > 0, videos > 0),
   ];
-}
-
-/** 链的六条边(照旧画布 PRODUCTION_FLOW_EDGES;assets 挂剧本下游) */
-const PIPELINE_EDGES: Array<readonly [PipelineStageKey, PipelineStageKey]> = [
-  ["script", "scriptPlan"],
-  ["script", "assets"],
-  ["scriptPlan", "storyboardTable"],
-  ["storyboardTable", "storyboard"],
-  ["storyboard", "remotionProduction"],
-  ["remotionProduction", "workbench"],
-];
-
-export interface StoryboardPipelineResult {
-  ui: Record<string, unknown>;
-  report: { stages: number; edges: number; shots: number; name: string };
-}
-
-export function buildStoryboardPipelineWorkflow(input: {
-  summaries: PipelineStageSummary[];
-  storyboards: StoryboardItem[];
-  /** 09-12 stage-node-content-parity:富内容载荷(缺省=不带,旧调用兼容) */
-  payloads?: StageNodePayload[];
-  name?: string;
-}): StoryboardPipelineResult {
-  // 节点 id:主线 1..6;assets=7(不占主线序)
-  const nodeId = new Map<PipelineStageKey, number>();
-  MAINLINE.forEach((key, index) => nodeId.set(key, index + 1));
-  nodeId.set("assets", MAINLINE.length + 1);
-
-  interface StageNode {
-    id: number;
-    type: string;
-    title: string;
-    pos: [number, number];
-    flags: Record<string, unknown>;
-    order: number;
-    mode: number;
-    inputs: Array<{ name: string; type: string; link: number | null; label?: string }>;
-    outputs: Array<{ name: string; type: string; links: number[] }>;
-    properties: Record<string, unknown>;
-    widgets_values: unknown[];
-    size: [number, number];
-  }
-  // 环节尺寸=标准正方形(引擎侧按内容在 [540,760] 内自适应,布局按顶格算)
-  const payloadByKey = new Map((input.payloads ?? []).map((entry) => [entry.key, entry]));
-  const sizeByKey = new Map<PipelineStageKey, [number, number]>(
-    input.summaries.map((item) => [item.key, [STAGE_SQUARE, STAGE_SQUARE] as [number, number]]),
-  );
-  const xCursor = new Map<PipelineStageKey, number>();
-  let xCursorValue = 40;
-  for (const key of MAINLINE) {
-    xCursor.set(key, xCursorValue);
-    xCursorValue += STAGE_SQUARE_MAX + STAGE_GAP_X;
-  }
-  // 下排锚点:主线最坏高度(hardMax)底 + 间距(资产分支/分镜子图共用)
-  const mainlineBottom = MAINLINE_Y + STAGE_SQUARE_MAX;
-  const lowerRowY = mainlineBottom + LOWER_ROW_GAP;
-  const stageNodes: StageNode[] = input.summaries.map((item) => {
-    const id = nodeId.get(item.key)!;
-    const mainlineIndex = MAINLINE.indexOf(item.key);
-    // 横向:主线沿 X 铺开;衍生资产分支挂导演规划正下方(剧本→资产边自然下探)
-    const pos: [number, number] = mainlineIndex >= 0
-      ? [xCursor.get(item.key)!, MAINLINE_Y]
-      : [xCursor.get("scriptPlan")!, lowerRowY];
-    const payload = payloadByKey.get(item.key);
-    return {
-      id,
-      type: "MyStage",
-      pos,
-      flags: {},
-      order: id,
-      mode: 0,
-      // 09-12 用户裁定:环节是固定节点,标题栏直接显示环节名(剧本/导演规划/…)
-      // ——不设 title 时 litegraph 回落类型名「漫影 环节」,七个节点全同名
-      title: item.title,
-      // 非链头有 upstream 入槽;全节点一个 flow 出槽(末端无人消费也无妨)
-      // slot_index 必带:缺它 ComfyUI 前端配线时槽位落空→连线不建(09-11 实弹)
-      // 槽位代名词(09-13 用户裁定:upstream/MY_FLOW 裸英文退役);
-      // 剧本是链头无入槽,引擎侧还会在其被前端补建后摘除
-      inputs: item.key === "script" ? [] : [
-        { name: "upstream", type: "MY_FLOW", link: null, slot_index: 0, label: "上游环节" },
-      ],
-      outputs: [{ name: "flow", type: "MY_FLOW", links: [], slot_index: 0, label: "下游环节" }],
-      // 富内容载荷(照 MyShot myPreview 先例进 properties,
-      // 不进 widgets_values=序列化契约稳定;引擎侧自绘消费)
-      properties: {
-        "Node name for S&R": "MyStage",
-        ...(payload ? { myStage: payload } : {}),
-      },
-      widgets_values: [item.key, item.title, item.summary, item.status],
-      size: sizeByKey.get(item.key)!,
-      color: payload ? "#3f789e" : undefined,
-      bgcolor: payload ? "#20262f" : undefined,
-    };
-  });
-
-  // 边:回填两端槽位 link 引用(与 links 数组一致)
-  let linkId = 0;
-  const links = PIPELINE_EDGES.map(([from, to]) => {
-    linkId += 1;
-    const link = [linkId, nodeId.get(from), 0, nodeId.get(to), 0, "MY_FLOW"];
-    const fromNode = stageNodes.find((node) => node.id === nodeId.get(from))!;
-    const toNode = stageNodes.find((node) => node.id === nodeId.get(to))!;
-    fromNode.outputs[0].links.push(linkId);
-    toNode.inputs[0].link = linkId;
-    return link;
-  });
-
-  // 分镜内容子图(09-12 用户裁定:镜子节点住子图,主图只留整条流程):
-  // 复用总览产物作为子图内部节点;引用节点泊远场(09-14 裁定,见下)。
-  const overview = buildStoryboardOverviewWorkflow(input.storyboards);
-  const chapters = (overview.report.chapters ?? []) as string[];
-  const chapterKey = chapters[0] ?? "all";
-  // 确定性子图 id(同章同名,uuid 形态;每文档独立命名空间,无碰撞面)
-  let hash = 0x811c9dc5;
-  for (const ch of chapterKey) {
-    hash ^= ch.codePointAt(0) ?? 0;
-    hash = Math.imul(hash, 0x01000193) >>> 0;
-  }
-  const hex = hash.toString(16).padStart(8, "0");
-  const subgraphId = `${hex.slice(0, 8)}-4${hex.slice(9, 12)}-4${hex.slice(13, 16)}-8${hex.slice(16, 20)}-${hex}${hex.slice(0, 4)}`.slice(0, 36);
-
-  const subNodes = (overview.ui.nodes as Array<Record<string, unknown>>).map((node, index) => ({
-    ...node,
-    id: index + 1,
-  }));
-  const gridColumns = Math.max(1, Math.ceil(subNodes.length / SHOTS_PER_COLUMN));
-  const gridWidth = gridColumns * (SHOT_NODE_WIDTH + SHOT_COLUMN_GAP);
-  const gridRows = Math.min(subNodes.length, SHOTS_PER_COLUMN);
-  const gridHeight = Math.max(1, gridRows) * (SHOT_NODE_HEIGHT + SHOT_ROW_GAP);
-
-  // 主图:子图引用节点泊远场+折叠(09-14 用户裁定:主图不再展示独立
-  // 「分镜内容」节点,入口=分镜面板节点「分镜内容」按钮经 canvas.openSubgraph
-  // 原生进入)——节点本体必须保留:它是子图定义的引用锚,删了定义随保存丢失;
-  // 泊到主线最右端外+折叠,工作区不可见,引擎按钮按标题寻址进入。
-  const subgraphNode = {
-    id: stageNodes.length + 1,
-    type: subgraphId,
-    // 标题栏与子图定义同名(不设则回落 uuid 型名,不可读;引擎按钮寻址依赖)
-    title: `分镜内容 · ${chapterKey}`,
-    pos: [8000, MAINLINE_Y] as [number, number],
-    size: [480, 300],
-    flags: { collapsed: true },
-    order: stageNodes.length + 1,
-    mode: 0,
-    inputs: [] as unknown[],
-    outputs: [] as unknown[],
-    properties: {} as Record<string, unknown>,
-    widgets_values: [],
-  };
-  const allNodes = [...stageNodes, subgraphNode];
-
-  // 09-12 用户裁定:节点后不加 group 组框——节点自带标题栏+状态色条,
-  // 组框信息冗余;节点位置(主线横向/下排分支)已是绝对坐标,不依赖组框。
-  const groups: unknown[] = [];
-
-  // 09-12 用户裁定:标题就是「分镜工作流」不加其他内容——分镜阶段章内
-  // 聚焦,当前章的画布恒此名(库文件单条,随章保鲜覆写;切章=已开未修改
-  // 则关旧开新拿保鲜链最新,单实例协议照常)。
-  // 09-14 用户裁定(二次修订):漫影工作流文件名一律 `MY-` 前缀(弃 _my 后缀)。
-  const name = input.name ?? "MY-分镜工作流";
-
-  return {
-    ui: {
-      last_node_id: allNodes.length,
-      last_link_id: links.length,
-      nodes: allNodes,
-      links,
-      groups,
-      definitions: {
-        subgraphs: [{
-          id: subgraphId,
-          name: `分镜内容 · ${chapterKey}`,
-          version: 1,
-          revision: 0,
-          state: { lastGroupId: 0, lastNodeId: subNodes.length, lastLinkId: 0, lastRerouteId: 0 },
-          nodes: subNodes,
-          links: [],
-          groups: [],
-          inputs: [],
-          outputs: [],
-          // 子图标记节点(官方样例必带):-10 输入桩/-20 输出桩,分列网格两侧
-          inputNode: { id: -10, bounding: [-SHOT_NODE_WIDTH, 40, 172, Math.max(68, gridHeight)] },
-          outputNode: { id: -20, bounding: [gridWidth + GROUP_PAD, 40, 128, 68] },
-          widgets: [],
-          config: {},
-          extra: {},
-        }],
-      },
-      config: {},
-      extra: { myPipeline: true },
-      version: 0.4,
-    },
-    report: { stages: stageNodes.length, edges: links.length, shots: overview.report.shots, name },
-  };
 }
 
 // ── 09-14 通用化:零文件形态的模板注入契约(引擎 userdata 恒零漫影)────────
