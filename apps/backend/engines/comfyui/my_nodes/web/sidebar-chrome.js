@@ -24,7 +24,8 @@ app.registerExtension({
         render: renderSidebar,
       });
       installSidebarTabDecorations();
-      installDockModelEntryRemoval();
+      // 09-15 用户裁定:dock「模型」入口恢复显示(09-11 隐藏裁定撤销;
+      // 原生功能/布局非经批准不动)
       // 旧 Unsaved 签清场(Q3a 09-12):等图就绪(草稿恢复完)扫一轮;幂等,
       // 协议通道每次打开也会再扫。只关含漫影环节节点的(可再生),用户手搭不动。
       const sweepUnsaved = (attempt) => {
@@ -87,18 +88,7 @@ function decorateSidebarTab() {
   // 金锚点:SideToolbar 每个标签按钮带 data-testid="<tabId>-tab-button"(bundle 实证)
   const root = document.querySelector('[data-testid="my.shots-tab-button"]');
   if (!root) return;
-  // 09-15 用户裁定:龙徽 tab=icon-only——隐藏原生标签位(side-bar-button-label,
-  // bundle 实证类名)放大龙徽;title/tooltip 保留(hover 仍有「漫影」提示,
-  // aria 不损),CSS 域内按 testid 圈定,Vue 重渲染天然免疫(类名恒在)。
-  if (!document.getElementById("my-tab-icon-only")) {
-    const style = document.createElement("style");
-    style.id = "my-tab-icon-only";
-    style.textContent = [
-      '[data-testid="my.shots-tab-button"] .side-bar-button-label{display:none;}',
-      '[data-testid="my.shots-tab-button"] .side-bar-button-content{gap:0;justify-content:center;}',
-    ].join("\n");
-    document.head.append(style);
-  }
+  // 09-15 用户终裁:文字必须显示——icon-only CSS 撤除(龙徽+文字并存)
   // 置顶:插到本容器第一个标签钮之前(顶部品牌徽标之后)=在队列/资产等所有标签之上
   const container = root.parentElement;
   if (container) {

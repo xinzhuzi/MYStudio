@@ -10,7 +10,6 @@ import { app } from "/scripts/app.js";
  */
 
 import { myScope } from "./theme.js";
-import { filterUserDataWorkflowEntriesFlattenMy, isUserDataWorkflowListUrl } from "./my_module_policy.js";
 
 // 渲染兼容守卫(09-12 真跑根修):ComfyUI 前端的 Vue 节点渲染模式
 // (Comfy.VueNodes.Enabled,测试期特性)会让 litegraph 的 drawNode 提前返回,
@@ -46,52 +45,10 @@ app.registerExtension({
 // 直访不装过滤(全量)。纯外挂数据层过滤:不改 ComfyUI 原生 UI/DOM;桥请求
 // (BRIDGE_URL 绝对地址)与缩略图(/api/workflow_templates/<路径>)不匹配,
 // 天然不受影响。幂等:每页面加载只装一次。
-(function installTemplateScopeFilter() {
-  if (window.__myTplScope) return;
-  window.__myTplScope = true;
-  const scope = myScope();
-  const originalFetch = window.fetch.bind(window);
-  window.fetch = function patchedFetch(input, init) {
-    const url = typeof input === "string" ? input : (input && input.url) || "";
-    if (scope === "workflow") {
-      // 工作流模块=漫影库单源:官方核心/自定义模板清单置空(原行为)
-      if (/^\/templates\/index(\.[A-Za-z-]+)?\.json(\?|$)/.test(url)) {
-        return Promise.resolve(new Response("[]", { headers: { "Content-Type": "application/json" } }));
-      }
-      if (/^\/api\/workflow_templates(\?|$)/.test(url)) {
-        return Promise.resolve(new Response("{}", { headers: { "Content-Type": "application/json" } }));
-      }
-    }
-    if (isUserDataWorkflowListUrl(url)) {
-      // 09-14 用户裁定(终版):ComfyUI 工作流与漫影模块是两套逻辑——原生
-      // 工作流浏览器属于 ComfyUI 本身的功能,其文件夹树永不包含漫影(漫影
-      // 工作流单独属于漫影侧栏,侧栏走桥接口天然不受影响)。过滤无条件生效:
-      // 任何模块/直访入口进来都剔「漫影/」根(策略单源 my_module_policy.js;
-      // v1 数组/v2 items 两形态;剔漫影=旧剔分镜超集)
-      return originalFetch(input, init).then(async (response) => {
-        try {
-          const body = await response.clone().json();
-          const pass = (entries) => filterUserDataWorkflowEntriesFlattenMy(entries);
-          let patched = null;
-          if (Array.isArray(body)) {
-            patched = pass(body);
-          } else if (body && Array.isArray(body.items)) {
-            patched = { ...body, items: pass(body.items) };
-          }
-          if (patched === null) return response;
-          return new Response(JSON.stringify(patched), {
-            status: response.status,
-            headers: { "Content-Type": "application/json" },
-          });
-        } catch (error) {
-          return response; // 解析失败=原样直通(过滤面永不制造故障)
-        }
-      });
-    }
-    return originalFetch(input, init);
-  };
-  if (scope === "models") void reindexWorkflowsOnce(0);
-})();
+// 09-15 用户裁定:ComfyUI 原生功能恢复——模板面板清单与 userdata 工作流树
+// 不再做任何过滤/置空(此前 09-11 模板置空与漫影层过滤均撤销;登录遮蔽
+// my_login_cloak 与 VueNodes 渲染守卫保留,与原生功能无关)
+
 
 // 启动竞态补刀(09-13 实弹根修):工作流树的**首次预取**发生在扩展装载之前
 // (fetch 补丁未及就位),预取缓存带着分镜条目——原生浏览器首开仍见分镜

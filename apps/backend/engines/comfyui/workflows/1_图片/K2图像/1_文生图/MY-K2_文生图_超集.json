@@ -779,7 +779,7 @@
    "id": 50,
    "type": "PrimitiveStringMultiline",
    "pos": [
-    520,
+    40,
     700
    ],
    "size": [
@@ -891,7 +891,7 @@
    "type": "EmptySD3LatentImage",
    "pos": [
     2620,
-    700
+    960
    ],
    "size": [
     340,

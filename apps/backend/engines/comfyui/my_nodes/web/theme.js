@@ -57,10 +57,21 @@ if (typeof document !== "undefined" && !document.getElementById("my-font-bridge"
   --my-fs-11-5: calc(var(--comfy-textarea-font-size, 10px) * 1.15);
   --my-fs-12: calc(var(--comfy-textarea-font-size, 10px) * 1.2);
   --my-fs-13: calc(var(--comfy-textarea-font-size, 10px) * 1.3);
-  --my-fs-14: calc(var(--comfy-textarea-font-size, 10px) * 1.4);
-  --my-fs-13: calc(var(--comfy-textarea-font-size, 10px) * 1.3);
-  --my-fs-15: calc(var(--comfy-textarea-font-size, 10px) * 1.5);
-  }`;
+    --my-fs-14: calc(var(--comfy-textarea-font-size, 10px) * 1.4);
+    --my-fs-15: calc(var(--comfy-textarea-font-size, 10px) * 1.5);
+  }
+  .my-tree-root{width:100%!important;box-sizing:border-box;margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:2px;}
+  .my-tree-children{width:100%!important;box-sizing:border-box;margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:1px;}
+  .my-tree-item{width:100%!important;box-sizing:border-box;list-style:none;margin:0;}
+  .my-tree-row{display:flex!important;align-items:center!important;width:100%!important;box-sizing:border-box!important;
+    padding:4px 6px!important;border-radius:6px!important;cursor:pointer!important;
+    transition:background 120ms ease,color 120ms ease!important;user-select:none!important;text-align:left!important;}
+  .my-tree-row:hover{background:var(--my-hover,rgba(255,255,255,.06))!important;}
+  .my-tree-row:active{transform:scale(.99)!important;}
+  .my-tree-row--active{background:rgba(110,168,254,.14)!important;box-shadow:inset 2.5px 0 0 #6ea8fe!important;}
+  .my-tree-label{flex:1!important;min-width:0!important;overflow:hidden!important;text-overflow:ellipsis!important;white-space:nowrap!important;}
+  .my-tree-badge{margin-left:auto!important;flex:none!important;font-size:var(--my-fs-10)!important;font-weight:500!important;
+    padding:1px 7px!important;border-radius:999px!important;background:rgba(255,255,255,.07)!important;color:var(--my-text-dim)!important;}`;
   // 禁动画桥(09-15):html[data-my-no-anim] 域内 !important 盖过内联 transition/animation
   style.textContent += '\n[data-my-no-anim="1"] [data-my-ui], [data-my-no-anim="1"] [data-my-ui] *{transition:none !important;animation:none !important;}';
   document.head.append(style);
@@ -197,7 +208,9 @@ const ICONS = {
   zap: "M13 2 3 14h9l-1 8 10-12h-9l1-8Z", // 一键生图
   play: "M6 4l14 8-14 8V4Z", // 一键视频
   refresh: "M21 12a9 9 0 1 1-2.6-6.4L21 8 M21 3v5h-5",
+  folder: "M3 7v10a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-6l-2-2H5a2 2 0 0 0-2 2Z",
   folderOpen: "M3 8V6a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8Z",
+  music: "M9 18V5l12-2v13 M9 9l12-2 M6 18a3 3 0 1 0 6 0 3 3 0 1 0-6 0 M18 16a3 3 0 1 0 6 0 3 3 0 1 0-6 0",
   chevron: "M9 18l6-6-6-6",
 };
 

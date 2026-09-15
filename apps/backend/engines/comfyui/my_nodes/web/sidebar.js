@@ -173,8 +173,9 @@ async function openMyWorkflow(id, status) {
         await openWorkflowSingleInstance({ name: id, graph });
       }
       // 09-15 用户裁定:成功反馈文案不展示(「已打开:xxx」退役)——
-      // 仅保留加载中/错误态提示
-      status.textContent = "";
+      // 仅保留加载中/错误态提示;成功时恢复顶栏工作流条数总览
+      status.textContent = status._summaryText || "";
+      status.style.color = "";
     } else {
       status.textContent = "画布还没就绪,稍候再点";
       status.style.color = "#e06c75";
@@ -191,42 +192,11 @@ function isMainlineWorkflow(id) {
     && !id.endsWith("/.keep.json");
 }
 
-/** 库工作流行(分镜/工作流两页签共用):标题+悬停+点击在画布打开;badgeEl=可选「已打开」徽章位 */
-function myWorkflowRow(item, status, badgeEl) {
-  const row = document.createElement("button");
-  row.title = myTooltipsEnabled ? `点击在画布打开:${item.id}` : "";
-  row.style.cssText = [
-    "display:flex", "align-items:center", "gap:8px", "width:100%", "text-align:left", "padding:calc(var(--my-tree-pad, 4px) + 4px) 10px",
-    "cursor:pointer", "border-radius:8px",
-    `border:1px solid ${THEME.accent}44`, `background:${THEME.accentDim}`,
-    `color:${THEME.accent}`, "font-size:var(--my-fs-14)", "font-weight:400",
-    "overflow:hidden", "transition:filter 120ms ease,transform 80ms ease",
-  ].join(";");
-  // 09-15 用户裁定:行图标弃场记板,换闪电=漫影自研工作流(生图/执行语义)
-  row.append(icon(ICONS.zap, 15));
-  const label = document.createElement("span");
-  // 09-14 用户裁定:MY- 前缀是磁盘文件名标识;侧栏展示剥前缀(整树皆漫影
-  // 内容,前缀在列表里冗余)。悬停 title 仍给全量真名。
-  // 09-15 用户裁定(修订 09-14 剥前缀):侧栏展示保留 MY- 前缀(文件名即展示名)
-  label.textContent = String(item.name || item.id.split("/").pop().replace(/\.json$/, ""));
-  label.style.cssText = "flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;";
-  const chev = icon(ICONS.chevron, 12);
-  chev.style.flex = "none";
-  row.append(label);
-  if (badgeEl) row.append(badgeEl);
-  row.append(chev);
-  row.onmouseenter = () => { row.style.filter = "brightness(1.25)"; };
-  row.onmouseleave = () => { row.style.filter = ""; };
-  row.onpointerdown = () => { row.style.transform = "scale(0.98)"; };
-  row.onpointerup = row.onpointerleave = () => { row.style.transform = ""; };
-  row.onclick = () => void openMyWorkflow(item.id, status);
-  return row;
-}
 
 /** 「已打开」徽章(09-12 AC5):openWorkflows 命中库路径即亮绿点 */
 function makeOpenBadge() {
   const badge = document.createElement("span");
-  badge.style.cssText = `display:none;align-items:center;gap:4px;flex:none;font-size:var(--my-fs-10);color:${THEME.ok};`;
+  badge.style.cssText = `display:none;align-items:center;gap:4px;flex:none;margin-left:auto;font-size:var(--my-fs-10);color:${THEME.ok};`;
   const dot = document.createElement("span");
   dot.style.cssText = `width:6px;height:6px;border-radius:50%;background:${THEME.ok};box-shadow:0 0 6px ${THEME.ok}88;`;
   badge.append(dot, document.createTextNode("已打开"));
@@ -244,15 +214,14 @@ function syncOpenBadges(openBadges) {
 
 async function renderWorkflowsPane(pane) {
   pane.textContent = "";
-  pane.style.cssText = "padding:10px 12px;display:flex;flex-direction:column;gap:2px;";
-  // 09-15 用户裁定:仓库 workflows 目录结构=完整展示逻辑——侧栏一棵树原样
-  // 镜像(域→功能夹→文件,编号前缀从 0 向后即顺序,不剥不改),不再拆
-  // 「K2 直达区+库区」两块;区标题「漫影工作流库」不展示(树即全部)。
-  // 数据=仓库 repo 真源(桥列表);行点击=画布打开。
-  const status = paneStatus("加载工作流…");
+  // 满宽无空隙容器(09-15 用户铁律:布局要拓展至满控件,不要留空隙)
+  pane.style.cssText = "padding:6px 6px;display:flex;flex-direction:column;gap:4px;width:100%;height:100%;flex:1;min-height:0;box-sizing:border-box;";
+  const status = paneStatus("加载自研工作流…");
+  status.style.padding = "0 4px";
   const host = document.createElement("div");
-  host.style.cssText = "display:flex;flex-direction:column;";
+  host.style.cssText = "display:flex;flex-direction:column;flex:1;min-height:0;overflow-y:auto;overflow-x:hidden;width:100%;box-sizing:border-box;";
   pane.append(status, host);
+
   try {
     const data = await fetchJson(`${BRIDGE_URL}/comfy/workflows?light=1`);
     const items = (data.workflows || []).filter((item) =>
@@ -261,7 +230,11 @@ async function renderWorkflowsPane(pane) {
       status.textContent = "还没有漫影工作流(仓库真源为空)";
       return;
     }
+    const summaryText = `共 ${items.length} 条自研工作流 · 点击在画布打开`;
+    status.textContent = summaryText;
+    status._summaryText = summaryText;
     items.sort((a, b) => String(a.id).localeCompare(String(b.id), "zh"));
+
     // 按路径段建树(段名原样保留编号;目录序=编号序)
     const buildTree = (list) => {
       const tree = new Map();
@@ -272,87 +245,178 @@ async function renderWorkflowsPane(pane) {
           if (!level.has(segs[i])) level.set(segs[i], new Map());
           level = level.get(segs[i]);
         }
-        const fname = segs[segs.length - 1];
         if (!level.has("__files__")) level.set("__files__", []);
         level.get("__files__").push(item);
       }
       return tree;
     };
     const tree = buildTree(items);
-    // 09-15 用户裁定(参考相同产品):树展示直接采用 ComfyUI 原生文件树的
-    // DOM/class 结构(PrimeVue p-tree 体系,样式表页面已全局加载——原生同款
-    // 观感:间距/hover/焦点/chevron 全部继承,零自研样式;仅数据与点击
-    // 交互由漫影扩展接管,这是 ComfyUI sidebar 扩展的标准做法)
-    const chevSvg = icon(ICONS.chevron, 14);
-    const makeNode = ({ label, depth, open = false, hasChildren = false, onLabel, fileItem }) => {
-      const li = document.createElement("li");
-      li.className = "p-tree-node";
-      li.setAttribute("role", "treeitem");
-      if (hasChildren) li.setAttribute("aria-expanded", String(open));
-      const content = document.createElement("div");
-      content.className = "p-tree-node-content";
-      content.tabIndex = 0;
-      content.style.paddingLeft = `${8 + depth * 16}px`;
-      const labelEl = document.createElement("span");
-      labelEl.className = "p-tree-node-label tree-explorer-node-label";
-      labelEl.textContent = label;
-      labelEl.style.cursor = "pointer";
-      content.append(labelEl);
-      if (fileItem) {
-        const openIt = () => void openMyWorkflow(fileItem.id, status);
-        content.addEventListener("click", openIt);
-        content.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); openIt(); } });
-      }
-      li.append(content);
-      return li;
+
+    // 09-15 视觉质感体系(Cinema Studio):东方影视工业水墨质感、拟物双态文件夹、
+    // 自研闪电标识、独立缩进导轨(防 ComfyUI 样式劫持)、满控件行悬浮覆盖、靠右胶囊徽章
+    const DOMAIN_THEMES = {
+      "0_分镜": { color: "#6ea8fe", bg: "rgba(110,168,254,0.12)" },
+      "1_图片": { color: "#34d399", bg: "rgba(52,211,153,0.12)" },
+      "2_视频": { color: "#fbbf24", bg: "rgba(251,191,36,0.12)" },
+      "3_声音": { color: "#c084fc", bg: "rgba(192,132,252,0.12)" },
     };
-    const renderLevel = (level, depth, openNow) => {
+
+    let activeRowEl = null;
+    const openBadges = new Map();
+
+    const renderLevel = (level, depth, openNow, parentDomain) => {
       const ul = document.createElement("ul");
-      ul.className = "p-tree-node-children";
-      ul.setAttribute("role", "group");
+      ul.className = depth === 0 ? "my-tree-root" : "my-tree-children";
+      ul.setAttribute("role", depth === 0 ? "tree" : "group");
+
       for (const name of [...level.keys()].filter((k) => k !== "__files__").sort((a, b) => a.localeCompare(b, "zh"))) {
         const sub = level.get(name);
-        const files = sub.get("__files__") || [];
-        let count = files.length;
-        const countDir = (m) => { for (const k of m.keys()) { if (k === "__files__") count += m.get(k).length; else countDir(m.get(k)); } };
-        countDir(sub);
+        let count = (sub.get("__files__") || []).length;
+        const countDir = (m) => {
+          for (const [k, v] of m.entries()) {
+            if (k === "__files__") count += v.length;
+            else countDir(v);
+          }
+        };
+        for (const [k, v] of sub.entries()) {
+          if (k !== "__files__") countDir(v);
+        }
+
+        const domainKey = depth === 0 ? name : parentDomain;
+        const theme = DOMAIN_THEMES[domainKey] || { color: THEME.accent, bg: THEME.accentDim };
         const open = depth === 0 ? openNow : false;
-        const nodeLi = makeNode({ label: `${name} (${count})`, depth, open, hasChildren: true });
-        // 原生同款左侧 chevron 切换器(p-tree-node-toggler)
-        const content = nodeLi.querySelector(".p-tree-node-content");
+
+        const li = document.createElement("li");
+        li.className = "my-tree-item";
+        li.setAttribute("role", "treeitem");
+        li.setAttribute("aria-expanded", String(open));
+
+        const row = document.createElement("div");
+        row.className = "my-tree-row";
+        row.tabIndex = 0;
+
+        // 独立缩进导轨 (每个深阶 14px，绝不受 ComfyUI 原生 padding !important 冲刷)
+        const indent = document.createElement("span");
+        indent.style.cssText = `width:${depth * 14}px;flex:none;`;
+
+        // 折叠切换钮
         const toggler = document.createElement("button");
-        toggler.className = "p-tree-node-toggler";
         toggler.type = "button";
         toggler.setAttribute("aria-label", "切换折叠");
-        toggler.style.cssText = "border:none;background:transparent;color:inherit;cursor:pointer;padding:2px;display:inline-flex;align-items:center;";
-        const chev = icon(ICONS.chevron, 12);
-        chev.style.transition = "transform 120ms ease";
+        toggler.style.cssText = "border:none;background:transparent;color:inherit;cursor:pointer;padding:0 2px;display:inline-flex;align-items:center;flex:none;";
+        const chev = icon(ICONS.chevron, 11);
+        chev.style.transition = "transform 140ms ease";
         chev.style.transform = open ? "rotate(90deg)" : "";
         toggler.append(chev);
-        const childrenUl = renderLevel(sub, depth + 1, open);
+
+        // 拟物双态文件夹图标 (带域高光色)
+        const folderIconWrap = document.createElement("span");
+        folderIconWrap.style.cssText = `display:inline-flex;align-items:center;color:${theme.color};flex:none;margin-right:4px;`;
+        const updateFolderIcon = (isOpen) => {
+          folderIconWrap.textContent = "";
+          folderIconWrap.append(icon(isOpen ? ICONS.folderOpen : ICONS.folder, 14));
+        };
+        updateFolderIcon(open);
+
+        // 目录名标签
+        const labelEl = document.createElement("span");
+        labelEl.className = "my-tree-label";
+        labelEl.textContent = name;
+        labelEl.style.fontWeight = depth === 0 ? "600" : "500";
+        labelEl.style.fontSize = depth === 0 ? "var(--my-fs-12)" : "var(--my-fs-11)";
+        if (depth === 0) labelEl.style.color = "var(--my-text, #f1f5f9)";
+
+        // 胶囊药丸计数徽章 (靠右排布)
+        const badgeEl = document.createElement("span");
+        badgeEl.className = "my-tree-badge";
+        badgeEl.textContent = String(count);
+        if (depth === 0) {
+          badgeEl.style.background = theme.bg;
+          badgeEl.style.color = theme.color;
+        }
+
+        row.append(indent, toggler, folderIconWrap, labelEl, badgeEl);
+
+        const childrenUl = renderLevel(sub, depth + 1, open, domainKey);
         childrenUl.style.display = open ? "" : "none";
-        toggler.addEventListener("click", (e) => {
-          e.stopPropagation();
+
+        const toggleOpen = () => {
           const willOpen = childrenUl.style.display === "none";
           childrenUl.style.display = willOpen ? "" : "none";
           chev.style.transform = willOpen ? "rotate(90deg)" : "";
-          nodeLi.setAttribute("aria-expanded", String(willOpen));
-        });
-        content.prepend(toggler);
-        nodeLi.append(childrenUl);
-        ul.append(nodeLi);
+          updateFolderIcon(willOpen);
+          li.setAttribute("aria-expanded", String(willOpen));
+        };
+
+        toggler.onclick = (e) => { e.stopPropagation(); toggleOpen(); };
+        row.onclick = toggleOpen;
+        row.onkeydown = (e) => {
+          if (e.key === "Enter" || e.key === " ") { e.preventDefault(); toggleOpen(); }
+        };
+
+        li.append(row, childrenUl);
+        ul.append(li);
       }
+
+      // 叶子文件节点
       for (const item of level.get("__files__") || []) {
-        const label = String(item.name || item.id.split("/").pop()).replace(/\.json$/, "").replace(/^MY-/, "");
-        ul.append(makeNode({ label, depth: depth + 1, fileItem: item }));
+        const li = document.createElement("li");
+        li.className = "my-tree-item";
+        li.setAttribute("role", "treeitem");
+
+        const row = document.createElement("div");
+        row.className = "my-tree-row";
+        row.tabIndex = 0;
+        row.title = `点击在画布打开: ${item.id}`;
+
+        const indent = document.createElement("span");
+        indent.style.cssText = `width:${depth * 14}px;flex:none;`;
+
+        const spacer = document.createElement("span");
+        spacer.style.cssText = "width:15px;flex:none;"; // 替代 toggler 宽度，确保图标垂直对齐
+
+        const zapIcon = icon(ICONS.zap, 13);
+        zapIcon.style.color = "#6ea8fe";
+        zapIcon.style.marginRight = "4px";
+        zapIcon.style.flex = "none";
+
+        // 09-15 铁律:保留真实 MY- 前缀(文件名即展示名,仅剔除 .json 后缀)
+        const rawName = String(item.name || item.id.split("/").pop()).replace(/\.json$/, "");
+        const labelEl = document.createElement("span");
+        labelEl.className = "my-tree-label";
+        labelEl.textContent = rawName;
+        labelEl.style.fontSize = "var(--my-fs-11)";
+
+        const openBadge = makeOpenBadge();
+        const relPath = String(item.id).slice("repo:".length);
+        openBadges.set(relPath, openBadge);
+        openBadges.set(`workflows/${relPath}`, openBadge);
+        openBadges.set(item.id, openBadge);
+
+        row.append(indent, spacer, zapIcon, labelEl, openBadge);
+
+        const openIt = async () => {
+          if (activeRowEl) activeRowEl.classList.remove("my-tree-row--active");
+          row.classList.add("my-tree-row--active");
+          activeRowEl = row;
+          await openMyWorkflow(item.id, status);
+          syncOpenBadges(openBadges);
+        };
+
+        row.onclick = openIt;
+        row.onkeydown = (e) => {
+          if (e.key === "Enter" || e.key === " ") { e.preventDefault(); void openIt(); }
+        };
+
+        li.append(row);
+        ul.append(li);
       }
+
       return ul;
     };
-    const treeRoot = document.createElement("div");
-    treeRoot.className = "p-tree p-component";
-    treeRoot.setAttribute("role", "tree");
-    treeRoot.append(renderLevel(tree, 0, true));
-    host.append(treeRoot);
+
+    host.append(renderLevel(tree, 0, true, null));
+    syncOpenBadges(openBadges);
   } catch (error) {
     status.textContent = `取不到工作流(${error.message || error});请确认漫影软件在运行`;
   }
