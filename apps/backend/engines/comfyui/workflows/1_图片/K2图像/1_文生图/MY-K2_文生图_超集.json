@@ -7,11 +7,11 @@
    "type": "VAELoader",
    "pos": [
     40,
-    760
+    740
    ],
    "size": [
-    400.90625,
-    62
+    340,
+    110
    ],
    "flags": {
     "collapsed": false
@@ -65,19 +65,19 @@
    "widgets_values_named": {
     "vae_name": "qwen_image_vae.safetensors"
    },
-   "color": "#323",
-   "bgcolor": "#535"
+   "color": "#3f789e",
+   "bgcolor": "#1e2b38"
   },
   {
    "id": 12,
    "type": "KSampler",
    "pos": [
-    2780,
-    380
+    2680,
+    620
    ],
    "size": [
-    339.390625,
-    262
+    340,
+    490
    ],
    "flags": {
     "collapsed": false
@@ -209,18 +209,20 @@
     "sampler_name": "euler",
     "scheduler": "simple",
     "denoise": 1
-   }
+   },
+   "color": "#c27a3d",
+   "bgcolor": "#332a1e"
   },
   {
    "id": 15,
    "type": "CLIPLoader",
    "pos": [
     40,
-    580
+    600
    ],
    "size": [
-    401.984375,
-    114
+    340,
+    110
    ],
    "flags": {
     "collapsed": false
@@ -300,19 +302,19 @@
     "type": "krea2",
     "device": "default"
    },
-   "color": "#323",
-   "bgcolor": "#535"
+   "color": "#3f789e",
+   "bgcolor": "#1e2b38"
   },
   {
    "id": 21,
    "type": "UNETLoader",
    "pos": [
     40,
-    420
+    440
    ],
    "size": [
-    400.8125,
-    86
+    340,
+    110
    ],
    "flags": {
     "collapsed": false
@@ -379,19 +381,19 @@
     "unet_name": "krea2_turbo_bf16.safetensors",
     "weight_dtype": "default"
    },
-   "color": "#323",
-   "bgcolor": "#535"
+   "color": "#3f789e",
+   "bgcolor": "#1e2b38"
   },
   {
    "id": 20,
    "type": "Seed (rgthree)",
    "pos": [
-    2760,
-    120
+    2680,
+    440
    ],
    "size": [
-    225,
-    170
+    240,
+    130
    ],
    "flags": {
     "collapsed": false
@@ -434,19 +436,19 @@
     "🎲 New Fixed Random": "",
     "USE_LAST_SEED": "okay"
    },
-   "color": "#432",
-   "bgcolor": "#653"
+   "color": "#c27a3d",
+   "bgcolor": "#332a1e"
   },
   {
    "id": 11,
    "type": "VAEDecode",
    "pos": [
-    3240,
-    380
+    3140,
+    620
    ],
    "size": [
-    225,
-    54
+    240,
+    80
    ],
    "flags": {
     "collapsed": false
@@ -488,19 +490,19 @@
      "input_ue_unconnectable": {}
     }
    },
-   "color": "#332922",
-   "bgcolor": "#593930"
+   "color": "#c27a3d",
+   "bgcolor": "#332a1e"
   },
   {
    "id": 4,
    "type": "SaveImage",
    "pos": [
-    3580,
-    360
+    3500,
+    620
    ],
    "size": [
-    429.515625,
-    671
+    340,
+    300
    ],
    "flags": {
     "collapsed": false
@@ -550,18 +552,20 @@
    ],
    "widgets_values_named": {
     "filename_prefix": "Krea2_无衣快_"
-   }
+   },
+   "color": "#c27a3d",
+   "bgcolor": "#332a1e"
   },
   {
    "id": 44,
    "type": "LoraLoaderModelOnly",
    "pos": [
-    1080,
-    420
+    1020,
+    440
    ],
    "size": [
-    437.75,
-    101.59375
+    440,
+    130
    ],
    "flags": {
     "collapsed": false
@@ -624,19 +628,19 @@
     "lora_name": "Krea2-NSFW/KREA 2 Mystic XXX v3.safetensors",
     "strength_model": 2
    },
-   "color": "#422",
-   "bgcolor": "#644"
+   "color": "#8a5fb0",
+   "bgcolor": "#2c2438"
   },
   {
    "id": 45,
    "type": "LoraLoaderModelOnly",
    "pos": [
-    1640,
-    420
+    1560,
+    440
    ],
    "size": [
-    377.109375,
-    90
+    440,
+    130
    ],
    "flags": {
     "collapsed": false
@@ -699,19 +703,19 @@
     "lora_name": "Krea2-NSFW/Krea 2 pussy.safetensors",
     "strength_model": 0.15
    },
-   "color": "#422",
-   "bgcolor": "#644"
+   "color": "#8a5fb0",
+   "bgcolor": "#2c2438"
   },
   {
    "id": 22,
    "type": "Label (rgthree)",
    "pos": [
-    3300,
-    40
+    3500,
+    60
    ],
    "size": [
-    1821.66015625,
-    110
+    280,
+    100
    ],
    "flags": {
     "collapsed": false,
@@ -748,8 +752,8 @@
     40
    ],
    "size": [
-    660,
-    320
+    680,
+    340
    ],
    "flags": {
     "collapsed": false
@@ -780,10 +784,10 @@
    "type": "PrimitiveStringMultiline",
    "pos": [
     40,
-    960
+    1000
    ],
    "size": [
-    360,
+    460,
     200
    ],
    "flags": {},
@@ -805,18 +809,20 @@
    },
    "widgets_values": [
     "(写画面提示词:人物/姿态/场景/光线;尺度放开由 LoRA 栈承担,可直写人体描述)"
-   ]
+   ],
+   "color": "#4d9e6a",
+   "bgcolor": "#1f2f26"
   },
   {
    "id": 51,
    "type": "CLIPTextEncode",
    "pos": [
     1120,
-    960
+    1000
    ],
    "size": [
-    340,
-    150
+    430,
+    230
    ],
    "flags": {},
    "order": 51,
@@ -848,18 +854,20 @@
    },
    "widgets_values": [
     ""
-   ]
+   ],
+   "color": "#4d9e6a",
+   "bgcolor": "#1f2f26"
   },
   {
    "id": 52,
    "type": "ConditioningZeroOut",
    "pos": [
-    1700,
-    960
+    1640,
+    1000
    ],
    "size": [
     340,
-    150
+    80
    ],
    "flags": {},
    "order": 52,
@@ -884,18 +892,20 @@
    "properties": {
     "Node name for S&R": "ConditioningZeroOut"
    },
-   "widgets_values": null
+   "widgets_values": null,
+   "color": "#4d9e6a",
+   "bgcolor": "#1f2f26"
   },
   {
    "id": 53,
    "type": "EmptySD3LatentImage",
    "pos": [
-    2842,
-    960
+    2700,
+    1180
    ],
    "size": [
     340,
-    150
+    130
    ],
    "flags": {},
    "order": 53,
@@ -938,17 +948,19 @@
     1024,
     1024,
     1
-   ]
+   ],
+   "color": "#4a89b8",
+   "bgcolor": "#1f2a33"
   },
   {
    "id": 14,
    "type": "Krea2EditModelPatch",
    "pos": [
-    2200,
-    420
+    2100,
+    440
    ],
    "size": [
-    430,
+    460,
     190
    ],
    "flags": {},
@@ -1003,17 +1015,19 @@
     1,
     1,
     "fit"
-   ]
+   ],
+   "color": "#8a5fb0",
+   "bgcolor": "#2c2438"
   },
   {
    "id": 19,
    "type": "LoraLoaderModelOnly",
    "pos": [
-    520,
-    380
+    480,
+    440
    ],
    "size": [
-    428,
+    440,
     130
    ],
    "flags": {},
@@ -1053,18 +1067,20 @@
     "Krea2-功能/Krea2-编辑identity_edit_v1_2.safetensors",
     1
    ],
-   "title": "[19] identity LoRA(编辑链随附,T2I 中性)"
+   "title": "[19] identity LoRA(编辑链随附,T2I 中性)",
+   "color": "#8a5fb0",
+   "bgcolor": "#2c2438"
   },
   {
    "id": 60,
    "type": "easy stylesSelector",
    "pos": [
     560,
-    960
+    1000
    ],
    "size": [
-    465.75426979794247,
-    526.6133544847954
+    480,
+    540
    ],
    "flags": {},
    "order": 60,
@@ -1139,18 +1155,20 @@
     "styles": "krea2_397styles-3d_render_3D渲染",
     "select_styles": "Backlit Portraiture"
    },
-   "title": "[60] 漫影风格库(48风格)"
+   "title": "[60] 漫影风格库(48风格)",
+   "color": "#4d9e6a",
+   "bgcolor": "#1f2f26"
   },
   {
    "id": 61,
    "type": "ResolutionSelector",
    "pos": [
     40,
-    1240
+    1300
    ],
    "size": [
-    234.63441767302356,
-    126
+    240,
+    130
    ],
    "flags": {},
    "order": 61,
@@ -1218,8 +1236,8 @@
     "megapixels": 1.2,
     "multiple": 32
    },
-   "color": "#233",
-   "bgcolor": "#355",
+   "color": "#4a89b8",
+   "bgcolor": "#1f2a33",
    "title": "[61] 分辨率"
   },
   {
@@ -1227,11 +1245,11 @@
    "type": "easy showAnything",
    "pos": [
     560,
-    1560
+    1620
    ],
    "size": [
-    471.548794768898,
-    218.43300458704073
+    480,
+    230
    ],
    "flags": {},
    "order": 62,
@@ -1265,18 +1283,20 @@
    "widgets_values_named": {
     "text": "Style: luminous photographic aesthetics defined by strong backlighting, radiant edge illumination, subtle translucency effects, atmospheric depth, graceful tonal transitions, and a heightened sense of visual separation, creating elegant and emotionally evocative imagery through carefully controlled exposure, naturalistic light diffusion, and refined portrait craftsmanship, reminiscent of Peter Lindbergh and Paolo Roversi, inspired by Vogue editorials and In the Mood for Love.. Subject:一位黑色长发的年轻亚洲女子站在阳光斑驳的森林中，头发自然披散在肩头并编成一条松散的长辫，用紫色发圈固定。她的皮肤白皙，嘴唇微张，笑容甜美，表情温柔。她身穿一袭白色露肩上衣，领口和袖口饰有精致蕾丝花边，胸前系着蝴蝶结，下摆微微收紧露出紫色腰带；脖子上戴着一条金色细链，坠着一枚椭圆形紫色宝石吊坠。她的右手轻轻捏住一朵紫色风铃草，花瓣舒展，花茎细长带有绿色叶片。柔和的金色阳光从左侧树叶间洒落，整体画面呈现温暖。"
    },
-   "title": "[62] 风格预览"
+   "title": "[62] 风格预览",
+   "color": "#4d9e6a",
+   "bgcolor": "#1f2f26"
   },
   {
    "id": 63,
    "type": "ConditioningKrea2Rebalance",
    "pos": [
-    2140,
-    960
+    2080,
+    1000
    ],
    "size": [
-    562.34375,
-    122
+    570,
+    130
    ],
    "flags": {},
    "order": 63,
@@ -1339,7 +1359,9 @@
     "multiplier": 1,
     "per_layer_weights": "1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,5.0,1.0,1.0,1.0"
    },
-   "title": "[63] 12带重平衡(全1.0=中性)"
+   "title": "[63] 12带重平衡(全1.0=中性)",
+   "color": "#4d9e6a",
+   "bgcolor": "#1f2f26"
   }
  ],
  "links": [
@@ -1512,7 +1534,78 @@
    "INT"
   ]
  ],
- "groups": [],
+ "groups": [
+  {
+   "id": 1,
+   "title": "① 模型加载",
+   "bounding": [
+    0,
+    380,
+    420,
+    510
+   ],
+   "color": "#3f789e",
+   "flags": {
+    "pinned": true
+   }
+  },
+  {
+   "id": 2,
+   "title": "② LoRA 尺度栈 + 模型补丁",
+   "bounding": [
+    440,
+    380,
+    2160,
+    290
+   ],
+   "color": "#8a5fb0",
+   "flags": {
+    "pinned": true
+   }
+  },
+  {
+   "id": 3,
+   "title": "③ 采样与出图",
+   "bounding": [
+    2640,
+    380,
+    1240,
+    770
+   ],
+   "color": "#c27a3d",
+   "flags": {
+    "pinned": true
+   }
+  },
+  {
+   "id": 4,
+   "title": "④ 提示词链(风格→编码→零化→12带)",
+   "bounding": [
+    0,
+    940,
+    2690,
+    950
+   ],
+   "color": "#4d9e6a",
+   "flags": {
+    "pinned": true
+   }
+  },
+  {
+   "id": 5,
+   "title": "⑤ 画布(分辨率→空潜)",
+   "bounding": [
+    0,
+    1120,
+    3080,
+    350
+   ],
+   "color": "#4a89b8",
+   "flags": {
+    "pinned": true
+   }
+  }
+ ],
  "config": {},
  "extra": {},
  "version": 0.4
