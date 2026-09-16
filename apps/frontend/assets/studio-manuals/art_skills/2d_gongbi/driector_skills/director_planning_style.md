@@ -20,8 +20,8 @@ metaData: director_skills
 
 ## 三、质感方向
 
-- **质感锚点**：rice paper grain, fine mineral pigment, precise linework。
-- **提示词基线**：(best quality, masterpiece, high detailed:1.2), (Chinese gongbi painting illustration:1.3), (meticulous brushwork, elegant figure, refined ornament, ink wash background:1.18), (soft paper light, delicate highlight, calm atmosphere:1.1), rice paper grain, fine mineral pigment, precise linework, clean composition, readable silhouette, high detail, finished illustration。
+- **质感锚点**：fine warm ground, fine mineral pigment, precise linework。
+- **提示词基线**：(best quality, masterpiece, high detailed:1.2), (Chinese gongbi painting illustration:1.3), (meticulous brushwork, elegant figure, refined ornament, ink wash background:1.18), (soft paper light, delicate highlight, calm atmosphere:1.1), fine warm ground, fine mineral pigment, precise linework, clean composition, readable silhouette, high detail, finished illustration。
 - **反向规避**：(worst quality, low quality:1.4), blurry, messy lineart, bad anatomy, 3D render, photorealistic, CGI, watermark, signature, text, western oil painting, neon color, rough sketch, 3D realism。
 
 ## 四、段落规划

@@ -15,7 +15,7 @@ metaData: director_skills
 | 字段 | 写法 |
 |---|---|
 | 画面描述 | 必须含主体、动作、空间、光影和 2D工笔风 风格锚点 |
-| 风格提示词 | Chinese gongbi painting illustration; meticulous brushwork, elegant figure, refined ornament, ink wash background; rice paper grain, fine mineral pigment, precise linework |
+| 风格提示词 | Chinese gongbi painting illustration; meticulous brushwork, elegant figure, refined ornament, ink wash background; fine warm ground, fine mineral pigment, precise linework |
 | 光影 | soft paper light, delicate highlight, calm atmosphere |
 | 负向规避 | (worst quality, low quality:1.4), blurry, messy lineart, bad anatomy, 3D render, photorealistic, CGI, watermark, signature, text, western oil painting, neon color, rough sketch, 3D realism |
 | 连续性 | 人物身份、服装、场景结构、道具位置必须跨镜头一致 |

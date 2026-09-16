@@ -21,15 +21,15 @@ character design sheet, character turnaround,
 {发色发型}，{基础服装}，{服装材质与色彩}，
 同一画面左至右并排：人像特写+正视图+侧视图+后视图，
 人像特写从头顶到锁骨完整展示，全身立像从头顶到脚底完整展示，
-soft paper light, delicate highlight, calm atmosphere，rice paper grain, fine mineral pigment, precise linework，ink black, jade green, mineral red，
-(best quality, masterpiece, high detailed:1.2), (Chinese gongbi painting illustration:1.3), (meticulous brushwork, elegant figure, refined ornament, ink wash background:1.18), (soft paper light, delicate highlight, calm atmosphere:1.1), rice paper grain, fine mineral pigment, precise linework, clean composition, readable silhouette, high detail, finished illustration，
+soft paper light, delicate highlight, calm atmosphere，fine warm ground, fine mineral pigment, precise linework，ink black, jade green, mineral red，
+(best quality, masterpiece, high detailed:1.2), (Chinese gongbi painting illustration:1.3), (meticulous brushwork, elegant figure, refined ornament, ink wash background:1.18), (soft paper light, delicate highlight, calm atmosphere:1.1), fine warm ground, fine mineral pigment, precise linework, clean composition, readable silhouette, high detail, finished illustration，
 图中不要有任何文字
 
 ## 三、提示词质量增强
 
 ### 正向质量锚点
 
-(best quality, masterpiece, high detailed:1.2), (Chinese gongbi painting illustration:1.3), (meticulous brushwork, elegant figure, refined ornament, ink wash background:1.18), (soft paper light, delicate highlight, calm atmosphere:1.1), rice paper grain, fine mineral pigment, precise linework, clean composition, readable silhouette, high detail, finished illustration
+(best quality, masterpiece, high detailed:1.2), (Chinese gongbi painting illustration:1.3), (meticulous brushwork, elegant figure, refined ornament, ink wash background:1.18), (soft paper light, delicate highlight, calm atmosphere:1.1), fine warm ground, fine mineral pigment, precise linework, clean composition, readable silhouette, high detail, finished illustration
 角色类提示词必须保留身份、年龄、性别、五官、身高、头身比、体态、服装、发型和四视图一致性。
 
 ### 反向规避提示词

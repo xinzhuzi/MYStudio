@@ -15,14 +15,14 @@ metaData: art_skills
 
 以道具基础图为底图，保持道具核心轮廓与材质不变，
 2D工笔风，Chinese gongbi painting illustration，{衍生状态}，{局部纹理升级}，{光效或年代感变化}，
-独立静物陈列，无人物无手部，soft paper light, delicate highlight, calm atmosphere，rice paper grain, fine mineral pigment, precise linework，
-(best quality, masterpiece, high detailed:1.2), (Chinese gongbi painting illustration:1.3), (meticulous brushwork, elegant figure, refined ornament, ink wash background:1.18), (soft paper light, delicate highlight, calm atmosphere:1.1), rice paper grain, fine mineral pigment, precise linework, clean composition, readable silhouette, high detail, finished illustration，画面无字幕、无水印、无标题叠字
+独立静物陈列，无人物无手部，soft paper light, delicate highlight, calm atmosphere，fine warm ground, fine mineral pigment, precise linework，
+(best quality, masterpiece, high detailed:1.2), (Chinese gongbi painting illustration:1.3), (meticulous brushwork, elegant figure, refined ornament, ink wash background:1.18), (soft paper light, delicate highlight, calm atmosphere:1.1), fine warm ground, fine mineral pigment, precise linework, clean composition, readable silhouette, high detail, finished illustration，画面无字幕、无水印、无标题叠字
 
 ## 三、提示词质量增强
 
 ### 正向质量锚点
 
-(best quality, masterpiece, high detailed:1.2), (Chinese gongbi painting illustration:1.3), (meticulous brushwork, elegant figure, refined ornament, ink wash background:1.18), (soft paper light, delicate highlight, calm atmosphere:1.1), rice paper grain, fine mineral pigment, precise linework, clean composition, readable silhouette, high detail, finished illustration
+(best quality, masterpiece, high detailed:1.2), (Chinese gongbi painting illustration:1.3), (meticulous brushwork, elegant figure, refined ornament, ink wash background:1.18), (soft paper light, delicate highlight, calm atmosphere:1.1), fine warm ground, fine mineral pigment, precise linework, clean composition, readable silhouette, high detail, finished illustration
 道具衍生提示词必须保持原道具轮廓、核心材质和识别纹样不变，只做状态、光效、局部纹理或视角升级。
 
 ### 反向规避提示词

@@ -8,7 +8,7 @@ metaData: director_skills
 
 ## 固定风格锚定词
 
-2D工笔风，Chinese gongbi painting illustration，meticulous brushwork, elegant figure, refined ornament, ink wash background，soft paper light, delicate highlight, calm atmosphere，rice paper grain, fine mineral pigment, precise linework
+2D工笔风，Chinese gongbi painting illustration，meticulous brushwork, elegant figure, refined ornament, ink wash background，soft paper light, delicate highlight, calm atmosphere，fine warm ground, fine mineral pigment, precise linework
 
 ## 情绪到画面词映射
 
@@ -21,7 +21,7 @@ metaData: director_skills
 
 ## 画质锁定词
 
-(best quality, masterpiece, high detailed:1.2), (Chinese gongbi painting illustration:1.3), (meticulous brushwork, elegant figure, refined ornament, ink wash background:1.18), (soft paper light, delicate highlight, calm atmosphere:1.1), rice paper grain, fine mineral pigment, precise linework, clean composition, readable silhouette, high detail, finished illustration
+(best quality, masterpiece, high detailed:1.2), (Chinese gongbi painting illustration:1.3), (meticulous brushwork, elegant figure, refined ornament, ink wash background:1.18), (soft paper light, delicate highlight, calm atmosphere:1.1), fine warm ground, fine mineral pigment, precise linework, clean composition, readable silhouette, high detail, finished illustration
 
 ## 负向词模板
 

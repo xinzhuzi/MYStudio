@@ -10,9 +10,9 @@ metaData: art_skills
 
 | 模式 | 风格标签 |
 |---|---|
-| 通用多参模式（英文） | `Chinese gongbi painting illustration, meticulous brushwork, elegant figure, refined ornament, ink wash background, soft paper light, delicate highlight, calm atmosphere, rice paper grain, fine mineral pigment, precise linework, clean composition, readable silhouette, high detail, finished illustration` |
-| 通用首尾帧模式（英文） | `Chinese gongbi painting illustration, stable first frame and last frame, temporal continuity, soft paper light, delicate highlight, calm atmosphere, rice paper grain, fine mineral pigment, precise linework` |
-| 中文模式 | `2D工笔风，meticulous brushwork, elegant figure, refined ornament, ink wash background，soft paper light, delicate highlight, calm atmosphere，rice paper grain, fine mineral pigment, precise linework，画面连续，主体稳定` |
+| 通用多参模式（英文） | `Chinese gongbi painting illustration, meticulous brushwork, elegant figure, refined ornament, ink wash background, soft paper light, delicate highlight, calm atmosphere, fine warm ground, fine mineral pigment, precise linework, clean composition, readable silhouette, high detail, finished illustration` |
+| 通用首尾帧模式（英文） | `Chinese gongbi painting illustration, stable first frame and last frame, temporal continuity, soft paper light, delicate highlight, calm atmosphere, fine warm ground, fine mineral pigment, precise linework` |
+| 中文模式 | `2D工笔风，meticulous brushwork, elegant figure, refined ornament, ink wash background，soft paper light, delicate highlight, calm atmosphere，fine warm ground, fine mineral pigment, precise linework，画面连续，主体稳定` |
 
 ## 视频特有约束
 

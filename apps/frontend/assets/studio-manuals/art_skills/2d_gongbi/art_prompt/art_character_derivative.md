@@ -16,15 +16,15 @@ metaData: art_skills
 以角色基础形象图为底图，img2img 叠加服化妆造，
 2D工笔风，Chinese gongbi painting illustration，保持基础形象面容不变，保持同一人物身份，
 {妆容/面部状态}，{发型变化}，{服饰款式}，{配饰与材质}，
-meticulous brushwork, elegant figure, refined ornament, ink wash background，soft paper light, delicate highlight, calm atmosphere，rice paper grain, fine mineral pigment, precise linework，
+meticulous brushwork, elegant figure, refined ornament, ink wash background，soft paper light, delicate highlight, calm atmosphere，fine warm ground, fine mineral pigment, precise linework，
 四视图一致性，保持自然站立，背景简洁，
-(best quality, masterpiece, high detailed:1.2), (Chinese gongbi painting illustration:1.3), (meticulous brushwork, elegant figure, refined ornament, ink wash background:1.18), (soft paper light, delicate highlight, calm atmosphere:1.1), rice paper grain, fine mineral pigment, precise linework, clean composition, readable silhouette, high detail, finished illustration，图中不要有任何文字
+(best quality, masterpiece, high detailed:1.2), (Chinese gongbi painting illustration:1.3), (meticulous brushwork, elegant figure, refined ornament, ink wash background:1.18), (soft paper light, delicate highlight, calm atmosphere:1.1), fine warm ground, fine mineral pigment, precise linework, clean composition, readable silhouette, high detail, finished illustration，图中不要有任何文字
 
 ## 三、提示词质量增强
 
 ### 正向质量锚点
 
-(best quality, masterpiece, high detailed:1.2), (Chinese gongbi painting illustration:1.3), (meticulous brushwork, elegant figure, refined ornament, ink wash background:1.18), (soft paper light, delicate highlight, calm atmosphere:1.1), rice paper grain, fine mineral pigment, precise linework, clean composition, readable silhouette, high detail, finished illustration
+(best quality, masterpiece, high detailed:1.2), (Chinese gongbi painting illustration:1.3), (meticulous brushwork, elegant figure, refined ornament, ink wash background:1.18), (soft paper light, delicate highlight, calm atmosphere:1.1), fine warm ground, fine mineral pigment, precise linework, clean composition, readable silhouette, high detail, finished illustration
 人物衍生提示词必须保持底模面容、体态、发型识别点不变，只叠加服化妆造与局部风格升级。
 
 ### 反向规避提示词

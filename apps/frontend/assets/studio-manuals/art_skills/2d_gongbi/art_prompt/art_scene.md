@@ -17,15 +17,15 @@ metaData: art_skills
 2D工笔风场景主视图概念图，Chinese gongbi painting illustration，meticulous brushwork, elegant figure, refined ornament, ink wash background，
 {室内/室外}，{场景类型}，{时代/地域/题材线索}，{季节+时间}，
 前景：{元素}，中景：{元素}，后景：{元素}，
-ink black, jade green, mineral red，soft paper light, delicate highlight, calm atmosphere，rice paper grain, fine mineral pigment, precise linework，
+ink black, jade green, mineral red，soft paper light, delicate highlight, calm atmosphere，fine warm ground, fine mineral pigment, precise linework，
 空间纵深清晰，材质细节可读，单画面构图，画面中无任何人物，
-(best quality, masterpiece, high detailed:1.2), (Chinese gongbi painting illustration:1.3), (meticulous brushwork, elegant figure, refined ornament, ink wash background:1.18), (soft paper light, delicate highlight, calm atmosphere:1.1), rice paper grain, fine mineral pigment, precise linework, clean composition, readable silhouette, high detail, finished illustration，图中不要有任何文字
+(best quality, masterpiece, high detailed:1.2), (Chinese gongbi painting illustration:1.3), (meticulous brushwork, elegant figure, refined ornament, ink wash background:1.18), (soft paper light, delicate highlight, calm atmosphere:1.1), fine warm ground, fine mineral pigment, precise linework, clean composition, readable silhouette, high detail, finished illustration，图中不要有任何文字
 
 ## 三、提示词质量增强
 
 ### 正向质量锚点
 
-(best quality, masterpiece, high detailed:1.2), (Chinese gongbi painting illustration:1.3), (meticulous brushwork, elegant figure, refined ornament, ink wash background:1.18), (soft paper light, delicate highlight, calm atmosphere:1.1), rice paper grain, fine mineral pigment, precise linework, clean composition, readable silhouette, high detail, finished illustration
+(best quality, masterpiece, high detailed:1.2), (Chinese gongbi painting illustration:1.3), (meticulous brushwork, elegant figure, refined ornament, ink wash background:1.18), (soft paper light, delicate highlight, calm atmosphere:1.1), fine warm ground, fine mineral pigment, precise linework, clean composition, readable silhouette, high detail, finished illustration
 场景类提示词必须强化前景/中景/后景、空间纵深、主光源方向、材质痕迹和情绪色调。
 
 ### 反向规避提示词
