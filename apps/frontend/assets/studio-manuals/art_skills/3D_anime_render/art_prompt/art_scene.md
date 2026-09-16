@@ -35,7 +35,7 @@
 | 纵深 | 前/中/后景层次（赛璐珞纵深） | 前景{元素}、中景{元素}、后景{元素} |
 | 质感 | 建筑纹理清晰（赛璐珞化） | 纹理清晰、赛璐珞质感 |
 | 光照 | 自然光为主（窗光/路灯），光线柔和 | 自然光、柔和光照 |
-| 镜头感 | 浅景深虚化前后景、赛璐珞镜头效果 | shallow depth of field、赛璐珞镜头 |
+| 镜头感 | 浅景深虚化前后景、赛璐珞镜头效果 | 浅景深、赛璐珞镜头 |
 | 瑕疵感 | 建筑有使用痕迹、自然磨损（赛璐珞化） | 自然磨损、赛璐珞处理 |
 
 ### 城市类型速查
@@ -63,7 +63,7 @@
 | 纵深 | 前/中/后景层次 | 前景{元素}、中景{元素}、后景{元素} |
 | 质感 | 材质纹理清晰（赛璐珞化） | 纹理清晰、赛璐珞质感 |
 | 光照 | 自然光+室内灯光，光线柔和 | 自然光、室内灯光、柔和 |
-| 镜头感 | 浅景深虚化前后景 | shallow depth of field、室内镜头 |
+| 镜头感 | 浅景深虚化前后景 | 浅景深、室内镜头 |
 | 瑕疵感 | 家具有使用痕迹、自然磨损 | 自然磨损、赛璐珞处理 |
 
 ### 室内类型速查
@@ -87,9 +87,9 @@
 
 | 项目 | 约束 | 提示词 |
 |---|---|---|
-| 视角 | 自然观察视角，构图最能体现场景主体与纵深 | hero shot、representative angle |
-| 视点高度 | 默认人眼平视高度，特殊场景可俯/仰 | eye level（默认） |
-| 构图 | 主体居中或符合三分法，前/中/后景层次清晰 | balanced composition |
+| 视角 | 自然观察视角，构图最能体现场景主体与纵深 | 主视觉镜头、代表性角度 |
+| 视点高度 | 默认人眼平视高度，特殊场景可俯/仰 | 人眼平视高度（默认） |
+| 构图 | 主体居中或符合三分法，前/中/后景层次清晰 | 平衡构图 |
 
 ### 画面规范
 
@@ -106,9 +106,9 @@
 ## 六、提示词模板
 ```
 3D 动画渲染，电影级打光，活力赛璐珞质感，高细节材质，愉悦治愈氛围，卡通都市风，高细节卡通材质，适度卡通比例，暖色调配色，8K 超高清，电影级构图，柔和光影层次，明快卡通渲染风格，温馨治愈，都市场景主视图概念图，
-anime style, cel-shaded, 3D animation render,
-film lighting, warm sunset lighting,
-scene design sheet, environment concept art, no people, no characters, no human figures,
+anime 风格, cel-shaded, 3D 动画渲染,
+电影级打光, 暖调黄昏光,
+场景设定图, 环境概念图, 无人物, 无角色, 无人体,
 {室内/室外}，{场景类型}，{建筑风格}，{季节+时间}，
 前景：{元素}，中景：{元素}，后景：{元素}，
 {色调描述}，{天候/氛围元素}，
@@ -127,17 +127,17 @@ scene design sheet, environment concept art, no people, no characters, no human 
 
 ## 提示词质量增强
 
-> 生成最终提示词时，必须把本节融合进现有提示词模板；不要另起说明文字。支持 negative prompt 的模型，把“反向规避提示词”单独放入负面提示词；不支持 negative prompt 的模型，改写成正向规避要求。
+> 生成最终提示词时，必须把本节融合进现有提示词模板；不要另起说明文字。支持负面提示词的模型，把“反向规避提示词”单独放入负面提示词；不支持负面提示词的模型，改写成正向规避要求。
 
 ### 正向质量锚点
 
-高精度3D动画渲染，anime style 3D render，cel-shaded 3D，clean topology，polished materials，soft cinematic lighting，sharp focus，best quality，masterpiece，high detailed。
-场景类提示词必须强化前景/中景/后景、空间纵深、主光源方向、材质痕迹和情绪色调；补充 layered environment, atmospheric perspective, coherent lighting, detailed material surface。
+高精度3D动画渲染, anime 风格 3D 渲染, cel-shaded 3D, 干净拓扑, 精致抛光材质, 柔和电影级打光, 锐利焦点, 最佳质量, 杰作, 高细节。
+场景类提示词必须强化前景/中景/后景、空间纵深、主光源方向、材质痕迹和情绪色调；补充层次化环境、空气透视、光照连贯、材质表面细节。
 
 ### 反向规避提示词
 
-low quality, low poly, rough topology, flat 2D drawing, sketch, photorealistic photography, plastic skin, broken material, noisy render, bad anatomy, watermark, text, signature。
-no depth, flat lighting, empty white background, people, human silhouette, character, cropped architecture, inconsistent season, overclean material, text, watermark。
+低质量, low poly, 粗糙拓扑, 扁平 2D 手绘, 草图, 照片级写实摄影, 塑料感皮肤, 破损材质, 噪点渲染, 解剖错误, 水印, 文字, 签名。
+无纵深, 平板打光, 空白背景, 人物, 人体剪影, 角色, 建筑裁切, 季节不一致, 过度干净材质, 文字, 水印。
 
 ### 输出净化规则
 
@@ -158,8 +158,8 @@ no depth, flat lighting, empty white background, people, human silhouette, chara
 | R3 | 场景图必须为「单画面主视图」，不得拼接多视图/分屏/网格 |
 | R4 | 构图须能代表场景主体并展示前/中/后景层次 |
 | R5 | 场景图中**严禁出现任何人物** |
-| R6 | 必须包含3D动画渲染关键词（cel-shaded, 3D animation render, anime style） |
-| R7 | 必须包含镜头光学特征（shallow depth of field / lens vignette / bokeh 至少一项，赛璐珞化处理） |
+| R6 | 必须包含3D动画渲染关键词（cel-shaded、3D 动画渲染、anime 风格） |
+| R7 | 必须包含镜头光学特征（浅景深 / 镜头暗角 / bokeh 至少一项，赛璐珞化处理） |
 | R8 | 材质必须带有自然磨损/岁月痕迹，禁止全新无瑕的"CG 感"，但赛璐珞化呈现 |
 | R9 | 必须保持赛璐珞渲染风格一致性，不得混搭写实元素 |
 | R10 | 必须包含暖色调配色、黄昏霞光氛围关键词 |

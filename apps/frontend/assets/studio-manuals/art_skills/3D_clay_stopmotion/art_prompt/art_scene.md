@@ -34,7 +34,7 @@
 | 纵深 | 前/中/后景层次 | 前景{元素}、中景{元素}、后景{元素} |
 | 质感 | 木纹/布料垂感/瓷器光泽可辨 | 纹理清晰、质感黏土 |
 | 光照 | 暖调柔光为主（窗光/烛光），光线漫射 | 暖光漫射、烛光温馨 |
-| 镜头感 | 柔和浅景深虚化、自然光斑、定格颗粒感 | shallow depth of field、bokeh、定格感 |
+| 镜头感 | 柔和浅景深虚化、自然光斑、定格颗粒感 | 浅景深、bokeh、定格感 |
 | 瑕疵感 | 木面有使用痕迹、石面有风化纹、布料有自然褶皱 | 岁月痕迹、自然磨损、布料自然垂褶 |
 
 ### 室内类型速查
@@ -62,7 +62,7 @@
 | 建筑 | 飞檐斗拱、青瓦白墙、石桥木亭 | 飞檐翘角、石拱桥 |
 | 空气感 | 必须有空气透视，远处偏暖灰 | 远山如黛、空气透视 |
 | 光照 | 暖调自然光为唯一光源，日光/月光需有体积光 | 暖光漫射、体积光、暖调光斑 |
-| 镜头感 | 柔和浅景深虚化、光斑散景、定格感 | shallow depth of field、bokeh、定格感 |
+| 镜头感 | 柔和浅景深虚化、光斑散景、定格感 | 浅景深、bokeh、定格感 |
 | 瑕疵感 | 石面青苔/风化、木面开裂/包浆、瓦片残缺 | 青苔斑驳、风化痕迹、岁月包浆 |
 
 ### 室外类型速查
@@ -86,9 +86,9 @@
 
 | 项目 | 约束 | 提示词 |
 |---|---|---|
-| 视角 | 自然观察视角，构图最能体现场景主体与纵深 | hero shot、representative angle |
-| 视点高度 | 默认人眼平视高度，特殊场景可俯/仰 | eye level（默认） |
-| 构图 | 主体居中或符合三分法，前/中/后景层次清晰 | balanced composition |
+| 视角 | 自然观察视角，构图最能体现场景主体与纵深 | 主视觉镜头、代表性角度 |
+| 视点高度 | 默认人眼平视高度，特殊场景可俯/仰 | 人眼平视高度（默认） |
+| 构图 | 主体居中或符合三分法，前/中/后景层次清晰 | 平衡构图 |
 
 ### 画面规范
 
@@ -106,8 +106,8 @@
 
 ```
 黏土定格动画古风场景主视图概念图，定格动画风格，3D卡通渲染，暖调光影，柔和浅景深，
-claymation style，stop-motion aesthetic，warm lighting，
-scene design sheet，environment concept art，no people，no characters，no human figures，
+黏土动画风格，定格动画质感，暖调打光，
+场景设定图，环境概念图，无人物，无角色，无人体，
 {室内/室外}，{场景类型}，{朝代风格}，{季节+时间}，
 前景：{元素}，中景：{元素}，后景：{元素}，
 {色调描述}，{天候/氛围元素}，
@@ -124,17 +124,17 @@ scene design sheet，environment concept art，no people，no characters，no hu
 
 ## 提示词质量增强
 
-> 生成最终提示词时，必须把本节融合进现有提示词模板；不要另起说明文字。支持 negative prompt 的模型，把“反向规避提示词”单独放入负面提示词；不支持 negative prompt 的模型，改写成正向规避要求。
+> 生成最终提示词时，必须把本节融合进现有提示词模板；不要另起说明文字。支持负面提示词的模型，把“反向规避提示词”单独放入负面提示词；不支持负面提示词的模型，改写成正向规避要求。
 
 ### 正向质量锚点
 
-定格动画黏土质感，stop-motion claymation，hand-crafted clay texture，visible handmade fingerprints，miniature set lighting，warm soft studio light，shallow depth of field，best quality，tactile detail。
-场景类提示词必须强化前景/中景/后景、空间纵深、主光源方向、材质痕迹和情绪色调；补充 layered environment, atmospheric perspective, coherent lighting, detailed material surface。
+定格动画黏土质感, 黏土定格动画, 手工黏土肌理, 可见手工指痕, 微缩布景打光, 暖调柔和影棚光, 浅景深, 最佳质量, 可触质感细节。
+场景类提示词必须强化前景/中景/后景、空间纵深、主光源方向、材质痕迹和情绪色调；补充层次化环境、空气透视、光照连贯、材质表面细节。
 
 ### 反向规避提示词
 
-low quality, photorealistic skin, glossy plastic, metal PBR, flat 2D drawing, hyperreal render, sterile smooth surface, hard digital sharpness, watermark, text, signature。
-no depth, flat lighting, empty white background, people, human silhouette, character, cropped architecture, inconsistent season, overclean material, text, watermark。
+低质量, 写实皮肤, 亮面塑料, 金属 PBR, 扁平 2D 手绘, 超写实渲染, 无菌光滑表面, 生硬数码锐化, 水印, 文字, 签名。
+无纵深, 平板打光, 空白背景, 人物, 人体剪影, 角色, 建筑裁切, 季节不一致, 过度干净材质, 文字, 水印。
 
 ### 输出净化规则
 
@@ -155,8 +155,8 @@ no depth, flat lighting, empty white background, people, human silhouette, chara
 | R3 | 场景图必须为「单画面主视图」，不得拼接多视图/分屏/网格 |
 | R4 | 构图须能代表场景主体并展示前/中/后景层次 |
 | R5 | 场景图中**严禁出现任何人物** |
-| R6 | 必须包含定格动画关键词（claymation / stop-motion） |
-| R7 | 必须包含浅景深关键词（shallow depth of field / bokeh） |
+| R6 | 必须包含定格动画关键词（黏土动画 / 定格动画） |
+| R7 | 必须包含浅景深关键词（浅景深 / bokeh） |
 | R8 | 必须指定「暖调柔光」，无硬阴影 |
 | R9 | 材质必须带有自然磨损/岁月痕迹 |
 

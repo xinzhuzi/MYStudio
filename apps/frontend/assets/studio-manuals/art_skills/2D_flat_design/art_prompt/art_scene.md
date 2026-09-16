@@ -128,12 +128,12 @@ flat scene，environment design，no people，no characters，no human figures�
 
 ### 正向质量锚点
 
-高完成度扁平矢量插画，flat vector illustration，clean geometric shapes，solid color blocks，balanced negative space，crisp edges，consistent icon-like design，best quality，clean composition。
-场景类提示词必须强化前景/中景/后景、空间纵深、主光源方向、材质痕迹和情绪色调；补充 layered environment, atmospheric perspective, coherent lighting, detailed material surface。
+高完成度扁平矢量插画, 扁平矢量插画, 干净几何形状, 整实色块, 均衡 negative space, 利落边缘, 统一图标化设计, 最佳质量, 干净构图。
+场景类提示词必须强化前景/中景/后景、空间纵深、主光源方向、材质痕迹和情绪色调；补充层次化环境、空气透视、连贯光照、细腻材质表面。
 
 ### 反向规避提示词
 
-low quality, messy layout, 3D render, PBR material, photorealistic texture, complex lighting, heavy shadow, gradient overuse, noisy texture, sketchy line, watermark, text, signature。
+低质量, 凌乱布局, 3D渲染, PBR 材质, 照片写实纹理, 复杂光照, 浓重阴影, 渐变滥用, 噪点纹理, 草率线条, 水印, 文字, 签名。
 no depth, flat lighting, empty white background, people, human silhouette, character, cropped architecture, inconsistent season, overclean material, text, watermark。
 
 ### 输出净化规则

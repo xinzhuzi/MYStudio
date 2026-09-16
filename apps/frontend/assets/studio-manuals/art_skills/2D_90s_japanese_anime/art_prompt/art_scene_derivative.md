@@ -136,12 +136,12 @@ scene derivative design sheet，environment concept art，no people，no charact
 
 ### 正向质量锚点
 
-90年代日式动画电影质感，hand-drawn cel animation，clean lineart，painted background，soft rim light，subtle film grain，nostalgic warm palette，best quality，high detail，sharp but not digital-glossy。
-场景衍生提示词必须保持原场景地标、空间结构、材质年代感不变，只改变时段、天候、景别或镜头角度；补充 landmark consistency, spatial continuity, cinematic atmosphere。
+90年代日式动画电影质感, 手绘赛璐璐动画, 干净线稿, 手绘背景, 柔和轮廓光, 轻微胶片颗粒, 怀旧暖色盘, 最佳质量, 高细节, 锐利而不带数字油亮感。
+场景衍生提示词必须保持原场景地标、空间结构、材质年代感不变，只改变时段、天候、景别或镜头角度；补充地标一致、空间连续、电影感氛围。
 
 ### 反向规避提示词
 
-low quality, worst quality, blurry, muddy colors, modern glossy digital painting, 3D render, CGI, photorealistic, western cartoon, over-sharpened HDR, noisy artifacts, watermark, text, signature。
+低质量, 最差质量, 模糊, 脏浊色彩, 现代光泽数字绘画, 3D渲染, CGI, 照片写实, 西式卡通, 过锐 HDR, 噪点伪影, 水印, 文字, 签名。
 changed location, lost landmark, added people, human silhouette, random architecture, inconsistent perspective, flat lighting, overclean material, text, watermark。
 
 ### 输出净化规则

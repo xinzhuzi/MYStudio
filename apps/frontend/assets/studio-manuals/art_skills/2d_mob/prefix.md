@@ -21,8 +21,8 @@
 | 色彩基线 | magenta, cyan, acid green |
 | 主光方案 | color shock glow, distorted light, high energy contrast |
 | 画面层次 | 主体清晰、前中后景可读、焦点明确 |
-| 质量锚定 | (best quality, masterpiece, high detailed:1.2), (psychedelic urban supernatural manga:1.3), (warped perspective, psychic aura, city background, expressive simple face:1.18), (color shock glow, distorted light, high energy contrast:1.1), loose comic line, abstract energy pattern, bold color field, clean composition, readable silhouette, high detail, finished illustration |
-| 反向规避 | (worst quality, low quality:1.4), blurry, messy lineart, bad anatomy, 3D render, photorealistic, CGI, watermark, signature, text, calm neutral colors, photorealistic body, polished beauty anime |
+| 质量锚定 | (最佳质量,杰作,高细节:1.2), (迷幻都市灵异漫画:1.3), (变形透视,灵能光环,都市背景,表情丰富的简笔面容:1.18), (色彩冲击辉光,扭曲光效,高能量对比:1.1), 松动漫画线条,抽象能量图案,大胆色块,干净构图,可读剪影,高细节,完成度高的插画 |
+| 反向规避 | (最差质量,低质量:1.4), 模糊, 凌乱线稿, 解剖错误, 3D渲染, 照片写实, CGI, 水印, 签名, 文字, 平静中性色, 照片写实人体, 精致美型 anime |
 
 ## 三、必守规则
 

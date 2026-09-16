@@ -25,12 +25,12 @@ court orange, white, deep red，gymnasium top light, hard rim light, action free
 
 ### 正向质量锚点
 
-(best quality, masterpiece, high detailed:1.2), (realistic sports manga animation:1.3), (athletic body proportion, sweat detail, court atmosphere, intense eye focus:1.18), (gymnasium top light, hard rim light, action freeze frame:1.1), inked muscle line, textured shading, energetic motion, clean composition, readable silhouette, high detail, finished illustration
+(最佳质量,杰作,高细节:1.2), (写实运动漫画动画:1.3), (运动员体型比例,汗水细节,球场氛围,锐利眼神注视:1.18), (体育馆顶光,硬朗轮廓光,动作定格瞬间:1.1), 墨线肌肉线条,肌理化阴影,力量感动态,干净构图,可读剪影,高细节,完成度高的插画
 场景类提示词必须强化前景/中景/后景、空间纵深、主光源方向、材质痕迹和情绪色调。
 
 ### 反向规避提示词
 
-(worst quality, low quality:1.4), blurry, messy lineart, bad anatomy, 3D render, photorealistic, CGI, watermark, signature, text, chibi cute body, fantasy robe, weak anatomy, no depth, flat lighting, empty white background, people, human silhouette, cropped architecture, inconsistent season, text, watermark.
+(最差质量,低质量:1.4), 模糊, 凌乱线稿, 解剖错误, 3D渲染, 照片写实, CGI, 水印, 签名, 文字, Q版可爱体型, 奇幻长袍, 解剖结构松散, 无纵深, 平面打光, 空白背景, 人物, 人影, 建筑被裁切, 季节不一致, 文字, 水印
 
 ## 四、约束规则
 

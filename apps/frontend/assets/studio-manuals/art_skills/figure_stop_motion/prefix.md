@@ -21,8 +21,8 @@
 | 色彩基线 | plastic blue, warm desk light, neutral grey |
 | 主光方案 | macro studio light, rim light on plastic surface, shallow depth |
 | 画面层次 | 主体清晰、前中后景可读、焦点明确 |
-| 质量锚定 | (best quality, masterpiece, high detailed:1.2), (action figure stop-motion photography:1.3), (toy figure body, articulated pose, miniature prop, display diorama:1.18), (macro studio light, rim light on plastic surface, shallow depth:1.1), PVC material, molded seams, toy-scale detail, macro photography, tactile detail, frame-by-frame charm, high detail |
-| 反向规避 | (worst quality, low quality:1.4), fluid CGI animation, 2D anime, photorealistic human scale, smooth digital texture, bad anatomy, watermark, signature, text, human skin realism, 2D drawing, life-size body |
+| 质量锚定 | (最佳质量,杰作,高细节:1.2), (手办定格摄影:1.3), (玩具人形体态,可动关节姿态,微缩道具,展示微缩场景:1.18), (微距影棚光,塑料表面轮廓光,浅景深:1.1), PVC材质, 模塑接缝, 玩具尺度细节, 微距摄影, 触感细节, 逐帧手作魅力, 高细节 |
+| 反向规避 | (最差质量,低质量:1.4), 流畅CGI动画, 日式2D动画, 照片级真人尺度, 光滑数码质感, 解剖错误, 水印, 签名, 文字, 真人皮肤写实, 2D手绘, 真人等身人体 |
 
 ## 三、必守规则
 

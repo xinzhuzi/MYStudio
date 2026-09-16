@@ -279,12 +279,12 @@ character design sheet, character turnaround,
 
 ### 正向质量锚点
 
-国风二次元新国潮，Chinese style anime，cel shading，fine brushwork，traditional Chinese palette，cinematic composition，delicate lineart，best quality，masterpiece，high detailed。
-人物衍生提示词必须保持底模面容、体态、发型识别点不变，只叠加服化妆造与局部风格升级；补充 same character identity, face consistency, outfit detail clarity。
+国风二次元新国潮, 中式 anime 风, cel shading 上色, 精细笔法, 传统中式色盘, 电影感构图, 细腻线稿, 最佳质量, 杰作, 高细节。
+人物衍生提示词必须保持底模面容、体态、发型识别点不变，只叠加服化妆造与局部风格升级；补充同一角色身份、面容一致、服装细节清晰。
 
 ### 反向规避提示词
 
-low quality, worst quality, blurry, 3D render, CGI, photorealistic, western fantasy, sci-fi, cyberpunk, neon oversaturation, muddy lineart, bad anatomy, watermark, text, signature。
+低质量, 最差质量, 模糊, 3D渲染, CGI, 照片写实, 西式奇幻, 科幻, cyberpunk, 霓虹过饱和, 脏浊线稿, 解剖错误, 水印, 文字, 签名。
 face drift, identity changed, different person, pose changed, added scene, added handheld prop, inconsistent costume between views, cropped body, extra fingers。
 
 ### 输出净化规则

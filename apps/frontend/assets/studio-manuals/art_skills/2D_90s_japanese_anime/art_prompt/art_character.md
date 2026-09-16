@@ -173,12 +173,12 @@ character design sheet，character turnaround，
 
 ### 正向质量锚点
 
-90年代日式动画电影质感，hand-drawn cel animation，clean lineart，painted background，soft rim light，subtle film grain，nostalgic warm palette，best quality，high detail，sharp but not digital-glossy。
-角色类提示词必须保留身份、年龄、性别、五官、身高、头身比、体态、服装、发型和四视图一致性；补充 anatomy coherent, clean facial structure, consistent identity, complete head-to-toe framing。
+90年代日式动画电影质感, 手绘赛璐璐动画, 干净线稿, 手绘背景, 柔和轮廓光, 轻微胶片颗粒, 怀旧暖色盘, 最佳质量, 高细节, 锐利而不带数字油亮感。
+角色类提示词必须保留身份、年龄、性别、五官、身高、头身比、体态、服装、发型和四视图一致性；补充解剖连贯、面部结构干净、身份一致、从头到脚完整取景。
 
 ### 反向规避提示词
 
-low quality, worst quality, blurry, muddy colors, modern glossy digital painting, 3D render, CGI, photorealistic, western cartoon, over-sharpened HDR, noisy artifacts, watermark, text, signature。
+低质量, 最差质量, 模糊, 脏浊色彩, 现代光泽数字绘画, 3D渲染, CGI, 照片写实, 西式卡通, 过锐 HDR, 噪点伪影, 水印, 文字, 签名。
 bad anatomy, deformed face, asymmetrical eyes, extra limbs, missing limbs, fused fingers, cropped head, cropped feet, inconsistent identity, inconsistent clothing, oversexualized outfit。
 
 ### 输出净化规则

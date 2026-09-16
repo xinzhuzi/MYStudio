@@ -21,8 +21,8 @@
 | 色彩基线 | black, grey, cold blue |
 | 主光方案 | low key light, strong cast shadow, cold highlight |
 | 画面层次 | 主体清晰、前中后景可读、焦点明确 |
-| 质量锚定 | (best quality, masterpiece, high detailed:1.2), (dark psychological manga illustration:1.3), (sharp face, serious gaze, gothic mood, mystery composition:1.18), (low key light, strong cast shadow, cold highlight:1.1), intricate hatching, thin sharp line, desaturated color, clean composition, readable silhouette, high detail, finished illustration |
-| 反向规避 | (worst quality, low quality:1.4), blurry, messy lineart, bad anatomy, 3D render, photorealistic, CGI, watermark, signature, text, cute happy palette, chibi, bright comedy lighting |
+| 质量锚定 | (最佳质量,杰作,高细节:1.2), (暗黑心理漫画插画:1.3), (锐利五官,严肃目光,哥特式氛围,悬疑式构图:1.18), (低调布光,浓重投影,冷调高光:1.1), 细密排线,纤细锐利线稿,低饱和色彩,干净构图,可读剪影,高细节,完成度高的插画 |
+| 反向规避 | (最差质量,低质量:1.4), 模糊, 凌乱线稿, 解剖错误, 3D渲染, 照片写实, CGI, 水印, 签名, 文字, 可爱明快配色, Q版, 明亮喜剧式打光 |
 
 ## 三、必守规则
 

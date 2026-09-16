@@ -263,12 +263,12 @@ minimalist，clean lines，solid colors，
 
 ### 正向质量锚点
 
-高完成度扁平矢量插画，flat vector illustration，clean geometric shapes，solid color blocks，balanced negative space，crisp edges，consistent icon-like design，best quality，clean composition。
-人物衍生提示词必须保持底模面容、体态、发型识别点不变，只叠加服化妆造与局部风格升级；补充 same character identity, face consistency, outfit detail clarity。
+高完成度扁平矢量插画, 扁平矢量插画, 干净几何形状, 整实色块, 均衡 negative space, 利落边缘, 统一图标化设计, 最佳质量, 干净构图。
+人物衍生提示词必须保持底模面容、体态、发型识别点不变，只叠加服化妆造与局部风格升级；补充同一角色身份、面容一致、服装细节清晰。
 
 ### 反向规避提示词
 
-low quality, messy layout, 3D render, PBR material, photorealistic texture, complex lighting, heavy shadow, gradient overuse, noisy texture, sketchy line, watermark, text, signature。
+低质量, 凌乱布局, 3D渲染, PBR 材质, 照片写实纹理, 复杂光照, 浓重阴影, 渐变滥用, 噪点纹理, 草率线条, 水印, 文字, 签名。
 face drift, identity changed, different person, pose changed, added scene, added handheld prop, inconsistent costume between views, cropped body, extra fingers。
 
 ### 输出净化规则

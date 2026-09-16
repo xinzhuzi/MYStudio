@@ -130,12 +130,12 @@ scene design sheet，environment concept art，no people，no characters，no hu
 
 ### 正向质量锚点
 
-真人都市写实摄影，modern photorealistic live-action still，cinematic contrast，real skin texture，natural hair strands，modern Chinese urban space，life-like fabric detail，best quality，ultra detailed。
+真人都市写实摄影, live-action 现代都市电影剧照, 电影级对比, 真实皮肤纹理, 自然发丝, 现代中国都市空间, 栩栩如生的衣料细节, best quality, 极致细节。
 场景类提示词必须强化前景/中景/后景、空间纵深、主光源方向、材质痕迹和情绪色调；补充 layered environment, atmospheric perspective, coherent lighting, detailed material surface。
 
 ### 反向规避提示词
 
-low quality, 3D render, CGI, anime, illustration, cartoon, ancient costume, hanfu, traditional palace, cyberpunk excess, plastic skin, extra fingers, watermark, text, signature。
+低质量, 3D 渲染, CGI, 动漫, 插画, 卡通, 古代服装, hanfu, 传统宫殿, cyberpunk 过载, 塑料感皮肤, 多余手指, 水印, 文字, 签名。
 no depth, flat lighting, empty white background, people, human silhouette, character, cropped architecture, inconsistent season, overclean material, text, watermark。
 
 ### 输出净化规则

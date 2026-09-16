@@ -174,12 +174,12 @@ minimalist，clean lines，solid colors，
 
 ### 正向质量锚点
 
-高完成度扁平矢量插画，flat vector illustration，clean geometric shapes，solid color blocks，balanced negative space，crisp edges，consistent icon-like design，best quality，clean composition。
-角色类提示词必须保留身份、年龄、性别、五官、身高、头身比、体态、服装、发型和四视图一致性；补充 anatomy coherent, clean facial structure, consistent identity, complete head-to-toe framing。
+高完成度扁平矢量插画, 扁平矢量插画, 干净几何形状, 整实色块, 均衡 negative space, 利落边缘, 统一图标化设计, 最佳质量, 干净构图。
+角色类提示词必须保留身份、年龄、性别、五官、身高、头身比、体态、服装、发型和四视图一致性；补充解剖连贯、面部结构干净、身份一致、从头到脚完整取景。
 
 ### 反向规避提示词
 
-low quality, messy layout, 3D render, PBR material, photorealistic texture, complex lighting, heavy shadow, gradient overuse, noisy texture, sketchy line, watermark, text, signature。
+低质量, 凌乱布局, 3D渲染, PBR 材质, 照片写实纹理, 复杂光照, 浓重阴影, 渐变滥用, 噪点纹理, 草率线条, 水印, 文字, 签名。
 bad anatomy, deformed face, asymmetrical eyes, extra limbs, missing limbs, fused fingers, cropped head, cropped feet, inconsistent identity, inconsistent clothing, oversexualized outfit。
 
 ### 输出净化规则

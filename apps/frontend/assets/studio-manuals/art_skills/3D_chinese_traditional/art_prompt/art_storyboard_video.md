@@ -11,17 +11,17 @@
 
 ## 提示词质量增强
 
-> 生成最终提示词时，必须把本节融合进现有提示词模板；不要另起说明文字。支持 negative prompt 的模型，把“反向规避提示词”单独放入负面提示词；不支持 negative prompt 的模型，改写成正向规避要求。
+> 生成最终提示词时，必须把本节融合进现有提示词模板；不要另起说明文字。支持负面提示词的模型，把“反向规避提示词”单独放入负面提示词；不支持负面提示词的模型，改写成正向规避要求。
 
 ### 正向质量锚点
 
-国风3D高精度渲染，Chinese style 3D，PBR materials，fine embroidery，traditional oriental palette，volumetric lighting，ambient occlusion，cinematic depth of field，best quality，8k detail。
-视频提示词必须补充镜头运动、主体运动、起承转合、景深变化、光影连续性和首尾帧一致性；补充 cinematic motion, temporal continuity, stable composition, consistent subject identity。
+国风3D高精度渲染, 中式 3D, PBR 材质, 精细刺绣, 传统东方色调, 体积光, 环境光遮蔽, 电影级景深, 最佳质量, 8K 细节。
+视频提示词必须补充镜头运动、主体运动、起承转合、景深变化、光影连续性和首尾帧一致性；补充电影感运动、时间连续、构图稳定、主体身份一致。
 
 ### 反向规避提示词
 
-low quality, low-poly, flat 2D, sketch, photorealistic photography, western fantasy, sci-fi, neon oversaturation, plastic material, rough texture, bad anatomy, watermark, text。
-flicker, jitter, morphing face, identity drift, inconsistent costume, warped hands, broken motion, sudden scene jump, overexposed effect, text, watermark, logo。
+低质量, low-poly, 扁平 2D, 草图, 照片级写实摄影, 西方奇幻, 科幻, 霓虹过饱和, 塑料材质, 粗糙纹理, 解剖错误, 水印, 文字。
+闪烁, 抖动, 面部变形, 身份漂移, 服装不一致, 手部扭曲, 动作断裂, 场景突切, 过曝效果, 文字, 水印, 标志。
 
 ### 输出净化规则
 

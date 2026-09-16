@@ -179,4 +179,71 @@ async function cleanupLegacyUnsavedTabs() {
   }
 }
 
+// ── 排队新鲜度闸(09-16 用户令:旧标签揣旧默认三次咬人,根除)──────
+// 规则:排队瞬间,活跃签若是我们仓库库路径(workflows/ 前缀)且 changeTracker
+// 判"干净"(=非用户修改;程序化装载的假脏已有 updateModified 自愈归一),
+// force 重读库文件——文件内容已变(参数定档/打包/保鲜链落在背后)就静默
+// 刷新画布到新版再排队,零用户损失;用户真改过的脏签只提醒不强刷。
+// 闸自身全 try/except,任何故障绝不挡排队。
+function myFreshnessToast(msg, warn = false) {
+  try {
+    const BOX = "my-freshness-toast";
+    let el = document.getElementById(BOX);
+    if (!el) {
+      el = document.createElement("div");
+      el.id = BOX;
+      el.style.cssText = "position:fixed;z-index:99999;left:50%;bottom:64px;"
+        + "transform:translateX(-50%);padding:8px 14px;border-radius:8px;"
+        + "background:rgba(28,34,30,.94);color:#dee3dd;"
+        + "font:12px -apple-system,BlinkMacSystemFont,sans-serif;"
+        + "border:1px solid rgba(109,158,107,.5);pointer-events:none;"
+        + "transition:opacity .4s;max-width:70vw;";
+      document.body.appendChild(el);
+    }
+    el.style.borderColor = warn ? "rgba(224,120,90,.6)" : "rgba(109,158,107,.5)";
+    el.textContent = msg;
+    el.style.opacity = "1";
+    clearTimeout(el.__myt);
+    el.__myt = setTimeout(() => { el.style.opacity = "0"; }, 3600);
+  } catch (error) { /* 提示失败无碍 */ }
+}
+
+export async function queueFreshnessGate() {
+  const app2 = window.app;
+  const svc = app2?.extensionManager?.workflow;
+  const active = svc?.activeWorkflow;
+  if (!active?.path || !String(active.path).startsWith(MY_STORE_BASE)) return false;
+  let modified = false;
+  try { modified = !!active.isModified; } catch (error) { /* 无碍 */ }
+  try {
+    const entry = svc.getWorkflowByPath(active.path) || null;
+    if (!entry) return false;
+    const before = JSON.stringify(active.activeState ?? null);
+    await entry.load({ force: true });
+    const fresh = JSON.stringify(entry.activeState ?? null);
+    if (fresh === before) return false; // 文件没变,零动作
+    if (modified) {
+      myFreshnessToast("工作流文件已更新;你画布有自定义修改,未自动刷新——要新版默认请从侧栏重新打开", true);
+      return false;
+    }
+    await app2.loadGraphData(cloneGraph(entry.activeState), true, true, entry);
+    try { entry.changeTracker?.updateModified(); } catch (error) { /* 装载后重评 */ }
+    myFreshnessToast("检测到工作流新版本:已自动刷新默认值(如提示词/参数)后再排队");
+    return true;
+  } catch (error) {
+    return false; // 闸故障绝不挡排队
+  }
+}
+
+if (!window.__myQueueFreshnessHooked) {
+  window.__myQueueFreshnessHooked = true;
+  const hook = async () => { try { await queueFreshnessGate(); } catch (error) { /* 无碍 */ } };
+  const app2 = window.app;
+  if (app2 && typeof app2.queuePrompt === "function") {
+    const origQueue = app2.queuePrompt.bind(app2);
+    // 先闸后队:刷新完成才放行序列化,本单即吃到新默认(竞态修正)
+    app2.queuePrompt = async (...args) => { await hook(); return origQueue(...args); };
+  }
+}
+
 export { MY_STORE_BASE, cloneGraph, closeStaleWorkflows, mainlineTabMatcher, openWorkflowSingleInstance, cleanupLegacyUnsavedTabs };

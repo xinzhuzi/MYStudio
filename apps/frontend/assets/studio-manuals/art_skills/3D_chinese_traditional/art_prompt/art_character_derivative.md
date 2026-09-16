@@ -223,10 +223,10 @@ metaData: art_skills
 
 | 位置 | 视图 | 角度 | 景别 | 要求 | 提示词 |
 |---|---|---|---|---|---|
-| 左一 | 人像特写 | 正面平视 | 面部至锁骨 | 面部占60%+，五官/妆容清晰 | portrait closeup、face detail、makeup detail |
-| 左二 | 正视图 | 正面 0° | 全身立像 | 面对镜头、服饰正面全貌 | front view、height mark |
-| 右二 | 侧视图 | 右侧 90° | 全身立像 | 纯侧面轮廓、服饰侧面层次 | side view、profile、height mark |
-| 右一 | 后视图 | 后方 180° | 全身立像 | 后脑发饰/背部服饰/发尾清晰 | back view、rear view、height mark |
+| 左一 | 人像特写 | 正面平视 | 面部至锁骨 | 面部占60%+，五官/妆容清晰 | 人像特写、面部细节、妆容细节 |
+| 左二 | 正视图 | 正面 0° | 全身立像 | 面对镜头、服饰正面全貌 | 正面视图、身高标记 |
+| 右二 | 侧视图 | 右侧 90° | 全身立像 | 纯侧面轮廓、服饰侧面层次 | 侧面视图、侧身轮廓、身高标记 |
+| 右一 | 后视图 | 后方 180° | 全身立像 | 后脑发饰/背部服饰/发尾清晰 | 背面视图、后视图、身高标记 |
 
 ### 画面规范
 
@@ -260,7 +260,7 @@ metaData: art_skills
 以角色基础形象图为底图，img2img叠加服化妆造，
 3D渲染风格，高精度建模，PBR材质，国风3D，电影级光影，
 古风{性别}角色四视图设定图，3D渲染，高精建模，8K，超保真
-character design sheet, character turnaround,
+character design 设定图, 角色转面图,
 保持基础形象面容不变，{整体气质},
 【L1·妆容】根据用户线索决策：{基础妆/轻妆/正式妆}；使用 {妆容风格}, PBR材质渲染, {眉妆}, {眼妆}, {唇妆},
 【L2·发型】{造型类型}, 高精度发丝清晰, {发饰描述},
@@ -275,17 +275,17 @@ character design sheet, character turnaround,
 
 ## 提示词质量增强
 
-> 生成最终提示词时，必须把本节融合进现有提示词模板；不要另起说明文字。支持 negative prompt 的模型，把“反向规避提示词”单独放入负面提示词；不支持 negative prompt 的模型，改写成正向规避要求。
+> 生成最终提示词时，必须把本节融合进现有提示词模板；不要另起说明文字。支持负面提示词的模型，把“反向规避提示词”单独放入负面提示词；不支持负面提示词的模型，改写成正向规避要求。
 
 ### 正向质量锚点
 
-国风3D高精度渲染，Chinese style 3D，PBR materials，fine embroidery，traditional oriental palette，volumetric lighting，ambient occlusion，cinematic depth of field，best quality，8k detail。
-人物衍生提示词必须保持底模面容、体态、发型识别点不变，只叠加服化妆造与局部风格升级；补充 same character identity, face consistency, outfit detail clarity。
+国风3D高精度渲染, 中式 3D, PBR 材质, 精细刺绣, 传统东方色调, 体积光, 环境光遮蔽, 电影级景深, 最佳质量, 8K 细节。
+人物衍生提示词必须保持底模面容、体态、发型识别点不变，只叠加服化妆造与局部风格升级；补充同一角色身份、面部一致、服饰细节清晰。
 
 ### 反向规避提示词
 
-low quality, low-poly, flat 2D, sketch, photorealistic photography, western fantasy, sci-fi, neon oversaturation, plastic material, rough texture, bad anatomy, watermark, text。
-face drift, identity changed, different person, pose changed, added scene, added handheld prop, inconsistent costume between views, cropped body, extra fingers。
+低质量, low-poly, 扁平 2D, 草图, 照片级写实摄影, 西方奇幻, 科幻, 霓虹过饱和, 塑料材质, 粗糙纹理, 解剖错误, 水印, 文字。
+面部漂移, 身份改变, 不同人物, 姿态改变, 添加场景, 添加手持道具, 视图间服装不一致, 身体裁切, 多余手指。
 
 ### 输出净化规则
 

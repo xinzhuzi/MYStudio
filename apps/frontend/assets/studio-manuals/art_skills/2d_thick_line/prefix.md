@@ -21,8 +21,8 @@
 | 色彩基线 | orange, teal, black |
 | 主光方案 | flat bright light, high contrast color block, poster-like clarity |
 | 画面层次 | 主体清晰、前中后景可读、焦点明确 |
-| 质量锚定 | (best quality, masterpiece, high detailed:1.2), (bold thick-line street illustration:1.3), (chunky outline, graphic pose, urban art energy, simplified shape:1.18), (flat bright light, high contrast color block, poster-like clarity:1.1), thick ink contour, halftone texture, vibrant fill, clean composition, readable silhouette, high detail, finished illustration |
-| 反向规避 | (worst quality, low quality:1.4), blurry, messy lineart, bad anatomy, 3D render, photorealistic, CGI, watermark, signature, text, thin delicate line, realistic painting, muted faded color |
+| 质量锚定 | (最佳质量,杰作,高细节:1.2), (粗线条街头插画:1.3), (厚实轮廓,图形化姿态,都市街头艺术活力,简化造型:1.18), (平涂明亮光线,高对比色块,海报式清晰度:1.1), 浓墨轮廓,半调网点肌理,鲜亮平涂填色,干净构图,可读剪影,高细节,完成度高的插画 |
+| 反向规避 | (最差质量,低质量:1.4), 模糊, 凌乱线稿, 解剖错误, 3D渲染, 照片写实, CGI, 水印, 签名, 文字, 细弱精致线条, 写实绘画, 灰暗褪色 |
 
 ## 三、必守规则
 

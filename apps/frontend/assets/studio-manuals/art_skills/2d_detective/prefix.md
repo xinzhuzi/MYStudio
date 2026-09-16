@@ -21,8 +21,8 @@
 | 色彩基线 | navy, beige, warm lamp light |
 | 主光方案 | cool evening light, dramatic interior shadow, suspense tone |
 | 画面层次 | 主体清晰、前中后景可读、焦点明确 |
-| 质量锚定 | (best quality, masterpiece, high detailed:1.2), (Japanese detective anime style:1.3), (sharp facial features, mystery mood, school and city setting, clue-focused framing:1.18), (cool evening light, dramatic interior shadow, suspense tone:1.1), clean cel line, restrained color, classic animation finish, clean composition, readable silhouette, high detail, finished illustration |
-| 反向规避 | (worst quality, low quality:1.4), blurry, messy lineart, bad anatomy, 3D render, photorealistic, CGI, watermark, signature, text, fantasy magic excess, modern glossy 3D, cute chibi |
+| 质量锚定 | (最佳质量,杰作,高细节:1.2), (日式侦探动画风格:1.3), (锐利面部特征,悬疑氛围,校园与城市场景,聚焦线索的构图:1.18), (清冷夜光,戏剧性室内阴影,悬疑基调:1.1), 干净赛璐璐线,克制的配色,经典动画质感,干净构图,可读剪影,高细节,完成度高的插画 |
+| 反向规避 | (最差质量,低质量:1.4), 模糊, 凌乱线稿, 解剖错误, 3D渲染, 照片写实, CGI, 水印, 签名, 文字, 奇幻魔法堆砌, 现代光亮 3D, 可爱 chibi |
 
 ## 三、必守规则
 

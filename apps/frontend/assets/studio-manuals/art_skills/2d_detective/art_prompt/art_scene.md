@@ -25,12 +25,12 @@ navy, beige, warm lamp light，cool evening light, dramatic interior shadow, sus
 
 ### 正向质量锚点
 
-(best quality, masterpiece, high detailed:1.2), (Japanese detective anime style:1.3), (sharp facial features, mystery mood, school and city setting, clue-focused framing:1.18), (cool evening light, dramatic interior shadow, suspense tone:1.1), clean cel line, restrained color, classic animation finish, clean composition, readable silhouette, high detail, finished illustration
+(最佳质量,杰作,高细节:1.2), (日式侦探动画风格:1.3), (锐利面部特征,悬疑氛围,校园与城市场景,聚焦线索的构图:1.18), (清冷夜光,戏剧性室内阴影,悬疑基调:1.1), 干净赛璐璐线,克制的配色,经典动画质感,干净构图,可读剪影,高细节,完成度高的插画
 场景类提示词必须强化前景/中景/后景、空间纵深、主光源方向、材质痕迹和情绪色调。
 
 ### 反向规避提示词
 
-(worst quality, low quality:1.4), blurry, messy lineart, bad anatomy, 3D render, photorealistic, CGI, watermark, signature, text, fantasy magic excess, modern glossy 3D, cute chibi, no depth, flat lighting, empty white background, people, human silhouette, cropped architecture, inconsistent season, text, watermark.
+(最差质量,低质量:1.4), 模糊, 凌乱线稿, 解剖错误, 3D渲染, 照片写实, CGI, 水印, 签名, 文字, 奇幻魔法堆砌, 现代光亮 3D, 可爱 chibi, 无纵深, 平面打光, 空白背景, 人物, 人影, 建筑被裁切, 季节不一致, 文字, 水印
 
 ## 四、约束规则
 

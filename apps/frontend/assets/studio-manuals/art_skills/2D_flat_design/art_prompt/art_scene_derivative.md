@@ -139,12 +139,12 @@ flat scene derivative，environment concept art，no people，no characters，no
 
 ### 正向质量锚点
 
-高完成度扁平矢量插画，flat vector illustration，clean geometric shapes，solid color blocks，balanced negative space，crisp edges，consistent icon-like design，best quality，clean composition。
-场景衍生提示词必须保持原场景地标、空间结构、材质年代感不变，只改变时段、天候、景别或镜头角度；补充 landmark consistency, spatial continuity, cinematic atmosphere。
+高完成度扁平矢量插画, 扁平矢量插画, 干净几何形状, 整实色块, 均衡 negative space, 利落边缘, 统一图标化设计, 最佳质量, 干净构图。
+场景衍生提示词必须保持原场景地标、空间结构、材质年代感不变，只改变时段、天候、景别或镜头角度；补充地标一致、空间连续、电影感氛围。
 
 ### 反向规避提示词
 
-low quality, messy layout, 3D render, PBR material, photorealistic texture, complex lighting, heavy shadow, gradient overuse, noisy texture, sketchy line, watermark, text, signature。
+低质量, 凌乱布局, 3D渲染, PBR 材质, 照片写实纹理, 复杂光照, 浓重阴影, 渐变滥用, 噪点纹理, 草率线条, 水印, 文字, 签名。
 changed location, lost landmark, added people, human silhouette, random architecture, inconsistent perspective, flat lighting, overclean material, text, watermark。
 
 ### 输出净化规则

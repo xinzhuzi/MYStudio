@@ -183,12 +183,12 @@ character design sheet，character turnaround，
 
 ### 正向质量锚点
 
-成熟都市言情二次元动画，premium webtoon aesthetic，refined lineart，soft cinematic lighting，modern fashion detail，subtle romantic mood，clean digital coloring，best quality，high detailed。
-角色类提示词必须保留身份、年龄、性别、五官、身高、头身比、体态、服装、发型和四视图一致性；补充 anatomy coherent, clean facial structure, consistent identity, complete head-to-toe framing。
+成熟都市言情二次元动画, 高质感 webtoon 美学, 精致线稿, 柔和电影感光照, 现代时装细节, 含蓄浪漫情绪, 干净数码上色, 最佳质量, 高细节。
+角色类提示词必须保留身份、年龄、性别、五官、身高、头身比、体态、服装、发型和四视图一致性；补充解剖连贯、面部结构干净、身份一致、从头到脚完整取景。
 
 ### 反向规避提示词
 
-low quality, childish chibi, exaggerated comedy face, 3D render, photorealistic, cheap neon, harsh manga speed lines, messy anatomy, overexposed skin, watermark, text, signature。
+低质量, 幼稚 chibi, 夸张喜剧表情, 3D渲染, 照片写实, 廉价霓虹, 生硬 manga 速度线, 凌乱解剖, 过曝皮肤, 水印, 文字, 签名。
 bad anatomy, deformed face, asymmetrical eyes, extra limbs, missing limbs, fused fingers, cropped head, cropped feet, inconsistent identity, inconsistent clothing, oversexualized outfit。
 
 ### 输出净化规则

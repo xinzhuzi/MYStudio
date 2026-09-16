@@ -21,8 +21,8 @@
 | 色彩基线 | rose pink, lavender, pearl white |
 | 主光方案 | pastel glow, soft highlight, gentle vignette |
 | 画面层次 | 主体清晰、前中后景可读、焦点明确 |
-| 质量锚定 | (best quality, masterpiece, high detailed:1.2), (retro shoujo manga illustration:1.3), (sparkling eyes, delicate hair, floral background, dreamy romance:1.18), (pastel glow, soft highlight, gentle vignette:1.1), thin elegant line, screentone texture, soft color wash, clean composition, readable silhouette, high detail, finished illustration |
-| 反向规避 | (worst quality, low quality:1.4), blurry, messy lineart, bad anatomy, 3D render, photorealistic, CGI, watermark, signature, text, dark horror, muscular shonen style, 3D realism |
+| 质量锚定 | (最佳质量,杰作,高细节:1.2), (复古少女漫画插画:1.3), (闪亮大眼,细腻发丝,花卉背景,梦幻浪漫:1.18), (粉彩辉光,柔和高光,轻柔暗角:1.1), 纤细优雅线条,网点纸质感,柔和淡彩晕染,干净构图,可读剪影,高细节,完成度高的插画 |
+| 反向规避 | (最差质量,低质量:1.4), 模糊, 凌乱线稿, 解剖错误, 3D渲染, 照片写实, CGI, 水印, 签名, 文字, 黑暗恐怖, 肌肉少年漫画风, 3D写实感 |
 
 ## 三、必守规则
 

@@ -25,12 +25,12 @@ clear daylight, simple ambient occlusion, readable shadow，flat shaded polygons
 
 ### 正向质量锚点
 
-(best quality, masterpiece, high detailed:1.2), (low poly geometric 3D art:1.3), (faceted shapes, angular silhouette, simple forms, clean environment:1.18), (clear daylight, simple ambient occlusion, readable shadow:1.1), flat shaded polygons, crisp edges, minimal texture, sharp focus, detailed background, polished composition
+(最佳质量,杰作,高细节:1.2), (low-poly 几何3D美术:1.3), (分面形体,棱角剪影,简洁造型,干净环境:1.18), (清澈日光,简练环境光遮蔽,可读阴影:1.1), 平面着色多边形, 干脆利落的边缘, 极简纹理, 锐利焦点, 细节丰富的背景, 精致构图
 道具类提示词必须明确类型、材质、工艺、磨损痕迹、陈列方式和多角度/细节特写。
 
 ### 反向规避提示词
 
-(worst quality, low quality, bad quality:1.4), blurry, fuzzy, distorted, out of focus, malformed body, extra limbs, watermark, signature, text, high-poly realism, organic smooth shapes, noisy texture, hands, fingers, human body, worn by character, held by character, floating without support, unclear silhouette, wrong material, text, watermark.
+(最差质量,低质量,劣质:1.4), 模糊, 糊化, 变形, 失焦, 畸形身体, 多余肢体, 水印, 签名, 文字, high-poly 写实, 有机圆润形体, 噪点纹理, 手部, 手指, 人体, 被角色穿戴, 被角色手持, 无支撑悬浮, 剪影不清, 材质错误, 文字, 水印.
 
 ## 四、约束规则
 

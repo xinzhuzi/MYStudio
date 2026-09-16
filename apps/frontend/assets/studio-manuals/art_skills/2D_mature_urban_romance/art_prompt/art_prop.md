@@ -118,12 +118,12 @@ prop design sheet，item concept art，no people，no characters，no human figu
 
 ### 正向质量锚点
 
-成熟都市言情二次元动画，premium webtoon aesthetic，refined lineart，soft cinematic lighting，modern fashion detail，subtle romantic mood，clean digital coloring，best quality，high detailed。
-道具类提示词必须明确道具类型、材质、工艺、磨损痕迹、陈列方式和多角度/细节特写；补充 crisp silhouette, readable material, fine craftsmanship, isolated prop display。
+成熟都市言情二次元动画, 高质感 webtoon 美学, 精致线稿, 柔和电影感光照, 现代时装细节, 含蓄浪漫情绪, 干净数码上色, 最佳质量, 高细节。
+道具类提示词必须明确道具类型、材质、工艺、磨损痕迹、陈列方式和多角度/细节特写；补充利落剪影、可读材质、精细工艺、道具独立陈列。
 
 ### 反向规避提示词
 
-low quality, childish chibi, exaggerated comedy face, 3D render, photorealistic, cheap neon, harsh manga speed lines, messy anatomy, overexposed skin, watermark, text, signature。
+低质量, 幼稚 chibi, 夸张喜剧表情, 3D渲染, 照片写实, 廉价霓虹, 生硬 manga 速度线, 凌乱解剖, 过曝皮肤, 水印, 文字, 签名。
 hands, fingers, human body, worn by character, held by character, floating without support, unclear silhouette, wrong material, modern item mismatch, text, watermark。
 
 ### 输出净化规则

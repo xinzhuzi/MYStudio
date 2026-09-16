@@ -22,4 +22,4 @@ metaData: art_skills
 | V2 | 镜头运动服务叙事，不为了炫技改变风格 |
 | V3 | 动作需有起承转合，避免瞬间变形和身份漂移 |
 | V4 | 首尾帧构图保持稳定，过渡自然 |
-| V5 | 负向规避：(worst quality, low quality:1.4), blurry, messy lineart, bad anatomy, 3D render, photorealistic, CGI, watermark, signature, text, static calm pose, soft shoujo mood, pastel quiet scene, flicker, jitter, morphing face, identity drift, warped hands, broken motion, sudden scene jump |
+| V5 | 负向规避:(最差质量,低质量:1.4), 模糊, 凌乱线稿, 解剖错误, 3D渲染, 照片写实, CGI, 水印, 签名, 文字, 静态平静姿势, 柔和少女漫画氛围, 粉彩安静场景, 画面闪烁, 抖动, 面部融合变形, 身份漂移, 手部扭曲, 动作断裂, 场景突跳 |

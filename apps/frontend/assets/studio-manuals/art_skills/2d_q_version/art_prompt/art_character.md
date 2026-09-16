@@ -29,12 +29,12 @@ soft pastel light, gentle highlight, clean background，rounded line, simple cel
 
 ### 正向质量锚点
 
-(best quality, masterpiece, high detailed:1.2), (kawaii chibi 2D illustration:1.3), (super deformed body, cute face, tiny hands, adorable costume:1.18), (soft pastel light, gentle highlight, clean background:1.1), rounded line, simple cel shadow, candy color, clean composition, readable silhouette, high detail, finished illustration
+(最佳质量,杰作,高细节:1.2), (Q版可爱2D插画:1.3), (大头小身体型,可爱面孔,小巧双手,萌趣服装:1.18), (柔和粉彩光,轻柔高光,干净背景:1.1), 圆润线条,简单赛璐璐阴影,糖果色,干净构图,可读剪影,高细节,完成度高的插画
 角色类提示词必须保留身份、年龄、性别、五官、身高、头身比、体态、服装、发型和四视图一致性。
 
 ### 反向规避提示词
 
-(worst quality, low quality:1.4), blurry, messy lineart, bad anatomy, 3D render, photorealistic, CGI, watermark, signature, text, realistic adult proportion, horror mood, harsh dark lighting, bad anatomy, deformed face, asymmetrical eyes, extra limbs, missing limbs, fused fingers, cropped head, cropped feet, inconsistent identity, inconsistent clothing.
+(最差质量,低质量:1.4), 模糊, 凌乱线稿, 解剖错误, 3D渲染, 照片写实, CGI, 水印, 签名, 文字, 写实成人比例, 恐怖氛围, 生硬深暗照明, 解剖错误, 面部变形, 双眼不对称, 多余肢体, 缺失肢体, 并指, 头部裁切, 脚部裁切, 身份不一致, 服装不一致
 
 ## 四、必守 / 严禁
 

@@ -29,12 +29,12 @@ soft analog glow, mild film grain, warm evening light，cel paint texture, sligh
 
 ### 正向质量锚点
 
-(best quality, masterpiece, high detailed:1.2), (1990s hand-drawn cel animation:1.3), (retro character design, matte painted background, nostalgic framing:1.18), (soft analog glow, mild film grain, warm evening light:1.1), cel paint texture, slight VHS softness, hand-painted backdrop, clean composition, readable silhouette, high detail, finished illustration
+(最佳质量,杰作,高细节:1.2), (90年代手绘赛璐璐动画:1.3), (复古角色设计,哑光绘景背景,怀旧式取景:1.18), (柔和模拟辉光,轻微胶片颗粒,温暖暮光:1.1), 赛璐璐上色质感,轻微VHS柔化,手绘背景板,干净构图,可读剪影,高细节,完成度高的插画
 角色类提示词必须保留身份、年龄、性别、五官、身高、头身比、体态、服装、发型和四视图一致性。
 
 ### 反向规避提示词
 
-(worst quality, low quality:1.4), blurry, messy lineart, bad anatomy, 3D render, photorealistic, CGI, watermark, signature, text, modern glossy digital art, 3D render, hyper sharp HDR, bad anatomy, deformed face, asymmetrical eyes, extra limbs, missing limbs, fused fingers, cropped head, cropped feet, inconsistent identity, inconsistent clothing.
+(最差质量,低质量:1.4), 模糊, 凌乱线稿, 解剖错误, 3D渲染, 照片写实, CGI, 水印, 签名, 文字, 现代光泽数字艺术, 3D渲染, 超锐利HDR, 解剖错误, 面部变形, 双眼不对称, 多余肢体, 缺失肢体, 并指, 头部裁切, 脚部裁切, 身份不一致, 服装不一致
 
 ## 四、必守 / 严禁
 

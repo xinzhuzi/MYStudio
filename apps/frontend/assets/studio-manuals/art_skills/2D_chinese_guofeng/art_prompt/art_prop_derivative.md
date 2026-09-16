@@ -115,12 +115,12 @@ metaData: art_skills
 
 ### 正向质量锚点
 
-国风二次元新国潮，Chinese style anime，cel shading，fine brushwork，traditional Chinese palette，cinematic composition，delicate lineart，best quality，masterpiece，high detailed。
-道具衍生提示词必须保持原道具轮廓、核心材质和识别纹样不变，只做状态、光效、局部纹理或视角升级；补充 same prop identity, material consistency, fine detail preservation。
+国风二次元新国潮, 中式 anime 风, cel shading 上色, 精细笔法, 传统中式色盘, 电影感构图, 细腻线稿, 最佳质量, 杰作, 高细节。
+道具衍生提示词必须保持原道具轮廓、核心材质和识别纹样不变，只做状态、光效、局部纹理或视角升级；补充同一道具身份、材质一致、细节保留完好。
 
 ### 反向规避提示词
 
-low quality, worst quality, blurry, 3D render, CGI, photorealistic, western fantasy, sci-fi, cyberpunk, neon oversaturation, muddy lineart, bad anatomy, watermark, text, signature。
+低质量, 最差质量, 模糊, 3D渲染, CGI, 照片写实, 西式奇幻, 科幻, cyberpunk, 霓虹过饱和, 脏浊线稿, 解剖错误, 水印, 文字, 签名。
 changed prop type, wrong silhouette, added hand, added character, worn or held, lost core pattern, excessive glow hiding shape, text, watermark。
 
 ### 输出净化规则

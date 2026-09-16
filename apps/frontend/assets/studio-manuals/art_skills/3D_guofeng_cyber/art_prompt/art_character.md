@@ -18,12 +18,12 @@ metaData: art_skills
 
 ### 正向质量锚点
 
-国风赛博3D渲染，Chinese cyber fantasy 3D，traditional silhouette with controlled futuristic accents，cinematic neon rim light，iridescent material，high precision model，layered atmosphere，best quality，high detail。
+国风赛博3D渲染，中式赛博奇幻3D，传统剪影配克制的未来感点缀，电影级霓虹轮廓光，虹彩材质，高精度建模，层次化氛围，最佳质量，高细节。
 角色类提示词必须保留身份、年龄、性别、五官、身高、头身比、体态、服装、发型和四视图一致性；补充 anatomy coherent, clean facial structure, consistent identity, complete head-to-toe framing。
 
 ### 反向规避提示词
 
-low quality, generic western sci-fi, pure cyberpunk without Chinese design, flat 2D, photorealistic photography, neon overexposure, chaotic colors, cluttered detail, bad anatomy, watermark, text。
+低质量, 泛西方科幻, 缺少中式设计的纯赛博朋克, 平面2D, 照片级写实摄影, 霓虹过曝, 混乱配色, 杂乱细节, 解剖错误, 水印, 文字。
 bad anatomy, deformed face, asymmetrical eyes, extra limbs, missing limbs, fused fingers, cropped head, cropped feet, inconsistent identity, inconsistent clothing, oversexualized outfit。
 
 ### 输出净化规则

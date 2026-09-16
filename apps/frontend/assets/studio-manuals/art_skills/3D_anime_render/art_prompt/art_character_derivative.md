@@ -69,7 +69,7 @@
 | 项目 | 约束 | 提示词 |
 |---|---|---|
 | 质感 | 赛璐珞渲染、柔和光泽 | 卡通肌肤、柔和皮肤质感 |
-| 白度 | 冷白皮、通透不惨白 | 牛奶肌、milky white skin |
+| 白度 | 冷白皮、通透不惨白 | 牛奶肌 |
 | 内透光 | 从内向外柔光感 | 内透光感、皮肤通透发光 |
 | 禁止 | 哑光/死白/蜡感/油光/过曝 | — |
 
@@ -97,7 +97,7 @@
 
 | 项目 | 约束 | 提示词 |
 |---|---|---|
-| 底肤 | 赛璐珞渲染、白皙透亮、清爽自然 | 卡通肌肤、奶油肌、luminous skin |
+| 底肤 | 赛璐珞渲染、白皙透亮、清爽自然 | 卡通肌肤、奶油肌、透亮肌肤 |
 | 原则 | 伪素颜——看着没化妆但皮肤极好 | 伪素颜、天生好皮 |
 | 眉毛 | 自然浓眉、不画眉 | 剑眉自然、眉形英挺 |
 | 唇色 | 自然血色、微润 | 唇色自然、血色感 |
@@ -228,10 +228,10 @@
 
 | 位置 | 视图 | 角度 | 景别 | 要求 | 提示词 |
 |---|---|---|---|---|---|
-| 左一 | 人像特写 | 正面平视 | 面部至锁骨 | 面部占60%+，五官/妆容清晰 | portrait closeup、face detail、makeup detail |
-| 左二 | 正视图 | 正面 0° | 全身立像 | 面对镜头、服饰正面全貌 | front view、height mark |
-| 右二 | 侧视图 | 右侧 90° | 全身立像 | 纯侧面轮廓、服饰侧面层次 | side view、profile、height mark |
-| 右一 | 后视图 | 后方 180° | 全身立像 | 后脑发饰/背部服饰/发尾清晰 | back view、rear view、height mark |
+| 左一 | 人像特写 | 正面平视 | 面部至锁骨 | 面部占60%+，五官/妆容清晰 | 人像特写、面部细节、妆容细节 |
+| 左二 | 正视图 | 正面 0° | 全身立像 | 面对镜头、服饰正面全貌 | 正面视图、身高标记 |
+| 右二 | 侧视图 | 右侧 90° | 全身立像 | 纯侧面轮廓、服饰侧面层次 | 侧面视图、侧身轮廓、身高标记 |
+| 右一 | 后视图 | 后方 180° | 全身立像 | 后脑发饰/背部服饰/发尾清晰 | 背面视图、后视图、身高标记 |
 
 ### 画面规范
 
@@ -265,7 +265,7 @@
 ```
 以角色基础形象图为底图，img2img叠加服化妆造，
 3D 动画渲染，电影级打光，活力赛璐珞质感，高细节材质，愉悦治愈氛围，卡通都市风，高细节卡通材质，适度卡通比例，暖色调配色，8K 超高清，电影级构图，柔和光影层次，明快卡通渲染风格，温馨治愈，{性别}角色四视图设定图，
-anime style, cel-shaded, 3D animation render, film lighting,
+anime 风格, cel-shaded, 3D 动画渲染, film lighting,
 character design sheet, character turnaround,
 保持基础形象面容不变，{整体气质}，
 【L1·妆容】根据用户线索决策：{基础妆/轻妆/正式妆}；使用 {妆容风格}，赛璐珞肌肤，{眉妆}，{眼妆}，{唇妆}，
@@ -284,17 +284,17 @@ character design sheet, character turnaround,
 
 ## 提示词质量增强
 
-> 生成最终提示词时，必须把本节融合进现有提示词模板；不要另起说明文字。支持 negative prompt 的模型，把“反向规避提示词”单独放入负面提示词；不支持 negative prompt 的模型，改写成正向规避要求。
+> 生成最终提示词时，必须把本节融合进现有提示词模板；不要另起说明文字。支持负面提示词的模型，把“反向规避提示词”单独放入负面提示词；不支持负面提示词的模型，改写成正向规避要求。
 
 ### 正向质量锚点
 
-高精度3D动画渲染，anime style 3D render，cel-shaded 3D，clean topology，polished materials，soft cinematic lighting，sharp focus，best quality，masterpiece，high detailed。
-人物衍生提示词必须保持底模面容、体态、发型识别点不变，只叠加服化妆造与局部风格升级；补充 same character identity, face consistency, outfit detail clarity。
+高精度3D动画渲染, anime 风格 3D 渲染, cel-shaded 3D, 干净拓扑, 精致抛光材质, 柔和电影级打光, 锐利焦点, 最佳质量, 杰作, 高细节。
+人物衍生提示词必须保持底模面容、体态、发型识别点不变，只叠加服化妆造与局部风格升级；补充同一角色身份、面部一致、服饰细节清晰。
 
 ### 反向规避提示词
 
-low quality, low poly, rough topology, flat 2D drawing, sketch, photorealistic photography, plastic skin, broken material, noisy render, bad anatomy, watermark, text, signature。
-face drift, identity changed, different person, pose changed, added scene, added handheld prop, inconsistent costume between views, cropped body, extra fingers。
+低质量, low poly, 粗糙拓扑, 扁平 2D 手绘, 草图, 照片级写实摄影, 塑料感皮肤, 破损材质, 噪点渲染, 解剖错误, 水印, 文字, 签名。
+面部漂移, 身份改变, 不同人物, 姿态改变, 添加场景, 添加手持道具, 视图间服装不一致, 身体裁切, 多余手指。
 
 ### 输出净化规则
 
@@ -325,9 +325,9 @@ face drift, identity changed, different person, pose changed, added scene, added
 | R13 | **所有衍生资产均需妆造**——正常情况不保持素颜，至少使用基础妆 |
 | R14 | **上妆强度受控**——即使上妆也需克制，不得出现现代浓妆/夸张彩妆效果 |
 | R15 | **道具/场景/动作不作强度升级依据**——仅凭道具，环境，动作等信息不得把基础妆抬高为更强妆容 |
-| R16 | 必须包含3D动画渲染关键词（cel-shaded, 3D animation render, anime style） |
+| R16 | 必须包含3D动画渲染关键词（cel-shaded、3D 动画渲染、anime 风格） |
 | R17 | 必须包含8K超高清、电影级构图关键词 |
-| R18 | 必须包含电影级打光关键词（film lighting） |
+| R18 | 必须包含电影级打光关键词（电影级打光） |
 
 ### 严禁
 

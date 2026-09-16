@@ -25,12 +25,12 @@ red, black, bright yellow，strong contrast light, dramatic action shadow, burst
 
 ### 正向质量锚点
 
-(best quality, masterpiece, high detailed:1.2), (dynamic shonen action anime:1.3), (impact pose, speed lines, intense expression, powerful silhouette:1.18), (strong contrast light, dramatic action shadow, burst effect:1.1), bold cel shading, sharp line weight, energetic detail, clean composition, readable silhouette, high detail, finished illustration
+(最佳质量,杰作,高细节:1.2), (热血少年动作动画:1.3), (冲击力姿势,速度线,强烈表情,有力剪影:1.18), (强对比光,戏剧性动作阴影,爆发效果:1.1), 浓重赛璐璐着色,锐利线宽,力量感细节,干净构图,可读剪影,高细节,完成度高的插画
 场景类提示词必须强化前景/中景/后景、空间纵深、主光源方向、材质痕迹和情绪色调。
 
 ### 反向规避提示词
 
-(worst quality, low quality:1.4), blurry, messy lineart, bad anatomy, 3D render, photorealistic, CGI, watermark, signature, text, static calm pose, soft shoujo mood, pastel quiet scene, no depth, flat lighting, empty white background, people, human silhouette, cropped architecture, inconsistent season, text, watermark.
+(最差质量,低质量:1.4), 模糊, 凌乱线稿, 解剖错误, 3D渲染, 照片写实, CGI, 水印, 签名, 文字, 静态平静姿势, 柔和少女漫画氛围, 粉彩安静场景, 无纵深, 平面打光, 空白背景, 人物, 人影, 建筑被裁切, 季节不一致, 文字, 水印
 
 ## 四、约束规则
 

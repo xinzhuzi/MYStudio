@@ -40,7 +40,7 @@ metaData: art_skills
 | 纵深 | 前/中/后景层次 | 前景{元素}、中景{元素}、后景{元素} |
 | 质感 | 木纹/布料垂感/瓷器光泽可辨 | 纹理清晰、材质质感精细 |
 | 光照 | 自然光源为主（窗光/烛光），体积光，环境光遮蔽 | 自然光漫射、烛光摇曳、体积光 |
-| 镜头感 | 景深虚化前后景、镜头暗角、色散微痕 | depth of field、lens vignette、chromatic aberration |
+| 镜头感 | 景深虚化前后景、镜头暗角、色散微痕 | 景深、镜头暗角、色散 |
 | 瑕疵感 | 木面有使用痕迹、石面有风化纹、布料有自然褶皱 | 岁月痕迹、自然磨损、布料自然垂褶 |
 
 ### 室内类型速查
@@ -68,7 +68,7 @@ metaData: art_skills
 | 建筑 | 飞檐斗拱、青瓦白墙、石桥木亭 | 飞檐翘角、石拱桥 |
 | 空气感 | 必须有空气透视，体积光，远景模糊 | 远山如黛、空气透视、体积光 |
 | 光照 | 自然光为唯一光源，日光/月光需有体积光与散射 | 自然光照、体积光、景深虚化 |
-| 镜头感 | 景深虚化、镜头暗角、色散、光斑散景 | depth of field、bokeh、lens flare、vignette |
+| 镜头感 | 景深虚化、镜头暗角、色散、光斑散景 | 景深、bokeh、镜头光晕、暗角 |
 | 瑕疵感 | 石面青苔/风化、木面开裂/包浆、瓦片残缺/苔痕 | 青苔斑驳、风化痕迹、岁月包浆 |
 
 ### 室外类型速查
@@ -92,9 +92,9 @@ metaData: art_skills
 
 | 项目 | 约束 | 提示词 |
 |---|---|---|
-| 视角 | 自然观察视角，构图最能体现场景主体与纵深 | hero shot、representative angle |
-| 视点高度 | 默认人眼平视高度，特殊场景可俯/仰 | eye level（默认） |
-| 构图 | 主体居中或符合三分法，前/中/后景层次清晰 | balanced composition |
+| 视角 | 自然观察视角，构图最能体现场景主体与纵深 | 主视觉镜头、代表性角度 |
+| 视点高度 | 默认人眼平视高度，特殊场景可俯/仰 | 人眼平视高度（默认） |
+| 构图 | 主体居中或符合三分法，前/中/后景层次清晰 | 平衡构图 |
 
 ### 画面规范
 
@@ -112,10 +112,10 @@ metaData: art_skills
 
 古风场景主视图概念图，
 3D渲染风格，高精度建模，PBR材质，国风3D，电影级光影，
-3D rendered, volumetric lighting,
-depth of field, natural lens vignette, subtle chromatic aberration, bokeh,
+3D 渲染, 体积光,
+景深, 自然镜头暗角, 轻微色散, bokeh,
 3D渲染质感，体积光，自然光照，物理光影，
-scene design sheet, environment concept art, no people, no characters, no human figures,
+场景设定图, 环境概念图, 无人物, 无角色, 无人体,
 {室内/室外}，{场景类型}，{朝代风格}，{季节+时间},
 前景：{元素}, 中景：{元素}, 后景：{元素},
 {色调描述}, {天候/氛围元素},
@@ -130,17 +130,17 @@ scene design sheet, environment concept art, no people, no characters, no human 
 
 ## 提示词质量增强
 
-> 生成最终提示词时，必须把本节融合进现有提示词模板；不要另起说明文字。支持 negative prompt 的模型，把“反向规避提示词”单独放入负面提示词；不支持 negative prompt 的模型，改写成正向规避要求。
+> 生成最终提示词时，必须把本节融合进现有提示词模板；不要另起说明文字。支持负面提示词的模型，把“反向规避提示词”单独放入负面提示词；不支持负面提示词的模型，改写成正向规避要求。
 
 ### 正向质量锚点
 
-国风3D高精度渲染，Chinese style 3D，PBR materials，fine embroidery，traditional oriental palette，volumetric lighting，ambient occlusion，cinematic depth of field，best quality，8k detail。
-场景类提示词必须强化前景/中景/后景、空间纵深、主光源方向、材质痕迹和情绪色调；补充 layered environment, atmospheric perspective, coherent lighting, detailed material surface。
+国风3D高精度渲染, 中式 3D, PBR 材质, 精细刺绣, 传统东方色调, 体积光, 环境光遮蔽, 电影级景深, 最佳质量, 8K 细节。
+场景类提示词必须强化前景/中景/后景、空间纵深、主光源方向、材质痕迹和情绪色调；补充层次化环境、空气透视、光照连贯、材质表面细节。
 
 ### 反向规避提示词
 
-low quality, low-poly, flat 2D, sketch, photorealistic photography, western fantasy, sci-fi, neon oversaturation, plastic material, rough texture, bad anatomy, watermark, text。
-no depth, flat lighting, empty white background, people, human silhouette, character, cropped architecture, inconsistent season, overclean material, text, watermark。
+低质量, low-poly, 扁平 2D, 草图, 照片级写实摄影, 西方奇幻, 科幻, 霓虹过饱和, 塑料材质, 粗糙纹理, 解剖错误, 水印, 文字。
+无纵深, 平板打光, 空白背景, 人物, 人体剪影, 角色, 建筑裁切, 季节不一致, 过度干净材质, 文字, 水印。
 
 ### 输出净化规则
 
@@ -161,8 +161,8 @@ no depth, flat lighting, empty white background, people, human silhouette, chara
 | R3 | 场景图必须为「单画面主视图」，不得拼接多视图/分屏/网格 |
 | R4 | 构图须能代表场景主体并展示前/中/后景层次 |
 | R5 | 场景图中**严禁出现任何人物** |
-| R6 | 必须包含3D渲染关键词（3D rendered / volumetric lighting / PBR materials） |
-| R7 | 必须包含镜头光学特征（depth of field / lens vignette / bokeh 至少一项） |
+| R6 | 必须包含3D渲染关键词（3D 渲染 / 体积光 / PBR 材质） |
+| R7 | 必须包含镜头光学特征（景深 / 镜头暗角 / bokeh 至少一项） |
 | R8 | 材质必须带有自然磨损/岁月痕迹，禁止全新无瑕的"CG 感" |
 
 ### 严禁

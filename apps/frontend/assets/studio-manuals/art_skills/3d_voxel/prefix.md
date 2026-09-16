@@ -21,8 +21,8 @@
 | 色彩基线 | grass green, clear blue, flower red |
 | 主光方案 | bright daylight, crisp shadow, cheerful atmosphere |
 | 画面层次 | 主体清晰、前中后景可读、焦点明确 |
-| 质量锚定 | (best quality, masterpiece, high detailed:1.2), (voxel block world 3D art:1.3), (cubic character, blocky trees, grid-based village, isometric readability:1.18), (bright daylight, crisp shadow, cheerful atmosphere:1.1), voxel cubes, pixel-like material, clean toy blocks, sharp focus, detailed background, polished composition |
-| 反向规避 | (worst quality, low quality, bad quality:1.4), blurry, fuzzy, distorted, out of focus, malformed body, extra limbs, watermark, signature, text, round organic forms, smooth realistic texture, blur |
+| 质量锚定 | (最佳质量,杰作,高细节:1.2), (体素方块世界3D美术:1.3), (方块状角色,方块状树木,网格布局村庄,等距视角可读性:1.18), (明亮日光,利落阴影,欢快氛围:1.1), 体素方块,像素风质感材质,洁净玩具方块,锐利焦点,精细背景,精修构图 |
+| 反向规避 | (最差质量,低质量,劣质:1.4), 模糊, 柔糊, 畸变, 失焦, 畸形躯体, 多余肢体, 水印, 签名, 文字, 圆润有机形态,光滑写实纹理,模糊 |
 
 ## 三、必守规则
 

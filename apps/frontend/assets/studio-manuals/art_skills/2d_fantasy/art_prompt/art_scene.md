@@ -25,12 +25,12 @@ violet, sapphire, starlight gold，mystic particle glow, moonlit rim light, magi
 
 ### 正向质量锚点
 
-(best quality, masterpiece, high detailed:1.2), (fantasy 2D anime illustration:1.3), (magical city, glowing symbols, ornate robes, dreamy atmosphere:1.18), (mystic particle glow, moonlit rim light, magical haze:1.1), clean lineart, luminous color, layered fantasy detail, clean composition, readable silhouette, high detail, finished illustration
+(最佳质量,杰作,高细节:1.2), (奇幻 2D 动漫插画:1.3), (魔法之城,发光符文,华美长袍,梦幻氛围:1.18), (神秘粒子微光,月光轮廓光,魔法雾霭:1.1), 干净线稿,明亮通透的色彩,层次丰富的奇幻细节, 干净构图,可读剪影,高细节,完成度高的插画
 场景类提示词必须强化前景/中景/后景、空间纵深、主光源方向、材质痕迹和情绪色调。
 
 ### 反向规避提示词
 
-(worst quality, low quality:1.4), blurry, messy lineart, bad anatomy, 3D render, photorealistic, CGI, watermark, signature, text, modern daily setting, sci-fi machinery, gritty realism, no depth, flat lighting, empty white background, people, human silhouette, cropped architecture, inconsistent season, text, watermark.
+(最差质量,低质量:1.4), 模糊, 凌乱线稿, 解剖错误, 3D渲染, 照片写实, CGI, 水印, 签名, 文字, 现代日常场景, 科幻机械, 冷硬写实, 无纵深, 平面打光, 空白背景, 人物, 人影, 建筑被裁切, 季节不一致, 文字, 水印
 
 ## 四、约束规则
 

@@ -21,8 +21,8 @@
 | 色彩基线 | dusty pink, warm orange, old blue |
 | 主光方案 | soft analog glow, mild film grain, warm evening light |
 | 画面层次 | 主体清晰、前中后景可读、焦点明确 |
-| 质量锚定 | (best quality, masterpiece, high detailed:1.2), (1990s hand-drawn cel animation:1.3), (retro character design, matte painted background, nostalgic framing:1.18), (soft analog glow, mild film grain, warm evening light:1.1), cel paint texture, slight VHS softness, hand-painted backdrop, clean composition, readable silhouette, high detail, finished illustration |
-| 反向规避 | (worst quality, low quality:1.4), blurry, messy lineart, bad anatomy, 3D render, photorealistic, CGI, watermark, signature, text, modern glossy digital art, 3D render, hyper sharp HDR |
+| 质量锚定 | (最佳质量,杰作,高细节:1.2), (90年代手绘赛璐璐动画:1.3), (复古角色设计,哑光绘景背景,怀旧式取景:1.18), (柔和模拟辉光,轻微胶片颗粒,温暖暮光:1.1), 赛璐璐上色质感,轻微VHS柔化,手绘背景板,干净构图,可读剪影,高细节,完成度高的插画 |
+| 反向规避 | (最差质量,低质量:1.4), 模糊, 凌乱线稿, 解剖错误, 3D渲染, 照片写实, CGI, 水印, 签名, 文字, 现代光泽数字艺术, 3D渲染, 超锐利HDR |
 
 ## 三、必守规则
 

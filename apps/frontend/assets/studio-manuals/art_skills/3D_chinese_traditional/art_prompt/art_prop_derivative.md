@@ -90,7 +90,7 @@ metaData: art_skills
 当前状态：{状态名}，{状态视觉描述}，
 {材质表面变化描述}，
 纯道具静物展示，道具独立陈列，无人持有，无人佩戴，
-同一画面四宫格（2×2）：左上正面图(front view)+右上侧面图(side view)+左下背面图(back view)+右下细节特写(detail closeup)，
+同一画面四宫格（2×2）：左上正面图+右上侧面图+左下背面图+右下细节特写，
 素灰纯色背景，均匀柔光，无硬阴影，
 材质纹理超清晰，PBR材质渲染，状态细节可辨
 图中不要有任何文字，
@@ -100,17 +100,17 @@ metaData: art_skills
 
 ## 提示词质量增强
 
-> 生成最终提示词时，必须把本节融合进现有提示词模板；不要另起说明文字。支持 negative prompt 的模型，把“反向规避提示词”单独放入负面提示词；不支持 negative prompt 的模型，改写成正向规避要求。
+> 生成最终提示词时，必须把本节融合进现有提示词模板；不要另起说明文字。支持负面提示词的模型，把“反向规避提示词”单独放入负面提示词；不支持负面提示词的模型，改写成正向规避要求。
 
 ### 正向质量锚点
 
-国风3D高精度渲染，Chinese style 3D，PBR materials，fine embroidery，traditional oriental palette，volumetric lighting，ambient occlusion，cinematic depth of field，best quality，8k detail。
-道具衍生提示词必须保持原道具轮廓、核心材质和识别纹样不变，只做状态、光效、局部纹理或视角升级；补充 same prop identity, material consistency, fine detail preservation。
+国风3D高精度渲染, 中式 3D, PBR 材质, 精细刺绣, 传统东方色调, 体积光, 环境光遮蔽, 电影级景深, 最佳质量, 8K 细节。
+道具衍生提示词必须保持原道具轮廓、核心材质和识别纹样不变，只做状态、光效、局部纹理或视角升级；补充同一道具身份、材质一致、细节保留。
 
 ### 反向规避提示词
 
-low quality, low-poly, flat 2D, sketch, photorealistic photography, western fantasy, sci-fi, neon oversaturation, plastic material, rough texture, bad anatomy, watermark, text。
-changed prop type, wrong silhouette, added hand, added character, worn or held, lost core pattern, excessive glow hiding shape, text, watermark。
+低质量, low-poly, 扁平 2D, 草图, 照片级写实摄影, 西方奇幻, 科幻, 霓虹过饱和, 塑料材质, 粗糙纹理, 解剖错误, 水印, 文字。
+道具类型改变, 轮廓错误, 添加手部, 添加角色, 被佩戴或持有, 丢失核心纹样, 过度光效遮挡造型, 文字, 水印。
 
 ### 输出净化规则
 

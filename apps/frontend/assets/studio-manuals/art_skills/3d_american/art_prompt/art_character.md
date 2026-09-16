@@ -29,12 +29,12 @@ warm key light, soft fill light, cheerful daylight，smooth stylized material, s
 
 ### 正向质量锚点
 
-(best quality, masterpiece, high detailed:1.2), (rounded western 3D animation:1.3), (large expressive eyes, friendly proportions, readable silhouette, colorful town background:1.18), (warm key light, soft fill light, cheerful daylight:1.1), smooth stylized material, soft edges, polished character surface, sharp focus, detailed background, polished composition
+(最佳质量,杰作,高细节:1.2), (圆润美式3D动画:1.3), (大而传神的眼睛,友善的身体比例,可读剪影,缤纷小镇背景:1.18), (温暖主光,柔和补光,明快日光:1.1), 平滑风格化材质, 柔和边缘, 精致角色表面, 锐利焦点, 细节丰富的背景, 精致构图
 角色类提示词必须保留身份、年龄、性别、五官、身高、头身比、体态、服装、发型和四视图一致性。
 
 ### 反向规避提示词
 
-(worst quality, low quality, bad quality:1.4), blurry, fuzzy, distorted, out of focus, malformed body, extra limbs, watermark, signature, text, dark gritty realism, horror mood, hard realistic skin, bad anatomy, deformed face, asymmetrical eyes, extra limbs, missing limbs, fused fingers, cropped head, cropped feet, inconsistent identity, inconsistent clothing.
+(最差质量,低质量,劣质:1.4), 模糊, 糊化, 变形, 失焦, 畸形身体, 多余肢体, 水印, 签名, 文字, 阴暗粗粝写实, 恐怖氛围, 僵硬写实皮肤, 解剖错误, 面部变形, 双眼不对称, 多余肢体, 缺失肢体, 并指, 头部裁切, 脚部裁切, 身份不一致, 服装不一致.
 
 ## 四、必守 / 严禁
 

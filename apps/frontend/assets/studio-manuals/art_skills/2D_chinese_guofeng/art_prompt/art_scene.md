@@ -133,12 +133,12 @@ scene design sheet, environment concept art, no people, no characters, no human 
 
 ### 正向质量锚点
 
-国风二次元新国潮，Chinese style anime，cel shading，fine brushwork，traditional Chinese palette，cinematic composition，delicate lineart，best quality，masterpiece，high detailed。
-场景类提示词必须强化前景/中景/后景、空间纵深、主光源方向、材质痕迹和情绪色调；补充 layered environment, atmospheric perspective, coherent lighting, detailed material surface。
+国风二次元新国潮, 中式 anime 风, cel shading 上色, 精细笔法, 传统中式色盘, 电影感构图, 细腻线稿, 最佳质量, 杰作, 高细节。
+场景类提示词必须强化前景/中景/后景、空间纵深、主光源方向、材质痕迹和情绪色调；补充层次化环境、空气透视、连贯光照、细腻材质表面。
 
 ### 反向规避提示词
 
-low quality, worst quality, blurry, 3D render, CGI, photorealistic, western fantasy, sci-fi, cyberpunk, neon oversaturation, muddy lineart, bad anatomy, watermark, text, signature。
+低质量, 最差质量, 模糊, 3D渲染, CGI, 照片写实, 西式奇幻, 科幻, cyberpunk, 霓虹过饱和, 脏浊线稿, 解剖错误, 水印, 文字, 签名。
 no depth, flat lighting, empty white background, people, human silhouette, character, cropped architecture, inconsistent season, overclean material, text, watermark。
 
 ### 输出净化规则

@@ -21,8 +21,8 @@
 | 色彩基线 | cool grey, cream white, rose accent |
 | 主光方案 | soft rim light, clear digital highlight, romantic atmosphere |
 | 画面层次 | 主体清晰、前中后景可读、焦点明确 |
-| 质量锚定 | (best quality, masterpiece, high detailed:1.2), (premium webtoon style illustration:1.3), (sharp handsome features, modern fashion, clean urban lighting, polished emotion:1.18), (soft rim light, clear digital highlight, romantic atmosphere:1.1), smooth digital coloring, clean contour, glossy eye detail, clean composition, readable silhouette, high detail, finished illustration |
-| 反向规避 | (worst quality, low quality:1.4), blurry, messy lineart, bad anatomy, 3D render, photorealistic, CGI, watermark, signature, text, rough sketch, retro heavy grain, 3D realism |
+| 质量锚定 | (最佳质量,杰作,高细节:1.2), (高品质 webtoon 风插画:1.3), (精致俊朗五官,现代时尚服饰,清爽都市光,精修情绪表达:1.18), (柔和轮廓光,清晰数码高光,浪漫氛围:1.1), 平滑数码上色,干净轮廓线,晶亮眼部细节,干净构图,可读剪影,高细节,完成度高的插画 |
+| 反向规避 | (最差质量,低质量:1.4), 模糊, 凌乱线稿, 解剖错误, 3D渲染, 照片写实, CGI, 水印, 签名, 文字, 粗糙草稿, 复古重颗粒, 3D写实感 |
 
 ## 三、必守规则
 

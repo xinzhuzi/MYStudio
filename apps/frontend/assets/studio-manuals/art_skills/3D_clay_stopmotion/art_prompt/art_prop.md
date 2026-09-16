@@ -61,10 +61,10 @@
 
 | 位置 | 视图 | 角度 | 要求 | 提示词 |
 |---|---|---|---|---|
-| 左上 | 正面图 | 正面 0° | 道具完整正面形态 | front view |
-| 右上 | 侧面图 | 侧面 90° | 厚度/轮廓/结构清晰 | side view |
-| 左下 | 背面图 | 背面 180° | 道具背部结构/装饰 | back view |
-| 右下 | 细节特写 | 局部放大 | 材质纹理/工艺细节 | detail closeup |
+| 左上 | 正面图 | 正面 0° | 道具完整正面形态 | 正面视图 |
+| 右上 | 侧面图 | 侧面 90° | 厚度/轮廓/结构清晰 | 侧面视图 |
+| 左下 | 背面图 | 背面 180° | 道具背部结构/装饰 | 背面视图 |
+| 右下 | 细节特写 | 局部放大 | 材质纹理/工艺细节 | 细节特写 |
 
 ### 画面规范
 
@@ -109,17 +109,17 @@
 
 ## 提示词质量增强
 
-> 生成最终提示词时，必须把本节融合进现有提示词模板；不要另起说明文字。支持 negative prompt 的模型，把“反向规避提示词”单独放入负面提示词；不支持 negative prompt 的模型，改写成正向规避要求。
+> 生成最终提示词时，必须把本节融合进现有提示词模板；不要另起说明文字。支持负面提示词的模型，把“反向规避提示词”单独放入负面提示词；不支持负面提示词的模型，改写成正向规避要求。
 
 ### 正向质量锚点
 
-定格动画黏土质感，stop-motion claymation，hand-crafted clay texture，visible handmade fingerprints，miniature set lighting，warm soft studio light，shallow depth of field，best quality，tactile detail。
-道具类提示词必须明确道具类型、材质、工艺、磨损痕迹、陈列方式和多角度/细节特写；补充 crisp silhouette, readable material, fine craftsmanship, isolated prop display。
+定格动画黏土质感, 黏土定格动画, 手工黏土肌理, 可见手工指痕, 微缩布景打光, 暖调柔和影棚光, 浅景深, 最佳质量, 可触质感细节。
+道具类提示词必须明确道具类型、材质、工艺、磨损痕迹、陈列方式和多角度/细节特写；补充轮廓清晰、材质可读、工艺精细、道具独立陈列。
 
 ### 反向规避提示词
 
-low quality, photorealistic skin, glossy plastic, metal PBR, flat 2D drawing, hyperreal render, sterile smooth surface, hard digital sharpness, watermark, text, signature。
-hands, fingers, human body, worn by character, held by character, floating without support, unclear silhouette, wrong material, modern item mismatch, text, watermark。
+低质量, 写实皮肤, 亮面塑料, 金属 PBR, 扁平 2D 手绘, 超写实渲染, 无菌光滑表面, 生硬数码锐化, 水印, 文字, 签名。
+手部, 手指, 人体, 被角色佩戴, 被角色持有, 无支撑悬浮, 轮廓不清, 材质错误, 现代物品错配, 文字, 水印。
 
 ### 输出净化规则
 

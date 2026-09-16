@@ -151,12 +151,37 @@ T2I_SKIP_TYPES = {"MarkdownNote", "Note", "easy showAnything"}
 UI_ONLY_WIDGETS = {"control_after_generate"}
 
 
+def _resolve_src(nodes, links, nid, slot, depth=0):
+    """旁路(mode=4)穿透:被旁路节点的出槽 N 回追其入槽 N 的连线源
+    (LoRA 线性链 21→19→44→45→14 的 44/45 旁路=14 直连 19;09-16 E2E
+    实弹抓出旧版把旁路节点当激活带入 API 图的缺陷后补)。
+    同槽穿透不了(多出槽/入槽悬空)即报错,不静默错接。"""
+    node = nodes.get(nid)
+    if node is None:
+        raise RuntimeError(f"连线源节点 {nid} 不在工作流")
+    if node.get("mode") != 4:
+        return nid, slot
+    if depth > 8:
+        raise RuntimeError(f"旁路穿透超过 8 层(节点 {nid}),疑似环路")
+    in_slots = node.get("inputs") or []
+    if slot >= len(in_slots):
+        raise RuntimeError(f"旁路节点 {nid} 出槽 {slot} 无同序入槽可穿透")
+    lid = in_slots[slot].get("link")
+    if lid is None or lid not in links:
+        raise RuntimeError(f"旁路节点 {nid} 入槽 {slot} 未连线,无法穿透")
+    up = links[lid]
+    return _resolve_src(nodes, links, up[1], up[2], depth + 1)
+
+
 def ui_to_api_t2i(wf: dict, oi: dict, overrides: dict[str, object]) -> dict:
     nodes = {n["id"]: n for n in wf["nodes"]}
     links = {l[0]: l for l in wf.get("links", [])}
+    bypassed = {nid for nid, n in nodes.items() if n.get("mode") == 4}
+    if bypassed:
+        print(f"[p2] 旁路节点不入 API 图(mode=4): {sorted(bypassed)}")
     prompt: dict[str, dict] = {}
     for nid, n in nodes.items():
-        if nid in T2I_SKIP_NODES or n["type"] in T2I_SKIP_TYPES:
+        if nid in T2I_SKIP_NODES or n["type"] in T2I_SKIP_TYPES or nid in bypassed:
             continue
         cls = n["type"]
         order = list(oi[cls]["input"].get("required", {}).keys()) + \
@@ -170,8 +195,10 @@ def ui_to_api_t2i(wf: dict, oi: dict, overrides: dict[str, object]) -> dict:
             src = links[lid][1]
             if src in T2I_SKIP_NODES:
                 continue  # 被跳过源的连线一律由覆盖内联
-            linked[slot_def["name"]] = [str(src), links[lid][2]]
+            src, out_slot = _resolve_src(nodes, links, src, links[lid][2])
+            linked[slot_def["name"]] = [str(src), out_slot]
         inputs: dict[str, object] = {}
+        fell_back = []
         for name in order:
             if name in linked:
                 inputs[name] = linked[name]
@@ -182,8 +209,16 @@ def ui_to_api_t2i(wf: dict, oi: dict, overrides: dict[str, object]) -> dict:
                     oi[cls]["input"].get("optional", {}).get(name)
                 if spec and len(spec) > 1 and isinstance(spec[1], dict) and "default" in spec[1]:
                     inputs[name] = spec[1]["default"]  # 空 widget(如负向留空)回落官方默认
+                    fell_back.append(name)
                 elif spec and spec[0] == "STRING":
                     inputs[name] = ""  # 无默认的 STRING widget(留空文本)按空串提交
+                    fell_back.append(name)
+        # 位置式 widgets_values 盲区警告(09-16 E2E 实弹:64 负向位置式没被
+        # 带上→API 图负向为空)。不猜位置映射(KSampler 连线态下位置序不稳),
+        # 要携带值就写 widgets_values_named 或用 overrides 内联。
+        if fell_back and n.get("widgets_values"):
+            print(f"[p2] 警告: 节点{nid} {cls} 输入 {fell_back} 回落默认/空串"
+                  f"(节点带位置式 widgets_values 但无 named 映射,如需携带请加 overrides)")
         leftover = {k for k in named if k not in order and k not in UI_ONLY_WIDGETS}
         if leftover:
             raise RuntimeError(f"节点{nid} {cls} 有未映射 widget: {leftover}")
@@ -200,7 +235,7 @@ def build_t2i_graph(oi: dict, *, prompt_text: str, seed: int, width: int, height
                     steps: int, prefix: str) -> dict:
     wf = json.loads(WF_T2I_SUPSET.read_text(encoding="utf-8"))
     overrides = {
-        "50.value": prompt_text,          # 正向提示词(经 [60] 风格库注入)
+        "50.value": prompt_text,          # 正向提示词(经 [60] 漫影风格库注入,MyStylesLibrary 读 art_skills;风格值走 widgets_values_named.style)
         "12.seed": int(seed),             # 内联字面量(绕开 rgthree 种子件)
         "12.steps": int(steps),
         "53.width": int(width),           # 内联字面量(绕开分辨率选择件)

@@ -22,12 +22,12 @@ metaData: art_skills
 
 ### 正向质量锚点
 
-(best quality, masterpiece, high detailed:1.2), (hand-painted nature 2D animation:1.3), (gentle character, lush countryside, peaceful daily life, charming background:1.18), (soft daylight, diffused cloud light, calm atmosphere:1.1), watercolor-like background, warm hand-drawn line, organic texture, clean composition, readable silhouette, high detail, finished illustration
+(最佳质量,杰作,高细节:1.2), (手绘自然风 2D 动画:1.3), (温柔的角色,繁茂乡野,安宁日常,迷人的背景:1.18), (柔和日光,漫射云光,宁静氛围:1.1), 类 watercolor 背景,温暖手绘线条,有机质感, 干净构图,可读剪影,高细节,完成度高的插画
 道具衍生提示词必须保持原道具轮廓、核心材质和识别纹样不变，只做状态、光效、局部纹理或视角升级。
 
 ### 反向规避提示词
 
-(worst quality, low quality:1.4), blurry, messy lineart, bad anatomy, 3D render, photorealistic, CGI, watermark, signature, text, sharp digital neon, 3D CGI, horror darkness, changed prop type, wrong silhouette, added hand, added character, worn or held, lost core pattern, excessive glow hiding shape, text, watermark.
+(最差质量,低质量:1.4), 模糊, 凌乱线稿, 解剖错误, 3D渲染, 照片写实, CGI, 水印, 签名, 文字, 锐利数码霓虹, 3D CGI, 恐怖黑暗, 道具类型改变, 剪影错误, 添加手部, 添加人物, 被佩戴或握持, 丢失核心纹样, 过度光效遮挡造型, 文字, 水印
 
 ## 四、约束规则
 

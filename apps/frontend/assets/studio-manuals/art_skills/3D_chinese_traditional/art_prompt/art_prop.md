@@ -67,10 +67,10 @@ metaData: art_skills
 
 | 位置 | 视图 | 角度 | 要求 | 提示词 |
 |---|---|---|---|---|
-| 左上 | 正面图 | 正面 0° | 道具完整正面形态 | front view |
-| 右上 | 侧面图 | 侧面 90° | 厚度/轮廓/结构清晰 | side view |
-| 左下 | 背面图 | 背面 180° | 道具背部结构/装饰 | back view |
-| 右下 | 细节特写 | 局部放大 | 材质纹理/工艺细节 | detail closeup |
+| 左上 | 正面图 | 正面 0° | 道具完整正面形态 | 正面视图 |
+| 右上 | 侧面图 | 侧面 90° | 厚度/轮廓/结构清晰 | 侧面视图 |
+| 左下 | 背面图 | 背面 180° | 道具背部结构/装饰 | 背面视图 |
+| 右下 | 细节特写 | 局部放大 | 材质纹理/工艺细节 | 细节特写 |
 
 ### 画面规范
 
@@ -113,17 +113,17 @@ metaData: art_skills
 
 ## 提示词质量增强
 
-> 生成最终提示词时，必须把本节融合进现有提示词模板；不要另起说明文字。支持 negative prompt 的模型，把“反向规避提示词”单独放入负面提示词；不支持 negative prompt 的模型，改写成正向规避要求。
+> 生成最终提示词时，必须把本节融合进现有提示词模板；不要另起说明文字。支持负面提示词的模型，把“反向规避提示词”单独放入负面提示词；不支持负面提示词的模型，改写成正向规避要求。
 
 ### 正向质量锚点
 
-国风3D高精度渲染，Chinese style 3D，PBR materials，fine embroidery，traditional oriental palette，volumetric lighting，ambient occlusion，cinematic depth of field，best quality，8k detail。
-道具类提示词必须明确道具类型、材质、工艺、磨损痕迹、陈列方式和多角度/细节特写；补充 crisp silhouette, readable material, fine craftsmanship, isolated prop display。
+国风3D高精度渲染, 中式 3D, PBR 材质, 精细刺绣, 传统东方色调, 体积光, 环境光遮蔽, 电影级景深, 最佳质量, 8K 细节。
+道具类提示词必须明确道具类型、材质、工艺、磨损痕迹、陈列方式和多角度/细节特写；补充轮廓清晰、材质可读、工艺精细、道具独立陈列。
 
 ### 反向规避提示词
 
-low quality, low-poly, flat 2D, sketch, photorealistic photography, western fantasy, sci-fi, neon oversaturation, plastic material, rough texture, bad anatomy, watermark, text。
-hands, fingers, human body, worn by character, held by character, floating without support, unclear silhouette, wrong material, modern item mismatch, text, watermark。
+低质量, low-poly, 扁平 2D, 草图, 照片级写实摄影, 西方奇幻, 科幻, 霓虹过饱和, 塑料材质, 粗糙纹理, 解剖错误, 水印, 文字。
+手部, 手指, 人体, 被角色佩戴, 被角色持有, 无支撑悬浮, 轮廓不清, 材质错误, 现代物品错配, 文字, 水印。
 
 ### 输出净化规则
 

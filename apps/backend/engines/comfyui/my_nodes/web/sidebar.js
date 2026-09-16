@@ -157,6 +157,97 @@ function renderShotsPane(pane) {
   void load();
 }
 
+/** repo: 条目在已开签清单的三形态命中(原始 / 带 repo: / 剥 workflows/ 前缀) */
+function findRepoTab(svc, want, id) {
+  return (svc.openWorkflows || []).find((wf) => wf && (wf.path === want || wf.path === id
+    || String(wf.path || "").replace(/^workflows\//, "") === want));
+}
+
+/**
+ * 树行右键菜单(09-15 用户裁定:镜像 ComfyUI 原生工作流右键的适用项)。
+ * 原生对照:侧栏条目=插入/复制副本(BaseWorkflowsSidebarTab);顶栏标签=
+ * 打开族/关闭标签/导出(WorkflowTab+useWorkflowActionsMenu)。repo 真源只读:
+ * 重命名/保存类不适用(改内容=画布副本+原生顶栏标签菜单另存);
+ * 插入=原生 workflowService.insertWorkflow 同款(离屏 LGraph 全选→
+ * litegraph 剪贴板→pasteFromClipboard,事后还原用户剪贴板)。
+ * 菜单用 litegraph 官方暴露的 window.ContextMenu(扩展点),外观与画布
+ * 右键菜单一致,零改 ComfyUI 本体。
+ */
+function openWorkflowContextMenu(event, item, status, openBadges) {
+  const MenuCtor = window.ContextMenu || window.LiteGraph?.ContextMenu;
+  const label = String(item.name || item.id.split("/").pop()).replace(/\.json$/, "");
+  if (!MenuCtor || !window.app) {
+    status.textContent = "菜单组件还没就绪,稍候再右键";
+    status.style.color = "#e06c75";
+    return;
+  }
+  const svc = window.app.extensionManager?.workflow;
+  const hit = svc && Array.isArray(svc.openWorkflows)
+    ? findRepoTab(svc, String(item.id).slice("repo:".length), item.id) : null;
+  const actions = ["打开", "插入当前画布", "复制副本"];
+  if (hit) actions.push("关闭标签");
+  actions.push("导出 JSON");
+  new MenuCtor(actions, {
+    event, title: label,
+    callback: (value) => { void runWorkflowContextAction(String(value), item, status, openBadges); },
+  });
+}
+
+async function runWorkflowContextAction(action, item, status, openBadges) {
+  const done = () => {
+    status.textContent = status._summaryText || "";
+    status.style.color = "";
+    syncOpenBadges(openBadges);
+  };
+  const fail = (error) => {
+    status.textContent = `${action}失败(${error?.message || error})`;
+    status.style.color = "#e06c75";
+  };
+  try {
+    const app = window.app;
+    if (action === "打开") { await openMyWorkflow(item.id, status); done(); return; }
+    if (action === "关闭标签") {
+      const svc = app?.extensionManager?.workflow;
+      const hit = svc && findRepoTab(svc, String(item.id).slice("repo:".length), item.id);
+      if (!svc || !hit || typeof svc.closeWorkflow !== "function") throw new Error("标签不在已开清单");
+      await svc.closeWorkflow(hit);
+      done(); return;
+    }
+    const data = await fetchJson(`${BRIDGE_URL}/comfy/workflows/${encodeURIComponent(item.id)}/content`);
+    const graph = JSON.parse(data.content);
+    if (action === "插入当前画布") {
+      if (!app || typeof app.canvas?.pasteFromClipboard !== "function"
+        || !window.LGraph || !window.LGraphCanvas) throw new Error("画布插入通道未就绪");
+      const storageKey = "litegrapheditor_clipboard";
+      const old = localStorage.getItem(storageKey);
+      try {
+        const g = new window.LGraph(cloneGraph(graph));
+        const lc = new window.LGraphCanvas(document.createElement("canvas"), g, { skip_events: true, skip_render: true });
+        lc.selectItems();
+        lc.copyToClipboard();
+        app.canvas.pasteFromClipboard();
+      } finally {
+        if (old !== null) localStorage.setItem(storageKey, old); else localStorage.removeItem(storageKey);
+      }
+      done(); return;
+    }
+    if (action === "复制副本") {
+      if (!app || typeof app.loadGraphData !== "function") throw new Error("画布还没就绪");
+      const copyName = String(item.id).slice("repo:".length).replace(/\.json$/, "") + " 副本.json";
+      await app.loadGraphData(cloneGraph(graph), true, true, copyName);
+      done(); return;
+    }
+    if (action === "导出 JSON") {
+      const name = String(item.id).split("/").pop();
+      const url = URL.createObjectURL(new Blob([JSON.stringify(graph, null, 2)], { type: "application/json" }));
+      const a = document.createElement("a");
+      a.href = url; a.download = name; a.click();
+      setTimeout(() => URL.revokeObjectURL(url), 5000);
+      done(); return;
+    }
+  } catch (error) { fail(error); }
+}
+
 /** 页签二·工作流:漫影库按域分组,点击在画布打开(本地模型模块默认页签) */
 async function openMyWorkflow(id, status) {
   const label = id.split("/").pop().replace(/\.json$/, "");
@@ -169,15 +260,22 @@ async function openMyWorkflow(id, status) {
       // 直载;引擎家条目(分镜产线)保留 09-12 单实例协议(绑库复用签)
       if (id.startsWith("repo:")) {
         // 09-15 用户裁定:已开标签页复用——点击前查 workflow 服务已开清单,
-        // 命中同名路径直接 svc.openWorkflow 切换到该签,不再开新签;
-        // 未命中才走带名临时流直载(签的 name=库相对路径,与临时流命名一致)
+        // 命中同名路径切换到该签,不再开新签;未命中才带名直载开新签。
+        // 复用签装载走 v3 实例分支(open-workflow.js 09-12 同款双步):
+        // 单 svc.openWorkflow 只激活不装内容——E2E 实弹 09-15:临时签
+        // activeState 不可靠,切回后画布 0 节点;须 openWorkflow 激活 +
+        // loadGraphData(第4参=签实例)装载,路径注册天然单实例零叠签
         const svc = window.app.extensionManager?.workflow;
         const want = id.slice("repo:".length);
         if (svc && typeof svc.openWorkflow === "function" && Array.isArray(svc.openWorkflows)) {
-          const hit = svc.openWorkflows.find((wf) => wf && (wf.path === want || wf.path === id
-            || String(wf.path || "").replace(/^workflows\//, "") === want));
+          const hit = findRepoTab(svc, want, id);
           if (hit) {
-            try { await svc.openWorkflow(hit); return; } catch (error) { /* 回退直载 */ }
+            try {
+              await svc.openWorkflow(hit);
+              await window.app.loadGraphData(cloneGraph(graph), true, true, hit);
+              try { hit.changeTracker?.updateModified(); } catch (error) { /* 重评可选 */ }
+              return;
+            } catch (error) { /* 回退直载 */ }
           }
         }
         await window.app.loadGraphData(cloneGraph(graph), true, true, want);
@@ -416,6 +514,13 @@ async function renderWorkflowsPane(pane) {
         };
 
         row.onclick = openIt;
+        // 09-15 用户裁定:右键=镜像原生工作流右键的适用项(打开/插入/复制副本/
+        // 关闭标签/导出 JSON);suppress 默认菜单,交 openWorkflowContextMenu
+        row.oncontextmenu = (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          openWorkflowContextMenu(e, item, status, openBadges);
+        };
         row.onkeydown = (e) => {
           if (e.key === "Enter" || e.key === " ") { e.preventDefault(); void openIt(); }
         };

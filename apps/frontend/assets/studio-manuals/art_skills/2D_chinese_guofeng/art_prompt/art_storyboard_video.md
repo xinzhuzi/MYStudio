@@ -15,12 +15,12 @@
 
 ### 正向质量锚点
 
-国风二次元新国潮，Chinese style anime，cel shading，fine brushwork，traditional Chinese palette，cinematic composition，delicate lineart，best quality，masterpiece，high detailed。
-视频提示词必须补充镜头运动、主体运动、起承转合、景深变化、光影连续性和首尾帧一致性；补充 cinematic motion, temporal continuity, stable composition, consistent subject identity。
+国风二次元新国潮, 中式 anime 风, cel shading 上色, 精细笔法, 传统中式色盘, 电影感构图, 细腻线稿, 最佳质量, 杰作, 高细节。
+视频提示词必须补充镜头运动、主体运动、起承转合、景深变化、光影连续性和首尾帧一致性；补充电影感运动、时间连续性、构图稳定、主体身份一致。
 
 ### 反向规避提示词
 
-low quality, worst quality, blurry, 3D render, CGI, photorealistic, western fantasy, sci-fi, cyberpunk, neon oversaturation, muddy lineart, bad anatomy, watermark, text, signature。
+低质量, 最差质量, 模糊, 3D渲染, CGI, 照片写实, 西式奇幻, 科幻, cyberpunk, 霓虹过饱和, 脏浊线稿, 解剖错误, 水印, 文字, 签名。
 flicker, jitter, morphing face, identity drift, inconsistent costume, warped hands, broken motion, sudden scene jump, overexposed effect, text, watermark, logo。
 
 ### 输出净化规则

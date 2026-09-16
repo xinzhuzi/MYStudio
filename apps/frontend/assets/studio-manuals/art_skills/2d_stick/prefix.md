@@ -21,8 +21,8 @@
 | 色彩基线 | black line, white, tiny color accent |
 | 主光方案 | flat paper light, no complex shadow, minimal contrast |
 | 画面层次 | 主体清晰、前中后景可读、焦点明确 |
-| 质量锚定 | (best quality, masterpiece, high detailed:1.2), (minimalist stick figure doodle:1.3), (simple stick figure, sketchbook charm, clean blank space, cute expression:1.18), (flat paper light, no complex shadow, minimal contrast:1.1), hand-drawn pencil line, plain white background, sparse detail, clean composition, readable silhouette, high detail, finished illustration |
-| 反向规避 | (worst quality, low quality:1.4), blurry, messy lineart, bad anatomy, 3D render, photorealistic, CGI, watermark, signature, text, complex realistic detail, filled color, 3D shading |
+| 质量锚定 | (最佳质量,杰作,高细节:1.2), (极简简笔画涂鸦:1.3), (简约简笔画,速写本趣味,干净留白,可爱表情:1.18), (平面纸面光,无复杂阴影,极简对比:1.1), 手绘铅笔线条,素白背景,稀疏细节,干净构图,可读剪影,高细节,完成度高的插画 |
+| 反向规避 | (最差质量,低质量:1.4), 模糊, 凌乱线稿, 解剖错误, 3D渲染, 照片写实, CGI, 水印, 签名, 文字, 复杂写实细节, 满幅填色, 3D着色 |
 
 ## 三、必守规则
 

@@ -23,12 +23,12 @@ soft pastel light, gentle highlight, clean background，rounded line, simple cel
 
 ### 正向质量锚点
 
-(best quality, masterpiece, high detailed:1.2), (kawaii chibi 2D illustration:1.3), (super deformed body, cute face, tiny hands, adorable costume:1.18), (soft pastel light, gentle highlight, clean background:1.1), rounded line, simple cel shadow, candy color, clean composition, readable silhouette, high detail, finished illustration
+(最佳质量,杰作,高细节:1.2), (Q版可爱2D插画:1.3), (大头小身体型,可爱面孔,小巧双手,萌趣服装:1.18), (柔和粉彩光,轻柔高光,干净背景:1.1), 圆润线条,简单赛璐璐阴影,糖果色,干净构图,可读剪影,高细节,完成度高的插画
 场景衍生提示词必须保持原场景地标、空间结构、材质年代感不变，只改变时段、天候、景别或镜头角度。
 
 ### 反向规避提示词
 
-(worst quality, low quality:1.4), blurry, messy lineart, bad anatomy, 3D render, photorealistic, CGI, watermark, signature, text, realistic adult proportion, horror mood, harsh dark lighting, changed location, lost landmark, added people, random architecture, inconsistent perspective, flat lighting, overclean material, text, watermark.
+(最差质量,低质量:1.4), 模糊, 凌乱线稿, 解剖错误, 3D渲染, 照片写实, CGI, 水印, 签名, 文字, 写实成人比例, 恐怖氛围, 生硬深暗照明, 地点被改变, 地标丢失, 添加人物, 随机建筑, 透视不一致, 平面打光, 过度干净的材质, 文字, 水印
 
 ## 四、约束规则
 

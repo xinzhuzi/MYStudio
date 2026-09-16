@@ -85,7 +85,7 @@
 当前状态：{状态名}，{状态视觉描述}，
 {材质表面变化描述}，
 纯道具静物展示，道具独立陈列，无人持有，无人佩戴，
-同一画面四宫格（2×2）：左上正面图(front view)+右上侧面图(side view)+左下背面图(back view)+右下细节特写(detail closeup)，
+同一画面四宫格（2×2）：左上正面图+右上侧面图+左下背面图+右下细节特写，
 纯净中性灰背景，暖调柔光，无硬阴影，
 材质纹理超清晰，黏土哑光质感，状态细节可辨
 图中不要有任何文字，
@@ -96,17 +96,17 @@
 
 ## 提示词质量增强
 
-> 生成最终提示词时，必须把本节融合进现有提示词模板；不要另起说明文字。支持 negative prompt 的模型，把“反向规避提示词”单独放入负面提示词；不支持 negative prompt 的模型，改写成正向规避要求。
+> 生成最终提示词时，必须把本节融合进现有提示词模板；不要另起说明文字。支持负面提示词的模型，把“反向规避提示词”单独放入负面提示词；不支持负面提示词的模型，改写成正向规避要求。
 
 ### 正向质量锚点
 
-定格动画黏土质感，stop-motion claymation，hand-crafted clay texture，visible handmade fingerprints，miniature set lighting，warm soft studio light，shallow depth of field，best quality，tactile detail。
-道具衍生提示词必须保持原道具轮廓、核心材质和识别纹样不变，只做状态、光效、局部纹理或视角升级；补充 same prop identity, material consistency, fine detail preservation。
+定格动画黏土质感, 黏土定格动画, 手工黏土肌理, 可见手工指痕, 微缩布景打光, 暖调柔和影棚光, 浅景深, 最佳质量, 可触质感细节。
+道具衍生提示词必须保持原道具轮廓、核心材质和识别纹样不变，只做状态、光效、局部纹理或视角升级；补充同一道具身份、材质一致、细节保留。
 
 ### 反向规避提示词
 
-low quality, photorealistic skin, glossy plastic, metal PBR, flat 2D drawing, hyperreal render, sterile smooth surface, hard digital sharpness, watermark, text, signature。
-changed prop type, wrong silhouette, added hand, added character, worn or held, lost core pattern, excessive glow hiding shape, text, watermark。
+低质量, 写实皮肤, 亮面塑料, 金属 PBR, 扁平 2D 手绘, 超写实渲染, 无菌光滑表面, 生硬数码锐化, 水印, 文字, 签名。
+道具类型改变, 轮廓错误, 添加手部, 添加角色, 被佩戴或持有, 丢失核心纹样, 过度光效遮挡造型, 文字, 水印。
 
 ### 输出净化规则
 

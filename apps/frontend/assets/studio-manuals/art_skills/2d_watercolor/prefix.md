@@ -21,8 +21,8 @@
 | 色彩基线 | sky blue, rose, pale yellow |
 | 主光方案 | diffused daylight, gentle bloom, low contrast |
 | 画面层次 | 主体清晰、前中后景可读、焦点明确 |
-| 质量锚定 | (best quality, masterpiece, high detailed:1.2), (watercolor illustration style:1.3), (soft edge landscape, translucent color wash, dreamy character, paper texture:1.18), (diffused daylight, gentle bloom, low contrast:1.1), wet-on-wet pigment, visible paper grain, feathered edge, clean composition, readable silhouette, high detail, finished illustration |
-| 反向规避 | (worst quality, low quality:1.4), blurry, messy lineart, bad anatomy, 3D render, photorealistic, CGI, watermark, signature, text, hard digital flat color, vector edge, 3D realism |
+| 质量锚定 | (最佳质量,杰作,高细节:1.2), (水彩插画风格:1.3), (柔边风景,半透明水彩晕染,梦幻角色,纸纹肌理:1.18), (漫射日光,轻柔光晕,低对比:1.1), 湿画法颜料晕染,可见纸纹颗粒,羽化柔边,干净构图,可读剪影,高细节,完成度高的插画 |
+| 反向规避 | (最差质量,低质量:1.4), 模糊, 凌乱线稿, 解剖错误, 3D渲染, 照片写实, CGI, 水印, 签名, 文字, 硬边数码平涂色, 矢量硬边, 3D写实 |
 
 ## 三、必守规则
 

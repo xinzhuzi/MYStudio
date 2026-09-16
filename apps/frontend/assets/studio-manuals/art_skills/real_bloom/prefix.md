@@ -21,8 +21,8 @@
 | 色彩基线 | cream, pale gold, soft blue |
 | 主光方案 | strong bloom, lens flare, warm backlight, shallow depth of field |
 | 画面层次 | 主体清晰、前中后景可读、焦点明确 |
-| 质量锚定 | (best quality, masterpiece, high detailed:1.2), (dreamy backlit live-action photography:1.3), (real person, glowing rim light, soft focus portrait, airy environment:1.18), (strong bloom, lens flare, warm backlight, shallow depth of field:1.1), film softness, skin texture retained, optical glow, real lens optics, natural skin texture, cinematic framing, high detail |
-| 反向规避 | (worst quality, low quality:1.4), 3D render, CGI, anime, illustration, cartoon, plastic skin, over-smoothed face, bad anatomy, watermark, signature, text, harsh contrast, dark gritty mood, anime, 3D render |
+| 质量锚定 | (最佳质量,杰作,高细节:1.2), (梦幻逆光真人摄影:1.3), (真实人物,辉光轮廓光,柔焦人像,轻盈通透的环境:1.18), (强光晕,镜头光斑,暖调逆光,浅景深:1.15), (奶油白,淡金,柔蓝的清透色彩,高光柔润不过曝:1.12), (真实皮肤质感,毛孔与绒发可辨,不过度磨皮:1.1), (胶片柔质感,光学辉光,真实镜头光学:1.1), 自然皮肤质感, 电影感构图, 干净构图, 可读剪影, 高细节, 完成度高的真人摄影 |
+| 反向规避 | (最差质量,低质量:1.4), 3D渲染, CGI, anime, 插画, 卡通, 塑料感皮肤, 过度磨皮的面孔, 解剖错误, 水印, 签名, 文字, 生硬高反差, 阴郁粗粝的暗黑氛围, 面部变形, 双眼不对称, 多余肢体, 缺失肢体, 手指粘连, 数码味锐化, 死黑阴影, 油光皮肤 |
 
 ## 三、必守规则
 

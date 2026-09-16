@@ -21,8 +21,8 @@
 | 色彩基线 | black, white, single accent color |
 | 主光方案 | plain even light, no heavy shadow, graphic clarity |
 | 画面层次 | 主体清晰、前中后景可读、焦点明确 |
-| 质量锚定 | (best quality, masterpiece, high detailed:1.2), (minimal clean line art:1.3), (continuous line drawing, elegant figure, simple object, blank composition:1.18), (plain even light, no heavy shadow, graphic clarity:1.1), thin black line, vector-like edge, minimal fill, clean composition, readable silhouette, high detail, finished illustration |
-| 反向规避 | (worst quality, low quality:1.4), blurry, messy lineart, bad anatomy, 3D render, photorealistic, CGI, watermark, signature, text, messy sketch, dense background, 3D shading, realism |
+| 质量锚定 | (最佳质量,杰作,高细节:1.2), (极简干净线稿:1.3), (连续线条绘画,优雅人物,简洁物件,留白构图:1.18), (平实均匀光,无厚重阴影,图形化清晰:1.1), 纤细黑线,矢量感边缘,极简填色,干净构图,可读剪影,高细节,完成度高的插画 |
+| 反向规避 | (最差质量,低质量:1.4), 模糊, 凌乱线稿, 解剖错误, 3D渲染, 照片写实, CGI, 水印, 签名, 文字, 凌乱草稿, 密集背景, 3D着色, 写实感 |
 
 ## 三、必守规则
 

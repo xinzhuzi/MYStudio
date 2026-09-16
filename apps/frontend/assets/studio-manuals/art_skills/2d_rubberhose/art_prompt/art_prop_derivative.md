@@ -22,12 +22,12 @@ metaData: art_skills
 
 ### 正向质量锚点
 
-(best quality, masterpiece, high detailed:1.2), (1930s rubber hose cartoon:1.3), (bouncy limbs, pie-cut eyes, vintage mascot character, simple stage:1.18), (old film light, vignette, soft grain:1.1), inked black line, limited palette, analog film texture, clean composition, readable silhouette, high detail, finished illustration
+(最佳质量,杰作,高细节:1.2), (1930年代橡皮管卡通:1.3), (摆动肢体,派切双眼,复古吉祥物角色,简约舞台:1.18), (老式胶片光感,暗角,柔和颗粒:1.1), 墨黑描线,有限色板,模拟胶片质感,干净构图,可读剪影,高细节,完成度高的插画
 道具衍生提示词必须保持原道具轮廓、核心材质和识别纹样不变，只做状态、光效、局部纹理或视角升级。
 
 ### 反向规避提示词
 
-(worst quality, low quality:1.4), blurry, messy lineart, bad anatomy, 3D render, photorealistic, CGI, watermark, signature, text, modern anime, realistic 3D, stiff motion, changed prop type, wrong silhouette, added hand, added character, worn or held, lost core pattern, excessive glow hiding shape, text, watermark.
+(最差质量,低质量:1.4), 模糊, 凌乱线稿, 解剖错误, 3D渲染, 照片写实, CGI, 水印, 签名, 文字, 现代anime, 写实3D, 僵硬动作, 道具类型被更换, 剪影错误, 多出手部, 多出角色, 被穿戴或握持, 丢失核心纹样, 过度光效掩盖造型, 文字, 水印
 
 ## 四、约束规则
 

@@ -104,12 +104,12 @@ prop derivative design sheet，item concept art，no people，no characters，no
 
 ### 正向质量锚点
 
-成熟都市言情二次元动画，premium webtoon aesthetic，refined lineart，soft cinematic lighting，modern fashion detail，subtle romantic mood，clean digital coloring，best quality，high detailed。
-道具衍生提示词必须保持原道具轮廓、核心材质和识别纹样不变，只做状态、光效、局部纹理或视角升级；补充 same prop identity, material consistency, fine detail preservation。
+成熟都市言情二次元动画, 高质感 webtoon 美学, 精致线稿, 柔和电影感光照, 现代时装细节, 含蓄浪漫情绪, 干净数码上色, 最佳质量, 高细节。
+道具衍生提示词必须保持原道具轮廓、核心材质和识别纹样不变，只做状态、光效、局部纹理或视角升级；补充同一道具身份、材质一致、细节保留完好。
 
 ### 反向规避提示词
 
-low quality, childish chibi, exaggerated comedy face, 3D render, photorealistic, cheap neon, harsh manga speed lines, messy anatomy, overexposed skin, watermark, text, signature。
+低质量, 幼稚 chibi, 夸张喜剧表情, 3D渲染, 照片写实, 廉价霓虹, 生硬 manga 速度线, 凌乱解剖, 过曝皮肤, 水印, 文字, 签名。
 changed prop type, wrong silhouette, added hand, added character, worn or held, lost core pattern, excessive glow hiding shape, text, watermark。
 
 ### 输出净化规则

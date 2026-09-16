@@ -48,10 +48,11 @@ def _same_file(a: Path, b: Path) -> bool:
 
 
 def normalize_name(name: str) -> str:
-    """剥 `_my` 历史后缀;无 `MY-` 前缀则补。"""
+    """剥 `_my` 历史后缀与 `漫影-` 冗余前段;无 `MY-` 前缀则补。"""
     stem = name[:-len(".json")] if name.endswith(".json") else name
     if stem.endswith(LEGACY_SUFFIX):
         stem = stem[: -len(LEGACY_SUFFIX)]
+    stem = stem.removeprefix("漫影-")
     return stem if stem.startswith(PREFIX) else f"{PREFIX}{stem}"
 
 

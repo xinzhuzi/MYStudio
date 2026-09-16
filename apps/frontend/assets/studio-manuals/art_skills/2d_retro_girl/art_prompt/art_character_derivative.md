@@ -24,12 +24,12 @@ sparkling eyes, delicate hair, floral background, dreamy romance，pastel glow, 
 
 ### 正向质量锚点
 
-(best quality, masterpiece, high detailed:1.2), (retro shoujo manga illustration:1.3), (sparkling eyes, delicate hair, floral background, dreamy romance:1.18), (pastel glow, soft highlight, gentle vignette:1.1), thin elegant line, screentone texture, soft color wash, clean composition, readable silhouette, high detail, finished illustration
+(最佳质量,杰作,高细节:1.2), (复古少女漫画插画:1.3), (闪亮大眼,细腻发丝,花卉背景,梦幻浪漫:1.18), (粉彩辉光,柔和高光,轻柔暗角:1.1), 纤细优雅线条,网点纸质感,柔和淡彩晕染,干净构图,可读剪影,高细节,完成度高的插画
 人物衍生提示词必须保持底模面容、体态、发型识别点不变，只叠加服化妆造与局部风格升级。
 
 ### 反向规避提示词
 
-(worst quality, low quality:1.4), blurry, messy lineart, bad anatomy, 3D render, photorealistic, CGI, watermark, signature, text, dark horror, muscular shonen style, 3D realism, face drift, identity changed, different person, pose changed, added unrelated scene, inconsistent costume between views, cropped body.
+(最差质量,低质量:1.4), 模糊, 凌乱线稿, 解剖错误, 3D渲染, 照片写实, CGI, 水印, 签名, 文字, 黑暗恐怖, 肌肉少年漫画风, 3D写实感, 面容漂移, 身份改变, 变成另一个人, 姿势改变, 添加无关场景, 各视图服装不一致, 身体被裁切
 
 ## 四、约束规则
 

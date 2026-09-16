@@ -21,8 +21,8 @@
 | 色彩基线 | clay orange, mint, cream |
 | 主光方案 | warm softbox light, tabletop shadow, gentle depth of field |
 | 画面层次 | 主体清晰、前中后景可读、焦点明确 |
-| 质量锚定 | (best quality, masterpiece, high detailed:1.2), (clay stop-motion animation:1.3), (plasticine character, handmade miniature set, rounded clay expression:1.18), (warm softbox light, tabletop shadow, gentle depth of field:1.1), visible fingerprints, soft clay dents, handmade imperfection, macro photography, tactile detail, frame-by-frame charm, high detail |
-| 反向规避 | (worst quality, low quality:1.4), fluid CGI animation, 2D anime, photorealistic human scale, smooth digital texture, bad anatomy, watermark, signature, text, glossy plastic, smooth CGI, realistic human skin |
+| 质量锚定 | (最佳质量,杰作,高细节:1.2), (粘土定格动画:1.3), (橡皮泥角色,手工微缩场景,圆润粘土表情:1.18), (温暖柔光箱光,桌面阴影,轻柔景深:1.1), 可见指纹压痕,柔软粘土凹痕,手工不完美感,微距摄影,可触质感细节,逐帧动画韵味,高细节 |
+| 反向规避 | (最差质量,低质量:1.4), 流畅CGI动画, 2D anime, 照片写实真人比例, 光滑数字纹理, 解剖错误, 水印, 签名, 文字, 光亮塑料感, 光滑CGI, 写实真人皮肤 |
 
 ## 三、必守规则
 

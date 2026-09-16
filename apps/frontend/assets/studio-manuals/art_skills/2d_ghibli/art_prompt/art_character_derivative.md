@@ -24,12 +24,12 @@ gentle character, lush countryside, peaceful daily life, charming background，s
 
 ### 正向质量锚点
 
-(best quality, masterpiece, high detailed:1.2), (hand-painted nature 2D animation:1.3), (gentle character, lush countryside, peaceful daily life, charming background:1.18), (soft daylight, diffused cloud light, calm atmosphere:1.1), watercolor-like background, warm hand-drawn line, organic texture, clean composition, readable silhouette, high detail, finished illustration
+(最佳质量,杰作,高细节:1.2), (手绘自然风 2D 动画:1.3), (温柔的角色,繁茂乡野,安宁日常,迷人的背景:1.18), (柔和日光,漫射云光,宁静氛围:1.1), 类 watercolor 背景,温暖手绘线条,有机质感, 干净构图,可读剪影,高细节,完成度高的插画
 人物衍生提示词必须保持底模面容、体态、发型识别点不变，只叠加服化妆造与局部风格升级。
 
 ### 反向规避提示词
 
-(worst quality, low quality:1.4), blurry, messy lineart, bad anatomy, 3D render, photorealistic, CGI, watermark, signature, text, sharp digital neon, 3D CGI, horror darkness, face drift, identity changed, different person, pose changed, added unrelated scene, inconsistent costume between views, cropped body.
+(最差质量,低质量:1.4), 模糊, 凌乱线稿, 解剖错误, 3D渲染, 照片写实, CGI, 水印, 签名, 文字, 锐利数码霓虹, 3D CGI, 恐怖黑暗, 面容漂移, 身份改变, 变成他人, 姿势改变, 添加无关场景, 各视图服装不一致, 身体裁切
 
 ## 四、约束规则
 

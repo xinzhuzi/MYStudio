@@ -51,8 +51,8 @@
 
 | 项目 | 约束 | 提示词 |
 |---|---|---|
-| 质感 | 哑光黏土质感 | 哑光黏土、matte clay |
-| 白度 | 暖调奶油色 | 暖奶油肌、cream warm tone |
+| 质感 | 哑光黏土质感 | 哑光黏土、哑光黏土肌理 |
+| 白度 | 暖调奶油色 | 暖奶油肌、暖奶油色调 |
 | 禁止 | 高光/油光/镜面效果 | — |
 
 ### 分部位（以甜暖桃妆为例）
@@ -193,10 +193,10 @@
 
 | 位置 | 视图 | 角度 | 景别 | 要求 | 提示词 |
 |---|---|---|---|---|---|
-| 左一 | 人像特写 | 正面平视 | 面部至锁骨 | 面部占60%+，五官/妆容清晰 | portrait closeup、face detail |
-| 左二 | 正视图 | 正面 0° | 全身立像 | 面对镜头、服饰正面全貌 | front view、full body |
-| 右二 | 侧视图 | 右侧 90° | 全身立像 | 纯侧面轮廓、服饰侧面层次 | side view、profile、full body |
-| 右一 | 后视图 | 后方 180° | 全身立像 | 后脑发饰/背部服饰/发尾清晰 | back view、rear view、full body |
+| 左一 | 人像特写 | 正面平视 | 面部至锁骨 | 面部占60%+，五官/妆容清晰 | 人像特写、面部细节 |
+| 左二 | 正视图 | 正面 0° | 全身立像 | 面对镜头、服饰正面全貌 | 正面视图、全身完整 |
+| 右二 | 侧视图 | 右侧 90° | 全身立像 | 纯侧面轮廓、服饰侧面层次 | 侧面视图、侧身轮廓、全身完整 |
+| 右一 | 后视图 | 后方 180° | 全身立像 | 后脑发饰/背部服饰/发尾清晰 | 背面视图、后视图、全身完整 |
 
 ### 画面规范
 
@@ -216,7 +216,7 @@
 
 ```
 以角色基础形象图为底图，黏土定格动画{性别}角色四视图设定图，定格动画风格，3D卡通渲染，暖调光影，
-character design sheet，character turnaround，
+character design 设定图，角色转面图，
 保持基础形象面容不变，{整体气质}，
 【L1·妆容】根据用户线索决策：{基础装饰妆/轻装饰妆/正式装饰妆}；使用 {妆容风格}，哑光黏土质感，{眉妆}，{眼妆}，{唇妆}，
 【L2·发型】{造型类型}，黏土发型，{发饰描述}，
@@ -232,17 +232,17 @@ character design sheet，character turnaround，
 
 ## 提示词质量增强
 
-> 生成最终提示词时，必须把本节融合进现有提示词模板；不要另起说明文字。支持 negative prompt 的模型，把“反向规避提示词”单独放入负面提示词；不支持 negative prompt 的模型，改写成正向规避要求。
+> 生成最终提示词时，必须把本节融合进现有提示词模板；不要另起说明文字。支持负面提示词的模型，把“反向规避提示词”单独放入负面提示词；不支持负面提示词的模型，改写成正向规避要求。
 
 ### 正向质量锚点
 
-定格动画黏土质感，stop-motion claymation，hand-crafted clay texture，visible handmade fingerprints，miniature set lighting，warm soft studio light，shallow depth of field，best quality，tactile detail。
-人物衍生提示词必须保持底模面容、体态、发型识别点不变，只叠加服化妆造与局部风格升级；补充 same character identity, face consistency, outfit detail clarity。
+定格动画黏土质感, 黏土定格动画, 手工黏土肌理, 可见手工指痕, 微缩布景打光, 暖调柔和影棚光, 浅景深, 最佳质量, 可触质感细节。
+人物衍生提示词必须保持底模面容、体态、发型识别点不变，只叠加服化妆造与局部风格升级；补充同一角色身份、面部一致、服饰细节清晰。
 
 ### 反向规避提示词
 
-low quality, photorealistic skin, glossy plastic, metal PBR, flat 2D drawing, hyperreal render, sterile smooth surface, hard digital sharpness, watermark, text, signature。
-face drift, identity changed, different person, pose changed, added scene, added handheld prop, inconsistent costume between views, cropped body, extra fingers。
+低质量, 写实皮肤, 亮面塑料, 金属 PBR, 扁平 2D 手绘, 超写实渲染, 无菌光滑表面, 生硬数码锐化, 水印, 文字, 签名。
+面部漂移, 身份改变, 不同人物, 姿态改变, 添加场景, 添加手持道具, 视图间服装不一致, 身体裁切, 多余手指。
 
 ### 输出净化规则
 

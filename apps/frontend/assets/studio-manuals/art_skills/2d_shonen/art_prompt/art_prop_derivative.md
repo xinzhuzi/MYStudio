@@ -22,12 +22,12 @@ metaData: art_skills
 
 ### 正向质量锚点
 
-(best quality, masterpiece, high detailed:1.2), (dynamic shonen action anime:1.3), (impact pose, speed lines, intense expression, powerful silhouette:1.18), (strong contrast light, dramatic action shadow, burst effect:1.1), bold cel shading, sharp line weight, energetic detail, clean composition, readable silhouette, high detail, finished illustration
+(最佳质量,杰作,高细节:1.2), (热血少年动作动画:1.3), (冲击力姿势,速度线,强烈表情,有力剪影:1.18), (强对比光,戏剧性动作阴影,爆发效果:1.1), 浓重赛璐璐着色,锐利线宽,力量感细节,干净构图,可读剪影,高细节,完成度高的插画
 道具衍生提示词必须保持原道具轮廓、核心材质和识别纹样不变，只做状态、光效、局部纹理或视角升级。
 
 ### 反向规避提示词
 
-(worst quality, low quality:1.4), blurry, messy lineart, bad anatomy, 3D render, photorealistic, CGI, watermark, signature, text, static calm pose, soft shoujo mood, pastel quiet scene, changed prop type, wrong silhouette, added hand, added character, worn or held, lost core pattern, excessive glow hiding shape, text, watermark.
+(最差质量,低质量:1.4), 模糊, 凌乱线稿, 解剖错误, 3D渲染, 照片写实, CGI, 水印, 签名, 文字, 静态平静姿势, 柔和少女漫画氛围, 粉彩安静场景, 道具类型改变, 剪影错误, 添加手部, 添加人物, 被佩戴或握持, 丢失核心纹样, 过度光效遮挡造型, 文字, 水印
 
 ## 四、约束规则
 

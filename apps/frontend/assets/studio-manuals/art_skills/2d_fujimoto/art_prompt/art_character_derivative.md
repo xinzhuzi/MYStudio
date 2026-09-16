@@ -24,12 +24,12 @@ sketchy linework, casual pose, realistic emotional beat, movie-like composition�
 
 ### 正向质量锚点
 
-(best quality, masterpiece, high detailed:1.2), (loose cinematic manga drawing:1.3), (sketchy linework, casual pose, realistic emotional beat, movie-like composition:1.18), (natural side light, muted contrast, grounded atmosphere:1.1), rough ink texture, visible hand-drawn marks, restrained color, clean composition, readable silhouette, high detail, finished illustration
+(最佳质量,杰作,高细节:1.2), (松逸的电影感 manga 绘画:1.3), (写意 linework,随意姿态,真实的情绪节拍,电影式构图:1.18), (自然侧光,低对比,质朴踏实的氛围:1.1), 粗粝墨感,可见手绘笔痕,克制的配色, 干净构图,可读剪影,高细节,完成度高的插画
 人物衍生提示词必须保持底模面容、体态、发型识别点不变，只叠加服化妆造与局部风格升级。
 
 ### 反向规避提示词
 
-(worst quality, low quality:1.4), blurry, messy lineart, bad anatomy, 3D render, photorealistic, CGI, watermark, signature, text, over-polished digital gloss, standard cute anime, 3D render, face drift, identity changed, different person, pose changed, added unrelated scene, inconsistent costume between views, cropped body.
+(最差质量,低质量:1.4), 模糊, 凌乱线稿, 解剖错误, 3D渲染, 照片写实, CGI, 水印, 签名, 文字, 过度精细的数码光泽, 套路化可爱 anime, 3D渲染, 面容漂移, 身份改变, 变成他人, 姿势改变, 添加无关场景, 各视图服装不一致, 身体裁切
 
 ## 四、约束规则
 

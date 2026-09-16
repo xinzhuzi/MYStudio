@@ -15,12 +15,12 @@
 
 ### 正向质量锚点
 
-90年代日式动画电影质感，hand-drawn cel animation，clean lineart，painted background，soft rim light，subtle film grain，nostalgic warm palette，best quality，high detail，sharp but not digital-glossy。
-视频提示词必须补充镜头运动、主体运动、起承转合、景深变化、光影连续性和首尾帧一致性；补充 cinematic motion, temporal continuity, stable composition, consistent subject identity。
+90年代日式动画电影质感, 手绘赛璐璐动画, 干净线稿, 手绘背景, 柔和轮廓光, 轻微胶片颗粒, 怀旧暖色盘, 最佳质量, 高细节, 锐利而不带数字油亮感。
+视频提示词必须补充镜头运动、主体运动、起承转合、景深变化、光影连续性和首尾帧一致性；补充电影感运动、时间连续性、构图稳定、主体身份一致。
 
 ### 反向规避提示词
 
-low quality, worst quality, blurry, muddy colors, modern glossy digital painting, 3D render, CGI, photorealistic, western cartoon, over-sharpened HDR, noisy artifacts, watermark, text, signature。
+低质量, 最差质量, 模糊, 脏浊色彩, 现代光泽数字绘画, 3D渲染, CGI, 照片写实, 西式卡通, 过锐 HDR, 噪点伪影, 水印, 文字, 签名。
 flicker, jitter, morphing face, identity drift, inconsistent costume, warped hands, broken motion, sudden scene jump, overexposed effect, text, watermark, logo。
 
 ### 输出净化规则

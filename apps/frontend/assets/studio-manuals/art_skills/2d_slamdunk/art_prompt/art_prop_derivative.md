@@ -22,12 +22,12 @@ metaData: art_skills
 
 ### 正向质量锚点
 
-(best quality, masterpiece, high detailed:1.2), (realistic sports manga animation:1.3), (athletic body proportion, sweat detail, court atmosphere, intense eye focus:1.18), (gymnasium top light, hard rim light, action freeze frame:1.1), inked muscle line, textured shading, energetic motion, clean composition, readable silhouette, high detail, finished illustration
+(最佳质量,杰作,高细节:1.2), (写实运动漫画动画:1.3), (运动员体型比例,汗水细节,球场氛围,锐利眼神注视:1.18), (体育馆顶光,硬朗轮廓光,动作定格瞬间:1.1), 墨线肌肉线条,肌理化阴影,力量感动态,干净构图,可读剪影,高细节,完成度高的插画
 道具衍生提示词必须保持原道具轮廓、核心材质和识别纹样不变，只做状态、光效、局部纹理或视角升级。
 
 ### 反向规避提示词
 
-(worst quality, low quality:1.4), blurry, messy lineart, bad anatomy, 3D render, photorealistic, CGI, watermark, signature, text, chibi cute body, fantasy robe, weak anatomy, changed prop type, wrong silhouette, added hand, added character, worn or held, lost core pattern, excessive glow hiding shape, text, watermark.
+(最差质量,低质量:1.4), 模糊, 凌乱线稿, 解剖错误, 3D渲染, 照片写实, CGI, 水印, 签名, 文字, Q版可爱体型, 奇幻长袍, 解剖结构松散, 道具类型改变, 剪影错误, 添加手部, 添加人物, 被佩戴或握持, 丢失核心纹样, 过度光效遮挡造型, 文字, 水印
 
 ## 四、约束规则
 

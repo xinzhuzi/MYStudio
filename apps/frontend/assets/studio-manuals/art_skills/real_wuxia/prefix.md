@@ -21,8 +21,8 @@
 | 色彩基线 | earth brown, faded red, cool night blue |
 | 主光方案 | hard side light, dusty backlight, retro film contrast |
 | 画面层次 | 主体清晰、前中后景可读、焦点明确 |
-| 质量锚定 | (best quality, masterpiece, high detailed:1.2), (vintage live-action wuxia cinema:1.3), (martial arts stance, old inn, forest duel, practical costume:1.18), (hard side light, dusty backlight, retro film contrast:1.1), film grain, worn fabric, real weapon surface, real lens optics, natural skin texture, cinematic framing, high detail |
-| 反向规避 | (worst quality, low quality:1.4), 3D render, CGI, anime, illustration, cartoon, plastic skin, over-smoothed face, bad anatomy, watermark, signature, text, modern clothing, sci-fi tech, CGI magic excess, anime |
+| 质量锚定 | (最佳质量,杰作,高细节:1.2), (复古武侠真人电影:1.3), (武术招式架势,老客栈,林中对决,写实戏服:1.18), (土棕,褪色红,冷夜蓝的做旧色彩,年代感沉着不艳:1.15), (胶片颗粒,磨损布料,真实兵器表面:1.12), (硬质侧光,尘雾逆光,复古胶片反差:1.1), 真实镜头光学, 自然皮肤质感, 电影感构图, 干净构图, 可读剪影, 高细节, 完成度高的武侠电影画面 |
+| 反向规避 | (最差质量,低质量:1.4), 3D渲染, CGI, anime, 插画, 卡通, 塑料感皮肤, 过度磨皮的面孔, 解剖错误, 水印, 签名, 文字, 现代服装, 科幻科技, 过量CGI法术光效, 面部变形, 双眼不对称, 多余肢体, 缺失肢体, 手指粘连, 现代发型, 崭新化戏服 |
 
 ## 三、必守规则
 

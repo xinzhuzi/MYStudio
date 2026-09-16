@@ -11,17 +11,17 @@
 
 ## 提示词质量增强
 
-> 生成最终提示词时，必须把本节融合进现有提示词模板；不要另起说明文字。支持 negative prompt 的模型，把“反向规避提示词”单独放入负面提示词；不支持 negative prompt 的模型，改写成正向规避要求。
+> 生成最终提示词时，必须把本节融合进现有提示词模板；不要另起说明文字。支持负面提示词的模型，把“反向规避提示词”单独放入负面提示词；不支持负面提示词的模型，改写成正向规避要求。
 
 ### 正向质量锚点
 
-定格动画黏土质感，stop-motion claymation，hand-crafted clay texture，visible handmade fingerprints，miniature set lighting，warm soft studio light，shallow depth of field，best quality，tactile detail。
-视频提示词必须补充镜头运动、主体运动、起承转合、景深变化、光影连续性和首尾帧一致性；补充 cinematic motion, temporal continuity, stable composition, consistent subject identity。
+定格动画黏土质感, 黏土定格动画, 手工黏土肌理, 可见手工指痕, 微缩布景打光, 暖调柔和影棚光, 浅景深, 最佳质量, 可触质感细节。
+视频提示词必须补充镜头运动、主体运动、起承转合、景深变化、光影连续性和首尾帧一致性；补充电影感运动、时间连续、构图稳定、主体身份一致。
 
 ### 反向规避提示词
 
-low quality, photorealistic skin, glossy plastic, metal PBR, flat 2D drawing, hyperreal render, sterile smooth surface, hard digital sharpness, watermark, text, signature。
-flicker, jitter, morphing face, identity drift, inconsistent costume, warped hands, broken motion, sudden scene jump, overexposed effect, text, watermark, logo。
+低质量, 写实皮肤, 亮面塑料, 金属 PBR, 扁平 2D 手绘, 超写实渲染, 无菌光滑表面, 生硬数码锐化, 水印, 文字, 签名。
+闪烁, 抖动, 面部变形, 身份漂移, 服装不一致, 手部扭曲, 动作断裂, 场景突切, 过曝效果, 文字, 水印, 标志。
 
 ### 输出净化规则
 

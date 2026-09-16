@@ -24,12 +24,12 @@ simple round character design, friendly face, clean prop shapes, playful room，
 
 ### 正向质量锚点
 
-(best quality, masterpiece, high detailed:1.2), (rounded child-friendly 2D animation:1.3), (simple round character design, friendly face, clean prop shapes, playful room:1.18), (bright even light, cheerful color, soft shadow:1.1), clean outline, simple flat color, low detail density, clean composition, readable silhouette, high detail, finished illustration
+(最佳质量,杰作,高细节:1.2), (圆润的儿童向 2D 动画:1.3), (简洁圆润的角色设计,友善面容,干净的道具造型,趣味房间:1.18), (明亮均匀光线,明快色彩,柔和阴影:1.1), 干净轮廓,简洁平涂色,低细节密度, 干净构图,可读剪影,高细节,完成度高的插画
 人物衍生提示词必须保持底模面容、体态、发型识别点不变，只叠加服化妆造与局部风格升级。
 
 ### 反向规避提示词
 
-(worst quality, low quality:1.4), blurry, messy lineart, bad anatomy, 3D render, photorealistic, CGI, watermark, signature, text, complex realistic detail, dark gloomy horror, sharp angular face, face drift, identity changed, different person, pose changed, added unrelated scene, inconsistent costume between views, cropped body.
+(最差质量,低质量:1.4), 模糊, 凌乱线稿, 解剖错误, 3D渲染, 照片写实, CGI, 水印, 签名, 文字, 复杂写实细节, 阴暗恐怖, 锐利棱角面孔, 面容漂移, 身份改变, 变成他人, 姿势改变, 添加无关场景, 各视图服装不一致, 身体裁切
 
 ## 四、约束规则
 

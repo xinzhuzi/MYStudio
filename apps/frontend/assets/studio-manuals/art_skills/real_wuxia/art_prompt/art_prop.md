@@ -18,19 +18,19 @@ metaData: art_skills
 纯道具静物展示，道具独立陈列，无人持有，无人佩戴，
 同一画面四宫格：正面图+侧面图+背面图+细节特写，
 hard side light, dusty backlight, retro film contrast，film grain, worn fabric, real weapon surface，earth brown, faded red, cool night blue，
-(best quality, masterpiece, high detailed:1.2), (vintage live-action wuxia cinema:1.3), (martial arts stance, old inn, forest duel, practical costume:1.18), (hard side light, dusty backlight, retro film contrast:1.1), film grain, worn fabric, real weapon surface, real lens optics, natural skin texture, cinematic framing, high detail，
+(最佳质量,杰作,高细节:1.2), (复古武侠真人电影:1.3), (武术招式架势,老客栈,林中对决,写实戏服:1.18), (硬质侧光,尘雾逆光,复古胶片反差:1.1), 胶片颗粒,磨损布料,真实兵器表面,真实镜头光学,自然皮肤质感,电影感构图,高细节，
 画面无字幕、无水印、无标题叠字，画面中不能出现任何人物、手部、手指、肢体
 
 ## 三、提示词质量增强
 
 ### 正向质量锚点
 
-(best quality, masterpiece, high detailed:1.2), (vintage live-action wuxia cinema:1.3), (martial arts stance, old inn, forest duel, practical costume:1.18), (hard side light, dusty backlight, retro film contrast:1.1), film grain, worn fabric, real weapon surface, real lens optics, natural skin texture, cinematic framing, high detail
+(最佳质量,杰作,高细节:1.2), (复古武侠真人电影:1.3), (武术招式架势,老客栈,林中对决,写实戏服:1.18), (硬质侧光,尘雾逆光,复古胶片反差:1.1), 胶片颗粒,磨损布料,真实兵器表面,真实镜头光学,自然皮肤质感,电影感构图,高细节
 道具类提示词必须明确类型、材质、工艺、磨损痕迹、陈列方式和多角度/细节特写。
 
 ### 反向规避提示词
 
-(worst quality, low quality:1.4), 3D render, CGI, anime, illustration, cartoon, plastic skin, over-smoothed face, bad anatomy, watermark, signature, text, modern clothing, sci-fi tech, CGI magic excess, anime, hands, fingers, human body, worn by character, held by character, floating without support, unclear silhouette, wrong material, text, watermark.
+(最差质量,低质量:1.4), 3D渲染, CGI, anime, 插画, 卡通, 塑料感皮肤, 过度磨皮的面孔, 解剖错误, 水印, 签名, 文字, 现代服装, 科幻科技, 过量CGI法术光效, 手部, 手指, 人体, 被角色佩戴, 被角色握持, 无支撑悬浮, 剪影不清晰, 材质错误, 文字, 水印.
 
 ## 四、约束规则
 

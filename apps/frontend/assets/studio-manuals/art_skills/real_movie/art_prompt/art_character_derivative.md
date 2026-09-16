@@ -18,18 +18,18 @@ metaData: art_skills
 {妆容/面部状态}，{发型变化}，{服饰款式}，{配饰与材质}，
 real actor presence, natural costume, film set atmosphere, grounded composition，35mm film light, dramatic key light, color graded frame，film grain, real skin pores, optical lens texture，
 四视图一致性，保持自然站立，背景简洁，
-(best quality, masterpiece, high detailed:1.2), (live-action cinematic movie still:1.3), (real actor presence, natural costume, film set atmosphere, grounded composition:1.18), (35mm film light, dramatic key light, color graded frame:1.1), film grain, real skin pores, optical lens texture, real lens optics, natural skin texture, cinematic framing, high detail，图中不要有任何文字
+(最佳质量,杰作,高细节:1.2), (真人电影感剧照:1.3), (真实演员临场感,自然戏服,片场氛围,扎实构图:1.18), (35mm 胶片光,戏剧性主光,调色后的画面:1.1), 胶片颗粒,真实皮肤毛孔,光学镜头质感,真实镜头光学,自然皮肤质感,电影感构图,高细节，图中不要有任何文字
 
 ## 三、提示词质量增强
 
 ### 正向质量锚点
 
-(best quality, masterpiece, high detailed:1.2), (live-action cinematic movie still:1.3), (real actor presence, natural costume, film set atmosphere, grounded composition:1.18), (35mm film light, dramatic key light, color graded frame:1.1), film grain, real skin pores, optical lens texture, real lens optics, natural skin texture, cinematic framing, high detail
+(最佳质量,杰作,高细节:1.2), (真人电影感剧照:1.3), (真实演员临场感,自然戏服,片场氛围,扎实构图:1.18), (35mm 胶片光,戏剧性主光,调色后的画面:1.1), 胶片颗粒,真实皮肤毛孔,光学镜头质感,真实镜头光学,自然皮肤质感,电影感构图,高细节
 人物衍生提示词必须保持底模面容、体态、发型识别点不变，只叠加服化妆造与局部风格升级。
 
 ### 反向规避提示词
 
-(worst quality, low quality:1.4), 3D render, CGI, anime, illustration, cartoon, plastic skin, over-smoothed face, bad anatomy, watermark, signature, text, 3D render, CGI, anime, illustration, artificial plastic face, face drift, identity changed, different person, pose changed, added unrelated scene, inconsistent costume between views, cropped body.
+(最差质量,低质量:1.4), 3D渲染, CGI, anime, 插画, 卡通, 塑料感皮肤, 过度磨皮的面孔, 解剖错误, 水印, 签名, 文字, 人造塑料脸, 面容漂移, 身份改变, 换成他人, 姿势改变, 加入无关场景, 各视图服装不一致, 身体裁切.
 
 ## 四、约束规则
 

@@ -125,12 +125,12 @@ scene design sheet，environment concept art，no people，no characters，no hu
 
 ### 正向质量锚点
 
-90年代日式动画电影质感，hand-drawn cel animation，clean lineart，painted background，soft rim light，subtle film grain，nostalgic warm palette，best quality，high detail，sharp but not digital-glossy。
-场景类提示词必须强化前景/中景/后景、空间纵深、主光源方向、材质痕迹和情绪色调；补充 layered environment, atmospheric perspective, coherent lighting, detailed material surface。
+90年代日式动画电影质感, 手绘赛璐璐动画, 干净线稿, 手绘背景, 柔和轮廓光, 轻微胶片颗粒, 怀旧暖色盘, 最佳质量, 高细节, 锐利而不带数字油亮感。
+场景类提示词必须强化前景/中景/后景、空间纵深、主光源方向、材质痕迹和情绪色调；补充层次化环境、空气透视、连贯光照、细腻材质表面。
 
 ### 反向规避提示词
 
-low quality, worst quality, blurry, muddy colors, modern glossy digital painting, 3D render, CGI, photorealistic, western cartoon, over-sharpened HDR, noisy artifacts, watermark, text, signature。
+低质量, 最差质量, 模糊, 脏浊色彩, 现代光泽数字绘画, 3D渲染, CGI, 照片写实, 西式卡通, 过锐 HDR, 噪点伪影, 水印, 文字, 签名。
 no depth, flat lighting, empty white background, people, human silhouette, character, cropped architecture, inconsistent season, overclean material, text, watermark。
 
 ### 输出净化规则

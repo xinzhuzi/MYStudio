@@ -11,17 +11,17 @@
 
 ## 提示词质量增强
 
-> 生成最终提示词时，必须把本节融合进现有提示词模板；不要另起说明文字。支持 negative prompt 的模型，把“反向规避提示词”单独放入负面提示词；不支持 negative prompt 的模型，改写成正向规避要求。
+> 生成最终提示词时，必须把本节融合进现有提示词模板；不要另起说明文字。支持负面提示词的模型，把“反向规避提示词”单独放入负面提示词；不支持负面提示词的模型，改写成正向规避要求。
 
 ### 正向质量锚点
 
-高精度3D动画渲染，anime style 3D render，cel-shaded 3D，clean topology，polished materials，soft cinematic lighting，sharp focus，best quality，masterpiece，high detailed。
-视频提示词必须补充镜头运动、主体运动、起承转合、景深变化、光影连续性和首尾帧一致性；补充 cinematic motion, temporal continuity, stable composition, consistent subject identity。
+高精度3D动画渲染, anime 风格 3D 渲染, cel-shaded 3D, 干净拓扑, 精致抛光材质, 柔和电影级打光, 锐利焦点, 最佳质量, 杰作, 高细节。
+视频提示词必须补充镜头运动、主体运动、起承转合、景深变化、光影连续性和首尾帧一致性；补充电影感运动、时间连续、构图稳定、主体身份一致。
 
 ### 反向规避提示词
 
-low quality, low poly, rough topology, flat 2D drawing, sketch, photorealistic photography, plastic skin, broken material, noisy render, bad anatomy, watermark, text, signature。
-flicker, jitter, morphing face, identity drift, inconsistent costume, warped hands, broken motion, sudden scene jump, overexposed effect, text, watermark, logo。
+低质量, low poly, 粗糙拓扑, 扁平 2D 手绘, 草图, 照片级写实摄影, 塑料感皮肤, 破损材质, 噪点渲染, 解剖错误, 水印, 文字, 签名。
+闪烁, 抖动, 面部变形, 身份漂移, 服装不一致, 手部扭曲, 动作断裂, 场景突切, 过曝效果, 文字, 水印, 标志。
 
 ### 输出净化规则
 

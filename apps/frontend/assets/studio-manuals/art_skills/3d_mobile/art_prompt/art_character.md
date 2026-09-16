@@ -29,12 +29,12 @@ bright outdoor light, soft ambient light, polished game look，optimized clean m
 
 ### 正向质量锚点
 
-(best quality, masterpiece, high detailed:1.2), (stylized mobile game 3D render:1.3), (hero character design, clean fantasy outfit, readable game asset silhouette:1.18), (bright outdoor light, soft ambient light, polished game look:1.1), optimized clean material, stylized cloth and metal, vivid but controlled color, sharp focus, detailed background, polished composition
+(最佳质量,杰作,高细节:1.2), (风格化手游3D渲染:1.3), (主角级角色设计,干净奇幻装束,可读的游戏资产剪影:1.18), (明亮户外光,柔和环境光,精致游戏观感:1.1), 优化后的干净材质, 风格化布料与金属, 鲜艳而克制的色彩, 锐利焦点, 细节丰富的背景, 精致构图
 角色类提示词必须保留身份、年龄、性别、五官、身高、头身比、体态、服装、发型和四视图一致性。
 
 ### 反向规避提示词
 
-(worst quality, low quality, bad quality:1.4), blurry, fuzzy, distorted, out of focus, malformed body, extra limbs, watermark, signature, text, photorealistic noise, rough sketch, pixelated low quality, bad anatomy, deformed face, asymmetrical eyes, extra limbs, missing limbs, fused fingers, cropped head, cropped feet, inconsistent identity, inconsistent clothing.
+(最差质量,低质量,劣质:1.4), 模糊, 糊化, 变形, 失焦, 畸形身体, 多余肢体, 水印, 签名, 文字, 照片级噪点, 粗糙草稿, 像素化低质, 解剖错误, 面部变形, 双眼不对称, 多余肢体, 缺失肢体, 并指, 头部裁切, 脚部裁切, 身份不一致, 服装不一致.
 
 ## 四、必守 / 严禁
 

@@ -18,11 +18,11 @@
 
 | 景别 | 范围 | 叙事功能 | 提示词 |
 |---|---|---|---|
-| 大全景 | 场景全貌 + 周围环境 | 建立空间感、定位 | extreme wide shot、大全景 |
-| 全景 | 场景完整呈现 | 展示空间结构 | wide shot、全景 |
-| 中景 | 场景局部区域 | 聚焦功能区 | medium shot、中景 |
-| 近景 | 场景细部 | 材质/氛围道具特写 | close shot、近景 |
-| 特写 | 极局部细节 | 材质纹理/关键道具 | extreme closeup、特写 |
+| 大全景 | 场景全貌 + 周围环境 | 建立空间感、定位 | 大远景、大全景 |
+| 全景 | 场景完整呈现 | 展示空间结构 | 全景镜头、全景 |
+| 中景 | 场景局部区域 | 聚焦功能区 | 中景镜头、中景 |
+| 近景 | 场景细部 | 材质/氛围道具特写 | 近景镜头、近景 |
+| 特写 | 极局部细节 | 材质纹理/关键道具 | 大特写、特写 |
 
 ### 景别衍生规范
 
@@ -43,8 +43,8 @@
 |---|---|---|
 | 清晨 | 暖调柔光、色调偏暖金 | 晨光微熹、清晨暖调 |
 | 正午 | 明亮、阴影短、色彩鲜明 | 正午阳光、光线明亮 |
-| 黄昏 | 暖金色调、长影、天空渐变 | 黄昏暖金、golden hour |
-| 夜间（月光） | 冷蓝调、幽静清冷 | 月光清辉、moonlight |
+| 黄昏 | 暖金色调、长影、天空渐变 | 黄昏暖金、黄金时刻 |
+| 夜间（月光） | 冷蓝调、幽静清冷 | 月光清辉、月色 |
 | 夜间（灯火） | 暖黄点缀、明暗对比 | 灯火阑珊、烛光点点 |
 
 ### 时段衍生规范
@@ -64,7 +64,7 @@
 | 天候 | 视觉特征 | 提示词 |
 |---|---|---|
 | 晴天 | 明亮、阴影清晰 | 晴空万里、阳光明媚 |
-| 阴天 | 光线均匀、无硬影 | 阴天柔光、overcast |
+| 阴天 | 光线均匀、无硬影 | 阴天柔光、云层漫射 |
 | 薄雾 | 能见度降低、空气朦胧 | 薄雾弥漫、雾气缭绕 |
 | 细雨 | 水珠、湿润反光、雨丝 | 细雨如丝、雨幕轻纱 |
 | 飞雪 | 白色覆盖、雪花飘落 | 飞雪纷纷、银装素裹 |
@@ -88,12 +88,12 @@
 
 | 角度 | 描述 | 提示词 |
 |---|---|---|
-| 正面/前视 | 与参考图相比，视线朝向场景正面 | front view、eye level |
-| 侧面（左/右） | 朝场景左/右侧 90° 平视 | left side view / right side view |
-| 背面/后视 | 朝场景背面 180° | back view |
-| 俯视 | 高位俯瞰，呈现整体布局 | high angle、bird's eye view |
-| 仰视 | 低位仰望，强调高大主体 | low angle、worm's eye view |
-| 近景推进 | 同方向但镜头推进，聚焦局部 | push-in、closer angle |
+| 正面/前视 | 与参考图相比，视线朝向场景正面 | 正面视图、人眼平视 |
+| 侧面（左/右） | 朝场景左/右侧 90° 平视 | 左侧视图 / 右侧视图 |
+| 背面/后视 | 朝场景背面 180° | 背面视图 |
+| 俯视 | 高位俯瞰，呈现整体布局 | 高位俯拍、鸟瞰视角 |
+| 仰视 | 低位仰望，强调高大主体 | 低位仰拍、超低角度仰视 |
+| 近景推进 | 同方向但镜头推进，聚焦局部 | 镜头推进、更近角度 |
 | 自由角度 | 调用方自定义的任意角度描述 | 按 `{目标角度}` 注入 |
 
 ### 角度衍生规范
@@ -113,8 +113,8 @@
 
 ```
 黏土定格动画衍生场景图，基于参考图，定格动画风格，3D卡通渲染，暖调光影，柔和浅景深，
-claymation style，stop-motion aesthetic，warm lighting，shallow depth of field，bokeh，
-scene derivative design sheet，environment concept art，no people，no characters，no human figures，
+黏土动画风格，定格动画质感，暖调打光，浅景深，bokeh，
+场景衍生设定图，环境概念图，无人物，无角色，无人体，
 保持场景空间结构一致，
 {目标角度（如有）}，{景别视角（如有）}，{时段描述（如有）}，{天候描述（如有）}，
 {前景}，{中景}，{后景}，
@@ -132,17 +132,17 @@ scene derivative design sheet，environment concept art，no people，no charact
 
 ## 提示词质量增强
 
-> 生成最终提示词时，必须把本节融合进现有提示词模板；不要另起说明文字。支持 negative prompt 的模型，把“反向规避提示词”单独放入负面提示词；不支持 negative prompt 的模型，改写成正向规避要求。
+> 生成最终提示词时，必须把本节融合进现有提示词模板；不要另起说明文字。支持负面提示词的模型，把“反向规避提示词”单独放入负面提示词；不支持负面提示词的模型，改写成正向规避要求。
 
 ### 正向质量锚点
 
-定格动画黏土质感，stop-motion claymation，hand-crafted clay texture，visible handmade fingerprints，miniature set lighting，warm soft studio light，shallow depth of field，best quality，tactile detail。
-场景衍生提示词必须保持原场景地标、空间结构、材质年代感不变，只改变时段、天候、景别或镜头角度；补充 landmark consistency, spatial continuity, cinematic atmosphere。
+定格动画黏土质感, 黏土定格动画, 手工黏土肌理, 可见手工指痕, 微缩布景打光, 暖调柔和影棚光, 浅景深, 最佳质量, 可触质感细节。
+场景衍生提示词必须保持原场景地标、空间结构、材质年代感不变，只改变时段、天候、景别或镜头角度；补充地标一致、空间连续、电影感氛围。
 
 ### 反向规避提示词
 
-low quality, photorealistic skin, glossy plastic, metal PBR, flat 2D drawing, hyperreal render, sterile smooth surface, hard digital sharpness, watermark, text, signature。
-changed location, lost landmark, added people, human silhouette, random architecture, inconsistent perspective, flat lighting, overclean material, text, watermark。
+低质量, 写实皮肤, 亮面塑料, 金属 PBR, 扁平 2D 手绘, 超写实渲染, 无菌光滑表面, 生硬数码锐化, 水印, 文字, 签名。
+地点改变, 丢失地标, 添加人物, 人体剪影, 随机建筑, 透视不一致, 平板打光, 过度干净材质, 文字, 水印。
 
 ### 输出净化规则
 
@@ -165,8 +165,8 @@ changed location, lost landmark, added people, human silhouette, random architec
 | R5 | 衍生图必须与参考图保持建筑结构/材质/色调/光线一致，仅按指定角度切换视点 |
 | R6 | 场景图中**严禁出现任何人物** |
 | R7 | 根据用户提供的信息自行判断变化维度（角度/景别/时段/天候），未提及维度留空省略 |
-| R8 | 必须包含定格动画关键词（claymation / stop-motion） |
-| R9 | 必须包含浅景深关键词（shallow depth of field / bokeh） |
+| R8 | 必须包含定格动画关键词（黏土动画 / 定格动画） |
+| R9 | 必须包含浅景深关键词（浅景深 / bokeh） |
 | R10 | 必须指定「暖调柔光」 |
 | R11 | 材质必须带有自然磨损/岁月痕迹 |
 

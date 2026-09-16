@@ -21,8 +21,8 @@
 | 色彩基线 | pastel pink, mint, cream |
 | 主光方案 | soft pastel light, gentle highlight, clean background |
 | 画面层次 | 主体清晰、前中后景可读、焦点明确 |
-| 质量锚定 | (best quality, masterpiece, high detailed:1.2), (kawaii chibi 2D illustration:1.3), (super deformed body, cute face, tiny hands, adorable costume:1.18), (soft pastel light, gentle highlight, clean background:1.1), rounded line, simple cel shadow, candy color, clean composition, readable silhouette, high detail, finished illustration |
-| 反向规避 | (worst quality, low quality:1.4), blurry, messy lineart, bad anatomy, 3D render, photorealistic, CGI, watermark, signature, text, realistic adult proportion, horror mood, harsh dark lighting |
+| 质量锚定 | (最佳质量,杰作,高细节:1.2), (Q版可爱2D插画:1.3), (大头小身体型,可爱面孔,小巧双手,萌趣服装:1.18), (柔和粉彩光,轻柔高光,干净背景:1.1), 圆润线条,简单赛璐璐阴影,糖果色,干净构图,可读剪影,高细节,完成度高的插画 |
+| 反向规避 | (最差质量,低质量:1.4), 模糊, 凌乱线稿, 解剖错误, 3D渲染, 照片写实, CGI, 水印, 签名, 文字, 写实成人比例, 恐怖氛围, 生硬深暗照明 |
 
 ## 三、必守规则
 

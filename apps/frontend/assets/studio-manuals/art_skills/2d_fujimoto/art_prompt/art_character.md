@@ -29,12 +29,12 @@ natural side light, muted contrast, grounded atmosphere，rough ink texture, vis
 
 ### 正向质量锚点
 
-(best quality, masterpiece, high detailed:1.2), (loose cinematic manga drawing:1.3), (sketchy linework, casual pose, realistic emotional beat, movie-like composition:1.18), (natural side light, muted contrast, grounded atmosphere:1.1), rough ink texture, visible hand-drawn marks, restrained color, clean composition, readable silhouette, high detail, finished illustration
+(最佳质量,杰作,高细节:1.2), (松逸的电影感 manga 绘画:1.3), (写意 linework,随意姿态,真实的情绪节拍,电影式构图:1.18), (自然侧光,低对比,质朴踏实的氛围:1.1), 粗粝墨感,可见手绘笔痕,克制的配色, 干净构图,可读剪影,高细节,完成度高的插画
 角色类提示词必须保留身份、年龄、性别、五官、身高、头身比、体态、服装、发型和四视图一致性。
 
 ### 反向规避提示词
 
-(worst quality, low quality:1.4), blurry, messy lineart, bad anatomy, 3D render, photorealistic, CGI, watermark, signature, text, over-polished digital gloss, standard cute anime, 3D render, bad anatomy, deformed face, asymmetrical eyes, extra limbs, missing limbs, fused fingers, cropped head, cropped feet, inconsistent identity, inconsistent clothing.
+(最差质量,低质量:1.4), 模糊, 凌乱线稿, 解剖错误, 3D渲染, 照片写实, CGI, 水印, 签名, 文字, 过度精细的数码光泽, 套路化可爱 anime, 3D渲染, 解剖错误, 面部变形, 双眼不对称, 多余肢体, 缺失肢体, 并指, 头部裁切, 脚部裁切, 身份不一致, 服装不一致
 
 ## 四、必守 / 严禁
 

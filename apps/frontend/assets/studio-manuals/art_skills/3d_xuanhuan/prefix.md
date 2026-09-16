@@ -21,8 +21,8 @@
 | 色彩基线 | misty jade, cloud white, warm gold |
 | 主光方案 | soft volumetric fog, cinematic backlight, glowing aura |
 | 画面层次 | 主体清晰、前中后景可读、焦点明确 |
-| 质量锚定 | (best quality, masterpiece, high detailed:1.2), (Chinese fantasy 3D animation render:1.3), (traditional oriental robes, embroidered fabric, layered mountains, spiritual atmosphere:1.18), (soft volumetric fog, cinematic backlight, glowing aura:1.1), polished PBR cloth, fine metal ornaments, ethereal depth, sharp focus, detailed background, polished composition |
-| 反向规避 | (worst quality, low quality, bad quality:1.4), blurry, fuzzy, distorted, out of focus, malformed body, extra limbs, watermark, signature, text, western fantasy, modern city, neon sci-fi |
+| 质量锚定 | (最佳质量,杰作,高细节:1.2), (中式奇幻3D动画渲染:1.3), (传统东方袍服,刺绣织物,层叠远山,仙气氛围:1.18), (柔和体积雾,电影级逆光,发光灵韵:1.1), 精修PBR布料,精细金属饰品,空灵纵深,锐利焦点,精细背景,精修构图 |
+| 反向规避 | (最差质量,低质量,劣质:1.4), 模糊, 柔糊, 畸变, 失焦, 畸形躯体, 多余肢体, 水印, 签名, 文字, 西方奇幻,现代都市,霓虹科幻 |
 
 ## 三、必守规则
 

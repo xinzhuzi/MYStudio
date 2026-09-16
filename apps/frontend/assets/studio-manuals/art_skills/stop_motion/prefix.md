@@ -21,8 +21,8 @@
 | 色彩基线 | warm craft color, muted green, wood brown |
 | 主光方案 | soft tabletop studio light, macro depth of field, gentle shadow |
 | 画面层次 | 主体清晰、前中后景可读、焦点明确 |
-| 质量锚定 | (best quality, masterpiece, high detailed:1.2), (handmade stop-motion animation:1.3), (miniature character, crafted props, frame-by-frame motion, small studio set:1.18), (soft tabletop studio light, macro depth of field, gentle shadow:1.1), tactile handmade material, visible craft marks, tiny set texture, macro photography, tactile detail, frame-by-frame charm, high detail |
-| 反向规避 | (worst quality, low quality:1.4), fluid CGI animation, 2D anime, photorealistic human scale, smooth digital texture, bad anatomy, watermark, signature, text, fluid CGI animation, 2D anime, smooth digital texture |
+| 质量锚定 | (最佳质量,杰作,高细节:1.2), (手工定格动画:1.3), (微缩角色,手工道具,逐帧运动,小型摄影棚布景:1.18), (柔和桌面棚光,微距景深,轻柔阴影:1.1), 可触感手工材质, 可见制作痕迹, 微小布景纹理, 微距摄影, 可触细节, 逐帧动画韵味, 高细节 |
+| 反向规避 | (最差质量,低质量:1.4), 流畅CGI动画, 2D anime, 真人尺度照片写实, 光滑数字质感, 解剖错误, 水印, 签名, 文字, 流畅CGI动画, 2D anime, 光滑数字质感 |
 
 ## 三、必守规则
 

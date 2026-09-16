@@ -21,8 +21,8 @@
 | 色彩基线 | warm beige, wool brown, pastel accent |
 | 主光方案 | warm diffuse light, soft fabric shadow, cozy atmosphere |
 | 画面层次 | 主体清晰、前中后景可读、焦点明确 |
-| 质量锚定 | (best quality, masterpiece, high detailed:1.2), (needle-felt stop-motion animation:1.3), (wool character, fuzzy miniature prop, handmade craft environment:1.18), (warm diffuse light, soft fabric shadow, cozy atmosphere:1.1), visible wool fibers, felt texture, stitched handmade detail, macro photography, tactile detail, frame-by-frame charm, high detail |
-| 反向规避 | (worst quality, low quality:1.4), fluid CGI animation, 2D anime, photorealistic human scale, smooth digital texture, bad anatomy, watermark, signature, text, hard plastic, shiny metal, 2D anime, photorealistic human |
+| 质量锚定 | (最佳质量,杰作,高细节:1.2), (毛绒针毡定格动画:1.3), (羊毛毡角色,绒感微缩道具,手工工艺环境:1.18), (暖调漫射光,柔软织物阴影,温馨氛围:1.1), 可见羊毛纤维, 毡制质感, 缝线手工细节, 微距摄影, 触感细节, 逐帧手作魅力, 高细节 |
+| 反向规避 | (最差质量,低质量:1.4), 流畅CGI动画, 日式2D动画, 照片级真人尺度, 光滑数码质感, 解剖错误, 水印, 签名, 文字, 硬质塑料, 亮面金属, 日式2D动画, 照片写实真人 |
 
 ## 三、必守规则
 

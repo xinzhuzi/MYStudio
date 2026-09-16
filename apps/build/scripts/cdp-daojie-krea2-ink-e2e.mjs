@@ -10,8 +10,25 @@
  * webview 内一律经主 target evaluate `document.querySelector('webview').executeJavaScript()`。
  *
  * 前置:/Applications/漫影工作室.app 为最新打包(build:mac 已覆盖安装)。
- * 环境变量:KEEP_APP=1 测完保留应用;CDP_PORT 默认 9222;GEN_TIMEOUT_MS 默认 420s。
+ * 环境变量:KEEP_APP=1 测完保留应用;CDP_PORT 默认 9222;GEN_TIMEOUT_MS 默认 420s;
+ * SKIP_GEN=1 免生图模式——⑤b 跳转/复用段照跑,⑥⑦ queuePrompt 跳过
+ * (装机实弹但不加载模型权重,避开与并行大模型批次撞车)。
  * 退出码:0=全部断言通过;1=失败;2=环境错误。
+ *
+ * ⑤b(09-15 用户裁定回归):侧栏「重复点击同一 repo: 工作流=复用已开标签页」——
+ * 走真实用户路径(漫影侧栏叶子行 onclick→openMyWorkflow),断言:首次点击画布
+ * 切换且标签注册进 svc.openWorkflows、二次点击画布切回且标签集不变(带号 "(N)"
+ * 复本叠签=失败);window.fetch spy 只作 content 拉取次数诊断(修复后复用=激活+
+ * 按实例装载,内容仍每次拉取,fetch 数不是门)。
+ *
+ * 09-15 交接踩坑(全部落进对应代码位,勿再撞):
+ * ① webview executeJavaScript 大段 async IIFE 偶发 GUEST_VIEW_MANAGER_CALL
+ *   "undefined" is not valid JSON(IPC 竞态)——每段注入≤10 行、段间 sleep;
+ * ② 装机 smoke 临时实例(mystudio-installed-smoke-*)残留会抢 9222 调试口——
+ *   prekillApp 连带清理;
+ * ③ webview persist 缓存旧 sidebar.js,普通 reload 无效,reloadIgnoringCache
+ *   才可靠——⑤b 裁决的正是 sidebar.js,先无条件无视缓存重载再测;
+ * ④ CDP Page.captureScreenshot 偶发空数据,macOS 原生 screencapture 兜底。
  */
 import { createRequire } from "node:module";
 import { spawn } from "node:child_process";
@@ -36,6 +53,7 @@ const WF_I2I_REL = "1_图片/K2图像/2_图生图/MY-K2-图生图.json";
 const WF_DIR = "/Users/zhengbingjin/Project/Github/MYStudio/apps/backend/engines/comfyui/workflows";
 const REF_IMAGE = "daojie_e2e_ref.png";
 const GEN_TIMEOUT_MS = Number(process.env.GEN_TIMEOUT_MS || 420_000);
+const SKIP_GEN = process.env.SKIP_GEN === "1";
 
 const log = (...a) => console.log(new Date().toISOString().slice(11, 19), ...a);
 const vis = (x) => `(() => { try { return ${x}; } catch { return null; } })()`;
@@ -52,6 +70,9 @@ function prekillApp() {
     ["osascript", ["-e", `tell application id "${APP_BUNDLE_ID}" to quit`]],
     ...["漫影工作室", "漫影工作室 Helper", "manying-studio"].map((n) => ["pkill", ["-x", n]]),
     ["pkill", ["-f", "漫影工作室.app/Contents"]],
+    // 踩坑②(09-15 交接):装机 smoke 临时 userData 实例(mystudio-installed-smoke-*)
+    // 偶发活到本轮,抢 9222 调试口——起应用前连带清掉
+    ["pkill", ["-9", "-f", "mystudio-installed-smoke"]],
     // 引擎是应用托管子进程;孤儿引擎占口毒化下一轮(09-10 教训),按引擎家路径连带清理
     ["pkill", ["-f", "漫影工作室/comfyui/ComfyUI/main.py"]],
   ];
@@ -119,9 +140,20 @@ async function getMainClient() {
       })()`);
     },
     async screenshot(name) {
-      const r = await send("Page.captureScreenshot", { format: "png" });
-      writeFileSync(`/tmp/daojie-ink-e2e-${name}.png`, Buffer.from(r.data, "base64"));
-      log(`📸 /tmp/daojie-ink-e2e-${name}.png`);
+      const path = `/tmp/daojie-ink-e2e-${name}.png`;
+      // 踩坑④(09-15 交接):CDP 截图偶发返回空数据,macOS 原生 screencapture 兜底
+      try {
+        const r = await send("Page.captureScreenshot", { format: "png" });
+        if (r && r.data) {
+          writeFileSync(path, Buffer.from(r.data, "base64"));
+          log(`📸 ${path}`);
+          return;
+        }
+      } catch { /* 落入原生截屏兜底 */ }
+      try {
+        require("node:child_process").execFileSync("screencapture", ["-x", "-C", path]);
+        log(`📸(native) ${path}`);
+      } catch { log(`📸 失败 ${path}`); }
     },
   };
 }
@@ -227,11 +259,13 @@ async function main() {
   for (const f of [wfT2I, wfI2I]) {
     if (!existsSync(f)) { console.error("库工作流缺失:", f); process.exit(2); }
   }
-  // 参考图(图生图用):复用最近一张应用分镜图
-  const refCandidates = readdirSync(ENGINE_OUTPUT).filter((f) => /^MYStudio_.*\.png$/.test(f)).sort().reverse();
-  if (!refCandidates.length) { console.error("无参考图可用(output 无 MYStudio_*.png)"); process.exit(2); }
-  copyFileSync(join(ENGINE_OUTPUT, refCandidates[0]), join(ENGINE_INPUT, REF_IMAGE));
-  log("参考图就位:", REF_IMAGE, "←", refCandidates[0]);
+  // 参考图(图生图用):复用最近一张应用分镜图(SKIP_GEN 免生图模式不需要)
+  if (!SKIP_GEN) {
+    const refCandidates = readdirSync(ENGINE_OUTPUT).filter((f) => /^MYStudio_.*\.png$/.test(f)).sort().reverse();
+    if (!refCandidates.length) { console.error("无参考图可用(output 无 MYStudio_*.png)"); process.exit(2); }
+    copyFileSync(join(ENGINE_OUTPUT, refCandidates[0]), join(ENGINE_INPUT, REF_IMAGE));
+    log("参考图就位:", REF_IMAGE, "←", refCandidates[0]);
+  }
 
   log("① prekill + 启动装机应用(真实 userData)");
   prekillApp();
@@ -336,8 +370,161 @@ async function main() {
   check("侧栏树含全部域(2_视频/3_声音 在)", hasLib === "yes");
   await mainPage.screenshot("4-sidebar-k2");
 
-  log("⑥ 打开道劫文生图工作流并实弹");
+  log("⑤b 侧栏跳转=复用已开标签页(09-15 裁定回归,免生图)");
+  // 踩坑③:webview persist 会缓存旧 sidebar.js,普通 reload 无效,
+  // reloadIgnoringCache 才可靠——⑤ 树在场不能证明跑的是新代码,裁决前先无条件重载。
+  // 重载 commit 是异步的:isGraphReady 在旧页恒真会抢跑(首轮实弹教训:前几步
+  // 跑在旧页、导航中途生效把状态炸了)——先在旧页落标记,「标记消失+graph 就绪」
+  // 才是新页真身
+  await wv(mainPage, `window.__myPreReloadMarker = 1`);
+  await mainPage.ev(`(() => { document.querySelector('webview')?.reloadIgnoringCache?.(); return true; })()`);
+  await waitFor(() => wv(mainPage, `(!window.__myPreReloadMarker && window.app && window.app.isGraphReady === true) ? 'y' : null`),
+    { timeout: 120_000, interval: 2000, label: "复用段·新页真身(旧页标记消失+graph 就绪)" });
+  // 收敛式打开:树在场才退出;树不在则点 dock 钮(重载后面板开合态不确定,
+  // 盲点一下可能把已开的关上——点完不退出、下一轮见树才算数)
+  await waitFor(() => wv(mainPage, `(() => {
+    if (document.body.innerText.includes('1_图片') && document.body.innerText.includes('K2图像')) return 'y';
+    const btn = [...document.querySelectorAll('.side-tool-bar-container button, [class*="side-tool-bar"] button')]
+      .find(b => ((b.title || '') + (b.getAttribute('aria-label') || '')).includes('漫影'));
+    if (!btn) return null; btn.click(); return 'clicked';
+  })()`), { timeout: 30_000, interval: 1500, label: "复用段·漫影侧栏打开(树在场)" });
+
+  // 踩坑①:以下注入每段≤10 行、段间 sleep,勿合并大段(IPC 竞态)
+  const leafProbe = (rel) => `(() => [...document.querySelectorAll('.my-tree-row')]
+    .some(r => (r.title || '').endsWith(${JSON.stringify("repo:" + rel)})) ? 'y' : null)()`;
+  const leafClick = (rel) => wv(mainPage, `(() => {
+    const row = [...document.querySelectorAll('.my-tree-row')]
+      .find(r => (r.title || '').endsWith(${JSON.stringify("repo:" + rel)}));
+    if (!row) return null; row.click(); return 'ok';
+  })()`);
+  // 目录行(含折叠钮 button)点击=开合切换,只点一次;叶子行=带「点击在画布打开: repo:」title
+  const expandFolder = async (name) => {
+    await waitFor(() => wv(mainPage, `(() => {
+      const row = [...document.querySelectorAll('.my-tree-row')]
+        .find(r => r.querySelector('button') && r.querySelector('.my-tree-label')?.textContent === ${JSON.stringify(name)});
+      if (!row) return null; row.click(); return 'ok';
+    })()`), { timeout: 20_000, interval: 1200, label: `展开目录 ${name}` });
+    await sleep(800);
+  };
+  const readTabs = async () => JSON.parse((await wv(mainPage, `(() => {
+    const s = window.app && window.app.extensionManager && window.app.extensionManager.workflow;
+    const w = (s && s.openWorkflows) || [];
+    return JSON.stringify({ len: w.length, paths: w.map(x => x && x.path) });
+  })()`)) || '{"len":-1,"paths":[]}');
+  // 路径三形态匹配,镜像 sidebar.js openMyWorkflow 的命中规则(勿比实现更严)
+  const matchesRel = (paths, rel) => (paths || []).some((p) =>
+    p === rel || p === "repo:" + rel || String(p || "").replace(/^workflows\//, "") === rel);
+
   const t2iGraph = JSON.parse(readFileSync(wfT2I, "utf8"));
+  const i2iGraph = JSON.parse(readFileSync(wfI2I, "utf8"));
+  const expectT2I = t2iGraph.nodes.length; // 真源节点数(并行演进,勿硬编码)
+  const expectI2I = i2iGraph.nodes.length;
+
+  await expandFolder("K2图像");
+  await expandFolder("1_文生图");
+  await waitFor(() => wv(mainPage, leafProbe(WF_T2I_REL)), { timeout: 15_000, interval: 800, label: "文生图叶子行" });
+  await leafClick(WF_T2I_REL);
+  const nodesT2I = await waitFor(() => wv(mainPage, `window.app.graph && window.app.graph._nodes.length === ${expectT2I} ? ${expectT2I} : null`),
+    { timeout: 60_000, interval: 1000, label: `首次点击·画布切文生图(${expectT2I} 节点)` }).catch(() => 0);
+  check("侧栏跳转·首次点击打开文生图(画布)", nodesT2I === expectT2I, `画布 ${nodesT2I}/${expectT2I} 节点`);
+  const tabs1 = await readTabs();
+  check("侧栏跳转·打开后标签已注册(openWorkflows 命中库路径)", matchesRel(tabs1.paths, WF_T2I_REL),
+    JSON.stringify(tabs1.paths).slice(0, 300));
+
+  await expandFolder("2_图生图");
+  await waitFor(() => wv(mainPage, leafProbe(WF_I2I_REL)), { timeout: 15_000, interval: 800, label: "图生图叶子行" });
+  await leafClick(WF_I2I_REL);
+  const nodesI2I = await waitFor(() => wv(mainPage, `window.app.graph && window.app.graph._nodes.length === ${expectI2I} ? ${expectI2I} : null`),
+    { timeout: 60_000, interval: 1000, label: `切换·画布切图生图(${expectI2I} 节点)` }).catch(() => 0);
+  check("侧栏跳转·切到图生图(画布)", nodesI2I === expectI2I, `画布 ${nodesI2I}/${expectI2I} 节点`);
+  const tabs2 = await readTabs();
+
+  // 诊断取证:spy window.fetch 数 /comfy/workflows/<id>/content 拉取——修复后
+  // 复用=激活+按实例装载,内容仍每次拉取(fetch 恒≥1,只作诊断不作门);
+  // 复用的判据是标签集不变(带号 "(N)" 复本叠签会让集合变样)
+  const armed = await wv(mainPage, `(() => {
+    const of = window.fetch.bind(window);
+    let n = 0;
+    window.fetch = (...a) => { const u = String(a[0]); if (u.includes('/comfy/workflows/') && u.includes('/content')) n++; return of(...a); };
+    window.__myContentFetchCount = () => n;
+    return 'armed';
+  })()`);
+  await sleep(300);
+  await leafClick(WF_T2I_REL);
+  const nodesBack = await waitFor(() => wv(mainPage, `window.app.graph && window.app.graph._nodes.length === ${expectT2I} ? ${expectT2I} : null`),
+    { timeout: 60_000, interval: 1000, label: `二次点击·画布切回文生图(${expectT2I} 节点)` }).catch(() => 0);
+  const fetchCount = await wv(mainPage, `window.__myContentFetchCount ? window.__myContentFetchCount() : null`);
+  const tabs3 = await readTabs();
+  const sameTabs = tabs3.len === tabs2.len
+    && JSON.stringify([...tabs2.paths].sort()) === JSON.stringify([...tabs3.paths].sort());
+  check("侧栏跳转·二次点击切回文生图(画布)", nodesBack === expectT2I, `画布 ${nodesBack}/${expectT2I} 节点`);
+  check("侧栏跳转·复用已开标签页(标签集不变)", sameTabs,
+    `二次点击前后 ${tabs2.len}→${tabs3.len} 签,content 拉取 ${fetchCount} 次;paths=${JSON.stringify(tabs3.paths).slice(0, 300)}`);
+  await mainPage.screenshot("4b-tab-reuse");
+
+  log("⑤c 侧栏右键菜单(09-15 用户裁定:镜像原生工作流右键;litegraph ContextMenu)");
+  // 菜单=sidebar.js 自己的 oncontextmenu 构造(window.ContextMenu 扩展点),
+  // 合成 contextmenu 事件直达;条目类=.litemenu-entry(与画布右键菜单同款)
+  const rowCtx = (rel) => wv(mainPage, `(() => {
+    const row = [...document.querySelectorAll('.my-tree-row')]
+      .find(r => (r.title || '').endsWith(${JSON.stringify("repo:" + rel)}));
+    if (!row) return null;
+    row.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true, view: window, clientX: 220, clientY: 300, button: 2 }));
+    return 'ctx';
+  })()`);
+  const menuItems = () => wv(mainPage, `(() => [...document.querySelectorAll('.litemenu-entry')]
+    .filter(e => e.offsetWidth || e.offsetHeight).map(e => (e.textContent || '').trim()))()`);
+  const clickMenuItem = (name) => wv(mainPage, `(() => {
+    const el = [...document.querySelectorAll('.litemenu-entry')]
+      .find(e => ((e.textContent || '').trim()).includes(${JSON.stringify(name)}));
+    if (!el) return null; el.click(); return 'ok';
+  })()`);
+  const canvasNodes = () => wv(mainPage, `window.app.graph ? window.app.graph._nodes.length : null`);
+
+  await rowCtx(WF_T2I_REL); await sleep(800);
+  const items1 = await menuItems();
+  const need = ["打开", "插入当前画布", "复制副本", "关闭标签", "导出 JSON"];
+  check("右键菜单·五项齐(含已开态的关闭标签)", JSON.stringify(items1) === JSON.stringify(need),
+    `实际 [${(items1 || []).join("|")}]`);
+
+  await clickMenuItem("打开");
+  const openKeep = await waitFor(() => wv(mainPage, `window.app.graph && window.app.graph._nodes.length === ${expectT2I} ? 'y' : null`),
+    { timeout: 30_000, interval: 800, label: "右键打开·画布保持文生图" }).catch(() => null);
+  check("右键菜单·打开生效(画布=文生图)", openKeep === "y", `画布 ${await canvasNodes()}/${expectT2I}`);
+
+  await rowCtx(WF_T2I_REL); await sleep(800);
+  await clickMenuItem("插入当前画布");
+  const inserted = await waitFor(() => wv(mainPage, `window.app.graph && window.app.graph._nodes.length === ${expectT2I * 2} ? 'y' : null`),
+    { timeout: 30_000, interval: 800, label: `插入·节点并入(19→${expectT2I * 2})` }).catch(() => null);
+  check("右键菜单·插入当前画布(节点并入,原生 insertWorkflow 同款)", inserted === "y", `画布 ${await canvasNodes()}/${expectT2I * 2}`);
+  await mainPage.screenshot("4c-insert");
+
+  await rowCtx(WF_T2I_REL); await sleep(800);
+  await clickMenuItem("复制副本");
+  const copied = await waitFor(() => wv(mainPage, `(() => {
+    const s = window.app && window.app.extensionManager && window.app.extensionManager.workflow;
+    const w = (s && s.openWorkflows) || [];
+    const hit = w.some(x => x && String(x.path || '').endsWith('MY-K2-文生图 副本.json'));
+    return hit && window.app.graph && window.app.graph._nodes.length === ${expectT2I} ? 'y' : null;
+  })()`), { timeout: 30_000, interval: 800, label: "复制副本·未保存副本签" }).catch(() => null);
+  check("右键菜单·复制副本(副本签入清单+画布=副本)", copied === "y", `画布 ${await canvasNodes()}/${expectT2I}`);
+
+  await rowCtx(WF_T2I_REL); await sleep(800);
+  await clickMenuItem("关闭标签");
+  const closed = await waitFor(() => wv(mainPage, `(() => {
+    const s = window.app && window.app.extensionManager && window.app.extensionManager.workflow;
+    const w = (s && s.openWorkflows) || [];
+    const still = w.some(x => x && (x.path === ${JSON.stringify(WF_T2I_REL)} || x.path === ${JSON.stringify("repo:" + WF_T2I_REL)}
+      || String(x.path || '').replace(/^workflows\\//, '') === ${JSON.stringify(WF_T2I_REL)}));
+    return !still ? 'y' : null;
+  })()`), { timeout: 30_000, interval: 800, label: "关闭标签·签移出清单" }).catch(() => null);
+  check("右键菜单·关闭标签(签移出清单)", closed === "y");
+  await mainPage.screenshot("4d-ctxmenu-done");
+
+  if (SKIP_GEN) {
+    log("⑥⑦ 跳过实弹生图(SKIP_GEN=1;跳转/复用段已覆盖本轮裁决,生图回归待并行大模型批次结束后全轮跑)");
+  } else {
+  log("⑥ 打开道劫文生图工作流并实弹");
   const opened1 = await openWorkflowInCanvas(mainPage, WF_T2I_REL, t2iGraph);
   check("文生图工作流载入", opened1 && opened1 !== "app-not-ready", String(opened1));
   const expect1 = t2iGraph.nodes.length; // 真源节点数(并行演进,勿硬编码)
@@ -349,7 +536,6 @@ async function main() {
   await mainPage.screenshot("6-t2i-result");
 
   log("⑦ 打开道劫图生图工作流并实弹(参考图注入 LoadImage)");
-  const i2iGraph = JSON.parse(readFileSync(wfI2I, "utf8"));
   const opened2 = await openWorkflowInCanvas(mainPage, WF_I2I_REL, i2iGraph);
   check("图生图工作流载入", opened2 && opened2 !== "app-not-ready", String(opened2));
   // 会话恢复竞态:同文生图——轮询等画布真正切到 21 节点(选参考图/queue 才不串台)
@@ -377,6 +563,7 @@ async function main() {
   await mainPage.screenshot("7-i2i-loaded");
   const okI2I = await queueAndAssert(mainPage, { tag: "图生图", prefix: "MY-K2-图生图" });
   await mainPage.screenshot("8-i2i-result");
+  }
 
   mainPage.close();
   const allPass = results.every((r) => r.pass);

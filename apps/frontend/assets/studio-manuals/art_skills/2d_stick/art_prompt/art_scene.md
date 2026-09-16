@@ -25,12 +25,12 @@ black line, white, tiny color accent，flat paper light, no complex shadow, mini
 
 ### 正向质量锚点
 
-(best quality, masterpiece, high detailed:1.2), (minimalist stick figure doodle:1.3), (simple stick figure, sketchbook charm, clean blank space, cute expression:1.18), (flat paper light, no complex shadow, minimal contrast:1.1), hand-drawn pencil line, plain white background, sparse detail, clean composition, readable silhouette, high detail, finished illustration
+(最佳质量,杰作,高细节:1.2), (极简简笔画涂鸦:1.3), (简约简笔画,速写本趣味,干净留白,可爱表情:1.18), (平面纸面光,无复杂阴影,极简对比:1.1), 手绘铅笔线条,素白背景,稀疏细节,干净构图,可读剪影,高细节,完成度高的插画
 场景类提示词必须强化前景/中景/后景、空间纵深、主光源方向、材质痕迹和情绪色调。
 
 ### 反向规避提示词
 
-(worst quality, low quality:1.4), blurry, messy lineart, bad anatomy, 3D render, photorealistic, CGI, watermark, signature, text, complex realistic detail, filled color, 3D shading, no depth, flat lighting, empty white background, people, human silhouette, cropped architecture, inconsistent season, text, watermark.
+(最差质量,低质量:1.4), 模糊, 凌乱线稿, 解剖错误, 3D渲染, 照片写实, CGI, 水印, 签名, 文字, 复杂写实细节, 满幅填色, 3D着色, 无纵深, 平面打光, 空白背景, 人物, 人影, 建筑被裁切, 季节不一致, 文字, 水印
 
 ## 四、约束规则
 

@@ -21,8 +21,8 @@
 | 色彩基线 | black, white, sky blue |
 | 主光方案 | clean flat light, vintage print tone, bright clarity |
 | 画面层次 | 主体清晰、前中后景可读、焦点明确 |
-| 质量锚定 | (best quality, masterpiece, high detailed:1.2), (classic round-line retro manga:1.3), (large expressive eyes, rounded face, simple futuristic prop, iconic silhouette:1.18), (clean flat light, vintage print tone, bright clarity:1.1), smooth black line, simple shading, old comic texture, clean composition, readable silhouette, high detail, finished illustration |
-| 反向规避 | (worst quality, low quality:1.4), blurry, messy lineart, bad anatomy, 3D render, photorealistic, CGI, watermark, signature, text, modern hyper-detailed anime, sharp realistic rendering, 3D |
+| 质量锚定 | (最佳质量,杰作,高细节:1.2), (经典圆线复古漫画:1.3), (大而传神的双眼,圆润脸型,简洁未来感道具,标志性剪影:1.18), (干净平光,复古印刷色调,明亮通透:1.1), 流畅黑色线稿,简明阴影,老式漫画质感,干净构图,可读剪影,高细节,完成度高的插画 |
+| 反向规避 | (最差质量,低质量:1.4), 模糊, 凌乱线稿, 解剖错误, 3D渲染, 照片写实, CGI, 水印, 签名, 文字, 现代超精细日式动画, 锐利写实渲染, 3D |
 
 ## 三、必守规则
 

@@ -24,12 +24,12 @@ super deformed body, oversized head, cute face, miniature scene，soft studio li
 
 ### 正向质量锚点
 
-(best quality, masterpiece, high detailed:1.2), (chibi collectible 3D toy render:1.3), (super deformed body, oversized head, cute face, miniature scene:1.18), (soft studio lighting, gentle rim light, clean shadow:1.1), smooth toy material, rounded surface, tactile miniature detail, sharp focus, detailed background, polished composition
+(最佳质量,杰作,高细节:1.2), (chibi 收藏级3D玩具渲染:1.3), (super deformed 比例身材,超大头部,可爱面容,微缩场景:1.18), (柔和棚拍布光,温和轮廓光,干净阴影:1.1), 光滑玩具材质, 圆润表面, 可触微缩细节, 锐利焦点, 细节丰富的背景, 精致构图
 人物衍生提示词必须保持底模面容、体态、发型识别点不变，只叠加服化妆造与局部风格升级。
 
 ### 反向规避提示词
 
-(worst quality, low quality, bad quality:1.4), blurry, fuzzy, distorted, out of focus, malformed body, extra limbs, watermark, signature, text, realistic adult proportion, rough material, scary mood, face drift, identity changed, different person, pose changed, added unrelated scene, inconsistent costume between views, cropped body.
+(最差质量,低质量,劣质:1.4), 模糊, 糊化, 变形, 失焦, 畸形身体, 多余肢体, 水印, 签名, 文字, 写实成人比例, 粗糙材质, 惊悚氛围, 面部漂移, 身份改变, 不同人物, 姿势改变, 加入无关场景, 各视图服装不一致, 身体裁切.
 
 ## 四、约束规则
 

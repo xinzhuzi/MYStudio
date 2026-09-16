@@ -25,12 +25,12 @@ natural side light, muted contrast, grounded atmosphere，rough ink texture, vis
 
 ### 正向质量锚点
 
-(best quality, masterpiece, high detailed:1.2), (loose cinematic manga drawing:1.3), (sketchy linework, casual pose, realistic emotional beat, movie-like composition:1.18), (natural side light, muted contrast, grounded atmosphere:1.1), rough ink texture, visible hand-drawn marks, restrained color, clean composition, readable silhouette, high detail, finished illustration
+(最佳质量,杰作,高细节:1.2), (松逸的电影感 manga 绘画:1.3), (写意 linework,随意姿态,真实的情绪节拍,电影式构图:1.18), (自然侧光,低对比,质朴踏实的氛围:1.1), 粗粝墨感,可见手绘笔痕,克制的配色, 干净构图,可读剪影,高细节,完成度高的插画
 道具类提示词必须明确类型、材质、工艺、磨损痕迹、陈列方式和多角度/细节特写。
 
 ### 反向规避提示词
 
-(worst quality, low quality:1.4), blurry, messy lineart, bad anatomy, 3D render, photorealistic, CGI, watermark, signature, text, over-polished digital gloss, standard cute anime, 3D render, hands, fingers, human body, worn by character, held by character, floating without support, unclear silhouette, wrong material, text, watermark.
+(最差质量,低质量:1.4), 模糊, 凌乱线稿, 解剖错误, 3D渲染, 照片写实, CGI, 水印, 签名, 文字, 过度精细的数码光泽, 套路化可爱 anime, 3D渲染, 手部, 手指, 人体, 被人物佩戴, 被人物握持, 无支撑悬浮, 剪影不清, 材质错误, 文字, 水印
 
 ## 四、约束规则
 

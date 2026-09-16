@@ -16,18 +16,18 @@ metaData: art_skills
 以道具基础图为底图，保持道具核心轮廓与材质不变，
 真实光晕，dreamy backlit live-action photography，{衍生状态}，{局部纹理升级}，{光效或年代感变化}，
 独立静物陈列，无人物无手部，strong bloom, lens flare, warm backlight, shallow depth of field，film softness, skin texture retained, optical glow，
-(best quality, masterpiece, high detailed:1.2), (dreamy backlit live-action photography:1.3), (real person, glowing rim light, soft focus portrait, airy environment:1.18), (strong bloom, lens flare, warm backlight, shallow depth of field:1.1), film softness, skin texture retained, optical glow, real lens optics, natural skin texture, cinematic framing, high detail，画面无字幕、无水印、无标题叠字
+(最佳质量,杰作,高细节:1.2), (梦幻逆光真人摄影:1.3), (真实人物,辉光轮廓光,柔焦人像,轻盈通透的环境:1.18), (强光晕,镜头光斑,暖调逆光,浅景深:1.1), 胶片柔质感,皮肤质感保留,光学辉光,真实镜头光学,自然皮肤质感,电影感构图,高细节，画面无字幕、无水印、无标题叠字
 
 ## 三、提示词质量增强
 
 ### 正向质量锚点
 
-(best quality, masterpiece, high detailed:1.2), (dreamy backlit live-action photography:1.3), (real person, glowing rim light, soft focus portrait, airy environment:1.18), (strong bloom, lens flare, warm backlight, shallow depth of field:1.1), film softness, skin texture retained, optical glow, real lens optics, natural skin texture, cinematic framing, high detail
+(最佳质量,杰作,高细节:1.2), (梦幻逆光真人摄影:1.3), (真实人物,辉光轮廓光,柔焦人像,轻盈通透的环境:1.18), (强光晕,镜头光斑,暖调逆光,浅景深:1.1), 胶片柔质感,皮肤质感保留,光学辉光,真实镜头光学,自然皮肤质感,电影感构图,高细节
 道具衍生提示词必须保持原道具轮廓、核心材质和识别纹样不变，只做状态、光效、局部纹理或视角升级。
 
 ### 反向规避提示词
 
-(worst quality, low quality:1.4), 3D render, CGI, anime, illustration, cartoon, plastic skin, over-smoothed face, bad anatomy, watermark, signature, text, harsh contrast, dark gritty mood, anime, 3D render, changed prop type, wrong silhouette, added hand, added character, worn or held, lost core pattern, excessive glow hiding shape, text, watermark.
+(最差质量,低质量:1.4), 3D渲染, CGI, anime, 插画, 卡通, 塑料感皮肤, 过度磨皮的面孔, 解剖错误, 水印, 签名, 文字, 生硬高反差, 阴郁粗粝的暗黑氛围, 道具类型被更换, 剪影错误, 多出手部, 多出人物, 被佩戴或握持, 丢失核心纹样, 过量光晕淹没造型, 文字, 水印.
 
 ## 四、约束规则
 

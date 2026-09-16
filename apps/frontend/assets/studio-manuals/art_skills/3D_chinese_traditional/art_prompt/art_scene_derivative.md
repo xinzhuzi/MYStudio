@@ -24,11 +24,11 @@ metaData: art_skills
 
 | 景别 | 范围 | 叙事功能 | 提示词 |
 |---|---|---|---|
-| 大全景 | 场景全貌 + 周围环境 | 建立空间感、定位 | extreme wide shot、大全景 |
-| 全景 | 场景完整呈现 | 展示空间结构 | wide shot、全景 |
-| 中景 | 场景局部区域 | 聚焦功能区 | medium shot、中景 |
-| 近景 | 场景细部 | 材质/氛围道具特写 | close shot、近景 |
-| 特写 | 极局部细节 | 材质纹理/关键道具 | extreme closeup、特写 |
+| 大全景 | 场景全貌 + 周围环境 | 建立空间感、定位 | 大远景、大全景 |
+| 全景 | 场景完整呈现 | 展示空间结构 | 全景镜头、全景 |
+| 中景 | 场景局部区域 | 聚焦功能区 | 中景镜头、中景 |
+| 近景 | 场景细部 | 材质/氛围道具特写 | 近景镜头、近景 |
+| 特写 | 极局部细节 | 材质纹理/关键道具 | 大特写、特写 |
 
 ### 景别衍生规范
 
@@ -49,8 +49,8 @@ metaData: art_skills
 |---|---|---|
 | 清晨 | 薄雾柔光、色调偏冷暖交织 | 晨光微熹、清晨薄雾 |
 | 正午 | 明亮、阴影短、色彩鲜明 | 正午阳光、光线明亮 |
-| 黄昏 | 金色色调、长影、天空渐变 | 暮色金辉、golden hour |
-| 夜间（月光） | 冷蓝色调、幽静清冷 | 月光清辉、moonlight |
+| 黄昏 | 金色色调、长影、天空渐变 | 暮色金辉、黄金时刻 |
+| 夜间（月光） | 冷蓝色调、幽静清冷 | 月光清辉、月色 |
 | 夜间（灯火） | 暖黄点缀、明暗对比 | 灯火阑珊、烛光点点 |
 
 ### 时段衍生规范
@@ -70,7 +70,7 @@ metaData: art_skills
 | 天候 | 视觉特征 | 提示词 |
 |---|---|---|
 | 晴天 | 明亮、阴影清晰 | 晴空万里、阳光明媚 |
-| 阴天 | 光线均匀、无硬影 | 阴天柔光、overcast |
+| 阴天 | 光线均匀、无硬影 | 阴天柔光、云层漫射 |
 | 薄雾 | 能见度降低、空气朦胧 | 薄雾弥漫、雾气缭绕 |
 | 细雨 | 水珠、湿润反光、雨丝 | 细雨如丝、雨幕轻纱 |
 | 飞雪 | 白色覆盖、雪花飘落 | 飞雪纷纷、银装素裹 |
@@ -94,12 +94,12 @@ metaData: art_skills
 
 | 角度 | 描述 | 提示词 |
 |---|---|---|
-| 正面/前视 | 与参考图相比，视线朝向场景正面 | front view、eye level |
-| 侧面（左/右） | 朝场景左/右侧 90° 平视 | left side view / right side view |
-| 背面/后视 | 朝场景背面 180° | back view |
-| 俯视 | 高位俯瞰，呈现整体布局 | high angle、bird's eye view |
-| 仰视 | 低位仰望，强调高大主体 | low angle、worm's eye view |
-| 近景推进 | 同方向但镜头推进，聚焦局部 | push-in、closer angle |
+| 正面/前视 | 与参考图相比，视线朝向场景正面 | 正面视图、人眼平视 |
+| 侧面（左/右） | 朝场景左/右侧 90° 平视 | 左侧视图 / 右侧视图 |
+| 背面/后视 | 朝场景背面 180° | 背面视图 |
+| 俯视 | 高位俯瞰，呈现整体布局 | 高位俯拍、鸟瞰视角 |
+| 仰视 | 低位仰望，强调高大主体 | 低位仰拍、超低角度仰视 |
+| 近景推进 | 同方向但镜头推进，聚焦局部 | 镜头推进、更近角度 |
 | 自由角度 | 调用方自定义的任意角度描述 | 按 `{目标角度}` 注入 |
 
 ### 角度衍生规范
@@ -119,10 +119,10 @@ metaData: art_skills
 
 古风衍生场景图，基于参考图，
 3D渲染风格，高精度建模，PBR材质，国风3D，电影级光影，
-3D rendered, volumetric lighting,
-depth of field, natural lens vignette, subtle chromatic aberration, bokeh,
+3D 渲染, 体积光,
+景深, 自然镜头暗角, 轻微色散, bokeh,
 3D渲染质感，体积光，自然光照，物理光影，
-scene derivative design sheet, environment concept art, no people, no characters, no human figures,
+场景衍生设定图, 环境概念图, 无人物, 无角色, 无人体,
 保持场景空间结构一致，
 {目标角度（如有）}, {景别视角（如有）}, {时段描述（如有）}, {天候描述（如有）},
 {前景}, {中景}, {后景},
@@ -141,17 +141,17 @@ scene derivative design sheet, environment concept art, no people, no characters
 
 ## 提示词质量增强
 
-> 生成最终提示词时，必须把本节融合进现有提示词模板；不要另起说明文字。支持 negative prompt 的模型，把“反向规避提示词”单独放入负面提示词；不支持 negative prompt 的模型，改写成正向规避要求。
+> 生成最终提示词时，必须把本节融合进现有提示词模板；不要另起说明文字。支持负面提示词的模型，把“反向规避提示词”单独放入负面提示词；不支持负面提示词的模型，改写成正向规避要求。
 
 ### 正向质量锚点
 
-国风3D高精度渲染，Chinese style 3D，PBR materials，fine embroidery，traditional oriental palette，volumetric lighting，ambient occlusion，cinematic depth of field，best quality，8k detail。
-场景衍生提示词必须保持原场景地标、空间结构、材质年代感不变，只改变时段、天候、景别或镜头角度；补充 landmark consistency, spatial continuity, cinematic atmosphere。
+国风3D高精度渲染, 中式 3D, PBR 材质, 精细刺绣, 传统东方色调, 体积光, 环境光遮蔽, 电影级景深, 最佳质量, 8K 细节。
+场景衍生提示词必须保持原场景地标、空间结构、材质年代感不变，只改变时段、天候、景别或镜头角度；补充地标一致、空间连续、电影感氛围。
 
 ### 反向规避提示词
 
-low quality, low-poly, flat 2D, sketch, photorealistic photography, western fantasy, sci-fi, neon oversaturation, plastic material, rough texture, bad anatomy, watermark, text。
-changed location, lost landmark, added people, human silhouette, random architecture, inconsistent perspective, flat lighting, overclean material, text, watermark。
+低质量, low-poly, 扁平 2D, 草图, 照片级写实摄影, 西方奇幻, 科幻, 霓虹过饱和, 塑料材质, 粗糙纹理, 解剖错误, 水印, 文字。
+地点改变, 丢失地标, 添加人物, 人体剪影, 随机建筑, 透视不一致, 平板打光, 过度干净材质, 文字, 水印。
 
 ### 输出净化规则
 
@@ -174,8 +174,8 @@ changed location, lost landmark, added people, human silhouette, random architec
 | R5 | 衍生图必须与参考图保持建筑结构/材质/色调/光线一致，仅按指定角度切换视点 |
 | R6 | 场景图中**严禁出现任何人物** |
 | R7 | 根据用户提供的信息自行判断变化维度（角度/景别/时段/天候），未提及维度留空省略 |
-| R8 | 必须包含3D渲染关键词（3D rendered / volumetric lighting / PBR materials） |
-| R9 | 必须包含镜头光学特征（depth of field / lens vignette / bokeh 至少一项） |
+| R8 | 必须包含3D渲染关键词（3D 渲染 / 体积光 / PBR 材质） |
+| R9 | 必须包含镜头光学特征（景深 / 镜头暗角 / bokeh 至少一项） |
 | R10 | 材质必须带有自然磨损/岁月痕迹，禁止全新无瑕的"CG 感" |
 
 ### 严禁

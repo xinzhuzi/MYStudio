@@ -21,8 +21,8 @@
 | 色彩基线 | electric blue, black, orange accent |
 | 主光方案 | hard rim light, high contrast stage lighting, motion streaks |
 | 画面层次 | 主体清晰、前中后景可读、焦点明确 |
-| 质量锚定 | (best quality, masterpiece, high detailed:1.2), (Japanese cel shaded 3D action render:1.3), (sharp anime silhouette, dynamic camera angle, bold costume shapes, action pose:1.18), (hard rim light, high contrast stage lighting, motion streaks:1.1), crisp toon shader, clear line accents, stylized material breakups, sharp focus, detailed background, polished composition |
-| 反向规避 | (worst quality, low quality, bad quality:1.4), blurry, fuzzy, distorted, out of focus, malformed body, extra limbs, watermark, signature, text, photorealistic rendering, dull flat color, western cartoon softness |
+| 质量锚定 | (最佳质量,杰作,高细节:1.2), (日式赛璐璐着色3D动作渲染:1.3), (锐利动漫剪影,动感镜头角度,夸张服装造型,动作姿态:1.18), (硬朗轮廓光,高对比舞台灯光,运动拖影:1.1), 清晰卡通着色, 清晰描线点缀, 风格化材质分块, 锐利焦点, 细节丰富背景, 精修构图 |
+| 反向规避 | (最差质量,低质量,差质量:1.4), 模糊, 发虚, 畸变, 失焦, 畸形身体, 多余肢体, 水印, 签名, 文字, 照片级写实渲染, 灰暗扁平色彩, 西式卡通柔和感 |
 
 ## 三、必守规则
 

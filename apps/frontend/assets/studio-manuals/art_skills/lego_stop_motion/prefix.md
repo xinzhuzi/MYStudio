@@ -21,8 +21,8 @@
 | 色彩基线 | primary red, blue, yellow |
 | 主光方案 | macro toy light, crisp shadow, colorful plastic reflection |
 | 画面层次 | 主体清晰、前中后景可读、焦点明确 |
-| 质量锚定 | (best quality, masterpiece, high detailed:1.2), (brick toy stop-motion animation:1.3), (block figure, construction bricks, modular toy town, snapped-together props:1.18), (macro toy light, crisp shadow, colorful plastic reflection:1.1), hard plastic brick surface, molded studs, clean toy edges, macro photography, tactile detail, frame-by-frame charm, high detail |
-| 反向规避 | (worst quality, low quality:1.4), fluid CGI animation, 2D anime, photorealistic human scale, smooth digital texture, bad anatomy, watermark, signature, text, soft clay, melted curved shapes, realistic human body |
+| 质量锚定 | (最佳质量,杰作,高细节:1.2), (积木玩具定格动画:1.3), (积木人形,拼砌砖块,模块化玩具小镇,拼插道具:1.18), (微距玩具光,利落阴影,彩色塑料反光:1.1), 硬质塑料砖面, 模塑凸点, 干净玩具边缘, 微距摄影, 触感细节, 逐帧手作魅力, 高细节 |
+| 反向规避 | (最差质量,低质量:1.4), 流畅CGI动画, 日式2D动画, 照片级真人尺度, 光滑数码质感, 解剖错误, 水印, 签名, 文字, 软质黏土, 熔融弯曲造型, 写实人体 |
 
 ## 三、必守规则
 

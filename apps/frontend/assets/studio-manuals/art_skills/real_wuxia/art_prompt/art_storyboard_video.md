@@ -22,4 +22,4 @@ metaData: art_skills
 | V2 | 镜头运动服务叙事，不为了炫技改变风格 |
 | V3 | 动作需有起承转合，避免瞬间变形和身份漂移 |
 | V4 | 首尾帧构图保持稳定，过渡自然 |
-| V5 | 负向规避：(worst quality, low quality:1.4), 3D render, CGI, anime, illustration, cartoon, plastic skin, over-smoothed face, bad anatomy, watermark, signature, text, modern clothing, sci-fi tech, CGI magic excess, anime, flicker, jitter, morphing face, identity drift, warped hands, broken motion, sudden scene jump |
+| V5 | 负向规避：(最差质量,低质量:1.4), 3D渲染, CGI, anime, 插画, 卡通, 塑料感皮肤, 过度磨皮的面孔, 解剖错误, 水印, 签名, 文字, 现代服装, 科幻科技, 过量CGI法术光效, 画面闪烁, 抖动, 面部融合变形, 身份漂移, 手部扭曲, 动作断裂, 场景突跳 |

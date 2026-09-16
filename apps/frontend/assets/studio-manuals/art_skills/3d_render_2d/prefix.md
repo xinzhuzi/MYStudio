@@ -21,8 +21,8 @@
 | 色彩基线 | cyan sky, warm orange, clean white |
 | 主光方案 | bright rim light, soft global illumination, colorful sky light |
 | 画面层次 | 主体清晰、前中后景可读、焦点明确 |
-| 质量锚定 | (best quality, masterpiece, high detailed:1.2), (anime-inspired cel shaded 3D render:1.3), (toon linework, cel shaded body, vibrant fantasy setting, clean anime face:1.18), (bright rim light, soft global illumination, colorful sky light:1.1), toon material, sharp edge highlights, controlled flat shadow, sharp focus, detailed background, polished composition |
-| 反向规避 | (worst quality, low quality, bad quality:1.4), blurry, fuzzy, distorted, out of focus, malformed body, extra limbs, watermark, signature, text, photorealistic skin, heavy realism, rough sketch |
+| 质量锚定 | (最佳质量,杰作,高细节:1.2), (anime风赛璐璐着色3D渲染:1.3), (卡通式线描,赛璐璐着色躯体,明快的幻想场景,干净的anime面孔:1.18), (明亮轮廓光,柔和全局光照,多彩天空光:1.1), 卡通式材质,锐利边缘高光,受控平涂阴影,锐利焦点,精细背景,精修构图 |
+| 反向规避 | (最差质量,低质量,劣质:1.4), 模糊, 柔糊, 畸变, 失焦, 畸形躯体, 多余肢体, 水印, 签名, 文字, 照片写实皮肤, 过度写实, 粗糙草稿 |
 
 ## 三、必守规则
 

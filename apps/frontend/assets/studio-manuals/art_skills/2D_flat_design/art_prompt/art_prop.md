@@ -115,12 +115,12 @@ minimalist，clean lines，solid colors，
 
 ### 正向质量锚点
 
-高完成度扁平矢量插画，flat vector illustration，clean geometric shapes，solid color blocks，balanced negative space，crisp edges，consistent icon-like design，best quality，clean composition。
-道具类提示词必须明确道具类型、材质、工艺、磨损痕迹、陈列方式和多角度/细节特写；补充 crisp silhouette, readable material, fine craftsmanship, isolated prop display。
+高完成度扁平矢量插画, 扁平矢量插画, 干净几何形状, 整实色块, 均衡 negative space, 利落边缘, 统一图标化设计, 最佳质量, 干净构图。
+道具类提示词必须明确道具类型、材质、工艺、磨损痕迹、陈列方式和多角度/细节特写；补充利落剪影、可读材质、精细工艺、道具独立陈列。
 
 ### 反向规避提示词
 
-low quality, messy layout, 3D render, PBR material, photorealistic texture, complex lighting, heavy shadow, gradient overuse, noisy texture, sketchy line, watermark, text, signature。
+低质量, 凌乱布局, 3D渲染, PBR 材质, 照片写实纹理, 复杂光照, 浓重阴影, 渐变滥用, 噪点纹理, 草率线条, 水印, 文字, 签名。
 hands, fingers, human body, worn by character, held by character, floating without support, unclear silhouette, wrong material, modern item mismatch, text, watermark。
 
 ### 输出净化规则

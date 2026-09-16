@@ -332,12 +332,12 @@ character design sheet, character turnaround,
 
 ### 正向质量锚点
 
-国风赛博3D渲染，Chinese cyber fantasy 3D，traditional silhouette with controlled futuristic accents，cinematic neon rim light，iridescent material，high precision model，layered atmosphere，best quality，high detail。
+国风赛博3D渲染，中式赛博奇幻3D，传统剪影配克制的未来感点缀，电影级霓虹轮廓光，虹彩材质，高精度建模，层次化氛围，最佳质量，高细节。
 人物衍生提示词必须保持底模面容、体态、发型识别点不变，只叠加服化妆造与局部风格升级；补充 same character identity, face consistency, outfit detail clarity。
 
 ### 反向规避提示词
 
-low quality, generic western sci-fi, pure cyberpunk without Chinese design, flat 2D, photorealistic photography, neon overexposure, chaotic colors, cluttered detail, bad anatomy, watermark, text。
+低质量, 泛西方科幻, 缺少中式设计的纯赛博朋克, 平面2D, 照片级写实摄影, 霓虹过曝, 混乱配色, 杂乱细节, 解剖错误, 水印, 文字。
 face drift, identity changed, different person, pose changed, added scene, added handheld prop, inconsistent costume between views, cropped body, extra fingers。
 
 ### 输出净化规则

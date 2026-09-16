@@ -23,12 +23,12 @@ warm key light, soft fill light, cheerful daylight，smooth stylized material, s
 
 ### 正向质量锚点
 
-(best quality, masterpiece, high detailed:1.2), (rounded western 3D animation:1.3), (large expressive eyes, friendly proportions, readable silhouette, colorful town background:1.18), (warm key light, soft fill light, cheerful daylight:1.1), smooth stylized material, soft edges, polished character surface, sharp focus, detailed background, polished composition
+(最佳质量,杰作,高细节:1.2), (圆润美式3D动画:1.3), (大而传神的眼睛,友善的身体比例,可读剪影,缤纷小镇背景:1.18), (温暖主光,柔和补光,明快日光:1.1), 平滑风格化材质, 柔和边缘, 精致角色表面, 锐利焦点, 细节丰富的背景, 精致构图
 场景衍生提示词必须保持原场景地标、空间结构、材质年代感不变，只改变时段、天候、景别或镜头角度。
 
 ### 反向规避提示词
 
-(worst quality, low quality, bad quality:1.4), blurry, fuzzy, distorted, out of focus, malformed body, extra limbs, watermark, signature, text, dark gritty realism, horror mood, hard realistic skin, changed location, lost landmark, added people, random architecture, inconsistent perspective, flat lighting, overclean material, text, watermark.
+(最差质量,低质量,劣质:1.4), 模糊, 糊化, 变形, 失焦, 畸形身体, 多余肢体, 水印, 签名, 文字, 阴暗粗粝写实, 恐怖氛围, 僵硬写实皮肤, 地点改变, 丢失地标, 多出人物, 随机建筑, 透视不一致, 平面打光, 过度干净材质, 文字, 水印.
 
 ## 四、约束规则
 

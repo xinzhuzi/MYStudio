@@ -17,18 +17,18 @@ metaData: art_skills
 真人古装，live-action Chinese period drama still，{时段/天候/景别变化}，{氛围强化}，
 soft lantern light, daylight through lattice, cinematic haze，real silk folds, hair ornament detail, natural skin texture，ivory, red lacquer, warm gold，
 前中后景层次保留，单画面构图，画面中无任何人物，
-(best quality, masterpiece, high detailed:1.2), (live-action Chinese period drama still:1.3), (period costume, embroidered fabric, ancient interior, elegant posture:1.18), (soft lantern light, daylight through lattice, cinematic haze:1.1), real silk folds, hair ornament detail, natural skin texture, real lens optics, natural skin texture, cinematic framing, high detail，图中不要有任何文字
+(最佳质量,杰作,高细节:1.2), (真人中国古装剧剧照:1.3), (古装服饰,刺绣织物,古代室内,优雅仪态:1.18), (柔和灯笼光,花窗透进的日光,电影感薄雾:1.1), 真丝绸缎褶皱,发饰细节,自然皮肤质感,真实镜头光学,自然皮肤质感,电影感构图,高细节，图中不要有任何文字
 
 ## 三、提示词质量增强
 
 ### 正向质量锚点
 
-(best quality, masterpiece, high detailed:1.2), (live-action Chinese period drama still:1.3), (period costume, embroidered fabric, ancient interior, elegant posture:1.18), (soft lantern light, daylight through lattice, cinematic haze:1.1), real silk folds, hair ornament detail, natural skin texture, real lens optics, natural skin texture, cinematic framing, high detail
+(最佳质量,杰作,高细节:1.2), (真人中国古装剧剧照:1.3), (古装服饰,刺绣织物,古代室内,优雅仪态:1.18), (柔和灯笼光,花窗透进的日光,电影感薄雾:1.1), 真丝绸缎褶皱,发饰细节,自然皮肤质感,真实镜头光学,自然皮肤质感,电影感构图,高细节
 场景衍生提示词必须保持原场景地标、空间结构、材质年代感不变，只改变时段、天候、景别或镜头角度。
 
 ### 反向规避提示词
 
-(worst quality, low quality:1.4), 3D render, CGI, anime, illustration, cartoon, plastic skin, over-smoothed face, bad anatomy, watermark, signature, text, modern clothes, glasses, watch, 3D render, anime, changed location, lost landmark, added people, random architecture, inconsistent perspective, flat lighting, overclean material, text, watermark.
+(最差质量,低质量:1.4), 3D渲染, CGI, anime, 插画, 卡通, 塑料感皮肤, 过度磨皮的面孔, 解剖错误, 水印, 签名, 文字, 现代服装, 眼镜, 手表, 地点被更换, 丢失地标, 多出人物, 随机出现建筑, 透视不一致, 平板布光, 过度干净的材质, 文字, 水印.
 
 ## 四、约束规则
 

@@ -21,8 +21,8 @@
 | 色彩基线 | sky blue, warm skin tone, vivid accent |
 | 主光方案 | soft animation lighting, clear cel shadow, readable composition |
 | 画面层次 | 主体清晰、前中后景可读、焦点明确 |
-| 质量锚定 | (best quality, masterpiece, high detailed:1.2), (clean 2D anime animation style:1.3), (clean lineart, flat color, expressive eyes, balanced character design:1.18), (soft animation lighting, clear cel shadow, readable composition:1.1), smooth digital paint, crisp outline, controlled detail density, clean composition, readable silhouette, high detail, finished illustration |
-| 反向规避 | (worst quality, low quality:1.4), blurry, messy lineart, bad anatomy, 3D render, photorealistic, CGI, watermark, signature, text, 3D render, photorealistic, messy sketch |
+| 质量锚定 | (最佳质量,杰作,高细节:1.2), (干净的2D二次元动画风格:1.3), (清晰线稿,平涂上色,灵动双眼,均衡的角色设计:1.18), (柔和动画布光,清晰赛璐璐阴影,可读构图:1.1), 平滑数字上色,利落轮廓线,克制的细节密度,干净构图,可读剪影,高细节,完成度高的插画 |
+| 反向规避 | (最差质量,低质量:1.4), 模糊, 凌乱线稿, 解剖错误, 3D渲染, 照片写实, CGI, 水印, 签名, 文字, 3D渲染, 照片写实, 凌乱草稿 |
 
 ## 三、必守规则
 

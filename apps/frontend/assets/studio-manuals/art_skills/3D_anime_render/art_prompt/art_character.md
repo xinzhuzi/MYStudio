@@ -1,4 +1,3 @@
-# art_character_3d.md
 # 3D动画角色基础形象生成 · 约束手册
 
 ---
@@ -33,8 +32,8 @@
 
 | 项目 | 约束 | 提示词 |
 |---|---|---|
-| 肤色 | 暖白皮、全身均匀、透亮感 | 暖白皮、蜜桃肌、peach skin |
-| 光泽 | 柔光肌、内透光感、非哑光 | 柔光肌肤、inner glow、soft glow |
+| 肤色 | 暖白皮、全身均匀、透亮感 | 暖白皮、蜜桃肌 |
+| 光泽 | 柔光肌、内透光感、非哑光 | 柔光肌肤、内透光感、柔光 |
 | 质感 | 细腻光滑、赛璐珞渲染质感 | 皮肤细腻、赛璐珞质感 |
 | 露肤 | 面部/颈部/锁骨/手部 | 肩颈线条优美、肌肤暖白透亮 |
 
@@ -54,8 +53,8 @@
 
 | 项目 | 约束 | 提示词 |
 |---|---|---|
-| 身高 | 由角色设定指定，默认范围 155-165cm | {身高}cm tall、{身高描述如：petite girl} |
-| 头身比 | 六头身至七头身，头身比 = 身高 ÷ 头长 | 6-7 heads tall proportion、身材娇小 |
+| 身高 | 由角色设定指定，默认范围 155-165cm | {身高}cm 高、{身高描述如：petite girl} |
+| 头身比 | 六头身至七头身，头身比 = 身高 ÷ 头长 | 6-7 头身比、身材娇小 |
 | 身高换算 | 头长 = 身高 ÷ 头身比（如160cm ÷ 6.5 = 24.6cm头长） | 比例可爱、头身比协调 |
 | 肩颈 | 柔滑肩颈、线条流畅 | 柔滑肩线、颈部优美 |
 | 手部 | 小巧圆润、指节柔和 | 圆润小手、指节分明 |
@@ -65,8 +64,8 @@
 
 | 项目 | 约束 | 提示词 |
 |---|---|---|
-| 身高 | 由角色设定指定，默认范围 170-180cm | {身高}cm tall、{身高描述如：tall cute boy} |
-| 头身比 | 六头半至七头半，头身比 = 身高 ÷ 头长 | 6.5-7.5 heads tall proportion、身材匀称 |
+| 身高 | 由角色设定指定，默认范围 170-180cm | {身高}cm 高、{身高描述如：tall cute boy} |
+| 头身比 | 六头半至七头半，头身比 = 身高 ÷ 头长 | 6.5-7.5 头身比、身材匀称 |
 | 身高换算 | 头长 = 身高 ÷ 头身比（如175cm ÷ 7 = 25cm头长） | 比例可爱、头身比协调 |
 | 肩颈 | 圆润肩部、颈部自然 | 圆润肩膀、颈线自然 |
 | 手部 | 圆润手掌、指节柔和 | 圆润手掌、指节分明 |
@@ -141,10 +140,10 @@
 
 | 位置 | 视图 | 角度 | 景别 | 要求 | 提示词 |
 |---|---|---|---|---|---|
-| 左一 | 人像特写 | 正面平视 | 头顶至锁骨 | 从头顶到锁骨完整展示不裁切，面部占60%+，五官清晰 | portrait closeup、face detail、head to collarbone complete、no crop |
-| 左二 | 正视图 | 正面 0° | 全身立像 | 面对镜头、双臂自然、从头顶到脚底完整展示 | front view、full body head to toe、height mark |
-| 右二 | 侧视图 | 右侧 90° | 全身立像 | 纯侧面轮廓清晰、从头顶到脚底完整展示 | side view、profile、full body head to toe、height mark |
-| 右一 | 后视图 | 后方 180° | 全身立像 | 后脑/背部/发尾/脚部清晰、从头顶到脚底完整展示 | back view、rear view、full body head to toe、height mark |
+| 左一 | 人像特写 | 正面平视 | 头顶至锁骨 | 从头顶到锁骨完整展示不裁切，面部占60%+，五官清晰 | 人像特写、面部细节、头顶到锁骨完整、不裁切 |
+| 左二 | 正视图 | 正面 0° | 全身立像 | 面对镜头、双臂自然、从头顶到脚底完整展示 | 正面视图、全身从头到脚完整、身高标记 |
+| 右二 | 侧视图 | 右侧 90° | 全身立像 | 纯侧面轮廓清晰、从头顶到脚底完整展示 | 侧面视图、侧身轮廓、全身从头到脚完整、身高标记 |
+| 右一 | 后视图 | 后方 180° | 全身立像 | 后脑/背部/发尾/脚部清晰、从头顶到脚底完整展示 | 背面视图、后视图、全身从头到脚完整、身高标记 |
 
 ### 画面规范
 
@@ -166,15 +165,15 @@
 
 ```
 {性别}角色四视图设定图，3D 动画渲染，电影级打光，活力赛璐珞质感，高细节材质，愉悦治愈氛围，卡通都市风，高细节卡通材质，适度卡通比例，暖色调配色，8K 超高清，电影级构图，柔和光影层次，明快卡通渲染风格，温馨治愈，
-character design sheet，character turnaround，
+character design 设定图，角色转面图，
 {角色描述对应的五官特征 - 由角色描述自然推导}，{整体气质}，素颜无妆，
 {肤色}，柔光肌，皮肤通透发光，皮肤细腻，赛璐珞质感，
 {身高描述，如：165cm tall、petite cute girl}，{头身比，如：6.5 heads tall proportion}，{身材描述}，{体态描述}，
 {发色}{发长}，发丝根根分明，{基础造型}，无发饰，
 {角色身份对应的常规着装，如：校服/职业便装/都市休闲服}，暖色调，无复杂花纹，
 同一画面左至右并排：人像特写+正视图+侧视图+后视图，
-人像特写从头顶到锁骨完整展示，不裁切头顶，head to collarbone complete，
-全身立像从头顶到脚底完整展示，full body head to toe，不裁切头顶和脚部，
+人像特写从头顶到锁骨完整展示，不裁切头顶，头顶到锁骨完整，
+全身立像从头顶到脚底完整展示，全身从头到脚完整，不裁切头顶和脚部，
 自然站立，纯净中性灰背景，均匀柔光，无硬阴影，
 四视图一致性，面容细腻渲染，发丝细腻渲染
 图中不要有任何文字
@@ -185,17 +184,17 @@ character design sheet，character turnaround，
 
 ## 提示词质量增强
 
-> 生成最终提示词时，必须把本节融合进现有提示词模板；不要另起说明文字。支持 negative prompt 的模型，把“反向规避提示词”单独放入负面提示词；不支持 negative prompt 的模型，改写成正向规避要求。
+> 生成最终提示词时，必须把本节融合进现有提示词模板；不要另起说明文字。支持负面提示词的模型，把“反向规避提示词”单独放入负面提示词；不支持负面提示词的模型，改写成正向规避要求。
 
 ### 正向质量锚点
 
-高精度3D动画渲染，anime style 3D render，cel-shaded 3D，clean topology，polished materials，soft cinematic lighting，sharp focus，best quality，masterpiece，high detailed。
-角色类提示词必须保留身份、年龄、性别、五官、身高、头身比、体态、服装、发型和四视图一致性；补充 anatomy coherent, clean facial structure, consistent identity, complete head-to-toe framing。
+高精度3D动画渲染, anime 风格 3D 渲染, cel-shaded 3D, 干净拓扑, 精致抛光材质, 柔和电影级打光, 锐利焦点, 最佳质量, 杰作, 高细节。
+角色类提示词必须保留身份、年龄、性别、五官、身高、头身比、体态、服装、发型和四视图一致性；补充解剖结构连贯、面部结构干净、身份一致、从头到脚完整取景。
 
 ### 反向规避提示词
 
-low quality, low poly, rough topology, flat 2D drawing, sketch, photorealistic photography, plastic skin, broken material, noisy render, bad anatomy, watermark, text, signature。
-bad anatomy, deformed face, asymmetrical eyes, extra limbs, missing limbs, fused fingers, cropped head, cropped feet, inconsistent identity, inconsistent clothing, oversexualized outfit。
+低质量, low poly, 粗糙拓扑, 扁平 2D 手绘, 草图, 照片级写实摄影, 塑料感皮肤, 破损材质, 噪点渲染, 解剖错误, 水印, 文字, 签名。
+解剖错误, 面部变形, 双眼不对称, 多余肢体, 缺失肢体, 手指粘连, 头部裁切, 脚部裁切, 身份不一致, 服装不一致, 过度性化着装。
 
 ### 输出净化规则
 

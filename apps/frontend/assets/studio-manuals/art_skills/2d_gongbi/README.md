@@ -6,7 +6,7 @@
 
 - **媒介类型**：2D 动画 / 插画
 - **核心风格**：Chinese gongbi painting illustration
-- **视觉要点**：meticulous brushwork, elegant figure, refined ornament, ink wash background
+- **视觉要点**：精谨线描, 细腻墨线勾勒, 宣纸质感, 非对称平衡构图, 大面积留白, 宁静诗意
 - **光影方案**：soft paper light, delicate highlight, calm atmosphere
 - **质感锚点**：rice paper grain, fine mineral pigment, precise linework
 - **色彩基线**：ink black, jade green, mineral red
@@ -26,4 +26,4 @@
 
 ## 风格体验
 
-在本风格下，画面应优先呈现“Chinese gongbi painting illustration”的整体气质，通过“meticulous brushwork, elegant figure, refined ornament, ink wash background”建立识别度，再用“soft paper light, delicate highlight, calm atmosphere”控制情绪和镜头完成度。
+在本风格下，画面应优先呈现“Chinese gongbi painting illustration”的整体气质，通过“精谨线描, 细腻墨线勾勒, 宣纸质感, 非对称平衡构图, 大面积留白, 宁静诗意”建立识别度，再用“soft paper light, delicate highlight, calm atmosphere”控制情绪和镜头完成度。

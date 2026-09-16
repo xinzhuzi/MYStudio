@@ -21,8 +21,8 @@
 | 色彩基线 | orange, blue, cream white |
 | 主光方案 | bright outdoor light, high readability, clean shadow |
 | 画面层次 | 主体清晰、前中后景可读、焦点明确 |
-| 质量锚定 | (best quality, masterpiece, high detailed:1.2), (classic round-line shonen manga:1.3), (rounded expressive face, athletic body, clear action pose, iconic simple costume:1.18), (bright outdoor light, high readability, clean shadow:1.1), solid ink line, simple color blocks, crisp anatomy detail, clean composition, readable silhouette, high detail, finished illustration |
-| 反向规避 | (worst quality, low quality:1.4), blurry, messy lineart, bad anatomy, 3D render, photorealistic, CGI, watermark, signature, text, soft modern moe face, photorealistic 3D, weak anatomy |
+| 质量锚定 | (最佳质量,杰作,高细节:1.2), (经典圆线少年漫画:1.3), (圆润表现力面孔,运动感身体,清晰动作姿势,标志性简洁服装:1.18), (明亮户外光,高可读性,干净阴影:1.1), 扎实墨线,简洁色块,利落解剖细节,干净构图,可读剪影,高细节,完成度高的插画 |
+| 反向规避 | (最差质量,低质量:1.4), 模糊, 凌乱线稿, 解剖错误, 3D渲染, 照片写实, CGI, 水印, 签名, 文字, 现代软萌脸, 照片写实 3D, 解剖结构薄弱 |
 
 ## 三、必守规则
 

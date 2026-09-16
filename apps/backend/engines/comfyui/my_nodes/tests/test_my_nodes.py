@@ -26,7 +26,7 @@ from engines.comfyui.my_nodes import NODE_CLASS_MAPPINGS, bridge
 def test_registry_exposes_first_batch_nodes():
     assert set(NODE_CLASS_MAPPINGS) == {
         "MyPrompt", "MyReference", "MyGenerated", "MyShot", "MyCloudImage",
-        "MyStage",
+        "MyStage", "MyStylesLibrary",
         # 09-14 manying→my 改名前的旧键别名(存量工作流加载兼容)
         "ManyingPrompt", "ManyingReference", "ManyingGenerated", "ManyingShot",
         "ManyingCloudImage", "ManyingStage"}

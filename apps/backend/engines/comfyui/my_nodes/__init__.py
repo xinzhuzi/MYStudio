@@ -20,7 +20,10 @@ from .nodes.my_generated import MyGenerated
 from .nodes.my_shot import MyShot
 from .nodes.my_cloud_image import MyCloudImage
 from .nodes.my_stage import MyStage
+from .nodes.my_styles import MyStylesLibrary
 from . import cloud_takeover
+from . import prompt_log_server as _prompt_log_server
+from . import my_styles_server as _my_styles_server
 
 
 class MyPromptLegacy(MyPrompt):
@@ -71,6 +74,14 @@ class MyStageLegacy(MyStage):
 # (URL 侧由 engine_manager 叠官方 --comfy-api-base;上游漂移时静默回落)。
 cloud_takeover.apply_cloud_takeover()
 
+# 出图全参数日志(09-15 道劫风格调教令):队列入单即全量落日志;
+# install 内部自守卫+全 try/except,失败静默绝不挡出图。
+_prompt_log_server.install()
+
+# 风格画廊服务端(09-16 用户令:节点内瀑布流选风格):两条只读路由
+# /my_styles/list、/my_styles/thumb;install 同款自守卫纪律。
+_my_styles_server.install()
+
 NODE_CLASS_MAPPINGS = {
     "MyPrompt": MyPrompt,
     "MyReference": MyReference,
@@ -78,6 +89,7 @@ NODE_CLASS_MAPPINGS = {
     "MyShot": MyShot,
     "MyCloudImage": MyCloudImage,
     "MyStage": MyStage,
+    "MyStylesLibrary": MyStylesLibrary,
     # 旧名别名(09-14 改名前存量工作流的节点 type 键)
     "ManyingPrompt": MyPromptLegacy,
     "ManyingReference": MyReferenceLegacy,
@@ -97,6 +109,7 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "MyShot": "漫影",
     "MyCloudImage": "漫影 云端生图",
     "MyStage": "漫影 环节",
+    "MyStylesLibrary": "漫影 风格库",
     # 旧键同名显示(画布上旧工作流节点标题照旧渲染「漫影 …」)
     "ManyingPrompt": "漫影 提示词",
     "ManyingReference": "漫影 参考图",

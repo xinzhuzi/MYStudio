@@ -1,7 +1,7 @@
 {
   "id": "62f7e80c-9190-4b7b-b873-cfee2ce83932",
   "revision": 0,
-  "last_node_id": 43,
+  "last_node_id": 42,
   "last_link_id": 46,
   "nodes": [
     {
@@ -1193,7 +1193,7 @@
     },
     {
       "id": 38,
-      "type": "easy stylesSelector",
+      "type": "MyStylesLibrary",
       "pos": [
         2973.534239813133,
         1307.3199692130288
@@ -1207,39 +1207,19 @@
       "mode": 0,
       "inputs": [
         {
+          "name": "positive",
           "label": "正面提示词（可选）",
           "localized_name": "正面提示词（可选）",
-          "name": "positive",
           "shape": 7,
           "type": "STRING",
           "link": 45
         },
         {
+          "name": "negative",
           "label": "负面提示词（可选）",
           "localized_name": "负面提示词（可选）",
-          "name": "negative",
           "shape": 7,
           "type": "STRING",
-          "link": null
-        },
-        {
-          "label": "风格类型",
-          "localized_name": "风格类型",
-          "name": "styles",
-          "type": "COMBO",
-          "widget": {
-            "name": "styles"
-          },
-          "link": null
-        },
-        {
-          "localized_name": "select_styles",
-          "name": "select_styles",
-          "shape": 7,
-          "type": "EASY_PROMPT_STYLES",
-          "widget": {
-            "name": "select_styles"
-          },
           "link": null
         }
       ],
@@ -1263,19 +1243,15 @@
         }
       ],
       "properties": {
-        "aux_id": "yolain/ComfyUI-Easy-Use",
-        "ver": "4de1ab3b66e48da916b6f263bacd001df53a2720",
-        "Node name for S&R": "easy stylesSelector"
+        "Node name for S&R": "MyStylesLibrary"
       },
       "widgets_values": [
-        "manying_漫影风格",
         "2D水彩"
       ],
       "widgets_values_named": {
-        "styles": "krea2_anime_动漫_styles",
-        "select_styles": "Crayon Shin-chan Style"
+        "style": "2D水彩"
       },
-      "title": "风格选择(漫影48风格可切,预设:2D水彩)"
+      "title": "风格选择(漫影风格库 art_skills 现读,预设:2D水彩)"
     },
     {
       "id": 18,
@@ -1679,14 +1655,67 @@
   "groups": [
     {
       "id": 1,
-      "title": "▶漫影·K2 图生图(Krea2Edit 风格迁移)",
+      "title": "① 原始图像载入 · Input Image",
       "bounding": [
+        80.0,
         40.0,
-        10.0,
-        5129.5147399707785,
-        2213.933323697824
+        520.0,
+        1800.0
       ],
-      "color": "#3f789e",
+      "color": "#1e3a5f",
+      "font_size": 24,
+      "flags": {}
+    },
+    {
+      "id": 2,
+      "title": "② 尺寸解析与模型加载 · Scaling & Models",
+      "bounding": [
+        1700.0,
+        40.0,
+        1150.0,
+        1800.0
+      ],
+      "color": "#3b2f0a",
+      "font_size": 24,
+      "flags": {}
+    },
+    {
+      "id": 3,
+      "title": "③ 风格选择与提示词条件 · Styles & Prompts",
+      "bounding": [
+        2900.0,
+        40.0,
+        600.0,
+        1800.0
+      ],
+      "color": "#1e1b4b",
+      "font_size": 24,
+      "flags": {}
+    },
+    {
+      "id": 4,
+      "title": "④ KSampler 扩散采样 · Sampling",
+      "bounding": [
+        3550.0,
+        40.0,
+        600.0,
+        1800.0
+      ],
+      "color": "#064e3b",
+      "font_size": 24,
+      "flags": {}
+    },
+    {
+      "id": 5,
+      "title": "⑤ Krea2Edit 引导与成图输出 · Grounded Edit & Output",
+      "bounding": [
+        4180.0,
+        40.0,
+        960.0,
+        1800.0
+      ],
+      "color": "#1e293b",
+      "font_size": 24,
       "flags": {}
     }
   ],

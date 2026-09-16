@@ -59,8 +59,8 @@ metaData: art_skills
 
 | 项目 | 约束 | 提示词 |
 |---|---|---|
-| 身高 | 由角色设定指定，默认范围 160-170cm | {身高}cm tall、{身高描述如：tall elegant woman} |
-| 头身比 | 七头身至七头半身，古典比例 | 7 heads tall proportion、古典比例 |
+| 身高 | 由角色设定指定，默认范围 160-170cm | {身高}cm 高、{身高描述如：tall elegant woman} |
+| 头身比 | 七头身至七头半身，古典比例 | 7 头身比、古典比例 |
 | 肩颈 | 天鹅颈、肩颈线优美 | 天鹅颈、肩颈优美 |
 | 手部 | 纤长白皙、手指自然 | 纤长白皙、自然手指 |
 | 体态 | 古典气质、优雅挺拔 | 体态优雅、身姿挺拔 |
@@ -69,8 +69,8 @@ metaData: art_skills
 
 | 项目 | 约束 | 提示词 |
 |---|---|---|
-| 身高 | 由角色设定指定，默认范围 175-185cm | {身高}cm tall、{身高描述如：tall imposing man} |
-| 头身比 | 七头身至七头半身，古典比例 | 7 heads tall proportion、古典比例 |
+| 身高 | 由角色设定指定，默认范围 175-185cm | {身高}cm 高、{身高描述如：tall imposing man} |
+| 头身比 | 七头身至七头半身，古典比例 | 7 头身比、古典比例 |
 | 肩颈 | 宽阔肩部、颈部有力 | 宽阔肩部、颈部有力 |
 | 手部 | 骨节分明、手指自然 | 骨节分明、自然手指 |
 | 体态 | 儒雅英气、挺拔端正 | 体态英气、身姿挺拔 |
@@ -128,10 +128,10 @@ metaData: art_skills
 
 | 位置 | 视图 | 角度 | 景别 | 要求 | 提示词 |
 |---|---|---|---|---|---|
-| 左一 | 人像特写 | 正面平视 | 头顶至锁骨 | 从头顶到锁骨完整展示，面部占60%+，五官清晰 | portrait closeup、face detail |
-| 左二 | 正视图 | 正面 0° | 全身立像 | 面对镜头、双臂自然、从头顶到脚底完整展示 | front view、full body |
-| 右二 | 侧视图 | 右侧 90° | 全身立像 | 纯侧面轮廓清晰、从头顶到脚底完整展示 | side view、profile、full body |
-| 右一 | 后视图 | 后方 180° | 全身立像 | 后脑/背部/发尾/脚部清晰、从头顶到脚底完整展示 | back view、rear view、full body |
+| 左一 | 人像特写 | 正面平视 | 头顶至锁骨 | 从头顶到锁骨完整展示，面部占60%+，五官清晰 | 人像特写、面部细节 |
+| 左二 | 正视图 | 正面 0° | 全身立像 | 面对镜头、双臂自然、从头顶到脚底完整展示 | 正面视图、全身完整 |
+| 右二 | 侧视图 | 右侧 90° | 全身立像 | 纯侧面轮廓清晰、从头顶到脚底完整展示 | 侧面视图、侧身轮廓、全身完整 |
+| 右一 | 后视图 | 后方 180° | 全身立像 | 后脑/背部/发尾/脚部清晰、从头顶到脚底完整展示 | 背面视图、后视图、全身完整 |
 
 ### 画面规范
 
@@ -152,15 +152,15 @@ metaData: art_skills
 ## 八、提示词模板
 
 {性别}角色四视图设定图，3D渲染风格，高精度建模，PBR材质，国风3D，电影级光影，
-character design sheet, character turnaround,
+character design 设定图, 角色转面图,
 {角色描述对应的五官特征 - 由角色描述自然推导}, {整体气质}, 素颜状态,
 {肤色}, PBR材质渲染, 3D渲染通透质感, 高精度建模, 光影层次丰富,
 {身高描述, 如:165cm tall, tall elegant woman}, {头身比, 如:7 heads tall proportion}, {身材描述}, {体态描述},
 {发色}{发长}, 高精度发丝清晰, {基础造型}, 无发饰,
 （女性: 素色古装长裙 / 男性: 素色古装长衫）, 基础色, 无花纹装饰,
 同一画面左至右并排：人像特写+正视图+侧视图+后视图,
-人像特写从头顶到锁骨完整展示, 不裁切头顶, head to collarbone complete,
-全身立像从头顶到脚底完整展示, full body head to toe, 不裁切头顶和脚部,
+人像特写从头顶到锁骨完整展示, 不裁切头顶, 头顶到锁骨完整,
+全身立像从头顶到脚底完整展示, 全身从头到脚完整, 不裁切头顶和脚部,
 自然站立, 素灰纯色背景, 均匀柔光, 无硬阴影,
 四视图一致性, 3D古风建模清晰, 高精度建模清晰,
 图中不要有任何文字
@@ -170,17 +170,17 @@ character design sheet, character turnaround,
 
 ## 提示词质量增强
 
-> 生成最终提示词时，必须把本节融合进现有提示词模板；不要另起说明文字。支持 negative prompt 的模型，把“反向规避提示词”单独放入负面提示词；不支持 negative prompt 的模型，改写成正向规避要求。
+> 生成最终提示词时，必须把本节融合进现有提示词模板；不要另起说明文字。支持负面提示词的模型，把“反向规避提示词”单独放入负面提示词；不支持负面提示词的模型，改写成正向规避要求。
 
 ### 正向质量锚点
 
-国风3D高精度渲染，Chinese style 3D，PBR materials，fine embroidery，traditional oriental palette，volumetric lighting，ambient occlusion，cinematic depth of field，best quality，8k detail。
-角色类提示词必须保留身份、年龄、性别、五官、身高、头身比、体态、服装、发型和四视图一致性；补充 anatomy coherent, clean facial structure, consistent identity, complete head-to-toe framing。
+国风3D高精度渲染, 中式 3D, PBR 材质, 精细刺绣, 传统东方色调, 体积光, 环境光遮蔽, 电影级景深, 最佳质量, 8K 细节。
+角色类提示词必须保留身份、年龄、性别、五官、身高、头身比、体态、服装、发型和四视图一致性；补充解剖结构连贯、面部结构干净、身份一致、从头到脚完整取景。
 
 ### 反向规避提示词
 
-low quality, low-poly, flat 2D, sketch, photorealistic photography, western fantasy, sci-fi, neon oversaturation, plastic material, rough texture, bad anatomy, watermark, text。
-bad anatomy, deformed face, asymmetrical eyes, extra limbs, missing limbs, fused fingers, cropped head, cropped feet, inconsistent identity, inconsistent clothing, oversexualized outfit。
+低质量, low-poly, 扁平 2D, 草图, 照片级写实摄影, 西方奇幻, 科幻, 霓虹过饱和, 塑料材质, 粗糙纹理, 解剖错误, 水印, 文字。
+解剖错误, 面部变形, 双眼不对称, 多余肢体, 缺失肢体, 手指粘连, 头部裁切, 脚部裁切, 身份不一致, 服装不一致, 过度性化着装。
 
 ### 输出净化规则
 

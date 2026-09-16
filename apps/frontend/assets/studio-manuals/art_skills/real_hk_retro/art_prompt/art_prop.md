@@ -18,19 +18,19 @@ metaData: art_skills
 纯道具静物展示，道具独立陈列，无人持有，无人佩戴，
 同一画面四宫格：正面图+侧面图+背面图+细节特写，
 neon side light, motion blur, high contrast practical lighting，film grain, wet pavement reflection, vintage lens softness，red neon, green tint, deep shadow，
-(best quality, masterpiece, high detailed:1.2), (1990s Hong Kong-inspired live-action cinema:1.3), (rainy street, neon shop light, moody actor gaze, urban night:1.18), (neon side light, motion blur, high contrast practical lighting:1.1), film grain, wet pavement reflection, vintage lens softness, real lens optics, natural skin texture, cinematic framing, high detail，
+(最佳质量,杰作,高细节:1.2), (90年代港风真人电影:1.3), (雨夜街道,霓虹店招灯光,演员沉郁凝视,都市夜色:1.18), (霓虹侧光,动态模糊,高反差实景光源:1.1), 胶片颗粒,湿润路面反光,老镜头柔焦感,真实镜头光学,自然皮肤质感,电影感构图,高细节，
 画面无字幕、无水印、无标题叠字，画面中不能出现任何人物、手部、手指、肢体
 
 ## 三、提示词质量增强
 
 ### 正向质量锚点
 
-(best quality, masterpiece, high detailed:1.2), (1990s Hong Kong-inspired live-action cinema:1.3), (rainy street, neon shop light, moody actor gaze, urban night:1.18), (neon side light, motion blur, high contrast practical lighting:1.1), film grain, wet pavement reflection, vintage lens softness, real lens optics, natural skin texture, cinematic framing, high detail
+(最佳质量,杰作,高细节:1.2), (90年代港风真人电影:1.3), (雨夜街道,霓虹店招灯光,演员沉郁凝视,都市夜色:1.18), (霓虹侧光,动态模糊,高反差实景光源:1.1), 胶片颗粒,湿润路面反光,老镜头柔焦感,真实镜头光学,自然皮肤质感,电影感构图,高细节
 道具类提示词必须明确类型、材质、工艺、磨损痕迹、陈列方式和多角度/细节特写。
 
 ### 反向规避提示词
 
-(worst quality, low quality:1.4), 3D render, CGI, anime, illustration, cartoon, plastic skin, over-smoothed face, bad anatomy, watermark, signature, text, sterile modern digital look, anime, 3D render, clean daylight, hands, fingers, human body, worn by character, held by character, floating without support, unclear silhouette, wrong material, text, watermark.
+(最差质量,低质量:1.4), 3D渲染, CGI, anime, 插画, 卡通, 塑料感皮肤, 过度磨皮的面孔, 解剖错误, 水印, 签名, 文字, 无菌现代数码感, 晴天净白日光, 手部, 手指, 人体, 被角色佩戴, 被角色握持, 无支撑悬浮, 剪影不清晰, 材质错误, 文字, 水印.
 
 ## 四、约束规则
 
