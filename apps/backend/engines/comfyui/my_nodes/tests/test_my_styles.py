@@ -239,18 +239,18 @@ def test_real_tree_run_gongbi_assembles_manual_anchors(monkeypatch):
         "2D工笔风", positive="a lady", negative="blurry")
     # 正向=用户词在前+手册质量锚定行原样(09-16 用户裁定锚点中文化)
     assert positive.startswith("a lady, ")
-    assert "中国传统工笔画，传统设色：1.35" in positive  # 09-16 全角化(用户 GPT-image-2 实证文本)
+    assert "一幅中国传统工笔画，传统设色；" in positive  # 09-16 全角化(用户 GPT-image-2 实证文本)
     assert "完成度高的工笔画" in positive
     # 负向=用户词在前+反向规避行,权重组整 token 保留
     assert negative.startswith("blurry")
-    assert "(最差质量,低质量:1.4)" in negative
+    assert "最差质量" in negative and "低质量" in negative
     assert "泼墨写意" in negative
 
 
 # ── 工笔基础词定稿冻结(09-16 用户裁定"定稿";改这两行=改契约,须过用户裁定)──
 # 09-16 二次裁定(用户贴 GPT-image-2 实证提示词):正向锚定标点全角化(词零改动),X4 实测全角优于半角
-FROZEN_GONGBI_POSITIVE = '| 质量锚定 | (中国传统工笔画，传统设色：1.35), (精谨线描，细腻墨线，线条细而稳，勾勒精确有韵律：1.28), (层层设色，分染罩染提染，矿物颜料层染过渡细腻：1.2), (石青，石绿，朱砂，赭石，花青，雅致低饱和，强色只作局部点缀：1.15), (东方古典造型，身姿修长端雅，五官清秀，神情含蓄：1.12), (装饰有序，传统纹样精致不堆砌：1.1), (非对称平衡构图，大面积留白，主体精致与留白安静相衬：1.18), (细腻传统绘画质感，手绘颜料表面：1.1), 宁静诗意，古雅氛围，完成度高的工笔画 |'
-FROZEN_GONGBI_NEGATIVE = '| 反向规避 | (最差质量,低质量:1.4), 厚漫画描边,粗黑轮廓,卡通平涂阴影,现代动漫比例,夸张大眼, 摄影写实,3D渲染,CGI,塑料皮肤, 霓虹色,高饱和荧光色, 过度装饰,纹样堆砌,杂乱构图, 厚重西式油画,水彩晕染,泼墨写意, 做旧扫描感,重纸纹,纸面污渍,泛黄旧底,绢纹织物底,褶皱绉纹,横向条纹,色带, 织物纹理,布纹底,网格纹底,冷灰底色,灰绿底, 文字,水印,签名,多余手指,畸形的手 |'
+FROZEN_GONGBI_POSITIVE = '| 质量锚定 | 一幅中国传统工笔画，传统设色；精谨线描，细腻墨线，线条细而稳，勾勒精确有韵律；层层设色，分染罩染提染，矿物颜料层染过渡细腻；用色以石青、石绿、朱砂、赭石、花青为主，雅致低饱和，强色只作局部点缀；人物为东方古典造型，身姿修长端雅，五官清秀，神情含蓄；装饰有序，传统纹样精致不堆砌；非对称平衡构图，大面积留白，主体精致与留白安静相衬；画面呈现细腻的传统绘画质感与手绘颜料表面；宁静诗意，古雅氛围，是一幅完成度高的工笔画。 |'
+FROZEN_GONGBI_NEGATIVE = '| 反向规避 | 最差质量,低质量, 厚漫画描边,粗黑轮廓,卡通平涂阴影,现代动漫比例,夸张大眼, 摄影写实,3D渲染,CGI,塑料皮肤, 霓虹色,高饱和荧光色, 过度装饰,纹样堆砌,杂乱构图, 厚重西式油画,水彩晕染,泼墨写意, 做旧扫描感,重纸纹,纸面污渍,泛黄旧底,绢纹织物底,褶皱绉纹,横向条纹,色带, 织物纹理,布纹底,网格纹底,冷灰底色,灰绿底, 文字,水印,签名,多余手指,畸形的手 |'
 
 
 def test_gongbi_base_prompt_frozen(monkeypatch):
@@ -259,7 +259,7 @@ def test_gongbi_base_prompt_frozen(monkeypatch):
     assert FROZEN_GONGBI_POSITIVE in text, "工笔基础词(正向)被改动——定稿冻结,改前须过用户裁定"
     assert FROZEN_GONGBI_NEGATIVE in text, "工笔基础词(负向)被改动——定稿冻结,改前须过用户裁定"
     pos, neg = MyStylesLibrary().run("2D工笔风")
-    assert "传统设色" in pos and "精谨线描" in pos and "非对称平衡构图" in pos
+    assert "传统设色；" in pos and "精谨线描" in pos and "非对称平衡构图" in pos
     assert "厚漫画描边" in neg and "绢纹织物底" in neg
 
 
