@@ -104,6 +104,10 @@ def main() -> int:
         "身姿修长端雅,石青襦裙配赭石披帛,衣纹线条流畅,身后大面积留白,"
         "画面边缘一枝疏梅淡影。"
     ]
+    # v3.1(09-16 用户令「按照你的建议去做」):[50] named 对齐 positional 工笔句
+    # ——溯源定谳 named 原值是 v1 遗产模板句(v2 脚本 named 对齐名单漏 50 入库),
+    # named 优先装载会遮蔽用户裁定的工笔默认句;对齐后画布/API/日志三面同值。
+    nodes[50]["widgets_values_named"] = {"value": nodes[50]["widgets_values"][0]}
     nodes[51]["title"] = "[51] 正向编码"
     n60["title"] = "[60] 漫影风格库(art_skills 现读·正负词同注入)"
 
@@ -446,6 +450,8 @@ def main() -> int:
     card_txt = nodes[66]["widgets_values"][0]
     check("速度档=默认" in card_txt and "质量档=旁路[47]" in card_txt,
           "[66] 速查卡缺 v3 两档口径")
+    check(nodes[50].get("widgets_values_named", {}).get("value") == nodes[50]["widgets_values"][0],
+          "[50] named/positional 分裂复发(v3.1 应恒对齐工笔句)")
 
     if failures:
         print("结构门未过:")
