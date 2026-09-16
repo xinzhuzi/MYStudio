@@ -40,7 +40,7 @@ MODEL_CHAIN = [
     (39, 67, 68),
     (40, 68, 69),
     (41, 69, 70),
-    (42, 70, 14),
+    (42, 70, 12),
 ]
 
 
@@ -58,16 +58,16 @@ def _card_text(nid: int) -> str:
 # ── 1. 拓扑计数 ────────────────────────────────────────────────────
 
 class TestTopology:
-    def test_node_count_is_27(self):
-        assert len(_DOC["nodes"]) == 27
-        assert len(_NODES) == 27  # id 无重复
+    def test_node_count_is_26(self):
+        assert len(_DOC["nodes"]) == 26
+        assert len(_NODES) == 26  # id 无重复(09-17 摘除14 ModelPatch)
 
     def test_last_ids_equal_max(self):
         assert _DOC["last_node_id"] == max(n["id"] for n in _DOC["nodes"])
         assert _DOC["last_link_id"] == max(l[0] for l in _DOC["links"])
 
 
-# ── 2. 七跳模型链(45→46→47→67→68→69→70→14) ───────────────────────
+# ── 2. 七跳模型链(45→46→47→67→68→69→70→12,14已摘) ───────────────────────
 
 class TestModelChain:
     def test_links_36_to_42_form_chain(self):
@@ -81,8 +81,8 @@ class TestModelChain:
 
     def test_chain_is_contiguous_seven_hops(self):
         hops = [(_LINKS[link_id][1], _LINKS[link_id][3]) for link_id, _, _ in MODEL_CHAIN]
-        assert hops == [(45, 46), (46, 47), (47, 67), (67, 68), (68, 69), (69, 70), (70, 14)]
-        # 逐跳首尾相接:45 →…→ 14 无断点
+        assert hops == [(45, 46), (46, 47), (47, 67), (67, 68), (68, 69), (69, 70), (70, 12)]
+        # 逐跳首尾相接:45 →…→ 12 无断点
         for (_, src, dst), (_, nxt, _) in zip(MODEL_CHAIN, MODEL_CHAIN[1:]):
             assert dst == nxt, f"模型链在 {src}→{dst} 后断:下一跳起点是 {nxt}"
 

@@ -296,138 +296,6 @@
       "title": "[51] 正向编码"
     },
     {
-      "id": 14,
-      "type": "Krea2EditModelPatch",
-      "pos": [
-        3594.2305517917716,
-        19.35348600320128
-      ],
-      "size": [
-        460,
-        246
-      ],
-      "flags": {},
-      "order": 16,
-      "mode": 0,
-      "inputs": [
-        {
-          "localized_name": "model",
-          "name": "model",
-          "type": "MODEL",
-          "link": 42
-        },
-        {
-          "localized_name": "source_latent",
-          "name": "source_latent",
-          "type": "LATENT",
-          "link": 16
-        },
-        {
-          "localized_name": "source_latent_b",
-          "name": "source_latent_b",
-          "shape": 7,
-          "type": "LATENT",
-          "link": null
-        },
-        {
-          "localized_name": "ref_boost_mask",
-          "name": "ref_boost_mask",
-          "shape": 7,
-          "type": "MASK",
-          "link": null
-        },
-        {
-          "localized_name": "vae",
-          "name": "vae",
-          "shape": 7,
-          "type": "VAE",
-          "link": null
-        },
-        {
-          "localized_name": "source_image",
-          "name": "source_image",
-          "shape": 7,
-          "type": "IMAGE",
-          "link": null
-        },
-        {
-          "localized_name": "source_image_b",
-          "name": "source_image_b",
-          "shape": 7,
-          "type": "IMAGE",
-          "link": null
-        },
-        {
-          "localized_name": "target_latent",
-          "name": "target_latent",
-          "shape": 7,
-          "type": "LATENT",
-          "link": null
-        },
-        {
-          "localized_name": "ref_boost",
-          "name": "ref_boost",
-          "shape": 7,
-          "type": "FLOAT",
-          "widget": {
-            "name": "ref_boost"
-          },
-          "link": null
-        },
-        {
-          "localized_name": "ref_boost_a",
-          "name": "ref_boost_a",
-          "shape": 7,
-          "type": "FLOAT",
-          "widget": {
-            "name": "ref_boost_a"
-          },
-          "link": null
-        },
-        {
-          "localized_name": "fit_mode",
-          "name": "fit_mode",
-          "shape": 7,
-          "type": "COMBO",
-          "widget": {
-            "name": "fit_mode"
-          },
-          "link": null
-        }
-      ],
-      "outputs": [
-        {
-          "localized_name": "模型",
-          "name": "MODEL",
-          "type": "MODEL",
-          "slot_index": 0,
-          "links": [
-            15
-          ]
-        }
-      ],
-      "properties": {
-        "Node name for S&R": "Krea2EditModelPatch",
-        "ue_properties": {
-          "widget_ue_connectable": {},
-          "version": "7.8",
-          "input_ue_unconnectable": {}
-        }
-      },
-      "widgets_values": [
-        1,
-        1,
-        "fit"
-      ],
-      "widgets_values_named": {
-        "ref_boost": 1,
-        "ref_boost_a": 1,
-        "fit_mode": "fit"
-      },
-      "color": "#8a5fb0",
-      "bgcolor": "#2c2438"
-    },
-    {
       "id": 19,
       "type": "LoraLoaderModelOnly",
       "pos": [
@@ -778,7 +646,7 @@
           "localized_name": "模型",
           "name": "model",
           "type": "MODEL",
-          "link": 15
+          "link": 42
         },
         {
           "localized_name": "正面条件",
@@ -1127,8 +995,7 @@
           "type": "LATENT",
           "slot_index": 0,
           "links": [
-            9,
-            16
+            9
           ]
         }
       ],
@@ -1854,22 +1721,6 @@
       "IMAGE"
     ],
     [
-      15,
-      14,
-      0,
-      12,
-      0,
-      "MODEL"
-    ],
-    [
-      16,
-      53,
-      0,
-      14,
-      1,
-      "LATENT"
-    ],
-    [
       17,
       21,
       0,
@@ -1974,6 +1825,14 @@
       "STRING"
     ],
     [
+      42,
+      70,
+      0,
+      12,
+      0,
+      "MODEL"
+    ],
+    [
       36,
       45,
       0,
@@ -2025,7 +1884,7 @@
       42,
       70,
       0,
-      14,
+      12,
       0,
       "MODEL"
     ]
@@ -2044,7 +1903,7 @@
       "font_size": 24
     },
     {
-      "title": "② LoRA 栈(尺度44/45+画风68-70 默认旁路;细节67+光影46+加速47 激活)+ 模型补丁",
+      "title": "② LoRA 栈(尺度44/45+画风68-70 默认旁路;细节67+光影46+加速47 激活)",
       "bounding": [
         1243.5302600093255,
         -261.48774670904186,
