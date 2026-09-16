@@ -109,7 +109,7 @@ def process(dry: bool = False) -> int:
 
     # G1 工笔冻结形态
     gongbi = (ART / "2d_gongbi/prefix.md").read_text(encoding="utf-8")
-    if "一幅中国传统工笔画，传统设色；" not in ROW.search(gongbi).group(2):  # 09-17 宣纸禁用(审查批)
+    if "一幅2D中国传统工笔画，传统设色；" not in ROW.search(gongbi).group(2):  # 09-17 宣纸禁用(审查批)
         failures.append("G1 工笔全角冻结形态缺失")
 
     print(f"[{'DRY' if dry else 'CONVERT'}] 转换 {len(changed)} 个风格锚定行")
