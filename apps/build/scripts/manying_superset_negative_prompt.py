@@ -207,7 +207,7 @@ def main() -> int:
     if 46 not in nodes:
         nodes[46] = {
             "id": 46, "type": "LoraLoaderModelOnly", "pos": [-620.0, 640.0], "size": [340, 130],
-            "flags": {}, "order": 46, "mode": 0,
+            "flags": {}, "order": 46, "mode": 4,  # 09-16 用户裁定:默认旁路(工笔/画意实测污染)
             "inputs": [{"name": "model", "type": "MODEL", "link": None}],
             "outputs": [{"name": "MODEL", "type": "MODEL", "links": [], "slot_index": 0}],
             "properties": {"Node name for S&R": "LoraLoaderModelOnly"},
@@ -284,7 +284,9 @@ def main() -> int:
         out_slot(nodes[nid], 0)["links"] = [lid_out]
     in_slot(nodes[14], 0)["link"] = 42
     out_slot(nodes[45], 0)["links"] = [36]  # 45 → 46(旧 45→14 已摘)
-    nodes[46]["title"] = "[46] 光影LoRA·Afterlight ×0.8(暖金光;不要就旁路)"
+    # 09-16 用户裁定:Afterlight 默认旁路(X系消融:暖金逆光=摄影逻辑,工笔/画意污染)
+    nodes[46]["mode"] = 4
+    nodes[46]["title"] = "[46] 光影LoRA·Afterlight ×0.8(暖金逆光,摄影向;默认旁路——工笔/画意防污染,要光影再开)"
     nodes[47]["title"] = "[47] 加速LoRA·4步蒸馏 ×1.0(速度档;质量档=旁路+12步/cfg5)"
     # ---- v3 定档:[67] 默认激活×1.0;[68/69/70] 画风件旁路+触发词固化 ----
     nodes[67]["mode"] = 0
@@ -317,6 +319,15 @@ def main() -> int:
         "- 速度档=默认:4步/cfg1+加速[47]+细节[67]×1.0(约90秒/张;cfg1 下负向自动失效)\n"
         "- 质量档=旁路[47]+手调12步/cfg5(负向复活)+细节[67]保持(约500秒/张)",
     )
+    if "光影[46]默认旁路" not in card:  # 守卫:新句含旧句前缀,裸 replace 每遍增殖
+        card = card.replace(
+            "- 速度档=默认:4步/cfg1+加速[47]+细节[67]×1.0(约90秒/张;cfg1 下负向自动失效)",
+            "- 速度档=默认:4步/cfg1+加速[47]+细节[67]×1.0(约90秒/张;cfg1 下负向自动失效;光影[46]默认旁路)",
+        )
+        card = card.replace(
+            "- 质量档=旁路[47]+手调12步/cfg5(负向复活)+细节[67]保持(约500秒/张)",
+            "- 质量档=旁路[47]+手调12步/cfg5(负向复活)+细节[67]保持(约500秒/张;光影[46]保持旁路)",
+        )
     card = card.replace(
         "## 09-16 新增 LoRA 矩阵(默认全旁路;启用=右键节点 Remove Bypass)",
         "## 09-16 新增 LoRA 矩阵([67]默认激活;其余默认旁路,启用=右键节点 Remove Bypass)",
@@ -342,7 +353,7 @@ def main() -> int:
         if g["title"].startswith("④"):
             g["title"] = "④ 提示词链(正/负输入→风格→编码→12带)"
         if g["title"].startswith("②"):
-            g["title"] = "② LoRA 栈(尺度44/45+画风68-70 默认旁路;细节67+光影46+加速47 激活)+ 模型补丁"
+            g["title"] = "② LoRA 栈(尺度44/45+画风68-70+光影46 默认旁路;细节67+加速47 激活)+ 模型补丁"
 
     # ---- [42] 说明卡退役(幂等:无 42 即跳过;文件名已表达,不再放画布) ----
     # 区分:[42]=工作流身份介绍卡(退役);[66]=用法速查卡(提示词模板+参数,
@@ -449,7 +460,7 @@ def main() -> int:
     check(wired(15, 0, 51, 0) and wired(15, 0, 65, 0), "TE 双供(51+65)断")
     check(nodes[12]["widgets_values"][3] == 1.0, "cfg≠1(速度档)")
     check(nodes[12]["widgets_values"][2] == 4, "steps≠4(速度档)")
-    check(nodes[46].get("mode", 0) == 0, "Afterlight [46] 应默认激活")
+    check(nodes[46].get("mode") == 4, "Afterlight [46] 应默认旁路(09-16 用户裁定,工笔/画意防污染)")
     boxes = {n["id"]: (n["pos"][0], n["pos"][1], n["pos"][0] + n["size"][0], n["pos"][1] + n["size"][1]) for n in d["nodes"]}
     for a in boxes:
         for b in boxes:
@@ -484,7 +495,7 @@ def main() -> int:
 
     WF.write_text(json.dumps(d, ensure_ascii=False, indent=2), encoding="utf-8")
     print(f"过门: 节点{len(d['nodes'])} 链接{len(d['links'])} 速度档(steps4/cfg1+4步蒸馏) "
-          f"Afterlight×0.8 负向直通(65→12.2) 尺度LoRA 44/45 旁路 "
+          f"Afterlight 旁路(46) 负向直通(65→12.2) 尺度LoRA 44/45 旁路 "
           f"细节滑杆67×{DETAIL_SLIDER_STRENGTH:g}(v3 定档激活) 画风68-70 旁路含触发词")
     return 0
 

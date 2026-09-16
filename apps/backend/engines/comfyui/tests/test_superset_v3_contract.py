@@ -147,9 +147,12 @@ class TestModeMatrix:
         assert _node(44).get("mode") == 4
         assert _node(45).get("mode") == 4
 
-    def test_identity_afterlight_distill_active(self):
-        for nid in (19, 46, 47):
+    def test_identity_distill_active_afterlight_bypassed(self):
+        # 09-16 用户裁定:Afterlight[46] 默认旁路(工笔/画意实测污染)
+        for nid in (19, 47):
             assert _node(nid).get("mode", 0) == 0, f"[{nid}] 应默认激活"
+        assert _node(46).get("mode") == 4, "[46] Afterlight 应默认旁路"
+        assert "工笔/画意防污染" in (_node(46).get("title") or "")
 
     def test_ksampler_speed_profile(self):
         w = _node(12)["widgets_values"]
@@ -165,6 +168,7 @@ class TestUsageCard:
         text = _card_text(66)
         assert "速度档=默认" in text
         assert "质量档=旁路[47]" in text
+        assert "光影[46]默认旁路" in text  # 09-16 用户裁定:Afterlight 默认旁路
 
     def test_mutual_exclusion_hint_exactly_once(self):
         assert _card_text(66).count("一次只开一枚") == 1
