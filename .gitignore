@@ -144,3 +144,8 @@ apps/output/*
 # Windows 安装包捆绑的 sqlite3 CLI(构建期由 fetch-sqlite3.mjs 提供,二进制不入库;
 # 来源/版本/校验见 apps/frontend/assets/sqlite3/README.md)
 apps/frontend/assets/sqlite3/bin/
+docs/prompts/portrait_aesthetics/raw/*.jpg
+docs/prompts/portrait_aesthetics/raw/*.png
+docs/prompts/portrait_aesthetics/.DS_Store
+!docs/prompts/
+!docs/prompts/**
