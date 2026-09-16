@@ -431,6 +431,12 @@ aged scanned texture
 strong paper stains
 ```
 
+> **⚠️ K2 实证警示（2026-09-17 用户实证 + G2/G7 同种子 A/B）**
+> 在 Krea2/Qwen 编码器上，**「宣纸 / rice paper」token 本身就是脏先验**——训练数据里的宣纸图多为做旧泛黄扫描件，写这个词底色立刻偏暗偏黄带污渍感（去掉后空白区亮度 R207→216、泛黄 R−B 53.2→50.8、脏斑方差下降）。
+> **K2 正向一律禁写「宣纸」**，要干净传统底色就写：`暖米色，细洁素净`（配合负向「重纸纹/纸面污渍」在 cfg>1 档站岗）。
+> 本文其余模板中的 `fine rice paper texture` 在 K2 上按此替换；其他模型使用前自行验证。
+> （工笔锚定行已同步：「细腻宣纸质感」→「细腻传统绘画质感」）
+
 ---
 
 # 12. 主要工笔子风格
@@ -1297,6 +1303,8 @@ How the traditional material feels
 
 # 31. 快速复制区
 # 31. Quick Copy Section
+
+> **K2 用户注意**：下列锚点中的 `fine rice paper texture` 在 Krea2 上=脏底先验，替换为「暖米色，细洁素净」（详见 §11 警示框）。
 
 ## 通用风格锚点｜Universal Style Anchor
 
