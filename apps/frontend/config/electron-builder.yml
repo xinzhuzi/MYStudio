@@ -21,6 +21,11 @@ files:
   - "!node_modules/@next/**"
   - "!node_modules/sharp/**"
   - "!node_modules/@img/**"
+  # 字体死重排除(09-15 用户裁定提速+瘦身):@fontsource/lxgw 全字重×woff/woff2×百子集
+  # ≈236MB;渲染层字体已由 vite 打进 out/,Remotion 字幕已烤进 remotion-bundle
+  # (自包含 1237 字体文件,实测 09-15),主进程零引用——node_modules 副本纯死重。
+  - "!node_modules/@fontsource/**"
+  - "!node_modules/lxgw-wenkai-webfont/**"
   # Runtime package hygiene: keep docs/test artifacts out of app.asar without pruning package export entrypoints
   - "!node_modules/**/docs/**"
   - "!node_modules/**/test/**"
@@ -58,6 +63,9 @@ extraResources:
       - "!python/**"
       - "!venv/**"
       - "!**/.DS_Store"
+      # 缓存零入包(09-15 用户裁定):.pytest_cache 实测漏进过装机包;.cache 兜底
+      - "!**/.pytest_cache/**"
+      - "!**/.cache/**"
   # Windows 捆绑 sqlite3 CLI:资产库依赖 SQLite 命令行工具,Windows 无系统
   # sqlite3(仅 macOS/GitHub runner 自带)。二进制由 build/packaging/fetch-sqlite3.mjs
   # 在构建前提供(仓库仅含说明文档,不入库)。

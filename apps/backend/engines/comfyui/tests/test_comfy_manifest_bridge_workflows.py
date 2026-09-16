@@ -202,6 +202,22 @@ class TestWorkflowFileOps:
             except Exception as exc:
                 assert "不存在" in str(exc)
 
+    def test_repo_bridge_templates_excluded_from_listing(self, tmp_path, monkeypatch):
+        """09-14 三次修订:桥模板(schemaVersion+graph 无 nodes 的 API 格式)归位
+        静态库后不进侧栏列表——画布打不开,漏进=变相误置件。"""
+        _use_tmp_home(tmp_path, monkeypatch)
+        repo = tmp_path / "repo-workflows" / "1_图片" / "K2图像" / "1_文生图"
+        repo.mkdir(parents=True)
+        (repo / "MY-K2-文生图.json").write_text(json.dumps(
+            {"nodes": [{"type": "KSampler"}]}, ensure_ascii=False), encoding="utf-8")
+        (repo / "MY-t2i_fast.json").write_text(json.dumps(
+            {"schemaVersion": 1, "name": "manying_t2i_fast",
+             "inputs": {}, "graph": {}}, ensure_ascii=False), encoding="utf-8")
+        for light in (False, True):
+            listing = pm.list_workflows(light=light)
+            repo_ids = [w["id"] for w in listing["workflows"] if w.get("source") == "repo"]
+            assert repo_ids == ["repo:1_图片/K2图像/1_文生图/MY-K2-文生图.json"], light
+
     def test_read_rename_move(self, tmp_path, monkeypatch):
         self._import_two(tmp_path, monkeypatch)
         content = pm.read_workflow("K2 流.json")

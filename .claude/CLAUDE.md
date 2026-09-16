@@ -39,6 +39,8 @@
 
 **大量内容防上下文爆炸**:>1 万字的读取/转换/插入必须用 Python/Node 脚本本地处理,**禁止通过 AI 上下文传递大文本;脚本统一放 `apps/build/scripts/`,不需要删除**。批量数据插入、大文件格式转换、跨文件汇总一律「脚本做重活,AI 做决策」;子代理大结果写入已授权的 task `research/`,只回摘要和出处。核心原则:AI 上下文只传**元数据和指令**,不传**大量原始内容**。
 
+**长任务监控铁律(09-15)**:跑打包/E2E/渲染/引擎级长任务,一律「后台任务 + `命令 > log 2>&1; echo $? > exit文件` + 完成通知」,**禁止 sleep 轮询**(任务完成后仍白等整个睡眠周期,实测白等 10+ 分钟;读结果认 exit 文件,不信外层回显);重活前查 `uptime`,负载 ≥6 时新起 Electron 会被 SIGTERM 触发整链重跑——先降负载再跑 smoke。
+
 ---
 
 ## 🚨 铁律 2:子代理使用铁律(探索探子)
@@ -124,6 +126,7 @@
 | 开放任务看板规范 | `.trellis/spec/guides/trellis-open-task-board-guide.md` | 「还有什么任务」输出规则 |
 | **搜索 SOP(权威版)** | `.claude/knowledge/search-sop.md` | 搜索范围/工具/排噪/热路径 + 仓库外五源 + 网络路由(先读后搜) |
 | **节点图知识(权威版)** | `.claude/knowledge/node-graph-architecture.md` | 节点图通用原理 + 本项目画布架构/任务地图/裁定(画布任务先读) |
+| **UI 截图审计 SOP(权威版)** | `.claude/knowledge/ui-audit-sop.md` | 保温会话铁律:禁每轮 pkill 冷启动/多状态连拍/非引擎页不等引擎 + `cdp-ui-audit-shot.mjs` 用法(截图审计前先读) |
 | 子代理等待协议 | `.claude/knowledge/subagent-waiting-protocol.md` | 铁律 2 派发后的等待/超时/阻塞诊断/失败处理 |
 | GitNexus 强制流程 | 根 `AGENTS.md`(gitnexus 管理块) | impact/detect_changes 必做与禁止清单(改动前必读) |
 | Python TTS sidecar | `apps/backend/README.md` | TTS API、环境变量、运行时目录 |

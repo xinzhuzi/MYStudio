@@ -2151,7 +2151,7 @@
    "mode": 0,
    "inputs": [],
    "outputs": [],
-   "title": "漫影单镜锚卡",
+   "title": "🎬 漫影单镜锚卡 · H3 视频生成",
    "properties": {
     "Node name for S&R": "ManyingShot",
     "manyingPreview": "manying-shot-h3-sb-chapter-001-001.jpg"
@@ -2161,7 +2161,9 @@
     "S01",
     "老苦力、年轻苦力、铁山拖筐前行，肩背持续下沉",
     "图✓"
-   ]
+   ],
+   "color": "#1e293b",
+   "bgcolor": "#0f172a"
   },
   {
    "id": 101,
@@ -2179,7 +2181,7 @@
    "mode": 0,
    "inputs": [],
    "outputs": [],
-   "title": "漫影单镜 H3 使用说明",
+   "title": "📖 漫影单镜使用说明",
    "properties": {
     "ue_properties": {
      "widget_ue_connectable": {},
@@ -2189,7 +2191,9 @@
    },
    "widgets_values": [
     "## 漫影自研单镜 H3\n\n- 首帧使用全尺寸关键帧，提示词节点由组装器注入。\n- ambient 默认保留环境声与画内声；full 写入中文台词；bare 仅保留最小声场。\n- 点击 Queue 即可出片。\n- 视频产物位于 output/video/漫影_S{NN}。"
-   ]
+   ],
+   "color": "#451a03",
+   "bgcolor": "#1c1917"
   }
  ],
  "links": [
@@ -2445,7 +2449,7 @@
  "groups": [
   {
    "id": 1,
-   "title": "User Inputs",
+   "title": "① 输入与参数配置 · User Inputs",
    "bounding": [
     992.884221724624,
     5724.891597108754,
@@ -2457,7 +2461,7 @@
   },
   {
    "id": 2,
-   "title": "Models",
+   "title": "② 核心基础模型 · Models",
    "bounding": [
     992.1892320604375,
     5033.23147307899,
@@ -2469,7 +2473,7 @@
   },
   {
    "id": 3,
-   "title": "Sampling",
+   "title": "③ 采样与去噪控制 · Sampling",
    "bounding": [
     2786.1892320604375,
     5033.23147307899,
@@ -2481,7 +2485,7 @@
   },
   {
    "id": 4,
-   "title": "Conditioning",
+   "title": "④ 文本与条件引导 · Conditioning",
    "bounding": [
     1710.1892320604375,
     5033.23147307899,
@@ -2493,7 +2497,7 @@
   },
   {
    "id": 5,
-   "title": "Two-stage sampling upscaling - Decoding and create video",
+   "title": "⑤ 两阶段精修与视频解码 · Decoding & Create Video",
    "bounding": [
     3876.1892320604375,
     5033.23147307899,
@@ -2505,7 +2509,7 @@
   },
   {
    "id": 6,
-   "title": "H3 Latent Upscaler",
+   "title": "⑥ 潜空间超分微调 · Latent Upscaler",
    "bounding": [
     3474.8615324583393,
     5033.23147307899,
@@ -2517,7 +2521,7 @@
   },
   {
    "id": 7,
-   "title": "preview",
+   "title": "⑦ 成片预览监视 · Preview",
    "bounding": [
     2385.1892320604375,
     5033.23147307899,

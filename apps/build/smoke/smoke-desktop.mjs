@@ -982,12 +982,22 @@ async function inspectPage(pageTarget) {
     const body = document.body;
     const bodyBg = body ? getComputedStyle(body).backgroundColor : '';
     const dashboardCard = document.querySelector('.dashboard-project-card');
-    dashboardCard?.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
-    return new Promise((resolve) => setTimeout(() => resolve({
+    // 09-14 全程可见裁定:首屏(未进项目)须已挂球。须在进项目卡片点击前抓取
+    // (点击后就是项目内分支的球,不再证明首屏);AppOrb 懒加载,给 lazy chunk
+    // 一个渲染窗口再取。
+    const firstScreenOrbProbe = new Promise((resolve) => setTimeout(
+      () => resolve(Boolean(document.querySelector('[data-workflow-orb]'))),
+      500,
+    ));
+    const clickProjectCard = () => dashboardCard?.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
+    return firstScreenOrbProbe.then(hasFirstScreenOrb => new Promise((resolve) => {
+      clickProjectCard();
+      setTimeout(() => resolve({
       href: location.href,
       title: document.title,
       readyState: document.readyState,
       bodyBg,
+      hasFirstScreenOrb,
       bodyText: body?.innerText || '',
       bodyTextLength: (body?.innerText || '').trim().length,
       rootChildren: root ? root.children.length : -1,
@@ -1000,7 +1010,8 @@ async function inspectPage(pageTarget) {
       hasWhiteBody: bodyBg === 'rgb(255, 255, 255)' || bodyBg === 'white',
       visibilityState: document.visibilityState,
       documentHasFocus: document.hasFocus(),
-    }), 1500));
+      }), 1500);
+    }));
   })()`,
       "initial project entry check",
     );
@@ -2735,6 +2746,9 @@ function assertHealthy(
   if (state.rootChildren < 1) failures.push("React root has no children");
   if (state.hasWhiteBody)
     failures.push(`body background is white: ${state.bodyBg}`);
+  // 09-14 全程可见裁定:首屏(未进项目)球须在场——Layout Dashboard 分支挂 AppOrb
+  if (!state.hasFirstScreenOrb)
+    failures.push("floating orb missing on dashboard first screen (09-14 全程可见)");
   if (state.bodyTextLength < 20)
     failures.push(`body text is too short: ${state.bodyTextLength}`);
   if (!state.hasProjectOverview && !state.hasWorkspaceContent) {

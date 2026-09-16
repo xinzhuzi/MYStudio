@@ -37,7 +37,10 @@ ASPECT_RATIOS = {
     "1:1": (1024, 1024), "16:9": (1152, 640), "9:16": (640, 1152),
     "4:3": (1072, 808), "3:4": (808, 1072),
 }
-_WORKFLOWS_DIR = Path(__file__).resolve().parent / "workflows"
+# 09-14 三次修订(用户裁定:正途归位):桥模板并入漫影静态库真源
+# engines/comfyui/workflows/ 按域分类(K2图像/1_文生图·2_图生图·3_改图),
+# 此目录不再有独立 workflows/——模板按文件名全库检索,分类挪动零映射。
+_WORKFLOWS_DIR = Path(__file__).resolve().parents[1] / "comfyui" / "workflows"
 _REQUIRED_TEMPLATES = ("krea2_t2i", "krea2_edit_ref", "krea2_nsfw_pro", "krea2_uncloth_instruct")
 
 
@@ -201,8 +204,12 @@ def _fetch_bytes(url: str, timeout: float = 30) -> bytes:
 
 
 def _template_path(name: str) -> Path:
-    # 09-14 用户裁定(二次修订):漫影工作流文件名一律 `MY-` 前缀(模板名=API 面 id 不变)
-    return _WORKFLOWS_DIR / f"MY-{name}.json"
+    # 09-14 用户裁定(二次修订):漫影工作流文件名一律 `MY-` 前缀(模板名=API 面 id 不变);
+    # 三次修订:MY- 即 manying 不叠段(manying_t2i → MY-t2i.json);归位静态库后按名
+    # 全库检索(_WORKFLOWS_DIR 下唯一),无命中返回不存在路径→load_template 报缺失
+    file_id = name[len("manying_"):] if name.startswith("manying_") else name
+    hits = sorted(_WORKFLOWS_DIR.rglob(f"MY-{file_id}.json"))
+    return hits[0] if hits else _WORKFLOWS_DIR / f"MY-{file_id}.json"
 
 
 def load_template(name: str) -> dict[str, Any]:

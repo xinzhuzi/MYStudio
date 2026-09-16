@@ -1,7 +1,10 @@
 // @vitest-environment jsdom
 // OrbShell 长按解锁拖拽(09-12 防粘连用户裁定)回归:
-// 拖拽改受控 dragControls——按下零跟手,按住 1s 且未划走(>6px)才启动拖拽会话;
+// 拖拽改受控 dragControls——按下零跟手,按住 1s 且未划走(>6px)才解锁;
 // 快速点击开面板语义完全不变;armed 原地松手=取消(不开面板+吞尾随 click)。
+// 09-15 webview 盲区根修:解锁(armed)≠即刻拖拽——须下一根「按键仍按住且
+// 距上一可见采样无大跳(>32px)」的 move 才啮合启动会话(ComfyUI 画布是
+// <webview>,宿主 window 收不到 guest 区指针事件,松手/划走可能整个不可见)。
 // useDragControls 覆写为 stub:jsdom 无真拖拽会话,断言「start 何时被调」即断言解锁门。
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -62,16 +65,21 @@ describe("OrbShell 长按解锁拖拽(09-12 防粘连)", () => {
     expect(dragControlsStub.start).not.toHaveBeenCalled();
   });
 
-  it("按住满 1s(未划走)解锁:dragControls.start 以按下事件启动", () => {
+  it("按住满 1s(未划走)解锁:首根可见 move(按键在、无大跳)才啮合启动会话", () => {
     renderShell();
     const orb = getOrb();
     fireEvent.pointerDown(orb, { clientX: 20, clientY: 20 });
     act(() => {
       vi.advanceTimersByTime(1000);
     });
+    // 解锁≠即刻拖拽:armed 后等啮合 move
+    expect(dragControlsStub.start).not.toHaveBeenCalled();
+    act(() => {
+      fireEvent.pointerMove(window, { buttons: 1, clientX: 24, clientY: 20 });
+    });
     expect(dragControlsStub.start).toHaveBeenCalledTimes(1);
     expect(dragControlsStub.start.mock.calls[0][0]).toMatchObject({
-      clientX: 20,
+      clientX: 24,
       clientY: 20,
     });
   });
@@ -102,7 +110,7 @@ describe("OrbShell 长按解锁拖拽(09-12 防粘连)", () => {
     expect(screen.queryByText(PANEL_MARK)).toBeNull();
   });
 
-  it("蓄力期小位移(<6px 抖动)不打断:满 1s 仍解锁", () => {
+  it("蓄力期小位移(<6px 抖动)不打断:满 1s 仍解锁啮合", () => {
     renderShell();
     const orb = getOrb();
     fireEvent.pointerDown(orb, { clientX: 20, clientY: 20 });
@@ -110,7 +118,58 @@ describe("OrbShell 长按解锁拖拽(09-12 防粘连)", () => {
     act(() => {
       vi.advanceTimersByTime(1000);
     });
+    fireEvent.pointerMove(window, { buttons: 1, clientX: 24, clientY: 21 });
     expect(dragControlsStub.start).toHaveBeenCalledTimes(1);
+  });
+
+  it("webview 盲区幽灵拖拽(09-15 根修):解锁后 hover 移动(按键已松)不啮合,手势作废自愈", () => {
+    renderShell();
+    const orb = getOrb();
+    fireEvent.pointerDown(orb, { clientX: 20, clientY: 20 });
+    act(() => {
+      vi.advanceTimersByTime(1000);
+    });
+    // 复现:按压后划出球体到 webview 盲区并已松手(pointerup 宿主不可见),
+    // 1s 计时器照跑解锁;随后的 hover move 无按键——不得啮合成幽灵拖拽
+    fireEvent.pointerMove(window, { buttons: 0, clientX: 300, clientY: 300 });
+    expect(dragControlsStub.start).not.toHaveBeenCalled();
+    // 手势作废:吞 click 标志回滚,下一次真实点击照旧开面板
+    fireEvent.click(orb, { clientX: 21, clientY: 20 });
+    expect(screen.getByText(PANEL_MARK)).toBeTruthy();
+  });
+
+  it("webview 盲区回流(09-15 根修):解锁后大跳位移(按键虽在)不啮合", () => {
+    renderShell();
+    const orb = getOrb();
+    fireEvent.pointerDown(orb, { clientX: 20, clientY: 20 });
+    act(() => {
+      vi.advanceTimersByTime(1000);
+    });
+    // 复现:按住球缘外拖进盲区,1s 后光标在远处回流宿主——位移大跳=手势可疑
+    fireEvent.pointerMove(window, { buttons: 1, clientX: 400, clientY: 400 });
+    expect(dragControlsStub.start).not.toHaveBeenCalled();
+  });
+
+  it("二手势防劫持:armed 未啮合时再按下,旧啮合监听已撤(新手势从蓄力重新判)", () => {
+    renderShell();
+    const orb = getOrb();
+    fireEvent.pointerDown(orb, { clientX: 20, clientY: 20 });
+    act(() => {
+      vi.advanceTimersByTime(1000);
+    });
+    fireEvent.pointerDown(orb, { clientX: 21, clientY: 20 });
+    // 二手势蓄力期(<6px)move 不得被旧 armed 监听劫走启动拖拽
+    fireEvent.pointerMove(window, { buttons: 1, clientX: 26, clientY: 20 });
+    expect(dragControlsStub.start).not.toHaveBeenCalled();
+    act(() => {
+      vi.advanceTimersByTime(1000);
+    });
+    fireEvent.pointerMove(window, { buttons: 1, clientX: 27, clientY: 20 });
+    expect(dragControlsStub.start).toHaveBeenCalledTimes(1);
+    expect(dragControlsStub.start.mock.calls[0][0]).toMatchObject({
+      clientX: 27,
+      clientY: 20,
+    });
   });
 
   it("pointercancel 中止蓄力:不解锁,后续合成 click 不被误吞(自愈对齐)", () => {

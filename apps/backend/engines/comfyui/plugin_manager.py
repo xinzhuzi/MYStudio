@@ -1127,7 +1127,24 @@ def _iter_repo_workflow_files():
     for wf in sorted(base.rglob("*.json")):
         if wf.name == ".keep.json":
             continue
+        # 09-14 三次修订:桥模板(API 格式)归位本库后不进侧栏——画布打不开
+        # schemaVersion+graph 无 nodes 的文件,漏进列表=变相误置件
+        if _is_bridge_template(wf):
+            continue
         yield wf
+
+
+def _is_bridge_template(wf: Path) -> bool:
+    try:
+        data = json.loads(wf.read_text(encoding="utf-8", errors="replace"))
+    except Exception:
+        return False
+    return (
+        isinstance(data, dict)
+        and "schemaVersion" in data
+        and "graph" in data
+        and "nodes" not in data
+    )
 
 
 def list_workflows(prefix: str | None = None, light: bool = False) -> dict:

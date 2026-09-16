@@ -1,4 +1,5 @@
 import type { AgentSkillPreset, StudioManualKind, StudioManualPreset, StudioWorkflowConfig } from "@/types/studio";
+import { directorImages, visualImages } from "@/lib/studio/manuals-images";
 
 type MarkdownMap = Record<string, string>;
 
@@ -40,20 +41,8 @@ const agentSkillMarkdown = import.meta.glob("../../assets/studio-manuals/*.md", 
   import: "default",
 }) as MarkdownMap;
 
-const visualImages = import.meta.glob([
-  "../../assets/studio-manuals/art_skills/**/*.{png,jpg,jpeg,webp,gif,svg}",
-  
-], {
-  eager: true,
-  query: "?url",
-  import: "default",
-}) as Record<string, string>;
-
-const directorImages = import.meta.glob("../../assets/studio-manuals/story_skills/**/*.{png,jpg,jpeg,webp,gif,svg}", {
-  eager: true,
-  query: "?url",
-  import: "default",
-}) as Record<string, string>;
+// 图片 glob 已拆至 manuals-images.ts:主进程构建经别名换空桩,防 out/main
+// 重复发射 56MB PNG(09-15);此处仅渲染层构建解析到真图。
 
 const visualModuleKeys = [
   "README",

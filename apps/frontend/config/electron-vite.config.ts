@@ -31,9 +31,18 @@ const sharedAlias = {
   '@aitoearn/kwai': path.resolve(frontendRoot, 'electron/aitoearn/vendor/aitoearn-core/electron/plat/Kwai/index.ts'),
 };
 
+// 手册图片空桩别名(09-15 打包瘦身):manuals-images.ts 的 import.meta.glob(?url)
+// 会让主进程构建重复发射 75 张 PNG 共 56MB 到 out/main/chunks。主进程只吃手册
+// 文本(preset.images 主侧零消费),main/preload 构建换空桩;必须排在 sharedAlias
+// 的 "@" 之前——rollup alias 是前缀匹配,"@" 会先吞掉 "@/lib/..." 全部路径。
+const manualsImagesStubAlias = {
+  '@/lib/studio/manuals-images': path.resolve(frontendRoot, 'lib/studio/manuals-images.main-stub.ts'),
+};
+const mainPreloadAlias = { ...manualsImagesStubAlias, ...sharedAlias };
+
 export default defineConfig({
   main: {
-    resolve: { alias: sharedAlias },
+    resolve: { alias: mainPreloadAlias },
     build: {
       outDir: path.resolve(electronViteOutDir, 'main'),
       rollupOptions: {
@@ -60,7 +69,7 @@ export default defineConfig({
     },
   },
   preload: {
-    resolve: { alias: sharedAlias },
+    resolve: { alias: mainPreloadAlias },
     build: {
       outDir: path.resolve(electronViteOutDir, 'preload'),
       rollupOptions: {

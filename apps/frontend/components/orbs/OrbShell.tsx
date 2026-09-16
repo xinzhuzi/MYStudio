@@ -38,6 +38,9 @@ const CLICK_THRESHOLD_PX = 6;
 /** 长按解锁拖拽(09-12 防粘连用户裁定):按住满该时长球才可跟手移动;蓄力期
  * 位移超点击阈值=划走,取消解锁。 */
 const LONG_PRESS_MS = 1000;
+/** 解锁啮合位移上限(09-15 webview 盲区根修):armed 后首根可见 move 距上一
+ * 可见采样超过该值=盲区回流,手势作废;正常拖拽自静止按压点起步,不误伤。 */
+const ARM_ENGAGE_JUMP_PX = 32;
 const VIEWPORT_FALLBACK = { width: 1440, height: 900 };
 /** 滚动星球(09-11 真 3D 轮):每像素位移折算的球体旋转角(deg)。 */
 const ROLL_DEG_PER_DRAG_PX = 0.55;
@@ -105,7 +108,9 @@ export interface OrbShellProps {
 
 /** 通用悬浮球壳(基础设施独立模块,零业务依赖;09-11 归一后全应用唯一球,
  * 面孔/内容由 AppOrb 注入)。
- * 承载:拖拽(长按 1s 解锁,09-12 防粘连:受控 dragControls,按下不即跟手)
+ * 承载:拖拽(长按 1s 解锁,09-12 防粘连:受控 dragControls,按下不即跟手;
+ * 09-15 webview 盲区根修:按下俘获指针+解锁后惰性啮合——按键在且无大跳的
+ * 可见 move 才真正启动拖拽会话)
  * +贴边吸附+位置持久化+点击/拖拽判定(6px 阈值,pointerup 主路+click 兜底
  * +toggle 吞 click+多指防串)+视口钳制+胶囊左右翻+键盘开合。
  * 球体与面板内容、胶囊文案、data 契约全部由业务球注入。
@@ -160,22 +165,28 @@ export function OrbShell({
   // (点击本身已把焦点送进 guest;09-12 键盘/手势归 ComfyUI 裁定)
   const pressedIntoWebviewRef = useRef(false);
   const orbRef = useRef<HTMLDivElement | null>(null);
-  // 长按解锁拖拽(09-12 防粘连):按下即蓄力(charging),满 1s 且未划走才解锁
-  // (armed)并经 dragControls 启动拖拽会话——快速点击语义与 6px 判定完全不变
+  // 长按解锁拖拽(09-12 防粘连;09-15 webview 盲区根修):按下即蓄力(charging),
+  // 满 1s 且未划走才解锁(armed);解锁不再即刻启动拖拽会话,待下一根「按键
+  // 仍按住且无大跳」的可见 move 才啮合——ComfyUI 画布是 <webview>,宿主
+  // window 对 guest 区域是指针事件盲区,松手/划走发生在球外盲区时计时器无从
+  // 得知,旧实现会把已松手/划走的手势照常解锁成拖拽(球跳到光标幽灵跟随)
   const dragControls = useDragControls();
   const [holdState, setHoldState] = useState<"idle" | "charging" | "armed">(
     "idle",
   );
   const holdTimerRef = useRef<number | null>(null);
   const armedRef = useRef(false);
-  // 蓄力期位移监听挂 window(按住划出球体也收得到;不用 setPointerCapture
-  // ——jsdom 无此 API,window 直达事件可测)
+  // 蓄力期位移监听挂 window(配合按下时的 setPointerCapture,俘获成功则
+  // move/up 恒达球体;jsdom 无俘获 API,window 直达事件可测)
   const holdMoveHandlerRef = useRef<((event: PointerEvent) => void) | null>(
     null,
   );
-  // 解锁时交给 dragControls.start 的按下事件(motion 官方受控拖拽入口,接受
-  // 合成事件;React 18 不池化事件,可安全滞存)
-  const holdPressEventRef = useRef<React.PointerEvent | null>(null);
+  // 最近一次宿主可见的指针位置:啮合连续性判据(大跳=盲区回流,作废)
+  const lastSeenPointRef = useRef<{ x: number; y: number } | null>(null);
+  // 解锁后待啮合的 move 监听(手势结束/作废/二手势重启蓄力时须撤)
+  const armEngageHandlerRef = useRef<((event: PointerEvent) => void) | null>(
+    null,
+  );
   // 球靠右半屏时胶囊翻到左侧,避免吸右缘后伸出视口
   const [capsuleOnLeft, setCapsuleOnLeft] = useState(() =>
     typeof window === "undefined"
@@ -268,6 +279,15 @@ export function OrbShell({
     setPosition(fallback);
   }, [defaultAnchor, rollWith, setPosition]);
 
+  // 撤除待啮合监听(独立于整体复位:二手势重启蓄力时也要先撤,防旧监听劫走新手势的 move)
+  const detachArmEngage = useCallback(() => {
+    const handler = armEngageHandlerRef.current;
+    if (handler) {
+      window.removeEventListener("pointermove", handler);
+      armEngageHandlerRef.current = null;
+    }
+  }, []);
+
   // 结束/中止长按手势:清计时器与监听,armed 复位(拖拽收尾由 onDragEnd 承担)
   const clearHoldGesture = useCallback(() => {
     if (holdTimerRef.current !== null) {
@@ -279,10 +299,10 @@ export function OrbShell({
       window.removeEventListener("pointermove", moveHandler);
       holdMoveHandlerRef.current = null;
     }
-    holdPressEventRef.current = null;
+    detachArmEngage();
     armedRef.current = false;
     setHoldState((state) => (state === "idle" ? state : "idle"));
-  }, []);
+  }, [detachArmEngage]);
 
   // 卸载防泄漏:迟发解锁不得在卸载后触发
   useEffect(() => clearHoldGesture, [clearHoldGesture]);
@@ -290,9 +310,11 @@ export function OrbShell({
   // 蓄力开始:1s 计时 + 位移监听(>6px=划走取消,长按须按住不动)
   const beginHold = useCallback(
     (event: React.PointerEvent) => {
+      // 新手势从零判:上一手势若仍挂着待啮合监听,先撤
+      detachArmEngage();
       armedRef.current = false;
       setHoldState("charging");
-      holdPressEventRef.current = event;
+      lastSeenPointRef.current = { x: event.clientX, y: event.clientY };
       holdTimerRef.current = window.setTimeout(() => {
         holdTimerRef.current = null;
         const moveHandler = holdMoveHandlerRef.current;
@@ -301,18 +323,37 @@ export function OrbShell({
           holdMoveHandlerRef.current = null;
         }
         // 手势已结束(up/cancel 已清指针)则不解锁
-        if (activePointerIdRef.current === null || !holdPressEventRef.current)
-          return;
+        if (activePointerIdRef.current === null) return;
         armedRef.current = true;
         // 解锁即吞 click:armed 原地松手=取消(不开面板),真机拖拽释放的
         // 尾随 click(pointerup 可能被 motion 会话吞掉)也一并拦下
         suppressNextClickRef.current = true;
         setHoldState("armed");
-        dragControls.start(holdPressEventRef.current);
-        holdPressEventRef.current = null;
+        // 惰性啮合(09-15 webview 盲区根修):拖拽会话由下一根可见 move 启动,
+        // 须按键仍按住(松手若发生在盲区,此处拦下幽灵拖拽)且距上一可见采样
+        // 无大跳(拦盲区回流)。motion 官方受控拖拽入口接受原生 PointerEvent。
+        const onArmEngage = (move: PointerEvent) => {
+          if (move.pointerId !== activePointerIdRef.current) return;
+          const seen = lastSeenPointRef.current;
+          const jumped =
+            !seen ||
+            Math.hypot(move.clientX - seen.x, move.clientY - seen.y) >
+              ARM_ENGAGE_JUMP_PX;
+          if ((move.buttons & 1) === 0 || jumped) {
+            // 按键已松/盲区回流:手势作废(吞 click 标志一并回滚,别误吞下一次点击)
+            suppressNextClickRef.current = false;
+            clearHoldGesture();
+            return;
+          }
+          detachArmEngage();
+          dragControls.start(move);
+        };
+        armEngageHandlerRef.current = onArmEngage;
+        window.addEventListener("pointermove", onArmEngage);
       }, LONG_PRESS_MS);
       const onHoldMove = (move: PointerEvent) => {
         if (move.pointerId !== activePointerIdRef.current) return;
+        lastSeenPointRef.current = { x: move.clientX, y: move.clientY };
         const start = pressStartRef.current;
         if (!start || holdTimerRef.current === null) return;
         const distance = Math.hypot(
@@ -330,7 +371,7 @@ export function OrbShell({
       holdMoveHandlerRef.current = onHoldMove;
       window.addEventListener("pointermove", onHoldMove);
     },
-    [dragControls],
+    [dragControls, detachArmEngage, clearHoldGesture],
   );
 
   const handlePointerUp = (event: React.PointerEvent) => {
@@ -446,6 +487,15 @@ export function OrbShell({
             // 指针链路只认主键(09-12 orb-manage R3):右键走上下文菜单,
             // 不得记手势起点开面板/污染拖拽判定
             if (event.button !== 0) return;
+            // webview 盲区根修(09-15):按下即俘获指针——后续 move/up 即使
+            // 光标走在 ComfyUI <webview> 上也定向送回球体(宿主 window 对
+            // guest 区收不到指针事件);俘获不可用(jsdom 等)静默回落,
+            // 由啮合护栏兜底
+            try {
+              orbRef.current?.setPointerCapture?.(event.pointerId);
+            } catch {
+              // 回落 window 监听路径
+            }
             activePointerIdRef.current = event.pointerId;
             panelOpenAtPressRef.current = panelOpen;
             pressStartRef.current = { x: event.clientX, y: event.clientY };

@@ -1,5 +1,5 @@
 import { spawnSync } from 'node:child_process';
-import { existsSync, mkdirSync, renameSync, rmSync } from 'node:fs';
+import { existsSync, mkdirSync, readdirSync, renameSync, rmSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { verifyFixedRemotionBundle } from '../remotion/bundle-preflight.mjs';
@@ -219,6 +219,21 @@ function cleanIntermediateOutput() {
   }
 }
 
+function cleanStaleStagingDirs() {
+  // build-staging-* 是临时中转,finalizeBuildOutput 在 final 目录被锁时会把它
+  // 永久遗留(实测累积 ~11GB 磁盘垃圾)。打包链已串行化(build-mac.sh
+  // wait_for_chain_free),本轮启动时仍存在的同目标 staging 必为陈旧遗留;
+  // 本轮自己的 staging 目录在 buildForArch 里才创建,不会误伤。
+  if (!existsSync(releaseDir)) return;
+
+  const prefix = `build-staging-${buildTarget}-`;
+  for (const entry of readdirSync(releaseDir)) {
+    if (entry.startsWith(prefix)) {
+      cleanDirectory(resolve(releaseDir, entry), `stale build staging ${entry}`);
+    }
+  }
+}
+
 if (shouldGenerateIcons()) {
   run('node', [resolve(scriptDir, 'generate-icon.mjs')]);
 }
@@ -226,6 +241,7 @@ if (shouldGenerateIcons()) {
 const buildArchs = resolveBuildArchs();
 
 cleanIntermediateOutput();
+cleanStaleStagingDirs();
 
 const versionResult = verifyRemotionVersions({ root: projectRoot });
 if (!versionResult.success) {

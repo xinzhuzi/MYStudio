@@ -621,6 +621,17 @@ app.registerExtension({
           }
           act(action.label, action.kind, action.noteKey);
         }
+        // 资产环节:抽取/重新抽取(载荷 actions 单源;disabled 同面板语义=
+        // 无剧本时不触发;09-15 排查:衍生资产来源=剧本抽取,非分镜表)
+        for (const action of payload.actions || []) {
+          if (action.kind !== "extract-assets") continue;
+          const item = {
+            content: `漫影 · ${action.label}`,
+            disabled: Boolean(action.disabled),
+            callback: () => { if (!action.disabled) postAction(action.kind, action.note || null, null); },
+          };
+          options.push(item);
+        }
       }
       return getExtraMenuOptions?.apply(this, arguments);
     };

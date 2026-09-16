@@ -37,7 +37,7 @@ const storyboardVideo = { id: "分镜/3_单镜视频/MY-单镜视频 · chapter-
 const legacyMainline = { id: "漫影/1_图片/分镜/0_工作流主线/分镜工作流.json", name: "旧根主线" };
 const k2Workflow = { id: "repo:1_图片/K2图像/1_文生图/MY-K2-文生图.json", name: "K2-文生图" };
 const h3Workflow = { id: "repo:2_视频/H3视频/2_固定线/MY-x.json", name: "x" };
-const musicWorkflow = { id: "repo:3_声音/音乐/MY-music3-完整档-即用版.json", name: "music3" };
+const musicWorkflow = { id: "repo:3_声音/minimaxM3/MY-music3-完整档-即用版.json", name: "music3" };
 const referenceWorkflow = { id: "漫影/4_参考_提示词工程/prompts.json", name: "prompts(旧根防回流)" };
 const library = [storyboardMainline, storyboardOverview, storyboardShot, storyboardVideo, legacyMainline, k2Workflow, h3Workflow, musicWorkflow, referenceWorkflow];
 
@@ -141,7 +141,9 @@ describe("isUserDataWorkflowListUrl(树「列表」端点判定;单文件/写操
 describe("接线(消费策略单源,scope 判断不散落;09-13 拆分后=sidebar+compat-guard 双模块)", () => {
   it("导入策略模块;侧栏库与 userdata 树过滤均走单源;树过滤装 models 门+幂等守卫", () => {
     expect(wiringSource).toContain('from "./my_module_policy.js"');
-    expect(wiringSource).toContain("filterWorkflowsForScope(");
+    // 09-15 侧栏树裁定(兄弟会话):工作流页签=仓库树原样镜像,不再按 scope
+    // 过滤——filterWorkflowsForScope 消费退役;单源契约仍由 compat-guard 的
+    // DropMy/树端点判定承接(下两行)。
     // 09-14 裁定升级:原生树全剔漫影(DropManying),旧分镜子集过滤仅策略层保留
     expect(wiringSource).toContain("filterUserDataWorkflowEntriesDropMy(");
     expect(wiringSource).toContain("isUserDataWorkflowListUrl(");

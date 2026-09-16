@@ -1,0 +1,287 @@
+{
+ "2DQ版": {
+  "dir": "2d_q_version",
+  "level": "canon",
+  "h1": "2DQ版"
+ },
+ "2D像素": {
+  "dir": "2d_pixel",
+  "level": "canon",
+  "h1": "2D像素"
+ },
+ "2D动画": {
+  "dir": "2d_animation",
+  "level": "canon",
+  "h1": "2D动画"
+ },
+ "2D圆润儿童动画": {
+  "dir": "2d_doraemon",
+  "level": "canon",
+  "h1": "2D圆润儿童动画"
+ },
+ "2D复古动画": {
+  "dir": "2d_retro",
+  "level": "canon",
+  "h1": "2D复古动画"
+ },
+ "2D复古少女": {
+  "dir": "2d_retro_girl",
+  "level": "canon",
+  "h1": "2D复古少女"
+ },
+ "2D奇幻动画": {
+  "dir": "2d_fantasy",
+  "level": "canon",
+  "h1": "2D奇幻动画"
+ },
+ "2D少女漫画": {
+  "dir": "2d_shoujo",
+  "level": "canon",
+  "h1": "2D少女漫画"
+ },
+ "2D工笔风": {
+  "dir": "2d_gongbi",
+  "level": "canon",
+  "h1": "2D工笔风"
+ },
+ "2D扁平风（Flat Design）": {
+  "dir": "2D_flat_design",
+  "level": "variant",
+  "h1": "2D扁平风（Flat Design）"
+ },
+ "2D日式侦探": {
+  "dir": "2d_detective",
+  "level": "canon",
+  "h1": "2D日式侦探"
+ },
+ "2D暗黑悬疑漫画": {
+  "dir": "2d_deathnote",
+  "level": "canon",
+  "h1": "2D暗黑悬疑漫画"
+ },
+ "2D橡皮管动画": {
+  "dir": "2d_rubberhose",
+  "level": "canon",
+  "h1": "2D橡皮管动画"
+ },
+ "2D水彩": {
+  "dir": "2d_watercolor",
+  "level": "canon",
+  "h1": "2D水彩"
+ },
+ "2D热血动画": {
+  "dir": "2d_shonen",
+  "level": "canon",
+  "h1": "2D热血动画"
+ },
+ "2D热血圆线漫画": {
+  "dir": "2d_akira",
+  "level": "canon",
+  "h1": "2D热血圆线漫画"
+ },
+ "2D电影": {
+  "dir": "2d_movie",
+  "level": "canon",
+  "h1": "2D电影"
+ },
+ "2D电影感松散漫画": {
+  "dir": "2d_fujimoto",
+  "level": "canon",
+  "h1": "2D电影感松散漫画"
+ },
+ "2D简单线条": {
+  "dir": "2d_simple_line",
+  "level": "canon",
+  "h1": "2D简单线条"
+ },
+ "2D简笔画": {
+  "dir": "2d_stick",
+  "level": "canon",
+  "h1": "2D简笔画"
+ },
+ "2D粗线条": {
+  "dir": "2d_thick_line",
+  "level": "canon",
+  "h1": "2D粗线条"
+ },
+ "2D经典圆线漫画": {
+  "dir": "2d_astroboy",
+  "level": "canon",
+  "h1": "2D经典圆线漫画"
+ },
+ "2D美式动画": {
+  "dir": "2d_american",
+  "level": "canon",
+  "h1": "2D美式动画"
+ },
+ "2D美式漫画": {
+  "dir": "2d_comic",
+  "level": "canon",
+  "h1": "2D美式漫画"
+ },
+ "2D自然手绘动画": {
+  "dir": "2d_ghibli",
+  "level": "canon",
+  "h1": "2D自然手绘动画"
+ },
+ "2D诡异惊悚": {
+  "dir": "2d_horror",
+  "level": "canon",
+  "h1": "2D诡异惊悚"
+ },
+ "2D运动写实漫画": {
+  "dir": "2d_slamdunk",
+  "level": "canon",
+  "h1": "2D运动写实漫画"
+ },
+ "2D都市灵能漫画": {
+  "dir": "2d_mob",
+  "level": "canon",
+  "h1": "2D都市灵能漫画"
+ },
+ "2D韩式动画": {
+  "dir": "2d_korean",
+  "level": "canon",
+  "h1": "2D韩式动画"
+ },
+ "2D高对比姿态漫画": {
+  "dir": "2d_jojo",
+  "level": "canon",
+  "h1": "2D高对比姿态漫画"
+ },
+ "3D 动画渲染": {
+  "dir": "3D_anime_render",
+  "level": "variant",
+  "h1": "3D 动画渲染"
+ },
+ "3DQ版": {
+  "dir": "3d_q_version",
+  "level": "canon",
+  "h1": "3DQ版"
+ },
+ "3D写实": {
+  "dir": "3d_realistic",
+  "level": "canon",
+  "h1": "3D写实"
+ },
+ "3D块面": {
+  "dir": "3d_block",
+  "level": "canon",
+  "h1": "3D块面"
+ },
+ "3D手游": {
+  "dir": "3d_mobile",
+  "level": "canon",
+  "h1": "3D手游"
+ },
+ "3D方块世界": {
+  "dir": "3d_voxel",
+  "level": "canon",
+  "h1": "3D方块世界"
+ },
+ "3D渲染2D": {
+  "dir": "3d_render_2d",
+  "level": "canon",
+  "h1": "3D渲染2D"
+ },
+ "3D玄幻": {
+  "dir": "3d_xuanhuan",
+  "level": "canon",
+  "h1": "3D玄幻"
+ },
+ "3D美式": {
+  "dir": "3d_american",
+  "level": "canon",
+  "h1": "3D美式"
+ },
+ "90年代日式动画": {
+  "dir": "2D_90s_japanese_anime",
+  "level": "variant",
+  "h1": "90年代日式动画"
+ },
+ "国风3D": {
+  "dir": "3D_chinese_traditional",
+  "level": "variant",
+  "h1": "国风3D"
+ },
+ "国风二次元新国潮": {
+  "dir": "2D_chinese_guofeng",
+  "level": "variant",
+  "h1": "国风二次元新国潮"
+ },
+ "定格动画": {
+  "dir": "stop_motion",
+  "level": "canon",
+  "h1": "定格动画"
+ },
+ "定格动画黏土": {
+  "dir": "3D_clay_stopmotion",
+  "level": "variant",
+  "h1": "定格动画黏土"
+ },
+ "成熟都市言情二次元动画": {
+  "dir": "2D_mature_urban_romance",
+  "level": "variant",
+  "h1": "成熟都市言情二次元动画"
+ },
+ "手办定格动画": {
+  "dir": "figure_stop_motion",
+  "level": "canon",
+  "h1": "手办定格动画"
+ },
+ "日式3D渲染2D": {
+  "dir": "jp_3d_render_2d",
+  "level": "canon",
+  "h1": "日式3D渲染2D"
+ },
+ "毛绒定格动画": {
+  "dir": "felt_stop_motion",
+  "level": "canon",
+  "h1": "毛绒定格动画"
+ },
+ "真人古装": {
+  "dir": "real_costume",
+  "level": "canon",
+  "h1": "真人古装"
+ },
+ "真人古风写实": {
+  "dir": "realpeople_ancient_chinese",
+  "level": "variant",
+  "h1": "真人古风写实"
+ },
+ "真人复古武侠": {
+  "dir": "real_wuxia",
+  "level": "canon",
+  "h1": "真人复古武侠"
+ },
+ "真人复古港片": {
+  "dir": "real_hk_retro",
+  "level": "canon",
+  "h1": "真人复古港片"
+ },
+ "真人电影": {
+  "dir": "real_movie",
+  "level": "canon",
+  "h1": "真人电影"
+ },
+ "真人都市写实": {
+  "dir": "realpeople_urban_modern",
+  "level": "variant",
+  "h1": "真人都市写实"
+ },
+ "真实光晕": {
+  "dir": "real_bloom",
+  "level": "canon",
+  "h1": "真实光晕"
+ },
+ "积木定格动画": {
+  "dir": "lego_stop_motion",
+  "level": "canon",
+  "h1": "积木定格动画"
+ },
+ "粘土定格动画": {
+  "dir": "clay_stop_motion",
+  "level": "canon",
+  "h1": "粘土定格动画"
+ }
+}
