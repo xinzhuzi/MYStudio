@@ -23,9 +23,16 @@ v2(本版,依据 09-15 turbo 实弹 A/B/C/D 对拍):
        Mystic XXX ×2.0 / pussy ×0.15 与画风线描平涂互斥,默认形态
        mode=4 旁路([19] identity 保留激活);要破限=画布右键节点
        Remove Bypass,无需改线。
+  v3(09-16 LoRA 阵容定档,五档矩阵实测后;详见 Trellis 09-16-superset-lora-tier-0916/research/decision.md):
+    8. [67] 细节滑杆默认激活 ×1.0(矩阵定档:×0.7 无效/×1.0 增益明显无伪影/×1.3 噪底抬升);
+       模型链扩容 45→46→47→67→68→69→70→14,67-70 build-if-missing。
+    9. [68/69/70] 画风件保持默认旁路(互斥,一次只开一枚)+触发词 title 固化;
+       [66] 速查卡两档口径(速度档=默认 4步/cfg1+47+67×1.0;质量档=旁路47+12步/cfg5+67 保持)。
+    10. 历史 [67] MyPromptLog 退役块加 type 守卫——新 [67] 是 LoRA 节点,按 id 退役会误删。
   门(不过即退出码 1):链接双向一致 / 正负两条链端到端 / 无 52 残留 /
-  负向直通 KSampler.slot2 / cfg=3 / 44·45 mode=4 / last_node_id·last_link_id 更新。
-  幂等:v2 态重跑零改动;v1 态(有 52)重跑收敛到 v2。
+  负向直通 KSampler.slot2 / cfg=1(速度档) / 44·45 mode=4 / last_node_id·last_link_id 更新 /
+  67 激活×1.0·68/69/70 旁路含触发词·七跳模型链·66 卡两档口径。
+  幂等:v3 态重跑零改动;v2/v1 态重跑收敛到 v3。
 """
 
 import json
@@ -37,6 +44,10 @@ WF = REPO / "apps/backend/engines/comfyui/workflows/1_图片/K2图像/1_文生�
 
 GREEN = "#4d9e6a"
 GREEN_BG = "#1f2f26"
+
+# v3 定档常量(09-16 矩阵实测:×0.7 无效/×1.0 增益明显无伪影/×1.3 噪底抬升)
+DETAIL_SLIDER_STRENGTH = 1.0
+DETAIL_SLIDER_FILE = "Krea2-美学/Krea2-细节滑杆DetailSlider_v1.safetensors"
 
 failures: list[str] = []
 
@@ -133,7 +144,8 @@ def main() -> int:
         nodes = {n["id"]: n for n in d["nodes"]}
 
     # ---- [67] 出图日志节点退役(幂等:历史遗留摘除;日志纯引擎侧) ----
-    if 67 in nodes:
+    # v3 守卫:新 [67] 是细节滑杆 LoRA 节点,仅当日志件(type 匹配)才退役,防误删
+    if 67 in nodes and nodes[67].get("type") == "MyPromptLog":
         drop67 = {l[0] for l in d["links"] if l[1] == 67 or l[3] == 67}
         d["links"] = [l for l in d["links"] if l[0] not in drop67]
         d["nodes"] = [n for n in d["nodes"] if n["id"] != 67]
@@ -187,7 +199,7 @@ def main() -> int:
     ks.setdefault("widgets_values_named", {})["steps"] = 4
     ks.setdefault("widgets_values_named", {})["cfg"] = 1.0
 
-    # ---- [46] Afterlight 光影 + [47] 4步蒸馏加速:模型链 19→44→45→46→47→14 ----
+    # ---- [46] Afterlight 光影 + [47] 4步蒸馏加速 + [67-70] v3 阵容:模型链 45→46→47→67→68→69→70→14 ----
     if 46 not in nodes:
         nodes[46] = {
             "id": 46, "type": "LoraLoaderModelOnly", "pos": [-620.0, 640.0], "size": [340, 130],
@@ -213,8 +225,30 @@ def main() -> int:
         }
         d["nodes"].append(nodes[47])
     nodes = {n["id"]: n for n in d["nodes"]}
-    # 重接模型链(CANON 签名幂等):统一收敛到 45→46→47→14
-    sig = {(45, 0, 14, 0), (45, 0, 46, 0), (46, 0, 47, 0), (47, 0, 14, 0)}
+    # ---- v3:[67-70] 新 LoRA 阵容 build-if-missing(缺则按 09-16 定档形态补建) ----
+    NEW_LORAS = {
+        67: (DETAIL_SLIDER_FILE, 1820, GREEN, GREEN_BG),
+        68: ("Krea2-画风/Krea2-柔水彩softwatercolor.safetensors", 2340, "#3a6ea5", "#1c2a3a"),
+        69: ("Krea2-画风/Krea2-暗笔刷darkbrush.safetensors", 2860, "#3a6ea5", "#1c2a3a"),
+        70: ("Krea2-画风/Krea2-复古漫retroanime.safetensors", 3380, "#3a6ea5", "#1c2a3a"),
+    }
+    for nid, (fname, x, color, bgcolor) in NEW_LORAS.items():
+        if nid not in nodes:
+            nodes[nid] = {
+                "id": nid, "type": "LoraLoaderModelOnly", "pos": [float(x), 240.0], "size": [340, 130],
+                "flags": {}, "order": nid, "mode": 4,
+                "inputs": [{"name": "model", "type": "MODEL", "link": None}],
+                "outputs": [{"name": "MODEL", "type": "MODEL", "links": [], "slot_index": 0}],
+                "properties": {"Node name for S&R": "LoraLoaderModelOnly"},
+                "widgets_values": [fname, 1.0],
+                "widgets_values_named": {"lora_name": fname, "strength_model": 1.0},
+                "color": color, "bgcolor": bgcolor,
+            }
+            d["nodes"].append(nodes[nid])
+    nodes = {n["id"]: n for n in d["nodes"]}
+    # 重接模型链(CANON 签名幂等):v3 统一收敛到 45→46→47→67→68→69→70→14
+    sig = {(45, 0, 14, 0), (45, 0, 46, 0), (46, 0, 47, 0), (47, 0, 14, 0),
+           (47, 0, 67, 0), (67, 0, 68, 0), (68, 0, 69, 0), (69, 0, 70, 0), (70, 0, 14, 0)}
     drop_chain = {l[0] for l in d["links"] if (l[1], l[2], l[3], l[4]) in sig}
     d["links"] = [l for l in d["links"] if l[0] not in drop_chain]
     # 去重(历史双写自愈):同 id 只留一条
@@ -225,7 +259,11 @@ def main() -> int:
     d["links"].extend([
         [36, 45, 0, 46, 0, "MODEL"],
         [37, 46, 0, 47, 0, "MODEL"],
-        [38, 47, 0, 14, 0, "MODEL"],
+        [38, 47, 0, 67, 0, "MODEL"],
+        [39, 67, 0, 68, 0, "MODEL"],
+        [40, 68, 0, 69, 0, "MODEL"],
+        [41, 69, 0, 70, 0, "MODEL"],
+        [42, 70, 0, 14, 0, "MODEL"],
     ])
     for n in d["nodes"]:
         for o in n.get("outputs", []):
@@ -235,15 +273,26 @@ def main() -> int:
             if i_.get("link") in drop_chain:
                 i_["link"] = None
     nodes = {n["id"]: n for n in d["nodes"]}
-    links = {l[0]: l for l in d["links"]}  # 重建:新增链 36-38 进门禁视野
-    in_slot(nodes[46], 0)["link"] = 36
-    out_slot(nodes[46], 0)["links"] = [37]
-    in_slot(nodes[47], 0)["link"] = 37
-    out_slot(nodes[47], 0)["links"] = [38]
-    in_slot(nodes[14], 0)["link"] = 38
+    links = {l[0]: l for l in d["links"]}  # 重建:新增链 36-42 进门禁视野
+    for nid, lid_in, lid_out in ((46, 36, 37), (47, 37, 38), (67, 38, 39),
+                                 (68, 39, 40), (69, 40, 41), (70, 41, 42)):
+        in_slot(nodes[nid], 0)["link"] = lid_in
+        out_slot(nodes[nid], 0)["links"] = [lid_out]
+    in_slot(nodes[14], 0)["link"] = 42
     out_slot(nodes[45], 0)["links"] = [36]  # 45 → 46(旧 45→14 已摘)
     nodes[46]["title"] = "[46] 光影LoRA·Afterlight ×0.8(暖金光;不要就旁路)"
     nodes[47]["title"] = "[47] 加速LoRA·4步蒸馏 ×1.0(速度档;质量档=旁路+12步/cfg5)"
+    # ---- v3 定档:[67] 默认激活×1.0;[68/69/70] 画风件旁路+触发词固化 ----
+    nodes[67]["mode"] = 0
+    nodes[67]["widgets_values"][1] = DETAIL_SLIDER_STRENGTH
+    nodes[67].setdefault("widgets_values_named", {})["strength_model"] = DETAIL_SLIDER_STRENGTH
+    nodes[67]["title"] = (f"[67] 细节LoRA·细节滑杆 ×{DETAIL_SLIDER_STRENGTH:g}"
+                          "(发丝/织纹细节;速度/质量档常开,想关=旁路)")
+    for nid in (68, 69, 70):
+        nodes[nid]["mode"] = 4
+    nodes[68]["title"] = "[68] 画风LoRA·柔水彩 ×1.0(触发词:art deco watercolor style;默认旁路)"
+    nodes[69]["title"] = "[69] 画风LoRA·暗笔刷 ×1.0(触发词:monochrome ink wash style;默认旁路)"
+    nodes[70]["title"] = "[70] 画风LoRA·复古漫 ×1.0(触发词:purple retro anime style;默认旁路)"
 
     # ---- 尺度 LoRA 默认旁路(09-15 用户裁定:画风优先;[19] identity 保留) ----
     for nid, name in ((44, "Mystic XXX v3 ×2.0"), (45, "pussy ×0.15")):
@@ -253,11 +302,35 @@ def main() -> int:
 
     # ---- [66] 速查卡 LoRA 口径同步(幂等:旧句已换则 no-op) ----
     card = nodes[66]["widgets_values"][0]
-    nodes[66]["widgets_values"][0] = card.replace(
+    card = card.replace(
         "- 力度:收=pussy 降 0.1 或 Mystic 降 1.0;更冲=Mystic 2.5(噪点↑)",
         "- 尺度LoRA(44/45)默认旁路=画风优先;要破限=右键节点 Remove Bypass\n"
         "- 破限档力度:收=pussy 降 0.1 或 Mystic 降 1.0;更冲=Mystic 2.5(噪点↑)",
     )
+    # v3 两档口径(矩阵实测 09-16:速度档 ~90s/张,质量档 ~500s/张)
+    card = card.replace(
+        "- cfg=3=负向生效档;回官方纯档=cfg 调 1(负向自动失效,无需改线)",
+        "- 速度档=默认:4步/cfg1+加速[47]+细节[67]×1.0(约90秒/张;cfg1 下负向自动失效)\n"
+        "- 质量档=旁路[47]+手调12步/cfg5(负向复活)+细节[67]保持(约500秒/张)",
+    )
+    card = card.replace(
+        "## 09-16 新增 LoRA 矩阵(默认全旁路;启用=右键节点 Remove Bypass)",
+        "## 09-16 新增 LoRA 矩阵([67]默认激活;其余默认旁路,启用=右键节点 Remove Bypass)",
+    )
+    card = card.replace(
+        "- [67] 细节滑杆DetailSlider | Krea2-美学/Krea2-细节滑杆DetailSlider_v1.safetensors"
+        " | ×1.0 | 通用 | 细节增强,可与其他LoRA叠加",
+        "- [67] 细节滑杆DetailSlider | Krea2-美学/Krea2-细节滑杆DetailSlider_v1.safetensors"
+        " | ×1.0(默认激活) | 速度/质量档常开 | 细节增强"
+        "(09-16 矩阵定档:×0.7 无效/×1.0 增益明显无伪影/×1.3 噪底抬升)",
+    )
+    if "一次只开一枚" not in card:  # 守卫:新文本尾部含旧锚点,裸 replace 会每遍增殖
+        card = card.replace(
+            "- 风格参照style_reference(官方,需参考图输入)",
+            "- 画风件[68/69/70]一次只开一枚(互斥,叠加会风格打架);启用须在正向补各自触发词\n"
+            "- 风格参照style_reference(官方,需参考图输入)",
+        )
+    nodes[66]["widgets_values"][0] = card
 
     # ---- 标题/组框(实测口径) ----
     nodes[64]["title"] = "[64] 负向提示词(cfg3 生效中;调回 cfg1 则自动失效)"
@@ -265,7 +338,7 @@ def main() -> int:
         if g["title"].startswith("④"):
             g["title"] = "④ 提示词链(正/负输入→风格→编码→12带)"
         if g["title"].startswith("②"):
-            g["title"] = "② LoRA 尺度栈(44/45 默认旁路)+ 模型补丁"
+            g["title"] = "② LoRA 栈(尺度44/45+画风68-70 默认旁路;细节67+光影46+加速47 激活)+ 模型补丁"
 
     # ---- [42] 说明卡退役(幂等:无 42 即跳过;文件名已表达,不再放画布) ----
     # 区分:[42]=工作流身份介绍卡(退役);[66]=用法速查卡(提示词模板+参数,
@@ -282,8 +355,10 @@ def main() -> int:
     LAYOUT = {
         61: (4460, -200), 53: (4740, -200),                              # ⑤ 画布(顶部,向下注入)
         21: (40, 60), 15: (440, 60), 10: (840, 60),                      # ① 模型加载
-        19: (1300, 60), 44: (1820, 60), 45: (2340, 60), 46: (2860, 60),  # ② LoRA 链
+        19: (1300, 60), 44: (1820, 60), 45: (2340, 60), 46: (2860, 60),  # ② LoRA 链第一行
         47: (3380, 60), 14: (3900, 40),
+        67: (1820, 240), 68: (2340, 240),                                # ② LoRA 链第二行(v3)
+        69: (2860, 240), 70: (3380, 240),
         50: (40, 560), 64: (40, 790), 60: (560, 560), 51: (1210, 560),   # ④ 提示词链
         65: (1210, 830), 63: (1810, 560),
         20: (3560, 560), 12: (3900, 560), 11: (4280, 560), 4: (4560, 560),  # ③ 采样出图(总汇)
@@ -294,7 +369,7 @@ def main() -> int:
             nodes[nid]["pos"] = [float(x), float(y)]
     GROUPS = {
         "①": (20, 0, 1180, 220, "① 模型加载"),
-        "②": (1280, 0, 3100, 326, "② LoRA 栈(44/45 尺度·默认旁路)+ 光影/加速 + 模型补丁"),
+        "②": (1280, 0, 3100, 510, "② LoRA 栈(尺度44/45+画风68-70 默认旁路;细节67+光影46+加速47 激活)+ 模型补丁"),
         "⑤": (4440, -220, 720, 200, "⑤ 画布(分辨率→空潜)"),
         "③": (3540, 520, 1400, 580, "③ 采样与出图"),
         "④": (20, 520, 2400, 660, "④ 提示词链(正/负输入→风格→编码→12带)"),
@@ -356,6 +431,21 @@ def main() -> int:
     check(nodes[47].get("mode", 0) == 0, "4步蒸馏 [47] 应默认激活")
     check(nodes[44].get("mode") == 4 and nodes[45].get("mode") == 4, "尺度LoRA 44/45 未默认旁路")
     check(nodes[19].get("mode", 0) == 0, "identity LoRA [19] 应保留激活")
+    # ---- v3 门禁:67 定档激活 / 68-70 旁路+触发词 / 七跳模型链 / 66 卡两档口径 ----
+    check(nodes[67].get("mode", 0) == 0, "细节滑杆 [67] 应默认激活(v3 定档)")
+    check(abs(nodes[67]["widgets_values"][1] - DETAIL_SLIDER_STRENGTH) < 1e-9,
+          f"细节滑杆强度≠定档×{DETAIL_SLIDER_STRENGTH}")
+    check(nodes[67]["widgets_values"][0] == DETAIL_SLIDER_FILE, "[67] lora 文件名漂移")
+    for nid, trig in ((68, "art deco watercolor style"),
+                      (69, "monochrome ink wash style"),
+                      (70, "purple retro anime style")):
+        check(nodes[nid].get("mode") == 4, f"画风件 [{nid}] 应默认旁路(互斥,一次只开一枚)")
+        check(trig in (nodes[nid].get("title") or ""), f"画风件 [{nid}] title 缺官方触发词")
+    for s, dn in ((45, 46), (46, 47), (47, 67), (67, 68), (68, 69), (69, 70), (70, 14)):
+        check(wired(s, 0, dn, 0), f"模型链断: {s}→{dn}(v3 七跳)")
+    card_txt = nodes[66]["widgets_values"][0]
+    check("速度档=默认" in card_txt and "质量档=旁路[47]" in card_txt,
+          "[66] 速查卡缺 v3 两档口径")
 
     if failures:
         print("结构门未过:")
@@ -364,7 +454,9 @@ def main() -> int:
         return 1
 
     WF.write_text(json.dumps(d, ensure_ascii=False, indent=2), encoding="utf-8")
-    print(f"过门: 节点{len(d['nodes'])} 链接{len(d['links'])} 速度档(steps4/cfg1+4步蒸馏) Afterlight×0.8 负向直通(65→12.2) 尺度LoRA 44/45 旁路")
+    print(f"过门: 节点{len(d['nodes'])} 链接{len(d['links'])} 速度档(steps4/cfg1+4步蒸馏) "
+          f"Afterlight×0.8 负向直通(65→12.2) 尺度LoRA 44/45 旁路 "
+          f"细节滑杆67×{DETAIL_SLIDER_STRENGTH:g}(v3 定档激活) 画风68-70 旁路含触发词")
     return 0
 
 
