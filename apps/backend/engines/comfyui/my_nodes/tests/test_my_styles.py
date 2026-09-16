@@ -239,7 +239,7 @@ def test_real_tree_run_gongbi_assembles_manual_anchors(monkeypatch):
         "2D工笔风", positive="a lady", negative="blurry")
     # 正向=用户词在前+手册质量锚定行原样(09-16 用户裁定锚点中文化)
     assert positive.startswith("a lady, ")
-    assert "一幅2D中国传统绘画，以细而稳的墨线勾勒成形" in positive  # 09-16 全角化(用户 GPT-image-2 实证文本)
+    assert "一幅2D中国传统绘画，精谨线描" in positive  # 09-16 全角化(用户 GPT-image-2 实证文本)
     assert "完成度高的画作" in positive
     # 负向=用户词在前+反向规避行,权重组整 token 保留
     assert negative.startswith("blurry")
@@ -249,7 +249,7 @@ def test_real_tree_run_gongbi_assembles_manual_anchors(monkeypatch):
 
 # ── 工笔基础词定稿冻结(09-16 用户裁定"定稿";改这两行=改契约,须过用户裁定)──
 # 09-16 二次裁定(用户贴 GPT-image-2 实证提示词):正向锚定标点全角化(词零改动),X4 实测全角优于半角
-FROZEN_GONGBI_POSITIVE = '| 质量锚定 | 最佳质量、杰作、高细节；一幅2D中国传统绘画，以细而稳的墨线勾勒成形，矿物颜料设色，颜色薄而层次细腻；眉眼与发丝以游丝般的细线逐根勾勒，衣纹以匀劲的铁线勾成，轮廓清晰；人物修长端雅，五官清秀，神情含蓄；石青、石绿、朱砂、赭石、花青为主，低饱和，浓色只作局部点缀；纹样精致克制，仅缀于衣缘袖口；背景极简，非对称平衡构图，大面积留白；颜料细腻附着于温润米白的纸面，画面均匀柔光，无投影；静谧诗意，完成度高的画作。 |'
+FROZEN_GONGBI_POSITIVE = '| 质量锚定 | 最佳质量、杰作、高细节；一幅2D中国传统绘画，精谨线描，细腻墨线，线条细而稳，勾勒精确有韵律；发丝逐层细线勾勒，五官与衣纹描绘精致，衣纹线条流畅，疏密有致，衣褶顺着身体结构展开；人物身姿修长端雅，五官清秀柔和，神情含蓄宁静；层层设色，矿物颜料温润细腻；石青、石绿、花青、赭石、朱砂等低饱和色彩，强色仅作局部点缀；衣缘、袖口与裙摆缀精致克制的花卉与卷草纹样；大面积干净留白，非对称平衡构图，主体精致与留白安静相衬；温润米白的纸面，极细微天然纤维，细腻洁净，手绘颜料附着于纸面的质感，画面均匀柔光，无投影；宁静诗意，古雅含蓄，完成度高的画作。 |'
 FROZEN_GONGBI_NEGATIVE = '| 反向规避 | 最差质量,低质量, 厚漫画描边,粗黑轮廓,卡通平涂阴影,现代动漫比例,夸张大眼, 摄影写实,3D渲染,CGI,塑料皮肤, 霓虹色,高饱和荧光色, 过度装饰,纹样堆砌,杂乱构图, 厚重西式油画,水彩晕染,泼墨写意, 做旧扫描感,重纸纹,纸面污渍,泛黄旧底,绢纹织物底,褶皱绉纹,横向条纹,色带, 织物纹理,布纹底,网格纹底,冷灰底色,灰绿底, 文字,水印,签名,多余手指,畸形的手 |'
 
 
@@ -259,7 +259,7 @@ def test_gongbi_base_prompt_frozen(monkeypatch):
     assert FROZEN_GONGBI_POSITIVE in text, "工笔基础词(正向)被改动——定稿冻结,改前须过用户裁定"
     assert FROZEN_GONGBI_NEGATIVE in text, "工笔基础词(负向)被改动——定稿冻结,改前须过用户裁定"
     pos, neg = MyStylesLibrary().run("2D工笔风")
-    assert "2D中国传统绘画" in pos and "游丝般的细线" in pos and "非对称平衡构图" in pos
+    assert "2D中国传统绘画" in pos and "主体精致与留白安静相衬" in pos
     assert "厚漫画描边" in neg and "绢纹织物底" in neg
 
 
