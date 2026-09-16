@@ -6,9 +6,10 @@
   G2 解析级守恒:每风格 canon/variant 与基线一致(翻译弄坏锚点行会致级漂移)
   G3 H1 守恒:每风格 prefix.md H1 展示名与基线一致
   G4 锚点非空:全部开放风格正/负锚点可解析且非空
-  G5 分隔符纪律:『质量锚定』『反向规避』两行零全角逗号/零全角冒号
-     (节点按 ASCII 逗号切 token、权重语法吃 ASCII 冒号;中文内容随意,
-      标点必须 ASCII——2d_gongbi 中文化实测形态)
+  G5 分隔符纪律(09-16 用户裁定「统一全角化」后拆两半):
+     『质量锚定』行=全角纪律(紧邻逗号/冒号全角,组分隔符 ), ( ASCII;
+      节点顶层切分只认 ASCII 逗号,全角化不影响装配;实证全角优于半角)
+     『反向规避』行=ASCII 纪律不变(负向权重组走节点 ASCII 冒号识别)
   G6 残句抽查:两行内不得残留「3 个及以上连续英文单词且非白名单术语」
      的明显未翻译片段(白名单=常见精确美术词,防误杀)
 """
@@ -97,7 +98,19 @@ def main() -> int:
         # G5/G6 两行纪律
         rows = anchor_rows(style_dir)
         for key, row in rows.items():
-            if "，" in row or "：" in row:
+            # 09-16 用户裁定「统一全角化」:『质量锚定』行改为全角纪律
+            # (逗号→，(紧邻非空格时)/冒号→：,组分隔符 ), ( 保持 ASCII;
+            #  实证=X 系消融全角优于半角,工笔先例 e309ef5);『反向规避』
+            # 行维持 ASCII 纪律(无裁定,负向权重组 (…:1.4) 走节点 ASCII
+            # 冒号识别路径不动)。
+            if key == "质量锚定":
+                cell = row.split("|", 2)[-1]
+                if ":" in cell:
+                    failures.append(f"G5 {name}·{key}: 残留ASCII冒号(应全角)")
+                for c in re.finditer(r",(?![ ])", cell):
+                    failures.append(
+                        f"G5 {name}·{key}: 残留紧邻ASCII逗号 …{cell[max(0,c.start()-6):c.start()+6]}…")
+            elif "，" in row or "：" in row:
                 failures.append(f"G5 {name}·{key}: 含全角逗号/冒号")
             # G6:切出非白名单的英文三连词
             text = row.split("|", 2)[-1]
