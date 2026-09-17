@@ -234,6 +234,7 @@ def main() -> int:
         68: ("Krea2-画风/Krea2-柔水彩softwatercolor.safetensors", 2340, "#3a6ea5", "#1c2a3a"),
         69: ("Krea2-画风/Krea2-暗笔刷darkbrush.safetensors", 2860, "#3a6ea5", "#1c2a3a"),
         70: ("Krea2-画风/Krea2-复古漫retroanime.safetensors", 3380, "#3a6ea5", "#1c2a3a"),
+        73: ("Krea2-画风/Krea2-水墨武侠漆艺鎏金_v1.safetensors", 3900, "#3a6ea5", "#1c2a3a"),
     }
     for nid, (fname, x, color, bgcolor) in NEW_LORAS.items():
         if nid not in nodes:
@@ -251,7 +252,7 @@ def main() -> int:
     nodes = {n["id"]: n for n in d["nodes"]}
     # 重接模型链(CANON 签名幂等):v3 统一收敛到 45→46→47→67→68→69→70→14
     sig = {(45, 0, 14, 0), (45, 0, 46, 0), (46, 0, 47, 0), (47, 0, 14, 0),
-           (47, 0, 67, 0), (67, 0, 68, 0), (68, 0, 69, 0), (69, 0, 70, 0), (70, 0, 14, 0),
+           (47, 0, 67, 0), (67, 0, 68, 0), (68, 0, 69, 0), (69, 0, 70, 0), (70, 0, 14, 0), (70, 0, 12, 0),
            (14, 0, 12, 0)}
     # 09-17 用户裁定摘除 [14] Krea2EditModelPatch:t2i 无真参考图,source=空噪波 Latent
     # =每步对噪声做保真参考(背景污染主凶,背景高频起伏5.9 vs 摘后1.1;且耗时×2:81s vs 42s)。
@@ -273,6 +274,7 @@ def main() -> int:
         [40, 68, 0, 69, 0, "MODEL"],
         [41, 69, 0, 70, 0, "MODEL"],
         [42, 70, 0, 12, 0, "MODEL"],
+        [43, 70, 0, 73, 0, "MODEL"],
     ])
     for n in d["nodes"]:
         for o in n.get("outputs", []):
@@ -284,10 +286,15 @@ def main() -> int:
     nodes = {n["id"]: n for n in d["nodes"]}
     links = {l[0]: l for l in d["links"]}  # 重建:新增链 36-42 进门禁视野
     for nid, lid_in, lid_out in ((46, 36, 37), (47, 37, 38), (67, 38, 39),
-                                 (68, 39, 40), (69, 40, 41), (70, 41, 42)):
+                                 (68, 39, 40), (69, 40, 41), (70, 41, 43), (73, 43, 42)):
         in_slot(nodes[nid], 0)["link"] = lid_in
         out_slot(nodes[nid], 0)["links"] = [lid_out]
-    in_slot(nodes[12], 0)["link"] = 42  # KSampler.model ← 70 直通(14 已摘)
+    # 09-17 [73] 入链:70→73→12(42 重指 73,43 新增)
+    d["links"] = [l for l in d["links"] if l[0] not in (42, 43)]
+    d["links"].append([43, 70, 0, 73, 0, "MODEL"])
+    d["links"].append([42, 73, 0, 12, 0, "MODEL"])
+    links = {l[0]: l for l in d["links"]}  # 42/43 确定性重建,门禁读此表
+    in_slot(nodes[12], 0)["link"] = 42  # KSampler.model ← 73(14 已摘,73 接力)
     out_slot(nodes[45], 0)["links"] = [36]  # 45 → 46(旧 45→14 已摘)
     # 摘除节点14(幂等:不存在则跳过)
     d["nodes"] = [n for n in d["nodes"] if n["id"] != 14]
@@ -307,6 +314,8 @@ def main() -> int:
     nodes[68]["title"] = "[68] 画风LoRA·柔水彩 ×1.0(触发词:art deco watercolor style;默认旁路)"
     nodes[69]["title"] = "[69] 画风LoRA·暗笔刷 ×1.0(触发词:monochrome ink wash style;默认旁路)"
     nodes[70]["title"] = "[70] 画风LoRA·复古漫 ×1.0(触发词:purple retro anime style;默认旁路)"
+    nodes[73]["mode"] = 4
+    nodes[73]["title"] = "[73] 画风LoRA·水墨武侠漆艺鎏金 ×1.0(国风武侠水墨线专用,出图时 Remove Bypass;默认旁路)"
 
     # ---- 尺度 LoRA 默认旁路(09-15 用户裁定:画风优先;[19] identity 保留) ----
     for nid, name in ((44, "Mystic XXX v3 ×2.0"), (45, "pussy ×0.15")):
@@ -347,6 +356,13 @@ def main() -> int:
         " | ×1.0(默认激活) | 速度/质量档常开 | 细节增强"
         "(09-16 矩阵定档:×0.7 无效/×1.0 增益明显无伪影/×1.3 噪底抬升)",
     )
+    card = card.replace("道劫/国风线专用", "国风武侠水墨线专用")  # IP禁词强制清洗(幂等)
+    if "[73] 水墨武侠漆艺鎏金" not in card:  # 09-17 新增件入卡
+        card = card.replace(
+            "- 风格参照style_reference(官方,需参考图输入)",
+            "- [73] 水墨武侠漆艺鎏金 ×1.0 | Krea2-画风/Krea2-水墨武侠漆艺鎏金_v1.safetensors | 国风武侠水墨线(Civitai#2937345,Krea2原生) | 出武侠水墨时开\n"
+            "- 风格参照style_reference(官方,需参考图输入)",
+        )
     if "一次只开一枚" not in card:  # 守卫:新文本尾部含旧锚点,裸 replace 会每遍增殖
         card = card.replace(
             "- 风格参照style_reference(官方,需参考图输入)",
@@ -406,6 +422,7 @@ def main() -> int:
         68: (1746.1557992129754, 0.6480984580177117),
         69: (2331.2967291343157, 1.3961608138937884),
         70: (2901.1788871375043, 1.8466983691370644),
+        73: (3480.0, 1.8466983691370644),
     }
     for nid, (x, y) in LAYOUT.items():
         if nid in nodes:
@@ -490,7 +507,7 @@ def main() -> int:
                       (70, "purple retro anime style")):
         check(nodes[nid].get("mode") == 4, f"画风件 [{nid}] 应默认旁路(互斥,一次只开一枚)")
         check(trig in (nodes[nid].get("title") or ""), f"画风件 [{nid}] title 缺官方触发词")
-    for s, dn in ((45, 46), (46, 47), (47, 67), (67, 68), (68, 69), (69, 70), (70, 12)):
+    for s, dn in ((45, 46), (46, 47), (47, 67), (67, 68), (68, 69), (69, 70), (70, 73), (73, 12)):
         check(wired(s, 0, dn, 0), f"模型链断: {s}→{dn}(v3 七跳)")
     card_txt = nodes[66]["widgets_values"][0]
     check("速度档=默认" in card_txt and "质量档=旁路[47]" in card_txt,
