@@ -453,7 +453,15 @@ def main() -> int:
     # 标题口径刷新(速度档)
     nodes[64]["title"] = "[64] 负向提示词(速度档 cfg1 下不生效;质量档 cfg5 复活)"
     # 09-16 用户报褶皱:默认负向补防皱封堵(64=用户负向框,workflow 层,非冻结基础词)
-    nodes[64]["widgets_values"] = ["文字,水印,签名,多余的手指,畸形的手,褶皱,皱褶,绉纹,杂乱布纹,织物褶皱,横向条纹,色带,条带痕迹"]
+    # 09-17 修:此硬置曾覆盖五词追加(0f6f595回归根因)——改为基值+五词守恒
+    _base_neg = "文字,水印,签名,多余的手指,畸形的手,褶皱,皱褶,绉纹,杂乱布纹,织物褶皱,横向条纹,色带,条带痕迹"
+    _extra_neg = ",织物纹理,布纹底,网格纹底,冷灰底色,灰绿底"
+    _cur = nodes[64]["widgets_values"][0]
+    if "织物纹理" not in _cur:
+        nodes[64]["widgets_values"] = [_base_neg + _extra_neg]
+    elif _cur != _base_neg + _extra_neg:
+        nodes[64]["widgets_values"] = [_base_neg + _extra_neg]  # 已含五词的非标准值也收敛到标准值
+    nodes[64]["title"] = "[64] 负向提示词(质量档 cfg5 生效;速度档 cfg1 自动失效)"
     nodes[12]["title"] = "[12] KSampler·速度档(4步/cfg1)"
 
     d["last_node_id"] = max(n["id"] for n in d["nodes"])
