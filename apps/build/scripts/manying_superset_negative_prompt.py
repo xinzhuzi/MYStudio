@@ -236,6 +236,9 @@ def main() -> int:
         69: ("Krea2-画风/Krea2-暗笔刷darkbrush.safetensors", 2860, "#3a6ea5", "#1c2a3a"),
         70: ("Krea2-画风/Krea2-复古漫retroanime.safetensors", 3380, "#3a6ea5", "#1c2a3a"),
         73: ("Krea2-画风/Krea2-水墨武侠漆艺鎏金_v1.safetensors", 3900, "#3a6ea5", "#1c2a3a"),
+        74: ("Krea2-画风/Krea2-美学Masterpiece_v51.safetensors", 4420, "#3a6ea5", "#1c2a3a"),
+        75: ("Krea2-画风/Krea2-电影感CinematicShot_K2.safetensors", 4940, "#3a6ea5", "#1c2a3a"),
+        76: ("Krea2-画风/Krea2-AsianMix_v4_TQD.safetensors", 5460, "#3a6ea5", "#1c2a3a"),
     }
     for nid, (fname, x, color, bgcolor) in NEW_LORAS.items():
         if nid not in nodes:
@@ -287,14 +290,17 @@ def main() -> int:
     nodes = {n["id"]: n for n in d["nodes"]}
     links = {l[0]: l for l in d["links"]}  # 重建:新增链 36-42 进门禁视野
     for nid, lid_in, lid_out in ((46, 36, 37), (47, 37, 38), (67, 38, 39),
-                                 (68, 39, 40), (69, 40, 41), (70, 41, 43), (73, 43, 42)):
+                                 (68, 39, 40), (69, 40, 41), (70, 41, 43), (73, 43, 49), (74, 49, 50), (75, 50, 51), (76, 51, 42)):
         in_slot(nodes[nid], 0)["link"] = lid_in
         out_slot(nodes[nid], 0)["links"] = [lid_out]
     # 09-17 [73] 入链:70→73→12(42 重指 73,43 新增)
-    d["links"] = [l for l in d["links"] if l[0] not in (42, 43)]
+    d["links"] = [l for l in d["links"] if l[0] not in (42, 43, 49, 50, 51)]
     d["links"].append([43, 70, 0, 73, 0, "MODEL"])
-    d["links"].append([42, 73, 0, 12, 0, "MODEL"])
-    links = {l[0]: l for l in d["links"]}  # 42/43 确定性重建,门禁读此表
+    d["links"].append([49, 73, 0, 74, 0, "MODEL"])
+    d["links"].append([50, 74, 0, 75, 0, "MODEL"])
+    d["links"].append([51, 75, 0, 76, 0, "MODEL"])
+    d["links"].append([42, 76, 0, 12, 0, "MODEL"])
+    links = {l[0]: l for l in d["links"]}  # 42/43/49-51 确定性重建,门禁读此表
     in_slot(nodes[12], 0)["link"] = 42  # KSampler.model ← 73(14 已摘,73 接力)
     out_slot(nodes[45], 0)["links"] = [36]  # 45 → 46(旧 45→14 已摘)
     # 摘除节点14(幂等:不存在则跳过)
@@ -318,6 +324,14 @@ def main() -> int:
     nodes[69]["title"] = "[69] 画风LoRA·暗笔刷 ×1.0(触发词:monochrome ink wash style;默认旁路)"
     nodes[70]["title"] = "[70] 画风LoRA·复古漫 ×1.0(触发词:purple retro anime style;默认旁路)"
     nodes[73]["mode"] = 0  # 09-17 深夜快照:鎏金激活
+    # 09-17 三新件入列(默认旁路,与 68-70 同纪律)
+    nodes[74]["mode"] = 4; nodes[74]["widgets_values"][1] = 1.5
+    nodes[74].setdefault("widgets_values_named", {})["strength_model"] = 1.5
+    nodes[74]["title"] = "[74] 画风LoRA·美学Masterpiece ×1.5(提美;默认旁路)"
+    nodes[75]["mode"] = 4
+    nodes[75]["title"] = "[75] 画风LoRA·电影感 ×1.0(触发词:zy_cinematic;默认旁路)"
+    nodes[76]["mode"] = 4
+    nodes[76]["title"] = "[76] 画风LoRA·AsianMix v4-TQD ×1.0(触发词:asian woman;官方口径er_sde采样8-12步;默认旁路)"
     nodes[73]["title"] = "[73] 画风LoRA·水墨武侠漆艺鎏金 ×1.0(国风武侠水墨线专用,出图时 Remove Bypass;默认旁路)"
 
     # ---- 尺度 LoRA 默认旁路(09-15 用户裁定:画风优先;[19] identity 保留) ----
@@ -360,6 +374,14 @@ def main() -> int:
         "(09-16 矩阵定档:×0.7 无效/×1.0 增益明显无伪影/×1.3 噪底抬升)",
     )
     card = card.replace("道劫/国风线专用", "国风武侠水墨线专用")  # IP禁词强制清洗(幂等)
+    if "[74] 美学Masterpiece" not in card:
+        card = card.replace(
+            "- 风格参照style_reference(官方,需参考图输入)",
+            "- [74] 美学Masterpiece ×1.5 | 官方推荐强度1.5 | 提美 | 默认旁路\n"
+            "- [75] 电影感 ×1.0 | 触发词:zy_cinematic | 电影感构图光 | 默认旁路\n"
+            "- [76] AsianMix v4-TQD ×1.0 | 触发词:asian woman | 古风亚洲面孔,官方口径er_sde采样8-12步 | 默认旁路\n"
+            "- 风格参照style_reference(官方,需参考图输入)",
+        )
     if "[73] 水墨武侠漆艺鎏金" not in card:  # 09-17 新增件入卡
         card = card.replace(
             "- 风格参照style_reference(官方,需参考图输入)",
@@ -513,14 +535,14 @@ def main() -> int:
     check(abs(nodes[67]["widgets_values"][1] - DETAIL_SLIDER_STRENGTH) < 1e-9,
           f"细节滑杆强度≠定档×{DETAIL_SLIDER_STRENGTH}")
     check(nodes[67]["widgets_values"][0] == DETAIL_SLIDER_FILE, "[67] lora 文件名漂移")
-    for nid, want in ((68, 0), (69, 4), (70, 0), (73, 0)):
+    for nid, want in ((68, 0), (69, 4), (70, 0), (73, 0), (74, 4), (75, 4), (76, 4)):
         check(nodes[nid].get("mode") == want, f"画风件 [{nid}] 快照 mode 应为 {want}")
     for nid, trig in ((68, "art deco watercolor style"),
                       (69, "monochrome ink wash style"),
                       (70, "purple retro anime style")):
         pass  # mode 检查移至快照口径(见上)
         check(trig in (nodes[nid].get("title") or ""), f"画风件 [{nid}] title 缺官方触发词")
-    for s, dn in ((45, 46), (46, 47), (47, 67), (67, 68), (68, 69), (69, 70), (70, 73), (73, 12)):
+    for s, dn in ((45, 46), (46, 47), (47, 67), (67, 68), (68, 69), (69, 70), (70, 73), (73, 74), (74, 75), (75, 76), (76, 12)):
         check(wired(s, 0, dn, 0), f"模型链断: {s}→{dn}(v3 七跳)")
     card_txt = nodes[66]["widgets_values"][0]
     check("速度档=默认" in card_txt and "质量档=旁路[47]" in card_txt,
