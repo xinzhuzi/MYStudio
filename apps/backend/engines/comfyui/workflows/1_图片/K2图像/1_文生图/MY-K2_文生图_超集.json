@@ -997,7 +997,7 @@
           ]
         }
       ],
-      "title": "[64] 负向提示词(速度档 cfg1 下不生效;质量档 cfg5 复活)",
+      "title": "[64] 负向提示词(质量档 cfg5 生效;速度档 cfg1 自动失效)",
       "properties": {
         "Node name for S&R": "PrimitiveStringMultiline",
         "ue_properties": {
@@ -1007,7 +1007,7 @@
         }
       },
       "widgets_values": [
-        "文字,水印,签名,多余的手指,畸形的手,褶皱,皱褶,绉纹,杂乱布纹,织物褶皱,横向条纹,色带,条带痕迹"
+        "文字,水印,签名,多余的手指,畸形的手,褶皱,皱褶,绉纹,杂乱布纹,织物褶皱,横向条纹,色带,条带痕迹,织物纹理,布纹底,网格纹底,冷灰底色,灰绿底"
       ],
       "widgets_values_named": {
         "value": "文字,水印,签名,多余的手指,畸形的手,褶皱,皱褶,绉纹,杂乱布纹,织物褶皱,横向条纹,色带,条带痕迹"
@@ -1245,11 +1245,11 @@
       },
       "widgets_values": [
         "Krea2-美学/Krea2-细节滑杆DetailSlider_v1.safetensors",
-        1
+        1.0
       ],
       "widgets_values_named": {
         "lora_name": "Krea2-美学/Krea2-细节滑杆DetailSlider_v1.safetensors",
-        "strength_model": 1
+        "strength_model": 1.0
       },
       "color": "#4a89b8",
       "bgcolor": "#1f2a33"
@@ -1329,7 +1329,7 @@
       "id": 73,
       "type": "LoraLoaderModelOnly",
       "pos": [
-        3480,
+        3480.0,
         1.8466983691370644
       ],
       "size": [
@@ -1524,7 +1524,7 @@
         1,
         "randomize",
         4,
-        1,
+        1.0,
         "euler",
         "simple",
         1
@@ -1533,7 +1533,7 @@
         "seed": 1,
         "control_after_generate": "randomize",
         "steps": 4,
-        "cfg": 1,
+        "cfg": 1.0,
         "sampler_name": "euler",
         "scheduler": "simple",
         "denoise": 1

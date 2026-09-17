@@ -83,8 +83,8 @@ def main() -> int:
     # (styles combo 是文件名集合,不含「2D工笔风」→前端 value not in list),
     # 须以迁移脚本至少跑过一次为收敛条件。
     n60, n63 = node(d, 60), node(d, 63)
-    n60["widgets_values"] = ["2D工笔风"]
-    n60["widgets_values_named"] = {"style": "2D工笔风"}
+    n60["widgets_values"] = ["2D工笔风", ""]  # 快照画布形态(次元素为UI存档空位,保留)
+    n60["widgets_values_named"] = {"style": "2D工笔风", "my-styles-gallery": ""}  # 快照画布形态(画廊UI存档空位)
     neutral = "1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0"
     n63["widgets_values"] = [1, neutral]
     n63["widgets_values_named"] = {"multiplier": 1, "per_layer_weights": neutral}
@@ -97,11 +97,12 @@ def main() -> int:
             "megapixels": n61["widgets_values"][1],
             "multiple": n61["widgets_values"][2],
         }
-    nodes[50]["title"] = "[50] 正向提示词"
+    nodes[50]["title"] = "[50] 主体句(可选:人物/五官/服装/场景/方位;留空=纯底座风格图)"
     # 09-16 默认句换工笔媒介句(用户裁定"剩下的问题做完";旧水彩句是工笔跑偏主犯①)
     # 09-17 三次修(用户实况裁定:直接拿风格跑,[50]留空):默认空=纯底座风格图,
     # 主体句按需手写(参考66卡正向写法);避免换风格被上一风格主体句污染
-    nodes[50]["widgets_values"] = [""]
+    # 09-17 深夜用户画布快照(21a3334)为 canon:50 默认=道劫女修士主体句
+    nodes[50]["widgets_values"] = ["一位女修士，青年金丹期，气质清冷出尘，肤色温润透亮，五官清隽；墨黑长发垂至腰际，发丝逐层分明；身着素色道袍长裙，米白纯色，素布质感，衣纹线条流畅；立于画面右侧三分之一处，面朝左方，双手拢于袖中，目视前方，神色沉静；背景淡墨远山，大面积留白"]
     nodes[50]["title"] = "[50] 主体句(可选:人物/五官/服装/场景/方位;留空=纯底座风格图)"
     # v3.1(09-16 用户令「按照你的建议去做」):[50] named 对齐 positional 工笔句
     # ——溯源定谳 named 原值是 v1 遗产模板句(v2 脚本 named 对齐名单漏 50 入库),
@@ -300,6 +301,7 @@ def main() -> int:
     d["nodes"] = [n for n in d["nodes"] if n["id"] != 14]
     nodes.pop(14, None)
     # 09-16 用户裁定:Afterlight 默认旁路(X系消融:暖金逆光=摄影逻辑,工笔/画意污染)
+    nodes[19]["mode"] = 4  # 09-17 深夜快照:identity 旁路(用户调教裁量)
     nodes[46]["mode"] = 4
     nodes[46]["title"] = "[46] 光影LoRA·Afterlight ×0.8(暖金逆光,摄影向;默认旁路——工笔/画意防污染,要光影再开)"
     nodes[47]["title"] = "[47] 加速LoRA·4步蒸馏 ×1.0(速度档;质量档=旁路+12步/cfg5)"
@@ -309,12 +311,13 @@ def main() -> int:
     nodes[67].setdefault("widgets_values_named", {})["strength_model"] = DETAIL_SLIDER_STRENGTH
     nodes[67]["title"] = (f"[67] 细节LoRA·细节滑杆 ×{DETAIL_SLIDER_STRENGTH:g}"
                           "(发丝/织纹细节;速度/质量档常开,想关=旁路)")
-    for nid in (68, 69, 70):
-        nodes[nid]["mode"] = 4
+    for nid in (68, 70):
+        nodes[nid]["mode"] = 0  # 09-17 深夜快照:用户三开调教(68+70+73)
+    nodes[69]["mode"] = 4
     nodes[68]["title"] = "[68] 画风LoRA·柔水彩 ×1.0(触发词:art deco watercolor style;默认旁路)"
     nodes[69]["title"] = "[69] 画风LoRA·暗笔刷 ×1.0(触发词:monochrome ink wash style;默认旁路)"
     nodes[70]["title"] = "[70] 画风LoRA·复古漫 ×1.0(触发词:purple retro anime style;默认旁路)"
-    nodes[73]["mode"] = 4
+    nodes[73]["mode"] = 0  # 09-17 深夜快照:鎏金激活
     nodes[73]["title"] = "[73] 画风LoRA·水墨武侠漆艺鎏金 ×1.0(国风武侠水墨线专用,出图时 Remove Bypass;默认旁路)"
 
     # ---- 尺度 LoRA 默认旁路(09-15 用户裁定:画风优先;[19] identity 保留) ----
@@ -407,7 +410,7 @@ def main() -> int:
         44: (1736.0878756251104, -202.43617287398453),
         45: (2303.53026000933, -201.48774670904217),
         46: (2823.53026000933, -201.48774670904217),
-        47: (3264.4587060697118, -198.82287994691634),
+        47: (3537.573508032744, -198.8995204450935),  # 09-17 快照:用户挪位
         50: (40, 560),
         51: (1210, 560),
         53: (2819.11396393693, 369.1262738337829),
@@ -419,9 +422,9 @@ def main() -> int:
         65: (1218.3549755209972, 846.1583716990498),
         66: (40, 1620),
         67: (1246.1154629811174, -3.517248750837986),
-        68: (1746.1557992129754, 0.6480984580177117),
+        68: (1782.9767971978963, 0.774999043426164),  # 09-17 快照
         69: (2331.2967291343157, 1.3961608138937884),
-        70: (2901.1788871375043, 1.8466983691370644),
+        70: (2900.895779862745, 1.8514967975228216),  # 09-17 快照
         73: (3480.0, 1.8466983691370644),
     }
     for nid, (x, y) in LAYOUT.items():
@@ -504,16 +507,18 @@ def main() -> int:
                 failures.append(f"AABB 相交: 节点{a}×{b}(布局遮挡)")
     check(nodes[47].get("mode", 0) == 0, "4步蒸馏 [47] 应默认激活")
     check(nodes[44].get("mode") == 4 and nodes[45].get("mode") == 4, "尺度LoRA 44/45 未默认旁路")
-    check(nodes[19].get("mode", 0) == 0, "identity LoRA [19] 应保留激活")
+    check(nodes[19].get("mode") == 4, "identity [19] 快照口径=旁路(09-17 用户调教)")
     # ---- v3 门禁:67 定档激活 / 68-70 旁路+触发词 / 七跳模型链 / 66 卡两档口径 ----
     check(nodes[67].get("mode", 0) == 0, "细节滑杆 [67] 应默认激活(v3 定档)")
     check(abs(nodes[67]["widgets_values"][1] - DETAIL_SLIDER_STRENGTH) < 1e-9,
           f"细节滑杆强度≠定档×{DETAIL_SLIDER_STRENGTH}")
     check(nodes[67]["widgets_values"][0] == DETAIL_SLIDER_FILE, "[67] lora 文件名漂移")
+    for nid, want in ((68, 0), (69, 4), (70, 0), (73, 0)):
+        check(nodes[nid].get("mode") == want, f"画风件 [{nid}] 快照 mode 应为 {want}")
     for nid, trig in ((68, "art deco watercolor style"),
                       (69, "monochrome ink wash style"),
                       (70, "purple retro anime style")):
-        check(nodes[nid].get("mode") == 4, f"画风件 [{nid}] 应默认旁路(互斥,一次只开一枚)")
+        pass  # mode 检查移至快照口径(见上)
         check(trig in (nodes[nid].get("title") or ""), f"画风件 [{nid}] title 缺官方触发词")
     for s, dn in ((45, 46), (46, 47), (47, 67), (67, 68), (68, 69), (69, 70), (70, 73), (73, 12)):
         check(wired(s, 0, dn, 0), f"模型链断: {s}→{dn}(v3 七跳)")
