@@ -1,19 +1,23 @@
-"""道劫专属工作流·真文件契约测试(09-17 制作,防回退)。
+"""道劫专属工作流·真文件契约测试(09-17 制作,09-18 底座节点化改版,防回退)。
 
 被测对象 = 仓库真源文件本身(UI 格式):
     engines/comfyui/workflows/1_图片/K2图像/1_文生图/MY-K2_文生图_道劫.json
 
-结构背景(09-17 用户令「按照超集模板单独做一个道劫的工作流」):
-  daojie_ink_guofeng 在 MyStylesLibrary 一期排除名单(_FIRST_PHASE_EXCLUDED),
-  道劫底座不能走风格库节点 → 内嵌 [71] + [72] 装配自成一体,[60] 整体摘除。
-提示词真源 = docs/prompts/道劫_新提示词包_0917.md(§一底座/§四负向),
-本测试直接解析该 md 取围栏逐字比对(真源漂移即红)。
-纯读文件断言,零网络零引擎依赖,可独立重跑。
+结构背景(09-18 用户令「底座收进一枚节点」):
+  [71] 底座卡 + [72] 拼接器职责收进 [80] MyDaojieBase(漫影 道劫底座)——
+  九型底座下拉,装配语义=底座在前+[50] 主体句零分隔符直拼,由节点一处
+  承担;[50]→[80].positive→[51]/[62],[64]→[65] 负向直通不动。
+提示词真源(双真源链,见 docs/prompts/道劫_底座节点_0918.md):
+  链A=docs/prompts/道劫_新提示词包_0917.md §一 通用无型底座(修手图 [12]
+  唯一持有,本测试零触碰);链B=my_nodes/nodes/daojie_bases.json 九型底座
+  (↔0918 md 围栏↔道劫图 [80] 三方互锁);人物型=§一 结构性超集(锚从
+  md 运行时切出,零硬编码)。纯读文件断言,零网络零引擎依赖。
 """
 from __future__ import annotations
 
 import json
 import pathlib
+import re
 
 # ── 真文件定位(tests/ 同级 workflows 真源;md 为提示词真源) ────────
 
@@ -24,32 +28,54 @@ DAOJIE_JSON = (
     / "MY-K2_文生图_道劫.json"
 )
 PROMPT_MD = _REPO / "docs" / "prompts" / "道劫_新提示词包_0917.md"
+BASES_MD = _REPO / "docs" / "prompts" / "道劫_底座节点_0918.md"
+BASES_JSON = _TESTS_DIR.parent / "my_nodes" / "nodes" / "daojie_bases.json"
 
 _RAW_TEXT = DAOJIE_JSON.read_text(encoding="utf-8")
 _DOC = json.loads(_RAW_TEXT)
 _NODES = {n["id"]: n for n in _DOC["nodes"]}
 _LINKS = {l[0]: l for l in _DOC["links"]}  # litegraph: [id, src, src_slot, dst, dst_slot, type]
 
+# 九型底座机器真源(与 0918 md 围栏逐字互锁,见 TestDaojieBasesSources)
+DAOJIE_BASES = json.loads(BASES_JSON.read_text(encoding="utf-8"))
+BASES_BY_NAME = {e["zh"]: e for e in DAOJIE_BASES}
+OPTIONS_ORDER = [e["zh"] for e in DAOJIE_BASES]
 
-def _md_fence(heading_prefix: str) -> str:
+
+def _md_fence(md_path: pathlib.Path, heading_prefix: str) -> str:
     """md 指定标题之后第一个 ```text 围栏的逐字内容(与制作脚本同法)。"""
-    lines = PROMPT_MD.read_text(encoding="utf-8").splitlines()
+    lines = md_path.read_text(encoding="utf-8").splitlines()
     start = next(i for i, ln in enumerate(lines) if ln.startswith(heading_prefix))
     j = next(k for k in range(start, len(lines)) if lines[k].startswith("```text"))
     end = next(k for k in range(j + 1, len(lines)) if lines[k].startswith("```"))
     return "\n".join(lines[j + 1:end])
 
 
-MD_BASE = _md_fence("## 一、")      # 新底座(线描硬锁)
-MD_NEG = _md_fence("## 四、")       # Negative 基线
-MD_FORMULA = _md_fence("## 二、")   # 七段公式
-MD_EXAMPLE = _md_fence("### 填好示例")
-MD_SCENE = _md_fence("## 三、")     # 山水场景模板
+MD_BASE = _md_fence(PROMPT_MD, "## 一、")      # 通用无型底座(线描硬锁)
+MD_NEG = _md_fence(PROMPT_MD, "## 四、")       # Negative 基线
+MD_FORMULA = _md_fence(PROMPT_MD, "## 二、")   # 七段公式
+MD_EXAMPLE = _md_fence(PROMPT_MD, "### 填好示例")
+MD_SCENE = _md_fence(PROMPT_MD, "## 三、")     # 山水场景模板
+
+# 人物型=§一 结构性超集的运行时锚:尾段+去尾主干(零硬编码关系锁)
+MD_TAIL = "仙道古韵，气韵深远，完成度高的画作。"
+MD_HEAD = MD_BASE[: -len(MD_TAIL)]
 
 # 脏词禁入(§六纪律 2 + 任务书门禁口径)
-DIRTY_WORDS = ("宣纸", "工笔线描", "工笔白描", "写意泼墨", "xuan")
+DIRTY_WORDS = ("宣纸", "工笔线描", "工笔白描", "写意泼墨", "xuan")  # 风格锚:两侧都禁
+POSITIVE_DIRTY = ("做旧", "泛黄", "纸纹")  # 纸纹脏污族:正向禁;负向列它们=合法内容
 # 模型链完整链序(21 起点至 12 采样器;旁路件靠 mode=4 穿透)
-MODEL_CHAIN = [21, 19, 44, 45, 46, 47, 67, 68, 69, 70, 73, 12]  # 09-17 用户令拷入73鎏金
+MODEL_CHAIN = [21, 19, 44, 45, 46, 47, 67, 68, 69, 70, 73, 74, 75, 76, 77, 78, 79, 12]
+# 09-17 用户令拷入73鎏金;09-18 全量扩架 +74-79(在库 16 件 K2 LoRA 全展示)
+
+# 多格同人型负向黑名单(09-18 评审问题1 处置:系统性防复犯)
+MULTI_PANEL_OPTIONS = ("三视图", "表情差分")
+CLONE_TOKENS = (
+    "cloned", "duplicated", "multiple people",
+    "extra characters", "person", "human figure",
+)
+_CJK = re.compile(r"[\u4e00-\u9fff]")
+_HEX_COLOR = re.compile(r"#[0-9a-fA-F]{3,8}\b")
 
 
 def _node(nid: int) -> dict:
@@ -75,21 +101,44 @@ def _link_between(src: int, dst: int, slot: int | None = None) -> list:
 class TestTopology:
     def test_file_loads_and_top_ids(self):
         assert _DOC["revision"] == 0
-        assert _DOC["last_node_id"] == 73 == max(n["id"] for n in _DOC["nodes"])
-        assert _DOC["last_link_id"] == 48 == max(l[0] for l in _DOC["links"])
+        assert _DOC["last_node_id"] == 80 == max(n["id"] for n in _DOC["nodes"])
+        assert _DOC["last_link_id"] == 55 == max(l[0] for l in _DOC["links"])
 
-    def test_node_count_28(self):
-        # 27 节点 + [73] 鎏金LoRA(09-17 用户令拷入) = 28
-        assert len(_DOC["nodes"]) == 28
-        assert len(_NODES) == 28
+    def test_node_count_33(self):
+        # 34(09-18 扩架后)−[71]−[72]+[80] = 33(09-18 底座节点化)
+        assert len(_DOC["nodes"]) == 33
+        assert len(_NODES) == 33
 
-    def test_link_ids_unique_27(self):
-        # 09-17 复审修复:超集模板带来的重复 link id 42(两条全同 [42,70,0,12,0])
-        # 已去重;门禁改为显式数重复,防 dict 按 id 折叠后测不出(28 条 27 id 的畸形)
+    def test_link_ids_unique(self):
+        # 09-17 复审修复:超集模板带来的重复 link id 42 已去重;显式数重复,
+        # 防 dict 按 id 折叠后测不出(畸形序列化)
         ids = [l[0] for l in _DOC["links"]]
-        assert len(ids) == len(set(ids)) == 28, \
-            f"links 应 28 条且 id 唯一,实为 {len(ids)} 条/{len(set(ids))} id"
+        assert len(ids) == len(set(ids)) == 33, \
+            f"links 应 33 条且 id 唯一,实为 {len(ids)} 条/{len(set(ids))} id"
         assert len(_LINKS) == len(_DOC["links"]), "_LINKS 折叠数与原文不符(存在重复 id)"
+
+    def test_lora_stack_full_inventory(self):
+        """09-18 全量扩架:在库 16 件 K2 LoRA 全部展示、lora_name 不重复、
+        新增 6 件默认旁路(mode=4)×1.0。既有件开关=用户画布自由,契约不锁。"""
+        loras = [n for n in _DOC["nodes"] if n["type"] == "LoraLoaderModelOnly"]
+        names = [(n["widgets_values_named"] or {}).get("lora_name") for n in loras]
+        assert len(loras) == 16, f"LoRA 节点应 16 件,实际 {len(loras)}"
+        assert len(set(names)) == 16, f"lora_name 重复: {names}"
+        expect_new = {
+            74: "Krea2-NSFW/Krea 2 NSFW V4.safetensors",
+            75: "Krea2-NSFW/krea2_nsfw_v2.safetensors",
+            76: "Krea2-画风/Krea2-AsianMix_v4_TQD.safetensors",
+            77: "Krea2-画风/Krea2-美学Masterpiece_v51.safetensors",
+            78: "Krea2-画风/Krea2-电影感CinematicShot_K2.safetensors",
+            79: "Krea2-画风/Krea2-风格参照style_reference.safetensors",
+        }
+        for nid, fname in expect_new.items():
+            n = _node(nid)
+            named = n["widgets_values_named"]
+            assert named["lora_name"] == fname, f"[{nid}] lora_name 应为 {fname}"
+            assert n["mode"] == 4, f"[{nid}] 新增件应默认旁路"
+            assert named["strength_model"] == 1.0, f"[{nid}] 默认强度应为 1.0"
+            assert n["widgets_values"] == [fname, 1.0], f"[{nid}] named/positional 恒等"
 
     def test_no_my_styles_library_anywhere(self):
         for n in _DOC["nodes"]:
@@ -97,15 +146,25 @@ class TestTopology:
         assert "MyStylesLibrary" not in _RAW_TEXT, "文件仍残留 MyStylesLibrary 字样"
 
 
-# ── 2. 底座 [71] / 负向 [64] 与 md 真源逐字相等 ────────────────────
+# ── 2. 底座节点 [80] / 负向 [64] 与真源逐字相等 ─────────────────────
 
 class TestPromptSources:
-    def test_node71_base_verbatim_from_md(self):
-        n = _node(71)
-        assert n["type"] == "PrimitiveStringMultiline"
-        assert n["widgets_values"] == [MD_BASE], "[71] 底座与 md §一不逐字相等"
-        assert n["widgets_values_named"] == {"value": MD_BASE}, "[71] named 与 §一不逐字相等"
+    def test_node80_base_node_signature(self):
+        """[80]=MyDaojieBase(九型底座节点):widget 恒单条 [型名],标题钉
+        「勿手改」;inputs 仅两 forceInput 槽(positive/negative),无文本
+        widget 槽。"""
+        n = _node(80)
+        assert n["type"] == "MyDaojieBase"
+        assert n["widgets_values"] == ["人物"], "[80] widget 应恒单条 [型名]"
+        assert n.get("widgets_values_named") in (None, {"base": "人物"})
         assert "勿手改" in (n.get("title") or "")
+        ins = {i["name"]: i for i in n["inputs"]}
+        assert set(ins) == {"positive", "negative"}, "[80] 输入槽应仅 positive/negative"
+        assert all(not i.get("widget") for i in n["inputs"]), "[80] 不得带文本 widget 槽"
+
+    def test_node80_widget_default_renwu(self):
+        # 默认型=人物(节点 DEFAULT_BASE 钉死,图上初值同锚)
+        assert _node(80)["widgets_values"][0] == "人物"
 
     def test_node64_negative_verbatim_from_md(self):
         n = _node(64)
@@ -121,42 +180,71 @@ class TestPromptSources:
         named = n.get("widgets_values_named") or {}
         assert named.get("value") == v, "[50] named 与 positional 应一致"
 
-    def test_node71_fullwidth_punctuation(self):
-        for ch in ",;:!?()":
-            assert ch not in MD_BASE, f"[71] 底座含半角标点 {ch!r}(纪律 4:中文+全角标点)"
+    def test_retired_nodes_and_links_gone(self):
+        # 09-18 底座节点化:[71]/[72] 与其旧线 43/44 不得回潮
+        assert 71 not in _NODES and 72 not in _NODES, "旧 [71]/[72] 节点残留"
+        assert 43 not in _LINKS and 44 not in _LINKS, "旧线 43/44 残留"
+        for l in _DOC["links"]:
+            assert 71 not in (l[1], l[3]) and 72 not in (l[1], l[3]), \
+                f"线 {l[0]} 仍连着已摘除的节点 71/72"
 
-    def test_no_dirty_words_in_71_64(self):
-        for nid, val in ((71, MD_BASE), (64, MD_NEG)):
-            low = val.lower()
+
+# ── 3. 九型底座库卫生(脏词/半角标点/禁句式/禁色号,全 9 条 positive)──
+
+class TestBasesHygiene:
+    def test_positive_fullwidth_punctuation(self):
+        for e in DAOJIE_BASES:
+            for ch in ",;:!?()":
+                assert ch not in e["positive"], \
+                    f"底座「{e['zh']}」positive 含半角标点 {ch!r}(纪律 4:中文+全角标点)"
+
+    def test_positive_no_dirty_words(self):
+        for e in DAOJIE_BASES:
+            low = e["positive"].lower()
             for w in DIRTY_WORDS:
-                assert w not in low, f"[{nid}] 含脏词 {w!r}"
+                assert w not in low, f"底座「{e['zh']}」positive 含脏词 {w!r}"
+        for e in DAOJIE_BASES:
+            low = e["positive"].lower()
+            for w in POSITIVE_DIRTY:
+                assert w not in low, f"底座「{e['zh']}」positive 含脏词 {w!r}"
+        low64 = MD_NEG.lower()
+        for w in DIRTY_WORDS:
+            assert w not in low64, f"[64] 负向含风格锚脏词 {w!r}"
+
+    def test_positive_no_prohibition_phrasing(self):
+        # 提示词为正向描述文体,禁令式措辞(不要/禁止/严禁)属污染
+        for e in DAOJIE_BASES:
+            for w in ("不要", "禁止", "严禁", "避免", "而非"):
+                assert w not in e["positive"], \
+                    f"底座「{e['zh']}」positive 含禁句式 {w!r}"
+
+    def test_positive_no_hex_colors(self):
+        for e in DAOJIE_BASES:
+            assert not _HEX_COLOR.search(e["positive"]), \
+                f"底座「{e['zh']}」positive 含十六进制色号(色彩职责在色名不在色号)"
 
 
-# ── 3. 装配链拓扑([72] a←71 / b←50 / 出→51 与 62;负向 64→65 直通) ──
+# ── 4. 装配链拓扑([50]→[80].positive / [80] 出→51 与 62;负向 64→65 直通)──
 
 class TestAssemblyChain:
-    def test_link_43_base_into_concat_a(self):
-        assert _LINKS[43] == [43, 71, 0, 72, 0, "STRING"]
-        assert _node(72)["inputs"][0]["name"] == "string_a"
-        assert _node(72)["inputs"][0]["link"] == 43
+    def test_link_55_subject_into_base_positive(self):
+        assert _LINKS[55] == [55, 50, 0, 80, 0, "STRING"]
+        assert _node(80)["inputs"][0]["name"] == "positive"
+        assert _node(80)["inputs"][0]["link"] == 55
 
-    def test_link_44_subject_into_concat_b(self):
-        assert _LINKS[44] == [44, 50, 0, 72, 1, "STRING"]
-        assert _node(72)["inputs"][1]["name"] == "string_b"
-        assert _node(72)["inputs"][1]["link"] == 44
-
-    def test_link_45_concat_out_to_clip_positive(self):
-        assert _LINKS[45] == [45, 72, 0, 51, 1, "STRING"]
+    def test_link_45_base_out_to_clip_positive(self):
+        assert _LINKS[45] == [45, 80, 0, 51, 1, "STRING"]
         assert _node(51)["inputs"][1]["name"] == "text"
         assert _node(51)["inputs"][1]["link"] == 45
 
-    def test_link_46_concat_out_to_preview(self):
-        assert _LINKS[46] == [46, 72, 0, 62, 0, "*"]
+    def test_link_46_base_out_to_preview(self):
+        assert _LINKS[46] == [46, 80, 0, 62, 0, "*"]
         assert _node(62)["inputs"][0]["link"] == 46
         assert "最终正向预览" in (_node(62).get("title") or "")
 
     def test_link_47_negative_direct_to_clip_negative(self):
-        # 负向直通:不再经过风格库,[64] 输出直接接 [65].text
+        # 负向直通不变:[64] 输出直接接 [65].text;[80].negative 默认不接线
+        # (维持道劫默认图负向现状,速度档 cfg1 下负向不参与采样)
         assert _LINKS[47] == [47, 64, 0, 65, 1, "STRING"]
         assert _node(65)["inputs"][1]["name"] == "text"
         assert _node(65)["inputs"][1]["link"] == 47
@@ -164,15 +252,63 @@ class TestAssemblyChain:
         for l in _DOC["links"]:
             assert 60 not in (l[1], l[3]), f"线 {l[0]} 仍连着已摘除的节点 60"
 
-    def test_node72_signature_follows_object_info(self):
-        # object_info 实测(required 顺序):string_a, string_b, delimiter(默认 "")
-        n = _node(72)
-        assert n["type"] == "StringConcatenate"
-        assert n["widgets_values"] == ["", "", ""]
-        assert n["widgets_values_named"] == {"string_a": "", "string_b": "", "delimiter": ""}
+    def test_node80_negative_slot_unwired_by_default(self):
+        ins = {i["name"]: i for i in _node(80)["inputs"]}
+        assert ins["negative"]["link"] is None, \
+            "[80].negative 默认不接线(手动接负向编码时按型英文负面才生效)"
+
+    def test_node80_signature_follows_object_info(self):
+        # object_info 实测形态:required=[base],optional positive/negative 均
+        # forceInput → widgets_values 恒单条 [型名](无文本 widget 值混入)
+        n = _node(80)
+        assert n["type"] == "MyDaojieBase"
+        assert n["widgets_values"] == ["人物"]
+        assert all(not i.get("widget") for i in n["inputs"])
 
 
-# ── 4. 模型链完整与 mode 矩阵(照超集口径原样继承) ─────────────────
+# ── 5. 九型底座真源互锁(json ↔ 0918 md ↔ 图 [80])────────────────
+
+class TestDaojieBasesSources:
+    def test_options_are_nine_in_design_order(self):
+        assert OPTIONS_ORDER == [
+            "人物", "场景", "道具", "美宣", "三视图",
+            "高清人脸", "分镜剧情图", "表情差分", "概念气氛图"], \
+            "九型顺序=设计定序(json 条目序),不得重排"
+
+    def test_json_positive_matches_0918_fences(self):
+        for name, entry in BASES_BY_NAME.items():
+            fence = _md_fence(BASES_MD, f"## {name}")
+            assert entry["positive"] == fence, \
+                f"底座「{name}」positive 与 0918 md 围栏不逐字相等(唯一双写对,兜底即此)"
+
+    def test_renwu_is_section1_superset(self):
+        """人物型=0917 §一 结构性超集:逐字以 §一 主干开头、以 §一 结尾句
+        收尾;锚从 md 运行时切出、零硬编码——仓库不存在两份竞争性人物底座。"""
+        assert MD_BASE.endswith(MD_TAIL), "锚切分自洽:尾段必须是 §一 真后缀"
+        renwu = BASES_BY_NAME["人物"]["positive"]
+        assert renwu.startswith(MD_HEAD), "人物型必须逐字以 §一 主干开头"
+        assert renwu.endswith(MD_TAIL), "人物型必须逐字以 §一 结尾句收尾"
+        assert renwu != MD_BASE, "超集非复制:人物型增量段必须在场"
+        middle = renwu[len(MD_HEAD): len(renwu) - len(MD_TAIL)]
+        for kw in ("单人立像", "六成", "两至四条"):
+            assert kw in middle, f"人物型增量段缺共性关键词 {kw}"
+
+    def test_multi_panel_negative_clone_blacklist(self):
+        """多格同人型(三视图/表情差分)负向禁 clone/多人类 token——多格同
+        人合法,此类 token 会压制合法分格(09-18 评审问题1 门禁)。"""
+        for name in MULTI_PANEL_OPTIONS:
+            neg = BASES_BY_NAME[name]["negative"].lower()
+            for tok in CLONE_TOKENS:
+                assert tok not in neg, \
+                    f"多格同人型「{name}」负向含禁用 token {tok!r}"
+
+    def test_all_negatives_english_comma_tokens(self):
+        for name, entry in BASES_BY_NAME.items():
+            assert not _CJK.search(entry["negative"]), \
+                f"底座「{name}」negative 残留中文(应为英文逗号 token 形态)"
+
+
+# ── 6. 模型链完整与 mode 矩阵(照超集口径原样继承)────────────────
 
 class TestModelChain:
     def test_chain_contiguous(self):
@@ -192,7 +328,7 @@ class TestModelChain:
         assert w[2] == 4 and w[3] == 1.0, "采样参数应与超集一致(4步/cfg1 速度档)"
 
 
-# ── 5. 链接双向一致(无悬空) ───────────────────────────────────────
+# ── 7. 链接双向一致(无悬空) ───────────────────────────────────────
 
 class TestLinkIntegrity:
     def test_every_link_two_way_consistent(self):
@@ -216,7 +352,7 @@ class TestLinkIntegrity:
                 assert ref is None or ref in _LINKS
 
 
-# ── 6. 保存前缀与 [66] 用法速查卡(道劫七要件) ─────────────────────
+# ── 8. 保存前缀与 [66] 用法速查卡(道劫七要件) ──────────────────────
 
 class TestOutputAndCard:
     def test_node4_prefix(self):
@@ -226,7 +362,7 @@ class TestOutputAndCard:
 
     def test_card_contains_formula_and_example(self):
         text = _card_text(66)
-        assert "[50]" in text and "[71]" in text, "卡缺①正向=只写主体句/底座自动携带口径"
+        assert "[50]" in text and "[80]" in text, "卡缺①正向=只写主体句/底座自动携带口径"
         assert MD_FORMULA in text, "卡缺②七段公式全文"
         assert MD_EXAMPLE in text, "卡缺②填好示例全文"
         assert "可直接粘贴" in text, "卡缺②「可直接粘贴」标注"
@@ -255,7 +391,7 @@ class TestOutputAndCard:
             assert f"[{nid}]" in text
 
 
-# ── 7. 画布纪律与布局 ─────────────────────────────────────────────
+# ── 9. 画布纪律与布局 ──────────────────────────────────────────────
 
 class TestCanvasDiscipline:
     def test_no_fullwidth_label_banner(self):
@@ -266,9 +402,9 @@ class TestCanvasDiscipline:
 
     def test_group4_covers_prompt_chain(self):
         g4 = next(g for g in _DOC["groups"] if g["title"].startswith("④"))
-        assert g4["title"] == "④ 提示词链(主体句+道劫底座→装配→编码→12带)"
+        assert g4["title"] == "④ 提示词链(主体句+道劫底座节点→编码→12带)"
         bx, by, bw, bh = g4["bounding"]
-        for nid in (50, 64, 71, 72, 51, 65, 62):
+        for nid in (50, 64, 80, 51, 65, 62):
             n = _node(nid)
             x1, y1 = n["pos"][0], n["pos"][1]
             x2, y2 = x1 + n["size"][0], y1 + n["size"][1]

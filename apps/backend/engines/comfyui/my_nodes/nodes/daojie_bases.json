@@ -1,0 +1,65 @@
+[
+  {
+    "key": "人物",
+    "zh": "人物",
+    "purpose": "4:5 或 3:4 竖幅、半身至全身立绘；主体句按七段公式写身份境界/气质五官/服饰/动作视线/构图方位——服饰朝代口径（历史向汉唐宋明历代、修仙走手册原约束）由手册锚与主体句承载，底座不带（第 2 轮修订：删去 v1 无条件注入的「汉唐宋明历代服饰考据词皆可入画，同画面朝代统一」句，避免把历史锚带进所有修仙人物图）。",
+    "positive": "最佳质量、杰作、高细节；一幅2D水墨国风画作：画中人气质清逸出尘，五官清隽，神色沉静，肤色温润透亮；以细而稳的墨线勾勒成形，眉眼发丝逐层分明，衣纹线条流畅疏密有致；淡墨晕染云雾远山，皴擦层次分明；衣着素雅，米白为底，石青、靛蓝、赭石、旧金低饱和点染，浓色仅作小面积点睛；大面积留白，云雾仙气以淡墨轻染；温润米白的浅净平涂底，均匀柔光，无投影；人物呈单人立像，约占画面六成，姿态到动词精度，神色基调由角色设定择一而定；服饰结构可信，衣袍完整，宽幅平静布面仅两至四条长结构褶，背景降低细节以叙事环境轻衬，留白服务视线与气质；仙道古韵，气韵深远，完成度高的画作。",
+    "negative": "3D render, photorealistic photography, CGI, cel shading, anime style, western oil painting, cartoon flat colors, hard shadows, heavy cinematic rim light, paper-wrinkle texture, crumpled-sheet folds, wave-like surface ripples, fiber streaks, pulp grain mesh, scanned-paper filter, yellowed aged sheet, full-frame paper texture, cold gray ground, AI muddy noise, low quality, blurry, messy ink, broken linework, bad anatomy, extra limbs, extra fingers, deformed hands, text, watermark, signature, logo, extra characters, multiple people, cropped head, tattered clothing, ragged hems, dense wrinkle grid, bald scalp, monochrome grayscale"
+  },
+  {
+    "key": "场景",
+    "zh": "场景",
+    "purpose": "16:9 空镜 hero shot、人眼平视；主体句写地点/季节/时段，人物一律交给负向（person/human figure）；本型参照 0917 §三 山水模板气质独立撰写，无第二持有者、无逐字锁。",
+    "positive": "最佳质量、杰作、高细节；一幅2D水墨国风场景画作：空镜构图，前中后景三层可辨，近景以细墨线勾勒枝叶檐石，中景承建筑道路，远景淡墨晕染群山云气，墨色近浓远淡、浓淡干湿层次分明；留白为一级构图条件，大面积天空、水面、远山与淡雾承担视觉呼吸，疏朗布景，低信息密度；山石以石青、石绿、赭石低饱和点染，青绿淡彩色相可辨，旧金轻点转折；材质温润洁净，淡彩清透如新；温润米白的浅净平涂底，均匀柔光，无投影；仙道古韵，气韵深远，完成度高的场景画作。",
+    "negative": "3D render, photorealistic photography, CGI, cel shading, anime style, western oil painting, cartoon flat colors, hard shadows, heavy cinematic rim light, paper-wrinkle texture, crumpled-sheet folds, wave-like surface ripples, fiber streaks, pulp grain mesh, scanned-paper filter, yellowed aged sheet, full-frame paper texture, cold gray ground, AI muddy noise, low quality, blurry, messy ink, broken linework, bad anatomy, extra limbs, extra fingers, deformed hands, text, watermark, signature, logo, person, people, human figure, human silhouette, monochrome grayscale, washed-out colors, oversaturated colors, cluttered composition"
+  },
+  {
+    "key": "道具",
+    "zh": "道具",
+    "purpose": "1:1 四宫格（正/侧/背/细节特写）；主体句写器物名/材质/灵纹，出图后可裁单格作物品图。",
+    "positive": "最佳质量、杰作、高细节；一幅2D水墨国风器物设定画作：一图四宫格，左上正面、右上侧面、左下背面、右下细节特写，每格器物居中占七成以上；纯静物独立陈列，以细而稳的墨线勾勒轮廓与结构，线条精确、转折干净；材质渲染通透极致，灵金寒芒、灵玉通透、木纹清晰，表面灵纹工艺可辨；米白平涂底，四格底色一致，均匀柔光，无投影；转折处以朱砂或旧金点睛色提亮一线，轮廓清晰可建模可还原；石青、靛蓝、赭石低饱和点染，浓色仅作小面积点睛；完成度高的器物设定画作。",
+    "negative": "3D render, photorealistic photography, CGI, cel shading, anime style, western oil painting, cartoon flat colors, hard shadows, heavy cinematic rim light, paper-wrinkle texture, crumpled-sheet folds, wave-like surface ripples, fiber streaks, pulp grain mesh, scanned-paper filter, yellowed aged sheet, full-frame paper texture, cold gray ground, AI muddy noise, low quality, blurry, messy ink, broken linework, bad anatomy, extra limbs, extra fingers, deformed hands, text, watermark, signature, logo, person, hands, hand holding object, worn on body, human figure, text labels, annotations, inconsistent object across panels"
+  },
+  {
+    "key": "美宣",
+    "zh": "美宣",
+    "purpose": "16:9/21:9 长卷或 4:5 人物向；主体句写叙事瞬间与神态基调，战斗演出可在主体句临时拉高视觉强度（X6 豁免口径）。第 2 轮修订：负向剥除 v1 的 cluttered composition/excessive gold ornaments/volumetric god rays/particle effects overload/high saturation neon/floating debris 全部 X6 族与密度类 token（负向唯一生效档=质量档 cfg5，渡劫/大战演出海报会被自家负向压制），只留无条件缺陷 unbalanced composition——静态美宣压堆料由正向「留白压阵/金色只作点缀」与主体句纪律承载，需再压时用户手动追加。",
+    "positive": "最佳质量、杰作、高细节；一幅2D水墨国风主视觉画作：以叙事瞬间立意，对峙、谋划、入城或渡劫，人物处在具体事件中，主体明确，次要元素围绕分布，背景降低细节以衬主体；主像神态基调鲜明，眼神情绪定全局，眉宇气质可辨；以细而稳的墨线勾勒主像五官发丝与衣褶，侧逆光勾铁线、发丝留金可叠加，矿物罩染通透分层；留白压阵，疏朗布景，大面积天空或远雾承担视觉呼吸；米白为底，朱砂、暗金作局部高识别点睛，金色只作烫金旧金点缀；温润米白的浅净平涂底，均匀柔光，无投影；仙道古韵，气韵深远，完成度高的主视觉画作。",
+    "negative": "3D render, photorealistic photography, CGI, cel shading, anime style, western oil painting, cartoon flat colors, hard shadows, heavy cinematic rim light, paper-wrinkle texture, crumpled-sheet folds, wave-like surface ripples, fiber streaks, pulp grain mesh, scanned-paper filter, yellowed aged sheet, full-frame paper texture, cold gray ground, AI muddy noise, low quality, blurry, messy ink, broken linework, bad anatomy, extra limbs, extra fingers, deformed hands, text, watermark, signature, logo, unbalanced composition"
+  },
+  {
+    "key": "三视图",
+    "zh": "三视图",
+    "purpose": "21:9 横幅、画幅直填 1536×512（MY-K2-三视图 先例）；主体句写角色身份与基础服化；多格同人合法——负向禁 clone/多人类 token，已升格为契约测试门禁（处置评审问题 1 的系统性防复犯）。",
+    "positive": "最佳质量、杰作、高细节；一幅2D水墨国风角色设定画作：一幅横幅长图并排四格，左一人像特写，其余三格依次为正面、侧面、背面全身立像，每格头顶到脚底完整入画；自然站姿，双臂下垂，中性微表情；同一角色面容、体型、发型与基础服装跨格完全一致；素色道袍打底，米白或淡青纯色，素布质感，衣纹线条流畅；以细而稳的墨线勾勒全身结构与衣褶，肤色温润透亮；米白平涂底，四格底色一致，均匀柔光，无投影；完成度高的角色设定画作。",
+    "negative": "3D render, photorealistic photography, CGI, cel shading, anime style, western oil painting, cartoon flat colors, hard shadows, heavy cinematic rim light, paper-wrinkle texture, crumpled-sheet folds, wave-like surface ripples, fiber streaks, pulp grain mesh, scanned-paper filter, yellowed aged sheet, full-frame paper texture, cold gray ground, AI muddy noise, low quality, blurry, messy ink, broken linework, bad anatomy, extra limbs, extra fingers, deformed hands, text, watermark, signature, logo, cropped head, cropped feet, cut-off limbs, inconsistent face across panels, inconsistent hairstyle, inconsistent outfit, different characters, heavy makeup, jewelry, text labels"
+  },
+  {
+    "key": "高清人脸",
+    "zh": "高清人脸",
+    "purpose": "竖幅特写、面部占六成以上；主体句写角色气质与五官设定，出图后按 UI 圆/方裁切即得头像。",
+    "positive": "最佳质量、杰作、高细节；一幅2D水墨国风人像特写画作：头顶至锁骨、正面平视，面部占画面六成以上；五官以细而稳的墨线勾勒成形，眉眼鼻唇结构明确，发丝逐层分明；肤色玉白温润，淡染内蕴微光，呈瓷器般匀净质感；中性微表情，神色基调贴合角色气质，同一角色跨图同脸；米白纯色平涂底，均匀柔光，无投影；仙道古韵，完成度高的人像特写画作。",
+    "negative": "3D render, photorealistic photography, CGI, cel shading, anime style, western oil painting, cartoon flat colors, hard shadows, heavy cinematic rim light, paper-wrinkle texture, crumpled-sheet folds, wave-like surface ripples, fiber streaks, pulp grain mesh, scanned-paper filter, yellowed aged sheet, full-frame paper texture, cold gray ground, AI muddy noise, low quality, blurry, messy ink, broken linework, bad anatomy, extra fingers, deformed hands, text, watermark, signature, logo, profile view, side view, half face, cropped forehead, cropped chin, face too small, hands near face, hair covering face, heavy makeup, monochrome grayscale"
+  },
+  {
+    "key": "分镜剧情图",
+    "zh": "分镜剧情图",
+    "purpose": "16:9 单格叙事帧（非格子页）；主体句写事件/动作/地点物件（可复用成片模板 03/07/21/26 骨架），多人剧情图不挂 extra people 类负向。duplicated/cloned 类保留的理由：本型是单格帧，同一人无叙事理由重复出现、克隆属生成缺陷；该类 token 仅禁用于多格同人型（三视图/表情差分，契约门禁），单格型不受门禁约束。",
+    "positive": "最佳质量、杰作、高细节；一幅2D水墨国风剧情画作：前景枝叶檐角轻入画框，中景人物处在具体事件中，对峙、递卷或回望，动作方向明确、重心真实，背景以具体物件说明地点；前中后景三层退远，留白承担视觉呼吸；以细而稳的墨线勾勒人物五官衣褶与关键物件，水墨飞白与淡彩灵气沿动作轨迹流转，脸手轮廓保持清晰；低饱和淡彩底色，朱红或旧金只作击中与点题焦点；温润米白的浅净平涂底，均匀柔光，无投影；仙道古韵，完成度高的剧情画作。",
+    "negative": "3D render, photorealistic photography, CGI, cel shading, anime style, western oil painting, cartoon flat colors, hard shadows, heavy cinematic rim light, paper-wrinkle texture, crumpled-sheet folds, wave-like surface ripples, fiber streaks, pulp grain mesh, scanned-paper filter, yellowed aged sheet, full-frame paper texture, cold gray ground, AI muddy noise, low quality, blurry, messy ink, broken linework, bad anatomy, extra limbs, extra fingers, deformed hands, text, watermark, signature, logo, duplicated main character, cloned figures, speech bubbles, comic panel borders, grid layout"
+  },
+  {
+    "key": "表情差分",
+    "zh": "表情差分",
+    "purpose": "21:9 多格横幅；主体句写角色设定与情绪轴选型（喜怒哀惧/沉静/含笑/凌厉），格名文字后期再加、生成期负向已压 text。第 2 轮核对：本型负向自 v1 起就不含 duplicated/cloned/多人类 token（v1 全文可查，评审所指 token 实际位于分镜剧情图条目）；为防未来复犯，已把「多格同人型负向禁 cloned/duplicated/multiple people/extra characters/person/human figure 类 token」升格为契约测试黑名单门禁。",
+    "positive": "最佳质量、杰作、高细节；一幅2D水墨国风表情设定画作：一幅横幅长图并排多格，每格头顶至锁骨或半身人像；同一角色面容、发型与服装跨格完全一致，仅表情沿单一情绪轴变化，喜怒哀惧、沉静、含笑、凌厉由设定选定；五官以细而稳的墨线勾勒成形，眉眼鼻唇结构明确，微表情层次细腻，贴合角色气质；肤色温润透亮，淡染内蕴微光；米白平涂底，各格底色一致，均匀柔光，无投影；完成度高的表情设定画作。",
+    "negative": "3D render, photorealistic photography, CGI, cel shading, anime style, western oil painting, cartoon flat colors, hard shadows, heavy cinematic rim light, paper-wrinkle texture, crumpled-sheet folds, wave-like surface ripples, fiber streaks, pulp grain mesh, scanned-paper filter, yellowed aged sheet, full-frame paper texture, cold gray ground, AI muddy noise, low quality, blurry, messy ink, broken linework, bad anatomy, extra fingers, deformed hands, text, watermark, signature, logo, inconsistent face across panels, inconsistent hairstyle, inconsistent outfit, different characters, text labels, captions, speech bubbles"
+  },
+  {
+    "key": "概念气氛图",
+    "zh": "概念气氛图",
+    "purpose": "16:9/21:9 自由构图；主体句写情绪方向与少数焦点色（衣带/灯火/符纸），立项定调用，恒不做跨图一致性要求。",
+    "positive": "最佳质量、杰作、高细节；一幅2D水墨国风概念气氛画作：重情绪而轻细节，主体置于画面三分之一处，大面积留白以天空、水面、雪地或雾气承担情绪，远景淡墨轻压；墨色浓淡干湿层次分明，低对比淡墨淡彩定调；颜色集中于衣带、灯火、符纸等少数焦点，细节少而轮廓准，气韵先行；温润米白的浅净平涂底，均匀柔光，无投影；意境深远，完成度高的概念气氛画作。",
+    "negative": "3D render, photorealistic photography, CGI, cel shading, anime style, western oil painting, cartoon flat colors, hard shadows, heavy cinematic rim light, paper-wrinkle texture, crumpled-sheet folds, wave-like surface ripples, fiber streaks, pulp grain mesh, scanned-paper filter, yellowed aged sheet, full-frame paper texture, cold gray ground, AI muddy noise, low quality, blurry, messy ink, broken linework, bad anatomy, extra fingers, deformed hands, text, watermark, signature, logo, hyper-detailed clutter, busy composition, dense details everywhere, high saturation neon"
+  }
+]

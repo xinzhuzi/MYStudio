@@ -26,7 +26,7 @@ from engines.comfyui.my_nodes import NODE_CLASS_MAPPINGS, bridge
 def test_registry_exposes_first_batch_nodes():
     assert set(NODE_CLASS_MAPPINGS) == {
         "MyPrompt", "MyReference", "MyGenerated", "MyShot", "MyCloudImage",
-        "MyStage", "MyStylesLibrary",
+        "MyStage", "MyStylesLibrary", "MyDaojieBase",
         # 09-14 manying→my 改名前的旧键别名(存量工作流加载兼容)
         "ManyingPrompt", "ManyingReference", "ManyingGenerated", "ManyingShot",
         "ManyingCloudImage", "ManyingStage"}
@@ -160,6 +160,32 @@ def test_shot_video_writeback_rejects_empty_or_path_like_shot_id(shot_id):
 
     with pytest.raises(RuntimeError, match="合法shot_id"):
         node.run(shot_id, "S01", "desc", video=object())
+
+
+# ── MyDaojieBase:九型底座下拉+装配收进节点(09-18)────────
+def test_daojie_base_options_and_assembly():
+    node = NODE_CLASS_MAPPINGS["MyDaojieBase"]()
+    inputs = node.INPUT_TYPES()
+    assert set(inputs["required"]) == {"base"}
+    combo = inputs["required"]["base"]
+    assert combo[0] == [
+        "人物", "场景", "道具", "美宣", "三视图",
+        "高清人脸", "分镜剧情图", "表情差分", "概念气氛图"]
+    assert combo[1]["default"] == "人物"
+    assert node.RETURN_TYPES == ("STRING", "STRING")
+    assert node.RETURN_NAMES == ("positive", "negative")
+
+    import json as _json
+    bases = _json.loads(
+        (Path(__file__).resolve().parent.parent / "nodes" / "daojie_bases.json")
+        .read_text(encoding="utf-8"))
+    renwu = next(e for e in bases if e["zh"] == "人物")
+    # 拼接行为:底座在前+主体句零分隔符直拼;留空=恒等纯底座
+    pos, _neg = node.run("人物", positive="一位女修士")
+    assert pos == renwu["positive"] + "一位女修士"
+    pos_empty, neg_empty = node.run("人物")
+    assert pos_empty == renwu["positive"]
+    assert neg_empty == renwu["negative"]  # 输出非空(纯英文负面基线)
 
 
 # ── bridge 传输:令牌头+载荷形状+失败大白话 ───────────────
