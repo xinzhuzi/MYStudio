@@ -135,10 +135,14 @@ class TestDetailSliderNode67:
 
 class TestStyleLoraNodes:
     def test_style_nodes_bypassed_with_triggers(self):
+        # 09-17 深夜用户画布快照:画风件 68/70/73 三开(用户调教裁量),69 旁路
+        user_modes = {68: 0, 69: 4, 70: 0, 73: 0}
+        for nid, want in user_modes.items():
+            assert _node(nid).get("mode") == want, f"[{nid}] 用户快照 mode 应为 {want}"
         for nid, trigger in STYLE_TRIGGERS.items():
-            n = _node(nid)
-            assert n.get("mode") == 4, f"[{nid}] 应默认旁路(互斥,一次只开一枚)"
-            assert trigger in (n.get("title") or ""), f"[{nid}] title 缺官方触发词 {trigger}"
+            if nid == 73:
+                continue  # 73 无官方触发词
+            assert trigger in (_node(nid).get("title") or ""), f"[{nid}] title 缺官方触发词 {trigger}"
 
 
 # ── 6. mode 矩阵与速度档采样参数 ──────────────────────────────────
@@ -149,9 +153,10 @@ class TestModeMatrix:
         assert _node(45).get("mode") == 4
 
     def test_identity_distill_active_afterlight_bypassed(self):
-        # 09-16 用户裁定:Afterlight[46] 默认旁路(工笔/画意实测污染)
-        for nid in (19, 47):
-            assert _node(nid).get("mode", 0) == 0, f"[{nid}] 应默认激活"
+        # 09-17 深夜用户画布快照为 canon:identity[19] 旁路,47/67 激活
+        assert _node(19).get("mode") == 4, "[19] 用户快照:identity 旁路"
+        for nid in (47, 67):
+            assert _node(nid).get("mode", 0) == 0, f"[{nid}] 应激活"
         assert _node(46).get("mode") == 4, "[46] Afterlight 应默认旁路"
         assert "工笔/画意防污染" in (_node(46).get("title") or "")
 
