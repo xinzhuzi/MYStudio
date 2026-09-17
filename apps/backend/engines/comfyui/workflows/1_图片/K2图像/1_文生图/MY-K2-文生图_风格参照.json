@@ -1397,10 +1397,10 @@
         }
       },
       "widgets_values": [
-        "一位容色清丽、眉目如画的黑发少女侧立于画幅中央,精谨线描勾勒眉眼发丝,身姿修长端雅,石青襦裙配赭石披帛,衣纹线条流畅,身后大面积留白,画面边缘一枝疏梅淡影。"
+        "一位容颜清丽、眉目如画的黑发少女侧立于画面右侧三分之一处，面朝左方，精谨线描勾勒眉眼发丝，身姿修长端雅，肤色温润透亮；身着石青色唐制齐胸襦裙，肩绕大面积赭石披帛，垂落过腰，衣纹线条流畅；身后大面积留白，画面左下角一枝疏梅淡影斜出。"
       ],
       "widgets_values_named": {
-        "value": "(写画面提示词:人物/姿态/场景/光线;尺度放开由 LoRA 栈承担,可直写人体描述)正向提示词 (Prompt):\n\n(masterpiece, best quality:1.2), traditional Chinese Gongbi painting, meticulous brushwork, exquisite Chinese beauty, serene and noble expression, willow-leaf eyebrows, delicate phoenix eyes, dressed in elegant Song-style silk ruqun, soft pastel tones, pale celadon and off-white silk, gossamer ribbon, holding a translucent round silk fan with floral painting, hair adorned with a simple jade hairpin, leaning against a garden balustrade with blooming crabapple branches, antique silk scroll texture, delicate mineral pigment wash, clean precise line art, subtle color gradation, peaceful atmosphere, 8k resolution\n\n(中文意境：传统工笔画，工细笔触，绝美仕女，宁静温雅，柳叶眉丹凤眼，宋制素雅丝绸襦裙，青白淡色，手执透纱花鸟团扇，玉簪绾发，依倚庭院海棠花窗，古旧绢本肌理，矿物淡彩渲染，精准细线勾勒)"
+        "value": "一位容颜清丽、眉目如画的黑发少女侧立于画面右侧三分之一处，面朝左方，精谨线描勾勒眉眼发丝，身姿修长端雅，肤色温润透亮；身着石青色唐制齐胸襦裙，肩绕大面积赭石披帛，垂落过腰，衣纹线条流畅；身后大面积留白，画面左下角一枝疏梅淡影斜出。"
       },
       "color": "#4d9e6a",
       "bgcolor": "#1f2f26",
@@ -1435,7 +1435,7 @@
         "Node name for S&R": "PrimitiveStringMultiline"
       },
       "widgets_values": [
-        "文字,水印,签名,多余的手指,畸形的手,褶皱,皱褶,绉纹,杂乱布纹,织物褶皱,横向条纹,色带,条带痕迹"
+        "文字,水印,签名,多余的手指,畸形的手,褶皱,皱褶,绉纹,杂乱布纹,织物褶皱,横向条纹,色带,条带痕迹,织物纹理,布纹底,网格纹底,冷灰底色,灰绿底"
       ],
       "title": "[64] 负向提示词(速度档 cfg1 下不生效;质量档 cfg5 复活)",
       "color": "#4d9e6a",
@@ -1535,7 +1535,7 @@
       ],
       "flags": {},
       "order": 46,
-      "mode": 0,
+      "mode": 4,
       "inputs": [
         {
           "name": "model",
