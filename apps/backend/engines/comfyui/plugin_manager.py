@@ -755,7 +755,10 @@ def _update_plugin_job(job_id: str, plugin_id: str) -> None:
     jobs.update(job_id, progress=10, step="snapshot", message="更新前快照…")
     engine.create_snapshot(reason=f"plugin-update:{plugin_id}", full=False)
     jobs.update(job_id, progress=25, step="pull", message="拉取插件最新代码…")
-    _git(["pull", "--ff-only"], cwd=target, timeout=600.0)
+    # --force 只作用于 fetch 侧的 ref/tag 对齐:第三方作者常重打 tag,本地旧 tag
+    # 与远端冲突时 git 会 "! [rejected] …(would clobber existing tag)" 退出码 1
+    # 卡死更新(09-19 实弹);分支合并仍是 --ff-only,本地改动零风险。
+    _git(["pull", "--ff-only", "--force"], cwd=target, timeout=600.0)
     commit = _git(["rev-parse", "HEAD"], cwd=target, timeout=30.0).strip()
     reqs, _ = _plugin_requirements({"dirName": plugin_id})
     if reqs:

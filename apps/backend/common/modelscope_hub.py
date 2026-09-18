@@ -31,7 +31,9 @@ def list_modelscope_files(repo_id: str) -> list[tuple[str, int]]:
     import urllib.request
 
     url = f"{MODELSCOPE_BASE}/api/v1/models/{repo_id}/repo/files?Recursive=true"
-    with urllib.request.urlopen(url, timeout=30) as response:
+    from common.net_outbound import urlopen_outbound
+
+    with urlopen_outbound(urllib.request.Request(url), timeout=30) as response:
         payload = json.load(response)
     entries = payload.get("Data", {}).get("Files", [])
     files = [

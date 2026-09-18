@@ -73,3 +73,36 @@ def test_pip_manager_row_and_update_branch(home, monkeypatch):
     monkeypatch.setattr(pm.jobs, "start", lambda jid, target: started.append(jid))
     assert pm.update_plugin_job("comfyui-manager") == "job-1"
     assert started == ["job-1"]
+
+
+def test_update_pull_uses_force_to_survive_tag_clobber(home, monkeypatch):
+    """09-19 实弹:第三方作者重打 tag,本地旧 tag 与远端冲突时普通 pull 被
+    "! [rejected] …(would clobber existing tag)" 退出码 1 卡死更新链。
+    拉取命令必须带 --force(仅作用 fetch 侧 ref/tag 对齐;分支仍是 --ff-only)。
+    """
+    _install_plugin(home, "some-pack", source="git", with_git=True)
+
+    pulls: list[list[str]] = []
+
+    def fake_git(argv, cwd=None, timeout=600.0, on_line=None):
+        if argv[0] == "pull":
+            pulls.append(list(argv))
+            return ""
+        if argv[0] == "rev-parse":
+            return "b" * 40
+        return ""
+
+    monkeypatch.setattr(pm, "_git", fake_git)
+    monkeypatch.setattr(pm, "_plugin_requirements", lambda plan: ([], []))
+    fake_engine = type("E", (), {
+        "create_snapshot": staticmethod(lambda reason, full=False: "snap-1"),
+        "restart": staticmethod(lambda progress=None: None),
+        "_safe_node_names": staticmethod(lambda: set()),
+        "object_info_names": staticmethod(lambda: {"NodeA"}),
+        "venv_freeze": staticmethod(lambda: []),
+    })()
+    monkeypatch.setattr(pm, "engine_manager", lambda: fake_engine)
+    monkeypatch.setattr(pm.cm, "mutate_manifest", lambda fn: fn({"plugins": {"some-pack": {}}}))
+
+    pm._update_plugin_job("job-x", "some-pack")
+    assert pulls == [["pull", "--ff-only", "--force"]]

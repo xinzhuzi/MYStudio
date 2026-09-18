@@ -543,3 +543,22 @@ class TestOutboundProxy:
 
         assert em._run(["git", "status"]) == "ok"
         assert captured["env"] is None
+
+    def test_domestic_hosts_route_direct_even_with_proxy(self, monkeypatch):
+        """09-19 动态路由:国内域名(.cn/阿里云镜像族)代理在场也恒直连。"""
+        import engines.comfyui.engine_manager as em
+        monkeypatch.setattr(em, "outbound_proxy_url", lambda: "http://127.0.0.1:7897")
+
+        def _no_opener(*args, **kwargs):
+            raise AssertionError("国内域名不得构造代理 opener")
+
+        monkeypatch.setattr(em.request, "build_opener", _no_opener)
+        sentinel = object()
+        monkeypatch.setattr(em.request, "urlopen", lambda req, timeout=None: sentinel)
+        for url in (
+            "https://modelscope.cn/api/v1/models/x/repo/files",
+            "https://mirrors.aliyun.com/pypi/simple/",
+            "http://127.0.0.1:17000/system_stats",
+        ):
+            req = em.request.Request(url)
+            assert em.urlopen_outbound(req, timeout=1.0) is sentinel, url

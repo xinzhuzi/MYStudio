@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { ArrowLeft, ChevronLeft, ChevronRight, Image as ImageIcon, Loader2, Play, Square } from "lucide-react";
 import { toast } from "sonner";
 import { VideoPreviewModal } from "@/components/ui/media-preview-modal";
@@ -84,20 +84,25 @@ export function StoryboardPanelTab({
   const activeProjectId = useProjectStore((state) => state.activeProjectId);
   const videoShot = videoShotId ? ordered.find((item) => item.id === videoShotId) : undefined;
 
-  const runKeyframeExtraction = async (mode: ShotKeyframeExtractMode) => {
-    if (!videoShot || keyframeBusy) return;
-    setKeyframeBusy(true);
-    try {
-      const result = await saveVideoFramesAsKeyframes({ projectId: activeProjectId, storyboard: videoShot, mode });
-      if (result.ok) {
-        toast.success(mode.kind === "single" ? "已存为关键帧" : "已抽帧,本镜关键帧已更新");
-      } else {
-        toast.warning(result.message ?? "抽帧失败");
+  // useCallback:keyframeActions useMemo 引用本函数,不钉身份则记忆失效且
+  // exhaustive-deps 红债(4d775ec 遗留,09-19 补);闭合变量=videoShot/keyframeBusy/activeProjectId
+  const runKeyframeExtraction = useCallback(
+    async (mode: ShotKeyframeExtractMode) => {
+      if (!videoShot || keyframeBusy) return;
+      setKeyframeBusy(true);
+      try {
+        const result = await saveVideoFramesAsKeyframes({ projectId: activeProjectId, storyboard: videoShot, mode });
+        if (result.ok) {
+          toast.success(mode.kind === "single" ? "已存为关键帧" : "已抽帧,本镜关键帧已更新");
+        } else {
+          toast.warning(result.message ?? "抽帧失败");
+        }
+      } finally {
+        setKeyframeBusy(false);
       }
-    } finally {
-      setKeyframeBusy(false);
-    }
-  };
+    },
+    [videoShot, keyframeBusy, activeProjectId],
+  );
 
   /** 截帧回灌动作(09-15 P1a):视频不在项目内/桥缺失=禁用态+tooltip,不报错弹窗 */
   const keyframeActions = useMemo(() => {
@@ -122,7 +127,7 @@ export function StoryboardPanelTab({
         void runKeyframeExtraction({ kind: "uniform", count });
       },
     };
-  }, [videoShot, activeProjectId, keyframeBusy]);
+  }, [videoShot, activeProjectId, keyframeBusy, runKeyframeExtraction]);
 
   const openShotVideo = (storyboard: StoryboardItem) => {
     setVideoShotId(storyboard.id);

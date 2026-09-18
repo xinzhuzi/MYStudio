@@ -134,11 +134,12 @@ export function ShotVideoCompareDialog({
     if (!previous?.filePath) return null;
     return { currentPath, previousPath: previous.filePath, previous };
   }, [candidates, storyboard]);
-  if (!open || !pair) return null;
 
   // probeVideo 身份须稳定(useCallback):ABVideoCompare 的换源 effect 依赖该
   // 函数身份,漂移会把「面板重渲染」误判成换源——滑帘/进度/播放态归零、
   // 同步循环被杀(store 刷新/后台任务回写都会触发面板重渲染)。
+  // 须在早退 return 之前调用(rules-of-hooks,4d775ec 遗留红债 09-19 补):
+  // 弹窗关闭态也照常走钩子,身份稳定语义不变。
   const probeVideo = useCallback(
     (url: string): Promise<ABVideoMeta | null> => {
       if (!projectId) return Promise.resolve(null);
@@ -158,6 +159,7 @@ export function ShotVideoCompareDialog({
     },
     [projectId],
   );
+  if (!open || !pair) return null;
 
   return (
     <CompareOverlay

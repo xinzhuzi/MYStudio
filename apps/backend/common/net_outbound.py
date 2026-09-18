@@ -1,13 +1,15 @@
-"""出站网络代理(09-19 根修)——侧车/下载链共用,零第三方依赖。
+"""出站网络代理(09-19 根修,动态路由)——侧车/下载链共用,零第三方依赖。
 
 实弹:GitHub/HF 直连超时(插件更新卡 25% 十分钟后报错),本机常驻代理
-(Clash 系,HTTP 端口 7897/7890 一族)1.5s 可达。策略=探测优先而非
-「直连失败再回退」:直连在本机对 GitHub 是整段超时死,先试直连等于每次
-白等满超时才轮到代理;探测只要 250ms×候选端口,60s 缓存一次。
+(Clash 系,HTTP 端口 7897/7890 一族)1.5s 可达。策略=**域名级动态路由**:
+本机回环与国内域名(.cn/阿里云镜像族)恒直连(不依赖 Clash 规则模式,
+开全局也不绕远);境外域名探测到本机代理就走,探测不到直连。探测优先
+而非「直连失败再回退」——直连对 GitHub 是整段超时死,先试直连等于每次
+白等满超时;探测 250ms×候选端口,60s 缓存一次。
 
 三类用法:
-- 子进程(git/pip):env 注入 proxy_env_vars();
-- urllib 直下:urlopen_outbound(Request(...))(回环恒直连);
+- 子进程(git/pip,目标均为境外源):env 注入 proxy_env_vars();
+- urllib 直下:urlopen_outbound(Request(...))(路由器自动分流);
 - 进程内下载库(huggingface_hub/requests):with outbound_proxy_env():
   (临时设 os.environ,库的 trust_env 机制自动接管,退出还原)。
 
@@ -27,6 +29,22 @@ _PROXY_CACHE_TTL_S = 60.0
 _outbound_proxy_cache: tuple[float, str | None] | None = None
 
 _LOOPBACK_HOSTS = frozenset({"127.0.0.1", "localhost", "::1"})
+# 域名级直连名单(09-19 动态路由):国内源代码层强制直连——不依赖 Clash 的
+# 规则模式(用户开全局模式时,国内流量卷进节点反而慢/失败)。
+# .cn 后缀通配(modelscope.cn/清华镜像族)+ 阿里云镜像族(非 .cn 后缀)。
+_DIRECT_HOST_SUFFIXES = (
+    ".cn",
+    ".aliyun.com",
+    ".aliyuncs.com",
+    ".taobao.com",
+)
+
+
+def _routes_direct(host: str) -> bool:
+    """该主机是否恒直连:本机回环 + 国内域名后缀。"""
+    if host in _LOOPBACK_HOSTS:
+        return True
+    return any(host.endswith(suffix) for suffix in _DIRECT_HOST_SUFFIXES)
 
 
 def outbound_proxy_url() -> str | None:
@@ -64,13 +82,15 @@ def proxy_env_vars() -> dict[str, str] | None:
 
 
 def urlopen_outbound(req: request.Request, timeout: float):
-    """外网 HTTP 统一口(urllib):探测到本机代理走 ProxyHandler,否则直连。
+    """外网 HTTP 统一口(urllib):域名级动态路由(09-19)。
 
-    本机回环(127.0.0.1/localhost/::1)恒直连——引擎健康检查
-    (system_stats/object_info)进了代理会被 Clash 拒掉,引擎被误判为挂。
+    规则:本机回环与国内域名(见 _DIRECT_HOST_SUFFIXES)恒直连——引擎健康
+    检查(system_stats/object_info)进了代理会被 Clash 拒掉、引擎被误判为挂,
+    国内源(ModelScope 等)直连本来就快;其余境外域名探测到本机代理则走
+    ProxyHandler,否则直连。
     """
     host = (urlparse.urlsplit(req.full_url).hostname or "").lower()
-    if host in _LOOPBACK_HOSTS:
+    if _routes_direct(host):
         return request.urlopen(req, timeout=timeout)
     proxy = outbound_proxy_url()
     if proxy:
