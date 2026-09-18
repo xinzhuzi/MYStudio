@@ -33,10 +33,9 @@ STYLE_TRIGGERS = {
     70: "purple retro anime style",
 }
 # v3 七跳模型链:link id → (src 节点, dst 节点)
-MODEL_CHAIN = [
+MODEL_CHAIN = [  # 09-18 摘47加速件:37 撤、38 改 46→67 直通
     (36, 45, 46),
-    (37, 46, 47),
-    (38, 47, 67),
+    (38, 46, 67),
     (39, 67, 68),
     (40, 68, 69),
     (41, 69, 70),
@@ -62,16 +61,16 @@ def _card_text(nid: int) -> str:
 # ── 1. 拓扑计数 ────────────────────────────────────────────────────
 
 class TestTopology:
-    def test_node_count_is_30(self):
-        assert len(_DOC["nodes"]) == 30
-        assert len(_NODES) == 30  # id 无重复(09-17 摘14+入73/74/75/76)
+    def test_node_count_is_29(self):
+        assert len(_DOC["nodes"]) == 29
+        assert len(_NODES) == 29  # id 无重复(09-17 摘14+入73-76;09-18 摘47)
 
     def test_last_ids_equal_max(self):
         assert _DOC["last_node_id"] == max(n["id"] for n in _DOC["nodes"])
         assert _DOC["last_link_id"] == max(l[0] for l in _DOC["links"])
 
 
-# ── 2. 七跳模型链(45→46→47→67→68→69→70→12,14已摘) ───────────────────────
+# ── 2. 模型链(45→46→67→68→69→70→12,14/47已摘) ────────────────────────
 
 class TestModelChain:
     def test_links_36_to_42_form_chain(self):
@@ -85,7 +84,7 @@ class TestModelChain:
 
     def test_chain_is_contiguous_seven_hops(self):
         hops = [(_LINKS[link_id][1], _LINKS[link_id][3]) for link_id, _, _ in MODEL_CHAIN]
-        assert hops == [(45, 46), (46, 47), (47, 67), (67, 68), (68, 69), (69, 70), (70, 73), (73, 74), (74, 75), (75, 76), (76, 12)]
+        assert hops == [(45, 46), (46, 67), (67, 68), (68, 69), (69, 70), (70, 73), (73, 74), (74, 75), (75, 76), (76, 12)]
         # 逐跳首尾相接:45 →…→ 12 无断点
         for (_, src, dst), (_, nxt, _) in zip(MODEL_CHAIN, MODEL_CHAIN[1:]):
             assert dst == nxt, f"模型链在 {src}→{dst} 后断:下一跳起点是 {nxt}"
@@ -156,9 +155,9 @@ class TestModeMatrix:
         assert _node(45).get("mode") == 4
 
     def test_identity_distill_active_afterlight_bypassed(self):
-        # 09-17 深夜用户画布快照为 canon:identity[19] 旁路,47/67 激活
+        # 09-17 深夜用户画布快照为 canon:identity[19] 旁路;09-18 摘47后 67 激活
         assert _node(19).get("mode") == 4, "[19] 用户快照:identity 旁路"
-        for nid in (47, 67):
+        for nid in (67,):
             assert _node(nid).get("mode", 0) == 0, f"[{nid}] 应激活"
         assert _node(46).get("mode") == 4, "[46] Afterlight 应默认旁路"
         assert "工笔/画意防污染" in (_node(46).get("title") or "")
@@ -166,7 +165,7 @@ class TestModeMatrix:
     def test_ksampler_speed_profile(self):
         w = _node(12)["widgets_values"]
         assert _node(12)["type"] == "KSampler"
-        assert w[2] == 4, f"steps 应为 4(速度档),实为 {w[2]}"
+        assert w[2] == 8, f"steps 应为 8(速度档,09-18 摘47后),实为 {w[2]}"
         assert w[3] == 1.0, f"cfg 应为 1.0(速度档),实为 {w[3]}"
 
 
@@ -176,7 +175,7 @@ class TestUsageCard:
     def test_card_two_profile_wording(self):
         text = _card_text(66)
         assert "速度档=默认" in text
-        assert "质量档=旁路[47]" in text
+        assert "质量档=手调12步/cfg5" in text
         assert "光影[46]默认旁路" in text  # 09-16 用户裁定:Afterlight 默认旁路
 
     def test_mutual_exclusion_hint_exactly_once(self):

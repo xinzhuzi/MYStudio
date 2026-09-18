@@ -1,7 +1,7 @@
 {
   "contractVersion": "ma-gongbi-v1",
-  "contractSha256": "936c0d01a5dfe1171332d8cae14fd21725155cf215b5e7a3a6b65adbee26642a",
-  "syncedAt": "2026-08-15",
+  "contractSha256": "5edf3d2228a003e68b4a24c1e80a23dd423011708841340ef4a034c6920e6965",
+  "syncedAt": "2026-09-18",
   "maSources": [
     {
       "path": "scripts/gongbi/daojie_gongbi_restyle.py",
@@ -94,7 +94,7 @@
     },
     "style.gongbi-base": {
       "moduleId": "style.gongbi-base",
-      "text": "风格底座（硬）：中国水彩水墨工笔画；工笔细线；宋代审美；淡彩矿物罩染与水墨底；浅净哑光平涂底；均匀平光。工笔线条质量（硬）：连续铁线描；曲线自然顺滑、直线笔直稳定、线宽连续有节奏，转折衔接与起收笔干净。",
+      "text": "风格底座（硬）：现代修仙数字绘画资产；中国人物画 DNA 经现代游戏设计重组；工笔细线；水墨虚实；淡彩罩染；浅净哑光平涂底；均匀平光。工笔线条质量（硬）：连续铁线描，线宽有节奏、转折轻重提按，起收笔干净，带手绘笔性。",
       "required": true,
       "singletonKey": "gongbi_style_base",
       "source": {

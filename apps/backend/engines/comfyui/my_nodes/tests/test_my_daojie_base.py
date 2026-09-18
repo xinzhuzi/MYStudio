@@ -7,7 +7,8 @@
 锁:注册面/COMBO 九项有序+默认钉死「人物」/装配语义(底座在前+主体句
 零分隔符直拼、留空=恒等纯底座、句号自足收尾)/负向 token 去重合并
 (复用 my_styles._merge_negative)/mtime 失效热改/未知底座中文
-RuntimeError/人物型=0917 §一 超集锚(锚从 md 运行时切出,零硬编码)。
+RuntimeError/人物型=v2.2 新口径锚(09-18 定性切换,§一 超集解除,锚从
+md 运行时切出防旧口径回潮,零硬编码)。
 """
 
 from __future__ import annotations
@@ -104,7 +105,9 @@ def test_run_empty_subject_is_identity_pure_base():
 def test_run_all_options_produce_nonempty_outputs():
     for name in EXPECTED_OPTIONS:
         pos, neg = MyDaojieBase().run(name)
-        assert pos and pos.startswith("最佳质量、杰作、高细节")
+        # 09-18 v2.2 定性切换:SD 质量标签串已废,九型一律以定性句开头+句号自足收尾
+        assert pos and pos.startswith("现代修仙游戏")
+        assert pos.endswith("。")
         assert neg and "text" in neg  # 九型负面均为英文 token 基线
 
 
@@ -179,8 +182,8 @@ def test_missing_json_degrades_loudly(tmp_path, monkeypatch):
         MyDaojieBase().run("人物")
 
 
-# ── 人物型=0917 §一 超集锚(锚从 md 运行时切出,零硬编码)──
-def test_renwu_is_section1_structural_superset():
+# ── 人物型=v2.2 新口径锚(09-18 定性切换,§一 超集解除;锚从 md 运行时切出,零硬编码)──
+def test_renwu_new_framing_after_v22_switch():
     md_base = _md_section1()
     tail = "仙道古韵，气韵深远，完成度高的画作。"
     assert md_base.endswith(tail)  # 锚切分自洽:尾段确为 §一 后缀
@@ -189,12 +192,12 @@ def test_renwu_is_section1_structural_superset():
         e["positive"] for e in json.loads(
             my_daojie_base._BASES_JSON.read_text(encoding="utf-8"))
         if e["zh"] == "人物")
-    assert renwu.startswith(head), "人物型必须逐字以 §一 主干开头(类型化超集)"
-    assert renwu.endswith(tail), "人物型必须逐字以 §一 结尾句收尾"
-    assert renwu != md_base, "超集非复制:人物型增量段必须在场"
-    middle = renwu[len(head): len(renwu) - len(tail)]
+    assert renwu.startswith("现代修仙游戏的角色立绘资产"), \
+        "人物型必须以 v2.2 定性句开头(现代游戏资产载体)"
+    assert not renwu.startswith(head), "人物型回潮旧 §一 主干开头"
+    assert not renwu.endswith(tail), "人物型回潮旧 §一 结尾句收尾"
     for kw in ("单人立像", "六成", "两至四条"):
-        assert kw in middle, f"人物型增量段缺共性关键词 {kw}"
+        assert kw in renwu, f"人物型增量段缺共性关键词 {kw}"
 
 
 # ── 负向口径:全九型纯英文逗号 token(无中文残留)───────────

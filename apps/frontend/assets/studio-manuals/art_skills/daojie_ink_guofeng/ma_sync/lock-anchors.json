@@ -1,6 +1,6 @@
 {
   "comment": "道劫手册工笔硬锁 ↔ MA ma-imagegen 权威锚点对。manualAnchor 必须逐字出现在 prefix.md「工笔硬锁」节;maAnchor 必须逐字出现在 MA 权威文件中(由测试直连校验)。maSources.path 为 ma-imagegen 技能根内相对路径,本机工作区根由 daojie-ma-sync-check.py --ma-root 解析(08-24 起 seed 不再内嵌机器绝对路径,与 runtime-contract.json 同构)。",
-  "syncedAt": "2026-08-28",
+  "syncedAt": "2026-09-18",
   "maSources": [
     {
       "path": "scripts/gongbi/daojie_gongbi_restyle.py",
@@ -64,7 +64,7 @@
     {
       "name": "风格底座锁",
       "manualAnchors": [
-        "中国水彩水墨工笔画",
+        "现代修仙游戏的数字绘画资产",
         "连续铁线描/丝线描（iron-wire outlines）",
         "只用浅净哑光平涂底（smooth pale matte flat-wash field）",
         "色相只归主体/来源事实",

@@ -11,8 +11,11 @@ const configSource = readFileSync(
 describe("Electron Vite Remotion entries", () => {
   it("shares the rendering alias across main, preload, and renderer builds", () => {
     expect(configSource).toContain("'@rendering': path.resolve(frontendRoot, 'electron/rendering')");
-    expect(configSource).toContain("main: {\n    resolve: { alias: sharedAlias }");
-    expect(configSource).toContain("preload: {\n    resolve: { alias: sharedAlias }");
+    // 09-15 打包瘦身:main/preload 改用 manuals 空桩+sharedAlias 合成的
+    // mainPreloadAlias——'@rendering' 等共享别名仍经展开传递,三构建同享。
+    expect(configSource).toContain("const mainPreloadAlias = { ...manualsImagesStubAlias, ...sharedAlias };");
+    expect(configSource).toContain("main: {\n    resolve: { alias: mainPreloadAlias }");
+    expect(configSource).toContain("preload: {\n    resolve: { alias: mainPreloadAlias }");
     expect(configSource).toContain("renderer: {");
     expect(configSource).toContain("resolve: {\n      alias: sharedAlias");
   });

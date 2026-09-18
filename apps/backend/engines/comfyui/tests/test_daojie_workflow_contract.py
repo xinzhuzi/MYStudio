@@ -10,8 +10,9 @@
 提示词真源(双真源链,见 docs/prompts/道劫_底座节点_0918.md):
   链A=docs/prompts/道劫_新提示词包_0917.md §一 通用无型底座(修手图 [12]
   唯一持有,本测试零触碰);链B=my_nodes/nodes/daojie_bases.json 九型底座
-  (↔0918 md 围栏↔道劫图 [80] 三方互锁);人物型=§一 结构性超集(锚从
-  md 运行时切出,零硬编码)。纯读文件断言,零网络零引擎依赖。
+  (↔0918 md 围栏↔道劫图 [80] 三方互锁)。09-18 v2.2 定性切换后两链独立:
+  链A 旧口径历史锁定,链B=现代游戏资产新口径,人物型 §一 超集解除。
+  纯读文件断言,零网络零引擎依赖。
 """
 from __future__ import annotations
 
@@ -65,7 +66,7 @@ MD_HEAD = MD_BASE[: -len(MD_TAIL)]
 DIRTY_WORDS = ("宣纸", "工笔线描", "工笔白描", "写意泼墨", "xuan")  # 风格锚:两侧都禁
 POSITIVE_DIRTY = ("做旧", "泛黄", "纸纹")  # 纸纹脏污族:正向禁;负向列它们=合法内容
 # 模型链完整链序(21 起点至 12 采样器;旁路件靠 mode=4 穿透)
-MODEL_CHAIN = [21, 19, 44, 45, 46, 47, 67, 68, 69, 70, 73, 74, 75, 76, 77, 78, 79, 12]
+MODEL_CHAIN = [21, 19, 46, 67, 68, 69, 73, 76, 77, 78, 12]  # 09-18 摘47加速件+摘44/45/74/75破限件+摘79风格参照半套件+摘70复古漫(改连环画提示词路线,紫调日系件让位;用户裁定)
 # 09-17 用户令拷入73鎏金;09-18 全量扩架 +74-79(在库 16 件 K2 LoRA 全展示)
 
 # 多格同人型负向黑名单(09-18 评审问题1 处置:系统性防复犯)
@@ -104,33 +105,33 @@ class TestTopology:
         assert _DOC["last_node_id"] == 80 == max(n["id"] for n in _DOC["nodes"])
         assert _DOC["last_link_id"] == 55 == max(l[0] for l in _DOC["links"])
 
-    def test_node_count_33(self):
-        # 34(09-18 扩架后)−[71]−[72]+[80] = 33(09-18 底座节点化)
-        assert len(_DOC["nodes"]) == 33
-        assert len(_NODES) == 33
+    def test_node_count_26(self):
+        # 34(09-18 扩架后)−[71]−[72]+[80]−[47]−[44/45/74/75]−[79]−[70] = 26(09-18 底座节点化+摘加速/破限/风格参照半套件+摘70复古漫=改连环画提示词路线,紫调日系件让位)
+        assert len(_DOC["nodes"]) == 26
+        assert len(_NODES) == 26
 
     def test_link_ids_unique(self):
         # 09-17 复审修复:超集模板带来的重复 link id 42 已去重;显式数重复,
         # 防 dict 按 id 折叠后测不出(畸形序列化)
         ids = [l[0] for l in _DOC["links"]]
-        assert len(ids) == len(set(ids)) == 33, \
-            f"links 应 33 条且 id 唯一,实为 {len(ids)} 条/{len(set(ids))} id"
+        assert len(ids) == len(set(ids)) == 26, \
+            f"links 应 26 条且 id 唯一,实为 {len(ids)} 条/{len(set(ids))} id"
         assert len(_LINKS) == len(_DOC["links"]), "_LINKS 折叠数与原文不符(存在重复 id)"
 
     def test_lora_stack_full_inventory(self):
-        """09-18 全量扩架:在库 16 件 K2 LoRA 全部展示、lora_name 不重复、
-        新增 6 件默认旁路(mode=4)×1.0。既有件开关=用户画布自由,契约不锁。"""
+        """09-18 全量扩架:在库 16 件 K2 LoRA 全部展示;同日摘 47 加速件+摘
+        破限/尺度件 44/45/74/75+摘 79 风格参照半套件(道劫流内无参考图编码
+        通道,单独激活无效;完整用法在 MY-K2-文生图_风格参照.json)+摘 70
+        复古漫(改连环画提示词路线,紫调日系件让位)→9 件。
+        lora_name 不重复、新增 3 件默认旁路(mode=4)×1.0。既有件开关=用户画布自由,契约不锁。"""
         loras = [n for n in _DOC["nodes"] if n["type"] == "LoraLoaderModelOnly"]
         names = [(n["widgets_values_named"] or {}).get("lora_name") for n in loras]
-        assert len(loras) == 16, f"LoRA 节点应 16 件,实际 {len(loras)}"
-        assert len(set(names)) == 16, f"lora_name 重复: {names}"
+        assert len(loras) == 9, f"LoRA 节点应 9 件,实际 {len(loras)}"
+        assert len(set(names)) == 9, f"lora_name 重复: {names}"
         expect_new = {
-            74: "Krea2-NSFW/Krea 2 NSFW V4.safetensors",
-            75: "Krea2-NSFW/krea2_nsfw_v2.safetensors",
             76: "Krea2-画风/Krea2-AsianMix_v4_TQD.safetensors",
             77: "Krea2-画风/Krea2-美学Masterpiece_v51.safetensors",
             78: "Krea2-画风/Krea2-电影感CinematicShot_K2.safetensors",
-            79: "Krea2-画风/Krea2-风格参照style_reference.safetensors",
         }
         for nid, fname in expect_new.items():
             n = _node(nid)
@@ -187,6 +188,11 @@ class TestPromptSources:
         for l in _DOC["links"]:
             assert 71 not in (l[1], l[3]) and 72 not in (l[1], l[3]), \
                 f"线 {l[0]} 仍连着已摘除的节点 71/72"
+        # 09-18 摘 70 复古漫(改连环画提示词路线,紫调日系件让位):节点/旧线 41 不得回潮
+        assert 70 not in _NODES, "[70] 复古漫残留(已摘,连环画走提示词不占画风件位)"
+        assert 41 not in _LINKS, "旧线 41(69→70)残留"
+        for l in _DOC["links"]:
+            assert 70 not in (l[1], l[3]), f"线 {l[0]} 仍连着已摘除的节点 70"
 
 
 # ── 3. 九型底座库卫生(脏词/半角标点/禁句式/禁色号,全 9 条 positive)──
@@ -281,17 +287,26 @@ class TestDaojieBasesSources:
             assert entry["positive"] == fence, \
                 f"底座「{name}」positive 与 0918 md 围栏不逐字相等(唯一双写对,兜底即此)"
 
-    def test_renwu_is_section1_superset(self):
-        """人物型=0917 §一 结构性超集:逐字以 §一 主干开头、以 §一 结尾句
-        收尾;锚从 md 运行时切出、零硬编码——仓库不存在两份竞争性人物底座。"""
-        assert MD_BASE.endswith(MD_TAIL), "锚切分自洽:尾段必须是 §一 真后缀"
+    def test_renwu_new_framing_after_v22_switch(self):
+        """09-18 v2.2 定性切换:人物型 §一 超集解除——§一 自带 SD 标签串与
+        旧「水墨国风」定性,与新口径互斥;人物以现代游戏资产定性句开头,旧
+        §一 主干/尾句零回潮,人物共性增量仍在场(防回退锚)。"""
         renwu = BASES_BY_NAME["人物"]["positive"]
-        assert renwu.startswith(MD_HEAD), "人物型必须逐字以 §一 主干开头"
-        assert renwu.endswith(MD_TAIL), "人物型必须逐字以 §一 结尾句收尾"
-        assert renwu != MD_BASE, "超集非复制:人物型增量段必须在场"
-        middle = renwu[len(MD_HEAD): len(renwu) - len(MD_TAIL)]
+        assert renwu.startswith("现代修仙游戏的角色立绘资产"), \
+            "人物型必须以 v2.2 定性句开头(现代游戏资产载体)"
+        assert not renwu.startswith(MD_HEAD), "人物型回潮旧 §一 主干开头"
+        assert not renwu.endswith(MD_TAIL), "人物型回潮旧 §一 尾句收尾"
         for kw in ("单人立像", "六成", "两至四条"):
-            assert kw in middle, f"人物型增量段缺共性关键词 {kw}"
+            assert kw in renwu, f"人物型增量段缺共性关键词 {kw}"
+
+    def test_positives_carry_no_old_framing_anchors(self):
+        """09-18 v2.2 已废锚九型全禁:SD 质量标签串、旧「水墨国风」基底定
+        性、「新中式」裸词(仅内部工作分类词,不入提示词正文)。"""
+        for e in DAOJIE_BASES:
+            low = e["positive"].lower()
+            for w in ("最佳质量", "杰作", "高细节", "水墨国风", "新中式",
+                      "masterpiece", "best quality", "high detail"):
+                assert w not in low, f"底座「{e['zh']}」positive 残留旧锚 {w!r}"
 
     def test_multi_panel_negative_clone_blacklist(self):
         """多格同人型(三视图/表情差分)负向禁 clone/多人类 token——多格同
@@ -316,16 +331,18 @@ class TestModelChain:
             assert _link_between(src, dst), f"模型链断在 {src}→{dst}"
 
     def test_chain_modes(self):
-        # 09-17 用户超集快照对齐:44/45/46/69 旁路,68/70/73 三开,19 旁路,47/67 激活
-        for nid in (44, 45, 46, 19, 69):
+        # 09-17 用户超集快照对齐:46/69 旁路,68/70/73 三开,19 旁路,67 激活
+        # 09-18 摘 47 加速件+44/45/74/75 破限件后激活集=67/68/70/73;
+        # 同日再摘 70 复古漫(改连环画提示词路线,紫调日系件让位)→激活集=67/68/73
+        for nid in (46, 19, 69):
             assert _node(nid).get("mode") == 4, f"[{nid}] 应旁路(mode=4)"
-        for nid in (47, 67, 68, 70, 73):
+        for nid in (67, 68, 73):
             assert _node(nid).get("mode", 0) == 0, f"[{nid}] 应激活(mode=0)"
 
     def test_sampler_speed_profile_inherited(self):
         w = _node(12)["widgets_values"]
         assert _node(12)["type"] == "KSampler"
-        assert w[2] == 4 and w[3] == 1.0, "采样参数应与超集一致(4步/cfg1 速度档)"
+        assert w[2] == 8 and w[3] == 1.0, "采样参数应与超集一致(8步/cfg1 速度档,09-18 摘47后4步→8步)"
 
 
 # ── 7. 链接双向一致(无悬空) ───────────────────────────────────────
@@ -380,14 +397,14 @@ class TestOutputAndCard:
         text = _card_text(66)
         assert MD_NEG in text, "卡缺⑤负向基线全文"
         assert "cfg1 下负向不生效" in text, "卡缺⑤ cfg1 无效口径"
-        assert "速度档=默认" in text and "约90秒" in text, "卡缺⑥速度档口径"
-        assert "质量档=旁路[47]" in text and "12步/cfg5" in text and "约500秒" in text, "卡缺⑥质量档口径"
+        assert "速度档=默认" in text and "8步/cfg1" in text, "卡缺⑥速度档口径"
+        assert "质量档=手调12步/cfg5" in text and "约500秒" in text, "卡缺⑥质量档口径"
 
     def test_card_contains_lora_matrix(self):
         text = _card_text(66)
         assert "[67]" in text and "默认激活" in text, "卡缺⑦[67]默认开口径"
-        assert "一次只开一枚" in text, "卡缺⑦68-70 互斥口径"
-        for nid in (68, 69, 70):
+        assert "一次只开一枚" in text, "卡缺⑦68/69 互斥口径"
+        for nid in (68, 69):
             assert f"[{nid}]" in text
 
 

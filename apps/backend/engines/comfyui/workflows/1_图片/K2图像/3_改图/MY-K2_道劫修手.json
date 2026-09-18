@@ -1,0 +1,1611 @@
+{
+  "id": "b3d1f7a2-9c4e-4f6a-8e2d-7a5b9c1d2e3f",
+  "revision": 0,
+  "last_node_id": 25,
+  "last_link_id": 27,
+  "nodes": [
+    {
+      "id": 1,
+      "type": "LoadImage",
+      "pos": [
+        40,
+        80
+      ],
+      "size": [
+        340,
+        420
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "image",
+          "type": "COMBO",
+          "widget": {
+            "name": "image"
+          },
+          "link": null
+        },
+        {
+          "name": "upload",
+          "type": "IMAGEUPLOAD",
+          "widget": {
+            "name": "upload"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            1,
+            7
+          ],
+          "slot_index": 0
+        },
+        {
+          "name": "MASK",
+          "type": "MASK",
+          "links": [
+            2
+          ],
+          "slot_index": 1
+        }
+      ],
+      "title": "[1] 载入坏手图(可右键 MaskEditor 手涂补掩码)",
+      "properties": {
+        "Node name for S&R": "LoadImage",
+        "cnr_id": "comfy-core",
+        "ver": "0.26.0"
+      },
+      "widgets_values": [
+        "daojie_hands_00005.png",
+        "image"
+      ],
+      "widgets_values_named": {
+        "image": "daojie_hands_00005.png",
+        "upload": "image"
+      },
+      "color": "#4a89b8",
+      "bgcolor": "#1f2a33"
+    },
+    {
+      "id": 2,
+      "type": "FashnHumanParserMask",
+      "pos": [
+        640,
+        80
+      ],
+      "size": [
+        400,
+        260
+      ],
+      "flags": {},
+      "order": 3,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "link": 1
+        }
+      ],
+      "outputs": [
+        {
+          "name": "mask",
+          "type": "MASK",
+          "links": [
+            3
+          ],
+          "slot_index": 0
+        }
+      ],
+      "title": "[2] FASHN自动手部掩码(hands)",
+      "properties": {
+        "Node name for S&R": "FashnHumanParserMask"
+      },
+      "widgets_values": [
+        "hands",
+        "auto",
+        "float32",
+        "fashn-ai/fashn-human-parser",
+        "",
+        4,
+        false
+      ],
+      "widgets_values_named": {
+        "label": "hands",
+        "device": "auto",
+        "dtype": "float32",
+        "model_id": "fashn-ai/fashn-human-parser",
+        "extra_labels": "",
+        "blur_radius": 4,
+        "invert": false
+      },
+      "color": "#4d9e6a",
+      "bgcolor": "#1f2f26"
+    },
+    {
+      "id": 3,
+      "type": "MaskComposite",
+      "pos": [
+        640,
+        380
+      ],
+      "size": [
+        340,
+        130
+      ],
+      "flags": {},
+      "order": 5,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "destination",
+          "type": "MASK",
+          "link": 3
+        },
+        {
+          "name": "source",
+          "type": "MASK",
+          "link": 2
+        },
+        {
+          "name": "x",
+          "type": "INT",
+          "widget": {
+            "name": "x"
+          },
+          "link": null
+        },
+        {
+          "name": "y",
+          "type": "INT",
+          "widget": {
+            "name": "y"
+          },
+          "link": null
+        },
+        {
+          "name": "operation",
+          "type": "COMBO",
+          "widget": {
+            "name": "operation"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "name": "MASK",
+          "type": "MASK",
+          "links": [
+            4
+          ],
+          "slot_index": 0
+        }
+      ],
+      "title": "[3] 掩码并集(自动∪手涂)",
+      "properties": {
+        "Node name for S&R": "MaskComposite",
+        "cnr_id": "comfy-core",
+        "ver": "0.26.0"
+      },
+      "widgets_values": [
+        0,
+        0,
+        "add"
+      ],
+      "widgets_values_named": {
+        "x": 0,
+        "y": 0,
+        "operation": "add"
+      },
+      "color": "#4d9e6a",
+      "bgcolor": "#1f2f26"
+    },
+    {
+      "id": 4,
+      "type": "GrowMask",
+      "pos": [
+        640,
+        550
+      ],
+      "size": [
+        340,
+        130
+      ],
+      "flags": {},
+      "order": 6,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "mask",
+          "type": "MASK",
+          "link": 4
+        },
+        {
+          "name": "expand",
+          "type": "INT",
+          "widget": {
+            "name": "expand"
+          },
+          "link": null
+        },
+        {
+          "name": "tapered_corners",
+          "type": "BOOLEAN",
+          "widget": {
+            "name": "tapered_corners"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "name": "MASK",
+          "type": "MASK",
+          "links": [
+            5,
+            6
+          ],
+          "slot_index": 0
+        }
+      ],
+      "title": "[4] 掩码外扩16px(带手腕余量)",
+      "properties": {
+        "Node name for S&R": "GrowMask",
+        "cnr_id": "comfy-core",
+        "ver": "0.26.0"
+      },
+      "widgets_values": [
+        16,
+        true
+      ],
+      "widgets_values_named": {
+        "expand": 16,
+        "tapered_corners": true
+      },
+      "color": "#4d9e6a",
+      "bgcolor": "#1f2f26"
+    },
+    {
+      "id": 5,
+      "type": "ImageScaleToTotalPixels",
+      "pos": [
+        40,
+        540
+      ],
+      "size": [
+        340,
+        130
+      ],
+      "flags": {},
+      "order": 1,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "link": 7
+        },
+        {
+          "name": "upscale_method",
+          "type": "COMBO",
+          "widget": {
+            "name": "upscale_method"
+          },
+          "link": null
+        },
+        {
+          "name": "megapixels",
+          "type": "FLOAT",
+          "widget": {
+            "name": "megapixels"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            8,
+            27
+          ],
+          "slot_index": 0
+        }
+      ],
+      "title": "[5] 等比定标1MP",
+      "properties": {
+        "Node name for S&R": "ImageScaleToTotalPixels",
+        "cnr_id": "comfy-core",
+        "ver": "0.26.0"
+      },
+      "widgets_values": [
+        "lanczos",
+        1,
+        1
+      ],
+      "widgets_values_named": {
+        "upscale_method": "lanczos",
+        "megapixels": 1,
+        "resolution_steps": 1
+      },
+      "color": "#4a89b8",
+      "bgcolor": "#1f2a33"
+    },
+    {
+      "id": 6,
+      "type": "VAEEncode",
+      "pos": [
+        1060,
+        380
+      ],
+      "size": [
+        240,
+        80
+      ],
+      "flags": {},
+      "order": 8,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "pixels",
+          "type": "IMAGE",
+          "link": 8
+        },
+        {
+          "name": "vae",
+          "type": "VAE",
+          "link": 9
+        }
+      ],
+      "outputs": [
+        {
+          "name": "LATENT",
+          "type": "LATENT",
+          "links": [
+            10
+          ],
+          "slot_index": 0
+        }
+      ],
+      "title": "[6] 原图→Latent",
+      "properties": {
+        "Node name for S&R": "VAEEncode",
+        "cnr_id": "comfy-core",
+        "ver": "0.26.0"
+      },
+      "color": "#c27a3d",
+      "bgcolor": "#332a1e"
+    },
+    {
+      "id": 7,
+      "type": "VAELoader",
+      "pos": [
+        1060,
+        500
+      ],
+      "size": [
+        240,
+        80
+      ],
+      "flags": {},
+      "order": 2,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "vae_name",
+          "type": "COMBO",
+          "widget": {
+            "name": "vae_name"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "name": "VAE",
+          "type": "VAE",
+          "links": [
+            9,
+            24
+          ],
+          "slot_index": 0
+        }
+      ],
+      "title": "[7] VAE加载",
+      "properties": {
+        "Node name for S&R": "VAELoader",
+        "cnr_id": "comfy-core",
+        "ver": "0.26.0",
+        "models": [
+          {
+            "name": "qwen_image_vae.safetensors",
+            "url": "https://huggingface.co/Comfy-Org/Krea-2/resolve/main/vae/qwen_image_vae.safetensors",
+            "directory": "vae"
+          }
+        ]
+      },
+      "widgets_values": [
+        "qwen_image_vae.safetensors"
+      ],
+      "widgets_values_named": {
+        "vae_name": "qwen_image_vae.safetensors"
+      },
+      "color": "#3f789e",
+      "bgcolor": "#1e2b38"
+    },
+    {
+      "id": 8,
+      "type": "SetLatentNoiseMask",
+      "pos": [
+        1060,
+        620
+      ],
+      "size": [
+        300,
+        80
+      ],
+      "flags": {},
+      "order": 9,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "samples",
+          "type": "LATENT",
+          "link": 10
+        },
+        {
+          "name": "mask",
+          "type": "MASK",
+          "link": 5
+        }
+      ],
+      "outputs": [
+        {
+          "name": "LATENT",
+          "type": "LATENT",
+          "links": [
+            19
+          ],
+          "slot_index": 0
+        }
+      ],
+      "title": "[8] 锁区(只重绘掩码内)",
+      "properties": {
+        "Node name for S&R": "SetLatentNoiseMask",
+        "cnr_id": "comfy-core",
+        "ver": "0.26.0"
+      },
+      "color": "#c27a3d",
+      "bgcolor": "#332a1e"
+    },
+    {
+      "id": 9,
+      "type": "UNETLoader",
+      "pos": [
+        1440,
+        80
+      ],
+      "size": [
+        340,
+        110
+      ],
+      "flags": {
+        "collapsed": false
+      },
+      "order": 4,
+      "mode": 0,
+      "showAdvanced": false,
+      "inputs": [
+        {
+          "name": "unet_name",
+          "type": "COMBO",
+          "widget": {
+            "name": "unet_name"
+          },
+          "link": null
+        },
+        {
+          "name": "weight_dtype",
+          "type": "COMBO",
+          "widget": {
+            "name": "weight_dtype"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "name": "MODEL",
+          "type": "MODEL",
+          "links": [
+            11
+          ],
+          "slot_index": 0
+        }
+      ],
+      "title": "[9] DiT加载(turbo)",
+      "properties": {
+        "Node name for S&R": "UNETLoader",
+        "cnr_id": "comfy-core",
+        "ver": "0.26.0",
+        "models": [
+          {
+            "name": "krea2_turbo_bf16.safetensors",
+            "url": "https://huggingface.co/Comfy-Org/Krea-2/resolve/main/diffusion_models/krea2_turbo_bf16.safetensors",
+            "directory": "diffusion_models"
+          }
+        ]
+      },
+      "widgets_values": [
+        "krea2_turbo_bf16.safetensors",
+        "default"
+      ],
+      "widgets_values_named": {
+        "unet_name": "krea2_turbo_bf16.safetensors",
+        "weight_dtype": "default"
+      },
+      "color": "#3f789e",
+      "bgcolor": "#1e2b38"
+    },
+    {
+      "id": 10,
+      "type": "LoraLoaderModelOnly",
+      "pos": [
+        1440,
+        230
+      ],
+      "size": [
+        340,
+        130
+      ],
+      "flags": {},
+      "order": 7,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 11
+        },
+        {
+          "name": "lora_name",
+          "type": "COMBO",
+          "widget": {
+            "name": "lora_name"
+          },
+          "link": null
+        },
+        {
+          "name": "strength_model",
+          "type": "FLOAT",
+          "widget": {
+            "name": "strength_model"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "name": "MODEL",
+          "type": "MODEL",
+          "links": [
+            12
+          ],
+          "slot_index": 0
+        }
+      ],
+      "title": "[10] 加速LoRA·4步蒸馏 ×1.0",
+      "properties": {
+        "Node name for S&R": "LoraLoaderModelOnly"
+      },
+      "widgets_values": [
+        "Krea2-功能/Krea2-Turbo-4步蒸馏.safetensors",
+        1.0
+      ],
+      "widgets_values_named": {
+        "lora_name": "Krea2-功能/Krea2-Turbo-4步蒸馏.safetensors",
+        "strength_model": 1.0
+      },
+      "color": "#c8963e",
+      "bgcolor": "#3a2f1c"
+    },
+    {
+      "id": 11,
+      "type": "CLIPLoader",
+      "pos": [
+        1440,
+        400
+      ],
+      "size": [
+        340,
+        110
+      ],
+      "flags": {},
+      "order": 10,
+      "mode": 0,
+      "showAdvanced": false,
+      "inputs": [
+        {
+          "name": "clip_name",
+          "type": "COMBO",
+          "widget": {
+            "name": "clip_name"
+          },
+          "link": null
+        },
+        {
+          "name": "type",
+          "type": "COMBO",
+          "widget": {
+            "name": "type"
+          },
+          "link": null
+        },
+        {
+          "name": "device",
+          "type": "COMBO",
+          "shape": 7,
+          "widget": {
+            "name": "device"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "name": "CLIP",
+          "type": "CLIP",
+          "links": [
+            13,
+            14
+          ],
+          "slot_index": 0
+        }
+      ],
+      "title": "[11] TE加载(4B)",
+      "properties": {
+        "Node name for S&R": "CLIPLoader",
+        "cnr_id": "comfy-core",
+        "ver": "0.26.0",
+        "models": [
+          {
+            "name": "qwen3-vl-4b-heretic.safetensors",
+            "url": "https://huggingface.co/Comfy-Org/Krea-2/resolve/main/text_encoders/qwen3-vl-4b-heretic.safetensors",
+            "directory": "text_encoders"
+          }
+        ]
+      },
+      "widgets_values": [
+        "qwen3-vl-4b-heretic.safetensors",
+        "krea2",
+        "default"
+      ],
+      "widgets_values_named": {
+        "clip_name": "qwen3-vl-4b-heretic.safetensors",
+        "type": "krea2",
+        "device": "default"
+      },
+      "color": "#3f789e",
+      "bgcolor": "#1e2b38"
+    },
+    {
+      "id": 12,
+      "type": "PrimitiveStringMultiline",
+      "pos": [
+        40,
+        740
+      ],
+      "size": [
+        560,
+        200
+      ],
+      "flags": {},
+      "order": 11,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "value",
+          "type": "STRING",
+          "widget": {
+            "name": "value"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "name": "STRING",
+          "type": "STRING",
+          "links": [
+            15
+          ],
+          "slot_index": 0
+        }
+      ],
+      "title": "[12] 道劫底座(自动层,勿手改)",
+      "properties": {
+        "Node name for S&R": "PrimitiveStringMultiline"
+      },
+      "widgets_values": [
+        "最佳质量、杰作、高细节；一幅2D水墨国风画作：画中人气质清逸出尘，五官清隽，神色沉静，肤色温润透亮；以细而稳的墨线勾勒成形，眉眼发丝逐层分明，衣纹线条流畅疏密有致；淡墨晕染云雾远山，皴擦层次分明；衣着素雅，米白为底，石青、靛蓝、赭石、旧金低饱和点染，浓色仅作小面积点睛；大面积留白，云雾仙气以淡墨轻染；温润米白的浅净平涂底，均匀柔光，无投影；仙道古韵，气韵深远，完成度高的画作。"
+      ],
+      "widgets_values_named": {
+        "value": "最佳质量、杰作、高细节；一幅2D水墨国风画作：画中人气质清逸出尘，五官清隽，神色沉静，肤色温润透亮；以细而稳的墨线勾勒成形，眉眼发丝逐层分明，衣纹线条流畅疏密有致；淡墨晕染云雾远山，皴擦层次分明；衣着素雅，米白为底，石青、靛蓝、赭石、旧金低饱和点染，浓色仅作小面积点睛；大面积留白，云雾仙气以淡墨轻染；温润米白的浅净平涂底，均匀柔光，无投影；仙道古韵，气韵深远，完成度高的画作。"
+      },
+      "color": "#4d9e6a",
+      "bgcolor": "#1f2f26"
+    },
+    {
+      "id": 13,
+      "type": "PrimitiveStringMultiline",
+      "pos": [
+        40,
+        980
+      ],
+      "size": [
+        560,
+        200
+      ],
+      "flags": {},
+      "order": 12,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "value",
+          "type": "STRING",
+          "widget": {
+            "name": "value"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "name": "STRING",
+          "type": "STRING",
+          "links": [
+            16
+          ],
+          "slot_index": 0
+        }
+      ],
+      "title": "[13] 修手指令(写清这只手在做什么)",
+      "properties": {
+        "Node name for S&R": "PrimitiveStringMultiline"
+      },
+      "widgets_values": [
+        "画中人的双手以细而稳的墨线勾勒成形，指节分明，指缝清晰，拇指与其余四指自然收拢，手势安静柔和，与人物动作协调一致；手部肤色调润透亮，与面部肤色一致；线条、墨色与画风和全图完全一致。"
+      ],
+      "widgets_values_named": {
+        "value": "画中人的双手以细而稳的墨线勾勒成形，指节分明，指缝清晰，拇指与其余四指自然收拢，手势安静柔和，与人物动作协调一致；手部肤色调润透亮，与面部肤色一致；线条、墨色与画风和全图完全一致。"
+      },
+      "color": "#4d9e6a",
+      "bgcolor": "#1f2f26"
+    },
+    {
+      "id": 14,
+      "type": "StringConcatenate",
+      "pos": [
+        660,
+        740
+      ],
+      "size": [
+        340,
+        130
+      ],
+      "flags": {},
+      "order": 13,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "string_a",
+          "type": "STRING",
+          "widget": {
+            "name": "string_a"
+          },
+          "link": 15
+        },
+        {
+          "name": "string_b",
+          "type": "STRING",
+          "widget": {
+            "name": "string_b"
+          },
+          "link": 16
+        },
+        {
+          "name": "delimiter",
+          "type": "STRING",
+          "widget": {
+            "name": "delimiter"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "name": "STRING",
+          "type": "STRING",
+          "links": [
+            17
+          ],
+          "slot_index": 0
+        }
+      ],
+      "title": "[14] 装配(底座+修手指令)",
+      "properties": {
+        "Node name for S&R": "StringConcatenate"
+      },
+      "widgets_values": [
+        ""
+      ],
+      "widgets_values_named": {
+        "delimiter": ""
+      },
+      "color": "#4d9e6a",
+      "bgcolor": "#1f2f26"
+    },
+    {
+      "id": 15,
+      "type": "CLIPTextEncode",
+      "pos": [
+        1060,
+        740
+      ],
+      "size": [
+        340,
+        130
+      ],
+      "flags": {},
+      "order": 14,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "clip",
+          "type": "CLIP",
+          "link": 13
+        },
+        {
+          "name": "text",
+          "type": "STRING",
+          "widget": {
+            "name": "text"
+          },
+          "link": 17
+        }
+      ],
+      "outputs": [
+        {
+          "name": "CONDITIONING",
+          "type": "CONDITIONING",
+          "links": [
+            21
+          ],
+          "slot_index": 0
+        }
+      ],
+      "title": "[15] 正向编码",
+      "properties": {
+        "Node name for S&R": "CLIPTextEncode"
+      },
+      "widgets_values": [
+        ""
+      ],
+      "widgets_values_named": {
+        "text": ""
+      },
+      "color": "#4d9e6a",
+      "bgcolor": "#1f2f26"
+    },
+    {
+      "id": 16,
+      "type": "PrimitiveStringMultiline",
+      "pos": [
+        660,
+        910
+      ],
+      "size": [
+        340,
+        270
+      ],
+      "flags": {},
+      "order": 15,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "value",
+          "type": "STRING",
+          "widget": {
+            "name": "value"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "name": "STRING",
+          "type": "STRING",
+          "links": [
+            18
+          ],
+          "slot_index": 0
+        }
+      ],
+      "title": "[16] 负向基线(道劫+手部强化;质量档生效)",
+      "properties": {
+        "Node name for S&R": "PrimitiveStringMultiline"
+      },
+      "widgets_values": [
+        "3D渲染,照片写实,油画厚涂,卡通平涂,硬投影,浓重阴影,纸纹污渍,做旧泛黄,绢纹织物底,网格纹底,冷灰底,多余手指,畸形的手,文字,水印,签名,extra characters,multiple people,cropped head,手指粘连,融化的手"
+      ],
+      "widgets_values_named": {
+        "value": "3D渲染,照片写实,油画厚涂,卡通平涂,硬投影,浓重阴影,纸纹污渍,做旧泛黄,绢纹织物底,网格纹底,冷灰底,多余手指,畸形的手,文字,水印,签名,extra characters,multiple people,cropped head,手指粘连,融化的手"
+      },
+      "color": "#4d9e6a",
+      "bgcolor": "#1f2f26"
+    },
+    {
+      "id": 17,
+      "type": "CLIPTextEncode",
+      "pos": [
+        1060,
+        910
+      ],
+      "size": [
+        340,
+        130
+      ],
+      "flags": {},
+      "order": 16,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "clip",
+          "type": "CLIP",
+          "link": 14
+        },
+        {
+          "name": "text",
+          "type": "STRING",
+          "widget": {
+            "name": "text"
+          },
+          "link": 18
+        }
+      ],
+      "outputs": [
+        {
+          "name": "CONDITIONING",
+          "type": "CONDITIONING",
+          "links": [
+            22
+          ],
+          "slot_index": 0
+        }
+      ],
+      "title": "[17] 负向编码",
+      "properties": {
+        "Node name for S&R": "CLIPTextEncode"
+      },
+      "widgets_values": [
+        ""
+      ],
+      "widgets_values_named": {
+        "text": ""
+      },
+      "color": "#4d9e6a",
+      "bgcolor": "#1f2f26"
+    },
+    {
+      "id": 18,
+      "type": "KSampler",
+      "pos": [
+        1440,
+        560
+      ],
+      "size": [
+        340,
+        280
+      ],
+      "flags": {
+        "collapsed": false
+      },
+      "order": 17,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 12
+        },
+        {
+          "name": "positive",
+          "type": "CONDITIONING",
+          "link": 21
+        },
+        {
+          "name": "negative",
+          "type": "CONDITIONING",
+          "link": 22
+        },
+        {
+          "name": "latent_image",
+          "type": "LATENT",
+          "link": 19
+        },
+        {
+          "name": "seed",
+          "type": "INT",
+          "widget": {
+            "name": "seed"
+          },
+          "link": null
+        },
+        {
+          "name": "steps",
+          "type": "INT",
+          "widget": {
+            "name": "steps"
+          },
+          "link": null
+        },
+        {
+          "name": "cfg",
+          "type": "FLOAT",
+          "widget": {
+            "name": "cfg"
+          },
+          "link": null
+        },
+        {
+          "name": "sampler_name",
+          "type": "COMBO",
+          "widget": {
+            "name": "sampler_name"
+          },
+          "link": null
+        },
+        {
+          "name": "scheduler",
+          "type": "COMBO",
+          "widget": {
+            "name": "scheduler"
+          },
+          "link": null
+        },
+        {
+          "name": "denoise",
+          "type": "FLOAT",
+          "widget": {
+            "name": "denoise"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "name": "LATENT",
+          "type": "LATENT",
+          "links": [
+            23
+          ],
+          "slot_index": 0
+        }
+      ],
+      "title": "[18] 采样修复(4步/cfg1/denoise0.65)",
+      "properties": {
+        "Node name for S&R": "KSampler",
+        "cnr_id": "comfy-core",
+        "ver": "0.26.0"
+      },
+      "widgets_values": [
+        20260917,
+        "fixed",
+        4,
+        1.0,
+        "euler",
+        "simple",
+        0.65
+      ],
+      "widgets_values_named": {
+        "seed": 20260917,
+        "control_after_generate": "fixed",
+        "steps": 4,
+        "cfg": 1.0,
+        "sampler_name": "euler",
+        "scheduler": "simple",
+        "denoise": 0.65
+      },
+      "color": "#c27a3d",
+      "bgcolor": "#332a1e"
+    },
+    {
+      "id": 20,
+      "type": "VAEDecode",
+      "pos": [
+        1860,
+        560
+      ],
+      "size": [
+        240,
+        80
+      ],
+      "flags": {},
+      "order": 18,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "samples",
+          "type": "LATENT",
+          "link": 23
+        },
+        {
+          "name": "vae",
+          "type": "VAE",
+          "link": 24
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            25
+          ],
+          "slot_index": 0
+        }
+      ],
+      "title": "[20] 解码重绘图",
+      "properties": {
+        "Node name for S&R": "VAEDecode",
+        "cnr_id": "comfy-core",
+        "ver": "0.26.0"
+      },
+      "color": "#c27a3d",
+      "bgcolor": "#332a1e"
+    },
+    {
+      "id": 23,
+      "type": "ImageCompositeMasked",
+      "pos": [
+        1860,
+        690
+      ],
+      "size": [
+        360,
+        200
+      ],
+      "flags": {},
+      "order": 19,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "destination",
+          "type": "IMAGE",
+          "link": 27
+        },
+        {
+          "name": "source",
+          "type": "IMAGE",
+          "link": 25
+        },
+        {
+          "name": "x",
+          "type": "INT",
+          "widget": {
+            "name": "x"
+          },
+          "link": null
+        },
+        {
+          "name": "y",
+          "type": "INT",
+          "widget": {
+            "name": "y"
+          },
+          "link": null
+        },
+        {
+          "name": "resize_source",
+          "type": "BOOLEAN",
+          "widget": {
+            "name": "resize_source"
+          },
+          "link": null
+        },
+        {
+          "name": "mask",
+          "type": "MASK",
+          "shape": 7,
+          "link": 6
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            26
+          ],
+          "slot_index": 0
+        }
+      ],
+      "title": "[23] 合成(掩码外=原图像素,零误伤)",
+      "properties": {
+        "Node name for S&R": "ImageCompositeMasked",
+        "cnr_id": "comfy-core",
+        "ver": "0.26.0"
+      },
+      "widgets_values": [
+        0,
+        0,
+        false
+      ],
+      "widgets_values_named": {
+        "x": 0,
+        "y": 0,
+        "resize_source": false
+      },
+      "color": "#c27a3d",
+      "bgcolor": "#332a1e"
+    },
+    {
+      "id": 21,
+      "type": "SaveImage",
+      "pos": [
+        1860,
+        930
+      ],
+      "size": [
+        340,
+        300
+      ],
+      "flags": {
+        "collapsed": false
+      },
+      "order": 20,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 26
+        }
+      ],
+      "outputs": [],
+      "title": "[21] 保存修手图",
+      "properties": {
+        "Node name for S&R": "SaveImage",
+        "cnr_id": "comfy-core",
+        "ver": "0.26.0"
+      },
+      "widgets_values": [
+        "K2道劫修手_"
+      ],
+      "widgets_values_named": {
+        "filename_prefix": "K2道劫修手_"
+      },
+      "color": "#c27a3d",
+      "bgcolor": "#332a1e"
+    },
+    {
+      "id": 25,
+      "type": "MarkdownNote",
+      "pos": [
+        2300,
+        80
+      ],
+      "size": [
+        640,
+        460
+      ],
+      "flags": {},
+      "order": 21,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "properties": {},
+      "widgets_values": [
+        "# 道劫修手用法\n\n## 流程\n选入坏手图([1],可右键 Open in MaskEditor 手涂补充)→ FASHN 自动圈双手([2],与手涂取并集)→ 外扩 16px([4])→ 只重绘掩码区([8]锁区)→ 合成回填([23]:掩码外=原图像素,零误伤)→ Queue。\n\n## 参数\n- denoise([18]):默认 0.65;手势要变→0.75;只修细节→0.5;越大越\"重画\",越小越\"修补\"\n- 修手指令([13]):写清这只手在做什么(如「右手握剑柄,四指扣柄,拇指压食指」),越具体越不崩\n- 外扩([4]):手腕/袖口没盖住→加到 24;误伤衣纹→降到 8\n- 速度档 4步/cfg1(默认);顽固手→旁路[10]+12步/cfg5(负向[16]生效,约500秒)\n- 出来还崩→换种子([18] seed)重跑,只重绘掩码区,成本很低\n\n## 纪律\n底座[12]自动携带勿动;中文全角标点;无权重语法;别在指令里写「不要××」。"
+      ],
+      "widgets_values_named": {
+        "text": "# 道劫修手用法\n\n## 流程\n选入坏手图([1],可右键 Open in MaskEditor 手涂补充)→ FASHN 自动圈双手([2],与手涂取并集)→ 外扩 16px([4])→ 只重绘掩码区([8]锁区)→ 合成回填([23]:掩码外=原图像素,零误伤)→ Queue。\n\n## 参数\n- denoise([18]):默认 0.65;手势要变→0.75;只修细节→0.5;越大越\"重画\",越小越\"修补\"\n- 修手指令([13]):写清这只手在做什么(如「右手握剑柄,四指扣柄,拇指压食指」),越具体越不崩\n- 外扩([4]):手腕/袖口没盖住→加到 24;误伤衣纹→降到 8\n- 速度档 4步/cfg1(默认);顽固手→旁路[10]+12步/cfg5(负向[16]生效,约500秒)\n- 出来还崩→换种子([18] seed)重跑,只重绘掩码区,成本很低\n\n## 纪律\n底座[12]自动携带勿动;中文全角标点;无权重语法;别在指令里写「不要××」。"
+      },
+      "title": "[25] 用法说明",
+      "color": "#432",
+      "bgcolor": "#653"
+    }
+  ],
+  "links": [
+    [
+      1,
+      1,
+      0,
+      2,
+      0,
+      "IMAGE"
+    ],
+    [
+      2,
+      1,
+      1,
+      3,
+      1,
+      "MASK"
+    ],
+    [
+      3,
+      2,
+      0,
+      3,
+      0,
+      "MASK"
+    ],
+    [
+      4,
+      3,
+      0,
+      4,
+      0,
+      "MASK"
+    ],
+    [
+      5,
+      4,
+      0,
+      8,
+      1,
+      "MASK"
+    ],
+    [
+      6,
+      4,
+      0,
+      23,
+      5,
+      "MASK"
+    ],
+    [
+      7,
+      1,
+      0,
+      5,
+      0,
+      "IMAGE"
+    ],
+    [
+      8,
+      5,
+      0,
+      6,
+      0,
+      "IMAGE"
+    ],
+    [
+      9,
+      7,
+      0,
+      6,
+      1,
+      "VAE"
+    ],
+    [
+      10,
+      6,
+      0,
+      8,
+      0,
+      "LATENT"
+    ],
+    [
+      11,
+      9,
+      0,
+      10,
+      0,
+      "MODEL"
+    ],
+    [
+      12,
+      10,
+      0,
+      18,
+      0,
+      "MODEL"
+    ],
+    [
+      13,
+      11,
+      0,
+      15,
+      0,
+      "CLIP"
+    ],
+    [
+      14,
+      11,
+      0,
+      17,
+      0,
+      "CLIP"
+    ],
+    [
+      15,
+      12,
+      0,
+      14,
+      0,
+      "STRING"
+    ],
+    [
+      16,
+      13,
+      0,
+      14,
+      1,
+      "STRING"
+    ],
+    [
+      17,
+      14,
+      0,
+      15,
+      1,
+      "STRING"
+    ],
+    [
+      18,
+      16,
+      0,
+      17,
+      1,
+      "STRING"
+    ],
+    [
+      19,
+      8,
+      0,
+      18,
+      3,
+      "LATENT"
+    ],
+    [
+      21,
+      15,
+      0,
+      18,
+      1,
+      "CONDITIONING"
+    ],
+    [
+      22,
+      17,
+      0,
+      18,
+      2,
+      "CONDITIONING"
+    ],
+    [
+      23,
+      18,
+      0,
+      20,
+      0,
+      "LATENT"
+    ],
+    [
+      24,
+      7,
+      0,
+      20,
+      1,
+      "VAE"
+    ],
+    [
+      25,
+      20,
+      0,
+      23,
+      1,
+      "IMAGE"
+    ],
+    [
+      26,
+      23,
+      0,
+      21,
+      0,
+      "IMAGE"
+    ],
+    [
+      27,
+      5,
+      0,
+      23,
+      0,
+      "IMAGE"
+    ]
+  ],
+  "groups": [
+    {
+      "title": "① 载图定标",
+      "bounding": [
+        20,
+        40,
+        400,
+        660
+      ],
+      "color": "#4a89b8",
+      "bgcolor": "#22301f",
+      "font_size": 24
+    },
+    {
+      "title": "② 手部掩码(FASHN自动∪手涂→外扩)",
+      "bounding": [
+        620,
+        40,
+        440,
+        660
+      ],
+      "color": "#4d9e6a",
+      "bgcolor": "#22301f",
+      "font_size": 24
+    },
+    {
+      "title": "③ 采样修复(turbo+蒸馏,锁区重绘)",
+      "bounding": [
+        1420,
+        40,
+        400,
+        820
+      ],
+      "color": "#c27a3d",
+      "bgcolor": "#22301f",
+      "font_size": 24
+    },
+    {
+      "title": "④ 提示词(道劫底座+修手指令)",
+      "bounding": [
+        20,
+        700,
+        1420,
+        500
+      ],
+      "color": "#4d9e6a",
+      "bgcolor": "#22301f",
+      "font_size": 24
+    },
+    {
+      "title": "⑤ 合成保存(掩码外=原图)",
+      "bounding": [
+        1840,
+        500,
+        400,
+        750
+      ],
+      "color": "#c27a3d",
+      "bgcolor": "#22301f",
+      "font_size": 24
+    }
+  ],
+  "config": {},
+  "extra": {
+    "ue_links": [],
+    "ds": {
+      "scale": 0.6,
+      "offset": [
+        80,
+        40
+      ]
+    }
+  },
+  "version": 0.4
+}

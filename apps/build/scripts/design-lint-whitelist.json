@@ -215,6 +215,18 @@
       "rule": "R2",
       "severity": "warn",
       "reason": "便利贴节点(09-03 wave3 用户拍板吸收)本质=彩色物件,黄/粉无语义 token;调色盘限定在 STICKY_COLORS 常量单点"
+    },
+    {
+      "path": "components/ui/ab-compare.tsx",
+      "rule": "R5",
+      "severity": "warn",
+      "reason": "媒体/图像覆盖层白字(与主题无关,分诊§4 裁定;681a0be 引图/视频 A/B 对比器,标签叠深色纱底)"
+    },
+    {
+      "path": "components/ui/ab-video-compare.tsx",
+      "rule": "R5",
+      "severity": "warn",
+      "reason": "媒体/图像覆盖层白字(与主题无关,分诊§4 裁定;681a0be 引图/视频 A/B 对比器,标签叠深色纱底)"
     }
   ]
 }

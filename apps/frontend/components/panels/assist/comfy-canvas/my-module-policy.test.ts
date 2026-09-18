@@ -23,7 +23,7 @@ async function loadPolicy() {
     STORYBOARD_WORKFLOW_PREFIX: string;
     filterWorkflowsForScope: (items: unknown, scope: string | null | undefined) => unknown;
     filterUserDataWorkflowEntries: (entries: unknown) => unknown;
-    filterUserDataWorkflowEntriesDropMy: (entries: unknown) => unknown;
+    filterUserDataWorkflowEntriesFlattenMy: (entries: unknown) => unknown;
     isUserDataWorkflowListUrl: (url: string) => boolean;
   }>;
 }
@@ -93,19 +93,23 @@ describe("filterUserDataWorkflowEntries(userdata 工作流树条目过滤)", () 
   });
 });
 
-describe("filterUserDataWorkflowEntriesDropMy(原生浏览器树过滤:应用产线双根全剔)", () => {
-  it("新根「分镜/」与旧根「漫影/」条目全剔;用户自存/repo 形态不受影响", async () => {
-    const { filterUserDataWorkflowEntriesDropMy } = await loadPolicy();
+describe("filterUserDataWorkflowEntriesFlattenMy(09-15 用户终裁:只折叠「漫影/分镜」根名,子内容原样展平)", () => {
+  it("漫影/分镜根文件夹条目不展示;子条目剥根展平保留;用户自存与非数组直通", async () => {
+    const { filterUserDataWorkflowEntriesFlattenMy } = await loadPolicy();
     const entries = [
-      { path: "workflows/分镜/0_工作流主线/a.json", type: "file" },
+      { path: "workflows/漫影", type: "directory" },
       { path: "workflows/漫影/2_视频/H3视频/b.json", type: "file" },
+      { path: "workflows/分镜/0_工作流主线/a.json", type: "file" },
       "漫影/1_图片/分镜/c.json",
       { path: "workflows/用户自存/d.json", type: "file" },
     ];
-    expect(filterUserDataWorkflowEntriesDropMy(entries)).toEqual([
+    expect(filterUserDataWorkflowEntriesFlattenMy(entries)).toEqual([
+      { path: "workflows/2_视频/H3视频/b.json", type: "file" },
+      { path: "workflows/0_工作流主线/a.json", type: "file" },
+      "1_图片/分镜/c.json",
       { path: "workflows/用户自存/d.json", type: "file" },
     ]);
-    expect(filterUserDataWorkflowEntriesDropMy("not-array")).toBe("not-array");
+    expect(filterUserDataWorkflowEntriesFlattenMy("not-array")).toBe("not-array");
   });
 });
 
@@ -138,23 +142,18 @@ describe("isUserDataWorkflowListUrl(树「列表」端点判定;单文件/写操
   });
 });
 
-describe("接线(消费策略单源,scope 判断不散落;09-13 拆分后=sidebar+compat-guard 双模块)", () => {
-  it("导入策略模块;侧栏库与 userdata 树过滤均走单源;树过滤装 models 门+幂等守卫", () => {
-    expect(wiringSource).toContain('from "./my_module_policy.js"');
-    // 09-15 侧栏树裁定(兄弟会话):工作流页签=仓库树原样镜像,不再按 scope
-    // 过滤——filterWorkflowsForScope 消费退役;单源契约仍由 compat-guard 的
-    // DropMy/树端点判定承接(下两行)。
-    // 09-14 裁定升级:原生树全剔漫影(DropManying),旧分镜子集过滤仅策略层保留
-    expect(wiringSource).toContain("filterUserDataWorkflowEntriesDropMy(");
-    expect(wiringSource).toContain("isUserDataWorkflowListUrl(");
-    // 统一 scope 过滤器:幂等守卫在案;models 门命中才走树过滤
-    expect(wiringSource).toContain("installTemplateScopeFilter");
-    expect(wiringSource).toContain("__myTplScope");
-    // 09-14 升级:树过滤不再挂 models 门——原生浏览器全域剔漫影(workflow 域同剔)
-    expect(wiringSource).toContain('if (isUserDataWorkflowListUrl(url))');
-    // v2 树的 {items:[…]} 包裹形态也被处理(不是只有裸数组)
-    expect(wiringSource).toContain("Array.isArray(body.items)");
-    // 启动竞态补刀:models 域补丁就位后经官方服务重取树索引一次(首开即净)
-    expect(wiringSource).toContain("reindexWorkflowsOnce");
+describe("接线(09-15 原生功能恢复裁定后:过滤接线退役,策略模块单源休眠)", () => {
+  it("sidebar+compat-guard 均不消费策略模块;树/模板过滤全撤(原生功能恢复);保留件=VueNodes 渲染守卫", () => {
+    // 09-15 用户裁定(f3c937e ComfyUI 原生三恢复):模板面板清单与 userdata
+    // 工作流树不再做任何过滤/置空——fetch 补丁/模板置空/树过滤接线全撤,
+    // 策略模块转纯函数休眠单源;消费方仍禁止自带副本(下述符号不得回流)。
+    expect(wiringSource).not.toContain('from "./my_module_policy.js"');
+    expect(wiringSource).not.toContain("filterWorkflowsForScope(");
+    expect(wiringSource).not.toContain("filterUserDataWorkflowEntriesFlattenMy(");
+    expect(wiringSource).not.toContain("isUserDataWorkflowListUrl(");
+    expect(wiringSource).not.toContain("installTemplateScopeFilter");
+    expect(wiringSource).not.toContain("__myTplScope");
+    // 登录遮蔽 my_login_cloak 与 VueNodes 渲染守卫保留(与原生功能无关)
+    expect(wiringSource).toContain("my.render.compat");
   });
 });
