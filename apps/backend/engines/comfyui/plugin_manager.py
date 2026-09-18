@@ -3,6 +3,8 @@
 裁定 5:插件 = 目录 + 账本管理,依赖 = 预检 + 计数 + 可复位。
 安装五步:git clone(或 Registry zip)→ 解析 requirements → 冲突预检(大白话)
 → 引擎 venv pip install → 重启 + /object_info 前后差分(「新增 N 个节点」才算成功)。
+撞已有目录:账本在册=已装死锁提示(走卸载重装);账本外=收编登记(不删不重拉,
+09-19 根修——实弹 Rebalance-Pack 手动克隆在册前重装无从自救)。
 卸载:扫用户工作流库(class_type 精确匹配)→ 引用清单 → 删目录 → 依赖引用计数
 清理(无人引用且非核心层)→ 重启验证。
 
@@ -26,7 +28,15 @@ from pathlib import Path
 from urllib import error, request
 
 from engines.comfyui import manifest as cm
-from engines.comfyui.engine_manager import EngineOpError, _git, _pip, diff_node_sets, engine_manager, jobs
+from engines.comfyui.engine_manager import (
+    EngineOpError,
+    _git,
+    _pip,
+    diff_node_sets,
+    engine_manager,
+    jobs,
+    urlopen_outbound,
+)
 
 CURATED_PLUGINS_PATH = Path(__file__).resolve().parent / "curated_plugins.json"
 REGISTRY_BASE = "https://api.comfy.org"
@@ -245,7 +255,7 @@ def _registry_get(path: str, params: dict | None = None, timeout: float = REGIST
     for _ in range(REGISTRY_RETRIES):
         try:
             req = request.Request(url, headers={"User-Agent": "MYStudio-comfy-host/1.0"})
-            with request.urlopen(req, timeout=timeout) as response:
+            with urlopen_outbound(req, timeout=timeout) as response:
                 return json.loads(response.read().decode("utf-8"))
         except (OSError, error.URLError, json.JSONDecodeError) as exc:
             last_error = exc
@@ -270,12 +280,54 @@ def _registry_entry(node: dict) -> dict | None:
     }
 
 
+def _installed_in_ledger(ledger: dict, plugin_id: str | None, repo: str | None,
+                         dir_name: str | None = None,
+                         physical_dirs: set[str] | None = None) -> bool:
+    """市场行已装判定(09-19 根修):台账键=安装目录名,与清单 id/Registry id 未必同名。
+
+    实弹:策展 id=ComfyUI-ConditioningKrea2Rebalance 而装出的目录名=Rebalance-Pack
+    (dirName 派生自仓库尾段),单一 id 比对让已装插件在市场恒显「可安装」,点安装
+    又撞「插件目录已存在」死锁。比对五路:id 归一化小写(09-10 Registry 大小写
+    不一案)/ 显式 dir 字段 / 仓库尾段目录名(安装 dirName 的派生源)/ 台账记录
+    的仓库地址(收编自旧库、目录名完全走样时兜底)/ custom_nodes 实际目录深查
+    (09-19 二段根修:只查台账会漏掉 ComfyUI-Manager 网页端装的、手动克隆的、
+    账本丢失的插件——磁盘上有目录就是已装,深度查本地而非只查账)。
+    """
+    keys_lower = {key.lower() for key in ledger}
+    local_dirs = keys_lower | (physical_dirs or set())
+    if (dir_name and dir_name.lower() in local_dirs) or str(plugin_id or "").lower() in local_dirs:
+        return True
+    repo_key = _normalize_repo(repo or "")
+    if not repo_key:
+        return False
+    if _plugin_dir_name(repo or "").lower() in local_dirs:
+        return True
+    return any(_normalize_repo(str(entry.get("repo") or "")) == repo_key
+               for entry in ledger.values())
+
+
+def _physical_plugin_dirs() -> set[str]:
+    """custom_nodes 实际目录名集合(小写;深查本地安装态用)。
+
+    排除:隐藏目录/__pycache__/自研节点包 my-nodes(含旧名 manying-nodes,
+    由同步链管理不属于插件市场)——它们在磁盘上但不是「插件」。
+    """
+    nodes = cm.custom_nodes_dir()
+    if not nodes.is_dir():
+        return set()
+    return {
+        entry.name.lower()
+        for entry in nodes.iterdir()
+        if entry.is_dir()
+        and not entry.name.startswith(".")
+        and entry.name not in (MY_DIR, LEGACY_MY_DIR, "__pycache__")
+    }
+
+
 def catalog_search(query: str, limit: int = 40) -> dict:
     """策展 + Registry 合并;离线时仅返回策展(大白话注明)。"""
     ledger = cm.plugin_ledger()
-    # 已装比对归一化小写:Registry id(comfyui-manager)与台账键(目录名
-    # ComfyUI-Manager)大小写不一,精确比对会让已装插件恒判「可安装」(09-10 实弹)
-    ledger_keys_lower = {key.lower() for key in ledger}
+    physical_dirs = _physical_plugin_dirs()
     q = (query or "").strip().lower()
     curated = []
     for entry in load_curated():
@@ -283,8 +335,9 @@ def catalog_search(query: str, limit: int = 40) -> dict:
         if q and q not in haystack:
             continue
         curated.append({**entry, "source": "curated", "verified": True,
-                        "installed": str(entry.get("id") or "").lower() in ledger_keys_lower
-                        or entry.get("dir") in ledger})
+                        "installed": _installed_in_ledger(
+                            ledger, entry.get("id"), entry.get("repo"), entry.get("dir"),
+                            physical_dirs=physical_dirs)})
     registry: list[dict] = []
     registry_error: str | None = None
     try:
@@ -292,7 +345,8 @@ def catalog_search(query: str, limit: int = 40) -> dict:
         for node in payload.get("nodes", [])[:limit]:
             entry = _registry_entry(node)
             if entry:
-                entry["installed"] = str(entry.get("id") or "").lower() in ledger_keys_lower
+                entry["installed"] = _installed_in_ledger(
+                    ledger, entry.get("id"), entry.get("repo"), physical_dirs=physical_dirs)
                 registry.append(entry)
     except EngineOpError as exc:
         registry_error = str(exc)
@@ -331,6 +385,10 @@ def install_plugin_job(source: str, ref: str, dry_run: bool = False) -> dict:
     plan = _resolve_plan(source, ref)
     if dry_run:
         return {"plan": plan, "conflicts": _preflight(plan)}
+    # 深查本地·安装前 fail-fast(09-19):台账在册直接拒——不启 doomed job 白转
+    # 一圈才在第一步报「目录已存在」;账本外磁盘目录由 _install_job 收编(不删不重拉)。
+    if plan["dirName"] in cm.plugin_ledger():
+        raise EngineOpError(f"插件已装过({plan['dirName']});如需重装请先在已装列表卸载")
     if jobs.active_of("plugin-install"):
         raise EngineOpError("已有插件正在安装,请等待完成")
     job_id = jobs.create("plugin-install", f"安装插件 {plan['dirName']}")
@@ -402,15 +460,23 @@ def _install_job(job_id: str, plan: dict) -> None:
     target = cm.custom_nodes_dir() / plan["dirName"]
     engine = engine_manager()
     jobs.update(job_id, progress=3, step="preflight", message="安装前检查…")
+    adopted = False
     if target.exists():
-        raise EngineOpError(f"插件目录已存在({plan['dirName']});如需重装请先卸载")
+        if plan["dirName"] in cm.plugin_ledger():
+            raise EngineOpError(f"插件已装过({plan['dirName']});如需重装请先在已装列表卸载")
+        # 账本外已有同名目录(手动克隆/上次安装断在 clone 之后):收编登记而非
+        # 报错死锁——卸载只认账本,用户无从自救;目录不删不重拉,直接走后续链
+        adopted = True
 
     jobs.update(job_id, progress=6, step="snapshot", message="安装前快照账本(失败可回滚)…")
     snapshot_id = engine.create_snapshot(reason=f"plugin-install:{plan['dirName']}", full=False)
     freeze_before = parse_freeze("\n".join(engine.venv_freeze()))
 
-    jobs.update(job_id, progress=10, step="acquire", message="获取插件文件…")
-    _acquire(plan, target)
+    if adopted:
+        jobs.update(job_id, progress=10, step="acquire", message="收编本机已有目录…")
+    else:
+        jobs.update(job_id, progress=10, step="acquire", message="获取插件文件…")
+        _acquire(plan, target)
 
     jobs.update(job_id, progress=32, step="requirements", message="解析依赖清单…")
     reqs, req_warnings = _plugin_requirements(plan)
@@ -449,13 +515,16 @@ def _install_job(job_id: str, plan: dict) -> None:
             "source": plan["source"], "version": plan.get("version") or (commit or "")[:8] or None,
             "installedAt": cm.timestamp_ms(), "snapshot": snapshot_id,
             "deps": installed_deps, "nodes": diff["added"],
-            "warnings": req_warnings,
+            "warnings": req_warnings, "adopted": adopted,
         }
 
     cm.mutate_manifest(_record)
     jobs.update(job_id, result={
         "plugin": plan["dirName"], "addedNodes": diff["addedCount"], "nodeTypes": diff["added"][:200],
-        "message": f"安装成功:{plan['name'] or plan['dirName']} 新增 {diff['addedCount']} 个节点",
+        "adopted": adopted,
+        "message": (f"已收编本机已有目录并登记:{plan['name'] or plan['dirName']}"
+                    if adopted else f"安装成功:{plan['name'] or plan['dirName']}")
+                   + f" 新增 {diff['addedCount']} 个节点",
     })
 
 
@@ -465,7 +534,7 @@ def _acquire(plan: dict, target: Path) -> None:
         with tempfile.TemporaryDirectory(prefix="comfy-plugin-") as tmp:
             zip_path = Path(tmp) / "node.zip"
             req = request.Request(plan["zipUrl"], headers={"User-Agent": "MYStudio-comfy-host/1.0"})
-            with request.urlopen(req, timeout=300.0) as response, open(zip_path, "wb") as fh:
+            with urlopen_outbound(req, timeout=300.0) as response, open(zip_path, "wb") as fh:
                 shutil.copyfileobj(response, fh)
             _extract_plugin_zip(zip_path, target)
         return
@@ -713,6 +782,14 @@ def _update_plugin_job(job_id: str, plugin_id: str) -> None:
 
 
 # -- 体检:缺失/漂移/孤儿 ------------------------------------------------
+def _is_managed_nodes_dir(name: str) -> bool:
+    """自研节点包与非插件目录:my-nodes(含旧名 manying-nodes)由同步链管理、
+    __pycache__ 是字节码缓存——它们不是插件,不进孤儿判定也不可被「清理多余」
+    删除(09-19 根修:clean_orphan 误删 my-nodes 会当场打掉自研节点,直到下次
+    装/更链才补回;doctor 也恒报 __pycache__ 噪音)。"""
+    return name in (MY_DIR, LEGACY_MY_DIR, "__pycache__")
+
+
 def doctor() -> dict:
     import subprocess
 
@@ -737,7 +814,8 @@ def doctor() -> dict:
     ledger_dirs = set(ledger.keys())
     orphan = [
         {"plugin": p.name, "message": "目录在 custom_nodes 里但账本没有记录(手动放入?),引擎会照常加载"}
-        for p in sorted(cm.custom_nodes_dir().glob("*")) if p.is_dir() and p.name not in ledger_dirs and not p.name.startswith(".")
+        for p in sorted(cm.custom_nodes_dir().glob("*"))
+        if p.is_dir() and p.name not in ledger_dirs and not p.name.startswith(".") and not _is_managed_nodes_dir(p.name)
     ]
     return {"missing": missing, "drifted": drifted, "orphan": orphan,
             "healthy": not missing and not drifted and not orphan}
@@ -746,7 +824,8 @@ def doctor() -> dict:
 def clean_orphan_plugins() -> dict:
     """清理「孤儿」:账本外的 custom_nodes 目录(体检报告的可执行动作,09-08 补口)。
 
-    只删账本没有登记的目录(手动放入的/半装残留);已登记插件一律不动。
+    只删账本没有登记的目录(手动放入的/半装残留);已登记插件一律不动;
+    自研节点包 my-nodes 与 __pycache__ 恒不删(同步链管理的非插件目录,09-19)。
     引擎若在跑,目录删除后需重启才彻底卸载——返回值里带提示。
     """
     import shutil
@@ -755,7 +834,7 @@ def clean_orphan_plugins() -> dict:
     ledger = cm.plugin_ledger(manifest)
     removed, kept = [], []
     for entry in sorted(cm.custom_nodes_dir().glob("*")):
-        if not entry.is_dir() or entry.name.startswith("."):
+        if not entry.is_dir() or entry.name.startswith(".") or _is_managed_nodes_dir(entry.name):
             continue
         if entry.name in ledger:
             kept.append(entry.name)
@@ -926,7 +1005,7 @@ def _github_json(owner_name: str, tail: str, timeout: float) -> dict | None:
         f"https://api.github.com/repos/{owner_name}" + (f"/{tail}" if tail else ""),
         headers={"User-Agent": "MYStudio-comfy-host/1.0", "Accept": "application/vnd.github+json"},
     )
-    with request.urlopen(req, timeout=timeout) as response:
+    with urlopen_outbound(req, timeout=timeout) as response:
         data = json.loads(response.read().decode("utf-8"))
     return data if isinstance(data, dict) else None
 
@@ -955,7 +1034,7 @@ def _github_repo_meta(owner_name: str, timeout: float) -> dict:
                 f"https://api.github.com/repos/{owner_name}/commits",
                 headers={"User-Agent": "MYStudio-comfy-host/1.0", "Accept": "application/vnd.github+json"},
             )
-            with request.urlopen(req, timeout=timeout) as response:
+            with urlopen_outbound(req, timeout=timeout) as response:
                 commits = json.loads(response.read().decode("utf-8"))
             if isinstance(commits, list) and commits and isinstance(commits[0], dict):
                 sha = commits[0].get("sha")

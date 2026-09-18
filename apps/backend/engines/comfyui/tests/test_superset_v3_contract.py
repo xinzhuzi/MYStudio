@@ -1,7 +1,7 @@
 """超集工作流 v3 定档·真文件契约测试(结构门固化,防回退)。
 
 被测对象 = 仓库真源文件本身(UI 格式):
-    engines/comfyui/workflows/1_图片/K2图像/1_文生图/MY-K2_文生图_超集.json
+    engines/comfyui/workflows/1_图片/K2图像/1_文生图/K2-文生图-超集.json
 
 把收敛脚本 apps/build/scripts/manying_superset_negative_prompt.py 的 v3 结构门
 固化为 pytest 门禁:拓扑计数 / 七跳模型链 / 链接双向一致 / 67 细节滑杆定档 /
@@ -18,7 +18,7 @@ import pathlib
 _TESTS_DIR = pathlib.Path(__file__).resolve().parent
 SUPERSET_JSON = (
     _TESTS_DIR.parent / "workflows" / "1_图片" / "K2图像" / "1_文生图"
-    / "MY-K2_文生图_超集.json"
+    / "K2-文生图-超集.json"
 )
 
 _RAW_TEXT = SUPERSET_JSON.read_text(encoding="utf-8")

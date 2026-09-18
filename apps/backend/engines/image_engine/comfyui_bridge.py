@@ -204,12 +204,12 @@ def _fetch_bytes(url: str, timeout: float = 30) -> bytes:
 
 
 def _template_path(name: str) -> Path:
-    # 09-14 用户裁定(二次修订):漫影工作流文件名一律 `MY-` 前缀(模板名=API 面 id 不变);
-    # 三次修订:MY- 即 manying 不叠段(manying_t2i → MY-t2i.json);归位静态库后按名
+    # 09-18 用户裁定:MY- 前缀废弃,文件名=API 面 id 去前缀+下划线转连字符
+    # (manying_t2i → t2i.json;krea2_t2i → krea2-t2i.json);归位静态库后按名
     # 全库检索(_WORKFLOWS_DIR 下唯一),无命中返回不存在路径→load_template 报缺失
     file_id = name[len("manying_"):] if name.startswith("manying_") else name
-    hits = sorted(_WORKFLOWS_DIR.rglob(f"MY-{file_id}.json"))
-    return hits[0] if hits else _WORKFLOWS_DIR / f"MY-{file_id}.json"
+    hits = sorted(_WORKFLOWS_DIR.rglob(f"{file_id.replace('_', '-')}.json"))
+    return hits[0] if hits else _WORKFLOWS_DIR / f"{file_id.replace('_', '-')}.json"
 
 
 def load_template(name: str) -> dict[str, Any]:

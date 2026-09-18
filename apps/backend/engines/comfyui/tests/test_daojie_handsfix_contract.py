@@ -4,7 +4,7 @@
 # Commercial licensing available. See COMMERCIAL_LICENSE.md.
 """道劫修手工作流契约测试(Trellis 09-17-daojie-k2-hands-pose R3)。
 
-MY-K2_道劫修手.json = 坏手图→FASHN自动手部掩码∪手涂→外扩→锁区重绘
+K2-道劫修手.json = 坏手图→FASHN自动手部掩码∪手涂→外扩→锁区重绘
 (道劫底座+修手指令)→合成回填(掩码外=原图像素)。本测试钉死:
 结构骨架/底座与负向逐字/锁区与合成链路/关键默认参数/脏词禁用。
 """
@@ -16,7 +16,7 @@ import unittest
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[5]
-WF = REPO / "apps/backend/engines/comfyui/workflows/1_图片/K2图像/3_改图/MY-K2_道劫修手.json"
+WF = REPO / "apps/backend/engines/comfyui/workflows/1_图片/K2图像/3_改图/K2-道劫修手.json"
 PKG = REPO / "docs/prompts/道劫_新提示词包_0917.md"
 
 DIRTY_WORDS = ("宣纸", "工笔线描", "工笔白描", "写意泼墨", "xuan")

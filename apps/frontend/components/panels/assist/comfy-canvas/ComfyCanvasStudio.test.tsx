@@ -20,7 +20,7 @@ const importFilesMock = vi.hoisted(() => vi.fn(async (files: Array<{ name: strin
   files.map((file) => ({ name: file.name, status: "imported" }))));
 // 09-14 通用化:主线/H3 打开走仓库模板只读拉取(content),不再写库
 const templateContentMock = vi.hoisted(() => vi.fn(async (id: string) => {
-  if (String(id).includes("MY-分镜工作流")) {
+  if (String(id).includes("分镜工作流")) {
     return JSON.stringify({ last_node_id: 7, last_link_id: 6, nodes: [
       { id: 1, type: "MyStage", pos: [0, 60], properties: { "Node name for S&R": "MyStage" }, widgets_values: ["script", "剧本", "", ""], inputs: [], outputs: [{ name: "flow", type: "MY_FLOW", links: [], slot_index: 0 }] },
       { id: 2, type: "MyStage", pos: [840, 60], properties: { "Node name for S&R": "MyStage" }, widgets_values: ["scriptPlan", "导演规划", "", ""], inputs: [], outputs: [{ name: "flow", type: "MY_FLOW", links: [], slot_index: 0 }] },
@@ -397,7 +397,7 @@ describe("ComfyCanvasStudio(辅助面板第六 tab)", () => {
     // 载荷=链工作流:七环节 MyStage+MY_FLOW 连线+分镜网格+摘要
     expect(payload).toContain('"type":"MyStage"');
     expect(payload).toContain("MyStage"); // 09-14 通用化:模板=7 环节锚点,零 MyShot 实体
-    expect(payload).toContain("MY-分镜工作流.json"); // 画布签=通用主线名
+    expect(payload).toContain("分镜工作流.json"); // 画布签=通用主线名
     expect((payload.match(/MyStage/g) || []).length).toBeGreaterThanOrEqual(7);
     expect(payload).toContain("MY_FLOW");
     expect(payload).toContain("已导入 1 章原文");

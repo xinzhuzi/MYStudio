@@ -1,0 +1,1671 @@
+{
+  "id": "krea2-identity-edit-unified",
+  "revision": 0,
+  "last_node_id": 184,
+  "last_link_id": 183,
+  "nodes": [
+    {
+      "id": 105,
+      "type": "Note",
+      "pos": [
+        2800,
+        490
+      ],
+      "size": [
+        320,
+        280
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "title": "Sampling",
+      "properties": {
+        "Node name for S&R": "Note",
+        "ue_properties": {
+          "widget_ue_connectable": {},
+          "version": "7.5.1",
+          "input_ue_unconnectable": {}
+        }
+      },
+      "widgets_values": [
+        "Turbo model: 10 steps, cfg 1.\n\nStep dial:\n  8  = stronger composition/instruction adherence\n  12 = more face detail\n  10 = balanced\n\nUsing krea2_raw instead of turbo:\n40 steps, cfg 3-4 (negative then matters)."
+      ],
+      "color": "#432",
+      "bgcolor": "#653"
+    },
+    {
+      "id": 57,
+      "type": "VAELoader",
+      "pos": [
+        60,
+        220
+      ],
+      "size": [
+        480,
+        90
+      ],
+      "flags": {},
+      "order": 1,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "VAE",
+          "type": "VAE",
+          "links": [
+            6,
+            7,
+            83
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.26.0",
+        "Node name for S&R": "VAELoader",
+        "models": [
+          {
+            "name": "qwen_image_vae.safetensors",
+            "url": "https://huggingface.co/Comfy-Org/Krea-2/resolve/main/vae/qwen_image_vae.safetensors",
+            "directory": "vae"
+          }
+        ],
+        "ue_properties": {
+          "widget_ue_connectable": {},
+          "version": "7.5.1",
+          "input_ue_unconnectable": {}
+        }
+      },
+      "widgets_values": [
+        "qwen_image_vae.safetensors"
+      ]
+    },
+    {
+      "id": 107,
+      "type": "Note",
+      "pos": [
+        1282.2101999999995,
+        -206.0309099999999
+      ],
+      "size": [
+        270,
+        110
+      ],
+      "flags": {},
+      "order": 2,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "title": "Resolution",
+      "properties": {
+        "Node name for S&R": "Note",
+        "ue_properties": {
+          "widget_ue_connectable": {},
+          "version": "7.5.1",
+          "input_ue_unconnectable": {}
+        }
+      },
+      "widgets_values": [
+        "Output resolution. 1MP is the\nsweet spot; go higher only for\nsingle-person edits."
+      ],
+      "color": "#432",
+      "bgcolor": "#653"
+    },
+    {
+      "id": 131,
+      "type": "Reroute",
+      "pos": [
+        658.7139613927915,
+        345.33146244228845
+      ],
+      "size": [
+        75,
+        26
+      ],
+      "flags": {},
+      "order": 13,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "",
+          "type": "*",
+          "link": 181
+        }
+      ],
+      "outputs": [
+        {
+          "name": "",
+          "type": "MODEL",
+          "links": [
+            116
+          ]
+        }
+      ],
+      "properties": {
+        "showOutputText": false,
+        "horizontal": false,
+        "ue_properties": {
+          "widget_ue_connectable": {},
+          "version": "7.5.1",
+          "input_ue_unconnectable": {}
+        }
+      }
+    },
+    {
+      "id": 104,
+      "type": "Note",
+      "pos": [
+        2326.5302153490475,
+        223.84986514153076
+      ],
+      "size": [
+        420,
+        420
+      ],
+      "flags": {},
+      "order": 3,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "title": "Fidelity dial",
+      "properties": {
+        "Node name for S&R": "Note",
+        "ue_properties": {
+          "widget_ue_connectable": {},
+          "version": "7.5.1",
+          "input_ue_unconnectable": {}
+        }
+      },
+      "widgets_values": [
+        "THE FIDELITY DIAL (ref_boost) - how hard the model looks at your\nreference. New in this release.\n\n  1.0 = classic v1.1 behavior\n  4.0 = recommended (pre-set): much stronger face + body likeness,\n        more reliable edits\n  >10 = over-copy: removals/replacements start failing\n  <1  = suppress the reference (creative freedom)\n\nref_boost_a: the scene dial (image 1) in two-image mode -\nleave at 1.0 unless you are exploring. ref_boost applies to the\nperson (image 2) when group 2 is enabled, else to your image.\n\nfit_mode: how inputs fit a different output aspect\nratio. fit = resample to the output shape (default, recommended); crop (legacy) = center-crop\nonly for v1/v1.1 weights."
+      ],
+      "color": "#432",
+      "bgcolor": "#653"
+    },
+    {
+      "id": 102,
+      "type": "Note",
+      "pos": [
+        665.0281707292258,
+        640.1629442994395
+      ],
+      "size": [
+        520,
+        210
+      ],
+      "flags": {},
+      "order": 4,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "title": "Enable for two-image edits",
+      "properties": {
+        "Node name for S&R": "Note",
+        "ue_properties": {
+          "widget_ue_connectable": {},
+          "version": "7.5.1",
+          "input_ue_unconnectable": {}
+        }
+      },
+      "widgets_values": [
+        "OPTIONAL second reference - the PERSON for insert-into-scene edits\n('place this person at the table').\n\nThis group ships DISABLED (purple = bypassed) - the workflow is a\nplain single-image editor until you need it.\nEnable: right-click this group's title bar -> toggle Bypass off.\nOrder rule: scene = image 1 (group 1), person = image 2 (here)."
+      ],
+      "color": "#432",
+      "bgcolor": "#653"
+    },
+    {
+      "id": 137,
+      "type": "AddLabel",
+      "pos": [
+        3140.8883926558424,
+        889.3162850218695
+      ],
+      "size": [
+        270,
+        270
+      ],
+      "flags": {
+        "collapsed": true
+      },
+      "order": 16,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "link": 124
+        },
+        {
+          "name": "caption",
+          "shape": 7,
+          "type": "STRING",
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            125
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfyui-kjnodes",
+        "ver": "d0d61754bf7fa57f2abb4714cdf79058f5862a55",
+        "Node name for S&R": "AddLabel",
+        "ue_properties": {
+          "widget_ue_connectable": {},
+          "input_ue_unconnectable": {},
+          "version": "7.5.1"
+        }
+      },
+      "widgets_values": [
+        10,
+        2,
+        48,
+        32,
+        "white",
+        "black",
+        "FreeMono.ttf",
+        "Input",
+        "up"
+      ]
+    },
+    {
+      "id": 138,
+      "type": "AddLabel",
+      "pos": [
+        3141.1211220407545,
+        965.0756909440062
+      ],
+      "size": [
+        270,
+        270
+      ],
+      "flags": {
+        "collapsed": true
+      },
+      "order": 24,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "link": 126
+        },
+        {
+          "name": "caption",
+          "shape": 7,
+          "type": "STRING",
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            127
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfyui-kjnodes",
+        "ver": "d0d61754bf7fa57f2abb4714cdf79058f5862a55",
+        "Node name for S&R": "AddLabel",
+        "ue_properties": {
+          "widget_ue_connectable": {},
+          "input_ue_unconnectable": {},
+          "version": "7.5.1"
+        }
+      },
+      "widgets_values": [
+        10,
+        2,
+        48,
+        32,
+        "white",
+        "black",
+        "FreeMono.ttf",
+        "Output",
+        "up"
+      ]
+    },
+    {
+      "id": 100,
+      "type": "Note",
+      "pos": [
+        97.48696905797563,
+        783.2522522541518
+      ],
+      "size": [
+        480,
+        150
+      ],
+      "flags": {},
+      "order": 5,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "title": "Model files",
+      "properties": {
+        "Node name for S&R": "Note",
+        "ue_properties": {
+          "widget_ue_connectable": {},
+          "version": "7.5.1",
+          "input_ue_unconnectable": {}
+        }
+      },
+      "widgets_values": [
+        "Files (auto-downloadable via the manager links):\n- krea2_turbo_fp8_scaled (or krea2_raw_bf16 - see GENERATE note)\n- qwen3vl_4b_fp8_scaled text encoder, type 'krea2'\n- qwen_image_vae\n- krea2_4panel.safetensors LoRA (this model)"
+      ],
+      "color": "#432",
+      "bgcolor": "#653"
+    },
+    {
+      "id": 125,
+      "type": "ImageConcatMulti",
+      "pos": [
+        3537.413604296773,
+        908.4990779933069
+      ],
+      "size": [
+        270,
+        170
+      ],
+      "flags": {},
+      "order": 25,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "image_1",
+          "type": "IMAGE,MASK",
+          "link": 125
+        },
+        {
+          "name": "image_2",
+          "shape": 7,
+          "type": "IMAGE,MASK",
+          "link": 127
+        }
+      ],
+      "outputs": [
+        {
+          "name": "output",
+          "type": "IMAGE",
+          "links": [
+            111
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfyui-kjnodes",
+        "ver": "d0d61754bf7fa57f2abb4714cdf79058f5862a55",
+        "Node name for S&R": "ImageConcatMulti",
+        "ue_properties": {
+          "widget_ue_connectable": {},
+          "input_ue_unconnectable": {},
+          "version": "7.5.1"
+        }
+      },
+      "widgets_values": [
+        2,
+        "right",
+        false,
+        null
+      ]
+    },
+    {
+      "id": 56,
+      "type": "CLIPLoader",
+      "pos": [
+        54.594777162761375,
+        18.91929318365599
+      ],
+      "size": [
+        480,
+        140
+      ],
+      "flags": {},
+      "order": 6,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "CLIP",
+          "type": "CLIP",
+          "links": [
+            5,
+            78,
+            144
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.26.0",
+        "Node name for S&R": "CLIPLoader",
+        "models": [
+          {
+            "name": "qwen3vl_4b_fp8_scaled.safetensors",
+            "url": "https://huggingface.co/Comfy-Org/Krea-2/resolve/main/text_encoders/qwen3vl_4b_fp8_scaled.safetensors",
+            "directory": "text_encoders"
+          }
+        ],
+        "ue_properties": {
+          "widget_ue_connectable": {},
+          "version": "7.5.1",
+          "input_ue_unconnectable": {}
+        }
+      },
+      "widgets_values": [
+        "qwen3vl_4b_fp8_scaled.safetensors",
+        "krea2",
+        "default"
+      ]
+    },
+    {
+      "id": 55,
+      "type": "UNETLoader",
+      "pos": [
+        60.503432717328224,
+        -161.9298254164336
+      ],
+      "size": [
+        480,
+        130
+      ],
+      "flags": {},
+      "order": 7,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "MODEL",
+          "type": "MODEL",
+          "links": [
+            180
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.26.0",
+        "Node name for S&R": "UNETLoader",
+        "models": [
+          {
+            "name": "krea2_turbo_fp8_scaled.safetensors",
+            "url": "https://huggingface.co/Comfy-Org/Krea-2/resolve/main/diffusion_models/krea2_turbo_fp8_scaled.safetensors",
+            "directory": "diffusion_models"
+          }
+        ],
+        "ue_properties": {
+          "widget_ue_connectable": {},
+          "version": "7.5.1",
+          "input_ue_unconnectable": {}
+        }
+      },
+      "widgets_values": [
+        "Downloads/krea2_turbo_int8_convrot.safetensors",
+        "default"
+      ]
+    },
+    {
+      "id": 53,
+      "type": "KSampler",
+      "pos": [
+        2806.7279048807945,
+        -162.5532725985141
+      ],
+      "size": [
+        320,
+        476
+      ],
+      "flags": {},
+      "order": 21,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 171
+        },
+        {
+          "name": "positive",
+          "type": "CONDITIONING",
+          "link": 80
+        },
+        {
+          "name": "negative",
+          "type": "CONDITIONING",
+          "link": 169
+        },
+        {
+          "name": "latent_image",
+          "type": "LATENT",
+          "link": 142
+        }
+      ],
+      "outputs": [
+        {
+          "name": "LATENT",
+          "type": "LATENT",
+          "links": [
+            25
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.26.0",
+        "Node name for S&R": "KSampler",
+        "ue_properties": {
+          "widget_ue_connectable": {},
+          "version": "7.5.1",
+          "input_ue_unconnectable": {}
+        }
+      },
+      "widgets_values": [
+        43,
+        "fixed",
+        10,
+        1,
+        "lcm",
+        "simple",
+        1
+      ]
+    },
+    {
+      "id": 54,
+      "type": "VAEDecode",
+      "pos": [
+        2981.166684934567,
+        392.77344958297
+      ],
+      "size": [
+        223.05128289999993,
+        46
+      ],
+      "flags": {
+        "collapsed": false
+      },
+      "order": 22,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "samples",
+          "type": "LATENT",
+          "link": 25
+        },
+        {
+          "name": "vae",
+          "type": "VAE",
+          "link": 6
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            26,
+            126
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.26.0",
+        "Node name for S&R": "VAEDecode",
+        "ue_properties": {
+          "widget_ue_connectable": {},
+          "version": "7.5.1",
+          "input_ue_unconnectable": {}
+        }
+      },
+      "widgets_values": []
+    },
+    {
+      "id": 85,
+      "type": "Krea2EditGroundedEncode",
+      "pos": [
+        1920.7475685796044,
+        224.09757733784926
+      ],
+      "size": [
+        225,
+        206
+      ],
+      "flags": {
+        "collapsed": true
+      },
+      "order": 15,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "clip",
+          "type": "CLIP",
+          "link": 5
+        },
+        {
+          "name": "image",
+          "shape": 7,
+          "type": "IMAGE",
+          "link": 107
+        },
+        {
+          "name": "image_b",
+          "shape": 7,
+          "type": "IMAGE",
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "name": "CONDITIONING",
+          "type": "CONDITIONING",
+          "links": [
+            169
+          ]
+        }
+      ],
+      "title": "negative (leave empty)",
+      "properties": {
+        "cnr_id": "comfyui-krea2edit",
+        "ver": "1.2.2",
+        "Node name for S&R": "Krea2EditGroundedEncode",
+        "ue_properties": {
+          "widget_ue_connectable": {},
+          "version": "7.5.1",
+          "input_ue_unconnectable": {}
+        }
+      },
+      "widgets_values": [
+        "imperfect text, bad text, blur",
+        0,
+        ""
+      ]
+    },
+    {
+      "id": 164,
+      "type": "LoraLoaderModelOnly",
+      "pos": [
+        70.60882295498796,
+        386.8973922614976
+      ],
+      "size": [
+        480,
+        120
+      ],
+      "flags": {},
+      "order": 11,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 180
+        }
+      ],
+      "outputs": [
+        {
+          "name": "MODEL",
+          "type": "MODEL",
+          "links": [
+            181
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.26.0",
+        "Node name for S&R": "LoraLoaderModelOnly",
+        "ue_properties": {
+          "widget_ue_connectable": {},
+          "version": "7.5.1",
+          "input_ue_unconnectable": {}
+        }
+      },
+      "widgets_values": [
+        "krea/krea2_charactersheet_full_v1.safetensors",
+        1
+      ]
+    },
+    {
+      "id": 73,
+      "type": "VAEEncode",
+      "pos": [
+        1686.7730053463872,
+        328.40642905413495
+      ],
+      "size": [
+        225,
+        46
+      ],
+      "flags": {
+        "collapsed": false
+      },
+      "order": 14,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "pixels",
+          "type": "IMAGE",
+          "link": 102
+        },
+        {
+          "name": "vae",
+          "type": "VAE",
+          "link": 7
+        }
+      ],
+      "outputs": [
+        {
+          "name": "LATENT",
+          "type": "LATENT",
+          "links": [
+            82
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.26.0",
+        "Node name for S&R": "VAEEncode",
+        "ue_properties": {
+          "widget_ue_connectable": {},
+          "version": "7.5.1",
+          "input_ue_unconnectable": {}
+        }
+      },
+      "widgets_values": []
+    },
+    {
+      "id": 156,
+      "type": "EmptySD3LatentImage",
+      "pos": [
+        1969.4036783423194,
+        296.14964847838115
+      ],
+      "size": [
+        270,
+        150
+      ],
+      "flags": {
+        "collapsed": false
+      },
+      "order": 8,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "LATENT",
+          "type": "LATENT",
+          "links": [
+            142
+          ]
+        }
+      ],
+      "title": "Latent",
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.26.0",
+        "Node name for S&R": "EmptySD3LatentImage",
+        "ue_properties": {
+          "widget_ue_connectable": {
+            "width": true,
+            "height": true
+          },
+          "version": "7.5.1",
+          "input_ue_unconnectable": {}
+        }
+      },
+      "widgets_values": [
+        1536,
+        1024,
+        1
+      ]
+    },
+    {
+      "id": 120,
+      "type": "Krea2EditModelPatch",
+      "pos": [
+        2386.046065576026,
+        -150.22404029323312
+      ],
+      "size": [
+        270,
+        226
+      ],
+      "flags": {},
+      "order": 18,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 116
+        },
+        {
+          "name": "source_latent",
+          "type": "LATENT",
+          "link": 82
+        },
+        {
+          "name": "source_latent_b",
+          "shape": 7,
+          "type": "LATENT",
+          "link": null
+        },
+        {
+          "name": "ref_boost_mask",
+          "shape": 7,
+          "type": "MASK",
+          "link": null
+        },
+        {
+          "name": "vae",
+          "shape": 7,
+          "type": "VAE",
+          "link": 83
+        },
+        {
+          "name": "source_image",
+          "shape": 7,
+          "type": "IMAGE",
+          "link": 103
+        },
+        {
+          "name": "source_image_b",
+          "shape": 7,
+          "type": "IMAGE",
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "name": "MODEL",
+          "type": "MODEL",
+          "links": [
+            171
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfyui-krea2edit",
+        "ver": "1.2.2",
+        "Node name for S&R": "Krea2EditModelPatch",
+        "ue_properties": {
+          "widget_ue_connectable": {},
+          "input_ue_unconnectable": {},
+          "version": "7.5.1"
+        }
+      },
+      "widgets_values": [
+        1,
+        1,
+        "fit"
+      ]
+    },
+    {
+      "id": 119,
+      "type": "Krea2EditGroundedEncode",
+      "pos": [
+        1983.8545899370126,
+        -159.52568137032054
+      ],
+      "size": [
+        239.1470703125,
+        296.24602872677724
+      ],
+      "flags": {
+        "collapsed": false
+      },
+      "order": 20,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "clip",
+          "type": "CLIP",
+          "link": 78
+        },
+        {
+          "name": "image",
+          "shape": 7,
+          "type": "IMAGE",
+          "link": 98
+        },
+        {
+          "name": "image_b",
+          "shape": 7,
+          "type": "IMAGE",
+          "link": null
+        },
+        {
+          "name": "prompt",
+          "type": "STRING",
+          "widget": {
+            "name": "prompt"
+          },
+          "link": 182
+        }
+      ],
+      "outputs": [
+        {
+          "name": "CONDITIONING",
+          "type": "CONDITIONING",
+          "links": [
+            80
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfyui-krea2edit",
+        "ver": "1.2.2",
+        "Node name for S&R": "Krea2EditGroundedEncode",
+        "ue_properties": {
+          "widget_ue_connectable": {},
+          "input_ue_unconnectable": {},
+          "version": "7.5.1"
+        }
+      },
+      "widgets_values": [
+        "[TASK: ENTITY_SHEET_GENERATION]\n[TEMPLATE: MULTI_ANGLE_ENTITY_SHEET_V1]\n[ENTITY_TYPE: HUMAN]\n[ENTITY_ID: human_lena_professional]\n\nConvert the subject in Image 1 into one standardized advanced Character Sheet. Image 1 is the sole identity and design reference for Lena. Preserve the exact same design, proportions, colors, materials, markings, surface wear, and every signature detail. Do not redesign, beautify, age-shift, or simplify it.\n\nFIXED LANDSCAPE SHEET FORMAT\nUse a clean 3:2 landscape canvas with a warm off-white paper background and generous white space. Organize one coherent sheet with these fixed zones:\n1. LEFT METADATA COLUMN: the exact name \"Lena\", ENTITY TYPE, CORE MOOD, and VISUAL SIGNATURE in compact readable English.\n2. LARGE CENTER HERO VIEW: one dominant full-body or complete-object three-quarter view.\n3. TOP-RIGHT TURNAROUND ROW: neutral FRONT FULL BODY, SIDE FULL BODY, and BACK FULL BODY views at matching scale, with all extremities visible.\n4. MID-RIGHT ACTION POSES: three readable views including a low angle, an overhead or high angle, and one characteristic action or operating state.\n5. BOTTOM-LEFT SILHOUETTE STUDY: three solid black silhouettes that preserve the design shape.\n6. BOTTOM-CENTER EXPRESSION STUDY: one clear neutral face close-up plus three compact expression, state, or functional studies showing meaningful variation without changing identity or construction.\n7. BOTTOM-RIGHT DETAIL STUDY: six close-up crops of the most identity-critical features, materials, joints, face, markings, controls, or accessories.\n\nIDENTITY LOCKS\n- long wavy auburn hair reaching mid-thigh with center-parted blunt bangs\n- fair skin with subtle blush on cheeks and defined red lips\n- white button-down blouse with collar and cuffs, no tie or scarf\n- dark navy pleated skirt ending at mid-thigh, belt at waistline\n- black block-heeled pumps\n- Keep the subject from Image 1 recognizable in every view.\n- Keep handedness, asymmetry, markings, costume, hardware, and color placement consistent.\n- Use clean anime cel-shaded illustration style with sharp linework throughout the sheet.\n\nVISIBLE TEXT\nAll labels must be English only. Keep labels short and legible. Do not invent lore paragraphs.\n\nNEGATIVE CONSTRAINTS\nNo extra character or object, identity drift, species drift, wardrobe drift, material drift, inconsistent markings, changed proportions, missing extremities, duplicated limbs, merged views, overlapping panels, logo, watermark, or unrelated decoration.",
+        0,
+        ""
+      ]
+    },
+    {
+      "id": 123,
+      "type": "ImageResizeKJv2",
+      "pos": [
+        1610.3333637977414,
+        -130.5501860945114
+      ],
+      "size": [
+        270,
+        336
+      ],
+      "flags": {},
+      "order": 12,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "link": 96
+        },
+        {
+          "name": "mask",
+          "shape": 7,
+          "type": "MASK",
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            98,
+            102,
+            103,
+            107,
+            124,
+            145
+          ]
+        },
+        {
+          "name": "width",
+          "type": "INT",
+          "links": null
+        },
+        {
+          "name": "height",
+          "type": "INT",
+          "links": null
+        },
+        {
+          "name": "mask",
+          "type": "MASK",
+          "links": null
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfyui-kjnodes",
+        "ver": "d0d61754bf7fa57f2abb4714cdf79058f5862a55",
+        "Node name for S&R": "ImageResizeKJv2",
+        "ue_properties": {
+          "widget_ue_connectable": {},
+          "input_ue_unconnectable": {},
+          "version": "7.5.1"
+        }
+      },
+      "widgets_values": [
+        1024,
+        1024,
+        "lanczos",
+        "resize",
+        "0, 0, 0",
+        "center",
+        2,
+        "cpu"
+      ]
+    },
+    {
+      "id": 184,
+      "type": "PrimitiveStringMultiline",
+      "pos": [
+        69.49728909137686,
+        -883.2238971776968
+      ],
+      "size": [
+        606.7497735244614,
+        537.8264273275515
+      ],
+      "flags": {},
+      "order": 9,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "STRING",
+          "type": "STRING",
+          "links": [
+            183
+          ]
+        }
+      ],
+      "title": "Prompt Template (Important)",
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.30.0",
+        "ue_properties": {
+          "widget_ue_connectable": {},
+          "input_ue_unconnectable": {}
+        },
+        "Node name for S&R": "PrimitiveStringMultiline"
+      },
+      "widgets_values": [
+        "You are a captioning engine for a character-sheet LoRA. Given ONE reference image,\noutput a single, complete training/inferenception text —\noutput a single, complete training/inference caption. Output ONLY the caption text —\nno preamble, no markdown fences, no explanat\n\nYou MUST reproduce the FIXED LANDSCAPE SHEETEXT block, and\nthe NEGATIVE CONSTRAINTS block VERBATIM, character-for-character, exactly as shown in\nthe examples below. Only the bracket header,he IDENTITY\nLOCKS bullets + rendering-style clause change per image. Never paraphrase, shorten, or\nomit any fixed section.\n\nTEMPLATE SKELETON (fill every <PLACEHOLDER>;xt):\n\n[TASK: ENTITY_SHEET_GENERATION]\n[TEMPLATE: MULTI_ANGLE_ENTITY_SHEET_V1]\n[ENTITY_TYPE: <ENTITY_TYPE>]\n[ENTITY_ID: <entity_id>]\n\nConvert the subject in Image 1 into one standardized advanced Character Sheet. Image 1 is the sole identity and design reference for <Name>. Preserve the exact sam design, proportions, colors, materials,markings, surface wear, and every signature detail. Do not redesign, beautify, age-shift, or simplify it.\n\nFIXED LANDSCAPE SHEET FORMAT\nUse a clean 3:2 landscape canvas with a warmand generous white space. Organize onecoherent sheet with these fixed zones:\n1. LEFT METADATA COLUMN: the exact name \"<Na, and VISUAL SIGNATURE in compact readableEnglish.\n2. LARGE CENTER HERO VIEW: one dominant fullee-quarter view.\n3. TOP-RIGHT TURNAROUND ROW: neutral FRONT FULL BODY, SIDE FULL BODY, and BACK FULL BODY views at matching scale, with\nall extremities visible.\n4. MID-RIGHT <ACTION_LABEL>: three readable views including a low angle, an overhead or high angle, and one\ncharacteristic action or operating state.\n5. BOTTOM-LEFT SILHOUETTE STUDY: three solid black silhouettes that preserve the design shape.\n6. BOTTOM-CENTER <STUDY_LABEL>: one clear neee compact expression, state, or functionalstudies showing meaningful variation without changing identity or construction.\n7. BOTTOM-RIGHT DETAIL STUDY: six close-up citical features, materials, joints, face,markings, controls, or accessories.\n\nIDENTITY LOCKS\n<4 to 7 bullet lines, one verifiable signatulore>\n- Keep the subject from Image 1 recognizable in every view.\n- Keep handedness, asymmetry, markings, costcement consistent.\n- Use <rendering style clause> throughout the sheet.\n\nVISIBLE TEXT\nAll labels must be English only. Keep labelsnvent lore paragraphs.\n\nNEGATIVE CONSTRAINTS\nNo extra character or object, identity drift, species drift, wardrobe drift, material drift, inconsistent markings,\nchanged proportions, missing extremities, du, overlapping panels, logo, watermark, orunrelated decoration.\n\nFIELD RULES\n- <ENTITY_TYPE> is one of exactly these 7 (u:\n  ANIMAL, STYLIZED_CHARACTER, HUMAN, ROBOT, VEHICLE, OBJECT, CREATURE\n  - ANIMAL: real-world animal.\n  - STYLIZED_CHARACTER: anime/game/illustrated humanoid character (fictional, non-photoreal).\n  - HUMAN: photorealistic real person.\n  - ROBOT: mecha, android, machine.\n  - VEHICLE: car, motorcycle, aircraft, etc.\n  - OBJECT: product, instrument, furniture, inanimate item.\n  - CREATURE: fantastical non-human being (n\n- <entity_id>: lowercase snake_case, \"<entity_type>_<short_name>\", e.g. animal_fenna_fox,\n  stylized_character_kitsu_scout. Invent a s visible/known.\n- <ACTION_LABEL>: \"ACTION POSES\" for every entity_type except OBJECT, which uses\n  \"FUNCTIONAL CONFIGURATIONS\".\n- <STUDY_LABEL>: \"EXPRESSION STUDY\" for HUMAN, STYLIZED_CHARACTER, ANIMAL, CREATURE;\n  \"STATE / FUNCTION STUDY\" for ROBOT, VEHICL\n- IDENTITY LOCKS bullets: only things visibly verifiable in the image — exact colors,\n  markings, asymmetries, accessory shapes, mat another artist\n  could reproduce them blind. Never invent anything you can't see.\n- <rendering style clause>: match the actualistic wildlife\n  concept art with anatomically credible fur, paws, and motion\" / \"clean anime cel-shaded\n  illustration style with sharp linework\" / rame photography\n  with physically accurate anatomy, natural skin pores, and no illustrated or cartoon\n  qualities\" / \"high-end hard-surface robot joints, weathered\n  paint, and exposed cabling\" / \"premium photoreal product concept rendering with precise\n  metal, wood, glass, and matte surfaces\". A; these are\n  examples, not a fixed list.\n- Do NOT add CORE MOOD text or the DETAIL STmodel invents\n  those on its own at generation time; they are not part of this caption.\n- Even for revealing/suggestive outfits, des in plain,\n  technical terms (like a production design document), never in objectifying language.\n\n=== EXAMPLE 1 (ANIMAL) ===\n[TASK: ENTITY_SHEET_GENERATION]\n[TEMPLATE: MULTI_ANGLE_ENTITY_SHEET_V1]\n[ENTITY_TYPE: ANIMAL]\n[ENTITY_ID: animal_fenna_fox]\n\nConvert the subject in Image 1 into one standardized advanced Character Sheet. Image 1 is the sole identity and design\nreference for Fenna. Preserve the exact samedesign, proportions, colors, materials,markings, surface wear, and every signature detail. Do not redesign, beautify, age-shift, or simplify it.\n\nFIXED LANDSCAPE SHEET FORMAT\nUse a clean 3:2 landscape canvas with a warmand generous white space. Organize onecoherent sheet with these fixed zones:\n1. LEFT METADATA COLUMN: the exact name \"Fen and VISUAL SIGNATURE in compact readableEnglish.\n2. LARGE CENTER HERO VIEW: one dominant fullee-quarter view.\n3. TOP-RIGHT TURNAROUND ROW: neutral FRONT FULL BODY, SIDE FULL BODY, and BACK FULL BODY views at matching scale, with\nall extremities visible.\n4. MID-RIGHT ACTION POSES: three readable views including a low angle, an overhead or high angle, and one\ncharacteristic action or operating state.\n5. BOTTOM-LEFT SILHOUETTE STUDY: three solid black silhouettes that preserve the design shape.\n6. BOTTOM-CENTER EXPRESSION STUDY: one clearthree compact expression, state, or functional studies showing meaningful variation without changing identity or construction.\n7. BOTTOM-RIGHT DETAIL STUDY: six close-up citical features, materials, joints, face,markings, controls, or accessories.\n\nIDENTITY LOCKS\n\n- charcoal ear tips                                                                                               - narrow red tag on left foreleg\n- long plume tail with a faint gray tip                                                                           - Keep the subject from Image 1 recognizable\n- Keep handedness, asymmetry, markings, costume, hardware, and color placement consistent.                        - Use naturalistic wildlife concept art withaws, and motion throughout the sheet.\n                                                                                                                  VISIBLE TEXT\nAll labels must be English only. Keep labels short and legible. Do not invent lore paragraphs.                    \nNEGATIVE CONSTRAINTS                                                                                              No extra character or object, identity driftft, material drift, inconsistent markings,changed proportions, missing extremities, duplicated limbs, merged views, overlapping panels, logo, watermark, or unrelated decoration.\n                                                                                                                  === EXAMPLE 2 (STYLIZED_CHARACTER) ===\n[TASK: ENTITY_SHEET_GENERATION]                                                                                   [TEMPLATE: MULTI_ANGLE_ENTITY_SHEET_V1]\n[ENTITY_TYPE: STYLIZED_CHARACTER]                                                                                 [ENTITY_ID: stylized_character_kitsu_scout]\n                                                                                                                  Convert the subject in Image 1 into one stanheet. Image 1 is the sole identity and design reference for Kitsu. Preserve the exact same subject identity or object design, proportions, colors, materials,   markings, surface wear, and every signature tify, age-shift, or simplify it.\n                                                                                                                  FIXED LANDSCAPE SHEET FORMAT\nUse a clean 3:2 landscape canvas with a warm off-white paper background and generous white space. Organize one    coherent sheet with these fixed zones:\n1. LEFT METADATA COLUMN: the exact name \"Kitsu\", ENTITY TYPE, CORE MOOD, and VISUAL SIGNATURE in compact readable English.\n2. LARGE CENTER HERO VIEW: one dominant full-body or complete-object three-quarter view.                          3. TOP-RIGHT TURNAROUND ROW: neutral FRONT F BACK FULL BODY views at matching scale, with all extremities visible.                                                                                          4. MID-RIGHT ACTION POSES: three readable vi overhead or high angle, and onecharacteristic action or operating state.                                                                         5. BOTTOM-LEFT SILHOUETTE STUDY: three solidrve the design shape.\n6. BOTTOM-CENTER EXPRESSION STUDY: one clear neutral face close-up plus three compact expression, state, or functistudies showing meaningful variation withoutction.\n7. BOTTOM-RIGHT DETAIL STUDY: six close-up crops of the most identity-critical features, materials, joints, face, markings, controls, or accessories.\n                                                                                                                  IDENTITY LOCKS\n- long straight auburn/orange hair reaching past the knees, with center-parted blunt bangs                        - teal-turquoise eyes\n- long fluffy fox-like tail matching the hair color, tapering to a point                                          - green bow headband with two leaf-shaped or\n- white and green sailor-collar uniform jacket with gold buttons, black neck ribbon, green cuffs with yellow trim - pleated white skirt with green and yellow hem\n- Keep the subject from Image 1 recognizable in every view.                                                       - Keep handedness, asymmetry, markings, costement consistent.\n- Use clean anime cel-shaded illustration style with sharp linework throughout the sheet.                         \nVISIBLE TEXT                                                                                                      All labels must be English only. Keep labelsvent lore paragraphs.\n                                                                                                                  NEGATIVE CONSTRAINTS\nNo extra character or object, identity drift, species drift, wardrobe drift, material drift, inconsistent markingschanged proportions, missing extremities, du overlapping panels, logo, watermark, orunrelated decoration.                                                                                             \n=== EXAMPLE 3 (HUMAN) ===                                                                                         [TASK: ENTITY_SHEET_GENERATION]\n[TEMPLATE: MULTI_ANGLE_ENTITY_SHEET_V1]                                                                           [ENTITY_TYPE: HUMAN]\n[ENTITY_ID: photoreal_human_amara_medic]                                                                          \nConvert the subject in Image 1 into one standardized advanced Character Sheet. Image 1 is the sole identity and dereference for Amara Owusu. Preserve the exacject design, proportions, colors, materials, markings, surface wear, and every signature detail. Do not redesign, beautify, age-shift, or simplify it.         \nFIXED LANDSCAPE SHEET FORMAT                                                                                      Use a clean 3:2 landscape canvas with a warmnd generous white space. Organize onecoherent sheet with these fixed zones:                                                                            1. LEFT METADATA COLUMN: the exact name \"AmaMOOD, and VISUAL SIGNATURE in compactreadable English.                                                                                                 2. LARGE CENTER HERO VIEW: one dominant fulle-quarter view.\n3. TOP-RIGHT TURNAROUND ROW: neutral FRONT FULL BODY, SIDE FULL BODY, and BACK FULL BODY views at matching scale, all extremities visible.\n4. MID-RIGHT ACTION POSES: three readable views including a low angle, an overhead or high angle, and one         characteristic action or operating state.\n5. BOTTOM-LEFT SILHOUETTE STUDY: three solid black silhouettes that preserve the design shape.                    6. BOTTOM-CENTER EXPRESSION STUDY: one clearhree compact expression, state, or functional studies showing meaningful variation without changing identity or construction.                                   7. BOTTOM-RIGHT DETAIL STUDY: six close-up ctical features, materials, joints, face,markings, controls, or accessories.                                                                               \nIDENTITY LOCKS                                                                                                    - faint diagonal scar through the left eyebr\n- closely cropped natural black hair                                                                              - weathered red alpine shell with one reflec\n- compact white trauma pouch at the right hip                                                                     - Keep the subject from Image 1 recognizable\n- Keep handedness, asymmetry, markings, costume, hardware, and color placement consistent.                        - Use high-end live-action full-frame photoge anatomy, natural skin pores, fine facialhair, realistic hands, authentic fabric behavior, photographic depth of field, and no illustrated or cartoon qualithroughout the sheet.\n                                                                                                                  VISIBLE TEXT\nAll labels must be English only. Keep labels short and legible. Do not invent lore paragraphs.                    \nNEGATIVE CONSTRAINTS                                                                                              No extra character or object, identity driftft, material drift, inconsistent markings,changed proportions, missing extremities, duplicated limbs, merged views, overlapping panels, logo, watermark, or unrelated decoration.\n                                                                                                                  === EXAMPLE 4 (ROBOT) ===\n[TASK: ENTITY_SHEET_GENERATION]                                                                                   [TEMPLATE: MULTI_ANGLE_ENTITY_SHEET_V1]\n[ENTITY_TYPE: ROBOT]                                                                                              [ENTITY_ID: robot_kite7_scout]\n                                                                                                                  Convert the subject in Image 1 into one stanheet. Image 1 is the sole identity and design reference for KITE-7. Preserve the exact same subject identity or object design, proportions, colors, materials,  markings, surface wear, and every signature tify, age-shift, or simplify it.\n                                                                                                                  FIXED LANDSCAPE SHEET FORMAT\nUse a clean 3:2 landscape canvas with a warm off-white paper background and generous white space. Organize one    coherent sheet with these fixed zones:\n1. LEFT METADATA COLUMN: the exact name \"KITE-7\", ENTITY TYPE, CORE MOOD, and VISUAL SIGNATURE in compact readableEnglish.\n2. LARGE CENTER HERO VIEW: one dominant full-body or complete-object three-quarter view.                          3. TOP-RIGHT TURNAROUND ROW: neutral FRONT F BACK FULL BODY views at matching scale, with all extremities visible.                                                                                          4. MID-RIGHT ACTION POSES: three readable vi overhead or high angle, and onecharacteristic action or operating state.                                                                         5. BOTTOM-LEFT SILHOUETTE STUDY: three solidrve the design shape.\n6. BOTTOM-CENTER STATE / FUNCTION STUDY: one clear neutral face close-up plus three compact expression, state, or functional studies showing meaningful variat or construction.\n7. BOTTOM-RIGHT DETAIL STUDY: six close-up crops of the most identity-critical features, materials, joints, face, markings, controls, or accessories.\n                                                                                                                  IDENTITY LOCKS\n- mustard rectangular head with worn paint                                                                        - two round cyan camera eyes\n- asymmetrical antenna arrangement                                                                                - red circular rescue emblem on left shoulde\n- Keep the subject from Image 1 recognizable in every view.                                                       - Keep handedness, asymmetry, markings, costement consistent.\n- Use high-end hard-surface robot concept art with functional joints, weathered paint, and exposed cabling throughthe sheet.\n                                                                                                                  VISIBLE TEXT\nAll labels must be English only. Keep labels short and legible. Do not invent lore paragraphs.                    \nNEGATIVE CONSTRAINTS                                                                                              No extra character or object, identity driftft, material drift, inconsistent markings,changed proportions, missing extremities, duplicated limbs, merged views, overlapping panels, logo, watermark, or unrelated decoration.\n                                                                                                                  === EXAMPLE 5 (OBJECT) ===\n[TASK: ENTITY_SHEET_GENERATION]                                                                                   [TEMPLATE: MULTI_ANGLE_ENTITY_SHEET_V1]\n[ENTITY_TYPE: OBJECT]                                                                                             [ENTITY_ID: object_ember_espresso]\n                                                                                                                  Convert the subject in Image 1 into one stanheet. Image 1 is the sole identity and design reference for Ember One. Preserve the exact same subject identity or object design, proportions, colors, materialsmarkings, surface wear, and every signature tify, age-shift, or simplify it.\n                                                                                                                  FIXED LANDSCAPE SHEET FORMAT\nUse a clean 3:2 landscape canvas with a warm off-white paper background and generous white space. Organize one    coherent sheet with these fixed zones:\n1. LEFT METADATA COLUMN: the exact name \"Ember One\", ENTITY TYPE, CORE MOOD, and VISUAL SIGNATURE in compact readaEnglish.\n2. LARGE CENTER HERO VIEW: one dominant full-body or complete-object three-quarter view.                          3. TOP-RIGHT TURNAROUND ROW: neutral FRONT F BACK FULL BODY views at matching scale, with all extremities visible.                                                                                          4. MID-RIGHT FUNCTIONAL CONFIGURATIONS: threlow angle, an overhead or high angle, and one characteristic action or operating state.                                                                         5. BOTTOM-LEFT SILHOUETTE STUDY: three solidrve the design shape.\n6. BOTTOM-CENTER STATE / FUNCTION STUDY: one clear neutral face close-up plus three compact expression, state, or functional studies showing meaningful variat or construction.\n7. BOTTOM-RIGHT DETAIL STUDY: six close-up crops of the most identity-critical features, materials, joints, face,\nmarkings, controls, or accessories.\n\nIDENTITY LOCKS\n- matte black rectangular body\n- single copper pressure gauge\n- two ivory toggle switches\n- low walnut platform and amber status line\n- Keep the subject from Image 1 recognizable in every view.\n- Keep handedness, asymmetry, markings, costume, hardware, and color placement consistent.\n- Use premium photoreal product concept rendd, glass, and matte surfaces throughout thesheet.\n\nVISIBLE TEXT\nAll labels must be English only. Keep labelsvent lore paragraphs.\n\nNEGATIVE CONSTRAINTS\nNo extra character or object, identity driftft, material drift, inconsistent markings,changed proportions, missing extremities, duplicated limbs, merged views, overlapping panels, logo, watermark, or\nunrelated decoration.\n\nNow output the caption for the image the usen text only."
+      ]
+    },
+    {
+      "id": 162,
+      "type": "TextGenerate",
+      "pos": [
+        885.5716160608046,
+        -897.260744125155
+      ],
+      "size": [
+        668.4650666182824,
+        621.2902282579648
+      ],
+      "flags": {},
+      "order": 17,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "clip",
+          "type": "CLIP",
+          "link": 144
+        },
+        {
+          "name": "image",
+          "shape": 7,
+          "type": "IMAGE",
+          "link": 145
+        },
+        {
+          "name": "video",
+          "shape": 7,
+          "type": "IMAGE",
+          "link": null
+        },
+        {
+          "name": "audio",
+          "shape": 7,
+          "type": "AUDIO",
+          "link": null
+        },
+        {
+          "name": "prompt",
+          "type": "STRING",
+          "widget": {
+            "name": "prompt"
+          },
+          "link": 183
+        }
+      ],
+      "outputs": [
+        {
+          "name": "generated_text",
+          "type": "STRING",
+          "links": [
+            146
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.30.0",
+        "Node name for S&R": "TextGenerate",
+        "ue_properties": {
+          "widget_ue_connectable": {},
+          "input_ue_unconnectable": {},
+          "version": "7.5.1"
+        }
+      },
+      "widgets_values": [
+        "",
+        2048,
+        "on",
+        0.7,
+        64,
+        0.95,
+        0.05,
+        1.05,
+        0,
+        0,
+        false,
+        true
+      ]
+    },
+    {
+      "id": 163,
+      "type": "PreviewAny",
+      "pos": [
+        1656.6745706903514,
+        -822.3138264231343
+      ],
+      "size": [
+        623.3029144788443,
+        554.0681953662692
+      ],
+      "flags": {},
+      "order": 19,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "source",
+          "type": "*",
+          "link": 146
+        }
+      ],
+      "outputs": [
+        {
+          "name": "STRING",
+          "type": "STRING",
+          "links": [
+            182
+          ]
+        }
+      ],
+      "title": "Prompt Result",
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.30.0",
+        "Node name for S&R": "PreviewAny",
+        "ue_properties": {
+          "widget_ue_connectable": {},
+          "input_ue_unconnectable": {},
+          "version": "7.5.1"
+        }
+      },
+      "widgets_values": []
+    },
+    {
+      "id": 72,
+      "type": "LoadImage",
+      "pos": [
+        673.2190198886718,
+        -52.9220759758785
+      ],
+      "size": [
+        520,
+        440
+      ],
+      "flags": {},
+      "order": 10,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            96
+          ]
+        },
+        {
+          "name": "MASK",
+          "type": "MASK",
+          "links": null
+        }
+      ],
+      "title": "Body Reference",
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.26.0",
+        "Node name for S&R": "LoadImage",
+        "ue_properties": {
+          "widget_ue_connectable": {},
+          "version": "7.5.1",
+          "input_ue_unconnectable": {}
+        }
+      },
+      "widgets_values": [
+        "174fc586b254b070f2670807dbbd0d965065ce37.png",
+        "image"
+      ]
+    },
+    {
+      "id": 126,
+      "type": "PreviewImage",
+      "pos": [
+        3996.2147191652534,
+        904.5550876647657
+      ],
+      "size": [
+        619.0551801415504,
+        567.4594573286292
+      ],
+      "flags": {},
+      "order": 26,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 111
+        }
+      ],
+      "outputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "links": null
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.28.0",
+        "Node name for S&R": "PreviewImage",
+        "ue_properties": {
+          "widget_ue_connectable": {},
+          "input_ue_unconnectable": {},
+          "version": "7.5.1"
+        }
+      },
+      "widgets_values": []
+    },
+    {
+      "id": 29,
+      "type": "SaveImage",
+      "pos": [
+        3263.371125195222,
+        -167.5353946225566
+      ],
+      "size": [
+        760,
+        860
+      ],
+      "flags": {},
+      "order": 23,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 26
+        }
+      ],
+      "outputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "links": null
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.26.0",
+        "Node name for S&R": "SaveImage",
+        "ue_properties": {
+          "widget_ue_connectable": {},
+          "version": "7.5.1",
+          "input_ue_unconnectable": {}
+        }
+      },
+      "widgets_values": [
+        "krea2_identity_edit"
+      ]
+    }
+  ],
+  "links": [
+    [
+      5,
+      56,
+      0,
+      85,
+      0,
+      "CLIP"
+    ],
+    [
+      6,
+      57,
+      0,
+      54,
+      1,
+      "VAE"
+    ],
+    [
+      7,
+      57,
+      0,
+      73,
+      1,
+      "VAE"
+    ],
+    [
+      25,
+      53,
+      0,
+      54,
+      0,
+      "LATENT"
+    ],
+    [
+      26,
+      54,
+      0,
+      29,
+      0,
+      "IMAGE"
+    ],
+    [
+      78,
+      56,
+      0,
+      119,
+      0,
+      "CLIP"
+    ],
+    [
+      80,
+      119,
+      0,
+      53,
+      1,
+      "CONDITIONING"
+    ],
+    [
+      82,
+      73,
+      0,
+      120,
+      1,
+      "LATENT"
+    ],
+    [
+      83,
+      57,
+      0,
+      120,
+      4,
+      "VAE"
+    ],
+    [
+      96,
+      72,
+      0,
+      123,
+      0,
+      "IMAGE"
+    ],
+    [
+      98,
+      123,
+      0,
+      119,
+      1,
+      "IMAGE"
+    ],
+    [
+      102,
+      123,
+      0,
+      73,
+      0,
+      "IMAGE"
+    ],
+    [
+      103,
+      123,
+      0,
+      120,
+      5,
+      "IMAGE"
+    ],
+    [
+      107,
+      123,
+      0,
+      85,
+      1,
+      "IMAGE"
+    ],
+    [
+      111,
+      125,
+      0,
+      126,
+      0,
+      "IMAGE"
+    ],
+    [
+      116,
+      131,
+      0,
+      120,
+      0,
+      "MODEL"
+    ],
+    [
+      124,
+      123,
+      0,
+      137,
+      0,
+      "IMAGE"
+    ],
+    [
+      125,
+      137,
+      0,
+      125,
+      0,
+      "IMAGE"
+    ],
+    [
+      126,
+      54,
+      0,
+      138,
+      0,
+      "IMAGE"
+    ],
+    [
+      127,
+      138,
+      0,
+      125,
+      1,
+      "IMAGE"
+    ],
+    [
+      142,
+      156,
+      0,
+      53,
+      3,
+      "LATENT"
+    ],
+    [
+      144,
+      56,
+      0,
+      162,
+      0,
+      "CLIP"
+    ],
+    [
+      145,
+      123,
+      0,
+      162,
+      1,
+      "IMAGE"
+    ],
+    [
+      146,
+      162,
+      0,
+      163,
+      0,
+      "STRING"
+    ],
+    [
+      169,
+      85,
+      0,
+      53,
+      2,
+      "CONDITIONING"
+    ],
+    [
+      171,
+      120,
+      0,
+      53,
+      0,
+      "MODEL"
+    ],
+    [
+      180,
+      55,
+      0,
+      164,
+      0,
+      "MODEL"
+    ],
+    [
+      181,
+      164,
+      0,
+      131,
+      0,
+      "MODEL"
+    ],
+    [
+      182,
+      163,
+      0,
+      119,
+      3,
+      "STRING"
+    ],
+    [
+      183,
+      184,
+      0,
+      162,
+      4,
+      "STRING"
+    ]
+  ],
+  "groups": [
+    {
+      "id": 1,
+      "title": "MODELS",
+      "bounding": [
+        40,
+        -240,
+        540,
+        950
+      ],
+      "color": "#3f789e",
+      "flags": {}
+    },
+    {
+      "id": 2,
+      "title": "1 · REFERENCE",
+      "bounding": [
+        620,
+        -240,
+        580,
+        790
+      ],
+      "color": "#8A8",
+      "flags": {}
+    },
+    {
+      "id": 4,
+      "title": "3 · INSTRUCTION",
+      "bounding": [
+        1600,
+        -240,
+        680,
+        930
+      ],
+      "color": "#b58b2a",
+      "flags": {}
+    },
+    {
+      "id": 5,
+      "title": "4 · FIDELITY",
+      "bounding": [
+        2300,
+        -240,
+        460,
+        910
+      ],
+      "color": "#c15f3c",
+      "flags": {}
+    },
+    {
+      "id": 6,
+      "title": "5 · GENERATE",
+      "bounding": [
+        2780,
+        -240,
+        1200,
+        1030
+      ],
+      "color": "#3f789e",
+      "flags": {}
+    }
+  ],
+  "config": {},
+  "extra": {
+    "frontendVersion": "1.47.12",
+    "ds": {
+      "scale": 0.19487171000002815,
+      "offset": [
+        2145.2772683564344,
+        1836.2414004064829
+      ]
+    },
+    "VHS_latentpreview": true,
+    "VHS_latentpreviewrate": 0,
+    "VHS_MetadataImage": true,
+    "VHS_KeepIntermediate": true,
+    "ue_links": [],
+    "links_added_by_ue": []
+  },
+  "version": 0.4
+}

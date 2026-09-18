@@ -757,7 +757,7 @@
         "Node name for S&R": "SaveImage"
       },
       "widgets_values": [
-        "MY-K2-图生图"
+        "K2-图生图"
       ],
       "widgets_values_named": {
         "filename_prefix": "krea2_identity_edit"

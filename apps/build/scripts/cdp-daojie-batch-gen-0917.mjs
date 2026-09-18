@@ -5,7 +5,7 @@
  *
  * 复用 cdp-daojie-krea2-ink-e2e.mjs 的装机驱动骨架(prekill→MYSTUDIO_REMOTE_DEBUG
  * 拉起→侧栏「本地模型」→webview→漫影侧栏 repo: 叶子行→真实用户路径打开
- * MY-K2_文生图_道劫),对每个主体:画布设 [50] 主体句 widget + [20] 独立种子 →
+ * K2-文生图-道劫),对每个主体:画布设 [50] 主体句 widget + [20] 独立种子 →
  * queuePrompt → 等 K2道劫文生图_ 新图 → 拷贝到 output/daojie_batch_0917/。
  *
  * 幂等:已拷贝产物在盘的主体直接跳过(--force 强制),中断重跑即续。
@@ -37,7 +37,7 @@ const APP_BUNDLE_ID = "com.manju2026.manying-studio";
 const CH = join(homedir(), "Library/Application Support/漫影工作室/comfyui");
 const ENGINE_OUTPUT = join(CH, "output");
 const REPO = "/Users/zhengbingjin/Project/Github/MYStudio";
-const WF_REL = "1_图片/K2图像/1_文生图/MY-K2_文生图_道劫.json";
+const WF_REL = "1_图片/K2图像/1_文生图/K2-文生图-道劫.json";
 const WF_REPO = join(REPO, "apps/backend/engines/comfyui/workflows", WF_REL);
 const OUT_DIR = join(REPO, "output/daojie_batch_0917");
 const PREFIX = "K2道劫文生图_";

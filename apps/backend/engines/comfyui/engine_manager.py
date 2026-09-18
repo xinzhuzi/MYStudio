@@ -449,10 +449,15 @@ def _run(argv: list[str], cwd: Path | None = None, timeout: float = 600.0,
 
     看门狗计时器兜底:pip 静默下载期间 readline 无输出,行内 deadline 检查
     会失灵,由 Timer 强杀后经退出码路径报大白话超时。
+    出站网络(git/pip)探测到本机代理则注入代理环境变量(09-19 根修:
+    GitHub/PyPI 直连不通时插件更新链整条报错;no_proxy 钉死本机回环,
+    引擎 127.0.0.1 调用不受影响)。
     """
+    proxy_env = _proxy_subprocess_env()
     proc = subprocess.Popen(
         [str(a) for a in argv], cwd=str(cwd) if cwd else None,
         stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, bufsize=1,
+        env={**os.environ, **proxy_env} if proxy_env else None,
     )
     timed_out = {"hit": False}
 
@@ -492,8 +497,36 @@ def _pip(argv: list[str], timeout: float = 3600.0, on_line=None) -> str:
 
 def _get_json(url: str, timeout: float = 5.0):
     req = request.Request(url, headers={"User-Agent": "MYStudio-comfy-host/1.0"})
-    with request.urlopen(req, timeout=timeout) as response:
+    with urlopen_outbound(req, timeout=timeout) as response:
         return json.loads(response.read().decode("utf-8"))
+
+
+# ── 出站网络代理(09-19 根修;实现在 common/net_outbound.py,五条模型下载线共用)──
+# 实弹:GitHub 直连超时(git pull 卡 25% 十分钟后报错),本机常驻代理
+# (Clash 系,HTTP 端口 7897/7890 一族)1.5s 可达。侧车的 git/pip/市场 API
+# 此前全部裸直连。策略=探测制:候选端口在监听 → 出站全走它;都不在 → 直连,
+# 零影响。MYSTUDIO_OUTBOUND_PROXY 显式覆盖(空串=强制直连);结果短缓存。
+from common.net_outbound import (  # noqa: E402(放此处贴近使用点;common 零依赖可安全早导入)
+    outbound_proxy_url,
+    urlopen_outbound,
+)
+
+
+def _proxy_subprocess_env() -> dict[str, str] | None:
+    """git/pip 子进程的代理环境变量;无代理返回 None(继承侧车原环境)。
+
+    读模块级 outbound_proxy_url(而非 common 内部直连)——单测在 em 命名空间
+    打桩探测结果,保持 patch 点稳定。
+    """
+    url = outbound_proxy_url()
+    if not url:
+        return None
+    return {
+        "http_proxy": url, "https_proxy": url, "all_proxy": url,
+        "HTTP_PROXY": url, "HTTPS_PROXY": url, "ALL_PROXY": url,
+        # 引擎本机回环(127.0.0.1:17xxx)绝不走代理
+        "no_proxy": "127.0.0.1,localhost", "NO_PROXY": "127.0.0.1,localhost",
+    }
 
 
 def _port_bindable(port: int) -> bool:

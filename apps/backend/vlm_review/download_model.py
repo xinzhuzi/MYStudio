@@ -19,6 +19,8 @@ import time
 from pathlib import Path
 from urllib.parse import quote
 
+from common.net_outbound import outbound_proxy_env
+
 from engines.vlm_engine.model_cache import DEFAULT_VLM_MODEL, VLM_MODELS
 
 TOTAL_BYTES_FALLBACK_MB = 9900
@@ -156,11 +158,12 @@ def download_model(
             except Exception as exc:
                 print(f"[vlm-download] ModelScope 失败,回退 HF: {exc}", file=sys.stderr)
         if result is None:
-            result = snapshot_download(
-                repo_id=repo_id,
-                local_dir=str(target_dir) if target_dir else None,
-                resume_download=True,
-            )
+            with outbound_proxy_env():
+                result = snapshot_download(
+                    repo_id=repo_id,
+                    local_dir=str(target_dir) if target_dir else None,
+                    resume_download=True,
+                )
         report("done", total_bytes, 100)
         print(json.dumps({"status": "done", "path": str(result)}))
     except Exception as exc:

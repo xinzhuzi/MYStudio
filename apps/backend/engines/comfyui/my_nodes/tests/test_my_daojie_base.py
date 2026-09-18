@@ -6,7 +6,8 @@
 
 锁:注册面/COMBO 九项有序+默认钉死「人物」/装配语义(底座在前+主体句
 零分隔符直拼、留空=恒等纯底座、句号自足收尾)/负向 token 去重合并
-(复用 my_styles._merge_negative)/mtime 失效热改/未知底座中文
+(复用 my_styles._merge_negative)/分辨率两出 aspect+mp 随型现读 json、
+缺字段回退 1:1 (Square)/4.2+控制台警告/mtime 失效热改/未知底座中文
 RuntimeError/人物型=v2.2 新口径锚(09-18 定性切换,§一 超集解除,锚从
 md 运行时切出防旧口径回潮,零硬编码)。
 """
@@ -74,8 +75,8 @@ def test_combo_nine_options_in_json_order_with_pinned_default():
         assert slot[0] == "STRING"
         assert set(slot[1]) == {"forceInput"}  # 多键(default/multiline)会生文本 widget
         assert slot[1]["forceInput"] is True
-    assert MyDaojieBase.RETURN_TYPES == ("STRING", "STRING")
-    assert MyDaojieBase.RETURN_NAMES == ("positive", "negative")
+    assert MyDaojieBase.RETURN_TYPES == ("STRING", "STRING", "COMBO", "FLOAT")
+    assert MyDaojieBase.RETURN_NAMES == ("positive", "negative", "aspect", "megapixels")
     assert MyDaojieBase.FUNCTION == "run"
 
 
@@ -85,7 +86,7 @@ def test_run_assembles_base_first_then_subject_verbatim():
         e["positive"] for e in json.loads(
             my_daojie_base._BASES_JSON.read_text(encoding="utf-8"))
         if e["zh"] == "人物")
-    pos, _neg = MyDaojieBase().run("人物", positive="  一位女修士，青年金丹期。 ")
+    pos, _neg, _aspect, _mp = MyDaojieBase().run("人物", positive="  一位女修士，青年金丹期。 ")
     # 底座在前、主体句 strip 后原样拼接、零分隔符(底座以全角句号自足收尾)
     assert pos == base_positive + "一位女修士，青年金丹期。"
 
@@ -95,20 +96,24 @@ def test_run_empty_subject_is_identity_pure_base():
         e["positive"] for e in json.loads(
             my_daojie_base._BASES_JSON.read_text(encoding="utf-8"))
         if e["zh"] == "场景")
-    pos, neg = MyDaojieBase().run("场景")
+    pos, neg, aspect, mp = MyDaojieBase().run("场景")
     assert pos == base_positive
     assert pos.endswith("。")  # 底座全文句号自足收尾(直拼无分隔符的前提)
-    pos2, _ = MyDaojieBase().run("场景", positive=None, negative=None)
+    assert aspect == "16:9 (Widescreen)" and mp == 4.2  # 分辨率两出随型
+    pos2, _n2, _a2, _m2 = MyDaojieBase().run("场景", positive=None, negative=None)
     assert pos2 == base_positive
 
 
 def test_run_all_options_produce_nonempty_outputs():
     for name in EXPECTED_OPTIONS:
-        pos, neg = MyDaojieBase().run(name)
+        pos, neg, aspect, mp = MyDaojieBase().run(name)
         # 09-18 v2.2 定性切换:SD 质量标签串已废,九型一律以定性句开头+句号自足收尾
         assert pos and pos.startswith("现代修仙游戏")
         assert pos.endswith("。")
         assert neg and "text" in neg  # 九型负面均为英文 token 基线
+        # 09-18 分辨率两出:九型 aspect 一律官方枚举串、mp 一律 4.2
+        assert aspect.endswith(")") and ":" in aspect
+        assert mp == 4.2
 
 
 # ── 负向:token 去重合并(复用 my_styles._merge_negative)──
@@ -119,12 +124,12 @@ def test_run_negative_merges_and_dedupes_tokens():
         if e["zh"] == "人物")
     first_token = base_negative.split(",")[0].strip()
     # 用户 token "text" 恰也在人物基线中——整 token 相等即去重
-    _, neg = MyDaojieBase().run("人物", negative="text")
+    _, neg, _, _ = MyDaojieBase().run("人物", negative="text")
     assert neg.startswith("text, ")  # 用户段在前
     pieces = [t.strip() for t in neg.split(",")]
     assert pieces.count("text") == 1  # 基线内的重复 token 被去重
     # 用户给基线首 token:同样只保留一份,且顺序=用户在前
-    _, neg2 = MyDaojieBase().run("人物", negative=f"zzz, {first_token}")
+    _, neg2, _, _ = MyDaojieBase().run("人物", negative=f"zzz, {first_token}")
     pieces2 = [t.strip() for t in neg2.split(",")]
     assert pieces2[:2] == ["zzz", first_token]
     assert pieces2.count(first_token) == 1
@@ -139,7 +144,7 @@ def test_merge_negative_reused_from_my_styles():
 
 
 # ── 热改:mtime 失效(json 文案改=下次 run 即新文)───────────
-def test_json_mtime_invalidation_hot_edit(tmp_path, monkeypatch):
+def test_json_mtime_invalidation_hot_edit(tmp_path, monkeypatch, capsys):
     fake = tmp_path / "daojie_bases.json"
     fake.write_text(json.dumps([
         {"key": "测试型", "zh": "测试型", "purpose": "p",
@@ -147,8 +152,14 @@ def test_json_mtime_invalidation_hot_edit(tmp_path, monkeypatch):
         encoding="utf-8")
     monkeypatch.setattr(my_daojie_base, "_BASES_JSON", fake)
     assert my_daojie_base.bases_list() == ["测试型"]
-    pos, _ = MyDaojieBase().run("测试型")
+    pos, _, aspect, mp = MyDaojieBase().run("测试型")
     assert pos == "测试底座。"
+    # 缺分辨率字段:回退 1:1 (Square)/4.2(枚举逐字串)+控制台中文警告
+    assert aspect == "1:1 (Square)"
+    assert mp == 4.2
+    warned = capsys.readouterr().out
+    assert "缺 aspect_ratio 字段" in warned and "缺 megapixels 字段" in warned
+    assert "回退" in warned
     # 热改:同路径改内容+推 mtime(免文件系统时间粒度),现读即生效
     entries = json.loads(fake.read_text(encoding="utf-8"))
     entries[0]["positive"] = "热改后的底座。"
@@ -157,7 +168,7 @@ def test_json_mtime_invalidation_hot_edit(tmp_path, monkeypatch):
     time.sleep(0.01)
     import os
     os.utime(fake, (stat.st_atime + 5, stat.st_mtime + 5))
-    pos2, _ = MyDaojieBase().run("测试型")
+    pos2, _, _, _ = MyDaojieBase().run("测试型")
     assert pos2 == "热改后的底座。"
 
 

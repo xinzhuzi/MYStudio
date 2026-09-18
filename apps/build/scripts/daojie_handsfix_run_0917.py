@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """道劫修手工作流实弹验证器(09-17,Trellis 09-17-daojie-k2-hands-pose R3)。
 
-对 MY-K2_道劫修手.json 做一次端到端实弹:UI→API 官方流转换(object_info
+对 K2-道劫修手.json 做一次端到端实弹:UI→API 官方流转换(object_info
 对齐 named widgets,非启发式)→ 提交 App 托管引擎(17001)→ 轮询 /history →
 经 /view 取回成图 → 校验链路关键点。用法:
 
@@ -22,7 +22,7 @@ import urllib.request
 from pathlib import Path
 
 REPO = Path("/Users/zhengbingjin/Project/Github/MYStudio")
-WF = REPO / "apps/backend/engines/comfyui/workflows/1_图片/K2图像/3_改图/MY-K2_道劫修手.json"
+WF = REPO / "apps/backend/engines/comfyui/workflows/1_图片/K2图像/3_改图/K2-道劫修手.json"
 BASE = "http://127.0.0.1:17001"
 OUT_COPY = REPO / "output/daojie_handsfix_0917.png"
 CLIENT = "daojie-handsfix-0917"

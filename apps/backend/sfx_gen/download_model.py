@@ -13,6 +13,8 @@ import threading
 import time
 from pathlib import Path
 
+from common.net_outbound import outbound_proxy_env
+
 from engines.sfx_engine.model_cache import SFX_MODELS, primary_hf_cache_dir, repo_cache_dir
 
 
@@ -80,7 +82,8 @@ def download_model(model_name: str, progress_path: Path) -> int:
                 download_repo_to_hf_cache(spec["repo_id"], cache_dir)
             except Exception as exc:
                 print(f"[download] ModelScope 直链失败,回退 HF: {exc}", file=sys.stderr)
-                snapshot_download(repo_id=spec["repo_id"], cache_dir=cache_dir)
+                with outbound_proxy_env():
+                    snapshot_download(repo_id=spec["repo_id"], cache_dir=cache_dir)
         finally:
             stop_monitor.set()
 

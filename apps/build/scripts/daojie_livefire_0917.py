@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""道劫专属工作流 MY-K2_文生图_道劫.json 实弹验证(09-17 制作当日)。
+"""道劫专属工作流 K2-文生图-道劫.json 实弹验证(09-17 制作当日)。
 
 一次完整闭环:
   1. 等引擎队列清空(轮询 /queue,p2 纪律:不与用户任务抢跑,上限 10 分钟);
@@ -30,7 +30,7 @@ from pathlib import Path
 BASE_URL_DEFAULT = "http://127.0.0.1:17000"
 REPO = Path(__file__).resolve().parents[3]  # apps/build/scripts → 仓库根
 WF_DAOJIE = (REPO / "apps/backend/engines/comfyui/workflows/1_图片/K2图像/1_文生图"
-             / "MY-K2_文生图_道劫.json")
+             / "K2-文生图-道劫.json")
 PROMPT_MD = REPO / "docs/prompts/道劫_新提示词包_0917.md"
 OUT_PNG = REPO / "output" / "daojie_livefire_0917.png"
 CLIENT_ID = "daojie-livefire-0917"

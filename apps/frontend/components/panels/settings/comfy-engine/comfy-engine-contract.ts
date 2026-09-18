@@ -210,6 +210,8 @@ export interface ComfyPluginInfo {
   latestVersion?: string | null;
   /** 台账安装来源(pip=venv 直装,不可经目录再装;其余为目录四源)。 */
   source?: "curated" | "registry" | "git" | "local" | "pip";
+  /** 仓库地址(目录孪生去重按仓库比对;台账无记录时 null)。 */
+  repo?: string | null;
 }
 
 export interface ComfyCatalogEntry {
@@ -225,6 +227,8 @@ export interface ComfyCatalogEntry {
   /** 安装引用(curated id / registry id / git URL / 本地路径)。 */
   ref: string;
   source: "curated" | "registry" | "git" | "local";
+  /** 仓库地址(策展/Registry 条目携带;与已装行仓库同源=同一插件的目录孪生)。 */
+  repo?: string | null;
 }
 
 /** 卸载前的引用扫描结果(「X 个工作流在用它」点名用)。 */

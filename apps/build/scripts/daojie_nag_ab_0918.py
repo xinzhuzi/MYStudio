@@ -15,7 +15,7 @@ A/B 设计(单变量=模型链上是否插 NAG,其余逐项相同):
           编码器 [15],保证负向文本两臂完全一致);
           参数=节点默认(object_info 逐字:phi4.0/tau2.5/alpha0.25/
           sigma_start1000.0/sigma_end0.0;本节点无 nag_scale,等价物=phi)。
-  公共条件:真源 MY-K2_文生图_道劫.json;[50] 主体句=露手句(双手交拢于
+  公共条件:真源 K2-文生图-道劫.json;[50] 主体句=露手句(双手交拢于
   身前,十指自然收拢清晰可见);seed=20260918;速度档 4步/cfg1/euler/
   simple;模型链旁路感知收敛 21→47→67→12(照 daojie_batch_engine_0918
   的 chain_from 修法——任务书规定激活集={47,67},真源文件当前 68/70/73
@@ -46,7 +46,7 @@ from daojie_batch_engine_0918 import (  # noqa: E402
 )
 
 REPO = Path("/Users/zhengbingjin/Project/Github/MYStudio")
-WF = REPO / "apps/backend/engines/comfyui/workflows/1_图片/K2图像/1_文生图/MY-K2_文生图_道劫.json"
+WF = REPO / "apps/backend/engines/comfyui/workflows/1_图片/K2图像/1_文生图/K2-文生图-道劫.json"
 OUT_A = REPO / "output/nag_ab_baseline.png"
 OUT_B = REPO / "output/nag_ab_nag.png"
 TIMEOUT_S = 1500

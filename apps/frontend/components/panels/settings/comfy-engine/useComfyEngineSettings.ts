@@ -199,9 +199,9 @@ export function useComfyEngineSettings(options: UseComfyEngineSettingsOptions = 
       } else if (job.state === "failed") {
         toast.error(job.message || "操作失败,请查看日志后重试");
       }
-      if (job.kind.startsWith("plugin")) {
-        void refreshPlugins();
-      }
+      // 插件清单在任务收尾一律刷新(09-19 根修:引擎更新会改变节点数/插件加载
+      // 状态,此前只有插件任务才刷——更新完插件行停留旧数据,看起来两边不同步)。
+      void refreshPlugins();
       void refreshStatus();
     },
     [refreshPlugins, refreshStatus],

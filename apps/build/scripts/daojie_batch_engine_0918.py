@@ -32,7 +32,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from daojie_handsfix_run_0917 import BASE, CLIENT, http_json, ui_to_api  # noqa: E402
 
 REPO = Path("/Users/zhengbingjin/Project/Github/MYStudio")
-WF = REPO / "apps/backend/engines/comfyui/workflows/1_图片/K2图像/1_文生图/MY-K2_文生图_道劫.json"
+WF = REPO / "apps/backend/engines/comfyui/workflows/1_图片/K2图像/1_文生图/K2-文生图-道劫.json"
 OUT_DIR = REPO / "output/daojie_batch_0917"
 
 SUBJECTS = [

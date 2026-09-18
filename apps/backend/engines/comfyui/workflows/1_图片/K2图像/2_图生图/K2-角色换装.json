@@ -1,0 +1,914 @@
+{
+  "id": "c4ce0791-ab9f-4b40-b509-efe8a2ac23a1",
+  "revision": 0,
+  "last_node_id": 102,
+  "last_link_id": 44,
+  "nodes": [
+    {
+      "id": 55,
+      "type": "UNETLoader",
+      "pos": [
+        60,
+        80
+      ],
+      "size": [
+        340,
+        130
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "MODEL",
+          "type": "MODEL",
+          "links": [
+            37
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.27.0",
+        "Node name for S&R": "UNETLoader",
+        "ue_properties": {
+          "widget_ue_connectable": {},
+          "input_ue_unconnectable": {},
+          "version": "7.8"
+        },
+        "models": [
+          {
+            "name": "krea2_turbo_bf16.safetensors",
+            "url": "https://huggingface.co/Comfy-Org/Krea-2/resolve/main/diffusion_models/krea2_turbo_bf16.safetensors",
+            "directory": "diffusion_models"
+          }
+        ]
+      },
+      "widgets_values": [
+        "krea2_turbo_bf16.safetensors",
+        "default"
+      ]
+    },
+    {
+      "id": 56,
+      "type": "CLIPLoader",
+      "pos": [
+        60,
+        260
+      ],
+      "size": [
+        340,
+        150
+      ],
+      "flags": {},
+      "order": 1,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "CLIP",
+          "type": "CLIP",
+          "links": [
+            29,
+            31
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.27.0",
+        "Node name for S&R": "CLIPLoader",
+        "ue_properties": {
+          "widget_ue_connectable": {},
+          "input_ue_unconnectable": {},
+          "version": "7.8"
+        },
+        "models": [
+          {
+            "name": "qwen3-vl-4b-heretic.safetensors",
+            "url": "https://huggingface.co/Comfy-Org/Krea-2/resolve/main/text_encoders/qwen3-vl-4b-heretic.safetensors",
+            "directory": "text_encoders"
+          }
+        ]
+      },
+      "widgets_values": [
+        "qwen3-vl-4b-heretic.safetensors",
+        "krea2",
+        "default"
+      ]
+    },
+    {
+      "id": 73,
+      "type": "VAEEncode",
+      "pos": [
+        460,
+        740
+      ],
+      "size": [
+        200,
+        80
+      ],
+      "flags": {},
+      "order": 9,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "pixels",
+          "type": "IMAGE",
+          "link": 39
+        },
+        {
+          "name": "vae",
+          "type": "VAE",
+          "link": 26
+        }
+      ],
+      "outputs": [
+        {
+          "name": "LATENT",
+          "type": "LATENT",
+          "links": [
+            28
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.27.0",
+        "Node name for S&R": "VAEEncode",
+        "ue_properties": {
+          "widget_ue_connectable": {},
+          "input_ue_unconnectable": {},
+          "version": "7.8"
+        }
+      },
+      "widgets_values": [],
+      "title": "[73] 服装参考图编码(→[79] 补丁 source_latent)"
+    },
+    {
+      "id": 79,
+      "type": "Krea2EditModelPatch",
+      "pos": [
+        1280,
+        740
+      ],
+      "size": [
+        340,
+        280
+      ],
+      "flags": {},
+      "order": 10,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 38
+        },
+        {
+          "name": "source_latent",
+          "type": "LATENT",
+          "link": 28
+        },
+        {
+          "name": "source_latent_b",
+          "shape": 7,
+          "type": "LATENT",
+          "link": null
+        },
+        {
+          "name": "ref_boost_mask",
+          "shape": 7,
+          "type": "MASK",
+          "link": null
+        },
+        {
+          "name": "vae",
+          "shape": 7,
+          "type": "VAE",
+          "link": 44
+        },
+        {
+          "name": "source_image",
+          "shape": 7,
+          "type": "IMAGE",
+          "link": 43
+        },
+        {
+          "name": "source_image_b",
+          "shape": 7,
+          "type": "IMAGE",
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "name": "MODEL",
+          "type": "MODEL",
+          "links": [
+            19
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfyui-krea2edit",
+        "ver": "dc7940f437e59a1e74b9a74e98b7e900a8bd62cd",
+        "Node name for S&R": "Krea2EditModelPatch",
+        "ue_properties": {
+          "widget_ue_connectable": {},
+          "input_ue_unconnectable": {},
+          "version": "7.8"
+        }
+      },
+      "widgets_values": [
+        1,
+        1,
+        "fit"
+      ],
+      "title": "[79] Krea2 编辑补丁(ref_boost 1/1 · fit,官方 demo 原值)"
+    },
+    {
+      "id": 82,
+      "type": "EmptySD3LatentImage",
+      "pos": [
+        1780,
+        740
+      ],
+      "size": [
+        300,
+        150
+      ],
+      "flags": {},
+      "order": 2,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "LATENT",
+          "type": "LATENT",
+          "links": [
+            22
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.27.0",
+        "Node name for S&R": "EmptySD3LatentImage",
+        "ue_properties": {
+          "widget_ue_connectable": {},
+          "input_ue_unconnectable": {},
+          "version": "7.8"
+        }
+      },
+      "widgets_values": [
+        1072,
+        1792,
+        1
+      ],
+      "title": "Latent(1072×1792 竖幅)"
+    },
+    {
+      "id": 85,
+      "type": "Krea2EditGroundedEncode",
+      "pos": [
+        720,
+        1120
+      ],
+      "size": [
+        480,
+        180
+      ],
+      "flags": {},
+      "order": 8,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "clip",
+          "type": "CLIP",
+          "link": 31
+        },
+        {
+          "name": "image",
+          "shape": 7,
+          "type": "IMAGE",
+          "link": 41
+        },
+        {
+          "name": "image_b",
+          "shape": 7,
+          "type": "IMAGE",
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "name": "CONDITIONING",
+          "type": "CONDITIONING",
+          "links": [
+            21
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfyui-krea2edit",
+        "ver": "dc7940f437e59a1e74b9a74e98b7e900a8bd62cd",
+        "Node name for S&R": "Krea2EditGroundedEncode",
+        "ue_properties": {
+          "widget_ue_connectable": {},
+          "input_ue_unconnectable": {},
+          "version": "7.8"
+        }
+      },
+      "widgets_values": [
+        "",
+        768,
+        ""
+      ],
+      "title": "[85] 负向·留空(官方原样,同图接地)"
+    },
+    {
+      "id": 100,
+      "type": "LoraLoaderModelOnly",
+      "pos": [
+        640,
+        80
+      ],
+      "size": [
+        380,
+        160
+      ],
+      "flags": {},
+      "order": 6,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 37
+        }
+      ],
+      "outputs": [
+        {
+          "name": "MODEL",
+          "type": "MODEL",
+          "links": [
+            38
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.27.0",
+        "Node name for S&R": "LoraLoaderModelOnly",
+        "ue_properties": {
+          "widget_ue_connectable": {},
+          "input_ue_unconnectable": {},
+          "version": "7.8"
+        }
+      },
+      "widgets_values": [
+        "Krea2-功能/Krea2-编辑outfit_transfer.safetensors",
+        1
+      ],
+      "title": "[100] 换装 LoRA·编辑outfit_transfer ×1(官方 demo 原值)"
+    },
+    {
+      "id": 53,
+      "type": "KSampler",
+      "pos": [
+        2160,
+        740
+      ],
+      "size": [
+        320,
+        480
+      ],
+      "flags": {},
+      "order": 11,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 19
+        },
+        {
+          "name": "positive",
+          "type": "CONDITIONING",
+          "link": 20
+        },
+        {
+          "name": "negative",
+          "type": "CONDITIONING",
+          "link": 21
+        },
+        {
+          "name": "latent_image",
+          "type": "LATENT",
+          "link": 22
+        }
+      ],
+      "outputs": [
+        {
+          "name": "LATENT",
+          "type": "LATENT",
+          "links": [
+            23
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.27.0",
+        "Node name for S&R": "KSampler",
+        "ue_properties": {
+          "widget_ue_connectable": {},
+          "input_ue_unconnectable": {},
+          "version": "7.8"
+        }
+      },
+      "widgets_values": [
+        559858421742720,
+        "fixed",
+        8,
+        1,
+        "euler",
+        "simple",
+        1
+      ]
+    },
+    {
+      "id": 54,
+      "type": "VAEDecode",
+      "pos": [
+        2540,
+        740
+      ],
+      "size": [
+        200,
+        80
+      ],
+      "flags": {},
+      "order": 12,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "samples",
+          "type": "LATENT",
+          "link": 23
+        },
+        {
+          "name": "vae",
+          "type": "VAE",
+          "link": 24
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            36
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.27.0",
+        "Node name for S&R": "VAEDecode",
+        "ue_properties": {
+          "widget_ue_connectable": {},
+          "input_ue_unconnectable": {},
+          "version": "7.8"
+        }
+      },
+      "widgets_values": []
+    },
+    {
+      "id": 99,
+      "type": "SaveImage",
+      "pos": [
+        2540,
+        880
+      ],
+      "size": [
+        620,
+        500
+      ],
+      "flags": {},
+      "order": 13,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 36
+        }
+      ],
+      "outputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "links": []
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.27.0",
+        "Node name for S&R": "SaveImage",
+        "ue_properties": {
+          "widget_ue_connectable": {},
+          "input_ue_unconnectable": {},
+          "version": "7.8"
+        }
+      },
+      "widgets_values": [
+        "K2-角色换装"
+      ]
+    },
+    {
+      "id": 84,
+      "type": "Krea2EditGroundedEncode",
+      "pos": [
+        720,
+        740
+      ],
+      "size": [
+        480,
+        330
+      ],
+      "flags": {},
+      "order": 7,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "clip",
+          "type": "CLIP",
+          "link": 29
+        },
+        {
+          "name": "image",
+          "shape": 7,
+          "type": "IMAGE",
+          "link": 40
+        },
+        {
+          "name": "image_b",
+          "shape": 7,
+          "type": "IMAGE",
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "name": "CONDITIONING",
+          "type": "CONDITIONING",
+          "links": [
+            20
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfyui-krea2edit",
+        "ver": "dc7940f437e59a1e74b9a74e98b7e900a8bd62cd",
+        "Node name for S&R": "Krea2EditGroundedEncode",
+        "ue_properties": {
+          "widget_ue_connectable": {},
+          "input_ue_unconnectable": {},
+          "version": "7.8"
+        }
+      },
+      "widgets_values": [
+        "an american woman sitting on a park bench, blonde with dark roots, transfer the outfit",
+        768,
+        ""
+      ],
+      "title": "[84] 正向·角色描述+触发短语 transfer the outfit(官方原文)"
+    },
+    {
+      "id": 102,
+      "type": "MarkdownNote",
+      "pos": [
+        60,
+        1230
+      ],
+      "size": [
+        640,
+        400
+      ],
+      "flags": {},
+      "order": 3,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "properties": {},
+      "widgets_values": [
+        "输入与用法:[101]=服装参考图,本流唯一图输入(官方建议干净的正/背面服装照,示例库=huggingface.co/datasets/AliveAi/outfits);官方 t2i 版角色图不设输入位,角色在 [84] 用文字描述(现含官方示例句,换成自己的角色即可),句末触发短语 transfer the outfit 不能删——换装指令全靠它;「角色图+服装参考图」两张图保脸换装走下方双 LoRA 升级路径。已知限制:LoRA 主要按女装训练(男装/中性装贴合度会降);偶发双人→[53] 种子改 randomize 重抽,或在正向里写 single person。保脸升级路径:要用已有角色图保脸时,在 [100] 后同挂 Krea2-功能/Krea2-编辑identity_edit_v1_2.safetensors ×0.5(社区配方面:两件 LoRA 各 ×0.5 + [79] ref_boost 首数拉 10,见 docs/comfyui-kb/K2服饰LoRA调研_0919.md §三)。前置:节点包 comfyui-krea2edit;权重均在引擎在位(底模 krea2_turbo_bf16/TE qwen3-vl-4b-heretic/VAE qwen_image_vae/换装 LoRA)。"
+      ],
+      "title": "使用说明"
+    },
+    {
+      "id": 101,
+      "type": "LoadImage",
+      "pos": [
+        60,
+        740
+      ],
+      "size": [
+        340,
+        430
+      ],
+      "flags": {},
+      "order": 4,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            39,
+            40,
+            41,
+            43
+          ]
+        },
+        {
+          "name": "MASK",
+          "type": "MASK",
+          "links": null
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.27.0",
+        "Node name for S&R": "LoadImage",
+        "ue_properties": {
+          "widget_ue_connectable": {},
+          "input_ue_unconnectable": {},
+          "version": "7.8"
+        }
+      },
+      "widgets_values": [
+        "my-asset-84b90dd0.jpg",
+        "image"
+      ],
+      "title": "服装参考图 Outfit Reference"
+    },
+    {
+      "id": 57,
+      "type": "VAELoader",
+      "pos": [
+        60,
+        460
+      ],
+      "size": [
+        340,
+        90
+      ],
+      "flags": {},
+      "order": 5,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "VAE",
+          "type": "VAE",
+          "links": [
+            24,
+            26,
+            44
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.27.0",
+        "Node name for S&R": "VAELoader",
+        "ue_properties": {
+          "widget_ue_connectable": {},
+          "input_ue_unconnectable": {},
+          "version": "7.8"
+        },
+        "models": [
+          {
+            "name": "qwen_image_vae.safetensors",
+            "url": "https://huggingface.co/Comfy-Org/Krea-2/resolve/main/vae/qwen_image_vae.safetensors",
+            "directory": "vae"
+          }
+        ]
+      },
+      "widgets_values": [
+        "qwen_image_vae.safetensors"
+      ]
+    }
+  ],
+  "links": [
+    [
+      19,
+      79,
+      0,
+      53,
+      0,
+      "MODEL"
+    ],
+    [
+      20,
+      84,
+      0,
+      53,
+      1,
+      "CONDITIONING"
+    ],
+    [
+      21,
+      85,
+      0,
+      53,
+      2,
+      "CONDITIONING"
+    ],
+    [
+      22,
+      82,
+      0,
+      53,
+      3,
+      "LATENT"
+    ],
+    [
+      23,
+      53,
+      0,
+      54,
+      0,
+      "LATENT"
+    ],
+    [
+      24,
+      57,
+      0,
+      54,
+      1,
+      "VAE"
+    ],
+    [
+      26,
+      57,
+      0,
+      73,
+      1,
+      "VAE"
+    ],
+    [
+      28,
+      73,
+      0,
+      79,
+      1,
+      "LATENT"
+    ],
+    [
+      29,
+      56,
+      0,
+      84,
+      0,
+      "CLIP"
+    ],
+    [
+      31,
+      56,
+      0,
+      85,
+      0,
+      "CLIP"
+    ],
+    [
+      36,
+      54,
+      0,
+      99,
+      0,
+      "IMAGE"
+    ],
+    [
+      37,
+      55,
+      0,
+      100,
+      0,
+      "MODEL"
+    ],
+    [
+      38,
+      100,
+      0,
+      79,
+      0,
+      "MODEL"
+    ],
+    [
+      39,
+      101,
+      0,
+      73,
+      0,
+      "IMAGE"
+    ],
+    [
+      40,
+      101,
+      0,
+      84,
+      1,
+      "IMAGE"
+    ],
+    [
+      41,
+      101,
+      0,
+      85,
+      1,
+      "IMAGE"
+    ],
+    [
+      43,
+      101,
+      0,
+      79,
+      5,
+      "IMAGE"
+    ],
+    [
+      44,
+      57,
+      0,
+      79,
+      4,
+      "VAE"
+    ]
+  ],
+  "groups": [
+    {
+      "title": "① 模型加载(底模 krea2_turbo_bf16 · TE qwen3-vl-4b-heretic · VAE qwen_image_vae)",
+      "bounding": [
+        20,
+        20,
+        400,
+        560
+      ],
+      "color": "#4a89b8"
+    },
+    {
+      "title": "② 换装 LoRA(Krea2-编辑outfit_transfer ×1,官方 demo 原值)",
+      "bounding": [
+        620,
+        20,
+        420,
+        240
+      ],
+      "color": "#8a5fb0"
+    },
+    {
+      "title": "③ 服装参考图与编码(一图四用:编码/补丁像素线/正负接地;补丁 ref_boost=1/1)",
+      "bounding": [
+        20,
+        700,
+        1660,
+        970
+      ],
+      "color": "#4d9e6a"
+    },
+    {
+      "title": "④ 采样与输出(euler/simple · 8步 · cfg1 · 1072×1792 竖幅)",
+      "bounding": [
+        1740,
+        700,
+        1500,
+        760
+      ],
+      "color": "#c27a3d"
+    }
+  ],
+  "config": {},
+  "extra": {
+    "frontendVersion": "1.47.12",
+    "VHS_latentpreview": true,
+    "VHS_latentpreviewrate": 0,
+    "VHS_MetadataImage": true,
+    "VHS_KeepIntermediate": true,
+    "ue_links": [],
+    "links_added_by_ue": [],
+    "ds": {
+      "scale": 0.53,
+      "offset": [
+        80,
+        120
+      ]
+    }
+  },
+  "version": 0.4
+}

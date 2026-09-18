@@ -16,7 +16,7 @@ import sys
 from pathlib import Path
 
 REPO = Path("/Users/zhengbingjin/Project/Github/MYStudio")
-WF = REPO / "apps/backend/engines/comfyui/workflows/1_图片/K2图像/1_文生图/MY-K2_文生图_道劫.json"
+WF = REPO / "apps/backend/engines/comfyui/workflows/1_图片/K2图像/1_文生图/K2-文生图-道劫.json"
 
 NEW = [
     # (id, 文件名, 展示名, 类别色)
@@ -25,7 +25,7 @@ NEW = [
     (76, "Krea2-画风/Krea2-AsianMix_v4_TQD.safetensors", "[76] 画风·AsianMix v4 TQD ×1.0(古风亚洲面孔;默认旁路)", "style"),
     (77, "Krea2-画风/Krea2-美学Masterpiece_v51.safetensors", "[77] 画风·美学Masterpiece v51 ×1.0(提美;默认旁路)", "style"),
     (78, "Krea2-画风/Krea2-电影感CinematicShot_K2.safetensors", "[78] 画风·电影感CinematicShot ×1.0(电影感·摄影逻辑,水墨慎用;默认旁路)", "style"),
-    (79, "Krea2-画风/Krea2-风格参照style_reference.safetensors", "[79] 画风·风格参照style_reference ×1.0(需参考图输入,完整用法见 MY-K2-文生图_风格参照;默认旁路)", "style"),
+    (79, "Krea2-画风/Krea2-风格参照style_reference.safetensors", "[79] 画风·风格参照style_reference ×1.0(需参考图输入,完整用法见 K2-文生图-风格参照;默认旁路)", "style"),
 ]
 COLORS = {
     "nsfw": ("#8a5fb0", "#2c2438"),
@@ -39,7 +39,7 @@ CARD_NEW_SECTION = (
     "- [76] 画风·AsianMix v4 TQD | Krea2-画风/Krea2-AsianMix_v4_TQD.safetensors | ×1.0 | 古风亚洲面孔\n"
     "- [77] 画风·美学Masterpiece v51 | Krea2-画风/Krea2-美学Masterpiece_v51.safetensors | ×1.0 | 提美\n"
     "- [78] 画风·电影感CinematicShot | Krea2-画风/Krea2-电影感CinematicShot_K2.safetensors | ×1.0 | 电影感(摄影逻辑,道劫水墨慎用)\n"
-    "- [79] 画风·风格参照style_reference | Krea2-画风/Krea2-风格参照style_reference.safetensors | ×1.0 | 需参考图输入,完整用法=MY-K2-文生图_风格参照.json\n"
+    "- [79] 画风·风格参照style_reference | Krea2-画风/Krea2-风格参照style_reference.safetensors | ×1.0 | 需参考图输入,完整用法=K2-文生图-风格参照.json\n"
     "- 纪律重申:同时激活越多越崩;画风件(68/69/70/73/76/77/78)一次一枚;破限件(44/45/74/75)按需"
 )
 CARD_OLD_LINE_PREFIX = "- 挂账3件"

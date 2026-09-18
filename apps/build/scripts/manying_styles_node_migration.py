@@ -7,9 +7,9 @@ my_styles.py)启动惰性扫描 apps/frontend/assets/studio-manuals/art_skills/(
 studio-manuals/art_skills),combo=57 展示名,正/负词由 prefix.md 质量锚定行+反向规避行拼装。
 
 手术对象(均 easy stylesSelector,保 id/位置/尺寸/outputs 连线零改动):
-  · MY-K2_文生图_超集.json  [60] 预设 2D工笔风(2d_gongbi)
-  · MY-K2-文生图.json       [52] 预设 2D工笔风(2d_gongbi)
-  · MY-K2-图生图.json       [38] 预设 2D水彩(2d_watercolor)
+  · K2-文生图-超集.json  [60] 预设 2D工笔风(2d_gongbi)
+  · K2-文生图.json       [52] 预设 2D工笔风(2d_gongbi)
+  · K2-图生图.json       [38] 预设 2D水彩(2d_watercolor)
 逐节点:①type→MyStylesLibrary;②properties→{"Node name for S&R"}(清 aux_id/ver/ue_properties);
 ③inputs 四槽→两槽(positive slot0/negative slot1 原 link 照抄;style 为纯 widget 不占槽,旧
 styles/select_styles 两 widget 槽整条删除,三家实测均未连线);④widgets_values→[展示名]恒单条;
@@ -200,7 +200,7 @@ def main() -> int:
 
     targets = [
         {
-            "path": K2 / "1_文生图/MY-K2_文生图_超集.json",
+            "path": K2 / "1_文生图/K2-文生图-超集.json",
             "nid": 60,
             "display": "2D工笔风",
             "title": "[60] 漫影风格库(art_skills 现读·正负词同注入)",
@@ -208,7 +208,7 @@ def main() -> int:
             "name": "超集",
         },
         {
-            "path": K2 / "1_文生图/MY-K2-文生图.json",
+            "path": K2 / "1_文生图/K2-文生图.json",
             "nid": 52,
             "display": "2D工笔风",
             "title": "风格选择(漫影风格库 art_skills 现读,预设:2D工笔风)",
@@ -216,7 +216,7 @@ def main() -> int:
             "name": "文生图",
         },
         {
-            "path": K2 / "2_图生图/MY-K2-图生图.json",
+            "path": K2 / "2_图生图/K2-图生图.json",
             "nid": 38,
             "display": "2D水彩",
             "title": "风格选择(漫影风格库 art_skills 现读,预设:2D水彩)",

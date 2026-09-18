@@ -1,7 +1,9 @@
 # Copyright (c) 2025 hotflow2024
 # Licensed under AGPL-3.0-or-later. See LICENSE for details.
 # Commercial licensing available. See COMMERCIAL_LICENSE.md.
-"""漫影工作流 `MY-` 前缀迁移(09-14 用户裁定·二次修订)。
+"""[09-18 已废弃·勿再运行] 09-18 用户裁定废弃 MY- 前缀(去前缀+下划线转连字符),本脚本方向已反——运行会把全库改回 MY- 前缀。仅作历史留档。
+
+漫影工作流 `MY-` 前缀迁移(09-14 用户裁定·二次修订)。
 
 裁定演进:早同日先裁定 `_my.json` 后缀,随即二次修订为 **`MY-` 前缀**
 (如 `K2-图生图_my.json` → `MY-K2-图生图.json`)。本脚本是终态执行者,

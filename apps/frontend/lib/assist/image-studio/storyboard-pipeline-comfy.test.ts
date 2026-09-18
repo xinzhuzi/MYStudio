@@ -120,7 +120,7 @@ describe("buildStageInjections/applyStageInjections(通用模板注入)", () => 
   it("注入块按模板槽位 id 对齐;载荷进 properties.myStage,模板本体零改动", async () => {
     const { buildStageInjections, applyStageInjections, MAINLINE_TAB_NAME, STAGE_TEMPLATE_REPO_ID } =
       await import("./storyboard-pipeline-comfy");
-    expect(MAINLINE_TAB_NAME).toBe("MY-分镜工作流.json");
+    expect(MAINLINE_TAB_NAME).toBe("分镜工作流.json");
     expect(STAGE_TEMPLATE_REPO_ID).toContain("repo:0_分镜/");
     const injections = buildStageInjections({
       summaries: [

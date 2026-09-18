@@ -5,7 +5,7 @@
 /**
  * 分镜流程链载荷与模板注入契约(09-11 旧画布迁移 → 09-14 零文件通用化 →
  * 09-15 零实体裁定):七环节链(剧本→导演规划→[衍生资产]→分镜表→分镜面板→
- * 单镜视频生产→视频工作台)的真源=仓库通用模板 0_分镜/MY-分镜工作流.json
+ * 单镜视频生产→视频工作台)的真源=仓库通用模板 0_分镜/分镜工作流.json
  * (恒 7 环节锚点,repo: 只读)。本文件只产「环节摘要+富内容载荷+注入块」,
  * 画布侧打开时对模板克隆注入,引擎 userdata 恒零分镜文件——旧「整图构建器
  * 落库」形态(buildStoryboardPipelineWorkflow/总览图生成器)已随零实体裁定
@@ -367,13 +367,13 @@ export function buildStageSummaries(input: {
 }
 
 // ── 09-14 通用化:零文件形态的模板注入契约(引擎 userdata 恒零漫影)────────
-// 通用模板真源=仓库 workflows/0_分镜/MY-分镜工作流.json(repo: id 只读);
+// 通用模板真源=仓库 workflows/0_分镜/分镜工作流.json(repo: id 只读);
 // 打开=克隆模板+按当前章数据注入环节节点(widgets+myStage 载荷),
 // 镜内容全载荷渲染,不生成任何按镜实体节点/文件。
-export const STAGE_TEMPLATE_REPO_ID = "repo:0_分镜/MY-分镜工作流.json";
+export const STAGE_TEMPLATE_REPO_ID = "repo:0_分镜/分镜工作流.json";
 
 /** 画布主线签名(单实例协议锚;与库文件无关的临时签名) */
-export const MAINLINE_TAB_NAME = "MY-分镜工作流.json";
+export const MAINLINE_TAB_NAME = "分镜工作流.json";
 
 export interface StageInjection {
   id: number;

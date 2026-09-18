@@ -17,6 +17,12 @@ daojie-prompt-contract.ts 双写有风险。
   negative 输出=用户负向在前+按型负面基线在后,顶层逗号 token 去重合并
   (复用 .my_styles._merge_negative,防两处实现漂移)。
 
+分辨率两出(09-18 数据面接线备):ASPECT(COMBO,槽类型对齐官方
+ResolutionSelector [61] aspect_ratio 输入槽——object_info 实测即
+COMBO)+MEGAPIXELS(FLOAT),值按所选型现读 daojie_bases.json 的
+aspect_ratio/megapixels 字段;缺字段回退 1:1 (Square)/4.2 并在控制台
+警告(回退 aspect 同为官方枚举逐字串,裸 "1:1" 该 combo 不收)。
+
 真源关系(双真源链,见 docs/prompts/道劫_底座节点_0918.md):
   链A=0917 提示词包 §一 通用无型底座,唯一持有者=修手图 [12](逐字锁);
   链B=daojie_bases.json 九型底座,持有者=本节点;两链关系钉死为
@@ -38,6 +44,11 @@ DEFAULT_BASE = "人物"
 _BASES_JSON = Path(__file__).resolve().parent / "daojie_bases.json"
 
 _JSON_MISSING_COMBO = ["(道劫底座库未找到,请重启漫影或检查安装)"]
+
+# 分辨率字段缺失回退值(09-18):aspect 必须官方枚举逐字串(同
+# ResolutionSelector aspect_ratio 槽 options),否则 [61] combo 不收
+FALLBACK_ASPECT = "1:1 (Square)"
+FALLBACK_MEGAPIXELS = 4.2
 
 # 模块级缓存(mtime 失效):INPUT_TYPES 与 run 共用,热改即时生效
 _bases_cache: dict = {"mtime": None, "entries": None}
@@ -77,8 +88,26 @@ def _entry(base: str):
     return None
 
 
+def _resolution_of(base: str, entry: dict) -> tuple[str, float]:
+    """按型读 aspect_ratio/megapixels;缺字段回退 1:1 (Square)/4.2+控制台警告
+    (热改后的 json、或旧装机副本未同步时走此路,回退值保 [61] combo 可收)。"""
+    aspect = entry.get("aspect_ratio")
+    if not isinstance(aspect, str) or not aspect:
+        print(f"[漫影 道劫底座] 「{base}」缺 aspect_ratio 字段,"
+              f"回退 {FALLBACK_ASPECT}(请重新同步自研节点或检查 daojie_bases.json)")
+        aspect = FALLBACK_ASPECT
+    megapixels = entry.get("megapixels")
+    if isinstance(megapixels, bool) or not isinstance(megapixels, (int, float)):
+        print(f"[漫影 道劫底座] 「{base}」缺 megapixels 字段,"
+              f"回退 {FALLBACK_MEGAPIXELS}(请重新同步自研节点或检查 daojie_bases.json)")
+        megapixels = FALLBACK_MEGAPIXELS
+    return aspect, float(megapixels)
+
+
 class MyDaojieBase:
-    """漫影道劫底座:base 下拉选九型,正向底座装配+按型负面 STRING 双出。"""
+    """漫影道劫底座:base 下拉选九型,正向底座装配+按型负面 STRING 双出,
+    另出该型分辨率 ASPECT(COMBO)+MEGAPIXELS(FLOAT)(JS 侧中文显示名:
+    画幅比例/百万像素,见 web/daojie-base-node.js)。"""
 
     CATEGORY = "my"
 
@@ -103,8 +132,8 @@ class MyDaojieBase:
             },
         }
 
-    RETURN_TYPES = ("STRING", "STRING")
-    RETURN_NAMES = ("positive", "negative")
+    RETURN_TYPES = ("STRING", "STRING", "COMBO", "FLOAT")
+    RETURN_NAMES = ("positive", "negative", "aspect", "megapixels")
     FUNCTION = "run"
 
     @classmethod
@@ -130,6 +159,7 @@ class MyDaojieBase:
                 "是否被改动")
         base_positive = entry["positive"]
         base_negative = entry["negative"]
+        aspect, megapixels = _resolution_of(base, entry)
         user_positive = (positive or "").strip()
         user_negative = (negative or "").strip()
         # 底座在前+主体句零分隔符直拼:底座全文以全角句号自足收尾,主体句
@@ -137,4 +167,5 @@ class MyDaojieBase:
         # 在前,与手册链正文在前刻意相反,勿"对齐")
         out_positive = (
             f"{base_positive}{user_positive}" if user_positive else base_positive)
-        return (out_positive, _merge_negative(user_negative, base_negative))
+        return (out_positive, _merge_negative(user_negative, base_negative),
+                aspect, megapixels)

@@ -19,7 +19,7 @@
 
 退出码:全部干净=0;任一文件有问题=1;参数/IO 错误=2。
 注意:仅适用 UI 格式(litegraph schema:顶层 nodes/links 数组);API 格式
-(prompt 导出,如桥模板 MY-krea2_daojie_t2i.json)会报「缺 nodes/links
+(prompt 导出,如桥模板 krea2-daojie-t2i.json)会报「缺 nodes/links
 数组」并以 1 退出——属格式不匹配的如实报告,不是文件缺陷。
 """
 
@@ -37,7 +37,7 @@ EXEMPT_OCCLUSION_TYPES = frozenset({
 _OPTIONAL_SHAPE = 7  # litegraph 可选槽位形态(forceInput optional 槽先例)
 
 # widget 型类型:未连线时值由 widgets_values 位置式兜底(旧格式「可连接
-# widget」inputs 无 widget 键,先例=MY-K2-文生图.json [70]/[71] LoRA),
+# widget」inputs 无 widget 键,先例=K2-文生图.json [70]/[71] LoRA),
 # 不作必填槽报告;纯连接型(MODEL/CLIP/LATENT/IMAGE/STRING-forceInput…)
 # 未接线才是真必填缺失
 _WIDGET_VALUE_TYPES = frozenset({"COMBO", "FLOAT", "INT", "NUMBER", "BOOLEAN"})

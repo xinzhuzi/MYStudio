@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""MY-K2_文生图_超集 负向直通改造 v2(09-15 晚终态,实测定谳)。
+"""K2-文生图-超集 负向直通改造 v2(09-15 晚终态,实测定谳)。
 
 v1(已退役):加 64/65 负向链但经 [52] ConditioningZeroOut 归零 + 文案教
 「Bypass+CFG 3~5」——cfg=1 设计点下负向数学上不参与,当时属预留开关。
@@ -40,7 +40,7 @@ import sys
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[3]
-WF = REPO / "apps/backend/engines/comfyui/workflows/1_图片/K2图像/1_文生图/MY-K2_文生图_超集.json"
+WF = REPO / "apps/backend/engines/comfyui/workflows/1_图片/K2图像/1_文生图/K2-文生图-超集.json"
 
 GREEN = "#4d9e6a"
 GREEN_BG = "#1f2f26"

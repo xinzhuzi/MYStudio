@@ -162,7 +162,7 @@ def test_shot_video_writeback_rejects_empty_or_path_like_shot_id(shot_id):
         node.run(shot_id, "S01", "desc", video=object())
 
 
-# ── MyDaojieBase:九型底座下拉+装配收进节点(09-18)────────
+# ── MyDaojieBase:九型底座下拉+装配收进节点(09-18;同日分辨率两出)──
 def test_daojie_base_options_and_assembly():
     node = NODE_CLASS_MAPPINGS["MyDaojieBase"]()
     inputs = node.INPUT_TYPES()
@@ -172,8 +172,10 @@ def test_daojie_base_options_and_assembly():
         "人物", "场景", "道具", "美宣", "三视图",
         "高清人脸", "分镜剧情图", "表情差分", "概念气氛图"]
     assert combo[1]["default"] == "人物"
-    assert node.RETURN_TYPES == ("STRING", "STRING")
-    assert node.RETURN_NAMES == ("positive", "negative")
+    # 09-18 分辨率数据面:追加 aspect(COMBO,对齐 [61] aspect_ratio 槽)/
+    # megapixels(FLOAT) 两出,前两 STRING 槽位不动(存量图 [80] 链 45/46 免改)
+    assert node.RETURN_TYPES == ("STRING", "STRING", "COMBO", "FLOAT")
+    assert node.RETURN_NAMES == ("positive", "negative", "aspect", "megapixels")
 
     import json as _json
     bases = _json.loads(
@@ -181,11 +183,37 @@ def test_daojie_base_options_and_assembly():
         .read_text(encoding="utf-8"))
     renwu = next(e for e in bases if e["zh"] == "人物")
     # 拼接行为:底座在前+主体句零分隔符直拼;留空=恒等纯底座
-    pos, _neg = node.run("人物", positive="一位女修士")
+    pos, _neg, _ar, _mp = node.run("人物", positive="一位女修士")
     assert pos == renwu["positive"] + "一位女修士"
-    pos_empty, neg_empty = node.run("人物")
+    pos_empty, neg_empty, ar_empty, mp_empty = node.run("人物")
     assert pos_empty == renwu["positive"]
     assert neg_empty == renwu["negative"]  # 输出非空(纯英文负面基线)
+    assert (ar_empty, mp_empty) == (renwu["aspect_ratio"], renwu["megapixels"])
+
+
+def test_daojie_base_resolution_outputs_nine_types():
+    """九型分辨率两出全枚举实测:aspect 逐字命中官方 ResolutionSelector
+    AspectRatio 枚举(引擎 comfy_extras/nodes_resolution.py,8 项;sidecar
+    测试不可 import 引擎库,枚举镜像硬编码于此)、megapixels 统一 4.2、
+    两值与 daojie_bases.json 字段一比一;正负 STRING 原语义逐字不变。"""
+    node = NODE_CLASS_MAPPINGS["MyDaojieBase"]()
+    import json as _json
+    bases = _json.loads(
+        (Path(__file__).resolve().parent.parent / "nodes" / "daojie_bases.json")
+        .read_text(encoding="utf-8"))
+    official_aspects = {
+        "1:1 (Square)", "2:3 (Portrait Photo)", "3:2 (Photo)",
+        "3:4 (Portrait Standard)", "4:3 (Standard)",
+        "9:16 (Portrait Widescreen)", "16:9 (Widescreen)", "21:9 (Ultrawide)",
+    }
+    for entry in bases:
+        pos, neg, aspect, megapixels = node.run(entry["zh"])
+        assert aspect == entry["aspect_ratio"], entry["zh"]
+        assert aspect in official_aspects, f"「{entry['zh']}」aspect 非官方枚举逐字串"
+        assert megapixels == entry["megapixels"] == 4.2, entry["zh"]
+        # 原两路 STRING 语义不受新出影响:留空=恒等纯底座/纯负面基线
+        assert pos == entry["positive"]
+        assert neg == entry["negative"]
 
 
 # ── bridge 传输:令牌头+载荷形状+失败大白话 ───────────────

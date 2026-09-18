@@ -391,3 +391,155 @@ class TestCleanOrphanPlugins:
         assert (cn / "registered-plugin").is_dir()
         assert not (cn / "_orphan_manual").exists()
         assert "没有需要清理" not in result["message"]
+
+    def test_never_removes_managed_nodes_dirs(self, monkeypatch, tmp_path):
+        """09-19 根修:自研节点包 my-nodes(含旧名)与 __pycache__ 恒不删、不进孤儿。"""
+        import engines.comfyui.plugin_manager as pm
+        cn = tmp_path / "custom_nodes"
+        for name in ("my-nodes", "manying-nodes", "__pycache__", "leftover-pack"):
+            (cn / name).mkdir(parents=True)
+        monkeypatch.setattr(pm.cm, "custom_nodes_dir", lambda: cn)
+        monkeypatch.setattr(pm.cm, "load_manifest", lambda: {"engine": {}, "plugins": {}})
+        fake_engine = type("E", (), {"is_healthy": staticmethod(lambda: False),
+                                      "venv_freeze": staticmethod(lambda: [])})()
+        monkeypatch.setattr(pm, "engine_manager", lambda: fake_engine)
+
+        report = pm.doctor()
+        assert [item["plugin"] for item in report["orphan"]] == ["leftover-pack"]
+
+        result = pm.clean_orphan_plugins()
+        assert result["removed"] == ["leftover-pack"]
+        assert (cn / "my-nodes").is_dir()
+        assert (cn / "manying-nodes").is_dir()
+        assert (cn / "__pycache__").is_dir()
+
+
+class TestOutboundProxy:
+    """09-19 根修:GitHub 直连不通时,git/pip/市场请求自动走本机代理(探测制)。"""
+
+    def test_env_override_and_empty_disables(self, monkeypatch):
+        import engines.comfyui.engine_manager as em
+        monkeypatch.setenv("MYSTUDIO_OUTBOUND_PROXY", "http://127.0.0.1:12345")
+        assert em.outbound_proxy_url() == "http://127.0.0.1:12345"
+        # 空串 = 强制直连(用户关代理的逃生口)
+        monkeypatch.setenv("MYSTUDIO_OUTBOUND_PROXY", "")
+        assert em.outbound_proxy_url() is None
+
+    def test_detects_local_proxy_listener(self, monkeypatch):
+        import socket as socket_mod
+
+        import common.net_outbound as net
+        import engines.comfyui.engine_manager as em
+        monkeypatch.delenv("MYSTUDIO_OUTBOUND_PROXY", raising=False)
+        server = socket_mod.socket()
+        server.bind(("127.0.0.1", 0))
+        server.listen(1)
+        port = server.getsockname()[1]
+        monkeypatch.setattr(net, "_PROXY_CANDIDATE_PORTS", (port,))
+        monkeypatch.setattr(net, "_outbound_proxy_cache", None)
+        try:
+            assert em.outbound_proxy_url() == f"http://127.0.0.1:{port}"
+        finally:
+            server.close()
+
+    def test_outbound_proxy_env_sets_and_restores(self, monkeypatch):
+        """进程内下载库(huggingface_hub/requests)的代理窗口:进入设、退出还原。"""
+        import os
+
+        import common.net_outbound as net
+        monkeypatch.setattr(net, "outbound_proxy_url", lambda: "http://127.0.0.1:7897")
+        monkeypatch.delenv("https_proxy", raising=False)
+        monkeypatch.setenv("MYSTUDIO_TEST_MARKER", "keep")
+        with net.outbound_proxy_env():
+            assert os.environ["https_proxy"] == "http://127.0.0.1:7897"
+            assert os.environ["no_proxy"] == "127.0.0.1,localhost"
+            assert os.environ["MYSTUDIO_TEST_MARKER"] == "keep"  # 不动无关键
+        assert "https_proxy" not in os.environ  # 原先没有 → 退出后移除
+        with net.outbound_proxy_env():
+            pass  # 无操作分支覆盖
+        monkeypatch.setattr(net, "outbound_proxy_url", lambda: None)
+        with net.outbound_proxy_env():
+            assert "https_proxy" not in os.environ  # 无代理=零改动
+
+    def test_loopback_bypasses_proxy(self, monkeypatch):
+        """引擎本机健康检查(system_stats/object_info)绝不进代理。"""
+        import engines.comfyui.engine_manager as em
+        monkeypatch.setattr(em, "outbound_proxy_url", lambda: "http://127.0.0.1:7897")
+
+        def _no_opener(*args, **kwargs):
+            raise AssertionError("回环请求不得构造代理 opener")
+
+        monkeypatch.setattr(em.request, "build_opener", _no_opener)
+        sentinel = object()
+        monkeypatch.setattr(em.request, "urlopen", lambda req, timeout=None: sentinel)
+        req = em.request.Request("http://127.0.0.1:17000/system_stats")
+        assert em.urlopen_outbound(req, timeout=1.0) is sentinel
+
+    def test_outbound_goes_through_proxy(self, monkeypatch):
+        import engines.comfyui.engine_manager as em
+        monkeypatch.setattr(em, "outbound_proxy_url", lambda: "http://127.0.0.1:7897")
+        captured: dict = {}
+        sentinel = object()
+
+        class _FakeOpener:
+            def open(self, req, timeout=None):
+                return sentinel
+
+        def _build(*handlers):
+            captured["handlers"] = handlers
+            return _FakeOpener()
+
+        def _no_direct(req, timeout=None):
+            raise AssertionError("代理在场时外网请求不得直连")
+
+        monkeypatch.setattr(em.request, "build_opener", _build)
+        monkeypatch.setattr(em.request, "urlopen", _no_direct)
+        req = em.request.Request("https://api.github.com/repos/x/y")
+        assert em.urlopen_outbound(req, timeout=1.0) is sentinel
+        handler = captured["handlers"][0]
+        assert handler.proxies == {"http": "http://127.0.0.1:7897", "https": "http://127.0.0.1:7897"}
+
+    @staticmethod
+    def _install_fake_popen(monkeypatch, captured):
+        import io
+
+        import engines.comfyui.engine_manager as em
+
+        class _FakeProc:
+            def __init__(self):
+                self.stdout = io.StringIO("ok")
+                self.pid = 424242
+
+            def wait(self, timeout=None):
+                return 0
+
+            def kill(self):
+                pass
+
+        def _fake_popen(argv, **kwargs):
+            captured["env"] = kwargs.get("env")
+            return _FakeProc()
+
+        monkeypatch.setattr(em.subprocess, "Popen", _fake_popen)
+
+    def test_run_injects_proxy_env_for_git_pip(self, monkeypatch):
+        import engines.comfyui.engine_manager as em
+        monkeypatch.setattr(em, "outbound_proxy_url", lambda: "http://127.0.0.1:7897")
+        captured: dict = {}
+        self._install_fake_popen(monkeypatch, captured)
+
+        assert em._run(["git", "ls-remote", "https://github.com/x/y"]) == "ok"
+        env = captured["env"]
+        assert env is not None
+        assert env["https_proxy"] == "http://127.0.0.1:7897"
+        assert env["HTTP_PROXY"] == "http://127.0.0.1:7897"
+        assert env["no_proxy"] == "127.0.0.1,localhost"
+
+    def test_run_without_proxy_inherits_env(self, monkeypatch):
+        import engines.comfyui.engine_manager as em
+        monkeypatch.setattr(em, "outbound_proxy_url", lambda: None)
+        captured: dict = {}
+        self._install_fake_popen(monkeypatch, captured)
+
+        assert em._run(["git", "status"]) == "ok"
+        assert captured["env"] is None

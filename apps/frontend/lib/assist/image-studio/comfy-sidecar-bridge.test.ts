@@ -374,6 +374,23 @@ describe("插件与目录映射", () => {
     expect(mapPluginRow({ id: "x", state: "updatable", dirExists: false }).state).toBe("install-failed");
   });
 
+  it("插件行 source/repo 透传(09-19 根修):pip 行更新钮依赖 source,此前生产环境漏传", () => {
+    expect(
+      mapPluginRow({
+        id: "comfyui-manager",
+        name: "ComfyUI-Manager",
+        desc: "运行时组件",
+        license: null,
+        state: "installed",
+        source: "pip",
+        repo: "https://github.com/Comfy-Org/ComfyUI-Manager",
+        dirExists: true,
+      }),
+    ).toMatchObject({ source: "pip", repo: "https://github.com/Comfy-Org/ComfyUI-Manager" });
+    // 旧 sidecar 回包无 source:回落 undefined(前端按目录四源默认处理)
+    expect(mapPluginRow({ id: "legacy", dirExists: true }).source).toBeUndefined();
+  });
+
   it("目录搜索:策展+Registry 合并,installed → installedState", () => {
     const entries = mapCatalogReply({
       curated: [

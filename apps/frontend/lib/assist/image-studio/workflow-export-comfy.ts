@@ -20,8 +20,8 @@ import type {
   ImageWorkflowPromptNode,
   ImageWorkflowReferenceNode,
 } from "@/types/studio";
-import krea2T2i from "../../../../backend/engines/comfyui/workflows/1_图片/K2图像/1_文生图/MY-krea2_t2i.json";
-import krea2EditRef from "../../../../backend/engines/comfyui/workflows/1_图片/K2图像/3_改图/MY-krea2_edit_ref.json";
+import krea2T2i from "../../../../backend/engines/comfyui/workflows/1_图片/K2图像/1_文生图/krea2-t2i.json";
+import krea2EditRef from "../../../../backend/engines/comfyui/workflows/1_图片/K2图像/3_改图/krea2-edit-ref.json";
 
 /** 画幅→宽高(与 engines/image_engine/comfyui_bridge.ASPECT_RATIOS 同源单点,改两处同步) */
 const ASPECT_RATIOS: Record<string, [number, number]> = {

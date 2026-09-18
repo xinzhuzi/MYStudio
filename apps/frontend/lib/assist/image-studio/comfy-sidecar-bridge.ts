@@ -217,6 +217,9 @@ interface SidecarPluginRow {
   downloads?: number | null;
   latestVersion?: string | null;
   repo?: string | null;
+  /** 台账安装来源(pip=venv 直装运行时组件,前端据此给 ComfyUI-Manager 更新钮;
+      09-19 根修:此前漏传,生产环境 pip 行的更新钮永远不出现,只有 mock 里有) */
+  source?: ComfyPluginInfo["source"];
 }
 
 interface SidecarCatalogReply {
@@ -404,6 +407,8 @@ export function mapPluginRow(raw: SidecarPluginRow): ComfyPluginInfo {
     stars: raw.stars ?? null,
     category: null,
     nodeCount: raw.nodeCount ?? null,
+    source: raw.source,
+    repo: raw.repo ?? null,
   };
 }
 
@@ -420,6 +425,7 @@ function mapCatalogEntry(raw: Record<string, unknown>, source: "curated" | "regi
     installedState: installed ? "installed" : null,
     ref: String(raw.id ?? ""),
     source,
+    repo: (raw.repo as string | null) ?? null,
   };
 }
 

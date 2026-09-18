@@ -144,12 +144,19 @@ Claude / 非交互 shell 用原生 `rg` / `fd`,**不得假设** zsh 别名或函
 | GitHub 仓库代码/文档/issue | `zread`(MCP) | `get_repo_structure` / `read_file` / `search_doc`(免 clone);PR/issue 操作配 `gh` CLI |
 | B 站视频 / UP 主 | `bilibili-analyzer` skill | 垂直解析,优于通用搜索 |
 | JS 重交互 / 需登录站点 | browser-use / chrome-devtools | 搜索兜底,非首选 |
+| **Civitai 资产查源(09-19 增补)** | CivArchive 镜像 + comfy.icu | Civitai API 被本机代理拦(返回非 JSON)→ `civarchive.com/search?q=<词>` 拿元数据/SHA256/镜像文件;模型详情页 `civarchive.com/models/<id>`;`curl 页面 | grep href` 可钉 modelId/versionId;comfy.icu(`/files/<文件名>`)拿使用说明全文;**精确文件名当查询词**(如 `krea2_TFXChineseStyleHanfu`)远胜概念词 |
+| **HF 系统性枚举(09-19 增补)** | HF API(走 7897 代理) | `huggingface.co/api/models?search=<词>&sort=downloads&direction=-1`(免 key 排产);`/api/models/<id>` 拿 siblings 文件清单(免 clone 先看底);大索引仓(如 k2styles 999 件)直接 `resolve/main/README.md` 拉全表本地 rg |
+| **ModelScope 国内源(09-19 增补)** | ModelScope API(免代理直连) | `modelscope.cn/api/v1/models/<owner>/<name>` 元数据;`resolve/master/<file>` 直链下载(实测 3.2MB/s);中文描述字段是中式资产检索富矿(英文站搜不到) |
+| **下载前验证(09-19 增补)** | curl range + SHA256 | `curl -r 0-2097151` 测速再决定全量下;SHA256 从 CivArchive 详情页抄下,下完 `shasum -a 256` 对账 |
 
 **坑清单(在档实证)**:
 - **`WebFetch` 直连 `github.com` 超时** → 一律改走 `zread` 或 `webReader`。
 - 中文内容用 `WebSearch` 搜不到/搜偏 → `web_search_prime` + `location=cn`。
 - 模型权重查源:先 ModelScope(`modelscope.cn`)后 HuggingFace;本机网络对 HF 不稳时直接用 ModelScope 源。
 - 网络结论与本地事实冲突时,以本地文件为准;网络信息须带 URL 出处。
+- **webReader 是服务端抓取,可绕本机代理出口封锁**(comfy.icu/civarchive/HF README 实证);但**客户端渲染 SPA 拿不到内容**(civitai 搜索页只有骨架),且 URL 带编码空格(%20)会被拒——换 `+` 或去参数(09-19)。
+- **comfy.icu `/files/` 是落地页非直链**(200 text/html),别当下载源;下载走 Civitai API(带 key)或 CivArchive 镜像(09-19)。
+- **调研前先盘本地底座再上网**(解法矩阵:目标→路线→本地已有→真缺件);引擎节点/资产盘点以 `$ComfyUI/custom_nodes` 目录+实弹工作流为准,**rg 搜节点类名扑空≠不存在**(类名常运行时字符串拼装)(09-19)。
 
 ---
 

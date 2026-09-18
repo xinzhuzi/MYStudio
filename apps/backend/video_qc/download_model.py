@@ -18,6 +18,8 @@ import sys
 import threading
 import time
 import urllib.request
+
+from common.net_outbound import outbound_proxy_env, urlopen_outbound
 from pathlib import Path
 
 from engines.video_qc_engine.model_cache import (
@@ -37,7 +39,8 @@ def _write_progress(path: Path, payload: dict) -> None:
 
 def _download_direct(url: str, dest: Path, spec_size_mb: int, report) -> None:
     tmp = dest.with_name(dest.name + ".part")
-    with urllib.request.urlopen(url, timeout=60) as response, tmp.open("wb") as handle:
+    req = urllib.request.Request(url)
+    with urlopen_outbound(req, timeout=60) as response, tmp.open("wb") as handle:
         total = int(response.headers.get("Content-Length") or spec_size_mb * 1024 * 1024)
         downloaded = 0
         while True:
@@ -89,7 +92,8 @@ def download_model(model_name: str, progress_path: Path) -> int:
                 download_repo_to_hf_cache(repo_id, str(cache_dir), allow_paths=[file_name])
             except Exception as exc:
                 print(f"[download] ModelScope 直链失败,回退 HF: {exc}", file=sys.stderr, flush=True)
-                snapshot_download(repo_id=repo_id, filename=file_name, cache_dir=str(cache_dir))
+                with outbound_proxy_env():
+                    snapshot_download(repo_id=repo_id, filename=file_name, cache_dir=str(cache_dir))
         if spec["url"] and not dest.is_file():
             _download_direct(spec["url"], dest, spec["size_mb"], report)
         # 09-10 P1:完成前校验指纹——此前坏文件(截断/损坏)也报 complete,

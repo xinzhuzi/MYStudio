@@ -69,9 +69,26 @@ const copyPath = async (path: string) => {
   }
 };
 
-/** 引擎级任务(install/update/reset)进度条 + 阶段大白话文案。 */
+/** 任务种类 → 进行中小标题(引擎/插件任务共用同一进度位,09-19 统一裁定)。 */
+const JOB_KIND_TITLES: Record<ComfyEngineJob["kind"], string> = {
+  install: "正在安装引擎",
+  update: "正在更新引擎",
+  reset: "正在重装运行环境",
+  "plugin-install": "正在安装插件",
+  "plugin-update": "正在更新插件",
+  "plugin-remove": "正在卸载插件",
+  migrate: "正在迁移存储位置",
+};
+
+/** 引擎与插件任务(install、update、reset、plugin 三类、migrate)统一进度条
+ * + 阶段大白话文案。
+ * 09-19 用户裁定:进度条只放卡顶这一个位置——此前引擎任务在卡顶、插件任务在
+ * 生态插件折叠区,两处进度不同步,折叠区收起时进度还会整个消失。 */
 function EngineJobProgress({ job }: { job: ComfyEngineJob }) {
   const failed = job.state === "failed";
+  const detail = failed
+    ? (job.message ?? "任务失败")
+    : (job.message ?? `${COMFY_ENGINE_STAGE_LABELS[job.stage ?? "download"]}…`);
   return (
     <div
       className={cn(
@@ -80,16 +97,27 @@ function EngineJobProgress({ job }: { job: ComfyEngineJob }) {
       )}
       data-comfy-engine-progress
     >
-      <div className="flex items-center justify-between gap-4 text-sm">
-        <span className={cn("font-medium", failed ? "text-destructive" : "text-foreground")}>
-          {failed
-            ? (job.message ?? "任务失败")
-            : `${COMFY_ENGINE_STAGE_LABELS[job.stage ?? "download"]}…`}
+      <div className="flex items-center justify-between gap-4">
+        <span
+          className={cn(
+            "text-xs font-medium",
+            failed ? "text-destructive" : "text-muted-foreground",
+          )}
+        >
+          {JOB_KIND_TITLES[job.kind]}
         </span>
         {!failed && job.progress != null ? (
           <span className="font-mono text-xs text-muted-foreground">{Math.round(job.progress)}%</span>
         ) : null}
       </div>
+      <p
+        className={cn(
+          "mt-1 text-sm",
+          failed ? "font-medium text-destructive" : "font-medium text-foreground",
+        )}
+      >
+        {detail}
+      </p>
       {!failed ? (
         job.progress != null ? (
           <div className="mt-3 h-2 overflow-hidden rounded-full bg-muted">
@@ -308,17 +336,22 @@ export function ComfyEngineSettingsSection({ embedded = false, initialActiveTab 
   const installing = engine.activeJob?.kind === "install" && engine.activeJob.state === "running";
   const updating = engine.activeJob?.kind === "update" && engine.activeJob.state === "running";
   const resetting = engine.activeJob?.kind === "reset" && engine.activeJob?.state === "running";
-  const installFailed = engine.activeJob?.kind === "install" && engine.activeJob.state === "failed";
   const updateFailed = engine.activeJob?.kind === "update" && engine.activeJob.state === "failed";
+  // 任务闸是全局单槽(引擎与插件任务互斥):任何任务进行中,两边的操作钮都要
+  // 禁下来——此前插件钮只看插件任务、引擎钮只看引擎任务,交错点击才弹
+  // 「已有任务在进行中」报错,看起来就像两边不同步(09-19 根修)。
+  const anyJobRunning = engine.activeJob?.state === "running";
   // 09-08 实弹修正:status 未知(sidecar 未起/探测未回)≠ 未安装——此前误判
   // 会让已装引擎的用户看到「安装引擎」按钮,以为要重新下载。未知=检查中态。
   const statusUnknown = !status;
   const notInstalled = status?.state === "not-installed";
-  // TS 无法从布尔变量回推 activeJob 非空,这里单独收窄。
-  const engineJob =
-    engine.activeJob !== null && (installing || installFailed || updating || updateFailed || resetting)
+  // 统一进度位(09-19):卡顶进度条吃下全部任务种类(引擎 install/update/reset
+  // + 插件装/更/卸 + 迁移),running/failed 展示;成功态走报告卡,不出进度条。
+  const jobForProgress =
+    engine.activeJob !== null && (engine.activeJob.state === "running" || engine.activeJob.state === "failed")
       ? engine.activeJob
       : null;
+  // (jobForProgress 在上面统一收窄,引擎/插件任务共用卡顶进度位)
 
   // 模型页节点(两个落点复用):分域分组展示已抽出独立子模块 comfy-models/
   // (09-10 用户裁定:图片/视频/声音域分组+多重归属;分类法单源在同目录 taxonomy)
@@ -343,7 +376,7 @@ export function ComfyEngineSettingsSection({ embedded = false, initialActiveTab 
           <Button
             size="sm"
             onClick={() => void engine.installEngine()}
-            disabled={installing}
+            disabled={anyJobRunning}
             data-comfy-install-button
           >
             {installing ? (
@@ -371,7 +404,7 @@ export function ComfyEngineSettingsSection({ embedded = false, initialActiveTab 
               size="sm"
               variant="outline"
               onClick={() => void engine.installEngine()}
-              disabled={installing}
+              disabled={anyJobRunning}
             >
               {installing ? (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden />
@@ -384,8 +417,8 @@ export function ComfyEngineSettingsSection({ embedded = false, initialActiveTab 
         </div>
       ) : null}
 
-      {/* 安装/更新链/reset 任务进度(含失败大白话) */}
-      {engineJob ? <EngineJobProgress job={engineJob} /> : null}
+      {/* 安装/更新/reset/插件任务统一进度(含失败大白话;唯一进度位,09-19 裁定) */}
+      {jobForProgress ? <EngineJobProgress job={jobForProgress} /> : null}
 
       {/* 更新失败 → 重试自愈(09-09 用户裁定:更新链无快照无回滚) */}
       {updateFailed ? (
@@ -429,7 +462,7 @@ export function ComfyEngineSettingsSection({ embedded = false, initialActiveTab 
                 size="sm"
                 variant="outline"
                 onClick={() => void engine.startService()}
-                disabled={status.serviceRunning || engine.isStartingService || updating || resetting}
+                disabled={status.serviceRunning || engine.isStartingService || anyJobRunning}
               >
                 {engine.isStartingService ? (
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden />
@@ -442,7 +475,7 @@ export function ComfyEngineSettingsSection({ embedded = false, initialActiveTab 
                 size="sm"
                 variant="ghost"
                 onClick={() => void engine.stopService()}
-                disabled={!status.serviceRunning || updating || resetting}
+                disabled={!status.serviceRunning || anyJobRunning}
               >
                 <Square className="mr-2 h-4 w-4" aria-hidden />
                 停止
@@ -545,7 +578,7 @@ export function ComfyEngineSettingsSection({ embedded = false, initialActiveTab 
                   </p>
                   {/* shrink-0:不被长版本行文本层盖住点击区(09-09 实弹:elementFromPoint 命中文本 DIV 致按钮点不到) */}
                   {status.updateAvailable ? (
-                    <Button size="sm" className="shrink-0" onClick={() => void engine.updateEngine()} disabled={updating}>
+                    <Button size="sm" className="shrink-0" onClick={() => void engine.updateEngine()} disabled={anyJobRunning}>
                       {updating ? (
                         <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden />
                       ) : (
@@ -755,7 +788,7 @@ export function ComfyEngineSettingsSection({ embedded = false, initialActiveTab 
                   size="sm"
                   variant="destructive"
                   onClick={() => setConfirmReset(true)}
-                  disabled={resetting}
+                  disabled={anyJobRunning}
                   data-comfy-reset-button
                 >
                   {resetting ? (

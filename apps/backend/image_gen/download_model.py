@@ -13,6 +13,8 @@ import threading
 import time
 from pathlib import Path
 
+from common.net_outbound import outbound_proxy_env
+
 from engines.image_engine.model_cache import (
     IMAGE_MODELS,
     comfyui_models_dir,
@@ -48,7 +50,8 @@ def _ms_download(repo_id: str, cache_dir: str, allow_paths: list[str]):
 
 def _hf_download(repo_id: str, allow_patterns: list[str], cache_dir: str):
     from huggingface_hub import snapshot_download
-    snapshot_download(repo_id=repo_id, allow_patterns=allow_patterns, cache_dir=cache_dir)
+    with outbound_proxy_env():
+        snapshot_download(repo_id=repo_id, allow_patterns=allow_patterns, cache_dir=cache_dir)
 
 
 SEGMENTATION_MODELS = {
@@ -90,10 +93,11 @@ def _download_segmentation(model_name: str, progress_path: Path) -> int:
             "total": info["size_mb"], "progress": 0, "updatedAt": int(time.time()*1000),
         })
         try:
-            local = snapshot_download(
-                repo_id=info["hf_repo"],
-                cache_dir=download_hf_cache_dir(),
-            )
+            with outbound_proxy_env():
+                local = snapshot_download(
+                    repo_id=info["hf_repo"],
+                    cache_dir=download_hf_cache_dir(),
+                )
             # 复制到模型目录
             for f in Path(local).iterdir():
                 if f.is_file() and f.suffix in ('.safetensors', '.json', '.txt'):

@@ -35,9 +35,9 @@ const storyboardOverview = { id: "分镜/1_总览/MY-分镜总览.json", name: "
 const storyboardShot = { id: "分镜/2_单镜图/MY-S01.json", name: "S01" };
 const storyboardVideo = { id: "分镜/3_单镜视频/MY-单镜视频 · chapter-001 · S01.json", name: "单镜视频" };
 const legacyMainline = { id: "漫影/1_图片/分镜/0_工作流主线/分镜工作流.json", name: "旧根主线" };
-const k2Workflow = { id: "repo:1_图片/K2图像/1_文生图/MY-K2-文生图.json", name: "K2-文生图" };
+const k2Workflow = { id: "repo:1_图片/K2图像/1_文生图/K2-文生图.json", name: "K2-文生图" };
 const h3Workflow = { id: "repo:2_视频/H3视频/2_固定线/MY-x.json", name: "x" };
-const musicWorkflow = { id: "repo:3_声音/minimaxM3/MY-music3-完整档-即用版.json", name: "music3" };
+const musicWorkflow = { id: "repo:3_声音/minimaxM3/music3-完整档-即用版.json", name: "music3" };
 const referenceWorkflow = { id: "漫影/4_参考_提示词工程/prompts.json", name: "prompts(旧根防回流)" };
 const library = [storyboardMainline, storyboardOverview, storyboardShot, storyboardVideo, legacyMainline, k2Workflow, h3Workflow, musicWorkflow, referenceWorkflow];
 

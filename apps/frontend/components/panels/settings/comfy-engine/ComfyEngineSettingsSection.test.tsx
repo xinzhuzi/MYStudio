@@ -523,6 +523,47 @@ describe("ComfyEngineSettingsSection 插件子区块", () => {
     expect(screen.queryByText("插件管理器(Registry)")).toBeNull();
   });
 
+  it("策展 id 与仓库名不一致:按仓库地址去重,已装插件不以「可安装」孪生回流(09-19 根修)", () => {
+    scenario.plugins = [
+      {
+        id: "Rebalance-Pack", // 台账键=目录名(派生自仓库尾段)
+        name: "Krea2 提示重平衡",
+        description: "十二带提示词重平衡",
+        license: "Apache-2.0",
+        state: "installed",
+        version: "abc1234",
+        deps: [],
+        author: null,
+        downloads: null,
+        category: null,
+        nodeCount: 4,
+        repo: "https://github.com/nova452/Rebalance-Pack",
+      },
+    ];
+    scenario.catalog = [
+      {
+        id: "ComfyUI-ConditioningKrea2Rebalance", // 策展 id 与目录名永远对不上
+        name: "Krea2 提示重平衡",
+        description: "十二带提示词重平衡(策展)",
+        license: "Apache-2.0",
+        author: "nova452",
+        downloads: 1000,
+        category: null,
+        installedState: null,
+        ref: "ComfyUI-ConditioningKrea2Rebalance",
+        source: "curated",
+        repo: "https://github.com/nova452/Rebalance-Pack",
+      },
+    ];
+    render(<ComfyEngineSettingsSection embedded />);
+    openPluginBlock();
+
+    // 只剩已装真身行;策展孪生按仓库地址去重,不再出现可安装的第二行
+    expect(screen.getByText("已装 4 节点")).toBeTruthy();
+    expect(screen.queryByText("可安装")).toBeNull();
+    expect(screen.queryByText("十二带提示词重平衡(策展)")).toBeNull();
+  });
+
   it("已装清单暂空 + 目录行后端已标已装:显示「已安装」且不给安装钮(过渡形态)", () => {
     scenario.plugins = [];
     scenario.catalog = [
@@ -695,6 +736,108 @@ describe("ComfyEngineSettingsSection 插件子区块", () => {
 
     fireEvent.click(comfyEl("plugin-toggle"));
     expect(comfyQuery("plugin-search")).toBeNull();
+  });
+});
+
+// ── 09-19 统一进度位:引擎/插件任务共用卡顶一条进度条;任务互斥全局可视 ──
+describe("ComfyEngineSettingsSection 统一进度与任务互斥", () => {
+  beforeEach(() => {
+    scenario.status = readyStatus({ updateAvailable: true, latest: "0.34.5" });
+    window.localStorage.removeItem("comfy-plugin-block-open");
+    scenario.plugins = [];
+    scenario.catalog = [
+      {
+        id: "layerstyle",
+        name: "图层样式",
+        description: "上百个图像处理节点",
+        license: "GPL-3.0",
+        author: "chflame163",
+        downloads: 987654,
+        category: null,
+        installedState: null,
+        ref: "layerstyle",
+        source: "curated",
+      },
+    ];
+  });
+
+  it("插件任务进行中:进度条在卡顶统一位置展示,插件区块内不再有第二条", () => {
+    scenario.activeJob = {
+      jobId: "j9",
+      kind: "plugin-update",
+      state: "running",
+      progress: 45,
+      stage: "pull",
+      message: "拉取插件最新代码…",
+      report: null,
+    };
+    render(<ComfyEngineSettingsSection embedded />);
+
+    // 卡顶统一进度:种类小标题 + 后端阶段大白话 + 百分比
+    expect(comfyEl("engine-progress")).toBeTruthy();
+    expect(screen.getByText("正在更新插件")).toBeTruthy();
+    expect(screen.getByText("拉取插件最新代码…")).toBeTruthy();
+    expect(screen.getByText("45%")).toBeTruthy();
+    // 旧插件区块内的第二条进度位已拆(09-19 裁定:进度只放一处)
+    expect(document.querySelector("[data-comfy-plugin-job]")).toBeNull();
+  });
+
+  it("插件任务进行中:引擎「更新到最新」同步禁用(单任务闸互斥可视)", () => {
+    scenario.activeJob = {
+      jobId: "j10",
+      kind: "plugin-install",
+      state: "running",
+      progress: 30,
+      stage: "clone",
+      message: "获取插件文件…",
+      report: null,
+    };
+    render(<ComfyEngineSettingsSection embedded />);
+    fireEvent.click(comfyEl("tab", "update"));
+
+    expect(screen.getByText("正在安装插件")).toBeTruthy();
+    expect(screen.getByText("获取插件文件…")).toBeTruthy();
+    expect(comfyEl("tab", "update")).toBeTruthy();
+    const updateBtn = screen.getByRole("button", { name: /更新到最新/ }) as HTMLButtonElement;
+    expect(updateBtn.disabled).toBe(true);
+  });
+
+  it("引擎更新进行中:插件安装/卸载钮同步禁用,不出现可点的假按钮", () => {
+    scenario.activeJob = {
+      jobId: "j11",
+      kind: "update",
+      state: "running",
+      progress: 40,
+      stage: "pull",
+      message: "强制拉取新版 abc1234…",
+      report: null,
+    };
+    render(<ComfyEngineSettingsSection embedded />);
+    fireEvent.click(comfyEl("tab", "update"));
+    fireEvent.click(comfyEl("plugin-toggle"));
+
+    // 可装行展开:安装钮在但禁用(点了只会撞「已有任务在进行中」的时代结束)
+    fireEvent.click(screen.getByText("图层样式"));
+    const installBtn = document.querySelector("[data-comfy-plugin-install]") as HTMLButtonElement | null;
+    expect(installBtn).toBeTruthy();
+    expect(installBtn?.disabled).toBe(true);
+  });
+
+  it("插件任务失败:统一进度位显示失败大白话(红色),不再静默只剩 toast", () => {
+    scenario.activeJob = {
+      jobId: "j12",
+      kind: "plugin-install",
+      state: "failed",
+      progress: 36,
+      stage: null,
+      message: "依赖冲突,已取消安装: 要装 numpy>=1.26",
+      report: null,
+    };
+    render(<ComfyEngineSettingsSection embedded />);
+
+    expect(screen.getByText("正在安装插件")).toBeTruthy();
+    expect(screen.getByText("依赖冲突,已取消安装: 要装 numpy>=1.26")).toBeTruthy();
+    expect(comfyEl("engine-progress").className).toContain("destructive");
   });
 });
 

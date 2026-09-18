@@ -25,7 +25,7 @@ const CDP_PORT = Number(process.env.CDP_PORT || 9222);
 const CDP_BASE = `http://127.0.0.1:${CDP_PORT}`;
 const APP_BIN = "/Applications/漫影工作室.app/Contents/MacOS/漫影工作室";
 const APP_BUNDLE_ID = "com.manju2026.manying-studio";
-const WF_T2I_REL = "1_图片/K2图像/1_文生图/MY-K2-文生图.json";
+const WF_T2I_REL = "1_图片/K2图像/1_文生图/K2-文生图.json";
 const WF_DIR = "/Users/zhengbingjin/Project/Github/MYStudio/apps/backend/engines/comfyui/workflows";
 
 const log = (...a) => console.log(new Date().toISOString().slice(11, 19), ...a);
@@ -269,7 +269,7 @@ async function main() {
   log("dock:", JSON.stringify(dock));
 
   log("A 顶部工作流标签右键");
-  const tabHit = await ctxOn(mainPage, `[...document.querySelectorAll('.workflow-label')].find(e => (e.textContent||'').includes('MY-K2-文生图'))`);
+  const tabHit = await ctxOn(mainPage, `[...document.querySelectorAll('.workflow-label')].find(e => (e.textContent||'').includes('K2-文生图'))`);
   log("[A] 派发:", tabHit);
   if (tabHit) await report(mainPage, "A·顶部标签", "A-tab")();
   else {

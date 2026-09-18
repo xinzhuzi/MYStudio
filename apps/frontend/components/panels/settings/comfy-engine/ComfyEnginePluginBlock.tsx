@@ -12,7 +12,6 @@ import {
   ChevronDown,
   Download,
   FolderOpen,
-  Loader2,
   PackagePlus,
   RefreshCw,
   Search,
@@ -37,7 +36,6 @@ import { cn } from "@/lib/utils";
 import {
   filterComfyCatalogEntries,
   formatComfyPluginPillLabel,
-  type ComfyEngineJob,
   type ComfyPluginInfo,
   type ComfyPluginState,
 } from "./comfy-engine-contract";
@@ -54,6 +52,12 @@ const PLUGIN_PILL_STYLES: Record<ComfyPluginState, string> = {
   "install-failed": "border-destructive/30 bg-destructive/10 text-destructive",
   installable: "border-border bg-muted/60 text-muted-foreground",
 };
+
+/** 仓库地址归一(小写、剥 .git 尾与尾斜杠)——目录条目与已装行同源判定
+ * (与后端 plugin_manager._normalize_repo 同口径)。 */
+function normalizeRepoUrl(repo: string): string {
+  return repo.trim().toLowerCase().replace(/\.git$/, "").replace(/\/+$/, "");
+}
 
 /** 插件行展示模型(已装清单与目录条目归一)。 */
 type PluginRow = {
@@ -103,8 +107,11 @@ export function ComfyEnginePluginBlock({ engine }: ComfyEnginePluginBlockProps) 
     void searchCatalogFn("");
   }, [searchCatalogFn]);
 
-  const pluginJobActive =
-    engine.activeJob?.state === "running" && engine.activeJob.kind.startsWith("plugin");
+  // 任务闸全局单槽(引擎与插件任务互斥):任何任务进行中都禁用插件操作钮——
+  // 引擎更新中点插件安装只会撞「已有任务在进行中」报错(09-19 根修)。
+  // 插件任务的进度展示统一在引擎卡卡顶(ComfyEngineSettingsSection),本区块
+  // 不再放第二条进度条。
+  const jobActive = engine.activeJob?.state === "running";
 
   const visibleEntries = useMemo(
     () => filterComfyCatalogEntries(engine.catalog, searchDraft, category || null),
@@ -121,16 +128,24 @@ export function ComfyEnginePluginBlock({ engine }: ComfyEnginePluginBlockProps) 
 
   /** 已装插件优先展示,再接目录里的可装条目(去重:已装的以 plugins 清单为准)。 */
   const rows = useMemo<PluginRow[]>(() => {
-    // 去重按归一化 id(小写):Registry id(comfyui-manager)与台账目录名
-    // (ComfyUI-Manager)大小写不一,精确比对会让已装插件以「可安装」重复出
-    // 现两行(09-10 实弹)。
-    const installedIds = new Set(
-      engine.plugins
-        .filter((plugin) => plugin.state !== "installable")
-        .map((plugin) => plugin.id.toLowerCase()),
+    // 去重两路:归一化 id(小写)——Registry id(comfyui-manager)与台账目录名
+    // (ComfyUI-Manager)大小写不一(09-10 实弹);仓库地址(归一化)——策展 id
+    // 与仓库名不一致(ComfyUI-ConditioningKrea2Rebalance vs Rebalance-Pack)时
+    // id 永远对不上,已装插件以「可安装」孪生行回流,点安装再撞「目录已存在」
+    // (09-19 实弹)。
+    const installedPlugins = engine.plugins.filter((plugin) => plugin.state !== "installable");
+    const installedIds = new Set(installedPlugins.map((plugin) => plugin.id.toLowerCase()));
+    const installedRepos = new Set(
+      installedPlugins
+        .map((plugin) => (plugin.repo ? normalizeRepoUrl(plugin.repo) : null))
+        .filter((repo): repo is string => Boolean(repo)),
     );
     const catalogRows: PluginRow[] = visibleEntries
       .filter((entry) => !installedIds.has(entry.id.toLowerCase()))
+      .filter((entry) => {
+        const repo = entry.repo ? normalizeRepoUrl(entry.repo) : null;
+        return repo === null || !installedRepos.has(repo);
+      })
       .map((entry) => ({
         id: entry.id,
         name: entry.name,
@@ -379,7 +394,7 @@ export function ComfyEnginePluginBlock({ engine }: ComfyEnginePluginBlockProps) 
                         <Button
                           size="sm"
                           className="h-7 px-2.5 text-[11px]"
-                          disabled={pluginJobActive}
+                          disabled={jobActive}
                           onClick={() => {
                             const src = row.source;
                             if (src === "pip") return; // 类型窄化回调内保真(venv 直装无目录引用)
@@ -396,7 +411,7 @@ export function ComfyEnginePluginBlock({ engine }: ComfyEnginePluginBlockProps) 
                           size="sm"
                           variant="outline"
                           className="h-7 px-2.5 text-[11px]"
-                          disabled={pluginJobActive}
+                          disabled={jobActive}
                           onClick={() => void engine.updatePlugin(row.id)}
                           data-comfy-plugin-update={row.id}
                         >
@@ -409,7 +424,7 @@ export function ComfyEnginePluginBlock({ engine }: ComfyEnginePluginBlockProps) 
                           size="sm"
                           variant="outline"
                           className="h-7 px-2.5 text-[11px]"
-                          disabled={pluginJobActive || isScanningUsage}
+                          disabled={jobActive || isScanningUsage}
                           onClick={() => void requestUninstall(row)}
                           data-comfy-plugin-uninstall={row.id}
                         >
@@ -426,10 +441,8 @@ export function ComfyEnginePluginBlock({ engine }: ComfyEnginePluginBlockProps) 
         })}
       </div>
 
-      {/* 插件任务进度(安装五步收尾:克隆→依赖→重启差分) */}
-      <PluginJobProgress job={engine.activeJob} />
-
       {/* 高级折叠:任意 git/本地路径安装(第三方代码警告) */}
+      {/* 插件任务进度不在此处展示——统一进度位在引擎卡卡顶(09-19 裁定) */}
       <details className="group rounded-md border border-border" data-comfy-plugin-advanced>
         <summary className="cursor-pointer select-none bg-muted/40 px-3 py-2 text-xs font-medium text-foreground transition-colors hover:bg-muted">
           高级:从 git 地址或本地路径安装
@@ -461,7 +474,7 @@ export function ComfyEnginePluginBlock({ engine }: ComfyEnginePluginBlockProps) 
                   setAdvancedRef("");
                   void engine.installPlugin(source, value);
                 }}
-                disabled={pluginJobActive}
+                disabled={jobActive}
                 data-comfy-plugin-advanced-install
               >
                 <FolderOpen className="mr-1 h-3.5 w-3.5" aria-hidden />
@@ -516,28 +529,5 @@ export function ComfyEnginePluginBlock({ engine }: ComfyEnginePluginBlockProps) 
         </AlertDialogContent>
       </AlertDialog>
     </section>
-  );
-}
-
-/** 插件任务进行中的阶段提示(装/更/卸共用;大白话,禁英文术语裸奔)。 */
-function PluginJobProgress({ job }: { job: ComfyEngineJob | null }) {
-  const active = job && job.state === "running" && job.kind.startsWith("plugin") ? job : null;
-  if (!active) return null;
-  const label =
-    active.kind === "plugin-remove"
-      ? "正在卸载插件"
-      : active.kind === "plugin-update"
-        ? "正在更新插件"
-        : "正在安装插件";
-  return (
-    <div className="rounded-lg border border-warning/25 bg-warning/[0.06] p-3" role="status" data-comfy-plugin-job>
-      <div className="flex items-center gap-2 text-xs font-medium text-foreground">
-        <Loader2 className="h-3.5 w-3.5 animate-spin text-warning" aria-hidden />
-        {label}
-        {active.progress != null ? (
-          <span className="font-mono text-muted-foreground">{Math.round(active.progress)}%</span>
-        ) : null}
-      </div>
-    </div>
   );
 }
