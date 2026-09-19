@@ -1,0 +1,89 @@
+[
+  {
+    "key": "人物",
+    "zh": "人物",
+    "note": "人物系三件=09-19 用户裁定(67细节+76亚洲面孔+73鎏金);热调本文件即时生效,勿改图",
+    "loras": [
+      {"file": "Krea2-美学/Krea2-细节滑杆DetailSlider_v1.safetensors", "strength_model": 1.0},
+      {"file": "Krea2-画风/Krea2-AsianMix_v4_TQD.safetensors", "strength_model": 0.4},
+      {"file": "Krea2-画风/Krea2-水墨武侠漆艺鎏金_v1.safetensors", "strength_model": 0.3}
+    ]
+  },
+  {
+    "key": "场景",
+    "zh": "场景",
+    "note": "场景免鎏金(裁定);金雾仙侠=09-19 实拍定谳唯一倾向件(淡彩向),0.6 起步",
+    "loras": [
+      {"file": "Krea2-美学/Krea2-细节滑杆DetailSlider_v1.safetensors", "strength_model": 1.0},
+      {"file": "Krea2-画风/金雾仙侠GoldenMisty.safetensors", "strength_model": 0.6}
+    ]
+  },
+  {
+    "key": "道具",
+    "zh": "道具",
+    "note": "静物无面孔(76 不装);道具底座自带「旧金点睛」语言故保留 73(默认配,可热调)",
+    "loras": [
+      {"file": "Krea2-美学/Krea2-细节滑杆DetailSlider_v1.safetensors", "strength_model": 1.0},
+      {"file": "Krea2-画风/Krea2-水墨武侠漆艺鎏金_v1.safetensors", "strength_model": 0.3}
+    ]
+  },
+  {
+    "key": "美宣",
+    "zh": "美宣",
+    "note": "人物系(主视觉以人物立叙事);默认同人物三件",
+    "loras": [
+      {"file": "Krea2-美学/Krea2-细节滑杆DetailSlider_v1.safetensors", "strength_model": 1.0},
+      {"file": "Krea2-画风/Krea2-AsianMix_v4_TQD.safetensors", "strength_model": 0.4},
+      {"file": "Krea2-画风/Krea2-水墨武侠漆艺鎏金_v1.safetensors", "strength_model": 0.3}
+    ]
+  },
+  {
+    "key": "三视图",
+    "zh": "三视图",
+    "note": "人物系资产",
+    "loras": [
+      {"file": "Krea2-美学/Krea2-细节滑杆DetailSlider_v1.safetensors", "strength_model": 1.0},
+      {"file": "Krea2-画风/Krea2-AsianMix_v4_TQD.safetensors", "strength_model": 0.4},
+      {"file": "Krea2-画风/Krea2-水墨武侠漆艺鎏金_v1.safetensors", "strength_model": 0.3}
+    ]
+  },
+  {
+    "key": "高清人脸",
+    "zh": "高清人脸",
+    "note": "人物系(面部特写;73 鎏金对面部是点缀质感,嫌重可热调降权或删)",
+    "loras": [
+      {"file": "Krea2-美学/Krea2-细节滑杆DetailSlider_v1.safetensors", "strength_model": 1.0},
+      {"file": "Krea2-画风/Krea2-AsianMix_v4_TQD.safetensors", "strength_model": 0.4},
+      {"file": "Krea2-画风/Krea2-水墨武侠漆艺鎏金_v1.safetensors", "strength_model": 0.3}
+    ]
+  },
+  {
+    "key": "分镜剧情图",
+    "zh": "分镜剧情图",
+    "note": "人物+场景混帧,默认同人物三件(帧内人物为主角)",
+    "loras": [
+      {"file": "Krea2-美学/Krea2-细节滑杆DetailSlider_v1.safetensors", "strength_model": 1.0},
+      {"file": "Krea2-画风/Krea2-AsianMix_v4_TQD.safetensors", "strength_model": 0.4},
+      {"file": "Krea2-画风/Krea2-水墨武侠漆艺鎏金_v1.safetensors", "strength_model": 0.3}
+    ]
+  },
+  {
+    "key": "表情差分",
+    "zh": "表情差分",
+    "note": "人物系资产",
+    "loras": [
+      {"file": "Krea2-美学/Krea2-细节滑杆DetailSlider_v1.safetensors", "strength_model": 1.0},
+      {"file": "Krea2-画风/Krea2-AsianMix_v4_TQD.safetensors", "strength_model": 0.4},
+      {"file": "Krea2-画风/Krea2-水墨武侠漆艺鎏金_v1.safetensors", "strength_model": 0.3}
+    ]
+  },
+  {
+    "key": "概念气氛图",
+    "zh": "概念气氛图",
+    "note": "场景系(空镜气氛;同场景组:细节+金雾)",
+    "loras": [
+      {"file": "Krea2-美学/Krea2-细节滑杆DetailSlider_v1.safetensors", "strength_model": 1.0},
+      {"file": "Krea2-画风/金雾仙侠GoldenMisty.safetensors", "strength_model": 0.6}
+    ]
+  }
+]

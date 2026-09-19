@@ -132,8 +132,8 @@ class MyDaojieBase:
             },
         }
 
-    RETURN_TYPES = ("STRING", "STRING", "COMBO", "FLOAT")
-    RETURN_NAMES = ("positive", "negative", "aspect", "megapixels")
+    RETURN_TYPES = ("STRING", "STRING", "COMBO", "FLOAT", "COMBO")
+    RETURN_NAMES = ("positive", "negative", "aspect", "megapixels", "base")
     FUNCTION = "run"
 
     @classmethod
@@ -168,4 +168,4 @@ class MyDaojieBase:
         out_positive = (
             f"{base_positive}{user_positive}" if user_positive else base_positive)
         return (out_positive, _merge_negative(user_negative, base_negative),
-                aspect, megapixels)
+                aspect, megapixels, base)

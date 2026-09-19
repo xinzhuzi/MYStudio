@@ -26,7 +26,7 @@ from engines.comfyui.my_nodes import NODE_CLASS_MAPPINGS, bridge
 def test_registry_exposes_first_batch_nodes():
     assert set(NODE_CLASS_MAPPINGS) == {
         "MyPrompt", "MyReference", "MyGenerated", "MyShot", "MyCloudImage",
-        "MyStage", "MyStylesLibrary", "MyDaojieBase",
+        "MyStage", "MyStylesLibrary", "MyDaojieBase", "MyDaojieLoras",
         # 09-14 manying→my 改名前的旧键别名(存量工作流加载兼容)
         "ManyingPrompt", "ManyingReference", "ManyingGenerated", "ManyingShot",
         "ManyingCloudImage", "ManyingStage"}
@@ -173,9 +173,10 @@ def test_daojie_base_options_and_assembly():
         "高清人脸", "分镜剧情图", "表情差分", "概念气氛图"]
     assert combo[1]["default"] == "人物"
     # 09-18 分辨率数据面:追加 aspect(COMBO,对齐 [61] aspect_ratio 槽)/
-    # megapixels(FLOAT) 两出,前两 STRING 槽位不动(存量图 [80] 链 45/46 免改)
-    assert node.RETURN_TYPES == ("STRING", "STRING", "COMBO", "FLOAT")
-    assert node.RETURN_NAMES == ("positive", "negative", "aspect", "megapixels")
+    # megapixels(FLOAT) 两出,前两 STRING 槽位不动(存量图 [80] 链 45/46 免改);
+    # 09-19 第五出 base(COMBO 型直通)=驱动按型 LoRA [85] 供线
+    assert node.RETURN_TYPES == ("STRING", "STRING", "COMBO", "FLOAT", "COMBO")
+    assert node.RETURN_NAMES == ("positive", "negative", "aspect", "megapixels", "base")
 
     import json as _json
     bases = _json.loads(
@@ -183,9 +184,9 @@ def test_daojie_base_options_and_assembly():
         .read_text(encoding="utf-8"))
     renwu = next(e for e in bases if e["zh"] == "人物")
     # 拼接行为:底座在前+主体句零分隔符直拼;留空=恒等纯底座
-    pos, _neg, _ar, _mp = node.run("人物", positive="一位女修士")
+    pos, _neg, _ar, _mp, _base = node.run("人物", positive="一位女修士")
     assert pos == renwu["positive"] + "一位女修士"
-    pos_empty, neg_empty, ar_empty, mp_empty = node.run("人物")
+    pos_empty, neg_empty, ar_empty, mp_empty, _b = node.run("人物")
     assert pos_empty == renwu["positive"]
     assert neg_empty == renwu["negative"]  # 输出非空(纯英文负面基线)
     assert (ar_empty, mp_empty) == (renwu["aspect_ratio"], renwu["megapixels"])
@@ -209,7 +210,8 @@ def test_daojie_base_resolution_outputs_nine_types():
         "9:16 (Portrait Widescreen)", "16:9 (Widescreen)", "21:9 (Ultrawide)",
     }
     for entry in bases:
-        pos, neg, aspect, megapixels = node.run(entry["zh"])
+        pos, neg, aspect, megapixels, base_out = node.run(entry["zh"])
+        assert base_out == entry["zh"]  # 09-19 第五出=型直通(驱动按型 LoRA 供线)
         assert aspect == entry["aspect_ratio"], entry["zh"]
         assert aspect in official_aspects, f"「{entry['zh']}」aspect 非官方枚举逐字串"
         expected_mp = 1.0 if entry["zh"] in ("道具", "高清人脸") else 4.2

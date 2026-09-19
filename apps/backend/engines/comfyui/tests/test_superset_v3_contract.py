@@ -137,8 +137,9 @@ class TestDetailSliderNode67:
 
 class TestStyleLoraNodes:
     def test_style_nodes_bypassed_with_triggers(self):
-        # 09-17 深夜用户画布快照:画风件 68/70/73 三开(用户调教裁量),69 旁路
-        user_modes = {68: 0, 69: 4, 70: 0, 73: 0}
+        # 09-17 深夜用户画布快照:画风件 68/70/73 三开(用户调教裁量),69 旁路;
+        # 09-19 画布态更新:70 转旁路(并行会话/用户手调,b0b5eec 披露入账)
+        user_modes = {68: 0, 69: 4, 70: 4, 73: 0}
         for nid, want in user_modes.items():
             assert _node(nid).get("mode") == want, f"[{nid}] 用户快照 mode 应为 {want}"
         for nid, trigger in STYLE_TRIGGERS.items():

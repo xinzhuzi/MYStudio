@@ -75,8 +75,10 @@ def _resolve_src(nodes, links, nid, slot, depth=0):
         raise RuntimeError(f"连线源节点 {nid} 不在工作流")
     if node.get("mode") != 4:
         return nid, slot
-    if depth > 8:
-        raise RuntimeError(f"旁路穿透超过 8 层(节点 {nid}),疑似环路")
+    if depth > 16:
+        # 上限 09-19 提到 16:全量扩架后道劫链连续旁路件可达 11 个(19/46/67/69/
+        # 73/76/77/78/82/83/84),旧 8 层被真链顶穿;16 仍足以挡环路
+        raise RuntimeError(f"旁路穿透超过 16 层(节点 {nid}),疑似环路")
     in_slots = node.get("inputs") or []
     if slot >= len(in_slots):
         raise RuntimeError(f"旁路节点 {nid} 出槽 {slot} 无同序入槽可穿透")
