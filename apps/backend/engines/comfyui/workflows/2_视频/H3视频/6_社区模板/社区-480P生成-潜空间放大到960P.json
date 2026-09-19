@@ -2363,7 +2363,7 @@
         1
       ],
       "widgets_values_named": {
-        "lora_name": "Minimax_H3\\minimax_h3_fl2v_lightx2v_turbo_4step_v0.1_comfy.safetensors",
+        "lora_name": "minimax_h3_fl2v_turbo_4step_v1.1_768p_comfyui_resized_avg_rank_28_bf16.safetensors",
         "strength_model": 1
       }
     },

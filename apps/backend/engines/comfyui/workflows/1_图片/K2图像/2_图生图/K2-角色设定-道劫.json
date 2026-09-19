@@ -197,7 +197,7 @@
           "type": "MODEL",
           "slot_index": 0,
           "links": [
-            4
+            42
           ]
         }
       ],
@@ -223,57 +223,6 @@
       "order": 3
     },
     {
-      "id": 68,
-      "type": "LoraLoaderModelOnly",
-      "pos": [
-        1840,
-        80
-      ],
-      "size": [
-        340,
-        130
-      ],
-      "flags": {},
-      "mode": 4,
-      "inputs": [
-        {
-          "name": "model",
-          "type": "MODEL",
-          "link": 4
-        }
-      ],
-      "outputs": [
-        {
-          "name": "MODEL",
-          "type": "MODEL",
-          "slot_index": 0,
-          "links": [
-            5
-          ]
-        }
-      ],
-      "title": "[68] 画风LoRA·柔水彩 ×1.0(默认旁路)",
-      "properties": {
-        "Node name for S&R": "LoraLoaderModelOnly",
-        "ue_properties": {
-          "widget_ue_connectable": {},
-          "version": "7.8",
-          "input_ue_unconnectable": {}
-        }
-      },
-      "widgets_values": [
-        "Krea2-画风/Krea2-柔水彩softwatercolor.safetensors",
-        1
-      ],
-      "widgets_values_named": {
-        "lora_name": "Krea2-画风/Krea2-柔水彩softwatercolor.safetensors",
-        "strength_model": 1
-      },
-      "color": "#b06a8f",
-      "bgcolor": "#33202b",
-      "order": 4
-    },
-    {
       "id": 69,
       "type": "LoraLoaderModelOnly",
       "pos": [
@@ -290,7 +239,7 @@
         {
           "name": "model",
           "type": "MODEL",
-          "link": 5
+          "link": 42
         }
       ],
       "outputs": [
@@ -299,7 +248,7 @@
           "type": "MODEL",
           "slot_index": 0,
           "links": [
-            6
+            43
           ]
         }
       ],
@@ -325,57 +274,6 @@
       "order": 5
     },
     {
-      "id": 70,
-      "type": "LoraLoaderModelOnly",
-      "pos": [
-        2640,
-        80
-      ],
-      "size": [
-        340,
-        130
-      ],
-      "flags": {},
-      "mode": 4,
-      "inputs": [
-        {
-          "name": "model",
-          "type": "MODEL",
-          "link": 6
-        }
-      ],
-      "outputs": [
-        {
-          "name": "MODEL",
-          "type": "MODEL",
-          "slot_index": 0,
-          "links": [
-            7
-          ]
-        }
-      ],
-      "title": "[70] 画风LoRA·复古漫 ×1.0(默认旁路)",
-      "properties": {
-        "Node name for S&R": "LoraLoaderModelOnly",
-        "ue_properties": {
-          "widget_ue_connectable": {},
-          "version": "7.8",
-          "input_ue_unconnectable": {}
-        }
-      },
-      "widgets_values": [
-        "Krea2-画风/Krea2-复古漫retroanime.safetensors",
-        1
-      ],
-      "widgets_values_named": {
-        "lora_name": "Krea2-画风/Krea2-复古漫retroanime.safetensors",
-        "strength_model": 1
-      },
-      "color": "#b06a8f",
-      "bgcolor": "#33202b",
-      "order": 6
-    },
-    {
       "id": 173,
       "type": "LoraLoaderModelOnly",
       "pos": [
@@ -392,7 +290,7 @@
         {
           "name": "model",
           "type": "MODEL",
-          "link": 7
+          "link": 43
         }
       ],
       "outputs": [
@@ -438,7 +336,7 @@
         130
       ],
       "flags": {},
-      "mode": 0,
+      "mode": 4,
       "inputs": [
         {
           "name": "model",
@@ -951,7 +849,7 @@
         538
       ],
       "flags": {},
-      "mode": 4,
+      "mode": 0,
       "inputs": [],
       "outputs": [
         {
@@ -989,7 +887,7 @@
         621
       ],
       "flags": {},
-      "mode": 4,
+      "mode": 0,
       "inputs": [
         {
           "name": "clip",
@@ -1070,7 +968,7 @@
         300
       ],
       "flags": {},
-      "mode": 4,
+      "mode": 0,
       "inputs": [
         {
           "name": "source",
@@ -1176,8 +1074,8 @@
         }
       },
       "widgets_values": [
-        1,
-        1,
+        6.0,
+        1.0,
         "fit"
       ],
       "title": "[120] Krea2 编辑补丁(fit;ref_boost=前两数,现 1.0 经典档)",
@@ -1246,7 +1144,7 @@
       },
       "widgets_values": [
         "[TASK: ENTITY_SHEET_GENERATION]\n[TEMPLATE: MULTI_ANGLE_ENTITY_SHEET_V1]\n[ENTITY_TYPE: HUMAN]\n[ENTITY_ID: human_lena_professional]\n\nConvert the subject in Image 1 into one standardized advanced Character Sheet. Image 1 is the sole identity and design reference for Lena. Preserve the exact same design, proportions, colors, materials, markings, surface wear, and every signature detail. Do not redesign, beautify, age-shift, or simplify it.\n\nFIXED LANDSCAPE SHEET FORMAT\nUse a clean 3:2 landscape canvas with a warm off-white paper background and generous white space. Organize one coherent sheet with these fixed zones:\n1. LEFT METADATA COLUMN: the exact name \"Lena\", ENTITY TYPE, CORE MOOD, and VISUAL SIGNATURE in compact readable English.\n2. LARGE CENTER HERO VIEW: one dominant full-body or complete-object three-quarter view.\n3. TOP-RIGHT TURNAROUND ROW: neutral FRONT FULL BODY, SIDE FULL BODY, and BACK FULL BODY views at matching scale, with all extremities visible.\n4. MID-RIGHT ACTION POSES: three readable views including a low angle, an overhead or high angle, and one characteristic action or operating state.\n5. BOTTOM-LEFT SILHOUETTE STUDY: three solid black silhouettes that preserve the design shape.\n6. BOTTOM-CENTER EXPRESSION STUDY: one clear neutral face close-up plus three compact expression, state, or functional studies showing meaningful variation without changing identity or construction.\n7. BOTTOM-RIGHT DETAIL STUDY: six close-up crops of the most identity-critical features, materials, joints, face, markings, controls, or accessories.\n\nIDENTITY LOCKS\n- long wavy auburn hair reaching mid-thigh with center-parted blunt bangs\n- fair skin with subtle blush on cheeks and defined red lips\n- white button-down blouse with collar and cuffs, no tie or scarf\n- dark navy pleated skirt ending at mid-thigh, belt at waistline\n- black block-heeled pumps\n- Keep the subject from Image 1 recognizable in every view.\n- Keep handedness, asymmetry, markings, costume, hardware, and color placement consistent.\n- Use modern xiuxian-game character art direction throughout the sheet: 现代修仙游戏的角色立绘资产：以现代角色设计立身份气质与年龄感，中国人物画式细稳墨线勾画骨相衣纹，淡墨晕染空气与远景，传统色受控铺陈，数字绘画完成度。\n- 眉眼发丝逐层分明，衣纹疏密有致，线宽连续有节奏、转折衔接干净；线条以解释形体为先，五官衣褶结构线随骨相走，细稳基调上转折处轻重提按，墨线带手绘笔性。\n- 同一人物多视角立像排布，角色视图约占画面六成，衣纹仅两至四条长结构褶；视觉密度中高，留白承担视觉呼吸；色彩组织为大面积稳定基底、中等强度主体色、少量高识别点睛；均匀柔光平涂底，画面干净可读，生产级清晰度。\n\nVISIBLE TEXT\nAll labels must be English only. Keep labels short and legible. Do not invent lore paragraphs.\n\nNEGATIVE CONSTRAINTS\nNo extra character or object, identity drift, species drift, wardrobe drift, material drift, inconsistent markings, changed proportions, missing extremities, duplicated limbs, merged views, overlapping panels, logo, watermark, or unrelated decoration.",
-        0,
+        1024,
         ""
       ],
       "title": "[119] 正向·官方结构化模板+道劫锚(VLM 启用时被现写结果覆盖)",
@@ -1316,7 +1214,7 @@
       },
       "widgets_values": [
         "3D渲染,照片写实,油画厚涂,卡通平涂,硬投影,浓重阴影,纸纹污渍,做旧泛黄,绢纹织物底,网格纹底,冷灰底,多余手指,畸形的手,文字,水印,签名,extra characters,multiple people,cropped head",
-        0,
+        1024,
         ""
       ],
       "order": 23
@@ -1465,7 +1363,7 @@
         }
       },
       "widgets_values": [
-        43,
+        2027,
         "fixed",
         10,
         1,
@@ -1873,38 +1771,6 @@
       "MODEL"
     ],
     [
-      4,
-      67,
-      0,
-      68,
-      0,
-      "MODEL"
-    ],
-    [
-      5,
-      68,
-      0,
-      69,
-      0,
-      "MODEL"
-    ],
-    [
-      6,
-      69,
-      0,
-      70,
-      0,
-      "MODEL"
-    ],
-    [
-      7,
-      70,
-      0,
-      173,
-      0,
-      "MODEL"
-    ],
-    [
       8,
       173,
       0,
@@ -2175,11 +2041,27 @@
       126,
       0,
       "IMAGE"
+    ],
+    [
+      42,
+      67,
+      0,
+      69,
+      0,
+      "MODEL"
+    ],
+    [
+      43,
+      69,
+      0,
+      173,
+      0,
+      "MODEL"
     ]
   ],
   "groups": [
     {
-      "title": "① 模型与道劫 LoRA 链(11 跳横排;激活 67 细节+173 鎏金×0.4+76 AsianMix,余旁路;开流即道劫画风)",
+      "title": "① 模型与道劫 LoRA 链(11 跳横排;激活=67 细节+173 鎏金×0.4,76 AsianMix 旁路=风格主权归工笔锚[v3 实证];开流即道劫画风)",
       "bounding": [
         20,
         20,
@@ -2229,7 +2111,7 @@
       "color": "#4a6e8a"
     },
     {
-      "title": "⑥ VLM 提示词生成(默认旁路;开启后按参考图自动重写身份锁=脸部更贴)",
+      "title": "⑥ VLM 提示词生成(已激活[v3 实证]:读参考图自动重写身份锁,脸部更贴输入;换图无需手改锁)",
       "bounding": [
         20,
         1500,
@@ -2240,5 +2122,5 @@
     }
   ],
   "last_node_id": 303,
-  "last_link_id": 41
+  "last_link_id": 43
 }

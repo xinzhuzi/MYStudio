@@ -731,7 +731,7 @@
         }
       },
       "widgets_values": [
-        "krea/krea2_charactersheet_full_v1.safetensors",
+        "DynamicCharacterSheet_krea2_v1.safetensors",
         1
       ]
     },

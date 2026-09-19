@@ -2,7 +2,7 @@
   "id": "95f5f171-fc5f-489e-a6e2-87dbe191c0fe",
   "revision": 0,
   "last_node_id": 72,
-  "last_link_id": 46,
+  "last_link_id": 48,
   "nodes": [
     {
       "id": 21,
@@ -1513,7 +1513,7 @@
         }
       },
       "widgets_values": [
-        "# 用法速查(提示词与参数)\n\n## 正向写法(完整句,别堆标签)\n主体是谁 + 姿态动作 + 在哪 + 光线色调,一口气说完整画面。\n例:一位黑发少女坐在洒满午后阳光的画室窗边,窗外细雨初歇,侧面柔光。\n\n## 负向写法(直白名词短语;不写「禁止/不要」;宁少勿多)\n- 日常净化:文字,水印,签名,多余的手指,畸形的手\n- 要单人全身干净背景 → 加:多人,特写,复杂背景\n- 要真实感 → 加:卡通,插画 ;要画风 → 加:照片写实\n同一意思别两边都写:写进负向就够了,写进正向=提到它。\n\n## 参数速查\n- cfg=3=负向生效档;回官方纯档=cfg 调 1(负向自动失效,无需改线)\n- 尺度LoRA(44/45)默认旁路=画风优先;要破限=右键节点 Remove Bypass\n- 破限档力度:收=pussy 降 0.1 或 Mystic 降 1.0;更冲=Mystic 2.5(噪点↑)\n- 分辨率 1024² 起步,更大走 6_修复超分;风格在「漫影风格库」选(art_skills 手册现读·正负词同注入)\n- 验证负向是否生效:固定种子(Seed 节点)负向空/满各跑一张,画面变=生效;像素全同=cfg 被调回 1 了\n\n## 09-16 新增 LoRA 矩阵(默认全旁路;启用=右键节点 Remove Bypass)\n- [67] 细节滑杆DetailSlider | Krea2-美学/Krea2-细节滑杆DetailSlider_v1.safetensors | ×1.0 | 通用 | 细节增强,可与其他LoRA叠加\n- [68] 柔水彩softwatercolor | Krea2-画风/Krea2-柔水彩softwatercolor.safetensors | ×1.0 | 通用 | 官方,装饰艺术水彩画风,触发词 art deco watercolor style\n- [69] 暗笔刷darkbrush | Krea2-画风/Krea2-暗笔刷darkbrush.safetensors | ×1.0 | 通用 | 官方,单色水墨画风,触发词 monochrome ink wash style\n- [70] 复古漫retroanime | Krea2-画风/Krea2-复古漫retroanime.safetensors | ×1.0 | 通用 | 官方,紫调复古动画画风,触发词 purple retro anime style\n- 风格参照style_reference(官方,需参考图输入)→ 独立工作流 K2-文生图-风格参照.json(本流放不下)\n- 挂账3件(Civitai 创建者要求登录下载,拿到 token 后补):AsianMix v5-CPO(古风亚洲面孔)/Aesthetic Masterpiece v51(提美)/Cinematic Shot(电影感)\n\n## 风格参照流用法(09-16 新建,自超集复制)\n- [71] 选参考图 → [14] 像素路径接入(vae+source_image+target_latent 三线) → [72] style_reference LoRA ×1.0(默认开)\n- 提示词描述目标内容,画风跟随参考图迁移;无触发词,参考图 1-2 张,分辨率不匹配自动 fit 重采样\n- 其余 LoRA(44/45/67-70)默认旁路;默认速度档 4步/cfg1,质量档=[47]旁路+步数12/cfg5\n- 09-16 实测:速度档(4步/cfg1)下 LoRA 效果不可感;质量档(12步/cfg5)有可感软迁移(色彩/构图向参考图靠拢)。要强迁移可后续评估 ostris 官方节点(未装)"
+        "# 用法速查(提示词与参数)\n\n## 正向写法(完整句,别堆标签)\n主体是谁 + 姿态动作 + 在哪 + 光线色调,一口气说完整画面。\n例:一位黑发少女坐在洒满午后阳光的画室窗边,窗外细雨初歇,侧面柔光。\n\n## 负向写法(直白名词短语;不写「禁止/不要」;宁少勿多)\n- 日常净化:文字,水印,签名,多余的手指,畸形的手\n- 要单人全身干净背景 → 加:多人,特写,复杂背景\n- 要真实感 → 加:卡通,插画 ;要画风 → 加:照片写实\n同一意思别两边都写:写进负向就够了,写进正向=提到它。\n\n## 参数速查\n- cfg=3=负向生效档;回官方纯档=cfg 调 1(负向自动失效,无需改线)\n- 尺度LoRA(44/45)默认旁路=画风优先;要破限=右键节点 Remove Bypass\n- 破限档力度:收=pussy 降 0.1 或 Mystic 降 1.0;更冲=Mystic 2.5(噪点↑)\n- 分辨率 1024² 起步,更大走 6_修复超分;风格在「漫影风格库」选(art_skills 手册现读·正负词同注入)\n- 验证负向是否生效:固定种子(Seed 节点)负向空/满各跑一张,画面变=生效;像素全同=cfg 被调回 1 了\n\n## 09-16 新增 LoRA 矩阵(默认全旁路;启用=右键节点 Remove Bypass)\n- [67] 细节滑杆DetailSlider | Krea2-美学/Krea2-细节滑杆DetailSlider_v1.safetensors | ×1.0 | 通用 | 细节增强,可与其他LoRA叠加\n- [69] 暗笔刷darkbrush | Krea2-画风/Krea2-暗笔刷darkbrush.safetensors | ×1.0 | 通用 | 官方,单色水墨画风,触发词 monochrome ink wash style\n- 风格参照style_reference(官方,需参考图输入)→ 独立工作流 K2-文生图-风格参照.json(本流放不下)\n- 挂账3件(Civitai 创建者要求登录下载,拿到 token 后补):AsianMix v5-CPO(古风亚洲面孔)/Aesthetic Masterpiece v51(提美)/Cinematic Shot(电影感)\n\n## 风格参照流用法(09-16 新建,自超集复制)\n- [71] 选参考图 → [14] 像素路径接入(vae+source_image+target_latent 三线) → [72] style_reference LoRA ×1.0(默认开)\n- 提示词描述目标内容,画风跟随参考图迁移;无触发词,参考图 1-2 张,分辨率不匹配自动 fit 重采样\n- 其余 LoRA(44/45/67-70)默认旁路;默认速度档 4步/cfg1,质量档=[47]旁路+步数12/cfg5\n- 09-16 实测:速度档(4步/cfg1)下 LoRA 效果不可感;质量档(12步/cfg5)有可感软迁移(色彩/构图向参考图靠拢)。要强迁移可后续评估 ostris 官方节点(未装)"
       ],
       "widgets_values_named": {
         "text": "# 用法速查(提示词与参数)\n\n## 正向写法(完整句,别堆标签)\n主体是谁 + 姿态动作 + 在哪 + 光线色调,一口气说完整画面。\n例:一位黑发少女坐在洒满午后阳光的画室窗边,窗外细雨初歇,侧面柔光。\n\n## 负向写法(直白名词短语;不写「禁止/不要」;宁少勿多)\n- 日常净化:文字,水印,签名,多余的手指,畸形的手\n- 要单人全身干净背景 → 加:多人,特写,复杂背景\n- 要真实感 → 加:卡通,插画 ;要画风 → 加:照片写实\n同一意思别两边都写:写进负向就够了,写进正向=提到它。\n\n## 参数速查\n- cfg=3=负向生效档;回官方纯档=cfg 调 1(负向自动失效,无需改线)\n- 力度:收=pussy 降 0.1 或 Mystic 降 1.0;更冲=Mystic 2.5(噪点↑)\n- 分辨率 1024² 起步,更大走 6_修复超分;风格在「漫影风格库」选(正负词同注入)\n- 验证负向是否生效:固定种子(Seed 节点)负向空/满各跑一张,画面变=生效;像素全同=cfg 被调回 1 了"
@@ -1640,7 +1640,7 @@
           "name": "MODEL",
           "type": "MODEL",
           "links": [
-            39
+            47
           ],
           "slot_index": 0
         }
@@ -1661,52 +1661,6 @@
       "title": "[67] 美学LoRA·细节滑杆 ×1.0(细节增强可叠;默认旁路)"
     },
     {
-      "id": 68,
-      "type": "LoraLoaderModelOnly",
-      "pos": [
-        2340.0,
-        240.0
-      ],
-      "size": [
-        340,
-        130
-      ],
-      "flags": {},
-      "order": 68,
-      "mode": 4,
-      "inputs": [
-        {
-          "name": "model",
-          "type": "MODEL",
-          "link": 39
-        }
-      ],
-      "outputs": [
-        {
-          "name": "MODEL",
-          "type": "MODEL",
-          "links": [
-            40
-          ],
-          "slot_index": 0
-        }
-      ],
-      "properties": {
-        "Node name for S&R": "LoraLoaderModelOnly"
-      },
-      "widgets_values": [
-        "Krea2-画风/Krea2-柔水彩softwatercolor.safetensors",
-        1.0
-      ],
-      "widgets_values_named": {
-        "lora_name": "Krea2-画风/Krea2-柔水彩softwatercolor.safetensors",
-        "strength_model": 1.0
-      },
-      "color": "#b06a8f",
-      "bgcolor": "#33202b",
-      "title": "[68] 画风LoRA·柔水彩 ×1.0(触发词:art deco watercolor style;默认旁路)"
-    },
-    {
       "id": 69,
       "type": "LoraLoaderModelOnly",
       "pos": [
@@ -1724,7 +1678,7 @@
         {
           "name": "model",
           "type": "MODEL",
-          "link": 40
+          "link": 47
         }
       ],
       "outputs": [
@@ -1732,7 +1686,7 @@
           "name": "MODEL",
           "type": "MODEL",
           "links": [
-            41
+            48
           ],
           "slot_index": 0
         }
@@ -1753,52 +1707,6 @@
       "title": "[69] 画风LoRA·暗笔刷 ×1.0(触发词:monochrome ink wash style;默认旁路)"
     },
     {
-      "id": 70,
-      "type": "LoraLoaderModelOnly",
-      "pos": [
-        3380.0,
-        240.0
-      ],
-      "size": [
-        340,
-        130
-      ],
-      "flags": {},
-      "order": 70,
-      "mode": 4,
-      "inputs": [
-        {
-          "name": "model",
-          "type": "MODEL",
-          "link": 41
-        }
-      ],
-      "outputs": [
-        {
-          "name": "MODEL",
-          "type": "MODEL",
-          "links": [
-            42
-          ],
-          "slot_index": 0
-        }
-      ],
-      "properties": {
-        "Node name for S&R": "LoraLoaderModelOnly"
-      },
-      "widgets_values": [
-        "Krea2-画风/Krea2-复古漫retroanime.safetensors",
-        1.0
-      ],
-      "widgets_values_named": {
-        "lora_name": "Krea2-画风/Krea2-复古漫retroanime.safetensors",
-        "strength_model": 1.0
-      },
-      "color": "#b06a8f",
-      "bgcolor": "#33202b",
-      "title": "[70] 画风LoRA·复古漫 ×1.0(触发词:purple retro anime style;默认旁路)"
-    },
-    {
       "id": 72,
       "type": "LoraLoaderModelOnly",
       "pos": [
@@ -1816,7 +1724,7 @@
         {
           "name": "model",
           "type": "MODEL",
-          "link": 42
+          "link": 48
         }
       ],
       "outputs": [
@@ -2096,38 +2004,6 @@
       "MODEL"
     ],
     [
-      39,
-      67,
-      0,
-      68,
-      0,
-      "MODEL"
-    ],
-    [
-      40,
-      68,
-      0,
-      69,
-      0,
-      "MODEL"
-    ],
-    [
-      41,
-      69,
-      0,
-      70,
-      0,
-      "MODEL"
-    ],
-    [
-      42,
-      70,
-      0,
-      72,
-      0,
-      "MODEL"
-    ],
-    [
       46,
       72,
       0,
@@ -2158,6 +2034,22 @@
       14,
       7,
       "LATENT"
+    ],
+    [
+      47,
+      67,
+      0,
+      69,
+      0,
+      "MODEL"
+    ],
+    [
+      48,
+      69,
+      0,
+      72,
+      0,
+      "MODEL"
     ]
   ],
   "groups": [
