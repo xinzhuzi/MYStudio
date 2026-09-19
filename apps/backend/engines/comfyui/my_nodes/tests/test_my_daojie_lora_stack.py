@@ -24,6 +24,8 @@ from engines.comfyui.my_nodes.nodes import my_daojie_base  # noqa: E402
 CHAIN_KEYS = ["turbo", "projector", "detail", "asianmix", "liujin",
               "afterlight", "cinematic", "identity", "darkbrush", "masterpiece",
               "tancai", "sumiwash", "shihua", "goldenmist"]
+# 设定板档(09-19 角色设定表收编):十号预设,=人物组复制,[164] 独立恒挂不在栈
+SHEET_PRESET = "设定板"
 CHAIN_NODE_IDS = [47, 81, 67, 76, 73, 46, 78, 19, 69, 77, 82, 83, 84, 87]
 CHAIN_FILES = [
     "Krea2-功能/Krea2-Turbo-4步蒸馏.safetensors",
@@ -109,12 +111,20 @@ def test_json_parses_14_slots_fields_complete():
 def test_every_slot_presets_cover_nine_types_matching_bases():
     nine = _bases_keys()
     for s in _slots():
-        assert list(s["presets"]) == nine, (s["key"], "九型键须与底座一比一且同序")
+        assert list(s["presets"]) == nine + [SHEET_PRESET], \
+            (s["key"], "预设键须=九型(与底座一比一且同序)+末位设定板档")
         for t, p in s["presets"].items():
             assert set(p) == {"on", "weight"}, (s["key"], t)
             assert isinstance(p["on"], bool)
             assert isinstance(p["weight"], (int, float)) and not isinstance(p["weight"], bool)
             assert 0 < p["weight"] <= 1.5, (s["key"], t)
+
+
+def test_charsheet_preset_equals_renwu_group():
+    """设定板档(09-19 角色设定表收编)= 人物组逐槽逐权重复制;
+    [164] charsheet LoRA 独立恒挂不在栈内,故栈侧无该件。"""
+    for s in _slots():
+        assert s["presets"][SHEET_PRESET] == s["presets"]["人物"], s["key"]
 
 
 # ── 槽位序(等价性前提的钉子)────────────────────────────
@@ -138,8 +148,15 @@ def test_globals_always_on_identity_always_off():
 # ── preset / 纯函数语义 ──────────────────────────────────
 def test_preset_choices_sandwich_nine_types():
     assert stack.preset_choices() == [stack.FOLLOW_PRESET] + _bases_keys() \
-        + [stack.EXPERT_PRESET]
+        + [SHEET_PRESET] + [stack.EXPERT_PRESET]
     assert stack.preset_choices()[0] == "跟随底座型"
+
+
+def test_charsheet_preset_resolves_like_renwu():
+    """设定板档可解析且与人物组同计划([164] 由设定板流独立挂,不在计划内)。"""
+    plan_sheet, display, _ = stack.resolve_plan(_slots(), SHEET_PRESET)
+    plan_renwu, _, _ = stack.resolve_plan(_slots(), "人物")
+    assert plan_sheet == plan_renwu and display == SHEET_PRESET
 
 
 def test_default_group_equals_current_always_on_chain():

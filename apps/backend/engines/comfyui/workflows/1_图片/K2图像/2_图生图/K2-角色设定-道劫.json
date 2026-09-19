@@ -709,7 +709,7 @@
           "widget": {
             "name": "prompt"
           },
-          "link": 29
+          "link": 44
         }
       ],
       "outputs": [
@@ -736,7 +736,7 @@
         1024,
         ""
       ],
-      "title": "[119] 正向·官方结构化模板+道劫锚(VLM 启用时被现写结果覆盖)",
+      "title": "[119] 正向·官方结构化模板(VLM caption 经 [305] 底座锚殿后;[305] 摘线时回退本内嵌模板+道劫锚)",
       "order": 22
     },
     {
@@ -778,7 +778,7 @@
           "widget": {
             "name": "prompt"
           },
-          "link": 30
+          "link": 43
         }
       ],
       "outputs": [
@@ -832,7 +832,7 @@
           ]
         }
       ],
-      "title": "[64] 道劫负向基线(LCM 档 cfg1 下不生效;换 Raw 底模 40步 cfg3-4 才生效——本流负向已同图接地)",
+      "title": "[64] 用户负向槽(→[304] 与该型负面基线合并;LCM cfg1 不生效,Raw 40步 cfg3-4 生效)",
       "properties": {
         "Node name for S&R": "PrimitiveStringMultiline",
         "ue_properties": {
@@ -960,7 +960,16 @@
         "simple",
         1
       ],
-      "order": 26
+      "order": 26,
+      "widgets_values_named": {
+        "seed": 2027,
+        "control_after_generate": "fixed",
+        "steps": 10,
+        "cfg": 1,
+        "sampler_name": "lcm",
+        "scheduler": "simple",
+        "denoise": 1
+      }
     },
     {
       "id": 54,
@@ -1285,7 +1294,7 @@
       "outputs": [],
       "properties": {},
       "widgets_values": [
-        "输入=[72] 选角色参考图(自动缩放 1024²,一图六用:VAEEncode/补丁像素线/正负接地/VLM/对比图);前置=插件 comfyui-krea2edit+comfyui-kjnodes,权重(均引擎在位):底模 krea2_turbo_bf16/TE qwen3-vl-4b-heretic/VAE qwen_image_vae/CharacterSheet LoRA DynamicCharacterSheet_krea2_v1(09-18 装机于引擎 loras 根,上游 HF Alissonerdx/CharacterSheet)+道劫画风 LoRA 栈=[90] MyDaojieLoraStack(专家档:细节×1+鎏金×0.4,槽序真源 my_nodes/nodes/daojie_lora_stack.json,开流即道劫画风;原链副本 -专家模式.json)。"
+        "输入=[72] 选角色参考图(建议=两步链步1 立绘,t2i 人物型;自动缩放 1024²,一图六用:VAEEncode/补丁像素线/正负接地/VLM/对比图);前置=插件 comfyui-krea2edit+comfyui-kjnodes,权重(均引擎在位):底模 krea2_turbo_bf16/TE qwen3-vl-4b-heretic/VAE qwen_image_vae/CharacterSheet LoRA DynamicCharacterSheet_krea2_v1(引擎 loras 根,上游 HF Alissonerdx/CharacterSheet,恒挂=必先于 ModelPatch)+[90] MyDaojieLoraStack preset=设定板档+turbo急停(=人物组去加速;turbo 开=文字乱码放大器,09-20 单变量定谳;槽序真源 my_nodes/nodes/daojie_lora_stack.json)+[304] MyDaojieBase(型默认人物,负向自动合并该型负面基线;两步链出图逻辑见 docs/prompts/道劫_角色设定表出图逻辑_0919.md)。"
       ],
       "title": "使用说明·输入与前置"
     },
@@ -1329,7 +1338,7 @@
       "outputs": [],
       "properties": {},
       "widgets_values": [
-        "[184/162/163] VLM 看图写提示词,默认旁路(需另载 Qwen3-VL 权重,不想装就别开);旁路时正向=[119] 内嵌官方结构化模板(IDENTITY LOCKS 段末已换三句道劫风格锚;换角色=改 ENTITY_ID 与 LOCKS 弹),负向唯一来源=[64] 道劫基线(经 [85] 同图接地)。"
+        "[184/162/163] VLM 看图写提示词(已激活 v3 实证,读参考图自动重写身份锁;需另载 Qwen3-VL 权重)。正向=[163] caption 经 [305] 与 [304].positive 底座锚殿后拼接→[119];**VLM 三件勿 mute**(mute 后 [305] 只剩底座锚,设定板布局模板丢失)——要停用 VLM 请摘 [305]→[119] 连线,[119] 回退内嵌官方模板+道劫锚;负向=[64] 用户负向→[304] 与该型负面基线合并→[85] 同图接地。"
       ],
       "title": "VLM 与提示词"
     },
@@ -1366,44 +1375,219 @@
         {
           "name": "applied",
           "type": "STRING",
-          "links": null,
+          "links": [
+            45
+          ],
           "slot_index": 1
         }
       ],
-      "title": "[90] LoRA栈·专家档(细节×1+鎏金×0.4=现激活组;76旁路=风格主权归工笔锚;原链另存-专家模式.json)",
+      "title": "[90] LoRA栈·设定板档+turbo急停(=人物组去加速:服从度×0.01+细节×1+亚洲面孔×0.4+鎏金×0.3;turbo 开=文字乱码放大器(09-20 A/B vs A2 单变量定谳);[164] charsheet 件独立恒挂于栈后→ModelPatch;权重微调切专家档,原链 -专家模式.json)",
       "properties": {
         "Node name for S&R": "MyDaojieLoraStack"
       },
       "widgets_values": [
-        "专家·全自定义",
+        "设定板",
         false,
         1.0,
-        false,
+        true,
         0.01,
         true,
         1.0,
-        false,
+        true,
         0.4,
         true,
         0.3,
-        false,
+        true,
         0.8,
-        false,
+        true,
         1.0,
-        false,
+        true,
         1.0,
-        false,
+        true,
         1.0,
-        false,
+        true,
         1.0,
-        false,
+        true,
         1.0,
-        false,
+        true,
         1.0,
-        false,
+        true,
         1.0,
-        false,
+        true,
         1.0
+      ]
+    },
+    {
+      "id": 304,
+      "type": "MyDaojieBase",
+      "pos": [
+        2400,
+        1900
+      ],
+      "size": [
+        360,
+        420
+      ],
+      "flags": {},
+      "order": 36,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "positive",
+          "shape": 7,
+          "type": "STRING",
+          "link": null
+        },
+        {
+          "name": "negative",
+          "shape": 7,
+          "type": "STRING",
+          "link": 30
+        }
+      ],
+      "outputs": [
+        {
+          "name": "positive",
+          "type": "STRING",
+          "slot_index": 0,
+          "links": [
+            42
+          ]
+        },
+        {
+          "name": "negative",
+          "type": "STRING",
+          "slot_index": 1,
+          "links": [
+            43
+          ]
+        },
+        {
+          "label": "画幅比例",
+          "name": "aspect",
+          "type": "COMBO",
+          "slot_index": 2,
+          "links": null
+        },
+        {
+          "label": "百万像素",
+          "name": "megapixels",
+          "type": "FLOAT",
+          "slot_index": 3,
+          "links": null
+        },
+        {
+          "label": "型",
+          "name": "base",
+          "type": "COMBO",
+          "slot_index": 4,
+          "links": null
+        }
+      ],
+      "title": "[304] 道劫底座·设定板步(型选人物/高清人脸,09-19 对拍定默认;负向=该型负面基线∩[64]用户负向合并;正向=底座锚经 [305] 殿后)",
+      "properties": {
+        "Node name for S&R": "MyDaojieBase"
+      },
+      "widgets_values": [
+        "人物"
+      ],
+      "widgets_values_named": {
+        "base": "人物"
+      },
+      "color": "#4d9e6a",
+      "bgcolor": "#1f2f26"
+    },
+    {
+      "id": 305,
+      "type": "StringConcatenate",
+      "pos": [
+        2020,
+        1900
+      ],
+      "size": [
+        340,
+        180
+      ],
+      "flags": {},
+      "order": 37,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "string_a",
+          "type": "STRING",
+          "widget": {
+            "name": "string_a"
+          },
+          "link": 29
+        },
+        {
+          "name": "string_b",
+          "type": "STRING",
+          "widget": {
+            "name": "string_b"
+          },
+          "link": 42
+        }
+      ],
+      "outputs": [
+        {
+          "name": "STRING",
+          "type": "STRING",
+          "slot_index": 0,
+          "links": [
+            44
+          ]
+        }
+      ],
+      "title": "[305] 底座锚殿后拼接(前=[163] VLM caption,后=[304].positive;VLM 块勿 mute——停用须摘本节点线,[119] 回退内嵌模板)",
+      "properties": {
+        "Node name for S&R": "StringConcatenate"
+      },
+      "widgets_values": [
+        "",
+        "",
+        "\n"
+      ],
+      "widgets_values_named": {
+        "delimiter": "\n"
+      }
+    },
+    {
+      "id": 306,
+      "type": "easy showAnything",
+      "pos": [
+        1800,
+        5100
+      ],
+      "size": [
+        480,
+        200
+      ],
+      "flags": {},
+      "order": 38,
+      "mode": 0,
+      "inputs": [
+        {
+          "label": "输入任何",
+          "name": "anything",
+          "shape": 7,
+          "type": "*",
+          "link": 45
+        }
+      ],
+      "outputs": [
+        {
+          "name": "output",
+          "type": "*",
+          "links": null
+        }
+      ],
+      "title": "[306] 栈生效清单(设定板档=人物组五件;[164] 独立恒挂不在栈内)",
+      "properties": {
+        "Node name for S&R": "easy showAnything"
+      },
+      "widgets_values": [
+        "(待运行)"
       ]
     }
   ],
@@ -1564,16 +1748,16 @@
       29,
       163,
       0,
-      119,
-      3,
+      305,
+      0,
       "STRING"
     ],
     [
       30,
       64,
       0,
-      85,
-      3,
+      304,
+      1,
       "STRING"
     ],
     [
@@ -1663,11 +1847,43 @@
       126,
       0,
       "IMAGE"
+    ],
+    [
+      42,
+      304,
+      0,
+      305,
+      1,
+      "STRING"
+    ],
+    [
+      43,
+      304,
+      1,
+      85,
+      3,
+      "STRING"
+    ],
+    [
+      44,
+      305,
+      0,
+      119,
+      3,
+      "STRING"
+    ],
+    [
+      45,
+      90,
+      1,
+      306,
+      0,
+      "*"
     ]
   ],
   "groups": [
     {
-      "title": "① 模型与道劫 LoRA 栈([90] 专家档:细节×1+鎏金×0.4,风格主权归工笔锚[v3 实证];charsheet [164] 独立挂,官方挂法=栈出→[164]→ModelPatch;原 8 件链副本 -专家模式.json)",
+      "title": "① 模型与道劫 LoRA 栈([90] 设定板档=人物组五件;charsheet [164] 独立恒挂,官方挂法=栈出→[164]→ModelPatch;[304] 底座负向合并;原 8 件链副本 -专家模式.json)",
       "bounding": [
         40,
         40,
@@ -1727,6 +1943,6 @@
       "color": "#886838"
     }
   ],
-  "last_node_id": 303,
-  "last_link_id": 41
+  "last_node_id": 304,
+  "last_link_id": 45
 }
