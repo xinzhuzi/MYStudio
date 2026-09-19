@@ -16,6 +16,15 @@ A/B 要点:
 =output/K2道劫文生图__00005_.png(糊团手原始缺陷图)经 /upload 回传
 input(09-16 清理后 input 已无此件)。成图落 ~/Downloads/daojie_handsfix_ab_0919/
 (临时图落 Downloads 裁定)。引擎口 17000/17001 双探,回环恒直连。
+
+【09-19 勘误与结果】本轮 A/B 挂的是同场域通用节点 NAGuidance(nag_scale
+参数族),非插件 K2 原生的 Krea2NormalizedAttentionGuidance(phi/tau/alpha
+参数族,09-18 dwfrun-00687c3e 已在文生图流 A/B 过=负向 cfg1 复活 5.17% 像素
+差但手仍 4/10)。三重证据:①NAGuidance@cfg1 与 baseline 像素级全同(mean
+diff 0.0,通用 NAG 的 pos/neg 注意力对比在 cfg1 单 cond 捷径下无锚点);
+②@cfg2 仅 0.36% 像素位移;③VLM 评手 A/B/B2 均 4/10。两轮独立 A/B 合流定谳:
+NAG 路线(任一节点)≠修手 v2 升级件,负向复活≠手能画好;真候选=
+Inpaint-CropAndStitch(手部裁切→放大重绘→缝回,v2 首选)/LanPaint。
 """
 from __future__ import annotations
 
